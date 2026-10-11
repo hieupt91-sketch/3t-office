@@ -14,7 +14,11 @@ Hướng dẫn tiếng Việt trong Trợ giúp: tìm “Hàm điều kiện, tr
 
 ## Nhóm 2 — Dán đặc biệt và thao tác dữ liệu
 
-NOT RUN.
+**PASS.** Thao tác UI qua CDP và đối chiếu Excel COM read-only: Paste Special values giữ `I2=1234.5` dưới dạng giá trị, formats chuyển định dạng đậm `B1 → I3` (`Bold=1` cả hai), formulas-only giữ `F3=C3*D3` và tính `709.8625`. Find/Replace phân biệt hoa/thường không thay chuỗi khác dạng; bỏ phân biệt thay trên phạm vi sổ làm việc. Excel đọc lại sheet `Sheet2` với `A1=Đã thay`.
+
+Sắp xếp hai mức trả về Hoàng Văn E, Lê Văn C, Nguyễn Văn A (`5678.9` trước `1234.5`), Phạm Thị D; khóa sắp xếp là tên tăng dần rồi số tiền giảm dần. Xóa trùng lặp giữ một hàng cho mỗi mã. Freeze Panes lưu SplitRow/SplitColumn `1/1`. Trạng thái sheet lưu đúng: tệp thử ẩn có `Sheet2:Visible=0`, tệp sau hiện có cả hai sheet Visible; ca quản lý đổi tên/di chuyển/xóa cho thứ tự cuối `S9 Review / Sheet1`. Ảnh: `fix-s9-find-replace.png`, `fix-s9-paste-special.png`, `fix-s9-multi-sort.png`, `fix-s9-sheet-hide.png`, `fix-s9-sheet-unhide.png`, `fix-s9-sheet-management.png` trong `evidence/`.
+
+Trợ giúp tiếng Việt mới trong tab Trợ giúp giải thích ẩn/hiện trang tính, đường dẫn Trang đầu → Ô → Định dạng và menu chuột phải trên thẻ trang tính.
 
 ## Nhóm 3 — Biểu đồ
 

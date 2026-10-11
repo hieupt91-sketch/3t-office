@@ -175,6 +175,7 @@ export const enStrings = {
     section: "Section"
   },
   sheetDialogs: {
+    hideSheetMenu: "Hide Sheet", unhideSheetMenu: "Unhide Sheet...", unhideSheetTitle: "Unhide Sheet", unhideSheetChoose: "Choose a sheet to show:", unhideSheetAction: "Unhide", cannotHideLastSheet: "You cannot hide the last visible worksheet.", noHiddenSheets: "There are no hidden worksheets.",
     close: "Close", cancel: "Cancel", cancelLong: "Cancel", apply: "Apply", range: "Range", rangeLabel: "Range:", value: "Value", save: "Save",
     pasteSpecialTitle: "Paste Special", pasteSpecialGroup: "Paste", pasteSpecialSource: "Keep Source Formatting", pasteSpecialAll: "All", pasteSpecialValues: "Values", pasteSpecialFormulas: "Formulas", pasteSpecialFormats: "Formats", pasteSpecialTranspose: "Transpose",
     mergeConfirmTitle: "Merge cells", mergeConfirmMessage: "Merging cells only keeps the upper-left value and discards other values.", mergeConfirmOk: "OK",
@@ -523,6 +524,8 @@ export const enStrings = {
     ,"sheet.col.unhide": { label: "Unhide Columns", tooltip: "Unhide hidden columns in the selection" }
     ,"sheet.sheet.rename": { label: "Rename Sheet...", tooltip: "Rename the current worksheet (same dialog as double-clicking the sheet tab)" }
     ,"sheet.sheet.moveOrCopy": { label: "Move or Copy Sheet...", tooltip: "Reorder tabs or duplicate a worksheet (data, formatting, Page Setup)" }
+    ,"sheet.sheet.hide": { label: "Hide Sheet", tooltip: "Hide the current worksheet tab" }
+    ,"sheet.sheet.unhide": { label: "Unhide Sheet...", tooltip: "Choose a hidden worksheet to show again" }
     ,"sheet.sheet.protect": { label: "Protect Sheet...", tooltip: "Lock cell edits, formatting, and row/column deletion on the current sheet (UI lock, not real security)" }
     ,"sheet.workbook.protect": { label: "Protect Workbook...", tooltip: "Lock workbook structure: no adding, deleting, renaming, moving, or copying sheets. Does not lock cell contents (UI lock, not real security)" }
     ,"sheet.chart.insert": { label: "Chart", tooltip: "Insert a chart to visualize data" }

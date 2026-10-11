@@ -1,5 +1,5 @@
 import { launchApp } from "../../../tests/live/cdp/session.mjs";
-import { mouseClick, mouseDrag, mouseTripleClick, press, typeText } from "../../../tests/live/cdp/actions.mjs";
+import { mouseClick, mouseDrag, mouseMove, mouseRightClick, mouseTripleClick, press, typeText, insertText } from "../../../tests/live/cdp/actions.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { mkdir } from "node:fs/promises";
@@ -41,6 +41,11 @@ const ops = [
   ["formulaConcat","H8","type",null,'=CONCAT(B2," test")'],["formulaText","H9","type",null,'=TEXT(C2,"0.00")'],
   ["formulaDate","H10","type",null,"=DATE(2020,1,2)"],
   ["formulaPack","H2","formulaPack",null,null],
+  ["sheetVisibilityPack","A1","sheetVisibilityPack",null,null],
+  ["sheetManagementPack","A1","sheetManagementPack",null,null],
+  ["customSort","B2","customSort","sheet.data.customSort","A1:C6"],
+  ["findReplacePack","A1","findReplacePack",null,null],
+  ["pasteSpecialPack","A1","pasteSpecialPack",null,null],
   ["conditional","C2","conditional","sheet.format.conditional","C2:C6"],
   ["formatAsTable","A1","tableStyle","sheet.style.formatAsTable","A1:G6"],["cellGood","B2","cellStyle","sheet.style.cellStyles","good"],
   ["sortAsc","B2","click","sheet.data.sortAsc"],["filter","B1","click","sheet.data.filter"],
@@ -62,7 +67,12 @@ for (const [name, cell, kind, id, value] of ops) {
       if(!duplicate)throw new Error("Could not locate audit duplicate cell A6");
       await mouseClick(session.cdp,duplicate.x,duplicate.y); await typeText(session.cdp,"1"); await press(session.cdp,"Enter");
     }
-    if (kind === "merge" || kind === "range" || kind === "shortcutDown" || kind === "shortcutRight" || kind === "conditional" || kind === "tableStyle" || kind === "chart" || kind === "removeDuplicates") {
+    if (kind === "merge" || kind === "range" || kind === "customSort" || kind === "shortcutDown" || kind === "shortcutRight" || kind === "conditional" || kind === "tableStyle" || kind === "chart" || kind === "removeDuplicates") {
+      if (kind === "customSort") {
+        const duplicate=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="B3"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if(!duplicate)throw new Error("Could not locate sort tie probe B3");
+        await mouseClick(session.cdp,duplicate.x,duplicate.y); await typeText(session.cdp,"Nguy\u1ec5n V\u0103n A"); await press(session.cdp,"Enter");
+      }
       const [from, to] = value.split(":");
       const range = JSON.parse(await ev(`(() => { const a=document.querySelector('.vno-grid-cell[data-coord="${from}"]'); const b=document.querySelector('.vno-grid-cell[data-coord="${to}"]'); if(!a||!b) return 'null'; const ar=a.getBoundingClientRect(), br=b.getBoundingClientRect(); return JSON.stringify({x1:ar.left+ar.width/2,y1:ar.top+ar.height/2,x2:br.left+br.width/2,y2:br.top+br.height/2}); })()`));
       if (!range) { console.log(name.padEnd(18), "khong thay vung", value); continue; }
@@ -72,14 +82,102 @@ for (const [name, cell, kind, id, value] of ops) {
     let status;
     if (kind === "widthControl") {
       status = "opened and saved unchanged width control";
+    } else if (kind === "sheetVisibilityPack") {
+      const clickSelector = async selector => {
+        const point = JSON.parse(await ev(`(() => {const n=document.querySelector(${JSON.stringify(selector)});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if (!point) throw new Error("Missing UI control: " + selector);
+        await mouseClick(session.cdp, point.x, point.y);
+      };
+      const tabPoint = async name => JSON.parse(await ev(`(() => {const n=[...document.querySelectorAll('.vno-sheet-tab-item')].find(x=>x.dataset.sheet===${JSON.stringify(name)});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+      const contextItem = async index => { const point=JSON.parse(await ev(`(() => {const n=document.querySelectorAll(".vno-sheet-context-item")[${index}];if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!point)throw new Error("Missing sheet context action index "+index);await mouseClick(session.cdp,point.x,point.y); };
+      await clickSelector(".vno-sheet-add-btn");
+      await session.cdp.waitFor("document.querySelectorAll('.vno-sheet-tab-item').length >= 2",{timeoutMilliseconds:10000});
+      let tab=await tabPoint("Sheet2");
+      if(!tab)tab=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-tab-item.is-active');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,name:n.dataset.sheet})})()`));
+      await mouseRightClick(session.cdp,tab.x,tab.y);
+      await contextItem(2);
+      const hiddenState=await ev("JSON.stringify({sheets:window.__vnoAppInstance.grid.sheets,active:window.__vnoAppInstance.grid.activeSheet,visibility:window.__vnoAppInstance.grid.sheetVisibilityBySheet,tabs:[...document.querySelectorAll('.vno-sheet-tab-item')].map(x=>x.dataset.sheet)})");
+      const evidenceDir=path.join(root,"docs","tickets-0710","evidence"); await mkdir(evidenceDir,{recursive:true});
+      const hiddenShot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);
+      await writeFile(path.join(evidenceDir,"fix-s9-sheet-hide.png"),Buffer.from((hiddenShot.result||hiddenShot).data,"base64"));
+      const hiddenOut=path.join(dir,"app_sheetVisibility_hidden.xlsx");
+      await ev("window.__vnoAppInstance.adapter.isDirty = true");
+      const hiddenContent=await ev("window.__vnoAppInstance.adapter.serializeToFods()");
+      const hiddenSave=await ev(`globalThis.globalUnoBridge.saveRealFileInPlace("sheet",${JSON.stringify(hiddenContent)},${JSON.stringify(hiddenOut)},${JSON.stringify(template)})`);
+      if(!hiddenSave||hiddenSave.status!=="ok")throw new Error("Hidden-state XLSX save failed");
+      const visibleName=JSON.parse(hiddenState).active;
+      tab=await tabPoint(visibleName);
+      await mouseRightClick(session.cdp,tab.x,tab.y);
+      await contextItem(3);
+      await sleep(200);
+      const selector=".vno-sheet-rule-dialog #vno-unhide-sheet";
+      const selectPos=JSON.parse(await ev(`(() => {const n=document.querySelector(${JSON.stringify(selector)});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+      if(!selectPos)throw new Error("Unhide dialog did not open");
+      const dialogShot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);
+      await writeFile(path.join(evidenceDir,"fix-s9-sheet-unhide.png"),Buffer.from((dialogShot.result||dialogShot).data,"base64"));
+      await mouseClick(session.cdp,selectPos.x,selectPos.y); await press(session.cdp,"ArrowDown"); await press(session.cdp,"Enter");
+      await clickSelector(".vno-sheet-rule-dialog .vno-rule-apply");
+      status="hidden save="+hiddenSave.status+" state="+hiddenState;
+    } else if (kind === "sheetManagementPack") {
+      const clickSelector=async selector=>{const point=JSON.parse(await ev(`(() => {const n=document.querySelector(${JSON.stringify(selector)});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!point)throw new Error("Missing sheet management UI control "+selector);await mouseClick(session.cdp,point.x,point.y);};
+      const tabPoint=async name=>JSON.parse(await ev(`(() => {const n=[...document.querySelectorAll('.vno-sheet-tab-item')].find(x=>x.dataset.sheet===${JSON.stringify(name)});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+      const openContext=async(name,index)=>{const p=await tabPoint(name);if(!p)throw new Error("Missing sheet tab "+name);await mouseRightClick(session.cdp,p.x,p.y);const item=JSON.parse(await ev(`(() => {const n=document.querySelectorAll(".vno-sheet-context-item")[${index}];if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!item)throw new Error("Missing sheet menu action index "+index);await mouseClick(session.cdp,item.x,item.y);};
+      await clickSelector(".vno-sheet-add-btn");await session.cdp.waitFor("document.querySelectorAll('.vno-sheet-tab-item').length>=2",{timeoutMilliseconds:10000});
+      await openContext("Sheet2",0); await clickSelector("#vno-rename-sheet");await press(session.cdp,"Home");await press(session.cdp,"End",{shift:true});await insertText(session.cdp,"S9 Review");const renameDebug=await ev("JSON.stringify({value:document.querySelector(\"#vno-rename-sheet\")?.value,active:document.activeElement?.id})");await clickSelector(".vno-sheet-rule-dialog .vno-rule-apply");await sleep(100);console.log("renameDebug="+renameDebug+" sheets="+await ev("JSON.stringify(window.__vnoAppInstance.grid.sheets)"));
+      await openContext("S9 Review",1);await press(session.cdp,"Home");await clickSelector(".vno-sheet-rule-dialog .vno-rule-apply");
+      await clickSelector(".vno-sheet-add-btn");await session.cdp.waitFor("document.querySelectorAll('.vno-sheet-tab-item').length>=3",{timeoutMilliseconds:10000});
+      await session.cdp.send("Page.enable");const dialogListener=event=>{try{const m=JSON.parse(String(event.data));if(m.method==="Page.javascriptDialogOpening")void session.cdp.send("Page.handleJavaScriptDialog",{accept:true},10000).catch(()=>{});}catch{}};session.cdp.socket.addEventListener("message",dialogListener);const deleteTab=await tabPoint("Sheet3");await mouseRightClick(session.cdp,deleteTab.x,deleteTab.y);const deleteItem=JSON.parse(await ev(`(() => {const n=document.querySelectorAll(".vno-sheet-context-item")[3];if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!deleteItem)throw new Error("Missing delete sheet menu item");await mouseClick(session.cdp,deleteItem.x,deleteItem.y);session.cdp.socket.removeEventListener("message",dialogListener);await sleep(200);
+      const state=await ev("JSON.stringify({sheets:window.__vnoAppInstance.grid.sheets,active:window.__vnoAppInstance.grid.activeSheet})");
+      const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);const evidenceDir=path.join(root,"docs","tickets-0710","evidence");await mkdir(evidenceDir,{recursive:true});await writeFile(path.join(evidenceDir,"fix-s9-sheet-management.png"),Buffer.from((shot.result||shot).data,"base64"));status="rename/move/delete via context menus; "+state;
+    } else if (kind === "customSort") {
+      const clickSelector=async selector=>{const point=JSON.parse(await ev(`(() => {const n=document.querySelector(${JSON.stringify(selector)});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!point)throw new Error("Missing sort control "+selector);await mouseClick(session.cdp,point.x,point.y);};
+      if(!(await ev("!!document.querySelector('#vno-cs-levels')"))){
+        const anchor=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="B2"]');const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        await mouseRightClick(session.cdp,anchor.x,anchor.y); await sleep(100);
+        let menuItem=JSON.parse(await ev(`(() => {const n=[...document.querySelectorAll(".vno-context-menu-item")].find(x=>x.textContent.trim().startsWith("S\u1eafp x\u1ebfp t\u00f9y ch\u1ec9nh"));if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if(!menuItem){const parent=JSON.parse(await ev(`(() => {const n=[...document.querySelectorAll(".vno-context-menu-item")].find(x=>x.textContent.trim()==="S\u1eafp x\u1ebfp");if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+n.getBoundingClientRect().height/2})})()`));if(parent){await mouseMove(session.cdp,parent.x,parent.y);await sleep(250);menuItem=JSON.parse(await ev(`(() => {const n=[...document.querySelectorAll(".vno-context-submenu .vno-context-menu-item")].find(x=>x.textContent.trim().startsWith("S\u1eafp x\u1ebfp t\u00f9y ch\u1ec9nh"));if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));}}
+        if(!menuItem)throw new Error("Custom Sort did not open from ribbon or cell context menu");
+        await mouseClick(session.cdp,menuItem.x,menuItem.y); await sleep(200);
+      }
+      await clickSelector(".vno-cs-level:nth-child(1) .vno-cs-col"); await press(session.cdp,"ArrowDown"); await press(session.cdp,"Enter");
+      await clickSelector(".vno-cs-level:nth-child(2) .vno-cs-col"); await press(session.cdp,"ArrowDown"); await press(session.cdp,"Enter");
+      await clickSelector(".vno-cs-level:nth-child(2) .vno-cs-order"); await press(session.cdp,"ArrowDown"); await press(session.cdp,"Enter");
+      const apply=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+      if(!apply)status="NO_SORT_APPLY"; else {await mouseClick(session.cdp,apply.x,apply.y);const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);const evidenceDir=path.join(root,"docs","tickets-0710","evidence");await mkdir(evidenceDir,{recursive:true});await writeFile(path.join(evidenceDir,"fix-s9-multi-sort.png"),Buffer.from((shot.result||shot).data,"base64"));status="sorted by name ascending then amount descending";}
+    } else if (kind === "findReplacePack") {
+      const clickSelector = async selector => {const point=JSON.parse(await ev(`(() => {const n=document.querySelector(${JSON.stringify(selector)});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!point)throw new Error("Missing UI control: "+selector);await mouseClick(session.cdp,point.x,point.y);};
+      await clickSelector(".vno-sheet-add-btn"); await session.cdp.waitFor("document.querySelectorAll('.vno-sheet-tab-item').length >= 2",{timeoutMilliseconds:10000});
+      await typeText(session.cdp,"Ghi ch\u00fa C"); await press(session.cdp,"Enter"); await press(session.cdp,"h",{ctrl:true}); await sleep(250);
+      await clickSelector("#vno-fr-tab-replace");
+      for(const [selector,textValue] of [["#vno-fr-find-input","ghi ch\u00fa C"],["#vno-fr-replace-input","\u0110\u00e3 thay"]]){await clickSelector(selector);await press(session.cdp,"a",{ctrl:true});await insertText(session.cdp,textValue);}
+      const entered=await ev("JSON.stringify({find:document.querySelector('#vno-fr-find-input')?.value,replace:document.querySelector('#vno-fr-replace-input')?.value})");
+      await clickSelector("#vno-fr-opt-case"); await clickSelector("#vno-fr-opt-scope"); await press(session.cdp,"ArrowDown"); await press(session.cdp,"Enter");
+      await clickSelector("#vno-fr-replace-all-btn"); const caseSensitive=await ev("document.querySelector('#vno-fr-status')?.textContent||''");
+      await clickSelector("#vno-fr-opt-case"); await clickSelector("#vno-fr-replace-all-btn"); const insensitive=await ev("document.querySelector('#vno-fr-status')?.textContent||''");
+      const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000); const evidenceDir=path.join(root,"docs","tickets-0710","evidence"); await mkdir(evidenceDir,{recursive:true}); await writeFile(path.join(evidenceDir,"fix-s9-find-replace.png"),Buffer.from((shot.result||shot).data,"base64"));
+      status="entered="+entered+"; case-sensitive="+caseSensitive+"; case-insensitive="+insensitive;
+    } else if (kind === "pasteSpecialPack") {
+      const clickCell=async coord=>{const point=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="${coord}"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!point)throw new Error("Missing cell "+coord);await mouseClick(session.cdp,point.x,point.y);};
+      const clickSelector=async selector=>{const point=JSON.parse(await ev(`(() => {const n=document.querySelector(${JSON.stringify(selector)});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!point)throw new Error("Missing UI control "+selector);await mouseClick(session.cdp,point.x,point.y);};
+      await clickCell("C2"); await press(session.cdp,"c",{ctrl:true}); await clickCell("I2"); await press(session.cdp,"v",{ctrl:true,alt:true}); await sleep(200); await clickSelector('.vno-paste-special-dialog input[value="values"]'); await clickSelector(".vno-sheet-rule-dialog .vno-rule-apply");
+      await clickCell("B1"); await press(session.cdp,"b",{ctrl:true}); await press(session.cdp,"c",{ctrl:true}); await clickCell("I3"); await press(session.cdp,"v",{ctrl:true,alt:true}); await sleep(200); await clickSelector('.vno-paste-special-dialog input[value="formats"]'); await clickSelector(".vno-sheet-rule-dialog .vno-rule-apply");
+      await clickCell("F2"); await press(session.cdp,"c",{ctrl:true}); await clickCell("F3");
+      const dest=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="F3"]');const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+      await mouseRightClick(session.cdp,dest.x,dest.y);
+      const parent=JSON.parse(await ev(`(() => {const n=document.querySelectorAll(".vno-context-menu-item")[3];if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+      if(!parent)throw new Error("Missing Paste Special context submenu"); await mouseMove(session.cdp,parent.x,parent.y); await sleep(250);
+      const formula=JSON.parse(await ev(`(() => {const n=document.querySelectorAll(".vno-context-submenu .vno-context-menu-item")[1];if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+      if(!formula)throw new Error("Missing Paste Formulas Only context action"); await mouseClick(session.cdp,formula.x,formula.y);
+      const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000); const evidenceDir=path.join(root,"docs","tickets-0710","evidence"); await mkdir(evidenceDir,{recursive:true}); await writeFile(path.join(evidenceDir,"fix-s9-paste-special.png"),Buffer.from((shot.result||shot).data,"base64"));
+      status="pasted values, formats, and relative formulas through UI";
     } else if (kind === "type") {
       await typeText(session.cdp, value); await press(session.cdp, "Enter"); status = "typed formula";
     } else if (kind === "formulaPack") {
       const formulas = [
-        '=SUMIF(A2:A6,">2",C2:C6)', '=SUMIFS(C2:C6,A2:A6,">2")', '=COUNTIF(B2:B6,"*Văn*")',
-        '=COUNTIFS(A2:A6,">2",C2:C6,">0")', '=IFERROR(1/0,"Lỗi")', '=ROUND(C2,1)', '=LEFT(B2,3)',
+        '=SUMIF(A2:A6,">2",C2:C6)', '=SUMIFS(C2:C6,A2:A6,">2")', '=COUNTIF(B2:B6,"*V\u0103n*")',
+        '=COUNTIFS(A2:A6,">2",C2:C6,">0")', '=IFERROR(1/0,"L\u1ed7i")', '=ROUND(C2,1)', '=LEFT(B2,3)',
         '=MID(B2,2,4)', '=RIGHT(B2,3)', '=TEXT(C2,"#,##0.00")', '=TEXT(DATE(2020,1,2),"dd/mm/yyyy")',
-        '=NA()', '=HLOOKUP("Số tiền",A1:E6,2,FALSE)', '=MATCH("Lê Văn C",B2:B6,0)', '=OFFSET(C2,1,0)',
+        '=NA()', '=HLOOKUP("S\u1ed1 ti\u1ec1n",A1:E6,2,FALSE)', '=MATCH("L\u00ea V\u0103n C",B2:B6,0)', '=OFFSET(C2,1,0)',
         '=INDIRECT("C2")', '=SUMPRODUCT(C2:C6,D2:D6)', '=DATE(2024,2,29)', '=YEAR(DATE(2024,2,29))',
         '=MONTH(DATE(2024,2,29))', '=DAY(DATE(2024,2,29))', '=EDATE(DATE(2024,1,31),1)',
         '=EOMONTH(DATE(2024,2,1),0)', '=WEEKDAY(DATE(2024,2,29),2)', '=NETWORKDAYS(DATE(2024,2,26),DATE(2024,3,1))',

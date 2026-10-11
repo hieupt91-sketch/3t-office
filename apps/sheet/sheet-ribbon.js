@@ -251,6 +251,8 @@ export const SHEET_RIBBON_TABS = [
               { commandId: "sheet.col.unhide" },
               { commandId: "sheet.sheet.rename" },
               { commandId: "sheet.sheet.moveOrCopy" },
+              { commandId: "sheet.sheet.hide" },
+              { commandId: "sheet.sheet.unhide" },
               { commandId: "sheet.sheet.protect" }
             ]
           }

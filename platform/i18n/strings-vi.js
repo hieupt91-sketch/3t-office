@@ -174,6 +174,7 @@ export const viStrings = {
     section: "Phần"
   },
   sheetDialogs: {
+    hideSheetMenu: "Ẩn trang tính", unhideSheetMenu: "Hiện trang tính...", unhideSheetTitle: "Hiện trang tính", unhideSheetChoose: "Chọn trang tính cần hiện:", unhideSheetAction: "Hiện", cannotHideLastSheet: "Không thể ẩn trang tính cuối cùng đang hiển thị.", noHiddenSheets: "Không có trang tính nào đang ẩn.",
     close: "Đóng", cancel: "Hủy", cancelLong: "Hủy bỏ", apply: "Áp dụng", range: "Phạm vi", rangeLabel: "Vùng:", value: "Giá trị", save: "Lưu",
     pasteSpecialTitle: "Dán đặc biệt", pasteSpecialGroup: "Dán", pasteSpecialSource: "Giữ định dạng nguồn", pasteSpecialKeepSource: "Giữ định dạng nguồn", pasteSpecialText: "Chỉ giữ văn bản", pasteSpecialAll: "Giữ định dạng nguồn", pasteSpecialValues: "Chỉ giá trị", pasteSpecialFormulas: "Chỉ công thức", pasteSpecialFormats: "Chỉ định dạng", pasteSpecialTranspose: "Chuyển vị (đổi hàng/cột)",
     mergeConfirmTitle: "Trộn ô", mergeConfirmMessage: "Vùng chọn có nhiều ô chứa dữ liệu. Chỉ dữ liệu ở ô trên cùng bên trái của mỗi vùng gộp được giữ lại.", mergeConfirmOk: "Tiếp tục gộp",
@@ -524,6 +525,8 @@ export const viStrings = {
     ,"sheet.col.unhide": { label: "Hiện cột", tooltip: "Hiện các cột đã ẩn trong vùng chọn" }
     ,"sheet.sheet.rename": { label: "Đổi tên trang tính...", tooltip: "Đổi tên trang tính hiện tại (cùng hộp thoại với nhấp đúp tab dưới lưới)" }
     ,"sheet.sheet.moveOrCopy": { label: "Di chuyển hoặc Sao chép trang tính...", tooltip: "Đổi thứ tự tab hoặc tạo bản sao trang tính (dữ liệu, định dạng, Page Setup)" }
+    ,"sheet.sheet.hide": { label: "Ẩn trang tính", tooltip: "Ẩn tab trang tính hiện tại" }
+    ,"sheet.sheet.unhide": { label: "Hiện trang tính...", tooltip: "Chọn trang tính đang ẩn để hiện lại" }
     ,"sheet.sheet.protect": { label: "Bảo vệ trang tính...", tooltip: "Khóa sửa ô, định dạng và xóa hàng/cột trên trang tính hiện tại (khóa giao diện, không phải bảo mật thật)" }
     ,"sheet.workbook.protect": { label: "Bảo vệ workbook...", tooltip: "Khóa cấu trúc workbook: không thêm, xóa, đổi tên, di chuyển hay sao chép trang tính. Không khóa nội dung ô (khóa giao diện, không phải bảo mật thật)" }
     ,"sheet.chart.insert": { label: "Biểu đồ", tooltip: "Chèn biểu đồ phân tích dữ liệu" }

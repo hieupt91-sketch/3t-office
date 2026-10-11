@@ -225,5 +225,22 @@ export async function runMultiSheetTests() {
     }
   });
 
+  test("Multi-Sheet Visibility: ẩn, hiện, hoàn tác và không ẩn trang cuối", () => {
+    const grid = createSheetGridWithSheets(createMockContainer(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
+    if (!grid.hideSheet("Dự toán chi phí")) throw new Error("Could not hide the active worksheet");
+    if (grid.activeSheet === "Dự toán chi phí") throw new Error("Hiding the active sheet did not switch to a visible sheet");
+    if (grid.sheetVisibilityBySheet["Dự toán chi phí"] !== "hidden") throw new Error("Hidden state was not recorded");
+    if (!grid.unhideSheet("Dự toán chi phí")) throw new Error("Could not unhide the worksheet");
+    if (grid.sheetVisibilityBySheet["Dự toán chi phí"]) throw new Error("Unhide did not clear the hidden state");
+    grid.undo();
+    if (grid.sheetVisibilityBySheet["Dự toán chi phí"] !== "hidden") throw new Error("Undo did not restore the hidden state");
+    grid.redo();
+    if (grid.sheetVisibilityBySheet["Dự toán chi phí"]) throw new Error("Redo did not restore the visible state");
+
+    const oneSheet = createSheetGridWithSheets(createMockContainer(), ["Chỉ một"]);
+    if (oneSheet.hideSheet("Chỉ một")) throw new Error("The last visible worksheet must not be hidden");
+    if (oneSheet.sheetVisibilityBySheet["Chỉ một"]) throw new Error("The final worksheet unexpectedly became hidden");
+  });
+
   return results;
 }

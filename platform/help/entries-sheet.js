@@ -470,6 +470,22 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.sheet.visibility",
+    app: "sheet",
+    commandIds: ["sheet.sheet.hide", "sheet.sheet.unhide", "sheet.sheet.rename", "sheet.sheet.moveOrCopy"],
+    title: "Ẩn, hiện, đổi tên và sắp xếp trang tính",
+    summary: "Ẩn trang tính khỏi dải tab, hiện lại trang tính đã ẩn, đổi tên hoặc di chuyển trang tính trong workbook.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Ô" },
+    keywords: ["ẩn trang tính", "hiện trang tính", "hide sheet", "unhide sheet", "đổi tên sheet", "di chuyển sheet", "tab trang tính"],
+    steps: [
+      "Chọn tab trang tính cần thao tác. Mở Trang đầu → nhóm Ô → Định dạng; các lệnh Ẩn trang tính và Hiện trang tính nằm ở cuối danh sách. Hoặc nhấp phải trực tiếp lên tab để mở menu thao tác.",
+      "Chọn Ẩn trang tính để bỏ tab khỏi thanh dưới lưới. Sheet giữ dữ liệu và tự chuyển sang một trang tính đang hiện; không thể ẩn trang tính cuối cùng còn hiển thị.",
+      "Để khôi phục, chọn Hiện trang tính, chọn tên trong danh sách rồi nhấn Hiện. Trang tính xuất hiện lại trên thanh tab.",
+      "Đổi tên bằng Đổi tên trang tính hoặc nhấp đúp tab, nhập tên mới rồi xác nhận. Di chuyển hoặc sao chép bằng lệnh Di chuyển hoặc Sao chép trang tính, chọn vị trí chèn và đánh dấu Tạo một bản sao nếu muốn giữ trang gốc.",
+      "Xóa trang tính bằng menu nhấp phải tab → Xóa trang tính rồi xác nhận. Ctrl+Z hoàn tác thao tác ẩn/hiện, đổi tên và di chuyển; việc xóa cũng có thể hoàn tác ngay sau khi thực hiện."
+    ]
+  },
+  {
     id: "sheet.sheet.deleteAndTabColor", app: "sheet",
     commandIds: [],
     title: "Xóa trang tính và đổi màu tab",
