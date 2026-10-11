@@ -20,11 +20,15 @@ const ops = [
   ["decInc","C2","click","sheet.format.increaseDecimal"],["decDec","C2","click","sheet.format.decreaseDecimal"],["standard","C2","click","sheet.format.standard"],["percentBtn","D2","click","sheet.format.percent"],["bordersDefault","B2","click","sheet.cell.borders"],
   ["indentIncrease","B2","click","sheet.cell.indentIncrease"],["mergeCenter","A8","merge","sheet.cell.mergeCenter","A8:B8"],
   ["autoSum","C7","click","sheet.formula.sum"],["fillDown","B2","shortcutDown","Ctrl+D","B2:B3"],
+  ["insertRow","A3","click","sheet.row.insert"],["deleteRow","A3","click","sheet.row.delete"],
+  ["insertCol","B2","click","sheet.col.insert"],["deleteCol","B2","click","sheet.col.delete"],
   ["formulaSum","H2","type",null,"=SUM(C2:C6)"],["formulaAverage","H3","type",null,"=AVERAGE(C2:C6)"],
   ["formulaCount","H4","type",null,"=COUNT(C2:C6)"],["formulaIf","H5","type",null,'=IF(C2>1000,"Yes","No")'],
   ["formulaVlookup","H6","type",null,"=VLOOKUP(1,A2:B6,2,FALSE)"],["formulaIndexMatch","H7","type",null,"=INDEX(B2:B6,MATCH(1,A2:A6,0))"],
   ["formulaConcat","H8","type",null,'=CONCAT(B2," test")'],["formulaText","H9","type",null,'=TEXT(C2,"0.00")'],
   ["formulaDate","H10","type",null,"=DATE(2020,1,2)"],
+  ["conditional","C2","conditional","sheet.format.conditional","C2:C6"],
+  ["formatAsTable","A1","tableStyle","sheet.style.formatAsTable","A1:G6"],["cellGood","B2","cellStyle","sheet.style.cellStyles","good"],
   ["sortAsc","B2","click","sheet.data.sortAsc"],["filter","B1","click","sheet.data.filter"],
 ];
 const only = (process.env.OPS || "").split(",").filter(Boolean);
@@ -39,7 +43,7 @@ for (const [name, cell, kind, id, value] of ops) {
     await sleep(1500);
     const pos = JSON.parse(await ev(`(() => { const e=document.querySelector('.vno-grid-cell[data-coord="${cell}"]'); if(!e) return 'null'; e.scrollIntoView({block:'nearest'}); const r=e.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2}); })()`));
     if (!pos) { console.log(name.padEnd(18), "khong thay o", cell); continue; }
-    if (kind === "merge" || kind === "range" || kind === "shortcutDown") {
+    if (kind === "merge" || kind === "range" || kind === "shortcutDown" || kind === "conditional" || kind === "tableStyle") {
       const [from, to] = value.split(":");
       const range = JSON.parse(await ev(`(() => { const a=document.querySelector('.vno-grid-cell[data-coord="${from}"]'); const b=document.querySelector('.vno-grid-cell[data-coord="${to}"]'); if(!a||!b) return 'null'; const ar=a.getBoundingClientRect(), br=b.getBoundingClientRect(); return JSON.stringify({x1:ar.left+ar.width/2,y1:ar.top+ar.height/2,x2:br.left+br.width/2,y2:br.top+br.height/2}); })()`));
       if (!range) { console.log(name.padEnd(18), "khong thay vung", value); continue; }
@@ -51,7 +55,7 @@ for (const [name, cell, kind, id, value] of ops) {
       await typeText(session.cdp, value); await press(session.cdp, "Enter"); status = "typed formula";
     } else if (kind === "shortcutDown") {
       await press(session.cdp, "d", { ctrl: true }); status = "pressed Ctrl+D";
-    } else if (kind === "click" || kind === "merge" || kind === "range") {
+    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle") {
       const button = JSON.parse(await ev(`(() => { const nodes=[...document.querySelectorAll('[data-command-id="${id}"]')]; const visible=n=>{const r=n.getBoundingClientRect(),s=getComputedStyle(n);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'}; const v=nodes.find(visible); if(v){const r=v.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})} const group=nodes[0]?.closest('.vno-ribbon-group.vno-group-collapsed'); const btn=group?.querySelector('.vno-ribbon-group-collapsed-btn'); if(!btn||!visible(btn)) return 'null'; const r=btn.getBoundingClientRect();return JSON.stringify({collapsed:{x:r.left+r.width/2,y:r.top+r.height/2}}) })()`));
       if (!button) status = "NO_BUTTON";
       else if (button.collapsed) {
@@ -60,6 +64,20 @@ for (const [name, cell, kind, id, value] of ops) {
         if (!item) status = "NO_BUTTON_IN_POPOVER";
         else { await mouseClick(session.cdp, item.x, item.y); status = "clicked"; }
       } else { await mouseClick(session.cdp, button.x, button.y); status = "clicked"; }
+      if (kind === "conditional" && status === "clicked") {
+        await sleep(350);
+        const dialog = await ev(`(() => { const type=document.querySelector('#vno-cf-type'), val=document.querySelector('#vno-cf-value'), color=document.querySelector('#vno-cf-color'); if(!type||!val) return false; type.value='greaterThan'; type.dispatchEvent(new Event('change',{bubbles:true})); val.value='2000'; val.dispatchEvent(new Event('input',{bubbles:true})); if(color) color.value='#fed7aa'; const btn=document.querySelector('.vno-rule-apply'); if(!btn) return false; const r=btn.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2}); })()`);
+        const apply = typeof dialog === "string" ? JSON.parse(dialog) : dialog;
+        if (!apply) status = "NO_RULE_DIALOG";
+        else { await mouseClick(session.cdp, apply.x, apply.y); status = "applied > 2000"; }
+      }
+      if ((kind === "tableStyle" || kind === "cellStyle") && status === "clicked") {
+        await sleep(350);
+        const selector = kind === "tableStyle" ? ".vno-table-style-card" : `.vno-cell-style-card[data-style-id="${value}"]`;
+        const card = JSON.parse(await ev(`(() => { const n=document.querySelector(${JSON.stringify(selector)}); if(!n) return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2}) })()`));
+        if (!card) status = "NO_STYLE_CARD";
+        else { await mouseClick(session.cdp, card.x, card.y); status = "applied style"; }
+      }
     } else {
       status = await ev(`(() => { const s=document.querySelector('select[data-command-id="${id}"]'); if(!s) return 'NO_SELECT'; const opts=[...s.options].map(o=>o.value); const has=opts.includes(${JSON.stringify(value)}); s.value=${JSON.stringify(value)}; s.dispatchEvent(new Event('change',{bubbles:true})); return 'select '+(has?'ok':'GIA TRI KHONG CO trong '+opts.slice(0,12).join('/')); })()`);
     }
