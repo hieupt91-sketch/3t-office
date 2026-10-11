@@ -64,3 +64,10 @@
 - Đã thử Căn trên, Căn giữa dọc và Căn dưới bằng CDP trên B2. Excel COM ReadOnly cả ba file đều cho `VerticalAlignment=-4107` (Bottom), trùng trạng thái fixture và app model `verticalAlign=bottom`.
 - Ảnh probe cho thấy tab Dữ liệu đang hiện sau thao tác. Harness đã được chỉnh để mở nhóm ribbon thu gọn và đợi tab yêu cầu hoạt động; lần lặp vẫn không chứng minh được lệnh đã thực thi.
 - Ba command ID vẫn **CHƯA ĐỐI CHIẾU**; không dùng phản ứng `clicked` làm bằng chứng. Ảnh `evidence/s12/fix-s12-alignTop.png`, `fix-s12-alignMiddle.png`, `fix-s12-alignBottom.png`; log `s12-vertical-align-retry.log`, `excel-alignTop-retry.log`, `excel-alignMiddle-retry.log`, `excel-alignBottom-retry.log`.
+
+## Bố trí trang: Xóa vùng in — lệch đã biết
+
+- Đặt vùng in A1 qua UI/CDP; Excel COM ReadOnly xác nhận tệp đầu có `PrintArea='$A$1'`.
+- Mở chính XLSX đó trong app, bấm Xóa vùng in. App model sau click có `printAreaBySheet.Sheet1=null`; Excel COM ReadOnly trên XLSX lưu sau đó vẫn thấy `PrintArea='$A$1'`. **LỆCH ĐÃ BIẾT**.
+- Ảnh thao tác xóa: `evidence/s12/fix-s12-clearArea.png`; log CDP `s12-clear-area-retry.log`, Excel COM `excel-clearArea-retry.log`.
+- Đường ghi/xuất thuộc `adapters/**`; đã tạo handoff riêng cho owner adapter, không sửa chéo ownership trong lượt này.
