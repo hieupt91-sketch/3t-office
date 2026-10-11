@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 59 · LỆCH ĐÃ BIẾT: 13 · CHƯA ĐỐI CHIẾU: 66.
+Tổng 138 nút — KHỚP EXCEL: 72 · CHƯA ĐỐI CHIẾU: 66.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -33,7 +33,7 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Trang đầu | `sheet.cell.alignLeft` | Căn trái | KHỚP EXCEL | FIX-S12 Trang dau: CDP click Can trai; Excel COM ReadOnly xac nhan B2 HorizontalAlignment=-4131 (app_S12_alignLeft.xlsx) | dom:1 |
 | Trang đầu | `sheet.cell.alignCenter` | Căn giữa | KHỚP EXCEL | FIX-S12 nhóm Trang đầu: CDP click căn giữa; Excel COM ReadOnly HAl=-4108 tại B2 (app_alignCenter.xlsx) | dom:1 |
 | Trang đầu | `sheet.cell.alignRight` | Căn phải | KHỚP EXCEL | FIX-S12 nhóm Trang đầu: CDP click căn phải; Excel COM ReadOnly HAl=-4152 tại B2 (app_alignRight.xlsx) | dom:1 |
-| Trang đầu | `sheet.cell.indentDecrease` | Giảm thụt lề | LỆCH ĐÃ BIẾT | FIX-S12: CDP giảm indentLevel về 0 nhưng XLSX Excel COM ReadOnly vẫn IndentLevel=1; handoff adapter ở docs/AGENT-HANDOFF-FIX-S12-INDENT-DECREASE.md | dialog,toast:A1 |
+| Trang đầu | `sheet.cell.indentDecrease` | Giảm thụt lề | KHỚP EXCEL | FIX-S13: CDP giảm thụt lề về 0; Excel COM ReadOnly xác nhận Indent=0 (app_s13_indentDecrease.xlsx) | dialog,toast:A1 |
 | Trang đầu | `sheet.cell.indentIncrease` | Tăng thụt lề | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dialog,toast:A1 |
 | Trang đầu | `sheet.cell.mergeCenter` | Trộn & căn giữa | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dom:1 |
 | Trang đầu | `sheet.cell.mergeAcross` | Trộn theo hàng | KHỚP EXCEL | FIX-S12 Trang đầu: CDP chọn A8:B8 và bấm lệnh; Excel COM ReadOnly xác nhận A8.MergeCells=True | dialog,toast:A1 |
@@ -72,13 +72,13 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Bố trí trang | `sheet.page.orientation` | Hướng giấy | KHỚP EXCEL | FIX-S8/FIX-S7: CDP và Excel COM read-only xác nhận name, rotation, dimensions, visibility, print area/orientation | dialog,toast:A1 |
 | Bố trí trang | `sheet.page.size` | Khổ giấy | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Bố trí trang | `sheet.page.setPrintArea` | Đặt vùng in | KHỚP EXCEL | FIX-S8/FIX-S7: CDP và Excel COM read-only xác nhận name, rotation, dimensions, visibility, print area/orientation | dom:120 |
-| Bố trí trang | `sheet.page.clearPrintArea` | Xóa vùng in | LỆCH ĐÃ BIẾT | FIX-S12: CDP xóa printAreaBySheet về null nhưng XLSX Excel COM ReadOnly vẫn có PrintArea=$A$1; handoff adapter ở docs/AGENT-HANDOFF-FIX-S12-CLEAR-PRINT-AREA.md | dom:120 |
+| Bố trí trang | `sheet.page.clearPrintArea` | Xóa vùng in | KHỚP EXCEL | FIX-S13: CDP xóa vùng in; Excel COM ReadOnly xác nhận PageSetup.PrintArea rỗng (app_s13_clearArea.xlsx) | dom:120 |
 | Bố trí trang | `sheet.page.insertPageBreak` | Chèn ngắt trang | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:120 |
 | Bố trí trang | `sheet.page.removePageBreak` | Xóa ngắt trang | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:120 |
 | Bố trí trang | `sheet.page.printTitles` | Tiêu đề in | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | skipped(dangerous) |
 | Bố trí trang | `sheet.page.scale` | Tỷ lệ vừa trang | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
-| Bố trí trang | `sheet.view.gridlines` | Đường lưới | LỆCH ĐÃ BIẾT | FIX-S12: CDP đổi gridlinesVisible/headingsVisible thành false nhưng XLSX Excel COM ReadOnly giữ DisplayGridlines/Headings=1; handoff adapter ở docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md | dom:23 |
-| Bố trí trang | `sheet.view.headings` | Tiêu đề | LỆCH ĐÃ BIẾT | FIX-S12: CDP đổi gridlinesVisible/headingsVisible thành false nhưng XLSX Excel COM ReadOnly giữ DisplayGridlines/Headings=1; handoff adapter ở docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md | dom:23 |
+| Bố trí trang | `sheet.view.gridlines` | Đường lưới | KHỚP EXCEL | FIX-S13: CDP ẩn đường lưới và tiêu đề; Excel COM ReadOnly xác nhận DisplayGridlines=0 và DisplayHeadings=0 (app_s13_gridlines.xlsx, app_s13_headings.xlsx) | dom:23 |
+| Bố trí trang | `sheet.view.headings` | Tiêu đề | KHỚP EXCEL | FIX-S13: CDP ẩn đường lưới và tiêu đề; Excel COM ReadOnly xác nhận DisplayGridlines=0 và DisplayHeadings=0 (app_s13_gridlines.xlsx, app_s13_headings.xlsx) | dom:23 |
 | Công thức | `sheet.formula.insertFunction` | Chèn hàm (Shift+F3) | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog |
 | Công thức | `sheet.formula.sum` | AutoSum (Alt+=) | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dom:16 |
 | Công thức | `sheet.formula.average` | Trung bình | KHỚP EXCEL | FIX-S12 tab Công thức: CDP click Trung bình; Excel COM ReadOnly xác nhận =AVERAGE(C2:C6), Value2=4123.02 (app_S12fix_averageBtn.xlsx) | dom:16 |
@@ -99,7 +99,7 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Công thức | `sheet.formula.tracePrecedents` | Tìm ô tiền lệ | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:3 |
 | Công thức | `sheet.formula.traceDependents` | Tìm ô phụ thuộc | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:3 |
 | Công thức | `sheet.formula.removeArrows` | Xóa mũi tên | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:3 |
-| Công thức | `sheet.formula.showFormulas` | Hiện công thức | LỆCH ĐÃ BIẾT | FIX-S12: CDP hien cong thuc tren UI nhung Excel COM ReadOnly doc ActiveWindow.DisplayFormulas=0 cho XLSX; handoff adapter trong docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md | dom:113 |
+| Công thức | `sheet.formula.showFormulas` | Hiện công thức | KHỚP EXCEL | FIX-S13: CDP nhấn Ctrl+` thật; Excel COM ReadOnly xác nhận ActiveWindow.DisplayFormulas=1 (app_s13_showFormulas.xlsx) | dom:113 |
 | Công thức | `sheet.formula.errorChecking` | Kiểm tra lỗi | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog |
 | Công thức | `sheet.formula.evaluateFormula` | Ước lượng công thức | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Công thức | `sheet.formula.watchWindow` | Cửa sổ theo dõi | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog |
@@ -119,7 +119,7 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Dữ liệu | `sheet.data.ungroup` | Bỏ nhóm | KHỚP EXCEL | FIX-S12 Du lieu: CDP chon hang 2:6 va bam Nhom/Bỏ nhóm tren tung XLSX; Excel COM ReadOnly OutlineLevel=2 sau Nhom va =1 sau Bỏ nhóm (app_S12_groupRows.xlsx, app_S12_ungroupRows.xlsx) | dom:1 |
 | Dữ liệu | `sheet.data.subtotal` | Tổng phụ | KHỚP EXCEL | FIX-S12 Du lieu: CDP chon A1:C6, tao hai ten trung lien nhau, tong phu theo Ho ten/SUM So tien; Excel COM ReadOnly xac nhan Nguyen Van A=6913.4 va Grand Total=20615.1 (app_S12_subtotal.xlsx) | dialog,toast:A1 |
 | Dữ liệu | `sheet.data.pivotTable` | Bảng tổng hợp | KHỚP EXCEL | FIX-S12 Du lieu: CDP chon A1:C6, tao Pivot theo Ho ten va SUM So tien; Excel COM ReadOnly xac nhan Sheet1 (2) PivotTables.Count=1, cot nhan va gia tri (app_S12_pivotTable.xlsx) | dialog,toast:A1 |
-| Dữ liệu | `sheet.data.pivotRefresh` | Làm mới Pivot | LỆCH ĐÃ BIẾT | FIX-S12: Excel COM doc nguon C2=2222 nhung Pivot output cu van con gia tri truoc do va lap cac hang sau refresh; handoff adapter tai docs/AGENT-HANDOFF-FIX-S12-PIVOT-REFRESH.md | dom:1 |
+| Dữ liệu | `sheet.data.pivotRefresh` | Làm mới Pivot | KHỚP EXCEL | FIX-S13: CDP sửa nguồn C2=2222 rồi làm mới; Excel COM ReadOnly xác nhận PivotTables.Count=1, tổng 2222 và không lặp hàng (app_s13_pivotRefresh.xlsx) | dom:1 |
 | Xem xét | `sheet.review.spellCheck` | Chính tả | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Xem xét | `sheet.review.toggleSpellCheck` | Kiểm tra chính tả | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:9 |
 | Xem xét | `sheet.review.commentInsert` | Ghi chú mới | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
@@ -130,16 +130,16 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Xem xét | `sheet.sheet.protect` | Bảo vệ trang tính... | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Xem xét | `sheet.workbook.protect` | Bảo vệ workbook... | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Chế độ xem | `sheet.view.normal` | Bình thường | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:142 |
-| Chế độ xem | `sheet.view.pageBreakPreview` | Xem ngắt trang | LỆCH ĐÃ BIẾT | FIX-S12: CDP hien thi che do Xem ngat trang/Bo tri trang nhung Excel COM ReadOnly doc ActiveWindow.View=1 (Normal) cho ca XLSX; handoff adapter trong docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md | dom:145 |
-| Chế độ xem | `sheet.view.pageLayout` | Bố trí trang | LỆCH ĐÃ BIẾT | FIX-S12: CDP hien thi che do Xem ngat trang/Bo tri trang nhung Excel COM ReadOnly doc ActiveWindow.View=1 (Normal) cho ca XLSX; handoff adapter trong docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md | dom:147 |
+| Chế độ xem | `sheet.view.pageBreakPreview` | Xem ngắt trang | KHỚP EXCEL | FIX-S13: CDP chọn Xem ngắt trang; Excel COM ReadOnly xác nhận ActiveWindow.View=2 (app_s13_pageBreakPreview.xlsx) | dom:145 |
+| Chế độ xem | `sheet.view.pageLayout` | Bố trí trang | KHỚP EXCEL | FIX-S13: CDP chọn Bố trí trang; Excel COM ReadOnly xác nhận ActiveWindow.View=3 (app_s13_pageLayoutView.xlsx) | dom:147 |
 | Chế độ xem | `sheet.file.printPreview` | Xem trước khi in (Ctrl+F2) | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | skipped(dangerous) |
-| Chế độ xem | `sheet.view.gridlines` | Đường lưới | LỆCH ĐÃ BIẾT | FIX-S12: CDP đổi gridlinesVisible/headingsVisible thành false nhưng XLSX Excel COM ReadOnly giữ DisplayGridlines/Headings=1; handoff adapter ở docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md | dom:47 |
-| Chế độ xem | `sheet.view.formulaBar` | Thanh công thức | LỆCH ĐÃ BIẾT | FIX-S12: CDP an thanh cong thuc trong giao dien nhung Excel COM ReadOnly doc DisplayFormulaBar=1 cho XLSX; handoff adapter trong docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md | dom:48 |
-| Chế độ xem | `sheet.view.headings` | Tiêu đề | LỆCH ĐÃ BIẾT | FIX-S12: CDP đổi gridlinesVisible/headingsVisible thành false nhưng XLSX Excel COM ReadOnly giữ DisplayGridlines/Headings=1; handoff adapter ở docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md | dom:47 |
-| Chế độ xem | `sheet.view.zoomIn` | Phóng to | LỆCH ĐÃ BIẾT | FIX-S12: CDP hien thi zoom 110%/90% tren giao dien nhung Excel COM ReadOnly doc ActiveWindow.Zoom=100 cho ca XLSX; handoff adapter trong docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md | dom:7 |
+| Chế độ xem | `sheet.view.gridlines` | Đường lưới | KHỚP EXCEL | FIX-S13: CDP ẩn đường lưới và tiêu đề; Excel COM ReadOnly xác nhận DisplayGridlines=0 và DisplayHeadings=0 (app_s13_gridlines.xlsx, app_s13_headings.xlsx) | dom:47 |
+| Chế độ xem | `sheet.view.formulaBar` | Thanh công thức | KHỚP EXCEL | FIX-S13: CDP ẩn thanh công thức; Excel COM ReadOnly xác nhận ActiveWindow.DisplayFormulaBar=0 (app_s13_formulaBar.xlsx) | dom:48 |
+| Chế độ xem | `sheet.view.headings` | Tiêu đề | KHỚP EXCEL | FIX-S13: CDP ẩn đường lưới và tiêu đề; Excel COM ReadOnly xác nhận DisplayGridlines=0 và DisplayHeadings=0 (app_s13_gridlines.xlsx, app_s13_headings.xlsx) | dom:47 |
+| Chế độ xem | `sheet.view.zoomIn` | Phóng to | KHỚP EXCEL | FIX-S13: CDP tăng zoom; Excel COM ReadOnly xác nhận ActiveWindow.Zoom=110 (app_s13_zoomIn.xlsx) | dom:7 |
 | Chế độ xem | `sheet.view.zoomReset` | 100% | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:7 |
 | Chế độ xem | `sheet.view.zoomToSelection` | Thu phóng vùng chọn | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:1779 |
-| Chế độ xem | `sheet.view.zoomOut` | Thu nhỏ | LỆCH ĐÃ BIẾT | FIX-S12: CDP hien thi zoom 110%/90% tren giao dien nhung Excel COM ReadOnly doc ActiveWindow.Zoom=100 cho ca XLSX; handoff adapter trong docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md | dom:6 |
+| Chế độ xem | `sheet.view.zoomOut` | Thu nhỏ | KHỚP EXCEL | FIX-S13: CDP giảm zoom; Excel COM ReadOnly xác nhận ActiveWindow.Zoom=90 (app_s13_zoomOut.xlsx) | dom:6 |
 | Chế độ xem | `sheet.view.newWindow` | Cửa sổ mới | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | skipped(dangerous) |
 | Chế độ xem | `common.macro.recordToggle` | Ghi Macro (Ctrl+Shift+R) | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:16 |
 | Chế độ xem | `common.macro.manager` | Xem Macro (Alt+F8) | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog |
