@@ -59,8 +59,8 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Bố cục trang: 1/2/3 cột | Đã chạy | Đã chạy | 3/3 KHỚP |
 | Đầu/chân trang | Chưa chạy | Chưa chạy | NOT RUN |
 | Ngắt trang/ngắt mục | Chưa chạy | Chưa chạy | NOT RUN |
-| Mục lục | Chưa chạy | Chưa chạy | NOT RUN |
-| Chú thích trang/cuối | Chưa chạy | Chưa chạy | NOT RUN |
+| Mục lục tự động + Heading 1 | Đã lưu; Word đọc `TablesOfContents.Count=1`, `Style=Heading 1` | Đã tạo cùng Heading 1 + TOC; đọc lại COM | KHỚP về số lượng/cấu trúc; chưa soát cập nhật/trang |
+| Chú thích trang | Đã lưu; Word đọc `Footnotes.Count=1`, nội dung rỗng | Đã tạo footnote; đọc lại COM | KHỚP về số lượng/nội dung rỗng |
 | Ghi chú | Chưa chạy | Chưa chạy | NOT RUN |
 | Theo dõi thay đổi | Chưa chạy | Chưa chạy | NOT RUN |
 | Heading 1–3 | Chưa chạy | Chưa chạy | NOT RUN |
@@ -90,6 +90,14 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Heading 3 | đậm `-1 → 0`; phông `Times New Roman → Calibri Light`; trước `0 → 2 pt`; sau `8 → 0 pt`; màu khác | LECH |
 
 Chưa sửa các style mặc định: Word COM dùng theme/style của phiên bản Word cài trên máy, còn ép các thuộc tính trên vào mọi Heading trong hậu xử lý DOCX sẽ ghi đè theme và định dạng tài liệu hiện hữu. Đây là sai khác đã tái hiện, chưa phải KHỚP; cần quyết định quy tắc tương thích style/theme trước khi sửa.
+
+### FIX-T8 tiếp tục — Kiểu/TOC/Footnote — 11/10/2026
+
+Trong app desktop, chọn đoạn “Alpha beta gamma delta.” bằng chuột, mở **Trang đầu > Thư viện kiểu**, áp dụng **Tiêu đề 1**; tại vị trí con trỏ, mở **Tham chiếu > Chú thích trang**, rồi **Mục lục tự động**. Lưu DOCX. Word COM tạo DOCX đối chứng với `Style='Heading 1'`, một TOC và một footnote. Đọc lại cả hai file trong Word COM: app và Word đều có `TablesOfContents.Count=1`, `Footnotes.Count=1`; đoạn Heading của DOCX app được Word nhận là `Heading 1`. Nội dung footnote để trống ở cả hai. **KHỚP** về cấu trúc đã đo.
+
+Trợ giúp tiếng Việt hiện có tại F1/Trợ giúp với các chủ đề **Thư viện kiểu và Chủ đề tài liệu**, **Mục lục tự động**, **Chú thích cuối trang và chú thích cuối tài liệu** (`platform/help/entries-writer.js`); nhãn/tooltip có trong `platform/i18n/strings-vi.js` và `strings-en.js`.
+
+Nhóm chưa hoàn tất: style Normal/Title/Quote và Heading 2–3 cần soát đầy đủ; heading style vẫn có sai khác font/cỡ/màu/khoảng cách đã tái hiện ở phần trên. Chưa chạy cập nhật TOC sau sửa heading, trang tham chiếu, footnote có nội dung, endnote, tham chiếu chéo và danh mục hình. Không sửa mặc định Heading vì cần chốt quy tắc theme/style để tránh thay đổi semantics DOCX.
 
 ### Bố cục trang: cột — 11/10/2026
 
