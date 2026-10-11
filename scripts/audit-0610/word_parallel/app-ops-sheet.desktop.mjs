@@ -43,6 +43,7 @@ const ops = [
   ["calculateSheet","H2","click","sheet.calc.calculateSheet"],
   ["errorChecking","H2","click","sheet.formula.errorChecking"],
   ["formulaError","H2","type",null,"=1/0"],
+  ["image","B2","image","sheet.insert.image"],
   ["rotation90","B2","orientation","sheet.cell.orientation","90"],
   ["widthControl","B2","widthControl",null,null],
   ["definedName","B2","nameManager","sheet.formula.nameManager","SampleNames"],
@@ -230,7 +231,7 @@ for (const [name, cell, kind, id, value] of ops) {
       const align=JSON.parse(await pos("#vno-fc-tab-alignment"));
       if(!align) status="NO_ALIGNMENT_TAB";
       else {await mouseClick(session.cdp,align.x,align.y);await sleep(150);const angle=JSON.parse(await pos('.vno-fc-orient-btn[data-angle="90"]'));if(!angle)status="NO_90_DEGREE_OPTION";else{await mouseClick(session.cdp,angle.x,angle.y);const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);const evidenceDir=path.join(root,"docs","tickets-0710","evidence");await mkdir(evidenceDir,{recursive:true});await writeFile(path.join(evidenceDir,"fix-s8-text-rotation.png"),Buffer.from((shot.result||shot).data,"base64"));const apply=JSON.parse(await pos(".vno-fc-ok-btn"));if(!apply)status="NO_FORMAT_CELLS_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="set Orientation=90 through Format Cells";}}}
-    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "defineName" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pivotRefresh" || kind === "groupRows" || kind === "subtotal" || kind === "consolidate" || kind === "pageSetup" || kind === "pageSize" || kind === "pageScale" || kind === "pageBreak" || kind === "hyperlink" || kind === "commentInsert" || kind === "removeDuplicates" || kind === "textToColumns") {
+    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "defineName" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pivotRefresh" || kind === "groupRows" || kind === "subtotal" || kind === "consolidate" || kind === "pageSetup" || kind === "pageSize" || kind === "pageScale" || kind === "pageBreak" || kind === "hyperlink" || kind === "commentInsert" || kind === "image" || kind === "removeDuplicates" || kind === "textToColumns") {
       if (kind === "consolidate") await mouseClick(session.cdp,pos.x,pos.y);
       if (kind === "groupRows") {
         const a=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-row-header[data-row="2"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
@@ -263,6 +264,14 @@ for (const [name, cell, kind, id, value] of ops) {
       const tabId = id.startsWith("sheet.view.") ? "view" : id.startsWith("sheet.page.") ? "pageLayout" : id.startsWith("sheet.data.") ? "data" : id.startsWith("sheet.formula.") || id.startsWith("sheet.calc.") ? "formulas" : id.startsWith("sheet.chart.") || id.startsWith("sheet.insert.") ? "insert" : id.startsWith("sheet.review.") ? "review" : "home";
       const tabPos = JSON.parse(await ev(`(() => { const n=document.querySelector('#vno-ribbon-tab-${tabId}'); if(!n)return 'null'; const r=n.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,active:n.classList.contains('is-active')}) })()`));
       if (!tabPos) throw new Error("Ribbon tab missing: " + tabId); if (!tabPos.active) await mouseClick(session.cdp, tabPos.x, tabPos.y); await session.cdp.waitFor(`document.querySelector('#vno-ribbon-tab-${tabId}')?.classList.contains('is-active') && !!document.querySelector('#vno-ribbon-tabpanel-${tabId}')`, { timeoutMilliseconds: 10000, intervalMilliseconds: 100 });
+      let fileChooserBackendNodeId = null;
+      let fileChooserListener = null;
+      if (kind === "image") {
+        if (!process.env.VNO_AUDIT_IMAGE) throw new Error("Set VNO_AUDIT_IMAGE to a harmless image fixture.");
+        await session.cdp.send("Page.enable"); await session.cdp.send("DOM.enable"); await session.cdp.send("Page.setInterceptFileChooserDialog", { enabled: true });
+        fileChooserListener = event => { try { const msg = JSON.parse(String(event.data)); if (msg.method === "Page.fileChooserOpened") fileChooserBackendNodeId = msg.params.backendNodeId; } catch {} };
+        session.cdp.socket.addEventListener("message", fileChooserListener);
+      }
       const button = JSON.parse(await ev(`(() => { const panel=document.querySelector("#vno-ribbon-tabpanel-${tabId}"); if(!panel)return 'null'; const nodes=[...panel.querySelectorAll('[data-command-id="${id}"]')]; const visible=n=>{const r=n.getBoundingClientRect(),s=getComputedStyle(n);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'}; const group=nodes[0]?.closest('.vno-ribbon-group.vno-group-collapsed'); const btn=group?.querySelector('.vno-ribbon-group-collapsed-btn'); if(btn&&visible(btn)){const r=btn.getBoundingClientRect();return JSON.stringify({collapsed:{x:r.left+r.width/2,y:r.top+r.height/2}})} const v=nodes.find(visible); if(v){const r=v.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})} const dropdownId=${JSON.stringify(id.startsWith("sheet.row.")||id.startsWith("sheet.col.")?"sheet.cells.format":id.startsWith("sheet.view.freeze")?"sheet.view.freezePanesMenu":"")}; const dd=dropdownId&&document.querySelector('[data-dropdown-id="'+dropdownId+'"]'); if(dd&&visible(dd)){const r=dd.getBoundingClientRect();return JSON.stringify({dropdown:{x:r.left+r.width/2,y:r.top+r.height/2}})} return 'null' })()`));
       if (!button) status = "NO_BUTTON";
       else if (button.collapsed) {
@@ -275,6 +284,18 @@ for (const [name, cell, kind, id, value] of ops) {
         const item=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-ribbon-dropdown-menu [data-command-id="${id}"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
         if(!item) status="NO_DROPDOWN_ITEM"; else {await mouseClick(session.cdp,item.x,item.y); status="clicked";}
       } else { await mouseClick(session.cdp, button.x, button.y); status = "clicked"; }
+      if (kind === "image" && status === "clicked") {
+        for (let attempt = 0; attempt < 100 && !fileChooserBackendNodeId; attempt++) await sleep(50);
+        if (!fileChooserBackendNodeId) status = "NO_FILE_CHOOSER";
+        else {
+          await session.cdp.send("DOM.setFileInputFiles", { backendNodeId: fileChooserBackendNodeId, files: [path.resolve(process.env.VNO_AUDIT_IMAGE)] });
+          await session.cdp.waitFor("(window.__vnoAppInstance.grid.imagesBySheet[window.__vnoAppInstance.grid.activeSheet]||[]).length>0", { timeoutMilliseconds: 15000, intervalMilliseconds: 100 });
+          const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
+          await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
+          status = "inserted image by selecting file through CDP file chooser";
+        }
+        if (fileChooserListener) session.cdp.socket.removeEventListener("message", fileChooserListener);
+      }
       if (kind === "pivotRefresh" && status === "clicked") status = "changed source C2 to 2222 and refreshed pivot";
       if (kind === "pivotTable" && status === "clicked") {
         await sleep(250);

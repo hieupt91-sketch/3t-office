@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 82 · CHƯA ĐỐI CHIẾU: 56.
+Tổng 138 nút — KHỚP EXCEL: 83 · CHƯA ĐỐI CHIẾU: 55.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -60,7 +60,7 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Trang đầu | `common.edit.find` | Tìm kiếm (Ctrl+F) | KHỚP EXCEL | FIX-S10: UI/CDP + Excel COM read-only; remove duplicates, custom sort, paste special, find/replace | dom:1 |
 | Trang đầu | `common.edit.replace` | Thay thế (Ctrl+H) | KHỚP EXCEL | FIX-S10: UI/CDP + Excel COM read-only; remove duplicates, custom sort, paste special, find/replace | dom:1 |
 | Chèn | `sheet.data.pivotTable` | Bảng tổng hợp | KHỚP EXCEL | FIX-S12 Du lieu: CDP chon A1:C6, tao Pivot theo Ho ten va SUM So tien; Excel COM ReadOnly xac nhan Sheet1 (2) PivotTables.Count=1, cot nhan va gia tri (app_S12_pivotTable.xlsx) | dialog,toast:A1 |
-| Chèn | `sheet.insert.image` | Chèn ảnh | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:1 |
+| Chèn | `sheet.insert.image` | Chèn ảnh | KHỚP EXCEL | FIX-S12 Chèn: CDP chọn ảnh PNG qua file chooser và đặt tại B2; Excel COM ReadOnly xác nhận Shapes.Count=1, Type=13, TopLeft=B2 (app_image.xlsx); hướng dẫn Chèn > Minh họa trong Help; VI/EN i18n có sẵn; ảnh docs/tickets-0710/evidence/fix-s12-image.png | dom:1 |
 | Chèn | `sheet.chart.insert` | Biểu đồ | KHỚP EXCEL | FIX-S9: Excel COM read-only xác nhận loại biểu đồ, tiêu đề, series và trục | dialog |
 | Chèn | `sheet.chart.pivotChart` | Biểu đồ Pivot | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Chèn | `sheet.insert.sparklineLine` | Đường | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:14 |
