@@ -216,6 +216,42 @@ class SheetZoomRoundtripTests(unittest.TestCase):
             xml = archive.read("xl/pivotTables/pivotTable1.xml").decode("utf-8")
         self.assertIn('<location ref="A1:D4"/>', xml)
 
+    def test_untouched_source_view_state_survives_content_save(self):
+        source_sheet = (
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<sheetViews><sheetView showGridLines="0" showRowColHeaders="0" showFormulas="1" '
+            'view="pageBreakPreview" zoomScale="85" zoomScaleNormal="85"/></sheetViews>'
+            '<sheetData/></worksheet>'
+        )
+        target_sheet = (
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<sheetViews><sheetView showGridLines="1" showRowColHeaders="1" showFormulas="0" '
+            'view="normal" zoomScale="100"/></sheetViews><sheetData/></worksheet>'
+        )
+        source = make_test_xlsx(source_sheet)
+        target = make_test_xlsx(target_sheet)
+        source_wb = (
+            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            '<bookViews><workbookView showFormulaBar="0"/></bookViews>'
+            '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>'
+        )
+        target_wb = source_wb.replace('showFormulaBar="0"', 'showFormulaBar="1"')
+        source = _replace_zip_entry(source, "xl/workbook.xml", source_wb)
+        target = _replace_zip_entry(target, "xl/workbook.xml", target_wb)
+
+        patched = postprocess_sheet_xlsx(target, source_fods="<office:document></office:document>", source_xlsx_bytes=source)
+        with zipfile.ZipFile(io.BytesIO(patched)) as archive:
+            sheet_xml = archive.read("xl/worksheets/sheet1.xml").decode("utf-8")
+            workbook_xml = archive.read("xl/workbook.xml").decode("utf-8")
+        self.assertIn('showGridLines="0"', sheet_xml)
+        self.assertIn('showRowColHeaders="0"', sheet_xml)
+        self.assertIn('showFormulas="1"', sheet_xml)
+        self.assertIn('view="pageBreakPreview"', sheet_xml)
+        self.assertIn('zoomScale="85"', sheet_xml)
+        self.assertIn('zoomScaleNormal="85"', sheet_xml)
+        self.assertIn('showFormulaBar="0"', workbook_xml)
+
 
 if __name__ == "__main__":
     unittest.main()

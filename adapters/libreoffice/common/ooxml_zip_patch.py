@@ -4114,6 +4114,65 @@ def _apply_sheet_view_state_from_fods(
             replacements[entry_path] = updated
 
 
+def _restore_view_attributes_from_source_step(
+    xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str]
+) -> None:
+    """Retain source worksheet/window view when the user did not change it."""
+    source_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
+    output_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    sheet_attributes = ("showGridLines", "showRowColHeaders", "showFormulas", "view", "zoomScale", "zoomScaleNormal")
+
+    def update_tag(xml: str, tag_pattern: str, values: dict[str, str]) -> str:
+        match = re.search(tag_pattern, xml, re.IGNORECASE)
+        if not match:
+            return xml
+        tag = match.group(0)
+        for name, value in values.items():
+            if re.search(rf"\b{name}\s*=", tag, re.IGNORECASE):
+                tag = re.sub(rf"\b{name}\s*=\s*(['\"])[^'\"]*\1", lambda m: f'{name}={m.group(1)}{value}{m.group(1)}', tag, count=1, flags=re.IGNORECASE)
+            else:
+                tag = tag[:-2] + f' {name}="{value}"/>' if tag.endswith("/>") else tag[:-1] + f' {name}="{value}">'
+        return xml[:match.start()] + tag + xml[match.end():]
+
+    for sheet_name, output_path in output_entries.items():
+        source_path = _sheet_name_equivalent_value(source_entries, sheet_name)
+        if not source_path:
+            continue
+        source_xml_bytes = read_zip_entry(source_xlsx_bytes, source_path)
+        if not source_xml_bytes:
+            continue
+        source_xml = source_xml_bytes.decode("utf-8", errors="replace")
+        source_view = re.search(r"<sheetView\b[^>]*/?>", source_xml, re.IGNORECASE)
+        if not source_view:
+            continue
+        attrs = _xml_attrs(source_view.group(0))
+        values = {name: attrs[name] for name in sheet_attributes if name in attrs}
+        if not values:
+            continue
+        current = replacements.get(output_path)
+        if current is None:
+            output_xml_bytes = read_zip_entry(xlsx_bytes, output_path)
+            if not output_xml_bytes:
+                continue
+            current = output_xml_bytes.decode("utf-8", errors="replace")
+        updated = update_tag(current, r"<sheetView\b[^>]*/?>", values)
+        if updated != current:
+            replacements[output_path] = updated
+
+    source_workbook = read_zip_entry(source_xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+    output_workbook = replacements.get(XLSX_WORKBOOK_ENTRY)
+    if output_workbook is None:
+        output_workbook_bytes = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+        output_workbook = output_workbook_bytes.decode("utf-8", errors="replace") if output_workbook_bytes else None
+    if source_workbook and output_workbook:
+        source_view = re.search(r"<(?:[\w.-]+:)?workbookView\b[^>]*/?>", source_workbook.decode("utf-8", errors="replace"), re.IGNORECASE)
+        source_attrs = _xml_attrs(source_view.group(0)) if source_view else {}
+        if "showFormulaBar" in source_attrs:
+            updated = update_tag(output_workbook, r"<(?:[\w.-]+:)?workbookView\b[^>]*/?>", {"showFormulaBar": source_attrs["showFormulaBar"]})
+            if updated != output_workbook:
+                replacements[XLSX_WORKBOOK_ENTRY] = updated
+
+
 def _apply_workbook_view_state_from_fods(
     xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
 ) -> None:
@@ -4249,6 +4308,7 @@ def postprocess_sheet_xlsx(
         _restore_formula_results_and_missing_errors_step(xlsx_bytes, source_xlsx_bytes, replacements, early_copier if early_copier.available else None)
         _remove_spurious_center_continuous_merges_step(xlsx_bytes, source_xlsx_bytes, replacements)
         _restore_sheet_zoom_step(xlsx_bytes, source_xlsx_bytes, replacements)
+        _restore_view_attributes_from_source_step(xlsx_bytes, source_xlsx_bytes, replacements)
         _restore_autofilter_filter_columns_step(xlsx_bytes, source_xlsx_bytes, replacements)
         _restore_missing_defined_names_step(xlsx_bytes, source_xlsx_bytes, replacements)
         _restore_missing_hyperlinks_step(xlsx_bytes, source_xlsx_bytes, replacements)
