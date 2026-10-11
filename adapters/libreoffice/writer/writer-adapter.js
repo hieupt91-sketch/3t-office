@@ -584,6 +584,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.review.commentNext", () => this.nextComment());
     globalCommandBus.bindHandler("writer.review.commentDelete", () => this.deleteActiveComment());
     globalCommandBus.bindHandler("writer.review.commentResolve", () => this.toggleActiveCommentResolved());
+    globalCommandBus.bindHandler("writer.review.commentReply", (args) => this.replyToActiveComment(args));
     globalCommandBus.bindHandler("writer.trackChanges.toggle", (args) => this.toggleTrackChanges(args?.enabled));
     globalCommandBus.bindHandler("writer.trackChanges.previous", () => this.previousTrackChange());
     globalCommandBus.bindHandler("writer.trackChanges.next", () => this.nextTrackChange());
@@ -7115,14 +7116,15 @@ export class WriterAdapter {
    */
   _extractOoxmlCommentBodies(commentsXml, commentsExtendedXml = "") {
     const source = String(commentsXml || "");
-    const resolvedParaIds = new Set();
+    const resolvedParaIds = new Map();
     const extendedRe = /<w15:commentEx\b([^>]*)\/?\s*>/gi;
     let extendedMatch;
     while ((extendedMatch = extendedRe.exec(String(commentsExtendedXml || "")))) {
       const attrs = extendedMatch[1] || "";
       const paraId = (attrs.match(/\bw15:paraId=["']([0-9a-f]{8})["']/i) || [])[1];
       const done = (attrs.match(/\bw15:done=["']([^"']+)["']/i) || [])[1];
-      if (paraId && /^(?:1|true|on)$/i.test(done || "")) resolvedParaIds.add(paraId.toUpperCase());
+      const parentParaId = (attrs.match(/\bw15:paraIdParent=["']([0-9a-f]{8})["']/i) || [])[1] || "";
+      if (paraId) resolvedParaIds.set(paraId.toUpperCase(), { done, parentParaId: parentParaId.toUpperCase() });
     }
     const bodies = new Map();
     const blockRe = /<w:comment\b([^>]*)>([\s\S]*?)<\/w:comment>/gi;
@@ -7137,6 +7139,7 @@ export class WriterAdapter {
       const commentParagraphs = [...inner.matchAll(/<w:p\b[^>]*>/gi)];
       const lastParagraph = commentParagraphs.at(-1)?.[0] || "";
       const paraId = (lastParagraph.match(/\bw14:paraId=["']([0-9a-f]{8})["']/i) || [])[1] || "";
+      const extension = paraId ? resolvedParaIds.get(paraId.toUpperCase()) : null;
       const paragraphs = [];
       const pRe = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/gi;
       let pMatch;
@@ -7146,7 +7149,8 @@ export class WriterAdapter {
       }
       bodies.set(id, {
         author, date, content: paragraphs.join("\n").trim(),
-        resolved: Boolean(paraId && resolvedParaIds.has(paraId.toUpperCase()))
+        paraId: paraId.toUpperCase(), parentParaId: extension?.parentParaId || "",
+        resolved: Boolean(extension && /^(?:1|true|on)$/i.test(extension.done || ""))
       });
     }
     return bodies;
@@ -7249,6 +7253,7 @@ export class WriterAdapter {
     let next = String(html || "");
     const imported = [];
     for (const [ooxmlId, body] of bodies) {
+      if (body.parentParaId) continue;
       const anchor = anchors.get(ooxmlId) || { text: "", prefix: "", suffix: "" };
       const id = `writer-comment-import-${ooxmlId}`;
       const wrapped = this._wrapImportedCommentInHtml(next, {
@@ -7258,17 +7263,22 @@ export class WriterAdapter {
         suffix: this._firstWords(anchor.suffix, 4),
         content: body.content,
         author: body.author,
-        resolved: body.resolved
+        resolved: body.resolved, paraId: body.paraId, parentParaId: body.parentParaId
       });
       if (!wrapped.applied) continue;
       next = wrapped.html;
+      const replies = [...bodies.values()]
+        .filter(reply => reply.parentParaId && reply.parentParaId === body.paraId)
+        .map(reply => ({
+          content: reply.content, author: reply.author || "", createdAt: reply.date || new Date().toISOString()
+        }));
       imported.push({
         id,
         anchorText: String(anchor.text || "").trim().replace(/\s+/g, " "),
         content: body.content,
         author: body.author || "",
         createdAt: body.date || new Date().toISOString(),
-        resolved: body.resolved
+        resolved: body.resolved, paraId: body.paraId, parentParaId: body.parentParaId, replies
       });
     }
     for (const comment of imported) {
@@ -8230,6 +8240,28 @@ export class WriterAdapter {
     return comment.resolved;
   }
 
+  async replyToActiveComment(args = {}) {
+    const comment = this.comments.find(item => item.id === this.activeCommentId) || this.comments[0];
+    if (!comment || comment.resolved) return false;
+    const title = t("writerDialogs.comments.replyTitle");
+    const content = Object.prototype.hasOwnProperty.call(args || {}, "content")
+      ? args.content
+      : await showPromptDialog({
+          title: title === "writerDialogs.comments.replyTitle" ? "Trả lời nhận xét" : title,
+          message: `Trả lời nhận xét của ${comment.author || "người dùng"}`,
+          placeholder: t("writerDialogs.comments.replyPlaceholder"),
+          confirmText: t("writerDialogs.comments.replyBtn")
+        });
+    if (!String(content || "").trim()) return false;
+    comment.replies ||= [];
+    comment.replies.push({ content: String(content).trim(), author: "3T Office", createdAt: new Date().toISOString() });
+    this.isDirty = true;
+    this._renderCommentsPanel();
+    this.focusComment(comment.id);
+    this.recordSnapshot("writer.review.commentReply");
+    return true;
+  }
+
   deleteComment(commentId) {
     const index = this.comments.findIndex((item) => item.id === commentId);
     if (index < 0) return false;
@@ -8294,6 +8326,16 @@ export class WriterAdapter {
       remove.textContent = "Xóa";
       meta.append(info, remove);
       card.append(preview, content, meta);
+      for (const reply of comment.replies || []) {
+        const replyEl = document.createElement("div");
+        replyEl.className = "vno-comment-reply";
+        const replyAuthor = document.createElement("strong");
+        replyAuthor.textContent = reply.author || "3T Office";
+        const replyText = document.createElement("p");
+        replyText.textContent = reply.content;
+        replyEl.append(replyAuthor, replyText);
+        card.appendChild(replyEl);
+      }
       this.commentsPanel.appendChild(card);
     }
   }
@@ -14909,6 +14951,25 @@ export class WriterAdapter {
       const suffix = String(records.length).padStart(5, "0");
       record.startBookmark = `vno-review-start-${suffix}`;
       record.endBookmark = `vno-review-end-${suffix}`;
+      const replyRecords = [];
+      Object.defineProperty(record, "replyRecords", { value: replyRecords, enumerable: false });
+      if (record.type === "comment") {
+        for (const reply of record.replies || []) {
+          if (!String(reply.content || "").trim()) continue;
+          const replySuffix = String(records.length + 1).padStart(5, "0");
+          const replyRecord = {
+            type: "comment",
+            author: String(reply.author || "3T Office"),
+            date: String(reply.createdAt || new Date().toISOString()),
+            content: String(reply.content).trim(),
+            parentStartBookmark: record.startBookmark,
+            startBookmark: `vno-review-start-${replySuffix}`,
+            endBookmark: `vno-review-end-${replySuffix}`
+          };
+          records.push(replyRecord);
+          replyRecords.push(replyRecord);
+        }
+      }
       return record;
     };
 
@@ -14938,6 +14999,7 @@ export class WriterAdapter {
         while (stack.length > stackIndex) {
           const entry = stack.pop();
           output += `<a name="${entry.record.endBookmark}"></a>`;
+          for (const reply of entry.record.replyRecords) output += `<a name="${reply.endBookmark}"></a>`;
         }
         continue;
       }
@@ -14960,7 +15022,12 @@ export class WriterAdapter {
             author: String(comment.author || attrValue(attrs, "data-vno-comment-author") || "3T Office"),
             date: String(comment.createdAt || new Date().toISOString()),
             content: String(comment.content).trim(),
-            resolved: Boolean(comment.resolved)
+            resolved: Boolean(comment.resolved),
+            replies: (comment.replies || []).filter(reply => String(reply.content || "").trim()).map(reply => ({
+              author: String(reply.author || "3T Office"),
+              date: String(reply.createdAt || new Date().toISOString()),
+              content: String(reply.content).trim()
+            }))
           });
         }
       }
@@ -14969,12 +15036,14 @@ export class WriterAdapter {
         continue;
       }
       output += `<a name="${record.startBookmark}"></a>`;
+      for (const reply of record.replyRecords) output += `<a name="${reply.startBookmark}"></a>`;
       stack.push({ tag, record });
     }
     output += source.slice(cursor);
     while (stack.length) {
       const entry = stack.pop();
       output += `<a name="${entry.record.endBookmark}"></a>`;
+      for (const reply of entry.record.replyRecords) output += `<a name="${reply.endBookmark}"></a>`;
     }
 
     if (!records.length) return { html: output, metadataComment: "" };

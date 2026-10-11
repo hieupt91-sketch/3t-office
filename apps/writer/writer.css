@@ -309,6 +309,15 @@
   line-height: 1.45;
 }
 
+.vno-comment-reply {
+  margin: 8px 0 0 18px;
+  padding: 8px 10px;
+  border-left: 2px solid var(--vno-border-subtle, #cbd5e1);
+  background: var(--vno-surface-muted, #f8fafc);
+  border-radius: 0 4px 4px 0;
+}
+.vno-comment-reply p { margin: 3px 0 0; white-space: pre-wrap; }
+
 .vno-comment-meta {
   display: flex;
   align-items: center;

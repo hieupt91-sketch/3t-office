@@ -10888,6 +10888,8 @@ _DOCX_COMMENTS_EXTENDED_REL_TYPE = (
 _DOCX_COMMENTS_EXTENDED_CONTENT_TYPE = (
     "application/vnd.openxmlformats-officedocument.wordprocessingml.commentsExtended+xml"
 )
+_DOCX_PEOPLE_REL_TYPE = "http://schemas.microsoft.com/office/2011/relationships/people"
+_DOCX_PEOPLE_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.people+xml"
 
 
 _DOCX_HF_EXTRA_CONTENT_TYPES = {
@@ -18739,6 +18741,7 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
             )
         ]
         comment_id = str(max(
+            1,
             _writer_next_ooxml_id(document_xml, "commentRangeStart"),
             max(existing_comment_ids, default=-1) + 1,
         ))
@@ -18766,6 +18769,7 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
             "date": str(record.get("date") or ""),
             "content": content,
             "resolved": bool(record.get("resolved")),
+            "parentStartBookmark": str(record.get("parentStartBookmark") or ""),
         })
 
     revision_id = _writer_next_ooxml_id(document_xml, "ins")
@@ -18825,12 +18829,24 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
                     used_para_ids.add(para_id)
                     comment["paraId"] = para_id
                     break
+        bookmark_para_ids = {
+            str(record.get("startBookmark") or ""): comment["paraId"]
+            for record, comment in zip((record for record in records if record.get("type") == "comment"), comments)
+        }
+        for comment in comments:
+            parent_bookmark = comment.pop("parentStartBookmark", "")
+            if parent_bookmark:
+                comment["paraIdParent"] = bookmark_para_ids.get(parent_bookmark)
+                if not comment["paraIdParent"]:
+                    raise ValueError("Không tìm thấy comment gốc của reply trong DOCX.")
         if comments_bytes:
             for comment in comments:
                 para_id_attr = f' w14:paraId="{comment["paraId"]}"'
                 lines = comment["content"].splitlines() or [""]
                 paragraphs = "".join(
                     f'<w:p{para_id_attr if index == len(lines) - 1 else ""}>'
+                    f'<w:pPr><w:pStyle w:val="CommentText"/></w:pPr>'
+                    f'<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:annotationRef/></w:r>'
                     f'<w:r><w:t xml:space="preserve">{_escape_xml(line)}</w:t></w:r></w:p>'
                     for index, line in enumerate(lines)
                 )
@@ -18846,6 +18862,8 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
                 lines = comment["content"].splitlines() or [""]
                 paragraphs = "".join(
                     f'<w:p{para_id_attr if index == len(lines) - 1 else ""}>'
+                    f'<w:pPr><w:pStyle w:val="CommentText"/></w:pPr>'
+                    f'<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:annotationRef/></w:r>'
                     f'<w:r><w:t xml:space="preserve">{_escape_xml(line)}</w:t></w:r></w:p>'
                     for index, line in enumerate(lines)
                 )
@@ -18888,8 +18906,10 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
             'xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"></w15:commentsEx>'
         )
         for comment in comments:
+            parent_attr = f' w15:paraIdParent="{comment["paraIdParent"]}"' if comment.get("paraIdParent") else ""
             entry = (
                 f'<w15:commentEx w15:paraId="{comment["paraId"]}"'
+                f'{parent_attr}'
                 f' w15:done="{"1" if comment["resolved"] else "0"}"/>'
             )
             extended_xml = re.sub(
@@ -18911,6 +18931,33 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
             replacements["word/_rels/document.xml.rels"] = rels_xml.encode("utf-8")
         content_types_xml = _add_content_types_override(
             content_types_xml, "/word/commentsExtended.xml", _DOCX_COMMENTS_EXTENDED_CONTENT_TYPE,
+        )
+        people_bytes = read_zip_entry(docx_bytes, "word/people.xml")
+        people_xml = people_bytes.decode("utf-8", errors="replace") if people_bytes else (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<w15:people xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml"></w15:people>'
+        )
+        for author in dict.fromkeys(str(comment.get("author") or "3T Office") for comment in comments):
+            author_xml = _escape_xml(author)
+            if re.search(rf'<w15:person\b[^>]*\bw15:author=["\']{re.escape(author_xml)}["\']', people_xml, re.IGNORECASE):
+                continue
+            person = (
+                f'<w15:person w15:author="{author_xml}">'
+                f'<w15:presenceInfo w15:providerId="None" w15:userId="{author_xml}"/>'
+                '</w15:person>'
+            )
+            people_xml = people_xml.replace("</w15:people>", person + "</w15:people>", 1)
+        replacements["word/people.xml"] = people_xml.encode("utf-8")
+        people_rel = re.search(
+            r'<Relationship\b(?=[^>]*\bType=["\'][^"\']*/people["\'])[^>]*/?>', rels_xml, re.IGNORECASE,
+        )
+        if not people_rel:
+            rels_xml = _add_rels_entry(
+                rels_xml, f"rId{_max_rels_rid(rels_xml) + 1}", _DOCX_PEOPLE_REL_TYPE, "people.xml",
+            )
+            replacements["word/_rels/document.xml.rels"] = rels_xml.encode("utf-8")
+        content_types_xml = _add_content_types_override(
+            content_types_xml, "/word/people.xml", _DOCX_PEOPLE_CONTENT_TYPE,
         )
         replacements["[Content_Types].xml"] = content_types_xml.encode("utf-8")
 

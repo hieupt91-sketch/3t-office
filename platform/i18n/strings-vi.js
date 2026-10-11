@@ -787,6 +787,7 @@ export const viStrings = {
     "writer.review.commentNext": { label: "Nhận xét sau", tooltip: "Nhảy tới nhận xét tiếp theo" },
     "writer.review.commentDelete": { label: "Xóa nhận xét", tooltip: "Xóa nhận xét đang chọn" },
     "writer.review.commentResolve": { label: "Đã xử lý", tooltip: "Đánh dấu hoặc mở lại nhận xét đang chọn" },
+    "writer.review.commentReply": { label: "Trả lời nhận xét", tooltip: "Trả lời nhận xét đang chọn" },
     "writer.trackChanges.toggle": { label: "Theo dõi thay đổi", tooltip: "Bật/tắt đánh dấu nội dung thêm và xóa (Ctrl+Shift+E)" },
     "writer.trackChanges.previous": { label: "Thay đổi trước", tooltip: "Nhảy tới thay đổi trước đó" },
     "writer.trackChanges.next": { label: "Thay đổi sau", tooltip: "Nhảy tới thay đổi tiếp theo" },
