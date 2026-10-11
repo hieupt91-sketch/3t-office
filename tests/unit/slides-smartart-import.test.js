@@ -180,6 +180,25 @@ export async function runSlidesSmartartImportTests() {
     assert(nodes[0].diagramGroupId === "QuyTrinhHoSo", "loadFromFodp mất group id");
   });
 
+  test("serializeToFodp giữ dấu SmartArt native chỉ khi nhóm chưa bị sửa", () => {
+    const canvas = { slides: [], selectSlide(index) { this.selected = index; } };
+    const adapter = new SlidesAdapter(canvas);
+    adapter.loadFromFodp(SOFFICE_SMARTART_FODP);
+    const original = adapter.serializeToFodp();
+    assert(/draw:name="VNOfficeSmartArt:QuyTrinhHoSo"/.test(original), "serializer phải giữ ID diagram ổn định");
+    assert(/draw:name="VNOfficeSmartArt:QuyTrinhHoSo"\s+vno:smartart-preserve="true"/.test(original), "nhóm chưa sửa cần cho phép phục hồi native SmartArt");
+    const parsedAgain = adapter.parseFodp(original);
+    assert(parsedAgain[0].shapes.filter(shape => shape.diagramRole === "node").length === 5, "round-trip FODP phải còn đủ node");
+    assert(parsedAgain[0].shapes.filter(shape => shape.diagramRole === "node").every(shape => shape.diagramGroupId === "QuyTrinhHoSo"), "round-trip phải giữ group ID gốc");
+
+    const node = canvas.slides[0].shapes.find(shape => shape.diagramRole === "node");
+    node.text = `${node.text} (đã sửa)`;
+    const edited = adapter.serializeToFodp();
+    assert(/draw:name="VNOfficeSmartArt:QuyTrinhHoSo"/.test(edited), "nhóm vẫn giữ ID để nhận diện");
+    assert(!/draw:name="VNOfficeSmartArt:QuyTrinhHoSo"\s+vno:smartart-preserve="true"/.test(edited), "nhóm đã sửa không được phục hồi XML gốc");
+    assert(edited.includes("(đã sửa)"), "nội dung vừa sửa phải còn trong FODP");
+  });
+
   await asyncTest("adapter.open() đi FODP soffice và giữ node SmartArt", async () => {
     const canvas = { slides: [], selectSlide(index) { this.selected = index; } };
     const adapter = new SlidesAdapter(canvas);

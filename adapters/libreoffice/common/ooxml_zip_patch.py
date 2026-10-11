@@ -6646,10 +6646,292 @@ def _normalize_slides_animation_timing(pptx_bytes: bytes) -> dict[str, str]:
     return replacements
 
 
+_SMARTART_PRESERVE_GROUP_RE = re.compile(
+    r'<draw:g\b(?=[^>]*\bdraw:name=["\']VNOfficeSmartArt:([^"\']+)["\'])'
+    r'(?=[^>]*\bvno:smartart-preserve=["\']true["\'])[^>]*>',
+    re.IGNORECASE,
+)
+
+
+def _zip_package_entries(payload: bytes) -> dict[str, bytes]:
+    with zipfile.ZipFile(io.BytesIO(payload), "r") as package:
+        return {name: package.read(name) for name in package.namelist() if not name.endswith("/")}
+
+
+def _pptx_slide_order(entries: dict[str, bytes]) -> list[str]:
+    """Resolve slide parts in presentation order, rather than assuming slideN IDs."""
+    ns = {
+        "p": "http://schemas.openxmlformats.org/presentationml/2006/main",
+        "r": "http://schemas.openxmlformats.org/officeDocument/2006/relationships",
+        "rel": "http://schemas.openxmlformats.org/package/2006/relationships",
+    }
+    presentation = entries.get("ppt/presentation.xml")
+    relationships = entries.get("ppt/_rels/presentation.xml.rels")
+    if not presentation or not relationships:
+        return []
+    try:
+        root = ET.fromstring(presentation)
+        rel_root = ET.fromstring(relationships)
+    except ET.ParseError:
+        return []
+    targets = {
+        rel.get("Id"): rel.get("Target")
+        for rel in rel_root.findall("rel:Relationship", ns)
+        if rel.get("Id") and rel.get("Target") and rel.get("TargetMode") != "External"
+    }
+    slide_list = root.find("p:sldIdLst", ns)
+    if slide_list is None:
+        return []
+    ordered = []
+    for slide_id in slide_list.findall("p:sldId", ns):
+        target = targets.get(slide_id.get("{" + ns["r"] + "}id"))
+        if target:
+            ordered.append(posixpath.normpath(posixpath.join("ppt", target)))
+    return ordered
+
+
+def _xml_namespaces(xml_bytes: bytes) -> dict[str, str]:
+    namespaces: dict[str, str] = {}
+    for _, (prefix, uri) in ET.iterparse(io.BytesIO(xml_bytes), events=("start-ns",)):
+        namespaces[prefix or ""] = uri
+    return namespaces
+
+
+def restore_unmodified_smartart(
+    exported_pptx: bytes,
+    source_pptx: bytes | None,
+    source_fodp: str | None,
+) -> bytes:
+    """Restore original native SmartArt frames only for unchanged imported groups.
+
+    LibreOffice converts SmartArt to editable drawing shapes but drops the native
+    diagram package. The Slides adapter marks imported groups whose model still
+    matches its import snapshot. This patch replaces only those serialized groups
+    with their original graphicFrame and package relationships. Edited groups are
+    left as the newly serialized shapes.
+    """
+    if not source_pptx or not source_fodp:
+        return exported_pptx
+    pages = list(re.finditer(r"<draw:page\b[^>]*>([\s\S]*?)</draw:page\s*>", source_fodp, re.IGNORECASE))
+    if not pages:
+        return exported_pptx
+    preserved_by_page: list[list[str]] = []
+    for page in pages:
+        preserved_by_page.append([
+            html.unescape(match.group(1))
+            for match in _SMARTART_PRESERVE_GROUP_RE.finditer(page.group(1))
+        ])
+    if not any(preserved_by_page):
+        return exported_pptx
+
+    try:
+        source_entries = _zip_package_entries(source_pptx)
+        output_entries = _zip_package_entries(exported_pptx)
+    except (zipfile.BadZipFile, OSError):
+        return exported_pptx
+    source_slides = _pptx_slide_order(source_entries)
+    output_slides = _pptx_slide_order(output_entries)
+    if len(source_slides) != len(preserved_by_page) or len(output_slides) != len(preserved_by_page):
+        return exported_pptx
+
+    diagram_parts = {
+        name: data for name, data in source_entries.items()
+        if name.startswith("ppt/diagrams/")
+    }
+    if not diagram_parts:
+        return exported_pptx
+    for name, data in diagram_parts.items():
+        if name in output_entries and output_entries[name] != data:
+            # A collision means we cannot safely decide which package owns it.
+            return exported_pptx
+
+    content_types_source = source_entries.get(_CONTENT_TYPES_ENTRY)
+    content_types_output = output_entries.get(_CONTENT_TYPES_ENTRY)
+    if not content_types_source or not content_types_output:
+        return exported_pptx
+    try:
+        source_types_root = ET.fromstring(content_types_source)
+        output_types_root = ET.fromstring(content_types_output)
+    except ET.ParseError:
+        return exported_pptx
+    ct_ns = "http://schemas.openxmlformats.org/package/2006/content-types"
+    ET.register_namespace("", ct_ns)
+    source_overrides = {
+        item.get("PartName"): item.get("ContentType")
+        for item in source_types_root.findall("{" + ct_ns + "}Override")
+        if (item.get("PartName") or "").startswith("/ppt/diagrams/")
+    }
+    output_overrides = {
+        item.get("PartName"): item.get("ContentType")
+        for item in output_types_root.findall("{" + ct_ns + "}Override")
+    }
+    if any(path in output_overrides and output_overrides[path] != kind for path, kind in source_overrides.items()):
+        return exported_pptx
+
+    p_ns = "http://schemas.openxmlformats.org/presentationml/2006/main"
+    r_ns = "http://schemas.openxmlformats.org/officeDocument/2006/relationships"
+    dgm_ns = "http://schemas.openxmlformats.org/drawingml/2006/diagram"
+    rel_ns = "http://schemas.openxmlformats.org/package/2006/relationships"
+    namespaces = {"p": p_ns, "r": r_ns, "dgm": dgm_ns, "rel": rel_ns}
+    for entries in (source_entries, output_entries):
+        for xml_name in ("ppt/presentation.xml", "ppt/_rels/presentation.xml.rels"):
+            if xml_name in entries:
+                try:
+                    namespaces.update(_xml_namespaces(entries[xml_name]))
+                except ET.ParseError:
+                    pass
+    for prefix, uri in namespaces.items():
+        if prefix:
+            ET.register_namespace(prefix, uri)
+
+    changed: dict[str, bytes] = {}
+    for slide_index, wanted_ids in enumerate(preserved_by_page):
+        if not wanted_ids:
+            continue
+        source_slide_name = source_slides[slide_index]
+        output_slide_name = output_slides[slide_index]
+        source_slide_bytes = source_entries.get(source_slide_name)
+        output_slide_bytes = output_entries.get(output_slide_name)
+        if not source_slide_bytes or not output_slide_bytes:
+            continue
+        try:
+            source_root = ET.fromstring(source_slide_bytes)
+            output_root = ET.fromstring(output_slide_bytes)
+        except ET.ParseError:
+            continue
+        source_frames: dict[str, list[ET.Element]] = {}
+        for frame in source_root.findall(".//{" + p_ns + "}graphicFrame"):
+            for props in frame.findall(".//{" + p_ns + "}cNvPr"):
+                name = props.get("name")
+                rel_ids = frame.find(".//{" + dgm_ns + "}relIds")
+                if name and rel_ids is not None:
+                    source_frames.setdefault(name, []).append(frame)
+                    break
+        source_rels_name = posixpath.join(
+            posixpath.dirname(source_slide_name), "_rels", posixpath.basename(source_slide_name) + ".rels"
+        )
+        output_rels_name = posixpath.join(
+            posixpath.dirname(output_slide_name), "_rels", posixpath.basename(output_slide_name) + ".rels"
+        )
+        source_rels_bytes = source_entries.get(source_rels_name)
+        if not source_rels_bytes:
+            continue
+        try:
+            source_rels_root = ET.fromstring(source_rels_bytes)
+            output_rels_root = ET.fromstring(output_entries[output_rels_name]) if output_rels_name in output_entries else ET.Element("{" + rel_ns + "}Relationships")
+            output_slide_root = output_root.find(".//{" + p_ns + "}spTree")
+            if output_slide_root is None:
+                continue
+            output_groups: dict[str, list[ET.Element]] = {}
+            for group in output_slide_root.findall("{" + p_ns + "}grpSp"):
+                for props in group.findall(".//{" + p_ns + "}cNvPr"):
+                    name = props.get("name")
+                    if name and name.startswith("VNOfficeSmartArt:"):
+                        output_groups.setdefault(name.removeprefix("VNOfficeSmartArt:"), []).append(group)
+                        break
+        except (ET.ParseError, KeyError):
+            continue
+
+        source_rel_by_id = {
+            item.get("Id"): item
+            for item in source_rels_root.findall("{" + rel_ns + "}Relationship")
+            if item.get("Id") and item.get("Type") and "diagram" in item.get("Type", "").lower()
+        }
+        output_rel_items = output_rels_root.findall("{" + rel_ns + "}Relationship")
+        next_rel_id = max((int(match.group(1)) for item in output_rel_items
+                           if (match := re.fullmatch(r"rId(\d+)", item.get("Id", "")))), default=0) + 1
+        rel_map: dict[str, str] = {}
+        destination_rel_by_target = {
+            (item.get("Type"), item.get("Target")): item.get("Id")
+            for item in output_rel_items
+        }
+        package_conflict = False
+        for old_id, source_rel in source_rel_by_id.items():
+            source_target = source_rel.get("Target", "")
+            if source_rel.get("TargetMode") == "External":
+                target_part = None
+                target = source_target
+            else:
+                target_part = posixpath.normpath(posixpath.join(posixpath.dirname(source_slide_name), source_target))
+                if not target_part.startswith("ppt/diagrams/") or target_part not in source_entries:
+                    package_conflict = True
+                    break
+                target = posixpath.relpath(target_part, posixpath.dirname(output_slide_name))
+            existing_id = destination_rel_by_target.get((source_rel.get("Type"), target))
+            if existing_id:
+                rel_map[old_id] = existing_id
+                continue
+            new_id = f"rId{next_rel_id}"
+            next_rel_id += 1
+            rel_map[old_id] = new_id
+            ET.SubElement(output_rels_root, "{" + rel_ns + "}Relationship", {
+                "Id": new_id,
+                "Type": source_rel.get("Type", ""),
+                "Target": target,
+            })
+            destination_rel_by_target[(source_rel.get("Type"), target)] = new_id
+        if package_conflict:
+            continue
+        required_types = ("diagramdata", "diagramlayout", "diagramquickstyle", "diagramcolors")
+        if any(not any(kind in rel.get("Type", "").lower() for rel in source_rel_by_id.values()) for kind in required_types):
+            continue
+
+        restored_count = 0
+        for diagram_id in dict.fromkeys(wanted_ids):
+            frames = source_frames.get(diagram_id, [])
+            groups = output_groups.get(diagram_id, [])
+            if len(frames) != 1 or len(groups) != 1:
+                continue
+            original_frame = frames[0]
+            restored_frame = ET.fromstring(ET.tostring(original_frame, encoding="utf-8"))
+            rel_ids = restored_frame.find(".//{" + dgm_ns + "}relIds")
+            if rel_ids is None:
+                continue
+            bad_ref = False
+            for key, old_id in list(rel_ids.attrib.items()):
+                if old_id not in rel_map:
+                    bad_ref = True
+                    break
+                rel_ids.set(key, rel_map[old_id])
+            if bad_ref:
+                continue
+            group = groups[0]
+            group_parent = next((parent for parent in output_slide_root.iter()
+                                 if group in list(parent)), None)
+            if group_parent is None:
+                continue
+            position = list(group_parent).index(group)
+            group_parent.remove(group)
+            group_parent.insert(position, restored_frame)
+            restored_count += 1
+
+        if not restored_count:
+            continue
+
+        for part_name, part_data in diagram_parts.items():
+            if part_name not in output_entries:
+                changed[part_name] = part_data
+        for part_name, content_type in source_overrides.items():
+            if part_name not in output_overrides:
+                ET.SubElement(output_types_root, "{" + ct_ns + "}Override", {
+                    "PartName": part_name,
+                    "ContentType": content_type or "",
+                })
+                output_overrides[part_name] = content_type
+        changed[output_slide_name] = ET.tostring(output_root, encoding="utf-8", xml_declaration=True)
+        changed[output_rels_name] = ET.tostring(output_rels_root, encoding="utf-8", xml_declaration=True)
+
+    if not changed:
+        return exported_pptx
+    changed[_CONTENT_TYPES_ENTRY] = ET.tostring(output_types_root, encoding="utf-8", xml_declaration=True)
+    return patch_ooxml_zip(exported_pptx, changed)
+
+
 def postprocess_slides_pptx(
     pptx_bytes: bytes,
     *,
     source_fodp: str | None = None,
+    source_pptx_bytes: bytes | None = None,
     logo_text: str | None = None,
     accent_color: str | None = None,
     font_family: str | None = None,
@@ -6661,6 +6943,7 @@ def postprocess_slides_pptx(
     """Return patched PPTX bytes, or the original buffer when no patch is needed."""
     if enabled is False:
         return pptx_bytes
+    pptx_bytes = restore_unmodified_smartart(pptx_bytes, source_pptx_bytes, source_fodp)
     logo = {"logoText": "", "accentColor": accent_color or "", "fontFamily": font_family or ""}
     if logo_text and _normalize_logo_text(logo_text):
         logo["logoText"] = _normalize_logo_text(logo_text)

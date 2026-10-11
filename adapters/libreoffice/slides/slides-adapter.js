@@ -2286,6 +2286,25 @@ export class SlidesAdapter {
     if (!Array.isArray(shapes) || shapes.length === 0) return "";
     const map = idMap || this._collectShapeIdMap(shapes);
     const groups = Array.isArray(groupRecords) ? groupRecords.map(group => ({ ...group })) : [];
+    const diagramGroups = new Map();
+    for (const shape of shapes) {
+      if (!shape.diagramGroupId) continue;
+      const diagramGroupId = String(shape.diagramGroupId);
+      if (!diagramGroups.has(diagramGroupId)) diagramGroups.set(diagramGroupId, []);
+      diagramGroups.get(diagramGroupId).push(shape);
+    }
+    for (const [diagramGroupId, members] of diagramGroups) {
+      const internalId = `__vno_smartart__${diagramGroupId}`;
+      if (groups.some(group => String(group.id) === internalId)) continue;
+      const currentFingerprint = this._diagramGroupFingerprint(members);
+      groups.push({
+        id: internalId,
+        parentId: null,
+        diagramGroupId,
+        preserveNativeSmartArt: members.every(shape => shape.diagramSourceFingerprint
+          && shape.diagramSourceFingerprint === currentFingerprint)
+      });
+    }
     for (const shape of shapes) {
       if (shape.groupId && !groups.some(group => group.id === shape.groupId)) {
         groups.push({ id: shape.groupId, parentId: null });
@@ -2308,12 +2327,21 @@ export class SlidesAdapter {
       for (const shape of shapes.filter(item => String(item.groupId || "") === id)) {
         children.push({ order: shapeOrder.get(String(shape.id)), xml: this._serializeShape(shape, map.get(String(shape.id)), map, richCtx) });
       }
+      if (group.diagramGroupId) {
+        for (const shape of shapes.filter(item => String(item.diagramGroupId || "") === String(group.diagramGroupId))) {
+          children.push({ order: shapeOrder.get(String(shape.id)), xml: this._serializeShape(shape, map.get(String(shape.id)), map, richCtx) });
+        }
+      }
       children.sort((a, b) => a.order - b.order);
-      return `<draw:g draw:name="VNOfficeGroup:${this._escapeXml(id)}" svg:x="0cm" svg:y="0cm" svg:width="${pageWidth}" svg:height="${pageHeight}">${children.map(item => item.xml).join("")}</draw:g>`;
+      const groupName = group.diagramGroupId
+        ? `VNOfficeSmartArt:${this._escapeXml(group.diagramGroupId)}`
+        : `VNOfficeGroup:${this._escapeXml(id)}`;
+      const preserveAttr = group.preserveNativeSmartArt ? ' vno:smartart-preserve="true"' : "";
+      return `<draw:g draw:name="${groupName}"${preserveAttr} svg:x="0cm" svg:y="0cm" svg:width="${pageWidth}" svg:height="${pageHeight}">${children.map(item => item.xml).join("")}</draw:g>`;
     };
     const output = [];
     for (const shape of shapes) {
-      if (!shape.groupId) {
+      if (!shape.groupId && !shape.diagramGroupId) {
         output.push({ order: shapeOrder.get(String(shape.id)), xml: this._serializeShape(shape, map.get(String(shape.id)), map, richCtx) });
       }
     }
@@ -2338,7 +2366,10 @@ export class SlidesAdapter {
         }
       }
     }
-    return shapes.filter(shape => ids.has(String(shape.groupId || ""))).map(shape => shape.id);
+    const group = groups.find(item => String(item.id) === String(groupId));
+    const diagramGroupId = group?.diagramGroupId == null ? null : String(group.diagramGroupId);
+    return shapes.filter(shape => ids.has(String(shape.groupId || ""))
+      || (diagramGroupId != null && String(shape.diagramGroupId || "") === diagramGroupId)).map(shape => shape.id);
   }
 
   _parseGraphicFillStyles(xmlText) {
@@ -2884,6 +2915,8 @@ export class SlidesAdapter {
    */
   _diagramGroupIdFromAttrs(attrs, index) {
     const raw = this._attr(attrs, "draw:name") || this._attr(attrs, "draw:id") || this._attr(attrs, "xml:id") || "";
+    const nativeSmartArtId = String(raw).trim().match(/^VNOfficeSmartArt:(.*)$/i)?.[1];
+    if (nativeSmartArtId) return nativeSmartArtId;
     const slug = String(raw).trim().replace(/\s+/g, "-");
     return slug || `diagram-import-${index}`;
   }
@@ -3017,7 +3050,23 @@ export class SlidesAdapter {
         idMap.set(String(shape.id), shape.id);
       }
     }
+    // Keep a snapshot of imported nodes. Before native SmartArt is restored
+    // on export, compare it with the live group so stale OOXML cannot overwrite
+    // edits made in the canvas.
+    const sourceFingerprint = this._diagramGroupFingerprint(kept);
+    for (const shape of kept) shape.diagramSourceFingerprint = sourceFingerprint;
     return kept;
+  }
+
+  _diagramGroupFingerprint(shapes) {
+    const ignored = new Set([
+      "diagramGroupId", "diagramRole", "diagramLevel", "diagramSourceFingerprint"
+    ]);
+    return JSON.stringify((shapes || []).map(shape => Object.fromEntries(
+      Object.entries(shape || {})
+        .filter(([key]) => !key.startsWith("_") && !ignored.has(key))
+        .sort(([left], [right]) => left.localeCompare(right))
+    )));
   }
 
   _extractDrawGroups(pageContent, shapes, graphicStyles, idMap, sourceXml = pageContent) {
@@ -3071,7 +3120,8 @@ export class SlidesAdapter {
         parseNamedGroup(inner, groupId, baseOrder + block.start + Math.max(0, block.xml.indexOf(inner)));
         const children = shapes.splice(before);
         this._applyGroupOffset(children, origin.x, origin.y);
-        const isDiagram = children.some(shape => shape.type === "connector")
+        const isDiagram = /^VNOfficeSmartArt:/i.test(name)
+          || children.some(shape => shape.type === "connector")
           || this._omitGroupBackground(children).length < children.length;
         if (isDiagram) {
           groups.splice(groups.findIndex(group => group.id === groupId), 1);

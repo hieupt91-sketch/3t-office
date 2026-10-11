@@ -1722,7 +1722,9 @@ def _apply_native_export_postprocess(
     p14:sectionLst, and writes p:showPr in ppt/presProps.xml with
     showNarration="1" and no p:penClr. PowerPoint's slots are a p:sp
     without p:ph on slideMaster1.xml, p:extLst/p14:sectionLst in
-    ppt/presentation.xml, and CT_ShowProperties on presentationPr.
+    ppt/presentation.xml, and CT_ShowProperties on presentationPr. Native
+    SmartArt frames/package parts are also restored when the imported diagram
+    group is still identical to its source snapshot.
     """
     fmt = str(target_format).lower()
     if pristine_docx_source is None:
@@ -1784,7 +1786,13 @@ def _apply_native_export_postprocess(
             # trả về nguyên bytes gốc nếu thực sự không cần sửa gì.
             with open(out_path, "rb") as handle:
                 original = handle.read()
-            patched = patcher.postprocess_slides_pptx(original, source_fodp=fodp)
+            source_pptx_bytes = None
+            if source_path and os.path.isfile(source_path) and source_path.lower().endswith(".pptx"):
+                with open(source_path, "rb") as handle:
+                    source_pptx_bytes = handle.read()
+            patched = patcher.postprocess_slides_pptx(
+                original, source_fodp=fodp, source_pptx_bytes=source_pptx_bytes,
+            )
             if patched != original:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)
@@ -1792,7 +1800,7 @@ def _apply_native_export_postprocess(
             raise
         except Exception as exc:
             raise DocumentEngineError(
-                f"Không bổ sung được thuộc tính native PPTX (khổ trang / logo / Sections / Set Up Show): {exc}"
+                f"Không bổ sung được thuộc tính native PPTX (khổ trang / logo / Sections / Set Up Show / SmartArt): {exc}"
             ) from exc
     if app_kind == "writer" and fmt == "docx":
         try:

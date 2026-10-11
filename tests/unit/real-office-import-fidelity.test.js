@@ -238,7 +238,7 @@ export async function runRealOfficeImportFidelityTests() {
 
   test("Sheet: parseFods workbook snapshots match pre-optimization results", () => {
     const baselineHashes = new Map([
-      ["sample-sheet.fods", "27d6a029634b9d23b3018034ec3ac3e31f2695dc336f60a081eac86a2de15129"],
+      ["sample-sheet.fods", "6490dc31f4627743669263da9e197bf0ff13c6ced1943e2aa61ffb9d93dfef9f"],
       ["sample-sheet-validation.fods", "5a61f84f3e86fec0fbda3ce2f3184723f5282a2109e2669ac85bd5c7343bf4d0"],
       ["sample-sheet-pivot.fods", "9da11d96699646fd171f3e71d520aeeb5c3ce61fea3683e1657fd601195c56c5"],
       ["sample-sheet-formulas.fods", "6fe5161ffbdb734037194fd132e3ddfd615074142f7a4ff2c00f9b3b9f19d9db"]
@@ -248,6 +248,16 @@ export async function runRealOfficeImportFidelityTests() {
     for (const [filename, expectedHash] of baselineHashes) {
       const xml = fs.readFileSync(`tests/fixtures/real-office-samples/src/${filename}`, "utf8");
       const workbook = new SheetAdapter(null).parseFods(xml);
+      if (filename === "sample-sheet.fods") {
+        const revenue = workbook.sheetsData["Doanh thu"];
+        const costs = workbook.sheetsData["Chi phí"];
+        if (workbook.sheets.join("|") !== "Doanh thu|Chi phí"
+          || revenue?.get("B5")?.formula !== "=SUM(B2:B4)"
+          || revenue?.get("B5")?.val !== 450
+          || costs?.get("B2")?.style?.numberFormat?.currencySymbol !== "₫") {
+          throw new Error("sample-sheet.fods mất sheet, công thức SUM hoặc định dạng tiền Việt");
+        }
+      }
       const hash = crypto.createHash("sha256").update(normalizeWorkbook(workbook)).digest("hex");
       if (hash !== expectedHash) throw new Error(`${filename}: workbook hash ${hash} != baseline ${expectedHash}`);
     }

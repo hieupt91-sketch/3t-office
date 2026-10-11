@@ -171,3 +171,24 @@ Không. `soffice.exe` sẵn. Không Office GUI, không SendKeys, không thư vi�
 ## NEXT ACTION
 
 **KHÔNG merge vào `main`.** Review trên `fix/slides-smartart-import-fidelity`. Follow-up tùy chọn: fixture Process có mũi tên; chọn cả nhóm trên canvas (cần Slides owner).
+
+---
+
+## ADDENDUM — 2026-10-12: bảo toàn SmartArt native khi lưu
+
+Task tiếp theo trên `fix/macos-uno-socket` đã bổ sung bảo toàn gói DrawingML cho SmartArt nhập từ PPTX, nhưng chỉ khi toàn bộ shape trong nhóm còn khớp fingerprint lúc nhập. Adapter ghi dấu `VNOfficeSmartArt:<id>` vào FODP; hậu xử lý Python thay nhóm shape LibreOffice tạo bằng `p:graphicFrame` gốc và chép các part `ppt/diagrams/*`, relationship cùng content type. Nếu text/hình học/kiểu của node đã đổi, cờ bảo toàn bị gỡ và phần shape mới được giữ; không khôi phục nội dung gốc cũ.
+
+### Xác minh addendum
+
+- Live Mac/LibreOffice: `node tests/live/slides-smartart-native-roundtrip.mjs` — PASS. Fixture thật qua PPTX→FODP→adapter serialize→PPTX; nhóm chưa sửa phục hồi thành `p:graphicFrame` với `data/layout/style/colors/drawing` parts và relationships. Sửa text node thì không có parts gốc được ghép lại, text mới vẫn còn.
+- `npm test` — PASS 3072/3072 sau cập nhật baseline Sheet cũ; baseline mới kèm assert sheet, SUM=450 và tiền ₫.
+- `python -m unittest discover -s tests -p 'test*.py'` — PASS 868 test, 31 skipped trên nhánh này.
+- `git diff --check`, `py_compile` — PASS.
+
+### Giới hạn còn lại
+
+- Chỉ SmartArt không thay đổi mới được lưu lại thành đối tượng SmartArt native. Khi chỉnh node, slide giữ các shape mới nhưng PowerPoint không còn nhận đó là SmartArt; VN Office chưa cập nhật `data/layout/drawing` DrawingML từ các chỉnh sửa.
+- Việc ghép yêu cầu số lượng slide và group ID phải khớp giữa nguồn PPTX, FODP hiện tại và đầu ra; nếu không khớp thì bỏ qua bảo toàn thay vì phỏng đoán.
+- `diagramLevel` vẫn không được LibreOffice chuyển sang FODP; không claim giữ được cấu trúc phân cấp/khả năng đổi layout SmartArt sau chỉnh sửa.
+
+NEXT ACTION: Review code + test trên PR trước khi merge; sau đó cập nhật nhánh macOS tích hợp và chạy lại nghiệm thu Slides trên giao diện desktop.
