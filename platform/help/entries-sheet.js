@@ -986,15 +986,17 @@ export const SHEET_HELP_ENTRIES = [
     id: "sheet.style.tableAndCells",
     app: "sheet",
     commandIds: ["sheet.style.formatAsTable", "sheet.style.cellStyles"],
-    title: "Định dạng bảng và kiểu ô",
-    summary: "Định dạng bảng tô hàng tiêu đề đậm + hàng xen kẽ (5 mẫu màu). Kiểu ô áp một preset lên vùng chọn: Tốt/Kém/Trung tính, Tiêu đề 1/2, Ô nhập liệu, Tiền tệ ₫, Tổng cộng, Điểm nhấn.",
+    title: "Tạo bảng có bộ lọc và kiểu ô",
+    summary: "Định dạng thành Bảng tạo cấu trúc bảng có tên, vùng dữ liệu, hàng tiêu đề tùy chọn, nút lọc, kiểu hàng xen kẽ và tự mở rộng khi nhập liền dưới hoặc bên phải. Kiểu ô áp một preset riêng lên vùng chọn.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Kiểu ô" },
-    keywords: ["định dạng bảng", "format as table", "kiểu ô", "cell styles", "tốt", "kém", "banded rows", "tiền tệ"],
+    keywords: ["định dạng thành bảng", "format as table", "bảng có cấu trúc", "tên bảng", "bộ lọc bảng", "chuyển thành vùng", "đổi tên bảng", "hàng xen kẽ", "kiểu ô", "cell styles", "tốt", "kém", "banded rows", "tiền tệ"],
     steps: [
-      "Bôi vùng. Tab Trang đầu, nhóm Kiểu ô: Định dạng có điều kiện (nút lớn, bài riêng) rồi cột Định dạng bảng / Kiểu ô.",
-      "Định dạng bảng — hộp «Định dạng theo bảng (Format as Table)» (650 px) hiện «Vùng áp dụng bảng: A1:D10» (nhãn vùng đang bôi) và 5 mẫu: Bảng Xanh Lam (#2563eb), Xanh Lá (#16a34a), Xám Đậm (#334155), Cam Ấm (#ea580c), Tím Hiện Đại (#7c3aed). Hàng đầu chữ trắng nền màu; hàng chẵn/lẻ xen kẽ. Nhấp mẫu để áp ngay. Esc / × đóng.",
+      "Bôi vùng dữ liệu có ít nhất một hàng. Tab Trang đầu, nhóm Kiểu ô, chọn Định dạng thành Bảng. Hộp thoại hiển thị Vùng dữ liệu; sửa tham chiếu nếu cần, ví dụ A1:D10. Bật Bảng có tiêu đề nếu hàng đầu đã chứa tên cột. Khi tắt, hàng đầu được giữ làm dữ liệu và Sheet tạo tên cột như Column1, Column2.",
+      "Chọn một trong năm mẫu Bảng Xanh Lam, Xanh Lá, Xám Đậm, Cam Ấm hoặc Tím Hiện Đại rồi nhấn Tạo bảng. Sheet đặt tên mặc định Table1, Table2…; có thể nhập tên khác trong Tên bảng. Tiêu đề trống được điền tên cột và tiêu đề trùng được thêm hậu tố để tạo tên duy nhất. Nút lọc xuất hiện ở hàng tiêu đề; dùng nút đó để lọc như các cột lọc của Sheet.",
+      "Nhập thêm bản ghi ở hàng ngay dưới bảng hoặc nhập vào cột liền bên phải để bảng tự mở rộng. Nhấn Ctrl+Z để hoàn tác lần nhập cùng phần mở rộng; Ctrl+Y để khôi phục.",
+      "Đổi tên hoặc bỏ cấu trúc bảng: chọn một ô trong bảng, mở lại Trang đầu > Kiểu ô > Định dạng thành Bảng. Trong phần thao tác bảng, nhập tên mới rồi chọn Đổi tên bảng, hoặc chọn Chuyển thành vùng để giữ nội dung và màu nhưng bỏ tên bảng, tự mở rộng và cấu trúc bộ lọc. Ctrl+Z hoàn tác thao tác chuyển vùng.",
       "Kiểu ô — hộp «Thư viện kiểu ô (Cell Styles)» (720 px), lưới 2 cột: Bình thường (xóa màu, chữ #0f172a 13px), Tốt (nền #c6efce chữ #006100), Kém / Xấu (#ffc7ce / #9c0006), Trung tính (#ffeb9c / #9c6500), Tiêu đề 1 (16px đậm #1e3a8a, gạch dưới 2px), Tiêu đề 2 (14px, gạch 1px), Ô nhập liệu (nền #fff2cc), Tiền tệ (căn phải, ký hiệu ₫ sau số, 0 thập phân), Tổng cộng (viền trên đơn, dưới đôi), Điểm nhấn (nền #dbeafe). Nhấp thẻ áp ngay cho vùng chọn.",
-      "Đây là tô kiểu, không tạo đối tượng Table phần mềm bảng tính khác (không auto-filter riêng). Ctrl+Z hoàn tác. Xóa định dạng (menu Xóa) gỡ màu/kiểu, giữ số."
+      "Kiểu ô là preset định dạng riêng. Định dạng thành Bảng tạo đối tượng bảng thật khi lưu XLSX; mở lại tệp sẽ khôi phục vùng, tên và kiểu bảng. Xóa định dạng trong menu Xóa gỡ màu ô nhưng không đổi vùng hay tên bảng."
     ]
   },
   {

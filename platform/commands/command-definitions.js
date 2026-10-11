@@ -186,6 +186,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.comment.insert", category: "review", label: "Thêm ghi chú", shortcut: "Ctrl+Alt+M", icon: "comment", tooltip: "Thêm ghi chú vào đoạn văn bản đang chọn (Ctrl+Alt+M)" },
   { id: "writer.review.commentPrevious", category: "review", label: "Nhận xét trước", icon: "commentPrevious", tooltip: "Nhảy tới nhận xét trước đó" },
   { id: "writer.review.commentNext", category: "review", label: "Nhận xét sau", icon: "commentNext", tooltip: "Nhảy tới nhận xét tiếp theo" },
+  { id: "writer.review.commentReply", category: "review", label: "Trả lời nhận xét", icon: "commentReply", tooltip: "Trả lời nhận xét đang chọn" },
   { id: "writer.review.commentDelete", category: "review", label: "Xóa nhận xét", icon: "commentDelete", tooltip: "Xóa nhận xét đang chọn" },
   { id: "writer.review.commentResolve", category: "review", label: "Đã xử lý", icon: "commentResolve", tooltip: "Đánh dấu hoặc mở lại nhận xét đang chọn" },
   { id: "writer.trackChanges.toggle", category: "review", label: "Theo dõi thay đổi", shortcut: "Ctrl+Shift+E", icon: "trackChanges", tooltip: "Bật/tắt đánh dấu nội dung thêm và xóa (Ctrl+Shift+E)", isToggle: true },
@@ -424,7 +425,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.insert.symbol", category: "insert", label: "Ký hiệu", icon: "symbol", tooltip: "Chèn ký tự đặc biệt (Symbol)" },
 
   // Kiểu dáng & Định dạng bảng (Styles)
-  { id: "sheet.style.formatAsTable", category: "format", label: "Định dạng bảng", icon: "formatTable", tooltip: "Định dạng vùng chọn theo kiểu bảng có màu xen kẽ" },
+  { id: "sheet.style.formatAsTable", category: "format", label: "Định dạng thành Bảng", icon: "formatTable", tooltip: "Tạo bảng có tên, bộ lọc, hàng xen kẽ và tự mở rộng" },
   { id: "sheet.style.cellStyles", category: "format", label: "Kiểu ô", icon: "cellStyles", tooltip: "Mở thư viện kiểu ô định sẵn (Normal, Good, Bad, Neutral...)" },
 
   // Chỉnh sửa & Điền/Xóa (Editing: Fill & Clear)

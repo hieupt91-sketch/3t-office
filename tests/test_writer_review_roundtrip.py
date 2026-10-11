@@ -325,6 +325,35 @@ class WriterReviewRoundtripTests(unittest.TestCase):
         self.assertIn("commentsExtended.xml", _text(parts["[Content_Types].xml"]))
         self.assertIn("trackRevisions", _text(parts["word/settings.xml"]))
 
+    def test_comment_reply_is_serialized_as_child_in_comments_extended(self):
+        target = self.root / "comment-reply.docx"
+        records = [{
+            "type": "comment", "author": "Reviewer", "date": "2026-10-11T00:00:00Z",
+            "content": "Parent comment", "startBookmark": "vno-review-start-00001",
+            "endBookmark": "vno-review-end-00001"
+        }, {
+            "type": "comment", "author": "3T Office", "date": "2026-10-11T00:01:00Z",
+            "content": "Reply body", "parentStartBookmark": "vno-review-start-00001",
+            "startBookmark": "vno-review-start-00002", "endBookmark": "vno-review-end-00002"
+        }]
+        metadata = {"version": 1, "trackingEnabled": False, "records": records}
+        html = ('<p><a name="vno-review-start-00001"></a><a name="vno-review-start-00002"></a>ANCHOR'
+                '<a name="vno-review-end-00002"></a><a name="vno-review-end-00001"></a></p>'
+                f'<!--vno-review-meta-hex:{json.dumps(metadata).encode("utf-8").hex()}-->')
+        result = main.VnOfficeApi().save_document_in_place(html, "writer", str(target), None)
+        self.assertEqual(result.get("status"), "ok", result)
+        parts = _parts(target)
+        comments = ET.fromstring(parts["word/comments.xml"])
+        entries = comments.findall(f".//{{{W}}}comment")
+        self.assertEqual(len(entries), 2)
+        self.assertEqual("".join(entries[1].itertext()).strip(), "Reply body")
+        extended = ET.fromstring(parts["word/commentsExtended.xml"])
+        ns = "http://schemas.microsoft.com/office/word/2012/wordml"
+        items = extended.findall(f".//{{{ns}}}commentEx")
+        self.assertEqual(len(items), 2)
+        parent_id = items[0].get(f"{{{ns}}}paraId")
+        self.assertEqual(items[1].get(f"{{{ns}}}paraIdParent"), parent_id)
+
     def test_review_ranges_across_paragraphs_keep_valid_native_markup(self):
         import xml.etree.ElementTree as ET
         target = self.root / "cross-paragraph-review.docx"

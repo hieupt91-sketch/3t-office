@@ -321,3 +321,22 @@ Phần “chưa chạy” này là ghi nhận giữa chừng, đã được thay
 
 ### Round-trip batch DOCX
 - `scripts/layout-audit/batch_document_audit.py docx` với đầu vào junction `file test/landocx` và profile tách biệt: d01,d02,d06,d07,d13,d20,d24 đều mở/lưu qua app, Word COM xác nhận số trang không đổi và thao tác sửa đã lưu: 7/7 PASS, 0 FAIL/BLOCKED. Báo cáo đầy đủ ở profile `E:\VNOffice-profiles\codex-ft11\batch-audit\batch_document_audit_report.md`.
+## Kế hoạch FIX-T10 — 11/10/2026
+
+- **Mục tiêu:** bổ sung reply comment roundtrip DOCX/Word COM; đưa gallery Title/Subtitle/Quote/List Paragraph về built-in style semantics/format của Word; phân loại lại các gap T9 còn lại.
+- **Năng lực hiện tại:** resolve comment đã có `commentsExtended.xml`; gallery có Home/Heading/Quote nhưng semantic Title và hai card còn thiếu. Footnote/endnote đã khớp trong phép T9; multilevel UI/COM là NOT RUN; shape chỉ đo lúc tạo.
+- **Files/modules:** Writer adapter/UI/ribbon, `ooxml_zip_patch.py`, Help+i18n, unit tests, CDP+Word COM harnesses, báo cáo audit và backlog. Không sửa LibreOffice Core, không thêm dependency.
+- **Dependency/risk:** dùng LibreOffice/Word COM tại máy; Word có yêu cầu cấu trúc reply gồm comment range riêng, paraIdParent và author record; style format phụ thuộc theme/default Word.
+- **Test/rollback:** CDP mouse+keyboard và ảnh, Word COM đọc DOCX app/đối chứng; unittest, `npm test`, batch DOCX d01/d02/d06/d07/d13/d20/d24. Mỗi nhóm commit riêng; revert nhóm nếu roundtrip hồi quy.
+
+## FIX-T10 — Reply nhận xét và Thư viện kiểu — 11/10/2026
+
+- **Reply comment — PASS:** tab **Đánh giá > Ghi chú > Trả lời nhận xét** mở hộp nhập; ảnh CDP `E:\VNOffice-profiles\codex-ft10\comments-reply-t10.png`. Lưu `comments-reply-t10.docx`; Word COM đọc `Comments.Count=2`, nhận parent `Parent comment`, `Replies.Count=1`, nội dung `Reply body`. DOCX chứa `commentsExtended.xml` với `w15:paraIdParent`; hướng dẫn VI và nhãn VI/EN đã cập nhật. Harness Word COM cũng tạo tài liệu đối chứng cùng cấu trúc.
+- **Thư viện kiểu — PASS:** qua **Trang đầu > Thư viện kiểu**, áp dụng Title, Subtitle, Quote, List Paragraph bằng CDP mouse và lưu DOCX; ảnh `E:\VNOffice-profiles\codex-ft10\styles-gallery-t10.png`. Word COM so với tài liệu dựng bằng Word: style name, font, cỡ, bold/italic và căn lề khớp lần lượt: Title (Calibri Light, 28 pt), Subtitle (Calibri, 11 pt), Quote (Calibri, 11 pt, italic, centered), List Paragraph (Calibri, 11 pt, left). Subtitle/List Paragraph có card; tiêu đề/Quote giữ Word built-in style IDs.
+- **Giới hạn còn lại (không suy rộng từ phép đo khác):** footnote/endnote **T9 COM PASS**, nhưng phép T10 **NOT RUN**; danh sách nhiều cấp serializer **PASS**, UI/Word COM **NOT RUN**; hình khối mới có fill/line **T9 COM PASS**, sửa fill/line sau khi tạo và xoay **thiếu luồng UI / NOT RUN**. Chi tiết và trạng thái backlog đã cập nhật.
+- **Commits:** Style gallery `3a9e1acb`; reply comment `072851ac`.
+- **Word COM:** app và tài liệu dựng bằng Word khớp tên style và thuộc tính đo; reply thread app/Word đều đọc parent + một reply. CDP dùng chuột/phím thật, không dùng SendKeys/OS input. PID app mới được đóng theo PID; ảnh và DOCX ở `E:\VNOffice-profiles\codex-ft10`.
+- **Kiểm tra cuối:** `python -m unittest discover -s tests`: **869 tests OK** (466.959 giây); `npm test`: **3069/3071 PASS, 2 FAIL**; batch DOCX **7/7 PASS**, mọi fixture edit PASS, Word/saved page counts khớp. Chi tiết 2 lỗi npm: test cũ vẫn đòi Title 26pt/căn giữa thay cho built-in đo bằng Word COM 28pt/căn trái; scanner tên sản phẩm phát hiện nội dung release notes 0.9.10 ngoài phạm vi. Không sửa test/release notes.
+- **Build:** NOT RUN (không nằm trong lệnh xác minh được yêu cầu).
+- **Artifact CDP/COM:** `comments-reply-t10.png`, `styles-gallery-t10.png`, `comments-reply-t10.docx`, `styles-gallery-t10.docx`; PID gần nhất của harness gallery `15520`. Batch report: `E:\VNOffice-profiles\codex-ft10\batch-audit-final\batch_document_audit_report.md`.
+- **Commits:** Style gallery `3a9e1acb`; reply comment `072851ac`; style/Help compatibility `0b66ca71`; hồ sơ audit/handoff commit riêng.

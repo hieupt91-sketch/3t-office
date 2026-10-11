@@ -1,0 +1,1082 @@
+[
+ {
+  "tab": "Trang đầu",
+  "id": "common.edit.paste",
+  "label": "Dán (Ctrl+V)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:152"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "common.edit.cut",
+  "label": "Cắt (Ctrl+X)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:3"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "common.edit.copy",
+  "label": "Sao chép (Ctrl+C)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "common.edit.formatPainter",
+  "label": "Sao chép định dạng (Ctrl+Shift+C)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:22"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.edit.pasteSpecial",
+  "label": "Dán đặc biệt (Ctrl+Alt+V)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.font.family",
+  "label": "Phông chữ",
+  "hasIcon": false,
+  "disabled": false,
+  "reaction": "control(select/input)"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.font.size",
+  "label": "Cỡ chữ",
+  "hasIcon": false,
+  "disabled": false,
+  "reaction": "control(select/input)"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.font.grow",
+  "label": "Tăng cỡ chữ (Ctrl+Shift+>)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:14"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.font.shrink",
+  "label": "Giảm cỡ chữ (Ctrl+Shift+<)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:14"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.text.bold",
+  "label": "Đậm (Ctrl+B)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:10"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.text.italic",
+  "label": "Nghiêng (Ctrl+I)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:10"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.text.underline",
+  "label": "Gạch chân (Ctrl+U)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:10"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.text.strike",
+  "label": "Gạch ngang",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:10"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.text.subscript",
+  "label": "Chỉ số dưới (Ctrl+=)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:10"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.text.superscript",
+  "label": "Chỉ số trên (Ctrl+Shift++)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:10"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.text.changeCase",
+  "label": "Đổi chữ hoa/thường (Shift+F3)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:91"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.text.clearFormat",
+  "label": "Xóa định dạng (Ctrl+Space)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:163"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.color.highlight",
+  "label": "Màu nền chữ (Ctrl+Alt+H)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:146"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.color.text",
+  "label": "Màu chữ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:156"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.list.bullet",
+  "label": "Dấu đầu dòng (Ctrl+Shift+L)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:170"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.list.numbered",
+  "label": "Đánh số",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:182"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.para.indentDec",
+  "label": "Giảm thụt lề (Ctrl+Shift+M)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:172"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.para.indentInc",
+  "label": "Thụt lề (Ctrl+M)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:4"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.para.sort",
+  "label": "Sắp xếp",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "toast:Cần chọn ít nhất hai đoạn văn để sắp xếp A–Z."
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.para.showFormattingMarks",
+  "label": "Hiện/ẩn ký tự định dạng (Ctrl+*)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:26"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.para.alignLeft",
+  "label": "Căn trái (Ctrl+L)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:177"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.para.alignCenter",
+  "label": "Căn giữa (Ctrl+E)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:109"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.para.alignRight",
+  "label": "Căn phải (Ctrl+R)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:115"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.para.justify",
+  "label": "Căn đều (Ctrl+J)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:117"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.para.shading",
+  "label": "Tô nền đoạn",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:4"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.para.borders",
+  "label": "Viền đoạn văn",
+  "hasIcon": false,
+  "disabled": false,
+  "reaction": "control(select/input)"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "writer.style.gallery",
+  "label": "Thư viện kiểu",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "common.edit.find",
+  "label": "Tìm kiếm (Ctrl+F)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:Cần chọn ít nhất hai đoạn văn để sắp xếp A–Z."
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "common.edit.replace",
+  "label": "Thay thế (Ctrl+H)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:Cần chọn ít nhất hai đoạn văn để sắp xếp A–Z."
+ },
+ {
+  "tab": "Chèn",
+  "id": "writer.page.blank",
+  "label": "Trang trắng",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:140"
+ },
+ {
+  "tab": "Chèn",
+  "id": "writer.page.break",
+  "label": "Ngắt trang (Ctrl+Enter)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:140"
+ },
+ {
+  "tab": "Chèn",
+  "id": "writer.table.insert",
+  "label": "Bảng biểu",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:153"
+ },
+ {
+  "tab": "Chèn",
+  "id": "writer.table.fromText",
+  "label": "Văn bản thành bảng",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Chèn",
+  "id": "writer.image.insert",
+  "label": "Hình ảnh",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Chèn",
+  "id": "writer.shape.insert",
+  "label": "Hình khối",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Chèn",
+  "id": "writer.diagram.insert",
+  "label": "Sơ đồ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:Cần chọn ít nhất hai đoạn văn để sắp xếp A–Z."
+ },
+ {
+  "tab": "Chèn",
+  "id": "writer.chart.insert",
+  "label": "Biểu đồ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:Cần chọn ít nhất hai đoạn văn để sắp xếp A–Z."
+ },
+ {
+  "tab": "Chèn",
+  "id": "common.edit.hyperlink",
+  "label": "Liên kết (Ctrl+K)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:Cần chọn ít nhất hai đoạn văn để sắp xếp A–Z."
+ },
+ {
+  "tab": "Chèn",
+  "id": "writer.insert.bookmark",
+  "label": "Đánh dấu",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:Cần chọn ít nhất hai đoạn văn để sắp xếp A–Z."
+ },
+ {
+  "tab": "Chèn",
+  "id": "writer.insert.crossReference",
+  "label": "Tham chiếu chéo",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Chèn",
+  "id": "writer.comment.insert",
+  "label": "Thêm ghi chú (Ctrl+Alt+M)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Chèn",
+  "id": "writer.header.insert",
+  "label": "Đầu trang",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "document"
+ },
+ {
+  "tab": "Chèn",
+  "id": "writer.footer.insert",
+  "label": "Chân trang",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:64"
+ },
+ {
+  "tab": "Chèn",
+  "id": "writer.insert.textbox",
+  "label": "Hộp văn bản",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:105"
+ },
+ {
+  "tab": "Chèn",
+  "id": "writer.insert.wordart",
+  "label": "Chữ nghệ thuật",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Chèn",
+  "id": "writer.format.dropCap",
+  "label": "Chữ đầu đoạn",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Chèn",
+  "id": "writer.insert.dateTime",
+  "label": "Ngày & Giờ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Chèn",
+  "id": "writer.insert.equation",
+  "label": "Phương trình (Alt+=)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Chèn",
+  "id": "writer.insert.symbol",
+  "label": "Ký hiệu",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Thiết kế",
+  "id": "writer.design.themeGallery",
+  "label": "Chủ đề văn bản",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Thiết kế",
+  "id": "writer.page.watermark",
+  "label": "Hình mờ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:Cần chọn ít nhất hai đoạn văn để sắp xếp A–Z."
+ },
+ {
+  "tab": "Thiết kế",
+  "id": "writer.page.color",
+  "label": "Màu trang",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Thiết kế",
+  "id": "writer.page.border",
+  "label": "Viền trang",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Bố cục",
+  "id": "writer.page.margins",
+  "label": "Căn lề",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:Cần chọn ít nhất hai đoạn văn để sắp xếp A–Z."
+ },
+ {
+  "tab": "Bố cục",
+  "id": "writer.page.orientation",
+  "label": "Hướng giấy",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:Cần chọn ít nhất hai đoạn văn để sắp xếp A–Z."
+ },
+ {
+  "tab": "Bố cục",
+  "id": "writer.page.size",
+  "label": "Khổ giấy",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:Cần chọn ít nhất hai đoạn văn để sắp xếp A–Z."
+ },
+ {
+  "tab": "Bố cục",
+  "id": "writer.page.columns",
+  "label": "Cột",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:Cần chọn ít nhất hai đoạn văn để sắp xếp A–Z."
+ },
+ {
+  "tab": "Bố cục",
+  "id": "writer.page.columns1",
+  "label": "1 cột",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:62"
+ },
+ {
+  "tab": "Bố cục",
+  "id": "writer.page.columns2",
+  "label": "2 cột",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:64"
+ },
+ {
+  "tab": "Bố cục",
+  "id": "writer.page.columns3",
+  "label": "3 cột",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:63"
+ },
+ {
+  "tab": "Bố cục",
+  "id": "writer.layout.lineNumbers",
+  "label": "Danh số dòng",
+  "hasIcon": false,
+  "disabled": false,
+  "reaction": "control(select/input)"
+ },
+ {
+  "tab": "Bố cục",
+  "id": "writer.para.indentDec",
+  "label": "Giảm thụt lề (Ctrl+Shift+M)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:4"
+ },
+ {
+  "tab": "Bố cục",
+  "id": "writer.para.indentInc",
+  "label": "Thụt lề (Ctrl+M)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:4"
+ },
+ {
+  "tab": "Bố cục",
+  "id": "writer.para.firstLineIndent",
+  "label": "Thụt đầu dòng",
+  "hasIcon": false,
+  "disabled": false,
+  "reaction": "control(select/input)"
+ },
+ {
+  "tab": "Bố cục",
+  "id": "writer.para.spacingBefore",
+  "label": "Khoảng trước đoạn",
+  "hasIcon": false,
+  "disabled": false,
+  "reaction": "control(select/input)"
+ },
+ {
+  "tab": "Bố cục",
+  "id": "writer.para.spacingAfter",
+  "label": "Khoảng sau đoạn",
+  "hasIcon": false,
+  "disabled": false,
+  "reaction": "control(select/input)"
+ },
+ {
+  "tab": "Bố cục",
+  "id": "writer.page.watermark",
+  "label": "Hình mờ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:Cần chọn ít nhất hai đoạn văn để sắp xếp A–Z."
+ },
+ {
+  "tab": "Bố cục",
+  "id": "writer.page.border",
+  "label": "Viền trang",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Bố cục",
+  "id": "common.file.print",
+  "label": "In tài liệu (Ctrl+P)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Bố cục",
+  "id": "writer.file.printPreview",
+  "label": "Xem trước khi in (Ctrl+F2)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Tham chiếu",
+  "id": "writer.reference.tocInsert",
+  "label": "Mục lục tự động",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:68"
+ },
+ {
+  "tab": "Tham chiếu",
+  "id": "writer.reference.tocUpdate",
+  "label": "Cập nhật mục lục",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:13"
+ },
+ {
+  "tab": "Tham chiếu",
+  "id": "writer.reference.footnoteInsert",
+  "label": "Chú thích trang (Ctrl+Alt+F)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:163"
+ },
+ {
+  "tab": "Tham chiếu",
+  "id": "writer.reference.endnoteInsert",
+  "label": "Chú thích cuối (Ctrl+Alt+D)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:74"
+ },
+ {
+  "tab": "Tham chiếu",
+  "id": "writer.reference.citationInsert",
+  "label": "Chèn trích dẫn",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Tham chiếu",
+  "id": "writer.reference.sourcesManage",
+  "label": "Quản lý nguồn",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Tham chiếu",
+  "id": "writer.reference.citationStyle",
+  "label": "Kiểu trích dẫn",
+  "hasIcon": false,
+  "disabled": false,
+  "reaction": "control(select/input)"
+ },
+ {
+  "tab": "Tham chiếu",
+  "id": "writer.reference.bibliographyInsert",
+  "label": "Thư mục tài liệu",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:7"
+ },
+ {
+  "tab": "Tham chiếu",
+  "id": "writer.reference.captionInsert",
+  "label": "Chèn chú thích ảnh",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Tham chiếu",
+  "id": "writer.reference.tofInsert",
+  "label": "Danh mục hình ảnh",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Tham chiếu",
+  "id": "writer.reference.tofUpdate",
+  "label": "Cập nhật danh mục",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:56"
+ },
+ {
+  "tab": "Tham chiếu",
+  "id": "writer.insert.crossReference",
+  "label": "Tham chiếu chéo",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Trộn thư",
+  "id": "writer.mailings.envelopes",
+  "label": "Phong bì",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:Chưa có nguồn được trích dẫn để tạo Thư mục tài liệu. Hãy thêm nguồn ở Tham chiế"
+ },
+ {
+  "tab": "Trộn thư",
+  "id": "writer.mailings.labels",
+  "label": "Nhãn",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:Chưa có nguồn được trích dẫn để tạo Thư mục tài liệu. Hãy thêm nguồn ở Tham chiế"
+ },
+ {
+  "tab": "Trộn thư",
+  "id": "writer.mailMerge.open",
+  "label": "Nguồn dữ liệu",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Trộn thư",
+  "id": "writer.mailMerge.insertField",
+  "label": "Chèn trường",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:Chưa có nguồn được trích dẫn để tạo Thư mục tài liệu. Hãy thêm nguồn ở Tham chiế"
+ },
+ {
+  "tab": "Trộn thư",
+  "id": "writer.mailMerge.ifRule",
+  "label": "Quy tắc",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:Chưa có nguồn được trích dẫn để tạo Thư mục tài liệu. Hãy thêm nguồn ở Tham chiế"
+ },
+ {
+  "tab": "Trộn thư",
+  "id": "writer.mailMerge.preview",
+  "label": "Xem trước kết quả",
+  "hasIcon": true,
+  "disabled": true,
+  "reaction": "disabled"
+ },
+ {
+  "tab": "Trộn thư",
+  "id": "writer.mailMerge.prevRecord",
+  "label": "Bản ghi trước",
+  "hasIcon": true,
+  "disabled": true,
+  "reaction": "disabled"
+ },
+ {
+  "tab": "Trộn thư",
+  "id": "writer.mailMerge.nextRecord",
+  "label": "Bản ghi sau",
+  "hasIcon": true,
+  "disabled": true,
+  "reaction": "disabled"
+ },
+ {
+  "tab": "Trộn thư",
+  "id": "writer.mailMerge.finish",
+  "label": "Hoàn tất & Trộn",
+  "hasIcon": true,
+  "disabled": true,
+  "reaction": "disabled"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "ai.assistant.grammarCheck",
+  "label": "Soát lỗi chính tả (F7)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "writer.review.toggleSpellCheck",
+  "label": "Kiểm tra chính tả",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:27"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "writer.review.wordCount",
+  "label": "Đếm từ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "writer.comment.insert",
+  "label": "Thêm ghi chú (Ctrl+Alt+M)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "writer.review.commentDelete",
+  "label": "Xóa nhận xét",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "writer.review.commentResolve",
+  "label": "Đã xử lý",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "writer.review.commentPrevious",
+  "label": "Nhận xét trước",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "writer.review.commentNext",
+  "label": "Nhận xét sau",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:6"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "writer.trackChanges.toggle",
+  "label": "Theo dõi thay đổi (Ctrl+Shift+E)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:61"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "writer.trackChanges.acceptOne",
+  "label": "Chấp nhận một",
+  "hasIcon": true,
+  "disabled": true,
+  "reaction": "disabled"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "writer.trackChanges.acceptAll",
+  "label": "Chấp nhận thay đổi",
+  "hasIcon": true,
+  "disabled": true,
+  "reaction": "disabled"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "writer.trackChanges.rejectOne",
+  "label": "Từ chối một",
+  "hasIcon": true,
+  "disabled": true,
+  "reaction": "disabled"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "writer.trackChanges.rejectAll",
+  "label": "Từ chối thay đổi",
+  "hasIcon": true,
+  "disabled": true,
+  "reaction": "disabled"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "writer.trackChanges.previous",
+  "label": "Thay đổi trước",
+  "hasIcon": true,
+  "disabled": true,
+  "reaction": "disabled"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "writer.trackChanges.next",
+  "label": "Thay đổi sau",
+  "hasIcon": true,
+  "disabled": true,
+  "reaction": "disabled"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "writer.view.readMode",
+  "label": "Chế độ đọc",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:49"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "writer.view.printLayout",
+  "label": "Bố trí in",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "writer.view.webLayout",
+  "label": "Bố trí Web",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:15667"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "writer.view.navigationPane",
+  "label": "Ngăn dẫn hướng (Ctrl+Alt+N)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:105"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "writer.view.ruler",
+  "label": "Thước",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:46"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "writer.view.gridlines",
+  "label": "Đường lưới",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:47"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "writer.view.zoomIn",
+  "label": "Phóng to",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:25508"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "writer.view.zoom100",
+  "label": "100%",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:58070"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "writer.view.zoomOut",
+  "label": "Thu nhỏ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:58127"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "writer.view.pageWidth",
+  "label": "Chiều rộng trang",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:40447"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "writer.view.zoomReset",
+  "label": "Đặt lại",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:56351"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "writer.view.newWindow",
+  "label": "Cửa sổ mới",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "common.macro.recordToggle",
+  "label": "Ghi Macro (Ctrl+Shift+R)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:22"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "common.macro.manager",
+  "label": "Xem Macro (Alt+F8)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Trợ giúp",
+  "id": "writer.help.open",
+  "label": "Trợ giúp (F1)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:85"
+ },
+ {
+  "tab": "Trợ giúp",
+  "id": "common.help.about",
+  "label": "Giới thiệu",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Trợ lý 3T AI",
+  "id": "ai.assistant.toggle",
+  "label": "Trợ lý 3T AI (Alt+J)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Trợ lý 3T AI",
+  "id": "ai.assistant.summarize",
+  "label": "Tóm tắt nhanh",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Trợ lý 3T AI",
+  "id": "ai.assistant.rewrite",
+  "label": "Viết lại",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Trợ lý 3T AI",
+  "id": "ai.voice.input",
+  "label": "Nhập liệu bằng giọng nói",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Trợ lý 3T AI",
+  "id": "ai.assistant.summarizeMeeting",
+  "label": "Tóm tắt cuộc họp",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Trợ lý 3T AI",
+  "id": "ai.assistant.smartSearch",
+  "label": "Tìm kiếm thông minh",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Trợ lý 3T AI",
+  "id": "ai.assistant.translate",
+  "label": "Dịch thuật",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Trợ lý 3T AI",
+  "id": "ai.assistant.draftDocument",
+  "label": "Viết nháp",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ }
+]

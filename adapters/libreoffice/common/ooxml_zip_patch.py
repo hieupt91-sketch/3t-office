@@ -1398,6 +1398,8 @@ def parse_autofilter_from_fods(fods_xml: str | None) -> dict[str, str]:
         return result
     for match in _DB_RANGE_RE.finditer(fods_xml):
         attrs = match.group(1) or ""
+        if re.search(r'\bvno:table-name="', attrs, re.IGNORECASE):
+            continue
         target_match = re.search(r'table:target-range-address="([^"]*)"', attrs)
         if not target_match:
             continue
@@ -1424,6 +1426,8 @@ def parse_autofilter_filter_columns_from_fods(fods_xml: str | None) -> dict[str,
         return result
     for match in _DB_RANGE_RE.finditer(fods_xml):
         attrs = match.group(1) or ""
+        if re.search(r'\bvno:table-name="', attrs, re.IGNORECASE):
+            continue
         target_match = re.search(r'table:target-range-address="([^"]*)"', attrs)
         columns_match = re.search(r'vno:filter-columns="([^"]*)"', attrs, re.IGNORECASE)
         if not target_match or not columns_match:
@@ -1444,6 +1448,98 @@ def parse_autofilter_filter_columns_from_fods(fods_xml: str | None) -> dict[str,
                 if isinstance(item, dict) and isinstance(item.get("values"), list)
             ]
     return result
+
+
+def parse_tables_from_fods(fods_xml: str | None) -> dict[str, dict]:
+    """Read explicit VN table definitions from FODS database ranges by name."""
+    result: dict[str, dict] = {}
+    for match in _DB_RANGE_RE.finditer(fods_xml or ""):
+        attrs = match.group(1) or ""
+        name = re.search(r'vno:table-name="([^"]*)"', attrs, re.IGNORECASE)
+        target = re.search(r'table:target-range-address="([^"]*)"', attrs, re.IGNORECASE)
+        if not name or not target:
+            continue
+        target_value = _unescape_xml(target.group(1))
+        range_match = re.match(r"^(?:'((?:[^']|'')*)'|([^.'!]+))\.\$?([A-Z]+)\$?(\d+):(?:'(?:[^']|'')*'|[^.'!]+)\.\$?([A-Z]+)\$?(\d+)$", target_value, re.IGNORECASE)
+        if not range_match:
+            continue
+        sheet = range_match.group(1).replace("''", "'") if range_match.group(1) is not None else range_match.group(2)
+        def attr_value(key: str, default: str) -> str:
+            value = re.search(rf'vno:{key}="([^"]*)"', attrs, re.IGNORECASE)
+            return _unescape_xml(value.group(1)) if value else default
+        table_name = _unescape_xml(name.group(1))
+        result[table_name] = {
+            "sheet": sheet,
+            "ref": f"{range_match.group(3)}{range_match.group(4)}:{range_match.group(5)}{range_match.group(6)}",
+            "style": attr_value("table-style", "TableStyleMedium2"),
+            "has_headers": attr_value("table-headers", "true") != "false",
+            "show_autofilter": attr_value("table-show-autofilter", "true") != "false",
+            "row_stripes": attr_value("table-row-stripes", "true") != "false",
+        }
+    return result
+
+
+def _apply_table_metadata_from_fods(xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]) -> None:
+    """Set real table names, refs, header/filter flags and style on LO table parts."""
+    tables = parse_tables_from_fods(source_fods)
+    if not tables:
+        return
+    for path in zipfile.ZipFile(io.BytesIO(xlsx_bytes)).namelist():
+        if not re.fullmatch(r"xl/tables/table\d+\.xml", path):
+            continue
+        raw = replacements.get(path)
+        if raw is None:
+            entry = read_zip_entry(xlsx_bytes, path)
+            if not entry:
+                continue
+            raw = entry.decode("utf-8", errors="replace")
+        root = re.search(r"<table\b([^>]*)>", raw)
+        if not root:
+            continue
+        attrs = root.group(1)
+        current_name = re.search(r'\b(?:displayName|name)="([^"]+)"', attrs)
+        metadata = tables.get(_unescape_xml(current_name.group(1))) if current_name else None
+        if metadata is None:
+            # LO can normalize the database name when creating the table part.
+            metadata = next((item for name, item in tables.items() if name in attrs), None)
+        if metadata is None:
+            continue
+        table_name = next((name for name, item in tables.items() if item is metadata), "")
+        if not table_name:
+            continue
+        attrs = re.sub(r'\bname="[^"]*"', f'name="{_escape_xml(table_name)}"', attrs, count=1)
+        if re.search(r'\bdisplayName="[^"]*"', attrs):
+            attrs = re.sub(r'\bdisplayName="[^"]*"', f'displayName="{_escape_xml(table_name)}"', attrs, count=1)
+        else:
+            attrs += f' displayName="{_escape_xml(table_name)}"'
+        attrs = re.sub(r'\bref="[^"]*"', f'ref="{metadata["ref"]}"', attrs, count=1)
+        if re.search(r'\bheaderRowCount="[^"]*"', attrs):
+            attrs = re.sub(r'\bheaderRowCount="[^"]*"', f'headerRowCount="{1 if metadata["has_headers"] else 0}"', attrs, count=1)
+        elif not metadata["has_headers"]:
+            attrs += ' headerRowCount="0"'
+        xml = raw[:root.start()] + f"<table{attrs}>" + raw[root.end():]
+        auto_filter = re.search(r'<autoFilter\b[^>]*/>|<autoFilter\b[^>]*>[\s\S]*?</autoFilter>', xml)
+        if metadata["show_autofilter"]:
+            filter_xml = f'<autoFilter ref="{metadata["ref"]}"/>'
+            if auto_filter:
+                xml = xml[:auto_filter.start()] + filter_xml + xml[auto_filter.end():]
+            else:
+                col_match = re.search(r'<tableColumns\b', xml)
+                if col_match:
+                    xml = xml[:col_match.start()] + filter_xml + xml[col_match.start():]
+        elif auto_filter:
+            xml = xml[:auto_filter.start()] + xml[auto_filter.end():]
+        style = metadata["style"] or "TableStyleMedium2"
+        style_xml = (f'<tableStyleInfo name="{_escape_xml(style)}" showFirstColumn="0" showLastColumn="0" '
+                     f'showRowStripes="{1 if metadata["row_stripes"] else 0}" showColumnStripes="0"/>')
+        style_match = re.search(r'<tableStyleInfo\b[^>]*/>', xml)
+        if style_match:
+            xml = xml[:style_match.start()] + style_xml + xml[style_match.end():]
+        else:
+            close = xml.rfind("</table>")
+            if close >= 0:
+                xml = xml[:close] + style_xml + xml[close:]
+        replacements[path] = xml
 
 
 def apply_autofilter_to_worksheet(sheet_xml: str, ref: str, filter_columns: list[dict] | None = None) -> str:
@@ -4087,6 +4183,8 @@ def postprocess_sheet_xlsx(
             pass
         if source_xlsx_bytes:
             _restore_autofilter_filter_columns_step(xlsx_bytes, source_xlsx_bytes, replacements)
+
+    _apply_table_metadata_from_fods(xlsx_bytes, source_fods, replacements)
 
     # Scenarios: soffice drops <scenarios> during FODS -> XLSX. Read
     # vno:scenarios from FODS and write <scenarios> into worksheets.
@@ -10582,15 +10680,89 @@ def _overlay_autofilter_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
     sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
     if not sheet_entries:
         return fods_xml
+    tables_by_sheet = _parse_xlsx_tables(xlsx_bytes, sheet_entries)
+    table_refs = {sheet: {table["ref"] for table in tables} for sheet, tables in tables_by_sheet.items()}
     autofilter_by_sheet: dict[str, str] = {}
     for sheet_name, entry_path in sheet_entries.items():
         entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
         if not entry_bytes:
             continue
         ref = parse_autofilter_from_worksheet(entry_bytes.decode("utf-8", errors="replace"))
-        if ref:
+        if ref and ref not in table_refs.get(sheet_name, set()):
             autofilter_by_sheet[sheet_name] = ref
-    return apply_autofilter_to_fods(fods_xml, autofilter_by_sheet)
+    xml = apply_autofilter_to_fods(fods_xml, autofilter_by_sheet)
+    if not tables_by_sheet:
+        return xml
+    ranges_xml = []
+    for sheet_name, tables in tables_by_sheet.items():
+        target_sheet = sheet_name if re.fullmatch(r"[A-Za-z0-9_]+", sheet_name) else "'" + sheet_name.replace("'", "''") + "'"
+        for table in tables:
+            ranges_xml.append(
+                f'<table:database-range table:name="{_escape_xml(table["name"])}"'
+                f' table:target-range-address="{_escape_xml(target_sheet)}.{_escape_xml(table["ref"].split(":", 1)[0])}:{_escape_xml(target_sheet)}.{_escape_xml(table["ref"].split(":", 1)[-1])}"'
+                f' table:display-filter-buttons="{"true" if table["show_autofilter"] else "false"}" vno:table-name="{_escape_xml(table["name"])}"'
+                f' vno:table-style="{_escape_xml(table["style"])}"'
+                f' vno:table-headers="{"true" if table["has_headers"] else "false"}"'
+                f' vno:table-show-autofilter="{"true" if table["show_autofilter"] else "false"}"'
+                f' vno:table-row-stripes="{"true" if table["row_stripes"] else "false"}"/>'
+            )
+    db_block = f'<table:database-ranges>{"".join(ranges_xml)}</table:database-ranges>'
+    marker = "</office:spreadsheet>"
+    index = xml.rfind(marker)
+    return xml[:index] + db_block + xml[index:] if index >= 0 else xml + db_block
+
+
+def _parse_xlsx_tables(xlsx_bytes: bytes, sheet_entries: dict[str, str] | None = None) -> dict[str, list[dict]]:
+    """Read actual worksheet tableParts and their linked table definitions."""
+    sheet_entries = sheet_entries or _resolve_xlsx_sheet_entries(xlsx_bytes)
+    result: dict[str, list[dict]] = {}
+    for sheet_name, sheet_path in sheet_entries.items():
+        sheet_xml_raw = read_zip_entry(xlsx_bytes, sheet_path)
+        if not sheet_xml_raw:
+            continue
+        sheet_xml = sheet_xml_raw.decode("utf-8", errors="replace")
+        table_rids = re.findall(r'<tablePart\b[^>]*\br:id="([^"]+)"', sheet_xml)
+        if not table_rids:
+            continue
+        rels_path = posixpath.join(posixpath.dirname(sheet_path), "_rels", posixpath.basename(sheet_path) + ".rels")
+        rels_raw = read_zip_entry(xlsx_bytes, rels_path)
+        if not rels_raw:
+            continue
+        rels_xml = rels_raw.decode("utf-8", errors="replace")
+        targets = {}
+        for match in _WB_RELATIONSHIP_TAG_RE.finditer(rels_xml):
+            attrs = match.group(1) or ""
+            rid = re.search(r'\bId="([^"]+)"', attrs)
+            target = re.search(r'\bTarget="([^"]+)"', attrs)
+            if rid and target:
+                targets[rid.group(1)] = posixpath.normpath(posixpath.join(posixpath.dirname(sheet_path), target.group(1)))
+        for rid in table_rids:
+            table_path = targets.get(rid)
+            table_raw = read_zip_entry(xlsx_bytes, table_path) if table_path else None
+            if not table_raw:
+                continue
+            table_xml = table_raw.decode("utf-8", errors="replace")
+            root = re.search(r'<table\b([^>]*)>', table_xml)
+            if not root:
+                continue
+            attrs = root.group(1)
+            get_attr = lambda text, key: (re.search(rf'\b{key}="([^"]*)"', text or "") or [None, ""])[1]
+            ref = get_attr(attrs, "ref")
+            display_name = get_attr(attrs, "displayName") or get_attr(attrs, "name")
+            if not ref or not display_name:
+                continue
+            style_match = re.search(r'<tableStyleInfo\b([^>]*)/?>', table_xml)
+            style_attrs = style_match.group(1) if style_match else ""
+            style_name = get_attr(style_attrs, "name") or "TableStyleMedium2"
+            result.setdefault(sheet_name, []).append({
+                "name": display_name,
+                "ref": ref,
+                "style": style_name,
+                "has_headers": get_attr(attrs, "headerRowCount") != "0",
+                "show_autofilter": bool(re.search(r'<autoFilter\b', table_xml)),
+                "row_stripes": get_attr(style_attrs, "showRowStripes") not in {"0", "false"},
+            })
+    return result
 
 
 def overlay_sheet_xlsx_freeze_panes(xlsx_bytes: bytes, fods_xml: str | None) -> str:
@@ -10888,6 +11060,8 @@ _DOCX_COMMENTS_EXTENDED_REL_TYPE = (
 _DOCX_COMMENTS_EXTENDED_CONTENT_TYPE = (
     "application/vnd.openxmlformats-officedocument.wordprocessingml.commentsExtended+xml"
 )
+_DOCX_PEOPLE_REL_TYPE = "http://schemas.microsoft.com/office/2011/relationships/people"
+_DOCX_PEOPLE_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.people+xml"
 
 
 _DOCX_HF_EXTRA_CONTENT_TYPES = {
@@ -15888,6 +16062,92 @@ def _writer_restore_heading_styles(
     return document_xml, styles_xml
 
 
+def _writer_restore_gallery_builtin_styles(document_xml: str, styles_xml: str, source_html: str) -> tuple[str, str]:
+    """Restore semantic Word built-in paragraph styles used by the Writer gallery."""
+    mapping = {
+        "vno-style-title": "Title",
+        "vno-style-subtitle": "Subtitle",
+        "vno-style-quote": "Quote",
+        "vno-style-list-paragraph": "ListParagraph",
+    }
+    run_style_properties = {
+        "Title": '<w:rFonts w:ascii="Calibri Light" w:hAnsi="Calibri Light" w:eastAsia="Calibri Light" w:cs="Calibri Light"/><w:sz w:val="56"/><w:szCs w:val="56"/>',
+        "Subtitle": '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:color w:val="5A5A5A"/><w:sz w:val="22"/><w:szCs w:val="22"/>',
+        "Quote": '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:i/><w:iCs/><w:color w:val="404040"/><w:sz w:val="22"/><w:szCs w:val="22"/>',
+        "ListParagraph": '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:sz w:val="22"/><w:szCs w:val="22"/>',
+    }
+    sources = []
+    for class_name, style_id in mapping.items():
+        pattern = re.compile(
+            rf'<(?:p|div|blockquote)\b(?=[^>]*\bclass=["\'][^"\']*\b{re.escape(class_name)}\b[^"\']*["\'])[^>]*>([\s\S]*?)</(?:p|div|blockquote)\s*>',
+            re.IGNORECASE,
+        )
+        for match in pattern.finditer(source_html or ""):
+            text = re.sub(r"\s+", " ", _writer_html_plain(match.group(1))).strip()
+            if text:
+                sources.append((text, style_id))
+    style_definitions = {
+        "Title": '<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/><w:contextualSpacing/></w:pPr><w:rPr><w:rFonts w:ascii="Calibri Light" w:hAnsi="Calibri Light" w:eastAsia="Calibri Light" w:cs="Calibri Light"/><w:sz w:val="56"/><w:szCs w:val="56"/></w:rPr></w:style>',
+        "Subtitle": '<w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr/><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:color w:val="5A5A5A"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>',
+        "Quote": '<w:style w:type="paragraph" w:styleId="Quote"><w:name w:val="Quote"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:before="200"/><w:ind w:left="864" w:right="864"/><w:jc w:val="center"/></w:pPr><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:i/><w:iCs/><w:color w:val="404040"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>',
+        "ListParagraph": '<w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:basedOn w:val="Normal"/><w:uiPriority w:val="34"/><w:qFormat/><w:pPr><w:ind w:left="720"/><w:jc w:val="left"/><w:contextualSpacing/></w:pPr><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>',
+    }
+    for style_id, definition in style_definitions.items():
+        if any(required == style_id for _text, required in sources):
+            existing = re.search(
+                rf'<w:style\b(?=[^>]*\bw:styleId=["\']{style_id}["\'])[^>]*>[\s\S]*?</w:style\s*>',
+                styles_xml, re.IGNORECASE,
+            )
+            if existing:
+                styles_xml = styles_xml[:existing.start()] + definition + styles_xml[existing.end():]
+            else:
+                styles_xml = styles_xml.replace("</w:styles>", definition + "</w:styles>", 1)
+    if not sources:
+        return document_xml, styles_xml
+    paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+    cursor = 0
+    updates = {}
+    for expected, style_id in sources:
+        for index in range(cursor, len(paragraphs)):
+            if _paragraph_plain_text(paragraphs[index].group(0)).strip() == expected:
+                paragraph = paragraphs[index].group(0)
+                ppr_match = re.search(r"<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>", paragraph, re.IGNORECASE)
+                if ppr_match:
+                    ppr = re.sub(r"<w:(?:spacing|ind|jc|rPr)\b[^>]*/>|<w:rPr\b[^>]*>[\s\S]*?</w:rPr\s*>", "", ppr_match.group(0), flags=re.IGNORECASE)
+                    paragraph = paragraph[:ppr_match.start()] + ppr + paragraph[ppr_match.end():]
+                paragraph = re.sub(
+                    r"<w:rPr\b[^>]*>([\s\S]*?)</w:rPr\s*>",
+                    lambda match: "<w:rPr>" + re.sub(
+                        r"<w:(?:rFonts|sz|szCs|color|b|bCs|i|iCs)\b[^>]*/>", "", match.group(1), flags=re.IGNORECASE
+                    ) + "</w:rPr>",
+                    paragraph, flags=re.IGNORECASE,
+                )
+                run_props = run_style_properties[style_id]
+                def apply_default_style_to_run(run_match: re.Match) -> str:
+                    run = run_match.group(0)
+                    rpr = f"<w:rPr>{run_props}</w:rPr>"
+                    existing_rpr = re.search(r"<w:rPr\b[^>]*>[\s\S]*?</w:rPr\s*>", run, re.IGNORECASE)
+                    if existing_rpr:
+                        return run[:existing_rpr.start()] + rpr + run[existing_rpr.end():]
+                    opening = re.match(r"<w:r\b[^>]*>", run, re.IGNORECASE)
+                    return run[:opening.end()] + rpr + run[opening.end():] if opening else run
+                paragraph = re.sub(r"<w:r\b[^>]*>[\s\S]*?</w:r\s*>", apply_default_style_to_run, paragraph, flags=re.IGNORECASE)
+                updates[index] = _writer_upsert_ppr_empty(
+                    paragraph, "pStyle", f'<w:pStyle w:val="{style_id}"/>'
+                )
+                cursor = index + 1
+                break
+    if not updates:
+        return document_xml, styles_xml
+    output = []
+    previous = 0
+    for index, paragraph in enumerate(paragraphs):
+        output.extend((document_xml[previous:paragraph.start()], updates.get(index, paragraph.group(0))))
+        previous = paragraph.end()
+    output.append(document_xml[previous:])
+    return "".join(output), styles_xml
+
+
 def _writer_balanced_html_element(source: str, start: int, tag: str) -> str:
     token_re = re.compile(rf"</?{re.escape(tag)}\b[^>]*>", re.IGNORECASE)
     depth = 0
@@ -17862,6 +18122,7 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
     styles_xml = styles_bytes.decode("utf-8", errors="replace") if styles_bytes else ""
     if styles_xml:
         document_xml, styles_xml = _writer_restore_heading_styles(document_xml, styles_xml, source_html)
+        document_xml, styles_xml = _writer_restore_gallery_builtin_styles(document_xml, styles_xml, source_html)
         document_xml, styles_xml = _writer_apply_word_default_heading_styles_for_new_documents(
             document_xml, styles_xml, source_html
         )
@@ -18652,6 +18913,7 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
             )
         ]
         comment_id = str(max(
+            1,
             _writer_next_ooxml_id(document_xml, "commentRangeStart"),
             max(existing_comment_ids, default=-1) + 1,
         ))
@@ -18679,6 +18941,7 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
             "date": str(record.get("date") or ""),
             "content": content,
             "resolved": bool(record.get("resolved")),
+            "parentStartBookmark": str(record.get("parentStartBookmark") or ""),
         })
 
     revision_id = _writer_next_ooxml_id(document_xml, "ins")
@@ -18738,12 +19001,24 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
                     used_para_ids.add(para_id)
                     comment["paraId"] = para_id
                     break
+        bookmark_para_ids = {
+            str(record.get("startBookmark") or ""): comment["paraId"]
+            for record, comment in zip((record for record in records if record.get("type") == "comment"), comments)
+        }
+        for comment in comments:
+            parent_bookmark = comment.pop("parentStartBookmark", "")
+            if parent_bookmark:
+                comment["paraIdParent"] = bookmark_para_ids.get(parent_bookmark)
+                if not comment["paraIdParent"]:
+                    raise ValueError("Không tìm thấy comment gốc của reply trong DOCX.")
         if comments_bytes:
             for comment in comments:
                 para_id_attr = f' w14:paraId="{comment["paraId"]}"'
                 lines = comment["content"].splitlines() or [""]
                 paragraphs = "".join(
                     f'<w:p{para_id_attr if index == len(lines) - 1 else ""}>'
+                    f'<w:pPr><w:pStyle w:val="CommentText"/></w:pPr>'
+                    f'<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:annotationRef/></w:r>'
                     f'<w:r><w:t xml:space="preserve">{_escape_xml(line)}</w:t></w:r></w:p>'
                     for index, line in enumerate(lines)
                 )
@@ -18759,6 +19034,8 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
                 lines = comment["content"].splitlines() or [""]
                 paragraphs = "".join(
                     f'<w:p{para_id_attr if index == len(lines) - 1 else ""}>'
+                    f'<w:pPr><w:pStyle w:val="CommentText"/></w:pPr>'
+                    f'<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:annotationRef/></w:r>'
                     f'<w:r><w:t xml:space="preserve">{_escape_xml(line)}</w:t></w:r></w:p>'
                     for index, line in enumerate(lines)
                 )
@@ -18801,8 +19078,10 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
             'xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"></w15:commentsEx>'
         )
         for comment in comments:
+            parent_attr = f' w15:paraIdParent="{comment["paraIdParent"]}"' if comment.get("paraIdParent") else ""
             entry = (
                 f'<w15:commentEx w15:paraId="{comment["paraId"]}"'
+                f'{parent_attr}'
                 f' w15:done="{"1" if comment["resolved"] else "0"}"/>'
             )
             extended_xml = re.sub(
@@ -18824,6 +19103,33 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
             replacements["word/_rels/document.xml.rels"] = rels_xml.encode("utf-8")
         content_types_xml = _add_content_types_override(
             content_types_xml, "/word/commentsExtended.xml", _DOCX_COMMENTS_EXTENDED_CONTENT_TYPE,
+        )
+        people_bytes = read_zip_entry(docx_bytes, "word/people.xml")
+        people_xml = people_bytes.decode("utf-8", errors="replace") if people_bytes else (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<w15:people xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml"></w15:people>'
+        )
+        for author in dict.fromkeys(str(comment.get("author") or "3T Office") for comment in comments):
+            author_xml = _escape_xml(author)
+            if re.search(rf'<w15:person\b[^>]*\bw15:author=["\']{re.escape(author_xml)}["\']', people_xml, re.IGNORECASE):
+                continue
+            person = (
+                f'<w15:person w15:author="{author_xml}">'
+                f'<w15:presenceInfo w15:providerId="None" w15:userId="{author_xml}"/>'
+                '</w15:person>'
+            )
+            people_xml = people_xml.replace("</w15:people>", person + "</w15:people>", 1)
+        replacements["word/people.xml"] = people_xml.encode("utf-8")
+        people_rel = re.search(
+            r'<Relationship\b(?=[^>]*\bType=["\'][^"\']*/people["\'])[^>]*/?>', rels_xml, re.IGNORECASE,
+        )
+        if not people_rel:
+            rels_xml = _add_rels_entry(
+                rels_xml, f"rId{_max_rels_rid(rels_xml) + 1}", _DOCX_PEOPLE_REL_TYPE, "people.xml",
+            )
+            replacements["word/_rels/document.xml.rels"] = rels_xml.encode("utf-8")
+        content_types_xml = _add_content_types_override(
+            content_types_xml, "/word/people.xml", _DOCX_PEOPLE_CONTENT_TYPE,
         )
         replacements["[Content_Types].xml"] = content_types_xml.encode("utf-8")
 

@@ -217,7 +217,8 @@ export const enStrings = {
     pivotTitle: "Create PivotTable", pivotSource: "Table/Range (first row contains headers)", loadFields: "Load Fields", chooseFields: "Choose fields for each area:", aggregateFor: "Summarize values by for {field}", sourceRangeFormat: "The source range must use a format such as A1:D20.", sourceNeedsHeaders: "The first row of the source range must contain headers.", uniqueHeaders: "Each source column must have a unique header.", selectValue: "Select at least one Values field.", columnNotFound: "Column {field} was not found.", sourceSheetNotFound: "The source worksheet was not found.", createPivotBtn: "Create PivotTable",
     chartDefaultTitle: "Data Chart", chartUnsupported: "Unsupported chart type: {type}", chartItem: "Item {number}", chartNoNumericData: "The selected range contains no numeric data", chartPiePositive: "A pie chart requires positive values", chartInsertFrom: "Insert Chart from {range}", selectedRange: "selected range", chartType: "Chart Type", chartColumn: "Column", chartLine: "Line", chartPie: "Pie", chartArea: "Area", insertIntoSheet: "Insert into Worksheet", insertedImageAlt: "Image inserted in the worksheet", deleteImage: "Delete image", imageFormatUnsupported: "Unsupported image format",
     cellStylesTitle: "Cell Styles Gallery", cellStylesHint: "Select a style to apply immediately to the selected cells:",
-    formatAsTableTitle: "Format as Table", formatAsTableHint: "Select a table style to apply header colors and banded rows:",
+    formatAsTableTitle: "Format as Table", formatAsTableHint: "Create a named table with headers, filter buttons, banded rows, and automatic adjacent expansion.",
+    formatTableRange: "Data range", formatTableHeaders: "My table has headers", formatTableNameLabel: "Table name", formatTableCreate: "Create table", formatTableRenameLabel: "New name", formatTableRename: "Rename table", formatTableConvert: "Convert to range", formatTableInvalid: "The range or table name is invalid, or the range overlaps another table.",
     rowHeightTitle: "Row Height", rowHeightMessage: "Row height (pixels):",
     colWidthTitle: "Column Width", colWidthMessage: "Column width (pixels):",
     invalidRowColSize: "Please enter a valid number in the allowed range.",
@@ -541,7 +542,7 @@ export const enStrings = {
     ,"sheet.chart.insert": { label: "Chart", tooltip: "Insert a chart to visualize data" }
     ,"sheet.chart.pivotChart": { label: "PivotChart", tooltip: "Insert a Column or Pie chart linked to summarized Pivot data" }
     ,"sheet.insert.image": { label: "Pictures", tooltip: "Insert a picture at the selected cell" }
-    ,"sheet.style.formatAsTable": { label: "Format as Table", tooltip: "Format selected range as a styled table with alternating rows" }
+    ,"sheet.style.formatAsTable": { label: "Format as Table", tooltip: "Create a named table with filters and automatic expansion" }
     ,"sheet.style.cellStyles": { label: "Cell Styles", tooltip: "Open cell styles gallery (Normal, Good, Bad, Neutral...)" }
     ,"sheet.edit.fillDown": { label: "Fill Down", tooltip: "Fill down from the cell above (Ctrl+D)" }
     ,"sheet.edit.fillRight": { label: "Fill Right", tooltip: "Fill right from the cell to the left (Ctrl+R)" }
@@ -786,6 +787,7 @@ export const enStrings = {
     "writer.review.commentNext": { label: "Next Comment", tooltip: "Go to the next comment" },
     "writer.review.commentDelete": { label: "Delete Comment", tooltip: "Delete the selected comment" },
     "writer.review.commentResolve": { label: "Resolve Comment", tooltip: "Resolve or reopen the selected comment" },
+    "writer.review.commentReply": { label: "Reply to Comment", tooltip: "Reply to the selected comment" },
     "writer.trackChanges.toggle": { label: "Track Changes", tooltip: "Track changes in the document (Ctrl+Shift+E)" },
     "writer.trackChanges.previous": { label: "Previous Change", tooltip: "Go to the previous tracked change" },
     "writer.trackChanges.next": { label: "Next Change", tooltip: "Go to the next tracked change" },
@@ -1174,10 +1176,12 @@ export const enStrings = {
       title: "Styles Gallery",
       hint: "Click to apply style",
       normal: { label: "Normal", sublabel: "Normal text", desc: "Standard body text, 14pt justified (Decree 30/2020/ND-CP)" },
+      subtitle: { label: "Subtitle", sublabel: "Subtitle", desc: "Built-in Subtitle style for text below the title" },
       h1: { label: "Heading 1", sublabel: "Heading 1", desc: "Heading 1: Uppercase, bold, centered, 16pt" },
       h2: { label: "Heading 2", sublabel: "Heading 2", desc: "Heading 2: Title case bold, 14pt" },
       h3: { label: "Heading 3", sublabel: "Heading 3", desc: "Heading 3: Bold italic, 13pt" },
-      quote: { label: "Quote", sublabel: "Quote", desc: "Blockquote: Italic, 24pt indent, blue left border" },
+      quote: { label: "Quote", sublabel: "Quote", desc: "Built-in Quote style with italic, centered, indented text" },
+      listparagraph: { label: "List Paragraph", sublabel: "List Paragraph", desc: "Built-in List Paragraph style with a half-inch indent" },
       emphasis: { label: "Emphasis", sublabel: "Emphasis", desc: "Emphasis: Bold, italic, amber color" }
     },
     comments: {
@@ -1186,6 +1190,9 @@ export const enStrings = {
       addCommentTitle: "New Comment",
       addCommentPlaceholder: "Type your comment here...",
       addCommentBtn: "Add Comment",
+      replyTitle: "Reply to Comment",
+      replyPlaceholder: "Type your reply...",
+      replyBtn: "Send Reply",
       panelLabel: "Document Comments",
       openCommentAria: "Open comment for: {text}",
       placeholderHeader: "Click to enter header...",
