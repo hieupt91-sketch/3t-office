@@ -118,3 +118,8 @@
 
 - CDP bam Can trai tai B2; app luu XLSX `app_S12_alignLeft.xlsx`.
 - Excel COM ReadOnly xac nhan `HorizontalAlignment=-4131`; **KHOP EXCEL**. Log `s12-alignLeft.log`, `excel-alignLeft.log`; anh `evidence/s12/fix-s12-alignLeft.png`.
+
+## Trang đầu: probe điều khiển lựa chọn
+
+- Thử chọn `number` qua danh sách Định dạng số: UI báo select đã đóng trước khi đọc lại; model giữ trạng thái cũ, Excel COM đọc `NumberFormat=General`. **CHƯA ĐỐI CHIẾU**. Log `s12-numNumber.log`, `excel-numNumber.log`.
+- Thử chọn Arial: UI báo giá trị Calibri dù hướng phím nhắm Arial; model và Excel COM vẫn Calibri. **CHƯA ĐỐI CHIẾU**. Log `s12-fontArial.log`, `excel-fontArial.log`.
