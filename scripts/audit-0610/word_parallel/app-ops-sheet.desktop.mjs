@@ -47,6 +47,8 @@ const ops = [
   ["commentNext","C2","click","sheet.review.commentNext"],
   ["defineName","B2","defineName","sheet.formula.defineName"],
   ["insertFunction","H2","click","sheet.formula.insertFunction"],
+  ["createNames","A1","range","sheet.formula.createFromSelection","A1:C6"],
+  ["useInFormula","H2","click","sheet.formula.useInFormula"],
   ["formulaRecalculate","H2","click","sheet.formula.recalculate"],
   ["calculateSheet","H2","click","sheet.calc.calculateSheet"],
   ["errorChecking","H2","click","sheet.formula.errorChecking"],
@@ -352,6 +354,20 @@ for (const [name, cell, kind, id, value] of ops) {
             }
           }
         }
+      }
+      if (name === "createNames" && status === "clicked") {
+        const names = await ev(`JSON.stringify(window.__vnoAppInstance.grid.namedRangesWorkbook)`);
+        const shot = await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);
+        await writeFile(path.join(root,"docs","tickets-0710","evidence","fix-s12-createNames.png"),Buffer.from((shot.result||shot).data,"base64"));
+        status = "created names from A1:C6 headers: " + names;
+      }
+      if (name === "useInFormula" && status === "clicked") {
+        await sleep(100);
+        const item = await ev(`document.querySelector('.vno-paste-name-item.is-selected')?.dataset.name||''`);
+        const apply = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if (!item) status = "NO_DEFINED_NAME_IN_DIALOG";
+        else if (!apply) status = "NO_PASTE_NAME_APPLY";
+        else { await mouseClick(session.cdp,apply.x,apply.y); status = "inserted defined name " + item + " into H2"; const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000); await writeFile(path.join(root,"docs","tickets-0710","evidence","fix-s12-useInFormula.png"),Buffer.from((shot.result||shot).data,"base64")); }
       }
       if ((kind === "pageSize" || kind === "pageScale") && status === "clicked") {
         await sleep(150);

@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 89 · LỆCH ĐÃ BIẾT: 1 · CHƯA ĐỐI CHIẾU: 48.
+Tổng 138 nút — KHỚP EXCEL: 90 · LỆCH ĐÃ BIẾT: 1 · CHƯA ĐỐI CHIẾU: 47.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -94,8 +94,8 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Công thức | `sheet.formula.min` | Nhỏ nhất | KHỚP EXCEL | FIX-S12 Công thức: CDP bấm MAX/MIN; Excel COM ReadOnly xác nhận =MAX(C2:C6)=9876.5 và =MIN(C2:C6)=1234.5 | dom:16 |
 | Công thức | `sheet.formula.nameManager` | Quản lý tên | KHỚP EXCEL | FIX-S8/FIX-S7: CDP và Excel COM read-only xác nhận name, rotation, dimensions, visibility, print area/orientation | dialog,toast:A1 |
 | Công thức | `sheet.formula.defineName` | Đặt tên vùng | KHỚP EXCEL | FIX-S12 Công thức: CDP đặt tên workbook S12Cell cho B2; Excel COM ReadOnly xác nhận Names.Count=1, RefersTo==Sheet1!$B$2 (app_defineName.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-defineName.png | dialog,toast:A1 |
-| Công thức | `sheet.formula.useInFormula` | Dùng trong công thức | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
-| Công thức | `sheet.formula.createFromSelection` | Tạo từ vùng chọn (Ctrl+Shift+F3) | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
+| Công thức | `sheet.formula.useInFormula` | Dùng trong công thức | KHỚP EXCEL | FIX-S12 Công thức: mở workbook có tên S12Cell, CDP dùng Dùng trong công thức tại H2; Excel COM ReadOnly xác nhận H2 Formula='=S12Cell', Value2='Nguyễn Văn A', Names.Count=1 (app_S14_useInFormula.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-useInFormula.png. Help VI và i18n VI/EN hiện có. | dialog,toast:A1 |
+| Công thức | `sheet.formula.createFromSelection` | Tạo từ vùng chọn (Ctrl+Shift+F3) | CHƯA ĐỐI CHIẾU | FIX-S12 probe: CDP chọn A1:C6 rồi tạo 3 tên; Excel COM ReadOnly xác nhận Names.Count=3 và RefersTo B2:B6/C2:C6, nhưng tên từ tiêu đề tiếng Việt bị chuẩn hóa thành H__t_n/S__ti_n. Chưa đối chiếu chính xác quy tắc tên Excel; giữ CHƯA ĐỐI CHIẾU. | dialog,toast:A1 |
 | Công thức | `sheet.formula.tracePrecedents` | Tìm ô tiền lệ | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:3 |
 | Công thức | `sheet.formula.traceDependents` | Tìm ô phụ thuộc | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:3 |
 | Công thức | `sheet.formula.removeArrows` | Xóa mũi tên | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:3 |
