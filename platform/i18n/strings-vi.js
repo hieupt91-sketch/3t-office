@@ -552,6 +552,14 @@ export const viStrings = {
     ,"slides.slide.duplicate": { label: "Nhân đôi", tooltip: "Nhân đôi trang chiếu đang chọn (Ctrl+D)" }
     ,"slides.slide.delete": { label: "Xóa trang", tooltip: "Xóa trang chiếu đang chọn (Delete)" }
     ,"slides.slide.toggleHidden": { label: "Ẩn trang chiếu", tooltip: "Ẩn hoặc hiện trang chiếu đang chọn khi trình chiếu F5. Trang vẫn còn trong tệp và Slide Sorter." }
+    ,"slides.context.copy": { label: "Sao chép trang chiếu", tooltip: "Chép trang này vào bộ nhớ tạm của ứng dụng" }
+    ,"slides.context.cut": { label: "Cắt trang chiếu", tooltip: "Chuyển trang này vào bộ nhớ tạm của ứng dụng" }
+    ,"slides.context.paste": { label: "Dán trang chiếu", tooltip: "Chèn bản sao trang đã chép ngay sau trang này" }
+    ,"slides.context.hide": { label: "Ẩn trang chiếu", tooltip: "Ẩn hoặc hiện trang này khi trình chiếu" }
+    ,"slides.context.moveUp": { label: "Chuyển lên", tooltip: "Đưa trang này lên trước một vị trí" }
+    ,"slides.context.moveDown": { label: "Chuyển xuống", tooltip: "Đưa trang này xuống sau một vị trí" }
+    ,"slides.context.sort": { label: "Bộ sắp xếp trang chiếu", tooltip: "Mở lưới để xem và sắp xếp lại các trang" }
+    ,"slides.context.layout": { label: "Bố cục", tooltip: "Thay đổi bố cục của trang này" }
     ,"slides.section.add": { label: "Thêm phần", tooltip: "Thêm phần bắt đầu từ trang đang chọn để nhóm các trang chiếu liên tiếp" }
     ,"slides.section.rename": { label: "Đổi tên phần", tooltip: "Đổi tên phần chứa trang chiếu đang chọn" }
     ,"slides.section.remove": { label: "Xóa phần", tooltip: "Bỏ nhóm phần — không xóa các trang chiếu bên trong" }

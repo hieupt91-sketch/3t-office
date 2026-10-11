@@ -60,10 +60,25 @@ export const SLIDES_HELP_ENTRIES = [
     ribbon: { tab: "Trình chiếu", tabId: "slideshow", group: "Thiết lập" },
     keywords: ["ẩn trang", "hide slide", "bỏ qua", "f5", "trình chiếu", "ẩn"],
     steps: [
-      "Chọn trang trên dải thumbnail trái hoặc trên vùng soạn thảo. Tab Trình chiếu, nhóm Thiết lập, nhấn Ẩn trang chiếu.",
+      "Chọn trang trên dải thumbnail trái hoặc bấm chuột phải vào thumbnail. Trong menu, chọn Ẩn trang chiếu; hoặc mở tab Trình chiếu, nhóm Thiết lập, nhấn Ẩn trang chiếu.",
       "Thumbnail trang đó có dấu ⊘ và nhãn «Trang chiếu ẩn». Nút ribbon ở trạng thái đang bật.",
       "Khi chiếu Từ đầu (F5) hoặc Từ trang này (Shift+F5), trang ẩn bị nhảy qua. Nếu mọi trang đều ẩn, hộp thoại báo «Tất cả trang chiếu đang bị ẩn».",
       "Nhấn lại Ẩn trang chiếu để hiện. Có thể ẩn/hiện trong Bộ sắp xếp trang (tab Chế độ xem). Trang ẩn vẫn được lưu trong tệp."
+    ]
+  },
+  {
+    id: "slides.context.menu",
+    app: "slides",
+    commandIds: ["slides.slide.new", "slides.slide.duplicate", "slides.slide.delete", "slides.layout.apply"],
+    title: "Thao tác nhanh trên trang chiếu",
+    summary: "Dùng menu chuột phải trên thumbnail để tạo, nhân đôi, cắt, sao chép, dán, ẩn, đổi thứ tự hoặc mở bố cục của trang chiếu.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Trang chiếu" },
+    keywords: ["chuột phải", "thumbnail", "cắt trang", "sao chép trang", "dán trang", "chuyển lên", "chuyển xuống", "bố cục", "sắp xếp"],
+    steps: [
+      "Bấm chuột phải vào thumbnail ở dải bên trái để mở menu thao tác. Dùng phím mũi tên lên/xuống để chọn mục, Enter để thực hiện hoặc Esc để đóng menu.",
+      "Chọn Sao chép trang chiếu hoặc Cắt trang chiếu để giữ trang trong bộ nhớ tạm của ứng dụng; bấm chuột phải vào thumbnail đích rồi chọn Dán trang chiếu. Cắt không xóa trang cuối cùng của bản trình chiếu.",
+      "Chọn Chuyển lên hoặc Chuyển xuống để đổi thứ tự một vị trí. Chọn Ẩn trang chiếu để bỏ qua trang khi trình chiếu; chọn lại mục hiện trang để khôi phục.",
+      "Chọn Bộ sắp xếp trang chiếu để xem toàn bộ trang dạng lưới và kéo thả sắp xếp. Chọn Bố cục để mở bộ chọn bố cục cho trang đang chọn. Các thao tác chỉnh sửa có thể hoàn tác bằng Ctrl+Z."
     ]
   },
   {
