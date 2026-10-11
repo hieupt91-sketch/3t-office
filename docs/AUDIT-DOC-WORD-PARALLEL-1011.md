@@ -9,6 +9,15 @@
 - **Kiểm thử:** unit, npm, unittest, audit COM, mở/lưu lại highlight Word, batch d01/d07/d13/d20/d24.
 - **Rollback:** các thay đổi DOCX cô lập trong adapter; bỏ commit fix T7 nếu hồi quy tài liệu thất bại.
 
+## Kế hoạch đối chiếu mở rộng (FIX-T8)
+- **Mục tiêu:** hoàn tất lần lượt bốn nhóm Bảng, Bố cục trang, Kiểu/Tham chiếu và Ghi chú/Rà soát/Tìm kiếm/Đối tượng theo Word COM làm chuẩn; chỉ kết luận KHỚP khi app và Word cùng thao tác trên DOCX thật rồi đọc lại thuộc tính trong Word.
+- **Năng lực hiện tại:** app có các command Writer cho bảng, bố cục/section, style, TOC/footnote, comments/track changes, find/replace, symbol và textbox; harness hiện mới đối chiếu Trang đầu, Heading và số cột.
+- **Files/modules:** harness trong `scripts/audit-0610/word_parallel/`, ma trận trong tài liệu này, help Writer hiện có và handoff theo mẫu. Chỉ sửa adapter/app khi đo được sai lệch tái hiện, trong đúng vùng Writer/adapter.
+- **Dependency:** Word COM cục bộ làm oracle; app desktop khởi chạy qua `main.py`. Dùng `VNO_APP_ROOT=E:\VNOffice-codex-ft8`, profile riêng `VNO_CDP_LOCALAPPDATA=E:\VNOffice-profiles\codex-ft8`, cổng CDP tự cấp bởi `tests/live/cdp/session.mjs`.
+- **Rủi ro:** Word có thể chuẩn hóa XML/giá trị khi mở hoặc lưu; section, style theo theme và tracked changes có semantics phụ thuộc tài liệu. Không áp sửa toàn cục nếu chưa xác định quy tắc tương thích.
+- **Kiểm thử:** từng nhóm chạy trên desktop và Word COM, đối chiếu thuộc tính; sau các thay đổi chạy `npm test`, Python unittest và batch DOCX d01/d07/d13/d20/d24; ghi đúng PASS/FAIL/NOT RUN/BLOCKED.
+- **Rollback:** mỗi nhóm là commit riêng theo ticket; nếu nhóm gây hồi quy, revert riêng commit nhóm đó.
+
 ## Đối chiếu Trang đầu
 
 | Phép thử | App | Word COM | Kết quả |
@@ -42,7 +51,8 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 
 | Nhóm | App | Word COM | Kết quả |
 |---|---|---|---|
-| Bảng: chèn, gộp/tách ô, căn ô, kích thước, tô nền, viền | Chưa chạy | Chưa chạy | NOT RUN |
+| Bảng: chèn bảng 3×4 | Đã chạy: 3 hàng, mỗi hàng 4 ô | Đã chạy: 3 hàng, mỗi hàng 4 ô | KHỚP |
+| Bảng: hàng/cột, gộp/tách, căn ô, nền, viền, tiêu đề, tự vừa, kích thước | Chưa chạy | Chưa chạy | NOT RUN |
 | Bố cục trang: lề, hướng, khổ giấy | Chưa chạy | Chưa chạy | NOT RUN |
 | Bố cục trang: 1/2/3 cột | Đã chạy | Đã chạy | 3/3 KHỚP |
 | Đầu/chân trang | Chưa chạy | Chưa chạy | NOT RUN |
@@ -56,6 +66,15 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Tìm/thay thế | Chưa chạy | Chưa chạy | NOT RUN |
 | Ký hiệu | Chưa chạy | Chưa chạy | NOT RUN |
 | Hộp văn bản | Chưa chạy | Chưa chạy | NOT RUN |
+
+### FIX-T8 — kết quả lần chạy `codex-ft8`
+
+- Bảng — chèn 3×4: đã bấm nút **Chèn > Bảng biểu** trong app desktop qua CDP mouse, lưu `app_tableInsert.docx`; Word COM tạo bảng 3×4 trên template tương đương và đọc lại DOCX. Kết quả: **KHỚP** (3 hàng, mỗi hàng 4 ô). Harness app: `scripts/audit-0610/word_parallel/app-table-insert.desktop.mjs`.
+- Các phép thử Bảng còn lại (thêm/xóa hàng/cột, gộp/tách, căn dọc/ngang, nền, viền, header, AutoFit, chiều cao/rộng): **NOT RUN**.
+- Bộ cột 1/2/3 đã có kết quả 3/3 KHỚP ở phần trên. Các phép thử lề, hướng, khổ giấy, ngắt trang/mục, đầu/chân trang, trang đầu khác, số trang: **NOT RUN** trong lượt này.
+- Các phép thử FIX-T8 còn lại thuộc Style/References và Comments/Track Changes/Find/Replace/Symbol/Shapes: **NOT RUN** trong lượt này. Kết quả Heading 1–3 trước đó vẫn là sai khác đã ghi, không được tính KHỚP.
+- Batch DOCX hồi quy trên worktree/profile `codex-ft8`: **5/5 PASS**, edit PASS; trang nguồn/lưu d01 19/19, d07 23/23, d13 10/10, d20 3/3, d24 16/16. Báo cáo: `E:\VNOffice-profiles\codex-ft8\batch-audit\batch_document_audit_report.md`.
+- Kiểm thử: `npm test` **3058/3058 PASS**. `python -m unittest discover -s tests` lần chạy đầu dùng nhầm LOCALAPPDATA mặc định và có 10 lỗi do xung đột profile LibreOffice với phiên worktree khác; chạy lại toàn bộ với `LOCALAPPDATA=E:\VNOffice-profiles\codex-ft8\python-localappdata`: **832 tests OK**. Hai lần unittest có `ResourceWarning` về pipe chưa đóng; không có test fail ở lần chạy dùng profile riêng.
 
 ### Heading 1–3 — 11/10/2026
 

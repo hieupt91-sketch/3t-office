@@ -14,6 +14,15 @@ node --experimental-websocket scripts/audit-0610/word_parallel/app-ops.desktop.m
 .\scripts\audit-0610\word_parallel\word-compare.ps1 -Dir $dir
 ```
 
+Đối chiếu chèn bảng 3×4 qua nút ribbon bằng CDP mouse:
+
+```powershell
+$env:VNO_APP_ROOT = 'E:\VNOffice-codex-ft8'
+$env:VNO_CDP_LOCALAPPDATA = 'E:\VNOffice-profiles\codex-ft8'
+$env:VNO_WORD_PARALLEL_DIR = $env:VNO_CDP_LOCALAPPDATA
+node --experimental-websocket scripts/audit-0610/word_parallel/app-table-insert.desktop.mjs
+```
+
 `app-ops.desktop.mjs` dùng cổng CDP trống được cấp riêng bởi `tests/live/cdp/session.mjs`; mọi lần mở app dùng `VNO_APP_ROOT` và `VNO_CDP_LOCALAPPDATA` trên. Có thể chọn phép thử bằng `$env:OPS='subscript,highlightYellow'`. Cùng biến `OPS` lọc các phép thử trong `word-compare.ps1`. Phép `default` lưu template không áp lệnh để đọc riêng SpaceAfter mặc định.
 
 Word COM chạy ẩn với `DisplayAlerts=0`. Script chụp các PID WINWORD đang có trước khi tạo COM, nhận diện PID mới do phiên automation tạo, gọi `Quit()` rồi chỉ dọn theo PID mới đó. Không dừng tiến trình WINWORD cũ.
