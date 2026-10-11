@@ -31,7 +31,8 @@ class ServicesMatchLegacyTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp_dir:
             with mock.patch.dict(os.environ, {"LOCALAPPDATA": temp_dir}):
                 self.assertEqual(vnmain._user_data_dir(), vnmain._legacy_user_data_dir())
-                self.assertEqual(vnmain._user_data_dir(), Path(temp_dir) / "VNOffice")
+                expected = Path(temp_dir) / "VNOffice" if os.name == "nt" else vnmain._legacy_user_data_dir()
+                self.assertEqual(vnmain._user_data_dir(), expected)
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("LOCALAPPDATA", None)
             self.assertEqual(vnmain._user_data_dir(), vnmain._legacy_user_data_dir())
@@ -85,11 +86,40 @@ class ServicesMatchLegacyTests(unittest.TestCase):
             self.assertEqual(portable.PortableDataDirs().user_data_dir(), Path("/x/y") / "VNOffice")
         self.assertIsNotNone(pkg)
 
+    def test_windows_document_worker_contract_builds_private_pipe_command(self):
+        import importlib
+        windows = importlib.import_module("_vno_os_services.windows")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            program = Path(temp_dir) / "program"
+            program.mkdir()
+            engine = program / "soffice.exe"
+            engine.touch()
+            python = program / "python.exe"
+            python.touch()
+            worker = Path(temp_dir) / "worker.py"
+            worker.touch()
+            launcher = windows.WindowsLauncher()
+            endpoint = launcher.document_worker_endpoint(engine, "vnoffice_test_123")
+            self.assertTrue(endpoint.is_ok)
+            self.assertEqual(endpoint.value, "pipe,name=vnoffice_test_123")
+            command = launcher.document_worker_command(engine, worker, "file:///profile", endpoint.value, "writer")
+            self.assertTrue(command.is_ok)
+            self.assertEqual(command.value.executable, python.resolve())
+            self.assertEqual(command.value.arguments, ("-u", str(worker), str(engine), "file:///profile", endpoint.value, "writer"))
+
+    def test_windows_document_worker_rejects_invalid_endpoint_identity(self):
+        import importlib
+        windows = importlib.import_module("_vno_os_services.windows")
+        result = windows.WindowsLauncher().document_worker_endpoint(Path("soffice.exe"), "bad;identity")
+        self.assertFalse(result.is_ok)
+        self.assertEqual(result.error.code, "invalid_input")
+
     def test_show_error_never_raises_and_reports_through_a_result(self):
-        portable_like = vnmain._os_services().launcher
+        import importlib
+        windows = importlib.import_module("_vno_os_services.windows")
         with mock.patch("ctypes.windll", create=True) as windll:
             windll.user32.MessageBoxW.side_effect = OSError("no gui")
-            result = portable_like.show_error("t", "m")
+            result = windows.WindowsLauncher().show_error("t", "m")
         self.assertFalse(result.is_ok)
 
 

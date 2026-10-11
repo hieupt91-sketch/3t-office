@@ -94,9 +94,17 @@ def process_identity(pid: int) -> str | None:
             return fields[19] if len(fields) > 19 else None  # field 22: starttime
         if not Path("/proc").is_dir():
             # macOS has no /proc: the process start time from `ps` is the creation token, so PID reuse is still detected.
-            start = _ps_start_time(int(pid))
-            if start is not None:
-                return start
+            output = _run_ps("-o", "lstart=,stat=", "-p", str(int(pid)))
+            if output is not None:
+                fields = output.strip().rsplit(maxsplit=1)
+                if len(fields) == 2 and not fields[1].upper().startswith("Z"):
+                    start = parse_ps_start_time(fields[0])
+                    if start is not None:
+                        return start
+                else:
+                    # `ps` still lists a terminated-but-unreaped process on macOS. Treat
+                    # zombies as dead so cleanup can remove the ledger entry after wait().
+                    return None
         os.kill(int(pid), 0)
         return "alive"
     except (OSError, ValueError, IndexError):

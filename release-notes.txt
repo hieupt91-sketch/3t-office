@@ -4,8 +4,8 @@ Ngày phát hành: 11/10/2026
 Bản vá sửa lỗi quan trọng và đưa Doc, Sheet, Slide sát hơn với bộ Office thông dụng (đã đối chiếu từng thao tác với bản Office thật).
 
 1. Sửa lỗi quan trọng (khuyến nghị cập nhật):
-- Sửa lỗi Tệp ▸ Lưu thành... không lưu được ở các định dạng cũ (Word 97–2003 .doc, Excel 97–2003 .xls, PowerPoint 97–2003 .ppt) — lỗi xuất hiện từ bản 0.9.7.
-- Sheet: sửa hai trường hợp lưu .xlsx xong mà Excel không mở được tệp (tệp có siêu liên kết kèm hình/biểu đồ, và tệp có liên kết ngoài đến nhiều sổ tính khác). Đã kiểm lại 8 tệp thực tế: lưu rồi mở bằng Excel đều thành công.
+- Sửa lỗi Tệp ▸ Lưu thành... không lưu được ở các định dạng cũ (.doc văn bản, .xls bảng tính, .ppt trình chiếu) — lỗi xuất hiện từ bản 0.9.7.
+- Sheet: sửa hai trường hợp lưu .xlsx xong mà ứng dụng bảng tính khác không mở được tệp (tệp có siêu liên kết kèm hình/biểu đồ, và tệp có liên kết ngoài đến nhiều sổ tính khác). Đã kiểm lại 8 tệp thực tế: lưu rồi mở bằng một ứng dụng bảng tính tương thích đều thành công.
 
 2. Chung:
 - Menu chuột phải nhiều chỗ đầy đủ hơn, lỗi hiển thị gạch đỏ chính tả không còn che mất định dạng chữ đang gõ.
@@ -21,22 +21,22 @@ Bản vá sửa lỗi quan trọng và đưa Doc, Sheet, Slide sát hơn với b
 - Số trang vẫn khớp bản gốc trên bộ tài liệu mẫu kiểm tra.
 
 4. Sheet:
-- Nút Trang đầu khớp hành vi Excel: tăng/giảm số thập phân, phần trăm, định dạng Số, ngày, tiền tệ (VND) và kế toán, phân cách hàng nghìn, màu tô và màu chữ mặc định.
-- Sửa CONCAT cho Excel cũ, giữ nguyên hàm INDIRECT khi lưu .xlsx để Excel tính đúng.
+- Nút Trang đầu khớp hành vi của các bộ bảng tính phổ biến: tăng/giảm số thập phân, phần trăm, định dạng Số, ngày, tiền tệ (VND) và kế toán, phân cách hàng nghìn, màu tô và màu chữ mặc định.
+- Sửa CONCAT cho định dạng bảng tính cũ, giữ nguyên hàm INDIRECT khi lưu .xlsx để ứng dụng tương thích tính đúng.
 - Lưu .xlsx giữ đúng tự xuống dòng, căn phải và viền; giữ AutoFilter, sheet đang chọn, độ rộng cột và chiều cao hàng.
 - Mới: Ẩn sheet / Hiện sheet (tab Trang đầu ▸ Định dạng ▸ Sheet); Tìm và thay thế có tùy chọn khớp cả ô.
-- Đã kiểm khớp Excel: tên vùng, xoay chữ, lề in, sắp xếp nhiều cấp, xóa trùng lặp, đổi tên/di chuyển/xóa sheet, kiểm tra dữ liệu, cố định hàng/cột, vùng in, biểu đồ.
+- Đã kiểm bằng bộ bảng tính tham chiếu: tên vùng, xoay chữ, lề in, sắp xếp nhiều cấp, xóa trùng lặp, đổi tên/di chuyển/xóa sheet, kiểm tra dữ liệu, cố định hàng/cột, vùng in, biểu đồ.
 - Lưu tệp rất lớn (lan14) nhanh hơn rõ rệt.
 
 5. Slide:
 - Nhóm đối tượng giữ cấu trúc lồng nhau, đổi kích thước và xoay cả nhóm; thứ tự lớp được giữ khi mở và lưu.
 - Chèn biểu đồ hoạt động; chọn chủ đề lưu đúng trong Slide Master; bút (Ctrl+P) và laser khi trình chiếu.
-- Cỡ chữ tăng/giảm theo đúng các bước của PowerPoint; tên phông không còn bị thêm số; khoảng cách dòng và phông của hình được giữ khi lưu.
+- Cỡ chữ tăng/giảm theo đúng các bước trong bộ trình chiếu phổ biến; tên phông không còn bị thêm số; khoảng cách dòng và phông của hình được giữ khi lưu.
 - Màu chữ mặc định, Ẩn trang chiếu và menu chuột phải của hình thu nhỏ đầy đủ: sao chép, cắt, dán, ẩn, chuyển lên/xuống, bộ sắp xếp, bố cục.
-- Hình khối: tô màu, viền, kích thước và xoay; Đặt lại bố cục; giữ loại hoạt ảnh khi lưu PPTX. Đã đối chiếu 16 thao tác cơ bản với PowerPoint: khớp 16/16.
+- Hình khối: tô màu, viền, kích thước và xoay; Đặt lại bố cục; giữ loại hoạt ảnh khi lưu PPTX. Đã đối chiếu 16 thao tác cơ bản với bộ trình chiếu tham chiếu: khớp 16/16.
 
 6. Lưu ý:
-- Sheet: "Định dạng thành bảng" hiện chỉ tô màu chứ chưa tạo bảng có cấu trúc như Excel; sẽ làm ở bản sau.
+- Sheet: "Định dạng thành bảng" hiện chỉ tô màu chứ chưa tạo bảng có cấu trúc; sẽ làm ở bản sau.
 - Doc: trả lời bình luận và thư viện kiểu đầy đủ sẽ bổ sung ở bản sau.
 
 ============================================================

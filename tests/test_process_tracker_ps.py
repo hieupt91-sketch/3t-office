@@ -41,6 +41,15 @@ class PsParsingTests(unittest.TestCase):
             self.assertEqual(tracker._ps_parent_table(), {5: 1, 6: 5})
             run.assert_called_once_with("-axo", "pid=,ppid=")
 
+    def test_macos_process_identity_uses_start_time_and_rejects_zombies(self):
+        normal = "Sun Oct 11 22:50:10 2026     S+\n"
+        with mock.patch.object(tracker.Path, "is_dir", return_value=False):
+            with mock.patch.object(tracker, "_run_ps", return_value=normal) as run:
+                self.assertEqual(tracker.process_identity(123), "Sun Oct 11 22:50:10 2026")
+                run.assert_called_once_with("-o", "lstart=,stat=", "-p", "123")
+            with mock.patch.object(tracker, "_run_ps", return_value="Sun Oct 11 22:50:10 2026     Z+\n"):
+                self.assertIsNone(tracker.process_identity(123))
+
     def test_run_ps_forces_the_c_locale_and_survives_a_missing_ps(self):
         seen = {}
 

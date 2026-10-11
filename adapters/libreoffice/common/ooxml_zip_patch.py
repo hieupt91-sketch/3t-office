@@ -8059,7 +8059,14 @@ def _p1_parent_alive(parent_pid: int) -> bool:
                 return bool(kernel32.GetExitCodeProcess(handle, ctypes.byref(code))) and code.value == 259  # STILL_ACTIVE
             finally:
                 kernel32.CloseHandle(handle)
-        return os.getppid() == int(parent_pid)
+        if int(parent_pid) <= 0:
+            return False
+        os.kill(int(parent_pid), 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
     except Exception:
         return True  # when unsure, never kill a healthy worker
 
