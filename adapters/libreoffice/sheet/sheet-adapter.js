@@ -3724,6 +3724,8 @@ export class SheetAdapter {
       const localNames = (this.grid.namedRangesBySheet?.[sheetName] || []).map(range => this._namedRangeXml(range, sheetName)).join("");
       const printRange = this._printRangeAddress(sheetName, this.grid.printAreaBySheet?.[sheetName]);
       const printRangeAttr = printRange ? ` table:print-ranges="${this._escapeXml(printRange)}"` : "";
+      const clearPrintAreaAttr = !printRange && this.grid.printAreaTouchedBySheet?.has(sheetName)
+        ? ' vno:clear-print-area="true"' : "";
       const pageStyle = pageStyleBySheet.get(sheetName);
       const printTitles = this.grid.pageSetupBySheet?.[sheetName]?.printTitles || {};
       const protectedSheet = !!this.grid.protectionBySheet?.[sheetName]?.enabled;
@@ -3758,7 +3760,7 @@ export class SheetAdapter {
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
       const shapesXml = this._serializePageAnchoredImagesXml(pageAnchoredImages);
-      return `<table:table table:name="${this._escapeXml(sheetName)}"${pageAttrs}${printRangeAttr}${protectedAttr}>${chartsXml}${shapesXml}${columnsXml}${rowsXml}${localNames ? `<table:named-expressions>${localNames}</table:named-expressions>` : ""}${conditionalXml ? `<calcext:conditional-formats>${conditionalXml}</calcext:conditional-formats>` : ""}${sparklinesXml}</table:table>`;
+      return `<table:table table:name="${this._escapeXml(sheetName)}"${pageAttrs}${printRangeAttr}${clearPrintAreaAttr}${protectedAttr}>${chartsXml}${shapesXml}${columnsXml}${rowsXml}${localNames ? `<table:named-expressions>${localNames}</table:named-expressions>` : ""}${conditionalXml ? `<calcext:conditional-formats>${conditionalXml}</calcext:conditional-formats>` : ""}${sparklinesXml}</table:table>`;
     }).join("");
 
     const dataPilotTables = [];

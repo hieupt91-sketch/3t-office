@@ -171,6 +171,26 @@ class SheetZoomRoundtripTests(unittest.TestCase):
         self.assertIn('zoomScale="110"', xml)
         self.assertIn('zoomScaleNormal="110"', xml)
 
+    def test_explicit_clear_removes_print_area_for_matching_sheet_only(self):
+        package = make_test_xlsx('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews/><sheetData/></worksheet>')
+        workbook = (
+            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>'
+            '<definedNames><definedName name="_xlnm.Print_Area" localSheetId="0">Sheet1!$A$1:$C$9</definedName>'
+            '<definedName name="_xlnm.Print_Area" localSheetId="1">Other!$A$1</definedName></definedNames></workbook>'
+        )
+        package = _replace_zip_entry(package, "xl/workbook.xml", workbook)
+        fods = ('<office:document><office:body><office:spreadsheet>'
+                '<table:table table:name="Sheet1" vno:clear-print-area="true"/>'
+                '</office:spreadsheet></office:body></office:document>')
+
+        patched = postprocess_sheet_xlsx(package, source_fods=fods)
+        with zipfile.ZipFile(io.BytesIO(patched)) as archive:
+            xml = archive.read("xl/workbook.xml").decode("utf-8")
+        self.assertNotIn('localSheetId="0">Sheet1!$A$1:$C$9', xml)
+        self.assertIn('localSheetId="1">Other!$A$1', xml)
+
 
 if __name__ == "__main__":
     unittest.main()

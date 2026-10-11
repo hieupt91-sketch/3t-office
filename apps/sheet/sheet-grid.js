@@ -216,6 +216,7 @@ export class SheetGridController {
     this.namedRangesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.commentsBySheet = Object.fromEntries(this.sheets.map(name => [name, {}]));
     this.printAreaBySheet = Object.fromEntries(this.sheets.map(name => [name, null]));
+    this.printAreaTouchedBySheet = new Set();
     this.pageBreaksBySheet = Object.fromEntries(this.sheets.map(name => [name, { rows: [], cols: [] }]));
     this.pageSetupBySheet = Object.fromEntries(this.sheets.map(name => [name, newSheetPageSetup()]));
     this.mergedRangesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
@@ -12602,6 +12603,7 @@ _bindGridKeyboardNavigation() {
     const before = this.printAreaBySheet[this.activeSheet] || null;
     if (before === next) return next;
     this.printAreaBySheet[this.activeSheet] = next;
+    this.printAreaTouchedBySheet?.add(this.activeSheet);
     this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "printAreaBySheet", before, after: next });
     this._refreshPageAndCommentVisuals();
     return next;
@@ -12612,6 +12614,7 @@ _bindGridKeyboardNavigation() {
     const before = this.printAreaBySheet[this.activeSheet] || null;
     if (!before) return false;
     this.printAreaBySheet[this.activeSheet] = null;
+    this.printAreaTouchedBySheet?.add(this.activeSheet);
     this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "printAreaBySheet", before, after: null });
     this._refreshPageAndCommentVisuals();
     return true;

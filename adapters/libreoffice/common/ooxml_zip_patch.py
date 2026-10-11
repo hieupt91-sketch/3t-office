@@ -4144,6 +4144,41 @@ def _apply_workbook_view_state_from_fods(
         replacements[XLSX_WORKBOOK_ENTRY] = updated
 
 
+def _clear_print_areas_from_fods(
+    xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
+) -> None:
+    """Remove source Print_Area names explicitly cleared in the VN Sheet UI."""
+    cleared = set()
+    for match in re.finditer(r"<table:table\b([^>]*)>", source_fods or "", re.IGNORECASE):
+        attrs = _xml_attrs(match.group(1))
+        if attrs.get("vno:clear-print-area", "").lower() == "true" and attrs.get("table:name"):
+            cleared.add(_unescape_xml(attrs["table:name"]))
+    if not cleared:
+        return
+    current = replacements.get(XLSX_WORKBOOK_ENTRY)
+    if current is None:
+        workbook = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+        if not workbook:
+            return
+        current = workbook.decode("utf-8", errors="replace")
+    names = parse_sheet_names_from_workbook(current)
+    indexes = {index for index, name in enumerate(names) if _sheet_name_equivalence_key(name) in {_sheet_name_equivalence_key(item) for item in cleared}}
+    if not indexes:
+        return
+    pattern = re.compile(r"<(?P<tag>(?:[\w.-]+:)?definedName)\b(?P<attrs>[^>]*?)(?:\s*/>|>(?P<body>[\s\S]*?)</(?P=tag)\s*>)", re.IGNORECASE)
+    def remove(match: re.Match[str]) -> str:
+        attrs = _xml_attrs(match.group("attrs"))
+        try:
+            local_id = int(attrs.get("localSheetId", "-1"))
+        except ValueError:
+            return match.group(0)
+        return "" if attrs.get("name", "").casefold() == "_xlnm.print_area" and local_id in indexes else match.group(0)
+    updated = pattern.sub(remove, current)
+    updated = re.sub(r"<(?P<tag>(?:[\w.-]+:)?definedNames)\b[^>]*>\s*</(?P=tag)\s*>", "", updated, flags=re.IGNORECASE)
+    if updated != current:
+        replacements[XLSX_WORKBOOK_ENTRY] = updated
+
+
 def postprocess_sheet_xlsx(
     xlsx_bytes: bytes,
     *,
@@ -4446,6 +4481,7 @@ def postprocess_sheet_xlsx(
         _apply_accounting_number_formats_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_sheet_view_state_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_workbook_view_state_from_fods(xlsx_bytes, source_fods, replacements)
+        _clear_print_areas_from_fods(xlsx_bytes, source_fods, replacements)
 
     if not replacements:
         return xlsx_bytes
