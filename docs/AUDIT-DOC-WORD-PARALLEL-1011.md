@@ -262,3 +262,9 @@ Phần “chưa chạy” này là ghi nhận giữa chừng, đã được thay
 1. **App/CDP:** tạo rectangle trong dialog, chọn fill/line và độ dày; ảnh `E:\VNOffice-profiles\codex-ft9\shapes-t8-before.png`.
 2. **Word COM:** app/Word đều đọc một AutoShape loại 1, `59.8×34.2 pt`, trái/trên `75/120 pt`, fill `15426341`, line `14175773`, rộng viền `1.5 pt`.
 3. **Kết quả:** thuộc tính lúc tạo **KHỚP**; không có luồng chọn hình để sửa màu/viền hoặc xoay trong UI hiện tại. Gap ghi ở backlog; chưa đo parity cho chỉnh sửa/xoay.
+
+### FIX-T9 — Tìm/Thay nâng cao — 11/10/2026
+
+1. **App/CDP:** kiểm tra Match Case, Whole Word, Find Previous vòng lại và Replace One; ảnh `E:\VNOffice-profiles\codex-ft9\find-replace-t8-before.png`.
+2. **Word COM:** cùng các tùy chọn; kết quả Hoa/Hoa và nội dung sau thay một kết quả giống hệt `Hoa hoa Hòa Hoang hoa` ở cả hai DOCX.
+3. **Kết quả:** phép thử nâng cao **KHỚP**; Help Ctrl+H và nhãn tùy chọn VI/EN có sẵn, không phát hiện lệch mới.
