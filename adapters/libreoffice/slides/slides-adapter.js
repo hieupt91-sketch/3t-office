@@ -84,6 +84,8 @@ export function isFontAvailable(fontName) {
   return false;
 }
 
+const POWERPOINT_FONT_SIZES = [8, 9, 10, 10.5, 11, 12, 14, 16, 18, 20, 24, 28, 32, 36, 40, 44, 48, 54, 60, 66, 72, 80, 88, 96];
+
 export function resolveDisplayFont(name, genericFamily) {
   if (!name) return "Arial";
   const clean = String(name).replace(/['"]/g, "").trim();
@@ -442,22 +444,24 @@ export class SlidesAdapter {
     const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
     let node = selection?.anchorNode;
     if (node?.nodeType === 3) node = node.parentNode;
-    const current = (typeof window !== "undefined" && node && window.getComputedStyle)
-      ? parseInt(window.getComputedStyle(node).fontSize, 10)
+    const cssPixels = (typeof window !== "undefined" && node && window.getComputedStyle)
+      ? parseFloat(window.getComputedStyle(node).fontSize)
       : 16;
-    const nextSize = Math.max(10, Math.min(96, (Number.isFinite(current) ? current : 16) + delta * 4));
-    document.execCommand("fontSize", false, "7");
-    const root = this._savedEditable || this.canvas?.canvasEl;
-    const fonts = root?.getElementsByTagName?.("font") || [];
-    for (let index = 0; index < fonts.length; index++) {
-      if (fonts[index].size === "7" || fonts[index].getAttribute?.("size") === "7") {
-        fonts[index].removeAttribute("size");
-        fonts[index].style.fontSize = `${nextSize}px`;
+    const currentPt = (Number.isFinite(cssPixels) ? cssPixels : 16) * this._ptPerPx();
+    const direction = delta < 0 ? -1 : 1;
+    const nextPt = this._nextPowerPointFontSize(currentPt, direction);
+    if (nextPt == null) return true;
+    return this._applyFontSizePt(nextPt);
+  }
+
+  _nextPowerPointFontSize(currentPt, direction) {
+    if (direction < 0) {
+      for (let index = POWERPOINT_FONT_SIZES.length - 1; index >= 0; index--) {
+        if (POWERPOINT_FONT_SIZES[index] < currentPt - 0.01) return POWERPOINT_FONT_SIZES[index];
       }
+      return POWERPOINT_FONT_SIZES[0];
     }
-    this.canvas?._syncEditableFieldsFromDom?.();
-    this._syncTextFormatState();
-    return true;
+    return POWERPOINT_FONT_SIZES.find(size => size > currentPt + 0.01) ?? null;
   }
 
   /** Giá trị ô Cỡ chữ trên ribbon ("1".."7" = 10/13/16/18/24/32/48) hoặc số pt trực tiếp. */
