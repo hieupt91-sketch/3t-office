@@ -3,7 +3,7 @@ TASK: `docs/tickets-0710/TICKET-FIX-T7.md` — DOCX parity với Word COM.
 AGENT/ROLE: Codex — Writer adapter, OOXML export, audit harness.
 BRANCH: `fix/doc-word-parity-t7-codex`.
 WORKTREE: `E:\VNOffice-codex-ft7`.
-OBJECTIVE: Sửa 4 sai lệch lưu DOCX (sup/sub, highlight, simple list, default SpaceAfter) và chạy đối chiếu song song Word COM.
+OBJECTIVE: Sửa 4 sai lệch lưu DOCX và mở rộng đối chiếu song song Word COM theo T7.
 FINDINGS:
 - LO HTML import ghi `<w:position>` cho `<sup>/<sub>`; run có thể bị chia do bold/italic và có thể thiếu/kẹp khoảng trắng giữa HTML và XML. Ghép theo đoạn, ánh xạ run theo nội dung và giữ nguyên thuộc tính khác.
 - Highlight màu chuẩn cần `<w:highlight>`; màu tùy biến giữ `<w:shd>`. Khi mở DOCX có highlight vàng và lưu lại, `w:highlight` được giữ.
@@ -17,12 +17,13 @@ COMMANDS RUN:
 - `npm test` — 3042/3042 PASS.
 - `python -m unittest discover -s tests` — 829 tests, OK. Có ResourceWarning về pipe chưa đóng từ test harness updater.
 - Word COM: 21/21 phép Trang đầu + baseline KHỚP; Word highlight mở/lưu lại giữ `w:highlight`.
+- Word COM: cột 1/2/3, 3/3 KHỚP; Heading 1/2/3 dùng đúng style ID nhưng thuộc tính font/cỡ/màu/khoảng cách LECH.
 - `batch_document_audit.py docx` d01,d07,d13,d20,d24 — 5/5 PASS, page delta 0.
 - `git diff --check` — không lỗi whitespace.
 BUILD RESULT: NOT RUN (ticket yêu cầu test, không yêu cầu build).
 TEST RESULTS: `npm test` 3042/3042 PASS; Python `unittest discover` 829/829 OK; focused parity tests 8/8 PASS; Word COM 21/21 KHỚP; DOCX batch 5/5 PASS.
-KNOWN FAILURES: Ma trận nhóm mở rộng (bảng, page layout, header/footer, breaks, TOC, footnotes/endnotes, comments, revisions, headings, style gallery, find/replace, symbols, text boxes) chưa được audit song song, ghi NOT RUN trong báo cáo.
+KNOWN FAILURES: Heading 1/2/3 có sai khác style mặc định đã tái hiện và ghi trong audit; chưa sửa vì ép font/theme/spacing của Word cài trên máy có thể ghi đè style/theme của DOCX khác. Các nhóm bảng, lề/hướng/khổ giấy, header/footer, breaks, TOC, footnotes/endnotes, comments, revisions, style gallery, find/replace, symbols, text boxes vẫn NOT RUN.
 RISKS: XML parity không thay thế kiểm tra hiển thị toàn bộ palette 16 màu; batch hồi quy xác nhận page count cho năm tài liệu yêu cầu, không xác nhận byte-identical toàn bộ 23 DOCX.
 DEPENDENCIES/BLOCKERS: Word COM cục bộ (đã tạo/xóa theo PID mới); không thêm dependency.
 CORE PATCH ID (if any): None.
-NEXT ACTION: Hoàn tất batch DOCX lần cuối sau sửa cấu trúc helper; ma trận nhóm mở rộng vẫn cần audit song song ở lượt tiếp theo.
+NEXT ACTION: Tiếp tục các nhóm NOT RUN; xác định chính sách tương thích Word theme/style trước khi sửa Heading.
