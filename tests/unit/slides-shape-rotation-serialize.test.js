@@ -82,6 +82,16 @@ export async function runSlidesShapeRotationSerializeTests() {
     assertNotIncludes(attrs, "draw:transform=", "non-rotated shape must NOT have draw:transform");
   });
 
+  test("shape with explicit outline serializes a distinct ODF graphic style", () => {
+    const outlined = new SlidesAdapter({ slides: [{
+      id: 1, title: "Outline", body: "", layoutType: "blank", notes: "",
+      shapes: [{ id: "outlined", type: "rect", x: 20, y: 20, w: 100, h: 60, color: "#f97316", fill: "#f97316", stroke: "#111827", strokeColor: "#111827", strokeWidth: 2 }]
+    }] }).serializeToFodp();
+    assertIncludes(outlined, 'draw:stroke="solid" svg:stroke-color="#111827"', "outline style must retain its chosen line color");
+    assertIncludes(outlined, 'draw:fill-color="#f97316"', "outline style must retain the shape fill");
+    assertIncludes(outlined, 'draw:style-name="grf97316_stroke111827_2"', "outlined shape must point to its distinct graphic style");
+  });
+
   test("serialize with rotation=45 produces correct radian", () => {
     const canvas45 = {
       slides: [{
