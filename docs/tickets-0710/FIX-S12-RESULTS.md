@@ -71,3 +71,10 @@
 - Mở chính XLSX đó trong app, bấm Xóa vùng in. App model sau click có `printAreaBySheet.Sheet1=null`; Excel COM ReadOnly trên XLSX lưu sau đó vẫn thấy `PrintArea='$A$1'`. **LỆCH ĐÃ BIẾT**.
 - Ảnh thao tác xóa: `evidence/s12/fix-s12-clearArea.png`; log CDP `s12-clear-area-retry.log`, Excel COM `excel-clearArea-retry.log`.
 - Đường ghi/xuất thuộc `adapters/**`; đã tạo handoff riêng cho owner adapter, không sửa chéo ownership trong lượt này.
+
+## Trang đầu: Giảm thụt lề — lệch đã biết
+
+- Bấm Tăng thụt lề trên B2, lưu XLSX; Excel COM ReadOnly xác nhận `IndentLevel=1`.
+- Mở XLSX đó, bấm Giảm thụt lề qua CDP; app model thành `indentLevel=0`, nhưng Excel COM ReadOnly trên XLSX sau lưu vẫn cho `IndentLevel=1`. **LỆCH ĐÃ BIẾT**.
+- Ảnh `evidence/s12/fix-s12-indentDecrease.png`; log CDP `s12-indent-decrease.log`, Excel COM `excel-indent-decrease.log`.
+- Adapter owner handoff: `docs/AGENT-HANDOFF-FIX-S12-INDENT-DECREASE.md`.

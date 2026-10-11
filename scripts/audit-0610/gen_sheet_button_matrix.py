@@ -34,6 +34,7 @@ mark(MATCH, "sheet.font.grow", "FIX-S12 Trang đầu: CDP click Tăng cỡ chữ
 mark(MATCH, "sheet.font.shrink", "FIX-S12 Trang đầu: sửa làm tròn điểm cỡ chữ; CDP click Giảm cỡ chữ; Excel COM ReadOnly xác nhận B2=10 pt")
 mark(MATCH, "sheet.cell.mergeAcross sheet.cell.mergeCells", "FIX-S12 Trang đầu: CDP chọn A8:B8 và bấm lệnh; Excel COM ReadOnly xác nhận A8.MergeCells=True")
 mark(KNOWN_GAP, "sheet.page.clearPrintArea", "FIX-S12: CDP xóa printAreaBySheet về null nhưng XLSX Excel COM ReadOnly vẫn có PrintArea=$A$1; handoff adapter ở docs/AGENT-HANDOFF-FIX-S12-CLEAR-PRINT-AREA.md")
+mark(KNOWN_GAP, "sheet.cell.indentDecrease", "FIX-S12: CDP giảm indentLevel về 0 nhưng XLSX Excel COM ReadOnly vẫn IndentLevel=1; handoff adapter ở docs/AGENT-HANDOFF-FIX-S12-INDENT-DECREASE.md")
 
 # FIX-S7 recorded an unsuccessful name-manager probe before FIX-S8 corrected
 # and verified the manager flow. The separate Define Name command has no such
