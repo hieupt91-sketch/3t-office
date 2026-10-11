@@ -48,14 +48,17 @@ export async function press(cdp, key, modifiers = {}, settleMilliseconds = 250, 
   const info = keyInfo(key);
   const mask = modifierMask(modifiers);
   const text = mask ? "" : info.text;
+  const editCommand = ({ c: "copy", x: "cut", v: "paste" })[String(key).toLowerCase()];
+  const commands = editCommand && (modifiers.ctrl || modifiers.meta) ? [editCommand] : undefined;
   await cdp.send("Input.dispatchKeyEvent", {
     type: "keyDown", key: info.key, code: info.code,
     windowsVirtualKeyCode: info.keyCode, modifiers: mask,
-    text, unmodifiedText: text,
+    text, unmodifiedText: text, ...(commands ? { commands } : {}),
   }, timeoutMilliseconds);
   await cdp.send("Input.dispatchKeyEvent", {
     type: "keyUp", key: info.key, code: info.code,
     windowsVirtualKeyCode: info.keyCode, modifiers: mask,
+    ...(commands ? { commands } : {}),
   }, timeoutMilliseconds);
   if (settleMilliseconds > 0) await sleep(settleMilliseconds);
 }
