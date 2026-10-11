@@ -3784,11 +3784,16 @@ export class SheetAdapter {
           if (value?.field && fn) fields.push(`<table:data-pilot-field table:source-field-name="${this._escapeXml(value.field)}" table:orientation="data" table:function="${fn}"/>`);
         }
         if (!fields.some(field => /table:orientation="data"/.test(field))) continue;
+        const resultRange = pivot?.resultRange;
+        const resultLocation = this.grid.pivotRefreshTouchedBySheet?.has(targetSheet)
+          && resultRange?.start?.c && resultRange?.start?.r && resultRange?.end?.c && resultRange?.end?.r
+          ? ` vno:xlsx-location="${this._escapeXml(`${resultRange.start.c}${resultRange.start.r}:${resultRange.end.c}${resultRange.end.r}`)}"`
+          : "";
         const sourceRange = {
           start: { c: source[1], r: Number(source[2]) },
           end: { c: source[3], r: Number(source[4]) }
         };
-        dataPilotTables.push(`<table:data-pilot-table table:name="${this._escapeXml(pivot.name || pivot.id || `Pivot ${dataPilotTables.length + 1}`)}" table:target-range-address="${this._escapeXml(rangeAddress(targetSheet, usedRange(targetSheet)))}"><table:source-cell-range table:cell-range-address="${this._escapeXml(rangeAddress(sourceSheet, sourceRange))}"/>${fields.join("")}</table:data-pilot-table>`);
+        dataPilotTables.push(`<table:data-pilot-table table:name="${this._escapeXml(pivot.name || pivot.id || `Pivot ${dataPilotTables.length + 1}`)}" table:target-range-address="${this._escapeXml(rangeAddress(targetSheet, usedRange(targetSheet)))}"${resultLocation}><table:source-cell-range table:cell-range-address="${this._escapeXml(rangeAddress(sourceSheet, sourceRange))}"/>${fields.join("")}</table:data-pilot-table>`);
       }
     }
     const dataPilotXml = dataPilotTables.length ? `<table:data-pilot-tables>${dataPilotTables.join("")}</table:data-pilot-tables>` : "";

@@ -4179,6 +4179,45 @@ def _clear_print_areas_from_fods(
         replacements[XLSX_WORKBOOK_ENTRY] = updated
 
 
+def _apply_refreshed_pivot_locations_from_fods(
+    xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
+) -> None:
+    """Align an exported PivotTable's native location with its refreshed cell result range."""
+    locations = {}
+    for match in re.finditer(r"<table:data-pilot-table\b([^>]*)>", source_fods or "", re.IGNORECASE):
+        attrs = _xml_attrs(match.group(1))
+        name = attrs.get("table:name")
+        location = attrs.get("vno:xlsx-location")
+        if name and re.fullmatch(r"[A-Z]+\d+:[A-Z]+\d+", location or "", re.IGNORECASE):
+            locations[_unescape_xml(name)] = location.upper()
+    if not locations:
+        return
+    with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+        pivot_entries = [name for name in package.namelist() if re.fullmatch(r"xl/pivotTables/pivotTable\d+\.xml", name, re.IGNORECASE)]
+    for entry in pivot_entries:
+        current = replacements.get(entry)
+        if current is None:
+            data = read_zip_entry(xlsx_bytes, entry)
+            if not data:
+                continue
+            current = data.decode("utf-8", errors="replace")
+        definition = re.search(r"<(?:[\w.-]+:)?pivotTableDefinition\b([^>]*)>", current, re.IGNORECASE)
+        if not definition:
+            continue
+        name = _xml_attrs(definition.group(1)).get("name")
+        location = locations.get(_unescape_xml(name or ""))
+        if not location:
+            continue
+        location_tag = re.search(r"<(?:[\w.-]+:)?location\b[^>]*?/?>", current, re.IGNORECASE)
+        if not location_tag:
+            continue
+        tag = location_tag.group(0)
+        updated_tag = re.sub(r"\bref\s*=\s*(['\"])[^'\"]*\1", f'ref="{location}"', tag, count=1, flags=re.IGNORECASE)
+        updated = current[:location_tag.start()] + updated_tag + current[location_tag.end():]
+        if updated != current:
+            replacements[entry] = updated
+
+
 def postprocess_sheet_xlsx(
     xlsx_bytes: bytes,
     *,
@@ -4482,6 +4521,7 @@ def postprocess_sheet_xlsx(
         _apply_sheet_view_state_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_workbook_view_state_from_fods(xlsx_bytes, source_fods, replacements)
         _clear_print_areas_from_fods(xlsx_bytes, source_fods, replacements)
+        _apply_refreshed_pivot_locations_from_fods(xlsx_bytes, source_fods, replacements)
 
     if not replacements:
         return xlsx_bytes

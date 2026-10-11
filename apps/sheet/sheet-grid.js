@@ -276,6 +276,7 @@ export class SheetGridController {
     this.selectedImageId = null;
     this.textBoxesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.pivotTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.pivotRefreshTouchedBySheet = new Set();
     this.scenariosBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.dataTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.tablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
@@ -13915,6 +13916,7 @@ _bindGridKeyboardNavigation() {
     const table = this.pivotTableEngine.aggregate(sourceCells, pivot);
     this.sheetsData[sheetName] = this.pivotTableEngine.toCells(table);
     pivot.resultRange = this.pivotTableEngine.resultRange(table);
+    this.pivotRefreshTouchedBySheet?.add(sheetName);
     for (const chart of this.chartsBySheet[sheetName] || []) if (chart.kind === "pivot" && chart.pivotId === pivot.id) chart.range = structuredClone(pivot.resultRange);
     this.refreshCharts(sheetName);
     if (sheetName === this.activeSheet) {

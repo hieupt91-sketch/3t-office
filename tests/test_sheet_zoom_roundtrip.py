@@ -47,6 +47,16 @@ def _replace_zip_entry(package_bytes: bytes, path: str, content: str) -> bytes:
     return output.getvalue()
 
 
+def _add_zip_entry(package_bytes: bytes, path: str, content: str) -> bytes:
+    source = io.BytesIO(package_bytes)
+    output = io.BytesIO()
+    with zipfile.ZipFile(source, "r") as old, zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as new:
+        for item in old.infolist():
+            new.writestr(item, old.read(item.filename))
+        new.writestr(path, content.encode("utf-8"))
+    return output.getvalue()
+
+
 class SheetZoomRoundtripTests(unittest.TestCase):
     def test_zoom_scale_restored_from_source(self):
         source_sheet = (
@@ -190,6 +200,21 @@ class SheetZoomRoundtripTests(unittest.TestCase):
             xml = archive.read("xl/workbook.xml").decode("utf-8")
         self.assertNotIn('localSheetId="0">Sheet1!$A$1:$C$9', xml)
         self.assertIn('localSheetId="1">Other!$A$1', xml)
+
+    def test_refreshed_pivot_location_matches_current_result_range(self):
+        package = _add_zip_entry(
+            make_test_xlsx('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews/><sheetData/></worksheet>'),
+            "xl/pivotTables/pivotTable1.xml",
+            '<pivotTableDefinition name="SalesPivot"><location ref="A3:E8"/></pivotTableDefinition>',
+        )
+        fods = ('<office:document><office:body><office:spreadsheet><table:data-pilot-tables>'
+                '<table:data-pilot-table table:name="SalesPivot" vno:xlsx-location="A1:D4">'
+                '</table:data-pilot-table></table:data-pilot-tables></office:spreadsheet></office:body></office:document>')
+
+        patched = postprocess_sheet_xlsx(package, source_fods=fods)
+        with zipfile.ZipFile(io.BytesIO(patched)) as archive:
+            xml = archive.read("xl/pivotTables/pivotTable1.xml").decode("utf-8")
+        self.assertIn('<location ref="A1:D4"/>', xml)
 
 
 if __name__ == "__main__":

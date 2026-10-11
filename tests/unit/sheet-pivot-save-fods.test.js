@@ -63,6 +63,14 @@ export async function runSheetPivotSaveFodsTests() {
     for (const fn of ["sum", "count", "average", "min", "max"]) assert(xml.includes(`table:function="${fn}"`), `thiếu function ${fn}`);
     verifyPivot(new SheetAdapter(null).parseFods(xml), "round-trip nội bộ");
   });
+  test("Sheet Pivot refresh: FODS ghi vùng kết quả hiện tại cho OOXML PivotTable", () => {
+    const grid = makeGrid();
+    const pivot = grid.pivotTablesBySheet[targetSheet][0];
+    pivot.resultRange = { start: { c: "A", r: 1 }, end: { c: "D", r: 4 } };
+    grid.pivotRefreshTouchedBySheet = new Set([targetSheet]);
+    const xml = new SheetAdapter(grid).serializeToFods();
+    assert(xml.includes('vno:xlsx-location="A1:D4"'), "FODS thiếu vùng kết quả Pivot đã refresh");
+  });
   test("Sheet save: giảm indent từ 1 về 0 ghi margin 0 và bỏ vno:xf nguồn", () => {
     const grid = makeGrid();
     const adapter = new SheetAdapter(grid);
