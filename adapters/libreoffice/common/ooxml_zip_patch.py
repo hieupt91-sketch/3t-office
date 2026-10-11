@@ -55,6 +55,10 @@ P14_NS = "http://schemas.microsoft.com/office/powerpoint/2010/main"
 PRESENTATION_NS = "http://schemas.openxmlformats.org/presentationml/2006/main"
 DRAWINGML_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 DEFAULT_POINTER_COLOR = "#DC2626"
+ODF_STYLE_NS = "urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+ODF_FO_NS = "urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+ODF_TEXT_NS = "urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ODF_DRAW_NS = "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
 SECTION_LIST_URI = "{521415D9-36F7-43E2-AB2F-B90AF26B5E84}"
 DEFAULT_SECTION_NAME = "Default Section"
 SECTION_GUID_NAME_PREFIX = "urn:vn-office:slides:section:"
@@ -6744,6 +6748,114 @@ def _normalize_slides_animation_timing(pptx_bytes: bytes) -> dict[str, str]:
     return replacements
 
 
+def _odf_length_to_pt(value: str) -> float | None:
+    match = re.fullmatch(r"\s*([+-]?[\d.]+)\s*(pt|px|in|cm|mm)?\s*", value or "", re.IGNORECASE)
+    if not match:
+        return None
+    amount = float(match.group(1))
+    unit = (match.group(2) or "pt").lower()
+    return amount * {"pt": 1.0, "px": 0.75, "in": 72.0, "cm": 72.0 / 2.54, "mm": 72.0 / 25.4}[unit]
+
+
+def _slides_paragraph_levels_from_fodp(source_fodp: str | None) -> list[dict[str, list[int]]]:
+    """Read explicit PowerPoint-sized paragraph levels from generated FODP text."""
+    if not source_fodp:
+        return []
+    try:
+        root = ET.fromstring(source_fodp)
+    except ET.ParseError:
+        return []
+
+    paragraph_style_names: dict[str, int] = {}
+    for style in root.iter(f"{{{ODF_STYLE_NS}}}style"):
+        if style.get(f"{{{ODF_STYLE_NS}}}family") != "paragraph":
+            continue
+        name = style.get(f"{{{ODF_STYLE_NS}}}name")
+        properties = style.find(f"{{{ODF_STYLE_NS}}}paragraph-properties")
+        if not name or properties is None:
+            continue
+        margin_pt = _odf_length_to_pt(properties.get(f"{{{ODF_FO_NS}}}margin-left", ""))
+        if margin_pt is None or margin_pt < 18:
+            continue
+        # PowerPoint paragraph levels are zero-based in DrawingML; its second
+        # level has a measured 36 pt left indent. Keep only whole Office steps.
+        level = max(1, int(round(margin_pt / 36.0)))
+        paragraph_style_names[name] = level
+
+    pages = root.findall(f".//{{{ODF_DRAW_NS}}}page")
+    page_levels: list[dict[str, list[int]]] = []
+    for page in pages:
+        levels: dict[str, list[int]] = {}
+        for paragraph in page.iter(f"{{{ODF_TEXT_NS}}}p"):
+            style_name = paragraph.get(f"{{{ODF_TEXT_NS}}}style-name")
+            level = paragraph_style_names.get(style_name or "")
+            if level is None:
+                continue
+            text = re.sub(r"\s+", " ", "".join(paragraph.itertext())).strip()
+            if text:
+                levels.setdefault(text, []).append(level)
+        page_levels.append(levels)
+    return page_levels
+
+
+def _set_drawingml_paragraph_level(paragraph_xml: str, level: int) -> str:
+    """Write a paragraph level in schema position without replacing other pPr."""
+    ppr = re.search(r"<a:pPr\b[^>]*(?:/>|>[\s\S]*?</a:pPr\s*>)", paragraph_xml, re.IGNORECASE)
+    if ppr:
+        block = re.sub(r"\s+lvl=[\"'][^\"']*[\"']", "", ppr.group(0), count=1, flags=re.IGNORECASE)
+        if block.rstrip().endswith("/>"):
+            block = re.sub(r"/\s*>", f' lvl="{level}"/>', block, count=1)
+        else:
+            block = re.sub(r"(<a:pPr\b)", rf'\1 lvl="{level}"', block, count=1, flags=re.IGNORECASE)
+        return paragraph_xml[:ppr.start()] + block + paragraph_xml[ppr.end():]
+    return re.sub(r"(<a:p\b[^>]*>)", rf'\1<a:pPr lvl="{level}"/>', paragraph_xml, count=1, flags=re.IGNORECASE)
+
+
+def _apply_slides_paragraph_levels(pptx_bytes: bytes, source_fodp: str | None) -> dict[str, str]:
+    """Restore FODP paragraph indent levels LibreOffice omits from PPTX."""
+    page_levels = _slides_paragraph_levels_from_fodp(source_fodp)
+    if not any(page_levels):
+        return {}
+    try:
+        with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+            entries = sorted(
+                (name for name in package.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", name)),
+                key=lambda name: int(re.search(r"slide(\d+)\.xml$", name).group(1)),
+            )
+    except Exception:
+        return {}
+
+    replacements: dict[str, str] = {}
+    paragraph_re = re.compile(r"<a:p\b[^>]*>[\s\S]*?</a:p\s*>", re.IGNORECASE)
+    text_re = re.compile(r"<a:t\b[^>]*>([\s\S]*?)</a:t\s*>", re.IGNORECASE)
+    for page_index, entry in enumerate(entries):
+        if page_index >= len(page_levels) or not page_levels[page_index]:
+            continue
+        original = read_zip_entry(pptx_bytes, entry)
+        if not original:
+            continue
+        xml = original.decode("utf-8", errors="replace")
+        pending = {text: list(levels) for text, levels in page_levels[page_index].items()}
+        changed = False
+
+        def patch_paragraph(match: re.Match[str]) -> str:
+            nonlocal changed
+            block = match.group(0)
+            text = re.sub(r"\s+", " ", "".join(html.unescape(part) for part in text_re.findall(block))).strip()
+            levels = pending.get(text)
+            if not text or not levels:
+                return block
+            level = levels.pop(0)
+            updated = _set_drawingml_paragraph_level(block, level)
+            changed = changed or updated != block
+            return updated
+
+        next_xml = paragraph_re.sub(patch_paragraph, xml)
+        if changed and next_xml != xml:
+            replacements[entry] = next_xml
+    return replacements
+
+
 def postprocess_slides_pptx(
     pptx_bytes: bytes,
     *,
@@ -6809,9 +6921,11 @@ def postprocess_slides_pptx(
     notes_by_slide = parse_notes_from_fodp(source_fodp) if source_fodp else {}
 
     animation_replacements = _normalize_slides_animation_timing(pptx_bytes)
-    if not apply_logo and not theme_id and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements:
+    paragraph_level_replacements = _apply_slides_paragraph_levels(pptx_bytes, source_fodp)
+    if not apply_logo and not theme_id and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements:
         return pptx_bytes
     replacements.update(animation_replacements)
+    replacements.update(paragraph_level_replacements)
 
     if apply_slide_size and presentation_xml:
         presentation_xml = apply_intended_slide_size(presentation_xml, intended_size)

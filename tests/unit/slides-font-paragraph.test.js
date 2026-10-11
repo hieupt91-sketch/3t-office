@@ -280,6 +280,23 @@ export async function runSlidesFontParagraphTests() {
     }
   });
 
+  await test("Font/Paragraph: thụt lề blockquote serialize thành lề chuẩn PowerPoint 36 pt", () => {
+    canvas.slides = [{
+      id: 3,
+      title: "Thụt lề",
+      titleHtml: '<blockquote style="margin: 0 0 0 40px; border: none; padding: 0px;"><div style="text-align:left;margin-left:0cm">Thụt lề cấp 2</div></blockquote>',
+      body: "",
+      layoutType: "title-content",
+      shapes: []
+    }];
+    const fodp = adapter.serializeToFodp();
+    if (!fodp.includes('fo:margin-left="36pt"')) throw new Error("FODP thiếu khoảng thụt 36pt cho cấp lề thứ hai");
+    const parsed = adapter.parseFodp(fodp);
+    if (!/margin-left:\s*36pt/i.test(parsed[0]?.titleHtml || "")) {
+      throw new Error(`parseFodp không khôi phục thụt lề: ${parsed[0]?.titleHtml}`);
+    }
+  });
+
   await test("Font/Paragraph: canvas giữ titleHtml khi sync DOM, restore khi selectSlide", () => {
     const host = new FakeElement("div");
     host.appendChild = () => {};
