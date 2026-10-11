@@ -65,7 +65,7 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Theo dõi thay đổi: chèn cụm ` added` | Word đọc một `Revision` thêm, Type 1, Author 3T Office | COM bật TrackRevisions, chèn cùng cụm; đọc lại | KHỚP về count/type/author/text |
 | Heading 1–3 | Chưa chạy | Chưa chạy | NOT RUN |
 | Thư viện kiểu | Chưa chạy | Chưa chạy | NOT RUN |
-| Tìm/thay thế | Chưa chạy | Chưa chạy | NOT RUN |
+| Tìm/thay thế: thay toàn bộ `Alpha` → `Gamma` | CDP Ctrl+H, 1 thay thế; DOCX có Gamma, không Alpha | `Find.Execute` ReplaceAll; DOCX cùng nội dung | KHỚP |
 | Ký hiệu | Chưa chạy | Chưa chạy | NOT RUN |
 | Hộp văn bản | Chưa chạy | Chưa chạy | NOT RUN |
 
@@ -110,6 +110,12 @@ Chưa chạy: đánh dấu Done/Resolved, sửa/xóa comment, điều hướng c
 Mở **Đánh giá > Theo dõi thay đổi**, đặt con trỏ cuối đoạn Alpha và gõ ` added` bằng CDP keyboard, rồi lưu DOCX. Word COM bật `TrackRevisions`, chèn cùng chuỗi và lưu DOCX đối chứng. Đọc lại bằng COM: cả hai tệp có một Revision, `Type=1` (insertion), Author `3T Office`, text `added`: **KHỚP**. Help tiếng Việt **Theo dõi thay đổi** và nhãn thao tác đã có trong `platform/help/entries-writer.js` cùng `platform/i18n/strings-vi.js`/`strings-en.js`.
 
 Chưa chạy: xóa có theo dõi, chấp nhận/từ chối một và tất cả, chuyển đổi chế độ hiển thị, tên tác giả khác và round-trip sửa revision đã tồn tại.
+
+### FIX-T8 tiếp tục — Tìm/Thay thế — 11/10/2026
+
+Nhấn **Ctrl+H**, nhập `Alpha` ở ô **Tìm gì**, nhập `Gamma` ở ô **Thay bằng**, nhấn **Thay thế tất cả**. App báo 1 thay thế; DOCX sau lưu còn `Gamma`, không còn `Alpha`. Word COM chạy `Find.Execute` với `ReplaceAll` trên DOCX đối chứng; đọc nội dung bằng COM cho cùng kết quả: **KHỚP**. Hướng dẫn tiếng Việt có trong Trợ giúp Writer, chủ đề **Tìm kiếm và Thay thế trong Doc**; Ctrl+H và nhãn nút đã có i18n.
+
+Chưa chạy: khớp hoa/thường, toàn từ, bỏ dấu, Find next/previous và thay thế từng kết quả.
 
 ### Bố cục trang: cột — 11/10/2026
 
