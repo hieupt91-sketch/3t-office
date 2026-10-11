@@ -1,0 +1,1486 @@
+[
+  {
+    "operation": "italic",
+    "file": "E:\\VNOffice-profiles\\codex-fl7\\fix-l7-italic.pptx",
+    "properties": [
+      {
+        "property": "Text",
+        "value": "FIX-L4 audit sample text",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Name",
+        "value": "Arial",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Size",
+        "value": 24,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Bold",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Italic",
+        "value": -1,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Underline",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.StrikeThrough",
+        "value": null,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Strike",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Highlight",
+        "value": {},
+        "status": "READ"
+      },
+      {
+        "property": "Font.Color.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.ForeColor.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.BackColor.RGB",
+        "value": 16777215,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Alignment",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Visible",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Type",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.SpaceWithin",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LineRuleWithin",
+        "value": -1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LeftIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.FirstLineIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.IndentLevel",
+        "value": 1,
+        "status": "READ"
+      }
+    ]
+  },
+  {
+    "operation": "underline",
+    "file": "E:\\VNOffice-profiles\\codex-fl7\\fix-l7-underline.pptx",
+    "properties": [
+      {
+        "property": "Text",
+        "value": "FIX-L4 audit sample text",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Name",
+        "value": "Arial",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Size",
+        "value": 24,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Bold",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Italic",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Underline",
+        "value": -1,
+        "status": "READ"
+      },
+      {
+        "property": "Font.StrikeThrough",
+        "value": null,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Strike",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Highlight",
+        "value": {},
+        "status": "READ"
+      },
+      {
+        "property": "Font.Color.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.ForeColor.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.BackColor.RGB",
+        "value": 16777215,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Alignment",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Visible",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Type",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.SpaceWithin",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LineRuleWithin",
+        "value": -1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LeftIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.FirstLineIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.IndentLevel",
+        "value": 1,
+        "status": "READ"
+      }
+    ]
+  },
+  {
+    "operation": "strike",
+    "file": "E:\\VNOffice-profiles\\codex-fl7\\fix-l7-strike.pptx",
+    "properties": [
+      {
+        "property": "Text",
+        "value": "FIX-L4 audit sample text",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Name",
+        "value": "Arial",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Size",
+        "value": 24,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Bold",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Italic",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Underline",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.StrikeThrough",
+        "value": null,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Strike",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Highlight",
+        "value": {},
+        "status": "READ"
+      },
+      {
+        "property": "Font.Color.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.ForeColor.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.BackColor.RGB",
+        "value": 16777215,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Alignment",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Visible",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Type",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.SpaceWithin",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LineRuleWithin",
+        "value": -1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LeftIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.FirstLineIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.IndentLevel",
+        "value": 1,
+        "status": "READ"
+      }
+    ]
+  },
+  {
+    "operation": "clearFormat",
+    "file": "E:\\VNOffice-profiles\\codex-fl7\\fix-l7-clearFormat.pptx",
+    "properties": [
+      {
+        "property": "Text",
+        "value": "FIX-L4 audit sample text",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Name",
+        "value": "Arial",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Size",
+        "value": 18,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Bold",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Italic",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Underline",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.StrikeThrough",
+        "value": null,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Strike",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Highlight",
+        "value": {},
+        "status": "READ"
+      },
+      {
+        "property": "Font.Color.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.ForeColor.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.BackColor.RGB",
+        "value": 16777215,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Alignment",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Visible",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Type",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.SpaceWithin",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LineRuleWithin",
+        "value": -1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LeftIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.FirstLineIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.IndentLevel",
+        "value": 1,
+        "status": "READ"
+      }
+    ]
+  },
+  {
+    "operation": "colorDefault",
+    "file": "E:\\VNOffice-profiles\\codex-fl7\\fix-l7-colorDefault.pptx",
+    "properties": [
+      {
+        "property": "Text",
+        "value": "FIX-L4 audit sample text",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Name",
+        "value": "Arial",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Size",
+        "value": 24,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Bold",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Italic",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Underline",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.StrikeThrough",
+        "value": null,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Strike",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Highlight",
+        "value": {},
+        "status": "READ"
+      },
+      {
+        "property": "Font.Color.RGB",
+        "value": 255,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.ForeColor.RGB",
+        "value": -2147483648,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.BackColor.RGB",
+        "value": 16777215,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Alignment",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Visible",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Type",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.SpaceWithin",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LineRuleWithin",
+        "value": -1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LeftIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.FirstLineIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.IndentLevel",
+        "value": 1,
+        "status": "READ"
+      }
+    ]
+  },
+  {
+    "operation": "colorHighlight",
+    "file": "E:\\VNOffice-profiles\\codex-fl7\\fix-l7-colorHighlight.pptx",
+    "properties": [
+      {
+        "property": "Text",
+        "value": "FIX-L4 audit sample text",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Name",
+        "value": "Arial",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Size",
+        "value": 24,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Bold",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Italic",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Underline",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.StrikeThrough",
+        "value": null,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Strike",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Highlight",
+        "value": {},
+        "status": "READ"
+      },
+      {
+        "property": "Font.Color.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.ForeColor.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.BackColor.RGB",
+        "value": 16777215,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Alignment",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Visible",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Type",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.SpaceWithin",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LineRuleWithin",
+        "value": -1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LeftIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.FirstLineIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.IndentLevel",
+        "value": 1,
+        "status": "READ"
+      }
+    ]
+  },
+  {
+    "operation": "alignLeft",
+    "file": "E:\\VNOffice-profiles\\codex-fl7\\fix-l7-alignLeft.pptx",
+    "properties": [
+      {
+        "property": "Text",
+        "value": "FIX-L4 audit sample text",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Name",
+        "value": "Arial",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Size",
+        "value": 24,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Bold",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Italic",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Underline",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.StrikeThrough",
+        "value": null,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Strike",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Highlight",
+        "value": {},
+        "status": "READ"
+      },
+      {
+        "property": "Font.Color.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.ForeColor.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.BackColor.RGB",
+        "value": 16777215,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Alignment",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Visible",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Type",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.SpaceWithin",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LineRuleWithin",
+        "value": -1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LeftIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.FirstLineIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.IndentLevel",
+        "value": 1,
+        "status": "READ"
+      }
+    ]
+  },
+  {
+    "operation": "alignRight",
+    "file": "E:\\VNOffice-profiles\\codex-fl7\\fix-l7-alignRight.pptx",
+    "properties": [
+      {
+        "property": "Text",
+        "value": "FIX-L4 audit sample text",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Name",
+        "value": "Arial",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Size",
+        "value": 24,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Bold",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Italic",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Underline",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.StrikeThrough",
+        "value": null,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Strike",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Highlight",
+        "value": {},
+        "status": "READ"
+      },
+      {
+        "property": "Font.Color.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.ForeColor.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.BackColor.RGB",
+        "value": 16777215,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Alignment",
+        "value": 3,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Visible",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Type",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.SpaceWithin",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LineRuleWithin",
+        "value": -1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LeftIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.FirstLineIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.IndentLevel",
+        "value": 1,
+        "status": "READ"
+      }
+    ]
+  },
+  {
+    "operation": "alignJustify",
+    "file": "E:\\VNOffice-profiles\\codex-fl7\\fix-l7-alignJustify.pptx",
+    "properties": [
+      {
+        "property": "Text",
+        "value": "FIX-L4 audit sample text",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Name",
+        "value": "Arial",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Size",
+        "value": 24,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Bold",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Italic",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Underline",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.StrikeThrough",
+        "value": null,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Strike",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Highlight",
+        "value": {},
+        "status": "READ"
+      },
+      {
+        "property": "Font.Color.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.ForeColor.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.BackColor.RGB",
+        "value": 16777215,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Alignment",
+        "value": 4,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Visible",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Type",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.SpaceWithin",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LineRuleWithin",
+        "value": -1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LeftIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.FirstLineIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.IndentLevel",
+        "value": 1,
+        "status": "READ"
+      }
+    ]
+  },
+  {
+    "operation": "bullet",
+    "file": "E:\\VNOffice-profiles\\codex-fl7\\fix-l7-bullet.pptx",
+    "properties": [
+      {
+        "property": "Text",
+        "value": "FIX-L4 audit sample text",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Name",
+        "value": "Arial",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Size",
+        "value": 24,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Bold",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Italic",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Underline",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.StrikeThrough",
+        "value": null,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Strike",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Highlight",
+        "value": {},
+        "status": "READ"
+      },
+      {
+        "property": "Font.Color.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.ForeColor.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.BackColor.RGB",
+        "value": 16777215,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Alignment",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Visible",
+        "value": -1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Type",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.SpaceWithin",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LineRuleWithin",
+        "value": -1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LeftIndent",
+        "value": 28.3464565,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.FirstLineIndent",
+        "value": -14.1732283,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.IndentLevel",
+        "value": 1,
+        "status": "READ"
+      }
+    ]
+  },
+  {
+    "operation": "numbered",
+    "file": "E:\\VNOffice-profiles\\codex-fl7\\fix-l7-numbered.pptx",
+    "properties": [
+      {
+        "property": "Text",
+        "value": "FIX-L4 audit sample text",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Name",
+        "value": "Arial",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Size",
+        "value": 24,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Bold",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Italic",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Underline",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.StrikeThrough",
+        "value": null,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Strike",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Highlight",
+        "value": {},
+        "status": "READ"
+      },
+      {
+        "property": "Font.Color.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.ForeColor.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.BackColor.RGB",
+        "value": 16777215,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Alignment",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Visible",
+        "value": -1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Type",
+        "value": 2,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.SpaceWithin",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LineRuleWithin",
+        "value": -1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LeftIndent",
+        "value": 28.3464565,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.FirstLineIndent",
+        "value": -14.1732283,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.IndentLevel",
+        "value": 1,
+        "status": "READ"
+      }
+    ]
+  },
+  {
+    "operation": "indentDec",
+    "file": "E:\\VNOffice-profiles\\codex-fl7\\fix-l7-indentDec.pptx",
+    "properties": [
+      {
+        "property": "Text",
+        "value": "FIX-L4 audit sample text",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Name",
+        "value": "Arial",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Size",
+        "value": 24,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Bold",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Italic",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Underline",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.StrikeThrough",
+        "value": null,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Strike",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Highlight",
+        "value": {},
+        "status": "READ"
+      },
+      {
+        "property": "Font.Color.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.ForeColor.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.BackColor.RGB",
+        "value": 16777215,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Alignment",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Visible",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Type",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.SpaceWithin",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LineRuleWithin",
+        "value": -1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LeftIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.FirstLineIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.IndentLevel",
+        "value": 1,
+        "status": "READ"
+      }
+    ]
+  },
+  {
+    "operation": "indentInc",
+    "file": "E:\\VNOffice-profiles\\codex-fl7\\fix-l7-indentInc.pptx",
+    "properties": [
+      {
+        "property": "Text",
+        "value": "FIX-L4 audit sample text",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Name",
+        "value": "Arial",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Size",
+        "value": 24,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Bold",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Italic",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Underline",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.StrikeThrough",
+        "value": null,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Strike",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Highlight",
+        "value": {},
+        "status": "READ"
+      },
+      {
+        "property": "Font.Color.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.ForeColor.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.BackColor.RGB",
+        "value": 16777215,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Alignment",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Visible",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Type",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.SpaceWithin",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LineRuleWithin",
+        "value": -1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LeftIndent",
+        "value": 36,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.FirstLineIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.IndentLevel",
+        "value": 2,
+        "status": "READ"
+      }
+    ]
+  },
+  {
+    "operation": "lineSpacing",
+    "file": "E:\\VNOffice-profiles\\codex-fl7\\fix-l7-lineSpacing.pptx",
+    "properties": [
+      {
+        "property": "Text",
+        "value": "FIX-L4 audit sample text",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Name",
+        "value": "Arial",
+        "status": "READ"
+      },
+      {
+        "property": "Font.Size",
+        "value": 24,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Bold",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Italic",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.Underline",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Font.StrikeThrough",
+        "value": null,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Strike",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Highlight",
+        "value": {},
+        "status": "READ"
+      },
+      {
+        "property": "Font.Color.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.ForeColor.RGB",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "TextRange2.Font.Fill.BackColor.RGB",
+        "value": 16777215,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Alignment",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Visible",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.Bullet.Type",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.SpaceWithin",
+        "value": 1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LineRuleWithin",
+        "value": -1,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.LeftIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.FirstLineIndent",
+        "value": 0,
+        "status": "READ"
+      },
+      {
+        "property": "Paragraph.IndentLevel",
+        "value": 1,
+        "status": "READ"
+      }
+    ]
+  }
+]\n

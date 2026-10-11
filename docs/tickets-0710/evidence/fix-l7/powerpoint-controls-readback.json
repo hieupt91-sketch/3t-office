@@ -1,0 +1,317 @@
+{
+  "source": "E:\\VNOffice-profiles\\codex-fl7\\fix-l6-controls.pptx",
+  "slideCount": 1,
+  "shapeCount": 5,
+  "rows": [
+    {
+      "property": "Slide.Count",
+      "value": 1,
+      "status": "READ"
+    },
+    {
+      "property": "Shape.Count",
+      "value": 5,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Layout",
+      "value": 1,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Design.Name",
+      "value": "Office",
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Master.Name",
+      "value": "VNOfficeTheme:minimal-dark",
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Master.Theme",
+      "value": null,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Hidden",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Transition",
+      "value": 3073,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.TransitionDuration",
+      "value": 0.8,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Notes",
+      "value": "FIX-L6 speaker notes",
+      "status": "READ"
+    },
+    {
+      "property": "Text",
+      "value": "FIX-L4 audit sample text",
+      "status": "READ"
+    },
+    {
+      "property": "Font.Name",
+      "value": "Arial",
+      "status": "READ"
+    },
+    {
+      "property": "Font.Size",
+      "value": 24,
+      "status": "READ"
+    },
+    {
+      "property": "Font.Bold",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Font.Italic",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Font.Underline",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Paragraph.Alignment",
+      "value": 1,
+      "status": "READ"
+    },
+    {
+      "property": "Text.HasText",
+      "value": -1,
+      "status": "READ"
+    },
+    {
+      "property": "Shape1.Name",
+      "value": "PlaceHolder 1",
+      "status": "READ"
+    },
+    {
+      "property": "Shape1.Type",
+      "value": 14,
+      "status": "READ"
+    },
+    {
+      "property": "Shape1.Width",
+      "value": 822.869263,
+      "status": "READ"
+    },
+    {
+      "property": "Shape1.Height",
+      "value": 102.869293,
+      "status": "READ"
+    },
+    {
+      "property": "Shape1.Rotation",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Shape2.Name",
+      "value": "PlaceHolder 2",
+      "status": "READ"
+    },
+    {
+      "property": "Shape2.Type",
+      "value": 14,
+      "status": "READ"
+    },
+    {
+      "property": "Shape2.Width",
+      "value": 394.299225,
+      "status": "READ"
+    },
+    {
+      "property": "Shape2.Height",
+      "value": 377.1496,
+      "status": "READ"
+    },
+    {
+      "property": "Shape2.Rotation",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Shape3.Name",
+      "value": "PlaceHolder 3",
+      "status": "READ"
+    },
+    {
+      "property": "Shape3.Type",
+      "value": 14,
+      "status": "READ"
+    },
+    {
+      "property": "Shape3.Width",
+      "value": 394.299225,
+      "status": "READ"
+    },
+    {
+      "property": "Shape3.Height",
+      "value": 377.1496,
+      "status": "READ"
+    },
+    {
+      "property": "Shape3.Rotation",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Shape4.Name",
+      "value": "TextBox 1",
+      "status": "READ"
+    },
+    {
+      "property": "Shape4.Type",
+      "value": 1,
+      "status": "READ"
+    },
+    {
+      "property": "Shape4.Width",
+      "value": 429.76062,
+      "status": "READ"
+    },
+    {
+      "property": "Shape4.Height",
+      "value": 36,
+      "status": "READ"
+    },
+    {
+      "property": "Shape4.Rotation",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Shape5.Name",
+      "value": "1791741524293",
+      "status": "READ"
+    },
+    {
+      "property": "Shape5.Type",
+      "value": 1,
+      "status": "READ"
+    },
+    {
+      "property": "Shape5.Width",
+      "value": 150.009445,
+      "status": "READ"
+    },
+    {
+      "property": "Shape5.Height",
+      "value": 90,
+      "status": "READ"
+    },
+    {
+      "property": "Shape5.Rotation",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Shape.Left",
+      "value": 68.570076,
+      "status": "READ"
+    },
+    {
+      "property": "Shape.Top",
+      "value": 68.570076,
+      "status": "READ"
+    },
+    {
+      "property": "Shape.Width",
+      "value": 822.869263,
+      "status": "READ"
+    },
+    {
+      "property": "Shape.Height",
+      "value": 102.869293,
+      "status": "READ"
+    },
+    {
+      "property": "Shape.Rotation",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Shape.Fill.RGB",
+      "value": 16777215,
+      "status": "READ"
+    },
+    {
+      "property": "Shape.Line.RGB",
+      "value": 16777215,
+      "status": "READ"
+    },
+    {
+      "property": "Shape.ZOrderPosition",
+      "value": 1,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Animation.EffectCount",
+      "value": 2,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Animation.Effect1.Shape",
+      "value": "1791741524293",
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Animation.Effect1.Duration",
+      "value": 0.5,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Animation.Effect1.Type",
+      "value": 2,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Animation.Effect1.Trigger",
+      "value": 1,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Animation.Effect1.TriggerDelay",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Animation.Effect2.Shape",
+      "value": "TextBox 1",
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Animation.Effect2.Duration",
+      "value": 0.8,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Animation.Effect2.Type",
+      "value": 10,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Animation.Effect2.Trigger",
+      "value": 1,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Animation.Effect2.TriggerDelay",
+      "value": 0.2,
+      "status": "READ"
+    }
+  ]
+}
