@@ -217,6 +217,13 @@ export class SheetAdapter {
     return true;
   }
 
+  async _refreshPivotTable() {
+    if (!this.grid?.pivotTableEngine && typeof this.grid?._loadPivotEngine === "function") {
+      await this.grid._loadPivotEngine();
+    }
+    return this.grid?.refreshPivotTable?.() || false;
+  }
+
   _bindFormatPainterRibbon() {
     if (this._formatPainterRibbonBound) return;
     if (typeof document === "undefined" || typeof document.addEventListener !== "function") return;
@@ -293,7 +300,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.data.dataTable", () => this.grid.showDataTableDialog());
     globalCommandBus.bindHandler("sheet.data.scenarioManager", () => this.grid.showScenarioManagerDialog());
     globalCommandBus.bindHandler("sheet.data.pivotTable", () => this.grid.showPivotTableDialog());
-    globalCommandBus.bindHandler("sheet.data.pivotRefresh", () => this.grid.refreshPivotTable());
+    globalCommandBus.bindHandler("sheet.data.pivotRefresh", () => this._refreshPivotTable());
     globalCommandBus.bindHandler("sheet.chart.pivotChart", () => this.grid.openPivotChartBuilder());
     globalCommandBus.bindHandler("sheet.formula.nameManager", (args) => {
       args = args || {};
@@ -3061,7 +3068,10 @@ export class SheetAdapter {
   serializeToFods() {
     if (!this.grid) return "";
     const isNewWorkbook = !this.sourceFilePath;
-    const sourceIsPristineXlsx = !this.isDirty && /\.xlsx$/i.test(String(this.sourceFilePath || ""));
+    const hasNativeXlsxStateChanges = (this.grid.xlsxViewStateTouched?.size || 0) > 0
+      || (this.grid.printAreaTouchedBySheet?.size || 0) > 0
+      || (this.grid.pivotRefreshTouchedBySheet?.size || 0) > 0;
+    const sourceIsPristineXlsx = !this.isDirty && !hasNativeXlsxStateChanges && /\.xlsx$/i.test(String(this.sourceFilePath || ""));
     const pristineXlsxMarker = sourceIsPristineXlsx ? "<!-- vno-pristine-xlsx-source -->\n" : "";
     const sheetNames = (this.grid.sheets && this.grid.sheets.length)
       ? [...this.grid.sheets]
@@ -3176,7 +3186,9 @@ export class SheetAdapter {
       // LibreOffice đọc fo:text-align="right"/"left" thành "chung" (mất căn lề khi lưu XLSX); chỉ "end"/"start" được nhận (đo 11/10).
       const odfAlign = { right: "end", left: "start" }[s.textAlign] || s.textAlign;
       if (s.textAlign) paraProps.push(`fo:text-align="${this._escapeXml(odfAlign)}"`);
-      if (Number(s.indentLevel) > 0) paraProps.push(`fo:margin-left="${(Number(s.indentLevel) * 0.235).toFixed(3)}cm"`);
+      if (s.indentLevel !== undefined && s.indentLevel !== null && Number.isFinite(Number(s.indentLevel))) {
+        paraProps.push(`fo:margin-left="${(Math.max(0, Number(s.indentLevel)) * 0.235).toFixed(3)}cm"`);
+      }
       const textProps = [];
       if (s.fontSize) {
         const ptVal = s.fontSize.endsWith("px") ? Number((parseFloat(s.fontSize) * (72 / 96)).toFixed(2)) : s.fontSize;
@@ -3724,6 +3736,8 @@ export class SheetAdapter {
       const localNames = (this.grid.namedRangesBySheet?.[sheetName] || []).map(range => this._namedRangeXml(range, sheetName)).join("");
       const printRange = this._printRangeAddress(sheetName, this.grid.printAreaBySheet?.[sheetName]);
       const printRangeAttr = printRange ? ` table:print-ranges="${this._escapeXml(printRange)}"` : "";
+      const clearPrintAreaAttr = !printRange && this.grid.printAreaTouchedBySheet?.has(sheetName)
+        ? ' vno:clear-print-area="true"' : "";
       const pageStyle = pageStyleBySheet.get(sheetName);
       const printTitles = this.grid.pageSetupBySheet?.[sheetName]?.printTitles || {};
       const protectedSheet = !!this.grid.protectionBySheet?.[sheetName]?.enabled;
@@ -3758,7 +3772,7 @@ export class SheetAdapter {
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
       const shapesXml = this._serializePageAnchoredImagesXml(pageAnchoredImages);
-      return `<table:table table:name="${this._escapeXml(sheetName)}"${pageAttrs}${printRangeAttr}${protectedAttr}>${chartsXml}${shapesXml}${columnsXml}${rowsXml}${localNames ? `<table:named-expressions>${localNames}</table:named-expressions>` : ""}${conditionalXml ? `<calcext:conditional-formats>${conditionalXml}</calcext:conditional-formats>` : ""}${sparklinesXml}</table:table>`;
+      return `<table:table table:name="${this._escapeXml(sheetName)}"${pageAttrs}${printRangeAttr}${clearPrintAreaAttr}${protectedAttr}>${chartsXml}${shapesXml}${columnsXml}${rowsXml}${localNames ? `<table:named-expressions>${localNames}</table:named-expressions>` : ""}${conditionalXml ? `<calcext:conditional-formats>${conditionalXml}</calcext:conditional-formats>` : ""}${sparklinesXml}</table:table>`;
     }).join("");
 
     const dataPilotTables = [];
@@ -3780,11 +3794,16 @@ export class SheetAdapter {
           if (value?.field && fn) fields.push(`<table:data-pilot-field table:source-field-name="${this._escapeXml(value.field)}" table:orientation="data" table:function="${fn}"/>`);
         }
         if (!fields.some(field => /table:orientation="data"/.test(field))) continue;
+        const resultRange = pivot?.resultRange;
+        const resultLocation = this.grid.pivotRefreshTouchedBySheet?.has(targetSheet)
+          && resultRange?.start?.c && resultRange?.start?.r && resultRange?.end?.c && resultRange?.end?.r
+          ? ` vno:xlsx-location="${this._escapeXml(`${resultRange.start.c}${resultRange.start.r}:${resultRange.end.c}${resultRange.end.r}`)}"`
+          : "";
         const sourceRange = {
           start: { c: source[1], r: Number(source[2]) },
           end: { c: source[3], r: Number(source[4]) }
         };
-        dataPilotTables.push(`<table:data-pilot-table table:name="${this._escapeXml(pivot.name || pivot.id || `Pivot ${dataPilotTables.length + 1}`)}" table:target-range-address="${this._escapeXml(rangeAddress(targetSheet, usedRange(targetSheet)))}"><table:source-cell-range table:cell-range-address="${this._escapeXml(rangeAddress(sourceSheet, sourceRange))}"/>${fields.join("")}</table:data-pilot-table>`);
+        dataPilotTables.push(`<table:data-pilot-table table:name="${this._escapeXml(pivot.name || pivot.id || `Pivot ${dataPilotTables.length + 1}`)}" table:target-range-address="${this._escapeXml(rangeAddress(targetSheet, usedRange(targetSheet)))}"${resultLocation}><table:source-cell-range table:cell-range-address="${this._escapeXml(rangeAddress(sourceSheet, sourceRange))}"/>${fields.join("")}</table:data-pilot-table>`);
       }
     }
     const dataPilotXml = dataPilotTables.length ? `<table:data-pilot-tables>${dataPilotTables.join("")}</table:data-pilot-tables>` : "";
@@ -3795,6 +3814,19 @@ export class SheetAdapter {
           <config:config-item config:name="CursorPositionY" config:type="int">0</config:config-item>
         </config:config-item-map-entry>`).join("");
     const structureProtected = !!this.grid.workbookProtection?.enabled;
+    const xlsxViewState = this.grid.xlsxViewStateTouched instanceof Set ? this.grid.xlsxViewStateTouched : new Set();
+    const xlsxViewAttrs = [
+      ["showGridLines", "show-grid-lines", this.grid.gridlinesVisible],
+      ["showRowColHeaders", "show-row-col-headers", this.grid.headingsVisible],
+      ["showFormulas", "show-formulas", this.grid.showFormulas],
+      ["showFormulaBar", "show-formula-bar", this.grid.formulaBarVisible],
+      ["view", "sheet-view", this.grid.workbookView],
+      ["zoomScale", "zoom-scale", Math.round(Number(this.grid.zoomLevel || 1) * 100)],
+    ].filter(([key]) => xlsxViewState.has(key))
+      .map(([, attr, value]) => {
+        const encoded = typeof value === "boolean" ? (value ? "true" : "false") : String(value);
+        return ` vno:${attr}="${this._escapeXml(encoded)}"`;
+      }).join("");
     // ODF flag. LibreOffice FODS→XLSX keeps <workbookProtection> but drops
     // lockStructure; native-export post-process restores it (see xlsx-native-postprocess.js).
     const structureAttr = structureProtected ? ' table:structure-protected="true"' : "";
@@ -3817,7 +3849,7 @@ ${pristineXlsxMarker}
                  xmlns:loext="urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0"
                  xmlns:tableooo="http://openoffice.org/2009/table"
                  xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"
-                 office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+                 office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet"${xlsxViewAttrs}>
   ${fontFaceDeclsXml}
   <office:styles>${isNewWorkbook ? '<style:default-style style:family="table-cell"><style:text-properties style:font-name="Calibri" fo:font-size="11pt"/></style:default-style>' : ""}${conditionalNamedStyles.join("")}</office:styles>
   <office:automatic-styles>${isNewWorkbook ? '<style:style style:name="vno-default-column" style:family="table-column"><style:table-column-properties style:column-width="1.693cm"/></style:style><style:style style:name="vno-default-row" style:family="table-row"><style:table-row-properties style:row-height="0.529cm" style:use-optimal-row-height="false"/></style:style>' : ""}${pageLayouts.join("")}${tablePageStyles.join("")}${dimensionStyles.join("")}${[...numberFormats.values()].map(format => `${this._numberFormatXml(format.config, format.dataStyle)}<style:style style:name="${format.cellStyle}" style:family="table-cell" style:data-style-name="${format.dataStyle}"/>`).join("")}${[...rotationStyles.values()].map(style => this._rotationCellStyleXml(style.styleName, style.textRotation)).join("")}${rotationCombinedStyles.join("")}${conditionalBaseStyles.join("")}${visualStyleEntries.join("")}${richTextAutoStyles.join("")}</office:automatic-styles>
@@ -6207,7 +6239,7 @@ ${pristineXlsxMarker}
         return this.grid.showPivotTableDialog();
 
       case "sheet.data.pivotRefresh":
-        return this.grid.refreshPivotTable();
+        return this._refreshPivotTable();
 
       case "sheet.style.formatAsTable":
         return this.grid.showFormatAsTableDialog ? this.grid.showFormatAsTableDialog() : false;

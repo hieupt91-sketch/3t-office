@@ -1,4 +1,5 @@
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { PivotTableEngine } from "../../apps/sheet/pivot-table.js";
 import { ICONS } from "../../platform/ui-kit/icons.js";
 import { SHEET_COMMANDS } from "../../platform/commands/command-definitions.js";
@@ -46,6 +47,30 @@ export async function runSheetPivotTableTests() {
     grid.refreshPivotTable(); assert(grid.cellsData.get("B2")?.val === 120, "Refresh chưa lấy dữ liệu nguồn mới");
     grid.undo(); assert(grid.cellsData.get("B2")?.val === 30, "Undo refresh chưa về kết quả cũ");
     grid.redo(); assert(grid.cellsData.get("B2")?.val === 120, "Redo refresh chưa áp dụng kết quả mới");
+  });
+
+  await test("Refresh Pivot tải engine nếu XLSX mở chưa khởi tạo engine", async () => {
+    const grid = new SheetGridController(container());
+    let loads = 0;
+    let refreshes = 0;
+    grid._loadPivotEngine = async () => { loads += 1; grid.pivotTableEngine = PivotTableEngine; };
+    grid.refreshPivotTable = () => { refreshes += 1; return true; };
+    const adapter = new SheetAdapter(grid);
+    const result = await adapter.handleDispatch("sheet.data.pivotRefresh");
+    assert(result && loads === 1 && refreshes === 1, `refresh=${result} loads=${loads} refreshes=${refreshes}`);
+  });
+
+  await test("Giảm indent tường minh bỏ dấu XF gốc dù model ban đầu đã là 0", () => {
+    const grid = new SheetGridController(container());
+    const adapter = new SheetAdapter(grid);
+    grid.setCellValue("B", 2, "x", false);
+    grid.selectCell("B", 2);
+    const item = grid.cellsData.get("B2");
+    item.style = { indentLevel: 0, origXf: 4 };
+    item.style.styleHashAtImport = adapter._computeStyleHash(item.style);
+    grid.adjustIndent(-1);
+    assert(item.style.indentLevel === 0, `indentLevel=${item.style.indentLevel}`);
+    assert(item.style.origXf === undefined && item.style.styleHashAtImport === undefined, "giảm indent vẫn giữ metadata XF nguồn");
   });
 
   await test("Xóa sheet Pivot rồi undo phục hồi cả config và bảng", async () => {

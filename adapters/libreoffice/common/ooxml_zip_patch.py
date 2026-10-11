@@ -4067,6 +4067,220 @@ def _apply_indirect_excel_compatibility(xlsx_bytes: bytes, replacements: dict[st
             replacements[entry] = updated
 
 
+def _apply_sheet_view_state_from_fods(
+    xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
+) -> None:
+    """Apply explicitly changed VN view toggles to each worksheet's OOXML view."""
+    if not source_fods or not re.search(r"<office:document\b[^>]*\bvno:(?:show-(?:grid-lines|row-col-headers|formulas)|sheet-view|zoom-scale)=", source_fods, re.IGNORECASE):
+        return
+    root = re.search(r"<office:document\b([^>]*)>", source_fods, re.IGNORECASE)
+    if not root:
+        return
+    attrs = _xml_attrs(root.group(1))
+    view_attrs: dict[str, str] = {}
+    for fods_name, xlsx_name in (("show-grid-lines", "showGridLines"), ("show-row-col-headers", "showRowColHeaders"), ("show-formulas", "showFormulas")):
+        value = attrs.get(f"vno:{fods_name}")
+        if value is not None:
+            view_attrs[xlsx_name] = "0" if value.strip().lower() in ("false", "0", "no") else "1"
+    sheet_view = attrs.get("vno:sheet-view")
+    if sheet_view in ("normal", "pageBreakPreview", "pageLayout"):
+        view_attrs["view"] = sheet_view
+    try:
+        zoom = int(attrs.get("vno:zoom-scale", ""))
+    except ValueError:
+        zoom = 0
+    if 10 <= zoom <= 400:
+        view_attrs["zoomScale"] = str(zoom)
+        view_attrs["zoomScaleNormal"] = str(zoom)
+    if not view_attrs:
+        return
+
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    for entry_path in sheet_entries.values():
+        current = replacements.get(entry_path)
+        if current is None:
+            entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+            if not entry_bytes:
+                continue
+            current = entry_bytes.decode("utf-8", errors="replace")
+
+        def update_view(match: re.Match[str]) -> str:
+            tag = match.group(0)
+            for name, value in view_attrs.items():
+                if re.search(rf"\b{name}\s*=", tag, re.IGNORECASE):
+                    tag = re.sub(rf"\b{name}\s*=\s*(['\"])[^'\"]*\1", f'{name}="{value}"', tag, count=1, flags=re.IGNORECASE)
+                else:
+                    tag = tag[:-2] + f' {name}="{value}"/>' if tag.endswith("/>") else tag[:-1] + f' {name}="{value}">'
+            return tag
+
+        updated = re.sub(r"<sheetView\b[^>]*(?:/>|>)", update_view, current, count=1, flags=re.IGNORECASE)
+        if updated != current:
+            replacements[entry_path] = updated
+
+
+def _restore_view_attributes_from_source_step(
+    xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str]
+) -> None:
+    """Retain source worksheet/window view when the user did not change it."""
+    source_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
+    output_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    sheet_attributes = ("showGridLines", "showRowColHeaders", "showFormulas", "view", "zoomScale", "zoomScaleNormal")
+
+    def update_tag(xml: str, tag_pattern: str, values: dict[str, str]) -> str:
+        match = re.search(tag_pattern, xml, re.IGNORECASE)
+        if not match:
+            return xml
+        tag = match.group(0)
+        for name, value in values.items():
+            if re.search(rf"\b{name}\s*=", tag, re.IGNORECASE):
+                tag = re.sub(rf"\b{name}\s*=\s*(['\"])[^'\"]*\1", lambda m: f'{name}={m.group(1)}{value}{m.group(1)}', tag, count=1, flags=re.IGNORECASE)
+            else:
+                tag = tag[:-2] + f' {name}="{value}"/>' if tag.endswith("/>") else tag[:-1] + f' {name}="{value}">'
+        return xml[:match.start()] + tag + xml[match.end():]
+
+    for sheet_name, output_path in output_entries.items():
+        source_path = _sheet_name_equivalent_value(source_entries, sheet_name)
+        if not source_path:
+            continue
+        source_xml_bytes = read_zip_entry(source_xlsx_bytes, source_path)
+        if not source_xml_bytes:
+            continue
+        source_xml = source_xml_bytes.decode("utf-8", errors="replace")
+        source_view = re.search(r"<sheetView\b[^>]*/?>", source_xml, re.IGNORECASE)
+        if not source_view:
+            continue
+        attrs = _xml_attrs(source_view.group(0))
+        values = {name: attrs[name] for name in sheet_attributes if name in attrs}
+        if not values:
+            continue
+        current = replacements.get(output_path)
+        if current is None:
+            output_xml_bytes = read_zip_entry(xlsx_bytes, output_path)
+            if not output_xml_bytes:
+                continue
+            current = output_xml_bytes.decode("utf-8", errors="replace")
+        updated = update_tag(current, r"<sheetView\b[^>]*/?>", values)
+        if updated != current:
+            replacements[output_path] = updated
+
+    source_workbook = read_zip_entry(source_xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+    output_workbook = replacements.get(XLSX_WORKBOOK_ENTRY)
+    if output_workbook is None:
+        output_workbook_bytes = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+        output_workbook = output_workbook_bytes.decode("utf-8", errors="replace") if output_workbook_bytes else None
+    if source_workbook and output_workbook:
+        source_view = re.search(r"<(?:[\w.-]+:)?workbookView\b[^>]*/?>", source_workbook.decode("utf-8", errors="replace"), re.IGNORECASE)
+        source_attrs = _xml_attrs(source_view.group(0)) if source_view else {}
+        if "showFormulaBar" in source_attrs:
+            updated = update_tag(output_workbook, r"<(?:[\w.-]+:)?workbookView\b[^>]*/?>", {"showFormulaBar": source_attrs["showFormulaBar"]})
+            if updated != output_workbook:
+                replacements[XLSX_WORKBOOK_ENTRY] = updated
+
+
+def _apply_workbook_view_state_from_fods(
+    xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
+) -> None:
+    """Apply explicitly changed workbook-window view settings from VN metadata."""
+    root = re.search(r"<office:document\b([^>]*)>", source_fods or "", re.IGNORECASE)
+    if not root:
+        return
+    value = _xml_attrs(root.group(1)).get("vno:show-formula-bar")
+    if value is None:
+        return
+    enabled = "0" if value.strip().lower() in ("false", "0", "no") else "1"
+    current = replacements.get(XLSX_WORKBOOK_ENTRY)
+    if current is None:
+        workbook = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+        if not workbook:
+            return
+        current = workbook.decode("utf-8", errors="replace")
+    view = re.search(r"<(?:[\w.-]+:)?workbookView\b[^>]*(?:/>|>)", current, re.IGNORECASE)
+    if not view:
+        return
+    tag = view.group(0)
+    if re.search(r"\bshowFormulaBar\s*=", tag, re.IGNORECASE):
+        updated_tag = re.sub(r"\bshowFormulaBar\s*=\s*(['\"])\w+\1", f'showFormulaBar="{enabled}"', tag, count=1, flags=re.IGNORECASE)
+    else:
+        updated_tag = tag[:-2] + f' showFormulaBar="{enabled}"/>' if tag.endswith("/>") else tag[:-1] + f' showFormulaBar="{enabled}">'
+    updated = current[:view.start()] + updated_tag + current[view.end():]
+    if updated != current:
+        replacements[XLSX_WORKBOOK_ENTRY] = updated
+
+
+def _clear_print_areas_from_fods(
+    xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
+) -> None:
+    """Remove source Print_Area names explicitly cleared in the VN Sheet UI."""
+    cleared = set()
+    for match in re.finditer(r"<table:table\b([^>]*)>", source_fods or "", re.IGNORECASE):
+        attrs = _xml_attrs(match.group(1))
+        if attrs.get("vno:clear-print-area", "").lower() == "true" and attrs.get("table:name"):
+            cleared.add(_unescape_xml(attrs["table:name"]))
+    if not cleared:
+        return
+    current = replacements.get(XLSX_WORKBOOK_ENTRY)
+    if current is None:
+        workbook = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+        if not workbook:
+            return
+        current = workbook.decode("utf-8", errors="replace")
+    names = parse_sheet_names_from_workbook(current)
+    indexes = {index for index, name in enumerate(names) if _sheet_name_equivalence_key(name) in {_sheet_name_equivalence_key(item) for item in cleared}}
+    if not indexes:
+        return
+    pattern = re.compile(r"<(?P<tag>(?:[\w.-]+:)?definedName)\b(?P<attrs>[^>]*?)(?:\s*/>|>(?P<body>[\s\S]*?)</(?P=tag)\s*>)", re.IGNORECASE)
+    def remove(match: re.Match[str]) -> str:
+        attrs = _xml_attrs(match.group("attrs"))
+        try:
+            local_id = int(attrs.get("localSheetId", "-1"))
+        except ValueError:
+            return match.group(0)
+        return "" if attrs.get("name", "").casefold() == "_xlnm.print_area" and local_id in indexes else match.group(0)
+    updated = pattern.sub(remove, current)
+    updated = re.sub(r"<(?P<tag>(?:[\w.-]+:)?definedNames)\b[^>]*>\s*</(?P=tag)\s*>", "", updated, flags=re.IGNORECASE)
+    if updated != current:
+        replacements[XLSX_WORKBOOK_ENTRY] = updated
+
+
+def _apply_refreshed_pivot_locations_from_fods(
+    xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
+) -> None:
+    """Align an exported PivotTable's native location with its refreshed cell result range."""
+    locations = {}
+    for match in re.finditer(r"<table:data-pilot-table\b([^>]*)>", source_fods or "", re.IGNORECASE):
+        attrs = _xml_attrs(match.group(1))
+        name = attrs.get("table:name")
+        location = attrs.get("vno:xlsx-location")
+        if name and re.fullmatch(r"[A-Z]+\d+:[A-Z]+\d+", location or "", re.IGNORECASE):
+            locations[_unescape_xml(name)] = location.upper()
+    if not locations:
+        return
+    with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+        pivot_entries = [name for name in package.namelist() if re.fullmatch(r"xl/pivotTables/pivotTable\d+\.xml", name, re.IGNORECASE)]
+    for entry in pivot_entries:
+        current = replacements.get(entry)
+        if current is None:
+            data = read_zip_entry(xlsx_bytes, entry)
+            if not data:
+                continue
+            current = data.decode("utf-8", errors="replace")
+        definition = re.search(r"<(?:[\w.-]+:)?pivotTableDefinition\b([^>]*)>", current, re.IGNORECASE)
+        if not definition:
+            continue
+        name = _xml_attrs(definition.group(1)).get("name")
+        location = locations.get(_unescape_xml(name or ""))
+        if not location:
+            continue
+        location_tag = re.search(r"<(?:[\w.-]+:)?location\b[^>]*?/?>", current, re.IGNORECASE)
+        if not location_tag:
+            continue
+        tag = location_tag.group(0)
+        updated_tag = re.sub(r"\bref\s*=\s*(['\"])[^'\"]*\1", f'ref="{location}"', tag, count=1, flags=re.IGNORECASE)
+        updated = current[:location_tag.start()] + updated_tag + current[location_tag.end():]
+        if updated != current:
+            replacements[entry] = updated
+
+
 def postprocess_sheet_xlsx(
     xlsx_bytes: bytes,
     *,
@@ -4098,6 +4312,7 @@ def postprocess_sheet_xlsx(
         _restore_formula_results_and_missing_errors_step(xlsx_bytes, source_xlsx_bytes, replacements, early_copier if early_copier.available else None)
         _remove_spurious_center_continuous_merges_step(xlsx_bytes, source_xlsx_bytes, replacements)
         _restore_sheet_zoom_step(xlsx_bytes, source_xlsx_bytes, replacements)
+        _restore_view_attributes_from_source_step(xlsx_bytes, source_xlsx_bytes, replacements)
         _restore_autofilter_filter_columns_step(xlsx_bytes, source_xlsx_bytes, replacements)
         _restore_missing_defined_names_step(xlsx_bytes, source_xlsx_bytes, replacements)
         _restore_missing_hyperlinks_step(xlsx_bytes, source_xlsx_bytes, replacements)
@@ -4367,6 +4582,10 @@ def postprocess_sheet_xlsx(
 
     if source_fods:
         _apply_accounting_number_formats_from_fods(xlsx_bytes, source_fods, replacements)
+        _apply_sheet_view_state_from_fods(xlsx_bytes, source_fods, replacements)
+        _apply_workbook_view_state_from_fods(xlsx_bytes, source_fods, replacements)
+        _clear_print_areas_from_fods(xlsx_bytes, source_fods, replacements)
+        _apply_refreshed_pivot_locations_from_fods(xlsx_bytes, source_fods, replacements)
 
     if not replacements:
         return xlsx_bytes
