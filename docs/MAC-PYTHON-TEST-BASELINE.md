@@ -20,6 +20,8 @@ python -m unittest discover -s tests
 
 Sau khi thêm bài kiểm backend macOS: `Ran 858 tests in 65.468s` — 4 FAIL, 2 ERROR, 29 SKIP; 823 bài còn lại PASS.
 
+Lần chạy lại sau khi sửa process tracker Darwin: `Ran 859 tests in 65.286s` — 3 FAIL, 2 ERROR, 29 SKIP; 825 bài PASS. Hai lỗi process/orphan đã hết. Bài import comments thất bại trong lần chạy cả bộ nhưng PASS khi chạy riêng cùng 15 bài process tracker; cần chạy lại cả bộ trước khi kết luận lỗi sản phẩm.
+
 ## Bài chỉ chạy được trên Windows nhưng chưa được đánh dấu skip
 
 | Bài kiểm | Kết quả | Lý do |
@@ -42,6 +44,6 @@ Các bài trên cần được bảo vệ bằng điều kiện nền tảng ở
 
 ## Trạng thái liên quan
 
-- Node: 3065/3066 PASS; còn một sai khác hash snapshot `sample-sheet.fods`.
+- Node trên nhánh này: 3065/3066 PASS; PR dùng chung #2 cập nhật snapshot sau khi thêm kiểm tra ngữ nghĩa và đạt 3066/3066 PASS trên Node 20.20.2. Cần đồng bộ PR #2 vào `platform/macos` sau khi được hợp nhất vào `main`.
 - Desktop CDP trên QtWebEngine: 21 PASS, 6 FAIL, 6 N/A; không có ca BLOCKED.
 - Ba ứng dụng đều khởi động, nhập liệu, tạo mới, lưu, lưu lại và mở lại được qua CDP.
