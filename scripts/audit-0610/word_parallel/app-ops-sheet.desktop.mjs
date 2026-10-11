@@ -34,6 +34,7 @@ const ops = [
   ["pageSetup","A1","pageSetup","sheet.page.margins","landscape"],
   ["pageSize","A1","pageSize","sheet.page.size","Legal"],
   ["pageScale","A1","pageScale","sheet.page.scale","80"],
+  ["printTitles","A1","pageTitles","sheet.page.printTitles","1:1"],
   ["insertPageBreak","C5","pageBreak","sheet.page.insertPageBreak"],
   ["removePageBreak","C5","pageBreak","sheet.page.removePageBreak"],
   ["hyperlink","G2","hyperlink","sheet.insert.hyperlink"],
@@ -232,7 +233,7 @@ for (const [name, cell, kind, id, value] of ops) {
       const align=JSON.parse(await pos("#vno-fc-tab-alignment"));
       if(!align) status="NO_ALIGNMENT_TAB";
       else {await mouseClick(session.cdp,align.x,align.y);await sleep(150);const angle=JSON.parse(await pos('.vno-fc-orient-btn[data-angle="90"]'));if(!angle)status="NO_90_DEGREE_OPTION";else{await mouseClick(session.cdp,angle.x,angle.y);const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);const evidenceDir=path.join(root,"docs","tickets-0710","evidence");await mkdir(evidenceDir,{recursive:true});await writeFile(path.join(evidenceDir,"fix-s8-text-rotation.png"),Buffer.from((shot.result||shot).data,"base64"));const apply=JSON.parse(await pos(".vno-fc-ok-btn"));if(!apply)status="NO_FORMAT_CELLS_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="set Orientation=90 through Format Cells";}}}
-    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "defineName" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pivotRefresh" || kind === "groupRows" || kind === "subtotal" || kind === "consolidate" || kind === "pageSetup" || kind === "pageSize" || kind === "pageScale" || kind === "pageBreak" || kind === "hyperlink" || kind === "commentInsert" || kind === "image" || kind === "removeDuplicates" || kind === "textToColumns") {
+    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "defineName" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pivotRefresh" || kind === "groupRows" || kind === "subtotal" || kind === "consolidate" || kind === "pageSetup" || kind === "pageSize" || kind === "pageScale" || kind === "pageTitles" || kind === "pageBreak" || kind === "hyperlink" || kind === "commentInsert" || kind === "image" || kind === "removeDuplicates" || kind === "textToColumns") {
       if (kind === "consolidate") await mouseClick(session.cdp,pos.x,pos.y);
       if (kind === "groupRows") {
         const a=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-row-header[data-row="2"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
@@ -333,6 +334,19 @@ for (const [name, cell, kind, id, value] of ops) {
             await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
             status = kind === "pageSize" ? "selected Legal paper size; " + inputState : "input=" + inputState + " setup=" + await ev("JSON.stringify(window.__vnoAppInstance.grid.getPageSetup())");
           }
+        }
+      }
+      if (kind === "pageTitles" && status === "clicked") {
+        await sleep(150);
+        const field = JSON.parse(await ev(`(() => {const n=document.querySelector('#vno-sheet-title-rows');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if (!field) status = "NO_PRINT_TITLES_FIELD";
+        else {
+          await mouseTripleClick(session.cdp, field.x, field.y); await press(session.cdp, "Home"); await press(session.cdp, "End", { shift: true }); await press(session.cdp, "Backspace"); await typeText(session.cdp, value);
+          const apply = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if (!apply) status = "NO_PRINT_TITLES_APPLY";
+          else { await mouseClick(session.cdp, apply.x, apply.y); status = "set print title rows to 1:1"; }
+          const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
+          await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
         }
       }
       if (kind === "pageBreak" && status === "clicked") {
