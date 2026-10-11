@@ -12589,6 +12589,7 @@ _bindGridKeyboardNavigation() {
     </fieldset>`;
     const overlay = this._createSheetDialog(t("sheetDialogs.headerFooterTitle", "Tiêu đề Đầu/Cuối trang"), `${fieldset("header", t("sheetDialogs.headerTitle", "Đầu trang"))}${fieldset("footer", t("sheetDialogs.footerTitle", "Cuối trang"))}<p><small>${t("sheetDialogs.hfDynamicCodesHint", "Mã động: &P số trang, &N tổng số trang, &D ngày, &T giờ, &F tên tệp, &A tên trang tính.")}</small></p><div class="vno-rule-error" role="alert"></div>`);
     if (!overlay) return false;
+    overlay.classList.add("vno-sheet-header-footer-dialog");
     overlay.querySelectorAll(".vno-sheet-hf-preset").forEach(select => select.addEventListener("change", event => {
       const kind = event.target.dataset.kind;
       const preset = { page: t("sheetDialogs.hfPresetPageVal", "Trang &P"), sheet: t("sheetDialogs.hfPresetSheetVal", "Tên trang tính: &A"), date: t("sheetDialogs.hfPresetDateVal", "Ngày: &D"), none: "" }[event.target.value];
