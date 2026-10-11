@@ -58,6 +58,14 @@ class PsParsingTests(unittest.TestCase):
         with mock.patch("subprocess.run", return_value=mock.Mock(returncode=1, stdout="junk")):
             self.assertIsNone(tracker._run_ps("-axo", "pid=,ppid="))
 
+    def test_darwin_uses_ps_even_when_a_proc_directory_is_visible(self):
+        with mock.patch.object(tracker.sys, "platform", "darwin"), \
+             mock.patch.object(tracker, "_darwin_bsd_info", return_value=(1, 123, 456)) as info, \
+             mock.patch.object(tracker.Path, "is_file", return_value=False), \
+             mock.patch.object(tracker.Path, "is_dir", return_value=True):
+            self.assertEqual(tracker.process_identity(123), "123.000456")
+        info.assert_called_once_with(123)
+
 
 class UnchangedBehaviourTests(unittest.TestCase):
     @unittest.skipUnless(os.name == "nt", "Windows kernel32 path")

@@ -8002,7 +8002,15 @@ def _p1_parent_alive(parent_pid: int) -> bool:
                 return bool(kernel32.GetExitCodeProcess(handle, ctypes.byref(code))) and code.value == 259  # STILL_ACTIVE
             finally:
                 kernel32.CloseHandle(handle)
-        return os.getppid() == int(parent_pid)
+        # POSIX has no inexpensive equivalent of GetExitCodeProcess.  Signal 0
+        # checks existence/permission without sending a signal and works for
+        # both the worker's direct parent and callers that probe another PID.
+        os.kill(int(parent_pid), 0)
+        return True
+    except ProcessLookupError:
+        return False
+    except PermissionError:
+        return True
     except Exception:
         return True  # when unsure, never kill a healthy worker
 
