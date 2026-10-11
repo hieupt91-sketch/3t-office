@@ -37,3 +37,8 @@ Quy trinh/CAM/TIET KIEM TOKEN: nhu TICKET-FIX-T1.md; COMMIT SAU MOI NHOM; Word C
 1. CDP thử Match Case/Whole Word, Find Previous và Replace One; ảnh `find-run-04/find-replace-t8-before.png`.
 2. Word COM cho kết quả cùng và Replace One `hoang`→`Hoang`; DOCX mở lại có nội dung khớp.
 3. Sửa reset state khi thay option và Previous wrap-around trong cùng đoạn; Help F1/i18n hiện có.
+
+### Nhóm 9 — Ký hiệu
+1. CDP chọn ©, ₫, ∑, → từ các nhóm ký hiệu; ảnh `symbols-run-10/symbols-t8-before.png`.
+2. Word COM lưu cùng chuỗi; nội dung hai DOCX mở lại đều là `Audit symbols:©₫∑→`.
+3. Vị trí/ký tự **KHỚP**; hướng dẫn F1 tiếng Việt và i18n đã có.

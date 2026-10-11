@@ -68,7 +68,7 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Heading 1–3 (kiểu mặc định tài liệu mới) | CDP gõ/chọn/lưu; Word COM đọc đủ thuộc tính | Word COM tạo và đọc cùng kiểu | KHỚP; DOCX nhập giữ nguyên |
 | Thư viện kiểu: Normal/Title/Quote | CDP đã áp dụng và đọc Word COM | COM tạo kiểu Word tương ứng | Chạy đủ; các preset VN có chủ ý khác định dạng Normal/Title/Quote mặc định Word (TNR, 14pt/căn đều; Title đậm xanh/căn giữa; Quote có viền trái) |
 | Tìm/Thay thế: case, toàn từ, Find Previous, thay một kết quả | CDP chọn đúng `Hoa`/`hoa`, Previous wrap-around, `hoang`→`Hoang` | Word COM MatchCase/MatchWholeWord + ReplaceOne | KHỚP; nội dung sau lưu giống nhau |
-| Ký hiệu `π` | CDP chọn Pi; lưu DOCX có đúng 1 `π` ở đoạn Alpha | COM DOCX đối chứng có cùng ký tự/vị trí | KHỚP |
+| Ký hiệu: ©, ₫, ∑, → | CDP chọn từ nhóm thường/tiền tệ/toán/mũi tên; DOCX lưu đúng chuỗi | Word COM tạo chuỗi tương đương và đọc cả hai DOCX | KHỚP: `Audit symbols:©₫∑→` |
 | Hộp văn bản | Sau lưu, COM đọc 53.6×19.5 pt; AutoSize=0; lề 7.2/3.6 pt | COM đọc cùng kích thước, AutoSize và lề | KHỚP |
 | Hình khối | Chưa chạy | Chưa chạy | NOT RUN |
 | Hình ảnh | Nút mở native file picker; CDP không cấp được file trong lượt này | Chưa chạy | BLOCKED; không dùng OS input |
@@ -170,6 +170,12 @@ Nhấn **Ctrl+H**, nhập `Alpha` ở ô **Tìm gì**, nhập `Gamma` ở ô **T
 ### FIX-T8 tiếp tục — Ký hiệu — 11/10/2026
 
 Đặt con trỏ cuối đoạn Alpha bằng chuột, mở **Chèn > Ký hiệu > Toán học**, chọn **π** bằng chuột và lưu DOCX. Word COM tạo DOCX có `π` tại cùng vị trí. Đọc lại bằng COM: mỗi tài liệu có đúng một `π`, đoạn văn bằng nhau: **KHỚP**. Trợ giúp tiếng Việt **Chèn ký hiệu** mô tả nhóm Thường dùng/Toán học/Mũi tên, đường dẫn và bước chèn; i18n cho nhãn Ký hiệu đã có.
+
+### FIX-T8 — Ký hiệu — 11/10/2026 (nhiều nhóm)
+
+1. App/CDP: qua Chèn > Ký hiệu chọn ©, ₫, ∑, → từ các nhóm ký hiệu; lưu DOCX, ảnh `E:\VNOffice-profiles\codex-ft8\symbols-run-10\symbols-t8-before.png`.
+2. Word COM: tạo cùng chuỗi bằng các ký tự Unicode rồi mở lại DOCX app; nội dung cả hai là `Audit symbols:©₫∑→`.
+3. Kết quả: vị trí và ký tự **KHỚP**. Trợ giúp tiếng Việt cho nhóm Thường dùng/Toán học/Mũi tên cùng nhãn i18n hiện có.
 
 ### FIX-T8 tiếp tục — Hộp văn bản/Hình ảnh — 11/10/2026
 
