@@ -11,6 +11,6 @@ BUILD RESULT: NOT RUN (no build requested).
 TEST RESULTS: `npm test` PASS 3070/3070. Exact Python unittest commands both ran and exited 1 because no tests were discovered. CDP and PowerPoint COM evidence/results documented in FIX-L6-RESULTS.md.
 KNOWN FAILURES: SmartArt native object not produced; native layout/theme parity unconfirmed; actual pen stroke persistence not tested.
 RISKS: Do not claim full PowerPoint parity for the known failures. Python unittest is unavailable because the repository has no discoverable Python tests.
-DEPENDENCIES/BLOCKERS: Remaining native SmartArt/layout/theme parity work needs follow-up audit/fix; layout Reset UI is now present. No external dependency added.
+DEPENDENCIES/BLOCKERS: Remaining native SmartArt/theme parity work needs follow-up. Native layout mismatch is confirmed (`Slide.Layout=1`, native Two-Column Text=3); a format-semantics change is pending user decision per AGENTS.md §11. Layout Reset UI is present. No external dependency added.
 CORE PATCH ID (if any): None.
-NEXT ACTION: Continue with SmartArt native parity, native layout mapping, theme readback and persisted pen ink. Keep each fix in an isolated commit and add Vietnamese Help/i18n for any newly exposed UI feature.
+NEXT ACTION: Next: obtain user decision before changing PPTX layout semantics; then continue SmartArt native parity, theme readback and persisted pen ink. Keep each fix in an isolated commit and add Vietnamese Help/i18n for any newly exposed UI feature.
