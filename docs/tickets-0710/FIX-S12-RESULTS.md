@@ -174,3 +174,13 @@
 
 - Thử lại Căn trên và Ngắt dòng qua CDP sau khi chờ panel ribbon mới render; thao tác vẫn để ribbon chuyển sang tab khác và model/Excel giữ căn dưới, WrapText=0. Hai command tiếp tục **CHƯA ĐỐI CHIẾU**; chưa coi sự kiện click là bằng chứng. Log `s12-alignTop-tabfix.log`, `excel-alignTop-tabfix.log`, `s12-wrap-tabfix.log`.
 - Runner hiện chờ `tabpanel` đúng tab và tìm command bên trong panel đó; cần xác nhận cách chọn nút sau khi đổi tab trước khi dùng cho các probe Trang đầu còn lại.
+
+
+## S12 final validation (2026-10-12)
+
+- PASS: `npm test` — 3079/3079 PASS, 0 FAIL (`npm-test.log`).
+- FAIL: `python -m unittest discover -s tests` — 871 tests; first run had one Writer HTML import error (`status=error`). The focused `test_writer_tables_import.py` rerun passed 3/3. A serial full rerun had one unrelated updater cleanup error: `test_detached_helper_process_runs_from_a_path_with_spaces` could not remove its temporary update directory (WinError 32/5); 871 tests ran (`unittest-serial.log`).
+- PASS: XLSX batch `lan01, lan02, lan04, lan06, lan09, lan11, lan22, lan26` — all PASS, diffs=0, lint clean, Excel=PASS (`batch_document_audit_report.md`).
+- PASS: Sheet matrix generator (`python -X utf8 scripts/audit-0610/gen_sheet_button_matrix.py docs/ribbon-scan-sheet-1011.json docs/SHEET-BUTTON-MATRIX-1011.md`); generated matrix remains 59 match / 13 known gap / 66 unchecked.
+- PASS: UTF-8/no-BOM and mojibake scan of changed text files; 7 files scanned, 0 findings. `git diff --check` clean.
+- The ticket remains in progress: 66 buttons are unchecked. The unresolved Home-tab button selection probes and adapter-owned export gaps are recorded in the section handoffs.
