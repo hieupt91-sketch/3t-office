@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 88 · LỆCH ĐÃ BIẾT: 1 · CHƯA ĐỐI CHIẾU: 49.
+Tổng 138 nút — KHỚP EXCEL: 89 · LỆCH ĐÃ BIẾT: 1 · CHƯA ĐỐI CHIẾU: 48.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -67,7 +67,7 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Chèn | `sheet.insert.sparklineColumn` | Cột | KHỚP EXCEL | FIX-S12 Chèn > Biểu đồ thu nhỏ: CDP chọn dải số C2:C6, chèn tại ô active C6; Excel COM ReadOnly xác nhận SparklineGroups.Count=1, Type=1 (Line) / Type=2 (Column) trong XLSX. Help tiếng Việt và i18n VI/EN có sẵn; ảnh docs/tickets-0710/evidence/fix-s12-sparklineLine.png, fix-s12-sparklineColumn.png | dom:14 |
 | Chèn | `sheet.insert.hyperlink` | Liên kết | KHỚP EXCEL | FIX-S12 Chèn: CDP nhập https://vnoffice.vn vào G2; Adapter ghi text:a/xlink:href và nạp lại URL; Excel COM ReadOnly xác nhận Hyperlinks.Count=1, Address=https://vnoffice.vn/, Text='Trang chủ VN Office' (app_hyperlink.xlsx); hướng dẫn platform/help/entries-sheet.js; VI/EN i18n có sẵn; ảnh docs/tickets-0710/evidence/fix-s12-hyperlink.png | dialog,toast:A1 |
 | Chèn | `sheet.insert.textbox` | Hộp văn bản | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
-| Chèn | `sheet.page.headerFooter` | Tiêu đề Đầu/Cuối trang | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
+| Chèn | `sheet.page.headerFooter` | Tiêu đề Đầu/Cuối trang | KHỚP EXCEL | FIX-S12 Bố trí trang: CDP mở Chèn > Tiêu đề Đầu/Cuối trang, nhập ô Phải = 'VN Office S12'; Excel COM ReadOnly xác nhận PageSetup.RightHeader='VN Office S12' (app_S14_fixed_headerFooter.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-headerFooter.png. Help VI và i18n VI/EN hiện có. | dialog,toast:A1 |
 | Bố trí trang | `sheet.page.margins` | Căn lề | KHỚP EXCEL | FIX-S7: CDP + Excel COM; insert/delete, validation, freeze, print area, page setup, chart, conditional format, cell style | dialog,toast:A1 |
 | Bố trí trang | `sheet.page.orientation` | Hướng giấy | KHỚP EXCEL | FIX-S8/FIX-S7: CDP và Excel COM read-only xác nhận name, rotation, dimensions, visibility, print area/orientation | dialog,toast:A1 |
 | Bố trí trang | `sheet.page.size` | Khổ giấy | KHỚP EXCEL | FIX-S12 Bố trí trang: CDP chọn Khổ giấy Legal; Excel COM ReadOnly xác nhận PageSetup.PaperSize=5 (app_pageSize.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-pageSize.png | dialog,toast:A1 |

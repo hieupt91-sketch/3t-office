@@ -505,6 +505,8 @@
   flex-direction: column;
   animation: vnoGalleryModalFadeIn 0.15s ease-out;
 }
+.vno-sheet-header-footer-dialog .vno-dialog-box { width: 680px; }
+.vno-sheet-header-footer-dialog fieldset input { box-sizing: border-box; width: 100%; min-width: 0; }
 .vno-sheet-rule-dialog .vno-dialog-body { display: grid; gap: 12px; overflow-y: auto; }
 .vno-sheet-rule-dialog label { display: grid; gap: 5px; color: var(--vno-text-secondary); font-size: 12px; font-weight: 600; }
 .vno-sheet-rule-dialog input,

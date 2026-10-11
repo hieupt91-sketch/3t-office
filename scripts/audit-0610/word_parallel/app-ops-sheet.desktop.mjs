@@ -388,13 +388,17 @@ for (const [name, cell, kind, id, value] of ops) {
       }
       if (kind === "headerFooter" && status === "clicked") {
         await sleep(150);
-        const field = JSON.parse(await ev(`(() => {const n=document.querySelector('#vno-sheet-header-right');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        const field = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog #vno-sheet-header-right');if(!n)return 'null';const r=n.getBoundingClientRect(),hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);const s=getComputedStyle(n),o=n.closest('.vno-sheet-rule-dialog'),or=o.getBoundingClientRect(),b=o.querySelector('.vno-dialog-box'),br=b.getBoundingClientRect(),bs=getComputedStyle(b);return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,visible:r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden',hit:hit?.id||hit?.className||hit?.tagName,overlay:{x:or.left,y:or.top,w:or.width,h:or.height},box:{x:br.left,y:br.top,w:br.width,h:br.height,z:bs.zIndex,display:bs.display,visibility:bs.visibility}})})()`));
         if (!field) status = "NO_HEADER_FOOTER_FIELD";
+        else if (!field.visible || field.hit !== "vno-sheet-header-right") { status = "HEADER_FOOTER_FIELD_NOT_HIT:" + JSON.stringify(field); const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000); await writeFile(path.join(root,"docs","tickets-0710","evidence",`fix-s12-${name}.png`),Buffer.from((shot.result||shot).data,"base64")); }
         else {
           await mouseTripleClick(session.cdp, field.x, field.y); await press(session.cdp, "Home"); await press(session.cdp, "End", { shift: true }); await press(session.cdp, "Backspace"); await typeText(session.cdp, value);
+          const entered = await ev(`document.querySelector('.vno-sheet-rule-dialog #vno-sheet-header-right')?.value||''`);
+          if (entered !== value) status = "HEADER_FOOTER_INPUT_MISMATCH:" + entered;
           const apply = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
-          if (!apply) status = "NO_HEADER_FOOTER_APPLY";
-          else { await mouseClick(session.cdp, apply.x, apply.y); status = "set right header to VN Office S12"; }
+          if (status.startsWith("HEADER_FOOTER_INPUT_MISMATCH:")) {}
+          else if (!apply) status = "NO_HEADER_FOOTER_APPLY";
+          else { await mouseClick(session.cdp, apply.x, apply.y); status = "set right header to " + value; }
           const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
           await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
         }
