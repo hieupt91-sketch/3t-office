@@ -128,14 +128,15 @@ export class SheetAdapter {
 
     // Build positive section (section 1)
     let posSection = numPattern;
-    if (cat === "accounting") {
+    if (cat === "currency" || cat === "accounting") {
       const symbol = currencySymbol || "₫";
-      const symbolCode = symbol === "₫" ? "[$₫]" : `[${symbol}]`;
-      return `_(* ${numPattern} ${symbolCode}_);_(* (${numPattern} ${symbolCode})_);_(* \"-\"?? ${symbolCode}_);_(@_)`;
-    } else if (cat === "currency") {
-      const symbol = currencySymbol || "₫";
-      if (symbol === "₫") return `${numPattern} [$₫];-${numPattern} [$₫];${numPattern} [$₫];@`;
-      posSection = `${symbol} ${numPattern}`;
+      if (cat === "accounting") {
+        posSection = `_(* ${symbol} ${numPattern}_);_(* ${negSection}${symbol} ${numPattern}`;
+        if (negativeStyle >= 2) posSection += ")";
+        posSection += `;_(* \"-\"??_)`;
+      } else {
+        posSection = `${symbol} ${numPattern}`;
+      }
     } else if (cat === "percentage") {
       posSection = numPattern + "%";
     } else {
@@ -166,6 +167,19 @@ export class SheetAdapter {
     }
 
     return code;
+  }
+
+  _excelCodeForNewNumberFormat(fmt) {
+    const category = fmt?.category;
+    const decimals = Math.max(0, Math.min(30, Number(fmt?.decimals) || 0));
+    const number = `${fmt?.useThousands || category === "accounting" ? "#,##" : ""}0${decimals ? `.${"0".repeat(decimals)}` : ""}`;
+    const symbol = String(fmt?.currencySymbol || "₫");
+    if (category === "currency" && symbol === "₫") return `${number} [$₫];-${number} [$₫];${number} [$₫];@`;
+    if (category === "accounting") {
+      const currency = symbol === "₫" ? "[$₫]" : `[${symbol}]`;
+      return `_(* ${number} ${currency}_);_(* (${number} ${currency})_);_(* \"-\"?? ${currency}_);_(@_)`;
+    }
+    return this._excelCodeFromNumberFormat(fmt);
   }
 
   /**
@@ -1653,7 +1667,7 @@ export class SheetAdapter {
     }
     const category = String(config.category || "number");
     if (category === "currency" || category === "accounting") {
-      return this._numberFormatXmlFromExcelCode(this._excelCodeFromNumberFormat(config), name);
+      return this._numberFormatXmlFromExcelCode(this._excelCodeForNewNumberFormat(config), name);
     }
     const decimals = Math.max(0, Math.min(30, Number(config.decimals ?? (["currency", "accounting", "percentage", "scientific"].includes(category) ? 2 : 0))));
     const grouping = config.useThousands || category === "accounting" ? ' number:grouping="true"' : "";

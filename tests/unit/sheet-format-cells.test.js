@@ -202,8 +202,8 @@ export async function runSheetFormatCellsTests() {
 
   test("Currency and Accounting export Excel-compatible VND number formats", () => {
     const adapter = new SheetAdapter(new SheetGridController(mockContainer()));
-    const currencyCode = adapter._excelCodeFromNumberFormat({ category: "currency", currencySymbol: "₫", decimals: 2, useThousands: true });
-    const accountingCode = adapter._excelCodeFromNumberFormat({ category: "accounting", currencySymbol: "₫", decimals: 2, useThousands: true });
+    const currencyCode = adapter._excelCodeForNewNumberFormat({ category: "currency", currencySymbol: "₫", decimals: 2, useThousands: true });
+    const accountingCode = adapter._excelCodeForNewNumberFormat({ category: "accounting", currencySymbol: "₫", decimals: 2, useThousands: true });
     assert(currencyCode.startsWith('#,##0.00 [$₫]'), `Currency should use a spaced VND suffix, got ${currencyCode}`);
     assert(accountingCode.includes("_(* #,##0.00 [$₫]_") && accountingCode.endsWith("_(@_)"),
       `Accounting should use Excel's padded format sections, got ${accountingCode}`);
