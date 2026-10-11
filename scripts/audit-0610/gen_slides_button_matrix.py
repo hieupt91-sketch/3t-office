@@ -17,6 +17,9 @@ UNCHECKED = "CHƯA ĐỐI CHIẾU"
 # Each entry is scoped to what the cited COM and app evidence actually measured.
 # A result for one value/fixture is not generalized to the entire feature.
 EVIDENCE = {
+    "slides.slide.new": (MATCH, "FIX-L8: CDP bấm Trang mới, model tăng 10→11; PowerPoint COM đọc 11 slide trong PPTX đã lưu. [Ảnh](tickets-0710/evidence/fix-l8/home/slide-new.png), [COM](tickets-0710/evidence/fix-l8/home/slide-new-readback.json)"),
+    "slides.slide.delete": (MATCH, "FIX-L8: CDP xóa trang mới vừa tạo; model giảm 11→10; PowerPoint COM đọc 10 slide trong PPTX đã lưu. [Ảnh](tickets-0710/evidence/fix-l8/home/slide-delete.png), [COM](tickets-0710/evidence/fix-l8/home/slide-delete-readback.json)"),
+    "slides.para.alignLeft": (MATCH, "FIX-L8: CDP chọn Căn phải rồi bấm Căn trái; PowerPoint COM đọc Paragraph.Alignment=1 (left). [Ảnh](tickets-0710/evidence/fix-l8/home/align-left.png), [COM](tickets-0710/evidence/fix-l8/home/align-left-readback.json)"),
     "common.edit.cut": (MATCH, "FIX-L8: CDP bôi đen toàn văn bản, bấm Cắt; PowerPoint COM đọc lại văn bản rỗng và số shape giữ nguyên 5. Nút giữ focus vùng chữ trước lệnh cắt. [CDP](tickets-0710/evidence/fix-l8/home/clipboard-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/home/clipboard-cut-readback.json)"),
     "common.edit.copy": (MATCH, "FIX-L8: CDP bôi đen toàn văn bản, bấm Sao chép; clipboard cục bộ giữ đúng văn bản/HTML và vùng chọn còn nguyên. [CDP](tickets-0710/evidence/fix-l8/home/clipboard-cdp-readback.json)"),
     "common.edit.paste": (MATCH, "FIX-L8: CDP sao chép rồi dán vào vùng chữ đang chọn; nội dung được thay đúng trong textbox, không thêm shape. PowerPoint COM đọc lại nguyên văn và 5 shape. Đã bỏ marker CF_HTML trước khi chèn HTML. [CDP](tickets-0710/evidence/fix-l8/home/clipboard-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/home/clipboard-paste-readback.json)"),

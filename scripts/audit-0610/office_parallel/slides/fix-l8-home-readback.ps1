@@ -18,6 +18,7 @@ function Read-Presentation($presentation) {
   $title = $slide.Shapes.Item(1)
   $text = $title.TextFrame2.TextRange
   $paragraph = $title.TextFrame.TextRange.ParagraphFormat
+  $paragraph2 = $text.ParagraphFormat
   [pscustomobject]@{
     slides = $presentation.Slides.Count
     shapes = $slide.Shapes.Count
@@ -28,6 +29,10 @@ function Read-Presentation($presentation) {
     indentLevel = (Read-Value { $paragraph.IndentLevel })
     lineSpacingRule = (Read-Value { $paragraph.LineRuleWithin })
     lineSpacing = (Read-Value { $paragraph.SpaceWithin })
+    alignmentTextFrame2 = (Read-Value { $paragraph2.Alignment })
+    leftIndentTextFrame2 = (Read-Value { $paragraph2.LeftIndent })
+    firstLineIndentTextFrame2 = (Read-Value { $paragraph2.FirstLineIndent })
+    lineSpacingTextFrame2 = (Read-Value { $paragraph2.SpaceWithin })
     textColorRgb = (Read-Value { $text.Font.Fill.ForeColor.RGB })
     highlightRgb = (Read-Value { $text.Font.Highlight.RGB })
     finalShapeText = (Read-Value { $slide.Shapes.Item($slide.Shapes.Count).TextFrame.TextRange.Text })
