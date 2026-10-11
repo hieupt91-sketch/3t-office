@@ -63,6 +63,17 @@ export async function runSheetPivotSaveFodsTests() {
     for (const fn of ["sum", "count", "average", "min", "max"]) assert(xml.includes(`table:function="${fn}"`), `thiếu function ${fn}`);
     verifyPivot(new SheetAdapter(null).parseFods(xml), "round-trip nội bộ");
   });
+  test("Sheet save: giảm indent từ 1 về 0 ghi margin 0 và bỏ vno:xf nguồn", () => {
+    const grid = makeGrid();
+    const adapter = new SheetAdapter(grid);
+    const style = { indentLevel: 1, origXf: 5 };
+    style.styleHashAtImport = adapter._computeStyleHash(style);
+    style.indentLevel = 0;
+    grid.sheetsData[sourceSheet].get("A2").style = style;
+    const xml = adapter.serializeToFods();
+    assert(/fo:margin-left="0\.000cm"/.test(xml), "FODS không ghi giá trị indent 0 tường minh");
+    assert(!/<table:table-cell\b[^>]*vno:xf="5"[^>]*>[^<]*<text:p>T1<\/text:p>/s.test(xml), "ô đã giảm indent vẫn giữ XF nguồn");
+  });
   test("Sheet Pivot save: LibreOffice giữ DataPilot qua FODS -> XLSX -> FODS", () => {
     assert(findSoffice(), "Không tìm thấy LibreOffice soffice.exe");
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "vno-pivot-save-"));

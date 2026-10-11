@@ -3176,7 +3176,9 @@ export class SheetAdapter {
       // LibreOffice đọc fo:text-align="right"/"left" thành "chung" (mất căn lề khi lưu XLSX); chỉ "end"/"start" được nhận (đo 11/10).
       const odfAlign = { right: "end", left: "start" }[s.textAlign] || s.textAlign;
       if (s.textAlign) paraProps.push(`fo:text-align="${this._escapeXml(odfAlign)}"`);
-      if (Number(s.indentLevel) > 0) paraProps.push(`fo:margin-left="${(Number(s.indentLevel) * 0.235).toFixed(3)}cm"`);
+      if (s.indentLevel !== undefined && s.indentLevel !== null && Number.isFinite(Number(s.indentLevel))) {
+        paraProps.push(`fo:margin-left="${(Math.max(0, Number(s.indentLevel)) * 0.235).toFixed(3)}cm"`);
+      }
       const textProps = [];
       if (s.fontSize) {
         const ptVal = s.fontSize.endsWith("px") ? Number((parseFloat(s.fontSize) * (72 / 96)).toFixed(2)) : s.fontSize;
