@@ -23,6 +23,7 @@ mark(MATCH, "sheet.data.removeDuplicates sheet.data.customSort sheet.edit.pasteS
 mark(MATCH, "sheet.formula.nameManager sheet.cell.orientation sheet.row.height sheet.col.width sheet.row.hide sheet.col.hide sheet.row.unhide sheet.col.unhide sheet.page.setPrintArea sheet.page.orientation", "FIX-S8/FIX-S7: CDP và Excel COM read-only xác nhận name, rotation, dimensions, visibility, print area/orientation")
 mark(MATCH, "sheet.style.formatAsTable", "FIX-S11: CDP + Excel COM read-only xác nhận ListObjects, tên/vùng/style/filter và XLSX round-trip")
 mark(MATCH, "sheet.chart.insert", "FIX-S9: Excel COM read-only xác nhận loại biểu đồ, tiêu đề, series và trục")
+mark(MATCH, "sheet.cell.alignLeft", "FIX-S12 Trang dau: CDP click Can trai; Excel COM ReadOnly xac nhan B2 HorizontalAlignment=-4131 (app_S12_alignLeft.xlsx)")
 mark(MATCH, "sheet.cell.alignCenter", "FIX-S12 nhóm Trang đầu: CDP click căn giữa; Excel COM ReadOnly HAl=-4108 tại B2 (app_alignCenter.xlsx)")
 mark(MATCH, "sheet.cell.alignRight", "FIX-S12 nhóm Trang đầu: CDP click căn phải; Excel COM ReadOnly HAl=-4152 tại B2 (app_alignRight.xlsx)")
 mark(MATCH, "sheet.format.currencyVND", "FIX-S12 Trang dau: CDP click Tien te VNĐ; Excel COM ReadOnly doc lai C2=1234.5, NumberFormat=#,##0 [$₫], hien thi 1,235 ₫ (app_S12_currencyBtn.xlsx)")

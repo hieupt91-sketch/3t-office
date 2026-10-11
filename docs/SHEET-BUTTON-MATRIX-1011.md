@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 50 · LỆCH ĐÃ BIẾT: 6 · CHƯA ĐỐI CHIẾU: 82.
+Tổng 138 nút — KHỚP EXCEL: 51 · LỆCH ĐÃ BIẾT: 6 · CHƯA ĐỐI CHIẾU: 81.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -30,7 +30,7 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Trang đầu | `sheet.cell.alignMiddle` | Căn giữa dọc | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:7 |
 | Trang đầu | `sheet.cell.alignBottom` | Căn dưới | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:7 |
 | Trang đầu | `sheet.cell.wrapText` | Ngắt dòng tự động | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:19 |
-| Trang đầu | `sheet.cell.alignLeft` | Căn trái | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:1 |
+| Trang đầu | `sheet.cell.alignLeft` | Căn trái | KHỚP EXCEL | FIX-S12 Trang dau: CDP click Can trai; Excel COM ReadOnly xac nhan B2 HorizontalAlignment=-4131 (app_S12_alignLeft.xlsx) | dom:1 |
 | Trang đầu | `sheet.cell.alignCenter` | Căn giữa | KHỚP EXCEL | FIX-S12 nhóm Trang đầu: CDP click căn giữa; Excel COM ReadOnly HAl=-4108 tại B2 (app_alignCenter.xlsx) | dom:1 |
 | Trang đầu | `sheet.cell.alignRight` | Căn phải | KHỚP EXCEL | FIX-S12 nhóm Trang đầu: CDP click căn phải; Excel COM ReadOnly HAl=-4152 tại B2 (app_alignRight.xlsx) | dom:1 |
 | Trang đầu | `sheet.cell.indentDecrease` | Giảm thụt lề | LỆCH ĐÃ BIẾT | FIX-S12: CDP giảm indentLevel về 0 nhưng XLSX Excel COM ReadOnly vẫn IndentLevel=1; handoff adapter ở docs/AGENT-HANDOFF-FIX-S12-INDENT-DECREASE.md | dialog,toast:A1 |

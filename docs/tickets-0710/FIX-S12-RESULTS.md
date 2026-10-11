@@ -113,3 +113,8 @@
 
 - CDP bam nut Tien te VNĐ tren C2; app luu XLSX rieng `app_S12_currencyBtn.xlsx`.
 - Excel COM ReadOnly doc lai `Value2=1234.5`, `NumberFormat=#,##0 [$₫]`, hien thi `1,235 ₫`; **KHOP EXCEL**. Log CDP `s12-currency.log`, Excel COM `excel-currencyBtn.log` trong profile audit; anh `evidence/s12/fix-s12-currencyBtn.png`.
+
+## Trang dau: Can trai
+
+- CDP bam Can trai tai B2; app luu XLSX `app_S12_alignLeft.xlsx`.
+- Excel COM ReadOnly xac nhan `HorizontalAlignment=-4131`; **KHOP EXCEL**. Log `s12-alignLeft.log`, `excel-alignLeft.log`; anh `evidence/s12/fix-s12-alignLeft.png`.
