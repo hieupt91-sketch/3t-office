@@ -592,11 +592,11 @@ async function initReleaseData() {
   const dl = releaseData.download || {};
 
   document.querySelectorAll("[data-release-field='current_version']").forEach((el) => el.textContent = ver);
-  document.querySelectorAll("[data-release-field='file_name']").forEach((el) => el.textContent = dl.file_name || "VNOffice-Setup-0.9.9.exe");
+  document.querySelectorAll("[data-release-field='file_name']").forEach((el) => el.textContent = dl.file_name || "VNOffice-Setup-0.9.10.exe");
   document.querySelectorAll("[data-release-field='file_size_formatted']").forEach((el) => el.textContent = dl.file_size_formatted || "383 MB");
   document.querySelectorAll("[data-release-field='sha256']").forEach((el) => el.textContent = dl.sha256 || "");
 
-  const downloadUrl = dl.url || ("https://office.3tcomputer.com/downloads/" + (dl.file_name || "VNOffice-Setup-0.9.9.exe"));
+  const downloadUrl = dl.url || ("https://office.3tcomputer.com/downloads/" + (dl.file_name || "VNOffice-Setup-0.9.10.exe"));
   document.querySelectorAll("[data-release-download-link]").forEach((el) => {
     if (el.tagName === "A") {
       el.href = downloadUrl;
