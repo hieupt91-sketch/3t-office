@@ -36,6 +36,8 @@ const ops = [
   ["pageScale","A1","pageScale","sheet.page.scale","80"],
   ["insertPageBreak","C5","pageBreak","sheet.page.insertPageBreak"],
   ["removePageBreak","C5","pageBreak","sheet.page.removePageBreak"],
+  ["hyperlink","G2","hyperlink","sheet.insert.hyperlink"],
+  ["commentInsert","C2","commentInsert","sheet.review.commentInsert"],
   ["rotation90","B2","orientation","sheet.cell.orientation","90"],
   ["widthControl","B2","widthControl",null,null],
   ["definedName","B2","nameManager","sheet.formula.nameManager","SampleNames"],
@@ -223,7 +225,7 @@ for (const [name, cell, kind, id, value] of ops) {
       const align=JSON.parse(await pos("#vno-fc-tab-alignment"));
       if(!align) status="NO_ALIGNMENT_TAB";
       else {await mouseClick(session.cdp,align.x,align.y);await sleep(150);const angle=JSON.parse(await pos('.vno-fc-orient-btn[data-angle="90"]'));if(!angle)status="NO_90_DEGREE_OPTION";else{await mouseClick(session.cdp,angle.x,angle.y);const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);const evidenceDir=path.join(root,"docs","tickets-0710","evidence");await mkdir(evidenceDir,{recursive:true});await writeFile(path.join(evidenceDir,"fix-s8-text-rotation.png"),Buffer.from((shot.result||shot).data,"base64"));const apply=JSON.parse(await pos(".vno-fc-ok-btn"));if(!apply)status="NO_FORMAT_CELLS_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="set Orientation=90 through Format Cells";}}}
-    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pivotRefresh" || kind === "groupRows" || kind === "subtotal" || kind === "consolidate" || kind === "pageSetup" || kind === "pageSize" || kind === "pageScale" || kind === "pageBreak" || kind === "removeDuplicates" || kind === "textToColumns") {
+    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pivotRefresh" || kind === "groupRows" || kind === "subtotal" || kind === "consolidate" || kind === "pageSetup" || kind === "pageSize" || kind === "pageScale" || kind === "pageBreak" || kind === "hyperlink" || kind === "commentInsert" || kind === "removeDuplicates" || kind === "textToColumns") {
       if (kind === "consolidate") await mouseClick(session.cdp,pos.x,pos.y);
       if (kind === "groupRows") {
         const a=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-row-header[data-row="2"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
@@ -310,6 +312,30 @@ for (const [name, cell, kind, id, value] of ops) {
         const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
         await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
         status = id.endsWith("insertPageBreak") ? "inserted page breaks at C5 through ribbon" : "removed page breaks at C5 through ribbon";
+      }
+      if ((kind === "hyperlink" || kind === "commentInsert") && status === "clicked") {
+        await sleep(200);
+        const fill = async (selector, text) => {
+          const field = JSON.parse(await ev(`(() => {const n=document.querySelector(${JSON.stringify(selector)});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if (!field) throw new Error("Missing dialog field " + selector);
+          await mouseTripleClick(session.cdp, field.x, field.y); await press(session.cdp, "Home"); await press(session.cdp, "End", { shift: true }); await press(session.cdp, "Backspace"); await typeText(session.cdp, text);
+        };
+        if (kind === "hyperlink") {
+          await fill(".vno-hyperlink-text-input", "Trang chủ VN Office");
+          await fill(".vno-hyperlink-url-input", "https://vnoffice.vn");
+          const apply = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-hyperlink-dialog .vno-dialog-ok-btn');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if (!apply) status = "NO_HYPERLINK_APPLY";
+          else { await mouseClick(session.cdp, apply.x, apply.y); status = "inserted https://vnoffice.vn hyperlink into G2"; }
+        } else {
+          await fill("#vno-comment-text", "Ghi chú kiểm thử S12");
+          const apply = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if (!apply) status = "NO_COMMENT_APPLY";
+          else { await mouseClick(session.cdp, apply.x, apply.y); status = "inserted comment at C2"; }
+        }
+        if (status.startsWith("inserted ")) {
+          const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
+          await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
+        }
       }
       if (kind === "textToColumns" && status === "clicked") {
         await sleep(150);

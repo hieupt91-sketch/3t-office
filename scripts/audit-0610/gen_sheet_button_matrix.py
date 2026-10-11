@@ -50,6 +50,8 @@ mark(MATCH, "sheet.page.size", "FIX-S12 Bố trí trang: CDP chọn Khổ giấy
 mark(MATCH, "sheet.page.scale", "FIX-S12 Bố trí trang: CDP đặt tỷ lệ in 80%; Excel COM ReadOnly xác nhận PageSetup.Zoom=80 (app_pageScale.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-pageScale.png")
 mark(MATCH, "sheet.page.insertPageBreak", "FIX-S12 Bố trí trang: CDP chèn ngắt tại C5; Excel COM ReadOnly xác nhận HBreaks=5, VBreaks=3 (app_insertPageBreak.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-insertPageBreak.png")
 mark(MATCH, "sheet.page.removePageBreak", "FIX-S12 Bố trí trang: CDP xóa ngắt C5 từ workbook đã có ngắt; Excel COM ReadOnly xác nhận không còn HBreak/VBreak (app_removePageBreak.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-removePageBreak.png")
+mark(MATCH, "sheet.review.commentInsert", "FIX-S12 Xem xét: CDP tạo ghi chú tại C2; Excel COM ReadOnly xác nhận Comment='Ghi chú kiểm thử S12', Author='Người dùng 3T Office' (app_commentInsert.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-commentInsert.png")
+mark(KNOWN_GAP, "sheet.insert.hyperlink", "FIX-S12 Chèn: CDP nhập https://vnoffice.vn vào G2 và app giữ văn bản hiển thị; Excel COM ReadOnly xác nhận Hyperlinks.Count=0, XLSX thiếu liên kết; ảnh docs/tickets-0710/evidence/fix-s12-hyperlink.png")
 mark(MATCH, "sheet.cell.indentDecrease", "FIX-S13: CDP giảm thụt lề về 0; Excel COM ReadOnly xác nhận Indent=0 (app_s13_indentDecrease.xlsx)")
 mark(MATCH, "sheet.formula.showFormulas", "FIX-S13: CDP nhấn Ctrl+` thật; Excel COM ReadOnly xác nhận ActiveWindow.DisplayFormulas=1 (app_s13_showFormulas.xlsx)")
 mark(MATCH, "sheet.data.pivotRefresh", "FIX-S13: CDP sửa nguồn C2=2222 rồi làm mới; Excel COM ReadOnly xác nhận PivotTables.Count=1, tổng 2222 và không lặp hàng (app_s13_pivotRefresh.xlsx)")
