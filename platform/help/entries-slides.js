@@ -774,7 +774,7 @@ export const SLIDES_HELP_ENTRIES = [
       "Nhấp giữ chuột trái ở vùng trống trên trang chiếu (hoặc vùng ngoài trang) rồi kéo chéo để vẽ khung bao chọn (Marquee / Rubber-band). Mọi đối tượng nằm trong khung sẽ được chọn đồng thời.",
       "Ở danh sách trang chiếu thu nhỏ (filmstrip) bên trái, nhấp giữ chuột vào một trang rồi kéo lên hoặc kéo xuống qua các trang khác để thay đổi thứ tự trình chiếu. Nhấn Ctrl+Z để khôi phục lại thứ tự ban đầu."
     ]
-  }
+  },
   {
     id: "slides.shape.format",
     app: "slides",
