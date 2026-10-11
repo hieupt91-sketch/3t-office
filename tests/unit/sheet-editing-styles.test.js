@@ -232,6 +232,8 @@ export async function runSheetEditingStylesTests() {
     grid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "C", r: 4 } };
 
     grid.formatAsTable("tableBlue");
+    assert(grid.tablesBySheet.Sheet1?.[0]?.name === "Table1", "Format as Table phải tạo model bảng có tên");
+    assert(grid.tablesBySheet.Sheet1?.[0]?.ref === "A1:C4", "Model bảng phải lưu vùng đã chọn");
 
     // Hàng 1 là Header
     const a1 = grid.cellsData.get("A1");
@@ -254,6 +256,43 @@ export async function runSheetEditingStylesTests() {
     // Undo hoàn tác cả bảng trong 1 bước
     grid.undo();
     assert(!grid.cellsData.get("A1")?.style?.backgroundColor, "Sau Undo toàn bộ bảng phải trở về bình thường");
+    assert(grid.tablesBySheet.Sheet1.length === 0, "Undo phải gỡ model bảng");
+    assert(!grid.isFilterActive, "Undo phải khôi phục trạng thái lọc trước khi tạo bảng");
+  });
+
+  test("Behavioral: bảng hỗ trợ tên, tiêu đề tùy chọn, đổi tên và chuyển thành vùng", () => {
+    const grid = new SheetGridController(createMockContainer());
+    grid.cellsData.set("A1", { val: "Data", formula: "", style: {} });
+    grid.cellsData.set("A2", { val: 12, formula: "", style: {} });
+    const range = { start: { c: "A", r: 1 }, end: { c: "A", r: 2 } };
+    assert(grid.formatAsTable("tableGreen", range, true, { name: "Sales_2026", hasHeaders: false }), "Bảng không tiêu đề phải tạo được");
+    assert(grid.tablesBySheet.Sheet1[0].hasHeaders === false, "Model phải giữ cờ không có tiêu đề");
+    assert(grid.renameTable("Sales_2026", "AnnualSales"), "Đổi tên bảng phải thành công");
+    assert(grid.tablesBySheet.Sheet1[0].name === "AnnualSales", "Tên mới phải được lưu");
+    assert(grid.convertTableToRange("AnnualSales"), "Chuyển thành vùng phải thành công");
+    assert(grid.tablesBySheet.Sheet1.length === 0, "Chuyển thành vùng phải xóa cấu trúc bảng");
+  });
+
+  test("Behavioral: chặn vùng bảng chồng lấp và tên trùng", () => {
+    const grid = new SheetGridController(createMockContainer());
+    const first = { start: { c: "A", r: 1 }, end: { c: "B", r: 3 } };
+    const overlap = { start: { c: "B", r: 2 }, end: { c: "C", r: 4 } };
+    assert(grid.formatAsTable("tableBlue", first, true, { name: "Orders" }), "Bảng đầu tiên phải tạo được");
+    assert(!grid.formatAsTable("tableGreen", overlap, true, { name: "Other" }), "Không cho tạo bảng chồng lấp");
+    assert(!grid.formatAsTable("tableGreen", { start: { c: "D", r: 1 }, end: { c: "E", r: 2 } }, true, { name: "Orders" }), "Không cho trùng tên bảng");
+  });
+
+  test("Behavioral: nhập ngay dưới bảng mở rộng vùng và Undo/Redo giữ cấu trúc", () => {
+    const grid = new SheetGridController(createMockContainer());
+    grid.cellsData.set("A1", { val: "Name", formula: "", style: {} });
+    grid.cellsData.set("A2", { val: "Mai", formula: "", style: {} });
+    grid.formatAsTable("tableBlue", { start: { c: "A", r: 1 }, end: { c: "A", r: 2 } });
+    grid.setCellValue("A", 3, "Lan", true, { userInput: true, commit: true });
+    assert(grid.tablesBySheet.Sheet1[0].ref === "A1:A3", "Bảng phải nới tới hàng vừa nhập");
+    grid.undo();
+    assert(grid.tablesBySheet.Sheet1[0].ref === "A1:A2", "Undo phải thu vùng về kích thước cũ");
+    grid.redo();
+    assert(grid.tablesBySheet.Sheet1[0].ref === "A1:A3", "Redo phải khôi phục vùng đã nới");
   });
 
   // TEST 10: Behavioral — Fill Down & Relative Formula Offsetting

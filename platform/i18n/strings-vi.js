@@ -217,6 +217,7 @@ export const viStrings = {
     chartDefaultTitle: "Biểu đồ dữ liệu", chartUnsupported: "Kiểu biểu đồ không được hỗ trợ: {type}", chartItem: "Mục {number}", chartNoNumericData: "Vùng đã chọn không có dữ liệu số", chartPiePositive: "Biểu đồ tròn cần giá trị dương", chartInsertFrom: "Chèn biểu đồ từ {range}", selectedRange: "vùng đã chọn", chartType: "Kiểu biểu đồ", chartColumn: "Cột", chartLine: "Đường", chartPie: "Tròn", chartArea: "Miền", insertIntoSheet: "Chèn vào bảng tính", insertedImageAlt: "Ảnh được chèn trong trang tính", deleteImage: "Xóa ảnh", imageFormatUnsupported: "Định dạng ảnh không được hỗ trợ",
     cellStylesTitle: "Thư viện kiểu ô (Cell Styles)", cellStylesHint: "Chọn một kiểu để áp dụng ngay lập tức cho các ô đang chọn:",
     formatAsTableTitle: "Định dạng theo bảng (Format as Table)", formatAsTableHint: "Chọn kiểu bảng để áp dụng màu tiêu đề và hàng xen kẽ (banded rows):",
+    formatTableRange: "Vùng dữ liệu", formatTableHeaders: "Bảng có tiêu đề", formatTableNameLabel: "Tên bảng", formatTableCreate: "Tạo bảng", formatTableRenameLabel: "Tên mới", formatTableRename: "Đổi tên bảng", formatTableConvert: "Chuyển thành vùng", formatTableInvalid: "Vùng hoặc tên bảng không hợp lệ, hoặc vùng đang chồng lấp với bảng khác.",
     rowHeightTitle: "Chiều cao hàng", rowHeightMessage: "Chiều cao hàng (pixel):",
     colWidthTitle: "Độ rộng cột", colWidthMessage: "Độ rộng cột (pixel):",
     invalidRowColSize: "Vui lòng nhập một số hợp lệ trong khoảng cho phép.",

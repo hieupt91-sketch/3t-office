@@ -218,6 +218,7 @@ export const enStrings = {
     chartDefaultTitle: "Data Chart", chartUnsupported: "Unsupported chart type: {type}", chartItem: "Item {number}", chartNoNumericData: "The selected range contains no numeric data", chartPiePositive: "A pie chart requires positive values", chartInsertFrom: "Insert Chart from {range}", selectedRange: "selected range", chartType: "Chart Type", chartColumn: "Column", chartLine: "Line", chartPie: "Pie", chartArea: "Area", insertIntoSheet: "Insert into Worksheet", insertedImageAlt: "Image inserted in the worksheet", deleteImage: "Delete image", imageFormatUnsupported: "Unsupported image format",
     cellStylesTitle: "Cell Styles Gallery", cellStylesHint: "Select a style to apply immediately to the selected cells:",
     formatAsTableTitle: "Format as Table", formatAsTableHint: "Select a table style to apply header colors and banded rows:",
+    formatTableRange: "Data range", formatTableHeaders: "My table has headers", formatTableNameLabel: "Table name", formatTableCreate: "Create table", formatTableRenameLabel: "New name", formatTableRename: "Rename table", formatTableConvert: "Convert to range", formatTableInvalid: "The range or table name is invalid, or the range overlaps another table.",
     rowHeightTitle: "Row Height", rowHeightMessage: "Row height (pixels):",
     colWidthTitle: "Column Width", colWidthMessage: "Column width (pixels):",
     invalidRowColSize: "Please enter a valid number in the allowed range.",

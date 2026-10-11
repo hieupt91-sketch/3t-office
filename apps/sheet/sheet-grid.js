@@ -277,6 +277,7 @@ export class SheetGridController {
     this.pivotTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.scenariosBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.dataTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.tablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this._dataTableEvaluating = false;
     this.outlineGroupsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.rowHeightsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
@@ -3068,6 +3069,7 @@ export class SheetGridController {
     if (!this.imagesBySheet[sheetName]) this.imagesBySheet[sheetName] = [];
     if (!this.textBoxesBySheet[sheetName]) this.textBoxesBySheet[sheetName] = [];
     if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
+    if (!this.tablesBySheet[sheetName]) this.tablesBySheet[sheetName] = [];
     if (!this.scenariosBySheet[sheetName]) this.scenariosBySheet[sheetName] = [];
     if (!this.namedRangesBySheet[sheetName]) this.namedRangesBySheet[sheetName] = [];
     if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
@@ -3212,6 +3214,7 @@ export class SheetGridController {
     if (!this.imagesBySheet[sheetName]) this.imagesBySheet[sheetName] = [];
     if (!this.textBoxesBySheet[sheetName]) this.textBoxesBySheet[sheetName] = [];
     if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
+    if (!this.tablesBySheet[sheetName]) this.tablesBySheet[sheetName] = [];
     if (!this.scenariosBySheet[sheetName]) this.scenariosBySheet[sheetName] = [];
     if (!this.namedRangesBySheet[sheetName]) this.namedRangesBySheet[sheetName] = [];
     if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
@@ -3321,6 +3324,7 @@ export class SheetGridController {
     delete this.imagesBySheet[sheetName];
     delete this.textBoxesBySheet[sheetName];
     delete this.pivotTablesBySheet[sheetName];
+    delete this.tablesBySheet[sheetName];
     delete this.scenariosBySheet[sheetName];
     delete this.namedRangesBySheet[sheetName];
     delete this.commentsBySheet[sheetName];
@@ -3349,7 +3353,7 @@ export class SheetGridController {
       "sheetsData", "sheetStates", "namedRangesBySheet", "commentsBySheet",
       "printAreaBySheet", "pageBreaksBySheet", "pageSetupBySheet", "mergedRangesBySheet",
       "conditionalFormattingBySheet", "dataValidationsBySheet", "chartsBySheet",
-      "imagesBySheet", "textBoxesBySheet", "pivotTablesBySheet", "outlineGroupsBySheet",
+      "imagesBySheet", "textBoxesBySheet", "pivotTablesBySheet", "tablesBySheet", "outlineGroupsBySheet",
       "rowHeightsBySheet", "colWidthsBySheet", "userHiddenRowsBySheet", "userHiddenColsBySheet",
       "protectionBySheet", "dataTablesBySheet"
     ];
@@ -5272,6 +5276,10 @@ _bindGridKeyboardNavigation() {
     const previousStyle = structuredClone(item.style || {});
     const previousRowHeight = this.getRowHeight(row);
     let nextStyle = structuredClone(item.style || {});
+    const tableStateBeforeEdit = historyOptions.userInput && historyOptions.commit
+      ? structuredClone(this.tablesBySheet?.[this.activeSheet] || [])
+      : null;
+    const tableFilterRangeBeforeEdit = tableStateBeforeEdit ? (this.sheetStates?.[this.activeSheet]?.filterRange || "") : "";
 
     if (recordUndo && val === "" && item.isArrayFormula && item.arrayRange) {
       return this._clearArrayFormula(item.arrayRange);
@@ -5345,6 +5353,17 @@ _bindGridKeyboardNavigation() {
     delete item.richText;
 
     this.cellsData.set(key, item);
+    if (tableStateBeforeEdit) {
+      const expanded = this._expandTableForAdjacentEntry(col, Number(row));
+      if (expanded && historyAction) {
+        historyAction.tablesBefore = tableStateBeforeEdit;
+        historyAction.tablesAfter = structuredClone(this.tablesBySheet[this.activeSheet]);
+        historyAction.tableExpansionCellsBefore = expanded.beforeCells;
+        historyAction.tableExpansionCellsAfter = expanded.afterCells;
+        historyAction.tableFilterRangeBefore = tableFilterRangeBeforeEdit;
+        historyAction.tableFilterRangeAfter = expanded.ref;
+      }
+    }
     this.formulaEngine?.bumpSheetVersion?.(this.activeSheet);
 
     const cell = this.container.querySelector(`.vno-grid-cell[data-coord="${key}"]`);
@@ -7922,20 +7941,54 @@ _bindGridKeyboardNavigation() {
     return showCellStylesDialog(this);
   }
 
-  formatAsTable(presetOrId, range = null, recordUndo = true) {
+  formatAsTable(presetOrId, range = null, recordUndo = true, options = {}) {
     let preset = presetOrId;
     if (typeof presetOrId === "string") {
       preset = TABLE_STYLE_PRESETS.find(p => p.id === presetOrId) || TABLE_STYLE_PRESETS[0];
     }
     if (!preset) return false;
 
+    options = options || {};
     const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const tableName = this._uniqueTableName(options.name || this._nextTableName());
+    const headers = options.hasHeaders !== false;
+    const table = {
+      name: tableName,
+      ref: this._rangeLabel(targetRange),
+      hasHeaders: headers,
+      style: preset.id,
+      excelStyle: ({ tableBlue: "TableStyleMedium2", tableGreen: "TableStyleMedium4", tableDark: "TableStyleDark1" })[preset.id] || "TableStyleMedium2",
+      showAutoFilter: true,
+      showRowStripes: true
+    };
+    const currentTables = this.tablesBySheet[this.activeSheet] || [];
+    if (!tableName || currentTables.some(item => this._rangesOverlap(item.ref, table.ref))) return false;
+    const tableBefore = structuredClone(currentTables);
+    const filterBefore = this._snapshotFilterState();
+    const filterRangeBefore = this.sheetStates[this.activeSheet]?.filterRange || "";
+    if (!this.tablesBySheet[this.activeSheet]) this.tablesBySheet[this.activeSheet] = [];
+    this.tablesBySheet[this.activeSheet].push(table);
     const coords = this.formulaEngine.expandRange(this._rangeLabel(targetRange));
 
     const minRow = Math.min(targetRange.start.r, targetRange.end.r);
 
     const before = {};
     const after = {};
+    const headerNames = new Set();
+    const normalizedHeaders = new Map();
+    if (headers) {
+      const firstRow = targetRange.start.r;
+      for (let colNum = this._columnNumber(targetRange.start.c); colNum <= this._columnNumber(targetRange.end.c); colNum++) {
+        const col = this._columnLabel(colNum), coord = `${col}${firstRow}`;
+        const cell = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+        let label = String(cell.val ?? "").trim() || `Column${colNum - this._columnNumber(targetRange.start.c) + 1}`;
+        const base = label;
+        let suffix = 2;
+        while (headerNames.has(label.toLocaleLowerCase())) label = `${base}_${suffix++}`;
+        headerNames.add(label.toLocaleLowerCase());
+        normalizedHeaders.set(coord, label);
+      }
+    }
 
     coords.forEach(coord => {
       const [c, r] = this._splitCoord(coord);
@@ -7950,7 +8003,9 @@ _bindGridKeyboardNavigation() {
 
       existing.style = existing.style ? structuredClone(existing.style) : {};
 
-      if (rowNum === minRow) {
+      if (headers && rowNum === minRow) {
+        existing.val = normalizedHeaders.get(coord) || existing.val;
+        existing.formula = "";
         Object.assign(existing.style, preset.headerStyle);
       } else {
         const isEvenBanded = (rowNum - minRow) % 2 === 1;
@@ -7977,10 +8032,144 @@ _bindGridKeyboardNavigation() {
         type: "format-table",
         sheet: this.activeSheet,
         before,
-        after
+        after,
+        tablesBefore: tableBefore,
+        tablesAfter: structuredClone(this.tablesBySheet[this.activeSheet]),
+        filterBefore,
+        filterAfter: null,
+        filterRangeBefore,
+        filterRangeAfter: table.ref
       });
     }
 
+    this.sheetStates[this.activeSheet] = {
+      ...(this.sheetStates[this.activeSheet] || {}),
+      filterRange: table.ref,
+      filterSetByUser: true,
+      isFilterActive: true
+    };
+    this.isFilterActive = true;
+    if (recordUndo) this.undoStack[this.undoStack.length - 1].filterAfter = this._snapshotFilterState();
+    this.container?.classList.add("vno-filter-mode");
+    this._updateFilterButtons();
+    this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+
+    return true;
+  }
+
+  _expandTableForAdjacentEntry(col, row) {
+    const tables = this.tablesBySheet?.[this.activeSheet] || [];
+    const colNum = this._columnNumber(col);
+    for (const table of tables) {
+      const bounds = this._parseRange(table.ref);
+      if (!bounds) continue;
+      const startCol = this._columnNumber(bounds.start.c), endCol = this._columnNumber(bounds.end.c);
+      let next = null;
+      if (row === bounds.end.r + 1 && colNum >= startCol && colNum <= endCol) {
+        next = { ...bounds, end: { c: bounds.end.c, r: row } };
+      } else if (colNum === endCol + 1 && row >= bounds.start.r && row <= bounds.end.r) {
+        next = { ...bounds, end: { c: col, r: bounds.end.r } };
+      }
+      if (!next) continue;
+      const nextRef = this._rangeLabel(next);
+      if (tables.some(other => other !== table && this._rangesOverlap(other.ref, nextRef))) continue;
+      table.ref = nextRef;
+      const preset = TABLE_STYLE_PRESETS.find(item => item.id === table.style) || TABLE_STYLE_PRESETS[0];
+      const minRow = next.start.r, maxRow = next.end.r;
+      const minCol = this._columnNumber(next.start.c), maxCol = this._columnNumber(next.end.c);
+      const beforeCells = {}, afterCells = {};
+      for (let currentRow = minRow; currentRow <= maxRow; currentRow++) {
+        for (let currentCol = minCol; currentCol <= maxCol; currentCol++) {
+          const currentName = this._columnLabel(currentCol), coord = `${currentName}${currentRow}`;
+          if (coord === `${col}${row}`) continue;
+          const cell = this.cellsData.get(coord);
+          beforeCells[coord] = cell ? structuredClone(cell) : null;
+        }
+      }
+      if (colNum > endCol && table.hasHeaders !== false) {
+        const headerCoord = `${col}${minRow}`;
+        const header = this.cellsData.get(headerCoord) || { val: `Column${maxCol - minCol + 1}`, formula: "", style: {} };
+        if (header.val === "" && !header.formula) header.val = `Column${maxCol - minCol + 1}`;
+        header.style = { ...(header.style || {}), ...preset.headerStyle };
+        this.cellsData.set(headerCoord, header);
+      }
+      for (let currentRow = minRow; currentRow <= maxRow; currentRow++) {
+        if (table.hasHeaders !== false && currentRow === minRow) continue;
+        const rowStyle = (currentRow - minRow) % 2 === 1 ? preset.evenRowStyle : preset.oddRowStyle;
+        for (let currentCol = minCol; currentCol <= maxCol; currentCol++) {
+          const currentName = this._columnLabel(currentCol), coord = `${currentName}${currentRow}`;
+          const cell = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+          cell.style = { ...(cell.style || {}), ...rowStyle };
+          this.cellsData.set(coord, cell);
+        }
+      }
+      for (const coord of Object.keys(beforeCells)) {
+        const cell = this.cellsData.get(coord);
+        afterCells[coord] = cell ? structuredClone(cell) : null;
+      }
+      const state = this.sheetStates?.[this.activeSheet];
+      if (state) state.filterRange = nextRef;
+      this._updateFilterButtons();
+      for (const [coord, cell] of Object.entries(afterCells)) {
+        if (!cell) continue;
+        const [cellCol, cellRow] = this._splitCoord(coord);
+        const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+        if (dom) this._renderCellVisual(dom, cell, cellCol, cellRow);
+      }
+      return { beforeCells, afterCells, ref: nextRef };
+    }
+    return false;
+  }
+
+  _nextTableName() {
+    const names = Object.values(this.tablesBySheet || {}).flat().map(table => String(table.name).toLowerCase());
+    let index = 1;
+    while (names.includes(`table${index}`)) index++;
+    return `Table${index}`;
+  }
+
+  _uniqueTableName(requested, exceptName = "") {
+    let name = String(requested || this._nextTableName()).trim().replace(/[^A-Za-z0-9_.]/g, "_");
+    if (!/^[A-Za-z_\\]/.test(name)) name = `Table_${name}`;
+    name = name.slice(0, 255) || this._nextTableName();
+    if (/^[A-Z]{1,3}\$?\d+$/i.test(name) || /^R\d+C\d+$/i.test(name)) return "";
+    const names = Object.values(this.tablesBySheet || {}).flat()
+      .map(table => String(table.name).toLowerCase())
+      .filter(existing => existing !== String(exceptName).toLowerCase());
+    if (names.includes(name.toLowerCase())) return "";
+    return name;
+  }
+
+  _rangesOverlap(aLabel, bLabel) {
+    const a = this._parseRange(aLabel), b = this._parseRange(bLabel);
+    if (!a || !b) return false;
+    const col = value => this._columnNumber(value);
+    return col(a.start.c) <= col(b.end.c) && col(b.start.c) <= col(a.end.c)
+      && a.start.r <= b.end.r && b.start.r <= a.end.r;
+  }
+
+  getTableAtSelection() {
+    return (this.tablesBySheet?.[this.activeSheet] || []).find(table => this._rangesOverlap(table.ref, this._rangeLabel(this.selectionRange))) || null;
+  }
+
+  renameTable(oldName, requestedName, recordUndo = true) {
+    const tables = this.tablesBySheet?.[this.activeSheet] || [];
+    const table = tables.find(item => item.name === oldName);
+    const name = this._uniqueTableName(requestedName, oldName);
+    if (!table || !name) return false;
+    const before = structuredClone(tables);
+    table.name = name;
+    if (recordUndo) this._recordHistory({ type: "sheet-tables", sheet: this.activeSheet, before, after: structuredClone(tables) });
+    return true;
+  }
+
+  convertTableToRange(name, recordUndo = true) {
+    const tables = this.tablesBySheet?.[this.activeSheet] || [];
+    const index = tables.findIndex(item => item.name === name);
+    if (index < 0) return false;
+    const before = structuredClone(tables);
+    tables.splice(index, 1);
+    if (recordUndo) this._recordHistory({ type: "sheet-tables", sheet: this.activeSheet, before, after: structuredClone(tables) });
     return true;
   }
 
@@ -9867,6 +10056,22 @@ _bindGridKeyboardNavigation() {
         const richItem = this.cellsData.get(key);
         if (richItem) richItem.richText = action[value + "RichText"];
       }
+      if (action.tablesBefore && action.tablesAfter) {
+        this.tablesBySheet[action.sheet] = structuredClone(direction === "undo" ? action.tablesBefore : action.tablesAfter);
+        if (this.sheetStates[action.sheet]) this.sheetStates[action.sheet].filterRange = direction === "undo" ? action.tableFilterRangeBefore : action.tableFilterRangeAfter;
+        this._updateFilterButtons();
+        const snapshots = direction === "undo" ? action.tableExpansionCellsBefore : action.tableExpansionCellsAfter;
+        for (const [coord, snapshot] of Object.entries(snapshots || {})) {
+          if (snapshot) this.cellsData.set(coord, structuredClone(snapshot));
+          else this.cellsData.delete(coord);
+          const [cellCol, cellRow] = this._splitCoord(coord);
+          const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+          const current = this.cellsData.get(coord);
+          if (dom && current) this._renderCellVisual(dom, current, cellCol, cellRow);
+          else if (dom) { dom.textContent = ""; dom.style.cssText = ""; }
+        }
+        this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+      }
       this.selectCell(action.col, action.row);
     } else if (action.type === "array-formula") {
       const snapshots = direction === "undo" ? action.before : action.after;
@@ -9928,7 +10133,17 @@ _bindGridKeyboardNavigation() {
       if (action.type === "batch-cells" && action.beforeLayout && action.afterLayout) {
         this._restoreRowColLayout(direction === "undo" ? action.beforeLayout : action.afterLayout);
       }
+      if (action.type === "format-table" && action.tablesBefore && action.tablesAfter) {
+        this.tablesBySheet[action.sheet] = structuredClone(direction === "undo" ? action.tablesBefore : action.tablesAfter);
+        this.sheetStates[action.sheet] = {
+          ...(this.sheetStates[action.sheet] || {}),
+          filterRange: direction === "undo" ? action.filterRangeBefore : action.filterRangeAfter
+        };
+        this._restoreFilterState(direction === "undo" ? action.filterBefore : action.filterAfter);
+      }
       this._recalculateAllFormulas();
+    } else if (action.type === "sheet-tables") {
+      this.tablesBySheet[action.sheet] = structuredClone(direction === "undo" ? action.before : action.after);
     } else if (action.type === "batch-workbook") {
       const bySheet = direction === "undo" ? action.beforeBySheet : action.afterBySheet;
       for (const [sheetName, snapshots] of Object.entries(bySheet || {})) {
@@ -10400,6 +10615,7 @@ _bindGridKeyboardNavigation() {
       selectionRange: structuredClone(this.selectionRange),
       outlineGroups: structuredClone(this.outlineGroupsBySheet[sheetName] || [])
       ,mergedRanges: structuredClone(this.mergedRangesBySheet[sheetName] || []),
+      tables: structuredClone(this.tablesBySheet[sheetName] || []),
       rowColLayout: this._snapshotRowColLayout(sheetName)
     };
   }
@@ -10420,6 +10636,7 @@ _bindGridKeyboardNavigation() {
     this.selectionRange = structuredClone(snapshot.selectionRange);
     this.outlineGroupsBySheet[snapshot.sheetName] = structuredClone(snapshot.outlineGroups || []);
     this.mergedRangesBySheet[snapshot.sheetName] = structuredClone(snapshot.mergedRanges || []);
+    this.tablesBySheet[snapshot.sheetName] = structuredClone(snapshot.tables || []);
     if (snapshot.rowColLayout) this._restoreRowColLayout({ ...snapshot.rowColLayout, sheetName: snapshot.sheetName }, { render: false });
     if (this.sheetStates[snapshot.sheetName]) {
       Object.assign(this.sheetStates[snapshot.sheetName], {
