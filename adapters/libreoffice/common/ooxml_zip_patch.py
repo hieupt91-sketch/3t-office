@@ -15504,6 +15504,128 @@ def _writer_normalize_simple_list_numbering(document_xml: str, numbering_xml: st
         numbering_xml = numbering_xml[:abstract.start()] + block + numbering_xml[abstract.end():]
     return document_xml, numbering_xml
 
+def _writer_apply_word_default_heading_styles_for_new_documents(
+    document_xml: str, styles_xml: str, source_html: str
+) -> tuple[str, str]:
+    """Use this machine's normal Word built-in heading defaults only for new app documents."""
+    if "<!--vno-new-document-style-defaults-->" not in source_html:
+        return document_xml, styles_xml
+
+    default_headings: list[tuple[int, str]] = []
+    for match in re.finditer(r"<h([1-3])\b([^>]*)>([\s\S]*?)</h\1\s*>", source_html, re.IGNORECASE):
+        attrs = match.group(2) or ""
+        if not re.search(r'\bdata-vno-export-defaults=["\']true["\']', attrs, re.IGNORECASE):
+            continue
+        inline_style = re.search(r'\bstyle=["\']([^"\']*)["\']', attrs, re.IGNORECASE)
+        if inline_style and inline_style.group(1).strip():
+            continue  # Keep paragraph formatting the user explicitly applied.
+        text = re.sub(r"\s+", " ", _writer_html_plain(match.group(3))).strip()
+        if text:
+            default_headings.append((int(match.group(1)), text))
+    if not default_headings:
+        return document_xml, styles_xml
+
+    defaults = {
+        1: ('<w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="240" w:after="0"/><w:outlineLvl w:val="0"/></w:pPr>',
+            '<w:rPr><w:rFonts w:asciiTheme="majorHAnsi" w:eastAsiaTheme="majorEastAsia" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/><w:color w:val="2E74B5" w:themeColor="accent1" w:themeShade="BF"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr>'),
+        2: ('<w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="40" w:after="0"/><w:outlineLvl w:val="1"/></w:pPr>',
+            '<w:rPr><w:rFonts w:asciiTheme="majorHAnsi" w:eastAsiaTheme="majorEastAsia" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/><w:color w:val="2E74B5" w:themeColor="accent1" w:themeShade="BF"/><w:sz w:val="26"/><w:szCs w:val="26"/></w:rPr>'),
+        3: ('<w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="40" w:after="0"/><w:outlineLvl w:val="2"/></w:pPr>',
+            '<w:rPr><w:rFonts w:asciiTheme="majorHAnsi" w:eastAsiaTheme="majorEastAsia" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/><w:color w:val="1F4D78" w:themeColor="accent1" w:themeShade="7F"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr>'),
+    }
+
+    # Browser/LibreOffice defaults become direct paragraph formatting. Strip
+    # those defaults only where the new-document export marker says the user
+    # did not set paragraph formatting explicitly.
+    heading_texts = {(level, text) for level, text in default_headings}
+    paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+    replacements: dict[int, str] = {}
+    for index, paragraph in enumerate(paragraphs):
+        xml = paragraph.group(0)
+        style_match = re.search(r'<w:pStyle\b[^>]*\bw:val=["\']Heading([1-3])["\']', xml, re.IGNORECASE)
+        if not style_match:
+            continue
+        level = int(style_match.group(1))
+        if (level, _paragraph_plain_text(xml).strip()) not in heading_texts:
+            continue
+        ppr = re.search(r"<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>", xml, re.IGNORECASE)
+        if ppr:
+            clean_ppr = re.sub(r"<w:(?:bidi|spacing|ind|jc|rPr)\b[^>]*/>|<w:rPr\b[^>]*>[\s\S]*?</w:rPr\s*>", "", ppr.group(0), flags=re.IGNORECASE)
+            xml = xml[:ppr.start()] + clean_ppr + xml[ppr.end():]
+        replacements[index] = xml
+    if replacements:
+        parts: list[str] = []
+        previous = 0
+        for index, paragraph in enumerate(paragraphs):
+            parts.append(document_xml[previous:paragraph.start()])
+            parts.append(replacements.get(index, paragraph.group(0)))
+            previous = paragraph.end()
+        parts.append(document_xml[previous:])
+        document_xml = "".join(parts)
+
+    for level, (ppr_xml, rpr_xml) in defaults.items():
+        style_match = re.search(
+            rf'<w:style\b(?=[^>]*\bw:styleId=["\']Heading{level}["\'])[^>]*>[\s\S]*?</w:style\s*>',
+            styles_xml,
+            re.IGNORECASE,
+        )
+        if not style_match:
+            continue
+        style = style_match.group(0)
+        for tag, fragment in (("pPr", ppr_xml), ("rPr", rpr_xml)):
+            existing = re.search(rf"<w:{tag}\b[^>]*>[\s\S]*?</w:{tag}\s*>", style, re.IGNORECASE)
+            if existing:
+                style = style[:existing.start()] + fragment + style[existing.end():]
+            else:
+                style = re.sub(r"</w:style\s*>", fragment + "</w:style>", style, count=1, flags=re.IGNORECASE)
+        styles_xml = styles_xml[:style_match.start()] + style + styles_xml[style_match.end():]
+    return document_xml, styles_xml
+
+
+def _writer_apply_word_default_heading_theme_for_new_documents(theme_xml: str, source_html: str) -> str:
+    """Make major-font theme resolution match Word's default Heading font for new docs."""
+    if "<!--vno-new-document-style-defaults-->" not in source_html or not re.search(
+        r"<h[1-3]\b[^>]*\bdata-vno-export-defaults=[\"']true[\"']", source_html, re.IGNORECASE
+    ):
+        return theme_xml
+    major = re.search(r"<a:majorFont\b[^>]*>[\s\S]*?</a:majorFont\s*>", theme_xml, re.IGNORECASE)
+    if not major:
+        return theme_xml
+    block = re.sub(
+        r'(<a:latin\b[^>]*\btypeface=[\"\'])[^\"\']*([\"\'])',
+        r"\g<1>Calibri Light\2",
+        major.group(0),
+        count=1,
+        flags=re.IGNORECASE,
+    )
+    return theme_xml[:major.start()] + block + theme_xml[major.end():]
+
+
+def _writer_apply_word_default_textbox_margins_for_new_documents(document_xml: str, source_html: str) -> str:
+    """Match the default Word DrawingML text-frame inset on newly inserted boxes."""
+    if "<!--vno-new-document-style-defaults-->" not in source_html:
+        return document_xml
+
+    def patch_anchor(match: re.Match) -> str:
+        anchor = match.group(0)
+        if "<w:txbxContent" not in anchor:
+            return anchor
+        body_pr = re.search(r"<wps:bodyPr\b([^>]*)>", anchor, re.IGNORECASE)
+        if not body_pr:
+            return anchor
+        attrs = body_pr.group(1)
+        for name, value in (("lIns", "91440"), ("rIns", "91440"), ("tIns", "45720"), ("bIns", "45720")):
+            pattern = rf'(?<![\w:]){name}=[\"\'][^\"\']*[\"\']'
+            replacement = f'{name}="{value}"'
+            if re.search(pattern, attrs, re.IGNORECASE):
+                attrs = re.sub(pattern, replacement, attrs, count=1, flags=re.IGNORECASE)
+            else:
+                attrs += f" {replacement}"
+        return anchor[:body_pr.start()] + "<wps:bodyPr" + attrs + ">" + anchor[body_pr.end():]
+
+    return re.sub(r"<wp:(?:anchor|inline)\b[\s\S]*?</wp:(?:anchor|inline)\s*>", patch_anchor, document_xml, flags=re.IGNORECASE)
+
+
 def _writer_restore_heading_styles(
     document_xml: str, styles_xml: str, source_html: str
 ) -> tuple[str, str]:
@@ -15656,9 +15778,189 @@ def _writer_toc_fallback_texts(source_html: str) -> list[str]:
     return texts
 
 
+def _writer_tof_fallback_texts(source_html: str) -> tuple[str, list[str]]:
+    marker = re.search(
+        r'<div\b(?=[^>]*\bdata-vno-tof\s*=\s*(["\'])true\1)[^>]*>',
+        source_html, re.IGNORECASE,
+    )
+    if not marker:
+        return "", []
+    block = _writer_balanced_html_element(source_html, marker.start(), "div")
+    if not block:
+        return "", []
+    kind_match = re.search(r'\bdata-vno-tof-kind\s*=\s*(["\'])(.*?)\1', marker.group(0), re.IGNORECASE)
+    kind = (kind_match.group(2).strip().lower() if kind_match else "figure")
+    labels = {"figure": "Hình", "table": "Bảng", "equation": "Phương trình"}
+    word_label = labels.get(kind, "")
+    texts: list[str] = []
+    for item_start in re.finditer(
+        r'<div\b(?=[^>]*\bclass=["\'][^"\']*\bvno-tof-item\b[^"\']*["\'])[^>]*>',
+        block, re.IGNORECASE,
+    ):
+        item = _writer_balanced_html_element(block, item_start.start(), "div")
+        value = re.sub(r"\s+", " ", _writer_html_plain(item)).strip()
+        if value:
+            texts.append(value)
+    return word_label, texts
+
+
+def _writer_restore_caption_sequence_fields(document_xml: str) -> str:
+    """Convert app caption markers to native Word SEQ fields in Caption paragraphs."""
+    labels = {"figure": "Hình", "table": "Bảng", "equation": "Phương trình"}
+
+    def patch_paragraph(match: re.Match) -> str:
+        paragraph = match.group(0)
+        texts = re.findall(r"<w:t\b[^>]*>([\s\S]*?)</w:t\s*>", paragraph, re.IGNORECASE)
+        joined = "".join(html.unescape(text) for text in texts)
+        marker = re.search(r"VNO_CAPTION_V1:([^\s<]+)", joined)
+        if not marker:
+            return paragraph
+        try:
+            meta = json.loads(url_unquote(marker.group(1)))
+        except (TypeError, ValueError):
+            return paragraph
+        kind = str(meta.get("kind") or "figure").strip().lower()
+        word_label = labels.get(kind)
+        number = str(int(meta.get("index") or 1))
+        if not word_label:
+            return paragraph
+        visible = joined[:marker.start()]
+        number_match = re.search(rf"(?<!\d){re.escape(number)}(?!\d)", visible)
+        if not number_match:
+            return paragraph
+        before, after = visible[:number_match.start()], visible[number_match.end():]
+        ppr = re.search(r"<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>", paragraph, re.IGNORECASE)
+        style = '<w:pStyle w:val="Caption"/>'
+        if ppr:
+            ppr_xml = re.sub(r"<w:pStyle\b[^>]*/>|<w:pStyle\b[^>]*>[\s\S]*?</w:pStyle\s*>", "", ppr.group(0), count=1, flags=re.IGNORECASE)
+            ppr_xml = re.sub(r"(<w:pPr\b[^>]*>)", rf"\1{style}", ppr_xml, count=1, flags=re.IGNORECASE)
+            ppr_xml = re.sub(r"<w:rPr\b[^>]*>[\s\S]*?</w:rPr\s*>", "", ppr_xml, flags=re.IGNORECASE)
+        else:
+            ppr_xml = f"<w:pPr>{style}</w:pPr>"
+        rpr_match = re.search(r"<w:rPr\b[^>]*(?:/>|>[\s\S]*?</w:rPr\s*>)", paragraph, re.IGNORECASE)
+        rpr = rpr_match.group(0) if rpr_match else ""
+        def run(text: str) -> str:
+            if not text:
+                return ""
+            return f'<w:r>{rpr}<w:t xml:space="preserve">{html.escape(text)}</w:t></w:r>'
+        sequence = (
+            f'<w:fldSimple w:instr=" SEQ {html.escape(word_label)} \\* ARABIC ">'
+            f'<w:r>{rpr}<w:t>{number}</w:t></w:r></w:fldSimple>'
+        )
+        bookmarks = "".join(re.findall(r"<w:bookmark(?:Start|End)\b[^>]*/?>", paragraph, re.IGNORECASE))
+        opening = re.search(r"<w:p\b[^>]*>", paragraph, re.IGNORECASE).group(0)
+        return opening + ppr_xml + bookmarks + run(before) + sequence + run(after) + "</w:p>"
+
+    return re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", patch_paragraph, document_xml, flags=re.IGNORECASE)
+
+
+def _writer_restore_native_writer_shapes(document_xml: str, source_html: str) -> str:
+    """Restore new SVG shape placeholders as editable native Word AutoShapes."""
+    markers = re.findall(r"<!--vno-writer-shape-v1:([0-9a-f]+)-->", source_html or "", re.IGNORECASE)
+    if not markers:
+        return document_xml
+    metadata: list[dict] = []
+    for marker in markers:
+        try:
+            value = json.loads(bytes.fromhex(marker).decode("utf-8"))
+        except (ValueError, TypeError, json.JSONDecodeError):
+            continue
+        if isinstance(value, dict):
+            metadata.append(value)
+    if not metadata:
+        return document_xml
+
+    drawings = list(re.finditer(r"<w:drawing\b[^>]*>[\s\S]*?</w:drawing\s*>", document_xml, re.IGNORECASE))
+    if not drawings:
+        return document_xml
+    shape_presets = {
+        "rectangle": "rect", "round-rect": "roundRect", "roundrect": "roundRect",
+        "circle": "ellipse", "triangle": "triangle", "diamond": "diamond",
+        "arrow": "rightArrow", "line": "line",
+    }
+
+    def emu(value: object) -> int | None:
+        try:
+            return int(round(float(value) * 9525))
+        except (TypeError, ValueError, OverflowError):
+            return None
+
+    def color_xml(value: object) -> str | None:
+        match = re.fullmatch(r"\s*#?([0-9a-fA-F]{6})\s*", str(value or ""))
+        return f'<a:srgbClr val="{match.group(1).upper()}"/>' if match else None
+
+    updates: dict[int, str] = {}
+    used: set[int] = set()
+    for spec in metadata:
+        kind = str(spec.get("type") or "").strip().lower()
+        if not spec.get("isNew") or kind == "textbox":
+            continue
+        preset = shape_presets.get(kind)
+        left, top, width, height = (emu(spec.get(key)) for key in ("x", "y", "w", "h"))
+        if not preset or None in (left, top, width, height):
+            continue
+        target_index = None
+        for index, match in enumerate(drawings):
+            if index in used:
+                continue
+            block = match.group(0)
+            horizontal = re.search(r"<wp:positionH\b[^>]*>([\s\S]*?)</wp:positionH\s*>", block, re.IGNORECASE)
+            vertical = re.search(r"<wp:positionV\b[^>]*>([\s\S]*?)</wp:positionV\s*>", block, re.IGNORECASE)
+            extent = re.search(r'<wp:extent\b[^>]*\bcx=["\'](\d+)["\'][^>]*\bcy=["\'](\d+)["\'][^>]*/?>', block, re.IGNORECASE)
+            x = re.search(r"<wp:posOffset>(-?\d+)</wp:posOffset>", horizontal.group(1), re.IGNORECASE) if horizontal else None
+            y = re.search(r"<wp:posOffset>(-?\d+)</wp:posOffset>", vertical.group(1), re.IGNORECASE) if vertical else None
+            if x and y and extent and tuple(map(int, (x.group(1), y.group(1), extent.group(1), extent.group(2)))) == (left, top, width, height):
+                target_index = index
+                break
+        if target_index is None:
+            continue
+        block = updates.get(target_index, drawings[target_index].group(0))
+        if not re.search(r"<wps:cNvSpPr\b[^>]*\btxBox=[\"']1[\"']", block, re.IGNORECASE):
+            continue
+        block = re.sub(r"(<wps:cNvSpPr\b[^>]*?)\s+txBox=[\"']1[\"']", r"\1", block, count=1, flags=re.IGNORECASE)
+        block = re.sub(r"<wps:txbx\b[^>]*>[\s\S]*?</wps:txbx\s*>", "", block, count=1, flags=re.IGNORECASE)
+        sp_pr = re.search(r"<wps:spPr\b[^>]*>[\s\S]*?</wps:spPr\s*>", block, re.IGNORECASE)
+        if not sp_pr:
+            continue
+        sp_xml = sp_pr.group(0)
+        geometry = re.search(r"<a:prstGeom\b[^>]*(?:/>|>[\s\S]*?</a:prstGeom\s*>)", sp_xml, re.IGNORECASE)
+        native_geometry = f'<a:prstGeom prst="{preset}"><a:avLst/></a:prstGeom>'
+        if geometry:
+            sp_xml = sp_xml[:geometry.start()] + native_geometry + sp_xml[geometry.end():]
+        fill_color = color_xml(spec.get("fill"))
+        fill_xml = f"<a:solidFill>{fill_color}</a:solidFill>" if fill_color and kind != "line" else "<a:noFill/>"
+        old_fill = re.search(r"<a:(?:solidFill|noFill)\b[^>]*(?:/>|>[\s\S]*?</a:(?:solidFill|noFill)\s*>)", sp_xml, re.IGNORECASE)
+        if old_fill:
+            sp_xml = sp_xml[:old_fill.start()] + fill_xml + sp_xml[old_fill.end():]
+        else:
+            xfrm = re.search(r"</a:xfrm\s*>", sp_xml, re.IGNORECASE)
+            if xfrm:
+                sp_xml = sp_xml[:xfrm.end()] + fill_xml + sp_xml[xfrm.end():]
+        stroke_color = color_xml(spec.get("stroke"))
+        stroke_width = emu(spec.get("strokeWidth")) or 0
+        line_xml = f'<a:ln w="{stroke_width}"><a:solidFill>{stroke_color}</a:solidFill></a:ln>' if stroke_color and stroke_width > 0 else "<a:ln><a:noFill/></a:ln>"
+        old_line = re.search(r"<a:ln\b[^>]*>[\s\S]*?</a:ln\s*>|<a:ln\b[^>]*/>", sp_xml, re.IGNORECASE)
+        if old_line:
+            sp_xml = sp_xml[:old_line.start()] + line_xml + sp_xml[old_line.end():]
+        else:
+            sp_xml = re.sub(r"</wps:spPr\s*>", line_xml + "</wps:spPr>", sp_xml, count=1, flags=re.IGNORECASE)
+        block = block[:sp_pr.start()] + sp_xml + block[sp_pr.end():]
+        updates[target_index] = block
+        used.add(target_index)
+
+    output: list[str] = []
+    cursor = 0
+    for index, match in enumerate(drawings):
+        output.append(document_xml[cursor:match.start()])
+        output.append(updates.get(index, match.group(0)))
+        cursor = match.end()
+    output.append(document_xml[cursor:])
+    return "".join(output)
+
+
 def _writer_restore_toc_field(document_xml: str, source_html: str) -> str:
     """Wrap soffice's visible TOC fallback in a native complex Word TOC field."""
-    if re.search(r"<w:instrText\b[^>]*>[\s\S]*?\bTOC\b", document_xml, re.IGNORECASE):
+    if re.search(r"<w:instrText\b[^>]*>[\s\S]*?\bTOC\b[^<]*\\o\b", document_xml, re.IGNORECASE):
         return document_xml
     toc_texts = _writer_toc_fallback_texts(source_html)
     if not toc_texts:
@@ -15669,7 +15971,7 @@ def _writer_restore_toc_field(document_xml: str, source_html: str) -> str:
     for expected in toc_texts:
         found = next((
             index for index in range(cursor, len(paragraphs))
-            if _paragraph_plain_text(paragraphs[index].group(0)).strip() == expected
+            if _paragraph_match_key(paragraphs[index].group(0)) == re.sub(r"[^\w]+", "", expected, flags=re.UNICODE).casefold()
         ), None)
         if found is None:
             return document_xml
@@ -15693,6 +15995,64 @@ def _writer_restore_toc_field(document_xml: str, source_html: str) -> str:
     last = replacements.get(last_index, paragraphs[last_index].group(0))
     replacements[last_index] = re.sub(r"</w:p\s*>", end + "</w:p>", last, count=1, flags=re.IGNORECASE)
 
+    output: list[str] = []
+    previous = 0
+    for index, paragraph in enumerate(paragraphs):
+        output.append(document_xml[previous:paragraph.start()])
+        output.append(replacements.get(index, paragraph.group(0)))
+        previous = paragraph.end()
+    output.append(document_xml[previous:])
+    return "".join(output)
+
+
+def _writer_restore_tof_field(document_xml: str, source_html: str) -> str:
+    """Turn a Writer caption list into Word's native table-of-figures TOC field."""
+    if re.search(r"<w:instrText\b[^>]*>[\s\S]*?\bTOC\b[^<]*\\c\b", document_xml, re.IGNORECASE):
+        return document_xml
+    word_label, fallback_texts = _writer_tof_fallback_texts(source_html)
+    if not word_label or not fallback_texts:
+        return document_xml
+    paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+    matched: list[int] = []
+    cursor = 0
+    for expected in fallback_texts:
+        found = next((
+            index for index in range(cursor, len(paragraphs))
+            if _paragraph_match_key(paragraphs[index].group(0)) == re.sub(r"[^\w]+", "", expected, flags=re.UNICODE).casefold()
+        ), None)
+        if found is None:
+            return document_xml
+        matched.append(found)
+        cursor = found + 1
+    begin = (
+        '<w:r><w:fldChar w:fldCharType="begin" w:dirty="true"/></w:r>'
+        f'<w:r><w:instrText xml:space="preserve"> TOC \\h \\c "{html.escape(word_label)}" </w:instrText></w:r>'
+        '<w:r><w:fldChar w:fldCharType="separate"/></w:r>'
+    )
+    end = '<w:r><w:fldChar w:fldCharType="end"/></w:r>'
+    replacements: dict[int, str] = {}
+    def with_paragraph_style(paragraph: str, style_id: str) -> str:
+        ppr = re.search(r"<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>", paragraph, re.IGNORECASE)
+        style = f'<w:pStyle w:val="{style_id}"/>'
+        if ppr:
+            body = re.sub(r"<w:pStyle\b[^>]*/>|<w:pStyle\b[^>]*>[\s\S]*?</w:pStyle\s*>", "", ppr.group(0), count=1, flags=re.IGNORECASE)
+            body = re.sub(r"(<w:pPr\b[^>]*>)", rf"\1{style}", body, count=1, flags=re.IGNORECASE)
+            paragraph = paragraph[:ppr.start()] + body + paragraph[ppr.end():]
+        else:
+            paragraph = re.sub(r"(<w:p\b[^>]*>)", rf"\1<w:pPr>{style}</w:pPr>", paragraph, count=1, flags=re.IGNORECASE)
+        return paragraph
+
+    first_index, last_index = matched[0], matched[-1]
+    for index, paragraph in enumerate(paragraphs):
+        block = paragraph.group(0)
+        if re.search(rf"\bSEQ\s+{re.escape(word_label)}\b", block, re.IGNORECASE):
+            replacements[index] = with_paragraph_style(block, "Caption")
+    first = with_paragraph_style(replacements.get(first_index, paragraphs[first_index].group(0)), "TableofFigures")
+    ppr = re.search(r"<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>", first, re.IGNORECASE)
+    insert_at = ppr.end() if ppr else re.search(r"<w:p\b[^>]*>", first, re.IGNORECASE).end()
+    replacements[first_index] = first[:insert_at] + begin + first[insert_at:]
+    last = with_paragraph_style(replacements.get(last_index, paragraphs[last_index].group(0)), "TableofFigures")
+    replacements[last_index] = re.sub(r"</w:p\s*>", end + "</w:p>", last, count=1, flags=re.IGNORECASE)
     output: list[str] = []
     previous = 0
     for index, paragraph in enumerate(paragraphs):
@@ -16786,6 +17146,121 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
         return docx_bytes
     document_xml = document_bytes.decode("utf-8", errors="replace")
     document_xml = _remove_duplicate_adjacent_writer_tables(document_xml, source_html)
+    # New Writer tables use a 100% HTML width. LibreOffice's HTML import may
+    # export that as a tiny fixed-width table (measured at 50 pt on a 6.5 in
+    # Word text area), so restore the page text width and evenly sized grid.
+    # Imported tables carry explicit cell widths/data-vno-lo-width and stay on
+    # the existing preservation path below.
+    html_tables = list(re.finditer(r"<table\b([^>]*)>([\s\S]*?)</table\s*>", source_html, re.IGNORECASE))
+    xml_tables = list(re.finditer(r"<w:tbl\b[\s\S]*?</w:tbl\s*>", document_xml, re.IGNORECASE))
+    section = re.search(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", document_xml, re.IGNORECASE)
+    page_width = 0
+    if section:
+        size = re.search(r"<w:pgSz\b([^>]*)/?>", section.group(0), re.IGNORECASE)
+        margins = re.search(r"<w:pgMar\b([^>]*)/?>", section.group(0), re.IGNORECASE)
+        page_twips = int(re.search(r'\bw:w=["\'](\d+)', size.group(1), re.IGNORECASE).group(1)) if size and re.search(r'\bw:w=["\'](\d+)', size.group(1), re.IGNORECASE) else 0
+        left = int(re.search(r'\bw:left=["\'](\d+)', margins.group(1), re.IGNORECASE).group(1)) if margins and re.search(r'\bw:left=["\'](\d+)', margins.group(1), re.IGNORECASE) else 0
+        right = int(re.search(r'\bw:right=["\'](\d+)', margins.group(1), re.IGNORECASE).group(1)) if margins and re.search(r'\bw:right=["\'](\d+)', margins.group(1), re.IGNORECASE) else 0
+        page_width = max(0, page_twips - left - right)
+    if page_width and len(html_tables) == len(xml_tables):
+        for index in range(len(html_tables) - 1, -1, -1):
+            html_table = html_tables[index]
+            opening, body = html_table.group(1), html_table.group(2)
+            if "data-vno-lo-width" in opening.lower() or not re.search(r"\bwidth\s*:\s*100\s*%", opening, re.IGNORECASE):
+                continue
+            first_row = re.search(r"<tr\b[^>]*>([\s\S]*?)</tr\s*>", body, re.IGNORECASE)
+            cells = list(re.finditer(r"<t[dh]\b([^>]*)>", first_row.group(1), re.IGNORECASE)) if first_row else []
+            if not cells or any(re.search(r"\bwidth\s*=", cell.group(1), re.IGNORECASE) for cell in cells):
+                continue
+            explicit_px: dict[int, int] = {}
+            unsupported_explicit_width = False
+            for col_index, cell in enumerate(cells):
+                style = re.search(r'\bstyle=["\']([^"\']*)["\']', cell.group(1), re.IGNORECASE)
+                width_style = re.search(r"(?:^|;)\s*width\s*:\s*([\d.]+)(px|cm)\s*(?:;|$)", style.group(1), re.IGNORECASE) if style else None
+                if not width_style:
+                    if style and re.search(r"(?:^|;)\s*width\s*:", style.group(1), re.IGNORECASE):
+                        unsupported_explicit_width = True
+                    continue
+                value, unit = float(width_style.group(1)), width_style.group(2).lower()
+                if unit == "cm":
+                    unsupported_explicit_width = True
+                    break
+                explicit_px[col_index] = max(1, int(round(value * 15)))
+            if unsupported_explicit_width or len(explicit_px) >= len(cells):
+                continue
+            table = xml_tables[index].group(0)
+            grid = re.search(r"<w:tblGrid\b[^>]*>([\s\S]*?)</w:tblGrid\s*>", table, re.IGNORECASE)
+            if not grid:
+                continue
+            columns = list(re.finditer(r'<w:gridCol\b[^>]*w:w=["\']\d+["\'][^>]*/?>', grid.group(1), re.IGNORECASE))
+            if not columns:
+                continue
+            fixed_columns = {column: width for column, width in explicit_px.items() if column < len(columns)}
+            if sum(fixed_columns.values()) >= page_width:
+                continue
+            flexible = [column for column in range(len(columns)) if column not in fixed_columns]
+            base, remainder = divmod(page_width - sum(fixed_columns.values()), len(flexible))
+            widths = [fixed_columns[column] if column in fixed_columns else base + (1 if flexible.index(column) < remainder else 0) for column in range(len(columns))]
+            grid_xml = "<w:tblGrid>" + "".join(f'<w:gridCol w:w="{width}"/>' for width in widths) + "</w:tblGrid>"
+            table = table[:grid.start()] + grid_xml + table[grid.end():]
+            tbl_width = re.search(r"<w:tblW\b[^>]*/?>", table, re.IGNORECASE)
+            width_xml = f'<w:tblW w:w="{page_width}" w:type="dxa"/>'
+            if tbl_width:
+                table = table[:tbl_width.start()] + width_xml + table[tbl_width.end():]
+            else:
+                tbl_pr = re.search(r"<w:tblPr\b[^>]*>", table, re.IGNORECASE)
+                if tbl_pr:
+                    table = table[:tbl_pr.end()] + width_xml + table[tbl_pr.end():]
+            grid_index = 0
+            def set_row_cell_widths(row_match: re.Match) -> str:
+                nonlocal grid_index
+                row = row_match.group(0)
+                def set_cell_width(cell_match: re.Match) -> str:
+                    nonlocal grid_index
+                    cell = cell_match.group(0)
+                    span = re.search(r'<w:gridSpan\b[^>]*w:val=["\'](\d+)["\']', cell, re.IGNORECASE)
+                    count = int(span.group(1)) if span else 1
+                    target = sum(widths[grid_index:min(grid_index + count, len(widths))])
+                    grid_index += count
+                    tcw = re.search(r"<w:tcW\b[^>]*/?>", cell, re.IGNORECASE)
+                    tcw_xml = f'<w:tcW w:w="{target}" w:type="dxa"/>'
+                    if tcw:
+                        return cell[:tcw.start()] + tcw_xml + cell[tcw.end():]
+                    tc_pr = re.search(r"<w:tcPr\b[^>]*>", cell, re.IGNORECASE)
+                    if tc_pr:
+                        return cell[:tc_pr.end()] + tcw_xml + cell[tc_pr.end():]
+                    return re.sub(r"(<w:tc\b[^>]*>)", rf"\1<w:tcPr>{tcw_xml}</w:tcPr>", cell, count=1, flags=re.IGNORECASE)
+                grid_index = 0
+                return re.sub(r"<w:tc\b[\s\S]*?</w:tc\s*>", set_cell_width, row, flags=re.IGNORECASE)
+            table = re.sub(r"<w:tr\b[\s\S]*?</w:tr\s*>", set_row_cell_widths, table, flags=re.IGNORECASE)
+            document_xml = document_xml[:xml_tables[index].start()] + table + document_xml[xml_tables[index].end():]
+            # Earlier replacements change offsets, so rebuild the table ranges.
+            xml_tables = list(re.finditer(r"<w:tbl\b[\s\S]*?</w:tbl\s*>", document_xml, re.IGNORECASE))
+
+    # Explicit AutoFit commands carry a private HTML marker so Word opens the
+    # table with the matching native layout mode after LibreOffice conversion.
+    xml_tables = list(re.finditer(r"<w:tbl\b[\s\S]*?</w:tbl\s*>", document_xml, re.IGNORECASE))
+    if len(html_tables) == len(xml_tables):
+        for index in range(len(html_tables) - 1, -1, -1):
+            opening = html_tables[index].group(1)
+            marker = re.search(r'data-vno-table-autofit=["\'](contents|window)["\']', opening, re.IGNORECASE)
+            if not marker:
+                continue
+            mode = marker.group(1).lower()
+            table = xml_tables[index].group(0)
+            width_xml = '<w:tblW w:w="0" w:type="auto"/>' if mode == "contents" else '<w:tblW w:w="5000" w:type="pct"/>'
+            tbl_width = re.search(r"<w:tblW\b[^>]*/?>", table, re.IGNORECASE)
+            if tbl_width:
+                table = table[:tbl_width.start()] + width_xml + table[tbl_width.end():]
+            layout = re.search(r"<w:tblLayout\b[^>]*/?>", table, re.IGNORECASE)
+            if layout:
+                table = table[:layout.start()] + table[layout.end():]
+            grid = re.search(r"<w:tblGrid\b[^>]*>([\s\S]*?)</w:tblGrid\s*>", table, re.IGNORECASE)
+            column_count = len(re.findall(r"<w:gridCol\b", grid.group(1), re.IGNORECASE)) if grid else 1
+            cell_width = '<w:tcW w:w="0" w:type="auto"/>' if mode == "contents" else f'<w:tcW w:w="{max(1, round(5000 / column_count))}" w:type="pct"/>'
+            table = re.sub(r"<w:tc\b[\s\S]*?</w:tc\s*>", lambda cell: re.sub(r"<w:tcW\b[^>]*/>", cell_width, cell.group(0), count=1, flags=re.IGNORECASE), table, flags=re.IGNORECASE)
+            document_xml = document_xml[:xml_tables[index].start()] + table + document_xml[xml_tables[index].end():]
+            xml_tables = list(re.finditer(r"<w:tbl\b[\s\S]*?</w:tbl\s*>", document_xml, re.IGNORECASE))
     indent_by_text: dict[str, int] = {}
     for match in re.finditer(r"<p\b(?=[^>]*\bstyle=([\"'])([^\"']*)\1)[^>]*>([\s\S]*?)</p\s*>", source_html, re.IGNORECASE):
         indent = re.search(r"(?:^|;)\s*text-indent\s*:\s*([\d.]+)cm\s*(?:;|$)", match.group(2), re.IGNORECASE)
@@ -17140,6 +17615,45 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
 
         document_xml = re.sub(r'<w:tbl\b[\s\S]*?</w:tbl\s*>', patch_table, document_xml, flags=re.IGNORECASE)
 
+    # A row resize in the Writer canvas is stored as an explicit pixel height
+    # on <tr>. Preserve it as Word's exact row-height rule when HTML import
+    # omits the corresponding w:trHeight.
+    html_table_rows: list[list[int | None]] = []
+    for table_match in re.finditer(r'<table\b[^>]*>([\s\S]*?)</table\s*>', source_html, re.IGNORECASE):
+        body = table_match.group(1)
+        row_heights: list[int | None] = []
+        for row_match in re.finditer(r'<tr\b([^>]*)>', body, re.IGNORECASE):
+            style = re.search(r'\bstyle=["\']([^"\']*)["\']', row_match.group(1), re.IGNORECASE)
+            height = re.search(r'(?:^|;)\s*height\s*:\s*([\d.]+)px\s*(?:;|$)', style.group(1), re.IGNORECASE) if style else None
+            row_heights.append(int(round(float(height.group(1)) * 15)) if height else None)
+        html_table_rows.append(row_heights)
+    current_xml_tables = list(re.finditer(r'<w:tbl\b[\s\S]*?</w:tbl\s*>', document_xml, re.IGNORECASE))
+    if len(html_table_rows) == len(current_xml_tables):
+        for table_index in range(len(current_xml_tables) - 1, -1, -1):
+            heights = html_table_rows[table_index]
+            if not any(height is not None for height in heights):
+                continue
+            table = current_xml_tables[table_index].group(0)
+            rows = list(re.finditer(r'<w:tr\b[\s\S]*?</w:tr\s*>', table, re.IGNORECASE))
+            if len(rows) != len(heights):
+                continue
+            for row_index in range(len(rows) - 1, -1, -1):
+                twips = heights[row_index]
+                if twips is None:
+                    continue
+                row = rows[row_index].group(0)
+                tr_height = f'<w:trHeight w:val="{twips}" w:hRule="exact"/>'
+                tr_pr = re.search(r'<w:trPr\b[^>]*>', row, re.IGNORECASE)
+                if tr_pr:
+                    existing = re.search(r'<w:trHeight\b[^>]*/?>', row, re.IGNORECASE)
+                    row = row[:existing.start()] + tr_height + row[existing.end():] if existing else row[:tr_pr.end()] + tr_height + row[tr_pr.end():]
+                else:
+                    row = re.sub(r'(<w:tr\b[^>]*>)', rf'\1<w:trPr>{tr_height}</w:trPr>', row, count=1, flags=re.IGNORECASE)
+                table = table[:rows[row_index].start()] + row + table[rows[row_index].end():]
+            current_xml_tables = list(re.finditer(r'<w:tbl\b[\s\S]*?</w:tbl\s*>', document_xml, re.IGNORECASE))
+            match = current_xml_tables[table_index]
+            document_xml = document_xml[:match.start()] + table + document_xml[match.end():]
+
     # W22g: Khôi phục tab stop (<w:tabs><w:tab w:val="left" w:pos="..."/>)
     # LibreOffice HTML import bỏ qua CSS tab-size trên đoạn văn.
     tab_stops_by_text: dict[str, int] = {}
@@ -17186,11 +17700,23 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
     styles_xml = styles_bytes.decode("utf-8", errors="replace") if styles_bytes else ""
     if styles_xml:
         document_xml, styles_xml = _writer_restore_heading_styles(document_xml, styles_xml, source_html)
+        document_xml, styles_xml = _writer_apply_word_default_heading_styles_for_new_documents(
+            document_xml, styles_xml, source_html
+        )
+    document_xml = _writer_apply_word_default_textbox_margins_for_new_documents(document_xml, source_html)
+    document_xml = _writer_restore_caption_sequence_fields(document_xml)
+    document_xml = _writer_restore_tof_field(document_xml, source_html)
     document_xml = _writer_restore_toc_field(document_xml, source_html)
     replacements = {"word/document.xml": document_xml.encode("utf-8")}
     if styles_bytes and styles_xml != styles_bytes.decode("utf-8", errors="replace"):
         replacements["word/styles.xml"] = styles_xml.encode("utf-8")
-    if _writer_toc_fallback_texts(source_html):
+    theme_bytes = read_zip_entry(docx_bytes, "word/theme/theme1.xml")
+    if theme_bytes:
+        theme_xml = theme_bytes.decode("utf-8", errors="replace")
+        word_theme_xml = _writer_apply_word_default_heading_theme_for_new_documents(theme_xml, source_html)
+        if word_theme_xml != theme_xml:
+            replacements["word/theme/theme1.xml"] = word_theme_xml.encode("utf-8")
+    if _writer_toc_fallback_texts(source_html) or _writer_tof_fallback_texts(source_html)[1]:
         settings_bytes = read_zip_entry(docx_bytes, "word/settings.xml")
         if settings_bytes:
             settings_xml = settings_bytes.decode("utf-8", errors="replace")
@@ -17290,6 +17816,8 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             else:
                 settings_xml = re.sub(r"<w:evenAndOddHeaders\b[^>]*/>", "", settings_xml, flags=re.IGNORECASE)
             replacements["word/settings.xml"] = settings_xml.encode("utf-8")
+    document_xml = _writer_restore_native_writer_shapes(document_xml, source_html)
+    replacements["word/document.xml"] = document_xml.encode("utf-8")
     return patch_ooxml_zip(docx_bytes, replacements)
 
 

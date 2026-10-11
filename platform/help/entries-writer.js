@@ -525,7 +525,7 @@ export const WRITER_HELP_ENTRIES = [
     ribbon: { tab: "Chèn", tabId: "insert", group: "Văn bản" },
     keywords: ["hộp văn bản", "textbox", "khung chữ", "ngày giờ", "date time", "dd/mm/yyyy", "chèn ngày"],
     steps: [
-      "Đặt con trỏ tại đoạn cần neo khung, rồi mở tab Chèn > nhóm Văn bản > Hộp văn bản. Khung viền xanh 220×80 px xuất hiện tại vị trí con trỏ; chữ mẫu «Nhập văn bản» được chọn sẵn, nên có thể gõ ngay để thay thế. Kéo khung để đặt lại hoặc kéo góc để đổi cỡ.",
+      "Đặt con trỏ tại đoạn cần neo khung, rồi mở tab Chèn > nhóm Văn bản > Hộp văn bản. Khung viền xanh có kích thước khởi tạo chuẩn xuất hiện tại vị trí con trỏ; chữ mẫu «Nhập văn bản» được chọn sẵn, nên có thể gõ ngay để thay thế. Kéo khung để đặt lại hoặc kéo góc để đổi cỡ; kích thước sau lưu giữ nguyên.",
       "Ngày & Giờ (cột nhỏ, dưới Chữ đầu đoạn): hộp thoại liệt kê 5 mẫu với giá trị lúc bấm — dd/MM/yyyy, dd/MM/yyyy HH:mm, dạng dài «12 tháng 9 năm 2026», yyyy-MM-dd, HH:mm. Chọn mẫu rồi Chèn.",
       "Chuỗi ngày giờ nằm tại con trỏ dạng span, không tự cập nhật sau khi chèn. Esc hoặc Hủy đóng hộp thoại.",
       "Cùng nhóm còn Chữ nghệ thuật (bài riêng) và Chữ đầu đoạn. Ctrl+Z gỡ khung hoặc chuỗi vừa chèn."
@@ -617,12 +617,12 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.style.gallery", "writer.style.normal", "writer.style.apply", "writer.style.heading1", "writer.style.heading2", "writer.style.heading3"],
     title: "Thư viện kiểu và kiểu Thường",
-    summary: "Dải kiểu nhanh trên tab Trang đầu và nút Thư viện kiểu áp 7 kiểu dáng định dạng sẵn: Tiêu đề, Normal, Tiêu đề 1/2/3, Trích dẫn, Nhấn mạnh. Hỗ trợ phím tắt quen thuộc: Ctrl+Alt+1 (Heading 1), Ctrl+Alt+2 (Heading 2), Ctrl+Alt+3 (Heading 3) và Ctrl+Shift+N (Normal).",
+    summary: "Dải kiểu nhanh trên tab Trang đầu và nút Thư viện kiểu áp 7 kiểu dáng định dạng sẵn. Tiêu đề 1/2/3 trong tài liệu mới dùng cỡ chữ, phông, màu theme và khoảng cách theo chuẩn kiểu dáng tài liệu; tài liệu DOCX mở sẵn giữ nguyên định dạng nguồn. Hỗ trợ Ctrl+Alt+1/2/3 để áp dụng Heading 1/2/3 và Ctrl+Shift+N để về Normal.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Kiểu dáng" },
     keywords: ["thư viện kiểu", "styles gallery", "tiêu đề", "normal", "tiêu đề 1", "tiêu đề 2", "tiêu đề 3", "heading", "ctrl+alt+1", "ctrl+alt+2", "ctrl+alt+3", "ctrl+shift+n", "trích dẫn", "nhấn mạnh"],
     steps: [
       "Mở tab Trang đầu, nhóm Kiểu dáng: nhấp nút lớn Thư viện kiểu (hoặc chọn nhanh từ dải thẻ Normal, Tiêu đề 1/2/3 hiển thị trực tiếp trên ribbon).",
-      "Hộp thoại Thư viện Kiểu dáng mở ra với 7 kiểu định dạng: Tiêu đề (chữ đậm màu xanh 18 pt căn giữa), Normal (văn bản thường, 14 pt Times New Roman), Tiêu đề 1 (chữ hoa 16 pt xanh), Tiêu đề 2 (14 pt đậm), Tiêu đề 3 (13 pt đậm nghiêng), Trích dẫn (khối thụt lề có viền bên trái), Nhấn mạnh (chữ nghiêng màu hổ phách #b45309).",
+      "Hộp thoại Thư viện Kiểu dáng mở ra với 7 kiểu định dạng. Tiêu đề 1/2/3 tạo cấp mục để điều hướng và lập mục lục; trong tài liệu mới, DOCX dùng cỡ 16/13/12 pt cùng phông và màu theme theo chuẩn kiểu dáng. Khi mở DOCX có sẵn, kiểu nguồn được giữ nguyên.",
       "Điều hướng bằng bàn phím: nhấn phím Tab để di chuyển xoay vòng giữa các thẻ kiểu dáng trong danh sách (giữ phím Shift khi nhấn Tab để di chuyển ngược lại); dùng các phím mũi tên Lên/Xuống/Trái/Phải để chuyển chọn thẻ; nhấn phím Enter để áp dụng ngay kiểu đang chọn; nhấn Esc hoặc nhấp ra ngoài để đóng hộp thoại mà không thay đổi.",
       "Phím tắt nhanh quen thuộc: nhấn Ctrl+Alt+1 để chuyển đoạn văn thành Tiêu đề 1 (Heading 1 / thẻ H1); nhấn Ctrl+Alt+2 cho Tiêu đề 2 (Heading 2 / thẻ H2); nhấn Ctrl+Alt+3 cho Tiêu đề 3 (Heading 3 / thẻ H3).",
       "Nhấn Ctrl+Shift+N (Kiểu Thường) để đưa đoạn văn bản đang đứng về kiểu Normal, gỡ bỏ nhanh lớp tiêu đề, trích dẫn hoặc nhấn mạnh mà không cần bôi đen toàn bộ đoạn.",
@@ -777,14 +777,14 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.page.margins", "writer.page.orientation", "writer.page.size", "writer.page.setupDialog"],
     title: "Lề, hướng giấy và khổ giấy",
-    summary: "Ba nút mở cùng hộp «Thiết lập trang». Mặc định A4 dọc, lề trên/dưới 20 mm, trái 30 mm, phải 15 mm (NĐ 30). Khổ: A4, Letter, Legal. Hướng: Dọc / Ngang. Lề 0–100 mm.",
+    summary: "Ba nút mở cùng hộp «Thiết lập trang». Có preset lề Normal, Narrow, Moderate, Wide hoặc nhập mm; khổ A4, A5, Letter, Legal; hướng Dọc/Ngang.",
     ribbon: { tab: "Bố cục", tabId: "layout", group: "Thiết lập trang" },
     keywords: ["căn lề", "lề trang", "hướng giấy", "khổ giấy", "a4", "nđ 30", "portrait", "landscape", "thiết lập trang"],
     steps: [
       "Tab Bố cục, nhóm Thiết lập trang: Căn lề, Hướng giấy, Khổ giấy (ba nút lớn). Cả ba mở hộp «Thiết lập trang» — Hướng giấy đặt tiêu điểm vào hướng; Căn lề và Khổ giấy đặt tiêu điểm vào khổ.",
-      "Khổ giấy: A4 (210 × 297 mm, mặc định), Letter (215.9 × 279.4 mm), Legal (216 × 356 mm). Khi mở DOCX có khổ không chuẩn, hộp hiển thị Tùy chỉnh kèm kích thước gốc và Doc giữ nguyên kích thước đó khi lưu. Hướng: Dọc (Portrait) hoặc Ngang (Landscape).",
-      "Lề trên / dưới / trái / phải (mm), mỗi ô 0–100. Mặc định trên 20, dưới 20, trái 30, phải 15 — đúng lề văn bản hành chính NĐ 30. Áp dụng / Hủy bỏ.",
-      "Không có gallery Narrow/Wide như các phần mềm soạn thảo văn bản khác — chỉ số mm. Thước trên tab Chế độ xem phản ánh lề trái/phải sau khi áp dụng. Ctrl+Z hoàn tác."
+      "Khổ giấy: A4 (210 × 297 mm), A5 (148 × 210 mm), Letter (215.9 × 279.4 mm), Legal (216 × 356 mm). Khi mở DOCX có khổ không chuẩn, hộp hiển thị Tùy chỉnh kèm kích thước gốc và Doc giữ nguyên kích thước đó khi lưu. Hướng: Dọc (Portrait) hoặc Ngang (Landscape).",
+      "Mở Đặt sẵn lề và chọn Normal (25,4 mm bốn phía), Narrow (12,7 mm), Moderate (trên/dưới 25,4; trái/phải 19,05), hoặc Wide (trên/dưới 25,4; trái/phải 50,8). Chọn Tùy chỉnh để nhập từng lề 0–100 mm. Mặc định tài liệu mới vẫn theo NĐ 30.",
+      "Sau khi chọn khổ, hướng và preset hoặc nhập lề, nhấn Áp dụng cho Mục này hoặc Toàn bộ tài liệu. Thước trên tab Chế độ xem phản ánh lề trái/phải sau khi áp dụng. Ctrl+Z hoàn tác."
     ]
   },
   {
@@ -1319,6 +1319,8 @@ export const WRITER_HELP_ENTRIES = [
     commandIds: [
       "writer.table.mergeCells",
       "writer.table.splitCells",
+      "writer.table.autoFitContents",
+      "writer.table.autoFitWindow",
       "writer.table.distributeRows",
       "writer.table.distributeCols",
       "writer.table.alignTop",
@@ -1326,13 +1328,14 @@ export const WRITER_HELP_ENTRIES = [
       "writer.table.alignBottom"
     ],
     title: "Gộp, tách ô, phân bố kích thước và căn lề ô",
-    summary: "Gộp nhiều ô thành một; khi tách ô đã gộp, khôi phục số hàng và cột ban đầu. Có thể phân bố kích thước hàng cột đồng đều và căn chỉnh chữ trong ô.",
+    summary: "Gộp/tách ô, tự động vừa bảng theo nội dung hoặc chiều rộng trang, phân bố hàng cột và căn chỉnh chữ trong ô.",
     ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Hợp nhất" },
     keywords: ["gộp ô", "tách ô", "merge cells", "split cells", "phân bố đều", "distribute rows", "distribute columns", "căn lề ô", "căn đỉnh", "căn giữa dọc", "căn đáy"],
     steps: [
       "Kéo chuột quét chọn ít nhất hai ô liền kề trong bảng, sau đó tại nhóm Hợp nhất trên tab Bố cục Bảng, nhấp «Gộp ô» để hợp nhất thành một ô lớn. Nếu chưa chọn đủ hai ô, ứng dụng sẽ báo cách khắc phục; nội dung chữ giữa các ô được nối lại tự động.",
       "Để tách ô đã gộp, đặt con trỏ vào ô đó rồi nhấp «Tách ô». Các ô trống được tạo lại theo số hàng và cột của vùng đã gộp; một lần Ctrl+Z hoàn tác lần tách vừa thực hiện.",
       "Trong nhóm Kích cỡ ô, nhấp «Phân bố đều hàng» để cân bằng chiều cao các dòng, hoặc «Phân bố đều cột» để chia lại chiều rộng các cột đều nhau 100%. Bạn cũng có thể rê chuột vào vạch ngăn giữa hai cột để kéo chuột chỉnh độ rộng từng cột tùy ý.",
+      "Để bảng co theo nội dung, đặt con trỏ trong bảng, mở Bố cục Bảng > Kích cỡ ô và nhấp «Vừa nội dung». Để bảng phủ hết vùng soạn thảo giữa hai lề trang, nhấp «Vừa cửa sổ». Hai lệnh tự bỏ độ rộng cột đã đặt trước đó; dùng Ctrl+Z để hoàn tác.",
       "Trong nhóm Căn lề ô, nhấp «Căn đỉnh ô», «Căn giữa dọc ô» hoặc «Căn đáy ô» để bố trí vị trí chữ theo chiều dọc bên trong ô theo đúng ý muốn."
     ]
   },
@@ -1403,10 +1406,14 @@ export const WRITER_HELP_ENTRIES = [
   "app": "writer",
   "commandIds": [
     "writer.table.cellBg",
-    "writer.table.borders"
+    "writer.table.borders",
+    "writer.table.bordersAll",
+    "writer.table.bordersOutside",
+    "writer.table.bordersInside",
+    "writer.table.bordersNone"
   ],
   "title": "Tô màu ô và đường viền bảng",
-  "summary": "Thay đổi màu nền ô (tô màu ô) và chọn các kiểu đường viền bảng trên nhóm Màu & Viền thuộc tab ngữ cảnh Thiết kế Bảng.",
+  "summary": "Tô nền ô và chọn viền ngoài, viền trong, tất cả đường viền hoặc ẩn viền trên tab ngữ cảnh Thiết kế Bảng.",
   "ribbon": {
     "tab": "Thiết kế Bảng",
     "tabId": "tableDesign",
@@ -1423,8 +1430,8 @@ export const WRITER_HELP_ENTRIES = [
   "steps": [
     "Đặt con trỏ vào ô hoặc bôi đen khối ô cần tô màu / tạo viền trong bảng.",
     "Chuyển sang tab ngữ cảnh Thiết kế Bảng, nhìn tới nhóm Màu & Viền.",
-    "Bấm nút «Tô màu ô» để chọn màu nền cho ô đang chọn từ bảng màu.",
-    "Bấm nút «Đường viền bảng» để chọn kiểu viền (Viền ngoài, Viền trong, Xóa viền hoặc Tất cả đường viền). Bấm Ctrl+Z để hoàn tác."
+    "Bấm nút «Tô màu ô» để tô ô đang chọn bằng màu nền hiện tại.",
+    "Mở mũi tên «Đường viền bảng», rồi chọn «Tất cả đường viền», «Viền ngoài», «Viền trong» hoặc «Không viền». Khi đã chọn một vùng ô, các lệnh áp dụng quanh hoặc bên trong vùng đó. Bấm Ctrl+Z để hoàn tác."
   ]
 },
 {

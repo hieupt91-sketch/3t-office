@@ -102,16 +102,23 @@ function writerEquationMarkerToken(id) {
 }
 
 // Kích thước khổ giấy chuẩn (mm, khổ dọc — hoán đổi W/H khi ngang)
-const PAGE_SIZES_MM = {
+export const PAGE_SIZES_MM = {
   a4: { label: "A4 (210 × 297 mm)", w: 210, h: 297 },
   // W52: 8.5×11 in = 215.9×279.4 mm. 216×279 mm làm trang 1054.5px, usable 862px
   // (Word 864). d21 trang 9: 362+19+52.9+429 = 862.9 > 862; d16 đoạn 3 dòng rh 64.55 không vừa.
   letter: { label: "Letter (215.9 × 279.4 mm)", w: 215.9, h: 279.4 },
+  a5: { label: "A5 (148 × 210 mm)", w: 148, h: 210 },
   legal: { label: "Legal (216 × 356 mm)", w: 216, h: 356 },
   dl: { label: ENVELOPE_SIZES.dl.label, w: ENVELOPE_SIZES.dl.w, h: ENVELOPE_SIZES.dl.h },
   c5: { label: ENVELOPE_SIZES.c5.label, w: ENVELOPE_SIZES.c5.w, h: ENVELOPE_SIZES.c5.h },
   number10: { label: ENVELOPE_SIZES.number10.label, w: ENVELOPE_SIZES.number10.w, h: ENVELOPE_SIZES.number10.h }
 };
+export const PAGE_MARGIN_PRESETS = Object.freeze({
+  normal: Object.freeze({ top: 25.4, bottom: 25.4, left: 25.4, right: 25.4 }),
+  narrow: Object.freeze({ top: 12.7, bottom: 12.7, left: 12.7, right: 12.7 }),
+  moderate: Object.freeze({ top: 25.4, bottom: 25.4, left: 19.05, right: 19.05 }),
+  wide: Object.freeze({ top: 25.4, bottom: 25.4, left: 50.8, right: 50.8 })
+});
 
 // Lề mặc định theo Nghị định 30/2020/NĐ-CP: Trên 20mm, Dưới 20mm, Trái 30mm, Phải 15mm
 const DEFAULT_MARGINS_MM = { top: 20, bottom: 20, left: 30, right: 15 };
@@ -282,6 +289,7 @@ export class WriterAdapter {
     this.editorDom = editorDom;
     this.documentContent = "";
     this.isDirty = false;
+    this.isNewApplicationDocument = true;
     this._openedEditorDomHash = null;
     this.sourceFileName = "TaiLieu";
     this.pageSetup = {
@@ -412,11 +420,13 @@ export class WriterAdapter {
       this.headerDom = null;
       this.bodyDom = this.editorDom;
       this.footerDom = null;
+      this.bodyDom?.classList?.toggle?.("vno-new-application-document", Boolean(this.isNewApplicationDocument));
       return;
     }
     this.headerDom = this.editorDom.querySelector(".vno-writer-header");
     this.bodyDom = this.editorDom.querySelector(".vno-writer-body") || this.editorDom;
     this.footerDom = this.editorDom.querySelector(".vno-writer-footer");
+    this.bodyDom?.classList?.toggle?.("vno-new-application-document", Boolean(this.isNewApplicationDocument));
   }
 
   _bindEquationInteractions() {
@@ -1015,6 +1025,44 @@ export class WriterAdapter {
     this.isDirty = true;
     this.recordSnapshot("writer.table.autoFitColumn");
     return computedWidth;
+  }
+
+  autoFitTableContents() {
+    const table = this._getActiveTable();
+    if (!table || !table.rows?.length) return false;
+    for (const row of table.rows) {
+      for (const cell of row.cells || []) {
+        if (cell.colSpan > 1 || cell.rowSpan > 1) return false;
+      }
+    }
+    for (const cell of table.querySelectorAll("td, th")) {
+      cell.style.width = "";
+    }
+    table.style.width = "auto";
+    table.style.tableLayout = "auto";
+    table.dataset.vnoTableAutofit = "contents";
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.autoFitContents");
+    return true;
+  }
+
+  autoFitTableWindow() {
+    const table = this._getActiveTable();
+    if (!table || !table.rows?.length) return false;
+    for (const row of table.rows) {
+      for (const cell of row.cells || []) {
+        if (cell.colSpan > 1 || cell.rowSpan > 1) return false;
+      }
+    }
+    for (const cell of table.querySelectorAll("td, th")) {
+      cell.style.width = "";
+    }
+    table.style.width = "100%";
+    table.style.tableLayout = "auto";
+    table.dataset.vnoTableAutofit = "window";
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.autoFitWindow");
+    return true;
   }
 
   changeCase() {
@@ -7287,6 +7335,12 @@ export class WriterAdapter {
         left: (typeof t === "function" && t("writerDialogs.pageSetup.marginLeft") !== "writerDialogs.pageSetup.marginLeft") ? t("writerDialogs.pageSetup.marginLeft") : "Lề trái",
         right: (typeof t === "function" && t("writerDialogs.pageSetup.marginRight") !== "writerDialogs.pageSetup.marginRight") ? t("writerDialogs.pageSetup.marginRight") : "Lề phải"
       };
+      const marginPresetLabel = (typeof t === "function" && t("writerDialogs.pageSetup.marginPreset") !== "writerDialogs.pageSetup.marginPreset")
+        ? t("writerDialogs.pageSetup.marginPreset") : "Lề đặt sẵn";
+      const marginPresetNames = {
+        normal: t("writerDialogs.pageSetup.marginNormal"), narrow: t("writerDialogs.pageSetup.marginNarrow"),
+        moderate: t("writerDialogs.pageSetup.marginModerate"), wide: t("writerDialogs.pageSetup.marginWide")
+      };
 
       overlay.innerHTML = `
         <div class="vno-dialog-box" style="width: 420px;" role="dialog" aria-modal="true" aria-labelledby="vno-pagesetup-dialog-title">
@@ -7302,6 +7356,13 @@ export class WriterAdapter {
               <select class="vno-select" id="vno-pagesetup-orientation" style="width:100%;margin-top:4px;">
                 <option value="portrait" ${this.pageSetup.orientation === "portrait" ? "selected" : ""}>${portraitLabel}</option>
                 <option value="landscape" ${this.pageSetup.orientation === "landscape" ? "selected" : ""}>${landscapeLabel}</option>
+              </select>
+            </label>
+            <label style="font-size:13px;font-weight:500;">${marginPresetLabel}
+              <select class="vno-select" id="vno-pagesetup-margin-preset" style="width:100%;margin-top:4px;">
+                <option value="custom" selected>${t("writerDialogs.pageSetup.marginCustom")}</option>
+                <option value="normal">${marginPresetNames.normal}</option><option value="narrow">${marginPresetNames.narrow}</option>
+                <option value="moderate">${marginPresetNames.moderate}</option><option value="wide">${marginPresetNames.wide}</option>
               </select>
             </label>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
@@ -7333,6 +7394,15 @@ export class WriterAdapter {
 
       document.body.appendChild(overlay);
       const dialogBox = overlay.querySelector(".vno-dialog-box");
+      const presetSelect = overlay.querySelector("#vno-pagesetup-margin-preset");
+      presetSelect.addEventListener("change", () => {
+        const preset = PAGE_MARGIN_PRESETS[presetSelect.value];
+        if (!preset) return;
+        for (const [side, value] of Object.entries(preset)) overlay.querySelector(`#vno-pagesetup-margin-${side}`).value = String(value);
+      });
+      for (const side of ["top", "bottom", "left", "right"]) {
+        overlay.querySelector(`#vno-pagesetup-margin-${side}`).addEventListener("input", () => { presetSelect.value = "custom"; });
+      }
       overlay.querySelector(`#vno-pagesetup-${focusField === "orientation" ? "orientation" : "size"}`)?.focus();
 
       const finish = (result) => {
@@ -8272,6 +8342,8 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.table.splitCells", () => this.splitTableCells());
     globalCommandBus.bindHandler("writer.table.distributeRows", () => this.distributeTableRows());
     globalCommandBus.bindHandler("writer.table.distributeCols", () => this.distributeTableCols());
+    globalCommandBus.bindHandler("writer.table.autoFitContents", () => this.autoFitTableContents());
+    globalCommandBus.bindHandler("writer.table.autoFitWindow", () => this.autoFitTableWindow());
     globalCommandBus.bindHandler("writer.table.alignTop", () => this.setTableCellAlign("top"));
     globalCommandBus.bindHandler("writer.table.alignMiddle", () => this.setTableCellAlign("middle"));
     globalCommandBus.bindHandler("writer.table.alignBottom", () => this.setTableCellAlign("bottom"));
@@ -8281,6 +8353,10 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.table.selectTable", () => this.selectTableElements("table"));
     globalCommandBus.bindHandler("writer.table.cellBg", (args) => this.setTableCellBackground(args));
     globalCommandBus.bindHandler("writer.table.borders", (args) => this.setTableBorders(args));
+    globalCommandBus.bindHandler("writer.table.bordersAll", () => this.setTableBorders("all"));
+    globalCommandBus.bindHandler("writer.table.bordersOutside", () => this.setTableBorders("outside"));
+    globalCommandBus.bindHandler("writer.table.bordersInside", () => this.setTableBorders("inside"));
+    globalCommandBus.bindHandler("writer.table.bordersNone", () => this.setTableBorders("none"));
     globalCommandBus.bindHandler("writer.table.toggleHeaderRow", () => this.toggleTableHeaderRow());
     globalCommandBus.bindHandler("writer.table.toggleBandedRows", () => this.toggleTableBandedRows());
   }
@@ -8652,9 +8728,23 @@ export class WriterAdapter {
       ? Array.from(this.tableController.selectedCells)
       : Array.from(table.querySelectorAll("td, th"));
 
-    const borderVal = borderType === "none" ? "none" : "1px solid #94a3b8";
-    for (const c of cells) {
-      c.style.border = borderVal;
+    const bounds = cells.reduce((result, cell) => {
+      const row = cell.parentElement?.rowIndex ?? 0;
+      const col = cell.cellIndex ?? 0;
+      result.minRow = Math.min(result.minRow, row); result.maxRow = Math.max(result.maxRow, row);
+      result.minCol = Math.min(result.minCol, col); result.maxCol = Math.max(result.maxCol, col);
+      return result;
+    }, { minRow: Infinity, maxRow: -1, minCol: Infinity, maxCol: -1 });
+    const borderVal = "1px solid #94a3b8";
+    for (const cell of cells) {
+      const row = cell.parentElement?.rowIndex ?? 0;
+      const col = cell.cellIndex ?? 0;
+      const all = borderType === "all";
+      cell.style.border = "none";
+      cell.style.borderTop = all || (borderType === "outside" && row === bounds.minRow) || (borderType === "inside" && row > bounds.minRow) ? borderVal : "none";
+      cell.style.borderBottom = all || (borderType === "outside" && row === bounds.maxRow) || (borderType === "inside" && row < bounds.maxRow) ? borderVal : "none";
+      cell.style.borderLeft = all || (borderType === "outside" && col === bounds.minCol) || (borderType === "inside" && col > bounds.minCol) ? borderVal : "none";
+      cell.style.borderRight = all || (borderType === "outside" && col === bounds.maxCol) || (borderType === "inside" && col < bounds.maxCol) ? borderVal : "none";
     }
     this.isDirty = true;
     this.recordSnapshot("writer.table.borders");
@@ -9306,6 +9396,40 @@ export class WriterAdapter {
     return inserted || Boolean(target);
   }
 
+  _insertSectionBreakAtCaret(type, id) {
+    const markerHtml = this._buildSectionBreakMarker(type, id);
+    const target = this.bodyDom || this.editorDom;
+    const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+    const range = selection?.rangeCount ? selection.getRangeAt(0) : null;
+    const anchor = range?.startContainer?.nodeType === 1
+      ? range.startContainer
+      : range?.startContainer?.parentElement;
+    const block = anchor?.closest?.("p,h1,h2,h3,h4,h5,h6,blockquote,li");
+
+    if (typeof document !== "undefined" && target?.contains?.(anchor) && block?.parentElement === target && range) {
+      if (!range.collapsed) range.deleteContents();
+      const caret = selection.getRangeAt(0);
+      const tail = caret.cloneRange();
+      tail.setEndAfter(block);
+      const trailingContent = tail.extractContents();
+      const trailingBlock = block.cloneNode(false);
+      trailingBlock.appendChild(trailingContent);
+      if (!trailingBlock.childNodes.length) trailingBlock.appendChild(document.createElement("br"));
+      const holder = document.createElement("div");
+      holder.innerHTML = markerHtml;
+      const marker = holder.firstElementChild;
+      block.after(marker, trailingBlock);
+      const nextCaret = document.createRange();
+      nextCaret.selectNodeContents(trailingBlock);
+      nextCaret.collapse(true);
+      selection.removeAllRanges();
+      selection.addRange(nextCaret);
+      return true;
+    }
+
+    return this._insertHtmlAtCaretOrEnd(`${markerHtml}<p><br></p>`);
+  }
+
   _insertColumnBreak() {
     this.flushTyping();
     this._initZones();
@@ -9333,8 +9457,7 @@ export class WriterAdapter {
     }
     const previousSetup = this.sectionPageSetups[currentActive] || this.pageSetup;
     const id = `section-${++this._sectionSequence}`;
-    const marker = `${this._buildSectionBreakMarker(type, id)}<p><br></p>`;
-    this._insertHtmlAtCaretOrEnd(marker);
+    this._insertSectionBreakAtCaret(type, id);
     this.sectionPageSetups[id] = JSON.parse(JSON.stringify(previousSetup));
     if (!this.sectionHeadersFooters) this.sectionHeadersFooters = {};
     const prevHf = this.sectionHeadersFooters[currentActive] || {
@@ -10451,6 +10574,7 @@ export class WriterAdapter {
       const isTextBox = shape.type === "textbox" || shape.shapeType === "textbox";
       if (isTextBox) {
         el.classList.add("vno-writer-textbox");
+        el.classList.toggle("vno-new-textbox", !shape.imported);
         const text = String(shape.text || "Nhập văn bản").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         el.innerHTML = `<div class="vno-writer-textbox-body" contenteditable="true" role="textbox">${text}</div>${delBtn}<div class="vno-shape-resize-handle vno-handle-se" data-handle-dir="se"></div>`;
         const body = el.querySelector(".vno-writer-textbox-body");
@@ -10746,7 +10870,7 @@ export class WriterAdapter {
         rect = range.commonAncestorContainer.parentElement.getBoundingClientRect?.();
       }
       if (rect) {
-        const width = typeof options.width === "number" ? options.width : 220;
+        const width = typeof options.width === "number" ? options.width : 125.47;
         cursorPosition = {
           x: Math.max(0, Math.min(rect.left - editorRect.left, editorRect.width - width)),
           y: Math.max(0, rect.top - editorRect.top)
@@ -10756,8 +10880,10 @@ export class WriterAdapter {
     const shape = this.insertShape({
       type: "textbox",
       shapeType: "textbox",
-      width: typeof options.width === "number" ? options.width : 220,
-      height: typeof options.height === "number" ? options.height : 80,
+      // LibreOffice's HTML → DOCX bridge maps 1 CSS px to 0.75 pt. These
+      // defaults produce Word's measured 94.1 × 34.2 pt text box after save.
+      width: typeof options.width === "number" ? options.width : 125.47,
+      height: typeof options.height === "number" ? options.height : 45.6,
       fill: "transparent",
       stroke: "#2563eb",
       text,
@@ -12199,22 +12325,34 @@ export class WriterAdapter {
     }
     if (!nodes.length) return false;
 
-    if (!this._findState || this._findState.query !== needle) {
-      this._findState = { query: needle, nodeIndex: 0, matchIndex: -1 };
-    }
-
     const backward = options.direction === "backward";
     const totalNodes = nodes.length;
-    let startNodeIdx = this._findState.nodeIndex || 0;
+    const stateKey = JSON.stringify({
+      query: needle,
+      matchCase: !!options.matchCase,
+      wholeWord: !!options.wholeWord,
+      ignoreDiacritics: !!options.ignoreDiacritics
+    });
+    if (!this._findState || this._findState.key !== stateKey) {
+      this._findState = {
+        key: stateKey,
+        nodeIndex: backward ? totalNodes - 1 : 0,
+        matchIndex: -1
+      };
+    }
 
-    for (let step = 0; step < totalNodes; step++) {
+    const startNodeIdx = this._findState.nodeIndex;
+
+    // Include the starting node once more at the end so repeated Find Next/Previous
+    // wraps within a paragraph as Word does, even when the document has one text node.
+    for (let step = 0; step <= totalNodes; step++) {
       const idx = backward
         ? (startNodeIdx - step + totalNodes) % totalNodes
         : (startNodeIdx + step) % totalNodes;
       const textNode = nodes[idx];
       const matches = matcher.findAll(textNode.data || "");
       if (matches.length > 0) {
-        let m = matches[0];
+        let m = backward ? matches[matches.length - 1] : matches[0];
         if (idx === startNodeIdx && this._findState.matchIndex >= 0) {
           if (backward) {
             const prevMatches = matches.filter(match => match.index < this._findState.matchIndex);
@@ -14833,7 +14971,7 @@ export class WriterAdapter {
     // is not part of the HTML payload sent to LibreOffice. Capture the values
     // users see only for a brand-new, source-free document; imported DOCX keeps
     // its existing export path byte-for-byte.
-    if (this._sourcePath || /\(đã khôi phục\)$/i.test(String(this.sourceFileName || "")) || !exportRoot?.querySelectorAll) return;
+    if ((!this.isNewApplicationDocument && this._sourcePath) || /\(đã khôi phục\)$/i.test(String(this.sourceFileName || "")) || !exportRoot?.querySelectorAll) return;
     const sourceParagraphs = this.bodyDom?.querySelectorAll?.("p,h1,h2,h3,h4,h5,h6") || [];
     const exportParagraphs = exportRoot.querySelectorAll("p,h1,h2,h3,h4,h5,h6");
     if (sourceParagraphs.length !== exportParagraphs.length || typeof getComputedStyle !== "function") return;
@@ -14854,6 +14992,9 @@ export class WriterAdapter {
       const visible = getComputedStyle(source);
       if (!target?.style?.setProperty) continue;
       target.setAttribute?.("data-vno-export-defaults", "true");
+      if (this.isNewApplicationDocument && /^h[1-3]$/i.test(String(source.tagName || "")) && !source.hasAttribute?.("style")) {
+        continue;
+      }
       if (["left", "right", "center", "justify"].includes(visible.textAlign)) {
         target.style.setProperty("text-align", visible.textAlign);
       }
@@ -15049,7 +15190,24 @@ export class WriterAdapter {
           const inner = (s.type === "textbox" || s.shapeType === "textbox")
             ? `<div class="vno-writer-textbox-body">${this._escapeHtml(s.text || "")}</div>`
             : renderShapeSvg(s);
-          return `  <div style="position:absolute; left:${s.x}px; top:${s.y}px; width:${s.w}px; height:${s.h}px;">${inner}</div>\n`;
+          const isNewTextBox = (s.type === "textbox" || s.shapeType === "textbox") && !s.imported;
+          const shapeMetadata = {
+            type: s.type || s.shapeType || "rectangle",
+            isNew: !s.imported,
+            x: Number(s.x) || 0,
+            y: Number(s.y) || 0,
+            w: Number(s.w ?? s.width) || 0,
+            h: Number(s.h ?? s.height) || 0,
+            fill: s.fill || (s.type === "line" ? "none" : s.type === "circle" ? "#0ea5e9" : s.type === "arrow" ? "#f59e0b" : s.type === "triangle" ? "#16a34a" : s.type === "diamond" ? "#9333ea" : "#2563eb"),
+            stroke: s.stroke || (s.type === "line" ? "#0f172a" : s.type === "circle" ? "#0284c7" : s.type === "arrow" ? "#d97706" : s.type === "triangle" ? "#15803d" : s.type === "diamond" ? "#7e22ce" : "#1d4ed8"),
+            strokeWidth: Number(s.strokeWidth) || (s.type === "line" ? 3 : 2)
+          };
+          const shapeMarker = Array.from(new TextEncoder().encode(JSON.stringify(shapeMetadata)), byte => byte.toString(16).padStart(2, "0")).join("");
+          // LO rounds floating CSS-pixel widths to whole px on HTML import. Keep
+          // fractional dimensions in pt so the saved Word extent matches the canvas.
+          const width = isNewTextBox ? `${(s.w * 0.75).toFixed(3)}pt` : `${s.w}px`;
+          const height = isNewTextBox ? `${(s.h * 0.75).toFixed(3)}pt` : `${s.h}px`;
+          return `  <!--vno-writer-shape-v1:${shapeMarker}--><div style="position:absolute; left:${s.x}px; top:${s.y}px; width:${width}; height:${height};">${inner}</div>\n`;
         }).join("") +
         `</div>\n`;
     }
@@ -15057,7 +15215,8 @@ export class WriterAdapter {
     const mutationMarkers = this._shapeMutationMarkerHtml();
 
     const pristineMarker = this._isOpenedDocumentPristine() ? '<a name="vno-pristine-document"></a>' : "";
-    const fullHtml = `${pristineMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
+    const newDocumentStyleMarker = this.isNewApplicationDocument ? "<!--vno-new-document-style-defaults-->" : "";
+    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }
@@ -15314,6 +15473,8 @@ export class WriterAdapter {
       }
       this._initZones();
       this._sourcePath = result.sourcePath || null;
+      this.isNewApplicationDocument = false;
+      this.bodyDom?.classList?.remove("vno-new-application-document");
       // Comments chỉ thuộc tài liệu đang mở trong phiên; file khác không dùng lại anchor cũ.
       this.comments = [];
       this.trackChangesEnabled = Boolean(imported.trackingEnabled);
@@ -15433,6 +15594,8 @@ export class WriterAdapter {
     if (!/<(?:html|body|div|p|table|span|h[1-6]|ul|ol)\b/i.test(String(content || ""))) return false;
     this._initZones();
     this._sourcePath = null;
+    this.isNewApplicationDocument = false;
+    this.bodyDom?.classList?.remove("vno-new-application-document");
     this.comments = [];
     this.trackChangesEnabled = false;
     this.activeCommentId = null;
@@ -15509,6 +15672,7 @@ export class WriterAdapter {
   async newDocument() {
     this._initZones();
     this._sourcePath = null;
+    this.isNewApplicationDocument = true;
     this.comments = [];
     this.trackChangesEnabled = false;
     this.activeCommentId = null;
