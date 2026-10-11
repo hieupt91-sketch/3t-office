@@ -5860,12 +5860,12 @@ ${pristineXlsxMarker}
         return this.grid.setStyle("border", "2px solid #0f172a");
 
       case "sheet.cell.fillColor": {
-        const color = (typeof args === "string" && args) ? args : (args?.color || "#FFF200");
+        const color = (typeof args === "string" && args) ? args : (args?.color || "#FFFF00");
         return this.grid.setStyle("backgroundColor", color);
       }
 
       case "sheet.cell.textColor": {
-        const color = (typeof args === "string" && args) ? args : (args?.color || "#DC2626");
+        const color = (typeof args === "string" && args) ? args : (args?.color || "#FF0000");
         return this.grid.setStyle("color", color);
       }
 

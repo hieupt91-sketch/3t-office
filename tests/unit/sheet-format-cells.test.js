@@ -48,6 +48,18 @@ export async function runSheetFormatCellsTests() {
     }
   }
 
+  try {
+    const grid = new SheetGridController(mockContainer());
+    const adapter = new SheetAdapter(grid);
+    await adapter.handleDispatch(null, null, "sheet.cell.fillColor");
+    await adapter.handleDispatch(null, null, "sheet.cell.textColor");
+    assert(grid.cellsData.get("A1")?.style?.backgroundColor === "#FFFF00", "Excel default Fill Color should be #FFFF00");
+    assert(grid.cellsData.get("A1")?.style?.color === "#FF0000", "Excel default Font Color should be #FF0000");
+    results.push({ name: "Sheet color defaults match Excel Fill and Font colors", pass: true });
+  } catch (error) {
+    results.push({ name: "Sheet color defaults match Excel Fill and Font colors", pass: false, error: error.message });
+  }
+
   // 1. Kiểm tra Khai báo Command, Shortcut Ctrl+1, Dispatch Mapping & Ribbon
   test("Sheet Format Cells: Khai báo lệnh sheet.format.cellsDialog với shortcut Ctrl+1 chuẩn Excel", () => {
     const cmd = SHEET_COMMANDS.find(c => c.id === "sheet.format.cellsDialog");
