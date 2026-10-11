@@ -238,3 +238,9 @@ Phần “chưa chạy” này là ghi nhận giữa chừng, đã được thay
 1. **App/CDP:** tạo TOC tự động, sửa heading đầu thành `Updated first heading`, bấm cập nhật; lưu DOCX.
 2. **Word COM:** chạy `TablesOfContents.Item(1).Update()` trên cả DOCX app và Word; cả hai đọc `Updated first heading` và `Second heading` cùng số trang `1`, có field `TOC \o "1-3" \h \z \u`.
 3. **Kết quả:** **KHỚP sau cập nhật trong Word**; số trang được điền khi Word refresh field. Hướng dẫn TOC F1 và i18n đã có.
+
+### FIX-T9 — Comments: thêm/trả lời/xóa — 11/10/2026
+
+1. **App/CDP:** thêm Alpha/Beta, resolve Alpha và xóa Beta; ảnh `E:\VNOffice-profiles\codex-ft9\comments-t8-before.png`.
+2. **Word COM:** app và Word còn cùng một comment của `3T Office`, scope Alpha, text `Resolve audit`, `Done=True`; Word COM tạo được reply trong thread.
+3. **Kết quả:** thêm/xóa/resolve **KHỚP**; app chưa có lệnh trả lời, ghi gap ở `docs/RIBBON-BACKLOG.md`; chưa kết luận parity cho reply.
