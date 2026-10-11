@@ -57,7 +57,7 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Bảng: xóa cột, gộp/tách dọc, căn ngang, nền/viền, AutoFit, chiều cao/rộng | CDP + DOCX đã lưu; Word COM đọc lại | Word COM thao tác tương đương; kích thước XML khớp | KHỚP (viền/đo chiều cao có ghi chú) |
 | Bố cục trang: A4/A5/Letter, lề Normal/Narrow/Moderate/Wide, hướng | CDP + DOCX; COM đọc lại kích thước/lề | Word COM đối chứng A4/A5; Letter đọc COM | KHỚP |
 | Bố cục trang: 1/2/3 cột | Đã chạy | Đã chạy | 3/3 KHỚP |
-| Đầu/chân trang, trang đầu khác, số trang | CDP + DOCX đã lưu | Word COM đọc Header/Footer, `DifferentFirstPage=-1`, `StartingNumber=3` | KHỚP |
+| Đầu/chân trang, trang đầu khác, chẵn/lẻ, số trang | CDP + DOCX đã lưu; `differentFirstPage=true`, `differentOddEven=true`, start=3 | Word COM đọc `DifferentFirstPage=-1`, `OddAndEven=-1`, `StartingNumber=3`; header/footer chính khớp | KHỚP cờ/field; app chưa có vùng nhập nội dung riêng cho header/footer trang đầu và chẵn/lẻ |
 | Ngắt trang; mục NextPage/Continuous/EvenPage/OddPage | CDP + DOCX đã lưu; 5 section | Word COM đọc 5 section, đúng loại bắt đầu | KHỚP |
 | Mục lục tự động + Heading 1 | CDP tạo, sửa Heading rồi cập nhật; Word COM đọc lại | COM tạo/cập nhật tương đương | KHỚP; TOC có heading đã sửa |
 | Chú thích trang/cuối trang và cuối tài liệu | CDP thêm nội dung `Footnote content`/`Endnote content` | Word COM tạo và đọc lại | KHỚP: mỗi loại 1, nội dung đúng |
@@ -214,3 +214,9 @@ Phần “chưa chạy” này là ghi nhận giữa chừng, đã được thay
 1. **App/CDP:** dùng chuột chọn ảnh qua **Chèn > Hình ảnh**, tab **Định dạng ảnh**, đặt 56×32 px, wrap Vuông, vị trí trên-phải; lưu DOCX. Ảnh trước/sau: `E:\VNOffice-profiles\codex-ft9\image-t8-before.png`, `image-edit-t9.png`.
 2. **Word COM:** đối chứng cùng ảnh, wrap Square và vị trí tương ứng; mở lại hai DOCX bằng Word. Cả hai đọc `inline=0`, `shapes=1`, `23.9×13.6 pt`, wrap `0`, relative page `1/1`, position `510.8/56.7 pt`.
 3. **Kết quả/sửa:** trước sửa app DOCX thành InlineShape nên wrap/vị trí mất; adapter giờ chuyển ảnh đã chỉnh thành OOXML anchor, giữ wrap/offset. Unit mới 3/3 PASS; Help tiếng Việt ở **Định dạng ảnh > Sắp xếp & Kích thước**, khóa VI/EN cập nhật.
+
+### FIX-T9 — Đầu/chân trang và số trang — 11/10/2026
+
+1. **App/CDP:** chọn Trang đầu khác, Trang chẵn và lẻ khác nhau, đánh lại số trang từ 3; header/footer chính có `Word parity header` và PAGE/NUMPAGES; ảnh `E:\VNOffice-profiles\codex-ft9\layout-header-footer.png`, `layout-page-numbers.png`.
+2. **Word COM:** đọc lại DOCX app và tạo tài liệu đối chứng tương ứng. Cả hai có 5 section cùng loại bắt đầu `2,2,0,3,4`; section đầu `DifferentFirst=-1`, `OddAndEven=-1`, số bắt đầu 3; nội dung header/footer chính giống nhau.
+3. **Kết quả:** tùy chọn và field số trang **KHỚP**. Header/footer trang đầu/chẵn/lẻ riêng chưa có vùng biên tập riêng trong app; các vùng đó đang rỗng trong cả hai DOCX đối chứng. Harness COM nay đọc `PageSetup.OddAndEvenPagesHeaderFooter` chính xác.

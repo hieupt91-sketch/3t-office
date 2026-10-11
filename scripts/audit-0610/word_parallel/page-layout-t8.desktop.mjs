@@ -13,7 +13,7 @@ try {
     return `${dir}\\${name}.png`;
   };
   const save = async name => cdp.evaluate(`(() => { const a=window.__vnoAppInstance.adapter; return globalThis.globalUnoBridge.saveRealFileInPlace("writer", a._contentForExport(), ${JSON.stringify(`${dir}\\${name}.docx`)}, ${JSON.stringify(`${dir}\\template.docx`)}); })()`, { awaitPromise: true, timeoutMilliseconds: 240000 });
-  const state = async () => cdp.evaluate("(() => {const a=window.__vnoAppInstance.adapter;const s=a.getActiveSectionId?.()||a.activeSectionId;const h=a.sectionHeadersFooters?.[s]||{};return {pageSetup:a.pageSetup,sectionIds:Object.keys(a.sectionPageSetups||{}),activeSection:s,header:a.headerDom?.innerText,footer:a.footerDom?.innerText,footerHtml:a.footerDom?.innerHTML,differentFirstPage:h.differentFirstPage,pageNumberRestart:h.pageNumberRestart,pageNumberStart:h.pageNumberStart}})()");
+  const state = async () => cdp.evaluate("(() => {const a=window.__vnoAppInstance.adapter;const s=a.getActiveSectionId?.()||a.activeSectionId;const h=a.sectionHeadersFooters?.[s]||{};return {pageSetup:a.pageSetup,sectionIds:Object.keys(a.sectionPageSetups||{}),activeSection:s,header:a.headerDom?.innerText,footer:a.footerDom?.innerText,footerHtml:a.footerDom?.innerHTML,differentFirstPage:h.differentFirstPage,differentOddEven:h.differentOddEven,pageNumberRestart:h.pageNumberRestart,pageNumberStart:h.pageNumberStart}})()");
   await cdp.waitFor("!!document.querySelector('.vno-writer-body')", { timeoutMilliseconds: 180000, intervalMilliseconds: 500 });
   await cdp.waitFor("document.querySelector('.vno-writer-body')?.textContent.includes('Alpha')", { timeoutMilliseconds: 180000, intervalMilliseconds: 500 });
   const layoutTab = await cdp.evaluate("[...document.querySelectorAll('.vno-ribbon-tab')].findIndex(x=>/Bố cục|Layout/i.test(x.textContent))");
@@ -88,6 +88,7 @@ try {
   await click(cdp, 'button[data-dropdown-id="writer.layout.sectionOptions"]');
   await click(cdp, '[role="menuitem"][data-command-id="writer.section.options"]');
   await click(cdp, "#vno-hf-diff-first");
+  await click(cdp, "#vno-hf-diff-oddeven");
   await click(cdp, ".vno-dialog-ok-btn");
   await click(cdp, 'button[data-dropdown-id="writer.layout.sectionOptions"]');
   await click(cdp, '[role="menuitem"][data-command-id="writer.pageNumber.format"]');
