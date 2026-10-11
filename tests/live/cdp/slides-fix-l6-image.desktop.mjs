@@ -1,0 +1,30 @@
+import fs from 'node:fs/promises';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
+import { launchApp } from './session.mjs';
+import { click } from './actions.mjs';
+const root=process.env.VNO_APP_ROOT, localAppData=process.env.VNO_CDP_LOCALAPPDATA;
+if(!root||!localAppData) throw new Error('Set VNO_APP_ROOT and VNO_CDP_LOCALAPPDATA');
+const output=path.join(localAppData,'fix-l6-image.pptx');
+const evidenceDir=path.resolve(path.dirname(fileURLToPath(import.meta.url)),'../../../docs/tickets-0710/evidence/fix-l6');
+const asset=path.join(evidenceDir,'shape-format-applied.png');
+const input=path.join(localAppData,'template.pptx'); await fs.copyFile(input,output);
+const session=await launchApp('slides',{root,filePath:output,localAppData,startTimeoutMilliseconds:180000,readyTimeoutMilliseconds:180000});
+try {
+ await session.cdp.waitFor(`window.__vnoAppInstance?.adapter?.sourceFilePath===${JSON.stringify(output)}`,{timeoutMilliseconds:180000});
+ await session.cdp.evaluate(`(()=>{const original=HTMLInputElement.prototype.click;HTMLInputElement.prototype.click=function(){if(this.type==='file'&&!this.isConnected)document.body.appendChild(this);return original.call(this)}})()`);
+ await click(session.cdp,'#vno-ribbon-tab-insert');
+ await click(session.cdp,'[data-command-id="slides.image.insert"]');
+ await session.cdp.waitFor('document.querySelector("input[type=file]")',{timeoutMilliseconds:30000});
+ const doc=await session.cdp.send('DOM.getDocument',{depth:-1,pierce:true});
+ const q=await session.cdp.send('DOM.querySelector',{nodeId:doc.result.root.nodeId,selector:'input[type="file"]'});
+ if(!q.result.nodeId) throw new Error('Input file DOM node not found');
+ await session.cdp.send('DOM.setFileInputFiles',{nodeId:q.result.nodeId,files:[asset]});
+ await session.cdp.waitFor('window.__vnoAppInstance.adapter.canvas.slides[0].shapes.some(s=>s.type==="image")',{timeoutMilliseconds:30000});
+ const state=await session.cdp.evaluate(`JSON.stringify(window.__vnoAppInstance.adapter.canvas.slides[0].shapes.filter(s=>s.type==='image').map(s=>({id:s.id,width:s.width,height:s.height,srcPrefix:String(s.src).slice(0,30)})))`);
+ await fs.mkdir(evidenceDir,{recursive:true});
+ const shot=await session.cdp.send('Page.captureScreenshot',{format:'png',captureBeyondViewport:false});
+ await fs.writeFile(path.join(evidenceDir,'insert-image.png'),Buffer.from(shot.result.data,'base64'));
+ const saved=await session.cdp.evaluate('window.__vnoAppInstance.adapter.save()',{awaitPromise:true,timeoutMilliseconds:600000});
+ console.log(JSON.stringify({asset,state,saved,output}));
+} finally { await session.close(); }

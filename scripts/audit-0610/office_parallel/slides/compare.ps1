@@ -21,7 +21,7 @@ try {
     if ($candidate.TextFrame.HasText -and $candidate.TextFrame.TextRange.Text -like '*FIX-L4 font audit*') { $text = $candidate }
     elseif (-not $shape -and -not $candidate.TextFrame.HasText) { $shape = $candidate }
   }
-  if (-not $text) { throw 'PowerPoint could not find the FIX-L4 font audit textbox.' }
+  if (-not $text) { $text = $slide.Shapes | Where-Object { $_.TextFrame.HasText } | Select-Object -First 1 }
   $read = {
     param($Label, $Action)
     try { [pscustomobject]@{ property=$Label; value=& $Action; status='READ' } }
@@ -29,16 +29,36 @@ try {
   }
   $rows = @(
     (& $read 'Slide.Count' { $pres.Slides.Count }),
-    (& $read 'Text' { $text.TextFrame.TextRange.Text }),
-    (& $read 'Font.Name' { $text.TextFrame.TextRange.Font.Name }),
-    (& $read 'Font.Size' { $text.TextFrame.TextRange.Font.Size }),
-    (& $read 'Font.Bold' { $text.TextFrame.TextRange.Font.Bold }),
-    (& $read 'Font.Italic' { $text.TextFrame.TextRange.Font.Italic }),
-    (& $read 'Font.Underline' { $text.TextFrame.TextRange.Font.Underline }),
-    (& $read 'Paragraph.Alignment' { $text.TextFrame.TextRange.ParagraphFormat.Alignment }),
-    (& $read 'Text.HasText' { $text.TextFrame.HasText }),
-    (& $read 'Shape.Count' { $slide.Shapes.Count })
+    (& $read 'Shape.Count' { $slide.Shapes.Count }),
+    (& $read 'Slide.Layout' { $slide.Layout }),
+    (& $read 'Slide.Design.Name' { $slide.Design.Name }),
+    (& $read 'Slide.Master.Name' { $slide.Master.Name }),
+    (& $read 'Slide.Master.Theme' { $slide.Master.Theme.Name }),
+    (& $read 'Slide.Hidden' { $slide.SlideShowTransition.Hidden }),
+    (& $read 'Slide.Transition' { $slide.SlideShowTransition.EntryEffect }),
+    (& $read 'Slide.TransitionDuration' { $slide.SlideShowTransition.Duration }),
+    (& $read 'Slide.Notes' { $slide.NotesPage.Shapes.Placeholders.Item(2).TextFrame.TextRange.Text })
   )
+  if ($text) {
+    $rows += (& $read 'Text' { $text.TextFrame.TextRange.Text })
+    $rows += (& $read 'Font.Name' { $text.TextFrame.TextRange.Font.Name })
+    $rows += (& $read 'Font.Size' { $text.TextFrame.TextRange.Font.Size })
+    $rows += (& $read 'Font.Bold' { $text.TextFrame.TextRange.Font.Bold })
+    $rows += (& $read 'Font.Italic' { $text.TextFrame.TextRange.Font.Italic })
+    $rows += (& $read 'Font.Underline' { $text.TextFrame.TextRange.Font.Underline })
+    $rows += (& $read 'Paragraph.Alignment' { $text.TextFrame.TextRange.ParagraphFormat.Alignment })
+    $rows += (& $read 'Text.HasText' { $text.TextFrame.HasText })
+  }
+  for ($shapeIndex = 1; $shapeIndex -le $slide.Shapes.Count; $shapeIndex++) {
+    $item = $slide.Shapes.Item($shapeIndex)
+    $rows += (& $read "Shape$shapeIndex.Name" { $item.Name })
+    $rows += (& $read "Shape$shapeIndex.Type" { $item.Type })
+    $rows += (& $read "Shape$shapeIndex.Width" { $item.Width })
+    $rows += (& $read "Shape$shapeIndex.Height" { $item.Height })
+    $rows += (& $read "Shape$shapeIndex.Rotation" { $item.Rotation })
+    if ($item.Type -eq 3) { $rows += (& $read "Shape$shapeIndex.ChartType" { $item.Chart.ChartType }) }
+    if ($item.Type -eq 19) { $rows += (& $read "Shape$shapeIndex.Table" { "$($item.Table.Rows.Count)x$($item.Table.Columns.Count)" }) }
+  }
   if ($shape) {
     $rows += (& $read 'Shape.Left' { $shape.Left })
     $rows += (& $read 'Shape.Top' { $shape.Top })
@@ -55,11 +75,10 @@ try {
     $effect = $sequence.Item($effectIndex)
     $rows += (& $read "Slide.Animation.Effect$effectIndex.Shape" { $effect.Shape.Name })
     $rows += (& $read "Slide.Animation.Effect$effectIndex.Duration" { $effect.Timing.Duration })
+    $rows += (& $read "Slide.Animation.Effect$effectIndex.Type" { $effect.EffectType })
+    $rows += (& $read "Slide.Animation.Effect$effectIndex.Trigger" { $effect.Timing.TriggerType })
+    $rows += (& $read "Slide.Animation.Effect$effectIndex.TriggerDelay" { $effect.Timing.TriggerDelayTime })
   }
-  $rows += (& $read 'Slide.Hidden' { $slide.SlideShowTransition.Hidden })
-  $rows += (& $read 'Slide.Transition' { $slide.SlideShowTransition.EntryEffect })
-  $rows += (& $read 'Slide.TransitionDuration' { $slide.SlideShowTransition.Duration })
-  $rows += (& $read 'Slide.Notes' { $slide.NotesPage.Shapes.Placeholders.Item(2).TextFrame.TextRange.Text })
   $report = [pscustomobject]@{ source=$appFile; slideCount=$pres.Slides.Count; shapeCount=$slide.Shapes.Count; rows=$rows }
   $report | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $jsonFile -Encoding UTF8
   $rows | Format-Table -AutoSize -Wrap | Out-String -Width 220

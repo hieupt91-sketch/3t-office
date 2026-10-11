@@ -53,6 +53,9 @@ export async function runSlidesLayoutsTests() {
       throw new Error(`Cấu hình slides.layout.apply chưa chuẩn: category=${applyCmd.category}, label=${applyCmd.label}`);
     }
 
+    const resetCmd = SLIDES_COMMANDS.find(c => c.id === "slides.layout.reset");
+    if (!resetCmd || resetCmd.category !== "slide") throw new Error("Thiếu command slides.layout.reset");
+
     const selectCmd = SLIDES_COMMANDS.find(c => c.id === "slides.layout.select");
     if (!selectCmd) {
       throw new Error("Không tìm thấy command slides.layout.select trong SLIDES_COMMANDS");
@@ -96,6 +99,8 @@ export async function runSlidesLayoutsTests() {
     const slideGroup = homeTab.groups.find(g => g.label === "Trang chiếu");
     if (!slideGroup) throw new Error("Không tìm thấy nhóm Trang chiếu trong tab home");
     const hasLayoutInHome = slideGroup.items.some(it => it.commandId === "slides.layout.apply");
+    const hasResetInHome = slideGroup.items.some(it => it.commandId === "slides.layout.reset" || it.items?.some(child => child.commandId === "slides.layout.reset"));
+    if (!hasResetInHome) throw new Error("slides.layout.reset chưa xuất hiện trong nhóm Trang chiếu của tab Trang đầu");
     if (!hasLayoutInHome) {
       throw new Error("slides.layout.apply chưa xuất hiện trong nhóm Trang chiếu của tab Trang đầu");
     }
@@ -407,6 +412,24 @@ export async function runSlidesLayoutsTests() {
     if (!resUnoOnly || !dialogCalled) {
       throw new Error("handleDispatch không gọi showLayoutDialog khi chỉ nhận .uno:AssignLayout");
     }
+  });
+
+  test("Slide Layout Reset: giữ nguyên nội dung và dựng lại slide đang chọn", () => {
+    const canvas = createSlidesCanvasFixture({ innerHTML: "", className: "", appendChild() {} });
+    canvas.slides = [{ layoutType: "two-content", title: "Giữ tiêu đề", body: "Giữ nội dung", body2: undefined }];
+    canvas.currentSlideIndex = 0;
+    let selectedIndex = -1;
+    canvas.selectSlide = index => { selectedIndex = index; };
+    if (!canvas.resetSlideLayout()) throw new Error("resetSlideLayout phải báo thành công");
+    if (selectedIndex !== 0 || canvas.slides[0].body2 !== "") throw new Error("Reset không dựng lại cột phải của layout hai nội dung");
+    if (canvas.slides[0].title !== "Giữ tiêu đề" || canvas.slides[0].body !== "Giữ nội dung") throw new Error("Reset không được xóa nội dung");
+  });
+
+  test("Slide Layout Reset Dispatch: command gọi resetSlideLayout trên canvas", async () => {
+    const canvas = { resetSlideLayout: () => true };
+    const adapter = new SlidesAdapter(canvas);
+    const result = await adapter.handleDispatch(null, null, "slides.layout.reset");
+    if (!result) throw new Error("handleDispatch không gọi resetSlideLayout");
   });
 
   // =========================================================================
