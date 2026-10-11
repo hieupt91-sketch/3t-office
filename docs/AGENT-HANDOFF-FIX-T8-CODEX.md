@@ -22,12 +22,14 @@ COMMANDS RUN:
 - `make-template.ps1 -Dir E:\VNOffice-profiles\codex-ft8` — PASS.
 - App desktop table insert + Word COM readback — KHỚP 3 hàng × 4 ô.
 - App desktop Page Setup qua CDP + Word COM — A4 landscape, margins 25/20 mm KHỚP; DOCX tại profile `E:\VNOffice-profiles\codex-ft8`.
+- CDP mouse/keyboard + Word COM readback: Style/TOC/footnote, comment, tracked insertion, Find/Replace All, ký hiệu π, textbox — đã ghi kết quả theo từng nhóm trong `docs/AUDIT-DOC-WORD-PARALLEL-1011.md`; ảnh BLOCKED ở file picker native.
 - Batch `d01,d07,d13,d20,d24` — 5/5 PASS, page delta 0, edit PASS.
 - `npm test` — 3058/3058 PASS.
 - `python -m unittest discover -s tests` với `LOCALAPPDATA=E:\VNOffice-profiles\codex-ft8\python-localappdata` — 832 tests OK.
+- Xác minh lại trong lượt tiếp theo: `npm test` — 3058/3058 PASS. Python unittest lần chạy lại không ra summary sau hơn 6 phút, dừng ở ca LibreOffice subprocess; kết quả lượt này **BLOCKED**, không tính PASS. Batch DOCX không chạy lại do bộ nguồn d01/d07/d13/d20/d24 không có trong worktree; kết quả trước đó trong profile vẫn 5/5 PASS.
 - `git diff --check` — PASS.
 BUILD RESULT: NOT RUN.
-TEST RESULTS: Xem COMMANDS RUN; lần unittest đầu có 10 lỗi do dùng profile LibreOffice mặc định đang được worktree khác sử dụng. Các ca lỗi được lặp riêng và pass với profile riêng.
+TEST RESULTS: `npm test` lần chạy lại PASS 3058/3058. Python unittest từng PASS 832 ở lượt trước với profile riêng; lượt chạy lại trong phiên này BLOCKED do không thoát khỏi một ca chờ LibreOffice subprocess trong hơn 6 phút. Batch DOCX hiện chỉ có kết quả lượt trước 5/5 PASS; không rerun vì corpus nguồn chưa có tại worktree.
 KNOWN FAILURES: FIX-T8 chưa hoàn tất. Trong nhóm Bảng, xóa cột, gộp/tách dọc, căn ngang, nền/viền, AutoFit và kích thước vẫn NOT RUN. Phép lề/hướng/khổ giấy, ngắt trang/mục, header/footer, số trang, nhóm style/reference và nhóm comment/revision/find/symbol/shapes vẫn NOT RUN, ngoại trừ kết quả cột và Heading đã ghi từ lần trước.
 RISKS: Chưa có đủ dữ liệu để kết luận parity cho bốn nhóm. Không sửa adapter/core vì chưa tái hiện sai lệch trong phép đã chạy.
 DEPENDENCIES/BLOCKERS: Word COM cục bộ; LibreOffice profile riêng cần giữ tách biệt cho các lần unittest và desktop.
