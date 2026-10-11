@@ -78,3 +78,8 @@
 - Mở XLSX đó, bấm Giảm thụt lề qua CDP; app model thành `indentLevel=0`, nhưng Excel COM ReadOnly trên XLSX sau lưu vẫn cho `IndentLevel=1`. **LỆCH ĐÃ BIẾT**.
 - Ảnh `evidence/s12/fix-s12-indentDecrease.png`; log CDP `s12-indent-decrease.log`, Excel COM `excel-indent-decrease.log`.
 - Adapter owner handoff: `docs/AGENT-HANDOFF-FIX-S12-INDENT-DECREASE.md`.
+
+## Trang đầu: giảm số thập phân
+
+- CDP bấm Giảm số thập phân trên C2; Excel COM ReadOnly đọc `Value2=1234.5`, `NumberFormat=0`, hiển thị `1235`. Giá trị giữ nguyên, định dạng giảm còn 0 chữ số thập phân; **KHỚP EXCEL**.
+- Ảnh `evidence/s12/fix-s12-decDec.png`; log CDP `s12-decimal-decrease.log`, Excel COM `excel-decDec.log`.

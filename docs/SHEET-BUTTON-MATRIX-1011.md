@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 42 · LỆCH ĐÃ BIẾT: 2 · CHƯA ĐỐI CHIẾU: 94.
+Tổng 138 nút — KHỚP EXCEL: 43 · LỆCH ĐÃ BIẾT: 2 · CHƯA ĐỐI CHIẾU: 93.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -44,7 +44,7 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Trang đầu | `sheet.format.percent` | Phần trăm (Ctrl+Shift+5) | KHỚP EXCEL | FIX-S12 nhóm Trang đầu: CDP click Phần trăm; Excel COM ReadOnly D2=0.075, NumberFormat=0% (app_percentBtn.xlsx) | dialog,toast:A1 |
 | Trang đầu | `sheet.format.standard` | Phân cách hàng nghìn (Ctrl+Shift+1) | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dialog,toast:A1 |
 | Trang đầu | `sheet.format.increaseDecimal` | Tăng số thập phân | KHỚP EXCEL | FIX-S12 nhóm Trang đầu: CDP click Tăng số thập phân; Excel COM ReadOnly C2=1234.5, NumberFormat=0.00 (app_decInc.xlsx) | dom:1 |
-| Trang đầu | `sheet.format.decreaseDecimal` | Giảm số thập phân | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:1 |
+| Trang đầu | `sheet.format.decreaseDecimal` | Giảm số thập phân | KHỚP EXCEL | FIX-S12 Trang đầu: CDP click Giảm số thập phân; Excel COM ReadOnly xác nhận C2=1234.5, NumberFormat=0, hiển thị 1235 | dom:1 |
 | Trang đầu | `sheet.format.cellsDialog` | Định dạng ô... (Ctrl+1) | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:1 |
 | Trang đầu | `sheet.format.conditional` | Định dạng có điều kiện | KHỚP EXCEL | FIX-S7: CDP + Excel COM; insert/delete, validation, freeze, print area, page setup, chart, conditional format, cell style | dom:1 |
 | Trang đầu | `sheet.style.formatAsTable` | Định dạng bảng | KHỚP EXCEL | FIX-S11: CDP + Excel COM read-only xác nhận ListObjects, tên/vùng/style/filter và XLSX round-trip | dom:1 |
