@@ -1,0 +1,44 @@
+{
+  "file": "E:\\VNOffice-profiles\\codex-fl10\\fix-l10-spellcheck.pptx",
+  "before": {
+    "slides": 10,
+    "index": 0,
+    "spellcheckEnabled": true,
+    "spellDialog": false,
+    "spellState": null,
+    "spellWord": null
+  },
+  "toggled": {
+    "slides": 10,
+    "index": 0,
+    "spellcheckEnabled": false,
+    "spellDialog": false,
+    "spellState": null,
+    "spellWord": null
+  },
+  "restored": {
+    "slides": 10,
+    "index": 0,
+    "spellcheckEnabled": true,
+    "spellDialog": false,
+    "spellState": null,
+    "spellWord": null
+  },
+  "dialog": {
+    "slides": 10,
+    "index": 0,
+    "spellcheckEnabled": true,
+    "spellDialog": true,
+    "spellState": "done",
+    "spellWord": null
+  },
+  "closed": {
+    "slides": 10,
+    "index": 0,
+    "spellcheckEnabled": true,
+    "spellDialog": false,
+    "spellState": null,
+    "spellWord": null
+  },
+  "saved": true
+}
