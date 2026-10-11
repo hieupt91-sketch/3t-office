@@ -983,7 +983,7 @@ export class SlidesAdapter {
           strike: /style:text-line-through-style=["'](?!none)[^"']+["']/i.test(inner),
           color: inner.match(/fo:color=["']([^"']+)["']/i)?.[1],
           bg: inner.match(/fo:background-color=["']([^"']+)["']/i)?.[1],
-          family: inner.match(/fo:font-family=["']([^"']+)["']/i)?.[1] || inner.match(/style:font-name=["']([^"']+)["']/i)?.[1],
+          family: this._resolveFodpFontName(inner.match(/fo:font-family=["']([^"']+)["']/i)?.[1] || inner.match(/style:font-name=["']([^"']+)["']/i)?.[1]),
           genericFamily: inner.match(/style:font-family-generic=["']([^"']+)["']/i)?.[1],
           size: inner.match(/fo:font-size=["']([^"']+)["']/i)?.[1]
         });
@@ -997,6 +997,7 @@ export class SlidesAdapter {
         para.set(name, {
           align: inner.match(/fo:text-align=["']([^"']+)["']/i)?.[1],
           fontSize: inner.match(/fo:font-size=["']([^"']+)["']/i)?.[1],
+          fontFamily: this._resolveFodpFontName(inner.match(/fo:font-family=["']([^"']+)["']/i)?.[1] || inner.match(/style:font-name=["']([^"']+)["']/i)?.[1]),
           bold: isBold,
           weight: weightMatch || (isBold ? "bold" : null),
           fontWeight: weightMatch || (isBold ? "bold" : null),
@@ -1013,6 +1014,26 @@ export class SlidesAdapter {
       list.set(name, /list-level-style-number/i.test(match[2] || "") ? "number" : "bullet");
     }
     return { text, para, list };
+  }
+
+  _resolveFodpFontName(fontName) {
+    if (!fontName) return fontName;
+    const key = this._unescapeXml(String(fontName).replace(/["']/g, "").trim());
+    const resolved = this._fontFaceMap?.get(key);
+    if (!resolved) return key;
+    return this._unescapeXml(String(resolved).replace(/["']/g, "").split(",")[0].trim());
+  }
+
+  _parseFontFaceMap(xmlText) {
+    const fonts = new Map();
+    const regex = /<style:font-face\b([^>]*)\/?\s*>/gi;
+    let match;
+    while ((match = regex.exec(String(xmlText || ""))) !== null) {
+      const name = this._attr(match[1], "style:name");
+      const family = this._attr(match[1], "svg:font-family");
+      if (name && family) fonts.set(this._unescapeXml(name), this._unescapeXml(family));
+    }
+    return fonts;
   }
 
   _odfInlineToHtml(inner, maps) {
@@ -1074,6 +1095,7 @@ export class SlidesAdapter {
         const styles = [];
         if (para.align) styles.push(`text-align:${para.align}`);
         if (para.fontSize) styles.push(`font-size:${para.fontSize}`);
+        if (para.fontFamily) styles.push(`font-family:'${para.fontFamily.replace(/["']/g, "").trim()}'`);
         if (para.lineHeight) {
           // para.lineHeight đã ở dạng CSS (qua _odfProportionalToCssLineHeight khi parse);
           // giá trị % còn sót (từ nguồn khác) được quy đổi tại đây cho cùng một quy tắc.
@@ -2328,7 +2350,7 @@ export class SlidesAdapter {
       const fontSize = match[2].match(/fo:font-size=["']([^"']+)["']/i)?.[1];
       const fontWeight = match[2].match(/fo:font-weight=["']([^"']+)["']/i)?.[1];
       const fontColor = match[2].match(/fo:color=["']([^"']+)["']/i)?.[1];
-      const fontFamily = match[2].match(/fo:font-family=["']([^"']+)["']/i)?.[1] || match[2].match(/style:font-name=["']([^"']+)["']/i)?.[1];
+      const fontFamily = this._resolveFodpFontName(match[2].match(/fo:font-family=["']([^"']+)["']/i)?.[1] || match[2].match(/style:font-name=["']([^"']+)["']/i)?.[1]);
       let strokeWidth = null;
       if (strokeWidthRaw) {
         strokeWidth = this._odfLengthToPx(strokeWidthRaw, false);
@@ -3404,6 +3426,7 @@ export class SlidesAdapter {
   parseFodp(xmlText) {
     if (!xmlText) return [];
     const parsedSlides = [];
+    this._fontFaceMap = this._parseFontFaceMap(xmlText);
     const graphicStyles = this._parseGraphicFillStyles(xmlText);
     const drawingPageStyles = this._parseDrawingPageStyles(xmlText);
     const backgroundResources = this._parseBackgroundResources(xmlText);
