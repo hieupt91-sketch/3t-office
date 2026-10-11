@@ -133,7 +133,7 @@ export class SheetAdapter {
       if (cat === "accounting") {
         posSection = `_(* ${symbol} ${numPattern}_);_(* ${negSection}${symbol} ${numPattern}`;
         if (negativeStyle >= 2) posSection += ")";
-        posSection += ";_(* \"-\"??_)";
+        posSection += `;_(* \"-\"??_)`;
       } else {
         posSection = `${symbol} ${numPattern}`;
       }
@@ -167,6 +167,19 @@ export class SheetAdapter {
     }
 
     return code;
+  }
+
+  _excelCodeForNewNumberFormat(fmt) {
+    const category = fmt?.category;
+    const decimals = Math.max(0, Math.min(30, Number(fmt?.decimals) || 0));
+    const number = `${fmt?.useThousands || category === "accounting" ? "#,##" : ""}0${decimals ? `.${"0".repeat(decimals)}` : ""}`;
+    const symbol = String(fmt?.currencySymbol || "₫");
+    if (category === "currency" && symbol === "₫") return `${number} [$₫];-${number} [$₫];${number} [$₫];@`;
+    if (category === "accounting") {
+      const currency = symbol === "₫" ? "[$₫]" : `[${symbol}]`;
+      return `_(* ${number} ${currency}_);_(* (${number} ${currency})_);_(* \"-\"?? ${currency}_);_(@_)`;
+    }
+    return this._excelCodeFromNumberFormat(fmt);
   }
 
   /**
@@ -1653,6 +1666,9 @@ export class SheetAdapter {
       return this._numberFormatXmlFromExcelCode(config.excelCode, name);
     }
     const category = String(config.category || "number");
+    if (category === "currency" || category === "accounting") {
+      return this._numberFormatXmlFromExcelCode(this._excelCodeForNewNumberFormat(config), name);
+    }
     const decimals = Math.max(0, Math.min(30, Number(config.decimals ?? (["currency", "accounting", "percentage", "scientific"].includes(category) ? 2 : 0))));
     const grouping = config.useThousands || category === "accounting" ? ' number:grouping="true"' : "";
     const number = `<number:number number:min-integer-digits="1" number:decimal-places="${decimals}" number:min-decimal-places="${decimals}"${grouping}/>`;
@@ -1685,7 +1701,7 @@ export class SheetAdapter {
       const rawSymbol = config.currencySymbol ?? "₫";
       const symbol = `<number:currency-symbol>${this._escapeXml(rawSymbol)}</number:currency-symbol>`;
       const after = config.symbolPosition === "after" || (config.symbolPosition === undefined && rawSymbol === "₫");
-      const spacer = category === "accounting" ? '<number:fill-character> </number:fill-character>' : "";
+      const spacer = category === "accounting" ? '<number:fill-character> </number:fill-character>' : '<number:text> </number:text>';
       return `<number:currency-style style:name="${name}">${after ? `${number}${spacer}${symbol}` : `${symbol}${spacer}${number}`}</number:currency-style>`;
     }
     if (category === "custom") {
@@ -1746,7 +1762,7 @@ export class SheetAdapter {
     } else if (currencySymbol) {
       // Currency
       const after = pos.indexOf(currencySymbol) > pos.indexOf("0") || pos.indexOf(currencySymbol) > pos.indexOf("#");
-      posBody = after ? `${numberEl}<number:fill-character> </number:fill-character><number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol>` : `<number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol><number:fill-character> </number:fill-character>${numberEl}`;
+      posBody = after ? `${numberEl}<number:text> </number:text><number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol>` : `<number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol><number:text> </number:text>${numberEl}`;
     } else if (/%/.test(pos)) {
       // Percentage
       posBody = `${numberEl}<number:text>%</number:text>`;
@@ -1769,7 +1785,7 @@ export class SheetAdapter {
       let negInner = numberEl;
       if (currencySymbol && !isAccounting) {
         const after = neg.indexOf(currencySymbol) > neg.indexOf("0") || neg.indexOf(currencySymbol) > neg.indexOf("#");
-        negInner = after ? `${numberEl}<number:fill-character> </number:fill-character><number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol>` : `<number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol><number:fill-character> </number:fill-character>${numberEl}`;
+        negInner = after ? `${numberEl}<number:text> </number:text><number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol>` : `<number:currency-symbol>${this._escapeXml(currencySymbol)}</number:currency-symbol><number:text> </number:text>${numberEl}`;
       } else if (isAccounting) {
         const symbol = currencySymbol || "₫";
         negInner = `<number:text> </number:text>${numberEl}<number:fill-character> </number:fill-character><number:currency-symbol>${this._escapeXml(symbol)}</number:currency-symbol><number:text> </number:text>`;
@@ -5860,12 +5876,12 @@ ${pristineXlsxMarker}
         return this.grid.setStyle("border", "2px solid #0f172a");
 
       case "sheet.cell.fillColor": {
-        const color = (typeof args === "string" && args) ? args : (args?.color || "#FFF200");
+        const color = (typeof args === "string" && args) ? args : (args?.color || "#FFFF00");
         return this.grid.setStyle("backgroundColor", color);
       }
 
       case "sheet.cell.textColor": {
-        const color = (typeof args === "string" && args) ? args : (args?.color || "#DC2626");
+        const color = (typeof args === "string" && args) ? args : (args?.color || "#FF0000");
         return this.grid.setStyle("color", color);
       }
 
