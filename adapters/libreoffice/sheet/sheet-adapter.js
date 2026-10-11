@@ -2856,29 +2856,6 @@ export class SheetAdapter {
       if (sheetName && ref) workbook.autoFilterBySheet[sheetName] = ref;
       return "";
     });
-    for (const [sheetName, tables] of Object.entries(workbook.tablesBySheet)) {
-      const cells = workbook.sheetsData?.[sheetName];
-      if (!cells) continue;
-      for (const table of tables) {
-        const bounds = /^(\$?[A-Z]+\$?\d+):(\$?[A-Z]+\$?\d+)$/i.exec(table.ref);
-        if (!bounds) continue;
-        const range = this._parseRange(`${bounds[1]}:${bounds[2]}`);
-        if (!range) continue;
-        const preset = TABLE_STYLE_PRESETS.find(item => item.id === table.style) || TABLE_STYLE_PRESETS[0];
-        const startCol = this._columnNumber(range.start.c), endCol = this._columnNumber(range.end.c);
-        for (let row = range.start.r; row <= range.end.r; row++) {
-          for (let column = startCol; column <= endCol; column++) {
-            const coord = `${this._columnName(column)}${row}`;
-            const cell = cells.get(coord) || { val: "", formula: "", style: {} };
-            const rowStyle = table.hasHeaders !== false && row === range.start.r
-              ? preset.headerStyle
-              : ((row - range.start.r) % 2 === 1 ? preset.evenRowStyle : preset.oddRowStyle);
-            cell.style = { ...(cell.style || {}), ...rowStyle };
-            cells.set(coord, cell);
-          }
-        }
-      }
-    }
   }
 
   _attachImportedTables(workbook, xmlText) {
@@ -2902,6 +2879,29 @@ export class SheetAdapter {
       (workbook.tablesBySheet[sheet] ||= []).push(table);
       return "";
     });
+    for (const [sheetName, tables] of Object.entries(workbook.tablesBySheet)) {
+      const cells = workbook.sheetsData?.[sheetName];
+      if (!cells) continue;
+      for (const table of tables) {
+        const bounds = /^(\$?[A-Z]+\$?\d+):(\$?[A-Z]+\$?\d+)$/i.exec(table.ref);
+        if (!bounds) continue;
+        const range = this._parseRange(`${bounds[1]}:${bounds[2]}`);
+        if (!range) continue;
+        const preset = TABLE_STYLE_PRESETS.find(item => item.id === table.style) || TABLE_STYLE_PRESETS[0];
+        const startCol = this._columnNumber(range.start.c), endCol = this._columnNumber(range.end.c);
+        for (let row = range.start.r; row <= range.end.r; row++) {
+          for (let column = startCol; column <= endCol; column++) {
+            const coord = `${this._columnName(column)}${row}`;
+            const cell = cells.get(coord) || { val: "", formula: "", style: {} };
+            const rowStyle = table.hasHeaders !== false && row === range.start.r
+              ? preset.headerStyle
+              : ((row - range.start.r) % 2 === 1 ? preset.evenRowStyle : preset.oddRowStyle);
+            cell.style = { ...(cell.style || {}), ...rowStyle };
+            cells.set(coord, cell);
+          }
+        }
+      }
+    }
   }
 
   /**
