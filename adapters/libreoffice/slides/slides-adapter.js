@@ -560,7 +560,7 @@ export class SlidesAdapter {
       case "slides.font.shrink":
         return this._adjustFontSize(-1);
       case "slides.color.text":
-        return this._applyExecCommand("foreColor", args || "#dc2626");
+        return this._applyExecCommand("foreColor", args || "#ff0000");
       case "slides.color.highlight":
         return this._applyExecCommand("hiliteColor", args || "#ffcd00");
       case "slides.list.bullet":

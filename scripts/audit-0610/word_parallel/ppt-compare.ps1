@@ -6,7 +6,7 @@ function Props($path){
   $pr=$p.Presentations.Open($path,-1,0,0)   # ReadOnly, Untitled, WithWindow=false
   try { $s=$pr.Slides.Item(1); $tb=$null; foreach($sh in $s.Shapes){ if($sh.HasTextFrame -and $sh.TextFrame.TextRange.Text -match 'Alpha'){ $tb=$sh; break } }
     $r=[ordered]@{ Slides=[int]$pr.Slides.Count; Hidden1=[int]$s.SlideShowTransition.Hidden }
-    if($tb){ $tr=$tb.TextFrame.TextRange; $r.Bold=[int]$tr.Font.Bold; $r.Italic=[int]$tr.Font.Italic; $r.Underline=[int]$tr.Font.Underline; $r.Size=[double]$tr.Font.Size; $r.Name=[string]$tr.Font.Name; $r.Color=[int]$tr.Font.Color.RGB; $r.Align=[int]$tr.ParagraphFormat.Alignment; $r.Bullet=[int]$tr.ParagraphFormat.Bullet.Visible; $r.BulletType=[int]$tr.ParagraphFormat.Bullet.Type; $r.SpaceWithin=[math]::Round([double]$tr.ParagraphFormat.SpaceWithin,2); $r.LineRule=[int]$tr.ParagraphFormat.LineRuleWithin; $r.Strike=[int]$tr.Font.StrikeThrough } else { $r.TB='khong thay' }
+    if($tb){ $tr=$tb.TextFrame.TextRange; $r.Bold=[int]$tr.Font.Bold; $r.Italic=[int]$tr.Font.Italic; $r.Underline=[int]$tr.Font.Underline; $r.Size=[double]$tr.Font.Size; $r.Name=[string]$tr.Font.Name; $r.Color=[int]$tr.Runs(1).Font.Color.RGB; $r.Align=[int]$tr.ParagraphFormat.Alignment; $r.Bullet=[int]$tr.ParagraphFormat.Bullet.Visible; $r.BulletType=[int]$tr.ParagraphFormat.Bullet.Type; $r.SpaceWithin=[math]::Round([double]$tr.ParagraphFormat.SpaceWithin,2); $r.LineRule=[int]$tr.ParagraphFormat.LineRuleWithin; $r.Strike=[int]$tr.Font.StrikeThrough } else { $r.TB='khong thay' }
     $r } finally { $pr.Close() } }
 try {
   foreach($op in $ops){
