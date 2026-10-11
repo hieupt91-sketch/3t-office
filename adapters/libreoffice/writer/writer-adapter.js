@@ -12325,22 +12325,34 @@ export class WriterAdapter {
     }
     if (!nodes.length) return false;
 
-    if (!this._findState || this._findState.query !== needle) {
-      this._findState = { query: needle, nodeIndex: 0, matchIndex: -1 };
-    }
-
     const backward = options.direction === "backward";
     const totalNodes = nodes.length;
-    let startNodeIdx = this._findState.nodeIndex || 0;
+    const stateKey = JSON.stringify({
+      query: needle,
+      matchCase: !!options.matchCase,
+      wholeWord: !!options.wholeWord,
+      ignoreDiacritics: !!options.ignoreDiacritics
+    });
+    if (!this._findState || this._findState.key !== stateKey) {
+      this._findState = {
+        key: stateKey,
+        nodeIndex: backward ? totalNodes - 1 : 0,
+        matchIndex: -1
+      };
+    }
 
-    for (let step = 0; step < totalNodes; step++) {
+    const startNodeIdx = this._findState.nodeIndex;
+
+    // Include the starting node once more at the end so repeated Find Next/Previous
+    // wraps within a paragraph as Word does, even when the document has one text node.
+    for (let step = 0; step <= totalNodes; step++) {
       const idx = backward
         ? (startNodeIdx - step + totalNodes) % totalNodes
         : (startNodeIdx + step) % totalNodes;
       const textNode = nodes[idx];
       const matches = matcher.findAll(textNode.data || "");
       if (matches.length > 0) {
-        let m = matches[0];
+        let m = backward ? matches[matches.length - 1] : matches[0];
         if (idx === startNodeIdx && this._findState.matchIndex >= 0) {
           if (backward) {
             const prevMatches = matches.filter(match => match.index < this._findState.matchIndex);

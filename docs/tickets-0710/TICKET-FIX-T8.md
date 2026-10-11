@@ -32,3 +32,8 @@ Quy trinh/CAM/TIET KIEM TOKEN: nhu TICKET-FIX-T1.md; COMMIT SAU MOI NHOM; Word C
 1. CDP bật theo dõi, thêm/xóa text, Next, Accept One, Reject All; ảnh `track-run-02/track-changes-t8-before.png`.
 2. Word COM đọc hai revision tương đương: delete `beta` Type 2, insert ` added` Type 1, Author `3T Office`.
 3. Count và thao tác chấp nhận/từ chối khớp. Help/i18n hiện có; chế độ hiển thị và tác giả tùy chỉnh chưa kiểm tra.
+
+### Nhóm 8 — Tìm/Thay thế
+1. CDP thử Match Case/Whole Word, Find Previous và Replace One; ảnh `find-run-04/find-replace-t8-before.png`.
+2. Word COM cho kết quả cùng và Replace One `hoang`→`Hoang`; DOCX mở lại có nội dung khớp.
+3. Sửa reset state khi thay option và Previous wrap-around trong cùng đoạn; Help F1/i18n hiện có.

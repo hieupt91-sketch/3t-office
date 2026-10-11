@@ -67,7 +67,7 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Theo dõi thay đổi: chèn + xóa, điều hướng, accept one/reject all | CDP tạo 2 revision; accept insertion rồi reject deletion; trạng thái cuối kiểm tra | COM tạo 2 revision cùng type/author/text | KHỚP: deletion Type 2 `beta`, insertion Type 1 ` added`; còn lại 1 sau accept one, 0 sau reject all |
 | Heading 1–3 (kiểu mặc định tài liệu mới) | CDP gõ/chọn/lưu; Word COM đọc đủ thuộc tính | Word COM tạo và đọc cùng kiểu | KHỚP; DOCX nhập giữ nguyên |
 | Thư viện kiểu: Normal/Title/Quote | CDP đã áp dụng và đọc Word COM | COM tạo kiểu Word tương ứng | Chạy đủ; các preset VN có chủ ý khác định dạng Normal/Title/Quote mặc định Word (TNR, 14pt/căn đều; Title đậm xanh/căn giữa; Quote có viền trái) |
-| Tìm/thay thế: thay toàn bộ `Alpha` → `Gamma` | CDP Ctrl+H, 1 thay thế; DOCX có Gamma, không Alpha | `Find.Execute` ReplaceAll; DOCX cùng nội dung | KHỚP |
+| Tìm/Thay thế: case, toàn từ, Find Previous, thay một kết quả | CDP chọn đúng `Hoa`/`hoa`, Previous wrap-around, `hoang`→`Hoang` | Word COM MatchCase/MatchWholeWord + ReplaceOne | KHỚP; nội dung sau lưu giống nhau |
 | Ký hiệu `π` | CDP chọn Pi; lưu DOCX có đúng 1 `π` ở đoạn Alpha | COM DOCX đối chứng có cùng ký tự/vị trí | KHỚP |
 | Hộp văn bản | Sau lưu, COM đọc 53.6×19.5 pt; AutoSize=0; lề 7.2/3.6 pt | COM đọc cùng kích thước, AutoSize và lề | KHỚP |
 | Hình khối | Chưa chạy | Chưa chạy | NOT RUN |
@@ -159,7 +159,13 @@ Chưa chạy: xóa có theo dõi, chấp nhận/từ chối một và tất cả
 
 Nhấn **Ctrl+H**, nhập `Alpha` ở ô **Tìm gì**, nhập `Gamma` ở ô **Thay bằng**, nhấn **Thay thế tất cả**. App báo 1 thay thế; DOCX sau lưu còn `Gamma`, không còn `Alpha`. Word COM chạy `Find.Execute` với `ReplaceAll` trên DOCX đối chứng; đọc nội dung bằng COM cho cùng kết quả: **KHỚP**. Hướng dẫn tiếng Việt có trong Trợ giúp Writer, chủ đề **Tìm kiếm và Thay thế trong Doc**; Ctrl+H và nhãn nút đã có i18n.
 
-Chưa chạy: khớp hoa/thường, toàn từ, bỏ dấu, Find next/previous và thay thế từng kết quả.
+Đã chạy khớp hoa/thường, toàn từ, Find Previous wrap-around và thay một kết quả. Bỏ dấu dùng lại cùng query/đổi tùy chọn và trước sửa bị giữ index cũ, nên đã bổ sung reset state theo tùy chọn; Help tiếng Việt và i18n đã có.
+
+### FIX-T8 — Tìm/Thay thế — 11/10/2026 (tùy chọn và điều hướng)
+
+1. App/CDP: gõ `Hoa hoa Hòa hoang hoa`; thử Match Case, Whole Word, Find Previous, Replace One; ảnh `E:\VNOffice-profiles\codex-ft8\find-run-04\find-replace-t8-before.png`.
+2. Word COM: đọc các kết quả `Hoa`, `Hoa`; Replace One `hoang` thành `Hoang`; mở lại hai DOCX cho nội dung giống hệt.
+3. Kết quả/sửa: Find Previous trước đó không wrap khi cùng đoạn và option state cũ được dùng lại; reset state theo query/options, cho phép wrap ở cùng text node. Harness CDP + Word COM chạy; Help F1/i18n hiện có.
 
 ### FIX-T8 tiếp tục — Ký hiệu — 11/10/2026
 
