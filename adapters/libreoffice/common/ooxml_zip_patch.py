@@ -6591,6 +6591,56 @@ def restore_notes_to_pptx(
     return dest.getvalue()
 
 
+def _normalize_slides_animation_timing(pptx_bytes: bytes) -> dict[str, str]:
+    """Group LibreOffice click effects so PowerPoint reads their preset and timing."""
+    presentation_ns = "http://schemas.openxmlformats.org/presentationml/2006/main"
+    p = "{" + presentation_ns + "}"
+    replacements: dict[str, str] = {}
+    with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+        slide_names = [name for name in package.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", name)]
+        slide_xml = {name: package.read(name) for name in slide_names}
+
+    for name, xml_bytes in slide_xml.items():
+        for _, (prefix, uri) in ET.iterparse(io.BytesIO(xml_bytes), events=("start-ns",)):
+            if prefix:
+                ET.register_namespace(prefix, uri)
+        root = ET.fromstring(xml_bytes)
+        parents = {child: parent for parent in root.iter() for child in parent}
+        click_effects = [node for node in root.iter(p + "cTn") if node.get("nodeType") == "clickEffect" and node.get("presetID") in {"2", "10"}]
+        if not click_effects:
+            continue
+        next_id = max((int(node.get("id", "0")) for node in root.iter(p + "cTn") if node.get("id", "").isdigit()), default=0) + 1
+        changed = False
+        for click_node in click_effects:
+            effect_par = parents.get(click_node)
+            siblings = parents.get(effect_par) if effect_par is not None else None
+            if effect_par is None or effect_par.tag != p + "par" or siblings is None or siblings.tag != p + "childTnLst":
+                continue
+            existing_wrapper = parents.get(siblings)
+            existing_conditions = existing_wrapper.find(p + "stCondLst") if existing_wrapper is not None else None
+            existing_condition = existing_conditions.find(p + "cond") if existing_conditions is not None else None
+            if existing_wrapper is not None and existing_wrapper.tag == p + "cTn" and existing_condition is not None and existing_condition.get("delay") == "0":
+                continue
+            preset_id = click_node.get("presetID")
+            click_node.set("presetClass", click_node.get("presetClass") or "entr")
+            click_node.set("presetSubtype", click_node.get("presetSubtype") or ("0" if preset_id == "10" else "4"))
+            click_node.set("grpId", click_node.get("grpId") or "0")
+            wrapper_par = ET.Element(p + "par")
+            wrapper_timing = ET.SubElement(wrapper_par, p + "cTn", {"id": str(next_id), "fill": "hold"})
+            next_id += 1
+            conditions = ET.SubElement(wrapper_timing, p + "stCondLst")
+            ET.SubElement(conditions, p + "cond", {"delay": "0"})
+            children = ET.SubElement(wrapper_timing, p + "childTnLst")
+            children.append(effect_par)
+            index = list(siblings).index(effect_par)
+            siblings.remove(effect_par)
+            siblings.insert(index, wrapper_par)
+            changed = True
+        if changed:
+            replacements[name] = ET.tostring(root, encoding="unicode")
+    return replacements
+
+
 def postprocess_slides_pptx(
     pptx_bytes: bytes,
     *,
@@ -6655,8 +6705,10 @@ def postprocess_slides_pptx(
     # Luôn kiểm tra notes — ghi chú diễn giả mất trắng khi soffice convert
     notes_by_slide = parse_notes_from_fodp(source_fodp) if source_fodp else {}
 
-    if not apply_logo and not theme_id and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide:
+    animation_replacements = _normalize_slides_animation_timing(pptx_bytes)
+    if not apply_logo and not theme_id and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements:
         return pptx_bytes
+    replacements.update(animation_replacements)
 
     if apply_slide_size and presentation_xml:
         presentation_xml = apply_intended_slide_size(presentation_xml, intended_size)

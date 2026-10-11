@@ -77,6 +77,7 @@ try {
     $rows += (& $read "Slide.Animation.Effect$effectIndex.Duration" { $effect.Timing.Duration })
     $rows += (& $read "Slide.Animation.Effect$effectIndex.Type" { $effect.EffectType })
     $rows += (& $read "Slide.Animation.Effect$effectIndex.Trigger" { $effect.Timing.TriggerType })
+    $rows += (& $read "Slide.Animation.Effect$effectIndex.TriggerDelay" { $effect.Timing.TriggerDelayTime })
   }
   $report = [pscustomobject]@{ source=$appFile; slideCount=$pres.Slides.Count; shapeCount=$slide.Shapes.Count; rows=$rows }
   $report | ConvertTo-Json -Depth 5 | Set-Content -LiteralPath $jsonFile -Encoding UTF8
