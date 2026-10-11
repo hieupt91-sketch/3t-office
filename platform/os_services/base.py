@@ -214,6 +214,20 @@ class OfficeAutomation(Protocol):
 
 
 @dataclass(frozen=True)
+class PrinterInfo:
+    name: str
+    is_default: bool = False
+    status: str = ""
+
+
+class PrinterServices(Protocol):
+    """Native printer discovery and local PDF submission; document data stays on-device."""
+    def list_installed(self) -> ServiceResult[tuple[PrinterInfo, ...]]: ...
+    def print_pdf(self, pdf_path: Path, printer: str, copies: int,
+                  pages: str = "", destination_path: Path | None = None) -> ServiceResult[None]: ...
+
+
+@dataclass(frozen=True)
 class OSServices:
     """The set of services a backend provides. Fields are filled by the backend (windows.py, macos.py...)."""
 
@@ -229,9 +243,11 @@ class OSServices:
     clipboard_extras: ClipboardExtras | None = None
     device_id: DeviceId | None = None
     office_automation: OfficeAutomation | None = None
+    printer_services: PrinterServices | None = None
 
 
 SERVICE_FIELDS = (
     "data_dirs", "single_instance", "process_tracker", "app_identity", "file_associations",
     "launcher", "update_applier", "clipboard_extras", "device_id", "office_automation",
+    "printer_services",
 )

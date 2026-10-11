@@ -92,6 +92,97 @@ class ServicesMatchLegacyTests(unittest.TestCase):
             result = portable_like.show_error("t", "m")
         self.assertFalse(result.is_ok)
 
+    def test_native_printer_service_routes_listing_and_pdf_printing_without_changing_windows_fallback(self):
+        calls = []
+        self.assertIsNone(vnmain._os_services().printer_services)  # Windows/portable keep their existing pipeline until migrated.
+        pkg = sys.modules["_vno_os_services"]
+
+        class FakePrinterService:
+            def list_installed(self):
+                return pkg.ServiceResult.ok((pkg.PrinterInfo("Queue A", True, "Ready"),))
+
+            def print_pdf(self, pdf_path, printer, copies, pages="", destination_path=None):
+                calls.append((pdf_path, printer, copies, pages, destination_path))
+                return pkg.ServiceResult.ok()
+
+        from types import SimpleNamespace
+        service = FakePrinterService()
+        services = SimpleNamespace(printer_services=service)
+        with mock.patch.object(vnmain, "_os_services", return_value=services):
+            api = vnmain.VnOfficeApi.__new__(vnmain.VnOfficeApi)
+            listed = api.get_installed_printers()
+            printed = vnmain._print_pdf_job("writer", "/tmp/doc.pdf", "Queue A", 2, "1-2", "/tmp/result.pdf")
+        self.assertEqual(listed["status"], "ok")
+        self.assertEqual(listed["defaultPrinter"], "Queue A")
+        self.assertTrue(printed["ok"])
+        self.assertEqual(calls[0][1:4], ("Queue A", 2, "1-2"))
+        self.assertEqual(calls[0][4], Path("/tmp/result.pdf"))
+
+    def test_native_printer_service_errors_are_returned_without_falling_back_to_windows(self):
+        vnmain._os_services()
+        pkg = sys.modules["_vno_os_services"]
+
+        class UnavailablePrinterService:
+            def list_installed(self):
+                return pkg.ServiceResult.fail("not_available", "CUPS chưa có hàng đợi máy in.")
+
+            def print_pdf(self, *args, **kwargs):
+                return pkg.ServiceResult.fail("io_error", "CUPS từ chối lệnh in.")
+
+        from types import SimpleNamespace
+        services = SimpleNamespace(printer_services=UnavailablePrinterService())
+        with mock.patch.object(vnmain, "_os_services", return_value=services):
+            api = vnmain.VnOfficeApi.__new__(vnmain.VnOfficeApi)
+            listed = api.get_installed_printers()
+            printed = vnmain._print_pdf_job("writer", "/tmp/doc.pdf", "Queue A", 1, "", None)
+        self.assertEqual(listed, {"status": "error", "message": "CUPS chưa có hàng đợi máy in."})
+        self.assertEqual(printed, {"ok": False, "error": "CUPS từ chối lệnh in."})
+
+    def test_save_as_pdf_alias_uses_native_save_dialog_and_forwards_destination(self):
+        print_calls = []
+
+        class FakePipeline:
+            def suggested_name(self, session_id):
+                return "Báo cáo"
+
+            def print_document(self, session_id, printer, copies, page_range, destination_path):
+                print_calls.append((session_id, printer, copies, page_range, destination_path))
+                return {"status": "ok", "printer": printer, "path": destination_path}
+
+        api = vnmain.VnOfficeApi.__new__(vnmain.VnOfficeApi)
+        api._get_print_pipeline = mock.Mock(return_value=FakePipeline())
+        window = mock.Mock()
+        window.create_file_dialog.return_value = "/tmp/Bao-cao.pdf"
+        services = type("Services", (), {"printer_services": object()})()
+        with mock.patch.object(vnmain, "_active_window", return_value=window), \
+             mock.patch.object(vnmain, "_os_services", return_value=services):
+            result = api._print_document_impl("session-1", {
+                "printer": "Save as PDF", "copies": 1, "pageRange": "",
+            })
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(result["path"], "/tmp/Bao-cao.pdf")
+        self.assertEqual(print_calls, [("session-1", "Save as PDF", 1, "", "/tmp/Bao-cao.pdf")])
+        api._get_print_pipeline.assert_has_calls([mock.call(), mock.call()])
+        window.create_file_dialog.assert_called_once()
+
+    def test_save_as_pdf_alias_does_not_change_the_legacy_fallback(self):
+        calls = []
+
+        class FakePipeline:
+            def print_document(self, session_id, printer, copies, page_range, destination_path):
+                calls.append((session_id, printer, copies, page_range, destination_path))
+                return {"status": "ok"}
+
+        api = vnmain.VnOfficeApi.__new__(vnmain.VnOfficeApi)
+        api._get_print_pipeline = mock.Mock(return_value=FakePipeline())
+        with mock.patch.object(vnmain, "_active_window", return_value=None), \
+             mock.patch.object(vnmain, "_os_services", return_value=None):
+            result = api._print_document_impl("session-legacy", {
+                "printer": "Save as PDF", "copies": 1, "pageRange": "",
+            })
+        self.assertEqual(result["status"], "ok")
+        self.assertEqual(calls, [("session-legacy", "Save as PDF", 1, "", None)])
+
 
 if __name__ == "__main__":
     unittest.main()
