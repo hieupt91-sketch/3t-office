@@ -60,10 +60,25 @@ export const SLIDES_HELP_ENTRIES = [
     ribbon: { tab: "Trình chiếu", tabId: "slideshow", group: "Thiết lập" },
     keywords: ["ẩn trang", "hide slide", "bỏ qua", "f5", "trình chiếu", "ẩn"],
     steps: [
-      "Chọn trang trên dải thumbnail trái hoặc trên vùng soạn thảo. Tab Trình chiếu, nhóm Thiết lập, nhấn Ẩn trang chiếu.",
+      "Chọn trang trên dải thumbnail trái hoặc bấm chuột phải vào thumbnail. Trong menu, chọn Ẩn trang chiếu; hoặc mở tab Trình chiếu, nhóm Thiết lập, nhấn Ẩn trang chiếu.",
       "Thumbnail trang đó có dấu ⊘ và nhãn «Trang chiếu ẩn». Nút ribbon ở trạng thái đang bật.",
       "Khi chiếu Từ đầu (F5) hoặc Từ trang này (Shift+F5), trang ẩn bị nhảy qua. Nếu mọi trang đều ẩn, hộp thoại báo «Tất cả trang chiếu đang bị ẩn».",
       "Nhấn lại Ẩn trang chiếu để hiện. Có thể ẩn/hiện trong Bộ sắp xếp trang (tab Chế độ xem). Trang ẩn vẫn được lưu trong tệp."
+    ]
+  },
+  {
+    id: "slides.context.menu",
+    app: "slides",
+    commandIds: ["slides.slide.new", "slides.slide.duplicate", "slides.slide.delete", "slides.layout.apply"],
+    title: "Thao tác nhanh trên trang chiếu",
+    summary: "Dùng menu chuột phải trên thumbnail để tạo, nhân đôi, cắt, sao chép, dán, ẩn, đổi thứ tự hoặc mở bố cục của trang chiếu.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Trang chiếu" },
+    keywords: ["chuột phải", "thumbnail", "cắt trang", "sao chép trang", "dán trang", "chuyển lên", "chuyển xuống", "bố cục", "sắp xếp"],
+    steps: [
+      "Bấm chuột phải vào thumbnail ở dải bên trái để mở menu thao tác. Dùng phím mũi tên lên/xuống để chọn mục, Enter để thực hiện hoặc Esc để đóng menu.",
+      "Chọn Sao chép trang chiếu hoặc Cắt trang chiếu để giữ trang trong bộ nhớ tạm của ứng dụng; bấm chuột phải vào thumbnail đích rồi chọn Dán trang chiếu. Cắt không xóa trang cuối cùng của bản trình chiếu.",
+      "Chọn Chuyển lên hoặc Chuyển xuống để đổi thứ tự một vị trí. Chọn Ẩn trang chiếu để bỏ qua trang khi trình chiếu; chọn lại mục hiện trang để khôi phục.",
+      "Chọn Bộ sắp xếp trang chiếu để xem toàn bộ trang dạng lưới và kéo thả sắp xếp. Chọn Bố cục để mở bộ chọn bố cục cho trang đang chọn. Các thao tác chỉnh sửa có thể hoàn tác bằng Ctrl+Z."
     ]
   },
   {
@@ -92,12 +107,12 @@ export const SLIDES_HELP_ENTRIES = [
       "slides.para.lineSpacing"
     ],
     title: "Định dạng chữ và đoạn văn",
-    summary: "Trên tab Trang đầu: đổi phông, cỡ, đậm/nghiêng/gạch, màu chữ, màu nền chữ; và đoạn văn (đầu dòng, đánh số, căn lề, thụt lề, giãn dòng 1.0 / 1.5 / 2.0). Áp dụng cho chữ đang bôi trong tiêu đề, nội dung hoặc hộp văn bản.",
+    summary: "Trên tab Trang đầu: đổi phông, cỡ, đậm/nghiêng/gạch, màu chữ, màu nền chữ; và đoạn văn (đầu dòng, đánh số, căn lề, thụt lề, giãn dòng 1.0 / 1.5 / 2.0). Nút Màu chữ áp dụng màu đỏ RGB 255 mặc định.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
     keywords: ["phông chữ", "đoạn văn", "đậm", "căn lề", "dấu đầu dòng", "giãn dòng", "font", "paragraph", "bold"],
     steps: [
       "Nhấp vào tiêu đề, nội dung slide hoặc hộp văn bản, rồi bôi chữ cần đổi (hoặc đặt con trỏ trong đoạn).",
-      "Nhóm Phông chữ: chọn Calibri / Arial / Times New Roman / Be Vietnam Pro / Roboto; chọn cỡ (10–48); nút Tăng/Giảm cỡ chữ; Đậm (Ctrl+B), Nghiêng (Ctrl+I), Gạch chân (Ctrl+U), Gạch ngang; Xóa định dạng; Màu chữ và Màu nền chữ.",
+      "Nhóm Phông chữ: chọn Calibri / Arial / Times New Roman / Be Vietnam Pro / Roboto; chọn cỡ (10–48); nút Tăng/Giảm cỡ chữ; Đậm (Ctrl+B), Nghiêng (Ctrl+I), Gạch chân (Ctrl+U), Gạch ngang; Xóa định dạng; Màu chữ (đỏ RGB 255 mặc định) và Màu nền chữ.",
       "Nhóm Đoạn văn (ngay bên phải): Dấu đầu dòng, Đánh số, Giảm/Tăng thụt lề, hộp Giãn dòng 1.0 / 1.5 / 2.0; hàng dưới là Căn trái (Ctrl+L), Căn giữa (Ctrl+E), Căn phải (Ctrl+R), Căn đều (Ctrl+J). Trong khung nội dung slide, có thể dùng phím Tab để tăng thụt lề và nhấn giữ Shift cùng Tab để giảm thụt lề.",
       "Định dạng áp dụng cho vùng chữ đang chọn trên slide, không phải cho cả bài trừ khi bôi hết. Thay đổi nội dung tiêu đề và văn bản tự động ghi nhận vào lịch sử Hoàn tác (Ctrl+Z) và Làm lại (Ctrl+Y)."
     ]
