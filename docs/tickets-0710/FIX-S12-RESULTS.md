@@ -95,3 +95,11 @@
 - CDP bấm Màu nền, Màu chữ và Viền trên B2, mỗi lệnh lưu XLSX riêng.
 - Excel COM ReadOnly xác nhận màu nền `Interior.Color=65535` (vàng), màu chữ `Font.Color=255` (đỏ), và viền trên/dưới/trái/phải đều `LineStyle=1`. **KHỚP EXCEL**.
 - Ảnh: `evidence/s12/fix-s12-fillDefault.png`, `fix-s12-textColorDefault.png`, `fix-s12-bordersDefault.png`. Log CDP `s12-home-colors.log`; Excel COM `excel-fillDefault.log`, `excel-textColorDefault.log`, `excel-bordersDefault.log`.
+
+## Chế độ xem: Đường lưới và Tiêu đề — lệch đã biết
+
+- CDP bấm Đường lưới và Tiêu đề riêng từng fixture. App model xác nhận `gridlinesVisible=false` và `headingsVisible=false` tương ứng.
+- Excel COM ReadOnly cho cả hai XLSX vẫn báo `DisplayGridlines=1`, `DisplayHeadings=1`; **LỆCH ĐÃ BIẾT** cho cả hai command ID.
+- Ảnh `evidence/s12/fix-s12-gridlines.png`, `fix-s12-headings.png`; CDP `s12-gridlines-retry.log`, `s12-headings-retry.log`; Excel COM `excel-gridlines-retry.log`, `excel-headings-retry.log`.
+- Adapter owner handoff: `docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md`.
+- Danh sách Cỡ chữ thử chọn 16 bằng chuột/phím CDP nhưng control giữ 11; Excel COM cũng đọc 11 pt. Chưa có bằng chứng thay đổi nên `sheet.font.size` vẫn **CHƯA ĐỐI CHIẾU**. Log `s12-font-size-select.log`, `excel-size16.log`; ảnh `evidence/s12/fix-s12-size16.png`.

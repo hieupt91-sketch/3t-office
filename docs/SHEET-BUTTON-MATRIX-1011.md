@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 47 · LỆCH ĐÃ BIẾT: 2 · CHƯA ĐỐI CHIẾU: 89.
+Tổng 138 nút — KHỚP EXCEL: 47 · LỆCH ĐÃ BIẾT: 6 · CHƯA ĐỐI CHIẾU: 85.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -77,8 +77,8 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Bố trí trang | `sheet.page.removePageBreak` | Xóa ngắt trang | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:120 |
 | Bố trí trang | `sheet.page.printTitles` | Tiêu đề in | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | skipped(dangerous) |
 | Bố trí trang | `sheet.page.scale` | Tỷ lệ vừa trang | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
-| Bố trí trang | `sheet.view.gridlines` | Đường lưới | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:23 |
-| Bố trí trang | `sheet.view.headings` | Tiêu đề | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:23 |
+| Bố trí trang | `sheet.view.gridlines` | Đường lưới | LỆCH ĐÃ BIẾT | FIX-S12: CDP đổi gridlinesVisible/headingsVisible thành false nhưng XLSX Excel COM ReadOnly giữ DisplayGridlines/Headings=1; handoff adapter ở docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md | dom:23 |
+| Bố trí trang | `sheet.view.headings` | Tiêu đề | LỆCH ĐÃ BIẾT | FIX-S12: CDP đổi gridlinesVisible/headingsVisible thành false nhưng XLSX Excel COM ReadOnly giữ DisplayGridlines/Headings=1; handoff adapter ở docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md | dom:23 |
 | Công thức | `sheet.formula.insertFunction` | Chèn hàm (Shift+F3) | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog |
 | Công thức | `sheet.formula.sum` | AutoSum (Alt+=) | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dom:16 |
 | Công thức | `sheet.formula.average` | Trung bình | KHỚP EXCEL | FIX-S12 tab Công thức: CDP click Trung bình; Excel COM ReadOnly xác nhận =AVERAGE(C2:C6), Value2=4123.02 (app_S12fix_averageBtn.xlsx) | dom:16 |
@@ -133,9 +133,9 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Chế độ xem | `sheet.view.pageBreakPreview` | Xem ngắt trang | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:145 |
 | Chế độ xem | `sheet.view.pageLayout` | Bố trí trang | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:147 |
 | Chế độ xem | `sheet.file.printPreview` | Xem trước khi in (Ctrl+F2) | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | skipped(dangerous) |
-| Chế độ xem | `sheet.view.gridlines` | Đường lưới | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:47 |
+| Chế độ xem | `sheet.view.gridlines` | Đường lưới | LỆCH ĐÃ BIẾT | FIX-S12: CDP đổi gridlinesVisible/headingsVisible thành false nhưng XLSX Excel COM ReadOnly giữ DisplayGridlines/Headings=1; handoff adapter ở docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md | dom:47 |
 | Chế độ xem | `sheet.view.formulaBar` | Thanh công thức | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:48 |
-| Chế độ xem | `sheet.view.headings` | Tiêu đề | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:47 |
+| Chế độ xem | `sheet.view.headings` | Tiêu đề | LỆCH ĐÃ BIẾT | FIX-S12: CDP đổi gridlinesVisible/headingsVisible thành false nhưng XLSX Excel COM ReadOnly giữ DisplayGridlines/Headings=1; handoff adapter ở docs/AGENT-HANDOFF-FIX-S12-VIEW-STATE.md | dom:47 |
 | Chế độ xem | `sheet.view.zoomIn` | Phóng to | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:7 |
 | Chế độ xem | `sheet.view.zoomReset` | 100% | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:7 |
 | Chế độ xem | `sheet.view.zoomToSelection` | Thu phóng vùng chọn | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:1779 |
