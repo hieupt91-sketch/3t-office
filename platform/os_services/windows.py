@@ -11,7 +11,7 @@ import shutil
 import sys
 from pathlib import Path
 
-from .base import OSServices, ServiceResult
+from .base import LaunchSpec, OSServices, ServiceResult
 
 APP_DATA_DIR_NAME = "VNOffice"
 VALID_APP_KINDS = ("writer", "sheet", "slides")
@@ -51,6 +51,24 @@ class WindowsLauncher:
         """Extended-length form so deep LibreOffice profile trees survive the 260-character path limit."""
         text = str(Path(path).resolve())
         return Path(text if text.startswith("\\\\?\\") else "\\\\?\\" + text)
+
+    def document_worker_endpoint(self, engine: Path, identity: str) -> ServiceResult[str]:
+        if not identity or any(char not in "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_" for char in identity):
+            return ServiceResult.fail("invalid_input", "Mã kết nối bộ xử lý tài liệu không hợp lệ.")
+        return ServiceResult.ok(f"pipe,name={identity}")
+
+    def document_worker_command(self, engine: Path, worker: Path, profile_uri: str,
+                                endpoint: str, app_kind: str) -> ServiceResult[LaunchSpec]:
+        python_path = engine.resolve().parent / "python.exe"
+        if not python_path.is_file():
+            return ServiceResult.fail("not_available", "Không tìm thấy Python đi kèm LibreOffice.")
+        if app_kind not in VALID_APP_KINDS:
+            return ServiceResult.fail("invalid_input", "Loại ứng dụng không hợp lệ.")
+        return ServiceResult.ok(LaunchSpec(
+            executable=python_path,
+            arguments=("-u", str(worker), str(engine), profile_uri, endpoint, app_kind),
+            working_directory=engine.resolve().parent,
+        ))
 
     def show_error(self, title: str, message: str) -> ServiceResult[None]:
         try:

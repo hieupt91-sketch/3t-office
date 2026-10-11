@@ -35,12 +35,12 @@ def _soffice_creation_flags() -> int:
     )
 
 
-def _connect(uno: Any, pipe_name: str, process: subprocess.Popen[str]) -> tuple[Any, int]:
+def _connect(uno: Any, endpoint: str, process: subprocess.Popen[str]) -> tuple[Any, int]:
     local_context = uno.getComponentContext()
     resolver = local_context.ServiceManager.createInstanceWithContext(
         "com.sun.star.bridge.UnoUrlResolver", local_context
     )
-    connection_url = f"uno:pipe,name={pipe_name};urp;StarOffice.ComponentContext"
+    connection_url = f"uno:{endpoint};urp;StarOffice.ComponentContext"
     deadline = time.monotonic() + 90
     last_error: Exception | None = None
     attempts = 0
@@ -394,7 +394,7 @@ def main(argv: list[str] | None = None) -> int:
         _write({"ready": False, "error": "Không khởi động được bộ xử lý tài liệu. Vui lòng cài lại 3T Office."})
         return 2
 
-    soffice_path, profile_uri, pipe_name, app_kind = args
+    soffice_path, profile_uri, endpoint, app_kind = args
     program_dir = Path(soffice_path).resolve().parent
     os.environ["UNO_PATH"] = str(program_dir)
     os.environ["URE_BOOTSTRAP"] = f"vnd.sun.star.pathname:{program_dir / 'fundamental.ini'}"
@@ -417,7 +417,7 @@ def main(argv: list[str] | None = None) -> int:
             "--nologo",
             "--norestore",
             "--nofirststartwizard",
-            f"--accept=pipe,name={pipe_name};urp;StarOffice.ServiceManager",
+            f"--accept={endpoint};urp;StarOffice.ServiceManager",
             f"-env:UserInstallation={profile_uri}",
         ]
         creationflags = _soffice_creation_flags()
@@ -430,7 +430,7 @@ def main(argv: list[str] | None = None) -> int:
             creationflags=creationflags,
         )
         soffice_spawned = time.monotonic()
-        context, resolve_attempts = _connect(uno, pipe_name, process)
+        context, resolve_attempts = _connect(uno, endpoint, process)
         pipe_resolved = time.monotonic()
         desktop = context.ServiceManager.createInstanceWithContext(
             "com.sun.star.frame.Desktop", context

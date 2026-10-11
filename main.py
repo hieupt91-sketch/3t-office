@@ -884,8 +884,7 @@ class _SofficeUnoWorker:
         return str(candidate) if candidate.is_file() else None
 
     def start(self) -> None:
-        python_path = self._python_path()
-        if not python_path or not SOFFICE_PATH:
+        if not SOFFICE_PATH:
             raise _PersistentSofficeTransportError(
                 "Không khởi động được bộ xử lý tài liệu. Vui lòng cài lại 3T Office."
             )
@@ -893,11 +892,36 @@ class _SofficeUnoWorker:
         if not worker_path.is_file():
             raise _PersistentSofficeTransportError("Không tìm thấy bộ xử lý tài liệu. Vui lòng cài lại 3T Office.")
 
-        pipe_name = f"vnoffice_{os.getpid()}_{uuid.uuid4().hex}"
+        identity = f"vnoffice_{os.getpid()}_{uuid.uuid4().hex}"
         profile_uri = _profile_uri(self.app_kind)
         env = os.environ.copy()
         env["PYTHONUNBUFFERED"] = "1"
-        command = [python_path, "-u", str(worker_path), SOFFICE_PATH, profile_uri, pipe_name, self.app_kind]
+        services = _os_services()
+        launcher = getattr(services, "launcher", None) if services is not None else None
+        endpoint_result = getattr(launcher, "document_worker_endpoint", lambda *_: None)(
+            Path(SOFFICE_PATH), identity
+        ) if launcher is not None else None
+        command_result = None
+        if endpoint_result is not None and endpoint_result.is_ok and endpoint_result.value:
+            command_result = launcher.document_worker_command(
+                Path(SOFFICE_PATH), worker_path, profile_uri, endpoint_result.value, self.app_kind
+            )
+        if command_result is not None and command_result.is_ok and command_result.value:
+            launch = command_result.value
+            command = [str(launch.executable), *launch.arguments]
+            cwd = str(launch.working_directory) if launch.working_directory else None
+        else:
+            # Compatibility path for platforms whose service migration has not landed yet.
+            python_path = self._python_path()
+            if not python_path:
+                detail = getattr(getattr(command_result, "error", None), "message", None) or \
+                    getattr(getattr(endpoint_result, "error", None), "message", None)
+                raise _PersistentSofficeTransportError(
+                    detail or "Không tìm thấy Python đi kèm LibreOffice để chạy bộ xử lý tài liệu."
+                )
+            endpoint = endpoint_result.value if endpoint_result is not None and endpoint_result.is_ok else f"pipe,name={identity}"
+            command = [python_path, "-u", str(worker_path), SOFFICE_PATH, profile_uri, endpoint, self.app_kind]
+            cwd = None
         flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
         started = time.perf_counter()
         try:
@@ -911,6 +935,7 @@ class _SofficeUnoWorker:
                 errors="replace",
                 bufsize=1,
                 env=env,
+                cwd=cwd,
                 creationflags=flags,
                 start_new_session=(os.name != "nt"),
             )

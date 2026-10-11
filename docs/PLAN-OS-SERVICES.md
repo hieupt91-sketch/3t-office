@@ -68,7 +68,7 @@ Ký hiệu: **W** chỉ Windows; **W/P** có Windows và POSIX nhưng macOS chư
 | main.py:573-665 | SHGetPropertyStoreForWindow, WINFUNCTYPE, AppUserModelID cửa sổ | W | AppIdentity.apply_window_identity() |
 | main.py:680-682 | Tên platform gửi bản quyền | ĐC | DeviceId.platform_name() |
 | main.py:685-724 | Tìm soffice.exe/soffice; đã có Darwin/Linux | ĐC | Launcher.find_document_engine() |
-| main.py:785-821 | Giả định program/python.exe; CREATE_NO_WINDOW; start_new_session | W/P | Launcher.document_worker_command(), start_child() |
+| main.py:785-821 | Giả định program/python.exe, transport pipe và cờ tiến trình | W/P | Launcher.document_worker_endpoint() chọn pipe/socket loopback; document_worker_command() dựng command, start_child() quản lý cờ tiến trình |
 | main.py:957-997 | Dừng worker: taskkill /PID /T /F hoặc killpg | W/P | ProcessTracker.stop_owned_tree() |
 | main.py:1325-1329 | Tiền tố đường dẫn dài \\?\ | W | Launcher.native_io_path() |
 | main.py:2307-2353 | In qua soffice có CREATE_NO_WINDOW | W/P | Launcher.run_child() |
