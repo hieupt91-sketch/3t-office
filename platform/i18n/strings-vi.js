@@ -132,6 +132,7 @@ export const viStrings = {
     replacePlaceholder: "Nhập nội dung thay thế...",
     matchCase: "Khớp chữ hoa/thường",
     wholeWord: "Chỉ toàn bộ từ",
+    matchCell: "Khớp toàn bộ nội dung ô",
     ignoreDiacritics: "Bỏ qua dấu",
     within: "Tìm trong:",
     scopeSheet: "Trang tính",

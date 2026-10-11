@@ -29,6 +29,7 @@ export function createMatcher(findText, options = {}) {
   const {
     matchCase = false,
     wholeWord = false,
+    matchCell = false,
     ignoreDiacritics = false,
     useRegex = false
   } = options;
@@ -52,13 +53,16 @@ export function createMatcher(findText, options = {}) {
   // Unicode whole-word boundary
   const prefix = wholeWord ? "(?<![\\p{L}\\p{N}])" : "";
   const suffix = wholeWord ? "(?![\\p{L}\\p{N}])" : "";
+  const fullPrefix = matchCell ? "^(?:" : prefix;
+  const fullSuffix = matchCell ? ")$" : suffix;
   const flags = (matchCase ? "" : "i") + "u";
 
   let normalRegex = null;
   try {
-    normalRegex = new RegExp(`${prefix}${pattern}${suffix}`, flags + "g");
+    normalRegex = new RegExp(`${fullPrefix}${pattern}${fullSuffix}`, flags + "g");
   } catch (_) {
-    normalRegex = new RegExp(escapeRegExp(normalizedFind), "gu");
+    const escapedPattern = escapeRegExp(normalizedFind);
+    normalRegex = new RegExp(`${matchCell ? "^(?:" : ""}${escapedPattern}${matchCell ? ")$" : ""}`, "gu");
   }
 
   let strippedRegex = null;
@@ -66,9 +70,10 @@ export function createMatcher(findText, options = {}) {
     const strippedFind = stripDiacritics(normalizedFind);
     const strippedPattern = useRegex ? strippedFind : escapeRegExp(strippedFind);
     try {
-      strippedRegex = new RegExp(`${prefix}${strippedPattern}${suffix}`, flags + "g");
+      strippedRegex = new RegExp(`${fullPrefix}${strippedPattern}${fullSuffix}`, flags + "g");
     } catch (_) {
-      strippedRegex = new RegExp(escapeRegExp(strippedFind), "gu");
+      const escapedPattern = escapeRegExp(strippedFind);
+      strippedRegex = new RegExp(`${matchCell ? "^(?:" : ""}${escapedPattern}${matchCell ? ")$" : ""}`, "gu");
     }
   }
 
@@ -88,6 +93,15 @@ export function createMatcher(findText, options = {}) {
     if (typeof haystack !== "string") return [];
     const normH = normalizeNFC(haystack);
     const results = [];
+
+    if (matchCell) {
+      const target = ignoreDiacritics ? stripDiacritics(normH) : normH;
+      const regex = ignoreDiacritics ? strippedRegex : normalRegex;
+      if (new RegExp(regex.source, regex.flags.replace("g", "")).test(target)) {
+        return [{ index: 0, match: normH, length: normH.length }];
+      }
+      return results;
+    }
 
     if (ignoreDiacritics) {
       const strippedH = stripDiacritics(normH);
@@ -153,6 +167,7 @@ export class FindReplaceEngine {
     this.options = {
       matchCase: false,
       wholeWord: false,
+      matchCell: false,
       ignoreDiacritics: false,
       useRegex: false,
       searchScope: "sheet",

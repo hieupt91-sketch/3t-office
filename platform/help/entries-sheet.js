@@ -1023,15 +1023,15 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["common.edit.find", "common.edit.replace"],
     title: "Tìm kiếm và Thay thế trong Sheet",
-    summary: "Hộp thoại Tìm kiếm và Thay thế dùng chung phong cách phần mềm bảng tính khác cho Sheet. Hỗ trợ tìm trong Trang tính hoặc toàn bộ Sổ làm việc, tìm theo Hàng/Cột, tìm trong Công thức hoặc Giá trị, cùng Hoàn tác một bước (Ctrl+Z).",
+    summary: "Hộp thoại Tìm kiếm và Thay thế trong Sheet hỗ trợ tìm trong Trang tính hoặc toàn bộ Sổ làm việc, tìm theo Hàng/Cột, tìm trong Công thức hoặc Giá trị, khớp toàn bộ nội dung ô và Hoàn tác một bước (Ctrl+Z).",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
     keywords: ["tìm", "thay thế", "find", "replace", "ctrl+f", "ctrl+h", "Sheet", "tìm kiếm", "công thức", "giá trị", "sổ làm việc"],
     steps: [
       "Truy cập: Mở tab Trang đầu trên thanh ribbon, vào nhóm Chỉnh sửa ở phía cuối bên phải và bấm Tìm kiếm (Ctrl+F) hoặc Thay thế (Ctrl+H) để mở hộp thoại Tìm kiếm và Thay thế gồm 2 tab.",
       "Tìm kiếm dữ liệu: Trong tab «Tìm» (Ctrl+F), nhập chuỗi vào ô «Tìm gì:». Bấm nút «Tìm tiếp» để nhảy tới ô khớp tiếp theo; bấm «Tìm trước» để lùi về ô khớp trước. Sheet tự động cuộn màn hình và kích hoạt ô được tìm thấy.",
       "Thay thế dữ liệu: Trong tab «Thay thế» (Ctrl+H), nhập nội dung cần thay đổi vào ô «Thay bằng:». Bấm «Thay thế» để đổi từng ô, hoặc bấm «Thay thế tất cả» để thay thế toàn bộ dữ liệu khớp và xem thông báo tổng số lượng thay thế đã thực hiện.",
-      "Tùy chọn nâng cao trong Sheet: Thiết lập phạm vi trong phần mở rộng: «Tìm trong: Trang tính / Sổ làm việc» (tìm trên trang hiện hành hay quét qua tất cả các trang tính), «Tìm theo: Hàng / Cột» (thứ tự duyệt dữ liệu theo dòng hay theo cột), và «Tìm trong: Giá trị / Công thức» (tìm trong kết quả hiển thị hoặc trong chuỗi công thức tính toán).",
-      "Tiếng Việt và bộ lọc từ: Hỗ trợ các tùy chọn «Khớp chữ hoa/thường», «Chỉ toàn bộ từ», và «Bỏ qua dấu» tiếng Việt. Cả chuỗi tìm và nội dung ô được chuẩn hóa Unicode NFC tự động, đảm bảo khớp chuẩn xác kể cả tổ hợp hay dựng sẵn.",
+      "Tùy chọn nâng cao trong Sheet: Thiết lập phạm vi «Tìm trong: Trang tính / Sổ làm việc», thứ tự «Tìm theo: Hàng / Cột», và nội dung «Giá trị / Công thức». Bật «Khớp toàn bộ nội dung ô» để chỉ chọn ô có nội dung bằng đúng chuỗi cần tìm; tắt tùy chọn này để tìm chuỗi nằm bên trong ô.",
+      "Tiếng Việt và bộ lọc từ: Hỗ trợ «Khớp chữ hoa/thường», «Chỉ toàn bộ từ», «Khớp toàn bộ nội dung ô» và «Bỏ qua dấu». Chuỗi được chuẩn hóa Unicode NFC tự động.",
       "Đóng và Hoàn tác: Bấm Esc để đóng hộp thoại. Sau khi đóng, hệ thống vẫn lưu lại từ khóa tìm kiếm của phiên làm việc. Mọi thao tác «Thay thế tất cả» đều được ghi nhận thành đúng 1 bước Hoàn tác (nhấn Ctrl+Z để hoàn tác toàn bộ các ô đã thay đổi cùng lúc)."
     ]
   },

@@ -147,6 +147,18 @@ export async function runSharedFindReplaceTests() {
     assert.equal(partMatches.length, 3, "wholeWord: false khớp cả 3 lần (kể cả 'bảng')");
   });
 
+  test("Search Engine: Khớp toàn bộ nội dung ô và thay thế cả nội dung", () => {
+    const exact = createMatcher("Ghi chú A", { matchCell: true });
+    assert.equal(exact.matches("Ghi chú A"), true);
+    assert.equal(exact.matches("Ghi chú A thêm"), false, "Không nhận chuỗi chỉ chứa nội dung tìm kiếm");
+    assert.deepEqual(exact.findAll("Ghi chú A"), [{ index: 0, match: "Ghi chú A", length: 9 }]);
+    assert.deepEqual(exact.replace("Ghi chú A", "Đã thay", true), { text: "Đã thay", count: 1 });
+
+    const regex = createMatcher("Ghi.*A", { matchCell: true, useRegex: true });
+    assert.equal(regex.matches("Ghi chú A"), true, "Regex phải khớp toàn bộ nội dung ô");
+    assert.equal(regex.matches("Ghi chú A thêm"), false);
+  });
+
   // 3. Core Matcher: Vietnamese Diacritics and NFC Normalization
   test("Search Engine: Chuẩn hóa NFC và tùy chọn bỏ qua dấu tiếng Việt (kể cả đ/Đ)", () => {
     // Chuỗi dựng sẵn (NFC) vs tổ hợp (NFD)
