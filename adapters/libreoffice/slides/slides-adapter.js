@@ -13,6 +13,10 @@ import { overlayFodpSections } from "./pptx-section-list.js";
 import { overlayFodpShowProperties } from "./pptx-show-properties.js";
 import { parseOfficeHtmlTable, parseOfficeTsv, isCellBold } from "../../../platform/clipboard/office-clipboard.js";
 
+export function stripClipboardFragmentMarkers(html) {
+  return String(html || "").replace(/<!--\s*(?:Start|End)Fragment\s*-->/gi, "");
+}
+
 const KNOWN_INSTALLED_FONTS = new Set([
   "arial",
   "arial black",
@@ -270,7 +274,10 @@ export class SlidesAdapter {
     this._textFormatMouseDownHandler = (event) => {
       const host = event.target?.closest?.("[data-command-id]");
       const id = host?.getAttribute?.("data-command-id") || "";
-      if (!/^slides\.(text|font|para|list|color)\./.test(id) && id !== "slides.edit.formatPainter") return;
+      const editsText = /^slides\.(text|font|para|list|color)\./.test(id)
+        || id === "slides.edit.formatPainter"
+        || /^common\.edit\.(cut|copy|paste|pastePlain)$/.test(id);
+      if (!editsText) return;
       this._rememberTextSelection();
       const tag = (event.target?.tagName || host?.tagName || "").toUpperCase();
       if (tag === "SELECT" || tag === "OPTION") return;
@@ -4324,10 +4331,12 @@ export class SlidesAdapter {
         return this.canvas.insertWordArt ? await this.canvas.insertWordArt(args) : false;
 
       case "common.edit.cut":
+        this._restoreTextSelection();
         if (typeof document !== "undefined") document.execCommand("cut", false, null);
         return true;
 
       case "common.edit.copy": {
+        this._restoreTextSelection();
         const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
         if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
           const text = selection.toString();
@@ -4401,9 +4410,12 @@ export class SlidesAdapter {
   }
 
   async _readClipboardData() {
+    const stripFragmentMarkers = (clipboard) => clipboard && typeof clipboard === "object"
+      ? { ...clipboard, html: stripClipboardFragmentMarkers(clipboard.html) }
+      : clipboard;
     try {
       const native = await globalUnoBridge.readClipboardData?.();
-      if (native?.status === "ok") return native;
+      if (native?.status === "ok") return stripFragmentMarkers(native);
     } catch {}
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard?.read) {
@@ -4414,17 +4426,18 @@ export class SlidesAdapter {
           const textType = types.find(type => type === "text/plain");
           const html = htmlType ? await (await item.getType(htmlType)).text() : "";
           const text = textType ? await (await item.getType(textType)).text() : "";
-          if (html || text) return { status: "ok", html, text };
+          if (html || text) return stripFragmentMarkers({ status: "ok", html, text });
         }
       }
       if (navigator.clipboard?.readText) {
-        return { status: "ok", text: await navigator.clipboard.readText(), html: "" };
+        return stripFragmentMarkers({ status: "ok", text: await navigator.clipboard.readText(), html: "" });
       }
     } catch {}
     return null;
   }
 
   async _paste() {
+    this._restoreTextSelection();
     const activeEl = typeof document !== "undefined" ? document.activeElement : null;
     const isEditable = activeEl && (activeEl.isContentEditable || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "INPUT");
 

@@ -17,6 +17,10 @@ UNCHECKED = "CHƯA ĐỐI CHIẾU"
 # Each entry is scoped to what the cited COM and app evidence actually measured.
 # A result for one value/fixture is not generalized to the entire feature.
 EVIDENCE = {
+    "common.edit.cut": (MATCH, "FIX-L8: CDP bôi đen toàn văn bản, bấm Cắt; PowerPoint COM đọc lại văn bản rỗng và số shape giữ nguyên 5. Nút giữ focus vùng chữ trước lệnh cắt. [CDP](tickets-0710/evidence/fix-l8/home/clipboard-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/home/clipboard-cut-readback.json)"),
+    "common.edit.copy": (MATCH, "FIX-L8: CDP bôi đen toàn văn bản, bấm Sao chép; clipboard cục bộ giữ đúng văn bản/HTML và vùng chọn còn nguyên. [CDP](tickets-0710/evidence/fix-l8/home/clipboard-cdp-readback.json)"),
+    "common.edit.paste": (MATCH, "FIX-L8: CDP sao chép rồi dán vào vùng chữ đang chọn; nội dung được thay đúng trong textbox, không thêm shape. PowerPoint COM đọc lại nguyên văn và 5 shape. Đã bỏ marker CF_HTML trước khi chèn HTML. [CDP](tickets-0710/evidence/fix-l8/home/clipboard-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/home/clipboard-paste-readback.json)"),
+    "slides.color.highlight": (MATCH, "FIX-L8: CDP bôi đen tiêu đề và bấm Màu nền chữ; PowerPoint COM đọc Highlight.RGB=52735 so với baseline 1894392. [Ảnh](tickets-0710/evidence/fix-l8/home/highlight.png), [COM](tickets-0710/evidence/fix-l8/home/highlight-readback.json), [no-op](tickets-0710/evidence/fix-l8/home/noop-readback.json)"),
     "slides.font.family": (MATCH, "FIX-L4: chỉnh sửa văn bản trong deck thật; tập font hiển thị trước/sau qua PowerPoint COM đều là Calibri, Calibri Light. Alias Arial1 được unit test, không có trong deck nguồn. [FIX-L4 audit](AUDIT-SLIDES-OFFICE-PARITY-1011.md#kết-quả-đã-đo)"),
     "slides.font.size": (MATCH, "FIX-L4: chuỗi đổi cỡ chữ trong app; PowerPoint COM đọc cỡ cuối 18 pt. [FIX-L4 audit](AUDIT-SLIDES-OFFICE-PARITY-1011.md#kết-quả-đã-đo)"),
     "slides.font.grow": (MATCH, "FIX-L4: app chạy thang 18→20→24→28→32→36 pt; COM đọc cỡ cuối 18 pt sau cả chuỗi tăng/giảm. [FIX-L4 audit](AUDIT-SLIDES-OFFICE-PARITY-1011.md#kết-quả-đã-đo)"),

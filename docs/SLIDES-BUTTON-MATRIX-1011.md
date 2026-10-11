@@ -2,7 +2,7 @@
 
 Nguồn danh sách nút: [`ribbon-scan-slides-1011.json`](ribbon-scan-slides-1011.json). Ma trận giữ đủ từng dòng scan (kể cả ID xuất hiện ở nhiều tab); trạng thái chỉ áp dụng tới thuộc tính/kịch bản ghi trong bằng chứng.
 
-Tổng: 88 dòng. **CHƯA ĐỐI CHIẾU**: 52, **LỆCH ĐÃ BIẾT**: 4, **KHỚP POWERPOINT**: 30, **KHÁC CÓ CHỦ Ý**: 2.
+Tổng: 88 dòng. **KHỚP POWERPOINT**: 34, **CHƯA ĐỐI CHIẾU**: 48, **LỆCH ĐÃ BIẾT**: 4, **KHÁC CÓ CHỦ Ý**: 2.
 
 - **KHỚP POWERPOINT**: thao tác VN Slides được thực hiện; PowerPoint COM đọc lại cùng thuộc tính và kết quả khớp.
 - **KHÁC CÓ CHỦ Ý**: khác biệt sản phẩm có chủ ý hoặc không có nút đối ứng; nêu rõ lý do.
@@ -13,9 +13,9 @@ Các kết quả kế thừa được giới hạn theo báo cáo FIX-L4/L5/L6; 
 
 | Tab | Lệnh | Nút | Trạng thái | Bằng chứng / ghi chú |
 |---|---|---|---|---|
-| Trang đầu | `common.edit.paste` | Dán (Ctrl+V) | CHƯA ĐỐI CHIẾU |  |
-| Trang đầu | `common.edit.cut` | Cắt (Ctrl+X) | CHƯA ĐỐI CHIẾU |  |
-| Trang đầu | `common.edit.copy` | Sao chép (Ctrl+C) | CHƯA ĐỐI CHIẾU |  |
+| Trang đầu | `common.edit.paste` | Dán (Ctrl+V) | KHỚP POWERPOINT | FIX-L8: CDP sao chép rồi dán vào vùng chữ đang chọn; nội dung được thay đúng trong textbox, không thêm shape. PowerPoint COM đọc lại nguyên văn và 5 shape. Đã bỏ marker CF_HTML trước khi chèn HTML. [CDP](tickets-0710/evidence/fix-l8/home/clipboard-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/home/clipboard-paste-readback.json) |
+| Trang đầu | `common.edit.cut` | Cắt (Ctrl+X) | KHỚP POWERPOINT | FIX-L8: CDP bôi đen toàn văn bản, bấm Cắt; PowerPoint COM đọc lại văn bản rỗng và số shape giữ nguyên 5. Nút giữ focus vùng chữ trước lệnh cắt. [CDP](tickets-0710/evidence/fix-l8/home/clipboard-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/home/clipboard-cut-readback.json) |
+| Trang đầu | `common.edit.copy` | Sao chép (Ctrl+C) | KHỚP POWERPOINT | FIX-L8: CDP bôi đen toàn văn bản, bấm Sao chép; clipboard cục bộ giữ đúng văn bản/HTML và vùng chọn còn nguyên. [CDP](tickets-0710/evidence/fix-l8/home/clipboard-cdp-readback.json) |
 | Trang đầu | `slides.edit.formatPainter` | Sao chép định dạng | CHƯA ĐỐI CHIẾU |  |
 | Trang đầu | `slides.slide.new` | Trang mới (Ctrl+M) | CHƯA ĐỐI CHIẾU |  |
 | Trang đầu | `slides.layout.apply` | Bố cục | LỆCH ĐÃ BIẾT | FIX-L6: Hai nội dung được lưu nhưng PowerPoint COM đọc Layout=1; fixture Two-Column Text đọc Layout=3. Thay native layout semantics cần quyết định chủ sở hữu trước. [FIX-L6 results](tickets-0710/FIX-L6-RESULTS.md#kiểm-tra) |
@@ -32,7 +32,7 @@ Các kết quả kế thừa được giới hạn theo báo cáo FIX-L4/L5/L6; 
 | Trang đầu | `slides.text.strike` | Gạch ngang | KHỚP POWERPOINT | FIX-L7: CDP chọn toàn văn bản, bấm Gạch ngang; PowerPoint COM TextFrame2.Font.Strike=1. [Ảnh CDP](tickets-0710/evidence/fix-l7/text/strike.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-text-readback.json) |
 | Trang đầu | `slides.text.clearFormat` | Xóa định dạng | KHỚP POWERPOINT | FIX-L7: CDP bấm Đậm rồi Xóa định dạng; PowerPoint COM đọc Bold=0, Italic=0, Underline=0, Strike=0. [Ảnh CDP](tickets-0710/evidence/fix-l7/text/clearFormat.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-text-readback.json) |
 | Trang đầu | `slides.color.text` | Màu chữ | KHỚP POWERPOINT | FIX-L7/FIX-L5: CDP áp màu chữ mặc định; PowerPoint COM đọc RGB=255. [Ảnh CDP](tickets-0710/evidence/fix-l7/text/colorDefault.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-text-readback.json) |
-| Trang đầu | `slides.color.highlight` | Màu nền chữ | CHƯA ĐỐI CHIẾU |  |
+| Trang đầu | `slides.color.highlight` | Màu nền chữ | KHỚP POWERPOINT | FIX-L8: CDP bôi đen tiêu đề và bấm Màu nền chữ; PowerPoint COM đọc Highlight.RGB=52735 so với baseline 1894392. [Ảnh](tickets-0710/evidence/fix-l8/home/highlight.png), [COM](tickets-0710/evidence/fix-l8/home/highlight-readback.json), [no-op](tickets-0710/evidence/fix-l8/home/noop-readback.json) |
 | Trang đầu | `slides.list.bullet` | Dấu đầu dòng | KHỚP POWERPOINT | FIX-L7: CDP bật dấu đầu dòng; PowerPoint COM đọc Bullet.Visible=-1, Type=1. [Ảnh CDP](tickets-0710/evidence/fix-l7/text/bullet.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-text-readback.json) |
 | Trang đầu | `slides.list.numbered` | Đánh số | KHỚP POWERPOINT | FIX-L7: CDP bật đánh số; PowerPoint COM đọc Bullet.Visible=-1, Type=2. [Ảnh CDP](tickets-0710/evidence/fix-l7/text/numbered.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-text-readback.json) |
 | Trang đầu | `slides.para.indentDec` | Giảm thụt lề | CHƯA ĐỐI CHIẾU |  |

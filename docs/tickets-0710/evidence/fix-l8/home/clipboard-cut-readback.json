@@ -1,0 +1,32 @@
+{
+    "baseline":  "E:\\VN OFice\\file test\\sample-3.pptx",
+    "appFile":  "E:\\VNOffice-profiles\\codex-fl8\\fix-l8-clipboard.pptx",
+    "baselineReadback":  {
+                             "slides":  10,
+                             "shapes":  5,
+                             "layout":  12,
+                             "titleText":  "WEST COAST\u000bROAD TRIP",
+                             "alignment":  1,
+                             "leftIndent":  null,
+                             "indentLevel":  null,
+                             "lineSpacingRule":  -1,
+                             "lineSpacing":  1,
+                             "textColorRgb":  6710886,
+                             "highlightRgb":  1894392,
+                             "finalShapeText":  null
+                         },
+    "appReadback":  {
+                        "slides":  10,
+                        "shapes":  5,
+                        "layout":  1,
+                        "titleText":  "",
+                        "alignment":  2,
+                        "leftIndent":  null,
+                        "indentLevel":  null,
+                        "lineSpacingRule":  -1,
+                        "lineSpacing":  0.9,
+                        "textColorRgb":  9058846,
+                        "highlightRgb":  0,
+                        "finalShapeText":  null
+                    }
+}
