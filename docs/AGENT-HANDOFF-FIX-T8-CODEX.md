@@ -10,6 +10,7 @@ FINDINGS:
 - Cột 1/2/3 đã có kết quả 3/3 KHỚP từ lần audit trước. Heading 1–3 có sai khác style đã được ghi trước đó.
 - Bố cục trang: A4 ngang và lề trên/dưới 25 mm, trái/phải 20 mm khớp Word COM qua DOCX đã lưu; preset lề, Letter/A5, ngắt trang/mục, đầu/chân trang, trang đầu khác và số trang chưa chạy.
 - Kiểu/Tham chiếu: Tiêu đề 1 lưu DOCX và Word đọc lại `Heading 1`; TOC count 1 và footnote count 1 (nội dung rỗng) khớp DOCX Word tạo. Chưa chạy TOC refresh, endnote, Heading 2/3/Normal/Title/Quote, tham chiếu chéo/danh mục hình. Lệch format Heading 1–3 đã ghi vẫn còn; chưa đổi semantics style/theme.
+- Ghi chú: comment `Audit note` trên scope `Alpha` khớp Word COM về count, Author `3T Office`, Scope và Text. Done/Resolved và sửa/xóa/điều hướng chưa chạy.
 - Unittest đầu tiên dùng LOCALAPPDATA hệ thống, va chạm với LibreOffice của worktree khác. Chạy lại bằng profile riêng thì 832 tests OK.
 IMPLEMENTATION SUMMARY: Hai commit audit bảng trước đó thêm harness desktop CDP. Các lượt tiếp theo xác nhận A4 ngang/lề 25/20 mm và cấu trúc Heading 1 + TOC + footnote bằng thao tác chuột/phím CDP, lưu DOCX và đọc lại bằng Word COM; cập nhật ma trận và vị trí tra cứu Trợ giúp.
 FILES CHANGED: `docs/AUDIT-DOC-WORD-PARALLEL-1011.md`, `docs/AGENT-HANDOFF-FIX-T8-CODEX.md`.
