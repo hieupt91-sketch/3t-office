@@ -8641,6 +8641,7 @@ _bindGridKeyboardNavigation() {
     const opts = {
       matchCase: false,
       wholeWord: false,
+      matchCell: false,
       ignoreDiacritics: false,
       scope: "sheet",
       searchBy: "rows",
@@ -8674,7 +8675,7 @@ _bindGridKeyboardNavigation() {
       return entries;
     };
 
-    const stateKey = `${needle}__${opts.matchCase}__${opts.wholeWord}__${opts.ignoreDiacritics}__${opts.searchBy}__${opts.lookIn}__${opts.scope}`;
+    const stateKey = `${needle}__${opts.matchCase}__${opts.wholeWord}__${opts.matchCell}__${opts.ignoreDiacritics}__${opts.searchBy}__${opts.lookIn}__${opts.scope}`;
     if (this._findLastStateKey !== stateKey) {
       this._findLastStateKey = stateKey;
       this._findLastCoord = null;
@@ -8730,6 +8731,7 @@ _bindGridKeyboardNavigation() {
     const opts = {
       matchCase: false,
       wholeWord: false,
+      matchCell: false,
       ignoreDiacritics: false,
       scope: "sheet",
       searchBy: "rows",
@@ -8768,6 +8770,7 @@ _bindGridKeyboardNavigation() {
     const opts = {
       matchCase: false,
       wholeWord: false,
+      matchCell: false,
       ignoreDiacritics: false,
       scope: "sheet",
       searchBy: "rows",

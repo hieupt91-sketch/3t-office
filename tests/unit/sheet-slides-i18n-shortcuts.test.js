@@ -27,6 +27,7 @@ export async function runSheetSlidesI18nShortcutTests() {
   await test("Sheet/Slides i18n gap audit: Paste Special, Merge Cells, Data tools, Slides presenter dialog keys", () => {
     try {
       setLocale("en");
+      if (t("findReplace.matchCell") !== "Match entire cell contents") throw new Error("matchCell EN sai");
       if (t("sheetDialogs.pasteSpecialTitle") !== "Paste Special") throw new Error("pasteSpecialTitle EN sai");
       if (t("sheetDialogs.pasteSpecialValues") !== "Values") throw new Error("pasteSpecialValues EN sai");
       if (t("sheetDialogs.mergeConfirmTitle") !== "Merge cells") throw new Error("mergeConfirmTitle EN sai");
@@ -41,6 +42,7 @@ export async function runSheetSlidesI18nShortcutTests() {
       if (t("slidesDialogs.animFadeIn") !== "Fade In") throw new Error("animFadeIn EN sai");
 
       setLocale("vi");
+      if (t("findReplace.matchCell") !== "Khớp toàn bộ nội dung ô") throw new Error("matchCell VI sai");
       if (t("sheetDialogs.pasteSpecialTitle") !== "Dán đặc biệt") throw new Error("pasteSpecialTitle VI sai");
       if (t("sheetDialogs.pasteSpecialValues") !== "Chỉ giá trị") throw new Error("pasteSpecialValues VI sai");
       if (t("sheetDialogs.mergeConfirmTitle") !== "Trộn ô") throw new Error("mergeConfirmTitle VI sai");

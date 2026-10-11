@@ -155,11 +155,16 @@ for (const [name, cell, kind, id, value] of ops) {
       await clickSelector("#vno-fr-tab-replace");
       for(const [selector,textValue] of [["#vno-fr-find-input","ghi ch\u00fa C"],["#vno-fr-replace-input","\u0110\u00e3 thay"]]){await clickSelector(selector);await press(session.cdp,"a",{ctrl:true});await insertText(session.cdp,textValue);}
       const entered=await ev("JSON.stringify({find:document.querySelector('#vno-fr-find-input')?.value,replace:document.querySelector('#vno-fr-replace-input')?.value})");
-      await clickSelector("#vno-fr-opt-case"); await clickSelector("#vno-fr-opt-scope"); await press(session.cdp,"ArrowDown"); await press(session.cdp,"Enter");
+      await clickSelector("#vno-fr-opt-scope"); await press(session.cdp,"ArrowDown"); await press(session.cdp,"Enter");
+      const findInput=JSON.parse(await ev("(() => {const n=document.querySelector('#vno-fr-find-input');const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()"));
+      await mouseClick(session.cdp,findInput.x,findInput.y); await press(session.cdp,"Home"); await press(session.cdp,"End",{shift:true}); await press(session.cdp,"Backspace"); await insertText(session.cdp,"Ghi chú A");
+      await clickSelector("#vno-fr-opt-cell"); await clickSelector("#vno-fr-replace-all-btn"); const exactCell=await ev("document.querySelector('#vno-fr-status')?.textContent||''");
+      await mouseClick(session.cdp,findInput.x,findInput.y); await press(session.cdp,"Home"); await press(session.cdp,"End",{shift:true}); await press(session.cdp,"Backspace"); await insertText(session.cdp,"ghi chú C");
+      await clickSelector("#vno-fr-opt-case");
       await clickSelector("#vno-fr-replace-all-btn"); const caseSensitive=await ev("document.querySelector('#vno-fr-status')?.textContent||''");
       await clickSelector("#vno-fr-opt-case"); await clickSelector("#vno-fr-replace-all-btn"); const insensitive=await ev("document.querySelector('#vno-fr-status')?.textContent||''");
       const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000); const evidenceDir=path.join(root,"docs","tickets-0710","evidence"); await mkdir(evidenceDir,{recursive:true}); await writeFile(path.join(evidenceDir,"fix-s9-find-replace.png"),Buffer.from((shot.result||shot).data,"base64"));
-      status="entered="+entered+"; case-sensitive="+caseSensitive+"; case-insensitive="+insensitive;
+      status="entered="+entered+"; exact-cell="+exactCell+"; case-sensitive="+caseSensitive+"; case-insensitive="+insensitive;
     } else if (kind === "pasteSpecialPack") {
       const clickCell=async coord=>{const point=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="${coord}"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!point)throw new Error("Missing cell "+coord);await mouseClick(session.cdp,point.x,point.y);};
       const clickSelector=async selector=>{const point=JSON.parse(await ev(`(() => {const n=document.querySelector(${JSON.stringify(selector)});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!point)throw new Error("Missing UI control "+selector);await mouseClick(session.cdp,point.x,point.y);};

@@ -3,7 +3,7 @@
 ## Kế hoạch
 - Mục tiêu: kiểm chứng lại các nhóm FIX-S9 còn được giao trên nhánh `fix/sheet-s10-codex`, qua thao tác chuột/phím CDP, lưu XLSX rồi đọc lại bằng Excel COM chỉ đọc.
 - Năng lực hiện hữu: implementation và hướng dẫn VI/i18n cho các nhóm đã nằm trong `main` từ merge FIX-S9; chỉ sửa nếu audit tái hiện sai khác.
-- Phạm vi file: `apps/sheet/**` chỉ khi có sai khác; `platform/help/**` và `platform/i18n/**` cho nội dung hướng dẫn; audit evidence và file kết quả trong `docs/tickets-0710/**`.
+- Phạm vi file: `apps/sheet/**` chỉ khi có sai khác; `platform/find/**` cho bộ tìm kiếm dùng chung; `platform/help/**` và `platform/i18n/**` cho nội dung hướng dẫn; audit CDP/evidence trong `scripts/audit-0610/**` và `docs/tickets-0710/**`.
 - Phụ thuộc: LibreOffice adapter, WebView2/CDP, Excel COM và fixture `tests/live/cdp/test_sheet_home.xlsx`; không thêm dependency.
 - Rủi ro: kết quả hàm ngày có cache phụ thuộc ngày chạy; so sánh serial/công thức, không dựa vào định dạng hiển thị `########` ở cột hẹp.
 - Test: từng nhóm qua UI CDP và Excel read-only; sau cùng `npm test` và batch `lan01,02,04,06,09,11,22,26` với `VNO_APP_ROOT` là worktree này.
@@ -20,3 +20,9 @@ Sai khác tái hiện: không. Hướng dẫn VI và i18n cho nhóm hàm đã c�
 **PASS.** Qua UI/CDP: dán `C2` vào `I2` ở chế độ chỉ giá trị, sao chép định dạng đậm `B1` sang `I3`, rồi dán công thức tương đối từ `F2` xuống `F3`. Excel COM chỉ đọc xác nhận `I2=1234.5` không có công thức, `I3.Bold=1` như `B1`, và `F3` giữ `=C3*D3`, giá trị `709.8625`. XLSX: `E:\VNOffice-profiles\codex-fs10\app_pasteSpecialPack.xlsx`; ảnh UI: `evidence/fix-s9-paste-special.png`.
 
 Sai khác tái hiện: không. Trợ giúp tiếng Việt nêu đường dẫn Trang đầu → Bảng nhớ tạm → Dán đặc biệt/Ctrl+Alt+V và giải thích giá trị, công thức, định dạng, chuyển vị; nhãn i18n VI/EN đã có.
+
+## Nhóm 3 — Tìm và Thay thế
+
+**PASS sau sửa.** Audit UI ban đầu tái hiện thiếu tùy chọn “Khớp toàn bộ nội dung ô”. Đã thêm checkbox trong hộp thoại Sheet; matcher dùng chung nhận `matchCell`, còn tìm kiếm thường ở Writer/Slides giữ nguyên mặc định. Qua chuột/phím CDP, bật khớp toàn ô chỉ thay ô `Ghi chú A` (1 lần), không nhận chuỗi con; tìm trong Sổ làm việc và phân biệt hoa/thường cũng được kiểm tra. XLSX đọc lại bằng Excel COM chỉ đọc cho thấy ô đã đổi ở hai sheet. Ảnh UI: `evidence/fix-s9-find-replace.png`.
+
+Hướng dẫn trong Trợ giúp → Tìm kiếm và Thay thế đã chỉ rõ Ctrl+F/Ctrl+H, phạm vi, thứ tự Hàng/Cột, Giá trị/Công thức và thao tác bật/tắt khớp toàn ô. Đã thêm chuỗi i18n VI/EN.

@@ -133,6 +133,7 @@ export const enStrings = {
     replacePlaceholder: "Enter replacement text...",
     matchCase: "Match case",
     wholeWord: "Match whole word",
+    matchCell: "Match entire cell contents",
     ignoreDiacritics: "Ignore diacritics",
     within: "Within:",
     scopeSheet: "Sheet",

@@ -41,6 +41,7 @@ export let lastFindSession = {
   options: {
     matchCase: false,
     wholeWord: false,
+    matchCell: false,
     ignoreDiacritics: false,
     scope: "sheet",
     searchBy: "rows",
@@ -218,6 +219,10 @@ export function showFindReplaceDialog({
 
         <!-- Sheet-specific options -->
         <div id="vno-fr-sheet-options" style="display:${isSheet ? "grid" : "none"}; grid-template-columns: repeat(3, 1fr); gap:12px; padding:10px; background:var(--vno-bg-panel, #f3f4f6); border-radius:var(--vno-radius-md, 4px); border:1px solid var(--vno-border-default, #e5e7eb);">
+          <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--vno-text-primary, #374151); cursor:pointer; user-select:none; grid-column:1 / -1;">
+            <input type="checkbox" id="vno-fr-opt-cell" ${initialOptions.matchCell ? "checked" : ""} />
+            <span>${t("findReplace.matchCell", "Khớp toàn bộ nội dung ô")}</span>
+          </label>
           <div style="display:flex; flex-direction:column; gap:4px;">
             <label for="vno-fr-opt-scope" style="font-size:11px; font-weight:600; color:var(--vno-text-secondary, #4b5563);">${t("findReplace.within", "Tìm trong:")}</label>
             <select id="vno-fr-opt-scope" style="padding:4px 6px; font-size:12px; border:1px solid var(--vno-border-default, #d1d5db); border-radius:var(--vno-radius-sm, 3px); background:var(--vno-bg-surface, #fff); color:var(--vno-text-primary, #111827);">
@@ -266,6 +271,7 @@ export function showFindReplaceDialog({
   const replaceRow = overlay.querySelector("#vno-fr-replace-row");
   const optCase = overlay.querySelector("#vno-fr-opt-case");
   const optWord = overlay.querySelector("#vno-fr-opt-word");
+  const optCell = overlay.querySelector("#vno-fr-opt-cell");
   const optDiacritics = overlay.querySelector("#vno-fr-opt-diacritics");
   const optScope = overlay.querySelector("#vno-fr-opt-scope");
   const optDirection = overlay.querySelector("#vno-fr-opt-direction");
@@ -280,6 +286,7 @@ export function showFindReplaceDialog({
   const getOptions = (extra = {}) => ({
     matchCase: !!optCase?.checked,
     wholeWord: !!optWord?.checked,
+    matchCell: !!optCell?.checked,
     ignoreDiacritics: !!optDiacritics?.checked,
     scope: optScope ? optScope.value : "sheet",
     searchBy: optDirection ? optDirection.value : "rows",
