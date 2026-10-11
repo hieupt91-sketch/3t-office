@@ -7009,6 +7009,96 @@ const startEditing = (initialText) => {
     return true;
   }
 
+  formatShape(shapeId, patch = {}, recordHistory = true) {
+    const slide = this.slides[this.currentSlideIndex];
+    const shape = slide?.shapes?.find(item => String(item.id) === String(shapeId));
+    if (!shape) return false;
+    const allowed = ["fill", "color", "stroke", "strokeColor", "strokeWidth", "w", "h", "rotation"];
+    const changes = Object.fromEntries(Object.entries(patch).filter(([key]) => allowed.includes(key)));
+    if (!Object.keys(changes).length) return false;
+    const before = Object.fromEntries(Object.keys(changes).map(key => [key, shape[key]]));
+    const after = { ...changes };
+    if (JSON.stringify(before) === JSON.stringify(after)) return shape;
+    Object.assign(shape, after);
+    if (recordHistory) {
+      this.undoStack.push({ type: "shape-format", slideIndex: this.currentSlideIndex, shapeId: shape.id, before, after });
+      this.redoStack = [];
+      this._syncUndoRedoState();
+    }
+    this._renderShapesLayer();
+    this._renderThumbnails();
+    if (this.slideSorterOverlay) this._renderSlideSorterGrid();
+    this.options.onDocumentChange?.();
+    return shape;
+  }
+
+  openShapeFormatDialog(shapeId = this.selectedTarget) {
+    if (typeof document === "undefined" || !document.createElement) return false;
+    const slide = this.slides[this.currentSlideIndex];
+    const shape = slide?.shapes?.find(item => String(item.id) === String(shapeId));
+    if (!shape || ["image", "chart", "table", "video", "audio"].includes(shape.type)) return false;
+    const colorValue = (value, fallback) => /^#[0-9a-f]{6}$/i.test(String(value || "")) ? String(value).toLowerCase() : fallback;
+    const fill = colorValue(shape.fill || shape.color, "#3b82f6");
+    const stroke = colorValue(shape.stroke || shape.strokeColor, "#1f2937");
+    const strokeWidth = Number(shape.strokeWidth) || 0;
+    const palette = ["#3b82f6", "#f97316", "#16a34a", "#dc2626", "#7c3aed", "#111827", "#ffffff"];
+    const previousFocused = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay";
+    overlay.innerHTML = `
+      <div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="vno-shape-format-title" style="width:min(520px,calc(100vw - 32px));">
+        <div class="vno-dialog-header"><span id="vno-shape-format-title">${t("slidesDialogs.shapeFormatTitle")}</span><button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close")}">&times;</button></div>
+        <div class="vno-dialog-body" style="display:grid;gap:14px;">
+          <fieldset style="border:0;padding:0;margin:0;"><legend style="font-weight:600;margin-bottom:6px;">${t("slidesDialogs.shapeFill")}</legend><div style="display:flex;gap:8px;flex-wrap:wrap;">${palette.map(color => `<button type="button" data-shape-fill="${color}" aria-label="${t("slidesDialogs.shapeFillColor").replace("{color}", color)}" aria-pressed="${fill === color}" class="vno-shape-format-swatch${fill === color ? " is-selected" : ""}" style="width:34px;height:34px;border-radius:50%;border:2px solid ${fill === color ? "#0f172a" : "#cbd5e1"};background:${color};cursor:pointer;"></button>`).join("")}</div></fieldset>
+          <fieldset style="border:0;padding:0;margin:0;"><legend style="font-weight:600;margin-bottom:6px;">${t("slidesDialogs.shapeOutline")}</legend><div style="display:flex;gap:8px;flex-wrap:wrap;">${palette.map(color => `<button type="button" data-shape-stroke="${color}" aria-label="${t("slidesDialogs.shapeOutlineColor").replace("{color}", color)}" aria-pressed="${stroke === color}" class="vno-shape-format-stroke-swatch${stroke === color ? " is-selected" : ""}" style="width:34px;height:34px;border-radius:50%;border:2px solid ${stroke === color ? "#0f172a" : "#cbd5e1"};background:${color};cursor:pointer;"></button>`).join("")}</div><div style="display:flex;gap:6px;margin-top:8px;">${[0,1,2,4].map(width => `<button type="button" data-shape-stroke-width="${width}" aria-pressed="${strokeWidth === width}" class="vno-btn${strokeWidth === width ? " is-selected" : ""}">${width === 0 ? t("slidesDialogs.shapeNoOutline") : t("slidesDialogs.shapeLineWidth").replace("{width}", String(width))}</button>`).join("")}</div></fieldset>
+          <div style="display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;">
+            <label style="display:grid;gap:4px;font-weight:600;">${t("slidesDialogs.shapeWidth")}<input class="vno-input" type="number" min="24" max="${Math.round(this.slideSize.width)}" step="1" id="vno-shape-format-width" value="${Math.round(shape.w || 120)}"></label>
+            <label style="display:grid;gap:4px;font-weight:600;">${t("slidesDialogs.shapeHeight")}<input class="vno-input" type="number" min="24" max="${Math.round(this.slideSize.height)}" step="1" id="vno-shape-format-height" value="${Math.round(shape.h || 80)}"></label>
+            <label style="display:grid;gap:4px;font-weight:600;">${t("slidesDialogs.shapeRotation")}<input class="vno-input" type="number" min="-360" max="360" step="1" id="vno-shape-format-rotation" value="${Math.round(Number(shape.rotation) || 0)}"></label>
+          </div>
+          <div id="vno-shape-format-error" role="alert" aria-live="polite" style="color:#b91c1c;min-height:1.25em;"></div>
+        </div>
+        <div class="vno-dialog-footer"><button type="button" class="vno-btn" id="vno-shape-format-cancel">${t("slidesDialogs.cancel")}</button><button type="button" class="vno-btn vno-btn-primary" id="vno-shape-format-apply">${t("slidesDialogs.applyShapeFormat")}</button></div>
+      </div>`;
+    const close = result => { overlay.remove(); previousFocused?.focus?.(); return result; };
+    overlay.addEventListener("click", event => { if (event.target === overlay) close(false); });
+    overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => close(false));
+    overlay.querySelector("#vno-shape-format-cancel")?.addEventListener("click", () => close(false));
+    overlay.querySelectorAll("[data-shape-fill]").forEach(button => button.addEventListener("click", () => {
+      overlay.querySelectorAll("[data-shape-fill]").forEach(item => { item.classList.toggle("is-selected", item === button); item.setAttribute("aria-pressed", String(item === button)); });
+    }));
+    overlay.querySelectorAll("[data-shape-stroke]").forEach(button => button.addEventListener("click", () => {
+      overlay.querySelectorAll("[data-shape-stroke]").forEach(item => { item.classList.toggle("is-selected", item === button); item.setAttribute("aria-pressed", String(item === button)); });
+    }));
+    overlay.querySelectorAll("[data-shape-stroke-width]").forEach(button => button.addEventListener("click", () => {
+      overlay.querySelectorAll("[data-shape-stroke-width]").forEach(item => { item.classList.toggle("is-selected", item === button); item.setAttribute("aria-pressed", String(item === button)); });
+    }));
+    overlay.querySelector("#vno-shape-format-apply")?.addEventListener("click", () => {
+      const width = Number(overlay.querySelector("#vno-shape-format-width")?.value);
+      const height = Number(overlay.querySelector("#vno-shape-format-height")?.value);
+      const rotation = Number(overlay.querySelector("#vno-shape-format-rotation")?.value);
+      const error = overlay.querySelector("#vno-shape-format-error");
+      if (!Number.isFinite(width) || width < 24 || width > this.slideSize.width || !Number.isFinite(height) || height < 24 || height > this.slideSize.height || !Number.isFinite(rotation) || rotation < -360 || rotation > 360) {
+        if (error) error.textContent = t("slidesDialogs.shapeFormatInvalid");
+        return;
+      }
+      const fillColor = overlay.querySelector("[data-shape-fill].is-selected")?.dataset.shapeFill || fill;
+      const strokeColor = overlay.querySelector("[data-shape-stroke].is-selected")?.dataset.shapeStroke || stroke;
+      const lineWidth = Number(overlay.querySelector("[data-shape-stroke-width].is-selected")?.dataset.shapeStrokeWidth ?? strokeWidth);
+      this.formatShape(shape.id, {
+        fill: fillColor, color: fillColor,
+        stroke: lineWidth > 0 ? strokeColor : undefined,
+        strokeColor: lineWidth > 0 ? strokeColor : undefined,
+        strokeWidth: lineWidth, w: width, h: height, rotation
+      });
+      close(true);
+    });
+    overlay.addEventListener("keydown", event => { if (event.key === "Escape") { event.preventDefault(); close(false); } });
+    document.body.appendChild(overlay);
+    overlay.querySelector("[data-shape-fill]")?.focus?.();
+    return true;
+  }
+
   _openShapeContextMenu(shapeId, clientX, clientY) {
     document.querySelector?.(".vno-shape-context-menu")?.remove?.();
     const slide = this.slides[this.currentSlideIndex];
@@ -7035,6 +7125,7 @@ const startEditing = (initialText) => {
     menu.style.cssText = `position:fixed;left:${clampedX}px;top:${clampedY}px;z-index:10040;min-width:180px;padding:6px;background:var(--vno-bg-surface,#ffffff);color:var(--vno-text-primary,#0f172a);border:1px solid var(--vno-border-default,#cbd5e1);border-radius:6px;box-shadow:0 8px 24px rgba(15,23,42,.2)`;
 
     let itemsHtml = `
+      <button type="button" data-action="format" role="menuitem" tabindex="-1">${t("slidesDialogs.shapeFormatMenu")}</button>
       <button type="button" data-action="duplicate" role="menuitem" tabindex="0">Nhân đôi (Ctrl+D)</button>
       <button type="button" data-action="delete" role="menuitem" tabindex="-1">Xóa hình vẽ (Delete)</button>
       <button type="button" data-action="order-front" role="menuitem" tabindex="-1">Đưa lên trên cùng</button>
@@ -7081,6 +7172,10 @@ const startEditing = (initialText) => {
       if (typeof document !== "undefined") document.addEventListener("click", onDocClick);
     }, 0);
 
+    menu.querySelector('[data-action="format"]')?.addEventListener("click", () => {
+      close(false);
+      this.openShapeFormatDialog(shape.id);
+    });
     menu.querySelector('[data-action="duplicate"]')?.addEventListener("click", () => {
       close(false);
       this.duplicateSelectedShapes();
@@ -7514,7 +7609,7 @@ const startEditing = (initialText) => {
     } else if (action.type === "shape-format") {
       const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
       if (!shape) return false;
-      shape.color = action.before?.color;
+      for (const [key, value] of Object.entries(action.before || {})) { if (value === undefined) delete shape[key]; else shape[key] = value; }
       this.redoStack.push(action);
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();
@@ -7870,7 +7965,7 @@ const startEditing = (initialText) => {
     } else if (action.type === "shape-format") {
       const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
       if (!shape) return false;
-      shape.color = action.after?.color;
+      for (const [key, value] of Object.entries(action.after || {})) { if (value === undefined) delete shape[key]; else shape[key] = value; }
       this.undoStack.push(action);
       this.selectSlide(action.slideIndex);
       this._renderShapesLayer();

@@ -775,6 +775,21 @@ export const SLIDES_HELP_ENTRIES = [
       "Ở danh sách trang chiếu thu nhỏ (filmstrip) bên trái, nhấp giữ chuột vào một trang rồi kéo lên hoặc kéo xuống qua các trang khác để thay đổi thứ tự trình chiếu. Nhấn Ctrl+Z để khôi phục lại thứ tự ban đầu."
     ]
   }
+  {
+    id: "slides.shape.format",
+    app: "slides",
+    commandIds: ["slides.shape.insert"],
+    title: "Đổi màu, viền, kích thước và góc xoay hình",
+    summary: "Mở Định dạng hình từ menu chuột phải của hình để chọn màu nền, màu và độ dày viền, chiều rộng, chiều cao và góc xoay.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Minh họa" },
+    keywords: ["định dạng hình", "màu nền hình", "màu viền", "kích thước hình", "xoay hình", "shape fill", "outline", "rotation"],
+    steps: [
+      "Mở tab Chèn, nhóm Minh họa, nhấn Hình khối và chọn hình cần dùng.",
+      "Trên trang chiếu, nhấp phải hình rồi chọn Định dạng hình… trong menu.",
+      "Chọn màu nền; chọn màu viền và độ dày viền, hoặc Không viền. Nhập chiều rộng, chiều cao (px) và góc xoay (độ).",
+      "Nhấn Áp dụng định dạng. Dùng Ctrl+Z để hoàn tác; nhấn Ctrl+S để lưu bản trình chiếu."
+    ]
+  },
 ];
 
 registerHelpEntries(SLIDES_HELP_ENTRIES);

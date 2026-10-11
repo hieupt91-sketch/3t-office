@@ -1319,8 +1319,13 @@ export class SlidesAdapter {
     if (shape.type === "image" && shape.crop) return `grImage_crop_${this._styleKey(shape.id || "img")}`;
     if (shape.type === "image" || shape.type === "video" || shape.type === "audio") return "grImage";
     const suffix = this._shapeTextStyleSuffix(shape);
-    if (this._isTransparentFill(shape)) return suffix ? `grNone${suffix}` : "grNone";
-    return `gr${this._styleKey(shape.color)}${suffix}`;
+    const base = this._isTransparentFill(shape) ? "grNone" : `gr${this._styleKey(shape.fill || shape.color)}`;
+    const stroke = shape.stroke || shape.strokeColor;
+    const strokeWidth = Number(shape.strokeWidth) || 0;
+    const strokeSuffix = stroke && strokeWidth > 0
+      ? `_stroke${this._styleKey(stroke)}_${String(strokeWidth).replace(/\./g, "_")}`
+      : "";
+    return `${base}${strokeSuffix}${suffix}`;
   }
 
   /**
@@ -1969,7 +1974,7 @@ export class SlidesAdapter {
           continue;
         }
         const suffix = this._shapeTextStyleSuffix(shape);
-        if (suffix) {
+        if (suffix || ((shape.stroke || shape.strokeColor) && Number(shape.strokeWidth) > 0)) {
           namedStyles.set(this._shapeStyleName(shape), shape);
           continue;
         }
