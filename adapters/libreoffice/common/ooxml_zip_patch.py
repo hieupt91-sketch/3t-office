@@ -1833,7 +1833,13 @@ def _resolve_xlsx_sheet_entries(xlsx_bytes: bytes) -> dict[str, str]:
         target_match = re.search(r'Target="([^"]*)"', attrs)
         if id_match and target_match:
             target = target_match.group(1)
-            target_by_rid[id_match.group(1)] = target if target.startswith("xl/") else f"xl/{target.lstrip('./')}"
+            if target.startswith("/"):
+                # OPC absolute targets are package-root relative; `/xl/...`
+                # must not be prefixed with `xl/` a second time.
+                target = target.lstrip("/")
+            elif not target.startswith("xl/"):
+                target = posixpath.normpath(posixpath.join("xl", target))
+            target_by_rid[id_match.group(1)] = target
 
     return {name: target_by_rid[rid] for name, rid in rid_by_sheet.items() if rid in target_by_rid}
 
