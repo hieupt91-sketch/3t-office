@@ -1,0 +1,95 @@
+{
+  "file": "E:\\VNOffice-profiles\\codex-fl10\\fix-l10-show.pptx",
+  "startFromBegin": {
+    "slides": 10,
+    "index": 0,
+    "show": true,
+    "presenter": false,
+    "slideText": "WEST COASTROAD TRIP\nYour Name • Sept 20XX\nTrang 1 / 10\nPhím Space hoặc Click để tiếp tục | Esc để thoát",
+    "setupDialog": false,
+    "settings": {
+      "loopUntilEsc": false,
+      "showWithoutNarration": false,
+      "pointerColor": "#DC2626"
+    }
+  },
+  "selectedSecondSlide": {
+    "slides": 10,
+    "index": 1,
+    "show": false,
+    "presenter": false,
+    "slideText": null,
+    "setupDialog": false,
+    "settings": {
+      "loopUntilEsc": false,
+      "showWithoutNarration": false,
+      "pointerColor": "#DC2626"
+    }
+  },
+  "startFromCurrent": {
+    "slides": 10,
+    "index": 1,
+    "show": true,
+    "presenter": false,
+    "slideText": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore\nTrang 2 / 10\nPhím Space hoặc Click để tiếp tục | Esc để thoát",
+    "setupDialog": false,
+    "settings": {
+      "loopUntilEsc": false,
+      "showWithoutNarration": false,
+      "pointerColor": "#DC2626"
+    }
+  },
+  "presenterMode": {
+    "slides": 10,
+    "index": 1,
+    "show": false,
+    "presenter": true,
+    "slideText": null,
+    "setupDialog": false,
+    "settings": {
+      "loopUntilEsc": false,
+      "showWithoutNarration": false,
+      "pointerColor": "#DC2626"
+    }
+  },
+  "setupShowBefore": {
+    "slides": 10,
+    "index": 1,
+    "show": false,
+    "presenter": false,
+    "slideText": null,
+    "setupDialog": true,
+    "settings": {
+      "loopUntilEsc": false,
+      "showWithoutNarration": false,
+      "pointerColor": "#DC2626"
+    }
+  },
+  "setupShowAfter": {
+    "slides": 10,
+    "index": 1,
+    "show": false,
+    "presenter": false,
+    "slideText": null,
+    "setupDialog": false,
+    "settings": {
+      "loopUntilEsc": true,
+      "showWithoutNarration": false,
+      "pointerColor": "#dc2626"
+    }
+  },
+  "savedAfterSetup": true,
+  "rehearseTimings": {
+    "slides": 10,
+    "index": 1,
+    "show": true,
+    "presenter": false,
+    "slideText": "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore\nTrang 2 / 10\nPhím Space hoặc Click để tiếp tục | Esc để thoát",
+    "setupDialog": false,
+    "settings": {
+      "loopUntilEsc": true,
+      "showWithoutNarration": false,
+      "pointerColor": "#dc2626"
+    }
+  }
+}
