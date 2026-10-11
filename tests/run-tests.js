@@ -180,6 +180,7 @@ import { runSlidesPrintPreviewTests } from "./unit/slides-print-preview.test.js"
 import { runSheetPagesetupRealFileImportTests } from "./unit/sheet-pagesetup-real-file-import.test.js";
 import { runSheetPrintTitlesRealFileImportTests } from "./unit/sheet-print-titles-real-file-import.test.js";
 import { runSheetPrintTitlesGridSelectionTests } from "./unit/sheet-print-titles-grid-selection.test.js";
+import { runSheetGridInsertFormulaTests } from "./unit/sheet-grid-insert-formula.test.js";
 import { runWriterFodtRealDocxParsingTests } from "./unit/writer-fodt-real-docx-parsing.test.js";
 import { runBackstagePrintThumbnailTests } from "./unit/backstage-print-thumbnail.test.js";
 import { runSlidesShapeAlignmentTests } from "./unit/slides-shape-alignment.test.js";
@@ -439,6 +440,7 @@ async function runAll() {
     { title: "151. Unit Tests — VN Sheet Page Setup: đọc đúng file ODF thật (không phụ thuộc thuộc tính riêng vno:page-*)", runner: runSheetPagesetupRealFileImportTests },
     { title: "152. Unit Tests — VN Sheet Print Titles: đọc đúng Print Titles từ file ODF thật (_xlnm.Print_Titles)", runner: runSheetPrintTitlesRealFileImportTests },
     { title: "153. Unit Tests — VN Sheet Print Titles: nhập tham chiếu $1:$2/$A:$B + chọn trên lưới + serialisation", runner: runSheetPrintTitlesGridSelectionTests },
+    { title: "FIX-S12 Unit Tests — Sheet AutoSum/AutoAverage tự nhận dải liền kề", runner: runSheetGridInsertFormulaTests },
     { title: "154. Unit Tests — Writer parseFodt(): đọc đúng file FODT thật từ vòng chuyển đổi DOCX (page-layout regex + text:sequence-decls)", runner: runWriterFodtRealDocxParsingTests },
     { title: "155. Unit & Behavioral Tests — VN Office Backstage Print Thumbnail & Live Preview", runner: runBackstagePrintThumbnailTests },
     { title: "156. Unit & Behavioral Tests — VN Slides Multi-Shape Align/Distribute (GAP-SLIDES-01/02/03)", runner: runSlidesShapeAlignmentTests },

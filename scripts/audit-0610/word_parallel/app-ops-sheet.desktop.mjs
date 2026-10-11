@@ -12,21 +12,25 @@ const template = process.env.VNO_AUDIT_TEMPLATE || path.join(root, "tests/live/c
 await mkdir(dir, { recursive: true });
 // [ten, o, loai, id, gia tri]
 const ops = [
-  ["bold","B2","click","sheet.cell.bold"],["italic","B2","click","sheet.cell.italic"],["underline","B2","click","sheet.cell.underline"],
+  ["bold","B2","click","sheet.cell.bold"],["italic","B2","click","sheet.cell.italic"],["underline","B2","click","sheet.cell.underline"],["fontGrow","B2","click","sheet.font.grow"],["fontShrink","B2","click","sheet.font.shrink"],
+  ["alignTop","B2","click","sheet.cell.alignTop"],["alignMiddle","B2","click","sheet.cell.alignMiddle"],["alignBottom","B2","click","sheet.cell.alignBottom"],
   ["size16","B2","select","sheet.font.size","16"],["fontArial","B2","select","sheet.font.family","Arial"],
   ["fillDefault","B2","click","sheet.cell.fillColor"],["textColorDefault","B2","click","sheet.cell.textColor"],
-  ["alignCenter","B2","click","sheet.cell.alignCenter"],["alignRight","B2","click","sheet.cell.alignRight"],["wrap","B2","click","sheet.cell.wrapText"],
-  ["numNumber","C2","select","sheet.format.quickCategory","number"],["numCurrency","C2","select","sheet.format.quickCategory","currency"],["numAccounting","C2","select","sheet.format.quickCategory","accounting"],
+  ["alignLeft","B2","click","sheet.cell.alignLeft"],["alignCenter","B2","click","sheet.cell.alignCenter"],["alignRight","B2","click","sheet.cell.alignRight"],["wrap","B2","click","sheet.cell.wrapText"],
+  ["currencyBtn","C2","click","sheet.format.currencyVND"],["numNumber","C2","select","sheet.format.quickCategory","number"],["numCurrency","C2","select","sheet.format.quickCategory","currency"],["numAccounting","C2","select","sheet.format.quickCategory","accounting"],
   ["numPercent","D2","select","sheet.format.quickCategory","percentage"],["numDate","E2","select","sheet.format.quickCategory","date"],
   ["decInc","C2","click","sheet.format.increaseDecimal"],["decDec","C2","click","sheet.format.decreaseDecimal"],["standard","C2","click","sheet.format.standard"],["percentBtn","D2","click","sheet.format.percent"],["bordersDefault","B2","click","sheet.cell.borders"],
-  ["indentIncrease","B2","click","sheet.cell.indentIncrease"],["mergeCenter","A8","merge","sheet.cell.mergeCenter","A8:B8"],
-  ["autoSum","C7","click","sheet.formula.sum"],["fillDown","B2","shortcutDown","Ctrl+D","B2:B3"],
+  ["indentIncrease","B2","click","sheet.cell.indentIncrease"],["indentDecrease","B2","click","sheet.cell.indentDecrease"],["mergeCenter","A8","merge","sheet.cell.mergeCenter","A8:B8"],["mergeAcross","A8","merge","sheet.cell.mergeAcross","A8:B8"],["mergeCells","A8","merge","sheet.cell.mergeCells","A8:B8"],["unmerge","A8","click","sheet.cell.unmerge"],
+  ["autoSum","C7","click","sheet.formula.sum"],["averageBtn","C7","click","sheet.formula.average"],["countNumbersBtn","C7","click","sheet.formula.countNumbers"],["maxBtn","C7","click","sheet.formula.max"],["minBtn","C7","click","sheet.formula.min"],["fillDown","B2","shortcutDown","Ctrl+D","B2:B3"],
   ["insertRow","A3","click","sheet.row.insert"],["deleteRow","A3","click","sheet.row.delete"],
   ["insertCol","B2","click","sheet.col.insert"],["deleteCol","B2","click","sheet.col.delete"],
   ["rowHeight","A3","promptNumber","sheet.row.height","36"],["colWidth","B2","promptNumber","sheet.col.width","120"],
   ["hideRow","A3","click","sheet.row.hide"],["hideCol","B2","click","sheet.col.hide"],
   ["unhideRow","A2","click","sheet.row.unhide"],["unhideCol","C2","click","sheet.col.unhide"],
-  ["freezePanes","B2","click","sheet.view.freezePanes"],["printArea","A1","click","sheet.page.setPrintArea"],
+  ["zoomIn","A1","click","sheet.view.zoomIn"],
+  ["zoomReset","A1","click","sheet.view.zoomReset"],
+  ["zoomOut","A1","click","sheet.view.zoomOut"],
+  ["freezePanes","B2","click","sheet.view.freezePanes"],["showFormulas","A1","click","sheet.formula.showFormulas"],["formulaBar","A1","click","sheet.view.formulaBar"],["normalView","A1","click","sheet.view.normal"],["pageBreakPreview","A1","click","sheet.view.pageBreakPreview"],["pageLayoutView","A1","click","sheet.view.pageLayout"],["gridlines","A1","click","sheet.view.gridlines"],["headings","A1","click","sheet.view.headings"],["printArea","A1","click","sheet.page.setPrintArea"],["clearArea","A1","click","sheet.page.clearPrintArea"],
   ["pageSetup","A1","pageSetup","sheet.page.margins","landscape"],
   ["rotation90","B2","orientation","sheet.cell.orientation","90"],
   ["widthControl","B2","widthControl",null,null],
@@ -52,7 +56,15 @@ const ops = [
   ["pasteSpecialPack","A1","pasteSpecialPack",null,null],
   ["conditional","C2","conditional","sheet.format.conditional","C2:C6"],
   ["formatAsTable","A1","tableStyle","sheet.style.formatAsTable","A1:G6"],["cellGood","B2","cellStyle","sheet.style.cellStyles","good"],
-  ["sortAsc","B2","click","sheet.data.sortAsc"],["filter","B1","click","sheet.data.filter"],
+  ["flashFill","K2","flashFill","sheet.data.flashFill"],
+  ["pivotTable","A1","pivotTable","sheet.data.pivotTable","A1:C6"],
+  ["pivotRefresh","A1","pivotRefresh","sheet.data.pivotRefresh"],
+  ["subtotal","A1","subtotal","sheet.data.subtotal","A1:C6"],
+  ["consolidate","M1","consolidate","sheet.data.consolidate"],
+  ["groupRows","A2","groupRows","sheet.data.group","A2:A6"],
+  ["ungroupRows","A2","groupRows","sheet.data.ungroup","A2:A6"],
+  ["textToColumns","B2","textToColumns","sheet.data.textToColumns"],
+  ["sortAsc","B2","click","sheet.data.sortAsc"],["sortDesc","B2","click","sheet.data.sortDesc"],["filter","B1","click","sheet.data.filter"],
 ];
 const only = (process.env.OPS || "").split(",").filter(Boolean);
 for (const [name, cell, kind, id, value] of ops) {
@@ -66,12 +78,16 @@ for (const [name, cell, kind, id, value] of ops) {
     await sleep(1500);
     const pos = JSON.parse(await ev(`(() => { const e=document.querySelector('.vno-grid-cell[data-coord="${cell}"]'); if(!e) return 'null'; e.scrollIntoView({block:'nearest'}); const r=e.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2}); })()`));
     if (!pos) { console.log(name.padEnd(18), "khong thay o", cell); continue; }
+    if (kind === "subtotal") {
+      const p=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="B3"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+      if(!p)throw new Error("Missing subtotal duplicate probe cell B3");await mouseClick(session.cdp,p.x,p.y);await typeText(session.cdp,"Nguyễn Văn A");await press(session.cdp,"Enter");
+    }
     if (kind === "removeDuplicates") {
       const duplicate=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="A6"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
       if(!duplicate)throw new Error("Could not locate audit duplicate cell A6");
       await mouseClick(session.cdp,duplicate.x,duplicate.y); await typeText(session.cdp,"1"); await press(session.cdp,"Enter");
     }
-    if (kind === "merge" || kind === "range" || kind === "customSort" || kind === "shortcutDown" || kind === "shortcutRight" || kind === "conditional" || kind === "tableStyle" || kind === "chart" || kind === "chartVariant" || kind === "removeDuplicates") {
+    if (kind === "merge" || kind === "range" || kind === "customSort" || kind === "shortcutDown" || kind === "shortcutRight" || kind === "conditional" || kind === "tableStyle" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "subtotal" || kind === "removeDuplicates") {
       if (kind === "customSort") {
         const duplicate=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="B3"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
         if(!duplicate)throw new Error("Could not locate sort tie probe B3");
@@ -203,11 +219,40 @@ for (const [name, cell, kind, id, value] of ops) {
       const align=JSON.parse(await pos("#vno-fc-tab-alignment"));
       if(!align) status="NO_ALIGNMENT_TAB";
       else {await mouseClick(session.cdp,align.x,align.y);await sleep(150);const angle=JSON.parse(await pos('.vno-fc-orient-btn[data-angle="90"]'));if(!angle)status="NO_90_DEGREE_OPTION";else{await mouseClick(session.cdp,angle.x,angle.y);const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);const evidenceDir=path.join(root,"docs","tickets-0710","evidence");await mkdir(evidenceDir,{recursive:true});await writeFile(path.join(evidenceDir,"fix-s8-text-rotation.png"),Buffer.from((shot.result||shot).data,"base64"));const apply=JSON.parse(await pos(".vno-fc-ok-btn"));if(!apply)status="NO_FORMAT_CELLS_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="set Orientation=90 through Format Cells";}}}
-    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pageSetup" || kind === "removeDuplicates") {
+    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pivotRefresh" || kind === "groupRows" || kind === "subtotal" || kind === "consolidate" || kind === "pageSetup" || kind === "removeDuplicates" || kind === "textToColumns") {
+      if (kind === "consolidate") await mouseClick(session.cdp,pos.x,pos.y);
+      if (kind === "groupRows") {
+        const a=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-row-header[data-row="2"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        const b=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-row-header[data-row="6"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if(!a||!b)throw new Error("Missing row headers 2:6");await mouseDrag(session.cdp,a.x,a.y,b.x,b.y);
+      }
+      if (kind === "pivotRefresh") {
+        const clickTab=async name=>{const p=JSON.parse(await ev(`(() => {const n=[...document.querySelectorAll('.vno-sheet-tab-item')].find(x=>x.dataset.sheet===${JSON.stringify(name)});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!p)throw new Error("Missing Pivot sheet tab "+name);await mouseClick(session.cdp,p.x,p.y);};
+        await clickTab("Sheet1");
+        const source=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="C2"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if(!source)throw new Error("Missing pivot source C2");await mouseClick(session.cdp,source.x,source.y);await typeText(session.cdp,"2222");await press(session.cdp,"Enter");await clickTab("Sheet1 (2)");
+      }
+      if (kind === "flashFill") {
+        for (const [row, value] of [[2,"Nguyễn Văn A"],[3,"Trần Thị B"],[4,"Lê Văn C"],[5,"Phạm Thị D"],[6,"Hoàng Văn E"]]) {
+          const p=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="J${row}"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if(!p)throw new Error("Missing Flash Fill source J"+row); await mouseClick(session.cdp,p.x,p.y); await typeText(session.cdp,value); await press(session.cdp,"Enter");
+        }
+        for (const [row, value] of [[2,"A"],[3,"B"]]) {
+          const p=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="K${row}"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if(!p)throw new Error("Missing Flash Fill example K"+row); await mouseClick(session.cdp,p.x,p.y); await typeText(session.cdp,value); await press(session.cdp,"Enter");
+        }
+        const last=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="K6"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if(!last)throw new Error("Missing Flash Fill range end K6"); await mouseDrag(session.cdp,pos.x,pos.y,last.x,last.y);
+      }
+      if (kind === "textToColumns") {
+        const end = JSON.parse(await ev(`(() => { const e=document.querySelector('.vno-grid-cell[data-coord="B6"]'); if(!e)return 'null'; const r=e.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2}); })()`));
+        if (!end) throw new Error("Could not locate text-to-columns range end B6");
+        await mouseDrag(session.cdp,pos.x,pos.y,end.x,end.y);
+      }
       const tabId = id.startsWith("sheet.view.") ? "view" : id.startsWith("sheet.page.") ? "pageLayout" : id.startsWith("sheet.data.") ? "data" : id.startsWith("sheet.formula.") ? "formulas" : id.startsWith("sheet.chart.") ? "insert" : "home";
       const tabPos = JSON.parse(await ev(`(() => { const n=document.querySelector('#vno-ribbon-tab-${tabId}'); if(!n)return 'null'; const r=n.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,active:n.classList.contains('is-active')}) })()`));
-      if (tabPos && !tabPos.active) { await mouseClick(session.cdp, tabPos.x, tabPos.y); await sleep(250); }
-      const button = JSON.parse(await ev(`(() => { const nodes=[...document.querySelectorAll('[data-command-id="${id}"]')]; const visible=n=>{const r=n.getBoundingClientRect(),s=getComputedStyle(n);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'}; const v=nodes.find(visible); if(v){const r=v.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})} const group=nodes[0]?.closest('.vno-ribbon-group.vno-group-collapsed'); const btn=group?.querySelector('.vno-ribbon-group-collapsed-btn'); if(btn&&visible(btn)){const r=btn.getBoundingClientRect();return JSON.stringify({collapsed:{x:r.left+r.width/2,y:r.top+r.height/2}})} const dropdownId=${JSON.stringify(id.startsWith("sheet.row.")||id.startsWith("sheet.col.")?"sheet.cells.format":id.startsWith("sheet.view.freeze")?"sheet.view.freezePanesMenu":"")}; const dd=dropdownId&&document.querySelector('[data-dropdown-id="'+dropdownId+'"]'); if(dd&&visible(dd)){const r=dd.getBoundingClientRect();return JSON.stringify({dropdown:{x:r.left+r.width/2,y:r.top+r.height/2}})} return 'null' })()`));
+      if (!tabPos) throw new Error("Ribbon tab missing: " + tabId); if (!tabPos.active) await mouseClick(session.cdp, tabPos.x, tabPos.y); await session.cdp.waitFor(`document.querySelector('#vno-ribbon-tab-${tabId}')?.classList.contains('is-active') && !!document.querySelector('#vno-ribbon-tabpanel-${tabId}')`, { timeoutMilliseconds: 10000, intervalMilliseconds: 100 });
+      const button = JSON.parse(await ev(`(() => { const panel=document.querySelector("#vno-ribbon-tabpanel-${tabId}"); if(!panel)return 'null'; const nodes=[...panel.querySelectorAll('[data-command-id="${id}"]')]; const visible=n=>{const r=n.getBoundingClientRect(),s=getComputedStyle(n);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'}; const group=nodes[0]?.closest('.vno-ribbon-group.vno-group-collapsed'); const btn=group?.querySelector('.vno-ribbon-group-collapsed-btn'); if(btn&&visible(btn)){const r=btn.getBoundingClientRect();return JSON.stringify({collapsed:{x:r.left+r.width/2,y:r.top+r.height/2}})} const v=nodes.find(visible); if(v){const r=v.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})} const dropdownId=${JSON.stringify(id.startsWith("sheet.row.")||id.startsWith("sheet.col.")?"sheet.cells.format":id.startsWith("sheet.view.freeze")?"sheet.view.freezePanesMenu":"")}; const dd=dropdownId&&document.querySelector('[data-dropdown-id="'+dropdownId+'"]'); if(dd&&visible(dd)){const r=dd.getBoundingClientRect();return JSON.stringify({dropdown:{x:r.left+r.width/2,y:r.top+r.height/2}})} return 'null' })()`));
       if (!button) status = "NO_BUTTON";
       else if (button.collapsed) {
         await mouseClick(session.cdp, button.collapsed.x, button.collapsed.y); await sleep(250);
@@ -219,6 +264,34 @@ for (const [name, cell, kind, id, value] of ops) {
         const item=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-ribbon-dropdown-menu [data-command-id="${id}"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
         if(!item) status="NO_DROPDOWN_ITEM"; else {await mouseClick(session.cdp,item.x,item.y); status="clicked";}
       } else { await mouseClick(session.cdp, button.x, button.y); status = "clicked"; }
+      if (kind === "pivotRefresh" && status === "clicked") status = "changed source C2 to 2222 and refreshed pivot";
+      if (kind === "pivotTable" && status === "clicked") {
+        await sleep(250);
+        const row=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-pivot-field[data-field="Họ tên"] input[data-zone="rows"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        const val=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-pivot-field[data-field="Số tiền"] input[data-zone="values"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if(!row||!val)status="PIVOT_FIELDS_NOT_LOADED";else {await mouseClick(session.cdp,row.x,row.y);await mouseClick(session.cdp,val.x,val.y);const apply=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!apply)status="NO_PIVOT_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="created Pivot by name and sum of amount";}}
+      }
+      if (kind === "consolidate" && status === "clicked") {
+        await sleep(150);
+        const field=JSON.parse(await ev(`(() => {const n=document.querySelector('#vno-consolidate-ref');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if(!field)status="NO_CONSOLIDATE_DIALOG";else {const add=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-consolidate-add');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!add)status="NO_CONSOLIDATE_ADD";else{await mouseClick(session.cdp,field.x,field.y);await press(session.cdp,"Home");await press(session.cdp,"End",{shift:true});await press(session.cdp,"Backspace");for(const ref of ["Sheet1!A2:C3","Sheet1!A4:C5"]){await mouseClick(session.cdp,field.x,field.y);await typeText(session.cdp,ref);await mouseClick(session.cdp,add.x,add.y);}const apply=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!apply)status="NO_CONSOLIDATE_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="SUM consolidated A2:C3 and A4:C5 at M1";}}}
+      }
+      if (kind === "subtotal" && status === "clicked") {
+        await sleep(150);
+        const group=JSON.parse(await ev(`(() => {const n=document.querySelector('#vno-st-group');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if(!group)status="NO_SUBTOTAL_DIALOG";else {await mouseClick(session.cdp,group.x,group.y);await press(session.cdp,"ArrowDown");await press(session.cdp,"Enter");const b=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-st-col[value="B"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,checked:n.checked})})()`));if(!b)status="NO_SUBTOTAL_COLUMNS";else{if(b.checked)await mouseClick(session.cdp,b.x,b.y);const apply=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!apply)status="NO_SUBTOTAL_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="subtotal by Họ tên using SUM of Số tiền";}}}
+      }
+      if (kind === "flashFill" && status === "clicked") status = "applied Flash Fill K2:K6 using last-name initial examples";
+      if (kind === "textToColumns" && status === "clicked") {
+        await sleep(150);
+        const select = JSON.parse(await ev(`(() => {const n=document.querySelector('#vno-ttc-del');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if (!select) status = "NO_TEXT_TO_COLUMNS_DIALOG";
+        else {
+          await mouseClick(session.cdp,select.x,select.y); await press(session.cdp,"ArrowDown"); await press(session.cdp,"ArrowDown"); await press(session.cdp,"Enter");
+          const apply=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if (!apply) status = "NO_TEXT_TO_COLUMNS_APPLY"; else { await mouseClick(session.cdp,apply.x,apply.y); status = "split B2:B6 using spaces"; }
+        }
+      }
       if (kind === "click" && id === "sheet.col.insert" && status === "clicked") {
         const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);
         const evidenceDir=path.join(root,"docs","tickets-0710","evidence"); await mkdir(evidenceDir,{recursive:true});
@@ -301,10 +374,29 @@ for (const [name, cell, kind, id, value] of ops) {
         if(!apply)status="NO_DUPLICATE_DIALOG"; else {await mouseClick(session.cdp,apply.x,apply.y);status="removed duplicate ID";}
       }
     } else {
-      status = await ev(`(() => { const s=document.querySelector('select[data-command-id="${id}"]'); if(!s) return 'NO_SELECT'; const opts=[...s.options].map(o=>o.value); const has=opts.includes(${JSON.stringify(value)}); s.value=${JSON.stringify(value)}; s.dispatchEvent(new Event('change',{bubbles:true})); return 'select '+(has?'ok':'GIA TRI KHONG CO trong '+opts.slice(0,12).join('/')); })()`);
+      const homeTab = JSON.parse(await ev(`(() => { const n=document.querySelector('#vno-ribbon-tab-home'); if(!n) return 'null'; const r=n.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,active:n.classList.contains('is-active')}); })()`));
+      if (!homeTab) throw new Error("Home ribbon tab is missing"); if (!homeTab.active) { await mouseClick(session.cdp, homeTab.x, homeTab.y); await session.cdp.waitFor("document.querySelector('#vno-ribbon-tab-home')?.classList.contains('is-active')", { timeoutMilliseconds: 10000, intervalMilliseconds: 100 }); }
+      let choice = JSON.parse(await ev(`(() => { const s=document.querySelector('select[data-command-id="${id}"]'); if(!s) return 'null'; const r=s.getBoundingClientRect(),g=s.closest('.vno-ribbon-group.vno-group-collapsed'),b=g?.querySelector('.vno-ribbon-group-collapsed-btn'),br=b?.getBoundingClientRect(); const options=[...s.options]; const index=options.findIndex(o=>o.value===${JSON.stringify(value)}),currentIndex=options.findIndex(o=>o.value===s.value); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,index,currentIndex,count:options.length,initial:s.value,collapsed:!!(br?.width&&br?.height),cx:br?.left+br?.width/2,cy:br?.top+br?.height/2,visible:!!(r.width&&r.height)}); })()`));
+      if (!choice) status = "NO_SELECT";
+      else if (choice.index < 0) status = "VALUE_NOT_AVAILABLE";
+      else {
+        if (choice.collapsed) {
+          await mouseClick(session.cdp, choice.cx, choice.cy); await sleep(200);
+          choice = JSON.parse(await ev(`(() => { const s=document.querySelector('.vno-ribbon-group-popover select[data-command-id="${id}"]'); if(!s) return 'null'; const r=s.getBoundingClientRect(),options=[...s.options],index=options.findIndex(o=>o.value===${JSON.stringify(value)}),currentIndex=options.findIndex(o=>o.value===s.value); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,index,currentIndex,count:options.length,initial:s.value,visible:!!(r.width&&r.height)}); })()`));
+        }
+        if (!choice || !choice.visible) { status = "SELECT_NOT_VISIBLE"; }
+        else {
+        await mouseClick(session.cdp, choice.x, choice.y);
+        const key = choice.index >= choice.currentIndex ? "ArrowDown" : "ArrowUp";
+        for (let i = 0; i < Math.abs(choice.index - choice.currentIndex); i++) await press(session.cdp, key, {}, 0);
+        const selectedValue = await ev(`(() => { const s=document.querySelector('select[data-command-id="${id}"]'); return s ? s.value : 'SELECT_UNMOUNTED'; })()`);
+        await press(session.cdp, "Enter", {}, 0); await sleep(250);
+        status = `keyboard selection submitted (${selectedValue}; wanted ${value}; start=${choice.currentIndex}; target=${choice.index})`;
+        }
+      }
     }
     await sleep(600);
-    const info = await ev(`(() => { const app=window.__vnoAppInstance,it=app.grid.cellsData.get("${cell}")||{},g=app.grid,a=app.adapter; const fods=a.serializeToFods(); return JSON.stringify({value:it.val, formula:it.formula, calculatedValue:it.calculatedValue, rowHeight:g.getRowHeight?.(3), columnWidth:g.getColumnWidth?.('B'), names:g.namedRangesWorkbook, adapterNames:a.grid?.namedRangesWorkbook, serializedName:fods.includes('table:named-range'), fw:it.style&&it.style.fontWeight, fmt:it.style&&it.style.numberFormat&&it.style.numberFormat.category, textRotation:it.style&&it.style.textRotation}); })()`);
+    const info = await ev(`(() => { const app=window.__vnoAppInstance,it=app.grid.cellsData.get("${cell}")||{},g=app.grid,a=app.adapter; const fods=a.serializeToFods(); return JSON.stringify({value:it.val, formula:it.formula, calculatedValue:it.calculatedValue, style:it.style, quickCategory:document.querySelector('select[data-command-id="sheet.format.quickCategory"]')?.value, printAreaBySheet:g.printAreaBySheet, gridlinesVisible:g.gridlinesVisible, headingsVisible:g.headingsVisible, rowHeight:g.getRowHeight?.(3), columnWidth:g.getColumnWidth?.('B'), names:g.namedRangesWorkbook, adapterNames:a.grid?.namedRangesWorkbook, serializedName:fods.includes('table:named-range'), fw:it.style&&it.style.fontWeight, fmt:it.style&&it.style.numberFormat&&it.style.numberFormat.category, textRotation:it.style&&it.style.textRotation}); })()`);
     const formulaValues = kind === "formulaPack" ? await ev(`JSON.stringify(Array.from({length:29},(_,i)=>{const k='H'+(i+2),v=window.__vnoAppInstance.grid.cellsData.get(k)||{};return [k,v.formula,v.val]}))`) : null;
     if (kind === "formulaPack") {
       const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);
@@ -313,6 +405,12 @@ for (const [name, cell, kind, id, value] of ops) {
     }
     await ev("window.__vnoAppInstance.adapter.isDirty = true");
     const saved = await ev(`(() => { window.__vnoAuditContent = window.__vnoAppInstance.adapter.serializeToFods(); return globalThis.globalUnoBridge.saveRealFileInPlace("sheet", window.__vnoAuditContent, ${JSON.stringify(out)}, ${JSON.stringify(template)}); })()`);
+    if (process.env.VNO_AUDIT_CAPTURE_DIR) {
+      const captureDir = process.env.VNO_AUDIT_CAPTURE_DIR;
+      await mkdir(captureDir, { recursive: true });
+      const shot = await session.cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false }, 60000);
+      await writeFile(path.join(captureDir, `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
+    }
     console.log(name.padEnd(18), "save=" + (saved && saved.status), "|", status, "|", info, formulaValues ? "| formulas=" + formulaValues : "");
   } catch (e) { console.log(name.padEnd(18), "LOI:", String(e.message).slice(0, 120)); } finally { await session.close(); }
 }

@@ -5624,8 +5624,17 @@ _bindGridKeyboardNavigation() {
   insertFormula(funcName = "SUM") {
     const col = this.selectedCoord.c;
     const r = this.selectedCoord.r;
-    const startR = Math.max(1, r - 4);
     const endR = Math.max(1, r - 1);
+    let startR = endR;
+    let foundNumber = false;
+    for (let scanR = endR; scanR >= 1; scanR--) {
+      const item = this.cellsData.get(`${col}${scanR}`);
+      const value = item?.calculatedValue ?? item?.val;
+      if (typeof value !== "number" || !Number.isFinite(value)) break;
+      startR = scanR;
+      foundNumber = true;
+    }
+    if (!foundNumber) startR = endR;
     const formulaStr = `=${funcName}(${col}${startR}:${col}${endR})`;
     this.setCellValue(col, r, formulaStr);
     if (this.formulaInput) this.formulaInput.value = formulaStr;
@@ -9160,7 +9169,7 @@ _bindGridKeyboardNavigation() {
     const steps = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48, 72];
     const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
     const currentPx = Number.parseFloat(this.cellsData.get(key)?.style?.fontSize);
-    const current = Number.isFinite(currentPx) ? currentPx * 3 / 4 : 11;
+    const current = Number.isFinite(currentPx) ? Math.round(currentPx * 3 / 4 * 100) / 100 : 11;
     const next = direction > 0
       ? (steps.find(size => size > current) || steps[steps.length - 1])
       : ([...steps].reverse().find(size => size < current) || steps[0]);
