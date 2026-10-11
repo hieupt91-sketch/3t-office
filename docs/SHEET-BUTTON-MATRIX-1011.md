@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 87 · LỆCH ĐÃ BIẾT: 1 · CHƯA ĐỐI CHIẾU: 50.
+Tổng 138 nút — KHỚP EXCEL: 88 · LỆCH ĐÃ BIẾT: 1 · CHƯA ĐỐI CHIẾU: 49.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -79,7 +79,7 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Bố trí trang | `sheet.page.scale` | Tỷ lệ vừa trang | KHỚP EXCEL | FIX-S12 Bố trí trang: CDP đặt tỷ lệ in 80%; Excel COM ReadOnly xác nhận PageSetup.Zoom=80 (app_pageScale.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-pageScale.png | dialog,toast:A1 |
 | Bố trí trang | `sheet.view.gridlines` | Đường lưới | KHỚP EXCEL | FIX-S13: CDP ẩn đường lưới và tiêu đề; Excel COM ReadOnly xác nhận DisplayGridlines=0 và DisplayHeadings=0 (app_s13_gridlines.xlsx, app_s13_headings.xlsx) | dom:23 |
 | Bố trí trang | `sheet.view.headings` | Tiêu đề | KHỚP EXCEL | FIX-S13: CDP ẩn đường lưới và tiêu đề; Excel COM ReadOnly xác nhận DisplayGridlines=0 và DisplayHeadings=0 (app_s13_gridlines.xlsx, app_s13_headings.xlsx) | dom:23 |
-| Công thức | `sheet.formula.insertFunction` | Chèn hàm (Shift+F3) | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog |
+| Công thức | `sheet.formula.insertFunction` | Chèn hàm (Shift+F3) | KHỚP EXCEL | FIX-S12 Công thức: CDP mở Chèn hàm, tìm TODAY, chọn hàm và chèn vào H2; Excel COM ReadOnly xác nhận H2 Formula='=TODAY()', Value2=46307, NumberFormat=dd/mm/yyyy (app_S14_final_insertFunction.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-insertFunction.png. Hướng dẫn VI/EN hiện có trong Help và i18n. | dialog |
 | Công thức | `sheet.formula.sum` | AutoSum (Alt+=) | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dom:16 |
 | Công thức | `sheet.formula.average` | Trung bình | KHỚP EXCEL | FIX-S12 tab Công thức: CDP click Trung bình; Excel COM ReadOnly xác nhận =AVERAGE(C2:C6), Value2=4123.02 (app_S12fix_averageBtn.xlsx) | dom:16 |
 | Công thức | `sheet.formula.countNumbers` | Đếm số | KHỚP EXCEL | FIX-S12 tab Công thức: CDP click Đếm số; Excel COM ReadOnly xác nhận =COUNT(C2:C6), Value2=5 (app_countNumbersBtn.xlsx) | dom:16 |

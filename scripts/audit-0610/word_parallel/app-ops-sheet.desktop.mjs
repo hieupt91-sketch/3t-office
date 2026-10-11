@@ -46,6 +46,7 @@ const ops = [
   ["commentPrevious","D2","click","sheet.review.commentPrevious"],
   ["commentNext","D2","click","sheet.review.commentNext"],
   ["defineName","B2","defineName","sheet.formula.defineName"],
+  ["insertFunction","H2","click","sheet.formula.insertFunction"],
   ["formulaRecalculate","H2","click","sheet.formula.recalculate"],
   ["calculateSheet","H2","click","sheet.calc.calculateSheet"],
   ["errorChecking","H2","click","sheet.formula.errorChecking"],
@@ -332,6 +333,26 @@ for (const [name, cell, kind, id, value] of ops) {
         if(!group)status="NO_SUBTOTAL_DIALOG";else {await mouseClick(session.cdp,group.x,group.y);await press(session.cdp,"ArrowDown");await press(session.cdp,"Enter");const b=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-st-col[value="B"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,checked:n.checked})})()`));if(!b)status="NO_SUBTOTAL_COLUMNS";else{if(b.checked)await mouseClick(session.cdp,b.x,b.y);const apply=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!apply)status="NO_SUBTOTAL_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="subtotal by Họ tên using SUM of Số tiền";}}}
       }
       if (kind === "flashFill" && status === "clicked") status = "applied Flash Fill K2:K6 using last-name initial examples";
+      if (name === "insertFunction" && status === "clicked") {
+        await sleep(150);
+        const search = JSON.parse(await ev(`(() => {const n=document.querySelector('#vno-func-search');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if (!search) status = "NO_FUNCTION_SEARCH";
+        else {
+          await mouseClick(session.cdp, search.x, search.y); await typeText(session.cdp, "TODAY"); await sleep(100);
+          const item = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-func-item[data-func-name="TODAY"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if (!item) status = "NO_TODAY_FUNCTION";
+          else {
+            await mouseClick(session.cdp, item.x, item.y); await sleep(75);
+            const selected = await ev(`document.querySelector('.vno-func-item.is-selected')?.dataset.funcName||''`);
+            if (selected !== "TODAY") status = "FUNCTION_SELECTION_MISMATCH:" + selected;
+            else {
+              const insert = JSON.parse(await ev(`(() => {const n=document.querySelector('#vno-fx-insert-btn');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+              if (!insert) status = "NO_INSERT_FUNCTION_BUTTON";
+              else { await mouseClick(session.cdp, insert.x, insert.y); await sleep(150); const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000); await writeFile(path.join(root,"docs","tickets-0710","evidence","fix-s12-insertFunction.png"),Buffer.from((shot.result||shot).data,"base64")); status = "inserted selected TODAY function into H2 via fx dialog"; }
+            }
+          }
+        }
+      }
       if ((kind === "pageSize" || kind === "pageScale") && status === "clicked") {
         await sleep(150);
         const selector = kind === "pageSize" ? "#vno-sheet-size" : "#vno-sheet-scale-percent";
