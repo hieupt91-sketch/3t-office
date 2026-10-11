@@ -32,3 +32,9 @@ Hướng dẫn trong Trợ giúp → Tìm kiếm và Thay thế đã chỉ rõ C
 **PASS.** Qua menu ngữ cảnh mở Sắp xếp tùy chỉnh, thiết lập tên tăng dần và số tiền giảm dần bằng phím; Excel COM chỉ đọc xác nhận thứ tự: Hoàng Văn E, Lê Văn C, Nguyễn Văn A (5678.9 rồi 1234.5), Phạm Thị D. XLSX: `E:\VNOffice-profiles\codex-fs10\app_customSort.xlsx`; ảnh: `evidence/fix-s9-multi-sort.png`.
 
 Sai khác tái hiện: không. Hướng dẫn tiếng Việt hiện có trong tab Dữ liệu, nhóm Sắp xếp & Lọc, và i18n cho cấp sắp xếp.
+
+## Nhóm 5 — Xóa trùng lặp
+
+**PASS.** Bôi chọn A1:A6 bằng chuột, sửa hàng cuối thành mã `1` bằng bàn phím rồi chạy Dữ liệu → Xóa trùng lặp. Excel COM chỉ đọc xác nhận còn các mã `1 / 2 / 3 / 4` và hàng dữ liệu cuối đã trống, tức một hàng trùng được loại bỏ. XLSX: `E:\VNOffice-profiles\codex-fs10\app_removeDuplicates.xlsx`.
+
+Sai khác tái hiện: không. Hướng dẫn VI hiện có dưới tab Dữ liệu, nhóm Công cụ dữ liệu; tùy chọn nhận diện hàng tiêu đề và cột so sánh có nhãn i18n VI/EN.
