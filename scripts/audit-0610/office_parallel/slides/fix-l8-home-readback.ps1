@@ -19,11 +19,29 @@ function Read-Presentation($presentation) {
   $text = $title.TextFrame2.TextRange
   $paragraph = $title.TextFrame.TextRange.ParagraphFormat
   $paragraph2 = $text.ParagraphFormat
+  $shapeReadbacks = @()
+  for ($index = 1; $index -le $slide.Shapes.Count; $index++) {
+    $shape = $slide.Shapes.Item($index)
+    $shapeText = ''
+    $fontName = $null; $fontSize = $null; $highlight = $null; $alignment = $null
+    try {
+      if ($shape.TextFrame2.HasText) {
+        $range = $shape.TextFrame2.TextRange
+        $shapeText = [string]$range.Text
+        $fontName = Read-Value { $range.Font.Name }
+        $fontSize = Read-Value { $range.Font.Size }
+        $highlight = Read-Value { $range.Font.Highlight.RGB }
+        $alignment = Read-Value { $range.ParagraphFormat.Alignment }
+      }
+    } catch {}
+    $shapeReadbacks += [pscustomobject]@{ index=$index; name=$shape.Name; type=$shape.Type; text=$shapeText; fontName=$fontName; fontSize=$fontSize; highlightRgb=$highlight; alignment=$alignment }
+  }
   [pscustomobject]@{
     slides = $presentation.Slides.Count
     shapes = $slide.Shapes.Count
     layout = $slide.Layout
     titleText = $title.TextFrame.TextRange.Text
+    findRoadTrip = (Read-Value { $title.TextFrame.TextRange.Find('ROAD TRIP').Text })
     alignment = $paragraph.Alignment
     leftIndent = (Read-Value { $paragraph.LeftIndent })
     indentLevel = (Read-Value { $paragraph.IndentLevel })
@@ -36,6 +54,7 @@ function Read-Presentation($presentation) {
     textColorRgb = (Read-Value { $text.Font.Fill.ForeColor.RGB })
     highlightRgb = (Read-Value { $text.Font.Highlight.RGB })
     finalShapeText = (Read-Value { $slide.Shapes.Item($slide.Shapes.Count).TextFrame.TextRange.Text })
+    shapeReadbacks = $shapeReadbacks
   }
 }
 try {

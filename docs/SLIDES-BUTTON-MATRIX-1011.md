@@ -2,7 +2,7 @@
 
 Nguồn danh sách nút: [`ribbon-scan-slides-1011.json`](ribbon-scan-slides-1011.json). Ma trận giữ đủ từng dòng scan (kể cả ID xuất hiện ở nhiều tab); trạng thái chỉ áp dụng tới thuộc tính/kịch bản ghi trong bằng chứng.
 
-Tổng: 88 dòng. **KHỚP POWERPOINT**: 37, **CHƯA ĐỐI CHIẾU**: 45, **LỆCH ĐÃ BIẾT**: 4, **KHÁC CÓ CHỦ Ý**: 2.
+Tổng: 88 dòng. **KHỚP POWERPOINT**: 39, **CHƯA ĐỐI CHIẾU**: 43, **LỆCH ĐÃ BIẾT**: 4, **KHÁC CÓ CHỦ Ý**: 2.
 
 - **KHỚP POWERPOINT**: thao tác VN Slides được thực hiện; PowerPoint COM đọc lại cùng thuộc tính và kết quả khớp.
 - **KHÁC CÓ CHỦ Ý**: khác biệt sản phẩm có chủ ý hoặc không có nút đối ứng; nêu rõ lý do.
@@ -45,8 +45,8 @@ Các kết quả kế thừa được giới hạn theo báo cáo FIX-L4/L5/L6; 
 | Trang đầu | `slides.text.insert` | Hộp văn bản | KHỚP POWERPOINT | FIX-L6: chèn textbox trong app, lưu/mở bằng PowerPoint COM; đọc được đối tượng msoTextBox. [FIX-L6 results](tickets-0710/FIX-L6-RESULTS.md#kiểm-tra) |
 | Trang đầu | `slides.shape.insert` | Hình khối | KHỚP POWERPOINT | FIX-L6: chèn shape trong app, lưu/mở bằng PowerPoint; COM đọc shape cùng fill/line RGB, kích thước và rotation được đo. [FIX-L6 results](tickets-0710/FIX-L6-RESULTS.md#kiểm-tra) |
 | Trang đầu | `slides.image.insert` | Hình ảnh | KHỚP POWERPOINT | FIX-L6: chèn ảnh trong app, lưu/mở bằng PowerPoint COM; đọc được đối tượng ảnh. [FIX-L6 results](tickets-0710/FIX-L6-RESULTS.md#kiểm-tra) |
-| Trang đầu | `common.edit.find` | Tìm kiếm (Ctrl+F) | CHƯA ĐỐI CHIẾU |  |
-| Trang đầu | `common.edit.replace` | Thay thế (Ctrl+H) | CHƯA ĐỐI CHIẾU |  |
+| Trang đầu | `common.edit.find` | Tìm kiếm (Ctrl+F) | KHỚP POWERPOINT | FIX-L8: CDP tìm ROAD TRIP trong tiêu đề; model có matchIndex=10, matchLength=9. PowerPoint COM Find trả về đúng chuỗi ROAD TRIP trên PPTX đã lưu. [CDP](tickets-0710/evidence/fix-l8/home/find-replace-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/home/find-replace-readback.json) |
+| Trang đầu | `common.edit.replace` | Thay thế (Ctrl+H) | KHỚP POWERPOINT | FIX-L8: CDP Thay thế tất cả Your Name→Presenter báo 2 lần thay; PowerPoint COM đọc shape 2 là Presenter • Sept 20XX. [CDP](tickets-0710/evidence/fix-l8/home/find-replace-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/home/find-replace-readback.json) |
 | Chèn | `slides.insert.table` | Bảng | KHỚP POWERPOINT | FIX-L6: chèn bảng trong app, lưu/mở bằng PowerPoint COM; đọc được bảng 3×3. [FIX-L6 results](tickets-0710/FIX-L6-RESULTS.md#kiểm-tra) |
 | Chèn | `slides.image.insert` | Hình ảnh | KHỚP POWERPOINT | FIX-L6: chèn ảnh trong app, lưu/mở bằng PowerPoint COM; đọc được đối tượng ảnh. [FIX-L6 results](tickets-0710/FIX-L6-RESULTS.md#kiểm-tra) |
 | Chèn | `slides.shape.insert` | Hình khối | KHỚP POWERPOINT | FIX-L6: chèn shape trong app, lưu/mở bằng PowerPoint; COM đọc shape cùng fill/line RGB, kích thước và rotation được đo. [FIX-L6 results](tickets-0710/FIX-L6-RESULTS.md#kiểm-tra) |
