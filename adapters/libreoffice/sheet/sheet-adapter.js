@@ -461,6 +461,10 @@ export class SheetAdapter {
       if (args.move || args.beforeName !== undefined) return this.grid.moveSheet(args.sheetName, args.beforeName);
       return this.grid.showMoveCopySheetDialog ? this.grid.showMoveCopySheetDialog(args.sheetName) : false;
     });
+    globalCommandBus.bindHandler("sheet.sheet.hide", (args) => this.grid.hideSheet ? this.grid.hideSheet(args?.sheetName) : false);
+    globalCommandBus.bindHandler("sheet.sheet.unhide", (args) => args?.sheetName
+      ? this.grid.unhideSheet?.(args.sheetName)
+      : this.grid.showUnhideSheetDialog?.());
     globalCommandBus.bindHandler("sheet.sheet.protect", (args) => {
       args = args || {};
       if (args.unprotect) return this.grid.unprotectSheet(args);
@@ -5974,6 +5978,12 @@ ${pristineXlsxMarker}
         if (args?.copy) return this.grid.copySheet(args.sheetName, args.beforeName);
         if (args?.move || args?.beforeName !== undefined) return this.grid.moveSheet(args.sheetName, args.beforeName);
         return this.grid.showMoveCopySheetDialog ? this.grid.showMoveCopySheetDialog(args?.sheetName) : false;
+
+      case "sheet.sheet.hide":
+        return this.grid.hideSheet ? this.grid.hideSheet(args?.sheetName) : false;
+
+      case "sheet.sheet.unhide":
+        return args?.sheetName ? this.grid.unhideSheet?.(args.sheetName) : this.grid.showUnhideSheetDialog?.();
 
       case "sheet.sheet.protect":
       case ".uno:Protect":

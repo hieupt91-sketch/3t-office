@@ -38,6 +38,36 @@ def make_mock_xlsx(styles_xml: str, sheet1_xml: str, sst_xml: str = "") -> bytes
 
 
 class XlsxNumfmtRoundtripTests(unittest.TestCase):
+    def test_excel_postprocess_maps_scalar_concat_to_legacy_compatible_function(self):
+        styles = (
+            '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<fonts count="1"><font/></fonts><fills count="1"><fill/></fills>'
+            '<borders count="1"><border/></borders><cellStyleXfs count="1"><xf numFmtId="0"/></cellStyleXfs>'
+            '<cellXfs count="1"><xf numFmtId="0"/></cellXfs></styleSheet>'
+        )
+        sheet = (
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<sheetData><row r="2"><c r="H2" t="e"><f>CONCAT(B2,&quot; test&quot;)</f><v>#NAME?</v></c></row></sheetData></worksheet>'
+        )
+        original = make_mock_xlsx(styles, sheet)
+        patched = ooxml_zip_patch.postprocess_sheet_xlsx(original, enabled=False)
+        with zipfile.ZipFile(io.BytesIO(patched), "r") as archive:
+            xml = archive.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        self.assertIn("CONCATENATE(B2,\" test\")", xml)
+
+    def test_excel_postprocess_preserves_concat_range_semantics(self):
+        self.assertEqual(
+            ooxml_zip_patch._rewrite_scalar_concat_for_legacy_excel('CONCAT(A1:A3,"!")'),
+            'CONCAT(A1:A3,"!")',
+        )
+
+    def test_excel_postprocess_does_not_rewrite_concat_inside_text(self):
+        formula = '="CONCAT(A1) "&CONCATENATE(A1,"!")&CONCAT(A1,"x")'
+        self.assertEqual(
+            ooxml_zip_patch._rewrite_scalar_concat_for_legacy_excel(formula),
+            '="CONCAT(A1) "&CONCATENATE(A1,"!")&CONCATENATE(A1,"x")',
+        )
+
     def test_accounting_postprocess_writes_standard_excel_format_from_fods(self):
         styles = (
             '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'

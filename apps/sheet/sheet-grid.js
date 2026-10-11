@@ -285,6 +285,7 @@ export class SheetGridController {
     this.userHiddenColsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Set()]));
     this.protectionBySheet = Object.fromEntries(this.sheets.map(name => [name, { enabled: false, password: "" }]));
     this.workbookProtection = { enabled: false, password: "" };
+    this.sheetVisibilityBySheet = {};
     this.watchedCells = new Set();
     this.documentName = options.documentName || null;
     this.dataTools = new SheetDataTools(this);
@@ -3313,6 +3314,7 @@ export class SheetGridController {
     this.sheets.splice(index, 1);
     delete this.sheetsData[sheetName];
     delete this.sheetStates[sheetName];
+    if (this.sheetVisibilityBySheet) delete this.sheetVisibilityBySheet[sheetName];
     delete this.conditionalFormattingBySheet[sheetName];
     delete this.dataValidationsBySheet[sheetName];
     delete this.chartsBySheet[sheetName];
@@ -3441,6 +3443,10 @@ export class SheetGridController {
     const items = [
       { label: t("sheetDialogs.renameSheetMenu", "Đổi tên trang tính..."), action: () => this.showRenameSheetDialog(sheetName) },
       { label: t("sheetDialogs.moveCopyMenu", "Di chuyển hoặc Sao chép trang tính..."), action: () => this.showMoveCopySheetDialog(sheetName) },
+      { label: t("sheetDialogs.hideSheetMenu", "Ẩn trang tính"), action: () => this.hideSheet(sheetName) },
+      ...(Object.values(this.sheetVisibilityBySheet || {}).some(state => state === "hidden" || state === "veryHidden")
+        ? [{ label: t("sheetDialogs.unhideSheetMenu", "Hiện trang tính..."), action: () => this.showUnhideSheetDialog() }]
+        : []),
       { label: "Xóa trang tính", action: () => {
         if (this.sheets.length <= 1) { this._showDataNotice("Không thể xóa trang tính cuối cùng."); return; }
         if (globalThis.confirm?.(`Xóa trang tính «${sheetName}»?`) !== false) this.deleteSheet(sheetName);
@@ -3504,6 +3510,61 @@ export class SheetGridController {
       document.addEventListener("keydown", keyHandler);
       menu.querySelector(".vno-sheet-context-item")?.focus();
     }, 10);
+  }
+
+  hideSheet(sheetName = this.activeSheet, recordUndo = true) {
+    if (this._guardWorkbookStructure()) return false;
+    const target = sheetName || this.activeSheet;
+    if (!this.sheets.includes(target)) return false;
+    const visible = this.sheets.filter(name => !["hidden", "veryhidden"].includes(String(this.sheetVisibilityBySheet?.[name] || "").toLowerCase()));
+    if (visible.length <= 1) {
+      this._showDataNotice(t("sheetDialogs.cannotHideLastSheet", "Không thể ẩn trang tính cuối cùng đang hiển thị."));
+      return false;
+    }
+    const previous = this.sheetVisibilityBySheet?.[target] || "visible";
+    this.sheetVisibilityBySheet ||= {};
+    this.sheetVisibilityBySheet[target] = "hidden";
+    this._renderSheetTabs();
+    if (this.activeSheet === target) {
+      const start = this.sheets.indexOf(target);
+      const next = Array.from({ length: this.sheets.length }, (_, offset) => this.sheets[(start + offset + 1) % this.sheets.length])
+        .find(name => !["hidden", "veryhidden"].includes(String(this.sheetVisibilityBySheet[name] || "").toLowerCase()));
+      if (next) this.switchSheet(next);
+    }
+    if (recordUndo) this._recordHistory({ type: "sheet-visibility", sheet: target, previous, next: "hidden" });
+    return true;
+  }
+
+  unhideSheet(sheetName, recordUndo = true) {
+    if (this._guardWorkbookStructure()) return false;
+    const target = String(sheetName || "");
+    const previous = this.sheetVisibilityBySheet?.[target];
+    if (!this.sheets.includes(target) || !["hidden", "veryhidden"].includes(String(previous || "").toLowerCase())) return false;
+    delete this.sheetVisibilityBySheet[target];
+    this._renderSheetTabs();
+    if (recordUndo) this._recordHistory({ type: "sheet-visibility", sheet: target, previous, next: "visible" });
+    return true;
+  }
+
+  showUnhideSheetDialog() {
+    if (this._guardWorkbookStructure()) return false;
+    const hidden = this.sheets.filter(name => ["hidden", "veryhidden"].includes(String(this.sheetVisibilityBySheet?.[name] || "").toLowerCase()));
+    if (!hidden.length) {
+      this._showDataNotice(t("sheetDialogs.noHiddenSheets", "Không có trang tính nào đang ẩn."));
+      return false;
+    }
+    const title = t("sheetDialogs.unhideSheetTitle", "Hiện trang tính");
+    const overlay = this._createSheetDialog(title, `
+      <label for="vno-unhide-sheet">${t("sheetDialogs.unhideSheetChoose", "Chọn trang tính cần hiện:")}
+        <select id="vno-unhide-sheet" class="vno-dialog-input">${hidden.map(name => `<option value="${this._escapeHtml(name)}">${this._escapeHtml(name)}</option>`).join("")}</select>
+      </label>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply").textContent = t("sheetDialogs.unhideSheetAction", "Hiện");
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      if (this.unhideSheet(overlay.querySelector("#vno-unhide-sheet")?.value)) overlay.closeDialog();
+    });
+    return true;
   }
 
   validateSheetName(name, options = {}) {
@@ -8580,6 +8641,7 @@ _bindGridKeyboardNavigation() {
     const opts = {
       matchCase: false,
       wholeWord: false,
+      matchCell: false,
       ignoreDiacritics: false,
       scope: "sheet",
       searchBy: "rows",
@@ -8613,7 +8675,7 @@ _bindGridKeyboardNavigation() {
       return entries;
     };
 
-    const stateKey = `${needle}__${opts.matchCase}__${opts.wholeWord}__${opts.ignoreDiacritics}__${opts.searchBy}__${opts.lookIn}__${opts.scope}`;
+    const stateKey = `${needle}__${opts.matchCase}__${opts.wholeWord}__${opts.matchCell}__${opts.ignoreDiacritics}__${opts.searchBy}__${opts.lookIn}__${opts.scope}`;
     if (this._findLastStateKey !== stateKey) {
       this._findLastStateKey = stateKey;
       this._findLastCoord = null;
@@ -8669,6 +8731,7 @@ _bindGridKeyboardNavigation() {
     const opts = {
       matchCase: false,
       wholeWord: false,
+      matchCell: false,
       ignoreDiacritics: false,
       scope: "sheet",
       searchBy: "rows",
@@ -8707,6 +8770,7 @@ _bindGridKeyboardNavigation() {
     const opts = {
       matchCase: false,
       wholeWord: false,
+      matchCell: false,
       ignoreDiacritics: false,
       scope: "sheet",
       searchBy: "rows",
@@ -9751,6 +9815,11 @@ _bindGridKeyboardNavigation() {
     if (action.type === "sheet-move") {
       const index = direction === "undo" ? action.fromIndex : action.toIndex;
       return this._moveSheetToIndex(action.name, index);
+    }
+    if (action.type === "sheet-visibility") {
+      const state = direction === "undo" ? action.previous : action.next;
+      if (state === "visible") return this.unhideSheet(action.sheet, false);
+      return this.hideSheet(action.sheet, false);
     }
     if (action.type === "sheet-tab-color") {
       return this.setTabColor(direction === "undo" ? action.previous : action.next, action.sheet, false);

@@ -28,6 +28,7 @@ export async function launchApp(app, options = {}) {
     ...process.env,
     LOCALAPPDATA: localAppData,
     WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: "--remote-debugging-port=" + debugPort,
+    VNO_CDP_DEBUG_PORT: String(debugPort),
   };
   const child = spawn(python, args, { cwd: root, env, stdio: ["ignore", "pipe", "pipe"] });
   let spawnError = null;
@@ -112,16 +113,7 @@ async function closeApp(session) {
   if (child && child.pid != null && child.exitCode === null && child.signalCode === null) {
     await Promise.race([session.exited, sleep(10000)]);
     if (child.exitCode === null && child.signalCode === null) {
-      // Only the Python process launched by this harness is ever stopped here.
-      if (process.platform === "win32") {
-        try {
-          const { spawnSync } = await import("node:child_process");
-          spawnSync("taskkill", ["/PID", String(child.pid), "/T", "/F"], { windowsHide: true });
-        } catch {}
-      } else {
-        try { child.kill(); } catch {}
-      }
-      await Promise.race([session.exited, sleep(5000)]);
+      console.error("CDP close requested; desktop process did not exit within 10 seconds and was left running.");
     }
   }
   const stopped = !child || child.pid == null || child.exitCode !== null || child.signalCode !== null;

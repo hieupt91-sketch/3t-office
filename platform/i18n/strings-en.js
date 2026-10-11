@@ -133,6 +133,7 @@ export const enStrings = {
     replacePlaceholder: "Enter replacement text...",
     matchCase: "Match case",
     wholeWord: "Match whole word",
+    matchCell: "Match entire cell contents",
     ignoreDiacritics: "Ignore diacritics",
     within: "Within:",
     scopeSheet: "Sheet",
@@ -175,6 +176,7 @@ export const enStrings = {
     section: "Section"
   },
   sheetDialogs: {
+    hideSheetMenu: "Hide Sheet", unhideSheetMenu: "Unhide Sheet...", unhideSheetTitle: "Unhide Sheet", unhideSheetChoose: "Choose a sheet to show:", unhideSheetAction: "Unhide", cannotHideLastSheet: "You cannot hide the last visible worksheet.", noHiddenSheets: "There are no hidden worksheets.",
     close: "Close", cancel: "Cancel", cancelLong: "Cancel", apply: "Apply", range: "Range", rangeLabel: "Range:", value: "Value", save: "Save",
     pasteSpecialTitle: "Paste Special", pasteSpecialGroup: "Paste", pasteSpecialSource: "Keep Source Formatting", pasteSpecialAll: "All", pasteSpecialValues: "Values", pasteSpecialFormulas: "Formulas", pasteSpecialFormats: "Formats", pasteSpecialTranspose: "Transpose",
     mergeConfirmTitle: "Merge cells", mergeConfirmMessage: "Merging cells only keeps the upper-left value and discards other values.", mergeConfirmOk: "OK",
@@ -523,6 +525,8 @@ export const enStrings = {
     ,"sheet.col.unhide": { label: "Unhide Columns", tooltip: "Unhide hidden columns in the selection" }
     ,"sheet.sheet.rename": { label: "Rename Sheet...", tooltip: "Rename the current worksheet (same dialog as double-clicking the sheet tab)" }
     ,"sheet.sheet.moveOrCopy": { label: "Move or Copy Sheet...", tooltip: "Reorder tabs or duplicate a worksheet (data, formatting, Page Setup)" }
+    ,"sheet.sheet.hide": { label: "Hide Sheet", tooltip: "Hide the current worksheet tab" }
+    ,"sheet.sheet.unhide": { label: "Unhide Sheet...", tooltip: "Choose a hidden worksheet to show again" }
     ,"sheet.sheet.protect": { label: "Protect Sheet...", tooltip: "Lock cell edits, formatting, and row/column deletion on the current sheet (UI lock, not real security)" }
     ,"sheet.workbook.protect": { label: "Protect Workbook...", tooltip: "Lock workbook structure: no adding, deleting, renaming, moving, or copying sheets. Does not lock cell contents (UI lock, not real security)" }
     ,"sheet.chart.insert": { label: "Chart", tooltip: "Insert a chart to visualize data" }
@@ -551,6 +555,14 @@ export const enStrings = {
     ,"slides.slide.duplicate": { label: "Duplicate Slide", tooltip: "Duplicate the selected slide (Ctrl+D)" }
     ,"slides.slide.delete": { label: "Delete Slide", tooltip: "Delete the selected slide (Delete)" }
     ,"slides.slide.toggleHidden": { label: "Hide Slide", tooltip: "Hide or show the selected slide during F5. The slide stays in the file and Slide Sorter." }
+    ,"slides.context.copy": { label: "Copy Slide", tooltip: "Copy this slide to the in-app slide clipboard" }
+    ,"slides.context.cut": { label: "Cut Slide", tooltip: "Move this slide to the in-app slide clipboard" }
+    ,"slides.context.paste": { label: "Paste Slide", tooltip: "Insert the copied slide after this slide" }
+    ,"slides.context.hide": { label: "Hide Slide", tooltip: "Hide or show this slide during the slide show" }
+    ,"slides.context.moveUp": { label: "Move Up", tooltip: "Move this slide one position earlier" }
+    ,"slides.context.moveDown": { label: "Move Down", tooltip: "Move this slide one position later" }
+    ,"slides.context.sort": { label: "Slide Sorter", tooltip: "Open the slide grid to review and reorder slides" }
+    ,"slides.context.layout": { label: "Layout", tooltip: "Change the layout of this slide" }
     ,"slides.section.add": { label: "Add Section", tooltip: "Add a section starting at the selected slide to group consecutive slides" }
     ,"slides.section.rename": { label: "Rename Section", tooltip: "Rename the section that contains the selected slide" }
     ,"slides.section.remove": { label: "Remove Section", tooltip: "Ungroup the section without deleting the slides inside it" }
@@ -683,9 +695,9 @@ export const enStrings = {
     "writer.para.moveUp": { label: "Move Paragraph Up", tooltip: "Move paragraph up (Alt+Shift+Up)" },
     "writer.para.moveDown": { label: "Move Paragraph Down", tooltip: "Move paragraph down (Alt+Shift+Down)" },
     "writer.style.normal": { label: "Normal Style", tooltip: "Apply Normal style (Ctrl+Shift+N)" },
-    "writer.style.heading1": { label: "Heading 1", tooltip: "Apply Heading 1 style (Ctrl+Alt+1)" },
-    "writer.style.heading2": { label: "Heading 2", tooltip: "Apply Heading 2 style (Ctrl+Alt+2)" },
-    "writer.style.heading3": { label: "Heading 3", tooltip: "Apply Heading 3 style (Ctrl+Alt+3)" },
+    "writer.style.heading1": { label: "Heading 1", tooltip: "Apply the standard Heading 1 style in new documents (Ctrl+Alt+1)" },
+    "writer.style.heading2": { label: "Heading 2", tooltip: "Apply the standard Heading 2 style in new documents (Ctrl+Alt+2)" },
+    "writer.style.heading3": { label: "Heading 3", tooltip: "Apply the standard Heading 3 style in new documents (Ctrl+Alt+3)" },
     "writer.text.changeCase": { label: "Change Case", tooltip: "Cycle lowercase / UPPERCASE / Title Case (Shift+F3)" },
     "writer.para.sort": { label: "Sort", tooltip: "Sort selected paragraphs or list items A–Z" },
     "writer.para.showFormattingMarks": { label: "Show/Hide Formatting Marks", tooltip: "Show or hide paragraph and line-break marks (Ctrl+*)" },
@@ -703,6 +715,8 @@ export const enStrings = {
     "writer.table.splitCells": { label: "Split Cells", tooltip: "Split selected cell into multiple cells" },
     "writer.table.distributeRows": { label: "Distribute Rows", tooltip: "Distribute row heights evenly" },
     "writer.table.distributeCols": { label: "Distribute Columns", tooltip: "Distribute column widths evenly" },
+    "writer.table.autoFitContents": { label: "AutoFit Contents", tooltip: "Fit the table to the content in its cells" },
+    "writer.table.autoFitWindow": { label: "AutoFit Window", tooltip: "Expand the table to the page text width" },
     "writer.table.alignTop": { label: "Align Top", tooltip: "Align text to the top of cell" },
     "writer.table.alignMiddle": { label: "Align Center", tooltip: "Center text vertically in cell" },
     "writer.table.alignBottom": { label: "Align Bottom", tooltip: "Align text to the bottom of cell" },
@@ -712,6 +726,10 @@ export const enStrings = {
     "writer.table.selectTable": { label: "Select Table", tooltip: "Select entire table" },
     "writer.table.cellBg": { label: "Shading", tooltip: "Change table cell background color" },
     "writer.table.borders": { label: "Borders", tooltip: "Customize table borders" },
+    "writer.table.bordersAll": { label: "All Borders", tooltip: "Show borders around every cell" },
+    "writer.table.bordersOutside": { label: "Outside Borders", tooltip: "Show only the border around the selected area" },
+    "writer.table.bordersInside": { label: "Inside Borders", tooltip: "Show only borders inside the selected area" },
+    "writer.table.bordersNone": { label: "No Border", tooltip: "Hide borders in the selected area" },
     "writer.table.toggleHeaderRow": { label: "Header Row", tooltip: "Toggle table header row formatting" },
     "writer.table.toggleBandedRows": { label: "Banded Rows", tooltip: "Toggle banded rows formatting" },
     "writer.image.insert": { label: "Pictures", tooltip: "Insert pictures from your computer" },
@@ -726,7 +744,7 @@ export const enStrings = {
     "writer.page.blank": { label: "Blank Page", tooltip: "Insert a completely blank page at the cursor" },
     "writer.header.insert": { label: "Header", tooltip: "Insert header" },
     "writer.footer.insert": { label: "Footer", tooltip: "Insert footer" },
-    "writer.insert.textbox": { label: "Text Box", tooltip: "Insert a freely movable text box" },
+    "writer.insert.textbox": { label: "Text Box", tooltip: "Insert a text box at its standard starting size; drag a corner to resize" },
     "writer.insert.wordart": { label: "WordArt", tooltip: "Insert stylized decorative text with outline, shadow, or gradient at the cursor" },
     "writer.format.dropCap": { label: "Drop Cap", tooltip: "Enlarge the first letter of the paragraph" },
     "writer.insert.dateTime": { label: "Date & Time", tooltip: "Insert the current date and time at the cursor" },
@@ -858,6 +876,7 @@ export const enStrings = {
       tables: "Tables",
       tableStyleOptions: "Table Style Options",
       tableBordersShading: "Borders & Shading",
+      tableBordersButton: "Table Borders",
       tableSelectGroup: "Table",
       tableRowsColsGroup: "Rows & Columns",
       tableMergeGroup: "Merge",
@@ -919,6 +938,12 @@ export const enStrings = {
       marginBottom: "Bottom",
       marginLeft: "Left",
       marginRight: "Right",
+      marginPreset: "Preset margins",
+      marginCustom: "Custom",
+      marginNormal: "Normal (1 in)",
+      marginNarrow: "Narrow (0.5 in)",
+      marginModerate: "Moderate",
+      marginWide: "Wide",
       applyTo: "Apply to",
       thisSection: "This section",
       wholeDocument: "Whole document",

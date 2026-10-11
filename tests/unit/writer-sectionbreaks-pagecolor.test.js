@@ -1,4 +1,4 @@
-import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
+import { PAGE_MARGIN_PRESETS, PAGE_SIZES_MM, WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
 import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { WRITER_COMMANDS } from "../../platform/commands/command-definitions.js";
@@ -53,6 +53,16 @@ export async function runWriterSectionBreaksPageColorTests() {
   const results = [];
   const test = async (name, fn) => { try { await fn(); results.push({ name, pass: true }); } catch (error) { results.push({ name, pass: false, error: error.message }); } };
 
+
+  await test("Writer Page Setup: Word margin presets and A5 are available with exact millimeter geometry", () => {
+    assert(JSON.stringify(PAGE_MARGIN_PRESETS.normal) === JSON.stringify({ top: 25.4, bottom: 25.4, left: 25.4, right: 25.4 }), "Normal preset must use 1 inch on every side");
+    assert(JSON.stringify(PAGE_MARGIN_PRESETS.narrow) === JSON.stringify({ top: 12.7, bottom: 12.7, left: 12.7, right: 12.7 }), "Narrow preset must use 0.5 inch on every side");
+    assert(JSON.stringify(PAGE_MARGIN_PRESETS.moderate) === JSON.stringify({ top: 25.4, bottom: 25.4, left: 19.05, right: 19.05 }), "Moderate preset geometry changed");
+    assert(JSON.stringify(PAGE_MARGIN_PRESETS.wide) === JSON.stringify({ top: 25.4, bottom: 25.4, left: 50.8, right: 50.8 }), "Wide preset geometry changed");
+    assert(PAGE_SIZES_MM.a5.w === 148 && PAGE_SIZES_MM.a5.h === 210, "A5 must be 148 x 210 mm");
+    const help = WRITER_HELP_ENTRIES.find((entry) => entry.id === "writer.page.setup");
+    assert(help?.steps.join(" ").includes("A5") && help?.steps.join(" ").includes("Narrow") && help?.steps.join(" ").includes("Wide"), "Page Setup help must explain A5 and margin presets");
+  });
   await test("Writer Page Color: command, ribbon, icon và Help được nối thật", () => {
     assert(WRITER_COMMANDS.some((item) => item.id === "writer.page.color"), "Thiếu command Page Color");
     const design = WRITER_RIBBON_TABS.find((tab) => tab.id === "design");

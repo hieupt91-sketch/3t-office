@@ -17,6 +17,10 @@ const TABLE_COMMAND_IDS = [
   "writer.table.toggleBandedRows",
   "writer.table.cellBg",
   "writer.table.borders",
+  "writer.table.bordersAll",
+  "writer.table.bordersOutside",
+  "writer.table.bordersInside",
+  "writer.table.bordersNone",
   "writer.table.selectCell",
   "writer.table.selectRow",
   "writer.table.selectCol",
@@ -32,6 +36,8 @@ const TABLE_COMMAND_IDS = [
   "writer.table.splitCells",
   "writer.table.distributeRows",
   "writer.table.distributeCols",
+  "writer.table.autoFitContents",
+  "writer.table.autoFitWindow",
   "writer.table.alignTop",
   "writer.table.alignMiddle",
   "writer.table.alignBottom"
@@ -59,6 +65,7 @@ class MockElement {
     this.classList = new MockClassList(this);
     this.style = {};
     this.attributes = {};
+    this.dataset = {};
     this.listeners = {};
     this.id = "";
     this._innerHTML = "";
@@ -265,7 +272,7 @@ export async function runWriterTableControlsTests() {
     }
   };
 
-  await test("Table commands: 22 lệnh bảng có đầy đủ định nghĩa, category table, i18n VI/EN", () => {
+  await test("Table commands: 28 lệnh bảng có đầy đủ định nghĩa, category table, i18n VI/EN", () => {
     for (const id of TABLE_COMMAND_IDS) {
       const cmd = WRITER_COMMANDS.find((item) => item.id === id);
       assert.ok(cmd, `Thiếu lệnh ${id} trong WRITER_COMMANDS`);
@@ -285,6 +292,11 @@ export async function runWriterTableControlsTests() {
     const bordersGroup = designTab.groups.find((g) => g.id === "tableBordersShading");
     assert.ok(styleOptionsGroup, "Thiếu nhóm tableStyleOptions trên tableDesign");
     assert.ok(bordersGroup, "Thiếu nhóm tableBordersShading trên tableDesign");
+    const borderDropdown = bordersGroup.items.find((item) => item.id === "writer.table.borders");
+    assert.ok(borderDropdown, "Thiếu dropdown Đường viền bảng");
+    for (const id of ["writer.table.bordersAll", "writer.table.bordersOutside", "writer.table.bordersInside", "writer.table.bordersNone"]) {
+      assert.ok(borderDropdown.items.some((item) => item.commandId === id), `Thiếu tùy chọn ${id}`);
+    }
 
     const layoutTab = WRITER_RIBBON_TABS.find((tab) => tab.id === "tableLayout");
     assert.ok(layoutTab, "Thiếu tab tableLayout");
@@ -300,9 +312,11 @@ export async function runWriterTableControlsTests() {
     assert.ok(mergeGroup, "Thiếu nhóm tableMergeGroup trên tableLayout");
     assert.ok(cellGroup, "Thiếu nhóm tableSizeGroup trên tableLayout");
     assert.ok(alignmentGroup, "Thiếu nhóm tableAlignGroup trên tableLayout");
+    assert.ok(JSON.stringify(cellGroup).includes("writer.table.autoFitContents"), "Thiếu lệnh Vừa nội dung trong nhóm Kích cỡ ô");
+    assert.ok(JSON.stringify(cellGroup).includes("writer.table.autoFitWindow"), "Thiếu lệnh Vừa cửa sổ trong nhóm Kích cỡ ô");
   });
 
-  await test("Table help coverage: 4 bài help chuẩn bao phủ toàn bộ 22 lệnh bảng, ít nhất 3 bước cụ thể", () => {
+  await test("Table help coverage: 4 bài help chuẩn bao phủ toàn bộ 28 lệnh bảng, ít nhất 3 bước cụ thể", () => {
     const tableEntries = WRITER_HELP_ENTRIES.filter((e) =>
       e.commandIds?.some((cid) => cid.startsWith("writer.table."))
     );
@@ -534,7 +548,15 @@ export async function runWriterTableControlsTests() {
     adapter.setTableBorders("none");
     assert.equal(cell.style.border, "none");
     adapter.setTableBorders("all");
-    assert.equal(cell.style.border, "1px solid #94a3b8");
+    assert.equal(cell.style.borderTop, "1px solid #94a3b8");
+    assert.equal(cell.style.borderRight, "1px solid #94a3b8");
+    adapter.setTableBorders("outside");
+    assert.equal(cell.style.borderTop, "1px solid #94a3b8", "Ô góc trên trái cần viền ngoài");
+    assert.equal(cell.style.borderLeft, "1px solid #94a3b8", "Ô góc trên trái cần viền ngoài");
+    assert.equal(cell.style.borderBottom, "none", "Ô hàng đầu không có viền ngoài phía dưới");
+    adapter.setTableBorders("inside");
+    assert.equal(cell.style.borderTop, "none", "Ô góc không có viền trong phía trên");
+    assert.equal(cell.style.borderRight, "1px solid #94a3b8", "Ô đầu hàng có viền ngăn cách bên trong");
 
     // Hàng tiêu đề toggle
     adapter.toggleTableHeaderRow();
@@ -546,6 +568,19 @@ export async function runWriterTableControlsTests() {
     assert.equal(table.rows[1].cells[0].style.backgroundColor, "#dbeafe", "Giữ màu nền xuất tài liệu; CSS theme tối chỉ ghi đè khi hiển thị trong ứng dụng");
     adapter.toggleTableBandedRows();
     assert.equal(table.classList.contains("vno-table-banded-rows"), false);
+  });
+
+  await test("Table AutoFit: vừa nội dung và vừa cửa sổ đặt chế độ xuất Word tương ứng", () => {
+    const { table, adapter, tableController } = setupMockEnvironment();
+    tableController.activeTable = table;
+    assert.equal(adapter.autoFitTableContents(), true);
+    assert.equal(table.style.width, "auto");
+    assert.equal(table.style.tableLayout, "auto");
+    assert.equal(table.dataset.vnoTableAutofit, "contents");
+    assert.equal(adapter.autoFitTableWindow(), true);
+    assert.equal(table.style.width, "100%");
+    assert.equal(table.style.tableLayout, "auto");
+    assert.equal(table.dataset.vnoTableAutofit, "window");
   });
 
   await test("Table editing: xóa toàn bộ bảng và dọn dẹp controller", () => {

@@ -1,0 +1,6 @@
+# FIX-S9 (Sheet vs Excel) - cong thuc va thao tac du lieu
+Muc tieu: doi chieu voi Excel that (COM CHI DOC; app ghi XLSX, Excel doc lai, 1 tep/lan) cac nhom CHUA kiem o S7/S8:
+1. Cong thuc pho bien trong du lieu LAN (VLOOKUP chiem 91%): SUMIF(S), COUNTIF(S), IFERROR, ROUND, LEFT/MID/RIGHT, TEXT dinh dang ngay/tien, NA(), HLOOKUP, MATCH, OFFSET/INDIRECT, SUMPRODUCT, date functions. Ket qua Excel tinh lai phai bang gia tri app.
+2. Dan dac biet (Paste Special: gia tri, dinh dang, cong thuc), sao chep ky dinh dang, Find/Replace (pham vi, khop o), sap xep nhieu cap, xoa trung lap, dong bang, an/hien sheet, doi ten/xoa/di chuyen sheet.
+3. Bieu do: loai, tieu de, truc, series sau luu->Excel doc lai.
+Quy tac: thao tac bang chuot+phim that qua CDP (cam SendKeys, kill theo PID), chup anh; VNO_APP_ROOT=<worktree>, VNO_AUDIT_MARK_DIRTY=1, VNO_CDP_LOCALAPPDATA rieng; moi nhom 1 commit; sua lech tai hien duoc, kem huong dan tieng Viet + i18n; chay npm test + batch XLSX lan01,02,04,06,09,11,22,26; bao cao 3 dong/nhom. TIET KIEM TOKEN: chi delta.

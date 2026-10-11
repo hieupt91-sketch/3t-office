@@ -132,6 +132,7 @@ export const viStrings = {
     replacePlaceholder: "Nhập nội dung thay thế...",
     matchCase: "Khớp chữ hoa/thường",
     wholeWord: "Chỉ toàn bộ từ",
+    matchCell: "Khớp toàn bộ nội dung ô",
     ignoreDiacritics: "Bỏ qua dấu",
     within: "Tìm trong:",
     scopeSheet: "Trang tính",
@@ -174,6 +175,7 @@ export const viStrings = {
     section: "Phần"
   },
   sheetDialogs: {
+    hideSheetMenu: "Ẩn trang tính", unhideSheetMenu: "Hiện trang tính...", unhideSheetTitle: "Hiện trang tính", unhideSheetChoose: "Chọn trang tính cần hiện:", unhideSheetAction: "Hiện", cannotHideLastSheet: "Không thể ẩn trang tính cuối cùng đang hiển thị.", noHiddenSheets: "Không có trang tính nào đang ẩn.",
     close: "Đóng", cancel: "Hủy", cancelLong: "Hủy bỏ", apply: "Áp dụng", range: "Phạm vi", rangeLabel: "Vùng:", value: "Giá trị", save: "Lưu",
     pasteSpecialTitle: "Dán đặc biệt", pasteSpecialGroup: "Dán", pasteSpecialSource: "Giữ định dạng nguồn", pasteSpecialKeepSource: "Giữ định dạng nguồn", pasteSpecialText: "Chỉ giữ văn bản", pasteSpecialAll: "Giữ định dạng nguồn", pasteSpecialValues: "Chỉ giá trị", pasteSpecialFormulas: "Chỉ công thức", pasteSpecialFormats: "Chỉ định dạng", pasteSpecialTranspose: "Chuyển vị (đổi hàng/cột)",
     mergeConfirmTitle: "Trộn ô", mergeConfirmMessage: "Vùng chọn có nhiều ô chứa dữ liệu. Chỉ dữ liệu ở ô trên cùng bên trái của mỗi vùng gộp được giữ lại.", mergeConfirmOk: "Tiếp tục gộp",
@@ -524,6 +526,8 @@ export const viStrings = {
     ,"sheet.col.unhide": { label: "Hiện cột", tooltip: "Hiện các cột đã ẩn trong vùng chọn" }
     ,"sheet.sheet.rename": { label: "Đổi tên trang tính...", tooltip: "Đổi tên trang tính hiện tại (cùng hộp thoại với nhấp đúp tab dưới lưới)" }
     ,"sheet.sheet.moveOrCopy": { label: "Di chuyển hoặc Sao chép trang tính...", tooltip: "Đổi thứ tự tab hoặc tạo bản sao trang tính (dữ liệu, định dạng, Page Setup)" }
+    ,"sheet.sheet.hide": { label: "Ẩn trang tính", tooltip: "Ẩn tab trang tính hiện tại" }
+    ,"sheet.sheet.unhide": { label: "Hiện trang tính...", tooltip: "Chọn trang tính đang ẩn để hiện lại" }
     ,"sheet.sheet.protect": { label: "Bảo vệ trang tính...", tooltip: "Khóa sửa ô, định dạng và xóa hàng/cột trên trang tính hiện tại (khóa giao diện, không phải bảo mật thật)" }
     ,"sheet.workbook.protect": { label: "Bảo vệ workbook...", tooltip: "Khóa cấu trúc workbook: không thêm, xóa, đổi tên, di chuyển hay sao chép trang tính. Không khóa nội dung ô (khóa giao diện, không phải bảo mật thật)" }
     ,"sheet.chart.insert": { label: "Biểu đồ", tooltip: "Chèn biểu đồ phân tích dữ liệu" }
@@ -552,6 +556,14 @@ export const viStrings = {
     ,"slides.slide.duplicate": { label: "Nhân đôi", tooltip: "Nhân đôi trang chiếu đang chọn (Ctrl+D)" }
     ,"slides.slide.delete": { label: "Xóa trang", tooltip: "Xóa trang chiếu đang chọn (Delete)" }
     ,"slides.slide.toggleHidden": { label: "Ẩn trang chiếu", tooltip: "Ẩn hoặc hiện trang chiếu đang chọn khi trình chiếu F5. Trang vẫn còn trong tệp và Slide Sorter." }
+    ,"slides.context.copy": { label: "Sao chép trang chiếu", tooltip: "Chép trang này vào bộ nhớ tạm của ứng dụng" }
+    ,"slides.context.cut": { label: "Cắt trang chiếu", tooltip: "Chuyển trang này vào bộ nhớ tạm của ứng dụng" }
+    ,"slides.context.paste": { label: "Dán trang chiếu", tooltip: "Chèn bản sao trang đã chép ngay sau trang này" }
+    ,"slides.context.hide": { label: "Ẩn trang chiếu", tooltip: "Ẩn hoặc hiện trang này khi trình chiếu" }
+    ,"slides.context.moveUp": { label: "Chuyển lên", tooltip: "Đưa trang này lên trước một vị trí" }
+    ,"slides.context.moveDown": { label: "Chuyển xuống", tooltip: "Đưa trang này xuống sau một vị trí" }
+    ,"slides.context.sort": { label: "Bộ sắp xếp trang chiếu", tooltip: "Mở lưới để xem và sắp xếp lại các trang" }
+    ,"slides.context.layout": { label: "Bố cục", tooltip: "Thay đổi bố cục của trang này" }
     ,"slides.section.add": { label: "Thêm phần", tooltip: "Thêm phần bắt đầu từ trang đang chọn để nhóm các trang chiếu liên tiếp" }
     ,"slides.section.rename": { label: "Đổi tên phần", tooltip: "Đổi tên phần chứa trang chiếu đang chọn" }
     ,"slides.section.remove": { label: "Xóa phần", tooltip: "Bỏ nhóm phần — không xóa các trang chiếu bên trong" }
@@ -684,9 +696,9 @@ export const viStrings = {
     "writer.para.moveUp": { label: "Di chuyển đoạn lên", tooltip: "Di chuyển đoạn văn lên trên (Alt+Shift+Up)" },
     "writer.para.moveDown": { label: "Di chuyển đoạn xuống", tooltip: "Di chuyển đoạn văn xuống dưới (Alt+Shift+Down)" },
     "writer.style.normal": { label: "Kiểu Thường", tooltip: "Áp dụng kiểu Normal chuẩn (Ctrl+Shift+N)" },
-    "writer.style.heading1": { label: "Tiêu đề 1", tooltip: "Áp dụng kiểu Tiêu đề 1 (Ctrl+Alt+1)" },
-    "writer.style.heading2": { label: "Tiêu đề 2", tooltip: "Áp dụng kiểu Tiêu đề 2 (Ctrl+Alt+2)" },
-    "writer.style.heading3": { label: "Tiêu đề 3", tooltip: "Áp dụng kiểu Tiêu đề 3 (Ctrl+Alt+3)" },
+    "writer.style.heading1": { label: "Tiêu đề 1", tooltip: "Áp dụng kiểu Tiêu đề 1 chuẩn cho tài liệu mới (Ctrl+Alt+1)" },
+    "writer.style.heading2": { label: "Tiêu đề 2", tooltip: "Áp dụng kiểu Tiêu đề 2 chuẩn cho tài liệu mới (Ctrl+Alt+2)" },
+    "writer.style.heading3": { label: "Tiêu đề 3", tooltip: "Áp dụng kiểu Tiêu đề 3 chuẩn cho tài liệu mới (Ctrl+Alt+3)" },
     "writer.text.changeCase": { label: "Đổi chữ hoa/thường", tooltip: "Chuyển đổi chữ hoa / thường / Tiêu đề (Shift+F3)" },
     "writer.para.sort": { label: "Sắp xếp", tooltip: "Sắp xếp danh sách hoặc đoạn văn theo A–Z" },
     "writer.para.showFormattingMarks": { label: "Hiện/ẩn ký tự định dạng", tooltip: "Hiện hoặc ẩn dấu đoạn và xuống dòng (Ctrl+*)" },
@@ -704,6 +716,8 @@ export const viStrings = {
     "writer.table.splitCells": { label: "Tách ô", tooltip: "Tách ô đang chọn thành nhiều ô" },
     "writer.table.distributeRows": { label: "Phân bố đều hàng", tooltip: "Đặt chiều cao các hàng bằng nhau" },
     "writer.table.distributeCols": { label: "Phân bố đều cột", tooltip: "Đặt chiều rộng các cột bằng nhau" },
+    "writer.table.autoFitContents": { label: "Vừa nội dung", tooltip: "Tự động vừa bảng theo nội dung ô" },
+    "writer.table.autoFitWindow": { label: "Vừa cửa sổ", tooltip: "Tự động mở rộng bảng vừa chiều rộng trang" },
     "writer.table.alignTop": { label: "Căn đỉnh ô", tooltip: "Căn văn bản lên mép trên của ô" },
     "writer.table.alignMiddle": { label: "Căn giữa dọc ô", tooltip: "Căn văn bản vào giữa theo chiều dọc của ô" },
     "writer.table.alignBottom": { label: "Căn đáy ô", tooltip: "Căn văn bản xuống mép dưới của ô" },
@@ -713,6 +727,10 @@ export const viStrings = {
     "writer.table.selectTable": { label: "Chọn bảng", tooltip: "Chọn toàn bộ bảng" },
     "writer.table.cellBg": { label: "Tô màu ô", tooltip: "Đổi màu nền cho các ô đang chọn trong bảng" },
     "writer.table.borders": { label: "Đường viền bảng", tooltip: "Tùy chỉnh kiểu và độ dày đường viền bảng" },
+    "writer.table.bordersAll": { label: "Tất cả đường viền", tooltip: "Hiển thị đường viền quanh mọi ô" },
+    "writer.table.bordersOutside": { label: "Viền ngoài", tooltip: "Chỉ hiển thị đường viền bao quanh vùng ô" },
+    "writer.table.bordersInside": { label: "Viền trong", tooltip: "Chỉ hiển thị đường viền bên trong vùng ô" },
+    "writer.table.bordersNone": { label: "Không viền", tooltip: "Ẩn đường viền của vùng ô" },
     "writer.table.toggleHeaderRow": { label: "Hàng tiêu đề", tooltip: "Bật hoặc tắt định dạng hàng tiêu đề bảng" },
     "writer.table.toggleBandedRows": { label: "Hàng xen kẽ", tooltip: "Bật hoặc tắt màu xen kẽ giữa các hàng trong bảng" },
     "writer.image.insert": { label: "Hình ảnh", tooltip: "Chèn hình ảnh từ máy tính" },
@@ -727,7 +745,7 @@ export const viStrings = {
     "writer.page.blank": { label: "Trang trắng", tooltip: "Chèn một trang trắng hoàn toàn tại vị trí con trỏ" },
     "writer.header.insert": { label: "Đầu trang", tooltip: "Chèn tiêu đề đầu trang (Header)" },
     "writer.footer.insert": { label: "Chân trang", tooltip: "Chèn tiêu đề chân trang (Footer)" },
-    "writer.insert.textbox": { label: "Hộp văn bản", tooltip: "Chèn khung văn bản độc lập, kéo-thả được" },
+    "writer.insert.textbox": { label: "Hộp văn bản", tooltip: "Chèn khung có kích thước khởi tạo chuẩn; kéo góc để đổi cỡ" },
     "writer.insert.wordart": { label: "Chữ nghệ thuật", tooltip: "Chèn chữ nghệ thuật với viền, đổ bóng hoặc gradient tại vị trí con trỏ" },
     "writer.format.dropCap": { label: "Chữ đầu đoạn", tooltip: "Phóng to chữ cái đầu đoạn văn (Drop Cap)" },
     "writer.insert.dateTime": { label: "Ngày & Giờ", tooltip: "Chèn ngày giờ hiện tại tại vị trí con trỏ" },
@@ -859,6 +877,7 @@ export const viStrings = {
       tables: "Bảng biểu",
       tableStyleOptions: "Tùy chọn kiểu bảng",
       tableBordersShading: "Màu & Viền",
+      tableBordersButton: "Đường viền bảng",
       tableSelectGroup: "Bảng",
       tableRowsColsGroup: "Hàng & Cột",
       tableMergeGroup: "Hợp nhất",
@@ -920,6 +939,12 @@ export const viStrings = {
       marginBottom: "Lề dưới",
       marginLeft: "Lề trái",
       marginRight: "Lề phải",
+      marginPreset: "Đặt sẵn lề",
+      marginCustom: "Tùy chỉnh",
+      marginNormal: "Bình thường (2,54 cm)",
+      marginNarrow: "Hẹp (1,27 cm)",
+      marginModerate: "Vừa phải",
+      marginWide: "Rộng",
       applyTo: "Áp dụng cho",
       thisSection: "Mục này",
       wholeDocument: "Toàn bộ tài liệu",

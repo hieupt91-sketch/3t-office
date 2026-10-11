@@ -42,6 +42,20 @@ class PrefixedOoxml(unittest.TestCase):
         plain = _xlsx(False)
         self.assertIs(patcher.normalize_source_xlsx(plain), plain)
 
+    def test_absolute_package_relationship_targets_resolve_from_root(self):
+        source = _xlsx(False)
+        buf = io.BytesIO()
+        with zipfile.ZipFile(io.BytesIO(source), "r") as zin, zipfile.ZipFile(buf, "w") as zout:
+            for name in zin.namelist():
+                data = zin.read(name)
+                if name == "xl/_rels/workbook.xml.rels":
+                    data = data.replace(b'Target="worksheets/sheet1.xml"', b'Target="/xl/worksheets/sheet1.xml"')
+                zout.writestr(name, data)
+        self.assertEqual(
+            patcher._resolve_xlsx_sheet_entries(buf.getvalue()),
+            {"Main": "xl/worksheets/sheet1.xml"},
+        )
+
     def test_xf_overlay_sees_prefixed_source(self):
         fods = ('<office:document xmlns:office="urn:o" xmlns:table="urn:t"><office:body><office:spreadsheet>'
                 '<table:table table:name="Main"><table:table-row><table:table-cell office:value-type="float" office:value="1"/></table:table-row>'

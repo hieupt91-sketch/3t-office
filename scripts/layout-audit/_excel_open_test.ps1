@@ -119,8 +119,7 @@ try {
   if ($owned -and $ownedPid -gt 0) {
     $leftover = Get-Process -Id $ownedPid -ErrorAction SilentlyContinue
     if ($leftover) {
-      Stop-Process -Id $ownedPid -Force
-      "CLEANUP stopped owned Excel PID $ownedPid after COM quit did not exit."
+      "WARN owned Excel PID $ownedPid remained after COM Quit; it was left running."
     }
   }
 }

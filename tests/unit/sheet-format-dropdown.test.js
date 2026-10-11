@@ -38,7 +38,7 @@ export async function runSheetFormatDropdownTests() {
     const expected = [
       "sheet.row.height", "sheet.row.autoFit", "sheet.col.width", "sheet.col.autoFit",
       "sheet.row.hide", "sheet.row.unhide", "sheet.col.hide", "sheet.col.unhide",
-      "sheet.sheet.rename", "sheet.sheet.moveOrCopy", "sheet.sheet.protect"
+      "sheet.sheet.rename", "sheet.sheet.moveOrCopy", "sheet.sheet.hide", "sheet.sheet.unhide", "sheet.sheet.protect"
     ];
     assert(JSON.stringify(ids) === JSON.stringify(expected), `Mục dropdown sai: ${ids.join(", ")}`);
     expected.forEach(id => {

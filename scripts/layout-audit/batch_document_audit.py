@@ -154,38 +154,6 @@ def _run_xlsx_lints(saved: Path) -> tuple[str, str]:
     return ("clean" if clean else "issues"), "; ".join(reports[:4])
 
 
-def _get_office_pids() -> set[int]:
-    pids = set()
-    try:
-        res = subprocess.run(
-            ["powershell", "-NoProfile", "-Command", "Get-Process -Name excel, winword -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id"],
-            capture_output=True,
-            text=True,
-            timeout=5,
-            check=False,
-        )
-        for line in (res.stdout or "").splitlines():
-            line = line.strip()
-            if line.isdigit():
-                pids.add(int(line))
-    except Exception:
-        pass
-    return pids
-
-
-def _clean_owned_pids(owned_pids: set[int]):
-    for pid in owned_pids:
-        try:
-            subprocess.run(
-                ["powershell", "-NoProfile", "-Command", f"Stop-Process -Id {pid} -Force -ErrorAction SilentlyContinue"],
-                capture_output=True,
-                timeout=5,
-                check=False,
-            )
-        except Exception:
-            pass
-
-
 def _is_empty_save(source: Path, saved: Path) -> bool:
     if not source.is_file() or not saved.is_file():
         return False
@@ -200,7 +168,6 @@ def _run_excel_open_test(paths: list[Path]) -> tuple[str, str]:
         return "BLOCKED", "PowerShell is unavailable."
     command = [powershell, "-NoProfile", "-File", str(SCRIPT_DIR / "_excel_open_test.ps1"), "-Files"]
     command.extend(str(path.resolve()) for path in paths)
-    pids_before = _get_office_pids()
     try:
         result = subprocess.run(
             command,
@@ -212,10 +179,7 @@ def _run_excel_open_test(paths: list[Path]) -> tuple[str, str]:
             check=False,
         )
     except subprocess.TimeoutExpired:
-        _clean_owned_pids(_get_office_pids() - pids_before)
-        return "FAIL", "Hidden Excel open checks exceeded 15 minutes."
-    finally:
-        _clean_owned_pids(_get_office_pids() - pids_before)
+        return "FAIL", "Hidden Excel open checks exceeded 15 minutes; no process was stopped by PID."
     output = (result.stdout or "").strip()
     status = "PASS" if result.returncode == 0 else ("BLOCKED" if output.startswith("BLOCKED") else "FAIL")
     return status, output[-1200:]

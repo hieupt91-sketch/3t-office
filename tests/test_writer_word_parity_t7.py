@@ -18,6 +18,98 @@ def document_from(docx: bytes) -> str:
 
 
 class WriterWordParityT7Tests(unittest.TestCase):
+    def test_new_full_width_table_restores_word_text_area_width(self):
+        cells = "".join(
+            '<w:tc><w:tcPr><w:tcW w:w="110" w:type="dxa"/></w:tcPr><w:p/></w:tc>'
+            for _ in range(4)
+        )
+        source = (
+            '<w:document><w:body><w:tbl><w:tblPr><w:tblW w:w="440" w:type="dxa"/></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="110"/><w:gridCol w:w="110"/><w:gridCol w:w="110"/><w:gridCol w:w="110"/></w:tblGrid>'
+            f'<w:tr>{cells}</w:tr></w:tbl>'
+            '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:left="1440" w:right="1440"/></w:sectPr>'
+            '</w:body></w:document>'
+        )
+        html = '<table style="width: 100%; margin: 14pt 0;"><tbody><tr>' + "".join("<td><br></td>" for _ in range(4)) + "</tr></tbody></table>"
+        result = document_from(patcher.postprocess_created_writer_docx(make_docx(source), source_html=html))
+        self.assertIn('<w:tblW w:w="9360" w:type="dxa"/>', result)
+        self.assertEqual(result.count('<w:gridCol w:w="2340"/>'), 4)
+        self.assertEqual(result.count('<w:tcW w:w="2340" w:type="dxa"/>'), 4)
+
+    def test_full_width_table_does_not_override_explicit_column_widths(self):
+        source = (
+            '<w:document><w:body><w:tbl><w:tblPr><w:tblW w:w="2000" w:type="dxa"/></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="2000"/></w:tblGrid><w:tr><w:tc><w:tcPr><w:tcW w:w="2000"/></w:tcPr><w:p/></w:tc></w:tr></w:tbl>'
+            '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:left="1440" w:right="1440"/></w:sectPr>'
+            '</w:body></w:document>'
+        )
+        html = '<table style="width:100%"><tr><td style="width: 3cm">x</td></tr></table>'
+        result = document_from(patcher.postprocess_created_writer_docx(make_docx(source), source_html=html))
+        self.assertIn('<w:tblW w:w="1700" w:type="dxa"/>', result)
+        self.assertIn('<w:gridCol w:w="1700"/>', result)
+
+    def test_full_width_table_preserves_dragged_pixel_column_width(self):
+        row = (
+            '<w:tr>'
+            + ''.join('<w:tc><w:tcPr><w:tcW w:w="110" w:type="dxa"/></w:tcPr><w:p/></w:tc>' for _ in range(3))
+            + '</w:tr>'
+        )
+        source = (
+            '<w:document><w:body><w:tbl><w:tblPr><w:tblW w:w="330" w:type="dxa"/></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="110"/><w:gridCol w:w="110"/><w:gridCol w:w="110"/></w:tblGrid>'
+            + row * 3
+            + '</w:tbl><w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:left="1440" w:right="1440"/></w:sectPr>'
+            + '</w:body></w:document>'
+        )
+        html = (
+            '<table style="width:100%"><tbody><tr><td style="width: 72px">Alpha</td><td><br></td><td><br></td></tr>'
+            '<tr><td style="width: 72px">Beta</td><td><br></td><td><br></td></tr>'
+            '<tr><td style="width: 72px">Gamma</td><td><br></td><td><br></td></tr></tbody></table>'
+        )
+        result = document_from(patcher.postprocess_created_writer_docx(make_docx(source), source_html=html))
+        self.assertIn('<w:tblW w:w="9360" w:type="dxa"/>', result)
+        self.assertEqual(result.count('<w:gridCol w:w="1080"/>'), 1)
+        self.assertEqual(result.count('<w:gridCol w:w="4140"/>'), 2)
+        self.assertEqual(result.count('<w:tcW w:w="1080" w:type="dxa"/>'), 3)
+        self.assertEqual(result.count('<w:tcW w:w="4140" w:type="dxa"/>'), 6)
+
+    def test_dragged_table_row_height_is_saved_as_word_exact_height(self):
+        rows = "".join('<w:tr><w:trPr></w:trPr><w:tc><w:p/></w:tc></w:tr>' for _ in range(3))
+        source = (
+            '<w:document><w:body><w:tbl><w:tblPr/><w:tblGrid><w:gridCol w:w="9000"/></w:tblGrid>'
+            + rows
+            + '</w:tbl><w:sectPr/></w:body></w:document>'
+        )
+        html = '<table style="width:100%"><tr style="height:56px"><td>One</td></tr><tr><td>Two</td></tr><tr><td>Three</td></tr></table>'
+        result = document_from(patcher.postprocess_created_writer_docx(make_docx(source), source_html=html))
+        self.assertEqual(result.count('<w:trHeight w:val="840" w:hRule="exact"/>'), 1)
+
+    def test_table_autofit_contents_uses_word_native_auto_layout(self):
+        cells = ''.join('<w:tc><w:tcPr><w:tcW w:w="4500" w:type="dxa"/></w:tcPr><w:p/></w:tc>' for _ in range(2))
+        source = (
+            '<w:document><w:body><w:tbl><w:tblPr><w:tblW w:w="9000" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="4500"/><w:gridCol w:w="4500"/></w:tblGrid><w:tr>' + cells + '</w:tr></w:tbl>'
+            '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:left="1440" w:right="1440"/></w:sectPr></w:body></w:document>'
+        )
+        html = '<table style="width:auto" data-vno-table-autofit="contents"><tr><td>Alpha</td><td><br></td></tr></table>'
+        result = document_from(patcher.postprocess_created_writer_docx(make_docx(source), source_html=html))
+        self.assertIn('<w:tblW w:w="0" w:type="auto"/>', result)
+        self.assertNotIn('<w:tblLayout', result)
+        self.assertEqual(result.count('<w:tcW w:w="0" w:type="auto"/>'), 2)
+
+    def test_table_autofit_window_uses_word_native_percent_layout(self):
+        cells = ''.join('<w:tc><w:tcPr><w:tcW w:w="4500" w:type="dxa"/></w:tcPr><w:p/></w:tc>' for _ in range(2))
+        source = (
+            '<w:document><w:body><w:tbl><w:tblPr><w:tblW w:w="9000" w:type="dxa"/><w:tblLayout w:type="fixed"/></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="4500"/><w:gridCol w:w="4500"/></w:tblGrid><w:tr>' + cells + '</w:tr></w:tbl>'
+            '<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:left="1440" w:right="1440"/></w:sectPr></w:body></w:document>'
+        )
+        html = '<table style="width:100%" data-vno-table-autofit="window"><tr><td>Alpha</td><td><br></td></tr></table>'
+        result = document_from(patcher.postprocess_created_writer_docx(make_docx(source), source_html=html))
+        self.assertIn('<w:tblW w:w="5000" w:type="pct"/>', result)
+        self.assertNotIn('<w:tblLayout', result)
+        self.assertEqual(result.count('<w:tcW w:w="2500" w:type="pct"/>'), 2)
+
     def test_sup_sub_are_saved_as_word_vertical_alignment(self):
         source = '<w:document><w:body><w:p><w:r><w:t>H</w:t></w:r><w:r><w:rPr><w:b/><w:position w:val="8"/></w:rPr><w:t>2</w:t></w:r><w:r><w:rPr><w:b/><w:position w:val="-2"/></w:rPr><w:t>x</w:t></w:r><w:r><w:rPr><w:i/><w:position w:val="-2"/></w:rPr><w:t>y</w:t></w:r></w:p></w:body></w:document>'
         html = '<p>H<span style="vertical-align: super">2</span><b><sub>xy</sub></b></p>'
