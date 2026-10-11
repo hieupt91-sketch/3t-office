@@ -29,7 +29,7 @@ node --experimental-websocket scripts/audit-0610/word_parallel/app-ops-sheet.des
 scripts\audit-0610\word_parallel\excel-read.ps1 -Files "$env:VNO_CDP_LOCALAPPDATA\app_standard.xlsx"
 ```
 
-`excel-read.ps1` chỉ mở các workbook read-only và chỉ đọc thuộc tính qua Excel COM. Với fixture này, số tiền mẫu nằm ở C2. Dấu phân cách hàng nghìn dùng command id `sheet.format.standard` (nhãn “Phân cách hàng nghìn”, phím `Ctrl+Shift+1`); không có command `sheet.format.thousands`.
+`excel-read.ps1` chỉ mở các workbook read-only và chỉ đọc thuộc tính qua Excel COM. Với fixture này, số tiền mẫu nằm ở C2. `OPS` lọc ca cần chạy, chẳng hạn `standard`, `autoSum,fillDown,sortAsc,filter` hoặc `formulaSum,formulaAverage,formulaConcat`. Dấu phân cách hàng nghìn dùng command id `sheet.format.standard` (nhãn “Phân cách hàng nghìn”, phím `Ctrl+Shift+1`); không có command `sheet.format.thousands`.
 
 Word COM chạy ẩn với `DisplayAlerts=0`. Script chụp các PID WINWORD đang có trước khi tạo COM, nhận diện PID mới do phiên automation tạo, gọi `Quit()` rồi chỉ dọn theo PID mới đó. Không dừng tiến trình WINWORD cũ.
 

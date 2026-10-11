@@ -3831,6 +3831,99 @@ def _apply_accounting_number_formats_from_fods(xlsx_bytes: bytes, source_fods: s
         replacements[XLSX_STYLES_ENTRY] = ET.tostring(styles, encoding="unicode")
 
 
+_XLSX_FORMULA_TAG_RE = re.compile(r"(<f\b[^>]*>)([\s\S]*?)(</f>)", re.IGNORECASE)
+_CONCAT_FUNCTION_RE = re.compile(r"(?<![A-Za-z0-9_.])CONCAT(?=\s*\()", re.IGNORECASE)
+
+
+def _rewrite_scalar_concat_for_legacy_excel(formula: str) -> str:
+    """Use CONCATENATE for scalar CONCAT calls unsupported by older Excel builds.
+
+    CONCAT added range/array flattening semantics that CONCATENATE does not
+    share. Keep those calls unchanged; scalar arguments have the same result
+    and remain readable by Excel versions predating CONCAT.
+    """
+    matches = list(_CONCAT_FUNCTION_RE.finditer(formula or ""))
+    if not matches:
+        return formula
+
+    replacements: list[tuple[int, int, str]] = []
+    for match in matches:
+        in_string = False
+        quote_index = 0
+        while quote_index < match.start():
+            if formula[quote_index] == '"':
+                if in_string and quote_index + 1 < match.start() and formula[quote_index + 1] == '"':
+                    quote_index += 2
+                    continue
+                in_string = not in_string
+            quote_index += 1
+        if in_string:
+            continue
+
+        open_paren = match.end()
+        while open_paren < len(formula) and formula[open_paren].isspace():
+            open_paren += 1
+        depth = 0
+        has_range = False
+        index = open_paren
+        while index < len(formula):
+            char = formula[index]
+            if char == '"':
+                if in_string and index + 1 < len(formula) and formula[index + 1] == '"':
+                    index += 2
+                    continue
+                in_string = not in_string
+            elif not in_string:
+                if char == ":":
+                    has_range = True
+                elif char == "(":
+                    depth += 1
+                elif char == ")":
+                    depth -= 1
+                    if depth == 0:
+                        if not has_range:
+                            replacements.append((match.start(), match.end(), "CONCATENATE"))
+                        break
+            index += 1
+
+    if not replacements:
+        return formula
+    parts: list[str] = []
+    offset = 0
+    for start, end, value in replacements:
+        parts.append(formula[offset:start])
+        parts.append(value)
+        offset = end
+    parts.append(formula[offset:])
+    return "".join(parts)
+
+
+def _apply_scalar_concat_excel_compatibility(xlsx_bytes: bytes, replacements: dict[str, str]) -> None:
+    """Map scalar CONCAT calls to its legacy Excel equivalent in XLSX formulas."""
+    for entry in _resolve_xlsx_sheet_entries(xlsx_bytes).values():
+        current = replacements.get(entry)
+        if current is None:
+            raw = _read_zip_entry(xlsx_bytes, entry)
+            if not raw:
+                continue
+            current = raw.decode("utf-8", errors="replace")
+
+        changed = False
+
+        def rewrite_formula(match: re.Match[str]) -> str:
+            nonlocal changed
+            formula = html.unescape(match.group(2))
+            rewritten = _rewrite_scalar_concat_for_legacy_excel(formula)
+            if rewritten == formula:
+                return match.group(0)
+            changed = True
+            return match.group(1) + html.escape(rewritten, quote=False) + match.group(3)
+
+        updated = _XLSX_FORMULA_TAG_RE.sub(rewrite_formula, current)
+        if changed:
+            replacements[entry] = updated
+
+
 def postprocess_sheet_xlsx(
     xlsx_bytes: bytes,
     *,
@@ -3840,6 +3933,7 @@ def postprocess_sheet_xlsx(
 ) -> bytes:
     """Return patched XLSX bytes, or the original buffer when no patch is needed."""
     replacements: dict[str, str] = {}
+    _apply_scalar_concat_excel_compatibility(xlsx_bytes, replacements)
     source_xlsx_bytes = normalize_source_xlsx(source_xlsx_bytes)  # S23: XLSX gốc có tiền tố x: (lan23)
 
     # Extract original font and sheetFormatPr from source XLSX if available
