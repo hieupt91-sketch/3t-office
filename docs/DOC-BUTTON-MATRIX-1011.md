@@ -6,7 +6,7 @@ Nguồn: `claude-ribbon-scan` (nút nào có phản ứng) + `docs/AUDIT-DOC-WOR
 - **LỆCH ĐÃ BIẾT**: còn lệch đã đo.
 - **CHƯA ĐỐI CHIẾU**: nút có phản ứng (không phải nút câm) nhưng **chưa** so với Word thật — cần làm tiếp.
 
-Tổng kết: KHỚP WORD (đã so Word COM): 70, CHƯA ĐỐI CHIẾU: 48, KHÁC CÓ CHỦ Ý: 1, LỆCH ĐÃ BIẾT: 1 (tổng 120 nút, không kể Trợ lý AI).
+Tổng kết: KHỚP WORD (đã so Word COM): 77, CHƯA ĐỐI CHIẾU: 39, LỆCH ĐÃ BIẾT: 3, KHÁC CÓ CHỦ Ý: 1 (tổng 120 nút, không kể Trợ lý AI).
 
 | Tab | Lệnh | Nút | Trạng thái | Ghi chú |
 |---|---|---|---|---|
@@ -44,25 +44,25 @@ Tổng kết: KHỚP WORD (đã so Word COM): 70, CHƯA ĐỐI CHIẾU: 48, KHÁ
 | Trang đầu | `writer.style.gallery` | Thư viện kiểu | KHÁC CÓ CHỦ Ý | Normal/Title/Quote đã áp dụng; preset VN cố ý khác định dạng Word; Heading 1–3 khớp |
 | Trang đầu | `common.edit.find` | Tìm kiếm (Ctrl+F) | KHỚP WORD (đã so Word COM) | phân biệt hoa/thường, toàn từ, Tìm trước, thay một |
 | Trang đầu | `common.edit.replace` | Thay thế (Ctrl+H) | KHỚP WORD (đã so Word COM) | phân biệt hoa/thường, toàn từ, Tìm trước, thay một |
-| Chèn | `writer.page.blank` | Trang trắng | CHƯA ĐỐI CHIẾU |  |
+| Chèn | `writer.page.blank` | Trang trắng | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 2: 7 lệnh, thao tác CDP và Word COM khớp về đầu ra DOCX |
 | Chèn | `writer.page.break` | Ngắt trang (Ctrl+Enter) | KHỚP WORD (đã so Word COM) | ngắt trang/mục NextPage-Continuous-Even-Odd |
 | Chèn | `writer.table.insert` | Bảng biểu | KHỚP WORD (đã so Word COM) | bảng: chèn/thêm-xóa hàng cột/gộp-tách/căn/nền/viền/AutoFit/kích thước |
-| Chèn | `writer.table.fromText` | Văn bản thành bảng | CHƯA ĐỐI CHIẾU |  |
+| Chèn | `writer.table.fromText` | Văn bản thành bảng | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 2: 7 lệnh, thao tác CDP và Word COM khớp về đầu ra DOCX |
 | Chèn | `writer.image.insert` | Hình ảnh | KHỚP WORD (đã so Word COM) | PNG: kích thước, wrap, vị trí |
 | Chèn | `writer.shape.insert` | Hình khối | KHỚP WORD (đã so Word COM) | hình chữ nhật: loại, kích thước, vị trí, màu/viền |
-| Chèn | `writer.diagram.insert` | Sơ đồ | CHƯA ĐỐI CHIẾU |  |
-| Chèn | `writer.chart.insert` | Biểu đồ | CHƯA ĐỐI CHIẾU |  |
-| Chèn | `common.edit.hyperlink` | Liên kết (Ctrl+K) | CHƯA ĐỐI CHIẾU |  |
-| Chèn | `writer.insert.bookmark` | Đánh dấu | CHƯA ĐỐI CHIẾU |  |
+| Chèn | `writer.diagram.insert` | Sơ đồ | LỆCH ĐÃ BIẾT | FIX-T11 nhóm 2: DOCX mở trong Word có 0 Chart/SmartArt native; hiện là minh họa tĩnh, lệch chức năng có thể chỉnh sửa |
+| Chèn | `writer.chart.insert` | Biểu đồ | LỆCH ĐÃ BIẾT | FIX-T11 nhóm 2: DOCX mở trong Word có 0 Chart/SmartArt native; hiện là minh họa tĩnh, lệch chức năng có thể chỉnh sửa |
+| Chèn | `common.edit.hyperlink` | Liên kết (Ctrl+K) | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 2: 7 lệnh, thao tác CDP và Word COM khớp về đầu ra DOCX |
+| Chèn | `writer.insert.bookmark` | Đánh dấu | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 2: 7 lệnh, thao tác CDP và Word COM khớp về đầu ra DOCX |
 | Chèn | `writer.insert.crossReference` | Tham chiếu chéo | KHỚP WORD (đã so Word COM) | tham chiếu chéo, chú thích hình, danh mục hình |
 | Chèn | `writer.comment.insert` | Thêm ghi chú (Ctrl+Alt+M) | KHỚP WORD (đã so Word COM) | ghi chú: tạo/điều hướng/giải quyết/xóa; trả lời bình luận (T10) |
 | Chèn | `writer.header.insert` | Đầu trang | KHỚP WORD (đã so Word COM) | đầu/chân trang, trang đầu khác, chẵn/lẻ, số trang |
 | Chèn | `writer.footer.insert` | Chân trang | KHỚP WORD (đã so Word COM) | đầu/chân trang, trang đầu khác, chẵn/lẻ, số trang |
 | Chèn | `writer.insert.textbox` | Hộp văn bản | KHỚP WORD (đã so Word COM) | kích thước/lề/AutoSize sau lưu |
 | Chèn | `writer.insert.wordart` | Chữ nghệ thuật | CHƯA ĐỐI CHIẾU |  |
-| Chèn | `writer.format.dropCap` | Chữ đầu đoạn | CHƯA ĐỐI CHIẾU |  |
-| Chèn | `writer.insert.dateTime` | Ngày & Giờ | CHƯA ĐỐI CHIẾU |  |
-| Chèn | `writer.insert.equation` | Phương trình (Alt+=) | CHƯA ĐỐI CHIẾU |  |
+| Chèn | `writer.format.dropCap` | Chữ đầu đoạn | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 2: 7 lệnh, thao tác CDP và Word COM khớp về đầu ra DOCX |
+| Chèn | `writer.insert.dateTime` | Ngày & Giờ | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 2: 7 lệnh, thao tác CDP và Word COM khớp về đầu ra DOCX |
+| Chèn | `writer.insert.equation` | Phương trình (Alt+=) | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 2: 7 lệnh, thao tác CDP và Word COM khớp về đầu ra DOCX |
 | Chèn | `writer.insert.symbol` | Ký hiệu | KHỚP WORD (đã so Word COM) | ©, ₫, ∑, → |
 | Thiết kế | `writer.design.themeGallery` | Chủ đề văn bản | CHƯA ĐỐI CHIẾU |  |
 | Thiết kế | `writer.page.watermark` | Hình mờ | CHƯA ĐỐI CHIẾU |  |

@@ -40,6 +40,8 @@ mark(KHOP, "writer.image.insert", "PNG: kích thước, wrap, vị trí")
 mark(KHAC, "writer.style.gallery", "Normal/Title/Quote đã áp dụng; preset VN cố ý khác định dạng Word; Heading 1–3 khớp")
 mark(LECH, "writer.review.wordCount", "chữ khớp, 'ký tự có khoảng trắng' lệch 0.5–7% (tài liệu mẫu); đoạn/dòng gần khớp")
 mark(KHOP, "common.edit.paste common.edit.cut common.edit.copy common.edit.formatPainter writer.edit.pasteSpecial writer.font.grow writer.font.shrink writer.text.clearFormat writer.para.indentDec writer.para.sort writer.para.showFormattingMarks writer.para.shading writer.para.borders", "FIX-T11 nhóm 1: 13 lệnh, thao tác CDP và Word COM khớp; Dán đặc biệt đã so cả định dạng nguồn và văn bản thuần")
+mark(KHOP, "writer.page.blank writer.table.fromText common.edit.hyperlink writer.insert.bookmark writer.format.dropCap writer.insert.dateTime writer.insert.equation", "FIX-T11 nhóm 2: 7 lệnh, thao tác CDP và Word COM khớp về đầu ra DOCX")
+mark(LECH, "writer.chart.insert writer.diagram.insert", "FIX-T11 nhóm 2: DOCX mở trong Word có 0 Chart/SmartArt native; hiện là minh họa tĩnh, lệch chức năng có thể chỉnh sửa")
 
 NOTE_DEFAULT = {
     "common.edit.paste": "Dán thường: đã kiểm hành vi (U-series) nhưng chưa so Word COM",

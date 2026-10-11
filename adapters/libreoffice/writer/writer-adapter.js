@@ -598,6 +598,7 @@ export class WriterAdapter {
     this._bindClipboardEvents();
     globalCommandBus.bindHandler("common.edit.undo", () => this.undo());
     globalCommandBus.bindHandler("common.edit.redo", () => this.redo());
+    globalCommandBus.bindHandler("common.edit.hyperlink", (args) => this._insertHyperlink(args));
 
     // Bind References (TOC & Footnotes/Endnotes)
     this._bindReferenceInteractions();
@@ -668,6 +669,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.insert.symbol", (args) => this.insertSymbol(args));
     globalCommandBus.bindHandler("writer.insert.bookmark", (args) => this.insertBookmark(args));
     globalCommandBus.bindHandler("writer.insert.crossReference", (args) => this.insertCrossReference(args));
+    globalCommandBus.bindHandler("writer.table.fromText", (args) => this.convertTextToTable(args));
 
     // Bind Office Parity Mouse & Shortcuts
     this._bindMouseAndKeyboardParity();
@@ -10827,11 +10829,18 @@ export class WriterAdapter {
       if (typeof window !== "undefined" && typeof document !== "undefined" && document.body) {
         const sel = window.getSelection ? window.getSelection() : null;
         const selectedText = sel && sel.rangeCount > 0 ? sel.toString().trim() : "";
+        const savedRange = sel?.rangeCount > 0 && this.bodyDom?.contains?.(sel.anchorNode)
+          ? sel.getRangeAt(0).cloneRange()
+          : null;
         const result = await showHyperlinkDialog({
           url: "https://",
           text: text || selectedText
         });
         if (!result || !result.url) return false;
+        if (savedRange && sel) {
+          sel.removeAllRanges();
+          sel.addRange(savedRange);
+        }
         url = result.url;
         text = result.text || text || selectedText;
       }
