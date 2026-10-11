@@ -232,3 +232,9 @@ Phần “chưa chạy” này là ghi nhận giữa chừng, đã được thay
 1. **App/CDP:** chèn một footnote và một endnote, nhập `Footnote content`/`Endnote content`, lưu DOCX; ảnh `E:\VNOffice-profiles\codex-ft9\references-t8-before.png`.
 2. **Word COM:** mở lại tệp app và đối chứng; `Footnotes=1`, `Endnotes=1`, đúng nội dung từng note.
 3. **Kết quả:** **KHỚP** về số lượng/vị trí/nội dung sau roundtrip; không có sai lệch tái hiện.
+
+### FIX-T9 — Mục lục, cập nhật TOC — 11/10/2026
+
+1. **App/CDP:** tạo TOC tự động, sửa heading đầu thành `Updated first heading`, bấm cập nhật; lưu DOCX.
+2. **Word COM:** chạy `TablesOfContents.Item(1).Update()` trên cả DOCX app và Word; cả hai đọc `Updated first heading` và `Second heading` cùng số trang `1`, có field `TOC \o "1-3" \h \z \u`.
+3. **Kết quả:** **KHỚP sau cập nhật trong Word**; số trang được điền khi Word refresh field. Hướng dẫn TOC F1 và i18n đã có.
