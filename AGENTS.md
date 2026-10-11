@@ -104,6 +104,12 @@ Cấm disable test, swallow exception hoặc đổi expected output chỉ để 
 ## 9. Agent completion
 Mỗi task kết thúc bằng handoff chuẩn trong `/09-templates/AGENT-HANDOFF.md`.
 
+## 9.1 Theo dõi ngân sách token khi Người phụ trách yêu cầu
+- Khi Người phụ trách đặt ngưỡng token, kiểm tra phần trăm còn lại khoảng mỗi 15 phút bằng bộ đếm đáng tin cậy do runtime cung cấp.
+- Khi còn **20% hoặc ít hơn**, dừng chỉnh sửa mã và không bắt đầu bài kiểm tra dài. Chỉ tiếp tục rà soát kết quả đã có, kiểm tra ngắn/read-only, chuẩn bị bàn giao và giao các việc phù hợp cho agent khác.
+- Chỉ tiếp tục công việc đầy đủ sau khi bộ đếm đáng tin cậy xác nhận ngân sách đã được làm mới lên **100%**.
+- Nếu runtime không cung cấp phần trăm hoặc trạng thái làm mới đáng tin cậy, phải nói rõ là không thể xác minh; không được bịa số liệu hay khẳng định đã chạm/đã hồi ngưỡng. Dùng ước lượng thận trọng nếu có, và không vượt ngưỡng dừng do Người phụ trách yêu cầu.
+
 ## 10. Hướng dẫn sử dụng trong ứng dụng (bắt buộc)
 Người dùng chuyển từ Microsoft Word/Excel/PowerPoint thật sang VN Office sẽ bỡ ngỡ nếu không có tài liệu hướng dẫn ngay trong ứng dụng. Yêu cầu:
 - Mọi task thêm tính năng mới (bất kể agent nào, Claude/Codex/Grok/agy) phải kèm theo nội dung hướng dẫn sử dụng bằng tiếng Việt cho tính năng đó: tính năng làm gì, truy cập ở đâu (tab/nhóm ribbon nào), các bước sử dụng cơ bản. Không dùng placeholder/nội dung chung chung — phải hướng dẫn thật, cụ thể theo đúng UI hiện có.
