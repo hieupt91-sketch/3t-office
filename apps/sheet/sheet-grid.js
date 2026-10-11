@@ -9379,6 +9379,7 @@ _bindGridKeyboardNavigation() {
   setWorkbookView(viewMode) {
     if (!["normal", "pageBreakPreview", "pageLayout"].includes(viewMode)) return false;
     this.workbookView = viewMode;
+    this.xlsxViewStateTouched?.add("view");
     this._applyViewState();
     this._refreshPageAndCommentVisuals();
     this._syncCommandStates();

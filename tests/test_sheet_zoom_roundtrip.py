@@ -139,6 +139,19 @@ class SheetZoomRoundtripTests(unittest.TestCase):
             xml = archive.read("xl/workbook.xml").decode("utf-8")
         self.assertIn('showFormulaBar="0"', xml)
 
+    def test_explicit_sheet_view_mode_is_written_to_sheet_view(self):
+        saved_sheet = (
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<sheetViews><sheetView workbookViewId="0" view="normal"/></sheetViews><sheetData/></worksheet>'
+        )
+        fods = ('<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+                'xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0" vno:sheet-view="pageBreakPreview"></office:document>')
+
+        patched = postprocess_sheet_xlsx(make_test_xlsx(saved_sheet), source_fods=fods)
+        with zipfile.ZipFile(io.BytesIO(patched)) as archive:
+            xml = archive.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        self.assertIn('view="pageBreakPreview"', xml)
+
 
 if __name__ == "__main__":
     unittest.main()

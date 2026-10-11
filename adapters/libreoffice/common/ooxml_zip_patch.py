@@ -4067,7 +4067,7 @@ def _apply_sheet_view_state_from_fods(
     xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
 ) -> None:
     """Apply explicitly changed VN view toggles to each worksheet's OOXML view."""
-    if not source_fods or not re.search(r"<office:document\b[^>]*\bvno:show-(?:grid-lines|row-col-headers|formulas)=", source_fods, re.IGNORECASE):
+    if not source_fods or not re.search(r"<office:document\b[^>]*\bvno:(?:show-(?:grid-lines|row-col-headers|formulas)|sheet-view)=", source_fods, re.IGNORECASE):
         return
     root = re.search(r"<office:document\b([^>]*)>", source_fods, re.IGNORECASE)
     if not root:
@@ -4078,6 +4078,9 @@ def _apply_sheet_view_state_from_fods(
         value = attrs.get(f"vno:{fods_name}")
         if value is not None:
             view_attrs[xlsx_name] = "0" if value.strip().lower() in ("false", "0", "no") else "1"
+    sheet_view = attrs.get("vno:sheet-view")
+    if sheet_view in ("normal", "pageBreakPreview", "pageLayout"):
+        view_attrs["view"] = sheet_view
     if not view_attrs:
         return
 
@@ -4094,7 +4097,7 @@ def _apply_sheet_view_state_from_fods(
             tag = match.group(0)
             for name, value in view_attrs.items():
                 if re.search(rf"\b{name}\s*=", tag, re.IGNORECASE):
-                    tag = re.sub(rf"\b{name}\s*=\s*(['\"])\w+\1", f'{name}="{value}"', tag, count=1, flags=re.IGNORECASE)
+                    tag = re.sub(rf"\b{name}\s*=\s*(['\"])[^'\"]*\1", f'{name}="{value}"', tag, count=1, flags=re.IGNORECASE)
                 else:
                     tag = tag[:-2] + f' {name}="{value}"/>' if tag.endswith("/>") else tag[:-1] + f' {name}="{value}">'
             return tag
