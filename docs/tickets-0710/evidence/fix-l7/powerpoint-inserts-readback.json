@@ -1,0 +1,427 @@
+{
+  "source": "E:\\VNOffice-profiles\\codex-fl7\\fix-l6-inserts.pptx",
+  "slideCount": 1,
+  "shapeCount": 11,
+  "rows": [
+    {
+      "property": "Slide.Count",
+      "value": 1,
+      "status": "READ"
+    },
+    {
+      "property": "Shape.Count",
+      "value": 11,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Layout",
+      "value": 1,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Design.Name",
+      "value": "Office",
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Master.Name",
+      "value": "VNOfficeTheme:modern-blue",
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Master.Theme",
+      "value": null,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Hidden",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Transition",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.TransitionDuration",
+      "value": 2,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Notes",
+      "value": "",
+      "status": "READ"
+    },
+    {
+      "property": "Text",
+      "value": "FIX-L4 audit sample text",
+      "status": "READ"
+    },
+    {
+      "property": "Font.Name",
+      "value": "Arial",
+      "status": "READ"
+    },
+    {
+      "property": "Font.Size",
+      "value": 24,
+      "status": "READ"
+    },
+    {
+      "property": "Font.Bold",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Font.Italic",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Font.Underline",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Paragraph.Alignment",
+      "value": 1,
+      "status": "READ"
+    },
+    {
+      "property": "Text.HasText",
+      "value": -1,
+      "status": "READ"
+    },
+    {
+      "property": "Shape1.Name",
+      "value": "TextBox 1",
+      "status": "READ"
+    },
+    {
+      "property": "Shape1.Type",
+      "value": 1,
+      "status": "READ"
+    },
+    {
+      "property": "Shape1.Width",
+      "value": 429.76062,
+      "status": "READ"
+    },
+    {
+      "property": "Shape1.Height",
+      "value": 36,
+      "status": "READ"
+    },
+    {
+      "property": "Shape1.Rotation",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Shape2.Name",
+      "value": "1791741709231",
+      "status": "READ"
+    },
+    {
+      "property": "Shape2.Type",
+      "value": 19,
+      "status": "READ"
+    },
+    {
+      "property": "Shape2.Width",
+      "value": 315.01416,
+      "status": "READ"
+    },
+    {
+      "property": "Shape2.Height",
+      "value": 90,
+      "status": "READ"
+    },
+    {
+      "property": "Shape2.Rotation",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Shape2.Table",
+      "value": "3x3",
+      "status": "READ"
+    },
+    {
+      "property": "Shape3.Name",
+      "value": "diagram-1791741709342-8sz6w-connector-1",
+      "status": "READ"
+    },
+    {
+      "property": "Shape3.Type",
+      "value": 1,
+      "status": "READ"
+    },
+    {
+      "property": "Shape3.Width",
+      "value": 36.028347,
+      "status": "READ"
+    },
+    {
+      "property": "Shape3.Height",
+      "value": 0.0283464566,
+      "status": "READ"
+    },
+    {
+      "property": "Shape3.Rotation",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Shape4.Name",
+      "value": "diagram-1791741709342-8sz6w-connector-2",
+      "status": "READ"
+    },
+    {
+      "property": "Shape4.Type",
+      "value": 1,
+      "status": "READ"
+    },
+    {
+      "property": "Shape4.Width",
+      "value": 36,
+      "status": "READ"
+    },
+    {
+      "property": "Shape4.Height",
+      "value": 0.0283464566,
+      "status": "READ"
+    },
+    {
+      "property": "Shape4.Rotation",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Shape5.Name",
+      "value": "diagram-1791741709342-8sz6w-connector-3",
+      "status": "READ"
+    },
+    {
+      "property": "Shape5.Type",
+      "value": 1,
+      "status": "READ"
+    },
+    {
+      "property": "Shape5.Width",
+      "value": 36.028347,
+      "status": "READ"
+    },
+    {
+      "property": "Shape5.Height",
+      "value": 0.0283464566,
+      "status": "READ"
+    },
+    {
+      "property": "Shape5.Rotation",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Shape6.Name",
+      "value": "diagram-1791741709342-8sz6w-node-1",
+      "status": "READ"
+    },
+    {
+      "property": "Shape6.Type",
+      "value": 1,
+      "status": "READ"
+    },
+    {
+      "property": "Shape6.Width",
+      "value": 128.0126,
+      "status": "READ"
+    },
+    {
+      "property": "Shape6.Height",
+      "value": 72,
+      "status": "READ"
+    },
+    {
+      "property": "Shape6.Rotation",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Shape7.Name",
+      "value": "diagram-1791741709342-8sz6w-node-2",
+      "status": "READ"
+    },
+    {
+      "property": "Shape7.Type",
+      "value": 1,
+      "status": "READ"
+    },
+    {
+      "property": "Shape7.Width",
+      "value": 128.0126,
+      "status": "READ"
+    },
+    {
+      "property": "Shape7.Height",
+      "value": 72,
+      "status": "READ"
+    },
+    {
+      "property": "Shape7.Rotation",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Shape8.Name",
+      "value": "diagram-1791741709342-8sz6w-node-3",
+      "status": "READ"
+    },
+    {
+      "property": "Shape8.Type",
+      "value": 1,
+      "status": "READ"
+    },
+    {
+      "property": "Shape8.Width",
+      "value": 128.0126,
+      "status": "READ"
+    },
+    {
+      "property": "Shape8.Height",
+      "value": 72,
+      "status": "READ"
+    },
+    {
+      "property": "Shape8.Rotation",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Shape9.Name",
+      "value": "diagram-1791741709342-8sz6w-node-4",
+      "status": "READ"
+    },
+    {
+      "property": "Shape9.Type",
+      "value": 1,
+      "status": "READ"
+    },
+    {
+      "property": "Shape9.Width",
+      "value": 128.0126,
+      "status": "READ"
+    },
+    {
+      "property": "Shape9.Height",
+      "value": 72,
+      "status": "READ"
+    },
+    {
+      "property": "Shape9.Rotation",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Shape10.Name",
+      "value": "chart-1791741710302-j7zuu",
+      "status": "READ"
+    },
+    {
+      "property": "Shape10.Type",
+      "value": 3,
+      "status": "READ"
+    },
+    {
+      "property": "Shape10.Width",
+      "value": 495.01416,
+      "status": "READ"
+    },
+    {
+      "property": "Shape10.Height",
+      "value": 262.4882,
+      "status": "READ"
+    },
+    {
+      "property": "Shape10.Rotation",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Shape10.ChartType",
+      "value": 51,
+      "status": "READ"
+    },
+    {
+      "property": "Shape11.Name",
+      "value": "1791741711361",
+      "status": "READ"
+    },
+    {
+      "property": "Shape11.Type",
+      "value": 17,
+      "status": "READ"
+    },
+    {
+      "property": "Shape11.Width",
+      "value": 180,
+      "status": "READ"
+    },
+    {
+      "property": "Shape11.Height",
+      "value": 45.01417,
+      "status": "READ"
+    },
+    {
+      "property": "Shape11.Rotation",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Shape.Left",
+      "value": 72,
+      "status": "READ"
+    },
+    {
+      "property": "Shape.Top",
+      "value": 132.009445,
+      "status": "READ"
+    },
+    {
+      "property": "Shape.Width",
+      "value": 315.01416,
+      "status": "READ"
+    },
+    {
+      "property": "Shape.Height",
+      "value": 90,
+      "status": "READ"
+    },
+    {
+      "property": "Shape.Rotation",
+      "value": 0,
+      "status": "READ"
+    },
+    {
+      "property": "Shape.Fill.RGB",
+      "value": 13606770,
+      "status": "READ"
+    },
+    {
+      "property": "Shape.Line.RGB",
+      "value": null,
+      "status": "READ"
+    },
+    {
+      "property": "Shape.ZOrderPosition",
+      "value": 2,
+      "status": "READ"
+    },
+    {
+      "property": "Slide.Animation.EffectCount",
+      "value": 0,
+      "status": "READ"
+    }
+  ]
+}\n
