@@ -1,0 +1,43 @@
+{
+  "find": {
+    "slides": 10,
+    "index": 0,
+    "title": "WEST COASTROAD TRIP",
+    "body": "Your Name • Sept 20XX",
+    "body2": "",
+    "shapeTexts": [
+      "WEST COASTROAD TRIP",
+      "Your Name • Sept 20XX"
+    ],
+    "selection": "",
+    "findState": {
+      "query": "ROAD TRIP",
+      "locIndex": 0,
+      "charIndex": 19,
+      "matchIndex": 10,
+      "matchLength": 9
+    },
+    "status": ""
+  },
+  "replace": {
+    "slides": 10,
+    "index": 0,
+    "title": "WEST COASTROAD TRIP",
+    "body": "Presenter • Sept 20XX",
+    "body2": "",
+    "shapeTexts": [
+      "WEST COASTROAD TRIP",
+      "Presenter • Sept 20XX"
+    ],
+    "selection": "",
+    "findState": {
+      "query": "Your Name",
+      "locIndex": 0,
+      "charIndex": 0,
+      "matchIndex": null,
+      "matchLength": 0
+    },
+    "status": "Đã hoàn tất tìm kiếm và thực hiện 2 thay thế."
+  },
+  "file": "E:\\VNOffice-profiles\\codex-fl8\\fix-l8-find-replace.pptx"
+}

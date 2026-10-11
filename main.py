@@ -1767,7 +1767,7 @@ def _apply_native_export_postprocess(
             raise
         except Exception as exc:
             raise DocumentEngineError(
-                f"Không bổ sung được thuộc tính native PPTX (khổ trang / logo / Sections / Set Up Show): {exc}"
+                f"Không bổ sung được thuộc tính native PPTX (khổ trang / logo / Sections / Set Up Show / Đầu-Chân trang): {exc}"
             ) from exc
     if app_kind == "writer" and fmt == "docx":
         try:
