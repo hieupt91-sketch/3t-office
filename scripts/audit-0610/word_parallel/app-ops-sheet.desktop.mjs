@@ -313,6 +313,12 @@ for (const [name, cell, kind, id, value] of ops) {
     }
     await ev("window.__vnoAppInstance.adapter.isDirty = true");
     const saved = await ev(`(() => { window.__vnoAuditContent = window.__vnoAppInstance.adapter.serializeToFods(); return globalThis.globalUnoBridge.saveRealFileInPlace("sheet", window.__vnoAuditContent, ${JSON.stringify(out)}, ${JSON.stringify(template)}); })()`);
+    if (process.env.VNO_AUDIT_CAPTURE_DIR) {
+      const captureDir = process.env.VNO_AUDIT_CAPTURE_DIR;
+      await mkdir(captureDir, { recursive: true });
+      const shot = await session.cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false }, 60000);
+      await writeFile(path.join(captureDir, `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
+    }
     console.log(name.padEnd(18), "save=" + (saved && saved.status), "|", status, "|", info, formulaValues ? "| formulas=" + formulaValues : "");
   } catch (e) { console.log(name.padEnd(18), "LOI:", String(e.message).slice(0, 120)); } finally { await session.close(); }
 }
