@@ -21,11 +21,17 @@ export async function launchApp(app, options = {}) {
   const profileRoot = options.profileRoot || (!requestedLocalAppData ? await mkdtemp(path.join(os.tmpdir(), "vno-cdp-" + app + "-")) : null);
   const localAppData = requestedLocalAppData || path.join(profileRoot, "localappdata");
   await mkdir(localAppData, { recursive: true });
+  // macOS resolves user data through Path.home(), not LOCALAPPDATA. Keep live
+  // CDP runs out of the real account's Application Support and recovery data.
+  const home = options.home || process.env.VNO_CDP_HOME
+    || (process.platform === "darwin" ? path.join(localAppData, "home") : "");
+  if (home) await mkdir(home, { recursive: true });
   const python = options.python || process.env.VNO_PYTHON || "python";
   const args = ["-s", path.join(root, "main.py"), "--app=" + app];
   if (options.filePath) args.push(path.resolve(options.filePath));
   const env = {
     ...process.env,
+    ...(home ? { HOME: home } : {}),
     LOCALAPPDATA: localAppData,
     WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: "--remote-debugging-port=" + debugPort,
     VNO_CDP_DEBUG_PORT: String(debugPort),
