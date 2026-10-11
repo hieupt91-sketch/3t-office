@@ -60,6 +60,7 @@ const ops = [
   ["chartLine","A1","chartVariant","sheet.chart.insert","line"],
   ["chartPie","A1","chartVariant","sheet.chart.insert","pie"],
   ["chartArea","A1","chartVariant","sheet.chart.insert","area"],
+  ["pivotChart","A1","click","sheet.chart.pivotChart"],
   ["sparklineLine","C2","range","sheet.insert.sparklineLine","C2:C6"],["sparklineColumn","C2","range","sheet.insert.sparklineColumn","C2:C6"],
   ["removeDuplicates","A1","removeDuplicates","sheet.data.removeDuplicates","A1:A6"],
   ["fillRight","C2","shortcutRight","Ctrl+R","C2:D2"],
@@ -308,6 +309,12 @@ for (const [name, cell, kind, id, value] of ops) {
         if (fileChooserListener) session.cdp.socket.removeEventListener("message", fileChooserListener);
       }
       if (kind === "pivotRefresh" && status === "clicked") status = "changed source C2 to 2222 and refreshed pivot";
+      if (name === "pivotChart" && status === "clicked") {
+        await sleep(250);
+        const dialog = await ev("!!document.querySelector('.vno-dialog-overlay [data-chart-apply]')");
+        if (!dialog) status = "NO_PIVOT_CHART_DIALOG";
+        else { await press(session.cdp, "Enter"); await session.cdp.waitFor("!document.querySelector('.vno-dialog-overlay [data-chart-apply]')", { timeoutMilliseconds: 5000, intervalMilliseconds: 100 }); status = "inserted Pivot bar chart by Enter"; }
+      }
       if (kind === "pivotTable" && status === "clicked") {
         await sleep(250);
         const row=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-pivot-field[data-field="Họ tên"] input[data-zone="rows"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
@@ -557,7 +564,7 @@ for (const [name, cell, kind, id, value] of ops) {
       }
     }
     await sleep(600);
-    const info = await ev(`(() => { const app=window.__vnoAppInstance,it=app.grid.cellsData.get("${cell}")||{},g=app.grid,a=app.adapter; const fods=a.serializeToFods(),active=[...document.querySelectorAll('.vno-ribbon-tab.is-active')].find(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0}); return JSON.stringify({activeTab:active?.dataset.tabId, value:it.val, formula:it.formula, calculatedValue:it.calculatedValue, style:it.style, sparkline:it.sparkline, quickCategory:document.querySelector('select[data-command-id="sheet.format.quickCategory"]')?.value, printAreaBySheet:g.printAreaBySheet, gridlinesVisible:g.gridlinesVisible, headingsVisible:g.headingsVisible, rowHeight:g.getRowHeight?.(3), columnWidth:g.getColumnWidth?.('B'), names:g.namedRangesWorkbook, comments:g.commentsBySheet?.[g.activeSheet], adapterNames:a.grid?.namedRangesWorkbook, serializedName:fods.includes('table:named-range'), fw:it.style&&it.style.fontWeight, fmt:it.style&&it.style.numberFormat&&it.style.numberFormat.category, textRotation:it.style&&it.style.textRotation}); })()`);
+    const info = await ev(`(() => { const app=window.__vnoAppInstance,it=app.grid.cellsData.get("${cell}")||{},g=app.grid,a=app.adapter; const fods=a.serializeToFods(),active=[...document.querySelectorAll('.vno-ribbon-tab.is-active')].find(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0}); return JSON.stringify({activeTab:active?.dataset.tabId, value:it.val, formula:it.formula, calculatedValue:it.calculatedValue, style:it.style, sparkline:it.sparkline, quickCategory:document.querySelector('select[data-command-id="sheet.format.quickCategory"]')?.value, printAreaBySheet:g.printAreaBySheet, gridlinesVisible:g.gridlinesVisible, headingsVisible:g.headingsVisible, rowHeight:g.getRowHeight?.(3), columnWidth:g.getColumnWidth?.('B'), names:g.namedRangesWorkbook, comments:g.commentsBySheet?.[g.activeSheet], pivotTables:g.pivotTablesBySheet, adapterNames:a.grid?.namedRangesWorkbook, serializedName:fods.includes('table:named-range'), fw:it.style&&it.style.fontWeight, fmt:it.style&&it.style.numberFormat&&it.style.numberFormat.category, textRotation:it.style&&it.style.textRotation}); })()`);
     const formulaValues = kind === "formulaPack" ? await ev(`JSON.stringify(Array.from({length:29},(_,i)=>{const k='H'+(i+2),v=window.__vnoAppInstance.grid.cellsData.get(k)||{};return [k,v.formula,v.val]}))`) : null;
     if (kind === "formulaPack") {
       const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);
