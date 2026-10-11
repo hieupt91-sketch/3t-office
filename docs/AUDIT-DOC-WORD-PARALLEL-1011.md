@@ -304,3 +304,8 @@ Phần “chưa chạy” này là ghi nhận giữa chừng, đã được thay
 ## FIX-T11 nhóm 4 — Tham chiếu
 - CDP qua ribbon Tham chiếu: thêm nguồn (tác giả, tiêu đề, năm, nhà xuất bản, URL), chọn MLA, chèn trích dẫn và Works Cited; lưu DOCX.
 - Word COM mở DOCX app: có `(Nguyễn)`, `Works Cited`, tiêu đề nguồn, nhà xuất bản và năm; 1 trang. Ma trận đánh dấu 4 lệnh KHỚP.
+
+## FIX-T11 nhóm 5 — Trộn thư
+- CDP: nhập CSV 2 người nhận (Name/City/VIP), chèn trường Name và quy tắc VIP=yes → “Ưu tiên”, xem bản ghi 1→2→1, hoàn tất toàn bộ; tạo phong bì và nhãn từ cùng nguồn.
+- Sửa lỗi: Hoàn tất khi preview bật trước đây kiểm tra HTML đã thay thế nên bỏ qua hộp chọn kiểu/phạm vi. Giờ kiểm tra mẫu gốc, hộp chọn vẫn xuất hiện; gửi hoàn tất toàn bộ sinh 2 bản.
+- Word COM: DOCX có cả hai tên, kết quả hai nhánh điều kiện, không còn Name/VIP chưa thay, 2 trang; bản phong bì/nhãn giữ đủ hai địa chỉ, 1 bảng nhãn. Ma trận đánh dấu 9 nút KHỚP.

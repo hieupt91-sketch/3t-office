@@ -45,6 +45,7 @@ mark(LECH, "writer.chart.insert writer.diagram.insert", "FIX-T11 nhóm 2: DOCX m
 mark(KHOP, "writer.page.color writer.page.border writer.para.firstLineIndent", "FIX-T11 nhóm 3: Word COM xác nhận màu trang #dbeafe, viền 3 pt nét đứt #dc2626 và thụt đầu dòng 14.15 pt khớp")
 mark(LECH, "writer.design.themeGallery writer.page.watermark writer.layout.lineNumbers", "FIX-T11 nhóm 3: Word COM không nhận theme/line numbering; watermark xuất thành dòng văn bản thay vì watermark native")
 mark(KHOP, "writer.reference.citationInsert writer.reference.sourcesManage writer.reference.citationStyle writer.reference.bibliographyInsert", "FIX-T11 nhóm 4: CDP tạo nguồn, chọn MLA, chèn trích dẫn và Works Cited; Word COM xác nhận citation, tiêu đề, nhà xuất bản và năm")
+mark(KHOP, "writer.mailMerge.open writer.mailMerge.insertField writer.mailMerge.ifRule writer.mailMerge.preview writer.mailMerge.prevRecord writer.mailMerge.nextRecord writer.mailMerge.finish writer.mailings.envelopes writer.mailings.labels", "FIX-T11 nhóm 5: 2 bản ghi, điều kiện yes/no, preview/điều hướng và tài liệu hợp nhất; Word COM xác nhận cả hai kết quả, phong bì và nhãn")
 
 NOTE_DEFAULT = {
     "common.edit.paste": "Dán thường: đã kiểm hành vi (U-series) nhưng chưa so Word COM",

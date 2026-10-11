@@ -20314,6 +20314,9 @@ export class WriterAdapter {
     if (!this.bodyDom) return false;
 
     const activeRecords = this._getActiveMailMergeRecords();
+    const mergeTemplateHtml = this.mailMergePreview?.enabled && this._mailMergeTemplateHtml != null
+      ? this._mailMergeTemplateHtml
+      : (this.bodyDom.innerHTML || "");
 
     // Nếu gọi trực tiếp từ thanh Ribbon (không tham số mode) và có DOM -> mở hộp thoại Hoàn tất trộn
     if (
@@ -20323,7 +20326,7 @@ export class WriterAdapter {
       typeof document.createElement === "function" &&
       document.body &&
       activeRecords.length > 0 &&
-      (this.bodyDom.innerHTML || "").includes("vno-merge-field")
+      mergeTemplateHtml.includes("vno-merge-field")
     ) {
       loadWriterMailMergeDialogs().then(({ showFinishMailMergeDialog }) => {
         showFinishMailMergeDialog({

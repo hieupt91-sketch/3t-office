@@ -6,7 +6,7 @@ Nguồn: `claude-ribbon-scan` (nút nào có phản ứng) + `docs/AUDIT-DOC-WOR
 - **LỆCH ĐÃ BIẾT**: còn lệch đã đo.
 - **CHƯA ĐỐI CHIẾU**: nút có phản ứng (không phải nút câm) nhưng **chưa** so với Word thật — cần làm tiếp.
 
-Tổng kết: KHỚP WORD (đã so Word COM): 84, CHƯA ĐỐI CHIẾU: 29, LỆCH ĐÃ BIẾT: 6, KHÁC CÓ CHỦ Ý: 1 (tổng 120 nút, không kể Trợ lý AI).
+Tổng kết: KHỚP WORD (đã so Word COM): 93, CHƯA ĐỐI CHIẾU: 20, LỆCH ĐÃ BIẾT: 6, KHÁC CÓ CHỦ Ý: 1 (tổng 120 nút, không kể Trợ lý AI).
 
 | Tab | Lệnh | Nút | Trạng thái | Ghi chú |
 |---|---|---|---|---|
@@ -92,15 +92,15 @@ Tổng kết: KHỚP WORD (đã so Word COM): 84, CHƯA ĐỐI CHIẾU: 29, LỆ
 | Tham chiếu | `writer.reference.captionInsert` | Chèn chú thích ảnh | KHỚP WORD (đã so Word COM) | tham chiếu chéo, chú thích hình, danh mục hình |
 | Tham chiếu | `writer.reference.tofInsert` | Danh mục hình ảnh | KHỚP WORD (đã so Word COM) | tham chiếu chéo, chú thích hình, danh mục hình |
 | Tham chiếu | `writer.reference.tofUpdate` | Cập nhật danh mục | KHỚP WORD (đã so Word COM) | tham chiếu chéo, chú thích hình, danh mục hình |
-| Trộn thư | `writer.mailings.envelopes` | Phong bì | CHƯA ĐỐI CHIẾU |  |
-| Trộn thư | `writer.mailings.labels` | Nhãn | CHƯA ĐỐI CHIẾU |  |
-| Trộn thư | `writer.mailMerge.open` | Nguồn dữ liệu | CHƯA ĐỐI CHIẾU |  |
-| Trộn thư | `writer.mailMerge.insertField` | Chèn trường | CHƯA ĐỐI CHIẾU |  |
-| Trộn thư | `writer.mailMerge.ifRule` | Quy tắc | CHƯA ĐỐI CHIẾU |  |
-| Trộn thư | `writer.mailMerge.preview` | Xem trước kết quả | CHƯA ĐỐI CHIẾU |  |
-| Trộn thư | `writer.mailMerge.prevRecord` | Bản ghi trước | CHƯA ĐỐI CHIẾU |  |
-| Trộn thư | `writer.mailMerge.nextRecord` | Bản ghi sau | CHƯA ĐỐI CHIẾU |  |
-| Trộn thư | `writer.mailMerge.finish` | Hoàn tất & Trộn | CHƯA ĐỐI CHIẾU |  |
+| Trộn thư | `writer.mailings.envelopes` | Phong bì | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 5: 2 bản ghi, điều kiện yes/no, preview/điều hướng và tài liệu hợp nhất; Word COM xác nhận cả hai kết quả, phong bì và nhãn |
+| Trộn thư | `writer.mailings.labels` | Nhãn | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 5: 2 bản ghi, điều kiện yes/no, preview/điều hướng và tài liệu hợp nhất; Word COM xác nhận cả hai kết quả, phong bì và nhãn |
+| Trộn thư | `writer.mailMerge.open` | Nguồn dữ liệu | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 5: 2 bản ghi, điều kiện yes/no, preview/điều hướng và tài liệu hợp nhất; Word COM xác nhận cả hai kết quả, phong bì và nhãn |
+| Trộn thư | `writer.mailMerge.insertField` | Chèn trường | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 5: 2 bản ghi, điều kiện yes/no, preview/điều hướng và tài liệu hợp nhất; Word COM xác nhận cả hai kết quả, phong bì và nhãn |
+| Trộn thư | `writer.mailMerge.ifRule` | Quy tắc | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 5: 2 bản ghi, điều kiện yes/no, preview/điều hướng và tài liệu hợp nhất; Word COM xác nhận cả hai kết quả, phong bì và nhãn |
+| Trộn thư | `writer.mailMerge.preview` | Xem trước kết quả | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 5: 2 bản ghi, điều kiện yes/no, preview/điều hướng và tài liệu hợp nhất; Word COM xác nhận cả hai kết quả, phong bì và nhãn |
+| Trộn thư | `writer.mailMerge.prevRecord` | Bản ghi trước | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 5: 2 bản ghi, điều kiện yes/no, preview/điều hướng và tài liệu hợp nhất; Word COM xác nhận cả hai kết quả, phong bì và nhãn |
+| Trộn thư | `writer.mailMerge.nextRecord` | Bản ghi sau | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 5: 2 bản ghi, điều kiện yes/no, preview/điều hướng và tài liệu hợp nhất; Word COM xác nhận cả hai kết quả, phong bì và nhãn |
+| Trộn thư | `writer.mailMerge.finish` | Hoàn tất & Trộn | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 5: 2 bản ghi, điều kiện yes/no, preview/điều hướng và tài liệu hợp nhất; Word COM xác nhận cả hai kết quả, phong bì và nhãn |
 | Đánh giá | `writer.review.toggleSpellCheck` | Kiểm tra chính tả | CHƯA ĐỐI CHIẾU |  |
 | Đánh giá | `writer.review.wordCount` | Đếm từ | LỆCH ĐÃ BIẾT | chữ khớp, 'ký tự có khoảng trắng' lệch 0.5–7% (tài liệu mẫu); đoạn/dòng gần khớp |
 | Đánh giá | `writer.review.commentDelete` | Xóa nhận xét | KHỚP WORD (đã so Word COM) | ghi chú: tạo/điều hướng/giải quyết/xóa; trả lời bình luận (T10) |
