@@ -1,5 +1,7 @@
 import { click, press, typeText } from "./actions.mjs";
 
+const clipboardModifier = process.platform === "darwin" ? { meta: true } : { ctrl: true };
+
 export async function runKeysProbe(session) {
   const { app, cdp } = session;
   if (app === "writer") {
@@ -66,13 +68,13 @@ export async function runClipboardProbe(session) {
       + " const selection = getSelection(); selection.removeAllRanges(); selection.addRange(range); return true; })()",
     );
     if (!setup) throw new Error("Writer did not expose an editable paragraph.");
-    await press(cdp, "c", { ctrl: true });
+    await press(cdp, "c", clipboardModifier);
     const copyKeptSelection = await cdp.evaluate("!!getSelection()?.toString()");
-    await press(cdp, "x", { ctrl: true });
+    await press(cdp, "x", clipboardModifier);
     const afterCut = await cdp.evaluate("document.querySelector('.vno-writer-body')?.innerText || ''");
     await click(cdp, ".vno-writer-body p:last-child");
     await press(cdp, "End");
-    await press(cdp, "v", { ctrl: true });
+    await press(cdp, "v", clipboardModifier);
     await new Promise(resolve => setTimeout(resolve, 500));
     const afterPaste = await cdp.evaluate("document.querySelector('.vno-writer-body')?.innerText || ''");
     return {
@@ -85,25 +87,25 @@ export async function runClipboardProbe(session) {
     await typeText(cdp, "Clipboard");
     await press(cdp, "Enter");
     await click(cdp, '[data-coord="A1"]');
-    await press(cdp, "c", { ctrl: true });
+    await press(cdp, "c", clipboardModifier);
     await cdp.waitFor(
       "document.querySelector('[data-coord=\"A1\"]')?.textContent?.trim() === 'Clipboard'",
       { timeoutMilliseconds: 5000 },
     );
     await click(cdp, '[data-coord="B1"]');
-    await press(cdp, "v", { ctrl: true });
+    await press(cdp, "v", clipboardModifier);
     await cdp.waitFor(
       "document.querySelector('[data-coord=\"B1\"]')?.textContent?.trim() === 'Clipboard'",
       { timeoutMilliseconds: 5000 },
     );
     await click(cdp, '[data-coord="B1"]');
-    await press(cdp, "x", { ctrl: true });
+    await press(cdp, "x", clipboardModifier);
     await cdp.waitFor(
       "document.querySelector('[data-coord=\"B1\"]')?.classList.contains('is-cut-source')",
       { timeoutMilliseconds: 5000 },
     );
     await click(cdp, '[data-coord="C1"]');
-    await press(cdp, "v", { ctrl: true });
+    await press(cdp, "v", clipboardModifier);
     await cdp.waitFor(
       "document.querySelector('[data-coord=\"B1\"]')?.textContent?.trim() === ''"
       + " && document.querySelector('[data-coord=\"C1\"]')?.textContent?.trim() === 'Clipboard'",
@@ -130,12 +132,12 @@ export async function runClipboardProbe(session) {
       + " selection.removeAllRanges(); selection.addRange(range); return !!selection.toString(); })()",
     );
     if (!selected) return { pass: false, detail: "Could not select text inside the slide placeholder." };
-    await press(cdp, "c", { ctrl: true });
+    await press(cdp, "c", clipboardModifier);
     const clipboardHasMarker = await cdp.evaluate(
       "(async () => { const data = await window.pywebview.api.read_clipboard_data();"
       + " return String(data?.text || '').includes('CDPSlideClipboard'); })()",
     );
-    await press(cdp, "x", { ctrl: true });
+    await press(cdp, "x", clipboardModifier);
     const afterCut = await cdp.evaluate("document.querySelector(" + JSON.stringify(selector) + ")?.innerText || ''");
     await cdp.waitFor(
       "!document.querySelector(" + JSON.stringify(selector) + ")?.innerText?.includes('CDPSlideClipboard')",
@@ -149,7 +151,7 @@ export async function runClipboardProbe(session) {
       + " return document.activeElement === node || node.contains(document.activeElement); })()",
     );
     if (!caretReady) return { pass: false, detail: "Could not restore the slide text caret after Cut." };
-    await press(cdp, "v", { ctrl: true });
+    await press(cdp, "v", clipboardModifier);
     await cdp.waitFor(
       "document.querySelector(" + JSON.stringify(selector) + ")?.innerText?.includes('CDPSlideClipboard')",
       { timeoutMilliseconds: 5000 },
