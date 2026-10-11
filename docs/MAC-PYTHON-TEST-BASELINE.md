@@ -31,14 +31,14 @@ Sau khi thêm bài kiểm backend macOS: `Ran 858 tests in 65.468s` — 4 FAIL, 
 
 Các bài trên cần được bảo vệ bằng điều kiện nền tảng ở nhánh `main`; không vô hiệu hóa và không đổi expected chỉ để làm xanh nhánh macOS.
 
-## Lỗi portability thật cần sửa trên macOS
+## Lỗi portability Darwin đã sửa trong nhánh làm việc
 
-| Bài kiểm | Kết quả | Khoảng trống hiện tại |
+| Bài kiểm | Baseline | Trạng thái hiện tại |
 |---|---|---|
-| `test_p1_pool_orphans.PoolOrphanTests.test_parent_alive_probe_reports_a_dead_pid_as_dead` | FAIL | Hàm nhận dạng tiến trình cha chưa đọc đúng creation token/PID trên Darwin nên báo PID hiện tại là đã chết. |
-| `test_process_tracker.ProcessTrackerTests.test_cleanup_terminates_a_real_child_started_by_the_test` | FAIL | Process tracker chưa dọn và xóa ledger của cây tiến trình con trên Darwin. |
+| `test_p1_pool_orphans.PoolOrphanTests.test_parent_alive_probe_reports_a_dead_pid_as_dead` | FAIL | PASS sau khi dùng signal 0 để kiểm tra PID POSIX. |
+| `test_process_tracker.ProcessTrackerTests.test_cleanup_terminates_a_real_child_started_by_the_test` | FAIL | PASS sau khi lấy identity và cây tiến trình Darwin qua `libproc`. |
 
-Hai lỗi này không được xếp Windows-only; chúng là việc phải hoàn thành trong backend/dịch vụ tiến trình macOS.
+15 bài mục tiêu về orphan/process tracker đã chạy: 14 PASS, 1 SKIP Windows-only.
 
 ## Trạng thái liên quan
 

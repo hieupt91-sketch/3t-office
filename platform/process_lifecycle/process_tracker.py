@@ -5,6 +5,7 @@ from __future__ import annotations
 import json
 import os
 import signal
+import sys
 import time
 from contextlib import contextmanager
 from pathlib import Path
@@ -54,6 +55,70 @@ def _ps_parent_table() -> dict[int, int]:
     return parse_ps_parent_table(output) if output is not None else {}
 
 
+def _darwin_bsd_info(pid: int) -> tuple[int, int, int] | None:
+    """Return ``(parent_pid, start_seconds, start_microseconds)`` via libproc."""
+    if sys.platform != "darwin":
+        return None
+    try:
+        import ctypes
+
+        class ProcBsdInfo(ctypes.Structure):
+            _fields_ = [
+                ("flags", ctypes.c_uint32), ("status", ctypes.c_uint32),
+                ("xstatus", ctypes.c_uint32), ("pid", ctypes.c_uint32),
+                ("ppid", ctypes.c_uint32), ("uid", ctypes.c_uint32),
+                ("gid", ctypes.c_uint32), ("ruid", ctypes.c_uint32),
+                ("rgid", ctypes.c_uint32), ("svuid", ctypes.c_uint32),
+                ("svgid", ctypes.c_uint32), ("rfu_1", ctypes.c_uint32),
+                ("comm", ctypes.c_char * 16), ("name", ctypes.c_char * 32),
+                ("nfiles", ctypes.c_uint32), ("pgid", ctypes.c_uint32),
+                ("pjobc", ctypes.c_uint32), ("e_tdev", ctypes.c_uint32),
+                ("e_tpgid", ctypes.c_uint32), ("nice", ctypes.c_int32),
+                ("start_tvsec", ctypes.c_uint64), ("start_tvusec", ctypes.c_uint64),
+            ]
+
+        libproc = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
+        libproc.proc_pidinfo.argtypes = [
+            ctypes.c_int, ctypes.c_int, ctypes.c_uint64, ctypes.c_void_p, ctypes.c_int,
+        ]
+        libproc.proc_pidinfo.restype = ctypes.c_int
+        info = ProcBsdInfo()
+        size = ctypes.sizeof(info)
+        if libproc.proc_pidinfo(int(pid), 3, 0, ctypes.byref(info), size) != size:  # PROC_PIDTBSDINFO
+            return None
+        return int(info.ppid), int(info.start_tvsec), int(info.start_tvusec)
+    except (OSError, ValueError, TypeError, AttributeError):
+        return None
+
+
+def _darwin_parent_table() -> dict[int, int]:
+    """Enumerate Darwin PIDs with libproc, avoiding shelling out to ``ps``."""
+    if sys.platform != "darwin":
+        return {}
+    try:
+        import ctypes
+
+        libproc = ctypes.CDLL("/usr/lib/libproc.dylib", use_errno=True)
+        libproc.proc_listpids.argtypes = [ctypes.c_uint32, ctypes.c_uint32, ctypes.c_void_p, ctypes.c_int]
+        libproc.proc_listpids.restype = ctypes.c_int
+        byte_count = libproc.proc_listpids(1, 0, None, 0)  # PROC_ALL_PIDS
+        if byte_count <= 0:
+            return {}
+        count = max(1, byte_count // ctypes.sizeof(ctypes.c_int) + 32)
+        buffer = (ctypes.c_int * count)()
+        written = libproc.proc_listpids(1, 0, buffer, ctypes.sizeof(buffer))
+        parents: dict[int, int] = {}
+        for pid in buffer[:max(0, written // ctypes.sizeof(ctypes.c_int))]:
+            if pid <= 0:
+                continue
+            info = _darwin_bsd_info(pid)
+            if info is not None:
+                parents[int(pid)] = info[0]
+        return parents
+    except (OSError, ValueError, TypeError, AttributeError):
+        return {}
+
+
 def process_identity(pid: int) -> str | None:
     """Return a stable process-creation token suitable for detecting PID reuse."""
     try:
@@ -92,8 +157,14 @@ def process_identity(pid: int) -> str | None:
             # comm is parenthesized and can itself contain spaces or parentheses.
             fields = value[value.rfind(")") + 2:].split()
             return fields[19] if len(fields) > 19 else None  # field 22: starttime
+        if sys.platform == "darwin":
+            info = _darwin_bsd_info(int(pid))
+            if info is not None:
+                return f"{info[1]}.{info[2]:06d}"
         if not Path("/proc").is_dir():
-            # macOS has no /proc: the process start time from `ps` is the creation token, so PID reuse is still detected.
+            # macOS normally has no /proc, but some development environments
+            # expose a non-Linux-compatible mount there.  `ps` is the Darwin
+            # source of truth and provides a creation token that detects PID reuse.
             start = _ps_start_time(int(pid))
             if start is not None:
                 return start
@@ -146,13 +217,19 @@ def process_tree(root_pid: int) -> list[tuple[int, int]]:
                 kernel32.CloseHandle(snapshot)
         else:
             proc = Path("/proc")
-            if not proc.is_dir():
+            if sys.platform == "darwin":
+                parents = _darwin_parent_table()
+                if not parents:
+                    parents = _ps_parent_table()
+                if not parents:
+                    return []
+            elif not proc.is_dir():
                 # macOS (no /proc): the parent table comes from `ps`; without it a child such as soffice.bin would
                 # be left running when its parent soffice is stopped.
                 parents = _ps_parent_table()
                 if not parents:
                     return []
-            for stat_path in (proc.glob("[0-9]*/stat") if proc.is_dir() else ()):
+            for stat_path in (proc.glob("[0-9]*/stat") if proc.is_dir() and sys.platform != "darwin" else ()):
                 try:
                     pid = int(stat_path.parent.name)
                     value = stat_path.read_text(encoding="ascii")
