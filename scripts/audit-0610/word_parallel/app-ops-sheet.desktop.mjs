@@ -40,6 +40,7 @@ const ops = [
   ["formulaVlookup","H6","type",null,"=VLOOKUP(1,A2:B6,2,FALSE)"],["formulaIndexMatch","H7","type",null,"=INDEX(B2:B6,MATCH(1,A2:A6,0))"],
   ["formulaConcat","H8","type",null,'=CONCAT(B2," test")'],["formulaText","H9","type",null,'=TEXT(C2,"0.00")'],
   ["formulaDate","H10","type",null,"=DATE(2020,1,2)"],
+  ["formulaPack","H2","formulaPack",null,null],
   ["conditional","C2","conditional","sheet.format.conditional","C2:C6"],
   ["formatAsTable","A1","tableStyle","sheet.style.formatAsTable","A1:G6"],["cellGood","B2","cellStyle","sheet.style.cellStyles","good"],
   ["sortAsc","B2","click","sheet.data.sortAsc"],["filter","B1","click","sheet.data.filter"],
@@ -73,6 +74,19 @@ for (const [name, cell, kind, id, value] of ops) {
       status = "opened and saved unchanged width control";
     } else if (kind === "type") {
       await typeText(session.cdp, value); await press(session.cdp, "Enter"); status = "typed formula";
+    } else if (kind === "formulaPack") {
+      const formulas = [
+        '=SUMIF(A2:A6,">2",C2:C6)', '=SUMIFS(C2:C6,A2:A6,">2")', '=COUNTIF(B2:B6,"*Văn*")',
+        '=COUNTIFS(A2:A6,">2",C2:C6,">0")', '=IFERROR(1/0,"Lỗi")', '=ROUND(C2,1)', '=LEFT(B2,3)',
+        '=MID(B2,2,4)', '=RIGHT(B2,3)', '=TEXT(C2,"#,##0.00")', '=TEXT(DATE(2020,1,2),"dd/mm/yyyy")',
+        '=NA()', '=HLOOKUP("Số tiền",A1:E6,2,FALSE)', '=MATCH("Lê Văn C",B2:B6,0)', '=OFFSET(C2,1,0)',
+        '=INDIRECT("C2")', '=SUMPRODUCT(C2:C6,D2:D6)', '=DATE(2024,2,29)', '=YEAR(DATE(2024,2,29))',
+        '=MONTH(DATE(2024,2,29))', '=DAY(DATE(2024,2,29))', '=EDATE(DATE(2024,1,31),1)',
+        '=EOMONTH(DATE(2024,2,1),0)', '=WEEKDAY(DATE(2024,2,29),2)', '=NETWORKDAYS(DATE(2024,2,26),DATE(2024,3,1))',
+        '=WORKDAY(DATE(2024,2,28),2)', '=DAYS(DATE(2024,3,1),DATE(2024,2,28))', '=TODAY()', '=NOW()'
+      ];
+      for (const formula of formulas) { await typeText(session.cdp, formula); await press(session.cdp, "Enter"); }
+      status = `typed ${formulas.length} formulas by CDP`;
     } else if (kind === "shortcutDown" || kind === "shortcutRight") {
       if (kind === "shortcutDown") await press(session.cdp, "d", { ctrl: true }); else await press(session.cdp, "r", { ctrl: true });
       status = kind === "shortcutDown" ? "pressed Ctrl+D" : "pressed Ctrl+R";
@@ -176,8 +190,14 @@ for (const [name, cell, kind, id, value] of ops) {
     }
     await sleep(600);
     const info = await ev(`(() => { const app=window.__vnoAppInstance,it=app.grid.cellsData.get("${cell}")||{},g=app.grid,a=app.adapter; const fods=a.serializeToFods(); return JSON.stringify({value:it.val, formula:it.formula, calculatedValue:it.calculatedValue, rowHeight:g.getRowHeight?.(3), columnWidth:g.getColumnWidth?.('B'), names:g.namedRangesWorkbook, adapterNames:a.grid?.namedRangesWorkbook, serializedName:fods.includes('table:named-range'), fw:it.style&&it.style.fontWeight, fmt:it.style&&it.style.numberFormat&&it.style.numberFormat.category, textRotation:it.style&&it.style.textRotation}); })()`);
+    const formulaValues = kind === "formulaPack" ? await ev(`JSON.stringify(Array.from({length:29},(_,i)=>{const k='H'+(i+2),v=window.__vnoAppInstance.grid.cellsData.get(k)||{};return [k,v.formula,v.val]}))`) : null;
+    if (kind === "formulaPack") {
+      const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);
+      const evidenceDir=path.join(root,"docs","tickets-0710","evidence"); await mkdir(evidenceDir,{recursive:true});
+      await writeFile(path.join(evidenceDir,"fix-s9-formulas.png"),Buffer.from((shot.result||shot).data,"base64"));
+    }
     await ev("window.__vnoAppInstance.adapter.isDirty = true");
     const saved = await ev(`(() => { window.__vnoAuditContent = window.__vnoAppInstance.adapter.serializeToFods(); return globalThis.globalUnoBridge.saveRealFileInPlace("sheet", window.__vnoAuditContent, ${JSON.stringify(out)}, ${JSON.stringify(template)}); })()`);
-    console.log(name.padEnd(18), "save=" + (saved && saved.status), "|", status, "|", info);
+    console.log(name.padEnd(18), "save=" + (saved && saved.status), "|", status, "|", info, formulaValues ? "| formulas=" + formulaValues : "");
   } catch (e) { console.log(name.padEnd(18), "LOI:", String(e.message).slice(0, 120)); } finally { await session.close(); }
 }
