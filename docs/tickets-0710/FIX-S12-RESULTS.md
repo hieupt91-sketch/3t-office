@@ -123,3 +123,8 @@
 
 - Thử chọn `number` qua danh sách Định dạng số: UI báo select đã đóng trước khi đọc lại; model giữ trạng thái cũ, Excel COM đọc `NumberFormat=General`. **CHƯA ĐỐI CHIẾU**. Log `s12-numNumber.log`, `excel-numNumber.log`.
 - Thử chọn Arial: UI báo giá trị Calibri dù hướng phím nhắm Arial; model và Excel COM vẫn Calibri. **CHƯA ĐỐI CHIẾU**. Log `s12-fontArial.log`, `excel-fontArial.log`.
+
+## Chế độ xem: thu phóng — lệch đã biết
+
+- CDP bấm Phóng to/Thu nhỏ; ảnh xác nhận giao diện lần lượt 110%/90%.
+- Excel COM ReadOnly mở từng XLSX và đọc `ActiveWindow.Zoom=100` ở cả hai. `sheet.view.zoomIn` và `sheet.view.zoomOut` là **LỆCH ĐÃ BIẾT**; log `s12-zoomIn.log`, `s12-zoomOut.log`, `excel-zoomIn.log`, `excel-zoomOut.log`; ảnh `evidence/s12/fix-s12-zoomIn.png`, `fix-s12-zoomOut.png`.

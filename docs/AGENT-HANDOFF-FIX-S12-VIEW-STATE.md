@@ -4,7 +4,7 @@ TASK: FIX-S12 — persist worksheet view toggles in XLSX
 AGENT/ROLE: Sheet audit / handoff to Adapter owner  
 BRANCH: `audit/sheet-s12-codex`  
 WORKTREE: `E:\VNOffice-codex-fs12`  
-OBJECTIVE: Persist Sheet ribbon view state for gridlines and row/column headings in saved XLSX.
+OBJECTIVE: Persist Sheet ribbon view state for gridlines, row/column headings, and zoom in saved XLSX.
 
 ## FINDINGS
 
@@ -19,6 +19,8 @@ Evidence:
 
 - `docs/tickets-0710/evidence/s12/fix-s12-gridlines.png`
 - `docs/tickets-0710/evidence/s12/fix-s12-headings.png`
+- `docs/tickets-0710/evidence/s12/fix-s12-zoomIn.png`
+- `docs/tickets-0710/evidence/s12/fix-s12-zoomOut.png`
 - CDP logs: `E:\VNOffice-profiles\codex-fs12\s12-gridlines-retry.log`, `s12-headings-retry.log`
 - Excel COM read-only logs: `E:\VNOffice-profiles\codex-fs12\excel-gridlines-retry.log`, `excel-headings-retry.log`
 - Outputs: `E:\VNOffice-profiles\codex-fs12\app_S12retry_gridlines.xlsx`, `app_S12retry_headings.xlsx`
@@ -47,7 +49,7 @@ FAIL: Excel COM read-only retains both flags as 1 in output XLSX.
 
 ## KNOWN FAILURES
 
-The XLSX `sheetView` does not reflect the app's hidden gridlines/headings state.
+The XLSX `sheetView` does not reflect the app's hidden gridlines/headings state or the changed zoom. Excel reports default zoom 100% after either zoom probe.
 
 ## RISKS
 
