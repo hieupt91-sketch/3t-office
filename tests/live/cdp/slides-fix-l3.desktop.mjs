@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { copyFileSync, mkdirSync, readFileSync } from "node:fs";
+import { copyFileSync, mkdirSync, readFileSync, realpathSync } from "node:fs";
 import path from "node:path";
 import { launchApp } from "./session.mjs";
 import { mouseClick, mouseDrag, press } from "./actions.mjs";
@@ -13,6 +13,7 @@ const workDir = path.join(localAppData, "fix-l3");
 mkdirSync(workDir, { recursive: true });
 const roundtrip = path.join(workDir, "slides-groups-roundtrip.pptx");
 copyFileSync(source, roundtrip);
+const roundtripRealPath = realpathSync(roundtrip);
 const countNativeGroups = buffer => listZipEntries(buffer)
   .filter(item => /^ppt\/slides\/slide\d+\.xml$/.test(item.name))
   .reduce((count, item) => count + ((readZipEntry(buffer, item.name).toString("utf8").match(/<p:grpSp\b/g) || []).length), 0);
@@ -37,7 +38,7 @@ const openLoaded = async () => {
     readyTimeoutMilliseconds: 180000
   });
   await session.cdp.waitFor(
-    `window.__vnoAppInstance?.adapter?.sourceFilePath === ${JSON.stringify(roundtrip)}`,
+    `window.__vnoAppInstance?.adapter?.sourceFilePath === ${JSON.stringify(roundtripRealPath)}`,
     { timeoutMilliseconds: 240000, intervalMilliseconds: 250 }
   );
   await session.cdp.waitFor("window.__vnoAppInstance.adapter.canvas.slides.length > 0", { timeoutMilliseconds: 240000 });
