@@ -18,6 +18,7 @@ import {
   serializeSheetRangeToClipboard
 } from "../../../platform/clipboard/office-clipboard.js";
 import { extractSheetRangeData } from "../../../apps/sheet/sheet-chart-data.js";
+import { TABLE_STYLE_PRESETS } from "../../../apps/sheet/cell-style-presets.js";
 
 export function numberFormatFromExcelCode(code) {
   const source = String(code ?? "").trim();
@@ -2855,6 +2856,52 @@ export class SheetAdapter {
       if (sheetName && ref) workbook.autoFilterBySheet[sheetName] = ref;
       return "";
     });
+    for (const [sheetName, tables] of Object.entries(workbook.tablesBySheet)) {
+      const cells = workbook.sheetsData?.[sheetName];
+      if (!cells) continue;
+      for (const table of tables) {
+        const bounds = /^(\$?[A-Z]+\$?\d+):(\$?[A-Z]+\$?\d+)$/i.exec(table.ref);
+        if (!bounds) continue;
+        const range = this._parseRange(`${bounds[1]}:${bounds[2]}`);
+        if (!range) continue;
+        const preset = TABLE_STYLE_PRESETS.find(item => item.id === table.style) || TABLE_STYLE_PRESETS[0];
+        const startCol = this._columnNumber(range.start.c), endCol = this._columnNumber(range.end.c);
+        for (let row = range.start.r; row <= range.end.r; row++) {
+          for (let column = startCol; column <= endCol; column++) {
+            const coord = `${this._columnName(column)}${row}`;
+            const cell = cells.get(coord) || { val: "", formula: "", style: {} };
+            const rowStyle = table.hasHeaders !== false && row === range.start.r
+              ? preset.headerStyle
+              : ((row - range.start.r) % 2 === 1 ? preset.evenRowStyle : preset.oddRowStyle);
+            cell.style = { ...(cell.style || {}), ...rowStyle };
+            cells.set(coord, cell);
+          }
+        }
+      }
+    }
+  }
+
+  _attachImportedTables(workbook, xmlText) {
+    workbook.tablesBySheet = {};
+    String(xmlText || "").replace(/<table:database-range\b([^>]*)\/?\s*>/gi, (_, attrs) => {
+      const get = name => this._unescapeXml(attrs.match(new RegExp(`(?:vno:)?${name}=["']([^"']*)["']`, "i"))?.[1] || "");
+      const name = get("table-name");
+      const target = this._unescapeXml(attrs.match(/table:target-range-address=["']([^"']*)["']/i)?.[1] || "");
+      const match = target.match(/^(?:'((?:[^']|'')*)'|([^.'!]+))\.\$?([A-Z]+)\$?(\d+):(?:'(?:[^']|'')*'|[^.'!]+)\.\$?([A-Z]+)\$?(\d+)$/i);
+      if (!name || !match) return "";
+      const sheet = match[1] !== undefined ? match[1].replace(/''/g, "'") : match[2];
+      const table = {
+        name,
+        ref: `${match[3]}${match[4]}:${match[5]}${match[6]}`,
+        hasHeaders: get("table-headers") !== "false",
+        style: ({ TableStyleMedium2: "tableBlue", TableStyleMedium4: "tableGreen", TableStyleDark1: "tableDark" })[get("table-style")] || "tableBlue",
+        excelStyle: get("table-style") || "TableStyleMedium2",
+        showAutoFilter: get("table-show-autofilter") !== "false",
+        showRowStripes: get("table-row-stripes") !== "false"
+      };
+      (workbook.tablesBySheet[sheet] ||= []).push(table);
+      return "";
+    });
   }
 
   /**
@@ -2884,6 +2931,23 @@ export class SheetAdapter {
     // column captions (measured: lan11 "Reyee" A3:F3 could not be opened).
     sheetNames.forEach((sheetName, sheetIndex) => {
       const ss = this.grid.sheetStates?.[sheetName];
+      const tables = (this.grid.tablesBySheet?.[sheetName] || []).filter(table => table?.name && table?.ref);
+      for (const table of tables) {
+        const match = /^\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)$/i.exec(table.ref);
+        if (!match) continue;
+        const quotedSheet = /^[A-Za-z0-9_]+$/.test(sheetName) ? sheetName : `'${sheetName.replace(/'/g, "''")}'`;
+        const address = `${quotedSheet}.${match[1]}${match[2]}:${quotedSheet}.${match[3]}${match[4]}`;
+        const style = table.excelStyle || ({ tableBlue: "TableStyleMedium2", tableGreen: "TableStyleMedium4", tableDark: "TableStyleDark1" })[table.style] || "TableStyleMedium2";
+        ranges.push(
+          `<table:database-range table:name="${this._escapeXml(table.name)}"`
+          + ` table:target-range-address="${this._escapeXml(address)}" table:display-filter-buttons="${table.showAutoFilter === false ? "false" : "true"}"`
+          + ` table:contains-header="${table.hasHeaders === false ? "false" : "true"}"`
+          + ` vno:table-name="${this._escapeXml(table.name)}" vno:table-style="${style}"`
+          + ` vno:table-headers="${table.hasHeaders === false ? "false" : "true"}"`
+          + ` vno:table-show-autofilter="${table.showAutoFilter === false ? "false" : "true"}"`
+          + ` vno:table-row-stripes="${table.showRowStripes === false ? "false" : "true"}"/>`
+        );
+      }
       // The active sheet's live grid fields may be newer than sheetStates
       // (toggle/apply filter updates history first and persists sheet state on
       // sheet switch). Serialize the live state for that sheet.
@@ -2894,6 +2958,7 @@ export class SheetAdapter {
       // Bộ lọc người dùng bật trong app không có filterRange -> dùng vùng đã dùng của sheet
       const ref = liveRange || this._usedRangeOfSheet(sheetName) || "";
       if (!ref) return;
+      if (tables.some(table => table.ref === ref)) return;
       // Tên sheet có khoảng trắng/ký tự đặc biệt phải đặt trong nháy đơn ở CẢ HAI đầu vùng
       // ('Nguồn 2020 (GVCN)'.A1:'Nguồn 2020 (GVCN)'.J2650) như Calc ghi; không nháy LibreOffice
       // bỏ AutoFilter khi lưu XLSX (lan01.xlsx sheet 3: autoFilter A1:J2650 mất, sheet 1 tên không dấu cách giữ).
@@ -5141,6 +5206,7 @@ ${pristineXlsxMarker}
     // Store tabColors on grid for fallback access in _renderSheetTabs
     this.grid.tabColors = workbook.tabColors || {};
     this.grid.scenariosBySheet = workbook.scenariosBySheet || {};
+    this.grid.tablesBySheet = workbook.tablesBySheet || {};
     const equivalentSheetValue = (mapping, sheetName) => {
       if (!mapping) return undefined;
       if (Object.prototype.hasOwnProperty.call(mapping, sheetName)) return mapping[sheetName];
@@ -5149,6 +5215,7 @@ ${pristineXlsxMarker}
       return found === undefined ? undefined : mapping[found];
     };
     for (const sheetName of workbook.sheets) {
+      this.grid.tablesBySheet[sheetName] = workbook.tablesBySheet?.[sheetName] || [];
       this.grid.scenariosBySheet[sheetName] = workbook.scenariosBySheet?.[sheetName] || [];
       this.grid.conditionalFormattingBySheet[sheetName] = workbook.conditionalFormattingBySheet?.[sheetName] || [];
       this.grid.dataValidationsBySheet[sheetName] = workbook.dataValidationsBySheet?.[sheetName] || [];

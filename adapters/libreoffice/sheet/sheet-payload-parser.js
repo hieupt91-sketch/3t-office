@@ -765,6 +765,7 @@ export async function buildSheetPayloadModel(payload, adapter, supportXmlOverrid
   adapter._attachImportedFreezePanes(workbook, supportXml);
   adapter._attachImportedSheetVisibility(workbook, supportXml);
   adapter._attachImportedAutoFilter(workbook, supportXml);
+  adapter._attachImportedTables(workbook, supportXml);
   adapter._attachImportedSparklines(workbook, supportXml);
   adapter._attachImportedOutline(workbook, supportXml);
   perfReport("attach workbook metadata", phaseStarted);

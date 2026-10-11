@@ -1398,6 +1398,8 @@ def parse_autofilter_from_fods(fods_xml: str | None) -> dict[str, str]:
         return result
     for match in _DB_RANGE_RE.finditer(fods_xml):
         attrs = match.group(1) or ""
+        if re.search(r'\bvno:table-name="', attrs, re.IGNORECASE):
+            continue
         target_match = re.search(r'table:target-range-address="([^"]*)"', attrs)
         if not target_match:
             continue
@@ -1424,6 +1426,8 @@ def parse_autofilter_filter_columns_from_fods(fods_xml: str | None) -> dict[str,
         return result
     for match in _DB_RANGE_RE.finditer(fods_xml):
         attrs = match.group(1) or ""
+        if re.search(r'\bvno:table-name="', attrs, re.IGNORECASE):
+            continue
         target_match = re.search(r'table:target-range-address="([^"]*)"', attrs)
         columns_match = re.search(r'vno:filter-columns="([^"]*)"', attrs, re.IGNORECASE)
         if not target_match or not columns_match:
@@ -1444,6 +1448,98 @@ def parse_autofilter_filter_columns_from_fods(fods_xml: str | None) -> dict[str,
                 if isinstance(item, dict) and isinstance(item.get("values"), list)
             ]
     return result
+
+
+def parse_tables_from_fods(fods_xml: str | None) -> dict[str, dict]:
+    """Read explicit VN table definitions from FODS database ranges by name."""
+    result: dict[str, dict] = {}
+    for match in _DB_RANGE_RE.finditer(fods_xml or ""):
+        attrs = match.group(1) or ""
+        name = re.search(r'vno:table-name="([^"]*)"', attrs, re.IGNORECASE)
+        target = re.search(r'table:target-range-address="([^"]*)"', attrs, re.IGNORECASE)
+        if not name or not target:
+            continue
+        target_value = _unescape_xml(target.group(1))
+        range_match = re.match(r"^(?:'((?:[^']|'')*)'|([^.'!]+))\.\$?([A-Z]+)\$?(\d+):(?:'(?:[^']|'')*'|[^.'!]+)\.\$?([A-Z]+)\$?(\d+)$", target_value, re.IGNORECASE)
+        if not range_match:
+            continue
+        sheet = range_match.group(1).replace("''", "'") if range_match.group(1) is not None else range_match.group(2)
+        def attr_value(key: str, default: str) -> str:
+            value = re.search(rf'vno:{key}="([^"]*)"', attrs, re.IGNORECASE)
+            return _unescape_xml(value.group(1)) if value else default
+        table_name = _unescape_xml(name.group(1))
+        result[table_name] = {
+            "sheet": sheet,
+            "ref": f"{range_match.group(3)}{range_match.group(4)}:{range_match.group(5)}{range_match.group(6)}",
+            "style": attr_value("table-style", "TableStyleMedium2"),
+            "has_headers": attr_value("table-headers", "true") != "false",
+            "show_autofilter": attr_value("table-show-autofilter", "true") != "false",
+            "row_stripes": attr_value("table-row-stripes", "true") != "false",
+        }
+    return result
+
+
+def _apply_table_metadata_from_fods(xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]) -> None:
+    """Set real table names, refs, header/filter flags and style on LO table parts."""
+    tables = parse_tables_from_fods(source_fods)
+    if not tables:
+        return
+    for path in zipfile.ZipFile(io.BytesIO(xlsx_bytes)).namelist():
+        if not re.fullmatch(r"xl/tables/table\d+\.xml", path):
+            continue
+        raw = replacements.get(path)
+        if raw is None:
+            entry = read_zip_entry(xlsx_bytes, path)
+            if not entry:
+                continue
+            raw = entry.decode("utf-8", errors="replace")
+        root = re.search(r"<table\b([^>]*)>", raw)
+        if not root:
+            continue
+        attrs = root.group(1)
+        current_name = re.search(r'\b(?:displayName|name)="([^"]+)"', attrs)
+        metadata = tables.get(_unescape_xml(current_name.group(1))) if current_name else None
+        if metadata is None:
+            # LO can normalize the database name when creating the table part.
+            metadata = next((item for name, item in tables.items() if name in attrs), None)
+        if metadata is None:
+            continue
+        table_name = next((name for name, item in tables.items() if item is metadata), "")
+        if not table_name:
+            continue
+        attrs = re.sub(r'\bname="[^"]*"', f'name="{_escape_xml(table_name)}"', attrs, count=1)
+        if re.search(r'\bdisplayName="[^"]*"', attrs):
+            attrs = re.sub(r'\bdisplayName="[^"]*"', f'displayName="{_escape_xml(table_name)}"', attrs, count=1)
+        else:
+            attrs += f' displayName="{_escape_xml(table_name)}"'
+        attrs = re.sub(r'\bref="[^"]*"', f'ref="{metadata["ref"]}"', attrs, count=1)
+        if re.search(r'\bheaderRowCount="[^"]*"', attrs):
+            attrs = re.sub(r'\bheaderRowCount="[^"]*"', f'headerRowCount="{1 if metadata["has_headers"] else 0}"', attrs, count=1)
+        elif not metadata["has_headers"]:
+            attrs += ' headerRowCount="0"'
+        xml = raw[:root.start()] + f"<table{attrs}>" + raw[root.end():]
+        auto_filter = re.search(r'<autoFilter\b[^>]*/>|<autoFilter\b[^>]*>[\s\S]*?</autoFilter>', xml)
+        if metadata["show_autofilter"]:
+            filter_xml = f'<autoFilter ref="{metadata["ref"]}"/>'
+            if auto_filter:
+                xml = xml[:auto_filter.start()] + filter_xml + xml[auto_filter.end():]
+            else:
+                col_match = re.search(r'<tableColumns\b', xml)
+                if col_match:
+                    xml = xml[:col_match.start()] + filter_xml + xml[col_match.start():]
+        elif auto_filter:
+            xml = xml[:auto_filter.start()] + xml[auto_filter.end():]
+        style = metadata["style"] or "TableStyleMedium2"
+        style_xml = (f'<tableStyleInfo name="{_escape_xml(style)}" showFirstColumn="0" showLastColumn="0" '
+                     f'showRowStripes="{1 if metadata["row_stripes"] else 0}" showColumnStripes="0"/>')
+        style_match = re.search(r'<tableStyleInfo\b[^>]*/>', xml)
+        if style_match:
+            xml = xml[:style_match.start()] + style_xml + xml[style_match.end():]
+        else:
+            close = xml.rfind("</table>")
+            if close >= 0:
+                xml = xml[:close] + style_xml + xml[close:]
+        replacements[path] = xml
 
 
 def apply_autofilter_to_worksheet(sheet_xml: str, ref: str, filter_columns: list[dict] | None = None) -> str:
@@ -4087,6 +4183,8 @@ def postprocess_sheet_xlsx(
             pass
         if source_xlsx_bytes:
             _restore_autofilter_filter_columns_step(xlsx_bytes, source_xlsx_bytes, replacements)
+
+    _apply_table_metadata_from_fods(xlsx_bytes, source_fods, replacements)
 
     # Scenarios: soffice drops <scenarios> during FODS -> XLSX. Read
     # vno:scenarios from FODS and write <scenarios> into worksheets.
@@ -10582,15 +10680,89 @@ def _overlay_autofilter_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
     sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
     if not sheet_entries:
         return fods_xml
+    tables_by_sheet = _parse_xlsx_tables(xlsx_bytes, sheet_entries)
+    table_refs = {sheet: {table["ref"] for table in tables} for sheet, tables in tables_by_sheet.items()}
     autofilter_by_sheet: dict[str, str] = {}
     for sheet_name, entry_path in sheet_entries.items():
         entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
         if not entry_bytes:
             continue
         ref = parse_autofilter_from_worksheet(entry_bytes.decode("utf-8", errors="replace"))
-        if ref:
+        if ref and ref not in table_refs.get(sheet_name, set()):
             autofilter_by_sheet[sheet_name] = ref
-    return apply_autofilter_to_fods(fods_xml, autofilter_by_sheet)
+    xml = apply_autofilter_to_fods(fods_xml, autofilter_by_sheet)
+    if not tables_by_sheet:
+        return xml
+    ranges_xml = []
+    for sheet_name, tables in tables_by_sheet.items():
+        target_sheet = sheet_name if re.fullmatch(r"[A-Za-z0-9_]+", sheet_name) else "'" + sheet_name.replace("'", "''") + "'"
+        for table in tables:
+            ranges_xml.append(
+                f'<table:database-range table:name="{_escape_xml(table["name"])}"'
+                f' table:target-range-address="{_escape_xml(target_sheet)}.{_escape_xml(table["ref"].split(":", 1)[0])}:{_escape_xml(target_sheet)}.{_escape_xml(table["ref"].split(":", 1)[-1])}"'
+                f' table:display-filter-buttons="{"true" if table["show_autofilter"] else "false"}" vno:table-name="{_escape_xml(table["name"])}"'
+                f' vno:table-style="{_escape_xml(table["style"])}"'
+                f' vno:table-headers="{"true" if table["has_headers"] else "false"}"'
+                f' vno:table-show-autofilter="{"true" if table["show_autofilter"] else "false"}"'
+                f' vno:table-row-stripes="{"true" if table["row_stripes"] else "false"}"/>'
+            )
+    db_block = f'<table:database-ranges>{"".join(ranges_xml)}</table:database-ranges>'
+    marker = "</office:spreadsheet>"
+    index = xml.rfind(marker)
+    return xml[:index] + db_block + xml[index:] if index >= 0 else xml + db_block
+
+
+def _parse_xlsx_tables(xlsx_bytes: bytes, sheet_entries: dict[str, str] | None = None) -> dict[str, list[dict]]:
+    """Read actual worksheet tableParts and their linked table definitions."""
+    sheet_entries = sheet_entries or _resolve_xlsx_sheet_entries(xlsx_bytes)
+    result: dict[str, list[dict]] = {}
+    for sheet_name, sheet_path in sheet_entries.items():
+        sheet_xml_raw = read_zip_entry(xlsx_bytes, sheet_path)
+        if not sheet_xml_raw:
+            continue
+        sheet_xml = sheet_xml_raw.decode("utf-8", errors="replace")
+        table_rids = re.findall(r'<tablePart\b[^>]*\br:id="([^"]+)"', sheet_xml)
+        if not table_rids:
+            continue
+        rels_path = posixpath.join(posixpath.dirname(sheet_path), "_rels", posixpath.basename(sheet_path) + ".rels")
+        rels_raw = read_zip_entry(xlsx_bytes, rels_path)
+        if not rels_raw:
+            continue
+        rels_xml = rels_raw.decode("utf-8", errors="replace")
+        targets = {}
+        for match in _WB_RELATIONSHIP_TAG_RE.finditer(rels_xml):
+            attrs = match.group(1) or ""
+            rid = re.search(r'\bId="([^"]+)"', attrs)
+            target = re.search(r'\bTarget="([^"]+)"', attrs)
+            if rid and target:
+                targets[rid.group(1)] = posixpath.normpath(posixpath.join(posixpath.dirname(sheet_path), target.group(1)))
+        for rid in table_rids:
+            table_path = targets.get(rid)
+            table_raw = read_zip_entry(xlsx_bytes, table_path) if table_path else None
+            if not table_raw:
+                continue
+            table_xml = table_raw.decode("utf-8", errors="replace")
+            root = re.search(r'<table\b([^>]*)>', table_xml)
+            if not root:
+                continue
+            attrs = root.group(1)
+            get_attr = lambda text, key: (re.search(rf'\b{key}="([^"]*)"', text or "") or [None, ""])[1]
+            ref = get_attr(attrs, "ref")
+            display_name = get_attr(attrs, "displayName") or get_attr(attrs, "name")
+            if not ref or not display_name:
+                continue
+            style_match = re.search(r'<tableStyleInfo\b([^>]*)/?>', table_xml)
+            style_attrs = style_match.group(1) if style_match else ""
+            style_name = get_attr(style_attrs, "name") or "TableStyleMedium2"
+            result.setdefault(sheet_name, []).append({
+                "name": display_name,
+                "ref": ref,
+                "style": style_name,
+                "has_headers": get_attr(attrs, "headerRowCount") != "0",
+                "show_autofilter": bool(re.search(r'<autoFilter\b', table_xml)),
+                "row_stripes": get_attr(style_attrs, "showRowStripes") not in {"0", "false"},
+            })
+    return result
 
 
 def overlay_sheet_xlsx_freeze_panes(xlsx_bytes: bytes, fods_xml: str | None) -> str:

@@ -295,6 +295,25 @@ export async function runSheetEditingStylesTests() {
     assert(grid.tablesBySheet.Sheet1[0].ref === "A1:A3", "Redo phải khôi phục vùng đã nới");
   });
 
+  test("Adapter: bảng có tên được serialize thành database range riêng AutoFilter", () => {
+    const grid = new SheetGridController(createMockContainer());
+    grid.cellsData.set("A1", { val: "Item", formula: "", style: {} });
+    grid.cellsData.set("B1", { val: "Value", formula: "", style: {} });
+    grid.cellsData.set("A2", { val: "Pen", formula: "", style: {} });
+    grid.cellsData.set("B2", { val: 5, formula: "", style: {} });
+    grid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "B", r: 2 } };
+    grid.formatAsTable("tableGreen", grid.selectionRange, false, { name: "Inventory", hasHeaders: true });
+    const adapter = new SheetAdapter(grid);
+    const xml = adapter._serializeDatabaseRanges(["Sheet1"]);
+    assert(xml.includes('table:name="Inventory"'), "Tên bảng phải nằm trong database range thật");
+    assert(xml.includes('vno:table-style="TableStyleMedium4"'), "Kiểu bảng phải được serialize");
+    assert(xml.includes('table:target-range-address="Sheet1.A1:Sheet1.B2"'), "Vùng bảng phải được serialize");
+    assert(!xml.includes("__Anonymous_Sheet_DB__"), "Bảng thật không được serialize thành AutoFilter ẩn danh");
+    const workbook = { sheetsData: { Sheet1: new Map([["A1", { val: "Item", style: {} }]]) } };
+    adapter._attachImportedTables(workbook, xml);
+    assert(workbook.tablesBySheet.Sheet1[0].name === "Inventory", "Adapter phải khôi phục bảng vào model mở tệp");
+  });
+
   // TEST 10: Behavioral — Fill Down & Relative Formula Offsetting
   test("Behavioral: Fill Down sao chép giá trị và tự động dịch tham chiếu công thức tương đối", () => {
     const grid = new SheetGridController(createMockContainer());
