@@ -65,6 +65,43 @@ class SlidesPptxHeaderFooterTests(unittest.TestCase):
         ET.fromstring(slide2)
         self.assertEqual(patcher.postprocess_slides_pptx(patched, source_fodp=FODP), patched)
 
+    def test_repairs_libreoffice_date_placeholder_to_a_native_datetime_field(self):
+        slide = (
+            '<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main" '
+            'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><p:cSld><p:spTree>'
+            '<p:sp><p:nvSpPr><p:cNvPr id="2" name="Date"/><p:cNvSpPr/><p:nvPr><p:ph type="dt" idx="4"/>'
+            '</p:nvPr></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:pPr/>'
+            '<a:r><a:rPr lang="en-GB"/><a:t>&lt;date/time&gt;</a:t></a:r><a:endParaRPr/></a:p>'
+            '</p:txBody></p:sp></p:spTree></p:cSld></p:sld>'
+        )
+        repaired = patcher._ensure_slide_date_time_field(slide, {"text": "12/10/2026", "format": "dd/MM/yyyy"}, "slide1")
+        self.assertIn('type="datetimeFigureOut"', repaired)
+        self.assertIn("12/10/2026", repaired)
+        self.assertNotIn("&lt;date/time&gt;", repaired)
+        ET.fromstring(repaired)
+
+    def test_postprocess_keeps_the_repaired_existing_libreoffice_placeholder(self):
+        date_shape = (
+            '<p:sp><p:nvSpPr><p:cNvPr id="3" name="Date"/><p:cNvSpPr/><p:nvPr><p:ph type="dt" idx="4"/>'
+            '</p:nvPr></p:nvSpPr><p:spPr/><p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:pPr/>'
+            '<a:r><a:rPr lang="en-GB"/><a:t>&lt;date/time&gt;</a:t></a:r><a:endParaRPr/></a:p>'
+            '</p:txBody></p:sp>'
+        )
+        pptx = io.BytesIO()
+        with zipfile.ZipFile(pptx, "w", compression=zipfile.ZIP_DEFLATED) as package:
+            package.writestr("ppt/presentation.xml", PRESENTATION_XML)
+            package.writestr("ppt/slides/slide1.xml", SLIDE_XML.replace("</p:spTree>", date_shape + "</p:spTree>"))
+            package.writestr("ppt/slides/slide2.xml", SLIDE_XML)
+        date_only = FODP.replace(
+            '   <draw:frame presentation:class="page-number"><draw:text-box><text:p><text:page-number>1</text:page-number></text:p></draw:text-box></draw:frame>\n'
+            '   <draw:frame presentation:class="footer"><draw:text-box><text:p>Footer &amp; legal</text:p></draw:text-box></draw:frame>\n',
+            "",
+        )
+        replacements = patcher._postprocess_slides_header_footer(pptx.getvalue(), date_only)
+        self.assertIn("ppt/slides/slide1.xml", replacements)
+        self.assertIn('type="datetimeFigureOut"', replacements["ppt/slides/slide1.xml"])
+        self.assertNotIn("ppt/slides/slide2.xml", replacements)
+
     def test_no_fodp_fields_leaves_pptx_unchanged(self):
         original = make_pptx()
         empty_fodp = FODP.replace(FODP[FODP.index('   <draw:frame presentation:class="date-time"'):FODP.index('  </draw:page>')], "")

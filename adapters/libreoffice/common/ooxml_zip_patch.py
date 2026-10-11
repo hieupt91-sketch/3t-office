@@ -7140,6 +7140,43 @@ def _slide_header_footer_shape(placeholder_type: str, shape_id: int, data: dict[
     return body
 
 
+def _ensure_slide_date_time_field(slide_xml: str, data: dict[str, str], slide_name: str) -> str:
+    """LibreOffice emits a dt placeholder but leaves its date text as a normal run."""
+    if re.search(r"<a:fld\b[^>]*\btype=[\"']datetime", slide_xml, re.IGNORECASE):
+        return slide_xml
+    field_type = {
+        "dd/MM/yyyy": "datetimeFigureOut",
+        "dd/MM/yyyy HH:mm": "datetime8",
+        "d MMMM yyyy": "datetime3",
+        "yyyy-MM-dd": "datetimeFigureOut",
+        "HH:mm": "datetime10",
+    }.get(data.get("format", "dd/MM/yyyy"), "datetimeFigureOut")
+    field_id = "{" + str(uuid.uuid5(uuid.NAMESPACE_URL, f"vno:{slide_name}:date")).upper() + "}"
+    value = html.escape(data.get("text", ""))
+    shape_re = re.compile(r"<p:sp\b[\s\S]*?<p:ph\b(?=[^>]*\btype=[\"']dt[\"'])[^>]*/>[\s\S]*?</p:sp>", re.IGNORECASE)
+
+    def patch_shape(match: re.Match[str]) -> str:
+        shape = match.group(0)
+        run = re.search(r"<a:r\b[^>]*>([\s\S]*?)</a:r>", shape, re.IGNORECASE)
+        if run:
+            run_body = run.group(1)
+            rpr = re.search(r"<a:rPr\b[^>]*/>|<a:rPr\b[^>]*>[\s\S]*?</a:rPr>", run_body, re.IGNORECASE)
+            run_props = rpr.group(0) if rpr else '<a:rPr lang="vi-VN" dirty="0"/>'
+            field = f'<a:fld id="{field_id}" type="{field_type}">{run_props}<a:pPr/><a:t>{value}</a:t></a:fld>'
+            return shape[:run.start()] + field + shape[run.end():]
+        paragraph = re.search(r"<a:p\b[^>]*>[\s\S]*?</a:p>", shape, re.IGNORECASE)
+        if not paragraph:
+            return shape
+        field = f'<a:fld id="{field_id}" type="{field_type}"><a:rPr lang="vi-VN" dirty="0"/><a:pPr/><a:t>{value}</a:t></a:fld>'
+        para = paragraph.group(0)
+        next_para = re.sub(r"(<a:pPr\b[^>]*/>|<a:pPr\b[^>]*>[\s\S]*?</a:pPr>)", r"\1" + field, para, count=1, flags=re.IGNORECASE)
+        if next_para == para:
+            next_para = para.replace("</a:p>", field + "</a:p>")
+        return shape[:paragraph.start()] + next_para + shape[paragraph.end():]
+
+    return shape_re.sub(patch_shape, slide_xml, count=1)
+
+
 def _postprocess_slides_header_footer(pptx_bytes: bytes, source_fodp: str | None) -> dict[str, str]:
     fields_by_slide = _slide_header_footer_fields_from_fodp(source_fodp)
     if not fields_by_slide:
@@ -7163,12 +7200,18 @@ def _postprocess_slides_header_footer(pptx_bytes: bytes, source_fodp: str | None
         if not current:
             raise ValueError(f"PPTX thiếu {name} khi lưu placeholder đầu/chân trang")
         xml = current.decode("utf-8")
+        original_xml = xml
         missing = fields_by_slide[index]
         shapes: list[str] = []
         next_id = max((int(value) for value in re.findall(r"<p:cNvPr\b[^>]*\bid=[\"'](\d+)[\"']", xml)), default=1) + 1
         for kind, placeholder_type, align in (("date", "dt", "l"), ("footer", "ftr", "ctr"), ("number", "sldNum", "r")):
             data = missing.get(kind)
-            if data is None or _slide_placeholder_present(xml, placeholder_type):
+            if data is None:
+                continue
+            if placeholder_type == "dt" and _slide_placeholder_present(xml, placeholder_type):
+                xml = _ensure_slide_date_time_field(xml, data, name)
+                continue
+            if _slide_placeholder_present(xml, placeholder_type):
                 continue
             shapes.append(_slide_header_footer_shape(placeholder_type, next_id, data, name, align, slide_cy, slide_cx))
             next_id += 1
@@ -7176,6 +7219,8 @@ def _postprocess_slides_header_footer(pptx_bytes: bytes, source_fodp: str | None
             if "</p:spTree>" not in xml:
                 raise ValueError(f"PPTX {name} thiếu p:spTree khi lưu placeholder đầu/chân trang")
             replacements[name] = xml.replace("</p:spTree>", "".join(shapes) + "</p:spTree>", 1)
+        elif xml != original_xml:
+            replacements[name] = xml
     return replacements
 
 
