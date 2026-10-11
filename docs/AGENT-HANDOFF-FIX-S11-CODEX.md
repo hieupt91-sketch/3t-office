@@ -14,4 +14,4 @@ KNOWN FAILURES: One unrelated Node branding assertion on the legacy `3T Office` 
 RISKS: In-app style rendering maps the supported Excel style IDs to the existing three local presets (blue, green, dark); the XLSX `tableStyleInfo` retains its style ID. No document data is sent to cloud services.
 DEPENDENCIES/BLOCKERS: None. No LibreOffice Core patch or new dependency. UI verification used mouse/keyboard through CDP; Excel COM opened one output at a time with read-only mode. No SendKeys were used.
 CORE PATCH ID (if any): N/A.
-NEXT ACTION: Review the S11 implementation and handoff, then merge the six S11 commits. Keep the unrelated Node branding assertion and flaky DOCX integration failure visible for follow-up.
+NEXT ACTION: Review the S11 implementation and handoff, then merge the eight S11 commits. Keep the unrelated Node branding assertion and flaky DOCX integration failure visible for follow-up.
