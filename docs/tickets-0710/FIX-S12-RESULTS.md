@@ -89,3 +89,9 @@
 - Mở XLSX đã tạo bằng nút Trộn ô (A8:B8 merged), CDP bấm Tách ô tại A8.
 - Excel COM ReadOnly trên tệp lưu sau đó xác nhận `A8.MergeCells=False`; **KHỚP EXCEL**.
 - Ảnh `evidence/s12/fix-s12-unmerge.png`; log CDP `s12-unmerge.log`, Excel COM `excel-unmerge.log`.
+
+## Trang đầu: màu nền, màu chữ và viền
+
+- CDP bấm Màu nền, Màu chữ và Viền trên B2, mỗi lệnh lưu XLSX riêng.
+- Excel COM ReadOnly xác nhận màu nền `Interior.Color=65535` (vàng), màu chữ `Font.Color=255` (đỏ), và viền trên/dưới/trái/phải đều `LineStyle=1`. **KHỚP EXCEL**.
+- Ảnh: `evidence/s12/fix-s12-fillDefault.png`, `fix-s12-textColorDefault.png`, `fix-s12-bordersDefault.png`. Log CDP `s12-home-colors.log`; Excel COM `excel-fillDefault.log`, `excel-textColorDefault.log`, `excel-bordersDefault.log`.

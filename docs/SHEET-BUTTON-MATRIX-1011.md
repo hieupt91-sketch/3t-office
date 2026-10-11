@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 44 · LỆCH ĐÃ BIẾT: 2 · CHƯA ĐỐI CHIẾU: 92.
+Tổng 138 nút — KHỚP EXCEL: 47 · LỆCH ĐÃ BIẾT: 2 · CHƯA ĐỐI CHIẾU: 89.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -23,9 +23,9 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Trang đầu | `sheet.cell.bold` | Đậm (Ctrl+B) | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dom:20 |
 | Trang đầu | `sheet.cell.italic` | Nghiêng (Ctrl+I) | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dom:20 |
 | Trang đầu | `sheet.cell.underline` | Gạch chân (Ctrl+U) | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dom:20 |
-| Trang đầu | `sheet.cell.borders` | Viền ô | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:15 |
-| Trang đầu | `sheet.cell.fillColor` | Màu nền | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:15 |
-| Trang đầu | `sheet.cell.textColor` | Màu chữ | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:15 |
+| Trang đầu | `sheet.cell.borders` | Viền ô | KHỚP EXCEL | FIX-S12 Trang đầu: CDP bấm màu nền/màu chữ/viền; Excel COM ReadOnly xác nhận Fill=65535, Font.Color=255 và bốn Border.LineStyle=1 | dom:15 |
+| Trang đầu | `sheet.cell.fillColor` | Màu nền | KHỚP EXCEL | FIX-S12 Trang đầu: CDP bấm màu nền/màu chữ/viền; Excel COM ReadOnly xác nhận Fill=65535, Font.Color=255 và bốn Border.LineStyle=1 | dom:15 |
+| Trang đầu | `sheet.cell.textColor` | Màu chữ | KHỚP EXCEL | FIX-S12 Trang đầu: CDP bấm màu nền/màu chữ/viền; Excel COM ReadOnly xác nhận Fill=65535, Font.Color=255 và bốn Border.LineStyle=1 | dom:15 |
 | Trang đầu | `sheet.cell.alignTop` | Căn trên | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:21 |
 | Trang đầu | `sheet.cell.alignMiddle` | Căn giữa dọc | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:7 |
 | Trang đầu | `sheet.cell.alignBottom` | Căn dưới | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:7 |
