@@ -3306,7 +3306,26 @@ class VnOfficeApi:
         return {"decimalSeparator": decimal_separator, "thousandsSeparator": thousands_separator}
 
     def read_clipboard_data(self) -> dict[str, object]:
-        """Đọc CF_UNICODETEXT và HTML Format từ clipboard Windows cục bộ."""
+        """Đọc văn bản và HTML từ clipboard cục bộ qua dịch vụ hệ điều hành."""
+        services = _os_services()
+        clipboard_extras = getattr(services, "clipboard_extras", None) if services is not None else None
+        if clipboard_extras is not None:
+            try:
+                result = clipboard_extras.read()
+                if not result.is_ok:
+                    message = result.error.message if result.error else "Không đọc được bộ nhớ tạm."
+                    return {"status": "error", "message": message}
+                payload = result.value
+                return {
+                    "status": "ok",
+                    "text": str(getattr(payload, "text", "") or ""),
+                    "html": str(getattr(payload, "html", "") or ""),
+                }
+            except Exception as exc:
+                return {"status": "error", "message": f"Không đọc được bộ nhớ tạm: {exc}"}
+
+        # Keep the existing Windows implementation as the fallback until its
+        # backend has migrated to ClipboardExtras.
         try:
             result = _read_windows_clipboard_data()
             print("__VNO_CLIPBOARD_PYTHON__ " + json.dumps({
@@ -3321,7 +3340,25 @@ class VnOfficeApi:
             return {"status": "error", "message": f"Không đọc được bộ nhớ tạm: {exc}"}
 
     def write_clipboard_data(self, text: str = "", html: str = "") -> dict[str, object]:
-        """Ghi CF_UNICODETEXT và HTML Format vào clipboard Windows cục bộ."""
+        """Ghi văn bản và HTML vào clipboard cục bộ qua dịch vụ hệ điều hành."""
+        services = _os_services()
+        clipboard_extras = getattr(services, "clipboard_extras", None) if services is not None else None
+        if clipboard_extras is not None:
+            try:
+                package = sys.modules.get("_vno_os_services")
+                payload_type = getattr(package, "ClipboardPayload", None)
+                if payload_type is None:
+                    return {"status": "error", "message": "Thiếu kiểu dữ liệu clipboard trong dịch vụ hệ điều hành."}
+                result = clipboard_extras.write(payload_type(text=str(text or ""), html=str(html or "")))
+                if not result.is_ok:
+                    message = result.error.message if result.error else "Không ghi được bộ nhớ tạm."
+                    return {"status": "error", "message": message}
+                return {"status": "ok"}
+            except Exception as exc:
+                return {"status": "error", "message": f"Không ghi được bộ nhớ tạm: {exc}"}
+
+        # Keep the existing Windows implementation as the fallback until its
+        # backend has migrated to ClipboardExtras.
         try:
             return _write_windows_clipboard_data(text, html)
         except Exception as exc:
