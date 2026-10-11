@@ -1,0 +1,17 @@
+# Agent Handoff
+TASK: Continue Slides ribbon parity audit after FIX-L7
+AGENT/ROLE: Codex / Slides audit and adapter owner
+BRANCH: audit/slides-l8-codex
+WORKTREE: E:\VNOffice-codex-fl8
+OBJECTIVE: Audit the 52 remaining `CHƯA ĐỐI CHIẾU` rows in `docs/SLIDES-BUTTON-MATRIX-1011.md`, in the requested tab order, using real CDP mouse/keyboard interaction and PowerPoint COM readback. Do not change the four known PPTX semantic gaps.
+FINDINGS: Matrix now has 40 `KHỚP POWERPOINT`, 42 `CHƯA ĐỐI CHIẾU`, 4 `LỆCH ĐÃ BIẾT`, and 2 `KHÁC CÓ CHỦ Ý` rows. The four known gaps remain unchanged: native layout, SmartArt, theme, and transition Zoom. A view/help CDP pass confirmed app states and COM confirmed the saved file stayed at 10 slides/5 shapes; that does not establish COM parity for transient view states, so those rows remain unchecked. Line spacing keyboard interaction did not change the selection and remains unchecked.
+IMPLEMENTATION SUMMARY: Fixed ribbon clipboard selection loss and stripped CF_HTML fragment markers. Added specific VI help steps and revised VI/EN tooltips. Added CDP/COM evidence and matrix rows for new/delete slide, align-left, find/replace, and decrease-indent. Added CDP evidence for Slides View/Help UI interactions without claiming PowerPoint parity.
+FILES CHANGED: `adapters/libreoffice/slides/slides-adapter.js`; `tests/unit/slides-clipboard.test.js`; `platform/help/entries-slides.js`; `platform/i18n/strings-en.js`; `platform/i18n/strings-vi.js`; `scripts/audit-0610/gen_slides_button_matrix.py`; `scripts/audit-0610/office_parallel/slides/fix-l8-home-readback.ps1`; `docs/SLIDES-BUTTON-MATRIX-1011.md`; `docs/tickets-0710/FIX-L8-RESULTS.md`; `docs/tickets-0710/evidence/fix-l8/**`; `tests/live/cdp/slides-fix-l8-*.desktop.mjs`.
+COMMANDS RUN: `npm test`; `python -m unittest discover -s tests`; `node --experimental-websocket tests/live/cdp/claude-slides-roundtrip.desktop.mjs`; `node --experimental-websocket tests/live/cdp/slides-fix-l2.desktop.mjs`; `node --experimental-websocket tests/live/cdp/slides-fix-l3.desktop.mjs`; `python -X utf8 scripts/audit-0610/gen_slides_button_matrix.py docs/ribbon-scan-slides-1011.json docs/SLIDES-BUTTON-MATRIX-1011.md`; PowerPoint COM readback helper for audited PPTX copies; UTF-8/BOM scan.
+BUILD RESULT: NOT RUN (no build requested or required by FIX-L7).
+TEST RESULTS: `npm test` PASS 3084/3084; Python unittest PASS 874 tests; required CDP suites PASS 8/8, 20/20, and 13 behaviors/exit 0; encoding scan PASS (42 committed files, zero BOM/UTF-8 errors).
+KNOWN FAILURES: No suite failures. The line-spacing CDP attempt was inconclusive and is not counted as a parity result. Python emitted `ResourceWarning` for unclosed file handles.
+RISKS: 42 matrix rows still need audit; no completion/parity claim for those rows. Do not modify the four known semantic gaps without owner approval.
+DEPENDENCIES/BLOCKERS: PowerPoint COM installed. Fixture: `E:\VN OFice\file test\sample-3.pptx`. Profile: `VNO_CDP_LOCALAPPDATA=E:\VNOffice-profiles\codex-fl8`.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Continue with remaining Trang đầu controls, then Chèn, Thiết kế, Trình chiếu, Đánh giá, Chế độ xem, Trợ giúp. Create isolated app output per behavior, use real CDP interaction, save, read back with PowerPoint COM, update generator/matrix/evidence, and commit each group before continuing. Re-run all required suites after the remaining work.

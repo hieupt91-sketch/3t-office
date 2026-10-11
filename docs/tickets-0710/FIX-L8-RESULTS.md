@@ -24,7 +24,10 @@
 - `tests/live/cdp/slides-fix-l8-clipboard.desktop.mjs`: PASS; bôi đen, Sao chép, Dán, Cắt, lưu PPTX và chụp ảnh qua CDP.
 - `tests/live/cdp/slides-fix-l8-highlight.desktop.mjs`: PASS; áp highlight qua ribbon và lưu PPTX.
 - PowerPoint COM readback cho clipboard Dán/Cắt và màu highlight: PASS; JSON UTF-8 không BOM trong `evidence/fix-l8/home/`.
-- `npm test`, `python -m unittest discover -s tests`, ba CDP suite bắt buộc và encoding scan: NOT RUN trong commit nhóm này; sẽ chạy ở lượt xác minh cuối.
+- `npm test`: PASS, 3084/3084.
+- `python -m unittest discover -s tests`: PASS, 874 tests (`OK`; có `ResourceWarning` unclosed file handles nhưng không có lỗi test).
+- CDP bắt buộc: `claude-slides-roundtrip.desktop.mjs` PASS 8/8; `slides-fix-l2.desktop.mjs` PASS 20/20; `slides-fix-l3.desktop.mjs` PASS (13 hành vi; exit 0).
+- Quét 42 file đã commit từ mốc nhánh: PASS, không có UTF-8 BOM/lỗi UTF-8; 14 ảnh là binary.
 
 ## Giới hạn đã biết
 
