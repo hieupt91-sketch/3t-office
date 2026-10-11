@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 47 · LỆCH ĐÃ BIẾT: 6 · CHƯA ĐỐI CHIẾU: 85.
+Tổng 138 nút — KHỚP EXCEL: 49 · LỆCH ĐÃ BIẾT: 6 · CHƯA ĐỐI CHIẾU: 83.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -90,8 +90,8 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Công thức | `sheet.formula.categoryLookup` | Tra cứu & Tham chiếu | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog |
 | Công thức | `sheet.formula.categoryMath` | Toán & Lượng giác | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog |
 | Công thức | `sheet.formula.categoryMore` | Thêm hàm | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog |
-| Công thức | `sheet.formula.max` | Lớn nhất | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:16 |
-| Công thức | `sheet.formula.min` | Nhỏ nhất | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:16 |
+| Công thức | `sheet.formula.max` | Lớn nhất | KHỚP EXCEL | FIX-S12 Công thức: CDP bấm MAX/MIN; Excel COM ReadOnly xác nhận =MAX(C2:C6)=9876.5 và =MIN(C2:C6)=1234.5 | dom:16 |
+| Công thức | `sheet.formula.min` | Nhỏ nhất | KHỚP EXCEL | FIX-S12 Công thức: CDP bấm MAX/MIN; Excel COM ReadOnly xác nhận =MAX(C2:C6)=9876.5 và =MIN(C2:C6)=1234.5 | dom:16 |
 | Công thức | `sheet.formula.nameManager` | Quản lý tên | KHỚP EXCEL | FIX-S8/FIX-S7: CDP và Excel COM read-only xác nhận name, rotation, dimensions, visibility, print area/orientation | dialog,toast:A1 |
 | Công thức | `sheet.formula.defineName` | Đặt tên vùng | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Công thức | `sheet.formula.useInFormula` | Dùng trong công thức | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |

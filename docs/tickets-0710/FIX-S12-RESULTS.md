@@ -96,6 +96,11 @@
 - Excel COM ReadOnly xác nhận màu nền `Interior.Color=65535` (vàng), màu chữ `Font.Color=255` (đỏ), và viền trên/dưới/trái/phải đều `LineStyle=1`. **KHỚP EXCEL**.
 - Ảnh: `evidence/s12/fix-s12-fillDefault.png`, `fix-s12-textColorDefault.png`, `fix-s12-bordersDefault.png`. Log CDP `s12-home-colors.log`; Excel COM `excel-fillDefault.log`, `excel-textColorDefault.log`, `excel-bordersDefault.log`.
 
+## Tab Công thức: MAX và MIN
+
+- CDP bấm MAX và MIN riêng trên C7; Excel COM ReadOnly đọc `=MAX(C2:C6)` = `9876.5` và `=MIN(C2:C6)` = `1234.5`. **KHỚP EXCEL**.
+- Ảnh `evidence/s12/fix-s12-maxBtn.png`, `fix-s12-minBtn.png`; log CDP `s12-max-min.log`, Excel COM `excel-maxBtn.log`, `excel-minBtn.log`.
+
 ## Chế độ xem: Đường lưới và Tiêu đề — lệch đã biết
 
 - CDP bấm Đường lưới và Tiêu đề riêng từng fixture. App model xác nhận `gridlinesVisible=false` và `headingsVisible=false` tương ứng.

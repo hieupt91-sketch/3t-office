@@ -35,6 +35,7 @@ mark(MATCH, "sheet.font.shrink", "FIX-S12 Trang đầu: sửa làm tròn điểm
 mark(MATCH, "sheet.format.decreaseDecimal", "FIX-S12 Trang đầu: CDP click Giảm số thập phân; Excel COM ReadOnly xác nhận C2=1234.5, NumberFormat=0, hiển thị 1235")
 mark(MATCH, "sheet.cell.unmerge", "FIX-S12: CDP mở XLSX đã merge A8:B8 rồi bấm Tách ô; Excel COM ReadOnly xác nhận A8.MergeCells=False")
 mark(MATCH, "sheet.cell.fillColor sheet.cell.textColor sheet.cell.borders", "FIX-S12 Trang đầu: CDP bấm màu nền/màu chữ/viền; Excel COM ReadOnly xác nhận Fill=65535, Font.Color=255 và bốn Border.LineStyle=1")
+mark(MATCH, "sheet.formula.max sheet.formula.min", "FIX-S12 Công thức: CDP bấm MAX/MIN; Excel COM ReadOnly xác nhận =MAX(C2:C6)=9876.5 và =MIN(C2:C6)=1234.5")
 mark(MATCH, "sheet.cell.mergeAcross sheet.cell.mergeCells", "FIX-S12 Trang đầu: CDP chọn A8:B8 và bấm lệnh; Excel COM ReadOnly xác nhận A8.MergeCells=True")
 mark(KNOWN_GAP, "sheet.page.clearPrintArea", "FIX-S12: CDP xóa printAreaBySheet về null nhưng XLSX Excel COM ReadOnly vẫn có PrintArea=$A$1; handoff adapter ở docs/AGENT-HANDOFF-FIX-S12-CLEAR-PRINT-AREA.md")
 mark(KNOWN_GAP, "sheet.cell.indentDecrease", "FIX-S12: CDP giảm indentLevel về 0 nhưng XLSX Excel COM ReadOnly vẫn IndentLevel=1; handoff adapter ở docs/AGENT-HANDOFF-FIX-S12-INDENT-DECREASE.md")
