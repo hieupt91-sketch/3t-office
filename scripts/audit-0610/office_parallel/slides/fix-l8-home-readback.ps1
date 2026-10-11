@@ -19,6 +19,14 @@ function Read-Presentation($presentation) {
   $text = $title.TextFrame2.TextRange
   $paragraph = $title.TextFrame.TextRange.ParagraphFormat
   $paragraph2 = $text.ParagraphFormat
+  $headersFooters = Read-Value { $slide.HeadersFooters }
+  $headerFooterReadback = [pscustomobject]@{
+    slideNumberVisible = (Read-Value { $headersFooters.SlideNumber.Visible })
+    dateVisible = (Read-Value { $headersFooters.DateAndTime.Visible })
+    dateText = (Read-Value { $headersFooters.DateAndTime.Text })
+    footerVisible = (Read-Value { $headersFooters.Footer.Visible })
+    footerText = (Read-Value { $headersFooters.Footer.Text })
+  }
   $shapeReadbacks = @()
   for ($index = 1; $index -le $slide.Shapes.Count; $index++) {
     $shape = $slide.Shapes.Item($index)
@@ -54,6 +62,7 @@ function Read-Presentation($presentation) {
     textColorRgb = (Read-Value { $text.Font.Fill.ForeColor.RGB })
     highlightRgb = (Read-Value { $text.Font.Highlight.RGB })
     finalShapeText = (Read-Value { $slide.Shapes.Item($slide.Shapes.Count).TextFrame.TextRange.Text })
+    headerFooter = $headerFooterReadback
     shapeReadbacks = $shapeReadbacks
   }
 }

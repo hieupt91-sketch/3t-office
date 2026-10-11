@@ -1,0 +1,148 @@
+{
+  "headerFooter": {
+    "slides": 10,
+    "shapes": 5,
+    "headerFooter": {
+      "showDate": true,
+      "showSlideNumber": true,
+      "showFooter": true,
+      "footerText": "VN Office audit footer",
+      "dateFormat": "dd/MM/yyyy",
+      "applyToAll": true
+    },
+    "slideNumbers": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "dates": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "footers": [
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer"
+    ]
+  },
+  "dateTime": {
+    "slides": 10,
+    "shapes": 5,
+    "headerFooter": {
+      "showDate": true,
+      "showSlideNumber": true,
+      "showFooter": true,
+      "footerText": "VN Office audit footer",
+      "dateFormat": "dd/MM/yyyy",
+      "applyToAll": true
+    },
+    "slideNumbers": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "dates": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "footers": [
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer"
+    ]
+  },
+  "slideNumber": {
+    "slides": 10,
+    "shapes": 5,
+    "headerFooter": {
+      "showDate": true,
+      "showSlideNumber": true,
+      "showFooter": true,
+      "footerText": "VN Office audit footer",
+      "dateFormat": "dd/MM/yyyy",
+      "applyToAll": true
+    },
+    "slideNumbers": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "dates": [
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true,
+      true
+    ],
+    "footers": [
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer",
+      "VN Office audit footer"
+    ]
+  },
+  "file": "E:\\VNOffice-profiles\\codex-fl8\\fix-l8-insert-fields.pptx",
+  "saved": true
+}
