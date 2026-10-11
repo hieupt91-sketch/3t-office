@@ -32,6 +32,10 @@ const ops = [
   ["zoomOut","A1","click","sheet.view.zoomOut"],
   ["freezePanes","B2","click","sheet.view.freezePanes"],["showFormulas","A1","click","sheet.formula.showFormulas"],["formulaBar","A1","click","sheet.view.formulaBar"],["normalView","A1","click","sheet.view.normal"],["pageBreakPreview","A1","click","sheet.view.pageBreakPreview"],["pageLayoutView","A1","click","sheet.view.pageLayout"],["gridlines","A1","click","sheet.view.gridlines"],["headings","A1","click","sheet.view.headings"],["printArea","A1","click","sheet.page.setPrintArea"],["clearArea","A1","click","sheet.page.clearPrintArea"],
   ["pageSetup","A1","pageSetup","sheet.page.margins","landscape"],
+  ["pageSize","A1","pageSize","sheet.page.size","Legal"],
+  ["pageScale","A1","pageScale","sheet.page.scale","80"],
+  ["insertPageBreak","C5","pageBreak","sheet.page.insertPageBreak"],
+  ["removePageBreak","C5","pageBreak","sheet.page.removePageBreak"],
   ["rotation90","B2","orientation","sheet.cell.orientation","90"],
   ["widthControl","B2","widthControl",null,null],
   ["definedName","B2","nameManager","sheet.formula.nameManager","SampleNames"],
@@ -219,7 +223,7 @@ for (const [name, cell, kind, id, value] of ops) {
       const align=JSON.parse(await pos("#vno-fc-tab-alignment"));
       if(!align) status="NO_ALIGNMENT_TAB";
       else {await mouseClick(session.cdp,align.x,align.y);await sleep(150);const angle=JSON.parse(await pos('.vno-fc-orient-btn[data-angle="90"]'));if(!angle)status="NO_90_DEGREE_OPTION";else{await mouseClick(session.cdp,angle.x,angle.y);const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);const evidenceDir=path.join(root,"docs","tickets-0710","evidence");await mkdir(evidenceDir,{recursive:true});await writeFile(path.join(evidenceDir,"fix-s8-text-rotation.png"),Buffer.from((shot.result||shot).data,"base64"));const apply=JSON.parse(await pos(".vno-fc-ok-btn"));if(!apply)status="NO_FORMAT_CELLS_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="set Orientation=90 through Format Cells";}}}
-    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pivotRefresh" || kind === "groupRows" || kind === "subtotal" || kind === "consolidate" || kind === "pageSetup" || kind === "removeDuplicates" || kind === "textToColumns") {
+    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pivotRefresh" || kind === "groupRows" || kind === "subtotal" || kind === "consolidate" || kind === "pageSetup" || kind === "pageSize" || kind === "pageScale" || kind === "pageBreak" || kind === "removeDuplicates" || kind === "textToColumns") {
       if (kind === "consolidate") await mouseClick(session.cdp,pos.x,pos.y);
       if (kind === "groupRows") {
         const a=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-row-header[data-row="2"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
@@ -249,7 +253,7 @@ for (const [name, cell, kind, id, value] of ops) {
         if (!end) throw new Error("Could not locate text-to-columns range end B6");
         await mouseDrag(session.cdp,pos.x,pos.y,end.x,end.y);
       }
-      const tabId = id.startsWith("sheet.view.") ? "view" : id.startsWith("sheet.page.") ? "pageLayout" : id.startsWith("sheet.data.") ? "data" : id.startsWith("sheet.formula.") ? "formulas" : id.startsWith("sheet.chart.") ? "insert" : "home";
+      const tabId = id.startsWith("sheet.view.") ? "view" : id.startsWith("sheet.page.") ? "pageLayout" : id.startsWith("sheet.data.") ? "data" : id.startsWith("sheet.formula.") || id.startsWith("sheet.calc.") ? "formulas" : id.startsWith("sheet.chart.") || id.startsWith("sheet.insert.") ? "insert" : id.startsWith("sheet.review.") ? "review" : "home";
       const tabPos = JSON.parse(await ev(`(() => { const n=document.querySelector('#vno-ribbon-tab-${tabId}'); if(!n)return 'null'; const r=n.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,active:n.classList.contains('is-active')}) })()`));
       if (!tabPos) throw new Error("Ribbon tab missing: " + tabId); if (!tabPos.active) await mouseClick(session.cdp, tabPos.x, tabPos.y); await session.cdp.waitFor(`document.querySelector('#vno-ribbon-tab-${tabId}')?.classList.contains('is-active') && !!document.querySelector('#vno-ribbon-tabpanel-${tabId}')`, { timeoutMilliseconds: 10000, intervalMilliseconds: 100 });
       const button = JSON.parse(await ev(`(() => { const panel=document.querySelector("#vno-ribbon-tabpanel-${tabId}"); if(!panel)return 'null'; const nodes=[...panel.querySelectorAll('[data-command-id="${id}"]')]; const visible=n=>{const r=n.getBoundingClientRect(),s=getComputedStyle(n);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'}; const group=nodes[0]?.closest('.vno-ribbon-group.vno-group-collapsed'); const btn=group?.querySelector('.vno-ribbon-group-collapsed-btn'); if(btn&&visible(btn)){const r=btn.getBoundingClientRect();return JSON.stringify({collapsed:{x:r.left+r.width/2,y:r.top+r.height/2}})} const v=nodes.find(visible); if(v){const r=v.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})} const dropdownId=${JSON.stringify(id.startsWith("sheet.row.")||id.startsWith("sheet.col.")?"sheet.cells.format":id.startsWith("sheet.view.freeze")?"sheet.view.freezePanesMenu":"")}; const dd=dropdownId&&document.querySelector('[data-dropdown-id="'+dropdownId+'"]'); if(dd&&visible(dd)){const r=dd.getBoundingClientRect();return JSON.stringify({dropdown:{x:r.left+r.width/2,y:r.top+r.height/2}})} return 'null' })()`));
@@ -282,6 +286,31 @@ for (const [name, cell, kind, id, value] of ops) {
         if(!group)status="NO_SUBTOTAL_DIALOG";else {await mouseClick(session.cdp,group.x,group.y);await press(session.cdp,"ArrowDown");await press(session.cdp,"Enter");const b=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-st-col[value="B"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,checked:n.checked})})()`));if(!b)status="NO_SUBTOTAL_COLUMNS";else{if(b.checked)await mouseClick(session.cdp,b.x,b.y);const apply=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!apply)status="NO_SUBTOTAL_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="subtotal by Họ tên using SUM of Số tiền";}}}
       }
       if (kind === "flashFill" && status === "clicked") status = "applied Flash Fill K2:K6 using last-name initial examples";
+      if ((kind === "pageSize" || kind === "pageScale") && status === "clicked") {
+        await sleep(150);
+        const selector = kind === "pageSize" ? "#vno-sheet-size" : "#vno-sheet-scale-percent";
+        const field = JSON.parse(await ev(`(() => {const n=document.querySelector(${JSON.stringify(selector)});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if (!field) status = "NO_PAGE_SETUP_FIELD";
+        else {
+          await mouseClick(session.cdp, field.x, field.y);
+          if (kind === "pageSize") { await press(session.cdp, "Home"); await press(session.cdp, "ArrowDown"); await press(session.cdp, "ArrowDown"); await press(session.cdp, "Enter"); }
+          else { await mouseTripleClick(session.cdp, field.x, field.y); await press(session.cdp, "Home"); await press(session.cdp, "End", { shift: true }); await press(session.cdp, "Backspace"); await typeText(session.cdp, value); }
+          const apply = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          const inputState = await ev(`JSON.stringify({value:document.querySelector(${JSON.stringify(selector)})?.value,active:document.activeElement?.id})`);
+          if (!apply) status = "NO_PAGE_SETUP_APPLY";
+          else {
+            await mouseClick(session.cdp, apply.x, apply.y);
+            const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
+            await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
+            status = kind === "pageSize" ? "selected Legal paper size; " + inputState : "input=" + inputState + " setup=" + await ev("JSON.stringify(window.__vnoAppInstance.grid.getPageSetup())");
+          }
+        }
+      }
+      if (kind === "pageBreak" && status === "clicked") {
+        const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
+        await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
+        status = id.endsWith("insertPageBreak") ? "inserted page breaks at C5 through ribbon" : "removed page breaks at C5 through ribbon";
+      }
       if (kind === "textToColumns" && status === "clicked") {
         await sleep(150);
         const select = JSON.parse(await ev(`(() => {const n=document.querySelector('#vno-ttc-del');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));

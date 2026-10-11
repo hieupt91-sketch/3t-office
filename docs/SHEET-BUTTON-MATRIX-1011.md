@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 72 · CHƯA ĐỐI CHIẾU: 66.
+Tổng 138 nút — KHỚP EXCEL: 76 · CHƯA ĐỐI CHIẾU: 62.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -70,13 +70,13 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Chèn | `sheet.page.headerFooter` | Tiêu đề Đầu/Cuối trang | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Bố trí trang | `sheet.page.margins` | Căn lề | KHỚP EXCEL | FIX-S7: CDP + Excel COM; insert/delete, validation, freeze, print area, page setup, chart, conditional format, cell style | dialog,toast:A1 |
 | Bố trí trang | `sheet.page.orientation` | Hướng giấy | KHỚP EXCEL | FIX-S8/FIX-S7: CDP và Excel COM read-only xác nhận name, rotation, dimensions, visibility, print area/orientation | dialog,toast:A1 |
-| Bố trí trang | `sheet.page.size` | Khổ giấy | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
+| Bố trí trang | `sheet.page.size` | Khổ giấy | KHỚP EXCEL | FIX-S12 Bố trí trang: CDP chọn Khổ giấy Legal; Excel COM ReadOnly xác nhận PageSetup.PaperSize=5 (app_pageSize.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-pageSize.png | dialog,toast:A1 |
 | Bố trí trang | `sheet.page.setPrintArea` | Đặt vùng in | KHỚP EXCEL | FIX-S8/FIX-S7: CDP và Excel COM read-only xác nhận name, rotation, dimensions, visibility, print area/orientation | dom:120 |
 | Bố trí trang | `sheet.page.clearPrintArea` | Xóa vùng in | KHỚP EXCEL | FIX-S13: CDP xóa vùng in; Excel COM ReadOnly xác nhận PageSetup.PrintArea rỗng (app_s13_clearArea.xlsx) | dom:120 |
-| Bố trí trang | `sheet.page.insertPageBreak` | Chèn ngắt trang | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:120 |
-| Bố trí trang | `sheet.page.removePageBreak` | Xóa ngắt trang | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:120 |
+| Bố trí trang | `sheet.page.insertPageBreak` | Chèn ngắt trang | KHỚP EXCEL | FIX-S12 Bố trí trang: CDP chèn ngắt tại C5; Excel COM ReadOnly xác nhận HBreaks=5, VBreaks=3 (app_insertPageBreak.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-insertPageBreak.png | dom:120 |
+| Bố trí trang | `sheet.page.removePageBreak` | Xóa ngắt trang | KHỚP EXCEL | FIX-S12 Bố trí trang: CDP xóa ngắt C5 từ workbook đã có ngắt; Excel COM ReadOnly xác nhận không còn HBreak/VBreak (app_removePageBreak.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-removePageBreak.png | dom:120 |
 | Bố trí trang | `sheet.page.printTitles` | Tiêu đề in | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | skipped(dangerous) |
-| Bố trí trang | `sheet.page.scale` | Tỷ lệ vừa trang | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
+| Bố trí trang | `sheet.page.scale` | Tỷ lệ vừa trang | KHỚP EXCEL | FIX-S12 Bố trí trang: CDP đặt tỷ lệ in 80%; Excel COM ReadOnly xác nhận PageSetup.Zoom=80 (app_pageScale.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-pageScale.png | dialog,toast:A1 |
 | Bố trí trang | `sheet.view.gridlines` | Đường lưới | KHỚP EXCEL | FIX-S13: CDP ẩn đường lưới và tiêu đề; Excel COM ReadOnly xác nhận DisplayGridlines=0 và DisplayHeadings=0 (app_s13_gridlines.xlsx, app_s13_headings.xlsx) | dom:23 |
 | Bố trí trang | `sheet.view.headings` | Tiêu đề | KHỚP EXCEL | FIX-S13: CDP ẩn đường lưới và tiêu đề; Excel COM ReadOnly xác nhận DisplayGridlines=0 và DisplayHeadings=0 (app_s13_gridlines.xlsx, app_s13_headings.xlsx) | dom:23 |
 | Công thức | `sheet.formula.insertFunction` | Chèn hàm (Shift+F3) | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog |
