@@ -9,11 +9,12 @@ const results = [];
 const check = (n, ok, d) => { results.push(ok); console.log((ok ? "PASS" : "FAIL") + " | " + n + " | " + String(d).slice(0, 230)); };
 async function openApp(path) {
   const s = await launchApp("slides", { filePath: path, startTimeoutMilliseconds: 180000, readyTimeoutMilliseconds: 180000 });
-  await s.cdp.waitFor("window.__vnoAppInstance?.adapter?.canvas?.slides?.length > 0", { timeoutMilliseconds: 180000, intervalMilliseconds: 500 });
-  await sleep(6000);
+  const norm = path.replace(/\\/g, "/").toLowerCase();
+  // Cho den khi app that su nap TEP (khong phai ban trong mac dinh 1 slide): nap PPTX qua soffice mat vai chuc giay.
+  await s.cdp.waitFor(`(() => { const a = window.__vnoAppInstance?.adapter; const p = String(a?._sourcePath || a?.sourceFilePath || '').replace(/\\\\/g, '/').toLowerCase(); return p === ${JSON.stringify(norm)} && a?.canvas?.slides?.length > 0; })()`, { timeoutMilliseconds: 300000, intervalMilliseconds: 500 });
+  await sleep(5000);
   return s;
-}
-const unzipText = (zip, entry) => execFileSync("powershell", ["-NoProfile", "-Command", `Add-Type -A System.IO.Compression.FileSystem; $z=[IO.Compression.ZipFile]::OpenRead('${zip}'); $e=$z.Entries | ?{ $_.FullName -eq '${entry}' }; if(-not $e){ 'NOENTRY'; $z.Dispose(); exit }; $r=New-Object IO.StreamReader($e.Open(), [Text.Encoding]::UTF8); $r.ReadToEnd(); $r.Close(); $z.Dispose()`], { encoding: "utf8", maxBuffer: 50 * 1024 * 1024 });
+}const unzipText = (zip, entry) => execFileSync("powershell", ["-NoProfile", "-Command", `Add-Type -A System.IO.Compression.FileSystem; $z=[IO.Compression.ZipFile]::OpenRead('${zip}'); $e=$z.Entries | ?{ $_.FullName -eq '${entry}' }; if(-not $e){ 'NOENTRY'; $z.Dispose(); exit }; $r=New-Object IO.StreamReader($e.Open(), [Text.Encoding]::UTF8); $r.ReadToEnd(); $r.Close(); $z.Dispose()`], { encoding: "utf8", maxBuffer: 50 * 1024 * 1024 });
 const listZip = (zip) => execFileSync("powershell", ["-NoProfile", "-Command", `Add-Type -A System.IO.Compression.FileSystem; $z=[IO.Compression.ZipFile]::OpenRead('${zip}'); $z.Entries | %{ $_.FullName }; $z.Dispose()`], { encoding: "utf8" }).split(/\r?\n/).filter(Boolean);
 let session = await openApp(dir + "\\saved.pptx");
 let ev = (e) => session.cdp.evaluate(e, { awaitPromise: true });
