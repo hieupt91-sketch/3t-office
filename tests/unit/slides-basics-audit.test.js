@@ -296,6 +296,16 @@ export async function runSlidesBasicsAuditTests() {
     if (canvas._activeShowCleanup !== null) throw new Error("exitSlideShow không xóa callback sau khi chạy");
   });
 
+  await test("Định dạng hình lưu màu nền, viền, kích thước và góc xoay; Ctrl+Z/Ctrl+Y khôi phục đủ thuộc tính", () => {
+    const canvas = createTestController();
+    const shape = { id: "shape-format-test", type: "rect", x: 40, y: 40, w: 120, h: 80, fill: "#3b82f6" };
+    canvas.slides[0].shapes.push(shape);
+    const formatted = canvas.formatShape(shape.id, { fill: "#f97316", color: "#f97316", stroke: "#111827", strokeColor: "#111827", strokeWidth: 2, w: 260, h: 150, rotation: 30 });
+    if (!formatted || shape.fill !== "#f97316" || shape.strokeWidth !== 2 || shape.w !== 260 || shape.h !== 150 || shape.rotation !== 30) throw new Error("Định dạng hình không áp dụng đầy đủ");
+    if (!canvas._undoImpl() || shape.fill !== "#3b82f6" || shape.stroke !== undefined || shape.w !== 120 || shape.h !== 80 || shape.rotation !== undefined) throw new Error("Hoàn tác không khôi phục định dạng hình ban đầu");
+    if (!canvas._redoImpl() || shape.fill !== "#f97316" || shape.stroke !== "#111827" || shape.strokeWidth !== 2 || shape.w !== 260 || shape.h !== 150 || shape.rotation !== 30) throw new Error("Làm lại không khôi phục định dạng hình đã áp dụng");
+  });
+
   if (originalDocument === undefined) delete globalThis.document;
   else globalThis.document = originalDocument;
 

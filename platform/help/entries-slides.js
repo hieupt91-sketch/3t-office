@@ -310,10 +310,11 @@ export const SLIDES_HELP_ENTRIES = [
       "slides.slide.duplicate",
       "slides.slide.delete",
       "slides.layout.apply",
-      "slides.layout.select"
+      "slides.layout.select",
+      "slides.layout.reset"
     ],
     title: "Thêm, nhân đôi, xóa trang và đổi bố cục",
-    summary: "Trang mới (Ctrl+M) chèn trang Tiêu đề + Nội dung ngay sau trang đang chọn, khung chữ để trống. Nhân đôi (Ctrl+D) tạo bản sao y hệt ngay sau trang đang mở. Kéo thumbnail ở khung trái để đổi thứ tự. Xóa trang không xóa trang cuối cùng. Bố cục mở lưới 4 mẫu: Tiêu đề, Tiêu đề + Nội dung, Hai nội dung, Trống.",
+    summary: "Trang mới (Ctrl+M) chèn trang Tiêu đề + Nội dung ngay sau trang đang chọn, khung chữ để trống. Nhân đôi (Ctrl+D) tạo bản sao y hệt ngay sau trang đang mở. Kéo thumbnail ở khung trái để đổi thứ tự. Xóa trang không xóa trang cuối cùng. Bố cục mở lưới 4 mẫu: Tiêu đề, Tiêu đề + Nội dung, Hai nội dung, Trống. Đặt lại dựng lại khung giữ chỗ theo bố cục hiện tại mà không xóa chữ.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Trang chiếu" },
     keywords: ["trang mới", "nhân đôi", "xóa trang", "bố cục", "layout", "ctrl+m", "ctrl+d", "hai cột", "trang trống", "sắp xếp trang", "kéo thả trang"],
     steps: [
@@ -321,7 +322,8 @@ export const SLIDES_HELP_ENTRIES = [
       "Trang mới (Ctrl+M) được chèn NGAY SAU trang đang chọn (giống các phần mềm trình chiếu khác), bố cục Tiêu đề + Nội dung, tiêu đề và nội dung để trống để bạn gõ. Khung để trống khi lưu vẫn là khung trống trong tệp PPTX — không tự sinh chữ. Nhân đôi copy y nguyên tiêu đề, nội dung, hình, ghi chú, hiệu ứng, nền — chèn ngay sau trang hiện tại và chuyển tới bản sao.",
       "Đổi thứ tự trang: trong dải thumbnail bên trái, nhấn giữ chuột trên một trang rồi kéo thả vào vị trí mới (hoặc dùng Bộ sắp xếp trang ở tab Chế độ xem). Có thể giữ phím Ctrl cùng mũi tên lên hoặc mũi tên xuống trên dải thumbnail để di chuyển đổi chỗ trang. Ctrl+Z hoàn tác việc di chuyển.",
       "Xóa trang: không xóa được nếu chỉ còn 1 trang. Nhấn nút Xóa trang trên ribbon, phím Delete trong dải thumbnail hoặc trong Bộ sắp xếp trang để xóa trang. Nếu đang chọn hình khối hoặc chữ trên slide, phím Delete sẽ xóa hình đó — nhấp chuột ra ngoài trang hoặc xóa từ thumbnail để xóa trang chiếu.",
-      "Bố cục (và lệnh Chọn bố cục, cùng hộp thoại): lưới 4 thẻ — Tiêu đề (chữ lớn giữa trang), Tiêu đề + Nội dung (mặc định), Hai nội dung (cột trái/phải độc lập), Trống (vùng soạn thảo trắng). Nhấp đúp thẻ để áp dụng ngay, hoặc chọn rồi Áp dụng cho trang này / Áp dụng tất cả. Ctrl+Z hoàn tác."
+      "Bố cục (và lệnh Chọn bố cục): tab Trang đầu > nhóm Trang chiếu > Bố cục mở lưới 4 thẻ — Tiêu đề, Tiêu đề + Nội dung, Hai nội dung, Trống. Nhấp đúp thẻ để áp dụng ngay, hoặc chọn rồi Áp dụng cho trang này / Áp dụng tất cả.",
+      "Đặt lại: tab Trang đầu > nhóm Trang chiếu > Đặt lại. Lệnh dựng lại các khung tiêu đề/nội dung theo bố cục hiện tại, giữ nguyên văn bản, hình khối, ảnh và ghi chú; dùng khi khung giữ chỗ cần trở về cấu trúc bố cục."
     ]
   },
   {
@@ -774,7 +776,22 @@ export const SLIDES_HELP_ENTRIES = [
       "Nhấp giữ chuột trái ở vùng trống trên trang chiếu (hoặc vùng ngoài trang) rồi kéo chéo để vẽ khung bao chọn (Marquee / Rubber-band). Mọi đối tượng nằm trong khung sẽ được chọn đồng thời.",
       "Ở danh sách trang chiếu thu nhỏ (filmstrip) bên trái, nhấp giữ chuột vào một trang rồi kéo lên hoặc kéo xuống qua các trang khác để thay đổi thứ tự trình chiếu. Nhấn Ctrl+Z để khôi phục lại thứ tự ban đầu."
     ]
-  }
+  },
+  {
+    id: "slides.shape.format",
+    app: "slides",
+    commandIds: ["slides.shape.insert"],
+    title: "Đổi màu, viền, kích thước và góc xoay hình",
+    summary: "Mở Định dạng hình từ menu chuột phải của hình để chọn màu nền, màu và độ dày viền, chiều rộng, chiều cao và góc xoay.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Minh họa" },
+    keywords: ["định dạng hình", "màu nền hình", "màu viền", "kích thước hình", "xoay hình", "shape fill", "outline", "rotation"],
+    steps: [
+      "Mở tab Chèn, nhóm Minh họa, nhấn Hình khối và chọn hình cần dùng.",
+      "Trên trang chiếu, nhấp phải hình rồi chọn Định dạng hình… trong menu.",
+      "Chọn màu nền; chọn màu viền và độ dày viền, hoặc Không viền. Nhập chiều rộng, chiều cao (px) và góc xoay (độ).",
+      "Nhấn Áp dụng định dạng. Dùng Ctrl+Z để hoàn tác; nhấn Ctrl+S để lưu bản trình chiếu."
+    ]
+  },
 ];
 
 registerHelpEntries(SLIDES_HELP_ENTRIES);
