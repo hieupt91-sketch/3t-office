@@ -141,6 +141,7 @@ export function showFormatAsTableDialog(gridController) {
     const hintText = (typeof t === "function" && t("sheetDialogs.formatAsTableHint") !== "sheetDialogs.formatAsTableHint")
       ? t("sheetDialogs.formatAsTableHint")
       : "Chọn kiểu bảng để áp dụng màu tiêu đề và hàng xen kẽ (banded rows):";
+    const selectedTable = gridController?.getTableAtSelection?.();
 
     const rangeLabel = gridController?.getSelectedRangeLabel ? gridController.getSelectedRangeLabel() : "A1:D10";
 
@@ -152,9 +153,11 @@ export function showFormatAsTableDialog(gridController) {
         </div>
         <div class="vno-dialog-body" style="padding: 16px; max-height: 70vh; overflow-y: auto;">
           <div style="font-size: 12px; color: #475569; margin-bottom: 12px; background: #f8fafc; padding: 8px 12px; border-radius: 4px; border: 1px solid #e2e8f0;">
-            Vùng áp dụng bảng: <strong>${rangeLabel}</strong>
+            ${t("sheetDialogs.formatTableRange")}: <input class="vno-table-range" aria-label="${t("sheetDialogs.formatTableRange")}" value="${rangeLabel}" style="width: 110px;"> <label><input class="vno-table-has-headers" type="checkbox" checked> ${t("sheetDialogs.formatTableHeaders")}</label> ${t("sheetDialogs.formatTableNameLabel")}: <input class="vno-table-name" value="${gridController?._nextTableName?.() || "Table1"}" maxlength="255" style="width: 110px;">
           </div>
           <p style="font-size: 13px; color: #64748b; margin: 0 0 14px;">${hintText}</p>
+          ${selectedTable ? `<div class="vno-table-actions" style="display:flex;gap:8px;align-items:center;margin-bottom:12px"><label>${t("sheetDialogs.formatTableRenameLabel")} <input class="vno-table-rename" value="${selectedTable.name}" maxlength="255"></label><button type="button" class="vno-btn vno-table-rename-action">${t("sheetDialogs.formatTableRename")}</button><button type="button" class="vno-btn vno-table-convert-action">${t("sheetDialogs.formatTableConvert")}</button></div>` : ""}
+          <div class="vno-table-error" role="alert" aria-live="polite" style="color:#b91c1c;min-height:18px;margin-bottom:6px"></div>
           <div class="vno-table-styles-grid" style="display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px;">
             ${TABLE_STYLE_PRESETS.map(preset => {
               const name = (typeof t === "function" && t(preset.nameKey) !== preset.nameKey) ? t(preset.nameKey) : preset.defaultName;
@@ -191,6 +194,7 @@ export function showFormatAsTableDialog(gridController) {
               `;
             }).join("")}
           </div>
+          <div style="display:flex;justify-content:flex-end;margin-top:14px"><button type="button" class="vno-btn vno-table-create-action">${t("sheetDialogs.formatTableCreate")}</button></div>
         </div>
       </div>
     `;
@@ -222,15 +226,47 @@ export function showFormatAsTableDialog(gridController) {
       if (event.target === overlay) close(false);
     });
 
+    let selectedStyleId = TABLE_STYLE_PRESETS[0]?.id;
     overlay.querySelectorAll("[data-table-id]").forEach(card => {
+      card.setAttribute("aria-pressed", String(card.dataset.tableId === selectedStyleId));
       card.addEventListener("click", () => {
-        const tableId = card.dataset.tableId;
-        const preset = TABLE_STYLE_PRESETS.find(p => p.id === tableId);
-        if (preset && gridController?.formatAsTable) {
-          gridController.formatAsTable(preset);
-        }
-        close(true);
+        selectedStyleId = card.dataset.tableId;
+        overlay.querySelectorAll("[data-table-id]").forEach(item => item.setAttribute("aria-pressed", String(item === card)));
       });
+    });
+
+    const errorNode = overlay.querySelector(".vno-table-error");
+    overlay.querySelector(".vno-table-create-action")?.addEventListener("click", () => {
+      const rangeLabelInput = overlay.querySelector(".vno-table-range");
+      const range = gridController?._parseRange?.(rangeLabelInput?.value || rangeLabel);
+      const preset = TABLE_STYLE_PRESETS.find(item => item.id === selectedStyleId);
+      const name = overlay.querySelector(".vno-table-name")?.value.trim();
+      if (!range || !preset || !name) {
+        if (errorNode) errorNode.textContent = t("sheetDialogs.formatTableInvalid");
+        rangeLabelInput?.focus();
+        return;
+      }
+      const created = gridController?.formatAsTable?.(preset, range, true, {
+        name,
+        hasHeaders: overlay.querySelector(".vno-table-has-headers")?.checked !== false
+      });
+      if (!created) {
+        if (errorNode) errorNode.textContent = t("sheetDialogs.formatTableInvalid");
+        return;
+      }
+      close(true);
+    });
+    overlay.querySelector(".vno-table-rename-action")?.addEventListener("click", () => {
+      const nextName = overlay.querySelector(".vno-table-rename")?.value.trim();
+      if (!gridController?.renameTable?.(selectedTable.name, nextName)) {
+        if (errorNode) errorNode.textContent = t("sheetDialogs.formatTableInvalid");
+        return;
+      }
+      close(true);
+    });
+    overlay.querySelector(".vno-table-convert-action")?.addEventListener("click", () => {
+      gridController?.convertTableToRange?.(selectedTable.name);
+      close(true);
     });
 
     const firstCard = overlay.querySelector("[data-table-id]");
