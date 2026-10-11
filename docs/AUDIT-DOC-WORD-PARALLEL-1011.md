@@ -309,3 +309,15 @@ Phần “chưa chạy” này là ghi nhận giữa chừng, đã được thay
 - CDP: nhập CSV 2 người nhận (Name/City/VIP), chèn trường Name và quy tắc VIP=yes → “Ưu tiên”, xem bản ghi 1→2→1, hoàn tất toàn bộ; tạo phong bì và nhãn từ cùng nguồn.
 - Sửa lỗi: Hoàn tất khi preview bật trước đây kiểm tra HTML đã thay thế nên bỏ qua hộp chọn kiểu/phạm vi. Giờ kiểm tra mẫu gốc, hộp chọn vẫn xuất hiện; gửi hoàn tất toàn bộ sinh 2 bản.
 - Word COM: DOCX có cả hai tên, kết quả hai nhánh điều kiện, không còn Name/VIP chưa thay, 2 trang; bản phong bì/nhãn giữ đủ hai địa chỉ, 1 bảng nhãn. Ma trận đánh dấu 9 nút KHỚP.
+
+## FIX-T11 nhóm 6 — Đánh giá/Xem
+- CDP: kiểm tra chính tả đổi ON/OFF; Đếm từ mở đúng số liệu; chế độ đọc thoát bằng Esc; bố trí Web/In; ngăn dẫn hướng; ẩn/hiện thước ngang+dọc và lưới; zoom 110%→100%→100%; macro ghi tên `T11 Macro`, chạy lại lệnh zoom 100%→110%. Mẫu ngắn (11 từ, 48 ký tự không khoảng trắng, 56 có khoảng trắng, 3 đoạn/dòng) khớp Word COM chính xác.
+- Batch Word COM và app trên d01,d02,d06,d07,d13,d20,d24: từ và ký tự không khoảng trắng gần khớp. Ký tự có khoảng trắng còn lệch (app − Word): d01 −200 (−0.53%), d02 −62 (−0.26%), d06 −1061 (−51.58%), d07 −632 (−1.70%), d13 −107 (−0.67%), d20 −414 (−4.72%). d24 là tài liệu ảnh/đối tượng, Word trả 0 từ và −2 ký tự có khoảng trắng; app trả 0 cho cả hai. Không đưa thay đổi đếm thô vì thử nghiệm tăng sai số ở các tệp còn lại.
+- Ma trận giữ Đếm từ ở LỆCH ĐÃ BIẾT với số đo; không đánh dấu hoàn tất. Đã kiểm tra menu Macro qua giao diện; macro cơ bản ghi lại lệnh Command Bus và phát lại được.
+- Word COM riêng xác nhận trạng thái tương đương cho spellcheck, read/web/print, navigation pane, thước ngang/dọc, gridlines và zoom 110%→100%; phép thử tương ứng nằm ở `scripts/audit-0610/word_parallel/group6-t11-view-word.ps1`. Hai nút Macro còn CHƯA ĐỐI CHIẾU với Word COM nên giữ trạng thái đó trong ma trận.
+- `npm test`: lần đầu 3036/3067 PASS do constructor Writer gọi `document.addEventListener` trên document giả không có API này; đã thêm kiểm tra API trước khi gắn listener. Chạy lại sau sửa: 3072/3072 PASS.
+- `python -m unittest discover -s tests`: 864 tests OK (591.186s); có hai `ResourceWarning` về pipe chưa đóng, không có lỗi test.
+- Encoding sweep cho 26 đường dẫn thuộc thay đổi: UTF-8, không BOM, không phát hiện mojibake. `git diff --check` sạch.
+
+### Round-trip batch DOCX
+- `scripts/layout-audit/batch_document_audit.py docx` với đầu vào junction `file test/landocx` và profile tách biệt: d01,d02,d06,d07,d13,d20,d24 đều mở/lưu qua app, Word COM xác nhận số trang không đổi và thao tác sửa đã lưu: 7/7 PASS, 0 FAIL/BLOCKED. Báo cáo đầy đủ ở profile `E:\VNOffice-profiles\codex-ft11\batch-audit\batch_document_audit_report.md`.

@@ -6,7 +6,7 @@ Nguồn: `claude-ribbon-scan` (nút nào có phản ứng) + `docs/AUDIT-DOC-WOR
 - **LỆCH ĐÃ BIẾT**: còn lệch đã đo.
 - **CHƯA ĐỐI CHIẾU**: nút có phản ứng (không phải nút câm) nhưng **chưa** so với Word thật — cần làm tiếp.
 
-Tổng kết: KHỚP WORD (đã so Word COM): 93, CHƯA ĐỐI CHIẾU: 20, LỆCH ĐÃ BIẾT: 6, KHÁC CÓ CHỦ Ý: 1 (tổng 120 nút, không kể Trợ lý AI).
+Tổng kết: KHỚP WORD (đã so Word COM): 103, CHƯA ĐỐI CHIẾU: 10, LỆCH ĐÃ BIẾT: 6, KHÁC CÓ CHỦ Ý: 1 (tổng 120 nút, không kể Trợ lý AI).
 
 | Tab | Lệnh | Nút | Trạng thái | Ghi chú |
 |---|---|---|---|---|
@@ -101,8 +101,8 @@ Tổng kết: KHỚP WORD (đã so Word COM): 93, CHƯA ĐỐI CHIẾU: 20, LỆ
 | Trộn thư | `writer.mailMerge.prevRecord` | Bản ghi trước | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 5: 2 bản ghi, điều kiện yes/no, preview/điều hướng và tài liệu hợp nhất; Word COM xác nhận cả hai kết quả, phong bì và nhãn |
 | Trộn thư | `writer.mailMerge.nextRecord` | Bản ghi sau | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 5: 2 bản ghi, điều kiện yes/no, preview/điều hướng và tài liệu hợp nhất; Word COM xác nhận cả hai kết quả, phong bì và nhãn |
 | Trộn thư | `writer.mailMerge.finish` | Hoàn tất & Trộn | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 5: 2 bản ghi, điều kiện yes/no, preview/điều hướng và tài liệu hợp nhất; Word COM xác nhận cả hai kết quả, phong bì và nhãn |
-| Đánh giá | `writer.review.toggleSpellCheck` | Kiểm tra chính tả | CHƯA ĐỐI CHIẾU |  |
-| Đánh giá | `writer.review.wordCount` | Đếm từ | LỆCH ĐÃ BIẾT | chữ khớp, 'ký tự có khoảng trắng' lệch 0.5–7% (tài liệu mẫu); đoạn/dòng gần khớp |
+| Đánh giá | `writer.review.toggleSpellCheck` | Kiểm tra chính tả | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 6: CDP và Word COM xác nhận spell/view/ruler/grid/zoom; DOCX round-trip d01,d02,d06,d07,d13,d20,d24 = 7/7 PASS |
+| Đánh giá | `writer.review.wordCount` | Đếm từ | LỆCH ĐÃ BIẾT | FIX-T11 nhóm 6: Word COM batch d01/d02/d06/d07/d13/d20 có ký tự-khoảng-trắng lệch lần lượt -200/-62/-1061/-632/-107/-414; ký tự không khoảng trắng gần khớp. Cần xử lý riêng tab/khoảng trắng giữ nguyên |
 | Đánh giá | `writer.review.commentDelete` | Xóa nhận xét | KHỚP WORD (đã so Word COM) | ghi chú: tạo/điều hướng/giải quyết/xóa; trả lời bình luận (T10) |
 | Đánh giá | `writer.review.commentResolve` | Đã xử lý | KHỚP WORD (đã so Word COM) | ghi chú: tạo/điều hướng/giải quyết/xóa; trả lời bình luận (T10) |
 | Đánh giá | `writer.review.commentPrevious` | Nhận xét trước | KHỚP WORD (đã so Word COM) | ghi chú: tạo/điều hướng/giải quyết/xóa; trả lời bình luận (T10) |
@@ -114,19 +114,19 @@ Tổng kết: KHỚP WORD (đã so Word COM): 93, CHƯA ĐỐI CHIẾU: 20, LỆ
 | Đánh giá | `writer.trackChanges.rejectAll` | Từ chối thay đổi | KHỚP WORD (đã so Word COM) | chèn+xóa, điều hướng, chấp nhận/từ chối |
 | Đánh giá | `writer.trackChanges.previous` | Thay đổi trước | KHỚP WORD (đã so Word COM) | chèn+xóa, điều hướng, chấp nhận/từ chối |
 | Đánh giá | `writer.trackChanges.next` | Thay đổi sau | KHỚP WORD (đã so Word COM) | chèn+xóa, điều hướng, chấp nhận/từ chối |
-| Chế độ xem | `writer.view.readMode` | Chế độ đọc | CHƯA ĐỐI CHIẾU |  |
-| Chế độ xem | `writer.view.printLayout` | Bố trí in | CHƯA ĐỐI CHIẾU |  |
-| Chế độ xem | `writer.view.webLayout` | Bố trí Web | CHƯA ĐỐI CHIẾU |  |
-| Chế độ xem | `writer.view.navigationPane` | Ngăn dẫn hướng (Ctrl+Alt+N) | CHƯA ĐỐI CHIẾU |  |
-| Chế độ xem | `writer.view.ruler` | Thước | CHƯA ĐỐI CHIẾU |  |
-| Chế độ xem | `writer.view.gridlines` | Đường lưới | CHƯA ĐỐI CHIẾU |  |
-| Chế độ xem | `writer.view.zoomIn` | Phóng to | CHƯA ĐỐI CHIẾU |  |
-| Chế độ xem | `writer.view.zoom100` | 100% | CHƯA ĐỐI CHIẾU |  |
-| Chế độ xem | `writer.view.zoomOut` | Thu nhỏ | CHƯA ĐỐI CHIẾU |  |
+| Chế độ xem | `writer.view.readMode` | Chế độ đọc | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 6: CDP và Word COM xác nhận spell/view/ruler/grid/zoom; DOCX round-trip d01,d02,d06,d07,d13,d20,d24 = 7/7 PASS |
+| Chế độ xem | `writer.view.printLayout` | Bố trí in | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 6: CDP và Word COM xác nhận spell/view/ruler/grid/zoom; DOCX round-trip d01,d02,d06,d07,d13,d20,d24 = 7/7 PASS |
+| Chế độ xem | `writer.view.webLayout` | Bố trí Web | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 6: CDP và Word COM xác nhận spell/view/ruler/grid/zoom; DOCX round-trip d01,d02,d06,d07,d13,d20,d24 = 7/7 PASS |
+| Chế độ xem | `writer.view.navigationPane` | Ngăn dẫn hướng (Ctrl+Alt+N) | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 6: CDP và Word COM xác nhận spell/view/ruler/grid/zoom; DOCX round-trip d01,d02,d06,d07,d13,d20,d24 = 7/7 PASS |
+| Chế độ xem | `writer.view.ruler` | Thước | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 6: CDP và Word COM xác nhận spell/view/ruler/grid/zoom; DOCX round-trip d01,d02,d06,d07,d13,d20,d24 = 7/7 PASS |
+| Chế độ xem | `writer.view.gridlines` | Đường lưới | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 6: CDP và Word COM xác nhận spell/view/ruler/grid/zoom; DOCX round-trip d01,d02,d06,d07,d13,d20,d24 = 7/7 PASS |
+| Chế độ xem | `writer.view.zoomIn` | Phóng to | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 6: CDP và Word COM xác nhận spell/view/ruler/grid/zoom; DOCX round-trip d01,d02,d06,d07,d13,d20,d24 = 7/7 PASS |
+| Chế độ xem | `writer.view.zoom100` | 100% | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 6: CDP và Word COM xác nhận spell/view/ruler/grid/zoom; DOCX round-trip d01,d02,d06,d07,d13,d20,d24 = 7/7 PASS |
+| Chế độ xem | `writer.view.zoomOut` | Thu nhỏ | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 6: CDP và Word COM xác nhận spell/view/ruler/grid/zoom; DOCX round-trip d01,d02,d06,d07,d13,d20,d24 = 7/7 PASS |
 | Chế độ xem | `writer.view.pageWidth` | Chiều rộng trang | CHƯA ĐỐI CHIẾU |  |
 | Chế độ xem | `writer.view.zoomReset` | Đặt lại | CHƯA ĐỐI CHIẾU |  |
 | Chế độ xem | `writer.view.newWindow` | Cửa sổ mới | CHƯA ĐỐI CHIẾU |  |
-| Chế độ xem | `common.macro.recordToggle` | Ghi Macro (Ctrl+Shift+R) | CHƯA ĐỐI CHIẾU |  |
-| Chế độ xem | `common.macro.manager` | Xem Macro (Alt+F8) | CHƯA ĐỐI CHIẾU |  |
+| Chế độ xem | `common.macro.recordToggle` | Ghi Macro (Ctrl+Shift+R) | CHƯA ĐỐI CHIẾU | FIX-T11 nhóm 6: CDP xác nhận ghi/chạy macro cơ bản; chưa so thao tác tương đương bằng Word COM |
+| Chế độ xem | `common.macro.manager` | Xem Macro (Alt+F8) | CHƯA ĐỐI CHIẾU | FIX-T11 nhóm 6: CDP xác nhận ghi/chạy macro cơ bản; chưa so thao tác tương đương bằng Word COM |
 | Trợ giúp | `writer.help.open` | Trợ giúp (F1) | CHƯA ĐỐI CHIẾU |  |
 | Trợ giúp | `common.help.about` | Giới thiệu | CHƯA ĐỐI CHIẾU |  |

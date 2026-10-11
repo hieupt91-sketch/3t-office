@@ -662,7 +662,9 @@ export class WriterAdapter {
       if (!control) return;
       this._pendingFirstLineIndentBlocks = this._getSelectedParagraphBlocks();
     };
-    if (typeof document !== "undefined") document.addEventListener("mousedown", this._firstLineIndentTargetHandler, true);
+    if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+      document.addEventListener("mousedown", this._firstLineIndentTargetHandler, true);
+    }
     globalCommandBus.bindHandler("writer.shape.insert", (args) => this.insertShapeFromCommand(args));
     globalCommandBus.bindHandler("writer.diagram.insert", (args) => this.insertDiagramFromCommand(args));
     globalCommandBus.bindHandler("writer.chart.insert", (args) => this.insertChartFromCommand(args));
