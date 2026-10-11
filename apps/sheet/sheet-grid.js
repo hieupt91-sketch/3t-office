@@ -307,6 +307,7 @@ export class SheetGridController {
     this.zoomLevel = 1;
     this.gridlinesVisible = true;
     this.headingsVisible = true;
+    this.xlsxViewStateTouched = new Set();
     this.workbookView = "normal"; // "normal" | "pageBreakPreview" | "pageLayout"
     this.formulaBarVisible = true;
     this.formulaBarEl = null;
@@ -9950,6 +9951,7 @@ _bindGridKeyboardNavigation() {
 
   toggleGridlines() {
     this.gridlinesVisible = !this.gridlinesVisible;
+    this.xlsxViewStateTouched?.add("showGridLines");
     this._applyViewState();
     this._syncCommandStates();
     return this.gridlinesVisible;
@@ -9957,6 +9959,7 @@ _bindGridKeyboardNavigation() {
 
   toggleHeadings() {
     this.headingsVisible = !this.headingsVisible;
+    this.xlsxViewStateTouched?.add("showRowColHeaders");
     this._applyViewState();
     this._syncCommandStates();
     return this.headingsVisible;

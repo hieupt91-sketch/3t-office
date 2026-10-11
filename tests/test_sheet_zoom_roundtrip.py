@@ -66,6 +66,37 @@ class SheetZoomRoundtripTests(unittest.TestCase):
             self.assertIn('zoomScale="85"', patched_sheet)
             self.assertIn('zoomScaleNormal="85"', patched_sheet)
 
+    def test_explicit_gridlines_and_headings_are_written_to_sheet_view(self):
+        saved_sheet = (
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<sheetViews><sheetView workbookViewId="0" showGridLines="1" showRowColHeaders="1"/></sheetViews>'
+            '<sheetData/></worksheet>'
+        )
+        saved_bytes = make_test_xlsx(saved_sheet)
+        fods = ('<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+                'xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0" '
+                'vno:show-grid-lines="false" vno:show-row-col-headers="false"></office:document>')
+
+        patched = postprocess_sheet_xlsx(saved_bytes, source_fods=fods)
+        with zipfile.ZipFile(io.BytesIO(patched)) as archive:
+            xml = archive.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        self.assertIn('showGridLines="0"', xml)
+        self.assertIn('showRowColHeaders="0"', xml)
+
+    def test_untouched_gridlines_and_headings_are_not_changed(self):
+        saved_sheet = (
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<sheetViews><sheetView workbookViewId="0" showGridLines="0" showRowColHeaders="0"/></sheetViews>'
+            '<sheetData/></worksheet>'
+        )
+        saved_bytes = make_test_xlsx(saved_sheet)
+
+        patched = postprocess_sheet_xlsx(saved_bytes, source_fods="<office:document></office:document>")
+        with zipfile.ZipFile(io.BytesIO(patched)) as archive:
+            xml = archive.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        self.assertIn('showGridLines="0"', xml)
+        self.assertIn('showRowColHeaders="0"', xml)
+
 
 if __name__ == "__main__":
     unittest.main()

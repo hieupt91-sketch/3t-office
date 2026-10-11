@@ -3795,6 +3795,12 @@ export class SheetAdapter {
           <config:config-item config:name="CursorPositionY" config:type="int">0</config:config-item>
         </config:config-item-map-entry>`).join("");
     const structureProtected = !!this.grid.workbookProtection?.enabled;
+    const xlsxViewState = this.grid.xlsxViewStateTouched instanceof Set ? this.grid.xlsxViewStateTouched : new Set();
+    const xlsxViewAttrs = [
+      ["showGridLines", "show-grid-lines", this.grid.gridlinesVisible],
+      ["showRowColHeaders", "show-row-col-headers", this.grid.headingsVisible],
+    ].filter(([key]) => xlsxViewState.has(key))
+      .map(([, attr, value]) => ` vno:${attr}="${value === false ? "false" : "true"}"`).join("");
     // ODF flag. LibreOffice FODS→XLSX keeps <workbookProtection> but drops
     // lockStructure; native-export post-process restores it (see xlsx-native-postprocess.js).
     const structureAttr = structureProtected ? ' table:structure-protected="true"' : "";
@@ -3817,7 +3823,7 @@ ${pristineXlsxMarker}
                  xmlns:loext="urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0"
                  xmlns:tableooo="http://openoffice.org/2009/table"
                  xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"
-                 office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+                 office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet"${xlsxViewAttrs}>
   ${fontFaceDeclsXml}
   <office:styles>${isNewWorkbook ? '<style:default-style style:family="table-cell"><style:text-properties style:font-name="Calibri" fo:font-size="11pt"/></style:default-style>' : ""}${conditionalNamedStyles.join("")}</office:styles>
   <office:automatic-styles>${isNewWorkbook ? '<style:style style:name="vno-default-column" style:family="table-column"><style:table-column-properties style:column-width="1.693cm"/></style:style><style:style style:name="vno-default-row" style:family="table-row"><style:table-row-properties style:row-height="0.529cm" style:use-optimal-row-height="false"/></style:style>' : ""}${pageLayouts.join("")}${tablePageStyles.join("")}${dimensionStyles.join("")}${[...numberFormats.values()].map(format => `${this._numberFormatXml(format.config, format.dataStyle)}<style:style style:name="${format.cellStyle}" style:family="table-cell" style:data-style-name="${format.dataStyle}"/>`).join("")}${[...rotationStyles.values()].map(style => this._rotationCellStyleXml(style.styleName, style.textRotation)).join("")}${rotationCombinedStyles.join("")}${conditionalBaseStyles.join("")}${visualStyleEntries.join("")}${richTextAutoStyles.join("")}</office:automatic-styles>

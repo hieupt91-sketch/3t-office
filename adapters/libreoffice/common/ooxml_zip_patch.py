@@ -4063,6 +4063,47 @@ def _apply_indirect_excel_compatibility(xlsx_bytes: bytes, replacements: dict[st
             replacements[entry] = updated
 
 
+def _apply_sheet_view_state_from_fods(
+    xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
+) -> None:
+    """Apply explicitly changed VN view toggles to each worksheet's OOXML view."""
+    if not source_fods or not re.search(r"<office:document\b[^>]*\bvno:show-(?:grid-lines|row-col-headers)=", source_fods, re.IGNORECASE):
+        return
+    root = re.search(r"<office:document\b([^>]*)>", source_fods, re.IGNORECASE)
+    if not root:
+        return
+    attrs = _xml_attrs(root.group(1))
+    view_attrs: dict[str, str] = {}
+    for fods_name, xlsx_name in (("show-grid-lines", "showGridLines"), ("show-row-col-headers", "showRowColHeaders")):
+        value = attrs.get(f"vno:{fods_name}")
+        if value is not None:
+            view_attrs[xlsx_name] = "0" if value.strip().lower() in ("false", "0", "no") else "1"
+    if not view_attrs:
+        return
+
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    for entry_path in sheet_entries.values():
+        current = replacements.get(entry_path)
+        if current is None:
+            entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+            if not entry_bytes:
+                continue
+            current = entry_bytes.decode("utf-8", errors="replace")
+
+        def update_view(match: re.Match[str]) -> str:
+            tag = match.group(0)
+            for name, value in view_attrs.items():
+                if re.search(rf"\b{name}\s*=", tag, re.IGNORECASE):
+                    tag = re.sub(rf"\b{name}\s*=\s*(['\"])\w+\1", f'{name}="{value}"', tag, count=1, flags=re.IGNORECASE)
+                else:
+                    tag = tag[:-2] + f' {name}="{value}"/>' if tag.endswith("/>") else tag[:-1] + f' {name}="{value}">'
+            return tag
+
+        updated = re.sub(r"<sheetView\b[^>]*(?:/>|>)", update_view, current, count=1, flags=re.IGNORECASE)
+        if updated != current:
+            replacements[entry_path] = updated
+
+
 def postprocess_sheet_xlsx(
     xlsx_bytes: bytes,
     *,
@@ -4363,6 +4404,7 @@ def postprocess_sheet_xlsx(
 
     if source_fods:
         _apply_accounting_number_formats_from_fods(xlsx_bytes, source_fods, replacements)
+        _apply_sheet_view_state_from_fods(xlsx_bytes, source_fods, replacements)
 
     if not replacements:
         return xlsx_bytes
