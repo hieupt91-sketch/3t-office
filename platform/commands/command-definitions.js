@@ -403,6 +403,8 @@ export const SHEET_COMMANDS = [
   { id: "sheet.col.unhide", category: "format", label: "Hiện cột", icon: "unhideCol", tooltip: "Hiện các cột đã ẩn trong vùng chọn" },
   { id: "sheet.sheet.rename", category: "format", label: "Đổi tên trang tính...", icon: "renameSheet", tooltip: "Đổi tên trang tính hiện tại (cùng hộp thoại với nhấp đúp tab dưới lưới)" },
   { id: "sheet.sheet.moveOrCopy", category: "format", label: "Di chuyển hoặc Sao chép trang tính...", icon: "moveCopySheet", tooltip: "Đổi thứ tự tab hoặc tạo bản sao trang tính (dữ liệu, định dạng, Page Setup)" },
+  { id: "sheet.sheet.hide", category: "format", label: "Ẩn trang tính", icon: "hideRow", tooltip: "Ẩn trang tính hiện tại khỏi các tab đang hiển thị" },
+  { id: "sheet.sheet.unhide", category: "format", label: "Hiện trang tính...", icon: "unhideRow", tooltip: "Chọn và hiện lại một trang tính đang ẩn" },
   { id: "sheet.sheet.protect", category: "format", label: "Bảo vệ trang tính...", icon: "protectSheet", tooltip: "Khóa sửa ô, định dạng và xóa hàng/cột trên trang tính hiện tại (khóa giao diện, không phải bảo mật thật)" },
   { id: "sheet.workbook.protect", category: "review", label: "Bảo vệ workbook...", icon: "protectWorkbook", tooltip: "Khóa cấu trúc workbook: không thêm, xóa, đổi tên, di chuyển hay sao chép trang tính. Không khóa nội dung ô (khóa giao diện, không phải bảo mật thật)" },
   { id: "sheet.cells.format", category: "format", label: "Định dạng ô", icon: "formatCells", tooltip: "Đổi kích thước hàng cột, ẩn hiện và bảo vệ trang tính" },

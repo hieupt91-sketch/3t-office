@@ -3930,6 +3930,43 @@ def _apply_scalar_concat_excel_compatibility(xlsx_bytes: bytes, replacements: di
             replacements[entry] = updated
 
 
+_INDIRECT_LOCAL_REF_RE = re.compile(
+    r'(\bINDIRECT\s*\(\s*)"\[\.((?:\$?[A-Z]{1,3}\$?\d+))\]"(\s*\))',
+    re.IGNORECASE,
+)
+
+
+def _rewrite_indirect_local_ref_for_excel(formula: str) -> str:
+    """Undo Calc's ODF-only `[.A1]` wrapper inside INDIRECT text arguments."""
+    return _INDIRECT_LOCAL_REF_RE.sub(r'\1"\2"\3', str(formula or ""))
+
+
+def _apply_indirect_excel_compatibility(xlsx_bytes: bytes, replacements: dict[str, str]) -> None:
+    """Keep local A1 text references usable by Excel after FODS conversion."""
+    for entry in _resolve_xlsx_sheet_entries(xlsx_bytes).values():
+        current = replacements.get(entry)
+        if current is None:
+            raw = _read_zip_entry(xlsx_bytes, entry)
+            if not raw:
+                continue
+            current = raw.decode("utf-8", errors="replace")
+
+        changed = False
+
+        def rewrite_formula(match: re.Match[str]) -> str:
+            nonlocal changed
+            formula = html.unescape(match.group(2))
+            rewritten = _rewrite_indirect_local_ref_for_excel(formula)
+            if rewritten == formula:
+                return match.group(0)
+            changed = True
+            return match.group(1) + html.escape(rewritten, quote=False) + match.group(3)
+
+        updated = _XLSX_FORMULA_TAG_RE.sub(rewrite_formula, current)
+        if changed:
+            replacements[entry] = updated
+
+
 def postprocess_sheet_xlsx(
     xlsx_bytes: bytes,
     *,
@@ -3940,6 +3977,7 @@ def postprocess_sheet_xlsx(
     """Return patched XLSX bytes, or the original buffer when no patch is needed."""
     replacements: dict[str, str] = {}
     _apply_scalar_concat_excel_compatibility(xlsx_bytes, replacements)
+    _apply_indirect_excel_compatibility(xlsx_bytes, replacements)
     source_xlsx_bytes = normalize_source_xlsx(source_xlsx_bytes)  # S23: XLSX gốc có tiền tố x: (lan23)
 
     # Extract original font and sheetFormatPr from source XLSX if available

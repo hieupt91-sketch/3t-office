@@ -128,6 +128,24 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.formula.commonFunctions",
+    app: "sheet",
+    commandIds: ["sheet.formula.insertFunction"],
+    title: "Hàm điều kiện, tra cứu, văn bản và ngày tháng",
+    summary: "Nhập các hàm SUMIF(S), COUNTIF(S), IFERROR, VLOOKUP/HLOOKUP, MATCH, OFFSET/INDIRECT, SUMPRODUCT, LEFT/MID/RIGHT, TEXT và hàm ngày tháng từ tab Công thức hoặc thanh công thức.",
+    ribbon: { tab: "Công thức", tabId: "formulas", group: "Hàm tính toán" },
+    keywords: ["SUMIF", "SUMIFS", "COUNTIF", "COUNTIFS", "IFERROR", "ROUND", "VLOOKUP", "HLOOKUP", "MATCH", "OFFSET", "INDIRECT", "SUMPRODUCT", "LEFT", "MID", "RIGHT", "TEXT", "NA", "DATE", "EDATE", "EOMONTH", "YEAR", "MONTH", "DAY", "WEEKDAY", "NETWORKDAYS", "WORKDAY", "DAYS", "hàm điều kiện", "hàm tra cứu", "hàm ngày tháng"],
+    steps: [
+      "Chọn ô cần hiện kết quả. Gõ dấu = trên ô hoặc thanh công thức, rồi nhập tên hàm và đối số; nhấn Enter để xác nhận. Có thể mở tab Công thức → nhóm Hàm tính toán → Chèn hàm để tìm hàm theo danh mục.",
+      "Tính tổng hoặc đếm theo điều kiện bằng =SUMIF(A2:A20,\"Đã giao\",C2:C20), =SUMIFS(C2:C20,A2:A20,\"Đã giao\",B2:B20,\">=1/1/2026\"), =COUNTIF(B2:B20,\"*Văn*\") hoặc =COUNTIFS(A2:A20,\"Đã giao\",C2:C20,\">0\"). Dùng dấu * để khớp nhiều ký tự và ? để khớp một ký tự.",
+      "Bọc phép tính có thể lỗi bằng =IFERROR(A2/B2,0); làm tròn bằng =ROUND(C2,2). Tra cứu theo cột với =VLOOKUP(E2,A2:C20,3,FALSE), theo hàng với =HLOOKUP(B1,A1:H3,3,FALSE), hoặc lấy vị trí bằng =MATCH(E2,A2:A20,0).",
+      "Lấy ký tự bằng =LEFT(B2,3), =MID(B2,2,4), =RIGHT(B2,3). Định dạng số thành chữ bằng =TEXT(C2,\"#,##0.00\"); định dạng ngày bằng =TEXT(D2,\"dd/mm/yyyy\"). TEXT trả về văn bản, nên chỉ dùng kết quả đó để hiển thị hoặc ghép chuỗi.",
+      "Tạo ngày với =DATE(2026,10,11); tách năm/tháng/ngày bằng YEAR, MONTH, DAY. EDATE cộng tháng, EOMONTH tìm ngày cuối tháng, WEEKDAY lấy thứ, NETWORKDAYS đếm ngày làm việc, WORKDAY tìm ngày làm việc kế tiếp và DAYS tính khoảng cách ngày. TODAY() và NOW() thay đổi theo thời điểm tính lại.",
+      "INDIRECT nhận địa chỉ ô dưới dạng văn bản, ví dụ =INDIRECT(\"C2\") trả nội dung ô C2. OFFSET trả ô/vùng dịch từ một tham chiếu, ví dụ =OFFSET(C2,1,0) lấy ô phía dưới. SUMPRODUCT nhân các phần tử tương ứng rồi cộng; NA() tạo lỗi #N/A để đánh dấu dữ liệu chưa có, có thể bọc bằng IFERROR.",
+      "Sau khi nhập, chọn lại ô để xem công thức trên thanh công thức và kết quả trong lưới. Khi lưu XLSX, mở bằng ứng dụng bảng tính khác để xác nhận kết quả hiển thị; công thức TODAY/NOW sẽ lấy thời điểm hiện tại khi ứng dụng tính lại."
+    ]
+  },
+  {
     id: "sheet.formula.excelEntry",
     app: "sheet",
     commandIds: ["sheet.formula.insertFunction", "sheet.formula.arrayEnter"],
@@ -449,6 +467,22 @@ export const SHEET_HELP_ENTRIES = [
       "Ở Chèn trước trang tính, chọn trang sẽ đứng sau vị trí mới, hoặc (chuyển đến cuối) để đặt tab ra sau cùng.",
       "Để nhân bản: đánh dấu Tạo một bản sao rồi Đồng ý. Trang mới tên «Tên gốc (2)» (rồi (3), (4)…) nhận đủ dữ liệu, định dạng, Page Setup, định dạng có điều kiện. Không đánh dấu thì chỉ đổi thứ tự tab.",
       "Hoàn tác thêm bản sao hoặc đổi thứ tự bằng Ctrl+Z."
+    ]
+  },
+  {
+    id: "sheet.sheet.visibility",
+    app: "sheet",
+    commandIds: ["sheet.sheet.hide", "sheet.sheet.unhide", "sheet.sheet.rename", "sheet.sheet.moveOrCopy"],
+    title: "Ẩn, hiện, đổi tên và sắp xếp trang tính",
+    summary: "Ẩn trang tính khỏi dải tab, hiện lại trang tính đã ẩn, đổi tên hoặc di chuyển trang tính trong workbook.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Ô" },
+    keywords: ["ẩn trang tính", "hiện trang tính", "hide sheet", "unhide sheet", "đổi tên sheet", "di chuyển sheet", "tab trang tính"],
+    steps: [
+      "Chọn tab trang tính cần thao tác. Mở Trang đầu → nhóm Ô → Định dạng; các lệnh Ẩn trang tính và Hiện trang tính nằm ở cuối danh sách. Hoặc nhấp phải trực tiếp lên tab để mở menu thao tác.",
+      "Chọn Ẩn trang tính để bỏ tab khỏi thanh dưới lưới. Sheet giữ dữ liệu và tự chuyển sang một trang tính đang hiện; không thể ẩn trang tính cuối cùng còn hiển thị.",
+      "Để khôi phục, chọn Hiện trang tính, chọn tên trong danh sách rồi nhấn Hiện. Trang tính xuất hiện lại trên thanh tab.",
+      "Đổi tên bằng Đổi tên trang tính hoặc nhấp đúp tab, nhập tên mới rồi xác nhận. Di chuyển hoặc sao chép bằng lệnh Di chuyển hoặc Sao chép trang tính, chọn vị trí chèn và đánh dấu Tạo một bản sao nếu muốn giữ trang gốc.",
+      "Xóa trang tính bằng menu nhấp phải tab → Xóa trang tính rồi xác nhận. Ctrl+Z hoàn tác thao tác ẩn/hiện, đổi tên và di chuyển; việc xóa cũng có thể hoàn tác ngay sau khi thực hiện."
     ]
   },
   {
