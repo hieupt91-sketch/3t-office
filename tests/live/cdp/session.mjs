@@ -28,6 +28,7 @@ export async function launchApp(app, options = {}) {
     ...process.env,
     LOCALAPPDATA: localAppData,
     WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: "--remote-debugging-port=" + debugPort,
+    VNO_CDP_DEBUG_PORT: String(debugPort),
   };
   const child = spawn(python, args, { cwd: root, env, stdio: ["ignore", "pipe", "pipe"] });
   let spawnError = null;

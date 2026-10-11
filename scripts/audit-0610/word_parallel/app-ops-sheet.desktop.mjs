@@ -1,8 +1,9 @@
 import { launchApp } from "../../../tests/live/cdp/session.mjs";
-import { mouseClick, mouseDrag, press, typeText } from "../../../tests/live/cdp/actions.mjs";
+import { mouseClick, mouseDrag, mouseTripleClick, press, typeText } from "../../../tests/live/cdp/actions.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { mkdir } from "node:fs/promises";
+import { writeFile } from "node:fs/promises";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const root = process.env.VNO_APP_ROOT || path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const dir = process.env.VNO_CDP_LOCALAPPDATA;
@@ -27,6 +28,8 @@ const ops = [
   ["unhideRow","A2","click","sheet.row.unhide"],["unhideCol","C2","click","sheet.col.unhide"],
   ["freezePanes","B2","click","sheet.view.freezePanes"],["printArea","A1","click","sheet.page.setPrintArea"],
   ["pageSetup","A1","pageSetup","sheet.page.margins","landscape"],
+  ["rotation90","B2","orientation","sheet.cell.orientation","90"],
+  ["widthControl","B2","widthControl",null,null],
   ["definedName","B2","nameManager","sheet.formula.nameManager","SampleNames"],
   ["validation","C2","validation","sheet.data.validation","Open,Closed"],
   ["chart","A1","chart","sheet.chart.insert","A1:C6"],
@@ -66,11 +69,19 @@ for (const [name, cell, kind, id, value] of ops) {
       console.log(name.padEnd(18), "selection=" + await ev("JSON.stringify(window.__vnoAppInstance.grid.selectionRange)"));
     } else await mouseClick(session.cdp, pos.x, pos.y);
     let status;
-    if (kind === "type") {
+    if (kind === "widthControl") {
+      status = "opened and saved unchanged width control";
+    } else if (kind === "type") {
       await typeText(session.cdp, value); await press(session.cdp, "Enter"); status = "typed formula";
     } else if (kind === "shortcutDown" || kind === "shortcutRight") {
       if (kind === "shortcutDown") await press(session.cdp, "d", { ctrl: true }); else await press(session.cdp, "r", { ctrl: true });
       status = kind === "shortcutDown" ? "pressed Ctrl+D" : "pressed Ctrl+R";
+    } else if (kind === "orientation") {
+      await press(session.cdp,"1",{ctrl:true}); await sleep(250);
+      const pos=selector=>ev(`(() => {const n=document.querySelector(${JSON.stringify(selector)});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`);
+      const align=JSON.parse(await pos("#vno-fc-tab-alignment"));
+      if(!align) status="NO_ALIGNMENT_TAB";
+      else {await mouseClick(session.cdp,align.x,align.y);await sleep(150);const angle=JSON.parse(await pos('.vno-fc-orient-btn[data-angle="90"]'));if(!angle)status="NO_90_DEGREE_OPTION";else{await mouseClick(session.cdp,angle.x,angle.y);const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);const evidenceDir=path.join(root,"docs","tickets-0710","evidence");await mkdir(evidenceDir,{recursive:true});await writeFile(path.join(evidenceDir,"fix-s8-text-rotation.png"),Buffer.from((shot.result||shot).data,"base64"));const apply=JSON.parse(await pos(".vno-fc-ok-btn"));if(!apply)status="NO_FORMAT_CELLS_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="set Orientation=90 through Format Cells";}}}
     } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "validation" || kind === "chart" || kind === "pageSetup" || kind === "removeDuplicates") {
       const tabId = id.startsWith("sheet.view.") ? "view" : id.startsWith("sheet.page.") ? "pageLayout" : id.startsWith("sheet.data.") ? "data" : id.startsWith("sheet.formula.") ? "formulas" : id.startsWith("sheet.chart.") ? "insert" : "home";
       const tabPos = JSON.parse(await ev(`(() => { const n=document.querySelector('#vno-ribbon-tab-${tabId}'); if(!n)return 'null'; const r=n.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,active:n.classList.contains('is-active')}) })()`));
@@ -87,6 +98,11 @@ for (const [name, cell, kind, id, value] of ops) {
         const item=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-ribbon-dropdown-menu [data-command-id="${id}"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
         if(!item) status="NO_DROPDOWN_ITEM"; else {await mouseClick(session.cdp,item.x,item.y); status="clicked";}
       } else { await mouseClick(session.cdp, button.x, button.y); status = "clicked"; }
+      if (kind === "click" && id === "sheet.col.insert" && status === "clicked") {
+        const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);
+        const evidenceDir=path.join(root,"docs","tickets-0710","evidence"); await mkdir(evidenceDir,{recursive:true});
+        await writeFile(path.join(evidenceDir,"fix-s8-insert-column.png"),Buffer.from((shot.result||shot).data,"base64"));
+      }
       if (kind === "promptNumber" && status === "clicked") {
         await sleep(150);
         const prompt = JSON.parse(await ev(`(() => { const input=document.querySelector('.vno-dialog-input'); const btn=document.querySelector('.vno-dialog-ok-btn'); if(!input||!btn) return 'null'; const ir=input.getBoundingClientRect(), br=btn.getBoundingClientRect(); return JSON.stringify({ix:ir.left+ir.width/2,iy:ir.top+ir.height/2,bx:br.left+br.width/2,by:br.top+br.height/2}) })()`));
@@ -110,9 +126,27 @@ for (const [name, cell, kind, id, value] of ops) {
       if (kind === "nameManager" && status === "clicked") {
         await sleep(200);
         const pos=selector=>ev(`(() => {const n=document.querySelector(${JSON.stringify(selector)});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`);
-        const nameInput=JSON.parse(await pos("#vno-name-value"));
-        if(!nameInput) status="NO_NAME_FORM";
-        else { await mouseClick(session.cdp,nameInput.x,nameInput.y); for(let i=0;i<12;i++) await press(session.cdp,"Backspace"); await typeText(session.cdp,value); const formState=JSON.parse(await ev(`JSON.stringify({name:document.querySelector('#vno-name-value')?.value,ref:document.querySelector('#vno-name-ref')?.value,scope:document.querySelector('#vno-name-scope')?.value})`)); if(!formState)status="NO_NAME_SAVE"; else {for(let i=0;i<4;i++)await press(session.cdp,"Tab");await press(session.cdp,"Enter"); await sleep(200); const state=JSON.parse(await ev(`JSON.stringify({error:document.querySelector('.vno-sheet-rule-dialog .vno-rule-error')?.textContent,hidden:document.querySelector('.vno-name-form')?.hidden,overlay:!!document.querySelector('.vno-sheet-rule-dialog')})`)); status="saved name "+JSON.stringify({formState,state});} }
+        const add=JSON.parse(await pos("#vno-name-new"));
+        if(!add) status="NO_NAME_NEW_BUTTON";
+        else {
+          await mouseClick(session.cdp,add.x,add.y); await sleep(100);
+          for (const [selector,text] of [["#vno-name-value",value],["#vno-name-ref","B2"]]) {
+            const input=JSON.parse(await pos(selector));
+            if(!input) throw new Error("Name Manager input missing: "+selector);
+            await mouseClick(session.cdp,input.x,input.y); await press(session.cdp,"a",{ctrl:true}); await typeText(session.cdp,text);
+          }
+          const before=JSON.parse(await ev(`JSON.stringify({names:window.__vnoAppInstance.grid.namedRangesWorkbook,serialized:window.__vnoAppInstance.adapter.serializeToFods().includes('table:named-range')})`));
+          const save=JSON.parse(await pos(".vno-dialog-footer .vno-rule-apply"));
+          if(!save) status="NO_NAME_SAVE_BUTTON";
+          else {
+            const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);
+            const evidenceDir=path.join(root,"docs","tickets-0710","evidence"); await mkdir(evidenceDir,{recursive:true});
+            await writeFile(path.join(evidenceDir,"fix-s8-name-manager.png"),Buffer.from((shot.result||shot).data,"base64"));
+            await mouseClick(session.cdp,save.x,save.y); await sleep(200);
+            const after=JSON.parse(await ev(`JSON.stringify({names:window.__vnoAppInstance.grid.namedRangesWorkbook,serialized:window.__vnoAppInstance.adapter.serializeToFods().includes('table:named-range'),error:document.querySelector('.vno-sheet-rule-dialog .vno-rule-error')?.textContent,formHidden:document.querySelector('.vno-name-form')?.hidden})`));
+            status="before="+JSON.stringify(before)+" after="+JSON.stringify(after);
+          }
+        }
       }
       if (kind === "validation" && status === "clicked") {
         await sleep(200);
@@ -128,8 +162,9 @@ for (const [name, cell, kind, id, value] of ops) {
       }
       if (kind === "pageSetup" && status === "clicked") {
         await sleep(250);
+        const pos=selector=>ev(`(() => {const n=document.querySelector(${JSON.stringify(selector)});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`);
         const select=JSON.parse(await ev(`(() => {const n=document.querySelector('#vno-sheet-orientation');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
-        if(!select)status="NO_PAGE_SETUP_DIALOG"; else {await mouseClick(session.cdp,select.x,select.y);await press(session.cdp,"End");await press(session.cdp,"Enter");const apply=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!apply)status="NO_PAGE_SETUP_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="set landscape";}}
+        if(!select)status="NO_PAGE_SETUP_DIALOG"; else {await mouseClick(session.cdp,select.x,select.y);await press(session.cdp,"ArrowDown");for(const side of ["top","bottom","left","right"]){const input=JSON.parse(await pos(`#vno-sheet-margin-${side}`));if(input){await mouseTripleClick(session.cdp,input.x,input.y);await press(session.cdp,"Home");await press(session.cdp,"End",{shift:true});await press(session.cdp,"Backspace");await typeText(session.cdp,"1.27");}}const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);const evidenceDir=path.join(root,"docs","tickets-0710","evidence");await mkdir(evidenceDir,{recursive:true});await writeFile(path.join(evidenceDir,"fix-s8-page-setup.png"),Buffer.from((shot.result||shot).data,"base64"));const apply=JSON.parse(await pos(".vno-sheet-rule-dialog .vno-rule-apply"));if(!apply)status="NO_PAGE_SETUP_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="set landscape margins=1.27cm";}}
       }
       if (kind === "removeDuplicates" && status === "clicked") {
         await sleep(200);
