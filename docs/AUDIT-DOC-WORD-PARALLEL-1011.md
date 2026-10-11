@@ -55,10 +55,10 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Bảng: gộp/tách ngang; Ctrl+Z sau tách | Đã chạy; số ô khớp, Ctrl+Z trả về trạng thái gộp | Đã chạy; số ô khớp, Undo trả về trạng thái gộp | KHỚP |
 | Bảng: căn giữa dọc; lặp hàng tiêu đề | Đã chạy: `VerticalAlignment=1`, `HeadingFormat=-1` | Đã chạy: `VerticalAlignment=1`, `HeadingFormat=-1` | KHỚP |
 | Bảng: xóa cột, gộp/tách dọc, căn ngang, nền/viền, AutoFit, chiều cao/rộng | CDP + DOCX đã lưu; Word COM đọc lại | Word COM thao tác tương đương; kích thước XML khớp | KHỚP (viền/đo chiều cao có ghi chú) |
-| Bố cục trang: A4 ngang, lề 25/20 mm | CDP + DOCX đã lưu; Word COM đọc lại | Word COM tạo và đọc DOCX đối chứng | KHỚP; preset/Letter/A5 chưa chạy |
+| Bố cục trang: A4/A5/Letter, lề Normal/Narrow/Moderate/Wide, hướng | CDP + DOCX; COM đọc lại kích thước/lề | Word COM đối chứng A4/A5; Letter đọc COM | KHỚP |
 | Bố cục trang: 1/2/3 cột | Đã chạy | Đã chạy | 3/3 KHỚP |
-| Đầu/chân trang | Chưa chạy | Chưa chạy | NOT RUN |
-| Ngắt trang/ngắt mục | Chưa chạy | Chưa chạy | NOT RUN |
+| Đầu/chân trang, trang đầu khác, số trang | CDP + DOCX đã lưu | Word COM đọc Header/Footer, `DifferentFirstPage=-1`, `StartingNumber=3` | KHỚP |
+| Ngắt trang; mục NextPage/Continuous/EvenPage/OddPage | CDP + DOCX đã lưu; 5 section | Word COM đọc 5 section, đúng loại bắt đầu | KHỚP |
 | Mục lục tự động + Heading 1 | Đã lưu; Word đọc `TablesOfContents.Count=1`, `Style=Heading 1` | Đã tạo cùng Heading 1 + TOC; đọc lại COM | KHỚP về số lượng/cấu trúc; chưa soát cập nhật/trang |
 | Chú thích trang | Đã lưu; Word đọc `Footnotes.Count=1`, nội dung rỗng | Đã tạo footnote; đọc lại COM | KHỚP về số lượng/nội dung rỗng |
 | Ghi chú | Một comment; Word đọc Author/Scope/Text | COM tạo cùng comment; đọc lại | KHỚP: `3T Office` / `Alpha` / `Audit note`; trạng thái Done chưa chạy |
@@ -81,7 +81,12 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 2. **Word COM:** cùng thao tác trên DOCX đối chứng. Đọc lại số ô, căn, nền `15788258`, 6 cạnh viền, AutoFit `True` và widths 28.5/3.1/3.1 pt hoặc 150.4 pt; cột kéo 258.8/96.3/96.2 pt khớp. Cao hàng DOCX hai bên đều `w:trHeight exact 840` (COM Height trả 0 sau reopen).
 3. **Kết quả/sửa:** xóa cột, merge/split, căn, nền, bốn kiểu viền và AutoFit khớp. Sửa độ rộng bảng tạo mới bị hẹp (giờ 451.2 pt), giữ cột kéo, lưu cao hàng exact; thêm AutoFit và dropdown viền. Test `python -m unittest tests.test_writer_word_parity_t7` 11/11 PASS; JS table controls 15/15 PASS. Hướng dẫn: **Thiết kế Bảng > Màu & Viền**, **Bố cục Bảng > Kích cỡ ô / Căn chỉnh**; VI/EN keys cập nhật.
 
-- Bộ cột 1/2/3 đã có kết quả 3/3 KHỚP ở phần trên. Các phép thử lề, hướng, khổ giấy, ngắt trang/mục, đầu/chân trang, trang đầu khác, số trang: **NOT RUN** trong lượt này.
+### FIX-T8 — Bố cục trang — 11/10/2026
+
+1. **App/CDP:** qua Bố cục > Thiết lập trang chọn Normal/Narrow/Moderate/Wide, A4/A5/Letter, Dọc/Ngang; thêm ngắt trang và 4 loại ngắt mục; Header/Footer, Trang đầu khác, restart số trang tại 3. Ảnh `E:\VNOffice-profiles\codex-ft8\cdp-run-06\layout-*.png`.
+2. **Word COM:** A5 ngang 595.3×419.5 pt; A4 lề 36/72/54/144 pt theo preset; Letter 612×792 pt. DOCX cuối hai bên có 5 section start `2,2,0,3,4`, header/footer giống nhau, `DifferentFirstPage=-1`, số bắt đầu 3.
+3. **Kết quả/sửa:** các giá trị và break types KHỚP. Đã bổ sung A5 + preset lề Word; sửa chèn ngắt mục để tách đoạn tại caret nên Word giữ đủ section. Unit `writer-sectionbreaks-pagecolor` 18/18 PASS; Word COM/CDP PASS. Help cụ thể ở **Bố cục > Thiết lập trang**, **Chèn > Đầu trang/Chân trang**, **Bố cục > Ngắt**; VI/EN i18n cập nhật.
+
 - Các phép thử FIX-T8 còn lại thuộc Style/References và Comments/Track Changes/Find/Replace/Symbol/Shapes: **NOT RUN** trong lượt này. Kết quả Heading 1–3 trước đó vẫn là sai khác đã ghi, không được tính KHỚP.
 - Batch DOCX hồi quy trên worktree/profile `codex-ft8`: **5/5 PASS**, edit PASS; trang nguồn/lưu d01 19/19, d07 23/23, d13 10/10, d20 3/3, d24 16/16. Báo cáo: `E:\VNOffice-profiles\codex-ft8\batch-audit\batch_document_audit_report.md`.
 - Kiểm thử: `npm test` **3058/3058 PASS**. `python -m unittest discover -s tests` lần chạy đầu dùng nhầm LOCALAPPDATA mặc định và có 10 lỗi do xung đột profile LibreOffice với phiên worktree khác; chạy lại toàn bộ với `LOCALAPPDATA=E:\VNOffice-profiles\codex-ft8\python-localappdata`: **832 tests OK**. Hai lần unittest có `ResourceWarning` về pipe chưa đóng; không có test fail ở lần chạy dùng profile riêng.

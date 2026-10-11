@@ -777,14 +777,14 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.page.margins", "writer.page.orientation", "writer.page.size", "writer.page.setupDialog"],
     title: "Lề, hướng giấy và khổ giấy",
-    summary: "Ba nút mở cùng hộp «Thiết lập trang». Mặc định A4 dọc, lề trên/dưới 20 mm, trái 30 mm, phải 15 mm (NĐ 30). Khổ: A4, Letter, Legal. Hướng: Dọc / Ngang. Lề 0–100 mm.",
+    summary: "Ba nút mở cùng hộp «Thiết lập trang». Có preset lề Normal, Narrow, Moderate, Wide hoặc nhập mm; khổ A4, A5, Letter, Legal; hướng Dọc/Ngang.",
     ribbon: { tab: "Bố cục", tabId: "layout", group: "Thiết lập trang" },
     keywords: ["căn lề", "lề trang", "hướng giấy", "khổ giấy", "a4", "nđ 30", "portrait", "landscape", "thiết lập trang"],
     steps: [
       "Tab Bố cục, nhóm Thiết lập trang: Căn lề, Hướng giấy, Khổ giấy (ba nút lớn). Cả ba mở hộp «Thiết lập trang» — Hướng giấy đặt tiêu điểm vào hướng; Căn lề và Khổ giấy đặt tiêu điểm vào khổ.",
-      "Khổ giấy: A4 (210 × 297 mm, mặc định), Letter (215.9 × 279.4 mm), Legal (216 × 356 mm). Khi mở DOCX có khổ không chuẩn, hộp hiển thị Tùy chỉnh kèm kích thước gốc và Doc giữ nguyên kích thước đó khi lưu. Hướng: Dọc (Portrait) hoặc Ngang (Landscape).",
-      "Lề trên / dưới / trái / phải (mm), mỗi ô 0–100. Mặc định trên 20, dưới 20, trái 30, phải 15 — đúng lề văn bản hành chính NĐ 30. Áp dụng / Hủy bỏ.",
-      "Không có gallery Narrow/Wide như các phần mềm soạn thảo văn bản khác — chỉ số mm. Thước trên tab Chế độ xem phản ánh lề trái/phải sau khi áp dụng. Ctrl+Z hoàn tác."
+      "Khổ giấy: A4 (210 × 297 mm), A5 (148 × 210 mm), Letter (215.9 × 279.4 mm), Legal (216 × 356 mm). Khi mở DOCX có khổ không chuẩn, hộp hiển thị Tùy chỉnh kèm kích thước gốc và Doc giữ nguyên kích thước đó khi lưu. Hướng: Dọc (Portrait) hoặc Ngang (Landscape).",
+      "Mở Đặt sẵn lề và chọn Normal (25,4 mm bốn phía), Narrow (12,7 mm), Moderate (trên/dưới 25,4; trái/phải 19,05), hoặc Wide (trên/dưới 25,4; trái/phải 50,8). Chọn Tùy chỉnh để nhập từng lề 0–100 mm. Mặc định tài liệu mới vẫn theo NĐ 30.",
+      "Sau khi chọn khổ, hướng và preset hoặc nhập lề, nhấn Áp dụng cho Mục này hoặc Toàn bộ tài liệu. Thước trên tab Chế độ xem phản ánh lề trái/phải sau khi áp dụng. Ctrl+Z hoàn tác."
     ]
   },
   {
