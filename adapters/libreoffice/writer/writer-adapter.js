@@ -1017,6 +1017,44 @@ export class WriterAdapter {
     return computedWidth;
   }
 
+  autoFitTableContents() {
+    const table = this._getActiveTable();
+    if (!table || !table.rows?.length) return false;
+    for (const row of table.rows) {
+      for (const cell of row.cells || []) {
+        if (cell.colSpan > 1 || cell.rowSpan > 1) return false;
+      }
+    }
+    for (const cell of table.querySelectorAll("td, th")) {
+      cell.style.width = "";
+    }
+    table.style.width = "auto";
+    table.style.tableLayout = "auto";
+    table.dataset.vnoTableAutofit = "contents";
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.autoFitContents");
+    return true;
+  }
+
+  autoFitTableWindow() {
+    const table = this._getActiveTable();
+    if (!table || !table.rows?.length) return false;
+    for (const row of table.rows) {
+      for (const cell of row.cells || []) {
+        if (cell.colSpan > 1 || cell.rowSpan > 1) return false;
+      }
+    }
+    for (const cell of table.querySelectorAll("td, th")) {
+      cell.style.width = "";
+    }
+    table.style.width = "100%";
+    table.style.tableLayout = "auto";
+    table.dataset.vnoTableAutofit = "window";
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.autoFitWindow");
+    return true;
+  }
+
   changeCase() {
     if (typeof window === "undefined") return false;
     const sel = window.getSelection?.();
@@ -8272,6 +8310,8 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.table.splitCells", () => this.splitTableCells());
     globalCommandBus.bindHandler("writer.table.distributeRows", () => this.distributeTableRows());
     globalCommandBus.bindHandler("writer.table.distributeCols", () => this.distributeTableCols());
+    globalCommandBus.bindHandler("writer.table.autoFitContents", () => this.autoFitTableContents());
+    globalCommandBus.bindHandler("writer.table.autoFitWindow", () => this.autoFitTableWindow());
     globalCommandBus.bindHandler("writer.table.alignTop", () => this.setTableCellAlign("top"));
     globalCommandBus.bindHandler("writer.table.alignMiddle", () => this.setTableCellAlign("middle"));
     globalCommandBus.bindHandler("writer.table.alignBottom", () => this.setTableCellAlign("bottom"));
@@ -8281,6 +8321,10 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.table.selectTable", () => this.selectTableElements("table"));
     globalCommandBus.bindHandler("writer.table.cellBg", (args) => this.setTableCellBackground(args));
     globalCommandBus.bindHandler("writer.table.borders", (args) => this.setTableBorders(args));
+    globalCommandBus.bindHandler("writer.table.bordersAll", () => this.setTableBorders("all"));
+    globalCommandBus.bindHandler("writer.table.bordersOutside", () => this.setTableBorders("outside"));
+    globalCommandBus.bindHandler("writer.table.bordersInside", () => this.setTableBorders("inside"));
+    globalCommandBus.bindHandler("writer.table.bordersNone", () => this.setTableBorders("none"));
     globalCommandBus.bindHandler("writer.table.toggleHeaderRow", () => this.toggleTableHeaderRow());
     globalCommandBus.bindHandler("writer.table.toggleBandedRows", () => this.toggleTableBandedRows());
   }
@@ -8652,9 +8696,23 @@ export class WriterAdapter {
       ? Array.from(this.tableController.selectedCells)
       : Array.from(table.querySelectorAll("td, th"));
 
-    const borderVal = borderType === "none" ? "none" : "1px solid #94a3b8";
-    for (const c of cells) {
-      c.style.border = borderVal;
+    const bounds = cells.reduce((result, cell) => {
+      const row = cell.parentElement?.rowIndex ?? 0;
+      const col = cell.cellIndex ?? 0;
+      result.minRow = Math.min(result.minRow, row); result.maxRow = Math.max(result.maxRow, row);
+      result.minCol = Math.min(result.minCol, col); result.maxCol = Math.max(result.maxCol, col);
+      return result;
+    }, { minRow: Infinity, maxRow: -1, minCol: Infinity, maxCol: -1 });
+    const borderVal = "1px solid #94a3b8";
+    for (const cell of cells) {
+      const row = cell.parentElement?.rowIndex ?? 0;
+      const col = cell.cellIndex ?? 0;
+      const all = borderType === "all";
+      cell.style.border = "none";
+      cell.style.borderTop = all || (borderType === "outside" && row === bounds.minRow) || (borderType === "inside" && row > bounds.minRow) ? borderVal : "none";
+      cell.style.borderBottom = all || (borderType === "outside" && row === bounds.maxRow) || (borderType === "inside" && row < bounds.maxRow) ? borderVal : "none";
+      cell.style.borderLeft = all || (borderType === "outside" && col === bounds.minCol) || (borderType === "inside" && col > bounds.minCol) ? borderVal : "none";
+      cell.style.borderRight = all || (borderType === "outside" && col === bounds.maxCol) || (borderType === "inside" && col < bounds.maxCol) ? borderVal : "none";
     }
     this.isDirty = true;
     this.recordSnapshot("writer.table.borders");

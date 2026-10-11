@@ -54,7 +54,7 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Bảng: chèn bảng 3×4; thêm hàng dưới; thêm cột phải; xóa hàng | Đã chạy; số ô sau thao tác khớp | Đã chạy COM; số ô sau thao tác khớp | KHỚP |
 | Bảng: gộp/tách ngang; Ctrl+Z sau tách | Đã chạy; số ô khớp, Ctrl+Z trả về trạng thái gộp | Đã chạy; số ô khớp, Undo trả về trạng thái gộp | KHỚP |
 | Bảng: căn giữa dọc; lặp hàng tiêu đề | Đã chạy: `VerticalAlignment=1`, `HeadingFormat=-1` | Đã chạy: `VerticalAlignment=1`, `HeadingFormat=-1` | KHỚP |
-| Bảng: xóa cột, gộp/tách dọc, căn ngang, nền, viền, AutoFit, chiều cao/rộng | Chưa chạy | Chưa chạy | NOT RUN |
+| Bảng: xóa cột, gộp/tách dọc, căn ngang, nền/viền, AutoFit, chiều cao/rộng | CDP + DOCX đã lưu; Word COM đọc lại | Word COM thao tác tương đương; kích thước XML khớp | KHỚP (viền/đo chiều cao có ghi chú) |
 | Bố cục trang: A4 ngang, lề 25/20 mm | CDP + DOCX đã lưu; Word COM đọc lại | Word COM tạo và đọc DOCX đối chứng | KHỚP; preset/Letter/A5 chưa chạy |
 | Bố cục trang: 1/2/3 cột | Đã chạy | Đã chạy | 3/3 KHỚP |
 | Đầu/chân trang | Chưa chạy | Chưa chạy | NOT RUN |
@@ -75,7 +75,12 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 
 - Bảng — đã bấm **Chèn > Bảng biểu**, **Bố cục Bảng > Chèn hàng phía dưới / Chèn cột bên phải / Xóa hàng / Gộp ô / Tách ô / Căn giữa dọc**, và **Thiết kế Bảng > Hàng tiêu đề** qua CDP mouse. COM áp thao tác tương đương lên template Word riêng rồi đọc DOCX.
 - Kết quả Bảng: chèn 3×4 KHỚP; sau thêm hàng, thêm cột và xóa hàng, số ô từng hàng khớp; gộp ngang và tách ngang khớp số ô từng hàng; Ctrl+Z của app và Undo của Word sau tách đều trở lại trạng thái gộp; `VerticalAlignment=1` và `HeadingFormat=-1` khớp.
-- Các phép thử Bảng chưa chạy: xóa cột, gộp/tách dọc, căn ngang, nền, viền, AutoFit, chiều cao hàng/rộng cột.
+### FIX-T8 — Bảng — 11/10/2026
+
+1. **App/CDP:** thao tác thật bằng chuột/phím, lưu DOCX: xóa cột; gộp/tách dọc; căn ngang/dọc; nền/viền tất cả/ngoài/trong/không; AutoFit nội dung/cửa sổ; kéo rộng cột/cao hàng. Ảnh nằm ở `E:\VNOffice-profiles\codex-ft8\cdp-run-03\table-*.png`.
+2. **Word COM:** cùng thao tác trên DOCX đối chứng. Đọc lại số ô, căn, nền `15788258`, 6 cạnh viền, AutoFit `True` và widths 28.5/3.1/3.1 pt hoặc 150.4 pt; cột kéo 258.8/96.3/96.2 pt khớp. Cao hàng DOCX hai bên đều `w:trHeight exact 840` (COM Height trả 0 sau reopen).
+3. **Kết quả/sửa:** xóa cột, merge/split, căn, nền, bốn kiểu viền và AutoFit khớp. Sửa độ rộng bảng tạo mới bị hẹp (giờ 451.2 pt), giữ cột kéo, lưu cao hàng exact; thêm AutoFit và dropdown viền. Test `python -m unittest tests.test_writer_word_parity_t7` 11/11 PASS; JS table controls 15/15 PASS. Hướng dẫn: **Thiết kế Bảng > Màu & Viền**, **Bố cục Bảng > Kích cỡ ô / Căn chỉnh**; VI/EN keys cập nhật.
+
 - Bộ cột 1/2/3 đã có kết quả 3/3 KHỚP ở phần trên. Các phép thử lề, hướng, khổ giấy, ngắt trang/mục, đầu/chân trang, trang đầu khác, số trang: **NOT RUN** trong lượt này.
 - Các phép thử FIX-T8 còn lại thuộc Style/References và Comments/Track Changes/Find/Replace/Symbol/Shapes: **NOT RUN** trong lượt này. Kết quả Heading 1–3 trước đó vẫn là sai khác đã ghi, không được tính KHỚP.
 - Batch DOCX hồi quy trên worktree/profile `codex-ft8`: **5/5 PASS**, edit PASS; trang nguồn/lưu d01 19/19, d07 23/23, d13 10/10, d20 3/3, d24 16/16. Báo cáo: `E:\VNOffice-profiles\codex-ft8\batch-audit\batch_document_audit_report.md`.

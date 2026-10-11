@@ -572,7 +572,20 @@ export const WRITER_RIBBON_TABS = [
         labelKey: "writerRibbon.group.tableBordersShading",
         items: [
           { type: "button", commandId: "writer.table.cellBg", isLarge: true },
-          { type: "button", commandId: "writer.table.borders", isLarge: true }
+          {
+            type: "dropdown",
+            id: "writer.table.borders",
+            label: "Đường viền bảng",
+            labelKey: "writerRibbon.group.tableBordersButton",
+            icon: "paragraphBorders",
+            isLarge: true,
+            items: [
+              { commandId: "writer.table.bordersAll" },
+              { commandId: "writer.table.bordersOutside" },
+              { commandId: "writer.table.bordersInside" },
+              { commandId: "writer.table.bordersNone" }
+            ]
+          }
         ]
       }
     ]
@@ -637,6 +650,8 @@ export const WRITER_RIBBON_TABS = [
         label: "Kích cỡ ô",
         labelKey: "writerRibbon.group.tableSizeGroup",
         items: [
+          { type: "button", commandId: "writer.table.autoFitContents" },
+          { type: "button", commandId: "writer.table.autoFitWindow" },
           { type: "button", commandId: "writer.table.distributeRows" },
           { type: "button", commandId: "writer.table.distributeCols" }
         ]

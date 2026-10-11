@@ -16748,6 +16748,121 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
         return docx_bytes
     document_xml = document_bytes.decode("utf-8", errors="replace")
     document_xml = _remove_duplicate_adjacent_writer_tables(document_xml, source_html)
+    # New Writer tables use a 100% HTML width. LibreOffice's HTML import may
+    # export that as a tiny fixed-width table (measured at 50 pt on a 6.5 in
+    # Word text area), so restore the page text width and evenly sized grid.
+    # Imported tables carry explicit cell widths/data-vno-lo-width and stay on
+    # the existing preservation path below.
+    html_tables = list(re.finditer(r"<table\b([^>]*)>([\s\S]*?)</table\s*>", source_html, re.IGNORECASE))
+    xml_tables = list(re.finditer(r"<w:tbl\b[\s\S]*?</w:tbl\s*>", document_xml, re.IGNORECASE))
+    section = re.search(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", document_xml, re.IGNORECASE)
+    page_width = 0
+    if section:
+        size = re.search(r"<w:pgSz\b([^>]*)/?>", section.group(0), re.IGNORECASE)
+        margins = re.search(r"<w:pgMar\b([^>]*)/?>", section.group(0), re.IGNORECASE)
+        page_twips = int(re.search(r'\bw:w=["\'](\d+)', size.group(1), re.IGNORECASE).group(1)) if size and re.search(r'\bw:w=["\'](\d+)', size.group(1), re.IGNORECASE) else 0
+        left = int(re.search(r'\bw:left=["\'](\d+)', margins.group(1), re.IGNORECASE).group(1)) if margins and re.search(r'\bw:left=["\'](\d+)', margins.group(1), re.IGNORECASE) else 0
+        right = int(re.search(r'\bw:right=["\'](\d+)', margins.group(1), re.IGNORECASE).group(1)) if margins and re.search(r'\bw:right=["\'](\d+)', margins.group(1), re.IGNORECASE) else 0
+        page_width = max(0, page_twips - left - right)
+    if page_width and len(html_tables) == len(xml_tables):
+        for index in range(len(html_tables) - 1, -1, -1):
+            html_table = html_tables[index]
+            opening, body = html_table.group(1), html_table.group(2)
+            if "data-vno-lo-width" in opening.lower() or not re.search(r"\bwidth\s*:\s*100\s*%", opening, re.IGNORECASE):
+                continue
+            first_row = re.search(r"<tr\b[^>]*>([\s\S]*?)</tr\s*>", body, re.IGNORECASE)
+            cells = list(re.finditer(r"<t[dh]\b([^>]*)>", first_row.group(1), re.IGNORECASE)) if first_row else []
+            if not cells or any(re.search(r"\bwidth\s*=", cell.group(1), re.IGNORECASE) for cell in cells):
+                continue
+            explicit_px: dict[int, int] = {}
+            unsupported_explicit_width = False
+            for col_index, cell in enumerate(cells):
+                style = re.search(r'\bstyle=["\']([^"\']*)["\']', cell.group(1), re.IGNORECASE)
+                width_style = re.search(r"(?:^|;)\s*width\s*:\s*([\d.]+)(px|cm)\s*(?:;|$)", style.group(1), re.IGNORECASE) if style else None
+                if not width_style:
+                    if style and re.search(r"(?:^|;)\s*width\s*:", style.group(1), re.IGNORECASE):
+                        unsupported_explicit_width = True
+                    continue
+                value, unit = float(width_style.group(1)), width_style.group(2).lower()
+                if unit == "cm":
+                    unsupported_explicit_width = True
+                    break
+                explicit_px[col_index] = max(1, int(round(value * 15)))
+            if unsupported_explicit_width or len(explicit_px) >= len(cells):
+                continue
+            table = xml_tables[index].group(0)
+            grid = re.search(r"<w:tblGrid\b[^>]*>([\s\S]*?)</w:tblGrid\s*>", table, re.IGNORECASE)
+            if not grid:
+                continue
+            columns = list(re.finditer(r'<w:gridCol\b[^>]*w:w=["\']\d+["\'][^>]*/?>', grid.group(1), re.IGNORECASE))
+            if not columns:
+                continue
+            fixed_columns = {column: width for column, width in explicit_px.items() if column < len(columns)}
+            if sum(fixed_columns.values()) >= page_width:
+                continue
+            flexible = [column for column in range(len(columns)) if column not in fixed_columns]
+            base, remainder = divmod(page_width - sum(fixed_columns.values()), len(flexible))
+            widths = [fixed_columns[column] if column in fixed_columns else base + (1 if flexible.index(column) < remainder else 0) for column in range(len(columns))]
+            grid_xml = "<w:tblGrid>" + "".join(f'<w:gridCol w:w="{width}"/>' for width in widths) + "</w:tblGrid>"
+            table = table[:grid.start()] + grid_xml + table[grid.end():]
+            tbl_width = re.search(r"<w:tblW\b[^>]*/?>", table, re.IGNORECASE)
+            width_xml = f'<w:tblW w:w="{page_width}" w:type="dxa"/>'
+            if tbl_width:
+                table = table[:tbl_width.start()] + width_xml + table[tbl_width.end():]
+            else:
+                tbl_pr = re.search(r"<w:tblPr\b[^>]*>", table, re.IGNORECASE)
+                if tbl_pr:
+                    table = table[:tbl_pr.end()] + width_xml + table[tbl_pr.end():]
+            grid_index = 0
+            def set_row_cell_widths(row_match: re.Match) -> str:
+                nonlocal grid_index
+                row = row_match.group(0)
+                def set_cell_width(cell_match: re.Match) -> str:
+                    nonlocal grid_index
+                    cell = cell_match.group(0)
+                    span = re.search(r'<w:gridSpan\b[^>]*w:val=["\'](\d+)["\']', cell, re.IGNORECASE)
+                    count = int(span.group(1)) if span else 1
+                    target = sum(widths[grid_index:min(grid_index + count, len(widths))])
+                    grid_index += count
+                    tcw = re.search(r"<w:tcW\b[^>]*/?>", cell, re.IGNORECASE)
+                    tcw_xml = f'<w:tcW w:w="{target}" w:type="dxa"/>'
+                    if tcw:
+                        return cell[:tcw.start()] + tcw_xml + cell[tcw.end():]
+                    tc_pr = re.search(r"<w:tcPr\b[^>]*>", cell, re.IGNORECASE)
+                    if tc_pr:
+                        return cell[:tc_pr.end()] + tcw_xml + cell[tc_pr.end():]
+                    return re.sub(r"(<w:tc\b[^>]*>)", rf"\1<w:tcPr>{tcw_xml}</w:tcPr>", cell, count=1, flags=re.IGNORECASE)
+                grid_index = 0
+                return re.sub(r"<w:tc\b[\s\S]*?</w:tc\s*>", set_cell_width, row, flags=re.IGNORECASE)
+            table = re.sub(r"<w:tr\b[\s\S]*?</w:tr\s*>", set_row_cell_widths, table, flags=re.IGNORECASE)
+            document_xml = document_xml[:xml_tables[index].start()] + table + document_xml[xml_tables[index].end():]
+            # Earlier replacements change offsets, so rebuild the table ranges.
+            xml_tables = list(re.finditer(r"<w:tbl\b[\s\S]*?</w:tbl\s*>", document_xml, re.IGNORECASE))
+
+    # Explicit AutoFit commands carry a private HTML marker so Word opens the
+    # table with the matching native layout mode after LibreOffice conversion.
+    xml_tables = list(re.finditer(r"<w:tbl\b[\s\S]*?</w:tbl\s*>", document_xml, re.IGNORECASE))
+    if len(html_tables) == len(xml_tables):
+        for index in range(len(html_tables) - 1, -1, -1):
+            opening = html_tables[index].group(1)
+            marker = re.search(r'data-vno-table-autofit=["\'](contents|window)["\']', opening, re.IGNORECASE)
+            if not marker:
+                continue
+            mode = marker.group(1).lower()
+            table = xml_tables[index].group(0)
+            width_xml = '<w:tblW w:w="0" w:type="auto"/>' if mode == "contents" else '<w:tblW w:w="5000" w:type="pct"/>'
+            tbl_width = re.search(r"<w:tblW\b[^>]*/?>", table, re.IGNORECASE)
+            if tbl_width:
+                table = table[:tbl_width.start()] + width_xml + table[tbl_width.end():]
+            layout = re.search(r"<w:tblLayout\b[^>]*/?>", table, re.IGNORECASE)
+            if layout:
+                table = table[:layout.start()] + table[layout.end():]
+            grid = re.search(r"<w:tblGrid\b[^>]*>([\s\S]*?)</w:tblGrid\s*>", table, re.IGNORECASE)
+            column_count = len(re.findall(r"<w:gridCol\b", grid.group(1), re.IGNORECASE)) if grid else 1
+            cell_width = '<w:tcW w:w="0" w:type="auto"/>' if mode == "contents" else f'<w:tcW w:w="{max(1, round(5000 / column_count))}" w:type="pct"/>'
+            table = re.sub(r"<w:tc\b[\s\S]*?</w:tc\s*>", lambda cell: re.sub(r"<w:tcW\b[^>]*/>", cell_width, cell.group(0), count=1, flags=re.IGNORECASE), table, flags=re.IGNORECASE)
+            document_xml = document_xml[:xml_tables[index].start()] + table + document_xml[xml_tables[index].end():]
+            xml_tables = list(re.finditer(r"<w:tbl\b[\s\S]*?</w:tbl\s*>", document_xml, re.IGNORECASE))
     indent_by_text: dict[str, int] = {}
     for match in re.finditer(r"<p\b(?=[^>]*\bstyle=([\"'])([^\"']*)\1)[^>]*>([\s\S]*?)</p\s*>", source_html, re.IGNORECASE):
         indent = re.search(r"(?:^|;)\s*text-indent\s*:\s*([\d.]+)cm\s*(?:;|$)", match.group(2), re.IGNORECASE)
@@ -17101,6 +17216,45 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             return t_xml
 
         document_xml = re.sub(r'<w:tbl\b[\s\S]*?</w:tbl\s*>', patch_table, document_xml, flags=re.IGNORECASE)
+
+    # A row resize in the Writer canvas is stored as an explicit pixel height
+    # on <tr>. Preserve it as Word's exact row-height rule when HTML import
+    # omits the corresponding w:trHeight.
+    html_table_rows: list[list[int | None]] = []
+    for table_match in re.finditer(r'<table\b[^>]*>([\s\S]*?)</table\s*>', source_html, re.IGNORECASE):
+        body = table_match.group(1)
+        row_heights: list[int | None] = []
+        for row_match in re.finditer(r'<tr\b([^>]*)>', body, re.IGNORECASE):
+            style = re.search(r'\bstyle=["\']([^"\']*)["\']', row_match.group(1), re.IGNORECASE)
+            height = re.search(r'(?:^|;)\s*height\s*:\s*([\d.]+)px\s*(?:;|$)', style.group(1), re.IGNORECASE) if style else None
+            row_heights.append(int(round(float(height.group(1)) * 15)) if height else None)
+        html_table_rows.append(row_heights)
+    current_xml_tables = list(re.finditer(r'<w:tbl\b[\s\S]*?</w:tbl\s*>', document_xml, re.IGNORECASE))
+    if len(html_table_rows) == len(current_xml_tables):
+        for table_index in range(len(current_xml_tables) - 1, -1, -1):
+            heights = html_table_rows[table_index]
+            if not any(height is not None for height in heights):
+                continue
+            table = current_xml_tables[table_index].group(0)
+            rows = list(re.finditer(r'<w:tr\b[\s\S]*?</w:tr\s*>', table, re.IGNORECASE))
+            if len(rows) != len(heights):
+                continue
+            for row_index in range(len(rows) - 1, -1, -1):
+                twips = heights[row_index]
+                if twips is None:
+                    continue
+                row = rows[row_index].group(0)
+                tr_height = f'<w:trHeight w:val="{twips}" w:hRule="exact"/>'
+                tr_pr = re.search(r'<w:trPr\b[^>]*>', row, re.IGNORECASE)
+                if tr_pr:
+                    existing = re.search(r'<w:trHeight\b[^>]*/?>', row, re.IGNORECASE)
+                    row = row[:existing.start()] + tr_height + row[existing.end():] if existing else row[:tr_pr.end()] + tr_height + row[tr_pr.end():]
+                else:
+                    row = re.sub(r'(<w:tr\b[^>]*>)', rf'\1<w:trPr>{tr_height}</w:trPr>', row, count=1, flags=re.IGNORECASE)
+                table = table[:rows[row_index].start()] + row + table[rows[row_index].end():]
+            current_xml_tables = list(re.finditer(r'<w:tbl\b[\s\S]*?</w:tbl\s*>', document_xml, re.IGNORECASE))
+            match = current_xml_tables[table_index]
+            document_xml = document_xml[:match.start()] + table + document_xml[match.end():]
 
     # W22g: Khôi phục tab stop (<w:tabs><w:tab w:val="left" w:pos="..."/>)
     # LibreOffice HTML import bỏ qua CSS tab-size trên đoạn văn.

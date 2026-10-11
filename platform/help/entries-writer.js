@@ -1319,6 +1319,8 @@ export const WRITER_HELP_ENTRIES = [
     commandIds: [
       "writer.table.mergeCells",
       "writer.table.splitCells",
+      "writer.table.autoFitContents",
+      "writer.table.autoFitWindow",
       "writer.table.distributeRows",
       "writer.table.distributeCols",
       "writer.table.alignTop",
@@ -1326,13 +1328,14 @@ export const WRITER_HELP_ENTRIES = [
       "writer.table.alignBottom"
     ],
     title: "Gộp, tách ô, phân bố kích thước và căn lề ô",
-    summary: "Gộp nhiều ô thành một; khi tách ô đã gộp, khôi phục số hàng và cột ban đầu. Có thể phân bố kích thước hàng cột đồng đều và căn chỉnh chữ trong ô.",
+    summary: "Gộp/tách ô, tự động vừa bảng theo nội dung hoặc chiều rộng trang, phân bố hàng cột và căn chỉnh chữ trong ô.",
     ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Hợp nhất" },
     keywords: ["gộp ô", "tách ô", "merge cells", "split cells", "phân bố đều", "distribute rows", "distribute columns", "căn lề ô", "căn đỉnh", "căn giữa dọc", "căn đáy"],
     steps: [
       "Kéo chuột quét chọn ít nhất hai ô liền kề trong bảng, sau đó tại nhóm Hợp nhất trên tab Bố cục Bảng, nhấp «Gộp ô» để hợp nhất thành một ô lớn. Nếu chưa chọn đủ hai ô, ứng dụng sẽ báo cách khắc phục; nội dung chữ giữa các ô được nối lại tự động.",
       "Để tách ô đã gộp, đặt con trỏ vào ô đó rồi nhấp «Tách ô». Các ô trống được tạo lại theo số hàng và cột của vùng đã gộp; một lần Ctrl+Z hoàn tác lần tách vừa thực hiện.",
       "Trong nhóm Kích cỡ ô, nhấp «Phân bố đều hàng» để cân bằng chiều cao các dòng, hoặc «Phân bố đều cột» để chia lại chiều rộng các cột đều nhau 100%. Bạn cũng có thể rê chuột vào vạch ngăn giữa hai cột để kéo chuột chỉnh độ rộng từng cột tùy ý.",
+      "Để bảng co theo nội dung, đặt con trỏ trong bảng, mở Bố cục Bảng > Kích cỡ ô và nhấp «Vừa nội dung». Để bảng phủ hết vùng soạn thảo giữa hai lề trang, nhấp «Vừa cửa sổ». Hai lệnh tự bỏ độ rộng cột đã đặt trước đó; dùng Ctrl+Z để hoàn tác.",
       "Trong nhóm Căn lề ô, nhấp «Căn đỉnh ô», «Căn giữa dọc ô» hoặc «Căn đáy ô» để bố trí vị trí chữ theo chiều dọc bên trong ô theo đúng ý muốn."
     ]
   },
@@ -1403,10 +1406,14 @@ export const WRITER_HELP_ENTRIES = [
   "app": "writer",
   "commandIds": [
     "writer.table.cellBg",
-    "writer.table.borders"
+    "writer.table.borders",
+    "writer.table.bordersAll",
+    "writer.table.bordersOutside",
+    "writer.table.bordersInside",
+    "writer.table.bordersNone"
   ],
   "title": "Tô màu ô và đường viền bảng",
-  "summary": "Thay đổi màu nền ô (tô màu ô) và chọn các kiểu đường viền bảng trên nhóm Màu & Viền thuộc tab ngữ cảnh Thiết kế Bảng.",
+  "summary": "Tô nền ô và chọn viền ngoài, viền trong, tất cả đường viền hoặc ẩn viền trên tab ngữ cảnh Thiết kế Bảng.",
   "ribbon": {
     "tab": "Thiết kế Bảng",
     "tabId": "tableDesign",
@@ -1423,8 +1430,8 @@ export const WRITER_HELP_ENTRIES = [
   "steps": [
     "Đặt con trỏ vào ô hoặc bôi đen khối ô cần tô màu / tạo viền trong bảng.",
     "Chuyển sang tab ngữ cảnh Thiết kế Bảng, nhìn tới nhóm Màu & Viền.",
-    "Bấm nút «Tô màu ô» để chọn màu nền cho ô đang chọn từ bảng màu.",
-    "Bấm nút «Đường viền bảng» để chọn kiểu viền (Viền ngoài, Viền trong, Xóa viền hoặc Tất cả đường viền). Bấm Ctrl+Z để hoàn tác."
+    "Bấm nút «Tô màu ô» để tô ô đang chọn bằng màu nền hiện tại.",
+    "Mở mũi tên «Đường viền bảng», rồi chọn «Tất cả đường viền», «Viền ngoài», «Viền trong» hoặc «Không viền». Khi đã chọn một vùng ô, các lệnh áp dụng quanh hoặc bên trong vùng đó. Bấm Ctrl+Z để hoàn tác."
   ]
 },
 {
