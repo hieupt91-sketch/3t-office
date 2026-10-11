@@ -61,6 +61,6 @@
 
 ## Trang đầu: căn dọc (chưa kết luận)
 
-- Đã thử Căn trên, Căn giữa dọc và Căn dưới bằng CDP trên B2. Excel COM ReadOnly cả ba file đều cho `VerticalAlignment=-4107` (Top), trong khi app model giữ `verticalAlign=bottom`.
+- Đã thử Căn trên, Căn giữa dọc và Căn dưới bằng CDP trên B2. Excel COM ReadOnly cả ba file đều cho `VerticalAlignment=-4107` (Bottom), trùng trạng thái fixture và app model `verticalAlign=bottom`.
 - Ảnh probe cho thấy tab Dữ liệu đang hiện sau thao tác. Harness đã được chỉnh để mở nhóm ribbon thu gọn và đợi tab yêu cầu hoạt động; lần lặp vẫn không chứng minh được lệnh đã thực thi.
 - Ba command ID vẫn **CHƯA ĐỐI CHIẾU**; không dùng phản ứng `clicked` làm bằng chứng. Ảnh `evidence/s12/fix-s12-alignTop.png`, `fix-s12-alignMiddle.png`, `fix-s12-alignBottom.png`; log `s12-vertical-align-retry.log`, `excel-alignTop-retry.log`, `excel-alignMiddle-retry.log`, `excel-alignBottom-retry.log`.
