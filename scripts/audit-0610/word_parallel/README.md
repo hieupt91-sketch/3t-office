@@ -1,8 +1,42 @@
-# Doi chieu SONG SONG voi Word that (Word COM) — khung kiem nut ribbon Doc
+﻿# Đối chiếu song song Writer với Word COM
 
-Cach dung (11/10, Claude): lam CUNG MOT thao tac o hai ben roi so thuoc tinh doc lai bang Word COM.
-1. `make-template.ps1 -Dir <thu-muc>`: Word tao `template.docx` (3 doan; doan 2 "Alpha beta gamma delta." Times New Roman 12).
-2. `app-ops.desktop.mjs` (node --experimental-websocket; dat VNO_APP_ROOT=<worktree>; sua duong dan `dir` o dau tep): moi thao tac mo app, chon doan 2, chay lenh qua CommandBus, luu DOCX that (`app_<op>.docx`).
-3. `word-compare.ps1 -Dir <thu-muc>`: Word ap dung cung thao tac (`word_<op>.docx`) roi doc Bold/Italic/Underline/Strike/Sub/Sup/Size/Name/Color/Highlight/Align/LeftIndent/Space*/LineRule/ListType va in bang KHOP/LECH.
-Mo rong: them thao tac vao danh sach `ops` (ca ba tep) — tab Chen, Bo cuc, Tham chieu, Danh gia...
-Ket qua 11/10 (20 thao tac Trang dau): khop gan het; LECH that: chi so tren/duoi (app luu w:position thay vi w:vertAlign), to sang (app luu w:shd thay vi w:highlight), danh sach (ListType 4 thay vi 2/3), SpaceAfter 7.9 vs 8 pt.
+## Cách chạy trên worktree riêng
+
+Tạo một thư mục audit riêng (không dùng profile của phiên Writer khác), rồi đặt biến môi trường trước khi chạy:
+
+```powershell
+$env:VNO_APP_ROOT = 'E:\VNOffice-codex-ft7'
+$env:VNO_CDP_LOCALAPPDATA = 'E:\VNOffice-profiles\codex-ft7'
+$dir = $env:VNO_CDP_LOCALAPPDATA
+
+.\scripts\audit-0610\word_parallel\make-template.ps1 -Dir $dir
+node --experimental-websocket scripts/audit-0610/word_parallel/app-ops.desktop.mjs
+.\scripts\audit-0610\word_parallel\word-compare.ps1 -Dir $dir
+```
+
+`app-ops.desktop.mjs` dùng cổng CDP trống được cấp riêng bởi `tests/live/cdp/session.mjs`; mọi lần mở app dùng `VNO_APP_ROOT` và `VNO_CDP_LOCALAPPDATA` trên. Có thể chọn phép thử bằng `$env:OPS='subscript,highlightYellow'`. Phép `default` lưu template không áp lệnh để đọc riêng SpaceAfter mặc định.
+
+Word COM chạy ẩn với `DisplayAlerts=0`. Script chụp các PID WINWORD đang có trước khi tạo COM, nhận diện PID mới do phiên automation tạo, gọi `Quit()` rồi chỉ dọn theo PID mới đó. Không dừng tiến trình WINWORD cũ.
+
+## Kết quả 11/10/2026 — FIX-T7
+
+| Phép thử | Kết quả |
+|---|---|
+| 20 thao tác Trang đầu (đậm/nghiêng/gạch/chỉ số/cỡ-phông-màu/căn lề/danh sách/thụt lề/giãn dòng/khoảng cách/đổi hoa) | 20/20 KHỚP Word COM |
+| Mặc định không thao tác (SpaceAfter từ `0.28cm`, `--vno-lh:1.08`) | KHỚP: app 8 pt / 160 twips, Word 8 pt |
+| Mở DOCX có Highlight vàng do Word tạo rồi lưu lại trong app | KHỚP: `w:highlight w:val="yellow"` được giữ |
+| Batch DOCX d01, d07, d13, d20, d24 | 5/5 PASS; số trang nguồn/lưu lần lượt 19/19, 23/23, 10/10, 3/3, 16/16; edit=PASS |
+
+Báo cáo batch: `E:\VNOffice-profiles\codex-ft7\batch-audit\batch_document_audit_report.md`.
+
+## Kết quả nhóm mở rộng
+
+Các nhóm dưới đây đã được thêm vào ma trận `docs/AUDIT-DOC-WORD-PARALLEL-1011.md`; chưa chạy thao tác song song trong lượt FIX-T7 và không được tính KHỚP:
+
+- Bảng: chèn, gộp/tách, căn ô, kích thước, tô nền, viền.
+- Bố cục trang: lề, hướng, khổ giấy, cột.
+- Đầu/chân trang; ngắt trang/ngắt mục; mục lục.
+- Chú thích trang/cuối; ghi chú; theo dõi thay đổi.
+- Heading 1–3; thư viện kiểu; tìm/thay thế; ký hiệu; hộp văn bản.
+
+Các script hiện tạo template ba đoạn, chạy một lệnh qua CommandBus, lưu DOCX và đọc các thuộc tính Range/ParagraphFormat/ListFormat bằng Word COM. Để thêm nhóm, khai báo cùng ca kiểm thử trong cả hai harness và chỉ đánh dấu KHỚP sau khi đọc lại DOCX bằng Word COM.

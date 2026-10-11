@@ -22,6 +22,7 @@ Keep the XML transform in lock step with the JS helpers.
 from __future__ import annotations
 
 import argparse
+import difflib
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
 import html
@@ -14618,6 +14619,12 @@ def _writer_restore_created_paragraph_css(document_xml: str, source_html: str) -
             if spacing:
                 twips = css_length_twips(spacing.group(1))
                 if twips is not None:
+                    # The Writer default is represented as 0.28cm (the UI's
+                    # 1.08 line-height preset). Word stores its 8pt equivalent
+                    # as 160 twips; ordinary decimal conversion rounds it to
+                    # 159 and makes Word's paragraph spacing control differ.
+                    if css_name == "margin-bottom" and re.fullmatch(r"\s*0\.28\s*cm\s*", spacing.group(1), re.IGNORECASE):
+                        twips = "160"
                     properties[property_name] = twips
         indent = re.search(r"(?:^|;)\s*text-indent\s*:\s*([^;]+)", css, re.IGNORECASE)
         if indent:
@@ -14701,7 +14708,7 @@ def _writer_restore_created_paragraph_css(document_xml: str, source_html: str) -
 
 
 def _writer_restore_created_run_highlight(run_xml: str, highlighted_texts: dict[str, str]) -> str:
-    text = html.unescape("".join(re.findall(r"<w:t\b[^>]*>([\s\S]*?)</w:t\s*>", run_xml, re.IGNORECASE)))
+    text = re.sub(r"\s+", " ", html.unescape("".join(re.findall(r"<w:t\b[^>]*>([\s\S]*?)</w:t\s*>", run_xml, re.IGNORECASE)))).strip()
     if not text or re.search(r"<w:highlight\b", run_xml, re.IGNORECASE):
         return run_xml
     color = next((value for key, value in highlighted_texts.items() if text.strip() == key), None)
@@ -14716,6 +14723,97 @@ def _writer_restore_created_run_highlight(run_xml: str, highlighted_texts: dict[
     else:
         run_xml = re.sub(r"(<w:r\b[^>]*>)", rf"\1<w:rPr>{highlight}</w:rPr>", run_xml, count=1, flags=re.IGNORECASE)
     return run_xml
+
+
+def _writer_restore_created_vertical_alignment(document_xml: str, source_html: str) -> str:
+    """Convert raised/lowered runs to semantic sub/superscript when HTML marks them."""
+    source_paragraphs: list[tuple[str, list[tuple[int, int, str]]]] = []
+    for paragraph in re.finditer(r"<(?:p|h[1-6])\b[^>]*>([\s\S]*?)</(?:p|h[1-6])\s*>", source_html, re.IGNORECASE):
+        inner = paragraph.group(1)
+        plain = re.sub(r"\s+", " ", _writer_html_plain(inner)).strip()
+        if not plain:
+            continue
+        spans: list[tuple[int, int, str]] = []
+        for match in re.finditer(r"<(sup|sub)\b[^>]*>([\s\S]*?)</\1\s*>", inner, re.IGNORECASE):
+            value = re.sub(r"\s+", "", _writer_html_plain(match.group(2)))
+            start = len(re.sub(r"\s+", "", _writer_html_plain(inner[:match.start()])))
+            if value:
+                spans.append((start, start + len(value), "superscript" if match.group(1).lower() == "sup" else "subscript"))
+        for match in re.finditer(r'<span\b(?=[^>]*\bstyle=["\']([^"\']*)["\'])[^>]*>([\s\S]*?)</span\s*>', inner, re.IGNORECASE):
+            align = re.search(r'(?:^|;)\s*vertical-align\s*:\s*(sub|super)(?:\s*!important)?\s*(?:;|$)', match.group(1), re.IGNORECASE)
+            value = re.sub(r"\s+", "", _writer_html_plain(match.group(2)))
+            start = len(re.sub(r"\s+", "", _writer_html_plain(inner[:match.start()])))
+            if align and value:
+                spans.append((start, start + len(value), "subscript" if align.group(1).lower() == "sub" else "superscript"))
+        if spans:
+            source_paragraphs.append((plain, spans))
+    if not source_paragraphs:
+        return document_xml
+
+    doc_paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+    replacements: dict[int, str] = {}
+    cursor = 0
+    for source_text, spans in source_paragraphs:
+        source_compact = re.sub(r"\s+", "", source_text)
+        target = None
+        best_ratio = 0.74
+        for index in range(cursor, len(doc_paragraphs)):
+            candidate_text = re.sub(r"\s+", "", _paragraph_plain_text(doc_paragraphs[index].group(0)))
+            ratio = difflib.SequenceMatcher(None, source_compact, candidate_text, autojunk=False).ratio()
+            spans_present = all(source_compact[start:end] in candidate_text for start, end, _kind in spans)
+            if spans_present and ratio > best_ratio:
+                target = index
+                best_ratio = ratio
+        if target is None:
+            continue
+        cursor = target + 1
+        paragraph_xml = doc_paragraphs[target].group(0)
+        run_matches = list(re.finditer(r"<w:r\b[^>]*>[\s\S]*?</w:r\s*>", paragraph_xml, re.IGNORECASE))
+        run_ranges: list[tuple[int, int]] = []
+        plain_parts: list[str] = []
+        for run in run_matches:
+            text = re.sub(r"\s+", "", html.unescape("".join(re.findall(r"<w:t\b[^>]*>([\s\S]*?)</w:t\s*>", run.group(0), re.IGNORECASE))))
+            start = sum(len(part) for part in plain_parts)
+            plain_parts.append(text)
+            run_ranges.append((start, start + len(text)))
+        replacements_for_run: dict[int, str] = {}
+        for start, end, kind in spans:
+            selected = source_compact[start:end]
+            matcher = difflib.SequenceMatcher(None, source_compact, "".join(plain_parts), autojunk=False)
+            mapped = []
+            hint = 0
+            for tag, source_start, source_end, doc_start, doc_end in matcher.get_opcodes():
+                if source_end <= start and tag == "equal":
+                    hint = doc_end
+                if tag == "equal" and source_end > start and source_start < end:
+                    overlap_start = max(start, source_start)
+                    overlap_end = min(end, source_end)
+                    mapped.extend(range(doc_start + overlap_start - source_start, doc_start + overlap_end - source_start))
+            if len(mapped) == len(selected):
+                mapped_start, mapped_end = min(mapped), max(mapped) + 1
+            else:
+                mapped_start = "".join(plain_parts).find(selected, hint)
+                if mapped_start < 0:
+                    continue
+                mapped_end = mapped_start + len(selected)
+            for run_index, (run_start, run_end) in enumerate(run_ranges):
+                if run_start >= mapped_start and run_end <= mapped_end and run_end > run_start:
+                    run_xml = replacements_for_run.get(run_index, run_matches[run_index].group(0))
+                    position = re.search(r'<w:position\s+w:val="(-?\d+)"\s*/>', run_xml, re.IGNORECASE)
+                    if position and position.group(1) != "0":
+                        run_xml = run_xml[:position.start()] + f'<w:vertAlign w:val="{kind}"/>' + run_xml[position.end():]
+                    replacements_for_run[run_index] = run_xml
+        for run_index, run_xml in reversed(list(replacements_for_run.items())):
+            run = run_matches[run_index]
+            paragraph_xml = paragraph_xml[:run.start()] + run_xml + paragraph_xml[run.end():]
+        if paragraph_xml != doc_paragraphs[target].group(0):
+            replacements[target] = paragraph_xml
+    if not replacements:
+        return document_xml
+    for index, match in reversed(list(enumerate(doc_paragraphs))):
+        if index in replacements:
+            document_xml = document_xml[:match.start()] + replacements[index] + document_xml[match.end():]
+    return document_xml
 
 
 class _WriterExportListParser(HTMLParser):
@@ -14812,6 +14910,7 @@ def _writer_clone_lower_alpha_suffix(document_xml: str, numbering_xml: str, sour
         groups = []
     if not groups:
         return document_xml, numbering_xml
+
 
     abstract_ids = [int(value[1]) for value in re.findall(
         r"<w:abstractNum\b[^>]*w:abstractNumId=([\"'])(\d+)\1", numbering_xml, re.IGNORECASE
@@ -14923,6 +15022,55 @@ def _writer_clone_lower_alpha_suffix(document_xml: str, numbering_xml: str, sour
     output.append(document_xml[last:])
     return "".join(output), numbering_xml
 
+
+def _writer_normalize_simple_list_numbering(document_xml: str, numbering_xml: str, source_html: str) -> tuple[str, str]:
+    """Use Word's hybrid numbering type and 36pt indent for one-level lists."""
+    if re.search(r"<(?:ul|ol)\b[^>]*>[\s\S]*?<(?:ul|ol)\b", source_html, re.IGNORECASE):
+        return document_xml, numbering_xml
+    list_texts = {
+        re.sub(r"\s+", " ", _writer_html_plain(item.group(1))).strip()
+        for item in re.finditer(r"<(?:ul|ol)\b[^>]*>([\s\S]*?)</(?:ul|ol)\s*>", source_html, re.IGNORECASE)
+        for item in re.finditer(r"<li\b[^>]*>([\s\S]*?)</li\s*>", item.group(1), re.IGNORECASE)
+    }
+    if not list_texts:
+        return document_xml, numbering_xml
+    def normalize_list_paragraph(match: re.Match) -> str:
+        paragraph = match.group(0)
+        if re.sub(r"\s+", " ", _paragraph_plain_text(paragraph)).strip() not in list_texts:
+            return paragraph
+        ppr = re.search(r"<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>", paragraph, re.IGNORECASE)
+        if not ppr:
+            return paragraph
+        block = ppr.group(0)
+        block = re.sub(r'(<w:ind\b[^>]*\bw:left=["\'])(7(?:0[0-9]|1[0-5]))(["\'])', r'\g<1>720\3', block, flags=re.IGNORECASE)
+        block = re.sub(r'(<w:tab\b[^>]*\bw:pos=["\'])(7(?:0[0-9]|1[0-5]))(["\'])', r'\g<1>720\3', block, flags=re.IGNORECASE)
+        return paragraph[:ppr.start()] + block + paragraph[ppr.end():]
+    document_xml = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", normalize_list_paragraph, document_xml, flags=re.IGNORECASE)
+    num_ids = set()
+    for paragraph in re.findall(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE):
+        if re.sub(r"\s+", " ", _paragraph_plain_text(paragraph)).strip() not in list_texts:
+            continue
+        num = re.search(r"<w:numId\b[^>]*w:val=([\"'])(\d+)\1", paragraph, re.IGNORECASE)
+        if num:
+            num_ids.add(num.group(2))
+    abstract_ids = set()
+    for num_id in num_ids:
+        num = re.search(rf"<w:num\b[^>]*w:numId=([\"']){re.escape(num_id)}\1[^>]*>[\s\S]*?</w:num\s*>", numbering_xml, re.IGNORECASE)
+        abstract = re.search(r"<w:abstractNumId\b[^>]*w:val=([\"'])(\d+)\1", num.group(0), re.IGNORECASE) if num else None
+        if abstract:
+            abstract_ids.add(abstract.group(2))
+    for abstract_id in abstract_ids:
+        abstract = re.search(rf"<w:abstractNum\b[^>]*w:abstractNumId=([\"']){re.escape(abstract_id)}\1[^>]*>[\s\S]*?</w:abstractNum\s*>", numbering_xml, re.IGNORECASE)
+        if not abstract:
+            continue
+        block = abstract.group(0)
+        if re.search(r"<w:multiLevelType\b[^>]*/>", block, re.IGNORECASE):
+            block = re.sub(r"<w:multiLevelType\b[^>]*/>", '<w:multiLevelType w:val="hybridMultilevel"/>', block, count=1, flags=re.IGNORECASE)
+        else:
+            block = re.sub(r"(<w:abstractNum\b[^>]*>)", r'\1<w:multiLevelType w:val="hybridMultilevel"/>', block, count=1, flags=re.IGNORECASE)
+        block = re.sub(r'(<w:ind\b[^>]*\bw:left=[\"\'])(7(?:0[0-9]|1[0-5]))([\"\'])', r'\g<1>720\3', block, flags=re.IGNORECASE)
+        numbering_xml = numbering_xml[:abstract.start()] + block + numbering_xml[abstract.end():]
+    return document_xml, numbering_xml
 
 def _writer_restore_heading_styles(
     document_xml: str, styles_xml: str, source_html: str
@@ -16433,49 +16581,34 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             return tag
         document_xml = re.sub(r"<w:pgMar\b[^>]*/>", patch_margin, document_xml, flags=re.IGNORECASE)
 
-    # W22a: Superscript / Subscript (<w:vertAlign>)
-    # LibreOffice HTML import turns <sup>/<sub> into <w:position w:val="..."/> (e.g. 8 for sup, -2 for sub).
-    # Word COM Font.Superscript/Subscript requires native <w:vertAlign w:val="superscript|subscript"/>.
-    # Chỉ đổi run có chữ đúng bằng nội dung <sup>/<sub> của HTML nguồn: `w:position` còn là "nâng/hạ chữ" hợp lệ
-    # của tài liệu nhập (hàm này chạy cho cả tài liệu mở từ DOCX), không được biến mọi run nâng/hạ thành chỉ số.
-    vert_align_texts: dict[str, set[str]] = {"superscript": set(), "subscript": set()}
-    for tag, val in (("sup", "superscript"), ("sub", "subscript")):
-        for m in re.finditer(rf"<{tag}\b[^>]*>([\s\S]*?)</{tag}\s*>", source_html, re.IGNORECASE):
-            txt = _writer_html_plain(m.group(1)).strip()
-            if txt:
-                vert_align_texts[val].add(txt)
-
-    if vert_align_texts["superscript"] or vert_align_texts["subscript"]:
-        def patch_vert_align(r_match: re.Match) -> str:
-            r = r_match.group(0)
-            pos = re.search(r'<w:position\s+w:val="(-?\d+)"\s*/>', r, re.IGNORECASE)
-            if not pos or pos.group(1) == "0":
-                return r
-            val = "subscript" if pos.group(1).startswith("-") else "superscript"
-            txt = html.unescape("".join(re.findall(r"<w:t\b[^>]*>([^<]*)</w:t>", r))).strip()
-            if txt not in vert_align_texts[val]:
-                return r
-            return r[:pos.start()] + f'<w:vertAlign w:val="{val}"/>' + r[pos.end():]
-
-        document_xml = re.sub(r'<w:r\b[^>]*>[\s\S]*?</w:r\s*>', patch_vert_align, document_xml, flags=re.IGNORECASE)
+    # W22a: The import filter can split a selected sub/sup range into several
+    # runs when it overlaps bold/italic formatting. Match by paragraph range.
+    document_xml = _writer_restore_created_vertical_alignment(document_xml, source_html)
 
     # W22b: Highlight text (<w:highlight>)
     # LibreOffice HTML import drops <mark> and inline background-color.
     highlight_texts: dict[str, str] = {}
+    word_highlight_colors = {
+        "000000": "black", "0000FF": "blue", "00FFFF": "cyan", "00FF00": "green",
+        "FF00FF": "magenta", "FF0000": "red", "FFFF00": "yellow", "FFCD00": "yellow", "FFFFFF": "white",
+        "000080": "darkBlue", "008080": "darkCyan", "008000": "darkGreen",
+        "800080": "darkMagenta", "800000": "darkRed", "808000": "darkYellow",
+        "808080": "darkGray", "C0C0C0": "lightGray",
+    }
     for mark in re.finditer(r'<mark\b[^>]*>([\s\S]*?)</mark\s*>', source_html, re.IGNORECASE):
         txt = _writer_html_plain(mark.group(1)).strip()
         if txt:
-            highlight_texts[txt] = "yellow"
-    for span in re.finditer(r'<(?:span|font)\b(?=[^>]*\bstyle=["\']([^"\']*)["\'])[^>]*>([\s\S]*?)</(?:span|font)\s*>', source_html, re.IGNORECASE):
-        style = span.group(1)
-        if re.search(
-            r'background-color\s*:\s*(?:#ffff00|#ffcd00|yellow|rgb\(\s*255\s*,\s*(?:255|205)\s*,\s*0\s*\))',
-            style,
-            re.IGNORECASE,
-        ):
-            txt = _writer_html_plain(span.group(2)).strip()
-            if txt:
-                highlight_texts[txt] = "yellow"
+            highlight_texts[re.sub(r"\s+", " ", txt).strip()] = "yellow"
+    for tag in ("span", "font"):
+        for span in re.finditer(rf'<{tag}\b(?=[^>]*\bstyle=["\']([^"\']*)["\'])[^>]*>([\s\S]*?)</{tag}\s*>', source_html, re.IGNORECASE):
+            style = span.group(1)
+            bg = re.search(r'(?:^|;)\s*background-color\s*:\s*([^;]+)', style, re.IGNORECASE)
+            color_hex = _css_color_hex(bg.group(1)) if bg else None
+            word_color = word_highlight_colors.get(color_hex.upper()) if color_hex else None
+            if word_color:
+                txt = _writer_html_plain(span.group(2)).strip()
+                if txt:
+                    highlight_texts[re.sub(r"\s+", " ", txt).strip()] = word_color
 
     if highlight_texts:
         document_xml = re.sub(
@@ -16643,6 +16776,7 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
     numbering = numbering_bytes.decode("utf-8", errors="replace") if numbering_bytes else ""
     if numbering:
         document_xml, numbering = _writer_clone_lower_alpha_suffix(document_xml, numbering, source_html)
+        document_xml, numbering = _writer_normalize_simple_list_numbering(document_xml, numbering, source_html)
         replacements["word/document.xml"] = document_xml.encode("utf-8")
         replacements["word/numbering.xml"] = numbering.encode("utf-8")
     bullet_texts = {

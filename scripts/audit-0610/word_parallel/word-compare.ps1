@@ -1,7 +1,8 @@
 ﻿param([string]$Dir)
 $ErrorActionPreference="Continue"
-$ops=@('bold','italic','underline','strike','subscript','superscript','size16','fontArial','colorRed','highlightYellow','alignCenter','alignRight','alignJustify','bullet','numbered','indentInc','lineSpacing15','spaceBefore12','spaceAfter12','caseUpper')
-$before=@(Get-Process WINWORD -ErrorAction SilentlyContinue | % Id)
+$ops=@('bold','italic','underline','strike','subscript','superscript','size16','fontArial','colorRed','highlightYellow','alignCenter','alignRight','alignJustify','bullet','numbered','indentInc','lineSpacing15','spaceBefore12','spaceAfter12','caseUpper','default')
+$existingWordPids=@(Get-CimInstance Win32_Process -Filter "Name='WINWORD.EXE'" | ForEach-Object { [int]$_.ProcessId })
+$wordPids=@()
 $w=New-Object -ComObject Word.Application; $w.Visible=$false; $w.DisplayAlerts=0
 function Find-Para($d){ foreach($p in $d.Paragraphs){ if($p.Range.Text -match 'Alpha|ALPHA|alpha'){ return $p } } return $null }
 function Props($path){
@@ -12,10 +13,16 @@ function Props($path){
   } finally { $d.Close(0) }
 }
 try {
+  $bootstrap=$w.Documents.Add()
+  $wordPids=@(Get-CimInstance Win32_Process -Filter "Name='WINWORD.EXE'" | Where-Object { [int]$_.ProcessId -notin $existingWordPids } | ForEach-Object { [int]$_.ProcessId })
+  if ($wordPids.Count -eq 0) { throw "Không tìm thấy PID Word Automation do phiên này khởi tạo." }
+  Write-Output "Word COM PID: $($wordPids -join ',')"
+  $bootstrap.Close(0)
   foreach($op in $ops){
     $out="$Dir\word_$op.docx"; Copy-Item "$Dir\template.docx" $out -Force
     $d=$w.Documents.Open($out,$false,$false); $p=Find-Para $d; $r=$p.Range; $r.MoveEnd(1,-1) | Out-Null
     switch($op){
+      'default'{}
       'bold'{$r.Font.Bold=-1}; 'italic'{$r.Font.Italic=-1}; 'underline'{$r.Font.Underline=1}; 'strike'{$r.Font.StrikeThrough=-1}
       'subscript'{$r.Font.Subscript=-1}; 'superscript'{$r.Font.Superscript=-1}; 'size16'{$r.Font.Size=16}; 'fontArial'{$r.Font.Name='Arial'}
       'colorRed'{$r.Font.Color=255}; 'highlightYellow'{$r.HighlightColorIndex=7}
@@ -35,6 +42,12 @@ try {
     $rows += [pscustomobject]@{op=$op; ket_qua=$(if($diff.Count -eq 0){'KHOP'}else{'LECH'}); khac=($diff -join ' ; ')}
   }
   $rows | Format-Table -AutoSize -Wrap | Out-String -Width 250
-} finally { $w.Quit() }
-Start-Sleep -Milliseconds 800
-$after=@(Get-Process WINWORD -ErrorAction SilentlyContinue | % Id) | ? { $_ -notin $before }; foreach($i in $after){ Stop-Process -Id $i -Force -ErrorAction SilentlyContinue }
+} finally {
+  if ($w) { $w.Quit(); [void][System.Runtime.InteropServices.Marshal]::FinalReleaseComObject($w) }
+  $wordPids=@($wordPids + @(Get-CimInstance Win32_Process -Filter "Name='WINWORD.EXE'" | Where-Object { [int]$_.ProcessId -notin $existingWordPids } | ForEach-Object { [int]$_.ProcessId }) | Select-Object -Unique)
+  foreach($wordPid in $wordPids){
+    $ownWord=Get-Process -Id $wordPid -ErrorAction SilentlyContinue
+    if ($ownWord) { $ownWord | Wait-Process -Timeout 3 -ErrorAction SilentlyContinue }
+    if (Get-Process -Id $wordPid -ErrorAction SilentlyContinue) { Stop-Process -Id $wordPid -Force -ErrorAction SilentlyContinue }
+  }
+}
