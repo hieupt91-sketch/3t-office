@@ -525,7 +525,7 @@ export const WRITER_HELP_ENTRIES = [
     ribbon: { tab: "Chèn", tabId: "insert", group: "Văn bản" },
     keywords: ["hộp văn bản", "textbox", "khung chữ", "ngày giờ", "date time", "dd/mm/yyyy", "chèn ngày"],
     steps: [
-      "Đặt con trỏ tại đoạn cần neo khung, rồi mở tab Chèn > nhóm Văn bản > Hộp văn bản. Khung viền xanh 220×80 px xuất hiện tại vị trí con trỏ; chữ mẫu «Nhập văn bản» được chọn sẵn, nên có thể gõ ngay để thay thế. Kéo khung để đặt lại hoặc kéo góc để đổi cỡ.",
+      "Đặt con trỏ tại đoạn cần neo khung, rồi mở tab Chèn > nhóm Văn bản > Hộp văn bản. Khung viền xanh có kích thước khởi tạo khớp mặc định Word xuất hiện tại vị trí con trỏ; chữ mẫu «Nhập văn bản» được chọn sẵn, nên có thể gõ ngay để thay thế. Kéo khung để đặt lại hoặc kéo góc để đổi cỡ; kích thước sau lưu giữ nguyên.",
       "Ngày & Giờ (cột nhỏ, dưới Chữ đầu đoạn): hộp thoại liệt kê 5 mẫu với giá trị lúc bấm — dd/MM/yyyy, dd/MM/yyyy HH:mm, dạng dài «12 tháng 9 năm 2026», yyyy-MM-dd, HH:mm. Chọn mẫu rồi Chèn.",
       "Chuỗi ngày giờ nằm tại con trỏ dạng span, không tự cập nhật sau khi chèn. Esc hoặc Hủy đóng hộp thoại.",
       "Cùng nhóm còn Chữ nghệ thuật (bài riêng) và Chữ đầu đoạn. Ctrl+Z gỡ khung hoặc chuỗi vừa chèn."

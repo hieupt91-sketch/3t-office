@@ -12,3 +12,8 @@ Quy trinh/CAM/TIET KIEM TOKEN: nhu TICKET-FIX-T1.md; COMMIT SAU MOI NHOM; Word C
 1. App desktop: tài liệu mới, thao tác gõ/chọn/áp kiểu bằng CDP chuột và bàn phím; lưu DOCX và chụp ảnh tại `E:\VNOffice-profiles\codex-ft8\heading-run-09\heading-t8-before.png`.
 2. Word COM: sau mở lại, cả hai DOCX khớp Calibri Light, 16/13/12 pt, không đậm, màu theme, spacing 12/2/2–0 pt, outline 1/2/3 và căn trái.
 3. Sửa chỉ áp cho tài liệu mới; DOCX nhập không đổi. Hướng dẫn F1 + tooltip VI/EN cập nhật; test Python 4/4 và heading/help 4/4 PASS. Commit riêng nhóm 3.
+
+### Nhóm 4 — Hộp văn bản — 11/10/2026
+1. App desktop: Chèn > Văn bản > Hộp văn bản, gõ bằng CDP keyboard thật, lưu DOCX; ảnh `E:\VNOffice-profiles\codex-ft8\textbox-run-05\textbox-t8-before.png`.
+2. Word COM: cùng shape type 17; sau lưu cả hai DOCX có 53.6×19.5 pt, AutoSize=0, lề 7.2/3.6 pt và OOXML extent/bodyPr khớp.
+3. Đổi khung mặc định 220×80 thành 125.47×45.6 CSS px, kích thước phân số xuất theo pt, lề Word khớp. Help/i18n VI/EN cập nhật; test Python 6/6, JS 2/2 PASS. Commit riêng nhóm 4.

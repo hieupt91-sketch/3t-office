@@ -10574,6 +10574,7 @@ export class WriterAdapter {
       const isTextBox = shape.type === "textbox" || shape.shapeType === "textbox";
       if (isTextBox) {
         el.classList.add("vno-writer-textbox");
+        el.classList.toggle("vno-new-textbox", !shape.imported);
         const text = String(shape.text || "Nhập văn bản").replace(/</g, "&lt;").replace(/>/g, "&gt;");
         el.innerHTML = `<div class="vno-writer-textbox-body" contenteditable="true" role="textbox">${text}</div>${delBtn}<div class="vno-shape-resize-handle vno-handle-se" data-handle-dir="se"></div>`;
         const body = el.querySelector(".vno-writer-textbox-body");
@@ -10869,7 +10870,7 @@ export class WriterAdapter {
         rect = range.commonAncestorContainer.parentElement.getBoundingClientRect?.();
       }
       if (rect) {
-        const width = typeof options.width === "number" ? options.width : 220;
+        const width = typeof options.width === "number" ? options.width : 125.47;
         cursorPosition = {
           x: Math.max(0, Math.min(rect.left - editorRect.left, editorRect.width - width)),
           y: Math.max(0, rect.top - editorRect.top)
@@ -10879,8 +10880,10 @@ export class WriterAdapter {
     const shape = this.insertShape({
       type: "textbox",
       shapeType: "textbox",
-      width: typeof options.width === "number" ? options.width : 220,
-      height: typeof options.height === "number" ? options.height : 80,
+      // LibreOffice's HTML → DOCX bridge maps 1 CSS px to 0.75 pt. These
+      // defaults produce Word's measured 94.1 × 34.2 pt text box after save.
+      width: typeof options.width === "number" ? options.width : 125.47,
+      height: typeof options.height === "number" ? options.height : 45.6,
       fill: "transparent",
       stroke: "#2563eb",
       text,
@@ -15175,7 +15178,12 @@ export class WriterAdapter {
           const inner = (s.type === "textbox" || s.shapeType === "textbox")
             ? `<div class="vno-writer-textbox-body">${this._escapeHtml(s.text || "")}</div>`
             : renderShapeSvg(s);
-          return `  <div style="position:absolute; left:${s.x}px; top:${s.y}px; width:${s.w}px; height:${s.h}px;">${inner}</div>\n`;
+          const isNewTextBox = (s.type === "textbox" || s.shapeType === "textbox") && !s.imported;
+          // LO rounds floating CSS-pixel widths to whole px on HTML import. Keep
+          // fractional dimensions in pt so the saved Word extent matches the canvas.
+          const width = isNewTextBox ? `${(s.w * 0.75).toFixed(3)}pt` : `${s.w}px`;
+          const height = isNewTextBox ? `${(s.h * 0.75).toFixed(3)}pt` : `${s.h}px`;
+          return `  <div style="position:absolute; left:${s.x}px; top:${s.y}px; width:${width}; height:${height};">${inner}</div>\n`;
         }).join("") +
         `</div>\n`;
     }

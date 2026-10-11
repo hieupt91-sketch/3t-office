@@ -3200,6 +3200,10 @@ p.vno-style-title {
   caret-color: var(--vno-text-primary);
 }
 
+.vno-writer-textbox.vno-new-textbox .vno-writer-textbox-body {
+  padding: 3.6pt 7.2pt;
+}
+
 [data-theme="dark"] .vno-writer-textbox-body {
   color: var(--vno-text-primary, #f1f5f9);
 }

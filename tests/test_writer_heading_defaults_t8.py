@@ -70,6 +70,21 @@ class WriterHeadingDefaultsT8Tests(unittest.TestCase):
             theme,
         )
 
+    def test_new_document_textbox_margins_match_word_defaults(self):
+        document = '<w:document><wp:anchor><wps:bodyPr lIns="0" tIns="0" rIns="0" bIns="0"><a:noAutofit/></wps:bodyPr><w:txbxContent><w:p/></w:txbxContent></wp:anchor></w:document>'
+        html = '<!--vno-new-document-style-defaults--><div class="vno-writer-textbox-body">Text</div>'
+        result = patcher._writer_apply_word_default_textbox_margins_for_new_documents(document, html)
+        self.assertIn('lIns="91440" tIns="45720" rIns="91440" bIns="45720"', result)
+
+    def test_imported_document_textbox_margins_are_unchanged(self):
+        document = '<w:document><wp:anchor><wps:bodyPr lIns="0"/><w:txbxContent/></wp:anchor></w:document>'
+        self.assertEqual(
+            patcher._writer_apply_word_default_textbox_margins_for_new_documents(
+                document, '<div class="vno-writer-textbox-body">Imported</div>'
+            ),
+            document,
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

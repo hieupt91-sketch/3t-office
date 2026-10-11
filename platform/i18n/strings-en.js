@@ -740,7 +740,7 @@ export const enStrings = {
     "writer.page.blank": { label: "Blank Page", tooltip: "Insert a completely blank page at the cursor" },
     "writer.header.insert": { label: "Header", tooltip: "Insert header" },
     "writer.footer.insert": { label: "Footer", tooltip: "Insert footer" },
-    "writer.insert.textbox": { label: "Text Box", tooltip: "Insert a freely movable text box" },
+    "writer.insert.textbox": { label: "Text Box", tooltip: "Insert a text box at Word's default starting size; drag a corner to resize" },
     "writer.insert.wordart": { label: "WordArt", tooltip: "Insert stylized decorative text with outline, shadow, or gradient at the cursor" },
     "writer.format.dropCap": { label: "Drop Cap", tooltip: "Enlarge the first letter of the paragraph" },
     "writer.insert.dateTime": { label: "Date & Time", tooltip: "Insert the current date and time at the cursor" },

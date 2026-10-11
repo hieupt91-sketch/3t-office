@@ -15563,6 +15563,31 @@ def _writer_apply_word_default_heading_theme_for_new_documents(theme_xml: str, s
     return theme_xml[:major.start()] + block + theme_xml[major.end():]
 
 
+def _writer_apply_word_default_textbox_margins_for_new_documents(document_xml: str, source_html: str) -> str:
+    """Match the default Word DrawingML text-frame inset on newly inserted boxes."""
+    if "<!--vno-new-document-style-defaults-->" not in source_html:
+        return document_xml
+
+    def patch_anchor(match: re.Match) -> str:
+        anchor = match.group(0)
+        if "<w:txbxContent" not in anchor:
+            return anchor
+        body_pr = re.search(r"<wps:bodyPr\b([^>]*)>", anchor, re.IGNORECASE)
+        if not body_pr:
+            return anchor
+        attrs = body_pr.group(1)
+        for name, value in (("lIns", "91440"), ("rIns", "91440"), ("tIns", "45720"), ("bIns", "45720")):
+            pattern = rf'(?<![\w:]){name}=[\"\'][^\"\']*[\"\']'
+            replacement = f'{name}="{value}"'
+            if re.search(pattern, attrs, re.IGNORECASE):
+                attrs = re.sub(pattern, replacement, attrs, count=1, flags=re.IGNORECASE)
+            else:
+                attrs += f" {replacement}"
+        return anchor[:body_pr.start()] + "<wps:bodyPr" + attrs + ">" + anchor[body_pr.end():]
+
+    return re.sub(r"<wp:(?:anchor|inline)\b[\s\S]*?</wp:(?:anchor|inline)\s*>", patch_anchor, document_xml, flags=re.IGNORECASE)
+
+
 def _writer_restore_heading_styles(
     document_xml: str, styles_xml: str, source_html: str
 ) -> tuple[str, str]:
@@ -17402,6 +17427,7 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
         document_xml, styles_xml = _writer_apply_word_default_heading_styles_for_new_documents(
             document_xml, styles_xml, source_html
         )
+    document_xml = _writer_apply_word_default_textbox_margins_for_new_documents(document_xml, source_html)
     document_xml = _writer_restore_toc_field(document_xml, source_html)
     replacements = {"word/document.xml": document_xml.encode("utf-8")}
     if styles_bytes and styles_xml != styles_bytes.decode("utf-8", errors="replace"):

@@ -67,7 +67,7 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Thư viện kiểu | Chưa chạy | Chưa chạy | NOT RUN |
 | Tìm/thay thế: thay toàn bộ `Alpha` → `Gamma` | CDP Ctrl+H, 1 thay thế; DOCX có Gamma, không Alpha | `Find.Execute` ReplaceAll; DOCX cùng nội dung | KHỚP |
 | Ký hiệu `π` | CDP chọn Pi; lưu DOCX có đúng 1 `π` ở đoạn Alpha | COM DOCX đối chứng có cùng ký tự/vị trí | KHỚP |
-| Hộp văn bản | Gõ ngay sau khi chèn; Word đọc một shape type 17, text khớp, 94.1×34.2 pt | COM tạo textbox, text khớp nhưng sau lưu 53.6×19.5 pt | LECH kích thước; cần đo lại AutoSize/margins |
+| Hộp văn bản | Sau lưu, COM đọc 53.6×19.5 pt; AutoSize=0; lề 7.2/3.6 pt | COM đọc cùng kích thước, AutoSize và lề | KHỚP |
 | Hình khối | Chưa chạy | Chưa chạy | NOT RUN |
 | Hình ảnh | Nút mở native file picker; CDP không cấp được file trong lượt này | Chưa chạy | BLOCKED; không dùng OS input |
 
@@ -92,6 +92,12 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 1. **App/CDP:** tài liệu trắng mới, gõ ba đoạn, chọn từng đoạn bằng kéo chuột và áp dụng qua **Trang đầu > Kiểu dáng**; lưu DOCX, ảnh `E:\VNOffice-profiles\codex-ft8\heading-run-09\heading-t8-before.png`.
 2. **Word COM:** tạo cùng ba Heading và đọc lại cả hai DOCX: Calibri Light; 16/13/12 pt; không đậm; màu/theme `-738148353/-738148353/-738164737`; trước 12/2/2 pt, sau 0; outline 1/2/3; căn trái; khớp từng thuộc tính.
 3. **Kết quả/sửa:** **KHỚP**; hậu xử lý chỉ áp theme/style Word cho tài liệu mới và không sửa định dạng đoạn/kết quả mở DOCX nguồn. Canvas mới cũng theo cỡ/màu/spacing; Help F1 **Thư viện kiểu và kiểu Thường** cùng tooltip VI/EN cập nhật. Test Python 4/4 và heading shortcut/help 4/4 PASS.
+
+### FIX-T8 — Hộp văn bản — 11/10/2026
+
+1. **App/CDP:** Chèn qua **Chèn > Văn bản > Hộp văn bản**, gõ `Audit textbox` bằng bàn phím thật, lưu DOCX; ảnh `E:\VNOffice-profiles\codex-ft8\textbox-run-05\textbox-t8-before.png`.
+2. **Word COM:** tạo shape type 17 cùng kích thước 94.1×34.2 pt trước lưu; sau mở lại app và Word đều 53.6×19.5 pt, AutoSize=0, wrap bật, lề trái/phải 7.2 pt và trên/dưới 3.6 pt; OOXML ext/bodyPr cũng giống.
+3. **Kết quả/sửa:** **KHỚP**. Nguyên nhân là khung app mặc định 220×80 CSS px quá lớn và phép đổi px làm tròn; đặt mặc định 125.47×45.6 px, xuất kích thước phân số theo pt và khớp lề Word; cỡ người dùng chỉ định giữ nguyên. Test Python 6/6, JS 2/2 PASS; Help F1 và tooltip VI/EN cập nhật.
 
 - Các phép thử FIX-T8 còn lại thuộc Style/References và Comments/Track Changes/Find/Replace/Symbol/Shapes: **NOT RUN** trong lượt này. Kết quả Heading 1–3 trước đó vẫn là sai khác đã ghi, không được tính KHỚP.
 - Batch DOCX hồi quy trên worktree/profile `codex-ft8`: **5/5 PASS**, edit PASS; trang nguồn/lưu d01 19/19, d07 23/23, d13 10/10, d20 3/3, d24 16/16. Báo cáo: `E:\VNOffice-profiles\codex-ft8\batch-audit\batch_document_audit_report.md`.
@@ -141,7 +147,7 @@ Chưa chạy: khớp hoa/thường, toàn từ, bỏ dấu, Find next/previous v
 
 ### FIX-T8 tiếp tục — Hộp văn bản/Hình ảnh — 11/10/2026
 
-Mở **Chèn > Văn bản > Hộp văn bản** và gõ ngay `Audit textbox` bằng CDP keyboard; chữ gợi ý được thay đúng. DOCX app mở bằng Word COM có một shape type 17, text đúng, Width/Height `94.1×34.2 pt`. Word COM tạo textbox cùng text; sau lưu/đọc lại shape type vẫn 17 nhưng kích thước `53.6×19.5 pt`: **LECH kích thước**. Cần điều tra thêm `TextFrame.AutoSize`/lề khung trước khi sửa; không đổi cách tính kích thước khi chưa xác định chính xác quy đổi. Trợ giúp tiếng Việt **Hộp văn bản và Ngày & Giờ** đã mô tả vị trí, thao tác gõ ngay để thay chữ mẫu và cách kéo/đổi cỡ; i18n đã có.
+Đây là baseline trước sửa; số đo sau sửa, AutoSize và lề Word được ghi ở mục **FIX-T8 — Hộp văn bản** phía trên.
 
 Phép chèn ảnh đã bấm nút **Chèn > Hình ảnh** bằng chuột CDP; lệnh mở hộp chọn tệp native. CDP `DOM.setFileInputFiles` không kích hoạt được chọn/đọc ảnh trong lượt thử, nên lưu và Word COM readback chưa chạy: **BLOCKED**. Không dùng OS input. Help **Chèn hình ảnh** và nhãn/tooltip i18n đã có. Hình khối cũng chưa chạy.
 
