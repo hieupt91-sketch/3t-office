@@ -1,0 +1,27 @@
+{
+    "file":  "E:\\VNOffice-profiles\\codex-fl10\\fix-l10-format-painter.pptx",
+    "slides":  10,
+    "shapes":  5,
+    "readback":  [
+                     {
+                         "index":  1,
+                         "text":  "WEST COAST\rROAD TRIP",
+                         "fontName":  null,
+                         "fontSize":  48,
+                         "color":  -2147483648,
+                         "bold":  0,
+                         "italic":  0,
+                         "highlight":  1894392
+                     },
+                     {
+                         "index":  2,
+                         "text":  "Your Name • Sept 20XX",
+                         "fontName":  "Oswald",
+                         "fontSize":  48,
+                         "color":  -2147483648,
+                         "bold":  0,
+                         "italic":  0,
+                         "highlight":  1894392
+                     }
+                 ]
+}
