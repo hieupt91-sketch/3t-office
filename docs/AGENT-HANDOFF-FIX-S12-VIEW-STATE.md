@@ -4,7 +4,7 @@ TASK: FIX-S12 — persist worksheet view toggles in XLSX
 AGENT/ROLE: Sheet audit / handoff to Adapter owner  
 BRANCH: `audit/sheet-s12-codex`  
 WORKTREE: `E:\VNOffice-codex-fs12`  
-OBJECTIVE: Persist Sheet ribbon view state for gridlines, row/column headings, zoom, and formula bar in saved XLSX.
+OBJECTIVE: Persist Sheet ribbon view state for gridlines, row/column headings, zoom, formula bar, and worksheet view mode in saved XLSX.
 
 ## FINDINGS
 
@@ -22,6 +22,8 @@ Evidence:
 - `docs/tickets-0710/evidence/s12/fix-s12-zoomIn.png`
 - `docs/tickets-0710/evidence/s12/fix-s12-zoomOut.png`
 - `docs/tickets-0710/evidence/s12/fix-s12-formulaBar.png`
+- `docs/tickets-0710/evidence/s12/fix-s12-pageBreakPreview.png`
+- `docs/tickets-0710/evidence/s12/fix-s12-pageLayoutView.png`
 - CDP logs: `E:\VNOffice-profiles\codex-fs12\s12-gridlines-retry.log`, `s12-headings-retry.log`
 - Excel COM read-only logs: `E:\VNOffice-profiles\codex-fs12\excel-gridlines-retry.log`, `excel-headings-retry.log`
 - Outputs: `E:\VNOffice-profiles\codex-fs12\app_S12retry_gridlines.xlsx`, `app_S12retry_headings.xlsx`

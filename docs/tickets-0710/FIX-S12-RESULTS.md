@@ -130,3 +130,5 @@
 - Excel COM ReadOnly mở từng XLSX và đọc `ActiveWindow.Zoom=100` ở cả hai. `sheet.view.zoomIn` và `sheet.view.zoomOut` là **LỆCH ĐÃ BIẾT**; log `s12-zoomIn.log`, `s12-zoomOut.log`, `excel-zoomIn.log`, `excel-zoomOut.log`; ảnh `evidence/s12/fix-s12-zoomIn.png`, `fix-s12-zoomOut.png`.
 
 - Cùng nhóm chế độ xem, CDP bấm Thanh công thức làm ẩn thanh trên UI; Excel COM ReadOnly vẫn đọc `DisplayFormulaBar=1`. `sheet.view.formulaBar` là **LỆCH ĐÃ BIẾT**; log `s12-formulaBar.log`, `excel-formulaBar.log`; ảnh `evidence/s12/fix-s12-formulaBar.png`.
+
+- CDP bật Xem ngắt trang và Bố trí trang; ảnh lần lượt cho thấy vùng in có watermark/ngắt trang và vùng đầu/cuối trang. Excel COM ReadOnly đọc `ActiveWindow.View=1` (Normal) cho cả hai XLSX. `sheet.view.pageBreakPreview`, `sheet.view.pageLayout` là **LỆCH ĐÃ BIẾT**; log `s12-pageBreakPreview.log`, `s12-pageLayoutView.log`, `excel-pageBreakPreview.log`, `excel-pageLayoutView.log`; ảnh tương ứng trong `evidence/s12/`.
