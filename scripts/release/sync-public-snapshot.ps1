@@ -37,6 +37,7 @@ if ($LASTEXITCODE -ne 0) { Write-Host "Khong co thay doi de commit." }
 if ($Tag) { git -C $Dest tag -f $Tag }
 foreach ($b in $Branches) { if ($b -ne "main") { git -C $Dest branch -f $b main } }
 
+$ErrorActionPreference = "Continue"  # git ghi tien trinh ra stderr; khong de PowerShell coi la loi
 if ($env:GH_PUSH_TOKEN) {
     $u = $Remote -replace "^https://", "https://x-access-token:$($env:GH_PUSH_TOKEN)@"
     $env:GIT_TERMINAL_PROMPT = "0"
