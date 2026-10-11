@@ -3,7 +3,6 @@ export function slugBookmarkName(name) {
     .normalize("NFD")
     .replace(/[\u0300-\u036f]/g, "")
     .replace(/[^a-zA-Z0-9]+/g, "-")
-    .replace(/^-+|-+$/g, "")
-    .toLowerCase();
+    .replace(/^-+|-+$/g, "");
   return slug || "bookmark";
 }

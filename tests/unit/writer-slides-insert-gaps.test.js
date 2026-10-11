@@ -160,7 +160,8 @@ export async function runWriterSlidesInsertGapsTests() {
     if (formatDateTime(new Date(2026, 8, 4, 8, 30), "dd/MM/yyyy") !== "04/09/2026") {
       throw new Error("formatDateTime sai định dạng VN");
     }
-    if (slugBookmarkName("Mục 1") !== "muc-1") throw new Error("slug bookmark không bỏ dấu");
+    if (slugBookmarkName("Mục 1") !== "Muc-1") throw new Error("slug bookmark phải bỏ dấu nhưng giữ hoa/thường như tên Word");
+    if (slugBookmarkName("SectionStart") !== "SectionStart") throw new Error("slug bookmark phải giữ hoa/thường tên Word hợp lệ");
   });
 
   await test("Writer Insert: Text Box / Drop Cap / Date / Equation / Symbol / Bookmark / Cross-ref hoạt động trên model", async () => {
