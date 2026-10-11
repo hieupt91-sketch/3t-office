@@ -26,3 +26,7 @@ Kiểm tra mục này: thao tác CDP desktop PASS; Excel COM read-only PASS.
 Excel COM không đọc trực tiếp được fixture đầu vào (`0x800A03EC`); đối chứng cuối dùng workbook không chỉnh sửa đã lưu qua app. Bằng chứng UI: [Ảnh chèn cột B](evidence/fix-s8-insert-column.png).
 
 Kiểm tra mục này: probe CDP desktop PASS; Excel COM read-only trên đối chứng và đầu ra chèn cột PASS.
+
+## 4. Format as Table — CHỈ GHI NHẬN
+
+Không thay đổi implementation theo yêu cầu. `docs/RIBBON-BACKLOG.md` đã ghi nhận lệnh hiện chỉ tô màu, Excel xác nhận `ListObjects.Count=0`; phần này chờ quyết định của chủ sở hữu.
