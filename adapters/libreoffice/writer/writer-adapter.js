@@ -9082,7 +9082,7 @@ export class WriterAdapter {
     } else if (styleKey === "h3" || styleKey === "heading3") {
       targetTag = "h3";
     } else if (styleKey === "quote" || styleKey === "trichdan" || styleKey === "blockquote") {
-      targetTag = "p";
+      targetTag = "blockquote";
       addClass = "vno-style-quote";
     } else if (styleKey === "subtitle" || styleKey === "phude") {
       targetTag = "p";

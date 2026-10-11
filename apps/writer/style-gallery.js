@@ -14,7 +14,7 @@ export const STYLE_PRESETS = [
     sublabel: "Title",
     previewSample: "Tiêu đề tài liệu",
     previewCss: "font-family:Calibri, sans-serif; font-size:28px; font-weight:400; color:var(--vno-style-preview-title, #404040);",
-    description: "Kiểu Title dựng sẵn của Word: phông chủ đề tiêu đề, cỡ 28pt"
+    description: "Kiểu Title dựng sẵn: phông chủ đề tiêu đề, cỡ 28pt"
   },
   {
     id: "subtitle",
@@ -24,7 +24,7 @@ export const STYLE_PRESETS = [
     sublabel: "Subtitle",
     previewSample: "Phụ đề tài liệu",
     previewCss: "font-family:Calibri, sans-serif; font-size:15px; color:var(--vno-style-preview-muted, #5a5a5a);",
-    description: "Kiểu Subtitle dựng sẵn của Word, dùng dưới tiêu đề tài liệu"
+    description: "Kiểu Subtitle dựng sẵn, dùng dưới tiêu đề tài liệu"
   },
   {
     id: "normal",
@@ -64,13 +64,13 @@ export const STYLE_PRESETS = [
   },
   {
     id: "quote",
-    tag: "p",
+    tag: "blockquote",
     className: "vno-style-quote",
     label: "Trích dẫn",
     sublabel: "Quote",
     previewSample: "“Trích dẫn…”",
     previewCss: "font-family:Calibri, sans-serif; font-size:15px; font-style:italic; color:var(--vno-style-preview-muted, #404040); text-align:center;",
-    description: "Kiểu Quote dựng sẵn của Word: chữ nghiêng, căn giữa và thụt lề"
+    description: "Kiểu Quote dựng sẵn: chữ nghiêng, căn giữa và thụt lề"
   },
   {
     id: "listparagraph",
@@ -80,7 +80,7 @@ export const STYLE_PRESETS = [
     sublabel: "List Paragraph",
     previewSample: "•  Mục danh sách",
     previewCss: "font-family:Calibri, sans-serif; font-size:15px; color:var(--vno-style-preview-normal, #1e293b); padding-left:12px;",
-    description: "Kiểu List Paragraph dựng sẵn của Word, thụt lề 0,5 inch"
+    description: "Kiểu List Paragraph dựng sẵn, thụt lề 0,5 inch"
   },
   {
     id: "emphasis",
