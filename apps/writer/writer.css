@@ -2935,10 +2935,10 @@ p.vno-style-emphasis {
 .vno-writer-body .vno-style-title,
 p.vno-style-title {
   font-family: "Calibri Light", Calibri, sans-serif;
-  font-size: 28pt;
+  font-size: 26pt;
   font-weight: 400;
   color: #404040;
-  text-align: left;
+  text-align: center;
   margin-bottom: 0;
 }
 

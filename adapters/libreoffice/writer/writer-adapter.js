@@ -9199,6 +9199,10 @@ export class WriterAdapter {
       }
       if (addClass) {
         block.classList?.add?.(addClass);
+        if (addClass === "vno-style-title" && block.style) {
+          block.style.fontSize = "26pt";
+          block.style.textAlign = "center";
+        }
       }
     }
   }
