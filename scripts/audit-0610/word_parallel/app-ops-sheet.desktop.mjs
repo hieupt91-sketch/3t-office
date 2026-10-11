@@ -52,7 +52,7 @@ const ops = [
   ["pasteSpecialPack","A1","pasteSpecialPack",null,null],
   ["conditional","C2","conditional","sheet.format.conditional","C2:C6"],
   ["formatAsTable","A1","tableStyle","sheet.style.formatAsTable","A1:G6"],["cellGood","B2","cellStyle","sheet.style.cellStyles","good"],
-  ["sortAsc","B2","click","sheet.data.sortAsc"],["filter","B1","click","sheet.data.filter"],
+  ["sortAsc","B2","click","sheet.data.sortAsc"],["sortDesc","B2","click","sheet.data.sortDesc"],["filter","B1","click","sheet.data.filter"],
 ];
 const only = (process.env.OPS || "").split(",").filter(Boolean);
 for (const [name, cell, kind, id, value] of ops) {
