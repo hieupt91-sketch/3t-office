@@ -38,6 +38,7 @@ const ops = [
   ["removePageBreak","C5","pageBreak","sheet.page.removePageBreak"],
   ["hyperlink","G2","hyperlink","sheet.insert.hyperlink"],
   ["commentInsert","C2","commentInsert","sheet.review.commentInsert"],
+  ["commentDelete","C2","click","sheet.review.commentDelete"],
   ["defineName","B2","defineName","sheet.formula.defineName"],
   ["formulaRecalculate","H2","click","sheet.formula.recalculate"],
   ["calculateSheet","H2","click","sheet.calc.calculateSheet"],
@@ -388,6 +389,12 @@ for (const [name, cell, kind, id, value] of ops) {
         status = id === "sheet.formula.recalculate" ? "clicked full workbook recalculation" : id === "sheet.calc.calculateSheet" ? "clicked active sheet recalculation" : "opened Formula Error Checking " + checkerState;
         if (id === "sheet.formula.errorChecking") await press(session.cdp, "Escape");
       }
+      if (kind === "click" && id === "sheet.review.commentDelete" && status === "clicked") {
+        const commentState = await ev("JSON.stringify(window.__vnoAppInstance.grid.commentsBySheet[window.__vnoAppInstance.grid.activeSheet])");
+        const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
+        await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
+        status = "deleted selected comment; remaining=" + commentState;
+      }
       if (kind === "textToColumns" && status === "clicked") {
         await sleep(150);
         const select = JSON.parse(await ev(`(() => {const n=document.querySelector('#vno-ttc-del');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
@@ -502,7 +509,7 @@ for (const [name, cell, kind, id, value] of ops) {
       }
     }
     await sleep(600);
-    const info = await ev(`(() => { const app=window.__vnoAppInstance,it=app.grid.cellsData.get("${cell}")||{},g=app.grid,a=app.adapter; const fods=a.serializeToFods(); return JSON.stringify({value:it.val, formula:it.formula, calculatedValue:it.calculatedValue, style:it.style, quickCategory:document.querySelector('select[data-command-id="sheet.format.quickCategory"]')?.value, printAreaBySheet:g.printAreaBySheet, gridlinesVisible:g.gridlinesVisible, headingsVisible:g.headingsVisible, rowHeight:g.getRowHeight?.(3), columnWidth:g.getColumnWidth?.('B'), names:g.namedRangesWorkbook, adapterNames:a.grid?.namedRangesWorkbook, serializedName:fods.includes('table:named-range'), fw:it.style&&it.style.fontWeight, fmt:it.style&&it.style.numberFormat&&it.style.numberFormat.category, textRotation:it.style&&it.style.textRotation}); })()`);
+    const info = await ev(`(() => { const app=window.__vnoAppInstance,it=app.grid.cellsData.get("${cell}")||{},g=app.grid,a=app.adapter; const fods=a.serializeToFods(); return JSON.stringify({value:it.val, formula:it.formula, calculatedValue:it.calculatedValue, style:it.style, quickCategory:document.querySelector('select[data-command-id="sheet.format.quickCategory"]')?.value, printAreaBySheet:g.printAreaBySheet, gridlinesVisible:g.gridlinesVisible, headingsVisible:g.headingsVisible, rowHeight:g.getRowHeight?.(3), columnWidth:g.getColumnWidth?.('B'), names:g.namedRangesWorkbook, comments:g.commentsBySheet?.[g.activeSheet], adapterNames:a.grid?.namedRangesWorkbook, serializedName:fods.includes('table:named-range'), fw:it.style&&it.style.fontWeight, fmt:it.style&&it.style.numberFormat&&it.style.numberFormat.category, textRotation:it.style&&it.style.textRotation}); })()`);
     const formulaValues = kind === "formulaPack" ? await ev(`JSON.stringify(Array.from({length:29},(_,i)=>{const k='H'+(i+2),v=window.__vnoAppInstance.grid.cellsData.get(k)||{};return [k,v.formula,v.val]}))`) : null;
     if (kind === "formulaPack") {
       const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);
