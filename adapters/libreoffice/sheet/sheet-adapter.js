@@ -653,6 +653,8 @@ export class SheetAdapter {
       textRotation: style.textRotation || "",
       indentLevel: style.indentLevel || 0,
     };
+    // Viền chung (nút ribbon "Viền") chỉ vào hash khi có, để hash của ô không viền (và ảnh chụp kiểm thử cũ) không đổi.
+    if (style.border) visualProps.border = style.border;
     return JSON.stringify(visualProps);
   }
 
@@ -3065,7 +3067,7 @@ export class SheetAdapter {
     };
     const visualStyleFor = (item) => {
       const s = item?.style || {};
-      const keys = ["backgroundColor", "color", "fontWeight", "fontStyle", "textDecoration", "fontFamily", "fontSize", "textAlign", "verticalAlign", "whiteSpace", "indentLevel", "borderLeft", "borderRight", "borderTop", "borderBottom"];
+      const keys = ["backgroundColor", "color", "fontWeight", "fontStyle", "textDecoration", "fontFamily", "fontSize", "textAlign", "verticalAlign", "whiteSpace", "indentLevel", "borderLeft", "borderRight", "borderTop", "borderBottom", "border"];
       const hasVisual = keys.some(k => s[k] !== undefined && s[k] !== "" && s[k] !== null);
       if (!hasVisual) return null;
       const hash = JSON.stringify(keys.map(k => s[k] || ""));
@@ -3075,14 +3077,20 @@ export class SheetAdapter {
       const cellProps = [];
       if (s.backgroundColor) cellProps.push(`fo:background-color="${this._escapeXml(s.backgroundColor)}"`);
       if (s.verticalAlign) cellProps.push(`style:vertical-align="${this._escapeXml(s.verticalAlign)}"`);
-      if (s.whiteSpace === "pre-wrap") cellProps.push(`fo:wrap-option="wrap"`);
+      // Nút ribbon "Gói văn bản" ghi whiteSpace="normal" (CSS: có xuống dòng) và nút "Viền" ghi khóa chung `border`
+      // (viền 4 cạnh): trước đây cả hai bị bỏ qua khi xuất FODS nên mất khi lưu XLSX (đối chiếu Excel thật 11/10).
+      if (s.whiteSpace === "pre-wrap" || s.whiteSpace === "normal" || s.whiteSpace === "pre-line" || s.whiteSpace === "break-spaces") cellProps.push(`fo:wrap-option="wrap"`);
       else if (s.whiteSpace === "nowrap") cellProps.push(`fo:wrap-option="no-wrap"`);
-      if (s.borderLeft) cellProps.push(cssToOdfBorder("fo:border-left", s.borderLeft));
-      if (s.borderRight) cellProps.push(cssToOdfBorder("fo:border-right", s.borderRight));
-      if (s.borderTop) cellProps.push(cssToOdfBorder("fo:border-top", s.borderTop));
-      if (s.borderBottom) cellProps.push(cssToOdfBorder("fo:border-bottom", s.borderBottom));
+      const sideBorder = (side) => s[side] || s.border;
+      if (sideBorder("borderLeft")) cellProps.push(cssToOdfBorder("fo:border-left", sideBorder("borderLeft")));
+      if (sideBorder("borderRight")) cellProps.push(cssToOdfBorder("fo:border-right", sideBorder("borderRight")));
+      if (sideBorder("borderTop")) cellProps.push(cssToOdfBorder("fo:border-top", sideBorder("borderTop")));
+      if (sideBorder("borderBottom")) cellProps.push(cssToOdfBorder("fo:border-bottom", sideBorder("borderBottom")));
+      if (s.textAlign) cellProps.push(`style:text-align-source="fix"`);
       const paraProps = [];
-      if (s.textAlign) paraProps.push(`fo:text-align="${this._escapeXml(s.textAlign)}"`);
+      // LibreOffice đọc fo:text-align="right"/"left" thành "chung" (mất căn lề khi lưu XLSX); chỉ "end"/"start" được nhận (đo 11/10).
+      const odfAlign = { right: "end", left: "start" }[s.textAlign] || s.textAlign;
+      if (s.textAlign) paraProps.push(`fo:text-align="${this._escapeXml(odfAlign)}"`);
       if (Number(s.indentLevel) > 0) paraProps.push(`fo:margin-left="${(Number(s.indentLevel) * 0.235).toFixed(3)}cm"`);
       const textProps = [];
       if (s.fontSize) {
