@@ -164,3 +164,8 @@
 
 - CDP tạo hai tên Nguyễn Văn A liền nhau ở B2:B3, chọn A1:C6, dùng nhóm Họ tên và SUM Số tiền.
 - Excel COM ReadOnly xác nhận tổng Nguyễn Văn A=`6913.4`, các nhóm còn lại đúng giá trị nguồn và Grand Total=`20615.1`; **KHỚP EXCEL**. Log `s12-subtotal.log`, `excel-subtotal.log`; ảnh `evidence/s12/fix-s12-subtotal.png`.
+
+## Dữ liệu: Hợp nhất dữ liệu
+
+- CDP chọn M1, thêm hai vùng cùng kích thước A2:C3 và A4:C5, dùng SUM, bỏ chọn nhãn hàng/cột.
+- Excel COM ReadOnly đọc M1:O2=`4|0|3702.5` và `6|0|7036.1`, đúng tổng theo vị trí hai vùng nguồn; **KHỚP EXCEL**. Log `s12-consolidate.log`, `excel-consolidate.log`; ảnh `evidence/s12/fix-s12-consolidate.png`.

@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 58 · LỆCH ĐÃ BIẾT: 13 · CHƯA ĐỐI CHIẾU: 67.
+Tổng 138 nút — KHỚP EXCEL: 59 · LỆCH ĐÃ BIẾT: 13 · CHƯA ĐỐI CHIẾU: 66.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -114,7 +114,7 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Dữ liệu | `sheet.data.flashFill` | Điền nhanh | KHỚP EXCEL | FIX-S12 Du lieu: CDP nhap mau A/B, chay Dien nhanh tren K2:K6; Excel COM ReadOnly doc K2:K6=A/B/C/D/E tu ten nguon J2:J6 (app_S12_flashFill.xlsx) | dialog,toast:A1 |
 | Dữ liệu | `sheet.data.removeDuplicates` | Xóa trùng lặp | KHỚP EXCEL | FIX-S10: UI/CDP + Excel COM read-only; remove duplicates, custom sort, paste special, find/replace | dialog,toast:A1 |
 | Dữ liệu | `sheet.data.validation` | Kiểm tra dữ liệu | KHỚP EXCEL | FIX-S7: CDP + Excel COM; insert/delete, validation, freeze, print area, page setup, chart, conditional format, cell style | dialog,toast:A1 |
-| Dữ liệu | `sheet.data.consolidate` | Hợp nhất dữ liệu | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
+| Dữ liệu | `sheet.data.consolidate` | Hợp nhất dữ liệu | KHỚP EXCEL | FIX-S12 Du lieu: CDP chon M1, SUM hai vung cung kich thuoc A2:C3/A4:C5; Excel COM ReadOnly xac nhan M1:O2=4\|0\|3702.5 va 6\|0\|7036.1 (app_S12_consolidate.xlsx) | dialog,toast:A1 |
 | Dữ liệu | `sheet.data.group` | Nhóm | KHỚP EXCEL | FIX-S12 Du lieu: CDP chon hang 2:6 va bam Nhom/Bỏ nhóm tren tung XLSX; Excel COM ReadOnly OutlineLevel=2 sau Nhom va =1 sau Bỏ nhóm (app_S12_groupRows.xlsx, app_S12_ungroupRows.xlsx) | dom:1 |
 | Dữ liệu | `sheet.data.ungroup` | Bỏ nhóm | KHỚP EXCEL | FIX-S12 Du lieu: CDP chon hang 2:6 va bam Nhom/Bỏ nhóm tren tung XLSX; Excel COM ReadOnly OutlineLevel=2 sau Nhom va =1 sau Bỏ nhóm (app_S12_groupRows.xlsx, app_S12_ungroupRows.xlsx) | dom:1 |
 | Dữ liệu | `sheet.data.subtotal` | Tổng phụ | KHỚP EXCEL | FIX-S12 Du lieu: CDP chon A1:C6, tao hai ten trung lien nhau, tong phu theo Ho ten/SUM So tien; Excel COM ReadOnly xac nhan Nguyen Van A=6913.4 va Grand Total=20615.1 (app_S12_subtotal.xlsx) | dialog,toast:A1 |

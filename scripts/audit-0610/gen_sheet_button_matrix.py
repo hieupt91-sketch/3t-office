@@ -30,6 +30,7 @@ mark(MATCH, "sheet.format.currencyVND", "FIX-S12 Trang dau: CDP click Tien te VN
 mark(MATCH, "sheet.format.percent", "FIX-S12 nhóm Trang đầu: CDP click Phần trăm; Excel COM ReadOnly D2=0.075, NumberFormat=0% (app_percentBtn.xlsx)")
 mark(MATCH, "sheet.format.increaseDecimal", "FIX-S12 nhóm Trang đầu: CDP click Tăng số thập phân; Excel COM ReadOnly C2=1234.5, NumberFormat=0.00 (app_decInc.xlsx)")
 mark(MATCH, "sheet.data.subtotal", "FIX-S12 Du lieu: CDP chon A1:C6, tao hai ten trung lien nhau, tong phu theo Ho ten/SUM So tien; Excel COM ReadOnly xac nhan Nguyen Van A=6913.4 va Grand Total=20615.1 (app_S12_subtotal.xlsx)")
+mark(MATCH, "sheet.data.consolidate", "FIX-S12 Du lieu: CDP chon M1, SUM hai vung cung kich thuoc A2:C3/A4:C5; Excel COM ReadOnly xac nhan M1:O2=4|0|3702.5 va 6|0|7036.1 (app_S12_consolidate.xlsx)")
 mark(MATCH, "sheet.data.group sheet.data.ungroup", "FIX-S12 Du lieu: CDP chon hang 2:6 va bam Nhom/Bỏ nhóm tren tung XLSX; Excel COM ReadOnly OutlineLevel=2 sau Nhom va =1 sau Bỏ nhóm (app_S12_groupRows.xlsx, app_S12_ungroupRows.xlsx)")
 mark(MATCH, "sheet.data.pivotTable", "FIX-S12 Du lieu: CDP chon A1:C6, tao Pivot theo Ho ten va SUM So tien; Excel COM ReadOnly xac nhan Sheet1 (2) PivotTables.Count=1, cot nhan va gia tri (app_S12_pivotTable.xlsx)")
 mark(MATCH, "sheet.data.flashFill", "FIX-S12 Du lieu: CDP nhap mau A/B, chay Dien nhanh tren K2:K6; Excel COM ReadOnly doc K2:K6=A/B/C/D/E tu ten nguon J2:J6 (app_S12_flashFill.xlsx)")
