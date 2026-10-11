@@ -1,16 +1,16 @@
 {
   "product": "3T Office",
-  "current_version": "0.9.9",
+  "current_version": "0.9.10",
   "version_family": "0.9.x",
   "channel": "pilot",
-  "release_date": "2026-10-07",
+  "release_date": "2026-10-11",
   "download": {
-    "file_name": "VNOffice-Setup-0.9.9.exe",
-    "alias_file_name": "Setup-0.9.9.exe",
-    "file_size_bytes": 401414822,
+    "file_name": "VNOffice-Setup-0.9.10.exe",
+    "alias_file_name": "Setup-0.9.10.exe",
+    "file_size_bytes": 401481861,
     "file_size_formatted": "383 MB",
-    "sha256": "9AECB1D53CC5B587154EBC6691C76129CEC0210776FB5E12F57F6399D192AB63",
-    "url": "https://office.3tcomputer.com/downloads/VNOffice-Setup-0.9.9.exe",
+    "sha256": "D21CBC6CC457D54FFCAEE486294B68B851BA5DDDBADEA3374E777C7A43C365E7",
+    "url": "https://office.3tcomputer.com/downloads/VNOffice-Setup-0.9.10.exe",
     "status": "ready",
     "public_download_status": "Sẵn sàng tải về từ hạ tầng phân phối máy chủ 3T Cloud",
     "requirements": {
@@ -21,6 +21,35 @@
     }
   },
   "releases": [
+    {
+      "version": "0.9.10",
+      "channel": "pilot",
+      "date": "2026-10-11",
+      "summary": "Sửa lỗi Lưu thành các định dạng cũ, sửa hai trường hợp tệp xlsx lưu xong không mở được, Doc/Sheet/Slide khớp bộ Office thông dụng hơn",
+      "highlights": [
+        "Chung: Sửa lỗi Tệp ▸ Lưu thành... không lưu được ở các định dạng cũ (văn bản .doc, bảng tính .xls, trình chiếu .ppt); lỗi xuất hiện từ bản 0.9.7.",
+        "Chung: Sheet: sửa hai trường hợp lưu .xlsx xong mà phần mềm bảng tính khác không mở được tệp (tệp có siêu liên kết kèm hình hoặc biểu đồ, và tệp có liên kết ngoài đến nhiều sổ tính). Đã kiểm lại 8 tệp thực tế: lưu rồi mở lại đều thành công.",
+        "Chung: Menu chuột phải đầy đủ hơn; gạch đỏ chính tả không còn che mất định dạng chữ đang gõ.",
+        "Chung: Hướng dẫn tiếng Việt trong Trợ giúp được bổ sung cho các lệnh mới.",
+        "Doc: Bảng: tách ô đúng theo cột lưới, giữ định dạng ô khi tách; bảng mới trống và gộp/tách ô khôi phục đúng ô đã gộp; hộp văn bản chèn đúng vị trí con trỏ và đúng kích thước mặc định.",
+        "Doc: Bố cục trang: lề chuẩn (Thường, Hẹp, Vừa, Rộng) và khổ A5; ngắt trang, ngắt mục và cột giữ nguyên chữ xung quanh.",
+        "Doc: Tiêu đề (Heading 1–3) tạo mới có kiểu mặc định như bộ Office thông dụng.",
+        "Doc: Hình khối và hình ảnh lưu DOCX giữ đúng bố cục và vị trí; chú thích hình, tham chiếu hình và mục lục giữ đúng khi lưu.",
+        "Doc: Bình luận đã giải quyết được lưu và đọc lại đúng; theo dõi thay đổi, Tìm trước, chèn ký hiệu, đổi hoa/thường nhiều đoạn; Ctrl+B/I/U không bị chính tả xóa.",
+        "Doc: Hoàn tác trả con trỏ về đúng chỗ; chia cột trong tài liệu nhiều mục không làm nhảy con trỏ. Số trang vẫn khớp bản gốc trên bộ tài liệu mẫu kiểm tra.",
+        "Sheet: Nút Trang đầu khớp hành vi bảng tính thông dụng: tăng/giảm số thập phân, phần trăm, định dạng Số, ngày, tiền tệ (VND) và kế toán, phân cách hàng nghìn, màu tô và màu chữ mặc định.",
+        "Sheet: Sửa hàm CONCAT cho phần mềm bảng tính cũ, giữ nguyên hàm INDIRECT khi lưu .xlsx để tính đúng.",
+        "Sheet: Lưu .xlsx giữ đúng tự xuống dòng, căn phải và viền; giữ bộ lọc tự động, sheet đang chọn, độ rộng cột và chiều cao hàng.",
+        "Sheet: Mới: Ẩn sheet / Hiện sheet (tab Trang đầu ▸ Định dạng ▸ Sheet); Tìm và thay thế có tùy chọn khớp cả ô.",
+        "Sheet: Đã kiểm khớp: tên vùng, xoay chữ, lề in, sắp xếp nhiều cấp, xóa trùng lặp, đổi tên/di chuyển/xóa sheet, kiểm tra dữ liệu, cố định hàng/cột, vùng in, biểu đồ.",
+        "Sheet: Lưu tệp rất lớn nhanh hơn rõ rệt.",
+        "Slide: Nhóm đối tượng giữ cấu trúc lồng nhau, đổi kích thước và xoay cả nhóm; thứ tự lớp được giữ khi mở và lưu.",
+        "Slide: Chèn biểu đồ hoạt động; chọn chủ đề lưu đúng trong Slide Master; bút (Ctrl+P) và laser khi trình chiếu.",
+        "Slide: Cỡ chữ tăng/giảm theo đúng các bước quen thuộc; tên phông không còn bị thêm số; khoảng cách dòng và phông của hình được giữ khi lưu.",
+        "Slide: Màu chữ mặc định, Ẩn trang chiếu và menu chuột phải của hình thu nhỏ đầy đủ: sao chép, cắt, dán, ẩn, chuyển lên/xuống, bộ sắp xếp, bố cục.",
+        "Slide: Hình khối: tô màu, viền, kích thước và xoay; Đặt lại bố cục; giữ loại hoạt ảnh khi lưu PPTX."
+      ]
+    },
     {
       "version": "0.9.9",
       "channel": "pilot",

@@ -63,9 +63,9 @@ export async function run3tWebTests() {
     );
 
     assert(
-      "Dung lượng bộ cài 0.9.8 đúng 529497844 byte và mã băm SHA256 chính xác",
-      releasesData.download?.file_size_bytes === 529497844 &&
-      releasesData.download?.sha256?.toLowerCase() === "e96cc953ae2b5097c6a047d939ae68f6a60161522929b359b904efb28788ba32"
+      "Dung lượng bộ cài 0.9.10 đúng 401481861 byte và mã băm SHA256 chính xác",
+      releasesData.download?.file_size_bytes === 401481861 &&
+      releasesData.download?.sha256?.toLowerCase() === "d21cbc6cc457d54ffcaee486294b68b851ba5dddbadea3374e777c7a43c365e7"
     );
 
     // 2. Kiểm tra sự tồn tại của 9 trang HTML
