@@ -2859,7 +2859,7 @@ export class SheetAdapter {
   }
 
   _attachImportedTables(workbook, xmlText) {
-    workbook.tablesBySheet = {};
+    const importedTablesBySheet = {};
     String(xmlText || "").replace(/<table:database-range\b([^>]*)\/?\s*>/gi, (_, attrs) => {
       const get = name => this._unescapeXml(attrs.match(new RegExp(`(?:vno:)?${name}=["']([^"']*)["']`, "i"))?.[1] || "");
       const name = get("table-name");
@@ -2876,10 +2876,11 @@ export class SheetAdapter {
         showAutoFilter: get("table-show-autofilter") !== "false",
         showRowStripes: get("table-row-stripes") !== "false"
       };
-      (workbook.tablesBySheet[sheet] ||= []).push(table);
+      (importedTablesBySheet[sheet] ||= []).push(table);
       return "";
     });
-    for (const [sheetName, tables] of Object.entries(workbook.tablesBySheet)) {
+    if (Object.keys(importedTablesBySheet).length) workbook.tablesBySheet = importedTablesBySheet;
+    for (const [sheetName, tables] of Object.entries(importedTablesBySheet)) {
       const cells = workbook.sheetsData?.[sheetName];
       if (!cells) continue;
       for (const table of tables) {
