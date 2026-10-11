@@ -41,4 +41,4 @@ Các nhóm dưới đây đã được thêm vào ma trận `docs/AUDIT-DOC-WORD
 
 Các script hiện tạo template ba đoạn, chạy một lệnh qua CommandBus, lưu DOCX và đọc các thuộc tính Range/ParagraphFormat/ListFormat bằng Word COM. Để thêm nhóm, khai báo cùng ca kiểm thử trong cả hai harness và chỉ đánh dấu KHỚP sau khi đọc lại DOCX bằng Word COM.
 
-Đã chạy thêm Heading 1–3 riêng. App và Word ghi đúng cùng `w:pStyle` (`Heading1`/`2`/`3`), nhưng font, cỡ, màu và khoảng cách mặc định lệch; xem mục Heading trong `docs/AUDIT-DOC-WORD-PARALLEL-1011.md`. Không đánh dấu nhóm này KHỚP.
+Đã chạy thêm Heading 1–3 riêng. App và Word ghi đúng cùng `w:pStyle` (`Heading1`/`2`/`3`), nhưng font, cỡ, màu và khoảng cách mặc định lệch; xem mục Heading trong `docs/AUDIT-DOC-WORD-PARALLEL-1011.md`. Không đánh dấu nhóm này KHỚP. Đã xác minh riêng 1/2/3 cột bằng `PageSetup.TextColumns.Count`: 3/3 KHỚP; lề, hướng và khổ giấy vẫn chưa chạy.

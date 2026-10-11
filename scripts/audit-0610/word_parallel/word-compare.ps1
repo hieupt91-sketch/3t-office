@@ -1,6 +1,6 @@
 ﻿param([string]$Dir)
 $ErrorActionPreference="Continue"
-$ops=@('bold','italic','underline','strike','subscript','superscript','size16','fontArial','colorRed','highlightYellow','alignCenter','alignRight','alignJustify','bullet','numbered','indentInc','lineSpacing15','spaceBefore12','spaceAfter12','caseUpper','default','heading1','heading2','heading3')
+$ops=@('bold','italic','underline','strike','subscript','superscript','size16','fontArial','colorRed','highlightYellow','alignCenter','alignRight','alignJustify','bullet','numbered','indentInc','lineSpacing15','spaceBefore12','spaceAfter12','caseUpper','default','heading1','heading2','heading3','columns1','columns2','columns3')
 $only=@($env:OPS -split ',' | Where-Object { $_ })
 if ($only.Count -gt 0) { $ops=@($ops | Where-Object { $_ -in $only }) }
 $existingWordPids=@(Get-CimInstance Win32_Process -Filter "Name='WINWORD.EXE'" | ForEach-Object { [int]$_.ProcessId })
@@ -11,7 +11,7 @@ function Props($path){
   $d=$w.Documents.Open($path,$false,$true)
   try { $p=Find-Para $d; if(-not $p){ return @{ERR='khong thay doan'} }
     $r=$p.Range; $f=$r.Font; $pf=$p.Format
-    return [ordered]@{ Bold=[int]$f.Bold; Italic=[int]$f.Italic; Underline=[int]$f.Underline; Strike=[int]$f.StrikeThrough; Sub=[int]$f.Subscript; Sup=[int]$f.Superscript; Size=[double]$f.Size; Name=[string]$f.Name; Color=[int]$f.Color; Highlight=[int]$r.HighlightColorIndex; Align=[int]$pf.Alignment; LeftIndent=[math]::Round([double]$pf.LeftIndent,1); SpaceBefore=[math]::Round([double]$pf.SpaceBefore,1); SpaceAfter=[math]::Round([double]$pf.SpaceAfter,1); LineRule=[int]$pf.LineSpacingRule; ListType=[int]$r.ListFormat.ListType; Style=[string]$r.Style.NameLocal; Text=($r.Text.Trim()) }
+    return [ordered]@{ Bold=[int]$f.Bold; Italic=[int]$f.Italic; Underline=[int]$f.Underline; Strike=[int]$f.StrikeThrough; Sub=[int]$f.Subscript; Sup=[int]$f.Superscript; Size=[double]$f.Size; Name=[string]$f.Name; Color=[int]$f.Color; Highlight=[int]$r.HighlightColorIndex; Align=[int]$pf.Alignment; LeftIndent=[math]::Round([double]$pf.LeftIndent,1); SpaceBefore=[math]::Round([double]$pf.SpaceBefore,1); SpaceAfter=[math]::Round([double]$pf.SpaceAfter,1); LineRule=[int]$pf.LineSpacingRule; ListType=[int]$r.ListFormat.ListType; Columns=[int]$r.Sections.Item(1).PageSetup.TextColumns.Count; Style=[string]$r.Style.NameLocal; Text=($r.Text.Trim()) }
   } finally { $d.Close(0) }
 }
 try {
@@ -33,6 +33,7 @@ try {
       'indentInc'{$p.Indent()}; 'lineSpacing15'{$p.Format.LineSpacingRule=1}
       'spaceBefore12'{$p.Format.SpaceBefore=12}; 'spaceAfter12'{$p.Format.SpaceAfter=12}; 'caseUpper'{$r.Case=0}
       'heading1'{$r.Style='Heading 1'}; 'heading2'{$r.Style='Heading 2'}; 'heading3'{$r.Style='Heading 3'}
+      'columns1'{$p.Range.Sections.Item(1).PageSetup.TextColumns.SetCount(1)}; 'columns2'{$p.Range.Sections.Item(1).PageSetup.TextColumns.SetCount(2)}; 'columns3'{$p.Range.Sections.Item(1).PageSetup.TextColumns.SetCount(3)}
     }
     $d.Save(); $d.Close(0)
   }

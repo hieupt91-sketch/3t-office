@@ -17,6 +17,7 @@ const ops = [
   ["spaceBefore12", "writer.para.spacingBefore", 12], ["spaceAfter12", "writer.para.spacingAfter", 12], ["caseUpper", "writer.text.changeCase", null],
   ["default", null, null],
   ["heading1", "writer.style.heading1", null], ["heading2", "writer.style.heading2", null], ["heading3", "writer.style.heading3", null],
+  ["columns1", "writer.page.columns1", null], ["columns2", "writer.page.columns2", null], ["columns3", "writer.page.columns3", null],
 ];
 const only = (process.env.OPS || "").split(",").filter(Boolean);
 for (const [name, cmd, arg] of ops) {

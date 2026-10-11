@@ -43,7 +43,8 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Nhóm | App | Word COM | Kết quả |
 |---|---|---|---|
 | Bảng: chèn, gộp/tách ô, căn ô, kích thước, tô nền, viền | Chưa chạy | Chưa chạy | NOT RUN |
-| Bố cục trang: lề, hướng, khổ giấy, cột | Chưa chạy | Chưa chạy | NOT RUN |
+| Bố cục trang: lề, hướng, khổ giấy | Chưa chạy | Chưa chạy | NOT RUN |
+| Bố cục trang: 1/2/3 cột | Đã chạy | Đã chạy | 3/3 KHỚP |
 | Đầu/chân trang | Chưa chạy | Chưa chạy | NOT RUN |
 | Ngắt trang/ngắt mục | Chưa chạy | Chưa chạy | NOT RUN |
 | Mục lục | Chưa chạy | Chưa chạy | NOT RUN |
@@ -67,6 +68,10 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Heading 3 | đậm `-1 → 0`; phông `Times New Roman → Calibri Light`; trước `0 → 2 pt`; sau `8 → 0 pt`; màu khác | LECH |
 
 Chưa sửa các style mặc định: Word COM dùng theme/style của phiên bản Word cài trên máy, còn ép các thuộc tính trên vào mọi Heading trong hậu xử lý DOCX sẽ ghi đè theme và định dạng tài liệu hiện hữu. Đây là sai khác đã tái hiện, chưa phải KHỚP; cần quyết định quy tắc tương thích style/theme trước khi sửa.
+
+### Bố cục trang: cột — 11/10/2026
+
+Đã chạy riêng `OPS=columns1,columns2,columns3` trên app desktop và Word COM. Đọc `PageSetup.TextColumns.Count` từ DOCX đã lưu: 1 cột, 2 cột và 3 cột đều khớp. Lề, hướng giấy và khổ giấy chưa chạy.
 
 ## Batch DOCX hồi quy
 
