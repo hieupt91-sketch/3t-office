@@ -55,7 +55,7 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Bảng: gộp/tách ngang; Ctrl+Z sau tách | Đã chạy; số ô khớp, Ctrl+Z trả về trạng thái gộp | Đã chạy; số ô khớp, Undo trả về trạng thái gộp | KHỚP |
 | Bảng: căn giữa dọc; lặp hàng tiêu đề | Đã chạy: `VerticalAlignment=1`, `HeadingFormat=-1` | Đã chạy: `VerticalAlignment=1`, `HeadingFormat=-1` | KHỚP |
 | Bảng: xóa cột, gộp/tách dọc, căn ngang, nền, viền, AutoFit, chiều cao/rộng | Chưa chạy | Chưa chạy | NOT RUN |
-| Bố cục trang: lề, hướng, khổ giấy | Chưa chạy | Chưa chạy | NOT RUN |
+| Bố cục trang: A4 ngang, lề 25/20 mm | CDP + DOCX đã lưu; Word COM đọc lại | Word COM tạo và đọc DOCX đối chứng | KHỚP; preset/Letter/A5 chưa chạy |
 | Bố cục trang: 1/2/3 cột | Đã chạy | Đã chạy | 3/3 KHỚP |
 | Đầu/chân trang | Chưa chạy | Chưa chạy | NOT RUN |
 | Ngắt trang/ngắt mục | Chưa chạy | Chưa chạy | NOT RUN |
@@ -94,6 +94,14 @@ Chưa sửa các style mặc định: Word COM dùng theme/style của phiên b�
 ### Bố cục trang: cột — 11/10/2026
 
 Đã chạy riêng `OPS=columns1,columns2,columns3` trên app desktop và Word COM. Đọc `PageSetup.TextColumns.Count` từ DOCX đã lưu: 1 cột, 2 cột và 3 cột đều khớp. Lề, hướng giấy và khổ giấy chưa chạy.
+
+### FIX-T8 tiếp tục — Thiết lập trang — 11/10/2026
+
+Đã dùng chuột CDP mở **Bố cục > Thiết lập trang…**, dùng bàn phím chọn **Ngang**, nhập lề trên/dưới 25 mm và trái/phải 20 mm, rồi lưu DOCX. Word COM tạo DOCX riêng với A4 ngang và cùng lề; mở cả hai tệp bằng Word COM để đọc `PageSetup`. Kết quả: hướng `1/1`, khổ `841.9×595.3 / 842×595.3 pt`, lề trên `70.8/70.8 pt`, trái `56.7/56.7 pt`: **KHỚP** (sai số khổ giấy do làm tròn dưới 0.1 pt). Lần tạo Word ban đầu đặt kích thước portrait sau orientation nên bị Word chuẩn hóa về dọc; phép thử được sửa để chọn `PaperSize=A4` trước orientation và chạy lại thành công.
+
+Trong app, mở **Bố cục > Thiết lập trang…**, chọn khổ/hướng, nhập bốn lề theo mm, chọn phạm vi áp dụng rồi nhấn **Áp dụng**. Trợ giúp tiếng Việt hiện có tại F1/Trợ giúp, chủ đề **Lề, hướng giấy và khổ giấy**; khóa giao diện đã có trong `platform/i18n/strings-vi.js` và `strings-en.js`.
+
+Chưa chạy: preset Normal/Narrow/Moderate/Wide, Letter/A5, ngắt trang/ngắt mục, đầu/chân trang, trang đầu khác và định dạng số trang. Nhóm Bố cục trang vì vậy vẫn **CHƯA HOÀN TẤT**; cột 1/2/3 và phép thiết lập A4 ngang/lề ở trên là các phép con đã đối chiếu.
 
 ## Batch DOCX hồi quy
 

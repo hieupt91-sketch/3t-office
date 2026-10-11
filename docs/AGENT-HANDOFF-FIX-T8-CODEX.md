@@ -8,12 +8,14 @@ FINDINGS:
 - App desktop và Word COM cùng lưu/đọc bảng 3×4; số hàng và số ô từng hàng khớp.
 - Bảng: thêm hàng dưới, thêm cột phải, xóa hàng, gộp/tách ngang, căn giữa dọc và lặp hàng tiêu đề khớp thuộc tính đọc lại. Ctrl+Z/Undo sau tách đều khôi phục trạng thái gộp.
 - Cột 1/2/3 đã có kết quả 3/3 KHỚP từ lần audit trước. Heading 1–3 có sai khác style đã được ghi trước đó.
+- Bố cục trang: A4 ngang và lề trên/dưới 25 mm, trái/phải 20 mm khớp Word COM qua DOCX đã lưu; preset lề, Letter/A5, ngắt trang/mục, đầu/chân trang, trang đầu khác và số trang chưa chạy.
 - Unittest đầu tiên dùng LOCALAPPDATA hệ thống, va chạm với LibreOffice của worktree khác. Chạy lại bằng profile riêng thì 832 tests OK.
-IMPLEMENTATION SUMMARY: Thêm harness desktop click ribbon bằng CDP mouse cho chèn/sửa bảng và lưu DOCX vào profile audit. Cập nhật ma trận, kế hoạch FIX-T8 và trạng thái các nhóm.
-FILES CHANGED: `scripts/audit-0610/word_parallel/{README.md,app-table-insert.desktop.mjs}`, `docs/AUDIT-DOC-WORD-PARALLEL-1011.md`, `docs/AGENT-HANDOFF-FIX-T8-CODEX.md`.
+IMPLEMENTATION SUMMARY: Hai commit audit bảng trước đó thêm harness desktop CDP. Lượt tiếp theo xác nhận A4 ngang và lề 25/20 mm bằng chuột/phím CDP, lưu DOCX và đọc lại song song bằng Word COM; cập nhật ma trận và hướng dẫn sử dụng vị trí thao tác.
+FILES CHANGED: `docs/AUDIT-DOC-WORD-PARALLEL-1011.md`, `docs/AGENT-HANDOFF-FIX-T8-CODEX.md`.
 COMMANDS RUN:
 - `make-template.ps1 -Dir E:\VNOffice-profiles\codex-ft8` — PASS.
 - App desktop table insert + Word COM readback — KHỚP 3 hàng × 4 ô.
+- App desktop Page Setup qua CDP + Word COM — A4 landscape, margins 25/20 mm KHỚP; DOCX tại profile `E:\VNOffice-profiles\codex-ft8`.
 - Batch `d01,d07,d13,d20,d24` — 5/5 PASS, page delta 0, edit PASS.
 - `npm test` — 3058/3058 PASS.
 - `python -m unittest discover -s tests` với `LOCALAPPDATA=E:\VNOffice-profiles\codex-ft8\python-localappdata` — 832 tests OK.
@@ -24,4 +26,4 @@ KNOWN FAILURES: FIX-T8 chưa hoàn tất. Trong nhóm Bảng, xóa cột, gộp/
 RISKS: Chưa có đủ dữ liệu để kết luận parity cho bốn nhóm. Không sửa adapter/core vì chưa tái hiện sai lệch trong phép đã chạy.
 DEPENDENCIES/BLOCKERS: Word COM cục bộ; LibreOffice profile riêng cần giữ tách biệt cho các lần unittest và desktop.
 CORE PATCH ID (if any): None.
-NEXT ACTION: Tiếp tục từng phép thử còn NOT RUN trong FIX-T8; chỉ kết luận mỗi nhóm sau khi hoàn tất đối chiếu bằng Word COM, rồi commit riêng từng nhóm.
+NEXT ACTION: Hoàn thành các phép con còn thiếu của Bố cục trang, rồi lần lượt đối chiếu Styles/References và các nhóm Comments, Track Changes, Find/Replace, Symbols, Textbox/Images; mỗi nhóm commit riêng.
