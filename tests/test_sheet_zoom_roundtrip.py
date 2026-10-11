@@ -38,6 +38,25 @@ def make_test_xlsx(sheet1_xml: str, sheet_name: str = "Sheet1") -> bytes:
     return buf.getvalue()
 
 
+def _replace_zip_entry(package_bytes: bytes, path: str, content: str) -> bytes:
+    source = io.BytesIO(package_bytes)
+    output = io.BytesIO()
+    with zipfile.ZipFile(source, "r") as old, zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as new:
+        for item in old.infolist():
+            new.writestr(item, content.encode("utf-8") if item.filename == path else old.read(item.filename))
+    return output.getvalue()
+
+
+def _add_zip_entry(package_bytes: bytes, path: str, content: str) -> bytes:
+    source = io.BytesIO(package_bytes)
+    output = io.BytesIO()
+    with zipfile.ZipFile(source, "r") as old, zipfile.ZipFile(output, "w", zipfile.ZIP_DEFLATED) as new:
+        for item in old.infolist():
+            new.writestr(item, old.read(item.filename))
+        new.writestr(path, content.encode("utf-8"))
+    return output.getvalue()
+
+
 class SheetZoomRoundtripTests(unittest.TestCase):
     def test_zoom_scale_restored_from_source(self):
         source_sheet = (
@@ -65,6 +84,173 @@ class SheetZoomRoundtripTests(unittest.TestCase):
             patched_sheet = z.read("xl/worksheets/sheet1.xml").decode("utf-8")
             self.assertIn('zoomScale="85"', patched_sheet)
             self.assertIn('zoomScaleNormal="85"', patched_sheet)
+
+    def test_explicit_gridlines_and_headings_are_written_to_sheet_view(self):
+        saved_sheet = (
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<sheetViews><sheetView workbookViewId="0" showGridLines="1" showRowColHeaders="1"/></sheetViews>'
+            '<sheetData/></worksheet>'
+        )
+        saved_bytes = make_test_xlsx(saved_sheet)
+        fods = ('<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+                'xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0" '
+                'vno:show-grid-lines="false" vno:show-row-col-headers="false"></office:document>')
+
+        patched = postprocess_sheet_xlsx(saved_bytes, source_fods=fods)
+        with zipfile.ZipFile(io.BytesIO(patched)) as archive:
+            xml = archive.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        self.assertIn('showGridLines="0"', xml)
+        self.assertIn('showRowColHeaders="0"', xml)
+
+    def test_untouched_gridlines_and_headings_are_not_changed(self):
+        saved_sheet = (
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<sheetViews><sheetView workbookViewId="0" showGridLines="0" showRowColHeaders="0"/></sheetViews>'
+            '<sheetData/></worksheet>'
+        )
+        saved_bytes = make_test_xlsx(saved_sheet)
+
+        patched = postprocess_sheet_xlsx(saved_bytes, source_fods="<office:document></office:document>")
+        with zipfile.ZipFile(io.BytesIO(patched)) as archive:
+            xml = archive.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        self.assertIn('showGridLines="0"', xml)
+        self.assertIn('showRowColHeaders="0"', xml)
+
+    def test_explicit_formula_display_is_written_to_sheet_view(self):
+        saved_sheet = (
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<sheetViews><sheetView workbookViewId="0" showFormulas="0"/></sheetViews>'
+            '<sheetData/></worksheet>'
+        )
+        saved_bytes = make_test_xlsx(saved_sheet)
+        fods = ('<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+                'xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0" vno:show-formulas="true"></office:document>')
+
+        patched = postprocess_sheet_xlsx(saved_bytes, source_fods=fods)
+        with zipfile.ZipFile(io.BytesIO(patched)) as archive:
+            xml = archive.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        self.assertIn('showFormulas="1"', xml)
+
+    def test_explicit_formula_bar_visibility_is_written_to_workbook_view(self):
+        source = make_test_xlsx(
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews><sheetView/></sheetViews><sheetData/></worksheet>'
+        )
+        source = _replace_zip_entry(source, "xl/workbook.xml", (
+            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            '<bookViews><workbookView showFormulaBar="1"/></bookViews>'
+            '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>'
+        ))
+        fods = ('<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+                'xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0" vno:show-formula-bar="false"></office:document>')
+
+        patched = postprocess_sheet_xlsx(source, source_fods=fods)
+        with zipfile.ZipFile(io.BytesIO(patched)) as archive:
+            xml = archive.read("xl/workbook.xml").decode("utf-8")
+        self.assertIn('showFormulaBar="0"', xml)
+
+    def test_explicit_sheet_view_mode_is_written_to_sheet_view(self):
+        saved_sheet = (
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<sheetViews><sheetView workbookViewId="0" view="normal"/></sheetViews><sheetData/></worksheet>'
+        )
+        fods = ('<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+                'xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0" vno:sheet-view="pageBreakPreview"></office:document>')
+
+        patched = postprocess_sheet_xlsx(make_test_xlsx(saved_sheet), source_fods=fods)
+        with zipfile.ZipFile(io.BytesIO(patched)) as archive:
+            xml = archive.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        self.assertIn('view="pageBreakPreview"', xml)
+
+    def test_explicit_zoom_overrides_source_zoom_after_restore(self):
+        source_sheet = (
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<sheetViews><sheetView workbookViewId="0" zoomScale="85" zoomScaleNormal="85"/></sheetViews>'
+            '<sheetData/></worksheet>'
+        )
+        saved_sheet = (
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<sheetViews><sheetView workbookViewId="0" zoomScale="100"/></sheetViews><sheetData/></worksheet>'
+        )
+        fods = ('<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
+                'xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0" vno:zoom-scale="110"></office:document>')
+
+        patched = postprocess_sheet_xlsx(make_test_xlsx(saved_sheet), source_fods=fods, source_xlsx_bytes=make_test_xlsx(source_sheet))
+        with zipfile.ZipFile(io.BytesIO(patched)) as archive:
+            xml = archive.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        self.assertIn('zoomScale="110"', xml)
+        self.assertIn('zoomScaleNormal="110"', xml)
+
+    def test_explicit_clear_removes_print_area_for_matching_sheet_only(self):
+        package = make_test_xlsx('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews/><sheetData/></worksheet>')
+        workbook = (
+            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets>'
+            '<definedNames><definedName name="_xlnm.Print_Area" localSheetId="0">Sheet1!$A$1:$C$9</definedName>'
+            '<definedName name="_xlnm.Print_Area" localSheetId="1">Other!$A$1</definedName></definedNames></workbook>'
+        )
+        package = _replace_zip_entry(package, "xl/workbook.xml", workbook)
+        fods = ('<office:document><office:body><office:spreadsheet>'
+                '<table:table table:name="Sheet1" vno:clear-print-area="true"/>'
+                '</office:spreadsheet></office:body></office:document>')
+
+        patched = postprocess_sheet_xlsx(package, source_fods=fods)
+        with zipfile.ZipFile(io.BytesIO(patched)) as archive:
+            xml = archive.read("xl/workbook.xml").decode("utf-8")
+        self.assertNotIn('localSheetId="0">Sheet1!$A$1:$C$9', xml)
+        self.assertIn('localSheetId="1">Other!$A$1', xml)
+
+    def test_refreshed_pivot_location_matches_current_result_range(self):
+        package = _add_zip_entry(
+            make_test_xlsx('<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetViews/><sheetData/></worksheet>'),
+            "xl/pivotTables/pivotTable1.xml",
+            '<pivotTableDefinition name="SalesPivot"><location ref="A3:E8"/></pivotTableDefinition>',
+        )
+        fods = ('<office:document><office:body><office:spreadsheet><table:data-pilot-tables>'
+                '<table:data-pilot-table table:name="SalesPivot" vno:xlsx-location="A1:D4">'
+                '</table:data-pilot-table></table:data-pilot-tables></office:spreadsheet></office:body></office:document>')
+
+        patched = postprocess_sheet_xlsx(package, source_fods=fods)
+        with zipfile.ZipFile(io.BytesIO(patched)) as archive:
+            xml = archive.read("xl/pivotTables/pivotTable1.xml").decode("utf-8")
+        self.assertIn('<location ref="A1:D4"/>', xml)
+
+    def test_untouched_source_view_state_survives_content_save(self):
+        source_sheet = (
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<sheetViews><sheetView showGridLines="0" showRowColHeaders="0" showFormulas="1" '
+            'view="pageBreakPreview" zoomScale="85" zoomScaleNormal="85"/></sheetViews>'
+            '<sheetData/></worksheet>'
+        )
+        target_sheet = (
+            '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'
+            '<sheetViews><sheetView showGridLines="1" showRowColHeaders="1" showFormulas="0" '
+            'view="normal" zoomScale="100"/></sheetViews><sheetData/></worksheet>'
+        )
+        source = make_test_xlsx(source_sheet)
+        target = make_test_xlsx(target_sheet)
+        source_wb = (
+            '<workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" '
+            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            '<bookViews><workbookView showFormulaBar="0"/></bookViews>'
+            '<sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>'
+        )
+        target_wb = source_wb.replace('showFormulaBar="0"', 'showFormulaBar="1"')
+        source = _replace_zip_entry(source, "xl/workbook.xml", source_wb)
+        target = _replace_zip_entry(target, "xl/workbook.xml", target_wb)
+
+        patched = postprocess_sheet_xlsx(target, source_fods="<office:document></office:document>", source_xlsx_bytes=source)
+        with zipfile.ZipFile(io.BytesIO(patched)) as archive:
+            sheet_xml = archive.read("xl/worksheets/sheet1.xml").decode("utf-8")
+            workbook_xml = archive.read("xl/workbook.xml").decode("utf-8")
+        self.assertIn('showGridLines="0"', sheet_xml)
+        self.assertIn('showRowColHeaders="0"', sheet_xml)
+        self.assertIn('showFormulas="1"', sheet_xml)
+        self.assertIn('view="pageBreakPreview"', sheet_xml)
+        self.assertIn('zoomScale="85"', sheet_xml)
+        self.assertIn('zoomScaleNormal="85"', sheet_xml)
+        self.assertIn('showFormulaBar="0"', workbook_xml)
 
 
 if __name__ == "__main__":

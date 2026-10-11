@@ -63,6 +63,51 @@ export async function runSheetPivotSaveFodsTests() {
     for (const fn of ["sum", "count", "average", "min", "max"]) assert(xml.includes(`table:function="${fn}"`), `thiếu function ${fn}`);
     verifyPivot(new SheetAdapter(null).parseFods(xml), "round-trip nội bộ");
   });
+  test("Sheet Pivot refresh: FODS ghi vùng kết quả hiện tại cho OOXML PivotTable", () => {
+    const grid = makeGrid();
+    const pivot = grid.pivotTablesBySheet[targetSheet][0];
+    pivot.resultRange = { start: { c: "A", r: 1 }, end: { c: "D", r: 4 } };
+    grid.pivotRefreshTouchedBySheet = new Set([targetSheet]);
+    const xml = new SheetAdapter(grid).serializeToFods();
+    assert(xml.includes('vno:xlsx-location="A1:D4"'), "FODS thiếu vùng kết quả Pivot đã refresh");
+  });
+  test("Sheet save: thay đổi metadata XLSX không dùng nhánh giữ nguyên workbook nguồn", () => {
+    const grid = makeGrid();
+    const adapter = new SheetAdapter(grid);
+    adapter.sourceFilePath = "C:/workbook.xlsx";
+    adapter.isDirty = false;
+    grid.xlsxViewStateTouched = new Set(["showGridLines"]);
+    let xml = adapter.serializeToFods();
+    assert(!xml.includes("vno-pristine-xlsx-source"), "thay đổi chế độ xem vẫn bị đánh dấu workbook nguyên trạng");
+    grid.xlsxViewStateTouched.clear();
+    grid.printAreaTouchedBySheet = new Set([sourceSheet]);
+    xml = adapter.serializeToFods();
+    assert(!xml.includes("vno-pristine-xlsx-source"), "thay đổi vùng in vẫn bị đánh dấu workbook nguyên trạng");
+    grid.printAreaTouchedBySheet.clear();
+    grid.pivotRefreshTouchedBySheet = new Set([targetSheet]);
+    xml = adapter.serializeToFods();
+    assert(!xml.includes("vno-pristine-xlsx-source"), "làm mới Pivot vẫn bị đánh dấu workbook nguyên trạng");
+  });
+  test("Sheet view save: FODS giữ đúng enum chế độ xem và phần trăm zoom", () => {
+    const grid = makeGrid();
+    grid.workbookView = "pageBreakPreview";
+    grid.zoomLevel = 1.1;
+    grid.xlsxViewStateTouched = new Set(["view", "zoomScale"]);
+    const xml = new SheetAdapter(grid).serializeToFods();
+    assert(xml.includes('vno:sheet-view="pageBreakPreview"'), "FODS không ghi enum pageBreakPreview");
+    assert(xml.includes('vno:zoom-scale="110"'), "FODS không ghi zoom 110 phần trăm");
+  });
+  test("Sheet save: giảm indent từ 1 về 0 ghi margin 0 và bỏ vno:xf nguồn", () => {
+    const grid = makeGrid();
+    const adapter = new SheetAdapter(grid);
+    const style = { indentLevel: 1, origXf: 5 };
+    style.styleHashAtImport = adapter._computeStyleHash(style);
+    style.indentLevel = 0;
+    grid.sheetsData[sourceSheet].get("A2").style = style;
+    const xml = adapter.serializeToFods();
+    assert(/fo:margin-left="0\.000cm"/.test(xml), "FODS không ghi giá trị indent 0 tường minh");
+    assert(!/<table:table-cell\b[^>]*vno:xf="5"[^>]*>[^<]*<text:p>T1<\/text:p>/s.test(xml), "ô đã giảm indent vẫn giữ XF nguồn");
+  });
   test("Sheet Pivot save: LibreOffice giữ DataPilot qua FODS -> XLSX -> FODS", () => {
     assert(findSoffice(), "Không tìm thấy LibreOffice soffice.exe");
     const root = fs.mkdtempSync(path.join(os.tmpdir(), "vno-pivot-save-"));

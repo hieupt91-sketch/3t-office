@@ -216,6 +216,7 @@ export class SheetGridController {
     this.namedRangesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.commentsBySheet = Object.fromEntries(this.sheets.map(name => [name, {}]));
     this.printAreaBySheet = Object.fromEntries(this.sheets.map(name => [name, null]));
+    this.printAreaTouchedBySheet = new Set();
     this.pageBreaksBySheet = Object.fromEntries(this.sheets.map(name => [name, { rows: [], cols: [] }]));
     this.pageSetupBySheet = Object.fromEntries(this.sheets.map(name => [name, newSheetPageSetup()]));
     this.mergedRangesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
@@ -275,6 +276,7 @@ export class SheetGridController {
     this.selectedImageId = null;
     this.textBoxesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.pivotTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.pivotRefreshTouchedBySheet = new Set();
     this.scenariosBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.dataTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.tablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
@@ -307,6 +309,7 @@ export class SheetGridController {
     this.zoomLevel = 1;
     this.gridlinesVisible = true;
     this.headingsVisible = true;
+    this.xlsxViewStateTouched = new Set();
     this.workbookView = "normal"; // "normal" | "pageBreakPreview" | "pageLayout"
     this.formulaBarVisible = true;
     this.formulaBarEl = null;
@@ -706,6 +709,7 @@ export class SheetGridController {
 
   toggleShowFormulas() {
     this.showFormulas = !this.showFormulas;
+    this.xlsxViewStateTouched?.add("showFormulas");
     if (this.container) {
       this.container.classList.toggle("is-formula-view-mode", this.showFormulas);
     }
@@ -9208,6 +9212,13 @@ _bindGridKeyboardNavigation() {
     const level = Math.max(0, Math.round((next - 8) / 12));
     const changed = this.setStyle("paddingLeft", `${next}px`);
     this.setStyle("indentLevel", level);
+    const updated = this.cellsData.get(key);
+    if (updated?.style) {
+      // Imported UI state can already be zero while the original XLSX XF has
+      // indent=1. An explicit decrease must invalidate that source-XF marker.
+      delete updated.style.origXf;
+      delete updated.style.styleHashAtImport;
+    }
     return changed;
   }
 
@@ -9377,6 +9388,7 @@ _bindGridKeyboardNavigation() {
   setWorkbookView(viewMode) {
     if (!["normal", "pageBreakPreview", "pageLayout"].includes(viewMode)) return false;
     this.workbookView = viewMode;
+    this.xlsxViewStateTouched?.add("view");
     this._applyViewState();
     this._refreshPageAndCommentVisuals();
     this._syncCommandStates();
@@ -9385,6 +9397,7 @@ _bindGridKeyboardNavigation() {
 
   toggleFormulaBar() {
     this.formulaBarVisible = !this.formulaBarVisible;
+    this.xlsxViewStateTouched?.add("showFormulaBar");
     this._applyViewState();
     this._syncCommandStates();
     return this.formulaBarVisible;
@@ -9394,6 +9407,7 @@ _bindGridKeyboardNavigation() {
     const next = Math.min(2, Math.max(0.5, Math.round(Number(level) * 10) / 10));
     if (!Number.isFinite(next)) return false;
     this.zoomLevel = next;
+    this.xlsxViewStateTouched?.add("zoomScale");
     this._applyViewState();
     this.options.onZoomChange?.(this.zoomLevel);
     return this.zoomLevel;
@@ -9950,6 +9964,7 @@ _bindGridKeyboardNavigation() {
 
   toggleGridlines() {
     this.gridlinesVisible = !this.gridlinesVisible;
+    this.xlsxViewStateTouched?.add("showGridLines");
     this._applyViewState();
     this._syncCommandStates();
     return this.gridlinesVisible;
@@ -9957,6 +9972,7 @@ _bindGridKeyboardNavigation() {
 
   toggleHeadings() {
     this.headingsVisible = !this.headingsVisible;
+    this.xlsxViewStateTouched?.add("showRowColHeaders");
     this._applyViewState();
     this._syncCommandStates();
     return this.headingsVisible;
@@ -12595,6 +12611,7 @@ _bindGridKeyboardNavigation() {
     const before = this.printAreaBySheet[this.activeSheet] || null;
     if (before === next) return next;
     this.printAreaBySheet[this.activeSheet] = next;
+    this.printAreaTouchedBySheet?.add(this.activeSheet);
     this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "printAreaBySheet", before, after: next });
     this._refreshPageAndCommentVisuals();
     return next;
@@ -12605,6 +12622,7 @@ _bindGridKeyboardNavigation() {
     const before = this.printAreaBySheet[this.activeSheet] || null;
     if (!before) return false;
     this.printAreaBySheet[this.activeSheet] = null;
+    this.printAreaTouchedBySheet?.add(this.activeSheet);
     this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "printAreaBySheet", before, after: null });
     this._refreshPageAndCommentVisuals();
     return true;
@@ -13905,6 +13923,7 @@ _bindGridKeyboardNavigation() {
     const table = this.pivotTableEngine.aggregate(sourceCells, pivot);
     this.sheetsData[sheetName] = this.pivotTableEngine.toCells(table);
     pivot.resultRange = this.pivotTableEngine.resultRange(table);
+    this.pivotRefreshTouchedBySheet?.add(sheetName);
     for (const chart of this.chartsBySheet[sheetName] || []) if (chart.kind === "pivot" && chart.pivotId === pivot.id) chart.range = structuredClone(pivot.resultRange);
     this.refreshCharts(sheetName);
     if (sheetName === this.activeSheet) {
