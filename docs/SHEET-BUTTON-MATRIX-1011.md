@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 40 · CHƯA ĐỐI CHIẾU: 98.
+Tổng 138 nút — KHỚP EXCEL: 42 · CHƯA ĐỐI CHIẾU: 96.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -36,8 +36,8 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Trang đầu | `sheet.cell.indentDecrease` | Giảm thụt lề | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Trang đầu | `sheet.cell.indentIncrease` | Tăng thụt lề | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dialog,toast:A1 |
 | Trang đầu | `sheet.cell.mergeCenter` | Trộn & căn giữa | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dom:1 |
-| Trang đầu | `sheet.cell.mergeAcross` | Trộn theo hàng | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
-| Trang đầu | `sheet.cell.mergeCells` | Trộn ô | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
+| Trang đầu | `sheet.cell.mergeAcross` | Trộn theo hàng | KHỚP EXCEL | FIX-S12 Trang đầu: CDP chọn A8:B8 và bấm lệnh; Excel COM ReadOnly xác nhận A8.MergeCells=True | dialog,toast:A1 |
+| Trang đầu | `sheet.cell.mergeCells` | Trộn ô | KHỚP EXCEL | FIX-S12 Trang đầu: CDP chọn A8:B8 và bấm lệnh; Excel COM ReadOnly xác nhận A8.MergeCells=True | dialog,toast:A1 |
 | Trang đầu | `sheet.cell.unmerge` | Tách ô | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Trang đầu | `sheet.format.quickCategory` | Định dạng số | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | control(select/input) |
 | Trang đầu | `sheet.format.currencyVND` | Tiền tệ VNĐ (Ctrl+Shift+4) | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |

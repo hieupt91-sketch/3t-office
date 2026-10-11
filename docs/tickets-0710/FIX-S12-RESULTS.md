@@ -52,3 +52,9 @@
 - Giảm cỡ chữ ban đầu không đổi 11 pt do quy đổi 14.67 px thành 11.0025 pt, rồi chọn lại nấc 11. Đã làm tròn điểm hiện tại trước khi chọn nấc; sau sửa B2 giảm còn 10 pt trong Excel.
 - Ảnh: `evidence/s12/fix-s12-fontGrow.png`, `evidence/s12/fix-s12-fontShrink.png`. Log CDP `s12-fontsize.log`, `s12-font-shrink-fixed.log`; Excel COM `excel-fontGrow.log`, `excel-fontShrink-fixed.log`.
 - **PASS** — focused unit suite gồm 3 kiểm tra range AutoSum/AutoAverage và bước giảm cỡ chữ.
+
+## Trang đầu: lệnh trộn ô
+
+- CDP chọn A8:B8 rồi lần lượt bấm Trộn theo hàng và Trộn ô trên fixture riêng.
+- Excel COM ReadOnly mở từng XLSX và xác nhận `A8.MergeCells=True` cho cả hai lệnh; **KHỚP EXCEL**.
+- Ảnh `evidence/s12/fix-s12-mergeAcross.png`, `evidence/s12/fix-s12-mergeCells.png`; log CDP `s12-merge.log`, Excel COM `excel-mergeAcross.log`, `excel-mergeCells.log`.
