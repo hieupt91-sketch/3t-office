@@ -7665,6 +7665,7 @@ _bindGridKeyboardNavigation() {
 
     const before = {};
     const after = {};
+    const beforeLayout = recordUndo ? this._snapshotRowColLayout() : null;
 
     coords.forEach(coord => {
       const existing = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
@@ -7701,12 +7702,27 @@ _bindGridKeyboardNavigation() {
       }
     });
 
+    if (["number", "currency", "accounting", "percentage", "scientific", "date", "time"].includes(config?.category)) {
+      for (const col of this._selectedCols(targetRange)) {
+        const storedWidth = this._colWidths().get(col);
+        const currentWidth = this.getColumnWidth(col);
+        // Imported Excel workbooks use the native default width (~64 px),
+        // while newly created VN Sheet columns use 100 px.
+        const isDefaultWidth = storedWidth === undefined || currentWidth === this.defaultColWidth || currentWidth === 64;
+        if (isDefaultWidth && this.computeAutoFitColumnWidth(col) > currentWidth) {
+          this.setColumnWidths(this.computeAutoFitColumnWidth(col), [col], false);
+        }
+      }
+    }
+
     if (recordUndo) {
       this._recordHistory({
         type: "format-cells",
         sheet: this.activeSheet,
         before,
-        after
+        after,
+        beforeLayout,
+        afterLayout: this._snapshotRowColLayout()
       });
     }
 
@@ -7726,7 +7742,7 @@ _bindGridKeyboardNavigation() {
   formatCurrentCellPercent() {
     return this.applyNumberFormat({
       category: "percentage",
-      decimals: 2
+      decimals: 0
     });
   }
 
@@ -7742,7 +7758,7 @@ _bindGridKeyboardNavigation() {
   applyQuickNumberCategory(category) {
     const defaults = {
       general: { category: "general" },
-      number: { category: "number", decimals: 2, useThousands: true, negativeStyle: 0 },
+      number: { category: "number", decimals: 2, useThousands: false, negativeStyle: 0 },
       currency: { category: "currency", currencySymbol: "₫", decimals: 2, useThousands: true, negativeStyle: 0 },
       accounting: { category: "accounting", currencySymbol: "₫", decimals: 2 },
       date: { category: "date", dateFormat: "dd/mm/yyyy" },
@@ -7755,15 +7771,20 @@ _bindGridKeyboardNavigation() {
 
   adjustDecimalPlaces(direction) {
     const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
-    const current = this.cellsData.get(key)?.style?.numberFormat;
-    const config = structuredClone(current || {
-      category: "number",
-      decimals: 0,
-      useThousands: false,
-      negativeStyle: 0
-    });
-    if (["general", "text", "date", "time"].includes(config.category)) return false;
-    config.decimals = Math.max(0, Math.min(30, (Number(config.decimals) || 0) + (direction > 0 ? 1 : -1)));
+    const item = this.cellsData.get(key);
+    const current = item?.style?.numberFormat;
+    const config = structuredClone(current || { category: "general" });
+    if (["text", "date", "time"].includes(config.category)) return false;
+    let displayedDecimals = Number(config.decimals) || 0;
+    if (config.category === "general") {
+      const text = String(item?.val ?? "");
+      const decimalPart = text.match(/[.,](\d+)(?:[eE][+-]?\d+)?$/)?.[1];
+      displayedDecimals = decimalPart?.length || 0;
+      config.category = "number";
+      config.useThousands = false;
+      config.negativeStyle = 0;
+    }
+    config.decimals = Math.max(0, Math.min(30, displayedDecimals + (direction > 0 ? 1 : -1)));
     return this.applyNumberFormat(config);
   }
 
@@ -9803,6 +9824,8 @@ _bindGridKeyboardNavigation() {
           this._renderCellVisual(dom, itm, c, r);
         }
       }
+      const layout = direction === "undo" ? action.beforeLayout : action.afterLayout;
+      if (layout) this._restoreRowColLayout(layout);
     } else if (action.type === "cell-style" || action.type === "format-table" || action.type === "fill" || action.type === "clear" || action.type === "batch-cells") {
       const snapshots = direction === "undo" ? action.before : action.after;
       for (const [coord, snap] of Object.entries(snapshots)) {

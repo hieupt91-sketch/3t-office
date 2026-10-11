@@ -48,6 +48,18 @@ export async function runSheetFormatCellsTests() {
     }
   }
 
+  try {
+    const grid = new SheetGridController(mockContainer());
+    const adapter = new SheetAdapter(grid);
+    await adapter.handleDispatch(null, null, "sheet.cell.fillColor");
+    await adapter.handleDispatch(null, null, "sheet.cell.textColor");
+    assert(grid.cellsData.get("A1")?.style?.backgroundColor === "#FFFF00", "Excel default Fill Color should be #FFFF00");
+    assert(grid.cellsData.get("A1")?.style?.color === "#FF0000", "Excel default Font Color should be #FF0000");
+    results.push({ name: "Sheet color defaults match Excel Fill and Font colors", pass: true });
+  } catch (error) {
+    results.push({ name: "Sheet color defaults match Excel Fill and Font colors", pass: false, error: error.message });
+  }
+
   // 1. Kiểm tra Khai báo Command, Shortcut Ctrl+1, Dispatch Mapping & Ribbon
   test("Sheet Format Cells: Khai báo lệnh sheet.format.cellsDialog với shortcut Ctrl+1 chuẩn Excel", () => {
     const cmd = SHEET_COMMANDS.find(c => c.id === "sheet.format.cellsDialog");
@@ -115,6 +127,100 @@ export async function runSheetFormatCellsTests() {
 
     const s3 = NumberFormatter.formatNumber(val, { decimals: 2, useThousands: true, negativeStyle: 3 });
     assert(s3.text === "(1,234.10)" && s3.isRed, "Kiểu 3: (1,234.10) đỏ");
+  });
+
+  test("Decimal buttons: General uses currently displayed decimal places as its starting point", () => {
+    const grid = new SheetGridController(mockContainer());
+    const cases = [
+      ["A", 1, 1234.5, 1, 2],
+      ["A", 2, 0.075, 1, 4],
+      ["A", 3, -56.789, 1, 4],
+      ["A", 4, 42, 1, 1]
+    ];
+    for (const [col, row, value, direction, expectedDecimals] of cases) {
+      grid.setCellValue(col, row, value);
+      grid.selectedCoord = { c: col, r: row };
+      grid.selectionRange = { start: { c: col, r: row }, end: { c: col, r: row } };
+      assert(grid.adjustDecimalPlaces(direction), `Increase Decimal should apply to ${value}`);
+      const config = grid.cellsData.get(`${col}${row}`).style.numberFormat;
+      assert(config.category === "number" && config.decimals === expectedDecimals && !config.useThousands,
+        `General ${value} should become Number with ${expectedDecimals} displayed decimals`);
+    }
+
+    grid.setCellValue("B", 1, 1234.5);
+    grid.selectedCoord = { c: "B", r: 1 };
+    grid.selectionRange = { start: { c: "B", r: 1 }, end: { c: "B", r: 1 } };
+    assert(grid.adjustDecimalPlaces(-1), "Decrease Decimal should apply to General 1234.5");
+    assert(grid.cellsData.get("B1").style.numberFormat.decimals === 0,
+      "General 1234.5 has one displayed decimal, so Decrease Decimal should round to zero decimals");
+
+    grid.setCellValue("C", 1, 0.075);
+    grid.selectedCoord = { c: "C", r: 1 };
+    grid.selectionRange = { start: { c: "C", r: 1 }, end: { c: "C", r: 1 } };
+    grid.applyNumberFormat({ category: "percentage", decimals: 2 });
+    assert(grid.adjustDecimalPlaces(1), "Increase Decimal should also work for Percentage");
+    assert(grid.cellsData.get("C1").style.numberFormat.decimals === 3,
+      "Existing Percentage format should increase its decimal count by one");
+    grid.formatCurrentCellPercent();
+    assert(grid.cellsData.get("C1").style.numberFormat.decimals === 0,
+      "Percent Style button should apply Excel's zero-decimal percentage format");
+
+    for (const category of ["number", "currency"]) {
+      const coord = category === "number" ? "D1" : "E1";
+      grid.setCellValue(coord[0], 1, -56.789);
+      grid.selectedCoord = { c: coord[0], r: 1 };
+      grid.selectionRange = { start: { c: coord[0], r: 1 }, end: { c: coord[0], r: 1 } };
+      grid.applyNumberFormat({ category, decimals: 2, useThousands: category === "currency" });
+      assert(grid.adjustDecimalPlaces(1), `Increase Decimal should work for ${category}`);
+      assert(grid.cellsData.get(coord).style.numberFormat.decimals === 3, `${category} should increase from 2 to 3 decimals`);
+      assert(grid.adjustDecimalPlaces(-1), `Decrease Decimal should work for ${category}`);
+      assert(grid.cellsData.get(coord).style.numberFormat.decimals === 2, `${category} should decrease back to 2 decimals`);
+    }
+  });
+
+  test("Number category and Comma Style button keep separate Excel defaults", () => {
+    const grid = new SheetGridController(mockContainer());
+    grid.setCellValue("A", 1, 1234.5);
+    grid.selectedCoord = { c: "A", r: 1 };
+    grid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "A", r: 1 } };
+    grid.applyQuickNumberCategory("number");
+    let format = grid.cellsData.get("A1").style.numberFormat;
+    assert(format.category === "number" && format.decimals === 2 && !format.useThousands,
+      "Quick Number category should be 0.00 without a thousands separator");
+
+    grid.formatCurrentCellStandard();
+    format = grid.cellsData.get("A1").style.numberFormat;
+    assert(format.category === "number" && format.decimals === 2 && format.useThousands,
+      "Comma Style command should apply #,##0.00 with a thousands separator");
+    assert(SHEET_COMMANDS.some(command => command.id === "sheet.format.standard" && command.shortcut === "Ctrl+Shift+1"),
+      "Comma Style command must remain available on the ribbon and Ctrl+Shift+1");
+  });
+
+  test("Date number format fits default-width columns and preserves custom widths", () => {
+    const grid = new SheetGridController(mockContainer());
+    grid.setCellValue("A", 1, 45000);
+    grid.selectedCoord = { c: "A", r: 1 };
+    grid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "A", r: 1 } };
+    const defaultWidth = grid.defaultColWidth;
+    grid.applyQuickNumberCategory("date");
+    assert(grid.getColumnWidth("A") > defaultWidth, "Applying Date should widen a default-width column to show the date");
+    grid.undo();
+    assert(grid.getColumnWidth("A") === defaultWidth, "Undo should restore the original default column width");
+
+    grid.setColumnWidths(42, ["A"], false);
+    grid.applyQuickNumberCategory("date");
+    assert(grid.getColumnWidth("A") === 42, "Applying Date must preserve a user-sized column");
+  });
+
+  test("Currency and Accounting export Excel-compatible VND number formats", () => {
+    const adapter = new SheetAdapter(new SheetGridController(mockContainer()));
+    const currencyCode = adapter._excelCodeForNewNumberFormat({ category: "currency", currencySymbol: "₫", decimals: 2, useThousands: true });
+    const accountingCode = adapter._excelCodeForNewNumberFormat({ category: "accounting", currencySymbol: "₫", decimals: 2, useThousands: true });
+    assert(currencyCode.startsWith('#,##0.00 [$₫]'), `Currency should use a spaced VND suffix, got ${currencyCode}`);
+    assert(accountingCode.includes("_(* #,##0.00 [$₫]_") && accountingCode.endsWith("_(@_)"),
+      `Accounting should use Excel's padded format sections, got ${accountingCode}`);
+    const currencyXml = adapter._numberFormatXml({ category: "currency", currencySymbol: "₫", decimals: 2, useThousands: true }, "n1");
+    assert(currencyXml.includes("<number:text> </number:text>"), "Currency spacing should survive the ODF style conversion");
   });
 
   // 3. Unit Test Category Currency
