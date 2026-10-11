@@ -1,0 +1,1106 @@
+[
+ {
+  "tab": "Trang đầu",
+  "id": "common.edit.paste",
+  "label": "Dán (Ctrl+V)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:126"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "common.edit.cut",
+  "label": "Cắt (Ctrl+X)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:3"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "common.edit.copy",
+  "label": "Sao chép (Ctrl+C)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:2"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.edit.pasteSpecial",
+  "label": "Dán đặc biệt (Ctrl+Alt+V)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.edit.formatPainter",
+  "label": "Sao chép định dạng",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:13"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.font.family",
+  "label": "Phông chữ",
+  "hasIcon": false,
+  "disabled": false,
+  "reaction": "control(select/input)"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.font.size",
+  "label": "Cỡ chữ",
+  "hasIcon": false,
+  "disabled": false,
+  "reaction": "control(select/input)"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.font.grow",
+  "label": "Tăng cỡ chữ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:15"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.font.shrink",
+  "label": "Giảm cỡ chữ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:15"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.cell.bold",
+  "label": "Đậm (Ctrl+B)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:20"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.cell.italic",
+  "label": "Nghiêng (Ctrl+I)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:20"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.cell.underline",
+  "label": "Gạch chân (Ctrl+U)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:20"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.cell.borders",
+  "label": "Viền ô",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:15"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.cell.fillColor",
+  "label": "Màu nền",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:15"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.cell.textColor",
+  "label": "Màu chữ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:15"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.cell.alignTop",
+  "label": "Căn trên",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:21"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.cell.alignMiddle",
+  "label": "Căn giữa dọc",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:7"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.cell.alignBottom",
+  "label": "Căn dưới",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:7"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.cell.wrapText",
+  "label": "Ngắt dòng tự động",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:19"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.cell.alignLeft",
+  "label": "Căn trái",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.cell.alignCenter",
+  "label": "Căn giữa",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.cell.alignRight",
+  "label": "Căn phải",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.cell.indentDecrease",
+  "label": "Giảm thụt lề",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.cell.indentIncrease",
+  "label": "Tăng thụt lề",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.cell.mergeCenter",
+  "label": "Trộn & căn giữa",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.cell.mergeAcross",
+  "label": "Trộn theo hàng",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.cell.mergeCells",
+  "label": "Trộn ô",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.cell.unmerge",
+  "label": "Tách ô",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.format.quickCategory",
+  "label": "Định dạng số",
+  "hasIcon": false,
+  "disabled": false,
+  "reaction": "control(select/input)"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.format.currencyVND",
+  "label": "Tiền tệ VNĐ (Ctrl+Shift+4)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.format.percent",
+  "label": "Phần trăm (Ctrl+Shift+5)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.format.standard",
+  "label": "Phân cách hàng nghìn (Ctrl+Shift+1)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.format.increaseDecimal",
+  "label": "Tăng số thập phân",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.format.decreaseDecimal",
+  "label": "Giảm số thập phân",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.format.cellsDialog",
+  "label": "Định dạng ô... (Ctrl+1)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.format.conditional",
+  "label": "Định dạng có điều kiện",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.style.formatAsTable",
+  "label": "Định dạng bảng",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.style.cellStyles",
+  "label": "Kiểu ô",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.row.insert",
+  "label": "Chèn hàng (Ctrl+Shift+=)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.col.insert",
+  "label": "Chèn cột",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.row.delete",
+  "label": "Xóa hàng",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.col.delete",
+  "label": "Xóa cột",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.formula.sum",
+  "label": "AutoSum (Alt+=)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.data.sortAsc",
+  "label": "Sắp xếp A-Z",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.data.sortDesc",
+  "label": "Sắp xếp Z-A",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "sheet.data.filter",
+  "label": "Bộ lọc (Ctrl+Shift+L)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "common.edit.find",
+  "label": "Tìm kiếm (Ctrl+F)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "common.edit.replace",
+  "label": "Thay thế (Ctrl+H)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Chèn",
+  "id": "sheet.data.pivotTable",
+  "label": "Bảng tổng hợp",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Chèn",
+  "id": "sheet.insert.image",
+  "label": "Chèn ảnh",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Chèn",
+  "id": "sheet.chart.insert",
+  "label": "Biểu đồ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Chèn",
+  "id": "sheet.chart.pivotChart",
+  "label": "Biểu đồ Pivot",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Chèn",
+  "id": "sheet.insert.sparklineLine",
+  "label": "Đường",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:14"
+ },
+ {
+  "tab": "Chèn",
+  "id": "sheet.insert.sparklineColumn",
+  "label": "Cột",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:14"
+ },
+ {
+  "tab": "Chèn",
+  "id": "sheet.insert.hyperlink",
+  "label": "Liên kết",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Chèn",
+  "id": "sheet.insert.textbox",
+  "label": "Hộp văn bản",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Chèn",
+  "id": "sheet.page.headerFooter",
+  "label": "Tiêu đề Đầu/Cuối trang",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Bố trí trang",
+  "id": "sheet.page.margins",
+  "label": "Căn lề",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Bố trí trang",
+  "id": "sheet.page.orientation",
+  "label": "Hướng giấy",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Bố trí trang",
+  "id": "sheet.page.size",
+  "label": "Khổ giấy",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Bố trí trang",
+  "id": "sheet.page.setPrintArea",
+  "label": "Đặt vùng in",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:120"
+ },
+ {
+  "tab": "Bố trí trang",
+  "id": "sheet.page.clearPrintArea",
+  "label": "Xóa vùng in",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:120"
+ },
+ {
+  "tab": "Bố trí trang",
+  "id": "sheet.page.insertPageBreak",
+  "label": "Chèn ngắt trang",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:120"
+ },
+ {
+  "tab": "Bố trí trang",
+  "id": "sheet.page.removePageBreak",
+  "label": "Xóa ngắt trang",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:120"
+ },
+ {
+  "tab": "Bố trí trang",
+  "id": "sheet.page.printTitles",
+  "label": "Tiêu đề in",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Bố trí trang",
+  "id": "sheet.page.scale",
+  "label": "Tỷ lệ vừa trang",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Bố trí trang",
+  "id": "sheet.view.gridlines",
+  "label": "Đường lưới",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:23"
+ },
+ {
+  "tab": "Bố trí trang",
+  "id": "sheet.view.headings",
+  "label": "Tiêu đề",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:23"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.insertFunction",
+  "label": "Chèn hàm (Shift+F3)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.sum",
+  "label": "AutoSum (Alt+=)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:16"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.average",
+  "label": "Trung bình",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:16"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.countNumbers",
+  "label": "Đếm số",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:16"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.categoryFinancial",
+  "label": "Tài chính",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.categoryLogical",
+  "label": "Logic",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.categoryText",
+  "label": "Văn bản",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.categoryDateTime",
+  "label": "Ngày & Giờ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.categoryLookup",
+  "label": "Tra cứu & Tham chiếu",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.categoryMath",
+  "label": "Toán & Lượng giác",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.categoryMore",
+  "label": "Thêm hàm",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.max",
+  "label": "Lớn nhất",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:16"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.min",
+  "label": "Nhỏ nhất",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:16"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.nameManager",
+  "label": "Quản lý tên",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.defineName",
+  "label": "Đặt tên vùng",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.useInFormula",
+  "label": "Dùng trong công thức",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.createFromSelection",
+  "label": "Tạo từ vùng chọn (Ctrl+Shift+F3)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.tracePrecedents",
+  "label": "Tìm ô tiền lệ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:3"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.traceDependents",
+  "label": "Tìm ô phụ thuộc",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:3"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.removeArrows",
+  "label": "Xóa mũi tên",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:3"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.showFormulas",
+  "label": "Hiện công thức",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:113"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.errorChecking",
+  "label": "Kiểm tra lỗi",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.evaluateFormula",
+  "label": "Ước lượng công thức",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.watchWindow",
+  "label": "Cửa sổ theo dõi",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.calc.calculationOptions",
+  "label": "Tùy chọn tính toán",
+  "hasIcon": false,
+  "disabled": false,
+  "reaction": "control(select/input)"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.formula.recalculate",
+  "label": "Tính lại toàn bộ (F9)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:125"
+ },
+ {
+  "tab": "Công thức",
+  "id": "sheet.calc.calculateSheet",
+  "label": "Tính trang hiện tại (Shift+F9)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:123"
+ },
+ {
+  "tab": "Dữ liệu",
+  "id": "sheet.data.sortAsc",
+  "label": "Sắp xếp A-Z",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:130"
+ },
+ {
+  "tab": "Dữ liệu",
+  "id": "sheet.data.sortDesc",
+  "label": "Sắp xếp Z-A",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:130"
+ },
+ {
+  "tab": "Dữ liệu",
+  "id": "sheet.data.filter",
+  "label": "Bộ lọc (Ctrl+Shift+L)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:161"
+ },
+ {
+  "tab": "Dữ liệu",
+  "id": "sheet.data.customSort",
+  "label": "Sắp xếp tùy chỉnh",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Dữ liệu",
+  "id": "sheet.data.textToColumns",
+  "label": "Tách văn bản",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Dữ liệu",
+  "id": "sheet.data.flashFill",
+  "label": "Điền nhanh",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Dữ liệu",
+  "id": "sheet.data.removeDuplicates",
+  "label": "Xóa trùng lặp",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Dữ liệu",
+  "id": "sheet.data.validation",
+  "label": "Kiểm tra dữ liệu",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Dữ liệu",
+  "id": "sheet.data.consolidate",
+  "label": "Hợp nhất dữ liệu",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Dữ liệu",
+  "id": "sheet.data.group",
+  "label": "Nhóm",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Dữ liệu",
+  "id": "sheet.data.ungroup",
+  "label": "Bỏ nhóm",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Dữ liệu",
+  "id": "sheet.data.subtotal",
+  "label": "Tổng phụ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Dữ liệu",
+  "id": "sheet.data.pivotTable",
+  "label": "Bảng tổng hợp",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Dữ liệu",
+  "id": "sheet.data.pivotRefresh",
+  "label": "Làm mới Pivot",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Xem xét",
+  "id": "sheet.review.spellCheck",
+  "label": "Chính tả",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Xem xét",
+  "id": "sheet.review.toggleSpellCheck",
+  "label": "Kiểm tra chính tả",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:9"
+ },
+ {
+  "tab": "Xem xét",
+  "id": "sheet.review.commentInsert",
+  "label": "Ghi chú mới",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Xem xét",
+  "id": "sheet.review.commentDelete",
+  "label": "Xóa nhận xét",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Xem xét",
+  "id": "sheet.review.commentResolve",
+  "label": "Đã xử lý",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Xem xét",
+  "id": "sheet.review.commentPrevious",
+  "label": "Nhận xét trước",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Xem xét",
+  "id": "sheet.review.commentNext",
+  "label": "Nhận xét sau",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Xem xét",
+  "id": "sheet.sheet.protect",
+  "label": "Bảo vệ trang tính...",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Xem xét",
+  "id": "sheet.workbook.protect",
+  "label": "Bảo vệ workbook...",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:A1"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "sheet.view.normal",
+  "label": "Bình thường",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:142"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "sheet.view.pageBreakPreview",
+  "label": "Xem ngắt trang",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:145"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "sheet.view.pageLayout",
+  "label": "Bố trí trang",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:147"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "sheet.file.printPreview",
+  "label": "Xem trước khi in (Ctrl+F2)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "sheet.view.gridlines",
+  "label": "Đường lưới",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:47"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "sheet.view.formulaBar",
+  "label": "Thanh công thức",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:48"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "sheet.view.headings",
+  "label": "Tiêu đề",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:47"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "sheet.view.zoomIn",
+  "label": "Phóng to",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:7"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "sheet.view.zoomReset",
+  "label": "100%",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:7"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "sheet.view.zoomToSelection",
+  "label": "Thu phóng vùng chọn",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1779"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "sheet.view.zoomOut",
+  "label": "Thu nhỏ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:6"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "sheet.view.newWindow",
+  "label": "Cửa sổ mới",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "common.macro.recordToggle",
+  "label": "Ghi Macro (Ctrl+Shift+R)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:16"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "common.macro.manager",
+  "label": "Xem Macro (Alt+F8)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Trợ giúp",
+  "id": "sheet.help.open",
+  "label": "Trợ giúp (F1)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:13"
+ },
+ {
+  "tab": "Trợ giúp",
+  "id": "common.help.about",
+  "label": "Giới thiệu",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Trợ lý 3T AI",
+  "id": "ai.assistant.toggle",
+  "label": "Trợ lý 3T AI (Alt+J)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Trợ lý 3T AI",
+  "id": "ai.assistant.summarize",
+  "label": "Tóm tắt nhanh",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Trợ lý 3T AI",
+  "id": "sheet.ai.explainFormula",
+  "label": "Giải thích công thức",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Trợ lý 3T AI",
+  "id": "sheet.ai.formulaFromDescription",
+  "label": "Tạo công thức",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ }
+]

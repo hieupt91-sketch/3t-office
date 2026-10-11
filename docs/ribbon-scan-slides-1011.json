@@ -1,0 +1,706 @@
+[
+ {
+  "tab": "Trang đầu",
+  "id": "common.edit.paste",
+  "label": "Dán (Ctrl+V)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "document"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "common.edit.cut",
+  "label": "Cắt (Ctrl+X)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "common.edit.copy",
+  "label": "Sao chép (Ctrl+C)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.edit.formatPainter",
+  "label": "Sao chép định dạng",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:7"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.slide.new",
+  "label": "Trang mới (Ctrl+M)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "document"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.layout.apply",
+  "label": "Bố cục",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.slide.duplicate",
+  "label": "Nhân đôi (Ctrl+D)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:25"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.slide.delete",
+  "label": "Xóa trang (Delete)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:22"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.layout.reset",
+  "label": "Đặt lại",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.font.family",
+  "label": "Phông chữ",
+  "hasIcon": false,
+  "disabled": false,
+  "reaction": "control(select/input)"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.font.size",
+  "label": "Cỡ chữ",
+  "hasIcon": false,
+  "disabled": false,
+  "reaction": "control(select/input)"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.font.grow",
+  "label": "Tăng cỡ chữ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "document"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.font.shrink",
+  "label": "Giảm cỡ chữ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:107"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.text.bold",
+  "label": "Đậm (Ctrl+B)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:109"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.text.italic",
+  "label": "Nghiêng (Ctrl+I)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:109"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.text.underline",
+  "label": "Gạch chân (Ctrl+U)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:109"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.text.strike",
+  "label": "Gạch ngang",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:109"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.text.clearFormat",
+  "label": "Xóa định dạng",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:104"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.color.text",
+  "label": "Màu chữ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:104"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.color.highlight",
+  "label": "Màu nền chữ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:104"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.list.bullet",
+  "label": "Dấu đầu dòng",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "document"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.list.numbered",
+  "label": "Đánh số",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:167"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.para.indentDec",
+  "label": "Giảm thụt lề",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "document"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.para.indentInc",
+  "label": "Thụt lề",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "document"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.para.lineSpacing",
+  "label": "Giãn dòng",
+  "hasIcon": false,
+  "disabled": false,
+  "reaction": "control(select/input)"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.para.alignLeft",
+  "label": "Căn trái (Ctrl+L)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:212"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.para.alignCenter",
+  "label": "Căn giữa (Ctrl+E)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "document"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.para.alignRight",
+  "label": "Căn phải (Ctrl+R)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "document"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.para.justify",
+  "label": "Căn đều (Ctrl+J)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "document"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.text.insert",
+  "label": "Hộp văn bản",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "document"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.shape.insert",
+  "label": "Hình khối",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "document"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "slides.image.insert",
+  "label": "Hình ảnh",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "common.edit.find",
+  "label": "Tìm kiếm (Ctrl+F)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:"
+ },
+ {
+  "tab": "Trang đầu",
+  "id": "common.edit.replace",
+  "label": "Thay thế (Ctrl+H)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:"
+ },
+ {
+  "tab": "Chèn",
+  "id": "slides.insert.table",
+  "label": "Bảng",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Chèn",
+  "id": "slides.image.insert",
+  "label": "Hình ảnh",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Chèn",
+  "id": "slides.shape.insert",
+  "label": "Hình khối",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "document"
+ },
+ {
+  "tab": "Chèn",
+  "id": "slides.diagram.insert",
+  "label": "Sơ đồ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Chèn",
+  "id": "slides.insert.chart",
+  "label": "Biểu đồ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:"
+ },
+ {
+  "tab": "Chèn",
+  "id": "slides.review.commentInsert",
+  "label": "Nhận xét mới",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:9"
+ },
+ {
+  "tab": "Chèn",
+  "id": "slides.text.insert",
+  "label": "Hộp văn bản",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "document"
+ },
+ {
+  "tab": "Chèn",
+  "id": "slides.insert.wordart",
+  "label": "Chữ nghệ thuật",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Chèn",
+  "id": "slides.insert.headerFooter",
+  "label": "Đầu trang & Chân trang",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Chèn",
+  "id": "slides.insert.dateTime",
+  "label": "Ngày & Giờ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Chèn",
+  "id": "slides.insert.slideNumber",
+  "label": "Số trang chiếu",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "document"
+ },
+ {
+  "tab": "Chèn",
+  "id": "slides.insert.symbol",
+  "label": "Ký hiệu",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Chèn",
+  "id": "slides.media.insertVideo",
+  "label": "Video",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Chèn",
+  "id": "slides.media.insertAudio",
+  "label": "Âm thanh",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:1"
+ },
+ {
+  "tab": "Thiết kế",
+  "id": "slides.design.themeGallery",
+  "label": "Chủ đề",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Thiết kế",
+  "id": "slides.master.apply",
+  "label": "Mẫu Slide Master",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Thiết kế",
+  "id": "slides.design.slideSize",
+  "label": "Cỡ trang chiếu",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Thiết kế",
+  "id": "slides.design.formatBackground",
+  "label": "Định dạng nền",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Chuyển tiếp",
+  "id": "slides.transition.apply",
+  "label": "Chuyển tiếp",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Hoạt hình",
+  "id": "slides.animation.apply",
+  "label": "Hiệu ứng đối tượng",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Hoạt hình",
+  "id": "slides.animation.pane",
+  "label": "Ngăn hoạt hình",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:15"
+ },
+ {
+  "tab": "Trình chiếu",
+  "id": "slides.show.startFromBegin",
+  "label": "Từ đầu (F5)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Trình chiếu",
+  "id": "slides.show.startFromCurrent",
+  "label": "Từ trang này (Shift+F5)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Trình chiếu",
+  "id": "slides.show.presenterMode",
+  "label": "Chế độ Presenter (Alt+F5)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Trình chiếu",
+  "id": "slides.show.setupShow",
+  "label": "Thiết lập trình chiếu",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Trình chiếu",
+  "id": "slides.slide.toggleHidden",
+  "label": "Ẩn trang chiếu",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:22"
+ },
+ {
+  "tab": "Trình chiếu",
+  "id": "slides.show.rehearseTimings",
+  "label": "Tập dượt hẹn giờ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Trình chiếu",
+  "id": "slides.notes.toggle",
+  "label": "Ghi chú thuyết trình",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:23"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "slides.review.spellCheck",
+  "label": "Chính tả",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog,toast:"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "slides.review.toggleSpellCheck",
+  "label": "Kiểm tra chính tả",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:13"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "slides.review.commentInsert",
+  "label": "Nhận xét mới",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:37"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "slides.review.commentDelete",
+  "label": "Xóa nhận xét",
+  "hasIcon": true,
+  "disabled": true,
+  "reaction": "disabled"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "slides.review.commentPrevious",
+  "label": "Nhận xét trước",
+  "hasIcon": true,
+  "disabled": true,
+  "reaction": "disabled"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "slides.review.commentNext",
+  "label": "Nhận xét sau",
+  "hasIcon": true,
+  "disabled": true,
+  "reaction": "disabled"
+ },
+ {
+  "tab": "Đánh giá",
+  "id": "slides.review.commentResolve",
+  "label": "Đã xử lý",
+  "hasIcon": true,
+  "disabled": true,
+  "reaction": "disabled"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "slides.view.normal",
+  "label": "Bình thường",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:44"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "slides.view.slideSorter",
+  "label": "Bộ sắp xếp trang",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "slides.notes.toggle",
+  "label": "Ghi chú thuyết trình",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:53"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "slides.view.reading",
+  "label": "Chế độ đọc",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "slides.file.printPreview",
+  "label": "Xem trước khi in (Ctrl+F2)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "slides.view.ruler",
+  "label": "Thước",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:56"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "slides.view.gridlines",
+  "label": "Đường lưới",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "document"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "slides.view.guides",
+  "label": "Đường hướng dẫn",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "document"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "slides.view.zoomIn",
+  "label": "Phóng to",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:51"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "slides.view.zoomOut",
+  "label": "Thu nhỏ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:51"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "slides.view.zoomReset",
+  "label": "100%",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:50"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "slides.view.fitToWindow",
+  "label": "Vừa cửa sổ",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:51"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "slides.view.newWindow",
+  "label": "Cửa sổ mới",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "common.macro.recordToggle",
+  "label": "Ghi Macro (Ctrl+Shift+R)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:16"
+ },
+ {
+  "tab": "Chế độ xem",
+  "id": "common.macro.manager",
+  "label": "Xem Macro (Alt+F8)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dialog"
+ },
+ {
+  "tab": "Trợ giúp",
+  "id": "slides.help.open",
+  "label": "Trợ giúp (F1)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "dom:13"
+ },
+ {
+  "tab": "Trợ giúp",
+  "id": "common.help.about",
+  "label": "Giới thiệu",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Trợ lý 3T AI",
+  "id": "ai.assistant.toggle",
+  "label": "Trợ lý 3T AI (Alt+J)",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ },
+ {
+  "tab": "Trợ lý 3T AI",
+  "id": "ai.assistant.summarize",
+  "label": "Tóm tắt nhanh",
+  "hasIcon": true,
+  "disabled": false,
+  "reaction": "skipped(dangerous)"
+ }
+]
