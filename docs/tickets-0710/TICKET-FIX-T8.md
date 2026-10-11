@@ -5,3 +5,10 @@ Khung: scripts/audit-0610/word_parallel/ (make-template.ps1, app-ops.desktop.mjs
  3. KIEU (Heading 1-3, Normal, Title, Quote): Style cua Paragraph (Word: Paragraph.Style.NameLocal, Font, SpaceBefore/After, OutlineLevel), muc luc tu dong (TablesOfContents.Count, Range text), chu thich trang/cuoi (Footnotes.Count, Text, Reference), tham chieu cheo, danh muc hinh (Captions).
  4. Ghi chu (Comments: Author, Scope, Text, Done), Theo doi thay doi (Revisions: Type, Author, Range.Text), Tim/Thay the (Find.Execute ket qua), Ky hieu/Chen ky tu dac biet (Range.Text ky tu), Hop van ban/Hinh khoi/Hinh anh (Shapes: Type, Width, Height, WrapFormat).
 Quy trinh/CAM/TIET KIEM TOKEN: nhu TICKET-FIX-T1.md; COMMIT SAU MOI NHOM; Word COM chi instance cua ban, ket thuc theo PID; KHONG gui noi dung tai lieu ra AI/cloud. Worktree E:\VNOffice-codex-ft8 nhanh audit/doc-office-parity-2-codex tu main. npm test + python unittest + batch docx. Bao cao 3 dong.
+
+## Kết quả theo nhóm (đang tiếp tục lần lượt)
+
+### Nhóm 3 — Heading 1–3 — 11/10/2026
+1. App desktop: tài liệu mới, thao tác gõ/chọn/áp kiểu bằng CDP chuột và bàn phím; lưu DOCX và chụp ảnh tại `E:\VNOffice-profiles\codex-ft8\heading-run-09\heading-t8-before.png`.
+2. Word COM: sau mở lại, cả hai DOCX khớp Calibri Light, 16/13/12 pt, không đậm, màu theme, spacing 12/2/2–0 pt, outline 1/2/3 và căn trái.
+3. Sửa chỉ áp cho tài liệu mới; DOCX nhập không đổi. Hướng dẫn F1 + tooltip VI/EN cập nhật; test Python 4/4 và heading/help 4/4 PASS. Commit riêng nhóm 3.

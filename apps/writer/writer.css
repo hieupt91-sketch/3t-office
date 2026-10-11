@@ -833,6 +833,21 @@ li.vno-page-auto-gap {
   margin: 8pt 0 3pt 0;
 }
 
+/* Word built-in Heading 1–3 defaults apply only to a source-free new document. */
+.vno-writer-body.vno-new-application-document h1,
+.vno-writer-body.vno-new-application-document h2,
+.vno-writer-body.vno-new-application-document h3 {
+  font-family: "Calibri Light", Calibri, sans-serif;
+  font-weight: normal;
+  font-style: normal;
+  text-align: left;
+  text-transform: none;
+  margin-bottom: 0;
+}
+.vno-writer-body.vno-new-application-document h1 { font-size: 16pt; color: #2e74b5; margin-top: 12pt; }
+.vno-writer-body.vno-new-application-document h2 { font-size: 13pt; color: #2e74b5; margin-top: 2pt; }
+.vno-writer-body.vno-new-application-document h3 { font-size: 12pt; color: #1f4d78; margin-top: 2pt; }
+
 .vno-writer-page table {
   width: 100%;
   border-collapse: collapse;

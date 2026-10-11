@@ -289,6 +289,7 @@ export class WriterAdapter {
     this.editorDom = editorDom;
     this.documentContent = "";
     this.isDirty = false;
+    this.isNewApplicationDocument = true;
     this._openedEditorDomHash = null;
     this.sourceFileName = "TaiLieu";
     this.pageSetup = {
@@ -419,11 +420,13 @@ export class WriterAdapter {
       this.headerDom = null;
       this.bodyDom = this.editorDom;
       this.footerDom = null;
+      this.bodyDom?.classList?.toggle("vno-new-application-document", Boolean(this.isNewApplicationDocument));
       return;
     }
     this.headerDom = this.editorDom.querySelector(".vno-writer-header");
     this.bodyDom = this.editorDom.querySelector(".vno-writer-body") || this.editorDom;
     this.footerDom = this.editorDom.querySelector(".vno-writer-footer");
+    this.bodyDom?.classList?.toggle("vno-new-application-document", Boolean(this.isNewApplicationDocument));
   }
 
   _bindEquationInteractions() {
@@ -14953,7 +14956,7 @@ export class WriterAdapter {
     // is not part of the HTML payload sent to LibreOffice. Capture the values
     // users see only for a brand-new, source-free document; imported DOCX keeps
     // its existing export path byte-for-byte.
-    if (this._sourcePath || /\(đã khôi phục\)$/i.test(String(this.sourceFileName || "")) || !exportRoot?.querySelectorAll) return;
+    if ((!this.isNewApplicationDocument && this._sourcePath) || /\(đã khôi phục\)$/i.test(String(this.sourceFileName || "")) || !exportRoot?.querySelectorAll) return;
     const sourceParagraphs = this.bodyDom?.querySelectorAll?.("p,h1,h2,h3,h4,h5,h6") || [];
     const exportParagraphs = exportRoot.querySelectorAll("p,h1,h2,h3,h4,h5,h6");
     if (sourceParagraphs.length !== exportParagraphs.length || typeof getComputedStyle !== "function") return;
@@ -14974,6 +14977,9 @@ export class WriterAdapter {
       const visible = getComputedStyle(source);
       if (!target?.style?.setProperty) continue;
       target.setAttribute?.("data-vno-export-defaults", "true");
+      if (this.isNewApplicationDocument && /^h[1-3]$/i.test(String(source.tagName || "")) && !source.hasAttribute?.("style")) {
+        continue;
+      }
       if (["left", "right", "center", "justify"].includes(visible.textAlign)) {
         target.style.setProperty("text-align", visible.textAlign);
       }
@@ -15177,7 +15183,8 @@ export class WriterAdapter {
     const mutationMarkers = this._shapeMutationMarkerHtml();
 
     const pristineMarker = this._isOpenedDocumentPristine() ? '<a name="vno-pristine-document"></a>' : "";
-    const fullHtml = `${pristineMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
+    const newDocumentStyleMarker = this.isNewApplicationDocument ? "<!--vno-new-document-style-defaults-->" : "";
+    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }
@@ -15434,6 +15441,8 @@ export class WriterAdapter {
       }
       this._initZones();
       this._sourcePath = result.sourcePath || null;
+      this.isNewApplicationDocument = false;
+      this.bodyDom?.classList?.remove("vno-new-application-document");
       // Comments chỉ thuộc tài liệu đang mở trong phiên; file khác không dùng lại anchor cũ.
       this.comments = [];
       this.trackChangesEnabled = Boolean(imported.trackingEnabled);
@@ -15553,6 +15562,8 @@ export class WriterAdapter {
     if (!/<(?:html|body|div|p|table|span|h[1-6]|ul|ol)\b/i.test(String(content || ""))) return false;
     this._initZones();
     this._sourcePath = null;
+    this.isNewApplicationDocument = false;
+    this.bodyDom?.classList?.remove("vno-new-application-document");
     this.comments = [];
     this.trackChangesEnabled = false;
     this.activeCommentId = null;
@@ -15629,6 +15640,7 @@ export class WriterAdapter {
   async newDocument() {
     this._initZones();
     this._sourcePath = null;
+    this.isNewApplicationDocument = true;
     this.comments = [];
     this.trackChangesEnabled = false;
     this.activeCommentId = null;

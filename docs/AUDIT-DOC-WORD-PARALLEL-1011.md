@@ -63,7 +63,7 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Chú thích trang | Đã lưu; Word đọc `Footnotes.Count=1`, nội dung rỗng | Đã tạo footnote; đọc lại COM | KHỚP về số lượng/nội dung rỗng |
 | Ghi chú | Một comment; Word đọc Author/Scope/Text | COM tạo cùng comment; đọc lại | KHỚP: `3T Office` / `Alpha` / `Audit note`; trạng thái Done chưa chạy |
 | Theo dõi thay đổi: chèn cụm ` added` | Word đọc một `Revision` thêm, Type 1, Author 3T Office | COM bật TrackRevisions, chèn cùng cụm; đọc lại | KHỚP về count/type/author/text |
-| Heading 1–3 | Chưa chạy | Chưa chạy | NOT RUN |
+| Heading 1–3 (kiểu mặc định tài liệu mới) | CDP gõ/chọn/lưu; Word COM đọc đủ thuộc tính | Word COM tạo và đọc cùng kiểu | KHỚP; DOCX nhập giữ nguyên |
 | Thư viện kiểu | Chưa chạy | Chưa chạy | NOT RUN |
 | Tìm/thay thế: thay toàn bộ `Alpha` → `Gamma` | CDP Ctrl+H, 1 thay thế; DOCX có Gamma, không Alpha | `Find.Execute` ReplaceAll; DOCX cùng nội dung | KHỚP |
 | Ký hiệu `π` | CDP chọn Pi; lưu DOCX có đúng 1 `π` ở đoạn Alpha | COM DOCX đối chứng có cùng ký tự/vị trí | KHỚP |
@@ -87,6 +87,12 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 2. **Word COM:** A5 ngang 595.3×419.5 pt; A4 lề 36/72/54/144 pt theo preset; Letter 612×792 pt. DOCX cuối hai bên có 5 section start `2,2,0,3,4`, header/footer giống nhau, `DifferentFirstPage=-1`, số bắt đầu 3.
 3. **Kết quả/sửa:** các giá trị và break types KHỚP. Đã bổ sung A5 + preset lề Word; sửa chèn ngắt mục để tách đoạn tại caret nên Word giữ đủ section. Unit `writer-sectionbreaks-pagecolor` 18/18 PASS; Word COM/CDP PASS. Help cụ thể ở **Bố cục > Thiết lập trang**, **Chèn > Đầu trang/Chân trang**, **Bố cục > Ngắt**; VI/EN i18n cập nhật.
 
+### FIX-T8 — Heading 1–3 — 11/10/2026
+
+1. **App/CDP:** tài liệu trắng mới, gõ ba đoạn, chọn từng đoạn bằng kéo chuột và áp dụng qua **Trang đầu > Kiểu dáng**; lưu DOCX, ảnh `E:\VNOffice-profiles\codex-ft8\heading-run-09\heading-t8-before.png`.
+2. **Word COM:** tạo cùng ba Heading và đọc lại cả hai DOCX: Calibri Light; 16/13/12 pt; không đậm; màu/theme `-738148353/-738148353/-738164737`; trước 12/2/2 pt, sau 0; outline 1/2/3; căn trái; khớp từng thuộc tính.
+3. **Kết quả/sửa:** **KHỚP**; hậu xử lý chỉ áp theme/style Word cho tài liệu mới và không sửa định dạng đoạn/kết quả mở DOCX nguồn. Canvas mới cũng theo cỡ/màu/spacing; Help F1 **Thư viện kiểu và kiểu Thường** cùng tooltip VI/EN cập nhật. Test Python 4/4 và heading shortcut/help 4/4 PASS.
+
 - Các phép thử FIX-T8 còn lại thuộc Style/References và Comments/Track Changes/Find/Replace/Symbol/Shapes: **NOT RUN** trong lượt này. Kết quả Heading 1–3 trước đó vẫn là sai khác đã ghi, không được tính KHỚP.
 - Batch DOCX hồi quy trên worktree/profile `codex-ft8`: **5/5 PASS**, edit PASS; trang nguồn/lưu d01 19/19, d07 23/23, d13 10/10, d20 3/3, d24 16/16. Báo cáo: `E:\VNOffice-profiles\codex-ft8\batch-audit\batch_document_audit_report.md`.
 - Kiểm thử: `npm test` **3058/3058 PASS**. `python -m unittest discover -s tests` lần chạy đầu dùng nhầm LOCALAPPDATA mặc định và có 10 lỗi do xung đột profile LibreOffice với phiên worktree khác; chạy lại toàn bộ với `LOCALAPPDATA=E:\VNOffice-profiles\codex-ft8\python-localappdata`: **832 tests OK**. Hai lần unittest có `ResourceWarning` về pipe chưa đóng; không có test fail ở lần chạy dùng profile riêng.
@@ -101,7 +107,7 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Heading 2 | đậm `-1 → 0`; cỡ `12 → 13 pt`; phông `Times New Roman → Calibri Light`; trước `0 → 2 pt`; sau `8 → 0 pt`; màu khác | LECH |
 | Heading 3 | đậm `-1 → 0`; phông `Times New Roman → Calibri Light`; trước `0 → 2 pt`; sau `8 → 0 pt`; màu khác | LECH |
 
-Chưa sửa các style mặc định: Word COM dùng theme/style của phiên bản Word cài trên máy, còn ép các thuộc tính trên vào mọi Heading trong hậu xử lý DOCX sẽ ghi đè theme và định dạng tài liệu hiện hữu. Đây là sai khác đã tái hiện, chưa phải KHỚP; cần quyết định quy tắc tương thích style/theme trước khi sửa.
+Đây là baseline trước sửa; phép thử Heading 1–3 sau sửa và giới hạn chỉ áp dụng tài liệu mới được ghi ở mục **FIX-T8 — Heading 1–3** phía trên. Các phép thử Normal/Title/Quote và cập nhật TOC vẫn chưa hoàn tất.
 
 ### FIX-T8 tiếp tục — Kiểu/TOC/Footnote — 11/10/2026
 
@@ -109,7 +115,7 @@ Trong app desktop, chọn đoạn “Alpha beta gamma delta.” bằng chuột, 
 
 Trợ giúp tiếng Việt hiện có tại F1/Trợ giúp với các chủ đề **Thư viện kiểu và Chủ đề tài liệu**, **Mục lục tự động**, **Chú thích cuối trang và chú thích cuối tài liệu** (`platform/help/entries-writer.js`); nhãn/tooltip có trong `platform/i18n/strings-vi.js` và `strings-en.js`.
 
-Nhóm chưa hoàn tất: style Normal/Title/Quote và Heading 2–3 cần soát đầy đủ; heading style vẫn có sai khác font/cỡ/màu/khoảng cách đã tái hiện ở phần trên. Chưa chạy cập nhật TOC sau sửa heading, trang tham chiếu, footnote có nội dung, endnote, tham chiếu chéo và danh mục hình. Không sửa mặc định Heading vì cần chốt quy tắc theme/style để tránh thay đổi semantics DOCX.
+Nhóm chưa hoàn tất: style Normal/Title/Quote, cập nhật TOC sau sửa Heading, trang tham chiếu, footnote có nội dung, endnote, tham chiếu chéo và danh mục hình chưa chạy. Heading 1–3 mặc định tài liệu mới đã khớp Word; tài liệu mở giữ nguyên nguồn.
 
 ### FIX-T8 tiếp tục — Ghi chú — 11/10/2026
 

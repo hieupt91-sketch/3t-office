@@ -15466,6 +15466,103 @@ def _writer_normalize_simple_list_numbering(document_xml: str, numbering_xml: st
         numbering_xml = numbering_xml[:abstract.start()] + block + numbering_xml[abstract.end():]
     return document_xml, numbering_xml
 
+def _writer_apply_word_default_heading_styles_for_new_documents(
+    document_xml: str, styles_xml: str, source_html: str
+) -> tuple[str, str]:
+    """Use this machine's normal Word built-in heading defaults only for new app documents."""
+    if "<!--vno-new-document-style-defaults-->" not in source_html:
+        return document_xml, styles_xml
+
+    default_headings: list[tuple[int, str]] = []
+    for match in re.finditer(r"<h([1-3])\b([^>]*)>([\s\S]*?)</h\1\s*>", source_html, re.IGNORECASE):
+        attrs = match.group(2) or ""
+        if not re.search(r'\bdata-vno-export-defaults=["\']true["\']', attrs, re.IGNORECASE):
+            continue
+        inline_style = re.search(r'\bstyle=["\']([^"\']*)["\']', attrs, re.IGNORECASE)
+        if inline_style and inline_style.group(1).strip():
+            continue  # Keep paragraph formatting the user explicitly applied.
+        text = re.sub(r"\s+", " ", _writer_html_plain(match.group(3))).strip()
+        if text:
+            default_headings.append((int(match.group(1)), text))
+    if not default_headings:
+        return document_xml, styles_xml
+
+    defaults = {
+        1: ('<w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="240" w:after="0"/><w:outlineLvl w:val="0"/></w:pPr>',
+            '<w:rPr><w:rFonts w:asciiTheme="majorHAnsi" w:eastAsiaTheme="majorEastAsia" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/><w:color w:val="2E74B5" w:themeColor="accent1" w:themeShade="BF"/><w:sz w:val="32"/><w:szCs w:val="32"/></w:rPr>'),
+        2: ('<w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="40" w:after="0"/><w:outlineLvl w:val="1"/></w:pPr>',
+            '<w:rPr><w:rFonts w:asciiTheme="majorHAnsi" w:eastAsiaTheme="majorEastAsia" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/><w:color w:val="2E74B5" w:themeColor="accent1" w:themeShade="BF"/><w:sz w:val="26"/><w:szCs w:val="26"/></w:rPr>'),
+        3: ('<w:pPr><w:keepNext/><w:keepLines/><w:spacing w:before="40" w:after="0"/><w:outlineLvl w:val="2"/></w:pPr>',
+            '<w:rPr><w:rFonts w:asciiTheme="majorHAnsi" w:eastAsiaTheme="majorEastAsia" w:hAnsiTheme="majorHAnsi" w:cstheme="majorBidi"/><w:color w:val="1F4D78" w:themeColor="accent1" w:themeShade="7F"/><w:sz w:val="24"/><w:szCs w:val="24"/></w:rPr>'),
+    }
+
+    # Browser/LibreOffice defaults become direct paragraph formatting. Strip
+    # those defaults only where the new-document export marker says the user
+    # did not set paragraph formatting explicitly.
+    heading_texts = {(level, text) for level, text in default_headings}
+    paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+    replacements: dict[int, str] = {}
+    for index, paragraph in enumerate(paragraphs):
+        xml = paragraph.group(0)
+        style_match = re.search(r'<w:pStyle\b[^>]*\bw:val=["\']Heading([1-3])["\']', xml, re.IGNORECASE)
+        if not style_match:
+            continue
+        level = int(style_match.group(1))
+        if (level, _paragraph_plain_text(xml).strip()) not in heading_texts:
+            continue
+        ppr = re.search(r"<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>", xml, re.IGNORECASE)
+        if ppr:
+            clean_ppr = re.sub(r"<w:(?:bidi|spacing|ind|jc|rPr)\b[^>]*/>|<w:rPr\b[^>]*>[\s\S]*?</w:rPr\s*>", "", ppr.group(0), flags=re.IGNORECASE)
+            xml = xml[:ppr.start()] + clean_ppr + xml[ppr.end():]
+        replacements[index] = xml
+    if replacements:
+        parts: list[str] = []
+        previous = 0
+        for index, paragraph in enumerate(paragraphs):
+            parts.append(document_xml[previous:paragraph.start()])
+            parts.append(replacements.get(index, paragraph.group(0)))
+            previous = paragraph.end()
+        parts.append(document_xml[previous:])
+        document_xml = "".join(parts)
+
+    for level, (ppr_xml, rpr_xml) in defaults.items():
+        style_match = re.search(
+            rf'<w:style\b(?=[^>]*\bw:styleId=["\']Heading{level}["\'])[^>]*>[\s\S]*?</w:style\s*>',
+            styles_xml,
+            re.IGNORECASE,
+        )
+        if not style_match:
+            continue
+        style = style_match.group(0)
+        for tag, fragment in (("pPr", ppr_xml), ("rPr", rpr_xml)):
+            existing = re.search(rf"<w:{tag}\b[^>]*>[\s\S]*?</w:{tag}\s*>", style, re.IGNORECASE)
+            if existing:
+                style = style[:existing.start()] + fragment + style[existing.end():]
+            else:
+                style = re.sub(r"</w:style\s*>", fragment + "</w:style>", style, count=1, flags=re.IGNORECASE)
+        styles_xml = styles_xml[:style_match.start()] + style + styles_xml[style_match.end():]
+    return document_xml, styles_xml
+
+
+def _writer_apply_word_default_heading_theme_for_new_documents(theme_xml: str, source_html: str) -> str:
+    """Make major-font theme resolution match Word's default Heading font for new docs."""
+    if "<!--vno-new-document-style-defaults-->" not in source_html or not re.search(
+        r"<h[1-3]\b[^>]*\bdata-vno-export-defaults=[\"']true[\"']", source_html, re.IGNORECASE
+    ):
+        return theme_xml
+    major = re.search(r"<a:majorFont\b[^>]*>[\s\S]*?</a:majorFont\s*>", theme_xml, re.IGNORECASE)
+    if not major:
+        return theme_xml
+    block = re.sub(
+        r'(<a:latin\b[^>]*\btypeface=[\"\'])[^\"\']*([\"\'])',
+        r"\g<1>Calibri Light\2",
+        major.group(0),
+        count=1,
+        flags=re.IGNORECASE,
+    )
+    return theme_xml[:major.start()] + block + theme_xml[major.end():]
+
+
 def _writer_restore_heading_styles(
     document_xml: str, styles_xml: str, source_html: str
 ) -> tuple[str, str]:
@@ -17302,10 +17399,19 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
     styles_xml = styles_bytes.decode("utf-8", errors="replace") if styles_bytes else ""
     if styles_xml:
         document_xml, styles_xml = _writer_restore_heading_styles(document_xml, styles_xml, source_html)
+        document_xml, styles_xml = _writer_apply_word_default_heading_styles_for_new_documents(
+            document_xml, styles_xml, source_html
+        )
     document_xml = _writer_restore_toc_field(document_xml, source_html)
     replacements = {"word/document.xml": document_xml.encode("utf-8")}
     if styles_bytes and styles_xml != styles_bytes.decode("utf-8", errors="replace"):
         replacements["word/styles.xml"] = styles_xml.encode("utf-8")
+    theme_bytes = read_zip_entry(docx_bytes, "word/theme/theme1.xml")
+    if theme_bytes:
+        theme_xml = theme_bytes.decode("utf-8", errors="replace")
+        word_theme_xml = _writer_apply_word_default_heading_theme_for_new_documents(theme_xml, source_html)
+        if word_theme_xml != theme_xml:
+            replacements["word/theme/theme1.xml"] = word_theme_xml.encode("utf-8")
     if _writer_toc_fallback_texts(source_html):
         settings_bytes = read_zip_entry(docx_bytes, "word/settings.xml")
         if settings_bytes:
