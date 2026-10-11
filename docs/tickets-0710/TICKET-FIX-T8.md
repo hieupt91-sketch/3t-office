@@ -42,3 +42,8 @@ Quy trinh/CAM/TIET KIEM TOKEN: nhu TICKET-FIX-T1.md; COMMIT SAU MOI NHOM; Word C
 1. CDP chọn ©, ₫, ∑, → từ các nhóm ký hiệu; ảnh `symbols-run-10/symbols-t8-before.png`.
 2. Word COM lưu cùng chuỗi; nội dung hai DOCX mở lại đều là `Audit symbols:©₫∑→`.
 3. Vị trí/ký tự **KHỚP**; hướng dẫn F1 tiếng Việt và i18n đã có.
+
+### Nhóm 10 — Hình khối và hình ảnh
+1. CDP chọn rectangle và chèn PNG bằng file-chooser event + DOM.setFileInputFiles; ảnh `shapes-run-02`/`images-run-03`.
+2. Word COM: AutoShape type 1, 59.8×34.2 pt, vị trí/màu/viền khớp; InlineShape type 3, 24×24 pt khớp.
+3. Sửa TextBox type 17/trắng thành AutoShape native chỉ cho shape mới; giữ textbox/imported shapes. Unit Python 3/3 PASS; Help/i18n có.

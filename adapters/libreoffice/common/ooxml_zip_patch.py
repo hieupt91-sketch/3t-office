@@ -15816,6 +15816,110 @@ def _writer_restore_caption_sequence_fields(document_xml: str) -> str:
     return re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", patch_paragraph, document_xml, flags=re.IGNORECASE)
 
 
+def _writer_restore_native_writer_shapes(document_xml: str, source_html: str) -> str:
+    """Restore new SVG shape placeholders as editable native Word AutoShapes."""
+    markers = re.findall(r"<!--vno-writer-shape-v1:([0-9a-f]+)-->", source_html or "", re.IGNORECASE)
+    if not markers:
+        return document_xml
+    metadata: list[dict] = []
+    for marker in markers:
+        try:
+            value = json.loads(bytes.fromhex(marker).decode("utf-8"))
+        except (ValueError, TypeError, json.JSONDecodeError):
+            continue
+        if isinstance(value, dict):
+            metadata.append(value)
+    if not metadata:
+        return document_xml
+
+    drawings = list(re.finditer(r"<w:drawing\b[^>]*>[\s\S]*?</w:drawing\s*>", document_xml, re.IGNORECASE))
+    if not drawings:
+        return document_xml
+    shape_presets = {
+        "rectangle": "rect", "round-rect": "roundRect", "roundrect": "roundRect",
+        "circle": "ellipse", "triangle": "triangle", "diamond": "diamond",
+        "arrow": "rightArrow", "line": "line",
+    }
+
+    def emu(value: object) -> int | None:
+        try:
+            return int(round(float(value) * 9525))
+        except (TypeError, ValueError, OverflowError):
+            return None
+
+    def color_xml(value: object) -> str | None:
+        match = re.fullmatch(r"\s*#?([0-9a-fA-F]{6})\s*", str(value or ""))
+        return f'<a:srgbClr val="{match.group(1).upper()}"/>' if match else None
+
+    updates: dict[int, str] = {}
+    used: set[int] = set()
+    for spec in metadata:
+        kind = str(spec.get("type") or "").strip().lower()
+        if not spec.get("isNew") or kind == "textbox":
+            continue
+        preset = shape_presets.get(kind)
+        left, top, width, height = (emu(spec.get(key)) for key in ("x", "y", "w", "h"))
+        if not preset or None in (left, top, width, height):
+            continue
+        target_index = None
+        for index, match in enumerate(drawings):
+            if index in used:
+                continue
+            block = match.group(0)
+            horizontal = re.search(r"<wp:positionH\b[^>]*>([\s\S]*?)</wp:positionH\s*>", block, re.IGNORECASE)
+            vertical = re.search(r"<wp:positionV\b[^>]*>([\s\S]*?)</wp:positionV\s*>", block, re.IGNORECASE)
+            extent = re.search(r'<wp:extent\b[^>]*\bcx=["\'](\d+)["\'][^>]*\bcy=["\'](\d+)["\'][^>]*/?>', block, re.IGNORECASE)
+            x = re.search(r"<wp:posOffset>(-?\d+)</wp:posOffset>", horizontal.group(1), re.IGNORECASE) if horizontal else None
+            y = re.search(r"<wp:posOffset>(-?\d+)</wp:posOffset>", vertical.group(1), re.IGNORECASE) if vertical else None
+            if x and y and extent and tuple(map(int, (x.group(1), y.group(1), extent.group(1), extent.group(2)))) == (left, top, width, height):
+                target_index = index
+                break
+        if target_index is None:
+            continue
+        block = updates.get(target_index, drawings[target_index].group(0))
+        if not re.search(r"<wps:cNvSpPr\b[^>]*\btxBox=[\"']1[\"']", block, re.IGNORECASE):
+            continue
+        block = re.sub(r"(<wps:cNvSpPr\b[^>]*?)\s+txBox=[\"']1[\"']", r"\1", block, count=1, flags=re.IGNORECASE)
+        block = re.sub(r"<wps:txbx\b[^>]*>[\s\S]*?</wps:txbx\s*>", "", block, count=1, flags=re.IGNORECASE)
+        sp_pr = re.search(r"<wps:spPr\b[^>]*>[\s\S]*?</wps:spPr\s*>", block, re.IGNORECASE)
+        if not sp_pr:
+            continue
+        sp_xml = sp_pr.group(0)
+        geometry = re.search(r"<a:prstGeom\b[^>]*(?:/>|>[\s\S]*?</a:prstGeom\s*>)", sp_xml, re.IGNORECASE)
+        native_geometry = f'<a:prstGeom prst="{preset}"><a:avLst/></a:prstGeom>'
+        if geometry:
+            sp_xml = sp_xml[:geometry.start()] + native_geometry + sp_xml[geometry.end():]
+        fill_color = color_xml(spec.get("fill"))
+        fill_xml = f"<a:solidFill>{fill_color}</a:solidFill>" if fill_color and kind != "line" else "<a:noFill/>"
+        old_fill = re.search(r"<a:(?:solidFill|noFill)\b[^>]*(?:/>|>[\s\S]*?</a:(?:solidFill|noFill)\s*>)", sp_xml, re.IGNORECASE)
+        if old_fill:
+            sp_xml = sp_xml[:old_fill.start()] + fill_xml + sp_xml[old_fill.end():]
+        else:
+            xfrm = re.search(r"</a:xfrm\s*>", sp_xml, re.IGNORECASE)
+            if xfrm:
+                sp_xml = sp_xml[:xfrm.end()] + fill_xml + sp_xml[xfrm.end():]
+        stroke_color = color_xml(spec.get("stroke"))
+        stroke_width = emu(spec.get("strokeWidth")) or 0
+        line_xml = f'<a:ln w="{stroke_width}"><a:solidFill>{stroke_color}</a:solidFill></a:ln>' if stroke_color and stroke_width > 0 else "<a:ln><a:noFill/></a:ln>"
+        old_line = re.search(r"<a:ln\b[^>]*>[\s\S]*?</a:ln\s*>|<a:ln\b[^>]*/>", sp_xml, re.IGNORECASE)
+        if old_line:
+            sp_xml = sp_xml[:old_line.start()] + line_xml + sp_xml[old_line.end():]
+        else:
+            sp_xml = re.sub(r"</wps:spPr\s*>", line_xml + "</wps:spPr>", sp_xml, count=1, flags=re.IGNORECASE)
+        block = block[:sp_pr.start()] + sp_xml + block[sp_pr.end():]
+        updates[target_index] = block
+        used.add(target_index)
+
+    output: list[str] = []
+    cursor = 0
+    for index, match in enumerate(drawings):
+        output.append(document_xml[cursor:match.start()])
+        output.append(updates.get(index, match.group(0)))
+        cursor = match.end()
+    output.append(document_xml[cursor:])
+    return "".join(output)
+
+
 def _writer_restore_toc_field(document_xml: str, source_html: str) -> str:
     """Wrap soffice's visible TOC fallback in a native complex Word TOC field."""
     if re.search(r"<w:instrText\b[^>]*>[\s\S]*?\bTOC\b[^<]*\\o\b", document_xml, re.IGNORECASE):
@@ -17674,6 +17778,8 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             else:
                 settings_xml = re.sub(r"<w:evenAndOddHeaders\b[^>]*/>", "", settings_xml, flags=re.IGNORECASE)
             replacements["word/settings.xml"] = settings_xml.encode("utf-8")
+    document_xml = _writer_restore_native_writer_shapes(document_xml, source_html)
+    replacements["word/document.xml"] = document_xml.encode("utf-8")
     return patch_ooxml_zip(docx_bytes, replacements)
 
 

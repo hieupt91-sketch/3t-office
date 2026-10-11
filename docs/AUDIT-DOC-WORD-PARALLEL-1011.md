@@ -70,8 +70,8 @@ Lượt so sánh COM cuối: **21/21 KHỚP**. Hai lượt chẩn đoán trướ
 | Tìm/Thay thế: case, toàn từ, Find Previous, thay một kết quả | CDP chọn đúng `Hoa`/`hoa`, Previous wrap-around, `hoang`→`Hoang` | Word COM MatchCase/MatchWholeWord + ReplaceOne | KHỚP; nội dung sau lưu giống nhau |
 | Ký hiệu: ©, ₫, ∑, → | CDP chọn từ nhóm thường/tiền tệ/toán/mũi tên; DOCX lưu đúng chuỗi | Word COM tạo chuỗi tương đương và đọc cả hai DOCX | KHỚP: `Audit symbols:©₫∑→` |
 | Hộp văn bản | Sau lưu, COM đọc 53.6×19.5 pt; AutoSize=0; lề 7.2/3.6 pt | COM đọc cùng kích thước, AutoSize và lề | KHỚP |
-| Hình khối | Chưa chạy | Chưa chạy | NOT RUN |
-| Hình ảnh | Nút mở native file picker; CDP không cấp được file trong lượt này | Chưa chạy | BLOCKED; không dùng OS input |
+| Hình khối chữ nhật mới | CDP chọn dialog; DOCX đọc Type 1, 59.8×34.2 pt, Left/Top 75/120, fill/line/1.5pt | Word COM tạo cùng AutoShape và format | KHỚP |
+| Hình ảnh PNG 32×32 | CDP intercept file chooser + DOM.setFileInputFiles; Word đọc 1 InlineShape 24×24 pt | Word COM AddPicture cùng file; đọc lại | KHỚP: count/type/size/alignment |
 
 ### FIX-T8 — kết quả lần chạy `codex-ft8`
 
@@ -181,7 +181,7 @@ Nhấn **Ctrl+H**, nhập `Alpha` ở ô **Tìm gì**, nhập `Gamma` ở ô **T
 
 Đây là baseline trước sửa; số đo sau sửa, AutoSize và lề Word được ghi ở mục **FIX-T8 — Hộp văn bản** phía trên.
 
-Phép chèn ảnh đã bấm nút **Chèn > Hình ảnh** bằng chuột CDP; lệnh mở hộp chọn tệp native. CDP `DOM.setFileInputFiles` không kích hoạt được chọn/đọc ảnh trong lượt thử, nên lưu và Word COM readback chưa chạy: **BLOCKED**. Không dùng OS input. Help **Chèn hình ảnh** và nhãn/tooltip i18n đã có. Hình khối cũng chưa chạy.
+Đã dùng CDP `Page.setInterceptFileChooserDialog` nhận `Page.fileChooserOpened`, rồi `DOM.setFileInputFiles` cấp ảnh 32×32; ảnh được chèn/lưu qua UI thật. Word COM đọc cả app và DOCX đối chứng: một InlineShape type 3, 24×24 pt, alignment 0. Không dùng OS input. Help **Chèn hình ảnh**/Hình khối và VI/EN i18n có sẵn.
 
 ### Bố cục trang: cột — 11/10/2026
 

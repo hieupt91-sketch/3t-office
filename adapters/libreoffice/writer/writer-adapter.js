@@ -15191,11 +15191,23 @@ export class WriterAdapter {
             ? `<div class="vno-writer-textbox-body">${this._escapeHtml(s.text || "")}</div>`
             : renderShapeSvg(s);
           const isNewTextBox = (s.type === "textbox" || s.shapeType === "textbox") && !s.imported;
+          const shapeMetadata = {
+            type: s.type || s.shapeType || "rectangle",
+            isNew: !s.imported,
+            x: Number(s.x) || 0,
+            y: Number(s.y) || 0,
+            w: Number(s.w ?? s.width) || 0,
+            h: Number(s.h ?? s.height) || 0,
+            fill: s.fill || (s.type === "line" ? "none" : s.type === "circle" ? "#0ea5e9" : s.type === "arrow" ? "#f59e0b" : s.type === "triangle" ? "#16a34a" : s.type === "diamond" ? "#9333ea" : "#2563eb"),
+            stroke: s.stroke || (s.type === "line" ? "#0f172a" : s.type === "circle" ? "#0284c7" : s.type === "arrow" ? "#d97706" : s.type === "triangle" ? "#15803d" : s.type === "diamond" ? "#7e22ce" : "#1d4ed8"),
+            strokeWidth: Number(s.strokeWidth) || (s.type === "line" ? 3 : 2)
+          };
+          const shapeMarker = Array.from(new TextEncoder().encode(JSON.stringify(shapeMetadata)), byte => byte.toString(16).padStart(2, "0")).join("");
           // LO rounds floating CSS-pixel widths to whole px on HTML import. Keep
           // fractional dimensions in pt so the saved Word extent matches the canvas.
           const width = isNewTextBox ? `${(s.w * 0.75).toFixed(3)}pt` : `${s.w}px`;
           const height = isNewTextBox ? `${(s.h * 0.75).toFixed(3)}pt` : `${s.h}px`;
-          return `  <div style="position:absolute; left:${s.x}px; top:${s.y}px; width:${width}; height:${height};">${inner}</div>\n`;
+          return `  <!--vno-writer-shape-v1:${shapeMarker}--><div style="position:absolute; left:${s.x}px; top:${s.y}px; width:${width}; height:${height};">${inner}</div>\n`;
         }).join("") +
         `</div>\n`;
     }
