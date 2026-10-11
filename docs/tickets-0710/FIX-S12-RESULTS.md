@@ -139,3 +139,8 @@
 
 - CDP chọn B2:B6, chọn dấu cách trong hộp thoại Tách văn bản và áp dụng.
 - Excel COM ReadOnly xác nhận B2:D6 lần lượt `Nguyễn|Văn|A`, `Trần|Thị|B`, `Lê|Văn|C`, `Phạm|Thị|D`, `Hoàng|Văn|E`; **KHỚP EXCEL**. Log `s12-textToColumns.log`, `excel-textToColumns.log`; ảnh `evidence/s12/fix-s12-textToColumns.png`.
+
+## Dữ liệu: Điền nhanh
+
+- CDP nhập ví dụ `A`, `B` cạnh tên ở J2:J6, chọn K2:K6 và bấm Điền nhanh.
+- Excel COM ReadOnly xác nhận K2:K6=`A/B/C/D/E`, khớp chữ cái cuối của tên nguồn; **KHỚP EXCEL**. Log `s12-flashFill.log`, `excel-flashFill.log`; ảnh `evidence/s12/fix-s12-flashFill.png`.

@@ -56,6 +56,7 @@ const ops = [
   ["pasteSpecialPack","A1","pasteSpecialPack",null,null],
   ["conditional","C2","conditional","sheet.format.conditional","C2:C6"],
   ["formatAsTable","A1","tableStyle","sheet.style.formatAsTable","A1:G6"],["cellGood","B2","cellStyle","sheet.style.cellStyles","good"],
+  ["flashFill","K2","flashFill","sheet.data.flashFill"],
   ["textToColumns","B2","textToColumns","sheet.data.textToColumns"],
   ["sortAsc","B2","click","sheet.data.sortAsc"],["sortDesc","B2","click","sheet.data.sortDesc"],["filter","B1","click","sheet.data.filter"],
 ];
@@ -208,7 +209,19 @@ for (const [name, cell, kind, id, value] of ops) {
       const align=JSON.parse(await pos("#vno-fc-tab-alignment"));
       if(!align) status="NO_ALIGNMENT_TAB";
       else {await mouseClick(session.cdp,align.x,align.y);await sleep(150);const angle=JSON.parse(await pos('.vno-fc-orient-btn[data-angle="90"]'));if(!angle)status="NO_90_DEGREE_OPTION";else{await mouseClick(session.cdp,angle.x,angle.y);const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);const evidenceDir=path.join(root,"docs","tickets-0710","evidence");await mkdir(evidenceDir,{recursive:true});await writeFile(path.join(evidenceDir,"fix-s8-text-rotation.png"),Buffer.from((shot.result||shot).data,"base64"));const apply=JSON.parse(await pos(".vno-fc-ok-btn"));if(!apply)status="NO_FORMAT_CELLS_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="set Orientation=90 through Format Cells";}}}
-    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pageSetup" || kind === "removeDuplicates" || kind === "textToColumns") {
+    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pageSetup" || kind === "removeDuplicates" || kind === "textToColumns") {
+      if (kind === "flashFill") {
+        for (const [row, value] of [[2,"Nguyễn Văn A"],[3,"Trần Thị B"],[4,"Lê Văn C"],[5,"Phạm Thị D"],[6,"Hoàng Văn E"]]) {
+          const p=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="J${row}"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if(!p)throw new Error("Missing Flash Fill source J"+row); await mouseClick(session.cdp,p.x,p.y); await typeText(session.cdp,value); await press(session.cdp,"Enter");
+        }
+        for (const [row, value] of [[2,"A"],[3,"B"]]) {
+          const p=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="K${row}"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if(!p)throw new Error("Missing Flash Fill example K"+row); await mouseClick(session.cdp,p.x,p.y); await typeText(session.cdp,value); await press(session.cdp,"Enter");
+        }
+        const last=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="K6"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if(!last)throw new Error("Missing Flash Fill range end K6"); await mouseDrag(session.cdp,pos.x,pos.y,last.x,last.y);
+      }
       if (kind === "textToColumns") {
         const end = JSON.parse(await ev(`(() => { const e=document.querySelector('.vno-grid-cell[data-coord="B6"]'); if(!e)return 'null'; const r=e.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2}); })()`));
         if (!end) throw new Error("Could not locate text-to-columns range end B6");
@@ -229,6 +242,7 @@ for (const [name, cell, kind, id, value] of ops) {
         const item=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-ribbon-dropdown-menu [data-command-id="${id}"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
         if(!item) status="NO_DROPDOWN_ITEM"; else {await mouseClick(session.cdp,item.x,item.y); status="clicked";}
       } else { await mouseClick(session.cdp, button.x, button.y); status = "clicked"; }
+      if (kind === "flashFill" && status === "clicked") status = "applied Flash Fill K2:K6 using last-name initial examples";
       if (kind === "textToColumns" && status === "clicked") {
         await sleep(150);
         const select = JSON.parse(await ev(`(() => {const n=document.querySelector('#vno-ttc-del');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));

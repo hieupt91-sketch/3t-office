@@ -29,6 +29,7 @@ mark(MATCH, "sheet.cell.alignRight", "FIX-S12 nhóm Trang đầu: CDP click căn
 mark(MATCH, "sheet.format.currencyVND", "FIX-S12 Trang dau: CDP click Tien te VNĐ; Excel COM ReadOnly doc lai C2=1234.5, NumberFormat=#,##0 [$₫], hien thi 1,235 ₫ (app_S12_currencyBtn.xlsx)")
 mark(MATCH, "sheet.format.percent", "FIX-S12 nhóm Trang đầu: CDP click Phần trăm; Excel COM ReadOnly D2=0.075, NumberFormat=0% (app_percentBtn.xlsx)")
 mark(MATCH, "sheet.format.increaseDecimal", "FIX-S12 nhóm Trang đầu: CDP click Tăng số thập phân; Excel COM ReadOnly C2=1234.5, NumberFormat=0.00 (app_decInc.xlsx)")
+mark(MATCH, "sheet.data.flashFill", "FIX-S12 Du lieu: CDP nhap mau A/B, chay Dien nhanh tren K2:K6; Excel COM ReadOnly doc K2:K6=A/B/C/D/E tu ten nguon J2:J6 (app_S12_flashFill.xlsx)")
 mark(MATCH, "sheet.data.textToColumns", "FIX-S12 Du lieu: CDP chon B2:B6, Tách văn bản bằng dấu cách; Excel COM ReadOnly xác nhận B2:D6 lần lượt Nguyễn|Văn|A ... Hoàng|Văn|E (app_S12_textToColumns.xlsx)")
 mark(MATCH, "sheet.data.sortDesc", "FIX-S12 tab Dữ liệu: CDP click Z-A; Excel COM ReadOnly xác nhận B2:B6 giảm dần: Trần, Phạm, Nguyễn, Lê, Hoàng (app_sortDesc.xlsx)")
 mark(MATCH, "sheet.formula.average", "FIX-S12 tab Công thức: CDP click Trung bình; Excel COM ReadOnly xác nhận =AVERAGE(C2:C6), Value2=4123.02 (app_S12fix_averageBtn.xlsx)")
