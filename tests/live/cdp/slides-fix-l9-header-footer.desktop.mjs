@@ -45,7 +45,7 @@ try {
   await click(session.cdp, '[data-vno-dialog="header-footer"] .vno-dialog-ok-btn');
   current = JSON.parse(await state());
   check("Apply current slide sets all three fields", current.fields[2]?.showDate && current.fields[2]?.showSlideNumber && current.fields[2]?.showFooter, current.fields);
-  check("Slides 1 and 2 remain unapplied", !current.fields[0] && !current.fields[1], current.fields);
+  check("Slides 1 and 2 remain unapplied", current.fields.every((field, index) => index === 2 || (!field?.showDate && !field?.showSlideNumber && !field?.showFooter)), current.fields);
 
   const fodp = await session.cdp.evaluate("window.__vnoAppInstance.adapter.serializeToFodp()");
   const save = await session.cdp.evaluate(`globalThis.globalUnoBridge.saveRealFileInPlace("slides", ${JSON.stringify(fodp)}, ${JSON.stringify(file)}, "")`, { awaitPromise: true, timeoutMilliseconds: 600000 });
@@ -70,7 +70,7 @@ try {
       return {count:c.slides.length,fields:c.slides.map(s=>s.headerFooter||null)};
     })())`));
     check("Reopen preserves three slides and the fields on slide 3", reopened.count === 3 && reopened.fields[2]?.showDate && reopened.fields[2]?.showSlideNumber && reopened.fields[2]?.showFooter && reopened.fields[2]?.footerText === "VN Office FIX-L9 footer", reopened);
-    check("Reopen leaves slides 1 and 2 without fields", !reopened.fields[0] && !reopened.fields[1], reopened.fields);
+    check("Reopen leaves slides 1 and 2 without fields", reopened.fields.every((field, index) => index === 2 || (!field?.showDate && !field?.showSlideNumber && !field?.showFooter)), reopened.fields);
   } finally {
     await reopenedSession.close();
   }
