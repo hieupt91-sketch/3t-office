@@ -3061,7 +3061,10 @@ export class SheetAdapter {
   serializeToFods() {
     if (!this.grid) return "";
     const isNewWorkbook = !this.sourceFilePath;
-    const sourceIsPristineXlsx = !this.isDirty && /\.xlsx$/i.test(String(this.sourceFilePath || ""));
+    const hasNativeXlsxStateChanges = (this.grid.xlsxViewStateTouched?.size || 0) > 0
+      || (this.grid.printAreaTouchedBySheet?.size || 0) > 0
+      || (this.grid.pivotRefreshTouchedBySheet?.size || 0) > 0;
+    const sourceIsPristineXlsx = !this.isDirty && !hasNativeXlsxStateChanges && /\.xlsx$/i.test(String(this.sourceFilePath || ""));
     const pristineXlsxMarker = sourceIsPristineXlsx ? "<!-- vno-pristine-xlsx-source -->\n" : "";
     const sheetNames = (this.grid.sheets && this.grid.sheets.length)
       ? [...this.grid.sheets]

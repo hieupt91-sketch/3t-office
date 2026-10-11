@@ -71,6 +71,23 @@ export async function runSheetPivotSaveFodsTests() {
     const xml = new SheetAdapter(grid).serializeToFods();
     assert(xml.includes('vno:xlsx-location="A1:D4"'), "FODS thiếu vùng kết quả Pivot đã refresh");
   });
+  test("Sheet save: thay đổi metadata XLSX không dùng nhánh giữ nguyên workbook nguồn", () => {
+    const grid = makeGrid();
+    const adapter = new SheetAdapter(grid);
+    adapter.sourceFilePath = "C:/workbook.xlsx";
+    adapter.isDirty = false;
+    grid.xlsxViewStateTouched = new Set(["showGridLines"]);
+    let xml = adapter.serializeToFods();
+    assert(!xml.includes("vno-pristine-xlsx-source"), "thay đổi chế độ xem vẫn bị đánh dấu workbook nguyên trạng");
+    grid.xlsxViewStateTouched.clear();
+    grid.printAreaTouchedBySheet = new Set([sourceSheet]);
+    xml = adapter.serializeToFods();
+    assert(!xml.includes("vno-pristine-xlsx-source"), "thay đổi vùng in vẫn bị đánh dấu workbook nguyên trạng");
+    grid.printAreaTouchedBySheet.clear();
+    grid.pivotRefreshTouchedBySheet = new Set([targetSheet]);
+    xml = adapter.serializeToFods();
+    assert(!xml.includes("vno-pristine-xlsx-source"), "làm mới Pivot vẫn bị đánh dấu workbook nguyên trạng");
+  });
   test("Sheet save: giảm indent từ 1 về 0 ghi margin 0 và bỏ vno:xf nguồn", () => {
     const grid = makeGrid();
     const adapter = new SheetAdapter(grid);
