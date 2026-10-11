@@ -164,6 +164,18 @@ export async function runSheetFormatCellsTests() {
     grid.formatCurrentCellPercent();
     assert(grid.cellsData.get("C1").style.numberFormat.decimals === 0,
       "Percent Style button should apply Excel's zero-decimal percentage format");
+
+    for (const category of ["number", "currency"]) {
+      const coord = category === "number" ? "D1" : "E1";
+      grid.setCellValue(coord[0], 1, -56.789);
+      grid.selectedCoord = { c: coord[0], r: 1 };
+      grid.selectionRange = { start: { c: coord[0], r: 1 }, end: { c: coord[0], r: 1 } };
+      grid.applyNumberFormat({ category, decimals: 2, useThousands: category === "currency" });
+      assert(grid.adjustDecimalPlaces(1), `Increase Decimal should work for ${category}`);
+      assert(grid.cellsData.get(coord).style.numberFormat.decimals === 3, `${category} should increase from 2 to 3 decimals`);
+      assert(grid.adjustDecimalPlaces(-1), `Decrease Decimal should work for ${category}`);
+      assert(grid.cellsData.get(coord).style.numberFormat.decimals === 2, `${category} should decrease back to 2 decimals`);
+    }
   });
 
   test("Number category and Comma Style button keep separate Excel defaults", () => {
