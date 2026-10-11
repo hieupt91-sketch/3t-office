@@ -149,3 +149,9 @@
 
 - CDP chọn A1:C6, đặt Họ tên vào Hàng và Số tiền vào Giá trị (SUM), tạo Pivot trên trang tính mới.
 - Excel COM ReadOnly xác nhận `Sheet1 (2).PivotTables.Count=1`; trang tổng hợp có Họ tên/SUM Số tiền và giá trị từng người khớp nguồn; **KHỚP EXCEL**. Log `s12-pivotTable.log`, `excel-pivotTable.log`; ảnh `evidence/s12/fix-s12-pivotTable.png`.
+
+## Dữ liệu: Làm mới Pivot — lệch đã biết
+
+- Mở XLSX có Pivot đã tạo, đổi nguồn C2 từ 1234.5 thành 2222 qua CDP rồi bấm Làm mới Pivot.
+- Excel COM xác nhận C2 nguồn=2222 nhưng Pivot vẫn có Nguyễn Văn A=1234.5, lặp thêm các hàng Trần/Phạm và Total Result=20615.1; **LỆCH ĐÃ BIẾT**. Log `s12-pivotRefresh.log`, `excel-pivotRefresh.log`; ảnh `evidence/s12/fix-s12-pivotRefresh.png`.
+- Handoff cho adapter owner: `docs/AGENT-HANDOFF-FIX-S12-PIVOT-REFRESH.md`.

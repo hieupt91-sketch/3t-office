@@ -58,6 +58,7 @@ const ops = [
   ["formatAsTable","A1","tableStyle","sheet.style.formatAsTable","A1:G6"],["cellGood","B2","cellStyle","sheet.style.cellStyles","good"],
   ["flashFill","K2","flashFill","sheet.data.flashFill"],
   ["pivotTable","A1","pivotTable","sheet.data.pivotTable","A1:C6"],
+  ["pivotRefresh","A1","pivotRefresh","sheet.data.pivotRefresh"],
   ["textToColumns","B2","textToColumns","sheet.data.textToColumns"],
   ["sortAsc","B2","click","sheet.data.sortAsc"],["sortDesc","B2","click","sheet.data.sortDesc"],["filter","B1","click","sheet.data.filter"],
 ];
@@ -210,7 +211,13 @@ for (const [name, cell, kind, id, value] of ops) {
       const align=JSON.parse(await pos("#vno-fc-tab-alignment"));
       if(!align) status="NO_ALIGNMENT_TAB";
       else {await mouseClick(session.cdp,align.x,align.y);await sleep(150);const angle=JSON.parse(await pos('.vno-fc-orient-btn[data-angle="90"]'));if(!angle)status="NO_90_DEGREE_OPTION";else{await mouseClick(session.cdp,angle.x,angle.y);const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);const evidenceDir=path.join(root,"docs","tickets-0710","evidence");await mkdir(evidenceDir,{recursive:true});await writeFile(path.join(evidenceDir,"fix-s8-text-rotation.png"),Buffer.from((shot.result||shot).data,"base64"));const apply=JSON.parse(await pos(".vno-fc-ok-btn"));if(!apply)status="NO_FORMAT_CELLS_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="set Orientation=90 through Format Cells";}}}
-    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pageSetup" || kind === "removeDuplicates" || kind === "textToColumns") {
+    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pivotRefresh" || kind === "pageSetup" || kind === "removeDuplicates" || kind === "textToColumns") {
+      if (kind === "pivotRefresh") {
+        const clickTab=async name=>{const p=JSON.parse(await ev(`(() => {const n=[...document.querySelectorAll('.vno-sheet-tab-item')].find(x=>x.dataset.sheet===${JSON.stringify(name)});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!p)throw new Error("Missing Pivot sheet tab "+name);await mouseClick(session.cdp,p.x,p.y);};
+        await clickTab("Sheet1");
+        const source=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="C2"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if(!source)throw new Error("Missing pivot source C2");await mouseClick(session.cdp,source.x,source.y);await typeText(session.cdp,"2222");await press(session.cdp,"Enter");await clickTab("Sheet1 (2)");
+      }
       if (kind === "flashFill") {
         for (const [row, value] of [[2,"Nguyễn Văn A"],[3,"Trần Thị B"],[4,"Lê Văn C"],[5,"Phạm Thị D"],[6,"Hoàng Văn E"]]) {
           const p=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="J${row}"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
@@ -243,6 +250,7 @@ for (const [name, cell, kind, id, value] of ops) {
         const item=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-ribbon-dropdown-menu [data-command-id="${id}"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
         if(!item) status="NO_DROPDOWN_ITEM"; else {await mouseClick(session.cdp,item.x,item.y); status="clicked";}
       } else { await mouseClick(session.cdp, button.x, button.y); status = "clicked"; }
+      if (kind === "pivotRefresh" && status === "clicked") status = "changed source C2 to 2222 and refreshed pivot";
       if (kind === "pivotTable" && status === "clicked") {
         await sleep(250);
         const row=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-pivot-field[data-field="Họ tên"] input[data-zone="rows"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
