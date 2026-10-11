@@ -585,7 +585,7 @@ for (const [name, cell, kind, id, value] of ops) {
     } else {
       const homeTab = JSON.parse(await ev(`(() => { const visible=${renderedNode}; const n=[...document.querySelectorAll('#vno-ribbon-tab-home')].find(visible); if(!n) return 'null'; const r=n.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,active:n.classList.contains('is-active')}); })()`));
       if (!homeTab) throw new Error("Visible Home ribbon tab is missing"); if (!homeTab.active) { await mouseClick(session.cdp, homeTab.x, homeTab.y); await session.cdp.waitFor("(() => { const n=[...document.querySelectorAll('#vno-ribbon-tab-home')].find(x=>{const r=x.getBoundingClientRect();return r.width>0&&r.height>0}); return !!n?.classList.contains('is-active'); })()", { timeoutMilliseconds: 10000, intervalMilliseconds: 100 }); }
-      let choice = JSON.parse(await ev(`(() => { const visible=n=>{const r=n.getBoundingClientRect(),s=getComputedStyle(n);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'}; const s=[...document.querySelectorAll('select[data-command-id="${id}"]')].find(visible); if(!s) return 'null'; const r=s.getBoundingClientRect(),g=s.closest('.vno-ribbon-group.vno-group-collapsed'),b=g?.querySelector('.vno-ribbon-group-collapsed-btn'),br=b?.getBoundingClientRect(); const options=[...s.options]; const index=options.findIndex(o=>o.value===${JSON.stringify(value)}),currentIndex=options.findIndex(o=>o.value===s.value); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,index,currentIndex,count:options.length,initial:s.value,collapsed:!!(br?.width&&br.height),cx:br?.left+br.width/2,cy:br?.top+br.height/2,visible:true}); })()`));
+      let choice = JSON.parse(await ev(`(() => { const visible=n=>{const r=n.getBoundingClientRect(),s=getComputedStyle(n);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'}; const s=[...document.querySelectorAll('select[data-command-id="${id}"]')].find(visible); if(!s) return 'null'; const r=s.getBoundingClientRect(),g=s.closest('.vno-ribbon-group.vno-group-collapsed'),b=g?.querySelector('.vno-ribbon-group-collapsed-btn'),br=b?.getBoundingClientRect(); const options=[...s.options]; const index=options.findIndex(o=>o.value===${JSON.stringify(value)}),currentIndex=options.findIndex(o=>o.value===s.value); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,index,currentIndex,count:options.length,initial:s.value,collapsed:!!(br?.width&&br.height),cx:br ? br.left+br.width/2 : undefined,cy:br ? br.top+br.height/2 : undefined,visible:true}); })()`));
       if (!choice) status = "NO_SELECT";
       else if (choice.index < 0) status = "VALUE_NOT_AVAILABLE";
       else {
@@ -596,11 +596,15 @@ for (const [name, cell, kind, id, value] of ops) {
         if (!choice || !choice.visible) { status = "SELECT_NOT_VISIBLE"; }
         else {
         await mouseClick(session.cdp, choice.x, choice.y);
-        const key = choice.index >= choice.currentIndex ? "ArrowDown" : "ArrowUp";
-        for (let i = 0; i < Math.abs(choice.index - choice.currentIndex); i++) await press(session.cdp, key, {}, 0);
-        const selectedValue = await ev(`(() => { const s=[...document.querySelectorAll('select[data-command-id="${id}"]')].find(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0}); return s ? s.value : 'SELECT_UNMOUNTED'; })()`);
-        await press(session.cdp, "Enter", {}, 0); await sleep(250);
-        status = `keyboard selection submitted (${selectedValue}; wanted ${value}; start=${choice.currentIndex}; target=${choice.index})`;
+        const focused = await ev(`JSON.stringify((()=>{const s=[...document.querySelectorAll('select[data-command-id="${id}"]')].find(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0});return !!s&&document.activeElement===s})())`);
+        if (focused !== "true") status = "SELECT_NOT_FOCUSED";
+        else {
+          const key = choice.index >= choice.currentIndex ? "ArrowDown" : "ArrowUp";
+          for (let i = 0; i < Math.abs(choice.index - choice.currentIndex); i++) await press(session.cdp, key, {}, 0);
+          const selectedValue = await ev(`(() => { const s=[...document.querySelectorAll('select[data-command-id="${id}"]')].find(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0}); return s ? s.value : 'SELECT_UNMOUNTED'; })()`);
+          if (selectedValue !== value) status = `SELECT_VALUE_MISMATCH(${selectedValue}; wanted ${value})`;
+          else { await press(session.cdp, "Enter", {}, 0); await sleep(250); status = `keyboard selection submitted (${selectedValue})`; }
+        }
         }
       }
     }
