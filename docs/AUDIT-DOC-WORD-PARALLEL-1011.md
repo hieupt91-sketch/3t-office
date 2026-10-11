@@ -220,3 +220,9 @@ Phần “chưa chạy” này là ghi nhận giữa chừng, đã được thay
 1. **App/CDP:** chọn Trang đầu khác, Trang chẵn và lẻ khác nhau, đánh lại số trang từ 3; header/footer chính có `Word parity header` và PAGE/NUMPAGES; ảnh `E:\VNOffice-profiles\codex-ft9\layout-header-footer.png`, `layout-page-numbers.png`.
 2. **Word COM:** đọc lại DOCX app và tạo tài liệu đối chứng tương ứng. Cả hai có 5 section cùng loại bắt đầu `2,2,0,3,4`; section đầu `DifferentFirst=-1`, `OddAndEven=-1`, số bắt đầu 3; nội dung header/footer chính giống nhau.
 3. **Kết quả:** tùy chọn và field số trang **KHỚP**. Header/footer trang đầu/chẵn/lẻ riêng chưa có vùng biên tập riêng trong app; các vùng đó đang rỗng trong cả hai DOCX đối chứng. Harness COM nay đọc `PageSetup.OddAndEvenPagesHeaderFooter` chính xác.
+
+### FIX-T9 — Ngắt dòng/ngắt cột — 11/10/2026
+
+1. **App/CDP:** bật 2 cột, gõ `Alpha`, Shift+Enter, `Line after`, chèn **Bố cục > Ngắt > Ngắt cột**, gõ `Next column`; ảnh `E:\VNOffice-profiles\codex-ft9\line-column-break-t9.png`.
+2. **Word COM:** DOCX Word có 1 ngắt dòng mềm, 1 ngắt cột và đủ ba chuỗi; DOCX app có 0 ngắt dòng mềm, 1 ngắt cột, giữ `Alpha`/`Line after` nhưng mất `Next column`.
+3. **Kết quả:** **LỆCH**; app xuất w:br column nhưng sentinel cùng đoạn làm mất nội dung theo sau; Shift+Enter không roundtrip thành ngắt dòng mềm. Tái hiện/harness `line-column-break-t9.desktop.mjs` và `word-line-column-break-t9.ps1`; chưa có bản sửa an toàn.
