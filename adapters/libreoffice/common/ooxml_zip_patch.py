@@ -7100,7 +7100,7 @@ def _slide_header_footer_fields_from_fodp(source_fodp: str | None) -> list[dict[
                 if re.search(r"\bvno:date-format=[\"']([^\"']*)[\"']", attrs, re.IGNORECASE) else "dd/MM/yyyy",
             }
         result.append(fields)
-    return result
+    return result if any(result) else []
 
 
 def _slide_placeholder_present(slide_xml: str, placeholder_type: str) -> bool:
