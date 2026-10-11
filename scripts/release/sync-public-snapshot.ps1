@@ -2,7 +2,7 @@
 # Dung: powershell -File scripts\release\sync-public-snapshot.ps1 -Dest E:\VNOffice-publish -Message "Dong bo 0.9.10" -Tag v0.9.10
 # Token: dat bien moi truong GH_PUSH_TOKEN (khong ghi vao tep, khong luu vao cau hinh git). Khong dat -> chi tao commit cuc bo.
 param(
-    [string]$Source = (Resolve-Path (Join-Path $PSScriptRoot "..\..")).Path,
+    [string]$Source = "",
     [Parameter(Mandatory = $true)][string]$Dest,
     [Parameter(Mandatory = $true)][string]$Message,
     [string]$Tag = "",
@@ -10,6 +10,7 @@ param(
     [string[]]$Branches = @("main", "platform/macos")
 )
 $ErrorActionPreference = "Stop"
+if (-not $Source) { $Source = (Resolve-Path (Join-Path (Split-Path -Parent $MyInvocation.MyCommand.Path) "..\..")).Path }
 if (-not (Test-Path (Join-Path $Dest ".git"))) { throw "Dest khong phai kho git: $Dest" }
 
 $stage = Join-Path ([IO.Path]::GetTempPath()) ("vno-snap-" + [guid]::NewGuid().ToString("N"))
