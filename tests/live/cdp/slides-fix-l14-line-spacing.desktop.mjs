@@ -49,6 +49,8 @@ for (const [name, commandId, mode] of operations.filter(([name]) => !selectedOpe
       keyReadback.afterClick = await inspectControl();
       await session.cdp.evaluate(`document.querySelector(${JSON.stringify(control)})?.focus()`);
       keyReadback.afterFocus = await inspectControl();
+      await press(session.cdp, " ", {}, 100);
+      keyReadback.afterSpace = await inspectControl();
       await press(session.cdp, "ArrowDown", {}, 150);
       keyReadback.afterArrowDown = await inspectControl();
       await press(session.cdp, "Enter", {}, 80);
