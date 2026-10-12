@@ -34,21 +34,25 @@ try {
     $ops.zoomOut = [ordered]@{ after = [int]$window.View.Zoom }
     $window.View.Zoom = 100
     $ops.zoomReset = [int]$window.View.Zoom
-    try { $window.View.ZoomToFit(); $ops.fitToWindow = [ordered]@{ supported = $true; zoom = [int]$window.View.Zoom } }
+    try { $window.View.ZoomToFit = $true; $ops.fitToWindow = [ordered]@{ supported = $true; enabled = [bool]$window.View.ZoomToFit; zoom = [int]$window.View.Zoom }; $window.View.ZoomToFit = $false }
     catch { $ops.fitToWindow = [ordered]@{ supported = $false; error = $_.Exception.Message } }
 
-    $beforeRuler = [bool]$window.DisplayRulers
-    $window.DisplayRulers = -not $beforeRuler
-    $ops.ruler = [ordered]@{ before = $beforeRuler; toggled = [bool]$window.DisplayRulers }
-    $window.DisplayRulers = $beforeRuler
-    $beforeGrid = [bool]$window.View.GridlinesVisible
-    $window.View.GridlinesVisible = -not $beforeGrid
-    $ops.gridlines = [ordered]@{ before = $beforeGrid; toggled = [bool]$window.View.GridlinesVisible }
-    $window.View.GridlinesVisible = $beforeGrid
-    $beforeGuides = [bool]$window.Guides.Visible
-    $window.Guides.Visible = -not $beforeGuides
-    $ops.guides = [ordered]@{ before = $beforeGuides; toggled = [bool]$window.Guides.Visible }
-    $window.Guides.Visible = $beforeGuides
+    # PowerPoint's COM View/DocumentWindow interfaces expose no ruler/gridline/guide
+    # visibility properties. Probe documented Fluent command IDs in this isolated,
+    # unsaved copy; call an accepted toggle twice so the copy returns to its baseline.
+    foreach ($key in @('ruler', 'gridlines', 'guides')) {
+        $candidates = switch ($key) {
+            'ruler' { @('ViewRuler', 'ViewShowRuler', 'ShowRuler') }
+            'gridlines' { @('ViewGridlines', 'ViewShowGridlines', 'ShowGridlines') }
+            'guides' { @('ViewGuides', 'ViewShowGuides', 'ShowGuides') }
+        }
+        $accepted = $null
+        foreach ($commandId in $candidates) {
+            try { $app.CommandBars.ExecuteMso($commandId); $accepted = $commandId; $app.CommandBars.ExecuteMso($commandId); break }
+            catch {}
+        }
+        $ops[$key] = [ordered]@{ directComVisibilityProperty = $false; commandIdAccepted = $accepted; note = 'No stable COM visibility property is exposed by PowerPoint View/DocumentWindow.' }
+    }
 
     $viewRows = @()
     foreach ($viewType in @(9, 7, 9)) {
@@ -89,7 +93,8 @@ try {
         catch { $ops.lineSpacing = [ordered]@{ supported = $false; error = $_.Exception.Message } }
     } else { $ops.lineSpacing = [ordered]@{ supported = $false; reason = 'No text shape in audit deck.' } }
 
-    $ops.presenter = [ordered]@{ showPresenterView = [bool]$presentation.SlideShowSettings.ShowPresenterView }
+    try { $ops.presenter = [ordered]@{ showPresenterView = [bool]$presentation.SlideShowSettings.ShowPresenterView } }
+    catch { $ops.presenter = [ordered]@{ supported = $false; error = $_.Exception.Message } }
     $extraWindow = $presentation.NewWindow()
     $ops.newWindow = [ordered]@{ countAfterOpen = [int]$app.Windows.Count; returnedHwnd = [int64]$extraWindow.HWND }
     $extraWindow.Close()
