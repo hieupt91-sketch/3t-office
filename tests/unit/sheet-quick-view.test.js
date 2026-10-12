@@ -113,6 +113,23 @@ export async function runSheetQuickViewTests() {
     assert(view.sheets[1].rows === 20 && view.sheets[1].cols === 10, "the attached sheet dimensions enable scrolling");
   });
 
+  await test("P1 click trong quick view không để grid nền chiếm focus bàn phím", () => {
+    const cell = { dataset: { row: "41", col: "2" }, classList: { add() {} } };
+    let stopped = false;
+    const view = new SheetQuickView();
+    view.active = true;
+    view.sheets = [{ name: "Sheet1", rows: 100, cols: 10 }];
+    view.root = {
+      focus() {},
+      querySelectorAll: () => []
+    };
+    view._handleClick({
+      stopPropagation() { stopped = true; },
+      target: { closest: selector => selector === ".vno-sheet-quick-cell" ? cell : null }
+    });
+    assert(stopped && view.selected.row === 41 && view.selected.col === 2, "quick view handles the click without bubbling to SheetGrid");
+  });
+
   await test("P1 quick view giữ sửa ô và Ctrl+Z/Ctrl+Y trong journal", () => {
     const view = new SheetQuickView({ timers: { setTimeout, clearTimeout } });
     view.active = true;

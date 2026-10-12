@@ -168,6 +168,14 @@ export class SheetQuickView {
     this._historyReplayed = false;
     this._windowHandler = payload => this.open(payload);
     this._engineAttachHandler = payload => this.attachEngine(payload);
+    this._windowClickHandler = event => {
+      if (!this.active || !this.root?.contains?.(event.target)) return;
+      if (event.target?.closest?.("button") && !event.target.closest?.("[data-sheet-index]")) return;
+      event.stopPropagation?.();
+      event.stopImmediatePropagation?.();
+      if (event.target === this.editor) this.editor?.focus?.();
+      else this._handleClick(event);
+    };
     this._windowShortcutHandler = event => {
       if (!this.active || event.target === this.editor || !(event.ctrlKey || event.metaKey)) return;
       if (!["z", "y", "b", "i", "u", "v", "s", "p", "x"].includes(String(event.key || "").toLowerCase())) return;
@@ -203,6 +211,7 @@ export class SheetQuickView {
     window.__vnoSheetQuickViewAttachEngine = this._engineAttachHandler;
     window.__vnoSheetQuickViewController = this;
     window.addEventListener("keydown", this._windowShortcutHandler, true);
+    window.addEventListener("click", this._windowClickHandler, true);
     window.addEventListener("vno:sheet-full-model-ready", this._readyHandler);
     window.addEventListener("vno:sheet-full-model-failed", this._failedHandler);
   }
@@ -289,7 +298,6 @@ export class SheetQuickView {
       if (this._scrollTimer) this.timers.clearTimeout(this._scrollTimer);
       this._scrollTimer = this.timers.setTimeout(() => this._requestVisibleWindow(), 90);
     });
-    root.addEventListener("click", event => this._handleClick(event));
     root.addEventListener("keydown", event => this._handleKeyDown(event));
     root.addEventListener("paste", event => this._handlePaste(event));
   }
@@ -435,6 +443,7 @@ export class SheetQuickView {
   }
 
   _handleClick(event) {
+    event.stopPropagation?.();
     if (this.editor && !this.editor.contains?.(event.target)) this._finishEdit(true);
     const tab = event.target?.closest?.("[data-sheet-index]");
     if (tab) {
@@ -849,6 +858,7 @@ export class SheetQuickView {
     this.root = null;
     this.document?.removeEventListener?.("click", this._documentClickHandler, true);
     if (typeof window !== "undefined") window.removeEventListener("keydown", this._windowShortcutHandler, true);
+    if (typeof window !== "undefined") window.removeEventListener("click", this._windowClickHandler, true);
     this.grid?.container?.classList?.remove?.("vno-quick-view-active");
     this.cache.clear();
     if (docId) {
@@ -864,6 +874,7 @@ export class SheetQuickView {
       if (window.__vnoSheetQuickViewController === this) delete window.__vnoSheetQuickViewController;
       window.removeEventListener("vno:sheet-full-model-ready", this._readyHandler);
       window.removeEventListener("vno:sheet-full-model-failed", this._failedHandler);
+      window.removeEventListener("click", this._windowClickHandler, true);
     }
     void this.closeView();
   }
