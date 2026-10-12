@@ -78,6 +78,13 @@ export async function runSheetQuickViewTests() {
     assert(calls === 2 && value === 42, "failed request must not poison the cache");
   });
 
+  await test("P1 quick view nhận kích thước sheet lười từ cửa sổ đầu tiên", () => {
+    const view = new SheetQuickView();
+    view.sheets = [{ name: "Chi tiết", rows: 1, cols: 1, dimensions_known: false }];
+    assert(view._applyWindowDimensions({ sheet_rows: 1200, sheet_cols: 24 }), "first window supplies used dimensions");
+    assert(view.sheets[0].rows === 1200 && view.sheets[0].cols === 24 && view.sheets[0].dimensions_known, "sheet can scroll using its discovered range");
+  });
+
   await test("P1 quick view giữ sửa ô và Ctrl+Z/Ctrl+Y trong journal", () => {
     const view = new SheetQuickView({ timers: { setTimeout, clearTimeout } });
     view.active = true;

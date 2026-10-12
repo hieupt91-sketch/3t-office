@@ -284,10 +284,21 @@ export class SheetQuickView {
         this.docId, this.activeSheet, r0, c0, r1, c1, true, true
       ));
       if (!this.active || token !== this._renderToken || !data?.ok) return;
+      this._applyWindowDimensions(data);
       await this._renderWindow(r0, c0, data);
     } catch (error) {
       if (this.active) this.updateProgress("Xem nhanh tạm gián đoạn; dữ liệu đầy đủ vẫn đang được nạp.", null);
     }
+  }
+
+  _applyWindowDimensions(data) {
+    const sheet = this.sheets[this.activeSheet];
+    const rows = Number(data?.sheet_rows), cols = Number(data?.sheet_cols);
+    if (!sheet || !Number.isInteger(rows) || !Number.isInteger(cols) || rows < 1 || cols < 1) return false;
+    sheet.rows = rows;
+    sheet.cols = cols;
+    sheet.dimensions_known = true;
+    return true;
   }
 
   async _renderWindow(r0, c0, data) {

@@ -3756,13 +3756,16 @@ class VnOfficeApi:
 
     # --- P8 view-first (Sheet): query the document LibreOffice already holds, window by window. ---
     # Off by default in the UI (flag in the front end); these calls never touch the convert path.
-    def sheet_view_open(self, file_path):
+    def sheet_view_open(self, file_path, active_sheet_name=""):
         try:
             path = os.path.abspath(str(file_path))
             if not os.path.isfile(path):
                 return {"ok": False, "error": "Không tìm thấy tệp."}
             started = time.perf_counter()
-            result = _PERSISTENT_SOFFICE.view_operation("sheet", "view_open", timeout=180, source_path=path)
+            result = _PERSISTENT_SOFFICE.view_operation(
+                "sheet", "view_open", timeout=180, source_path=path,
+                active_sheet_name=str(active_sheet_name or ""),
+            )
             self._sheet_view_doc_ids.add(str(result["doc_id"]))
             _open_perf_log("sheet_view_open", (time.perf_counter() - started) * 1000, sheets=len(result.get("sheets", [])))
             return {"ok": True, "doc_id": result["doc_id"], "sheets": result["sheets"]}
@@ -3808,22 +3811,23 @@ class VnOfficeApi:
                 return False
         except OSError:
             return False
-        opened = self.sheet_view_open(path)
+        active_sheet_name = ""
+        try:
+            workbook_xml = _read_xlsx_workbook_xml(path)
+            active_sheet_name = _ooxml_zip_patch().parse_active_sheet_from_workbook(workbook_xml) or ""
+        except Exception:
+            # Active-sheet metadata is optional for the first-paint path.
+            pass
+        opened = self.sheet_view_open(path, active_sheet_name)
         if not opened.get("ok") or not opened.get("sheets"):
             return False
         doc_id = opened["doc_id"]
         active_sheet_index = 0
-        try:
-            workbook_xml = _read_xlsx_workbook_xml(path)
-            active_sheet_name = _ooxml_zip_patch().parse_active_sheet_from_workbook(workbook_xml)
-            if active_sheet_name:
-                active_sheet_index = next(
-                    (index for index, sheet in enumerate(opened["sheets"]) if sheet.get("name") == active_sheet_name),
-                    0,
-                )
-        except Exception:
-            # Quick view is an optional first paint; the full import owns error reporting.
-            active_sheet_index = 0
+        if active_sheet_name:
+            active_sheet_index = next(
+                (index for index, sheet in enumerate(opened["sheets"]) if sheet.get("name") == active_sheet_name),
+                0,
+            )
         first_sheet = opened["sheets"][active_sheet_index]
         # First paint covers the ordinary viewport; later scrolls request adjacent 40x20 windows.
         r1 = min(max(0, int(first_sheet.get("rows", 1)) - 1), 39)
