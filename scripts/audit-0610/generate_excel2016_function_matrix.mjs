@@ -4,6 +4,10 @@ import { EXTENDED_FUNCTION_CATALOG, FormulaEngine } from "../../apps/sheet/formu
 const matrixCatalog = JSON.parse(await readFile(new URL("../../docs/EXCEL2016-FUNCTION-CATALOG.json", import.meta.url), "utf8"));
 const appCatalog = new Map(EXTENDED_FUNCTION_CATALOG.map(item => [item.name, item]));
 const report = JSON.parse(await readFile(new URL("../../docs/EXCEL2016-FUNCTIONS-COM-RESULTS.json", import.meta.url), "utf8"));
+let transposeArrayEvidence = null;
+try {
+  transposeArrayEvidence = JSON.parse(await readFile(new URL("../../docs/EXCEL2016-TRANSPOSE-ARRAY-COM-RESULTS.json", import.meta.url), "utf8"));
+} catch {}
 const resultByName = new Map(report.rows.map(row => [row.name, row]));
 const engine = new FormulaEngine(new Map());
 const functions = [...matrixCatalog.functions];
@@ -27,7 +31,7 @@ const lines = [
   `Ngày chạy: 2026-10-13. Oracle: Excel ${report.excelVersion}; VN Sheet ghi một XLSX; Excel COM mở ReadOnly, gọi CalculateFullRebuild trong bộ nhớ và không lưu workbook.`,
   "",
   `Danh mục nguồn Microsoft có ${matrixCatalog.functions.length} hàm duy nhất; ${standards.length} được đánh dấu dùng được trong Excel 2016 và ${later.length} có mốc sau 2016. Danh sách: [Microsoft Excel functions by category](https://support.microsoft.com/en-us/excel/excel-functions-by-category).`,
-  `VN Sheet hiện có ${EXTENDED_FUNCTION_CATALOG.length} mục gợi ý hàm (bao gồm hàm riêng VND); ${report.rows.length} hàm đã nhập qua desktop/CDP và đọc lại từ Excel trong lượt này.`,
+  `VN Sheet hiện có ${EXTENDED_FUNCTION_CATALOG.length} mục gợi ý hàm (bao gồm hàm riêng VND); ${report.rows.length} hàm đã nhập qua desktop/CDP và đọc lại từ Excel trong lượt này.${transposeArrayEvidence?.match ? " Ca CSE TRANSPOSE riêng cũng khớp trên desktop và Excel COM ReadOnly." : ""}`,
   "",
   "## Kết quả lượt COM",
   "",
@@ -69,7 +73,10 @@ for (const category of categories) {
     }
     if (!row && /#NAME\?/i.test(emptyValue)) status = appItem ? "Có metadata; COM NOT RUN" : "Chưa nhận dạng; COM NOT RUN";
     const caseStatus = "NOT RUN";
-    lines.push(`| ${item.name} | ${item.category} | ${version} | ${listed} | \`${emptyValue}\` | ${formula} | ${caseStatus} | ${caseStatus} | ${caseStatus} | ${caseStatus} | ${caseStatus} | ${appValue} | ${excelValue} | ${status} |`);
+    const arrayStatus = item.name === "TRANSPOSE" && transposeArrayEvidence
+      ? transposeArrayEvidence.match ? "MATCH: CDP + Excel COM" : "FAIL: CDP + Excel COM"
+      : caseStatus;
+    lines.push(`| ${item.name} | ${item.category} | ${version} | ${listed} | \`${emptyValue}\` | ${formula} | ${caseStatus} | ${caseStatus} | ${caseStatus} | ${caseStatus} | ${arrayStatus} | ${appValue} | ${excelValue} | ${status} |`);
   }
 }
 

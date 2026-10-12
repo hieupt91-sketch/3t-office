@@ -3,7 +3,7 @@
 Ngày chạy: 2026-10-13. Oracle: Excel 16.0.4266.1001; VN Sheet ghi một XLSX; Excel COM mở ReadOnly, gọi CalculateFullRebuild trong bộ nhớ và không lưu workbook.
 
 Danh mục nguồn Microsoft có 462 hàm duy nhất; 424 được đánh dấu dùng được trong Excel 2016 và 38 có mốc sau 2016. Danh sách: [Microsoft Excel functions by category](https://support.microsoft.com/en-us/excel/excel-functions-by-category).
-VN Sheet hiện có 143 mục gợi ý hàm (bao gồm hàm riêng VND); 137 hàm đã nhập qua desktop/CDP và đọc lại từ Excel trong lượt này.
+VN Sheet hiện có 143 mục gợi ý hàm (bao gồm hàm riêng VND); 137 hàm đã nhập qua desktop/CDP và đọc lại từ Excel trong lượt này. Ca CSE TRANSPOSE riêng cũng khớp trên desktop và Excel COM ReadOnly.
 
 ## Kết quả lượt COM
 
@@ -81,7 +81,7 @@ VN Sheet hiện có 143 mục gợi ý hàm (bao gồm hàm riêng VND); 137 hà
 | PRODUCT | Math and trigonometry functions | Excel 2016 | Có | `1` | `=PRODUCT(A1:A5)` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `24` | `24` | MATCH |
 | QUOTIENT | Math and trigonometry functions | Excel 2016 | Không | `#NAME? (QUOTIENT)` | — | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | — | — | Chưa nhận dạng; COM NOT RUN |
 | RADIANS | Math and trigonometry functions | Excel 2016 | Có | `#VALUE!` | `=RADIANS(180)` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `3.141592653589793` | `3.141593` | MATCH |
-| RAND | Math and trigonometry functions | Excel 2016 | Có | `0.6480383347141856` | `=RAND()` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `0.9431956358609933` | `0.518131` | VOLATILE: không so sánh |
+| RAND | Math and trigonometry functions | Excel 2016 | Có | `0.2059181437869364` | `=RAND()` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `0.9431956358609933` | `0.518131` | VOLATILE: không so sánh |
 | RANDARRA | Math and trigonometry functions | Sau Excel 2016 (2021) | Không | `#NAME? (RANDARRA)` | — | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | — | — | Chưa nhận dạng; COM NOT RUN |
 | RANDBETWEEN | Math and trigonometry functions | Excel 2016 | Có | `#VALUE!` | `=RANDBETWEEN(1, 100)` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `82` | `66` | VOLATILE: không so sánh |
 | ROMAN | Math and trigonometry functions | Excel 2016 | Không | `#NAME? (ROMAN)` | — | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | — | — | Chưa nhận dạng; COM NOT RUN |
@@ -201,7 +201,7 @@ VN Sheet hiện có 143 mục gợi ý hàm (bao gồm hàm riêng VND); 137 hà
 | TAKE | Lookup and reference functions | Sau Excel 2016 (2024) | Không | `#NAME? (TAKE)` | — | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | — | — | Chưa nhận dạng; COM NOT RUN |
 | TOCOL | Lookup and reference functions | Sau Excel 2016 (2024) | Không | `#NAME? (TOCOL)` | — | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | — | — | Chưa nhận dạng; COM NOT RUN |
 | TOROW | Lookup and reference functions | Sau Excel 2016 (2024) | Không | `#NAME? (TOROW)` | — | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | — | — | Chưa nhận dạng; COM NOT RUN |
-| TRANSPOSE | Lookup and reference functions | Excel 2016 | Có | `#NAME? (TRANSPOSE)` | `=TRANSPOSE(A1:A5)` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `#NAME? (TRANSPOSE)` | `#VALUE!` | Scalar không tương đương CSE |
+| TRANSPOSE | Lookup and reference functions | Excel 2016 | Có | `#VALUE!` | `=TRANSPOSE(A1:A5)` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | MATCH: CDP + Excel COM | `#VALUE!` | `#VALUE!` | Scalar không tương đương CSE |
 | TRIMRANGE | Lookup and reference functions | Excel 2016 | Không | `#NAME? (TRIMRANGE)` | — | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | — | — | Chưa nhận dạng; COM NOT RUN |
 | UNIQUE | Lookup and reference functions | Sau Excel 2016 (2021) | Có | `#NAME? (UNIQUE)` | — | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | — | — | Có metadata; COM NOT RUN |
 | VLOOKUP | Lookup and reference functions | Excel 2016 | Có | `#VALUE!` | `=VLOOKUP(A2, A:C, 3, 0)` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `1234.5` | `1234.5` | MATCH |
@@ -493,7 +493,7 @@ VN Sheet hiện có 143 mục gợi ý hàm (bao gồm hàm riêng VND); 137 hà
 | MONTH | Date and time functions | Excel 2016 | Có | `#VALUE!` | `=MONTH(TODAY())` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `10` | `10` | VOLATILE: không so sánh |
 | NETWORKDAYS | Date and time functions | Excel 2016 | Có | `#VALUE!` | `=NETWORKDAYS(A1, A1, C1:C10)` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `#VALUE!` | `#VALUE!` | MATCH |
 | NETWORKDAYS.INTL | Date and time functions | Excel 2016 | Không | `#NAME? (NETWORKDAYS.INTL)` | — | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | — | — | Chưa nhận dạng; COM NOT RUN |
-| NOW | Date and time functions | Excel 2016 | Có | `46308.07056712963` | `=NOW()` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `46308.053611111114` | `########` | VOLATILE: không so sánh |
+| NOW | Date and time functions | Excel 2016 | Có | `46308.08090277778` | `=NOW()` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `46308.053611111114` | `########` | VOLATILE: không so sánh |
 | SECOND | Date and time functions | Excel 2016 | Có | `0` | `=SECOND(NOW())` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `35` | `50` | VOLATILE: không so sánh |
 | TIME | Date and time functions | Excel 2016 | Có | `#VALUE!` | `=TIME(14, 30, 0)` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `0.6041666666666666` | `14:30:00` | MATCH |
 | TIMEVALUE | Date and time functions | Excel 2016 | Không | `#NAME? (TIMEVALUE)` | — | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | — | — | Chưa nhận dạng; COM NOT RUN |

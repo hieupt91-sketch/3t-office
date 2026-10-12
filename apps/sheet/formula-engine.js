@@ -1038,6 +1038,14 @@ export class FormulaEngine {
   evaluateArray(formula) {
     if (!formula || !formula.startsWith("=")) return [formula];
     const expr = formula.slice(1).trim();
+    const transposeMatch = expr.match(/^TRANSPOSE\s*\((.*)\)$/i);
+    if (transposeMatch) {
+      const args = this._splitArgs(transposeMatch[1]);
+      if (args.length !== 1 || !args[0]) return "#VALUE!";
+      const matrix = this._rangeMatrix(args[0]);
+      if (!matrix.length || !matrix[0]?.length) return "#VALUE!";
+      return matrix[0].map((_, columnIndex) => matrix.map(row => row[columnIndex] ?? "")).flat();
+    }
     const funcMatch = expr.match(/^SUM\s*\((.*)\)$/i);
     if (funcMatch) {
       const value = this._evaluateArrayArithmetic(funcMatch[1]);
@@ -2510,6 +2518,11 @@ export class FormulaEngine {
           ? formula.replace(/^=_xlfn\./i, "=")
           : "#N/A";
       }
+
+      case "TRANSPOSE":
+        // Excel returns #VALUE! when this array function is entered as a scalar formula.
+        // Ctrl+Shift+Enter routes through evaluateArray(), which writes the transposed result range.
+        return "#VALUE!";
 
       case "IFS": {
         if (args.length < 2 || args.length % 2 !== 0) return "#VALUE!";

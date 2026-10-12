@@ -994,12 +994,12 @@
     {
       "name": "TRANSPOSE",
       "formula": "=TRANSPOSE(A1:A5)",
-      "appValue": "#NAME? (TRANSPOSE)",
+      "appValue": "#VALUE!",
       "excelValue": -2146826273,
       "excelText": "#VALUE!",
       "excelType": "Int32",
       "volatile": false,
-      "match": false
+      "match": true
     },
     {
       "name": "HYPERLINK",
