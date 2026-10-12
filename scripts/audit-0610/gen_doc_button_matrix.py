@@ -44,7 +44,7 @@ mark(KHOP, "writer.chart.insert writer.diagram.insert", "FIX-T12: Word COM đọ
 mark(KHOP, "writer.design.themeGallery writer.page.watermark writer.layout.lineNumbers", "FIX-T12: DOCX có bảng màu Modern/phông Be Vietnam Pro; Word COM đọc watermark PowerPlusWaterMarkObject1 trong header; line numbering Active=-1, CountBy=1, RestartMode=0")
 mark(LECH, "writer.review.wordCount", "FIX-T13: ký tự đạt ngưỡng ≤0,2% trên 6/7 (d01 0,043%; d02/d06/d07/d13/d20 khớp); số từ còn lệch d01 -16, d02 +2, d07 +2, d13 -3, d20 -1; d24 Word COM -2, tài liệu mới 0/0, desktop crash khi mở d24")
 mark(KHAC, "common.macro.recordToggle common.macro.manager", "FIX-T13: VN Office ghi/phát lại command ID qua Command Bus và lưu macro cục bộ; không đọc/chạy VBA Project như Word, đây là mô hình macro riêng có chủ ý")
-mark(CHUA, "writer.insert.wordart", "Chưa so kết quả với Word COM: chưa có bằng chứng về đối tượng WordArt native có thể chỉnh sửa; cần kiểm tra kiểu dáng và cấu trúc DOCX riêng")
+mark(CHUA, "writer.insert.wordart", "FIX-T14 desktop save: DOCX có một DrawingML wps:wsp, a:prstTxWarp=textFadeRight và chữ nằm trong shape; không còn text phẳng/bookmark thừa. Đối chiếu Word COM Shape.TextEffect chưa chạy được do phiên Word ẩn có trước đang chiếm COM.")
 mark(CHUA, "common.file.print", "Chưa chạy in đối chứng: chưa chọn đích in (máy in hoặc PDF); thao tác in có thể tạo đầu ra ngoài workspace")
 mark(CHUA, "writer.file.printPreview", "FIX-T14 CDP: hộp thoại In dựng 1 trang A4 210×297 mm, ảnh xem trước 794×1123 px; chưa so trang/PDF với Word COM")
 mark(CHUA, "writer.view.pageWidth", "FIX-T14 CDP: trang A4 rộng 1286 px trong vùng xem 1329 px ở zoom 162%; nút giữ chế độ vừa chiều rộng để tự căn lại khi đổi kích thước cửa sổ; chưa so Zoom.PageFit của Word COM")

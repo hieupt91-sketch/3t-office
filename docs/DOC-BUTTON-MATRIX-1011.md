@@ -59,7 +59,7 @@ Tổng kết: KHỚP WORD (đã so Word COM): 108, KHÁC CÓ CHỦ Ý: 6, CHƯA 
 | Chèn | `writer.header.insert` | Đầu trang | KHỚP WORD (đã so Word COM) | đầu/chân trang, trang đầu khác, chẵn/lẻ, số trang |
 | Chèn | `writer.footer.insert` | Chân trang | KHỚP WORD (đã so Word COM) | đầu/chân trang, trang đầu khác, chẵn/lẻ, số trang |
 | Chèn | `writer.insert.textbox` | Hộp văn bản | KHỚP WORD (đã so Word COM) | kích thước/lề/AutoSize sau lưu |
-| Chèn | `writer.insert.wordart` | Chữ nghệ thuật | CHƯA ĐỐI CHIẾU | Chưa so kết quả với Word COM: chưa có bằng chứng về đối tượng WordArt native có thể chỉnh sửa; cần kiểm tra kiểu dáng và cấu trúc DOCX riêng |
+| Chèn | `writer.insert.wordart` | Chữ nghệ thuật | CHƯA ĐỐI CHIẾU | FIX-T14 desktop save: DOCX có một DrawingML wps:wsp, a:prstTxWarp=textFadeRight và chữ nằm trong shape; không còn text phẳng/bookmark thừa. Đối chiếu Word COM Shape.TextEffect chưa chạy được do phiên Word ẩn có trước đang chiếm COM. |
 | Chèn | `writer.format.dropCap` | Chữ đầu đoạn | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 2: 7 lệnh, thao tác CDP và Word COM khớp về đầu ra DOCX |
 | Chèn | `writer.insert.dateTime` | Ngày & Giờ | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 2: 7 lệnh, thao tác CDP và Word COM khớp về đầu ra DOCX |
 | Chèn | `writer.insert.equation` | Phương trình (Alt+=) | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 2: 7 lệnh, thao tác CDP và Word COM khớp về đầu ra DOCX |
