@@ -1,0 +1,64 @@
+{
+  "sourceShape": {
+    "x": 1087.5,
+    "y": 510.5,
+    "id": "Google Shape;58;p13",
+    "text": "WEST COASTROAD TRIP"
+  },
+  "targetShape": {
+    "x": 1087.5,
+    "y": 670,
+    "id": "Google Shape;59;p13",
+    "text": "Your Name • Sept 20XX"
+  },
+  "armed": {
+    "slides": 10,
+    "selectedTarget": "Google Shape;58;p13",
+    "formatPainter": {
+      "locked": false,
+      "text": {
+        "fontWeight": "400",
+        "fontStyle": "normal",
+        "textDecoration": "none",
+        "color": "rgb(102, 102, 102)",
+        "backgroundColor": "rgb(248, 231, 28)",
+        "fontFamily": "Oswald, sans-serif",
+        "fontSize": "64px"
+      },
+      "shape": {
+        "color": "transparent"
+      }
+    },
+    "shapes": [
+      {
+        "id": "Google Shape;58;p13",
+        "text": "WEST COASTROAD TRIP",
+        "textHtml": "<div style=\"text-align:left;line-height:normal;margin-left:0cm\"><span style=\"color:#666666;background-color:#f8e71c;font-family:'Oswald',sans-serif;font-size:48pt;font-weight:normal\">WEST COAST</span><span style=\"color:#666666;background-color:#f8e71c;font-family:'Oswald',sans-serif;font-size:48pt;font-weight:normal\"><br></span><span style=\"color:#666666;background-color:#f8e71c;font-family:'Oswald',sans-serif;font-size:48pt;font-weight:normal\">ROAD TRIP</span></div>"
+      },
+      {
+        "id": "Google Shape;59;p13",
+        "text": "Your Name • Sept 20XX",
+        "textHtml": "<div style=\"text-align:left;line-height:1.322;margin-left:0cm\"><span style=\"color:#000000;font-family:'Playfair Display',sans-serif;font-size:18pt;font-weight:normal\">Your Name • Sept 20XX</span></div>"
+      }
+    ]
+  },
+  "applied": {
+    "slides": 10,
+    "selectedTarget": "Google Shape;59;p13",
+    "formatPainter": null,
+    "shapes": [
+      {
+        "id": "Google Shape;58;p13",
+        "text": "WEST COAST\nROAD TRIP",
+        "textHtml": "<div style=\"text-align:left;line-height:normal;margin-left:0cm\"><span style=\"color:#666666;background-color:#f8e71c;font-family:'Oswald',sans-serif;font-size:48pt;font-weight:normal\">WEST COAST</span><span style=\"color:#666666;background-color:#f8e71c;font-family:'Oswald',sans-serif;font-size:48pt;font-weight:normal\"><br></span><span style=\"color:#666666;background-color:#f8e71c;font-family:'Oswald',sans-serif;font-size:48pt;font-weight:normal\">ROAD TRIP</span></div>"
+      },
+      {
+        "id": "Google Shape;59;p13",
+        "text": "Your Name • Sept 20XX",
+        "textHtml": "<div style=\"text-align:left;line-height:1.322;margin-left:0cm\"><span style=\"font-size: 64px; font-weight: normal; background-color: rgb(248, 231, 28);\"><font color=\"#666666\" style=\"\" face=\"Oswald, sans-serif\">Your Name • Sept 20XX</font></span></div>"
+      }
+    ]
+  },
+  "saved": true,
+  "file": "E:\\VNOffice-profiles\\codex-fl10\\fix-l10-format-painter.pptx"
+}
