@@ -18,6 +18,7 @@ try {
   await click(cdp, 'select[data-command-id="writer.layout.lineNumbers"]');
   await press(cdp, "ArrowDown", {}, 0);
   await press(cdp, "Enter", {}, 250);
+  const lineState = await cdp.evaluate("({value:document.querySelector('select[data-command-id=\"writer.layout.lineNumbers\"]')?.value, model:window.__vnoAppInstance.adapter.lineNumbers})");
   await click(cdp, ".vno-writer-body");
   await typeText(cdp, "FIX T12 THEME AND LINE NUMBERS", 2);
   const content = await cdp.evaluate("window.__vnoAppInstance.adapter._contentForExport()");
@@ -25,7 +26,7 @@ try {
     `globalThis.globalUnoBridge.saveRealFileInPlace("writer", ${JSON.stringify(content)}, ${JSON.stringify(output)}, null)`,
     { timeoutMilliseconds: 1200000 },
   );
-  console.log(JSON.stringify({ output, themeMarker: String(content).match(/vno-document-theme:[^ ]+/)?.[0], lineMarker: String(content).match(/vno-line-numbers:[^ ]+/)?.[0], result }));
+  console.log(JSON.stringify({ output, themeMarker: String(content).match(/vno-document-theme:[^ ]+/)?.[0], lineMarker: String(content).match(/vno-line-numbers:[^ ]+/)?.[0], lineState, result }));
   if (result?.status !== "ok") throw new Error(`Save failed: ${JSON.stringify(result)}`);
 } finally {
   console.log(`PROFILE ${session.localAppData}`);
