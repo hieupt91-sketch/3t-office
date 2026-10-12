@@ -21,7 +21,8 @@ try {
   const target = await session.cdp.evaluate(`(() => {
     const g=window.__vnoAppInstance.grid;
     let graph=g._formulaDependencyGraph || g._buildFormulaDependencyGraph();
-    if (!graph) return {error:'dependency graph unavailable; incremental path uses fallback'};
+    const fallback=!graph;
+    const formulaCount=g.sheets.reduce((count,sheet)=>count+[...(g.sheetsData[sheet]||new Map()).values()].filter(item=>item?.formula).length,0);
     const options=[];
     for (const sheet of g.sheets) {
       if (sheet!==g.activeSheet) continue;
@@ -31,9 +32,9 @@ try {
         if (!item || item.formula || item.val==='' || item.val==null) continue;
         const visible=g.container.querySelector('.vno-grid-cell[data-coord="'+coord+'"]');
         if (!visible?.getBoundingClientRect()?.width) continue;
-        const dirty=g._getDirtyFormulaOrder(graph,{sheet,coord});
-        if (!dirty?.length) continue;
-        options.push({sheet,coord,count:dirty.length,originalValue:item.val});
+        const dirty=fallback ? null : g._getDirtyFormulaOrder(graph,{sheet,coord});
+        if (!fallback && !dirty?.length) continue;
+        options.push({sheet,coord,count:fallback?formulaCount:dirty.length,originalValue:item.val,fallback});
       }
     }
     options.sort((a,b)=>b.count-a.count);
@@ -78,7 +79,7 @@ try {
     for(const [s,c,v] of after){const prior=beforeMap.get(JSON.stringify([s,c]));if(!Object.is(prior,v))differences.push({sheet:s,coord:c,incremental:prior,full:v});}
     return {formulaCount:after.length,mismatchCount:differences.length,mismatches:differences.slice(0,20)};
   })()`);
-  console.log(JSON.stringify({file,baselineFormulaCount,target:{sheet:target.sheet,coord:target.coord,dependentFormulaCount:target.count,originalValue:target.originalValue},times,editedValue:edited.editedValue,undoValue,undoRestored:Object.is(undoValue,target.originalValue),redoValue:redoState.value,redoRestored:Object.is(redoState.value,edited.editedValue),oracle}));
+  console.log(JSON.stringify({file,baselineFormulaCount,target:{sheet:target.sheet,coord:target.coord,dependentFormulaCount:target.count,fallback:target.fallback,originalValue:target.originalValue},times,editedValue:edited.editedValue,undoValue,undoRestored:Object.is(undoValue,target.originalValue),redoValue:redoState.value,redoRestored:Object.is(redoState.value,edited.editedValue),oracle}));
 } finally {
   await session.close();
 }
