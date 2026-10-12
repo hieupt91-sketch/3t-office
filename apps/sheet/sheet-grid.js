@@ -249,6 +249,7 @@ export class SheetGridController {
     this.auditArrows = [];
     this.watchedCells = new Set();
     this._isAutofilling = false;
+    this._endModeActive = false;
     this._autofillSource = null;
     this._autofillTarget = null;
     this._isMovingCell = false;
@@ -4673,6 +4674,27 @@ _bindGridKeyboardNavigation() {
           return;
         }
 
+        if (this._endModeActive && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+          e.preventDefault();
+          this._endModeActive = false;
+          const direction = { ArrowUp: -1, ArrowDown: 1, ArrowLeft: -1, ArrowRight: 1 }[e.key];
+          let endNextCol = this.selectedCoord.c;
+          let endNextRow = this.selectedCoord.r;
+          if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+            endNextRow = this._findNextCtrlArrowRow(this.selectedCoord.c, this.selectedCoord.r, direction);
+          } else {
+            endNextCol = this._findNextCtrlArrowCol(this.selectedCoord.c, this.selectedCoord.r, direction);
+          }
+          this.selectCell(endNextCol, endNextRow, e.shiftKey);
+          return;
+        }
+        if (this._endModeActive) this._endModeActive = false;
+        if (e.key === "End" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+          e.preventDefault();
+          this._endModeActive = true;
+          return;
+        }
+
         if ((e.key === "F5" || (e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey && e.key.toLowerCase() === "g")) && !this.formulaEntry) {
           e.preventDefault();
           this.nameBox?.focus();
@@ -5086,6 +5108,7 @@ _bindGridKeyboardNavigation() {
   selectCell(col, row, extendRange = false, addRange = false) {
     if (row < 1 || row > this.rowCount) return;
     this._ctrlASelectAllPending = false;
+    this._endModeActive = false;
     if (this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput) {
       this._commitEditBeforeRangeSelection();
     }

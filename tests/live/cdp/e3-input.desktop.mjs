@@ -1,5 +1,5 @@
 import { launchApp } from "./session.mjs";
-import { click, mouseDrag, mouseRightClick, press, typeText, sleep } from "./actions.mjs";
+import { click, mouseClick, mouseDoubleClick, mouseDrag, mouseRightClick, press, typeText, sleep } from "./actions.mjs";
 
 const session = await launchApp("sheet", {
   root: process.env.VNO_APP_ROOT,
@@ -13,11 +13,11 @@ const check = (name, ok, detail = "") => {
 };
 const state = () => cdp.evaluate(`(() => {
   const grid = window.__vnoAppInstance?.sheetGrid || window.__vnoAppInstance?.grid;
-  const cells = Object.fromEntries(["A1","A2","B2","C2","E2","E8","F8","A6","A7","D3","D4","F1","G1","G2","G3","A4","B4","H4","A10","A11","E10","F10"].map(key => [key, grid.cellsData.get(key) || null]));
+  const cells = Object.fromEntries(["A1","A2","B2","C2","E2","E8","F8","A6","A7","D3","D4","F1","G1","G2","G3","A4","B4","H4","A10","A11","C1","C2","C3","C4","D1","D2","J1","E10","F10"].map(key => [key, grid.cellsData.get(key) || null]));
   const coord = grid.selectedCoord;
   const range = grid.selectionRange;
-  return { coord: String(coord.c)+String(coord.r), range: String(range.start.c)+String(range.start.r)+":"+String(range.end.c)+String(range.end.r), cells, rowCount: grid.rowCount, maxCol: grid.cols.at(-1),
-    edit: !!grid.formulaEntry, input: grid.formulaInput?.value, undo: grid.undoStack.length, redo: grid.redoStack.length };
+  return { coord: String(coord.c)+String(coord.r), range: String(range.start.c)+String(range.start.r)+":"+String(range.end.c)+String(range.end.r), ranges: (grid.selectionRanges || []).map(r => String(r.start.c)+String(r.start.r)+":"+String(r.end.c)+String(r.end.r)), cells, rowCount: grid.rowCount, maxCol: grid.cols.at(-1),
+    colKWidth: grid.getColumnWidth("K"), row1Height: grid.getRowHeight(1), endMode: !!grid._endModeActive, edit: !!grid.formulaEntry, input: grid.formulaInput?.value, undo: grid.undoStack.length, redo: grid.redoStack.length };
 })()`);
 const select = coord => click(cdp, `.vno-grid-cell[data-coord="${coord}"]`);
 const pressSemicolon = async shift => {
@@ -43,6 +43,10 @@ try {
   await press(cdp, "Tab");
   s = await state();
   check("Tab moves right", s.coord === "B2", JSON.stringify(s));
+  await select("C2");
+  await press(cdp, "Tab", { shift: true });
+  s = await state();
+  check("Shift+Tab moves left", s.coord === "B2", JSON.stringify(s));
 
   await select("A1");
   const undoBeforeEdit = (await state()).undo;
@@ -84,6 +88,19 @@ try {
   await press(cdp, "Home");
   s = await state();
   check("Home selects first column in current row", s.coord === "A3", JSON.stringify(s));
+  await press(cdp, "F5");
+  await typeText(cdp, "A40");
+  await press(cdp, "Enter");
+  s = await state();
+  check("Name Box can position the PageDown test cell", s.coord === "A40", s.coord);
+  await press(cdp, "PageDown");
+  s = await state();
+  check("PageDown moves the active cell down by a viewport", Number(s.coord.match(/\d+$/)?.[0]) > 40, JSON.stringify(s));
+  const pageDownRow = Number(s.coord.match(/\d+$/)?.[0]);
+  await press(cdp, "PageUp");
+  s = await state();
+  check("PageUp moves the active cell back by a viewport", Number(s.coord.match(/\d+$/)?.[0]) < pageDownRow, JSON.stringify(s));
+  await press(cdp, "Home", { ctrl: true });
   await select("A10");
   await typeText(cdp, "EDGE_ONE");
   await press(cdp, "Enter");
@@ -93,6 +110,13 @@ try {
   await press(cdp, "ArrowDown", { ctrl: true });
   s = await state();
   check("Ctrl+Down reaches the edge of a contiguous data block", s.coord === "A11", JSON.stringify(s));
+  await select("A10");
+  await press(cdp, "End");
+  s = await state();
+  check("End activates end-navigation mode", s.endMode, JSON.stringify(s));
+  await press(cdp, "ArrowDown");
+  s = await state();
+  check("End then ArrowDown moves to the data edge", s.coord === "A11" && !s.endMode, JSON.stringify(s));
   await select("A10");
   await press(cdp, "ArrowDown", { ctrl: true, shift: true });
   s = await state();
@@ -217,10 +241,88 @@ try {
   s = await state();
   check("dragging fill handle continues a numeric series", Number(s.cells.D3?.val) === 3 && Number(s.cells.D4?.val) === 4, JSON.stringify(s));
 
+  for (const [coord, value] of [["C1","N1"],["C2","N2"],["C3","N3"],["C4","N4"]]) {
+    await select(coord);
+    await typeText(cdp, value);
+    await press(cdp, "Enter");
+  }
+  await select("D1");
+  await press(cdp, "ArrowDown", { shift: true });
+  const doubleFillPoints = await cdp.evaluate(`(() => {
+    const h=document.querySelector('.vno-grid-cell[data-coord="D2"] .vno-cell-autofill-handle')?.getBoundingClientRect();
+    return h ? {x:h.left+h.width/2,y:h.top+h.height/2} : null;
+  })()`);
+  if (!doubleFillPoints) throw new Error("Autofill handle for double-click was not visible.");
+  await mouseDoubleClick(cdp, doubleFillPoints.x, doubleFillPoints.y);
+  s = await state();
+  check("double-clicking the fill handle fills alongside adjacent data", Number(s.cells.D3?.val) === 3 && Number(s.cells.D4?.val) === 4, JSON.stringify(s));
+
+  await select("A1");
+  const shiftClickPoint = await cdp.evaluate(`(() => { const e=document.querySelector('.vno-grid-cell[data-coord="A2"]'); const r=e.getBoundingClientRect(); return {x:r.left+r.width/2,y:r.top+r.height/2}; })()`);
+  await mouseClick(cdp, shiftClickPoint.x, shiftClickPoint.y, { shift: true });
+  s = await state();
+  check("Shift+click extends from the active cell", s.range === "A1:A2", JSON.stringify(s));
+  await select("A1");
+  const ctrlClickPoint = await cdp.evaluate(`(() => { const e=document.querySelector('.vno-grid-cell[data-coord="C2"]'); const r=e.getBoundingClientRect(); return {x:r.left+r.width/2,y:r.top+r.height/2}; })()`);
+  await mouseClick(cdp, ctrlClickPoint.x, ctrlClickPoint.y, { ctrl: true });
+  s = await state();
+  check("Ctrl+click adds a separate cell range", s.ranges.length === 2, JSON.stringify(s.ranges));
+
+  await click(cdp, '.vno-col-header[data-col="C"]');
+  s = await state();
+  check("clicking a column header selects the full column", s.range === `C1:C${s.rowCount}`, s.range);
+  await click(cdp, '.vno-row-header[data-row="5"]');
+  s = await state();
+  check("clicking a row header selects the full row", s.range === `A5:${s.maxCol}5`, s.range);
+
+  await select("J1");
+  await typeText(cdp, "LINE1");
+  await press(cdp, "Enter", { alt: true });
+  await typeText(cdp, "LINE2");
+  await press(cdp, "Enter");
+  s = await state();
+  check("Alt+Enter inserts a newline inside a cell", s.cells.J1?.val === "LINE1\nLINE2", JSON.stringify(s.cells.J1));
+  await select("K1");
+  await typeText(cdp, "A_VERY_LONG_VALUE_FOR_AUTOFIT");
+  await press(cdp, "Enter");
+  s = await state();
+  const originalKWidth = s.colKWidth;
+  const colResizePoint = await cdp.evaluate(`(() => { const e=document.querySelector('.vno-col-resizer[data-col="K"]'); const r=e.getBoundingClientRect(); return {x:r.left+r.width/2,y:r.top+r.height/2}; })()`);
+  await mouseDoubleClick(cdp, colResizePoint.x, colResizePoint.y);
+  s = await state();
+  check("double-clicking a column edge auto-fits its width", s.colKWidth > originalKWidth, `${originalKWidth} -> ${s.colKWidth}`);
+  const autofitKWidth = s.colKWidth;
+  const colDragPoint = await cdp.evaluate(`(() => { const e=document.querySelector('.vno-col-resizer[data-col="K"]'); const r=e.getBoundingClientRect(); return {x:r.left+r.width/2,y:r.top+r.height/2}; })()`);
+  await mouseDrag(cdp, colDragPoint.x, colDragPoint.y, colDragPoint.x+35, colDragPoint.y);
+  s = await state();
+  check("dragging a column edge changes its width", s.colKWidth > autofitKWidth, `${autofitKWidth} -> ${s.colKWidth}`);
+  const originalRowHeight = s.row1Height;
+  const rowResizePoint = await cdp.evaluate(`(() => { const e=document.querySelector('.vno-row-resizer[data-row="1"]'); const r=e.getBoundingClientRect(); return {x:r.left+r.width/2,y:r.top+r.height/2}; })()`);
+  await mouseDoubleClick(cdp, rowResizePoint.x, rowResizePoint.y);
+  s = await state();
+  check("double-clicking a row edge auto-fits its height", s.row1Height >= originalRowHeight, `${originalRowHeight} -> ${s.row1Height}`);
+  const autofitRowHeight = s.row1Height;
+  const rowDragPoint = await cdp.evaluate(`(() => { const e=document.querySelector('.vno-row-resizer[data-row="1"]'); const r=e.getBoundingClientRect(); return {x:r.left+r.width/2,y:r.top+r.height/2}; })()`);
+  await mouseDrag(cdp, rowDragPoint.x, rowDragPoint.y, rowDragPoint.x, rowDragPoint.y+18);
+  s = await state();
+  check("dragging a row edge changes its height", s.row1Height > autofitRowHeight, `${autofitRowHeight} -> ${s.row1Height}`);
   const point = await cdp.evaluate(`(() => { const e=document.querySelector('.vno-grid-cell[data-coord="B2"]'); const r=e.getBoundingClientRect(); return {x:r.left+r.width/2,y:r.top+r.height/2}; })()`);
   await mouseRightClick(cdp, point.x, point.y);
   const menuText = await cdp.evaluate(`document.querySelector('.vno-sheet-context-menu')?.innerText || ""`);
   check("right-click opens cell context menu", menuText.includes("Ctrl+C") && menuText.includes("Ctrl+V"), menuText.replace(/\s+/g," ").trim());
+  await press(cdp, "Escape");
+
+  await select("A1");
+  await press(cdp, "End", { ctrl: true });
+  s = await state();
+  check("Ctrl+End moves to the used-range bottom-right", s.coord === "K11", s.coord);
+  await press(cdp, "F10", { shift: true });
+  const keyboardMenuText = await cdp.evaluate(`document.querySelector('.vno-sheet-context-menu')?.innerText || ""`);
+  check("Shift+F10 opens the keyboard context menu", keyboardMenuText.includes("Ctrl+C") && keyboardMenuText.includes("Ctrl+V"), keyboardMenuText.replace(/\s+/g," ").trim());
+  await press(cdp, "Escape");
+  await press(cdp, "v", { ctrl: true, alt: true });
+  const pasteSpecialOpen = await cdp.evaluate("!!document.querySelector('.vno-paste-special-dialog')");
+  check("Ctrl+Alt+V opens the Paste Special dialog", pasteSpecialOpen);
   await press(cdp, "Escape");
 
   await press(cdp, "F1");

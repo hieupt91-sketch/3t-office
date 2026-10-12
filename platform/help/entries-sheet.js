@@ -1197,7 +1197,7 @@ export const SHEET_HELP_ENTRIES = [
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
     keywords: ["chọn ô", "di chuyển ô", "Ctrl+G", "F5", "F2", "điền xuống", "kéo tay nắm", "sao chép", "dán", "menu chuột phải", "hoàn tác"],
     steps: [
-      "Nhấp vào ô trong lưới để chọn. Dùng các phím mũi tên để đi từng ô; giữ Shift khi nhấn mũi tên để mở rộng vùng. Ctrl+mũi tên đi tới biên dữ liệu. Ctrl+Home về A1.",
+      "Nhấp vào ô trong lưới để chọn. Dùng các phím mũi tên để đi từng ô; giữ Shift khi nhấn mũi tên để mở rộng vùng. Ctrl+mũi tên đi tới biên dữ liệu; nhấn End rồi một phím mũi tên để đi tới biên theo hướng đó. Ctrl+Home về A1.",
       "Nhấn Ctrl+G hoặc F5 để đặt con trỏ vào Hộp tên bên trái thanh công thức. Gõ địa chỉ như D7, vùng như B2:D10, hoặc tên vùng rồi nhấn Enter để đi tới đó.",
       "Khi một ô đang được chọn, gõ chữ hoặc số để thay nội dung rồi nhấn Enter. Nhấn F2 để sửa nội dung hiện có; Enter xác nhận, Esc hủy phần sửa và khôi phục giá trị cũ. Tab xác nhận rồi chuyển sang ô bên phải. Nếu đã chọn nhiều ô, gõ nội dung rồi nhấn Ctrl+Enter để điền cùng nội dung vào toàn vùng. Delete xóa nội dung của cả vùng đang chọn.",
       "Kéo chuột từ ô đầu đến ô cuối để chọn một khối. Nhấp chữ cái đầu cột hoặc số đầu hàng để chọn cả cột/hàng. Để điền, chọn vùng có ô nguồn ở cạnh trên hoặc bên trái rồi nhấn Ctrl+D hoặc Ctrl+R; hoặc kéo tay nắm nhỏ ở góc dưới phải vùng chọn tới ô đích để tiếp tục chuỗi số/ngày.",
