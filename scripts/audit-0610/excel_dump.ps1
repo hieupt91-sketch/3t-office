@@ -75,7 +75,19 @@ try {
         $rowHeights = [System.Collections.Generic.List[object]]::new()
         for ($ri=1; $ri -le $rowCount; $ri++) { $row=$used.Rows.Item($ri); $rowHeights.Add([pscustomobject]@{Index=([int]$used.Row+$ri-1);Height=(Safe-Value $row 'RowHeight');Hidden=(Safe-Value $row 'Hidden')}) }
         $filters = [System.Collections.Generic.List[object]]::new()
-        try { if ($ws.AutoFilterMode) { $filters.Add([pscustomobject]@{Range=[string]$ws.AutoFilter.Range.Address($false,$false);FilterMode=[bool]$ws.FilterMode;Count=[int]$ws.AutoFilter.Filters.Count}) } } catch {}
+        try {
+            if ($ws.AutoFilterMode) {
+                $filterRange = $ws.AutoFilter.Range
+                $filterItems = [System.Collections.Generic.List[object]]::new()
+                for ($fi=1; $fi -le [int]$ws.AutoFilter.Filters.Count; $fi++) {
+                    $filter = $ws.AutoFilter.Filters.Item($fi)
+                    if ($filter.On) {
+                        $filterItems.Add([pscustomobject]@{Field=$fi;Operator=(Safe-Value $filter 'Operator');Criteria1=(Safe-Value $filter 'Criteria1');Criteria2=(Safe-Value $filter 'Criteria2')})
+                    }
+                }
+                $filters.Add([pscustomobject]@{Range=[string]$filterRange.Address($false,$false);FilterMode=[bool]$ws.FilterMode;Count=[int]$ws.AutoFilter.Filters.Count;Criteria=@($filterItems.ToArray())})
+            }
+        } catch {}
         $validations = [System.Collections.Generic.List[object]]::new()
         try { $validations.Add([pscustomobject]@{Type=(Safe-Value $used.Validation 'Type');Formula1=(Safe-Value $used.Validation 'Formula1');Formula2=(Safe-Value $used.Validation 'Formula2');AlertStyle=(Safe-Value $used.Validation 'AlertStyle')}) } catch {}
         $conditionals = [System.Collections.Generic.List[object]]::new()
@@ -88,12 +100,20 @@ try {
         foreach($shape in $ws.Shapes){$images.Add([pscustomobject]@{Name=$shape.Name;Type=$shape.Type;Left=$shape.Left;Top=$shape.Top;Width=$shape.Width;Height=$shape.Height;AlternativeText=(Safe-Value $shape 'AlternativeText');OnAction=(Safe-Value $shape 'OnAction')})}
         $names = [System.Collections.Generic.List[object]]::new()
         foreach($name in $ws.Names){$names.Add([pscustomobject]@{Name=$name.Name;RefersTo=$name.RefersTo;Visible=$name.Visible})}
+        $comments = [System.Collections.Generic.List[object]]::new()
+        try { for($i=1; $i -le [int]$ws.Comments.Count; $i++) { $comment=$ws.Comments.Item($i); $comments.Add([pscustomobject]@{Cell=[string]$comment.Parent.Address($false,$false);Author=(Safe-Value $comment 'Author');Text=(Safe-Value $comment 'Text');Visible=(Safe-Value $comment 'Visible')}) } } catch {}
+        $pivots = [System.Collections.Generic.List[object]]::new()
+        try { for($i=1; $i -le [int]$ws.PivotTables().Count; $i++) { $pivot=$ws.PivotTables().Item($i); $pivots.Add([pscustomobject]@{Name=$pivot.Name;Range=[string]$pivot.TableRange2.Address($false,$false);SourceData=(Safe-Value $pivot 'SourceData');CacheIndex=(Safe-Value $pivot.PivotCache 'Index');RefreshOnOpen=(Safe-Value $pivot.PivotCache 'RefreshOnFileOpen')}) } } catch {}
+        $sparklines = [System.Collections.Generic.List[object]]::new()
+        try { for($i=1; $i -le [int]$ws.SparklineGroups.Count; $i++) { $group=$ws.SparklineGroups.Item($i); $sparklines.Add([pscustomobject]@{Location=[string]$group.Location.Address($false,$false);SourceData=(Safe-Value $group 'SourceData');Type=(Safe-Value $group 'Type');DisplayHidden=(Safe-Value $group 'DisplayHidden')}) } } catch {}
+        $hyperlinks = [System.Collections.Generic.List[object]]::new()
+        try { for($i=1; $i -le [int]$used.Hyperlinks.Count; $i++) { $link=$used.Hyperlinks.Item($i); $hyperlinks.Add([pscustomobject]@{Cell=[string]$link.Range.Address($false,$false);Address=(Safe-Value $link 'Address');SubAddress=(Safe-Value $link 'SubAddress');TextToDisplay=(Safe-Value $link 'TextToDisplay')}) } } catch {}
         $setup=$ws.PageSetup
         $window=$app.ActiveWindow
         $sheets.Add([pscustomobject]@{
             Name=$ws.Name;Visible=$ws.Visible;UsedRange=[string]$used.Address($false,$false);Cells=@($cells.ToArray());MergedAreas=@($merges.ToArray());
             Columns=@($colWidths.ToArray());Rows=@($rowHeights.ToArray());FreezePanes=[bool]$window.FreezePanes;SplitRow=[int]$window.SplitRow;SplitColumn=[int]$window.SplitColumn;
-            AutoFilters=@($filters.ToArray());Validation=@($validations.ToArray());ConditionalFormatting=@($conditionals.ToArray());Tables=@($tables.ToArray());Charts=@($charts.ToArray());Shapes=@($images.ToArray());Names=@($names.ToArray());
+            AutoFilters=@($filters.ToArray());Validation=@($validations.ToArray());ConditionalFormatting=@($conditionals.ToArray());Tables=@($tables.ToArray());Charts=@($charts.ToArray());Shapes=@($images.ToArray());Names=@($names.ToArray());Comments=@($comments.ToArray());PivotTables=@($pivots.ToArray());Sparklines=@($sparklines.ToArray());Hyperlinks=@($hyperlinks.ToArray());
             Print=[pscustomobject]@{Area=(Safe-Value $setup 'PrintArea');Orientation=(Safe-Value $setup 'Orientation');PaperSize=(Safe-Value $setup 'PaperSize');Zoom=(Safe-Value $setup 'Zoom');FitToPagesWide=(Safe-Value $setup 'FitToPagesWide');FitToPagesTall=(Safe-Value $setup 'FitToPagesTall');LeftMargin=(Safe-Value $setup 'LeftMargin');RightMargin=(Safe-Value $setup 'RightMargin');TopMargin=(Safe-Value $setup 'TopMargin');BottomMargin=(Safe-Value $setup 'BottomMargin');PrintTitleRows=(Safe-Value $setup 'PrintTitleRows');PrintTitleColumns=(Safe-Value $setup 'PrintTitleColumns')}
         })
     }
