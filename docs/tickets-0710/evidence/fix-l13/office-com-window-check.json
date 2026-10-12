@@ -1,0 +1,22 @@
+{
+  "date": "2026-10-12",
+  "application": "Microsoft PowerPoint COM",
+  "version": "16.0",
+  "launchMode": "PowerPoint.Application.Visible = msoTrue",
+  "openArguments": {
+    "ReadOnly": true,
+    "Untitled": false,
+    "WithWindow": true
+  },
+  "visiblePropertySet": "msoTrue",
+  "presentationCountBeforeOpen": 0,
+  "mainWindowTitle": "PowerPoint (Product Activation Failed)",
+  "openResult": "BLOCKED",
+  "comError": "Call was rejected by callee. (HRESULT 0x80010001, RPC_E_CALL_REJECTED)",
+  "activeWindowRead": null,
+  "viewTypeRead": null,
+  "zoomRead": null,
+  "retry": "Repeated the visible launch/open attempt as directed. COM stayed busy and the retry did not return an active window.",
+  "cleanup": "Stopped only POWERPNT processes started by these FIX-L13 probes, identified by their newly created PIDs. No SendKeys or OS input was used.",
+  "conclusion": "PowerPoint could not provide a COM window for view, slideshow, comments, spellcheck, WordArt TextEffect, or native Zoom UI comparison. Keep affected matrix rows unverified."
+}

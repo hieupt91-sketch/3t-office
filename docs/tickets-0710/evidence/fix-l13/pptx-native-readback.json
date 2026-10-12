@@ -1,0 +1,22 @@
+{
+  "sourcePptx": "E:\\VNOffice-profiles\\codex-fl13\\fix-l12-office-compare.pptx",
+  "transitionParts": [
+    {
+      "part": "ppt/slides/slide1.xml",
+      "transitions": [
+        "<p:transition><p:zoom dir=\"out\"/></p:transition>"
+      ]
+    }
+  ],
+  "wordArtShapes": [
+    {
+      "part": "ppt/slides/slide1.xml",
+      "shapeName": "1791790327242",
+      "text": "3T OfficeL12 WordArt editable™",
+      "hasBodyPr": true,
+      "presetTextWarp": "textNoShape",
+      "shapeXmlContainsPrstTxWarp": true
+    }
+  ],
+  "note": "Read directly from saved PPTX OOXML. PowerPoint COM TextEffect/Type readback unavailable in this run; this JSON does not claim COM parity."
+}
