@@ -13,8 +13,11 @@ const time = async (name, fn) => { const t = Date.now(); await fn(); rec.push(`$
 try {
   const expectedName = file.replace(/\\/g, "/").split("/").at(-1).toLowerCase();
   const expectedTitle = expectedName.replace(/\.xlsx$/, "");
-  await session.cdp.waitFor(`Boolean(window.__vnoSheetQuickViewController?.active) && String(document.title || '').toLowerCase().startsWith(${JSON.stringify(expectedTitle)})`, { timeoutMilliseconds: 600000, intervalMilliseconds: 50 });
+  await session.cdp.waitFor(`(() => { const q = window.__vnoSheetQuickViewController; return Boolean(q?.active) && String(q.status?.textContent || '').includes('có thể sửa ô trong lúc chờ') && String(document.title || '').toLowerCase().startsWith(${JSON.stringify(expectedTitle)}); })()`, { timeoutMilliseconds: 600000, intervalMilliseconds: 50 });
   const before = JSON.parse(await ev(`JSON.stringify({ quickActive: window.__vnoSheetQuickViewController?.active, quickStatus: window.__vnoSheetQuickViewController?.status?.textContent, target: (() => { const e = document.elementFromPoint(${x}, ${y}); return { tag: e?.tagName, className: String(e?.className || ''), text: String(e?.textContent || '').slice(0, 40) }; })() })`));
+  if (!before.quickActive || !before.quickStatus?.includes("có thể sửa ô trong lúc chờ") || !before.target.className.includes("vno-sheet-quick-cell")) {
+    throw new Error("Typing latency probe did not land on an editable quick-view cell during background loading: " + JSON.stringify(before));
+  }
   await ev(`window.__lt = []; try { new PerformanceObserver(l => { for (const e of l.getEntries()) window.__lt.push([Math.round(e.startTime), Math.round(e.duration)]); }).observe({ entryTypes: ['longtask'] }); } catch (e) {} true`);
   await time("click", () => mouseClick(session.cdp, x, y));
   for (const ch of "TEST") await time("key_" + ch, () => press(session.cdp, ch.toLowerCase(), { shift: true }, 20));
