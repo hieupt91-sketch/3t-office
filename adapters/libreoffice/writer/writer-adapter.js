@@ -15453,7 +15453,10 @@ export class WriterAdapter {
     const nativeWatermarkMarker = nativeWatermarkFodt
       ? `<!--vno-native-watermark-fodt:${btoa(Array.from(new TextEncoder().encode(nativeWatermarkFodt), byte => String.fromCharCode(byte)).join(""))}-->`
       : "";
-    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${nativeDiagramMarker}${nativeWatermarkMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
+    const themeMarker = this.documentTheme && this.documentTheme !== "office"
+      ? `<!--vno-document-theme:${String(this.documentTheme).replace(/[^a-z0-9_-]/gi, "")}-->`
+      : "";
+    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${nativeDiagramMarker}${nativeWatermarkMarker}${themeMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }

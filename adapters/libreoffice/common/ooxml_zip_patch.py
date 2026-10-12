@@ -19269,8 +19269,9 @@ def postprocess_writer_page_decor(docx_bytes: bytes, *, source_html: str | None 
     if not docx_bytes or not source_html:
         return docx_bytes
     line_numbers = re.search(r"<!--vno-line-numbers:(\d+):(continuous|page|section)-->", source_html)
+    theme = re.search(r"<!--vno-document-theme:(office|administrative|modern|elegant|minimal|emerald)-->", source_html)
     block = re.search(r"@page\s*\{([^}]*)\}", source_html, re.IGNORECASE)
-    if not block and not line_numbers:
+    if not block and not line_numbers and not theme:
         return docx_bytes
     css = block.group(1) if block else ""
     border = re.search(
@@ -19278,7 +19279,7 @@ def postprocess_writer_page_decor(docx_bytes: bytes, *, source_html: str | None 
         css, re.IGNORECASE,
     )
     background = re.search(r"background-color\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)|[a-zA-Z]+)", css, re.IGNORECASE)
-    if not border and not background and not line_numbers:
+    if not border and not background and not line_numbers and not theme:
         return docx_bytes
     document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
     if not document_bytes:
@@ -19334,6 +19335,35 @@ def postprocess_writer_page_decor(docx_bytes: bytes, *, source_html: str | None 
                     settings_xml = re.sub(r"(<w:settings\b[^>]*>)", r"\1<w:displayBackgroundShape/>", settings_xml, count=1, flags=re.IGNORECASE)
                 replacements["word/settings.xml"] = settings_xml.encode("utf-8")
     replacements["word/document.xml"] = document_xml.encode("utf-8")
+    if theme:
+        theme_bytes = read_zip_entry(docx_bytes, "word/theme/theme1.xml")
+        if theme_bytes:
+            theme_xml = theme_bytes.decode("utf-8", errors="replace")
+            schemes = {
+                "office": ("Times New Roman", ["0F4C81", "1D4ED8", "2563EB", "64748B", "94A3B8", "0F172A"]),
+                "administrative": ("Times New Roman", ["000000", "C01E17", "7F1D1D", "44403C", "78716C", "A8A29E"]),
+                "modern": ("Be Vietnam Pro", ["0284C7", "0369A1", "075985", "0EA5E9", "38BDF8", "0F172A"]),
+                "elegant": ("Georgia", ["854D0E", "A16207", "CA8A04", "B45309", "D97706", "78350F"]),
+                "minimal": ("Arial", ["3F3F46", "52525B", "71717A", "27272A", "A1A1AA", "18181B"]),
+                "emerald": ("Calibri", ["0F766E", "0D9488", "14B8A6", "115E59", "2DD4BF", "134E4A"]),
+            }
+            font, accents = schemes[theme.group(1)]
+            theme_xml = re.sub(
+                r"(<a:fontScheme\b[^>]*>[\s\S]*?<a:(?:majorFont|minorFont)>[\s\S]*?<a:latin\b[^>]*\btypeface=\")[^\"]*",
+                rf"\g<1>{font}", theme_xml, flags=re.IGNORECASE,
+            )
+            # Both major and minor fonts must follow the selected document theme.
+            for tag in ("majorFont", "minorFont"):
+                theme_xml = re.sub(
+                    rf"(<a:{tag}\b[^>]*>[\s\S]*?<a:latin\b[^>]*\btypeface=\")[^\"]*",
+                    rf"\g<1>{font}", theme_xml, count=1, flags=re.IGNORECASE,
+                )
+            for index, color in enumerate(accents, start=1):
+                theme_xml = re.sub(
+                    rf"(<a:accent{index}\b[^>]*>[\s\S]*?<a:srgbClr\b[^>]*\bval=\")[^\"]*",
+                    rf"\g<1>{color}", theme_xml, count=1, flags=re.IGNORECASE,
+                )
+            replacements["word/theme/theme1.xml"] = theme_xml.encode("utf-8")
     return patch_ooxml_zip(docx_bytes, replacements)
 
 

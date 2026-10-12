@@ -124,6 +124,26 @@ class WriterPageDecorExportTests(unittest.TestCase):
         out = patcher.postprocess_writer_page_decor(docx, source_html="<style>@page { background-color: #ffffff; }</style>")
         self.assertNotIn("<w:background", _read(out, "word/document.xml"))
 
+    def test_document_theme_is_written_to_word_theme_part(self):
+        docx = patcher.patch_ooxml_zip(_docx(f"<w:p><w:r><w:t>A</w:t></w:r></w:p>{self.SECT}"), {
+            "word/theme/theme1.xml": (
+                '<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:themeElements>'
+                '<a:clrScheme name="Office"><a:accent1><a:srgbClr val="18A303"/></a:accent1>'
+                '<a:accent2><a:srgbClr val="0369A3"/></a:accent2><a:accent3><a:srgbClr val="A33E03"/></a:accent3>'
+                '<a:accent4><a:srgbClr val="8E03A3"/></a:accent4><a:accent5><a:srgbClr val="C99C00"/></a:accent5>'
+                '<a:accent6><a:srgbClr val="C9211E"/></a:accent6></a:clrScheme>'
+                '<a:fontScheme name="Office"><a:majorFont><a:latin typeface="Arial"/></a:majorFont>'
+                '<a:minorFont><a:latin typeface="Arial"/></a:minorFont></a:fontScheme></a:themeElements></a:theme>'
+            ),
+        })
+        out = patcher.postprocess_writer_page_decor(
+            docx, source_html="<p>Text</p><!--vno-document-theme:modern-->",
+        )
+        theme = _read(out, "word/theme/theme1.xml")
+        self.assertEqual(re.findall(r'<a:accent[1-6][^>]*><a:srgbClr val="([0-9A-F]+)"', theme),
+                         ["0284C7", "0369A1", "075985", "0EA5E9", "38BDF8", "0F172A"])
+        self.assertEqual(re.findall(r'<a:latin typeface="([^"]+)"', theme), ["Be Vietnam Pro", "Be Vietnam Pro"])
+
 
 class WriterNativeChartExportTests(unittest.TestCase):
     def test_new_chart_region_becomes_native_chart_with_embedded_workbook(self):
