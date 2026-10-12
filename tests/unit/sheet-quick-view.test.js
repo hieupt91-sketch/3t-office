@@ -113,6 +113,29 @@ export async function runSheetQuickViewTests() {
     assert(view.sheets[1].rows === 20 && view.sheets[1].cols === 10, "the attached sheet dimensions enable scrolling");
   });
 
+  await test("P1 quick view lấy viewport từ XLSX trước UNO và chuyển sang UNO sau attach", async () => {
+    const calls = [];
+    const view = new SheetQuickView({
+      bridge: {
+        sheetXlsxPreviewWindow: async (...args) => { calls.push(["xlsx", ...args]); return { ok: true, values: [["LOCAL"]], sheet_rows: 1000, sheet_cols: 50 }; },
+        sheetViewWindow: async (...args) => { calls.push(["uno", ...args]); return { ok: true, values: [["UNO"]] }; }
+      },
+      timers: { setTimeout, clearTimeout }
+    });
+    view.active = true;
+    view.docId = "xlsx-preview-local";
+    view.sourcePath = "E:\\sample.xlsx";
+    view.sheets = [{ name: "Sheet1", rows: 1000, cols: 50 }];
+    view.viewport = { scrollTop: 2000, scrollLeft: 2100 };
+    await view._requestVisibleWindow();
+    equal(calls[0], ["xlsx", "E:\\sample.xlsx", 0, 40, 20, 79, 39], "early scroll reads its local XLSX viewport");
+
+    view.docId = "view1_123";
+    view.cache.clear();
+    await view._requestVisibleWindow();
+    equal(calls[1], ["uno", "view1_123", 0, 40, 20, 79, 39, true, true], "the attached view switches to the UNO bridge");
+  });
+
   await test("P1 click trong quick view không để grid nền chiếm focus bàn phím", () => {
     const cell = { dataset: { row: "41", col: "2" }, classList: { add() {} } };
     let stopped = false;

@@ -82,10 +82,20 @@ def _parse_dimension(reference: str | None) -> tuple[int, int] | None:
     return int(match.group(2)), _column_number(match.group(1))
 
 
-def parse_xlsx_preview(source_path: str | Path, max_rows: int = 40, max_cols: int = 20) -> dict[str, Any]:
-    """Return the active sheet's bounded viewport and workbook sheet names."""
+def parse_xlsx_preview(
+    source_path: str | Path,
+    max_rows: int = 40,
+    max_cols: int = 20,
+    *,
+    sheet_index: int | None = None,
+    start_row: int = 0,
+    start_col: int = 0,
+) -> dict[str, Any]:
+    """Return a bounded viewport and workbook sheet names using local OOXML only."""
     row_limit = max(1, min(int(max_rows), 200))
     col_limit = max(1, min(int(max_cols), 100))
+    start_row = max(0, int(start_row))
+    start_col = max(0, int(start_col))
     with zipfile.ZipFile(source_path, "r") as package:
         names = set(package.namelist())
         if "xl/workbook.xml" not in names or "xl/_rels/workbook.xml.rels" not in names:
@@ -107,6 +117,8 @@ def parse_xlsx_preview(source_path: str | Path, max_rows: int = 40, max_cols: in
         if not sheet_elements:
             raise ValueError("The XLSX workbook contains no worksheets.")
         active_index = max(0, min(active_index, len(sheet_elements) - 1))
+        if sheet_index is not None:
+            active_index = max(0, min(int(sheet_index), len(sheet_elements) - 1))
         sheets = [
             {"name": element.attrib.get("name", f"Sheet{index + 1}"), "rows": 1, "cols": 1,
              "dimensions_known": False}
@@ -125,7 +137,9 @@ def parse_xlsx_preview(source_path: str | Path, max_rows: int = 40, max_cols: in
         formulas: list[list[str]] = []
         strings: list[list[str]] = []
         with package.open(sheet_target) as sheet_stream:
-            for event, element in ET.iterparse(sheet_stream, events=("end",)):
+            last_row_index = 0
+            stop_row = start_row + row_limit
+            for _, element in ET.iterparse(sheet_stream, events=("end",)):
                 if element.tag == f"{{{_MAIN_NS}}}dimension":
                     dimension_ref = element.attrib.get("ref")
                     dimensions = _parse_dimension(dimension_ref)
@@ -134,25 +148,39 @@ def parse_xlsx_preview(source_path: str | Path, max_rows: int = 40, max_cols: in
                     element.clear()
                 elif element.tag == f"{{{_MAIN_NS}}}row":
                     try:
-                        row_index = int(element.attrib.get("r", "0"))
+                        row_index = int(element.attrib.get("r", ""))
                     except ValueError:
                         row_index = 0
-                    if row_index <= row_limit:
-                        while len(values) < row_index:
-                            values.append([""] * min(col_count, col_limit))
-                            formulas.append([""] * min(col_count, col_limit))
-                            strings.append([""] * min(col_count, col_limit))
-                        row_values = values[row_index - 1]
-                        row_formulas = formulas[row_index - 1]
-                        row_strings = strings[row_index - 1]
+                    if row_index < 1:
+                        row_index = last_row_index + 1
+                    last_row_index = row_index
+                    if start_row < row_index <= stop_row:
+                        local_row = row_index - start_row - 1
+                        while len(values) <= local_row:
+                            width = min(max(col_count - start_col, 1), col_limit)
+                            values.append([""] * width)
+                            formulas.append([""] * width)
+                            strings.append([""] * width)
+                        row_values = values[local_row]
+                        row_formulas = formulas[local_row]
+                        row_strings = strings[local_row]
                         for cell in element.findall(f"{{{_MAIN_NS}}}c"):
                             reference = _CELL_REF.fullmatch(cell.attrib.get("r", ""))
                             if reference is None:
                                 continue
                             row_from_ref = int(reference.group(2))
                             column = _column_number(reference.group(1)) - 1
-                            if row_from_ref != row_index or column >= len(row_values):
+                            if row_from_ref != row_index or column < start_col or column >= start_col + col_limit:
                                 continue
+                            local_col = column - start_col
+                            if local_col >= len(row_values):
+                                if dimension_ref:
+                                    continue
+                                extra = local_col + 1 - len(row_values)
+                                row_values.extend([""] * extra)
+                                row_formulas.extend([""] * extra)
+                                row_strings.extend([""] * extra)
+                                col_count = max(col_count, column + 1)
                             value_node = cell.find(f"{{{_MAIN_NS}}}v")
                             formula_node = cell.find(f"{{{_MAIN_NS}}}f")
                             raw_value = value_node.text if value_node is not None and value_node.text is not None else ""
@@ -169,25 +197,27 @@ def parse_xlsx_preview(source_path: str | Path, max_rows: int = 40, max_cols: in
                                 value = raw_value == "1"
                             elif cell_type in {"", "n"} and raw_value:
                                 value = _numeric_value(raw_value)
-                            row_values[column] = value
-                            row_strings[column] = value if isinstance(value, str) else ("TRUE" if value is True else "FALSE" if value is False else str(value))
+                            row_values[local_col] = value
+                            row_strings[local_col] = value if isinstance(value, str) else ("TRUE" if value is True else "FALSE" if value is False else str(value))
                             if formula_node is not None and formula_node.text:
-                                row_formulas[column] = "=" + formula_node.text
+                                row_formulas[local_col] = "=" + formula_node.text
                     element.clear()
-                    if row_index >= row_limit:
+                    if row_index >= stop_row:
                         break
 
         row_count = max(1, row_count)
         col_count = max(1, col_count)
-        preview_rows = min(row_count, row_limit)
-        preview_cols = min(col_count, col_limit)
+        preview_rows = max(1, min(max(0, row_count - start_row), row_limit))
+        preview_cols = max(1, min(max(0, col_count - start_col), col_limit))
+        if not dimension_ref:
+            preview_cols = max(preview_cols, min(max((len(row) for row in values), default=0), col_limit))
         while len(values) < preview_rows:
             values.append([""] * preview_cols)
             formulas.append([""] * preview_cols)
             strings.append([""] * preview_cols)
-        values = [row[:preview_cols] for row in values[:preview_rows]]
-        formulas = [row[:preview_cols] for row in formulas[:preview_rows]]
-        strings = [row[:preview_cols] for row in strings[:preview_rows]]
+        values = [(row[:preview_cols] + [""] * max(0, preview_cols - len(row))) for row in values[:preview_rows]]
+        formulas = [(row[:preview_cols] + [""] * max(0, preview_cols - len(row))) for row in formulas[:preview_rows]]
+        strings = [(row[:preview_cols] + [""] * max(0, preview_cols - len(row))) for row in strings[:preview_rows]]
         active_name = active_sheet.attrib.get("name", f"Sheet{active_index + 1}")
         sheets[active_index].update({"rows": row_count, "cols": col_count, "dimensions_known": bool(dimension_ref)})
         return {
@@ -204,8 +234,31 @@ def parse_xlsx_preview(source_path: str | Path, max_rows: int = 40, max_cols: in
                 "col_hidden": [False] * preview_cols,
                 "row_hidden": [False] * preview_rows,
                 "formats": [],
+                "sheet_rows": row_count,
+                "sheet_cols": col_count,
             },
             "active_sheet_name": active_name,
             "rows": preview_rows,
             "cols": preview_cols,
         }
+
+
+def parse_xlsx_preview_window(
+    source_path: str | Path, sheet_index: int, r0: int, c0: int, r1: int, c1: int
+) -> dict[str, Any]:
+    """Read one bounded 40×20 viewport, used until the UNO preview session attaches."""
+    first_row, first_col = max(0, int(r0)), max(0, int(c0))
+    last_row, last_col = int(r1), int(c1)
+    if last_row < first_row or last_col < first_col:
+        raise ValueError("XLSX preview window coordinates are invalid.")
+    row_count, col_count = last_row - first_row + 1, last_col - first_col + 1
+    if row_count > 40 or col_count > 20:
+        raise ValueError("XLSX preview windows are limited to 40 rows by 20 columns.")
+    return parse_xlsx_preview(
+        source_path,
+        max_rows=row_count,
+        max_cols=col_count,
+        sheet_index=sheet_index,
+        start_row=first_row,
+        start_col=first_col,
+    )

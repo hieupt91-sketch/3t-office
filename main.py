@@ -3807,6 +3807,27 @@ class VnOfficeApi:
         except Exception as exc:
             return {"ok": False, "error": str(exc)[:300]}
 
+    def sheet_xlsx_preview_window(self, source_path, sheet, r0, c0, r1, c1):
+        """Read a local XLSX viewport until the background UNO view is ready."""
+        try:
+            path = os.path.abspath(str(source_path))
+            if not path.lower().endswith(".xlsx") or not os.path.isfile(path):
+                return {"ok": False, "error": "Không tìm thấy tệp XLSX xem nhanh."}
+            started = time.perf_counter()
+            result = _sheet_xlsx_preview().parse_xlsx_preview_window(
+                path, int(sheet), int(r0), int(c0), int(r1), int(c1)
+            )
+            window = result.get("window") or {}
+            window["ok"] = True
+            _open_perf_log(
+                "sheet_xlsx_preview_window",
+                (time.perf_counter() - started) * 1000,
+                sheet=int(sheet), r0=int(r0), c0=int(c0),
+            )
+            return window
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)[:300]}
+
     def sheet_view_close(self, doc_id):
         doc_id = str(doc_id)
         try:

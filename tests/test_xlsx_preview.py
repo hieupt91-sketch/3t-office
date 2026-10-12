@@ -53,6 +53,26 @@ class XlsxPreviewTests(unittest.TestCase):
             self.assertEqual(preview["sheets"][1]["rows"], 42)
             self.assertEqual(preview["sheets"][1]["cols"], 3)
 
+    def test_local_window_reads_requested_rows_and_columns_for_early_scroll(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "preview.xlsx"
+            _write_workbook(source)
+
+            result = XLSX_PREVIEW.parse_xlsx_preview_window(source, 1, 40, 0, 41, 2)
+
+            self.assertEqual(result["sheet"], 1)
+            self.assertEqual(result["window"]["values"], [["", "", ""], ["", "", 99]])
+            self.assertEqual((result["window"]["sheet_rows"], result["window"]["sheet_cols"]), (42, 3))
+            self.assertEqual(len(result["window"]["row_heights"]), 2)
+
+    def test_local_window_enforces_the_preview_viewport_limit(self):
+        with tempfile.TemporaryDirectory() as directory:
+            source = Path(directory) / "preview.xlsx"
+            _write_workbook(source)
+
+            with self.assertRaisesRegex(ValueError, "limited to 40 rows"):
+                XLSX_PREVIEW.parse_xlsx_preview_window(source, 1, 0, 0, 40, 2)
+
     def test_rejects_relationship_that_escapes_the_xlsx_package(self):
         with tempfile.TemporaryDirectory() as directory:
             source = Path(directory) / "preview.xlsx"

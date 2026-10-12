@@ -324,9 +324,9 @@ export class SheetQuickView {
     const key = this._cacheKey(this.activeSheet, r0, c0);
     const token = ++this._renderToken;
     try {
-      const data = await this.cache.getOrLoad(key, () => this.bridge.sheetViewWindow(
-        this.docId, this.activeSheet, r0, c0, r1, c1, true, true
-      ));
+      const data = await this.cache.getOrLoad(key, () => this.docId.startsWith("xlsx-preview-")
+        ? this.bridge.sheetXlsxPreviewWindow(this.sourcePath, this.activeSheet, r0, c0, r1, c1)
+        : this.bridge.sheetViewWindow(this.docId, this.activeSheet, r0, c0, r1, c1, true, true));
       if (!this.active || token !== this._renderToken || !data?.ok) return;
       this._applyWindowDimensions(data);
       await this._renderWindow(r0, c0, data);
