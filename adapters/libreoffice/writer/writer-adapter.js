@@ -3066,7 +3066,7 @@ export class WriterAdapter {
       `font-size: 13pt; --vno-gdi-advance: ${scale}`);
   }
 
-  _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml, ooxmlStylesXml = "", ooxmlNumberingXml = "", ooxmlHeaderXml = "", ooxmlFooterXml = "", ooxmlHeaders = {}, ooxmlFooters = {}, ooxmlRels = {}, ooxmlSettingsXml = "", ooxmlCommentsExtendedXml = "") {
+  _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml, ooxmlStylesXml = "", ooxmlNumberingXml = "", ooxmlHeaderXml = "", ooxmlFooterXml = "", ooxmlHeaders = {}, ooxmlFooters = {}, ooxmlRels = {}, ooxmlSettingsXml = "", ooxmlCommentsExtendedXml = "", odfFodtContent = "") {
     let html = String(raw || "");
     let comments = [];
     html = this._unwrapOutlineHeadingLists(html, ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
@@ -3096,6 +3096,11 @@ export class WriterAdapter {
     }
     if (ooxmlDocumentXml && ooxmlCommentsXml) {
       const overlaid = this._applyOoxmlCommentsToHtml(html, ooxmlDocumentXml, ooxmlCommentsXml, ooxmlCommentsExtendedXml);
+      html = overlaid.html;
+      comments = overlaid.comments;
+    }
+    if (!comments.length && odfFodtContent) {
+      const overlaid = this._applyOdfCommentsToHtml(html, odfFodtContent);
       html = overlaid.html;
       comments = overlaid.comments;
     }
@@ -7240,6 +7245,52 @@ export class WriterAdapter {
     }
 
     return { html: source, applied: false };
+  }
+
+  _applyOdfCommentsToHtml(html, fodtXml) {
+    const source = String(fodtXml || "");
+    if (!/<office:annotation\b/i.test(source)) return { html: String(html || ""), comments: [] };
+    const tree = this._fodtParseMarkup(source, "ODT comment sidecar");
+    const comments = [];
+    const visit = (nodes) => {
+      for (let index = 0; index < nodes.length; index++) {
+        const node = nodes[index];
+        if (node.name !== "office:annotation") {
+          if (node.children?.length) visit(node.children);
+          continue;
+        }
+        const name = node.attrs["office:name"] || `writer-comment-import-${comments.length + 1}`;
+        let end = index + 1;
+        while (end < nodes.length && !(
+          nodes[end].name === "office:annotation-end"
+          && (!nodes[end].attrs["office:name"] || nodes[end].attrs["office:name"] === name)
+        )) end++;
+        if (end >= nodes.length) continue;
+        const child = (key) => (node.children || []).find(item => item.name === key);
+        const body = (node.children || []).find(item => item.name === "text:p");
+        const comment = {
+          id: `writer-comment-import-${name}`,
+          anchorText: this._fodtPlainFromNodes(nodes.slice(index + 1, end)).replace(/\s+/g, " ").trim(),
+          content: this._fodtPlainFromNodes(body?.children || []).trim(),
+          author: this._fodtPlainFromNodes(child("dc:creator")?.children || []).trim(),
+          createdAt: this._fodtPlainFromNodes(child("dc:date")?.children || []).trim(),
+          resolved: false
+        };
+        const wrapped = this._wrapImportedCommentInHtml(String(html || ""), comment);
+        if (wrapped.applied) {
+          html = wrapped.html;
+          comments.push(comment);
+        }
+        index = end;
+      }
+    };
+    visit(tree.children || []);
+    for (const comment of comments) {
+      if (comment.content) {
+        html = html.replace(new RegExp(`<!--\\s*${this._escapeRegExp(comment.content)}\\s*-->`, "g"), "");
+      }
+    }
+    return { html: String(html || ""), comments };
   }
 
   _applyOoxmlCommentsToHtml(html, documentXml, commentsXml, commentsExtendedXml = "") {
@@ -15490,7 +15541,8 @@ export class WriterAdapter {
           result.ooxmlFooters,
           result.ooxmlRels,
           result.ooxmlSettingsXml,
-          result.ooxmlCommentsExtendedXml
+          result.ooxmlCommentsExtendedXml,
+          result.odfFodtContent
         );
       } catch (error) {
         await showAlertDialog({

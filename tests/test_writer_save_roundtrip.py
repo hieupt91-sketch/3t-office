@@ -277,6 +277,25 @@ class WriterSaveRoundtripTests(unittest.TestCase):
             self.assertIn(_normalize_ws(marker), _normalize_ws(reopened_content))
             self.assertEqual(_count_tables(reopened_content), 1)
 
+    @unittest.skipUnless(main.SOFFICE_PATH, "LibreOffice soffice is not installed")
+    def test_odt_open_returns_annotation_sidecar(self):
+        fodt = FIXTURES_DIR / "src" / "sample-writer-comments.fodt"
+        self.assertTrue(fodt.is_file(), "Writer ODF annotation fixture is missing")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            odt = main._run_soffice_convert(
+                str(fodt), "odt", temp_dir, app_kind="writer"
+            )
+            api = main.VnOfficeApi("writer", odt)
+            with patch.object(main, "_active_window", return_value=None):
+                opened = api.open_document_dialog("writer")
+            self.assertEqual(opened.get("status"), "ok", opened)
+            sidecar = opened.get("odfFodtContent") or ""
+            self.assertIn("<office:annotation", sidecar)
+            self.assertIn("Cần đối chiếu số liệu quý II trước khi trình.", sidecar)
+            self.assertIn("Xác nhận chữ ký người soạn.", sidecar)
+            # The layout/content channel remains the existing LibreOffice HTML import.
+            self.assertIn("Kính gửi", opened.get("content") or "")
+
 
 if __name__ == "__main__":
     unittest.main()

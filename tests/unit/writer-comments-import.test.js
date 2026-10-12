@@ -175,6 +175,28 @@ export async function runWriterCommentsImportTests() {
     }
   });
 
+  test("Overlay ODF sidecar: khôi phục comments ODT trên HTML StarWriter", () => {
+    const fodt = fs.readFileSync(FODT, "utf8");
+    const imported = new WriterAdapter(null)._normalizeImportedHtml(
+      SOFFICE_COMMENTS_HTML, undefined, undefined, "", "", "", "", {}, {}, {}, "", "", fodt
+    );
+    if (imported.comments?.length !== 2) {
+      throw new Error(`Cần 2 ODF comments, nhận ${imported.comments?.length}: ${JSON.stringify(imported.comments)}`);
+    }
+    const first = imported.comments.find(item => item.author === "Tran Thi Hoa");
+    const second = imported.comments.find(item => item.author === "Pham Minh Duc");
+    if (!first || !/dự toán năm 2026/i.test(first.anchorText) || first.content !== "Cần đối chiếu số liệu quý II trước khi trình.") {
+      throw new Error(`Sai ODF comment 1: ${JSON.stringify(first)}`);
+    }
+    if (!second || !/Lê Văn Cường/i.test(second.anchorText) || second.content !== "Xác nhận chữ ký người soạn.") {
+      throw new Error(`Sai ODF comment 2: ${JSON.stringify(second)}`);
+    }
+    const marks = [...imported.body.matchAll(/<mark\b([^>]*)>([\s\S]*?)<\/mark>/gi)];
+    if (marks.length !== 2 || imported.body.includes("<!--")) {
+      throw new Error(`ODF comment anchors không được bọc/HTML comment còn sót: ${imported.body}`);
+    }
+  });
+
   await asyncTest("adapter.open() nạp DOCX thật qua stub bridge: body có mark + state comment", async () => {
     const { editor, body } = makeWriterDom();
     const adapter = new WriterAdapter(editor);

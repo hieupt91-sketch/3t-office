@@ -93,3 +93,67 @@ try {
 } finally {
   await session.close();
 }
+
+// ODT annotations must survive the same real desktop open/save/reopen route.
+const commentsSourceDir = path.join(temp, "comments-source");
+const commentsProfile = path.join(temp, "lo-comments-profile");
+await mkdir(commentsSourceDir, { recursive: true });
+await mkdir(commentsProfile, { recursive: true });
+const commentsFodt = path.join(root, "tests/fixtures/real-office-samples/src/sample-writer-comments.fodt");
+await run(soffice, ["--headless", `-env:UserInstallation=${new URL(`file://${commentsProfile}`).href}`, "--convert-to", "odt:writer8", "--outdir", commentsSourceDir, commentsFodt]);
+const commentsOdt = path.join(commentsSourceDir, "sample-writer-comments.odt");
+const commentsSession = await launchApp("writer", {
+  root, python, filePath: commentsOdt, home: path.join(temp, "home-comments-open"),
+  startTimeoutMilliseconds: 180000, readyTimeoutMilliseconds: 180000,
+});
+try {
+  await sleep(1600);
+  const importedComments = await commentsSession.cdp.evaluate(`(() => ({
+    marks: document.querySelectorAll('.vno-writer-body mark.vno-comment-anchor').length,
+    cards: document.querySelectorAll('.vno-writer-comments-panel [data-comment-card]').length,
+    bodies: [...document.querySelectorAll('.vno-writer-comments-panel .vno-comment-content')].map(el => el.textContent)
+  }))()`);
+  assert.equal(importedComments.marks, 2, `ODT comments did not become anchors: ${JSON.stringify(importedComments)}`);
+  assert.equal(importedComments.cards, 2, `ODT comments missing from review panel: ${JSON.stringify(importedComments)}`);
+  assert.ok(importedComments.bodies.some(text => text.includes("Cần đối chiếu số liệu quý II")), "first ODT comment body missing");
+  assert.ok(importedComments.bodies.some(text => text.includes("Xác nhận chữ ký người soạn")), "second ODT comment body missing");
+
+  const save = await commentsSession.cdp.evaluate(`(() => {
+    const el = [...document.querySelectorAll('[data-command-id="common.file.save"]')].find(node => {
+      const r = node.getBoundingClientRect(); return r.width > 0 && r.height > 0;
+    });
+    if (!el) return null;
+    const r = el.getBoundingClientRect(); return {x:r.left+r.width/2,y:r.top+r.height/2};
+  })()`);
+  assert.ok(save, "visible Save command not found for ODT comment round-trip");
+  await commentsSession.cdp.send("Input.dispatchMouseEvent", {type:"mousePressed",x:save.x,y:save.y,button:"left",buttons:1,clickCount:1});
+  await commentsSession.cdp.send("Input.dispatchMouseEvent", {type:"mouseReleased",x:save.x,y:save.y,button:"left",buttons:0,clickCount:1});
+  await sleep(2500);
+  await commentsSession.close();
+
+  const { stdout: odtXml } = await run("unzip", ["-p", commentsOdt, "content.xml"]);
+  assert.equal((odtXml.match(/<office:annotation\b/g) || []).length, 2, "saved ODT lost native annotations");
+  assert.ok(odtXml.includes("Cần đối chiếu số liệu quý II trước khi trình."), "saved ODT lost comment body 1");
+  assert.ok(odtXml.includes("Xác nhận chữ ký người soạn."), "saved ODT lost comment body 2");
+
+  const commentsReopened = await launchApp("writer", {
+    root, python, filePath: commentsOdt, home: path.join(temp, "home-comments-reopen"),
+    startTimeoutMilliseconds: 180000, readyTimeoutMilliseconds: 180000,
+  });
+  try {
+    await sleep(1600);
+    const result = await commentsReopened.cdp.evaluate(`(() => ({
+      marks: document.querySelectorAll('.vno-writer-body mark.vno-comment-anchor').length,
+      cards: document.querySelectorAll('.vno-writer-comments-panel [data-comment-card]').length
+    }))()`);
+    assert.equal(result.marks, 2, `saved ODT comment anchors did not reopen: ${JSON.stringify(result)}`);
+    assert.equal(result.cards, 2, `saved ODT comment cards did not reopen: ${JSON.stringify(result)}`);
+    const png = await commentsReopened.cdp.send("Page.captureScreenshot", {format:"png",captureBeyondViewport:false});
+    await writeFile(path.join(temp, "odt-comments-reopened.png"), Buffer.from(png.result.data, "base64"));
+    console.log(`PASS | Desktop CDP ODT comment open/save/reopen | ${path.join(temp, "odt-comments-reopened.png")}`);
+  } finally {
+    await commentsReopened.close();
+  }
+} finally {
+  await commentsSession.close();
+}

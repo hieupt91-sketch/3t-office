@@ -815,6 +815,7 @@ FORMAT_FILTERS = {
     "doc": "MS Word 97",
     "rtf": "Rich Text Format",
     "odt": "writer8",
+    "fodt": "OpenDocument Text Flat XML",
     # Văn bản thuần: bộ lọc mặc định ghi bảng mã ANSI làm mất dấu tiếng Việt ("Ti?ng Vi?t");
     # "Text (encoded)" + UTF8 ghi UTF-8 có BOM, Word/Notepad đọc đúng (đo G7).
     "txt": "Text (encoded):UTF8",
@@ -4555,6 +4556,33 @@ class VnOfficeApi:
                         writer_ooxml_metadata["ooxmlHeaders"] = all_hdrs
                         writer_ooxml_metadata["ooxmlFooters"] = all_ftrs
                         writer_ooxml_metadata["ooxmlRels"] = all_rels
+                    elif src_path.lower().endswith(".odt"):
+                        # StarWriter HTML flattens ODF annotations into invisible HTML
+                        # comments. Preserve the native annotation ranges separately;
+                        # the HTML conversion remains authoritative for layout/content.
+                        fodt_dir = os.path.join(tmp, "odf-sidecar")
+                        os.makedirs(fodt_dir, exist_ok=True)
+                        try:
+                            fodt_path = _run_soffice_convert(
+                                src_path, "fodt", fodt_dir, app_kind=app_kind
+                            )
+                            with open(fodt_path, "r", encoding="utf-8", errors="replace") as f:
+                                odf_fodt_content = f.read()
+                            if re.search(r"<office:annotation\b", odf_fodt_content, re.IGNORECASE):
+                                writer_ooxml_metadata = {"odfFodtContent": odf_fodt_content}
+                        except (DocumentEngineError, OSError):
+                            # An ODT without annotations needs no sidecar. If annotations
+                            # exist but conversion fails, fail below rather than silently
+                            # opening a lossy document.
+                            try:
+                                with zipfile.ZipFile(src_path) as odt_package:
+                                    source_content = odt_package.read("content.xml").decode("utf-8", errors="replace")
+                                if re.search(r"<office:annotation\b", source_content, re.IGNORECASE):
+                                    raise DocumentEngineError(
+                                        "Không thể nạp ghi chú ODT an toàn. Hãy thử mở lại hoặc lưu bản sao bằng LibreOffice."
+                                    )
+                            except (OSError, KeyError, zipfile.BadZipFile):
+                                pass
                 elif app_kind == "sheet":
                     # Overlay BEFORE the FODS leaves this process — SheetAdapter.parseFods
                     # must see table:structure-protected when the original XLSX is locked.
@@ -4644,21 +4672,21 @@ class VnOfficeApi:
         self._current_file_path = src_path
         if app_kind == "writer":
             ooxml = (
-                writer_ooxml_metadata["ooxmlDocumentXml"]
+                writer_ooxml_metadata.get("ooxmlDocumentXml")
                 if writer_ooxml_metadata is not None
                 else _read_docx_document_xml(src_path)
             )
             if ooxml:
                 payload["ooxmlDocumentXml"] = ooxml
             comments_xml = (
-                writer_ooxml_metadata["ooxmlCommentsXml"]
+                writer_ooxml_metadata.get("ooxmlCommentsXml")
                 if writer_ooxml_metadata is not None
                 else _read_docx_comments_xml(src_path)
             )
             if comments_xml:
                 payload["ooxmlCommentsXml"] = comments_xml
             comments_extended_xml = (
-                writer_ooxml_metadata["ooxmlCommentsExtendedXml"]
+                writer_ooxml_metadata.get("ooxmlCommentsExtendedXml")
                 if writer_ooxml_metadata is not None
                 else _read_docx_comments_extended_xml(src_path)
             )
@@ -4666,7 +4694,7 @@ class VnOfficeApi:
                 payload["ooxmlCommentsExtendedXml"] = comments_extended_xml
             # Quy ước W11: style bảng (TableGrid: spacing after=0, line=240) nằm trong styles.xml.
             styles_xml = (
-                writer_ooxml_metadata["ooxmlStylesXml"]
+                writer_ooxml_metadata.get("ooxmlStylesXml")
                 if writer_ooxml_metadata is not None
                 else _read_docx_zip_entry(src_path, "word/styles.xml")
             )
@@ -4674,7 +4702,7 @@ class VnOfficeApi:
                 payload["ooxmlStylesXml"] = styles_xml
             # Quy ước W21b: định dạng danh sách/bullet nằm trong numbering.xml.
             numbering_xml = (
-                writer_ooxml_metadata["ooxmlNumberingXml"]
+                writer_ooxml_metadata.get("ooxmlNumberingXml")
                 if writer_ooxml_metadata is not None
                 else _read_docx_zip_entry(src_path, "word/numbering.xml")
             )
@@ -4682,6 +4710,8 @@ class VnOfficeApi:
                 payload["ooxmlNumberingXml"] = numbering_xml
             # Quy ước W26b: header/footer XML để chuẩn hóa đoạn rỗng theo cỡ dấu đoạn zone.
             if writer_ooxml_metadata is not None:
+                if writer_ooxml_metadata.get("odfFodtContent"):
+                    payload["odfFodtContent"] = writer_ooxml_metadata["odfFodtContent"]
                 header_xml = writer_ooxml_metadata.get("ooxmlHeaderXml")
                 footer_xml = writer_ooxml_metadata.get("ooxmlFooterXml")
                 payload["ooxmlHeaders"] = writer_ooxml_metadata.get("ooxmlHeaders", {})
