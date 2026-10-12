@@ -5922,6 +5922,7 @@ ${pristineXlsxMarker}
   }
 
   print() {
+    if (this._guardQuickViewReadOnly()) return false;
     const grid = this.grid;
     const setup = grid?.getPageSetup?.(grid.activeSheet) || grid?.pageSetupBySheet?.[grid?.activeSheet] || {};
     const pages = grid?.computePrintPages?.(grid.activeSheet)?.pages || [];

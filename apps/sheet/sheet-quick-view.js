@@ -169,7 +169,7 @@ export class SheetQuickView {
     this._windowHandler = payload => this.open(payload);
     this._windowShortcutHandler = event => {
       if (!this.active || event.target === this.editor || !(event.ctrlKey || event.metaKey)) return;
-      if (!["z", "y", "b", "i", "u", "v", "s", "x"].includes(String(event.key || "").toLowerCase())) return;
+      if (!["z", "y", "b", "i", "u", "v", "s", "p", "x"].includes(String(event.key || "").toLowerCase())) return;
       this._handleKeyDown(event);
     };
     this._readyHandler = () => this.completeFullLoad();
@@ -447,6 +447,10 @@ export class SheetQuickView {
     if ((event.ctrlKey || event.metaKey) && String(key).toLowerCase() === "v") {
       event.preventDefault(); event.stopImmediatePropagation?.();
       void this._pasteFromClipboard(); return;
+    }
+    if ((event.ctrlKey || event.metaKey) && String(key).toLowerCase() === "p") {
+      event.preventDefault(); event.stopImmediatePropagation?.();
+      this.notifyReadOnly(); return;
     }
     if ((event.ctrlKey || event.metaKey) && ["s", "x"].includes(String(key).toLowerCase())) {
       this._blockReadOnly(event);
