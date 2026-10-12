@@ -530,11 +530,12 @@ export class SheetGridController {
       if (e.key === "Enter" && e.ctrlKey && !e.shiftKey) {
         e.preventDefault();
         const session = this.formulaEntry;
+        const sourceCoord = session?.coord || this.selectedCoord;
         if (session?.update) session.update(this.formulaInput.value, this.formulaInput.selectionStart ?? this.formulaInput.value.length);
         const value = session?.commit ? session.commit() : this.formulaInput.value;
         this.autocomplete.closeAll();
         if (session) this._cancelFormulaEntry();
-        this.fillSelectionWithValue(value);
+        this.fillSelectionWithValue(value, sourceCoord);
         return;
       }
       if (e.key === "Enter") {
@@ -8866,7 +8867,27 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
-  fillSelectionWithValue(value) {
+  _translateFormulaForFill(formula, sourceCoord, targetCoord) {
+    const rowOffset = targetCoord.r - sourceCoord.r;
+    const colOffset = this._columnNumber(targetCoord.c) - this._columnNumber(sourceCoord.c);
+    if (!rowOffset && !colOffset) return formula;
+    return String(formula).split(/("(?:""|[^"])*")/).map((segment, index) => {
+      if (index % 2 === 1) return segment;
+      return segment.replace(/(^|[^A-Z0-9_.])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![A-Z0-9_])/gi,
+        (match, prefix, colAbsolute, column, rowAbsolute, row, offset, whole) => {
+          const after = whole[offset + match.length] || "";
+          const sourceColumn = this._columnNumber(column);
+          const sourceRow = Number(row);
+          if (sourceColumn > this.cols.length || sourceRow > this.rowCount || after === "(") return match;
+          const targetColumn = sourceColumn + (colAbsolute ? 0 : colOffset);
+          const targetRow = sourceRow + (rowAbsolute ? 0 : rowOffset);
+          if (targetColumn < 1 || targetColumn > this.cols.length || targetRow < 1 || targetRow > this.rowCount) return `${prefix}#REF!`;
+          return `${prefix}${colAbsolute}${this._columnLabel(targetColumn)}${rowAbsolute}${targetRow}`;
+        });
+    }).join("");
+  }
+
+  fillSelectionWithValue(value, sourceCoord = this.selectedCoord) {
     if (this._guardProtectedMutation()) return false;
     const ranges = this._getSelectionRanges().map(range => this._normalizeRange(range));
     const coordinates = [...new Set(ranges.flatMap(range =>
@@ -8885,7 +8906,10 @@ _bindGridKeyboardNavigation() {
     }
     for (const coord of coordinates) {
       const [col, row] = this._splitCoord(coord);
-      this.setCellValue(col, row, value, false, { commit: true, userInput: true });
+      const nextValue = typeof value === "string" && value.startsWith("=")
+        ? this._translateFormulaForFill(value, sourceCoord, { c: col, r: row })
+        : value;
+      this.setCellValue(col, row, nextValue, false, { commit: true, userInput: true });
     }
     const after = {};
     for (const coord of coordinates) {

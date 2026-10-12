@@ -1,5 +1,6 @@
 import { launchApp } from "./session.mjs";
 import { click, mouseClick, mouseDoubleClick, mouseDrag, mouseRightClick, press, typeText, sleep } from "./actions.mjs";
+import path from "node:path";
 
 const session = await launchApp("sheet", {
   root: process.env.VNO_APP_ROOT,
@@ -13,7 +14,7 @@ const check = (name, ok, detail = "") => {
 };
 const state = () => cdp.evaluate(`(() => {
   const grid = window.__vnoAppInstance?.sheetGrid || window.__vnoAppInstance?.grid;
-  const cells = Object.fromEntries(["A1","A2","B2","C2","E2","E8","F8","A6","A7","D3","D4","F1","G1","G2","G3","A4","B4","H4","A10","A11","C1","C2","C3","C4","D1","D2","J1","E10","F10"].map(key => [key, grid.cellsData.get(key) || null]));
+  const cells = Object.fromEntries(["A1","A2","B2","C2","E2","E8","F8","A6","A7","D3","D4","F1","G1","G2","G3","A4","B4","H1","H2","H3","H4","A10","A11","C1","C2","C3","C4","D1","D2","J1","E10","F10"].map(key => [key, grid.cellsData.get(key) || null]));
   const coord = grid.selectedCoord;
   const range = grid.selectionRange;
   return { coord: String(coord.c)+String(coord.r), range: String(range.start.c)+String(range.start.r)+":"+String(range.end.c)+String(range.end.r), ranges: (grid.selectionRanges || []).map(r => String(r.start.c)+String(r.start.r)+":"+String(r.end.c)+String(r.end.r)), cells, rowCount: grid.rowCount, maxCol: grid.cols.at(-1),
@@ -164,6 +165,26 @@ try {
   await press(cdp, "z", { ctrl: true });
   s = await state();
   check("Ctrl+Z reverses the full Ctrl+Enter fill in one step", [s.cells.G1,s.cells.G2,s.cells.G3].every(cell => !cell?.val), JSON.stringify(s));
+  await press(cdp, "y", { ctrl: true });
+  s = await state();
+  check("Ctrl+Y restores the full Ctrl+Enter fill in one step", [s.cells.G1,s.cells.G2,s.cells.G3].every(cell => cell?.val === "BROADCAST"), JSON.stringify(s));
+
+  await press(cdp, "F5");
+  await typeText(cdp, "H1:H3");
+  await press(cdp, "Enter");
+  s = await state();
+  check("Name Box selects the formula fill range", s.range === "H1:H3", JSON.stringify(s));
+  await typeText(cdp, '=A4+$B$1&" A4"');
+  await press(cdp, "Enter", { ctrl: true });
+  s = await state();
+  const broadcastFormulas = '=A4+$B$1&" A4"|=A5+$B$1&" A4"|=A6+$B$1&" A4"';
+  check("Ctrl+Enter translates relative references, keeps absolute references and leaves string literals intact", [s.cells.H1?.formula,s.cells.H2?.formula,s.cells.H3?.formula].join("|") === broadcastFormulas, JSON.stringify([s.cells.H1,s.cells.H2,s.cells.H3]));
+  await press(cdp, "z", { ctrl: true });
+  s = await state();
+  check("Ctrl+Z undoes formula broadcast across the entire selection", [s.cells.H1,s.cells.H2,s.cells.H3].every(cell => !cell?.formula), JSON.stringify([s.cells.H1,s.cells.H2,s.cells.H3]));
+  await press(cdp, "y", { ctrl: true });
+  s = await state();
+  check("Ctrl+Y restores the translated formula broadcast", [s.cells.H1?.formula,s.cells.H2?.formula,s.cells.H3?.formula].join("|") === broadcastFormulas, JSON.stringify([s.cells.H1,s.cells.H2,s.cells.H3]));
 
   await select("A1");
   await press(cdp, "c", { ctrl: true });
@@ -339,6 +360,19 @@ try {
   await press(cdp, "a", { ctrl: true });
   s = await state();
   check("Ctrl+A selects the current region then the full sheet", ctrlARegion === "A1:A2" && s.range === `A1:${s.maxCol}${s.rowCount}`, `${ctrlARegion} -> ${s.range}`);
+
+  const outputPath = path.join(process.env.VNO_CDP_LOCALAPPDATA, "e3-input-readback.xlsx");
+  const saveResult = await cdp.evaluate(
+    "(async () => { const [{globalUnoBridge}, {globalCommandBus}] = await Promise.all(["
+    + "import('/adapters/libreoffice/common/uno-bridge.js'), import('/platform/commands/command-bus.js')]);"
+    + "const original = globalUnoBridge.saveRealFile;"
+    + "globalUnoBridge.saveRealFile = async (kind, content, format, name, source) => globalUnoBridge.saveRealFileInPlace(kind, content, "
+    + JSON.stringify(outputPath) + ", source || " + JSON.stringify(outputPath) + ");"
+    + "try { return await globalCommandBus.execute('common.file.saveAs'); }"
+    + "finally { globalUnoBridge.saveRealFile = original; } })()",
+    { timeoutMilliseconds: 180000 },
+  );
+  check("VN Sheet Save As writes an XLSX for Excel read-only verification", saveResult === true || saveResult?.status === "ok" || saveResult?.status === "success" || saveResult?.status === "saved", `${outputPath} ${JSON.stringify(saveResult)}`);
 
   const failed = checks.filter(item => !item.ok);
   console.log(`SUMMARY ${checks.length - failed.length}/${checks.length} PASS, ${failed.length} FAIL`);
