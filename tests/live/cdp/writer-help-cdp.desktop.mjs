@@ -48,8 +48,10 @@ try {
     // Chọn đúng chủ đề bằng chuột, không dựa vào một global instance không được expose.
     const topicSelector = `.vno-help-topic[data-help-id="${item.entryId}"]`;
     await cdp.waitFor(`!!document.querySelector(${JSON.stringify(topicSelector)})`, { timeoutMilliseconds: 5000 });
+    await cdp.evaluate(`document.querySelector(${JSON.stringify(topicSelector)})?.scrollIntoView({block: "center"})`);
     await click(cdp, topicSelector);
     await sleep(500);
+    await cdp.waitFor(`document.querySelector(${JSON.stringify(topicSelector)})?.getAttribute("aria-selected") === "true"`, { timeoutMilliseconds: 5000 });
 
     const articleInfo = await cdp.evaluate(`(() => {
       const article = document.querySelector('.vno-help-article');
