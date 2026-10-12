@@ -128,6 +128,16 @@ export class UnoBridge {
     );
   }
 
+  async sheetXlsxPreviewWindow(sourcePath, sheet, r0, c0, r1, c1) {
+    if (!this.desktopApi?.sheet_xlsx_preview_window) {
+      return { ok: false, error: "Không có dịch vụ xem nhanh XLSX cục bộ." };
+    }
+    return await this.desktopApi.sheet_xlsx_preview_window(
+      String(sourcePath || ""), Number(sheet) || 0,
+      Number(r0) || 0, Number(c0) || 0, Number(r1) || 0, Number(c1) || 0,
+    );
+  }
+
   async sheetViewClose(docId) {
     if (!this.desktopApi?.sheet_view_close) return { ok: true };
     return await this.desktopApi.sheet_view_close(String(docId));
