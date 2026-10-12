@@ -40,7 +40,7 @@ try {
   New-Control 'manual-linebreak' { param($d) $r=$d.Content; $r.Text='Alpha'; $r.Collapse($wdCollapseEnd); $r.InsertBreak($wdLineBreak); $r.InsertAfter('Beta') }
   New-Control 'tab' { param($d) $d.Content.Text="Alpha`tBeta" }
   New-Control 'page-field' { param($d) $r=$d.Content; $r.Text='Page '; $r.Collapse($wdCollapseEnd); $d.Fields.Add($r,$wdFieldPage) | Out-Null; $r.InsertAfter(' end') }
-  New-Control 'special-chars' { param($d) $d.Content.Text='© ₫ ∑ → é 漢字' }
+  New-Control 'special-chars' { param($d) $d.Content.Text=([string][char]0x00A9)+' '+[char]0x20AB+' '+[char]0x2211+' '+[char]0x2192+' '+[char]0x00E9+' '+[char]0x6F22+[char]0x5B57 }
   $empty = $word.Documents.Add()
   try {
     $emptyPath = Join-Path $Dir 'empty.docx'; $empty.SaveAs2($emptyPath,16)
