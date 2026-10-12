@@ -50,7 +50,7 @@ try {
   New-Control 'special-chars' { param($d) $d.Content.Text=([string][char]0x00A9)+' '+[char]0x20AB+' '+[char]0x2211+' '+[char]0x2192+' '+[char]0x00E9+' '+[char]0x6F22+[char]0x5B57 }
   $empty = $word.Documents.Add()
   try {
-    $emptyPath = Join-Path $Dir 'empty.docx'; $empty.SaveAs2($emptyPath,16)
+    $empty.SaveAs2("$Dir\empty.docx",16)
     $rows += [pscustomobject]@{name='empty';words=[int]$empty.ComputeStatistics(0);pages=[int]$empty.ComputeStatistics(2);paragraphs=[int]$empty.ComputeStatistics(4);lines=[int]$empty.ComputeStatistics(1);charactersNoSpaces=[int]$empty.ComputeStatistics(3);charactersWithSpaces=[int]$empty.ComputeStatistics(5);contentText=[string]$empty.Content.Text;contentTextLength=([string]$empty.Content.Text).Length;textFrameCount=0}
   } finally { $empty.Close(0) }
   $json = ConvertTo-Json -InputObject $rows -Depth 5
