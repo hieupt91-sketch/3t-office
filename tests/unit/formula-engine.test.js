@@ -962,6 +962,23 @@ export async function runFormulaEngineTests() {
     name: "E0: zero-padded text key matches numeric lookup across whole columns",
     pass: e0LookupEngine.evaluate("=VLOOKUP(B3,'Giá cost1'!$A:$C,3,FALSE)") === 2131
   });
+  const e0LongCodeCurrent = new Map([
+    ["B3", { val: "12345678", formula: "", style: { numberFormat: { category: "number" } } }]
+  ]);
+  const e0LongCodeTable = new Map([
+    ["A40", { val: "12345678", formula: "", style: { numberFormat: { category: "text" } } }],
+    ["C40", { val: 3500, formula: "", style: {} }]
+  ]);
+  const e0LongCodeEngine = new FormulaEngine(
+    () => e0LongCodeCurrent,
+    null,
+    name => name === "Giá cost1" ? e0LongCodeTable : null,
+    () => "KPI Toàn"
+  );
+  results.push({
+    name: "E0: numeric lookup matches matching long digit-code text key",
+    pass: e0LongCodeEngine.evaluate("=VLOOKUP(B3,'Giá cost1'!$A:$C,3,FALSE)") === 3500
+  });
   results.push({
     name: 'SB9 NHÓM 2: VLOOKUP exact match không phân biệt hoa thường',
     pass: sb9Nhom2Engine.evaluate('=VLOOKUP("pRoDuCt aLpHa", A3:B3, 2, FALSE)') === 100
