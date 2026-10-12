@@ -24,7 +24,7 @@ try {
 
     $result.print.pages = [int]$doc.ComputeStatistics(2)
     $result.print.pageSetup = [ordered]@{ paperSize = [int]$doc.PageSetup.PaperSize; widthPoints = [double]$doc.PageSetup.PageWidth; heightPoints = [double]$doc.PageSetup.PageHeight; widthInches = [double]($doc.PageSetup.PageWidth / 72); heightInches = [double]($doc.PageSetup.PageHeight / 72) }
-    $pdfPath = Join-Path $Dir 'writer-print-t15.pdf'
+    $pdfPath = Join-Path $env:TEMP 'vno-writer-print-t15.pdf'
     Write-Output ('Exporting PDF @ ' + (Get-Date -Format o))
     $doc.ExportAsFixedFormat($pdfPath, 17)
     Write-Output 'PDF exported.'
