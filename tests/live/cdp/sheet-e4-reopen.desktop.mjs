@@ -16,6 +16,15 @@ const assertCase = async (file, cdp) => {
       case "s16CellsDialog": return {ok:cell("B2").style?.numberFormat?.category==="currency",value:cell("B2").style?.numberFormat};
       case "pasteSpecialPack": return {ok:cell("F3").formula==="=C3*D3" && String(cell("I2").val)==="1234.5",formula:cell("F3").formula,value:cell("I2").val};
       case "findReplacePack": return {ok:cell("G2").val==="Đã thay",sheets:g?.sheets,value:cell("G2").val};
+      case "customSort": return {ok:cell("B2").val==="Hoàng Văn E",value:cell("B2").val};
+      case "filter": return {ok:g?.isFilterActive===true,active:g?.isFilterActive};
+      case "validation": return {ok:(g?.dataValidationsBySheet?.[g?.activeSheet]||[]).length>0,rules:g?.dataValidationsBySheet?.[g?.activeSheet]||[]};
+      case "conditional": return {ok:(g?.conditionalFormattingBySheet?.[g?.activeSheet]||[]).length>0,rules:g?.conditionalFormattingBySheet?.[g?.activeSheet]||[]};
+      case "conditionalManager": {
+        const rules=g?.conditionalFormattingBySheet?.[g?.activeSheet]||[],range=rules[0]?.range;
+        return {ok:rules.length>0&&range?.start?.c==="C"&&range?.start?.r===2&&range?.end?.c==="C"&&range?.end?.r===6,rules};
+      }
+      case "definedName": return {ok:(g?.namedRangesWorkbook||[]).some(item=>item.name==="SampleNames"&&item.ref==="B2"),names:g?.namedRangesWorkbook||[]};
       default: return {ok:!!g?.sheets?.length,sheets:g?.sheets};
     }
   })()`);

@@ -13871,18 +13871,39 @@ _bindGridKeyboardNavigation() {
   }
 
   showConditionalFormattingDialog() {
+    const selectedRange = structuredClone(this.selectionRange);
+    const selectedRangeLabel = this.getSelectedRangeLabel();
     const overlay = this._createSheetDialog(t("sheetDialogs.conditionalFormatting"), `
-      <p class="vno-rule-range">${t("sheetDialogs.range")}: <strong>${this.getSelectedRangeLabel()}</strong></p>
+      <p class="vno-rule-range">${t("sheetDialogs.range")}: <strong>${selectedRangeLabel}</strong></p>
+      <section class="vno-cf-rule-manager" aria-label="${t("sheetDialogs.cfCurrentRules")}">
+        <h3>${t("sheetDialogs.cfCurrentRules")}</h3>
+        <div id="vno-cf-rule-list" aria-live="polite"></div>
+      </section>
       <label>${t("sheetDialogs.rule")}<select id="vno-cf-type" aria-label="${t("sheetDialogs.rule")}"><option value="greaterThan">${t("sheetDialogs.greaterThan")}</option><option value="lessThan">${t("sheetDialogs.lessThan")}</option><option value="blank">${t("sheetDialogs.blankCell")}</option></select></label>
       <label id="vno-cf-value-row">${t("sheetDialogs.value")}<input id="vno-cf-value" type="number" value="0" aria-label="${t("sheetDialogs.value")}"></label>
       <label>${t("sheetDialogs.fillColor")}<input id="vno-cf-color" type="color" value="#fff2cc" aria-label="${t("sheetDialogs.fillColor")}"></label>
       <div class="vno-rule-error" role="alert"></div>`);
     if (!overlay) return false;
+    const renderRules = () => {
+      const host = overlay.querySelector("#vno-cf-rule-list");
+      const rules = this.getConditionalFormattingRules();
+      host.innerHTML = rules.length ? rules.map(rule => {
+        const condition = rule.type === "blank"
+          ? t("sheetDialogs.blankCell")
+          : `${t(rule.type === "lessThan" ? "sheetDialogs.lessThan" : "sheetDialogs.greaterThan")}: ${this._escapeHtml(rule.value)}`;
+        return `<div class="vno-cf-rule-row" data-rule-id="${this._escapeHtml(rule.id)}"><span>${this._escapeHtml(rule.rangeLabel || this._rangeLabel(rule.range))} · ${condition}</span><span class="vno-cf-rule-color" style="background:${this._escapeHtml(rule.color)}" aria-label="${t("sheetDialogs.fillColor")}: ${this._escapeHtml(rule.color)}"></span><button type="button" class="vno-btn" data-cf-remove="${this._escapeHtml(rule.id)}">${t("sheetDialogs.cfRemoveRule")}</button></div>`;
+      }).join("") : `<p class="vno-cf-empty">${t("sheetDialogs.cfNoRules")}</p>`;
+      host.querySelectorAll("[data-cf-remove]").forEach(button => button.addEventListener("click", () => {
+        if (this.deleteConditionalFormattingRule(button.dataset.cfRemove)) renderRules();
+      }));
+    };
+    overlay.querySelector(".vno-rule-apply").textContent = t("sheetDialogs.cfAddRule");
+    renderRules();
     const type = overlay.querySelector("#vno-cf-type");
     const valueRow = overlay.querySelector("#vno-cf-value-row");
     type.addEventListener("change", () => { valueRow.hidden = type.value === "blank"; });
     overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
-      const result = this.addConditionalFormattingRule(this.selectionRange, {
+      const result = this.addConditionalFormattingRule(selectedRange, {
         type: type.value,
         value: overlay.querySelector("#vno-cf-value").value,
         color: overlay.querySelector("#vno-cf-color").value

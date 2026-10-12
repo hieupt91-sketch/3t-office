@@ -27,7 +27,7 @@ No external dependencies, framework/build changes, shared-platform changes, or L
 
 ## Risk and containment
 
-XLSX metadata fixes can alter save output. Any such fix must be limited to the affected feature metadata, preserve untouched-workbook behavior, include a regression assertion, and be protected by `VNO_SHEET_E4_XLSX_METADATA_OVERLAY=1` (enabled by default only after the regression is verified). Rollback: unset the flag to restore the prior XLSX path; revert the single feature-group commit to remove the change entirely. Do not alter workbook semantics without owner approval.
+XLSX metadata overlay fixes can alter save output. Any new overlay must be limited to the affected feature metadata, preserve untouched-workbook behavior, include a regression assertion, and be protected by `VNO_SHEET_E4_XLSX_METADATA_OVERLAY=1` (enabled by default only after the regression is verified). The conditional-formatting fix captures the selected range when its existing dialog opens and passes that range to the existing FODS/XLSX serializer; it does not add a metadata overlay or a new save path. Rollback for this UI correction is the feature-group commit. Do not alter workbook semantics without owner approval.
 
 ## Test plan
 
