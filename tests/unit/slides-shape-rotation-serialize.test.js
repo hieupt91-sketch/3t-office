@@ -105,7 +105,8 @@ export async function runSlidesShapeRotationSerializeTests() {
     const fodp45 = adapter45.serializeToFodp();
     const expectedRadian = -(45 * Math.PI / 180);
     assertIncludes(fodp45, String(expectedRadian), "45deg must produce correct radian");
-    assertNotIncludes(fodp45, "svg:x=", "rotated 45 shape must not have svg:x");
+    const shape45 = fodp45.match(/<draw:rect\b[^>]*draw:name="s45"[^>]*>/)?.[0] || "";
+    assertNotIncludes(shape45, "svg:x=", "rotated 45 shape must not have svg:x");
   });
 
   test("serialize with rotation=0 uses svg:x/svg:y (no transform)", () => {

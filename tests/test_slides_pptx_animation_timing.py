@@ -22,6 +22,38 @@ def make_pptx(slide_xml: str) -> bytes:
 
 
 class SlidesPptxAnimationTimingTests(unittest.TestCase):
+    def test_slide_effects_map_to_supported_powerpoint_native_transition_elements(self):
+        transitions = ["fade", "pushWipe", "irisWipe", "fadeOverColor"]
+        pages = []
+        styles = []
+        for index, transition in enumerate(transitions, start=1):
+            name = f"dp{index}"
+            styles.append(
+                f'<style:style style:name="{name}" style:family="drawing-page">'
+                f'<style:drawing-page-properties smil:type="{transition}"/></style:style>'
+            )
+            pages.append(f'<draw:page draw:style-name="{name}"/>')
+        fodp = "<office:document>" + "".join(styles) + "".join(pages) + "</office:document>"
+        source = io.BytesIO()
+        with zipfile.ZipFile(source, "w", compression=zipfile.ZIP_DEFLATED) as package:
+            for index in range(1, 5):
+                package.writestr(
+                    f"ppt/slides/slide{index}.xml",
+                    f'<p:sld xmlns:p="{P}"><p:cSld/></p:sld>',
+                )
+
+        patched = patcher.postprocess_slides_pptx(source.getvalue(), source_fodp=fodp)
+        with zipfile.ZipFile(io.BytesIO(patched)) as package:
+            slides = [package.read(f"ppt/slides/slide{i}.xml").decode() for i in range(1, 5)]
+        self.assertIn("<p:fade/>", slides[0])
+        self.assertIn('<p:push dir="l"/>', slides[1])
+        self.assertIn('<p:zoom dir="out"/>', slides[2])
+        self.assertIn('<p:flip dir="l"/>', slides[3])
+
+    def test_slide_effect_patch_is_a_noop_without_fodp_transition(self):
+        original = make_pptx(f'<p:sld xmlns:p="{P}"><p:cSld/></p:sld>')
+        self.assertIs(patcher.postprocess_slides_pptx(original), original)
+
     def test_click_effects_are_wrapped_and_keep_native_preset_timing(self):
         xml = f'''<p:sld xmlns:p="{P}"><p:timing><p:tnLst><p:par><p:cTn id="1"><p:childTnLst>
           <p:par><p:cTn id="2" presetID="10" nodeType="clickEffect"><p:stCondLst><p:cond delay="200"/></p:stCondLst><p:childTnLst/></p:cTn></p:par>

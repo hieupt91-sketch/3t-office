@@ -2304,40 +2304,46 @@ export class SlidesAdapter {
   _serializeSlideShapes(shapes, idMap, richCtx, groupRecords = []) {
     if (!Array.isArray(shapes) || shapes.length === 0) return "";
     const map = idMap || this._collectShapeIdMap(shapes);
+    // Diagram connectors/nodes already behave as a unit in the canvas. Emit the
+    // same relationship as a real ODF group so the PPTX contains one grpSp.
+    const serializedShapes = shapes.map(shape => shape.diagramGroupId && !shape.groupId
+      ? { ...shape, groupId: shape.diagramGroupId }
+      : shape);
     const groups = Array.isArray(groupRecords) ? groupRecords.map(group => ({ ...group })) : [];
-    for (const shape of shapes) {
+    for (const shape of serializedShapes) {
       if (shape.groupId && !groups.some(group => group.id === shape.groupId)) {
         groups.push({ id: shape.groupId, parentId: null });
       }
     }
-    if (!groups.length) return shapes.map(shape => this._serializeShape(shape, map.get(String(shape.id)), map, richCtx)).join("");
+    if (!groups.length) return serializedShapes.map(shape => this._serializeShape(shape, map.get(String(shape.id)), map, richCtx)).join("");
 
+    const shapeList = serializedShapes;
     const groupById = new Map(groups.map(group => [String(group.id), group]));
-    const shapeOrder = new Map(shapes.map((shape, index) => [String(shape.id), index]));
+    const shapeOrder = new Map(shapeList.map((shape, index) => [String(shape.id), index]));
     const pageWidth = this._pxToOdf(this.canvas?.slideSize?.width || 960);
     const pageHeight = this._pxToOdf(this.canvas?.slideSize?.height || 540);
     const serializeGroup = (group) => {
       const id = String(group.id);
       const children = [];
       for (const child of groups.filter(item => String(item.parentId || "") === id)) {
-        const descendants = this._groupDescendantShapeIds(child.id, groups, shapes);
+        const descendants = this._groupDescendantShapeIds(child.id, groups, shapeList);
         const order = Math.min(...descendants.map(shapeId => shapeOrder.get(String(shapeId)) ?? Infinity));
         children.push({ order, xml: serializeGroup(child) });
       }
-      for (const shape of shapes.filter(item => String(item.groupId || "") === id)) {
+      for (const shape of shapeList.filter(item => String(item.groupId || "") === id)) {
         children.push({ order: shapeOrder.get(String(shape.id)), xml: this._serializeShape(shape, map.get(String(shape.id)), map, richCtx) });
       }
       children.sort((a, b) => a.order - b.order);
       return `<draw:g draw:name="VNOfficeGroup:${this._escapeXml(id)}" svg:x="0cm" svg:y="0cm" svg:width="${pageWidth}" svg:height="${pageHeight}">${children.map(item => item.xml).join("")}</draw:g>`;
     };
     const output = [];
-    for (const shape of shapes) {
+    for (const shape of shapeList) {
       if (!shape.groupId) {
         output.push({ order: shapeOrder.get(String(shape.id)), xml: this._serializeShape(shape, map.get(String(shape.id)), map, richCtx) });
       }
     }
     for (const group of groups.filter(item => !item.parentId)) {
-      const descendants = this._groupDescendantShapeIds(group.id, groups, shapes);
+      const descendants = this._groupDescendantShapeIds(group.id, groups, shapeList);
       const order = Math.min(...descendants.map(shapeId => shapeOrder.get(String(shapeId)) ?? Infinity));
       if (Number.isFinite(order)) output.push({ order, xml: serializeGroup(group) });
     }
@@ -3275,6 +3281,7 @@ export class SlidesAdapter {
     const effectiveFooterText = theme.footerText || "";
     const payload = {
       id: theme.id || theme.themeId || "",
+      name: theme.name || theme.id || theme.themeId || "",
       fontFamily: theme.fontFamily || "",
       titleColor: theme.titleColor || "",
       bodyColor: theme.bodyColor || "",
@@ -3341,6 +3348,18 @@ export class SlidesAdapter {
     return { logoText };
   }
 
+  _serializeSlidePageLayouts() {
+    const layouts = [
+      ["VNOTitleContent", [["title", 2, 2, 24, 3], ["outline", 2, 5.5, 24, 11]]],
+      ["VNOTitleOnly", [["title", 2, 6, 24, 6]]],
+      ["VNOTwoContent", [["title", 2, 2, 24, 3], ["outline", 2, 5.5, 11.5, 11], ["outline", 14.5, 5.5, 11.5, 11]]],
+      ["VNOBlank", []]
+    ];
+    return layouts.map(([name, placeholders]) => `<style:presentation-page-layout style:name="${name}">${placeholders.map(([object, x, y, width, height]) =>
+      `<presentation:placeholder presentation:object="${object}" svg:x="${x}cm" svg:y="${y}cm" svg:width="${width}cm" svg:height="${height}cm"/>`
+    ).join("")}</style:presentation-page-layout>`).join("");
+  }
+
   /**
    * Chuyển đổi toàn bộ slide hiện tại thành định dạng OpenDocument Flat XML (FODP).
    * LibreOffice Impress có thể chuyển đổi FODP trực tiếp sang PPTX, ODP hoặc PDF.
@@ -3372,6 +3391,12 @@ export class SlidesAdapter {
       // «Trang chiếu N» thành chữ thật vào tệp của người dùng.
       const titleXml = this._richOrPlainXml(slide.title || "", slide.titleHtml, richCtx, this._themeTextBase("title", slide));
       const layoutType = slide.layoutType || "title-content";
+      const pageLayoutName = ({
+        "title-content": "VNOTitleContent",
+        "title-only": "VNOTitleOnly",
+        "two-content": "VNOTwoContent",
+        blank: "VNOBlank"
+      })[layoutType] || "VNOTitleContent";
 
       // Ghi chú người thuyết trình phải là placeholder «notes» thật (presentation:style-name +
       // ảnh trang chiếu) — thiếu style-name, LibreOffice xuất thành một hộp chữ xanh thường trên
@@ -3458,18 +3483,16 @@ export class SlidesAdapter {
         ? ` vno:section-id="${this._escapeXml(section.id)}" vno:section-name="${this._escapeXml(section.name)}"`
         : "";
       pagesXml += `
-      <draw:page draw:name="${pageName}" draw:style-name="${pageStyleName}" draw:master-page-name="Standard" presentation:layout="${layoutType}" xml:id="${pageXmlId}" draw:id="${pageXmlId}"${vnTransitionAttr}${vnSectionAttrs}>
+      <draw:page draw:name="${pageName}" draw:style-name="${pageStyleName}" draw:master-page-name="Standard" presentation:presentation-page-layout-name="${pageLayoutName}" xml:id="${pageXmlId}" draw:id="${pageXmlId}"${vnTransitionAttr}${vnSectionAttrs}>
         ${framesXml}${headerFooterXml}${shapesXml}${animXml}${notesXml}${commentsXml}
       </draw:page>`;
     });
 
     const automaticStyles = this._serializeGraphicStyles(slides) + this._serializeRichTextStyles(richCtx);
     const backgroundResources = this._serializeBackgroundResources(slides);
-    const officeStyles = backgroundResources
-      ? `
-  <office:styles>${backgroundResources}
-  </office:styles>`
-      : "";
+    const officeStyles = `
+  <office:styles>${backgroundResources}${this._serializeSlidePageLayouts()}
+  </office:styles>`;
 
     return `<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
@@ -3559,8 +3582,10 @@ export class SlidesAdapter {
       if (sectionId && !parsedSections.some(section => section.id === sectionId)) {
         parsedSections.push({ id: sectionId, name: sectionName || "Phần không tên" });
       }
-      const layoutMatch = fullPageTag.match(/presentation:layout=["']([^"']+)["']/i);
-      let pageLayout = layoutMatch ? layoutMatch[1] : "";
+      const layoutMatch = fullPageTag.match(/presentation:presentation-page-layout-name=["']([^"']+)["']/i)
+        || fullPageTag.match(/presentation:layout=["']([^"']+)["']/i);
+      const layoutNames = { VNOTitleContent: "title-content", VNOTitleOnly: "title-only", VNOTwoContent: "two-content", VNOBlank: "blank" };
+      let pageLayout = layoutMatch ? (layoutNames[layoutMatch[1]] || layoutMatch[1]) : "";
       const originalPageXml = pageMatch[2];
       const pageTransition = this._parsePageTransition(fullPageTag, originalPageXml, drawingPageStyles);
       const animByTarget = this._parsePageAnimations(originalPageXml);
@@ -3621,7 +3646,7 @@ export class SlidesAdapter {
 
       const masterPageName = this._attr(fullPageTag, "draw:master-page-name");
       const hasTextBoxShapes = shapes.some(s => s.type === "textbox");
-      const isImportedSlide = !layoutMatch || masterPageName === "BLANK" || hasTextBoxShapes;
+      const isImportedSlide = !layoutMatch || masterPageName === "BLANK" || hasTextBoxShapes || shapes.length > 0;
 
       // PPTX hop drops presentation:layout; restore two-content / title-only from remaining placeholders.
       if (isImportedSlide && (hasTextBoxShapes || masterPageName === "BLANK" || shapes.length > 0)) {
