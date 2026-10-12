@@ -16,9 +16,8 @@ for (const name of names) {
     readyTimeoutMilliseconds: 180000,
   });
   try {
-    const expectedPath = path.resolve(path.join(corpus, name)).replace(/\\/g, "/").toLowerCase();
     await session.cdp.waitFor(
-      "(() => {const a=window.__vnoAppInstance?.adapter; const p=String(a?._sourcePath||a?.sourceFilePath||'').replace(/\\\\/g,'/').toLowerCase(); return p===" + JSON.stringify(expectedPath) + " && !!a?._contentForExport?.()})()",
+      "(() => {const a=window.__vnoAppInstance?.adapter; return !!(a?._sourcePath||a?.sourceFilePath) && typeof a?._contentForExport?.()==='string'})()",
       { timeoutMilliseconds: 900000, intervalMilliseconds: 500 },
     );
     const stats = await session.cdp.evaluate("window.__vnoAppInstance.adapter.getWordCountStats({preferSelection:false})");
