@@ -13,6 +13,13 @@ Branch `audit/sheet-s16-codex`, worktree `E:\VNOffice-codex-fs16`. CDP profile: 
 - `sheet.insert.textbox` is a reproducible known gap: app showed the inserted text box, while Excel read `Shapes.Count=0` from the saved XLSX.
 - Adapter handoff for those gaps: `docs/AGENT-HANDOFF-FIX-S16-ADAPTER-GAPS.md`.
 
+## Group B: clipboard and comment resolution
+
+- Copy, Cut and Paste: CDP used Ctrl+C/Ctrl+X/Ctrl+V. Excel COM ReadOnly confirmed B2 copied to I2, C2 cut to I2 with C2 cleared, and test text pasted to I2. For each clipboard case, the test read the original through the app bridge without logging its contents, set test data, ran the UI operation, and restored the original; all three restorations passed.
+- Format Painter: CDP applied Bold at B2 then used Format Painter at C2; Excel COM read `C2.Font.Bold=True`.
+- Comment Resolve: UI state became `resolved=true`; Excel COM still read the C2 legacy note, and `xl/comments1.xml` has no resolved state. Recorded as a known gap and added to the Adapter handoff.
+- Evidence: `evidence/s16/FormatPainter.png`, `CommentResolve.png`.
+
 ## UI-only tools
 
 Formula evaluation, Watch Window and spell-check controls are marked `KHÁC CÓ CHỦ Ý`: their observed results are transient UI state, not workbook properties. The evaluator showed H2 `=SUM(C2:C6)` and 20615.1; Watch Window listed H2. Evidence: `EvaluateFormula.png`, `WatchWindow.png`, `SpellCheck.png`, `ToggleSpellCheck.png`.

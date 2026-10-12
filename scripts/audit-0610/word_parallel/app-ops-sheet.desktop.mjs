@@ -21,6 +21,7 @@ const ops = [
   ["currencyBtn","C2","click","sheet.format.currencyVND"],["numNumber","C2","selectDom","sheet.format.quickCategory","number"],["numCurrency","C2","selectDom","sheet.format.quickCategory","currency"],["numAccounting","C2","selectDom","sheet.format.quickCategory","accounting"],
   ["s16CalculationManual","C2","selectDom","sheet.calc.calculationOptions","manual"],
   ["s16CellsDialog","B2","formatCells","sheet.format.cellsDialog"],["s16ProtectSheet","B2","protect","sheet.sheet.protect"],["s16ProtectWorkbook","B2","protect","sheet.workbook.protect"],["s16TextBox","A1","textBox","sheet.insert.textbox"],
+  ["s16Copy","I2","clipboard","common.edit.copy","B2"],["s16Cut","I2","clipboard","common.edit.cut","C2"],["s16Paste","I2","clipboard","common.edit.paste","S16 clipboard test"],["s16FormatPainter","C2","formatPainter","sheet.edit.formatPainter"],["s16CommentResolve","C2","click","sheet.review.commentResolve"],
   ["s16CategoryFinancial","H2","formulaCategory","sheet.formula.categoryFinancial",'=PMT(0.1/12,12,1000)'],["s16CategoryLogical","H2","formulaCategory","sheet.formula.categoryLogical",'=IF(1=1,"Đúng","Sai")'],["s16CategoryText","H2","formulaCategory","sheet.formula.categoryText",'=CONCAT("VN"," Office")'],["s16CategoryDateTime","H2","formulaCategory","sheet.formula.categoryDateTime",'=DATE(2026,10,12)'],["s16CategoryLookup","H2","formulaCategory","sheet.formula.categoryLookup",'=VLOOKUP(1,A2:B6,2,FALSE)'],["s16CategoryMath","H2","formulaCategory","sheet.formula.categoryMath",'=SUM(C2:C6)'],["s16CategoryMore","H2","formulaCategory","sheet.formula.categoryMore",'=AVERAGE(C2:C6)'],
   ["s16EvaluateFormula","H2","click","sheet.formula.evaluateFormula"],["s16WatchWindow","H2","click","sheet.formula.watchWindow"],["s16SpellCheck","B2","click","sheet.review.spellCheck"],["s16ToggleSpellCheck","B2","click","sheet.review.toggleSpellCheck"],["s16ViewNormal","A1","click","sheet.view.normal"],["s16ZoomReset","A1","click","sheet.view.zoomReset"],["s16ZoomToSelection","A1","range","sheet.view.zoomToSelection","A1:G6"],
   ["numPercent","D2","select","sheet.format.quickCategory","percentage"],["numDate","E2","select","sheet.format.quickCategory","date"],
@@ -100,10 +101,19 @@ for (const [name, cell, kind, id, value] of ops) {
   const out = dir + "\\app_" + (process.env.VNO_AUDIT_SUFFIX || "") + name + ".xlsx";
   const session = await launchApp("sheet", { root, localAppData: dir, filePath: template, startTimeoutMilliseconds: 180000, readyTimeoutMilliseconds: 180000 });
   const ev = (e) => session.cdp.evaluate(e, { awaitPromise: true, timeoutMilliseconds: 300000 });
+  let restoreSystemClipboard = false;
+  let clipboardRestoration = "not-needed";
   try {
     const norm = template.replace(/\\/g, "/").toLowerCase();
     await session.cdp.waitFor(`(() => { const a = window.__vnoAppInstance?.adapter; const p = String(a?._sourcePath || a?.sourceFilePath || '').replace(/\\\\/g, '/').toLowerCase(); return p === ${JSON.stringify(norm)} && window.__vnoAppInstance?.grid?.cellsData?.size > 0 && !document.querySelector('.vno-sheet-quick-view'); })()`, { timeoutMilliseconds: 240000, intervalMilliseconds: 500 });
     await sleep(1500);
+    if (kind === "clipboard") {
+      const backup = JSON.parse(await ev(`(async()=>{const bridge=globalThis.globalUnoBridge;if(!bridge?.readClipboardData)return 'null';const value=await bridge.readClipboardData();window.__s16ClipboardBackup=value;return JSON.stringify({status:value?.status,textLength:value?.text?.length||0,htmlLength:value?.html?.length||0})})()`));
+      if (!backup || backup === "null" || backup.status !== "ok") throw new Error("Could not snapshot local clipboard through app bridge");
+      restoreSystemClipboard = true;
+      const testWrite = await ev(`globalThis.globalUnoBridge.writeClipboardData({text:"S16 clipboard test",html:""})`);
+      if (!testWrite || (testWrite.status && testWrite.status !== "ok")) throw new Error("Could not set S16 test clipboard through app bridge");
+    }
     const pos = JSON.parse(await ev(`(() => { const e=document.querySelector('.vno-grid-cell[data-coord="${cell}"]'); if(!e) return 'null'; e.scrollIntoView({block:'nearest'}); const r=e.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2}); })()`));
     if (!pos) { console.log(name.padEnd(18), "khong thay o", cell); continue; }
     if (kind === "subtotal") {
@@ -277,6 +287,27 @@ for (const [name, cell, kind, id, value] of ops) {
         status = `function dialog ${state}; entered valid ${value.split('(')[0]} formula through grid UI`;
         }
       }
+    } else if (kind === "clipboard") {
+      if (id === "common.edit.copy" || id === "common.edit.cut") {
+        const source = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="${value}"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if (!source) throw new Error("Missing clipboard source cell " + value);
+        await mouseClick(session.cdp, source.x, source.y); await press(session.cdp, id === "common.edit.copy" ? "c" : "x", { ctrl: true });
+        const destination = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="I2"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if (!destination) throw new Error("Missing clipboard destination I2");
+        await mouseClick(session.cdp, destination.x, destination.y); await press(session.cdp, "v", { ctrl: true });
+        status = `${id.endsWith("copy") ? "copied" : "cut"} ${value} and pasted into I2 by CDP keyboard`;
+      } else {
+        await mouseClick(session.cdp, pos.x, pos.y); await press(session.cdp, "v", { ctrl: true }); status = "pasted the S16 test clipboard into I2 by CDP keyboard";
+      }
+    } else if (kind === "formatPainter") {
+      const clickCommand = async commandId => {
+        const point = JSON.parse(await ev(`(() => {const n=[...document.querySelectorAll('[data-command-id="${commandId}"]')].find(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if (!point) throw new Error("Visible command missing: " + commandId); await mouseClick(session.cdp, point.x, point.y);
+      };
+      const source = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="B2"]');const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+      await mouseClick(session.cdp, source.x, source.y); await clickCommand("sheet.cell.bold"); await clickCommand("sheet.edit.formatPainter");
+      const destination = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="C2"]');const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+      await mouseClick(session.cdp, destination.x, destination.y); status = "applied Bold from B2 to C2 through the format painter UI";
     } else if (kind === "selectDom") {
       if (id === "sheet.calc.calculationOptions") {
         const tab = JSON.parse(await ev(`(() => {const n=document.querySelector('#vno-ribbon-tab-formulas');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,active:n.classList.contains('is-active')})})()`));
@@ -334,6 +365,10 @@ for (const [name, cell, kind, id, value] of ops) {
         if (id === "sheet.view.zoomReset") {
           const pre = JSON.parse(await ev(`(() => {const n=document.querySelector('[data-command-id="sheet.view.zoomIn"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
           if (pre) { await mouseClick(session.cdp, pre.x, pre.y); await mouseClick(session.cdp, pre.x, pre.y); await sleep(120); }
+        }
+        if (id === "sheet.review.commentResolve") {
+          const target = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="C2"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if (target) await mouseClick(session.cdp, target.x, target.y);
         }
       }
       if (kind === "consolidate") await mouseClick(session.cdp,pos.x,pos.y);
@@ -723,5 +758,14 @@ for (const [name, cell, kind, id, value] of ops) {
       await writeFile(path.join(evidenceDir, `${name.replace(/^s16/, "")}.png`), Buffer.from((shot.result || shot).data, "base64"));
     }
     console.log(name.padEnd(18), "save=" + (saved && saved.status), "|", status, "|", info, formulaValues ? "| formulas=" + formulaValues : "");
-  } catch (e) { console.log(name.padEnd(18), "LOI:", String(e.message).slice(0, 120)); } finally { await session.close(); }
+  } catch (e) { console.log(name.padEnd(18), "LOI:", String(e.message).slice(0, 120)); } finally {
+    if (restoreSystemClipboard) {
+      try {
+        const restored = await ev(`globalThis.globalUnoBridge.writeClipboardData(window.__s16ClipboardBackup)`);
+        clipboardRestoration = restored && (!restored.status || restored.status === "ok") ? "PASS" : "FAIL";
+      } catch { clipboardRestoration = "FAIL"; }
+    }
+    await session.close();
+    if (restoreSystemClipboard) console.log(name.padEnd(18), "system clipboard restore=" + clipboardRestoration);
+  }
 }
