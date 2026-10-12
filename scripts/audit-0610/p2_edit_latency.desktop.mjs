@@ -38,7 +38,19 @@ try {
       }
     }
     options.sort((a,b)=>b.count-a.count);
-    const best=options[0];
+    let best=options[0];
+    if (!best && !fallback) {
+      for (const sheet of g.sheets) {
+        if (sheet!==g.activeSheet) continue;
+        for (const [coord,item] of g.sheetsData[sheet]||[]) {
+          if (!item || item.formula || item.val==='' || item.val==null) continue;
+          const visible=g.container.querySelector('.vno-grid-cell[data-coord="'+coord+'"]');
+          const rect=visible?.getBoundingClientRect();
+          if (rect?.width && rect?.height) { best={sheet,coord,count:0,originalValue:item.val,fallback:false,noDependents:true}; break; }
+        }
+        if (best) break;
+      }
+    }
     if (!best) return {error:'no visible non-formula cell with dependent formulas'};
     g.selectCell(best.coord.match(/^[A-Z]+/)[0],Number(best.coord.match(/\\d+$/)[0]));
     const dom=g.container.querySelector('.vno-grid-cell[data-coord="'+best.coord+'"]');
@@ -79,7 +91,7 @@ try {
     for(const [s,c,v] of after){const prior=beforeMap.get(JSON.stringify([s,c]));if(!Object.is(prior,v))differences.push({sheet:s,coord:c,incremental:prior,full:v});}
     return {formulaCount:after.length,mismatchCount:differences.length,mismatches:differences.slice(0,20)};
   })()`);
-  console.log(JSON.stringify({file,baselineFormulaCount,target:{sheet:target.sheet,coord:target.coord,dependentFormulaCount:target.count,fallback:target.fallback,originalValue:target.originalValue},times,editedValue:edited.editedValue,undoValue,undoRestored:Object.is(undoValue,target.originalValue),redoValue:redoState.value,redoRestored:Object.is(redoState.value,edited.editedValue),oracle}));
+  console.log(JSON.stringify({file,baselineFormulaCount,target:{sheet:target.sheet,coord:target.coord,dependentFormulaCount:target.count,fallback:target.fallback,noDependents:target.noDependents||false,originalValue:target.originalValue},times,editedValue:edited.editedValue,undoValue,undoRestored:Object.is(undoValue,target.originalValue),redoValue:redoState.value,redoRestored:Object.is(redoState.value,edited.editedValue),oracle}));
 } finally {
   await session.close();
 }
