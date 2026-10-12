@@ -7,17 +7,17 @@ Phạm vi E3 dùng Excel 2016 cài trên máy làm chuẩn thao tác. Bài kiể
 | Nhóm | Hành vi chuẩn Excel 2016 | Trạng thái VN Sheet | Bằng chứng / ghi chú |
 |---|---|---|---|
 | Mũi tên | Di chuyển ô đang hoạt động; bỏ qua ô gộp/ẩn theo lưới | Đã có; chưa chạy đủ ca CDP | `sheet-grid.js`: điều hướng và `_resolveKeyboardTarget` |
-| Ctrl + mũi tên | Đi tới biên vùng dữ liệu liền kề hoặc cuối vùng | Đã có; chưa đối chiếu đủ ca COM/CDP | `_findNextCtrlArrowRow/Col`; thuật toán hiện xét giá trị ô |
+| Ctrl + mũi tên | Đi tới biên vùng dữ liệu liền kề hoặc cuối vùng | PASS CDP cho vùng dọc liền kề | A10:A11 có dữ liệu; Ctrl+Down từ A10 tới A11; các hướng và vùng trống cần thêm ca |
 | Shift + mũi tên | Mở rộng vùng chọn, giữ ô neo | PASS một ca CDP | A1 → Shift+Right cho A1:B1 |
-| Ctrl + Shift + mũi tên | Mở vùng chọn tới biên dữ liệu | Đã có; chưa xác minh CDP | Dùng chung điều hướng Ctrl và mở rộng Shift |
+| Ctrl + Shift + mũi tên | Mở vùng chọn tới biên dữ liệu | PASS CDP cho vùng dọc liền kề | Ctrl+Shift+Down mở rộng A10:A11 |
 | Home | Về cột A cùng hàng; Shift+Home mở rộng vùng | PASS CDP | Đã thêm nhánh Home trong grid |
 | End | Excel bật chế độ End để phím điều hướng kế tiếp nhảy tới biên | Chưa hỗ trợ đúng semantics | VN Sheet chưa có trạng thái End riêng |
 | Ctrl + Home / Ctrl + End | Đầu/cuối vùng đã dùng trong sheet | Ctrl+Home PASS; Ctrl+End chưa xác minh | Ctrl+End hiện lấy hàng/cột cuối có dữ liệu |
 | Page Up / Page Down | Cuộn và di chuyển ô theo viewport | Đã có; chưa xác minh CDP | Ctrl+Page Up/Down đổi sheet |
 | Enter / Shift+Enter | Xác nhận sửa và đi xuống/lên; giữ cột đầu vùng Tab | PASS cả hai | CDP xác nhận Enter đi từ A1 xuống A2 và Shift+Enter nhập H4 rồi đi lên H3 |
 | Tab / Shift+Tab | Xác nhận sửa và đi phải/trái; Enter kết thúc chuỗi theo hàng | PASS Tab; Shift+Tab và chuỗi vùng chưa xác minh | CDP xác nhận Tab tới B2 |
-| Ctrl+A | Chọn vùng dữ liệu trước, nhấn lần nữa chọn cả sheet | Đã có; chưa xác minh CDP | `selectAll()` |
-| Ctrl+Space / Shift+Space | Chọn cột / hàng | Đã có; chưa xác minh CDP | Header selection trong grid |
+| Ctrl+A | Chọn vùng dữ liệu trước, nhấn lần nữa chọn cả sheet | PASS CDP; sửa trạng thái hai lần nhấn | Từ A1, lần đầu chọn A1:A2; lần hai chọn A1:XFD1048576 |
+| Ctrl+Space / Shift+Space | Chọn cột / hàng | PASS CDP | Ctrl+Space chọn B1:B1048576; Shift+Space chọn A4:XFD4 |
 | F5 / Ctrl+G | Mở Go To để nhập địa chỉ, vùng hoặc tên | PASS điều hướng qua Hộp tên | Gõ địa chỉ rồi Enter; hiện dùng Hộp tên thay hộp thoại Go To |
 | F2 | Sửa nội dung ô hiện tại | PASS mở thanh công thức | CDP xác nhận giá trị hiện tại được nạp để sửa |
 | Escape | Hủy nội dung đang sửa và khôi phục giá trị trước khi sửa | PASS; không để lại bước undo | Commit `27952e04`; CDP xác nhận |
@@ -26,8 +26,8 @@ Phạm vi E3 dùng Excel 2016 cài trên máy làm chuẩn thao tác. Bài kiể
 | F4 trong công thức | Luân phiên tham chiếu tương đối/tuyệt đối tại caret | PASS CDP | Khi sửa `=A4`, F4 đổi tham chiếu thành `=$A$4` |
 | Ctrl+Enter | Ghi cùng nội dung vào toàn vùng chọn | PASS với giá trị; cần đối chiếu công thức bằng Excel COM | CDP desktop: G1:G3 nhận cùng nội dung, một Ctrl+Z hoàn tác cả vùng; chưa xác nhận quy tắc dịch tham chiếu công thức |
 | Ctrl+; / Ctrl+Shift+; | Chèn ngày hiện tại / giờ hiện tại | PASS cả hai phím | CDP xác nhận ô ngày là serial ngày có định dạng date; ô giờ là serial thời gian có định dạng time |
-| Delete / Backspace | Xóa nội dung toàn vùng đang chọn, giữ định dạng | PASS Delete vùng liên tục | CDP xác nhận A6:A7 được xóa; undo theo một thao tác |
-| Ctrl+D / Ctrl+R | Điền xuống / sang phải; dịch tham chiếu công thức tương đối | Ctrl+D PASS; Ctrl+R chưa xác minh | `fillDown()` / `fillRight()` |
+| Delete / Backspace | Xóa nội dung toàn vùng đang chọn, giữ định dạng | PASS cả hai phím | CDP xác nhận Delete xóa A6:A7, Backspace xóa ô hiện hành |
+| Ctrl+D / Ctrl+R | Điền xuống / sang phải; dịch tham chiếu công thức tương đối | PASS cả hai với giá trị | Ctrl+D điền A1 xuống A2; Ctrl+R điền E10 sang F10 |
 | Kéo tay nắm điền | Tiếp tục chuỗi số/ngày/danh sách hoặc sao chép | PASS kéo chuỗi số | D1:D2 = 1,2; kéo tới D4 tạo 3,4 |
 | Nhấp đúp tay nắm | Điền xuống theo vùng dữ liệu liền kề | Có handler; chưa xác minh CDP | `_autofillDownToAdjacentData()` |
 | Kéo chọn / Ctrl+nhấp / Shift+nhấp | Tạo vùng, thêm vùng rời, mở rộng từ ô neo | Kéo chọn PASS; Ctrl/Shift click chưa xác minh | CDP kéo A1 tới B2 tạo A1:B2 |

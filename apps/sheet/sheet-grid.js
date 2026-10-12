@@ -2997,12 +2997,18 @@ export class SheetGridController {
   }
 
   selectAll() {
+    if (this._ctrlASelectAllPending) {
+      this._ctrlASelectAllPending = false;
+      this.selectCell("A", 1);
+      this.selectCell(this.cols[this.cols.length - 1], this.rowCount, true);
+      return true;
+    }
     const region = this._currentRegionFromSelection();
-    const current = this._normalizeRange(this.selectionRange);
-    if (region && (!current || this._rangeLabel(region) !== this._rangeLabel(current))) {
+    if (region) {
       this.selectionRange = structuredClone(region);
       this.selectionRanges = [this.selectionRange];
       this.selectionKind = "cell";
+      this._ctrlASelectAllPending = true;
       this._renderSelection?.();
       this._syncSelectionUi?.();
       return true;
@@ -5079,6 +5085,7 @@ _bindGridKeyboardNavigation() {
 
   selectCell(col, row, extendRange = false, addRange = false) {
     if (row < 1 || row > this.rowCount) return;
+    this._ctrlASelectAllPending = false;
     if (this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput) {
       this._commitEditBeforeRangeSelection();
     }

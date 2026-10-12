@@ -13,10 +13,10 @@ const check = (name, ok, detail = "") => {
 };
 const state = () => cdp.evaluate(`(() => {
   const grid = window.__vnoAppInstance?.sheetGrid || window.__vnoAppInstance?.grid;
-  const cells = Object.fromEntries(["A1","A2","B2","C2","E2","E8","F8","A6","A7","D3","D4","F1","G1","G2","G3","A4","B4","H4"].map(key => [key, grid.cellsData.get(key) || null]));
+  const cells = Object.fromEntries(["A1","A2","B2","C2","E2","E8","F8","A6","A7","D3","D4","F1","G1","G2","G3","A4","B4","H4","A10","A11","E10","F10"].map(key => [key, grid.cellsData.get(key) || null]));
   const coord = grid.selectedCoord;
   const range = grid.selectionRange;
-  return { coord: String(coord.c)+String(coord.r), range: String(range.start.c)+String(range.start.r)+":"+String(range.end.c)+String(range.end.r), cells,
+  return { coord: String(coord.c)+String(coord.r), range: String(range.start.c)+String(range.start.r)+":"+String(range.end.c)+String(range.end.r), cells, rowCount: grid.rowCount, maxCol: grid.cols.at(-1),
     edit: !!grid.formulaEntry, input: grid.formulaInput?.value, undo: grid.undoStack.length, redo: grid.redoStack.length };
 })()`);
 const select = coord => click(cdp, `.vno-grid-cell[data-coord="${coord}"]`);
@@ -35,6 +35,11 @@ try {
   await press(cdp, "Enter");
   let s = await state();
   check("direct entry and Enter move down", s.cells.A1?.val === "E3_ALPHA" && s.coord === "A2", JSON.stringify(s));
+  await typeText(cdp, "E3_ALPHA_2");
+  await press(cdp, "Enter");
+  s = await state();
+  check("second direct entry seeds a contiguous range", s.cells.A2?.val === "E3_ALPHA_2" && s.coord === "A3", JSON.stringify(s));
+  await select("A2");
   await press(cdp, "Tab");
   s = await state();
   check("Tab moves right", s.coord === "B2", JSON.stringify(s));
@@ -79,6 +84,27 @@ try {
   await press(cdp, "Home");
   s = await state();
   check("Home selects first column in current row", s.coord === "A3", JSON.stringify(s));
+  await select("A10");
+  await typeText(cdp, "EDGE_ONE");
+  await press(cdp, "Enter");
+  await typeText(cdp, "EDGE_TWO");
+  await press(cdp, "Enter");
+  await select("A10");
+  await press(cdp, "ArrowDown", { ctrl: true });
+  s = await state();
+  check("Ctrl+Down reaches the edge of a contiguous data block", s.coord === "A11", JSON.stringify(s));
+  await select("A10");
+  await press(cdp, "ArrowDown", { ctrl: true, shift: true });
+  s = await state();
+  check("Ctrl+Shift+Down extends selection to the data edge", s.range === "A10:A11", JSON.stringify(s));
+  await select("B4");
+  await press(cdp, " ", { ctrl: true });
+  s = await state();
+  check("Ctrl+Space selects the active column", s.range.startsWith("B1:B"), JSON.stringify(s));
+  await select("B4");
+  await press(cdp, " ", { shift: true });
+  s = await state();
+  check("Shift+Space selects the active row", s.range.startsWith("A4:"), JSON.stringify(s));
 
   await press(cdp, "g", { ctrl: true });
   let active = await cdp.evaluate("document.activeElement?.id || ''");
@@ -150,6 +176,19 @@ try {
   await press(cdp, "Delete");
   s = await state();
   check("Delete clears the full selected range", !s.cells.A6?.val && !s.cells.A7?.val, JSON.stringify(s));
+  await select("A6");
+  await press(cdp, "Backspace");
+  s = await state();
+  check("Backspace clears the active cell contents", !s.cells.A6?.val, JSON.stringify(s));
+
+  await select("E10");
+  await typeText(cdp, "4");
+  await press(cdp, "Enter");
+  await select("E10");
+  await press(cdp, "ArrowRight", { shift: true });
+  await press(cdp, "r", { ctrl: true });
+  s = await state();
+  check("Ctrl+R fills the selected range to the right", Number(s.cells.F10?.val) === 4, JSON.stringify(s));
 
   await select("A1");
   const dragPoints = await cdp.evaluate(`(() => {
@@ -190,6 +229,14 @@ try {
   await sleep(400);
   const helpText = await cdp.evaluate("document.querySelector('.vno-help-article')?.innerText || ''");
   check("F1 Help contains concrete grid navigation, fill and clipboard guidance", ["Ctrl+G", "Ctrl+D", "Ctrl+Z", "Ctrl+V"].every(term => helpText.includes(term)), helpText.slice(0, 220).replace(/\s+/g," ").trim());
+
+  await select("A1");
+  await press(cdp, "a", { ctrl: true });
+  s = await state();
+  const ctrlARegion = s.range;
+  await press(cdp, "a", { ctrl: true });
+  s = await state();
+  check("Ctrl+A selects the current region then the full sheet", ctrlARegion === "A1:A2" && s.range === `A1:${s.maxCol}${s.rowCount}`, `${ctrlARegion} -> ${s.range}`);
 
   const failed = checks.filter(item => !item.ok);
   console.log(`SUMMARY ${checks.length - failed.length}/${checks.length} PASS, ${failed.length} FAIL`);
