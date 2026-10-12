@@ -21,6 +21,7 @@ for (const name of controls) {
   try {
     const cdp = session.cdp;
     await cdp.waitFor("!!window.__vnoAppInstance?.adapter && !!document.querySelector('.vno-writer-body')", { timeoutMilliseconds: 240000 });
+    await cdp.waitFor(`(() => {const a=window.__vnoAppInstance?.adapter;return String(a?._sourcePath||'').toLowerCase().endsWith(${JSON.stringify(`${name}.docx`.toLowerCase())})})()`, { timeoutMilliseconds: 240000, intervalMilliseconds: 500 });
     await click(cdp, "#vno-ribbon-tab-review");
     await cdp.waitFor("!!document.querySelector('[data-command-id=\"writer.review.wordCount\"]')", { timeoutMilliseconds: 60000 });
     await click(cdp, '[data-command-id="writer.review.wordCount"]');
