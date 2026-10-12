@@ -564,7 +564,12 @@ export class WriterApp {
       if (statsTimer) clearTimeout(statsTimer);
       statsTimer = setTimeout(() => { statsTimer = null; updateStats(); }, 350);
     };
-    this.canvas.addEventListener("input", updateStatsSoon);
+    this.canvas.addEventListener("input", () => {
+      if (this.adapter && this.adapter._wordCountSourceText != null) {
+        this.adapter._wordCountSourceTextInvalidated = true;
+      }
+      updateStatsSoon();
+    });
     this.canvas.addEventListener("vno-pagination-updated", updateStats);
     this._statusSelectionChangeHandler = updateStatsSoon;
     if (typeof document !== "undefined") document.addEventListener?.("selectionchange", updateStatsSoon);

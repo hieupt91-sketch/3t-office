@@ -290,6 +290,7 @@ export class WriterAdapter {
     this.documentContent = "";
     this.isDirty = false;
     this._wordCountSourceText = null;
+    this._wordCountSourceTextInvalidated = false;
     this.isNewApplicationDocument = true;
     this._openedEditorDomHash = null;
     this.sourceFileName = "TaiLieu";
@@ -2355,12 +2356,16 @@ export class WriterAdapter {
     }
 
     const hasLiveDom = Boolean(body.childNodes);
-    const sourceText = !this.isDirty && typeof this._wordCountSourceText === "string"
+    const currentText = hasLiveDom
+      ? extractWordCountText(body)
+      : (body.innerText != null ? body.innerText : (body.textContent || ""));
+    const sourceText = typeof this._wordCountSourceText === "string" && !this._wordCountSourceTextInvalidated
       ? this._wordCountSourceText
       : null;
-    const text = sourceText != null
-      ? sourceText
-      : (hasLiveDom ? extractWordCountText(body) : (body.innerText != null ? body.innerText : (body.textContent || "")));
+    const comparableText = (value) => String(value || "").normalize("NFC").replace(/\s+/g, "");
+    const sourceStillMatches = sourceText != null
+      && (!this.isDirty || comparableText(sourceText) === comparableText(currentText));
+    const text = sourceStillMatches ? sourceText : currentText;
     const paragraphCount = countBlockParagraphs(body);
     const lineCount = countBlockLines(body);
     const markerStats = countListMarkerStats(body);
@@ -15595,7 +15600,7 @@ export class WriterAdapter {
     );
 
     if (result.status === "ok") {
-      if (this.isDirty) this._wordCountSourceText = null;
+      if (this.isDirty) { this._wordCountSourceText = null; this._wordCountSourceTextInvalidated = true; }
       this.isDirty = false;
       const savedPath = result.path || this._sourcePath;
       if (savedPath) {
@@ -15648,7 +15653,7 @@ export class WriterAdapter {
         this.shell?.setStatus?.(`Đã xuất PDF: ${String(savedPath).split(/[/\\]/).pop()}`);
         return true;
       }
-      if (this.isDirty) this._wordCountSourceText = null;
+      if (this.isDirty) { this._wordCountSourceText = null; this._wordCountSourceTextInvalidated = true; }
       this.isDirty = false;
       if (savedPath) {
         this._sourcePath = savedPath;
@@ -15824,6 +15829,7 @@ export class WriterAdapter {
       this.documentContent = this.editorDom ? this.editorDom.innerHTML : raw;
       this.sourceFileName = (result.fileName || "TaiLieu").replace(/\.[^/.]+$/, "");
       this.isDirty = false;
+      this._wordCountSourceTextInvalidated = false;
       this._openedEditorDomHash = this._editorDomFingerprint();
       this._updateTrackChangesCommandState();
       this.clearUndoRedo();
@@ -15845,6 +15851,7 @@ export class WriterAdapter {
     this._initZones();
     this._sourcePath = null;
     this._wordCountSourceText = null;
+    this._wordCountSourceTextInvalidated = true;
     this.isNewApplicationDocument = false;
     this.bodyDom?.classList?.remove("vno-new-application-document");
     this.comments = [];
@@ -15924,6 +15931,7 @@ export class WriterAdapter {
     this._initZones();
     this._sourcePath = null;
     this._wordCountSourceText = null;
+    this._wordCountSourceTextInvalidated = true;
     this.isNewApplicationDocument = true;
     this.comments = [];
     this.trackChangesEnabled = false;

@@ -236,6 +236,25 @@ export async function runWriterWordCountTests() {
     if (stats.paragraphs !== 1) throw new Error(`Sai số đoạn: ${stats.paragraphs}`);
   });
 
+  await test("Word Count: giữ số liệu OOXML khi DOM chỉ chuẩn hóa Unicode nhưng không đổi chữ", () => {
+    const body = {
+      innerText: "Vệ",
+      textContent: "Vệ",
+      querySelectorAll(selector) {
+        if (String(selector).includes("p")) return [{ innerText: "Vệ" }];
+        return [];
+      },
+      contains() { return true; }
+    };
+    const adapter = new WriterAdapter({ querySelector: (selector) => selector === ".vno-writer-body" ? body : null });
+    adapter._wordCountSourceText = "Vê\u0323";
+    adapter.isDirty = true;
+    const stats = adapter.getWordCountStats({ preferSelection: false });
+    if (stats.charactersNoSpaces !== adapter._wordCountSourceText.length) {
+      throw new Error(`NFC conversion changed source character stats: ${JSON.stringify(stats)}`);
+    }
+  });
+
   await test("Word Count: bỏ chữ trong hộp văn bản nổi như thống kê Word", () => {
     const floating = { innerText: "Văn bản trong hộp nổi", textContent: "Văn bản trong hộp nổi" };
     const floatingParagraph = {
