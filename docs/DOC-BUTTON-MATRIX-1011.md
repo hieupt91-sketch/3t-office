@@ -6,7 +6,7 @@ Nguồn: `claude-ribbon-scan` (nút nào có phản ứng) + `docs/AUDIT-DOC-WOR
 - **LỆCH ĐÃ BIẾT**: còn lệch đã đo.
 - **CHƯA ĐỐI CHIẾU**: nút có phản ứng (không phải nút câm) nhưng **chưa** so với Word thật — cần làm tiếp.
 
-Tổng kết: KHỚP WORD (đã so Word COM): 103, CHƯA ĐỐI CHIẾU: 10, LỆCH ĐÃ BIẾT: 6, KHÁC CÓ CHỦ Ý: 1 (tổng 120 nút, không kể Trợ lý AI).
+Tổng kết: KHỚP WORD (đã so Word COM): 108, KHÁC CÓ CHỦ Ý: 5, CHƯA ĐỐI CHIẾU: 5, LỆCH ĐÃ BIẾT: 2 (tổng 120 nút, không kể Trợ lý AI).
 
 | Tab | Lệnh | Nút | Trạng thái | Ghi chú |
 |---|---|---|---|---|
@@ -50,8 +50,8 @@ Tổng kết: KHỚP WORD (đã so Word COM): 103, CHƯA ĐỐI CHIẾU: 10, L�
 | Chèn | `writer.table.fromText` | Văn bản thành bảng | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 2: 7 lệnh, thao tác CDP và Word COM khớp về đầu ra DOCX |
 | Chèn | `writer.image.insert` | Hình ảnh | KHỚP WORD (đã so Word COM) | PNG: kích thước, wrap, vị trí |
 | Chèn | `writer.shape.insert` | Hình khối | KHỚP WORD (đã so Word COM) | hình chữ nhật: loại, kích thước, vị trí, màu/viền |
-| Chèn | `writer.diagram.insert` | Sơ đồ | LỆCH ĐÃ BIẾT | FIX-T11 nhóm 2: DOCX mở trong Word có 0 Chart/SmartArt native; hiện là minh họa tĩnh, lệch chức năng có thể chỉnh sửa |
-| Chèn | `writer.chart.insert` | Biểu đồ | LỆCH ĐÃ BIẾT | FIX-T11 nhóm 2: DOCX mở trong Word có 0 Chart/SmartArt native; hiện là minh họa tĩnh, lệch chức năng có thể chỉnh sửa |
+| Chèn | `writer.diagram.insert` | Sơ đồ | KHỚP WORD (đã so Word COM) | FIX-T12: Word COM đọc được một biểu đồ native chỉnh sửa được kèm workbook nhúng; sơ đồ là nhóm DrawingML chỉnh sửa được gồm 4 hình |
+| Chèn | `writer.chart.insert` | Biểu đồ | KHỚP WORD (đã so Word COM) | FIX-T12: Word COM đọc được một biểu đồ native chỉnh sửa được kèm workbook nhúng; sơ đồ là nhóm DrawingML chỉnh sửa được gồm 4 hình |
 | Chèn | `common.edit.hyperlink` | Liên kết (Ctrl+K) | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 2: 7 lệnh, thao tác CDP và Word COM khớp về đầu ra DOCX |
 | Chèn | `writer.insert.bookmark` | Đánh dấu | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 2: 7 lệnh, thao tác CDP và Word COM khớp về đầu ra DOCX |
 | Chèn | `writer.insert.crossReference` | Tham chiếu chéo | KHỚP WORD (đã so Word COM) | tham chiếu chéo, chú thích hình, danh mục hình |
@@ -59,13 +59,13 @@ Tổng kết: KHỚP WORD (đã so Word COM): 103, CHƯA ĐỐI CHIẾU: 10, L�
 | Chèn | `writer.header.insert` | Đầu trang | KHỚP WORD (đã so Word COM) | đầu/chân trang, trang đầu khác, chẵn/lẻ, số trang |
 | Chèn | `writer.footer.insert` | Chân trang | KHỚP WORD (đã so Word COM) | đầu/chân trang, trang đầu khác, chẵn/lẻ, số trang |
 | Chèn | `writer.insert.textbox` | Hộp văn bản | KHỚP WORD (đã so Word COM) | kích thước/lề/AutoSize sau lưu |
-| Chèn | `writer.insert.wordart` | Chữ nghệ thuật | CHƯA ĐỐI CHIẾU |  |
+| Chèn | `writer.insert.wordart` | Chữ nghệ thuật | CHƯA ĐỐI CHIẾU | Chưa so kết quả với Word COM: chưa có bằng chứng về đối tượng WordArt native có thể chỉnh sửa; cần kiểm tra kiểu dáng và cấu trúc DOCX riêng |
 | Chèn | `writer.format.dropCap` | Chữ đầu đoạn | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 2: 7 lệnh, thao tác CDP và Word COM khớp về đầu ra DOCX |
 | Chèn | `writer.insert.dateTime` | Ngày & Giờ | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 2: 7 lệnh, thao tác CDP và Word COM khớp về đầu ra DOCX |
 | Chèn | `writer.insert.equation` | Phương trình (Alt+=) | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 2: 7 lệnh, thao tác CDP và Word COM khớp về đầu ra DOCX |
 | Chèn | `writer.insert.symbol` | Ký hiệu | KHỚP WORD (đã so Word COM) | ©, ₫, ∑, → |
-| Thiết kế | `writer.design.themeGallery` | Chủ đề văn bản | LỆCH ĐÃ BIẾT | FIX-T11 nhóm 3: Word COM không nhận theme/line numbering; watermark xuất thành dòng văn bản thay vì watermark native |
-| Thiết kế | `writer.page.watermark` | Hình mờ | LỆCH ĐÃ BIẾT | FIX-T11 nhóm 3: Word COM không nhận theme/line numbering; watermark xuất thành dòng văn bản thay vì watermark native |
+| Thiết kế | `writer.design.themeGallery` | Chủ đề văn bản | KHỚP WORD (đã so Word COM) | FIX-T12: DOCX có bảng màu Modern/phông Be Vietnam Pro; Word COM đọc watermark PowerPlusWaterMarkObject1 trong header; line numbering Active=-1, CountBy=1, RestartMode=0 |
+| Thiết kế | `writer.page.watermark` | Hình mờ | KHỚP WORD (đã so Word COM) | FIX-T12: DOCX có bảng màu Modern/phông Be Vietnam Pro; Word COM đọc watermark PowerPlusWaterMarkObject1 trong header; line numbering Active=-1, CountBy=1, RestartMode=0 |
 | Thiết kế | `writer.page.color` | Màu trang | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 3: Word COM xác nhận màu trang #dbeafe, viền 3 pt nét đứt #dc2626 và thụt đầu dòng 14.15 pt khớp |
 | Thiết kế | `writer.page.border` | Viền trang | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 3: Word COM xác nhận màu trang #dbeafe, viền 3 pt nét đứt #dc2626 và thụt đầu dòng 14.15 pt khớp |
 | Bố cục | `writer.page.margins` | Căn lề | KHỚP WORD (đã so Word COM) | lề Normal/Narrow/Moderate/Wide, A4/A5/Letter, hướng |
@@ -75,12 +75,12 @@ Tổng kết: KHỚP WORD (đã so Word COM): 103, CHƯA ĐỐI CHIẾU: 10, L�
 | Bố cục | `writer.page.columns1` | 1 cột | KHỚP WORD (đã so Word COM) | 3/3 |
 | Bố cục | `writer.page.columns2` | 2 cột | KHỚP WORD (đã so Word COM) | 3/3 |
 | Bố cục | `writer.page.columns3` | 3 cột | KHỚP WORD (đã so Word COM) | 3/3 |
-| Bố cục | `writer.layout.lineNumbers` | Danh số dòng | LỆCH ĐÃ BIẾT | FIX-T11 nhóm 3: Word COM không nhận theme/line numbering; watermark xuất thành dòng văn bản thay vì watermark native |
+| Bố cục | `writer.layout.lineNumbers` | Danh số dòng | KHỚP WORD (đã so Word COM) | FIX-T12: DOCX có bảng màu Modern/phông Be Vietnam Pro; Word COM đọc watermark PowerPlusWaterMarkObject1 trong header; line numbering Active=-1, CountBy=1, RestartMode=0 |
 | Bố cục | `writer.para.firstLineIndent` | Thụt đầu dòng | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 3: Word COM xác nhận màu trang #dbeafe, viền 3 pt nét đứt #dc2626 và thụt đầu dòng 14.15 pt khớp |
 | Bố cục | `writer.para.spacingBefore` | Khoảng trước đoạn | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
 | Bố cục | `writer.para.spacingAfter` | Khoảng sau đoạn | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
-| Bố cục | `common.file.print` | In tài liệu (Ctrl+P) | CHƯA ĐỐI CHIẾU |  |
-| Bố cục | `writer.file.printPreview` | Xem trước khi in (Ctrl+F2) | CHƯA ĐỐI CHIẾU |  |
+| Bố cục | `common.file.print` | In tài liệu (Ctrl+P) | CHƯA ĐỐI CHIẾU | Chưa chạy in đối chứng: chưa chọn đích in (máy in hoặc PDF); thao tác in có thể tạo đầu ra ngoài workspace |
+| Bố cục | `writer.file.printPreview` | Xem trước khi in (Ctrl+F2) | CHƯA ĐỐI CHIẾU | Chưa so với Word COM: app có preview tích hợp, nhưng lần audit này không đọc/so trạng thái Print Preview tương đương trong Word |
 | Tham chiếu | `writer.reference.tocInsert` | Mục lục tự động | KHỚP WORD (đã so Word COM) | mục lục + Heading |
 | Tham chiếu | `writer.reference.tocUpdate` | Cập nhật mục lục | KHỚP WORD (đã so Word COM) | mục lục + Heading |
 | Tham chiếu | `writer.reference.footnoteInsert` | Chú thích trang (Ctrl+Alt+F) | KHỚP WORD (đã so Word COM) | chú thích trang/cuối |
@@ -102,7 +102,7 @@ Tổng kết: KHỚP WORD (đã so Word COM): 103, CHƯA ĐỐI CHIẾU: 10, L�
 | Trộn thư | `writer.mailMerge.nextRecord` | Bản ghi sau | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 5: 2 bản ghi, điều kiện yes/no, preview/điều hướng và tài liệu hợp nhất; Word COM xác nhận cả hai kết quả, phong bì và nhãn |
 | Trộn thư | `writer.mailMerge.finish` | Hoàn tất & Trộn | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 5: 2 bản ghi, điều kiện yes/no, preview/điều hướng và tài liệu hợp nhất; Word COM xác nhận cả hai kết quả, phong bì và nhãn |
 | Đánh giá | `writer.review.toggleSpellCheck` | Kiểm tra chính tả | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 6: CDP và Word COM xác nhận spell/view/ruler/grid/zoom; DOCX round-trip d01,d02,d06,d07,d13,d20,d24 = 7/7 PASS |
-| Đánh giá | `writer.review.wordCount` | Đếm từ | LỆCH ĐÃ BIẾT | FIX-T11 nhóm 6: Word COM batch d01/d02/d06/d07/d13/d20 có ký tự-khoảng-trắng lệch lần lượt -200/-62/-1061/-632/-107/-414; ký tự không khoảng trắng gần khớp. Cần xử lý riêng tab/khoảng trắng giữ nguyên |
+| Đánh giá | `writer.review.wordCount` | Đếm từ | LỆCH ĐÃ BIẾT | FIX-T13: ký tự đạt ngưỡng ≤0,2% trên 6/7 (d01 0,043%; d02/d06/d07/d13/d20 khớp); số từ còn lệch d01 -16, d02 +2, d07 +2, d13 -3, d20 -1; d24 Word COM -2, tài liệu mới 0/0, desktop crash khi mở d24 |
 | Đánh giá | `writer.review.commentDelete` | Xóa nhận xét | KHỚP WORD (đã so Word COM) | ghi chú: tạo/điều hướng/giải quyết/xóa; trả lời bình luận (T10) |
 | Đánh giá | `writer.review.commentResolve` | Đã xử lý | KHỚP WORD (đã so Word COM) | ghi chú: tạo/điều hướng/giải quyết/xóa; trả lời bình luận (T10) |
 | Đánh giá | `writer.review.commentPrevious` | Nhận xét trước | KHỚP WORD (đã so Word COM) | ghi chú: tạo/điều hướng/giải quyết/xóa; trả lời bình luận (T10) |
@@ -123,10 +123,10 @@ Tổng kết: KHỚP WORD (đã so Word COM): 103, CHƯA ĐỐI CHIẾU: 10, L�
 | Chế độ xem | `writer.view.zoomIn` | Phóng to | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 6: CDP và Word COM xác nhận spell/view/ruler/grid/zoom; DOCX round-trip d01,d02,d06,d07,d13,d20,d24 = 7/7 PASS |
 | Chế độ xem | `writer.view.zoom100` | 100% | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 6: CDP và Word COM xác nhận spell/view/ruler/grid/zoom; DOCX round-trip d01,d02,d06,d07,d13,d20,d24 = 7/7 PASS |
 | Chế độ xem | `writer.view.zoomOut` | Thu nhỏ | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 6: CDP và Word COM xác nhận spell/view/ruler/grid/zoom; DOCX round-trip d01,d02,d06,d07,d13,d20,d24 = 7/7 PASS |
-| Chế độ xem | `writer.view.pageWidth` | Chiều rộng trang | CHƯA ĐỐI CHIẾU |  |
-| Chế độ xem | `writer.view.zoomReset` | Đặt lại | CHƯA ĐỐI CHIẾU |  |
-| Chế độ xem | `writer.view.newWindow` | Cửa sổ mới | CHƯA ĐỐI CHIẾU |  |
-| Chế độ xem | `common.macro.recordToggle` | Ghi Macro (Ctrl+Shift+R) | CHƯA ĐỐI CHIẾU | FIX-T11 nhóm 6: CDP xác nhận ghi/chạy macro cơ bản; chưa so thao tác tương đương bằng Word COM |
-| Chế độ xem | `common.macro.manager` | Xem Macro (Alt+F8) | CHƯA ĐỐI CHIẾU | FIX-T11 nhóm 6: CDP xác nhận ghi/chạy macro cơ bản; chưa so thao tác tương đương bằng Word COM |
-| Trợ giúp | `writer.help.open` | Trợ giúp (F1) | CHƯA ĐỐI CHIẾU |  |
-| Trợ giúp | `common.help.about` | Giới thiệu | CHƯA ĐỐI CHIẾU |  |
+| Chế độ xem | `writer.view.pageWidth` | Chiều rộng trang | CHƯA ĐỐI CHIẾU | Chưa so trạng thái page-width fit với Word COM; các phép thử zoom100 không xác nhận chế độ vừa chiều rộng trang |
+| Chế độ xem | `writer.view.zoomReset` | Đặt lại | CHƯA ĐỐI CHIẾU | Chưa bấm riêng nút Đặt lại rồi đọc trạng thái Word COM; phép thử zoom100 trước đó không xác nhận riêng lệnh reset |
+| Chế độ xem | `writer.view.newWindow` | Cửa sổ mới | LỆCH ĐÃ BIẾT | Desktop CDP ghi nhận window.open bị chặn nên không tạo cửa sổ Writer mới; Word COM chưa được so vì lệnh app không mở cửa sổ |
+| Chế độ xem | `common.macro.recordToggle` | Ghi Macro (Ctrl+Shift+R) | KHÁC CÓ CHỦ Ý | FIX-T13: VN Office ghi/phát lại command ID qua Command Bus và lưu macro cục bộ; không đọc/chạy VBA Project như Word, đây là mô hình macro riêng có chủ ý |
+| Chế độ xem | `common.macro.manager` | Xem Macro (Alt+F8) | KHÁC CÓ CHỦ Ý | FIX-T13: VN Office ghi/phát lại command ID qua Command Bus và lưu macro cục bộ; không đọc/chạy VBA Project như Word, đây là mô hình macro riêng có chủ ý |
+| Trợ giúp | `writer.help.open` | Trợ giúp (F1) | KHÁC CÓ CHỦ Ý | F1 mở Help catalog cục bộ trong app, dùng được offline; khác luồng trợ giúp bên ngoài của Word có chủ ý |
+| Trợ giúp | `common.help.about` | Giới thiệu | KHÁC CÓ CHỦ Ý | About hiển thị phiên bản, bản quyền và giấy phép của 3T Office; nội dung nhận diện sản phẩm khác Word có chủ ý |

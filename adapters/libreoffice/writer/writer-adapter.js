@@ -53,7 +53,7 @@ import {
   tableOfFiguresTitle,
   tofMarkerHtml
 } from "../../../apps/writer/captions.js";
-import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, showWordCountDialog } from "../../../apps/writer/word-count.js";
+import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlListMarkerStats, extractOoxmlDocumentText, extractWordCountText, showWordCountDialog } from "../../../apps/writer/word-count.js";
 import { showFontDialog } from "../../../apps/writer/font-dialog.js";
 
 let writerInsertDialogsPromise;
@@ -289,6 +289,9 @@ export class WriterAdapter {
     this.editorDom = editorDom;
     this.documentContent = "";
     this.isDirty = false;
+    this._wordCountSourceText = null;
+    this._wordCountSourceTextInvalidated = false;
+    this._wordCountSourceListItems = [];
     this.isNewApplicationDocument = true;
     this._openedEditorDomHash = null;
     this.sourceFileName = "TaiLieu";
@@ -2353,26 +2356,37 @@ export class WriterAdapter {
       return countDocumentStats(selectedText, { scope: "selection" });
     }
 
-    const text = body.innerText != null ? body.innerText : (body.textContent || "");
-    const floatingShapes = Array.from(body.querySelectorAll('[data-vno-float]'))
-      .filter((shape) => !shape.parentElement?.closest?.('[data-vno-float]'));
+    const hasLiveDom = Boolean(body.childNodes);
+    const currentText = hasLiveDom
+      ? extractWordCountText(body)
+      : (body.innerText != null ? body.innerText : (body.textContent || ""));
+    const sourceText = typeof this._wordCountSourceText === "string" && !this._wordCountSourceTextInvalidated
+      ? this._wordCountSourceText
+      : null;
+    const sourceStillMatches = sourceText != null;
+    const text = sourceStillMatches ? sourceText : currentText;
     const paragraphCount = countBlockParagraphs(body);
     const lineCount = countBlockLines(body);
-    const markerStats = countListMarkerStats(body);
-    markerStats.charactersWithSpaces += countExplicitLineBreaks(body);
+    const markerStats = sourceStillMatches && this._wordCountSourceListItems?.length
+      ? countOoxmlListMarkerStats(this._wordCountSourceListItems)
+      : countListMarkerStats(body);
+    if (!sourceStillMatches) markerStats.charactersWithSpaces += countExplicitLineBreaks(body);
     const stats = countDocumentStats(text, {
       scope: "document",
+      characterText: text,
       paragraphCount,
       lineCount: lineCount == null ? undefined : lineCount,
       markerStats
     });
-    // Word's document statistics omit floating text boxes and shapes. They are
-    // visible in Writer's DOM body, so subtract their text explicitly.
-    for (const shape of floatingShapes) {
-      const floatingStats = countDocumentStats(shape.innerText ?? shape.textContent ?? "");
-      stats.words = Math.max(0, stats.words - floatingStats.words);
-      stats.charactersWithSpaces = Math.max(0, stats.charactersWithSpaces - floatingStats.charactersWithSpaces);
-      stats.charactersNoSpaces = Math.max(0, stats.charactersNoSpaces - floatingStats.charactersNoSpaces);
+    if (!hasLiveDom) {
+      const floatingShapes = Array.from(body.querySelectorAll('[data-vno-float]'))
+        .filter((shape) => !shape.parentElement?.closest?.('[data-vno-float]'));
+      for (const shape of floatingShapes) {
+        const floatingStats = countDocumentStats(shape.innerText ?? shape.textContent ?? "");
+        stats.words = Math.max(0, stats.words - floatingStats.words);
+        stats.charactersWithSpaces = Math.max(0, stats.charactersWithSpaces - floatingStats.charactersWithSpaces);
+        stats.charactersNoSpaces = Math.max(0, stats.charactersNoSpaces - floatingStats.charactersNoSpaces);
+      }
     }
     return stats;
   }
@@ -15587,6 +15601,7 @@ export class WriterAdapter {
     );
 
     if (result.status === "ok") {
+      if (this.isDirty) { this._wordCountSourceText = null; this._wordCountSourceTextInvalidated = true; }
       this.isDirty = false;
       const savedPath = result.path || this._sourcePath;
       if (savedPath) {
@@ -15639,6 +15654,7 @@ export class WriterAdapter {
         this.shell?.setStatus?.(`Đã xuất PDF: ${String(savedPath).split(/[/\\]/).pop()}`);
         return true;
       }
+      if (this.isDirty) { this._wordCountSourceText = null; this._wordCountSourceTextInvalidated = true; }
       this.isDirty = false;
       if (savedPath) {
         this._sourcePath = savedPath;
@@ -15712,6 +15728,8 @@ export class WriterAdapter {
       }
       this._initZones();
       this._sourcePath = result.sourcePath || null;
+      this._wordCountSourceText = extractOoxmlDocumentText(result.ooxmlDocumentXml);
+      this._wordCountSourceListItems = this._ooxmlListParagraphs(result.ooxmlDocumentXml, result.ooxmlStylesXml, result.ooxmlNumberingXml);
       this.isNewApplicationDocument = false;
       this.bodyDom?.classList?.remove("vno-new-application-document");
       // Comments chỉ thuộc tài liệu đang mở trong phiên; file khác không dùng lại anchor cũ.
@@ -15813,6 +15831,7 @@ export class WriterAdapter {
       this.documentContent = this.editorDom ? this.editorDom.innerHTML : raw;
       this.sourceFileName = (result.fileName || "TaiLieu").replace(/\.[^/.]+$/, "");
       this.isDirty = false;
+      this._wordCountSourceTextInvalidated = false;
       this._openedEditorDomHash = this._editorDomFingerprint();
       this._updateTrackChangesCommandState();
       this.clearUndoRedo();
@@ -15833,6 +15852,9 @@ export class WriterAdapter {
     if (!/<(?:html|body|div|p|table|span|h[1-6]|ul|ol)\b/i.test(String(content || ""))) return false;
     this._initZones();
     this._sourcePath = null;
+    this._wordCountSourceText = null;
+    this._wordCountSourceTextInvalidated = true;
+    this._wordCountSourceListItems = [];
     this.isNewApplicationDocument = false;
     this.bodyDom?.classList?.remove("vno-new-application-document");
     this.comments = [];
@@ -15911,6 +15933,9 @@ export class WriterAdapter {
   async newDocument() {
     this._initZones();
     this._sourcePath = null;
+    this._wordCountSourceText = null;
+    this._wordCountSourceTextInvalidated = true;
+    this._wordCountSourceListItems = [];
     this.isNewApplicationDocument = true;
     this.comments = [];
     this.trackChangesEnabled = false;
