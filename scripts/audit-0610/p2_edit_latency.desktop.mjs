@@ -11,6 +11,13 @@ const expected = file.replace(/\\/g, "/").toLowerCase();
 try {
   await session.cdp.waitFor(`(() => { const a=window.__vnoAppInstance?.adapter; return String(a?._sourcePath||a?.sourceFilePath||'').replace(/\\\\/g,'/').toLowerCase()===${JSON.stringify(expected)}; })()`, { timeoutMilliseconds: 900000, intervalMilliseconds: 500 });
   await sleep(1500);
+  // Settle cached formula values first so the differential check compares both
+  // recalculation paths from the same workbook state, including cached errors.
+  const baselineFormulaCount = await session.cdp.evaluate(`(() => {
+    const g=window.__vnoAppInstance.grid;
+    g._recalculateAllFormulas(undefined,true);
+    return g.sheets.reduce((count,sheet)=>count+[...(g.sheetsData[sheet]||new Map()).values()].filter(item=>item?.formula).length,0);
+  })()`);
   const target = await session.cdp.evaluate(`(() => {
     const g=window.__vnoAppInstance.grid;
     let graph=g._formulaDependencyGraph || g._buildFormulaDependencyGraph();
@@ -71,7 +78,7 @@ try {
     for(const [s,c,v] of after){const prior=beforeMap.get(JSON.stringify([s,c]));if(!Object.is(prior,v))differences.push({sheet:s,coord:c,incremental:prior,full:v});}
     return {formulaCount:after.length,mismatchCount:differences.length,mismatches:differences.slice(0,20)};
   })()`);
-  console.log(JSON.stringify({file,target:{sheet:target.sheet,coord:target.coord,dependentFormulaCount:target.count,originalValue:target.originalValue},times,editedValue:edited.editedValue,undoValue,undoRestored:Object.is(undoValue,target.originalValue),redoValue:redoState.value,redoRestored:Object.is(redoState.value,edited.editedValue),oracle}));
+  console.log(JSON.stringify({file,baselineFormulaCount,target:{sheet:target.sheet,coord:target.coord,dependentFormulaCount:target.count,originalValue:target.originalValue},times,editedValue:edited.editedValue,undoValue,undoRestored:Object.is(undoValue,target.originalValue),redoValue:redoState.value,redoRestored:Object.is(redoState.value,edited.editedValue),oracle}));
 } finally {
   await session.close();
 }
