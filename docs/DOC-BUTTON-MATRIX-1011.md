@@ -6,7 +6,7 @@ Nguồn: `claude-ribbon-scan` (nút nào có phản ứng) + `docs/AUDIT-DOC-WOR
 - **LỆCH ĐÃ BIẾT**: còn lệch đã đo.
 - **CHƯA ĐỐI CHIẾU**: nút có phản ứng (không phải nút câm) nhưng **chưa** so với Word thật — cần làm tiếp.
 
-Tổng kết: KHỚP WORD (đã so Word COM): 108, KHÁC CÓ CHỦ Ý: 5, CHƯA ĐỐI CHIẾU: 5, LỆCH ĐÃ BIẾT: 2 (tổng 120 nút, không kể Trợ lý AI).
+Tổng kết: KHỚP WORD (đã so Word COM): 108, KHÁC CÓ CHỦ Ý: 6, CHƯA ĐỐI CHIẾU: 5, LỆCH ĐÃ BIẾT: 1 (tổng 120 nút, không kể Trợ lý AI).
 
 | Tab | Lệnh | Nút | Trạng thái | Ghi chú |
 |---|---|---|---|---|
@@ -80,7 +80,7 @@ Tổng kết: KHỚP WORD (đã so Word COM): 108, KHÁC CÓ CHỦ Ý: 5, CHƯA 
 | Bố cục | `writer.para.spacingBefore` | Khoảng trước đoạn | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
 | Bố cục | `writer.para.spacingAfter` | Khoảng sau đoạn | KHỚP WORD (đã so Word COM) | 20/20 phép thử định dạng |
 | Bố cục | `common.file.print` | In tài liệu (Ctrl+P) | CHƯA ĐỐI CHIẾU | Chưa chạy in đối chứng: chưa chọn đích in (máy in hoặc PDF); thao tác in có thể tạo đầu ra ngoài workspace |
-| Bố cục | `writer.file.printPreview` | Xem trước khi in (Ctrl+F2) | CHƯA ĐỐI CHIẾU | Chưa so với Word COM: app có preview tích hợp, nhưng lần audit này không đọc/so trạng thái Print Preview tương đương trong Word |
+| Bố cục | `writer.file.printPreview` | Xem trước khi in (Ctrl+F2) | CHƯA ĐỐI CHIẾU | FIX-T14 CDP: hộp thoại In dựng 1 trang A4 210×297 mm, ảnh xem trước 794×1123 px; chưa so trang/PDF với Word COM |
 | Tham chiếu | `writer.reference.tocInsert` | Mục lục tự động | KHỚP WORD (đã so Word COM) | mục lục + Heading |
 | Tham chiếu | `writer.reference.tocUpdate` | Cập nhật mục lục | KHỚP WORD (đã so Word COM) | mục lục + Heading |
 | Tham chiếu | `writer.reference.footnoteInsert` | Chú thích trang (Ctrl+Alt+F) | KHỚP WORD (đã so Word COM) | chú thích trang/cuối |
@@ -123,9 +123,9 @@ Tổng kết: KHỚP WORD (đã so Word COM): 108, KHÁC CÓ CHỦ Ý: 5, CHƯA 
 | Chế độ xem | `writer.view.zoomIn` | Phóng to | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 6: CDP và Word COM xác nhận spell/view/ruler/grid/zoom; DOCX round-trip d01,d02,d06,d07,d13,d20,d24 = 7/7 PASS |
 | Chế độ xem | `writer.view.zoom100` | 100% | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 6: CDP và Word COM xác nhận spell/view/ruler/grid/zoom; DOCX round-trip d01,d02,d06,d07,d13,d20,d24 = 7/7 PASS |
 | Chế độ xem | `writer.view.zoomOut` | Thu nhỏ | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 6: CDP và Word COM xác nhận spell/view/ruler/grid/zoom; DOCX round-trip d01,d02,d06,d07,d13,d20,d24 = 7/7 PASS |
-| Chế độ xem | `writer.view.pageWidth` | Chiều rộng trang | CHƯA ĐỐI CHIẾU | Chưa so trạng thái page-width fit với Word COM; các phép thử zoom100 không xác nhận chế độ vừa chiều rộng trang |
-| Chế độ xem | `writer.view.zoomReset` | Đặt lại | CHƯA ĐỐI CHIẾU | Chưa bấm riêng nút Đặt lại rồi đọc trạng thái Word COM; phép thử zoom100 trước đó không xác nhận riêng lệnh reset |
-| Chế độ xem | `writer.view.newWindow` | Cửa sổ mới | LỆCH ĐÃ BIẾT | Desktop CDP ghi nhận window.open bị chặn nên không tạo cửa sổ Writer mới; Word COM chưa được so vì lệnh app không mở cửa sổ |
+| Chế độ xem | `writer.view.pageWidth` | Chiều rộng trang | CHƯA ĐỐI CHIẾU | FIX-T14 CDP: trang A4 rộng 1286 px trong vùng xem 1329 px ở zoom 162%; chưa so Zoom.PageFit của Word COM |
+| Chế độ xem | `writer.view.zoomReset` | Đặt lại | CHƯA ĐỐI CHIẾU | FIX-T14 CDP: sau khi tăng zoom và vừa chiều rộng, nút Đặt lại đưa zoom về 100%; chưa so Percentage của Word COM |
+| Chế độ xem | `writer.view.newWindow` | Cửa sổ mới | KHÁC CÓ CHỦ Ý | FIX-T14 CDP: tạo WebView desktop thứ hai với tài liệu Writer trắng; nội dung cửa sổ gốc không đồng bộ. Đây là thiết kế có chủ ý để mở tài liệu độc lập; Help ghi rõ khác với việc nhân bản cùng tài liệu của Word. |
 | Chế độ xem | `common.macro.recordToggle` | Ghi Macro (Ctrl+Shift+R) | KHÁC CÓ CHỦ Ý | FIX-T13: VN Office ghi/phát lại command ID qua Command Bus và lưu macro cục bộ; không đọc/chạy VBA Project như Word, đây là mô hình macro riêng có chủ ý |
 | Chế độ xem | `common.macro.manager` | Xem Macro (Alt+F8) | KHÁC CÓ CHỦ Ý | FIX-T13: VN Office ghi/phát lại command ID qua Command Bus và lưu macro cục bộ; không đọc/chạy VBA Project như Word, đây là mô hình macro riêng có chủ ý |
 | Trợ giúp | `writer.help.open` | Trợ giúp (F1) | KHÁC CÓ CHỦ Ý | F1 mở Help catalog cục bộ trong app, dùng được offline; khác luồng trợ giúp bên ngoài của Word có chủ ý |
