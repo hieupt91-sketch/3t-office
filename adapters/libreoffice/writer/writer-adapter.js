@@ -2369,7 +2369,7 @@ export class WriterAdapter {
     const paragraphCount = countBlockParagraphs(body);
     const lineCount = countBlockLines(body);
     const markerStats = countListMarkerStats(body);
-    markerStats.charactersWithSpaces += countExplicitLineBreaks(body);
+    if (!sourceStillMatches) markerStats.charactersWithSpaces += countExplicitLineBreaks(body);
     const stats = countDocumentStats(text, {
       scope: "document",
       characterText: text,
