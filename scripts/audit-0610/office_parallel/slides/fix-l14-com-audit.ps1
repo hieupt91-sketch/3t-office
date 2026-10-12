@@ -78,6 +78,8 @@ try {
         }
         try { $commentRows += [ordered]@{ step = 'resolvedReadback'; resolved = [bool]$second.Resolved; error = $null } }
         catch { $commentRows += [ordered]@{ step = 'resolvedReadback'; resolved = $null; error = $_.Exception.Message } }
+        try { $second.Resolved = $true; $commentRows += [ordered]@{ step = 'resolvedWriteback'; resolved = [bool]$second.Resolved; error = $null } }
+        catch { $commentRows += [ordered]@{ step = 'resolvedWriteback'; resolved = $null; error = $_.Exception.Message } }
         $ops.comments = $commentRows
     } catch { $ops.comments = [ordered]@{ supported = $false; error = $_.Exception.Message } }
 
@@ -106,18 +108,22 @@ try {
     $presentation.SlideShowSettings.AdvanceMode = 1
     $presentation.SlideShowSettings.StartingSlide = 1
     $showWindow = $presentation.SlideShowSettings.Run()
-    $ops.showFromBegin = [ordered]@{ slideShowWindows = [int]$app.SlideShowWindows.Count; currentPosition = [int]$showWindow.View.CurrentShowPosition }
-    $showWindow.View.Exit()
-    $showWindow = $null
-    $result.cleanup.ownShowEnded = $true
+    if ($showWindow) {
+        $ops.showFromBegin = [ordered]@{ returnedWindow = $true; slideShowWindows = [int]$app.SlideShowWindows.Count; currentPosition = [int]$showWindow.View.CurrentShowPosition }
+        $showWindow.View.Exit()
+        $showWindow = $null
+        $result.cleanup.ownShowEnded = $true
+    } else { $ops.showFromBegin = [ordered]@{ returnedWindow = $false; slideShowWindows = [int]$app.SlideShowWindows.Count } }
 
     $window.ViewType = 9
     $presentation.SlideShowSettings.StartingSlide = 2
     $showWindow = $presentation.SlideShowSettings.Run()
-    $ops.showFromCurrent = [ordered]@{ slideShowWindows = [int]$app.SlideShowWindows.Count; requestedCurrentSlide = 2; currentPosition = [int]$showWindow.View.CurrentShowPosition }
-    $showWindow.View.Exit()
-    $showWindow = $null
-    $result.cleanup.ownShowEnded = $true
+    if ($showWindow) {
+        $ops.showFromCurrent = [ordered]@{ returnedWindow = $true; slideShowWindows = [int]$app.SlideShowWindows.Count; requestedStartingSlide = 2; currentPosition = [int]$showWindow.View.CurrentShowPosition }
+        $showWindow.View.Exit()
+        $showWindow = $null
+        $result.cleanup.ownShowEnded = $true
+    } else { $ops.showFromCurrent = [ordered]@{ returnedWindow = $false; slideShowWindows = [int]$app.SlideShowWindows.Count } }
 } catch {
     $result.error = $_.Exception.Message
 } finally {
