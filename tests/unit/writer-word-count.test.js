@@ -98,7 +98,7 @@ export async function runWriterWordCountTests() {
   });
 
   await test("Word Count: đọc text runs OOXML, tab, ngắt dòng và kết quả field, bỏ chỉ dẫn/frame", () => {
-    const xml = '<w:document><w:body><w:p><w:r><w:t>Alpha</w:t><w:tab/><w:t xml:space="preserve">  beta</w:t><w:br/><w:t>Gamma</w:t></w:r></w:p><w:p><w:r><w:t xml:space="preserve">   </w:t></w:r></w:p><w:p><w:r><w:instrText> PAGE </w:instrText><w:t>Body</w:t><w:txbxContent><w:p><w:r><w:t>Frame</w:t></w:r></w:p></w:txbxContent></w:r></w:p></w:body></w:document>';
+    const xml = '<w:document><w:body><w:p><w:pPr><w:tabs><w:tab w:val="left" w:pos="720"/></w:tabs></w:pPr><w:r><w:t>Alpha</w:t><w:tab/><w:t xml:space="preserve">  beta</w:t><w:br/><w:t>Gamma</w:t></w:r></w:p><w:p><w:r><w:t xml:space="preserve">   </w:t></w:r></w:p><w:p><w:r><w:instrText> PAGE </w:instrText><w:t>Body</w:t><w:txbxContent><w:p><w:r><w:t>Frame</w:t></w:r></w:p></w:txbxContent></w:r></w:p></w:body></w:document>';
     const source = extractOoxmlDocumentText(xml);
     const stats = countDocumentStats(source, { characterText: source });
     if (stats.words !== 4 || stats.charactersNoSpaces !== 18 || stats.charactersWithSpaces !== 25) {

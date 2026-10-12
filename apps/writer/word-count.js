@@ -191,9 +191,9 @@ export function extractOoxmlDocumentText(ooxmlDocumentXml) {
       if (!text.endsWith("\n")) text += "\n";
     } else if (token[1] != null) {
       text += decodeXmlText(token[1]);
-    } else if (/^<w:tab\b/i.test(value)) {
+    } else if (/^<w:tab\s*\/?\s*>$/i.test(value)) {
       text += "\t";
-    } else {
+    } else if (/^<w:cr\b/i.test(value) || !/\bw:type=["'](?:page|column)["']/i.test(value)) {
       text += "\u000b";
     }
   }
