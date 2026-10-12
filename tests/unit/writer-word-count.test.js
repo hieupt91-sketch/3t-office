@@ -3,7 +3,7 @@
  */
 
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
-import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlWhitespaceOnlyParagraphCharacters, extractOoxmlDocumentText, extractWordCountText } from "../../apps/writer/word-count.js";
+import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlListMarkerStats, countOoxmlWhitespaceOnlyParagraphCharacters, extractOoxmlDocumentText, extractWordCountText } from "../../apps/writer/word-count.js";
 import { WRITER_RIBBON_TABS } from "../../apps/writer/writer-ribbon.js";
 import { WRITER_COMMANDS } from "../../platform/commands/command-definitions.js";
 import { ICONS } from "../../platform/ui-kit/icons.js";
@@ -25,6 +25,17 @@ export async function runWriterWordCountTests() {
       results.push({ name, pass: false, error: error.message });
     }
   };
+
+  await test("Word Count: OOXML list labels omit numFmt none items", () => {
+    const stats = countOoxmlListMarkerStats([
+      { numId: "1", ilvl: "0", numFmt: "decimal", lvlText: "%1.", value: 12 },
+      { numId: "1", ilvl: "0", numFmt: "none", lvlText: "%1.", value: 13 },
+      { numId: "2", ilvl: "0", numFmt: "bullet", lvlText: "•", value: 1 }
+    ]);
+    if (stats.words !== 1 || stats.charactersNoSpaces !== 4 || stats.charactersWithSpaces !== 6) {
+      throw new Error(`Unexpected OOXML marker stats: ${JSON.stringify(stats)}`);
+    }
+  });
 
 
   await test("Word Count: tách từ tiếng Việt theo khoảng trắng, bỏ token rỗng", () => {

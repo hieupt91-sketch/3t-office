@@ -334,6 +334,42 @@ export function countListMarkerStats(bodyEl) {
   return { words, charactersNoSpaces, charactersWithSpaces };
 }
 
+/** Count native Word list labels from the imported OOXML paragraph metadata. */
+export function countOoxmlListMarkerStats(items = []) {
+  let words = 0;
+  let charactersNoSpaces = 0;
+  let charactersWithSpaces = 0;
+  const counters = new Map();
+  const formatCounter = (value, format) => {
+    const kind = String(format || "decimal").toLowerCase();
+    if (kind === "upperletter" || kind === "upperalpha") return alphaCounter(value, true);
+    if (kind === "lowerletter" || kind === "loweralpha") return alphaCounter(value, false);
+    if (kind === "upperroman") return romanCounter(value, true);
+    if (kind === "lowerroman") return romanCounter(value, false);
+    return String(value);
+  };
+  for (const item of items || []) {
+    if (!item || String(item.numFmt || "").toLowerCase() === "none") continue;
+    const level = Math.max(0, Number(item.ilvl) || 0);
+    const key = String(item.numId || "");
+    if (!counters.has(key)) counters.set(key, new Map());
+    const levels = counters.get(key);
+    const value = Math.max(1, Number(item.value) || 1);
+    levels.set(level, value);
+    let label = String(item.lvlText || "");
+    label = label.replace(/%([1-9])/g, (_, levelText) => {
+      const referencedLevel = Number(levelText) - 1;
+      const referencedValue = levels.get(referencedLevel) || value;
+      return formatCounter(referencedValue, referencedLevel === level ? item.numFmt : "decimal");
+    });
+    if (!label) continue;
+    charactersNoSpaces += label.length;
+    charactersWithSpaces += label.length + 1;
+    if (/[\p{L}\p{N}]/u.test(label)) words += 1;
+  }
+  return { words, charactersNoSpaces, charactersWithSpaces };
+}
+
 /**
  * Word counts an explicit line break inside a paragraph as a character, but
  * excludes paragraph marks. `innerText` exposes both as newlines, which the

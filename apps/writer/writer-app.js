@@ -564,8 +564,8 @@ export class WriterApp {
       if (statsTimer) clearTimeout(statsTimer);
       statsTimer = setTimeout(() => { statsTimer = null; updateStats(); }, 350);
     };
-    this.canvas.addEventListener("input", () => {
-      if (this.adapter && this.adapter._wordCountSourceText != null) {
+    this.canvas.addEventListener("input", (event) => {
+      if (event.isTrusted && this.adapter && this.adapter._wordCountSourceText != null) {
         this.adapter._wordCountSourceTextInvalidated = true;
       }
       updateStatsSoon();

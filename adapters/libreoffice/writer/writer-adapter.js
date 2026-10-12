@@ -53,7 +53,7 @@ import {
   tableOfFiguresTitle,
   tofMarkerHtml
 } from "../../../apps/writer/captions.js";
-import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, extractOoxmlDocumentText, extractWordCountText, showWordCountDialog } from "../../../apps/writer/word-count.js";
+import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlListMarkerStats, extractOoxmlDocumentText, extractWordCountText, showWordCountDialog } from "../../../apps/writer/word-count.js";
 import { showFontDialog } from "../../../apps/writer/font-dialog.js";
 
 let writerInsertDialogsPromise;
@@ -2369,7 +2369,9 @@ export class WriterAdapter {
     const text = sourceStillMatches ? sourceText : currentText;
     const paragraphCount = countBlockParagraphs(body);
     const lineCount = countBlockLines(body);
-    const markerStats = countListMarkerStats(body);
+    const markerStats = sourceStillMatches && this._wordCountSourceListItems?.length
+      ? countOoxmlListMarkerStats(this._wordCountSourceListItems)
+      : countListMarkerStats(body);
     if (!sourceStillMatches) markerStats.charactersWithSpaces += countExplicitLineBreaks(body);
     const stats = countDocumentStats(text, {
       scope: "document",
