@@ -2354,24 +2354,36 @@ export class WriterAdapter {
     }
 
     const text = body.innerText != null ? body.innerText : (body.textContent || "");
+    let charactersText = text;
+    let floatingShapes = [];
+    if (typeof body.cloneNode === "function") {
+      const characterRoot = body.cloneNode(true);
+      floatingShapes = Array.from(body.querySelectorAll('[data-vno-float]'))
+        .filter((shape) => !shape.parentElement?.closest?.('[data-vno-float]'));
+      const clonedFloatingShapes = Array.from(characterRoot.querySelectorAll?.('[data-vno-float]') || [])
+        .filter((shape) => !shape.parentElement?.closest?.('[data-vno-float]'));
+      clonedFloatingShapes.forEach((shape) => shape.remove?.());
+      charactersText = characterRoot.textContent || text;
+    }
     const paragraphCount = countBlockParagraphs(body);
     const lineCount = countBlockLines(body);
     const markerStats = countListMarkerStats(body);
     markerStats.charactersWithSpaces += countExplicitLineBreaks(body);
     const stats = countDocumentStats(text, {
       scope: "document",
+      charactersText,
       paragraphCount,
       lineCount: lineCount == null ? undefined : lineCount,
       markerStats
     });
     // Word's document statistics omit floating text boxes and shapes. They are
     // visible in Writer's DOM body, so subtract their text explicitly.
-    const floatingShapes = Array.from(body.querySelectorAll('[data-vno-float]'))
-      .filter((shape) => !shape.parentElement?.closest?.('[data-vno-float]'));
     for (const shape of floatingShapes) {
       const floatingStats = countDocumentStats(shape.innerText ?? shape.textContent ?? "");
       stats.words = Math.max(0, stats.words - floatingStats.words);
-      stats.charactersWithSpaces = Math.max(0, stats.charactersWithSpaces - floatingStats.charactersWithSpaces);
+      if (floatingShapes.length && typeof body.cloneNode !== "function") {
+        stats.charactersWithSpaces = Math.max(0, stats.charactersWithSpaces - floatingStats.charactersWithSpaces);
+      }
       stats.charactersNoSpaces = Math.max(0, stats.charactersNoSpaces - floatingStats.charactersNoSpaces);
     }
     return stats;
