@@ -139,6 +139,13 @@ try {
   check("right-click opens cell context menu", menuText.includes("Ctrl+C") && menuText.includes("Ctrl+V"), menuText.replace(/\s+/g," ").trim());
   await press(cdp, "Escape");
 
+  await press(cdp, "F1");
+  await cdp.waitFor("!!document.querySelector('#vno-help-panel:not([hidden])')");
+  await cdp.evaluate(`import('/platform/commands/command-bus.js').then(m => m.globalCommandBus.execute('sheet.help.open', {entryId:'sheet.input.navigationFillClipboard'}))`);
+  await sleep(400);
+  const helpText = await cdp.evaluate("document.querySelector('.vno-help-article')?.innerText || ''");
+  check("F1 Help contains concrete grid navigation, fill and clipboard guidance", ["Ctrl+G", "Ctrl+D", "Ctrl+Z", "Ctrl+V"].every(term => helpText.includes(term)), helpText.slice(0, 220).replace(/\s+/g," ").trim());
+
   const failed = checks.filter(item => !item.ok);
   console.log(`SUMMARY ${checks.length - failed.length}/${checks.length} PASS, ${failed.length} FAIL`);
   if (failed.length) process.exitCode = 1;
