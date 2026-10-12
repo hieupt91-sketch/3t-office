@@ -13,7 +13,7 @@ const check = (name, ok, detail = "") => {
 };
 const state = () => cdp.evaluate(`(() => {
   const grid = window.__vnoAppInstance?.sheetGrid || window.__vnoAppInstance?.grid;
-  const cells = Object.fromEntries(["A1","A2","B2","C2","E2","E8","F8","A6","A7","D3","D4","F1"].map(key => [key, grid.cellsData.get(key) || null]));
+  const cells = Object.fromEntries(["A1","A2","B2","C2","E2","E8","F8","A6","A7","D3","D4","F1","G1","G2","G3"].map(key => [key, grid.cellsData.get(key) || null]));
   const coord = grid.selectedCoord;
   const range = grid.selectionRange;
   return { coord: String(coord.c)+String(coord.r), range: String(range.start.c)+String(range.start.r)+":"+String(range.end.c)+String(range.end.r), cells,
@@ -84,6 +84,18 @@ try {
   await pressSemicolon(true);
   s = await state();
   check("Ctrl+Shift+semicolon inserts a time", s.cells.F8?.style?.numberFormat?.category === "time", JSON.stringify(s.cells.F8));
+
+  await select("G1");
+  await press(cdp, "ArrowDown", { shift: true });
+  await press(cdp, "ArrowDown", { shift: true });
+  const undoBeforeCtrlEnter = (await state()).undo;
+  await typeText(cdp, "BROADCAST");
+  await press(cdp, "Enter", { ctrl: true });
+  s = await state();
+  check("Ctrl+Enter fills each selected cell with the entered value", [s.cells.G1,s.cells.G2,s.cells.G3].every(cell => cell?.val === "BROADCAST") && s.range === "G1:G3" && s.undo === undoBeforeCtrlEnter + 1, JSON.stringify(s));
+  await press(cdp, "z", { ctrl: true });
+  s = await state();
+  check("Ctrl+Z reverses the full Ctrl+Enter fill in one step", [s.cells.G1,s.cells.G2,s.cells.G3].every(cell => !cell?.val), JSON.stringify(s));
 
   await select("A1");
   await press(cdp, "c", { ctrl: true });

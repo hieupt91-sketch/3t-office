@@ -24,7 +24,7 @@ Phạm vi E3 dùng Excel 2016 cài trên máy làm chuẩn thao tác. Bài kiể
 | Enter khi sửa | Xác nhận và đi tới ô theo hướng Enter | Có; cần bổ sung kiểm thử riêng cho kết thúc sửa |
 | Alt+Enter | Chèn xuống dòng trong một ô | Có; chưa xác minh CDP | `insertLineBreak()` |
 | F4 trong công thức | Luân phiên tham chiếu tương đối/tuyệt đối tại caret | Có handler trong formula input; chưa xác minh qua shortcut manager | Cần kiểm tra xung đột phím tắt toàn cục |
-| Ctrl+Enter | Ghi cùng nội dung vào toàn vùng chọn | Chưa hỗ trợ đầy đủ | Grid chưa có thao tác broadcast có dịch tham chiếu công thức |
+| Ctrl+Enter | Ghi cùng nội dung vào toàn vùng chọn | PASS với giá trị; cần đối chiếu công thức bằng Excel COM | CDP desktop: G1:G3 nhận cùng nội dung, một Ctrl+Z hoàn tác cả vùng; chưa xác nhận quy tắc dịch tham chiếu công thức |
 | Ctrl+; / Ctrl+Shift+; | Chèn ngày hiện tại / giờ hiện tại | PASS cả hai phím | CDP xác nhận ô ngày là serial ngày có định dạng date; ô giờ là serial thời gian có định dạng time |
 | Delete / Backspace | Xóa nội dung toàn vùng đang chọn, giữ định dạng | PASS Delete vùng liên tục | CDP xác nhận A6:A7 được xóa; undo theo một thao tác |
 | Ctrl+D / Ctrl+R | Điền xuống / sang phải; dịch tham chiếu công thức tương đối | Ctrl+D PASS; Ctrl+R chưa xác minh | `fillDown()` / `fillRight()` |
@@ -49,5 +49,5 @@ Phạm vi E3 dùng Excel 2016 cài trên máy làm chuẩn thao tác. Bài kiể
 ## Giới hạn đã biết
 
 - Hộp tên là đường truy cập F5/Ctrl+G hiện tại; UI chưa có hộp thoại Go To riêng.
-- Phím End và Ctrl+Enter chưa tương đương đầy đủ.
+- Phím End chưa tương đương đầy đủ; Ctrl+Enter chưa đối chiếu quy tắc tham chiếu công thức với Excel COM.
 - Kéo tay nắm đã thử với chuỗi số; ngày/tháng và danh sách tùy chỉnh cần ca riêng.

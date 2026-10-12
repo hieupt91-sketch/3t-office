@@ -526,6 +526,16 @@ export class SheetGridController {
         this._movePointReferenceWithArrow(e.key);
         return;
       }
+      if (e.key === "Enter" && e.ctrlKey && !e.shiftKey) {
+        e.preventDefault();
+        const session = this.formulaEntry;
+        if (session?.update) session.update(this.formulaInput.value, this.formulaInput.selectionStart ?? this.formulaInput.value.length);
+        const value = session?.commit ? session.commit() : this.formulaInput.value;
+        this.autocomplete.closeAll();
+        if (session) this._cancelFormulaEntry();
+        this.fillSelectionWithValue(value);
+        return;
+      }
       if (e.key === "Enter") {
         e.preventDefault();
         this.autocomplete.closeAll();
@@ -8823,6 +8833,45 @@ _bindGridKeyboardNavigation() {
       });
     }
 
+    return true;
+  }
+
+  fillSelectionWithValue(value) {
+    if (this._guardProtectedMutation()) return false;
+    const ranges = this._getSelectionRanges().map(range => this._normalizeRange(range));
+    const coordinates = [...new Set(ranges.flatMap(range =>
+      this.formulaEngine.expandRange(this._rangeLabel(range))
+    ))];
+    if (!coordinates.length) coordinates.push(`${this.selectedCoord.c}${this.selectedCoord.r}`);
+
+    const before = {};
+    for (const coord of coordinates) {
+      const item = this.cellsData.get(coord);
+      before[coord] = item ? {
+        val: item.val ?? "",
+        formula: item.formula ?? "",
+        style: structuredClone(item.style || {})
+      } : null;
+    }
+    for (const coord of coordinates) {
+      const [col, row] = this._splitCoord(coord);
+      this.setCellValue(col, row, value, false, { commit: true, userInput: true });
+    }
+    const after = {};
+    for (const coord of coordinates) {
+      const item = this.cellsData.get(coord);
+      after[coord] = item ? {
+        val: item.val ?? "",
+        formula: item.formula ?? "",
+        style: structuredClone(item.style || {})
+      } : null;
+    }
+    this._recordHistory({
+      type: "batch-workbook",
+      beforeBySheet: { [this.activeSheet]: before },
+      afterBySheet: { [this.activeSheet]: after }
+    });
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
     return true;
   }
 
