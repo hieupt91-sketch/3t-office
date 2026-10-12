@@ -322,8 +322,8 @@ export const WRITER_HELP_ENTRIES = [
     id: "writer.insert.wordart",
     app: "writer",
     commandIds: ["writer.insert.wordart"],
-    title: "Chữ nghệ thuật (phần mềm văn phòng khácArt)",
-    summary: "Chèn một dòng chữ trang trí (viền, đổ bóng hoặc gradient) ngay tại vị trí con trỏ trong đoạn văn. Khác Hộp văn bản: phần mềm văn phòng khácArt nằm trong dòng chữ, không phải khung kéo thả đè lên trang.",
+    title: "Chữ nghệ thuật",
+    summary: "Chèn một đối tượng chữ trang trí có viền, đổ bóng hoặc màu tô ngay tại vị trí con trỏ trong đoạn văn. Đối tượng nằm trong dòng như ký tự, không phải khung kéo thả đè lên trang.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Văn bản" },
     keywords: ["chữ nghệ thuật", "wordart", "word art", "tiêu đề", "gradient", "viền", "đổ bóng"],
     steps: [
@@ -331,6 +331,7 @@ export const WRITER_HELP_ENTRIES = [
       "Mở tab Chèn, nhóm Văn bản, nhấn nút lớn Chữ nghệ thuật (cạnh Hộp văn bản).",
       "Hộp thoại Chèn chữ nghệ thuật: gõ nội dung (mặc định «3T Office», tối đa 80 ký tự) rồi chọn một mẫu trong lưới (ví dụ Xanh đậm viền trắng, Gradient đại dương, Viền đậm trắng).",
       "Nhấn Chèn. Khối chữ xuất hiện ngay tại con trỏ. Nhấp một lần để chọn (viền xanh); nhấp đúp để sửa chữ; Delete hoặc Backspace khi đang chọn sẽ xóa cả khối. Ctrl+Z hoàn tác, Ctrl+Y làm lại.",
+      "Khi lưu DOCX, chữ nghệ thuật được lưu thành đối tượng hiệu ứng chữ có thể chọn và sửa tiếp trong tài liệu.",
       "Cùng nhóm Văn bản còn Hộp văn bản (khung kéo-thả độc lập), Chữ đầu đoạn và Ngày & Giờ."
     ]
   },
