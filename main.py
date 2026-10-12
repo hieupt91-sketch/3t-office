@@ -1830,6 +1830,26 @@ def _apply_native_export_postprocess(
                     )
                     patched = patcher.postprocess_writer_strip_markers(patched)
                     patched = patcher.postprocess_writer_schema_fixes(patched)
+                chart_metadata = re.search(r"<!--vno-native-charts-fodt:([A-Za-z0-9+/=]+)-->", source_html or "")
+                if chart_metadata:
+                    try:
+                        chart_fodt = base64.b64decode(chart_metadata.group(1), validate=True).decode("utf-8")
+                        with tempfile.TemporaryDirectory(prefix="vnoffice_native_charts_") as chart_dir:
+                            fodt_path = os.path.join(chart_dir, "new-charts.fodt")
+                            with open(fodt_path, "w", encoding="utf-8", newline="") as handle:
+                                handle.write(chart_fodt)
+                            chart_docx_path = _run_soffice_convert(
+                                fodt_path, "docx", chart_dir, app_kind="writer",
+                            )
+                            with open(chart_docx_path, "rb") as handle:
+                                chart_docx = handle.read()
+                        patched = patcher.postprocess_writer_native_charts(
+                            patched, chart_docx, source_html=source_html,
+                        )
+                    except Exception as exc:
+                        raise DocumentEngineError(
+                            f"Không thể tạo biểu đồ DOCX có thể chỉnh sửa: {exc}"
+                        ) from exc
             if patched != converted_docx:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)

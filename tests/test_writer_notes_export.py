@@ -31,6 +31,11 @@ def _read(docx_bytes, name):
         return archive.read(name).decode("utf-8") if name in archive.namelist() else None
 
 
+def _read_bytes(docx_bytes, name):
+    with zipfile.ZipFile(io.BytesIO(docx_bytes)) as archive:
+        return archive.read(name) if name in archive.namelist() else None
+
+
 class WriterNotesExportTests(unittest.TestCase):
     def test_footnote_token_becomes_reference_and_part_is_created(self):
         body = '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Truoc [[VNOFN:fn-1]] sau</w:t></w:r></w:p>'
@@ -118,6 +123,61 @@ class WriterPageDecorExportTests(unittest.TestCase):
         docx = _docx(f"<w:p><w:r><w:t>A</w:t></w:r></w:p>{self.SECT}")
         out = patcher.postprocess_writer_page_decor(docx, source_html="<style>@page { background-color: #ffffff; }</style>")
         self.assertNotIn("<w:background", _read(out, "word/document.xml"))
+
+
+class WriterNativeChartExportTests(unittest.TestCase):
+    def test_new_chart_region_becomes_native_chart_with_embedded_workbook(self):
+        target_body = (
+            '<w:p><w:r><w:t>before</w:t></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="8" w:name="VNO_NATIVE_CHART_1_START"/>'
+            '<w:bookmarkEnd w:id="8"/></w:p>'
+            '<w:p><w:r><w:t>static chart placeholder</w:t></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="9" w:name="VNO_NATIVE_CHART_1_END"/><w:bookmarkEnd w:id="9"/></w:p>'
+            '<w:p><w:r><w:t>after</w:t></w:r></w:p>'
+        )
+        target = _docx(target_body)
+        drawing = (
+            '<w:drawing xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
+            'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+            'xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" '
+            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            '<wp:inline><wp:extent cx="1000" cy="1000"/><wp:docPr id="1" name="Chart1"/>'
+            '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart">'
+            '<c:chart r:id="rId2"/></a:graphicData></a:graphic></wp:inline></w:drawing>'
+        )
+        aux_chart = _docx(f'<w:p><w:r>{drawing}</w:r></w:p>')
+        aux_chart = patcher.patch_ooxml_zip(aux_chart, {
+            "word/_rels/document.xml.rels": (
+                '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="charts/chart1.xml"/></Relationships>'
+            ),
+            "word/charts/chart1.xml": (
+                '<?xml version="1.0"?><c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" '
+                'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+                'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+                '<c:chart><c:plotArea><c:barChart><c:ser><c:tx><c:strRef><c:f>label 0</c:f></c:strRef></c:tx>'
+                '<c:cat><c:strRef><c:strCache><c:ptCount val="2"/><c:pt idx="0"><c:v>Q1</c:v></c:pt>'
+                '<c:pt idx="1"><c:v>Q2</c:v></c:pt></c:strCache></c:strRef></c:cat>'
+                '<c:val><c:numRef><c:f>0</c:f><c:numCache><c:ptCount val="2"/><c:pt idx="0"><c:v>3</c:v></c:pt>'
+                '<c:pt idx="1"><c:v>4</c:v></c:pt></c:numCache></c:numRef></c:val></c:ser></c:barChart></c:plotArea></c:chart></c:chartSpace>'
+            ),
+        })
+        html = '<!--vno-native-charts-fodt:Zm9kdA==--><a name="VNO_NATIVE_CHART_1_START"></a><div></div><a name="VNO_NATIVE_CHART_1_END"></a>'
+        out = patcher.postprocess_writer_native_charts(target, aux_chart, source_html=html)
+        document = _read(out, "word/document.xml")
+        self.assertIn("<c:chart", document)
+        self.assertNotIn("static chart placeholder", document)
+        self.assertIn("before", document)
+        self.assertIn("after", document)
+        self.assertIn("/word/charts/vnoChart1.xml", _read(out, "[Content_Types].xml"))
+        self.assertIn('Target="charts/vnoChart1.xml"', _read(out, "word/_rels/document.xml.rels"))
+        self.assertIsNotNone(_read_bytes(out, "word/embeddings/vnoChart1.xlsx"))
+        chart_rels = _read(out, "word/charts/_rels/vnoChart1.xml.rels")
+        self.assertIn("/package", chart_rels)
+        with zipfile.ZipFile(io.BytesIO(_read_bytes(out, "word/embeddings/vnoChart1.xlsx"))) as workbook:
+            sheet = workbook.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        self.assertIn("Q1", sheet)
+        self.assertIn(">3</v>", sheet)
 
 
 class WriterSchemaFixTests(unittest.TestCase):

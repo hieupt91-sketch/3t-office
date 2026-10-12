@@ -19337,6 +19337,198 @@ def postprocess_writer_page_decor(docx_bytes: bytes, *, source_html: str | None 
     return patch_ooxml_zip(docx_bytes, replacements)
 
 
+def _writer_chart_xlsx(labels: list[str], values: list[str]) -> bytes:
+    """Build a small embedded workbook for a single-series Writer chart."""
+    if not labels or len(labels) != len(values):
+        raise ValueError("Dữ liệu biểu đồ không đủ nhãn và giá trị để tạo workbook nhúng.")
+    def cell_text(value: str) -> str:
+        return html.escape(str(value), quote=False)
+    rows = ['<row r="1"><c r="A1" t="inlineStr"><is><t>Category</t></is></c><c r="B1" t="inlineStr"><is><t>Series</t></is></c></row>']
+    for index, (label, value) in enumerate(zip(labels, values), start=2):
+        numeric = float(value)
+        if not math.isfinite(numeric):
+            raise ValueError("Giá trị biểu đồ phải là số hữu hạn.")
+        number = str(int(numeric)) if numeric.is_integer() else format(numeric, ".15g")
+        rows.append(
+            f'<row r="{index}"><c r="A{index}" t="inlineStr"><is><t>{cell_text(label)}</t></is></c>'
+            f'<c r="B{index}"><v>{number}</v></c></row>'
+        )
+    parts = {
+        "[Content_Types].xml": '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>',
+        "_rels/.rels": '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+        "xl/workbook.xml": '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>',
+        "xl/_rels/workbook.xml.rels": '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',
+        "xl/worksheets/sheet1.xml": '<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' + "".join(rows) + "</sheetData></worksheet>",
+    }
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, content in parts.items():
+            archive.writestr(name, content.encode("utf-8"))
+    return output.getvalue()
+
+
+def _writer_chart_with_embedded_workbook(chart_xml: str, workbook_name: str) -> tuple[str, str, bytes]:
+    """Link the cached chart data to an editable, embedded XLSX workbook."""
+    label_values = re.findall(r"<c:cat\b[\s\S]*?<c:pt\b[^>]*><c:v>([\s\S]*?)</c:v>", chart_xml, re.IGNORECASE)
+    numeric_values = re.findall(r"<c:val\b[\s\S]*?<c:pt\b[^>]*><c:v>([\s\S]*?)</c:v>", chart_xml, re.IGNORECASE)
+    labels = [html.unescape(value) for value in label_values]
+    values = [html.unescape(value) for value in numeric_values]
+    if not labels or not values:
+        raise ValueError("LibreOffice không xuất được dữ liệu cache biểu đồ để nhúng.")
+    workbook = _writer_chart_xlsx(labels, values)
+    last_row = len(labels) + 1
+    def formula(block: str, value: str) -> str:
+        return re.sub(r"<c:f>[^<]*</c:f>", f"<c:f>'Sheet1'!{value}</c:f>", block, count=1)
+    chart_xml = re.sub(r"(<c:tx\b[\s\S]*?</c:tx>)", lambda match: formula(match.group(1), "$B$1"), chart_xml, count=1, flags=re.IGNORECASE)
+    chart_xml = re.sub(r"(<c:cat\b[\s\S]*?</c:cat>)", lambda match: formula(match.group(1), f"$A$2:$A${last_row}"), chart_xml, count=1, flags=re.IGNORECASE)
+    chart_xml = re.sub(r"(<c:val\b[\s\S]*?</c:val>)", lambda match: formula(match.group(1), f"$B$2:$B${last_row}"), chart_xml, count=1, flags=re.IGNORECASE)
+    rel_id = "rIdVnoEmbeddedWorkbook"
+    if "<c:externalData" not in chart_xml:
+        chart_xml = chart_xml.replace(
+            "</c:chartSpace>",
+            f'<c:externalData r:id="{rel_id}"><c:autoUpdate val="0"/></c:externalData></c:chartSpace>',
+        )
+    rels = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        f'<Relationship Id="{rel_id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/package" Target="../embeddings/{workbook_name}"/>'
+        '</Relationships>'
+    )
+    return chart_xml, rels, workbook
+
+
+def postprocess_writer_native_charts(
+    docx_bytes: bytes,
+    chart_docx_bytes: bytes,
+    *,
+    source_html: str | None = None,
+) -> bytes:
+    """Replace newly inserted chart placeholders with LibreOffice-native DOCX charts.
+
+    The auxiliary FODT conversion supplies the editable Chart object; only the
+    bookmarked new chart region is replaced in the user's DOCX package.
+    """
+    if not docx_bytes or not chart_docx_bytes or not source_html or "vno-native-charts-fodt:" not in source_html:
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    aux_document_bytes = read_zip_entry(chart_docx_bytes, "word/document.xml")
+    aux_rels_bytes = read_zip_entry(chart_docx_bytes, "word/_rels/document.xml.rels")
+    if not document_bytes or not aux_document_bytes or not aux_rels_bytes:
+        raise ValueError("Không đọc được cấu trúc DOCX biểu đồ do LibreOffice tạo.")
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    aux_document_xml = aux_document_bytes.decode("utf-8", errors="replace")
+    aux_rels_xml = aux_rels_bytes.decode("utf-8", errors="replace")
+    rels = {
+        rel_id: posixpath.normpath(posixpath.join("word", target))
+        for rel_id, target in re.findall(
+            r'<Relationship\b(?=[^>]*\bType="[^"]*/chart")(?=[^>]*\bId="([^"]+)")(?=[^>]*\bTarget="([^"]+)")[^>]*/?>',
+            aux_rels_xml,
+            re.IGNORECASE,
+        )
+    }
+    drawings = re.findall(r"<w:drawing\b[\s\S]*?</w:drawing\s*>", aux_document_xml, re.IGNORECASE)
+    if not drawings:
+        raise ValueError("Tài liệu biểu đồ phụ không có đối tượng Chart native.")
+    source_chart_ids = []
+    for drawing in drawings:
+        match = re.search(r'<c:chart\b[^>]*\br:id="([^"]+)"', drawing, re.IGNORECASE)
+        if match and match.group(1) in rels:
+            source_chart_ids.append((drawing, rels[match.group(1)]))
+    if not source_chart_ids:
+        raise ValueError("Không ánh xạ được quan hệ chart của DOCX phụ.")
+
+    target_rels_bytes = read_zip_entry(docx_bytes, "word/_rels/document.xml.rels")
+    target_rels_xml = target_rels_bytes.decode("utf-8", errors="replace") if target_rels_bytes else (
+        '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+    )
+    content_types_bytes = read_zip_entry(docx_bytes, "[Content_Types].xml")
+    content_types_xml = content_types_bytes.decode("utf-8", errors="replace") if content_types_bytes else ""
+    package_names = set()
+    try:
+        with zipfile.ZipFile(io.BytesIO(docx_bytes), "r") as package:
+            package_names.update(package.namelist())
+    except (zipfile.BadZipFile, OSError):
+        return docx_bytes
+    replacements: dict[str, bytes | str | None] = {}
+    max_rid = max((int(value) for value in re.findall(r'\bId="rId(\d+)"', target_rels_xml)), default=0)
+    max_docpr = max((int(value) for value in re.findall(r'<wp:docPr\b[^>]*\bid="(\d+)"', document_xml)), default=0)
+    chart_paths = {name for name in package_names if re.fullmatch(r"word/charts/[^/]+\.xml", name)}
+    workbook_paths = {name for name in package_names if name.startswith("word/embeddings/")}
+    replaced_document = document_xml
+    content_type_additions = []
+    for index, (drawing, source_part) in enumerate(source_chart_ids, start=1):
+        chart_bytes = read_zip_entry(chart_docx_bytes, source_part)
+        if not chart_bytes:
+            raise ValueError(f"Thiếu phần XML biểu đồ phụ: {source_part}")
+        chart_xml = chart_bytes.decode("utf-8", errors="replace")
+        chart_base = f"vnoChart{index}"
+        target_part = f"word/charts/{chart_base}.xml"
+        suffix = index
+        while target_part in chart_paths:
+            suffix += 1
+            chart_base = f"vnoChart{suffix}"
+            target_part = f"word/charts/{chart_base}.xml"
+        workbook_name = f"{chart_base}.xlsx"
+        workbook_path = f"word/embeddings/{workbook_name}"
+        wb_suffix = 1
+        while workbook_path in workbook_paths:
+            wb_suffix += 1
+            workbook_name = f"{chart_base}-{wb_suffix}.xlsx"
+            workbook_path = f"word/embeddings/{workbook_name}"
+        chart_xml, chart_rels_xml, workbook_bytes = _writer_chart_with_embedded_workbook(chart_xml, workbook_name)
+        chart_paths.add(target_part)
+        workbook_paths.add(workbook_path)
+        replacements[target_part] = chart_xml.encode("utf-8")
+        replacements[f"word/charts/_rels/{chart_base}.xml.rels"] = chart_rels_xml.encode("utf-8")
+        replacements[workbook_path] = workbook_bytes
+        max_rid += 1
+        new_rel_id = f"rId{max_rid}"
+        target_rels_xml = target_rels_xml.replace(
+            "</Relationships>",
+            f'<Relationship Id="{new_rel_id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="charts/{chart_base}.xml"/></Relationships>',
+        )
+        drawing = re.sub(r'(<c:chart\b[^>]*\br:id=")[^"]+', rf'\g<1>{new_rel_id}', drawing, count=1)
+        max_docpr += 1
+        drawing = re.sub(r'(<wp:docPr\b[^>]*\bid=")[0-9]+', rf'\g<1>{max_docpr}', drawing, count=1)
+
+        token = f"VNO_NATIVE_CHART_{index}"
+        paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", replaced_document, re.IGNORECASE))
+        start_index = next((i for i, match in enumerate(paragraphs) if f'{token}_START' in match.group(0)), None)
+        if start_index is None:
+            raise ValueError(f"Không tìm được điểm chèn DOCX cho biểu đồ {index}.")
+        start_match = re.search(r'<w:bookmarkStart\b(?=[^>]*\bw:name="' + re.escape(token) + r'_START")(?=[^>]*\bw:id="([^"]+)")[^>]*/>', paragraphs[start_index].group(0), re.IGNORECASE)
+        if not start_match:
+            raise ValueError(f"Thiếu dấu neo bắt đầu cho biểu đồ {index}.")
+        end_index = next((i for i in range(start_index, len(paragraphs)) if f'{token}_END' in paragraphs[i].group(0)), None)
+        if end_index is None:
+            raise ValueError(f"Thiếu bookmark kết thúc cho biểu đồ {index}.")
+        if not re.search(
+            r'<w:bookmarkStart\b(?=[^>]*\bw:name="' + re.escape(token) + r'_END")[^>]*/>',
+            paragraphs[end_index].group(0),
+            re.IGNORECASE,
+        ):
+            raise ValueError(f"Bookmark kết thúc cho biểu đồ {index} không hợp lệ.")
+        first_paragraph = paragraphs[start_index].group(0)
+        ppr = re.search(r"<w:pPr\b[\s\S]*?</w:pPr\s*>", first_paragraph, re.IGNORECASE)
+        replacement_paragraph = f'<w:p>{ppr.group(0) if ppr else ""}<w:r>{drawing}</w:r></w:p>'
+        replaced_document = replaced_document[:paragraphs[start_index].start()] + replacement_paragraph + replaced_document[paragraphs[end_index].end():]
+        if f'/word/charts/{chart_base}.xml"' not in content_types_xml:
+            content_type_additions.append(f'<Override PartName="/{target_part}" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>')
+    if content_type_additions:
+        if "</Types>" not in content_types_xml:
+            raise ValueError("DOCX thiếu [Content_Types].xml hợp lệ để thêm biểu đồ.")
+        if "Extension=" not in content_types_xml or not re.search(r'<Default\b[^>]*\bExtension="xlsx"', content_types_xml, re.IGNORECASE):
+            xlsx_type = '<Default Extension="xlsx" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/>'
+            content_types_xml = content_types_xml.replace("</Types>", xlsx_type + "</Types>")
+        content_types_xml = content_types_xml.replace("</Types>", "".join(content_type_additions) + "</Types>")
+    replacements.update({
+        "word/document.xml": replaced_document.encode("utf-8"),
+        "word/_rels/document.xml.rels": target_rels_xml.encode("utf-8"),
+        "[Content_Types].xml": content_types_xml.encode("utf-8"),
+    })
+    return patch_ooxml_zip(docx_bytes, replacements)
+
+
 def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
     """Turn Writer's temporary review bookmarks into native Word revisions/comments.
 

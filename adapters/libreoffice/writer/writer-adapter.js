@@ -15144,6 +15144,7 @@ export class WriterAdapter {
     let watermarkHtml = "";
     let reviewMetaComment = "";
     let tableEditsComment = "";
+    let nativeChartHtml = [];
 
     if (this.watermark && this.watermark.text) {
       const angle = this.watermark.angle ?? 45;
@@ -15157,8 +15158,48 @@ export class WriterAdapter {
       headerHtml = `<div title="header">\n${this.headerDom.innerHTML}\n</div>\n`;
     }
 
+    let nativeChartFodt = "";
+    const chartNodes = Array.from(this.bodyDom?.querySelectorAll?.('.vno-writer-chart[data-vno-chart="true"]') || []);
+    if (chartNodes.length && !acceptedView) {
+      nativeChartHtml = chartNodes.map((node) => String(node.outerHTML || "")).filter(Boolean);
+      if (nativeChartHtml.length !== chartNodes.length) {
+        throw new Error("Không thể chuẩn bị biểu đồ để lưu dưới dạng đối tượng có thể chỉnh sửa.");
+      }
+      const chartAdapter = Object.create(Object.getPrototypeOf(this));
+      Object.assign(chartAdapter, this);
+      const chartBody = { innerHTML: nativeChartHtml.join("") };
+      chartAdapter.editorDom = {
+        innerHTML: chartBody.innerHTML,
+        querySelector(selector) {
+          return selector === ".vno-writer-body" ? chartBody : null;
+        }
+      };
+      chartAdapter.bodyDom = chartBody;
+      chartAdapter.headerDom = null;
+      chartAdapter.footerDom = null;
+      chartAdapter.watermark = null;
+      chartAdapter.shapes = [];
+      chartAdapter.sectionPageSetups = {};
+      chartAdapter.sectionHeadersFooters = {};
+      nativeChartFodt = chartAdapter.serializeToFodt();
+    }
+
     if (this.bodyDom) {
       const exportRoot = this.bodyDom.cloneNode?.(true) || this.bodyDom;
+      if (nativeChartFodt && !acceptedView && typeof document !== "undefined") {
+        const exportCharts = Array.from(exportRoot.querySelectorAll?.('.vno-writer-chart[data-vno-chart="true"]') || []);
+        exportCharts.forEach((chart, index) => {
+          const parent = chart.parentNode;
+          if (!parent?.insertBefore) return;
+          const token = `VNO_NATIVE_CHART_${index + 1}`;
+          const start = document.createElement("a");
+          start.setAttribute("name", `${token}_START`);
+          const end = document.createElement("a");
+          end.setAttribute("name", `${token}_END`);
+          parent.insertBefore(start, chart);
+          parent.insertBefore(end, chart.nextSibling);
+        });
+      }
       const wrappers = Array.from(exportRoot.querySelectorAll?.(".vno-section-content") || []);
       for (const w of wrappers) {
         while (w.firstChild) w.parentNode?.insertBefore(w.firstChild, w);
@@ -15336,7 +15377,10 @@ export class WriterAdapter {
 
     const pristineMarker = this._isOpenedDocumentPristine() ? '<a name="vno-pristine-document"></a>' : "";
     const newDocumentStyleMarker = this.isNewApplicationDocument ? "<!--vno-new-document-style-defaults-->" : "";
-    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
+    const nativeChartMarker = nativeChartFodt
+      ? `<!--vno-native-charts-fodt:${btoa(Array.from(new TextEncoder().encode(nativeChartFodt), byte => String.fromCharCode(byte)).join(""))}-->`
+      : "";
+    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }
