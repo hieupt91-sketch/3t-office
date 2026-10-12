@@ -1,4 +1,4 @@
-param([Parameter(Mandatory=$true)][string]$Dir,[Parameter(Mandatory=$true)][string]$WordArtDocx)
+param([Parameter(Mandatory=$true)][string]$Dir,[Parameter(Mandatory=$true)][string]$WordArtDocx,[switch]$SkipPdf)
 $ErrorActionPreference = 'Stop'
 [void][System.IO.Directory]::CreateDirectory($Dir)
 $word = New-Object -ComObject Word.Application
@@ -24,12 +24,16 @@ try {
 
     $result.print.pages = [int]$doc.ComputeStatistics(2)
     $result.print.pageSetup = [ordered]@{ paperSize = [int]$doc.PageSetup.PaperSize; widthPoints = [double]$doc.PageSetup.PageWidth; heightPoints = [double]$doc.PageSetup.PageHeight; widthInches = [double]($doc.PageSetup.PageWidth / 72); heightInches = [double]($doc.PageSetup.PageHeight / 72) }
-    $pdfPath = Join-Path $env:TEMP 'vno-writer-print-t15.pdf'
-    Write-Output ('Exporting PDF @ ' + (Get-Date -Format o))
-    $doc.ExportAsFixedFormat($pdfPath, 17)
-    Write-Output 'PDF exported.'
-    $result.print.pdfPath = $pdfPath
-    $result.print.pdfLength = [int64](Get-Item -LiteralPath $pdfPath).Length
+    if ($SkipPdf) {
+      $result.print.pdfStatus = 'NOT RUN by request'
+    } else {
+      $pdfPath = Join-Path $env:TEMP 'vno-writer-print-t15.pdf'
+      Write-Output ('Exporting PDF @ ' + (Get-Date -Format o))
+      $doc.ExportAsFixedFormat($pdfPath, 17)
+      Write-Output 'PDF exported.'
+      $result.print.pdfPath = $pdfPath
+      $result.print.pdfLength = [int64](Get-Item -LiteralPath $pdfPath).Length
+    }
     Write-Output 'Entering Word Print Preview.'
     $doc.PrintPreview()
     Write-Output 'Entered Word Print Preview.'
