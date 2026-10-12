@@ -5577,6 +5577,7 @@ _bindGridKeyboardNavigation() {
 
   _recalculateAllFormulas(excludeKey, force = false, incremental = null) {
     if (this.calculationMode === "manual" && !force) return;
+    if (!incremental || force) this._formulaDependencyGraph = null;
     const activeSheet = this.activeSheet;
     let formulaFilter = null;
     if (incremental && !force && this.formulaEngine?.getStaticFormulaReferences) {
