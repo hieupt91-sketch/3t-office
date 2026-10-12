@@ -9,7 +9,7 @@ const inst = process.argv[2], lad = process.argv[3], file = process.argv[4], out
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const r = { file: path.basename(file), sizeMB: +(fs.statSync(file).size / 1048576).toFixed(2) };
 const t0 = Date.now(); const log = (m) => console.error(`[${((Date.now()-t0)/1000).toFixed(1)}s] ${m}`);
-const session = await launchApp("sheet", { root: path.join(inst, "app"), python: path.join(inst, "python", "python.exe"), localAppData: lad, filePath: file, startTimeoutMilliseconds: 600000, readyTimeoutMilliseconds: 600000 });
+const useRepo = String(inst).startsWith("repo:"); const session = await launchApp("sheet", useRepo ? { root: String(inst).slice(5), localAppData: lad, filePath: file, startTimeoutMilliseconds: 600000, readyTimeoutMilliseconds: 600000 } : { root: path.join(inst, "app"), python: path.join(inst, "python", "python.exe"), localAppData: lad, filePath: file, startTimeoutMilliseconds: 600000, readyTimeoutMilliseconds: 600000 });
 const ev = (e, ms = 120000) => session.cdp.evaluate(e, { awaitPromise: true, timeoutMilliseconds: ms });
 try {
   r.tLaunchMs = Date.now() - t0; log("launched");

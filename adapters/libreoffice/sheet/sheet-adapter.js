@@ -5761,9 +5761,6 @@ ${pristineXlsxMarker}
   }
 
   async _openWorkbookFromDisk() {
-    let previous = null;
-    let result = null;
-    let openId = null;
     const reportOpenIssue = (type, message) => {
       try {
         const pending = globalUnoBridge.reportFrontendError({ type, message, stack: "" });
@@ -5773,18 +5770,65 @@ ${pristineXlsxMarker}
       }
     };
     this.shell?.setStatus?.("Đang chuẩn bị mở bảng tính…");
+    let removeQuickViewListener = () => {};
     try {
-      try {
-        result = await globalUnoBridge.openRealFile("sheet");
-      } catch {
+      let quickViewReady = null;
+      if (typeof window !== "undefined" && window.__vnoSheetQuickViewController) {
+        quickViewReady = new Promise(resolve => {
+          const onReady = () => resolve(true);
+          window.addEventListener("vno:sheet-quick-view-ready", onReady, { once: true });
+          removeQuickViewListener = () => window.removeEventListener("vno:sheet-quick-view-ready", onReady);
+        });
+      }
+      const opening = (async () => {
+        try {
+          return await globalUnoBridge.openRealFile("sheet");
+        } catch {
         // A pywebview transfer can fail after Python has retained the FODS.
         // The latest session is process-local and exposes no filesystem path.
-        reportOpenIssue("SheetOpenPayloadTransferError", "Sheet payload transfer failed; requesting the retained FODS fallback.");
-        this.shell?.setStatus?.("Kết nối dữ liệu bị gián đoạn. Đang lấy bản dự phòng…");
-        result = await globalUnoBridge.getLatestSheetOpenFallback();
-        if (result?.status !== "ok") throw new Error("Không thể nhận dữ liệu dự phòng của bảng tính.");
-        openId = result.openId || null;
+          reportOpenIssue("SheetOpenPayloadTransferError", "Sheet payload transfer failed; requesting the retained FODS fallback.");
+          this.shell?.setStatus?.("Kết nối dữ liệu bị gián đoạn. Đang lấy bản dự phòng…");
+          const fallback = await globalUnoBridge.getLatestSheetOpenFallback();
+          if (fallback?.status !== "ok") throw new Error("Không thể nhận dữ liệu dự phòng của bảng tính.");
+          return fallback;
+        }
+      })();
+      const outcomes = [opening.then(result => ({ kind: "result", result }))];
+      if (quickViewReady) outcomes.push(quickViewReady.then(() => ({ kind: "quick-view" })));
+      const outcome = await Promise.race(outcomes);
+      removeQuickViewListener();
+      if (outcome.kind === "quick-view") {
+        // The pywebview bridge keeps its request open until full import finishes.
+        // Let the rendered quick view return control to WebView2, then apply the result.
+        this._backgroundSheetOpen = opening
+          .then(result => this._applyOpenedWorkbookResult(result, reportOpenIssue))
+          .catch(error => {
+            console.error("[SheetAdapter] Lỗi nạp nền bảng tính:", error);
+            window.dispatchEvent(new Event("vno:sheet-full-model-failed"));
+            this.shell?.setStatus?.("Không thể nạp đầy đủ bảng tính. Dữ liệu xem nhanh vẫn được giữ lại.");
+            return false;
+          });
+        return true;
       }
+      return await this._applyOpenedWorkbookResult(outcome.result, reportOpenIssue);
+    } catch {
+      removeQuickViewListener();
+      reportOpenIssue("SheetOpenError", "Workbook opening failed before a full model could be loaded.");
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("vno:sheet-full-model-failed"));
+      this.shell?.setStatus?.("Không thể mở tệp. Sổ làm việc đang mở được giữ nguyên.");
+      await showAlertDialog({
+        title: "Không thể mở tệp",
+        message: "Sheet không thể nạp bảng tính từ dữ liệu đã đọc hoặc bản dự phòng. Sổ làm việc đang mở được giữ nguyên.",
+        type: "error"
+      });
+      return false;
+    }
+  }
+
+  async _applyOpenedWorkbookResult(result, reportOpenIssue) {
+    let previous = null;
+    let openId = null;
+    try {
       if (result?.status === "cancelled") return false;
       if (result?.status === "error") {
         if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") window.dispatchEvent(new Event("vno:sheet-full-model-failed"));
@@ -5831,6 +5875,8 @@ ${pristineXlsxMarker}
       this.sourceFilePath = result.sourcePath || "";
       this.isDirty = false;
       this.shell?.resetDocumentChrome?.(result.fileName || "Bảng tính 1.xlsx", null, true, result.sourcePath || "");
+      const quickView = typeof window !== "undefined" ? window.__vnoSheetQuickViewController : null;
+      quickView?.applyPendingEditsToGrid?.(this.grid);
       if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") window.dispatchEvent(new Event("vno:sheet-full-model-ready"));
       return true;
     } catch {
@@ -5876,6 +5922,7 @@ ${pristineXlsxMarker}
   }
 
   print() {
+    if (this._guardQuickViewReadOnly()) return false;
     const grid = this.grid;
     const setup = grid?.getPageSetup?.(grid.activeSheet) || grid?.pageSetupBySheet?.[grid?.activeSheet] || {};
     const pages = grid?.computePrintPages?.(grid.activeSheet)?.pages || [];
