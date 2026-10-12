@@ -435,7 +435,7 @@ export const SHEET_HELP_ENTRIES = [
     summary: "Duyệt nhận xét theo thứ tự ô và trang tính, đánh dấu đã xử lý, mở lại hoặc xóa.",
     ribbon: { tab: "Xem xét", tabId: "review", group: "Ghi chú" },
     keywords: ["nhận xét", "ghi chú ô", "trước", "sau", "xử lý", "resolve", "xóa"],
-    steps: ["Mở tab Xem xét, nhóm Ghi chú.", "Nhấn Nhận xét trước hoặc Nhận xét sau; Sheet chọn ô có ghi chú và tự chuyển sheet khi cần, rồi quay vòng ở cuối danh sách.", "Nhấn Đã xử lý để đổi dấu góc sang màu xám nhưng vẫn giữ ghi chú; nhấn lại để mở lại. Nhấn Ctrl+S rồi mở lại tệp trong Sheet để kiểm tra trạng thái đã lưu.", "XLSX hiện giữ ghi chú theo định dạng legacy và lưu trạng thái Đã xử lý trong phần mở rộng riêng của VN Office. Excel vẫn hiển thị ghi chú nhưng không hiển thị trạng thái Đã xử lý; đây chưa phải threaded comment của Excel.", "Nhấn Xóa nhận xét để xóa ghi chú ở ô đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại."]
+    steps: ["Mở tab Xem xét, nhóm Ghi chú.", "Nhấn Nhận xét trước hoặc Nhận xét sau; Sheet chọn ô có ghi chú và tự chuyển sheet khi cần, rồi quay vòng ở cuối danh sách.", "Nhấn Đã xử lý để đổi dấu góc sang màu xám nhưng vẫn giữ ghi chú; nhấn lại để mở lại. Nhấn Ctrl+S rồi mở lại tệp trong Sheet để kiểm tra trạng thái đã lưu.", "XLSX hiện giữ ghi chú theo định dạng legacy và lưu trạng thái Đã xử lý trong phần mở rộng riêng của Sheet. Excel vẫn hiển thị ghi chú nhưng không hiển thị trạng thái Đã xử lý; đây chưa phải threaded comment của Excel.", "Nhấn Xóa nhận xét để xóa ghi chú ở ô đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại."]
   },
   {
     id: "sheet.sheet.rename",
