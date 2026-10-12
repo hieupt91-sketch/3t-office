@@ -47,7 +47,7 @@ mark(KHAC, "common.macro.recordToggle common.macro.manager", "FIX-T13: VN Office
 mark(CHUA, "writer.insert.wordart", "Chưa so kết quả với Word COM: chưa có bằng chứng về đối tượng WordArt native có thể chỉnh sửa; cần kiểm tra kiểu dáng và cấu trúc DOCX riêng")
 mark(CHUA, "common.file.print", "Chưa chạy in đối chứng: chưa chọn đích in (máy in hoặc PDF); thao tác in có thể tạo đầu ra ngoài workspace")
 mark(CHUA, "writer.file.printPreview", "FIX-T14 CDP: hộp thoại In dựng 1 trang A4 210×297 mm, ảnh xem trước 794×1123 px; chưa so trang/PDF với Word COM")
-mark(CHUA, "writer.view.pageWidth", "FIX-T14 CDP: trang A4 rộng 1286 px trong vùng xem 1329 px ở zoom 162%; chưa so Zoom.PageFit của Word COM")
+mark(CHUA, "writer.view.pageWidth", "FIX-T14 CDP: trang A4 rộng 1286 px trong vùng xem 1329 px ở zoom 162%; nút giữ chế độ vừa chiều rộng để tự căn lại khi đổi kích thước cửa sổ; chưa so Zoom.PageFit của Word COM")
 mark(CHUA, "writer.view.zoomReset", "FIX-T14 CDP: sau khi tăng zoom và vừa chiều rộng, nút Đặt lại đưa zoom về 100%; chưa so Percentage của Word COM")
 mark(KHAC, "writer.view.newWindow", "FIX-T14 CDP: tạo WebView desktop thứ hai với tài liệu Writer trắng; nội dung cửa sổ gốc không đồng bộ. Đây là thiết kế có chủ ý để mở tài liệu độc lập; Help ghi rõ khác với việc nhân bản cùng tài liệu của Word.")
 mark(KHAC, "writer.help.open", "F1 mở Help catalog cục bộ trong app, dùng được offline; khác luồng trợ giúp bên ngoài của Word có chủ ý")
