@@ -26,6 +26,7 @@ try {
   await click(cdp, '[data-vno-dialog="wordart"] .vno-dialog-ok-btn');
   await cdp.waitFor("!!document.querySelector('.vno-writer-wordart[data-vno-wordart=true]')", { timeoutMilliseconds: 15000 });
   const inserted = await cdp.evaluate("(() => {const el=document.querySelector('.vno-writer-wordart[data-vno-wordart=true]');return {text:el?.dataset.vnoWordartText,preset:el?.dataset.vnoWordartPreset,html:el?.outerHTML}})()");
+  const exportProbe = await cdp.evaluate("(() => {const html=window.__vnoAppInstance.adapter._contentForExport();const match=html.match(/<!--vno-native-wordart-fodt:([A-Za-z0-9+/=]+)-->/);const fodt=match?decodeURIComponent(escape(atob(match[1]))):'';return {wordArtHtmlCount:(html.match(/data-vno-wordart=\"true\"/g)||[]).length,anchorCount:(html.match(/VNO_NATIVE_WORDART_[^\" ]+/g)||[]).length,fodtCustomShapes:(fodt.match(/<draw:custom-shape/g)||[]).length,fodtWordArtCount:(fodt.match(/draw:name=\"WordArt-/g)||[]).length}})()");
   const saved = await cdp.evaluate(`(async () => {
     const [{globalUnoBridge}, {globalCommandBus}] = await Promise.all([
       import('/adapters/libreoffice/common/uno-bridge.js'),
@@ -38,7 +39,7 @@ try {
     finally { globalUnoBridge.saveRealFile = original; }
   })()`, { awaitPromise: true, timeoutMilliseconds: 240000 });
   if (saved === false) throw new Error("Writer Save As returned false.");
-  const result = { outputPath, inserted, saved };
+  const result = { outputPath, inserted, exportProbe, saved };
   console.log(JSON.stringify(result));
   await fs.writeFile(path.join(profile, "fix-t14-wordart.desktop.json"), JSON.stringify(result, null, 2) + "\n", "utf8");
 } finally {
