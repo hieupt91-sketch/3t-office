@@ -48,6 +48,15 @@ export async function runWriterWordCountTests() {
     if (text !== "□\n") throw new Error(`Checkbox field count is wrong: ${JSON.stringify(text)}`);
   });
 
+  await test("Word Count: count standalone OOXML symbol runs as a Word token and character", () => {
+    const xml = '<w:document><w:body><w:p><w:r><w:sym w:font="Wingdings" w:char="F06F"/></w:r></w:p></w:body></w:document>';
+    const text = extractOoxmlDocumentText(xml);
+    const stats = countDocumentStats(text, { characterText: text });
+    if (text !== "\uF06F\n" || stats.words !== 1 || stats.charactersNoSpaces !== 1 || stats.charactersWithSpaces !== 1) {
+      throw new Error(`OOXML symbol was not counted once: ${JSON.stringify({ text, stats })}`);
+    }
+  });
+
 
   await test("Word Count: tách từ tiếng Việt theo khoảng trắng, bỏ token rỗng", () => {
     const stats = countDocumentStats("  Xin   chào   các bạn  ");

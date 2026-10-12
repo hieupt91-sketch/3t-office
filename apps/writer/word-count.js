@@ -189,7 +189,7 @@ export function extractOoxmlDocumentText(ooxmlDocumentXml) {
     .replace(/<w:instrText\b[^>]*>[\s\S]*?<\/w:instrText>/gi, "")
     .replace(/<w:del\b[^>]*>[\s\S]*?<\/w:del>/gi, "");
   let text = "";
-  for (const token of xml.matchAll(/<w:p\b[^>]*>|<\/w:p>|<w:t\b[^>]*>([\s\S]*?)<\/w:t>|<w:tab\b[^>]*\/?\s*>|<w:(?:br|cr)\b[^>]*\/?\s*>/gi)) {
+  for (const token of xml.matchAll(/<w:p\b[^>]*>|<\/w:p>|<w:t\b[^>]*>([\s\S]*?)<\/w:t>|<w:sym\b[^>]*\/?\s*>|<w:tab\b[^>]*\/?\s*>|<w:(?:br|cr)\b[^>]*\/?\s*>/gi)) {
     const value = token[0];
     if (/^<w:p\b/i.test(value)) {
       if (text && !text.endsWith("\n")) text += "\n";
@@ -197,6 +197,12 @@ export function extractOoxmlDocumentText(ooxmlDocumentXml) {
       if (!text.endsWith("\n")) text += "\n";
     } else if (token[1] != null) {
       text += decodeXmlText(token[1]);
+    } else if (/^<w:sym\b/i.test(value)) {
+      const code = value.match(/\bw:char=["']([0-9a-f]{1,6})["']/i)?.[1];
+      const codePoint = code ? Number.parseInt(code, 16) : NaN;
+      if (Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff) {
+        text += String.fromCodePoint(codePoint);
+      }
     } else if (/^<w:tab\s*\/?\s*>$/i.test(value)) {
       text += "\t";
     } else if (/^<w:(?:br|cr)\b/i.test(value) && !/\bw:type=["'](?:page|column)["']/i.test(value)) {
