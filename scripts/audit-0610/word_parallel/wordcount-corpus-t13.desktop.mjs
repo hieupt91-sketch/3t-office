@@ -25,7 +25,7 @@ for (const name of names) {
     await cdp.waitFor(`(() => {const a=window.__vnoAppInstance?.adapter;return String(a?._sourcePath||'').toLowerCase().endsWith(${JSON.stringify(name.toLowerCase())})})()`, { timeoutMilliseconds: 900000, intervalMilliseconds: 500 });
     await cdp.waitFor("!!window.__vnoAppInstance?.adapter?._openedEditorDomHash && !window.__vnoAppInstance.adapter.isDirty", { timeoutMilliseconds: 900000, intervalMilliseconds: 500 });
     const cleanState = await cdp.evaluate("(() => {const a=window.__vnoAppInstance.adapter;return {isDirty:a.isDirty,sourceHashMatches:a._openedEditorDomHash===a._editorDomFingerprint()}})()");
-    const cleanStats = await cdp.evaluate("window.__vnoAppInstance.adapter.getWordCountStats({preferSelection:false})");
+    const cleanStats = await cdp.evaluate("(() => {const a=window.__vnoAppInstance.adapter;const body=a.bodyDom;const stats=a.getWordCountStats({preferSelection:false});const source=a._wordCountSourceText||'';const groups={};for(const x of a._wordCountSourceListItems||[]){const key=[x.numFmt,x.ilvl,x.lvlText].join('|');groups[key]=(groups[key]||0)+1}return {stats,sourceCharactersNoSpaces:source.replace(/\\s+/g,'').length,sourceCharactersWithSpaces:source.replace(/[\\r\\n\\u2028\\u2029]/g,'').length,sourceListGroups:groups,domBreakCount:body.querySelectorAll('br').length}})()");
     const cleanHtml = await cdp.evaluate("document.querySelector('.vno-writer-body')?.innerHTML||''");
     await click(cdp, "#vno-ribbon-tab-review");
     const reviewState = await cdp.evaluate("(() => {const a=window.__vnoAppInstance.adapter;return {isDirty:a.isDirty,sourceHashMatches:a._openedEditorDomHash===a._editorDomFingerprint()}})()");
