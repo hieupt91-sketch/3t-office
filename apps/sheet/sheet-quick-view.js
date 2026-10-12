@@ -547,7 +547,7 @@ export class SheetQuickView {
     const sheetIndex = Math.max(0, this.sheets.findIndex(sheet => sheet.name === action.sheet));
     for (const edit of action.edits || []) {
       const key = this._cellKey(sheetIndex, edit.row, edit.col);
-      const value = edit[direction];
+      const value = direction === "undo" ? edit.before : edit.after;
       if (edit.hasValue) this.valueOverrides.set(key, String(value ?? ""));
       const style = edit[direction === "undo" ? "beforeStyle" : "afterStyle"];
       if (style) this.styleOverrides.set(key, style);

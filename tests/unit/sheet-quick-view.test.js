@@ -81,12 +81,13 @@ export async function runSheetQuickViewTests() {
   await test("P1 quick view giữ sửa ô và Ctrl+Z/Ctrl+Y trong journal", () => {
     const view = new SheetQuickView({ timers: { setTimeout, clearTimeout } });
     view.active = true;
-    view.root = { querySelectorAll: () => [] };
+    const cell = { dataset: { row: "1", col: "0", value: "before" }, style: {} };
+    view.root = { querySelectorAll: () => [cell] };
     view.sheets = [{ name: "Sheet1", rows: 10, cols: 5 }];
     view.selected = { row: 1, col: 0 };
     view._queueValueEdit(1, 0, "TEST123");
     assert(view.valueOverrides.get("0:1:0") === "TEST123", "typed value must appear in the quick model");
-    assert(view._undoPendingEdit() && view.valueOverrides.get("0:1:0") === "", "undo restores the initial blank value");
+    assert(view._undoPendingEdit() && view.valueOverrides.get("0:1:0") === "before", "undo restores the original value");
     assert(view._redoPendingEdit() && view.valueOverrides.get("0:1:0") === "TEST123", "redo restores the typed value");
   });
 
