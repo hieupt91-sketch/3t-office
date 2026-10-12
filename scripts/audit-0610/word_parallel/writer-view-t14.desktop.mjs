@@ -1,7 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { launchApp } from "../../../tests/live/cdp/session.mjs";
-import { click } from "../../../tests/live/cdp/actions.mjs";
+import { click, typeText } from "../../../tests/live/cdp/actions.mjs";
 import { CdpClient, readTargets } from "../../../tests/live/cdp/client.mjs";
 
 const root = process.env.VNO_APP_ROOT;
