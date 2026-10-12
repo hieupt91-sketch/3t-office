@@ -210,6 +210,31 @@ class WriterNativeDiagramExportTests(unittest.TestCase):
         self.assertIn("after", document)
 
 
+class WriterNativeWatermarkExportTests(unittest.TestCase):
+    def test_watermark_is_attached_as_native_word_header_shape(self):
+        target = _docx('<w:p><w:r><w:t>body</w:t></w:r></w:p><w:sectPr/>')
+        aux = _docx('<w:p/>')
+        aux = patcher.patch_ooxml_zip(aux, {
+            "word/header1.xml": (
+                '<?xml version="1.0"?><w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+                'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
+                'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+                'xmlns:v="urn:schemas-microsoft-com:vml"><w:p><w:r><w:drawing><wp:anchor>'
+                '<wp:docPr id="1" name="Watermark"/><a:graphic/></wp:anchor></w:drawing></w:r></w:p></w:hdr>'
+            ),
+        })
+        out = patcher.postprocess_writer_native_watermark(
+            target, aux, source_html="<!--vno-native-watermark-fodt:Zm9kdA==-->",
+        )
+        document = _read(out, "word/document.xml")
+        header = _read(out, "word/header1.xml")
+        self.assertIn('w:type="default"', document)
+        self.assertIn("PowerPlusWaterMarkObject1", header)
+        self.assertIn("<wp:anchor>", header)
+        self.assertIn('Target="header1.xml"', _read(out, "word/_rels/document.xml.rels"))
+        self.assertIn("/word/header1.xml", _read(out, "[Content_Types].xml"))
+
+
 class WriterSchemaFixTests(unittest.TestCase):
     ANCHOR = '<w:p><w:r><w:drawing><wp:anchor xmlns:wp="x" behindDoc="0">{wrap}<wp:docPr id="1" name="a"/></wp:anchor></w:drawing></w:r></w:p>'
 
