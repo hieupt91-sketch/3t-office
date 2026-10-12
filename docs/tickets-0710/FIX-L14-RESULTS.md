@@ -28,7 +28,10 @@ COM gắn đúng cửa sổ PowerPoint PID 12760/HWND 64291812. Mọi thao tác 
 - COM audit: [script](../../scripts/audit-0610/office_parallel/slides/fix-l14-com-audit.ps1), bản sao fixture trong profile riêng.
 - Giãn dòng: [CDP readback](evidence/fix-l14/lineSpacing-cdp-readback.json), [PowerPoint COM](evidence/fix-l14/lineSpacing-com-readback.json), [ảnh](evidence/fix-l14/lineSpacing.png).
 - Ma trận: generator PASS, 88 dòng; 64/13/9/2.
-- npm/Python/CDP regression suites: sẽ ghi trạng thái sau lượt kiểm tra cuối.
+- `npm test`: PASS, 3112/3112.
+- `python -m unittest discover -s tests` với `LOCALAPPDATA=E:\VNOffice-profiles\codex-fl14-python` và `VNO_CDP_LOCALAPPDATA=E:\VNOffice-profiles\codex-fl14`: PASS, 907 tests trong 566.9 giây. Có ResourceWarning file handle ở một số test, không có test fail.
+- Desktop CDP với `VNO_APP_ROOT` là worktree này và `VNO_CDP_LOCALAPPDATA=E:\VNOffice-profiles\codex-fl14`: Slides roundtrip PASS 8/8; FIX-L2 PASS 20/20; FIX-L3 PASS 13/13 (exit code 0).
+- UTF-8/no BOM: PASS, 17 file text đã đổi; `git diff main...HEAD --check`: PASS.
 - Build: NOT RUN; không sửa mã app/build system.
 - Không sửa LibreOffice Core, không thay semantics PPTX, không sửa fixture/expected để làm xanh.
 
