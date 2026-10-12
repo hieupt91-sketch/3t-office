@@ -7,7 +7,9 @@ VN Sheet hiện có 143 mục gợi ý hàm (bao gồm hàm riêng VND); 137 hà
 
 ## Kết quả lượt COM
 
-**Giới hạn tương thích lưu:** ca RANK.EQ và FORMULATEXT trong lượt này nhập công thức có tiền tố `_xlfn.` qua CDP để Excel 2016 tính được. Công thức thông thường không có tiền tố vẫn chưa được sửa ở đường lưu XLSX; mapping đề xuất nằm trong `docs/PLAN-EXCEL-2016-E1-OOXML-COMPAT.md` và đang chờ phê duyệt do thay đổi output XLSX.
+**Tương thích lưu OOXML:** Adapter tự thêm `_xlfn.` khi ghi các hàm Excel 2016 được MS-XLSX phân loại là future functions; khi đọc công thức, adapter bỏ tiền tố để giữ tên hàm thông thường trong VN Sheet. Lượt desktop nhập công thức RANK.EQ và FORMULATEXT không có tiền tố, lưu qua VN Sheet, sau đó Excel 2016 COM mở `ReadOnly=true` và tính lại thành công. Hai phép thử này xác nhận đường lưu sau thay đổi.
+
+Danh sách ánh xạ dùng giao của future-function list trong [MS-XLSX 2.2.3](https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/5d1b6d44-6fc1-4ecd-8fef-0b27406cc2bf) và các hàm được đánh dấu Excel 2016 trong `docs/EXCEL2016-FUNCTION-CATALOG.json`. Hàm chỉ có từ Excel 2019 trở đi không nhận mapping tương thích Excel 2016; các tiền tố worksheet-only như `_xlfn._xlws.` chỉ được gỡ khi đọc, không tự áp dụng cho hàm mới hơn.
 
 | Chỉ số | Kết quả |
 |---|---:|

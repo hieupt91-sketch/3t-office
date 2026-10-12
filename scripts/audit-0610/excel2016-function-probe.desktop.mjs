@@ -23,9 +23,9 @@ let session = null;
 
 function formulaFor(item) {
   if (item.name === "SUMPRODUCT") return "=SUMPRODUCT(A2:A6,C2:C6)";
-  if (item.name === "RANK.EQ") return "=_xlfn.RANK.EQ(A2, $A$2:$A$50, 0)";
+  if (item.name === "RANK.EQ") return "=RANK.EQ(A2, $A$2:$A$50, 0)";
   if (item.name === "HYPERLINK") return '=HYPERLINK("#A1", "Ô đầu tiên")';
-  if (item.name === "FORMULATEXT") return "=_xlfn.FORMULATEXT(B2)";
+  if (item.name === "FORMULATEXT") return "=FORMULATEXT(B2)";
   if (item.name === "SIN") return "=SIN(1.5707963267948966)";
   if (item.name === "TAN") return "=TAN(0.7853981633974483)";
   if (item.name === "COUNTBLANK") return "=COUNTBLANK(D1:D20)";
