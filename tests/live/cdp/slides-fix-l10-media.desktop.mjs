@@ -49,6 +49,7 @@ const result = { file, videoFile, audioFile };
 try {
   const normalized = file.replace(/\\/g, "/").toLowerCase();
   await session.cdp.waitFor(`(()=>{const a=window.__vnoAppInstance?.adapter,p=String(a?._sourcePath||a?.sourceFilePath||"").replace(/\\\\/g,"/").toLowerCase();return p===${JSON.stringify(normalized)}&&a?.canvas?.slides?.length>0})()`, { timeoutMilliseconds: 300000, intervalMilliseconds: 500 });
+  await session.cdp.send("Page.enable");
   await session.cdp.send("Page.setInterceptFileChooserDialog", { enabled: true });
   await session.cdp.send("DOM.enable");
   await click(session.cdp, "#vno-ribbon-tab-insert");

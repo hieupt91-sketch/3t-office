@@ -1,0 +1,9 @@
+{
+  "status": "INTENTIONAL_GROUPED_SHAPES",
+  "officeVersion": "16.0",
+  "path": "E:/VNOffice-profiles/codex-fl12/fix-l12-office-compare.pptx",
+  "powerPointShapeType": 6,
+  "groupItemCount": 7,
+  "diagramDataPartPresent": false,
+  "reason": "LibreOffice Impress imported/exported the VN diagram through ODF grouped shapes; the available ODF path has no native SmartArt creation model. Creating editable SmartArt would require generating the separate DrawingML diagram data/layout/style/quick-style package parts and relationships outside the current LibreOffice serializer."
+}

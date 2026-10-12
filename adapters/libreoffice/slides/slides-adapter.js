@@ -4095,21 +4095,39 @@ export class SlidesAdapter {
       const input = document.createElement("input");
       input.type = "file";
       input.accept = mediaType === "video" ? "video/*" : "audio/*";
+      input.setAttribute("aria-hidden", "true");
+      input.tabIndex = -1;
+      Object.assign(input.style, {
+        position: "fixed",
+        left: "-10000px",
+        width: "1px",
+        height: "1px",
+        opacity: "0",
+        pointerEvents: "none"
+      });
+      let settled = false;
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        input.remove();
+        resolve(result);
+      };
       input.onchange = (e) => {
-        const file = e.target.files[0];
+        const file = e.target.files?.[0];
         if (!file) {
-          resolve(false);
+          finish(false);
           return;
         }
         const reader = new FileReader();
         reader.onload = (evt) => {
           const ok = this.canvas.insertMedia ? this.canvas.insertMedia(mediaType, evt.target.result, file.size) : false;
-          resolve(ok);
+          finish(ok);
         };
-        reader.onerror = () => resolve(false);
+        reader.onerror = () => finish(false);
         reader.readAsDataURL(file);
       };
-      input.oncancel = () => resolve(false);
+      input.oncancel = () => finish(false);
+      document.body.appendChild(input);
       input.click();
     });
   }

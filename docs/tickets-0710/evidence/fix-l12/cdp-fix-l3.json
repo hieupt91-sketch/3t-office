@@ -1,0 +1,19 @@
+{
+  "suite": "tests/live/cdp/slides-fix-l3.desktop.mjs",
+  "status": "PASS",
+  "passed": 11,
+  "total": 11,
+  "appRoot": "E:/VNOffice-codex-fl12",
+  "profile": "E:/VNOffice-profiles/codex-fl12",
+  "fixture": "E:/VN OFice/file test/lan/BÁO CÁO KẾT QUẢ KINH DOANH NĂM 2021.pptx",
+  "checks": [
+    "created nested group of shape/text/image",
+    "saved two native group shapes and reopened group hierarchy",
+    "dragged group and all three members moved",
+    "resized all group members together",
+    "rotated group members together",
+    "saved and reopened minimal-dark theme ID",
+    "entered slideshow, used pen and laser controls, Escape returned to arrow without closing slideshow"
+  ],
+  "output": "E:/VNOffice-profiles/codex-fl12/fix-l3/slides-groups-roundtrip.pptx"
+}

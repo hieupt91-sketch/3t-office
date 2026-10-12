@@ -1,0 +1,361 @@
+{
+    "officeVersion":  "16.0",
+    "path":  "E:\\VNOffice-profiles\\codex-fl12\\fix-l10-media.pptx",
+    "slidesCount":  10,
+    "designName":  "modern-blue",
+    "slideWidth":  720,
+    "slideHeight":  405,
+    "slides":  [
+                   {
+                       "index":  1,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "WEST COAST\rROAD TRIP",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 2",
+                                          "type":  14,
+                                          "text":  "Your Name • Sept 20XX",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "Google Shape;60;p13",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "Google Shape;61;p13",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "Google Shape;62;p13",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "Picture 8",
+                                          "type":  16,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  3
+                                      },
+                                      {
+                                          "name":  "Picture 9",
+                                          "type":  16,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  2
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  2,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "Google Shape;68;p14",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "Google Shape;69;p14",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "Google Shape;70;p14",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  3,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "72 HOURS.\r4 HUMANS. \r1 CAR. 3 DOGS.",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  4,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "Long Beach",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 2",
+                                          "type":  14,
+                                          "text":  "6:28am",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "Google Shape;82;p16",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  5,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "Google Shape;87;p17",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "Malibu sunset",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  6,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "Google Shape;93;p18",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "Google Shape;94;p18",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "Google Shape;95;p18",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  7,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "Pacific Coast Highway",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "Google Shape;101;p19",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "Google Shape;102;p19",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "Google Shape;103;p19",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  8,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "Google Shape;108;p20",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "Google Shape;109;p20",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "Google Shape;110;p20",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  9,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "Google Shape;115;p21",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "Google Shape;116;p21",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  10,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "Google Shape;121;p22",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "Lorem ipsum dolor sit amet, consectetur adipiscing elit, sed do eiusmod tempor incididunt ut labore",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "Google Shape;123;p22",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      },
+                                      {
+                                          "name":  "Google Shape;124;p22",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null
+                                      }
+                                  ]
+                   }
+               ]
+}

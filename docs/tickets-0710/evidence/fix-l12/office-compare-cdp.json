@@ -1,0 +1,22 @@
+{
+  "suite": "tests/live/cdp/slides-fix-l12-office-compare.desktop.mjs",
+  "status": "PASS",
+  "passed": 10,
+  "total": 10,
+  "appRoot": "E:/VNOffice-codex-fl12",
+  "profile": "E:/VNOffice-profiles/codex-fl12",
+  "fixture": "E:/VNOffice-profiles/codex-fl12/template.pptx",
+  "output": "E:/VNOffice-profiles/codex-fl12/fix-l12-office-compare.pptx",
+  "checks": [
+    "applied Two Content layout and reset via ribbon",
+    "applied Zoom transition",
+    "applied Than Chì Hiện Đại theme",
+    "inserted editable WordArt text",
+    "inserted ™ into selected text shape",
+    "inserted diagram with seven grouped shape members",
+    "mouse click selected all seven diagram members",
+    "mouse drag moved all seven members together by 28×20 CSS units",
+    "saved PPTX through the real adapter path"
+  ],
+  "observedLimit": "SmartArt is not created; the diagram is an editable grouped set of shapes."
+}

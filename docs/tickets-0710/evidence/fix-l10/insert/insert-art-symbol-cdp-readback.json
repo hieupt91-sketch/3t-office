@@ -99,7 +99,7 @@
   },
   "wordart": {
     "slides": 10,
-    "selectedTarget": 1791759708047,
+    "selectedTarget": 1791783802144,
     "selection": "",
     "active": "vno-slide-canvas",
     "shapes": [
@@ -144,7 +144,7 @@
         "gradient": null
       },
       {
-        "id": 1791759708047,
+        "id": 1791783802144,
         "type": "wordart",
         "text": "3T OfficeAudit WordArt",
         "presetId": "ocean-gradient",
@@ -157,6 +157,6 @@
       }
     ]
   },
-  "file": "E:\\VNOffice-profiles\\codex-fl10\\fix-l10-insert-art-symbol.pptx",
+  "file": "E:\\VNOffice-profiles\\codex-fl12\\fix-l10-insert-art-symbol.pptx",
   "saved": true
 }
