@@ -27,7 +27,7 @@ try {
         if (!rect.width || !rect.height) continue;
         const dirty=g._getDirtyFormulaOrder(graph,{sheet,coord});
         if (!dirty?.length) continue;
-        options.push({sheet,coord,count:dirty.length,x:rect.left+rect.width/2,y:rect.top+rect.height/2});
+        options.push({sheet,coord,count:dirty.length,originalValue:item.val,x:rect.left+rect.width/2,y:rect.top+rect.height/2});
       }
     }
     options.sort((a,b)=>b.count-a.count);
@@ -64,11 +64,13 @@ try {
     return {formulaCount:after.length,mismatchCount:differences.length,mismatches:differences.slice(0,20)};
   })()`);
 
+  await mouseClick(session.cdp,target.x,target.y);
   await timed("Ctrl+Z", () => press(session.cdp,"z",{ctrl:true},20));
   const afterUndo = await session.cdp.evaluate(`(() => {const g=window.__vnoAppInstance.grid;return g.sheetsData[${JSON.stringify(target.sheet)}]?.get(${JSON.stringify(target.coord)})?.val})()`);
+  await mouseClick(session.cdp,target.x,target.y);
   await timed("Ctrl+Y", () => press(session.cdp,"y",{ctrl:true},20));
   const afterRedo = await session.cdp.evaluate(`(() => {const g=window.__vnoAppInstance.grid;return g.sheetsData[${JSON.stringify(target.sheet)}]?.get(${JSON.stringify(target.coord)})?.val})()`);
-  console.log(JSON.stringify({file,target:{sheet:target.sheet,coord:target.coord,dependentFormulaCount:target.count},times,editedValue:edited.editedValue,undoValue:afterUndo,redoValue:afterRedo,oracle}));
+  console.log(JSON.stringify({file,target:{sheet:target.sheet,coord:target.coord,dependentFormulaCount:target.count,originalValue:target.originalValue},times,editedValue:edited.editedValue,undoValue:afterUndo,undoRestored:Object.is(afterUndo,target.originalValue),redoValue:afterRedo,redoRestored:Object.is(afterRedo,edited.editedValue),oracle}));
 } finally {
   await session.close();
 }
