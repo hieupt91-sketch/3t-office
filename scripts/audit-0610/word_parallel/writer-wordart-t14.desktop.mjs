@@ -7,6 +7,7 @@ const root = process.env.VNO_APP_ROOT;
 const profile = process.env.VNO_CDP_LOCALAPPDATA;
 if (!root || !profile) throw new Error("Set VNO_APP_ROOT and VNO_CDP_LOCALAPPDATA.");
 const outputPath = path.join(profile, "fix-t14-wordart.docx");
+await fs.rm(outputPath, { force: true });
 const session = await launchApp("writer", {
   root,
   localAppData: path.join(profile, "writer-wordart-t14", "app-profile"),
