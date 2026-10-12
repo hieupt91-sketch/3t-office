@@ -878,7 +878,7 @@ export const SHEET_HELP_ENTRIES = [
     steps: [
       "Tab Công thức, nhóm Tính toán: hộp chọn Tự động (Automatic) / Thủ công (Manual), nút Tính lại toàn bộ (F9), Tính trang hiện tại (Shift+F9). Chọn Thủ công rồi nhấn Ctrl+S để lưu; XLSX ghi chế độ manual, các ứng dụng hỗ trợ thiết lập này sẽ mở tệp ở chế độ tính thủ công. Hai lệnh modeAutomatic / modeManual không có nút riêng — chúng là giá trị của hộp Tùy chọn tính toán.",
       "Tự động (mặc định): mỗi lần setCellValue chạy tính lại phụ thuộc. Thủ công: sửa A1 không đổi ô =A1*2 cho tới khi nhấn F9 (mọi sheet) hoặc Shift+F9 (chỉ sheet đang mở). Chuyển từ Thủ công về Tự động sẽ tính lại toàn bộ ngay.",
-      "Công thức mảng không có nút ribbon: bôi vùng kết quả, gõ công thức bắt đầu bằng = trên thanh công thức, nhấn Ctrl+Shift+Enter. Ví dụ, dữ liệu A1:C2 có 2 hàng × 3 cột thì bôi D1:E3 (3 hàng × 2 cột), nhập =TRANSPOSE(A1:C2), rồi nhấn Ctrl+Shift+Enter để chuyển hàng thành cột. Nếu chỉ nhấn Enter, Excel 2016 áp dụng giao mảng theo vị trí ô và có thể trả #VALUE!; Ctrl+Shift+Enter điền toàn bộ mảng. Kích thước vùng đích phải khớp kết quả — lệch thì lệnh không ghi.",
+      "Công thức mảng không có nút ribbon: bôi vùng kết quả, gõ công thức bắt đầu bằng = trên thanh công thức, nhấn Ctrl+Shift+Enter. Ví dụ, dữ liệu A1:C2 có 2 hàng × 3 cột thì bôi D1:E3 (3 hàng × 2 cột), nhập =TRANSPOSE(A1:C2), rồi nhấn Ctrl+Shift+Enter để chuyển hàng thành cột. Nếu chỉ nhấn Enter, kết quả theo giao mảng tại vị trí ô và có thể là #VALUE!; Ctrl+Shift+Enter điền toàn bộ mảng. Kích thước vùng đích phải khớp kết quả — lệch thì lệnh không ghi.",
       "F9 / Shift+F9 dùng cả khi đang Tự động (ép tính lại). Ctrl+Z hoàn tác lần nhập mảng. Công thức thường (không mảng) xác nhận bằng Enter."
     ]
   },
