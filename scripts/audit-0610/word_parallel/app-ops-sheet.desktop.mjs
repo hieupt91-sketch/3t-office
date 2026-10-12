@@ -1,5 +1,5 @@
 import { launchApp } from "../../../tests/live/cdp/session.mjs";
-import { mouseClick, mouseDrag, mouseMove, mouseRightClick, mouseTripleClick, press, typeText, insertText } from "../../../tests/live/cdp/actions.mjs";
+import { mouseClick, mouseDrag, mouseMove, mouseRightClick, mouseTripleClick, mouseWheel, press, typeText, insertText } from "../../../tests/live/cdp/actions.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { mkdir } from "node:fs/promises";
@@ -719,7 +719,20 @@ for (const [name, cell, kind, id, value] of ops) {
         const selector = kind === "tableStyle" ? ".vno-table-style-card" : `.vno-cell-style-card[data-style-id="${value}"]`;
         const card = JSON.parse(await ev(`(() => { const n=document.querySelector(${JSON.stringify(selector)}); if(!n) return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2}) })()`));
         if (!card) status = "NO_STYLE_CARD";
-        else { await mouseClick(session.cdp, card.x, card.y); status = "applied style"; }
+        else {
+          await mouseClick(session.cdp, card.x, card.y);
+          if (kind === "tableStyle") {
+            const scrollPoint = JSON.parse(await ev(`(() => { const n=document.querySelector('.vno-format-table-dialog .vno-dialog-body');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2}) })()`));
+            if (scrollPoint) await mouseWheel(session.cdp, scrollPoint.x, scrollPoint.y, 0, 700);
+            const create = JSON.parse(await ev(`(() => { const n=document.querySelector('.vno-table-create-action'); if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2}) })()`));
+            if (!create) status = "NO_TABLE_CREATE_ACTION";
+            else {
+              await mouseClick(session.cdp, create.x, create.y);
+              await session.cdp.waitFor("(window.__vnoAppInstance.grid.tablesBySheet[window.__vnoAppInstance.grid.activeSheet]||[]).length>0", {timeoutMilliseconds:10000});
+              status = "created named table through UI";
+            }
+          } else status = "applied style";
+        }
       }
       if (kind === "nameManager" && status === "clicked") {
         await sleep(200);
