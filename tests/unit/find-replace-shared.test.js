@@ -345,6 +345,37 @@ export async function runSharedFindReplaceTests() {
     assert.equal(grid.sheetsData["Sheet2"].get("A1").val, "Mục Sheet2", "Undo phục hồi Sheet2");
   });
 
+  test("3T Sheet: sửa ô chỉ tính lại công thức phụ thuộc và undo/redo giữ chuỗi kết quả", () => {
+    const grid = new SheetGridController(createMockSheetContainer());
+    grid.setCellValue("A", 1, 2);
+    grid.setCellValue("B", 1, "=A1*2");
+    grid.setCellValue("C", 1, "=B1+1");
+    grid.setCellValue("D", 1, "=A1+100");
+    grid.setCellValue("Z", 1, "=40+2");
+    assert.equal(grid.cellsData.get("C1").val, 5);
+
+    let formulaEvaluations = 0;
+    const evaluate = grid.formulaEngine.evaluate.bind(grid.formulaEngine);
+    grid.formulaEngine.evaluate = formula => {
+      formulaEvaluations++;
+      return evaluate(formula);
+    };
+    grid.setCellValue("A", 1, 3);
+    assert.equal(grid.cellsData.get("B1").val, 6);
+    assert.equal(grid.cellsData.get("C1").val, 7);
+    assert.equal(grid.cellsData.get("D1").val, 103);
+    assert.equal(grid.cellsData.get("Z1").val, 42);
+    assert.equal(formulaEvaluations, 3, "công thức độc lập không được tính lại");
+
+    assert.equal(grid.undo(), true);
+    assert.equal(grid.cellsData.get("A1").val, 2);
+    assert.equal(grid.cellsData.get("B1").val, 4);
+    assert.equal(grid.cellsData.get("C1").val, 5);
+    assert.equal(grid.redo(), true);
+    assert.equal(grid.cellsData.get("A1").val, 3);
+    assert.equal(grid.cellsData.get("C1").val, 7);
+  });
+
   // 9. 3T Slide Model: find across slides, select slide/shape, replaceAll & single Undo
   test("3T Slide: tìm xuyên suốt trang chiếu, thay thế tất cả và Hoàn tác 1 bước", () => {
     const canvas = new SlidesCanvasController({ innerHTML: "", className: "" });

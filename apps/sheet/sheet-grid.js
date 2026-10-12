@@ -248,6 +248,7 @@ export class SheetGridController {
     this.calculationMode = "automatic"; // "automatic" | "manual"
     this.auditArrows = [];
     this.watchedCells = new Set();
+    this._formulaDependencyGraph = null;
     this._isAutofilling = false;
     this._autofillSource = null;
     this._autofillTarget = null;
@@ -5357,6 +5358,7 @@ _bindGridKeyboardNavigation() {
     delete item.richText;
 
     this.cellsData.set(key, item);
+    if ((previousValue?.formula || "") !== (item.formula || "")) this._formulaDependencyGraph = null;
     if (tableStateBeforeEdit && (item.formula || String(item.val ?? "") !== "")) {
       const expanded = this._expandTableForAdjacentEntry(col, Number(row));
       if (expanded && historyAction) {
@@ -5397,7 +5399,7 @@ _bindGridKeyboardNavigation() {
 
     // Tự động tính toán lại các ô có công thức khác (trừ khi ở chế độ Manual)
     if (this.calculationMode !== "manual") {
-      this._recalculateAllFormulas(key);
+      this._recalculateAllFormulas(key, false, { sheet: this.activeSheet, coord: key });
     }
     this.refreshCharts();
     this._updateWatchWindow?.();
@@ -5474,21 +5476,130 @@ _bindGridKeyboardNavigation() {
     };
   }
 
-  _recalculateAllFormulas(excludeKey, force = false) {
+  _buildFormulaDependencyGraph() {
+    const originalSheet = this.activeSheet;
+    const fail = () => { this.activeSheet = originalSheet; return null; };
+    const formulas = new Map();
+    const formulaPositions = new Map();
+    const rangesByColumn = new Map();
+    const formulasBySheetColumn = new Map();
+    const columnKey = (sheet, column) => `${sheet}\u0000${column}`;
+    const formulaId = (sheet, coord) => JSON.stringify([sheet, coord]);
+
+    for (const sheet of this.sheets) {
+      const map = this.sheetsData[sheet];
+      if (!map) continue;
+      this.activeSheet = sheet;
+      for (const [coord, item] of map) {
+        if (!item?.formula || (item.externalLink && item.externalLink.formula === item.formula)) continue;
+        if (item.isArrayFormula) return fail();
+        const extracted = this.formulaEngine.getStaticFormulaReferences(item.formula, sheet);
+        if (!extracted.safe) return fail();
+        const id = formulaId(sheet, coord);
+        const formulaMatch = String(coord).match(/^([A-Z]+)(\d+)$/i);
+        if (!formulaMatch) return fail();
+        const formula = { id, sheet, coord, row: Number(formulaMatch[2]), column: this._columnNumber(formulaMatch[1]) - 1, refs: extracted.references, upstream: new Set() };
+        formulas.set(id, formula);
+        formulaPositions.set(`${sheet}\u0000${coord}`, id);
+        const key = columnKey(sheet, formula.column);
+        if (!formulasBySheetColumn.has(key)) formulasBySheetColumn.set(key, []);
+        formulasBySheetColumn.get(key).push(formula);
+      }
+    }
+
+    for (const formula of formulas.values()) {
+      for (const ref of formula.refs) {
+        const minColumn = Math.min(ref.startColumn, ref.endColumn);
+        const maxColumn = Math.max(ref.startColumn, ref.endColumn);
+        const minRow = Math.min(ref.startRow, ref.endRow);
+        const maxRow = Math.max(ref.startRow, ref.endRow);
+        if (maxColumn - minColumn > 255) return fail();
+        for (let column = minColumn; column <= maxColumn; column++) {
+          const key = columnKey(ref.sheet, column);
+          if (!rangesByColumn.has(key)) rangesByColumn.set(key, []);
+          rangesByColumn.get(key).push({ minRow, maxRow, formulaId: formula.id });
+          for (const source of formulasBySheetColumn.get(key) || []) {
+            if (source.row >= minRow && source.row <= maxRow) formula.upstream.add(source.id);
+          }
+        }
+      }
+    }
+    this.activeSheet = originalSheet;
+    return { formulas, formulaPositions, rangesByColumn };
+  }
+
+  _getDirtyFormulaOrder(graph, changed) {
+    const formulaIds = new Set();
+    const visitedCells = new Set();
+    const pending = [changed];
+    while (pending.length) {
+      const current = pending.pop();
+      const cellId = `${current.sheet}\u0000${current.coord}`;
+      if (visitedCells.has(cellId)) continue;
+      visitedCells.add(cellId);
+      const formulaIdsAtCell = new Set();
+      const directFormula = graph.formulaPositions.get(cellId);
+      if (directFormula) formulaIdsAtCell.add(directFormula);
+      const columnMatch = current.coord.match(/^([A-Z]+)(\d+)$/i);
+      if (!columnMatch) return null;
+      const column = this._columnNumber(columnMatch[1]) - 1;
+      const row = Number(columnMatch[2]);
+      for (const range of graph.rangesByColumn.get(`${current.sheet}\u0000${column}`) || []) {
+        if (row >= range.minRow && row <= range.maxRow) formulaIdsAtCell.add(range.formulaId);
+      }
+      for (const id of formulaIdsAtCell) {
+        if (id === JSON.stringify([changed.sheet, changed.coord]) || formulaIds.has(id)) continue;
+        formulaIds.add(id);
+        const formula = graph.formulas.get(id);
+        pending.push({ sheet: formula.sheet, coord: formula.coord });
+      }
+    }
+
+    const ordered = [];
+    const visiting = new Set();
+    const visited = new Set();
+    const visit = id => {
+      if (visiting.has(id)) return false;
+      if (visited.has(id)) return true;
+      visiting.add(id);
+      const formula = graph.formulas.get(id);
+      for (const upstream of formula?.upstream || []) {
+        if (formulaIds.has(upstream) && !visit(upstream)) return false;
+      }
+      visiting.delete(id);
+      visited.add(id);
+      ordered.push(id);
+      return true;
+    };
+    for (const id of formulaIds) if (!visit(id)) return null;
+    return ordered.map(id => graph.formulas.get(id));
+  }
+
+  _recalculateAllFormulas(excludeKey, force = false, incremental = null) {
     if (this.calculationMode === "manual" && !force) return;
-    this.formulaEngine?.clearCache?.();
     const activeSheet = this.activeSheet;
+    let formulaFilter = null;
+    if (incremental && !force && this.formulaEngine?.getStaticFormulaReferences) {
+      if (!this._formulaDependencyGraph) {
+        this._formulaDependencyGraph = this._buildFormulaDependencyGraph();
+      }
+      if (this._formulaDependencyGraph) {
+        const dirty = this._getDirtyFormulaOrder(this._formulaDependencyGraph, incremental);
+        if (dirty) formulaFilter = new Map(dirty.map(formula => [JSON.stringify([formula.sheet, formula.coord]), formula]));
+      }
+    }
+    if (!formulaFilter) this.formulaEngine?.clearCache?.();
     const changedFormulaCells = new Set();
     for (const sheetName of this.sheets) {
       const map = this.sheetsData[sheetName];
       if (!map) continue;
       this.activeSheet = sheetName;
       if (this.formulaEngine) {
-        if (typeof this.formulaEngine.setCellsData === "function") this.formulaEngine.setCellsData(map);
-        else this.formulaEngine.cellsData = map;
+        this.formulaEngine.cellsData = () => this.cellsData;
       }
       for (const [k, itm] of map.entries()) {
-        if ((sheetName !== activeSheet || k !== excludeKey) && itm.formula) {
+        const included = !formulaFilter || formulaFilter.has(JSON.stringify([sheetName, k]));
+        if (included && (sheetName !== activeSheet || k !== excludeKey) && itm.formula) {
           // A link to another (closed) workbook keeps its cached value, as in
           // Excel; evaluating it here would overwrite the value with an error.
           if (itm.externalLink && itm.externalLink.formula === itm.formula) continue;
@@ -5529,9 +5640,7 @@ _bindGridKeyboardNavigation() {
     }
     this.activeSheet = activeSheet;
     if (this.formulaEngine) {
-      const activeMap = this.sheetsData[activeSheet];
-      if (typeof this.formulaEngine.setCellsData === "function") this.formulaEngine.setCellsData(activeMap);
-      else this.formulaEngine.cellsData = activeMap;
+      this.formulaEngine.cellsData = () => this.cellsData;
     }
     this._refreshVisibleRuleVisuals();
     this._updateWatchWindow?.();
