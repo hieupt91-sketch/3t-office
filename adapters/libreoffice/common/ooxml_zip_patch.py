@@ -505,6 +505,341 @@ def parse_sheet_visibility_from_workbook(workbook_xml: str | None) -> dict[str, 
     return result
 
 
+def parse_calculation_mode_from_workbook(workbook_xml: str | None) -> str | None:
+    """Return the explicit Excel calculation mode, or None for automatic/default."""
+    match = re.search(r"<(?:[\w.-]+:)?calcPr\b([^>]*)/?>", workbook_xml or "", re.IGNORECASE)
+    if not match:
+        return None
+    mode = re.search(r'\bcalcMode\s*=\s*(["\'])(.*?)\1', match.group(1), re.IGNORECASE)
+    value = mode.group(2).strip().lower() if mode else ""
+    return value if value in {"auto", "manual", "autonotable"} else None
+
+
+def apply_calculation_mode_to_fods(fods_xml: str, mode: str | None) -> str:
+    """Carry explicit workbook calculation mode across LibreOffice's FODS import."""
+    if mode not in {"auto", "manual", "autoNoTable"}:
+        return fods_xml or ""
+    xml = fods_xml or ""
+    pattern = re.compile(r"<office:spreadsheet\b([^>]*)>", re.IGNORECASE)
+
+    def replace(match: re.Match[str]) -> str:
+        attrs = re.sub(r'\s+vno:calculation-mode=("[^"]*"|\'[^\']*\')', "", match.group(1), flags=re.IGNORECASE)
+        return f'<office:spreadsheet{attrs} vno:calculation-mode="{mode}">'
+
+    return pattern.sub(replace, xml, count=1)
+
+
+def parse_calculation_mode_from_fods(fods_xml: str | None) -> str | None:
+    match = re.search(r"<office:spreadsheet\b([^>]*)>", fods_xml or "", re.IGNORECASE)
+    if not match:
+        return None
+    value = re.search(r'\bvno:calculation-mode\s*=\s*(["\'])(.*?)\1', match.group(1), re.IGNORECASE)
+    mode = value.group(2) if value else ""
+    return mode if mode in {"auto", "manual", "autoNoTable"} else None
+
+
+def _parse_fods_text_boxes(fods_xml: str | None) -> dict[str, list[dict]]:
+    result: dict[str, list[dict]] = {}
+    for match in re.finditer(r"<table:table\b([^>]*)>", fods_xml or "", re.IGNORECASE):
+        attrs = match.group(1)
+        name = re.search(r'table:name\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+        boxes_match = re.search(r'vno:text-boxes\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+        if not name or not boxes_match:
+            continue
+        try:
+            boxes = json.loads(html.unescape(boxes_match.group(2)))
+        except (TypeError, ValueError):
+            continue
+        if isinstance(boxes, list):
+            result[_unescape_xml(name.group(2))] = [box for box in boxes if isinstance(box, dict)]
+    return result
+
+
+def _drawing_textbox_shape(box: dict, shape_id: int) -> str:
+    anchor = box.get("anchor") if isinstance(box.get("anchor"), dict) else {}
+    col_match = re.fullmatch(r"([A-Z]+)", str(anchor.get("c", "A")).upper())
+    col = 0
+    if col_match:
+        for char in col_match.group(1):
+            col = col * 26 + ord(char) - 64
+        col = max(0, col - 1)
+    row = max(0, int(anchor.get("r", 1) or 1) - 1)
+    width = max(180, int(float(box.get("widthPx", 180) or 180)))
+    height = max(54, int(float(box.get("heightPx", 54) or 54)))
+    text = str(box.get("text", ""))
+    paragraphs = "".join(
+        f"<a:p><a:r><a:rPr lang=\"vi-VN\" dirty=\"0\"/><a:t>{_escape_xml(line)}</a:t></a:r><a:endParaRPr lang=\"vi-VN\"/></a:p>"
+        for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    ) or "<a:p><a:endParaRPr lang=\"vi-VN\"/></a:p>"
+    return (
+        '<xdr:oneCellAnchor><xdr:from>'
+        f'<xdr:col>{col}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>{row}</xdr:row><xdr:rowOff>0</xdr:rowOff>'
+        '</xdr:from><xdr:ext cx="' + str(width * 9525) + '" cy="' + str(height * 9525) + '"/>'
+        '<xdr:sp macro="" textlink=""><xdr:nvSpPr><xdr:cNvPr id="' + str(shape_id) + '" name="Text Box ' + str(shape_id) + '"/><xdr:cNvSpPr txBox="1"/></xdr:nvSpPr>'
+        '<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' + str(width * 9525) + '" cy="' + str(height * 9525) + '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:ln w="9525"><a:solidFill><a:srgbClr val="64748B"/></a:solidFill></a:ln></xdr:spPr>'
+        '<xdr:txBody><a:bodyPr wrap="square" lIns="95250" tIns="95250" rIns="95250" bIns="95250" anchor="t"/><a:lstStyle/>' + paragraphs + '</xdr:txBody></xdr:sp><xdr:clientData/></xdr:oneCellAnchor>'
+    )
+
+
+def _apply_sheet_text_boxes_to_xlsx(xlsx_bytes: bytes, text_boxes_by_sheet: dict[str, list[dict]], replacements: dict[str, str | bytes | None]) -> None:
+    if not text_boxes_by_sheet:
+        return
+
+    def current_xml(path: str) -> str:
+        value = replacements.get(path)
+        if value is None:
+            value = read_zip_entry(xlsx_bytes, path) or b""
+        return value.decode("utf-8", errors="replace") if isinstance(value, bytes) else str(value)
+
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    content_types = (read_zip_entry(xlsx_bytes, "[Content_Types].xml") or b"").decode("utf-8", errors="replace")
+    for sheet_name, boxes in text_boxes_by_sheet.items():
+        sheet_path = _sheet_name_equivalent_value(sheet_entries, sheet_name)
+        if not sheet_path or not boxes:
+            continue
+        rels_path = sheet_path.replace("/worksheets/", "/worksheets/_rels/") + ".rels"
+        rels = current_xml(rels_path)
+        worksheet = current_xml(sheet_path)
+        rel_match = re.search(r'<Relationship\b([^>]*Type="[^"]*/drawing"[^>]*)/?>', rels, re.IGNORECASE)
+        drawing_path = ""
+        rel_id = ""
+        if rel_match:
+            attrs = rel_match.group(1)
+            target = re.search(r'Target="([^"]*)"', attrs, re.IGNORECASE)
+            rid = re.search(r'Id="([^"]*)"', attrs, re.IGNORECASE)
+            if target and rid:
+                drawing_path = posixpath.normpath(posixpath.join(posixpath.dirname(sheet_path), target.group(1)))
+                rel_id = rid.group(1)
+        if not drawing_path:
+            existing = set(re.findall(r"xl/drawings/drawing(\d+)\.xml", "\n".join(_zip_entry_names(xlsx_bytes) + list(replacements)), re.IGNORECASE))
+            index = 1
+            while str(index) in existing:
+                index += 1
+            drawing_path = f"xl/drawings/drawing{index}.xml"
+            used_ids = set(re.findall(r'\bId="(rId\d+)"', rels))
+            rid_no = 1
+            while f"rId{rid_no}" in used_ids:
+                rid_no += 1
+            rel_id = f"rId{rid_no}"
+            if not rels:
+                rels = '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+            rel_tag = f'<Relationship Id="{rel_id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/{posixpath.basename(drawing_path)}"/>'
+            rels = rels.replace("</Relationships>", rel_tag + "</Relationships>")
+            if not re.search(r'<drawing\b', worksheet, re.IGNORECASE):
+                drawing_tag = f'<drawing r:id="{rel_id}"/>'
+                ext = re.search(r'<extLst\b', worksheet, re.IGNORECASE)
+                position = ext.start() if ext else worksheet.lower().rfind("</worksheet>")
+                if position >= 0:
+                    worksheet = worksheet[:position] + drawing_tag + worksheet[position:]
+            replacements[rels_path] = rels
+        drawing = current_xml(drawing_path)
+        if not drawing:
+            drawing = '<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"></xdr:wsDr>'
+            if not re.search(rf'<Override\b[^>]*PartName="/{re.escape(drawing_path)}"', content_types, re.IGNORECASE):
+                content_types = content_types.replace("</Types>", f'<Override PartName="/{drawing_path}" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/></Types>')
+        if "xmlns:xdr=" not in drawing:
+            drawing = re.sub(r"<([\w.-]+:)?wsDr\b", r'<\g<0> xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"', drawing, count=1)
+        if "xmlns:a=" not in drawing:
+            drawing = re.sub(r"<([\w.-]+:)?wsDr\b", r'<\g<0> xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"', drawing, count=1)
+        ids = [int(value) for value in re.findall(r'<(?:[\w.-]+:)?cNvPr\b[^>]*\bid="(\d+)"', drawing, re.IGNORECASE)]
+        next_id = max(ids, default=0) + 1
+        body = "".join(_drawing_textbox_shape(box, next_id + index) for index, box in enumerate(boxes))
+        close = re.search(r"</(?:[\w.-]+:)?wsDr\s*>", drawing, re.IGNORECASE)
+        if close:
+            drawing = drawing[:close.start()] + body + drawing[close.start():]
+        replacements[drawing_path] = drawing
+        replacements[sheet_path] = worksheet
+    if content_types:
+        replacements["[Content_Types].xml"] = content_types
+
+
+def _zip_entry_names(xlsx_bytes: bytes) -> list[str]:
+    try:
+        with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+            return package.namelist()
+    except (zipfile.BadZipFile, OSError, ValueError):
+        return []
+
+
+def _parse_xlsx_drawing_text_boxes(xlsx_bytes: bytes) -> dict[str, list[dict]]:
+    result: dict[str, list[dict]] = {}
+    rel_ns = "http://schemas.openxmlformats.org/package/2006/relationships"
+    xdr_ns = "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"
+    a_ns = "http://schemas.openxmlformats.org/drawingml/2006/main"
+    for sheet_name, sheet_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        rels_path = sheet_path.replace("/worksheets/", "/worksheets/_rels/") + ".rels"
+        rels_bytes = read_zip_entry(xlsx_bytes, rels_path)
+        if not rels_bytes:
+            continue
+        try:
+            rels_root = ET.fromstring(rels_bytes)
+            target = next((rel.attrib.get("Target") for rel in rels_root.findall(f"{{{rel_ns}}}Relationship") if rel.attrib.get("Type", "").endswith("/drawing")), None)
+            if not target:
+                continue
+            drawing_path = posixpath.normpath(posixpath.join(posixpath.dirname(sheet_path), target))
+            drawing_bytes = read_zip_entry(xlsx_bytes, drawing_path)
+            if not drawing_bytes:
+                continue
+            drawing_root = ET.fromstring(drawing_bytes)
+        except (ET.ParseError, ValueError):
+            continue
+        boxes = []
+        for anchor in drawing_root.findall(f"{{{xdr_ns}}}oneCellAnchor"):
+            shape = anchor.find(f"{{{xdr_ns}}}sp")
+            nonvisual = shape.find(f"{{{xdr_ns}}}nvSpPr/{{{xdr_ns}}}cNvSpPr") if shape is not None else None
+            if nonvisual is None or nonvisual.attrib.get("txBox") != "1":
+                continue
+            position = anchor.find(f"{{{xdr_ns}}}from")
+            extent = anchor.find(f"{{{xdr_ns}}}ext")
+            if position is None or extent is None:
+                continue
+            values = {child.tag.rsplit("}", 1)[-1]: child.text or "0" for child in list(position)}
+            try:
+                col = max(0, int(values.get("col", "0")))
+                row = max(0, int(values.get("row", "0")))
+                width = max(180, round(int(extent.attrib.get("cx", "0")) / 9525))
+                height = max(54, round(int(extent.attrib.get("cy", "0")) / 9525))
+            except (TypeError, ValueError):
+                continue
+            column = ""
+            number = col + 1
+            while number:
+                number, rem = divmod(number - 1, 26)
+                column = chr(65 + rem) + column
+            body = shape.find(f"{{{xdr_ns}}}txBody")
+            paragraphs = []
+            if body is not None:
+                for paragraph in body.findall(f"{{{a_ns}}}p"):
+                    paragraphs.append("".join(item.text or "" for item in paragraph.findall(f".//{{{a_ns}}}t")))
+            boxes.append({"text": "\n".join(paragraphs), "anchor": {"c": column, "r": row + 1}, "widthPx": width, "heightPx": height})
+        if boxes:
+            result[sheet_name] = boxes
+    return result
+
+
+def _overlay_sheet_drawing_text_boxes(xlsx_bytes: bytes, fods_xml: str) -> str:
+    boxes_by_sheet = _parse_xlsx_drawing_text_boxes(xlsx_bytes)
+    if not boxes_by_sheet:
+        return fods_xml or ""
+
+    def process_table(match) -> str:
+        opening, body, closing = match.group(1), match.group(2), match.group(3)
+        attrs = _xml_attrs(opening)
+        sheet_name = _unescape_xml(attrs.get("table:name", ""))
+        boxes = boxes_by_sheet.get(sheet_name)
+        if not boxes:
+            return match.group(0)
+        serialized = _escape_xml(json.dumps(boxes, ensure_ascii=False, separators=(",", ":")))
+        opening = re.sub(r'\s+vno:text-boxes=("[^"]*"|\'[^\']*\')', "", opening, flags=re.IGNORECASE)
+        return f'{opening[:-1]} vno:text-boxes="{serialized}">{body}{closing}'
+
+    return _sub_fods_tables(fods_xml or "", process_table)
+
+
+def _parse_fods_resolved_comments(fods_xml: str | None) -> dict[str, dict[str, bool]]:
+    result: dict[str, dict[str, bool]] = {}
+    for match in re.finditer(r"<table:table\b([^>]*)>", fods_xml or "", re.IGNORECASE):
+        attrs = match.group(1)
+        name = re.search(r'table:name\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+        state_match = re.search(r'vno:resolved-comments\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+        if not name or not state_match:
+            continue
+        try:
+            states = json.loads(html.unescape(state_match.group(2)))
+        except (TypeError, ValueError):
+            continue
+        if isinstance(states, dict):
+            result[_unescape_xml(name.group(2))] = {str(ref): bool(value) for ref, value in states.items() if re.fullmatch(r"[A-Z]{1,3}\d+", str(ref), re.IGNORECASE)}
+    return result
+
+
+def _parse_xlsx_resolved_comments(xlsx_bytes: bytes) -> dict[str, dict[str, bool]]:
+    result: dict[str, dict[str, bool]] = {}
+    namespace = "https://vnoffice.vn/ns/spreadsheet/1.0"
+    for sheet_name, sheet_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        sheet_bytes = read_zip_entry(xlsx_bytes, sheet_path)
+        if not sheet_bytes:
+            continue
+        try:
+            root = ET.fromstring(sheet_bytes)
+        except ET.ParseError:
+            continue
+        states = {}
+        for comment in root.findall(f".//{{{namespace}}}resolvedComments/{{{namespace}}}comment"):
+            ref = comment.attrib.get("ref", "")
+            if re.fullmatch(r"[A-Z]{1,3}\d+", ref, re.IGNORECASE):
+                states[ref.upper()] = comment.attrib.get("done", "0") in {"1", "true"}
+        if states:
+            result[sheet_name] = states
+    return result
+
+
+def _overlay_sheet_resolved_comments(xlsx_bytes: bytes, fods_xml: str) -> str:
+    states_by_sheet = _parse_xlsx_resolved_comments(xlsx_bytes)
+    if not states_by_sheet:
+        return fods_xml or ""
+
+    def process_table(match) -> str:
+        opening, body, closing = match.group(1), match.group(2), match.group(3)
+        attrs = _xml_attrs(opening)
+        sheet_name = _unescape_xml(attrs.get("table:name", ""))
+        states = states_by_sheet.get(sheet_name)
+        if not states:
+            return match.group(0)
+        serialized = _escape_xml(json.dumps(states, separators=(",", ":")))
+        opening = re.sub(r'\s+vno:resolved-comments=("[^"]*"|\'[^\']*\')', "", opening, flags=re.IGNORECASE)
+        return f'{opening[:-1]} vno:resolved-comments="{serialized}">{body}{closing}'
+
+    return _sub_fods_tables(fods_xml or "", process_table)
+
+
+def _apply_sheet_resolved_comments_to_xlsx(xlsx_bytes: bytes, states_by_sheet: dict[str, dict[str, bool]], replacements: dict[str, str | bytes | None]) -> None:
+    namespace = "https://vnoffice.vn/ns/spreadsheet/1.0"
+    for sheet_name, states in states_by_sheet.items():
+        sheet_path = _sheet_name_equivalent_value(_resolve_xlsx_sheet_entries(xlsx_bytes), sheet_name)
+        if not sheet_path or not states:
+            continue
+        current = replacements.get(sheet_path)
+        if current is None:
+            current = read_zip_entry(xlsx_bytes, sheet_path) or b""
+        worksheet = current.decode("utf-8", errors="replace") if isinstance(current, bytes) else str(current)
+        children = "".join(
+            f'<vno:comment ref="{_escape_xml(ref)}" done="{"1" if done else "0"}"/>'
+            for ref, done in sorted(states.items())
+        )
+        extension = f'<ext uri="{{7A6A35E2-09C8-4C6A-97C8-3F5F0E1A0710}}"><vno:resolvedComments xmlns:vno="{namespace}">{children}</vno:resolvedComments></ext>'
+        ext_list = re.search(r"<(?:[\w.-]+:)?extLst\b[^>]*>([\s\S]*?)</(?:[\w.-]+:)?extLst\s*>", worksheet, re.IGNORECASE)
+        if ext_list:
+            body = re.sub(r'<(?:[\w.-]+:)?ext\b(?=[^>]*uri=["\']\{7A6A35E2-09C8-4C6A-97C8-3F5F0E1A0710\}["\'])[^>]*>[\s\S]*?</(?:[\w.-]+:)?ext\s*>', "", ext_list.group(1), flags=re.IGNORECASE)
+            updated = f'<extLst>{body}{extension}</extLst>'
+            worksheet = worksheet[:ext_list.start()] + updated + worksheet[ext_list.end():]
+        else:
+            close = re.search(r"</(?:[\w.-]+:)?worksheet\s*>", worksheet, re.IGNORECASE)
+            if not close:
+                continue
+            worksheet = worksheet[:close.start()] + f"<extLst>{extension}</extLst>" + worksheet[close.start():]
+        replacements[sheet_path] = worksheet
+
+
+def apply_calculation_mode_to_workbook(workbook_xml: str, mode: str | None) -> str:
+    """Set calcPr.calcMode while preserving all other calculation attributes."""
+    normalized = {"automatic": "auto", "auto": "auto", "manual": "manual", "autoNoTable": "autoNoTable"}.get(mode or "")
+    if normalized is None:
+        return workbook_xml or ""
+    xml = workbook_xml or ""
+    match = re.search(r"<((?:[\w.-]+:)?calcPr)\b([^>]*)/?>", xml, re.IGNORECASE)
+    if match:
+        tag_name = match.group(1)
+        attrs = re.sub(r"/\s*$", "", match.group(2))
+        attrs = re.sub(r'\s+calcMode\s*=\s*(["\']).*?\1', "", attrs, flags=re.IGNORECASE)
+        tag = f'<{tag_name}{attrs} calcMode="{normalized}"/>'
+        return xml[:match.start()] + tag + xml[match.end():]
+    insertion = re.search(r"</(?:[\w.-]+:)?workbook\s*>", xml, re.IGNORECASE)
+    if not insertion:
+        return xml
+    return xml[:insertion.start()] + f'<calcPr calcMode="{normalized}"/>' + xml[insertion.start():]
+
+
 def apply_sheet_visibility_to_fods(fods_xml: str, visibility_by_sheet: dict[str, str]) -> str:
     """Inject vno:sheet-state onto <table:table> tags in FODS — used during
     File → Mở, BEFORE parseFods()."""
@@ -4294,6 +4629,7 @@ def postprocess_sheet_xlsx(
     _apply_indirect_excel_compatibility(xlsx_bytes, replacements)
     source_xlsx_bytes = normalize_source_xlsx(source_xlsx_bytes)  # S23: XLSX gốc có tiền tố x: (lan23)
 
+
     # Extract original font and sheetFormatPr from source XLSX if available
     original_font = None
     original_sheet_format_pr = {}
@@ -4586,6 +4922,20 @@ def postprocess_sheet_xlsx(
         _apply_workbook_view_state_from_fods(xlsx_bytes, source_fods, replacements)
         _clear_print_areas_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_refreshed_pivot_locations_from_fods(xlsx_bytes, source_fods, replacements)
+
+    if source_fods:
+        _apply_sheet_text_boxes_to_xlsx(xlsx_bytes, _parse_fods_text_boxes(source_fods), replacements)
+        _apply_sheet_resolved_comments_to_xlsx(xlsx_bytes, _parse_fods_resolved_comments(source_fods), replacements)
+
+    calculation_mode = parse_calculation_mode_from_fods(source_fods)
+    if calculation_mode:
+        workbook_xml = replacements.get(XLSX_WORKBOOK_ENTRY)
+        if workbook_xml is None:
+            workbook_raw = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+            workbook_xml = workbook_raw.decode("utf-8", errors="replace") if workbook_raw else ""
+        next_workbook_xml = apply_calculation_mode_to_workbook(str(workbook_xml), calculation_mode)
+        if next_workbook_xml != workbook_xml:
+            replacements[XLSX_WORKBOOK_ENTRY] = next_workbook_xml
 
     if not replacements:
         return xlsx_bytes
@@ -8372,6 +8722,7 @@ def overlay_sheet_xlsx_fods(
     if current:
         workbook_xml = current.decode("utf-8", errors="replace")
         xml = overlay_fods_structure_protection(xml, workbook_xml)
+        xml = apply_calculation_mode_to_fods(xml, parse_calculation_mode_from_workbook(workbook_xml))
         # Sheet visibility (veryHidden → vno:sheet-state): soffice downgrades
         # veryHidden to hidden during XLSX→FODS, so we read the original state
         # and write vno:sheet-state for round-trip fidelity.
@@ -8403,6 +8754,8 @@ def overlay_sheet_xlsx_fods(
         xml = apply_tab_colors_to_fods(xml, tab_colors)
     # Drawing images: overlay vno:image-id on <draw:frame> elements
     xml = _overlay_sheet_drawing_image_ids(xlsx_bytes, xml)
+    xml = _overlay_sheet_drawing_text_boxes(xlsx_bytes, xml)
+    xml = _overlay_sheet_resolved_comments(xlsx_bytes, xml)
     # Scenarios: overlay vno:scenarios from XLSX worksheet XMLs
     xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
     return xml
@@ -8437,6 +8790,7 @@ def overlay_sheet_xlsx_fods_p1(
     if current:
         workbook_xml = current.decode("utf-8", errors="replace")
         xml = overlay_fods_structure_protection(xml, workbook_xml)
+        xml = apply_calculation_mode_to_fods(xml, parse_calculation_mode_from_workbook(workbook_xml))
         visibility = parse_sheet_visibility_from_workbook(workbook_xml)
         if visibility:
             xml = apply_sheet_visibility_to_fods(xml, visibility)
@@ -8463,6 +8817,8 @@ def overlay_sheet_xlsx_fods_p1(
         if tab_colors:
             xml = apply_tab_colors_to_fods(xml, tab_colors)
     xml = _overlay_sheet_drawing_image_ids(xlsx_bytes, xml)
+    xml = _overlay_sheet_drawing_text_boxes(xlsx_bytes, xml)
+    xml = _overlay_sheet_resolved_comments(xlsx_bytes, xml)
     if not skeleton:
         xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
     return xml

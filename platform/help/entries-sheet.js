@@ -435,7 +435,7 @@ export const SHEET_HELP_ENTRIES = [
     summary: "Duyệt nhận xét theo thứ tự ô và trang tính, đánh dấu đã xử lý, mở lại hoặc xóa.",
     ribbon: { tab: "Xem xét", tabId: "review", group: "Ghi chú" },
     keywords: ["nhận xét", "ghi chú ô", "trước", "sau", "xử lý", "resolve", "xóa"],
-    steps: ["Mở tab Xem xét, nhóm Ghi chú.", "Nhấn Nhận xét trước hoặc Nhận xét sau; Sheet chọn ô có ghi chú và tự chuyển sheet khi cần, rồi quay vòng ở cuối danh sách.", "Nhấn Đã xử lý để đổi dấu góc sang màu xám nhưng vẫn giữ ghi chú; nhấn lại để mở lại.", "Nhấn Xóa nhận xét để xóa ghi chú ở ô đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại."]
+    steps: ["Mở tab Xem xét, nhóm Ghi chú.", "Nhấn Nhận xét trước hoặc Nhận xét sau; Sheet chọn ô có ghi chú và tự chuyển sheet khi cần, rồi quay vòng ở cuối danh sách.", "Nhấn Đã xử lý để đổi dấu góc sang màu xám nhưng vẫn giữ ghi chú; nhấn lại để mở lại. Nhấn Ctrl+S rồi mở lại tệp trong Sheet để kiểm tra trạng thái đã lưu.", "XLSX hiện giữ ghi chú theo định dạng legacy và lưu trạng thái Đã xử lý trong phần mở rộng riêng của Sheet. Ứng dụng bảng tính khác vẫn hiển thị ghi chú nhưng không hiển thị trạng thái Đã xử lý; trạng thái này chưa theo định dạng threaded comment.", "Nhấn Xóa nhận xét để xóa ghi chú ở ô đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại."]
   },
   {
     id: "sheet.sheet.rename",
@@ -755,9 +755,9 @@ export const SHEET_HELP_ENTRIES = [
     keywords: ["hộp văn bản", "textbox", "chú thích nổi", "khung chữ", "ghi chú ô"],
     steps: [
       "Chọn ô neo (góc trên-trái hộp sẽ bám ô này). Tab Chèn, nhóm Văn bản, nhấn Hộp văn bản.",
-      "Hộp «Chèn hộp văn bản» hỏi nội dung. Nhập chữ rồi xác nhận. Hộp trắng, viền xám, tối thiểu khoảng 180×54 px, hiện trên lớp nổi của sheet.",
-      "Nhấp vào hộp để sửa chữ. Kéo góc (resize trình duyệt) để đổi cỡ. Xóa hộp bằng hoàn tác Ctrl+Z ngay sau khi chèn.",
-      "Mỗi trang tính có danh sách hộp riêng. Hộp không đi cùng khi in như một đối tượng phần mềm bảng tính khác đầy đủ — dùng cho chú thích trên màn hình."
+      "Hộp «Chèn hộp văn bản» hỏi nội dung. Nhập chữ rồi xác nhận. Hộp trắng, viền xám, kích thước ban đầu khoảng 180×54 px, hiện trên lớp nổi của sheet.",
+      "Nhấp vào hộp để sửa chữ. Kéo góc dưới bên phải để đổi cỡ; vị trí neo theo ô đã chọn, hiện chưa kéo hộp sang ô khác được. Nhấn Ctrl+S để lưu XLSX; khi mở lại trong Sheet hoặc ứng dụng bảng tính khác, nội dung, ô neo và kích thước được giữ. Xóa hộp bằng Ctrl+Z ngay sau khi chèn.",
+      "Mỗi trang tính có danh sách hộp riêng. Hộp được xuất thành đối tượng DrawingML trong XLSX để các ứng dụng hỗ trợ định dạng này hiển thị và in cùng trang tính."
     ]
   },
   {
@@ -858,7 +858,7 @@ export const SHEET_HELP_ENTRIES = [
     ribbon: { tab: "Công thức", tabId: "formulas", group: "Tính toán" },
     keywords: ["tính toán", "tự động", "thủ công", "manual", "f9", "shift+f9", "công thức mảng", "ctrl+shift+enter", "array formula", "tính lại"],
     steps: [
-      "Tab Công thức, nhóm Tính toán: hộp chọn Tự động (Automatic) / Thủ công (Manual), nút Tính lại toàn bộ (F9), Tính trang hiện tại (Shift+F9). Hai lệnh modeAutomatic / modeManual không có nút riêng — chúng là giá trị của hộp Tùy chọn tính toán.",
+      "Tab Công thức, nhóm Tính toán: hộp chọn Tự động (Automatic) / Thủ công (Manual), nút Tính lại toàn bộ (F9), Tính trang hiện tại (Shift+F9). Chọn Thủ công rồi nhấn Ctrl+S để lưu; XLSX ghi chế độ manual, các ứng dụng hỗ trợ thiết lập này sẽ mở tệp ở chế độ tính thủ công. Hai lệnh modeAutomatic / modeManual không có nút riêng — chúng là giá trị của hộp Tùy chọn tính toán.",
       "Tự động (mặc định): mỗi lần setCellValue chạy tính lại phụ thuộc. Thủ công: sửa A1 không đổi ô =A1*2 cho tới khi nhấn F9 (mọi sheet) hoặc Shift+F9 (chỉ sheet đang mở). Chuyển từ Thủ công về Tự động sẽ tính lại toàn bộ ngay.",
       "Công thức mảng không có nút ribbon: bôi vùng kết quả, gõ công thức bắt đầu bằng = trên thanh công thức, nhấn Ctrl+Shift+Enter. Engine evaluateArray; số phần tử kết quả phải khớp số ô đã bôi — lệch thì lệnh không ghi. Mỗi ô mang cờ isArrayFormula và arrayRange chung.",
       "F9 / Shift+F9 dùng cả khi đang Tự động (ép tính lại). Ctrl+Z hoàn tác lần nhập mảng. Công thức thường (không mảng) xác nhận bằng Enter."
