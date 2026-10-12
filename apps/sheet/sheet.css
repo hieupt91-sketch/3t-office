@@ -579,6 +579,11 @@
   padding: 0 4px;
 }
 .vno-rule-range { margin: 0; padding: 8px; border-radius: 4px; background: var(--vno-bg-muted); color: var(--vno-text-primary); font-size: 12px; }
+.vno-cf-rule-manager { display: grid; gap: 6px; max-height: 180px; overflow: auto; }
+.vno-cf-rule-manager h3 { margin: 0; font-size: 13px; color: var(--vno-text-primary); }
+.vno-cf-rule-row { display: grid; grid-template-columns: minmax(0,1fr) 24px auto; align-items: center; gap: 8px; padding: 6px; border: 1px solid var(--vno-border); border-radius: 5px; color: var(--vno-text-primary); font-size: 12px; }
+.vno-cf-rule-color { width: 18px; height: 18px; border: 1px solid var(--vno-border); border-radius: 3px; }
+.vno-cf-empty { margin: 0; color: var(--vno-text-secondary); font-size: 12px; }
 .vno-data-preview { margin: 0; padding: 8px; border-radius: 4px; background: var(--vno-bg-muted); color: var(--vno-text-primary); font-size: 12px; }
 .vno-rule-error { min-height: 16px; color: #b91c1c; font-size: 12px; }
 [data-theme="dark"] .vno-rule-error { color: #f87171; }

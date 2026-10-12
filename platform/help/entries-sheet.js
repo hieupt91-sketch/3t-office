@@ -246,12 +246,13 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.format.conditional"],
     title: "Định dạng có điều kiện",
-    summary: "Tô màu nền các ô trong vùng chọn khi giá trị lớn hơn một số, nhỏ hơn một số, hoặc ô trống. Màu chọn bằng bảng màu trong hộp thoại.",
+    summary: "Tạo, xem và xóa quy tắc tô màu nền ô theo điều kiện lớn hơn, nhỏ hơn hoặc ô trống. Mỗi quy tắc lưu cùng sổ tính.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Kiểu ô" },
     keywords: ["định dạng có điều kiện", "conditional formatting", "tô màu", "quy tắc", "ô trống", "lớn hơn"],
     steps: [
       "Bôi vùng cần tô nổi (ví dụ cột điểm). Tab Trang đầu, nhóm Kiểu ô, nhấn nút lớn Định dạng có điều kiện.",
-      "Hộp thoại hiện Phạm vi đang chọn. Chọn Quy tắc: Giá trị lớn hơn, Giá trị nhỏ hơn, hoặc Ô trống.",
+      "Hộp thoại hiển thị danh sách Quy tắc hiện có. Nhấn Xóa quy tắc ở dòng tương ứng để bỏ quy tắc khỏi trang tính.",
+      "Để thêm quy tắc, chọn Giá trị lớn hơn, Giá trị nhỏ hơn hoặc Ô trống; nhập ngưỡng nếu cần và chọn Màu nền.",
       "Với lớn hơn / nhỏ hơn: nhập ngưỡng ở ô Giá trị. Chọn Màu nền bằng bảng màu (mặc định vàng nhạt).",
       "Nhấn Áp dụng. Các ô khớp quy tắc được tô ngay. Ô trống chỉ cần chọn quy tắc Ô trống, không nhập số.",
       "Cùng nhóm Kiểu ô còn Định dạng bảng (màu xen kẽ) và Kiểu ô (Normal, Good, Bad, Neutral…) — khác với quy tắc có điều kiện."
