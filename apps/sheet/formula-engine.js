@@ -443,7 +443,7 @@ export class FormulaEngine {
     for (const arg of args) {
       if (typeof arg === "string" && arg.startsWith('"') && arg.endsWith('"')) {
         values.push(arg.slice(1, -1));
-      } else if (typeof arg === "string" && /^[A-Z_.]+\s*\(.*\)$/i.test(arg)) {
+      } else if (typeof arg === "string" && /^[A-Z0-9_.]+\s*\(.*\)$/i.test(arg)) {
         const resolved = this._resolveSingleValue(arg);
         if (Array.isArray(resolved)) values.push(...resolved);
         else values.push(resolved);
@@ -1018,9 +1018,9 @@ export class FormulaEngine {
       }
 
       // 3. Phân tích hàm có tên: TÊN_HÀM(đối số...)
-      const funcMatch = expr.match(/^([A-Z_.]+)\s*\((.*)\)$/i);
+      const funcMatch = expr.match(/^([A-Z0-9_.]+)\s*\((.*)\)$/i);
       if (funcMatch) {
-        const funcName = funcMatch[1].toUpperCase();
+        const funcName = funcMatch[1].replace(/^_xlfn\./i, "").toUpperCase();
         const rawArgs = this._splitArgs(funcMatch[2]);
         const val = this._executeFunction(funcName, rawArgs);
         return val instanceof String ? String(val) : val;
@@ -1440,7 +1440,10 @@ export class FormulaEngine {
 
       case "INDIRECT": {
         if (args.length < 1) return "#VALUE!";
-        const resolvedText = this.evaluate(`=${args[0]}`);
+        const referenceText = this._splitConcat(String(args[0]))
+          ? this.evaluate(`=${args[0]}`)
+          : this._resolveSingleValue(args[0]);
+        const resolvedText = referenceText;
         if (this._isError(resolvedText)) return resolvedText;
         const text = String(resolvedText ?? "");
         const reference = this._parseReference(text);
@@ -2065,6 +2068,13 @@ export class FormulaEngine {
         return String(this._resolveSingleValue(args[0]) ?? "") === String(this._resolveSingleValue(args[1]) ?? "");
       }
 
+      case "HYPERLINK": {
+        if (args.length < 1) return "#VALUE!";
+        const location = this._resolveSingleValue(args[0]);
+        if (this._isError(location)) return location;
+        return args[1] === undefined ? location : this._resolveSingleValue(args[1]);
+      }
+
       case "SEARCH": {
         if (args.length < 2) return "#VALUE!";
         const findText = String(this._resolveSingleValue(args[0]) ?? "").toLocaleLowerCase();
@@ -2496,7 +2506,9 @@ export class FormulaEngine {
           ? this.sheetResolver(reference.sheet)
           : (typeof this.cellsData === "function" ? this.cellsData() : this.cellsData);
         const formula = cells?.get?.(cellRef)?.formula ?? cells?.[cellRef]?.formula;
-        return typeof formula === "string" && formula.startsWith("=") ? formula : "#N/A";
+        return typeof formula === "string" && formula.startsWith("=")
+          ? formula.replace(/^=_xlfn\./i, "=")
+          : "#N/A";
       }
 
       case "IFS": {
@@ -2527,26 +2539,34 @@ export class FormulaEngine {
       }
 
       case "TIME": {
-        const h = Number(this._resolveSingleValue(args[0])) || 0;
-        const m = Number(this._resolveSingleValue(args[1])) || 0;
-        const s = Number(this._resolveSingleValue(args[2])) || 0;
-        return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+        if (args.length !== 3) return "#VALUE!";
+        const parts = args.map(arg => Number(this._resolveSingleValue(arg)));
+        if (!parts.every(Number.isFinite)) return "#VALUE!";
+        if (parts.some(value => value < 0 || value > 32767)) return "#NUM!";
+        const seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+        return ((seconds % 86400) + 86400) % 86400 / 86400;
       }
 
       case "HOUR": {
-        const val = String(this._resolveSingleValue(args[0]) || "");
+        const raw = this._resolveSingleValue(args[0]);
+        if (typeof raw === "number") return Math.floor(Math.floor((((raw % 1) + 1) % 1) * 86400 + 1e-7) / 3600);
+        const val = String(raw || "");
         const match = val.match(/(\d{1,2}):\d{2}/);
         return match ? Number(match[1]) : 0;
       }
 
       case "MINUTE": {
-        const val = String(this._resolveSingleValue(args[0]) || "");
+        const raw = this._resolveSingleValue(args[0]);
+        if (typeof raw === "number") return Math.floor(Math.floor((((raw % 1) + 1) % 1) * 86400 + 1e-7) / 60) % 60;
+        const val = String(raw || "");
         const match = val.match(/\d{1,2}:(\d{2})/);
         return match ? Number(match[1]) : 0;
       }
 
       case "SECOND": {
-        const val = String(this._resolveSingleValue(args[0]) || "");
+        const raw = this._resolveSingleValue(args[0]);
+        if (typeof raw === "number") return Math.floor((((raw % 1) + 1) % 1) * 86400 + 1e-7) % 60;
+        const val = String(raw || "");
         const match = val.match(/\d{1,2}:\d{2}:(\d{2})/);
         return match ? Number(match[1]) : 0;
       }
@@ -2679,7 +2699,20 @@ export class FormulaEngine {
 
     // Hỗ trợ biểu thức số học trong đối số hàm (ví dụ: 0.08/12, 12*5, A1/12)
     if (/[+\-*/^()]/.test(token)) {
-      const arith = this._evaluateArithmetic(token, { raw: true });
+      let arithmeticToken = token;
+      const functionCall = /\b([A-Z][A-Z0-9_.]*)\s*\(([^()]*)\)/gi;
+      if (functionCall.test(token)) {
+        functionCall.lastIndex = 0;
+        arithmeticToken = token.replace(functionCall, call => {
+          const value = this.evaluate(`=${call}`);
+          if (this._isError(value)) return value;
+          if (typeof value === "number" || typeof value === "boolean") return String(Number(value));
+          return "#VALUE!";
+        });
+      }
+      const nestedError = arithmeticToken.match(/#(?:REF!|N\/A|VALUE!|DIV\/0!|NUM!|NAME\?)/i);
+      if (nestedError) return nestedError[0].toUpperCase();
+      const arith = this._evaluateArithmetic(arithmeticToken, { raw: true });
       if (typeof arith === "number" && Number.isFinite(arith)) {
         return arith;
       }

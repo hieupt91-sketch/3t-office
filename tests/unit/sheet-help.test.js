@@ -258,6 +258,7 @@ export async function runSheetHelpTests() {
 
   await test("Help Sheet: hướng dẫn cụ thể các hàm thống kê và ngày nâng cao", () => {
     const entry = getHelpEntryById("sheet.formula.excel2016Functions");
+    if (!entry?.keywords?.includes("HYPERLINK")) throw new Error("Excel 2016 function guide should make HYPERLINK searchable.");
     if (!entry || entry.ribbon?.tab !== "Công thức" || entry.ribbon?.group !== "Hàm tính toán") {
       throw new Error("Thiếu bài hướng dẫn hàm nâng cao tại Công thức / Hàm tính toán");
     }

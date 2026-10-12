@@ -18,6 +18,7 @@ export async function runSheetExcel2016FunctionGapTests() {
     ["C1", { val: "x", formula: "", style: {} }],
     ["C2", { val: "#N/A", formula: "", style: {} }],
     ["D1", { val: "", formula: '=""', style: {} }],
+    ["E1", { val: 2, formula: "=_xlfn.LOG10(100)", style: {} }],
   ]);
   const engine = new FormulaEngine(cells);
 
@@ -55,6 +56,7 @@ export async function runSheetExcel2016FunctionGapTests() {
   });
   test("FORMULATEXT trả công thức, lỗi khi ô không có công thức", () => {
     equal(engine.evaluate("=FORMULATEXT(B1)"), "=SUM(A1:A4)");
+    equal(engine.evaluate("=FORMULATEXT(E1)"), "=LOG10(100)");
     equal(engine.evaluate("=FORMULATEXT(A1)"), "#N/A");
     equal(engine.evaluate("=FORMULATEXT(Missing!A1)"), "#REF!");
   });
@@ -69,6 +71,23 @@ export async function runSheetExcel2016FunctionGapTests() {
   test("INDIRECT resolves a concatenated cell address", () => {
     equal(engine.evaluate('=INDIRECT("A" & 5)'), 0);
     equal(engine.evaluate('=INDIRECT("A" & 4)'), 4);
+  });
+  test("Math functions parse names with digits and nested scalar function arguments", () => {
+    equal(engine.evaluate("=LOG10(100)"), 2);
+    if (Math.abs(engine.evaluate("=SIN(PI()/2)") - 1) > 1e-12) throw new Error("SIN(PI()/2) must equal 1.");
+    if (Math.abs(engine.evaluate("=TAN(PI()/4)") - 1) > 1e-12) throw new Error("TAN(PI()/4) must equal 1.");
+  });
+  test("HYPERLINK returns its friendly display text", () => {
+    equal(engine.evaluate('=HYPERLINK("#A1","Jump to A1")'), "Jump to A1");
+    equal(engine.evaluate('=HYPERLINK("https://example.invalid")'), "https://example.invalid");
+  });
+  test("TIME uses Excel day fractions and component functions read serial times", () => {
+    const time = engine.evaluate("=TIME(14,30,0)");
+    equal(time, (14 * 3600 + 30 * 60) / 86400);
+    equal(engine.evaluate("=HOUR(TIME(14,30,0))"), 14);
+    equal(engine.evaluate("=MINUTE(TIME(14,30,0))"), 30);
+    equal(engine.evaluate("=SECOND(TIME(14,30,45))"), 45);
+    equal(engine.evaluate("=TIME(-1,0,0)"), "#NUM!");
   });
   return results;
 }
