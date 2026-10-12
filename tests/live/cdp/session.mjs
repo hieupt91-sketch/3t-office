@@ -113,7 +113,11 @@ async function closeApp(session) {
   if (child && child.pid != null && child.exitCode === null && child.signalCode === null) {
     await Promise.race([session.exited, sleep(10000)]);
     if (child.exitCode === null && child.signalCode === null) {
-      console.error("CDP close requested; desktop process did not exit within 10 seconds and was left running.");
+      console.error("CDP close requested; stopping only the desktop PID launched by this session after 10 seconds.");
+      child.kill("SIGTERM");
+      await Promise.race([session.exited, sleep(3000)]);
+      if (child.exitCode === null && child.signalCode === null) child.kill("SIGKILL");
+      await Promise.race([session.exited, sleep(3000)]);
     }
   }
   const stopped = !child || child.pid == null || child.exitCode !== null || child.signalCode !== null;
