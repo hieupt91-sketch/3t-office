@@ -43,7 +43,9 @@ try {
   const times = {};
   const timed = async (name, action) => { const start=performance.now(); await action(); times[name]=Math.round(performance.now()-start); };
   await timed("selectCell", () => mouseClick(session.cdp,target.x,target.y));
+  const selectedAfterMouse = await session.cdp.evaluate(`JSON.stringify({selected:window.__vnoAppInstance.grid.selectedCoord,active:document.activeElement?.className||document.activeElement?.tagName})`);
   await timed("editStartFirstKey", () => press(session.cdp,"t",{shift:true},20));
+  const afterFirstKey = await session.cdp.evaluate(`JSON.stringify({selected:window.__vnoAppInstance.grid.selectedCoord,entry:window.__vnoAppInstance.grid.formulaEntry?.coord,entryValue:window.__vnoAppInstance.grid.formulaEntry?.value})`);
   await timed("typingSecondKey", () => press(session.cdp,"e",{shift:true},20));
   await timed("Enter", () => press(session.cdp,"Enter",{},20));
   await sleep(200);
@@ -54,7 +56,7 @@ try {
     const formulas=[];
     for(const sheet of g.sheets) for(const [coord,item] of g.sheetsData[sheet]||[]) if(item?.formula) formulas.push([sheet,coord,item.val]);
     const item=g.sheetsData[${JSON.stringify(target.sheet)}]?.get(${JSON.stringify(target.coord)});
-    return {formulaValues:formulas,editedValue:item?.val,undo:g.canUndo(),redo:g.canRedo()};
+    return {formulaValues:formulas,editedValue:item?.val,selected:g.selectedCoord,entry:g.formulaEntry?.coord,undo:g.canUndo(),redo:g.canRedo(),stack:g.undoStack.slice(-3)};
   })()`);
   await session.cdp.evaluate(`(() => { window.__p2Keys=[]; window.addEventListener('keydown',e=>window.__p2Keys.push({key:e.key,ctrl:e.ctrlKey,target:e.target?.tagName,prevented:e.defaultPrevented}),true); })()`);
   const undoBefore = await session.cdp.evaluate(`(() => {const g=window.__vnoAppInstance.grid,a=g.undoStack.at(-1);return {length:g.undoStack.length,top:a?.type,sheet:a?.sheet,col:a?.col,row:a?.row,prevVal:a?.prevVal,nextVal:a?.nextVal,active:document.activeElement?.className||document.activeElement?.tagName}})()`);
@@ -73,7 +75,7 @@ try {
     for(const [s,c,v] of after){const prior=beforeMap.get(JSON.stringify([s,c]));if(!Object.is(prior,v))differences.push({sheet:s,coord:c,incremental:prior,full:v});}
     return {formulaCount:after.length,mismatchCount:differences.length,mismatches:differences.slice(0,20)};
   })()`);
-  console.log(JSON.stringify({file,target:{sheet:target.sheet,coord:target.coord,dependentFormulaCount:target.count,originalValue:target.originalValue},times,editedValue:edited.editedValue,undoBefore,undoValue:undoState.value,undoRestored:Object.is(undoState.value,target.originalValue),undoState,redoValue:redoState.value,redoRestored:Object.is(redoState.value,edited.editedValue),oracle}));
+  console.log(JSON.stringify({file,target:{sheet:target.sheet,coord:target.coord,dependentFormulaCount:target.count,originalValue:target.originalValue},times,selectedAfterMouse,afterFirstKey,editedValue:edited.editedValue,edited,undoBefore,undoValue:undoState.value,undoRestored:Object.is(undoState.value,target.originalValue),undoState,redoValue:redoState.value,redoRestored:Object.is(redoState.value,edited.editedValue),oracle}));
 } finally {
   await session.close();
 }
