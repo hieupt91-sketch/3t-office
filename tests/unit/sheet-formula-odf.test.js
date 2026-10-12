@@ -23,6 +23,7 @@ export async function runSheetFormulaOdfTests() {
   check("cờ tương thích tắt giữ nguyên hàm", new SheetAdapter(null, { excel2016FunctionNameCompat: false })._formulaToOdf("=RANK.EQ(A1,A1:A5)"), "of:=RANK.EQ([.A1];[.A1:.A5])");
   check("đọc ODF bỏ tiền tố Excel 2016", adapter._formulaFromOdf("of:=_xlfn.RANK.EQ([.A1];[.A1:.A5];0)"), "=RANK.EQ(A1,A1:A5,0)");
   check("đọc ODF bỏ tiền tố worksheet-only", adapter._formulaFromOdf("of:=_xlfn._xlws.SORT([.A1:.A5])"), "=SORT(A1:A5)");
+  check("đọc ODF bỏ tiền tố _xlws riêng", adapter._formulaFromOdf("of:=_xlws.SORT([.A1:.A5])"), "=SORT(A1:A5)");
   check("Chuỗi \"#REF!\" trong ngoặc kép giữ nguyên", adapter._formulaToOdf("=IF(A1=\"#REF!\",1,2)"), "of:=IF([.A1]=\"#REF!\";1;2)");
   // legacy09.xls: a sheet name containing the argument separator lost its comma on save.
   check("Tên sheet có dấu phẩy giữ nguyên khi ghi ODF",

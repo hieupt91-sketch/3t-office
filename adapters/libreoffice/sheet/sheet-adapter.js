@@ -42,7 +42,7 @@ const EXCEL2016_OOXML_FUTURE_FUNCTIONS = new Set(`
 function mapOoxmlFunctionPrefixes(expression, { write }) {
   return String(expression).split(/("(?:[^"]|"")*")/).map((part, index) => {
     if (index % 2 === 1) return part;
-    return part.replace(/(^|[^A-Za-z0-9_.])(_xlfn\.(?:_xlws\.)?)?([A-Za-z_][A-Za-z0-9_.]*)(\s*\()/gi,
+    return part.replace(/(^|[^A-Za-z0-9_.])((?:_xlfn\.)?_xlws\.|_xlfn\.)?([A-Za-z_][A-Za-z0-9_.]*)(\s*\()/gi,
       (match, before, prefix = "", name, open) => {
         const canonicalPrefix = String(prefix).toLowerCase();
         const upperName = String(name).toUpperCase();
