@@ -38,4 +38,8 @@ Formula evaluation, Watch Window and spell-check controls are marked `KHÁC CÓ 
 
 - CDP runner syntax check: PASS (`node --check scripts/audit-0610/word_parallel/app-ops-sheet.desktop.mjs`).
 - Excel COM ReadOnly group-A and B readback: PASS for checked file-backed outputs; three known gaps (calculation mode, text box export, resolved-comment persistence) are recorded as mismatches.
-- `npm test`, Python unittest discovery, XLSX corpus batch and encoding scan: NOT RUN yet; run after groups B and C.
+- `npm test`: PASS, 3093/3093 (exit 0).
+- `python -m unittest discover -s tests`: PASS, 887 tests in 655.739 seconds (exit 0). Two `ResourceWarning` messages reported unclosed text streams after the test summary.
+- XLSX batch `lan01`, `lan02`, `lan04`, `lan06`, `lan09`, `lan11`, `lan22`, `lan26`: PASS 8/8; each `saved=yes`, `diffs=0`, `lint=clean`, `excel=PASS`. Report: `E:\VNOffice-profiles\codex-fs16-batch\batch_document_audit_report.md`.
+- UTF-8/BOM scan over the 57 files changed since baseline: PASS; 7 UTF-8 text files, 50 binary screenshots, zero BOM and zero invalid UTF-8.
+- `git diff --check`: PASS. Build: NOT RUN (no build change in this audit).
