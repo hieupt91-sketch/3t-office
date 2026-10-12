@@ -17,10 +17,13 @@ try {
     if (!graph) return {error:'dependency graph unavailable; incremental path uses fallback'};
     const options=[];
     for (const sheet of g.sheets) {
+      if (sheet!==g.activeSheet) continue;
       const map=g.sheetsData[sheet];
       if (!map) continue;
       for (const [coord,item] of map) {
         if (!item || item.formula || item.val==='' || item.val==null) continue;
+        const visible=g.container.querySelector('.vno-grid-cell[data-coord="'+coord+'"]');
+        if (!visible?.getBoundingClientRect()?.width) continue;
         const dirty=g._getDirtyFormulaOrder(graph,{sheet,coord});
         if (!dirty?.length) continue;
         options.push({sheet,coord,count:dirty.length,originalValue:item.val});
