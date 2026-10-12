@@ -1,6 +1,7 @@
 import fs from "node:fs/promises";
 import path from "node:path";
 import { launchApp } from "../../../tests/live/cdp/session.mjs";
+import { click } from "../../../tests/live/cdp/actions.mjs";
 
 const root = process.env.VNO_APP_ROOT;
 const profile = process.env.VNO_CDP_LOCALAPPDATA;
@@ -33,8 +34,11 @@ try {
       timeoutMilliseconds: 600000,
       intervalMilliseconds: 1000,
     });
-    result.appState = await session.cdp.evaluate(`(() => {const a=window.__vnoAppInstance?.adapter;const b=document.querySelector('.vno-writer-body');return {source:a?._sourcePath||null,children:b?.children.length||0,images:b?.querySelectorAll('img').length||0,tables:b?.querySelectorAll('table').length||0,pages:a?._livePageCount||null,stats:a?.getWordCountStats?.({preferSelection:false})||null}})()`);
-    result.status = "loaded";
+    await click(session.cdp, "#vno-ribbon-tab-review");
+    await click(session.cdp, '[data-command-id="writer.review.wordCount"]');
+    await session.cdp.waitFor("!!document.querySelector('#vno-wordcount-overlay [data-stat=\"words\"]')", { timeoutMilliseconds: 30000 });
+    result.appState = await session.cdp.evaluate(`(() => {const a=window.__vnoAppInstance?.adapter;const b=document.querySelector('.vno-writer-body');const read=name=>Number((document.querySelector('#vno-wordcount-overlay [data-stat="'+name+'"]')?.textContent||'0').replace(/\./g,''));return {source:a?._sourcePath||null,children:b?.children.length||0,images:b?.querySelectorAll('img').length||0,tables:b?.querySelectorAll('table').length||0,pages:a?._livePageCount||null,dirty:a?.isDirty,sourceHashReady:!!a?._openedEditorDomHash,bodyText:(b?.innerText||'').slice(0,160),dialogStats:{words:read('words'),charactersWithSpaces:read('charactersWithSpaces'),charactersNoSpaces:read('charactersNoSpaces'),paragraphs:read('paragraphs'),lines:read('lines')},stats:a?.getWordCountStats?.({preferSelection:false})||null}})()`);
+    result.status = "loaded-and-counted";
   } catch (error) {
     result.status = "load-error";
     result.error = error?.stack || String(error);
