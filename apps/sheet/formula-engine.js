@@ -173,6 +173,8 @@ export class FormulaEngine {
     this._maxUsedRowCache = new Map();
     this._lookupIndexCache = new Map();
     this._parsedReferenceCache = new Map();
+    this._parsedNumberCache = new Map();
+    this._equalityValueCache = new Map();
   }
 
   getSheetVersion(sheetName) {
@@ -181,16 +183,16 @@ export class FormulaEngine {
     return `${this._sheetVersions.get(s) || 0}:${this._globalVersion}`;
   }
 
-  bumpSheetVersion(sheetName = null) {
+  bumpSheetVersion(sheetName = null, changedCoord = null) {
     if (sheetName) {
       const s = String(sheetName).trim();
       this._sheetVersions.set(s, (this._sheetVersions.get(s) || 0) + 1);
     }
     this._globalVersion++;
-    this.clearCache(sheetName);
+    this.clearCache(sheetName, changedCoord);
   }
 
-  clearCache(sheetName = null) {
+  clearCache(sheetName = null, changedCoord = null) {
     if (!sheetName) {
       this._rangeMatrixCache.clear();
       this._rangeValuesCache.clear();
@@ -211,8 +213,17 @@ export class FormulaEngine {
     for (const k of this._maxUsedRowCache.keys()) {
       if (k.startsWith(prefix)) this._maxUsedRowCache.delete(k);
     }
-    for (const k of this._lookupIndexCache.keys()) {
-      if (k.startsWith(prefix)) this._lookupIndexCache.delete(k);
+    for (const [key, index] of this._lookupIndexCache) {
+      if (index.sheet !== s) continue;
+      if (changedCoord && index.bounds) {
+        const match = String(changedCoord).match(/^([A-Z]+)(\d+)$/i);
+        if (match) {
+          const column = this._columnIndex(match[1]);
+          const row = Number(match[2]);
+          if (column < index.bounds.minCol || column > index.bounds.maxCol || row < index.bounds.minRow || row > index.bounds.maxRow) continue;
+        }
+      }
+      this._lookupIndexCache.delete(key);
     }
   }
 
@@ -228,19 +239,26 @@ export class FormulaEngine {
   _parseNumberOrCurrency(raw) {
     if (typeof raw === "number") return raw;
     if (raw === null || raw === undefined) return null;
+    const cacheKey = `${typeof raw}:${String(raw)}`;
+    if (this._parsedNumberCache.has(cacheKey)) return this._parsedNumberCache.get(cacheKey);
+    const cacheResult = value => {
+      if (this._parsedNumberCache.size >= 10000) this._parsedNumberCache.clear();
+      this._parsedNumberCache.set(cacheKey, value);
+      return value;
+    };
     const str = String(raw).trim();
-    if (!str) return null;
+    if (!str) return cacheResult(null);
     if (!/^\s*[-+]?[\d.,\s]+\s*(?:₫|đ|vnd|vnđ)?\s*$/i.test(str) || !/\d/.test(str)) {
-      return null;
+      return cacheResult(null);
     }
     if (!isNaN(Number(str))) {
-      return Number(str);
+      return cacheResult(Number(str));
     }
     const cleaned = str.replace(/\./g, "").replace(/[^\d-]/g, "");
     if (cleaned && !isNaN(Number(cleaned))) {
-      return Number(cleaned);
+      return cacheResult(Number(cleaned));
     }
-    return null;
+    return cacheResult(null);
   }
 
   /**
@@ -687,9 +705,8 @@ export class FormulaEngine {
   _getLookupIndex(rangeArg, matrix, funcName) {
     const raw = typeof rangeArg === "string" ? rangeArg.trim() : "";
     const reference = raw ? this._parseReference(raw) : null;
-    const sheet = reference?.sheet ? String(reference.sheet).trim() : "";
-    const version = this.getSheetVersion(sheet);
-    const cacheKey = `${sheet}:${raw}:${funcName}:${version}`;
+    const sheet = String(reference?.sheet || (typeof this.currentSheetResolver === "function" ? this.currentSheetResolver() : "") || "").trim();
+    const cacheKey = `${sheet}:${raw}:${funcName}`;
 
     if (raw && this._lookupIndexCache.has(cacheKey)) {
       return this._lookupIndexCache.get(cacheKey);
@@ -713,7 +730,16 @@ export class FormulaEngine {
       }
     }
 
-    const data = { candidates, numMap, strMap };
+    const bounds = this._parseRangeBounds(raw);
+    const data = {
+      candidates, numMap, strMap, sheet,
+      bounds: bounds ? {
+        minCol: bounds.startCol,
+        maxCol: bounds.startCol + bounds.cols - 1,
+        minRow: bounds.startRow,
+        maxRow: bounds.startRow + bounds.rows - 1
+      } : null
+    };
     if (raw) {
       this._lookupIndexCache.set(cacheKey, data);
     }
@@ -916,11 +942,29 @@ export class FormulaEngine {
     if (leftIsBlank !== rightIsBlank) return false;
 
     if (typeof left === "number" || typeof right === "number") {
-      const a = Number(left);
-      const b = Number(right);
+      const numeric = value => {
+        if (typeof value !== "string") return Number(value);
+        const key = `number:${value}`;
+        if (this._equalityValueCache.has(key)) return this._equalityValueCache.get(key).number;
+        const number = Number(value);
+        if (this._equalityValueCache.size >= 10000) this._equalityValueCache.clear();
+        this._equalityValueCache.set(key, { number });
+        return number;
+      };
+      const a = numeric(left);
+      const b = numeric(right);
       if (!Number.isNaN(a) && !Number.isNaN(b)) return a === b;
     }
-    return String(left).toLocaleLowerCase() === String(right).toLocaleLowerCase();
+    const lower = value => {
+      const text = String(value);
+      const key = `lower:${text}`;
+      if (this._equalityValueCache.has(key)) return this._equalityValueCache.get(key).lower;
+      const normalized = text.toLocaleLowerCase();
+      if (this._equalityValueCache.size >= 10000) this._equalityValueCache.clear();
+      this._equalityValueCache.set(key, { lower: normalized });
+      return normalized;
+    };
+    return lower(left) === lower(right);
   }
 
 

@@ -5370,7 +5370,7 @@ _bindGridKeyboardNavigation() {
         historyAction.tableFilterRangeAfter = expanded.ref;
       }
     }
-    this.formulaEngine?.bumpSheetVersion?.(this.activeSheet);
+    this.formulaEngine?.bumpSheetVersion?.(this.activeSheet, key);
 
     const cell = this.container.querySelector(`.vno-grid-cell[data-coord="${key}"]`);
     if (cell) {
@@ -5617,7 +5617,7 @@ _bindGridKeyboardNavigation() {
           if (res !== itm.val) {
             itm.val = res;
             if (sheetName === activeSheet) changedFormulaCells.add(k);
-            this.formulaEngine?.bumpSheetVersion?.(sheetName);
+            this.formulaEngine?.bumpSheetVersion?.(sheetName, k);
           } else {
             itm.val = res;
           }

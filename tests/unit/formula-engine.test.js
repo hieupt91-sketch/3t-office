@@ -1085,5 +1085,33 @@ export async function runFormulaEngineTests() {
           sb9Nhom4Engine.evaluate("=INDEX(A1:A3, 1, -1)") === "#VALUE!"
   });
 
+  const indexedCells = new Map([
+    ["A1", { val: 1, formula: "", style: {} }],
+    ["B1", { val: "Một", formula: "", style: {} }],
+    ["A2", { val: 2, formula: "", style: {} }],
+    ["B2", { val: "Hai", formula: "", style: {} }]
+  ]);
+  const indexedEngine = new FormulaEngine(indexedCells, null, name => name === "S1" ? indexedCells : null, () => "S1");
+  const indexedResult = indexedEngine.evaluate("=VLOOKUP(2,A1:B2,2,FALSE)");
+  indexedEngine.bumpSheetVersion("S1", "Z99");
+  const retainedLookupIndex = indexedEngine._lookupIndexCache.size === 1;
+  indexedEngine.bumpSheetVersion("S1", "A2");
+  const invalidatedLookupIndex = indexedEngine._lookupIndexCache.size === 0;
+  indexedCells.get("A2").val = 3;
+  results.push({
+    name: "Formula lookup cache: reuse outside its range and invalidate inside its range",
+    pass: indexedResult === "Hai" && retainedLookupIndex && invalidatedLookupIndex &&
+      indexedEngine.evaluate("=VLOOKUP(3,A1:B2,2,FALSE)") === "Hai"
+  });
+  const parseCacheEngine = new FormulaEngine(new Map());
+  parseCacheEngine._parseNumberOrCurrency("1.234 ₫");
+  const parsedNumberCacheSize = parseCacheEngine._parsedNumberCache.size;
+  parseCacheEngine._parseNumberOrCurrency("1.234 ₫");
+  results.push({
+    name: "Formula values: cache repeated localized number parsing",
+    pass: parsedNumberCacheSize === 1 && parseCacheEngine._parsedNumberCache.size === 1 &&
+      parseCacheEngine._parseNumberOrCurrency("1.234 ₫") === 1234
+  });
+
   return results;
 }
