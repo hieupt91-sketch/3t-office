@@ -1,0 +1,1377 @@
+{
+  "excelVersion": "16.0.4266.1001",
+  "rows": [
+    {
+      "name": "SUM",
+      "formula": "=SUM(A1:A10)",
+      "appValue": 115,
+      "excelValue": 115,
+      "excelText": "115",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "PRODUCT",
+      "formula": "=PRODUCT(A1:A5)",
+      "appValue": 24,
+      "excelValue": 24,
+      "excelText": "24",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "ROUND",
+      "formula": "=ROUND(123.456, 2)",
+      "appValue": 123.46,
+      "excelValue": 123.46,
+      "excelText": "123.46",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "ABS",
+      "formula": "=ABS(-15.5)",
+      "appValue": 15.5,
+      "excelValue": 15.5,
+      "excelText": "15.5",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "INT",
+      "formula": "=INT(8.9)",
+      "appValue": 8,
+      "excelValue": 8,
+      "excelText": "8",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "MOD",
+      "formula": "=MOD(10, 3)",
+      "appValue": 1,
+      "excelValue": 1,
+      "excelText": "1",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "SUMPRODUCT",
+      "formula": "=SUMPRODUCT(A2:A6,C2:C6)",
+      "appValue": 74807.6,
+      "excelValue": 74807.6,
+      "excelText": "74807.6",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "SQRT",
+      "formula": "=SQRT(16)",
+      "appValue": 4,
+      "excelValue": 4,
+      "excelText": "4",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "POWER",
+      "formula": "=POWER(2, 8)",
+      "appValue": 256,
+      "excelValue": 256,
+      "excelText": "256",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "ROUNDUP",
+      "formula": "=ROUNDUP(12.31, 1)",
+      "appValue": 12.4,
+      "excelValue": 12.4,
+      "excelText": "12.4",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "ROUNDDOWN",
+      "formula": "=ROUNDDOWN(12.39, 1)",
+      "appValue": 12.3,
+      "excelValue": 12.3,
+      "excelText": "12.3",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "CEILING",
+      "formula": "=CEILING(2.5, 1)",
+      "appValue": 3,
+      "excelValue": 3,
+      "excelText": "3",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "FLOOR",
+      "formula": "=FLOOR(2.5, 1)",
+      "appValue": 2,
+      "excelValue": 2,
+      "excelText": "2",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "TRUNC",
+      "formula": "=TRUNC(8.756, 2)",
+      "appValue": 8.75,
+      "excelValue": 8.75,
+      "excelText": "8.75",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "SIGN",
+      "formula": "=SIGN(-42)",
+      "appValue": -1,
+      "excelValue": -1,
+      "excelText": "-1",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "AVERAGE",
+      "formula": "=AVERAGE(A1:A10)",
+      "appValue": 19.166666666666668,
+      "excelValue": 19.166666666666668,
+      "excelText": "19.16667",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "COUNT",
+      "formula": "=COUNT(A1:A50)",
+      "appValue": 8,
+      "excelValue": 8,
+      "excelText": "8",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "COUNTA",
+      "formula": "=COUNTA(A1:A50)",
+      "appValue": 9,
+      "excelValue": 9,
+      "excelText": "9",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "MIN",
+      "formula": "=MIN(A1:A20)",
+      "appValue": 1,
+      "excelValue": 1,
+      "excelText": "1",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "MAX",
+      "formula": "=MAX(A1:A20)",
+      "appValue": 300,
+      "excelValue": 300,
+      "excelText": "300",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "COUNTIF",
+      "formula": "=COUNTIF(A2:A20, \">50\")",
+      "appValue": 3,
+      "excelValue": 3,
+      "excelText": "3",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "SUMIF",
+      "formula": "=SUMIF(A2:A20, \"Hà Nội\", C2:C20)",
+      "appValue": 0,
+      "excelValue": 0,
+      "excelText": "0",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "COUNTIFS",
+      "formula": "=COUNTIFS(A2:A50, \"Nam\", A2:A50, \">18\")",
+      "appValue": 0,
+      "excelValue": 0,
+      "excelText": "0",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "SUMIFS",
+      "formula": "=SUMIFS(C2:C50, A2:A50, \"Đã bán\", A2:A50, \">100\")",
+      "appValue": 0,
+      "excelValue": 0,
+      "excelText": "0",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "AVERAGEIF",
+      "formula": "=AVERAGEIF(A2:A20, \"Phòng A\", A2:A20)",
+      "appValue": "#DIV/0!",
+      "excelValue": -2146826281,
+      "excelText": "#DIV/0!",
+      "excelType": "Int32",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "AVERAGEIFS",
+      "formula": "=AVERAGEIFS(D2:D50, A2:A50, \"Nam\", A2:A50, \">20\")",
+      "appValue": "#DIV/0!",
+      "excelValue": -2146826281,
+      "excelText": "#DIV/0!",
+      "excelType": "Int32",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "MEDIAN",
+      "formula": "=MEDIAN(A1:A15)",
+      "appValue": 4.5,
+      "excelValue": 4.5,
+      "excelText": "4.5",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "RANK",
+      "formula": "=RANK(A2, $A$2:$A$50, 0)",
+      "appValue": 8,
+      "excelValue": 8,
+      "excelText": "8",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "RANK.EQ",
+      "formula": "=_xlfn.RANK.EQ(A2, $A$2:$A$50, 0)",
+      "appValue": 8,
+      "excelValue": 8,
+      "excelText": "8",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "LARGE",
+      "formula": "=LARGE(A1:A50, 2)",
+      "appValue": 200,
+      "excelValue": 200,
+      "excelText": "200",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "SMALL",
+      "formula": "=SMALL(A1:A50, 1)",
+      "appValue": 1,
+      "excelValue": 1,
+      "excelText": "1",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "COUNTBLANK",
+      "formula": "=COUNTBLANK(D1:D20)",
+      "appValue": 14,
+      "excelValue": 14,
+      "excelText": "14",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "STDEV",
+      "formula": "=STDEV(A1:A30)",
+      "appValue": 115.12531991579561,
+      "excelValue": 115.12531991579561,
+      "excelText": "115.1253",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "VAR",
+      "formula": "=VAR(A1:A30)",
+      "appValue": 13253.839285714286,
+      "excelValue": 13253.839285714286,
+      "excelText": "13253.84",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "VLOOKUP",
+      "formula": "=VLOOKUP(A2, A:C, 3, 0)",
+      "appValue": 1234.5,
+      "excelValue": 1234.5,
+      "excelText": "1234.5",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "HLOOKUP",
+      "formula": "=HLOOKUP(A1, A1:Z5, 3, 0)",
+      "appValue": 2,
+      "excelValue": 2,
+      "excelText": "2",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "INDEX",
+      "formula": "=INDEX(A2:D20, 3, 2)",
+      "appValue": 123.46,
+      "excelValue": 123.46,
+      "excelText": "123.46",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "MATCH",
+      "formula": "=MATCH(A2, A2:A100, 0)",
+      "appValue": 1,
+      "excelValue": 1,
+      "excelText": "1",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "XLOOKUP",
+      "formula": "=XLOOKUP(A2, A:A, C:C, \"Không thấy\", 0)",
+      "appValue": 1234.5,
+      "excelValue": -2146826259,
+      "excelText": "#NAME?",
+      "excelType": "Int32",
+      "volatile": false,
+      "match": false
+    },
+    {
+      "name": "LOOKUP",
+      "formula": "=LOOKUP(8.5, A2:A10, A2:A10)",
+      "appValue": 5,
+      "excelValue": 5,
+      "excelText": "5",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "CHOOSE",
+      "formula": "=CHOOSE(2, \"Nhất\", \"Nhì\", \"Ba\")",
+      "appValue": "Nhì",
+      "excelValue": "Nhì",
+      "excelText": "Nhì",
+      "excelType": "String",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "INDIRECT",
+      "formula": "=INDIRECT(\"A\" & 5)",
+      "appValue": 4,
+      "excelValue": 4,
+      "excelText": "4",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "OFFSET",
+      "formula": "=OFFSET(A1, 2, 3, 1, 1)",
+      "appValue": 0.125,
+      "excelValue": 0.125,
+      "excelText": "0.125",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "IF",
+      "formula": "=IF(A2>=5, \"Đậu\", \"Hỏng\")",
+      "appValue": "Hỏng",
+      "excelValue": "Hỏng",
+      "excelText": "Hỏng",
+      "excelType": "String",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "AND",
+      "formula": "=AND(A2>0, A2<10)",
+      "appValue": true,
+      "excelValue": true,
+      "excelText": "TRUE",
+      "excelType": "Boolean",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "OR",
+      "formula": "=OR(A2=\"Đậu\", A2=\"Đặc cách\")",
+      "appValue": false,
+      "excelValue": false,
+      "excelText": "FALSE",
+      "excelType": "Boolean",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "NOT",
+      "formula": "=NOT(ISBLANK(A1))",
+      "appValue": true,
+      "excelValue": true,
+      "excelText": "TRUE",
+      "excelType": "Boolean",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "IFERROR",
+      "formula": "=IFERROR(VLOOKUP(A2, A:C, 2, 0), \"\")",
+      "appValue": 115,
+      "excelValue": 115,
+      "excelText": "115",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "IFNA",
+      "formula": "=IFNA(VLOOKUP(A2, A:C, 2, 0), 0)",
+      "appValue": 115,
+      "excelValue": 115,
+      "excelText": "115",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "ISBLANK",
+      "formula": "=ISBLANK(A1)",
+      "appValue": false,
+      "excelValue": false,
+      "excelText": "FALSE",
+      "excelType": "Boolean",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "ISNUMBER",
+      "formula": "=ISNUMBER(A2)",
+      "appValue": true,
+      "excelValue": true,
+      "excelText": "TRUE",
+      "excelType": "Boolean",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "ISTEXT",
+      "formula": "=ISTEXT(C3)",
+      "appValue": false,
+      "excelValue": false,
+      "excelText": "FALSE",
+      "excelType": "Boolean",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "ISERROR",
+      "formula": "=ISERROR(1/0)",
+      "appValue": true,
+      "excelValue": true,
+      "excelText": "TRUE",
+      "excelType": "Boolean",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "ISNA",
+      "formula": "=ISNA(NA())",
+      "appValue": true,
+      "excelValue": true,
+      "excelText": "TRUE",
+      "excelType": "Boolean",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "NA",
+      "formula": "=NA()",
+      "appValue": "#N/A",
+      "excelValue": -2146826246,
+      "excelText": "#N/A",
+      "excelType": "Int32",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "CONCAT",
+      "formula": "=CONCAT(A1, \" \", A1)",
+      "appValue": "STT STT",
+      "excelValue": "STT STT",
+      "excelText": "STT STT",
+      "excelType": "String",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "UPPER",
+      "formula": "=UPPER(A1)",
+      "appValue": "STT",
+      "excelValue": "STT",
+      "excelText": "STT",
+      "excelType": "String",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "LOWER",
+      "formula": "=LOWER(A1)",
+      "appValue": "stt",
+      "excelValue": "stt",
+      "excelText": "stt",
+      "excelType": "String",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "LEN",
+      "formula": "=LEN(A1)",
+      "appValue": 3,
+      "excelValue": 3,
+      "excelText": "3",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "TRIM",
+      "formula": "=TRIM(A1)",
+      "appValue": "STT",
+      "excelValue": "STT",
+      "excelText": "STT",
+      "excelType": "String",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "LEFT",
+      "formula": "=LEFT(A1, 3)",
+      "appValue": "STT",
+      "excelValue": "STT",
+      "excelText": "STT",
+      "excelType": "String",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "RIGHT",
+      "formula": "=RIGHT(A1, 4)",
+      "appValue": "STT",
+      "excelValue": "STT",
+      "excelText": "STT",
+      "excelType": "String",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "TEXT",
+      "formula": "=TEXT(TODAY(), \"dd/mm/yyyy\")",
+      "appValue": "13/10/2026",
+      "excelValue": "13/10/2026",
+      "excelText": "13/10/2026",
+      "excelType": "String",
+      "volatile": true,
+      "match": null
+    },
+    {
+      "name": "CONCATENATE",
+      "formula": "=CONCATENATE(A1, \"-\", A1)",
+      "appValue": "STT-STT",
+      "excelValue": "STT-STT",
+      "excelText": "STT-STT",
+      "excelType": "String",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "SUBSTITUTE",
+      "formula": "=SUBSTITUTE(A1, \"Hà Nội\", \"TP.HCM\")",
+      "appValue": "STT",
+      "excelValue": "STT",
+      "excelText": "STT",
+      "excelType": "String",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "FIND",
+      "formula": "=FIND(\"A\", A1, 1)",
+      "appValue": "#VALUE!",
+      "excelValue": -2146826273,
+      "excelText": "#VALUE!",
+      "excelType": "Int32",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "MID",
+      "formula": "=MID(A1, 2, 5)",
+      "appValue": "TT",
+      "excelValue": "TT",
+      "excelText": "TT",
+      "excelType": "String",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "VALUE",
+      "formula": "=VALUE(\"1250000\")",
+      "appValue": 1250000,
+      "excelValue": 1250000,
+      "excelText": "1250000",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "PROPER",
+      "formula": "=PROPER(\"nguyễn văn an\")",
+      "appValue": "Nguyễn Văn An",
+      "excelValue": "Nguyễn Văn An",
+      "excelText": "Nguyễn Văn An",
+      "excelType": "String",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "TEXTJOIN",
+      "formula": "=TEXTJOIN(\", \", TRUE, A1:A5)",
+      "appValue": "STT, 1, 2, 3, 4",
+      "excelValue": -2146826259,
+      "excelText": "#NAME?",
+      "excelType": "Int32",
+      "volatile": false,
+      "match": false
+    },
+    {
+      "name": "REPT",
+      "formula": "=REPT(\"*\", 5)",
+      "appValue": "*****",
+      "excelValue": "*****",
+      "excelText": "*****",
+      "excelType": "String",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "EXACT",
+      "formula": "=EXACT(A1, A1)",
+      "appValue": true,
+      "excelValue": true,
+      "excelText": "TRUE",
+      "excelType": "Boolean",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "SEARCH",
+      "formula": "=SEARCH(\"abc\", A1)",
+      "appValue": "#VALUE!",
+      "excelValue": -2146826273,
+      "excelText": "#VALUE!",
+      "excelType": "Int32",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "TODAY",
+      "formula": "=TODAY()",
+      "appValue": 46308,
+      "excelValue": 46308,
+      "excelText": "########",
+      "excelType": "Double",
+      "volatile": true,
+      "match": null
+    },
+    {
+      "name": "NOW",
+      "formula": "=NOW()",
+      "appValue": 46308.053611111114,
+      "excelValue": 46308.05474166667,
+      "excelText": "########",
+      "excelType": "Double",
+      "volatile": true,
+      "match": null
+    },
+    {
+      "name": "YEAR",
+      "formula": "=YEAR(TODAY())",
+      "appValue": 2026,
+      "excelValue": 2026,
+      "excelText": "2026",
+      "excelType": "Double",
+      "volatile": true,
+      "match": null
+    },
+    {
+      "name": "MONTH",
+      "formula": "=MONTH(TODAY())",
+      "appValue": 10,
+      "excelValue": 10,
+      "excelText": "10",
+      "excelType": "Double",
+      "volatile": true,
+      "match": null
+    },
+    {
+      "name": "DAY",
+      "formula": "=DAY(TODAY())",
+      "appValue": 13,
+      "excelValue": 13,
+      "excelText": "13",
+      "excelType": "Double",
+      "volatile": true,
+      "match": null
+    },
+    {
+      "name": "DATE",
+      "formula": "=DATE(2026, 10, 3)",
+      "appValue": 46298,
+      "excelValue": 46298,
+      "excelText": "########",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "DATEDIF",
+      "formula": "=DATEDIF(A1, TODAY(), \"Y\")",
+      "appValue": "#NUM!",
+      "excelValue": -2146826273,
+      "excelText": "#VALUE!",
+      "excelType": "Int32",
+      "volatile": true,
+      "match": null
+    },
+    {
+      "name": "EDATE",
+      "formula": "=EDATE(TODAY(), 3)",
+      "appValue": 46400,
+      "excelValue": 46400,
+      "excelText": "########",
+      "excelType": "Double",
+      "volatile": true,
+      "match": null
+    },
+    {
+      "name": "WEEKDAY",
+      "formula": "=WEEKDAY(TODAY(), 2)",
+      "appValue": 2,
+      "excelValue": 2,
+      "excelText": "2",
+      "excelType": "Double",
+      "volatile": true,
+      "match": null
+    },
+    {
+      "name": "NETWORKDAYS",
+      "formula": "=NETWORKDAYS(A1, A1, C1:C10)",
+      "appValue": "#VALUE!",
+      "excelValue": -2146826273,
+      "excelText": "#VALUE!",
+      "excelType": "Int32",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "WORKDAY",
+      "formula": "=WORKDAY(A1, 10, C1:C5)",
+      "appValue": "#VALUE!",
+      "excelValue": -2146826273,
+      "excelText": "#VALUE!",
+      "excelType": "Int32",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "EOMONTH",
+      "formula": "=EOMONTH(TODAY(), 0)",
+      "appValue": 46326,
+      "excelValue": 46326,
+      "excelText": "########",
+      "excelType": "Double",
+      "volatile": true,
+      "match": null
+    },
+    {
+      "name": "DAYS",
+      "formula": "=DAYS(A1, A1)",
+      "appValue": "#VALUE!",
+      "excelValue": -2146826273,
+      "excelText": "#VALUE!",
+      "excelType": "Int32",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "PMT",
+      "formula": "=PMT(0.08/12, 60, 500000000, 0, 0)",
+      "appValue": -10138197.144206924,
+      "excelValue": -10138197.14420684,
+      "excelText": "########",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "FV",
+      "formula": "=FV(0.06/12, 24, -2000000, -10000000, 0)",
+      "appValue": 62135508.24420944,
+      "excelValue": 62135508.244208984,
+      "excelText": "########",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "PV",
+      "formula": "=PV(0.05/12, 36, -5000000, 0, 0)",
+      "appValue": 166828506.41870353,
+      "excelValue": 166828506.41870454,
+      "excelText": "########",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "NPV",
+      "formula": "=NPV(0.1, C2:C6)",
+      "appValue": 14729.338749837003,
+      "excelValue": 14729.338749837003,
+      "excelText": "########",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "IRR",
+      "formula": "=IRR(A1:A10, 0.1)",
+      "appValue": "#NUM!",
+      "excelValue": -2146826252,
+      "excelText": "#NUM!",
+      "excelType": "Int32",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "RATE",
+      "formula": "=RATE(48, -5000000, 200000000)",
+      "appValue": 0.007701472488202456,
+      "excelValue": 0.00770147248820206,
+      "excelText": "0.77%",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "NPER",
+      "formula": "=NPER(0.08/12, -6000000, 250000000)",
+      "appValue": 48.97589107529118,
+      "excelValue": 48.97589107529118,
+      "excelText": "48.97589",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "IPMT",
+      "formula": "=IPMT(0.08/12, 1, 36, 100000000)",
+      "appValue": -666666.6666666667,
+      "excelValue": -666666.6666666667,
+      "excelText": "########",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "PPMT",
+      "formula": "=PPMT(0.08/12, 1, 36, 100000000)",
+      "appValue": -2466969.8794764457,
+      "excelValue": -2466969.8794764183,
+      "excelText": "########",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "SLN",
+      "formula": "=SLN(100000000, 10000000, 5)",
+      "appValue": 18000000,
+      "excelValue": 18000000,
+      "excelText": "########",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "DB",
+      "formula": "=DB(100000000, 10000000, 5, 1, 12)",
+      "appValue": 36900000,
+      "excelValue": 36900000,
+      "excelText": "########",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "COLUMNS",
+      "formula": "=COLUMNS(A1:D10)",
+      "appValue": 4,
+      "excelValue": 4,
+      "excelText": "4",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "ROWS",
+      "formula": "=ROWS(A1:D10)",
+      "appValue": 10,
+      "excelValue": 10,
+      "excelText": "10",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "TRANSPOSE",
+      "formula": "=TRANSPOSE(A1:A5)",
+      "appValue": "#NAME? (TRANSPOSE)",
+      "excelValue": -2146826273,
+      "excelText": "#VALUE!",
+      "excelType": "Int32",
+      "volatile": false,
+      "match": false
+    },
+    {
+      "name": "HYPERLINK",
+      "formula": "=HYPERLINK(\"#A1\", \"Ô đầu tiên\")",
+      "appValue": "Ô đầu tiên",
+      "excelValue": "Ô đầu tiên",
+      "excelText": "Ô đầu tiên",
+      "excelType": "String",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "ADDRESS",
+      "formula": "=ADDRESS(1, 1, 1)",
+      "appValue": "$A$1",
+      "excelValue": "$A$1",
+      "excelText": "$A$1",
+      "excelType": "String",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "ROW",
+      "formula": "=ROW(A5)",
+      "appValue": 5,
+      "excelValue": 5,
+      "excelText": "5",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "COLUMN",
+      "formula": "=COLUMN(C1)",
+      "appValue": 3,
+      "excelValue": 3,
+      "excelText": "3",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "FORMULATEXT",
+      "formula": "=_xlfn.FORMULATEXT(B2)",
+      "appValue": "=SUM(A1:A10)",
+      "excelValue": "=SUM(A1:A10)",
+      "excelText": "=SUM(A1:A10)",
+      "excelType": "String",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "MROUND",
+      "formula": "=MROUND(10, 3)",
+      "appValue": 9,
+      "excelValue": 9,
+      "excelText": "9",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "EVEN",
+      "formula": "=EVEN(1.5)",
+      "appValue": 2,
+      "excelValue": 2,
+      "excelText": "2",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "ODD",
+      "formula": "=ODD(2.1)",
+      "appValue": 3,
+      "excelValue": 3,
+      "excelText": "3",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "FACT",
+      "formula": "=FACT(5)",
+      "appValue": 120,
+      "excelValue": 120,
+      "excelText": "120",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "COMBIN",
+      "formula": "=COMBIN(8, 3)",
+      "appValue": 56,
+      "excelValue": 56,
+      "excelText": "56",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "PI",
+      "formula": "=PI()",
+      "appValue": 3.141592653589793,
+      "excelValue": 3.141592653589793,
+      "excelText": "3.141593",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "RAND",
+      "formula": "=RAND()",
+      "appValue": 0.9431956358609933,
+      "excelValue": 0.5181310704137803,
+      "excelText": "0.518131",
+      "excelType": "Double",
+      "volatile": true,
+      "match": null
+    },
+    {
+      "name": "RANDBETWEEN",
+      "formula": "=RANDBETWEEN(1, 100)",
+      "appValue": 82,
+      "excelValue": 66,
+      "excelText": "66",
+      "excelType": "Double",
+      "volatile": true,
+      "match": null
+    },
+    {
+      "name": "LN",
+      "formula": "=LN(2.71828)",
+      "appValue": 0.999999327347282,
+      "excelValue": 0.999999327347282,
+      "excelText": "0.999999",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "LOG",
+      "formula": "=LOG(8, 2)",
+      "appValue": 3,
+      "excelValue": 3,
+      "excelText": "3",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "LOG10",
+      "formula": "=LOG10(100)",
+      "appValue": 2,
+      "excelValue": 2,
+      "excelText": "2",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "EXP",
+      "formula": "=EXP(1)",
+      "appValue": 2.718281828459045,
+      "excelValue": 2.718281828459045,
+      "excelText": "2.718282",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "DEGREES",
+      "formula": "=DEGREES(PI())",
+      "appValue": 180,
+      "excelValue": 180,
+      "excelText": "180",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "RADIANS",
+      "formula": "=RADIANS(180)",
+      "appValue": 3.141592653589793,
+      "excelValue": 3.141592653589793,
+      "excelText": "3.141593",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "SIN",
+      "formula": "=SIN(1.5707963267948966)",
+      "appValue": 1,
+      "excelValue": 1,
+      "excelText": "1",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "COS",
+      "formula": "=COS(0)",
+      "appValue": 1,
+      "excelValue": 1,
+      "excelText": "1",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "TAN",
+      "formula": "=TAN(0.7853981633974483)",
+      "appValue": 0.9999999999999999,
+      "excelValue": 0.9999999999999992,
+      "excelText": "1",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "MODE",
+      "formula": "=MODE(A1:A50)",
+      "appValue": "#N/A",
+      "excelValue": -2146826246,
+      "excelText": "#N/A",
+      "excelType": "Int32",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "PERCENTILE",
+      "formula": "=PERCENTILE(A1:A100, 0.9)",
+      "appValue": 229.99999999999997,
+      "excelValue": 229.99999999999997,
+      "excelText": "230",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "ISNONTEXT",
+      "formula": "=ISNONTEXT(A1)",
+      "appValue": false,
+      "excelValue": false,
+      "excelText": "FALSE",
+      "excelType": "Boolean",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "ISLOGICAL",
+      "formula": "=ISLOGICAL(A1)",
+      "appValue": false,
+      "excelValue": false,
+      "excelText": "FALSE",
+      "excelType": "Boolean",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "ISFORMULA",
+      "formula": "=ISFORMULA(C5)",
+      "appValue": false,
+      "excelValue": false,
+      "excelText": "FALSE",
+      "excelType": "Boolean",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "CLEAN",
+      "formula": "=CLEAN(A1)",
+      "appValue": "STT",
+      "excelValue": "STT",
+      "excelText": "STT",
+      "excelType": "String",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "CHAR",
+      "formula": "=CHAR(65)",
+      "appValue": "A",
+      "excelValue": "A",
+      "excelText": "A",
+      "excelType": "String",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "CODE",
+      "formula": "=CODE(\"A\")",
+      "appValue": 65,
+      "excelValue": 65,
+      "excelText": "65",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "T",
+      "formula": "=T(A1)",
+      "appValue": "STT",
+      "excelValue": "STT",
+      "excelText": "STT",
+      "excelType": "String",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "N",
+      "formula": "=N(A1)",
+      "appValue": 0,
+      "excelValue": 0,
+      "excelText": "0",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "TIME",
+      "formula": "=TIME(14, 30, 0)",
+      "appValue": 0.6041666666666666,
+      "excelValue": 0.6041666666666666,
+      "excelText": "14:30:00",
+      "excelType": "Double",
+      "volatile": false,
+      "match": true
+    },
+    {
+      "name": "HOUR",
+      "formula": "=HOUR(NOW())",
+      "appValue": 1,
+      "excelValue": 1,
+      "excelText": "1",
+      "excelType": "Double",
+      "volatile": true,
+      "match": null
+    },
+    {
+      "name": "MINUTE",
+      "formula": "=MINUTE(NOW())",
+      "appValue": 18,
+      "excelValue": 18,
+      "excelText": "18",
+      "excelType": "Double",
+      "volatile": true,
+      "match": null
+    },
+    {
+      "name": "SECOND",
+      "formula": "=SECOND(NOW())",
+      "appValue": 35,
+      "excelValue": 50,
+      "excelText": "50",
+      "excelType": "Double",
+      "volatile": true,
+      "match": null
+    },
+    {
+      "name": "YEARFRAC",
+      "formula": "=YEARFRAC(A1, A1, 1)",
+      "appValue": "#VALUE!",
+      "excelValue": -2146826273,
+      "excelText": "#VALUE!",
+      "excelType": "Int32",
+      "volatile": false,
+      "match": true
+    }
+  ],
+  "readOnly": true,
+  "calculation": "CalculateFullRebuild"
+}
