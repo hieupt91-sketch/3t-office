@@ -2818,6 +2818,44 @@ export class SheetAdapter {
     });
   }
 
+  _attachImportedTextBoxes(workbook, xmlText) {
+    workbook.textBoxesBySheet = {};
+    String(xmlText || "").replace(/<table:table(?=[\s>/])([^>]*)>/gi, (_, attrs) => {
+      const sheetName = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
+      const raw = attrs.match(/vno:text-boxes=["']([^"']*)["']/i)?.[1];
+      if (!sheetName || !raw) return "";
+      try {
+        const boxes = JSON.parse(this._unescapeXml(raw));
+        if (!Array.isArray(boxes)) return "";
+        workbook.textBoxesBySheet[sheetName] = boxes.filter(box => box && typeof box.text === "string" && box.anchor?.c && Number.isFinite(Number(box.anchor?.r)))
+          .map(box => ({
+            id: `textbox-import-${sheetName}-${workbook.textBoxesBySheet[sheetName]?.length || 0}`,
+            text: box.text,
+            anchor: { c: String(box.anchor.c), r: Number(box.anchor.r) },
+            widthPx: Math.max(202, Number(box.widthPx) || 202),
+            heightPx: Math.max(76, Number(box.heightPx) || 76)
+          }));
+      } catch (_) {}
+      return "";
+    });
+  }
+
+  _attachImportedResolvedComments(workbook, xmlText) {
+    String(xmlText || "").replace(/<table:table(?=[\s>/])([^>]*)>/gi, (_, attrs) => {
+      const sheetName = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
+      const raw = attrs.match(/vno:resolved-comments=["']([^"']*)["']/i)?.[1];
+      if (!sheetName || !raw) return "";
+      try {
+        const states = JSON.parse(this._unescapeXml(raw));
+        for (const [coord, resolved] of Object.entries(states || {})) {
+          const comment = workbook.commentsBySheet?.[sheetName]?.[coord];
+          if (comment) comment.resolved = Boolean(resolved);
+        }
+      } catch (_) {}
+      return "";
+    });
+  }
+
   /**
    * vno:sheet-state (hidden/veryHidden) — read back from FODS that 3T Office
    * self-wrote during File → Mở overlay.  LibreOffice downgrades veryHidden
@@ -3366,6 +3404,8 @@ export class SheetAdapter {
         || (sheetName === this.grid.activeSheet ? this.grid.cellsData : null)
         || new Map();
       const comments = this.grid.commentsBySheet?.[sheetName] || {};
+      const resolvedComments = Object.fromEntries(Object.entries(comments).filter(([, comment]) => comment).map(([coord, comment]) => [coord, Boolean(comment.resolved)]));
+      const resolvedCommentsAttr = Object.keys(resolvedComments).length ? ` vno:resolved-comments="${this._escapeXml(JSON.stringify(resolvedComments))}"` : "";
       const cellValidations = validationsByCell.get(sheetName) || new Map();
       const cellConditionalBases = conditionalBaseByCell.get(sheetName) || new Map();
       const mergeAnchors = new Map();
@@ -3771,7 +3811,9 @@ export class SheetAdapter {
       const imagesAtOpen = Math.max(0, Number(this.grid.imagesAtOpenBySheet?.[sheetName]) || 0);
       const scenarios = this.grid.getScenarios ? this.grid.getScenarios(sheetName) : (this.grid.scenariosBySheet?.[sheetName] || []);
       const scenariosAttr = scenarios && scenarios.length ? ` vno:scenarios="${this._escapeXml(JSON.stringify(scenarios))}"` : "";
-      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
+      const textBoxes = this.grid.textBoxesBySheet?.[sheetName] || [];
+      const textBoxesAttr = textBoxes.length ? ` vno:text-boxes="${this._escapeXml(JSON.stringify(textBoxes.map(box => ({ text: String(box.text || ""), anchor: box.anchor, widthPx: Math.max(202, Number(box.widthPx) || 202), heightPx: Math.max(76, Number(box.heightPx) || 76) }))))}"` : "";
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${textBoxesAttr}${resolvedCommentsAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
@@ -5089,6 +5131,8 @@ ${pristineXlsxMarker}
     perfReport("attach sparklines", phaseStart); phaseStart = perfNow();
     this._attachImportedOutline(workbook, tableXml);
     perfReport("attach outline", phaseStart);
+    this._attachImportedTextBoxes(workbook, tableXml);
+    this._attachImportedResolvedComments(workbook, tableXml);
     return workbook;
   }
 
@@ -5271,6 +5315,7 @@ ${pristineXlsxMarker}
       this.grid.pivotTablesBySheet[sheetName] = workbook.pivotTablesBySheet?.[sheetName] || [];
       this.grid.chartsBySheet[sheetName] = workbook.chartsBySheet?.[sheetName] || [];
       this.grid.imagesBySheet[sheetName] = workbook.imagesBySheet?.[sheetName] || [];
+      this.grid.textBoxesBySheet[sheetName] = workbook.textBoxesBySheet?.[sheetName] || [];
       this.grid.imagesAtOpenBySheet[sheetName] = workbook.imagesAtOpenBySheet?.[sheetName] || 0;
       this.grid.rowHeightsBySheet[sheetName] = this._asLayoutMap(equivalentSheetValue(workbook.rowHeightsBySheet, sheetName), true);
       this.grid.colWidthsBySheet[sheetName] = this._asLayoutMap(workbook.colWidthsBySheet?.[sheetName], false);
@@ -5307,6 +5352,7 @@ ${pristineXlsxMarker}
     this.grid.activeSheet = null;
     if (typeof this.grid.switchSheet === "function") this.grid.switchSheet(workbook.activeSheet, { skipSave: true });
     else this.grid.activeSheet = workbook.activeSheet;
+    this.grid.renderTextBoxes?.();
     const activeFreezeState = this.grid.sheetStates[this.grid.activeSheet];
     this.grid.frozenRows = activeFreezeState?.frozenRows || 0;
     this.grid.frozenCols = activeFreezeState?.frozenCols || 0;

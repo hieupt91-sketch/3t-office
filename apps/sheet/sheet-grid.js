@@ -7686,7 +7686,7 @@ _bindGridKeyboardNavigation() {
   }
 
   insertTextBox(text, anchor = this.selectedCoord) {
-    const box = { id: `textbox-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, text: String(text), anchor: { c: anchor.c, r: anchor.r } };
+    const box = { id: `textbox-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, text: String(text), anchor: { c: anchor.c, r: anchor.r }, widthPx: 202, heightPx: 76 };
     this.textBoxesBySheet[this.activeSheet] ||= [];
     this.textBoxesBySheet[this.activeSheet].push(box);
     this.renderTextBoxes();
@@ -7703,8 +7703,19 @@ _bindGridKeyboardNavigation() {
       el.dataset.textboxId = box.id;
       el.contentEditable = "true";
       el.textContent = box.text;
-      el.style.cssText = `position:absolute;left:${Math.max(0, this.cols.indexOf(box.anchor.c)) * 100 + 46}px;top:${Math.max(0, box.anchor.r - 1) * this.rowHeight + 28}px;min-width:180px;min-height:54px;padding:10px;background:#fff;border:1px solid #64748b;box-shadow:0 4px 12px rgba(15,23,42,.16);pointer-events:auto;resize:both;overflow:auto`;
+      const widthPx = Math.max(202, Number(box.widthPx) || 202);
+      const heightPx = Math.max(76, Number(box.heightPx) || 76);
+      el.style.cssText = `position:absolute;left:${Math.max(0, this.cols.indexOf(box.anchor.c)) * 100 + 46}px;top:${Math.max(0, box.anchor.r - 1) * this.rowHeight + 28}px;width:${widthPx - 22}px;height:${heightPx - 22}px;min-width:180px;min-height:54px;padding:10px;background:#fff;border:1px solid #64748b;box-shadow:0 4px 12px rgba(15,23,42,.16);pointer-events:auto;resize:both;overflow:auto`;
       el.addEventListener("input", () => { box.text = el.textContent || ""; });
+      const saveSize = () => {
+        const rect = el.getBoundingClientRect();
+        if (rect.width >= 202 && rect.height >= 76) {
+          box.widthPx = Math.round(rect.width);
+          box.heightPx = Math.round(rect.height);
+        }
+      };
+      el.addEventListener("pointerup", () => requestAnimationFrame(saveSize));
+      el.addEventListener("mouseup", () => requestAnimationFrame(saveSize));
       this.textBoxLayer.appendChild(el);
     }
   }
