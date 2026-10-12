@@ -11,7 +11,7 @@ try {
   $doc = $word.Documents.Add()
   Write-Output 'Created zoom/print control document.'
   try {
-    $doc.PageSetup.PaperSize = 9 # wdPaperA4
+    $doc.PageSetup.PaperSize = 7 # wdPaperA4
     $doc.Content.Text = 'VN Office Word count and print comparison.'
     $window = $word.ActiveWindow
     $view = $window.View
