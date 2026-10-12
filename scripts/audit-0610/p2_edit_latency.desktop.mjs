@@ -53,8 +53,18 @@ try {
     const item=g.sheetsData[${JSON.stringify(target.sheet)}]?.get(${JSON.stringify(target.coord)});
     return {formulaValues:formulas,editedValue:item?.val,undo:g.canUndo(),redo:g.canRedo()};
   })()`);
+  await session.cdp.evaluate(`(() => { window.__p2Keys=[]; window.addEventListener('keydown',e=>window.__p2Keys.push({key:e.key,ctrl:e.ctrlKey,target:e.target?.tagName,prevented:e.defaultPrevented}),true); })()`);
+  await mouseClick(session.cdp,target.x,target.y);
+  await session.cdp.evaluate("window.__vnoAppInstance.grid.focusGrid()");
+  const undoBefore = await session.cdp.evaluate(`(() => {const g=window.__vnoAppInstance.grid,a=g.undoStack.at(-1);return {length:g.undoStack.length,top:a?.type,sheet:a?.sheet,col:a?.col,row:a?.row,prevVal:a?.prevVal,nextVal:a?.nextVal,active:document.activeElement?.className||document.activeElement?.tagName}})()`);
+  await timed("Ctrl+Z", () => press(session.cdp,"z",{ctrl:true},20));
+  const undoState = await session.cdp.evaluate(`(() => {const g=window.__vnoAppInstance.grid;return {value:g.sheetsData[${JSON.stringify(target.sheet)}]?.get(${JSON.stringify(target.coord)})?.val,length:g.undoStack.length,redoLength:g.redoStack.length,top:g.undoStack.at(-1)?.type,keys:window.__p2Keys}})()`);
+  await mouseClick(session.cdp,target.x,target.y);
+  await session.cdp.evaluate("window.__vnoAppInstance.grid.focusGrid()");
+  await timed("Ctrl+Y", () => press(session.cdp,"y",{ctrl:true},20));
+  const redoState = await session.cdp.evaluate(`(() => {const g=window.__vnoAppInstance.grid,formulas=[];for(const sheet of g.sheets)for(const [coord,item] of g.sheetsData[sheet]||[])if(item?.formula)formulas.push([sheet,coord,item.val]);return {value:g.sheetsData[${JSON.stringify(target.sheet)}]?.get(${JSON.stringify(target.coord)})?.val,formulaValues:formulas}})()`);
   const oracle = await session.cdp.evaluate(`(() => {
-    const g=window.__vnoAppInstance.grid, before=${JSON.stringify(edited.formulaValues)};
+    const g=window.__vnoAppInstance.grid, before=${JSON.stringify(redoState.formulaValues)};
     g._recalculateAllFormulas(undefined,true);
     const after=[];
     for(const sheet of g.sheets) for(const [coord,item] of g.sheetsData[sheet]||[]) if(item?.formula) after.push([sheet,coord,item.val]);
@@ -63,18 +73,7 @@ try {
     for(const [s,c,v] of after){const prior=beforeMap.get(JSON.stringify([s,c]));if(!Object.is(prior,v))differences.push({sheet:s,coord:c,incremental:prior,full:v});}
     return {formulaCount:after.length,mismatchCount:differences.length,mismatches:differences.slice(0,20)};
   })()`);
-
-  await session.cdp.evaluate(`(() => { window.__p2Keys=[]; window.addEventListener('keydown',e=>window.__p2Keys.push({key:e.key,ctrl:e.ctrlKey,target:e.target?.tagName,prevented:e.defaultPrevented}),true); })()`);
-  await mouseClick(session.cdp,target.x,target.y);
-  await session.cdp.evaluate("window.__vnoAppInstance.grid.focusGrid()");
-  const undoBefore = await session.cdp.evaluate(`(() => {const g=window.__vnoAppInstance.grid;return {length:g.undoStack.length,top:g.undoStack.at(-1)?.type,active:document.activeElement?.className||document.activeElement?.tagName}})()`);
-  await timed("Ctrl+Z", () => press(session.cdp,"z",{ctrl:true},20));
-  const undoState = await session.cdp.evaluate(`(() => {const g=window.__vnoAppInstance.grid;return {value:g.sheetsData[${JSON.stringify(target.sheet)}]?.get(${JSON.stringify(target.coord)})?.val,length:g.undoStack.length,redoLength:g.redoStack.length,top:g.undoStack.at(-1)?.type,keys:window.__p2Keys}})()`);
-  await mouseClick(session.cdp,target.x,target.y);
-  await session.cdp.evaluate("window.__vnoAppInstance.grid.focusGrid()");
-  await timed("Ctrl+Y", () => press(session.cdp,"y",{ctrl:true},20));
-  const afterRedo = await session.cdp.evaluate(`(() => {const g=window.__vnoAppInstance.grid;return g.sheetsData[${JSON.stringify(target.sheet)}]?.get(${JSON.stringify(target.coord)})?.val})()`);
-  console.log(JSON.stringify({file,target:{sheet:target.sheet,coord:target.coord,dependentFormulaCount:target.count,originalValue:target.originalValue},times,editedValue:edited.editedValue,undoBefore,undoValue:undoState.value,undoRestored:Object.is(undoState.value,target.originalValue),undoState,redoValue:afterRedo,redoRestored:Object.is(afterRedo,edited.editedValue),oracle}));
+  console.log(JSON.stringify({file,target:{sheet:target.sheet,coord:target.coord,dependentFormulaCount:target.count,originalValue:target.originalValue},times,editedValue:edited.editedValue,undoBefore,undoValue:undoState.value,undoRestored:Object.is(undoState.value,target.originalValue),undoState,redoValue:redoState.value,redoRestored:Object.is(redoState.value,edited.editedValue),oracle}));
 } finally {
   await session.close();
 }
