@@ -70,8 +70,9 @@ try {
   const groupId = diagramBefore.shapes.find(x => x.groupId)?.groupId;
   const members = diagramBefore.shapes.filter(x => x.groupId === groupId);
   check("Sơ đồ có nhóm thành viên trong model", Boolean(groupId && members.length >= 4), { groupId, members: members.length });
-  if (members[0]) {
-    const shapeId = members[0].id;
+  const clickableMember = members.find(member => member.type !== "connector");
+  if (clickableMember) {
+    const shapeId = clickableMember.id;
     const point = await session.cdp.evaluate(`(() => {const e=document.querySelector('[data-shape-id="${shapeId}"]');if(!e)return null;const r=e.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}})()`);
     if (point) await mouseClick(session.cdp, point.x, point.y);
     const clickState = await session.cdp.evaluate(`(() => {const c=window.__vnoAppInstance.adapter.canvas;const top=document.elementFromPoint(${point?.x || 0},${point?.y || 0});return {selected:[...c.selectedShapeIds],target:c.selectedTarget,groupSelection:c.diagramGroupSelectionId,top:top?.className||top?.tagName,shapeId:${JSON.stringify(shapeId)}}})()`);
