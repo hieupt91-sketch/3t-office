@@ -2363,9 +2363,7 @@ export class WriterAdapter {
     const sourceText = typeof this._wordCountSourceText === "string" && !this._wordCountSourceTextInvalidated
       ? this._wordCountSourceText
       : null;
-    const comparableText = (value) => String(value || "").normalize("NFC").replace(/\s+/g, "");
-    const sourceStillMatches = sourceText != null
-      && (!this.isDirty || comparableText(sourceText) === comparableText(currentText));
+    const sourceStillMatches = sourceText != null;
     const text = sourceStillMatches ? sourceText : currentText;
     const paragraphCount = countBlockParagraphs(body);
     const lineCount = countBlockLines(body);
