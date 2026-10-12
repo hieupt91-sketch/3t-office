@@ -27,10 +27,11 @@ try {
   await click(session.cdp, "#vno-ribbon-tab-view");
   result.viewBefore = JSON.parse(await read());
   const pagesBefore = (await readTargets(session.debugPort)).filter(x => x.type === "page").length;
+  await session.cdp.evaluate(`(() => { const c=window.__vnoAppInstance.adapter.canvas, original=c.newWindow.bind(c); window.__l13NewWindowResult=null; c.newWindow=()=>{const result=original();window.__l13NewWindowResult=result;return result}; })()`);
   await command("slides.view.newWindow");
   await sleep(500);
   const pagesAfter = (await readTargets(session.debugPort)).filter(x => x.type === "page").length;
-  result.newWindow = { pagesBefore, pagesAfter, state: JSON.parse(await read()), status: await session.cdp.evaluate("document.querySelector('#vno-status-docinfo')?.innerText||''") };
+  result.newWindow = { pagesBefore, pagesAfter, commandResult: await session.cdp.evaluate("window.__l13NewWindowResult"), state: JSON.parse(await read()), status: await session.cdp.evaluate("document.querySelector('#vno-status-docinfo')?.innerText||''") };
   await screenshot("new-window");
 
   await command("common.macro.recordToggle");
