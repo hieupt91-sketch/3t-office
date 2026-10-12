@@ -2304,40 +2304,46 @@ export class SlidesAdapter {
   _serializeSlideShapes(shapes, idMap, richCtx, groupRecords = []) {
     if (!Array.isArray(shapes) || shapes.length === 0) return "";
     const map = idMap || this._collectShapeIdMap(shapes);
+    // Diagram connectors/nodes already behave as a unit in the canvas. Emit the
+    // same relationship as a real ODF group so the PPTX contains one grpSp.
+    const serializedShapes = shapes.map(shape => shape.diagramGroupId && !shape.groupId
+      ? { ...shape, groupId: shape.diagramGroupId }
+      : shape);
     const groups = Array.isArray(groupRecords) ? groupRecords.map(group => ({ ...group })) : [];
-    for (const shape of shapes) {
+    for (const shape of serializedShapes) {
       if (shape.groupId && !groups.some(group => group.id === shape.groupId)) {
         groups.push({ id: shape.groupId, parentId: null });
       }
     }
-    if (!groups.length) return shapes.map(shape => this._serializeShape(shape, map.get(String(shape.id)), map, richCtx)).join("");
+    if (!groups.length) return serializedShapes.map(shape => this._serializeShape(shape, map.get(String(shape.id)), map, richCtx)).join("");
 
+    const shapeList = serializedShapes;
     const groupById = new Map(groups.map(group => [String(group.id), group]));
-    const shapeOrder = new Map(shapes.map((shape, index) => [String(shape.id), index]));
+    const shapeOrder = new Map(shapeList.map((shape, index) => [String(shape.id), index]));
     const pageWidth = this._pxToOdf(this.canvas?.slideSize?.width || 960);
     const pageHeight = this._pxToOdf(this.canvas?.slideSize?.height || 540);
     const serializeGroup = (group) => {
       const id = String(group.id);
       const children = [];
       for (const child of groups.filter(item => String(item.parentId || "") === id)) {
-        const descendants = this._groupDescendantShapeIds(child.id, groups, shapes);
+        const descendants = this._groupDescendantShapeIds(child.id, groups, shapeList);
         const order = Math.min(...descendants.map(shapeId => shapeOrder.get(String(shapeId)) ?? Infinity));
         children.push({ order, xml: serializeGroup(child) });
       }
-      for (const shape of shapes.filter(item => String(item.groupId || "") === id)) {
+      for (const shape of shapeList.filter(item => String(item.groupId || "") === id)) {
         children.push({ order: shapeOrder.get(String(shape.id)), xml: this._serializeShape(shape, map.get(String(shape.id)), map, richCtx) });
       }
       children.sort((a, b) => a.order - b.order);
       return `<draw:g draw:name="VNOfficeGroup:${this._escapeXml(id)}" svg:x="0cm" svg:y="0cm" svg:width="${pageWidth}" svg:height="${pageHeight}">${children.map(item => item.xml).join("")}</draw:g>`;
     };
     const output = [];
-    for (const shape of shapes) {
+    for (const shape of shapeList) {
       if (!shape.groupId) {
         output.push({ order: shapeOrder.get(String(shape.id)), xml: this._serializeShape(shape, map.get(String(shape.id)), map, richCtx) });
       }
     }
     for (const group of groups.filter(item => !item.parentId)) {
-      const descendants = this._groupDescendantShapeIds(group.id, groups, shapes);
+      const descendants = this._groupDescendantShapeIds(group.id, groups, shapeList);
       const order = Math.min(...descendants.map(shapeId => shapeOrder.get(String(shapeId)) ?? Infinity));
       if (Number.isFinite(order)) output.push({ order, xml: serializeGroup(group) });
     }
