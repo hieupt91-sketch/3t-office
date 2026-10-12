@@ -188,6 +188,7 @@ async function evaluateFile(fileName, existingResults) {
   let backgroundSnapshot = null;
   let backgroundChecks = 0;
   let backgroundMismatched = 0;
+  let externalCacheCells = 0;
 
   try {
     console.log(`  Đang mở app desktop VN Sheet cho tệp: ${fileName}...`);
@@ -277,9 +278,15 @@ async function evaluateFile(fileName, existingResults) {
           const engine = grid.formulaEngine;
           return chunk.map(item => {
             let appVal;
+            let usedExternalCache = false;
             try {
-              const f = item.formula.startsWith("=") ? item.formula : "=" + item.formula;
-              appVal = engine.evaluate(f);
+              const modelCell = grid.sheetsData?.[sheetName]?.get(item.coord);
+              usedExternalCache = Boolean(modelCell?.externalLink && modelCell.externalLink.formula === modelCell.formula);
+              if (usedExternalCache) appVal = modelCell.val;
+              else {
+                const f = item.formula.startsWith("=") ? item.formula : "=" + item.formula;
+                appVal = engine.evaluate(f);
+              }
             } catch (err) {
               appVal = "#LỖI!";
             }
@@ -289,6 +296,7 @@ async function evaluateFile(fileName, existingResults) {
               formula: item.formula,
               cacheVal: item.cacheVal,
               cacheType: item.cacheType,
+              usedExternalCache,
               appVal
             };
           });
@@ -312,6 +320,7 @@ async function evaluateFile(fileName, existingResults) {
   const evaluatedSamples = [];
 
   for (const item of evaluatedItems) {
+    if (item.usedExternalCache) externalCacheCells++;
     const fnName = getFunctionName(item.formula);
     if (!byFunction[fnName]) {
       byFunction[fnName] = {
@@ -362,6 +371,7 @@ async function evaluateFile(fileName, existingResults) {
 
   console.log(`  [KẾT QUẢ ${fileName}]: Đã tính ${evaluatedItems.length} ô | Khớp: ${matched} | Lệch: ${mismatched} (${matchRate})`);
 
+  if (externalCacheCells) console.log(`  Used stored values for ${externalCacheCells} closed-workbook links.`);
   return {
     fileName,
     totalFormulas: extracted.totalFormulas,
@@ -374,6 +384,7 @@ async function evaluateFile(fileName, existingResults) {
     matchRate,
     backgroundChecks,
     backgroundMismatched,
+    externalCacheCells,
     byFunction,
     mismatches,
     evaluatedSamples,
