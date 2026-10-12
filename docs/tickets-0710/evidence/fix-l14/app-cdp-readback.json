@@ -1,0 +1,129 @@
+{
+  "file": "E:\\VNOffice-profiles\\codex-fl14\\fix-l12-office-compare.pptx",
+  "results": [
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true,
+    true
+  ],
+  "state": {
+    "layout": "two-content",
+    "transition": {
+      "type": "zoom",
+      "duration": 500
+    },
+    "theme": "minimal-dark",
+    "shapes": [
+      {
+        "id": "Google Shape;58;p13",
+        "type": "textbox",
+        "text": "WEST COASTROAD TRIP",
+        "groupId": null,
+        "x": 613,
+        "y": 176
+      },
+      {
+        "id": "Google Shape;59;p13",
+        "type": "textbox",
+        "text": "Your Name • Sept 20XX",
+        "groupId": null,
+        "x": 613,
+        "y": 443
+      },
+      {
+        "id": "Google Shape;60;p13",
+        "type": "image",
+        "text": "",
+        "groupId": null,
+        "x": 8,
+        "y": 7
+      },
+      {
+        "id": "Google Shape;61;p13",
+        "type": "image",
+        "text": "",
+        "groupId": null,
+        "x": 204,
+        "y": 7
+      },
+      {
+        "id": "Google Shape;62;p13",
+        "type": "image",
+        "text": "",
+        "groupId": null,
+        "x": 399,
+        "y": 7
+      },
+      {
+        "id": "1791801242991",
+        "type": "wordart",
+        "text": "3T OfficeL12 WordArt editable™",
+        "groupId": null,
+        "x": 210,
+        "y": 250
+      },
+      {
+        "id": "diagram-1791801243680-x529x-connector-1",
+        "type": "connector",
+        "text": "",
+        "groupId": "diagram-1791801243680-x529x",
+        "x": 263,
+        "y": 286
+      },
+      {
+        "id": "diagram-1791801243680-x529x-connector-2",
+        "type": "connector",
+        "text": "",
+        "groupId": "diagram-1791801243680-x529x",
+        "x": 427,
+        "y": 286
+      },
+      {
+        "id": "diagram-1791801243680-x529x-connector-3",
+        "type": "connector",
+        "text": "",
+        "groupId": "diagram-1791801243680-x529x",
+        "x": 591,
+        "y": 286
+      },
+      {
+        "id": "diagram-1791801243680-x529x-node-1",
+        "type": "rect",
+        "text": "Bước 1",
+        "groupId": "diagram-1791801243680-x529x",
+        "x": 199,
+        "y": 250
+      },
+      {
+        "id": "diagram-1791801243680-x529x-node-2",
+        "type": "rect",
+        "text": "Bước 2",
+        "groupId": "diagram-1791801243680-x529x",
+        "x": 363,
+        "y": 250
+      },
+      {
+        "id": "diagram-1791801243680-x529x-node-3",
+        "type": "rect",
+        "text": "Bước 3",
+        "groupId": "diagram-1791801243680-x529x",
+        "x": 527,
+        "y": 250
+      },
+      {
+        "id": "diagram-1791801243680-x529x-node-4",
+        "type": "rect",
+        "text": "Bước 4",
+        "groupId": "diagram-1791801243680-x529x",
+        "x": 691,
+        "y": 250
+      }
+    ]
+  }
+}
