@@ -9,12 +9,17 @@ $wdCollapseEnd = 0
 $wdLineBreak = 6
 $wdFieldPage = 33
 function New-Control([string]$name, [scriptblock]$build) {
+  Write-Output ('Opening control: ' + $name + ' @ ' + (Get-Date -Format o))
   $doc = $word.Documents.Add()
+  Write-Output ('Created document: ' + $name + ' @ ' + (Get-Date -Format o))
   try {
     & $build $doc
+    Write-Output ('Built content: ' + $name)
     $doc.Fields.Update() | Out-Null
     $path = Join-Path $Dir ($name + '.docx')
+    Write-Output ('Saving control: ' + $name + ' @ ' + (Get-Date -Format o))
     $doc.SaveAs2($path, 16)
+    Write-Output ('Saved control: ' + $name)
     $rows += [pscustomobject]@{
       name = $name
       text = [string]$doc.Content.Text
@@ -28,6 +33,7 @@ function New-Control([string]$name, [scriptblock]$build) {
   } finally { $doc.Close(0) }
 }
 try {
+  Write-Output ('Word COM initialized @ ' + (Get-Date -Format o))
   New-Control 'hyphen' { param($d) $d.Content.Text = 'a-b' }
   New-Control 'en-dash' { param($d) $d.Content.Text = 'a–b' }
   New-Control 'em-dash' { param($d) $d.Content.Text = 'a—b' }
