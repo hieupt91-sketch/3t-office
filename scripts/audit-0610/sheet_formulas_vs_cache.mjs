@@ -225,12 +225,16 @@ async function evaluateFile(fileName, existingResults) {
           }
           const engine = grid.formulaEngine;
           return chunk.map(item => {
-            let appVal;
-            try {
-              const f = item.formula.startsWith("=") ? item.formula : "=" + item.formula;
-              appVal = engine.evaluate(f);
-            } catch (err) {
-              appVal = "#LỖI!";
+            const cell = grid.sheetsData[item.sheet]?.get(item.coord);
+            const externalLinkCached = !!(cell?.externalLink && cell.externalLink.formula === cell.formula);
+            let appVal = externalLinkCached ? cell.val : undefined;
+            if (!externalLinkCached) {
+              try {
+                const f = item.formula.startsWith("=") ? item.formula : "=" + item.formula;
+                appVal = engine.evaluate(f);
+              } catch (err) {
+                appVal = "#LỖI!";
+              }
             }
             return {
               sheet: item.sheet,
@@ -238,7 +242,8 @@ async function evaluateFile(fileName, existingResults) {
               formula: item.formula,
               cacheVal: item.cacheVal,
               cacheType: item.cacheType,
-              appVal
+              appVal,
+              externalLinkCached
             };
           });
         })(${JSON.stringify(sheetName)}, ${JSON.stringify(chunk)})`);
@@ -256,11 +261,13 @@ async function evaluateFile(fileName, existingResults) {
   // Compare results
   let matched = 0;
   let mismatched = 0;
+  let externalLinkCachedCount = 0;
   const byFunction = {};
   const mismatches = [];
   const evaluatedSamples = [];
 
   for (const item of evaluatedItems) {
+    if (item.externalLinkCached) externalLinkCachedCount++;
     const fnName = getFunctionName(item.formula);
     if (!byFunction[fnName]) {
       byFunction[fnName] = {
@@ -318,6 +325,7 @@ async function evaluateFile(fileName, existingResults) {
     skippedArray: extracted.skippedArray,
     skippedNoCache: extracted.skippedNoCache,
     evaluated: evaluatedItems.length,
+    externalLinkCachedCount,
     matched,
     mismatched,
     matchRate,
@@ -337,6 +345,7 @@ function buildMarkdownReport(allFileResults) {
   let grandTotalArray = 0;
   let grandTotalNoCache = 0;
   let grandTotalEvaluated = 0;
+  let grandTotalExternalLinkCached = 0;
   let grandTotalMatched = 0;
   let grandTotalMismatched = 0;
 
@@ -349,6 +358,7 @@ function buildMarkdownReport(allFileResults) {
     grandTotalArray += f.skippedArray || 0;
     grandTotalNoCache += f.skippedNoCache || 0;
     grandTotalEvaluated += f.evaluated || 0;
+    grandTotalExternalLinkCached += f.externalLinkCachedCount || 0;
     grandTotalMatched += f.matched || 0;
     grandTotalMismatched += f.mismatched || 0;
 
@@ -390,6 +400,7 @@ function buildMarkdownReport(allFileResults) {
   lines.push("- **Ngày thực hiện**: 07/10/2026");
   lines.push("- **Phạm vi**: 28 tệp `.xlsx` doanh nghiệp thật (`file test/lan/lan01.xlsx` – `lan28.xlsx`).");
   lines.push("- **Phương pháp**: Đọc thẻ `<f>` (công thức) và thẻ `<v>` (kết quả cache do Excel đã tính toán và ghi lại trong XML tệp XLSX gốc); khởi chạy ứng dụng desktop thật VN Sheet qua Chrome DevTools Protocol (CDP); dùng `FormulaEngine` của ứng dụng (`window.__vnoAppInstance.grid.formulaEngine`) tính toán lại từng công thức trong đúng ngữ cảnh của bảng tính và đối chiếu với kết quả cache.");
+  lines.push("- External workbook formulas marked by VN Sheet are compared using their displayed saved value, because offline mode preserves these cached values instead of recalculating them.");
   lines.push("- **Nguyên tắc an toàn & bảo mật**: Ứng dụng chạy offline độc lập; không gửi dữ liệu ra bên ngoài; không ghi đè bất kỳ tệp dữ liệu gốc nào; không trích xuất nội dung nhạy cảm vào báo cáo; không sửa mã sản phẩm.");
   lines.push("- **Quy tắc so sánh**: Số học chấp nhận sai số tương đối $\\le 10^{-9}$ (`Math.max(1e-9, |Excel| * 1e-9)`); chuỗi ký tự so khớp chính xác; boolean so khớp đúng; mã lỗi chuẩn hóa mã lỗi (`#NAME?`, `#VALUE!`, `#REF!`, `#DIV/0!`, `#N/A`, `#NUM!`).");
   lines.push("");
@@ -397,14 +408,14 @@ function buildMarkdownReport(allFileResults) {
   lines.push("");
   lines.push("## 1. Bảng Tổng Hợp 28 Tệp XLSX");
   lines.push("");
-  lines.push("| STT | Tệp | Tổng ô `<f>` | Shared slave bỏ qua | Array bỏ qua | Thiếu cache bỏ qua | Đã kiểm tra | Khớp | Lệch | Tỷ lệ khớp |");
-  lines.push("|:---:|:---|---:|---:|---:|---:|---:|---:|---:|---:|");
+  lines.push("| STT | Tệp | Tổng ô `<f>` | Shared slave bỏ qua | Array bỏ qua | Thiếu cache bỏ qua | Đã kiểm tra | External link cache | Khớp | Lệch | Tỷ lệ khớp |");
+  lines.push("|:---:|:---|---:|---:|---:|---:|---:|---:|---:|---:|---:|");
 
   allFileResults.forEach((f, idx) => {
-    lines.push(`| ${idx + 1} | \`${f.fileName}\` | ${f.totalFormulas.toLocaleString()} | ${f.skippedSharedSlaves.toLocaleString()} | ${f.skippedArray.toLocaleString()} | ${f.skippedNoCache.toLocaleString()} | ${f.evaluated.toLocaleString()} | ${f.matched.toLocaleString()} | ${f.mismatched.toLocaleString()} | **${f.matchRate}** |`);
+    lines.push(`| ${idx + 1} | \`${f.fileName}\` | ${f.totalFormulas.toLocaleString()} | ${f.skippedSharedSlaves.toLocaleString()} | ${f.skippedArray.toLocaleString()} | ${f.skippedNoCache.toLocaleString()} | ${f.evaluated.toLocaleString()} | ${(f.externalLinkCachedCount || 0).toLocaleString()} | ${f.matched.toLocaleString()} | ${f.mismatched.toLocaleString()} | **${f.matchRate}** |`);
   });
 
-  lines.push(`| **Tổng** | **28 tệp** | **${grandTotalFormulas.toLocaleString()}** | **${grandTotalSharedSlaves.toLocaleString()}** | **${grandTotalArray.toLocaleString()}** | **${grandTotalNoCache.toLocaleString()}** | **${grandTotalEvaluated.toLocaleString()}** | **${grandTotalMatched.toLocaleString()}** | **${grandTotalMismatched.toLocaleString()}** | **${overallMatchRate}** |`);
+  lines.push(`| **Tổng** | **28 tệp** | **${grandTotalFormulas.toLocaleString()}** | **${grandTotalSharedSlaves.toLocaleString()}** | **${grandTotalArray.toLocaleString()}** | **${grandTotalNoCache.toLocaleString()}** | **${grandTotalEvaluated.toLocaleString()}** | **${grandTotalExternalLinkCached.toLocaleString()}** | **${grandTotalMatched.toLocaleString()}** | **${grandTotalMismatched.toLocaleString()}** | **${overallMatchRate}** |`);
   lines.push("");
   lines.push("---");
   lines.push("");
