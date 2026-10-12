@@ -1876,6 +1876,37 @@ def _convert_writer_html_to_doc(src_html: str, out_dir: str, source_path: str | 
     return _run_soffice_convert(intermediate_docx, "doc", out_dir, app_kind="writer")
 
 
+def _convert_writer_html_to_odt(src_html: str, out_dir: str, source_path: str | None = None) -> str:
+    """Export Writer HTML through a Writer document before producing standard ODT.
+
+    LibreOffice imports HTML as Writer/Web. Saving that directly with the
+    ``writer8`` filter creates an ODT package marked ``text-web``; our ODT
+    opener (correctly) rejects that package as a Writer text document. The
+    DOCX intermediate switches the document to Writer/Text and also lets the
+    existing DOCX overlay preserve source OOXML where one is available.
+    """
+    intermediate_docx = _run_soffice_convert(src_html, "docx", out_dir, app_kind="writer")
+    source_docx = None
+    pristine_docx_source = bool(source_path and Path(source_path).suffix.lower() == ".docx")
+    if source_path and os.path.isfile(source_path):
+        source_ext = Path(source_path).suffix.lower()
+        if source_ext == ".docx":
+            source_docx = source_path
+        elif source_ext == ".doc":
+            source_dir = os.path.join(out_dir, "legacy_source")
+            os.makedirs(source_dir, exist_ok=True)
+            source_docx = _run_soffice_convert(source_path, "docx", source_dir, app_kind="writer")
+    _apply_native_export_postprocess(
+        src_html,
+        intermediate_docx,
+        "writer",
+        "docx",
+        source_path=source_docx,
+        pristine_docx_source=pristine_docx_source,
+    )
+    return _run_soffice_convert(intermediate_docx, "odt", out_dir, app_kind="writer")
+
+
 def _read_xlsx_workbook_xml(src_path: str) -> str | None:
     """Read xl/workbook.xml from the original .xlsx via the shared ZIP helper.
 
@@ -2335,6 +2366,8 @@ def _convert_save_source_to_native(
             ) from exc
     if app_kind == "writer" and target_format == "doc" and WRITER_DOC_EXPORT_VIA_DOCX:
         return _convert_writer_html_to_doc(source_path, os.path.dirname(source_path), source_path=source_document_path)
+    if app_kind == "writer" and str(target_format).lower() == "odt":
+        return _convert_writer_html_to_odt(source_path, os.path.dirname(source_path), source_path=source_document_path)
     stage_started = time.perf_counter()
     out_path = _run_soffice_convert(source_path, target_format, os.path.dirname(source_path), app_kind=app_kind)
     if timings is not None:
