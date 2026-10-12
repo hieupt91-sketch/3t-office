@@ -405,6 +405,25 @@ export async function runFormulaEngineTests() {
     pass: vlEngine.evaluate('=VLOOKUP("apple", A1:B5, 2, 0)') === 100
   });
 
+  const wholeColumnData = new Map([
+    ["P1", { val: "Key", formula: "", style: {} }],
+    ["Q1", { val: "First", formula: "", style: {} }],
+    ["P3", { val: "Key", formula: "", style: {} }],
+    ["Q3", { val: "Second", formula: "", style: {} }],
+    ["P5", { val: "Other", formula: "", style: {} }],
+    ["Q5", { val: "Third", formula: "", style: {} }]
+  ]);
+  const wholeColumnEngine = new FormulaEngine(wholeColumnData, null, null, () => "Sheet1", () => ["Sheet1"]);
+  const wholeColumnInitial = wholeColumnEngine.evaluate('=VLOOKUP("Key",P:Q,2,FALSE)');
+  const wholeColumnAvoidedMatrix = wholeColumnEngine._rangeMatrixCache.size === 0;
+  wholeColumnData.set("P1", { val: "Updated", formula: "", style: {} });
+  wholeColumnEngine.bumpSheetVersion("Sheet1", "P1");
+  results.push({
+    name: "VLOOKUP: whole-column exact index preserves first match and invalidates on edit",
+    pass: wholeColumnInitial === "First" && wholeColumnAvoidedMatrix &&
+      wholeColumnEngine.evaluate('=VLOOKUP("Key",P:Q,2,FALSE)') === "Second"
+  });
+
   // Numeric lookup key
   results.push({
     name: "VLOOKUP: Numeric lookup key",

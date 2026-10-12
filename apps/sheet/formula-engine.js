@@ -768,6 +768,46 @@ export class FormulaEngine {
     return data;
   }
 
+  _getWholeColumnVlookupIndex(rangeArg, reference, bounds) {
+    const raw = typeof rangeArg === "string" ? rangeArg.trim() : "";
+    const sheet = String(reference?.sheet || (typeof this.currentSheetResolver === "function" ? this.currentSheetResolver() : "") || "").trim();
+    const cacheKey = `${sheet}:${raw}:VLOOKUP`;
+    if (this._lookupIndexCache.has(cacheKey)) return this._lookupIndexCache.get(cacheKey);
+
+    const firstColumn = this._columnName(bounds.startCol);
+    const candidates = [];
+    for (let offset = 0; offset < bounds.rows; offset++) {
+      const row = bounds.startRow + offset;
+      candidates.push({ key: this.getCellValue(`${firstColumn}${row}`, sheet || null), index: offset });
+    }
+    const numMap = new Map();
+    const strMap = new Map();
+    const boolMap = new Map();
+    for (const candidate of candidates) {
+      const key = candidate.key;
+      if (typeof key === "number" && !key.isTextCell) {
+        if (!numMap.has(key)) numMap.set(key, candidate);
+      } else if (typeof key === "string" || (typeof key === "object" && key instanceof String)) {
+        const normalized = String(key).toLocaleLowerCase();
+        if (!strMap.has(normalized)) strMap.set(normalized, candidate);
+      } else if (typeof key === "boolean" && !boolMap.has(key)) {
+        boolMap.set(key, candidate);
+      }
+    }
+    const data = {
+      candidates, numMap, strMap, boolMap, sheet,
+      bounds: {
+        minCol: bounds.startCol,
+        maxCol: bounds.startCol + bounds.cols - 1,
+        minRow: bounds.startRow,
+        maxRow: bounds.startRow + bounds.rows - 1,
+        wholeColumns: true
+      }
+    };
+    this._lookupIndexCache.set(cacheKey, data);
+    return data;
+  }
+
   _matchWildcard(pattern, text) {
     if (typeof text !== "string" && !(text instanceof String)) return false;
     const strText = String(text);
@@ -1373,6 +1413,32 @@ export class FormulaEngine {
         if (args.length < 3) return "#VALUE!";
         const lookup = this._resolveSingleValue(args[0]);
         if (this._isError(lookup)) return lookup;
+
+        if (funcName === "VLOOKUP") {
+          const reference = this._parseReference(args[1]);
+          const columnRange = String(reference?.ref || "").match(/^([A-Z]+):([A-Z]+)$/i);
+          const rangeBounds = this._parseRangeBounds(args[1]);
+          if (columnRange && rangeBounds && !reference?.error && !reference?.sheets
+            && this._columnIndex(columnRange[1]) <= this._columnIndex(columnRange[2])) {
+            const indexArg = this._resolveSingleValue(args[2]);
+            if (!this._isError(indexArg)) {
+              const requestedIndex = Number(indexArg);
+              if (!Number.isNaN(requestedIndex) && requestedIndex >= 1 && requestedIndex <= rangeBounds.cols) {
+                const rangeLookupArg = args[3] !== undefined ? this._resolveSingleValue(args[3]) : true;
+                if (!this._isError(rangeLookupArg) && args[3] !== undefined && !Boolean(rangeLookupArg)) {
+                  if (lookup === "" || lookup === null || lookup === undefined) return "#N/A";
+                  const indexData = this._getWholeColumnVlookupIndex(args[1], reference, rangeBounds);
+                  const found = this._findExactInLookupIndex(indexData, lookup);
+                  if (!found) return "#N/A";
+                  const resultColumn = this._columnName(rangeBounds.startCol + requestedIndex - 1);
+                  const resultCoord = `${resultColumn}${rangeBounds.startRow + found.index}`;
+                  const result = this.getCellValue(resultCoord, reference.sheet || null);
+                  return result === undefined ? "#REF!" : (result === "" ? 0 : result);
+                }
+              }
+            }
+          }
+        }
 
         const matrix = this._rangeMatrix(args[1]);
         if (!matrix || !matrix.length || !matrix[0]) return "#REF!";
