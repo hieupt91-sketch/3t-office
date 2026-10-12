@@ -1584,7 +1584,7 @@ export class SheetAdapter {
   _formulaToOdf(formula) {
     if (!formula || !String(formula).startsWith("=")) return "";
     let expression = String(formula).slice(1);
-    if (this.options.excel2016FunctionNameCompat) {
+    if (this.options?.excel2016FunctionNameCompat !== false) {
       expression = mapOoxmlFunctionPrefixes(expression, { write: true });
     }
     const references = [];
