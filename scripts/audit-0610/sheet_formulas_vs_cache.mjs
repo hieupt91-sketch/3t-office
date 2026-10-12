@@ -186,6 +186,8 @@ async function evaluateFile(fileName, existingResults) {
   let session = null;
   let evaluatedItems = [];
   let backgroundSnapshot = null;
+  let backgroundChecks = 0;
+  let backgroundMismatched = 0;
 
   try {
     console.log(`  Đang mở app desktop VN Sheet cho tệp: ${fileName}...`);
@@ -235,8 +237,6 @@ async function evaluateFile(fileName, existingResults) {
       throw new Error(`Hết thời gian chờ nạp tệp ${fileName}`);
     }
 
-    let backgroundChecks = 0;
-    let backgroundMismatched = 0;
     if (backgroundSnapshot) {
       const visible = new Map(backgroundSnapshot.quickViewCells.map(cell => [`${cell.col}:${cell.row}`, cell.value]));
       const colNumber = label => [...label].reduce((value, char) => value * 26 + char.charCodeAt(0) - 64, 0) - 1;
