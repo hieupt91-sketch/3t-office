@@ -6,7 +6,7 @@ Nguồn: `claude-ribbon-scan` (nút nào có phản ứng) + `docs/AUDIT-DOC-WOR
 - **LỆCH ĐÃ BIẾT**: còn lệch đã đo.
 - **CHƯA ĐỐI CHIẾU**: nút có phản ứng (không phải nút câm) nhưng **chưa** so với Word thật — cần làm tiếp.
 
-Tổng kết: KHỚP WORD (đã so Word COM): 109, KHÁC CÓ CHỦ Ý: 5, CHƯA ĐỐI CHIẾU: 5, LỆCH ĐÃ BIẾT: 1 (tổng 120 nút, không kể Trợ lý AI).
+Tổng kết: KHỚP WORD (đã so Word COM): 108, KHÁC CÓ CHỦ Ý: 5, CHƯA ĐỐI CHIẾU: 5, LỆCH ĐÃ BIẾT: 2 (tổng 120 nút, không kể Trợ lý AI).
 
 | Tab | Lệnh | Nút | Trạng thái | Ghi chú |
 |---|---|---|---|---|
@@ -102,7 +102,7 @@ Tổng kết: KHỚP WORD (đã so Word COM): 109, KHÁC CÓ CHỦ Ý: 5, CHƯA 
 | Trộn thư | `writer.mailMerge.nextRecord` | Bản ghi sau | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 5: 2 bản ghi, điều kiện yes/no, preview/điều hướng và tài liệu hợp nhất; Word COM xác nhận cả hai kết quả, phong bì và nhãn |
 | Trộn thư | `writer.mailMerge.finish` | Hoàn tất & Trộn | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 5: 2 bản ghi, điều kiện yes/no, preview/điều hướng và tài liệu hợp nhất; Word COM xác nhận cả hai kết quả, phong bì và nhãn |
 | Đánh giá | `writer.review.toggleSpellCheck` | Kiểm tra chính tả | KHỚP WORD (đã so Word COM) | FIX-T11 nhóm 6: CDP và Word COM xác nhận spell/view/ruler/grid/zoom; DOCX round-trip d01,d02,d06,d07,d13,d20,d24 = 7/7 PASS |
-| Đánh giá | `writer.review.wordCount` | Đếm từ | KHỚP WORD (đã so Word COM) | FIX-T13: CDP desktop + Word COM, 6/6 tài liệu mở được đạt sai số ký tự ≤0,2% (d01 0,043%; d02/d06/d07/d13/d20 khớp); d24 Word COM trả -2, tài liệu Word mới 0/0; desktop crash khi mở d24 |
+| Đánh giá | `writer.review.wordCount` | Đếm từ | LỆCH ĐÃ BIẾT | FIX-T13: ký tự đạt ngưỡng ≤0,2% trên 6/7 (d01 0,043%; d02/d06/d07/d13/d20 khớp); số từ còn lệch d01 -16, d02 +2, d07 +2, d13 -3, d20 -1; d24 Word COM -2, tài liệu mới 0/0, desktop crash khi mở d24 |
 | Đánh giá | `writer.review.commentDelete` | Xóa nhận xét | KHỚP WORD (đã so Word COM) | ghi chú: tạo/điều hướng/giải quyết/xóa; trả lời bình luận (T10) |
 | Đánh giá | `writer.review.commentResolve` | Đã xử lý | KHỚP WORD (đã so Word COM) | ghi chú: tạo/điều hướng/giải quyết/xóa; trả lời bình luận (T10) |
 | Đánh giá | `writer.review.commentPrevious` | Nhận xét trước | KHỚP WORD (đã so Word COM) | ghi chú: tạo/điều hướng/giải quyết/xóa; trả lời bình luận (T10) |
