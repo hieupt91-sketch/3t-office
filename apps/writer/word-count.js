@@ -180,6 +180,7 @@ export function extractOoxmlDocumentText(ooxmlDocumentXml) {
   if (!match) return null;
   const xml = match[1]
     .replace(/<w:txbxContent\b[^>]*>[\s\S]*?<\/w:txbxContent>/gi, "")
+    .replace(/<w:fldChar\b[^>]*>[\s\S]*?<\/w:fldChar>/gi, (field) => /<w:ffData\b[\s\S]*?<w:checkBox\b/i.test(field) ? "<w:t>□</w:t>" : field)
     .replace(/<w:instrText\b[^>]*>[\s\S]*?<\/w:instrText>/gi, "")
     .replace(/<w:del\b[^>]*>[\s\S]*?<\/w:del>/gi, "");
   let text = "";

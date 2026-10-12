@@ -37,6 +37,12 @@ export async function runWriterWordCountTests() {
     }
   });
 
+  await test("Word Count: count visible legacy checkbox field result once", () => {
+    const xml = '<w:document><w:body><w:p><w:r><w:fldChar w:fldCharType="begin"><w:ffData><w:checkBox><w:default w:val="0"/></w:checkBox></w:ffData></w:fldChar></w:r><w:r><w:instrText> FORMCHECKBOX </w:instrText></w:r></w:p></w:body></w:document>';
+    const text = extractOoxmlDocumentText(xml);
+    if (text !== "□\n") throw new Error(`Checkbox field count is wrong: ${JSON.stringify(text)}`);
+  });
+
 
   await test("Word Count: tách từ tiếng Việt theo khoảng trắng, bỏ token rỗng", () => {
     const stats = countDocumentStats("  Xin   chào   các bạn  ");
