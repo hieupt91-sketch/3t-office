@@ -23,6 +23,7 @@ for (const name of names) {
   try {
     const cdp = session.cdp;
     await cdp.waitFor(`(() => {const a=window.__vnoAppInstance?.adapter;return String(a?._sourcePath||'').toLowerCase().endsWith(${JSON.stringify(name.toLowerCase())})})()`, { timeoutMilliseconds: 900000, intervalMilliseconds: 500 });
+    await cdp.waitFor("!!window.__vnoAppInstance?.adapter?._openedEditorDomHash && !window.__vnoAppInstance.adapter.isDirty", { timeoutMilliseconds: 900000, intervalMilliseconds: 500 });
     await click(cdp, "#vno-ribbon-tab-review");
     await click(cdp, '[data-command-id="writer.review.wordCount"]');
     await cdp.waitFor("!!document.querySelector('#vno-wordcount-overlay [data-stat=\"charactersWithSpaces\"]')", { timeoutMilliseconds: 15000 });
