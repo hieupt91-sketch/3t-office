@@ -3,6 +3,7 @@
  */
 
 import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
+import { SlidesCanvasController } from "../../apps/slides/slides-canvas.js";
 import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
 
 export async function runSlidesFileIoTests() {
@@ -103,8 +104,13 @@ export async function runSlidesFileIoTests() {
     }
     if (parsed.masterTheme?.accentColor !== "#b53818") throw new Error("parse mất accentColor");
     if (parsed.masterTheme?.name !== "Terracotta Ấm Áp") throw new Error("parse mất tên chủ đề native");
-    const restoredCanvas = new MockCanvasController();
-    restoredCanvas.applySlideMaster(parsed.masterTheme);
+    const restoredCanvas = {
+      masterTheme: { themeId: "modern-blue" },
+      _renderHeaderFooter() {},
+      _renderThumbnails() {},
+      _renderSlideSorterGrid() {}
+    };
+    SlidesCanvasController.prototype.applySlideMaster.call(restoredCanvas, parsed.masterTheme);
     if (restoredCanvas.masterTheme.themeId !== "corporate-red") throw new Error("applySlideMaster không khôi phục id theme từ FODP");
   });
 
