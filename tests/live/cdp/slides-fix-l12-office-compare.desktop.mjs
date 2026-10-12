@@ -15,7 +15,7 @@ const check = (name, pass, detail = "") => {
   results.push(Boolean(pass));
   console.log(`${pass ? "PASS" : "FAIL"} | ${name} | ${typeof detail === "string" ? detail : JSON.stringify(detail)}`);
 };
-const state = () => session.cdp.evaluate(`(() => { const c=window.__vnoAppInstance.adapter.canvas,s=c.slides[c.currentSlideIndex]; return {layout:s.layoutType,transition:s.transition||null,theme:c.masterTheme?.id||c.masterThemeId||null,shapes:s.shapes.map(x=>({id:String(x.id),type:x.type,text:x.text||"",groupId:x.diagramGroupId||x.groupId||null}))}; })()`);
+const state = () => session.cdp.evaluate(`(() => { const c=window.__vnoAppInstance.adapter.canvas,s=c.slides[c.currentSlideIndex]; return {layout:s.layoutType,transition:s.transition||null,theme:c.masterTheme?.id||c.masterThemeId||null,shapes:s.shapes.map(x=>({id:String(x.id),type:x.type,text:x.text||"",groupId:x.diagramGroupId||x.groupId||null,x:x.x,y:x.y}))}; })()`);
 const clickCommand = async id => click(session.cdp, `[data-command-id="${id}"]`);
 const chooseTheme = async id => {
   await click(session.cdp, "#vno-ribbon-tab-design");
