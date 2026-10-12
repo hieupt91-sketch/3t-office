@@ -47,7 +47,7 @@ TEST RESULTS:
 - Focused Writer Word Count tests: PASS, 21/21.
 - Word COM batch: PASS/complete, seven input files measured. d24 returned 0 words, 0 chars without spaces, and -2 chars with spaces.
 - Desktop corpus: d01/d02/d06/d07/d13/d20 measured; six satisfy the character threshold. d24: BLOCKED by LibreOffice desktop crash during import; CDP closed before a response.
-- Desktop controlled cases: list 15/15 characters, whitespace-only run 12/12, repeated spaces 13/13, text frame 8/9, page field 8/10, special characters 7/12 and 7 words all match Word COM.
+- Desktop controlled cases: list 13/15 characters, whitespace-only run 9/12, repeated spaces 9/13, text frame 8/9, page field 8/10, special characters 7/12 and 7 words all match Word COM.
 - Encoding scan: PASS, 10 changed files checked, UTF-8 valid, no BOM. JS syntax and `git diff --check`: PASS.
 
 KNOWN FAILURES:
