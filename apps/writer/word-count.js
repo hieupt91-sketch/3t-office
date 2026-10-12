@@ -193,7 +193,7 @@ export function extractOoxmlDocumentText(ooxmlDocumentXml) {
       text += decodeXmlText(token[1]);
     } else if (/^<w:tab\s*\/?\s*>$/i.test(value)) {
       text += "\t";
-    } else if (/^<w:cr\b/i.test(value) || !/\bw:type=["'](?:page|column)["']/i.test(value)) {
+    } else if (/^<w:(?:br|cr)\b/i.test(value) && !/\bw:type=["'](?:page|column)["']/i.test(value)) {
       text += "\u000b";
     }
   }
