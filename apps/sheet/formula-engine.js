@@ -627,6 +627,63 @@ export class FormulaEngine {
     return parsed;
   }
 
+  /**
+   * Return static cell/range references for incremental recalculation. The
+   * caller must fall back to a full recalculation when `safe` is false.
+   */
+  getStaticFormulaReferences(formula, sheetName = null) {
+    const source = String(formula || "").replace(/^\s*=/, "");
+    let withoutStrings = "";
+    let inString = false;
+    for (let index = 0; index < source.length; index++) {
+      const char = source[index];
+      if (char === '"') {
+        if (inString && source[index + 1] === '"') {
+          withoutStrings += "  ";
+          index++;
+          continue;
+        }
+        inString = !inString;
+        withoutStrings += " ";
+      } else {
+        withoutStrings += inString ? " " : char;
+      }
+    }
+    if (inString || /\b(?:INDIRECT|OFFSET)\s*\(/i.test(withoutStrings)) {
+      return { safe: false, references: [] };
+    }
+
+    const references = [];
+    const referencePattern = /(?:'((?:[^']|'')+)'|([A-Za-z_][A-Za-z0-9_. ]*))!\s*(\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?|\$?[A-Z]+:\$?[A-Z]+)|\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?/gi;
+    const masked = withoutStrings.split("");
+    let match;
+    while ((match = referencePattern.exec(withoutStrings))) {
+      // A token such as LOG10 followed by '(' is a function name, not a cell.
+      if (!match[1] && !match[2] && withoutStrings[referencePattern.lastIndex] === "(") continue;
+      const raw = match[0].trim();
+      const parsed = this._parseReference(raw);
+      const ref = parsed?.ref;
+      const bounds = typeof ref === "string" && ref.match(/^([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?$/i);
+      if (parsed?.error || parsed?.sheets || !bounds || /\[[^\]]*\]/.test(raw)) {
+        return { safe: false, references: [] };
+      }
+      references.push({
+        sheet: parsed.sheet || sheetName || (typeof this.currentSheetResolver === "function" ? this.currentSheetResolver() : ""),
+        startColumn: this._columnIndex(bounds[1]),
+        startRow: Number(bounds[2]),
+        endColumn: this._columnIndex(bounds[3] || bounds[1]),
+        endRow: Number(bounds[4] || bounds[2])
+      });
+      for (let index = match.index; index < referencePattern.lastIndex; index++) masked[index] = " ";
+    }
+
+    const remainder = masked.join("").replace(/\b[A-Z_][A-Z0-9_.]*\s*\(/gi, "(");
+    if (/[A-Z_][A-Z0-9_.]*/i.test(remainder.replace(/\b(?:TRUE|FALSE)\b/gi, "")) || /[^\d\s()+\-*/^&%=<>,;:.!]/.test(remainder)) {
+      return { safe: false, references: [] };
+    }
+    return { safe: true, references };
+  }
+
   _getLookupIndex(rangeArg, matrix, funcName) {
     const raw = typeof rangeArg === "string" ? rangeArg.trim() : "";
     const reference = raw ? this._parseReference(raw) : null;

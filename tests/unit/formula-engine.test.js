@@ -33,6 +33,21 @@ export async function runFormulaEngineTests() {
 
   const engine = new FormulaEngine(cellsData);
 
+  const staticReferences = engine.getStaticFormulaReferences('=IF(A1>0,SUM(B2:B4),"C99")', "Sheet1");
+  results.push({
+    name: "Formula dependencies: extract cell and range refs while ignoring quoted text",
+    pass: staticReferences.safe && staticReferences.references.length === 2 &&
+      staticReferences.references[0].sheet === "Sheet1" &&
+      staticReferences.references[0].startRow === 1 &&
+      staticReferences.references[1].startColumn === 1 &&
+      staticReferences.references[1].startRow === 2 &&
+      staticReferences.references[1].endRow === 4
+  });
+  results.push({
+    name: "Formula dependencies: dynamic references request full-recalculation fallback",
+    pass: engine.getStaticFormulaReferences('=INDIRECT("A1")', "Sheet1").safe === false
+  });
+
   // 1. SUM
   const sumRes = engine.evaluate("=SUM(A1:A3)");
   results.push({
