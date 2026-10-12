@@ -3851,7 +3851,8 @@ export class SheetAdapter {
           start: { c: source[1], r: Number(source[2]) },
           end: { c: source[3], r: Number(source[4]) }
         };
-        dataPilotTables.push(`<table:data-pilot-table table:name="${this._escapeXml(pivot.name || pivot.id || `Pivot ${dataPilotTables.length + 1}`)}" table:target-range-address="${this._escapeXml(rangeAddress(targetSheet, usedRange(targetSheet)))}"${resultLocation}><table:source-cell-range table:cell-range-address="${this._escapeXml(rangeAddress(sourceSheet, sourceRange))}"/>${fields.join("")}</table:data-pilot-table>`);
+        const pivotIdAttr = pivot.id ? ` vno:pivot-id="${this._escapeXml(pivot.id)}"` : "";
+        dataPilotTables.push(`<table:data-pilot-table table:name="${this._escapeXml(pivot.name || pivot.id || `Pivot ${dataPilotTables.length + 1}`)}"${pivotIdAttr} table:target-range-address="${this._escapeXml(rangeAddress(targetSheet, usedRange(targetSheet)))}"${resultLocation}><table:source-cell-range table:cell-range-address="${this._escapeXml(rangeAddress(sourceSheet, sourceRange))}"/>${fields.join("")}</table:data-pilot-table>`);
       }
     }
     const dataPilotXml = dataPilotTables.length ? `<table:data-pilot-tables>${dataPilotTables.join("")}</table:data-pilot-tables>` : "";

@@ -4646,26 +4646,48 @@ def _read_relationships(package: zipfile.ZipFile, source_part: str) -> dict[str,
 def _fods_pivot_charts(source_fods: str | None) -> dict[str, list[str]]:
     """Return sheet name → pivot ids in serialized chart order."""
     result: dict[str, list[str]] = {}
-    for table in re.finditer(
-        r"<table:table\b(?P<attrs>[^>]*)>(?P<body>[\s\S]*?)</table:table\s*>",
-        source_fods or "",
-        re.IGNORECASE,
-    ):
-        sheet_name = _xml_attrs(table.group("attrs")).get("table:name")
+    try:
+        root = ET.fromstring(source_fods or "")
+    except ET.ParseError:
+        return result
+    for table in root.iter():
+        if table.tag.rsplit("}", 1)[-1] != "table":
+            continue
+        attrs = {key.rsplit("}", 1)[-1]: value for key, value in table.attrib.items()}
+        sheet_name = attrs.get("name")
         if not sheet_name:
             continue
         ids = []
-        for frame in re.finditer(r"<draw:frame\b(?P<attrs>[^>]*)>(?P<body>[\s\S]*?)</draw:frame\s*>", table.group("body"), re.IGNORECASE):
-            if not re.search(r"<chart:chart\b", frame.group("body"), re.IGNORECASE):
+        for frame in table.iter():
+            if frame.tag.rsplit("}", 1)[-1] != "frame":
                 continue
-            attrs = _xml_attrs(frame.group("attrs"))
-            if attrs.get("vno:chart-kind") != "pivot":
+            if not any(node.tag.rsplit("}", 1)[-1] == "chart" for node in frame.iter()):
+                continue
+            frame_attrs = {key.rsplit("}", 1)[-1]: value for key, value in frame.attrib.items()}
+            if frame_attrs.get("chart-kind") != "pivot":
                 ids.append("")
                 continue
-            pivot_id = _unescape_xml(attrs.get("vno:pivot-id", "")).strip()
-            ids.append(pivot_id)
+            ids.append(_unescape_xml(frame_attrs.get("pivot-id", "")).strip())
         if ids:
             result[_unescape_xml(sheet_name)] = ids
+    return result
+
+
+def _fods_pivot_table_names(source_fods: str | None) -> dict[str, str]:
+    """Map VN pivot ids to the stable native DataPilot table names."""
+    result = {}
+    try:
+        root = ET.fromstring(source_fods or "")
+    except ET.ParseError:
+        return result
+    for node in root.iter():
+        if node.tag.rsplit("}", 1)[-1] != "data-pilot-table":
+            continue
+        attrs = {key.rsplit("}", 1)[-1]: value for key, value in node.attrib.items()}
+        pivot_id = _unescape_xml(attrs.get("pivot-id", "")).strip()
+        name = _unescape_xml(attrs.get("name", "")).strip()
+        if pivot_id and name:
+            result[pivot_id] = name
     return result
 
 
@@ -4732,6 +4754,7 @@ def _apply_pivot_chart_links_from_fods(
     charts_by_sheet = _fods_pivot_charts(source_fods)
     if not any(any(pivot_id for pivot_id in ids) for ids in charts_by_sheet.values()):
         return
+    pivot_names = _fods_pivot_table_names(source_fods)
     with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
         sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
         pivot_parts: dict[str, str] = {}
@@ -4776,14 +4799,15 @@ def _apply_pivot_chart_links_from_fods(
             for chart_part, pivot_id in zip(chart_refs, pivot_ids):
                 if not pivot_id:
                     continue
-                pivot_part = pivot_parts.get(pivot_id)
+                pivot_name = pivot_names.get(pivot_id, pivot_id)
+                pivot_part = pivot_parts.get(pivot_name)
                 if not pivot_part:
                     continue
                 pivot_xml = replacements.get(pivot_part) or package.read(pivot_part).decode("utf-8", errors="replace")
                 fmt_id = pivot_chart_counts.get(pivot_id, 0)
                 pivot_chart_counts[pivot_id] = fmt_id + 1
                 chart_xml = replacements.get(chart_part) or package.read(chart_part).decode("utf-8", errors="replace")
-                updated_chart = _insert_pivot_chart_binding(chart_xml, pivot_id, fmt_id)
+                updated_chart = _insert_pivot_chart_binding(chart_xml, pivot_name, fmt_id)
                 updated_pivot = _add_pivot_chart_format(pivot_xml, fmt_id, fmt_id)
                 if updated_chart != chart_xml:
                     replacements[chart_part] = updated_chart
