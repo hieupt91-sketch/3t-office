@@ -919,6 +919,39 @@ export const VI_FORMULA_CATALOG = [
   // 4. LOGIC
   // ==========================================
   {
+    name: "TRUE",
+    category: "Logic",
+    desc: "Trả về giá trị logic TRUE; không nhận đối số.",
+    descEn: "Returns the logical value TRUE and takes no arguments.",
+    syntax: "TRUE()",
+    syntaxVi: "TRUE()",
+    params: [],
+    example: "=TRUE()"
+  },
+  {
+    name: "FALSE",
+    category: "Logic",
+    desc: "Trả về giá trị logic FALSE; không nhận đối số.",
+    descEn: "Returns the logical value FALSE and takes no arguments.",
+    syntax: "FALSE()",
+    syntaxVi: "FALSE()",
+    params: [],
+    example: "=FALSE()"
+  },
+  {
+    name: "XOR",
+    category: "Logic",
+    desc: "Trả về TRUE khi có số lẻ điều kiện là TRUE; bỏ qua ô trống và văn bản trong vùng tham chiếu.",
+    descEn: "Returns TRUE when an odd number of conditions are TRUE; blanks and text in referenced ranges are ignored.",
+    syntax: "XOR(logical1, [logical2], ...)",
+    syntaxVi: "XOR(điều_kiện1, [điều_kiện2], ...)",
+    params: [
+      { name: "điều_kiện1", desc: "Điều kiện logic thứ nhất." },
+      { name: "[điều_kiện2]", desc: "Các điều kiện logic bổ sung.", optional: true }
+    ],
+    example: "=XOR(A2>0; B2>0)"
+  },
+  {
     name: "IF",
     category: "Logic",
     desc: "Kiểm tra điều kiện và trả về giá trị thứ nhất nếu đúng, thứ hai nếu sai.",

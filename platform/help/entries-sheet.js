@@ -150,15 +150,16 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.formula.insertFunction"],
     title: "Hàm thống kê, tham chiếu và cơ sở ngày nâng cao",
-    summary: "Dùng MODE để tìm giá trị lặp nhiều nhất, PERCENTILE để tính phân vị, ADDRESS để tạo địa chỉ ô, FORMULATEXT để đọc công thức, YEARFRAC để tính phần năm giữa hai ngày và HYPERLINK để tạo liên kết có nhãn hiển thị.",
+    summary: "Dùng MODE/PERCENTILE cho thống kê; TRUE, FALSE, XOR và IF cho logic; ADDRESS/FORMULATEXT cho tham chiếu; YEARFRAC cho ngày và HYPERLINK cho liên kết.",
     ribbon: { tab: "Công thức", tabId: "formulas", group: "Hàm tính toán" },
-    keywords: ["MODE", "PERCENTILE", "ADDRESS", "FORMULATEXT", "YEARFRAC", "HYPERLINK", "phân vị", "địa chỉ ô", "công thức dạng chữ", "phần năm", "siêu liên kết"],
+    keywords: ["MODE", "PERCENTILE", "TRUE", "FALSE", "XOR", "IF", "ADDRESS", "FORMULATEXT", "YEARFRAC", "HYPERLINK", "phân vị", "logic", "địa chỉ ô", "công thức dạng chữ", "phần năm", "siêu liên kết"],
     steps: [
       "Chọn ô kết quả rồi gõ công thức trên lưới hoặc Thanh công thức Sheet; nhấn Enter để tính. Cũng có thể mở tab Công thức → nhóm Hàm tính toán → Chèn hàm, tìm tên hàm rồi chèn cú pháp vào ô.",
       "Dùng =MODE(A2:A20) để tìm số xuất hiện thường xuyên nhất; nếu nhiều số đồng hạng, kết quả là số nhỏ nhất. Nếu không có số lặp, hàm trả lỗi #N/A.",
       "Dùng =PERCENTILE(A2:A20,0.9) để lấy phân vị 90%; đối số thứ hai phải từ 0 đến 1. Hàm bỏ qua văn bản trong vùng và nội suy theo phương pháp inclusive.",
       "Dùng =ADDRESS(3,2) để tạo địa chỉ tuyệt đối $B$3. Đối số thứ ba chọn kiểu khóa hàng/cột: 1 khóa cả hai, 2 khóa hàng, 3 khóa cột, 4 không khóa. Có thể thêm tên trang tính ở đối số thứ năm.",
       "Dùng =FORMULATEXT(C5) để hiện công thức đang lưu trong C5 dưới dạng văn bản. Nếu C5 không chứa công thức, kết quả là #N/A.",
+      "Dùng =TRUE() và =FALSE() khi cần hằng logic. Dùng =XOR(A2>0,B2>0) khi chỉ một trong hai điều kiện cần đúng; với nhiều điều kiện, XOR trả TRUE khi có số lẻ điều kiện đúng. Văn bản nhập trực tiếp vào IF/AND/OR/NOT/XOR không được coi là TRUE và trả #VALUE!; ô trống hoặc văn bản nằm trong vùng tham chiếu của AND/OR/XOR được bỏ qua.",
       "Dùng =YEARFRAC(A2,B2,1) để tính khoảng thời gian giữa hai ngày theo cơ sở Actual/Actual. Đối số cơ sở tùy chọn nhận 0 đến 4; bỏ trống sẽ dùng cơ sở 0 (30/360).",
       "Dùng =HYPERLINK(\"#B2\",\"Xem dữ liệu\") để tạo liên kết trong workbook và đặt nhãn dễ hiểu trong ô. Có thể thay #B2 bằng địa chỉ web; nhấp vào nhãn để mở đích liên kết."
     ]
