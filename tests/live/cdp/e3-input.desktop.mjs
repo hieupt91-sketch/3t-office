@@ -13,13 +13,20 @@ const check = (name, ok, detail = "") => {
 };
 const state = () => cdp.evaluate(`(() => {
   const grid = window.__vnoAppInstance?.sheetGrid || window.__vnoAppInstance?.grid;
-  const cells = Object.fromEntries(["A1","A2","B2","C2","E2","A6","A7","D3","D4","F1"].map(key => [key, grid.cellsData.get(key) || null]));
+  const cells = Object.fromEntries(["A1","A2","B2","C2","E2","E8","F8","A6","A7","D3","D4","F1"].map(key => [key, grid.cellsData.get(key) || null]));
   const coord = grid.selectedCoord;
   const range = grid.selectionRange;
   return { coord: String(coord.c)+String(coord.r), range: String(range.start.c)+String(range.start.r)+":"+String(range.end.c)+String(range.end.r), cells,
     edit: !!grid.formulaEntry, input: grid.formulaInput?.value, undo: grid.undoStack.length, redo: grid.redoStack.length };
 })()`);
 const select = coord => click(cdp, `.vno-grid-cell[data-coord="${coord}"]`);
+const pressSemicolon = async shift => {
+  const modifiers = 2 | (shift ? 8 : 0);
+  const key = shift ? ":" : ";";
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyDown", key, code: "Semicolon", windowsVirtualKeyCode: 186, modifiers, text: "", unmodifiedText: "" });
+  await cdp.send("Input.dispatchKeyEvent", { type: "keyUp", key, code: "Semicolon", windowsVirtualKeyCode: 186, modifiers });
+  await sleep(250);
+};
 
 try {
   await sleep(700);
@@ -69,6 +76,14 @@ try {
   await press(cdp, "Enter");
   s = await state();
   check("F5 address entry navigates", s.coord === "E8", JSON.stringify(s));
+  await select("E8");
+  await pressSemicolon(false);
+  s = await state();
+  check("Ctrl+semicolon inserts a date", s.cells.E8?.style?.numberFormat?.category === "date", JSON.stringify(s.cells.E8));
+  await select("F8");
+  await pressSemicolon(true);
+  s = await state();
+  check("Ctrl+Shift+semicolon inserts a time", s.cells.F8?.style?.numberFormat?.category === "time", JSON.stringify(s.cells.F8));
 
   await select("A1");
   await press(cdp, "c", { ctrl: true });

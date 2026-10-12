@@ -728,9 +728,7 @@ export class SheetGridController {
     const mm = String(now.getMinutes()).padStart(2, "0");
     const ss = String(now.getSeconds()).padStart(2, "0");
     const timeStr = `${hh}:${mm}:${ss}`;
-    // Dấu nháy đơn giữ nguyên chuỗi HH:mm:ss như trước đây (không auto-detect
-    // thành serial giờ), vì lệnh này chèn chuỗi giờ chứ không nhập tay vào ô.
-    this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, `'${timeStr}`, true);
+    this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, timeStr, true);
     if (this.formulaInput) this.formulaInput.value = timeStr;
     return timeStr;
   }

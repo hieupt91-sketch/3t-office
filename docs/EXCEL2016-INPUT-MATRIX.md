@@ -25,7 +25,7 @@ Phạm vi E3 dùng Excel 2016 cài trên máy làm chuẩn thao tác. Bài kiể
 | Alt+Enter | Chèn xuống dòng trong một ô | Có; chưa xác minh CDP | `insertLineBreak()` |
 | F4 trong công thức | Luân phiên tham chiếu tương đối/tuyệt đối tại caret | Có handler trong formula input; chưa xác minh qua shortcut manager | Cần kiểm tra xung đột phím tắt toàn cục |
 | Ctrl+Enter | Ghi cùng nội dung vào toàn vùng chọn | Chưa hỗ trợ đầy đủ | Grid chưa có thao tác broadcast có dịch tham chiếu công thức |
-| Ctrl+; / Ctrl+Shift+; | Chèn ngày hiện tại / giờ hiện tại | Chưa xác minh input desktop | CDP `Input.dispatchKeyEvent` không tạo keydown Semicolon trong bài kiểm hiện tại; không ghi PASS |
+| Ctrl+; / Ctrl+Shift+; | Chèn ngày hiện tại / giờ hiện tại | PASS cả hai phím | CDP xác nhận ô ngày là serial ngày có định dạng date; ô giờ là serial thời gian có định dạng time |
 | Delete / Backspace | Xóa nội dung toàn vùng đang chọn, giữ định dạng | PASS Delete vùng liên tục | CDP xác nhận A6:A7 được xóa; undo theo một thao tác |
 | Ctrl+D / Ctrl+R | Điền xuống / sang phải; dịch tham chiếu công thức tương đối | Ctrl+D PASS; Ctrl+R chưa xác minh | `fillDown()` / `fillRight()` |
 | Kéo tay nắm điền | Tiếp tục chuỗi số/ngày/danh sách hoặc sao chép | PASS kéo chuỗi số | D1:D2 = 1,2; kéo tới D4 tạo 3,4 |
@@ -50,5 +50,4 @@ Phạm vi E3 dùng Excel 2016 cài trên máy làm chuẩn thao tác. Bài kiể
 
 - Hộp tên là đường truy cập F5/Ctrl+G hiện tại; UI chưa có hộp thoại Go To riêng.
 - Phím End và Ctrl+Enter chưa tương đương đầy đủ.
-- Ctrl+; và Ctrl+Shift+; chưa có bằng chứng CDP hợp lệ ở môi trường này.
 - Kéo tay nắm đã thử với chuỗi số; ngày/tháng và danh sách tùy chỉnh cần ca riêng.
