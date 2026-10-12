@@ -115,6 +115,7 @@ try {
 const psScript = path.join(root, "scripts/audit-0610/word_parallel/excel-read.ps1");
 const raw = execFileSync("powershell", [
   "-NoProfile", "-ExecutionPolicy", "Bypass", "-File", psScript, "-Files", workFile,
+  "-FormulaRange", `B2:B${items.length + 1}`,
 ], { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 });
 const jsonLine = raw.split(/\r?\n/).find(line => line.startsWith("E1JSON:"));
 if (!jsonLine) throw new Error("Excel read-only audit returned no E1JSON rows.");
