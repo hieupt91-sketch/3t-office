@@ -20376,10 +20376,24 @@ def postprocess_writer_native_wordart(
         )
         if not start_match or not end_match or start_match.end() > end_match.start():
             raise ValueError(f"Bookmark của WordArt {index} không hợp lệ.")
+        start_id = re.search(r'\bw:id="([^"]+)"', start_match.group(0), re.IGNORECASE)
+        end_id = re.search(r'\bw:id="([^"]+)"', end_match.group(0), re.IGNORECASE)
+        if not start_id or not end_id:
+            raise ValueError(f"Bookmark WordArt {index} thiếu mã neo.")
+        start_end = re.search(
+            r'<w:bookmarkEnd\b(?=[^>]*\bw:id="' + re.escape(start_id.group(1)) + r'")[^>]*/>',
+            paragraph, re.IGNORECASE,
+        )
+        end_end = re.search(
+            r'<w:bookmarkEnd\b(?=[^>]*\bw:id="' + re.escape(end_id.group(1)) + r'")[^>]*/>',
+            paragraph, re.IGNORECASE,
+        )
+        if not start_end or not end_end or start_end.start() < start_match.end() or end_end.end() < end_match.end():
+            raise ValueError(f"Bookmark end của WordArt {index} không hợp lệ.")
         max_docpr += 1
         drawing = re.sub(r'(<wp:docPr\b[^>]*\bid=")[0-9]+', rf'\g<1>{max_docpr}', drawing, count=1)
         replacement_paragraph = (
-            paragraph[:start_match.start()] + f"<w:r>{drawing}</w:r>" + paragraph[end_match.end():]
+            paragraph[:start_match.start()] + f"<w:r>{drawing}</w:r>" + paragraph[end_end.end():]
         )
         document_xml = (
             document_xml[:paragraphs[start_index].start()] + replacement_paragraph
