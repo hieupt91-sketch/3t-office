@@ -7,7 +7,9 @@ const root = process.env.VNO_APP_ROOT;
 const profile = process.env.VNO_CDP_LOCALAPPDATA;
 const corpus = process.env.VNO_DOCX_CORPUS || path.join(root || "", "file test", "landocx");
 if (!root || !profile) throw new Error("Set VNO_APP_ROOT and VNO_CDP_LOCALAPPDATA.");
-const names = ["d01.docx", "d02.docx", "d06.docx", "d07.docx", "d13.docx", "d20.docx", "d24.docx"];
+const allNames = ["d01.docx", "d02.docx", "d06.docx", "d07.docx", "d13.docx", "d20.docx", "d24.docx"];
+const selectedNames = (process.env.VNO_WORDCOUNT_CASES || "").split(",").map(value => value.trim()).filter(Boolean);
+const names = selectedNames.length ? selectedNames : allNames;
 const rows = [];
 
 for (const name of names) {
@@ -24,8 +26,8 @@ for (const name of names) {
     await click(cdp, "#vno-ribbon-tab-review");
     await click(cdp, '[data-command-id="writer.review.wordCount"]');
     await cdp.waitFor("!!document.querySelector('#vno-wordcount-overlay [data-stat=\"charactersWithSpaces\"]')", { timeoutMilliseconds: 15000 });
-    const stats = await cdp.evaluate(`(() => {const read=name=>Number((document.querySelector('#vno-wordcount-overlay [data-stat="'+name+'"]')?.textContent||'0').replace(/\\./g,''));return {words:read('words'),charactersNoSpaces:read('charactersNoSpaces'),charactersWithSpaces:read('charactersWithSpaces'),paragraphs:read('paragraphs'),lines:read('lines')}})()`);
-    rows.push({ name, ...stats });
+    const result = await cdp.evaluate(`(() => {const read=name=>Number((document.querySelector('#vno-wordcount-overlay [data-stat="'+name+'"]')?.textContent||'0').replace(/\\./g,''));const a=window.__vnoAppInstance.adapter;const source=a._wordCountSourceText;return {stats:{words:read('words'),charactersNoSpaces:read('charactersNoSpaces'),charactersWithSpaces:read('charactersWithSpaces'),paragraphs:read('paragraphs'),lines:read('lines')},sourceText:source==null?null:{length:source.length,charactersNoSpaces:source.replace(/\\s+/g,'').length,charactersWithSpaces:source.replace(/[\\r\\n\\u2028\\u2029]/g,'').length}}})()`);
+    rows.push({ name, ...result.stats, sourceText: result.sourceText });
     console.log(JSON.stringify(rows[rows.length - 1]));
     await click(cdp, "#vno-wordcount-overlay .vno-dialog-ok-btn");
   } finally {
