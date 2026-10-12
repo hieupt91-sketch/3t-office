@@ -19,9 +19,8 @@ function New-Control($name, $build) {
     Write-Output 'Updated document fields.'
     foreach ($shape in $doc.Shapes) { if ($shape.TextFrame.HasText) { $shape.TextFrame.TextRange.Fields.Update() | Out-Null } }
     Write-Output 'Updated shape fields.'
-    $path = Join-Path $Dir ($name + '.docx')
-    Write-Output 'Saving document.'
-    $doc.SaveAs2($path, 16)
+    Write-Output ("Saving document: " + (Join-Path $Dir ($name + '.docx')))
+    $doc.SaveAs2("$Dir\$name.docx", 16)
     Write-Output ("Saved control: " + $name)
     $script:rows += [pscustomobject]@{
       name = $name
