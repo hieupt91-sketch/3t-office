@@ -24,3 +24,13 @@ Chạy bài CDP desktop riêng với `Input.dispatchKeyEvent`/`Input.dispatchMou
 
 ## Rollback
 Mỗi nhóm thay đổi được commit độc lập. Revert commit E3 tương ứng để quay lại hành vi trước đó; nhóm tài liệu/CDP có thể revert độc lập. Không có thay đổi schema hay đường lưu/mở XLSX trong kế hoạch này.
+
+## Bổ sung kế hoạch: công thức Ctrl+Enter
+
+- **Mục tiêu:** Khi nhập công thức vào một vùng chọn bằng Ctrl+Enter, dịch tham chiếu tương đối theo từng ô đích như Excel; giữ nguyên thành phần tham chiếu tuyệt đối.
+- **Năng lực hiện tại:** VN Sheet đã ghi cùng chuỗi công thức vào mọi ô; Excel điều chỉnh tham chiếu tương đối khi điền công thức vào vùng.
+- **Tệp/module:** `apps/sheet/sheet-grid.js`, `tests/live/cdp/e3-input.desktop.mjs`, `docs/EXCEL2016-INPUT-MATRIX.md`.
+- **Phụ thuộc/ranh giới:** Dùng bộ tọa độ và FormulaEngine hiện có; không thêm dependency, adapter hay Core patch. App tạo XLSX; Excel 2016 COM mở tệp chỉ đọc, mỗi lần một workbook.
+- **Rủi ro:** Phân biệt tham chiếu ô với chuỗi văn bản, tên hàm/vùng và vùng ngoài biên; sai dịch chuyển làm đổi kết quả công thức sau lưu.
+- **Kiểm tra:** CDP nhập công thức vào H1:H3 và kiểm chuỗi formula từng ô; Excel 2016 COM đọc lại công thức, Value2 và number format trong XLSX app vừa lưu.
+- **Rollback:** Revert commit sửa Ctrl+Enter; giữ nguyên các nhóm điều hướng, tài liệu và kiểm CDP đã commit trước đó.
