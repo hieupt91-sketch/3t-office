@@ -737,6 +737,7 @@ export class FormulaEngine {
     const numMap = new Map();
     const strMap = new Map();
     const boolMap = new Map();
+    const numericTextMap = new Map();
 
     for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i];
@@ -746,6 +747,15 @@ export class FormulaEngine {
       } else if (typeof k === "string" || (typeof k === "object" && k instanceof String)) {
         const lower = String(k).toLocaleLowerCase();
         if (!strMap.has(lower)) strMap.set(lower, candidate);
+        if (k.isTextCell) {
+          const text = String(k);
+          const numericIdentifier = /^0+\d+$/.test(text)
+            ? text.replace(/^0+(?=\d)/, "")
+            : /^\d{6,}$/.test(text) ? text : null;
+          if (numericIdentifier !== null && !numericTextMap.has(numericIdentifier)) {
+            numericTextMap.set(numericIdentifier, candidate);
+          }
+        }
       } else if (typeof k === "boolean" && !boolMap.has(k)) {
         boolMap.set(k, candidate);
       }
@@ -753,7 +763,7 @@ export class FormulaEngine {
 
     const bounds = this._parseRangeBounds(raw);
     const data = {
-      candidates, numMap, strMap, boolMap, sheet,
+      candidates, numMap, strMap, boolMap, numericTextMap, sheet,
       bounds: bounds ? {
         minCol: bounds.startCol,
         maxCol: bounds.startCol + bounds.cols - 1,
@@ -805,6 +815,7 @@ export class FormulaEngine {
     const numMap = new Map();
     const strMap = new Map();
     const boolMap = new Map();
+    const numericTextMap = new Map();
     for (const candidate of candidates) {
       const key = candidate.key;
       if (typeof key === "number" && !key.isTextCell) {
@@ -812,12 +823,21 @@ export class FormulaEngine {
       } else if (typeof key === "string" || (typeof key === "object" && key instanceof String)) {
         const normalized = String(key).toLocaleLowerCase();
         if (!strMap.has(normalized)) strMap.set(normalized, candidate);
+        if (key.isTextCell) {
+          const text = String(key);
+          const numericIdentifier = /^0+\d+$/.test(text)
+            ? text.replace(/^0+(?=\d)/, "")
+            : /^\d{6,}$/.test(text) ? text : null;
+          if (numericIdentifier !== null && !numericTextMap.has(numericIdentifier)) {
+            numericTextMap.set(numericIdentifier, candidate);
+          }
+        }
       } else if (typeof key === "boolean" && !boolMap.has(key)) {
         boolMap.set(key, candidate);
       }
     }
     const data = {
-      candidates, numMap, strMap, boolMap, sheet,
+      candidates, numMap, strMap, boolMap, numericTextMap, sheet,
       bounds: {
         minCol: bounds.startCol,
         maxCol: bounds.startCol + bounds.cols - 1,
@@ -902,7 +922,7 @@ export class FormulaEngine {
   }
 
   _findExactInLookupIndex(indexData, lookup) {
-    const { candidates, numMap, strMap, boolMap } = indexData;
+    const { candidates, numMap, strMap, boolMap, numericTextMap } = indexData;
     let found = null;
     let canConcludeNoMatch = false;
     const isLookupNum = typeof lookup === "number" && !lookup.isTextCell;
@@ -913,6 +933,9 @@ export class FormulaEngine {
       const cand = numMap.get(lookup);
       if (cand && typeof cand.key === "number" && !cand.key.isTextCell && cand.key === lookup) {
         found = cand;
+      } else {
+        const textCandidate = numericTextMap?.get(String(lookup));
+        if (textCandidate && this._lookupExactEquals(textCandidate.key, lookup)) found = textCandidate;
       }
     } else if (isLookupText) {
       const lookStr = String(lookup);
