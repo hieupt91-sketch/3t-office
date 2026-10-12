@@ -20,7 +20,7 @@ try {
   }
   await ev(`window.__lt = []; try { new PerformanceObserver(l => { for (const e of l.getEntries()) window.__lt.push([Math.round(e.startTime), Math.round(e.duration)]); }).observe({ entryTypes: ['longtask'] }); } catch (e) {} true`);
   await time("click", () => mouseClick(session.cdp, point.x, point.y));
-  await time("key_T", () => press(session.cdp, "t", { shift: true }, 20));
+  await time("key_T", () => press(session.cdp, "T", {}, 20));
   await time("Enter", () => press(session.cdp, "Enter", {}, 20));
   await sleep(1500);
   const state = JSON.parse(await ev(`JSON.stringify({ quickActive: window.__vnoSheetQuickViewController?.active, quickHistory: window.__vnoSheetQuickViewController?.pendingHistory?.length, quickOverrides: [...(window.__vnoSheetQuickViewController?.valueOverrides || [])], lt: (window.__lt || []).sort((a, b) => b[1] - a[1]).slice(0, 6), found: (() => { const q = window.__vnoSheetQuickViewController; if (q?.active) { for (const [k, v] of q.valueOverrides) if (String(v) === 'T') return k + ':' + v; } const g = window.__vnoAppInstance.grid; for (const [k, v] of g.cellsData) { if (v && v.val === 'T') return k + ':' + v.val; } return null; })(), undo: window.__vnoAppInstance.grid.undoStack?.length })`));
