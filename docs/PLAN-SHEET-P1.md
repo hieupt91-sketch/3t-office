@@ -103,3 +103,9 @@ Không sửa `upstream/**`, không thêm dependency, không đổi semantics fil
 - `platform/sheet/xlsx-preview.py` (hoặc vị trí app-specific tương đương sau khi xác định ownership), `main.py`, `adapters/libreoffice/sheet/sheet-adapter.js`, `apps/sheet/sheet-quick-view.js`.
 - Tests cho parser Python, quick view/replay và desktop CDP; cập nhật tài liệu hiệu năng và handoff.
 - Không thêm dependency, không chạm `upstream/**`, không đổi semantics lưu/in.
+
+### Bổ sung về cuộn trong lúc UNO đang khởi động
+
+- Đo CDP sau parser cho thấy UNO view attach trên LAN14 mất khoảng 5.4 s, dù first paint đã dưới 0.2 s. Vì vậy, cuộn ra ngoài 40×20 đầu tiên trước khi attach không được phép gọi một `doc_id` giả rồi báo tạm gián đoạn.
+- Mở rộng cùng parser local để đọc viewport theo tọa độ (sheet, hàng, cột) cho các lần cuộn/chuyển sheet trước khi có UNO session. Giữ giới hạn vùng tối đa 40×20; khi UNO attach, chuyển bridge trở lại `sheet_view_window` và giữ nguyên journal/state.
+- CDP phải dùng chuột cuộn thật ngay sau first paint, trước UNO attach, xác nhận cửa sổ dữ liệu kế tiếp xuất hiện và first-scroll latency. Unit tests phải chứng minh route parser được chọn khi `doc_id` còn là preview, rồi route UNO sau khi attach.
