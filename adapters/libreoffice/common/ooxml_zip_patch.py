@@ -7496,6 +7496,83 @@ def _apply_slides_native_wordart(
     return replacements
 
 
+def _slides_layout_names_from_fodp(fodp_xml: str | None) -> list[str | None]:
+    result: list[str | None] = []
+    for page in re.finditer(r"<draw:page\b(?![-\w])([^>]*)>", str(fodp_xml or ""), re.IGNORECASE):
+        layout = re.search(r"\bpresentation:presentation-page-layout-name=[\"']([^\"']+)[\"']", page.group(1), re.IGNORECASE)
+        result.append(layout.group(1) if layout else None)
+    return result
+
+
+def _set_layout_placeholder_types(xml: str) -> str:
+    index = 0
+
+    def patch_shape(match: re.Match[str]) -> str:
+        nonlocal index
+        shape = match.group(0)
+        ph = re.search(r"<p:ph\b([^>]*)/\s*>", shape, re.IGNORECASE)
+        if not ph or re.search(r"\btype=[\"']", ph.group(1), re.IGNORECASE):
+            return shape
+        index += 1
+        attrs = ph.group(1).rstrip()
+        attrs += f' type="body" idx="{index}"'
+        return shape[:ph.start()] + f"<p:ph{attrs}/>" + shape[ph.end():]
+
+    return re.sub(r"<p:sp\b[\s\S]*?</p:sp\s*>", patch_shape, xml, flags=re.IGNORECASE)
+
+
+def _apply_slides_native_layout_types(
+    pptx_bytes: bytes, source_fodp: str | None, base_replacements: dict[str, str] | None = None
+) -> dict[str, str]:
+    layout_types = {"VNOTwoContent": "twoColTx"}
+    page_layouts = _slides_layout_names_from_fodp(source_fodp)
+    if not page_layouts:
+        return {}
+    replacements: dict[str, str] = {}
+    with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+        slide_names = sorted(
+            (name for name in package.namelist() if re.match(r"^ppt/slides/slide\d+\.xml$", name, re.IGNORECASE)),
+            key=lambda name: int(re.search(r"slide(\d+)", name, re.IGNORECASE).group(1)),
+        )
+        for index, slide_path in enumerate(slide_names):
+            if index >= len(page_layouts) or page_layouts[index] not in layout_types:
+                continue
+            rels_path = posixpath.join(posixpath.dirname(slide_path), "_rels", posixpath.basename(slide_path) + ".rels")
+            rels_raw = read_zip_entry(pptx_bytes, rels_path)
+            if not rels_raw:
+                continue
+            rels_xml = rels_raw.decode("utf-8", errors="replace")
+            target_path = ""
+            for rel in re.finditer(r"<Relationship\b([^>]*)/?>", rels_xml, re.IGNORECASE):
+                attrs = rel.group(1)
+                rel_type = re.search(r"\bType=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
+                target = re.search(r"\bTarget=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
+                if rel_type and target and rel_type.group(1).rstrip("/").endswith("/slideLayout"):
+                    raw_target = target.group(1).lstrip("/")
+                    target_path = raw_target if raw_target.startswith("ppt/") else posixpath.normpath(posixpath.join(posixpath.dirname(slide_path), raw_target))
+                    break
+            if not target_path:
+                continue
+            layout_raw = read_zip_entry(pptx_bytes, target_path)
+            slide_raw = read_zip_entry(pptx_bytes, slide_path)
+            if not layout_raw or not slide_raw:
+                continue
+            layout_xml = layout_raw.decode("utf-8", errors="replace")
+            slide_xml = (base_replacements or {}).get(slide_path) or slide_raw.decode("utf-8", errors="replace")
+            layout_tag = re.search(r"<p:sldLayout\b([^>]*)>", layout_xml, re.IGNORECASE)
+            if layout_tag:
+                attrs = layout_tag.group(1)
+                attrs = re.sub(r"\btype=[\"'][^\"']*[\"']", f'type="{layout_types[page_layouts[index]]}"', attrs, count=1, flags=re.IGNORECASE)
+                layout_xml = layout_xml[:layout_tag.start()] + f"<p:sldLayout{attrs}>" + layout_xml[layout_tag.end():]
+            layout_xml = _set_layout_placeholder_types(layout_xml)
+            slide_xml = _set_layout_placeholder_types(slide_xml)
+            if layout_xml != layout_raw.decode("utf-8", errors="replace"):
+                replacements[target_path] = layout_xml
+            if slide_xml != slide_raw.decode("utf-8", errors="replace"):
+                replacements[slide_path] = slide_xml
+    return replacements
+
+
 def postprocess_slides_pptx(
     pptx_bytes: bytes,
     *,
@@ -7569,7 +7646,10 @@ def postprocess_slides_pptx(
     wordart_replacements = _apply_slides_native_wordart(
         pptx_bytes, source_fodp, {**animation_replacements, **transition_replacements}
     )
-    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements:
+    layout_replacements = _apply_slides_native_layout_types(
+        pptx_bytes, source_fodp, {**animation_replacements, **transition_replacements, **wordart_replacements}
+    )
+    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements:
         return pptx_bytes
     replacements.update(animation_replacements)
     replacements.update(paragraph_level_replacements)
@@ -7577,6 +7657,7 @@ def postprocess_slides_pptx(
     replacements.update(theme_replacements)
     replacements.update(transition_replacements)
     replacements.update(wordart_replacements)
+    replacements.update(layout_replacements)
 
     if apply_slide_size and presentation_xml:
         presentation_xml = apply_intended_slide_size(presentation_xml, intended_size)
