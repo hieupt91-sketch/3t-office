@@ -16,6 +16,7 @@ try {
   await click(cdp, ".vno-dialog-overlay .vno-dialog-ok-btn");
   await click(cdp, "#vno-ribbon-tab-layout");
   await click(cdp, 'select[data-command-id="writer.layout.lineNumbers"]');
+  await press(cdp, " ", {}, 0);
   await press(cdp, "ArrowDown", {}, 0);
   await press(cdp, "Enter", {}, 250);
   const lineState = await cdp.evaluate("({value:document.querySelector('select[data-command-id=\"writer.layout.lineNumbers\"]')?.value, model:window.__vnoAppInstance.adapter.lineNumbers})");
