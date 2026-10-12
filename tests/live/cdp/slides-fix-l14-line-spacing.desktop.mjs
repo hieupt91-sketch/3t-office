@@ -39,22 +39,22 @@ for (const [name, commandId, mode] of operations.filter(([name]) => !selectedOpe
     if (!target) throw new Error("Text fixture did not render on the slide canvas.");
     await mouseDoubleClick(session.cdp, target.x, target.y);
     await press(session.cdp, "a", { ctrl: true }, 120);
+    let keyReadback = null;
     if (mode === "clear") await click(session.cdp, '[data-command-id="slides.text.bold"]');
     if (mode === "select") {
       const control = `select[data-command-id="${commandId}"]`;
       const inspectControl = () => session.cdp.evaluate(`(() => {const e=document.querySelector(${JSON.stringify(control)});return {value:e?.value||null,disabled:e?.disabled??null,activeElement:document.activeElement?.tagName||null,selection:window.getSelection?.()?.toString()||""}})()`);
-      const keyReadback = { before: await inspectControl() };
+      keyReadback = { before: await inspectControl() };
       await click(session.cdp, control);
       keyReadback.afterClick = await inspectControl();
       await press(session.cdp, "ArrowDown", {}, 150);
       keyReadback.afterArrowDown = await inspectControl();
       await press(session.cdp, "Enter", {}, 80);
       keyReadback.afterEnter = await inspectControl();
-      globalThis.__vnoL14LineSpacingKeyReadback = keyReadback;
     } else {
       await click(session.cdp, `[data-command-id="${commandId}"]`);
     }
-    const state = await session.cdp.evaluate(`(() => {const a=window.__vnoAppInstance.adapter,c=a.canvas,s=c.slides[c.currentSlideIndex],sh=s.shapes.find(x=>String(x.text||"").includes("FIX-L4 audit sample text"));return {command:${JSON.stringify(commandId)},text:sh.text,textHtml:sh.textHtml||"",fontWeight:sh.fontWeight||sh.bold||null,fontStyle:sh.fontStyle||null,underline:sh.underline||null,strike:sh.strike||null,align:sh.textAlign||null,bullet:sh.bullet||null,indent:sh.indentLevel||sh.indent||null,lineSpacing:document.querySelector('select[data-command-id="slides.para.lineSpacing"]')?.value||null,selected:c.selectedShapeIds?.size||0,keyReadback:globalThis.__vnoL14LineSpacingKeyReadback||null};})()`);
+    const state = await session.cdp.evaluate(`(() => {const a=window.__vnoAppInstance.adapter,c=a.canvas,s=c.slides[c.currentSlideIndex],sh=s.shapes.find(x=>String(x.text||"").includes("FIX-L4 audit sample text"));return {command:${JSON.stringify(commandId)},text:sh.text,textHtml:sh.textHtml||"",fontWeight:sh.fontWeight||sh.bold||null,fontStyle:sh.fontStyle||null,underline:sh.underline||null,strike:sh.strike||null,align:sh.textAlign||null,bullet:sh.bullet||null,indent:sh.indentLevel||sh.indent||null,lineSpacing:document.querySelector('select[data-command-id="slides.para.lineSpacing"]')?.value||null,selected:c.selectedShapeIds?.size||0,keyReadback:${JSON.stringify(keyReadback)}};})()`);
     const fodp = await session.cdp.evaluate("window.__vnoAppInstance.adapter.serializeToFodp()");
     await fs.writeFile(path.join(localAppData, `fix-l14-${name}.fodp`), fodp, "utf8");
     const saved = await session.cdp.evaluate("window.__vnoAppInstance.adapter.save()", { awaitPromise: true, timeoutMilliseconds: 600000 });
