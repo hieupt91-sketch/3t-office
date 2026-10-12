@@ -8,7 +8,7 @@ Phiếu: [FIX-P1](tickets-0710/FIX-P1.md) · Kế hoạch: [PLAN-SHEET-P1](PLAN-
 - Lần sửa đầu (gõ + Enter): **PASS**, 0.76–0.82 s trên LAN01/02/04/06/09/14/16.
 - Undo/redo qua hydration: **PASS** trên LAN14 bằng chuột/phím CDP thật.
 - `npm test`: **PASS 3116/3116**.
-- Python suite: **đang chạy lại** sau commit local-scroll cuối; lần chạy cuối trước commit này là **PASS 910 tests**. Sẽ thay dòng này bằng trạng thái cuối sau khi suite kết thúc.
+- Python suite: **912 tests, 1 FAIL chập chờn** do WinError 32 khi Writer sample thay file tạm đang bị khóa; chạy riêng đúng test đó thêm 3 lượt đều PASS. Không ghi suite tổng là PASS.
 - Batch LAN28: **25 PASS, 2 FAIL, 1 BLOCKED**. Không ghi PASS tổng thể: LAN14 round-trip save vượt timeout, LAN25 có diff đã tái hiện cả ở legacy path, LAN04 Excel COM bị chặn.
 
 ## Baseline trước sửa
@@ -81,7 +81,7 @@ Lệnh desktop batch đặt `VNO_AUDIT_MARK_DIRTY=1`, `VNO_APP_ROOT=E:\VNOffice-
 | FAIL do timeout (1) | lan14 | Round-trip mất 1754.2 s; CDP `Runtime.evaluate` timeout ở save pipeline. Tệp output vẫn có, `diffs=0`, lint sạch, Excel mở được |
 | FAIL fidelity (1) | lan25 | `saved=yes`, `diffs=9419`, lint sạch, Excel mở được |
 
-LAN25 được chạy lại với `VNO_OPEN_VIEWFIRST=0`; vẫn đúng **9419 diffs**, nên lỗi này có trên đường legacy XLSX→FODS và không do fast preview P1. Diff report nhóm 910 number formats, 2771 font, 2771 fill, 2967 border. Không sửa kỳ vọng audit hoặc fixture.
+LAN25 được chạy lại với `VNO_OPEN_VIEWFIRST=0`; vẫn đúng **9419 diffs**, nên lỗi này có trên đường legacy XLSX→FODS và không do fast preview P1. Diff report nhóm 910 number formats, 2771 font, 2771 fill, 2967 border. Source và output đều giữ metadata `TableStyleMedium2` cho bảng. Không sửa kỳ vọng audit hoặc fixture.
 
 Tệp trong nhóm ưu tiên của ticket: lan01/02/06/09/11/22/26 đều PASS (`diffs=0`, Excel PASS); lan04 có `diffs=0` nhưng Excel reference bị BLOCKED, nên chưa được tính PASS.
 
@@ -92,11 +92,13 @@ Tệp trong nhóm ưu tiên của ticket: lan01/02/06/09/11/22/26 đều PASS (`
 | `npm test` | PASS 3116/3116 sau code local-scroll |
 | `python -m unittest tests.test_xlsx_preview` | PASS 5 tests |
 | Sheet quick-view unit | PASS 18 tests |
-| `python -m unittest discover -s tests` | NOT FINAL: lần gần nhất trước commit `dcc2beff` PASS 910; lượt final đang chạy |
+| `python -m unittest discover -s tests` | FAIL: 912 tests, 1 WinError 32 chập chờn ở `test_writer_save_roundtrip.WriterSaveRoundtripTests.test_all_fixtures_roundtrip` khi replace file tạm bị khóa; chạy riêng test này 3 lần liên tiếp đều PASS |
 | `python -m py_compile main.py apps/sheet/xlsx_preview.py tests/test_xlsx_preview.py` | PASS |
 | `git diff --check` | PASS trước các commit code cuối |
 
-Python suite trước đây ghi ResourceWarning về stream subprocess chưa đóng; không có assertion failure. Kết quả suite cuối sẽ được cập nhật trước handoff.
+CDP kiểm tra khi quick view còn hoạt động: `adapter.save()` và `adapter.print()` trả `false`, quick view vẫn mở và status báo chờ hydrate. Save/print thực tế khi quick view còn hoạt động là NOT RUN; sau hydration, LAN01 mở được PDF print preview. Không gửi lệnh tới máy in vật lý.
+
+Python suite cũng từng ghi ResourceWarning về stream subprocess chưa đóng. Lỗi duy nhất trong lượt 912 tests là WinError 32 nói trên; đã chạy test Writer đó riêng 3 lần và đều PASS.
 
 ## Fallback và trạng thái
 
