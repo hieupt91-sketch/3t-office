@@ -21,20 +21,19 @@ try {
       if (!map) continue;
       for (const [coord,item] of map) {
         if (!item || item.formula || item.val==='' || item.val==null) continue;
-        const dom=sheet===g.activeSheet ? g.container.querySelector('.vno-grid-cell[data-coord="'+coord+'"]') : null;
-        if (!dom) continue;
-        const rect=dom.getBoundingClientRect();
-        if (!rect.width || !rect.height) continue;
         const dirty=g._getDirtyFormulaOrder(graph,{sheet,coord});
         if (!dirty?.length) continue;
-        options.push({sheet,coord,count:dirty.length,originalValue:item.val,x:rect.left+rect.width/2,y:rect.top+rect.height/2});
+        options.push({sheet,coord,count:dirty.length,originalValue:item.val});
       }
     }
     options.sort((a,b)=>b.count-a.count);
     const best=options[0];
     if (!best) return {error:'no visible non-formula cell with dependent formulas'};
     g.selectCell(best.coord.match(/^[A-Z]+/)[0],Number(best.coord.match(/\\d+$/)[0]));
-    return best;
+    const dom=g.container.querySelector('.vno-grid-cell[data-coord="'+best.coord+'"]');
+    const rect=dom?.getBoundingClientRect();
+    if(!rect?.width||!rect?.height)return {error:'selected dependent cell is not visible'};
+    return {...best,x:rect.left+rect.width/2,y:rect.top+rect.height/2};
   })()`);
   if (target.error) throw new Error(target.error);
 
@@ -45,6 +44,7 @@ try {
   await timed("typingSecondKey", () => press(session.cdp,"e",{shift:true},20));
   await timed("Enter", () => press(session.cdp,"Enter",{},20));
   await sleep(200);
+  await session.cdp.evaluate("window.__vnoAppInstance.grid.focusGrid()");
 
   const edited = await session.cdp.evaluate(`(() => {
     const g=window.__vnoAppInstance.grid;
@@ -54,12 +54,9 @@ try {
     return {formulaValues:formulas,editedValue:item?.val,undo:g.canUndo(),redo:g.canRedo()};
   })()`);
   await session.cdp.evaluate(`(() => { window.__p2Keys=[]; window.addEventListener('keydown',e=>window.__p2Keys.push({key:e.key,ctrl:e.ctrlKey,target:e.target?.tagName,prevented:e.defaultPrevented}),true); })()`);
-  await mouseClick(session.cdp,target.x,target.y);
-  await session.cdp.evaluate("window.__vnoAppInstance.grid.focusGrid()");
   const undoBefore = await session.cdp.evaluate(`(() => {const g=window.__vnoAppInstance.grid,a=g.undoStack.at(-1);return {length:g.undoStack.length,top:a?.type,sheet:a?.sheet,col:a?.col,row:a?.row,prevVal:a?.prevVal,nextVal:a?.nextVal,active:document.activeElement?.className||document.activeElement?.tagName}})()`);
   await timed("Ctrl+Z", () => press(session.cdp,"z",{ctrl:true},20));
   const undoState = await session.cdp.evaluate(`(() => {const g=window.__vnoAppInstance.grid;return {value:g.sheetsData[${JSON.stringify(target.sheet)}]?.get(${JSON.stringify(target.coord)})?.val,length:g.undoStack.length,redoLength:g.redoStack.length,top:g.undoStack.at(-1)?.type,keys:window.__p2Keys}})()`);
-  await mouseClick(session.cdp,target.x,target.y);
   await session.cdp.evaluate("window.__vnoAppInstance.grid.focusGrid()");
   await timed("Ctrl+Y", () => press(session.cdp,"y",{ctrl:true},20));
   const redoState = await session.cdp.evaluate(`(() => {const g=window.__vnoAppInstance.grid,formulas=[];for(const sheet of g.sheets)for(const [coord,item] of g.sheetsData[sheet]||[])if(item?.formula)formulas.push([sheet,coord,item.val]);return {value:g.sheetsData[${JSON.stringify(target.sheet)}]?.get(${JSON.stringify(target.coord)})?.val,formulaValues:formulas}})()`);
