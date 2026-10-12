@@ -3,7 +3,7 @@
  */
 
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
-import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlWhitespaceOnlyParagraphCharacters, extractWordCountText } from "../../apps/writer/word-count.js";
+import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlWhitespaceOnlyParagraphCharacters, extractOoxmlDocumentText, extractWordCountText } from "../../apps/writer/word-count.js";
 import { WRITER_RIBBON_TABS } from "../../apps/writer/writer-ribbon.js";
 import { WRITER_COMMANDS } from "../../platform/commands/command-definitions.js";
 import { ICONS } from "../../platform/ui-kit/icons.js";
@@ -94,6 +94,15 @@ export async function runWriterWordCountTests() {
     const xml = '<w:document><w:body><w:p><w:r><w:t>Alpha</w:t></w:r></w:p><w:p><w:r><w:t xml:space="preserve">   </w:t></w:r></w:p><w:p><w:r><w:txbxContent><w:p><w:r><w:t>Frame</w:t></w:r></w:p></w:txbxContent></w:r></w:p></w:body></w:document>';
     if (countOoxmlWhitespaceOnlyParagraphCharacters(xml) !== 3) {
       throw new Error(`Không phục hồi đúng run khoảng trắng: ${countOoxmlWhitespaceOnlyParagraphCharacters(xml)}`);
+    }
+  });
+
+  await test("Word Count: đọc text runs OOXML, tab, ngắt dòng và kết quả field, bỏ chỉ dẫn/frame", () => {
+    const xml = '<w:document><w:body><w:p><w:r><w:t>Alpha</w:t><w:tab/><w:t xml:space="preserve">  beta</w:t><w:br/><w:t>Gamma</w:t></w:r></w:p><w:p><w:r><w:t xml:space="preserve">   </w:t></w:r></w:p><w:p><w:r><w:instrText> PAGE </w:instrText><w:t>Body</w:t><w:txbxContent><w:p><w:r><w:t>Frame</w:t></w:r></w:p></w:txbxContent></w:r></w:p></w:body></w:document>';
+    const source = extractOoxmlDocumentText(xml);
+    const stats = countDocumentStats(source, { characterText: source });
+    if (stats.words !== 4 || stats.charactersNoSpaces !== 18 || stats.charactersWithSpaces !== 25) {
+      throw new Error(`Sai text stats OOXML: ${JSON.stringify({ source, stats })}`);
     }
   });
 

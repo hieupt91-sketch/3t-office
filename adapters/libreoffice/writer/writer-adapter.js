@@ -53,7 +53,7 @@ import {
   tableOfFiguresTitle,
   tofMarkerHtml
 } from "../../../apps/writer/captions.js";
-import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlWhitespaceOnlyParagraphCharacters, extractWordCountText, showWordCountDialog } from "../../../apps/writer/word-count.js";
+import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, extractOoxmlDocumentText, extractWordCountText, showWordCountDialog } from "../../../apps/writer/word-count.js";
 import { showFontDialog } from "../../../apps/writer/font-dialog.js";
 
 let writerInsertDialogsPromise;
@@ -289,7 +289,7 @@ export class WriterAdapter {
     this.editorDom = editorDom;
     this.documentContent = "";
     this.isDirty = false;
-    this._wordCountWhitespaceOnlyCharacters = 0;
+    this._wordCountSourceText = null;
     this.isNewApplicationDocument = true;
     this._openedEditorDomHash = null;
     this.sourceFileName = "TaiLieu";
@@ -2355,19 +2355,19 @@ export class WriterAdapter {
     }
 
     const hasLiveDom = Boolean(body.childNodes);
-    const text = hasLiveDom
-      ? extractWordCountText(body)
-      : (body.innerText != null ? body.innerText : (body.textContent || ""));
+    const sourceText = !this.isDirty && typeof this._wordCountSourceText === "string"
+      ? this._wordCountSourceText
+      : null;
+    const text = sourceText != null
+      ? sourceText
+      : (hasLiveDom ? extractWordCountText(body) : (body.innerText != null ? body.innerText : (body.textContent || "")));
     const paragraphCount = countBlockParagraphs(body);
     const lineCount = countBlockLines(body);
     const markerStats = countListMarkerStats(body);
     markerStats.charactersWithSpaces += countExplicitLineBreaks(body);
-    const importedWhitespaceOnlyCharacters = this.isDirty
-      ? 0
-      : (Number(this._wordCountWhitespaceOnlyCharacters) || 0);
     const stats = countDocumentStats(text, {
       scope: "document",
-      characterText: text + " ".repeat(importedWhitespaceOnlyCharacters),
+      characterText: text,
       paragraphCount,
       lineCount: lineCount == null ? undefined : lineCount,
       markerStats
@@ -15595,8 +15595,8 @@ export class WriterAdapter {
     );
 
     if (result.status === "ok") {
+      if (this.isDirty) this._wordCountSourceText = null;
       this.isDirty = false;
-      this._wordCountWhitespaceOnlyCharacters = 0;
       const savedPath = result.path || this._sourcePath;
       if (savedPath) {
         const savedFileName = savedPath.split(/[/\\]/).pop();
@@ -15648,8 +15648,8 @@ export class WriterAdapter {
         this.shell?.setStatus?.(`Đã xuất PDF: ${String(savedPath).split(/[/\\]/).pop()}`);
         return true;
       }
+      if (this.isDirty) this._wordCountSourceText = null;
       this.isDirty = false;
-      this._wordCountWhitespaceOnlyCharacters = 0;
       if (savedPath) {
         this._sourcePath = savedPath;
         const savedFileName = savedPath.split(/[/\\]/).pop();
@@ -15722,7 +15722,7 @@ export class WriterAdapter {
       }
       this._initZones();
       this._sourcePath = result.sourcePath || null;
-      this._wordCountWhitespaceOnlyCharacters = countOoxmlWhitespaceOnlyParagraphCharacters(result.ooxmlDocumentXml);
+      this._wordCountSourceText = extractOoxmlDocumentText(result.ooxmlDocumentXml);
       this.isNewApplicationDocument = false;
       this.bodyDom?.classList?.remove("vno-new-application-document");
       // Comments chỉ thuộc tài liệu đang mở trong phiên; file khác không dùng lại anchor cũ.
@@ -15844,7 +15844,7 @@ export class WriterAdapter {
     if (!/<(?:html|body|div|p|table|span|h[1-6]|ul|ol)\b/i.test(String(content || ""))) return false;
     this._initZones();
     this._sourcePath = null;
-    this._wordCountWhitespaceOnlyCharacters = 0;
+    this._wordCountSourceText = null;
     this.isNewApplicationDocument = false;
     this.bodyDom?.classList?.remove("vno-new-application-document");
     this.comments = [];
@@ -15923,7 +15923,7 @@ export class WriterAdapter {
   async newDocument() {
     this._initZones();
     this._sourcePath = null;
-    this._wordCountWhitespaceOnlyCharacters = 0;
+    this._wordCountSourceText = null;
     this.isNewApplicationDocument = true;
     this.comments = [];
     this.trackChangesEnabled = false;

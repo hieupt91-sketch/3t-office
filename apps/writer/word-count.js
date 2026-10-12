@@ -174,6 +174,32 @@ export function countOoxmlWhitespaceOnlyParagraphCharacters(ooxmlDocumentXml) {
   return count;
 }
 
+/** Extract Word's main-body text runs while excluding paragraph marks, field instructions, and text frames. */
+export function extractOoxmlDocumentText(ooxmlDocumentXml) {
+  const match = String(ooxmlDocumentXml || "").match(/<w:body\b[^>]*>([\s\S]*?)<\/w:body>/i);
+  if (!match) return null;
+  const xml = match[1]
+    .replace(/<w:txbxContent\b[^>]*>[\s\S]*?<\/w:txbxContent>/gi, "")
+    .replace(/<w:instrText\b[^>]*>[\s\S]*?<\/w:instrText>/gi, "")
+    .replace(/<w:del\b[^>]*>[\s\S]*?<\/w:del>/gi, "");
+  let text = "";
+  for (const token of xml.matchAll(/<w:p\b[^>]*>|<\/w:p>|<w:t\b[^>]*>([\s\S]*?)<\/w:t>|<w:tab\b[^>]*\/?\s*>|<w:(?:br|cr)\b[^>]*\/?\s*>/gi)) {
+    const value = token[0];
+    if (/^<w:p\b/i.test(value)) {
+      if (text && !text.endsWith("\n")) text += "\n";
+    } else if (/^<\/w:p/i.test(value)) {
+      if (!text.endsWith("\n")) text += "\n";
+    } else if (token[1] != null) {
+      text += decodeXmlText(token[1]);
+    } else if (/^<w:tab\b/i.test(value)) {
+      text += "\t";
+    } else {
+      text += "\u000b";
+    }
+  }
+  return text;
+}
+
 /**
  * Đếm đoạn văn có nội dung từ các khối DOM trong thân tài liệu.
  * @param {ParentNode | null | undefined} bodyEl
