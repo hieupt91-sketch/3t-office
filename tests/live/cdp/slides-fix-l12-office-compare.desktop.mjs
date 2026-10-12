@@ -62,6 +62,12 @@ try {
   await click(session.cdp, '[data-vno-dialog="wordart"] .vno-dialog-ok-btn');
   check("WordArt được tạo thành đối tượng chỉnh sửa được trong model", (await state()).shapes.some(x => x.type === "wordart" && x.text.includes("L12 WordArt editable")));
 
+  await clickCommand("slides.insert.symbol");
+  await session.cdp.waitFor('!!document.querySelector("[data-symbol-char=\"™\"]")', { timeoutMilliseconds: 30000 });
+  await click(session.cdp, '[data-symbol-char="™"]');
+  const symbolInserted = await session.cdp.evaluate("window.__vnoAppInstance.adapter.canvas.slides[0].shapes.some(x=>String(x.text||'').includes('™'))");
+  check("Ký hiệu ™ được nối vào đối tượng chữ đang chọn", symbolInserted, await state());
+
   await clickCommand("slides.diagram.insert");
   await session.cdp.waitFor('!!document.querySelector("#vno-diagram-insert")', { timeoutMilliseconds: 30000 });
   await click(session.cdp, "#vno-diagram-insert");
