@@ -3804,7 +3804,7 @@ class VnOfficeApi:
             return False
         try:
             path = os.path.abspath(str(source_path))
-            if not path.lower().endswith(".xlsx") or os.path.getsize(path) < 5 * 1024 * 1024:
+            if not path.lower().endswith(".xlsx"):
                 return False
         except OSError:
             return False

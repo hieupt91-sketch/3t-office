@@ -99,9 +99,9 @@ const sheetOnly = [
     app: "sheet",
     commandIds: [],
     title: "Mở và sửa bảng tính lớn khi đang nạp",
-    summary: "Với tệp .xlsx lớn (từ khoảng 5 MB), Sheet hiển thị vùng đầu để bạn đọc và sửa ô trong khi nạp phần còn lại ở nền. Sau khi nạp đầy đủ, các chỉnh sửa và lịch sử hoàn tác được chuyển sang lưới bình thường; trang tính, ô chọn và vị trí cuộn được giữ lại.",
+    summary: "Khi mở tệp .xlsx, Sheet hiển thị vùng đầu để bạn đọc và sửa ô trong khi nạp phần còn lại ở nền. Điều này hữu ích nhất với bảng tính lớn. Sau khi nạp đầy đủ, các chỉnh sửa và lịch sử hoàn tác được chuyển sang lưới bình thường; trang tính, ô chọn và vị trí cuộn được giữ lại.",
     ribbon: { tab: "Trợ giúp", tabId: "help", group: "Phím tắt và thao tác nhanh" },
-    keywords: ["tệp lớn", "mở chậm", "xem nhanh", "sửa khi đang nạp", "đang nạp đầy đủ", "quick view", "bảng tính lớn", "nạp", "hoàn tác"],
+    keywords: ["tệp xlsx", "tệp lớn", "mở chậm", "xem nhanh", "sửa khi đang nạp", "đang nạp đầy đủ", "quick view", "bảng tính lớn", "nạp", "hoàn tác"],
     steps: [
       "Mở bảng tính bằng Tệp ▸ Mở hoặc bấm đúp tệp. Khi vùng dữ liệu đầu hiện và trạng thái báo Đang nạp đầy đủ, bấm ô rồi gõ để sửa; nhấn Enter để ghi nhận và chuyển xuống ô kế tiếp. F2 sửa nội dung hiện có; Delete hoặc Backspace xóa ô; Escape hủy lần sửa đang nhập.",
       "Để dán vùng ô, chọn ô góc trên bên trái rồi nhấn Ctrl+V; dữ liệu tab/newline từ clipboard được dán thành một nhóm. Ctrl+Z hoàn tác và Ctrl+Y làm lại thao tác gõ, xóa hoặc dán ngay trong lúc nạp.",
