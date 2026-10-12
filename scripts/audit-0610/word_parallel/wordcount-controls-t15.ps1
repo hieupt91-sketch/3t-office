@@ -49,6 +49,7 @@ try {
   New-Control 'tab' { param($d) $d.Content.Text = "alpha`tbeta" }
   New-Control 'nbsp' { param($d) $d.Content.Text = ('alpha' + [char]0x00A0 + 'beta') }
   New-Control 'line-break' { param($d) $r=$d.Content; $r.Text='alpha'; $r.Collapse($wdCollapseEnd); $r.InsertBreak($wdLineBreak); $r.InsertAfter('beta') }
+  New-Control 'page-break' { param($d) $r=$d.Content; $r.Text='alpha'; $r.Collapse($wdCollapseEnd); $r.InsertBreak(7); $r.InsertAfter('beta') }
   New-Control 'page-number-field' { param($d) $r=$d.Content; $r.Text='Trang '; $r.Collapse($wdCollapseEnd); $d.Fields.Add($r,$wdFieldPage) | Out-Null; $r.InsertAfter(' cuoi') }
   $json = ConvertTo-Json -InputObject $rows -Depth 5
   [System.IO.File]::WriteAllText((Join-Path $Dir 'wordcount-controls-t15.json'), $json, (New-Object System.Text.UTF8Encoding($false)))
