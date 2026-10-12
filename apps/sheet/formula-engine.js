@@ -1164,6 +1164,43 @@ export class FormulaEngine {
         return matches.length ? matches.reduce((sum, value) => sum + value, 0) / matches.length : "#DIV/0!";
       }
 
+      case "MODE": {
+        const values = this.collectValues(args);
+        const error = values.find(value => this._isError(value));
+        if (error) return error;
+        const numbers = values
+          .filter(value => !(value && value.isTextCell))
+          .map(value => this._parseNumberOrCurrency(value))
+          .filter(value => value !== null && Number.isFinite(value));
+        if (!numbers.length) return "#N/A";
+        const counts = new Map();
+        for (const value of numbers) counts.set(value, (counts.get(value) || 0) + 1);
+        const highestCount = Math.max(...counts.values());
+        if (highestCount < 2) return "#N/A";
+        return Math.min(...[...counts].filter(([, count]) => count === highestCount).map(([value]) => value));
+      }
+
+      case "PERCENTILE": {
+        if (args.length !== 2) return "#NUM!";
+        const source = this.collectValues([args[0]]);
+        const error = source.find(value => this._isError(value));
+        if (error) return error;
+        const kValue = this._resolveSingleValue(args[1]);
+        if (this._isError(kValue)) return kValue;
+        const k = Number(kValue);
+        if (!Number.isFinite(k) || k < 0 || k > 1) return "#NUM!";
+        const numbers = source
+          .filter(value => !(value && value.isTextCell))
+          .map(value => this._parseNumberOrCurrency(value))
+          .filter(value => value !== null && Number.isFinite(value))
+          .sort((left, right) => left - right);
+        if (!numbers.length) return "#NUM!";
+        const rank = k * (numbers.length - 1);
+        const lower = Math.floor(rank);
+        const upper = Math.ceil(rank);
+        return numbers[lower] + (numbers[upper] - numbers[lower]) * (rank - lower);
+      }
+
       case "MEDIAN": {
         const nums = this.collectNumericValues(args).sort((a, b) => a - b);
         if (!nums.length) return "#NUM!";
@@ -2162,6 +2199,57 @@ export class FormulaEngine {
         return Math.round((end - start) / 86400000);
       }
 
+      case "YEARFRAC": {
+        if (args.length < 2 || args.length > 3) return "#VALUE!";
+        const startValue = this._resolveSingleValue(args[0]);
+        const endValue = this._resolveSingleValue(args[1]);
+        if (this._isError(startValue)) return startValue;
+        if (this._isError(endValue)) return endValue;
+        const start = this._parseDate(startValue);
+        const end = this._parseDate(endValue);
+        if (!start || !end) return "#VALUE!";
+        const basisValue = args[2] === undefined ? 0 : this._resolveSingleValue(args[2]);
+        if (this._isError(basisValue)) return basisValue;
+        const basis = Number(basisValue);
+        if (!Number.isInteger(basis) || basis < 0 || basis > 4) return "#NUM!";
+        const dayNumber = date => Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000;
+        const startDay = dayNumber(start);
+        const endDay = dayNumber(end);
+        if (basis === 2) return (endDay - startDay) / 360;
+        if (basis === 3) return (endDay - startDay) / 365;
+        if (basis === 1) {
+          const direction = startDay <= endDay ? 1 : -1;
+          let cursor = new Date(direction > 0 ? start : end);
+          const finish = direction > 0 ? end : start;
+          let fraction = 0;
+          while (cursor < finish) {
+            const nextYear = new Date(cursor.getFullYear() + 1, 0, 1);
+            const segmentEnd = nextYear < finish ? nextYear : finish;
+            const daysInYear = new Date(cursor.getFullYear(), 1, 29).getMonth() === 1 ? 366 : 365;
+            fraction += (dayNumber(segmentEnd) - dayNumber(cursor)) / daysInYear;
+            cursor = segmentEnd;
+          }
+          return fraction * direction;
+        }
+        let d1 = start.getDate();
+        let d2 = end.getDate();
+        let m1 = start.getMonth() + 1;
+        let m2 = end.getMonth() + 1;
+        let y1 = start.getFullYear();
+        let y2 = end.getFullYear();
+        const isLastFebruary = date => date.getMonth() === 1 && date.getDate() === new Date(date.getFullYear(), 2, 0).getDate();
+        if (basis === 0) {
+          if (isLastFebruary(start)) d1 = 30;
+          if (isLastFebruary(end) && isLastFebruary(start)) d2 = 30;
+          if (d1 === 31) d1 = 30;
+          if (d2 === 31 && d1 === 30) d2 = 30;
+        } else {
+          if (d1 === 31) d1 = 30;
+          if (d2 === 31) d2 = 30;
+        }
+        return (360 * (y2 - y1) + 30 * (m2 - m1) + d2 - d1) / 360;
+      }
+
       case "YEAR": {
         const arg = this._resolveSingleValue(args[0]);
         if (this._isError(arg)) return arg;
@@ -2340,6 +2428,58 @@ export class FormulaEngine {
           return match[0].toUpperCase().split("").reduce((acc, ch) => acc * 26 + ch.charCodeAt(0) - 64, 0);
         }
         return 1;
+      }
+
+      case "ADDRESS": {
+        if (args.length < 2 || args.length > 5) return "#VALUE!";
+        const rowValue = this._resolveSingleValue(args[0]);
+        const colValue = this._resolveSingleValue(args[1]);
+        if (this._isError(rowValue)) return rowValue;
+        if (this._isError(colValue)) return colValue;
+        const row = Math.trunc(Number(rowValue));
+        const col = Math.trunc(Number(colValue));
+        if (!Number.isFinite(row) || !Number.isFinite(col)) return "#VALUE!";
+        if (row < 1 || row > 1048576 || col < 1 || col > 16384) return "#VALUE!";
+        const absValue = args[2] === undefined ? 1 : this._resolveSingleValue(args[2]);
+        if (this._isError(absValue)) return absValue;
+        const absNum = Number(absValue);
+        if (![1, 2, 3, 4].includes(absNum)) return "#VALUE!";
+        const a1Value = args[3] === undefined ? true : this._resolveSingleValue(args[3]);
+        if (this._isError(a1Value)) return a1Value;
+        const a1 = a1Value !== false && String(a1Value).toUpperCase() !== "FALSE" && Number(a1Value) !== 0;
+        let address;
+        if (a1) {
+          const columnName = this._columnName(col - 1);
+          const colRef = absNum === 1 || absNum === 3 ? `$${columnName}` : columnName;
+          const rowRef = absNum === 1 || absNum === 2 ? `$${row}` : String(row);
+          address = `${colRef}${rowRef}`;
+        } else {
+          if (absNum !== 1) return "#VALUE!";
+          address = `R${row}C${col}`;
+        }
+        if (args[4] !== undefined) {
+          const sheetName = String(this._resolveSingleValue(args[4]) ?? "").replace(/^'|'$/g, "").replace(/''/g, "'");
+          if (this._isError(sheetName)) return sheetName;
+          if (!sheetName) return "#VALUE!";
+          const escapedSheetName = sheetName.replace(/'/g, "''");
+          const sheetPrefix = /^[A-Za-z_][A-Za-z0-9_.]*$/.test(sheetName) ? sheetName : `'${escapedSheetName}'`;
+          address = `${sheetPrefix}!${address}`;
+        }
+        return address;
+      }
+
+      case "FORMULATEXT": {
+        if (args.length !== 1) return "#VALUE!";
+        const reference = this._parseReference(args[0]);
+        if (reference.error) return reference.error;
+        if (reference.sheets) return "#N/A";
+        const cellRef = reference.ref.replace(/\$/g, "").toUpperCase();
+        if (!/^[A-Z]+\d+$/.test(cellRef)) return "#N/A";
+        const cells = reference.sheet && typeof this.sheetResolver === "function"
+          ? this.sheetResolver(reference.sheet)
+          : (typeof this.cellsData === "function" ? this.cellsData() : this.cellsData);
+        const formula = cells?.get?.(cellRef)?.formula ?? cells?.[cellRef]?.formula;
+        return typeof formula === "string" && formula.startsWith("=") ? formula : "#N/A";
       }
 
       case "IFS": {

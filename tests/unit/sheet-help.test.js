@@ -256,6 +256,20 @@ export async function runSheetHelpTests() {
     }
   });
 
+  await test("Help Sheet: hướng dẫn cụ thể các hàm thống kê và ngày nâng cao", () => {
+    const entry = getHelpEntryById("sheet.formula.excel2016Functions");
+    if (!entry || entry.ribbon?.tab !== "Công thức" || entry.ribbon?.group !== "Hàm tính toán") {
+      throw new Error("Thiếu bài hướng dẫn hàm nâng cao tại Công thức / Hàm tính toán");
+    }
+    const content = [entry.title, entry.summary, ...entry.steps].join(" ");
+    for (const name of ["MODE", "PERCENTILE", "ADDRESS", "FORMULATEXT", "YEARFRAC"]) {
+      if (!content.includes(name)) throw new Error(`Bài hướng dẫn thiếu ${name}`);
+    }
+    if (!searchHelpEntries("YEARFRAC", { app: "sheet" }).some(item => item.id === entry.id)) {
+      throw new Error("Không tìm được bài hướng dẫn YEARFRAC trong Trợ giúp Sheet");
+    }
+  });
+
   await test("Help Sheet: có bài Hợp nhất dữ liệu khớp ribbon tab Dữ liệu", () => {
     const entry = getHelpEntryById("sheet.data.consolidate");
     if (!entry) throw new Error("Thiếu bài sheet.data.consolidate");
