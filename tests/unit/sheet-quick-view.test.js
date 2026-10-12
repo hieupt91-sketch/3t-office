@@ -4,6 +4,7 @@ import {
   mapFormatBlocks,
   quickViewColumnLabel,
   restoreQuickViewState,
+  SheetQuickView,
   viewFormatToStyle
 } from "../../apps/sheet/sheet-quick-view.js";
 
@@ -77,6 +78,49 @@ export async function runSheetQuickViewTests() {
     assert(calls === 2 && value === 42, "failed request must not poison the cache");
   });
 
+  await test("P1 quick view giữ sửa ô và Ctrl+Z/Ctrl+Y trong journal", () => {
+    const view = new SheetQuickView({ timers: { setTimeout, clearTimeout } });
+    view.active = true;
+    view.root = { querySelectorAll: () => [] };
+    view.sheets = [{ name: "Sheet1", rows: 10, cols: 5 }];
+    view.selected = { row: 1, col: 0 };
+    view._queueValueEdit(1, 0, "TEST123");
+    assert(view.valueOverrides.get("0:1:0") === "TEST123", "typed value must appear in the quick model");
+    assert(view._undoPendingEdit() && view.valueOverrides.get("0:1:0") === "", "undo restores the initial blank value");
+    assert(view._redoPendingEdit() && view.valueOverrides.get("0:1:0") === "TEST123", "redo restores the typed value");
+  });
+
+  await test("P1 paste is one undoable group and replays only applied edits into the full grid", () => {
+    const view = new SheetQuickView({ timers: { setTimeout, clearTimeout } });
+    view.active = true;
+    view.root = { querySelectorAll: () => [] };
+    view.sheets = [{ name: "Sheet1", rows: 10, cols: 5 }];
+    view.selected = { row: 1, col: 0 };
+    view._pasteText("a\tb\nc\td");
+    assert(view.pendingHistory.length === 1 && view.pendingHistory[0].edits.length === 4, "a 2x2 paste is one history group");
+    view._undoPendingEdit();
+    const grid = {
+      activeSheet: "Sheet1", cellsData: new Map(), undoStack: [], redoStack: [],
+      setCellValue(col, row, value) { this.cellsData.set(`${col}${row}`, { val: value, formula: "", style: {} }); },
+      _recordHistory(action) { this.undoStack.push(action); this.redoStack = []; },
+      undo() {
+        const action = this.undoStack.pop(); if (!action) return false;
+        for (const [key, value] of Object.entries(action.before)) value ? this.cellsData.set(key, value) : this.cellsData.delete(key);
+        this.redoStack.push(action); return true;
+      },
+      redo() {
+        const action = this.redoStack.pop(); if (!action) return false;
+        for (const [key, value] of Object.entries(action.after)) value ? this.cellsData.set(key, value) : this.cellsData.delete(key);
+        this.undoStack.push(action); return true;
+      },
+      selectCell() {}, _renderVirtualRows() {}
+    };
+    assert(view.applyPendingEditsToGrid(grid), "journal must replay once after hydration");
+    assert(!grid.cellsData.has("A1") && !grid.cellsData.has("B1"), "undone paste must restore absent cells as absent");
+    assert(grid.undoStack.length === 0 && grid.redoStack.length === 1, "hydration keeps the undone paste available for redo");
+    assert(grid.redo() && grid.cellsData.get("A1")?.val === "a" && grid.cellsData.get("B2")?.val === "d", "redo after hydration reapplies the full paste");
+  });
+
   await test("P8 quick view chụp sheet, ô chọn và neo cuộn", () => {
     equal(captureQuickViewState({
       sheets: [{ name: "Tổng hợp" }, { name: "Chi tiết" }], activeSheet: 1,
@@ -127,7 +171,7 @@ export async function runSheetQuickViewTests() {
     await retry.listeners.click();
     assert(opens === 1 && openedPath === "E:\\báo cáo.xlsx", "retry reopens the source once");
     assert(closes === 0 && view.active === true, "the readable preview stays until the user closes the window");
-    assert(/Đã mở lại tệp/.test(status.textContent), `success message expected: ${status.textContent}`);
+    assert(/Đã mở bản gốc/.test(status.textContent) && /chép lại/.test(status.textContent), `success message expected: ${status.textContent}`);
   });
 
   await test("P8 quick view retry: a Python error result is shown again with the button, never treated as success", async () => {
@@ -154,14 +198,14 @@ export async function runSheetQuickViewTests() {
     assert(opens === 2, "a second attempt is possible after a failure");
   });
 
-  await test("P8 quick view without a reopen callback keeps the old wording and shows no button", async () => {
+  await test("P8 quick view without a reopen callback keeps the preview readable and shows no button", async () => {
     const { SheetQuickView } = await import("../../apps/sheet/sheet-quick-view.js");
     const makeElement = () => ({ attrs: {}, children: [], classList: { add() {}, remove() {} }, setAttribute() {}, addEventListener() {}, appendChild(child) { this.children.push(child); }, remove() {} });
     const status = makeElement();
     const view = new SheetQuickView({ documentRef: { createElement: makeElement }, grid: { container: { classList: { remove() {} } } }, bridge: {} });
     view.active = true; view.docId = "doc"; view.root = makeElement(); view.status = status;
     await view.failFullLoad();
-    assert(status.children.length === 0 && /đóng và mở lại tệp/.test(status.textContent), "no button, old instruction text");
+    assert(status.children.length === 0 && /chép lại nội dung sửa/.test(status.textContent), "no button, preserve temporary edits before reopening");
   });
 
   return results;

@@ -3825,8 +3825,9 @@ class VnOfficeApi:
             # Quick view is an optional first paint; the full import owns error reporting.
             active_sheet_index = 0
         first_sheet = opened["sheets"][active_sheet_index]
-        r1 = min(max(0, int(first_sheet.get("rows", 1)) - 1), 79)
-        c1 = min(max(0, int(first_sheet.get("cols", 1)) - 1), 29)
+        # First paint covers the ordinary viewport; later scrolls request adjacent 40x20 windows.
+        r1 = min(max(0, int(first_sheet.get("rows", 1)) - 1), 39)
+        c1 = min(max(0, int(first_sheet.get("cols", 1)) - 1), 19)
         first_window = self.sheet_view_window(doc_id, active_sheet_index, 0, 0, r1, c1, True, True)
         if not first_window.get("ok"):
             self.sheet_view_close(doc_id)
@@ -3837,6 +3838,7 @@ class VnOfficeApi:
             return False
         payload = {
             "doc_id": doc_id,
+            "sourcePath": path,
             "sheets": opened["sheets"],
             "sheet": active_sheet_index,
             "r0": 0,

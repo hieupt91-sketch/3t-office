@@ -121,7 +121,7 @@ export class SheetApp {
         grid: this.grid,
         shell: this.shell,
         bridge: globalUnoBridge,
-        getSourceFilePath: () => this.adapter?.sourceFilePath,
+        getSourceFilePath: () => this.quickView?.sourcePath || this.adapter?.sourceFilePath,
         reopenFile: filePath => globalUnoBridge.openFileInNewWindow(filePath, "sheet")
       });
       this.quickView.install();
