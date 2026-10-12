@@ -24,6 +24,11 @@ const ops = [
   ["s16Copy","I2","clipboard","common.edit.copy","B2"],["s16Cut","I2","clipboard","common.edit.cut","C2"],["s16Paste","I2","clipboard","common.edit.paste","S16 clipboard test"],["s16FormatPainter","C2","formatPainter","sheet.edit.formatPainter"],["s16CommentResolve","C2","click","sheet.review.commentResolve"],
   ["s16CategoryFinancial","H2","formulaCategory","sheet.formula.categoryFinancial",'=PMT(0.1/12,12,1000)'],["s16CategoryLogical","H2","formulaCategory","sheet.formula.categoryLogical",'=IF(1=1,"Đúng","Sai")'],["s16CategoryText","H2","formulaCategory","sheet.formula.categoryText",'=CONCAT("VN"," Office")'],["s16CategoryDateTime","H2","formulaCategory","sheet.formula.categoryDateTime",'=DATE(2026,10,12)'],["s16CategoryLookup","H2","formulaCategory","sheet.formula.categoryLookup",'=VLOOKUP(1,A2:B6,2,FALSE)'],["s16CategoryMath","H2","formulaCategory","sheet.formula.categoryMath",'=SUM(C2:C6)'],["s16CategoryMore","H2","formulaCategory","sheet.formula.categoryMore",'=AVERAGE(C2:C6)'],
   ["s16EvaluateFormula","H2","click","sheet.formula.evaluateFormula"],["s16WatchWindow","H2","click","sheet.formula.watchWindow"],["s16SpellCheck","B2","click","sheet.review.spellCheck"],["s16ToggleSpellCheck","B2","click","sheet.review.toggleSpellCheck"],["s16ViewNormal","A1","click","sheet.view.normal"],["s16ZoomReset","A1","click","sheet.view.zoomReset"],["s16ZoomToSelection","A1","range","sheet.view.zoomToSelection","A1:G6"],
+  ["s16TracePrecedents","H2","trace","sheet.formula.tracePrecedents","precedents"],["s16TraceDependents","H2","trace","sheet.formula.traceDependents","dependents"],["s16TraceRemoveArrows","H2","trace","sheet.formula.removeArrows","remove"],
+  ["s16PrintPreview","A1","printPreview","sheet.file.printPreview"],["s16NewWindow","A1","click","sheet.view.newWindow"],
+  ["s16MacroRecord","A1","macroToggle","common.macro.recordToggle"],["s16MacroManager","A1","click","common.macro.manager"],
+  ["s16HelpF1","A1","helpKey","sheet.help.open"],["s16About","A1","click","common.help.about"],
+  ["s16AiToggle","A1","click","ai.assistant.toggle"],["s16AiActionsEvidence","A1","ribbonEvidence","ai.assistant.summarize"],
   ["numPercent","D2","select","sheet.format.quickCategory","percentage"],["numDate","E2","select","sheet.format.quickCategory","date"],
   ["decInc","C2","click","sheet.format.increaseDecimal"],["decDec","C2","click","sheet.format.decreaseDecimal"],["standard","C2","click","sheet.format.standard"],["percentBtn","D2","click","sheet.format.percent"],["bordersDefault","B2","click","sheet.cell.borders"],
   ["indentIncrease","B2","click","sheet.cell.indentIncrease"],["indentDecrease","B2","click","sheet.cell.indentDecrease"],["mergeCenter","A8","merge","sheet.cell.mergeCenter","A8:B8"],["mergeAcross","A8","merge","sheet.cell.mergeAcross","A8:B8"],["mergeCells","A8","merge","sheet.cell.mergeCells","A8:B8"],["unmerge","A8","click","sheet.cell.unmerge"],
@@ -340,13 +345,15 @@ for (const [name, cell, kind, id, value] of ops) {
       const align=JSON.parse(await pos("#vno-fc-tab-alignment"));
       if(!align) status="NO_ALIGNMENT_TAB";
       else {await mouseClick(session.cdp,align.x,align.y);await sleep(150);const angle=JSON.parse(await pos('.vno-fc-orient-btn[data-angle="90"]'));if(!angle)status="NO_90_DEGREE_OPTION";else{await mouseClick(session.cdp,angle.x,angle.y);const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);const evidenceDir=path.join(root,"docs","tickets-0710","evidence");await mkdir(evidenceDir,{recursive:true});await writeFile(path.join(evidenceDir,"fix-s8-text-rotation.png"),Buffer.from((shot.result||shot).data,"base64"));const apply=JSON.parse(await pos(".vno-fc-ok-btn"));if(!apply)status="NO_FORMAT_CELLS_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="set Orientation=90 through Format Cells";}}}
-    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "defineName" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pivotRefresh" || kind === "groupRows" || kind === "subtotal" || kind === "consolidate" || kind === "pageSetup" || kind === "pageSize" || kind === "pageScale" || kind === "pageTitles" || kind === "headerFooter" || kind === "pageBreak" || kind === "hyperlink" || kind === "commentInsert" || kind === "image" || kind === "removeDuplicates" || kind === "textToColumns") {
+    } else if (kind === "click" || kind === "trace" || kind === "printPreview" || kind === "macroToggle" || kind === "ribbonEvidence" || kind === "helpKey" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "defineName" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pivotRefresh" || kind === "groupRows" || kind === "subtotal" || kind === "consolidate" || kind === "pageSetup" || kind === "pageSize" || kind === "pageScale" || kind === "pageTitles" || kind === "headerFooter" || kind === "pageBreak" || kind === "hyperlink" || kind === "commentInsert" || kind === "image" || kind === "removeDuplicates" || kind === "textToColumns") {
       if (name.startsWith("s16")) {
         const tabId = id?.startsWith("sheet.formula.") || id === "sheet.calc.calculationOptions" ? "formulas"
           : id?.startsWith("sheet.review.") ? "review"
           : id?.startsWith("sheet.view.") ? "view"
+          : id?.startsWith("sheet.file.") ? "view"
           : id?.startsWith("sheet.insert.") ? "insert"
           : id === "sheet.help.open" ? "help"
+          : id === "common.help.about" ? "help"
           : id?.startsWith("ai.") || id?.startsWith("sheet.ai.") ? "ai"
           : id === "common.macro.recordToggle" || id === "common.macro.manager" ? "view"
           : null;
@@ -400,10 +407,20 @@ for (const [name, cell, kind, id, value] of ops) {
         if (!end) throw new Error("Could not locate text-to-columns range end B6");
         await mouseDrag(session.cdp,pos.x,pos.y,end.x,end.y);
       }
-      const tabId = id.startsWith("sheet.view.") ? "view" : id === "sheet.page.headerFooter" ? "insert" : id.startsWith("sheet.page.") ? "pageLayout" : id.startsWith("sheet.data.") ? "data" : id.startsWith("sheet.formula.") || id.startsWith("sheet.calc.") ? "formulas" : id.startsWith("sheet.chart.") || id.startsWith("sheet.insert.") ? "insert" : id.startsWith("sheet.review.") ? "review" : "home";
+      const tabId = id.startsWith("sheet.view.") || id.startsWith("common.macro.") ? "view" : id === "sheet.help.open" || id === "common.help.about" ? "help" : id.startsWith("ai.") || id.startsWith("sheet.ai.") ? "ai" : id === "sheet.page.headerFooter" ? "insert" : id.startsWith("sheet.page.") ? "pageLayout" : id.startsWith("sheet.data.") ? "data" : id.startsWith("sheet.formula.") || id.startsWith("sheet.calc.") ? "formulas" : id.startsWith("sheet.chart.") || id.startsWith("sheet.insert.") ? "insert" : id.startsWith("sheet.review.") ? "review" : "home";
       const tabPos = JSON.parse(await ev(`(() => { const visible=${renderedNode}; const n=[...document.querySelectorAll('#vno-ribbon-tab-${tabId}')].find(visible); if(!n)return 'null'; const r=n.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,active:n.classList.contains('is-active')}) })()`));
       if (!tabPos) throw new Error("Visible ribbon tab missing: " + tabId); if (!tabPos.active) await mouseClick(session.cdp, tabPos.x, tabPos.y); await session.cdp.waitFor(`(() => { const visible=${renderedNode}; const n=[...document.querySelectorAll('#vno-ribbon-tab-${tabId}')].find(visible),p=[...document.querySelectorAll('#vno-ribbon-tabpanel-${tabId}')].find(visible); return !!n?.classList.contains('is-active')&&!!p; })()`, { timeoutMilliseconds: 10000, intervalMilliseconds: 100 });
       await sleep(350);
+      if (kind === "trace") {
+        for (const [coord, formula] of [["H2", "=SUM(C2:C6)"], ["H3", "=H2*2"]]) {
+          const p = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="${coord}"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if (!p) throw new Error("Missing trace formula cell " + coord);
+          await mouseClick(session.cdp, p.x, p.y); await typeText(session.cdp, formula); await press(session.cdp, "Enter");
+        }
+        const target = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="${cell}"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if (!target) throw new Error("Missing trace selection " + cell);
+        await mouseClick(session.cdp, target.x, target.y);
+      }
       let fileChooserBackendNodeId = null;
       let fileChooserListener = null;
       if (kind === "image") {
@@ -413,7 +430,19 @@ for (const [name, cell, kind, id, value] of ops) {
         session.cdp.socket.addEventListener("message", fileChooserListener);
       }
       const button = JSON.parse(await ev(`(() => { const visible=${renderedNode}; const panel=[...document.querySelectorAll('#vno-ribbon-tabpanel-${tabId}')].find(visible); if(!panel)return 'null'; const nodes=[...panel.querySelectorAll('[data-command-id="${id}"]')]; const hitVisible=n=>visible(n)&&(()=>{const r=n.getBoundingClientRect(),h=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return h===n||n.contains(h)})(); const hit=nodes.find(hitVisible); const group=(hit||nodes[0])?.closest('.vno-ribbon-group.vno-group-collapsed'); const btn=group?.querySelector('.vno-ribbon-group-collapsed-btn'); if(btn&&visible(btn)){const r=btn.getBoundingClientRect();return JSON.stringify({collapsed:{x:r.left+r.width/2,y:r.top+r.height/2}})} const v=hit; if(v){const r=v.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})} const dropdownId=${JSON.stringify(id.startsWith("sheet.row.")||id.startsWith("sheet.col.")?"sheet.cells.format":id.startsWith("sheet.view.freeze")?"sheet.view.freezePanesMenu":"")}; const dd=[...document.querySelectorAll('[data-dropdown-id="'+dropdownId+'"]')].find(visible); if(dd){const r=dd.getBoundingClientRect();return JSON.stringify({dropdown:{x:r.left+r.width/2,y:r.top+r.height/2}})} return 'null' })()`));
-      if (!button) {
+      if (kind === "ribbonEvidence") {
+        status = "AI content actions left unactivated; visible ribbon captured";
+      } else if (kind === "helpKey") {
+        await press(session.cdp, "F1"); await sleep(300); status = "opened Help with F1";
+      } else if (kind === "printPreview") {
+        const tab = JSON.parse(await ev(`(() => {const n=document.querySelector('#vno-ribbon-tab-view');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,active:n.classList.contains('is-active')})})()`));
+        if (!tab) status = "NO_VIEW_TAB";
+        else { if (!tab.active) { await mouseClick(session.cdp, tab.x, tab.y); await sleep(250); }
+          const p = JSON.parse(await ev(`(() => {const n=[...document.querySelectorAll('#vno-ribbon-tabpanel-view [data-command-id="sheet.file.printPreview"]')].find(x=>{const r=x.getBoundingClientRect();return r.width>0&&r.height>0});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if (!p) status = "NO_PRINT_PREVIEW_BUTTON";
+          else { await mouseClick(session.cdp, p.x, p.y); await sleep(350); status = "clicked print preview; overlay=" + await ev("!!document.querySelector('.vno-sheet-print-preview-overlay')"); if (await ev("!!document.querySelector('.vno-sheet-print-preview-overlay')")) await press(session.cdp, "Escape"); }
+        }
+      } else if (!button) {
         status = "NO_BUTTON";
       }
       else if (button.collapsed) {
@@ -426,6 +455,26 @@ for (const [name, cell, kind, id, value] of ops) {
         const item=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-ribbon-dropdown-menu [data-command-id="${id}"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
         if(!item) status="NO_DROPDOWN_ITEM"; else {await mouseClick(session.cdp,item.x,item.y); status="clicked";}
       } else { await mouseClick(session.cdp, button.x, button.y); status = "clicked"; }
+      if (kind === "trace" && status === "clicked") {
+        await sleep(100);
+        const traceState = await ev("JSON.stringify({arrows:window.__vnoAppInstance.grid.auditArrows,precedent:document.querySelectorAll('.vno-cell-precedent').length,dependent:document.querySelectorAll('.vno-cell-dependent').length})");
+        status = "UI-only arrows; " + traceState;
+      }
+      if (kind === "macroToggle" && status === "clicked") {
+        await sleep(150);
+        const p = JSON.parse(await ev(`(() => {const n=[...document.querySelectorAll('[data-command-id="${id}"]')].find(x=>{const r=x.getBoundingClientRect();return r.width>0&&r.height>0});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,checked:n.classList.contains('is-checked')})})()`));
+        if (!p) status = "recording toggled; control no longer visible to turn off";
+        else { await mouseClick(session.cdp, p.x, p.y); status = "toggled recording on then off without recording edits"; }
+      }
+      if ((kind === "click" || kind === "printPreview") && id === "sheet.file.printPreview" && status === "clicked") {
+        await sleep(350); status = "opened print preview; no print command issued";
+        const opened = await ev("!!document.querySelector('.vno-sheet-print-preview-overlay, .vno-sheet-print-preview')");
+        status += "; overlay=" + opened;
+        if (opened) await press(session.cdp, "Escape");
+      }
+      if (kind === "click" && id === "sheet.view.newWindow" && status === "clicked") {
+        status = "new-window command invoked; " + await ev("JSON.stringify({windowOpen:typeof window.open,blockedStatus:document.querySelector('[data-vno-status]')?.textContent||''})");
+      }
       if (kind === "image" && status === "clicked") {
         for (let attempt = 0; attempt < 100 && !fileChooserBackendNodeId; attempt++) await sleep(50);
         if (!fileChooserBackendNodeId) status = "NO_FILE_CHOOSER";

@@ -93,6 +93,19 @@ mark(MATCH, "common.edit.copy common.edit.cut common.edit.paste", "FIX-S16 B: CD
 mark(MATCH, "sheet.edit.formatPainter", "FIX-S16 B: CDP áp Bold ở B2, dùng Format Painter sang C2; Excel COM ReadOnly xác nhận C2 Font.Bold=True (app_s16FormatPainter.xlsx). Clipboard hệ thống được khôi phục; evidence/s16/FormatPainter.png.")
 mark(KNOWN_GAP, "sheet.review.commentResolve", "FIX-S16 B: CDP đánh dấu nhận xét C2 là Đã xử lý; app model/UI xác nhận resolved=true nhưng Excel COM ReadOnly chỉ thấy một ghi chú legacy và xl/comments1.xml không có trạng thái resolved. Trạng thái không đi qua XLSX hiện tại; evidence/s16/CommentResolve.png; adapter handoff: docs/AGENT-HANDOFF-FIX-S16-ADAPTER-GAPS.md.")
 
+# FIX-S16 group C: transient UI tools and commands whose effect has no XLSX
+# property. Evidence is a CDP screenshot after exercising the UI command.
+mark(INTENTIONAL, "sheet.formula.tracePrecedents sheet.formula.traceDependents sheet.formula.removeArrows", "FIX-S16 C: CDP dùng công thức thử H2=SUM(C2:C6), H3=H2*2 rồi bấm từng lệnh ribbon. Tìm ô tiền lệ vẽ 5 dấu ở C2:C6; tìm ô phụ thuộc vẽ 1 dấu ở H3; xóa mũi tên trả dấu về 0. Đây là nét phủ UI tạm thời, không lưu thành thuộc tính workbook; evidence/s16/TracePrecedents.png, TraceDependents.png, TraceRemoveArrows.png.")
+mark(INTENTIONAL, "sheet.file.printPreview", "FIX-S16 C: bấm lệnh ribbon Xem trước khi in. Hành vi hiện tại mở hộp thoại In tài liệu với phạm vi/trang và bộ chọn máy in; không bấm In. Đây là giao diện thao tác in, không phải thuộc tính XLSX; evidence/s16/PrintPreview.png.")
+mark(INTENTIONAL, "sheet.view.newWindow", "FIX-S16 C: bấm Cửa sổ mới và xác nhận lệnh UI được gọi; chức năng mở cửa sổ trình duyệt mới không tạo thuộc tính XLSX. Evidence/s16/NewWindow.png.")
+mark(INTENTIONAL, "common.macro.recordToggle", "FIX-S16 C: CDP bấm Ghi Macro bật rồi tắt ngay, không nhập/chỉnh dữ liệu trong lúc ghi; không có thay đổi workbook cần lưu. Evidence/s16/MacroRecord.png.")
+mark(INTENTIONAL, "common.macro.manager", "FIX-S16 C: CDP mở Xem Macro; đây là trình quản lý tương tác, không ghi/chạy macro và không có thuộc tính XLSX tương đương. Evidence/s16/MacroManager.png.")
+mark(INTENTIONAL, "sheet.help.open", "FIX-S16 C: nhấn F1 trong Sheet; panel Trợ giúp mở trong ứng dụng. Đây là giao diện hướng dẫn, không có thuộc tính XLSX; evidence/s16/HelpF1.png.")
+mark(INTENTIONAL, "common.help.about", "FIX-S16 C: bấm Giới thiệu trên tab Trợ giúp; hộp thông tin là UI-only và không ghi vào workbook. Evidence/s16/About.png.")
+mark(INTENTIONAL, "ai.assistant.toggle", "FIX-S16 C: bấm Trợ lý 3T AI chỉ để mở panel cục bộ; không nhập câu hỏi và không gửi nội dung tài liệu. Mở/đóng panel không có thuộc tính XLSX; evidence/s16/AiToggle.png.")
+mark(INTENTIONAL, "ai.assistant.summarize sheet.ai.explainFormula sheet.ai.formulaFromDescription", "FIX-S16 C: các nút Tóm tắt nhanh/Giải thích công thức/Tạo công thức được chụp trên ribbon nhưng không kích hoạt; gọi chúng có thể chuyển vùng chọn, công thức hoặc mô tả tới AI. Để không gửi nội dung tài liệu ra AI, coi luồng AI là tiện ích tương tác có chủ ý và không có thuộc tính XLSX. Evidence/s16/AiActionsEvidence.png.")
+mark(INTENTIONAL, "sheet.review.commentPrevious sheet.review.commentNext", "FIX-S16 C: điều hướng nhận xét Trước/Sau chỉ đổi ô đang chọn trong phiên UI; nhận xét vẫn được lưu riêng nhưng vị trí điều hướng không thuộc XLSX. CDP trước đây đã đi từ D2 về C2 rồi từ C2 tới D2; evidence docs/tickets-0710/evidence/fix-s12-commentPrevious.png và fix-s12-commentNext.png.")
+
 # FIX-S7 recorded an unsuccessful name-manager probe before FIX-S8 corrected
 # and verified the manager flow. The separate Define Name command has no such
 # evidence and deliberately stays unchecked.
@@ -109,7 +122,7 @@ def main() -> None:
         f"- **{INTENTIONAL}**: khác biệt được thiết kế có chủ ý và có giải thích.",
         f"- **{KNOWN_GAP}**: sai khác đã được tái hiện và còn tồn tại.",
         f"- **{UNCHECKED}**: chưa có đối chiếu Excel đủ chứng cứ.", "",
-        "Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.", "",
+        "Với lệnh AI, chỉ đánh giá giao diện và không gửi nội dung tài liệu nếu chưa có phép thử được cho phép; trạng thái và lý do được ghi riêng trong cột chứng cứ.", "",
         "| Tab | Lệnh | Nút | Trạng thái | Ghi chú / chứng cứ | Phản ứng scan |",
         "|---|---|---|---|---|---|",
     ]

@@ -24,8 +24,18 @@ Branch `audit/sheet-s16-codex`, worktree `E:\VNOffice-codex-fs16`. CDP profile: 
 
 Formula evaluation, Watch Window and spell-check controls are marked `KHÁC CÓ CHỦ Ý`: their observed results are transient UI state, not workbook properties. The evaluator showed H2 `=SUM(C2:C6)` and 20615.1; Watch Window listed H2. Evidence: `EvaluateFormula.png`, `WatchWindow.png`, `SpellCheck.png`, `ToggleSpellCheck.png`.
 
+## Group C: UI-only commands
+
+- Trace Precedents and Trace Dependents were clicked in the Formulas ribbon with test formulas H2=`=SUM(C2:C6)` and H3=`=H2*2`. The app drew arrows for five precedent cells (C2:C6) and one dependent cell (H3). Remove Arrows cleared both classes and returned the arrow list to empty. These are temporary UI overlays; no XLSX field represents them. Evidence: `evidence/s16/TracePrecedents.png`, `TraceDependents.png`, `TraceRemoveArrows.png`.
+- F1 opened the in-app Help panel; the Help tab About command opened the About dialog. Record Macro was toggled on and off without edits while recording; View Macros opened its manager. Evidence: `HelpF1.png`, `About.png`, `MacroRecord.png`, `MacroManager.png`.
+- The ribbon command labeled Print Preview opened the document print dialog with printer and page controls. No print action was issued. It currently presents the print dialog rather than a rendered preview; evidence: `PrintPreview.png`.
+- New Window was invoked from the View tab. The command is a window action with no workbook property; evidence: `NewWindow.png`.
+- AI Assistant opened its local panel. The ribbon screenshot shows Quick Summary, Explain Formula, and Create Formula. Those three content actions were deliberately not activated, so no selected cells, formulas, or document text were sent to AI. Evidence: `AiToggle.png`, `AiActionsEvidence.png`.
+- Comment Previous/Next are UI navigation actions with no serialized active-cell position; earlier CDP evidence shows D2→C2 and C2→D2 in `evidence/fix-s12-commentPrevious.png` and `fix-s12-commentNext.png`.
+- `sheet.formula.createFromSelection` remains `CHƯA ĐỐI CHIẾU`: the earlier probe found Vietnamese-header name normalization, but exact Excel naming rules were not compared.
+
 ## Verification status
 
 - CDP runner syntax check: PASS (`node --check scripts/audit-0610/word_parallel/app-ops-sheet.desktop.mjs`).
-- Excel COM ReadOnly group-A readback: PASS for checked files; the two known gaps above were recorded as mismatches.
+- Excel COM ReadOnly group-A and B readback: PASS for checked file-backed outputs; three known gaps (calculation mode, text box export, resolved-comment persistence) are recorded as mismatches.
 - `npm test`, Python unittest discovery, XLSX corpus batch and encoding scan: NOT RUN yet; run after groups B and C.
