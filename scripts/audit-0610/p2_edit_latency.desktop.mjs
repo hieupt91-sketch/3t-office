@@ -102,6 +102,10 @@ try {
   })()`);
   console.error(`[P2] Full-recalc oracle finished (${oracle.formulaCount} formulas; ${oracle.mismatchCount} differences)`);
   console.log(JSON.stringify({file,baselineFormulaCount,target:{sheet:target.sheet,coord:target.coord,dependentFormulaCount:target.count,fallback:target.fallback,noDependents:target.noDependents||false,originalValue:target.originalValue},times,editedValue:edited.editedValue,undoValue,undoRestored:Object.is(undoValue,target.originalValue),redoValue:redoState.value,redoRestored:Object.is(redoState.value,edited.editedValue),oracle}));
+} catch (error) {
+  console.error("[P2] Desktop failure:", error?.stack || error);
+  if (session?.output) console.error("[P2] Desktop process output:\n" + session.output);
+  throw error;
 } finally {
   await session.close();
 }
