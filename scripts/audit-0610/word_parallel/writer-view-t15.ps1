@@ -38,7 +38,6 @@ try {
     $doc.PrintPreview()
     Write-Output 'Entered Word Print Preview.'
     $result.print.preview = [ordered]@{ viewType = [int]$word.ActiveWindow.View.Type; pages = [int]$doc.ComputeStatistics(2); pageFit = [int]$word.ActiveWindow.View.Zoom.PageFit; percentage = [int]$word.ActiveWindow.View.Zoom.Percentage }
-    $word.ActiveWindow.View.Close()
   } finally { $doc.Close(0) }
 
   Write-Output 'Opening generated WordArt DOCX.'
