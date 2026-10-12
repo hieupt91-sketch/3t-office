@@ -1732,6 +1732,7 @@ def _apply_native_export_postprocess(
             else:
                 patched = patcher.postprocess_sheet_xlsx(
                     original, source_fods=fods, source_xlsx_bytes=source_xlsx_bytes,
+                    workbook_filename=Path(out_path).name,
                 )
             if patched != original:
                 with open(out_path, "wb") as handle:

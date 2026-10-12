@@ -4845,9 +4845,14 @@ def overlay_pivot_chart_metadata_to_fods(xlsx_bytes: bytes, fods_xml: str | None
 
 
 def _apply_pivot_chart_links_from_fods(
-    xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
+    xlsx_bytes: bytes,
+    source_fods: str | None,
+    replacements: dict[str, str],
+    workbook_filename: str | None = None,
 ) -> None:
     """Bind exported PivotCharts to LibreOffice's existing PivotTable parts."""
+    if not workbook_filename:
+        return
     charts_by_sheet = _fods_pivot_charts(source_fods)
     if not any(any(pivot_id for pivot_id in ids) for ids in charts_by_sheet.values()):
         return
@@ -4863,6 +4868,12 @@ def _apply_pivot_chart_links_from_fods(
             name = _xml_attrs(definition.group(1)).get("name") if definition else None
             if name:
                 pivot_parts[_unescape_xml(name)] = part
+
+        pivot_sheet_by_part: dict[str, str] = {}
+        for sheet_name, sheet_part in sheet_entries.items():
+            for related_part in _read_relationships(package, sheet_part).values():
+                if related_part in pivot_parts.values():
+                    pivot_sheet_by_part[related_part] = sheet_name
 
         for sheet_name, pivot_ids in charts_by_sheet.items():
             sheet_part = _sheet_name_equivalent_value(sheet_entries, sheet_name)
@@ -4900,12 +4911,16 @@ def _apply_pivot_chart_links_from_fods(
                 pivot_part = pivot_parts.get(pivot_name)
                 if not pivot_part:
                     continue
+                pivot_sheet = pivot_sheet_by_part.get(pivot_part)
+                if not pivot_sheet:
+                    continue
+                pivot_source_name = f"[{workbook_filename}]{pivot_sheet}!{pivot_name}"
                 pivot_xml = replacements.get(pivot_part) or package.read(pivot_part).decode("utf-8", errors="replace")
                 chart_id = pivot_chart_counts.get(pivot_id, 0)
                 pivot_chart_counts[pivot_id] = chart_id + 1
                 fmt_id = 0
                 chart_xml = replacements.get(chart_part) or package.read(chart_part).decode("utf-8", errors="replace")
-                updated_chart = _insert_pivot_chart_binding(chart_xml, pivot_name, chart_id, fmt_id)
+                updated_chart = _insert_pivot_chart_binding(chart_xml, pivot_source_name, chart_id, fmt_id)
                 updated_pivot = _add_pivot_chart_format(pivot_xml, chart_id, fmt_id)
                 if updated_chart != chart_xml:
                     replacements[chart_part] = updated_chart
@@ -4919,6 +4934,7 @@ def postprocess_sheet_xlsx(
     source_fods: str | None = None,
     enabled: bool | None = None,
     source_xlsx_bytes: bytes | None = None,
+    workbook_filename: str | None = None,
 ) -> bytes:
     """Return patched XLSX bytes, or the original buffer when no patch is needed."""
     replacements: dict[str, str] = {}
@@ -5219,7 +5235,7 @@ def postprocess_sheet_xlsx(
         _apply_workbook_view_state_from_fods(xlsx_bytes, source_fods, replacements)
         _clear_print_areas_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_refreshed_pivot_locations_from_fods(xlsx_bytes, source_fods, replacements)
-        _apply_pivot_chart_links_from_fods(xlsx_bytes, source_fods, replacements)
+        _apply_pivot_chart_links_from_fods(xlsx_bytes, source_fods, replacements, workbook_filename)
 
     if source_fods:
         _apply_sheet_text_boxes_to_xlsx(xlsx_bytes, _parse_fods_text_boxes(source_fods), replacements)
