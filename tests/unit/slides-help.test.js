@@ -84,6 +84,22 @@ export async function runSlidesHelpTests() {
     if (foldHelpText("Chữ nghệ thuật") !== "chu nghe thuat") throw new Error("foldHelpText không bỏ dấu tiếng Việt");
   });
 
+  await test("Help Slides L11: hướng dẫn thao tác nhóm, chữ nghệ thuật, bố cục, chủ đề và chuyển tiếp sau khi mở lại", () => {
+    const byId = Object.fromEntries(SLIDES_HELP_ENTRIES.map((entry) => [entry.id, entry]));
+    const diagram = byId["slides.diagram.insert"];
+    const wordArt = byId["slides.insert.wordart"];
+    const layouts = byId["slides.slide.manage"];
+    const theme = byId["slides.design.themeAndSize"];
+    const transition = byId["slides.transition.apply"];
+    if (!diagram.steps.join(" ").includes("di chuyển cụm")) throw new Error("Thiếu hướng dẫn chọn và di chuyển sơ đồ theo nhóm");
+    if (!wordArt.steps.join(" ").includes("mở lại")) throw new Error("Thiếu hướng dẫn sửa chữ nghệ thuật sau khi mở lại");
+    if (!layouts.steps.join(" ").includes("Hai nội dung")) throw new Error("Thiếu hướng dẫn kiểm tra bố cục Hai nội dung");
+    if (!theme.steps.join(" ").includes("màu, phông")) throw new Error("Thiếu hướng dẫn kiểm tra chủ đề sau khi mở lại");
+    if (!transition.steps.join(" ").includes("mở lại")) throw new Error("Thiếu hướng dẫn giữ chuyển tiếp sau khi mở lại");
+    const touched = [diagram, wordArt].flatMap((entry) => [entry.title, entry.summary, ...entry.steps]).join(" ");
+    if (/SmartArt|Microsoft|PowerPoint|WordArt/i.test(touched)) throw new Error("Hướng dẫn tính năng mới có nhắc tên sản phẩm khác");
+  });
+
   await test("Help Slides: getHelpEntryById nhận cả id bài và commandId thành viên", () => {
     const byGroup = getHelpEntryById("slides.text.fontParagraph");
     const byCommand = getHelpEntryById("slides.text.bold");
@@ -108,10 +124,10 @@ export async function runSlidesHelpTests() {
 
   await test("Help Slides: HelpPanel lọc danh sách theo query, không lộ bài Writer/Sheet", () => {
     const panel = new HelpPanel({ app: "slides" });
-    panel._query = "smartart";
+    panel._query = "sơ đồ";
     const visible = panel.getVisibleEntries();
     if (!visible.some((entry) => entry.id === "slides.diagram.insert")) {
-      throw new Error("Panel không lọc được Sơ đồ/SmartArt");
+      throw new Error("Panel không lọc được bài Sơ đồ");
     }
     if (visible.some((entry) => entry.id === "slides.transition.apply")) {
       throw new Error("Panel lộ bài không khớp query");

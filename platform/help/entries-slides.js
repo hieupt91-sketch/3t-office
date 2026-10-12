@@ -25,15 +25,15 @@ export const SLIDES_HELP_ENTRIES = [
     id: "slides.diagram.insert",
     app: "slides",
     commandIds: ["slides.diagram.insert"],
-    title: "Chèn sơ đồ (SmartArt)",
-    summary: "Chèn sơ đồ Danh sách theo bước, Quy trình theo chu kỳ, Phân cấp tổ chức hoặc Danh sách phân cấp. Chọn số hộp từ 3 đến 6, rồi sửa chữ trực tiếp trên slide.",
+    title: "Chèn sơ đồ",
+    summary: "Tạo sơ đồ quy trình, chu kỳ, phân cấp hoặc danh sách. Chọn từ 3 đến 6 hộp, sửa chữ ngay trên trang chiếu; cả sơ đồ được chọn, di chuyển và lưu lại như một nhóm.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Minh họa" },
-    keywords: ["sơ đồ", "smartart", "diagram", "quy trình", "chu kỳ", "phân cấp", "process", "hierarchy"],
+    keywords: ["sơ đồ", "diagram", "quy trình", "chu kỳ", "phân cấp", "process", "hierarchy"],
     steps: [
-      "Mở trang chiếu đích. Tab Chèn, nhóm Minh họa, nhấn Sơ đồ (nút lớn, cạnh Hình khối và Biểu đồ).",
-      "Hộp thoại Chèn sơ đồ: chọn một trong bốn kiểu — Danh sách theo bước (1 → 2 → 3), Quy trình theo chu kỳ (↻), Phân cấp tổ chức, Danh sách phân cấp. Số lượng hộp: 3–6 (mặc định 4).",
-      "Nhấn Chèn sơ đồ. Các hộp hiện trên vùng soạn thảo; nhấp vào chữ để sửa (Bước 1, Lãnh đạo, Bộ phận…). Kéo góc để đổi kích thước.",
-      "Hoàn tác bằng Ctrl+Z (gỡ cả cụm sơ đồ vừa chèn). Có thể nhóm/bỏ nhóm đối tượng bằng Ctrl+G / Ctrl+Shift+G sau khi chọn nhiều hình."
+      "Tab Chèn > nhóm Minh họa > Sơ đồ. Chọn trang chiếu cần thêm sơ đồ rồi nhấn Sơ đồ.",
+      "Trong hộp Chèn sơ đồ, chọn Danh sách theo bước, Quy trình theo chu kỳ, Phân cấp tổ chức hoặc Danh sách phân cấp; chọn số hộp từ 3 đến 6 rồi nhấn Chèn sơ đồ.",
+      "Nhấp vào chữ trong hộp để sửa. Nhấp một hộp để chọn cả sơ đồ; kéo một hộp để di chuyển cụm. Dùng các nút kích thước của vùng chọn để đổi cỡ, hoặc Ctrl+Z để hoàn tác lần chèn.",
+      "Lưu bản trình chiếu rồi mở lại: các hộp và đường nối vẫn tạo thành một nhóm. Có thể chọn nhóm để di chuyển, hoặc dùng Bỏ nhóm nếu muốn sửa từng hình riêng."
     ]
   },
   {
@@ -121,15 +121,15 @@ export const SLIDES_HELP_ENTRIES = [
     id: "slides.insert.wordart",
     app: "slides",
     commandIds: ["slides.insert.wordart"],
-    title: "Chữ nghệ thuật (phần mềm văn phòng khácArt)",
-    summary: "Chèn dòng tiêu đề có viền, đổ bóng hoặc gradient. Gõ nội dung, chọn một mẫu trong thư viện, rồi kéo thả / sửa chữ trên vùng soạn thảo.",
+    title: "Chèn chữ nghệ thuật",
+    summary: "Tạo dòng chữ trang trí có màu, viền hoặc bóng. Chọn mẫu trong thư viện, nhập nội dung rồi chèn; chữ vẫn có thể sửa sau khi lưu và mở lại bản trình chiếu.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Văn bản" },
-    keywords: ["chữ nghệ thuật", "wordart", "word art", "tiêu đề", "gradient", "viền"],
+    keywords: ["chữ nghệ thuật", "tiêu đề trang trí", "gradient", "viền", "đổ bóng"],
     steps: [
-      "Tab Chèn, nhóm Văn bản, nhấn Chữ nghệ thuật (nút lớn, cạnh Hộp văn bản).",
-      "Hộp thoại Chèn chữ nghệ thuật: ô Nội dung chữ (mặc định «3T Office», tối đa 80 ký tự) và lưới mẫu (ví dụ Xanh đậm viền trắng, vàng viền, gradient…). Chọn mẫu để xem chữ «Aa».",
-      "Nhấn Chèn. Khối chữ xuất hiện trên slide; kéo để đặt, nhấp vào chữ để sửa nội dung. Ctrl+Z gỡ khối vừa chèn.",
-      "Cùng nhóm Văn bản còn Hộp văn bản thường (không hiệu ứng) và Đầu trang & Chân trang / Ngày & Giờ / Số trang chiếu."
+      "Tab Chèn > nhóm Văn bản > Chữ nghệ thuật, cạnh nút Hộp văn bản.",
+      "Trong hộp Chèn chữ nghệ thuật, nhập nội dung (tối đa 80 ký tự) và chọn mẫu ở lưới xem trước.",
+      "Nhấn Chèn. Trên trang chiếu, kéo khối chữ để đặt vị trí; nhấp vào chữ để sửa nội dung. Ctrl+Z hoàn tác lần chèn.",
+      "Lưu bản trình chiếu rồi mở lại để tiếp tục chọn và sửa chữ nghệ thuật như văn bản."
     ]
   },
   {
@@ -220,6 +220,10 @@ export const SLIDES_HELP_ENTRIES = [
       "Kiểu chuyển trang: Mờ dần (Fade), Trượt ngang (Slide), Thu phóng (Zoom), Lật trang 3D (Flip), Morph. Thời gian: Nhanh 0.3s, Tiêu chuẩn 0.5s, Chậm 0.8s, Rất chậm 1.0s.",
       "Nhấn ▶ Xem thử chuyển tiếp để xem hộp mẫu. Áp dụng chỉ gán cho trang đang mở; Áp dụng cho tất cả gán cùng hiệu ứng mọi trang.",
       "Xóa chuyển tiếp: mở lại hộp thoại và dùng Xóa chuyển tiếp. Morph làm mượt đối tượng trùng nhau giữa hai trang liên tiếp khi trình chiếu."
+      "Tab Chuyển tiếp > nhóm Hiệu ứng chuyển trang > Chuyển tiếp. Chọn trang đích trước khi mở hộp thoại.",
+      "Chọn Mờ dần, Trượt ngang, Thu phóng, Lật trang 3D hoặc Morph; đặt thời gian và nhấn Xem thử để kiểm tra.",
+      "Chọn Áp dụng cho trang này hoặc Áp dụng cho tất cả. Dùng Xóa chuyển tiếp để bỏ hiệu ứng khỏi phạm vi tương ứng.",
+      "Lưu bản trình chiếu rồi mở lại để tiếp tục trình chiếu với hiệu ứng đã chọn. Morph làm mượt các đối tượng phù hợp giữa hai trang liên tiếp.",
     ]
   },
   {
@@ -324,6 +328,8 @@ export const SLIDES_HELP_ENTRIES = [
       "Xóa trang: không xóa được nếu chỉ còn 1 trang. Nhấn nút Xóa trang trên ribbon, phím Delete trong dải thumbnail hoặc trong Bộ sắp xếp trang để xóa trang. Nếu đang chọn hình khối hoặc chữ trên slide, phím Delete sẽ xóa hình đó — nhấp chuột ra ngoài trang hoặc xóa từ thumbnail để xóa trang chiếu.",
       "Bố cục (và lệnh Chọn bố cục): tab Trang đầu > nhóm Trang chiếu > Bố cục mở lưới 4 thẻ — Tiêu đề, Tiêu đề + Nội dung, Hai nội dung, Trống. Nhấp đúp thẻ để áp dụng ngay, hoặc chọn rồi Áp dụng cho trang này / Áp dụng tất cả.",
       "Đặt lại: tab Trang đầu > nhóm Trang chiếu > Đặt lại. Lệnh dựng lại các khung tiêu đề/nội dung theo bố cục hiện tại, giữ nguyên văn bản, hình khối, ảnh và ghi chú; dùng khi khung giữ chỗ cần trở về cấu trúc bố cục."
+      "Sau khi áp dụng bố cục Hai nội dung, lưu rồi mở lại để kiểm tra cả hai khung nội dung vẫn được giữ đúng bố cục.",
+      "Nếu khung giữ chỗ bị xê dịch, chọn trang chiếu rồi dùng Trang đầu > Trang chiếu > Đặt lại; văn bản và hình riêng vẫn được giữ.",
     ]
   },
   {
@@ -599,6 +605,8 @@ export const SLIDES_HELP_ENTRIES = [
       "Nhóm Tùy chỉnh: Cỡ trang chiếu. Hộp «Kích thước trang chiếu»: Màn hình rộng 16:9 · 33,867 × 19,05 cm, hoặc Tiêu chuẩn 4:3 · 25,4 × 19,05 cm. Nhấp thẻ áp ngay; mọi hình bị co x,y,w,h theo khung mới. Cùng preset thì không đổi. Ctrl+Z hoàn tác đổi cỡ.",
       "Khi lưu PPTX, hai khổ này ghi đúng khổ chuẩn của phần mềm trình chiếu khác nên phần mềm trình chiếu khác mở ra thấy Thiết kế → Kích thước trang chiếu là «Màn hình rộng» / «Chuẩn (4:3)», không phải «Tùy chỉnh». Tệp mở từ phần mềm trình chiếu khác giữ nguyên khổ gốc khi lưu lại, trừ khi bạn tự đổi cỡ.",
       "Không có dạng xem Master (không sửa khung chữ sẵn của từng bố cục). Không có cỡ tùy chỉnh / 16:10."
+      "Sau khi chọn chủ đề, lưu bằng Ctrl+S hoặc Tệp > Lưu bản sao rồi chọn PPTX.",
+      "Mở lại bản trình chiếu đã lưu. Chủ đề đang dùng được khôi phục với tên, màu, phông và nền; có thể mở lại Thiết kế > Chủ đề để xem thẻ đang chọn.",
     ]
   },
   {
