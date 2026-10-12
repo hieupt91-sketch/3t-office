@@ -6614,6 +6614,152 @@ def parse_master_theme_id_from_fodp(fodp_xml: str | None) -> str:
         return ""
 
 
+def _parse_master_theme_payload_from_fodp(fodp_xml: str | None) -> dict:
+    xml = str(fodp_xml or "")
+    match = re.search(r"<style:master-page\b([^>]*)>", xml, re.IGNORECASE)
+    attr = re.search(r"\bvno:master-theme\s*=\s*([\"'])(.*?)\1", match.group(1) if match else "", re.IGNORECASE)
+    if not attr:
+        return {}
+    try:
+        payload = json.loads(html.unescape(attr.group(2)))
+        return payload if isinstance(payload, dict) else {}
+    except (TypeError, ValueError):
+        return {}
+
+
+def _set_xml_tag_attribute(xml: str, tag_pattern: str, attribute: str, value: str) -> str:
+    def replace(match: re.Match[str]) -> str:
+        attrs = match.group(1) or ""
+        encoded = html.escape(value, quote=True)
+        if re.search(rf"\b{re.escape(attribute)}=[\"']", attrs, re.IGNORECASE):
+            attrs = re.sub(rf"\b{re.escape(attribute)}=[\"'][^\"']*[\"']", f'{attribute}="{encoded}"', attrs, count=1, flags=re.IGNORECASE)
+        else:
+            attrs = f'{attrs.rstrip()} {attribute}="{encoded}"'
+        return f"<{match.group(0).split()[0][1:]}{attrs}>"
+    return re.sub(tag_pattern, replace, xml, count=1, flags=re.IGNORECASE)
+
+
+def apply_native_slides_theme(theme_xml: str, payload: dict | None) -> str:
+    """Write VN theme name, palette, and typefaces into a DrawingML theme part."""
+    data = payload if isinstance(payload, dict) else {}
+    xml = str(theme_xml or "")
+    if not xml or not data.get("id"):
+        return xml
+    name = str(data.get("name") or data.get("id") or "").strip()
+    if name:
+        xml = _set_xml_tag_attribute(xml, r"<a:theme\b([^>]*)>", "name", name)
+        xml = _set_xml_tag_attribute(xml, r"<a:clrScheme\b([^>]*)>", "name", name)
+    colors = {
+        "lt1": data.get("bgColor"),
+        "dk1": data.get("bodyColor"),
+        "lt2": data.get("titleColor"),
+        "dk2": data.get("titleColor"),
+        "accent1": data.get("accentColor"),
+    }
+    for slot, raw_color in colors.items():
+        color = str(raw_color or "").strip().lstrip("#")
+        if not re.fullmatch(r"[0-9a-fA-F]{6}", color):
+            continue
+        xml = re.sub(
+            rf"(<a:{slot}\b[^>]*>)[\s\S]*?(</a:{slot}\s*>)",
+            rf'\1<a:srgbClr val="{color.upper()}"/>\2',
+            xml,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+    font = _latin_face(str(data.get("fontFamily") or ""))
+    if font:
+        for family in ("majorFont", "minorFont"):
+            pattern = rf"(<a:{family}\b[^>]*>[\s\S]*?<a:latin\b[^>]*\btypeface=)[\"'][^\"']*[\"']"
+            xml = re.sub(pattern, rf'\1"{html.escape(font, quote=True)}"', xml, count=1, flags=re.IGNORECASE)
+    return xml
+
+
+def _related_theme_part_paths(pptx_bytes: bytes) -> set[str]:
+    paths: set[str] = set()
+    with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+        for name in package.namelist():
+            if not SLIDE_MASTER_ENTRY_RE.match(name):
+                continue
+            master_number = re.search(r"slideMaster(\d+)\.xml$", name, re.IGNORECASE)
+            if not master_number:
+                continue
+            rels_name = f"ppt/slideMasters/_rels/slideMaster{master_number.group(1)}.xml.rels"
+            rels = read_zip_entry(pptx_bytes, rels_name)
+            if not rels:
+                continue
+            for rel in re.finditer(r"<Relationship\b([^>]*)/?>", rels.decode("utf-8", errors="replace"), re.IGNORECASE):
+                attrs = rel.group(1)
+                rel_type = re.search(r"\bType=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
+                target = re.search(r"\bTarget=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
+                if rel_type and target and rel_type.group(1).rstrip("/").endswith("/theme"):
+                    paths.add(posixpath.normpath(posixpath.join(posixpath.dirname(name), target.group(1))))
+    return paths
+
+
+def _patch_slides_theme_parts(pptx_bytes: bytes, payload: dict | None) -> dict[str, str]:
+    if not isinstance(payload, dict) or not payload.get("id"):
+        return {}
+    replacements: dict[str, str] = {}
+    for path in _related_theme_part_paths(pptx_bytes):
+        raw = read_zip_entry(pptx_bytes, path)
+        if not raw:
+            continue
+        original = raw.decode("utf-8", errors="replace")
+        updated = apply_native_slides_theme(original, payload)
+        if updated != original:
+            replacements[path] = updated
+    return replacements
+
+
+def overlay_fodp_native_slides_theme(fodp_xml: str, pptx_bytes: bytes) -> str:
+    paths = _related_theme_part_paths(pptx_bytes)
+    if len(paths) != 1:
+        return fodp_xml or ""
+    raw = read_zip_entry(pptx_bytes, next(iter(paths)))
+    if not raw:
+        return fodp_xml or ""
+    theme_xml = raw.decode("utf-8", errors="replace")
+    theme_name = re.search(r"<a:theme\b[^>]*\bname=[\"']([^\"']*)[\"']", theme_xml, re.IGNORECASE)
+    clr_scheme = re.search(r"<a:clrScheme\b[^>]*\bname=[\"']([^\"']*)[\"']", theme_xml, re.IGNORECASE)
+    values: dict[str, str] = {}
+    name = html.unescape(theme_name.group(1) if theme_name else clr_scheme.group(1) if clr_scheme else "")
+    if name:
+        values["name"] = name
+    for slot, key in (("lt1", "bgColor"), ("dk1", "bodyColor"), ("lt2", "titleColor"), ("accent1", "accentColor")):
+        slot_xml = re.search(rf"<a:{slot}\b[^>]*>([\s\S]*?)</a:{slot}\s*>", theme_xml, re.IGNORECASE)
+        color = re.search(r"<(?:a:)?srgbClr\b[^>]*\bval=[\"']([0-9a-fA-F]{6})[\"']", slot_xml.group(1) if slot_xml else "", re.IGNORECASE)
+        if color:
+            values[key] = "#" + color.group(1).upper()
+    latin = re.search(r"<a:majorFont\b[\s\S]*?<a:latin\b[^>]*\btypeface=[\"']([^\"']+)[\"']", theme_xml, re.IGNORECASE)
+    if latin:
+        values["fontFamily"] = html.unescape(latin.group(1))
+    if not values:
+        return fodp_xml or ""
+    xml = fodp_xml or ""
+    match = re.search(r"<style:master-page\b([^>]*)/?>", xml, re.IGNORECASE)
+    if not match:
+        return xml
+    attrs = re.sub(r"/\s*$", "", match.group(1) or "")
+    attr = re.search(r"\bvno:master-theme\s*=\s*([\"'])(.*?)\1", attrs, re.IGNORECASE)
+    payload = {}
+    if attr:
+        try:
+            parsed = json.loads(html.unescape(attr.group(2)))
+            if isinstance(parsed, dict):
+                payload = parsed
+        except (TypeError, ValueError):
+            pass
+    payload.update(values)
+    next_attr = 'vno:master-theme="' + html.escape(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), quote=True) + '"'
+    attrs = attrs[:attr.start()] + next_attr + attrs[attr.end():] if attr else attrs.rstrip() + " " + next_attr
+    tag = re.match(r"<([\w:.-]+)", match.group(0))
+    tag_name = tag.group(1) if tag else "style:master-page"
+    close = "/" if re.search(r"/\s*>$", match.group(0)) else ""
+    replacement = f"<{tag_name}{attrs}{close}>"
+    return xml[:match.start()] + replacement + xml[match.end():]
+
+
 def overlay_fodp_master_theme_id(fodp_xml: str, master_xml: str | list[str] | None) -> str:
     masters = master_xml if isinstance(master_xml, list) else ([master_xml] if master_xml else [])
     ids = {parse_master_theme_id(item) for item in masters} - {""}
@@ -7313,6 +7459,8 @@ def postprocess_slides_pptx(
     if apply_logo and source_fodp and not fodp_has_master_logo(source_fodp) and logo_text is None:
         apply_logo = False
     theme_id = parse_master_theme_id_from_fodp(source_fodp)
+    theme_payload = _parse_master_theme_payload_from_fodp(source_fodp)
+    theme_replacements = _patch_slides_theme_parts(pptx_bytes, theme_payload)
     apply_sections = bool(sections) if sections is not None else fodp_has_sections(source_fodp)
     apply_show = bool(show_without_narration or pointer_color) or fodp_has_show_setup_patch(source_fodp)
 
@@ -7354,12 +7502,13 @@ def postprocess_slides_pptx(
     paragraph_level_replacements = _apply_slides_paragraph_levels(pptx_bytes, source_fodp)
     header_footer_replacements = _postprocess_slides_header_footer(pptx_bytes, source_fodp)
     transition_replacements = _apply_slides_transition_effects(pptx_bytes, source_fodp)
-    if not apply_logo and not theme_id and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements:
+    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements:
         return pptx_bytes
     replacements.update(animation_replacements)
     replacements.update(paragraph_level_replacements)
     replacements.update(header_footer_replacements)
     replacements.update(transition_replacements)
+    replacements.update(theme_replacements)
 
     if apply_slide_size and presentation_xml:
         presentation_xml = apply_intended_slide_size(presentation_xml, intended_size)
@@ -11359,6 +11508,7 @@ def overlay_slides_pptx_fodp(pptx_bytes: bytes, fodp_xml: str | None) -> str:
         masters.append(entry.decode("utf-8", errors="replace"))
     xml = overlay_fodp_master_logo(xml, masters)
     xml = overlay_fodp_master_theme_id(xml, masters)
+    xml = overlay_fodp_native_slides_theme(xml, pptx_bytes)
     props = read_zip_entry(pptx_bytes, PPTX_PRESPROPS_ENTRY)
     if props:
         xml = overlay_fodp_show_properties(xml, props.decode("utf-8", errors="replace"))

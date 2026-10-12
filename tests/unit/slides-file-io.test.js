@@ -82,6 +82,7 @@ export async function runSlidesFileIoTests() {
     const canvas = new MockCanvasController();
     canvas.masterTheme = {
       id: "corporate-red",
+      name: "Terracotta Ấm Áp",
       fontFamily: "'Times New Roman', serif",
       titleColor: "#991b1b",
       bodyColor: "#1f2937",
@@ -101,6 +102,10 @@ export async function runSlidesFileIoTests() {
       throw new Error(`parse masterTheme sai: ${JSON.stringify(parsed.masterTheme)}`);
     }
     if (parsed.masterTheme?.accentColor !== "#b53818") throw new Error("parse mất accentColor");
+    if (parsed.masterTheme?.name !== "Terracotta Ấm Áp") throw new Error("parse mất tên chủ đề native");
+    const restoredCanvas = new MockCanvasController();
+    restoredCanvas.applySlideMaster(parsed.masterTheme);
+    if (restoredCanvas.masterTheme.themeId !== "corporate-red") throw new Error("applySlideMaster không khôi phục id theme từ FODP");
   });
 
   test("SlidesAdapter: parseFodp phân tích chính xác các trang chiếu, tiêu đề và nội dung", () => {

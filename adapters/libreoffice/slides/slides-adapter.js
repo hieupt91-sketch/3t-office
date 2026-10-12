@@ -3281,6 +3281,7 @@ export class SlidesAdapter {
     const effectiveFooterText = theme.footerText || "";
     const payload = {
       id: theme.id || theme.themeId || "",
+      name: theme.name || theme.id || theme.themeId || "",
       fontFamily: theme.fontFamily || "",
       titleColor: theme.titleColor || "",
       bodyColor: theme.bodyColor || "",

@@ -8408,6 +8408,9 @@ const startEditing = (initialText) => {
       if (found) themeConfig = found;
       else return false;
     }
+    if (themeConfig.id && !themeConfig.themeId) {
+      themeConfig = { ...themeConfig, themeId: themeConfig.id };
+    }
 
     const previousTheme = { ...this.masterTheme };
     this.masterTheme = { ...this.masterTheme, ...themeConfig };
