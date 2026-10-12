@@ -377,6 +377,7 @@ export const SHEET_HELP_ENTRIES = [
       "Mở tab Chèn, nhóm Biểu đồ, nhấn nút lớn Biểu đồ (hoặc nhấn nút mũi tên mở rộng ở góc dưới phải nhóm Biểu đồ chuẩn phần mềm bảng tính khác).",
       "Hộp thoại Chèn biểu đồ từ «vùng» có bốn kiểu: Cột, Đường, Tròn, Miền. Chọn kiểu để xem trước. Biểu đồ tròn cần giá trị dương.",
       "Nhấn Chèn vào bảng tính. Biểu đồ nằm trên lưới, dùng dữ liệu của vùng đã chọn. Đổi số trong vùng nguồn rồi biểu đồ cập nhật theo dữ liệu sheet.",
+      "Với biểu đồ Cột, Đường hoặc Miền, nhấn nút «Tiêu đề trục» ở góc trên biểu đồ. Nhập riêng «Trục ngang (X)» và «Trục dọc (Y)», rồi nhấn Áp dụng; để trống một ô nếu không muốn hiện tiêu đề trục đó. Tiêu đề được lưu vào biểu đồ native trong XLSX.",
       "Cùng tab Chèn còn Biểu đồ thu nhỏ (Đường / Cột sparkline) — đó là mini-chart trong ô, khác biểu đồ lớn này."
     ]
   },
@@ -409,6 +410,22 @@ export const SHEET_HELP_ENTRIES = [
       "Chọn «Cố định hàng trên cùng» (Freeze Top Row): chỉ cố định hàng 1 khi cuộn dọc bảng tính, không phụ thuộc vị trí ô đang chọn.",
       "Chọn «Cố định cột đầu tiên» (Freeze First Column): chỉ cố định cột A khi cuộn ngang bảng tính, không phụ thuộc vị trí ô đang chọn.",
       "Để bỏ cố định: mở lại menu và chọn lệnh cố định đang kích hoạt để hủy. Có thể dùng Ctrl+Z / Ctrl+Y để hoàn tác hoặc làm lại thao tác."
+    ]
+  },
+  {
+    id: "sheet.view.split",
+    app: "sheet",
+    commandIds: ["sheet.view.split"],
+    title: "Chia cửa sổ trang tính (Split)",
+    summary: "Chia cửa sổ tại ô hiện tại thành các ngăn xem nhưng không đóng băng hàng/cột; trạng thái Split được giữ khi lưu và mở lại XLSX.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Cửa sổ" },
+    keywords: ["chia", "split", "chia cửa sổ", "ngăn xem", "không đóng băng", "pane"],
+    steps: [
+      "Chọn ô nằm ngay bên dưới và bên phải vị trí muốn chia. Ví dụ chọn C4 để đặt vạch chia sau cột B và sau hàng 3.",
+      "Mở tab Chế độ xem, nhóm Cửa sổ, nhấn «Chia». Vạch ngang, vạch dọc hoặc cả hai xuất hiện tùy vị trí ô; đây là Split, không phải Cố định ô.",
+      "Cuộn trang tính để xem vùng dữ liệu ở hai phía vạch chia. Hàng và cột không bị ghim cố định như Freeze Panes.",
+      "Nhấn «Chia» lần nữa để bỏ chia. Bật Cố định ô sẽ thay thế Split và ngược lại; có thể dùng Ctrl+Z/Ctrl+Y để hoàn tác hoặc làm lại.",
+      "Khi lưu XLSX, Sheet ghi pane ở trạng thái split. Mở lại trong Sheet hoặc ứng dụng bảng tính tương thích vẫn giữ Split, không chuyển thành Freeze Panes."
     ]
   },
   {

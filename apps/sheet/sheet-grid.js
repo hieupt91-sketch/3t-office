@@ -205,10 +205,10 @@ export class SheetGridController {
     /** @type {Record<string, Map<string, {val: string|number, formula: string, style: Object}>>} */
     this.sheetsData = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
 
-    /** @type {Record<string, {hiddenRows: Set<number>, activeFilters: Map<string, Set<string>>, isFilterActive: boolean, isFrozenPanes: boolean, frozenRows: number, frozenCols: number, selectedCoord: {r: number, c: string}}>} */
+    /** @type {Record<string, {hiddenRows: Set<number>, activeFilters: Map<string, Set<string>>, isFilterActive: boolean, isFrozenPanes: boolean, frozenRows: number, frozenCols: number, splitRow: number, splitCol: number, splitX: number, splitY: number, selectedCoord: {r: number, c: string}}>} */
     this.sheetStates = Object.fromEntries(this.sheets.map(name => [name, {
       hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false,
-      isFrozenPanes: false, frozenRows: 0, frozenCols: 0,
+      isFrozenPanes: false, frozenRows: 0, frozenCols: 0, splitRow: 0, splitCol: 0, splitX: 0, splitY: 0,
       selectedCoord: { r: 1, c: "A" }
     }]));
 
@@ -303,6 +303,10 @@ export class SheetGridController {
     this.isFrozenPanes = false;
     this.frozenRows = 0;
     this.frozenCols = 0;
+    this.splitRow = 0;
+    this.splitCol = 0;
+    this.splitX = 0;
+    this.splitY = 0;
     this.isFilterActive = false;
     this.hiddenRows = new Set();
     this.activeFilters = new Map();
@@ -3027,7 +3031,7 @@ export class SheetGridController {
     this.activeSheet = defaultSheetName;
     this.sheetsData = { [defaultSheetName]: new Map() };
     this.sheetStates = {
-      [defaultSheetName]: { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, frozenRows: 0, frozenCols: 0, selectedCoord: { r: 1, c: "A" } }
+      [defaultSheetName]: { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, frozenRows: 0, frozenCols: 0, splitRow: 0, splitCol: 0, splitX: 0, splitY: 0, selectedCoord: { r: 1, c: "A" } }
     };
     this.namedRangesWorkbook = [];
     this.namedRangesBySheet = { [defaultSheetName]: [] };
@@ -3051,6 +3055,10 @@ export class SheetGridController {
     this.isFrozenPanes = false;
     this.frozenRows = 0;
     this.frozenCols = 0;
+    this.splitRow = 0;
+    this.splitCol = 0;
+    this.splitX = 0;
+    this.splitY = 0;
     this.isFilterActive = false;
     this.hiddenRows = new Set();
     this.activeFilters = new Map();
@@ -3137,6 +3145,10 @@ export class SheetGridController {
         isFrozenPanes: !!this.isFrozenPanes,
         frozenRows: this.frozenRows || 0,
         frozenCols: this.frozenCols || 0,
+        splitRow: this.splitRow || 0,
+        splitCol: this.splitCol || 0,
+        splitX: this.splitX || 0,
+        splitY: this.splitY || 0,
         selectedCoord: { ...(this.selectedCoord || { r: 1, c: "A" }) }
       };
     }
@@ -3155,7 +3167,7 @@ export class SheetGridController {
         isFilterActive: false,
         isFrozenPanes: false,
         frozenRows: 0,
-        frozenCols: 0,
+        frozenCols: 0, splitRow: 0, splitCol: 0, splitX: 0, splitY: 0,
         selectedCoord: { r: 1, c: "A" }
       };
     }
@@ -3166,6 +3178,10 @@ export class SheetGridController {
     this.frozenRows = nextState.frozenRows || 0;
     this.frozenCols = nextState.frozenCols || 0;
     this.isFrozenPanes = !!nextState.isFrozenPanes;
+    this.splitRow = nextState.splitRow || 0;
+    this.splitCol = nextState.splitCol || 0;
+    this.splitX = nextState.splitX || 0;
+    this.splitY = nextState.splitY || 0;
     this.selectedCoord = { ...nextState.selectedCoord };
     this.selectionRange = { start: { ...this.selectedCoord }, end: { ...this.selectedCoord } };
 
@@ -3177,6 +3193,7 @@ export class SheetGridController {
       }
       this.container.classList.toggle?.("vno-freeze-panes", this.isFrozenPanes);
     }
+    this._applySplitVisuals();
     if (typeof this._updateFilterButtons === "function") {
       this._updateFilterButtons();
     }
@@ -3414,6 +3431,10 @@ export class SheetGridController {
       isFrozenPanes: !!this.isFrozenPanes,
       frozenRows: this.frozenRows || 0,
       frozenCols: this.frozenCols || 0,
+      splitRow: this.splitRow || 0,
+      splitCol: this.splitCol || 0,
+      splitX: this.splitX || 0,
+      splitY: this.splitY || 0,
       selectedCoord: { ...(this.selectedCoord || { r: 1, c: "A" }) }
     };
   }
@@ -4579,6 +4600,7 @@ export class SheetGridController {
     if (rowChanged || colChanged) {
       this._renderVirtualRows(startRow, endRow, startColNum, endColNum);
     }
+    this._positionSplitBars();
     this._updateFormulaReferenceVisuals();
     this._updateFrozenImages();
   }
@@ -7214,6 +7236,27 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
+  async openChartAxisTitles(chartId, sheetName = this.activeSheet) {
+    const chart = (this.chartsBySheet[sheetName] || []).find(item => item.id === chartId);
+    if (!chart || chart.type === "pie") return false;
+    const SheetChartBuilder = await this._loadChartBuilder();
+    return SheetChartBuilder.showAxisTitlesModal(chart, values => this.updateChartAxisTitles(chartId, values, sheetName));
+  }
+
+  updateChartAxisTitles(chartId, values, sheetName = this.activeSheet, recordUndo = true) {
+    const chart = (this.chartsBySheet[sheetName] || []).find(item => item.id === chartId);
+    if (!chart || chart.type === "pie") return false;
+    const before = structuredClone({ ...chart, xAxisTitle: chart.xAxisTitle || "", yAxisTitle: chart.yAxisTitle || "" });
+    chart.xAxisTitle = String(values?.xAxisTitle || "").trim().slice(0, 255);
+    chart.yAxisTitle = String(values?.yAxisTitle || "").trim().slice(0, 255);
+    const after = structuredClone(chart);
+    if (recordUndo && (before.xAxisTitle !== after.xAxisTitle || before.yAxisTitle !== after.yAxisTitle)) {
+      this._recordHistory({ type: "collection", sheet: sheetName, collection: "chartsBySheet", operation: "update", id: chartId, before, after });
+    }
+    if (sheetName === this.activeSheet) this.renderCharts();
+    return chart;
+  }
+
   _rangeLabel(range) {
     const first = `${range.start.c}${range.start.r}`;
     const last = `${range.end.c}${range.end.r}`;
@@ -7252,8 +7295,10 @@ _bindGridKeyboardNavigation() {
       panel.dataset.chartId = chart.id;
       panel.dataset.sheet = this.activeSheet;
       panel.style.cssText = `position:absolute;left:${colOffset}px;top:${rowOffset}px;width:520px;height:300px;background:#fff;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 8px 24px rgba(15,23,42,.18);pointer-events:auto;overflow:hidden`;
-      panel.innerHTML = `<button type="button" data-chart-delete aria-label="Xóa biểu đồ" title="Xóa biểu đồ" style="position:absolute;right:6px;top:4px;z-index:1;border:0;background:#fff;border-radius:4px;font-size:18px;cursor:pointer">&times;</button>${this.sheetChartBuilder.generateSvg(chart)}`;
+      const axisButton = chart.type === "pie" ? "" : `<button type="button" data-chart-axis-titles aria-label="${t("sheetDialogs.chartAxisTitlesEdit")}" title="${t("sheetDialogs.chartAxisTitlesEdit")}" style="position:absolute;right:34px;top:5px;z-index:1;border:1px solid #cbd5e1;background:#fff;border-radius:4px;padding:2px 7px;font-size:11px;cursor:pointer">${t("sheetDialogs.chartAxisTitles")}</button>`;
+      panel.innerHTML = `${axisButton}<button type="button" data-chart-delete aria-label="${t("sheetDialogs.chartDelete")}" title="${t("sheetDialogs.chartDelete")}" style="position:absolute;right:6px;top:4px;z-index:1;border:0;background:#fff;border-radius:4px;font-size:18px;cursor:pointer">&times;</button>${this.sheetChartBuilder.generateSvg(chart)}`;
       panel.querySelector("[data-chart-delete]")?.addEventListener("click", () => this.deleteChart(chart.id));
+      panel.querySelector("[data-chart-axis-titles]")?.addEventListener("click", () => this.openChartAxisTitles(chart.id));
       this.chartLayer.appendChild(panel);
     }
   }
@@ -9630,6 +9675,7 @@ _bindGridKeyboardNavigation() {
     globalCommandBus?.updateState?.("sheet.view.freezePanes", { checked: !!this.isFrozenPanes });
     globalCommandBus?.updateState?.("sheet.view.freezeTopRow", { checked: this.frozenRows === 1 && this.frozenCols === 0 });
     globalCommandBus?.updateState?.("sheet.view.freezeFirstColumn", { checked: this.frozenCols === 1 && this.frozenRows === 0 });
+    globalCommandBus?.updateState?.("sheet.view.split", { checked: (this.splitX || 0) > 0 || (this.splitY || 0) > 0 });
     globalCommandBus?.updateState?.("sheet.data.filter", { checked: !!this.isFilterActive });
     globalCommandBus?.updateState?.("sheet.view.gridlines", { checked: this.gridlinesVisible });
     globalCommandBus?.updateState?.("sheet.view.headings", { checked: this.headingsVisible });
@@ -10553,6 +10599,8 @@ _bindGridKeyboardNavigation() {
     } else if (action.type === "freeze") {
       if (direction === "undo") this._setFreezePanes(action.prevRows, action.prevCols, false);
       else this._setFreezePanes(action.nextRows, action.nextCols, false);
+    } else if (action.type === "split") {
+      this._setSplitPanes(direction === "undo" ? action.before : action.after, false);
     } else if (action.type === "filter") {
       this._restoreFilterState(action[value]);
     } else return false;
@@ -10594,6 +10642,10 @@ _bindGridKeyboardNavigation() {
     this.frozenRows = nextRows;
     this.frozenCols = nextCols;
     this.isFrozenPanes = nextRows > 0 || nextCols > 0;
+    if (this.isFrozenPanes) {
+      this.splitRow = this.splitCol = this.splitX = this.splitY = 0;
+      this._applySplitVisuals();
+    }
     if (this.container) {
       if (this.isFrozenPanes) {
         this.container.classList.add("vno-freeze-panes");
@@ -10614,6 +10666,83 @@ _bindGridKeyboardNavigation() {
     this.renderImages();
     this._updateFrozenImages();
     return this.isFrozenPanes;
+  }
+
+  /** Split the sheet window at the selected cell without freezing rows/columns. */
+  toggleSplitPanes() {
+    if ((this.splitX || 0) > 0 || (this.splitY || 0) > 0) {
+      return this._setSplitPanes({ row: 0, col: 0, x: 0, y: 0 }, true);
+    }
+    const row = Math.max(0, (this.selectedCoord?.r || 1) - 1);
+    const col = Math.max(0, this._columnNumber(this.selectedCoord?.c || "A") - 1);
+    if (row === 0 && col === 0) return false;
+    return this._setSplitPanes({
+      row,
+      col,
+      x: col > 0 ? Math.round(this._colLeft(col + 1) * 15) : 0,
+      y: row > 0 ? Math.round(this._rowTop(row + 1) * 15) : 0
+    }, true);
+  }
+
+  _setSplitPanes(split, recordUndo = false) {
+    const before = { row: this.splitRow || 0, col: this.splitCol || 0, x: this.splitX || 0, y: this.splitY || 0 };
+    const next = {
+      row: Math.max(0, Math.floor(Number(split?.row) || 0)),
+      col: Math.max(0, Math.floor(Number(split?.col) || 0)),
+      x: Math.max(0, Number(split?.x) || 0),
+      y: Math.max(0, Number(split?.y) || 0)
+    };
+    if (next.x > 0 || next.y > 0) this._setFreezePanes(0, 0, false);
+    this.splitRow = next.row;
+    this.splitCol = next.col;
+    this.splitX = next.x;
+    this.splitY = next.y;
+    const state = this.sheetStates?.[this.activeSheet];
+    if (state) Object.assign(state, { splitRow: next.row, splitCol: next.col, splitX: next.x, splitY: next.y });
+    this._applySplitVisuals();
+    if (recordUndo && JSON.stringify(before) !== JSON.stringify(next)) {
+      this._recordHistory({ type: "split", sheet: this.activeSheet, before, after: { ...next } });
+    }
+    this._syncCommandStates();
+    return next.x > 0 || next.y > 0;
+  }
+
+  _applySplitVisuals() {
+    if (!this.viewport || typeof document === "undefined") return;
+    this.viewport.querySelectorAll?.(".vno-sheet-split-bar").forEach(element => element.remove());
+    const active = (this.splitX || 0) > 0 || (this.splitY || 0) > 0;
+    this.container?.classList?.toggle?.("vno-split-panes", active);
+    if (!active) return;
+    const addBar = (axis, pixels, label) => {
+      const bar = document.createElement("div");
+      bar.className = `vno-sheet-split-bar is-${axis}`;
+      bar.setAttribute("role", "separator");
+      bar.setAttribute("aria-label", label);
+      bar.dataset.axis = axis;
+      bar.dataset.offset = String(axis === "vertical"
+        ? Math.max(42, Math.min(pixels + 42, (this.viewport.clientWidth || pixels + 58) - 16))
+        : Math.max(24, Math.min(pixels + 24, (this.viewport.clientHeight || pixels + 40) - 16)));
+      this.viewport.appendChild(bar);
+    };
+    if (this.splitX > 0) addBar("vertical", this._colLeft(this.splitCol + 1), t("sheetDialogs.splitVerticalSeparator", "Vạch chia dọc cửa sổ"));
+    if (this.splitY > 0) addBar("horizontal", this._rowTop(this.splitRow + 1), t("sheetDialogs.splitHorizontalSeparator", "Vạch chia ngang cửa sổ"));
+    this._positionSplitBars();
+  }
+
+  _positionSplitBars() {
+    if (!this.viewport) return;
+    const scrollLeft = this.viewport.scrollLeft || 0;
+    const scrollTop = this.viewport.scrollTop || 0;
+    this.viewport.querySelectorAll?.(".vno-sheet-split-bar").forEach(bar => {
+      const offset = Number(bar.dataset.offset) || 0;
+      if (bar.dataset.axis === "vertical") {
+        bar.style.left = `${scrollLeft + offset}px`;
+        bar.style.top = `${scrollTop}px`;
+      } else {
+        bar.style.left = `${scrollLeft}px`;
+        bar.style.top = `${scrollTop + offset}px`;
+      }
+    });
   }
 
   sort(col = this.selectedCoord.c, ascending = true) {

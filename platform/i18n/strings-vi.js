@@ -168,7 +168,7 @@ export const viStrings = {
     editing: { fill: "Điền", clear: "Xóa" },
     cells: { format: "Định dạng" },
     alignment: { orientation: "Hướng chữ" },
-    window: { freezePanes: "Cố định ô" }
+    window: { freezePanes: "Cố định ô", split: "Chia" }
   },
   sheetFormulaEntry: {
     status: { enter: "Nhập", edit: "Sửa", point: "Trỏ" },
@@ -214,7 +214,7 @@ export const viStrings = {
     sparklineColumn: "Biểu đồ mini dạng cột", sparklineLine: "Biểu đồ mini dạng đường",
     hfPresetLabel: "Mẫu dùng sẵn", hfPresetCustom: "Tùy chỉnh", hfPresetPage: "Trang X", hfPresetSheet: "Tên trang tính", hfPresetDate: "Ngày", hfPresetNone: "Không có", hfPresetPageVal: "Trang &P", hfPresetSheetVal: "Tên trang tính: &A", hfPresetDateVal: "Ngày: &D", hfLeft: "Trái", hfCenter: "Giữa", hfRight: "Phải", headerFooterTitle: "Tiêu đề Đầu/Cuối trang", headerTitle: "Đầu trang", footerTitle: "Cuối trang", hfDynamicCodesHint: "Mã động: &P số trang, &N tổng số trang, &D ngày, &T giờ, &F tên tệp, &A tên trang tính.",
     pivotTitle: "Tạo Bảng tổng hợp", pivotSource: "Vùng dữ liệu nguồn (hàng đầu là tiêu đề)", loadFields: "Đọc tên cột", chooseFields: "Chọn trường cho từng vùng:", aggregateFor: "Phép tổng hợp cho {field}", sourceRangeFormat: "Vùng nguồn phải có dạng A1:D20.", sourceNeedsHeaders: "Hàng đầu tiên của vùng nguồn phải có tiêu đề.", uniqueHeaders: "Tiêu đề cột trong vùng nguồn phải là duy nhất.", selectValue: "Hãy chọn ít nhất một trường Values.", columnNotFound: "Không tìm thấy cột {field}.", sourceSheetNotFound: "Không tìm thấy sheet dữ liệu nguồn.", createPivotBtn: "Tạo Pivot Table",
-    chartDefaultTitle: "Biểu đồ dữ liệu", chartUnsupported: "Kiểu biểu đồ không được hỗ trợ: {type}", chartItem: "Mục {number}", chartNoNumericData: "Vùng đã chọn không có dữ liệu số", chartPiePositive: "Biểu đồ tròn cần giá trị dương", chartInsertFrom: "Chèn biểu đồ từ {range}", selectedRange: "vùng đã chọn", chartType: "Kiểu biểu đồ", chartColumn: "Cột", chartLine: "Đường", chartPie: "Tròn", chartArea: "Miền", insertIntoSheet: "Chèn vào bảng tính", insertedImageAlt: "Ảnh được chèn trong trang tính", deleteImage: "Xóa ảnh", imageFormatUnsupported: "Định dạng ảnh không được hỗ trợ",
+    chartDefaultTitle: "Biểu đồ dữ liệu", chartUnsupported: "Kiểu biểu đồ không được hỗ trợ: {type}", chartItem: "Mục {number}", chartNoNumericData: "Vùng đã chọn không có dữ liệu số", chartPiePositive: "Biểu đồ tròn cần giá trị dương", chartInsertFrom: "Chèn biểu đồ từ {range}", selectedRange: "vùng đã chọn", chartType: "Kiểu biểu đồ", chartColumn: "Cột", chartLine: "Đường", chartPie: "Tròn", chartArea: "Miền", insertIntoSheet: "Chèn vào bảng tính", chartAxisTitles: "Tiêu đề trục", chartAxisTitlesEdit: "Sửa tiêu đề trục", chartHorizontalAxis: "Trục ngang (X)", chartVerticalAxis: "Trục dọc (Y)", chartAxisHorizontalPlaceholder: "Ví dụ: Tháng", chartAxisVerticalPlaceholder: "Ví dụ: Doanh thu", chartAxisApply: "Áp dụng", chartDelete: "Xóa biểu đồ", splitVerticalSeparator: "Vạch chia dọc cửa sổ", splitHorizontalSeparator: "Vạch chia ngang cửa sổ", insertedImageAlt: "Ảnh được chèn trong trang tính", deleteImage: "Xóa ảnh", imageFormatUnsupported: "Định dạng ảnh không được hỗ trợ",
     cellStylesTitle: "Thư viện kiểu ô (Cell Styles)", cellStylesHint: "Chọn một kiểu để áp dụng ngay lập tức cho các ô đang chọn:",
     formatAsTableTitle: "Định dạng theo bảng (Format as Table)", formatAsTableHint: "Tạo bảng có tên, tiêu đề, nút lọc và hàng màu xen kẽ; các hàng nhập kề sẽ tự mở rộng.",
     formatTableRange: "Vùng dữ liệu", formatTableHeaders: "Bảng có tiêu đề", formatTableNameLabel: "Tên bảng", formatTableCreate: "Tạo bảng", formatTableRenameLabel: "Tên mới", formatTableRename: "Đổi tên bảng", formatTableConvert: "Chuyển thành vùng", formatTableInvalid: "Vùng hoặc tên bảng không hợp lệ, hoặc vùng đang chồng lấp với bảng khác.",
@@ -501,6 +501,7 @@ export const viStrings = {
     ,"sheet.view.freezePanes": { label: "Cố định ô", tooltip: "Cố định các hàng phía trên và cột bên trái Ô đang chọn khi cuộn (Freeze Panes)" }
     ,"sheet.view.freezeTopRow": { label: "Cố định hàng trên cùng", tooltip: "Chỉ cố định hàng 1 khi cuộn dọc (Freeze Top Row)" }
     ,"sheet.view.freezeFirstColumn": { label: "Cố định cột đầu tiên", tooltip: "Chỉ cố định cột A khi cuộn ngang (Freeze First Column)" }
+    ,"sheet.view.split": { label: "Chia", tooltip: "Chia cửa sổ tại ô hiện tại; các ngăn không bị đóng băng" }
     ,"sheet.view.zoomIn": { label: "Phóng to", tooltip: "Tăng tỉ lệ hiển thị bảng tính" }
     ,"sheet.view.zoomOut": { label: "Thu nhỏ", tooltip: "Giảm tỉ lệ hiển thị bảng tính" }
     ,"sheet.view.zoomReset": { label: "100%", tooltip: "Đặt lại tỉ lệ hiển thị 100%" }

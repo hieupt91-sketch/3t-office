@@ -53,6 +53,14 @@ SHEET1_XML_FROZEN = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <sheetData/>
 </worksheet>"""
 
+SHEET1_XML_SPLIT = """<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+<sheetViews><sheetView tabSelected="1" workbookViewId="0">
+<pane xSplit="1920" ySplit="900" topLeftCell="C4" activePane="bottomRight" state="split"/>
+<selection pane="bottomRight" activeCell="C4" sqref="C4"/>
+</sheetView></sheetViews><sheetData/>
+</worksheet>"""
+
 FODS_WITH_FREEZE_ATTR = """<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
@@ -125,6 +133,30 @@ class TestParseFreezePaneFromSheetXml(unittest.TestCase):
 
     def test_no_pane_returns_none(self):
         self.assertIsNone(patcher.parse_freeze_pane_from_sheet_xml(SHEET1_XML_NO_FREEZE))
+
+
+class TestSplitPaneRoundTrip(unittest.TestCase):
+    def test_split_is_not_frozen_and_keeps_cell_boundary(self):
+        self.assertIsNone(patcher.parse_freeze_pane_from_sheet_xml(SHEET1_XML_SPLIT))
+        split = patcher.parse_split_pane_from_sheet_xml(SHEET1_XML_SPLIT)
+        self.assertEqual(split, {"row": 3, "col": 2, "x": 1920.0, "y": 900.0})
+
+    def test_postprocess_writes_state_split_and_open_overlays_fods(self):
+        fods = FODS_NO_FREEZE.replace(
+            'table:name="Sheet1"',
+            'table:name="Sheet1" vno:split-row="3" vno:split-col="2" vno:split-x="1920" vno:split-y="900"',
+        ).replace(
+            'xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"',
+            'xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"',
+        )
+        saved = patcher.postprocess_sheet_xlsx(_fake_xlsx(), source_fods=fods)
+        with zipfile.ZipFile(io.BytesIO(saved)) as package:
+            sheet = package.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        self.assertIn('state="split"', sheet)
+        self.assertIn('topLeftCell="C4"', sheet)
+        reopened = patcher.overlay_sheet_xlsx_fods(_fake_xlsx(sheet1_xml=SHEET1_XML_SPLIT), FODS_NO_FREEZE)
+        self.assertIn('vno:split-row="3"', reopened)
+        self.assertNotIn("vno:frozen", reopened)
 
 
 class TestPostprocessSheetXlsxFreezePanes(unittest.TestCase):

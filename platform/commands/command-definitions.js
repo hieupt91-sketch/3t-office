@@ -367,6 +367,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.view.freezePanes", category: "view", label: "Cố định ô", icon: "freezePanes", tooltip: "Cố định các hàng phía trên và cột bên trái Ô đang chọn khi cuộn (Freeze Panes)", isToggle: true },
   { id: "sheet.view.freezeTopRow", category: "view", label: "Cố định hàng trên cùng", icon: "freezeTopRow", tooltip: "Chỉ cố định hàng 1 khi cuộn dọc (Freeze Top Row)", isToggle: true },
   { id: "sheet.view.freezeFirstColumn", category: "view", label: "Cố định cột đầu tiên", icon: "freezeFirstColumn", tooltip: "Chỉ cố định cột A khi cuộn ngang (Freeze First Column)", isToggle: true },
+  { id: "sheet.view.split", category: "view", label: "Chia", icon: "splitWindow", tooltip: "Chia cửa sổ trang tính tại ô hiện tại (không đóng băng)", isToggle: true },
   { id: "sheet.view.zoomIn", category: "view", label: "Phóng to", icon: "zoomIn", tooltip: "Tăng tỉ lệ hiển thị bảng tính" },
   { id: "sheet.view.zoomOut", category: "view", label: "Thu nhỏ", icon: "zoomOut", tooltip: "Giảm tỉ lệ hiển thị bảng tính" },
   { id: "sheet.view.zoomReset", category: "view", label: "100%", icon: "zoom100", tooltip: "Đặt lại tỉ lệ hiển thị 100%" },

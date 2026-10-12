@@ -103,6 +103,22 @@ export async function runSheetChartTests() {
       assert(!grid.chartLayer.children[0].innerHTML.includes('data-value="100"'), "SVG cũ không được giữ giá trị 100");
     });
 
+    await test("Sheet Charts: sửa riêng tiêu đề trục X/Y, render SVG và hoàn tác được", async () => {
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
+      await grid.initializeOptionalDocumentFeatures();
+      grid.chartLayer = chartLayer();
+      grid.setCellValue("A", 1, "Tháng");
+      grid.setCellValue("B", 1, 10);
+      const chart = grid.insertChart("bar", { start: { c: "A", r: 1 }, end: { c: "B", r: 1 } });
+      grid.updateChartAxisTitles(chart.id, { xAxisTitle: "Tháng", yAxisTitle: "Doanh thu" });
+      assert(chart.xAxisTitle === "Tháng" && chart.yAxisTitle === "Doanh thu", JSON.stringify(chart));
+      const svg = grid.chartLayer.children[0].innerHTML;
+      assert(svg.includes('data-axis-title="x"') && svg.includes(">Tháng</text>"), svg);
+      assert(svg.includes('data-axis-title="y"') && svg.includes(">Doanh thu</text>"), svg);
+      grid.undo();
+      assert(!chart.xAxisTitle && !chart.yAxisTitle, "Ctrl+Z phải trả hai tiêu đề trục về trạng thái trước");
+    });
+
     await test("Sheet Charts: state và DOM không rò rỉ chéo sheet", async () => {
       const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       await grid.initializeOptionalDocumentFeatures();

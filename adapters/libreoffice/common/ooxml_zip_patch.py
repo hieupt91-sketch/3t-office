@@ -360,6 +360,7 @@ def _sub_table_open_tags(xml: str, replace, follow: str = " \t\r\n\f\v>/") -> st
 
 _FREEZE_ROWS_ATTR_RE = re.compile(r'vno:frozen-rows="(\d+)"', re.IGNORECASE)
 _FREEZE_COLS_ATTR_RE = re.compile(r'vno:frozen-cols="(\d+)"', re.IGNORECASE)
+_SPLIT_ATTR_RE = re.compile(r'vno:split-(row|col|x|y)="([\d.]+)"', re.IGNORECASE)
 _SHEET_VIEW_RE = re.compile(r"(<sheetView\b[^>]*>)([\s\S]*?)(</sheetView>)", re.IGNORECASE)
 _SHEET_VIEW_SELFCLOSE_RE = re.compile(r"<sheetView\b([^>]*)/>", re.IGNORECASE)
 _PANE_TAG_RE = re.compile(r"<pane\b[^>]*/>", re.IGNORECASE)
@@ -421,6 +422,49 @@ def apply_freeze_panes_to_fods(fods_xml: str, freeze_by_sheet: dict[str, dict[st
     return _sub_table_open_tags(xml, _replace)
 
 
+def parse_split_panes_from_fods(fods_xml: str | None) -> dict[str, dict[str, float | int]]:
+    """Read non-frozen split metadata persisted on FODS table elements."""
+    result: dict[str, dict[str, float | int]] = {}
+    for match in _FREEZE_TABLE_TAG_RE.finditer(fods_xml or ""):
+        attrs = match.group(1) or ""
+        name_match = re.search(r'table:name="([^"]*)"', attrs)
+        if not name_match:
+            continue
+        values = {key.lower(): float(value) for key, value in _SPLIT_ATTR_RE.findall(attrs)}
+        if values.get("x", 0) > 0 or values.get("y", 0) > 0:
+            result[_unescape_xml(name_match.group(1))] = {
+                "row": int(values.get("row", 0)), "col": int(values.get("col", 0)),
+                "x": values.get("x", 0), "y": values.get("y", 0),
+            }
+    return result
+
+
+def apply_split_panes_to_fods(fods_xml: str, split_by_sheet: dict[str, dict[str, float | int]]) -> str:
+    """Overlay state=split pane metadata without setting frozen rows or columns."""
+    if not split_by_sheet:
+        return fods_xml or ""
+
+    def _replace(match: re.Match[str]) -> str:
+        attrs = match.group(1) or ""
+        name_match = re.search(r'table:name="([^"]*)"', attrs)
+        if not name_match:
+            return match.group(0)
+        name = _unescape_xml(name_match.group(1))
+        split = _sheet_name_equivalent_value(split_by_sheet, name)
+        if not split or (float(split.get("x", 0)) <= 0 and float(split.get("y", 0)) <= 0):
+            return match.group(0)
+        next_attrs = _SPLIT_ATTR_RE.sub("", attrs)
+        next_attrs = _FREEZE_ROWS_ATTR_RE.sub("", next_attrs)
+        next_attrs = _FREEZE_COLS_ATTR_RE.sub("", next_attrs)
+        next_attrs += (
+            f' vno:split-row="{int(split.get("row", 0))}" vno:split-col="{int(split.get("col", 0))}"'
+            f' vno:split-x="{split.get("x", 0)}" vno:split-y="{split.get("y", 0)}"'
+        )
+        return f"<table:table{next_attrs}>"
+
+    return _sub_table_open_tags(fods_xml or "", _replace)
+
+
 def parse_freeze_pane_from_sheet_xml(sheet_xml: str | None) -> dict[str, int] | None:
     """Đọc <pane state="frozen" xSplit ySplit> thật từ một worksheetN.xml XLSX."""
     match = _PANE_MATCH_RE.search(sheet_xml or "")
@@ -436,6 +480,31 @@ def parse_freeze_pane_from_sheet_xml(sheet_xml: str | None) -> dict[str, int] | 
     if rows == 0 and cols == 0:
         return None
     return {"rows": rows, "cols": cols}
+
+
+def parse_split_pane_from_sheet_xml(sheet_xml: str | None) -> dict[str, float | int] | None:
+    """Read state=split (or the OOXML default split state), never frozen panes."""
+    match = _PANE_MATCH_RE.search(sheet_xml or "")
+    if not match:
+        return None
+    attrs = match.group(1) or ""
+    if re.search(r'state="(?:frozen|frozenSplit)"', attrs, re.IGNORECASE):
+        return None
+    x_match = re.search(r'xSplit="([\d.]+)"', attrs)
+    y_match = re.search(r'ySplit="([\d.]+)"', attrs)
+    x = float(x_match.group(1)) if x_match else 0.0
+    y = float(y_match.group(1)) if y_match else 0.0
+    if x <= 0 and y <= 0:
+        return None
+    top_left = re.search(r'topLeftCell="([A-Z]+)(\d+)"', attrs, re.IGNORECASE)
+    col = 0
+    row = 0
+    if top_left:
+        for char in top_left.group(1).upper():
+            col = col * 26 + ord(char) - 64
+        col = max(0, col - 1)
+        row = max(0, int(top_left.group(2)) - 1)
+    return {"row": row, "col": col, "x": x, "y": y}
 
 
 def apply_freeze_pane_to_sheet_xml(sheet_xml: str, rows: int, cols: int) -> str:
@@ -473,6 +542,38 @@ def apply_freeze_pane_to_sheet_xml(sheet_xml: str, rows: int, cols: int) -> str:
         replacement = f"<sheetView{self_close.group(1)}>{pane_xml}{selection_xml}</sheetView>"
         return xml[: self_close.start()] + replacement + xml[self_close.end() :]
 
+    return xml
+
+
+def apply_split_pane_to_sheet_xml(sheet_xml: str, split: dict[str, float | int]) -> str:
+    """Write a real non-frozen OOXML split pane; x/y are twentieths of a point."""
+    xml = sheet_xml or ""
+    row = max(0, int(split.get("row", 0)))
+    col = max(0, int(split.get("col", 0)))
+    x = max(0.0, float(split.get("x", 0)))
+    y = max(0.0, float(split.get("y", 0)))
+    if x <= 0 and y <= 0:
+        return xml
+    top_left_cell = f"{column_label_from_index(col + 1)}{row + 1}"
+    active_pane = "bottomRight" if x > 0 and y > 0 else ("bottomLeft" if y > 0 else "topRight")
+    number = lambda value: str(int(value)) if float(value).is_integer() else str(value)
+    pane_attrs: list[str] = []
+    if x > 0:
+        pane_attrs.append(f'xSplit="{number(x)}"')
+    if y > 0:
+        pane_attrs.append(f'ySplit="{number(y)}"')
+    pane_attrs.extend((f'topLeftCell="{top_left_cell}"', f'activePane="{active_pane}"', 'state="split"'))
+    pane_xml = f'<pane {" ".join(pane_attrs)}/>'
+    selection_xml = f'<selection pane="{active_pane}" activeCell="{top_left_cell}" sqref="{top_left_cell}"/>'
+    clean = lambda inner: _SELECTION_TAG_RE.sub("", _PANE_TAG_RE.sub("", inner))
+    match = _SHEET_VIEW_RE.search(xml)
+    if match:
+        replacement = f"{match.group(1)}{pane_xml}{selection_xml}{clean(match.group(2))}{match.group(3)}"
+        return xml[:match.start()] + replacement + xml[match.end():]
+    self_close = _SHEET_VIEW_SELFCLOSE_RE.search(xml)
+    if self_close:
+        replacement = f"<sheetView{self_close.group(1)}>{pane_xml}{selection_xml}</sheetView>"
+        return xml[:self_close.start()] + replacement + xml[self_close.end():]
     return xml
 
 
@@ -5007,6 +5108,23 @@ def postprocess_sheet_xlsx(
             if next_sheet_xml != sheet_xml:
                 replacements[entry_path] = next_sheet_xml
 
+    split_by_sheet = parse_split_panes_from_fods(source_fods)
+    if split_by_sheet:
+        sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+        for sheet_name, split in split_by_sheet.items():
+            entry_path = _sheet_name_equivalent_value(sheet_entries, sheet_name)
+            if not entry_path:
+                continue
+            sheet_xml = replacements.get(entry_path)
+            if sheet_xml is None:
+                entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+                if not entry_bytes:
+                    continue
+                sheet_xml = entry_bytes.decode("utf-8", errors="replace")
+            next_sheet_xml = apply_split_pane_to_sheet_xml(sheet_xml, split)
+            if next_sheet_xml != sheet_xml:
+                replacements[entry_path] = next_sheet_xml
+
     # Sheet visibility (veryHidden): soffice downgrades veryHidden → hidden
     # during FODS→XLSX, so we read vno:sheet-state from FODS and write
     # state="veryHidden" back into xl/workbook.xml.
@@ -9052,6 +9170,7 @@ def overlay_sheet_xlsx_fods(
         xml = apply_print_titles_to_fods(xml, parse_print_titles_from_workbook(workbook_xml))
     xml = overlay_page_margins_to_fods(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
+    xml = overlay_sheet_xlsx_split_panes(xlsx_bytes, xml)
     # AutoFilter: read <autoFilter ref> from original worksheet XMLs and
     # inject <table:database-ranges> into FODS so parseFods can restore
     # the filter state.
@@ -9115,6 +9234,7 @@ def overlay_sheet_xlsx_fods_p1(
         xml = apply_print_titles_to_fods(xml, parse_print_titles_from_workbook(workbook_xml))
     xml = overlay_page_margins_to_fods(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
+    xml = overlay_sheet_xlsx_split_panes(xlsx_bytes, xml)
     xml = _overlay_autofilter_from_xlsx(xlsx_bytes, xml)
     xml = _overlay_sheet_layout_from_xlsx(xlsx_bytes, xml)
     tab_colors = parse_tab_colors_from_xlsx(xlsx_bytes)
@@ -12306,6 +12426,20 @@ def overlay_sheet_xlsx_freeze_panes(xlsx_bytes: bytes, fods_xml: str | None) -> 
         if freeze:
             freeze_by_sheet[sheet_name] = freeze
     return apply_freeze_panes_to_fods(xml, freeze_by_sheet)
+
+
+def overlay_sheet_xlsx_split_panes(xlsx_bytes: bytes, fods_xml: str | None) -> str:
+    """Read real non-frozen split panes from every worksheet and overlay FODS."""
+    xml = fods_xml or ""
+    split_by_sheet: dict[str, dict[str, float | int]] = {}
+    for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+        if not entry_bytes:
+            continue
+        split = parse_split_pane_from_sheet_xml(entry_bytes.decode("utf-8", errors="replace"))
+        if split:
+            split_by_sheet[sheet_name] = split
+    return apply_split_panes_to_fods(xml, split_by_sheet)
 
 
 def overlay_slides_pptx_fodp(pptx_bytes: bytes, fodp_xml: str | None) -> str:

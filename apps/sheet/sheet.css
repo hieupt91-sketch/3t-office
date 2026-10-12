@@ -835,6 +835,25 @@ th.vno-row-header.is-frozen-row-cell {
   border-bottom-color: #64748b;
 }
 
+/* Split window is a view divider, not Freeze Panes. The bars stay fixed in the
+ * viewport while the sheet content scrolls and are persisted as state="split". */
+.vno-sheet-split-bar {
+  position: absolute;
+  z-index: 24;
+  pointer-events: none;
+  background: #64748b;
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, .7), 0 1px 4px rgba(15, 23, 42, .35);
+}
+.vno-sheet-split-bar.is-vertical {
+  width: 4px;
+  height: 100%;
+}
+.vno-sheet-split-bar.is-horizontal {
+  width: 100%;
+  height: 4px;
+}
+[data-theme="dark"] .vno-sheet-split-bar { background: #94a3b8; }
+
 
 /* Sort & Filter UI */
 .vno-filter-btn {

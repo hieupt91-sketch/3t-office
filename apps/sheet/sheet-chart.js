@@ -31,15 +31,16 @@ export class SheetChartBuilder {
     return extractSheetRangeData(cellsData, range, columns);
   }
 
-  static generateSvg({ type = "bar", title = t("sheetDialogs.chartDefaultTitle"), labels = [], data = [] }) {
+  static generateSvg({ type = "bar", title = t("sheetDialogs.chartDefaultTitle"), xAxisTitle = "", yAxisTitle = "", labels = [], data = [] }) {
     if (!SHEET_CHART_TYPES.includes(type)) throw new Error(t("sheetDialogs.chartUnsupported", { type }));
     const values = data.map(numberValue).map(value => value ?? 0);
     const names = values.map((_, index) => esc(labels[index] || t("sheetDialogs.chartItem", { number: index + 1 })));
     const width = 680, height = 360;
-    const p = { top: 50, right: 35, bottom: 65, left: 70 };
+    const p = { top: 50, right: 35, bottom: xAxisTitle ? 82 : 65, left: yAxisTitle ? 88 : 70 };
     const chartW = width - p.left - p.right, chartH = height - p.top - p.bottom;
     const heading = `<text data-chart-title x="340" y="28" text-anchor="middle" font-size="16" font-weight="bold" fill="#0f172a">${esc(title)}</text>`;
-    const wrap = body => `<svg data-chart-type="${type}" viewBox="0 0 ${width} ${height}" width="100%" height="100%" style="background:#fff">${heading}${body}</svg>`;
+    const axisTitles = type === "pie" ? "" : `${xAxisTitle ? `<text data-axis-title="x" x="340" y="354" text-anchor="middle" font-size="12" font-weight="600" fill="#334155">${esc(xAxisTitle)}</text>` : ""}${yAxisTitle ? `<text data-axis-title="y" x="15" y="180" text-anchor="middle" font-size="12" font-weight="600" fill="#334155" transform="rotate(-90 15 180)">${esc(yAxisTitle)}</text>` : ""}`;
+    const wrap = body => `<svg data-chart-type="${type}" viewBox="0 0 ${width} ${height}" width="100%" height="100%" style="background:#fff">${heading}${axisTitles}${body}</svg>`;
     if (!values.length) return wrap(`<text x="340" y="190" text-anchor="middle" fill="#64748b">${esc(t("sheetDialogs.chartNoNumericData"))}</text>`);
 
     if (type === "pie") {
@@ -127,6 +128,38 @@ export class SheetChartBuilder {
     modal.querySelector("[data-chart-apply]").addEventListener("click", () => { onInsert?.(currentType); close(); });
     document.addEventListener("keydown", onKeyDown);
     document.body.appendChild(modal); render(); modal.querySelector("[data-chart-type]")?.focus();
+    return modal;
+  }
+
+  static showAxisTitlesModal(chart, onApply) {
+    if (typeof document === "undefined" || !chart || chart.type === "pie") return null;
+    const previousFocused = document.activeElement;
+    const modal = document.createElement("div");
+    modal.className = "vno-dialog-overlay vno-chart-axis-dialog";
+    modal.innerHTML = `<div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="vno-chart-axis-title" style="width:460px;max-width:calc(100vw - 32px)"><div class="vno-dialog-header"><span id="vno-chart-axis-title" class="vno-dialog-title">${esc(t("sheetDialogs.chartAxisTitlesEdit"))}</span><button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" data-axis-close title="${esc(t("sheetDialogs.close"))}" aria-label="${esc(t("sheetDialogs.close"))}">&times;</button></div><div class="vno-dialog-body" style="display:grid;gap:12px"><label for="vno-chart-axis-x">${esc(t("sheetDialogs.chartHorizontalAxis"))}</label><input id="vno-chart-axis-x" class="vno-input" type="text" maxlength="255" value="${esc(chart.xAxisTitle || "")}" placeholder="${esc(t("sheetDialogs.chartAxisHorizontalPlaceholder"))}"><label for="vno-chart-axis-y">${esc(t("sheetDialogs.chartVerticalAxis"))}</label><input id="vno-chart-axis-y" class="vno-input" type="text" maxlength="255" value="${esc(chart.yAxisTitle || "")}" placeholder="${esc(t("sheetDialogs.chartAxisVerticalPlaceholder"))}"></div><div class="vno-dialog-footer"><button type="button" class="vno-btn" data-axis-cancel>${esc(t("sheetDialogs.cancel"))}</button><button type="button" class="vno-btn vno-btn-primary" data-axis-apply>${esc(t("sheetDialogs.chartAxisApply"))}</button></div></div>`;
+    const close = () => {
+      document.removeEventListener("keydown", onKeyDown);
+      modal.remove();
+      previousFocused?.focus?.();
+    };
+    const apply = () => {
+      onApply?.({
+        xAxisTitle: modal.querySelector("#vno-chart-axis-x")?.value?.trim() || "",
+        yAxisTitle: modal.querySelector("#vno-chart-axis-y")?.value?.trim() || ""
+      });
+      close();
+    };
+    const onKeyDown = event => {
+      if (event.key === "Escape") close();
+      else if (event.key === "Enter") { event.preventDefault(); apply(); }
+      else if (event.key === "Tab") trapFocus(modal.querySelector(".vno-dialog-box"), event);
+    };
+    modal.querySelector("[data-axis-close]")?.addEventListener("click", close);
+    modal.querySelector("[data-axis-cancel]")?.addEventListener("click", close);
+    modal.querySelector("[data-axis-apply]")?.addEventListener("click", apply);
+    document.addEventListener("keydown", onKeyDown);
+    document.body.appendChild(modal);
+    modal.querySelector("#vno-chart-axis-x")?.focus();
     return modal;
   }
 }

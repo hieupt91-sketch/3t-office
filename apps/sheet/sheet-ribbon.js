@@ -697,7 +697,8 @@ export const SHEET_RIBBON_TABS = [
               { commandId: "sheet.view.freezeTopRow" },
               { commandId: "sheet.view.freezeFirstColumn" }
             ]
-          }
+          },
+          { type: "button", commandId: "sheet.view.split", isLarge: true }
         ]
       },
       {

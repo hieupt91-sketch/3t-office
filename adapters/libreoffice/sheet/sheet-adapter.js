@@ -398,6 +398,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.view.zoomToSelection", () => this.grid.zoomToSelection ? this.grid.zoomToSelection() : false);
     globalCommandBus.bindHandler("sheet.view.newWindow", () => this.grid.newWindow ? this.grid.newWindow() : false);
     globalCommandBus.bindHandler("sheet.view.freezePanesMenu", () => this.grid.toggleFreezePanes ? this.grid.toggleFreezePanes() : false);
+    globalCommandBus.bindHandler("sheet.view.split", () => this.grid.toggleSplitPanes ? this.grid.toggleSplitPanes() : false);
     globalCommandBus.bindHandler("sheet.view.zoomIn", (options) => {
       options = options || {};
       return this.grid.zoomIn();
@@ -2632,11 +2633,12 @@ export class SheetAdapter {
       const x = Number.isFinite(Number(chart.x)) ? this._pxToOdfCm(chart.x) : (5.5 + (index % 2) * 0.4).toFixed(3);
       const y = Number.isFinite(Number(chart.y)) ? this._pxToOdfCm(chart.y) : (0.4 + index * 0.5).toFixed(3);
       const title = this._escapeXml(plan.title);
+      const xAxisTitle = this._escapeXml(String(chart.xAxisTitle || ""));
+      const yAxisTitle = this._escapeXml(String(chart.yAxisTitle || ""));
+      const axisTitle = text => text ? `<chart:title><text:p>${text}</text:p></chart:title>` : "";
       const kindAttr = chart.kind === "pivot" ? ` vno:chart-kind="pivot" vno:pivot-id="${this._escapeXml(chart.pivotId || "")}"` : "";
-      const categories = plan.categoriesRange
-        ? `<chart:axis chart:dimension="x" chart:name="primary-x"><chart:categories table:cell-range-address="${this._escapeXml(plan.categoriesRange)}"/></chart:axis>`
-        : "";
-      const yAxis = plan.chartClass === "circle" ? "" : `<chart:axis chart:dimension="y" chart:name="primary-y"><chart:grid chart:class="major"/></chart:axis>`;
+      const categories = plan.chartClass === "circle" ? "" : `<chart:axis chart:dimension="x" chart:name="primary-x">${axisTitle(xAxisTitle)}${plan.categoriesRange ? `<chart:categories table:cell-range-address="${this._escapeXml(plan.categoriesRange)}"/>` : ""}</chart:axis>`;
+      const yAxis = plan.chartClass === "circle" ? "" : `<chart:axis chart:dimension="y" chart:name="primary-y">${axisTitle(yAxisTitle)}<chart:grid chart:class="major"/></chart:axis>`;
       const labelAddr = plan.labelCellRange ? ` chart:label-cell-address="${this._escapeXml(plan.labelCellRange)}"` : "";
       const points = Array.from({ length: plan.pointCount }, () => "<chart:data-point/>").join("");
       const localRows = plan.localRows.map(row => `<table:table-row><table:table-cell office:value-type="string"><text:p>${this._escapeXml(row.label)}</text:p></table:table-cell><table:table-cell office:value-type="float" office:value="${row.value}"><text:p>${row.value}</text:p></table:table-cell></table:table-row>`).join("");
@@ -2848,14 +2850,25 @@ export class SheetAdapter {
    */
   _attachImportedFreezePanes(workbook, xmlText) {
     workbook.freezePanesBySheet = {};
+    const splitPanesBySheet = {};
     String(xmlText || "").replace(/<table:table(?=[\s>/])([^>]*)>/gi, (_, attrs) => {
       const name = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
       if (!name) return "";
       const rows = Number(attrs.match(/vno:frozen-rows=["'](\d+)["']/i)?.[1]) || 0;
       const cols = Number(attrs.match(/vno:frozen-cols=["'](\d+)["']/i)?.[1]) || 0;
       if (rows > 0 || cols > 0) workbook.freezePanesBySheet[name] = { rows, cols };
+      const split = {
+        row: Number(attrs.match(/vno:split-row=["'](\d+)["']/i)?.[1]) || 0,
+        col: Number(attrs.match(/vno:split-col=["'](\d+)["']/i)?.[1]) || 0,
+        x: Number(attrs.match(/vno:split-x=["']([\d.]+)["']/i)?.[1]) || 0,
+        y: Number(attrs.match(/vno:split-y=["']([\d.]+)["']/i)?.[1]) || 0
+      };
+      if (split.x > 0 || split.y > 0) splitPanesBySheet[name] = split;
       return "";
     });
+    // Preserve the historical parseFods shape for workbooks without Split.
+    // The loader already treats a missing mapping as an empty mapping.
+    if (Object.keys(splitPanesBySheet).length) workbook.splitPanesBySheet = splitPanesBySheet;
   }
 
   _attachImportedTextBoxes(workbook, xmlText) {
@@ -3837,6 +3850,13 @@ export class SheetAdapter {
       // Lưu riêng ở đây để tự round-trip đúng trong 3T Office; khi xuất XLSX
       // thật, postprocess_sheet_xlsx() đọc thuộc tính này để ghi <pane> chuẩn.
       const freezeAttr = (freezeRows > 0 || freezeCols > 0) ? ` vno:frozen-rows="${freezeRows}" vno:frozen-cols="${freezeCols}"` : "";
+      const activeState = this.grid.sheetStates?.[sheetName] || {};
+      const split = isActiveSheet
+        ? { row: this.grid.splitRow || 0, col: this.grid.splitCol || 0, x: this.grid.splitX || 0, y: this.grid.splitY || 0 }
+        : { row: activeState.splitRow || 0, col: activeState.splitCol || 0, x: activeState.splitX || 0, y: activeState.splitY || 0 };
+      const splitAttr = split.x > 0 || split.y > 0
+        ? ` vno:split-row="${split.row}" vno:split-col="${split.col}" vno:split-x="${split.x}" vno:split-y="${split.y}"`
+        : "";
       // vno:sheet-state: preserve hidden/veryHidden through round-trip.
       // LibreOffice downgrades veryHidden → hidden during XLSX→FODS; the
       // Python overlay writes vno:sheet-state so serializeToFods can echo it.
@@ -3855,7 +3875,7 @@ export class SheetAdapter {
       const scenariosAttr = scenarios && scenarios.length ? ` vno:scenarios="${this._escapeXml(JSON.stringify(scenarios))}"` : "";
       const textBoxes = this.grid.textBoxesBySheet?.[sheetName] || [];
       const textBoxesAttr = textBoxes.length ? ` vno:text-boxes="${this._escapeXml(JSON.stringify(textBoxes.map(box => ({ text: String(box.text || ""), anchor: box.anchor, widthPx: Math.max(180, Number(box.widthPx) || 180), heightPx: Math.max(54, Number(box.heightPx) || 54) }))))}"` : "";
-      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${textBoxesAttr}${resolvedCommentsAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${splitAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${textBoxesAttr}${resolvedCommentsAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
@@ -4448,6 +4468,13 @@ ${pristineXlsxMarker}
       const seriesType = this._mapOdfChartClass(seriesAttrs[0].match(/chart:class=["']([^"']+)["']/i)?.[1] || "") || type;
       const titleXml = chartMatch[2].match(/<chart:title\b[^>]*>([\s\S]*?)<\/chart:title>/i)?.[1] || "";
       const title = this._unescapeXml(titleXml.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+      const axisTitles = {};
+      chartMatch[2].replace(/<chart:axis\b([^>]*)>([\s\S]*?)<\/chart:axis>/gi, (_all, axisAttrs, axisBody) => {
+        const dimension = axisAttrs.match(/chart:dimension=["']([xy])["']/i)?.[1]?.toLowerCase();
+        const axisTitleXml = axisBody.match(/<chart:title\b[^>]*>([\s\S]*?)<\/chart:title>/i)?.[1] || "";
+        if (dimension && axisTitleXml) axisTitles[dimension] = this._unescapeXml(axisTitleXml.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+        return "";
+      });
       const categoryAttrs = chartMatch[2].match(/<chart:categories\b([^>]*)\/?\s*>/i)?.[1] || "";
       const ranges = [];
       const values = this._parseOdfTargetRange(
@@ -4467,6 +4494,8 @@ ${pristineXlsxMarker}
         type: seriesType,
         range: union.range,
         title: title || `Biểu đồ ${this._a1FromOdfRange(union)}`,
+        ...(axisTitles.x ? { xAxisTitle: axisTitles.x } : {}),
+        ...(axisTitles.y ? { yAxisTitle: axisTitles.y } : {}),
         labels: [],
         data: [],
         imported: true,
@@ -5372,6 +5401,7 @@ ${pristineXlsxMarker}
       this.grid.protectionBySheet[sheetName] = workbook.protectionBySheet?.[sheetName] || { enabled: false, password: "" };
       this.grid.outlineGroupsBySheet[sheetName] = workbook.outlineGroupsBySheet?.[sheetName] || [];
       const freeze = equivalentSheetValue(workbook.freezePanesBySheet, sheetName) || { rows: 0, cols: 0 };
+      const split = equivalentSheetValue(workbook.splitPanesBySheet, sheetName) || { row: 0, col: 0, x: 0, y: 0 };
       if (!this.grid.sheetStates) this.grid.sheetStates = {};
       if (!this.grid.sheetStates[sheetName]) {
         this.grid.sheetStates[sheetName] = { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, frozenRows: 0, frozenCols: 0, selectedCoord: { r: 1, c: "A" } };
@@ -5379,6 +5409,10 @@ ${pristineXlsxMarker}
       this.grid.sheetStates[sheetName].frozenRows = freeze.rows;
       this.grid.sheetStates[sheetName].frozenCols = freeze.cols;
       this.grid.sheetStates[sheetName].isFrozenPanes = freeze.rows > 0 || freeze.cols > 0;
+      this.grid.sheetStates[sheetName].splitRow = split.row || 0;
+      this.grid.sheetStates[sheetName].splitCol = split.col || 0;
+      this.grid.sheetStates[sheetName].splitX = split.x || 0;
+      this.grid.sheetStates[sheetName].splitY = split.y || 0;
       // Tab color: restore from workbook.tabColors
       if (workbook.tabColors?.[sheetName]) {
         this.grid.sheetStates[sheetName].tabColor = workbook.tabColors[sheetName];
@@ -6479,6 +6513,9 @@ ${pristineXlsxMarker}
 
       case "sheet.view.freezeFirstColumn":
         return this.grid.freezeFirstColumn ? this.grid.freezeFirstColumn() : false;
+
+      case "sheet.view.split":
+        return this.grid.toggleSplitPanes ? this.grid.toggleSplitPanes() : false;
 
       case "sheet.view.zoomIn":
         return this.grid.zoomIn ? this.grid.zoomIn() : false;

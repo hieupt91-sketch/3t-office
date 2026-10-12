@@ -37,6 +37,8 @@ function makeBase(sheet = "Doanh thu") {
         type: "bar",
         range: { start: { c: "A", r: 1 }, end: { c: "B", r: 3 } },
         title: "Doanh thu theo tháng",
+        xAxisTitle: "Tháng",
+        yAxisTitle: "Doanh thu",
         labels: ["T1", "T2"],
         data: [120, 200]
       }]
@@ -60,6 +62,8 @@ export async function runSheetRealexportFodsTests() {
     assert(/<chart:chart\b/i.test(xml), "thiếu chart:chart");
     assert(/chart:class="chart:bar"/i.test(xml), "thiếu chart:bar");
     assert(/chart:values-cell-range-address=/i.test(xml), "thiếu series values");
+    assert(/chart:dimension="x"[\s\S]*?<chart:title><text:p>Tháng<\/text:p>/i.test(xml), "thiếu tiêu đề riêng trục X");
+    assert(/chart:dimension="y"[\s\S]*?<chart:title><text:p>Doanh thu<\/text:p>/i.test(xml), "thiếu tiêu đề riêng trục Y");
     assert(/fo:break-before="page"/i.test(xml), "thiếu fo:break-before=page");
     assert(/<calcext:sparkline-groups>/i.test(xml), "thiếu sparkline-groups");
     assert(/calcext:type="line"/i.test(xml), "thiếu sparkline line");
@@ -75,6 +79,7 @@ export async function runSheetRealexportFodsTests() {
     const chart = parsed.chartsBySheet[sheet]?.[0];
     assert(chart?.type === "bar", `chart type=${chart?.type}`);
     assert(chart?.title === "Doanh thu theo tháng", `title=${chart?.title}`);
+    assert(chart?.xAxisTitle === "Tháng" && chart?.yAxisTitle === "Doanh thu", `axis titles=${JSON.stringify(chart)}`);
     assert(chart?.range?.start?.c === "A" && chart?.range?.end?.c === "B", `range=${JSON.stringify(chart?.range)}`);
     assert(JSON.stringify(chart?.data) === JSON.stringify([120, 200]), `data=${JSON.stringify(chart?.data)}`);
     assert(parsed.pageBreaksBySheet[sheet].rows.includes(4), `rows=${JSON.stringify(parsed.pageBreaksBySheet[sheet])}`);

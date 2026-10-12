@@ -169,7 +169,7 @@ export const enStrings = {
     editing: { fill: "Fill", clear: "Clear" },
     alignment: { orientation: "Orientation" },
     cells: { format: "Format" },
-    window: { freezePanes: "Freeze Panes" }
+    window: { freezePanes: "Freeze Panes", split: "Split" }
   },
   sheetFormulaEntry: {
     status: { enter: "Enter", edit: "Edit", point: "Point" },
@@ -215,7 +215,7 @@ export const enStrings = {
     sparklineColumn: "Sparkline column", sparklineLine: "Sparkline line",
     hfPresetLabel: "Preset", hfPresetCustom: "Custom", hfPresetPage: "Page X", hfPresetSheet: "Sheet name", hfPresetDate: "Date", hfPresetNone: "None", hfPresetPageVal: "Page &P", hfPresetSheetVal: "Sheet name: &A", hfPresetDateVal: "Date: &D", hfLeft: "Left", hfCenter: "Center", hfRight: "Right", headerFooterTitle: "Header / Footer", headerTitle: "Header", footerTitle: "Footer", hfDynamicCodesHint: "Dynamic codes: &P page number, &N total pages, &D date, &T time, &F file name, &A sheet name.",
     pivotTitle: "Create PivotTable", pivotSource: "Table/Range (first row contains headers)", loadFields: "Load Fields", chooseFields: "Choose fields for each area:", aggregateFor: "Summarize values by for {field}", sourceRangeFormat: "The source range must use a format such as A1:D20.", sourceNeedsHeaders: "The first row of the source range must contain headers.", uniqueHeaders: "Each source column must have a unique header.", selectValue: "Select at least one Values field.", columnNotFound: "Column {field} was not found.", sourceSheetNotFound: "The source worksheet was not found.", createPivotBtn: "Create PivotTable",
-    chartDefaultTitle: "Data Chart", chartUnsupported: "Unsupported chart type: {type}", chartItem: "Item {number}", chartNoNumericData: "The selected range contains no numeric data", chartPiePositive: "A pie chart requires positive values", chartInsertFrom: "Insert Chart from {range}", selectedRange: "selected range", chartType: "Chart Type", chartColumn: "Column", chartLine: "Line", chartPie: "Pie", chartArea: "Area", insertIntoSheet: "Insert into Worksheet", insertedImageAlt: "Image inserted in the worksheet", deleteImage: "Delete image", imageFormatUnsupported: "Unsupported image format",
+    chartDefaultTitle: "Data Chart", chartUnsupported: "Unsupported chart type: {type}", chartItem: "Item {number}", chartNoNumericData: "The selected range contains no numeric data", chartPiePositive: "A pie chart requires positive values", chartInsertFrom: "Insert Chart from {range}", selectedRange: "selected range", chartType: "Chart Type", chartColumn: "Column", chartLine: "Line", chartPie: "Pie", chartArea: "Area", insertIntoSheet: "Insert into Worksheet", chartAxisTitles: "Axis Titles", chartAxisTitlesEdit: "Edit Axis Titles", chartHorizontalAxis: "Horizontal (X) axis", chartVerticalAxis: "Vertical (Y) axis", chartAxisHorizontalPlaceholder: "For example: Month", chartAxisVerticalPlaceholder: "For example: Revenue", chartAxisApply: "Apply", chartDelete: "Delete chart", splitVerticalSeparator: "Vertical window split", splitHorizontalSeparator: "Horizontal window split", insertedImageAlt: "Image inserted in the worksheet", deleteImage: "Delete image", imageFormatUnsupported: "Unsupported image format",
     cellStylesTitle: "Cell Styles Gallery", cellStylesHint: "Select a style to apply immediately to the selected cells:",
     formatAsTableTitle: "Format as Table", formatAsTableHint: "Create a named table with headers, filter buttons, banded rows, and automatic adjacent expansion.",
     formatTableRange: "Data range", formatTableHeaders: "My table has headers", formatTableNameLabel: "Table name", formatTableCreate: "Create table", formatTableRenameLabel: "New name", formatTableRename: "Rename table", formatTableConvert: "Convert to range", formatTableInvalid: "The range or table name is invalid, or the range overlaps another table.",
@@ -500,6 +500,7 @@ export const enStrings = {
     ,"sheet.view.freezePanes": { label: "Freeze Panes", tooltip: "Keep the rows above and columns to the left of the selected cell visible while scrolling" }
     ,"sheet.view.freezeTopRow": { label: "Freeze Top Row", tooltip: "Keep only row 1 visible while scrolling vertically" }
     ,"sheet.view.freezeFirstColumn": { label: "Freeze First Column", tooltip: "Keep only column A visible while scrolling horizontally" }
+    ,"sheet.view.split": { label: "Split", tooltip: "Split the window at the selected cell without freezing panes" }
     ,"sheet.view.zoomIn": { label: "Zoom In", tooltip: "Increase the worksheet zoom level" }
     ,"sheet.view.zoomOut": { label: "Zoom Out", tooltip: "Decrease the worksheet zoom level" }
     ,"sheet.view.zoomReset": { label: "100%", tooltip: "Reset the worksheet zoom level to 100%" }
