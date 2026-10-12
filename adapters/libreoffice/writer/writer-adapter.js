@@ -291,6 +291,7 @@ export class WriterAdapter {
     this.isDirty = false;
     this._wordCountSourceText = null;
     this._wordCountSourceTextInvalidated = false;
+    this._wordCountSourceListItems = [];
     this.isNewApplicationDocument = true;
     this._openedEditorDomHash = null;
     this.sourceFileName = "TaiLieu";
@@ -15728,6 +15729,7 @@ export class WriterAdapter {
       this._initZones();
       this._sourcePath = result.sourcePath || null;
       this._wordCountSourceText = extractOoxmlDocumentText(result.ooxmlDocumentXml);
+      this._wordCountSourceListItems = this._ooxmlListParagraphs(result.ooxmlDocumentXml, result.ooxmlStylesXml, result.ooxmlNumberingXml);
       this.isNewApplicationDocument = false;
       this.bodyDom?.classList?.remove("vno-new-application-document");
       // Comments chỉ thuộc tài liệu đang mở trong phiên; file khác không dùng lại anchor cũ.
@@ -15852,6 +15854,7 @@ export class WriterAdapter {
     this._sourcePath = null;
     this._wordCountSourceText = null;
     this._wordCountSourceTextInvalidated = true;
+    this._wordCountSourceListItems = [];
     this.isNewApplicationDocument = false;
     this.bodyDom?.classList?.remove("vno-new-application-document");
     this.comments = [];
@@ -15932,6 +15935,7 @@ export class WriterAdapter {
     this._sourcePath = null;
     this._wordCountSourceText = null;
     this._wordCountSourceTextInvalidated = true;
+    this._wordCountSourceListItems = [];
     this.isNewApplicationDocument = true;
     this.comments = [];
     this.trackChangesEnabled = false;
