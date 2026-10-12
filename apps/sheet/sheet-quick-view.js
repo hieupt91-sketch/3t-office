@@ -403,6 +403,9 @@ export class SheetQuickView {
   }
 
   _handleKeyDown(event) {
+    // This overlay is mounted inside the grid container; keep its keyboard events
+    // from falling through to SheetGrid's normal formula-bar keyboard handler.
+    event.stopPropagation?.();
     const key = event.key;
     if (event.target === this.editor) {
       if (key === "Enter") {
