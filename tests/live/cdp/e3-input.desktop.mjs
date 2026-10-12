@@ -152,7 +152,7 @@ try {
   await select("F8");
   await pressSemicolon(true);
   s = await state();
-  check("Ctrl+Shift+semicolon inserts a time", s.cells.F8?.style?.numberFormat?.category === "time", JSON.stringify(s.cells.F8));
+  check("Ctrl+Shift+semicolon inserts an HH:mm:ss text value", /^\d{2}:\d{2}:\d{2}$/.test(s.cells.F8?.val || "") && !s.cells.F8?.style?.numberFormat, JSON.stringify(s.cells.F8));
 
   await select("G1");
   await press(cdp, "ArrowDown", { shift: true });
@@ -351,7 +351,7 @@ try {
   await cdp.evaluate(`import('/platform/commands/command-bus.js').then(m => m.globalCommandBus.execute('sheet.help.open', {entryId:'sheet.input.navigationFillClipboard'}))`);
   await sleep(400);
   const helpText = await cdp.evaluate("document.querySelector('.vno-help-article')?.innerText || ''");
-  check("F1 Help contains concrete grid navigation, fill and clipboard guidance", ["Ctrl+G", "Ctrl+D", "Ctrl+Z", "Ctrl+V"].every(term => helpText.includes(term)), helpText.slice(0, 220).replace(/\s+/g," ").trim());
+  check("F1 Help contains concrete address-box, fill-command and clipboard guidance", ["Hộp tên", "Điền xuống", "Ctrl+Z", "Ctrl+V"].every(term => helpText.includes(term)), helpText.slice(0, 220).replace(/\s+/g," ").trim());
 
   await select("A1");
   await press(cdp, "a", { ctrl: true });

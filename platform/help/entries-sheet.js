@@ -1197,12 +1197,12 @@ export const SHEET_HELP_ENTRIES = [
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
     keywords: ["chọn ô", "di chuyển ô", "Ctrl+G", "F5", "F2", "điền xuống", "kéo tay nắm", "sao chép", "dán", "menu chuột phải", "hoàn tác"],
     steps: [
-      "Nhấp vào ô trong lưới để chọn. Dùng các phím mũi tên để đi từng ô; giữ Shift khi nhấn mũi tên để mở rộng vùng. Ctrl+mũi tên đi tới biên dữ liệu; nhấn End rồi một phím mũi tên để đi tới biên theo hướng đó. Ctrl+Home về A1.",
-      "Nhấn Ctrl+G hoặc F5 để đặt con trỏ vào Hộp tên bên trái thanh công thức. Gõ địa chỉ như D7, vùng như B2:D10, hoặc tên vùng rồi nhấn Enter để đi tới đó.",
-      "Khi một ô đang được chọn, gõ chữ hoặc số để thay nội dung rồi nhấn Enter. Nhấn F2 để sửa nội dung hiện có; Enter xác nhận, Esc hủy phần sửa và khôi phục giá trị cũ. Tab xác nhận rồi chuyển sang ô bên phải. Nếu đã chọn nhiều ô, gõ giá trị hoặc công thức rồi nhấn Ctrl+Enter để điền toàn vùng; tham chiếu tương đối trong công thức tự dịch theo từng ô, còn tham chiếu có dấu $ được giữ cố định. Delete xóa nội dung của cả vùng đang chọn.",
-      "Kéo chuột từ ô đầu đến ô cuối để chọn một khối. Nhấp chữ cái đầu cột hoặc số đầu hàng để chọn cả cột/hàng. Để điền, chọn vùng có ô nguồn ở cạnh trên hoặc bên trái rồi nhấn Ctrl+D hoặc Ctrl+R; hoặc kéo tay nắm nhỏ ở góc dưới phải vùng chọn tới ô đích để tiếp tục chuỗi số/ngày.",
+      "Nhấp vào ô trong lưới để chọn. Dùng các phím mũi tên để đi từng ô; giữ Shift khi nhấn mũi tên để mở rộng vùng. Nhấn End rồi một phím mũi tên để đi tới ô cuối theo hướng đó.",
+      "Đặt con trỏ vào Hộp tên bên trái thanh công thức. Gõ địa chỉ như D7, vùng như B2:D10, hoặc tên vùng rồi nhấn Enter để đi tới đó.",
+      "Khi một ô đang được chọn, gõ chữ hoặc số để thay nội dung rồi nhấn Enter. Sửa nội dung hiện có trực tiếp trong ô; Enter xác nhận, Esc hủy phần sửa và khôi phục giá trị cũ. Tab xác nhận rồi chuyển sang ô bên phải. Khi đã chọn nhiều ô, nhập giá trị hoặc công thức rồi dùng lệnh điền vùng. Delete xóa nội dung của cả vùng đang chọn.",
+      "Kéo chuột từ ô đầu đến ô cuối để chọn một khối. Nhấp chữ cái đầu cột hoặc số đầu hàng để chọn cả cột/hàng. Để điền, chọn vùng có ô nguồn ở cạnh trên hoặc bên trái rồi dùng lệnh Điền xuống/Điền sang phải trên tab Trang đầu; hoặc kéo tay nắm nhỏ ở góc dưới phải vùng chọn tới ô đích để tiếp tục chuỗi số/ngày.",
       "Chọn ô/vùng nguồn rồi nhấn Ctrl+C để sao chép hoặc Ctrl+X để cắt; chọn ô đích và nhấn Ctrl+V để dán. Ctrl+Alt+V mở Dán đặc biệt để chọn giá trị, công thức, định dạng hoặc chuyển vị. Nhấp chuột phải lên ô để mở cùng các lệnh theo ngữ cảnh. Ctrl+Z hoàn tác một thao tác; Ctrl+Y làm lại.",
-      "Các lệnh F5/Ctrl+G hiện nhập địa chỉ qua Hộp tên. Nội dung hướng dẫn không thay thế thao tác lưu tệp; hãy lưu bằng nút Lưu hoặc Ctrl+S sau khi sửa dữ liệu."
+      "Nội dung hướng dẫn không thay thế thao tác lưu tệp; hãy lưu bằng nút Lưu hoặc Ctrl+S sau khi sửa dữ liệu."
     ]
   },
   {

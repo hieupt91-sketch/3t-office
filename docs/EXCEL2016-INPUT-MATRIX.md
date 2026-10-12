@@ -25,7 +25,7 @@ Phạm vi E3 dùng Excel 2016 cài trên máy làm chuẩn thao tác. Bài kiể
 | Alt+Enter | Chèn xuống dòng trong một ô | PASS CDP | J1 nhận `LINE1` + xuống dòng + `LINE2` |
 | F4 trong công thức | Luân phiên tham chiếu tương đối/tuyệt đối tại caret | PASS CDP | Khi sửa `=A4`, F4 đổi tham chiếu thành `=$A$4` |
 | Ctrl+Enter | Điền giá trị hoặc công thức vào toàn vùng; dịch tham chiếu tương đối theo ô đích | PASS trong CDP; FAIL với chuỗi giống tham chiếu khi Excel mở XLSX | CDP xác nhận H1:H3 lần lượt dùng A4/A5/A6, giữ `$B$1` và literal `" A4"`; Excel 2016 COM đọc XLSX app đã lưu nhưng H2 formula thành `=A5+$B$1&" [.A4]"`. Cần Adapter owner sửa công đoạn ODF→XLSX |
-| Ctrl+; / Ctrl+Shift+; | Chèn ngày hiện tại / giờ hiện tại | PASS cả hai phím | CDP xác nhận ô ngày là serial ngày có định dạng date; ô giờ là serial thời gian có định dạng time |
+| Ctrl+; / Ctrl+Shift+; | Chèn ngày hiện tại / giờ hiện tại | Ctrl+; lưu serial ngày; Ctrl+Shift+; lưu chuỗi HH:mm:ss | CDP xác nhận lệnh giờ lưu chuỗi HH:mm:ss và không tự gắn định dạng số. Chưa có thao tác/readback Excel 2016 thật để đổi sang serial thời gian |
 | Delete / Backspace | Xóa nội dung toàn vùng đang chọn, giữ định dạng | PASS cả hai phím | CDP xác nhận Delete xóa A6:A7, Backspace xóa ô hiện hành |
 | Ctrl+D / Ctrl+R | Điền xuống / sang phải; dịch tham chiếu công thức tương đối | PASS cả hai với giá trị | Ctrl+D điền A1 xuống A2; Ctrl+R điền E10 sang F10 |
 | Kéo tay nắm điền | Tiếp tục chuỗi số/ngày/danh sách hoặc sao chép | PASS kéo chuỗi số | D1:D2 = 1,2; kéo tới D4 tạo 3,4 |

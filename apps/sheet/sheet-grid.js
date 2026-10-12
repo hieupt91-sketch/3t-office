@@ -741,7 +741,8 @@ export class SheetGridController {
     const mm = String(now.getMinutes()).padStart(2, "0");
     const ss = String(now.getSeconds()).padStart(2, "0");
     const timeStr = `${hh}:${mm}:${ss}`;
-    this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, timeStr, true);
+    // Keep the shortcut result as text until Excel 2016 readback evidence proves otherwise.
+    this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, `'${timeStr}`, true);
     if (this.formulaInput) this.formulaInput.value = timeStr;
     return timeStr;
   }

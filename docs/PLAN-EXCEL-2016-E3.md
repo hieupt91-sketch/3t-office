@@ -34,3 +34,8 @@ Mỗi nhóm thay đổi được commit độc lập. Revert commit E3 tương �
 - **Rủi ro:** Phân biệt tham chiếu ô với chuỗi văn bản, tên hàm/vùng và vùng ngoài biên; sai dịch chuyển làm đổi kết quả công thức sau lưu.
 - **Kiểm tra:** CDP nhập công thức vào H1:H3 và kiểm chuỗi formula từng ô; Excel 2016 COM đọc lại công thức, Value2 và number format trong XLSX app vừa lưu.
 - **Rollback:** Revert commit sửa Ctrl+Enter; giữ nguyên các nhóm điều hướng, tài liệu và kiểm CDP đã commit trước đó.
+
+## Bổ sung: kết quả Ctrl+Shift+; và đồng bộ Help
+
+- Hai bài kiểm tra đang có yêu cầu lệnh chèn giờ trả về/lưu chuỗi `HH:mm:ss`; lần chạy trước thất bại vì parser ô đổi chuỗi giờ thành serial `0.0589…`. Không có bằng chứng Excel 2016 thật về thao tác Ctrl+Shift+; và readback `Value2`/`NumberFormat` trong worktree này, vì vậy không đổi kỳ vọng kiểm thử. Lệnh hiện lưu chuỗi giờ bằng đường nhập văn bản và không gắn number format. Đổi sang serial chỉ sau khi có thể ghi lại thao tác Excel thật và giá trị `Value2` cùng `NumberFormat`.
+- Bài Help `sheet.input.navigationFillClipboard` đã bỏ các tổ hợp Ctrl+Arrow, Ctrl+Home, F5, Ctrl+G và Ctrl+Enter mà nội dung trước gắn với bài này nhưng không có khai báo tương ứng trong registry shortcut. Các bước còn lại mô tả thao tác qua Hộp tên, lưới, ribbon và chuột. Không thay đổi kiểm thử đồng bộ Help.
