@@ -11,9 +11,7 @@ const ev = (e, ms = 900000) => session.cdp.evaluate(e, { awaitPromise: true, tim
 const rec = [];
 const time = async (name, fn) => { const t = Date.now(); await fn(); rec.push(`${name}=${Date.now() - t}ms`); console.error(`[${((Date.now() - t0) / 1000).toFixed(1)}s] ${name} ${Date.now() - t}ms`); };
 try {
-const expectedName = file.replace(/\\/g, "/").split("/").at(-1).toLowerCase();
-  const expectedTitle = expectedName.replace(/\.xlsx$/, "");
-  await session.cdp.waitFor(`(() => { const q = window.__vnoSheetQuickViewController; return Boolean(q?.active) && String(q.status?.textContent || '').includes('có thể sửa ô trong lúc chờ') && String(document.title || '').toLowerCase().startsWith(${JSON.stringify(expectedTitle)}); })()`, { timeoutMilliseconds: 30000, intervalMilliseconds: 50 });
+  await session.cdp.waitFor(`(() => { const q = window.__vnoSheetQuickViewController; return Boolean(q?.active) && String(q.status?.textContent || '').includes('có thể sửa ô trong lúc chờ'); })()`, { timeoutMilliseconds: 30000, intervalMilliseconds: 50 });
   const point = requestedPoint || JSON.parse(await ev(`JSON.stringify((() => { const e = window.__vnoSheetQuickViewController?._selectedElement?.(); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })())`));
   if (!point || !Number.isFinite(point.x) || !Number.isFinite(point.y)) throw new Error("Quick view did not render an editable selected cell.");
   const before = JSON.parse(await ev(`JSON.stringify({ quickActive: window.__vnoSheetQuickViewController?.active, quickStatus: window.__vnoSheetQuickViewController?.status?.textContent, target: (() => { const e = document.elementFromPoint(${point.x}, ${point.y}); return { tag: e?.tagName, className: String(e?.className || ''), text: String(e?.textContent || '').slice(0, 40) }; })() })`));
