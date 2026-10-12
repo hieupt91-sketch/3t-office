@@ -63,7 +63,12 @@ export function countDocumentStats(text, options = {}) {
     return empty;
   }
 
-  const words = trimmed.split(/\s+/).filter(Boolean).length + (Number(markerStats.words) || 0);
+  const tokens = trimmed.split(/\s+/).filter(Boolean);
+  const cjkWordBonus = tokens.reduce((total, token) => {
+    const cjk = token.match(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu) || [];
+    return total + Math.max(0, cjk.length - 1);
+  }, 0);
+  const words = tokens.length + cjkWordBonus + (Number(markerStats.words) || 0);
   const paragraphs = options.paragraphCount != null
     ? options.paragraphCount
     : raw.split(/\n+/).filter((block) => block.trim().length > 0).length;

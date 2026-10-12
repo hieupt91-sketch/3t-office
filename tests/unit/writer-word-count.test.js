@@ -37,6 +37,11 @@ export async function runWriterWordCountTests() {
     }
   });
 
+  await test("Word Count: count each CJK character as a Word word token", () => {
+    const stats = countDocumentStats("© ₫ ∑ → é 漢字");
+    if (stats.words !== 7) throw new Error(`Expected 7 Word tokens, got ${stats.words}`);
+  });
+
   await test("Word Count: count visible legacy checkbox field result once", () => {
     const xml = '<w:document><w:body><w:p><w:r><w:fldChar w:fldCharType="begin"><w:ffData><w:checkBox><w:default w:val="0"/></w:checkBox></w:ffData></w:fldChar></w:r><w:r><w:instrText> FORMCHECKBOX </w:instrText></w:r></w:p></w:body></w:document>';
     const text = extractOoxmlDocumentText(xml);
