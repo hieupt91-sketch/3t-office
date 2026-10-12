@@ -14,6 +14,7 @@ from __future__ import annotations
 import re
 import tempfile
 import unittest
+import zipfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
@@ -228,6 +229,53 @@ class WriterSaveRoundtripTests(unittest.TestCase):
             if mb is not None:
                 self.assertAlmostEqual(mb, 6.0, delta=2.0,
                     msg=f"margin-bottom: expected ~6pt, got {mb}pt")
+
+    @unittest.skipUnless(main.SOFFICE_PATH, "LibreOffice soffice is not installed")
+    def test_odt_save_uses_standard_mimetype_and_reopens(self):
+        source_docx = FIXTURES_DIR / "sample-writer-tables.docx"
+        self.assertTrue(source_docx.is_file(), "Writer table fixture is missing")
+        with tempfile.TemporaryDirectory() as temp_dir:
+            temp_root = Path(temp_dir)
+            source_dir = temp_root / "source"
+            save_dir = temp_root / "save"
+            source_dir.mkdir()
+            save_dir.mkdir()
+            source_odt = main._run_soffice_convert(
+                str(source_docx), "odt", str(source_dir), app_kind="writer"
+            )
+            with zipfile.ZipFile(source_odt) as package:
+                self.assertEqual(
+                    package.read("mimetype").decode("ascii").strip(),
+                    "application/vnd.oasis.opendocument.text",
+                )
+
+            api = main.VnOfficeApi("writer", source_odt)
+            with patch.object(main, "_active_window", return_value=None):
+                opened = api.open_document_dialog("writer")
+            self.assertEqual(opened.get("status"), "ok", opened)
+            content = opened.get("content") or ""
+            self.assertEqual(_count_tables(content), 1, "Source ODT table did not open")
+            marker = "ODT chuẩn tiếng Việt round-trip"
+            destination = str(save_dir / "saved.odt")
+            with patch.object(main, "_active_window", return_value=_make_mock_window(destination)):
+                saved = api.save_document_dialog(
+                    content + f"<p>{marker}</p>", "writer", target_format="odt"
+                )
+            self.assertEqual(saved.get("status"), "ok", saved)
+
+            with zipfile.ZipFile(destination) as package:
+                self.assertEqual(
+                    package.read("mimetype").decode("ascii").strip(),
+                    "application/vnd.oasis.opendocument.text",
+                    "Saved ODT must be a standard Writer text package, not Writer/Web",
+                )
+            reopened_api = main.VnOfficeApi("writer", destination)
+            with patch.object(main, "_active_window", return_value=None):
+                reopened = reopened_api.open_document_dialog("writer")
+            self.assertEqual(reopened.get("status"), "ok", reopened)
+            reopened_content = reopened.get("content") or ""
+            self.assertIn(_normalize_ws(marker), _normalize_ws(reopened_content))
+            self.assertEqual(_count_tables(reopened_content), 1)
 
 
 if __name__ == "__main__":
