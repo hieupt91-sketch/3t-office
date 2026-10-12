@@ -146,6 +146,24 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.formula.excel2016Functions",
+    app: "sheet",
+    commandIds: ["sheet.formula.insertFunction"],
+    title: "Hàm thống kê, tham chiếu và cơ sở ngày nâng cao",
+    summary: "Dùng MODE để tìm giá trị lặp nhiều nhất, PERCENTILE để tính phân vị, ADDRESS để tạo địa chỉ ô, FORMULATEXT để đọc công thức, YEARFRAC để tính phần năm giữa hai ngày và HYPERLINK để tạo liên kết có nhãn hiển thị.",
+    ribbon: { tab: "Công thức", tabId: "formulas", group: "Hàm tính toán" },
+    keywords: ["MODE", "PERCENTILE", "ADDRESS", "FORMULATEXT", "YEARFRAC", "HYPERLINK", "phân vị", "địa chỉ ô", "công thức dạng chữ", "phần năm", "siêu liên kết"],
+    steps: [
+      "Chọn ô kết quả rồi gõ công thức trên lưới hoặc Thanh công thức Sheet; nhấn Enter để tính. Cũng có thể mở tab Công thức → nhóm Hàm tính toán → Chèn hàm, tìm tên hàm rồi chèn cú pháp vào ô.",
+      "Dùng =MODE(A2:A20) để tìm số xuất hiện thường xuyên nhất; nếu nhiều số đồng hạng, kết quả là số nhỏ nhất. Nếu không có số lặp, hàm trả lỗi #N/A.",
+      "Dùng =PERCENTILE(A2:A20,0.9) để lấy phân vị 90%; đối số thứ hai phải từ 0 đến 1. Hàm bỏ qua văn bản trong vùng và nội suy theo phương pháp inclusive.",
+      "Dùng =ADDRESS(3,2) để tạo địa chỉ tuyệt đối $B$3. Đối số thứ ba chọn kiểu khóa hàng/cột: 1 khóa cả hai, 2 khóa hàng, 3 khóa cột, 4 không khóa. Có thể thêm tên trang tính ở đối số thứ năm.",
+      "Dùng =FORMULATEXT(C5) để hiện công thức đang lưu trong C5 dưới dạng văn bản. Nếu C5 không chứa công thức, kết quả là #N/A.",
+      "Dùng =YEARFRAC(A2,B2,1) để tính khoảng thời gian giữa hai ngày theo cơ sở Actual/Actual. Đối số cơ sở tùy chọn nhận 0 đến 4; bỏ trống sẽ dùng cơ sở 0 (30/360).",
+      "Dùng =HYPERLINK(\"#B2\",\"Xem dữ liệu\") để tạo liên kết trong workbook và đặt nhãn dễ hiểu trong ô. Có thể thay #B2 bằng địa chỉ web; nhấp vào nhãn để mở đích liên kết."
+    ]
+  },
+  {
     id: "sheet.formula.excelEntry",
     app: "sheet",
     commandIds: ["sheet.formula.insertFunction", "sheet.formula.arrayEnter"],
@@ -857,11 +875,11 @@ export const SHEET_HELP_ENTRIES = [
     title: "Chế độ tính toán, F9 và công thức mảng",
     summary: "Mặc định Tự động: sửa ô nguồn là tính lại ngay. Thủ công giữ nguyên kết quả cũ cho tới F9 (toàn workbook) hoặc Shift+F9 (trang hiện tại). Ctrl+Shift+Enter nhập công thức mảng cho vùng đã bôi.",
     ribbon: { tab: "Công thức", tabId: "formulas", group: "Tính toán" },
-    keywords: ["tính toán", "tự động", "thủ công", "manual", "f9", "shift+f9", "công thức mảng", "ctrl+shift+enter", "array formula", "tính lại"],
+    keywords: ["tính toán", "tự động", "thủ công", "manual", "f9", "shift+f9", "công thức mảng", "ctrl+shift+enter", "array formula", "TRANSPOSE", "chuyển vị", "tính lại"],
     steps: [
       "Tab Công thức, nhóm Tính toán: hộp chọn Tự động (Automatic) / Thủ công (Manual), nút Tính lại toàn bộ (F9), Tính trang hiện tại (Shift+F9). Chọn Thủ công rồi nhấn Ctrl+S để lưu; XLSX ghi chế độ manual, các ứng dụng hỗ trợ thiết lập này sẽ mở tệp ở chế độ tính thủ công. Hai lệnh modeAutomatic / modeManual không có nút riêng — chúng là giá trị của hộp Tùy chọn tính toán.",
       "Tự động (mặc định): mỗi lần setCellValue chạy tính lại phụ thuộc. Thủ công: sửa A1 không đổi ô =A1*2 cho tới khi nhấn F9 (mọi sheet) hoặc Shift+F9 (chỉ sheet đang mở). Chuyển từ Thủ công về Tự động sẽ tính lại toàn bộ ngay.",
-      "Công thức mảng không có nút ribbon: bôi vùng kết quả, gõ công thức bắt đầu bằng = trên thanh công thức, nhấn Ctrl+Shift+Enter. Engine evaluateArray; số phần tử kết quả phải khớp số ô đã bôi — lệch thì lệnh không ghi. Mỗi ô mang cờ isArrayFormula và arrayRange chung.",
+      "Công thức mảng không có nút ribbon: bôi vùng kết quả, gõ công thức bắt đầu bằng = trên thanh công thức, nhấn Ctrl+Shift+Enter. Ví dụ, dữ liệu A1:C2 có 2 hàng × 3 cột thì bôi D1:E3 (3 hàng × 2 cột), nhập =TRANSPOSE(A1:C2), rồi nhấn Ctrl+Shift+Enter để chuyển hàng thành cột. Nếu chỉ nhấn Enter, kết quả theo giao mảng tại vị trí ô và có thể là #VALUE!; Ctrl+Shift+Enter điền toàn bộ mảng. Kích thước vùng đích phải khớp kết quả — lệch thì lệnh không ghi.",
       "F9 / Shift+F9 dùng cả khi đang Tự động (ép tính lại). Ctrl+Z hoàn tác lần nhập mảng. Công thức thường (không mảng) xác nhận bằng Enter."
     ]
   },
