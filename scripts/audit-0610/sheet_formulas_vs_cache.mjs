@@ -174,9 +174,10 @@ async function evaluateFile(fileName, existingResults) {
   }
 
   // Launch Desktop App via CDP
-  const scratch = await mkdtemp(path.join(os.tmpdir(), "vno-audit-cache-"));
+  const requestedProfile = process.env.VNO_CDP_LOCALAPPDATA;
+  const scratch = requestedProfile ? null : await mkdtemp(path.join(os.tmpdir(), "vno-audit-cache-"));
   const previousProfile = process.env.VNO_CDP_LOCALAPPDATA;
-  process.env.VNO_CDP_LOCALAPPDATA = path.join(scratch, "profile");
+  if (!requestedProfile) process.env.VNO_CDP_LOCALAPPDATA = path.join(scratch, "profile");
 
   let session = null;
   let evaluatedItems = [];
@@ -250,7 +251,7 @@ async function evaluateFile(fileName, existingResults) {
     if (session) await session.close().catch(() => {});
     if (previousProfile !== undefined) process.env.VNO_CDP_LOCALAPPDATA = previousProfile;
     else delete process.env.VNO_CDP_LOCALAPPDATA;
-    await rm(scratch, { recursive: true, force: true }).catch(() => {});
+    if (scratch) await rm(scratch, { recursive: true, force: true }).catch(() => {});
   }
 
   // Compare results
