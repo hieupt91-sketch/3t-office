@@ -35,14 +35,14 @@ TEST RESULTS:
 - `python -m unittest tests.test_xlsx_preview`: PASS, 5 tests.
 - Sheet quick-view unit suite: PASS, 18 tests.
 - `python -m py_compile main.py apps/sheet/xlsx_preview.py tests/test_xlsx_preview.py`: PASS.
-- Full Python suite: latest completed run was 912 tests with one WinError 32 on Writer sample temp-file replace; the exact test passed in three isolated runs. A final rerun is in progress at handoff preparation; update this result before final closeout.
+- Full Python suite: final rerun PASS, 912 tests in 518.929 s. A prior full run had one intermittent WinError 32 on Writer sample temp-file replace; the exact test passed in three isolated runs and the final full rerun passed. ResourceWarning reported unclosed subprocess streams in integration tests.
 - Desktop CDP open/scroll/edit/undo/redo goals passed on the cases measured. LAN01 PDF print preview opened after hydration. Actual physical print was NOT RUN.
 KNOWN FAILURES:
 - Fidelity batch is not fully green: LAN14 save evaluation timed out, LAN25 has 9419 diffs also on legacy path, LAN04 Excel COM could not initialize. No test expectation or fixture was changed.
-- Full Python suite had one intermittent, unrelated Writer file-lock failure; exact test passed three isolated runs.
+- One earlier full Python suite run had an intermittent, unrelated Writer file-lock failure; the isolated test passed three times and the final full suite rerun passed.
 RISKS:
 - Local parser is a bounded preview source only; full workbook styles/model and persistence continue to depend on UNO hydration.
 - LAN14 complete save latency remains unresolved. Do not report the ticket's full fidelity gate as PASS.
 DEPENDENCIES/BLOCKERS: None added. Excel COM environment issue on LAN04; LAN25 legacy fidelity discrepancy and LAN14 save timeout need separate investigation.
 CORE PATCH ID (if any): None.
-NEXT ACTION: Recheck final Python suite rerun and UTF-8/no-BOM + `git diff --check`; keep P1 fast preview behind existing fallback. Investigate LAN14 save latency and LAN25 style/number-format diffs in separately scoped tasks.
+NEXT ACTION: Keep P1 fast preview behind existing fallback. Investigate LAN14 save latency and LAN25 style/number-format diffs in separately scoped tasks.
