@@ -502,7 +502,6 @@ export class SheetQuickView {
     this.editor = input;
     this.editorCell = cell;
     input.focus?.();
-    input.select?.();
     return true;
   }
 
