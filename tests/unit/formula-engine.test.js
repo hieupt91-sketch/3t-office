@@ -1118,5 +1118,57 @@ export async function runFormulaEngineTests() {
       parseCacheEngine._parseNumberOrCurrency("1.234 ₫") === 1234
   });
 
+  const criteriaCells = new Map([
+    ["A1", { val: "đạt", formula: "", style: {} }],
+    ["A2", { val: "chưa", formula: "", style: {} }],
+    ["A3", { val: "đạt", formula: "", style: {} }],
+    ["B1", { val: 10, formula: "", style: {} }],
+    ["B2", { val: 20, formula: "", style: {} }],
+    ["B3", { val: 30, formula: "", style: {} }]
+  ]);
+  const criteriaEngine = new FormulaEngine(criteriaCells, null, name => name === "S1" ? criteriaCells : null, () => "S1");
+  const countBeforeEdit = criteriaEngine.evaluate('=COUNTIF(A1:A3,"đạt")');
+  const sumBeforeEdit = criteriaEngine.evaluate('=SUMIF(A1:A3,"đạt",B1:B3)');
+  const criteriaIndex = [...criteriaEngine._criteriaIndexCache.values()][0];
+  criteriaEngine.bumpSheetVersion("S1", "Z10");
+  const indexRetainedOutsideRange = criteriaEngine._criteriaIndexCache.size === 1;
+  criteriaEngine.bumpSheetVersion("S1", "A2");
+  const indexInvalidatedInsideRange = criteriaEngine._criteriaIndexCache.size === 0;
+  criteriaCells.get("A2").val = "đạt";
+  results.push({
+    name: "Formula criteria indexes: COUNTIF/SUMIF reuse results and invalidate changed ranges",
+    pass: countBeforeEdit === 2 && sumBeforeEdit === 40 && criteriaIndex.matches.size === 1 &&
+      indexRetainedOutsideRange && indexInvalidatedInsideRange &&
+      criteriaEngine.evaluate('=COUNTIF(A1:A3,"đạt")') === 3 &&
+      criteriaEngine.evaluate('=SUMIF(A1:A3,"đạt",B1:B3)') === 60
+  });
+  const matrixCriteriaEngine = new FormulaEngine(new Map([
+    ["A1", { val: "có", formula: "", style: {} }], ["B1", { val: "không", formula: "", style: {} }],
+    ["A2", { val: "không", formula: "", style: {} }], ["B2", { val: "có", formula: "", style: {} }],
+    ["C1", { val: 10, formula: "", style: {} }], ["D1", { val: 20, formula: "", style: {} }],
+    ["C2", { val: 30, formula: "", style: {} }], ["D2", { val: 40, formula: "", style: {} }],
+    ["E1", { val: "#N/A", formula: "", style: {} }], ["E2", { val: "có", formula: "", style: {} }],
+    ["F1", { val: 3, formula: "", style: {} }], ["F2", { val: 5, formula: "", style: {} }]
+  ]));
+  results.push({
+    name: "Formula criteria indexes: SUMIF preserves row-major range alignment and error propagation",
+    pass: matrixCriteriaEngine.evaluate('=SUMIF(A1:B2,"có",C1:D2)') === 50 &&
+      matrixCriteriaEngine.evaluate('=SUMIF(E1:E2,"có",F1:F2)') === "#N/A"
+  });
+
+  const matchCells = new Map(Array.from({ length: 500 }, (_, index) => [
+    `A${index + 1}`, { val: `key-${index + 1}`, formula: "", style: {} }
+  ]));
+  const matchEngine = new FormulaEngine(matchCells);
+  let exactScanComparisons = 0;
+  const lookupEquals = matchEngine._lookupExactEquals.bind(matchEngine);
+  matchEngine._lookupExactEquals = (...args) => { exactScanComparisons++; return lookupEquals(...args); };
+  const missingVlookup = matchEngine.evaluate("=VLOOKUP(1001,A1:A500,1,FALSE)");
+  const missingMatch = matchEngine.evaluate('=MATCH("absent",A1:A500,0)');
+  results.push({
+    name: "Formula lookup indexes: VLOOKUP and MATCH misses avoid a full exact scan",
+    pass: missingVlookup === "#N/A" && missingMatch === "#N/A" && exactScanComparisons === 0
+  });
+
   return results;
 }

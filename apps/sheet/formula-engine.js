@@ -172,6 +172,7 @@ export class FormulaEngine {
     this._rangeValuesCache = new Map();
     this._maxUsedRowCache = new Map();
     this._lookupIndexCache = new Map();
+    this._criteriaIndexCache = new Map();
     this._parsedReferenceCache = new Map();
     this._parsedNumberCache = new Map();
     this._equalityValueCache = new Map();
@@ -198,6 +199,7 @@ export class FormulaEngine {
       this._rangeValuesCache.clear();
       this._maxUsedRowCache.clear();
       this._lookupIndexCache.clear();
+      this._criteriaIndexCache.clear();
       this._parsedReferenceCache.clear();
       this._globalVersion++;
       return;
@@ -220,10 +222,22 @@ export class FormulaEngine {
         if (match) {
           const column = this._columnIndex(match[1]);
           const row = Number(match[2]);
-          if (column < index.bounds.minCol || column > index.bounds.maxCol || row < index.bounds.minRow || row > index.bounds.maxRow) continue;
+          if (column < index.bounds.minCol || column > index.bounds.maxCol || (!index.bounds.wholeColumns && (row < index.bounds.minRow || row > index.bounds.maxRow))) continue;
         }
       }
       this._lookupIndexCache.delete(key);
+    }
+    for (const [key, index] of this._criteriaIndexCache) {
+      if (index.sheet !== s) continue;
+      if (changedCoord && index.bounds) {
+        const match = String(changedCoord).match(/^([A-Z]+)(\d+)$/i);
+        if (match) {
+          const column = this._columnIndex(match[1]);
+          const row = Number(match[2]);
+          if (column < index.bounds.minCol || column > index.bounds.maxCol || (!index.bounds.wholeColumns && (row < index.bounds.minRow || row > index.bounds.maxRow))) continue;
+        }
+      }
+      this._criteriaIndexCache.delete(key);
     }
   }
 
@@ -715,10 +729,13 @@ export class FormulaEngine {
 
     const candidates = funcName === "VLOOKUP"
       ? matrix.map((row, index) => ({ key: row[0], index }))
-      : matrix[0].map((key, index) => ({ key, index }));
+      : funcName === "MATCH"
+        ? matrix.flat().map((key, index) => ({ key, index }))
+        : matrix[0].map((key, index) => ({ key, index }));
 
     const numMap = new Map();
     const strMap = new Map();
+    const boolMap = new Map();
 
     for (let i = 0; i < candidates.length; i++) {
       const candidate = candidates[i];
@@ -728,17 +745,20 @@ export class FormulaEngine {
       } else if (typeof k === "string" || (typeof k === "object" && k instanceof String)) {
         const lower = String(k).toLocaleLowerCase();
         if (!strMap.has(lower)) strMap.set(lower, candidate);
+      } else if (typeof k === "boolean" && !boolMap.has(k)) {
+        boolMap.set(k, candidate);
       }
     }
 
     const bounds = this._parseRangeBounds(raw);
     const data = {
-      candidates, numMap, strMap, sheet,
+      candidates, numMap, strMap, boolMap, sheet,
       bounds: bounds ? {
         minCol: bounds.startCol,
         maxCol: bounds.startCol + bounds.cols - 1,
         minRow: bounds.startRow,
-        maxRow: bounds.startRow + bounds.rows - 1
+        maxRow: bounds.startRow + bounds.rows - 1,
+        wholeColumns: /^[A-Z]+:[A-Z]+$/i.test(reference?.ref || "")
       } : null
     };
     if (raw) {
@@ -805,12 +825,14 @@ export class FormulaEngine {
   }
 
   _findExactInLookupIndex(indexData, lookup) {
-    const { candidates, numMap, strMap } = indexData;
+    const { candidates, numMap, strMap, boolMap } = indexData;
     let found = null;
+    let canConcludeNoMatch = false;
     const isLookupNum = typeof lookup === "number" && !lookup.isTextCell;
     const isLookupText = typeof lookup === "string" || (typeof lookup === "object" && lookup instanceof String);
 
     if (isLookupNum) {
+      canConcludeNoMatch = true;
       const cand = numMap.get(lookup);
       if (cand && typeof cand.key === "number" && !cand.key.isTextCell && cand.key === lookup) {
         found = cand;
@@ -819,12 +841,14 @@ export class FormulaEngine {
       const lookStr = String(lookup);
       const hasWildcard = lookStr.includes("*") || lookStr.includes("?") || lookStr.includes("~");
       if (!hasWildcard) {
+        canConcludeNoMatch = true;
         const lower = lookStr.toLocaleLowerCase();
         const cand = strMap.get(lower);
         if (cand && (typeof cand.key === "string" || cand.key instanceof String) && String(cand.key).toLocaleLowerCase() === lower) {
           found = cand;
         }
       } else {
+        canConcludeNoMatch = true;
         for (const cand of candidates) {
           if ((typeof cand.key === "string" || cand.key instanceof String) && this._matchWildcard(lookStr, cand.key)) {
             found = cand;
@@ -833,12 +857,45 @@ export class FormulaEngine {
         }
       }
     } else if (typeof lookup === "boolean") {
-      found = candidates.find(item => item.key === lookup) || null;
+      canConcludeNoMatch = true;
+      found = boolMap.get(lookup) || null;
     }
-    if (!found) {
+    if (!found && !canConcludeNoMatch) {
       found = candidates.find(item => this._lookupExactEquals(item.key, lookup)) || null;
     }
     return found;
+  }
+
+  _getCriteriaMatchIndices(rangeArg, values, criteria) {
+    const raw = typeof rangeArg === "string" ? rangeArg.trim() : "";
+    if (!raw || values.length > 50000) return null;
+    const reference = this._parseReference(raw);
+    if (!reference || reference.error || reference.sheets) return null;
+    const sheet = String(reference.sheet || (typeof this.currentSheetResolver === "function" ? this.currentSheetResolver() : "") || "").trim();
+    const cacheKey = `${sheet}:${raw}`;
+    let index = this._criteriaIndexCache.get(cacheKey);
+    if (!index) {
+      const bounds = this._parseRangeBounds(raw);
+      index = {
+        sheet,
+        bounds: bounds ? {
+          minCol: bounds.startCol, maxCol: bounds.startCol + bounds.cols - 1,
+          minRow: bounds.startRow, maxRow: bounds.startRow + bounds.rows - 1,
+          wholeColumns: /^[A-Z]+:[A-Z]+$/i.test(reference.ref || "")
+        } : null,
+        matches: new Map()
+      };
+      this._criteriaIndexCache.set(cacheKey, index);
+    }
+    const criterionKey = `${typeof criteria}:${String(criteria ?? "")}`;
+    if (index.matches.has(criterionKey)) return index.matches.get(criterionKey);
+    const matches = [];
+    for (let position = 0; position < values.length; position++) {
+      if (this._matchesCriteria(values[position], criteria)) matches.push(position);
+    }
+    if (index.matches.size >= 64) index.matches.delete(index.matches.keys().next().value);
+    index.matches.set(criterionKey, matches);
+    return matches;
   }
 
   _compareLookupValues(left, right) {
@@ -1415,8 +1472,9 @@ export class FormulaEngine {
 
         if (matchType === 0) {
           if (lookup === "" || lookup === null || lookup === undefined) return "#N/A";
-          const index = values.findIndex(value => this._lookupExactEquals(value, lookup));
-          return index < 0 ? "#N/A" : index + 1;
+          const indexData = this._getLookupIndex(args[1], matrix, "MATCH");
+          const match = this._findExactInLookupIndex(indexData, lookup);
+          return match ? match.index + 1 : "#N/A";
         }
         if (matchType > 0) {
           const candidates = values.map((val, idx) => ({ key: val, index: idx }));
@@ -1521,7 +1579,9 @@ export class FormulaEngine {
 
       case "COUNTIF": {
         const criteria = this._resolveSingleValue(args[1]);
-        return this._rangeValues(args[0]).filter(value => this._matchesCriteria(value, criteria)).length;
+        const values = this._rangeValues(args[0]);
+        const matches = this._getCriteriaMatchIndices(args[0], values, criteria);
+        return matches ? matches.length : values.filter(value => this._matchesCriteria(value, criteria)).length;
       }
 
       case "SUMIF": {
@@ -1547,6 +1607,23 @@ export class FormulaEngine {
         }
 
         let total = 0;
+        const criteriaValues = this._rangeMatrix(args[0]).flat();
+        const matchingPositions = this._getCriteriaMatchIndices(args[0], criteriaValues, criteria);
+        if (matchingPositions && criteriaValues.some(value => this._isError(value))) {
+          return criteriaValues.find(value => this._isError(value));
+        }
+        if (matchingPositions) {
+          for (const position of matchingPositions) {
+            const c = position % critBounds.cols;
+            const r = Math.floor(position / critBounds.cols);
+            const sumCoord = `${this._columnName(sumStartCol + c)}${sumStartRow + r}`;
+            const sumVal = this.getCellValue(sumCoord, sumSheet);
+            if (this._isError(sumVal)) return sumVal;
+            const num = typeof sumVal === "number" ? sumVal : (this._parseNumberOrCurrency(sumVal) ?? 0);
+            total += Number(num) || 0;
+          }
+          return total;
+        }
         for (let c = 0; c < critBounds.cols; c++) {
           for (let r = 0; r < critBounds.rows; r++) {
             const critCoord = `${this._columnName(critBounds.startCol + c)}${critBounds.startRow + r}`;
