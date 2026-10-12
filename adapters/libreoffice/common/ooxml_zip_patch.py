@@ -6750,6 +6750,11 @@ def overlay_fodp_native_slides_theme(fodp_xml: str, pptx_bytes: bytes) -> str:
                 payload = parsed
         except (TypeError, ValueError):
             pass
+    # Only overlay theme-part values for a theme selected in VN Office. A plain
+    # master-logo payload can coexist with LibreOffice's generated default theme;
+    # copying that palette back would overwrite the user's original FODP values.
+    if not (payload.get("id") or payload.get("themeId")):
+        return xml
     payload.update(values)
     next_attr = 'vno:master-theme="' + html.escape(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), quote=True) + '"'
     attrs = attrs[:attr.start()] + next_attr + attrs[attr.end():] if attr else attrs.rstrip() + " " + next_attr
