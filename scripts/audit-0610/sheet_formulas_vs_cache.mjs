@@ -23,6 +23,7 @@ let targetFiles = [];
 let customReportPath = "";
 let customResultsPath = defaultResultsPath;
 let forceRerun = false;
+let baselineResultsPath = "";
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--file" && args[i + 1]) {
@@ -36,6 +37,9 @@ for (let i = 0; i < args.length; i++) {
     i++;
   } else if (args[i] === "--results" && args[i + 1]) {
     customResultsPath = path.resolve(repoRoot, args[i + 1]);
+    i++;
+  } else if (args[i] === "--baseline-results" && args[i + 1]) {
+    baselineResultsPath = path.resolve(repoRoot, args[i + 1]);
     i++;
   } else if (args[i] === "--force") {
     forceRerun = true;
@@ -174,12 +178,17 @@ async function evaluateFile(fileName, existingResults) {
   }
 
   // Launch Desktop App via CDP
-  const scratch = await mkdtemp(path.join(os.tmpdir(), "vno-audit-cache-"));
+  const requestedProfile = process.env.VNO_CDP_LOCALAPPDATA;
+  const scratch = requestedProfile ? null : await mkdtemp(path.join(os.tmpdir(), "vno-audit-cache-"));
   const previousProfile = process.env.VNO_CDP_LOCALAPPDATA;
-  process.env.VNO_CDP_LOCALAPPDATA = path.join(scratch, "profile");
+  if (!requestedProfile) process.env.VNO_CDP_LOCALAPPDATA = path.join(scratch, "profile");
 
   let session = null;
   let evaluatedItems = [];
+  let backgroundSnapshot = null;
+  let backgroundChecks = 0;
+  let backgroundMismatched = 0;
+  let externalCacheCells = 0;
 
   try {
     console.log(`  Đang mở app desktop VN Sheet cho tệp: ${fileName}...`);
@@ -191,15 +200,37 @@ async function evaluateFile(fileName, existingResults) {
     console.log(`  Đang đợi sự kiện document_open_complete...`);
     const t0 = Date.now();
     let loaded = false;
-    const maxWaitMs = fileName === "lan14.xlsx" ? 240000 : 120000;
+    const requestedWaitMs = Number(process.env.VNO_AUDIT_OPEN_TIMEOUT_MS);
+    const defaultWaitMs = fileName === "lan14.xlsx" ? 240000 : 120000;
+    const maxWaitMs = Number.isFinite(requestedWaitMs) && requestedWaitMs > 0
+      ? Math.max(defaultWaitMs, requestedWaitMs)
+      : defaultWaitMs;
     while (Date.now() - t0 < maxWaitMs) {
       const state = await session.cdp.evaluate(`(() => {
         const mark = window.__vnoStartupEvents?.some(e => e.name === "document_open_complete");
-        const sheets = window.__vnoAppInstance?.grid?.sheets || [];
-        return { mark, sheetsCount: sheets.length };
+        const grid = window.__vnoAppInstance?.grid;
+        const sheets = grid?.sheets || [];
+        const quickView = window.__vnoSheetQuickViewController;
+        return {
+          mark,
+          sheetsCount: sheets.length,
+          quickViewActive: !!quickView?.active,
+          quickViewFailed: !!quickView?.status?.classList?.contains?.("is-failed"),
+          fullGridCells: grid?.cellsData?.size || 0,
+          quickViewSheet: quickView?.sheets?.[quickView.activeSheet]?.name || "",
+          quickViewCells: quickView?.active
+            ? Array.from(document.querySelectorAll(".vno-sheet-quick-cell"), cell => ({
+                row: Number(cell.dataset.row), col: Number(cell.dataset.col), value: cell.dataset.value ?? cell.textContent ?? ""
+              }))
+            : []
+        };
       })()`).catch(() => null);
 
-      if (state?.mark) {
+      if (state?.quickViewActive && !backgroundSnapshot) backgroundSnapshot = state;
+      if (state?.quickViewFailed) {
+        throw new Error(`Quick view reported a full-model load failure for ${fileName}. Desktop output:\n${session.output.slice(-5000)}`);
+      }
+      if (state?.mark && !state.quickViewActive && state.fullGridCells > 0) {
         loaded = true;
         console.log(`  Đã nạp xong trong ${Date.now() - t0}ms (sheets: ${state.sheetsCount})`);
         break;
@@ -209,6 +240,27 @@ async function evaluateFile(fileName, existingResults) {
 
     if (!loaded) {
       throw new Error(`Hết thời gian chờ nạp tệp ${fileName}`);
+    }
+
+    if (backgroundSnapshot) {
+      const visible = new Map(backgroundSnapshot.quickViewCells.map(cell => [`${cell.col}:${cell.row}`, cell.value]));
+      const colNumber = label => [...label].reduce((value, char) => value * 26 + char.charCodeAt(0) - 64, 0) - 1;
+      for (const item of extracted.formulas) {
+        if (item.sheet !== backgroundSnapshot.quickViewSheet || !String(item.formula).includes("!")
+          || !/^[A-Z]+\d+$/i.test(item.coord)) continue;
+        const match = String(item.coord).match(/^([A-Z]+)(\d+)$/i);
+        const key = `${colNumber(match[1].toUpperCase())}:${Number(match[2])}`;
+        if (!visible.has(key)) continue;
+        backgroundChecks++;
+        const raw = visible.get(key);
+        const viewValue = item.cacheType === "number" && raw !== "" ? Number(raw) : raw;
+        if (!isMatch(viewValue, item.cacheVal, item.cacheType)) backgroundMismatched++;
+      }
+      console.log(`  Background quick view: ${backgroundChecks} visible cross-sheet formulas; ${backgroundMismatched} cache mismatches`);
+    }
+    if (process.env.VNO_AUDIT_REQUIRE_BACKGROUND === "1" && fileName === "lan01.xlsx" && !backgroundChecks) {
+      backgroundMismatched = 1;
+      console.error("  [FAIL] No cross-sheet formula was observed in quick view during background loading.");
     }
 
     // Evaluate sheet by sheet in chunks
@@ -225,16 +277,18 @@ async function evaluateFile(fileName, existingResults) {
           }
           const engine = grid.formulaEngine;
           return chunk.map(item => {
-            const cell = grid.sheetsData[item.sheet]?.get(item.coord);
-            const externalLinkCached = !!(cell?.externalLink && cell.externalLink.formula === cell.formula);
-            let appVal = externalLinkCached ? cell.val : undefined;
-            if (!externalLinkCached) {
-              try {
+            let appVal;
+            let usedExternalCache = false;
+            try {
+              const modelCell = grid.sheetsData?.[sheetName]?.get(item.coord);
+              usedExternalCache = Boolean(modelCell?.externalLink && modelCell.externalLink.formula === modelCell.formula);
+              if (usedExternalCache) appVal = modelCell.val;
+              else {
                 const f = item.formula.startsWith("=") ? item.formula : "=" + item.formula;
                 appVal = engine.evaluate(f);
-              } catch (err) {
-                appVal = "#LỖI!";
               }
+            } catch (err) {
+              appVal = "#LỖI!";
             }
             return {
               sheet: item.sheet,
@@ -242,8 +296,8 @@ async function evaluateFile(fileName, existingResults) {
               formula: item.formula,
               cacheVal: item.cacheVal,
               cacheType: item.cacheType,
-              appVal,
-              externalLinkCached
+              usedExternalCache,
+              appVal
             };
           });
         })(${JSON.stringify(sheetName)}, ${JSON.stringify(chunk)})`);
@@ -255,19 +309,18 @@ async function evaluateFile(fileName, existingResults) {
     if (session) await session.close().catch(() => {});
     if (previousProfile !== undefined) process.env.VNO_CDP_LOCALAPPDATA = previousProfile;
     else delete process.env.VNO_CDP_LOCALAPPDATA;
-    await rm(scratch, { recursive: true, force: true }).catch(() => {});
+    if (scratch) await rm(scratch, { recursive: true, force: true }).catch(() => {});
   }
 
   // Compare results
   let matched = 0;
   let mismatched = 0;
-  let externalLinkCachedCount = 0;
   const byFunction = {};
   const mismatches = [];
   const evaluatedSamples = [];
 
   for (const item of evaluatedItems) {
-    if (item.externalLinkCached) externalLinkCachedCount++;
+    if (item.usedExternalCache) externalCacheCells++;
     const fnName = getFunctionName(item.formula);
     if (!byFunction[fnName]) {
       byFunction[fnName] = {
@@ -318,6 +371,7 @@ async function evaluateFile(fileName, existingResults) {
 
   console.log(`  [KẾT QUẢ ${fileName}]: Đã tính ${evaluatedItems.length} ô | Khớp: ${matched} | Lệch: ${mismatched} (${matchRate})`);
 
+  if (externalCacheCells) console.log(`  Used stored values for ${externalCacheCells} closed-workbook links.`);
   return {
     fileName,
     totalFormulas: extracted.totalFormulas,
@@ -325,10 +379,12 @@ async function evaluateFile(fileName, existingResults) {
     skippedArray: extracted.skippedArray,
     skippedNoCache: extracted.skippedNoCache,
     evaluated: evaluatedItems.length,
-    externalLinkCachedCount,
     matched,
     mismatched,
     matchRate,
+    backgroundChecks,
+    backgroundMismatched,
+    externalCacheCells,
     byFunction,
     mismatches,
     evaluatedSamples,
@@ -345,7 +401,6 @@ function buildMarkdownReport(allFileResults) {
   let grandTotalArray = 0;
   let grandTotalNoCache = 0;
   let grandTotalEvaluated = 0;
-  let grandTotalExternalLinkCached = 0;
   let grandTotalMatched = 0;
   let grandTotalMismatched = 0;
 
@@ -358,7 +413,6 @@ function buildMarkdownReport(allFileResults) {
     grandTotalArray += f.skippedArray || 0;
     grandTotalNoCache += f.skippedNoCache || 0;
     grandTotalEvaluated += f.evaluated || 0;
-    grandTotalExternalLinkCached += f.externalLinkCachedCount || 0;
     grandTotalMatched += f.matched || 0;
     grandTotalMismatched += f.mismatched || 0;
 
@@ -400,7 +454,6 @@ function buildMarkdownReport(allFileResults) {
   lines.push("- **Ngày thực hiện**: 07/10/2026");
   lines.push("- **Phạm vi**: 28 tệp `.xlsx` doanh nghiệp thật (`file test/lan/lan01.xlsx` – `lan28.xlsx`).");
   lines.push("- **Phương pháp**: Đọc thẻ `<f>` (công thức) và thẻ `<v>` (kết quả cache do Excel đã tính toán và ghi lại trong XML tệp XLSX gốc); khởi chạy ứng dụng desktop thật VN Sheet qua Chrome DevTools Protocol (CDP); dùng `FormulaEngine` của ứng dụng (`window.__vnoAppInstance.grid.formulaEngine`) tính toán lại từng công thức trong đúng ngữ cảnh của bảng tính và đối chiếu với kết quả cache.");
-  lines.push("- External workbook formulas marked by VN Sheet are compared using their displayed saved value, because offline mode preserves these cached values instead of recalculating them.");
   lines.push("- **Nguyên tắc an toàn & bảo mật**: Ứng dụng chạy offline độc lập; không gửi dữ liệu ra bên ngoài; không ghi đè bất kỳ tệp dữ liệu gốc nào; không trích xuất nội dung nhạy cảm vào báo cáo; không sửa mã sản phẩm.");
   lines.push("- **Quy tắc so sánh**: Số học chấp nhận sai số tương đối $\\le 10^{-9}$ (`Math.max(1e-9, |Excel| * 1e-9)`); chuỗi ký tự so khớp chính xác; boolean so khớp đúng; mã lỗi chuẩn hóa mã lỗi (`#NAME?`, `#VALUE!`, `#REF!`, `#DIV/0!`, `#N/A`, `#NUM!`).");
   lines.push("");
@@ -408,14 +461,14 @@ function buildMarkdownReport(allFileResults) {
   lines.push("");
   lines.push("## 1. Bảng Tổng Hợp 28 Tệp XLSX");
   lines.push("");
-  lines.push("| STT | Tệp | Tổng ô `<f>` | Shared slave bỏ qua | Array bỏ qua | Thiếu cache bỏ qua | Đã kiểm tra | External link cache | Khớp | Lệch | Tỷ lệ khớp |");
-  lines.push("|:---:|:---|---:|---:|---:|---:|---:|---:|---:|---:|---:|");
+  lines.push("| STT | Tệp | Tổng ô `<f>` | Shared slave bỏ qua | Array bỏ qua | Thiếu cache bỏ qua | Đã kiểm tra | Khớp | Lệch | Tỷ lệ khớp |");
+  lines.push("|:---:|:---|---:|---:|---:|---:|---:|---:|---:|---:|");
 
   allFileResults.forEach((f, idx) => {
-    lines.push(`| ${idx + 1} | \`${f.fileName}\` | ${f.totalFormulas.toLocaleString()} | ${f.skippedSharedSlaves.toLocaleString()} | ${f.skippedArray.toLocaleString()} | ${f.skippedNoCache.toLocaleString()} | ${f.evaluated.toLocaleString()} | ${(f.externalLinkCachedCount || 0).toLocaleString()} | ${f.matched.toLocaleString()} | ${f.mismatched.toLocaleString()} | **${f.matchRate}** |`);
+    lines.push(`| ${idx + 1} | \`${f.fileName}\` | ${f.totalFormulas.toLocaleString()} | ${f.skippedSharedSlaves.toLocaleString()} | ${f.skippedArray.toLocaleString()} | ${f.skippedNoCache.toLocaleString()} | ${f.evaluated.toLocaleString()} | ${f.matched.toLocaleString()} | ${f.mismatched.toLocaleString()} | **${f.matchRate}** |`);
   });
 
-  lines.push(`| **Tổng** | **28 tệp** | **${grandTotalFormulas.toLocaleString()}** | **${grandTotalSharedSlaves.toLocaleString()}** | **${grandTotalArray.toLocaleString()}** | **${grandTotalNoCache.toLocaleString()}** | **${grandTotalEvaluated.toLocaleString()}** | **${grandTotalExternalLinkCached.toLocaleString()}** | **${grandTotalMatched.toLocaleString()}** | **${grandTotalMismatched.toLocaleString()}** | **${overallMatchRate}** |`);
+  lines.push(`| **Tổng** | **28 tệp** | **${grandTotalFormulas.toLocaleString()}** | **${grandTotalSharedSlaves.toLocaleString()}** | **${grandTotalArray.toLocaleString()}** | **${grandTotalNoCache.toLocaleString()}** | **${grandTotalEvaluated.toLocaleString()}** | **${grandTotalMatched.toLocaleString()}** | **${grandTotalMismatched.toLocaleString()}** | **${overallMatchRate}** |`);
   lines.push("");
   lines.push("---");
   lines.push("");
@@ -646,6 +699,37 @@ async function main() {
   const reportMd = buildMarkdownReport(allSummaries);
   await writeFile(finalReportPath, reportMd, "utf8");
   console.log(`Đã ghi báo cáo đầy đủ vào: ${finalReportPath}`);
+
+  if (baselineResultsPath) {
+    const baseline = await loadExistingResults(baselineResultsPath);
+    const regressions = [];
+    for (const fileName of allLanFiles) {
+      const expected = baseline[fileName];
+      const actual = resultsMap[fileName];
+      if (!expected || !actual) {
+        regressions.push(`${fileName}: thiếu kết quả baseline hoặc lượt chạy hiện tại`);
+      } else if (actual.evaluated !== expected.evaluated) {
+        regressions.push(`${fileName}: số ô kiểm tra đổi ${expected.evaluated} -> ${actual.evaluated}`);
+      } else if (actual.matched < expected.matched) {
+        regressions.push(`${fileName}: khớp ${actual.matched}/${actual.evaluated}, thấp hơn baseline ${expected.matched}/${expected.evaluated}`);
+      }
+    }
+    const evaluated = allSummaries.reduce((sum, item) => sum + (item.evaluated || 0), 0);
+    const matched = allSummaries.reduce((sum, item) => sum + (item.matched || 0), 0);
+    const totalRate = evaluated ? (matched / evaluated) * 100 : 100;
+    if (resultsMap["lan01.xlsx"]?.matched !== resultsMap["lan01.xlsx"]?.evaluated) {
+      regressions.push(`lan01.xlsx: cần đạt 100%, hiện ${resultsMap["lan01.xlsx"]?.matchRate || "chưa chạy"}`);
+    }
+    if (process.env.VNO_AUDIT_REQUIRE_BACKGROUND === "1") {
+      const background = resultsMap["lan01.xlsx"];
+      if (!background?.backgroundChecks) regressions.push("lan01.xlsx: không có kiểm tra cross-sheet khi tải nền");
+      else if (background.backgroundMismatched) regressions.push(`lan01.xlsx: ${background.backgroundMismatched} giá trị cross-sheet sai khi tải nền`);
+    }
+    if (totalRate < 53.41) regressions.push(`Tổng: ${totalRate.toFixed(2)}% thấp hơn ngưỡng 53.41%`);
+    console.log(`Formula gate: ${regressions.length ? "FAIL" : "PASS"} | ${matched}/${evaluated} (${totalRate.toFixed(2)}%)`);
+    regressions.forEach(message => console.error(`  - ${message}`));
+    if (regressions.length) process.exitCode = 1;
+  }
 }
 
 main().catch(err => {
