@@ -40,6 +40,9 @@ try {
   New-Control 'ordinal-line-start' { param($d) $d.Content.Text = "1. Muc mot`r2. Muc hai" }
   New-Control 'symbols' { param($d) $d.Content.Text = ([string][char]0x00A9) + ' ' + [char]0x20AB + ' 50%' }
   New-Control 'parentheses' { param($d) $d.Content.Text = '(alpha) [beta] {gamma}' }
+  New-Control 'dashes-spaced' { param($d) $d.Content.Text = 'alpha - beta alpha – beta alpha — beta' }
+  New-Control 'separator-markers' { param($d) $d.Content.Text = '----------o0o---------- ---------*****--------- --------o0o--------' }
+  New-Control 'code-flags' { param($d) $d.Content.Text = '# code --project src --release' }
   New-Control 'attached-punctuation' { param($d) $d.Content.Text = 'alpha,beta alpha.beta alpha...beta (alpha) [beta] {gamma}' }
   New-Control 'symbols-adjacent' { param($d) $d.Content.Text = ([string][char]0x00A9) + [char]0x20AB + '% ' + [char]0x00A9 + ' ' + [char]0x20AB + ' %' }
   New-Control 'numeric-forms' { param($d) $d.Content.Text = '1.234,5 12.345 12,345 1. 1.2 1,2' }
