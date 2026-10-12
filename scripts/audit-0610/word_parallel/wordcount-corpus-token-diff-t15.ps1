@@ -10,10 +10,11 @@ try {
     Write-Output ('Opening ' + $name)
     $doc = $word.Documents.Open((Join-Path $InputDir $name), $false, $true)
     try {
-      $paragraphCount = [int]$doc.Paragraphs.Count
+      $storyParagraphs = $doc.Content.Paragraphs
+      $paragraphCount = [int]$storyParagraphs.Count
       Write-Output ('Comparing ' + $paragraphCount + ' paragraphs in ' + $name)
       for ($index = 1; $index -le $paragraphCount; $index++) {
-        $paragraph = $doc.Paragraphs.Item($index)
+        $paragraph = $storyParagraphs.Item($index)
         $raw = [string]$paragraph.Range.Text
         $text = $raw -replace '[\r\a]', ''
         $trimmed = $text.Trim()
