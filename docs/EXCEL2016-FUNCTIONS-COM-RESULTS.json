@@ -746,8 +746,8 @@
     {
       "name": "NOW",
       "formula": "=NOW()",
-      "appValue": 46308.14611111111,
-      "excelValue": 46308.14708055556,
+      "appValue": 46308.17726851852,
+      "excelValue": 46308.17825810185,
       "excelText": "########",
       "excelType": "Double",
       "volatile": true,
@@ -1116,9 +1116,9 @@
     {
       "name": "RAND",
       "formula": "=RAND()",
-      "appValue": 0.1403632432955484,
-      "excelValue": 0.9797623877819964,
-      "excelText": "0.979762",
+      "appValue": 0.4754231033781492,
+      "excelValue": 0.860376647842316,
+      "excelText": "0.860377",
       "excelType": "Double",
       "volatile": true,
       "match": null
@@ -1126,9 +1126,9 @@
     {
       "name": "RANDBETWEEN",
       "formula": "=RANDBETWEEN(1, 100)",
-      "appValue": 7,
-      "excelValue": 85,
-      "excelText": "85",
+      "appValue": 42,
+      "excelValue": 76,
+      "excelText": "76",
       "excelType": "Double",
       "volatile": true,
       "match": null
@@ -1336,9 +1336,9 @@
     {
       "name": "HOUR",
       "formula": "=HOUR(NOW())",
-      "appValue": 3,
-      "excelValue": 3,
-      "excelText": "3",
+      "appValue": 4,
+      "excelValue": 4,
+      "excelText": "4",
       "excelType": "Double",
       "volatile": true,
       "match": null
@@ -1346,9 +1346,9 @@
     {
       "name": "MINUTE",
       "formula": "=MINUTE(NOW())",
-      "appValue": 31,
-      "excelValue": 31,
-      "excelText": "31",
+      "appValue": 16,
+      "excelValue": 16,
+      "excelText": "16",
       "excelType": "Double",
       "volatile": true,
       "match": null
@@ -1356,9 +1356,9 @@
     {
       "name": "SECOND",
       "formula": "=SECOND(NOW())",
-      "appValue": 34,
-      "excelValue": 48,
-      "excelText": "48",
+      "appValue": 26,
+      "excelValue": 41,
+      "excelText": "41",
       "excelType": "Double",
       "volatile": true,
       "match": null

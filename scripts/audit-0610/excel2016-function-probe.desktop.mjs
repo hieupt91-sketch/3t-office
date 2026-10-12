@@ -120,6 +120,35 @@ const raw = execFileSync("powershell", [
 const jsonLine = raw.split(/\r?\n/).find(line => line.startsWith("E1JSON:"));
 if (!jsonLine) throw new Error("Excel read-only audit returned no E1JSON rows.");
 const excelRows = JSON.parse(jsonLine.slice("E1JSON:".length)).slice(0, items.length);
+const compatNames = new Set(["RANK.EQ", "FORMULATEXT"]);
+const compatChecks = items.flatMap((item, index) => compatNames.has(item.name) ? [{ item, index }] : []);
+if (compatChecks.length) {
+  const reopenSession = await launchApp("sheet", {
+    root,
+    filePath: workFile,
+    localAppData: path.join(localAppData, "reopen"),
+  });
+  try {
+    const { cdp } = reopenSession;
+    const workName = path.basename(workFile).toLowerCase();
+    await cdp.waitFor(
+      `String(window.__vnoAppInstance?.adapter?.sourceFilePath || "").toLowerCase().endsWith(${JSON.stringify(workName)}) && window.__vnoAppInstance?.grid?.cellsData?.size > 0`,
+      { timeoutMilliseconds: 60000 },
+    );
+    const reopened = await cdp.evaluate(`(${JSON.stringify(compatChecks.map(({ item, index }) => ({ name: item.name, coord: `B${index + 2}` })))}).map(({name, coord}) => { const cell = window.__vnoAppInstance.grid.cellsData.get(coord); return {name, coord, formula: cell?.formula, value: cell?.val}; })`);
+    for (const cell of reopened) {
+      if (!cell.formula || /_xlfn\./i.test(cell.formula)) {
+        throw new Error(`VN Sheet reopen did not restore the plain ${cell.name} formula: ${JSON.stringify(cell)}`);
+      }
+      if (cell.value === "#NAME?" || cell.value === "#VALUE!") {
+        throw new Error(`VN Sheet reopen recalculated ${cell.name} to an error: ${JSON.stringify(cell)}`);
+      }
+    }
+    console.log(`VN Sheet reopen verified plain formulas and values for ${reopened.map(cell => cell.name).join(", ")}.`);
+  } finally {
+    await reopenSession.close();
+  }
+}
 const oracle = { excelVersion: "16.0.4266.1001", readOnlyRequested: true, rows: excelRows };
 const rows = oracle.rows.map((row, index) => {
     const app = cells.get(`B${index + 2}`);
