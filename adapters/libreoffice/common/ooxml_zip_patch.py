@@ -20330,6 +20330,64 @@ def postprocess_writer_native_diagrams(
     return patch_ooxml_zip(docx_bytes, {"word/document.xml": document_xml.encode("utf-8")})
 
 
+def postprocess_writer_native_wordart(
+    docx_bytes: bytes,
+    wordart_docx_bytes: bytes,
+    *,
+    source_html: str | None = None,
+) -> bytes:
+    """Replace WordArt text placeholders with editable DrawingML text effects."""
+    if not docx_bytes or not wordart_docx_bytes or not source_html or "vno-native-wordart-fodt:" not in source_html:
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    wordart_document_bytes = read_zip_entry(wordart_docx_bytes, "word/document.xml")
+    if not document_bytes or not wordart_document_bytes:
+        raise ValueError("Không đọc được cấu trúc DOCX WordArt do LibreOffice tạo.")
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    wordart_document_xml = wordart_document_bytes.decode("utf-8", errors="replace")
+    drawings = [
+        drawing for drawing in re.findall(r"<w:drawing\b[\s\S]*?</w:drawing\s*>", wordart_document_xml, re.IGNORECASE)
+        if "<a:prstTxWarp" in drawing
+    ]
+    if not drawings:
+        raise ValueError("LibreOffice không xuất được WordArt DrawingML có hiệu ứng chữ native.")
+    placeholder_indexes = sorted({
+        int(value) for value in re.findall(r"VNO_NATIVE_WORDART_(\d+)_START", source_html)
+    })
+    if placeholder_indexes != list(range(1, len(drawings) + 1)):
+        raise ValueError("Số WordArt trong DOCX không khớp số đối tượng được chèn.")
+
+    max_docpr = max((int(value) for value in re.findall(r'<wp:docPr\b[^>]*\bid="(\d+)"', document_xml)), default=0)
+    for index, drawing in enumerate(drawings, start=1):
+        token = f"VNO_NATIVE_WORDART_{index}"
+        paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+        start_index = next((i for i, match in enumerate(paragraphs) if f"{token}_START" in match.group(0)), None)
+        end_index = next((i for i, match in enumerate(paragraphs) if f"{token}_END" in match.group(0)), None)
+        if start_index is None or end_index is None or start_index != end_index:
+            raise ValueError(f"Không tìm thấy cặp bookmark cùng đoạn cho WordArt {index}.")
+        paragraph = paragraphs[start_index].group(0)
+        start_match = re.search(
+            r'<w:bookmarkStart\b(?=[^>]*\bw:name="' + re.escape(token) + r'_START")[^>]*/>',
+            paragraph, re.IGNORECASE,
+        )
+        end_match = re.search(
+            r'<w:bookmarkStart\b(?=[^>]*\bw:name="' + re.escape(token) + r'_END")[^>]*/>',
+            paragraph, re.IGNORECASE,
+        )
+        if not start_match or not end_match or start_match.end() > end_match.start():
+            raise ValueError(f"Bookmark của WordArt {index} không hợp lệ.")
+        max_docpr += 1
+        drawing = re.sub(r'(<wp:docPr\b[^>]*\bid=")[0-9]+', rf'\g<1>{max_docpr}', drawing, count=1)
+        replacement_paragraph = (
+            paragraph[:start_match.start()] + f"<w:r>{drawing}</w:r>" + paragraph[end_match.end():]
+        )
+        document_xml = (
+            document_xml[:paragraphs[start_index].start()] + replacement_paragraph
+            + document_xml[paragraphs[start_index].end():]
+        )
+    return patch_ooxml_zip(docx_bytes, {"word/document.xml": document_xml.encode("utf-8")})
+
+
 def postprocess_writer_native_watermark(
     docx_bytes: bytes,
     watermark_docx_bytes: bytes,
