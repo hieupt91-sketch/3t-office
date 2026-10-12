@@ -1237,7 +1237,16 @@ export class FormulaEngine {
         if (Number.isNaN(requestedIndex) || requestedIndex < 1) return "#VALUE!";
 
         const maxIndex = funcName === "VLOOKUP" ? matrix[0].length : matrix.length;
-        if (requestedIndex > maxIndex) return "#REF!";
+        if (requestedIndex > maxIndex) {
+          // Preserve the 0.9.9 offline fallback for an unresolved external
+          // workbook: its one-cell #REF sentinel used to flow through exact
+          // lookup as #N/A when the requested result column was unavailable.
+          // Internal broken sheet references still return #REF!.
+          const rangeText = String(args[1] || "");
+          const isUnresolvedExternal = /\[[^\]]+\][^!]*!/.test(rangeText) &&
+            matrix.length === 1 && matrix[0]?.length === 1 && matrix[0][0] === "#REF!";
+          return isUnresolvedExternal ? "#N/A" : "#REF!";
+        }
 
         const rangeLookupArg = args[3] !== undefined ? this._resolveSingleValue(args[3]) : true;
         if (this._isError(rangeLookupArg)) return rangeLookupArg;

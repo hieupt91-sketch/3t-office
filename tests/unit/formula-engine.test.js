@@ -979,6 +979,11 @@ export async function runFormulaEngineTests() {
     name: "E0: numeric lookup matches matching long digit-code text key",
     pass: e0LongCodeEngine.evaluate("=VLOOKUP(B3,'Giá cost1'!$A:$C,3,FALSE)") === 3500
   });
+  const e0UnresolvedExternalEngine = new FormulaEngine(new Map());
+  results.push({
+    name: "E0: unresolved external VLOOKUP preserves the 0.9.9 #N/A fallback",
+    pass: e0UnresolvedExternalEngine.evaluate("=VLOOKUP(1,'[2]all'!A:B,2,FALSE)") === "#N/A"
+  });
   results.push({
     name: 'SB9 NHÓM 2: VLOOKUP exact match không phân biệt hoa thường',
     pass: sb9Nhom2Engine.evaluate('=VLOOKUP("pRoDuCt aLpHa", A3:B3, 2, FALSE)') === 100
