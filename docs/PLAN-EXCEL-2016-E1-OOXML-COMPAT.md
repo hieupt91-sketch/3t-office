@@ -2,7 +2,7 @@
 
 ## Objective
 
-Make ordinary `RANK.EQ(...)` and `FORMULATEXT(...)` formulas survive the VN Sheet save path and calculate in the installed Excel 2016 build without changing their results or function names as shown to users.
+Make Excel 2016 functions that OOXML classifies as future functions survive the VN Sheet save path and calculate in the installed Excel 2016 build without changing their results or function names as shown to users. The initial confirmed cases are `RANK.EQ(...)` and `FORMULATEXT(...)`; the mapping is sourced from the official MS-XLSX future-function list and restricted to functions marked Excel 2016 in `docs/EXCEL2016-FUNCTION-CATALOG.json`.
 
 ## Evidence and current capability
 
@@ -13,9 +13,11 @@ Make ordinary `RANK.EQ(...)` and `FORMULATEXT(...)` formulas survive the VN Shee
 
 ## Proposed files and change
 
-- `adapters/libreoffice/sheet/sheet-adapter.js`: add `_xlfn.` only to the serialized ODF function token for `RANK.EQ` and `FORMULATEXT`; leave the app's formula model and displayed formula unchanged.
-- `tests/unit/`: add serializer regression cases proving the prefix is limited to those function calls and is not duplicated when already present.
+- `adapters/libreoffice/sheet/sheet-adapter.js`: add `_xlfn.` only to serialized ODF function tokens in the supported mapping; leave the app's formula model and displayed formula unchanged. Remove recognized compatibility prefixes when formulas are read back from ODF so the app continues to display canonical names.
+- `tests/unit/`: add serializer regression cases proving prefixes apply only to supported function calls, are not duplicated, are omitted when the option is disabled, and are removed on read.
 - `docs/EXCEL2016-FUNCTIONS-MATRIX.md`: record the before/after Excel 2016 COM result and the compatibility mapping.
+
+The mapping must distinguish `_xlfn.` future functions from `_xlfn._xlws.` worksheet-only functions according to MS-XLSX. Dynamic-array functions introduced after Excel 2016 must not be included in the Excel 2016 compatibility set.
 
 ## Rollout flag
 
