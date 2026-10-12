@@ -806,7 +806,7 @@ for (const [name, cell, kind, id, value] of ops) {
       const shot = await session.cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false }, 60000);
       await writeFile(path.join(evidenceDir, `${name.replace(/^s16/, "")}.png`), Buffer.from((shot.result || shot).data, "base64"));
     }
-    console.log(name.padEnd(18), "save=" + (saved && saved.status), "|", status, "|", info, formulaValues ? "| formulas=" + formulaValues : "");
+    console.log(name.padEnd(18), "save=" + (saved && saved.status), saved?.status === "error" ? JSON.stringify(saved) : "", "|", status, "|", info, formulaValues ? "| formulas=" + formulaValues : "");
   } catch (e) { console.log(name.padEnd(18), "LOI:", String(e.message).slice(0, 120)); } finally {
     if (restoreSystemClipboard) {
       try {
