@@ -8,7 +8,7 @@ Phiếu: [FIX-P1](tickets-0710/FIX-P1.md) · Kế hoạch: [PLAN-SHEET-P1](PLAN-
 - Lần sửa đầu (gõ + Enter): **PASS**, 0.76–0.82 s trên LAN01/02/04/06/09/14/16.
 - Undo/redo qua hydration: **PASS** trên LAN14 bằng chuột/phím CDP thật.
 - `npm test`: **PASS 3116/3116**.
-- Python suite: **912 tests, 1 FAIL chập chờn** do WinError 32 khi Writer sample thay file tạm đang bị khóa; chạy riêng đúng test đó thêm 3 lượt đều PASS. Không ghi suite tổng là PASS.
+- Python suite cuối: **PASS 912 tests** (518.929 s). Một lượt trước đó có WinError 32 chập chờn ở Writer sample khi replace file tạm bị khóa; chạy riêng test đó 3 lượt đều PASS trước khi full rerun cuối qua. Có ResourceWarning stream subprocess chưa đóng trong test tích hợp.
 - Batch LAN28: **25 PASS, 2 FAIL, 1 BLOCKED**. Không ghi PASS tổng thể: LAN14 round-trip save vượt timeout, LAN25 có diff đã tái hiện cả ở legacy path, LAN04 Excel COM bị chặn.
 
 ## Baseline trước sửa
@@ -92,13 +92,13 @@ Tệp trong nhóm ưu tiên của ticket: lan01/02/06/09/11/22/26 đều PASS (`
 | `npm test` | PASS 3116/3116 sau code local-scroll |
 | `python -m unittest tests.test_xlsx_preview` | PASS 5 tests |
 | Sheet quick-view unit | PASS 18 tests |
-| `python -m unittest discover -s tests` | FAIL: 912 tests, 1 WinError 32 chập chờn ở `test_writer_save_roundtrip.WriterSaveRoundtripTests.test_all_fixtures_roundtrip` khi replace file tạm bị khóa; chạy riêng test này 3 lần liên tiếp đều PASS |
+| `python -m unittest discover -s tests` | PASS: 912 tests trong 518.929 s ở lượt full rerun cuối. Một lượt trước đó gặp WinError 32 chập chờn tại `test_writer_save_roundtrip.WriterSaveRoundtripTests.test_all_fixtures_roundtrip`; test riêng đã PASS 3 lần trước lượt rerun cuối. Có ResourceWarning stream subprocess chưa đóng. |
 | `python -m py_compile main.py apps/sheet/xlsx_preview.py tests/test_xlsx_preview.py` | PASS |
 | `git diff --check` | PASS trước các commit code cuối |
 
 CDP kiểm tra khi quick view còn hoạt động: `adapter.save()` và `adapter.print()` trả `false`, quick view vẫn mở và status báo chờ hydrate. Save/print thực tế khi quick view còn hoạt động là NOT RUN; sau hydration, LAN01 mở được PDF print preview. Không gửi lệnh tới máy in vật lý.
 
-Python suite cũng từng ghi ResourceWarning về stream subprocess chưa đóng. Lỗi duy nhất trong lượt 912 tests là WinError 32 nói trên; đã chạy test Writer đó riêng 3 lần và đều PASS.
+Lượt Python suite cuối đã PASS; WinError 32 chỉ xuất hiện ở lượt full suite trước và không tái hiện ở lần rerun hoàn chỉnh.
 
 ## Fallback và trạng thái
 
