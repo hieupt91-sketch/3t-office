@@ -7710,8 +7710,22 @@ _bindGridKeyboardNavigation() {
       const saveSize = () => {
         const rect = el.getBoundingClientRect();
         if (rect.width >= 180 && rect.height >= 54) {
-          box.widthPx = Math.round(rect.width);
-          box.heightPx = Math.round(rect.height);
+          const before = { widthPx: Number(box.widthPx) || 180, heightPx: Number(box.heightPx) || 54 };
+          const after = { widthPx: Math.round(rect.width), heightPx: Math.round(rect.height) };
+          if (before.widthPx !== after.widthPx || before.heightPx !== after.heightPx) {
+            box.widthPx = after.widthPx;
+            box.heightPx = after.heightPx;
+            this._recordHistory({
+              type: "collection",
+              sheet: this.activeSheet,
+              collection: "textBoxesBySheet",
+              operation: "update",
+              id: box.id,
+              item: { id: box.id },
+              before,
+              after
+            });
+          }
         }
       };
       el.addEventListener("pointerup", () => requestAnimationFrame(saveSize));
