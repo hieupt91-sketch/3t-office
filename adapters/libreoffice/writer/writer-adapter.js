@@ -15319,6 +15319,7 @@ export class WriterAdapter {
           end.setAttribute("name", `${token}_END`);
           parent.insertBefore(start, wordArt);
           parent.insertBefore(end, wordArt.nextSibling);
+          wordArt.remove?.();
         });
       }
       const wrappers = Array.from(exportRoot.querySelectorAll?.(".vno-section-content") || []);
