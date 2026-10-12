@@ -15234,7 +15234,7 @@ export class WriterAdapter {
     }
     const wordArtNodes = Array.from(this.bodyDom?.querySelectorAll?.('.vno-writer-wordart[data-vno-wordart="true"]') || []);
     if (wordArtNodes.length && !acceptedView) {
-      const wordArtBody = { innerHTML: wordArtNodes.map(node => String(node.outerHTML || "")).filter(Boolean).join("") };
+      const wordArtBody = { innerHTML: wordArtNodes.map(node => `<p>${String(node.outerHTML || "")}</p>`).filter(Boolean).join("") };
       if (!wordArtBody.innerHTML || (wordArtBody.innerHTML.match(/data-vno-wordart="true"/g) || []).length !== wordArtNodes.length) {
         throw new Error("KhÃ´ng thá»ƒ chuáº©n bá»‹ WordArt native Ä‘á»ƒ lÆ°u DOCX.");
       }
