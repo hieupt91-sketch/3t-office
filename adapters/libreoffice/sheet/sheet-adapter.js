@@ -2819,7 +2819,7 @@ export class SheetAdapter {
   }
 
   _attachImportedTextBoxes(workbook, xmlText) {
-    workbook.textBoxesBySheet = {};
+    const importedTextBoxes = {};
     String(xmlText || "").replace(/<table:table(?=[\s>/])([^>]*)>/gi, (_, attrs) => {
       const sheetName = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
       const raw = attrs.match(/vno:text-boxes=["']([^"']*)["']/i)?.[1];
@@ -2827,9 +2827,9 @@ export class SheetAdapter {
       try {
         const boxes = JSON.parse(this._unescapeXml(raw));
         if (!Array.isArray(boxes)) return "";
-        workbook.textBoxesBySheet[sheetName] = boxes.filter(box => box && typeof box.text === "string" && box.anchor?.c && Number.isFinite(Number(box.anchor?.r)))
-          .map(box => ({
-            id: `textbox-import-${sheetName}-${workbook.textBoxesBySheet[sheetName]?.length || 0}`,
+        importedTextBoxes[sheetName] = boxes.filter(box => box && typeof box.text === "string" && box.anchor?.c && Number.isFinite(Number(box.anchor?.r)))
+          .map((box, index) => ({
+            id: `textbox-import-${sheetName}-${index}`,
             text: box.text,
             anchor: { c: String(box.anchor.c), r: Number(box.anchor.r) },
             widthPx: Math.max(180, Number(box.widthPx) || 180),
@@ -2838,6 +2838,8 @@ export class SheetAdapter {
       } catch (_) {}
       return "";
     });
+    // Chỉ gắn khi tệp có hộp văn bản: giữ nguyên dấu băm snapshot của các sổ tính không có hộp văn bản.
+    if (Object.keys(importedTextBoxes).length) workbook.textBoxesBySheet = importedTextBoxes;
   }
 
   _attachImportedResolvedComments(workbook, xmlText) {
@@ -5300,6 +5302,7 @@ ${pristineXlsxMarker}
     this.grid.tabColors = workbook.tabColors || {};
     this.grid.scenariosBySheet = workbook.scenariosBySheet || {};
     this.grid.tablesBySheet = workbook.tablesBySheet || {};
+    this.grid.textBoxesBySheet = {};
     const equivalentSheetValue = (mapping, sheetName) => {
       if (!mapping) return undefined;
       if (Object.prototype.hasOwnProperty.call(mapping, sheetName)) return mapping[sheetName];
