@@ -2354,59 +2354,14 @@ export class WriterAdapter {
     }
 
     const text = body.innerText != null ? body.innerText : (body.textContent || "");
-    let charactersText = text;
-    let floatingShapes = [];
-    if (typeof body.cloneNode === "function") {
-      const characterRoot = body.cloneNode(true);
-      floatingShapes = Array.from(body.querySelectorAll('[data-vno-float]'))
-        .filter((shape) => !shape.parentElement?.closest?.('[data-vno-float]'));
-      const clonedFloatingShapes = Array.from(characterRoot.querySelectorAll?.('[data-vno-float]') || [])
-        .filter((shape) => !shape.parentElement?.closest?.('[data-vno-float]'));
-      clonedFloatingShapes.forEach((shape) => shape.remove?.());
-      const treeWalker = characterRoot.ownerDocument?.createTreeWalker?.(
-        characterRoot,
-        typeof NodeFilter !== "undefined" ? NodeFilter.SHOW_TEXT : 4,
-      );
-      if (treeWalker) {
-        const pieces = [];
-        let textNode;
-        while ((textNode = treeWalker.nextNode())) {
-          const value = String(textNode.nodeValue || "");
-          if (!value.trim()) {
-            // A whitespace-only node without a line break is meaningful run
-            // content (for example a preserved Word tab or a whitespace run).
-            // Table indentation nodes always contain CR/LF and are discarded.
-            if (!/[\r\n]/.test(value)) pieces.push(value);
-            continue;
-          }
-          let parent = textNode.parentElement;
-          let hidden = false;
-          while (parent && parent !== characterRoot) {
-            const style = typeof getComputedStyle === "function" ? getComputedStyle(parent) : null;
-            if (style?.display === "none" || style?.visibility === "hidden") {
-              hidden = true;
-              break;
-            }
-            parent = parent.parentElement;
-          }
-          if (hidden) continue;
-          // LibreOffice's generated HTML places indentation tabs/newlines inside
-          // inline runs. Drop those boundaries while preserving repeated spaces
-          // and tabs from the actual text run.
-          pieces.push(value.replace(/[ \t]*\r?\n[ \t]*/g, ""));
-        }
-        charactersText = pieces.join("");
-      } else {
-        charactersText = characterRoot.textContent || text;
-      }
-    }
+    const floatingShapes = Array.from(body.querySelectorAll('[data-vno-float]'))
+      .filter((shape) => !shape.parentElement?.closest?.('[data-vno-float]'));
     const paragraphCount = countBlockParagraphs(body);
     const lineCount = countBlockLines(body);
     const markerStats = countListMarkerStats(body);
     markerStats.charactersWithSpaces += countExplicitLineBreaks(body);
     const stats = countDocumentStats(text, {
       scope: "document",
-      charactersText,
       paragraphCount,
       lineCount: lineCount == null ? undefined : lineCount,
       markerStats
@@ -2416,9 +2371,7 @@ export class WriterAdapter {
     for (const shape of floatingShapes) {
       const floatingStats = countDocumentStats(shape.innerText ?? shape.textContent ?? "");
       stats.words = Math.max(0, stats.words - floatingStats.words);
-      if (floatingShapes.length && typeof body.cloneNode !== "function") {
-        stats.charactersWithSpaces = Math.max(0, stats.charactersWithSpaces - floatingStats.charactersWithSpaces);
-      }
+      stats.charactersWithSpaces = Math.max(0, stats.charactersWithSpaces - floatingStats.charactersWithSpaces);
       stats.charactersNoSpaces = Math.max(0, stats.charactersNoSpaces - floatingStats.charactersNoSpaces);
     }
     return stats;

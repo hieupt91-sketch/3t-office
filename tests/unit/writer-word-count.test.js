@@ -26,13 +26,6 @@ export async function runWriterWordCountTests() {
     }
   };
 
-  await test("Word Count: preserve repeated spaces and tabs from text nodes", () => {
-    const stats = countDocumentStats("A B C", { charactersText: "A   B\tC\nD" });
-    if (stats.words !== 3) throw new Error(`Words should still use innerText: ${stats.words}`);
-    if (stats.charactersWithSpaces !== "A   B\tCD".length) {
-      throw new Error(`Repeated spaces or tabs were lost: ${stats.charactersWithSpaces}`);
-    }
-  });
 
   await test("Word Count: tách từ tiếng Việt theo khoảng trắng, bỏ token rỗng", () => {
     const stats = countDocumentStats("  Xin   chào   các bạn  ");

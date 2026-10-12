@@ -50,7 +50,6 @@ export function countDocumentStats(text, options = {}) {
   const scope = options.scope || "document";
   const markerStats = options.markerStats || {};
   const raw = String(text ?? "").replace(/\u00a0/g, " ");
-  const characterRaw = String(options.charactersText ?? raw).replace(/\u00a0/g, " ");
   const trimmed = raw.trim();
   if (!trimmed) {
     const empty = emptyStats(scope);
@@ -62,7 +61,7 @@ export function countDocumentStats(text, options = {}) {
   }
 
   const words = trimmed.split(/\s+/).filter(Boolean).length + (Number(markerStats.words) || 0);
-  const charactersWithSpaces = characterRaw.replace(/[\r\n\u2028\u2029]/g, "").length + (Number(markerStats.charactersWithSpaces) || 0);
+  const charactersWithSpaces = raw.replace(/[\r\n\u2028\u2029]/g, "").length + (Number(markerStats.charactersWithSpaces) || 0);
   const charactersNoSpaces = raw.replace(/\s+/g, "").length + (Number(markerStats.charactersNoSpaces) || 0);
   const paragraphs = options.paragraphCount != null
     ? options.paragraphCount
