@@ -1,5 +1,5 @@
 import { launchApp } from "../../../tests/live/cdp/session.mjs";
-import { mouseClick, mouseDrag, mouseMove, mouseRightClick, mouseTripleClick, press, typeText, insertText } from "../../../tests/live/cdp/actions.mjs";
+import { mouseClick, mouseDrag, mouseMove, mouseRightClick, mouseTripleClick, mouseWheel, press, typeText, insertText } from "../../../tests/live/cdp/actions.mjs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { mkdir } from "node:fs/promises";
@@ -89,6 +89,7 @@ const ops = [
   ["findReplacePack","A1","findReplacePack",null,null],
   ["pasteSpecialPack","A1","pasteSpecialPack",null,null],
   ["conditional","C2","conditional","sheet.format.conditional","C2:C6"],
+  ["conditionalManager","C2","conditionalManager","sheet.format.conditional","C2:C6"],
   ["formatAsTable","A1","tableStyle","sheet.style.formatAsTable","A1:G6"],["cellGood","B2","cellStyle","sheet.style.cellStyles","good"],
   ["flashFill","K2","flashFill","sheet.data.flashFill"],
   ["pivotTable","A1","pivotTable","sheet.data.pivotTable","A1:C6"],
@@ -130,7 +131,7 @@ for (const [name, cell, kind, id, value] of ops) {
       if(!duplicate)throw new Error("Could not locate audit duplicate cell A6");
       await mouseClick(session.cdp,duplicate.x,duplicate.y); await typeText(session.cdp,"1"); await press(session.cdp,"Enter");
     }
-    if (kind === "merge" || kind === "range" || kind === "customSort" || kind === "shortcutDown" || kind === "shortcutRight" || kind === "conditional" || kind === "tableStyle" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "subtotal" || kind === "removeDuplicates") {
+    if (kind === "merge" || kind === "range" || kind === "customSort" || kind === "shortcutDown" || kind === "shortcutRight" || kind === "conditional" || kind === "conditionalManager" || kind === "tableStyle" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "subtotal" || kind === "removeDuplicates") {
       if (kind === "customSort") {
         const duplicate=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-grid-cell[data-coord="B3"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
         if(!duplicate)throw new Error("Could not locate sort tie probe B3");
@@ -345,7 +346,7 @@ for (const [name, cell, kind, id, value] of ops) {
       const align=JSON.parse(await pos("#vno-fc-tab-alignment"));
       if(!align) status="NO_ALIGNMENT_TAB";
       else {await mouseClick(session.cdp,align.x,align.y);await sleep(150);const angle=JSON.parse(await pos('.vno-fc-orient-btn[data-angle="90"]'));if(!angle)status="NO_90_DEGREE_OPTION";else{await mouseClick(session.cdp,angle.x,angle.y);const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);const evidenceDir=path.join(root,"docs","tickets-0710","evidence");await mkdir(evidenceDir,{recursive:true});await writeFile(path.join(evidenceDir,"fix-s8-text-rotation.png"),Buffer.from((shot.result||shot).data,"base64"));const apply=JSON.parse(await pos(".vno-fc-ok-btn"));if(!apply)status="NO_FORMAT_CELLS_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="set Orientation=90 through Format Cells";}}}
-    } else if (kind === "click" || kind === "trace" || kind === "printPreview" || kind === "macroToggle" || kind === "ribbonEvidence" || kind === "helpKey" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "defineName" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pivotRefresh" || kind === "groupRows" || kind === "subtotal" || kind === "consolidate" || kind === "pageSetup" || kind === "pageSize" || kind === "pageScale" || kind === "pageTitles" || kind === "headerFooter" || kind === "pageBreak" || kind === "hyperlink" || kind === "commentInsert" || kind === "image" || kind === "removeDuplicates" || kind === "textToColumns") {
+    } else if (kind === "click" || kind === "trace" || kind === "printPreview" || kind === "macroToggle" || kind === "ribbonEvidence" || kind === "helpKey" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "conditionalManager" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "defineName" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pivotRefresh" || kind === "groupRows" || kind === "subtotal" || kind === "consolidate" || kind === "pageSetup" || kind === "pageSize" || kind === "pageScale" || kind === "pageTitles" || kind === "headerFooter" || kind === "pageBreak" || kind === "hyperlink" || kind === "commentInsert" || kind === "image" || kind === "removeDuplicates" || kind === "textToColumns") {
       if (name.startsWith("s16")) {
         const tabId = id?.startsWith("sheet.formula.") || id === "sheet.calc.calculationOptions" ? "formulas"
           : id?.startsWith("sheet.review.") ? "review"
@@ -688,19 +689,50 @@ for (const [name, cell, kind, id, value] of ops) {
         if (!prompt) status = "NO_PROMPT";
         else { await mouseClick(session.cdp,prompt.ix,prompt.iy); await press(session.cdp,"End"); for(let i=0;i<12;i++) await press(session.cdp,"Backspace"); await typeText(session.cdp,value); await mouseClick(session.cdp,prompt.bx,prompt.by); status = "applied " + value; }
       }
-      if (kind === "conditional" && status === "clicked") {
+      if ((kind === "conditional" || kind === "conditionalManager") && status === "clicked") {
         await sleep(350);
         const dialog = await ev(`(() => { const type=document.querySelector('#vno-cf-type'), val=document.querySelector('#vno-cf-value'), color=document.querySelector('#vno-cf-color'); if(!type||!val) return false; type.value='greaterThan'; type.dispatchEvent(new Event('change',{bubbles:true})); val.value='2000'; val.dispatchEvent(new Event('input',{bubbles:true})); if(color) color.value='#fed7aa'; const btn=document.querySelector('.vno-rule-apply'); if(!btn) return false; const r=btn.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2}); })()`);
         const apply = typeof dialog === "string" ? JSON.parse(dialog) : dialog;
         if (!apply) status = "NO_RULE_DIALOG";
-        else { await mouseClick(session.cdp, apply.x, apply.y); status = "applied > 2000"; }
+        else {
+          await mouseClick(session.cdp, apply.x, apply.y); status = "applied > 2000";
+          if (kind === "conditionalManager") {
+            await sleep(250);
+            await mouseClick(session.cdp, button.x, button.y);
+            await session.cdp.waitFor("!!document.querySelector('.vno-cf-rule-row [data-cf-remove]')", { timeoutMilliseconds: 10000 });
+            const remove = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-cf-rule-row [data-cf-remove]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+            if (!remove) throw new Error("Conditional Formatting manager did not expose Remove rule.");
+            await mouseClick(session.cdp, remove.x, remove.y);
+            await session.cdp.waitFor("window.__vnoAppInstance.grid.getConditionalFormattingRules().length===0", { timeoutMilliseconds: 10000 });
+            const add = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+            if (!add) throw new Error("Conditional Formatting manager lost its Add rule action.");
+            const threshold = JSON.parse(await ev(`(() => {const n=document.querySelector('#vno-cf-value');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+            if (!threshold) throw new Error("Conditional Formatting manager lost the threshold field.");
+            await mouseClick(session.cdp, threshold.x, threshold.y); await press(session.cdp, "a", { ctrl: true }); await typeText(session.cdp, "2000");
+            await mouseClick(session.cdp, add.x, add.y);
+            status = "created, removed, and re-added > 2000 through the rule manager";
+          }
+        }
       }
       if ((kind === "tableStyle" || kind === "cellStyle") && status === "clicked") {
         await sleep(350);
         const selector = kind === "tableStyle" ? ".vno-table-style-card" : `.vno-cell-style-card[data-style-id="${value}"]`;
         const card = JSON.parse(await ev(`(() => { const n=document.querySelector(${JSON.stringify(selector)}); if(!n) return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2}) })()`));
         if (!card) status = "NO_STYLE_CARD";
-        else { await mouseClick(session.cdp, card.x, card.y); status = "applied style"; }
+        else {
+          await mouseClick(session.cdp, card.x, card.y);
+          if (kind === "tableStyle") {
+            const scrollPoint = JSON.parse(await ev(`(() => { const n=document.querySelector('.vno-format-table-dialog .vno-dialog-body');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2}) })()`));
+            if (scrollPoint) await mouseWheel(session.cdp, scrollPoint.x, scrollPoint.y, 0, 700);
+            const create = JSON.parse(await ev(`(() => { const n=document.querySelector('.vno-table-create-action'); if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2}) })()`));
+            if (!create) status = "NO_TABLE_CREATE_ACTION";
+            else {
+              await mouseClick(session.cdp, create.x, create.y);
+              await session.cdp.waitFor("(window.__vnoAppInstance.grid.tablesBySheet[window.__vnoAppInstance.grid.activeSheet]||[]).length>0", {timeoutMilliseconds:10000});
+              status = "created named table through UI";
+            }
+          } else status = "applied style";
+        }
       }
       if (kind === "nameManager" && status === "clicked") {
         await sleep(200);
@@ -806,7 +838,7 @@ for (const [name, cell, kind, id, value] of ops) {
       const shot = await session.cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false }, 60000);
       await writeFile(path.join(evidenceDir, `${name.replace(/^s16/, "")}.png`), Buffer.from((shot.result || shot).data, "base64"));
     }
-    console.log(name.padEnd(18), "save=" + (saved && saved.status), "|", status, "|", info, formulaValues ? "| formulas=" + formulaValues : "");
+    console.log(name.padEnd(18), "save=" + (saved && saved.status), saved?.status === "error" ? JSON.stringify(saved) : "", "|", status, "|", info, formulaValues ? "| formulas=" + formulaValues : "");
   } catch (e) { console.log(name.padEnd(18), "LOI:", String(e.message).slice(0, 120)); } finally {
     if (restoreSystemClipboard) {
       try {

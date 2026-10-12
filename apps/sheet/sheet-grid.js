@@ -248,7 +248,9 @@ export class SheetGridController {
     this.calculationMode = "automatic"; // "automatic" | "manual"
     this.auditArrows = [];
     this.watchedCells = new Set();
+    this._formulaDependencyGraph = null;
     this._isAutofilling = false;
+    this._endModeActive = false;
     this._autofillSource = null;
     this._autofillTarget = null;
     this._isMovingCell = false;
@@ -385,9 +387,11 @@ export class SheetGridController {
     this.nameBox?.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
+        e.stopPropagation();
         this._jumpToNameBoxAddress(this.nameBox.value);
       } else if (e.key === "Escape") {
         e.preventDefault();
+        e.stopPropagation();
         this.nameBox.value = this.getSelectionNameLabel();
         this.focusGrid();
       }
@@ -447,7 +451,7 @@ export class SheetGridController {
     this.autocomplete.mount();
 
     this.formulaInput.addEventListener("focus", () => {
-      if (!this.formulaEntry) this._beginFormulaEntry("edit");
+      if (!this.formulaEntry && !this._isCancellingFormulaEntry) this._beginFormulaEntry("edit");
     });
 
     this.formulaInput.addEventListener("input", (e) => {
@@ -496,6 +500,14 @@ export class SheetGridController {
         return;
       }
 
+      // Escape always cancels the active cell edit, even while formula suggestions are open.
+      // The suggestion handler also consumes Escape, which otherwise left the cell in edit mode.
+      if (e.key === "Escape") {
+        e.preventDefault();
+        this.autocomplete.closeAll();
+        this._cancelFormulaEntry();
+        return;
+      }
       if (this.autocomplete.handleKeyDown(e)) {
         return;
       }
@@ -516,6 +528,17 @@ export class SheetGridController {
         this._movePointReferenceWithArrow(e.key);
         return;
       }
+      if (e.key === "Enter" && e.ctrlKey && !e.shiftKey) {
+        e.preventDefault();
+        const session = this.formulaEntry;
+        const sourceCoord = session?.coord || this.selectedCoord;
+        if (session?.update) session.update(this.formulaInput.value, this.formulaInput.selectionStart ?? this.formulaInput.value.length);
+        const value = session?.commit ? session.commit() : this.formulaInput.value;
+        this.autocomplete.closeAll();
+        if (session) this._cancelFormulaEntry();
+        this.fillSelectionWithValue(value, sourceCoord);
+        return;
+      }
       if (e.key === "Enter") {
         e.preventDefault();
         this.autocomplete.closeAll();
@@ -525,11 +548,6 @@ export class SheetGridController {
         e.preventDefault();
         this.autocomplete.closeAll();
         this._commitFormulaEntry({ move: true, shift: e.shiftKey, tab: true });
-        return;
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        this.autocomplete.closeAll();
-        this._cancelFormulaEntry();
         return;
       }
     });
@@ -723,8 +741,7 @@ export class SheetGridController {
     const mm = String(now.getMinutes()).padStart(2, "0");
     const ss = String(now.getSeconds()).padStart(2, "0");
     const timeStr = `${hh}:${mm}:${ss}`;
-    // Dấu nháy đơn giữ nguyên chuỗi HH:mm:ss như trước đây (không auto-detect
-    // thành serial giờ), vì lệnh này chèn chuỗi giờ chứ không nhập tay vào ô.
+    // Keep the shortcut result as text until Excel 2016 readback evidence proves otherwise.
     this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, `'${timeStr}`, true);
     if (this.formulaInput) this.formulaInput.value = timeStr;
     return timeStr;
@@ -1659,6 +1676,11 @@ export class SheetGridController {
       ? String(initialValue)
       : String(this.formulaInput?.value ?? this._cellEditorValue(item));
     this.formulaEntry = new FormulaEntrySession({ original, value, caret: value.length, mode, sheet: this.activeSheet, coord });
+    this.formulaEntry.historyBefore = {
+      undoLength: this.undoStack.length,
+      lastUndo: this.undoStack.length ? structuredClone(this.undoStack[this.undoStack.length - 1]) : null,
+      redo: [...this.redoStack]
+    };
     this._updateFormulaEntryStatus();
     this._renderFormulaReferenceOverlay();
     return this.formulaEntry;
@@ -1899,6 +1921,7 @@ export class SheetGridController {
   _cancelFormulaEntry() {
     const session = this.formulaEntry;
     if (!session) return false;
+    this._isCancellingFormulaEntry = true;
     const coord = { ...session.coord };
     const ownerSheet = session.sheet;
     const original = typeof session.cancel === "function" ? session.cancel() : (session.original ?? this._cellValueBeforeEdit);
@@ -1917,6 +1940,17 @@ export class SheetGridController {
     this.autocomplete?.closeAll?.();
     this._refreshFormulaEntryVisuals();
     this.container?.focus?.({ preventScroll: true });
+    const historyBefore = session.historyBefore;
+    if (historyBefore) {
+      this.undoStack.length = historyBefore.undoLength;
+      if (historyBefore.lastUndo && historyBefore.undoLength) {
+        this.undoStack[historyBefore.undoLength - 1] = historyBefore.lastUndo;
+      }
+      this.redoStack = [...historyBefore.redo];
+      this._syncCommandStates();
+    }
+    this.formulaEntry = null;
+    this._isCancellingFormulaEntry = false;
     this.options.onSelect?.(`${coord.c}${coord.r}`, this.cellsData.get(`${coord.c}${coord.r}`), this._calculateStats());
     return true;
   }
@@ -2967,12 +3001,18 @@ export class SheetGridController {
   }
 
   selectAll() {
+    if (this._ctrlASelectAllPending) {
+      this._ctrlASelectAllPending = false;
+      this.selectCell("A", 1);
+      this.selectCell(this.cols[this.cols.length - 1], this.rowCount, true);
+      return true;
+    }
     const region = this._currentRegionFromSelection();
-    const current = this._normalizeRange(this.selectionRange);
-    if (region && (!current || this._rangeLabel(region) !== this._rangeLabel(current))) {
+    if (region) {
       this.selectionRange = structuredClone(region);
       this.selectionRanges = [this.selectionRange];
       this.selectionKind = "cell";
+      this._ctrlASelectAllPending = true;
       this._renderSelection?.();
       this._syncSelectionUi?.();
       return true;
@@ -4603,6 +4643,7 @@ _bindGridKeyboardNavigation() {
           return;
         }
         if (typeof document !== "undefined" && document?.activeElement === this.formulaInput) return;
+        if (typeof document !== "undefined" && document?.activeElement === this.nameBox) return;
         if (this._tabSequenceAnchor && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(e.key)) {
           this._tabSequenceAnchor = null;
         }
@@ -4633,6 +4674,34 @@ _bindGridKeyboardNavigation() {
         if (this.formulaEntry?.mode === "point" && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
           e.preventDefault();
           this._movePointReferenceWithArrow(e.key);
+          return;
+        }
+
+        if (this._endModeActive && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+          e.preventDefault();
+          this._endModeActive = false;
+          const direction = { ArrowUp: -1, ArrowDown: 1, ArrowLeft: -1, ArrowRight: 1 }[e.key];
+          let endNextCol = this.selectedCoord.c;
+          let endNextRow = this.selectedCoord.r;
+          if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+            endNextRow = this._findNextCtrlArrowRow(this.selectedCoord.c, this.selectedCoord.r, direction);
+          } else {
+            endNextCol = this._findNextCtrlArrowCol(this.selectedCoord.c, this.selectedCoord.r, direction);
+          }
+          this.selectCell(endNextCol, endNextRow, e.shiftKey);
+          return;
+        }
+        if (this._endModeActive) this._endModeActive = false;
+        if (e.key === "End" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+          e.preventDefault();
+          this._endModeActive = true;
+          return;
+        }
+
+        if ((e.key === "F5" || (e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey && e.key.toLowerCase() === "g")) && !this.formulaEntry) {
+          e.preventDefault();
+          this.nameBox?.focus();
+          this.nameBox?.select?.();
           return;
         }
 
@@ -4683,6 +4752,9 @@ _bindGridKeyboardNavigation() {
         } else {
           nextCol = this.cols[Math.min(this.cols.length - 1, colIdx + 1)];
         }
+        extendRange = e.shiftKey;
+      } else if (e.key === "Home" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        nextCol = "A";
         extendRange = e.shiftKey;
       } else if (e.key === "Home" && e.ctrlKey) {
         nextCol = "A";
@@ -4767,6 +4839,10 @@ _bindGridKeyboardNavigation() {
         e.preventDefault();
         this.insertCurrentTime();
         return;
+      } else if (e.key === ";" && e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        this.insertCurrentDate();
+        return;
       } else if (e.key === "F11" && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
         e.preventDefault();
         this.addSheetBefore();
@@ -4786,10 +4862,6 @@ _bindGridKeyboardNavigation() {
       } else if (e.key === "F9") {
         e.preventDefault();
         this.recalculateAll();
-        return;
-      } else if (e.key === "F4") {
-        e.preventDefault();
-        this.redo();
         return;
       } else if (e.key === "Enter" && e.altKey) {
         e.preventDefault();
@@ -4835,7 +4907,7 @@ _bindGridKeyboardNavigation() {
             this.setCellValue(c, r, "");
           });
         } else {
-          this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, "");
+          this.clearContents(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
         }
         if (this.formulaInput) this.formulaInput.value = "";
         return;
@@ -5038,6 +5110,8 @@ _bindGridKeyboardNavigation() {
 
   selectCell(col, row, extendRange = false, addRange = false) {
     if (row < 1 || row > this.rowCount) return;
+    this._ctrlASelectAllPending = false;
+    this._endModeActive = false;
     if (this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput) {
       this._commitEditBeforeRangeSelection();
     }
@@ -5357,6 +5431,7 @@ _bindGridKeyboardNavigation() {
     delete item.richText;
 
     this.cellsData.set(key, item);
+    if ((previousValue?.formula || "") !== (item.formula || "")) this._formulaDependencyGraph = null;
     if (tableStateBeforeEdit && (item.formula || String(item.val ?? "") !== "")) {
       const expanded = this._expandTableForAdjacentEntry(col, Number(row));
       if (expanded && historyAction) {
@@ -5368,7 +5443,7 @@ _bindGridKeyboardNavigation() {
         historyAction.tableFilterRangeAfter = expanded.ref;
       }
     }
-    this.formulaEngine?.bumpSheetVersion?.(this.activeSheet);
+    this.formulaEngine?.bumpSheetVersion?.(this.activeSheet, key);
 
     const cell = this.container.querySelector(`.vno-grid-cell[data-coord="${key}"]`);
     if (cell) {
@@ -5396,8 +5471,8 @@ _bindGridKeyboardNavigation() {
     }
 
     // Tự động tính toán lại các ô có công thức khác (trừ khi ở chế độ Manual)
-    if (this.calculationMode !== "manual") {
-      this._recalculateAllFormulas(key);
+    if (this.calculationMode !== "manual" && !historyOptions.isComposing) {
+      this._recalculateAllFormulas(key, false, { sheet: this.activeSheet, coord: key });
     }
     this.refreshCharts();
     this._updateWatchWindow?.();
@@ -5474,21 +5549,131 @@ _bindGridKeyboardNavigation() {
     };
   }
 
-  _recalculateAllFormulas(excludeKey, force = false) {
+  _buildFormulaDependencyGraph() {
+    const originalSheet = this.activeSheet;
+    const fail = () => { this.activeSheet = originalSheet; return null; };
+    const formulas = new Map();
+    const formulaPositions = new Map();
+    const rangesByColumn = new Map();
+    const formulasBySheetColumn = new Map();
+    const columnKey = (sheet, column) => `${sheet}\u0000${column}`;
+    const formulaId = (sheet, coord) => JSON.stringify([sheet, coord]);
+
+    for (const sheet of this.sheets) {
+      const map = this.sheetsData[sheet];
+      if (!map) continue;
+      this.activeSheet = sheet;
+      for (const [coord, item] of map) {
+        if (!item?.formula || (item.externalLink && item.externalLink.formula === item.formula)) continue;
+        if (item.isArrayFormula) return fail();
+        const extracted = this.formulaEngine.getStaticFormulaReferences(item.formula, sheet);
+        if (!extracted.safe) return fail();
+        const id = formulaId(sheet, coord);
+        const formulaMatch = String(coord).match(/^([A-Z]+)(\d+)$/i);
+        if (!formulaMatch) return fail();
+        const formula = { id, sheet, coord, row: Number(formulaMatch[2]), column: this._columnNumber(formulaMatch[1]) - 1, refs: extracted.references, upstream: new Set() };
+        formulas.set(id, formula);
+        formulaPositions.set(`${sheet}\u0000${coord}`, id);
+        const key = columnKey(sheet, formula.column);
+        if (!formulasBySheetColumn.has(key)) formulasBySheetColumn.set(key, []);
+        formulasBySheetColumn.get(key).push(formula);
+      }
+    }
+
+    for (const formula of formulas.values()) {
+      for (const ref of formula.refs) {
+        const minColumn = Math.min(ref.startColumn, ref.endColumn);
+        const maxColumn = Math.max(ref.startColumn, ref.endColumn);
+        const minRow = Math.min(ref.startRow, ref.endRow);
+        const maxRow = Math.max(ref.startRow, ref.endRow);
+        if (maxColumn - minColumn > 255) return fail();
+        for (let column = minColumn; column <= maxColumn; column++) {
+          const key = columnKey(ref.sheet, column);
+          if (!rangesByColumn.has(key)) rangesByColumn.set(key, []);
+          rangesByColumn.get(key).push({ minRow, maxRow, formulaId: formula.id });
+          for (const source of formulasBySheetColumn.get(key) || []) {
+            if (source.row >= minRow && source.row <= maxRow) formula.upstream.add(source.id);
+          }
+        }
+      }
+    }
+    this.activeSheet = originalSheet;
+    return { formulas, formulaPositions, rangesByColumn };
+  }
+
+  _getDirtyFormulaOrder(graph, changed) {
+    const formulaIds = new Set();
+    const visitedCells = new Set();
+    const pending = [changed];
+    while (pending.length) {
+      const current = pending.pop();
+      const cellId = `${current.sheet}\u0000${current.coord}`;
+      if (visitedCells.has(cellId)) continue;
+      visitedCells.add(cellId);
+      const formulaIdsAtCell = new Set();
+      const directFormula = graph.formulaPositions.get(cellId);
+      if (directFormula) formulaIdsAtCell.add(directFormula);
+      const columnMatch = current.coord.match(/^([A-Z]+)(\d+)$/i);
+      if (!columnMatch) return null;
+      const column = this._columnNumber(columnMatch[1]) - 1;
+      const row = Number(columnMatch[2]);
+      for (const range of graph.rangesByColumn.get(`${current.sheet}\u0000${column}`) || []) {
+        if (row >= range.minRow && row <= range.maxRow) formulaIdsAtCell.add(range.formulaId);
+      }
+      for (const id of formulaIdsAtCell) {
+        if (id === JSON.stringify([changed.sheet, changed.coord]) || formulaIds.has(id)) continue;
+        formulaIds.add(id);
+        const formula = graph.formulas.get(id);
+        pending.push({ sheet: formula.sheet, coord: formula.coord });
+      }
+    }
+
+    const ordered = [];
+    const visiting = new Set();
+    const visited = new Set();
+    const visit = id => {
+      if (visiting.has(id)) return false;
+      if (visited.has(id)) return true;
+      visiting.add(id);
+      const formula = graph.formulas.get(id);
+      for (const upstream of formula?.upstream || []) {
+        if (formulaIds.has(upstream) && !visit(upstream)) return false;
+      }
+      visiting.delete(id);
+      visited.add(id);
+      ordered.push(id);
+      return true;
+    };
+    for (const id of formulaIds) if (!visit(id)) return null;
+    return ordered.map(id => graph.formulas.get(id));
+  }
+
+  _recalculateAllFormulas(excludeKey, force = false, incremental = null) {
     if (this.calculationMode === "manual" && !force) return;
-    this.formulaEngine?.clearCache?.();
+    if (!incremental || force) this._formulaDependencyGraph = null;
     const activeSheet = this.activeSheet;
+    let formulaFilter = null;
+    if (incremental && !force && this.formulaEngine?.getStaticFormulaReferences) {
+      if (!this._formulaDependencyGraph) {
+        this._formulaDependencyGraph = this._buildFormulaDependencyGraph();
+      }
+      if (this._formulaDependencyGraph) {
+        const dirty = this._getDirtyFormulaOrder(this._formulaDependencyGraph, incremental);
+        if (dirty) formulaFilter = new Map(dirty.map(formula => [JSON.stringify([formula.sheet, formula.coord]), formula]));
+      }
+    }
+    if (!formulaFilter) this.formulaEngine?.clearCache?.();
     const changedFormulaCells = new Set();
     for (const sheetName of this.sheets) {
       const map = this.sheetsData[sheetName];
       if (!map) continue;
       this.activeSheet = sheetName;
       if (this.formulaEngine) {
-        if (typeof this.formulaEngine.setCellsData === "function") this.formulaEngine.setCellsData(map);
-        else this.formulaEngine.cellsData = map;
+        this.formulaEngine.cellsData = () => this.cellsData;
       }
       for (const [k, itm] of map.entries()) {
-        if ((sheetName !== activeSheet || k !== excludeKey) && itm.formula) {
+        const included = !formulaFilter || formulaFilter.has(JSON.stringify([sheetName, k]));
+        if (included && (sheetName !== activeSheet || k !== excludeKey) && itm.formula) {
           // A link to another (closed) workbook keeps its cached value, as in
           // Excel; evaluating it here would overwrite the value with an error.
           if (itm.externalLink && itm.externalLink.formula === itm.formula) continue;
@@ -5506,7 +5691,7 @@ _bindGridKeyboardNavigation() {
           if (res !== itm.val) {
             itm.val = res;
             if (sheetName === activeSheet) changedFormulaCells.add(k);
-            this.formulaEngine?.bumpSheetVersion?.(sheetName);
+            this.formulaEngine?.bumpSheetVersion?.(sheetName, k);
           } else {
             itm.val = res;
           }
@@ -5529,9 +5714,7 @@ _bindGridKeyboardNavigation() {
     }
     this.activeSheet = activeSheet;
     if (this.formulaEngine) {
-      const activeMap = this.sheetsData[activeSheet];
-      if (typeof this.formulaEngine.setCellsData === "function") this.formulaEngine.setCellsData(activeMap);
-      else this.formulaEngine.cellsData = activeMap;
+      this.formulaEngine.cellsData = () => this.cellsData;
     }
     this._refreshVisibleRuleVisuals();
     this._updateWatchWindow?.();
@@ -5605,6 +5788,7 @@ _bindGridKeyboardNavigation() {
       if (consumesPending && coord === activeKey) return pending.prevVal ? { val: pending.prevVal, formula: pending.prevVal.startsWith?.("=") ? pending.prevVal : "", style: item?.style || {} } : null;
       return item;
     });
+    this._formulaDependencyGraph = null;
     if (consumesPending) this.undoStack.pop();
     const arrayRange = this.getSelectedRangeLabel();
     coords.forEach((coord, index) => {
@@ -5623,6 +5807,7 @@ _bindGridKeyboardNavigation() {
   _clearArrayFormula(arrayRange) {
     const coords = this.formulaEngine.expandRange(arrayRange);
     const before = coords.map(coord => structuredClone(this.cellsData.get(coord) || null));
+    this._formulaDependencyGraph = null;
     coords.forEach(coord => {
       this.cellsData.delete(coord);
       const dom = this.container.querySelector?.(`.vno-grid-cell[data-coord="${coord}"]`);
@@ -8803,6 +8988,68 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
+  _translateFormulaForFill(formula, sourceCoord, targetCoord) {
+    const rowOffset = targetCoord.r - sourceCoord.r;
+    const colOffset = this._columnNumber(targetCoord.c) - this._columnNumber(sourceCoord.c);
+    if (!rowOffset && !colOffset) return formula;
+    return String(formula).split(/("(?:""|[^"])*")/).map((segment, index) => {
+      if (index % 2 === 1) return segment;
+      return segment.replace(/(^|[^A-Z0-9_.])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![A-Z0-9_])/gi,
+        (match, prefix, colAbsolute, column, rowAbsolute, row, offset, whole) => {
+          const after = whole[offset + match.length] || "";
+          const sourceColumn = this._columnNumber(column);
+          const sourceRow = Number(row);
+          if (sourceColumn > this.cols.length || sourceRow > this.rowCount || after === "(") return match;
+          const targetColumn = sourceColumn + (colAbsolute ? 0 : colOffset);
+          const targetRow = sourceRow + (rowAbsolute ? 0 : rowOffset);
+          if (targetColumn < 1 || targetColumn > this.cols.length || targetRow < 1 || targetRow > this.rowCount) return `${prefix}#REF!`;
+          return `${prefix}${colAbsolute}${this._columnLabel(targetColumn)}${rowAbsolute}${targetRow}`;
+        });
+    }).join("");
+  }
+
+  fillSelectionWithValue(value, sourceCoord = this.selectedCoord) {
+    if (this._guardProtectedMutation()) return false;
+    const ranges = this._getSelectionRanges().map(range => this._normalizeRange(range));
+    const coordinates = [...new Set(ranges.flatMap(range =>
+      this.formulaEngine.expandRange(this._rangeLabel(range))
+    ))];
+    if (!coordinates.length) coordinates.push(`${this.selectedCoord.c}${this.selectedCoord.r}`);
+
+    const before = {};
+    for (const coord of coordinates) {
+      const item = this.cellsData.get(coord);
+      before[coord] = item ? {
+        val: item.val ?? "",
+        formula: item.formula ?? "",
+        style: structuredClone(item.style || {})
+      } : null;
+    }
+    for (const coord of coordinates) {
+      const [col, row] = this._splitCoord(coord);
+      const nextValue = typeof value === "string" && value.startsWith("=")
+        ? this._translateFormulaForFill(value, sourceCoord, { c: col, r: row })
+        : value;
+      this.setCellValue(col, row, nextValue, false, { commit: true, userInput: true });
+    }
+    const after = {};
+    for (const coord of coordinates) {
+      const item = this.cellsData.get(coord);
+      after[coord] = item ? {
+        val: item.val ?? "",
+        formula: item.formula ?? "",
+        style: structuredClone(item.style || {})
+      } : null;
+    }
+    this._recordHistory({
+      type: "batch-workbook",
+      beforeBySheet: { [this.activeSheet]: before },
+      afterBySheet: { [this.activeSheet]: after }
+    });
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    return true;
+  }
+
   clearContents(range = null, recordUndo = true) {
     if (recordUndo && this._guardProtectedMutation()) return false;
     const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
@@ -9349,6 +9596,14 @@ _bindGridKeyboardNavigation() {
   }
 
   _recordHistory(action, { coalesce = false } = {}) {
+    if (action?.type === "cell" &&
+      Object.is(action.prevVal, action.nextVal) &&
+      action.prevWasText === action.nextWasText &&
+      JSON.stringify(action.prevStyle || {}) === JSON.stringify(action.nextStyle || {}) &&
+      JSON.stringify(action.prevValRichText || null) === JSON.stringify(action.nextValRichText || null) &&
+      action.prevRowHeight === action.nextRowHeight) {
+      return null;
+    }
     const previous = this.undoStack[this.undoStack.length - 1];
     const mergeCellEdit = coalesce && previous?.type === "cell" && action.type === "cell" &&
       previous.sheet === action.sheet && previous.col === action.col && previous.row === action.row &&
@@ -13879,18 +14134,39 @@ _bindGridKeyboardNavigation() {
   }
 
   showConditionalFormattingDialog() {
+    const selectedRange = structuredClone(this.selectionRange);
+    const selectedRangeLabel = this.getSelectedRangeLabel();
     const overlay = this._createSheetDialog(t("sheetDialogs.conditionalFormatting"), `
-      <p class="vno-rule-range">${t("sheetDialogs.range")}: <strong>${this.getSelectedRangeLabel()}</strong></p>
+      <p class="vno-rule-range">${t("sheetDialogs.range")}: <strong>${selectedRangeLabel}</strong></p>
+      <section class="vno-cf-rule-manager" aria-label="${t("sheetDialogs.cfCurrentRules")}">
+        <h3>${t("sheetDialogs.cfCurrentRules")}</h3>
+        <div id="vno-cf-rule-list" aria-live="polite"></div>
+      </section>
       <label>${t("sheetDialogs.rule")}<select id="vno-cf-type" aria-label="${t("sheetDialogs.rule")}"><option value="greaterThan">${t("sheetDialogs.greaterThan")}</option><option value="lessThan">${t("sheetDialogs.lessThan")}</option><option value="blank">${t("sheetDialogs.blankCell")}</option></select></label>
       <label id="vno-cf-value-row">${t("sheetDialogs.value")}<input id="vno-cf-value" type="number" value="0" aria-label="${t("sheetDialogs.value")}"></label>
       <label>${t("sheetDialogs.fillColor")}<input id="vno-cf-color" type="color" value="#fff2cc" aria-label="${t("sheetDialogs.fillColor")}"></label>
       <div class="vno-rule-error" role="alert"></div>`);
     if (!overlay) return false;
+    const renderRules = () => {
+      const host = overlay.querySelector("#vno-cf-rule-list");
+      const rules = this.getConditionalFormattingRules();
+      host.innerHTML = rules.length ? rules.map(rule => {
+        const condition = rule.type === "blank"
+          ? t("sheetDialogs.blankCell")
+          : `${t(rule.type === "lessThan" ? "sheetDialogs.lessThan" : "sheetDialogs.greaterThan")}: ${this._escapeHtml(rule.value)}`;
+        return `<div class="vno-cf-rule-row" data-rule-id="${this._escapeHtml(rule.id)}"><span>${this._escapeHtml(rule.rangeLabel || this._rangeLabel(rule.range))} · ${condition}</span><span class="vno-cf-rule-color" style="background:${this._escapeHtml(rule.color)}" aria-label="${t("sheetDialogs.fillColor")}: ${this._escapeHtml(rule.color)}"></span><button type="button" class="vno-btn" data-cf-remove="${this._escapeHtml(rule.id)}">${t("sheetDialogs.cfRemoveRule")}</button></div>`;
+      }).join("") : `<p class="vno-cf-empty">${t("sheetDialogs.cfNoRules")}</p>`;
+      host.querySelectorAll("[data-cf-remove]").forEach(button => button.addEventListener("click", () => {
+        if (this.deleteConditionalFormattingRule(button.dataset.cfRemove)) renderRules();
+      }));
+    };
+    overlay.querySelector(".vno-rule-apply").textContent = t("sheetDialogs.cfAddRule");
+    renderRules();
     const type = overlay.querySelector("#vno-cf-type");
     const valueRow = overlay.querySelector("#vno-cf-value-row");
     type.addEventListener("change", () => { valueRow.hidden = type.value === "blank"; });
     overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
-      const result = this.addConditionalFormattingRule(this.selectionRange, {
+      const result = this.addConditionalFormattingRule(selectedRange, {
         type: type.value,
         value: overlay.querySelector("#vno-cf-value").value,
         color: overlay.querySelector("#vno-cf-color").value
