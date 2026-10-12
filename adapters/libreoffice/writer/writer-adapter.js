@@ -15202,6 +15202,7 @@ export class WriterAdapter {
 
     let nativeChartFodt = "";
     let nativeDiagramFodt = "";
+    let nativeWordArtFodt = "";
     let nativeWatermarkFodt = "";
     const chartNodes = Array.from(this.bodyDom?.querySelectorAll?.('.vno-writer-chart[data-vno-chart="true"]') || []);
     const diagramNodes = Array.from(this.bodyDom?.querySelectorAll?.('.vno-writer-diagram[data-vno-diagram="true"]') || []);
@@ -15230,6 +15231,29 @@ export class WriterAdapter {
     }
     if (diagramNodes.length && !acceptedView) {
       nativeDiagramFodt = this._serializeNativeDiagramsToFodt(diagramNodes);
+    }
+    const wordArtNodes = Array.from(this.bodyDom?.querySelectorAll?.('.vno-writer-wordart[data-vno-wordart="true"]') || []);
+    if (wordArtNodes.length && !acceptedView) {
+      const wordArtBody = { innerHTML: wordArtNodes.map(node => String(node.outerHTML || "")).filter(Boolean).join("") };
+      if (!wordArtBody.innerHTML || (wordArtBody.innerHTML.match(/data-vno-wordart="true"/g) || []).length !== wordArtNodes.length) {
+        throw new Error("KhÃ´ng thá»ƒ chuáº©n bá»‹ WordArt native Ä‘á»ƒ lÆ°u DOCX.");
+      }
+      const wordArtAdapter = Object.create(Object.getPrototypeOf(this));
+      Object.assign(wordArtAdapter, this);
+      wordArtAdapter.editorDom = {
+        innerHTML: wordArtBody.innerHTML,
+        querySelector(selector) {
+          return selector === ".vno-writer-body" ? wordArtBody : null;
+        }
+      };
+      wordArtAdapter.bodyDom = wordArtBody;
+      wordArtAdapter.headerDom = null;
+      wordArtAdapter.footerDom = null;
+      wordArtAdapter.watermark = null;
+      wordArtAdapter.shapes = [];
+      wordArtAdapter.sectionPageSetups = {};
+      wordArtAdapter.sectionHeadersFooters = {};
+      nativeWordArtFodt = wordArtAdapter.serializeToFodt();
     }
     if (this.watermark?.text && !acceptedView) {
       const watermarkAdapter = Object.create(Object.getPrototypeOf(this));
@@ -15278,6 +15302,23 @@ export class WriterAdapter {
           end.setAttribute("name", `${token}_END`);
           parent.insertBefore(start, diagram);
           parent.insertBefore(end, diagram.nextSibling);
+        });
+      }
+      if (nativeWordArtFodt && !acceptedView && typeof document !== "undefined") {
+        const exportWordArts = Array.from(exportRoot.querySelectorAll?.('.vno-writer-wordart[data-vno-wordart="true"]') || []);
+        if (exportWordArts.length !== wordArtNodes.length) {
+          throw new Error("WordArt trong báº£n DOCX khÃ´ng khớp vá»›i Ä‘á»‘i tÆ°á»£ng Ä‘Æ°á»£c chÃ¨n.");
+        }
+        exportWordArts.forEach((wordArt, index) => {
+          const parent = wordArt.parentNode;
+          if (!parent?.insertBefore) return;
+          const token = `VNO_NATIVE_WORDART_${index + 1}`;
+          const start = document.createElement("a");
+          start.setAttribute("name", `${token}_START`);
+          const end = document.createElement("a");
+          end.setAttribute("name", `${token}_END`);
+          parent.insertBefore(start, wordArt);
+          parent.insertBefore(end, wordArt.nextSibling);
         });
       }
       const wrappers = Array.from(exportRoot.querySelectorAll?.(".vno-section-content") || []);
@@ -15463,13 +15504,16 @@ export class WriterAdapter {
     const nativeDiagramMarker = nativeDiagramFodt
       ? `<!--vno-native-diagrams-fodt:${btoa(Array.from(new TextEncoder().encode(nativeDiagramFodt), byte => String.fromCharCode(byte)).join(""))}-->`
       : "";
+    const nativeWordArtMarker = nativeWordArtFodt
+      ? `<!--vno-native-wordart-fodt:${btoa(Array.from(new TextEncoder().encode(nativeWordArtFodt), byte => String.fromCharCode(byte)).join(""))}-->`
+      : "";
     const nativeWatermarkMarker = nativeWatermarkFodt
       ? `<!--vno-native-watermark-fodt:${btoa(Array.from(new TextEncoder().encode(nativeWatermarkFodt), byte => String.fromCharCode(byte)).join(""))}-->`
       : "";
     const themeMarker = this.documentTheme && this.documentTheme !== "office"
       ? `<!--vno-document-theme:${String(this.documentTheme).replace(/[^a-z0-9_-]/gi, "")}-->`
       : "";
-    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${nativeDiagramMarker}${nativeWatermarkMarker}${themeMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
+    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${nativeDiagramMarker}${nativeWordArtMarker}${nativeWatermarkMarker}${themeMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }
