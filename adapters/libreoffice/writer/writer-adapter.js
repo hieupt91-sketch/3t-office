@@ -2354,7 +2354,10 @@ export class WriterAdapter {
       return countDocumentStats(selectedText, { scope: "selection" });
     }
 
-    const text = extractWordCountText(body);
+    const hasLiveDom = Boolean(body.childNodes);
+    const text = hasLiveDom
+      ? extractWordCountText(body)
+      : (body.innerText != null ? body.innerText : (body.textContent || ""));
     const paragraphCount = countBlockParagraphs(body);
     const lineCount = countBlockLines(body);
     const markerStats = countListMarkerStats(body);
@@ -2369,6 +2372,16 @@ export class WriterAdapter {
       lineCount: lineCount == null ? undefined : lineCount,
       markerStats
     });
+    if (!hasLiveDom) {
+      const floatingShapes = Array.from(body.querySelectorAll('[data-vno-float]'))
+        .filter((shape) => !shape.parentElement?.closest?.('[data-vno-float]'));
+      for (const shape of floatingShapes) {
+        const floatingStats = countDocumentStats(shape.innerText ?? shape.textContent ?? "");
+        stats.words = Math.max(0, stats.words - floatingStats.words);
+        stats.charactersWithSpaces = Math.max(0, stats.charactersWithSpaces - floatingStats.charactersWithSpaces);
+        stats.charactersNoSpaces = Math.max(0, stats.charactersNoSpaces - floatingStats.charactersNoSpaces);
+      }
+    }
     return stats;
   }
 
