@@ -25,6 +25,42 @@ const assertCase = async (file, cdp) => {
         return {ok:rules.length>0&&range?.start?.c==="C"&&range?.start?.r===2&&range?.end?.c==="C"&&range?.end?.r===6,rules};
       }
       case "definedName": return {ok:(g?.namedRangesWorkbook||[]).some(item=>item.name==="SampleNames"&&item.ref==="B2"),names:g?.namedRangesWorkbook||[]};
+      case "freezePanes": {
+        const panes={rows:g?.frozenRows||0,cols:g?.frozenCols||0};
+        return {ok:panes.rows===1&&panes.cols===1,panes};
+      }
+      case "pageSetup": case "pageSize": case "pageScale": case "printTitles": case "headerFooter": case "printArea": {
+        const setup=g?.getPageSetup?.();
+        const ok=${JSON.stringify(base)}==="pageSetup" ? setup?.orientation==="landscape"
+          : ${JSON.stringify(base)}==="pageSize" ? setup?.size==="legal"
+          : ${JSON.stringify(base)}==="pageScale" ? setup?.scale?.mode==="percent"&&setup?.scale?.percent===80
+          : ${JSON.stringify(base)}==="printTitles" ? ["1","1:1"].includes(setup?.printTitles?.rows)
+          : ${JSON.stringify(base)}==="headerFooter" ? setup?.headerFooter?.header?.right==="VN Office S12"
+          : g?.printAreaBySheet?.[g?.activeSheet]==="A1";
+        return {ok:!!ok,setup,printArea:g?.printAreaBySheet?.[g?.activeSheet]};
+      }
+      case "chart": case "chartBar": case "chartLine": case "chartPie": case "chartArea": {
+        const charts=g?.chartsBySheet?.[g?.activeSheet]||[];
+        return {ok:charts.length>0,charts};
+      }
+      case "formatAsTable": {
+        const tables=g?.tablesBySheet?.[g?.activeSheet]||[];
+        return {ok:tables.some(table=>table.name==="Table1"&&table.ref==="A1:G6"),tables};
+      }
+      case "pivotTable": {
+        const pivots=Object.values(g?.pivotTablesBySheet||{}).flat();
+        return {ok:pivots.length>0,pivots};
+      }
+      case "sparklineLine": case "sparklineColumn": {
+        const item=cell("C6"), expected=${JSON.stringify(base)}==="sparklineLine"?"line":"column";
+        return {ok:item.sparkline?.type===expected,sparkline:item.sparkline};
+      }
+      case "insertPageBreak": case "removePageBreak": {
+        const breaks=g?.pageBreaksBySheet?.[g?.activeSheet]||{rows:[],cols:[]};
+        const ok=${JSON.stringify(base)}==="insertPageBreak" ? breaks.rows?.includes(5)&&breaks.cols?.includes("C")
+          : !breaks.rows?.length&&!breaks.cols?.length;
+        return {ok:!!ok,breaks};
+      }
       default: return {ok:!!g?.sheets?.length,sheets:g?.sheets};
     }
   })()`);
