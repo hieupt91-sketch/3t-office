@@ -3488,13 +3488,11 @@ export class SlidesAdapter {
       </draw:page>`;
     });
 
-    const automaticStyles = this._serializeSlidePageLayouts() + this._serializeGraphicStyles(slides) + this._serializeRichTextStyles(richCtx);
+    const automaticStyles = this._serializeGraphicStyles(slides) + this._serializeRichTextStyles(richCtx);
     const backgroundResources = this._serializeBackgroundResources(slides);
-    const officeStyles = backgroundResources
-      ? `
-  <office:styles>${backgroundResources}
-  </office:styles>`
-      : "";
+    const officeStyles = `
+  <office:styles>${backgroundResources}${this._serializeSlidePageLayouts()}
+  </office:styles>`;
 
     return `<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
