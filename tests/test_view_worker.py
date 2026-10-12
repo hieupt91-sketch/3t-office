@@ -60,7 +60,16 @@ class ViewWorkerTests(unittest.TestCase):
         self.assertTrue(opened["ok"], opened)
         self.assertEqual(len(opened["sheets"]), 12)
         self.assertGreater(opened["sheets"][0]["rows"], 0)
+        self.assertFalse(opened["sheets"][1]["dimensions_known"], "non-active sheets defer their used-range scan")
         doc_id = opened["doc_id"]
+
+        other_sheet = self.call(op="view_window", doc_id=doc_id, sheet=1, r0=0, c0=0, r1=0, c1=0,
+                                include_strings=True, include_formats=True)
+        self.assertTrue(other_sheet["ok"], other_sheet)
+        self.assertGreater(other_sheet["sheet_rows"], 0)
+        self.assertGreater(other_sheet["sheet_cols"], 0)
+        self.assertEqual(len(other_sheet["values"]), min(40, other_sheet["sheet_rows"]))
+        self.assertEqual(len(other_sheet["values"][0]), min(20, other_sheet["sheet_cols"]))
 
         window = self.call(op="view_window", doc_id=doc_id, sheet=0, r0=0, c0=0, r1=29, c1=9)
         self.assertTrue(window["ok"], window)

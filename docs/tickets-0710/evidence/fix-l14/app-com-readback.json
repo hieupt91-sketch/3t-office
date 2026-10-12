@@ -1,0 +1,91 @@
+{
+    "officeVersion":  "16.0",
+    "windowCount":  1,
+    "viewType":  9,
+    "zoom":  55,
+    "comments":  0,
+    "slides":  [
+                   {
+                       "slideIndex":  1,
+                       "transitionEntryEffect":  3073,
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "hasText":  true,
+                                          "text":  "WEST COAST\rROAD TRIP",
+                                          "textEffectType":  -2,
+                                          "textEffectText":  "WEST COAST\rROAD TRIP"
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 2",
+                                          "type":  14,
+                                          "hasText":  true,
+                                          "text":  "Your Name • Sept 20XX",
+                                          "textEffectType":  -2,
+                                          "textEffectText":  "Your Name • Sept 20XX"
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 3",
+                                          "type":  14,
+                                          "hasText":  true,
+                                          "text":  "",
+                                          "textEffectType":  -2,
+                                          "textEffectText":  ""
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 4",
+                                          "type":  14,
+                                          "hasText":  true,
+                                          "text":  "WEST COAST\rROAD TRIP",
+                                          "textEffectType":  -2,
+                                          "textEffectText":  "WEST COAST\rROAD TRIP"
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 5",
+                                          "type":  14,
+                                          "hasText":  true,
+                                          "text":  "Your Name • Sept 20XX",
+                                          "textEffectType":  -2,
+                                          "textEffectText":  "Your Name • Sept 20XX"
+                                      },
+                                      {
+                                          "name":  "Google Shape;60;p13",
+                                          "type":  13,
+                                          "hasText":  false,
+                                          "textEffectType":  0,
+                                          "textEffectText":  ""
+                                      },
+                                      {
+                                          "name":  "Google Shape;61;p13",
+                                          "type":  13,
+                                          "hasText":  false,
+                                          "textEffectType":  0,
+                                          "textEffectText":  ""
+                                      },
+                                      {
+                                          "name":  "Google Shape;62;p13",
+                                          "type":  13,
+                                          "hasText":  false,
+                                          "textEffectType":  0,
+                                          "textEffectText":  ""
+                                      },
+                                      {
+                                          "name":  "1791801242991",
+                                          "type":  17,
+                                          "hasText":  true,
+                                          "text":  "3T OfficeL12 WordArt editable™",
+                                          "textEffectType":  -2,
+                                          "textEffectText":  "3T OfficeL12 WordArt editable™"
+                                      },
+                                      {
+                                          "name":  "VNOfficeGroup:diagram-1791801243680-x529x",
+                                          "type":  6,
+                                          "hasText":  false,
+                                          "textEffectType":  -2,
+                                          "textEffectText":  ""
+                                      }
+                                  ]
+                   }
+               ]
+}

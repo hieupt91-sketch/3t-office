@@ -98,15 +98,16 @@ const sheetOnly = [
     id: "sheet.open.quickView",
     app: "sheet",
     commandIds: [],
-    title: "Mở bảng tính lớn: màn hình xem nhanh (chỉ đọc)",
-    summary: "Với tệp .xlsx lớn (từ khoảng 5 MB), Sheet hiện ngay màn hình đầu tiên ở chế độ chỉ đọc trong vài giây, trong khi phần còn lại của tệp được nạp đầy đủ ở nền. Khi nạp xong, bảng tính tự chuyển sang chế độ soạn thảo bình thường và giữ nguyên trang tính, ô đang chọn và vị trí cuộn.",
+    title: "Mở và sửa bảng tính lớn khi đang nạp",
+    summary: "Khi mở tệp .xlsx, Sheet hiển thị vùng đầu để bạn đọc và sửa ô trong khi nạp phần còn lại ở nền. Điều này hữu ích nhất với bảng tính lớn. Sau khi nạp đầy đủ, các chỉnh sửa và lịch sử hoàn tác được chuyển sang lưới bình thường; trang tính, ô chọn và vị trí cuộn được giữ lại.",
     ribbon: { tab: "Trợ giúp", tabId: "help", group: "Phím tắt và thao tác nhanh" },
-    keywords: ["tệp lớn", "mở chậm", "xem nhanh", "chỉ đọc", "đang nạp đầy đủ", "quick view", "bảng tính lớn", "nạp"],
+    keywords: ["tệp xlsx", "tệp lớn", "mở chậm", "xem nhanh", "sửa khi đang nạp", "đang nạp đầy đủ", "quick view", "bảng tính lớn", "nạp", "hoàn tác"],
     steps: [
-      "Mở một bảng tính lớn bằng Tệp ▸ Mở hoặc bấm đúp tệp. Màn hình đầu hiện sau vài giây với dòng trạng thái màu vàng: Chỉ đọc · đang nạp đầy đủ… kèm phần trăm.",
-      "Trong lúc đó bạn có thể cuộn, bấm chọn ô và dùng các phím mũi tên để đọc dữ liệu. Chưa gõ, dán, xóa hoặc lưu được; Sheet sẽ báo bằng dòng trạng thái nếu bạn thử.",
-      "Tìm kiếm và thay thế (Ctrl+F, Ctrl+H) dùng được sau khi nạp đầy đủ. Khi dòng trạng thái báo Đã nạp đầy đủ, bảng tính chuyển sang chế độ soạn thảo và giữ nguyên ô đang chọn.",
-      "Nếu nạp đầy đủ không thành công, bảng tính vẫn đọc được ở chế độ chỉ đọc và có thông báo màu đỏ. Nhấn nút Thử lại ngay trên thông báo để mở lại chính tệp này; không cần chọn lại tệp.",
+      "Mở bảng tính bằng Tệp ▸ Mở hoặc bấm đúp tệp. Khi vùng dữ liệu đầu hiện và trạng thái báo Đang nạp đầy đủ, bấm ô rồi gõ để sửa; nhấn Enter để ghi nhận và chuyển xuống ô kế tiếp. F2 sửa nội dung hiện có; Delete hoặc Backspace xóa ô; Escape hủy lần sửa đang nhập.",
+      "Để dán vùng ô, chọn ô góc trên bên trái rồi nhấn Ctrl+V; dữ liệu tab/newline từ clipboard được dán thành một nhóm. Ctrl+Z hoàn tác và Ctrl+Y làm lại thao tác gõ, xóa hoặc dán ngay trong lúc nạp.",
+      "Định dạng nhanh ô đang chọn bằng Ctrl+B (đậm), Ctrl+I (nghiêng) hoặc Ctrl+U (gạch chân); cũng có thể dùng các nút Đậm, Nghiêng, Gạch chân trên ribbon. Các thao tác này có thể hoàn tác bằng Ctrl+Z/Ctrl+Y.",
+      "Trong lúc nạp, bạn có thể cuộn, chọn ô và chuyển trang tính. Lưu, In, tìm kiếm/thay thế và lệnh áp dụng cho cả sổ làm việc khả dụng sau khi trạng thái báo Đã nạp đầy đủ; khi đó Sheet giữ lại chỉnh sửa, trang tính, ô chọn và vị trí cuộn.",
+      "Nếu nạp đầy đủ thất bại, thông báo đỏ giữ nguyên nội dung xem nhanh và các chỉnh sửa tạm. Thử lại mở bản gốc trong cửa sổ mới; hãy chép lại nội dung sửa tạm trước khi đóng cửa sổ đang lỗi.",
       "Muốn tắt tính năng này (luôn chờ nạp đầy đủ như trước), đặt biến môi trường VNO_OPEN_VIEWFIRST=0 trước khi chạy ứng dụng."
     ]
   }

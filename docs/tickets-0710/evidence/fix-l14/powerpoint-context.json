@@ -1,0 +1,31 @@
+{
+  "date": "2026-10-12",
+  "ownerPowerPointProcess": {
+    "pid": 12760,
+    "mainWindowHandle": 64291812,
+    "title": "PowerPoint (Product Activation Failed)",
+    "observedRunningAfterProbes": true
+  },
+  "attachedComApplication": {
+    "hwnd": 64291812,
+    "version": "16.0",
+    "visible": true
+  },
+  "baselineAtAttach": {
+    "presentationCount": 0,
+    "windowCount": 0,
+    "activeViewType": 0,
+    "activeZoom": 0
+  },
+  "auditCopyProbe": {
+    "openedPresentationCount": 1,
+    "openedWindowCount": 1,
+    "sampleSlides": 10,
+    "viewType": 9,
+    "zoom": 55,
+    "comments": 0,
+    "closedOnlyTheAuditCopy": true,
+    "presentationCountAfterClose": 0
+  },
+  "safety": "No PowerPoint Application.Quit, Stop-Process, SendKeys, owner document close, or owner slideshow close was issued."
+}

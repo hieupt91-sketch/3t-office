@@ -1,0 +1,29 @@
+{
+    "officeVersion":  "16.0",
+    "path":  "E:\\VNOffice-profiles\\codex-fl14\\fix-l14-lineSpacing.pptx",
+    "presentationCount":  1,
+    "windowCount":  1,
+    "textShapes":  [
+                       {
+                           "slide":  1,
+                           "type":  14,
+                           "text":  "WEST COAST\rROAD TRIP",
+                           "lineRuleWithin":  -1,
+                           "spaceWithin":  0.89999997615814209
+                       },
+                       {
+                           "slide":  1,
+                           "type":  14,
+                           "text":  "Your Name • Sept 20XX",
+                           "lineRuleWithin":  -1,
+                           "spaceWithin":  1.1499999761581421
+                       },
+                       {
+                           "slide":  1,
+                           "type":  1,
+                           "text":  "FIX-L4 audit sample text",
+                           "lineRuleWithin":  -1,
+                           "spaceWithin":  1.5
+                       }
+                   ]
+}

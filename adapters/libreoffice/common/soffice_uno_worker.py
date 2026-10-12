@@ -213,6 +213,7 @@ def _print_pdf(desktop: Any, uno: Any, property_type: Any, request: dict[str, An
 # The convert path above is untouched.  These operations let the UI paint the first screen of a
 # very large workbook from the live document model instead of waiting for a full FODS export.
 _VIEW_DOCUMENTS: dict[str, Any] = {}
+_VIEW_DIMENSIONS: dict[str, set[int]] = {}
 
 
 def _view_open(desktop: Any, uno: Any, property_type: Any, request: dict[str, Any]) -> dict[str, Any]:
@@ -223,21 +224,39 @@ def _view_open(desktop: Any, uno: Any, property_type: Any, request: dict[str, An
     try:
         sheets = document.getSheets()  # AttributeError for non-spreadsheet documents
         infos = []
+        active_sheet_name = str(request.get("active_sheet_name") or "")
+        active_index = 0
+        if active_sheet_name:
+            for index in range(int(sheets.getCount())):
+                if sheets.getByIndex(index).getName() == active_sheet_name:
+                    active_index = index
+                    break
+        known_dimensions: set[int] = set()
         for index in range(int(sheets.getCount())):
             sheet = sheets.getByIndex(index)
-            cursor = sheet.createCursor()
-            cursor.gotoEndOfUsedArea(False)
-            address = cursor.getRangeAddress()
-            infos.append({
+            info = {
                 "name": sheet.getName(),
-                "rows": int(address.EndRow) + 1,
-                "cols": int(address.EndColumn) + 1,
-            })
+                "rows": 1,
+                "cols": 1,
+                "dimensions_known": False,
+            }
+            if index == active_index:
+                cursor = sheet.createCursor()
+                cursor.gotoEndOfUsedArea(False)
+                address = cursor.getRangeAddress()
+                info.update({
+                    "rows": int(address.EndRow) + 1,
+                    "cols": int(address.EndColumn) + 1,
+                    "dimensions_known": True,
+                })
+                known_dimensions.add(index)
+            infos.append(info)
     except Exception:
         _close_hidden_document(document)
         raise
     doc_id = str(request.get("doc_id") or f"view{len(_VIEW_DOCUMENTS) + 1}_{int(started * 1000)}")
     _VIEW_DOCUMENTS[doc_id] = document
+    _VIEW_DIMENSIONS[doc_id] = known_dimensions
     return {
         "ok": True,
         "doc_id": doc_id,
@@ -257,6 +276,20 @@ def _view_window(request: dict[str, Any]) -> dict[str, Any]:
     last_row, last_col = int(request["r1"]), int(request["c1"])
     if first_row < 0 or first_col < 0 or last_row < first_row or last_col < first_col:
         raise ValueError("Vùng xem không hợp lệ.")
+    doc_id = str(request.get("doc_id"))
+    dimension_known = int(request["sheet"]) in _VIEW_DIMENSIONS.setdefault(doc_id, set())
+    used_rows = used_cols = None
+    if not dimension_known:
+        cursor = sheet.createCursor()
+        cursor.gotoEndOfUsedArea(False)
+        address = cursor.getRangeAddress()
+        used_rows, used_cols = int(address.EndRow) + 1, int(address.EndColumn) + 1
+        _VIEW_DIMENSIONS[doc_id].add(int(request["sheet"]))
+        # The frontend does not know this sheet's used size until this first query.
+        # Expand its initial A1 request to cover the same viewport as the first sheet.
+        if first_row == 0 and first_col == 0 and last_row == 0 and last_col == 0:
+            last_row = min(used_rows - 1, 39)
+            last_col = min(used_cols - 1, 19)
     if (last_row - first_row + 1) * (last_col - first_col + 1) > 200_000:
         raise ValueError("Vùng xem quá lớn.")
     cell_range = sheet.getCellRangeByPosition(first_col, first_row, last_col, last_row)
@@ -276,6 +309,9 @@ def _view_window(request: dict[str, Any]) -> dict[str, Any]:
         ]
     if request.get("include_formats"):
         extra["formats"] = _view_format_blocks(document, cell_range)
+    if used_rows is not None and used_cols is not None:
+        extra["sheet_rows"] = used_rows
+        extra["sheet_cols"] = used_cols
     return {
         "ok": True,
         **extra,
@@ -342,7 +378,9 @@ def _view_format_blocks(document: Any, cell_range: Any) -> list[dict[str, Any]]:
 
 
 def _view_close(request: dict[str, Any]) -> dict[str, Any]:
-    document = _VIEW_DOCUMENTS.pop(str(request.get("doc_id")), None)
+    doc_id = str(request.get("doc_id"))
+    document = _VIEW_DOCUMENTS.pop(doc_id, None)
+    _VIEW_DIMENSIONS.pop(doc_id, None)
     if document is not None:
         _close_hidden_document(document)
     return {"ok": True}

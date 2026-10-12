@@ -1,0 +1,24 @@
+{
+  "method": "LibreOffice FODP Fontwork (reuse candidate); no application serializer change made",
+  "odfGeometry": {
+    "element": "draw:custom-shape",
+    "drawType": "fontwork-fade-right"
+  },
+  "pptxReadback": {
+    "part": "ppt/slides/slide1.xml",
+    "shapeTypeInPowerPointCom": 17,
+    "hasA_PrstTxWarp": true,
+    "preset": "textFadeRight",
+    "text": "FIX L14 Fontwork probe",
+    "textEffectText": "FIX L14 Fontwork probe",
+    "textEffectPreset": -2
+  },
+  "nativeWordArtCandidate": {
+    "change": "Removed p:cNvSpPr txBox=\"1\" from the converted Fontwork shape",
+    "powerPointShapeType": 1,
+    "textEffectPreset": -2
+  },
+  "conclusion": "ODF Fontwork reuses LibreOffice’s real Fontwork path and emits a preset text warp, but PowerPoint COM still reads the result as a text-box shape with TextEffect preset -2. Removing the textbox marker does not create native WordArt. This candidate cannot satisfy the requested native Shape.Type/TextEffect match and is not adopted.",
+  "inputPptx": "E:/VNOffice-profiles/codex-fl14/fontwork-probe/out/probe.pptx",
+  "patchedCandidate": "E:/VNOffice-profiles/codex-fl14/fontwork-probe/out/native-candidate.pptx"
+}
