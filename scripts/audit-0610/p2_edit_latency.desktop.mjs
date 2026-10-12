@@ -9,8 +9,10 @@ const session = await launchApp("sheet", { localAppData: profile, filePath: file
 const sleep = ms => new Promise(resolve => setTimeout(resolve, ms));
 const expected = file.replace(/\\/g, "/").toLowerCase();
 try {
+  console.error(`[P2] Waiting for desktop workbook: ${file}`);
   await session.cdp.waitFor(`(() => { const a=window.__vnoAppInstance?.adapter; return String(a?._sourcePath||a?.sourceFilePath||'').replace(/\\\\/g,'/').toLowerCase()===${JSON.stringify(expected)}; })()`, { timeoutMilliseconds: 900000, intervalMilliseconds: 500 });
   await sleep(1500);
+  console.error("[P2] Workbook opened; establishing full-recalc baseline");
   // Settle cached formula values first so the differential check compares both
   // recalculation paths from the same workbook state, including cached errors.
   const baselineFormulaCount = await session.cdp.evaluate(`(() => {
@@ -18,6 +20,7 @@ try {
     g._recalculateAllFormulas(undefined,true);
     return g.sheets.reduce((count,sheet)=>count+[...(g.sheetsData[sheet]||new Map()).values()].filter(item=>item?.formula).length,0);
   })()`);
+  console.error(`[P2] Baseline ready (${baselineFormulaCount} formulas); choosing edit target`);
   const target = await session.cdp.evaluate(`(() => {
     const g=window.__vnoAppInstance.grid;
     let graph=g._formulaDependencyGraph || g._buildFormulaDependencyGraph();
@@ -59,6 +62,7 @@ try {
     return {...best,x:rect.left+rect.width/2,y:rect.top+rect.height/2};
   })()`);
   if (target.error) throw new Error(target.error);
+  console.error(`[P2] Editing ${target.sheet}!${target.coord}; fallback=${target.fallback===true}`);
 
   const times = {};
   const timed = async (name, action) => { const start=performance.now(); await action(); times[name]=Math.round(performance.now()-start); };
@@ -77,6 +81,7 @@ try {
     return {formulaValues:formulas,editedValue:item?.val};
   })()`);
   if (Object.is(edited.editedValue,target.originalValue)) throw new Error("keyboard edit did not change the selected cell; workbook may be protected");
+  console.error("[P2] Edit committed; checking keyboard undo/redo");
   await timed("Ctrl+Z", () => press(session.cdp,"z",{ctrl:true},20));
   const undoValue = await session.cdp.evaluate(`(() => window.__vnoAppInstance.grid.sheetsData[${JSON.stringify(target.sheet)}]?.get(${JSON.stringify(target.coord)})?.val)()`);
   await session.cdp.evaluate("window.__vnoAppInstance.grid.focusGrid()");
@@ -92,6 +97,7 @@ try {
     for(const [s,c,v] of after){const prior=beforeMap.get(JSON.stringify([s,c]));if(!Object.is(prior,v))differences.push({sheet:s,coord:c,incremental:prior,full:v});}
     return {formulaCount:after.length,mismatchCount:differences.length,mismatches:differences.slice(0,20)};
   })()`);
+  console.error(`[P2] Full-recalc oracle finished (${oracle.formulaCount} formulas; ${oracle.mismatchCount} differences)`);
   console.log(JSON.stringify({file,baselineFormulaCount,target:{sheet:target.sheet,coord:target.coord,dependentFormulaCount:target.count,fallback:target.fallback,noDependents:target.noDependents||false,originalValue:target.originalValue},times,editedValue:edited.editedValue,undoValue,undoRestored:Object.is(undoValue,target.originalValue),redoValue:redoState.value,redoRestored:Object.is(redoState.value,edited.editedValue),oracle}));
 } finally {
   await session.close();
