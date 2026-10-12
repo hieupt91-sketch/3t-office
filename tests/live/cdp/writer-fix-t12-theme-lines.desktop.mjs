@@ -16,6 +16,7 @@ try {
   await click(cdp, ".vno-dialog-overlay .vno-dialog-ok-btn");
   await click(cdp, "#vno-ribbon-tab-layout");
   await click(cdp, 'select[data-command-id="writer.layout.lineNumbers"]');
+  await cdp.evaluate("document.querySelector('select[data-command-id=\"writer.layout.lineNumbers\"]')?.focus()");
   const selectBefore = await cdp.evaluate("(() => {const e=document.querySelector('select[data-command-id=\"writer.layout.lineNumbers\"]'); const r=e?.getBoundingClientRect(); return {activeTab:document.querySelector('.vno-ribbon-tab.is-active')?.id, value:e?.value, disabled:e?.disabled, visible:!!r?.width, active:document.activeElement===e, rect:r&&{x:r.x,y:r.y,w:r.width,h:r.height}}})()");
   await press(cdp, " ", {}, 0);
   await press(cdp, "ArrowDown", {}, 0);
