@@ -55,7 +55,6 @@ Lệnh desktop: `scripts/audit-0610/word_parallel/app-ops-sheet.desktop.mjs` v�
 
 - Lệnh Split chưa có đường dẫn UI rõ ràng trong ribbon; chưa được tính là tương đương Excel.
 - Trạng thái PivotTable phải được đối chiếu bằng `Worksheet.PivotTables()` trong Excel; chỉ có bảng tổng hợp giá trị không đủ để xác nhận PivotTable thật.
-- Các nhóm C và D đang là NOT RUN cho đến khi hoàn tất cả bốn bước: thao tác UI, lưu, Excel COM chỉ đọc, mở lại VN Sheet.
 
 ## Bằng chứng nhóm C
 
@@ -73,3 +72,52 @@ Lệnh desktop: `OPS=chart,chartBar,chartLine,chartPie,chartArea,formatAsTable,p
 - Bảng: Excel `ListObjects.Count=1`, `TableStyleMedium2`; VN Sheet giữ Table1, A1:G6, header, filter và row stripes.
 - PivotTable: Excel `Worksheet.PivotTables().Count=1` trên Sheet1 (2); VN Sheet giữ nguồn A1:C6, hàng Họ tên và SUM Số tiền.
 - Sparklines: Excel đọc một SparklineGroup trên C6; Type=1 cho line, Type=2 cho column. VN Sheet mở lại đúng type và source C2:C6.
+
+## Cổng tổng thể trước handoff
+
+| Cổng | Kết quả |
+|---|---|
+| `npm test` | **PASS** — 3120/3120, 0 lỗi |
+| `python -m unittest discover -s tests` | **PASS** — 912 tests, 555.346 giây; có ResourceWarning về stream chưa đóng sau khi hoàn tất |
+| Batch XLSX lan01/02/04/06/09/11/22/26 | **PASS** — 8/8; `saved=yes`, `diffs=0`, `lint=clean`, `excel=PASS` |
+| So công thức/cache với mốc `win-v0.9.9` | **FAIL** — hiện 0.55% (400/72,837), mốc 50.96% (37,118/72,837); 16/27 tệp có tỷ lệ số thấp hơn mốc |
+
+Report phép đo hiện tại: `E:\VNOffice-profiles\codex-fe4\formula-cache-report.md` (ngoài repo). Bảng so từng tệp:
+
+| Tệp | Mốc 0.9.9 | Hiện tại | So với mốc |
+|---|---:|---:|---|
+| lan01.xlsx | 25.90% | 24.28% | BELOW |
+| lan02.xlsx | 50.00% | 0.00% | BELOW |
+| lan03.xlsx | 85.26% | 2.11% | BELOW |
+| lan04.xlsx | 16.33% | 51.02% | OK |
+| lan05.xlsx | 100.00% | 0.00% | BELOW |
+| lan06.xlsx | 40.27% | 8.21% | BELOW |
+| lan07.xlsx | 92.05% | 1.53% | BELOW |
+| lan08.xlsx | 100.00% | 0.00% | BELOW |
+| lan09.xlsx | 50.00% | 100.00% | OK |
+| lan10.xlsx | 100.00% | 33.33% | BELOW |
+| lan11.xlsx | 100.00% | 100.00% | OK |
+| lan12.xlsx | 100.00% | 100.00% | OK |
+| lan13.xlsx | 100.00% | 4.68% | BELOW |
+| lan14.xlsx | 49.84% | 0.00% | BELOW |
+| lan15.xlsx | 100.00% | 100.00% | OK |
+| lan16.xlsx | 100.00% | 1.56% | BELOW |
+| lan17.xlsx | 95.45% | 1.17% | BELOW |
+| lan18.xlsx | 100.00% | 100.00% | OK |
+| lan19.xlsx | 80.00% | 0.00% | BELOW |
+| lan20.xlsx | 100.00% | 100.00% | OK |
+| lan21.xlsx | 100.00% | 100.00% | OK |
+| lan22.xlsx | 0.00% | 0.00% | OK |
+| lan23.xlsx | N/A | N/A | N/A |
+| lan24.xlsx | 100.00% | 18.52% | BELOW |
+| lan25.xlsx | 100.00% | 100.00% | OK |
+| lan26.xlsx | 50.00% | 0.00% | BELOW |
+| lan27.xlsx | 100.00% | 100.00% | OK |
+| lan28.xlsx | 97.09% | 7.64% | BELOW |
+
+Các lệch lớn tập trung ở VLOOKUP, tham chiếu ô và toán tử; ví dụ `lan14` VLOOKUP trả `#REF!` thay vì cache Excel. Sai lệch này tồn tại trong nhánh trước khi các thay đổi E4 bắt đầu; E4 không sửa FormulaEngine. Không đánh dấu cổng formula/cache PASS.
+
+### Hạn chế E4 còn mở
+
+- Split độc lập chưa có command/UI để thao tác, lưu và đối chiếu; trạng thái **GAP**.
+- Chart hiện xác nhận loại, title mặc định, legend và trục; chưa có UI để đổi riêng title của từng trục.
