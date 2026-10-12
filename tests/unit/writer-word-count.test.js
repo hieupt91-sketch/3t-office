@@ -42,6 +42,11 @@ export async function runWriterWordCountTests() {
     if (stats.words !== 7) throw new Error(`Expected 7 Word tokens, got ${stats.words}`);
   });
 
+  await test("Word Count: split a leading double-hyphen command flag as Word does", () => {
+    const stats = countDocumentStats("# code --project src --release");
+    if (stats.words !== 7) throw new Error(`Expected 7 Word tokens, got ${stats.words}`);
+  });
+
   await test("Word Count: count visible legacy checkbox field result once", () => {
     const xml = '<w:document><w:body><w:p><w:r><w:fldChar w:fldCharType="begin"><w:ffData><w:checkBox><w:default w:val="0"/></w:checkBox></w:ffData></w:fldChar></w:r><w:r><w:instrText> FORMCHECKBOX </w:instrText></w:r></w:p></w:body></w:document>';
     const text = extractOoxmlDocumentText(xml);
@@ -134,6 +139,15 @@ export async function runWriterWordCountTests() {
     const stats = countDocumentStats(source, { characterText: source });
     if (stats.words !== 4 || stats.charactersNoSpaces !== 18 || stats.charactersWithSpaces !== 25) {
       throw new Error(`Sai text stats OOXML: ${JSON.stringify({ source, stats })}`);
+    }
+  });
+
+  await test("Word Count: page breaks separate words without adding characters", () => {
+    const xml = '<w:document><w:body><w:p><w:r><w:t>Alpha</w:t><w:br w:type="page"/><w:t>Beta</w:t></w:r></w:p></w:body></w:document>';
+    const text = extractOoxmlDocumentText(xml);
+    const stats = countDocumentStats(text, { characterText: text });
+    if (text !== "Alpha\u2028Beta\n" || stats.words !== 2 || stats.charactersWithSpaces !== 9 || stats.charactersNoSpaces !== 9) {
+      throw new Error(`Page break word boundary is wrong: ${JSON.stringify({ text, stats })}`);
     }
   });
 

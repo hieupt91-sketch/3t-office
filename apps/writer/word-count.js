@@ -64,11 +64,12 @@ export function countDocumentStats(text, options = {}) {
   }
 
   const tokens = trimmed.split(/\s+/).filter(Boolean);
+  const tokenWords = tokens.reduce((total, token) => total + (/^--[\p{L}\p{N}]/u.test(token) ? 2 : 1), 0);
   const cjkWordBonus = tokens.reduce((total, token) => {
     const cjk = token.match(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu) || [];
     return total + Math.max(0, cjk.length - 1);
   }, 0);
-  const words = tokens.length + cjkWordBonus + (Number(markerStats.words) || 0);
+  const words = tokenWords + cjkWordBonus + (Number(markerStats.words) || 0);
   const paragraphs = options.paragraphCount != null
     ? options.paragraphCount
     : raw.split(/\n+/).filter((block) => block.trim().length > 0).length;
@@ -205,8 +206,9 @@ export function extractOoxmlDocumentText(ooxmlDocumentXml) {
       }
     } else if (/^<w:tab\s*\/?\s*>$/i.test(value)) {
       text += "\t";
-    } else if (/^<w:(?:br|cr)\b/i.test(value) && !/\bw:type=["'](?:page|column)["']/i.test(value)) {
-      text += "\u000b";
+    } else if (/^<w:(?:br|cr)\b/i.test(value)) {
+      // Word's page/column breaks separate adjacent words but do not count as characters.
+      text += /\bw:type=["'](?:page|column)["']/i.test(value) ? "\u2028" : "\u000b";
     }
   }
   return text;
