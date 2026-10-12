@@ -1,0 +1,102 @@
+{
+    "officeVersion":  "16.0",
+    "path":  "E:\\VNOffice-profiles\\codex-fl12\\fix-l12-office-compare.pptx",
+    "slidesCount":  1,
+    "designName":  "Than Chì Hiện Đại",
+    "themeColors":  [
+                        14800331,
+                        2758415,
+                        16579320,
+                        16579320,
+                        16301368,
+                        10709251,
+                        212643,
+                        10683278,
+                        40137,
+                        1974729,
+                        15597568,
+                        9116245
+                    ],
+    "themeFonts":  {
+                       "MajorFont":  [
+                                         "system-ui",
+                                         "DejaVu Sans",
+                                         "DejaVu Sans"
+                                     ],
+                       "MinorFont":  [
+                                         "system-ui",
+                                         "DejaVu Sans",
+                                         "DejaVu Sans"
+                                     ]
+                   },
+    "slideWidth":  960,
+    "slideHeight":  540,
+    "slides":  [
+                   {
+                       "index":  1,
+                       "layout":  3,
+                       "transitionEntryEffect":  3073,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null,
+                                          "textEffectText":  "",
+                                          "textEffectPreset":  -2
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 2",
+                                          "type":  14,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null,
+                                          "textEffectText":  "",
+                                          "textEffectPreset":  -2
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 3",
+                                          "type":  14,
+                                          "text":  "",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null,
+                                          "textEffectText":  "",
+                                          "textEffectPreset":  -2
+                                      },
+                                      {
+                                          "name":  "TextBox 1",
+                                          "type":  1,
+                                          "text":  "FIX-L12 COM audit",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null,
+                                          "textEffectText":  "FIX-L12 COM audit",
+                                          "textEffectPreset":  -2
+                                      },
+                                      {
+                                          "name":  "1791784619425",
+                                          "type":  17,
+                                          "text":  "3T OfficeL12 WordArt editable™",
+                                          "groupItemCount":  null,
+                                          "mediaType":  null,
+                                          "textEffectText":  "3T OfficeL12 WordArt editable™",
+                                          "textEffectPreset":  -2
+                                      },
+                                      {
+                                          "name":  "VNOfficeGroup:diagram-1791784619894-u1qi9",
+                                          "type":  6,
+                                          "text":  "",
+                                          "groupItemCount":  7,
+                                          "mediaType":  null,
+                                          "textEffectText":  "",
+                                          "textEffectPreset":  -2
+                                      }
+                                  ]
+                   }
+               ]
+}
