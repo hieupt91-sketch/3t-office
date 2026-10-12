@@ -1,0 +1,62 @@
+﻿{
+    "officeVersion":  "16.0",
+    "property":  "Slide.SlideShowTransition.EntryEffect",
+    "candidates":  [
+                       {
+                           "name":  "ppEffectBoxOut",
+                           "value":  3073,
+                           "accepted":  true,
+                           "readback":  3073,
+                           "error":  null
+                       },
+                       {
+                           "name":  "ppEffectBoxIn",
+                           "value":  3074,
+                           "accepted":  true,
+                           "readback":  3074,
+                           "error":  null
+                       },
+                       {
+                           "name":  "ppEffectZoomIn",
+                           "value":  3345,
+                           "accepted":  false,
+                           "readback":  null,
+                           "error":  "SlideShowTransition.EntryEffect : Invalid request.  This enumeration value is not valid for transitions."
+                       },
+                       {
+                           "name":  "ppEffectZoomInSlightly",
+                           "value":  3346,
+                           "accepted":  false,
+                           "readback":  null,
+                           "error":  "SlideShowTransition.EntryEffect : Invalid request.  This enumeration value is not valid for transitions."
+                       },
+                       {
+                           "name":  "ppEffectZoomOut",
+                           "value":  3347,
+                           "accepted":  false,
+                           "readback":  null,
+                           "error":  "SlideShowTransition.EntryEffect : Invalid request.  This enumeration value is not valid for transitions."
+                       },
+                       {
+                           "name":  "ppEffectZoomOutSlightly",
+                           "value":  3348,
+                           "accepted":  false,
+                           "readback":  null,
+                           "error":  "SlideShowTransition.EntryEffect : Invalid request.  This enumeration value is not valid for transitions."
+                       },
+                       {
+                           "name":  "ppEffectZoomCenter",
+                           "value":  3349,
+                           "accepted":  false,
+                           "readback":  null,
+                           "error":  "SlideShowTransition.EntryEffect : Invalid request.  This enumeration value is not valid for transitions."
+                       },
+                       {
+                           "name":  "ppEffectZoomBottom",
+                           "value":  3350,
+                           "accepted":  false,
+                           "readback":  null,
+                           "error":  "SlideShowTransition.EntryEffect : Invalid request.  This enumeration value is not valid for transitions."
+                       }
+                   ]
+}
