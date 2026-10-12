@@ -376,6 +376,22 @@ export async function runSharedFindReplaceTests() {
     assert.equal(grid.cellsData.get("C1").val, 7);
   });
 
+  test("3T Sheet: hoãn tính lại khi đang gõ và chạy một lần khi xác nhận ô", () => {
+    const grid = new SheetGridController(createMockSheetContainer());
+    grid.setCellValue("A", 1, 2);
+    grid.setCellValue("B", 1, "=A1*2");
+    let formulaEvaluations = 0;
+    const evaluate = grid.formulaEngine.evaluate.bind(grid.formulaEngine);
+    grid.formulaEngine.evaluate = formula => { formulaEvaluations++; return evaluate(formula); };
+
+    grid.setCellValue("A", 1, 3, false, { userInput: true, isComposing: true });
+    assert.equal(formulaEvaluations, 0, "không tính công thức phụ thuộc theo từng phím");
+    assert.equal(grid.cellsData.get("B1").val, 4, "giữ kết quả cũ trong lúc nhập chưa xác nhận");
+    grid.setCellValue("A", 1, 3, true, { userInput: true, commit: true });
+    assert.equal(formulaEvaluations, 1, "chỉ tính một lần sau Enter");
+    assert.equal(grid.cellsData.get("B1").val, 6);
+  });
+
   // 9. 3T Slide Model: find across slides, select slide/shape, replaceAll & single Undo
   test("3T Slide: tìm xuyên suốt trang chiếu, thay thế tất cả và Hoàn tác 1 bước", () => {
     const canvas = new SlidesCanvasController({ innerHTML: "", className: "" });

@@ -5398,7 +5398,7 @@ _bindGridKeyboardNavigation() {
     }
 
     // Tự động tính toán lại các ô có công thức khác (trừ khi ở chế độ Manual)
-    if (this.calculationMode !== "manual") {
+    if (this.calculationMode !== "manual" && !historyOptions.isComposing) {
       this._recalculateAllFormulas(key, false, { sheet: this.activeSheet, coord: key });
     }
     this.refreshCharts();
