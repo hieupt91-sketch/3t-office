@@ -3347,6 +3347,18 @@ export class SlidesAdapter {
     return { logoText };
   }
 
+  _serializeSlidePageLayouts() {
+    const layouts = [
+      ["VNOTitleContent", [["title", 2, 2, 24, 3], ["outline", 2, 5.5, 24, 11]]],
+      ["VNOTitleOnly", [["title", 2, 6, 24, 6]]],
+      ["VNOTwoContent", [["title", 2, 2, 24, 3], ["outline", 2, 5.5, 11.5, 11], ["outline", 14.5, 5.5, 11.5, 11]]],
+      ["VNOBlank", []]
+    ];
+    return layouts.map(([name, placeholders]) => `<style:presentation-page-layout style:name="${name}">${placeholders.map(([object, x, y, width, height]) =>
+      `<presentation:placeholder presentation:object="${object}" svg:x="${x}cm" svg:y="${y}cm" svg:width="${width}cm" svg:height="${height}cm"/>`
+    ).join("")}</style:presentation-page-layout>`).join("");
+  }
+
   /**
    * Chuyển đổi toàn bộ slide hiện tại thành định dạng OpenDocument Flat XML (FODP).
    * LibreOffice Impress có thể chuyển đổi FODP trực tiếp sang PPTX, ODP hoặc PDF.
@@ -3378,6 +3390,12 @@ export class SlidesAdapter {
       // «Trang chiếu N» thành chữ thật vào tệp của người dùng.
       const titleXml = this._richOrPlainXml(slide.title || "", slide.titleHtml, richCtx, this._themeTextBase("title", slide));
       const layoutType = slide.layoutType || "title-content";
+      const pageLayoutName = ({
+        "title-content": "VNOTitleContent",
+        "title-only": "VNOTitleOnly",
+        "two-content": "VNOTwoContent",
+        blank: "VNOBlank"
+      })[layoutType] || "VNOTitleContent";
 
       // Ghi chú người thuyết trình phải là placeholder «notes» thật (presentation:style-name +
       // ảnh trang chiếu) — thiếu style-name, LibreOffice xuất thành một hộp chữ xanh thường trên
@@ -3464,12 +3482,12 @@ export class SlidesAdapter {
         ? ` vno:section-id="${this._escapeXml(section.id)}" vno:section-name="${this._escapeXml(section.name)}"`
         : "";
       pagesXml += `
-      <draw:page draw:name="${pageName}" draw:style-name="${pageStyleName}" draw:master-page-name="Standard" presentation:layout="${layoutType}" xml:id="${pageXmlId}" draw:id="${pageXmlId}"${vnTransitionAttr}${vnSectionAttrs}>
+      <draw:page draw:name="${pageName}" draw:style-name="${pageStyleName}" draw:master-page-name="Standard" presentation:presentation-page-layout-name="${pageLayoutName}" xml:id="${pageXmlId}" draw:id="${pageXmlId}"${vnTransitionAttr}${vnSectionAttrs}>
         ${framesXml}${headerFooterXml}${shapesXml}${animXml}${notesXml}${commentsXml}
       </draw:page>`;
     });
 
-    const automaticStyles = this._serializeGraphicStyles(slides) + this._serializeRichTextStyles(richCtx);
+    const automaticStyles = this._serializeSlidePageLayouts() + this._serializeGraphicStyles(slides) + this._serializeRichTextStyles(richCtx);
     const backgroundResources = this._serializeBackgroundResources(slides);
     const officeStyles = backgroundResources
       ? `
@@ -3565,8 +3583,10 @@ export class SlidesAdapter {
       if (sectionId && !parsedSections.some(section => section.id === sectionId)) {
         parsedSections.push({ id: sectionId, name: sectionName || "Phần không tên" });
       }
-      const layoutMatch = fullPageTag.match(/presentation:layout=["']([^"']+)["']/i);
-      let pageLayout = layoutMatch ? layoutMatch[1] : "";
+      const layoutMatch = fullPageTag.match(/presentation:presentation-page-layout-name=["']([^"']+)["']/i)
+        || fullPageTag.match(/presentation:layout=["']([^"']+)["']/i);
+      const layoutNames = { VNOTitleContent: "title-content", VNOTitleOnly: "title-only", VNOTwoContent: "two-content", VNOBlank: "blank" };
+      let pageLayout = layoutMatch ? (layoutNames[layoutMatch[1]] || layoutMatch[1]) : "";
       const originalPageXml = pageMatch[2];
       const pageTransition = this._parsePageTransition(fullPageTag, originalPageXml, drawingPageStyles);
       const animByTarget = this._parsePageAnimations(originalPageXml);
