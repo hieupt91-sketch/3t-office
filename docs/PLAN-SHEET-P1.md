@@ -14,16 +14,17 @@
 - `apps/sheet/sheet-quick-view.js` dựng cửa sổ đọc riêng, hiện chặn mọi lệnh sửa/lưu và điều hướng sửa cho đến khi mô hình đầy đủ sẵn sàng. `adapters/libreoffice/sheet/sheet-adapter.js` nạp mô hình đầy đủ rồi gán `grid.undoStack=[]` và `grid.redoStack=[]`.
 - Đường đầy đủ hiện có payload Sheet và FODS fallback; `save()`/`saveAs()` serialize mô hình hiện hành, còn Xem nhanh chặn lưu.
 - Tài liệu lịch sử: `docs/HANDOFF-SHEET-OPEN-PERF-PLAN-FINDINGS.md`, `docs/PLAN-SHEET-OPEN-PERF.md`, `docs/HANDOFF-SHEET-OPEN-PHASE1-FINDINGS.md`, `docs/HANDOFF-SHEET-VIEWFIRST-DEFAULT-VERIFY.md`, `docs/perf-measure/viewfirst-default-28.md`, `docs/SPEC-PERF-OPEN.md`.
-- Baseline CDP app desktop của worktree, chạy lan01 với profile `E:\VNOffice-profiles\codex-fp1`: cửa sổ Xem nhanh đầu tiên xuất hiện sau 50.35 s từ lúc harness bắt đầu (app shell sẵn sàng sau 2.44 s); mô hình đầy đủ sau 50.58 s. Quick view chứa hàng tiêu đề và dữ liệu, nhưng thời gian không đạt 5 s. Đây là một lượt, gồm khởi chạy app.
-- Trace desktop có `VNO_PERF_DEBUG=1` xác nhận UNO sẵn sàng 3.78 s; `view_open` 2.00 s; truy vấn vùng đầu `view_window` 0.80 s; `sheet_quick_view_first_window` được gọi trước chuyển đổi đầy đủ. Tuy nhiên UI chỉ hiện view sau 47.91 s vì `open_document_dialog`/đường `openFile` vẫn giữ promise pywebview cho tới hết toàn bộ pipeline; `selection-to-first-grid` 45.53 s. Chuyển đổi UNO 3.88 s, chờ metadata prefetch 10.99 s, native overlay 17.34 s, optimize 5.08 s; parse/model đầy đủ JS 1.90 s, vẽ lưới đầy đủ 1.74 s. Kết luận đo: nút thắt first paint là API mở đồng bộ với WebView, không phải DOM/model parser. Tách đường mở thành ack nhanh + tác vụ nền + callback kết quả/progress là ưu tiên pha đầu.
+- Baseline CDP app desktop worktree trên lan01 với profile `E:\VNOffice-profiles\codex-fp1`, phép đo đúng lấy sự kiện `vno:sheet-quick-view-ready` trước khi chờ source path: Xem nhanh hiện dữ liệu sau 5.08 s kể từ `__vnoSheetOpenStartedAt`; màn hình cuộn được và hiển thị dữ liệu đầu. Một lượt lạnh khác ghi 6.40 s. Cả hai vượt mốc 5 s; lượt đo gồm app launch.
+- Trace desktop có `VNO_PERF_DEBUG=1`: worker sẵn sàng 3.65–3.78 s (chạy song song với app), `view_open` khoảng 2.00 s, truy vấn vùng đầu `view_window` 0.80 s. Mở đầy đủ: UNO conversion 3.88 s, metadata-prefetch wait 10.99–11.17 s, native overlay 17.34–17.73 s, optimize 5.08–5.94 s; parse/model đầy đủ JS 1.90–2.12 s và vẽ grid 1.74–1.92 s. `selection-to-first-grid` 42.67–45.53 s. Kết luận đo: Xem nhanh sẵn có đã cho xem/cuộn trong vài giây; điểm nghẽn người dùng là không thể sửa cho tới khi full model hoàn tất. Harness đầu tiên đã chờ `sourcePath` trước khi hỏi selector quick view, nên số 50 s trước đây là full-model latency, không phải first paint.
 - Baseline tách pipeline `scripts/layout-audit/_time_sheet_open_stages.py` trên lan01: LibreOffice XLSX→FODS 22.90 s; layout overlay 13.50 s; cell metadata overlay 26.21 s; optimize 6.50 s; XF reoverlay 1.07 s; tổng Python 71.50 s, FODS cuối 7.65 triệu ký tự. Phép đo pipeline riêng, không cộng trực tiếp với CDP.
 - Ticket cung cấp số liệu app desktop 0.9.10: lan01 46 s mở + 100 s lần sửa đầu; lan04 9.6 s và undo hỏng; lan06 60 s mở. Phải đo lại trên worktree trước/sau và ghi riêng theo đúng mốc sự kiện.
 
 ## Phạm vi và module dự kiến
 
-1. `main.py`, `adapters/libreoffice/common/soffice_uno_worker.py`, `platform/bridge/**`: tách API mở thành acknowledgment nhanh, chuyển đổi/overlay/payload chạy nền và callback progress/kết quả trên WebView; paint quick view sau UNO window rồi mới xử lý full-load. Đo riêng khởi động worker, mở XLSX trong UNO, truy vấn vùng đầu, bridge/callback và gửi payload. Giữ đường FODS/payload đầy đủ làm fallback.
-2. `apps/sheet/sheet-quick-view.js`, `apps/sheet/sheet-grid.js`, `apps/sheet/sheet-app.js`: xây trạng thái sửa tạm cho vùng đã nạp, nhập liệu bằng chuột/bàn phím, trạng thái chờ/lỗi, cuộn vùng chưa tải; ghi nhận thao tác thành lệnh có thể phát lại và đồng bộ giao diện trợ năng.
-3. `adapters/libreoffice/sheet/sheet-adapter.js`: hợp nhất thao tác đang chờ với mô hình đầy đủ mà không xóa lịch sử undo/redo; ánh xạ lại selection/scroll; khóa các lệnh yêu cầu dữ liệu chưa tải. Lưu/In chỉ thực hiện sau full hydration hoặc qua đường ghép dữ liệu đã chứng minh đầy đủ, không serialize workbook thiếu vùng.
+1. `apps/sheet/sheet-quick-view.js`, `apps/sheet/sheet-quick-view.css`: giảm cửa sổ truy vấn đầu tới vùng nhìn thấy và cho phép nhập nội dung/xóa/dán/định dạng ô đang tải; hàng đợi lệnh có trạng thái và phím undo/redo.
+2. `adapters/libreoffice/sheet/sheet-adapter.js`, `apps/sheet/sheet-grid.js`: phát lại hàng đợi lên mô hình đầy đủ, giữ thứ tự undo/redo sau commit; ánh xạ lại selection/scroll. Xem nhanh chỉ nhận thao tác có thể ghi nhận an toàn; thao tác toàn workbook chờ hydration.
+3. `apps/sheet/sheet-app.js`: phản ánh đúng trạng thái “đang nạp đầy đủ, chỉnh sửa tạm được giữ lại” và lỗi/retry.
+4. Không cần thay `main.py`, pywebview protocol hoặc `soffice_uno_worker.py` nếu CDP xác nhận Xem nhanh render trước khi API mở trả kết quả.
 4. `tests/**`, `scripts/audit-0610/installed_sheet_usability.mjs` hoặc harness CDP phù hợp: cổng unit, workbook fidelity, desktop CDP và đo hiệu năng; không sửa fixture hoặc expected output để làm xanh.
 5. `docs/PERF-SHEET-OPEN-1012.md`, hướng dẫn tiếng Việt Sheet trong Help hiện hữu và `/09-templates/AGENT-HANDOFF.md`: báo cáo đo trước/sau, cách dùng trạng thái mở workbook lớn, handoff.
 
@@ -39,7 +40,7 @@ Không sửa `upstream/**`, không thêm dependency, không đổi semantics fil
 
 - **Mất/sửa đè dữ liệu khi hydrate:** hàng đợi edit có workbook/session ID, tọa độ ô và lệnh; chỉ replay một lần lên mô hình đầy đủ, thứ tự undo/redo dựa trên cùng journal. Kiểm tra giá trị sau gõ, undo, redo trước/sau hydration.
 - **Tính năng phạm vi workbook:** công thức liên sheet, tìm kiếm, lọc/sắp xếp, dán vùng, định dạng vùng, merge, và lệnh cấu trúc cần toàn workbook. Chúng phải yêu cầu hydration hoặc có triển khai vùng được chứng minh; không trả kết quả thiếu mà không báo.
-- **Mô hình tạm và lưu/in:** cấm serialize bản tạm như workbook hoàn chỉnh. Lưu/In đợi mô hình đầy đủ hoặc chờ owner duyệt một cơ chế merge đã chứng minh fidelity.
+- **Mô hình tạm và lưu/in:** cấm serialize bản tạm như workbook hoàn chỉnh. Lưu/In đợi mô hình đầy đủ; thông báo rõ sửa tạm đang được giữ.
 - **Worker/UNO đồng thời hoặc treo:** đo hàng đợi và timeout; gọi view trước full conversion như hiện có; mọi lỗi quick view phải rơi về đường đầy đủ, lỗi full load hiển thị retry/error rõ.
 - **Undo history:** nạp file mới vẫn phải tạo journal mới; chỉ quá trình hydrate cùng một document giữ history. Các thao tác gõ/xóa/dán/format phải khôi phục đúng trước/sau qua Ctrl+Z/Ctrl+Y.
 - **In workbook lớn:** dùng cùng document/session LibreOffice nếu worker đã mở; tránh chuyển đổi đồng bộ trùng lặp ở UI thread; xác minh trang xem trước, thao tác in và không treo.
@@ -62,7 +63,7 @@ Không sửa `upstream/**`, không thêm dependency, không đổi semantics fil
 ## Trình tự thay đổi
 
 1. Ghi và commit baseline này cùng plan trước khi sửa luồng mở/lưu.
-2. Đã đo/log từng pha quick-view trên worktree: engine có dữ liệu trong ~4.6 s nhưng UI chờ kết thúc API mở ~47.9 s; ưu tiên tách tác vụ nền khỏi promise pywebview.
-3. Tách API mở nền trước, bật theo feature flag với timeout/fallback. Sau đó xử lý journal/replay và undo/redo cho edit-while-loading.
+2. Baseline Xem nhanh 5.08–6.40 s; giảm kích thước truy vấn first-window và render theo viewport để đạt ≤5 s.
+3. Thêm edit journal trong quick view; phát lại từng nhóm thao tác trước sự kiện `full-model-ready`, khôi phục cả undo/redo tail.
 4. Rà lệnh lưu/in, chỉ bật sau full hydration; sửa tiến độ/lỗi và Help tiếng Việt theo UI thật.
 5. Chạy các cổng desktop, fidelity, unit và batch; ghi số liệu trước/sau và handoff.
