@@ -15,6 +15,13 @@ const assertCase = async (file, cdp) => {
     switch(${JSON.stringify(base)}) {
       case "s16CellsDialog": return {ok:cell("B2").style?.numberFormat?.category==="currency",value:cell("B2").style?.numberFormat};
       case "pasteSpecialPack": return {ok:cell("F3").formula==="=C3*D3" && String(cell("I2").val)==="1234.5",formula:cell("F3").formula,value:cell("I2").val};
+      case "bold": return {ok:cell("B2").style?.fontWeight==="bold",style:cell("B2").style};
+      case "size16": return {ok:parseFloat(cell("B2").style?.fontSize)>=21,style:cell("B2").style};
+      case "fontArial": return {ok:cell("B2").style?.fontFamily==="Arial",style:cell("B2").style};
+      case "fillDefault": return {ok:String(cell("B2").style?.backgroundColor||"").toUpperCase()==="#FFFF00",style:cell("B2").style};
+      case "bordersDefault": return {ok:["borderLeft","borderRight","borderTop","borderBottom"].some(key=>!!cell("B2").style?.[key]),style:cell("B2").style};
+      case "alignCenter": return {ok:cell("B2").style?.textAlign==="center",style:cell("B2").style};
+      case "rotation90": return {ok:cell("B2").style?.textRotation===90,style:cell("B2").style};
       case "findReplacePack": return {ok:cell("G2").val==="Đã thay",sheets:g?.sheets,value:cell("G2").val};
       case "customSort": return {ok:cell("B2").val==="Hoàng Văn E",value:cell("B2").val};
       case "filter": return {ok:g?.isFilterActive===true,active:g?.isFilterActive};
