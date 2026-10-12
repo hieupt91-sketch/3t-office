@@ -26,14 +26,14 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.diagram.insert"],
     title: "Chèn sơ đồ",
-    summary: "Tạo sơ đồ quy trình, chu kỳ, phân cấp hoặc danh sách. Chọn từ 3 đến 6 hộp, sửa chữ ngay trên trang chiếu; cả sơ đồ được chọn, di chuyển và lưu lại như một nhóm.",
+    summary: "Tạo sơ đồ quy trình, chu kỳ, phân cấp hoặc danh sách bằng các hình có thể sửa. Chọn từ 3 đến 6 hộp; toàn bộ sơ đồ được chọn và lưu thành nhóm hình để di chuyển cùng nhau.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Minh họa" },
     keywords: ["sơ đồ", "diagram", "quy trình", "chu kỳ", "phân cấp", "process", "hierarchy"],
     steps: [
       "Tab Chèn > nhóm Minh họa > Sơ đồ. Chọn trang chiếu cần thêm sơ đồ rồi nhấn Sơ đồ.",
       "Trong hộp Chèn sơ đồ, chọn Danh sách theo bước, Quy trình theo chu kỳ, Phân cấp tổ chức hoặc Danh sách phân cấp; chọn số hộp từ 3 đến 6 rồi nhấn Chèn sơ đồ.",
       "Nhấp vào chữ trong hộp để sửa. Nhấp một hộp để chọn cả sơ đồ; kéo một hộp để di chuyển cụm. Dùng các nút kích thước của vùng chọn để đổi cỡ, hoặc Ctrl+Z để hoàn tác lần chèn.",
-      "Lưu bản trình chiếu rồi mở lại: các hộp và đường nối vẫn tạo thành một nhóm. Có thể chọn nhóm để di chuyển, hoặc dùng Bỏ nhóm nếu muốn sửa từng hình riêng."
+      "Lưu bản trình chiếu rồi mở lại: các hộp và đường nối tiếp tục là nhóm hình có thể chỉnh sửa. Định dạng lưu hiện tại biểu diễn sơ đồ bằng nhóm hình ODF, chưa có mô hình sơ đồ chuyên biệt. Muốn sửa từng hộp, dùng Bỏ nhóm."
     ]
   },
   {

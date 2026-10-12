@@ -1,0 +1,91 @@
+{
+  "suite": "tests/live/cdp/slides-fix-l10-media.desktop.mjs",
+  "status": "PASS",
+  "appRoot": "E:/VNOffice-codex-fl12",
+  "profile": "E:/VNOffice-profiles/codex-fl12",
+  "video": {
+    "selected": true,
+    "state": {
+      "slides": 10,
+      "index": 0,
+      "shapes": [
+        {
+          "type": "textbox",
+          "srcLength": 0,
+          "sizeBytes": null
+        },
+        {
+          "type": "textbox",
+          "srcLength": 0,
+          "sizeBytes": null
+        },
+        {
+          "type": "image",
+          "srcLength": 758571,
+          "sizeBytes": null
+        },
+        {
+          "type": "image",
+          "srcLength": 393851,
+          "sizeBytes": null
+        },
+        {
+          "type": "image",
+          "srcLength": 970699,
+          "sizeBytes": null
+        },
+        {
+          "type": "video",
+          "srcLength": 570,
+          "sizeBytes": null
+        }
+      ]
+    }
+  },
+  "audio": {
+    "selected": true,
+    "state": {
+      "slides": 10,
+      "index": 0,
+      "shapes": [
+        {
+          "type": "textbox",
+          "srcLength": 0,
+          "sizeBytes": null
+        },
+        {
+          "type": "textbox",
+          "srcLength": 0,
+          "sizeBytes": null
+        },
+        {
+          "type": "image",
+          "srcLength": 758571,
+          "sizeBytes": null
+        },
+        {
+          "type": "image",
+          "srcLength": 393851,
+          "sizeBytes": null
+        },
+        {
+          "type": "image",
+          "srcLength": 970699,
+          "sizeBytes": null
+        },
+        {
+          "type": "video",
+          "srcLength": 570,
+          "sizeBytes": null
+        },
+        {
+          "type": "audio",
+          "srcLength": 579,
+          "sizeBytes": null
+        }
+      ]
+    }
+  },
+  "saved": true,
+  "output": "E:\\VNOffice-profiles\\codex-fl12\\fix-l10-media.pptx"
+}

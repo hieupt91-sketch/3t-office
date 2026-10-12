@@ -1871,6 +1871,26 @@ def _apply_native_export_postprocess(
                         raise DocumentEngineError(
                             f"Không thể tạo sơ đồ DOCX có thể chỉnh sửa: {exc}"
                         ) from exc
+                wordart_metadata = re.search(r"<!--vno-native-wordart-fodt:([A-Za-z0-9+/=]+)-->", source_html or "")
+                if wordart_metadata:
+                    try:
+                        wordart_fodt = base64.b64decode(wordart_metadata.group(1), validate=True).decode("utf-8")
+                        with tempfile.TemporaryDirectory(prefix="vnoffice_native_wordart_") as wordart_dir:
+                            fodt_path = os.path.join(wordart_dir, "wordart.fodt")
+                            with open(fodt_path, "w", encoding="utf-8", newline="") as handle:
+                                handle.write(wordart_fodt)
+                            wordart_docx_path = _run_soffice_convert(
+                                fodt_path, "docx", wordart_dir, app_kind="writer",
+                            )
+                            with open(wordart_docx_path, "rb") as handle:
+                                wordart_docx = handle.read()
+                        patched = patcher.postprocess_writer_native_wordart(
+                            patched, wordart_docx, source_html=source_html,
+                        )
+                    except Exception as exc:
+                        raise DocumentEngineError(
+                            f"Không thể tạo WordArt DOCX native: {exc}"
+                        ) from exc
                 watermark_metadata = re.search(r"<!--vno-native-watermark-fodt:([A-Za-z0-9+/=]+)-->", source_html or "")
                 if watermark_metadata:
                     try:

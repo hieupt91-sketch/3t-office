@@ -37,6 +37,16 @@ export async function runWriterZoomWheelTests() {
       ruler: {},
       shell
     });
+    let echoShellZoom = false;
+    shell.onZoomChange = percent => controller.setZoom(percent / 100);
+    const setZoomLevel = shell.setZoomLevel.bind(shell);
+    shell.setZoomLevel = value => {
+      setZoomLevel(value);
+      if (echoShellZoom) {
+        echoShellZoom = false;
+        shell.onZoomChange(value);
+      }
+    };
     const oldWindow = globalThis.window;
     const oldDocument = globalThis.document;
     try {
@@ -53,8 +63,13 @@ export async function runWriterZoomWheelTests() {
       assert.equal(controller.zoomLevel, 1.1, "Ctrl+wheel up must zoom in");
       assert.equal(shell.zoomLevel, 110, "Ctrl+wheel must update the shared zoom control");
       assert.equal(prevented, true, "Ctrl+wheel must suppress browser zoom");
+      echoShellZoom = true;
+      controller.pageWidth();
+      assert.equal(classes.has("vno-writer-page-width"), true, "page-width fit marker must survive the AppShell zoom echo for resize refits");
+      echoShellZoom = true;
       shell.setZoomLevel(125);
       assert.equal(controller.zoomLevel, 1.25, "shared zoom slider must update the Writer view controller");
+      assert.equal(classes.has("vno-writer-page-width"), false, "manual shared zoom must leave page-width fit mode");
       viewport.wheelHandler({ ctrlKey: true, deltaY: 100, preventDefault() {} });
       assert.equal(controller.zoomLevel, 1.15, "Ctrl+wheel down must zoom out from the shared zoom value");
       assert.equal(shell.zoomLevel, 115, "Ctrl+wheel down must keep the zoom slider synchronized");

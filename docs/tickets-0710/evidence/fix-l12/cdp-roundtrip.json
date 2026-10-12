@@ -1,0 +1,17 @@
+{
+  "suite": "tests/live/cdp/claude-slides-roundtrip.desktop.mjs",
+  "status": "PASS",
+  "passed": 8,
+  "total": 8,
+  "appRoot": "E:/VNOffice-codex-fl12",
+  "profile": "E:/VNOffice-profiles/codex-fl12",
+  "fixture": "E:/VN OFice/file test/sample-3.pptx",
+  "checks": [
+    "loaded 10-slide source",
+    "duplicated slide and inserted textbox/shape",
+    "applied Fade",
+    "saved PPTX with 11 slides and p:transition",
+    "reopened PPTX with 11 slides and new textbox"
+  ],
+  "output": "E:/VNOffice-profiles/codex-fl12/saved.pptx"
+}

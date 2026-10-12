@@ -1,0 +1,388 @@
+{
+    "officeVersion":  "16.0",
+    "path":  "E:\\VNOffice-profiles\\codex-fl12\\fix-l3\\slides-groups-roundtrip.pptx",
+    "slidesCount":  17,
+    "designName":  "Than Chì Hiện Đại",
+    "slideWidth":  960,
+    "slideHeight":  540,
+    "slides":  [
+                   {
+                       "index":  1,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "Picture 4",
+                                          "type":  13,
+                                          "text":  "",
+                                          "groupItemCount":  null
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "CÔNG TY TNHH CÔNG NGHỆ THÔNG MINH 3T",
+                                          "groupItemCount":  null
+                                      },
+                                      {
+                                          "name":  "Title 3",
+                                          "type":  1,
+                                          "text":  "CÔNG TY TNHH CÔNG NGHỆ THÔNG MINH 3T",
+                                          "groupItemCount":  null
+                                      },
+                                      {
+                                          "name":  "VNOfficeGroup:group-1791783620336-p5zg2d",
+                                          "type":  6,
+                                          "text":  "",
+                                          "groupItemCount":  3
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  2,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "I. KẾT QUẢ KINH DOANH NĂM 2021",
+                                          "groupItemCount":  null
+                                      },
+                                      {
+                                          "name":  "Chart 12",
+                                          "type":  3,
+                                          "text":  "",
+                                          "groupItemCount":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  3,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "1.1 Kết quả kinh doanh và lợi nhuận quý 1-2021",
+                                          "groupItemCount":  null
+                                      },
+                                      {
+                                          "name":  "Chart 4",
+                                          "type":  3,
+                                          "text":  "",
+                                          "groupItemCount":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  4,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "1.2 Kết quả kinh doanh và lợi nhuận quý 2-2021",
+                                          "groupItemCount":  null
+                                      },
+                                      {
+                                          "name":  "Chart 9",
+                                          "type":  3,
+                                          "text":  "",
+                                          "groupItemCount":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  5,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "1.3 Kết quả kinh doanh và lợi nhuận quý 3 -2021",
+                                          "groupItemCount":  null
+                                      },
+                                      {
+                                          "name":  "Chart 5",
+                                          "type":  3,
+                                          "text":  "",
+                                          "groupItemCount":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  6,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "1.4 Kết quả kinh doanh và lợi nhuận quý 4 -2021",
+                                          "groupItemCount":  null
+                                      },
+                                      {
+                                          "name":  "Chart 7",
+                                          "type":  3,
+                                          "text":  "",
+                                          "groupItemCount":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  7,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "II. Báo cáo tình hình kinh doanh năm 2021",
+                                          "groupItemCount":  null
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 2",
+                                          "type":  14,
+                                          "text":  "2.1 Sơ lược về kinh doanh đạt được năm 2021. \rTổng doanh thu đạt được: 1.129.103.718 VND \rGiá vốn nhập hàng:709.356.013 VND \rLợi nhuận chưa trừ chi phí: 419.774.705. \rTổng chi phí công ty năm 2021: 191,191,854 VND. \rGiá trị tồn kho: 116.287.043 VND. \rCông nợ chưa thanh toán: 25.000.000 \r+ Nợ công VCM: 25.000.000",
+                                          "groupItemCount":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  8,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "Báo cáo tình hình kinh doanh năm 2021",
+                                          "groupItemCount":  null
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 2",
+                                          "type":  14,
+                                          "text":  "7. Công nợ chưa thu: 267.699.000 VND\r+ Công nợ VCM: 262.969.000 VND\r+ Công nợ SCG: 4.730.000 VND\r8. Tài khoản hiện thời: 6.404.000 VND\r9. Công nợ còn thiếu của mỗi cá nhân: 24.000.000\r10. Bảng dự toán ngân sách thu chi cuối năm.",
+                                          "groupItemCount":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  9,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "Table 2",
+                                          "type":  19,
+                                          "text":  "",
+                                          "groupItemCount":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  10,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "11.Kết quả kinh doanh thực đạt năm 2021 : 200.603.000 VND.\r12. Dự kiến phân bổ lợi nhuận(bao gồm lợi nhuận và lãi suất vay đơn):\rPhân bổ cá nhân: 60%: 120.361.800 VND\rPhân bổ công ty 40%: 80.241.200 VND.\r+ Trong đó phân bổ 60% sẽ chia 3 cho các thành viên.\r+ Phân bổ công ty 40% là dự toán vốn chung cho năm kinh doanh 2022.\rDự kiến hoàn thành phân bổ trên vào cuối tháng 2/2022 khi hoàn thành thu hồi tất cả công nợ và khoản chi.",
+                                          "groupItemCount":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  11,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "III. NHẬN XÉT ĐÁNH GIÁ TÌNH HÌNH NĂM 2021",
+                                          "groupItemCount":  null
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 2",
+                                          "type":  14,
+                                          "text":  "3.1 Đánh giá trên kết quả kinh doanh năm 2021.\r- Năm 2021 là năm tăng trưởng doanh số so với thời gian đầu thành lập công ty 2019 và 2020.\r- Doanh số đạt được dựa vào nguồn lực chính là cung cấp vật tư và tham gia các gói thầu lắp đặt cho tập đoàn SCG.\r- Doanh số bán lẻ chưa cải thiện nhiều chỉ chiếm 20% doanh số trong năm.\r3.2 Đánh giá về hệ thống bộ máy công ty.\r- Năm 2021 giảm thiểu cho phí mặt bằng và cắt giảm nhân sự so với năm 2020 đạt 50% kế hoạch đề ra.",
+                                          "groupItemCount":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  12,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "- Một số ứng dụng phần mềm chưa đáp ứng được hết nhu cầu và chức năng công ty cần.\rVí dụ điển hình: khi quyết toán thu chi DV cho thuê vẫn gặp khó khăn, doanh số DV vẫn tính chung và doanh số bán hàng khó cho công việc quyết toán.\r3.2 Đánh giá về nhân sự công ty:\r- Hiện tại nhân sự công ty vẫn là 1 nhân sự chính: Mr. Hiếu ngoài ra Mr. Tùng và Mr. Toàn là nhân sự hỗ trợ. \r- Tinh thần hỗ trợ nhận gửi hàng hóa chưa thực sự tốt.\r3.3 Quan hệ đối tác và khách hàng.\r- Cần chú ý hơn về xây dựng chính sách và quan hệ khách hàng cũng như đại lý.\r- Chủ động đề xuất và liên hệ trao đổi với đại lý để công việc suôn sẻ và trôi chảy hơn.",
+                                          "groupItemCount":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  13,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "3.4 Về tình trạng hàng hóa tồn kho:\r- Công ty về tình trạng tồn kho không nhiều, chủ yếu các sản phẩm chủ lực, và các sản phẩm demo chủ yếu.\r- Tồn kho về VAT trong năm hiện tại đã hết, không còn tồn kho cấn trừ VAT cho năm tài chính 2022.\r3.5 Kết luận chung.\r- Năm 2021 tuy là một năm vẫn còn nhiều khó khăn trong bối cảnh đại dịch, nhưng với sự nỗ lực của toàn bộ tập thể công ty, đã giúp công ty phát triển tốt hơn so với thời gian đầu thành lập.\r- Năm 2021 trong quá trình vận hành vẫn còn nhiều sai sót trong khâu nhập hàng hóa dẫn đến tồn kho khó bán.",
+                                          "groupItemCount":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  14,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "IV. ĐỊNH HƯỚNG VÀ ĐỀ XUẤT CHO NĂM 2022",
+                                          "groupItemCount":  null
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 2",
+                                          "type":  14,
+                                          "text":  "4.1 Đánh giá khách quan năm 2022:\r- Dự kiến năm 2022 tình hình dịch vẫn diễn ra, tuy nhiên theo tình hình sẽ thích nghi với dịch bệnh.\r- Thị trường năm 2022 khi thích nghi với dịch bệnh sẽ thúc đẩy kinh tế phát triển hơn so năm 2019 và 2021.\r- Dự kiến về thuê máy tính tập đoàn SCG sẽ ngừng thuê máy tính, và chuyển qua kế hoạch mua hẳn máy tính.\r4.2 Đề xuất kinh doanh:\r- Tiếp tục đẩy mạnh về đơn hàng dự án cung cấp vật tư cho tập đoàn SCG.\r- Triển khai hoạt động bán lẻ công ty, để tạo tiền đề phát triển và nhiều người biết đến hơn.",
+                                          "groupItemCount":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  15,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "- Thế mạnh hiện nay đang là đại lý tốt của 2 thương hiệu khóa Kaadas và Osuno tại thị trường Quảng Bình, cũng như được hưởng chính sách ưu đãi đại lý trong khu vực.\r- Mở rộng thêm các đại lý cũng như các kỹ thuật và khách hàng lẻ trong khu vực.\r- Mục đích để nhằm tăng doanh số nhập hàng VAT để khấu hao với các đơn hàng DV cho thuê máy tính và các đơn hàng cung cấp vật tư.\r- Xây dựng hoàn thiện lại bảng giá kỹ thuật và đại lý để phù hợp với giá thị trường.\r- Triển khai thuê mặt bằng nhằm kích thích bán lẻ, xin hỗ trợ từ hãng khi triển khai showroom(Osuno, Dahua, Imou, Hikvision).",
+                                          "groupItemCount":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  16,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "4.3 Định hướng hàng hóa\r- Định hướng về phương hướng kinh doanh vẫn tiếp tục bám sát:\r+ Cung cấp vật tư cho các nhà máy (vật tư cơ khí, vật tư công nghệ).\r+ Lắp đặt triển khai hệ thống nhà thông minh (Camera, khóa thông minh, điện thông minh….).\r+ Cung cấp và buôn bán máy tính, phần mềm, các vật tư thiết bị mạng, phụ kiện…\r- Hàng hóa chủ lực:\r+ Camera: Dahua, Hikvision, Imou, Ezviz.\r+ Khóa thông minh: Kaadas, Osuno.\r+ Điện thông minh: Lumi.",
+                                          "groupItemCount":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  17,
+                       "layout":  12,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "4.5 Đề xuất nhân sự.\r+ Đề xuất tuyển dụng bổ sung nhân viên kinh doanh cửa hàng (1)\rLCB: 2.500.000 + (5% Doanh số khách lẻ. 1.5% doanh số đại lý). + Thưởng hoặc phụ cấp.\r+ Đề xuất tuyển dụng nhân viên kỹ thuật (1).\rLCB: 5.000.000 + ( 2% Doanh số khách lẻ) + Thưởng hoặc phụ cấp.\r4.6 Đề xuất phân bổ ngân sách.\r- Căn cứ ngân sách công ty 80.000.000 VND\rĐề nghị phân bổ: 20tr ngân sách duy trì đào tạo nhân viên 3 tháng đầu\r30tr ngân sách thuê và triển khai mặt bằng 3 tháng.\rDự kiến đề nghị phân bổ 50tr chiếm 62,50% ngân sách công ty.",
+                                          "groupItemCount":  null
+                                      }
+                                  ]
+                   }
+               ]
+}
