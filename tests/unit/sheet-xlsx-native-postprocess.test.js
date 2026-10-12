@@ -114,6 +114,41 @@ export async function runSheetXlsxNativePostprocessTests() {
     assert(!fodsHasStructureProtection(off.serializeToFods()), "FODS tắt không có attr");
   });
 
+  test("FIX-S17: chế độ tính toán round-trip trong metadata FODS", () => {
+    const source = new SheetAdapter({
+      sheets: ["A"], activeSheet: "A", sheetsData: { A: new Map() },
+      commentsBySheet: { A: {} }, calculationMode: "manual"
+    });
+    const fods = source.serializeToFods();
+    assert(/vno:calculation-mode="manual"/.test(fods), "FODS phải đánh dấu chế độ thủ công");
+    const parsed = new SheetAdapter(null).parseFods(fods);
+    assert(parsed.calculationMode === "manual", "parseFods phải khôi phục chế độ thủ công");
+  });
+
+  test("FIX-S17: hộp văn bản giữ nội dung, ô neo và kích thước qua FODS", () => {
+    const source = new SheetAdapter({
+      sheets: ["A"], activeSheet: "A", sheetsData: { A: new Map() }, commentsBySheet: { A: {} },
+      textBoxesBySheet: { A: [{ text: "Hộp & dữ liệu", anchor: { c: "C", r: 4 }, widthPx: 240, heightPx: 90 }] }
+    });
+    const fods = source.serializeToFods();
+    const parsed = new SheetAdapter(null).parseFods(fods);
+    assert(parsed.textBoxesBySheet?.A?.length === 1, "parseFods phải khôi phục hộp văn bản");
+    assert(parsed.textBoxesBySheet.A[0].text === "Hộp & dữ liệu", "nội dung phải được giữ");
+    assert(parsed.textBoxesBySheet.A[0].anchor.c === "C" && parsed.textBoxesBySheet.A[0].anchor.r === 4, "vị trí phải được giữ");
+    assert(parsed.textBoxesBySheet.A[0].widthPx === 240 && parsed.textBoxesBySheet.A[0].heightPx === 90, "kích thước phải được giữ");
+  });
+
+  test("FIX-S17: trạng thái Đã xử lý của ghi chú legacy round-trip trong FODS", () => {
+    const source = new SheetAdapter({
+      sheets: ["A"], activeSheet: "A", sheetsData: { A: new Map([["C2", { val: "ô", formula: "", style: {} }]]) },
+      commentsBySheet: { A: { C2: { coord: "C2", text: "Nhận xét", author: "Người dùng", resolved: true } } }
+    });
+    const fods = source.serializeToFods();
+    assert(/vno:resolved-comments="[^\"]*&quot;C2&quot;:true/.test(fods), "FODS phải mang trạng thái resolved");
+    const parsed = new SheetAdapter(null).parseFods(fods);
+    assert(parsed.commentsBySheet.A.C2.resolved === true, "parseFods phải khôi phục resolved=true");
+  });
+
   test("postProcessSheetXlsx ghi lockStructure vào xl/workbook.xml; không đụng sheet1", () => {
     const zip = fakeXlsx(LO_WORKBOOK_XML);
     const patched = postProcessSheetXlsx(zip, { workbookProtectionEnabled: true });

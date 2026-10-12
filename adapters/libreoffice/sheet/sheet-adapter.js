@@ -2818,6 +2818,46 @@ export class SheetAdapter {
     });
   }
 
+  _attachImportedTextBoxes(workbook, xmlText) {
+    const importedTextBoxes = {};
+    String(xmlText || "").replace(/<table:table(?=[\s>/])([^>]*)>/gi, (_, attrs) => {
+      const sheetName = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
+      const raw = attrs.match(/vno:text-boxes=["']([^"']*)["']/i)?.[1];
+      if (!sheetName || !raw) return "";
+      try {
+        const boxes = JSON.parse(this._unescapeXml(raw));
+        if (!Array.isArray(boxes)) return "";
+        importedTextBoxes[sheetName] = boxes.filter(box => box && typeof box.text === "string" && box.anchor?.c && Number.isFinite(Number(box.anchor?.r)))
+          .map((box, index) => ({
+            id: `textbox-import-${sheetName}-${index}`,
+            text: box.text,
+            anchor: { c: String(box.anchor.c), r: Number(box.anchor.r) },
+            widthPx: Math.max(180, Number(box.widthPx) || 180),
+            heightPx: Math.max(54, Number(box.heightPx) || 54)
+          }));
+      } catch (_) {}
+      return "";
+    });
+    // Chỉ gắn khi tệp có hộp văn bản: giữ nguyên dấu băm snapshot của các sổ tính không có hộp văn bản.
+    if (Object.keys(importedTextBoxes).length) workbook.textBoxesBySheet = importedTextBoxes;
+  }
+
+  _attachImportedResolvedComments(workbook, xmlText) {
+    String(xmlText || "").replace(/<table:table(?=[\s>/])([^>]*)>/gi, (_, attrs) => {
+      const sheetName = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
+      const raw = attrs.match(/vno:resolved-comments=["']([^"']*)["']/i)?.[1];
+      if (!sheetName || !raw) return "";
+      try {
+        const states = JSON.parse(this._unescapeXml(raw));
+        for (const [coord, resolved] of Object.entries(states || {})) {
+          const comment = workbook.commentsBySheet?.[sheetName]?.[coord];
+          if (comment) comment.resolved = Boolean(resolved);
+        }
+      } catch (_) {}
+      return "";
+    });
+  }
+
   /**
    * vno:sheet-state (hidden/veryHidden) — read back from FODS that 3T Office
    * self-wrote during File → Mở overlay.  LibreOffice downgrades veryHidden
@@ -3366,6 +3406,8 @@ export class SheetAdapter {
         || (sheetName === this.grid.activeSheet ? this.grid.cellsData : null)
         || new Map();
       const comments = this.grid.commentsBySheet?.[sheetName] || {};
+      const resolvedComments = Object.fromEntries(Object.entries(comments).filter(([, comment]) => comment).map(([coord, comment]) => [coord, Boolean(comment.resolved)]));
+      const resolvedCommentsAttr = Object.keys(resolvedComments).length ? ` vno:resolved-comments="${this._escapeXml(JSON.stringify(resolvedComments))}"` : "";
       const cellValidations = validationsByCell.get(sheetName) || new Map();
       const cellConditionalBases = conditionalBaseByCell.get(sheetName) || new Map();
       const mergeAnchors = new Map();
@@ -3771,7 +3813,9 @@ export class SheetAdapter {
       const imagesAtOpen = Math.max(0, Number(this.grid.imagesAtOpenBySheet?.[sheetName]) || 0);
       const scenarios = this.grid.getScenarios ? this.grid.getScenarios(sheetName) : (this.grid.scenariosBySheet?.[sheetName] || []);
       const scenariosAttr = scenarios && scenarios.length ? ` vno:scenarios="${this._escapeXml(JSON.stringify(scenarios))}"` : "";
-      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
+      const textBoxes = this.grid.textBoxesBySheet?.[sheetName] || [];
+      const textBoxesAttr = textBoxes.length ? ` vno:text-boxes="${this._escapeXml(JSON.stringify(textBoxes.map(box => ({ text: String(box.text || ""), anchor: box.anchor, widthPx: Math.max(180, Number(box.widthPx) || 180), heightPx: Math.max(54, Number(box.heightPx) || 54) }))))}"` : "";
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${textBoxesAttr}${resolvedCommentsAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
@@ -3867,7 +3911,7 @@ ${pristineXlsxMarker}
       </config:config-item-map-entry></config:config-item-map-indexed>
     </config:config-item-set>
   </office:settings>
-  <office:body><office:spreadsheet${structureAttr}>${validationDefinitions.length ? `<table:content-validations>${validationDefinitions.join("")}</table:content-validations>` : ""}${tablesXml}${this.grid.namedRangesWorkbook?.length ? `<table:named-expressions>${this.grid.namedRangesWorkbook.map(range => this._namedRangeXml(range, range.sheet || activeSheet)).join("")}</table:named-expressions>` : ""}${dataPilotXml}${this._serializeDatabaseRanges(sheetNames)}</office:spreadsheet></office:body>
+  <office:body><office:spreadsheet${structureAttr}${["automatic", "manual"].includes(this.grid.calculationMode) ? ` vno:calculation-mode="${this.grid.calculationMode === "manual" ? "manual" : "auto"}"` : ""}>${validationDefinitions.length ? `<table:content-validations>${validationDefinitions.join("")}</table:content-validations>` : ""}${tablesXml}${this.grid.namedRangesWorkbook?.length ? `<table:named-expressions>${this.grid.namedRangesWorkbook.map(range => this._namedRangeXml(range, range.sheet || activeSheet)).join("")}</table:named-expressions>` : ""}${dataPilotXml}${this._serializeDatabaseRanges(sheetNames)}</office:spreadsheet></office:body>
 </office:document>`;
   }
 
@@ -4471,6 +4515,8 @@ ${pristineXlsxMarker}
   parseFods(xmlText) {
     const workbook = { sheets: [], sheetsData: {}, activeSheet: "", commentsBySheet: {}, mergedRangesBySheet: {}, namedRangesWorkbook: [], namedRangesBySheet: {}, printAreaBySheet: {}, pageSetupBySheet: {}, validationHits: [], rowHeightsBySheet: {}, colWidthsBySheet: {}, userHiddenRowsBySheet: {}, userHiddenColsBySheet: {}, imagesAtOpenBySheet: {} };
     if (!xmlText) return workbook;
+    const calculationMode = String(xmlText).match(/<office:spreadsheet\b[^>]*\bvno:calculation-mode=["'](auto|manual)["']/i)?.[1]?.toLowerCase();
+    if (calculationMode) workbook.calculationMode = calculationMode === "manual" ? "manual" : "automatic";
     const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
     const perfNow = () => perfEnabled ? performance.now() : 0;
     const perfReport = (name, started) => { if (perfEnabled) window.__vnoPerfReport?.(`parseFods:${name}`, performance.now() - started); };
@@ -5087,6 +5133,8 @@ ${pristineXlsxMarker}
     perfReport("attach sparklines", phaseStart); phaseStart = perfNow();
     this._attachImportedOutline(workbook, tableXml);
     perfReport("attach outline", phaseStart);
+    this._attachImportedTextBoxes(workbook, tableXml);
+    this._attachImportedResolvedComments(workbook, tableXml);
     return workbook;
   }
 
@@ -5215,6 +5263,7 @@ ${pristineXlsxMarker}
       this.grid.defaultColWidth = 100;
     const firstSheet = workbook.sheets[0];
     if (typeof this.grid.resetToBlank === "function") this.grid.resetToBlank(firstSheet);
+    this.grid.calculationMode = workbook.calculationMode || "automatic";
     this.grid.sheets = [firstSheet];
     this.grid.sheetsData = { [firstSheet]: workbook.sheetsData[firstSheet] };
     this.grid.commentsBySheet = { [firstSheet]: workbook.commentsBySheet[firstSheet] || {} };
@@ -5253,6 +5302,7 @@ ${pristineXlsxMarker}
     this.grid.tabColors = workbook.tabColors || {};
     this.grid.scenariosBySheet = workbook.scenariosBySheet || {};
     this.grid.tablesBySheet = workbook.tablesBySheet || {};
+    this.grid.textBoxesBySheet = {};
     const equivalentSheetValue = (mapping, sheetName) => {
       if (!mapping) return undefined;
       if (Object.prototype.hasOwnProperty.call(mapping, sheetName)) return mapping[sheetName];
@@ -5268,6 +5318,7 @@ ${pristineXlsxMarker}
       this.grid.pivotTablesBySheet[sheetName] = workbook.pivotTablesBySheet?.[sheetName] || [];
       this.grid.chartsBySheet[sheetName] = workbook.chartsBySheet?.[sheetName] || [];
       this.grid.imagesBySheet[sheetName] = workbook.imagesBySheet?.[sheetName] || [];
+      this.grid.textBoxesBySheet[sheetName] = workbook.textBoxesBySheet?.[sheetName] || [];
       this.grid.imagesAtOpenBySheet[sheetName] = workbook.imagesAtOpenBySheet?.[sheetName] || 0;
       this.grid.rowHeightsBySheet[sheetName] = this._asLayoutMap(equivalentSheetValue(workbook.rowHeightsBySheet, sheetName), true);
       this.grid.colWidthsBySheet[sheetName] = this._asLayoutMap(workbook.colWidthsBySheet?.[sheetName], false);
@@ -5304,6 +5355,7 @@ ${pristineXlsxMarker}
     this.grid.activeSheet = null;
     if (typeof this.grid.switchSheet === "function") this.grid.switchSheet(workbook.activeSheet, { skipSave: true });
     else this.grid.activeSheet = workbook.activeSheet;
+    this.grid.renderTextBoxes?.();
     const activeFreezeState = this.grid.sheetStates[this.grid.activeSheet];
     this.grid.frozenRows = activeFreezeState?.frozenRows || 0;
     this.grid.frozenCols = activeFreezeState?.frozenCols || 0;

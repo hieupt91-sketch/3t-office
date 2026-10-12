@@ -7686,7 +7686,7 @@ _bindGridKeyboardNavigation() {
   }
 
   insertTextBox(text, anchor = this.selectedCoord) {
-    const box = { id: `textbox-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, text: String(text), anchor: { c: anchor.c, r: anchor.r } };
+    const box = { id: `textbox-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, text: String(text), anchor: { c: anchor.c, r: anchor.r }, widthPx: 180, heightPx: 54 };
     this.textBoxesBySheet[this.activeSheet] ||= [];
     this.textBoxesBySheet[this.activeSheet].push(box);
     this.renderTextBoxes();
@@ -7703,8 +7703,33 @@ _bindGridKeyboardNavigation() {
       el.dataset.textboxId = box.id;
       el.contentEditable = "true";
       el.textContent = box.text;
-      el.style.cssText = `position:absolute;left:${Math.max(0, this.cols.indexOf(box.anchor.c)) * 100 + 46}px;top:${Math.max(0, box.anchor.r - 1) * this.rowHeight + 28}px;min-width:180px;min-height:54px;padding:10px;background:#fff;border:1px solid #64748b;box-shadow:0 4px 12px rgba(15,23,42,.16);pointer-events:auto;resize:both;overflow:auto`;
+      const widthPx = Math.max(180, Number(box.widthPx) || 180);
+      const heightPx = Math.max(54, Number(box.heightPx) || 54);
+      el.style.cssText = `position:absolute;left:${Math.max(0, this.cols.indexOf(box.anchor.c)) * 100 + 46}px;top:${Math.max(0, box.anchor.r - 1) * this.rowHeight + 28}px;width:${widthPx}px;height:${heightPx}px;min-width:180px;min-height:54px;padding:10px;background:#fff;border:1px solid #64748b;box-shadow:0 4px 12px rgba(15,23,42,.16);pointer-events:auto;resize:both;overflow:auto`;
       el.addEventListener("input", () => { box.text = el.textContent || ""; });
+      const saveSize = () => {
+        const rect = el.getBoundingClientRect();
+        if (rect.width >= 180 && rect.height >= 54) {
+          const before = { widthPx: Number(box.widthPx) || 180, heightPx: Number(box.heightPx) || 54 };
+          const after = { widthPx: Math.round(rect.width), heightPx: Math.round(rect.height) };
+          if (before.widthPx !== after.widthPx || before.heightPx !== after.heightPx) {
+            box.widthPx = after.widthPx;
+            box.heightPx = after.heightPx;
+            this._recordHistory({
+              type: "collection",
+              sheet: this.activeSheet,
+              collection: "textBoxesBySheet",
+              operation: "update",
+              id: box.id,
+              item: { id: box.id },
+              before,
+              after
+            });
+          }
+        }
+      };
+      el.addEventListener("pointerup", () => requestAnimationFrame(saveSize));
+      el.addEventListener("mouseup", () => requestAnimationFrame(saveSize));
       this.textBoxLayer.appendChild(el);
     }
   }

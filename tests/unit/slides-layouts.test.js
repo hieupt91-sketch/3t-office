@@ -470,18 +470,26 @@ export async function runSlidesLayoutsTests() {
     const adapter = new SlidesAdapter(mockCanvas);
     const fodpXml = adapter.serializeToFodp();
 
-    // 1. Kiểm tra XML có lưu presentation:layout
-    if (!fodpXml.includes('presentation:layout="title-only"')) {
-      throw new Error("FODP thiếu thuộc tính presentation:layout=\"title-only\"");
+    // 1. Kiểm tra XML lưu liên kết ODF presentation-page-layout-name
+    if (!fodpXml.includes('presentation:presentation-page-layout-name="VNOTitleOnly"')) {
+      throw new Error("FODP thiếu liên kết ODF bố cục=\"title-only\"");
     }
-    if (!fodpXml.includes('presentation:layout="two-content"')) {
-      throw new Error("FODP thiếu thuộc tính presentation:layout=\"two-content\"");
+    if (!fodpXml.includes('presentation:presentation-page-layout-name="VNOTwoContent"')) {
+      throw new Error("FODP thiếu liên kết ODF bố cục=\"two-content\"");
     }
-    if (!fodpXml.includes('presentation:layout="blank"')) {
-      throw new Error("FODP thiếu thuộc tính presentation:layout=\"blank\"");
+    if (!fodpXml.includes('presentation:presentation-page-layout-name="VNOBlank"')) {
+      throw new Error("FODP thiếu liên kết ODF bố cục=\"blank\"");
     }
     if (!fodpXml.includes("Giải pháp VN Office") || !fodpXml.includes("Tự chủ 100%")) {
       throw new Error("FODP thiếu nội dung cột 2 (body2)");
+    }
+
+    if (!fodpXml.includes('<style:presentation-page-layout style:name="VNOTwoContent">') ||
+        !fodpXml.includes('presentation:object="outline" svg:x="14.5cm"')) {
+      throw new Error("FODP thiếu định nghĩa ODF chuẩn cho bố cục Hai nội dung");
+    }
+    if (fodpXml.indexOf("<style:presentation-page-layout") > fodpXml.indexOf("<office:automatic-styles>")) {
+      throw new Error("style:presentation-page-layout phải nằm trong office:styles để LibreOffice nhận AutoLayout");
     }
 
     // 2. Phân tích ngược lại từ XML (parseFodp)

@@ -4144,6 +4144,13 @@ export class SlidesCanvasController {
       document.execCommand("hiliteColor", false, fmt.backgroundColor);
     }
     if (fmt.fontFamily) document.execCommand("fontName", false, fmt.fontFamily);
+    const fontSize = String(fmt.fontSize || "").trim();
+    if (/^\d+(?:\.\d+)?(?:px|pt|em|rem|%)$/.test(fontSize)) {
+      editable.style.fontSize = fontSize;
+      editable.querySelectorAll?.("[style]").forEach((node) => {
+        if (node.style?.fontSize) node.style.fontSize = fontSize;
+      });
+    }
     return true;
   }
 
@@ -5191,6 +5198,14 @@ const startEditing = (initialText) => {
       if (event.target?.classList?.contains("vno-shape-delete-btn")) return;
       if (event.target?.classList?.contains("vno-diagram-node-text") && event.target.contentEditable === "true") return;
       if (this.formatPainter) {
+        const textTarget = event.target?.closest?.("[data-shape-text-id]");
+        if (textTarget && this.formatPainter.text) {
+          event.preventDefault();
+          event.stopPropagation();
+          if (textTarget.contentEditable !== "true") el._vnoStartTextEditing?.();
+          this.applyFormatPainterToTextElement(textTarget, { shapeId: shape.id });
+          return;
+        }
         const editingText = event.target?.closest?.("[contenteditable='true'], [contenteditable=true]");
         if (editingText && this.formatPainter.text) {
           event.preventDefault();
@@ -8407,6 +8422,9 @@ const startEditing = (initialText) => {
       const found = SLIDE_MASTER_THEMES.find(t => t.id === themeConfig);
       if (found) themeConfig = found;
       else return false;
+    }
+    if (themeConfig.id && !themeConfig.themeId) {
+      themeConfig = { ...themeConfig, themeId: themeConfig.id };
     }
 
     const previousTheme = { ...this.masterTheme };
