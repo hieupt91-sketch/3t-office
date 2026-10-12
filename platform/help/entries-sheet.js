@@ -755,7 +755,7 @@ export const SHEET_HELP_ENTRIES = [
     keywords: ["hộp văn bản", "textbox", "chú thích nổi", "khung chữ", "ghi chú ô"],
     steps: [
       "Chọn ô neo (góc trên-trái hộp sẽ bám ô này). Tab Chèn, nhóm Văn bản, nhấn Hộp văn bản.",
-      "Hộp «Chèn hộp văn bản» hỏi nội dung. Nhập chữ rồi xác nhận. Hộp trắng, viền xám, kích thước ban đầu khoảng 202×76 px (gồm lề trong), hiện trên lớp nổi của sheet.",
+      "Hộp «Chèn hộp văn bản» hỏi nội dung. Nhập chữ rồi xác nhận. Hộp trắng, viền xám, kích thước ban đầu khoảng 180×54 px, hiện trên lớp nổi của sheet.",
       "Nhấp vào hộp để sửa chữ. Kéo góc dưới bên phải để đổi cỡ; vị trí neo theo ô đã chọn, hiện chưa kéo hộp sang ô khác được. Nhấn Ctrl+S để lưu XLSX; khi mở lại trong Sheet hoặc Excel, nội dung, ô neo và kích thước được giữ. Xóa hộp bằng Ctrl+Z ngay sau khi chèn.",
       "Mỗi trang tính có danh sách hộp riêng. Hộp được xuất thành đối tượng DrawingML trong XLSX để Excel hiển thị và in cùng trang tính."
     ]

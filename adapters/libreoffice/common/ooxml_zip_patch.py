@@ -564,8 +564,8 @@ def _drawing_textbox_shape(box: dict, shape_id: int) -> str:
             col = col * 26 + ord(char) - 64
         col = max(0, col - 1)
     row = max(0, int(anchor.get("r", 1) or 1) - 1)
-    width = max(202, int(float(box.get("widthPx", 202) or 202)))
-    height = max(76, int(float(box.get("heightPx", 76) or 76)))
+    width = max(180, int(float(box.get("widthPx", 180) or 180)))
+    height = max(54, int(float(box.get("heightPx", 54) or 54)))
     text = str(box.get("text", ""))
     paragraphs = "".join(
         f"<a:p><a:r><a:rPr lang=\"vi-VN\" dirty=\"0\"/><a:t>{_escape_xml(line)}</a:t></a:r><a:endParaRPr lang=\"vi-VN\"/></a:p>"
@@ -697,8 +697,8 @@ def _parse_xlsx_drawing_text_boxes(xlsx_bytes: bytes) -> dict[str, list[dict]]:
             try:
                 col = max(0, int(values.get("col", "0")))
                 row = max(0, int(values.get("row", "0")))
-                width = max(202, round(int(extent.attrib.get("cx", "0")) / 9525))
-                height = max(76, round(int(extent.attrib.get("cy", "0")) / 9525))
+                width = max(180, round(int(extent.attrib.get("cx", "0")) / 9525))
+                height = max(54, round(int(extent.attrib.get("cy", "0")) / 9525))
             except (TypeError, ValueError):
                 continue
             column = ""

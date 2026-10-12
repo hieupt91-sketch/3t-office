@@ -2832,8 +2832,8 @@ export class SheetAdapter {
             id: `textbox-import-${sheetName}-${workbook.textBoxesBySheet[sheetName]?.length || 0}`,
             text: box.text,
             anchor: { c: String(box.anchor.c), r: Number(box.anchor.r) },
-            widthPx: Math.max(202, Number(box.widthPx) || 202),
-            heightPx: Math.max(76, Number(box.heightPx) || 76)
+            widthPx: Math.max(180, Number(box.widthPx) || 180),
+            heightPx: Math.max(54, Number(box.heightPx) || 54)
           }));
       } catch (_) {}
       return "";
@@ -3812,7 +3812,7 @@ export class SheetAdapter {
       const scenarios = this.grid.getScenarios ? this.grid.getScenarios(sheetName) : (this.grid.scenariosBySheet?.[sheetName] || []);
       const scenariosAttr = scenarios && scenarios.length ? ` vno:scenarios="${this._escapeXml(JSON.stringify(scenarios))}"` : "";
       const textBoxes = this.grid.textBoxesBySheet?.[sheetName] || [];
-      const textBoxesAttr = textBoxes.length ? ` vno:text-boxes="${this._escapeXml(JSON.stringify(textBoxes.map(box => ({ text: String(box.text || ""), anchor: box.anchor, widthPx: Math.max(202, Number(box.widthPx) || 202), heightPx: Math.max(76, Number(box.heightPx) || 76) }))))}"` : "";
+      const textBoxesAttr = textBoxes.length ? ` vno:text-boxes="${this._escapeXml(JSON.stringify(textBoxes.map(box => ({ text: String(box.text || ""), anchor: box.anchor, widthPx: Math.max(180, Number(box.widthPx) || 180), heightPx: Math.max(54, Number(box.heightPx) || 54) }))))}"` : "";
       const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${textBoxesAttr}${resolvedCommentsAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);
