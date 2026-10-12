@@ -214,6 +214,24 @@ export function countListMarkerStats(bodyEl) {
   return { words, charactersNoSpaces, charactersWithSpaces };
 }
 
+/**
+ * Word counts an explicit line break inside a paragraph as a character, but
+ * excludes paragraph marks. `innerText` exposes both as newlines, which the
+ * plain-text counter removes, so restore only real `<br>` elements in content
+ * blocks. Empty-paragraph placeholders (`<p><br></p>`) are not characters.
+ * @param {ParentNode | null | undefined} bodyEl
+ */
+export function countExplicitLineBreaks(bodyEl) {
+  if (!bodyEl || typeof bodyEl.querySelectorAll !== "function") return 0;
+  let count = 0;
+  for (const br of bodyEl.querySelectorAll("br")) {
+    const block = br.closest?.("p, h1, h2, h3, h4, h5, h6, li, blockquote");
+    if (!block || isFloatingShapeContent(block)) continue;
+    if (String(block.textContent || "").trim()) count += 1;
+  }
+  return count;
+}
+
 function formatNumber(value) {
   try {
     return Number(value || 0).toLocaleString("vi-VN");
