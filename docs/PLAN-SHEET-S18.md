@@ -10,13 +10,14 @@ Hoàn tất hai mục của `docs/tickets-0710/FIX-S18.md`:
 
 - Sheet đã giữ chart với `kind: "pivot"`, `pivotId` và `pivotSheet`; biểu đồ hiển thị dữ liệu Pivot đã tổng hợp.
 - Đường lưu XLSX của Sheet đã gọi postprocess Python tại `adapters/libreoffice/common/ooxml_zip_patch.py`. LibreOffice có thể xuất PivotTable và PivotCache trong cùng XLSX, nhưng chart đang được lưu như chart thường và thiếu `c:pivotSource`/`c:pivotFmts`.
-- Tái sử dụng PivotTable/PivotCache và chart XLSX do LibreOffice xuất; mở rộng postprocess hiện hữu để ghép chart với đúng PivotTable/Cache. Không thêm dependency và không sửa LibreOffice Core.
+- Tái sử dụng PivotTable/PivotCache và chart XLSX do LibreOffice xuất; mở rộng postprocess hiện hữu để ghép chart với đúng PivotTable/Cache. `c:pivotSource/c:name` phải theo dạng `[tên-tệp.xlsx]TênSheet!TênPivotTable`; Excel bỏ liên kết nếu thiếu tên workbook/sheet. Không thêm dependency và không sửa LibreOffice Core.
 - `gen_sheet_button_matrix.py` hiện đánh dấu `createFromSelection` là CHƯA ĐỐI CHIẾU dù đã có bằng chứng Excel COM về ba Names; cần đọc đúng `RefersTo` cho cả ba tên trước khi chuyển status.
 - PivotChart đã có Help tiếng Việt trong `platform/help/entries-sheet.js`; sẽ cập nhật chỉ dẫn cụ thể cho liên kết và làm mới sau khi xác minh đúng khả năng UI/lưu trữ.
 
 ## Files/modules dự kiến
 
 - `adapters/libreoffice/common/ooxml_zip_patch.py`: nhận diện chart Pivot từ FODS và ánh xạ nó tới PivotTable/PivotCache trong XLSX; chỉ chỉnh gói khi có PivotChart hợp lệ.
+- `main.py`: truyền tên file XLSX đích hiện có vào postprocess để tạo `c:pivotSource/c:name` chính xác; không đổi cơ chế lưu tệp.
 - `adapters/libreoffice/sheet/sheet-adapter.js` và/hoặc `apps/sheet/sheet-grid.js`: chỉ nếu payload FODS hiện tại không đủ để ánh xạ chart, truyền metadata cần thiết qua đường lưu hiện có.
 - `tests/test_sheet_pivot_chart_xlsx.py` và/hoặc `tests/unit/sheet-pivot-chart.test.js`: package tests cho liên kết chart/cache, nhiều PivotTable, và workbook không có PivotChart; không sửa fixture/expected để né lỗi.
 - `platform/help/entries-sheet.js`: hướng dẫn tiếng Việt về vị trí Chèn > Biểu đồ Pivot và làm mới Pivot.
@@ -47,6 +48,6 @@ Commit PLAN trước code. Commit ngay sau mỗi milestone độc lập. Nếu E
 
 1. Commit kế hoạch này trước mọi thay đổi lưu XLSX.
 2. Tìm payload/package và triển khai liên kết PivotChart trong adapter, cùng package tests; commit ngay khi phần triển khai hoàn chỉnh.
-3. CDP + Excel COM xác minh; sửa tiếp theo bằng commit nhỏ, chạy lại bước liên quan.
+3. CDP + Excel COM xác minh; Excel COM phải đọc được `Chart.PivotLayout.PivotTable.Name`; sửa tiếp theo bằng commit nhỏ, chạy lại bước liên quan.
 4. Cập nhật hướng dẫn và ma trận sau bằng chứng; commit mỗi phần.
 5. Chạy bộ xác minh theo ticket, ghi rõ mọi lỗi có sẵn và hoàn tất handoff S18.
