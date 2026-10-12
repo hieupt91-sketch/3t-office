@@ -3,7 +3,7 @@
  */
 
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
-import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats } from "../../apps/writer/word-count.js";
+import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlWhitespaceOnlyParagraphCharacters, extractWordCountText } from "../../apps/writer/word-count.js";
 import { WRITER_RIBBON_TABS } from "../../apps/writer/writer-ribbon.js";
 import { WRITER_COMMANDS } from "../../platform/commands/command-definitions.js";
 import { ICONS } from "../../platform/ui-kit/icons.js";
@@ -46,6 +46,54 @@ export async function runWriterWordCountTests() {
     }
     if (spaces.words !== 0 || spaces.paragraphs !== 0 || spaces.lines !== 0) {
       throw new Error(`Chỉ khoảng trắng không về 0: ${JSON.stringify(spaces)}`);
+    }
+    if (spaces.charactersWithSpaces !== 5) throw new Error(`Word vẫn tính run chỉ có khoảng trắng: ${JSON.stringify(spaces)}`);
+  });
+
+  await test("Word Count: giữ nguyên khoảng trắng lặp trong text node thay vì dùng innerText đã gộp", () => {
+    const body = { nodeType: 1, tagName: "DIV", childNodes: [] };
+    const paragraph = { nodeType: 1, tagName: "P", childNodes: [], parentElement: body };
+    const text = { nodeType: 3, nodeValue: "\nAlpha    beta", parentElement: paragraph };
+    paragraph.childNodes.push(text);
+    body.childNodes.push(paragraph);
+    const source = extractWordCountText(body);
+    const stats = countDocumentStats(source, { characterText: source });
+    if (stats.words !== 2 || stats.charactersNoSpaces !== 9 || stats.charactersWithSpaces !== 13) {
+      throw new Error(`Khoảng trắng lặp bị mất: ${JSON.stringify({ source, stats })}`);
+    }
+  });
+
+  await test("Word Count: bỏ tab phân cách ô và nội dung text frame, giữ text trong bảng", () => {
+    const makeElement = (tagName, children = [], attributes = {}) => {
+      const element = {
+        nodeType: 1, tagName, childNodes: children, parentElement: null,
+        hasAttribute: (name) => Object.hasOwn(attributes, name),
+        getAttribute: (name) => attributes[name] ?? null,
+        classList: { contains: () => false }
+      };
+      for (const child of children) child.parentElement = element;
+      return element;
+    };
+    const text = (value) => ({ nodeType: 3, nodeValue: value, parentElement: null });
+    const first = makeElement("P", [text("\nAlpha")]);
+    const second = makeElement("P", [text("Beta")]);
+    const cell1 = makeElement("TD", [first]);
+    const cell2 = makeElement("TD", [second]);
+    const row = makeElement("TR", [cell1, text("\n\t"), cell2]);
+    const table = makeElement("TABLE", [text("\n\t"), row]);
+    const float = makeElement("SPAN", [text("Frame words")], { "data-vno-float": "textbox" });
+    const body = makeElement("DIV", [table, float]);
+    const source = extractWordCountText(body);
+    const stats = countDocumentStats(source, { characterText: source });
+    if (stats.words !== 2 || stats.charactersNoSpaces !== 9 || stats.charactersWithSpaces !== 9) {
+      throw new Error(`Sai thống kê bảng/text frame: ${JSON.stringify({ source, stats })}`);
+    }
+  });
+
+  await test("Word Count: phục hồi run chỉ có khoảng trắng từ OOXML, bỏ qua text frame", () => {
+    const xml = '<w:document><w:body><w:p><w:r><w:t>Alpha</w:t></w:r></w:p><w:p><w:r><w:t xml:space="preserve">   </w:t></w:r></w:p><w:p><w:r><w:txbxContent><w:p><w:r><w:t>Frame</w:t></w:r></w:p></w:txbxContent></w:r></w:p></w:body></w:document>';
+    if (countOoxmlWhitespaceOnlyParagraphCharacters(xml) !== 3) {
+      throw new Error(`Không phục hồi đúng run khoảng trắng: ${countOoxmlWhitespaceOnlyParagraphCharacters(xml)}`);
     }
   });
 

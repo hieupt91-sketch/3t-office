@@ -53,7 +53,7 @@ import {
   tableOfFiguresTitle,
   tofMarkerHtml
 } from "../../../apps/writer/captions.js";
-import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, showWordCountDialog } from "../../../apps/writer/word-count.js";
+import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlWhitespaceOnlyParagraphCharacters, extractWordCountText, showWordCountDialog } from "../../../apps/writer/word-count.js";
 import { showFontDialog } from "../../../apps/writer/font-dialog.js";
 
 let writerInsertDialogsPromise;
@@ -289,6 +289,7 @@ export class WriterAdapter {
     this.editorDom = editorDom;
     this.documentContent = "";
     this.isDirty = false;
+    this._wordCountWhitespaceOnlyCharacters = 0;
     this.isNewApplicationDocument = true;
     this._openedEditorDomHash = null;
     this.sourceFileName = "TaiLieu";
@@ -2353,27 +2354,21 @@ export class WriterAdapter {
       return countDocumentStats(selectedText, { scope: "selection" });
     }
 
-    const text = body.innerText != null ? body.innerText : (body.textContent || "");
-    const floatingShapes = Array.from(body.querySelectorAll('[data-vno-float]'))
-      .filter((shape) => !shape.parentElement?.closest?.('[data-vno-float]'));
+    const text = extractWordCountText(body);
     const paragraphCount = countBlockParagraphs(body);
     const lineCount = countBlockLines(body);
     const markerStats = countListMarkerStats(body);
     markerStats.charactersWithSpaces += countExplicitLineBreaks(body);
+    const importedWhitespaceOnlyCharacters = this.isDirty
+      ? 0
+      : (Number(this._wordCountWhitespaceOnlyCharacters) || 0);
     const stats = countDocumentStats(text, {
       scope: "document",
+      characterText: text + " ".repeat(importedWhitespaceOnlyCharacters),
       paragraphCount,
       lineCount: lineCount == null ? undefined : lineCount,
       markerStats
     });
-    // Word's document statistics omit floating text boxes and shapes. They are
-    // visible in Writer's DOM body, so subtract their text explicitly.
-    for (const shape of floatingShapes) {
-      const floatingStats = countDocumentStats(shape.innerText ?? shape.textContent ?? "");
-      stats.words = Math.max(0, stats.words - floatingStats.words);
-      stats.charactersWithSpaces = Math.max(0, stats.charactersWithSpaces - floatingStats.charactersWithSpaces);
-      stats.charactersNoSpaces = Math.max(0, stats.charactersNoSpaces - floatingStats.charactersNoSpaces);
-    }
     return stats;
   }
 
@@ -15588,6 +15583,7 @@ export class WriterAdapter {
 
     if (result.status === "ok") {
       this.isDirty = false;
+      this._wordCountWhitespaceOnlyCharacters = 0;
       const savedPath = result.path || this._sourcePath;
       if (savedPath) {
         const savedFileName = savedPath.split(/[/\\]/).pop();
@@ -15640,6 +15636,7 @@ export class WriterAdapter {
         return true;
       }
       this.isDirty = false;
+      this._wordCountWhitespaceOnlyCharacters = 0;
       if (savedPath) {
         this._sourcePath = savedPath;
         const savedFileName = savedPath.split(/[/\\]/).pop();
@@ -15712,6 +15709,7 @@ export class WriterAdapter {
       }
       this._initZones();
       this._sourcePath = result.sourcePath || null;
+      this._wordCountWhitespaceOnlyCharacters = countOoxmlWhitespaceOnlyParagraphCharacters(result.ooxmlDocumentXml);
       this.isNewApplicationDocument = false;
       this.bodyDom?.classList?.remove("vno-new-application-document");
       // Comments chỉ thuộc tài liệu đang mở trong phiên; file khác không dùng lại anchor cũ.
@@ -15833,6 +15831,7 @@ export class WriterAdapter {
     if (!/<(?:html|body|div|p|table|span|h[1-6]|ul|ol)\b/i.test(String(content || ""))) return false;
     this._initZones();
     this._sourcePath = null;
+    this._wordCountWhitespaceOnlyCharacters = 0;
     this.isNewApplicationDocument = false;
     this.bodyDom?.classList?.remove("vno-new-application-document");
     this.comments = [];
@@ -15911,6 +15910,7 @@ export class WriterAdapter {
   async newDocument() {
     this._initZones();
     this._sourcePath = null;
+    this._wordCountWhitespaceOnlyCharacters = 0;
     this.isNewApplicationDocument = true;
     this.comments = [];
     this.trackChangesEnabled = false;
