@@ -5,6 +5,7 @@ import { fileURLToPath } from "node:url";
 import { mkdir } from "node:fs/promises";
 import { writeFile } from "node:fs/promises";
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+const renderedNode = "n=>{for(let e=n;e&&e!==document.documentElement;e=e.parentElement){const r=e.getBoundingClientRect(),s=getComputedStyle(e);if(e.hidden||e.getAttribute('aria-hidden')==='true'||r.width<=0||r.height<=0||s.display==='none'||s.visibility==='hidden'||Number(s.opacity)===0)return false}return true}";
 const root = process.env.VNO_APP_ROOT || path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../..");
 const dir = process.env.VNO_CDP_LOCALAPPDATA;
 if (!dir) throw new Error("Set VNO_CDP_LOCALAPPDATA to a dedicated audit profile.");
@@ -32,6 +33,27 @@ const ops = [
   ["zoomOut","A1","click","sheet.view.zoomOut"],
   ["freezePanes","B2","click","sheet.view.freezePanes"],["showFormulas","A1","click","sheet.formula.showFormulas"],["formulaBar","A1","click","sheet.view.formulaBar"],["normalView","A1","click","sheet.view.normal"],["pageBreakPreview","A1","click","sheet.view.pageBreakPreview"],["pageLayoutView","A1","click","sheet.view.pageLayout"],["gridlines","A1","click","sheet.view.gridlines"],["headings","A1","click","sheet.view.headings"],["printArea","A1","click","sheet.page.setPrintArea"],["clearArea","A1","click","sheet.page.clearPrintArea"],
   ["pageSetup","A1","pageSetup","sheet.page.margins","landscape"],
+  ["pageSize","A1","pageSize","sheet.page.size","Legal"],
+  ["pageScale","A1","pageScale","sheet.page.scale","80"],
+  ["printTitles","A1","pageTitles","sheet.page.printTitles","1:1"],
+  ["headerFooter","A1","headerFooter","sheet.page.headerFooter","VN Office S12"],
+  ["insertPageBreak","C5","pageBreak","sheet.page.insertPageBreak"],
+  ["removePageBreak","C5","pageBreak","sheet.page.removePageBreak"],
+  ["hyperlink","G2","hyperlink","sheet.insert.hyperlink"],
+  ["commentInsert","C2","commentInsert","sheet.review.commentInsert"],
+  ["commentDelete","C2","click","sheet.review.commentDelete"],
+  ["commentSecond","D2","commentInsert","sheet.review.commentInsert"],
+  ["commentPrevious","D2","click","sheet.review.commentPrevious"],
+  ["commentNext","C2","click","sheet.review.commentNext"],
+  ["defineName","B2","defineName","sheet.formula.defineName"],
+  ["insertFunction","H2","click","sheet.formula.insertFunction"],
+  ["createNames","A1","range","sheet.formula.createFromSelection","A1:C6"],
+  ["useInFormula","H2","click","sheet.formula.useInFormula"],
+  ["formulaRecalculate","H2","click","sheet.formula.recalculate"],
+  ["calculateSheet","H2","click","sheet.calc.calculateSheet"],
+  ["errorChecking","H2","click","sheet.formula.errorChecking"],
+  ["formulaError","H2","type",null,"=1/0"],
+  ["image","B2","image","sheet.insert.image"],
   ["rotation90","B2","orientation","sheet.cell.orientation","90"],
   ["widthControl","B2","widthControl",null,null],
   ["definedName","B2","nameManager","sheet.formula.nameManager","SampleNames"],
@@ -41,6 +63,8 @@ const ops = [
   ["chartLine","A1","chartVariant","sheet.chart.insert","line"],
   ["chartPie","A1","chartVariant","sheet.chart.insert","pie"],
   ["chartArea","A1","chartVariant","sheet.chart.insert","area"],
+  ["pivotChart","A1","click","sheet.chart.pivotChart"],
+  ["sparklineLine","C2","range","sheet.insert.sparklineLine","C2:C6"],["sparklineColumn","C2","range","sheet.insert.sparklineColumn","C2:C6"],
   ["removeDuplicates","A1","removeDuplicates","sheet.data.removeDuplicates","A1:A6"],
   ["fillRight","C2","shortcutRight","Ctrl+R","C2:D2"],
   ["formulaSum","H2","type",null,"=SUM(C2:C6)"],["formulaAverage","H3","type",null,"=AVERAGE(C2:C6)"],
@@ -219,7 +243,7 @@ for (const [name, cell, kind, id, value] of ops) {
       const align=JSON.parse(await pos("#vno-fc-tab-alignment"));
       if(!align) status="NO_ALIGNMENT_TAB";
       else {await mouseClick(session.cdp,align.x,align.y);await sleep(150);const angle=JSON.parse(await pos('.vno-fc-orient-btn[data-angle="90"]'));if(!angle)status="NO_90_DEGREE_OPTION";else{await mouseClick(session.cdp,angle.x,angle.y);const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);const evidenceDir=path.join(root,"docs","tickets-0710","evidence");await mkdir(evidenceDir,{recursive:true});await writeFile(path.join(evidenceDir,"fix-s8-text-rotation.png"),Buffer.from((shot.result||shot).data,"base64"));const apply=JSON.parse(await pos(".vno-fc-ok-btn"));if(!apply)status="NO_FORMAT_CELLS_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="set Orientation=90 through Format Cells";}}}
-    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pivotRefresh" || kind === "groupRows" || kind === "subtotal" || kind === "consolidate" || kind === "pageSetup" || kind === "removeDuplicates" || kind === "textToColumns") {
+    } else if (kind === "click" || kind === "merge" || kind === "range" || kind === "flashFill" || kind === "conditional" || kind === "tableStyle" || kind === "cellStyle" || kind === "promptNumber" || kind === "nameManager" || kind === "defineName" || kind === "validation" || kind === "chart" || kind === "chartVariant" || kind === "pivotTable" || kind === "pivotRefresh" || kind === "groupRows" || kind === "subtotal" || kind === "consolidate" || kind === "pageSetup" || kind === "pageSize" || kind === "pageScale" || kind === "pageTitles" || kind === "headerFooter" || kind === "pageBreak" || kind === "hyperlink" || kind === "commentInsert" || kind === "image" || kind === "removeDuplicates" || kind === "textToColumns") {
       if (kind === "consolidate") await mouseClick(session.cdp,pos.x,pos.y);
       if (kind === "groupRows") {
         const a=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-row-header[data-row="2"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
@@ -249,11 +273,22 @@ for (const [name, cell, kind, id, value] of ops) {
         if (!end) throw new Error("Could not locate text-to-columns range end B6");
         await mouseDrag(session.cdp,pos.x,pos.y,end.x,end.y);
       }
-      const tabId = id.startsWith("sheet.view.") ? "view" : id.startsWith("sheet.page.") ? "pageLayout" : id.startsWith("sheet.data.") ? "data" : id.startsWith("sheet.formula.") ? "formulas" : id.startsWith("sheet.chart.") ? "insert" : "home";
-      const tabPos = JSON.parse(await ev(`(() => { const n=document.querySelector('#vno-ribbon-tab-${tabId}'); if(!n)return 'null'; const r=n.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,active:n.classList.contains('is-active')}) })()`));
-      if (!tabPos) throw new Error("Ribbon tab missing: " + tabId); if (!tabPos.active) await mouseClick(session.cdp, tabPos.x, tabPos.y); await session.cdp.waitFor(`document.querySelector('#vno-ribbon-tab-${tabId}')?.classList.contains('is-active') && !!document.querySelector('#vno-ribbon-tabpanel-${tabId}')`, { timeoutMilliseconds: 10000, intervalMilliseconds: 100 });
-      const button = JSON.parse(await ev(`(() => { const panel=document.querySelector("#vno-ribbon-tabpanel-${tabId}"); if(!panel)return 'null'; const nodes=[...panel.querySelectorAll('[data-command-id="${id}"]')]; const visible=n=>{const r=n.getBoundingClientRect(),s=getComputedStyle(n);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'}; const group=nodes[0]?.closest('.vno-ribbon-group.vno-group-collapsed'); const btn=group?.querySelector('.vno-ribbon-group-collapsed-btn'); if(btn&&visible(btn)){const r=btn.getBoundingClientRect();return JSON.stringify({collapsed:{x:r.left+r.width/2,y:r.top+r.height/2}})} const v=nodes.find(visible); if(v){const r=v.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})} const dropdownId=${JSON.stringify(id.startsWith("sheet.row.")||id.startsWith("sheet.col.")?"sheet.cells.format":id.startsWith("sheet.view.freeze")?"sheet.view.freezePanesMenu":"")}; const dd=dropdownId&&document.querySelector('[data-dropdown-id="'+dropdownId+'"]'); if(dd&&visible(dd)){const r=dd.getBoundingClientRect();return JSON.stringify({dropdown:{x:r.left+r.width/2,y:r.top+r.height/2}})} return 'null' })()`));
-      if (!button) status = "NO_BUTTON";
+      const tabId = id.startsWith("sheet.view.") ? "view" : id === "sheet.page.headerFooter" ? "insert" : id.startsWith("sheet.page.") ? "pageLayout" : id.startsWith("sheet.data.") ? "data" : id.startsWith("sheet.formula.") || id.startsWith("sheet.calc.") ? "formulas" : id.startsWith("sheet.chart.") || id.startsWith("sheet.insert.") ? "insert" : id.startsWith("sheet.review.") ? "review" : "home";
+      const tabPos = JSON.parse(await ev(`(() => { const visible=${renderedNode}; const n=[...document.querySelectorAll('#vno-ribbon-tab-${tabId}')].find(visible); if(!n)return 'null'; const r=n.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,active:n.classList.contains('is-active')}) })()`));
+      if (!tabPos) throw new Error("Visible ribbon tab missing: " + tabId); if (!tabPos.active) await mouseClick(session.cdp, tabPos.x, tabPos.y); await session.cdp.waitFor(`(() => { const visible=${renderedNode}; const n=[...document.querySelectorAll('#vno-ribbon-tab-${tabId}')].find(visible),p=[...document.querySelectorAll('#vno-ribbon-tabpanel-${tabId}')].find(visible); return !!n?.classList.contains('is-active')&&!!p; })()`, { timeoutMilliseconds: 10000, intervalMilliseconds: 100 });
+      await sleep(350);
+      let fileChooserBackendNodeId = null;
+      let fileChooserListener = null;
+      if (kind === "image") {
+        if (!process.env.VNO_AUDIT_IMAGE) throw new Error("Set VNO_AUDIT_IMAGE to a harmless image fixture.");
+        await session.cdp.send("Page.enable"); await session.cdp.send("DOM.enable"); await session.cdp.send("Page.setInterceptFileChooserDialog", { enabled: true });
+        fileChooserListener = event => { try { const msg = JSON.parse(String(event.data)); if (msg.method === "Page.fileChooserOpened") fileChooserBackendNodeId = msg.params.backendNodeId; } catch {} };
+        session.cdp.socket.addEventListener("message", fileChooserListener);
+      }
+      const button = JSON.parse(await ev(`(() => { const visible=${renderedNode}; const panel=[...document.querySelectorAll('#vno-ribbon-tabpanel-${tabId}')].find(visible); if(!panel)return 'null'; const nodes=[...panel.querySelectorAll('[data-command-id="${id}"]')]; const hitVisible=n=>visible(n)&&(()=>{const r=n.getBoundingClientRect(),h=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);return h===n||n.contains(h)})(); const hit=nodes.find(hitVisible); const group=(hit||nodes[0])?.closest('.vno-ribbon-group.vno-group-collapsed'); const btn=group?.querySelector('.vno-ribbon-group-collapsed-btn'); if(btn&&visible(btn)){const r=btn.getBoundingClientRect();return JSON.stringify({collapsed:{x:r.left+r.width/2,y:r.top+r.height/2}})} const v=hit; if(v){const r=v.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})} const dropdownId=${JSON.stringify(id.startsWith("sheet.row.")||id.startsWith("sheet.col.")?"sheet.cells.format":id.startsWith("sheet.view.freeze")?"sheet.view.freezePanesMenu":"")}; const dd=[...document.querySelectorAll('[data-dropdown-id="'+dropdownId+'"]')].find(visible); if(dd){const r=dd.getBoundingClientRect();return JSON.stringify({dropdown:{x:r.left+r.width/2,y:r.top+r.height/2}})} return 'null' })()`));
+      if (!button) {
+        status = "NO_BUTTON";
+      }
       else if (button.collapsed) {
         await mouseClick(session.cdp, button.collapsed.x, button.collapsed.y); await sleep(250);
         const item = JSON.parse(await ev(`(() => { const n=document.querySelector('.vno-ribbon-group-popover [data-command-id="${id}"]'); if(!n) return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2}) })()`));
@@ -264,7 +299,25 @@ for (const [name, cell, kind, id, value] of ops) {
         const item=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-ribbon-dropdown-menu [data-command-id="${id}"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
         if(!item) status="NO_DROPDOWN_ITEM"; else {await mouseClick(session.cdp,item.x,item.y); status="clicked";}
       } else { await mouseClick(session.cdp, button.x, button.y); status = "clicked"; }
+      if (kind === "image" && status === "clicked") {
+        for (let attempt = 0; attempt < 100 && !fileChooserBackendNodeId; attempt++) await sleep(50);
+        if (!fileChooserBackendNodeId) status = "NO_FILE_CHOOSER";
+        else {
+          await session.cdp.send("DOM.setFileInputFiles", { backendNodeId: fileChooserBackendNodeId, files: [path.resolve(process.env.VNO_AUDIT_IMAGE)] });
+          await session.cdp.waitFor("(window.__vnoAppInstance.grid.imagesBySheet[window.__vnoAppInstance.grid.activeSheet]||[]).length>0", { timeoutMilliseconds: 15000, intervalMilliseconds: 100 });
+          const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
+          await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
+          status = "inserted image by selecting file through CDP file chooser";
+        }
+        if (fileChooserListener) session.cdp.socket.removeEventListener("message", fileChooserListener);
+      }
       if (kind === "pivotRefresh" && status === "clicked") status = "changed source C2 to 2222 and refreshed pivot";
+      if (name === "pivotChart" && status === "clicked") {
+        await sleep(250);
+        const dialog = await ev("!!document.querySelector('.vno-dialog-overlay [data-chart-apply]')");
+        if (!dialog) status = "NO_PIVOT_CHART_DIALOG";
+        else { await press(session.cdp, "Enter"); await session.cdp.waitFor("!document.querySelector('.vno-dialog-overlay [data-chart-apply]')", { timeoutMilliseconds: 5000, intervalMilliseconds: 100 }); status = "inserted Pivot bar chart by Enter"; }
+      }
       if (kind === "pivotTable" && status === "clicked") {
         await sleep(250);
         const row=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-pivot-field[data-field="Họ tên"] input[data-zone="rows"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
@@ -282,6 +335,162 @@ for (const [name, cell, kind, id, value] of ops) {
         if(!group)status="NO_SUBTOTAL_DIALOG";else {await mouseClick(session.cdp,group.x,group.y);await press(session.cdp,"ArrowDown");await press(session.cdp,"Enter");const b=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-st-col[value="B"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,checked:n.checked})})()`));if(!b)status="NO_SUBTOTAL_COLUMNS";else{if(b.checked)await mouseClick(session.cdp,b.x,b.y);const apply=JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));if(!apply)status="NO_SUBTOTAL_APPLY";else{await mouseClick(session.cdp,apply.x,apply.y);status="subtotal by Họ tên using SUM of Số tiền";}}}
       }
       if (kind === "flashFill" && status === "clicked") status = "applied Flash Fill K2:K6 using last-name initial examples";
+      if (name === "insertFunction" && status === "clicked") {
+        await sleep(150);
+        const search = JSON.parse(await ev(`(() => {const n=document.querySelector('#vno-func-search');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if (!search) status = "NO_FUNCTION_SEARCH";
+        else {
+          await mouseClick(session.cdp, search.x, search.y); await typeText(session.cdp, "TODAY"); await sleep(100);
+          const item = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-func-item[data-func-name="TODAY"]');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if (!item) status = "NO_TODAY_FUNCTION";
+          else {
+            await mouseClick(session.cdp, item.x, item.y); await sleep(75);
+            const selected = await ev(`document.querySelector('.vno-func-item.is-selected')?.dataset.funcName||''`);
+            if (selected !== "TODAY") status = "FUNCTION_SELECTION_MISMATCH:" + selected;
+            else {
+              const insert = JSON.parse(await ev(`(() => {const n=document.querySelector('#vno-fx-insert-btn');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+              if (!insert) status = "NO_INSERT_FUNCTION_BUTTON";
+              else { await mouseClick(session.cdp, insert.x, insert.y); await sleep(150); const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000); await writeFile(path.join(root,"docs","tickets-0710","evidence","fix-s12-insertFunction.png"),Buffer.from((shot.result||shot).data,"base64")); status = "inserted selected TODAY function into H2 via fx dialog"; }
+            }
+          }
+        }
+      }
+      if (name === "createNames" && status === "clicked") {
+        const names = await ev(`JSON.stringify(window.__vnoAppInstance.grid.namedRangesWorkbook)`);
+        const shot = await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);
+        await writeFile(path.join(root,"docs","tickets-0710","evidence","fix-s12-createNames.png"),Buffer.from((shot.result||shot).data,"base64"));
+        status = "created names from A1:C6 headers: " + names;
+      }
+      if (name === "useInFormula" && status === "clicked") {
+        await sleep(100);
+        const item = await ev(`document.querySelector('.vno-paste-name-item.is-selected')?.dataset.name||''`);
+        const apply = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if (!item) status = "NO_DEFINED_NAME_IN_DIALOG";
+        else if (!apply) status = "NO_PASTE_NAME_APPLY";
+        else { await mouseClick(session.cdp,apply.x,apply.y); status = "inserted defined name " + item + " into H2"; const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000); await writeFile(path.join(root,"docs","tickets-0710","evidence","fix-s12-useInFormula.png"),Buffer.from((shot.result||shot).data,"base64")); }
+      }
+      if ((kind === "pageSize" || kind === "pageScale") && status === "clicked") {
+        await sleep(150);
+        const selector = kind === "pageSize" ? "#vno-sheet-size" : "#vno-sheet-scale-percent";
+        const field = JSON.parse(await ev(`(() => {const n=document.querySelector(${JSON.stringify(selector)});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if (!field) status = "NO_PAGE_SETUP_FIELD";
+        else {
+          await mouseClick(session.cdp, field.x, field.y);
+          if (kind === "pageSize") { await press(session.cdp, "Home"); await press(session.cdp, "ArrowDown"); await press(session.cdp, "ArrowDown"); await press(session.cdp, "Enter"); }
+          else { await mouseTripleClick(session.cdp, field.x, field.y); await press(session.cdp, "Home"); await press(session.cdp, "End", { shift: true }); await press(session.cdp, "Backspace"); await typeText(session.cdp, value); }
+          const apply = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          const inputState = await ev(`JSON.stringify({value:document.querySelector(${JSON.stringify(selector)})?.value,active:document.activeElement?.id})`);
+          if (!apply) status = "NO_PAGE_SETUP_APPLY";
+          else {
+            await mouseClick(session.cdp, apply.x, apply.y);
+            const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
+            await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
+            status = kind === "pageSize" ? "selected Legal paper size; " + inputState : "input=" + inputState + " setup=" + await ev("JSON.stringify(window.__vnoAppInstance.grid.getPageSetup())");
+          }
+        }
+      }
+      if (kind === "pageTitles" && status === "clicked") {
+        await sleep(150);
+        const field = JSON.parse(await ev(`(() => {const n=document.querySelector('#vno-sheet-title-rows');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if (!field) status = "NO_PRINT_TITLES_FIELD";
+        else {
+          await mouseTripleClick(session.cdp, field.x, field.y); await press(session.cdp, "Home"); await press(session.cdp, "End", { shift: true }); await press(session.cdp, "Backspace"); await typeText(session.cdp, value);
+          const apply = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if (!apply) status = "NO_PRINT_TITLES_APPLY";
+          else { await mouseClick(session.cdp, apply.x, apply.y); status = "set print title rows to 1:1"; }
+          const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
+          await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
+        }
+      }
+      if (kind === "headerFooter" && status === "clicked") {
+        await sleep(150);
+        const field = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog #vno-sheet-header-right');if(!n)return 'null';const r=n.getBoundingClientRect(),hit=document.elementFromPoint(r.left+r.width/2,r.top+r.height/2);const s=getComputedStyle(n),o=n.closest('.vno-sheet-rule-dialog'),or=o.getBoundingClientRect(),b=o.querySelector('.vno-dialog-box'),br=b.getBoundingClientRect(),bs=getComputedStyle(b);return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,visible:r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden',hit:hit?.id||hit?.className||hit?.tagName,overlay:{x:or.left,y:or.top,w:or.width,h:or.height},box:{x:br.left,y:br.top,w:br.width,h:br.height,z:bs.zIndex,display:bs.display,visibility:bs.visibility}})})()`));
+        if (!field) status = "NO_HEADER_FOOTER_FIELD";
+        else if (!field.visible || field.hit !== "vno-sheet-header-right") { status = "HEADER_FOOTER_FIELD_NOT_HIT:" + JSON.stringify(field); const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000); await writeFile(path.join(root,"docs","tickets-0710","evidence",`fix-s12-${name}.png`),Buffer.from((shot.result||shot).data,"base64")); }
+        else {
+          await mouseTripleClick(session.cdp, field.x, field.y); await press(session.cdp, "Home"); await press(session.cdp, "End", { shift: true }); await press(session.cdp, "Backspace"); await typeText(session.cdp, value);
+          const entered = await ev(`document.querySelector('.vno-sheet-rule-dialog #vno-sheet-header-right')?.value||''`);
+          if (entered !== value) status = "HEADER_FOOTER_INPUT_MISMATCH:" + entered;
+          const apply = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if (status.startsWith("HEADER_FOOTER_INPUT_MISMATCH:")) {}
+          else if (!apply) status = "NO_HEADER_FOOTER_APPLY";
+          else { await mouseClick(session.cdp, apply.x, apply.y); status = "set right header to " + value; }
+          const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
+          await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
+        }
+      }
+      if (kind === "pageBreak" && status === "clicked") {
+        const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
+        await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
+        status = id.endsWith("insertPageBreak") ? "inserted page breaks at C5 through ribbon" : "removed page breaks at C5 through ribbon";
+      }
+      if ((kind === "hyperlink" || kind === "commentInsert") && status === "clicked") {
+        await sleep(200);
+        const fill = async (selector, text) => {
+          const field = JSON.parse(await ev(`(() => {const n=document.querySelector(${JSON.stringify(selector)});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if (!field) throw new Error("Missing dialog field " + selector);
+          await mouseTripleClick(session.cdp, field.x, field.y); await press(session.cdp, "Home"); await press(session.cdp, "End", { shift: true }); await press(session.cdp, "Backspace"); await typeText(session.cdp, text);
+        };
+        if (kind === "hyperlink") {
+          await fill(".vno-hyperlink-text-input", "Trang chủ VN Office");
+          await fill(".vno-hyperlink-url-input", "https://vnoffice.vn");
+          const apply = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-hyperlink-dialog .vno-dialog-ok-btn');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if (!apply) status = "NO_HYPERLINK_APPLY";
+          else { await mouseClick(session.cdp, apply.x, apply.y); status = "inserted https://vnoffice.vn hyperlink into G2"; }
+        } else {
+          await fill("#vno-comment-text", "Ghi chú kiểm thử S12");
+          const apply = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if (!apply) status = "NO_COMMENT_APPLY";
+          else { await mouseClick(session.cdp, apply.x, apply.y); status = "inserted comment at C2"; }
+        }
+        if (status.startsWith("inserted ")) {
+          const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
+          await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
+        }
+      }
+      if (kind === "defineName" && status === "clicked") {
+        await sleep(150);
+        const fill = async (selector, text) => {
+          const field = JSON.parse(await ev(`(() => {const n=document.querySelector(${JSON.stringify(selector)});if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+          if (!field) throw new Error("Missing Define Name field " + selector);
+          await mouseTripleClick(session.cdp, field.x, field.y); await press(session.cdp, "Home"); await press(session.cdp, "End", { shift: true }); await press(session.cdp, "Backspace"); await typeText(session.cdp, text);
+        };
+        await fill("#vno-defname-name", "S12Cell");
+        await fill("#vno-defname-ref", "B2");
+        const apply = JSON.parse(await ev(`(() => {const n=document.querySelector('.vno-sheet-rule-dialog .vno-rule-apply');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
+        if (!apply) status = "NO_DEFINE_NAME_APPLY";
+        else { await mouseClick(session.cdp, apply.x, apply.y); status = "defined workbook name S12Cell for B2"; }
+        if (status.startsWith("defined ")) {
+          const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
+          await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
+        }
+      }
+      if (kind === "click" && ["sheet.formula.recalculate", "sheet.calc.calculateSheet", "sheet.formula.errorChecking"].includes(id) && status === "clicked") {
+        await sleep(150);
+        const checkerState = id === "sheet.formula.errorChecking" ? await ev("JSON.stringify({rows:document.querySelectorAll('.vno-error-row').length,text:document.querySelector('.vno-error-checking-dialog')?.innerText||''})") : "";
+        const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
+        await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
+        status = id === "sheet.formula.recalculate" ? "clicked full workbook recalculation" : id === "sheet.calc.calculateSheet" ? "clicked active sheet recalculation" : "opened Formula Error Checking " + checkerState;
+        if (id === "sheet.formula.errorChecking") await press(session.cdp, "Escape");
+      }
+      if (kind === "click" && id === "sheet.review.commentDelete" && status === "clicked") {
+        const commentState = await ev("JSON.stringify(window.__vnoAppInstance.grid.commentsBySheet[window.__vnoAppInstance.grid.activeSheet])");
+        const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
+        await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
+        status = "deleted selected comment; remaining=" + commentState;
+      }
+      if (kind === "click" && ["sheet.cell.alignTop", "sheet.cell.alignMiddle", "sheet.cell.alignBottom", "sheet.cell.wrapText"].includes(id) && status === "clicked") {
+        const cellState = await ev(`JSON.stringify({selected:window.__vnoAppInstance.grid.selectedCoord,cell:window.__vnoAppInstance.grid.cellsData.get("${cell}")})`);
+        const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
+        await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
+        status = "clicked; " + cellState;
+      }
+      if (kind === "click" && ["sheet.review.commentPrevious", "sheet.review.commentNext"].includes(id) && status === "clicked") {
+        const selection = await ev("JSON.stringify({selected:window.__vnoAppInstance.grid.selectedCoord,comments:window.__vnoAppInstance.grid.commentsBySheet[window.__vnoAppInstance.grid.activeSheet]})");
+        const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" }, 60000);
+        await writeFile(path.join(root, "docs", "tickets-0710", "evidence", `fix-s12-${name}.png`), Buffer.from((shot.result || shot).data, "base64"));
+        status = "navigated comment; " + selection;
+      }
       if (kind === "textToColumns" && status === "clicked") {
         await sleep(150);
         const select = JSON.parse(await ev(`(() => {const n=document.querySelector('#vno-ttc-del');if(!n)return 'null';const r=n.getBoundingClientRect();return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2})})()`));
@@ -374,29 +583,29 @@ for (const [name, cell, kind, id, value] of ops) {
         if(!apply)status="NO_DUPLICATE_DIALOG"; else {await mouseClick(session.cdp,apply.x,apply.y);status="removed duplicate ID";}
       }
     } else {
-      const homeTab = JSON.parse(await ev(`(() => { const n=document.querySelector('#vno-ribbon-tab-home'); if(!n) return 'null'; const r=n.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,active:n.classList.contains('is-active')}); })()`));
-      if (!homeTab) throw new Error("Home ribbon tab is missing"); if (!homeTab.active) { await mouseClick(session.cdp, homeTab.x, homeTab.y); await session.cdp.waitFor("document.querySelector('#vno-ribbon-tab-home')?.classList.contains('is-active')", { timeoutMilliseconds: 10000, intervalMilliseconds: 100 }); }
-      let choice = JSON.parse(await ev(`(() => { const s=document.querySelector('select[data-command-id="${id}"]'); if(!s) return 'null'; const r=s.getBoundingClientRect(),g=s.closest('.vno-ribbon-group.vno-group-collapsed'),b=g?.querySelector('.vno-ribbon-group-collapsed-btn'),br=b?.getBoundingClientRect(); const options=[...s.options]; const index=options.findIndex(o=>o.value===${JSON.stringify(value)}),currentIndex=options.findIndex(o=>o.value===s.value); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,index,currentIndex,count:options.length,initial:s.value,collapsed:!!(br?.width&&br?.height),cx:br?.left+br?.width/2,cy:br?.top+br?.height/2,visible:!!(r.width&&r.height)}); })()`));
+      const homeTab = JSON.parse(await ev(`(() => { const visible=${renderedNode}; const n=[...document.querySelectorAll('#vno-ribbon-tab-home')].find(visible); if(!n) return 'null'; const r=n.getBoundingClientRect(); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,active:n.classList.contains('is-active')}); })()`));
+      if (!homeTab) throw new Error("Visible Home ribbon tab is missing"); if (!homeTab.active) { await mouseClick(session.cdp, homeTab.x, homeTab.y); await session.cdp.waitFor("(() => { const n=[...document.querySelectorAll('#vno-ribbon-tab-home')].find(x=>{const r=x.getBoundingClientRect();return r.width>0&&r.height>0}); return !!n?.classList.contains('is-active'); })()", { timeoutMilliseconds: 10000, intervalMilliseconds: 100 }); }
+      let choice = JSON.parse(await ev(`(() => { const visible=n=>{const r=n.getBoundingClientRect(),s=getComputedStyle(n);return r.width>0&&r.height>0&&s.display!=='none'&&s.visibility!=='hidden'}; const s=[...document.querySelectorAll('select[data-command-id="${id}"]')].find(visible); if(!s) return 'null'; const r=s.getBoundingClientRect(),g=s.closest('.vno-ribbon-group.vno-group-collapsed'),b=g?.querySelector('.vno-ribbon-group-collapsed-btn'),br=b?.getBoundingClientRect(); const options=[...s.options]; const index=options.findIndex(o=>o.value===${JSON.stringify(value)}),currentIndex=options.findIndex(o=>o.value===s.value); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,index,currentIndex,count:options.length,initial:s.value,collapsed:!!(br?.width&&br.height),cx:br?.left+br.width/2,cy:br?.top+br.height/2,visible:true}); })()`));
       if (!choice) status = "NO_SELECT";
       else if (choice.index < 0) status = "VALUE_NOT_AVAILABLE";
       else {
         if (choice.collapsed) {
           await mouseClick(session.cdp, choice.cx, choice.cy); await sleep(200);
-          choice = JSON.parse(await ev(`(() => { const s=document.querySelector('.vno-ribbon-group-popover select[data-command-id="${id}"]'); if(!s) return 'null'; const r=s.getBoundingClientRect(),options=[...s.options],index=options.findIndex(o=>o.value===${JSON.stringify(value)}),currentIndex=options.findIndex(o=>o.value===s.value); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,index,currentIndex,count:options.length,initial:s.value,visible:!!(r.width&&r.height)}); })()`));
+          choice = JSON.parse(await ev(`(() => { const s=[...document.querySelectorAll('.vno-ribbon-group-popover select[data-command-id="${id}"]')].find(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0}); if(!s) return 'null'; const r=s.getBoundingClientRect(),options=[...s.options],index=options.findIndex(o=>o.value===${JSON.stringify(value)}),currentIndex=options.findIndex(o=>o.value===s.value); return JSON.stringify({x:r.left+r.width/2,y:r.top+r.height/2,index,currentIndex,count:options.length,initial:s.value,visible:true}); })()`));
         }
         if (!choice || !choice.visible) { status = "SELECT_NOT_VISIBLE"; }
         else {
         await mouseClick(session.cdp, choice.x, choice.y);
         const key = choice.index >= choice.currentIndex ? "ArrowDown" : "ArrowUp";
         for (let i = 0; i < Math.abs(choice.index - choice.currentIndex); i++) await press(session.cdp, key, {}, 0);
-        const selectedValue = await ev(`(() => { const s=document.querySelector('select[data-command-id="${id}"]'); return s ? s.value : 'SELECT_UNMOUNTED'; })()`);
+        const selectedValue = await ev(`(() => { const s=[...document.querySelectorAll('select[data-command-id="${id}"]')].find(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0}); return s ? s.value : 'SELECT_UNMOUNTED'; })()`);
         await press(session.cdp, "Enter", {}, 0); await sleep(250);
         status = `keyboard selection submitted (${selectedValue}; wanted ${value}; start=${choice.currentIndex}; target=${choice.index})`;
         }
       }
     }
     await sleep(600);
-    const info = await ev(`(() => { const app=window.__vnoAppInstance,it=app.grid.cellsData.get("${cell}")||{},g=app.grid,a=app.adapter; const fods=a.serializeToFods(); return JSON.stringify({value:it.val, formula:it.formula, calculatedValue:it.calculatedValue, style:it.style, quickCategory:document.querySelector('select[data-command-id="sheet.format.quickCategory"]')?.value, printAreaBySheet:g.printAreaBySheet, gridlinesVisible:g.gridlinesVisible, headingsVisible:g.headingsVisible, rowHeight:g.getRowHeight?.(3), columnWidth:g.getColumnWidth?.('B'), names:g.namedRangesWorkbook, adapterNames:a.grid?.namedRangesWorkbook, serializedName:fods.includes('table:named-range'), fw:it.style&&it.style.fontWeight, fmt:it.style&&it.style.numberFormat&&it.style.numberFormat.category, textRotation:it.style&&it.style.textRotation}); })()`);
+    const info = await ev(`(() => { const app=window.__vnoAppInstance,it=app.grid.cellsData.get("${cell}")||{},g=app.grid,a=app.adapter; const fods=a.serializeToFods(),active=[...document.querySelectorAll('.vno-ribbon-tab.is-active')].find(n=>{const r=n.getBoundingClientRect();return r.width>0&&r.height>0}); return JSON.stringify({activeTab:active?.dataset.tabId, value:it.val, formula:it.formula, calculatedValue:it.calculatedValue, style:it.style, sparkline:it.sparkline, quickCategory:document.querySelector('select[data-command-id="sheet.format.quickCategory"]')?.value, printAreaBySheet:g.printAreaBySheet, gridlinesVisible:g.gridlinesVisible, headingsVisible:g.headingsVisible, rowHeight:g.getRowHeight?.(3), columnWidth:g.getColumnWidth?.('B'), names:g.namedRangesWorkbook, comments:g.commentsBySheet?.[g.activeSheet], pivotTables:g.pivotTablesBySheet, adapterNames:a.grid?.namedRangesWorkbook, serializedName:fods.includes('table:named-range'), fw:it.style&&it.style.fontWeight, fmt:it.style&&it.style.numberFormat&&it.style.numberFormat.category, textRotation:it.style&&it.style.textRotation}); })()`);
     const formulaValues = kind === "formulaPack" ? await ev(`JSON.stringify(Array.from({length:29},(_,i)=>{const k='H'+(i+2),v=window.__vnoAppInstance.grid.cellsData.get(k)||{};return [k,v.formula,v.val]}))`) : null;
     if (kind === "formulaPack") {
       const shot=await session.cdp.send("Page.captureScreenshot",{format:"png"},60000);

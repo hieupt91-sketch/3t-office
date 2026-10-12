@@ -5,7 +5,7 @@ Nguồn nút: `docs/ribbon-scan-sheet-1011.json`. Chỉ đánh dấu **KHỚP EX
 - **KHÁC CÓ CHỦ Ý**: khác biệt được thiết kế có chủ ý và có giải thích.
 - **LỆCH ĐÃ BIẾT**: sai khác đã được tái hiện và còn tồn tại.
 - **CHƯA ĐỐI CHIẾU**: chưa có đối chiếu Excel đủ chứng cứ.
-Tổng 138 nút — KHỚP EXCEL: 72 · CHƯA ĐỐI CHIẾU: 66.
+Tổng 138 nút — KHỚP EXCEL: 94 · LỆCH ĐÃ BIẾT: 1 · CHƯA ĐỐI CHIẾU: 43.
 
 Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy trong lượt này sẽ giữ **CHƯA ĐỐI CHIẾU** cho tới khi có phép thử an toàn và xác định rõ luồng dữ liệu.
 
@@ -26,10 +26,10 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Trang đầu | `sheet.cell.borders` | Viền ô | KHỚP EXCEL | FIX-S12 Trang đầu: CDP bấm màu nền/màu chữ/viền; Excel COM ReadOnly xác nhận Fill=65535, Font.Color=255 và bốn Border.LineStyle=1 | dom:15 |
 | Trang đầu | `sheet.cell.fillColor` | Màu nền | KHỚP EXCEL | FIX-S12 Trang đầu: CDP bấm màu nền/màu chữ/viền; Excel COM ReadOnly xác nhận Fill=65535, Font.Color=255 và bốn Border.LineStyle=1 | dom:15 |
 | Trang đầu | `sheet.cell.textColor` | Màu chữ | KHỚP EXCEL | FIX-S12 Trang đầu: CDP bấm màu nền/màu chữ/viền; Excel COM ReadOnly xác nhận Fill=65535, Font.Color=255 và bốn Border.LineStyle=1 | dom:15 |
-| Trang đầu | `sheet.cell.alignTop` | Căn trên | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:21 |
-| Trang đầu | `sheet.cell.alignMiddle` | Căn giữa dọc | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:7 |
-| Trang đầu | `sheet.cell.alignBottom` | Căn dưới | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:7 |
-| Trang đầu | `sheet.cell.wrapText` | Ngắt dòng tự động | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:19 |
+| Trang đầu | `sheet.cell.alignTop` | Căn trên | KHỚP EXCEL | FIX-S14: Nút Trộn & căn giữa cao 72px làm cột 3 hàng tràn lên che vùng tab; chuyển nó về icon nhỏ có tooltip. CDP bấm Căn trên, Excel COM ReadOnly xác nhận VerticalAlignment(B2)=-4160 (app_S14_fixed_alignTop.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-alignTop.png. | dom:21 |
+| Trang đầu | `sheet.cell.alignMiddle` | Căn giữa dọc | KHỚP EXCEL | FIX-S14: sau khi sửa bố cục nhóm Căn chỉnh, CDP bấm Căn giữa dọc; Excel COM ReadOnly xác nhận VerticalAlignment(B2)=-4108 (app_S14_fixed_alignMiddle.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-alignMiddle.png. | dom:7 |
+| Trang đầu | `sheet.cell.alignBottom` | Căn dưới | KHỚP EXCEL | FIX-S14: sau khi sửa bố cục nhóm Căn chỉnh, CDP bấm Căn dưới; Excel COM ReadOnly xác nhận VerticalAlignment(B2)=-4107 (app_S14_fixed_alignBottom.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-alignBottom.png. | dom:7 |
+| Trang đầu | `sheet.cell.wrapText` | Ngắt dòng tự động | KHỚP EXCEL | FIX-S14: sau khi sửa bố cục nhóm Căn chỉnh, CDP bấm Ngắt dòng tự động; Excel COM ReadOnly xác nhận WrapText=1, RowHeight=30 cho B2 (app_S14_fixed_wrap.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-wrap.png. | dom:19 |
 | Trang đầu | `sheet.cell.alignLeft` | Căn trái | KHỚP EXCEL | FIX-S12 Trang dau: CDP click Can trai; Excel COM ReadOnly xac nhan B2 HorizontalAlignment=-4131 (app_S12_alignLeft.xlsx) | dom:1 |
 | Trang đầu | `sheet.cell.alignCenter` | Căn giữa | KHỚP EXCEL | FIX-S12 nhóm Trang đầu: CDP click căn giữa; Excel COM ReadOnly HAl=-4108 tại B2 (app_alignCenter.xlsx) | dom:1 |
 | Trang đầu | `sheet.cell.alignRight` | Căn phải | KHỚP EXCEL | FIX-S12 nhóm Trang đầu: CDP click căn phải; Excel COM ReadOnly HAl=-4152 tại B2 (app_alignRight.xlsx) | dom:1 |
@@ -60,26 +60,26 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Trang đầu | `common.edit.find` | Tìm kiếm (Ctrl+F) | KHỚP EXCEL | FIX-S10: UI/CDP + Excel COM read-only; remove duplicates, custom sort, paste special, find/replace | dom:1 |
 | Trang đầu | `common.edit.replace` | Thay thế (Ctrl+H) | KHỚP EXCEL | FIX-S10: UI/CDP + Excel COM read-only; remove duplicates, custom sort, paste special, find/replace | dom:1 |
 | Chèn | `sheet.data.pivotTable` | Bảng tổng hợp | KHỚP EXCEL | FIX-S12 Du lieu: CDP chon A1:C6, tao Pivot theo Ho ten va SUM So tien; Excel COM ReadOnly xac nhan Sheet1 (2) PivotTables.Count=1, cot nhan va gia tri (app_S12_pivotTable.xlsx) | dialog,toast:A1 |
-| Chèn | `sheet.insert.image` | Chèn ảnh | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:1 |
+| Chèn | `sheet.insert.image` | Chèn ảnh | KHỚP EXCEL | FIX-S12 Chèn: CDP chọn ảnh PNG qua file chooser và đặt tại B2; Excel COM ReadOnly xác nhận Shapes.Count=1, Type=13, TopLeft=B2 (app_image.xlsx); hướng dẫn Chèn > Minh họa trong Help; VI/EN i18n có sẵn; ảnh docs/tickets-0710/evidence/fix-s12-image.png | dom:1 |
 | Chèn | `sheet.chart.insert` | Biểu đồ | KHỚP EXCEL | FIX-S9: Excel COM read-only xác nhận loại biểu đồ, tiêu đề, series và trục | dialog |
-| Chèn | `sheet.chart.pivotChart` | Biểu đồ Pivot | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
-| Chèn | `sheet.insert.sparklineLine` | Đường | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:14 |
-| Chèn | `sheet.insert.sparklineColumn` | Cột | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:14 |
-| Chèn | `sheet.insert.hyperlink` | Liên kết | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
+| Chèn | `sheet.chart.pivotChart` | Biểu đồ Pivot | LỆCH ĐÃ BIẾT | FIX-S12: CDP tạo PivotTable rồi bấm Chèn > Biểu đồ Pivot > Cột. Excel COM ReadOnly: PivotTables=1, Charts=1, ChartType=51 nhưng Chart.PivotLayout.PivotTable.Name rỗng, PivotFields=0; XLSX có biểu đồ thường, không liên kết Pivot. Ảnh docs/tickets-0710/evidence/fix-s12-pivotChart.png. Cần quyết định trước khi đổi OOXML/file-format semantics; Help hiện tuyên bố biểu đồ được liên kết Pivot. | dialog,toast:A1 |
+| Chèn | `sheet.insert.sparklineLine` | Đường | KHỚP EXCEL | FIX-S12 Chèn > Biểu đồ thu nhỏ: CDP chọn dải số C2:C6, chèn tại ô active C6; Excel COM ReadOnly xác nhận SparklineGroups.Count=1, Type=1 (Line) / Type=2 (Column) trong XLSX. Help tiếng Việt và i18n VI/EN có sẵn; ảnh docs/tickets-0710/evidence/fix-s12-sparklineLine.png, fix-s12-sparklineColumn.png | dom:14 |
+| Chèn | `sheet.insert.sparklineColumn` | Cột | KHỚP EXCEL | FIX-S12 Chèn > Biểu đồ thu nhỏ: CDP chọn dải số C2:C6, chèn tại ô active C6; Excel COM ReadOnly xác nhận SparklineGroups.Count=1, Type=1 (Line) / Type=2 (Column) trong XLSX. Help tiếng Việt và i18n VI/EN có sẵn; ảnh docs/tickets-0710/evidence/fix-s12-sparklineLine.png, fix-s12-sparklineColumn.png | dom:14 |
+| Chèn | `sheet.insert.hyperlink` | Liên kết | KHỚP EXCEL | FIX-S12 Chèn: CDP nhập https://vnoffice.vn vào G2; Adapter ghi text:a/xlink:href và nạp lại URL; Excel COM ReadOnly xác nhận Hyperlinks.Count=1, Address=https://vnoffice.vn/, Text='Trang chủ VN Office' (app_hyperlink.xlsx); hướng dẫn platform/help/entries-sheet.js; VI/EN i18n có sẵn; ảnh docs/tickets-0710/evidence/fix-s12-hyperlink.png | dialog,toast:A1 |
 | Chèn | `sheet.insert.textbox` | Hộp văn bản | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
-| Chèn | `sheet.page.headerFooter` | Tiêu đề Đầu/Cuối trang | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
+| Chèn | `sheet.page.headerFooter` | Tiêu đề Đầu/Cuối trang | KHỚP EXCEL | FIX-S12 Bố trí trang: CDP mở Chèn > Tiêu đề Đầu/Cuối trang, nhập ô Phải = 'VN Office S12'; Excel COM ReadOnly xác nhận PageSetup.RightHeader='VN Office S12' (app_S14_fixed_headerFooter.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-headerFooter.png. Help VI và i18n VI/EN hiện có. | dialog,toast:A1 |
 | Bố trí trang | `sheet.page.margins` | Căn lề | KHỚP EXCEL | FIX-S7: CDP + Excel COM; insert/delete, validation, freeze, print area, page setup, chart, conditional format, cell style | dialog,toast:A1 |
 | Bố trí trang | `sheet.page.orientation` | Hướng giấy | KHỚP EXCEL | FIX-S8/FIX-S7: CDP và Excel COM read-only xác nhận name, rotation, dimensions, visibility, print area/orientation | dialog,toast:A1 |
-| Bố trí trang | `sheet.page.size` | Khổ giấy | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
+| Bố trí trang | `sheet.page.size` | Khổ giấy | KHỚP EXCEL | FIX-S12 Bố trí trang: CDP chọn Khổ giấy Legal; Excel COM ReadOnly xác nhận PageSetup.PaperSize=5 (app_pageSize.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-pageSize.png | dialog,toast:A1 |
 | Bố trí trang | `sheet.page.setPrintArea` | Đặt vùng in | KHỚP EXCEL | FIX-S8/FIX-S7: CDP và Excel COM read-only xác nhận name, rotation, dimensions, visibility, print area/orientation | dom:120 |
 | Bố trí trang | `sheet.page.clearPrintArea` | Xóa vùng in | KHỚP EXCEL | FIX-S13: CDP xóa vùng in; Excel COM ReadOnly xác nhận PageSetup.PrintArea rỗng (app_s13_clearArea.xlsx) | dom:120 |
-| Bố trí trang | `sheet.page.insertPageBreak` | Chèn ngắt trang | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:120 |
-| Bố trí trang | `sheet.page.removePageBreak` | Xóa ngắt trang | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:120 |
-| Bố trí trang | `sheet.page.printTitles` | Tiêu đề in | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | skipped(dangerous) |
-| Bố trí trang | `sheet.page.scale` | Tỷ lệ vừa trang | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
+| Bố trí trang | `sheet.page.insertPageBreak` | Chèn ngắt trang | KHỚP EXCEL | FIX-S12 Bố trí trang: CDP chèn ngắt tại C5; Excel COM ReadOnly xác nhận HBreaks=5, VBreaks=3 (app_insertPageBreak.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-insertPageBreak.png | dom:120 |
+| Bố trí trang | `sheet.page.removePageBreak` | Xóa ngắt trang | KHỚP EXCEL | FIX-S12 Bố trí trang: CDP xóa ngắt C5 từ workbook đã có ngắt; Excel COM ReadOnly xác nhận không còn HBreak/VBreak (app_removePageBreak.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-removePageBreak.png | dom:120 |
+| Bố trí trang | `sheet.page.printTitles` | Tiêu đề in | KHỚP EXCEL | FIX-S12 Bố trí trang: CDP đặt Hàng tiêu đề in 1:1; Excel COM ReadOnly xác nhận PageSetup.PrintTitleRows=$1:$1 (app_printTitles.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-printTitles.png | skipped(dangerous) |
+| Bố trí trang | `sheet.page.scale` | Tỷ lệ vừa trang | KHỚP EXCEL | FIX-S12 Bố trí trang: CDP đặt tỷ lệ in 80%; Excel COM ReadOnly xác nhận PageSetup.Zoom=80 (app_pageScale.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-pageScale.png | dialog,toast:A1 |
 | Bố trí trang | `sheet.view.gridlines` | Đường lưới | KHỚP EXCEL | FIX-S13: CDP ẩn đường lưới và tiêu đề; Excel COM ReadOnly xác nhận DisplayGridlines=0 và DisplayHeadings=0 (app_s13_gridlines.xlsx, app_s13_headings.xlsx) | dom:23 |
 | Bố trí trang | `sheet.view.headings` | Tiêu đề | KHỚP EXCEL | FIX-S13: CDP ẩn đường lưới và tiêu đề; Excel COM ReadOnly xác nhận DisplayGridlines=0 và DisplayHeadings=0 (app_s13_gridlines.xlsx, app_s13_headings.xlsx) | dom:23 |
-| Công thức | `sheet.formula.insertFunction` | Chèn hàm (Shift+F3) | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog |
+| Công thức | `sheet.formula.insertFunction` | Chèn hàm (Shift+F3) | KHỚP EXCEL | FIX-S12 Công thức: CDP mở Chèn hàm, tìm TODAY, chọn hàm và chèn vào H2; Excel COM ReadOnly xác nhận H2 Formula='=TODAY()', Value2=46307, NumberFormat=dd/mm/yyyy (app_S14_final_insertFunction.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-insertFunction.png. Hướng dẫn VI/EN hiện có trong Help và i18n. | dialog |
 | Công thức | `sheet.formula.sum` | AutoSum (Alt+=) | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dom:16 |
 | Công thức | `sheet.formula.average` | Trung bình | KHỚP EXCEL | FIX-S12 tab Công thức: CDP click Trung bình; Excel COM ReadOnly xác nhận =AVERAGE(C2:C6), Value2=4123.02 (app_S12fix_averageBtn.xlsx) | dom:16 |
 | Công thức | `sheet.formula.countNumbers` | Đếm số | KHỚP EXCEL | FIX-S12 tab Công thức: CDP click Đếm số; Excel COM ReadOnly xác nhận =COUNT(C2:C6), Value2=5 (app_countNumbersBtn.xlsx) | dom:16 |
@@ -93,19 +93,19 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Công thức | `sheet.formula.max` | Lớn nhất | KHỚP EXCEL | FIX-S12 Công thức: CDP bấm MAX/MIN; Excel COM ReadOnly xác nhận =MAX(C2:C6)=9876.5 và =MIN(C2:C6)=1234.5 | dom:16 |
 | Công thức | `sheet.formula.min` | Nhỏ nhất | KHỚP EXCEL | FIX-S12 Công thức: CDP bấm MAX/MIN; Excel COM ReadOnly xác nhận =MAX(C2:C6)=9876.5 và =MIN(C2:C6)=1234.5 | dom:16 |
 | Công thức | `sheet.formula.nameManager` | Quản lý tên | KHỚP EXCEL | FIX-S8/FIX-S7: CDP và Excel COM read-only xác nhận name, rotation, dimensions, visibility, print area/orientation | dialog,toast:A1 |
-| Công thức | `sheet.formula.defineName` | Đặt tên vùng | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
-| Công thức | `sheet.formula.useInFormula` | Dùng trong công thức | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
-| Công thức | `sheet.formula.createFromSelection` | Tạo từ vùng chọn (Ctrl+Shift+F3) | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
+| Công thức | `sheet.formula.defineName` | Đặt tên vùng | KHỚP EXCEL | FIX-S12 Công thức: CDP đặt tên workbook S12Cell cho B2; Excel COM ReadOnly xác nhận Names.Count=1, RefersTo==Sheet1!$B$2 (app_defineName.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-defineName.png | dialog,toast:A1 |
+| Công thức | `sheet.formula.useInFormula` | Dùng trong công thức | KHỚP EXCEL | FIX-S12 Công thức: mở workbook có tên S12Cell, CDP dùng Dùng trong công thức tại H2; Excel COM ReadOnly xác nhận H2 Formula='=S12Cell', Value2='Nguyễn Văn A', Names.Count=1 (app_S14_useInFormula.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-useInFormula.png. Help VI và i18n VI/EN hiện có. | dialog,toast:A1 |
+| Công thức | `sheet.formula.createFromSelection` | Tạo từ vùng chọn (Ctrl+Shift+F3) | CHƯA ĐỐI CHIẾU | FIX-S12 probe: CDP chọn A1:C6 rồi tạo 3 tên; Excel COM ReadOnly xác nhận Names.Count=3 và RefersTo B2:B6/C2:C6, nhưng tên từ tiêu đề tiếng Việt bị chuẩn hóa thành H__t_n/S__ti_n. Chưa đối chiếu chính xác quy tắc tên Excel; giữ CHƯA ĐỐI CHIẾU. | dialog,toast:A1 |
 | Công thức | `sheet.formula.tracePrecedents` | Tìm ô tiền lệ | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:3 |
 | Công thức | `sheet.formula.traceDependents` | Tìm ô phụ thuộc | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:3 |
 | Công thức | `sheet.formula.removeArrows` | Xóa mũi tên | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:3 |
 | Công thức | `sheet.formula.showFormulas` | Hiện công thức | KHỚP EXCEL | FIX-S13: CDP nhấn Ctrl+` thật; Excel COM ReadOnly xác nhận ActiveWindow.DisplayFormulas=1 (app_s13_showFormulas.xlsx) | dom:113 |
-| Công thức | `sheet.formula.errorChecking` | Kiểm tra lỗi | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog |
+| Công thức | `sheet.formula.errorChecking` | Kiểm tra lỗi | KHỚP EXCEL | FIX-S12 Công thức: CDP mở Kiểm tra lỗi trên H2=#DIV/0!; app liệt kê H2, =1/0, nguyên nhân chia cho 0; Excel COM ReadOnly xác nhận H2 Formula='=1/0', Text='#DIV/0!' (app_errorChecking.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-errorChecking.png | dialog |
 | Công thức | `sheet.formula.evaluateFormula` | Ước lượng công thức | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Công thức | `sheet.formula.watchWindow` | Cửa sổ theo dõi | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog |
 | Công thức | `sheet.calc.calculationOptions` | Tùy chọn tính toán | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | control(select/input) |
-| Công thức | `sheet.formula.recalculate` | Tính lại toàn bộ (F9) | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:125 |
-| Công thức | `sheet.calc.calculateSheet` | Tính trang hiện tại (Shift+F9) | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:123 |
+| Công thức | `sheet.formula.recalculate` | Tính lại toàn bộ (F9) | KHỚP EXCEL | FIX-S12 Công thức: CDP bấm Tính lại toàn bộ; Excel COM ReadOnly xác nhận F2 =C2*D2, Value2=92.5875 (app_formulaRecalculate.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-formulaRecalculate.png | dom:125 |
+| Công thức | `sheet.calc.calculateSheet` | Tính trang hiện tại (Shift+F9) | KHỚP EXCEL | FIX-S12 Công thức: CDP bấm Tính trang hiện tại; Excel COM ReadOnly xác nhận F2 =C2*D2, Value2=92.5875 (app_calculateSheet.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-calculateSheet.png | dom:123 |
 | Dữ liệu | `sheet.data.sortAsc` | Sắp xếp A-Z | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dom:130 |
 | Dữ liệu | `sheet.data.sortDesc` | Sắp xếp Z-A | KHỚP EXCEL | FIX-S12 tab Dữ liệu: CDP click Z-A; Excel COM ReadOnly xác nhận B2:B6 giảm dần: Trần, Phạm, Nguyễn, Lê, Hoàng (app_sortDesc.xlsx) | dom:130 |
 | Dữ liệu | `sheet.data.filter` | Bộ lọc (Ctrl+Shift+L) | KHỚP EXCEL | FIX-S7: CDP thao tác và Excel COM đọc lại định dạng, merge, AutoSum, sort, AutoFilter | dom:161 |
@@ -122,11 +122,11 @@ Các nút nguy hiểm/ngoại tuyến hoặc nút AI không được chạy tron
 | Dữ liệu | `sheet.data.pivotRefresh` | Làm mới Pivot | KHỚP EXCEL | FIX-S13: CDP sửa nguồn C2=2222 rồi làm mới; Excel COM ReadOnly xác nhận PivotTables.Count=1, tổng 2222 và không lặp hàng (app_s13_pivotRefresh.xlsx) | dom:1 |
 | Xem xét | `sheet.review.spellCheck` | Chính tả | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Xem xét | `sheet.review.toggleSpellCheck` | Kiểm tra chính tả | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:9 |
-| Xem xét | `sheet.review.commentInsert` | Ghi chú mới | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
-| Xem xét | `sheet.review.commentDelete` | Xóa nhận xét | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:1 |
+| Xem xét | `sheet.review.commentInsert` | Ghi chú mới | KHỚP EXCEL | FIX-S12 Xem xét: CDP tạo ghi chú tại C2; Excel COM ReadOnly xác nhận Comment='Ghi chú kiểm thử S12', Author='Người dùng 3T Office' (app_commentInsert.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-commentInsert.png | dialog,toast:A1 |
+| Xem xét | `sheet.review.commentDelete` | Xóa nhận xét | KHỚP EXCEL | FIX-S12 Xem xét: CDP xóa ghi chú C2 trên workbook đã có ghi chú; Excel COM ReadOnly xác nhận C2.Comment rỗng sau lưu (app_commentDelete.xlsx); ảnh docs/tickets-0710/evidence/fix-s12-commentDelete.png | dom:1 |
 | Xem xét | `sheet.review.commentResolve` | Đã xử lý | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:1 |
-| Xem xét | `sheet.review.commentPrevious` | Nhận xét trước | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:1 |
-| Xem xét | `sheet.review.commentNext` | Nhận xét sau | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:1 |
+| Xem xét | `sheet.review.commentPrevious` | Nhận xét trước | CHƯA ĐỐI CHIẾU | FIX-S12 probe: với workbook có nhận xét C2/D2, CDP Previous từ D2 chọn C2 và Next từ C2 chọn D2; ảnh docs/tickets-0710/evidence/fix-s12-commentPrevious.png và fix-s12-commentNext.png. Excel COM ReadOnly xác nhận cả hai nhận xét còn trong XLSX nhưng khi mở lại ActiveCell=A1 nên không lưu được trạng thái điều hướng; giữ CHƯA ĐỐI CHIẾU. | dom:1 |
+| Xem xét | `sheet.review.commentNext` | Nhận xét sau | CHƯA ĐỐI CHIẾU | FIX-S12 probe: với workbook có nhận xét C2/D2, CDP Previous từ D2 chọn C2 và Next từ C2 chọn D2; ảnh docs/tickets-0710/evidence/fix-s12-commentPrevious.png và fix-s12-commentNext.png. Excel COM ReadOnly xác nhận cả hai nhận xét còn trong XLSX nhưng khi mở lại ActiveCell=A1 nên không lưu được trạng thái điều hướng; giữ CHƯA ĐỐI CHIẾU. | dom:1 |
 | Xem xét | `sheet.sheet.protect` | Bảo vệ trang tính... | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Xem xét | `sheet.workbook.protect` | Bảo vệ workbook... | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dialog,toast:A1 |
 | Chế độ xem | `sheet.view.normal` | Bình thường | CHƯA ĐỐI CHIẾU | Chưa có chứng cứ Excel COM gắn với command ID này. | dom:142 |

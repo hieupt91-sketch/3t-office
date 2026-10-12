@@ -3611,6 +3611,10 @@ export class SheetAdapter {
           const cellAttrs = `${formulaAttrs}${matrixAttrs}${mergeAttrs}${numFmtAttr}${cellStyleName ? ` table:style-name="${cellStyleName}"` : ""}${validationAttr}${xfAttr}`;
           const comment = comments[coordinate];
           const annotationXml = comment ? `<office:annotation><dc:creator>${this._escapeXml(comment.author || "")}</dc:creator>${comment.timestamp ? `<dc:date>${this._escapeXml(comment.timestamp)}</dc:date>` : ""}<text:p>${this._escapeXml(comment.text || "")}</text:p></office:annotation>` : "";
+          const hyperlink = /^(https?:|mailto:)/i.test(String(item.hyperlink || "")) ? String(item.hyperlink) : "";
+          const linkText = content => hyperlink
+            ? `<text:a xlink:href="${this._escapeXml(hyperlink)}" xlink:type="simple">${content}</text:a>`
+            : content;
           const cellImages = imagesByAnchor.get(coordinate) || [];
           const cellImageXml = cellImages.length > 0
 ? cellImages.map(img => this._serializeCellImageXml(img)).join("")
@@ -3643,19 +3647,19 @@ export class SheetAdapter {
                   const m = isoTime ? isoTime.match(/^PT(\d+)H(\d+)M(\d+)S$/) : null;
                   if (m) dateValue = `${isoDate}T${m[1]}:${m[2]}:${m[3]}`;
                 }
-                appendCellXml(`<table:table-cell office:value-type="date" office:date-value="${dateValue}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`);
+                appendCellXml(`<table:table-cell office:value-type="date" office:date-value="${dateValue}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${linkText(this._escapeXml(item.val))}</text:p></table:table-cell>`);
               } else {
-                appendCellXml(`<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`);
+                appendCellXml(`<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${linkText(this._escapeXml(item.val))}</text:p></table:table-cell>`);
               }
             } else if (isTimeOnly) {
               const isoTime = this._excelSerialToIsoTime(item.val);
               if (isoTime) {
-                appendCellXml(`<table:table-cell office:value-type="time" office:time-value="${isoTime}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`);
+                appendCellXml(`<table:table-cell office:value-type="time" office:time-value="${isoTime}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${linkText(this._escapeXml(item.val))}</text:p></table:table-cell>`);
               } else {
-                appendCellXml(`<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`);
+                appendCellXml(`<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${linkText(this._escapeXml(item.val))}</text:p></table:table-cell>`);
               }
             } else {
-              appendCellXml(`<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`);
+              appendCellXml(`<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${linkText(this._escapeXml(item.val))}</text:p></table:table-cell>`);
             }
           } else {
             const text = item.val === undefined || item.val === null ? "" : String(item.val);
@@ -3679,14 +3683,14 @@ export class SheetAdapter {
               if (paraRuns.length === 0) paraRuns.push([{ text, style: {} }]);
               const paraXml = paraRuns.map(runs => {
                 if (runs.length === 1 && Object.keys(runs[0].style || {}).length === 0) {
-                  return `<text:p>${this._escapeXml(runs[0].text)}</text:p>`;
+                  return `<text:p>${linkText(this._escapeXml(runs[0].text))}</text:p>`;
                 }
                 const spanXml = runs.map(run => {
                   const styleName = richTextStyleFor(run.style);
                   const styleAttr = styleName ? ` text:style-name="${styleName}"` : "";
                   return `<text:span${styleAttr}>${this._escapeXml(run.text)}</text:span>`;
                 }).join("");
-                return `<text:p>${spanXml}</text:p>`;
+                return `<text:p>${linkText(spanXml)}</text:p>`;
               }).join("");
               appendCellXml(`<table:table-cell office:value-type="string"${cellAttrs}>${cellImageXml}${annotationXml}${paraXml}</table:table-cell>`);
             } else if (text === "" && !item.formula) {
@@ -3702,7 +3706,7 @@ export class SheetAdapter {
               // Excel lưu xuống dòng trong ô là "\n" (đôi khi "\r\n" qua vno:original-string);
               // một "\r" lẻ trong <text:p> sẽ bị XML chuẩn hoá thành "\n" -> thừa dòng trống.
               const lines = text.split(/\r\n|\r|\n/);
-              const linesXml = lines.map(line => `<text:p>${this._escapeXml(line)}</text:p>`).join("");
+              const linesXml = lines.map(line => `<text:p>${linkText(this._escapeXml(line))}</text:p>`).join("");
               appendCellXml(`<table:table-cell office:value-type="string"${cellAttrs}>${cellImageXml}${annotationXml}${linesXml}</table:table-cell>`);
             }
           }
@@ -4687,6 +4691,11 @@ ${pristineXlsxMarker}
                   || (columnNumber <= lastDataCol && this._cellStyleHasBorder(attributes["table:style-name"], cellVisualStyles));
                 if (hasValue && (!isCovered || isCoveredErrorFormula)) {
                   const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
+                  const hyperlinkNode = Array.from(cell.getElementsByTagName("*") || []).find(node => node.localName === "a");
+                  const hyperlink = hyperlinkNode?.getAttribute("xlink:href")
+                    || hyperlinkNode?.getAttributeNS?.("http://www.w3.org/1999/xlink", "href")
+                    || "";
+                  if (/^(https?:|mailto:)/i.test(hyperlink)) item.hyperlink = hyperlink;
                   // Extract rich text runs from <text:span> elements
                   if (textStyles.size > 0) {
                     const cellVisual = cellVisualStyles.get(attributes["table:style-name"]) || {};
@@ -4963,6 +4972,9 @@ ${pristineXlsxMarker}
                 || (columnNumber <= lastDataCol && this._cellStyleHasBorder(attributes["table:style-name"], cellVisualStyles));
               if (hasValue && (!isCovered || isCoveredErrorFormula)) {
                 const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
+                const hyperlink = valueContent.match(/<(?:text:)?a\b[^>]*\bxlink:href=["']([^"']+)["']/i)?.[1] || "";
+                const safeHyperlink = this._unescapeXml(hyperlink);
+                if (/^(https?:|mailto:)/i.test(safeHyperlink)) item.hyperlink = safeHyperlink;
                 // Extract rich text runs from <text:span> elements (regex branch)
                 if (textStyles.size > 0) {
                   const cellVisual = cellVisualStyles.get(attributes["table:style-name"]) || {};

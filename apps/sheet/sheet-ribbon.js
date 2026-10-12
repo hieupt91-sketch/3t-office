@@ -149,7 +149,7 @@ export const SHEET_RIBBON_TABS = [
               {
                 type: "row",
                 items: [
-                  { type: "button", commandId: "sheet.cell.mergeCenter", isLarge: true },
+                  { type: "button", commandId: "sheet.cell.mergeCenter", iconOnly: true },
                   { type: "button", commandId: "sheet.cell.mergeAcross", iconOnly: true },
                   { type: "button", commandId: "sheet.cell.mergeCells", iconOnly: true },
                   { type: "button", commandId: "sheet.cell.unmerge", iconOnly: true }
