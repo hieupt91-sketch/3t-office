@@ -23,7 +23,7 @@ import { TABLE_STYLE_PRESETS } from "../../../apps/sheet/cell-style-presets.js";
 // MS-XLSX 2.2.3 marks these names as future functions. Keep only functions
 // present in the Excel 2016 catalog; newer names must not be advertised as
 // compatible with that version. Source: https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/5d1b6d44-6fc1-4ecd-8fef-0b27406cc2bf
-const EXCEL2016_OOXML_FUTURE_FUNCTIONS = new Set(`
+export const EXCEL2016_OOXML_FUTURE_FUNCTIONS = new Set(`
   ACOT ACOTH AGGREGATE ARABIC BASE BETA.DIST BETA.INV BINOM.DIST BINOM.DIST.RANGE BINOM.INV
   BITAND BITLSHIFT BITOR BITRSHIFT BITXOR CEILING.MATH CEILING.PRECISE
   CHISQ.DIST CHISQ.DIST.RT CHISQ.INV CHISQ.INV.RT CHISQ.TEST COMBINA
