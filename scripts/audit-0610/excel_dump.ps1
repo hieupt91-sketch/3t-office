@@ -1,10 +1,19 @@
 param(
     [Parameter(Mandatory=$true)][string]$WorkbookPath,
-    [Parameter(Mandatory=$true)][string]$OutputPath
+    [Parameter(Mandatory=$true)][string]$OutputPath,
+    [string]$SheetRangeFile
 )
 $ErrorActionPreference = 'Stop'
 $resolved = (Resolve-Path -LiteralPath $WorkbookPath).Path
 $out = [System.IO.Path]::GetFullPath($OutputPath)
+$sheetRangeOverrides = @{}
+if ($SheetRangeFile) {
+    $rangePath = (Resolve-Path -LiteralPath $SheetRangeFile).Path
+    $rangeDocument = Get-Content -LiteralPath $rangePath -Raw -Encoding UTF8 | ConvertFrom-Json
+    foreach ($property in $rangeDocument.PSObject.Properties) {
+        $sheetRangeOverrides[[string]$property.Name] = [string]$property.Value
+    }
+}
 $app = $null; $book = $null; $excelPid = $null
 $existingExcelPids = @(Get-Process EXCEL -ErrorAction SilentlyContinue | ForEach-Object { $_.Id })
 Add-Type -TypeDefinition @"
@@ -19,6 +28,10 @@ function Safe-Value($obj, [string]$property) {
 }
 function Safe-Color($obj, [string]$property) {
     try { $v = $obj.$property; if ($null -eq $v) { return $null }; return [int]$v } catch { return $null }
+}
+function Range-Value($values, [int]$row, [int]$column, [int]$rowCount, [int]$columnCount) {
+    if ($values -isnot [Array]) { return $values }
+    try { return $values.GetValue($row, $column) } catch { return $null }
 }
 try {
     $app = New-Object -ComObject Excel.Application
@@ -40,18 +53,31 @@ try {
     $sheets = [System.Collections.Generic.List[object]]::new()
     for ($wi=1; $wi -le [int]$book.Worksheets.Count; $wi++) {
         $ws = $book.Worksheets.Item($wi)
-        $used = $ws.UsedRange
+        $originalUsed = $ws.UsedRange
+        $used = $originalUsed
+        $rangeKey = if ($sheetRangeOverrides.ContainsKey([string]$ws.Name)) { [string]$ws.Name } else { [string]$wi }
+        if ($sheetRangeOverrides.ContainsKey($rangeKey)) {
+            $used = $ws.Range([string]$sheetRangeOverrides[$rangeKey])
+        }
         $cells = [System.Collections.Generic.List[object]]::new()
         $rowCount = [int]$used.Rows.Count; $colCount = [int]$used.Columns.Count
+        $rangeValues = $used.Value2
+        $rangeFormulas = $used.Formula
+        $rangeStyles = $used.Style
         for ($ri=1; $ri -le $rowCount; $ri++) {
             for ($ci=1; $ci -le $colCount; $ci++) {
-                $cell = $used.Cells.Item($ri,$ci)
-                $val = Safe-Value $cell 'Value2'
-                $formula = Safe-Value $cell 'Formula'
+                $val = Range-Value $rangeValues $ri $ci $rowCount $colCount
+                $formula = Range-Value $rangeFormulas $ri $ci $rowCount $colCount
                 $hasValue = ($null -ne $val -and [string]$val -ne '')
                 $hasFormula = ($null -ne $formula -and $formula -is [string] -and $formula.StartsWith('='))
-                $style = [string](Safe-Value $cell 'Style')
+                $style = [string](Range-Value $rangeStyles $ri $ci $rowCount $colCount)
+                $cell = $null
+                if ($null -eq $style -and $rowCount -gt 1 -and $colCount -gt 1) {
+                    $cell = $used.Cells.Item($ri,$ci)
+                    $style = [string](Safe-Value $cell 'Style')
+                }
                 if ($hasValue -or $hasFormula -or ($style -and $style -ne 'Normal')) {
+                    if (-not $cell) { $cell = $used.Cells.Item($ri,$ci) }
                     $font = $cell.Font; $fill = $cell.Interior; $borders = [System.Collections.Generic.List[object]]::new()
                     foreach ($bi in 5,6,7,8,9,10,11,12) {
                         $b = $cell.Borders.Item($bi)
@@ -111,7 +137,7 @@ try {
         $setup=$ws.PageSetup
         $window=$app.ActiveWindow
         $sheets.Add([pscustomobject]@{
-            Name=$ws.Name;Visible=$ws.Visible;UsedRange=[string]$used.Address($false,$false);Cells=@($cells.ToArray());MergedAreas=@($merges.ToArray());
+            Name=$ws.Name;Visible=$ws.Visible;OriginalUsedRange=[string]$originalUsed.Address($false,$false);UsedRange=[string]$used.Address($false,$false);Cells=@($cells.ToArray());MergedAreas=@($merges.ToArray());
             Columns=@($colWidths.ToArray());Rows=@($rowHeights.ToArray());FreezePanes=[bool]$window.FreezePanes;SplitRow=[int]$window.SplitRow;SplitColumn=[int]$window.SplitColumn;
             AutoFilters=@($filters.ToArray());Validation=@($validations.ToArray());ConditionalFormatting=@($conditionals.ToArray());Tables=@($tables.ToArray());Charts=@($charts.ToArray());Shapes=@($images.ToArray());Names=@($names.ToArray());Comments=@($comments.ToArray());PivotTables=@($pivots.ToArray());Sparklines=@($sparklines.ToArray());Hyperlinks=@($hyperlinks.ToArray());
             Print=[pscustomobject]@{Area=(Safe-Value $setup 'PrintArea');Orientation=(Safe-Value $setup 'Orientation');PaperSize=(Safe-Value $setup 'PaperSize');Zoom=(Safe-Value $setup 'Zoom');FitToPagesWide=(Safe-Value $setup 'FitToPagesWide');FitToPagesTall=(Safe-Value $setup 'FitToPagesTall');LeftMargin=(Safe-Value $setup 'LeftMargin');RightMargin=(Safe-Value $setup 'RightMargin');TopMargin=(Safe-Value $setup 'TopMargin');BottomMargin=(Safe-Value $setup 'BottomMargin');PrintTitleRows=(Safe-Value $setup 'PrintTitleRows');PrintTitleColumns=(Safe-Value $setup 'PrintTitleColumns')}
