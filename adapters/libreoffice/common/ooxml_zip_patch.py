@@ -4783,6 +4783,8 @@ def _pivot_chart_parts_by_sheet(xlsx_bytes: bytes) -> dict[str, list[str]]:
                     if source.tag.rsplit("}", 1)[-1] != "pivotSource":
                         continue
                     pivot_name = next((child.text or "" for child in source.iter() if child.tag.rsplit("}", 1)[-1] == "name"), "").strip()
+                    if "!" in pivot_name:
+                        pivot_name = pivot_name.rsplit("!", 1)[-1]
                     break
                 chart_names.append(pivot_name)
             if chart_names:
