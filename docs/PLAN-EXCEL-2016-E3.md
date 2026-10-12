@@ -1,0 +1,41 @@
+# Kế hoạch E3: bàn phím và chuột VN Sheet
+
+## Mục tiêu
+Đưa thao tác lưới VN Sheet gần hành vi Excel 2016 cho điều hướng/chọn vùng, sửa ô, điền, chọn bằng chuột, clipboard, hoàn tác/làm lại và menu ngữ cảnh; ghi lại phạm vi hỗ trợ/giới hạn trong ma trận; xác minh bằng CDP trên app desktop với input thật.
+
+## Năng lực hiện có
+`apps/sheet/sheet-grid.js` đã xử lý một phần phím điều hướng, Shift+chọn, F2, Enter/Tab, xóa, Ctrl+D/R, clipboard nội bộ, kéo chọn, fill handle, undo/redo, và menu chuột phải. Các hành vi rải trong lớp grid; hiện chưa có tài liệu `docs/EXCEL2016-INPUT-MATRIX.md` và chưa có bài CDP chuyên biệt cho E3.
+
+## Phạm vi tệp/module
+- `apps/sheet/sheet-grid.js`: chỉ sửa các handler lưới cần thiết sau khi tái hiện được sai lệch.
+- `tests/live/cdp/e3-input.desktop.mjs`: bài kiểm app desktop qua `tests/live/cdp/session.mjs` và `actions.mjs`; không sửa test/expected hiện hữu.
+- `docs/EXCEL2016-INPUT-MATRIX.md`: ma trận thao tác, trạng thái và cách xác minh.
+- `platform/help/entries-sheet.js` và i18n VI/EN chỉ khi UI/hành vi thay đổi cần bổ sung hướng dẫn dùng cụ thể.
+- `/09-templates/AGENT-HANDOFF.md`: handoff cuối công việc.
+
+## Phụ thuộc và ranh giới
+Tận dụng CommandBus/undo hiện có; không gọi trực tiếp LibreOffice từ UI; không sửa adapter, Core, server hoặc test fixture. App desktop khởi động qua `main.py`, `VNO_APP_ROOT` trỏ worktree, `VNO_CDP_LOCALAPPDATA=E:\\VNOffice-profiles\\codex-fe3`. Excel COM chỉ mở workbook chỉ đọc, từng tệp một, không lưu.
+
+## Rủi ro
+Input đang sửa trong formula bar/editor có thể xung đột với phím điều hướng lưới; vùng chọn nhiều ô và virtual scrolling có thể lệch active cell; clipboard hệ điều hành và clipboard nội bộ có semantics khác; thay đổi undo sai có thể ảnh hưởng sửa ô và XLSX đã lưu. Chỉ sửa sau khi ca CDP tái hiện được.
+
+## Kế hoạch kiểm tra
+Chạy bài CDP desktop riêng với `Input.dispatchKeyEvent`/`Input.dispatchMouseEvent` qua client/actions, kiểm các kết quả lưới và giá trị sau commit. Cuối đợt chạy `npm test`, `python -m unittest discover -s tests`, batch audit 8 XLSX, `sheet_formulas_vs_cache.mjs` đủ 28 XLSX, rà BOM/mojibake và báo mức từng tệp so mốc 0.9.9. Không sửa expected/fixture để đạt xanh.
+
+## Rollback
+Mỗi nhóm thay đổi được commit độc lập. Revert commit E3 tương ứng để quay lại hành vi trước đó; nhóm tài liệu/CDP có thể revert độc lập. Không có thay đổi schema hay đường lưu/mở XLSX trong kế hoạch này.
+
+## Bổ sung kế hoạch: công thức Ctrl+Enter
+
+- **Mục tiêu:** Khi nhập công thức vào một vùng chọn bằng Ctrl+Enter, dịch tham chiếu tương đối theo từng ô đích như Excel; giữ nguyên thành phần tham chiếu tuyệt đối.
+- **Năng lực hiện tại:** VN Sheet đã ghi cùng chuỗi công thức vào mọi ô; Excel điều chỉnh tham chiếu tương đối khi điền công thức vào vùng.
+- **Tệp/module:** `apps/sheet/sheet-grid.js`, `tests/live/cdp/e3-input.desktop.mjs`, `docs/EXCEL2016-INPUT-MATRIX.md`.
+- **Phụ thuộc/ranh giới:** Dùng bộ tọa độ và FormulaEngine hiện có; không thêm dependency, adapter hay Core patch. App tạo XLSX; Excel 2016 COM mở tệp chỉ đọc, mỗi lần một workbook.
+- **Rủi ro:** Phân biệt tham chiếu ô với chuỗi văn bản, tên hàm/vùng và vùng ngoài biên; sai dịch chuyển làm đổi kết quả công thức sau lưu.
+- **Kiểm tra:** CDP nhập công thức vào H1:H3 và kiểm chuỗi formula từng ô; Excel 2016 COM đọc lại công thức, Value2 và number format trong XLSX app vừa lưu.
+- **Rollback:** Revert commit sửa Ctrl+Enter; giữ nguyên các nhóm điều hướng, tài liệu và kiểm CDP đã commit trước đó.
+
+## Bổ sung: kết quả Ctrl+Shift+; và đồng bộ Help
+
+- Hai bài kiểm tra đang có yêu cầu lệnh chèn giờ trả về/lưu chuỗi `HH:mm:ss`; lần chạy trước thất bại vì parser ô đổi chuỗi giờ thành serial `0.0589…`. Không có bằng chứng Excel 2016 thật về thao tác Ctrl+Shift+; và readback `Value2`/`NumberFormat` trong worktree này, vì vậy không đổi kỳ vọng kiểm thử. Lệnh hiện lưu chuỗi giờ bằng đường nhập văn bản và không gắn number format. Đổi sang serial chỉ sau khi có thể ghi lại thao tác Excel thật và giá trị `Value2` cùng `NumberFormat`.
+- Bài Help `sheet.input.navigationFillClipboard` đã bỏ các tổ hợp Ctrl+Arrow, Ctrl+Home, F5, Ctrl+G và Ctrl+Enter mà nội dung trước gắn với bài này nhưng không có khai báo tương ứng trong registry shortcut. Các bước còn lại mô tả thao tác qua Hộp tên, lưới, ribbon và chuột. Không thay đổi kiểm thử đồng bộ Help.

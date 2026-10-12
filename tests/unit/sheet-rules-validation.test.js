@@ -54,6 +54,15 @@ export async function runSheetRulesValidationTests() {
     assert(grid.getConditionalFormattingRules().length === 1, "rule sheet đầu phải được giữ nguyên khi quay lại");
   });
 
+  test("Conditional Formatting: xóa một quy tắc khỏi trang hiện tại và có thể hoàn tác", () => {
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3"]);
+    const rule = grid.addConditionalFormattingRule({ start: { c: "C", r: 2 }, end: { c: "C", r: 6 } }, { type: "greaterThan", value: 2000, color: "#fed7aa" });
+    assert(grid.deleteConditionalFormattingRule(rule.id), "quy tắc hiện có phải xóa được");
+    assert(grid.getConditionalFormattingRules().length === 0, "sau khi xóa, danh sách phải rỗng");
+    assert(grid.undo(), "xóa quy tắc phải có thể hoàn tác");
+    assert(grid.getConditionalFormattingRules().some(item => item.id === rule.id), "hoàn tác phải khôi phục đúng quy tắc");
+  });
+
   test("Data Validation danh sách: cho qua giá trị hợp lệ và cảnh báo giá trị lạ", () => {
     const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     const range = { start: { c: "C", r: 1 }, end: { c: "C", r: 3 } };

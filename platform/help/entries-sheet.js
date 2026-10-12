@@ -246,12 +246,13 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.format.conditional"],
     title: "Định dạng có điều kiện",
-    summary: "Tô màu nền các ô trong vùng chọn khi giá trị lớn hơn một số, nhỏ hơn một số, hoặc ô trống. Màu chọn bằng bảng màu trong hộp thoại.",
+    summary: "Tạo, xem và xóa quy tắc tô màu nền ô theo điều kiện lớn hơn, nhỏ hơn hoặc ô trống. Mỗi quy tắc lưu cùng sổ tính.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Kiểu ô" },
     keywords: ["định dạng có điều kiện", "conditional formatting", "tô màu", "quy tắc", "ô trống", "lớn hơn"],
     steps: [
       "Bôi vùng cần tô nổi (ví dụ cột điểm). Tab Trang đầu, nhóm Kiểu ô, nhấn nút lớn Định dạng có điều kiện.",
-      "Hộp thoại hiện Phạm vi đang chọn. Chọn Quy tắc: Giá trị lớn hơn, Giá trị nhỏ hơn, hoặc Ô trống.",
+      "Hộp thoại hiển thị danh sách Quy tắc hiện có. Nhấn Xóa quy tắc ở dòng tương ứng để bỏ quy tắc khỏi trang tính.",
+      "Để thêm quy tắc, chọn Giá trị lớn hơn, Giá trị nhỏ hơn hoặc Ô trống; nhập ngưỡng nếu cần và chọn Màu nền.",
       "Với lớn hơn / nhỏ hơn: nhập ngưỡng ở ô Giá trị. Chọn Màu nền bằng bảng màu (mặc định vàng nhạt).",
       "Nhấn Áp dụng. Các ô khớp quy tắc được tô ngay. Ô trống chỉ cần chọn quy tắc Ô trống, không nhập số.",
       "Cùng nhóm Kiểu ô còn Định dạng bảng (màu xen kẽ) và Kiểu ô (Normal, Good, Bad, Neutral…) — khác với quy tắc có điều kiện."
@@ -1188,7 +1189,24 @@ export const SHEET_HELP_ENTRIES = [
       "Nhấn F1 để mở Trợ giúp 3T Office và tìm 'Tab', 'Dán' hoặc 'bộ nhớ tạm'."
     ]
   },
-{
+  {
+    id: "sheet.input.navigationFillClipboard",
+    app: "sheet",
+    commandIds: [],
+    title: "Di chuyển, chọn, điền và sao chép ô bằng phím hoặc chuột",
+    summary: "Dùng lưới trang tính để chọn ô/vùng, nhập hoặc sửa nội dung, điền chuỗi, sao chép dữ liệu và hoàn tác. Nhấn F1 rồi tìm ‘chọn ô’ để mở lại hướng dẫn này.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["chọn ô", "di chuyển ô", "Ctrl+G", "F5", "F2", "điền xuống", "kéo tay nắm", "sao chép", "dán", "menu chuột phải", "hoàn tác"],
+    steps: [
+      "Nhấp vào ô trong lưới để chọn. Dùng các phím mũi tên để đi từng ô; giữ Shift khi nhấn mũi tên để mở rộng vùng. Nhấn End rồi một phím mũi tên để đi tới ô cuối theo hướng đó.",
+      "Đặt con trỏ vào Hộp tên bên trái thanh công thức. Gõ địa chỉ như D7, vùng như B2:D10, hoặc tên vùng rồi nhấn Enter để đi tới đó.",
+      "Khi một ô đang được chọn, gõ chữ hoặc số để thay nội dung rồi nhấn Enter. Sửa nội dung hiện có trực tiếp trong ô; Enter xác nhận, Esc hủy phần sửa và khôi phục giá trị cũ. Tab xác nhận rồi chuyển sang ô bên phải. Khi đã chọn nhiều ô, nhập giá trị hoặc công thức rồi dùng lệnh điền vùng. Delete xóa nội dung của cả vùng đang chọn.",
+      "Kéo chuột từ ô đầu đến ô cuối để chọn một khối. Nhấp chữ cái đầu cột hoặc số đầu hàng để chọn cả cột/hàng. Để điền, chọn vùng có ô nguồn ở cạnh trên hoặc bên trái rồi dùng lệnh Điền xuống/Điền sang phải trên tab Trang đầu; hoặc kéo tay nắm nhỏ ở góc dưới phải vùng chọn tới ô đích để tiếp tục chuỗi số/ngày.",
+      "Chọn ô/vùng nguồn rồi nhấn Ctrl+C để sao chép hoặc Ctrl+X để cắt; chọn ô đích và nhấn Ctrl+V để dán. Ctrl+Alt+V mở Dán đặc biệt để chọn giá trị, công thức, định dạng hoặc chuyển vị. Nhấp chuột phải lên ô để mở cùng các lệnh theo ngữ cảnh. Ctrl+Z hoàn tác một thao tác; Ctrl+Y làm lại.",
+      "Nội dung hướng dẫn không thay thế thao tác lưu tệp; hãy lưu bằng nút Lưu hoặc Ctrl+S sau khi sửa dữ liệu."
+    ]
+  },
+  {
     id: "sheet.keyboard.basicEditing",
     app: "sheet",
     commandIds: [],

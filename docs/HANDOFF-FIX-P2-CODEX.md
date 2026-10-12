@@ -1,0 +1,17 @@
+# Agent Handoff
+TASK: `docs/tickets-0710/FIX-P2.md`
+AGENT/ROLE: Codex / Sheet performance implementation
+BRANCH: `fix/sheet-p2-codex`
+WORKTREE: `E:\VNOffice-codex-fp2`
+OBJECTIVE: Reduce Sheet edit, commit, undo, and redo latency while preserving formula results and a safe full-recalculation fallback.
+FINDINGS: Sheet previously recalculated every formula after a cell edit. lan14 also uses exact VLOOKUPs over whole-column ranges; building their lookup index by reading all 1,048,576 rows per call caused avoidable work. Several unsupported or dynamic formula cases still use the original full-recalculation path.
+IMPLEMENTATION SUMMARY: Added static dependency extraction and downstream dirty-formula recalculation, retained formula/lookup normalization caches with invalidation, and added sparse exact VLOOKUP indexing for whole-column ranges. Kept full recalc as fallback and differential oracle. Coalesced dependent recalculation on cell commit and ignored no-op cell history actions. Extended desktop diagnostics to print dependent formula coordinates.
+FILES CHANGED: `apps/sheet/formula-engine.js`; `apps/sheet/sheet-grid.js`; `tests/unit/formula-engine.test.js`; `tests/unit/find-replace-shared.test.js`; `scripts/audit-0610/p2_edit_latency.desktop.mjs`; `scripts/audit-0610/sheet_formulas_vs_cache.mjs`; `docs/PLAN-SHEET-P2.md`.
+COMMANDS RUN: `npm test`; `python -m unittest discover -s tests`; targeted `runFormulaEngineTests()`; desktop CDP edit/undo/redo probes; `scripts/layout-audit/batch_document_audit.py xlsx` for lan01,02,04,06,09,11,22,26 with `VNO_AUDIT_MARK_DIRTY=1`; syntax and repository hygiene checks. Desktop profile root: `E:\VNOffice-profiles\codex-fp2`.
+BUILD RESULT: NOT RUN (no build-system change).
+TEST RESULTS: `npm test` PASS, 3125/3125. Python PASS, 907 tests plus updater end-to-end checks. FormulaEngine targeted tests PASS, 154/154. Current-code XLSX batch PASS, 8/8; each had `diffs=0`, clean lint, and Excel read-back PASS. Desktop probes on lan01/04/06/09/16 had edit start 40–65 ms, Enter 45–101 ms, undo 41–78 ms, redo 32–67 ms; all completed their full-recalc oracle without formula mismatches. lan09 required a disposable test copy with sheet protection removed because the source contains no editable cell; the original was not changed. A previous 28-workbook cache audit reported 99.82% cached-value matches, above the 53.41% threshold; this aggregate was not rerun after the final whole-column sparse-index change.
+KNOWN FAILURES: lan14 desktop probe could not reach editing: three fresh-profile attempts failed during `convert.fods` with LibreOffice `SofficeExitError` (about 30 seconds each; crash dump recorded). The CDP edit/latency and formula oracle therefore remain NOT RUN for lan14 on the final code. No automated test failures were observed.
+RISKS: The required six-workbook desktop latency acceptance is incomplete until lan14 can open through LibreOffice. The 28-workbook cache-match aggregate predates the final sparse whole-column VLOOKUP change; unit coverage verifies first-match, blank-as-zero, sparse reads, and invalidation, but a current full workbook oracle is still needed.
+DEPENDENCIES/BLOCKERS: A LibreOffice run that can convert/open `lan14.xlsx` is needed to finish the desktop latency and final workbook-oracle checks.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Rerun lan14 desktop edit/commit/undo/redo and current-code formula-cache comparison after resolving the LibreOffice conversion crash; update this handoff with measured results.
