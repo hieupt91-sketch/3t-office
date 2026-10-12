@@ -91,6 +91,23 @@ export async function runSheetQuickViewTests() {
     assert(view._redoPendingEdit() && view.valueOverrides.get("0:1:0") === "TEST123", "redo restores the typed value");
   });
 
+  await test("P1 delete and cell formatting remain undoable while hydration is pending", () => {
+    const view = new SheetQuickView({ timers: { setTimeout, clearTimeout } });
+    view.active = true;
+    const cell = { dataset: { row: "1", col: "0", value: "existing" }, style: { fontWeight: "normal" } };
+    view.root = { querySelectorAll: () => [cell] };
+    view.sheets = [{ name: "Sheet1", rows: 10, cols: 5 }];
+    view.selected = { row: 1, col: 0 };
+    view._queueValueEdit(1, 0, "");
+    assert(view.valueOverrides.get("0:1:0") === "", "delete is visible in the quick view");
+    assert(view._undoPendingEdit() && view.valueOverrides.get("0:1:0") === "existing", "undo restores a deleted value");
+    assert(view._redoPendingEdit() && view.valueOverrides.get("0:1:0") === "", "redo clears the value again");
+    view._toggleQuickStyle("fontWeight", "bold", "normal");
+    assert(view.styleOverrides.get("0:1:0")?.fontWeight === "bold", "format command changes the quick style");
+    assert(view._undoPendingEdit() && view.styleOverrides.get("0:1:0")?.fontWeight === "normal", "undo restores the original style");
+    assert(view._redoPendingEdit() && view.styleOverrides.get("0:1:0")?.fontWeight === "bold", "redo reapplies cell formatting");
+  });
+
   await test("P1 paste is one undoable group and replays only applied edits into the full grid", () => {
     const view = new SheetQuickView({ timers: { setTimeout, clearTimeout } });
     view.active = true;
