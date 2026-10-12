@@ -297,6 +297,21 @@ export class FormulaEngine {
     return raw;
   }
 
+  _getRangeCellValue(coord, sheetName = null) {
+    const map = sheetName && typeof this.sheetResolver === "function" ? this.sheetResolver(sheetName) : this.cellsMap;
+    if (sheetName && !map) return "#REF!";
+    const item = map?.get?.(String(coord).toUpperCase());
+    if (!item) return "";
+    const raw = item.val === undefined || item.val === null ? "" : item.val;
+    if (raw === "" && !item.formula) return "";
+    if (raw === "" && item.formula) {
+      const formulaEmpty = new String("");
+      formulaEmpty.isFormulaCell = true;
+      return formulaEmpty;
+    }
+    return this.getCellValue(coord, sheetName);
+  }
+
   expandRange(rangeStr) {
     const parts = rangeStr.toUpperCase().split(":");
     if (parts.length === 1) return [parts[0].trim()];
@@ -372,7 +387,7 @@ export class FormulaEngine {
     if (reference.sheets) {
       const values = [];
       for (const sheet of reference.sheets) {
-        for (const coord of this.expandRange(reference.ref)) values.push(this.getCellValue(coord, sheet));
+        for (const coord of this.expandRange(reference.ref)) values.push(this._getRangeCellValue(coord, sheet));
       }
       return values;
     }
@@ -418,7 +433,7 @@ export class FormulaEngine {
       }
     }
 
-    const values = this.expandRange(ref).map(coord => this.getCellValue(coord, reference.sheet));
+    const values = this.expandRange(ref).map(coord => this._getRangeCellValue(coord, reference.sheet));
     this._rangeValuesCache.set(cacheKey, values);
     return values;
   }
@@ -435,7 +450,7 @@ export class FormulaEngine {
       } else if (typeof arg === "string" && (arg.includes(":") || arg.includes("!") || this._resolveNamedRange(arg))) {
         values.push(...this._referenceValues(arg));
       } else if (typeof arg === "string" && /^[A-Z]+\d+$/i.test(arg.trim())) {
-        values.push(this.getCellValue(arg.trim()));
+        values.push(this._getRangeCellValue(arg.trim()));
       } else {
         values.push(arg);
       }
@@ -476,7 +491,7 @@ export class FormulaEngine {
     for (let row = Math.min(+startRowText, +endRowText); row <= Math.max(+startRowText, +endRowText); row++) {
       const values = [];
       for (let col = Math.min(startColIndex, endColIndex); col <= Math.max(startColIndex, endColIndex); col++) {
-        values.push(this.getCellValue(`${this._columnName(col)}${row}`, reference.sheet));
+        values.push(this._getRangeCellValue(`${this._columnName(col)}${row}`, reference.sheet));
       }
       rows.push(values);
     }
@@ -1425,12 +1440,14 @@ export class FormulaEngine {
 
       case "INDIRECT": {
         if (args.length < 1) return "#VALUE!";
-        const text = String(this._resolveSingleValue(args[0]));
+        const resolvedText = this.evaluate(`=${args[0]}`);
+        if (this._isError(resolvedText)) return resolvedText;
+        const text = String(resolvedText ?? "");
         const reference = this._parseReference(text);
         if (reference.error || reference.sheets) return "#REF!";
         if (!/^[A-Z]+\d+(?::[A-Z]+\d+)?$/i.test(reference.ref)) return "#REF!";
         const values = this._referenceValues(text);
-        return values.length === 1 ? values[0] : values;
+        return values.length === 1 ? (values[0] === "" ? 0 : values[0]) : values;
       }
 
       case "OFFSET": {

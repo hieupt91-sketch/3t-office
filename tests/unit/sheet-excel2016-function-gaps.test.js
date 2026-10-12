@@ -17,6 +17,7 @@ export async function runSheetExcel2016FunctionGapTests() {
     ["B1", { val: 10, formula: "=SUM(A1:A4)", style: {} }],
     ["C1", { val: "x", formula: "", style: {} }],
     ["C2", { val: "#N/A", formula: "", style: {} }],
+    ["D1", { val: "", formula: '=""', style: {} }],
   ]);
   const engine = new FormulaEngine(cells);
 
@@ -34,6 +35,16 @@ export async function runSheetExcel2016FunctionGapTests() {
     equal(engine.evaluate("=PERCENTILE(A1:A4,0.75)"), 2.5);
     equal(engine.evaluate("=PERCENTILE(A1:A4,1.1)"), "#NUM!");
     equal(engine.evaluate("=PERCENTILE(C1,0.5)"), "#NUM!");
+  });
+  test("Hàm tổng hợp bỏ ô trống trong vùng nhưng COUNTA vẫn tính công thức trả chuỗi rỗng", () => {
+    equal(engine.evaluate("=SUM(A1:A5)"), 9);
+    equal(engine.evaluate("=AVERAGE(A1:A5)"), 2.25);
+    equal(engine.evaluate("=COUNT(A1:A5)"), 4);
+    equal(engine.evaluate("=COUNTA(A1:A5)"), 4);
+    equal(engine.evaluate("=MIN(A1:A5)"), 1);
+    equal(engine.evaluate("=MAX(A1:A5)"), 4);
+    equal(engine.evaluate("=COUNTBLANK(A1:A5)"), 1);
+    equal(engine.evaluate("=COUNTA(D1)"), 1);
   });
   test("ADDRESS tạo tham chiếu A1 và hỗ trợ sheet có dấu nháy", () => {
     equal(engine.evaluate("=ADDRESS(3,2)"), "$B$3");
@@ -54,6 +65,10 @@ export async function runSheetExcel2016FunctionGapTests() {
     equal(engine.evaluate('=YEARFRAC("2020-01-01","2020-02-01",0)'), 30 / 360);
     equal(engine.evaluate('=YEARFRAC("2020-01-01","2020-02-01",4)'), 30 / 360);
     equal(engine.evaluate('=YEARFRAC("2020-01-01","2021-01-01",5)'), "#NUM!");
+  });
+  test("INDIRECT resolves a concatenated cell address", () => {
+    equal(engine.evaluate('=INDIRECT("A" & 5)'), 0);
+    equal(engine.evaluate('=INDIRECT("A" & 4)'), 4);
   });
   return results;
 }
