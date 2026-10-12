@@ -1424,5 +1424,32 @@ export async function runSlidesFileIoTests() {
     }
   });
 
+  test("SlidesAdapter: save/reopen imported slide with only a table does not add empty layout placeholders", () => {
+    const fodp = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+ xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0">
+ <office:body><office:presentation><draw:page draw:name="page9" draw:master-page-name="Standard" presentation:presentation-page-layout-name="VNOTitleContent">
+  <draw:frame draw:name="business-table" svg:x="1cm" svg:y="1cm" svg:width="10cm" svg:height="4cm"><table:table><table:table-column/><table:table-row><table:table-cell><text:p>Revenue</text:p></table:table-cell></table:table-row></table:table></draw:frame>
+ </draw:page></office:presentation></office:body>
+</office:document>`;
+    const adapter = new SlidesAdapter(null);
+    const parsed = adapter.parseFodp(fodp);
+    if (parsed.length !== 1 || parsed[0].shapes.length !== 1 || parsed[0].shapes[0].type !== "table") {
+      throw new Error(`Expected the imported table to remain the only shape: ${JSON.stringify(parsed[0])}`);
+    }
+    if (parsed[0].layoutType !== "blank") {
+      throw new Error(`Imported non-text content must not synthesize title/body placeholders: ${parsed[0].layoutType}`);
+    }
+    const saved = new SlidesAdapter({ slides: parsed, slideSize: { width: 960, height: 540 } }).serializeToFodp();
+    const reopened = adapter.parseFodp(saved);
+    if (reopened[0].shapes.length !== 1 || reopened[0].shapes[0].type !== "table") {
+      throw new Error(`Save/reopen changed the object count: ${JSON.stringify(reopened[0].shapes)}`);
+    }
+  });
+
   return results;
 }

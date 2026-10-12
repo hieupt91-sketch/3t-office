@@ -3646,7 +3646,7 @@ export class SlidesAdapter {
 
       const masterPageName = this._attr(fullPageTag, "draw:master-page-name");
       const hasTextBoxShapes = shapes.some(s => s.type === "textbox");
-      const isImportedSlide = !layoutMatch || masterPageName === "BLANK" || hasTextBoxShapes;
+      const isImportedSlide = !layoutMatch || masterPageName === "BLANK" || hasTextBoxShapes || shapes.length > 0;
 
       // PPTX hop drops presentation:layout; restore two-content / title-only from remaining placeholders.
       if (isImportedSlide && (hasTextBoxShapes || masterPageName === "BLANK" || shapes.length > 0)) {
