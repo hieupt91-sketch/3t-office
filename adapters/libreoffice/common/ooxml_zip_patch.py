@@ -4691,21 +4691,21 @@ def _fods_pivot_table_names(source_fods: str | None) -> dict[str, str]:
     return result
 
 
-def _insert_pivot_chart_binding(chart_xml: str, pivot_name: str, fmt_id: int) -> str:
+def _insert_pivot_chart_binding(chart_xml: str, pivot_name: str, chart_id: int, fmt_id: int) -> str:
     """Add standard chart-space pivotSource and chart pivotFmts metadata."""
     if not re.search(r"<c:chartSpace\b", chart_xml):
         return chart_xml
     source = (
         f'<c:pivotSource><c:name>{_escape_xml(pivot_name)}</c:name>'
-        f'<c:fmtId val="{fmt_id}"/></c:pivotSource>'
+        f'<c:fmtId val="{chart_id}"/></c:pivotSource>'
     )
     if re.search(r"<c:pivotSource\b", chart_xml):
         chart_xml = re.sub(r"<c:pivotSource\b[\s\S]*?</c:pivotSource\s*>", source, chart_xml, count=1)
     else:
-        chart_tag = re.search(r"<c:chartSpace\b[^>]*>", chart_xml)
+        chart_tag = re.search(r"<c:chart\b[^>]*>", chart_xml)
         if not chart_tag:
             return chart_xml
-        chart_xml = chart_xml[:chart_tag.end()] + source + chart_xml[chart_tag.end():]
+        chart_xml = chart_xml[:chart_tag.start()] + source + chart_xml[chart_tag.start():]
 
     pivot_fmts = (
         f'<c:pivotFmts><c:pivotFmt><c:idx val="{fmt_id}"/>'
@@ -4728,11 +4728,15 @@ def _add_pivot_chart_format(pivot_xml: str, chart_id: int, fmt_id: int) -> str:
     if not definition:
         return pivot_xml
     chart_formats = re.search(r"<(?:[\w.-]+:)?chartFormats\b[^>]*>[\s\S]*?</(?:[\w.-]+:)?chartFormats\s*>", pivot_xml, re.IGNORECASE)
-    chart_format = f'<chartFormat chart="{chart_id}" format="{fmt_id}" series="0"/>'
+    chart_format = (
+        f'<chartFormat chart="{chart_id}" format="{fmt_id}" series="1">'
+        '<pivotArea type="data" outline="0"/>'
+        '</chartFormat>'
+    )
     if chart_formats:
         body = chart_formats.group(0)
         if re.search(rf"<chartFormat\b(?=[^>]*\bchart=[\"']{chart_id}[\"'])", body, re.IGNORECASE):
-            updated_body = re.sub(rf"<chartFormat\b(?=[^>]*\bchart=[\"']{chart_id}[\"'])[^>]*/?>", chart_format, body, count=1, flags=re.IGNORECASE)
+            updated_body = re.sub(rf"<chartFormat\b(?=[^>]*\bchart=[\"']{chart_id}[\"'])[^>]*/>|<chartFormat\b(?=[^>]*\bchart=[\"']{chart_id}[\"'])[^>]*>[\s\S]*?</chartFormat\s*>", chart_format, body, count=1, flags=re.IGNORECASE)
         else:
             updated_body = body.replace("</chartFormats>", chart_format + "</chartFormats>")
         return pivot_xml[:chart_formats.start()] + updated_body + pivot_xml[chart_formats.end():]
@@ -4897,11 +4901,12 @@ def _apply_pivot_chart_links_from_fods(
                 if not pivot_part:
                     continue
                 pivot_xml = replacements.get(pivot_part) or package.read(pivot_part).decode("utf-8", errors="replace")
-                fmt_id = pivot_chart_counts.get(pivot_id, 0)
-                pivot_chart_counts[pivot_id] = fmt_id + 1
+                chart_id = pivot_chart_counts.get(pivot_id, 0)
+                pivot_chart_counts[pivot_id] = chart_id + 1
+                fmt_id = 0
                 chart_xml = replacements.get(chart_part) or package.read(chart_part).decode("utf-8", errors="replace")
-                updated_chart = _insert_pivot_chart_binding(chart_xml, pivot_name, fmt_id)
-                updated_pivot = _add_pivot_chart_format(pivot_xml, fmt_id, fmt_id)
+                updated_chart = _insert_pivot_chart_binding(chart_xml, pivot_name, chart_id, fmt_id)
+                updated_pivot = _add_pivot_chart_format(pivot_xml, chart_id, fmt_id)
                 if updated_chart != chart_xml:
                     replacements[chart_part] = updated_chart
                 if updated_pivot != pivot_xml:

@@ -32,7 +32,7 @@ class SheetPivotChartXlsxTests(unittest.TestCase):
         self.assertIn("<c:name>DoanhThuTheoKhuVuc</c:name>", chart_xml)
         self.assertIn('<c:fmtId val="0"/>', chart_xml)
         self.assertIn('<c:idx val="0"/>', chart_xml)
-        self.assertIn('<chartFormat chart="0" format="0" series="0"/>', pivot_xml)
+        self.assertIn('<chartFormat chart="0" format="0" series="1"><pivotArea type="data" outline="0"/></chartFormat>', pivot_xml)
 
     def test_regular_chart_workbook_is_unchanged(self):
         source_fods = '<table:table xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:chart="urn:oasis:names:tc:opendocument:xmlns:chart:1.0" table:name="Pivot"><draw:frame><chart:chart/></draw:frame></table:table>'
