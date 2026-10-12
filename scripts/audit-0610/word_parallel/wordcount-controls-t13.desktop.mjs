@@ -21,8 +21,8 @@ for (const name of controls) {
   try {
     const cdp = session.cdp;
     await cdp.waitFor("!!window.__vnoAppInstance?.adapter && !!document.querySelector('.vno-writer-body')", { timeoutMilliseconds: 240000 });
-    await cdp.waitFor("!!document.querySelector('[data-command-id=\"writer.review.wordCount\"]')", { timeoutMilliseconds: 60000 });
     await click(cdp, "#vno-ribbon-tab-review");
+    await cdp.waitFor("!!document.querySelector('[data-command-id=\"writer.review.wordCount\"]')", { timeoutMilliseconds: 60000 });
     await click(cdp, '[data-command-id="writer.review.wordCount"]');
     await cdp.waitFor("!!document.querySelector('#vno-wordcount-overlay [data-stat=\"charactersWithSpaces\"]')", { timeoutMilliseconds: 10000 });
     const stats = await cdp.evaluate(`(() => {const read=name=>Number((document.querySelector('#vno-wordcount-overlay [data-stat="'+name+'"]')?.textContent||'0').replace(/\\./g,''));return {words:read('words'),charactersNoSpaces:read('charactersNoSpaces'),charactersWithSpaces:read('charactersWithSpaces'),paragraphs:read('paragraphs'),lines:read('lines')}})()`);
