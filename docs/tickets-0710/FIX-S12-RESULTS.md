@@ -203,7 +203,7 @@
 
 ## S12 continuation in worktree S15 (2026-10-12)
 
-- CDP runner fix committed as `3bd8b65c`: null-safe collapsed-control geometry and a focus guard for native ribbon selects. Smoke probe returned `SELECT_NOT_FOCUSED`; no key was sent and no output was counted as evidence. The 43-button matrix remains unchanged.
+- CDP runner fix committed as `3bd8b65c`: null-safe collapsed-control geometry and a focus guard for native ribbon selects. Hit testing reached the `<select>`, but WebView2 kept focus on the grid and CDP Arrow keys did not change its value; the safe probe reports `SELECT_NOT_FOCUSED`. No product mismatch was inferred and the 43-button matrix remains unchanged.
 - Verification: **PASS** `npm test` 3092/3092. **FAIL** `python -m unittest discover -s tests` 887 tests, 5 failures + 1 error while another unittest process used the same LibreOffice profile; the Sheet conversion/round-trip test methods and Writer review method each **PASS** when rerun separately with an isolated `LOCALAPPDATA`.
 - Dirty-save batch with `VNO_AUDIT_MARK_DIRTY=1`, `VNO_APP_ROOT` set to this worktree: structure **7/8 PASS**, `lan11.xlsx` has a conditionalFormatting L2 diff; numFmt **8/8**, 100% values/types/formats retained. Excel COM ReadOnly opened all eight structure outputs one at a time; no workbook was saved by Excel.
 - PivotChart remains a recorded known gap: XLSX output has a regular chart without a PivotTable link. No OOXML or product feature change was made. Remaining 43 buttons are still unverified; FIX-S12 remains open.
