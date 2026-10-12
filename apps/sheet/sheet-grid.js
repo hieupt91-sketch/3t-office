@@ -385,9 +385,11 @@ export class SheetGridController {
     this.nameBox?.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
+        e.stopPropagation();
         this._jumpToNameBoxAddress(this.nameBox.value);
       } else if (e.key === "Escape") {
         e.preventDefault();
+        e.stopPropagation();
         this.nameBox.value = this.getSelectionNameLabel();
         this.focusGrid();
       }
@@ -4623,6 +4625,7 @@ _bindGridKeyboardNavigation() {
           return;
         }
         if (typeof document !== "undefined" && document?.activeElement === this.formulaInput) return;
+        if (typeof document !== "undefined" && document?.activeElement === this.nameBox) return;
         if (this._tabSequenceAnchor && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(e.key)) {
           this._tabSequenceAnchor = null;
         }
@@ -4653,6 +4656,13 @@ _bindGridKeyboardNavigation() {
         if (this.formulaEntry?.mode === "point" && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
           e.preventDefault();
           this._movePointReferenceWithArrow(e.key);
+          return;
+        }
+
+        if ((e.key === "F5" || (e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey && e.key.toLowerCase() === "g")) && !this.formulaEntry) {
+          e.preventDefault();
+          this.nameBox?.focus();
+          this.nameBox?.select?.();
           return;
         }
 
@@ -4703,6 +4713,9 @@ _bindGridKeyboardNavigation() {
         } else {
           nextCol = this.cols[Math.min(this.cols.length - 1, colIdx + 1)];
         }
+        extendRange = e.shiftKey;
+      } else if (e.key === "Home" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        nextCol = "A";
         extendRange = e.shiftKey;
       } else if (e.key === "Home" && e.ctrlKey) {
         nextCol = "A";
@@ -4787,6 +4800,10 @@ _bindGridKeyboardNavigation() {
         e.preventDefault();
         this.insertCurrentTime();
         return;
+      } else if (e.key === ";" && e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        this.insertCurrentDate();
+        return;
       } else if (e.key === "F11" && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
         e.preventDefault();
         this.addSheetBefore();
@@ -4806,10 +4823,6 @@ _bindGridKeyboardNavigation() {
       } else if (e.key === "F9") {
         e.preventDefault();
         this.recalculateAll();
-        return;
-      } else if (e.key === "F4") {
-        e.preventDefault();
-        this.redo();
         return;
       } else if (e.key === "Enter" && e.altKey) {
         e.preventDefault();
@@ -4855,7 +4868,7 @@ _bindGridKeyboardNavigation() {
             this.setCellValue(c, r, "");
           });
         } else {
-          this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, "");
+          this.clearContents(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
         }
         if (this.formulaInput) this.formulaInput.value = "";
         return;
