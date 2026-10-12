@@ -4616,12 +4616,327 @@ def _apply_refreshed_pivot_locations_from_fods(
             replacements[entry] = updated
 
 
+def _resolve_relationship_target(source_part: str, target: str) -> str:
+    """Resolve an OPC relationship target relative to its source part."""
+    if target.startswith("/"):
+        return target.lstrip("/")
+    return posixpath.normpath(posixpath.join(posixpath.dirname(source_part), target))
+
+
+def _relationship_part_name(source_part: str) -> str:
+    directory, filename = posixpath.split(source_part)
+    return posixpath.join(directory, "_rels", filename + ".rels")
+
+
+def _read_relationships(package: zipfile.ZipFile, source_part: str) -> dict[str, str]:
+    rels_path = _relationship_part_name(source_part)
+    try:
+        root = ET.fromstring(package.read(rels_path))
+    except (KeyError, ET.ParseError):
+        return {}
+    result = {}
+    for relationship in root:
+        rel_id = relationship.attrib.get("Id")
+        target = relationship.attrib.get("Target")
+        if rel_id and target:
+            result[rel_id] = _resolve_relationship_target(source_part, target)
+    return result
+
+
+def _fods_pivot_charts(source_fods: str | None) -> dict[str, list[str]]:
+    """Return sheet name → pivot ids in serialized chart order."""
+    result: dict[str, list[str]] = {}
+    try:
+        root = ET.fromstring(source_fods or "")
+    except ET.ParseError:
+        return result
+    for table in root.iter():
+        if table.tag.rsplit("}", 1)[-1] != "table":
+            continue
+        attrs = {key.rsplit("}", 1)[-1]: value for key, value in table.attrib.items()}
+        sheet_name = attrs.get("name")
+        if not sheet_name:
+            continue
+        ids = []
+        for frame in table.iter():
+            if frame.tag.rsplit("}", 1)[-1] != "frame":
+                continue
+            if not any(node.tag.rsplit("}", 1)[-1] == "chart" for node in frame.iter()):
+                continue
+            frame_attrs = {key.rsplit("}", 1)[-1]: value for key, value in frame.attrib.items()}
+            if frame_attrs.get("chart-kind") != "pivot":
+                ids.append("")
+                continue
+            ids.append(_unescape_xml(frame_attrs.get("pivot-id", "")).strip())
+        if ids:
+            result[_unescape_xml(sheet_name)] = ids
+    return result
+
+
+def _fods_pivot_table_names(source_fods: str | None) -> dict[str, str]:
+    """Map VN pivot ids to the stable native DataPilot table names."""
+    result = {}
+    try:
+        root = ET.fromstring(source_fods or "")
+    except ET.ParseError:
+        return result
+    for node in root.iter():
+        if node.tag.rsplit("}", 1)[-1] != "data-pilot-table":
+            continue
+        attrs = {key.rsplit("}", 1)[-1]: value for key, value in node.attrib.items()}
+        pivot_id = _unescape_xml(attrs.get("pivot-id", "")).strip()
+        name = _unescape_xml(attrs.get("name", "")).strip()
+        if pivot_id and name:
+            result[pivot_id] = name
+    return result
+
+
+def _insert_pivot_chart_binding(chart_xml: str, pivot_name: str, chart_id: int, fmt_id: int) -> str:
+    """Add standard chart-space pivotSource and chart pivotFmts metadata."""
+    if not re.search(r"<c:chartSpace\b", chart_xml):
+        return chart_xml
+    source = (
+        f'<c:pivotSource><c:name>{_escape_xml(pivot_name)}</c:name>'
+        f'<c:fmtId val="{chart_id}"/></c:pivotSource>'
+    )
+    if re.search(r"<c:pivotSource\b", chart_xml):
+        chart_xml = re.sub(r"<c:pivotSource\b[\s\S]*?</c:pivotSource\s*>", source, chart_xml, count=1)
+    else:
+        chart_tag = re.search(r"<c:chart\b[^>]*>", chart_xml)
+        if not chart_tag:
+            return chart_xml
+        chart_xml = chart_xml[:chart_tag.start()] + source + chart_xml[chart_tag.start():]
+
+    pivot_fmts = (
+        f'<c:pivotFmts><c:pivotFmt><c:idx val="{fmt_id}"/>'
+        '<c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr>'
+        '</c:pivotFmt></c:pivotFmts>'
+    )
+    if re.search(r"<c:pivotFmts\b", chart_xml):
+        chart_xml = re.sub(r"<c:pivotFmts\b[\s\S]*?</c:pivotFmts\s*>", pivot_fmts, chart_xml, count=1)
+    else:
+        plot_area = re.search(r"<c:plotArea\b", chart_xml)
+        chart_open = re.search(r"<c:chart\b[^>]*>", chart_xml)
+        if not plot_area or not chart_open or plot_area.start() < chart_open.end():
+            return chart_xml
+        chart_xml = chart_xml[:plot_area.start()] + pivot_fmts + chart_xml[plot_area.start():]
+    return chart_xml
+
+
+def _add_pivot_chart_format(pivot_xml: str, chart_id: int, fmt_id: int) -> str:
+    definition = re.search(r"<(?P<tag>(?:[\w.-]+:)?pivotTableDefinition)\b[^>]*>", pivot_xml, re.IGNORECASE)
+    if not definition:
+        return pivot_xml
+    chart_formats = re.search(r"<(?:[\w.-]+:)?chartFormats\b[^>]*>[\s\S]*?</(?:[\w.-]+:)?chartFormats\s*>", pivot_xml, re.IGNORECASE)
+    chart_format = (
+        f'<chartFormat chart="{chart_id}" format="{fmt_id}" series="1">'
+        '<pivotArea type="data" outline="0"/>'
+        '</chartFormat>'
+    )
+    if chart_formats:
+        body = chart_formats.group(0)
+        if re.search(rf"<chartFormat\b(?=[^>]*\bchart=[\"']{chart_id}[\"'])", body, re.IGNORECASE):
+            updated_body = re.sub(rf"<chartFormat\b(?=[^>]*\bchart=[\"']{chart_id}[\"'])[^>]*/>|<chartFormat\b(?=[^>]*\bchart=[\"']{chart_id}[\"'])[^>]*>[\s\S]*?</chartFormat\s*>", chart_format, body, count=1, flags=re.IGNORECASE)
+        else:
+            updated_body = body.replace("</chartFormats>", chart_format + "</chartFormats>")
+        return pivot_xml[:chart_formats.start()] + updated_body + pivot_xml[chart_formats.end():]
+
+    collection = f"<chartFormats count=\"1\">{chart_format}</chartFormats>"
+    # chartFormats follows conditionalFormats and precedes pivotHierarchies,
+    # pivotTableStyleInfo and filters in CT_PivotTableDefinition.
+    next_part = re.search(r"<(?:[\w.-]+:)?(?:pivotHierarchies|pivotTableStyleInfo|filters)\b", pivot_xml[definition.end():], re.IGNORECASE)
+    insert_at = definition.end() + next_part.start() if next_part else pivot_xml.lower().rfind(f"</{definition.group('tag').lower()}")
+    if insert_at < definition.end():
+        return pivot_xml
+    return pivot_xml[:insert_at] + collection + pivot_xml[insert_at:]
+
+
+def _pivot_chart_parts_by_sheet(xlsx_bytes: bytes) -> dict[str, list[str]]:
+    """Return chart PivotTable names in worksheet chart order; regular charts use an empty name."""
+    result: dict[str, list[str]] = {}
+    with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+        for sheet_name, sheet_part in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+            sheet_xml = read_zip_entry(xlsx_bytes, sheet_part)
+            if not sheet_xml:
+                continue
+            sheet_root = ET.fromstring(sheet_xml)
+            drawing_rid = next((
+                value for node in sheet_root.iter() if node.tag.rsplit("}", 1)[-1] == "drawing"
+                for key, value in node.attrib.items() if key.rsplit("}", 1)[-1] == "id"
+            ), "")
+            drawing_part = _read_relationships(package, sheet_part).get(drawing_rid)
+            if not drawing_part or drawing_part not in package.namelist():
+                continue
+            drawing_root = ET.fromstring(package.read(drawing_part))
+            drawing_rels = _read_relationships(package, drawing_part)
+            chart_names = []
+            for node in drawing_root.iter():
+                if node.tag.rsplit("}", 1)[-1] != "chart":
+                    continue
+                rid = next((value for key, value in node.attrib.items() if key.rsplit("}", 1)[-1] == "id"), "")
+                chart_part = drawing_rels.get(rid)
+                if not chart_part or chart_part not in package.namelist():
+                    continue
+                chart_root = ET.fromstring(package.read(chart_part))
+                pivot_name = ""
+                for source in chart_root.iter():
+                    if source.tag.rsplit("}", 1)[-1] != "pivotSource":
+                        continue
+                    pivot_name = next((child.text or "" for child in source.iter() if child.tag.rsplit("}", 1)[-1] == "name"), "").strip()
+                    if "!" in pivot_name:
+                        pivot_name = pivot_name.rsplit("!", 1)[-1]
+                    break
+                chart_names.append(pivot_name)
+            if chart_names:
+                result[sheet_name] = chart_names
+    return result
+
+
+def overlay_pivot_chart_metadata_to_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
+    """Restore pivot links on FODS chart frames after native XLSX→FODS conversion."""
+    xml = fods_xml or ""
+    chart_names_by_sheet = _pivot_chart_parts_by_sheet(xlsx_bytes)
+    if not any(any(name for name in names) for names in chart_names_by_sheet.values()):
+        return xml
+    sheet_order = list(_resolve_xlsx_sheet_entries(xlsx_bytes))
+    pivot_names = [name for sheet in sheet_order for name in chart_names_by_sheet.get(sheet, [])]
+    def chart_frame_spans(text: str) -> list[re.Match[str]]:
+        return [match for match in re.finditer(r"<draw:frame\b[^>]*>([\s\S]*?)</draw:frame\s*>", text, re.IGNORECASE)
+                if re.search(r"<chart:chart\b", match.group(1), re.IGNORECASE)]
+    if len(chart_frame_spans(xml)) != len(pivot_names):
+        return xml
+
+    names_to_ids = {name: f"xlsx-pivot:{name}" for name in pivot_names if name}
+    if names_to_ids:
+        def add_pivot_id(match: re.Match[str]) -> str:
+            tag = match.group(0)
+            attrs = _xml_attrs(tag[len("<table:data-pilot-table"): -1])
+            pivot_id = names_to_ids.get(_unescape_xml(attrs.get("table:name", "")))
+            if not pivot_id or "vno:pivot-id" in attrs:
+                return tag
+            self_closing = tag.endswith("/>")
+            base = tag[:-2] if self_closing else tag[:-1]
+            ending = "/>" if self_closing else ">"
+            return base + f' vno:pivot-id="{_escape_xml(pivot_id)}"' + ending
+        xml = re.sub(r"<table:data-pilot-table\b[^>]*>", add_pivot_id, xml, flags=re.IGNORECASE)
+
+    additions = []
+    for match, pivot_name in zip(chart_frame_spans(xml), pivot_names):
+        if not pivot_name:
+            continue
+        attrs_start = match.start()
+        frame_open = re.match(r"<draw:frame\b[^>]*>", match.group(0), re.IGNORECASE)
+        if not frame_open:
+            continue
+        attrs = _xml_attrs(frame_open.group(0)[len("<draw:frame"): -1])
+        if attrs.get("vno:chart-kind") == "pivot":
+            continue
+        pivot_id = names_to_ids.get(pivot_name)
+        if not pivot_id:
+            continue
+        replacement = frame_open.group(0)[:-1] + f' vno:chart-kind="pivot" vno:pivot-id="{_escape_xml(pivot_id)}">'
+        additions.append((attrs_start, attrs_start + frame_open.end(), replacement))
+    for start, end, replacement in reversed(additions):
+        xml = xml[:start] + replacement + xml[end:]
+    if additions:
+        if not _declares_vno_namespace(xml):
+            root = _OFFICE_DOCUMENT_OPEN_RE.search(xml)
+            if root:
+                xml = xml[:root.start()] + f'<office:document{root.group(1)} xmlns:vno="{SHEET_VNO_NS}">' + xml[root.end():]
+    return xml
+
+
+def _apply_pivot_chart_links_from_fods(
+    xlsx_bytes: bytes,
+    source_fods: str | None,
+    replacements: dict[str, str],
+    workbook_filename: str | None = None,
+) -> None:
+    """Bind exported PivotCharts to LibreOffice's existing PivotTable parts."""
+    if not workbook_filename:
+        return
+    charts_by_sheet = _fods_pivot_charts(source_fods)
+    if not any(any(pivot_id for pivot_id in ids) for ids in charts_by_sheet.values()):
+        return
+    pivot_names = _fods_pivot_table_names(source_fods)
+    with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+        sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+        pivot_parts: dict[str, str] = {}
+        for part in package.namelist():
+            if not re.fullmatch(r"xl/pivotTables/pivotTable\d+\.xml", part, re.IGNORECASE):
+                continue
+            xml = (replacements.get(part) or package.read(part).decode("utf-8", errors="replace"))
+            definition = re.search(r"<(?:[\w.-]+:)?pivotTableDefinition\b([^>]*)>", xml, re.IGNORECASE)
+            name = _xml_attrs(definition.group(1)).get("name") if definition else None
+            if name:
+                pivot_parts[_unescape_xml(name)] = part
+
+        pivot_sheet_by_part: dict[str, str] = {}
+        for sheet_name, sheet_part in sheet_entries.items():
+            for related_part in _read_relationships(package, sheet_part).values():
+                if related_part in pivot_parts.values():
+                    pivot_sheet_by_part[related_part] = sheet_name
+
+        for sheet_name, pivot_ids in charts_by_sheet.items():
+            sheet_part = _sheet_name_equivalent_value(sheet_entries, sheet_name)
+            if not sheet_part:
+                continue
+            sheet_rels = _read_relationships(package, sheet_part)
+            sheet_xml = package.read(sheet_part).decode("utf-8", errors="replace")
+            drawing_ref = re.search(r"<(?:[\w.-]+:)?drawing\b[^>]*\br:id=[\"']([^\"']+)[\"']", sheet_xml, re.IGNORECASE)
+            drawing_part = sheet_rels.get(drawing_ref.group(1)) if drawing_ref else None
+            if not drawing_part or drawing_part not in package.namelist():
+                continue
+            drawing_rels = _read_relationships(package, drawing_part)
+            drawing_xml = package.read(drawing_part)
+            try:
+                drawing_root = ET.fromstring(drawing_xml)
+            except ET.ParseError:
+                continue
+            chart_refs = []
+            for node in drawing_root.iter():
+                if node.tag.rsplit("}", 1)[-1] != "chart":
+                    continue
+                rid = next((value for key, value in node.attrib.items() if key.rsplit("}", 1)[-1] == "id"), "")
+                target = drawing_rels.get(rid)
+                if target:
+                    chart_refs.append(target)
+
+            if len(chart_refs) != len(pivot_ids):
+                # Ambiguous frame mapping: leave every chart on this sheet unchanged.
+                continue
+            pivot_chart_counts: dict[str, int] = {}
+            for chart_part, pivot_id in zip(chart_refs, pivot_ids):
+                if not pivot_id:
+                    continue
+                pivot_name = pivot_names.get(pivot_id, pivot_id)
+                pivot_part = pivot_parts.get(pivot_name)
+                if not pivot_part:
+                    continue
+                pivot_sheet = pivot_sheet_by_part.get(pivot_part)
+                if not pivot_sheet:
+                    continue
+                pivot_source_name = f"[{workbook_filename}]{pivot_sheet}!{pivot_name}"
+                pivot_xml = replacements.get(pivot_part) or package.read(pivot_part).decode("utf-8", errors="replace")
+                chart_id = pivot_chart_counts.get(pivot_id, 0)
+                pivot_chart_counts[pivot_id] = chart_id + 1
+                fmt_id = 0
+                chart_xml = replacements.get(chart_part) or package.read(chart_part).decode("utf-8", errors="replace")
+                updated_chart = _insert_pivot_chart_binding(chart_xml, pivot_source_name, chart_id, fmt_id)
+                updated_pivot = _add_pivot_chart_format(pivot_xml, chart_id, fmt_id)
+                if updated_chart != chart_xml:
+                    replacements[chart_part] = updated_chart
+                if updated_pivot != pivot_xml:
+                    replacements[pivot_part] = updated_pivot
+
+
 def postprocess_sheet_xlsx(
     xlsx_bytes: bytes,
     *,
     source_fods: str | None = None,
     enabled: bool | None = None,
     source_xlsx_bytes: bytes | None = None,
+    workbook_filename: str | None = None,
 ) -> bytes:
     """Return patched XLSX bytes, or the original buffer when no patch is needed."""
     replacements: dict[str, str] = {}
@@ -4922,6 +5237,7 @@ def postprocess_sheet_xlsx(
         _apply_workbook_view_state_from_fods(xlsx_bytes, source_fods, replacements)
         _clear_print_areas_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_refreshed_pivot_locations_from_fods(xlsx_bytes, source_fods, replacements)
+        _apply_pivot_chart_links_from_fods(xlsx_bytes, source_fods, replacements, workbook_filename)
 
     if source_fods:
         _apply_sheet_text_boxes_to_xlsx(xlsx_bytes, _parse_fods_text_boxes(source_fods), replacements)
@@ -8756,6 +9072,7 @@ def overlay_sheet_xlsx_fods(
     xml = _overlay_sheet_drawing_image_ids(xlsx_bytes, xml)
     xml = _overlay_sheet_drawing_text_boxes(xlsx_bytes, xml)
     xml = _overlay_sheet_resolved_comments(xlsx_bytes, xml)
+    xml = overlay_pivot_chart_metadata_to_fods(xlsx_bytes, xml)
     # Scenarios: overlay vno:scenarios from XLSX worksheet XMLs
     xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
     return xml
@@ -8819,6 +9136,7 @@ def overlay_sheet_xlsx_fods_p1(
     xml = _overlay_sheet_drawing_image_ids(xlsx_bytes, xml)
     xml = _overlay_sheet_drawing_text_boxes(xlsx_bytes, xml)
     xml = _overlay_sheet_resolved_comments(xlsx_bytes, xml)
+    xml = overlay_pivot_chart_metadata_to_fods(xlsx_bytes, xml)
     if not skeleton:
         xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
     return xml

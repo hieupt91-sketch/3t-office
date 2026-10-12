@@ -1,4 +1,5 @@
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
 import { SheetChartBuilder } from "../../apps/sheet/sheet-chart.js";
 import { SHEET_RIBBON_TABS } from "../../apps/sheet/sheet-ribbon.js";
 import { SHEET_HELP_ENTRIES } from "../../platform/help/entries-sheet.js";
@@ -38,6 +39,17 @@ export async function runSheetPivotChartTests() {
     const charts = SHEET_RIBBON_TABS.find(tab => tab.id === "insert").groups.find(group => group.labelKey === "sheetRibbon.group.charts").items;
     assert(charts.map(item => item.commandId).join(",") === "sheet.chart.insert,sheet.chart.pivotChart", "Vị trí PivotChart sai");
     assert(SHEET_HELP_ENTRIES.some(entry => entry.id === "sheet.chart.pivotChart"), "Thiếu Help PivotChart");
+  });
+
+  await test("FODS giữ khóa PivotTable ổn định để hậu xử lý XLSX gắn đúng tên", async () => {
+    const grid = new SheetGridController(container()); const source = grid.activeSheet;
+    await grid.initializeOptionalDocumentFeatures();
+    put(grid, "A1", "Vùng"); put(grid, "B1", "Doanh số"); put(grid, "A2", "Bắc"); put(grid, "B2", 10);
+    const pivot = grid.createPivotTable({ sourceSheet: source, sourceRange: "A1:B2", rows: ["Vùng"], values: [{ field: "Doanh số", aggregate: "SUM" }] });
+    grid.insertPivotChart("bar", pivot, pivot.resultRange);
+    const xml = new SheetAdapter(grid).serializeToFods();
+    assert(xml.includes(`table:name="${pivot.name || pivot.id}" vno:pivot-id="${pivot.id}"`), "DataPilot FODS thiếu khóa pivot.id bên cạnh tên lưu trữ");
+    assert(xml.includes(`vno:chart-kind="pivot" vno:pivot-id="${pivot.id}"`), "Chart FODS thiếu khóa pivot.id");
   });
   return results;
 }
