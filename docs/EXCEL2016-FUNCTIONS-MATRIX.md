@@ -7,6 +7,8 @@ VN Sheet hiện có 143 mục gợi ý hàm (bao gồm hàm riêng VND); 137 hà
 
 ## Kết quả lượt COM
 
+**Giới hạn tương thích lưu:** ca RANK.EQ và FORMULATEXT trong lượt này nhập công thức có tiền tố `_xlfn.` qua CDP để Excel 2016 tính được. Công thức thông thường không có tiền tố vẫn chưa được sửa ở đường lưu XLSX; mapping đề xuất nằm trong `docs/PLAN-EXCEL-2016-E1-OOXML-COMPAT.md` và đang chờ phê duyệt do thay đổi output XLSX.
+
 | Chỉ số | Kết quả |
 |---|---:|
 | Hàm đã nhập và đọc qua Excel COM | 137 |
@@ -79,7 +81,7 @@ VN Sheet hiện có 143 mục gợi ý hàm (bao gồm hàm riêng VND); 137 hà
 | PRODUCT | Math and trigonometry functions | Excel 2016 | Có | `1` | `=PRODUCT(A1:A5)` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `24` | `24` | MATCH |
 | QUOTIENT | Math and trigonometry functions | Excel 2016 | Không | `#NAME? (QUOTIENT)` | — | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | — | — | Chưa nhận dạng; COM NOT RUN |
 | RADIANS | Math and trigonometry functions | Excel 2016 | Có | `#VALUE!` | `=RADIANS(180)` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `3.141592653589793` | `3.141593` | MATCH |
-| RAND | Math and trigonometry functions | Excel 2016 | Có | `0.3114419095560974` | `=RAND()` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `0.9431956358609933` | `0.518131` | VOLATILE: không so sánh |
+| RAND | Math and trigonometry functions | Excel 2016 | Có | `0.6480383347141856` | `=RAND()` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `0.9431956358609933` | `0.518131` | VOLATILE: không so sánh |
 | RANDARRA | Math and trigonometry functions | Sau Excel 2016 (2021) | Không | `#NAME? (RANDARRA)` | — | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | — | — | Chưa nhận dạng; COM NOT RUN |
 | RANDBETWEEN | Math and trigonometry functions | Excel 2016 | Có | `#VALUE!` | `=RANDBETWEEN(1, 100)` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `82` | `66` | VOLATILE: không so sánh |
 | ROMAN | Math and trigonometry functions | Excel 2016 | Không | `#NAME? (ROMAN)` | — | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | — | — | Chưa nhận dạng; COM NOT RUN |
@@ -491,7 +493,7 @@ VN Sheet hiện có 143 mục gợi ý hàm (bao gồm hàm riêng VND); 137 hà
 | MONTH | Date and time functions | Excel 2016 | Có | `#VALUE!` | `=MONTH(TODAY())` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `10` | `10` | VOLATILE: không so sánh |
 | NETWORKDAYS | Date and time functions | Excel 2016 | Có | `#VALUE!` | `=NETWORKDAYS(A1, A1, C1:C10)` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `#VALUE!` | `#VALUE!` | MATCH |
 | NETWORKDAYS.INTL | Date and time functions | Excel 2016 | Không | `#NAME? (NETWORKDAYS.INTL)` | — | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | — | — | Chưa nhận dạng; COM NOT RUN |
-| NOW | Date and time functions | Excel 2016 | Có | `46308.065034722225` | `=NOW()` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `46308.053611111114` | `########` | VOLATILE: không so sánh |
+| NOW | Date and time functions | Excel 2016 | Có | `46308.07056712963` | `=NOW()` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `46308.053611111114` | `########` | VOLATILE: không so sánh |
 | SECOND | Date and time functions | Excel 2016 | Có | `0` | `=SECOND(NOW())` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `35` | `50` | VOLATILE: không so sánh |
 | TIME | Date and time functions | Excel 2016 | Có | `#VALUE!` | `=TIME(14, 30, 0)` | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | `0.6041666666666666` | `14:30:00` | MATCH |
 | TIMEVALUE | Date and time functions | Excel 2016 | Không | `#NAME? (TIMEVALUE)` | — | NOT RUN | NOT RUN | NOT RUN | NOT RUN | NOT RUN | — | — | Chưa nhận dạng; COM NOT RUN |

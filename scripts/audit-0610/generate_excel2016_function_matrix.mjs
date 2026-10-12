@@ -31,6 +31,8 @@ const lines = [
   "",
   "## Kết quả lượt COM",
   "",
+  "**Giới hạn tương thích lưu:** ca RANK.EQ và FORMULATEXT trong lượt này nhập công thức có tiền tố `_xlfn.` qua CDP để Excel 2016 tính được. Công thức thông thường không có tiền tố vẫn chưa được sửa ở đường lưu XLSX; mapping đề xuất nằm trong `docs/PLAN-EXCEL-2016-E1-OOXML-COMPAT.md` và đang chờ phê duyệt do thay đổi output XLSX.",
+  "",
   "| Chỉ số | Kết quả |",
   "|---|---:|",
   `| Hàm đã nhập và đọc qua Excel COM | ${report.rows.length} |`,
