@@ -7224,6 +7224,68 @@ def _postprocess_slides_header_footer(pptx_bytes: bytes, source_fodp: str | None
     return replacements
 
 
+_PPTX_SLIDE_TRANSITION_EFFECTS = {
+    "fade": '<p:fade/>',
+    "pushwipe": '<p:push dir="l"/>',
+    "zoom": '<p:zoom dir="out"/>',
+    "iriswipe": '<p:zoom dir="out"/>',
+    "fadeovercolor": '<p:flip dir="l"/>',
+}
+
+
+def _slides_transition_types_from_fodp(fodp_xml: str | None) -> list[str | None]:
+    """Read per-page ODF transition types in document order."""
+    xml = str(fodp_xml or "")
+    styles: dict[str, str] = {}
+    for match in re.finditer(r"<style:style\b([^>]*)>([\s\S]*?)</style:style\s*>", xml, re.IGNORECASE):
+        attrs = match.group(1)
+        name = re.search(r"\bstyle:name=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
+        family = re.search(r"\bstyle:family=[\"']drawing-page[\"']", attrs, re.IGNORECASE)
+        if not name or not family:
+            continue
+        props = re.search(r"<style:drawing-page-properties\b([^>]*)/?>", match.group(2), re.IGNORECASE)
+        transition = re.search(r"\bsmil:type=[\"']([^\"']+)[\"']", props.group(1) if props else "", re.IGNORECASE)
+        styles[name.group(1)] = transition.group(1).lower() if transition else ""
+    result: list[str | None] = []
+    for page in re.finditer(r"<draw:page\b(?![-\w])([^>]*)>", xml, re.IGNORECASE):
+        style = re.search(r"\bdraw:style-name=[\"']([^\"']+)[\"']", page.group(1), re.IGNORECASE)
+        transition = styles.get(style.group(1), "") if style else ""
+        result.append(transition or None)
+    return result
+
+
+def _apply_slides_transition_effects(pptx_bytes: bytes, source_fodp: str | None) -> dict[str, str]:
+    transitions = _slides_transition_types_from_fodp(source_fodp)
+    if not transitions:
+        return {}
+    replacements: dict[str, str] = {}
+    with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+        slide_names = sorted(
+            (name for name in package.namelist() if re.match(r"^ppt/slides/slide\d+\.xml$", name, re.IGNORECASE)),
+            key=lambda name: int(re.search(r"slide(\d+)", name, re.IGNORECASE).group(1)),
+        )
+        for index, name in enumerate(slide_names):
+            if index >= len(transitions) or not transitions[index]:
+                continue
+            effect = _PPTX_SLIDE_TRANSITION_EFFECTS.get(transitions[index])
+            if not effect:
+                continue
+            original = package.read(name).decode("utf-8", errors="replace")
+            match = re.search(r"<p:transition\b([^>]*?)(?:/\s*>|>([\s\S]*?)</p:transition\s*>)", original, re.IGNORECASE)
+            if match:
+                attrs = re.sub(r"/\s*$", "", match.group(1) or "").rstrip()
+                replacement = f"<p:transition{(' ' + attrs) if attrs else ''}>{effect}</p:transition>"
+                updated = original[:match.start()] + replacement + original[match.end():]
+            else:
+                insertion = re.search(r"<(?:p:timing|p:extLst)\b|</p:sld\s*>", original, re.IGNORECASE)
+                if not insertion:
+                    continue
+                updated = original[:insertion.start()] + f"<p:transition>{effect}</p:transition>" + original[insertion.start():]
+            if updated != original:
+                replacements[name] = updated
+    return replacements
+
+
 def postprocess_slides_pptx(
     pptx_bytes: bytes,
     *,
@@ -7291,11 +7353,13 @@ def postprocess_slides_pptx(
     animation_replacements = _normalize_slides_animation_timing(pptx_bytes)
     paragraph_level_replacements = _apply_slides_paragraph_levels(pptx_bytes, source_fodp)
     header_footer_replacements = _postprocess_slides_header_footer(pptx_bytes, source_fodp)
-    if not apply_logo and not theme_id and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements:
+    transition_replacements = _apply_slides_transition_effects(pptx_bytes, source_fodp)
+    if not apply_logo and not theme_id and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements:
         return pptx_bytes
     replacements.update(animation_replacements)
     replacements.update(paragraph_level_replacements)
     replacements.update(header_footer_replacements)
+    replacements.update(transition_replacements)
 
     if apply_slide_size and presentation_xml:
         presentation_xml = apply_intended_slide_size(presentation_xml, intended_size)
