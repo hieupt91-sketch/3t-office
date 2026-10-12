@@ -5706,6 +5706,7 @@ _bindGridKeyboardNavigation() {
       if (consumesPending && coord === activeKey) return pending.prevVal ? { val: pending.prevVal, formula: pending.prevVal.startsWith?.("=") ? pending.prevVal : "", style: item?.style || {} } : null;
       return item;
     });
+    this._formulaDependencyGraph = null;
     if (consumesPending) this.undoStack.pop();
     const arrayRange = this.getSelectedRangeLabel();
     coords.forEach((coord, index) => {
@@ -5724,6 +5725,7 @@ _bindGridKeyboardNavigation() {
   _clearArrayFormula(arrayRange) {
     const coords = this.formulaEngine.expandRange(arrayRange);
     const before = coords.map(coord => structuredClone(this.cellsData.get(coord) || null));
+    this._formulaDependencyGraph = null;
     coords.forEach(coord => {
       this.cellsData.delete(coord);
       const dom = this.container.querySelector?.(`.vno-grid-cell[data-coord="${coord}"]`);
