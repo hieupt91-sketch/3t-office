@@ -1,5 +1,6 @@
 // VN Writer CDP Test: Mở Trợ giúp (F1 hoặc tab Trợ giúp) và tra cứu 5 lệnh bất kỳ, xác nhận hiển thị nội dung tiếng Việt.
 import { launchApp } from "./session.mjs";
+import { click } from "./actions.mjs";
 import { sleep } from "./client.mjs";
 
 const results = [];
@@ -28,9 +29,9 @@ try {
   const testCommands = [
     { commandId: "writer.page.blank", entryId: "writer.page.blank", searchKeyword: "trang trắng", expectedTitle: "Chèn trang trắng" },
     { commandId: "writer.table.fromText", entryId: "writer.table.fromText", searchKeyword: "văn bản thành bảng", expectedTitle: "Chuyển văn bản thành bảng" },
-    { commandId: "writer.review.spellCheck", entryId: "writer.review.spellCheck", searchKeyword: "chính tả", expectedTitle: "Soát lỗi chính tả" },
-    { commandId: "common.edit.find", entryId: "writer.edit.findReplaceSelect", searchKeyword: "tìm kiếm", expectedTitle: "Tìm kiếm" },
-    { commandId: "ai.assistant.summarize", entryId: "writer.ai.core", searchKeyword: "tóm tắt", expectedTitle: "Trợ lý 3T AI" }
+    { commandId: "writer.review.spellCheck", entryId: "writer.review.spellCheck", searchKeyword: "chính tả", expectedTitle: "Soát lỗi chính tả và gợi ý sửa từ tiếng Việt" },
+    { commandId: "common.edit.find", entryId: "writer.edit.findReplaceSelect", searchKeyword: "tìm kiếm", expectedTitle: "Tìm kiếm và Thay thế trong Doc" },
+    { commandId: "ai.assistant.summarize", entryId: "writer.ai.core", searchKeyword: "tóm tắt", expectedTitle: "Trợ lý 3T AI: Tóm tắt nhanh và Viết lại văn phong" }
   ];
 
   for (const item of testCommands) {
@@ -44,13 +45,10 @@ try {
     })()`);
     await sleep(400);
 
-    // Mở bài viết tương ứng với entryId của command
-    await cdp.evaluate(`(() => {
-      const panel = window.__vno_help_panel;
-      if (panel && typeof panel.open === 'function') {
-        panel.open({ entryId: ${JSON.stringify(item.entryId)} });
-      }
-    })()`);
+    // Chọn đúng chủ đề bằng chuột, không dựa vào một global instance không được expose.
+    const topicSelector = `.vno-help-topic[data-help-id="${item.entryId}"]`;
+    await cdp.waitFor(`!!document.querySelector(${JSON.stringify(topicSelector)})`, { timeoutMilliseconds: 5000 });
+    await click(cdp, topicSelector);
     await sleep(500);
 
     const articleInfo = await cdp.evaluate(`(() => {
@@ -66,7 +64,8 @@ try {
       };
     })()`);
 
-    const isOk = Boolean(articleInfo && articleInfo.hasTitle && articleInfo.bodyLength > 100);
+    const isOk = Boolean(articleInfo && articleInfo.hasTitle
+      && articleInfo.bodyLength > 100 && articleInfo.titleText === item.expectedTitle);
     check(
       `Tra cứu lệnh [${item.commandId}]: hiển thị bài Hướng dẫn tiếng Việt (${item.expectedTitle})`,
       isOk,
