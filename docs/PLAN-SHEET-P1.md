@@ -23,8 +23,8 @@
 
 1. `apps/sheet/sheet-quick-view.js`, `apps/sheet/sheet-quick-view.css`: truy vấn/render cửa sổ đầu theo viewport; journal sửa ô, xóa, dán và định dạng với Ctrl+Z/Ctrl+Y.
 2. `adapters/libreoffice/sheet/sheet-adapter.js`: trả quyền điều khiển UI sau khi quick view render, tiếp tục hydrate nền, replay thao tác một lần lên lưới thật và giữ nhánh undo/redo; save/print đợi hydrate.
-3. `main.py`: phát vùng đầu đủ viewport qua bridge hiện có cho mọi `.xlsx` (ngưỡng 5 MiB hiện tại bỏ sót lan02/lan04 dù phiếu đặt mục tiêu cho toàn bộ workbook ≤10 MB), đồng thời đưa đường dẫn nguồn vào quick-view payload để báo lỗi/retry. Giữ `VNO_OPEN_VIEWFIRST=0` làm đường lui.
-4. `apps/sheet/sheet-app.js`, `platform/help/entries-gaps-0410.js`: nối đường dẫn retry và hướng dẫn tiếng Việt cụ thể trong Trợ giúp.
+3. `main.py` và `adapters/libreoffice/common/soffice_uno_worker.py`: phát vùng đầu đủ viewport qua bridge hiện có cho mọi `.xlsx` (ngưỡng 5 MiB hiện tại bỏ sót lan02/lan04 dù phiếu đặt mục tiêu cho toàn bộ workbook ≤10 MB); chỉ đo used range của trang tính đầu tiên trước first paint, lấy kích thước các trang còn lại khi người dùng mở chúng. Đưa đường dẫn nguồn vào payload lỗi/retry. Giữ `VNO_OPEN_VIEWFIRST=0` làm đường lui.
+4. `apps/sheet/sheet-quick-view.js`, `apps/sheet/sheet-app.js`, `platform/help/entries-gaps-0410.js`: nhận kích thước sheet lười khi đổi tab, nối đường dẫn retry và hướng dẫn tiếng Việt cụ thể trong Trợ giúp.
 5. `tests/unit/sheet-quick-view.test.js` và CDP desktop hiện có: kiểm chứng journal/replay, undo/redo, độ trễ và fidelity; không sửa fixture hoặc expected output để làm xanh.
 6. `docs/PERF-SHEET-OPEN-1012.md` và `/09-templates/AGENT-HANDOFF.md`: ghi kết quả đo trước/sau và handoff.
 
