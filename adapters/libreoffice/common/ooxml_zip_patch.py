@@ -505,6 +505,58 @@ def parse_sheet_visibility_from_workbook(workbook_xml: str | None) -> dict[str, 
     return result
 
 
+def parse_calculation_mode_from_workbook(workbook_xml: str | None) -> str | None:
+    """Return the explicit Excel calculation mode, or None for automatic/default."""
+    match = re.search(r"<(?:[\w.-]+:)?calcPr\b([^>]*)/?>", workbook_xml or "", re.IGNORECASE)
+    if not match:
+        return None
+    mode = re.search(r'\bcalcMode\s*=\s*(["\'])(.*?)\1', match.group(1), re.IGNORECASE)
+    value = mode.group(2).strip().lower() if mode else ""
+    return value if value in {"auto", "manual", "autonotable"} else None
+
+
+def apply_calculation_mode_to_fods(fods_xml: str, mode: str | None) -> str:
+    """Carry explicit workbook calculation mode across LibreOffice's FODS import."""
+    if mode not in {"auto", "manual", "autoNoTable"}:
+        return fods_xml or ""
+    xml = fods_xml or ""
+    pattern = re.compile(r"<office:spreadsheet\b([^>]*)>", re.IGNORECASE)
+
+    def replace(match: re.Match[str]) -> str:
+        attrs = re.sub(r'\s+vno:calculation-mode=("[^"]*"|\'[^\']*\')', "", match.group(1), flags=re.IGNORECASE)
+        return f'<office:spreadsheet{attrs} vno:calculation-mode="{mode}">'
+
+    return pattern.sub(replace, xml, count=1)
+
+
+def parse_calculation_mode_from_fods(fods_xml: str | None) -> str | None:
+    match = re.search(r"<office:spreadsheet\b([^>]*)>", fods_xml or "", re.IGNORECASE)
+    if not match:
+        return None
+    value = re.search(r'\bvno:calculation-mode\s*=\s*(["\'])(.*?)\1', match.group(1), re.IGNORECASE)
+    mode = value.group(2) if value else ""
+    return mode if mode in {"auto", "manual", "autoNoTable"} else None
+
+
+def apply_calculation_mode_to_workbook(workbook_xml: str, mode: str | None) -> str:
+    """Set calcPr.calcMode while preserving all other calculation attributes."""
+    normalized = {"automatic": "auto", "auto": "auto", "manual": "manual", "autoNoTable": "autoNoTable"}.get(mode or "")
+    if normalized is None:
+        return workbook_xml or ""
+    xml = workbook_xml or ""
+    match = re.search(r"<((?:[\w.-]+:)?calcPr)\b([^>]*)/?>", xml, re.IGNORECASE)
+    if match:
+        tag_name = match.group(1)
+        attrs = re.sub(r"/\s*$", "", match.group(2))
+        attrs = re.sub(r'\s+calcMode\s*=\s*(["\']).*?\1', "", attrs, flags=re.IGNORECASE)
+        tag = f'<{tag_name}{attrs} calcMode="{normalized}"/>'
+        return xml[:match.start()] + tag + xml[match.end():]
+    insertion = re.search(r"</(?:[\w.-]+:)?workbook\s*>", xml, re.IGNORECASE)
+    if not insertion:
+        return xml
+    return xml[:insertion.start()] + f'<calcPr calcMode="{normalized}"/>' + xml[insertion.start():]
+
+
 def apply_sheet_visibility_to_fods(fods_xml: str, visibility_by_sheet: dict[str, str]) -> str:
     """Inject vno:sheet-state onto <table:table> tags in FODS — used during
     File → Mở, BEFORE parseFods()."""
@@ -4294,6 +4346,7 @@ def postprocess_sheet_xlsx(
     _apply_indirect_excel_compatibility(xlsx_bytes, replacements)
     source_xlsx_bytes = normalize_source_xlsx(source_xlsx_bytes)  # S23: XLSX gốc có tiền tố x: (lan23)
 
+
     # Extract original font and sheetFormatPr from source XLSX if available
     original_font = None
     original_sheet_format_pr = {}
@@ -4586,6 +4639,16 @@ def postprocess_sheet_xlsx(
         _apply_workbook_view_state_from_fods(xlsx_bytes, source_fods, replacements)
         _clear_print_areas_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_refreshed_pivot_locations_from_fods(xlsx_bytes, source_fods, replacements)
+
+    calculation_mode = parse_calculation_mode_from_fods(source_fods)
+    if calculation_mode:
+        workbook_xml = replacements.get(XLSX_WORKBOOK_ENTRY)
+        if workbook_xml is None:
+            workbook_raw = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+            workbook_xml = workbook_raw.decode("utf-8", errors="replace") if workbook_raw else ""
+        next_workbook_xml = apply_calculation_mode_to_workbook(str(workbook_xml), calculation_mode)
+        if next_workbook_xml != workbook_xml:
+            replacements[XLSX_WORKBOOK_ENTRY] = next_workbook_xml
 
     if not replacements:
         return xlsx_bytes
@@ -8005,6 +8068,7 @@ def overlay_sheet_xlsx_fods(
     if current:
         workbook_xml = current.decode("utf-8", errors="replace")
         xml = overlay_fods_structure_protection(xml, workbook_xml)
+        xml = apply_calculation_mode_to_fods(xml, parse_calculation_mode_from_workbook(workbook_xml))
         # Sheet visibility (veryHidden → vno:sheet-state): soffice downgrades
         # veryHidden to hidden during XLSX→FODS, so we read the original state
         # and write vno:sheet-state for round-trip fidelity.
@@ -8070,6 +8134,7 @@ def overlay_sheet_xlsx_fods_p1(
     if current:
         workbook_xml = current.decode("utf-8", errors="replace")
         xml = overlay_fods_structure_protection(xml, workbook_xml)
+        xml = apply_calculation_mode_to_fods(xml, parse_calculation_mode_from_workbook(workbook_xml))
         visibility = parse_sheet_visibility_from_workbook(workbook_xml)
         if visibility:
             xml = apply_sheet_visibility_to_fods(xml, visibility)

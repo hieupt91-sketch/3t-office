@@ -3867,7 +3867,7 @@ ${pristineXlsxMarker}
       </config:config-item-map-entry></config:config-item-map-indexed>
     </config:config-item-set>
   </office:settings>
-  <office:body><office:spreadsheet${structureAttr}>${validationDefinitions.length ? `<table:content-validations>${validationDefinitions.join("")}</table:content-validations>` : ""}${tablesXml}${this.grid.namedRangesWorkbook?.length ? `<table:named-expressions>${this.grid.namedRangesWorkbook.map(range => this._namedRangeXml(range, range.sheet || activeSheet)).join("")}</table:named-expressions>` : ""}${dataPilotXml}${this._serializeDatabaseRanges(sheetNames)}</office:spreadsheet></office:body>
+  <office:body><office:spreadsheet${structureAttr}${["automatic", "manual"].includes(this.grid.calculationMode) ? ` vno:calculation-mode="${this.grid.calculationMode === "manual" ? "manual" : "auto"}"` : ""}>${validationDefinitions.length ? `<table:content-validations>${validationDefinitions.join("")}</table:content-validations>` : ""}${tablesXml}${this.grid.namedRangesWorkbook?.length ? `<table:named-expressions>${this.grid.namedRangesWorkbook.map(range => this._namedRangeXml(range, range.sheet || activeSheet)).join("")}</table:named-expressions>` : ""}${dataPilotXml}${this._serializeDatabaseRanges(sheetNames)}</office:spreadsheet></office:body>
 </office:document>`;
   }
 
@@ -4471,6 +4471,8 @@ ${pristineXlsxMarker}
   parseFods(xmlText) {
     const workbook = { sheets: [], sheetsData: {}, activeSheet: "", commentsBySheet: {}, mergedRangesBySheet: {}, namedRangesWorkbook: [], namedRangesBySheet: {}, printAreaBySheet: {}, pageSetupBySheet: {}, validationHits: [], rowHeightsBySheet: {}, colWidthsBySheet: {}, userHiddenRowsBySheet: {}, userHiddenColsBySheet: {}, imagesAtOpenBySheet: {} };
     if (!xmlText) return workbook;
+    const calculationMode = String(xmlText).match(/<office:spreadsheet\b[^>]*\bvno:calculation-mode=["'](auto|manual)["']/i)?.[1]?.toLowerCase();
+    if (calculationMode) workbook.calculationMode = calculationMode === "manual" ? "manual" : "automatic";
     const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
     const perfNow = () => perfEnabled ? performance.now() : 0;
     const perfReport = (name, started) => { if (perfEnabled) window.__vnoPerfReport?.(`parseFods:${name}`, performance.now() - started); };
@@ -5215,6 +5217,7 @@ ${pristineXlsxMarker}
       this.grid.defaultColWidth = 100;
     const firstSheet = workbook.sheets[0];
     if (typeof this.grid.resetToBlank === "function") this.grid.resetToBlank(firstSheet);
+    this.grid.calculationMode = workbook.calculationMode || "automatic";
     this.grid.sheets = [firstSheet];
     this.grid.sheetsData = { [firstSheet]: workbook.sheetsData[firstSheet] };
     this.grid.commentsBySheet = { [firstSheet]: workbook.commentsBySheet[firstSheet] || {} };

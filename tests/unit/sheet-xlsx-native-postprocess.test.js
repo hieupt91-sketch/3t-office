@@ -114,6 +114,17 @@ export async function runSheetXlsxNativePostprocessTests() {
     assert(!fodsHasStructureProtection(off.serializeToFods()), "FODS tắt không có attr");
   });
 
+  test("FIX-S17: chế độ tính toán round-trip trong metadata FODS", () => {
+    const source = new SheetAdapter({
+      sheets: ["A"], activeSheet: "A", sheetsData: { A: new Map() },
+      commentsBySheet: { A: {} }, calculationMode: "manual"
+    });
+    const fods = source.serializeToFods();
+    assert(/vno:calculation-mode="manual"/.test(fods), "FODS phải đánh dấu chế độ thủ công");
+    const parsed = new SheetAdapter(null).parseFods(fods);
+    assert(parsed.calculationMode === "manual", "parseFods phải khôi phục chế độ thủ công");
+  });
+
   test("postProcessSheetXlsx ghi lockStructure vào xl/workbook.xml; không đụng sheet1", () => {
     const zip = fakeXlsx(LO_WORKBOOK_XML);
     const patched = postProcessSheetXlsx(zip, { workbookProtectionEnabled: true });
