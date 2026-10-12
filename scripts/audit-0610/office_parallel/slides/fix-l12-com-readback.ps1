@@ -16,11 +16,14 @@ try {
             try { if ($shape.HasTextFrame -eq -1 -and $shape.TextFrame.HasText -eq -1) { $text = [string]$shape.TextFrame.TextRange.Text } } catch {}
             $groupCount = $null
             try { if ([int]$shape.Type -eq 6) { $groupCount = [int]$shape.GroupItems.Count } } catch {}
+            $mediaType = $null
+            try { if ([int]$shape.Type -eq 16) { $mediaType = [int]$shape.MediaType } } catch {}
             $shapes += [pscustomobject]@{
                 name = [string]$shape.Name
                 type = [int]$shape.Type
                 text = $text
                 groupItemCount = $groupCount
+                mediaType = $mediaType
             }
         }
         $headerFooter = $slide.HeadersFooters
