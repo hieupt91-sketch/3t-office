@@ -5765,6 +5765,14 @@ _bindGridKeyboardNavigation() {
     const formula = String(options.formula ?? this.formulaInput?.value ?? "").trim();
     if (!formula.startsWith("=")) return false;
     const range = this._normalizeRange();
+    const transposeMatch = formula.match(/^=TRANSPOSE\s*\((.*)\)$/i);
+    if (transposeMatch) {
+      const args = this.formulaEngine._splitArgs(transposeMatch[1]);
+      const source = args.length === 1 ? this.formulaEngine._rangeDimensions(args[0]) : null;
+      const targetRows = range.end.r - range.start.r + 1;
+      const targetCols = this.cols.indexOf(range.end.c) - this.cols.indexOf(range.start.c) + 1;
+      if (!source || targetRows !== source.cols || targetCols !== source.rows) return false;
+    }
     const coords = [];
     for (let row = range.start.r; row <= range.end.r; row++) {
       for (let col = this.cols.indexOf(range.start.c); col <= this.cols.indexOf(range.end.c); col++) coords.push(`${this.cols[col]}${row}`);

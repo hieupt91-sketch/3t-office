@@ -329,6 +329,21 @@ export class FormulaEngine {
     return raw;
   }
 
+  _getRangeCellValue(coord, sheetName = null) {
+    const map = sheetName && typeof this.sheetResolver === "function" ? this.sheetResolver(sheetName) : this.cellsMap;
+    if (sheetName && !map) return "#REF!";
+    const item = map?.get?.(String(coord).toUpperCase());
+    if (!item) return "";
+    const raw = item.val === undefined || item.val === null ? "" : item.val;
+    if (raw === "" && !item.formula) return "";
+    if (raw === "" && item.formula) {
+      const formulaEmpty = new String("");
+      formulaEmpty.isFormulaCell = true;
+      return formulaEmpty;
+    }
+    return this.getCellValue(coord, sheetName);
+  }
+
   expandRange(rangeStr) {
     const parts = rangeStr.toUpperCase().split(":");
     if (parts.length === 1) return [parts[0].trim()];
@@ -404,7 +419,7 @@ export class FormulaEngine {
     if (reference.sheets) {
       const values = [];
       for (const sheet of reference.sheets) {
-        for (const coord of this.expandRange(reference.ref)) values.push(this.getCellValue(coord, sheet));
+        for (const coord of this.expandRange(reference.ref)) values.push(this._getRangeCellValue(coord, sheet));
       }
       return values;
     }
@@ -450,7 +465,7 @@ export class FormulaEngine {
       }
     }
 
-    const values = this.expandRange(ref).map(coord => this.getCellValue(coord, reference.sheet));
+    const values = this.expandRange(ref).map(coord => this._getRangeCellValue(coord, reference.sheet));
     this._rangeValuesCache.set(cacheKey, values);
     return values;
   }
@@ -460,14 +475,14 @@ export class FormulaEngine {
     for (const arg of args) {
       if (typeof arg === "string" && arg.startsWith('"') && arg.endsWith('"')) {
         values.push(arg.slice(1, -1));
-      } else if (typeof arg === "string" && /^[A-Z_.]+\s*\(.*\)$/i.test(arg)) {
+      } else if (typeof arg === "string" && /^[A-Z0-9_.]+\s*\(.*\)$/i.test(arg)) {
         const resolved = this._resolveSingleValue(arg);
         if (Array.isArray(resolved)) values.push(...resolved);
         else values.push(resolved);
       } else if (typeof arg === "string" && (arg.includes(":") || arg.includes("!") || this._resolveNamedRange(arg))) {
         values.push(...this._referenceValues(arg));
       } else if (typeof arg === "string" && /^[A-Z]+\d+$/i.test(arg.trim())) {
-        values.push(this.getCellValue(arg.trim()));
+        values.push(this._getRangeCellValue(arg.trim()));
       } else {
         values.push(arg);
       }
@@ -508,7 +523,7 @@ export class FormulaEngine {
     for (let row = Math.min(+startRowText, +endRowText); row <= Math.max(+startRowText, +endRowText); row++) {
       const values = [];
       for (let col = Math.min(startColIndex, endColIndex); col <= Math.max(startColIndex, endColIndex); col++) {
-        values.push(this.getCellValue(`${this._columnName(col)}${row}`, reference.sheet));
+        values.push(this._getRangeCellValue(`${this._columnName(col)}${row}`, reference.sheet));
       }
       rows.push(values);
     }
@@ -1262,9 +1277,9 @@ export class FormulaEngine {
       }
 
       // 3. Phân tích hàm có tên: TÊN_HÀM(đối số...)
-      const funcMatch = expr.match(/^([A-Z_.]+)\s*\((.*)\)$/i);
+      const funcMatch = expr.match(/^([A-Z0-9_.]+)\s*\((.*)\)$/i);
       if (funcMatch) {
-        const funcName = funcMatch[1].toUpperCase();
+        const funcName = funcMatch[1].replace(/^_xlfn\./i, "").toUpperCase();
         const rawArgs = this._splitArgs(funcMatch[2]);
         const val = this._executeFunction(funcName, rawArgs);
         return val instanceof String ? String(val) : val;
@@ -1282,6 +1297,14 @@ export class FormulaEngine {
   evaluateArray(formula) {
     if (!formula || !formula.startsWith("=")) return [formula];
     const expr = formula.slice(1).trim();
+    const transposeMatch = expr.match(/^TRANSPOSE\s*\((.*)\)$/i);
+    if (transposeMatch) {
+      const args = this._splitArgs(transposeMatch[1]);
+      if (args.length !== 1 || !args[0]) return "#VALUE!";
+      const matrix = this._rangeMatrix(args[0]);
+      if (!matrix.length || !matrix[0]?.length) return "#VALUE!";
+      return matrix[0].map((_, columnIndex) => matrix.map(row => row[columnIndex] ?? "")).flat();
+    }
     const funcMatch = expr.match(/^SUM\s*\((.*)\)$/i);
     if (funcMatch) {
       const value = this._evaluateArrayArithmetic(funcMatch[1]);
@@ -1421,6 +1444,43 @@ export class FormulaEngine {
         if (pairs.some(([values]) => values.length !== averageValues.length)) return "#VALUE!";
         const matches = averageValues.filter((value, index) => typeof value === "number" && pairs.every(([values, criteria]) => this._matchesCriteria(values[index], criteria)));
         return matches.length ? matches.reduce((sum, value) => sum + value, 0) / matches.length : "#DIV/0!";
+      }
+
+      case "MODE": {
+        const values = this.collectValues(args);
+        const error = values.find(value => this._isError(value));
+        if (error) return error;
+        const numbers = values
+          .filter(value => !(value && value.isTextCell))
+          .map(value => this._parseNumberOrCurrency(value))
+          .filter(value => value !== null && Number.isFinite(value));
+        if (!numbers.length) return "#N/A";
+        const counts = new Map();
+        for (const value of numbers) counts.set(value, (counts.get(value) || 0) + 1);
+        const highestCount = Math.max(...counts.values());
+        if (highestCount < 2) return "#N/A";
+        return Math.min(...[...counts].filter(([, count]) => count === highestCount).map(([value]) => value));
+      }
+
+      case "PERCENTILE": {
+        if (args.length !== 2) return "#NUM!";
+        const source = this.collectValues([args[0]]);
+        const error = source.find(value => this._isError(value));
+        if (error) return error;
+        const kValue = this._resolveSingleValue(args[1]);
+        if (this._isError(kValue)) return kValue;
+        const k = Number(kValue);
+        if (!Number.isFinite(k) || k < 0 || k > 1) return "#NUM!";
+        const numbers = source
+          .filter(value => !(value && value.isTextCell))
+          .map(value => this._parseNumberOrCurrency(value))
+          .filter(value => value !== null && Number.isFinite(value))
+          .sort((left, right) => left - right);
+        if (!numbers.length) return "#NUM!";
+        const rank = k * (numbers.length - 1);
+        const lower = Math.floor(rank);
+        const upper = Math.ceil(rank);
+        return numbers[lower] + (numbers[upper] - numbers[lower]) * (rank - lower);
       }
 
       case "MEDIAN": {
@@ -1683,12 +1743,17 @@ export class FormulaEngine {
 
       case "INDIRECT": {
         if (args.length < 1) return "#VALUE!";
-        const text = String(this._resolveSingleValue(args[0]));
+        const referenceText = this._splitConcat(String(args[0]))
+          ? this.evaluate(`=${args[0]}`)
+          : this._resolveSingleValue(args[0]);
+        const resolvedText = referenceText;
+        if (this._isError(resolvedText)) return resolvedText;
+        const text = String(resolvedText ?? "");
         const reference = this._parseReference(text);
         if (reference.error || reference.sheets) return "#REF!";
         if (!/^[A-Z]+\d+(?::[A-Z]+\d+)?$/i.test(reference.ref)) return "#REF!";
         const values = this._referenceValues(text);
-        return values.length === 1 ? values[0] : values;
+        return values.length === 1 ? (values[0] === "" ? 0 : values[0]) : values;
       }
 
       case "OFFSET": {
@@ -2325,6 +2390,13 @@ export class FormulaEngine {
         return String(this._resolveSingleValue(args[0]) ?? "") === String(this._resolveSingleValue(args[1]) ?? "");
       }
 
+      case "HYPERLINK": {
+        if (args.length < 1) return "#VALUE!";
+        const location = this._resolveSingleValue(args[0]);
+        if (this._isError(location)) return location;
+        return args[1] === undefined ? location : this._resolveSingleValue(args[1]);
+      }
+
       case "SEARCH": {
         if (args.length < 2) return "#VALUE!";
         const findText = String(this._resolveSingleValue(args[0]) ?? "").toLocaleLowerCase();
@@ -2474,6 +2546,57 @@ export class FormulaEngine {
         const start = this._parseDate(startVal);
         if (!start || !end) return "#VALUE!";
         return Math.round((end - start) / 86400000);
+      }
+
+      case "YEARFRAC": {
+        if (args.length < 2 || args.length > 3) return "#VALUE!";
+        const startValue = this._resolveSingleValue(args[0]);
+        const endValue = this._resolveSingleValue(args[1]);
+        if (this._isError(startValue)) return startValue;
+        if (this._isError(endValue)) return endValue;
+        const start = this._parseDate(startValue);
+        const end = this._parseDate(endValue);
+        if (!start || !end) return "#VALUE!";
+        const basisValue = args[2] === undefined ? 0 : this._resolveSingleValue(args[2]);
+        if (this._isError(basisValue)) return basisValue;
+        const basis = Number(basisValue);
+        if (!Number.isInteger(basis) || basis < 0 || basis > 4) return "#NUM!";
+        const dayNumber = date => Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000;
+        const startDay = dayNumber(start);
+        const endDay = dayNumber(end);
+        if (basis === 2) return (endDay - startDay) / 360;
+        if (basis === 3) return (endDay - startDay) / 365;
+        if (basis === 1) {
+          const direction = startDay <= endDay ? 1 : -1;
+          let cursor = new Date(direction > 0 ? start : end);
+          const finish = direction > 0 ? end : start;
+          let fraction = 0;
+          while (cursor < finish) {
+            const nextYear = new Date(cursor.getFullYear() + 1, 0, 1);
+            const segmentEnd = nextYear < finish ? nextYear : finish;
+            const daysInYear = new Date(cursor.getFullYear(), 1, 29).getMonth() === 1 ? 366 : 365;
+            fraction += (dayNumber(segmentEnd) - dayNumber(cursor)) / daysInYear;
+            cursor = segmentEnd;
+          }
+          return fraction * direction;
+        }
+        let d1 = start.getDate();
+        let d2 = end.getDate();
+        let m1 = start.getMonth() + 1;
+        let m2 = end.getMonth() + 1;
+        let y1 = start.getFullYear();
+        let y2 = end.getFullYear();
+        const isLastFebruary = date => date.getMonth() === 1 && date.getDate() === new Date(date.getFullYear(), 2, 0).getDate();
+        if (basis === 0) {
+          if (isLastFebruary(start)) d1 = 30;
+          if (isLastFebruary(end) && isLastFebruary(start)) d2 = 30;
+          if (d1 === 31) d1 = 30;
+          if (d2 === 31 && d1 === 30) d2 = 30;
+        } else {
+          if (d1 === 31) d1 = 30;
+          if (d2 === 31) d2 = 30;
+        }
+        return (360 * (y2 - y1) + 30 * (m2 - m1) + d2 - d1) / 360;
       }
 
       case "YEAR": {
@@ -2656,6 +2779,65 @@ export class FormulaEngine {
         return 1;
       }
 
+      case "ADDRESS": {
+        if (args.length < 2 || args.length > 5) return "#VALUE!";
+        const rowValue = this._resolveSingleValue(args[0]);
+        const colValue = this._resolveSingleValue(args[1]);
+        if (this._isError(rowValue)) return rowValue;
+        if (this._isError(colValue)) return colValue;
+        const row = Math.trunc(Number(rowValue));
+        const col = Math.trunc(Number(colValue));
+        if (!Number.isFinite(row) || !Number.isFinite(col)) return "#VALUE!";
+        if (row < 1 || row > 1048576 || col < 1 || col > 16384) return "#VALUE!";
+        const absValue = args[2] === undefined ? 1 : this._resolveSingleValue(args[2]);
+        if (this._isError(absValue)) return absValue;
+        const absNum = Number(absValue);
+        if (![1, 2, 3, 4].includes(absNum)) return "#VALUE!";
+        const a1Value = args[3] === undefined ? true : this._resolveSingleValue(args[3]);
+        if (this._isError(a1Value)) return a1Value;
+        const a1 = a1Value !== false && String(a1Value).toUpperCase() !== "FALSE" && Number(a1Value) !== 0;
+        let address;
+        if (a1) {
+          const columnName = this._columnName(col - 1);
+          const colRef = absNum === 1 || absNum === 3 ? `$${columnName}` : columnName;
+          const rowRef = absNum === 1 || absNum === 2 ? `$${row}` : String(row);
+          address = `${colRef}${rowRef}`;
+        } else {
+          if (absNum !== 1) return "#VALUE!";
+          address = `R${row}C${col}`;
+        }
+        if (args[4] !== undefined) {
+          const sheetName = String(this._resolveSingleValue(args[4]) ?? "").replace(/^'|'$/g, "").replace(/''/g, "'");
+          if (this._isError(sheetName)) return sheetName;
+          if (!sheetName) return "#VALUE!";
+          const escapedSheetName = sheetName.replace(/'/g, "''");
+          const sheetPrefix = /^[A-Za-z_][A-Za-z0-9_.]*$/.test(sheetName) ? sheetName : `'${escapedSheetName}'`;
+          address = `${sheetPrefix}!${address}`;
+        }
+        return address;
+      }
+
+      case "FORMULATEXT": {
+        if (args.length !== 1) return "#VALUE!";
+        const reference = this._parseReference(args[0]);
+        if (reference.error) return reference.error;
+        if (reference.sheets) return "#N/A";
+        const cellRef = reference.ref.replace(/\$/g, "").toUpperCase();
+        if (!/^[A-Z]+\d+$/.test(cellRef)) return "#N/A";
+        const cells = reference.sheet && typeof this.sheetResolver === "function"
+          ? this.sheetResolver(reference.sheet)
+          : (typeof this.cellsData === "function" ? this.cellsData() : this.cellsData);
+        const formula = cells?.get?.(cellRef)?.formula ?? cells?.[cellRef]?.formula;
+        return typeof formula === "string" && formula.startsWith("=")
+          ? formula.replace(/^=_xlfn\./i, "=")
+          : "#N/A";
+      }
+
+      case "TRANSPOSE":
+        // Excel returns #VALUE! when this array function is entered as a scalar formula.
+        // Ctrl+Shift+Enter routes through evaluateArray(), which writes the transposed result range.
+        return "#VALUE!";
+
       case "IFS": {
         if (args.length < 2 || args.length % 2 !== 0) return "#VALUE!";
         for (let i = 0; i < args.length; i += 2) {
@@ -2684,26 +2866,34 @@ export class FormulaEngine {
       }
 
       case "TIME": {
-        const h = Number(this._resolveSingleValue(args[0])) || 0;
-        const m = Number(this._resolveSingleValue(args[1])) || 0;
-        const s = Number(this._resolveSingleValue(args[2])) || 0;
-        return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}`;
+        if (args.length !== 3) return "#VALUE!";
+        const parts = args.map(arg => Number(this._resolveSingleValue(arg)));
+        if (!parts.every(Number.isFinite)) return "#VALUE!";
+        if (parts.some(value => value < 0 || value > 32767)) return "#NUM!";
+        const seconds = parts[0] * 3600 + parts[1] * 60 + parts[2];
+        return ((seconds % 86400) + 86400) % 86400 / 86400;
       }
 
       case "HOUR": {
-        const val = String(this._resolveSingleValue(args[0]) || "");
+        const raw = this._resolveSingleValue(args[0]);
+        if (typeof raw === "number") return Math.floor(Math.floor((((raw % 1) + 1) % 1) * 86400 + 1e-7) / 3600);
+        const val = String(raw || "");
         const match = val.match(/(\d{1,2}):\d{2}/);
         return match ? Number(match[1]) : 0;
       }
 
       case "MINUTE": {
-        const val = String(this._resolveSingleValue(args[0]) || "");
+        const raw = this._resolveSingleValue(args[0]);
+        if (typeof raw === "number") return Math.floor(Math.floor((((raw % 1) + 1) % 1) * 86400 + 1e-7) / 60) % 60;
+        const val = String(raw || "");
         const match = val.match(/\d{1,2}:(\d{2})/);
         return match ? Number(match[1]) : 0;
       }
 
       case "SECOND": {
-        const val = String(this._resolveSingleValue(args[0]) || "");
+        const raw = this._resolveSingleValue(args[0]);
+        if (typeof raw === "number") return Math.floor((((raw % 1) + 1) % 1) * 86400 + 1e-7) % 60;
+        const val = String(raw || "");
         const match = val.match(/\d{1,2}:\d{2}:(\d{2})/);
         return match ? Number(match[1]) : 0;
       }
@@ -2836,7 +3026,20 @@ export class FormulaEngine {
 
     // Hỗ trợ biểu thức số học trong đối số hàm (ví dụ: 0.08/12, 12*5, A1/12)
     if (/[+\-*/^()]/.test(token)) {
-      const arith = this._evaluateArithmetic(token, { raw: true });
+      let arithmeticToken = token;
+      const functionCall = /\b([A-Z][A-Z0-9_.]*)\s*\(([^()]*)\)/gi;
+      if (functionCall.test(token)) {
+        functionCall.lastIndex = 0;
+        arithmeticToken = token.replace(functionCall, call => {
+          const value = this.evaluate(`=${call}`);
+          if (this._isError(value)) return value;
+          if (typeof value === "number" || typeof value === "boolean") return String(Number(value));
+          return "#VALUE!";
+        });
+      }
+      const nestedError = arithmeticToken.match(/#(?:REF!|N\/A|VALUE!|DIV\/0!|NUM!|NAME\?)/i);
+      if (nestedError) return nestedError[0].toUpperCase();
+      const arith = this._evaluateArithmetic(arithmeticToken, { raw: true });
       if (typeof arith === "number" && Number.isFinite(arith)) {
         return arith;
       }

@@ -61,6 +61,7 @@ import { runSheetKeyboardAuditTests } from "./unit/sheet-keyboard-audit.test.js"
 import { runSheetFormatCellsTests } from "./unit/sheet-format-cells.test.js";
 import { runSheetEditingStylesTests } from "./unit/sheet-editing-styles.test.js";
 import { runSheetReferenceFunctionTests } from "./unit/sheet-reference-functions.test.js";
+import { runSheetExcel2016FunctionGapTests } from "./unit/sheet-excel2016-function-gaps.test.js";
 import { runSheetMathStatFunctionTests } from "./unit/sheet-math-stat-functions.test.js";
 import { runSheetTextFunctionTests } from "./unit/sheet-text-functions.test.js";
 import { runSheetDateFunctionTests } from "./unit/sheet-date-functions.test.js";
@@ -340,6 +341,7 @@ async function runAll() {
     { title: "54. Behavioral & Unit Tests — VN Sheet Format Cells Dialog & Number Formats", runner: runSheetFormatCellsTests },
     { title: "55. Behavioral & Unit Tests — VN Sheet Styles & Editing Groups", runner: runSheetEditingStylesTests },
     { title: "56. Unit Tests — VN Sheet Cross-Sheet Reference Functions", runner: runSheetReferenceFunctionTests },
+    { title: "E1. Unit Tests — Excel 2016 Legacy Function Gaps", runner: runSheetExcel2016FunctionGapTests },
     { title: "57. Unit Tests — VN Sheet Math & Statistics Functions", runner: runSheetMathStatFunctionTests },
     { title: "58. Unit Tests — VN Sheet Text Functions", runner: runSheetTextFunctionTests },
     { title: "59. Unit Tests — VN Sheet Date Functions", runner: runSheetDateFunctionTests },
