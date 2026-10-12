@@ -2,7 +2,7 @@ import fs from "node:fs/promises";
 import path from "node:path";
 import { launchApp } from "./session.mjs";
 import { readTargets } from "./client.mjs";
-import { click, typeText, sleep } from "./actions.mjs";
+import { click, press, typeText, sleep } from "./actions.mjs";
 
 const root = process.env.VNO_APP_ROOT;
 const localAppData = process.env.VNO_CDP_LOCALAPPDATA;
@@ -41,7 +41,8 @@ try {
   await command("common.macro.recordToggle");
   await session.cdp.waitFor("!!document.querySelector('.vno-dialog-input')", { timeoutMilliseconds: 30000 });
   await click(session.cdp, ".vno-dialog-input");
-  await typeText(session.cdp, "FIX-L10 Macro", 20);
+  await press(session.cdp, "a", { ctrl: true });
+  await typeText(session.cdp, "FIX-L13 Macro", 20);
   await click(session.cdp, ".vno-dialog-ok-btn");
   await session.cdp.waitFor("!document.querySelector('.vno-dialog-input')", { timeoutMilliseconds: 30000 });
   result.recordingStopped = JSON.parse(await read());
