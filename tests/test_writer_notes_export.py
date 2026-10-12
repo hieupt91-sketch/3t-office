@@ -180,6 +180,36 @@ class WriterNativeChartExportTests(unittest.TestCase):
         self.assertIn(">3</v>", sheet)
 
 
+class WriterNativeDiagramExportTests(unittest.TestCase):
+    def test_new_diagram_region_becomes_one_editable_drawingml_group(self):
+        target_body = (
+            '<w:p><w:r><w:t>before</w:t></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="8" w:name="VNO_NATIVE_DIAGRAM_1_START"/><w:bookmarkEnd w:id="8"/></w:p>'
+            '<w:p><w:r><w:t>static diagram placeholder</w:t></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="9" w:name="VNO_NATIVE_DIAGRAM_1_END"/><w:bookmarkEnd w:id="9"/></w:p>'
+            '<w:p><w:r><w:t>after</w:t></w:r></w:p>'
+        )
+        target = _docx(target_body)
+        drawing = (
+            '<w:drawing xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
+            'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+            'xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup">'
+            '<wp:anchor><wp:docPr id="1" name="VNODiagram1"/><a:graphic>'
+            '<a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup">'
+            '<wpg:wgp><wpg:cNvGrpSpPr/><wpg:grpSpPr/></wpg:wgp>'
+            '</a:graphicData></a:graphic></wp:anchor></w:drawing>'
+        )
+        aux_diagram = _docx(f'<w:p><w:r>{drawing}</w:r></w:p>')
+        html = '<!--vno-native-diagrams-fodt:Zm9kdA==--><a name="VNO_NATIVE_DIAGRAM_1_START"></a><div></div><a name="VNO_NATIVE_DIAGRAM_1_END"></a>'
+        out = patcher.postprocess_writer_native_diagrams(target, aux_diagram, source_html=html)
+        document = _read(out, "word/document.xml")
+        self.assertIn("<wpg:wgp>", document)
+        self.assertNotIn("static diagram placeholder", document)
+        self.assertNotIn("VNO_NATIVE_DIAGRAM", document)
+        self.assertIn("before", document)
+        self.assertIn("after", document)
+
+
 class WriterSchemaFixTests(unittest.TestCase):
     ANCHOR = '<w:p><w:r><w:drawing><wp:anchor xmlns:wp="x" behindDoc="0">{wrap}<wp:docPr id="1" name="a"/></wp:anchor></w:drawing></w:r></w:p>'
 

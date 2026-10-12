@@ -19529,6 +19529,53 @@ def postprocess_writer_native_charts(
     return patch_ooxml_zip(docx_bytes, replacements)
 
 
+def postprocess_writer_native_diagrams(
+    docx_bytes: bytes,
+    diagram_docx_bytes: bytes,
+    *,
+    source_html: str | None = None,
+) -> bytes:
+    """Replace newly inserted diagram placeholders with editable DrawingML groups."""
+    if not docx_bytes or not diagram_docx_bytes or not source_html or "vno-native-diagrams-fodt:" not in source_html:
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    diagram_document_bytes = read_zip_entry(diagram_docx_bytes, "word/document.xml")
+    if not document_bytes or not diagram_document_bytes:
+        raise ValueError("Không đọc được cấu trúc DOCX sơ đồ do LibreOffice tạo.")
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    diagram_document_xml = diagram_document_bytes.decode("utf-8", errors="replace")
+    drawings = [
+        drawing for drawing in re.findall(r"<w:drawing\b[\s\S]*?</w:drawing\s*>", diagram_document_xml, re.IGNORECASE)
+        if "<wpg:wgp" in drawing
+    ]
+    if not drawings:
+        raise ValueError("LibreOffice không xuất được nhóm hình cho sơ đồ.")
+    max_docpr = max((int(value) for value in re.findall(r'<wp:docPr\b[^>]*\bid="(\d+)"', document_xml)), default=0)
+    for index, drawing in enumerate(drawings, start=1):
+        token = f"VNO_NATIVE_DIAGRAM_{index}"
+        paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+        start_index = next((i for i, match in enumerate(paragraphs) if f'{token}_START' in match.group(0)), None)
+        end_index = next((i for i, match in enumerate(paragraphs) if f'{token}_END' in match.group(0)), None)
+        if start_index is None or end_index is None or end_index < start_index:
+            raise ValueError(f"Không tìm được vùng DOCX của sơ đồ {index}.")
+        if not re.search(
+            r'<w:bookmarkStart\b(?=[^>]*\bw:name="' + re.escape(token) + r'_START")[^>]*/>',
+            paragraphs[start_index].group(0),
+            re.IGNORECASE,
+        ) or not re.search(
+            r'<w:bookmarkStart\b(?=[^>]*\bw:name="' + re.escape(token) + r'_END")[^>]*/>',
+            paragraphs[end_index].group(0),
+            re.IGNORECASE,
+        ):
+            raise ValueError(f"Bookmark cho sơ đồ {index} không hợp lệ.")
+        ppr = re.search(r"<w:pPr\b[\s\S]*?</w:pPr\s*>", paragraphs[start_index].group(0), re.IGNORECASE)
+        max_docpr += 1
+        drawing = re.sub(r'(<wp:docPr\b[^>]*\bid=")[0-9]+', rf'\g<1>{max_docpr}', drawing, count=1)
+        replacement_paragraph = f'<w:p>{ppr.group(0) if ppr else ""}<w:r>{drawing}</w:r></w:p>'
+        document_xml = document_xml[:paragraphs[start_index].start()] + replacement_paragraph + document_xml[paragraphs[end_index].end():]
+    return patch_ooxml_zip(docx_bytes, {"word/document.xml": document_xml.encode("utf-8")})
+
+
 def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
     """Turn Writer's temporary review bookmarks into native Word revisions/comments.
 

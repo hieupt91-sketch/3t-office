@@ -2382,6 +2382,34 @@ export class WriterAdapter {
     return showWordCountDialog(stats);
   }
 
+  _serializeNativeDiagramsToFodt(diagrams) {
+    const palette = ["#2563eb", "#0f6d38", "#d97706", "#dc2626", "#7c3aed", "#0891b2"];
+    const shapes = [];
+    const styleXml = [];
+    let shapeIndex = 0;
+    for (const [diagramIndex, diagram] of diagrams.entries()) {
+      const labels = Array.from(diagram.querySelectorAll?.(".vno-diagram-node-text") || [])
+        .map((node) => String(node.textContent || "").trim()).filter(Boolean);
+      if (!labels.length) throw new Error("Sơ đồ cần có ít nhất một nhãn để lưu thành nhóm hình.");
+      const type = String(diagram.getAttribute?.("data-diagram-type") || "process");
+      const nodeWidth = Math.max(2.1, Math.min(3.4, (16.5 - (labels.length - 1) * 0.2) / labels.length));
+      const totalWidth = labels.length * nodeWidth + (labels.length - 1) * 0.2;
+      const groupName = `VNODiagram${diagramIndex + 1}`;
+      const nodeXml = labels.map((label, index) => {
+        const styleName = `vnoDiagram${++shapeIndex}`;
+        const color = type === "hierarchy" && index === 0 ? "#0f4c81" : palette[index % palette.length];
+        styleXml.push(`<style:style style:name="${styleName}" style:family="graphic"><style:graphic-properties draw:fill="solid" draw:fill-color="${color}" draw:stroke="solid" svg:stroke-width="0.05cm" svg:stroke-color="${color}"/></style:style>`);
+        const x = (index * (nodeWidth + 0.2)).toFixed(3);
+        const safeLabel = this._fodtEscapeXml(label);
+        return `<draw:rect draw:style-name="${styleName}" draw:name="${this._fodtEscapeXml(`Node${index + 1}`)}" text:anchor-type="as-char" svg:width="${nodeWidth.toFixed(3)}cm" svg:height="1.25cm" svg:x="${x}cm" svg:y="0cm"><text:p><text:span>${safeLabel}</text:span></text:p></draw:rect>`;
+      }).join("");
+      shapes.push(`<text:p><draw:g draw:name="${groupName}" svg:width="${totalWidth.toFixed(3)}cm" svg:height="1.25cm">${nodeXml}</draw:g></text:p>`);
+    }
+    const pageLayout = this._fodtPageLayoutXml("pm1", this.pageSetup || DEFAULT_PAGE_SETUP);
+    const master = this._fodtMasterPageXml("Standard", "pm1");
+    return `<?xml version="1.0" encoding="UTF-8"?><office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text"><office:automatic-styles>${pageLayout}${styleXml.join("")}</office:automatic-styles><office:master-styles>${master}</office:master-styles><office:body><office:text>${shapes.join("")}</office:text></office:body></office:document>`;
+  }
+
   /**
    * Gắn tham chiếu AppShell để newDocument()/closeDocument() có thể đưa ribbon về tab
    * "Trang đầu" và đặt lại tên tài liệu hiển thị — trước đây thiếu bước này nên File >
@@ -15159,7 +15187,9 @@ export class WriterAdapter {
     }
 
     let nativeChartFodt = "";
+    let nativeDiagramFodt = "";
     const chartNodes = Array.from(this.bodyDom?.querySelectorAll?.('.vno-writer-chart[data-vno-chart="true"]') || []);
+    const diagramNodes = Array.from(this.bodyDom?.querySelectorAll?.('.vno-writer-diagram[data-vno-diagram="true"]') || []);
     if (chartNodes.length && !acceptedView) {
       nativeChartHtml = chartNodes.map((node) => String(node.outerHTML || "")).filter(Boolean);
       if (nativeChartHtml.length !== chartNodes.length) {
@@ -15183,6 +15213,9 @@ export class WriterAdapter {
       chartAdapter.sectionHeadersFooters = {};
       nativeChartFodt = chartAdapter.serializeToFodt();
     }
+    if (diagramNodes.length && !acceptedView) {
+      nativeDiagramFodt = this._serializeNativeDiagramsToFodt(diagramNodes);
+    }
 
     if (this.bodyDom) {
       const exportRoot = this.bodyDom.cloneNode?.(true) || this.bodyDom;
@@ -15198,6 +15231,20 @@ export class WriterAdapter {
           end.setAttribute("name", `${token}_END`);
           parent.insertBefore(start, chart);
           parent.insertBefore(end, chart.nextSibling);
+        });
+      }
+      if (nativeDiagramFodt && !acceptedView && typeof document !== "undefined") {
+        const exportDiagrams = Array.from(exportRoot.querySelectorAll?.('.vno-writer-diagram[data-vno-diagram="true"]') || []);
+        exportDiagrams.forEach((diagram, index) => {
+          const parent = diagram.parentNode;
+          if (!parent?.insertBefore) return;
+          const token = `VNO_NATIVE_DIAGRAM_${index + 1}`;
+          const start = document.createElement("a");
+          start.setAttribute("name", `${token}_START`);
+          const end = document.createElement("a");
+          end.setAttribute("name", `${token}_END`);
+          parent.insertBefore(start, diagram);
+          parent.insertBefore(end, diagram.nextSibling);
         });
       }
       const wrappers = Array.from(exportRoot.querySelectorAll?.(".vno-section-content") || []);
@@ -15380,7 +15427,10 @@ export class WriterAdapter {
     const nativeChartMarker = nativeChartFodt
       ? `<!--vno-native-charts-fodt:${btoa(Array.from(new TextEncoder().encode(nativeChartFodt), byte => String.fromCharCode(byte)).join(""))}-->`
       : "";
-    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
+    const nativeDiagramMarker = nativeDiagramFodt
+      ? `<!--vno-native-diagrams-fodt:${btoa(Array.from(new TextEncoder().encode(nativeDiagramFodt), byte => String.fromCharCode(byte)).join(""))}-->`
+      : "";
+    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${nativeDiagramMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }

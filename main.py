@@ -1850,6 +1850,26 @@ def _apply_native_export_postprocess(
                         raise DocumentEngineError(
                             f"Không thể tạo biểu đồ DOCX có thể chỉnh sửa: {exc}"
                         ) from exc
+                diagram_metadata = re.search(r"<!--vno-native-diagrams-fodt:([A-Za-z0-9+/=]+)-->", source_html or "")
+                if diagram_metadata:
+                    try:
+                        diagram_fodt = base64.b64decode(diagram_metadata.group(1), validate=True).decode("utf-8")
+                        with tempfile.TemporaryDirectory(prefix="vnoffice_native_diagrams_") as diagram_dir:
+                            fodt_path = os.path.join(diagram_dir, "new-diagrams.fodt")
+                            with open(fodt_path, "w", encoding="utf-8", newline="") as handle:
+                                handle.write(diagram_fodt)
+                            diagram_docx_path = _run_soffice_convert(
+                                fodt_path, "docx", diagram_dir, app_kind="writer",
+                            )
+                            with open(diagram_docx_path, "rb") as handle:
+                                diagram_docx = handle.read()
+                        patched = patcher.postprocess_writer_native_diagrams(
+                            patched, diagram_docx, source_html=source_html,
+                        )
+                    except Exception as exc:
+                        raise DocumentEngineError(
+                            f"Không thể tạo sơ đồ DOCX có thể chỉnh sửa: {exc}"
+                        ) from exc
             if patched != converted_docx:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)
