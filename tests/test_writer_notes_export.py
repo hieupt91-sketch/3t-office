@@ -266,6 +266,8 @@ class WriterNativeWordArtExportTests(unittest.TestCase):
         self.assertIn(" after", document)
         self.assertIn('wp:docPr id="2"', document)
         self.assertNotIn("VNO_NATIVE_WORDART", document)
+        self.assertNotIn('w:bookmarkEnd w:id="8"', document)
+        self.assertNotIn('w:bookmarkEnd w:id="9"', document)
 
     def test_wordart_requires_native_text_warp_drawing(self):
         with self.assertRaisesRegex(ValueError, "WordArt DrawingML"):
