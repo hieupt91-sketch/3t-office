@@ -7400,7 +7400,9 @@ def _slides_transition_types_from_fodp(fodp_xml: str | None) -> list[str | None]
     return result
 
 
-def _apply_slides_transition_effects(pptx_bytes: bytes, source_fodp: str | None) -> dict[str, str]:
+def _apply_slides_transition_effects(
+    pptx_bytes: bytes, source_fodp: str | None, base_replacements: dict[str, str] | None = None
+) -> dict[str, str]:
     transitions = _slides_transition_types_from_fodp(source_fodp)
     if not transitions:
         return {}
@@ -7416,7 +7418,7 @@ def _apply_slides_transition_effects(pptx_bytes: bytes, source_fodp: str | None)
             effect = _PPTX_SLIDE_TRANSITION_EFFECTS.get(transitions[index])
             if not effect:
                 continue
-            original = package.read(name).decode("utf-8", errors="replace")
+            original = (base_replacements or {}).get(name) or package.read(name).decode("utf-8", errors="replace")
             match = re.search(r"<p:transition\b([^>]*?)(?:/\s*>|>([\s\S]*?)</p:transition\s*>)", original, re.IGNORECASE)
             if match:
                 attrs = re.sub(r"/\s*$", "", match.group(1) or "").rstrip()
@@ -7427,6 +7429,68 @@ def _apply_slides_transition_effects(pptx_bytes: bytes, source_fodp: str | None)
                 if not insertion:
                     continue
                 updated = original[:insertion.start()] + f"<p:transition>{effect}</p:transition>" + original[insertion.start():]
+            if updated != original:
+                replacements[name] = updated
+    return replacements
+
+
+def _slides_wordart_ids_from_fodp(fodp_xml: str | None) -> list[set[str]]:
+    pages: list[set[str]] = []
+    for page in re.finditer(r"<draw:page\b(?![-\w])[^>]*>([\s\S]*?)</draw:page\s*>", str(fodp_xml or ""), re.IGNORECASE):
+        ids = set()
+        for shape in re.finditer(r"<draw:frame\b([^>]*)>", page.group(1), re.IGNORECASE):
+            attrs = shape.group(1)
+            if not re.search(r"\bvno:wordart=[\"']true[\"']", attrs, re.IGNORECASE):
+                continue
+            name = re.search(r"\bdraw:name=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
+            if name:
+                ids.add(html.unescape(name.group(1)))
+        pages.append(ids)
+    return pages
+
+
+def _apply_native_wordart_slide_xml(slide_xml: str, wordart_ids: set[str]) -> str:
+    if not wordart_ids:
+        return slide_xml
+
+    def patch_shape(match: re.Match[str]) -> str:
+        shape = match.group(0)
+        name = re.search(r"<p:cNvPr\b[^>]*\bname=[\"']([^\"']+)[\"']", shape, re.IGNORECASE)
+        if not name or html.unescape(name.group(1)) not in wordart_ids:
+            return shape
+        body = re.search(r"<a:bodyPr\b([^>]*)/\s*>", shape, re.IGNORECASE)
+        if body:
+            attrs = body.group(1)
+            replacement = f'<a:bodyPr{attrs}><a:prstTxWarp prst="textNoShape"><a:avLst/></a:prstTxWarp></a:bodyPr>'
+            shape = shape[:body.start()] + replacement + shape[body.end():]
+        else:
+            body = re.search(r"<a:bodyPr\b([^>]*)>([\s\S]*?)</a:bodyPr\s*>", shape, re.IGNORECASE)
+            if not body or re.search(r"<a:prstTxWarp\b", body.group(2), re.IGNORECASE):
+                return shape
+            replacement = f'<a:bodyPr{body.group(1)}><a:prstTxWarp prst="textNoShape"><a:avLst/></a:prstTxWarp>{body.group(2)}</a:bodyPr>'
+            shape = shape[:body.start()] + replacement + shape[body.end():]
+        return shape
+
+    return re.sub(r"<p:sp\b[\s\S]*?</p:sp\s*>", patch_shape, slide_xml, flags=re.IGNORECASE)
+
+
+def _apply_slides_native_wordart(
+    pptx_bytes: bytes, source_fodp: str | None, base_replacements: dict[str, str] | None = None
+) -> dict[str, str]:
+    wordart_pages = _slides_wordart_ids_from_fodp(source_fodp)
+    if not wordart_pages:
+        return {}
+    replacements: dict[str, str] = {}
+    with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+        slide_names = sorted(
+            (name for name in package.namelist() if re.match(r"^ppt/slides/slide\d+\.xml$", name, re.IGNORECASE)),
+            key=lambda name: int(re.search(r"slide(\d+)", name, re.IGNORECASE).group(1)),
+        )
+        for index, name in enumerate(slide_names):
+            if index >= len(wordart_pages) or not wordart_pages[index]:
+                continue
+            original = (base_replacements or {}).get(name) or package.read(name).decode("utf-8", errors="replace")
+            updated = _apply_native_wordart_slide_xml(original, wordart_pages[index])
             if updated != original:
                 replacements[name] = updated
     return replacements
@@ -7501,14 +7565,18 @@ def postprocess_slides_pptx(
     animation_replacements = _normalize_slides_animation_timing(pptx_bytes)
     paragraph_level_replacements = _apply_slides_paragraph_levels(pptx_bytes, source_fodp)
     header_footer_replacements = _postprocess_slides_header_footer(pptx_bytes, source_fodp)
-    transition_replacements = _apply_slides_transition_effects(pptx_bytes, source_fodp)
-    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements:
+    transition_replacements = _apply_slides_transition_effects(pptx_bytes, source_fodp, animation_replacements)
+    wordart_replacements = _apply_slides_native_wordart(
+        pptx_bytes, source_fodp, {**animation_replacements, **transition_replacements}
+    )
+    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements:
         return pptx_bytes
     replacements.update(animation_replacements)
     replacements.update(paragraph_level_replacements)
     replacements.update(header_footer_replacements)
-    replacements.update(transition_replacements)
     replacements.update(theme_replacements)
+    replacements.update(transition_replacements)
+    replacements.update(wordart_replacements)
 
     if apply_slide_size and presentation_xml:
         presentation_xml = apply_intended_slide_size(presentation_xml, intended_size)
