@@ -672,12 +672,13 @@ export class FormulaEngine {
     }
 
     const references = [];
+    const expression = withoutStrings.replace(/#(?:REF!|NAME\?|N\/A|DIV\/0!|VALUE!|NUM!|NULL!|ERROR!|SPILL!|CALC!)/gi, token => " ".repeat(token.length));
     const referencePattern = /(?:'((?:[^']|'')+)'|([A-Za-z_][A-Za-z0-9_. ]*))!\s*(\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?|\$?[A-Z]+:\$?[A-Z]+)|\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?/gi;
-    const masked = withoutStrings.split("");
+    const masked = expression.split("");
     let match;
-    while ((match = referencePattern.exec(withoutStrings))) {
+    while ((match = referencePattern.exec(expression))) {
       // A token such as LOG10 followed by '(' is a function name, not a cell.
-      if (!match[1] && !match[2] && withoutStrings[referencePattern.lastIndex] === "(") continue;
+      if (!match[1] && !match[2] && expression.slice(referencePattern.lastIndex).match(/^\s*\(/)) continue;
       const raw = match[0].trim();
       const parsed = this._parseReference(raw);
       const ref = parsed?.ref;

@@ -47,6 +47,11 @@ export async function runFormulaEngineTests() {
     name: "Formula dependencies: dynamic references request full-recalculation fallback",
     pass: engine.getStaticFormulaReferences('=INDIRECT("A1")', "Sheet1").safe === false
   });
+  results.push({
+    name: "Formula dependencies: recognize literal spreadsheet errors without references",
+    pass: engine.getStaticFormulaReferences("=#N/A", "Sheet1").safe &&
+      engine.getStaticFormulaReferences("=#REF!", "Sheet1").safe
+  });
 
   // 1. SUM
   const sumRes = engine.evaluate("=SUM(A1:A3)");
