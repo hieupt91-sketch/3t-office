@@ -40,6 +40,15 @@ try {
     $result.print.preview = [ordered]@{ viewType = [int]$word.ActiveWindow.View.Type; pages = [int]$doc.ComputeStatistics(2); pageFit = [int]$word.ActiveWindow.View.Zoom.PageFit; percentage = [int]$word.ActiveWindow.View.Zoom.Percentage }
   } finally { $doc.Close(0) }
 
+  Write-Output 'Creating a Word COM WordArt reference.'
+  $native = $word.Documents.Add()
+  try {
+    $nativeShape = $native.Shapes.AddTextEffect(1, 'Word COM reference', 'Arial', 36, $false, $false, 10, 10)
+    $nativeXml = [string]$native.Content.WordOpenXML
+    [System.IO.File]::WriteAllText((Join-Path $Dir 'word-com-wordart-reference.xml'), $nativeXml, (New-Object System.Text.UTF8Encoding($false)))
+    $result.wordArt.reference = [ordered]@{ type = [int]$nativeShape.Type; text = [string]$nativeShape.TextEffect.Text; textEffectText = [string]$nativeShape.TextEffect.Text; xmlPath = (Join-Path $Dir 'word-com-wordart-reference.xml') }
+  } finally { $native.Close(0) }
+
   Write-Output 'Opening generated WordArt DOCX.'
   $art = $word.Documents.Open($WordArtDocx, $false, $true)
   Write-Output 'Opened generated WordArt DOCX.'
