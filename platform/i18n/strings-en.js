@@ -442,7 +442,7 @@ export const enStrings = {
     ,"sheet.format.percent": { label: "Percent Style", tooltip: "Apply percentage format (Ctrl+Shift+5)" }
     ,"sheet.format.standard": { label: "Comma Style", tooltip: "Apply number format with thousands separators (Ctrl+Shift+1)" }
     ,"sheet.insert.date": { label: "Current Date", tooltip: "Insert the current date (Ctrl+;)" }
-    ,"sheet.insert.time": { label: "Current Time", tooltip: "Insert the current time (Ctrl+Shift+;)" }
+    ,"sheet.insert.time": { label: "Current Time", tooltip: "Insert the current time as a numeric value that can be calculated (Ctrl+Shift+;)" }
     ,"sheet.formula.insertFunction": { label: "Insert Function", tooltip: "Open the Insert Function fx dialog (Shift+F3)" }
     ,"sheet.formula.sum": { label: "AutoSum", tooltip: "Insert an AutoSum formula (Alt+=)" }
     ,"sheet.formula.average": { label: "Average", tooltip: "Insert an AVERAGE formula" }

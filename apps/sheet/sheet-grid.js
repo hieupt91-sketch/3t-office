@@ -739,12 +739,12 @@ export class SheetGridController {
     const now = new Date();
     const hh = String(now.getHours()).padStart(2, "0");
     const mm = String(now.getMinutes()).padStart(2, "0");
-    const ss = String(now.getSeconds()).padStart(2, "0");
-    const timeStr = `${hh}:${mm}:${ss}`;
-    // Keep the shortcut result as text until Excel 2016 readback evidence proves otherwise.
-    this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, `'${timeStr}`, true);
+    const timeStr = `${hh}:${mm}`;
+    // Route through normal time-input inference so the cell stores an Excel-compatible
+    // day fraction with a time number format, rather than display text.
+    this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, timeStr, true);
     if (this.formulaInput) this.formulaInput.value = timeStr;
-    return timeStr;
+    return this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val;
   }
 
   setCalculationMode(mode = "automatic") {

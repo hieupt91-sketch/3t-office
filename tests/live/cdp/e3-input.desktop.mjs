@@ -152,7 +152,14 @@ try {
   await select("F8");
   await pressSemicolon(true);
   s = await state();
-  check("Ctrl+Shift+semicolon inserts an HH:mm:ss text value", /^\d{2}:\d{2}:\d{2}$/.test(s.cells.F8?.val || "") && !s.cells.F8?.style?.numberFormat, JSON.stringify(s.cells.F8));
+  const insertedTime = s.cells.F8?.val;
+  check("Ctrl+Shift+semicolon inserts a numeric time serial and time format", typeof insertedTime === "number" && insertedTime >= 0 && insertedTime < 1 && s.cells.F8?.style?.numberFormat?.category === "time" && s.cells.F8?.style?.numberFormat?.timeFormat === "HH:mm", JSON.stringify(s.cells.F8));
+  await press(cdp, "z", { ctrl: true });
+  s = await state();
+  check("Ctrl+Z removes the inserted time", !s.cells.F8?.val, JSON.stringify(s.cells.F8));
+  await press(cdp, "y", { ctrl: true });
+  s = await state();
+  check("Ctrl+Y restores the time serial and format", s.cells.F8?.val === insertedTime && s.cells.F8?.style?.numberFormat?.category === "time" && s.cells.F8?.style?.numberFormat?.timeFormat === "HH:mm", JSON.stringify(s.cells.F8));
 
   await select("G1");
   await press(cdp, "ArrowDown", { shift: true });

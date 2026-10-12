@@ -784,14 +784,14 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.insert.date", "sheet.insert.time"],
     title: "Chèn ngày và giờ hiện tại",
-    summary: "Hai lệnh bàn phím, không có nút riêng trên ribbon: Ctrl+; ghi ngày hôm nay dạng dd/MM/yyyy vào ô đang chọn; Ctrl+Shift+; ghi giờ hiện tại dạng HH:mm:ss.",
+    summary: "Hai lệnh bàn phím, không có nút riêng trên ribbon: Ctrl+; ghi ngày hôm nay vào ô đang chọn; Ctrl+Shift+; ghi giờ hiện tại dưới dạng giá trị số có định dạng giờ.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Văn bản" },
     keywords: ["chèn ngày", "chèn giờ", "ctrl+;", "hôm nay", "today", "now", "dd/mm/yyyy", "giờ hiện tại"],
     steps: [
       "Chọn ô trống (hoặc ô muốn ghi đè). Không có nút Ngày/Giờ trên ribbon Sheet — dùng phím tắt.",
       "Ctrl+; (Ctrl và phím chấm phẩy) chèn ngày máy tính, ví dụ 06/09/2026. Đây là chữ/ngày tĩnh, không tự đổi ngày mai.",
-      "Ctrl+Shift+; chèn giờ máy tính, ví dụ 14:05:09, đồng thời hiện trên thanh công thức.",
-      "Muốn hiển thị kiểu Ngày trong Định dạng số: bôi ô rồi tab Trang đầu → Định dạng số → Ngày, hoặc Ctrl+1. Ctrl+Z xóa giá trị vừa chèn."
+      "Ctrl+Shift+; chèn giờ máy tính, ví dụ 14:05. Ô được lưu dưới dạng số có định dạng giờ nên có thể cộng, trừ hoặc dùng trong công thức; đây là giá trị tĩnh và không tự chạy theo đồng hồ.",
+      "Muốn đổi cách hiển thị, chọn ô rồi nhấn Ctrl+1 để mở Định dạng ô và chọn kiểu Ngày hoặc Giờ phù hợp. Ctrl+Z xóa giá trị vừa chèn; Ctrl+Y khôi phục cả giá trị lẫn định dạng."
     ]
   },
   {

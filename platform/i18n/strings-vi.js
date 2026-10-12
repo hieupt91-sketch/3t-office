@@ -443,7 +443,7 @@ export const viStrings = {
     ,"sheet.format.percent": { label: "Phần trăm", tooltip: "Định dạng phần trăm % (Ctrl+Shift+5)" }
     ,"sheet.format.standard": { label: "Phân cách hàng nghìn", tooltip: "Dấu phẩy phân cách hàng nghìn (Ctrl+Shift+1)" }
     ,"sheet.insert.date": { label: "Chèn ngày hiện tại", tooltip: "Chèn ngày hôm nay (Ctrl+;)" }
-    ,"sheet.insert.time": { label: "Chèn giờ hiện tại", tooltip: "Chèn giờ hiện tại (Ctrl+Shift+;)" }
+    ,"sheet.insert.time": { label: "Chèn giờ hiện tại", tooltip: "Chèn giờ hiện tại dạng giá trị số có thể tính toán (Ctrl+Shift+;)" }
     ,"sheet.formula.insertFunction": { label: "Chèn hàm", tooltip: "Mở hộp thoại Chèn hàm fx (Shift+F3)" }
     ,"sheet.formula.sum": { label: "AutoSum", tooltip: "Hàm tính tổng tự động AutoSum (Alt+=)" }
     ,"sheet.formula.average": { label: "Trung bình", tooltip: "Hàm tính trung bình cộng (AVERAGE)" }
