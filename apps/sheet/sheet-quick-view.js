@@ -167,6 +167,7 @@ export class SheetQuickView {
     this.editorCell = null;
     this._historyReplayed = false;
     this._windowHandler = payload => this.open(payload);
+    this._engineAttachHandler = payload => this.attachEngine(payload);
     this._windowShortcutHandler = event => {
       if (!this.active || event.target === this.editor || !(event.ctrlKey || event.metaKey)) return;
       if (!["z", "y", "b", "i", "u", "v", "s", "p", "x"].includes(String(event.key || "").toLowerCase())) return;
@@ -199,6 +200,7 @@ export class SheetQuickView {
   install() {
     if (typeof window === "undefined") return;
     window.__vnoSheetQuickViewOpen = this._windowHandler;
+    window.__vnoSheetQuickViewAttachEngine = this._engineAttachHandler;
     window.__vnoSheetQuickViewController = this;
     window.addEventListener("keydown", this._windowShortcutHandler, true);
     window.addEventListener("vno:sheet-full-model-ready", this._readyHandler);
@@ -226,6 +228,40 @@ export class SheetQuickView {
       window.__vnoSheetQuickViewShownAt = performance.now();
       window.dispatchEvent(new CustomEvent("vno:sheet-quick-view-ready", { detail: { docId: this.docId } }));
     }
+    return true;
+  }
+
+  async attachEngine(payload) {
+    if (!this.active || !payload?.doc_id || !payload?.window?.ok || !Array.isArray(payload.sheets)) return false;
+    if (this.editor) {
+      this.docId = String(payload.doc_id);
+      this._pendingEnginePayload = payload;
+      return true;
+    }
+    const selectedName = this.sheets[this.activeSheet]?.name || "";
+    const engineIndex = payload.sheets.findIndex(sheet => sheet.name === selectedName);
+    this.docId = String(payload.doc_id);
+    this.sourcePath = String(payload.sourcePath || this.sourcePath || "");
+    this.sheets = payload.sheets;
+    this.activeSheet = engineIndex >= 0 ? engineIndex : Math.max(0, Number(payload.sheet) || 0);
+    this.cache.clear();
+    this._renderTabs();
+    const payloadSheet = Math.max(0, Number(payload.sheet) || 0);
+    const r0 = Math.max(0, Number(payload.r0) || 0);
+    const c0 = Math.max(0, Number(payload.c0) || 0);
+    this.cache.set(this._cacheKey(payloadSheet, r0, c0), payload.window);
+    if (this.activeSheet === payloadSheet) {
+      this._applyWindowDimensions(payload.window);
+      await this._renderWindow(r0, c0, payload.window);
+    } else {
+      const first = await this.bridge.sheetViewWindow(this.docId, this.activeSheet, 0, 0, 0, 0, true, true);
+      if (first?.ok) {
+        this._applyWindowDimensions(first);
+        this.cache.set(this._cacheKey(this.activeSheet, 0, 0), first);
+      }
+    }
+    this._pendingEnginePayload = null;
+    await this._requestVisibleWindow();
     return true;
   }
 
@@ -539,6 +575,11 @@ export class SheetQuickView {
     this.editorCell = null;
     if (commit) this._queueValueEdit(Number(cell?.dataset.row) || this.selected.row, Number(cell?.dataset.col) || this.selected.col, value);
     this.root?.focus?.({ preventScroll: true });
+    if (this._pendingEnginePayload) {
+      const pending = this._pendingEnginePayload;
+      this._pendingEnginePayload = null;
+      this.timers.setTimeout(() => { void this.attachEngine(pending); }, 0);
+    }
     return true;
   }
 
@@ -819,6 +860,7 @@ export class SheetQuickView {
   destroy() {
     if (typeof window !== "undefined") {
       if (window.__vnoSheetQuickViewOpen === this._windowHandler) delete window.__vnoSheetQuickViewOpen;
+      if (window.__vnoSheetQuickViewAttachEngine === this._engineAttachHandler) delete window.__vnoSheetQuickViewAttachEngine;
       if (window.__vnoSheetQuickViewController === this) delete window.__vnoSheetQuickViewController;
       window.removeEventListener("vno:sheet-full-model-ready", this._readyHandler);
       window.removeEventListener("vno:sheet-full-model-failed", this._failedHandler);

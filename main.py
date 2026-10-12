@@ -1647,6 +1647,7 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
 
 
 _OOXML_ZIP_PATCH = None
+_SHEET_XLSX_PREVIEW = None
 
 
 def _ooxml_zip_patch():
@@ -1667,6 +1668,26 @@ def _ooxml_zip_patch():
             raise
         _OOXML_ZIP_PATCH = module
     return _OOXML_ZIP_PATCH
+
+
+def _sheet_xlsx_preview():
+    """Load the bounded, read-only XLSX preview parser owned by VN Sheet."""
+    global _SHEET_XLSX_PREVIEW
+    if _SHEET_XLSX_PREVIEW is None:
+        module_path = os.path.join(ROOT_DIR, "apps", "sheet", "xlsx_preview.py")
+        module_name = "vno_apps_sheet_xlsx_preview"
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        if spec is None or spec.loader is None:
+            raise DocumentEngineError("Không tải được bộ đọc xem nhanh bảng tính.")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        try:
+            spec.loader.exec_module(module)
+        except Exception:
+            sys.modules.pop(module_name, None)
+            raise
+        _SHEET_XLSX_PREVIEW = module
+    return _SHEET_XLSX_PREVIEW
 
 
 def _apply_native_export_postprocess(
@@ -3801,8 +3822,55 @@ class VnOfficeApi:
         for doc_id in tuple(self._sheet_view_doc_ids):
             self.sheet_view_close(doc_id)
 
+    def _attach_sheet_quick_view_engine(self, path, active_sheet_name, ready_event):
+        """Open the UNO view after the local OOXML viewport has reached the UI."""
+        doc_id = None
+        try:
+            opened = self.sheet_view_open(path, active_sheet_name)
+            if not opened.get("ok") or not opened.get("sheets"):
+                return
+            doc_id = opened["doc_id"]
+            active_sheet_index = next(
+                (index for index, sheet in enumerate(opened["sheets"]) if sheet.get("name") == active_sheet_name),
+                0,
+            )
+            first_sheet = opened["sheets"][active_sheet_index]
+            r1 = min(max(0, int(first_sheet.get("rows", 1)) - 1), 39)
+            c1 = min(max(0, int(first_sheet.get("cols", 1)) - 1), 19)
+            first_window = self.sheet_view_window(doc_id, active_sheet_index, 0, 0, r1, c1, True, True)
+            if not first_window.get("ok"):
+                self.sheet_view_close(doc_id)
+                return
+            window = _active_window(self)
+            if not window:
+                self.sheet_view_close(doc_id)
+                return
+            payload = {
+                "doc_id": doc_id,
+                "sourcePath": path,
+                "sheets": opened["sheets"],
+                "sheet": active_sheet_index,
+                "r0": 0,
+                "c0": 0,
+                "window": first_window,
+            }
+            window.evaluate_js(
+                "window.__vnoSheetQuickViewAttachEngine?.("
+                + json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
+                + ")"
+            )
+            _open_perf_log("sheet_quick_view_engine_attached", sheets=len(opened["sheets"]))
+        except Exception as exc:
+            if doc_id:
+                self.sheet_view_close(doc_id)
+            logging.getLogger("vnoffice.sheet").debug(
+                "Quick view UNO attachment failed: %s", type(exc).__name__
+            )
+        finally:
+            ready_event.set()
+
     def _open_sheet_quick_view_if_enabled(self, source_path):
-        """Paint the first XLSX window before the normal FODS conversion takes the worker lock."""
+        """Paint a bounded local XLSX viewport before waiting for UNO or full FODS conversion."""
         if not _view_first_enabled():
             return False
         try:
@@ -3811,6 +3879,52 @@ class VnOfficeApi:
                 return False
         except OSError:
             return False
+
+        window = _active_window(self)
+        if window:
+            try:
+                parse_started = time.perf_counter()
+                preview = _sheet_xlsx_preview().parse_xlsx_preview(path)
+                _open_perf_log(
+                    "sheet_xlsx_preview_parse",
+                    (time.perf_counter() - parse_started) * 1000,
+                    rows=preview.get("rows", 0),
+                    cols=preview.get("cols", 0),
+                )
+                active_sheet_name = str(preview.get("active_sheet_name") or "")
+                preview_payload = {
+                    "doc_id": "xlsx-preview-" + uuid.uuid4().hex,
+                    "sourcePath": path,
+                    "sheets": preview["sheets"],
+                    "sheet": int(preview["sheet"]),
+                    "r0": 0,
+                    "c0": 0,
+                    "window": preview["window"],
+                }
+                has_quick_view = window.evaluate_js("!!window.__vnoSheetQuickViewOpen")
+                if has_quick_view:
+                    window.evaluate_js(
+                        "window.__vnoSheetQuickViewOpen?.("
+                        + json.dumps(preview_payload, ensure_ascii=True, separators=(",", ":"))
+                        + ")"
+                    )
+                    _open_perf_log("sheet_quick_view_first_window_source", source="xlsx-zip")
+                    ready_event = threading.Event()
+                    threading.Thread(
+                        target=self._attach_sheet_quick_view_engine,
+                        args=(path, active_sheet_name, ready_event),
+                        daemon=True,
+                        name="VNO Sheet preview UNO attach",
+                    ).start()
+                    # Keep the view worker ahead of the full-model conversion. The UI has
+                    # already received and rendered its local viewport while this waits.
+                    ready_event.wait(timeout=180)
+                    return True
+            except Exception as exc:
+                logging.getLogger("vnoffice.sheet").debug(
+                    "Fast XLSX preview unavailable; using UNO view-first: %s", type(exc).__name__
+                )
+
         active_sheet_name = ""
         try:
             workbook_xml = _read_xlsx_workbook_xml(path)

@@ -85,6 +85,34 @@ export async function runSheetQuickViewTests() {
     assert(view.sheets[0].rows === 1200 && view.sheets[0].cols === 24 && view.sheets[0].dimensions_known, "sheet can scroll using its discovered range");
   });
 
+  await test("P1 local XLSX preview gắn UNO mà giữ sheet đang chọn", async () => {
+    const calls = [];
+    const view = new SheetQuickView({
+      bridge: { sheetViewWindow: async (...args) => {
+        calls.push(args);
+        return { ok: true, values: [["UNO"]], formulas: [[""]], strings: [["UNO"]], formats: [], col_widths: [2646], row_heights: [529], col_hidden: [false], row_hidden: [false], sheet_rows: 20, sheet_cols: 10 };
+      } },
+      timers: { setTimeout, clearTimeout }
+    });
+    view.active = true;
+    view.docId = "xlsx-preview-local";
+    view.viewport = { scrollTop: 0, scrollLeft: 0 };
+    view.sheets = [{ name: "Sheet1", rows: 42, cols: 3 }, { name: "Sheet2", rows: 1, cols: 1 }];
+    view.activeSheet = 1;
+
+    const attached = await view.attachEngine({
+      doc_id: "uno-doc-1", sourcePath: "E:\\sample.xlsx", sheet: 0,
+      sheets: [{ name: "Sheet1", rows: 42, cols: 3 }, { name: "Sheet2", rows: 1, cols: 1, dimensions_known: false }],
+      r0: 0, c0: 0,
+      window: { ok: true, values: [["FIRST"]], formulas: [[""]], strings: [["FIRST"]], formats: [], col_widths: [2646], row_heights: [529], col_hidden: [false], row_hidden: [false] }
+    });
+
+    assert(attached && view.docId === "uno-doc-1", "the UNO session replaces the preview session id");
+    assert(view.activeSheet === 1 && view.sheets[view.activeSheet].name === "Sheet2", "the sheet selected during preview is retained by name");
+    equal(calls[0], ["uno-doc-1", 1, 0, 0, 0, 0, true, true], "the newly selected sheet receives its first UNO query");
+    assert(view.sheets[1].rows === 20 && view.sheets[1].cols === 10, "the attached sheet dimensions enable scrolling");
+  });
+
   await test("P1 quick view giữ sửa ô và Ctrl+Z/Ctrl+Y trong journal", () => {
     const view = new SheetQuickView({ timers: { setTimeout, clearTimeout } });
     view.active = true;
