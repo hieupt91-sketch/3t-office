@@ -9452,6 +9452,14 @@ _bindGridKeyboardNavigation() {
   }
 
   _recordHistory(action, { coalesce = false } = {}) {
+    if (action?.type === "cell" &&
+      Object.is(action.prevVal, action.nextVal) &&
+      action.prevWasText === action.nextWasText &&
+      JSON.stringify(action.prevStyle || {}) === JSON.stringify(action.nextStyle || {}) &&
+      JSON.stringify(action.prevValRichText || null) === JSON.stringify(action.nextValRichText || null) &&
+      action.prevRowHeight === action.nextRowHeight) {
+      return null;
+    }
     const previous = this.undoStack[this.undoStack.length - 1];
     const mergeCellEdit = coalesce && previous?.type === "cell" && action.type === "cell" &&
       previous.sheet === action.sheet && previous.col === action.col && previous.row === action.row &&

@@ -392,6 +392,16 @@ export async function runSharedFindReplaceTests() {
     assert.equal(grid.cellsData.get("B1").val, 6);
   });
 
+  test("3T Sheet: không thêm bước Undo cho thao tác nhập ô không đổi dữ liệu", () => {
+    const grid = new SheetGridController(createMockSheetContainer());
+    grid.setCellValue("A", 1, 7);
+    const historyLength = grid.undoStack.length;
+    grid.setCellValue("A", 1, 7);
+    assert.equal(grid.undoStack.length, historyLength);
+    assert.equal(grid.undo(), true);
+    assert.equal(grid.cellsData.get("A1").val, "");
+  });
+
   // 9. 3T Slide Model: find across slides, select slide/shape, replaceAll & single Undo
   test("3T Slide: tìm xuyên suốt trang chiếu, thay thế tất cả và Hoàn tác 1 bước", () => {
     const canvas = new SlidesCanvasController({ innerHTML: "", className: "" });
