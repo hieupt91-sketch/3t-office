@@ -19,21 +19,20 @@ try {
   const cdp = session.cdp;
   await cdp.waitFor("!!window.__vnoAppInstance?.viewController && !!document.querySelector('.vno-writer-page')", { timeoutMilliseconds: 180000 });
   await click(cdp, "#vno-ribbon-tab-view");
-  output.zoom.initial = await cdp.evaluate("({level:window.__vnoAppInstance.viewController.zoomLevel, width:document.querySelector('.vno-writer-page').getBoundingClientRect().width, viewport:document.querySelector('.vno-writer-viewport').clientWidth})");
+  output.zoom.initial = await cdp.evaluate("({level:window.__vnoAppInstance.viewController.zoomLevel, width:document.querySelector('.vno-writer-page').getBoundingClientRect().width, viewport:document.querySelector('.vno-writer-viewport')?.clientWidth})");
   await click(cdp, '[data-command-id="writer.view.zoomIn"]');
   output.zoom.afterIn = await cdp.evaluate("({level:window.__vnoAppInstance.viewController.zoomLevel, data:document.querySelector('.vno-writer-page').dataset.zoom})");
   await click(cdp, '[data-command-id="writer.view.pageWidth"]');
-  output.zoom.pageWidth = await cdp.evaluate("({level:window.__vnoAppInstance.viewController.zoomLevel, pageWidthMode:document.querySelector('.vno-writer-container').classList.contains('vno-writer-page-width'), page:document.querySelector('.vno-writer-page').getBoundingClientRect().width, viewport:document.querySelector('.vno-writer-viewport').clientWidth})");
+  output.zoom.pageWidth = await cdp.evaluate("({level:window.__vnoAppInstance.viewController.zoomLevel, pageWidthMode:document.querySelector('.vno-writer-container')?.classList.contains('vno-writer-page-width'), page:document.querySelector('.vno-writer-page').getBoundingClientRect().width, viewport:document.querySelector('.vno-writer-viewport')?.clientWidth})");
   await click(cdp, '[data-command-id="writer.view.zoomReset"]');
   output.zoom.afterReset = await cdp.evaluate("({level:window.__vnoAppInstance.viewController.zoomLevel, data:document.querySelector('.vno-writer-page').dataset.zoom})");
 
   await click(cdp, "#vno-ribbon-tab-layout");
   await click(cdp, '[data-command-id="writer.file.printPreview"]');
-  await cdp.waitFor("!!document.querySelector('.vno-print-preview-overlay')", { timeoutMilliseconds: 30000 });
-  output.printPreview = await cdp.evaluate("(() => {const o=document.querySelector('.vno-print-preview-overlay');const pages=[...o.querySelectorAll('.vno-print-preview-sheet')];return {visible:!!o, pageCount:pages.length, pageWidthsMm:pages.map(x=>Number(x.dataset.pageWidthMm)), pageHeightsMm:pages.map(x=>Number(x.dataset.pageHeightMm)), activePage:o.dataset.activePage}})()");
-  await cdp.evaluate("window.__vnoAppInstance.adapter.closePrintPreview?.()");
-  await cdp.evaluate("document.querySelector('.vno-print-preview-overlay [data-action=close]')?.click()");
-  await cdp.evaluate("window.dispatchEvent(new KeyboardEvent('keydown',{key:'Escape',bubbles:true}))");
+  await cdp.waitFor("!!document.querySelector('.vno-print-dialog-overlay .vno-print-preview-image')", { timeoutMilliseconds: 120000, intervalMilliseconds: 500 });
+  output.printPreview = await cdp.evaluate("(() => {const o=document.querySelector('.vno-print-dialog-overlay');const image=o.querySelector('.vno-print-preview-image');return {visible:!!o, pageCount:Number(o.querySelector('.vno-print-total')?.textContent||0), image:{width:image?.naturalWidth,height:image?.naturalHeight}, pageSetup:window.__vnoAppInstance.adapter.getPageDimensions()}})()");
+  await click(cdp, ".vno-print-dialog-overlay .vno-print-close");
+  await cdp.waitFor("!document.querySelector('.vno-print-dialog-overlay')", { timeoutMilliseconds: 10000 });
 
   await click(cdp, "#vno-ribbon-tab-view");
   const targetsBefore = await readTargets(session.debugPort);
