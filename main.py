@@ -1870,6 +1870,26 @@ def _apply_native_export_postprocess(
                         raise DocumentEngineError(
                             f"Không thể tạo sơ đồ DOCX có thể chỉnh sửa: {exc}"
                         ) from exc
+                watermark_metadata = re.search(r"<!--vno-native-watermark-fodt:([A-Za-z0-9+/=]+)-->", source_html or "")
+                if watermark_metadata:
+                    try:
+                        watermark_fodt = base64.b64decode(watermark_metadata.group(1), validate=True).decode("utf-8")
+                        with tempfile.TemporaryDirectory(prefix="vnoffice_native_watermark_") as watermark_dir:
+                            fodt_path = os.path.join(watermark_dir, "watermark.fodt")
+                            with open(fodt_path, "w", encoding="utf-8", newline="") as handle:
+                                handle.write(watermark_fodt)
+                            watermark_docx_path = _run_soffice_convert(
+                                fodt_path, "docx", watermark_dir, app_kind="writer",
+                            )
+                            with open(watermark_docx_path, "rb") as handle:
+                                watermark_docx = handle.read()
+                        patched = patcher.postprocess_writer_native_watermark(
+                            patched, watermark_docx, source_html=source_html,
+                        )
+                    except Exception as exc:
+                        raise DocumentEngineError(
+                            f"KhÃ´ng thá»ƒ táº¡o watermark DOCX native: {exc}"
+                        ) from exc
             if patched != converted_docx:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)

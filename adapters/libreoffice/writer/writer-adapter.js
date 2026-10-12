@@ -15188,6 +15188,7 @@ export class WriterAdapter {
 
     let nativeChartFodt = "";
     let nativeDiagramFodt = "";
+    let nativeWatermarkFodt = "";
     const chartNodes = Array.from(this.bodyDom?.querySelectorAll?.('.vno-writer-chart[data-vno-chart="true"]') || []);
     const diagramNodes = Array.from(this.bodyDom?.querySelectorAll?.('.vno-writer-diagram[data-vno-diagram="true"]') || []);
     if (chartNodes.length && !acceptedView) {
@@ -15215,6 +15216,25 @@ export class WriterAdapter {
     }
     if (diagramNodes.length && !acceptedView) {
       nativeDiagramFodt = this._serializeNativeDiagramsToFodt(diagramNodes);
+    }
+    if (this.watermark?.text && !acceptedView) {
+      const watermarkAdapter = Object.create(Object.getPrototypeOf(this));
+      Object.assign(watermarkAdapter, this);
+      const watermarkBody = { innerHTML: "<p><br></p>" };
+      watermarkAdapter.editorDom = {
+        innerHTML: watermarkBody.innerHTML,
+        querySelector(selector) {
+          return selector === ".vno-writer-body" ? watermarkBody : null;
+        }
+      };
+      watermarkAdapter.bodyDom = watermarkBody;
+      watermarkAdapter.headerDom = null;
+      watermarkAdapter.footerDom = null;
+      watermarkAdapter.shapes = [];
+      watermarkAdapter.sectionPageSetups = {};
+      watermarkAdapter.sectionHeadersFooters = {};
+      nativeWatermarkFodt = watermarkAdapter.serializeToFodt();
+      watermarkHtml = "";
     }
 
     if (this.bodyDom) {
@@ -15430,7 +15450,10 @@ export class WriterAdapter {
     const nativeDiagramMarker = nativeDiagramFodt
       ? `<!--vno-native-diagrams-fodt:${btoa(Array.from(new TextEncoder().encode(nativeDiagramFodt), byte => String.fromCharCode(byte)).join(""))}-->`
       : "";
-    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${nativeDiagramMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
+    const nativeWatermarkMarker = nativeWatermarkFodt
+      ? `<!--vno-native-watermark-fodt:${btoa(Array.from(new TextEncoder().encode(nativeWatermarkFodt), byte => String.fromCharCode(byte)).join(""))}-->`
+      : "";
+    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${nativeDiagramMarker}${nativeWatermarkMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }

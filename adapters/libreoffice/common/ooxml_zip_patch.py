@@ -19576,6 +19576,94 @@ def postprocess_writer_native_diagrams(
     return patch_ooxml_zip(docx_bytes, {"word/document.xml": document_xml.encode("utf-8")})
 
 
+def postprocess_writer_native_watermark(
+    docx_bytes: bytes,
+    watermark_docx_bytes: bytes,
+    *,
+    source_html: str | None = None,
+) -> bytes:
+    """Move the newly exported watermark drawing into a Word header part."""
+    if not docx_bytes or not watermark_docx_bytes or not source_html or "vno-native-watermark-fodt:" not in source_html:
+        return docx_bytes
+    source_header = read_zip_entry(watermark_docx_bytes, "word/header1.xml")
+    if not source_header:
+        raise ValueError("LibreOffice không xuất được watermark trong header DOCX.")
+    source_xml = source_header.decode("utf-8", errors="replace")
+    drawing_match = re.search(r"<w:drawing\b[\s\S]*?</w:drawing\s*>", source_xml, re.IGNORECASE)
+    if not drawing_match:
+        raise ValueError("Header DOCX phụ không có watermark DrawingML.")
+    drawing = drawing_match.group(0)
+    drawing = re.sub(r'(<wp:docPr\b[^>]*\bname=")[^"]*', r'\g<1>PowerPlusWaterMarkObject1', drawing, count=1)
+    drawing = re.sub(r'(<v:shape\b[^>]*\bid=")[^"]*', r'\g<1>PowerPlusWaterMarkObject1', drawing, count=1)
+
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    rels_bytes = read_zip_entry(docx_bytes, "word/_rels/document.xml.rels")
+    if not document_bytes:
+        raise ValueError("DOCX thiếu word/document.xml để gắn watermark.")
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    rels_xml = rels_bytes.decode("utf-8", errors="replace") if rels_bytes else (
+        '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+    )
+    header_rels = list(re.finditer(
+        r'<Relationship\b(?=[^>]*\bType="[^"]*/header")(?=[^>]*\bId="([^"]+)")(?=[^>]*\bTarget="([^"]+)")[^>]*/?>',
+        rels_xml, re.IGNORECASE,
+    ))
+    replacements: dict[str, bytes | str | None] = {}
+    if header_rels:
+        rel = header_rels[0]
+        header_part = posixpath.normpath(posixpath.join("word", rel.group(2)))
+        header_bytes = read_zip_entry(docx_bytes, header_part)
+        if not header_bytes:
+            raise ValueError(f"DOCX header part không tồn tại: {header_part}")
+        header_xml = header_bytes.decode("utf-8", errors="replace")
+        # Add namespaces used by the copied anchor at the root if the target header lacks them.
+        source_root = re.search(r"<w:hdr\b([^>]*)>", source_xml, re.IGNORECASE)
+        target_root = re.search(r"<w:hdr\b([^>]*)>", header_xml, re.IGNORECASE)
+        if source_root and target_root:
+            attrs = dict(re.findall(r'\b(xmlns(?::[\w.-]+)?)="([^"]+)"', source_root.group(1)))
+            missing = "".join(f' {key}="{value}"' for key, value in attrs.items() if not re.search(r'\b' + re.escape(key) + r'="', target_root.group(1)))
+            if missing:
+                header_xml = header_xml[:target_root.end(1)] + missing + header_xml[target_root.end(1):]
+        paragraph = f'<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r>{drawing}</w:r></w:p>'
+        body_match = re.search(r"<w:hdr\b[^>]*>([\s\S]*?)</w:hdr\s*>", header_xml, re.IGNORECASE)
+        if not body_match:
+            raise ValueError("DOCX header XML không hợp lệ.")
+        body = body_match.group(1)
+        first_para = re.search(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", body, re.IGNORECASE)
+        body = body[:first_para.end()] + paragraph + body[first_para.end():] if first_para else paragraph + body
+        header_xml = header_xml[:body_match.start(1)] + body + header_xml[body_match.end(1):]
+        replacements[header_part] = header_xml.encode("utf-8")
+    else:
+        header_part = "word/header1.xml"
+        suffix = 1
+        while read_zip_entry(docx_bytes, header_part):
+            suffix += 1
+            header_part = f"word/header{suffix}.xml"
+        source_root = re.search(r"<w:hdr\b([^>]*)>", source_xml, re.IGNORECASE)
+        namespaces = source_root.group(1) if source_root else 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"'
+        header_xml = f'<?xml version="1.0" encoding="UTF-8"?><w:hdr{namespaces}><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r>{drawing}</w:r></w:p></w:hdr>'
+        replacements[header_part] = header_xml.encode("utf-8")
+        max_rid = max((int(value) for value in re.findall(r'\bId="rId(\d+)"', rels_xml)), default=0) + 1
+        rel_id = f"rId{max_rid}"
+        rels_xml = rels_xml.replace("</Relationships>", f'<Relationship Id="{rel_id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="{posixpath.basename(header_part)}"/></Relationships>')
+        document_xml = re.sub(
+            r"(<w:sectPr\b[^>]*>)",
+            rf'\1<w:headerReference w:type="default" r:id="{rel_id}"/>',
+            document_xml,
+            flags=re.IGNORECASE,
+        )
+        if "<w:sectPr" not in document_xml:
+            document_xml = document_xml.replace("</w:body>", f'<w:sectPr><w:headerReference w:type="default" r:id="{rel_id}"/></w:sectPr></w:body>')
+        replacements["word/document.xml"] = document_xml.encode("utf-8")
+        replacements["word/_rels/document.xml.rels"] = rels_xml.encode("utf-8")
+        content_types = read_zip_entry(docx_bytes, "[Content_Types].xml")
+        content_types_xml = content_types.decode("utf-8", errors="replace") if content_types else ""
+        if f'PartName="/{header_part}"' not in content_types_xml:
+            content_types_xml = content_types_xml.replace("</Types>", f'<Override PartName="/{header_part}" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/></Types>')
+            replacements["[Content_Types].xml"] = content_types_xml.encode("utf-8")
+    return patch_ooxml_zip(docx_bytes, replacements)
+
+
 def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
     """Turn Writer's temporary review bookmarks into native Word revisions/comments.
 
