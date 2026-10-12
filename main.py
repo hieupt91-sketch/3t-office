@@ -1633,6 +1633,10 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
 
     if result.returncode != 0:
         detail = (result.stderr or result.stdout or "").strip()[:500]
+        safe_detail = detail.replace(str(src_path), "<source>").replace(str(out_dir), "<output>")
+        logging.getLogger("vnoffice.convert").warning(
+            "LibreOffice conversion exited with code %s: %s", result.returncode, safe_detail
+        )
         message = f"Không chuyển đổi được tài liệu. Hãy kiểm tra tệp và thử lại."
         report_conversion_failure("SofficeExitError", message)
         raise DocumentEngineError(message)
