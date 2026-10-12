@@ -62,13 +62,16 @@ try {
     return {...best,x:rect.left+rect.width/2,y:rect.top+rect.height/2};
   })()`);
   if (target.error) throw new Error(target.error);
-  console.error(`[P2] Editing ${target.sheet}!${target.coord}; fallback=${target.fallback===true}`);
+  console.error(`[P2] Editing ${target.sheet}!${target.coord}; dirty=${target.count}; fallback=${target.fallback===true}`);
 
   const times = {};
   const timed = async (name, action) => { const start=performance.now(); await action(); times[name]=Math.round(performance.now()-start); };
   await timed("selectCell", () => mouseClick(session.cdp,target.x,target.y));
+  console.error("[P2] Cell selected");
   await timed("editStartFirstKey", () => press(session.cdp,"t",{shift:true},20));
+  console.error("[P2] First edit key accepted");
   await timed("typingSecondKey", () => press(session.cdp,"e",{shift:true},20));
+  console.error("[P2] Second edit key accepted; pressing Enter");
   await timed("Enter", () => press(session.cdp,"Enter",{},20));
   await sleep(200);
   await session.cdp.evaluate("window.__vnoAppInstance.grid.focusGrid()");
