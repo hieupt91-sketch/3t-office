@@ -14,7 +14,7 @@ await fs.mkdir(localAppData, { recursive: true });
 await fs.mkdir(evidence, { recursive: true });
 await fs.copyFile(source, file);
 const session = await launchApp("slides", { root, filePath: file, localAppData, startTimeoutMilliseconds: 180000, readyTimeoutMilliseconds: 180000 });
-const read = () => session.cdp.evaluate(`JSON.stringify((()=>{const c=window.__vnoAppInstance.adapter.canvas;return{slides:c.slides.length,index:c.currentSlideIndex,zoom:c.zoomLevel,macroRecording:document.documentElement.dataset.macroRecording||null,indicator:document.querySelector('#vno-macro-status-indicator')?.textContent||null,manager:!!document.querySelector('.vno-macro-list')}})())`);
+const read = () => session.cdp.evaluate(`JSON.stringify((()=>{const c=window.__vnoAppInstance.adapter.canvas;const indicator=document.querySelector('#vno-macro-status-indicator');return{slides:c.slides.length,index:c.currentSlideIndex,zoom:c.zoomLevel,macroRecording:document.body.classList.contains('vno-macro-is-recording'),indicatorVisible:!!indicator&&getComputedStyle(indicator).display!=='none'&&indicator.getClientRects().length>0,manager:!!document.querySelector('.vno-macro-list')}})())`);
 const screenshot = async name => {
   const result = await session.cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
   await fs.writeFile(path.join(evidence, `${name}.png`), Buffer.from(result.result.data, "base64"));
@@ -30,7 +30,7 @@ try {
   await command("slides.view.newWindow");
   await sleep(500);
   const pagesAfter = (await readTargets(session.debugPort)).filter(x => x.type === "page").length;
-  result.newWindow = { pagesBefore, pagesAfter, state: JSON.parse(await read()), status: await session.cdp.evaluate("document.querySelector('.vno-status-bar')?.innerText||document.querySelector('[role=status]')?.innerText||''") };
+  result.newWindow = { pagesBefore, pagesAfter, state: JSON.parse(await read()), status: await session.cdp.evaluate("document.querySelector('#vno-status-docinfo')?.innerText||''") };
   await screenshot("new-window");
 
   await command("common.macro.recordToggle");
