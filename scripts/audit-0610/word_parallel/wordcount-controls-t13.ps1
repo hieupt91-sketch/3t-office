@@ -5,17 +5,20 @@ $word = New-Object -ComObject Word.Application
 $word.Visible = $false
 $word.DisplayAlerts = 0
 $rows = @()
+Write-Output 'Starting Word COM controls.'
 $wdCollapseEnd = 0
 $wdLineBreak = 6
 $wdFieldPage = 33
 function New-Control($name, $build) {
   $doc = $word.Documents.Add()
   try {
+    Write-Output ("Building control: " + $name)
     & $build $doc
     $doc.Fields.Update() | Out-Null
     foreach ($shape in $doc.Shapes) { if ($shape.TextFrame.HasText) { $shape.TextFrame.TextRange.Fields.Update() | Out-Null } }
     $path = Join-Path $Dir ($name + '.docx')
     $doc.SaveAs2($path, 16)
+    Write-Output ("Saved control: " + $name)
     $script:rows += [pscustomobject]@{
       name = $name
       words = [int]$doc.ComputeStatistics(0)
@@ -31,6 +34,7 @@ function New-Control($name, $build) {
   } finally { $doc.Close(0) }
 }
 try {
+  Write-Output 'Created Word.Application.'
   New-Control 'plain' { param($d) $d.Content.Text = 'Alpha beta' }
   New-Control 'repeated-spaces' { param($d) $d.Content.Text = 'Alpha    beta' }
   New-Control 'whitespace-only-run' { param($d) $d.Content.Text = "Alpha`r   `rBeta" }
