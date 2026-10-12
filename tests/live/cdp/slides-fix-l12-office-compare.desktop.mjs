@@ -74,13 +74,19 @@ try {
     const shapeId = members[0].id;
     const point = await session.cdp.evaluate(`(() => {const e=document.querySelector('[data-shape-id="${shapeId}"]');if(!e)return null;const r=e.getBoundingClientRect();return{x:r.left+r.width/2,y:r.top+r.height/2}})()`);
     if (point) await mouseClick(session.cdp, point.x, point.y);
-    const selected = await session.cdp.evaluate("window.__vnoAppInstance.adapter.canvas.selectedShapeIds.size");
-    check("Nhấp một thành phần chọn cả sơ đồ", selected >= members.length, selected);
+    const clickState = await session.cdp.evaluate(`(() => {const c=window.__vnoAppInstance.adapter.canvas;const top=document.elementFromPoint(${point?.x || 0},${point?.y || 0});return {selected:[...c.selectedShapeIds],target:c.selectedTarget,groupSelection:c.diagramGroupSelectionId,top:top?.className||top?.tagName,shapeId:${JSON.stringify(shapeId)}}})()`);
+    const selected = clickState.selected.length;
+    check("Nhấp một thành phần chọn cả sơ đồ", selected >= members.length, clickState);
     if (point) {
+      const beforeMove = await state();
       const afterPoint = { x: point.x + 28, y: point.y + 20 };
       await mouseDrag(session.cdp, point.x, point.y, afterPoint.x, afterPoint.y, { steps: 5 });
       const moved = await state();
-      check("Kéo sơ đồ cập nhật hình học thành viên", moved.shapes.filter(x => x.groupId === groupId).length === members.length, moved.shapes.filter(x => x.groupId === groupId).length);
+      const beforeMembers = beforeMove.shapes.filter(x => x.groupId === groupId);
+      const afterMembers = moved.shapes.filter(x => x.groupId === groupId);
+      const delta = afterMembers.map((shape,index) => ({ id:shape.id,dx:shape.x-beforeMembers[index].x,dy:shape.y-beforeMembers[index].y }));
+      const allMovedTogether = delta.length === members.length && delta.every(item=>item.dx===delta[0].dx&&item.dy===delta[0].dy&&item.dx!==0&&item.dy!==0);
+      check("Kéo sơ đồ di chuyển tất cả thành viên cùng một lượng", allMovedTogether, delta);
     }
   }
 
