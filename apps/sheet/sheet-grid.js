@@ -447,7 +447,7 @@ export class SheetGridController {
     this.autocomplete.mount();
 
     this.formulaInput.addEventListener("focus", () => {
-      if (!this.formulaEntry) this._beginFormulaEntry("edit");
+      if (!this.formulaEntry && !this._isCancellingFormulaEntry) this._beginFormulaEntry("edit");
     });
 
     this.formulaInput.addEventListener("input", (e) => {
@@ -496,6 +496,14 @@ export class SheetGridController {
         return;
       }
 
+      // Escape always cancels the active cell edit, even while formula suggestions are open.
+      // The suggestion handler also consumes Escape, which otherwise left the cell in edit mode.
+      if (e.key === "Escape") {
+        e.preventDefault();
+        this.autocomplete.closeAll();
+        this._cancelFormulaEntry();
+        return;
+      }
       if (this.autocomplete.handleKeyDown(e)) {
         return;
       }
@@ -525,11 +533,6 @@ export class SheetGridController {
         e.preventDefault();
         this.autocomplete.closeAll();
         this._commitFormulaEntry({ move: true, shift: e.shiftKey, tab: true });
-        return;
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        this.autocomplete.closeAll();
-        this._cancelFormulaEntry();
         return;
       }
     });
@@ -1659,6 +1662,11 @@ export class SheetGridController {
       ? String(initialValue)
       : String(this.formulaInput?.value ?? this._cellEditorValue(item));
     this.formulaEntry = new FormulaEntrySession({ original, value, caret: value.length, mode, sheet: this.activeSheet, coord });
+    this.formulaEntry.historyBefore = {
+      undoLength: this.undoStack.length,
+      lastUndo: this.undoStack.length ? structuredClone(this.undoStack[this.undoStack.length - 1]) : null,
+      redo: [...this.redoStack]
+    };
     this._updateFormulaEntryStatus();
     this._renderFormulaReferenceOverlay();
     return this.formulaEntry;
@@ -1899,6 +1907,7 @@ export class SheetGridController {
   _cancelFormulaEntry() {
     const session = this.formulaEntry;
     if (!session) return false;
+    this._isCancellingFormulaEntry = true;
     const coord = { ...session.coord };
     const ownerSheet = session.sheet;
     const original = typeof session.cancel === "function" ? session.cancel() : (session.original ?? this._cellValueBeforeEdit);
@@ -1917,6 +1926,17 @@ export class SheetGridController {
     this.autocomplete?.closeAll?.();
     this._refreshFormulaEntryVisuals();
     this.container?.focus?.({ preventScroll: true });
+    const historyBefore = session.historyBefore;
+    if (historyBefore) {
+      this.undoStack.length = historyBefore.undoLength;
+      if (historyBefore.lastUndo && historyBefore.undoLength) {
+        this.undoStack[historyBefore.undoLength - 1] = historyBefore.lastUndo;
+      }
+      this.redoStack = [...historyBefore.redo];
+      this._syncCommandStates();
+    }
+    this.formulaEntry = null;
+    this._isCancellingFormulaEntry = false;
     this.options.onSelect?.(`${coord.c}${coord.r}`, this.cellsData.get(`${coord.c}${coord.r}`), this._calculateStats());
     return true;
   }
