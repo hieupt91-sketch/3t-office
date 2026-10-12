@@ -1,0 +1,17 @@
+# Agent Handoff
+TASK: EXCEL-E1b (Excel 2016 OOXML function prefixes and remaining function audit)
+AGENT/ROLE: Codex / Sheet
+BRANCH: fix/excel-e1b-codex
+WORKTREE: E:\VNOffice-codex-fe1b
+OBJECTIVE: Apply Excel 2016 OOXML future-function prefixes through the approved save path, preserve canonical names on load, and continue Excel 2016 COM comparison for the 337 functions still marked unrun.
+FINDINGS: Added `_xlfn.` mapping for 110 functions from the intersection of the MS-XLSX future-function list and the Excel 2016 catalog. The desktop probe entered unprefixed `RANK.EQ` and `FORMULATEXT`, saved in VN Sheet, reopened the XLSX in VN Sheet with canonical formulas and correct values, and read the file in Excel 16.0.4266.1001 using COM `ReadOnly=true` plus `CalculateFullRebuild`. Across 137 catalog functions, 118 supported scalar cases matched; XLOOKUP and TEXTJOIN are post-2016 and correctly remain outside that comparison.
+IMPLEMENTATION SUMMARY: Added the adapter option `excel2016FunctionNameCompat` (default on), ODF write mapping and prefix removal on read for `_xlfn.`, `_xlfn._xlws.`, and `_xlws.` function tokens. Published `docs/EXCEL2016-FUNCTION-COMPAT-MAP.json`; extended the existing Excel COM reader to return a formula range as JSON; added save/reopen checks to the function probe.
+FILES CHANGED: `adapters/libreoffice/sheet/sheet-adapter.js`; `tests/unit/sheet-formula-odf.test.js`; `scripts/audit-0610/word_parallel/excel-read.ps1`; `scripts/audit-0610/excel2016-function-probe.desktop.mjs`; `docs/EXCEL2016-FUNCTION-COMPAT-MAP.json`; `docs/EXCEL2016-FUNCTIONS-COM-RESULTS.json`; `docs/EXCEL2016-FUNCTIONS-MATRIX.md`; `docs/PLAN-EXCEL-2016-E1-OOXML-COMPAT.md`; this handoff.
+COMMANDS RUN: Focused serializer/import audit (33 cases, PASS); final `npm test` (3158/3158 PASS); `python -m unittest discover -s tests` (912 tests, OK); desktop function probe for 137 functions with Excel COM read-only; dirty-save XLSX batch lan01/02/04/06/09/11/22/26 (8/8 PASS); `sheet_formulas_vs_cache.mjs --force` for lan01–lan28; `git diff --check`. Used `VNO_APP_ROOT=E:\VNOffice-codex-fe1b`, `VNO_CDP_LOCALAPPDATA=E:\VNOffice-profiles\codex-fe1b`, and `TEMP=E:\VNOffice-profiles\tmp-fe1b`.
+BUILD RESULT: NOT RUN (no build-system changes).
+TEST RESULTS: PASS — npm 3158/3158; Python 912 tests; XLSX batch 8/8; function serializer cases PASS; Excel read-only results for 118 comparable supported scalar functions MATCH. Cache audit evaluated 72,837 formulas with 72,707 matches (99.82%).
+KNOWN FAILURES: Ticket remains incomplete: 337 functions in `docs/EXCEL2016-FUNCTIONS-MATRIX.md` still have no COM cases. The forced cache audit is below the per-file 0.9.9 baseline for lan28 (152/275, 55.27%; tag baseline 267/275, 97.09%); lan14 has 4 mismatches and lan19 has 1. lan02 remains 2/4. Two probe results are `#NAME?` for XLOOKUP and TEXTJOIN, both marked post-2016.
+RISKS: Mapping affects XLSX serialization only when a mapped future function is present. Formula behavior for the 337 unrun functions is not established by this handoff. The cache report and raw results remain in the profile temp directory and are not committed because they include formulas from local workbooks.
+DEPENDENCIES/BLOCKERS: No external dependency. Remaining COM cases and the lan28 baseline gap need follow-up work before E1b can be marked complete.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Continue the function matrix by category with at least three read-only Excel cases per function; investigate lan28 before claiming the per-file baseline gate passes.

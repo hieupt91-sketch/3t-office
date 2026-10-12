@@ -1,5 +1,7 @@
 {
   "excelVersion": "16.0.4266.1001",
+  "readOnly": true,
+  "calculation": "CalculateFullRebuild",
   "rows": [
     {
       "name": "SUM",
@@ -283,7 +285,7 @@
     },
     {
       "name": "RANK.EQ",
-      "formula": "=_xlfn.RANK.EQ(A2, $A$2:$A$50, 0)",
+      "formula": "=RANK.EQ(A2, $A$2:$A$50, 0)",
       "appValue": 8,
       "excelValue": 8,
       "excelText": "8",
@@ -744,8 +746,8 @@
     {
       "name": "NOW",
       "formula": "=NOW()",
-      "appValue": 46308.053611111114,
-      "excelValue": 46308.05474166667,
+      "appValue": 46308.17726851852,
+      "excelValue": 46308.17825810185,
       "excelText": "########",
       "excelType": "Double",
       "volatile": true,
@@ -1043,7 +1045,7 @@
     },
     {
       "name": "FORMULATEXT",
-      "formula": "=_xlfn.FORMULATEXT(B2)",
+      "formula": "=FORMULATEXT(B2)",
       "appValue": "=SUM(A1:A10)",
       "excelValue": "=SUM(A1:A10)",
       "excelText": "=SUM(A1:A10)",
@@ -1114,9 +1116,9 @@
     {
       "name": "RAND",
       "formula": "=RAND()",
-      "appValue": 0.9431956358609933,
-      "excelValue": 0.5181310704137803,
-      "excelText": "0.518131",
+      "appValue": 0.4754231033781492,
+      "excelValue": 0.860376647842316,
+      "excelText": "0.860377",
       "excelType": "Double",
       "volatile": true,
       "match": null
@@ -1124,9 +1126,9 @@
     {
       "name": "RANDBETWEEN",
       "formula": "=RANDBETWEEN(1, 100)",
-      "appValue": 82,
-      "excelValue": 66,
-      "excelText": "66",
+      "appValue": 42,
+      "excelValue": 76,
+      "excelText": "76",
       "excelType": "Double",
       "volatile": true,
       "match": null
@@ -1334,9 +1336,9 @@
     {
       "name": "HOUR",
       "formula": "=HOUR(NOW())",
-      "appValue": 1,
-      "excelValue": 1,
-      "excelText": "1",
+      "appValue": 4,
+      "excelValue": 4,
+      "excelText": "4",
       "excelType": "Double",
       "volatile": true,
       "match": null
@@ -1344,9 +1346,9 @@
     {
       "name": "MINUTE",
       "formula": "=MINUTE(NOW())",
-      "appValue": 18,
-      "excelValue": 18,
-      "excelText": "18",
+      "appValue": 16,
+      "excelValue": 16,
+      "excelText": "16",
       "excelType": "Double",
       "volatile": true,
       "match": null
@@ -1354,9 +1356,9 @@
     {
       "name": "SECOND",
       "formula": "=SECOND(NOW())",
-      "appValue": 35,
-      "excelValue": 50,
-      "excelText": "50",
+      "appValue": 26,
+      "excelValue": 41,
+      "excelText": "41",
       "excelType": "Double",
       "volatile": true,
       "match": null
@@ -1371,7 +1373,5 @@
       "volatile": false,
       "match": true
     }
-  ],
-  "readOnly": true,
-  "calculation": "CalculateFullRebuild"
+  ]
 }
