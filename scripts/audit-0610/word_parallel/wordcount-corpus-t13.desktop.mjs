@@ -25,7 +25,6 @@ for (const name of names) {
     await cdp.waitFor(`(() => {const a=window.__vnoAppInstance?.adapter;return String(a?._sourcePath||'').toLowerCase().endsWith(${JSON.stringify(name.toLowerCase())})})()`, { timeoutMilliseconds: 900000, intervalMilliseconds: 500 });
     await cdp.waitFor("!!window.__vnoAppInstance?.adapter?._openedEditorDomHash && !window.__vnoAppInstance.adapter.isDirty", { timeoutMilliseconds: 900000, intervalMilliseconds: 500 });
     const cleanState = await cdp.evaluate("(() => {const a=window.__vnoAppInstance.adapter;return {isDirty:a.isDirty,sourceHashMatches:a._openedEditorDomHash===a._editorDomFingerprint()}})()");
-    await click(cdp, ".vno-writer-body");
     await click(cdp, "#vno-ribbon-tab-review");
     await click(cdp, '[data-command-id="writer.review.wordCount"]');
     await cdp.waitFor("!!document.querySelector('#vno-wordcount-overlay [data-stat=\"charactersWithSpaces\"]')", { timeoutMilliseconds: 15000 });
