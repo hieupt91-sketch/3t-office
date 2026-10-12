@@ -408,19 +408,25 @@ export async function runFormulaEngineTests() {
   const wholeColumnData = new Map([
     ["P1", { val: "Key", formula: "", style: {} }],
     ["Q1", { val: "First", formula: "", style: {} }],
+    ["Q2", { val: "First blank row", formula: "", style: {} }],
     ["P3", { val: "Key", formula: "", style: {} }],
     ["Q3", { val: "Second", formula: "", style: {} }],
     ["P5", { val: "Other", formula: "", style: {} }],
     ["Q5", { val: "Third", formula: "", style: {} }]
   ]);
   const wholeColumnEngine = new FormulaEngine(wholeColumnData, null, null, () => "Sheet1", () => ["Sheet1"]);
+  let wholeColumnReads = 0;
+  const getWholeColumnCell = wholeColumnEngine.getCellValue.bind(wholeColumnEngine);
+  wholeColumnEngine.getCellValue = (...args) => { wholeColumnReads++; return getWholeColumnCell(...args); };
   const wholeColumnInitial = wholeColumnEngine.evaluate('=VLOOKUP("Key",P:Q,2,FALSE)');
   const wholeColumnAvoidedMatrix = wholeColumnEngine._rangeMatrixCache.size === 0;
+  const wholeColumnBlankMatch = wholeColumnEngine.evaluate("=VLOOKUP(0,P:Q,2,FALSE)");
+  const wholeColumnSparseReads = wholeColumnReads < 20;
   wholeColumnData.set("P1", { val: "Updated", formula: "", style: {} });
   wholeColumnEngine.bumpSheetVersion("Sheet1", "P1");
   results.push({
     name: "VLOOKUP: whole-column exact index preserves first match and invalidates on edit",
-    pass: wholeColumnInitial === "First" && wholeColumnAvoidedMatrix &&
+    pass: wholeColumnInitial === "First" && wholeColumnAvoidedMatrix && wholeColumnBlankMatch === "First blank row" && wholeColumnSparseReads &&
       wholeColumnEngine.evaluate('=VLOOKUP("Key",P:Q,2,FALSE)') === "Second"
   });
 

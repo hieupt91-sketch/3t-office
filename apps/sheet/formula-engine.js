@@ -775,10 +775,32 @@ export class FormulaEngine {
     if (this._lookupIndexCache.has(cacheKey)) return this._lookupIndexCache.get(cacheKey);
 
     const firstColumn = this._columnName(bounds.startCol);
-    const candidates = [];
-    for (let offset = 0; offset < bounds.rows; offset++) {
-      const row = bounds.startRow + offset;
-      candidates.push({ key: this.getCellValue(`${firstColumn}${row}`, sheet || null), index: offset });
+    const map = sheet && typeof this.sheetResolver === "function" ? this.sheetResolver(sheet) : this.cellsMap;
+    const rowItems = [];
+    const coordinatePattern = new RegExp(`^${firstColumn}(\\d+)$`, "i");
+    for (const coordinate of map?.keys?.() || []) {
+      const match = String(coordinate).match(coordinatePattern);
+      if (!match) continue;
+      const row = Number(match[1]);
+      if (row < bounds.startRow || row >= bounds.startRow + bounds.rows) continue;
+      rowItems.push({ row, coordinate: String(coordinate).toUpperCase() });
+    }
+    rowItems.sort((left, right) => left.row - right.row);
+    const candidates = rowItems.map(({ row, coordinate }) => ({
+      key: this.getCellValue(coordinate, sheet || null),
+      index: row - bounds.startRow
+    }));
+
+    // A missing cell reads as numeric zero. Keep only the first implicit
+    // blank: later blank cells cannot win exact lookup over that row.
+    let firstBlankRow = bounds.startRow;
+    for (const { row } of rowItems) {
+      if (row !== firstBlankRow) break;
+      firstBlankRow++;
+    }
+    if (firstBlankRow < bounds.startRow + bounds.rows) {
+      candidates.push({ key: 0, index: firstBlankRow - bounds.startRow });
+      candidates.sort((left, right) => left.index - right.index);
     }
     const numMap = new Map();
     const strMap = new Map();
