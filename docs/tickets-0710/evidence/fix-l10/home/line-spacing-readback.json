@@ -1,0 +1,18 @@
+{
+    "baseline":  {
+                     "file":  "E:\\VNOffice-profiles\\codex-fl10\\template.pptx",
+                     "slides":  1,
+                     "shapes":  1,
+                     "text":  "FIX-L4 audit sample text",
+                     "lineRule":  -1,
+                     "spaceWithin":  1
+                 },
+    "app":  {
+                "file":  "E:\\VNOffice-profiles\\codex-fl10\\fix-l10-lineSpacing.pptx",
+                "slides":  1,
+                "shapes":  1,
+                "text":  "FIX-L4 audit sample text",
+                "lineRule":  -1,
+                "spaceWithin":  1
+            }
+}

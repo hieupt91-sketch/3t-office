@@ -1,0 +1,62 @@
+{
+  "file": "E:\\VNOffice-profiles\\codex-fl10\\fix-l10-view-macro.pptx",
+  "viewBefore": {
+    "slides": 10,
+    "index": 0,
+    "zoom": 1,
+    "macroRecording": null,
+    "indicator": "\n          \n          Đang ghi Macro...\n        ",
+    "manager": false
+  },
+  "newWindow": {
+    "pagesBefore": 1,
+    "pagesAfter": 1,
+    "state": {
+      "slides": 10,
+      "index": 0,
+      "zoom": 1,
+      "macroRecording": null,
+      "indicator": "\n          \n          Đang ghi Macro...\n        ",
+      "manager": false
+    },
+    "status": ""
+  },
+  "recordingStarted": {
+    "slides": 10,
+    "index": 0,
+    "zoom": 1,
+    "macroRecording": null,
+    "indicator": "\n          \n          Đang ghi Macro...\n        ",
+    "manager": false
+  },
+  "recordedStep": {
+    "slides": 10,
+    "index": 0,
+    "zoom": 1.1,
+    "macroRecording": null,
+    "indicator": "\n          \n          Đang ghi Macro...\n        ",
+    "manager": false
+  },
+  "recordingStopped": {
+    "slides": 10,
+    "index": 0,
+    "zoom": 1.1,
+    "macroRecording": null,
+    "indicator": "\n          \n          Đang ghi Macro...\n        ",
+    "manager": false
+  },
+  "managerOpen": {
+    "state": {
+      "slides": 10,
+      "index": 0,
+      "zoom": 1.1,
+      "macroRecording": null,
+      "indicator": "\n          \n          Đang ghi Macro...\n        ",
+      "manager": true
+    },
+    "rows": [
+      "Macro 06:21:30 12/10/2026FIX-L10 Macro"
+    ]
+  },
+  "saved": true
+}

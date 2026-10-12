@@ -120,6 +120,29 @@ export async function runSlidesFormatPainterTests() {
     assert(!canvas.container.classList.contains("vno-format-painter-active"), "Con trỏ phải trở về bình thường");
   });
 
+  await test("Format Painter: áp cỡ chữ nguồn lên toàn bộ các run chữ đích", () => {
+    const canvas = canvasWithShapes();
+    const previousDocument = globalThis.document;
+    const run = { style: { fontSize: "18pt" } };
+    globalThis.document = {
+      execCommand() { return true; },
+      queryCommandState() { return false; }
+    };
+    try {
+      const editable = {
+        style: {},
+        focus() {},
+        querySelectorAll() { return [run]; }
+      };
+      assert(canvas._applyCopiedTextFormat({ fontSize: "64px" }, editable), "Phải áp được định dạng cỡ chữ");
+      assert(editable.style.fontSize === "64px", "Phải áp cỡ chữ lên vùng chữ");
+      assert(run.style.fontSize === "64px", "Phải thay cỡ chữ trên run có định dạng riêng");
+    } finally {
+      if (previousDocument === undefined) delete globalThis.document;
+      else globalThis.document = previousDocument;
+    }
+  });
+
   await test("Format Painter: double-click khóa, áp dụng nhiều hình đến khi Esc", () => {
     const canvas = canvasWithShapes();
     canvas.setSelectedTarget(11);
