@@ -2363,7 +2363,36 @@ export class WriterAdapter {
       const clonedFloatingShapes = Array.from(characterRoot.querySelectorAll?.('[data-vno-float]') || [])
         .filter((shape) => !shape.parentElement?.closest?.('[data-vno-float]'));
       clonedFloatingShapes.forEach((shape) => shape.remove?.());
-      charactersText = characterRoot.textContent || text;
+      const treeWalker = characterRoot.ownerDocument?.createTreeWalker?.(
+        characterRoot,
+        typeof NodeFilter !== "undefined" ? NodeFilter.SHOW_TEXT : 4,
+      );
+      if (treeWalker) {
+        const pieces = [];
+        let textNode;
+        while ((textNode = treeWalker.nextNode())) {
+          const value = String(textNode.nodeValue || "");
+          if (!value.trim()) continue;
+          let parent = textNode.parentElement;
+          let hidden = false;
+          while (parent && parent !== characterRoot) {
+            const style = typeof getComputedStyle === "function" ? getComputedStyle(parent) : null;
+            if (style?.display === "none" || style?.visibility === "hidden") {
+              hidden = true;
+              break;
+            }
+            parent = parent.parentElement;
+          }
+          if (hidden) continue;
+          // LibreOffice's generated HTML places indentation tabs/newlines inside
+          // inline runs. Treat those formatting boundaries as one word separator,
+          // while preserving repeated literal spaces and tabs from the actual run.
+          pieces.push(value.replace(/[ \t]*\r?\n[ \t]*/g, " "));
+        }
+        charactersText = pieces.join("");
+      } else {
+        charactersText = characterRoot.textContent || text;
+      }
     }
     const paragraphCount = countBlockParagraphs(body);
     const lineCount = countBlockLines(body);
