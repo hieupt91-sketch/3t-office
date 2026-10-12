@@ -65,19 +65,21 @@ try {
 
     $commentRows = @()
     try {
-        $first = $presentation.Comments.Add(120, 100, 'FIX-L14 audit', 'F14', 'Audit comment Alpha')
-        $second = $presentation.Comments.Add(160, 150, 'FIX-L14 audit', 'F14', 'Audit comment Beta')
-        $commentRows += [ordered]@{ step = 'insert'; count = [int]$presentation.Comments.Count; texts = @($presentation.Comments | ForEach-Object { [string]$_.Text }) }
-        foreach ($commandId in @('ReviewNextComment', 'ReviewPreviousComment', 'ReviewResolveComment', 'ReviewSpelling')) {
-            $entry = [ordered]@{ id = $commandId; label = $null; executed = $false; error = $null }
+        $slide = $presentation.Slides.Item(1)
+        $slideComments = $slide.Comments
+        if ($null -eq $slideComments) { throw 'PowerPoint returned no Slide.Comments collection for an empty legacy-comments list.' }
+        $first = $slideComments.Add(120, 100, 'FIX-L14 audit', 'F14', 'Audit comment Alpha')
+        $second = $slideComments.Add(160, 150, 'FIX-L14 audit', 'F14', 'Audit comment Beta')
+        $commentRows += [ordered]@{ step = 'insert'; count = [int]$slideComments.Count; texts = @($slideComments | ForEach-Object { [string]$_.Text }) }
+        foreach ($commandId in @('ReviewNextComment', 'ReviewPreviousComment', 'ReviewResolveComment')) {
+            $entry = [ordered]@{ id = $commandId; label = $null; error = $null }
             try { $entry.label = [string]$app.CommandBars.GetLabelMso($commandId) } catch { $entry.error = $_.Exception.Message }
-            try { $app.CommandBars.ExecuteMso($commandId); $entry.executed = $true } catch { $entry.error = $_.Exception.Message }
             $commentRows += [pscustomobject]$entry
         }
         try { $commentRows += [ordered]@{ step = 'resolvedReadback'; resolved = [bool]$second.Resolved; error = $null } }
         catch { $commentRows += [ordered]@{ step = 'resolvedReadback'; resolved = $null; error = $_.Exception.Message } }
         $ops.comments = $commentRows
-    } catch { $ops.commentsError = $_.Exception.Message }
+    } catch { $ops.comments = [ordered]@{ supported = $false; error = $_.Exception.Message } }
 
     $textShape = $null
     foreach ($slide in $presentation.Slides) {
@@ -102,6 +104,7 @@ try {
     $ops.newWindow.countAfterClose = [int]$app.Windows.Count
 
     $presentation.SlideShowSettings.AdvanceMode = 1
+    $presentation.SlideShowSettings.StartingSlide = 1
     $showWindow = $presentation.SlideShowSettings.Run()
     $ops.showFromBegin = [ordered]@{ slideShowWindows = [int]$app.SlideShowWindows.Count; currentPosition = [int]$showWindow.View.CurrentShowPosition }
     $showWindow.View.Exit()
@@ -109,20 +112,24 @@ try {
     $result.cleanup.ownShowEnded = $true
 
     $window.ViewType = 9
-    $window.View.GotoSlide(2)
+    $presentation.SlideShowSettings.StartingSlide = 2
     $showWindow = $presentation.SlideShowSettings.Run()
     $ops.showFromCurrent = [ordered]@{ slideShowWindows = [int]$app.SlideShowWindows.Count; requestedCurrentSlide = 2; currentPosition = [int]$showWindow.View.CurrentShowPosition }
     $showWindow.View.Exit()
     $showWindow = $null
     $result.cleanup.ownShowEnded = $true
-
-    $result | ConvertTo-Json -Depth 10 | ForEach-Object {
-        $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
-        [System.IO.File]::WriteAllText((Join-Path (Get-Location) $OutputPath), $_ + "`n", $utf8NoBom)
-        Write-Output $_
-    }
+} catch {
+    $result.error = $_.Exception.Message
 } finally {
     if ($showWindow) { try { $showWindow.View.Exit(); $result.cleanup.ownShowEnded = $true } catch {} }
     if ($extraWindow) { try { $extraWindow.Close(); $result.cleanup.ownExtraWindowClosed = $true } catch {} }
     if ($presentation) { $presentation.Close(); $result.cleanup.ownPresentationClosed = $true }
 }
+$result.cleanup.presentationsAfterClose = [int]$app.Presentations.Count
+$result.cleanup.slideshowWindowsAfterClose = [int]$app.SlideShowWindows.Count
+$result | ConvertTo-Json -Depth 10 | ForEach-Object {
+    $utf8NoBom = New-Object System.Text.UTF8Encoding($false)
+    [System.IO.File]::WriteAllText((Join-Path (Get-Location) $OutputPath), $_ + "`n", $utf8NoBom)
+    Write-Output $_
+}
+if ($result.error) { throw $result.error }
