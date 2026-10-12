@@ -687,7 +687,7 @@ export class FormulaEngine {
 
     const references = [];
     const expression = withoutStrings.replace(/#(?:REF!|NAME\?|N\/A|DIV\/0!|VALUE!|NUM!|NULL!|ERROR!|SPILL!|CALC!)/gi, token => " ".repeat(token.length));
-    const referencePattern = /(?:'((?:[^']|'')+)'|([A-Za-z_][A-Za-z0-9_. ]*))!\s*(\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?|\$?[A-Z]+:\$?[A-Z]+)|\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?/gi;
+    const referencePattern = /(?:'((?:[^']|'')+)'|([A-Za-z_][A-Za-z0-9_. ]*))!\s*(\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?|\$?[A-Z]+:\$?[A-Z]+)|\$?[A-Z]+:\$?[A-Z]+|\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?/gi;
     const masked = expression.split("");
     let match;
     while ((match = referencePattern.exec(expression))) {
@@ -697,15 +697,16 @@ export class FormulaEngine {
       const parsed = this._parseReference(raw);
       const ref = parsed?.ref;
       const bounds = typeof ref === "string" && ref.match(/^([A-Z]+)(\d+)(?::([A-Z]+)(\d+))?$/i);
-      if (parsed?.error || parsed?.sheets || !bounds || /\[[^\]]*\]/.test(raw)) {
+      const wholeColumnBounds = typeof ref === "string" && ref.match(/^([A-Z]+):([A-Z]+)$/i);
+      if (parsed?.error || parsed?.sheets || (!bounds && !wholeColumnBounds) || /\[[^\]]*\]/.test(raw)) {
         return { safe: false, references: [] };
       }
       references.push({
         sheet: parsed.sheet || sheetName || (typeof this.currentSheetResolver === "function" ? this.currentSheetResolver() : ""),
-        startColumn: this._columnIndex(bounds[1]),
-        startRow: Number(bounds[2]),
-        endColumn: this._columnIndex(bounds[3] || bounds[1]),
-        endRow: Number(bounds[4] || bounds[2])
+        startColumn: this._columnIndex(bounds ? bounds[1] : wholeColumnBounds[1]),
+        startRow: bounds ? Number(bounds[2]) : 1,
+        endColumn: this._columnIndex(bounds ? (bounds[3] || bounds[1]) : wholeColumnBounds[2]),
+        endRow: bounds ? Number(bounds[4] || bounds[2]) : Number.MAX_SAFE_INTEGER
       });
       for (let index = match.index; index < referencePattern.lastIndex; index++) masked[index] = " ";
     }

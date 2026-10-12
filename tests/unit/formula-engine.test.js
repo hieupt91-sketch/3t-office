@@ -47,6 +47,15 @@ export async function runFormulaEngineTests() {
     name: "Formula dependencies: dynamic references request full-recalculation fallback",
     pass: engine.getStaticFormulaReferences('=INDIRECT("A1")', "Sheet1").safe === false
   });
+  const wholeColumnReferences = engine.getStaticFormulaReferences("=VLOOKUP(A1,P:AD,2,0)", "Sheet1");
+  results.push({
+    name: "Formula dependencies: index whole-column lookup ranges",
+    pass: wholeColumnReferences.safe && wholeColumnReferences.references.length === 2 &&
+      wholeColumnReferences.references[1].startColumn === engine._columnIndex("P") &&
+      wholeColumnReferences.references[1].endColumn === engine._columnIndex("AD") &&
+      wholeColumnReferences.references[1].startRow === 1 &&
+      wholeColumnReferences.references[1].endRow === Number.MAX_SAFE_INTEGER
+  });
   results.push({
     name: "Formula dependencies: recognize literal spreadsheet errors without references",
     pass: engine.getStaticFormulaReferences("=#N/A", "Sheet1").safe &&
