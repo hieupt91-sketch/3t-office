@@ -86,7 +86,7 @@ try {
       const beforeMembers = beforeMove.shapes.filter(x => x.groupId === groupId);
       const afterMembers = moved.shapes.filter(x => x.groupId === groupId);
       const delta = afterMembers.map((shape,index) => ({ id:shape.id,dx:shape.x-beforeMembers[index].x,dy:shape.y-beforeMembers[index].y }));
-      const allMovedTogether = delta.length === members.length && delta.every(item=>item.dx===delta[0].dx&&item.dy===delta[0].dy&&item.dx!==0&&item.dy!==0);
+      const allMovedTogether = delta.length === members.length && delta.every(item=>Math.abs(item.dx-delta[0].dx)<0.001&&Math.abs(item.dy-delta[0].dy)<0.001&&item.dx!==0&&item.dy!==0);
       check("Kéo sơ đồ di chuyển tất cả thành viên cùng một lượng", allMovedTogether, delta);
     }
   }
