@@ -21,12 +21,12 @@
 
 ## Phạm vi và module dự kiến
 
-1. `apps/sheet/sheet-quick-view.js`, `apps/sheet/sheet-quick-view.css`: giảm cửa sổ truy vấn đầu tới vùng nhìn thấy và cho phép nhập nội dung/xóa/dán/định dạng ô đang tải; hàng đợi lệnh có trạng thái và phím undo/redo.
-2. `adapters/libreoffice/sheet/sheet-adapter.js`, `apps/sheet/sheet-grid.js`: phát lại hàng đợi lên mô hình đầy đủ, giữ thứ tự undo/redo sau commit; ánh xạ lại selection/scroll. Xem nhanh chỉ nhận thao tác có thể ghi nhận an toàn; thao tác toàn workbook chờ hydration.
-3. `apps/sheet/sheet-app.js`: phản ánh đúng trạng thái “đang nạp đầy đủ, chỉnh sửa tạm được giữ lại” và lỗi/retry.
-4. Không cần thay `main.py`, pywebview protocol hoặc `soffice_uno_worker.py` nếu CDP xác nhận Xem nhanh render trước khi API mở trả kết quả.
-4. `tests/**`, `scripts/audit-0610/installed_sheet_usability.mjs` hoặc harness CDP phù hợp: cổng unit, workbook fidelity, desktop CDP và đo hiệu năng; không sửa fixture hoặc expected output để làm xanh.
-5. `docs/PERF-SHEET-OPEN-1012.md`, hướng dẫn tiếng Việt Sheet trong Help hiện hữu và `/09-templates/AGENT-HANDOFF.md`: báo cáo đo trước/sau, cách dùng trạng thái mở workbook lớn, handoff.
+1. `apps/sheet/sheet-quick-view.js`, `apps/sheet/sheet-quick-view.css`: truy vấn/render cửa sổ đầu theo viewport; journal sửa ô, xóa, dán và định dạng với Ctrl+Z/Ctrl+Y.
+2. `adapters/libreoffice/sheet/sheet-adapter.js`: trả quyền điều khiển UI sau khi quick view render, tiếp tục hydrate nền, replay thao tác một lần lên lưới thật và giữ nhánh undo/redo; save/print đợi hydrate.
+3. `main.py`: chỉ phát vùng đầu đủ viewport qua bridge hiện có và đưa đường dẫn nguồn vào quick-view payload để báo lỗi/retry.
+4. `apps/sheet/sheet-app.js`, `platform/help/entries-gaps-0410.js`: nối đường dẫn retry và hướng dẫn tiếng Việt cụ thể trong Trợ giúp.
+5. `tests/unit/sheet-quick-view.test.js` và CDP desktop hiện có: kiểm chứng journal/replay, undo/redo, độ trễ và fidelity; không sửa fixture hoặc expected output để làm xanh.
+6. `docs/PERF-SHEET-OPEN-1012.md` và `/09-templates/AGENT-HANDOFF.md`: ghi kết quả đo trước/sau và handoff.
 
 Không sửa `upstream/**`, không thêm dependency, không đổi semantics file format. Không có dữ liệu tài liệu nào gửi ra cloud.
 
