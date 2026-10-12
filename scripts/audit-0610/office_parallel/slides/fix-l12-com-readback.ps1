@@ -18,12 +18,18 @@ try {
             try { if ([int]$shape.Type -eq 6) { $groupCount = [int]$shape.GroupItems.Count } } catch {}
             $mediaType = $null
             try { if ([int]$shape.Type -eq 16) { $mediaType = [int]$shape.MediaType } } catch {}
+            $textEffectText = $null
+            $textEffectPreset = $null
+            try { $textEffectText = [string]$shape.TextEffect.Text } catch {}
+            try { $textEffectPreset = [int]$shape.TextEffect.PresetTextEffect } catch {}
             $shapes += [pscustomobject]@{
                 name = [string]$shape.Name
                 type = [int]$shape.Type
                 text = $text
                 groupItemCount = $groupCount
                 mediaType = $mediaType
+                textEffectText = $textEffectText
+                textEffectPreset = $textEffectPreset
             }
         }
         $headerFooter = $slide.HeadersFooters
@@ -41,11 +47,27 @@ try {
             shapes = $shapes
         }
     }
+    $theme = $presentation.SlideMaster.Theme
+    $themeColors = @()
+    for ($index = 1; $index -le 12; $index++) {
+        try { $themeColors += [int]$theme.ThemeColorScheme.Colors($index).RGB } catch { $themeColors += $null }
+    }
+    $themeFonts = @{}
+    foreach ($family in @('MajorFont', 'MinorFont')) {
+        $fontNames = @()
+        try {
+            $fontCollection = $theme.ThemeFontScheme.$family
+            for ($index = 1; $index -le $fontCollection.Count; $index++) { $fontNames += [string]$fontCollection.Item($index).Name }
+        } catch {}
+        $themeFonts[$family] = $fontNames
+    }
     $result = [pscustomobject]@{
         officeVersion = [string]$app.Version
         path = (Resolve-Path -LiteralPath $Path).Path
         slidesCount = [int]$presentation.Slides.Count
         designName = [string]$presentation.Designs.Item(1).Name
+        themeColors = $themeColors
+        themeFonts = $themeFonts
         slideWidth = [double]$presentation.PageSetup.SlideWidth
         slideHeight = [double]$presentation.PageSetup.SlideHeight
         slides = $slides
