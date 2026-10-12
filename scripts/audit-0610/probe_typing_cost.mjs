@@ -11,10 +11,9 @@ const ev = (e, ms = 900000) => session.cdp.evaluate(e, { awaitPromise: true, tim
 const rec = [];
 const time = async (name, fn) => { const t = Date.now(); await fn(); rec.push(`${name}=${Date.now() - t}ms`); console.error(`[${((Date.now() - t0) / 1000).toFixed(1)}s] ${name} ${Date.now() - t}ms`); };
 try {
-  const norm = file.replace(/\\/g, "/").toLowerCase();
-  const expectedName = norm.split("/").at(-1);
+  const expectedName = file.replace(/\\/g, "/").split("/").at(-1).toLowerCase();
   const expectedTitle = expectedName.replace(/\.xlsx$/, "");
-  await session.cdp.waitFor(`(() => { const q = window.__vnoSheetQuickViewController; const a = window.__vnoAppInstance?.adapter; const p = String(q?.sourcePath || a?._sourcePath || a?.sourceFilePath || '').replace(/\\\\/g, '/').toLowerCase(); const title = String(document.title || '').toLowerCase(); return Boolean(q?.active) && (p === ${JSON.stringify(norm)} || (p.endsWith('/' + ${JSON.stringify(expectedName)}) && title.startsWith(${JSON.stringify(expectedTitle)}))); })()`, { timeoutMilliseconds: 600000, intervalMilliseconds: 100 });
+  await session.cdp.waitFor(`Boolean(window.__vnoSheetQuickViewController?.active) && String(document.title || '').toLowerCase().startsWith(${JSON.stringify(expectedTitle)})`, { timeoutMilliseconds: 600000, intervalMilliseconds: 50 });
   const before = JSON.parse(await ev(`JSON.stringify({ quickActive: window.__vnoSheetQuickViewController?.active, quickStatus: window.__vnoSheetQuickViewController?.status?.textContent, target: (() => { const e = document.elementFromPoint(${x}, ${y}); return { tag: e?.tagName, className: String(e?.className || ''), text: String(e?.textContent || '').slice(0, 40) }; })() })`));
   await ev(`window.__lt = []; try { new PerformanceObserver(l => { for (const e of l.getEntries()) window.__lt.push([Math.round(e.startTime), Math.round(e.duration)]); }).observe({ entryTypes: ['longtask'] }); } catch (e) {} true`);
   await time("click", () => mouseClick(session.cdp, x, y));
