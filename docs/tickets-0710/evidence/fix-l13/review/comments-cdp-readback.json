@@ -1,0 +1,155 @@
+{
+  "file": "E:\\VNOffice-profiles\\codex-fl13\\fix-l13-comments.pptx",
+  "beforeDelete": "E:\\VNOffice-profiles\\codex-fl13\\fix-l13-comments-before-delete.pptx",
+  "resolvedFile": "E:\\VNOffice-profiles\\codex-fl13\\fix-l13-comments-resolved.pptx",
+  "afterInsert": {
+    "slides": 10,
+    "index": 0,
+    "comments": [
+      {
+        "id": "comment-1791790433238-q8vxy6",
+        "text": "FIX-L10 Alpha comment",
+        "author": "Người dùng",
+        "timestamp": "2026-10-12T07:33:53.238Z"
+      },
+      {
+        "id": "comment-1791790434887-u8un1r",
+        "text": "FIX-L10 Beta comment",
+        "author": "Người dùng",
+        "timestamp": "2026-10-12T07:33:54.887Z"
+      }
+    ],
+    "panelOpen": true,
+    "items": [
+      {
+        "id": "comment-1791790433238-q8vxy6",
+        "resolved": false,
+        "text": "FIX-L10 Alpha comment"
+      },
+      {
+        "id": "comment-1791790434887-u8un1r",
+        "resolved": false,
+        "text": "FIX-L10 Beta comment"
+      }
+    ]
+  },
+  "next": {
+    "slides": 10,
+    "index": 0,
+    "comments": [
+      {
+        "id": "comment-1791790433238-q8vxy6",
+        "text": "FIX-L10 Alpha comment",
+        "author": "Người dùng",
+        "timestamp": "2026-10-12T07:33:53.238Z"
+      },
+      {
+        "id": "comment-1791790434887-u8un1r",
+        "text": "FIX-L10 Beta comment",
+        "author": "Người dùng",
+        "timestamp": "2026-10-12T07:33:54.887Z"
+      }
+    ],
+    "activeCommentId": "comment-1791790433238-q8vxy6",
+    "panelOpen": true,
+    "items": [
+      {
+        "id": "comment-1791790433238-q8vxy6",
+        "resolved": false,
+        "text": "FIX-L10 Alpha comment"
+      },
+      {
+        "id": "comment-1791790434887-u8un1r",
+        "resolved": false,
+        "text": "FIX-L10 Beta comment"
+      }
+    ]
+  },
+  "previous": {
+    "slides": 10,
+    "index": 0,
+    "comments": [
+      {
+        "id": "comment-1791790433238-q8vxy6",
+        "text": "FIX-L10 Alpha comment",
+        "author": "Người dùng",
+        "timestamp": "2026-10-12T07:33:53.238Z"
+      },
+      {
+        "id": "comment-1791790434887-u8un1r",
+        "text": "FIX-L10 Beta comment",
+        "author": "Người dùng",
+        "timestamp": "2026-10-12T07:33:54.887Z"
+      }
+    ],
+    "activeCommentId": "comment-1791790434887-u8un1r",
+    "panelOpen": true,
+    "items": [
+      {
+        "id": "comment-1791790433238-q8vxy6",
+        "resolved": false,
+        "text": "FIX-L10 Alpha comment"
+      },
+      {
+        "id": "comment-1791790434887-u8un1r",
+        "resolved": false,
+        "text": "FIX-L10 Beta comment"
+      }
+    ]
+  },
+  "resolved": {
+    "slides": 10,
+    "index": 0,
+    "comments": [
+      {
+        "id": "comment-1791790433238-q8vxy6",
+        "text": "FIX-L10 Alpha comment",
+        "author": "Người dùng",
+        "timestamp": "2026-10-12T07:33:53.238Z"
+      },
+      {
+        "id": "comment-1791790434887-u8un1r",
+        "text": "FIX-L10 Beta comment",
+        "author": "Người dùng",
+        "timestamp": "2026-10-12T07:33:54.887Z",
+        "resolved": true
+      }
+    ],
+    "activeCommentId": "comment-1791790434887-u8un1r",
+    "panelOpen": true,
+    "items": [
+      {
+        "id": "comment-1791790433238-q8vxy6",
+        "resolved": false,
+        "text": "FIX-L10 Alpha comment"
+      },
+      {
+        "id": "comment-1791790434887-u8un1r",
+        "resolved": true,
+        "text": "FIX-L10 Beta comment"
+      }
+    ]
+  },
+  "savedAfterResolve": true,
+  "afterDelete": {
+    "slides": 10,
+    "index": 0,
+    "comments": [
+      {
+        "id": "comment-1791790433238-q8vxy6",
+        "text": "FIX-L10 Alpha comment",
+        "author": "Người dùng",
+        "timestamp": "2026-10-12T07:33:53.238Z"
+      }
+    ],
+    "activeCommentId": "comment-1791790434887-u8un1r",
+    "panelOpen": true,
+    "items": [
+      {
+        "id": "comment-1791790433238-q8vxy6",
+        "resolved": false,
+        "text": "FIX-L10 Alpha comment"
+      }
+    ]
+  }
+}
