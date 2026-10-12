@@ -5353,6 +5353,19 @@ def main(argv: list[str] | None = None):
 
     _initialize_process_tracker()
 
+    # Start the required local document engine while process routing and the
+    # embedded UI server initialize. File-association launches otherwise reach
+    # the first Sheet view while LibreOffice is still starting.
+    _PERSISTENT_SOFFICE_ENABLED = os.environ.get("VNOFFICE_DISABLE_UNO") != "1"
+    if initial_file and app_kind in VALID_APP_KINDS and _PERSISTENT_SOFFICE_ENABLED:
+        _startup_trace("lo_worker_start_requested", app=app_kind, phase="bootstrap")
+        threading.Thread(
+            target=_PERSISTENT_SOFFICE.prepare,
+            args=(app_kind,),
+            daemon=True,
+            name="3T Office LibreOffice early warm start",
+        ).start()
+
     restore_documents = []
     for argument in launch_argv:
         if not argument.startswith("--restore-document="):
