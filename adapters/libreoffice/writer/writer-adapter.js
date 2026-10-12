@@ -15234,7 +15234,6 @@ export class WriterAdapter {
       watermarkAdapter.sectionPageSetups = {};
       watermarkAdapter.sectionHeadersFooters = {};
       nativeWatermarkFodt = watermarkAdapter.serializeToFodt();
-      watermarkHtml = "";
     }
 
     if (this.bodyDom) {

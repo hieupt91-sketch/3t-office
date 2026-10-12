@@ -1908,7 +1908,25 @@ WRITER_DOC_EXPORT_VIA_DOCX = True
 
 def _convert_writer_html_to_doc(src_html: str, out_dir: str, source_path: str | None = None) -> str:
     """Export Writer HTML through the source-aware DOCX overlay before legacy DOC."""
-    intermediate_docx = _run_soffice_convert(src_html, "docx", out_dir, app_kind="writer")
+    conversion_html = src_html
+    try:
+        with open(src_html, "r", encoding="utf-8", errors="replace") as handle:
+            html_source = handle.read()
+        if "vno-native-watermark-fodt:" in html_source:
+            html_without_overlay = re.sub(
+                r'<div\b(?=[^>]*\bclass=["\'][^"\']*\bvno-export-watermark\b[^"\']*["\'])[^>]*>[\s\S]*?</div\s*>\s*',
+                "",
+                html_source,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+            if html_without_overlay != html_source:
+                conversion_html = os.path.join(out_dir, "writer-native-watermark-source.html")
+                with open(conversion_html, "w", encoding="utf-8", newline="") as handle:
+                    handle.write(html_without_overlay)
+    except OSError as exc:
+        raise DocumentEngineError(f"KhÃ´ng thá»ƒ chuáº©n bá»‹ HTML watermark cho DOCX: {exc}") from exc
+    intermediate_docx = _run_soffice_convert(conversion_html, "docx", out_dir, app_kind="writer")
     pristine_docx_source = bool(
         source_path and Path(source_path).suffix.lower() == ".docx"
     )
