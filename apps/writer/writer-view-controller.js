@@ -138,7 +138,7 @@ export class WriterViewController {
     // AppShell echoes the new percentage through onZoomChange. That callback
     // updates the local zoom with pageWidth=false, so restore the fit marker
     // after the synchronous echo; the resize listener uses it to refit later.
-    if (pageWidth) this.container?.classList.add?.("vno-writer-page-width");
+    if (pageWidth) this.container?.classList.toggle("vno-writer-page-width", true);
     return this.zoomLevel;
   }
 
