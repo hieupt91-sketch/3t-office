@@ -25,11 +25,13 @@ for (const name of names) {
     await cdp.waitFor(`(() => {const a=window.__vnoAppInstance?.adapter;return String(a?._sourcePath||'').toLowerCase().endsWith(${JSON.stringify(name.toLowerCase())})})()`, { timeoutMilliseconds: 900000, intervalMilliseconds: 500 });
     await cdp.waitFor("!!window.__vnoAppInstance?.adapter?._openedEditorDomHash && !window.__vnoAppInstance.adapter.isDirty", { timeoutMilliseconds: 900000, intervalMilliseconds: 500 });
     const cleanState = await cdp.evaluate("(() => {const a=window.__vnoAppInstance.adapter;return {isDirty:a.isDirty,sourceHashMatches:a._openedEditorDomHash===a._editorDomFingerprint()}})()");
+    const cleanStats = await cdp.evaluate("window.__vnoAppInstance.adapter.getWordCountStats({preferSelection:false})");
     await click(cdp, "#vno-ribbon-tab-review");
+    const reviewState = await cdp.evaluate("(() => {const a=window.__vnoAppInstance.adapter;return {isDirty:a.isDirty,sourceHashMatches:a._openedEditorDomHash===a._editorDomFingerprint()}})()");
     await click(cdp, '[data-command-id="writer.review.wordCount"]');
     await cdp.waitFor("!!document.querySelector('#vno-wordcount-overlay [data-stat=\"charactersWithSpaces\"]')", { timeoutMilliseconds: 15000 });
     const result = await cdp.evaluate(`(() => {const read=name=>Number((document.querySelector('#vno-wordcount-overlay [data-stat="'+name+'"]')?.textContent||'0').replace(/\\./g,''));const a=window.__vnoAppInstance.adapter;const source=a._wordCountSourceText;return {isDirtyAfterUiClick:a.isDirty,sourceHashMatchesAfterUiClick:a._openedEditorDomHash===a._editorDomFingerprint(),dialogStats:{words:read('words'),charactersNoSpaces:read('charactersNoSpaces'),charactersWithSpaces:read('charactersWithSpaces')},documentStats:a.getWordCountStats({preferSelection:false}),sourceText:source==null?null:{length:source.length,charactersNoSpaces:source.replace(/\\s+/g,'').length,charactersWithSpaces:source.replace(/[\\r\\n\\u2028\\u2029]/g,'').length}}})()`);
-    rows.push({ name, cleanState, ...result });
+    rows.push({ name, cleanState, cleanStats, reviewState, ...result });
     console.log(JSON.stringify(rows[rows.length - 1]));
     await click(cdp, "#vno-wordcount-overlay .vno-dialog-ok-btn");
   } finally {
