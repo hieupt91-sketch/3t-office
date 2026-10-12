@@ -23,6 +23,7 @@ let targetFiles = [];
 let customReportPath = "";
 let customResultsPath = defaultResultsPath;
 let forceRerun = false;
+let baselineResultsPath = "";
 
 for (let i = 0; i < args.length; i++) {
   if (args[i] === "--file" && args[i + 1]) {
@@ -36,6 +37,9 @@ for (let i = 0; i < args.length; i++) {
     i++;
   } else if (args[i] === "--results" && args[i + 1]) {
     customResultsPath = path.resolve(repoRoot, args[i + 1]);
+    i++;
+  } else if (args[i] === "--baseline-results" && args[i + 1]) {
+    baselineResultsPath = path.resolve(repoRoot, args[i + 1]);
     i++;
   } else if (args[i] === "--force") {
     forceRerun = true;
@@ -192,7 +196,11 @@ async function evaluateFile(fileName, existingResults) {
     console.log(`  Đang đợi sự kiện document_open_complete...`);
     const t0 = Date.now();
     let loaded = false;
-    const maxWaitMs = fileName === "lan14.xlsx" ? 240000 : 120000;
+    const requestedWaitMs = Number(process.env.VNO_AUDIT_OPEN_TIMEOUT_MS);
+    const defaultWaitMs = fileName === "lan14.xlsx" ? 240000 : 120000;
+    const maxWaitMs = Number.isFinite(requestedWaitMs) && requestedWaitMs > 0
+      ? Math.max(defaultWaitMs, requestedWaitMs)
+      : defaultWaitMs;
     while (Date.now() - t0 < maxWaitMs) {
       const state = await session.cdp.evaluate(`(() => {
         const mark = window.__vnoStartupEvents?.some(e => e.name === "document_open_complete");
@@ -636,6 +644,32 @@ async function main() {
   const reportMd = buildMarkdownReport(allSummaries);
   await writeFile(finalReportPath, reportMd, "utf8");
   console.log(`Đã ghi báo cáo đầy đủ vào: ${finalReportPath}`);
+
+  if (baselineResultsPath) {
+    const baseline = await loadExistingResults(baselineResultsPath);
+    const regressions = [];
+    for (const fileName of allLanFiles) {
+      const expected = baseline[fileName];
+      const actual = resultsMap[fileName];
+      if (!expected || !actual) {
+        regressions.push(`${fileName}: thiếu kết quả baseline hoặc lượt chạy hiện tại`);
+      } else if (actual.evaluated !== expected.evaluated) {
+        regressions.push(`${fileName}: số ô kiểm tra đổi ${expected.evaluated} -> ${actual.evaluated}`);
+      } else if (actual.matched < expected.matched) {
+        regressions.push(`${fileName}: khớp ${actual.matched}/${actual.evaluated}, thấp hơn baseline ${expected.matched}/${expected.evaluated}`);
+      }
+    }
+    const evaluated = allSummaries.reduce((sum, item) => sum + (item.evaluated || 0), 0);
+    const matched = allSummaries.reduce((sum, item) => sum + (item.matched || 0), 0);
+    const totalRate = evaluated ? (matched / evaluated) * 100 : 100;
+    if (resultsMap["lan01.xlsx"]?.matched !== resultsMap["lan01.xlsx"]?.evaluated) {
+      regressions.push(`lan01.xlsx: cần đạt 100%, hiện ${resultsMap["lan01.xlsx"]?.matchRate || "chưa chạy"}`);
+    }
+    if (totalRate < 53.41) regressions.push(`Tổng: ${totalRate.toFixed(2)}% thấp hơn ngưỡng 53.41%`);
+    console.log(`Formula gate: ${regressions.length ? "FAIL" : "PASS"} | ${matched}/${evaluated} (${totalRate.toFixed(2)}%)`);
+    regressions.forEach(message => console.error(`  - ${message}`));
+    if (regressions.length) process.exitCode = 1;
+  }
 }
 
 main().catch(err => {
