@@ -4497,8 +4497,9 @@ ${pristineXlsxMarker}
       if (targetSheet === source.sheet) return "";
 
       if (!workbook.pivotTablesBySheet[targetSheet]) workbook.pivotTablesBySheet[targetSheet] = [];
+      const pivotId = this._unescapeXml(attrs.match(/vno:pivot-id=["']([^"']*)["']/i)?.[1] || "");
       workbook.pivotTablesBySheet[targetSheet].push({
-        id: `pivot-import-${++index}`,
+        id: pivotId || `pivot-import-${++index}`,
         name: name || `pivot-import-${index}`,
         sourceSheet: source.sheet,
         sourceRange,

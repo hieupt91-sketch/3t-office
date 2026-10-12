@@ -14,7 +14,7 @@ class SheetPivotChartXlsxTests(unittest.TestCase):
             "xl/worksheets/_rels/sheet1.xml.rels": '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Target="../drawings/drawing1.xml" Type="drawing"/></Relationships>',
             "xl/drawings/drawing1.xml": '<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><xdr:graphicFrame><a:graphic xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:graphicData><c:chart r:id="rId1"/></a:graphicData></a:graphic></xdr:graphicFrame></xdr:wsDr>',
             "xl/drawings/_rels/drawing1.xml.rels": '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Target="../charts/chart1.xml" Type="chart"/></Relationships>',
-            "xl/charts/chart1.xml": '<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><c:chart><c:plotArea/></c:chart></c:chartSpace>',
+            "xl/charts/chart1.xml": '<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><c:pivotSource><c:name>DoanhThuTheoKhuVuc</c:name><c:fmtId val="0"/></c:pivotSource><c:chart><c:plotArea/></c:chart></c:chartSpace>',
             "xl/pivotTables/pivotTable1.xml": '<pivotTableDefinition name="DoanhThuTheoKhuVuc" cacheId="1"><pivotFields/><pivotTableStyleInfo name="PivotStyleLight16"/></pivotTableDefinition>',
         }
         out = io.BytesIO()
@@ -39,6 +39,12 @@ class SheetPivotChartXlsxTests(unittest.TestCase):
         replacements = {}
         patcher._apply_pivot_chart_links_from_fods(self._package(), source_fods, replacements)
         self.assertEqual(replacements, {})
+
+    def test_open_overlay_restores_pivot_identity_to_fods(self):
+        source_fods = '<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:chart="urn:oasis:names:tc:opendocument:xmlns:chart:1.0"><office:body><office:spreadsheet><table:table table:name="Pivot"><draw:frame><chart:chart/></draw:frame></table:table><table:data-pilot-tables><table:data-pilot-table table:name="DoanhThuTheoKhuVuc"/></table:data-pilot-tables></office:spreadsheet></office:body></office:document>'
+        result = patcher.overlay_pivot_chart_metadata_to_fods(self._package(), source_fods)
+        self.assertIn('vno:chart-kind="pivot" vno:pivot-id="xlsx-pivot:DoanhThuTheoKhuVuc"', result)
+        self.assertIn('table:name="DoanhThuTheoKhuVuc" vno:pivot-id="xlsx-pivot:DoanhThuTheoKhuVuc"', result)
 
 
 if __name__ == "__main__":
