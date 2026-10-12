@@ -37,7 +37,7 @@ try {
         if (!visible?.getBoundingClientRect()?.width) continue;
         const dirty=fallback ? null : g._getDirtyFormulaOrder(graph,{sheet,coord});
         if (!fallback && !dirty?.length) continue;
-        options.push({sheet,coord,count:fallback?formulaCount:dirty.length,originalValue:item.val,fallback});
+        options.push({sheet,coord,count:fallback?formulaCount:dirty.length,dependentFormulas:fallback?[]:dirty.map(formula=>({sheet:formula.sheet,coord:formula.coord,formula:formula.formula})),originalValue:item.val,fallback});
       }
     }
     options.sort((a,b)=>b.count-a.count);
@@ -62,7 +62,7 @@ try {
     return {...best,x:rect.left+rect.width/2,y:rect.top+rect.height/2};
   })()`);
   if (target.error) throw new Error(target.error);
-  console.error(`[P2] Editing ${target.sheet}!${target.coord}; dirty=${target.count}; fallback=${target.fallback===true}`);
+  console.error(`[P2] Editing ${target.sheet}!${target.coord}; dirty=${target.count}; fallback=${target.fallback===true}; dependents=${JSON.stringify(target.dependentFormulas||[])}`);
 
   const times = {};
   const timed = async (name, action) => { const start=performance.now(); await action(); times[name]=Math.round(performance.now()-start); };
