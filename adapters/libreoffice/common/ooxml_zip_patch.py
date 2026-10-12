@@ -19993,8 +19993,9 @@ def postprocess_writer_page_decor(docx_bytes: bytes, *, source_html: str | None 
     if not docx_bytes or not source_html:
         return docx_bytes
     line_numbers = re.search(r"<!--vno-line-numbers:(\d+):(continuous|page|section)-->", source_html)
+    theme = re.search(r"<!--vno-document-theme:(office|administrative|modern|elegant|minimal|emerald)-->", source_html)
     block = re.search(r"@page\s*\{([^}]*)\}", source_html, re.IGNORECASE)
-    if not block and not line_numbers:
+    if not block and not line_numbers and not theme:
         return docx_bytes
     css = block.group(1) if block else ""
     border = re.search(
@@ -20002,7 +20003,7 @@ def postprocess_writer_page_decor(docx_bytes: bytes, *, source_html: str | None 
         css, re.IGNORECASE,
     )
     background = re.search(r"background-color\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)|[a-zA-Z]+)", css, re.IGNORECASE)
-    if not border and not background and not line_numbers:
+    if not border and not background and not line_numbers and not theme:
         return docx_bytes
     document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
     if not document_bytes:
@@ -20058,6 +20059,362 @@ def postprocess_writer_page_decor(docx_bytes: bytes, *, source_html: str | None 
                     settings_xml = re.sub(r"(<w:settings\b[^>]*>)", r"\1<w:displayBackgroundShape/>", settings_xml, count=1, flags=re.IGNORECASE)
                 replacements["word/settings.xml"] = settings_xml.encode("utf-8")
     replacements["word/document.xml"] = document_xml.encode("utf-8")
+    if theme:
+        theme_bytes = read_zip_entry(docx_bytes, "word/theme/theme1.xml")
+        if theme_bytes:
+            theme_xml = theme_bytes.decode("utf-8", errors="replace")
+            schemes = {
+                "office": ("Times New Roman", ["0F4C81", "1D4ED8", "2563EB", "64748B", "94A3B8", "0F172A"]),
+                "administrative": ("Times New Roman", ["000000", "C01E17", "7F1D1D", "44403C", "78716C", "A8A29E"]),
+                "modern": ("Be Vietnam Pro", ["0284C7", "0369A1", "075985", "0EA5E9", "38BDF8", "0F172A"]),
+                "elegant": ("Georgia", ["854D0E", "A16207", "CA8A04", "B45309", "D97706", "78350F"]),
+                "minimal": ("Arial", ["3F3F46", "52525B", "71717A", "27272A", "A1A1AA", "18181B"]),
+                "emerald": ("Calibri", ["0F766E", "0D9488", "14B8A6", "115E59", "2DD4BF", "134E4A"]),
+            }
+            font, accents = schemes[theme.group(1)]
+            theme_xml = re.sub(
+                r"(<a:fontScheme\b[^>]*>[\s\S]*?<a:(?:majorFont|minorFont)>[\s\S]*?<a:latin\b[^>]*\btypeface=\")[^\"]*",
+                rf"\g<1>{font}", theme_xml, flags=re.IGNORECASE,
+            )
+            # Both major and minor fonts must follow the selected document theme.
+            for tag in ("majorFont", "minorFont"):
+                theme_xml = re.sub(
+                    rf"(<a:{tag}\b[^>]*>[\s\S]*?<a:latin\b[^>]*\btypeface=\")[^\"]*",
+                    rf"\g<1>{font}", theme_xml, count=1, flags=re.IGNORECASE,
+                )
+            for index, color in enumerate(accents, start=1):
+                theme_xml = re.sub(
+                    rf"(<a:accent{index}\b[^>]*>[\s\S]*?<a:srgbClr\b[^>]*\bval=\")[^\"]*",
+                    rf"\g<1>{color}", theme_xml, count=1, flags=re.IGNORECASE,
+                )
+            replacements["word/theme/theme1.xml"] = theme_xml.encode("utf-8")
+    return patch_ooxml_zip(docx_bytes, replacements)
+
+
+def _writer_chart_xlsx(labels: list[str], values: list[str]) -> bytes:
+    """Build a small embedded workbook for a single-series Writer chart."""
+    if not labels or len(labels) != len(values):
+        raise ValueError("Dữ liệu biểu đồ không đủ nhãn và giá trị để tạo workbook nhúng.")
+    def cell_text(value: str) -> str:
+        return html.escape(str(value), quote=False)
+    rows = ['<row r="1"><c r="A1" t="inlineStr"><is><t>Category</t></is></c><c r="B1" t="inlineStr"><is><t>Series</t></is></c></row>']
+    for index, (label, value) in enumerate(zip(labels, values), start=2):
+        numeric = float(value)
+        if not math.isfinite(numeric):
+            raise ValueError("Giá trị biểu đồ phải là số hữu hạn.")
+        number = str(int(numeric)) if numeric.is_integer() else format(numeric, ".15g")
+        rows.append(
+            f'<row r="{index}"><c r="A{index}" t="inlineStr"><is><t>{cell_text(label)}</t></is></c>'
+            f'<c r="B{index}"><v>{number}</v></c></row>'
+        )
+    parts = {
+        "[Content_Types].xml": '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>',
+        "_rels/.rels": '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+        "xl/workbook.xml": '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>',
+        "xl/_rels/workbook.xml.rels": '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',
+        "xl/worksheets/sheet1.xml": '<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' + "".join(rows) + "</sheetData></worksheet>",
+    }
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, content in parts.items():
+            archive.writestr(name, content.encode("utf-8"))
+    return output.getvalue()
+
+
+def _writer_chart_with_embedded_workbook(chart_xml: str, workbook_name: str) -> tuple[str, str, bytes]:
+    """Link the cached chart data to an editable, embedded XLSX workbook."""
+    label_values = re.findall(r"<c:cat\b[\s\S]*?<c:pt\b[^>]*><c:v>([\s\S]*?)</c:v>", chart_xml, re.IGNORECASE)
+    numeric_values = re.findall(r"<c:val\b[\s\S]*?<c:pt\b[^>]*><c:v>([\s\S]*?)</c:v>", chart_xml, re.IGNORECASE)
+    labels = [html.unescape(value) for value in label_values]
+    values = [html.unescape(value) for value in numeric_values]
+    if not labels or not values:
+        raise ValueError("LibreOffice không xuất được dữ liệu cache biểu đồ để nhúng.")
+    workbook = _writer_chart_xlsx(labels, values)
+    last_row = len(labels) + 1
+    def formula(block: str, value: str) -> str:
+        return re.sub(r"<c:f>[^<]*</c:f>", f"<c:f>'Sheet1'!{value}</c:f>", block, count=1)
+    chart_xml = re.sub(r"(<c:tx\b[\s\S]*?</c:tx>)", lambda match: formula(match.group(1), "$B$1"), chart_xml, count=1, flags=re.IGNORECASE)
+    chart_xml = re.sub(r"(<c:cat\b[\s\S]*?</c:cat>)", lambda match: formula(match.group(1), f"$A$2:$A${last_row}"), chart_xml, count=1, flags=re.IGNORECASE)
+    chart_xml = re.sub(r"(<c:val\b[\s\S]*?</c:val>)", lambda match: formula(match.group(1), f"$B$2:$B${last_row}"), chart_xml, count=1, flags=re.IGNORECASE)
+    rel_id = "rIdVnoEmbeddedWorkbook"
+    if "<c:externalData" not in chart_xml:
+        chart_xml = chart_xml.replace(
+            "</c:chartSpace>",
+            f'<c:externalData r:id="{rel_id}"><c:autoUpdate val="0"/></c:externalData></c:chartSpace>',
+        )
+    rels = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        f'<Relationship Id="{rel_id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/package" Target="../embeddings/{workbook_name}"/>'
+        '</Relationships>'
+    )
+    return chart_xml, rels, workbook
+
+
+def postprocess_writer_native_charts(
+    docx_bytes: bytes,
+    chart_docx_bytes: bytes,
+    *,
+    source_html: str | None = None,
+) -> bytes:
+    """Replace newly inserted chart placeholders with LibreOffice-native DOCX charts.
+
+    The auxiliary FODT conversion supplies the editable Chart object; only the
+    bookmarked new chart region is replaced in the user's DOCX package.
+    """
+    if not docx_bytes or not chart_docx_bytes or not source_html or "vno-native-charts-fodt:" not in source_html:
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    aux_document_bytes = read_zip_entry(chart_docx_bytes, "word/document.xml")
+    aux_rels_bytes = read_zip_entry(chart_docx_bytes, "word/_rels/document.xml.rels")
+    if not document_bytes or not aux_document_bytes or not aux_rels_bytes:
+        raise ValueError("Không đọc được cấu trúc DOCX biểu đồ do LibreOffice tạo.")
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    aux_document_xml = aux_document_bytes.decode("utf-8", errors="replace")
+    aux_rels_xml = aux_rels_bytes.decode("utf-8", errors="replace")
+    rels = {
+        rel_id: posixpath.normpath(posixpath.join("word", target))
+        for rel_id, target in re.findall(
+            r'<Relationship\b(?=[^>]*\bType="[^"]*/chart")(?=[^>]*\bId="([^"]+)")(?=[^>]*\bTarget="([^"]+)")[^>]*/?>',
+            aux_rels_xml,
+            re.IGNORECASE,
+        )
+    }
+    drawings = re.findall(r"<w:drawing\b[\s\S]*?</w:drawing\s*>", aux_document_xml, re.IGNORECASE)
+    if not drawings:
+        raise ValueError("Tài liệu biểu đồ phụ không có đối tượng Chart native.")
+    source_chart_ids = []
+    for drawing in drawings:
+        match = re.search(r'<c:chart\b[^>]*\br:id="([^"]+)"', drawing, re.IGNORECASE)
+        if match and match.group(1) in rels:
+            source_chart_ids.append((drawing, rels[match.group(1)]))
+    if not source_chart_ids:
+        raise ValueError("Không ánh xạ được quan hệ chart của DOCX phụ.")
+
+    target_rels_bytes = read_zip_entry(docx_bytes, "word/_rels/document.xml.rels")
+    target_rels_xml = target_rels_bytes.decode("utf-8", errors="replace") if target_rels_bytes else (
+        '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+    )
+    content_types_bytes = read_zip_entry(docx_bytes, "[Content_Types].xml")
+    content_types_xml = content_types_bytes.decode("utf-8", errors="replace") if content_types_bytes else ""
+    package_names = set()
+    try:
+        with zipfile.ZipFile(io.BytesIO(docx_bytes), "r") as package:
+            package_names.update(package.namelist())
+    except (zipfile.BadZipFile, OSError):
+        return docx_bytes
+    replacements: dict[str, bytes | str | None] = {}
+    max_rid = max((int(value) for value in re.findall(r'\bId="rId(\d+)"', target_rels_xml)), default=0)
+    max_docpr = max((int(value) for value in re.findall(r'<wp:docPr\b[^>]*\bid="(\d+)"', document_xml)), default=0)
+    chart_paths = {name for name in package_names if re.fullmatch(r"word/charts/[^/]+\.xml", name)}
+    workbook_paths = {name for name in package_names if name.startswith("word/embeddings/")}
+    replaced_document = document_xml
+    content_type_additions = []
+    for index, (drawing, source_part) in enumerate(source_chart_ids, start=1):
+        chart_bytes = read_zip_entry(chart_docx_bytes, source_part)
+        if not chart_bytes:
+            raise ValueError(f"Thiếu phần XML biểu đồ phụ: {source_part}")
+        chart_xml = chart_bytes.decode("utf-8", errors="replace")
+        chart_base = f"vnoChart{index}"
+        target_part = f"word/charts/{chart_base}.xml"
+        suffix = index
+        while target_part in chart_paths:
+            suffix += 1
+            chart_base = f"vnoChart{suffix}"
+            target_part = f"word/charts/{chart_base}.xml"
+        workbook_name = f"{chart_base}.xlsx"
+        workbook_path = f"word/embeddings/{workbook_name}"
+        wb_suffix = 1
+        while workbook_path in workbook_paths:
+            wb_suffix += 1
+            workbook_name = f"{chart_base}-{wb_suffix}.xlsx"
+            workbook_path = f"word/embeddings/{workbook_name}"
+        chart_xml, chart_rels_xml, workbook_bytes = _writer_chart_with_embedded_workbook(chart_xml, workbook_name)
+        chart_paths.add(target_part)
+        workbook_paths.add(workbook_path)
+        replacements[target_part] = chart_xml.encode("utf-8")
+        replacements[f"word/charts/_rels/{chart_base}.xml.rels"] = chart_rels_xml.encode("utf-8")
+        replacements[workbook_path] = workbook_bytes
+        max_rid += 1
+        new_rel_id = f"rId{max_rid}"
+        target_rels_xml = target_rels_xml.replace(
+            "</Relationships>",
+            f'<Relationship Id="{new_rel_id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="charts/{chart_base}.xml"/></Relationships>',
+        )
+        drawing = re.sub(r'(<c:chart\b[^>]*\br:id=")[^"]+', rf'\g<1>{new_rel_id}', drawing, count=1)
+        max_docpr += 1
+        drawing = re.sub(r'(<wp:docPr\b[^>]*\bid=")[0-9]+', rf'\g<1>{max_docpr}', drawing, count=1)
+
+        token = f"VNO_NATIVE_CHART_{index}"
+        paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", replaced_document, re.IGNORECASE))
+        start_index = next((i for i, match in enumerate(paragraphs) if f'{token}_START' in match.group(0)), None)
+        if start_index is None:
+            raise ValueError(f"Không tìm được điểm chèn DOCX cho biểu đồ {index}.")
+        start_match = re.search(r'<w:bookmarkStart\b(?=[^>]*\bw:name="' + re.escape(token) + r'_START")(?=[^>]*\bw:id="([^"]+)")[^>]*/>', paragraphs[start_index].group(0), re.IGNORECASE)
+        if not start_match:
+            raise ValueError(f"Thiếu dấu neo bắt đầu cho biểu đồ {index}.")
+        end_index = next((i for i in range(start_index, len(paragraphs)) if f'{token}_END' in paragraphs[i].group(0)), None)
+        if end_index is None:
+            raise ValueError(f"Thiếu bookmark kết thúc cho biểu đồ {index}.")
+        if not re.search(
+            r'<w:bookmarkStart\b(?=[^>]*\bw:name="' + re.escape(token) + r'_END")[^>]*/>',
+            paragraphs[end_index].group(0),
+            re.IGNORECASE,
+        ):
+            raise ValueError(f"Bookmark kết thúc cho biểu đồ {index} không hợp lệ.")
+        first_paragraph = paragraphs[start_index].group(0)
+        ppr = re.search(r"<w:pPr\b[\s\S]*?</w:pPr\s*>", first_paragraph, re.IGNORECASE)
+        replacement_paragraph = f'<w:p>{ppr.group(0) if ppr else ""}<w:r>{drawing}</w:r></w:p>'
+        replaced_document = replaced_document[:paragraphs[start_index].start()] + replacement_paragraph + replaced_document[paragraphs[end_index].end():]
+        if f'/word/charts/{chart_base}.xml"' not in content_types_xml:
+            content_type_additions.append(f'<Override PartName="/{target_part}" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>')
+    if content_type_additions:
+        if "</Types>" not in content_types_xml:
+            raise ValueError("DOCX thiếu [Content_Types].xml hợp lệ để thêm biểu đồ.")
+        if "Extension=" not in content_types_xml or not re.search(r'<Default\b[^>]*\bExtension="xlsx"', content_types_xml, re.IGNORECASE):
+            xlsx_type = '<Default Extension="xlsx" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/>'
+            content_types_xml = content_types_xml.replace("</Types>", xlsx_type + "</Types>")
+        content_types_xml = content_types_xml.replace("</Types>", "".join(content_type_additions) + "</Types>")
+    replacements.update({
+        "word/document.xml": replaced_document.encode("utf-8"),
+        "word/_rels/document.xml.rels": target_rels_xml.encode("utf-8"),
+        "[Content_Types].xml": content_types_xml.encode("utf-8"),
+    })
+    return patch_ooxml_zip(docx_bytes, replacements)
+
+
+def postprocess_writer_native_diagrams(
+    docx_bytes: bytes,
+    diagram_docx_bytes: bytes,
+    *,
+    source_html: str | None = None,
+) -> bytes:
+    """Replace newly inserted diagram placeholders with editable DrawingML groups."""
+    if not docx_bytes or not diagram_docx_bytes or not source_html or "vno-native-diagrams-fodt:" not in source_html:
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    diagram_document_bytes = read_zip_entry(diagram_docx_bytes, "word/document.xml")
+    if not document_bytes or not diagram_document_bytes:
+        raise ValueError("Không đọc được cấu trúc DOCX sơ đồ do LibreOffice tạo.")
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    diagram_document_xml = diagram_document_bytes.decode("utf-8", errors="replace")
+    drawings = [
+        drawing for drawing in re.findall(r"<w:drawing\b[\s\S]*?</w:drawing\s*>", diagram_document_xml, re.IGNORECASE)
+        if "<wpg:wgp" in drawing
+    ]
+    if not drawings:
+        raise ValueError("LibreOffice không xuất được nhóm hình cho sơ đồ.")
+    max_docpr = max((int(value) for value in re.findall(r'<wp:docPr\b[^>]*\bid="(\d+)"', document_xml)), default=0)
+    for index, drawing in enumerate(drawings, start=1):
+        token = f"VNO_NATIVE_DIAGRAM_{index}"
+        paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+        start_index = next((i for i, match in enumerate(paragraphs) if f'{token}_START' in match.group(0)), None)
+        end_index = next((i for i, match in enumerate(paragraphs) if f'{token}_END' in match.group(0)), None)
+        if start_index is None or end_index is None or end_index < start_index:
+            raise ValueError(f"Không tìm được vùng DOCX của sơ đồ {index}.")
+        if not re.search(
+            r'<w:bookmarkStart\b(?=[^>]*\bw:name="' + re.escape(token) + r'_START")[^>]*/>',
+            paragraphs[start_index].group(0),
+            re.IGNORECASE,
+        ) or not re.search(
+            r'<w:bookmarkStart\b(?=[^>]*\bw:name="' + re.escape(token) + r'_END")[^>]*/>',
+            paragraphs[end_index].group(0),
+            re.IGNORECASE,
+        ):
+            raise ValueError(f"Bookmark cho sơ đồ {index} không hợp lệ.")
+        ppr = re.search(r"<w:pPr\b[\s\S]*?</w:pPr\s*>", paragraphs[start_index].group(0), re.IGNORECASE)
+        max_docpr += 1
+        drawing = re.sub(r'(<wp:docPr\b[^>]*\bid=")[0-9]+', rf'\g<1>{max_docpr}', drawing, count=1)
+        replacement_paragraph = f'<w:p>{ppr.group(0) if ppr else ""}<w:r>{drawing}</w:r></w:p>'
+        document_xml = document_xml[:paragraphs[start_index].start()] + replacement_paragraph + document_xml[paragraphs[end_index].end():]
+    return patch_ooxml_zip(docx_bytes, {"word/document.xml": document_xml.encode("utf-8")})
+
+
+def postprocess_writer_native_watermark(
+    docx_bytes: bytes,
+    watermark_docx_bytes: bytes,
+    *,
+    source_html: str | None = None,
+) -> bytes:
+    """Move the newly exported watermark drawing into a Word header part."""
+    if not docx_bytes or not watermark_docx_bytes or not source_html or "vno-native-watermark-fodt:" not in source_html:
+        return docx_bytes
+    source_header = read_zip_entry(watermark_docx_bytes, "word/header1.xml")
+    if not source_header:
+        raise ValueError("LibreOffice không xuất được watermark trong header DOCX.")
+    source_xml = source_header.decode("utf-8", errors="replace")
+    drawing_match = re.search(r"<w:drawing\b[\s\S]*?</w:drawing\s*>", source_xml, re.IGNORECASE)
+    if not drawing_match:
+        raise ValueError("Header DOCX phụ không có watermark DrawingML.")
+    drawing = drawing_match.group(0)
+    drawing = re.sub(r'(<wp:docPr\b[^>]*\bname=")[^"]*', r'\g<1>PowerPlusWaterMarkObject1', drawing, count=1)
+    drawing = re.sub(r'(<v:shape\b[^>]*\bid=")[^"]*', r'\g<1>PowerPlusWaterMarkObject1', drawing, count=1)
+
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    rels_bytes = read_zip_entry(docx_bytes, "word/_rels/document.xml.rels")
+    if not document_bytes:
+        raise ValueError("DOCX thiếu word/document.xml để gắn watermark.")
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    rels_xml = rels_bytes.decode("utf-8", errors="replace") if rels_bytes else (
+        '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+    )
+    header_rels = list(re.finditer(
+        r'<Relationship\b(?=[^>]*\bType="[^"]*/header")(?=[^>]*\bId="([^"]+)")(?=[^>]*\bTarget="([^"]+)")[^>]*/?>',
+        rels_xml, re.IGNORECASE,
+    ))
+    replacements: dict[str, bytes | str | None] = {}
+    if header_rels:
+        rel = header_rels[0]
+        header_part = posixpath.normpath(posixpath.join("word", rel.group(2)))
+        header_bytes = read_zip_entry(docx_bytes, header_part)
+        if not header_bytes:
+            raise ValueError(f"DOCX header part không tồn tại: {header_part}")
+        header_xml = header_bytes.decode("utf-8", errors="replace")
+        # Add namespaces used by the copied anchor at the root if the target header lacks them.
+        source_root = re.search(r"<w:hdr\b([^>]*)>", source_xml, re.IGNORECASE)
+        target_root = re.search(r"<w:hdr\b([^>]*)>", header_xml, re.IGNORECASE)
+        if source_root and target_root:
+            attrs = dict(re.findall(r'\b(xmlns(?::[\w.-]+)?)="([^"]+)"', source_root.group(1)))
+            missing = "".join(f' {key}="{value}"' for key, value in attrs.items() if not re.search(r'\b' + re.escape(key) + r'="', target_root.group(1)))
+            if missing:
+                header_xml = header_xml[:target_root.end(1)] + missing + header_xml[target_root.end(1):]
+        paragraph = f'<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r>{drawing}</w:r></w:p>'
+        body_match = re.search(r"<w:hdr\b[^>]*>([\s\S]*?)</w:hdr\s*>", header_xml, re.IGNORECASE)
+        if not body_match:
+            raise ValueError("DOCX header XML không hợp lệ.")
+        body = body_match.group(1)
+        first_para = re.search(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", body, re.IGNORECASE)
+        body = body[:first_para.end()] + paragraph + body[first_para.end():] if first_para else paragraph + body
+        header_xml = header_xml[:body_match.start(1)] + body + header_xml[body_match.end(1):]
+        replacements[header_part] = header_xml.encode("utf-8")
+    else:
+        header_part = "word/header1.xml"
+        suffix = 1
+        while read_zip_entry(docx_bytes, header_part):
+            suffix += 1
+            header_part = f"word/header{suffix}.xml"
+        source_root = re.search(r"<w:hdr\b([^>]*)>", source_xml, re.IGNORECASE)
+        namespaces = source_root.group(1) if source_root else 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"'
+        header_xml = f'<?xml version="1.0" encoding="UTF-8"?><w:hdr{namespaces}><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r>{drawing}</w:r></w:p></w:hdr>'
+        replacements[header_part] = header_xml.encode("utf-8")
+        max_rid = max((int(value) for value in re.findall(r'\bId="rId(\d+)"', rels_xml)), default=0) + 1
+        rel_id = f"rId{max_rid}"
+        rels_xml = rels_xml.replace("</Relationships>", f'<Relationship Id="{rel_id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="{posixpath.basename(header_part)}"/></Relationships>')
+        document_xml = re.sub(
+            r"(<w:sectPr\b[^>]*>)",
+            rf'\1<w:headerReference w:type="default" r:id="{rel_id}"/>',
+            document_xml,
+            flags=re.IGNORECASE,
+        )
+        if "<w:sectPr" not in document_xml:
+            document_xml = document_xml.replace("</w:body>", f'<w:sectPr><w:headerReference w:type="default" r:id="{rel_id}"/></w:sectPr></w:body>')
+        replacements["word/document.xml"] = document_xml.encode("utf-8")
+        replacements["word/_rels/document.xml.rels"] = rels_xml.encode("utf-8")
+        content_types = read_zip_entry(docx_bytes, "[Content_Types].xml")
+        content_types_xml = content_types.decode("utf-8", errors="replace") if content_types else ""
+        if f'PartName="/{header_part}"' not in content_types_xml:
+            content_types_xml = content_types_xml.replace("</Types>", f'<Override PartName="/{header_part}" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/></Types>')
+            replacements["[Content_Types].xml"] = content_types_xml.encode("utf-8")
     return patch_ooxml_zip(docx_bytes, replacements)
 
 

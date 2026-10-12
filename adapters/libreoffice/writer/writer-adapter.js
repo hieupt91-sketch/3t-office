@@ -53,7 +53,7 @@ import {
   tableOfFiguresTitle,
   tofMarkerHtml
 } from "../../../apps/writer/captions.js";
-import { countBlockLines, countBlockParagraphs, countDocumentStats, countListMarkerStats, showWordCountDialog } from "../../../apps/writer/word-count.js";
+import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, showWordCountDialog } from "../../../apps/writer/word-count.js";
 import { showFontDialog } from "../../../apps/writer/font-dialog.js";
 
 let writerInsertDialogsPromise;
@@ -2354,9 +2354,12 @@ export class WriterAdapter {
     }
 
     const text = body.innerText != null ? body.innerText : (body.textContent || "");
+    const floatingShapes = Array.from(body.querySelectorAll('[data-vno-float]'))
+      .filter((shape) => !shape.parentElement?.closest?.('[data-vno-float]'));
     const paragraphCount = countBlockParagraphs(body);
     const lineCount = countBlockLines(body);
     const markerStats = countListMarkerStats(body);
+    markerStats.charactersWithSpaces += countExplicitLineBreaks(body);
     const stats = countDocumentStats(text, {
       scope: "document",
       paragraphCount,
@@ -2365,8 +2368,6 @@ export class WriterAdapter {
     });
     // Word's document statistics omit floating text boxes and shapes. They are
     // visible in Writer's DOM body, so subtract their text explicitly.
-    const floatingShapes = Array.from(body.querySelectorAll('[data-vno-float]'))
-      .filter((shape) => !shape.parentElement?.closest?.('[data-vno-float]'));
     for (const shape of floatingShapes) {
       const floatingStats = countDocumentStats(shape.innerText ?? shape.textContent ?? "");
       stats.words = Math.max(0, stats.words - floatingStats.words);
@@ -2379,6 +2380,34 @@ export class WriterAdapter {
   openWordCountDialog() {
     const stats = this.getWordCountStats({ preferSelection: true });
     return showWordCountDialog(stats);
+  }
+
+  _serializeNativeDiagramsToFodt(diagrams) {
+    const palette = ["#2563eb", "#0f6d38", "#d97706", "#dc2626", "#7c3aed", "#0891b2"];
+    const shapes = [];
+    const styleXml = [];
+    let shapeIndex = 0;
+    for (const [diagramIndex, diagram] of diagrams.entries()) {
+      const labels = Array.from(diagram.querySelectorAll?.(".vno-diagram-node-text") || [])
+        .map((node) => String(node.textContent || "").trim()).filter(Boolean);
+      if (!labels.length) throw new Error("Sơ đồ cần có ít nhất một nhãn để lưu thành nhóm hình.");
+      const type = String(diagram.getAttribute?.("data-diagram-type") || "process");
+      const nodeWidth = Math.max(2.1, Math.min(3.4, (16.5 - (labels.length - 1) * 0.2) / labels.length));
+      const totalWidth = labels.length * nodeWidth + (labels.length - 1) * 0.2;
+      const groupName = `VNODiagram${diagramIndex + 1}`;
+      const nodeXml = labels.map((label, index) => {
+        const styleName = `vnoDiagram${++shapeIndex}`;
+        const color = type === "hierarchy" && index === 0 ? "#0f4c81" : palette[index % palette.length];
+        styleXml.push(`<style:style style:name="${styleName}" style:family="graphic"><style:graphic-properties draw:fill="solid" draw:fill-color="${color}" draw:stroke="solid" svg:stroke-width="0.05cm" svg:stroke-color="${color}"/></style:style>`);
+        const x = (index * (nodeWidth + 0.2)).toFixed(3);
+        const safeLabel = this._fodtEscapeXml(label);
+        return `<draw:rect draw:style-name="${styleName}" draw:name="${this._fodtEscapeXml(`Node${index + 1}`)}" text:anchor-type="as-char" svg:width="${nodeWidth.toFixed(3)}cm" svg:height="1.25cm" svg:x="${x}cm" svg:y="0cm"><text:p><text:span>${safeLabel}</text:span></text:p></draw:rect>`;
+      }).join("");
+      shapes.push(`<text:p><draw:g draw:name="${groupName}" svg:width="${totalWidth.toFixed(3)}cm" svg:height="1.25cm">${nodeXml}</draw:g></text:p>`);
+    }
+    const pageLayout = this._fodtPageLayoutXml("pm1", this.pageSetup || DEFAULT_PAGE_SETUP);
+    const master = this._fodtMasterPageXml("Standard", "pm1");
+    return `<?xml version="1.0" encoding="UTF-8"?><office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text"><office:automatic-styles>${pageLayout}${styleXml.join("")}</office:automatic-styles><office:master-styles>${master}</office:master-styles><office:body><office:text>${shapes.join("")}</office:text></office:body></office:document>`;
   }
 
   /**
@@ -15143,6 +15172,7 @@ export class WriterAdapter {
     let watermarkHtml = "";
     let reviewMetaComment = "";
     let tableEditsComment = "";
+    let nativeChartHtml = [];
 
     if (this.watermark && this.watermark.text) {
       const angle = this.watermark.angle ?? 45;
@@ -15156,8 +15186,86 @@ export class WriterAdapter {
       headerHtml = `<div title="header">\n${this.headerDom.innerHTML}\n</div>\n`;
     }
 
+    let nativeChartFodt = "";
+    let nativeDiagramFodt = "";
+    let nativeWatermarkFodt = "";
+    const chartNodes = Array.from(this.bodyDom?.querySelectorAll?.('.vno-writer-chart[data-vno-chart="true"]') || []);
+    const diagramNodes = Array.from(this.bodyDom?.querySelectorAll?.('.vno-writer-diagram[data-vno-diagram="true"]') || []);
+    if (chartNodes.length && !acceptedView) {
+      nativeChartHtml = chartNodes.map((node) => String(node.outerHTML || "")).filter(Boolean);
+      if (nativeChartHtml.length !== chartNodes.length) {
+        throw new Error("Không thể chuẩn bị biểu đồ để lưu dưới dạng đối tượng có thể chỉnh sửa.");
+      }
+      const chartAdapter = Object.create(Object.getPrototypeOf(this));
+      Object.assign(chartAdapter, this);
+      const chartBody = { innerHTML: nativeChartHtml.join("") };
+      chartAdapter.editorDom = {
+        innerHTML: chartBody.innerHTML,
+        querySelector(selector) {
+          return selector === ".vno-writer-body" ? chartBody : null;
+        }
+      };
+      chartAdapter.bodyDom = chartBody;
+      chartAdapter.headerDom = null;
+      chartAdapter.footerDom = null;
+      chartAdapter.watermark = null;
+      chartAdapter.shapes = [];
+      chartAdapter.sectionPageSetups = {};
+      chartAdapter.sectionHeadersFooters = {};
+      nativeChartFodt = chartAdapter.serializeToFodt();
+    }
+    if (diagramNodes.length && !acceptedView) {
+      nativeDiagramFodt = this._serializeNativeDiagramsToFodt(diagramNodes);
+    }
+    if (this.watermark?.text && !acceptedView) {
+      const watermarkAdapter = Object.create(Object.getPrototypeOf(this));
+      Object.assign(watermarkAdapter, this);
+      const watermarkBody = { innerHTML: "<p><br></p>" };
+      watermarkAdapter.editorDom = {
+        innerHTML: watermarkBody.innerHTML,
+        querySelector(selector) {
+          return selector === ".vno-writer-body" ? watermarkBody : null;
+        }
+      };
+      watermarkAdapter.bodyDom = watermarkBody;
+      watermarkAdapter.headerDom = null;
+      watermarkAdapter.footerDom = null;
+      watermarkAdapter.shapes = [];
+      watermarkAdapter.sectionPageSetups = {};
+      watermarkAdapter.sectionHeadersFooters = {};
+      nativeWatermarkFodt = watermarkAdapter.serializeToFodt();
+    }
+
     if (this.bodyDom) {
       const exportRoot = this.bodyDom.cloneNode?.(true) || this.bodyDom;
+      if (nativeChartFodt && !acceptedView && typeof document !== "undefined") {
+        const exportCharts = Array.from(exportRoot.querySelectorAll?.('.vno-writer-chart[data-vno-chart="true"]') || []);
+        exportCharts.forEach((chart, index) => {
+          const parent = chart.parentNode;
+          if (!parent?.insertBefore) return;
+          const token = `VNO_NATIVE_CHART_${index + 1}`;
+          const start = document.createElement("a");
+          start.setAttribute("name", `${token}_START`);
+          const end = document.createElement("a");
+          end.setAttribute("name", `${token}_END`);
+          parent.insertBefore(start, chart);
+          parent.insertBefore(end, chart.nextSibling);
+        });
+      }
+      if (nativeDiagramFodt && !acceptedView && typeof document !== "undefined") {
+        const exportDiagrams = Array.from(exportRoot.querySelectorAll?.('.vno-writer-diagram[data-vno-diagram="true"]') || []);
+        exportDiagrams.forEach((diagram, index) => {
+          const parent = diagram.parentNode;
+          if (!parent?.insertBefore) return;
+          const token = `VNO_NATIVE_DIAGRAM_${index + 1}`;
+          const start = document.createElement("a");
+          start.setAttribute("name", `${token}_START`);
+          const end = document.createElement("a");
+          end.setAttribute("name", `${token}_END`);
+          parent.insertBefore(start, diagram);
+          parent.insertBefore(end, diagram.nextSibling);
+        });
+      }
       const wrappers = Array.from(exportRoot.querySelectorAll?.(".vno-section-content") || []);
       for (const w of wrappers) {
         while (w.firstChild) w.parentNode?.insertBefore(w.firstChild, w);
@@ -15335,7 +15443,19 @@ export class WriterAdapter {
 
     const pristineMarker = this._isOpenedDocumentPristine() ? '<a name="vno-pristine-document"></a>' : "";
     const newDocumentStyleMarker = this.isNewApplicationDocument ? "<!--vno-new-document-style-defaults-->" : "";
-    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
+    const nativeChartMarker = nativeChartFodt
+      ? `<!--vno-native-charts-fodt:${btoa(Array.from(new TextEncoder().encode(nativeChartFodt), byte => String.fromCharCode(byte)).join(""))}-->`
+      : "";
+    const nativeDiagramMarker = nativeDiagramFodt
+      ? `<!--vno-native-diagrams-fodt:${btoa(Array.from(new TextEncoder().encode(nativeDiagramFodt), byte => String.fromCharCode(byte)).join(""))}-->`
+      : "";
+    const nativeWatermarkMarker = nativeWatermarkFodt
+      ? `<!--vno-native-watermark-fodt:${btoa(Array.from(new TextEncoder().encode(nativeWatermarkFodt), byte => String.fromCharCode(byte)).join(""))}-->`
+      : "";
+    const themeMarker = this.documentTheme && this.documentTheme !== "office"
+      ? `<!--vno-document-theme:${String(this.documentTheme).replace(/[^a-z0-9_-]/gi, "")}-->`
+      : "";
+    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${nativeDiagramMarker}${nativeWatermarkMarker}${themeMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }

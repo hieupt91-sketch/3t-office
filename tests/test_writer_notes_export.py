@@ -31,6 +31,11 @@ def _read(docx_bytes, name):
         return archive.read(name).decode("utf-8") if name in archive.namelist() else None
 
 
+def _read_bytes(docx_bytes, name):
+    with zipfile.ZipFile(io.BytesIO(docx_bytes)) as archive:
+        return archive.read(name) if name in archive.namelist() else None
+
+
 class WriterNotesExportTests(unittest.TestCase):
     def test_footnote_token_becomes_reference_and_part_is_created(self):
         body = '<w:p><w:r><w:rPr><w:b/></w:rPr><w:t>Truoc [[VNOFN:fn-1]] sau</w:t></w:r></w:p>'
@@ -118,6 +123,136 @@ class WriterPageDecorExportTests(unittest.TestCase):
         docx = _docx(f"<w:p><w:r><w:t>A</w:t></w:r></w:p>{self.SECT}")
         out = patcher.postprocess_writer_page_decor(docx, source_html="<style>@page { background-color: #ffffff; }</style>")
         self.assertNotIn("<w:background", _read(out, "word/document.xml"))
+
+    def test_document_theme_is_written_to_word_theme_part(self):
+        docx = patcher.patch_ooxml_zip(_docx(f"<w:p><w:r><w:t>A</w:t></w:r></w:p>{self.SECT}"), {
+            "word/theme/theme1.xml": (
+                '<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><a:themeElements>'
+                '<a:clrScheme name="Office"><a:accent1><a:srgbClr val="18A303"/></a:accent1>'
+                '<a:accent2><a:srgbClr val="0369A3"/></a:accent2><a:accent3><a:srgbClr val="A33E03"/></a:accent3>'
+                '<a:accent4><a:srgbClr val="8E03A3"/></a:accent4><a:accent5><a:srgbClr val="C99C00"/></a:accent5>'
+                '<a:accent6><a:srgbClr val="C9211E"/></a:accent6></a:clrScheme>'
+                '<a:fontScheme name="Office"><a:majorFont><a:latin typeface="Arial"/></a:majorFont>'
+                '<a:minorFont><a:latin typeface="Arial"/></a:minorFont></a:fontScheme></a:themeElements></a:theme>'
+            ),
+        })
+        out = patcher.postprocess_writer_page_decor(
+            docx, source_html="<p>Text</p><!--vno-document-theme:modern-->",
+        )
+        theme = _read(out, "word/theme/theme1.xml")
+        self.assertEqual(re.findall(r'<a:accent[1-6][^>]*><a:srgbClr val="([0-9A-F]+)"', theme),
+                         ["0284C7", "0369A1", "075985", "0EA5E9", "38BDF8", "0F172A"])
+        self.assertEqual(re.findall(r'<a:latin typeface="([^"]+)"', theme), ["Be Vietnam Pro", "Be Vietnam Pro"])
+
+
+class WriterNativeChartExportTests(unittest.TestCase):
+    def test_new_chart_region_becomes_native_chart_with_embedded_workbook(self):
+        target_body = (
+            '<w:p><w:r><w:t>before</w:t></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="8" w:name="VNO_NATIVE_CHART_1_START"/>'
+            '<w:bookmarkEnd w:id="8"/></w:p>'
+            '<w:p><w:r><w:t>static chart placeholder</w:t></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="9" w:name="VNO_NATIVE_CHART_1_END"/><w:bookmarkEnd w:id="9"/></w:p>'
+            '<w:p><w:r><w:t>after</w:t></w:r></w:p>'
+        )
+        target = _docx(target_body)
+        drawing = (
+            '<w:drawing xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
+            'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+            'xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" '
+            'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+            '<wp:inline><wp:extent cx="1000" cy="1000"/><wp:docPr id="1" name="Chart1"/>'
+            '<a:graphic><a:graphicData uri="http://schemas.openxmlformats.org/drawingml/2006/chart">'
+            '<c:chart r:id="rId2"/></a:graphicData></a:graphic></wp:inline></w:drawing>'
+        )
+        aux_chart = _docx(f'<w:p><w:r>{drawing}</w:r></w:p>')
+        aux_chart = patcher.patch_ooxml_zip(aux_chart, {
+            "word/_rels/document.xml.rels": (
+                '<?xml version="1.0"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="charts/chart1.xml"/></Relationships>'
+            ),
+            "word/charts/chart1.xml": (
+                '<?xml version="1.0"?><c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" '
+                'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+                'xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships">'
+                '<c:chart><c:plotArea><c:barChart><c:ser><c:tx><c:strRef><c:f>label 0</c:f></c:strRef></c:tx>'
+                '<c:cat><c:strRef><c:strCache><c:ptCount val="2"/><c:pt idx="0"><c:v>Q1</c:v></c:pt>'
+                '<c:pt idx="1"><c:v>Q2</c:v></c:pt></c:strCache></c:strRef></c:cat>'
+                '<c:val><c:numRef><c:f>0</c:f><c:numCache><c:ptCount val="2"/><c:pt idx="0"><c:v>3</c:v></c:pt>'
+                '<c:pt idx="1"><c:v>4</c:v></c:pt></c:numCache></c:numRef></c:val></c:ser></c:barChart></c:plotArea></c:chart></c:chartSpace>'
+            ),
+        })
+        html = '<!--vno-native-charts-fodt:Zm9kdA==--><a name="VNO_NATIVE_CHART_1_START"></a><div></div><a name="VNO_NATIVE_CHART_1_END"></a>'
+        out = patcher.postprocess_writer_native_charts(target, aux_chart, source_html=html)
+        document = _read(out, "word/document.xml")
+        self.assertIn("<c:chart", document)
+        self.assertNotIn("static chart placeholder", document)
+        self.assertIn("before", document)
+        self.assertIn("after", document)
+        self.assertIn("/word/charts/vnoChart1.xml", _read(out, "[Content_Types].xml"))
+        self.assertIn('Target="charts/vnoChart1.xml"', _read(out, "word/_rels/document.xml.rels"))
+        self.assertIsNotNone(_read_bytes(out, "word/embeddings/vnoChart1.xlsx"))
+        chart_rels = _read(out, "word/charts/_rels/vnoChart1.xml.rels")
+        self.assertIn("/package", chart_rels)
+        with zipfile.ZipFile(io.BytesIO(_read_bytes(out, "word/embeddings/vnoChart1.xlsx"))) as workbook:
+            sheet = workbook.read("xl/worksheets/sheet1.xml").decode("utf-8")
+        self.assertIn("Q1", sheet)
+        self.assertIn(">3</v>", sheet)
+
+
+class WriterNativeDiagramExportTests(unittest.TestCase):
+    def test_new_diagram_region_becomes_one_editable_drawingml_group(self):
+        target_body = (
+            '<w:p><w:r><w:t>before</w:t></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="8" w:name="VNO_NATIVE_DIAGRAM_1_START"/><w:bookmarkEnd w:id="8"/></w:p>'
+            '<w:p><w:r><w:t>static diagram placeholder</w:t></w:r></w:p>'
+            '<w:p><w:bookmarkStart w:id="9" w:name="VNO_NATIVE_DIAGRAM_1_END"/><w:bookmarkEnd w:id="9"/></w:p>'
+            '<w:p><w:r><w:t>after</w:t></w:r></w:p>'
+        )
+        target = _docx(target_body)
+        drawing = (
+            '<w:drawing xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
+            'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+            'xmlns:wpg="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup">'
+            '<wp:anchor><wp:docPr id="1" name="VNODiagram1"/><a:graphic>'
+            '<a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingGroup">'
+            '<wpg:wgp><wpg:cNvGrpSpPr/><wpg:grpSpPr/></wpg:wgp>'
+            '</a:graphicData></a:graphic></wp:anchor></w:drawing>'
+        )
+        aux_diagram = _docx(f'<w:p><w:r>{drawing}</w:r></w:p>')
+        html = '<!--vno-native-diagrams-fodt:Zm9kdA==--><a name="VNO_NATIVE_DIAGRAM_1_START"></a><div></div><a name="VNO_NATIVE_DIAGRAM_1_END"></a>'
+        out = patcher.postprocess_writer_native_diagrams(target, aux_diagram, source_html=html)
+        document = _read(out, "word/document.xml")
+        self.assertIn("<wpg:wgp>", document)
+        self.assertNotIn("static diagram placeholder", document)
+        self.assertNotIn("VNO_NATIVE_DIAGRAM", document)
+        self.assertIn("before", document)
+        self.assertIn("after", document)
+
+
+class WriterNativeWatermarkExportTests(unittest.TestCase):
+    def test_watermark_is_attached_as_native_word_header_shape(self):
+        target = _docx('<w:p><w:r><w:t>body</w:t></w:r></w:p><w:sectPr/>')
+        aux = _docx('<w:p/>')
+        aux = patcher.patch_ooxml_zip(aux, {
+            "word/header1.xml": (
+                '<?xml version="1.0"?><w:hdr xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" '
+                'xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
+                'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" '
+                'xmlns:v="urn:schemas-microsoft-com:vml"><w:p><w:r><w:drawing><wp:anchor>'
+                '<wp:docPr id="1" name="Watermark"/><a:graphic/></wp:anchor></w:drawing></w:r></w:p></w:hdr>'
+            ),
+        })
+        out = patcher.postprocess_writer_native_watermark(
+            target, aux, source_html="<!--vno-native-watermark-fodt:Zm9kdA==-->",
+        )
+        document = _read(out, "word/document.xml")
+        header = _read(out, "word/header1.xml")
+        self.assertIn('w:type="default"', document)
+        self.assertIn("PowerPlusWaterMarkObject1", header)
+        self.assertIn("<wp:anchor>", header)
+        self.assertIn('Target="header1.xml"', _read(out, "word/_rels/document.xml.rels"))
+        self.assertIn("/word/header1.xml", _read(out, "[Content_Types].xml"))
 
 
 class WriterSchemaFixTests(unittest.TestCase):

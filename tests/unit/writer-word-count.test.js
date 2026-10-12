@@ -3,7 +3,7 @@
  */
 
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
-import { countBlockLines, countBlockParagraphs, countDocumentStats, countListMarkerStats } from "../../apps/writer/word-count.js";
+import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats } from "../../apps/writer/word-count.js";
 import { WRITER_RIBBON_TABS } from "../../apps/writer/writer-ribbon.js";
 import { WRITER_COMMANDS } from "../../platform/commands/command-definitions.js";
 import { ICONS } from "../../platform/ui-kit/icons.js";
@@ -25,6 +25,7 @@ export async function runWriterWordCountTests() {
       results.push({ name, pass: false, error: error.message });
     }
   };
+
 
   await test("Word Count: tách từ tiếng Việt theo khoảng trắng, bỏ token rỗng", () => {
     const stats = countDocumentStats("  Xin   chào   các bạn  ");
@@ -53,6 +54,19 @@ export async function runWriterWordCountTests() {
     if (stats.paragraphs !== 3) throw new Error(`Số đoạn sai: ${stats.paragraphs}`);
     if (stats.lines !== 4) throw new Error(`Số dòng sai: ${stats.lines}`);
     if (stats.words !== 6) throw new Error(`Số từ sai: ${stats.words}`);
+  });
+
+  await test("Word Count: đếm ngắt dòng thủ công, không đếm dấu đoạn hay placeholder đoạn rỗng", () => {
+    const content = { textContent: "alpha beta", closest: (selector) => selector === "p, h1, h2, h3, h4, h5, h6, li, blockquote" ? content : null };
+    const emptyPlaceholder = { textContent: "", closest: (selector) => selector === "p, h1, h2, h3, h4, h5, h6, li, blockquote" ? emptyPlaceholder : null };
+    const body = { querySelectorAll: (selector) => selector === "br" ? [content, emptyPlaceholder] : [] };
+    const stats = countDocumentStats("alpha\nbeta", { markerStats: { charactersWithSpaces: countExplicitLineBreaks(body) } });
+    if (stats.charactersWithSpaces !== "alpha beta".length) {
+      throw new Error(`Ngắt dòng thủ công không được tính: ${JSON.stringify(stats)}`);
+    }
+    if (stats.charactersNoSpaces !== "alphabeta".length) {
+      throw new Error(`Ngắt dòng thủ công không được tính là ký tự không khoảng trắng: ${JSON.stringify(stats)}`);
+    }
   });
 
   await test("Word Count: countBlockParagraphs chỉ đếm khối có chữ", () => {

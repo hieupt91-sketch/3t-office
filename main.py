@@ -1830,6 +1830,66 @@ def _apply_native_export_postprocess(
                     )
                     patched = patcher.postprocess_writer_strip_markers(patched)
                     patched = patcher.postprocess_writer_schema_fixes(patched)
+                chart_metadata = re.search(r"<!--vno-native-charts-fodt:([A-Za-z0-9+/=]+)-->", source_html or "")
+                if chart_metadata:
+                    try:
+                        chart_fodt = base64.b64decode(chart_metadata.group(1), validate=True).decode("utf-8")
+                        with tempfile.TemporaryDirectory(prefix="vnoffice_native_charts_") as chart_dir:
+                            fodt_path = os.path.join(chart_dir, "new-charts.fodt")
+                            with open(fodt_path, "w", encoding="utf-8", newline="") as handle:
+                                handle.write(chart_fodt)
+                            chart_docx_path = _run_soffice_convert(
+                                fodt_path, "docx", chart_dir, app_kind="writer",
+                            )
+                            with open(chart_docx_path, "rb") as handle:
+                                chart_docx = handle.read()
+                        patched = patcher.postprocess_writer_native_charts(
+                            patched, chart_docx, source_html=source_html,
+                        )
+                    except Exception as exc:
+                        raise DocumentEngineError(
+                            f"Không thể tạo biểu đồ DOCX có thể chỉnh sửa: {exc}"
+                        ) from exc
+                diagram_metadata = re.search(r"<!--vno-native-diagrams-fodt:([A-Za-z0-9+/=]+)-->", source_html or "")
+                if diagram_metadata:
+                    try:
+                        diagram_fodt = base64.b64decode(diagram_metadata.group(1), validate=True).decode("utf-8")
+                        with tempfile.TemporaryDirectory(prefix="vnoffice_native_diagrams_") as diagram_dir:
+                            fodt_path = os.path.join(diagram_dir, "new-diagrams.fodt")
+                            with open(fodt_path, "w", encoding="utf-8", newline="") as handle:
+                                handle.write(diagram_fodt)
+                            diagram_docx_path = _run_soffice_convert(
+                                fodt_path, "docx", diagram_dir, app_kind="writer",
+                            )
+                            with open(diagram_docx_path, "rb") as handle:
+                                diagram_docx = handle.read()
+                        patched = patcher.postprocess_writer_native_diagrams(
+                            patched, diagram_docx, source_html=source_html,
+                        )
+                    except Exception as exc:
+                        raise DocumentEngineError(
+                            f"Không thể tạo sơ đồ DOCX có thể chỉnh sửa: {exc}"
+                        ) from exc
+                watermark_metadata = re.search(r"<!--vno-native-watermark-fodt:([A-Za-z0-9+/=]+)-->", source_html or "")
+                if watermark_metadata:
+                    try:
+                        watermark_fodt = base64.b64decode(watermark_metadata.group(1), validate=True).decode("utf-8")
+                        with tempfile.TemporaryDirectory(prefix="vnoffice_native_watermark_") as watermark_dir:
+                            fodt_path = os.path.join(watermark_dir, "watermark.fodt")
+                            with open(fodt_path, "w", encoding="utf-8", newline="") as handle:
+                                handle.write(watermark_fodt)
+                            watermark_docx_path = _run_soffice_convert(
+                                fodt_path, "docx", watermark_dir, app_kind="writer",
+                            )
+                            with open(watermark_docx_path, "rb") as handle:
+                                watermark_docx = handle.read()
+                        patched = patcher.postprocess_writer_native_watermark(
+                            patched, watermark_docx, source_html=source_html,
+                        )
+                    except Exception as exc:
+                        raise DocumentEngineError(
+                            f"KhÃ´ng thá»ƒ táº¡o watermark DOCX native: {exc}"
+                        ) from exc
             if patched != converted_docx:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)
@@ -1848,7 +1908,25 @@ WRITER_DOC_EXPORT_VIA_DOCX = True
 
 def _convert_writer_html_to_doc(src_html: str, out_dir: str, source_path: str | None = None) -> str:
     """Export Writer HTML through the source-aware DOCX overlay before legacy DOC."""
-    intermediate_docx = _run_soffice_convert(src_html, "docx", out_dir, app_kind="writer")
+    conversion_html = src_html
+    try:
+        with open(src_html, "r", encoding="utf-8", errors="replace") as handle:
+            html_source = handle.read()
+        if "vno-native-watermark-fodt:" in html_source:
+            html_without_overlay = re.sub(
+                r'<div\b(?=[^>]*\bclass=["\'][^"\']*\bvno-export-watermark\b[^"\']*["\'])[^>]*>[\s\S]*?</div\s*>\s*',
+                "",
+                html_source,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+            if html_without_overlay != html_source:
+                conversion_html = os.path.join(out_dir, "writer-native-watermark-source.html")
+                with open(conversion_html, "w", encoding="utf-8", newline="") as handle:
+                    handle.write(html_without_overlay)
+    except OSError as exc:
+        raise DocumentEngineError(f"KhÃ´ng thá»ƒ chuáº©n bá»‹ HTML watermark cho DOCX: {exc}") from exc
+    intermediate_docx = _run_soffice_convert(conversion_html, "docx", out_dir, app_kind="writer")
     pristine_docx_source = bool(
         source_path and Path(source_path).suffix.lower() == ".docx"
     )
