@@ -41,6 +41,11 @@ try {
   New-Control 'symbols' { param($d) $d.Content.Text = ([string][char]0x00A9) + ' ' + [char]0x20AB + ' 50%' }
   New-Control 'parentheses' { param($d) $d.Content.Text = '(alpha) [beta] {gamma}' }
   New-Control 'dashes-spaced' { param($d) $d.Content.Text = 'alpha - beta alpha – beta alpha — beta' }
+  New-Control 'marker-o0o-long' { param($d) $d.Content.Text = '----------o0o----------' }
+  New-Control 'marker-stars' { param($d) $d.Content.Text = '---------*****---------' }
+  New-Control 'marker-o0o-short' { param($d) $d.Content.Text = '--------o0o--------' }
+  New-Control 'd02-paragraph' { param($d) $d.Content.Text = 'Điều 8/Article 8: Điều khoản về an toàn – Môi trường/ Terms of Safety – Environment' }
+  New-Control 'd13-code' { param($d) $d.Content.Text = '# Chạy backend API ở môi trường development' + [char]11 + 'dotnet run --project src/HappyKids.Api' }
   New-Control 'separator-markers' { param($d) $d.Content.Text = '----------o0o---------- ---------*****--------- --------o0o--------' }
   New-Control 'code-flags' { param($d) $d.Content.Text = '# code --project src --release' }
   New-Control 'attached-punctuation' { param($d) $d.Content.Text = 'alpha,beta alpha.beta alpha...beta (alpha) [beta] {gamma}' }
