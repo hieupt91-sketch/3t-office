@@ -66,6 +66,7 @@ for (const [name, commandId, mode] of operations.filter(([name]) => !selectedOpe
     await session.cdp.waitFor("window.__vnoAppInstance.adapter.isDirty === false", { timeoutMilliseconds: 120000, intervalMilliseconds: 250 });
     const shot = await session.cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
     await fs.writeFile(path.join(screenshotDir, `${name}.png`), Buffer.from(shot.result.data, "base64"));
+    await fs.writeFile(path.join(screenshotDir, `${name}-cdp-readback.json`), JSON.stringify({ file: output, saved, ...state }, null, 2) + "\n", "utf8");
     console.log(`${name} | saved=${saved} | ${JSON.stringify(state)} | ${output}`);
   } finally {
     await session.close();
