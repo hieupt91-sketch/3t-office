@@ -33,7 +33,7 @@ export const SLIDES_HELP_ENTRIES = [
       "Tab Chèn > nhóm Minh họa > Sơ đồ. Chọn trang chiếu cần thêm sơ đồ rồi nhấn Sơ đồ.",
       "Trong hộp Chèn sơ đồ, chọn Danh sách theo bước, Quy trình theo chu kỳ, Phân cấp tổ chức hoặc Danh sách phân cấp; chọn số hộp từ 3 đến 6 rồi nhấn Chèn sơ đồ.",
       "Nhấp vào chữ trong hộp để sửa. Nhấp một hộp để chọn cả sơ đồ; kéo một hộp để di chuyển cụm. Dùng các nút kích thước của vùng chọn để đổi cỡ, hoặc Ctrl+Z để hoàn tác lần chèn.",
-      "Lưu bản trình chiếu rồi mở lại: các hộp và đường nối tiếp tục là nhóm hình có thể chỉnh sửa. Hiện LibreOffice Impress tạo sơ đồ theo dạng nhóm hình ODF, chưa tạo mô hình sơ đồ chuyên biệt. Muốn sửa từng hộp, dùng Bỏ nhóm."
+      "Lưu bản trình chiếu rồi mở lại: các hộp và đường nối tiếp tục là nhóm hình có thể chỉnh sửa. Định dạng lưu hiện tại biểu diễn sơ đồ bằng nhóm hình ODF, chưa có mô hình sơ đồ chuyên biệt. Muốn sửa từng hộp, dùng Bỏ nhóm."
     ]
   },
   {
