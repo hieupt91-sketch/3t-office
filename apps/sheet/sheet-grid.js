@@ -250,6 +250,7 @@ export class SheetGridController {
     this.watchedCells = new Set();
     this._formulaDependencyGraph = null;
     this._isAutofilling = false;
+    this._endModeActive = false;
     this._autofillSource = null;
     this._autofillTarget = null;
     this._isMovingCell = false;
@@ -386,9 +387,11 @@ export class SheetGridController {
     this.nameBox?.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
+        e.stopPropagation();
         this._jumpToNameBoxAddress(this.nameBox.value);
       } else if (e.key === "Escape") {
         e.preventDefault();
+        e.stopPropagation();
         this.nameBox.value = this.getSelectionNameLabel();
         this.focusGrid();
       }
@@ -448,7 +451,7 @@ export class SheetGridController {
     this.autocomplete.mount();
 
     this.formulaInput.addEventListener("focus", () => {
-      if (!this.formulaEntry) this._beginFormulaEntry("edit");
+      if (!this.formulaEntry && !this._isCancellingFormulaEntry) this._beginFormulaEntry("edit");
     });
 
     this.formulaInput.addEventListener("input", (e) => {
@@ -497,6 +500,14 @@ export class SheetGridController {
         return;
       }
 
+      // Escape always cancels the active cell edit, even while formula suggestions are open.
+      // The suggestion handler also consumes Escape, which otherwise left the cell in edit mode.
+      if (e.key === "Escape") {
+        e.preventDefault();
+        this.autocomplete.closeAll();
+        this._cancelFormulaEntry();
+        return;
+      }
       if (this.autocomplete.handleKeyDown(e)) {
         return;
       }
@@ -517,6 +528,17 @@ export class SheetGridController {
         this._movePointReferenceWithArrow(e.key);
         return;
       }
+      if (e.key === "Enter" && e.ctrlKey && !e.shiftKey) {
+        e.preventDefault();
+        const session = this.formulaEntry;
+        const sourceCoord = session?.coord || this.selectedCoord;
+        if (session?.update) session.update(this.formulaInput.value, this.formulaInput.selectionStart ?? this.formulaInput.value.length);
+        const value = session?.commit ? session.commit() : this.formulaInput.value;
+        this.autocomplete.closeAll();
+        if (session) this._cancelFormulaEntry();
+        this.fillSelectionWithValue(value, sourceCoord);
+        return;
+      }
       if (e.key === "Enter") {
         e.preventDefault();
         this.autocomplete.closeAll();
@@ -526,11 +548,6 @@ export class SheetGridController {
         e.preventDefault();
         this.autocomplete.closeAll();
         this._commitFormulaEntry({ move: true, shift: e.shiftKey, tab: true });
-        return;
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        this.autocomplete.closeAll();
-        this._cancelFormulaEntry();
         return;
       }
     });
@@ -724,8 +741,7 @@ export class SheetGridController {
     const mm = String(now.getMinutes()).padStart(2, "0");
     const ss = String(now.getSeconds()).padStart(2, "0");
     const timeStr = `${hh}:${mm}:${ss}`;
-    // Dấu nháy đơn giữ nguyên chuỗi HH:mm:ss như trước đây (không auto-detect
-    // thành serial giờ), vì lệnh này chèn chuỗi giờ chứ không nhập tay vào ô.
+    // Keep the shortcut result as text until Excel 2016 readback evidence proves otherwise.
     this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, `'${timeStr}`, true);
     if (this.formulaInput) this.formulaInput.value = timeStr;
     return timeStr;
@@ -1660,6 +1676,11 @@ export class SheetGridController {
       ? String(initialValue)
       : String(this.formulaInput?.value ?? this._cellEditorValue(item));
     this.formulaEntry = new FormulaEntrySession({ original, value, caret: value.length, mode, sheet: this.activeSheet, coord });
+    this.formulaEntry.historyBefore = {
+      undoLength: this.undoStack.length,
+      lastUndo: this.undoStack.length ? structuredClone(this.undoStack[this.undoStack.length - 1]) : null,
+      redo: [...this.redoStack]
+    };
     this._updateFormulaEntryStatus();
     this._renderFormulaReferenceOverlay();
     return this.formulaEntry;
@@ -1900,6 +1921,7 @@ export class SheetGridController {
   _cancelFormulaEntry() {
     const session = this.formulaEntry;
     if (!session) return false;
+    this._isCancellingFormulaEntry = true;
     const coord = { ...session.coord };
     const ownerSheet = session.sheet;
     const original = typeof session.cancel === "function" ? session.cancel() : (session.original ?? this._cellValueBeforeEdit);
@@ -1918,6 +1940,17 @@ export class SheetGridController {
     this.autocomplete?.closeAll?.();
     this._refreshFormulaEntryVisuals();
     this.container?.focus?.({ preventScroll: true });
+    const historyBefore = session.historyBefore;
+    if (historyBefore) {
+      this.undoStack.length = historyBefore.undoLength;
+      if (historyBefore.lastUndo && historyBefore.undoLength) {
+        this.undoStack[historyBefore.undoLength - 1] = historyBefore.lastUndo;
+      }
+      this.redoStack = [...historyBefore.redo];
+      this._syncCommandStates();
+    }
+    this.formulaEntry = null;
+    this._isCancellingFormulaEntry = false;
     this.options.onSelect?.(`${coord.c}${coord.r}`, this.cellsData.get(`${coord.c}${coord.r}`), this._calculateStats());
     return true;
   }
@@ -2968,12 +3001,18 @@ export class SheetGridController {
   }
 
   selectAll() {
+    if (this._ctrlASelectAllPending) {
+      this._ctrlASelectAllPending = false;
+      this.selectCell("A", 1);
+      this.selectCell(this.cols[this.cols.length - 1], this.rowCount, true);
+      return true;
+    }
     const region = this._currentRegionFromSelection();
-    const current = this._normalizeRange(this.selectionRange);
-    if (region && (!current || this._rangeLabel(region) !== this._rangeLabel(current))) {
+    if (region) {
       this.selectionRange = structuredClone(region);
       this.selectionRanges = [this.selectionRange];
       this.selectionKind = "cell";
+      this._ctrlASelectAllPending = true;
       this._renderSelection?.();
       this._syncSelectionUi?.();
       return true;
@@ -4604,6 +4643,7 @@ _bindGridKeyboardNavigation() {
           return;
         }
         if (typeof document !== "undefined" && document?.activeElement === this.formulaInput) return;
+        if (typeof document !== "undefined" && document?.activeElement === this.nameBox) return;
         if (this._tabSequenceAnchor && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(e.key)) {
           this._tabSequenceAnchor = null;
         }
@@ -4634,6 +4674,34 @@ _bindGridKeyboardNavigation() {
         if (this.formulaEntry?.mode === "point" && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
           e.preventDefault();
           this._movePointReferenceWithArrow(e.key);
+          return;
+        }
+
+        if (this._endModeActive && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+          e.preventDefault();
+          this._endModeActive = false;
+          const direction = { ArrowUp: -1, ArrowDown: 1, ArrowLeft: -1, ArrowRight: 1 }[e.key];
+          let endNextCol = this.selectedCoord.c;
+          let endNextRow = this.selectedCoord.r;
+          if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+            endNextRow = this._findNextCtrlArrowRow(this.selectedCoord.c, this.selectedCoord.r, direction);
+          } else {
+            endNextCol = this._findNextCtrlArrowCol(this.selectedCoord.c, this.selectedCoord.r, direction);
+          }
+          this.selectCell(endNextCol, endNextRow, e.shiftKey);
+          return;
+        }
+        if (this._endModeActive) this._endModeActive = false;
+        if (e.key === "End" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+          e.preventDefault();
+          this._endModeActive = true;
+          return;
+        }
+
+        if ((e.key === "F5" || (e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey && e.key.toLowerCase() === "g")) && !this.formulaEntry) {
+          e.preventDefault();
+          this.nameBox?.focus();
+          this.nameBox?.select?.();
           return;
         }
 
@@ -4684,6 +4752,9 @@ _bindGridKeyboardNavigation() {
         } else {
           nextCol = this.cols[Math.min(this.cols.length - 1, colIdx + 1)];
         }
+        extendRange = e.shiftKey;
+      } else if (e.key === "Home" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        nextCol = "A";
         extendRange = e.shiftKey;
       } else if (e.key === "Home" && e.ctrlKey) {
         nextCol = "A";
@@ -4768,6 +4839,10 @@ _bindGridKeyboardNavigation() {
         e.preventDefault();
         this.insertCurrentTime();
         return;
+      } else if (e.key === ";" && e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        this.insertCurrentDate();
+        return;
       } else if (e.key === "F11" && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
         e.preventDefault();
         this.addSheetBefore();
@@ -4787,10 +4862,6 @@ _bindGridKeyboardNavigation() {
       } else if (e.key === "F9") {
         e.preventDefault();
         this.recalculateAll();
-        return;
-      } else if (e.key === "F4") {
-        e.preventDefault();
-        this.redo();
         return;
       } else if (e.key === "Enter" && e.altKey) {
         e.preventDefault();
@@ -4836,7 +4907,7 @@ _bindGridKeyboardNavigation() {
             this.setCellValue(c, r, "");
           });
         } else {
-          this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, "");
+          this.clearContents(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
         }
         if (this.formulaInput) this.formulaInput.value = "";
         return;
@@ -5039,6 +5110,8 @@ _bindGridKeyboardNavigation() {
 
   selectCell(col, row, extendRange = false, addRange = false) {
     if (row < 1 || row > this.rowCount) return;
+    this._ctrlASelectAllPending = false;
+    this._endModeActive = false;
     if (this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput) {
       this._commitEditBeforeRangeSelection();
     }
@@ -8904,6 +8977,68 @@ _bindGridKeyboardNavigation() {
       });
     }
 
+    return true;
+  }
+
+  _translateFormulaForFill(formula, sourceCoord, targetCoord) {
+    const rowOffset = targetCoord.r - sourceCoord.r;
+    const colOffset = this._columnNumber(targetCoord.c) - this._columnNumber(sourceCoord.c);
+    if (!rowOffset && !colOffset) return formula;
+    return String(formula).split(/("(?:""|[^"])*")/).map((segment, index) => {
+      if (index % 2 === 1) return segment;
+      return segment.replace(/(^|[^A-Z0-9_.])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![A-Z0-9_])/gi,
+        (match, prefix, colAbsolute, column, rowAbsolute, row, offset, whole) => {
+          const after = whole[offset + match.length] || "";
+          const sourceColumn = this._columnNumber(column);
+          const sourceRow = Number(row);
+          if (sourceColumn > this.cols.length || sourceRow > this.rowCount || after === "(") return match;
+          const targetColumn = sourceColumn + (colAbsolute ? 0 : colOffset);
+          const targetRow = sourceRow + (rowAbsolute ? 0 : rowOffset);
+          if (targetColumn < 1 || targetColumn > this.cols.length || targetRow < 1 || targetRow > this.rowCount) return `${prefix}#REF!`;
+          return `${prefix}${colAbsolute}${this._columnLabel(targetColumn)}${rowAbsolute}${targetRow}`;
+        });
+    }).join("");
+  }
+
+  fillSelectionWithValue(value, sourceCoord = this.selectedCoord) {
+    if (this._guardProtectedMutation()) return false;
+    const ranges = this._getSelectionRanges().map(range => this._normalizeRange(range));
+    const coordinates = [...new Set(ranges.flatMap(range =>
+      this.formulaEngine.expandRange(this._rangeLabel(range))
+    ))];
+    if (!coordinates.length) coordinates.push(`${this.selectedCoord.c}${this.selectedCoord.r}`);
+
+    const before = {};
+    for (const coord of coordinates) {
+      const item = this.cellsData.get(coord);
+      before[coord] = item ? {
+        val: item.val ?? "",
+        formula: item.formula ?? "",
+        style: structuredClone(item.style || {})
+      } : null;
+    }
+    for (const coord of coordinates) {
+      const [col, row] = this._splitCoord(coord);
+      const nextValue = typeof value === "string" && value.startsWith("=")
+        ? this._translateFormulaForFill(value, sourceCoord, { c: col, r: row })
+        : value;
+      this.setCellValue(col, row, nextValue, false, { commit: true, userInput: true });
+    }
+    const after = {};
+    for (const coord of coordinates) {
+      const item = this.cellsData.get(coord);
+      after[coord] = item ? {
+        val: item.val ?? "",
+        formula: item.formula ?? "",
+        style: structuredClone(item.style || {})
+      } : null;
+    }
+    this._recordHistory({
+      type: "batch-workbook",
+      beforeBySheet: { [this.activeSheet]: before },
+      afterBySheet: { [this.activeSheet]: after }
+    });
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
     return true;
   }
 
