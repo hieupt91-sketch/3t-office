@@ -214,6 +214,7 @@ async function evaluateFile(fileName, existingResults) {
           mark,
           sheetsCount: sheets.length,
           quickViewActive: !!quickView?.active,
+          quickViewFailed: !!quickView?.status?.classList?.contains?.("is-failed"),
           fullGridCells: grid?.cellsData?.size || 0,
           quickViewSheet: quickView?.sheets?.[quickView.activeSheet]?.name || "",
           quickViewCells: quickView?.active
@@ -225,6 +226,9 @@ async function evaluateFile(fileName, existingResults) {
       })()`).catch(() => null);
 
       if (state?.quickViewActive && !backgroundSnapshot) backgroundSnapshot = state;
+      if (state?.quickViewFailed) {
+        throw new Error(`Quick view reported a full-model load failure for ${fileName}. Desktop output:\n${session.output.slice(-5000)}`);
+      }
       if (state?.mark && !state.quickViewActive && state.fullGridCells > 0) {
         loaded = true;
         console.log(`  Đã nạp xong trong ${Date.now() - t0}ms (sheets: ${state.sheetsCount})`);
