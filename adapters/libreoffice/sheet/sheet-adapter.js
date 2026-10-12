@@ -20,6 +20,41 @@ import {
 import { extractSheetRangeData } from "../../../apps/sheet/sheet-chart-data.js";
 import { TABLE_STYLE_PRESETS } from "../../../apps/sheet/cell-style-presets.js";
 
+// MS-XLSX 2.2.3 marks these names as future functions. Keep only functions
+// present in the Excel 2016 catalog; newer names must not be advertised as
+// compatible with that version. Source: https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/5d1b6d44-6fc1-4ecd-8fef-0b27406cc2bf
+const EXCEL2016_OOXML_FUTURE_FUNCTIONS = new Set(`
+  ACOT ACOTH AGGREGATE ARABIC BASE BETA.DIST BETA.INV BINOM.DIST BINOM.DIST.RANGE BINOM.INV
+  BITAND BITLSHIFT BITOR BITRSHIFT BITXOR CEILING.MATH CEILING.PRECISE
+  CHISQ.DIST CHISQ.DIST.RT CHISQ.INV CHISQ.INV.RT CHISQ.TEST COMBINA
+  CONFIDENCE.NORM CONFIDENCE.T COT COTH COVARIANCE.P COVARIANCE.S CSC CSCH DAYS DECIMAL
+  ERF.PRECISE ERFC.PRECISE EXPON.DIST F.DIST F.DIST.RT F.INV F.INV.RT F.TEST
+  FLOOR.MATH FLOOR.PRECISE FORECAST.ETS FORECAST.ETS.CONFINT FORECAST.ETS.SEASONALITY
+  FORECAST.ETS.STAT FORECAST.LINEAR FORMULATEXT GAMMA GAMMA.DIST GAMMA.INV GAMMALN.PRECISE
+  GAUSS HYPGEOM.DIST IFNA IMCOSH IMCOT IMCSC IMCSCH IMSEC IMSECH IMSINH IMTAN ISFORMULA
+  ISOWEEKNUM LOGNORM.DIST LOGNORM.INV MODE.MULT MODE.SNGL MUNIT NEGBINOM.DIST NORM.DIST
+  NORM.INV NORM.S.DIST NORM.S.INV NUMBERVALUE PDURATION PERCENTILE.EXC PERCENTILE.INC
+  PERCENTRANK.EXC PERCENTRANK.INC PERMUTATIONA PHI POISSON.DIST QUARTILE.EXC QUARTILE.INC
+  RANK.AVG RANK.EQ RRI SEC SECH SHEET SHEETS SKEW.P STDEV.P STDEV.S T.DIST T.DIST.2T
+  T.DIST.RT T.INV T.INV.2T T.TEST UNICHAR UNICODE VAR.P VAR.S WEIBULL.DIST XOR Z.TEST
+`.trim().split(/\s+/));
+
+function mapOoxmlFunctionPrefixes(expression, { write }) {
+  return String(expression).split(/("(?:[^"]|"")*")/).map((part, index) => {
+    if (index % 2 === 1) return part;
+    return part.replace(/(^|[^A-Za-z0-9_.])(_xlfn\.(?:_xlws\.)?)?([A-Za-z_][A-Za-z0-9_.]*)(\s*\()/gi,
+      (match, before, prefix = "", name, open) => {
+        const canonicalPrefix = String(prefix).toLowerCase();
+        const upperName = String(name).toUpperCase();
+        if (write) {
+          if (!EXCEL2016_OOXML_FUTURE_FUNCTIONS.has(upperName) || canonicalPrefix) return match;
+          return `${before}_xlfn.${name}${open}`;
+        }
+        return canonicalPrefix ? `${before}${name}${open}` : match;
+      });
+  }).join("");
+}
+
 export function numberFormatFromExcelCode(code) {
   const source = String(code ?? "").trim();
   if (!source || /^general$/i.test(source)) return { category: "general" };
@@ -83,8 +118,9 @@ export class SheetAdapter {
   static get STYLE_ONLY_MAX_COLUMN_REPEAT() { return 64; }
   static get STYLE_ONLY_MAX_ROW_REPEAT() { return 32; }
 
-  constructor(gridController) {
+  constructor(gridController, options = {}) {
     this.grid = gridController;
+    this.options = { excel2016FunctionNameCompat: true, ...options };
     this.isDirty = false;
     this.sourceFileName = "BangTinh";
     this.sourceFilePath = "";
@@ -1548,6 +1584,9 @@ export class SheetAdapter {
   _formulaToOdf(formula) {
     if (!formula || !String(formula).startsWith("=")) return "";
     let expression = String(formula).slice(1);
+    if (this.options.excel2016FunctionNameCompat) {
+      expression = mapOoxmlFunctionPrefixes(expression, { write: true });
+    }
     const references = [];
     // A deleted reference is `#REF!` in Excel syntax but `[#REF!]` in ODF. Written bare,
     // LibreOffice cannot parse the formula and saves `=#N/A` (legacy06.xls, 9 cells).
@@ -1606,6 +1645,7 @@ export class SheetAdapter {
   _formulaFromOdf(formula) {
     if (!formula) return "";
     let expression = String(formula).replace(/^of:=/i, "=");
+    expression = mapOoxmlFunctionPrefixes(expression, { write: false });
     // External workbook references contain "file:///E:" — resolve them before the
     // generic ':' split below, which would cut the path apart.
     const externals = [];
