@@ -43,6 +43,7 @@ Không sửa `upstream/**`, không thêm dependency, không đổi semantics fil
 - **Mô hình tạm và lưu/in:** cấm serialize bản tạm như workbook hoàn chỉnh. Lưu/In đợi mô hình đầy đủ; thông báo rõ sửa tạm đang được giữ.
 - **Worker/UNO đồng thời hoặc treo:** đo hàng đợi và timeout; gọi view trước full conversion như hiện có; mọi lỗi quick view phải rơi về đường đầy đủ, lỗi full load hiển thị retry/error rõ.
 - **Chi phí quick view với workbook nhỏ:** bắt đầu thêm một lượt `view_open` UNO cho các `.xlsx` nhỏ; đo lan02/lan04 và batch 28 tệp. Nếu làm chậm hoặc đổi dữ liệu, đặt `VNO_OPEN_VIEWFIRST=0` để trở về luồng cũ.
+- **Worker sẵn sàng muộn khi mở bằng đường dẫn khởi chạy:** phát lệnh khởi động UNO nền sớm hơn trong bootstrap để phần khởi động chồng lấp với việc dựng giao diện; không chờ worker trên UI thread. Đo lại cold desktop launch và quick-view timing trước khi giữ thay đổi.
 - **Undo history:** nạp file mới vẫn phải tạo journal mới; chỉ quá trình hydrate cùng một document giữ history. Các thao tác gõ/xóa/dán/format phải khôi phục đúng trước/sau qua Ctrl+Z/Ctrl+Y.
 - **In workbook lớn:** dùng cùng document/session LibreOffice nếu worker đã mở; tránh chuyển đổi đồng bộ trùng lặp ở UI thread; xác minh trang xem trước, thao tác in và không treo.
 
