@@ -216,14 +216,10 @@ export const SLIDES_HELP_ENTRIES = [
     ribbon: { tab: "Chuyển tiếp", tabId: "transitions", group: "Hiệu ứng chuyển trang" },
     keywords: ["chuyển tiếp", "transition", "fade", "slide", "zoom", "flip", "morph", "chuyển trang"],
     steps: [
-      "Mở trang đích. Tab Chuyển tiếp, nhóm Hiệu ứng chuyển trang, nhấn Chuyển tiếp.",
-      "Kiểu chuyển trang: Mờ dần (Fade), Trượt ngang (Slide), Thu phóng (Zoom), Lật trang 3D (Flip), Morph. Thời gian: Nhanh 0.3s, Tiêu chuẩn 0.5s, Chậm 0.8s, Rất chậm 1.0s.",
-      "Nhấn ▶ Xem thử chuyển tiếp để xem hộp mẫu. Áp dụng chỉ gán cho trang đang mở; Áp dụng cho tất cả gán cùng hiệu ứng mọi trang.",
-      "Xóa chuyển tiếp: mở lại hộp thoại và dùng Xóa chuyển tiếp. Morph làm mượt đối tượng trùng nhau giữa hai trang liên tiếp khi trình chiếu."
       "Tab Chuyển tiếp > nhóm Hiệu ứng chuyển trang > Chuyển tiếp. Chọn trang đích trước khi mở hộp thoại.",
       "Chọn Mờ dần, Trượt ngang, Thu phóng, Lật trang 3D hoặc Morph; đặt thời gian và nhấn Xem thử để kiểm tra.",
       "Chọn Áp dụng cho trang này hoặc Áp dụng cho tất cả. Dùng Xóa chuyển tiếp để bỏ hiệu ứng khỏi phạm vi tương ứng.",
-      "Lưu bản trình chiếu rồi mở lại để tiếp tục trình chiếu với hiệu ứng đã chọn. Morph làm mượt các đối tượng phù hợp giữa hai trang liên tiếp.",
+      "Lưu bản trình chiếu rồi mở lại để tiếp tục trình chiếu với hiệu ứng đã chọn. Morph làm mượt các đối tượng phù hợp giữa hai trang liên tiếp."
     ]
   },
   {
@@ -322,14 +318,13 @@ export const SLIDES_HELP_ENTRIES = [
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Trang chiếu" },
     keywords: ["trang mới", "nhân đôi", "xóa trang", "bố cục", "layout", "ctrl+m", "ctrl+d", "hai cột", "trang trống", "sắp xếp trang", "kéo thả trang"],
     steps: [
-      "Tab Trang đầu, nhóm Trang chiếu: Trang mới (Ctrl+M, nút lớn), Bố cục (nút lớn), cột Nhân đôi (Ctrl+D) / Xóa trang. Nút + trên dải thumbnail trái cũng thêm trang. Bố cục còn có trên tab Thiết kế, nhóm Bố cục trang.",
-      "Trang mới (Ctrl+M) được chèn NGAY SAU trang đang chọn (giống các phần mềm trình chiếu khác), bố cục Tiêu đề + Nội dung, tiêu đề và nội dung để trống để bạn gõ. Khung để trống khi lưu vẫn là khung trống trong tệp PPTX — không tự sinh chữ. Nhân đôi copy y nguyên tiêu đề, nội dung, hình, ghi chú, hiệu ứng, nền — chèn ngay sau trang hiện tại và chuyển tới bản sao.",
-      "Đổi thứ tự trang: trong dải thumbnail bên trái, nhấn giữ chuột trên một trang rồi kéo thả vào vị trí mới (hoặc dùng Bộ sắp xếp trang ở tab Chế độ xem). Có thể giữ phím Ctrl cùng mũi tên lên hoặc mũi tên xuống trên dải thumbnail để di chuyển đổi chỗ trang. Ctrl+Z hoàn tác việc di chuyển.",
-      "Xóa trang: không xóa được nếu chỉ còn 1 trang. Nhấn nút Xóa trang trên ribbon, phím Delete trong dải thumbnail hoặc trong Bộ sắp xếp trang để xóa trang. Nếu đang chọn hình khối hoặc chữ trên slide, phím Delete sẽ xóa hình đó — nhấp chuột ra ngoài trang hoặc xóa từ thumbnail để xóa trang chiếu.",
-      "Bố cục (và lệnh Chọn bố cục): tab Trang đầu > nhóm Trang chiếu > Bố cục mở lưới 4 thẻ — Tiêu đề, Tiêu đề + Nội dung, Hai nội dung, Trống. Nhấp đúp thẻ để áp dụng ngay, hoặc chọn rồi Áp dụng cho trang này / Áp dụng tất cả.",
-      "Đặt lại: tab Trang đầu > nhóm Trang chiếu > Đặt lại. Lệnh dựng lại các khung tiêu đề/nội dung theo bố cục hiện tại, giữ nguyên văn bản, hình khối, ảnh và ghi chú; dùng khi khung giữ chỗ cần trở về cấu trúc bố cục."
-      "Sau khi áp dụng bố cục Hai nội dung, lưu rồi mở lại để kiểm tra cả hai khung nội dung vẫn được giữ đúng bố cục.",
-      "Nếu khung giữ chỗ bị xê dịch, chọn trang chiếu rồi dùng Trang đầu > Trang chiếu > Đặt lại; văn bản và hình riêng vẫn được giữ.",
+      "Tab Trang đầu > nhóm Trang chiếu có Trang mới (Ctrl+M), Bố cục, Nhân đôi (Ctrl+D) và Xóa trang. Nút + trên dải thumbnail trái cũng thêm trang.",
+      "Trang mới được chèn sau trang đang chọn. Nhân đôi tạo bản sao nội dung trang; kéo thumbnail để đổi thứ tự. Không thể xóa trang cuối cùng.",
+      "Chọn Bố cục để mở bốn thẻ: Tiêu đề, Tiêu đề + Nội dung, Hai nội dung và Trống. Hai nội dung có một tiêu đề và hai khung nội dung riêng.",
+      "Nhấp đúp thẻ để áp dụng ngay, hoặc chọn thẻ rồi Áp dụng cho trang này / Áp dụng tất cả. Nút Bố cục cũng có trên tab Thiết kế > nhóm Bố cục trang.",
+      "Lưu PPTX rồi mở lại để kiểm tra bố cục Hai nội dung vẫn có hai khung nội dung và có thể sửa riêng.",
+      "Đặt lại nằm ở Trang đầu > nhóm Trang chiếu. Lệnh dựng lại khung giữ chỗ theo bố cục hiện tại, giữ chữ, hình, ảnh và ghi chú.",
+      "Ctrl+Z hoàn tác thao tác bố cục hoặc Đặt lại khi thao tác đó còn trong lịch sử."
     ]
   },
   {
@@ -598,15 +593,13 @@ export const SLIDES_HELP_ENTRIES = [
     ribbon: { tab: "Thiết kế", tabId: "design", group: "Chủ đề" },
     keywords: ["chủ đề", "theme", "slide master", "cỡ trang chiếu", "16:9", "4:3", "960x540", "logo"],
     steps: [
-      "Tab Thiết kế, nhóm Chủ đề: nút lớn Chủ đề. Hộp «Thư viện Chủ đề» — nhấp thẻ là áp ngay cả bộ (không nút Áp dụng). Sáu mẫu: Xanh Doanh Nghiệp (Inter, mặc định modern-blue), Terracotta Ấm Áp (Times New Roman), Xanh Lá Thiên Nhiên, Than Chì Hiện Đại, Đơn Sắc Tối Giản (Arial), Cam Năng Động (Verdana). Mỗi mẫu có logo chữ kiểu «3T OFFICE • DOANH NGHIỆP». Ctrl+Z hoàn tác lần chọn chủ đề.",
-      "Nhóm Mẫu chủ đạo: Mẫu Slide Master. Hộp «Mẫu Slide Master» cùng 6 bộ, thêm ô «Tên đơn vị / Logo chữ góc trang» (mặc định «3T OFFICE» hoặc logo đang dùng). Chọn thẻ điền sẵn logo của mẫu. Hủy bỏ / Áp dụng mẫu. Khác thư viện Chủ đề: lần Áp dụng mẫu không đẩy Undo.",
-      "Lưu bằng Ctrl+S hoặc chọn Tệp > Lưu bản sao và chọn .pptx. Chữ trong ô «Tên đơn vị / Logo chữ góc trang» được đặt trên trang mẫu và giữ khi lưu. Mở lại tệp để kiểm tra chữ, màu và phông; logo không che các khung tiêu đề và nội dung có sẵn.",
-      "Mở lại: chọn Tệp > Mở và chọn tệp .pptx đã lưu logo chữ bằng Slide. Ô «Tên đơn vị / Logo chữ góc trang» hiện lại chữ, màu và phông đã đặt. Ứng dụng chỉ nhận logo chữ do Slide lưu; nếu dữ liệu logo không hợp lệ, hộp thoại Mở báo lỗi để bạn kiểm tra tệp gốc.",
-      "Nhóm Tùy chỉnh: Cỡ trang chiếu. Hộp «Kích thước trang chiếu»: Màn hình rộng 16:9 · 33,867 × 19,05 cm, hoặc Tiêu chuẩn 4:3 · 25,4 × 19,05 cm. Nhấp thẻ áp ngay; mọi hình bị co x,y,w,h theo khung mới. Cùng preset thì không đổi. Ctrl+Z hoàn tác đổi cỡ.",
-      "Khi lưu PPTX, hai khổ này ghi đúng khổ chuẩn của phần mềm trình chiếu khác nên phần mềm trình chiếu khác mở ra thấy Thiết kế → Kích thước trang chiếu là «Màn hình rộng» / «Chuẩn (4:3)», không phải «Tùy chỉnh». Tệp mở từ phần mềm trình chiếu khác giữ nguyên khổ gốc khi lưu lại, trừ khi bạn tự đổi cỡ.",
-      "Không có dạng xem Master (không sửa khung chữ sẵn của từng bố cục). Không có cỡ tùy chỉnh / 16:10."
-      "Sau khi chọn chủ đề, lưu bằng Ctrl+S hoặc Tệp > Lưu bản sao rồi chọn PPTX.",
-      "Mở lại bản trình chiếu đã lưu. Chủ đề đang dùng được khôi phục với tên, màu, phông và nền; có thể mở lại Thiết kế > Chủ đề để xem thẻ đang chọn.",
+      "Tab Thiết kế > nhóm Chủ đề > Chủ đề mở thư viện. Nhấp một thẻ để áp dụng ngay; Ctrl+Z hoàn tác lựa chọn.",
+      "Các thẻ gồm Xanh Doanh Nghiệp, Terracotta Ấm Áp, Xanh Lá Thiên Nhiên, Than Chì Hiện Đại, Đơn Sắc Tối Giản và Cam Năng Động. Mỗi chủ đề áp dụng màu, phông, nền và logo chữ của mẫu.",
+      "Mẫu Slide Master là hộp riêng trong nhóm Chủ đề; chọn mẫu, sửa ô Tên đơn vị / Logo chữ góc trang rồi nhấn Áp dụng mẫu.",
+      "Lưu bằng Ctrl+S hoặc Tệp > Lưu bản sao rồi chọn PPTX. Nếu đang dùng Mẫu Slide Master, nội dung logo chữ được đặt trên trang mẫu.",
+      "Mở lại bản trình chiếu đã lưu. Chủ đề đang dùng được khôi phục cùng tên, màu, phông và nền; vào Thiết kế > Chủ đề để chọn chủ đề khác nếu cần.",
+      "Cỡ trang chiếu nằm ở tab Thiết kế > nhóm Tùy chỉnh > Cỡ trang chiếu. Chọn Màn hình rộng 16:9 hoặc Tiêu chuẩn 4:3; hình hiện có được co theo khung mới.",
+      "Lưu rồi mở lại để kiểm tra cỡ trang. Ctrl+Z hoàn tác thay đổi cỡ; ứng dụng hiện cung cấp hai cỡ chọn sẵn."
     ]
   },
   {
