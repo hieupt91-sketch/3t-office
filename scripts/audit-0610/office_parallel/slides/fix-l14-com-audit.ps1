@@ -104,7 +104,7 @@ try {
     $presentation.SlideShowSettings.AdvanceMode = 1
     $showWindow = $presentation.SlideShowSettings.Run()
     $ops.showFromBegin = [ordered]@{ slideShowWindows = [int]$app.SlideShowWindows.Count; currentPosition = [int]$showWindow.View.CurrentShowPosition }
-    $showWindow.View.EndShow()
+    $showWindow.View.Exit()
     $showWindow = $null
     $result.cleanup.ownShowEnded = $true
 
@@ -112,7 +112,7 @@ try {
     $window.View.GotoSlide(2)
     $showWindow = $presentation.SlideShowSettings.Run()
     $ops.showFromCurrent = [ordered]@{ slideShowWindows = [int]$app.SlideShowWindows.Count; requestedCurrentSlide = 2; currentPosition = [int]$showWindow.View.CurrentShowPosition }
-    $showWindow.View.EndShow()
+    $showWindow.View.Exit()
     $showWindow = $null
     $result.cleanup.ownShowEnded = $true
 
@@ -122,7 +122,7 @@ try {
         Write-Output $_
     }
 } finally {
-    if ($showWindow) { try { $showWindow.View.EndShow(); $result.cleanup.ownShowEnded = $true } catch {} }
+    if ($showWindow) { try { $showWindow.View.Exit(); $result.cleanup.ownShowEnded = $true } catch {} }
     if ($extraWindow) { try { $extraWindow.Close(); $result.cleanup.ownExtraWindowClosed = $true } catch {} }
     if ($presentation) { $presentation.Close(); $result.cleanup.ownPresentationClosed = $true }
 }
