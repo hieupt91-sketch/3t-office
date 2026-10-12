@@ -11,7 +11,7 @@ function New-Control([string]$name, [string]$text) {
     $doc.Content.Text = $text
     $path = Join-Path $Dir ($name + '.docx')
     $doc.SaveAs2($path, 16)
-    $rows += [pscustomobject]@{
+    $script:rows += [pscustomobject]@{
       name = $name
       text = [string]$doc.Content.Text
       words = [int]$doc.ComputeStatistics(0)
