@@ -68,3 +68,38 @@ Không sửa `upstream/**`, không thêm dependency, không đổi semantics fil
 3. Thêm edit journal trong quick view; phát lại từng nhóm thao tác trước sự kiện `full-model-ready`, khôi phục cả undo/redo tail.
 4. Rà lệnh lưu/in, chỉ bật sau full hydration; sửa tiến độ/lỗi và Help tiếng Việt theo UI thật.
 5. Chạy các cổng desktop, fidelity, unit và batch; ghi số liệu trước/sau và handoff.
+
+## Bổ sung kế hoạch sau kiểm chứng batch 12/10
+
+### Kết quả làm thay đổi kế hoạch
+
+- Xem nhanh đạt 2.74–4.54 s trên các tệp LAN01/02/04/09/16 đã đo; lần gõ đầu + Enter đạt 0.79–0.86 s. LAN14 (9.74 MB) vẫn 6.26–6.97 s, vượt mục tiêu ≤5 s.
+- Trên LAN14, `worker_ready` mất khoảng 3.4–3.5 s và UNO `view_open` khoảng 3.96–3.98 s. Giảm viewport và trì hoãn quét các sheet không hoạt động không làm giảm thời gian mở workbook trong LibreOffice.
+- Batch 28 tệp: 25 PASS, 2 FAIL, 1 BLOCKED. LAN14 round-trip vượt timeout CDP 25 phút (đầu ra vẫn `diffs=0`, lint sạch, Excel mở được); LAN25 báo 9419 diff ở đường lưu XLSX→FODS. Chạy lại LAN25 với `VNO_OPEN_VIEWFIRST=0` vẫn 9419 diff, nên hiện là lỗi nền của luồng lưu, không phải hồi quy quick view. LAN04 bị BLOCKED khi Windows không khởi tạo Excel COM (CO_E_SERVER_EXEC_FAILURE).
+
+### Objective bổ sung
+
+- Đạt first paint + scroll ≤5 s cho LAN14 ≤10 MB mà không đổi file format semantics, không thay full-model engine và không để UI gọi LibreOffice implementation.
+- Giữ LibreOffice UNO làm nguồn authoritative cho full workbook, chỉnh sửa, lưu và in. Bộ đọc OOXML mới chỉ cung cấp tạm thời các giá trị/công thức của viewport đầu; full UNO hydration vẫn thay thế preview và nhận journal sửa như hiện tại.
+
+### Thiết kế và phạm vi
+
+1. Trước khi triển khai, đo Python stdlib `zipfile`/`xml.etree.ElementTree` đọc workbook relationships, active sheet, shared strings và viewport 40×20 trên LAN14; ghi riêng thời gian đọc archive và parse.
+2. Nếu phép đo dưới ngân sách còn lại (≤1.5 s), thêm module Python app/service cho Sheet để dựng payload preview chỉ đọc từ OOXML. Hỗ trợ shared/inline strings, cached values, công thức, sheet names, dimension và trạng thái lỗi có thể retry; không serialize hoặc sửa XLSX.
+3. `main.py` bắt đầu UNO worker/full conversion song song, gửi payload OOXML tạm cho UI qua bridge hiện có ngay khi sẵn sàng; adapter nhận diện nguồn preview và chuyển sang view UNO/full model khi có. Replay edit journal đúng một lần; nếu đọc OOXML lỗi thì fallback sang UNO view-first hiện tại.
+4. UI tiếp tục chỉ gọi Sheet Adapter/bridge. Cập nhật unit tests cho shared strings, inline strings, cached formula, sheet mapping, malformed package và replay sau thay thế; thêm phép đo CDP thật trên LAN14.
+5. Chỉ thêm parser nếu payload khớp các giá trị hiển thị của UNO trên fixture LAN01/02/04/14 và first paint LAN14 ≤5 s. Nếu không đạt các điều kiện đó, bỏ thử nghiệm parser và ghi rõ giới hạn; không làm parser thành nguồn lưu.
+
+### Phụ thuộc, rủi ro, rollback và kiểm chứng
+
+- Chỉ dùng Python standard library có sẵn; không thêm dependency. Parser chỉ đọc OOXML để preview và không áp dụng file-format semantics mới.
+- Rủi ro: shared strings lớn, relationship target tương đối, sheet active khác sheet1, công thức không có cached value, XML malformed và UI hiển thị thiếu style. Giới hạn preview ở viewport đầu; báo lỗi/fallback khi không parse được; style/layout authoritative sẽ đến từ UNO hydration.
+- Không sửa upstream/Core. Không mở rộng parser sang lưu hoặc các thao tác toàn workbook.
+- Rollback bằng cách gỡ fast preview producer/consumer và giữ UNO view-first cùng `VNO_OPEN_VIEWFIRST=0` fallback; journal/replay và full loader giữ nguyên.
+- Kiểm chứng: đo zip/parse độc lập; so giá trị/công thức preview với UNO; CDP LAN14 first paint + scroll ≤5 s và gõ+Enter ≤1 s; undo/redo trước/sau hydration; rerun `npm test`, Python suite, fidelity LAN priority set và 28-file batch. Ghi PASS/FAIL/BLOCKED theo đúng kết quả.
+
+### Files dự kiến
+
+- `platform/sheet/xlsx-preview.py` (hoặc vị trí app-specific tương đương sau khi xác định ownership), `main.py`, `adapters/libreoffice/sheet/sheet-adapter.js`, `apps/sheet/sheet-quick-view.js`.
+- Tests cho parser Python, quick view/replay và desktop CDP; cập nhật tài liệu hiệu năng và handoff.
+- Không thêm dependency, không chạm `upstream/**`, không đổi semantics lưu/in.
