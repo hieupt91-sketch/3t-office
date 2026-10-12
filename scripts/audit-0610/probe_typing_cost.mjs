@@ -12,7 +12,8 @@ const rec = [];
 const time = async (name, fn) => { const t = Date.now(); await fn(); rec.push(`${name}=${Date.now() - t}ms`); console.error(`[${((Date.now() - t0) / 1000).toFixed(1)}s] ${name} ${Date.now() - t}ms`); };
 try {
   const norm = file.replace(/\\/g, "/").toLowerCase();
-  await session.cdp.waitFor(`(() => { const a = window.__vnoAppInstance?.adapter; const p = String(a?._sourcePath || a?.sourceFilePath || '').replace(/\\\\/g, '/').toLowerCase(); return p === ${JSON.stringify(norm)}; })()`, { timeoutMilliseconds: 600000, intervalMilliseconds: 250 });
+  const expectedName = norm.split("/").at(-1);
+  await session.cdp.waitFor(`(() => { const a = window.__vnoAppInstance?.adapter; const p = String(a?._sourcePath || a?.sourceFilePath || '').replace(/\\\\/g, '/').toLowerCase(); const title = String(document.title || '').toLowerCase(); return p === ${JSON.stringify(norm)} || (p.endsWith('/' + ${JSON.stringify(expectedName)}) && title.startsWith(${JSON.stringify(expectedName.replace(/\.xlsx$/, ''))})); })()`, { timeoutMilliseconds: 600000, intervalMilliseconds: 250 });
   await sleep(3000);
   await ev(`window.__lt = []; try { new PerformanceObserver(l => { for (const e of l.getEntries()) window.__lt.push([Math.round(e.startTime), Math.round(e.duration)]); }).observe({ entryTypes: ['longtask'] }); } catch (e) {} true`);
   await time("click", () => mouseClick(session.cdp, x, y));
