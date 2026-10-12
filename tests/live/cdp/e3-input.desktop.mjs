@@ -13,7 +13,7 @@ const check = (name, ok, detail = "") => {
 };
 const state = () => cdp.evaluate(`(() => {
   const grid = window.__vnoAppInstance?.sheetGrid || window.__vnoAppInstance?.grid;
-  const cells = Object.fromEntries(["A1","A2","B2","C2","E2","E8","F8","A6","A7","D3","D4","F1","G1","G2","G3"].map(key => [key, grid.cellsData.get(key) || null]));
+  const cells = Object.fromEntries(["A1","A2","B2","C2","E2","E8","F8","A6","A7","D3","D4","F1","G1","G2","G3","A4","B4","H4"].map(key => [key, grid.cellsData.get(key) || null]));
   const coord = grid.selectedCoord;
   const range = grid.selectionRange;
   return { coord: String(coord.c)+String(coord.r), range: String(range.start.c)+String(range.start.r)+":"+String(range.end.c)+String(range.end.r), cells,
@@ -54,6 +54,24 @@ try {
   await press(cdp, "ArrowRight", { shift: true });
   s = await state();
   check("Shift+Arrow extends selection", s.coord === "B1" && s.range === "A1:B1", JSON.stringify(s));
+  await select("A4");
+  await typeText(cdp, "1");
+  await press(cdp, "Enter");
+  await select("B4");
+  await typeText(cdp, "=A4");
+  await press(cdp, "Enter");
+  await select("B4");
+  await press(cdp, "F2");
+  await press(cdp, "End");
+  await press(cdp, "F4");
+  const f4Value = await cdp.evaluate("document.querySelector('#vno-formula-val')?.value || ''");
+  check("F4 cycles the formula reference at the caret", f4Value === "=$A$4", f4Value);
+  await press(cdp, "Escape");
+  await select("H4");
+  await typeText(cdp, "UP");
+  await press(cdp, "Enter", { shift: true });
+  s = await state();
+  check("Shift+Enter commits and moves up", s.cells.H4?.val === "UP" && s.coord === "H3", JSON.stringify(s));
   await press(cdp, "Home", { ctrl: true });
   s = await state();
   check("Ctrl+Home selects A1", s.coord === "A1", JSON.stringify(s));

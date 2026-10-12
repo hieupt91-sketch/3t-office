@@ -14,7 +14,7 @@ Phạm vi E3 dùng Excel 2016 cài trên máy làm chuẩn thao tác. Bài kiể
 | End | Excel bật chế độ End để phím điều hướng kế tiếp nhảy tới biên | Chưa hỗ trợ đúng semantics | VN Sheet chưa có trạng thái End riêng |
 | Ctrl + Home / Ctrl + End | Đầu/cuối vùng đã dùng trong sheet | Ctrl+Home PASS; Ctrl+End chưa xác minh | Ctrl+End hiện lấy hàng/cột cuối có dữ liệu |
 | Page Up / Page Down | Cuộn và di chuyển ô theo viewport | Đã có; chưa xác minh CDP | Ctrl+Page Up/Down đổi sheet |
-| Enter / Shift+Enter | Xác nhận sửa và đi xuống/lên; giữ cột đầu vùng Tab | PASS Enter; Shift+Enter chưa xác minh | CDP xác nhận Enter đi từ A1 xuống A2 |
+| Enter / Shift+Enter | Xác nhận sửa và đi xuống/lên; giữ cột đầu vùng Tab | PASS cả hai | CDP xác nhận Enter đi từ A1 xuống A2 và Shift+Enter nhập H4 rồi đi lên H3 |
 | Tab / Shift+Tab | Xác nhận sửa và đi phải/trái; Enter kết thúc chuỗi theo hàng | PASS Tab; Shift+Tab và chuỗi vùng chưa xác minh | CDP xác nhận Tab tới B2 |
 | Ctrl+A | Chọn vùng dữ liệu trước, nhấn lần nữa chọn cả sheet | Đã có; chưa xác minh CDP | `selectAll()` |
 | Ctrl+Space / Shift+Space | Chọn cột / hàng | Đã có; chưa xác minh CDP | Header selection trong grid |
@@ -23,7 +23,7 @@ Phạm vi E3 dùng Excel 2016 cài trên máy làm chuẩn thao tác. Bài kiể
 | Escape | Hủy nội dung đang sửa và khôi phục giá trị trước khi sửa | PASS; không để lại bước undo | Commit `27952e04`; CDP xác nhận |
 | Enter khi sửa | Xác nhận và đi tới ô theo hướng Enter | Có; cần bổ sung kiểm thử riêng cho kết thúc sửa |
 | Alt+Enter | Chèn xuống dòng trong một ô | Có; chưa xác minh CDP | `insertLineBreak()` |
-| F4 trong công thức | Luân phiên tham chiếu tương đối/tuyệt đối tại caret | Có handler trong formula input; chưa xác minh qua shortcut manager | Cần kiểm tra xung đột phím tắt toàn cục |
+| F4 trong công thức | Luân phiên tham chiếu tương đối/tuyệt đối tại caret | PASS CDP | Khi sửa `=A4`, F4 đổi tham chiếu thành `=$A$4` |
 | Ctrl+Enter | Ghi cùng nội dung vào toàn vùng chọn | PASS với giá trị; cần đối chiếu công thức bằng Excel COM | CDP desktop: G1:G3 nhận cùng nội dung, một Ctrl+Z hoàn tác cả vùng; chưa xác nhận quy tắc dịch tham chiếu công thức |
 | Ctrl+; / Ctrl+Shift+; | Chèn ngày hiện tại / giờ hiện tại | PASS cả hai phím | CDP xác nhận ô ngày là serial ngày có định dạng date; ô giờ là serial thời gian có định dạng time |
 | Delete / Backspace | Xóa nội dung toàn vùng đang chọn, giữ định dạng | PASS Delete vùng liên tục | CDP xác nhận A6:A7 được xóa; undo theo một thao tác |
@@ -44,7 +44,7 @@ Phạm vi E3 dùng Excel 2016 cài trên máy làm chuẩn thao tác. Bài kiể
 1. Chạy bài CDP trên app desktop và ghi lại ô đang chọn, vùng chọn, giá trị, công thức, định dạng và trạng thái undo/redo trước/sau input.
 2. Khi cần xác nhận dữ liệu đã lưu, để VN Sheet tạo XLSX rồi mở từng tệp trong Excel 2016 bằng COM `ReadOnly`; chỉ đọc `Selection`, `Range.End`, `Application.Goto`, `Formula`, `Value2` và định dạng. Không sửa hay lưu workbook qua COM.
 3. So sánh đúng kết quả theo từng thao tác. COM không thay cho bài input desktop; không mở nhiều tệp cùng lúc và không đụng cửa sổ Excel của người dùng.
-4. Các hàng “chưa xác minh” không được tính là PASS. Ca Semicolon cần một key mapping CDP thực sự phát keydown trên máy này trước khi kết luận về hành vi.
+4. Các hàng “chưa xác minh” không được tính là PASS. Ca Semicolon đã xác nhận bằng keydown Semicolon với modifier Ctrl trên desktop này.
 
 ## Giới hạn đã biết
 
