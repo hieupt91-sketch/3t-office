@@ -17,7 +17,7 @@ function New-Control([string]$name, [scriptblock]$build) {
     Write-Output ('Built content: ' + $name)
     $doc.Fields.Update() | Out-Null
     $path = $null
-    $rows += [pscustomobject]@{
+    $script:rows += [pscustomobject]@{
       name = $name
       text = [string]$doc.Content.Text
       words = [int]$doc.ComputeStatistics(0)
