@@ -2372,7 +2372,13 @@ export class WriterAdapter {
         let textNode;
         while ((textNode = treeWalker.nextNode())) {
           const value = String(textNode.nodeValue || "");
-          if (!value.trim()) continue;
+          if (!value.trim()) {
+            // A whitespace-only node without a line break is meaningful run
+            // content (for example a preserved Word tab or a whitespace run).
+            // Table indentation nodes always contain CR/LF and are discarded.
+            if (!/[\r\n]/.test(value)) pieces.push(value);
+            continue;
+          }
           let parent = textNode.parentElement;
           let hidden = false;
           while (parent && parent !== characterRoot) {
@@ -2385,9 +2391,9 @@ export class WriterAdapter {
           }
           if (hidden) continue;
           // LibreOffice's generated HTML places indentation tabs/newlines inside
-          // inline runs. Treat those formatting boundaries as one word separator,
-          // while preserving repeated literal spaces and tabs from the actual run.
-          pieces.push(value.replace(/[ \t]*\r?\n[ \t]*/g, " "));
+          // inline runs. Drop those boundaries while preserving repeated spaces
+          // and tabs from the actual text run.
+          pieces.push(value.replace(/[ \t]*\r?\n[ \t]*/g, ""));
         }
         charactersText = pieces.join("");
       } else {
