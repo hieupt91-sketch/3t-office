@@ -65,9 +65,11 @@ try {
   })()`);
 
   await mouseClick(session.cdp,target.x,target.y);
+  await session.cdp.evaluate("window.__vnoAppInstance.grid.focusGrid()");
   await timed("Ctrl+Z", () => press(session.cdp,"z",{ctrl:true},20));
   const afterUndo = await session.cdp.evaluate(`(() => {const g=window.__vnoAppInstance.grid;return g.sheetsData[${JSON.stringify(target.sheet)}]?.get(${JSON.stringify(target.coord)})?.val})()`);
   await mouseClick(session.cdp,target.x,target.y);
+  await session.cdp.evaluate("window.__vnoAppInstance.grid.focusGrid()");
   await timed("Ctrl+Y", () => press(session.cdp,"y",{ctrl:true},20));
   const afterRedo = await session.cdp.evaluate(`(() => {const g=window.__vnoAppInstance.grid;return g.sheetsData[${JSON.stringify(target.sheet)}]?.get(${JSON.stringify(target.coord)})?.val})()`);
   console.log(JSON.stringify({file,target:{sheet:target.sheet,coord:target.coord,dependentFormulaCount:target.count,originalValue:target.originalValue},times,editedValue:edited.editedValue,undoValue:afterUndo,undoRestored:Object.is(afterUndo,target.originalValue),redoValue:afterRedo,redoRestored:Object.is(afterRedo,edited.editedValue),oracle}));
