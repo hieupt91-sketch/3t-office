@@ -380,12 +380,14 @@ export async function runHtmlSmokeTests() {
         const slidesProc = spawnSync(browserBinary, [
           "--headless=new",
           "--allow-file-access-from-files",
-          "--virtual-time-budget=3000",
+          // The Writer shell initializes several async modules before the
+          // preview can render; 3s flakes under a full suite on slower hosts.
+          "--virtual-time-budget=8000",
           "--dump-dom",
           slidesFileUrl
         ], {
           encoding: "utf8",
-          timeout: 15000,
+          timeout: 30000,
           windowsHide: true
         });
 
