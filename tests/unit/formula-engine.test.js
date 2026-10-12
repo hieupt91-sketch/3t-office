@@ -945,6 +945,23 @@ export async function runFormulaEngineTests() {
     pass: sb9Nhom2Engine.evaluate("=VLOOKUP(5, A2:B2, 2, FALSE)") === "#N/A" &&
           sb9Nhom2Engine.evaluate('=VLOOKUP("5", A1:B1, 2, FALSE)') === "#N/A"
   });
+  const e0LookupCurrent = new Map([
+    ["B3", { val: "00020413", formula: "", style: { numberFormat: { category: "number" } } }]
+  ]);
+  const e0LookupTable = new Map([
+    ["A40", { val: "00020413", formula: "", style: { numberFormat: { category: "text" } } }],
+    ["C40", { val: 2131, formula: "", style: {} }]
+  ]);
+  const e0LookupEngine = new FormulaEngine(
+    () => e0LookupCurrent,
+    null,
+    name => name === "Giá cost1" ? e0LookupTable : null,
+    () => "KPI Toàn"
+  );
+  results.push({
+    name: "E0: zero-padded text key matches numeric lookup across whole columns",
+    pass: e0LookupEngine.evaluate("=VLOOKUP(B3,'Giá cost1'!$A:$C,3,FALSE)") === 2131
+  });
   results.push({
     name: 'SB9 NHÓM 2: VLOOKUP exact match không phân biệt hoa thường',
     pass: sb9Nhom2Engine.evaluate('=VLOOKUP("pRoDuCt aLpHa", A3:B3, 2, FALSE)') === 100

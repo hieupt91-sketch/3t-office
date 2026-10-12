@@ -709,8 +709,18 @@ export class FormulaEngine {
     const isCandNum = typeof candidateKey === "number" && !candidateKey.isTextCell;
     const isLookupNum = typeof lookup === "number" && !lookup.isTextCell;
     if (isLookupNum) {
-      if (!isCandNum) return false;
-      return candidateKey === lookup;
+      if (isCandNum) return candidateKey === lookup;
+      // Excel 2016 can match a numeric lookup value to a text key that is
+      // zero-padded to preserve an identifier (for example 20413 and "00020413").
+      // Keep ordinary numeric text such as "5" distinct from the number 5.
+      if (isCandText && candidateKey.isTextCell) {
+        const text = String(candidateKey);
+        if (/^0+\d+$/.test(text)) {
+          const unpadded = text.replace(/^0+(?=\d)/, "");
+          return unpadded === String(lookup);
+        }
+      }
+      return false;
     }
 
     if (typeof lookup === "boolean") {
