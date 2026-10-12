@@ -230,6 +230,52 @@ class WriterNativeDiagramExportTests(unittest.TestCase):
         self.assertIn("after", document)
 
 
+class WriterNativeWordArtExportTests(unittest.TestCase):
+    def test_wordart_is_replaced_inline_and_keeps_neighboring_text(self):
+        target = _docx(
+            '<w:p><w:r><w:t>before </w:t></w:r>'
+            '<w:bookmarkStart w:id="8" w:name="VNO_NATIVE_WORDART_1_START"/><w:bookmarkEnd w:id="8"/>'
+            '<w:r><w:t>flattened WordArt placeholder</w:t></w:r>'
+            '<w:bookmarkStart w:id="9" w:name="VNO_NATIVE_WORDART_1_END"/><w:bookmarkEnd w:id="9"/>'
+            '<w:r><w:t> after</w:t></w:r></w:p>'
+            '<w:p><w:r><w:drawing xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing">'
+            '<wp:docPr id="1" name="Existing shape"/></w:drawing></w:r></w:p>'
+        )
+        drawing = (
+            '<w:drawing xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" '
+            'xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main">'
+            '<wp:inline><wp:extent cx="1000" cy="1000"/><wp:docPr id="1" name="WordArt 1"/>'
+            '<a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">'
+            '<wps:wsp xmlns:wps="http://schemas.microsoft.com/office/word/2010/wordprocessingShape">'
+            '<wps:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:t>Editable art</a:t></a:r></a:p></wps:txBody>'
+            '<wps:spPr><a:prstTxWarp prst="textFadeRight"/></wps:spPr></wps:wsp>'
+            '</a:graphicData></a:graphic></wp:inline></w:drawing>'
+        )
+        auxiliary = _docx(f'<w:p><w:r>{drawing}</w:r></w:p>')
+        html = (
+            '<!--vno-native-wordart-fodt:Zm9kdA==-->'
+            '<a name="VNO_NATIVE_WORDART_1_START"></a>'
+            '<a name="VNO_NATIVE_WORDART_1_END"></a>'
+        )
+
+        result = patcher.postprocess_writer_native_wordart(target, auxiliary, source_html=html)
+        document = _read(result, "word/document.xml")
+        self.assertIn('<a:prstTxWarp prst="textFadeRight"/>', document)
+        self.assertNotIn("flattened WordArt placeholder", document)
+        self.assertIn("before ", document)
+        self.assertIn(" after", document)
+        self.assertIn('wp:docPr id="2"', document)
+        self.assertNotIn("VNO_NATIVE_WORDART", document)
+
+    def test_wordart_requires_native_text_warp_drawing(self):
+        with self.assertRaisesRegex(ValueError, "WordArt DrawingML"):
+            patcher.postprocess_writer_native_wordart(
+                _docx("<w:p/>"),
+                _docx("<w:p><w:r><w:t>plain text</w:t></w:r></w:p>"),
+                source_html="<!--vno-native-wordart-fodt:Zm9kdA==-->",
+            )
+
+
 class WriterNativeWatermarkExportTests(unittest.TestCase):
     def test_watermark_is_attached_as_native_word_header_shape(self):
         target = _docx('<w:p><w:r><w:t>body</w:t></w:r></w:p><w:sectPr/>')
