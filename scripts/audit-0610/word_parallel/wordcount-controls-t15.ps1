@@ -16,10 +16,7 @@ function New-Control([string]$name, [scriptblock]$build) {
     & $build $doc
     Write-Output ('Built content: ' + $name)
     $doc.Fields.Update() | Out-Null
-    $path = Join-Path $Dir ($name + '.docx')
-    Write-Output ('Saving control: ' + $name + ' @ ' + (Get-Date -Format o))
-    $doc.SaveAs2($path, 16)
-    Write-Output ('Saved control: ' + $name)
+    $path = $null
     $rows += [pscustomobject]@{
       name = $name
       text = [string]$doc.Content.Text
@@ -28,7 +25,7 @@ function New-Control([string]$name, [scriptblock]$build) {
       charactersWithSpaces = [int]$doc.ComputeStatistics(5)
       paragraphs = [int]$doc.ComputeStatistics(4)
       pages = [int]$doc.ComputeStatistics(2)
-      path = $path
+      saved = $false
     }
   } finally { $doc.Close(0) }
 }
