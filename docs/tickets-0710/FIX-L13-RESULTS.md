@@ -26,8 +26,8 @@ Do không có `ActiveWindow`, `ViewType` hoặc `View.Zoom` khả dụng, **20 d
 - `slides-fix-l2.desktop.mjs`: **PASS 20/20**.
 - `slides-fix-l3.desktop.mjs`: **PASS 13 thao tác**.
 - FIX-L13 desktop CDP: slideshow, comments, spellcheck, view/help và macro scripts kết thúc thành công, lưu JSON/ảnh dưới evidence.
-- Generator: 88 dòng, số lượng trạng thái trên đây; sẽ chạy lại sau cập nhật evidence.
-- Encoding scan, `py_compile`, `git diff --check`: chạy ở bước bàn giao cuối.
+- Matrix generator: **PASS**, 88 dòng; 57 KHỚP, 20 CHƯA ĐỐI CHIẾU, 9 KHÁC CÓ CHỦ Ý, 2 LỆCH ĐÃ BIẾT.
+- Encoding scan: **PASS** (17 tệp text UTF-8, không BOM/không phát sinh dấu mojibake); `py_compile`: **PASS**; `node --check` năm harness: **PASS**; `git diff --check`: **PASS**.
 - Build: **NOT RUN**; không có thay đổi mã ứng dụng hay build system.
 
 ## Chưa hoàn tất và điều kiện tiếp tục
