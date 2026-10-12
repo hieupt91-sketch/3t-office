@@ -76,6 +76,7 @@ try {
     const item=g.sheetsData[${JSON.stringify(target.sheet)}]?.get(${JSON.stringify(target.coord)});
     return {formulaValues:formulas,editedValue:item?.val};
   })()`);
+  if (Object.is(edited.editedValue,target.originalValue)) throw new Error("keyboard edit did not change the selected cell; workbook may be protected");
   await timed("Ctrl+Z", () => press(session.cdp,"z",{ctrl:true},20));
   const undoValue = await session.cdp.evaluate(`(() => window.__vnoAppInstance.grid.sheetsData[${JSON.stringify(target.sheet)}]?.get(${JSON.stringify(target.coord)})?.val)()`);
   await session.cdp.evaluate("window.__vnoAppInstance.grid.focusGrid()");
