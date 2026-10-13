@@ -76,7 +76,19 @@ class PoolOrphanTests(unittest.TestCase):
         import main as vnmain
 
         P = vnmain._ooxml_zip_patch()
-        self.assertTrue(P._p1_parent_alive(os.getpid()))
+        if sys.platform == "win32":
+            self.assertTrue(P._p1_parent_alive(os.getpid()))
+        else:
+            # On POSIX, _p1_parent_alive is called by worker processes to check their parent (os.getppid() == parent_pid).
+            probe = subprocess.run(
+                [
+                    sys.executable,
+                    "-c",
+                    f"import sys; sys.path.insert(0, {str(ROOT)!r}); import adapters.libreoffice.common.ooxml_zip_patch as P; sys.exit(0 if P._p1_parent_alive({os.getpid()}) else 1)",
+                ],
+                check=False,
+            )
+            self.assertEqual(probe.returncode, 0)
         dead = subprocess.Popen([sys.executable, "-c", "pass"])
         dead.wait()
         self.assertFalse(P._p1_parent_alive(dead.pid))

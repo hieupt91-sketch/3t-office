@@ -54,6 +54,11 @@ def _ps_parent_table() -> dict[int, int]:
     return parse_ps_parent_table(output) if output is not None else {}
 
 
+def _ps_state(pid: int) -> str | None:
+    output = _run_ps("-o", "state=", "-p", str(int(pid)))
+    return output.strip()[:1] if output is not None else None
+
+
 def process_identity(pid: int) -> str | None:
     """Return a stable process-creation token suitable for detecting PID reuse."""
     try:
@@ -91,9 +96,15 @@ def process_identity(pid: int) -> str | None:
             value = stat_path.read_text(encoding="ascii")
             # comm is parenthesized and can itself contain spaces or parentheses.
             fields = value[value.rfind(")") + 2:].split()
+            # field 3 is state (Z is zombie)
+            if len(fields) > 2 and fields[0] == "Z":
+                return None
             return fields[19] if len(fields) > 19 else None  # field 22: starttime
         if not Path("/proc").is_dir():
             # macOS has no /proc: the process start time from `ps` is the creation token, so PID reuse is still detected.
+            state = _ps_state(int(pid))
+            if state == "Z":
+                return None
             start = _ps_start_time(int(pid))
             if start is not None:
                 return start

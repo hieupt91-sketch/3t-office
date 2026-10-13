@@ -5,7 +5,7 @@ import unittest
 import zipfile
 from pathlib import Path
 from urllib.parse import parse_qs, urlsplit
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import main
 
@@ -111,12 +111,17 @@ class DesktopLaunchTests(unittest.TestCase):
             self.assertIsNone(api._initial_file)
 
     def test_main_returns_exit_code_when_no_port_available(self):
+        launcher = main._os_services().launcher
+        instance_server = MagicMock()
         with patch.object(main, "_start_static_server", side_effect=RuntimeError(
             "Không tìm thấy cổng trống trong khoảng 8080–8099"
-        )), patch("ctypes.windll.user32.MessageBoxW"):
+        )), patch.object(main, "SingleInstanceServer", return_value=instance_server), \
+             patch.object(launcher, "show_error") as show_error:
             exit_code = main.main(["--app=writer"])
 
         self.assertEqual(exit_code, 3)
+        show_error.assert_called_once()
+        instance_server.stop.assert_called_once()
 
 
 if __name__ == "__main__":

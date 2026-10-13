@@ -27,11 +27,18 @@ class ServicesMatchLegacyTests(unittest.TestCase):
         self.assertIsNotNone(services.data_dirs)
         self.assertIsNotNone(services.launcher)
 
-    def test_user_data_dir_equals_legacy_with_and_without_localappdata(self):
+    def test_user_data_dir_equals_legacy_and_uses_platform_environment(self):
         with tempfile.TemporaryDirectory() as temp_dir:
-            with mock.patch.dict(os.environ, {"LOCALAPPDATA": temp_dir}):
+            environment = {"LOCALAPPDATA": temp_dir, "XDG_DATA_HOME": temp_dir}
+            with mock.patch.dict(os.environ, environment):
                 self.assertEqual(vnmain._user_data_dir(), vnmain._legacy_user_data_dir())
-                self.assertEqual(vnmain._user_data_dir(), Path(temp_dir) / "VNOffice")
+                if sys.platform == "win32":
+                    expected = Path(temp_dir) / "VNOffice"
+                elif sys.platform == "darwin":
+                    expected = Path.home() / "Library" / "Application Support" / "VNOffice"
+                else:
+                    expected = Path(temp_dir) / "VNOffice"
+                self.assertEqual(vnmain._user_data_dir(), expected)
         with mock.patch.dict(os.environ, {}, clear=False):
             os.environ.pop("LOCALAPPDATA", None)
             self.assertEqual(vnmain._user_data_dir(), vnmain._legacy_user_data_dir())
@@ -90,7 +97,10 @@ class ServicesMatchLegacyTests(unittest.TestCase):
         with mock.patch("ctypes.windll", create=True) as windll:
             windll.user32.MessageBoxW.side_effect = OSError("no gui")
             result = portable_like.show_error("t", "m")
-        self.assertFalse(result.is_ok)
+        if sys.platform == "win32":
+            self.assertFalse(result.is_ok)
+        else:
+            self.assertTrue(result.is_ok)
 
 
 if __name__ == "__main__":
