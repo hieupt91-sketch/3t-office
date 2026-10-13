@@ -53,3 +53,27 @@
 | Object | Chua co | Khong tim thay "insert object" / "Object" / "OLE" / "embed object" trong writer .js | Can them: Insert Object dialog (Create New / Create from File), OLE embedding |
 | Equation | Co | adapters/libreoffice/writer/writer-adapter.js:61,87-95,407-409,435-467,470-567,577; apps/writer/equation-editor.js; platform/commands/command-definitions.js (writer.insert.equation); platform/i18n/strings-vi.js | - |
 | Symbol | Co | adapters/libreoffice/writer/writer-adapter.js:32,681; platform/ui-kit/symbol-picker.js (showSymbolPicker); platform/commands/command-definitions.js (writer.insert.symbol); platform/i18n/strings-vi.js:836; platform/help/entries-writer.js | - |
+
+## THIET KE (Design)
+
+| Tinh nang | Trang thai | Bang chung | Thieu gi |
+|---|---|---|---|
+| Themes/Colors/Fonts | Co | apps/writer/theme-gallery.js (DOCUMENT_THEMES, showThemeGalleryDialog); adapters/libreoffice/writer/writer-adapter.js:31,675,8089-8090,11491; apps/writer/writer-ribbon.js:375; platform/commands/command-definitions.js:105; platform/i18n/strings-vi.js:741; platform/help/entries-writer.js:634-636 | Theme Colors va Theme Fonts rieng (dropdown chon mau/chu rieng) can kiem tra |
+| Paragraph Spacing | Co | adapters/libreoffice/writer/writer-adapter.js:699-700,1445-1480,7741-7744; platform/commands/command-definitions.js (writer.para.spacingBefore, writer.para.spacingAfter); platform/help/entries-writer.js:466; tests/unit/writer-paragraph-spacing.test.js | - |
+| Watermark | Co | adapters/libreoffice/writer/writer-adapter.js:24,388,641,8032-8033,10376-10439; apps/writer/page-decorations.js (showWatermarkDialog); apps/writer/writer-ribbon.js:383,533; platform/commands/command-definitions.js (writer.page.watermark); platform/i18n/strings-vi.js (watermark) | - |
+| Page Color | Co | adapters/libreoffice/writer/writer-adapter.js:24,642,8035-8036,9472-9479,10369-10373; apps/writer/page-decorations.js (showPageColorDialog); apps/writer/writer-ribbon.js:384; platform/commands/command-definitions.js (writer.page.color); platform/i18n/strings-vi.js (pageColor) | - |
+| Page Borders | Co | adapters/libreoffice/writer/writer-adapter.js:24,390,655,8038-8039,10452-10490; apps/writer/page-decorations.js (showPageBorderDialog); apps/writer/writer-ribbon.js:385,534; platform/commands/command-definitions.js (writer.page.border); platform/i18n/strings-vi.js (pageBorder) | - |
+
+## BO TRI (Layout)
+
+| Tinh nang | Trang thai | Bang chung | Thieu gi |
+|---|---|---|---|
+| Margins | Co | adapters/libreoffice/writer/writer-adapter.js:656,7535-7571,8020-8024; apps/writer/page-setup-dialog.js; apps/writer/writer-ribbon.js:402; platform/commands/command-definitions.js:205; platform/i18n/strings-vi.js:856; command-dispatch-mapper.js:124 | - |
+| Orientation | Co | adapters/libreoffice/writer/writer-adapter.js:656,7535-7571,8027-8030; apps/writer/page-setup-dialog.js; apps/writer/writer-ribbon.js:403; platform/commands/command-definitions.js:206; platform/i18n/strings-vi.js:857; command-dispatch-mapper.js:125 | - |
+| Size | Co | adapters/libreoffice/writer/writer-adapter.js:656,7535-7571,8027-8030; apps/writer/page-setup-dialog.js; apps/writer/writer-ribbon.js:404; platform/commands/command-definitions.js:207; platform/i18n/strings-vi.js:858; command-dispatch-mapper.js:126 | - |
+| Columns | Co | adapters/libreoffice/writer/writer-adapter.js:11514-11561,11842-11872; apps/writer/columns-dialog.js; platform/commands/command-definitions.js (writer.page.columns); platform/i18n/strings-vi.js (columns) | - |
+| Breaks (page/column/section) | Co | adapters/libreoffice/writer/writer-adapter.js:643-653,7839-7870,9496-9749,9995-10005; apps/writer/writer-ribbon.js:423-427,437-451; platform/commands/command-definitions.js:216-217 (writer.break.column, writer.section.*); platform/i18n/strings-vi.js:868,870-873; platform/help/entries-writer.js:118 | - |
+| Line Numbers | Co | adapters/libreoffice/writer/writer-adapter.js:401,11531-11561,15373; platform/commands/command-definitions.js (writer.page.lineNumbers); platform/i18n/strings-vi.js (lineNumbers); platform/help/entries-writer.js | - |
+| Hyphenation | Chua co | Khong tim thay "hyphenation" / "Hyphenation" / "writer.hyphenation" / "ngat tu" / "tu ngat" trong .js | Can them: Automatic/None/Manual hyphenation, Hyphenation zone, Limit consecutive hyphens |
+| Indent/Spacing | Co | adapters/libreoffice/writer/writer-adapter.js:699-700,1289-1342,1445-1480,1587-1623; apps/writer/paragraph-dialog.js; apps/writer/paragraph-indent.js; platform/commands/command-definitions.js (writer.para.indentInc/Dec, spacingBefore/After, lineSpacing) | - |
+| Position/Wrap Text/Bring Forward/Align/Group/Rotate | Mot phan | adapters/libreoffice/writer/writer-adapter.js (shapes: moveShape, _renderShapes); apps/writer/writer-arrange.js (arrange commands); platform/commands/command-definitions.js (writer.arrange.*); apps/writer/writer-ribbon.js (tableAlignGroup: alignTop/Middle/Bottom) | Thieu: Position (More Layout Options), Wrap Text (Square/Tight/Through/Top and Bottom/Behind/In Front), Bring Forward/Send Backward, Group/Ungroup, Rotate (More Rotation Options) - can kiem tra writer-arrange.js |
