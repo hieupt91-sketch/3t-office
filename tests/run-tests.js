@@ -31,6 +31,8 @@ import { runSlidesAnimationsNotesTests } from "./unit/slides-animations-notes.te
 import { runSheetRulesValidationTests } from "./unit/sheet-rules-validation.test.js";
 import { runWriterTrackChangesTests } from "./unit/writer-track-changes.test.js";
 import { runWriterReviewExportTests } from "./unit/writer-review-export.test.js";
+import { runWriterDocumentPropertiesTests } from "./unit/writer-document-properties.test.js";
+import { runWriterAutoCorrectTests } from "./unit/writer-auto-correct.test.js";
 import { runWriterPrintPreviewTests } from "./unit/writer-print-preview.test.js";
 import { runSlidesLayoutsTests } from "./unit/slides-layouts.test.js";
 import { runSheetChartTests } from "./unit/sheet-charts.test.js";
@@ -71,6 +73,7 @@ import { runWriterMouseShortcutsTests } from "./unit/writer-mouse-shortcuts.test
 import { runRibbonGapsRealOfficeTests } from "./unit/ribbon-gaps-real-office.test.js";
 import { runSlidesMouseShortcutsTests } from "./unit/slides-mouse-shortcuts.test.js";
 import { runWriterSlidesInsertGapsTests } from "./unit/writer-slides-insert-gaps.test.js";
+import { runWriterViewOutlineDraftTests } from "./unit/writer-view-outline-draft.test.js";
 import { runWriterEquationEditorTests } from "./unit/writer-equation-editor.test.js";
 import { runSheetDataToolsTests } from "./unit/sheet-data-tools.test.js";
 import { runSlidesDialogsA11yTests } from "./unit/slides-dialogs-a11y.test.js";
@@ -554,7 +557,10 @@ async function runAll() {
     { title: "255. Unit Tests — VN Office Panel Overlay & Drawer (TICKET UI-P1)", runner: runPanelOverlayUiP1Tests },
     { title: "S-X. Unit Tests — Sheet lưu XLSX giữ Gói văn bản, Căn phải và Viền (đối chiếu Excel thật)", runner: runSheetStyleExportWrapBorderAlignTests },
     { title: "U1. Unit Tests — Ctrl+B/I/U tại con trỏ không bị kiểm tra chính tả xóa kiểu sắp gõ", runner: runSpellcheckPendingStyleTests },
-    { title: "S-OBJ. Unit Tests — Sheet Object Context Menu & Page Setup Sheet Tab (agy)", runner: runSheetObjectMenuTests }
+    { title: "S-OBJ. Unit Tests — Sheet Object Context Menu & Page Setup Sheet Tab (agy)", runner: runSheetObjectMenuTests },
+    { title: "256. Unit Tests — Writer DOCX document properties metadata", runner: runWriterDocumentPropertiesTests },
+    { title: "257. Unit Tests — Writer AutoCorrect and Vietnamese-safe transforms", runner: runWriterAutoCorrectTests },
+    { title: "258. Unit Tests — Writer Outline, Draft Views and Collapsible Headings (WORD-W2)", runner: runWriterViewOutlineDraftTests }
   ];
 
   for (const suite of suites) {

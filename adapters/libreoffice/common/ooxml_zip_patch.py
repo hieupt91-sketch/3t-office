@@ -14870,7 +14870,7 @@ _PPR_CHILD_ORDER = [
     "pStyle", "keepNext", "keepLines", "pageBreakBefore", "framePr", "widowControl", "numPr", "suppressLineNumbers",
     "pBdr", "shd", "tabs", "suppressAutoHyphens", "kinsoku", "wordWrap", "overflowPunct", "topLinePunct", "autoSpaceDE",
     "autoSpaceDN", "bidi", "adjustRightInd", "snapToGrid", "spacing", "ind", "contextualSpacing", "mirrorIndents",
-    "suppressOverlap", "jc", "textDirection", "textAlignment", "textboxTightWrap", "outlineLvl", "divId", "cnfStyle",
+    "suppressOverlap", "jc", "textDirection", "textAlignment", "textboxTightWrap", "outlineLvl", "collapsed", "divId", "cnfStyle",
     "rPr", "sectPr", "pPrChange",
 ]
 
@@ -14883,7 +14883,7 @@ def _writer_reorder_ppr_children(ppr_xml: str) -> str:
     inner = match.group(2)
     children: list[tuple[int, str]] = []
     pos = 0
-    child_re = re.compile(r"<w:([A-Za-z]+)\b[^>]*?(?:/>|>[\s\S]*?</w:\1\s*>)", re.IGNORECASE)
+    child_re = re.compile(r"<(?:w|w15):([A-Za-z]+)\b[^>]*?(?:/>|>[\s\S]*?</(?:w|w15):\1\s*>)", re.IGNORECASE)
     for m in child_re.finditer(inner):
         if m.start() < pos:
             continue
@@ -17434,6 +17434,37 @@ def _restore_missing_writer_drawings(
     return result
 
 
+def _writer_view_mode_from_html(source_html: str | None) -> str | None:
+    if not source_html:
+        return None
+    view_match = re.search(r"<!--vno-view-mode:(\w+)-->", source_html, re.IGNORECASE)
+    if not view_match:
+        return None
+    mode_val = view_match.group(1).lower()
+    view_map = {
+        "outline": "outline",
+        "draft": "normal",
+        "normal": "normal",
+        "weblayout": "web",
+        "web": "web",
+        "printlayout": "print",
+        "print": "print",
+    }
+    return view_map.get(mode_val)
+
+
+def _writer_apply_view_mode_to_settings(settings_xml: str, source_html: str | None) -> str:
+    """WORD-W2: Sync view mode (Outline / Draft / Web / Print) into word/settings.xml."""
+    target_view = _writer_view_mode_from_html(source_html)
+    if not target_view:
+        return settings_xml
+    if re.search(r"<w:view\b[^>]*/>", settings_xml, re.IGNORECASE):
+        return re.sub(r"<w:view\b[^>]*/>", f'<w:view w:val="{target_view}"/>', settings_xml, count=1, flags=re.IGNORECASE)
+    elif "</w:settings>" in settings_xml:
+        return re.sub(r"(<w:settings\b[^>]*>)", rf'\1<w:view w:val="{target_view}"/>', settings_xml, count=1, flags=re.IGNORECASE)
+    return settings_xml
+
+
 def postprocess_writer_docx(
     docx_bytes: bytes,
     *,
@@ -17696,6 +17727,8 @@ def postprocess_writer_docx(
             converted_rels_xml, replacements, existing_entries,
         )
     )
+    if source_html and ("data-vno-outline" in source_html or "<h" in source_html.lower() or "data-vno-collapsed" in source_html):
+        new_xml = _writer_restore_created_paragraph_css(new_xml, source_html)
     if new_xml != converted_xml:
         replacements["word/document.xml"] = new_xml.encode("utf-8")
 
@@ -17756,6 +17789,18 @@ def postprocess_writer_docx(
                 new_settings = dst_re.sub("", new_settings)
         if new_settings != settings_xml:
             replacements["word/settings.xml"] = new_settings.encode("utf-8")
+
+    settings_bytes = replacements.get("word/settings.xml") or read_zip_entry(docx_bytes, "word/settings.xml")
+    if settings_bytes:
+        settings_xml = settings_bytes.decode("utf-8", errors="replace")
+        new_settings = _writer_apply_view_mode_to_settings(settings_xml, source_html)
+        if new_settings != settings_xml:
+            replacements["word/settings.xml"] = new_settings.encode("utf-8")
+    elif source_html:
+        target_mode = _writer_view_mode_from_html(source_html)
+        if target_mode:
+            minimal_settings = f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:view w:val="{target_mode}"/></w:settings>'
+            replacements["word/settings.xml"] = minimal_settings.encode("utf-8")
 
     # W34a: LibreOffice ghi tên font kèm fallback CSS ("Times New Roman;serif", "Arial;sans-serif") vào w:rFonts và
     # fontTable — Word không có font tên ấy nên thay font khác (đo 20/20 bản lưu đều dính). Giữ tên đầu.
@@ -18025,7 +18070,7 @@ _PPR_CHILD_ORDER = (
     "pStyle", "keepNext", "keepLines", "pageBreakBefore", "framePr", "widowControl", "numPr", "suppressLineNumbers",
     "pBdr", "shd", "tabs", "suppressAutoHyphens", "kinsoku", "wordWrap", "overflowPunct", "topLinePunct",
     "autoSpaceDE", "autoSpaceDN", "bidi", "adjustRightInd", "snapToGrid", "spacing", "ind", "contextualSpacing",
-    "mirrorIndents", "suppressOverlap", "jc", "textDirection", "textAlignment", "textboxTightWrap", "outlineLvl",
+    "mirrorIndents", "suppressOverlap", "jc", "textDirection", "textAlignment", "textboxTightWrap", "outlineLvl", "collapsed",
     "divId", "cnfStyle", "rPr", "sectPr", "pPrChange",
 )
 
@@ -18036,13 +18081,13 @@ def _writer_upsert_ppr_empty(paragraph: str, tag: str, replacement: str) -> str:
     if ppr:
         block = ppr.group(0)
         # `<w:tag .../>` or `<w:tag ...>...</w:tag>`; \b keeps `ind` from matching `indent...`, count=1 keeps the first
-        pattern = rf"<w:{tag}\b[^>]*?(?:/>|>[\s\S]*?</w:{tag}\s*>)"
+        pattern = rf"<(?:w|w15):{tag}\b[^>]*?(?:/>|>[\s\S]*?</(?:w|w15):{tag}\s*>)"
         updated, replaced = re.subn(pattern, lambda _m: replacement, block, count=1, flags=re.IGNORECASE)
         if replaced == 0:
             wanted = _PPR_CHILD_ORDER.index(tag) if tag in _PPR_CHILD_ORDER else len(_PPR_CHILD_ORDER)
             insert_at = None
             inner_start = re.match(r"<w:pPr\b[^>]*>", block, re.IGNORECASE).end()
-            for child in re.finditer(r"<w:([A-Za-z]+)\b[^>]*?(?:/>|>[\s\S]*?</w:\1\s*>)", block[inner_start:], re.IGNORECASE):
+            for child in re.finditer(r"<(?:w|w15):([A-Za-z]+)\b[^>]*?(?:/>|>[\s\S]*?</(?:w|w15):\1\s*>)", block[inner_start:], re.IGNORECASE):
                 name = child.group(1)
                 if name in _PPR_CHILD_ORDER and _PPR_CHILD_ORDER.index(name) > wanted:
                     insert_at = inner_start + child.start()
@@ -18461,11 +18506,14 @@ def _writer_restore_created_paragraph_css(document_xml: str, source_html: str) -
         return str(round(points * 20))
 
     for match in re.finditer(r"<(p|h[1-6])\b([^>]*)>([\s\S]*?)</\1\s*>", source_html, re.IGNORECASE):
+        tag_name = match.group(1).lower()
         attrs, inner = match.group(2), match.group(3)
         style_match = re.search(r"\bstyle\s*=\s*([\"'])(.*?)\1", attrs, re.IGNORECASE)
         tabs_match = re.search(r"\bdata-vno-tabs\s*=\s*([\"'])(.*?)\1", attrs, re.IGNORECASE)
         outline_match = re.search(r"\bdata-vno-outline\s*=\s*([\"'])([1-9])\1", attrs, re.IGNORECASE)
-        if not style_match and not tabs_match and not outline_match:
+        collapsed_match = re.search(r"\bdata-vno-collapsed\s*=\s*([\"'])true\1", attrs, re.IGNORECASE) or ("vno-heading-collapsed" in attrs)
+        h_match = re.match(r"^h([1-6])$", tag_name)
+        if not style_match and not tabs_match and not outline_match and not collapsed_match and not h_match:
             continue
         text = re.sub(r"\s+", " ", _writer_html_plain(inner)).strip()
         if not text:
@@ -18475,8 +18523,15 @@ def _writer_restore_created_paragraph_css(document_xml: str, source_html: str) -
         tabs_xml = _writer_tabs_xml(tabs_match.group(2)) if tabs_match else ""
         if tabs_xml:
             properties["tabs_xml"] = tabs_xml
+        outline_lvl = None
         if outline_match:
-            properties["outline_xml"] = f'<w:outlineLvl w:val="{int(outline_match.group(2)) - 1}"/>'
+            outline_lvl = int(outline_match.group(2)) - 1
+        elif h_match:
+            outline_lvl = int(h_match.group(1)) - 1
+        if outline_lvl is not None:
+            properties["outline_xml"] = f'<w:outlineLvl w:val="{outline_lvl}"/>'
+            if collapsed_match:
+                properties["collapsed_xml"] = '<w15:collapsed/>'
         align =re.search(r"(?:^|;)\s*text-align\s*:\s*(left|right|center|justify)(?:\s*!important)?\s*(?:;|$)", css, re.IGNORECASE)
         if align:
             properties["alignment"] = {"left": "left", "right": "right", "center": "center", "justify": "both"}[align.group(1).lower()]
@@ -18528,6 +18583,8 @@ def _writer_restore_created_paragraph_css(document_xml: str, source_html: str) -
             paragraph = _writer_upsert_ppr_empty(paragraph, "tabs", props["tabs_xml"])
         if props.get("outline_xml"):
             paragraph = _writer_upsert_ppr_empty(paragraph, "outlineLvl", props["outline_xml"])
+        if props.get("collapsed_xml"):
+            paragraph = _writer_upsert_ppr_empty(paragraph, "collapsed", props["collapsed_xml"])
         ind_attrs = []
         if props.get("left_indent_twips") is not None:
             ind_attrs.append(f'w:left="{props["left_indent_twips"]}"')
@@ -18576,7 +18633,16 @@ def _writer_restore_created_paragraph_css(document_xml: str, source_html: str) -
                 )
         return paragraph
 
-    return re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", patch_paragraph, document_xml, flags=re.IGNORECASE)
+    res = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", patch_paragraph, document_xml, flags=re.IGNORECASE)
+    if "w15:collapsed" in res and "xmlns:w15=" not in res:
+        res = re.sub(
+            r"(<w:document\b[^>]*)>",
+            r'\1 xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml">',
+            res,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+    return res
 
 
 def _writer_restore_created_run_highlight(run_xml: str, highlighted_texts: dict[str, str]) -> str:
@@ -21448,6 +21514,17 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             else:
                 settings_xml = re.sub(r"<w:evenAndOddHeaders\b[^>]*/>", "", settings_xml, flags=re.IGNORECASE)
             replacements["word/settings.xml"] = settings_xml.encode("utf-8")
+    settings_bytes = replacements.get("word/settings.xml") or read_zip_entry(docx_bytes, "word/settings.xml")
+    if settings_bytes:
+        settings_xml = settings_bytes.decode("utf-8", errors="replace")
+        new_settings = _writer_apply_view_mode_to_settings(settings_xml, source_html)
+        if new_settings != settings_xml:
+            replacements["word/settings.xml"] = new_settings.encode("utf-8")
+    elif source_html:
+        target_mode = _writer_view_mode_from_html(source_html)
+        if target_mode:
+            minimal_settings = f'<?xml version="1.0" encoding="UTF-8" standalone="yes"?><w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:view w:val="{target_mode}"/></w:settings>'
+            replacements["word/settings.xml"] = minimal_settings.encode("utf-8")
     document_xml = _writer_restore_native_writer_shapes(document_xml, source_html)
     replacements["word/document.xml"] = document_xml.encode("utf-8")
     return patch_ooxml_zip(docx_bytes, replacements)
@@ -21498,6 +21575,114 @@ def writer_accepted_view_html(source_html: str) -> str:
     )
     result = re.sub(r"<!--vno-review-meta-hex:[0-9a-f]+-->", "", result, flags=re.IGNORECASE)
     return result
+
+
+def _writer_document_properties_metadata(source_html: str | None) -> dict[str, str] | None:
+    match = re.search(
+        r"<!--vno-document-properties-hex:([0-9a-f]+)-->",
+        source_html or "", re.IGNORECASE,
+    )
+    if not match:
+        return None
+    try:
+        payload = json.loads(bytes.fromhex(match.group(1)).decode("utf-8"))
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Metadata thuộc tính tài liệu không hợp lệ.") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("Metadata thuộc tính tài liệu phải là một đối tượng.")
+    limits = {
+        "title": 255,
+        "creator": 255,
+        "subject": 255,
+        "keywords": 1024,
+        "description": 4096,
+    }
+    normalized: dict[str, str] = {}
+    for key, limit in limits.items():
+        value = str(payload.get(key) or "").replace("\r\n", "\n").replace("\r", "\n")[:limit]
+        normalized[key] = "".join(
+            character for character in value
+            if character in "\t\n\r" or ord(character) >= 0x20
+        )
+    return normalized
+
+
+def postprocess_writer_document_properties(
+    docx_bytes: bytes, *, source_html: str | None = None,
+) -> bytes:
+    """Write Writer's five editable properties to docProps/core.xml.
+
+    The converted package remains the source of all other core properties
+    (created/modified timestamps, revision and lastModifiedBy).
+    """
+    properties = _writer_document_properties_metadata(source_html)
+    if properties is None:
+        return docx_bytes
+
+    core_bytes = read_zip_entry(docx_bytes, "docProps/core.xml")
+    core_xml = core_bytes.decode("utf-8", errors="strict") if core_bytes else (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<cp:coreProperties '
+        'xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" '
+        'xmlns:dc="http://purl.org/dc/elements/1.1/" '
+        'xmlns:dcterms="http://purl.org/dc/terms/" '
+        'xmlns:dcmitype="http://purl.org/dc/dcmitype/" '
+        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+        '</cp:coreProperties>'
+    )
+    fields = {
+        "title": "dc:title",
+        "creator": "dc:creator",
+        "subject": "dc:subject",
+        "keywords": "cp:keywords",
+        "description": "dc:description",
+    }
+    for key, tag in fields.items():
+        pattern = re.compile(
+            rf"<{re.escape(tag)}\b[^>]*>[\s\S]*?</{re.escape(tag)}\s*>|<{re.escape(tag)}\b[^>]*/\s*>",
+            re.IGNORECASE,
+        )
+        core_xml = pattern.sub("", core_xml)
+        value = properties[key]
+        if value:
+            element = f"<{tag}>{html.escape(value, quote=False)}</{tag}>"
+            core_xml = re.sub(
+                r"</cp:coreProperties\s*>", element + "</cp:coreProperties>",
+                core_xml, count=1, flags=re.IGNORECASE,
+            )
+
+    replacements: dict[str, bytes] = {"docProps/core.xml": core_xml.encode("utf-8")}
+    if not core_bytes:
+        content_types_bytes = read_zip_entry(docx_bytes, "[Content_Types].xml")
+        content_types = (content_types_bytes or b"").decode("utf-8", errors="strict")
+        if "/docProps/core.xml" not in content_types:
+            override = (
+                '<Override PartName="/docProps/core.xml" '
+                'ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'
+            )
+            content_types = re.sub(
+                r"</Types\s*>", override + "</Types>", content_types,
+                count=1, flags=re.IGNORECASE,
+            )
+            replacements["[Content_Types].xml"] = content_types.encode("utf-8")
+        rels_bytes = read_zip_entry(docx_bytes, "_rels/.rels")
+        rels = (rels_bytes or b"").decode("utf-8", errors="strict")
+        if "metadata/core-properties" not in rels:
+            used_ids = {int(value) for value in re.findall(r'\bId="rId(\d+)"', rels)}
+            next_id = 1
+            while next_id in used_ids:
+                next_id += 1
+            relationship = (
+                f'<Relationship Id="rId{next_id}" '
+                'Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" '
+                'Target="docProps/core.xml"/>'
+            )
+            rels = re.sub(
+                r"</Relationships\s*>", relationship + "</Relationships>", rels,
+                count=1, flags=re.IGNORECASE,
+            )
+            replacements["_rels/.rels"] = rels.encode("utf-8")
+    return patch_ooxml_zip(docx_bytes, replacements)
 
 
 def _writer_find_review_bookmark_pair(document_xml: str, name: str) -> tuple[re.Match, re.Match]:

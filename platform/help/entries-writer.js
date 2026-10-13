@@ -5,6 +5,63 @@
 
 export const WRITER_HELP_ENTRIES = [
   {
+    id: "writer.view.outline.help",
+    app: "writer",
+    commandIds: [
+      "writer.view.outline",
+      "writer.outline.promote",
+      "writer.outline.demote",
+      "writer.outline.moveUp",
+      "writer.outline.moveDown",
+      "writer.outline.expand",
+      "writer.outline.collapse",
+      "writer.outline.showLevel",
+      "writer.outline.close"
+    ],
+    title: "Chế độ xem Dàn bài và tổ chức cây tiêu đề",
+    summary: "Chế độ Dàn bài (Outline) cho phép xem toàn bộ cấu trúc văn bản theo cấp tiêu đề, nâng hoặc hạ cấp bậc tiêu đề, di chuyển vị trí phần tài liệu lên hoặc xuống, và thu gọn/mở rộng từng nhánh nội dung.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dàn bài" },
+    keywords: ["dàn bài", "outline", "nâng cấp", "hạ cấp", "thu gọn", "mở rộng", "cấp tiêu đề", "di chuyển lên", "di chuyển xuống", "Alt Shift"],
+    steps: [
+      "Mở tab Chế độ xem trên thanh công cụ, chọn Dàn bài để chuyển sang giao diện tổ chức tài liệu theo cây phân cấp.",
+      "Thanh công cụ Dàn bài cung cấp các nút thao tác nhanh: Nâng cấp (Alt+Shift+Left) để tăng bậc tiêu đề, Hạ cấp (Alt+Shift+Right) để giảm bậc tiêu đề.",
+      "Bấm Di chuyển lên hoặc Di chuyển xuống để hoán đổi thứ tự toàn bộ phân đoạn tiêu đề cùng nội dung thuộc về nó.",
+      "Sử dụng nút Mở rộng (Alt+Shift++) hoặc Thu gọn (Alt+Shift+-) để ẩn hoặc hiện nội dung thân dưới tiêu đề đang chọn.",
+      "Hộp chọn 'Hiển thị cấp' cho phép lọc nhanh hiển thị: chỉ xem Tiêu đề Cấp 1, Cấp 2, Cấp 3 hoặc xem Tất cả các cấp.",
+      "Bấm nút Đóng Dàn bài trên thanh công cụ để quay lại chế độ Bố cục in bình thường. Toàn bộ cấu trúc phân cấp được lưu giữ nguyên vẹn vào tệp DOCX."
+    ]
+  },
+  {
+    id: "writer.view.draft.help",
+    app: "writer",
+    commandIds: ["writer.view.draft"],
+    title: "Chế độ xem Bản nháp và soạn thảo văn bản nhanh",
+    summary: "Chế độ Bản nháp (Draft) loại bỏ các đường viền trang, khoảng cách lề và bố cục trang phức tạp để người dùng tập trung hoàn toàn vào việc nhập và chỉnh sửa văn bản với tốc độ cao.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dạng xem" },
+    keywords: ["bản nháp", "draft", "soạn thảo nhanh", "không phân trang", "chế độ xem"],
+    steps: [
+      "Mở tab Chế độ xem, chọn Bản nháp trong nhóm Dạng xem.",
+      "Trang tài liệu sẽ hiển thị văn bản liền mạch không bị ngắt trang hoặc khoảng cách lề, giúp tăng tốc độ gõ chữ và chỉnh sửa văn bản dài.",
+      "Để quay lại chế độ xem có ranh giới trang đầy đủ, bấm Bố cục in trên tab Chế độ xem.",
+      "Khi lưu tài liệu sang định dạng DOCX, chế độ xem Bản nháp được lưu vào thiết lập tệp để các bộ ứng dụng văn phòng mở đúng giao diện tương ứng."
+    ]
+  },
+  {
+    id: "writer.view.collapsibleHeadings.help",
+    app: "writer",
+    commandIds: ["writer.view.toggleHeadingCollapse"],
+    title: "Thu gọn và mở rộng nội dung dưới tiêu đề trong Bố cục in",
+    summary: "Trong chế độ Bố cục in, mỗi tiêu đề đều có biểu tượng mũi tên để thu gọn hoặc mở rộng nhanh phần nội dung bên dưới, giúp dễ theo dõi tài liệu dài mà không làm mất dữ liệu khi lưu.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dàn bài" },
+    keywords: ["thu gọn tiêu đề", "mở rộng tiêu đề", "ẩn nội dung tiêu đề", "collapsible headings", "bố cục in"],
+    steps: [
+      "Di chuột lên bất kỳ tiêu đề nào (Cấp 1–6) trong trang tài liệu, một nút mũi tên nhỏ sẽ xuất hiện ở đầu tiêu đề.",
+      "Bấm vào mũi tên (hoặc nhấn chuột vào tiêu đề rồi chọn Thu/Mở nội dung tiêu đề) để ẩn toàn bộ nội dung nằm dưới tiêu đề đó cho đến tiêu đề tiếp theo cùng cấp hoặc cao hơn.",
+      "Bấm lại vào mũi tên để mở rộng và hiển thị lại toàn bộ nội dung đã thu gọn.",
+      "Khi thu gọn nội dung và bấm Lưu tệp (DOCX), toàn bộ văn bản vẫn được bảo toàn 100% không bị mất hay thiếu hụt, đồng thời trạng thái thu gọn được lưu theo chuẩn mở rộng tài liệu."
+    ]
+  },
+  {
     id: "writer.view.navigationPane.help",
     app: "writer",
     commandIds: ["writer.view.navigationPane"],
@@ -1796,6 +1853,37 @@ export const WRITER_HELP_ENTRIES = [
     "Trong tab «Thụt lề và khoảng cách»: chọn Căn lề, chỉnh Thụt lề trái/phải (mm), Thụt dòng đặc biệt (Dòng đầu tiên hoặc Thụt lề treo) và Khoảng cách trước/sau (pt), Giãn dòng. Nếu nhập giá trị không hợp lệ (ngoài khoảng -100 đến 100 mm cho thụt lề, 0 đến 500 pt cho khoảng cách, hoặc tổng thụt lề vượt quá bề rộng trang), hộp thoại sẽ hiển thị cảnh báo lỗi bằng tiếng Việt và giữ nguyên để sửa lại.",
     "Chuyển sang tab «Dòng và ngắt trang» để thiết lập các tùy chọn phân trang như Ngắt trang trước đoạn, Giữ với đoạn kế tiếp hoặc Kiểm soát dòng đầu/cuối mồ côi.",
     "Bấm Áp dụng (hoặc nhấn Enter) để thực hiện định dạng; bấm Đặt lại để quay về thông số ban đầu, hoặc bấm Hủy / nhấn Esc để đóng hộp thoại mà không thay đổi."
+  ]
+},
+{
+  id: "writer.file.documentProperties",
+  app: "writer",
+  commandIds: ["writer.file.properties"],
+  title: "Thuộc tính tài liệu",
+  summary: "Khai báo tiêu đề, tác giả, chủ đề, từ khóa và ghi chú để người nhận dễ nhận biết, tìm kiếm và quản lý tài liệu DOCX.",
+  ribbon: { tab: "Tệp", tabId: "file", group: "Thông tin" },
+  keywords: ["thuộc tính tài liệu", "tiêu đề", "tác giả", "chủ đề", "từ khóa", "ghi chú", "thông tin docx"],
+  steps: [
+    "Mở Tệp, chọn Thông tin để mở hộp Thuộc tính tài liệu.",
+    "Nhập Tiêu đề, Tác giả và Chủ đề. Ở ô Từ khóa, có thể phân tách nhiều từ bằng dấu phẩy hoặc dấu chấm phẩy; ô Ghi chú dùng cho mô tả dài hơn.",
+    "Bấm Đồng ý để áp dụng. Thanh trạng thái nhắc rằng tài liệu cần được lưu; nếu bấm Hủy bỏ hoặc nhấn Esc, các giá trị cũ được giữ nguyên.",
+    "Nhấn Ctrl+S hoặc chọn Tệp > Lưu. Với DOCX, năm trường được ghi vào thuộc tính lõi của tệp và được nạp lại khi mở tài liệu lần sau."
+  ]
+},
+{
+  id: "writer.options.autoCorrect",
+  app: "writer",
+  commandIds: ["writer.file.options"],
+  title: "Tự sửa lỗi gõ và ký tự thông minh",
+  summary: "Tự thay lỗi gõ theo bảng riêng, viết hoa đầu câu và đổi ngoặc, gạch ngang, phân số sau khi từ đã được bộ gõ tiếng Việt hoàn tất.",
+  ribbon: { tab: "Tệp", tabId: "file", group: "Tùy chọn" },
+  keywords: ["tự sửa", "autocorrect", "ngoặc thông minh", "nháy đơn", "gạch ngang", "phân số", "viết hoa đầu câu", "unikey", "evkey", "telex"],
+  steps: [
+    "Mở Tệp > Tùy chọn, tìm nhóm Tự sửa lỗi gõ. Chọn hoặc bỏ chọn Bật Tự sửa lỗi gõ trong Doc để bật hoặc tắt toàn bộ tính năng.",
+    "Dùng các ô riêng để bật Thay văn bản khi gõ, viết hoa chữ đầu câu, ngoặc thông minh, đổi -- thành – và đổi 1/2 thành ½.",
+    "Trong bảng Thay/Bằng, bấm Thêm dòng để khai báo cặp mới, ví dụ «teh» thành «the»; bấm nút × ở cuối dòng để xóa. Mỗi dòng phải có đủ hai giá trị, nếu không hộp thoại sẽ báo lỗi và không đóng.",
+    "Bấm Đồng ý để lưu lựa chọn trên máy. Khi soạn thảo, cặp thay thế và viết hoa được áp dụng lúc gõ dấu cách hoặc dấu câu; ©, ½, – và ngoặc thông minh được đổi ngay khi mẫu hoàn tất.",
+    "Với Unikey, EVKey hoặc kiểu gõ Telex, hãy gõ bình thường. Doc bỏ qua sự kiện khi bộ gõ còn đang ghép chữ/đặt dấu và chỉ sửa từ đã chốt, vì vậy chuỗi tiếng Việt đang gõ dở không bị can thiệp."
   ]
 }
 ];

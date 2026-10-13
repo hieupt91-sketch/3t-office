@@ -253,6 +253,88 @@
 .vno-writer-read-mode > .vno-statusbar { display: none !important; }
 .vno-writer-read-layout .vno-writer-viewport { padding-top: 18px; }
 
+/* Chế độ Bản nháp (Draft View) */
+.vno-writer-draft-layout .vno-writer-ruler-vertical { display: none !important; }
+.vno-writer-draft-layout .vno-writer-viewport { padding: 8px 16px; align-items: stretch; }
+.vno-writer-draft-layout .vno-writer-page { width: 100% !important; min-height: 100%; max-width: 960px; margin: 0 auto; padding: 24px 32px !important; box-shadow: none !important; border: 1px dashed var(--vno-border-subtle, #cbd5e1); border-radius: 0; background: var(--vno-surface-sheet, #fff); }
+.vno-writer-draft-layout .vno-page-auto-gap,
+.vno-writer-draft-layout .vno-writer-header,
+.vno-writer-draft-layout .vno-writer-footer,
+.vno-writer-draft-layout .vno-writer-page::before,
+.vno-writer-draft-layout .vno-writer-page::after,
+.vno-writer-draft-layout .vno-page-watermark,
+.vno-writer-draft-layout .vno-page-border-frame { display: none !important; }
+
+/* Chế độ Dàn bài (Outline View) */
+.vno-writer-outline-layout .vno-writer-ruler,
+.vno-writer-outline-layout .vno-writer-ruler-vertical { display: none !important; }
+.vno-writer-outline-layout .vno-writer-viewport { padding: 8px 16px; align-items: stretch; }
+.vno-writer-outline-layout .vno-writer-page { width: 100% !important; min-height: 100%; max-width: 960px; margin: 0 auto; padding: 16px 24px !important; box-shadow: none !important; border: 1px solid var(--vno-border-subtle, #cbd5e1); border-radius: 4px; background: var(--vno-surface-sheet, #fff); }
+.vno-writer-outline-layout .vno-page-auto-gap,
+.vno-writer-outline-layout .vno-writer-header,
+.vno-writer-outline-layout .vno-writer-footer,
+.vno-writer-outline-layout .vno-writer-page::before,
+.vno-writer-outline-layout .vno-writer-page::after,
+.vno-writer-outline-layout .vno-page-watermark,
+.vno-writer-outline-layout .vno-page-border-frame { display: none !important; }
+
+/* Thụt lề cấp bậc trong Chế độ Dàn bài */
+.vno-writer-outline-layout .vno-writer-body h1,
+.vno-writer-outline-layout .vno-writer-body [data-vno-outline="1"] { margin-left: 0px !important; }
+.vno-writer-outline-layout .vno-writer-body h2,
+.vno-writer-outline-layout .vno-writer-body [data-vno-outline="2"] { margin-left: 24px !important; }
+.vno-writer-outline-layout .vno-writer-body h3,
+.vno-writer-outline-layout .vno-writer-body [data-vno-outline="3"] { margin-left: 48px !important; }
+.vno-writer-outline-layout .vno-writer-body h4,
+.vno-writer-outline-layout .vno-writer-body [data-vno-outline="4"] { margin-left: 72px !important; }
+.vno-writer-outline-layout .vno-writer-body h5,
+.vno-writer-outline-layout .vno-writer-body [data-vno-outline="5"] { margin-left: 96px !important; }
+.vno-writer-outline-layout .vno-writer-body h6,
+.vno-writer-outline-layout .vno-writer-body [data-vno-outline="6"] { margin-left: 120px !important; }
+.vno-writer-outline-layout .vno-writer-body p:not([data-vno-outline]) { margin-left: 36px !important; color: var(--vno-text-secondary, #475569); }
+
+/* Thanh công cụ Dàn bài */
+.vno-writer-outline-toolbar { display: flex; align-items: center; gap: 8px; padding: 6px 12px; background: var(--vno-surface-panel, #f1f5f9); border-bottom: 1px solid var(--vno-border-subtle, #cbd5e1); flex-wrap: wrap; z-index: 10; font-size: 13px; }
+.vno-writer-outline-toolbar button { display: inline-flex; align-items: center; gap: 4px; padding: 4px 8px; border: 1px solid var(--vno-border-subtle, #cbd5e1); border-radius: 4px; background: var(--vno-surface-card, #fff); color: var(--vno-text-primary, #1e293b); cursor: pointer; font-size: 12px; font-weight: 500; }
+.vno-writer-outline-toolbar button:hover { background: var(--vno-hover-bg, #e2e8f0); }
+.vno-writer-outline-toolbar select { padding: 4px 8px; border: 1px solid var(--vno-border-subtle, #cbd5e1); border-radius: 4px; background: var(--vno-surface-card, #fff); font-size: 12px; }
+
+/* Ẩn nội dung bị thu gọn */
+.vno-heading-collapsed-body { display: none !important; }
+
+/* Nút ẩn/hiện chi tiết cạnh tiêu đề */
+.vno-heading-collapse-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  margin-right: 6px;
+  margin-left: -24px;
+  border: none;
+  background: transparent;
+  color: var(--vno-text-muted, #94a3b8);
+  cursor: pointer;
+  border-radius: 3px;
+  vertical-align: middle;
+  padding: 0;
+  transition: transform 0.15s ease, color 0.15s ease;
+  user-select: none;
+}
+.vno-heading-collapse-btn:hover {
+  color: var(--vno-primary, #0f4c81);
+  background: rgba(15, 76, 129, 0.08);
+}
+.vno-heading-collapse-btn svg {
+  width: 12px;
+  height: 12px;
+  transition: transform 0.15s ease;
+}
+.vno-heading-collapsed > .vno-heading-collapse-btn svg,
+.vno-heading-collapsed-btn-rotated svg {
+  transform: rotate(-90deg);
+}
+
 /* Ghi chú lề trang — panel riêng, không dùng chung state/UI với AI Sidebar. */
 .vno-writer-comments-panel {
   width: 300px;

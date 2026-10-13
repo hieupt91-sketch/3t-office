@@ -947,7 +947,8 @@ export class SlidesCanvasController {
       setSpellcheckEnabled(next);
     }).catch(() => {});
     globalCommandBus.updateState("slides.review.toggleSpellCheck", { checked: next });
-    return next;
+    this.options?.shell?.setStatus?.(next ? "Đã bật kiểm tra chính tả." : "Đã tắt kiểm tra chính tả.");
+    return true;
   }
 
   _ensureSpellChecker() {
@@ -1618,7 +1619,8 @@ export class SlidesCanvasController {
       }
     }
     this._syncCommandStates();
-    return this.isNotesVisible;
+    this.options?.shell?.setStatus?.(this.isNotesVisible ? "Đã mở ngăn ghi chú." : "Đã đóng ngăn ghi chú.");
+    return true;
   }
 
   /**
@@ -2405,7 +2407,8 @@ export class SlidesCanvasController {
       }
     }
     this._syncCommandStates();
-    return this.isAnimationPaneVisible;
+    this.options?.shell?.setStatus?.(this.isAnimationPaneVisible ? "Đã mở ngăn hoạt hình." : "Đã đóng ngăn hoạt hình.");
+    return true;
   }
 
   _createAnimationPane(stage) {
@@ -4022,6 +4025,7 @@ export class SlidesCanvasController {
       }
       if (now - (this._formatPainterActivatedAt || 0) < 400) return true;
       this.cancelFormatPainter();
+      this.options?.shell?.setStatus?.("Đã hủy sao chép định dạng.");
       return false;
     }
     return this.startFormatPainter({ locked, source: opts.source });
@@ -5855,7 +5859,8 @@ const startEditing = (initialText) => {
     if (typeof globalCommandBus !== "undefined" && globalCommandBus?.updateState) {
       globalCommandBus.updateState("slides.arrange.alignToSlide", { checked: this.alignToSlideMode });
     }
-    return this.alignToSlideMode;
+    this.options?.shell?.setStatus?.(this.alignToSlideMode ? "Đã bật căn theo trang chiếu." : "Đã tắt căn theo trang chiếu (căn theo vùng chọn).");
+    return true;
   }
 
   nudgeSelected(dx, dy) {
@@ -8370,7 +8375,7 @@ const startEditing = (initialText) => {
     this.redoStack = [];
     this._syncUndoRedoState();
     this.focusComment(entry);
-    return entry.comment.resolved;
+    return true;
   }
 
   _renderCommentsUi() {
@@ -10385,9 +10390,9 @@ const startEditing = (initialText) => {
     return this.startSlideShow(startIndex, { rehearsal: true });
   }
 
-  exitSlideShow() {
+  exitSlideShow(discardRehearsal = true) {
     if (typeof this._activeShowCleanup === "function") {
-      this._activeShowCleanup();
+      this._activeShowCleanup(discardRehearsal);
       this._activeShowCleanup = null;
       return true;
     }
@@ -10937,14 +10942,16 @@ const startEditing = (initialText) => {
     this.rulerVisible = !this.rulerVisible;
     this._applyViewState();
     this._syncCommandStates();
-    return this.rulerVisible;
+    this.options?.shell?.setStatus?.(this.rulerVisible ? "Đã hiện thước đo." : "Đã ẩn thước đo.");
+    return true;
   }
 
   toggleGridlines() {
     this.gridlinesVisible = !this.gridlinesVisible;
     this._applyViewState();
     this._syncCommandStates();
-    return this.gridlinesVisible;
+    this.options?.shell?.setStatus?.(this.gridlinesVisible ? "Đã hiện đường lưới." : "Đã ẩn đường lưới.");
+    return true;
   }
 
   _renderGuidesLayer() {
@@ -11028,7 +11035,8 @@ const startEditing = (initialText) => {
     this.guidesVisible = !this.guidesVisible;
     this._applyViewState();
     this._syncCommandStates();
-    return this.guidesVisible;
+    this.options?.shell?.setStatus?.(this.guidesVisible ? "Đã hiện đường gióng." : "Đã ẩn đường gióng.");
+    return true;
   }
 
   setNormalView() {

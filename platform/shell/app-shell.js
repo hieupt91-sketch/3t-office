@@ -31,6 +31,7 @@ export class AppShell {
    * @param {string} [options.documentName="Tài liệu chưa đặt tên"]
    * @param {Function} [options.onSwitchApp]
    * @param {Function} [options.onApplyTemplate]
+   * @param {{renderHtml?:Function,mount?:Function,apply?:Function}} [options.optionsProvider]
    * @param {boolean} [options.singleAppMode=false]
    */
   constructor(options) {
@@ -40,6 +41,7 @@ export class AppShell {
     this.singleAppMode = options.singleAppMode ?? getPlatformLaunchContext().singleAppMode;
     this._onSwitchApp = options.onSwitchApp || null;
     this._onApplyTemplate = typeof options.onApplyTemplate === "function" ? options.onApplyTemplate : null;
+    this._optionsProvider = options.optionsProvider || null;
     this.zoomLevel = 100;
     this._zoomListeners = new Set();
     this._setZoomControl = null;
@@ -963,6 +965,7 @@ export class AppShell {
         <button type="button" class="vno-backstage-nav-btn" data-backstage-tab="export" id="vno-backstage-nav-export">${t("backstage.exportConvert")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.exportPdf" id="vno-backstage-nav-exportpdf">${t("backstage.exportPdf")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-tab="recent" id="vno-backstage-nav-recent">${t("backstage.recent")}</button>
+        ${this.appName === "writer" ? `<button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="writer.file.properties" id="vno-backstage-writer-info">${t("writerDocumentProperties.backstage")}</button>` : ""}
         <button type="button" class="vno-backstage-nav-btn" data-backstage-action="closeDocument" id="vno-backstage-close">${t("backstage.close")}</button>
         <div style="flex:1;"></div>
         <button type="button" class="vno-backstage-nav-btn" id="vno-backstage-account">${t("backstage.account")}</button>
@@ -1417,9 +1420,10 @@ export class AppShell {
     overlay.className = "vno-dialog-overlay";
     const currentTheme = themeManager.getTheme();
     const currentFontSize = themeManager.getFontSize();
+    const appOptionsHtml = this._optionsProvider?.renderHtml?.() || "";
 
     overlay.innerHTML = `
-      <div class="vno-dialog-box" style="width: 480px; max-width: calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-options-dialog-title">
+      <div class="vno-dialog-box" style="width:${this._optionsProvider ? "720px" : "480px"};max-width:calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-options-dialog-title">
         <div class="vno-dialog-header">
           <div style="display:flex;align-items:center;gap:8px;">
             <span style="font-weight:700;font-size:15px;" id="vno-options-dialog-title">Tùy chọn 3T Office</span>
@@ -1489,6 +1493,7 @@ export class AppShell {
               </label>
             </div>
           </fieldset>
+          ${appOptionsHtml}
         </div>
         <div class="vno-dialog-footer" style="display:flex;justify-content:flex-end;gap:8px;">
           <button type="button" class="vno-btn vno-options-cancel-btn">Hủy bỏ</button>
@@ -1502,6 +1507,7 @@ export class AppShell {
     const okBtn = overlay.querySelector(".vno-options-ok-btn");
     const cancelBtn = overlay.querySelector(".vno-options-cancel-btn");
     const closeBtn = overlay.querySelector(".vno-options-close-btn");
+    this._optionsProvider?.mount?.(overlay);
 
     // --- Khu vực tiêu đề: xem trước trực tiếp, chỉ lưu khi bấm Đồng ý ---
     let headerCommitted = false;
@@ -1602,6 +1608,7 @@ export class AppShell {
     };
 
     const applyOptions = () => {
+      if (this._optionsProvider?.apply?.(overlay) === false) return;
       const selectedTheme = overlay.querySelector('input[name="vno-opt-theme"]:checked')?.value || "light";
       const selectedFontSize = overlay.querySelector('input[name="vno-opt-fontsize"]:checked')?.value || "normal";
       themeManager.setTheme(selectedTheme);
@@ -1623,6 +1630,11 @@ export class AppShell {
         e.preventDefault();
         closeDialog();
       } else if (e.key === "Enter") {
+        if (document.activeElement?.matches?.(".vno-autocorrect-add,.vno-autocorrect-remove,.vno-autocorrect-reset")) {
+          e.preventDefault();
+          document.activeElement.click();
+          return;
+        }
         e.preventDefault();
         if (document.activeElement === cancelBtn || document.activeElement === closeBtn) {
           closeDialog();

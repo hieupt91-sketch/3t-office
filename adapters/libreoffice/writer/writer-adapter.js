@@ -55,6 +55,12 @@ import {
 } from "../../../apps/writer/captions.js";
 import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlListMarkerStats, extractOoxmlDocumentText, extractWordCountText, showWordCountDialog } from "../../../apps/writer/word-count.js";
 import { showFontDialog } from "../../../apps/writer/font-dialog.js";
+import {
+  documentPropertiesMarker,
+  normalizeDocumentProperties,
+  parseCorePropertiesXml,
+  showDocumentPropertiesDialog
+} from "../../../apps/writer/document-properties.js";
 
 let writerInsertDialogsPromise;
 let writerMailMergeDialogsPromise;
@@ -295,6 +301,7 @@ export class WriterAdapter {
     this.isNewApplicationDocument = true;
     this._openedEditorDomHash = null;
     this.sourceFileName = "TaiLieu";
+    this.documentProperties = normalizeDocumentProperties();
     this.pageSetup = {
       size: "a4",
       orientation: "portrait",
@@ -583,11 +590,11 @@ export class WriterAdapter {
 
     // Bind Review (Ghi chú & Theo dõi thay đổi)
     globalCommandBus.bindHandler("writer.comment.insert", (args) => this.insertComment(args));
-    globalCommandBus.bindHandler("writer.review.commentPrevious", () => this.previousComment());
-    globalCommandBus.bindHandler("writer.review.commentNext", () => this.nextComment());
-    globalCommandBus.bindHandler("writer.review.commentDelete", () => this.deleteActiveComment());
-    globalCommandBus.bindHandler("writer.review.commentResolve", () => this.toggleActiveCommentResolved());
-    globalCommandBus.bindHandler("writer.review.commentReply", (args) => this.replyToActiveComment(args));
+    globalCommandBus.bindHandler("writer.review.commentPrevious", () => this._hintIfFalse(() => this.previousComment(), "Tài liệu chưa có nhận xét nào."));
+    globalCommandBus.bindHandler("writer.review.commentNext", () => this._hintIfFalse(() => this.nextComment(), "Tài liệu chưa có nhận xét nào."));
+    globalCommandBus.bindHandler("writer.review.commentDelete", () => this._hintIfFalse(() => this.deleteActiveComment(), "Tài liệu không có nhận xét nào để xóa."));
+    globalCommandBus.bindHandler("writer.review.commentResolve", () => this._hintIfFalse(() => this.toggleActiveCommentResolved(), "Tài liệu không có nhận xét nào để đánh dấu đã giải quyết."));
+    globalCommandBus.bindHandler("writer.review.commentReply", (args) => this._hintIfFalse(() => this.replyToActiveComment(args), "Tài liệu không có nhận xét nào để trả lời."));
     globalCommandBus.bindHandler("writer.trackChanges.toggle", (args) => this.toggleTrackChanges(args?.enabled));
     globalCommandBus.bindHandler("writer.trackChanges.previous", () => this.previousTrackChange());
     globalCommandBus.bindHandler("writer.trackChanges.next", () => this.nextTrackChange());
@@ -596,6 +603,8 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.trackChanges.acceptAll", () => this.acceptAllTrackChanges());
     globalCommandBus.bindHandler("writer.trackChanges.rejectAll", () => this.rejectAllTrackChanges());
     globalCommandBus.bindHandler("writer.review.wordCount", () => this.openWordCountDialog());
+    globalCommandBus.bindHandler("writer.file.properties", () => this.openDocumentPropertiesDialog());
+    globalCommandBus.bindHandler("writer.file.options", () => { if (typeof this.shell?.showOptionsDialog !== "function") return false; this.shell.showOptionsDialog(); return true; });
 
     // Bind undo/redo listeners & command handlers
     this._bindUndoRedo();
@@ -649,7 +658,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.section.differentFirstPage", (args) => this.setDifferentFirstPage(args));
     globalCommandBus.bindHandler("writer.section.differentOddEven", (args) => this.setDifferentOddEven(args));
     globalCommandBus.bindHandler("writer.pageNumber.format", (args) => this.openPageNumberDialog(args));
-    globalCommandBus.bindHandler("writer.section.delete", (args) => this.deleteSectionBreak(args));
+    globalCommandBus.bindHandler("writer.section.delete", (args) => this._hintIfFalse(() => this.deleteSectionBreak(args), "Không có dấu ngắt phần (Section Break) nào ở vị trí hiện tại để xóa."));
     globalCommandBus.bindHandler("writer.section.options", (args) => this.openHeaderFooterOptionsDialog(args));
     globalCommandBus.bindHandler("writer.layout.sectionOptions", () => this.openHeaderFooterOptionsDialog());
     globalCommandBus.bindHandler("writer.page.border", (args) => this.openPageBorderDialog(args));
@@ -675,7 +684,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.design.themeGallery", (args) => this.openThemeGalleryDialog(args));
     globalCommandBus.bindHandler("writer.insert.textbox", (args) => this.insertTextBox(args));
     globalCommandBus.bindHandler("writer.insert.wordart", (args) => this.insertWordArt(args));
-    globalCommandBus.bindHandler("writer.format.dropCap", (args) => this.applyDropCap(args));
+    globalCommandBus.bindHandler("writer.format.dropCap", (args) => this._hintIfFalse(() => this.applyDropCap(args), "Hãy đặt con trỏ vào đoạn văn có chữ để tạo chữ hoa đầu dòng (Drop Cap)."));
     globalCommandBus.bindHandler("writer.insert.dateTime", (args) => this.insertDateTime(args));
     globalCommandBus.bindHandler("writer.insert.equation", (args) => this.insertEquation(args));
     globalCommandBus.bindHandler("writer.insert.symbol", (args) => this.insertSymbol(args));
@@ -690,7 +699,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.style.heading1", () => this._applyParagraphStyle("h1"));
     globalCommandBus.bindHandler("writer.style.heading2", () => this._applyParagraphStyle("h2"));
     globalCommandBus.bindHandler("writer.style.heading3", () => this._applyParagraphStyle("h3"));
-    globalCommandBus.bindHandler("writer.text.changeCase", () => this.changeCase());
+    globalCommandBus.bindHandler("writer.text.changeCase", () => this._hintIfFalse(() => this.changeCase(), "Hãy chọn đoạn văn bản cần đổi chữ hoa / chữ thường."));
     globalCommandBus.bindHandler("writer.format.fontDialog", () => this.openFontDialog());
     globalCommandBus.bindHandler("writer.para.sort", () => this.sortParagraphs());
     globalCommandBus.bindHandler("writer.para.showFormattingMarks", () => this.toggleFormattingMarks());
@@ -729,10 +738,10 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("common.edit.repeat", () => this.repeatLastAction());
     globalCommandBus.bindHandler("common.edit.find", () => this._showFindReplaceDialog(false));
     globalCommandBus.bindHandler("common.edit.replace", () => this._showFindReplaceDialog(true));
-    globalCommandBus.bindHandler("writer.list.restartNumbering", (args) => this.restartNumbering(args));
-    globalCommandBus.bindHandler("writer.list.continueNumbering", (args) => this.continueNumbering(args));
+    globalCommandBus.bindHandler("writer.list.restartNumbering", (args) => this._hintIfFalse(() => this.restartNumbering(args), "Hãy đặt con trỏ vào một mục trong danh sách có thứ tự (1, 2, 3...) để đánh số lại."));
+    globalCommandBus.bindHandler("writer.list.continueNumbering", (args) => this._hintIfFalse(() => this.continueNumbering(args), "Hãy đặt con trỏ vào một mục trong danh sách có thứ tự để tiếp tục đánh số."));
     globalCommandBus.bindHandler("writer.insert.coverPage", (args) => this.openCoverPageDialog(args));
-    globalCommandBus.bindHandler("writer.insert.removeCoverPage", () => this.removeCoverPage());
+    globalCommandBus.bindHandler("writer.insert.removeCoverPage", () => this._hintIfFalse(() => this.removeCoverPage(), "Tài liệu hiện tại không có trang bìa để xóa."));
     this._bindTableCommands();
 
     if (!this._lastSnapshot) {
@@ -1554,7 +1563,8 @@ export class WriterAdapter {
   }
 
   applyMultilevelList(preset) {
-    const spec = WRITER_MULTILEVEL_PRESETS[String(preset || "")];
+    const chosen = preset || "decimal";
+    const spec = WRITER_MULTILEVEL_PRESETS[String(chosen)];
     if (!spec) return false;
     this.flushTyping();
     if (typeof document !== "undefined" && typeof document.createElement === "function" && this.bodyDom?.querySelectorAll) {
@@ -1997,6 +2007,9 @@ export class WriterAdapter {
   }
 
   moveParagraph(direction = "up") {
+    if (this.viewController?.mode === "outline") {
+      return direction === "up" ? this.viewController.moveUpHeading() : this.viewController.moveDownHeading();
+    }
     if (typeof window === "undefined") return false;
     const sel = window.getSelection?.();
     if (!sel || sel.rangeCount === 0) return false;
@@ -2394,6 +2407,17 @@ export class WriterAdapter {
   openWordCountDialog() {
     const stats = this.getWordCountStats({ preferSelection: true });
     return showWordCountDialog(stats);
+  }
+
+  async openDocumentPropertiesDialog() {
+    const updated = await showDocumentPropertiesDialog(this.documentProperties);
+    if (!updated) return false;
+    const normalized = normalizeDocumentProperties(updated);
+    if (JSON.stringify(normalized) === JSON.stringify(this.documentProperties)) return true;
+    this.documentProperties = normalized;
+    this.isDirty = true;
+    this.shell?.setStatus?.(t("writerDocumentProperties.saved"));
+    return true;
   }
 
   _serializeNativeDiagramsToFodt(diagrams) {
@@ -7632,35 +7656,35 @@ export class WriterAdapter {
         {
           const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
           const hadSelection = Boolean(selection && !selection.isCollapsed && this.bodyDom?.contains?.(selection.anchorNode));
-        document.execCommand("bold", false, null);
-        dispatchResult = document.queryCommandState("bold");
+          document.execCommand("bold", false, null);
+          dispatchResult = true;
           this._resetInlineFormattingOnNextInput = hadSelection ? { bold: true } : null;
         }
         break;
 
       case "writer.text.italic":
         document.execCommand("italic", false, null);
-        dispatchResult = document.queryCommandState("italic");
+        dispatchResult = true;
         break;
 
       case "writer.text.underline":
         document.execCommand("underline", false, null);
-        dispatchResult = this._readInlineCommandState("underline");
+        dispatchResult = true;
         break;
 
       case "writer.text.strike":
         document.execCommand("strikeThrough", false, null);
-        dispatchResult = document.queryCommandState("strikeThrough");
+        dispatchResult = true;
         break;
 
       case "writer.text.subscript":
         document.execCommand("subscript", false, null);
-        dispatchResult = document.queryCommandState("subscript");
+        dispatchResult = true;
         break;
 
       case "writer.text.superscript":
         document.execCommand("superscript", false, null);
-        dispatchResult = document.queryCommandState("superscript");
+        dispatchResult = true;
         break;
 
       case "writer.font.grow":
@@ -8427,35 +8451,50 @@ export class WriterAdapter {
     return true;
   }
 
+  /** Lệnh ribbon trả false mà không báo gì = nút chết trong mắt người dùng: hiện lý do. */
+  _hintIfFalse(run, message) {
+    const result = run();
+    const show = (value) => {
+      if (value === false) {
+        this.shell?.setStatus?.(message);
+        if (this.shell?.showNotification) {
+          this.shell.showNotification({ type: "info", message });
+        }
+      }
+      return value;
+    };
+    return typeof result?.then === "function" ? result.then(show) : show(result);
+  }
+
   _bindTableCommands() {
-    globalCommandBus.bindHandler("writer.table.insertRowAbove", () => this.insertTableRowAbove());
-    globalCommandBus.bindHandler("writer.table.insertRowBelow", () => this.insertTableRowBelow());
-    globalCommandBus.bindHandler("writer.table.insertColLeft", () => this.insertTableColLeft());
-    globalCommandBus.bindHandler("writer.table.insertColRight", () => this.insertTableColRight());
-    globalCommandBus.bindHandler("writer.table.deleteRow", () => this.deleteTableRow());
-    globalCommandBus.bindHandler("writer.table.deleteCol", () => this.deleteTableCol());
-    globalCommandBus.bindHandler("writer.table.deleteTable", () => this.deleteTable());
-    globalCommandBus.bindHandler("writer.table.mergeCells", () => this.mergeTableCells());
-    globalCommandBus.bindHandler("writer.table.splitCells", () => this.splitTableCells());
-    globalCommandBus.bindHandler("writer.table.distributeRows", () => this.distributeTableRows());
-    globalCommandBus.bindHandler("writer.table.distributeCols", () => this.distributeTableCols());
-    globalCommandBus.bindHandler("writer.table.autoFitContents", () => this.autoFitTableContents());
-    globalCommandBus.bindHandler("writer.table.autoFitWindow", () => this.autoFitTableWindow());
-    globalCommandBus.bindHandler("writer.table.alignTop", () => this.setTableCellAlign("top"));
-    globalCommandBus.bindHandler("writer.table.alignMiddle", () => this.setTableCellAlign("middle"));
-    globalCommandBus.bindHandler("writer.table.alignBottom", () => this.setTableCellAlign("bottom"));
-    globalCommandBus.bindHandler("writer.table.selectCell", () => this.selectTableElements("cell"));
-    globalCommandBus.bindHandler("writer.table.selectRow", () => this.selectTableElements("row"));
-    globalCommandBus.bindHandler("writer.table.selectCol", () => this.selectTableElements("col"));
-    globalCommandBus.bindHandler("writer.table.selectTable", () => this.selectTableElements("table"));
-    globalCommandBus.bindHandler("writer.table.cellBg", (args) => this.setTableCellBackground(args));
-    globalCommandBus.bindHandler("writer.table.borders", (args) => this.setTableBorders(args));
-    globalCommandBus.bindHandler("writer.table.bordersAll", () => this.setTableBorders("all"));
-    globalCommandBus.bindHandler("writer.table.bordersOutside", () => this.setTableBorders("outside"));
-    globalCommandBus.bindHandler("writer.table.bordersInside", () => this.setTableBorders("inside"));
-    globalCommandBus.bindHandler("writer.table.bordersNone", () => this.setTableBorders("none"));
-    globalCommandBus.bindHandler("writer.table.toggleHeaderRow", () => this.toggleTableHeaderRow());
-    globalCommandBus.bindHandler("writer.table.toggleBandedRows", () => this.toggleTableBandedRows());
+    globalCommandBus.bindHandler("writer.table.insertRowAbove", () => this._hintIfFalse(() => this.insertTableRowAbove(), "Hãy đặt con trỏ vào một ô trong bảng trước khi chèn hàng."));
+    globalCommandBus.bindHandler("writer.table.insertRowBelow", () => this._hintIfFalse(() => this.insertTableRowBelow(), "Hãy đặt con trỏ vào một ô trong bảng trước khi chèn hàng."));
+    globalCommandBus.bindHandler("writer.table.insertColLeft", () => this._hintIfFalse(() => this.insertTableColLeft(), "Hãy đặt con trỏ vào một ô trong bảng trước khi chèn cột."));
+    globalCommandBus.bindHandler("writer.table.insertColRight", () => this._hintIfFalse(() => this.insertTableColRight(), "Hãy đặt con trỏ vào một ô trong bảng trước khi chèn cột."));
+    globalCommandBus.bindHandler("writer.table.deleteRow", () => this._hintIfFalse(() => this.deleteTableRow(), "Hãy đặt con trỏ vào một ô trong bảng trước khi xóa hàng."));
+    globalCommandBus.bindHandler("writer.table.deleteCol", () => this._hintIfFalse(() => this.deleteTableCol(), "Hãy đặt con trỏ vào một ô trong bảng trước khi xóa cột."));
+    globalCommandBus.bindHandler("writer.table.deleteTable", () => this._hintIfFalse(() => this.deleteTable(), "Hãy đặt con trỏ vào bảng cần xóa."));
+    globalCommandBus.bindHandler("writer.table.mergeCells", () => this._hintIfFalse(() => this.mergeTableCells(), "Hãy đặt con trỏ vào bảng và chọn ít nhất hai ô để gộp."));
+    globalCommandBus.bindHandler("writer.table.splitCells", () => this._hintIfFalse(() => this.splitTableCells(), "Hãy đặt con trỏ vào một ô trong bảng để tách ô."));
+    globalCommandBus.bindHandler("writer.table.distributeRows", () => this._hintIfFalse(() => this.distributeTableRows(), "Hãy đặt con trỏ vào bảng để căn đều chiều cao các hàng."));
+    globalCommandBus.bindHandler("writer.table.distributeCols", () => this._hintIfFalse(() => this.distributeTableCols(), "Hãy đặt con trỏ vào bảng để căn đều chiều rộng các cột."));
+    globalCommandBus.bindHandler("writer.table.autoFitContents", () => this._hintIfFalse(() => this.autoFitTableContents(), "Hãy đặt con trỏ vào bảng để tự khớp nội dung."));
+    globalCommandBus.bindHandler("writer.table.autoFitWindow", () => this._hintIfFalse(() => this.autoFitTableWindow(), "Hãy đặt con trỏ vào bảng để tự khớp chiều rộng cửa sổ."));
+    globalCommandBus.bindHandler("writer.table.alignTop", () => this._hintIfFalse(() => this.setTableCellAlign("top"), "Hãy đặt con trỏ vào một ô trong bảng để căn lề ô."));
+    globalCommandBus.bindHandler("writer.table.alignMiddle", () => this._hintIfFalse(() => this.setTableCellAlign("middle"), "Hãy đặt con trỏ vào một ô trong bảng để căn lề ô."));
+    globalCommandBus.bindHandler("writer.table.alignBottom", () => this._hintIfFalse(() => this.setTableCellAlign("bottom"), "Hãy đặt con trỏ vào một ô trong bảng để căn lề ô."));
+    globalCommandBus.bindHandler("writer.table.selectCell", () => this._hintIfFalse(() => this.selectTableElements("cell"), "Hãy đặt con trỏ vào bảng để chọn ô."));
+    globalCommandBus.bindHandler("writer.table.selectRow", () => this._hintIfFalse(() => this.selectTableElements("row"), "Hãy đặt con trỏ vào bảng để chọn hàng."));
+    globalCommandBus.bindHandler("writer.table.selectCol", () => this._hintIfFalse(() => this.selectTableElements("col"), "Hãy đặt con trỏ vào bảng để chọn cột."));
+    globalCommandBus.bindHandler("writer.table.selectTable", () => this._hintIfFalse(() => this.selectTableElements("table"), "Hãy đặt con trỏ vào bảng để chọn toàn bộ bảng."));
+    globalCommandBus.bindHandler("writer.table.cellBg", (args) => this._hintIfFalse(() => this.setTableCellBackground(args), "Hãy đặt con trỏ vào một ô trong bảng để tô màu nền."));
+    globalCommandBus.bindHandler("writer.table.borders", (args) => this._hintIfFalse(() => this.setTableBorders(args), "Hãy đặt con trỏ vào bảng để thiết lập đường viền."));
+    globalCommandBus.bindHandler("writer.table.bordersAll", () => this._hintIfFalse(() => this.setTableBorders("all"), "Hãy đặt con trỏ vào bảng để thiết lập đường viền."));
+    globalCommandBus.bindHandler("writer.table.bordersOutside", () => this._hintIfFalse(() => this.setTableBorders("outside"), "Hãy đặt con trỏ vào bảng để thiết lập đường viền."));
+    globalCommandBus.bindHandler("writer.table.bordersInside", () => this._hintIfFalse(() => this.setTableBorders("inside"), "Hãy đặt con trỏ vào bảng để thiết lập đường viền."));
+    globalCommandBus.bindHandler("writer.table.bordersNone", () => this._hintIfFalse(() => this.setTableBorders("none"), "Hãy đặt con trỏ vào bảng để thiết lập đường viền."));
+    globalCommandBus.bindHandler("writer.table.toggleHeaderRow", () => this._hintIfFalse(() => this.toggleTableHeaderRow(), "Hãy đặt con trỏ vào bảng để bật/tắt hàng tiêu đề."));
+    globalCommandBus.bindHandler("writer.table.toggleBandedRows", () => this._hintIfFalse(() => this.toggleTableBandedRows(), "Hãy đặt con trỏ vào bảng để bật/tắt hàng so le màu."));
   }
 
   _getActiveTable() {
@@ -15327,6 +15366,15 @@ export class WriterAdapter {
         while (w.firstChild) w.parentNode?.insertBefore(w.firstChild, w);
         w.remove?.();
       }
+      const collapseBtns = Array.from(exportRoot.querySelectorAll?.('.vno-heading-collapse-btn') || []);
+      for (const btn of collapseBtns) btn.remove?.();
+      const collapsedBodies = Array.from(exportRoot.querySelectorAll?.('.vno-heading-collapsed-body') || []);
+      for (const el of collapsedBodies) {
+        el.classList.remove('vno-heading-collapsed-body');
+        if (el.style?.display === 'none') {
+          el.style.display = '';
+        }
+      }
       this._applyNewDocumentParagraphDefaults(exportRoot);
       this._serializeEquationsForExport(exportRoot);
       if (acceptedView) {
@@ -15514,7 +15562,11 @@ export class WriterAdapter {
     const themeMarker = this.documentTheme && this.documentTheme !== "office"
       ? `<!--vno-document-theme:${String(this.documentTheme).replace(/[^a-z0-9_-]/gi, "")}-->`
       : "";
-    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${nativeDiagramMarker}${nativeWordArtMarker}${nativeWatermarkMarker}${themeMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
+    const activeViewMode = this.viewMode || this._lastViewMode || this.viewController?.mode || "printLayout";
+    const viewMarker = (activeViewMode && activeViewMode !== "printLayout")
+      ? `<!--vno-view-mode:${activeViewMode}-->`
+      : "";
+    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${documentPropertiesMarker(this.documentProperties)}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${nativeDiagramMarker}${nativeWordArtMarker}${nativeWatermarkMarker}${themeMarker}${viewMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }
@@ -15581,6 +15633,8 @@ export class WriterAdapter {
       .replace(/<button\b[^>]*class=["'][^"']*\bvno-note-delete-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
       .replace(/<button\b[^>]*class=["'][^"']*\bvno-diagram-delete-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
       .replace(/<button\b[^>]*class=["'][^"']*\bvno-chart-delete-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
+      .replace(/<button\b[^>]*class=["'][^"']*\bvno-heading-collapse-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
+      .replace(/\s*\bvno-heading-collapsed-body\b/gi, "")
       .replace(/<div\b[^>]*class=["'][^"']*\bvno-page-watermark\b[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, "")
       .replace(/<div\b[^>]*class=["'][^"']*\bvno-page-border-frame\b[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, "")
       .replace(/<div\b[^>]*class=["'][^"']*\bvno-writer-shapes-layer\b[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, "")
@@ -15773,6 +15827,7 @@ export class WriterAdapter {
       }
       this._initZones();
       this._sourcePath = result.sourcePath || null;
+      this.documentProperties = parseCorePropertiesXml(result.ooxmlCorePropertiesXml || "");
       this._wordCountSourceText = extractOoxmlDocumentText(result.ooxmlDocumentXml);
       this._wordCountSourceListItems = this._ooxmlListParagraphs(result.ooxmlDocumentXml, result.ooxmlStylesXml, result.ooxmlNumberingXml);
       this.isNewApplicationDocument = false;
@@ -15978,6 +16033,7 @@ export class WriterAdapter {
   async newDocument() {
     this._initZones();
     this._sourcePath = null;
+    this.documentProperties = normalizeDocumentProperties();
     this._wordCountSourceText = null;
     this._wordCountSourceTextInvalidated = true;
     this._wordCountSourceListItems = [];
