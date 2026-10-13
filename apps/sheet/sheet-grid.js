@@ -2852,6 +2852,7 @@ export class SheetGridController {
             { label: "Sắp xếp tùy chỉnh...", action: () => globalCommandBus.execute("sheet.data.customSort") }
           ]
         },
+        ...this._tableContextMenuItems(),
         { sep: true },
         ...(this.commentsBySheet?.[this.activeSheet]?.[`${this.selectedCoord.c}${this.selectedCoord.r}`]
           ? [
@@ -2928,6 +2929,37 @@ export class SheetGridController {
     });
 
     this._activeContextMenu = instance;
+  }
+
+  /** Mục "Chọn" và "Bảng" của menu chuột phải khi ô đang chọn nằm trong một bảng (Table). */
+  _tableContextMenuItems() {
+    const coord = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const table = (this.tablesBySheet?.[this.activeSheet] || []).find(item => {
+      const b = this._parseRange(item.ref);
+      return b && this._rangeContains(b, this.selectedCoord.c, this.selectedCoord.r);
+    });
+    if (!table) return [];
+    const bounds = this._normalizeRange(this._parseRange(table.ref));
+    const dataStart = bounds.start.r + (table.hasHeaders === false ? 0 : 1);
+    const col = this.selectedCoord.c;
+    const pick = (c1, r1, c2, r2) => { this.selectCell(c1, r1); this.selectCell(c2, r2, true); };
+    return [
+      { sep: true },
+      {
+        label: "Chọn",
+        items: [
+          { label: "Dữ liệu cột của bảng", action: () => pick(col, dataStart, col, bounds.end.r) },
+          { label: "Toàn bộ cột của bảng", action: () => pick(col, bounds.start.r, col, bounds.end.r) },
+          { label: "Hàng của bảng", action: () => pick(bounds.start.c, this.selectedCoord.r, bounds.end.c, this.selectedCoord.r) }
+        ]
+      },
+      {
+        label: "Bảng",
+        items: [
+          { label: "Chuyển thành phạm vi", action: () => this.convertTableToRange(table.name) }
+        ]
+      }
+    ];
   }
 
   _showTabColorMenu(event, sheetName) {
