@@ -279,6 +279,7 @@ export const VN_TO_UNO_MAP = {
   "slides.slide.toggleHidden": ".uno:HideSlide",
   "slides.layout.apply": ".uno:AssignLayout",
   "slides.layout.select": ".uno:AssignLayout",
+  "slides.layout.reset": ".uno:RestoreDefaultLayout",
   "slides.text.insert": ".uno:Text",
   "slides.shape.insert": ".uno:BasicShapes",
   "slides.diagram.insert": ".uno:InsertGraphic",
