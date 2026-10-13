@@ -22,7 +22,7 @@ Căn cứ: `docs/SPEC-3T-CLOUD.md` §4.2, cách 3T Reader làm (activate/validat
 Mọi trả lời lỗi có `{"error": "<mã>", "message": "<tiếng Việt>"}`. Giới hạn tốc độ theo IP + theo key (chống dò key).
 
 ### `POST /activate`
-Vào: `{product:"3t-office", key, device_fingerprint, device_name, app_version, email?}`
+Vào: `{product:"3t-office", key, device_fingerprint, device_name, app_version, email?, platform?}`. `platform` nhận `windows|macos|ios|android|linux`; bỏ trống mặc định `windows` để tương thích client cũ.
 `device_fingerprint` = SHA-256 của (GUID máy Windows + tên máy), máy khách tính; máy chủ không biết dữ liệu gốc.
 Ra 200: `{token, license:{id, edition:"perpetual", seats_used, seats_max, updates_until:null}, next_check_at}`
 Lỗi: `invalid_key` (sai định dạng/checksum), `unknown_key`, `revoked`, `seats_exhausted` (kèm danh sách tên máy đang dùng), `rate_limited`.
@@ -35,10 +35,10 @@ Vào: `{token}` (hoặc `{license_id, device_fingerprint}`) → Ra: token mới 
 Vào: `{token}` → giải phóng chỗ của máy này. Ra: `{ok:true}`.
 
 ### `POST /activate-offline`  *(chỉ trang quản trị gọi, xem §3)*
-Vào: `{key, device_code}` (mã thiết bị do máy khách sinh: base32 của fingerprint + app_version, có checksum) → Ra: `{activation_code}` (token ký số dạng chuỗi ngắn, in/gõ được).
+Vào: `{key, device_code, platform?}` (mã thiết bị do máy khách sinh: base32 của fingerprint + app_version, có checksum; `platform` mặc định `windows`) → Ra: `{activation_code}` (token ký số dạng chuỗi ngắn, in/gõ được).
 
 ### Nội dung token (payload ký)
-`{v:1, lid, edition, fp, issued_at, check_by, grace_days:30, updates_until:null, key_hint:"…ABCDE"}`
+`{v:1, lid, edition, fp, issued_at, check_by, grace_days:30, updates_until:null, plat, key_hint:"…ABCDE"}`. `/validate` phải bảo toàn `plat` khi phát token mới; token cũ thiếu trường này được hiểu là `windows`.
 Ký Ed25519; máy khách kiểm bằng khóa công khai nhúng sẵn, **kiểm tra `fp` khớp máy hiện tại**, kiểm `check_by`.
 
 ### Cập nhật theo quyền

@@ -138,6 +138,8 @@ class LicenseOfflineActivateRequest(BaseModel):
     key: str = Field(min_length=10, max_length=64)
     device_code: str = Field(min_length=8, max_length=256)
     device_name: str | None = Field(default=None, max_length=128)
+    # Backward compatible with the Windows-only admin/client flow.
+    platform: str = Field(default="windows", pattern=r"^(windows|macos|ios|android|linux)$")
 
 
 class AdminLoginRequest(BaseModel):
@@ -903,6 +905,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
         license_id: str | None = None
         device_fingerprint: str | None = None
+        token_platform = "windows"
 
         if payload.token:
             claims = lic_mod.verify_license_token(payload.token, public_key)
@@ -913,6 +916,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 )
             license_id = claims.get("lid")
             device_fingerprint = claims.get("fp")
+            token_platform = claims.get("plat") or "windows"
         elif payload.license_id and payload.device_fingerprint:
             license_id = payload.license_id
             device_fingerprint = payload.device_fingerprint
@@ -941,7 +945,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                 )
 
             act_row = conn.execute(
-                """SELECT id, removed_at FROM activations WHERE license_id = ? AND device_hash = ?""",
+                """SELECT id, removed_at, platform FROM activations WHERE license_id = ? AND device_hash = ?""",
                 (license_id, device_hash),
             ).fetchone()
 
@@ -950,6 +954,9 @@ def create_app(settings: Settings | None = None) -> FastAPI:
                     status_code=403,
                     content={"error": "device_removed", "message": "Thiết bị này đã bị gỡ khỏi giấy phép", "valid": False},
                 )
+
+            if not payload.token:
+                token_platform = act_row["platform"] or "windows"
 
             conn.execute(
                 """UPDATE activations SET last_check_at = ? WHERE id = ?""",
@@ -969,6 +976,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             license_id=license_id,
             device_fingerprint=device_fingerprint,
             key_hint=key_hint,
+            platform=token_platform,
         )
 
         return JSONResponse(
@@ -1067,8 +1075,8 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
             if act_row and act_row["removed_at"] is None:
                 conn.execute(
-                    """UPDATE activations SET last_check_at = ?, device_name = ? WHERE id = ?""",
-                    (now_iso, device_name, act_row["id"]),
+                    """UPDATE activations SET last_check_at = ?, device_name = ?, platform = ? WHERE id = ?""",
+                    (now_iso, device_name, payload.platform, act_row["id"]),
                 )
             else:
                 active_count = conn.execute(
@@ -1081,14 +1089,14 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
                 if act_row and act_row["removed_at"] is not None:
                     conn.execute(
-                        """UPDATE activations SET removed_at = NULL, last_check_at = ?, device_name = ? WHERE id = ?""",
-                        (now_iso, device_name, act_row["id"]),
+                        """UPDATE activations SET removed_at = NULL, last_check_at = ?, device_name = ?, platform = ? WHERE id = ?""",
+                        (now_iso, device_name, payload.platform, act_row["id"]),
                     )
                 else:
                     conn.execute(
-                        """INSERT INTO activations (id, license_id, device_hash, device_name, first_at, last_check_at, app_version, removed_at)
-                           VALUES (?, ?, ?, ?, ?, ?, 'offline', NULL)""",
-                        (str(uuid.uuid4()), license_id, device_hash, device_name, now_iso, now_iso),
+                        """INSERT INTO activations (id, license_id, device_hash, device_name, first_at, last_check_at, app_version, removed_at, platform)
+                           VALUES (?, ?, ?, ?, ?, ?, 'offline', NULL, ?)""",
+                        (str(uuid.uuid4()), license_id, device_hash, device_name, now_iso, now_iso, payload.platform),
                     )
 
             # Ghi nhật ký quản trị (chỉ ghi hint và device_code rút gọn, TUYỆT ĐỐI KHÔNG ghi key thô)
@@ -1102,6 +1110,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             license_id=license_id,
             device_fingerprint=device_fingerprint,
             key_hint=key_hint,
+            platform=payload.platform,
         )
 
         return JSONResponse(status_code=200, content={"activation_code": token})

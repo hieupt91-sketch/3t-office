@@ -6,6 +6,7 @@ Uses a throw-away signing key and database.  Skipped when fastapi/uvicorn/crypto
 from __future__ import annotations
 
 import base64
+import json
 import socket
 import sqlite3
 import sys
@@ -14,6 +15,7 @@ import threading
 import time
 import unittest
 import uuid
+import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -35,6 +37,7 @@ except Exception:  # pragma: no cover
 # On success SERVER_DIR stays on sys.path: create_app() imports its sibling modules (commerce_db, ...) lazily.
 
 from adapters.license import device as device_mod  # noqa: E402
+from adapters.license import tokens as tokens_mod  # noqa: E402
 from adapters.license.manager import LicenseError, LicenseManager  # noqa: E402
 
 
@@ -92,11 +95,26 @@ class LicenseEndToEnd(unittest.TestCase):
             )
         return key
 
-    def manager(self, machine):
+    def manager(self, machine, *, platform_name="windows"):
         return LicenseManager(
             tempfile.mkdtemp(), "0.9.9", api_base=self.api_base, public_keys=(self.public_b64,),
             fingerprint=device_mod.device_fingerprint(machine, "PC-" + machine),
+            platform_name=platform_name,
         )
+
+    def post_json(self, path, payload, *, basic_auth=None):
+        headers = {"Content-Type": "application/json", "Accept": "application/json"}
+        if basic_auth:
+            encoded = base64.b64encode(f"{basic_auth[0]}:{basic_auth[1]}".encode()).decode()
+            headers["Authorization"] = "Basic " + encoded
+        request = urllib.request.Request(
+            f"http://127.0.0.1:{self.port}{path}",
+            data=json.dumps(payload).encode(),
+            headers=headers,
+            method="POST",
+        )
+        with urllib.request.urlopen(request, timeout=5) as response:  # noqa: S310 - localhost E2E server
+            return response.status, json.loads(response.read())
 
     def test_activate_refresh_deactivate_and_seats(self):
         key = self.seed_key(seats_max=1)
@@ -134,6 +152,93 @@ class LicenseEndToEnd(unittest.TestCase):
         with self.assertRaises(LicenseError) as ctx:
             self.manager("guid-5").activate(key)
         self.assertEqual(ctx.exception.code, "revoked")
+
+    def test_windows_and_macos_share_key_seats_and_macos_platform_survives_refresh(self):
+        key = self.seed_key(seats_max=2)
+        windows = self.manager("windows-guid", platform_name="windows")
+        macos = self.manager("macos-guid", platform_name="macos")
+
+        self.assertEqual(windows.activate(key)["seats"]["seats_used"], 1)
+        macos_activation = macos.activate(key)
+        self.assertEqual(macos_activation["seats"]["seats_used"], 2)
+
+        initial_token = macos._read()["token"]
+        initial_claims = tokens_mod.verify_token(initial_token, (self.public_b64,))
+        self.assertEqual(initial_claims["plat"], "macos")
+
+        # The legacy validate shape (license_id + fingerprint, no token) must also
+        # recover the platform from the activation row instead of assuming Windows.
+        status, legacy_refresh = self.post_json(
+            "/api/v1/license/validate",
+            {
+                "license_id": macos_activation["seats"]["id"],
+                "device_fingerprint": macos._fingerprint,
+            },
+        )
+        self.assertEqual(status, 200)
+        legacy_claims = tokens_mod.verify_token(legacy_refresh["token"], (self.public_b64,))
+        self.assertEqual(legacy_claims["plat"], "macos")
+
+        self.assertEqual(macos.refresh()["state"], "active")
+        refreshed_token = macos._read()["token"]
+        refreshed_claims = tokens_mod.verify_token(refreshed_token, (self.public_b64,))
+        self.assertEqual(refreshed_claims["plat"], "macos")
+
+        with sqlite3.connect(self.db_path) as conn:
+            platforms = {
+                row[0]
+                for row in conn.execute(
+                    "SELECT platform FROM activations WHERE removed_at IS NULL"
+                ).fetchall()
+            }
+        self.assertEqual(platforms, {"windows", "macos"})
+
+        third = self.manager("third-guid", platform_name="macos")
+        with self.assertRaises(LicenseError) as ctx:
+            third.activate(key)
+        self.assertEqual(ctx.exception.code, "seats_exhausted")
+
+        def offline_post(_url, _payload, _timeout):
+            raise LicenseError("network", "offline")
+
+        macos._http_post = offline_post
+        offline = macos.refresh()
+        self.assertEqual(offline["state"], "active")
+        self.assertEqual(offline["refresh_error"], "network")
+        self.assertTrue(offline["licensed"])
+
+        # Restore real HTTP, release the shared seat, then prove another Mac can reuse it.
+        from adapters.license.manager import default_http_post
+        macos._http_post = default_http_post
+        self.assertFalse(macos.deactivate()["licensed"])
+        self.assertEqual(third.activate(key)["seats"]["seats_used"], 2)
+
+    def test_macos_offline_activation_over_real_http_records_platform(self):
+        key = self.seed_key(seats_max=1)
+        macos = self.manager("offline-macos-guid", platform_name="macos")
+        status, body = self.post_json(
+            "/api/v1/admin/license/activate-offline",
+            {
+                "key": key,
+                "device_code": macos.device_code,
+                "device_name": "Mac pilot offline",
+                "platform": "macos",
+            },
+            basic_auth=("admin", "secretpassword123"),
+        )
+        self.assertEqual(status, 200)
+        activation_code = body["activation_code"]
+        claims = tokens_mod.verify_token(activation_code, (self.public_b64,))
+        self.assertEqual(claims["plat"], "macos")
+        self.assertEqual(macos.apply_activation_code(activation_code)["state"], "active")
+
+        with sqlite3.connect(self.db_path) as conn:
+            row = conn.execute(
+                "SELECT platform, app_version FROM activations "
+                "WHERE removed_at IS NULL AND device_name = ?",
+                ("Mac pilot offline",),
+            ).fetchone()
+        self.assertEqual(row, ("macos", "offline"))
 
 
 if __name__ == "__main__":
