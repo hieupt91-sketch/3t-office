@@ -318,7 +318,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.cell.mergeCenter", () => this.grid.mergeCells("mergeCenter"));
     globalCommandBus.bindHandler("sheet.cell.mergeAcross", () => this.grid.mergeCells("mergeAcross"));
     globalCommandBus.bindHandler("sheet.cell.mergeCells", () => this.grid.mergeCells("mergeCells"));
-    globalCommandBus.bindHandler("sheet.cell.unmerge", () => this.grid.unmergeCells());
+    globalCommandBus.bindHandler("sheet.cell.unmerge", () => this._hintIfFalse(() => this.grid.unmergeCells(), "Vùng đang chọn không có ô nào được gộp. Hãy chọn ô đã gộp rồi nhấn Bỏ gộp ô."));
     globalCommandBus.bindHandler("sheet.format.quickCategory", (value) => this.grid.applyQuickNumberCategory((typeof value === "string" ? value : (value?.category || value?.value)) || "general"));
     globalCommandBus.bindHandler("sheet.format.increaseDecimal", () => this.grid.adjustDecimalPlaces(1));
     globalCommandBus.bindHandler("sheet.format.decreaseDecimal", () => this.grid.adjustDecimalPlaces(-1));
@@ -328,15 +328,15 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.data.flashFill", () => this.grid.runFlashFill());
     globalCommandBus.bindHandler("sheet.data.removeDuplicates", () => this.grid.showRemoveDuplicatesDialog());
     globalCommandBus.bindHandler("sheet.data.consolidate", () => this.grid.showConsolidateDialog());
-    globalCommandBus.bindHandler("sheet.data.group", () => this.grid.groupSelection());
-    globalCommandBus.bindHandler("sheet.data.ungroup", () => this.grid.ungroupSelection());
+    globalCommandBus.bindHandler("sheet.data.group", () => this._hintIfFalse(() => this.grid.groupSelection(), "Hãy chọn từ hai hàng hoặc hai cột liên tiếp trở lên (chưa được nhóm) rồi nhấn Nhóm."));
+    globalCommandBus.bindHandler("sheet.data.ungroup", () => this._hintIfFalse(() => this.grid.ungroupSelection(), "Vùng chọn không nằm trong nhóm nào. Hãy chọn các hàng hoặc cột đã nhóm rồi nhấn Bỏ nhóm."));
     globalCommandBus.bindHandler("sheet.data.subtotal", () => this.grid.showSubtotalDialog());
     globalCommandBus.bindHandler("sheet.data.goalSeek", () => this.grid.showGoalSeekDialog());
     globalCommandBus.bindHandler("sheet-what-if-analysis", () => this.grid.showGoalSeekDialog ? this.grid.showGoalSeekDialog() : false);
     globalCommandBus.bindHandler("sheet.data.dataTable", () => this.grid.showDataTableDialog());
     globalCommandBus.bindHandler("sheet.data.scenarioManager", () => this.grid.showScenarioManagerDialog());
     globalCommandBus.bindHandler("sheet.data.pivotTable", () => this.grid.showPivotTableDialog());
-    globalCommandBus.bindHandler("sheet.data.pivotRefresh", () => this._refreshPivotTable());
+    globalCommandBus.bindHandler("sheet.data.pivotRefresh", () => this._hintIfFalse(() => this._refreshPivotTable(), "Trang hiện tại không phải PivotTable. Hãy chọn trang Pivot (hoặc tạo bằng Chèn > PivotTable) rồi nhấn Làm mới."));
     globalCommandBus.bindHandler("sheet.chart.pivotChart", () => this.grid.openPivotChartBuilder());
     globalCommandBus.bindHandler("sheet.formula.nameManager", (args) => {
       args = args || {};
@@ -365,7 +365,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.formula.errorChecking", () => this.grid.showErrorCheckingDialog ? this.grid.showErrorCheckingDialog() : false);
     globalCommandBus.bindHandler("sheet.formula.watchWindow", () => this.grid.showWatchWindow ? this.grid.showWatchWindow() : false);
     globalCommandBus.bindHandler("sheet.formula.evaluateFormula", () => this.grid.showEvaluateFormulaDialog ? this.grid.showEvaluateFormulaDialog() : false);
-    globalCommandBus.bindHandler("sheet.calc.calculationOptions", (args) => this.grid.setCalculationMode ? this.grid.setCalculationMode(args) : false);
+    globalCommandBus.bindHandler("sheet.calc.calculationOptions", (args) => { const mode = (typeof args === "string" ? args : args?.value || args?.mode) || (this.grid.calculationMode === "manual" ? "automatic" : "manual"); const result = this.grid.setCalculationMode(mode); this.grid._showDataNotice?.(result === "manual" ? "Đã chuyển sang tính toán thủ công. Nhấn F9 để tính lại." : "Đã chuyển sang tính toán tự động."); return result; });
     globalCommandBus.bindHandler("sheet.calc.modeAutomatic", () => this.grid.setCalculationMode ? this.grid.setCalculationMode("automatic") : false);
     globalCommandBus.bindHandler("sheet.calc.modeManual", () => this.grid.setCalculationMode ? this.grid.setCalculationMode("manual") : false);
     globalCommandBus.bindHandler("sheet.calc.calculateSheet", () => this.grid.calculateSheet ? this.grid.calculateSheet() : false);
@@ -386,17 +386,17 @@ export class SheetAdapter {
       args = args || {};
       return this.grid.showCommentDialog(args);
     });
-    globalCommandBus.bindHandler("sheet.review.commentPrevious", () => this.grid.previousComment?.());
-    globalCommandBus.bindHandler("sheet.review.commentNext", () => this.grid.nextComment?.());
-    globalCommandBus.bindHandler("sheet.review.commentDelete", () => this.grid.deleteCurrentComment?.());
-    globalCommandBus.bindHandler("sheet.review.commentResolve", () => this.grid.toggleCurrentCommentResolved?.());
+    globalCommandBus.bindHandler("sheet.review.commentPrevious", () => this._hintIfFalse(() => this.grid.previousComment?.(), "Bảng tính chưa có ghi chú nào."));
+    globalCommandBus.bindHandler("sheet.review.commentNext", () => this._hintIfFalse(() => this.grid.nextComment?.(), "Bảng tính chưa có ghi chú nào."));
+    globalCommandBus.bindHandler("sheet.review.commentDelete", () => this._hintIfFalse(() => this.grid.deleteCurrentComment?.(), "Ô đang chọn không có ghi chú để xóa."));
+    globalCommandBus.bindHandler("sheet.review.commentResolve", () => this._hintIfFalse(() => this.grid.toggleCurrentCommentResolved?.(), "Ô đang chọn không có ghi chú để đánh dấu đã giải quyết."));
     globalCommandBus.bindHandler("sheet.file.printPreview", () => this.print());
     globalCommandBus.bindHandler("sheet.view.normal", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("normal") : false);
     globalCommandBus.bindHandler("sheet.view.pageBreakPreview", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("pageBreakPreview") : false);
     globalCommandBus.bindHandler("sheet.view.pageLayout", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("pageLayout") : false);
     globalCommandBus.bindHandler("sheet.view.formulaBar", () => this.grid.toggleFormulaBar ? this.grid.toggleFormulaBar() : false);
     globalCommandBus.bindHandler("sheet.view.zoomToSelection", () => this.grid.zoomToSelection ? this.grid.zoomToSelection() : false);
-    globalCommandBus.bindHandler("sheet.view.newWindow", () => this.grid.newWindow ? this.grid.newWindow() : false);
+    globalCommandBus.bindHandler("sheet.view.newWindow", () => this._hintIfFalse(() => this.grid.newWindow(), "Không mở được cửa sổ mới trong ứng dụng desktop. Hãy mở lại tệp từ Tệp > Mở để xem ở cửa sổ khác."));
     globalCommandBus.bindHandler("sheet.view.freezePanesMenu", () => this.grid.toggleFreezePanes ? this.grid.toggleFreezePanes() : false);
     globalCommandBus.bindHandler("sheet.view.split", () => this.grid.toggleSplitPanes ? this.grid.toggleSplitPanes() : false);
     globalCommandBus.bindHandler("sheet.view.zoomIn", (options) => {
@@ -662,6 +662,13 @@ export class SheetAdapter {
       input.oncancel = () => resolve(false);
       input.click();
     });
+  }
+
+  /** Lệnh ribbon trả false mà không báo gì = nút chết trong mắt người dùng: hiện lý do. */
+  _hintIfFalse(run, message) {
+    const result = run();
+    const show = (value) => { if (value === false) this.grid?._showDataNotice?.(message); return value; };
+    return typeof result?.then === "function" ? result.then(show) : show(result);
   }
 
   _escapeXml(value) {
