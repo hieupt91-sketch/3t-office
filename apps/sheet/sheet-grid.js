@@ -2833,70 +2833,80 @@ export class SheetGridController {
           ]
         },
         { sep: true },
+        { label: "Chèn...", action: () => this.showInsertCellsDialog?.() },
+        { label: "Xóa...", action: () => this.showDeleteCellsDialog?.() },
+        { label: "Xóa nội dung", shortcut: "Delete", action: () => globalCommandBus.execute("sheet.edit.clearContents") },
+        { sep: true },
         {
-          label: "Chèn",
+          label: "Lọc",
           items: [
-            { label: "Chèn hàng", shortcut: "Ctrl+Shift+=", action: () => globalCommandBus.execute("sheet.row.insert") },
-            { label: "Chèn cột", action: () => globalCommandBus.execute("sheet.col.insert") },
-            { label: "Chèn ô...", action: () => this.showInsertCellsDialog?.() }
-          ]
-        },
-        {
-          label: "Xóa",
-          items: [
-            { label: "Xóa hàng", action: () => globalCommandBus.execute("sheet.row.delete") },
-            { label: "Xóa cột", action: () => globalCommandBus.execute("sheet.col.delete") },
-            { label: "Xóa nội dung", shortcut: "Delete", action: () => globalCommandBus.execute("sheet.edit.clearContents") },
-            { label: "Xóa ô...", action: () => this.showDeleteCellsDialog?.() }
+            { label: "Xóa bộ lọc", disabled: !this.activeFilters?.size, action: () => this.clearAllFilters() },
+            { label: "Áp dụng lại", disabled: !this.activeFilters?.size, action: () => this.reapplyFilters() },
+            { sep: true },
+            { label: "Lọc theo giá trị của ô đã chọn", action: () => this.filterBySelectedCellValue() },
+            { label: "Bộ lọc tự động", shortcut: "Ctrl+Shift+L", action: () => globalCommandBus.execute("sheet.data.filter") }
           ]
         },
         {
           label: "Sắp xếp",
           items: [
-            { label: "Sắp xếp tăng dần (A-Z)", action: () => globalCommandBus.execute("sheet.data.sortAsc") },
-            { label: "Sắp xếp giảm dần (Z-A)", action: () => globalCommandBus.execute("sheet.data.sortDesc") },
+            { label: "Sắp xếp A đến Z", action: () => globalCommandBus.execute("sheet.data.sortAsc") },
+            { label: "Sắp xếp Z đến A", action: () => globalCommandBus.execute("sheet.data.sortDesc") },
+            { sep: true },
             { label: "Sắp xếp tùy chỉnh...", action: () => globalCommandBus.execute("sheet.data.customSort") }
           ]
         },
-        {
-          label: "Lọc",
-          items: [
-            { label: "Bộ lọc tự động", shortcut: "Ctrl+Shift+L", action: () => globalCommandBus.execute("sheet.data.filter") }
-          ]
-        },
+        { sep: true },
+        ...(this.commentsBySheet?.[this.activeSheet]?.[`${this.selectedCoord.c}${this.selectedCoord.r}`]
+          ? [
+              { label: "Sửa ghi chú", shortcut: "Shift+F2", action: () => this.showCommentDialog({ source: "contextmenu" }) },
+              { label: "Xóa ghi chú", action: () => this.deleteComment() }
+            ]
+          : [{ label: "Chèn ghi chú", shortcut: "Shift+F2", action: () => this.showCommentDialog({ source: "contextmenu" }) }]),
         { sep: true },
         { label: "Định dạng ô...", shortcut: "Ctrl+1", action: () => globalCommandBus.execute("sheet.format.cellsDialog") },
-        { label: "Thêm ghi chú", shortcut: "Shift+F2", action: () => this.showCommentDialog({ source: "contextmenu" }) }
+        { label: "Xác định tên...", action: () => globalCommandBus.execute("sheet.formula.defineName") },
+        { label: "Siêu liên kết...", shortcut: "Ctrl+K", action: () => globalCommandBus.execute("sheet.insert.hyperlink") },
+        ...(this.cellsData?.get?.(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.hyperlink
+          ? [
+              { label: "Mở siêu liên kết", action: () => this.openHyperlinkAtSelection() },
+              { label: "Xóa siêu liên kết", action: () => this.removeHyperlink() }
+            ]
+          : [])
       ];
     } else if (type === "col") {
       items = [
         { label: "Cắt", shortcut: "Ctrl+X", action: () => globalCommandBus.execute("common.edit.cut") },
         { label: "Sao chép", shortcut: "Ctrl+C", action: () => globalCommandBus.execute("common.edit.copy") },
         { label: "Dán", shortcut: "Ctrl+V", action: () => globalCommandBus.execute("common.edit.paste") },
+        { label: "Dán đặc biệt...", shortcut: "Ctrl+Alt+V", action: () => globalCommandBus.execute("sheet.edit.pasteSpecial") },
         { sep: true },
-        { label: "Chèn cột", action: () => globalCommandBus.execute("sheet.col.insert") },
-        { label: "Xóa cột", action: () => globalCommandBus.execute("sheet.col.delete") },
-        { label: "Xóa nội dung cột", shortcut: "Delete", action: () => globalCommandBus.execute("sheet.edit.clearContents") },
+        { label: "Chèn", action: () => globalCommandBus.execute("sheet.col.insert") },
+        { label: "Xóa", action: () => globalCommandBus.execute("sheet.col.delete") },
+        { label: "Xóa nội dung", shortcut: "Delete", action: () => globalCommandBus.execute("sheet.edit.clearContents") },
         { sep: true },
+        { label: "Định dạng ô...", shortcut: "Ctrl+1", action: () => globalCommandBus.execute("sheet.format.cellsDialog") },
+        { label: "Độ rộng cột...", action: () => this.showColumnWidthDialog() },
         { label: "Tự vừa khít độ rộng cột", action: () => this.autoFitColumn(target) },
-        { label: "Ẩn cột", action: () => this.hideColumns([target]) },
-        { label: "Hiện cột", action: () => this.unhideColumns([target]) },
-        { label: "Định dạng ô...", shortcut: "Ctrl+1", action: () => globalCommandBus.execute("sheet.format.cellsDialog") }
+        { label: "Ẩn", action: () => this.hideColumns([target]) },
+        { label: "Hiện", action: () => this.unhideColumns([target]) }
       ];
     } else if (type === "row") {
       items = [
         { label: "Cắt", shortcut: "Ctrl+X", action: () => globalCommandBus.execute("common.edit.cut") },
         { label: "Sao chép", shortcut: "Ctrl+C", action: () => globalCommandBus.execute("common.edit.copy") },
         { label: "Dán", shortcut: "Ctrl+V", action: () => globalCommandBus.execute("common.edit.paste") },
+        { label: "Dán đặc biệt...", shortcut: "Ctrl+Alt+V", action: () => globalCommandBus.execute("sheet.edit.pasteSpecial") },
         { sep: true },
-        { label: "Chèn hàng", shortcut: "Ctrl+Shift+=", action: () => globalCommandBus.execute("sheet.row.insert") },
-        { label: "Xóa hàng", action: () => globalCommandBus.execute("sheet.row.delete") },
-        { label: "Xóa nội dung hàng", shortcut: "Delete", action: () => globalCommandBus.execute("sheet.edit.clearContents") },
+        { label: "Chèn", shortcut: "Ctrl+Shift+=", action: () => globalCommandBus.execute("sheet.row.insert") },
+        { label: "Xóa", action: () => globalCommandBus.execute("sheet.row.delete") },
+        { label: "Xóa nội dung", shortcut: "Delete", action: () => globalCommandBus.execute("sheet.edit.clearContents") },
         { sep: true },
+        { label: "Định dạng ô...", shortcut: "Ctrl+1", action: () => globalCommandBus.execute("sheet.format.cellsDialog") },
+        { label: "Chiều cao hàng...", action: () => this.showRowHeightDialog() },
         { label: "Tự vừa khít chiều cao hàng", action: () => this.autoFitRow(target) },
-        { label: "Ẩn hàng", action: () => this.hideRows([target]) },
-        { label: "Hiện hàng", action: () => this.unhideRows([target]) },
-        { label: "Định dạng ô...", shortcut: "Ctrl+1", action: () => globalCommandBus.execute("sheet.format.cellsDialog") }
+        { label: "Ẩn", action: () => this.hideRows([target]) },
+        { label: "Hiện", action: () => this.unhideRows([target]) }
       ];
     }
 
@@ -3509,21 +3519,24 @@ export class SheetGridController {
     menu.className = "vno-sheet-context-menu";
     menu.setAttribute("role", "menu");
     menu.setAttribute("aria-label", "Tùy chọn trang tính");
+    // Thứ tự theo menu chuột phải tab trang tính của Excel 2016:
+    // Chèn, Xóa, Đổi tên, Di chuyển/Sao chép, Bảo vệ, Màu tab, Ẩn, Hiện.
     const items = [
-      { label: t("sheetDialogs.renameSheetMenu", "Đổi tên trang tính..."), action: () => this.showRenameSheetDialog(sheetName) },
-      { label: t("sheetDialogs.moveCopyMenu", "Di chuyển hoặc Sao chép trang tính..."), action: () => this.showMoveCopySheetDialog(sheetName) },
-      { label: t("sheetDialogs.hideSheetMenu", "Ẩn trang tính"), action: () => this.hideSheet(sheetName) },
-      ...(Object.values(this.sheetVisibilityBySheet || {}).some(state => state === "hidden" || state === "veryHidden")
-        ? [{ label: t("sheetDialogs.unhideSheetMenu", "Hiện trang tính..."), action: () => this.showUnhideSheetDialog() }]
-        : []),
+      { label: "Chèn trang tính", action: () => { if (sheetName !== this.activeSheet) this.switchSheet?.(sheetName); globalCommandBus.execute("sheet.sheet.insertBefore"); } },
       { label: "Xóa trang tính", action: () => {
         if (this.sheets.length <= 1) { this._showDataNotice("Không thể xóa trang tính cuối cùng."); return; }
         if (globalThis.confirm?.(`Xóa trang tính «${sheetName}»?`) !== false) this.deleteSheet(sheetName);
       } },
-      { label: "Màu tab", action: () => this._showTabColorMenu(event, sheetName) },
+      { label: t("sheetDialogs.renameSheetMenu", "Đổi tên trang tính..."), action: () => this.showRenameSheetDialog(sheetName) },
+      { label: t("sheetDialogs.moveCopyMenu", "Di chuyển hoặc Sao chép trang tính..."), action: () => this.showMoveCopySheetDialog(sheetName) },
       { label: this.isSheetProtected(sheetName)
         ? t("sheetDialogs.unprotectSheet", "Bỏ bảo vệ trang tính...")
-        : t("sheetDialogs.protectSheet", "Bảo vệ trang tính..."), action: () => this.showProtectSheetDialog(sheetName) }
+        : t("sheetDialogs.protectSheet", "Bảo vệ trang tính..."), action: () => this.showProtectSheetDialog(sheetName) },
+      { label: "Màu tab", action: () => this._showTabColorMenu(event, sheetName) },
+      { label: t("sheetDialogs.hideSheetMenu", "Ẩn trang tính"), action: () => this.hideSheet(sheetName) },
+      ...(Object.values(this.sheetVisibilityBySheet || {}).some(state => state === "hidden" || state === "veryHidden")
+        ? [{ label: t("sheetDialogs.unhideSheetMenu", "Hiện trang tính..."), action: () => this.showUnhideSheetDialog() }]
+        : [])
     ];
     items.forEach(item => {
       const btn = document.createElement("button");
@@ -7900,6 +7913,57 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
+  removeHyperlink() {
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const existing = this.cellsData.get(key);
+    if (!existing?.hyperlink) return false;
+    const oldItem = structuredClone(existing);
+    delete existing.hyperlink;
+    this.cellsData.set(key, existing);
+    this._renderCellVisual(this.container?.querySelector?.(`.vno-grid-cell[data-coord="${key}"]`), existing, this.selectedCoord.c, this.selectedCoord.r);
+    this._recordHistory?.({
+      type: "cell",
+      coord: key,
+      before: { val: oldItem.val, formula: oldItem.formula, style: oldItem.style, hyperlink: oldItem.hyperlink },
+      after: { val: existing.val, formula: existing.formula, style: existing.style, hyperlink: undefined }
+    });
+    return true;
+  }
+
+  openHyperlinkAtSelection() {
+    const url = String(this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.hyperlink || "");
+    if (!/^(https?:|mailto:)/i.test(url)) return false;
+    globalThis.open?.(url, "_blank", "noopener,noreferrer");
+    return true;
+  }
+
+  clearAllFilters() {
+    if (!this.activeFilters?.size) return false;
+    const previous = this._snapshotFilterState();
+    this.activeFilters.clear();
+    this.hiddenRows.clear();
+    this._updateFilterButtons();
+    this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+    this._recordHistory({ type: "filter", sheet: this.activeSheet, prevVal: previous, nextVal: this._snapshotFilterState() });
+    return true;
+  }
+
+  reapplyFilters() {
+    if (!this.activeFilters?.size) return false;
+    const [firstCol, allowed] = this.activeFilters.entries().next().value;
+    this.applyFilter(firstCol, allowed, false);
+    return true;
+  }
+
+  filterBySelectedCellValue() {
+    const col = this.selectedCoord.c;
+    const cell = this.cellsData.get(`${col}${this.selectedCoord.r}`);
+    const value = cell ? String(cell.val ?? "") : "";
+    if (!this.isFilterActive) this.toggleFilter();
+    this.applyFilter(col, new Set([value]));
+    return true;
+  }
+
   insertSymbol(symbol) {
     if (!symbol) return false;
     const ch = String(symbol);
@@ -10898,7 +10962,7 @@ _bindGridKeyboardNavigation() {
       const m = k.match(/^([A-Z]+)(\d+)$/);
       if (m && m[1] === col) {
         const r = parseInt(m[2], 10);
-        if (r >= 4 && itm.val !== undefined && itm.val !== "") {
+        if (r >= this._filterDataStartRow() && itm.val !== undefined && itm.val !== "") {
           valuesSet.add(String(itm.val));
         }
       }
@@ -11034,12 +11098,19 @@ _bindGridKeyboardNavigation() {
     }, 10);
   }
 
+  /** Hàng dữ liệu đầu tiên của vùng lọc (ngay dưới hàng tiêu đề); mặc định 4 khi chưa có vùng lọc rõ ràng. */
+  _filterDataStartRow() {
+    const range = this.sheetStates?.[this.activeSheet]?.filterRange;
+    const parsed = range ? this._parseRange(range) : null;
+    return parsed ? Math.min(parsed.start.r, parsed.end.r) + 1 : 4;
+  }
+
   applyFilter(col, allowedSet, recordUndo = true) {
     const previous = this._snapshotFilterState();
     this.activeFilters.set(col, allowedSet);
     this.hiddenRows.clear();
 
-    for (let r = 4; r <= this.rowCount; r++) {
+    for (let r = this._filterDataStartRow(); r <= this.rowCount; r++) {
       let shouldHide = false;
       for (const [filterCol, allowed] of this.activeFilters.entries()) {
         const key = `${filterCol}${r}`;

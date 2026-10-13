@@ -91,7 +91,8 @@ export async function runSheetFormatCellsTests() {
     // Kiểm tra có nút trong column items
     const colItem = numberGroup.items.find(it => it.type === "column");
     assert(colItem, "Nhóm number phải có cột nút");
-    const dialogBtn = colItem.items.find(it => it.commandId === "sheet.format.cellsDialog");
+    const findCommand = (items) => items.reduce((hit, it) => hit || (it.commandId === "sheet.format.cellsDialog" ? it : findCommand(it.items || [])), null);
+    const dialogBtn = findCommand(colItem.items);
     assert(dialogBtn, "Cột nút phải chứa nút sheet.format.cellsDialog");
   });
 

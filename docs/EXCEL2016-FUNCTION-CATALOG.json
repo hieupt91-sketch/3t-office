@@ -321,9 +321,10 @@
     {
       "name": "BYCOL",
       "category": "Logical functions",
-      "sourceYearTag": "",
-      "excel2016": true,
-      "year": ""
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024",
+      "note": "Không có trong Excel 2016; hàm mảng động của Microsoft 365."
     },
     {
       "name": "BYROW",
@@ -2554,9 +2555,10 @@
     {
       "name": "SEQUENCE",
       "category": "Math and trigonometry functions",
-      "sourceYearTag": "",
-      "excel2016": true,
-      "year": ""
+      "sourceYearTag": "2021",
+      "excel2016": false,
+      "year": "2021",
+      "note": "Không có trong Excel 2016; hàm mảng động của Microsoft 365."
     },
     {
       "name": "SERIESSUM",
@@ -2708,9 +2710,10 @@
     {
       "name": "STOCKHISTORY",
       "category": "Information functions",
-      "sourceYearTag": "",
-      "excel2016": true,
-      "year": ""
+      "sourceYearTag": "2021",
+      "excel2016": false,
+      "year": "2021",
+      "note": "Không có trong Excel 2016; hàm dữ liệu liên kết của Microsoft 365."
     },
     {
       "name": "SUBSTITUTE",

@@ -64,6 +64,9 @@ export const FUNCTION_CATALOG = [
   { name: "NOT", category: "Logic", syntax: "NOT(logical)", desc: "Đảo ngược giá trị logic của đối số." },
   { name: "IFERROR", category: "Logic", syntax: "IFERROR(value, value_if_error)", desc: "Trả về giá trị thay thế khi biểu thức tạo ra bất kỳ lỗi nào." },
   { name: "IFNA", category: "Logic", syntax: "IFNA(value, value_if_na)", desc: "Trả về giá trị thay thế khi biểu thức tạo ra lỗi #N/A." },
+  { name: "TRUE", category: "Logic", syntax: "TRUE()", desc: "Trả về giá trị logic TRUE." },
+  { name: "FALSE", category: "Logic", syntax: "FALSE()", desc: "Trả về giá trị logic FALSE." },
+  { name: "XOR", category: "Logic", syntax: "XOR(logical1, [logical2], ...)", desc: "Trả về TRUE khi có số lẻ đối số logic là TRUE." },
   { name: "ISBLANK", category: "Logic", syntax: "ISBLANK(value)", desc: "Kiểm tra giá trị có phải là ô trống hay không." },
   { name: "ISNUMBER", category: "Logic", syntax: "ISNUMBER(value)", desc: "Kiểm tra giá trị có phải là số hay không." },
   { name: "ISTEXT", category: "Logic", syntax: "ISTEXT(value)", desc: "Kiểm tra giá trị có phải là văn bản hay không." },
@@ -128,6 +131,7 @@ for (const item of FUNCTION_CATALOG) {
     item.params = vi.params || [];
     item.example = vi.example || "";
     if (vi.desc) item.desc = vi.desc;
+    if (vi.descEn) item.descEn = vi.descEn;
   }
 }
 
@@ -142,6 +146,7 @@ for (const vi of VI_FORMULA_CATALOG) {
       syntax: vi.syntax || `${vi.name}()`,
       syntaxVi: vi.syntaxVi || vi.syntax || `${vi.name}()`,
       desc: vi.desc || "",
+      descEn: vi.descEn || "",
       params: vi.params || [],
       example: vi.example || ""
     });
@@ -2153,6 +2158,7 @@ export class FormulaEngine {
 
       // Logic
       case "IF": {
+        if (args.length < 1) return "#VALUE!";
         const condExpr = args[0];
         const condResult = this._evaluateCondition(condExpr);
         if (this._isError(condResult)) return condResult;
@@ -2164,21 +2170,17 @@ export class FormulaEngine {
       }
 
       case "AND": {
-        for (const a of args) {
-          const res = this._evaluateCondition(a);
-          if (this._isError(res)) return res;
-          if (!res) return false;
-        }
-        return true;
+        const values = this._collectLogicalArguments(args);
+        if (this._isError(values)) return values;
+        if (!values.length) return "#VALUE!";
+        return values.every(Boolean);
       }
 
       case "OR": {
-        for (const a of args) {
-          const res = this._evaluateCondition(a);
-          if (this._isError(res)) return res;
-          if (res) return true;
-        }
-        return false;
+        const values = this._collectLogicalArguments(args);
+        if (this._isError(values)) return values;
+        if (!values.length) return "#VALUE!";
+        return values.some(Boolean);
       }
 
       case "NOT": {
@@ -2192,7 +2194,20 @@ export class FormulaEngine {
         if (args.length < 2) return "#VALUE!";
         const value = this._resolveSingleValue(args[0]);
         const caught = funcName === "IFNA" ? value === "#N/A" : this._isError(value);
-        return caught ? this._resolveSingleValue(args[1]) : value;
+        if (caught) return this._resolveSingleValue(args[1]);
+        const blankReference = value === "" && /^(?:(?:'[^']+'|[^!]+)!)?\$?[A-Z]+\$?\d+$/i.test(String(args[0]).trim());
+        return blankReference ? 0 : value;
+      }
+
+      case "TRUE":
+        return args.length ? "#VALUE!" : true;
+      case "FALSE":
+        return args.length ? "#VALUE!" : false;
+      case "XOR": {
+        const values = this._collectLogicalArguments(args);
+        if (this._isError(values)) return values;
+        if (!values.length) return "#VALUE!";
+        return values.filter(Boolean).length % 2 === 1;
       }
 
       case "ISBLANK": {
@@ -2969,7 +2984,29 @@ export class FormulaEngine {
 
     const val = this._resolveSingleValue(condStr);
     if (this._isError(val)) return val;
-    return Boolean(val && val !== "FALSE" && val !== "0");
+    if (typeof val === "boolean") return val;
+    if (typeof val === "number") return val !== 0;
+    if (val === "") return false;
+    return "#VALUE!";
+  }
+
+  _collectLogicalArguments(args) {
+    const logical = [];
+    for (const arg of args) {
+      const text = String(arg ?? "").trim();
+      const reference = /^(?:(?:'[^']+'|[^!]+)!)?\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?$/i.test(text) || Boolean(this._resolveNamedRange(text));
+      const values = reference && (text.includes(":") || this._resolveNamedRange(text))
+        ? this._referenceValues(text)
+        : [reference ? this._resolveSingleValue(arg) : this._evaluateCondition(text)];
+      for (const value of values) {
+        if (this._isError(value)) return value;
+        if (reference && (value === "" || typeof value === "string")) continue;
+        if (typeof value === "boolean") logical.push(value);
+        else if (typeof value === "number") logical.push(value !== 0);
+        else return "#VALUE!";
+      }
+    }
+    return logical;
   }
 
   _isSingleFunctionCall(token) {

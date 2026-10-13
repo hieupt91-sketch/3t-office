@@ -89,5 +89,18 @@ export async function runSheetExcel2016FunctionGapTests() {
     equal(engine.evaluate("=SECOND(TIME(14,30,45))"), 45);
     equal(engine.evaluate("=TIME(-1,0,0)"), "#NUM!");
   });
+  test("Logical functions follow Excel 2016 coercion for blanks and text", () => {
+    equal(engine.evaluate("=TRUE()"), true);
+    equal(engine.evaluate("=FALSE()"), false);
+    equal(engine.evaluate("=XOR(TRUE,FALSE,TRUE)"), false);
+    equal(engine.evaluate('=IF("text",1,0)'), "#VALUE!");
+    equal(engine.evaluate('=NOT("2")'), "#VALUE!");
+    equal(engine.evaluate("=AND(Z1)"), "#VALUE!");
+    equal(engine.evaluate("=OR(Z1)"), "#VALUE!");
+    equal(engine.evaluate('=AND(TRUE,"2")'), "#VALUE!");
+    equal(engine.evaluate('=OR(FALSE,"2")'), "#VALUE!");
+    equal(engine.evaluate('=IFERROR(Z1,"caught")'), 0);
+    equal(engine.evaluate('=IFNA(Z1,"caught")'), 0);
+  });
   return results;
 }

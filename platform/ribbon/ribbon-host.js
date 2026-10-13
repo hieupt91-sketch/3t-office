@@ -446,6 +446,20 @@ export class RibbonHost {
    * Đảm bảo KHÔNG BAO GIỜ cuộn ngang ở chiều rộng >= 1024px.
    */
   updateAdaptiveLayout() {
+    this._applyAdaptiveLayout();
+    // Lượt đo đầu có thể chạy khi font/icon/viewport chưa ổn định nên còn tràn vài px
+    // (hiện thanh cuộn ngang và cắt nút); kiểm lại một lần sau khi layout lắng xuống.
+    if (this._adaptiveRecheckTimer) clearTimeout(this._adaptiveRecheckTimer);
+    this._adaptiveRecheckTimer = setTimeout(() => {
+      this._adaptiveRecheckTimer = null;
+      const panel = this.container?.querySelector?.(".vno-ribbon-content");
+      if (panel && !this.isCollapsed && panel.scrollWidth > panel.clientWidth + 1) {
+        this._applyAdaptiveLayout();
+      }
+    }, 200);
+  }
+
+  _applyAdaptiveLayout() {
     this._updateTabScrollControls();
     if (this.isCollapsed) return;
     const contentPanel = this.container?.querySelector?.(".vno-ribbon-content");
@@ -468,7 +482,7 @@ export class RibbonHost {
 
     // Thứ tự ưu tiên thu nhỏ: từ phải qua trái, các nhóm ít dùng trước;
     // nhóm Phông chữ (font) và Bảng nhớ tạm (clipboard) giữ lâu nhất.
-    const highPriority = ["font", "clipboard"];
+    const highPriority = ["font", "clipboard", "cells", "styles"];
     const groupsToShrink = [...groupEls].reverse().sort((a, b) => {
       const aHigh = highPriority.includes(a.dataset.groupId);
       const bHigh = highPriority.includes(b.dataset.groupId);
@@ -483,8 +497,17 @@ export class RibbonHost {
       if (contentPanel.scrollWidth <= contentPanel.clientWidth + 1) return;
     }
 
-    // Stage 2: Nút nhỏ ẩn nhãn, chỉ hiển thị icon (icon-only + tooltip)
+    // Stage 2: Nút nhỏ ẩn nhãn, chỉ hiển thị icon (icon-only + tooltip).
+    // Nhóm keepLabels (Kiểu, Ô) bị bỏ qua ở đây để giữ nhãn chữ như Excel; chúng chỉ bị ẩn nhãn
+    // sau cùng nếu các nhóm khác đã thu gọn mà vẫn tràn.
+    const keepLabels = ["cells", "styles"];
     for (const g of groupsToShrink) {
+      if (keepLabels.includes(g.dataset.groupId)) continue;
+      g.classList.add("vno-group-icon-only");
+      if (contentPanel.scrollWidth <= contentPanel.clientWidth + 1) return;
+    }
+    for (const g of groupsToShrink) {
+      if (!keepLabels.includes(g.dataset.groupId)) continue;
       g.classList.add("vno-group-icon-only");
       if (contentPanel.scrollWidth <= contentPanel.clientWidth + 1) return;
     }

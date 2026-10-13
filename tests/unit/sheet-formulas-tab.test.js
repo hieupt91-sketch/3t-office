@@ -160,10 +160,10 @@ export async function runSheetFormulasTabTests() {
     }
   });
 
-  await test("Function Catalog: Đầy đủ 97 hàm thuộc 7 danh mục kế toán & văn phòng chuẩn Excel", () => {
+  await test("Function Catalog: Đầy đủ 100 hàm (gồm TRUE/FALSE/XOR) thuộc 7 danh mục kế toán & văn phòng chuẩn Excel", () => {
     const catalog = FUNCTION_CATALOG;
     assert(Array.isArray(catalog), "FUNCTION_CATALOG phải là một mảng");
-    assert(catalog.length === 97, `FUNCTION_CATALOG phải có đúng 97 hàm, thực tế: ${catalog.length}`);
+    assert(catalog.length === 100, `FUNCTION_CATALOG phải có đúng 100 hàm, thực tế: ${catalog.length}`);
 
     const categories = new Set(catalog.map(f => f.category));
     assert(categories.has("Toán học"), "Thiếu danh mục 'Toán học'");
