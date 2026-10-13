@@ -725,7 +725,7 @@ export class SheetAdapter {
     // Viền chung (nút ribbon "Viền") chỉ vào hash khi có, để hash của ô không viền (và ảnh chụp kiểm thử cũ) không đổi.
     if (style.border) visualProps.border = style.border;
     for (const key of ["horizontalAlignment", "verticalAlignment", "textDirection", "fontUnderline", "fontPosition", "fillPattern", "fillPatternColor", "borderDiagonalUp", "borderDiagonalDown"]) {
-      if (style[key]) visualProps[key] = style[key];
+      if (style[key] && style[key] !== "none" && style[key] !== "general") visualProps[key] = style[key];
     }
     if (style.shrinkToFit) visualProps.shrinkToFit = true;
     if (style.fillGradient) visualProps.fillGradient = style.fillGradient;
@@ -3782,7 +3782,8 @@ export class SheetAdapter {
             xfAttr = ` vno:xf="${item.style.origXf}"`;
           }
           const nativeFormatKeys = ["horizontalAlignment", "verticalAlignment", "indentLevel", "whiteSpace", "shrinkToFit", "textDirection", "textRotation", "fontUnderline", "fontPosition", "fillPattern", "fillPatternColor", "fillGradient", "borderDiagonalUp", "borderDiagonalDown", "locked", "formulaHidden"];
-          const nativeFormat = Object.fromEntries(nativeFormatKeys.filter(key => item.style?.[key] !== undefined).map(key => [key, item.style[key]]));
+          const isNativeDefault = (key, value) => value === undefined || value === null || value === "none" || value === "general" || (key === "locked" && value === true) || (key === "formulaHidden" && value === false) || (key === "shrinkToFit" && value === false) || (key === "whiteSpace" && value === "nowrap" && item.style?.origXf == null);
+          const nativeFormat = Object.fromEntries(nativeFormatKeys.filter(key => !isNativeDefault(key, item.style?.[key])).map(key => [key, item.style[key]]));
           // O chua sua (xfAttr) duoc khoi phuc nguyen xf goc; chi ghi dinh dang rieng cho o da sua/o moi.
           const nativeFormatAttr = (!xfAttr && Object.keys(nativeFormat).length) ? ` vno:cell-format="${this._escapeXml(JSON.stringify(nativeFormat))}"` : "";
           const cellAttrs = `${formulaAttrs}${matrixAttrs}${mergeAttrs}${numFmtAttr}${nativeFormatAttr}${cellStyleName ? ` table:style-name="${cellStyleName}"` : ""}${validationAttr}${xfAttr}`;

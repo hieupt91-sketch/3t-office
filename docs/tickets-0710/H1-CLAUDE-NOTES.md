@@ -12,6 +12,12 @@
    **Chua xac nhan**: sau sua nay batch lan09 van chay >10 phut va khong ghi lai `sent.fods` (nghi treo o buoc MO, khong phai luu). Main chay lan09 111 giay. Kiem tra mo + luu tung buoc (do thoi gian) truoc khi bam batch.
 5. Nen viet lai vong lap o 6282 thanh mot lan quet (re.sub voi ham thay the tren toan bo `<c ...>`), khong tim tung o.
 
+## CAP NHAT 06:55 (Claude)
+- Nguyen nhan that cua treo lan09: 
+ativeFormat mac dinh (whiteSpace:nowrap, locked:true, ormulaHidden:false, orderDiagonal*:none) bi ghi cho ~49.000 o. Da loc gia tri mac dinh o export (isNativeDefault) va chi ghi cell-format cho o chua co vno:xf. Hash o: bo qua gia tri none/general.
+- DA DAT: batch LAN 10 file = 0 diff (lan09 125s, lan01 0 diff); npm test 3198/3198; CDP H1 18/18.
+- CON LAI: sheet_formulas_vs_cache lan28/lan01/lan04; 1 loi trong python unittest (python -m unittest discover -s tests -p test_*xlsx*.py: 65 test, 1 error, chua xac dinh ten); doc lai bang Excel cho tung control con lai trong bang audit; cap nhat muc 'Ket qua chay' trong docs/AUDIT-SHEET-DIALOG-FORMAT-CELLS-1310.md voi so lieu that; Help tieng Viet.
+
 ## Cong bat buoc truoc khi bao xong
 npm test; batch LAN 10 file 0 diff; `sheet_formulas_vs_cache.mjs --force --file lan28` >= 98.18% (lan01/lan04 100%); Excel 2016 COM doc cung gia tri; Help tieng Viet.
 Luu y moi truong: tien trinh EXCEL.exe mo coi gay RPC_E_CALL_REJECTED; chi kill theo PID, khong kill theo ten.
