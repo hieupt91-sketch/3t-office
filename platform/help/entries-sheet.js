@@ -11,7 +11,7 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: [],
     title: "Menu chuột phải: ô, hàng, cột và tab trang tính",
-    summary: "Bấm chuột phải để dùng nhanh các lệnh thường gặp, sắp xếp giống Excel: Cắt/Sao chép/Dán, Chèn, Xóa, Lọc, Sắp xếp, Ghi chú, Định dạng ô, Siêu liên kết; riêng hàng, cột và tab trang tính có menu riêng.",
+    summary: "Bấm chuột phải để dùng nhanh các lệnh thường gặp, sắp xếp theo thói quen của phần mềm bảng tính văn phòng: Cắt/Sao chép/Dán, Chèn, Xóa, Lọc, Sắp xếp, Ghi chú, Định dạng ô, Siêu liên kết; riêng hàng, cột và tab trang tính có menu riêng.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
     keywords: ["chuột phải", "menu ngữ cảnh", "context menu", "chèn ô", "xóa ô", "lọc theo giá trị", "ghi chú", "siêu liên kết", "chiều cao hàng", "độ rộng cột", "tab trang tính", "Shift+F10"],
     steps: [
