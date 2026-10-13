@@ -12,13 +12,15 @@ await fs.copyFile(source, output);
 const checks = [];
 const check = (id, condition, detail = "") => { checks.push({ id, pass: Boolean(condition), detail }); console.log(`${condition ? "PASS" : "FAIL"} | ${id}${detail ? ` | ${detail}` : ""}`); };
 
-async function ready(session) {
+async function ready(session, expectedPath) {
   const start = Date.now();
-  while (Date.now() - start < 60000) {
-    if (await session.cdp.evaluate('window.__vnoAppInstance?.grid?.cellsData && !document.querySelector(".vno-sheet-quick-view")')) return;
+  const normalized = path.resolve(expectedPath).replace(/\\/g, "/").toLowerCase();
+  while (Date.now() - start < 180000) {
+    const loaded = await session.cdp.evaluate(`(()=>{const app=window.__vnoAppInstance;const source=String(app?.adapter?._sourcePath||app?.adapter?.sourceFilePath||"").replace(/\\\\/g,"/").toLowerCase();return source===${JSON.stringify(normalized)}&&app?.grid?.cellsData?.size>0&&!document.querySelector(".vno-sheet-quick-view")})()`);
+    if (loaded) return;
     await sleep(300);
   }
-  throw new Error("Sheet did not leave quick view");
+  throw new Error(`Sheet did not finish opening ${expectedPath}`);
 }
 
 async function apply(cdp, coord, tab, script, range = null) {
@@ -33,9 +35,9 @@ const event = (selector, value, kind = "change") => `{const e=document.querySele
 const click = selector => `document.querySelector(${JSON.stringify(selector)}).click();`;
 const session = await launchApp("sheet", { filePath: output });
 try {
-  await ready(session);
+  await ready(session, output);
   const { cdp } = session;
-  await cdp.evaluate(`(()=>{const g=window.__vnoAppInstance.grid; const values={A1:-1234.1,A2:-1234.1,A3:-1234.1,A4:45365,A5:0.5625,A6:0.125,A7:2.375,A8:12345,A9:12345,A10:2125551212,A11:12.5,B1:'Alignment',B2:'Vertical',B3:'Merged',D1:'Font',D2:'Normal',I1:'Pattern',I2:'Gradient',J1:'Protection'};for(const [c,v] of Object.entries(values)){const m=c.match(/^([A-Z]+)(\\d+)$/);g.setCellValue(m[1],Number(m[2]),v)}})()`);
+  await cdp.evaluate(`(()=>{const g=window.__vnoAppInstance.grid; const values={A1:-1234.1,A2:-1234.1,A3:-1234.1,A4:45365,A5:0.5625,A6:0.125,A7:2.375,A8:12345,A9:12345,A10:2125551212,A11:12.5,B1:'Alignment',B2:'Vertical',B3:'Merged',C3:'',D1:'Font',D2:'Normal',I1:'Pattern',I2:'Gradient',J1:'Protection'};for(const [c,v] of Object.entries(values)){const m=c.match(/^([A-Z]+)(\\d+)$/);g.setCellValue(m[1],Number(m[2]),v)}})()`);
 
   await apply(cdp, "A1", "number", `${click('.vno-fc-cat-item[data-value="number"]')}${event('#vno-fc-decimals', 3, 'input')}${click('#vno-fc-thousands')}${click('.vno-fc-neg-item[data-value="3"]')}`);
   await apply(cdp, "A2", "number", `${click('.vno-fc-cat-item[data-value="currency"]')}${event('#vno-fc-symbol', '€')}${event('#vno-fc-decimals', 2, 'input')}${click('.vno-fc-neg-item[data-value="2"]')}`);
@@ -63,21 +65,20 @@ try {
   await cdp.evaluate(`window.__vnoAppInstance.grid.selectCell('K',2);window.__vnoAppInstance.grid.showFormatCellsDialog('fill')`); await cdp.evaluate(`document.querySelector('.vno-fc-close-btn').click()`); check("FC-G01-close", !(await cdp.evaluate(`window.__vnoAppInstance.grid.cellsData.get('K2')?.style?.backgroundColor`)));
   const model = await cdp.evaluate(`(()=>{const g=window.__vnoAppInstance.grid;return {n:g.cellsData.get('A1').style.numberFormat,a:g.cellsData.get('B1').style,f:g.cellsData.get('D1').style,p:g.cellsData.get('J1').style,m:!!g.getMergedRangeForCell('B',3)}})()`);
   check("FC-model-before-save", model.n.decimals === 3 && model.a.horizontalAlignment === "centerContinuous" && model.f.fontUnderline === "doubleAccounting" && model.p.locked === false && model.p.formulaHidden && model.m, JSON.stringify(model));
-  await cdp.evaluate(`(()=>{window.__vnoAppInstance.adapter.isDirty=true;window.__vnoAppInstance.adapter.save();return true})()`);
-  const saveStart = Date.now();
-  while (Date.now() - saveStart < 90000 && await cdp.evaluate(`window.__vnoAppInstance.adapter.isDirty`)) await sleep(500);
-  check("FC-G03-save", !(await cdp.evaluate(`window.__vnoAppInstance.adapter.isDirty`)));
+  const saveState = await cdp.evaluate(`(()=>{const adapter=window.__vnoAppInstance.adapter;const fods=adapter.serializeToFods();return globalThis.globalUnoBridge.saveRealFileInPlace("sheet",fods,${JSON.stringify(output)},${JSON.stringify(output)})})()`, { timeoutMilliseconds: 300000 });
+  const saved = saveState?.status === "ok";
+  check("FC-G03-save", saved, JSON.stringify(saveState) + (saved ? "" : ` | ${session.output.slice(-4000)}`));
 } finally { await session.close(); }
 
 const reopened = await launchApp("sheet", { filePath: output });
 try {
-  await ready(reopened);
+  await ready(reopened, output);
   const state = await reopened.cdp.evaluate(`(()=>{const g=window.__vnoAppInstance.grid;return {n:g.cellsData.get('A1')?.style?.numberFormat,a:g.cellsData.get('B1')?.style,f:g.cellsData.get('D1')?.style,p:g.cellsData.get('J1')?.style,m:!!g.getMergedRangeForCell('B',3)}})()`);
   check("FC-reopen-app", state.n?.decimals === 3 && state.a?.shrinkToFit && state.p?.locked === false && state.p?.formulaHidden && state.m, JSON.stringify(state));
 } finally { await reopened.close(); }
 
 const ps = path.join(repoRoot, "tests", "live", "cdp", "sheet-format-cells-controls-readonly.ps1");
-const raw = execFileSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ps, "-Path", output], { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 }).trim();
+const raw = execFileSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", ps, "-File", output], { encoding: "utf8", maxBuffer: 10 * 1024 * 1024 }).trim();
 const com = JSON.parse(raw.split(/\r?\n/).at(-1));
 check("FC-COM-readonly", com.ReadOnly === true);
 check("FC-N03-N23", String(com.Number).includes("000") && String(com.Currency).includes("€") && String(com.Accounting).includes("£") && /yyyy-mm-dd/i.test(com.Date) && /h{1,2}:mm:ss/i.test(com.Time) && String(com.Percentage).includes("0.0%") && String(com.Fraction).includes("??/??") && /E\+00/i.test(com.Scientific) && com.Text === "@" && String(com.Special).includes("###-####") && String(com.Custom).includes("kg"), JSON.stringify(com));

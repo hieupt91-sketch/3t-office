@@ -6256,6 +6256,16 @@ def _apply_native_cell_formats_from_fods(
         if "locked" in config or "formulaHidden" in config:
             protection = ET.Element(q("protection"), {"locked": "1" if config.get("locked", True) else "0", "hidden": "1" if config.get("formulaHidden") else "0"})
             replace_child(xf, "protection", protection); xf.set("applyProtection", "1")
+        # CT_Xf requires alignment -> protection -> extLst. replace_child()
+        # appends, so an alignment-only patch would otherwise place alignment
+        # after an existing protection node and Excel 2016 rejects the file.
+        ordered_children = [xf.find(q(name)) for name in ("alignment", "protection", "extLst")]
+        for child in ordered_children:
+            if child is not None:
+                xf.remove(child)
+        for child in ordered_children:
+            if child is not None:
+                xf.append(child)
         cell_xfs.append(xf); index = len(cell_xfs) - 1; style_cache[cache_key] = index
         return index
 
@@ -6274,10 +6284,16 @@ def _apply_native_cell_formats_from_fods(
             match = pattern.search(xml)
             if not match:
                 continue
-            attrs = match.group("attrs"); style_match = re.search(r'\bs="(\d+)"', attrs); base_index = int(style_match.group(1)) if style_match else 0
+            attrs = match.group("attrs")
+            self_closing = attrs.rstrip().endswith("/")
+            clean_attrs = attrs.rstrip()
+            if self_closing:
+                clean_attrs = clean_attrs[:-1].rstrip()
+            style_match = re.search(r'\bs="(\d+)"', clean_attrs); base_index = int(style_match.group(1)) if style_match else 0
             new_index = style_index(base_index, config)
-            next_attrs = re.sub(r'\s+s="\d+"', "", attrs) + f' s="{new_index}"'
-            xml = xml[:match.start()] + f'<c{next_attrs}>' + xml[match.end():]
+            next_attrs = re.sub(r'\s+s="\d+"', "", clean_attrs) + f' s="{new_index}"'
+            close = "/>" if self_closing else ">"
+            xml = xml[:match.start()] + f'<c{next_attrs}{close}' + xml[match.end():]
         replacements[entry_path] = xml
     for node in (fonts, fills, borders, cell_xfs):
         node.set("count", str(len(node)))
@@ -10462,6 +10478,7 @@ def overlay_sheet_xlsx_fods(
         xml,
         include_xf=not skip_initial_xf,
     )
+    xml = _overlay_native_cell_formats_from_xlsx(xlsx_bytes, xml)
     xml = _promote_covered_formula_errors(xml)
     # Sheet tab colors: read from original XLSX worksheet XMLs and write
     # vno:tab-color to FODS table:table elements for round-trip fidelity.
@@ -10533,6 +10550,7 @@ def overlay_sheet_xlsx_fods_p1(
         xml,
         include_xf=not skip_initial_xf,
     )
+    xml = _overlay_native_cell_formats_from_xlsx(xlsx_bytes, xml)
     xml = _promote_covered_formula_errors(xml)
     if not skeleton:
         if tab_colors:
@@ -10703,6 +10721,7 @@ def _xlsx_cells_with_xf_indices(xlsx_bytes: bytes) -> dict[str, dict[tuple[int, 
 
 _VNO_XF_RE = re.compile(r'\s+vno:xf\s*=\s*(["\'])\d+\1', re.IGNORECASE)
 _VNO_XF_FAST_RE = re.compile(r' vno:xf="[0-9]+"')
+_VNO_CELL_FORMAT_RE = re.compile(r'\s+vno:cell-format\s*=\s*(["\']).*?\1', re.IGNORECASE)
 
 
 def strip_vno_xf_attributes(fods_xml: str) -> str:
@@ -10759,6 +10778,247 @@ def _set_orig_xf_attr(cell_xml: str, xf_index: int) -> str:
     attrs = _VNO_XF_RE.sub("", opening.group(2), count=1)
     tag = f'<{opening.group(1)}{attrs} vno:xf="{xf_index}"{opening.group(3)}>'
     return tag + cell_xml[opening.end() :]
+
+
+def _set_native_cell_format_attr(cell_xml: str, config: dict) -> str:
+    """Stamp exact OOXML-only cell properties that LibreOffice normalizes on import."""
+    if not config or cell_xml.startswith("<table:covered-table-cell"):
+        return cell_xml
+    raw = json.dumps(config, ensure_ascii=False, separators=(",", ":"))
+    stamped = _stamp_table_cell_attr(
+        cell_xml,
+        f' vno:cell-format="{_escape_xml(raw)}"',
+        _VNO_CELL_FORMAT_RE,
+    )
+    return stamped if stamped is not None else cell_xml
+
+
+def _xlsx_native_formats_by_xf(xlsx_bytes: bytes) -> list[dict]:
+    """Return exact native Format Cells properties for each cellXf."""
+    cached = _index_memo_get("native_formats_by_xf", xlsx_bytes)
+    if cached is not _INDEX_MISS:
+        return cached
+    entry = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
+    if not entry:
+        return []
+    main_ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    q = lambda name: f"{{{main_ns}}}{name}"
+    try:
+        root = ET.fromstring(entry)
+    except ET.ParseError:
+        return []
+    def children(name: str) -> list[ET.Element]:
+        node = root.find(q(name))
+        return list(node) if node is not None else []
+
+    fonts = children("fonts")
+    fills = children("fills")
+    borders = children("borders")
+    cell_xfs = children("cellXfs")
+
+    def enabled(value: str | None) -> bool:
+        return str(value or "").strip().lower() in {"1", "true", "on"}
+
+    def color_value(node: ET.Element | None) -> str | None:
+        if node is None:
+            return None
+        rgb = re.sub(r"[^0-9A-Fa-f]", "", node.get("rgb", ""))
+        return f"#{rgb[-6:].upper()}" if len(rgb) >= 6 else None
+
+    def border_css(side: ET.Element | None) -> str | None:
+        if side is None or not side.get("style"):
+            return None
+        style = side.get("style", "thin")
+        medium = {"medium", "mediumDashed", "mediumDashDot", "mediumDashDotDot", "slantDashDot"}
+        width = "3px" if style in {"thick", "double"} else "2px" if style in medium else "1px"
+        kind = "double" if style == "double" else "dashed" if "dash" in style.lower() else "dotted" if style in {"dotted", "hair"} else "solid"
+        return f"{width} {kind} {color_value(side.find(q('color'))) or '#000000'}"
+
+    result: list[dict] = []
+    for xf in cell_xfs:
+        config: dict = {}
+        alignment = xf.find(q("alignment"))
+        if alignment is not None:
+            horizontal = alignment.get("horizontal")
+            if horizontal and horizontal != "general":
+                config["horizontalAlignment"] = horizontal
+            vertical = alignment.get("vertical")
+            if vertical and vertical != "bottom":
+                config["verticalAlignment"] = "middle" if vertical == "center" else vertical
+            try:
+                indent = int(alignment.get("indent", "0"))
+            except ValueError:
+                indent = 0
+            if indent:
+                config["indentLevel"] = indent
+            if enabled(alignment.get("wrapText")):
+                config["whiteSpace"] = "normal"
+            if enabled(alignment.get("shrinkToFit")):
+                config["shrinkToFit"] = True
+            reading_order = alignment.get("readingOrder")
+            if reading_order == "2":
+                config["textDirection"] = "rtl"
+            elif reading_order == "1":
+                config["textDirection"] = "ltr"
+            try:
+                rotation = int(alignment.get("textRotation", "0"))
+            except ValueError:
+                rotation = 0
+            if rotation:
+                config["textRotation"] = 255 if rotation == 255 else (90 - rotation if rotation > 90 else rotation)
+
+        try:
+            font = fonts[int(xf.get("fontId", "0"))]
+        except (ValueError, IndexError):
+            font = None
+        if font is not None:
+            underline = font.find(q("u"))
+            if underline is not None:
+                config["fontUnderline"] = underline.get("val", "single")
+            position = font.find(q("vertAlign"))
+            if position is not None and position.get("val") in {"superscript", "subscript"}:
+                config["fontPosition"] = "super" if position.get("val") == "superscript" else "sub"
+
+        try:
+            fill = fills[int(xf.get("fillId", "0"))]
+        except (ValueError, IndexError):
+            fill = None
+        if fill is not None:
+            gradient = fill.find(q("gradientFill"))
+            pattern = fill.find(q("patternFill"))
+            if gradient is not None:
+                try:
+                    degree = round(float(gradient.get("degree", "0"))) % 360
+                except ValueError:
+                    degree = 0
+                stops = sorted(gradient.findall(q("stop")), key=lambda node: float(node.get("position", "0") or 0))
+                colors = [color_value(stop.find(q("color"))) for stop in stops]
+                if len(colors) >= 2 and colors[0] and colors[-1]:
+                    config["fillGradient"] = {
+                        "color1": colors[0],
+                        "color2": colors[-1],
+                        "direction": {0: "horizontal", 90: "vertical", 45: "diagonalUp", 135: "diagonalDown"}.get(degree, "horizontal"),
+                    }
+            elif pattern is not None and pattern.get("patternType") not in {None, "none"}:
+                config["fillPattern"] = pattern.get("patternType")
+                pattern_color = color_value(pattern.find(q("fgColor")))
+                if pattern_color:
+                    config["fillPatternColor"] = pattern_color
+
+        try:
+            border = borders[int(xf.get("borderId", "0"))]
+        except (ValueError, IndexError):
+            border = None
+        if border is not None:
+            diagonal_css = border_css(border.find(q("diagonal")))
+            if diagonal_css and enabled(border.get("diagonalUp")):
+                config["borderDiagonalUp"] = diagonal_css
+            if diagonal_css and enabled(border.get("diagonalDown")):
+                config["borderDiagonalDown"] = diagonal_css
+
+        protection = xf.find(q("protection"))
+        if protection is not None:
+            if protection.get("locked") is not None and not enabled(protection.get("locked")):
+                config["locked"] = False
+            if enabled(protection.get("hidden")):
+                config["formulaHidden"] = True
+        result.append(config)
+    _index_memo_put("native_formats_by_xf", xlsx_bytes, result)
+    return result
+
+
+def _overlay_native_cell_formats_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
+    configs_by_xf = _xlsx_native_formats_by_xf(xlsx_bytes)
+    if not any(configs_by_xf):
+        return fods_xml
+    targets_by_sheet: dict[str, dict[tuple[int, int], dict]] = {}
+    for sheet_name, cells in _xlsx_cells_with_xf_indices(xlsx_bytes).items():
+        targets = {
+            key: configs_by_xf[index]
+            for key, index in cells.items()
+            if 0 <= index < len(configs_by_xf) and configs_by_xf[index]
+        }
+        if targets:
+            targets_by_sheet[sheet_name] = targets
+    if not targets_by_sheet:
+        return fods_xml
+
+    def apply_row(row_xml: str, targets: dict[int, dict]) -> str:
+        pieces, cursor, column = [], 0, 1
+        sorted_columns, target_index = sorted(targets), 0
+        for start, end in _flat_xml_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
+            pieces.append(row_xml[cursor:start])
+            cell = row_xml[start:end]
+            repeat = _repeat_count(cell, "table:number-columns-repeated")
+            while target_index < len(sorted_columns) and sorted_columns[target_index] < column:
+                target_index += 1
+            hit_end = target_index
+            while hit_end < len(sorted_columns) and sorted_columns[hit_end] < column + repeat:
+                hit_end += 1
+            hits = sorted_columns[target_index:hit_end]
+            target_index = hit_end
+            if not hits:
+                pieces.append(cell)
+            else:
+                at = column
+                for col in hits:
+                    if col > at:
+                        pieces.append(_set_repeat(cell, "table:number-columns-repeated", col - at))
+                    stamped = _set_repeat(cell, "table:number-columns-repeated", 1)
+                    pieces.append(_set_native_cell_format_attr(stamped, targets[col]))
+                    at = col + 1
+                if at < column + repeat:
+                    pieces.append(_set_repeat(cell, "table:number-columns-repeated", column + repeat - at))
+            cursor, column = end, column + repeat
+        pieces.append(row_xml[cursor:])
+        return "".join(pieces)
+
+    pieces, cursor = [], 0
+    for start, end in _flat_xml_blocks(fods_xml, ("table:table",)):
+        pieces.append(fods_xml[cursor:start])
+        table_xml = fods_xml[start:end]
+        opening = re.match(r"<[^>]+", table_xml)
+        sheet_name = _xml_attrs(opening.group(0)).get("table:name", "") if opening else ""
+        targets = targets_by_sheet.get(sheet_name)
+        if targets:
+            rows: dict[int, dict[int, dict]] = {}
+            for (row, col), config in targets.items():
+                rows.setdefault(row, {})[col] = config
+            table_parts, table_cursor, row_number = [], 0, 1
+            sorted_rows, target_index = sorted(rows), 0
+            for row_start, row_end in _flat_xml_blocks(table_xml, ("table:table-row",)):
+                table_parts.append(table_xml[table_cursor:row_start])
+                row_xml = table_xml[row_start:row_end]
+                repeat = _repeat_count(row_xml, "table:number-rows-repeated")
+                while target_index < len(sorted_rows) and sorted_rows[target_index] < row_number:
+                    target_index += 1
+                hit_end = target_index
+                while hit_end < len(sorted_rows) and sorted_rows[hit_end] < row_number + repeat:
+                    hit_end += 1
+                hits = sorted_rows[target_index:hit_end]
+                target_index = hit_end
+                if not hits:
+                    table_parts.append(row_xml)
+                else:
+                    at = row_number
+                    for row in hits:
+                        if row > at:
+                            table_parts.append(_set_repeat(row_xml, "table:number-rows-repeated", row - at))
+                        table_parts.append(apply_row(_set_repeat(row_xml, "table:number-rows-repeated", 1), rows[row]))
+                        at = row + 1
+                    if at < row_number + repeat:
+                        table_parts.append(_set_repeat(row_xml, "table:number-rows-repeated", row_number + repeat - at))
+                table_cursor, row_number = row_end, row_number + repeat
+            table_parts.append(table_xml[table_cursor:])
+            table_xml = "".join(table_parts)
+        pieces.append(table_xml)
+        cursor = end
+    pieces.append(fods_xml[cursor:])
+    result = "".join(pieces)
+    if _declares_vno_namespace(result):
+        return result
+    match = _OFFICE_DOCUMENT_OPEN_RE.search(result)
+    return result[:match.start()] + f'<office:document{match.group(1)} xmlns:vno="{SHEET_VNO_NS}">' + result[match.end():] if match else result
 
 
 def _overlay_xf_indices_in_row(row_xml: str, targets: dict[int, int]) -> str:
