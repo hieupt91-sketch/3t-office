@@ -1,0 +1,4 @@
+# EXPORT-FIDELITY-1: Kiểm chứng xuất/chuyển đổi giữ bố cục khi mở bằng Microsoft Office
+Yêu cầu của chủ sở hữu 13/10: xuất/chuyển đổi file xong thì khi mở bằng Microsoft Office không bị đổi định dạng như đã căn chỉnh trong 3T Office.
+Làm: bộ kiểm tự động cho từng định dạng xuất (Sheet: XLSX/XLS/ODS/CSV/PDF; Writer: DOCX/DOC/ODT/RTF/PDF; Slides: PPTX/PPT/ODP/PDF): mở tệp gốc và tệp xuất bằng Office thật (Excel/Word/PowerPoint 16.0 qua COM, ReadOnly, chỉ kill tiến trình do chính mình tạo) rồi so thuộc tính bố cục (độ rộng cột/chiều cao hàng/phông/trộn ô/thiết lập trang; Word: số trang, giãn đoạn, bảng, ảnh; PPT: vị trí/kích thước/phông của hình). Báo cáo lệch theo định dạng; sửa lỗi lệch ở đường xuất (ooxml_zip_patch, adapter) không hồi quy bộ LAN.
+Phụ thuộc: UI Xuất & Chuyển đổi do agy (feat/export-convert-agy).

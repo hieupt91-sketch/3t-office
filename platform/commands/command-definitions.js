@@ -432,6 +432,8 @@ export const SHEET_COMMANDS = [
 
   // Chỉnh sửa & Điền/Xóa (Editing: Fill & Clear)
   { id: "sheet.edit.fill", category: "edit", label: "Điền", icon: "fillDown", tooltip: "Điền dữ liệu theo hướng xuống, sang phải" },
+  { id: "sheet.edit.goTo", category: "edit", label: "Đến...", shortcut: "Ctrl+G", icon: "search", tooltip: "Chuyển nhanh tới ô, vùng hoặc tên đã xác định (F5 hoặc Ctrl+G)" },
+  { id: "sheet.edit.goToSpecial", category: "edit", label: "Đến đặc biệt...", shortcut: "", icon: "search", tooltip: "Chọn nhanh các ô theo loại: ghi chú, công thức, ô trống, vùng hiện tại... (F5 rồi Đặc biệt)" },
   { id: "sheet.edit.fillDown", category: "edit", label: "Điền xuống", shortcut: "Ctrl+D", icon: "fillDown", tooltip: "Sao chép giá trị và công thức ô trên xuống các ô dưới (Ctrl+D)" },
   { id: "sheet.edit.fillRight", category: "edit", label: "Điền phải", shortcut: "Ctrl+R", icon: "fillRight", tooltip: "Sao chép giá trị và công thức ô bên trái sang phải (Ctrl+R)" },
   { id: "sheet.edit.clear", category: "edit", label: "Xóa", icon: "clearAll", tooltip: "Xóa toàn bộ, xóa định dạng hoặc xóa nội dung ô" },

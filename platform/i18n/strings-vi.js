@@ -597,6 +597,8 @@ export const viStrings = {
     ,"sheet.insert.image": { label: "Chèn ảnh", tooltip: "Chèn ảnh vào ô đang chọn" }
     ,"sheet.style.formatAsTable": { label: "Định dạng bảng", tooltip: "Định dạng vùng chọn theo kiểu bảng có màu xen kẽ" }
     ,"sheet.style.cellStyles": { label: "Kiểu ô", tooltip: "Mở thư viện kiểu ô định sẵn (Normal, Good, Bad, Neutral...)" }
+    ,"sheet.edit.goTo": { label: "Đến...", tooltip: "Chuyển nhanh tới ô, vùng hoặc tên đã xác định (F5 hoặc Ctrl+G)" }
+    ,"sheet.edit.goToSpecial": { label: "Đến đặc biệt...", tooltip: "Chọn nhanh các ô theo loại: ghi chú, công thức, ô trống, vùng hiện tại..." }
     ,"sheet.edit.fillDown": { label: "Điền xuống", tooltip: "Sao chép giá trị và công thức ô trên xuống các ô dưới (Ctrl+D)" }
     ,"sheet.edit.fillRight": { label: "Điền phải", tooltip: "Sao chép giá trị và công thức ô bên trái sang phải (Ctrl+R)" }
     ,"sheet.edit.clearAll": { label: "Xóa tất cả", tooltip: "Xóa toàn bộ nội dung, công thức và định dạng của các ô đã chọn" }
@@ -1292,7 +1294,11 @@ export const viStrings = {
     selectData: "Chọn dữ liệu...", chartDataRange: "Nhập vùng dữ liệu cho biểu đồ (ví dụ A1:B10):", invalidChartRange: "Vùng dữ liệu không hợp lệ.",
     moveChart: "Di chuyển biểu đồ...", moveChartMessage: "Nhập tên trang tính muốn chuyển biểu đồ tới. Các trang tính hiện có: {sheets}", invalidSheetName: "Không tìm thấy trang tính với tên đã nhập.",
     deleteObject: "Xóa"
-  },  sheetFormatCells: {
+  },  sheetGoTo: {
+    title: "Đến", reference: "Tham chiếu", placeholder: "Ví dụ: B5, A1:C10, Sheet2!D3 hoặc một tên", nameList: "Tên đã xác định", noNames: "Chưa có tên nào.",
+    invalid: "Tham chiếu không hợp lệ.", special: "Đặc biệt...", specialTitle: "Đến đặc biệt", select: "Chọn", noCells: "Không tìm thấy ô nào.", truncated: "Có quá nhiều vùng; chỉ chọn một phần đầu tiên."
+  },
+  sheetFormatCells: {
     dialogTitle: "Định dạng ô (Format Cells)",
     tabNumber: "Số",
     tabAlignment: "Căn chỉnh",
