@@ -257,6 +257,29 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.trackChanges.displayModeHelp",
+    app: "writer",
+    commandIds: [
+      "writer.trackChanges.displayMode",
+      "writer.trackChanges.displaySimple",
+      "writer.trackChanges.displayAll",
+      "writer.trackChanges.displayNone",
+      "writer.trackChanges.displayOriginal"
+    ],
+    title: "Chế độ hiển thị theo dõi thay đổi",
+    summary: "Hộp chọn chế độ hiển thị bản sửa đổi trên thanh công cụ: Đánh dấu đơn giản (Simple Markup), Tất cả đánh dấu (All Markup), Không đánh dấu (No Markup) và Bản gốc (Original).",
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "Theo dõi thay đổi" },
+    keywords: ["chế độ hiển thị", "theo dõi thay đổi", "simple markup", "all markup", "no markup", "original", "đánh dấu đơn giản", "tất cả đánh dấu", "không đánh dấu", "bản gốc", "vạch đỏ lề"],
+    steps: [
+      "Mở tab Xem lại (hoặc Đánh giá), nhóm Theo dõi thay đổi.",
+      "Nhấp vào hộp chọn Chế độ hiển thị thay đổi để chọn 1 trong 4 chế độ: Đánh dấu đơn giản, Tất cả đánh dấu, Không đánh dấu hoặc Bản gốc.",
+      "Chế độ Đánh dấu đơn giản (Simple Markup): Ẩn các đoạn chữ bị xóa và hiển thị chữ mới như bình thường, đồng thời vẽ đường vạch dọc màu đỏ ở lề bên trái của từng đoạn văn có sửa đổi. Nhấp chuột vào vạch đỏ ở lề để chuyển đổi nhanh giữa Đánh dấu đơn giản và Tất cả đánh dấu.",
+      "Chế độ Tất cả đánh dấu (All Markup): Hiển thị chi tiết toàn bộ các thao tác thêm mới bằng chữ gạch chân màu xanh và các thao tác xóa bằng chữ gạch ngang màu đỏ.",
+      "Chế độ Không đánh dấu (No Markup): Hiển thị diện mạo cuối cùng của tài liệu khi đã áp dụng đầy đủ mọi thay đổi mà không còn vạch đỏ hay dấu gạch màu.",
+      "Chế độ Bản gốc (Original): Hiển thị nội dung ban đầu của tài liệu trước khi có bất kỳ thao tác chỉnh sửa nào."
+    ]
+  },
+  {
     id: "writer.reference.citations",
     app: "writer",
     commandIds: [

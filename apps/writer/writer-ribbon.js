@@ -828,6 +828,23 @@ export const WRITER_RIBBON_TABS = [
           {
             type: "column",
             items: [
+              {
+                type: "select",
+                commandId: "writer.trackChanges.displayMode",
+                defaultValue: "all",
+                ariaLabel: "Chế độ hiển thị thay đổi",
+                options: [
+                  { value: "simple", label: "Đánh dấu đơn giản (Simple Markup)" },
+                  { value: "all", label: "Tất cả đánh dấu (All Markup)" },
+                  { value: "none", label: "Không đánh dấu (No Markup)" },
+                  { value: "original", label: "Bản gốc (Original)" }
+                ]
+              }
+            ]
+          },
+          {
+            type: "column",
+            items: [
               { type: "button", commandId: "writer.trackChanges.acceptOne" },
               { type: "button", commandId: "writer.trackChanges.acceptAll" }
             ]

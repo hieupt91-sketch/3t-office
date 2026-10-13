@@ -75,6 +75,7 @@ import { runSlidesMouseShortcutsTests } from "./unit/slides-mouse-shortcuts.test
 import { runWriterSlidesInsertGapsTests } from "./unit/writer-slides-insert-gaps.test.js";
 import { runWriterViewOutlineDraftTests } from "./unit/writer-view-outline-draft.test.js";
 import { runWriterChangeCaseTests } from "./unit/writer-change-case.test.js";
+import { runWriterTrackChangesDisplayTests } from "./unit/writer-track-changes-display.test.js";
 import { runWriterEquationEditorTests } from "./unit/writer-equation-editor.test.js";
 import { runSheetDataToolsTests } from "./unit/sheet-data-tools.test.js";
 import { runSlidesDialogsA11yTests } from "./unit/slides-dialogs-a11y.test.js";
@@ -562,7 +563,8 @@ async function runAll() {
     { title: "256. Unit Tests — Writer DOCX document properties metadata", runner: runWriterDocumentPropertiesTests },
     { title: "257. Unit Tests — Writer AutoCorrect and Vietnamese-safe transforms", runner: runWriterAutoCorrectTests },
     { title: "258. Unit Tests — Writer Outline, Draft Views and Collapsible Headings (WORD-W2)", runner: runWriterViewOutlineDraftTests },
-    { title: "259. Unit Tests — Writer Change Case (WORD-W5)", runner: runWriterChangeCaseTests }
+    { title: "259. Unit Tests — Writer Change Case (WORD-W5)", runner: runWriterChangeCaseTests },
+    { title: "260. Unit Tests — Writer Track Changes Display Modes (WORD-W5)", runner: runWriterTrackChangesDisplayTests }
   ];
 
   for (const suite of suites) {

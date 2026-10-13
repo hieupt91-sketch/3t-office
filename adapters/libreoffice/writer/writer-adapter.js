@@ -342,6 +342,7 @@ export class WriterAdapter {
     this._commentAnchorKeyHandler = null;
     this._commentPanelKeyHandler = null;
     this.trackChangesEnabled = false;
+    this.trackChangesDisplayMode = "all";
     this._activeTrackChange = null;
     this._trackChangesBeforeInputHandler = null;
     this._workflowBeforeInputHandler = null;
@@ -439,6 +440,9 @@ export class WriterAdapter {
     this.bodyDom = this.editorDom.querySelector(".vno-writer-body") || this.editorDom;
     this.footerDom = this.editorDom.querySelector(".vno-writer-footer");
     this.bodyDom?.classList?.toggle?.("vno-new-application-document", Boolean(this.isNewApplicationDocument));
+    if (this.bodyDom?.setAttribute && !this.bodyDom.hasAttribute("data-track-display")) {
+      this.bodyDom.setAttribute("data-track-display", this.trackChangesDisplayMode || "all");
+    }
   }
 
   _bindEquationInteractions() {
@@ -604,6 +608,11 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.trackChanges.rejectOne", () => this.rejectOneTrackChange());
     globalCommandBus.bindHandler("writer.trackChanges.acceptAll", () => this.acceptAllTrackChanges());
     globalCommandBus.bindHandler("writer.trackChanges.rejectAll", () => this.rejectAllTrackChanges());
+    globalCommandBus.bindHandler("writer.trackChanges.displayMode", (args) => this.setTrackChangesDisplayMode(args));
+    globalCommandBus.bindHandler("writer.trackChanges.displaySimple", () => this.setTrackChangesDisplayMode("simple"));
+    globalCommandBus.bindHandler("writer.trackChanges.displayAll", () => this.setTrackChangesDisplayMode("all"));
+    globalCommandBus.bindHandler("writer.trackChanges.displayNone", () => this.setTrackChangesDisplayMode("none"));
+    globalCommandBus.bindHandler("writer.trackChanges.displayOriginal", () => this.setTrackChangesDisplayMode("original"));
     globalCommandBus.bindHandler("writer.review.wordCount", () => this.openWordCountDialog());
     globalCommandBus.bindHandler("writer.file.properties", () => this.openDocumentPropertiesDialog());
     globalCommandBus.bindHandler("writer.file.options", () => { if (typeof this.shell?.showOptionsDialog !== "function") return false; this.shell.showOptionsDialog(); return true; });
@@ -2402,6 +2411,65 @@ export class WriterAdapter {
     globalCommandBus.updateState("writer.trackChanges.next", { enabled: hasChanges });
     globalCommandBus.updateState("writer.trackChanges.acceptOne", { enabled: hasChanges });
     globalCommandBus.updateState("writer.trackChanges.rejectOne", { enabled: hasChanges });
+    globalCommandBus.updateState("writer.trackChanges.displayMode", { value: this.trackChangesDisplayMode || "all" });
+    this._updateRevisionIndicators();
+  }
+
+  setTrackChangesDisplayMode(mode) {
+    const raw = typeof mode === "object" && mode !== null ? (mode.value || mode.mode || mode.displayMode) : mode;
+    const normalized = String(raw || "").trim().toLowerCase();
+    const validModes = ["simple", "all", "none", "original"];
+    const targetMode = validModes.includes(normalized) ? normalized : "all";
+
+    this.trackChangesDisplayMode = targetMode;
+
+    if (this.bodyDom?.setAttribute) {
+      this.bodyDom.setAttribute("data-track-display", targetMode);
+    }
+    if (this.editorDom?.setAttribute) {
+      this.editorDom.setAttribute("data-track-display", targetMode);
+    }
+
+    this._updateRevisionIndicators(targetMode);
+    globalCommandBus.updateState?.("writer.trackChanges.displayMode", { value: targetMode });
+    return targetMode;
+  }
+
+  getTrackChangesDisplayMode() {
+    return this.trackChangesDisplayMode || "all";
+  }
+
+  _updateRevisionIndicators(mode = this.trackChangesDisplayMode || "all") {
+    if (!this.bodyDom?.querySelectorAll) return;
+    const changes = this._listTrackChanges();
+    const changedBlocks = new Set();
+    for (const node of changes) {
+      const block = node.closest?.("p, h1, h2, h3, h4, h5, h6, li, blockquote, div") || node.parentElement;
+      if (block && (!this.bodyDom || this.bodyDom.contains?.(block))) {
+        changedBlocks.add(block);
+      }
+    }
+
+    const existing = this.bodyDom.querySelectorAll(".vno-has-revision");
+    for (const el of existing) {
+      el.classList?.remove?.("vno-has-revision");
+    }
+
+    if (mode === "simple" || mode === "all") {
+      for (const block of changedBlocks) {
+        block.classList?.add?.("vno-has-revision");
+        if (!block._hasRevisionClickListener) {
+          block._hasRevisionClickListener = true;
+          block.addEventListener?.("click", (e) => {
+            const rect = block.getBoundingClientRect?.();
+            if (rect && e.clientX <= rect.left + 24) {
+              const current = this.getTrackChangesDisplayMode();
+              this.setTrackChangesDisplayMode(current === "simple" ? "all" : "simple");
+            }
+          });
+        }
+      }
+    }
   }
 
   /**
@@ -7697,6 +7765,11 @@ export class WriterAdapter {
     if (cmd === "writer.trackChanges.rejectOne") return this.rejectOneTrackChange();
     if (cmd === "writer.trackChanges.acceptAll") return this.acceptAllTrackChanges();
     if (cmd === "writer.trackChanges.rejectAll") return this.rejectAllTrackChanges();
+    if (cmd === "writer.trackChanges.displayMode") return this.setTrackChangesDisplayMode(args);
+    if (cmd === "writer.trackChanges.displaySimple") return this.setTrackChangesDisplayMode("simple");
+    if (cmd === "writer.trackChanges.displayAll") return this.setTrackChangesDisplayMode("all");
+    if (cmd === "writer.trackChanges.displayNone") return this.setTrackChangesDisplayMode("none");
+    if (cmd === "writer.trackChanges.displayOriginal") return this.setTrackChangesDisplayMode("original");
     if (cmd === "writer.review.wordCount") return this.openWordCountDialog();
 
     if (cmd !== "common.edit.undo" && cmd !== "common.edit.redo") {
