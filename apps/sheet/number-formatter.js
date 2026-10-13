@@ -74,6 +74,12 @@ export class NumberFormatter {
       case "scientific":
         return this.formatScientific(rawVal, formatConfig);
 
+      case "fraction":
+        return this.formatFraction(rawVal, formatConfig);
+
+      case "special":
+        return this.formatSpecial(rawVal, formatConfig);
+
       default:
         return { text: String(rawVal) };
     }
@@ -375,6 +381,37 @@ export class NumberFormatter {
       text: num.toExponential(decimals).toUpperCase(),
       align: "right"
     };
+  }
+
+  static formatFraction(val, config = {}) {
+    const num = this.parseNumber(val);
+    if (num === null) return { text: String(val) };
+    const sign = num < 0 ? "-" : "";
+    const absolute = Math.abs(num);
+    const whole = Math.floor(absolute);
+    const fraction = absolute - whole;
+    const pattern = String(config.fractionFormat || "# ??/??");
+    const fixed = pattern.match(/\/([248]|10|16)$/)?.[1];
+    const maxDenominator = fixed ? Number(fixed) : pattern.includes("???") ? 999 : pattern.includes("??") ? 99 : 9;
+    let bestNumerator = 0, bestDenominator = 1, bestError = Infinity;
+    for (let denominator = fixed ? maxDenominator : 1; denominator <= maxDenominator; denominator++) {
+      const numerator = Math.round(fraction * denominator);
+      const error = Math.abs(fraction - numerator / denominator);
+      if (error < bestError) { bestError = error; bestNumerator = numerator; bestDenominator = denominator; }
+      if (fixed) break;
+    }
+    if (!bestNumerator) return { text: `${sign}${whole}`, align: "right" };
+    const prefix = whole ? `${whole} ` : "";
+    return { text: `${sign}${prefix}${bestNumerator}/${bestDenominator}`, align: "right" };
+  }
+
+  static formatSpecial(val, config = {}) {
+    const digits = String(val ?? "").replace(/\D/g, "");
+    const pattern = String(config.specialFormat || "00000");
+    if (pattern === "00000") return { text: digits.padStart(5, "0").slice(-5), align: "right" };
+    if (pattern === "00000-0000") return { text: `${digits.padStart(9, "0").slice(0, 5)}-${digits.padStart(9, "0").slice(5, 9)}`, align: "right" };
+    const padded = digits.padStart(10, "0").slice(-10);
+    return { text: digits.length <= 7 ? `${padded.slice(-7, -4)}-${padded.slice(-4)}` : `(${padded.slice(0, 3)}) ${padded.slice(3, 6)}-${padded.slice(6)}`, align: "right" };
   }
 
   /**

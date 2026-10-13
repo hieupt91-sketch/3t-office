@@ -724,6 +724,13 @@ export class SheetAdapter {
     };
     // Viền chung (nút ribbon "Viền") chỉ vào hash khi có, để hash của ô không viền (và ảnh chụp kiểm thử cũ) không đổi.
     if (style.border) visualProps.border = style.border;
+    for (const key of ["horizontalAlignment", "verticalAlignment", "textDirection", "fontUnderline", "fontPosition", "fillPattern", "fillPatternColor", "borderDiagonalUp", "borderDiagonalDown"]) {
+      if (style[key]) visualProps[key] = style[key];
+    }
+    if (style.shrinkToFit) visualProps.shrinkToFit = true;
+    if (style.fillGradient) visualProps.fillGradient = style.fillGradient;
+    if (style.locked === false) visualProps.locked = false;
+    if (style.formulaHidden) visualProps.formulaHidden = true;
     return JSON.stringify(visualProps);
   }
 
@@ -2096,7 +2103,10 @@ export class SheetAdapter {
     const s = item.style || {};
     const hasVisualStyle = s.backgroundColor || s.color || s.fontWeight || s.fontStyle ||
       s.textDecoration || s.fontFamily || s.fontSize || s.textAlign || s.verticalAlign ||
-      s.whiteSpace || s.borderLeft || s.borderRight || s.borderTop || s.borderBottom;
+      s.whiteSpace || s.borderLeft || s.borderRight || s.borderTop || s.borderBottom ||
+      s.borderDiagonalUp || s.borderDiagonalDown || s.fillPattern || s.fillGradient ||
+      s.shrinkToFit || s.textDirection || s.fontUnderline || s.fontPosition ||
+      s.locked === false || s.formulaHidden;
     if (hasVisualStyle) return true;
     return item.val !== "" && item.val !== undefined && item.val !== null;
   }
@@ -2104,7 +2114,7 @@ export class SheetAdapter {
   _normalizedTextRotation(value) {
     const rotation = Number(value);
     if (rotation === 255) return 255;
-    if ([45, -45, 90, -90].includes(rotation)) return rotation;
+    if (Number.isFinite(rotation) && rotation >= -90 && rotation <= 90 && rotation !== 0) return rotation;
     return null;
   }
 
@@ -2208,10 +2218,21 @@ export class SheetAdapter {
         const wrap = cellProps.match(/fo:wrap-option=["']([^"']+)["']/i)?.[1];
         if (wrap === "wrap") style.whiteSpace = "pre-wrap";
         else if (wrap === "no-wrap") style.whiteSpace = "nowrap";
+        if (cellProps.match(/style:shrink-to-fit=["']true["']/i)) style.shrinkToFit = true;
+        const writingMode = cellProps.match(/style:writing-mode=["']([^"']+)["']/i)?.[1];
+        if (writingMode === "rl-tb") style.textDirection = "rtl";
+        else if (writingMode === "lr-tb") style.textDirection = "ltr";
+        const cellProtect = cellProps.match(/style:cell-protect=["']([^"']+)["']/i)?.[1];
+        if (cellProtect) {
+          style.locked = !/\bnone\b/i.test(cellProtect);
+          style.formulaHidden = /formula-hidden/i.test(cellProtect);
+        }
         const borderLeft = cellProps.match(/fo:border-left=["']([^"']+)["']/i)?.[1];
         const borderRight = cellProps.match(/fo:border-right=["']([^"']+)["']/i)?.[1];
         const borderTop = cellProps.match(/fo:border-top=["']([^"']+)["']/i)?.[1];
         const borderBottom = cellProps.match(/fo:border-bottom=["']([^"']+)["']/i)?.[1];
+        const diagonalUp = cellProps.match(/style:diagonal-bl-tr=["']([^"']+)["']/i)?.[1];
+        const diagonalDown = cellProps.match(/style:diagonal-tl-br=["']([^"']+)["']/i)?.[1];
         const borderShorthand = cellProps.match(/fo:border=["']([^"']+)["']/i)?.[1];
         const odfBorderToCss = (val) => {
           if (!val || val === "none" || val === "hidden") return "none";
@@ -2248,6 +2269,8 @@ export class SheetAdapter {
           if (borderTop) style.borderTop = odfBorderToCss(borderTop);
           if (borderBottom) style.borderBottom = odfBorderToCss(borderBottom);
         }
+        if (diagonalUp) style.borderDiagonalUp = odfBorderToCss(diagonalUp);
+        if (diagonalDown) style.borderDiagonalDown = odfBorderToCss(diagonalDown);
         const hAlign = paraProps.match(/fo:text-align=["']([^"']+)["']/i)?.[1];
         if (hAlign) style.textAlign = hAlign;
         const fontSize = textProps.match(/fo:font-size=["']([^"']+)["']/i)?.[1];
@@ -2269,6 +2292,12 @@ export class SheetAdapter {
         if (fontStyle) style.fontStyle = fontStyle;
         const textDecoration = this._odfTextDecoration(textProps);
         if (textDecoration) style.textDecoration = textDecoration;
+        const underlineType = textProps.match(/style:text-underline-type=["']([^"']+)["']/i)?.[1];
+        const underlineMode = textProps.match(/style:text-underline-mode=["']([^"']+)["']/i)?.[1];
+        if (/underline/.test(textDecoration || "")) style.fontUnderline = underlineType === "double" ? (underlineMode === "skip-white-space" ? "doubleAccounting" : "double") : (underlineMode === "skip-white-space" ? "singleAccounting" : "single");
+        const position = textProps.match(/style:text-position=["']([^"']+)["']/i)?.[1];
+        if (/^super/i.test(position || "")) style.fontPosition = "super";
+        else if (/^sub/i.test(position || "")) style.fontPosition = "sub";
         const color = textProps.match(/fo:color=["']([^"']+)["']/i)?.[1];
         if (color) style.color = color;
         const fontName = this._resolveFontFaceName(textProps.match(/style:font-name=["']([^"']+)["']/i)?.[1], fontFaces);
@@ -3265,7 +3294,7 @@ export class SheetAdapter {
     };
     const visualStyleFor = (item) => {
       const s = item?.style || {};
-      const keys = ["backgroundColor", "color", "fontWeight", "fontStyle", "textDecoration", "fontFamily", "fontSize", "textAlign", "verticalAlign", "whiteSpace", "indentLevel", "borderLeft", "borderRight", "borderTop", "borderBottom", "border"];
+      const keys = ["backgroundColor", "color", "fontWeight", "fontStyle", "textDecoration", "fontFamily", "fontSize", "textAlign", "verticalAlign", "whiteSpace", "indentLevel", "borderLeft", "borderRight", "borderTop", "borderBottom", "border", "borderDiagonalUp", "borderDiagonalDown", "shrinkToFit", "textDirection", "fontUnderline", "fontPosition", "locked", "formulaHidden"];
       const hasVisual = keys.some(k => s[k] !== undefined && s[k] !== "" && s[k] !== null);
       if (!hasVisual) return null;
       const hash = JSON.stringify(keys.map(k => s[k] || ""));
@@ -3279,11 +3308,20 @@ export class SheetAdapter {
       // (viền 4 cạnh): trước đây cả hai bị bỏ qua khi xuất FODS nên mất khi lưu XLSX (đối chiếu Excel thật 11/10).
       if (s.whiteSpace === "pre-wrap" || s.whiteSpace === "normal" || s.whiteSpace === "pre-line" || s.whiteSpace === "break-spaces") cellProps.push(`fo:wrap-option="wrap"`);
       else if (s.whiteSpace === "nowrap") cellProps.push(`fo:wrap-option="no-wrap"`);
+      if (s.shrinkToFit) cellProps.push(`style:shrink-to-fit="true"`);
+      if (s.textDirection === "rtl") cellProps.push(`style:writing-mode="rl-tb"`);
+      else if (s.textDirection === "ltr") cellProps.push(`style:writing-mode="lr-tb"`);
+      if (s.locked === false || s.formulaHidden) {
+        const protect = [s.locked === false ? "none" : "protected", s.formulaHidden ? "formula-hidden" : ""].filter(Boolean).join(" ");
+        cellProps.push(`style:cell-protect="${protect}"`);
+      }
       const sideBorder = (side) => s[side] || s.border;
       if (sideBorder("borderLeft")) cellProps.push(cssToOdfBorder("fo:border-left", sideBorder("borderLeft")));
       if (sideBorder("borderRight")) cellProps.push(cssToOdfBorder("fo:border-right", sideBorder("borderRight")));
       if (sideBorder("borderTop")) cellProps.push(cssToOdfBorder("fo:border-top", sideBorder("borderTop")));
       if (sideBorder("borderBottom")) cellProps.push(cssToOdfBorder("fo:border-bottom", sideBorder("borderBottom")));
+      if (s.borderDiagonalUp) cellProps.push(cssToOdfBorder("style:diagonal-bl-tr", s.borderDiagonalUp));
+      if (s.borderDiagonalDown) cellProps.push(cssToOdfBorder("style:diagonal-tl-br", s.borderDiagonalDown));
       if (s.textAlign) cellProps.push(`style:text-align-source="fix"`);
       const paraProps = [];
       // LibreOffice đọc fo:text-align="right"/"left" thành "chung" (mất căn lề khi lưu XLSX); chỉ "end"/"start" được nhận (đo 11/10).
@@ -3300,6 +3338,10 @@ export class SheetAdapter {
       if (s.fontWeight) textProps.push(`fo:font-weight="${this._escapeXml(s.fontWeight)}"`);
       if (s.fontStyle) textProps.push(`fo:font-style="${this._escapeXml(s.fontStyle)}"`);
       if (s.textDecoration) textProps.push(...this._odfTextDecorationAttrs(s.textDecoration));
+      if (s.fontUnderline === "double" || s.fontUnderline === "doubleAccounting") textProps.push('style:text-underline-type="double"');
+      if (s.fontUnderline === "singleAccounting" || s.fontUnderline === "doubleAccounting") textProps.push('style:text-underline-mode="skip-white-space"');
+      if (s.fontPosition === "super") textProps.push('style:text-position="super 58%"');
+      if (s.fontPosition === "sub") textProps.push('style:text-position="sub 58%"');
       if (s.color) textProps.push(`fo:color="${this._escapeXml(s.color)}"`);
       if (s.fontFamily) textProps.push(`style:font-name="${this._escapeXml(this._normalizeFontFamily(s.fontFamily))}"`);
       const parts = [];
@@ -3739,7 +3781,10 @@ export class SheetAdapter {
           if (item.style?.origXf != null && item.style.styleHashAtImport === this._computeStyleHash(item.style)) {
             xfAttr = ` vno:xf="${item.style.origXf}"`;
           }
-          const cellAttrs = `${formulaAttrs}${matrixAttrs}${mergeAttrs}${numFmtAttr}${cellStyleName ? ` table:style-name="${cellStyleName}"` : ""}${validationAttr}${xfAttr}`;
+          const nativeFormatKeys = ["horizontalAlignment", "verticalAlignment", "indentLevel", "whiteSpace", "shrinkToFit", "textDirection", "textRotation", "fontUnderline", "fontPosition", "fillPattern", "fillPatternColor", "fillGradient", "borderDiagonalUp", "borderDiagonalDown", "locked", "formulaHidden"];
+          const nativeFormat = Object.fromEntries(nativeFormatKeys.filter(key => item.style?.[key] !== undefined).map(key => [key, item.style[key]]));
+          const nativeFormatAttr = Object.keys(nativeFormat).length ? ` vno:cell-format="${this._escapeXml(JSON.stringify(nativeFormat))}"` : "";
+          const cellAttrs = `${formulaAttrs}${matrixAttrs}${mergeAttrs}${numFmtAttr}${nativeFormatAttr}${cellStyleName ? ` table:style-name="${cellStyleName}"` : ""}${validationAttr}${xfAttr}`;
           const comment = comments[coordinate];
           const annotationXml = comment ? `<office:annotation><dc:creator>${this._escapeXml(comment.author || "")}</dc:creator>${comment.timestamp ? `<dc:date>${this._escapeXml(comment.timestamp)}</dc:date>` : ""}<text:p>${this._escapeXml(comment.text || "")}</text:p></office:annotation>` : "";
           const hyperlink = /^(https?:|mailto:)/i.test(String(item.hyperlink || "")) ? String(item.hyperlink) : "";
@@ -4134,8 +4179,9 @@ ${pristineXlsxMarker}
     const externalOdf = !get("vno:formula") && this._isExternalOdfFormula(odfFormula) ? odfFormula : "";
     const styleName = get("table:style-name");
     const numFmtAttr = get("vno:number-format");
+    const nativeFormatAttr = get("vno:cell-format");
     const origXf = get("vno:xf");
-    const styleKey = p2Cache ? `${styleName}\u0000${numFmtAttr}\u0000${origXf}\u0000${valueType}` : "";
+    const styleKey = p2Cache ? `${styleName}\u0000${numFmtAttr}\u0000${nativeFormatAttr}\u0000${origXf}\u0000${valueType}` : "";
     const cachedStyle = p2Cache?.styles.get(styleKey);
     const style = cachedStyle
       ? { ...cachedStyle, ...(cachedStyle.numberFormat ? { numberFormat: { ...cachedStyle.numberFormat } } : {}) }
@@ -4192,6 +4238,12 @@ ${pristineXlsxMarker}
       for (const [key, val] of Object.entries(visualStyle)) {
         if (val !== undefined && val !== null && val !== "") style[key] = val;
       }
+    }
+    if (nativeFormatAttr) {
+      try {
+        const nativeFormat = JSON.parse(nativeFormatAttr);
+        for (const [key, val] of Object.entries(nativeFormat || {})) style[key] = val;
+      } catch {}
     }
     // S8: Preserve original xf index for untouched cells round-trip.
     if (origXf !== "") {

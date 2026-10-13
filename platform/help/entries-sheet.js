@@ -242,15 +242,18 @@ export const SHEET_HELP_ENTRIES = [
     id: "sheet.format.cellsDialog",
     app: "sheet",
     commandIds: ["sheet.format.cellsDialog"],
-    title: "Định dạng ô (Format Cells)",
-    summary: "Hộp thoại đầy đủ để chọn loại số, số thập phân, dấu phân cách hàng nghìn, ký hiệu tiền (₫), kiểu ngày, khoa học, văn bản hoặc mẫu tùy chỉnh. Áp dụng cho vùng đang chọn.",
+    title: "Định dạng ô",
+    summary: "Hộp thoại sáu thẻ để định dạng số, căn chỉnh, phông chữ, đường viền, màu nền và trạng thái bảo vệ cho ô hoặc vùng đang chọn; mọi thay đổi được lưu cùng tệp XLSX.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Định dạng số" },
-    keywords: ["định dạng ô", "format cells", "ctrl+1", "số thập phân", "tiền tệ", "ngày tháng", "tùy chỉnh"],
+    keywords: ["định dạng ô", "ctrl+1", "số thập phân", "tiền tệ", "ngày tháng", "phông chữ", "viền", "tô màu", "bảo vệ", "tùy chỉnh"],
     steps: [
       "Chọn ô hoặc vùng cần đổi. Nhấn Ctrl+1, hoặc tab Trang đầu → nhóm Định dạng số → nút Định dạng ô..., hoặc mũi tên nhỏ góc phải nhóm.",
-      "Hộp thoại liệt kê danh mục bên trái: Chung (General), Số (Number), Tiền tệ (Currency), Kế toán (Accounting), Ngày tháng (Date), Phần trăm (Percentage), Khoa học (Scientific), Văn bản (Text), Tùy chỉnh (Custom).",
-      "Với Số/Tiền tệ: chỉnh số chữ số thập phân, bật dấu phân cách hàng nghìn, chọn kiểu số âm. Tiền tệ có ký hiệu ₫. Ngày có mẫu dd/mm/yyyy. Tùy chỉnh cho phép nhập pattern như 0.00.",
-      "Xem trước giá trị mẫu ở hộp thoại, rồi nhấn OK để áp dụng cho vùng chọn. Esc hoặc Đóng để hủy. Hoàn tác bằng Ctrl+Z."
+      "Thẻ Số: chọn Chung, Số, Tiền tệ, Kế toán, Ngày, Giờ, Phần trăm, Phân số, Khoa học, Văn bản, Đặc biệt hoặc Tùy chỉnh. Các nhóm có control riêng cho phần thập phân, dấu phân cách, kiểu số âm, ký hiệu, vùng và mã định dạng; hộp Mẫu cập nhật trước khi áp dụng.",
+      "Thẻ Căn chỉnh: đặt căn ngang/dọc, thụt lề, ngắt dòng, thu nhỏ vừa ô, hướng đọc, góc xoay hoặc xếp chữ dọc. Chọn một vùng trước khi bật Hợp nhất ô; khi tắt tùy chọn, vùng gộp hiện tại được tách.",
+      "Thẻ Phông chữ: chọn họ font, kiểu thường/đậm/nghiêng, cỡ, gạch chân, màu, gạch ngang, chỉ số trên hoặc dưới. Phông mặc định đưa các giá trị này về cấu hình mặc định của bảng tính.",
+      "Thẻ Viền: chọn kiểu và màu đường trước, rồi bấm Ngoài/Bên trong hoặc từng cạnh Trái/Phải/Trên/Dưới/Ngang trong/Dọc trong/Chéo. Thẻ Tô màu đặt màu nền, màu và kiểu mẫu; Hiệu ứng tô tạo chuyển màu hai màu theo hướng đã chọn.",
+      "Thẻ Bảo vệ: Đã khóa ngăn sửa ô và Ẩn công thức che công thức sau khi trang tính được bảo vệ. Bấm Bảo vệ trang tính... ngay trong thẻ để mở thiết lập bảo vệ; hai cờ không tự khóa trang nếu chưa bật bảo vệ.",
+      "Nhấn Đồng ý để áp dụng cho toàn vùng đang chọn. Hủy bỏ, nút Đóng hoặc Esc không thay đổi tài liệu. Ctrl+Z hoàn tác toàn bộ lần định dạng trong một bước."
     ]
   },
   {
@@ -660,7 +663,7 @@ export const SHEET_HELP_ENTRIES = [
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Căn chỉnh" },
     keywords: ["căn giữa", "căn trái", "căn phải", "căn trên", "ngắt dòng", "wrap", "thụt lề", "trộn ô", "merge", "unmerge", "hợp nhất", "xoay chữ", "orientation", "hướng chữ", "format cells", "định dạng ô", "căn chỉnh ô"],
     steps: [
-      "Chọn ô hoặc vùng. Tab Trang đầu, nhóm Căn chỉnh: hàng trên Căn trên / Căn giữa dọc / Căn dưới / Ngắt dòng tự động / Hướng chữ (dropdown); hàng giữa Căn trái / giữa / phải, Giảm/Tăng thụt lề; hàng dưới bốn nút trộn ô. Nhấn mũi tên nhỏ ở góc phải nhóm để mở hộp thoại Căn chỉnh chi tiết (Format Cells - thẻ Căn chỉnh).",
+      "Chọn ô hoặc vùng. Tab Trang đầu, nhóm Căn chỉnh: hàng trên Căn trên / Căn giữa dọc / Căn dưới / Ngắt dòng tự động / Hướng chữ; hàng giữa Căn trái / giữa / phải, Giảm/Tăng thụt lề; hàng dưới bốn nút trộn ô. Nhấn mũi tên nhỏ ở góc phải nhóm để mở hộp thoại Định dạng ô tại thẻ Căn chỉnh.",
       "Hướng chữ: mở dropdown chọn 0° (ngang), 45°, -45°, 90° (xoay lên), -90° (xoay xuống), hoặc «Dọc từ dưới lên» (chữ xếp dọc, phần mềm bảng tính khác chữ xếp dọc). Góc lưu trong kiểu ô và khi Lưu ra file thật (XLSX). Ngắt dòng tự động cho chữ dài xuống dòng trong ô và tăng chiều cao hàng. Tăng thụt lề thêm 12 px (tối đa 56 px); Giảm thụt lề hạ dần về 8 px.",
       "Bôi ít nhất 2 ô rồi: Trộn & căn giữa gộp thành một ô và căn giữa; Trộn ô gộp nhưng giữ căn đang có; Trộn theo hàng gộp riêng từng hàng trong vùng. Nếu nhiều ô có dữ liệu, hộp «Trộn ô» cảnh báo chỉ giữ ô trên cùng bên trái — chọn Tiếp tục gộp hoặc Hủy.",
       "Tách ô hoàn tác vùng đã trộn (dữ liệu đã mất khi gộp không tự hiện lại, trừ khi Ctrl+Z ngay). Không trộn đè lên vùng đã trộn sẵn.",

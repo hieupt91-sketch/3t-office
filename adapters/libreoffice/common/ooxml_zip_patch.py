@@ -22,6 +22,7 @@ Keep the XML transform in lock step with the JS helpers.
 from __future__ import annotations
 
 import argparse
+import copy
 import difflib
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
@@ -6110,6 +6111,180 @@ def _apply_pivot_chart_links_from_fods(
                     replacements[pivot_part] = updated_pivot
 
 
+def _fods_cells_with_native_format(fods_xml: str | None) -> dict[str, dict[str, dict]]:
+    """Read app-authored cell style metadata, including repeated ODF rows/cells."""
+    result: dict[str, dict[str, dict]] = {}
+    if not fods_xml or 'vno:cell-format=' not in fods_xml:
+        return result
+    for table_start, table_end in _flat_xml_blocks(fods_xml, ("table:table",)):
+        table_xml = fods_xml[table_start:table_end]
+        opening = re.match(r"<[^>]+", table_xml)
+        sheet_name = _unescape_xml(_xml_attrs(opening.group(0)).get("table:name", "")) if opening else ""
+        if not sheet_name:
+            continue
+        cells: dict[str, dict] = {}
+        row_number = 1
+        for row_start, row_end in _flat_xml_blocks(table_xml, ("table:table-row",)):
+            row_xml = table_xml[row_start:row_end]
+            row_repeat = _repeat_count(row_xml, "table:number-rows-repeated")
+            column_number = 1
+            for cell_start, cell_end in _flat_xml_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
+                cell_xml = row_xml[cell_start:cell_end]
+                opening_cell = re.match(r"<[^>]+", cell_xml)
+                attrs = _xml_attrs(opening_cell.group(0)) if opening_cell else {}
+                raw = attrs.get("vno:cell-format")
+                if raw:
+                    try:
+                        cells[f"{_column_letter(column_number)}{row_number}"] = json.loads(_unescape_xml(raw))
+                    except (ValueError, TypeError):
+                        pass
+                column_number += _repeat_count(cell_xml, "table:number-columns-repeated")
+            row_number += row_repeat
+        if cells:
+            result[sheet_name] = cells
+    return result
+
+
+def _apply_native_cell_formats_from_fods(
+    xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
+) -> None:
+    formats_by_sheet = _fods_cells_with_native_format(source_fods)
+    if not formats_by_sheet:
+        return
+    styles_raw = replacements.get(XLSX_STYLES_ENTRY)
+    if styles_raw is None:
+        styles_bytes = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
+        if not styles_bytes:
+            return
+        styles_raw = styles_bytes.decode("utf-8", errors="replace")
+    main_ns = "http://schemas.openxmlformats.org/spreadsheetml/2006/main"
+    q = lambda name: f"{{{main_ns}}}{name}"
+    try:
+        root = ET.fromstring(str(styles_raw))
+    except ET.ParseError:
+        return
+    fonts, fills, borders, cell_xfs = (root.find(q(name)) for name in ("fonts", "fills", "borders", "cellXfs"))
+    if any(node is None for node in (fonts, fills, borders, cell_xfs)):
+        return
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    style_cache: dict[tuple[int, str], int] = {}
+
+    def argb(color: str | None) -> str:
+        value = re.sub(r"[^0-9A-Fa-f]", "", str(color or "000000"))[-6:].upper().rjust(6, "0")
+        return "FF" + value
+
+    def replace_child(parent: ET.Element, name: str, child: ET.Element | None) -> None:
+        current = parent.find(q(name))
+        if current is not None:
+            parent.remove(current)
+        if child is not None:
+            parent.append(child)
+
+    def border_side(css: str) -> tuple[str, str]:
+        match = re.match(r"([\d.]+)px\s+(solid|dashed|dotted|double)\s+(.+)", str(css or ""), re.I)
+        if not match:
+            return "thin", "FF000000"
+        width, kind, color = float(match.group(1)), match.group(2).lower(), match.group(3)
+        style = "double" if kind == "double" else "dashed" if kind == "dashed" else "dotted" if kind == "dotted" else "thick" if width >= 3 else "medium" if width >= 2 else "thin"
+        return style, argb(color)
+
+    def style_index(base_index: int, config: dict) -> int:
+        cache_key = (base_index, json.dumps(config, sort_keys=True, ensure_ascii=False))
+        if cache_key in style_cache:
+            return style_cache[cache_key]
+        base = list(cell_xfs)[base_index] if 0 <= base_index < len(cell_xfs) else list(cell_xfs)[0]
+        xf = copy.deepcopy(base)
+
+        underline = config.get("fontUnderline")
+        position = config.get("fontPosition")
+        if underline is not None or position is not None:
+            font_id = int(xf.get("fontId", "0"))
+            font = copy.deepcopy(list(fonts)[font_id] if font_id < len(fonts) else list(fonts)[0])
+            if underline is not None:
+                replace_child(font, "u", None if underline == "none" else ET.Element(q("u"), {"val": {"single": "single", "double": "double", "singleAccounting": "singleAccounting", "doubleAccounting": "doubleAccounting"}.get(str(underline), "single")}))
+            if position is not None:
+                replace_child(font, "vertAlign", ET.Element(q("vertAlign"), {"val": "superscript" if position == "super" else "subscript"}) if position in ("super", "sub") else None)
+            fonts.append(font); xf.set("fontId", str(len(fonts) - 1)); xf.set("applyFont", "1")
+
+        pattern = config.get("fillPattern")
+        gradient = config.get("fillGradient")
+        if pattern is not None or gradient is not None:
+            fill = ET.Element(q("fill"))
+            if isinstance(gradient, dict):
+                degree = {"horizontal": "0", "vertical": "90", "diagonalUp": "45", "diagonalDown": "135"}.get(str(gradient.get("direction")), "0")
+                node = ET.SubElement(fill, q("gradientFill"), {"type": "linear", "degree": degree})
+                for at, color_value in (("0", gradient.get("color1")), ("1", gradient.get("color2"))):
+                    stop = ET.SubElement(node, q("stop"), {"position": at}); ET.SubElement(stop, q("color"), {"rgb": argb(color_value)})
+            else:
+                node = ET.SubElement(fill, q("patternFill"), {"patternType": str(pattern or "none")})
+                if pattern and pattern != "none":
+                    ET.SubElement(node, q("fgColor"), {"rgb": argb(config.get("fillPatternColor"))}); ET.SubElement(node, q("bgColor"), {"indexed": "64"})
+            fills.append(fill); xf.set("fillId", str(len(fills) - 1)); xf.set("applyFill", "1")
+
+        diagonal_up, diagonal_down = config.get("borderDiagonalUp"), config.get("borderDiagonalDown")
+        if diagonal_up is not None or diagonal_down is not None:
+            border_id = int(xf.get("borderId", "0")); border = copy.deepcopy(list(borders)[border_id] if border_id < len(borders) else list(borders)[0])
+            if diagonal_up: border.set("diagonalUp", "1")
+            else: border.attrib.pop("diagonalUp", None)
+            if diagonal_down: border.set("diagonalDown", "1")
+            else: border.attrib.pop("diagonalDown", None)
+            css = diagonal_up or diagonal_down
+            if css:
+                line, line_color = border_side(str(css)); diagonal = ET.Element(q("diagonal"), {"style": line}); ET.SubElement(diagonal, q("color"), {"rgb": line_color}); replace_child(border, "diagonal", diagonal)
+            else: replace_child(border, "diagonal", ET.Element(q("diagonal")))
+            borders.append(border); xf.set("borderId", str(len(borders) - 1)); xf.set("applyBorder", "1")
+
+        alignment_keys = {"horizontalAlignment", "verticalAlignment", "indentLevel", "whiteSpace", "shrinkToFit", "textDirection", "textRotation"}
+        if alignment_keys.intersection(config):
+            alignment = copy.deepcopy(xf.find(q("alignment"))) if xf.find(q("alignment")) is not None else ET.Element(q("alignment"))
+            horizontal = config.get("horizontalAlignment")
+            if horizontal is not None:
+                mapped = {"general": None, "left": "left", "center": "center", "right": "right", "fill": "fill", "justify": "justify", "centerContinuous": "centerContinuous", "distributed": "distributed"}.get(str(horizontal))
+                if mapped: alignment.set("horizontal", mapped)
+                else: alignment.attrib.pop("horizontal", None)
+            vertical = config.get("verticalAlignment")
+            if vertical is not None: alignment.set("vertical", {"middle": "center"}.get(str(vertical), str(vertical)))
+            if "indentLevel" in config: alignment.set("indent", str(max(0, min(250, int(config.get("indentLevel") or 0)))))
+            if "whiteSpace" in config: alignment.set("wrapText", "1" if config.get("whiteSpace") in ("normal", "pre-wrap") else "0")
+            if "shrinkToFit" in config: alignment.set("shrinkToFit", "1" if config.get("shrinkToFit") else "0")
+            direction = config.get("textDirection")
+            if direction is not None: alignment.set("readingOrder", "2" if direction == "rtl" else "1" if direction == "ltr" else "0")
+            if "textRotation" in config:
+                angle = int(config.get("textRotation") or 0); alignment.set("textRotation", "255" if angle == 255 else str(angle if angle >= 0 else 90 - angle))
+            replace_child(xf, "alignment", alignment); xf.set("applyAlignment", "1")
+
+        if "locked" in config or "formulaHidden" in config:
+            protection = ET.Element(q("protection"), {"locked": "1" if config.get("locked", True) else "0", "hidden": "1" if config.get("formulaHidden") else "0"})
+            replace_child(xf, "protection", protection); xf.set("applyProtection", "1")
+        cell_xfs.append(xf); index = len(cell_xfs) - 1; style_cache[cache_key] = index
+        return index
+
+    for sheet_name, cells in formats_by_sheet.items():
+        entry_path = _sheet_name_equivalent_value(sheet_entries, sheet_name)
+        if not entry_path:
+            continue
+        xml = replacements.get(entry_path)
+        if xml is None:
+            raw = read_zip_entry(xlsx_bytes, entry_path)
+            xml = raw.decode("utf-8", errors="replace") if raw else ""
+        if not xml:
+            continue
+        for coordinate, config in cells.items():
+            pattern = re.compile(rf'<c\b(?=[^>]*\br="{re.escape(coordinate)}")(?P<attrs>[^>]*)>', re.I)
+            match = pattern.search(xml)
+            if not match:
+                continue
+            attrs = match.group("attrs"); style_match = re.search(r'\bs="(\d+)"', attrs); base_index = int(style_match.group(1)) if style_match else 0
+            new_index = style_index(base_index, config)
+            next_attrs = re.sub(r'\s+s="\d+"', "", attrs) + f' s="{new_index}"'
+            xml = xml[:match.start()] + f'<c{next_attrs}>' + xml[match.end():]
+        replacements[entry_path] = xml
+    for node in (fonts, fills, borders, cell_xfs):
+        node.set("count", str(len(node)))
+    ET.register_namespace("", main_ns)
+    replacements[XLSX_STYLES_ENTRY] = ET.tostring(root, encoding="unicode")
+
+
 def postprocess_sheet_xlsx(
     xlsx_bytes: bytes,
     *,
@@ -6449,6 +6624,7 @@ def postprocess_sheet_xlsx(
         _apply_accounting_number_formats_from_fods(
             xlsx_bytes, source_fods, replacements, include_excel_codes=True
         )
+        _apply_native_cell_formats_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_sheet_view_state_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_workbook_view_state_from_fods(xlsx_bytes, source_fods, replacements)
         _clear_print_areas_from_fods(xlsx_bytes, source_fods, replacements)
