@@ -1,0 +1,12 @@
+# Agent Handoff
+TASK: EXCEL-G1 — định dạng có điều kiện đủ loại (Excel 2016)
+AGENT/ROLE: Codex (khung) + Claude (hoàn thiện, kiểm chứng)
+BRANCH: fix/excel-g1-codex
+OBJECTIVE: 17 loại luật (giữa, bằng, chứa văn bản, ngày xảy ra, trùng lặp, trên/dưới N, trên/dưới trung bình, thanh dữ liệu, thang 2/3 màu, bộ biểu tượng, công thức, ô trống), sửa luật, đổi thứ tự, lưu XLSX đúng, mở lại đúng.
+FINDINGS: Excel 2016 (COM chỉ-đọc, tests/live/sheet-excel-g1-readonly.ps1) đọc đúng cả 17 luật như luật gốc (Type 1/2/3/4/5/6/8/9/10/11/12, Operator, Formula, Rank, IconSet.ID, ColorScaleCriteria). Phát hiện lỗi tốc độ trong khung ban đầu: luật trùng lặp/trên-dưới/trung bình/thang màu/thanh dữ liệu/biểu tượng quét và sắp xếp cả vùng cho TỪNG ô vẽ (và Math.min(...values) vỡ ở >~120k phần tử).
+IMPLEMENTATION SUMMARY: apps/sheet/conditional-formatting.js (mô hình + đánh giá, computeRangeStats), apps/sheet/sheet-grid.js (hộp thoại, quản lý luật, bộ nhớ đệm thống kê _conditionalStats theo epoch/kích thước/1 giây, đọc trực tiếp ô trong vùng), adapters ooxml_zip_patch.py + sheet-adapter.js (ghi/đọc cfRule gốc), i18n VI/EN, Trợ giúp tiếng Việt, tests.
+COMMANDS RUN: npm test; python -m unittest (conditional_formatting_xlsx, tables_s11, autofilter_table, xlsx_numfmt_roundtrip); tests/live/cdp/sheet-excel-g1.desktop.mjs; ps1 đọc Excel 2016; batch_document_audit.py xlsx (lan01/02/04/06/09/11/22/26/13/19/25); sheet_formulas_vs_cache.mjs --force lan28/01/04; thăm dò tốc độ 20.000 dòng x 8 luật.
+TEST RESULTS: PASS — npm 3170/3170; Python 18 OK; desktop 4/4 (tạo 17 luật, lưu, mở lại đủ, đúng loại/vùng); Excel 2016 đọc 17/17 luật; LAN batch 10/10 tệp 0 chênh lệch (lan25 8509 điểm lệch kiểu bảng đã biết, không đổi); lan28 98,18%, lan01/lan04 100%; vẽ lại 20.000 dòng x 8 luật: 45 ms -> 59 ms.
+KNOWN FAILURES: lan25 vẫn 8509 chênh lệch kiểu bảng (có từ trước). Chưa kiểm với tệp thật có định dạng có điều kiện phức tạp (mở tệp LAN có luật sẵn chưa so từng ô). Chưa so hình ảnh hiển thị thanh dữ liệu/biểu tượng với Excel (chỉ so cấu trúc luật).
+RISKS: Bộ nhớ đệm thống kê hết hạn sau 1 giây hoặc khi dữ liệu/epoch đổi; ô công thức đổi giá trị ngoài các đường setCellValue/_recordHistory/_recalculateAllFormulas có thể trễ tối đa 1 giây.
+NEXT ACTION: Gộp vào main sau khi kiểm npm test và bộ LAN; kiểm hiển thị thanh dữ liệu/biểu tượng trên màn hình so với Excel (ảnh).

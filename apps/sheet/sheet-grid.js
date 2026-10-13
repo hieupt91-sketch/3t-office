@@ -29,6 +29,7 @@ import { isSpellcheckEnabled, setSpellcheckEnabled } from "../../platform/text/s
 import { showContextMenu, closeActiveContextMenu } from "../../platform/ui-kit/components.js";
 import {
   conditionalRuleMatches,
+  computeRangeStats,
   conditionalVisual,
   normalizeConditionalRule
 } from "./conditional-formatting.js";
@@ -5586,6 +5587,7 @@ _bindGridKeyboardNavigation() {
   }
 
   setCellValue(col, row, val, recordUndo = true, historyOptions = {}) {
+    this._cfEpoch = (this._cfEpoch || 0) + 1;
     if (typeof val === "string") val = val.normalize("NFC");
     if (recordUndo && this._guardProtectedMutation()) return false;
     const key = `${col}${row}`;
@@ -5891,6 +5893,7 @@ _bindGridKeyboardNavigation() {
   }
 
   _recalculateAllFormulas(excludeKey, force = false, incremental = null) {
+    this._cfEpoch = (this._cfEpoch || 0) + 1;
     if (this.calculationMode === "manual" && !force) return;
     if (!incremental || force) this._formulaDependencyGraph = null;
     const activeSheet = this.activeSheet;
@@ -10035,6 +10038,7 @@ _bindGridKeyboardNavigation() {
   }
 
   _recordHistory(action, { coalesce = false } = {}) {
+    this._cfEpoch = (this._cfEpoch || 0) + 1;
     if (action?.type === "cell" &&
       Object.is(action.prevVal, action.nextVal) &&
       action.prevWasText === action.nextWasText &&
@@ -12616,12 +12620,39 @@ _bindGridKeyboardNavigation() {
   _conditionalRangeValues(rule) {
     if (this._cfRenderCache?.has(rule.id)) return this._cfRenderCache.get(rule.id);
     const values = [];
-    for (const [coord, item] of this.cellsData.entries()) {
-      const match = String(coord).match(/^([A-Z]+)(\d+)$/);
-      if (match && this._rangeContains(rule.range, match[1], Number(match[2]))) values.push(item?.val ?? "");
+    const range = this._normalizeRange(rule.range);
+    const firstCol = this._columnNumber(range.start.c), lastCol = this._columnNumber(range.end.c);
+    const rangeCells = (range.end.r - range.start.r + 1) * (lastCol - firstCol + 1);
+    if (rangeCells <= this.cellsData.size * 2) {
+      // Vùng nhỏ hơn dữ liệu: đọc trực tiếp từng ô trong vùng (không quét cả sổ).
+      for (let col = firstCol; col <= lastCol; col++) {
+        const label = this._columnLabel(col);
+        for (let row = range.start.r; row <= range.end.r; row++) {
+          const item = this.cellsData.get(label + row);
+          if (item) values.push(item.val ?? "");
+        }
+      }
+    } else {
+      for (const [coord, item] of this.cellsData.entries()) {
+        const match = String(coord).match(/^([A-Z]+)(\d+)$/);
+        if (match && this._rangeContains(rule.range, match[1], Number(match[2]))) values.push(item?.val ?? "");
+      }
     }
     this._cfRenderCache?.set(rule.id, values);
     return values;
+  }
+
+  /** Thống kê vùng của một quy tắc, giữ trong bộ nhớ đệm đến khi dữ liệu đổi (epoch/kích thước) hoặc quá 1 giây. */
+  _conditionalStats(rule) {
+    const cache = this._cfStatsCache ||= new Map();
+    const now = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+    const key = `${this.activeSheet}\u0000${rule.id}`;
+    const entry = cache.get(key);
+    if (entry && entry.epoch === this._cfEpoch && entry.size === this.cellsData.size && now - entry.at < 1000
+      && entry.rangeLabel === this._rangeLabel(rule.range) && entry.type === rule.type) return entry.stats;
+    const stats = computeRangeStats(this._conditionalRangeValues(rule), value => this._numericCellValue(value), rule.type === "duplicate");
+    cache.set(key, { stats, at: now, epoch: this._cfEpoch, size: this.cellsData.size, rangeLabel: this._rangeLabel(rule.range), type: rule.type });
+    return stats;
   }
 
   _conditionalContext() {
@@ -12632,6 +12663,7 @@ _bindGridKeyboardNavigation() {
         range
       }),
       numeric: value => this._numericCellValue(value),
+      stats: rule => this._conditionalStats(rule),
       now: () => new Date(),
       formula: (rule, col, row) => {
         const baseCol = this._columnNumber(rule.range.start.c);
@@ -12726,10 +12758,10 @@ _bindGridKeyboardNavigation() {
       : "";
     if (visual.icon) {
       dom.dataset.cfIcon = visual.icon;
-      dom.style.setProperty("--vno-cf-icon-color", visual.iconColor || "currentColor");
+      dom.style.setProperty?.("--vno-cf-icon-color", visual.iconColor || "currentColor");
     } else {
       delete dom.dataset.cfIcon;
-      dom.style.removeProperty("--vno-cf-icon-color");
+      dom.style.removeProperty?.("--vno-cf-icon-color");
     }
     dom.classList.toggle("has-validation", !!this.getValidationForCell(col, row));
     const validation = this.validateCellValue(col, row);

@@ -119,8 +119,43 @@ function dateMatches(value, period, now = new Date()) {
   return target >= nextMonth.getTime() && target < new Date(today.getFullYear(), today.getMonth() + 2, 1).getTime();
 }
 
-function numericRangeValues(rule, context) {
-  return context.values(rule.range).map(context.numeric).filter(Number.isFinite);
+/**
+ * Thống kê của một vùng quy tắc (tính MỘT lần rồi dùng cho mọi ô): tránh quét và sắp xếp lại cả vùng cho từng ô được vẽ.
+ * Không dùng Math.min(...values): spread quá vài chục nghìn phần tử gây RangeError ở bảng lớn.
+ */
+export function computeRangeStats(values, numeric, needCounts = false) {
+  const nums = [];
+  let sum = 0, min = Infinity, max = -Infinity;
+  const counts = needCounts ? new Map() : null;
+  for (const raw of values) {
+    const n = numeric(raw);
+    if (Number.isFinite(n)) {
+      nums.push(n);
+      sum += n;
+      if (n < min) min = n;
+      if (n > max) max = n;
+    }
+    if (counts) {
+      const text = String(raw ?? "").trim().toLocaleLowerCase();
+      if (text) counts.set(text, (counts.get(text) || 0) + 1);
+    }
+  }
+  return { nums, count: nums.length, sum, average: nums.length ? sum / nums.length : 0, min, max, counts, sortedDesc: null, sortedAsc: null };
+}
+
+function rangeStats(rule, context) {
+  if (typeof context.stats === "function") return context.stats(rule);
+  return computeRangeStats(context.values(rule.range), context.numeric, rule.type === "duplicate");
+}
+
+function rankThreshold(stats, type, rank) {
+  const size = Math.min(Math.max(1, rank || 10), stats.count);
+  if (type === "top") {
+    stats.sortedDesc ||= [...stats.nums].sort((a, b) => b - a);
+    return stats.sortedDesc[size - 1];
+  }
+  stats.sortedAsc ||= [...stats.nums].sort((a, b) => a - b);
+  return stats.sortedAsc[size - 1];
 }
 
 export function conditionalRuleMatches(rule, value, col, row, context) {
@@ -131,8 +166,8 @@ export function conditionalRuleMatches(rule, value, col, row, context) {
   if (rule.type === "dateOccurs") return dateMatches(value, rule.timePeriod, context.now?.());
   if (rule.type === "duplicate") {
     if (!text) return false;
-    const normalized = text.toLocaleLowerCase();
-    return context.values(rule.range).filter(item => String(item ?? "").trim().toLocaleLowerCase() === normalized).length > 1;
+    const stats = rangeStats(rule, context);
+    return (stats.counts?.get(text.toLocaleLowerCase()) || 0) > 1;
   }
   if (rule.type === "formula") return !!context.formula(rule, col, row);
   if (rule.type === "equal" && typeof rule.value !== "number") return text === String(rule.value);
@@ -142,16 +177,14 @@ export function conditionalRuleMatches(rule, value, col, row, context) {
   if (rule.type === "lessThan") return numeric < rule.value;
   if (rule.type === "between") return numeric >= rule.value && numeric <= rule.value2;
   if (rule.type === "equal") return numeric === rule.value;
-  const values = numericRangeValues(rule, context);
-  if (!values.length) return false;
+  const stats = rangeStats(rule, context);
+  if (!stats.count) return false;
   if (rule.type === "aboveAverage" || rule.type === "belowAverage") {
-    const average = values.reduce((sum, item) => sum + item, 0) / values.length;
-    return rule.type === "aboveAverage" ? numeric > average : numeric < average;
+    return rule.type === "aboveAverage" ? numeric > stats.average : numeric < stats.average;
   }
   if (rule.type === "top" || rule.type === "bottom") {
-    const sorted = [...values].sort((a, b) => rule.type === "top" ? b - a : a - b);
-    return numeric >= Math.min(...sorted.slice(0, rule.rank || 10)) && rule.type === "top"
-      || numeric <= Math.max(...sorted.slice(0, rule.rank || 10)) && rule.type === "bottom";
+    const threshold = rankThreshold(stats, rule.type, rule.rank);
+    return rule.type === "top" ? numeric >= threshold : numeric <= threshold;
   }
   return ["dataBar", "colorScale2", "colorScale3", "iconSet"].includes(rule.type);
 }
@@ -171,9 +204,9 @@ const ICONS = Object.freeze({
 export function conditionalVisual(rule, value, context) {
   const numeric = context.numeric(value);
   if (!Number.isFinite(numeric)) return {};
-  const values = numericRangeValues(rule, context);
-  if (!values.length) return {};
-  const min = Math.min(...values), max = Math.max(...values);
+  const stats = rangeStats(rule, context);
+  if (!stats.count) return {};
+  const { min, max } = stats;
   const ratio = max === min ? 1 : Math.max(0, Math.min(1, (numeric - min) / (max - min)));
   if (rule.type === "dataBar") return { dataBar: { color: rule.color, percent: Math.max(1, Math.round(ratio * 100)) } };
   if (rule.type === "colorScale2") return { fill: mixColor(rule.colors[0], rule.colors[1], ratio) };
