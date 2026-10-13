@@ -53,6 +53,7 @@ export class SlidesApp {
     workspace.appendChild(studioWrap);
 
     this.canvasController = new SlidesCanvasController(studioWrap, {
+      shell: this.shell,
       isDemoTemplate: templateId === "presentation_outline",
       isBlankTemplate: isBlank,
       onDocumentChange: () => { if (this.adapter) this.adapter.isDirty = true; },

@@ -124,8 +124,26 @@ export class SlidesAdapter {
     this.shell = shell;
     if (shell) {
       shell.adapter = this;
-      if (this.canvas) shell.canvas = this.canvas;
+      if (this.canvas) {
+        shell.canvas = this.canvas;
+        if (this.canvas.options) this.canvas.options.shell = shell;
+      }
     }
+  }
+
+  /** Lệnh ribbon trả false mà không báo gì = nút chết trong mắt người dùng: hiện lý do. */
+  _hintIfFalse(run, message) {
+    const result = typeof run === "function" ? run() : run;
+    const show = (value) => {
+      if (value === false) {
+        this.shell?.setStatus?.(message);
+        if (this.shell?.showNotification) {
+          this.shell.showNotification({ type: "info", message });
+        }
+      }
+      return value;
+    };
+    return typeof result?.then === "function" ? result.then(show) : show(result);
   }
 
   newDocument() {
@@ -164,10 +182,11 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.edit.selectObjects", () => this.canvas.selectDrawingObjects ? this.canvas.selectDrawingObjects() : false);
     globalCommandBus.bindHandler("slides.shape.insert", () => this.canvas.insertShape ? this.canvas.insertShape("rect") : false);
     globalCommandBus.bindHandler("slides.master.apply", () => this.canvas.showSlideMasterDialog ? this.canvas.showSlideMasterDialog() : false);
-    globalCommandBus.bindHandler("slides.arrange.bringToFront", () => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("front") : false);
-    globalCommandBus.bindHandler("slides.arrange.bringForward", () => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("forward") : false);
-    globalCommandBus.bindHandler("slides.arrange.sendBackward", () => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("backward") : false);
-    globalCommandBus.bindHandler("slides.arrange.sendToBack", () => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("back") : false);
+    globalCommandBus.bindHandler("slides.layout.reset", () => this._hintIfFalse(() => this.canvas.resetSlideLayout ? this.canvas.resetSlideLayout() : false, "Không thể đặt lại bố cục slide lúc này."));
+    globalCommandBus.bindHandler("slides.arrange.bringToFront", () => this._hintIfFalse(() => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("front") : false, "Hãy chọn ít nhất một hình khối để sắp xếp thứ tự hiển thị."));
+    globalCommandBus.bindHandler("slides.arrange.bringForward", () => this._hintIfFalse(() => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("forward") : false, "Hãy chọn ít nhất một hình khối để sắp xếp thứ tự hiển thị."));
+    globalCommandBus.bindHandler("slides.arrange.sendBackward", () => this._hintIfFalse(() => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("backward") : false, "Hãy chọn ít nhất một hình khối để sắp xếp thứ tự hiển thị."));
+    globalCommandBus.bindHandler("slides.arrange.sendToBack", () => this._hintIfFalse(() => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("back") : false, "Hãy chọn ít nhất một hình khối để sắp xếp thứ tự hiển thị."));
     // Những lệnh này có triển khai trong Canvas/adapter; bind tại đây để ribbon
     // và phím tắt dùng cùng một đường thực thi thay vì chỉ hoạt động qua UNO.
     globalCommandBus.bindHandler("slides.transition.apply", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
@@ -177,10 +196,10 @@ export class SlidesAdapter {
       options = options || {};
       return this.canvas.openCommentsPanel ? this.canvas.openCommentsPanel(true) : false;
     });
-    globalCommandBus.bindHandler("slides.review.commentPrevious", () => this.canvas.previousComment?.());
-    globalCommandBus.bindHandler("slides.review.commentNext", () => this.canvas.nextComment?.());
-    globalCommandBus.bindHandler("slides.review.commentDelete", () => this.canvas.deleteActiveComment?.());
-    globalCommandBus.bindHandler("slides.review.commentResolve", () => this.canvas.toggleActiveCommentResolved?.());
+    globalCommandBus.bindHandler("slides.review.commentPrevious", () => this._hintIfFalse(() => this.canvas.previousComment?.(), "Bài trình bày chưa có nhận xét nào."));
+    globalCommandBus.bindHandler("slides.review.commentNext", () => this._hintIfFalse(() => this.canvas.nextComment?.(), "Bài trình bày chưa có nhận xét nào."));
+    globalCommandBus.bindHandler("slides.review.commentDelete", () => this._hintIfFalse(() => this.canvas.deleteActiveComment?.(), "Chưa chọn nhận xét nào để xóa."));
+    globalCommandBus.bindHandler("slides.review.commentResolve", () => this._hintIfFalse(() => this.canvas.toggleActiveCommentResolved?.(), "Chưa chọn nhận xét nào để đánh dấu giải quyết."));
     globalCommandBus.bindHandler("slides.review.spellCheck", (args) => {
       args = args || {};
       return this.canvas.showSpellcheckDialog ? this.canvas.showSpellcheckDialog(args) : false;
@@ -189,8 +208,14 @@ export class SlidesAdapter {
       return this.canvas.toggleSpellcheck ? this.canvas.toggleSpellcheck() : false;
     });
     globalShortcutManager.bind("F7", "slides.review.spellCheck", "slides");
-    globalShortcutManager.bind("F1", "slides.help.open", "slides");
-    globalCommandBus.bindHandler("slides.edit.formatPainter", (args) => this.canvas.toggleFormatPainter ? this.canvas.toggleFormatPainter(args || {}) : false);
+    globalCommandBus.bindHandler("slides.edit.formatPainter", (args) => {
+      const hadPainter = !!this.canvas?.formatPainter;
+      const res = this.canvas.toggleFormatPainter ? this.canvas.toggleFormatPainter(args || {}) : false;
+      if (res === false && !hadPainter && this.shell?.setStatus) {
+        this.shell.setStatus("Hãy chọn hình khối hoặc đoạn văn bản có định dạng cần sao chép.");
+      }
+      return res;
+    });
     globalCommandBus.bindHandler("slides.design.formatBackground", (args) => this.canvas.showFormatBackgroundDialog ? this.canvas.showFormatBackgroundDialog(args || {}) : false);
     globalCommandBus.bindHandler("slides.animation.pane", () => this.canvas.toggleAnimationPane ? this.canvas.toggleAnimationPane() : false);
     globalCommandBus.bindHandler("slides.show.setupShow", () => this.canvas.showSetupShowDialog ? this.canvas.showSetupShowDialog() : false);
@@ -213,17 +238,17 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.view.zoomOut", () => this.canvas.zoomOut ? this.canvas.zoomOut() : false);
     globalCommandBus.bindHandler("slides.view.zoomReset", () => this.canvas.zoomReset ? this.canvas.zoomReset() : false);
     globalCommandBus.bindHandler("slides.view.fitToWindow", () => this.canvas.fitToWindow ? this.canvas.fitToWindow() : false);
-    globalCommandBus.bindHandler("slides.view.newWindow", () => this.canvas.newWindow ? this.canvas.newWindow() : false);
+    globalCommandBus.bindHandler("slides.view.newWindow", () => this._hintIfFalse(() => this.canvas.newWindow ? this.canvas.newWindow() : false, "Không mở được cửa sổ mới trong ứng dụng desktop. Hãy mở lại tệp từ Tệp > Mở để xem ở cửa sổ khác."));
     globalCommandBus.bindHandler("slides.section.add", () => this.canvas.promptAddCurrentSection ? this.canvas.promptAddCurrentSection() : false);
-    globalCommandBus.bindHandler("slides.section.rename", () => this.canvas.promptRenameCurrentSection ? this.canvas.promptRenameCurrentSection() : false);
-    globalCommandBus.bindHandler("slides.section.remove", () => this.canvas.removeCurrentSection ? this.canvas.removeCurrentSection() : false);
-    globalCommandBus.bindHandler("slides.section.moveUp", () => this.canvas.moveCurrentSectionUp ? this.canvas.moveCurrentSectionUp() : false);
-    globalCommandBus.bindHandler("slides.section.moveDown", () => this.canvas.moveCurrentSectionDown ? this.canvas.moveCurrentSectionDown() : false);
+    globalCommandBus.bindHandler("slides.section.rename", () => this._hintIfFalse(() => this.canvas.promptRenameCurrentSection ? this.canvas.promptRenameCurrentSection() : false, "Trang chiếu hiện tại chưa thuộc phần nào. Hãy thêm phần trước bằng Thêm phần."));
+    globalCommandBus.bindHandler("slides.section.remove", () => this._hintIfFalse(() => this.canvas.removeCurrentSection ? this.canvas.removeCurrentSection() : false, "Trang chiếu hiện tại chưa thuộc phần nào để xóa."));
+    globalCommandBus.bindHandler("slides.section.moveUp", () => this._hintIfFalse(() => this.canvas.moveCurrentSectionUp ? this.canvas.moveCurrentSectionUp() : false, "Không thể chuyển phần lên trên (chưa có phần hoặc đã ở đầu)."));
+    globalCommandBus.bindHandler("slides.section.moveDown", () => this._hintIfFalse(() => this.canvas.moveCurrentSectionDown ? this.canvas.moveCurrentSectionDown() : false, "Không thể chuyển phần xuống dưới (chưa có phần hoặc đã ở cuối)."));
     globalCommandBus.bindHandler("slides.section.menu", () => this.canvas.promptAddCurrentSection ? this.canvas.promptAddCurrentSection() : false);
-    globalCommandBus.bindHandler("slides.drawing.arrange", () => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("front") : false);
+    globalCommandBus.bindHandler("slides.drawing.arrange", () => this._hintIfFalse(() => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("front") : false, "Hãy chọn ít nhất một hình khối để sắp xếp thứ tự hiển thị."));
     globalCommandBus.bindHandler("slides.edit.select", () => this.canvas.selectAllShapes ? this.canvas.selectAllShapes() : false);
-    globalCommandBus.bindHandler("slides.text.vAlign", () => this.canvas.setTextVerticalAlign ? this.canvas.setTextVerticalAlign("middle") : false);
-    globalCommandBus.bindHandler("slides.text.direction", () => this.canvas.setTextDirection ? this.canvas.setTextDirection("horizontal") : false);
+    globalCommandBus.bindHandler("slides.text.vAlign", () => this._hintIfFalse(() => this.canvas.setTextVerticalAlign ? this.canvas.setTextVerticalAlign("middle") : false, "Hãy chọn khung chữ hoặc hình khối có văn bản cần căn lề dọc."));
+    globalCommandBus.bindHandler("slides.text.direction", () => this._hintIfFalse(() => this.canvas.setTextDirection ? this.canvas.setTextDirection("horizontal") : false, "Hãy chọn khung chữ hoặc hình khối có văn bản cần xoay hướng chữ."));
     this._bindTextFormatTracking();
   }
 
@@ -544,16 +569,16 @@ export class SlidesAdapter {
     switch (cmd) {
       case "slides.text.bold":
         this._applyExecCommand("bold");
-        return this._queryCommandState("bold");
+        return true;
       case "slides.text.italic":
         this._applyExecCommand("italic");
-        return this._queryCommandState("italic");
+        return true;
       case "slides.text.underline":
         this._applyExecCommand("underline");
-        return this._queryCommandState("underline");
+        return true;
       case "slides.text.strike":
         this._applyExecCommand("strikeThrough");
-        return this._queryCommandState("strikeThrough");
+        return true;
       case "slides.text.clearFormat":
         this._applyExecCommand("removeFormat");
         return true;
@@ -573,26 +598,26 @@ export class SlidesAdapter {
         return this._applyExecCommand("hiliteColor", args || "#ffcd00");
       case "slides.list.bullet":
         this._applyExecCommand("insertUnorderedList");
-        return this._queryCommandState("insertUnorderedList");
+        return true;
       case "slides.list.numbered":
         this._applyExecCommand("insertOrderedList");
-        return this._queryCommandState("insertOrderedList");
+        return true;
       case "slides.para.alignLeft":
         this._applyExecCommand("justifyLeft");
         this._syncTextFormatState();
-        return this._queryCommandState("justifyLeft");
+        return true;
       case "slides.para.alignCenter":
         this._applyExecCommand("justifyCenter");
         this._syncTextFormatState();
-        return this._queryCommandState("justifyCenter");
+        return true;
       case "slides.para.alignRight":
         this._applyExecCommand("justifyRight");
         this._syncTextFormatState();
-        return this._queryCommandState("justifyRight");
+        return true;
       case "slides.para.justify":
         this._applyExecCommand("justifyFull");
         this._syncTextFormatState();
-        return this._queryCommandState("justifyFull");
+        return true;
       case "slides.para.indentInc":
         return this._applyExecCommand("indent");
       case "slides.para.indentDec":
@@ -4154,22 +4179,22 @@ export class SlidesAdapter {
         }
 
       case "slides.slide.delete":
-        return this.canvas.deleteCurrentSlide();
+        return this._hintIfFalse(() => this.canvas.deleteCurrentSlide(), "Bài trình bày cần có ít nhất một trang chiếu.");
 
       case "slides.section.add":
         return this.canvas.promptAddCurrentSection ? this.canvas.promptAddCurrentSection() : false;
 
       case "slides.section.rename":
-        return this.canvas.promptRenameCurrentSection ? this.canvas.promptRenameCurrentSection() : false;
+        return this._hintIfFalse(() => this.canvas.promptRenameCurrentSection ? this.canvas.promptRenameCurrentSection() : false, "Trang chiếu hiện tại chưa thuộc phần nào. Hãy thêm phần trước bằng Thêm phần.");
 
       case "slides.section.remove":
-        return this.canvas.removeCurrentSection ? this.canvas.removeCurrentSection() : false;
+        return this._hintIfFalse(() => this.canvas.removeCurrentSection ? this.canvas.removeCurrentSection() : false, "Trang chiếu hiện tại chưa thuộc phần nào để xóa.");
 
       case "slides.section.moveUp":
-        return this.canvas.moveCurrentSectionUp ? this.canvas.moveCurrentSectionUp() : false;
+        return this._hintIfFalse(() => this.canvas.moveCurrentSectionUp ? this.canvas.moveCurrentSectionUp() : false, "Không thể chuyển phần lên trên (chưa có phần hoặc đã ở đầu).");
 
       case "slides.section.moveDown":
-        return this.canvas.moveCurrentSectionDown ? this.canvas.moveCurrentSectionDown() : false;
+        return this._hintIfFalse(() => this.canvas.moveCurrentSectionDown ? this.canvas.moveCurrentSectionDown() : false, "Không thể chuyển phần xuống dưới (chưa có phần hoặc đã ở cuối).");
 
       case "slides.slide.toggleHidden":
       case ".uno:HideSlide":
@@ -4182,71 +4207,71 @@ export class SlidesAdapter {
         return this.canvas.toggleCurrentSlideHidden();
 
       case "slides.shape.group":
-        return this.canvas.groupSelectedShapes ? this.canvas.groupSelectedShapes() : false;
+        return this._hintIfFalse(() => this.canvas.groupSelectedShapes ? this.canvas.groupSelectedShapes() : false, "Hãy chọn từ hai hình khối trở lên để nhóm.");
 
       case "slides.shape.ungroup":
-        return this.canvas.ungroupSelectedShapes ? this.canvas.ungroupSelectedShapes() : false;
+        return this._hintIfFalse(() => this.canvas.ungroupSelectedShapes ? this.canvas.ungroupSelectedShapes() : false, "Hãy chọn một nhóm hình khối để bỏ nhóm.");
 
       case "slides.arrange.alignLeft":
       case ".uno:ObjectAlignLeft":
-        return this.canvas.alignShapes ? this.canvas.alignShapes("left", this.canvas.alignToSlideMode ? "slide" : "selection") : false;
+        return this._hintIfFalse(() => this.canvas.alignShapes ? this.canvas.alignShapes("left", this.canvas.alignToSlideMode ? "slide" : "selection") : false, "Hãy chọn ít nhất hai hình khối (hoặc bật Căn theo trang) để căn trái.");
 
       case "slides.arrange.alignCenter":
       case ".uno:AlignCenter":
-        return this.canvas.alignShapes ? this.canvas.alignShapes("center", this.canvas.alignToSlideMode ? "slide" : "selection") : false;
+        return this._hintIfFalse(() => this.canvas.alignShapes ? this.canvas.alignShapes("center", this.canvas.alignToSlideMode ? "slide" : "selection") : false, "Hãy chọn ít nhất hai hình khối (hoặc bật Căn theo trang) để căn giữa.");
 
       case "slides.arrange.alignRight":
       case ".uno:ObjectAlignRight":
-        return this.canvas.alignShapes ? this.canvas.alignShapes("right", this.canvas.alignToSlideMode ? "slide" : "selection") : false;
+        return this._hintIfFalse(() => this.canvas.alignShapes ? this.canvas.alignShapes("right", this.canvas.alignToSlideMode ? "slide" : "selection") : false, "Hãy chọn ít nhất hai hình khối (hoặc bật Căn theo trang) để căn phải.");
 
       case "slides.arrange.alignTop":
       case ".uno:AlignUp":
-        return this.canvas.alignShapes ? this.canvas.alignShapes("top", this.canvas.alignToSlideMode ? "slide" : "selection") : false;
+        return this._hintIfFalse(() => this.canvas.alignShapes ? this.canvas.alignShapes("top", this.canvas.alignToSlideMode ? "slide" : "selection") : false, "Hãy chọn ít nhất hai hình khối (hoặc bật Căn theo trang) để căn trên.");
 
       case "slides.arrange.alignMiddle":
       case ".uno:AlignMiddle":
-        return this.canvas.alignShapes ? this.canvas.alignShapes("middle", this.canvas.alignToSlideMode ? "slide" : "selection") : false;
+        return this._hintIfFalse(() => this.canvas.alignShapes ? this.canvas.alignShapes("middle", this.canvas.alignToSlideMode ? "slide" : "selection") : false, "Hãy chọn ít nhất hai hình khối (hoặc bật Căn theo trang) để căn giữa theo chiều dọc.");
 
       case "slides.arrange.alignBottom":
       case ".uno:AlignDown":
-        return this.canvas.alignShapes ? this.canvas.alignShapes("bottom", this.canvas.alignToSlideMode ? "slide" : "selection") : false;
+        return this._hintIfFalse(() => this.canvas.alignShapes ? this.canvas.alignShapes("bottom", this.canvas.alignToSlideMode ? "slide" : "selection") : false, "Hãy chọn ít nhất hai hình khối (hoặc bật Căn theo trang) để căn dưới.");
 
       case "slides.arrange.distributeHorizontal":
       case ".uno:DistributeSelectionHorizontal":
-        return this.canvas.distributeShapes ? this.canvas.distributeShapes("horizontal", this.canvas.alignToSlideMode ? "slide" : "selection") : false;
+        return this._hintIfFalse(() => this.canvas.distributeShapes ? this.canvas.distributeShapes("horizontal", this.canvas.alignToSlideMode ? "slide" : "selection") : false, "Hãy chọn từ ba hình khối trở lên (hoặc hai hình khối khi căn theo trang) để phân phối ngang.");
 
       case "slides.arrange.distributeVertical":
       case ".uno:DistributeSelectionVertical":
-        return this.canvas.distributeShapes ? this.canvas.distributeShapes("vertical", this.canvas.alignToSlideMode ? "slide" : "selection") : false;
+        return this._hintIfFalse(() => this.canvas.distributeShapes ? this.canvas.distributeShapes("vertical", this.canvas.alignToSlideMode ? "slide" : "selection") : false, "Hãy chọn từ ba hình khối trở lên (hoặc hai hình khối khi căn theo trang) để phân phối dọc.");
 
       case "slides.arrange.alignToSlide":
         return this.canvas.toggleAlignToSlide ? this.canvas.toggleAlignToSlide() : false;
 
       case "slides.text.vAlignTop":
       case ".uno:TextVertAnchorTop":
-        return this.canvas.setTextVerticalAlign ? this.canvas.setTextVerticalAlign("top") : false;
+        return this._hintIfFalse(() => this.canvas.setTextVerticalAlign ? this.canvas.setTextVerticalAlign("top") : false, "Hãy chọn khung chữ hoặc hình khối có văn bản cần căn lề dọc.");
 
       case "slides.text.vAlignMiddle":
       case ".uno:TextVertAnchorCenter":
-        return this.canvas.setTextVerticalAlign ? this.canvas.setTextVerticalAlign("middle") : false;
+        return this._hintIfFalse(() => this.canvas.setTextVerticalAlign ? this.canvas.setTextVerticalAlign("middle") : false, "Hãy chọn khung chữ hoặc hình khối có văn bản cần căn lề dọc.");
 
       case "slides.text.vAlignBottom":
       case ".uno:TextVertAnchorBottom":
-        return this.canvas.setTextVerticalAlign ? this.canvas.setTextVerticalAlign("bottom") : false;
+        return this._hintIfFalse(() => this.canvas.setTextVerticalAlign ? this.canvas.setTextVerticalAlign("bottom") : false, "Hãy chọn khung chữ hoặc hình khối có văn bản cần căn lề dọc.");
 
       case "slides.text.directionHorizontal":
       case ".uno:TextdirectionLeftToRight":
-        return this.canvas.setTextDirection ? this.canvas.setTextDirection("horizontal") : false;
+        return this._hintIfFalse(() => this.canvas.setTextDirection ? this.canvas.setTextDirection("horizontal") : false, "Hãy chọn khung chữ hoặc hình khối có văn bản cần xoay hướng chữ.");
 
       case "slides.text.directionVertical":
       case ".uno:TextdirectionTopToBottom":
-        return this.canvas.setTextDirection ? this.canvas.setTextDirection("vertical") : false;
+        return this._hintIfFalse(() => this.canvas.setTextDirection ? this.canvas.setTextDirection("vertical") : false, "Hãy chọn khung chữ hoặc hình khối có văn bản cần xoay hướng chữ.");
 
       case "slides.text.directionVertical270":
-        return this.canvas.setTextDirection ? this.canvas.setTextDirection("vertical270") : false;
+        return this._hintIfFalse(() => this.canvas.setTextDirection ? this.canvas.setTextDirection("vertical270") : false, "Hãy chọn khung chữ hoặc hình khối có văn bản cần xoay hướng chữ.");
 
       case "slides.text.directionStacked":
-        return this.canvas.setTextDirection ? this.canvas.setTextDirection("stacked") : false;
+        return this._hintIfFalse(() => this.canvas.setTextDirection ? this.canvas.setTextDirection("stacked") : false, "Hãy chọn khung chữ hoặc hình khối có văn bản cần xoay hướng chữ.");
 
       case "slides.nav.firstSlide":
         this.canvas.selectSlide(0);
@@ -4269,7 +4294,7 @@ export class SlidesAdapter {
         return this.canvas.showLayoutDialog ? this.canvas.showLayoutDialog() : false;
 
       case "slides.layout.reset":
-        return this.canvas.resetSlideLayout ? this.canvas.resetSlideLayout() : false;
+        return this._hintIfFalse(() => this.canvas.resetSlideLayout ? this.canvas.resetSlideLayout() : false, "Không thể đặt lại bố cục slide lúc này.");
 
       case "slides.show.startFromBegin":
         return this.canvas.startSlideShow(0);
@@ -4284,16 +4309,16 @@ export class SlidesAdapter {
         return this.canvas.insertShape ? this.canvas.insertShape("textbox") : false;
 
       case "slides.arrange.bringForward":
-        return this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("forward") : false;
+        return this._hintIfFalse(() => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("forward") : false, "Hãy chọn ít nhất một hình khối để sắp xếp thứ tự hiển thị.");
 
       case "slides.arrange.sendBackward":
-        return this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("backward") : false;
+        return this._hintIfFalse(() => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("backward") : false, "Hãy chọn ít nhất một hình khối để sắp xếp thứ tự hiển thị.");
 
       case "slides.arrange.bringToFront":
-        return this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("front") : false;
+        return this._hintIfFalse(() => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("front") : false, "Hãy chọn ít nhất một hình khối để sắp xếp thứ tự hiển thị.");
 
       case "slides.arrange.sendToBack":
-        return this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("back") : false;
+        return this._hintIfFalse(() => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("back") : false, "Hãy chọn ít nhất một hình khối để sắp xếp thứ tự hiển thị.");
 
       case "slides.shape.insert":
         return this.canvas.insertShape ? this.canvas.insertShape("rect") : false;
@@ -4383,7 +4408,7 @@ export class SlidesAdapter {
 
       case "slides.view.newWindow":
       case ".uno:NewWindow":
-        return this.canvas.newWindow ? this.canvas.newWindow() : false;
+        return this._hintIfFalse(() => this.canvas.newWindow ? this.canvas.newWindow() : false, "Không mở được cửa sổ mới trong ứng dụng desktop. Hãy mở lại tệp từ Tệp > Mở để xem ở cửa sổ khác.");
 
       case "slides.show.presenterMode":
         return this.canvas.startPresenterMode ? this.canvas.startPresenterMode() : false;
