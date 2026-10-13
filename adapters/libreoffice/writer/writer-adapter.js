@@ -2007,6 +2007,9 @@ export class WriterAdapter {
   }
 
   moveParagraph(direction = "up") {
+    if (this.viewController?.mode === "outline") {
+      return direction === "up" ? this.viewController.moveUpHeading() : this.viewController.moveDownHeading();
+    }
     if (typeof window === "undefined") return false;
     const sel = window.getSelection?.();
     if (!sel || sel.rangeCount === 0) return false;
@@ -15363,6 +15366,15 @@ export class WriterAdapter {
         while (w.firstChild) w.parentNode?.insertBefore(w.firstChild, w);
         w.remove?.();
       }
+      const collapseBtns = Array.from(exportRoot.querySelectorAll?.('.vno-heading-collapse-btn') || []);
+      for (const btn of collapseBtns) btn.remove?.();
+      const collapsedBodies = Array.from(exportRoot.querySelectorAll?.('.vno-heading-collapsed-body') || []);
+      for (const el of collapsedBodies) {
+        el.classList.remove('vno-heading-collapsed-body');
+        if (el.style?.display === 'none') {
+          el.style.display = '';
+        }
+      }
       this._applyNewDocumentParagraphDefaults(exportRoot);
       this._serializeEquationsForExport(exportRoot);
       if (acceptedView) {
@@ -15550,7 +15562,11 @@ export class WriterAdapter {
     const themeMarker = this.documentTheme && this.documentTheme !== "office"
       ? `<!--vno-document-theme:${String(this.documentTheme).replace(/[^a-z0-9_-]/gi, "")}-->`
       : "";
-    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${documentPropertiesMarker(this.documentProperties)}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${nativeDiagramMarker}${nativeWordArtMarker}${nativeWatermarkMarker}${themeMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
+    const activeViewMode = this.viewMode || this._lastViewMode || this.viewController?.mode || "printLayout";
+    const viewMarker = (activeViewMode && activeViewMode !== "printLayout")
+      ? `<!--vno-view-mode:${activeViewMode}-->`
+      : "";
+    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${documentPropertiesMarker(this.documentProperties)}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${nativeDiagramMarker}${nativeWordArtMarker}${nativeWatermarkMarker}${themeMarker}${viewMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }
@@ -15617,6 +15633,8 @@ export class WriterAdapter {
       .replace(/<button\b[^>]*class=["'][^"']*\bvno-note-delete-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
       .replace(/<button\b[^>]*class=["'][^"']*\bvno-diagram-delete-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
       .replace(/<button\b[^>]*class=["'][^"']*\bvno-chart-delete-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
+      .replace(/<button\b[^>]*class=["'][^"']*\bvno-heading-collapse-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
+      .replace(/\s*\bvno-heading-collapsed-body\b/gi, "")
       .replace(/<div\b[^>]*class=["'][^"']*\bvno-page-watermark\b[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, "")
       .replace(/<div\b[^>]*class=["'][^"']*\bvno-page-border-frame\b[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, "")
       .replace(/<div\b[^>]*class=["'][^"']*\bvno-writer-shapes-layer\b[^"']*["'][^>]*>[\s\S]*?<\/div>/gi, "")

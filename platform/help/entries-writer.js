@@ -5,6 +5,63 @@
 
 export const WRITER_HELP_ENTRIES = [
   {
+    id: "writer.view.outline.help",
+    app: "writer",
+    commandIds: [
+      "writer.view.outline",
+      "writer.outline.promote",
+      "writer.outline.demote",
+      "writer.outline.moveUp",
+      "writer.outline.moveDown",
+      "writer.outline.expand",
+      "writer.outline.collapse",
+      "writer.outline.showLevel",
+      "writer.outline.close"
+    ],
+    title: "Chế độ xem Dàn bài và tổ chức cây tiêu đề",
+    summary: "Chế độ Dàn bài (Outline) cho phép xem toàn bộ cấu trúc văn bản theo cấp tiêu đề, nâng hoặc hạ cấp bậc tiêu đề, di chuyển vị trí phần tài liệu lên hoặc xuống, và thu gọn/mở rộng từng nhánh nội dung.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dàn bài" },
+    keywords: ["dàn bài", "outline", "nâng cấp", "hạ cấp", "thu gọn", "mở rộng", "cấp tiêu đề", "di chuyển lên", "di chuyển xuống", "Alt Shift"],
+    steps: [
+      "Mở tab Chế độ xem trên thanh công cụ, chọn Dàn bài để chuyển sang giao diện tổ chức tài liệu theo cây phân cấp.",
+      "Thanh công cụ Dàn bài cung cấp các nút thao tác nhanh: Nâng cấp (Alt+Shift+Left) để tăng bậc tiêu đề, Hạ cấp (Alt+Shift+Right) để giảm bậc tiêu đề.",
+      "Bấm Di chuyển lên hoặc Di chuyển xuống để hoán đổi thứ tự toàn bộ phân đoạn tiêu đề cùng nội dung thuộc về nó.",
+      "Sử dụng nút Mở rộng (Alt+Shift++) hoặc Thu gọn (Alt+Shift+-) để ẩn hoặc hiện nội dung thân dưới tiêu đề đang chọn.",
+      "Hộp chọn 'Hiển thị cấp' cho phép lọc nhanh hiển thị: chỉ xem Tiêu đề Cấp 1, Cấp 2, Cấp 3 hoặc xem Tất cả các cấp.",
+      "Bấm nút Đóng Dàn bài trên thanh công cụ để quay lại chế độ Bố cục in bình thường. Toàn bộ cấu trúc phân cấp được lưu giữ nguyên vẹn vào tệp DOCX."
+    ]
+  },
+  {
+    id: "writer.view.draft.help",
+    app: "writer",
+    commandIds: ["writer.view.draft"],
+    title: "Chế độ xem Bản nháp và soạn thảo văn bản nhanh",
+    summary: "Chế độ Bản nháp (Draft) loại bỏ các đường viền trang, khoảng cách lề và bố cục trang phức tạp để người dùng tập trung hoàn toàn vào việc nhập và chỉnh sửa văn bản với tốc độ cao.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dạng xem" },
+    keywords: ["bản nháp", "draft", "soạn thảo nhanh", "không phân trang", "chế độ xem"],
+    steps: [
+      "Mở tab Chế độ xem, chọn Bản nháp trong nhóm Dạng xem.",
+      "Trang tài liệu sẽ hiển thị văn bản liền mạch không bị ngắt trang hoặc khoảng cách lề, giúp tăng tốc độ gõ chữ và chỉnh sửa văn bản dài.",
+      "Để quay lại chế độ xem có ranh giới trang đầy đủ, bấm Bố cục in trên tab Chế độ xem.",
+      "Khi lưu tài liệu sang định dạng DOCX, chế độ xem Bản nháp được lưu vào thiết lập tệp để các bộ ứng dụng văn phòng mở đúng giao diện tương ứng."
+    ]
+  },
+  {
+    id: "writer.view.collapsibleHeadings.help",
+    app: "writer",
+    commandIds: ["writer.view.toggleHeadingCollapse"],
+    title: "Thu gọn và mở rộng nội dung dưới tiêu đề trong Bố cục in",
+    summary: "Trong chế độ Bố cục in, mỗi tiêu đề đều có biểu tượng mũi tên để thu gọn hoặc mở rộng nhanh phần nội dung bên dưới, giúp dễ theo dõi tài liệu dài mà không làm mất dữ liệu khi lưu.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dàn bài" },
+    keywords: ["thu gọn tiêu đề", "mở rộng tiêu đề", "ẩn nội dung tiêu đề", "collapsible headings", "bố cục in"],
+    steps: [
+      "Di chuột lên bất kỳ tiêu đề nào (Cấp 1–6) trong trang tài liệu, một nút mũi tên nhỏ sẽ xuất hiện ở đầu tiêu đề.",
+      "Bấm vào mũi tên (hoặc nhấn chuột vào tiêu đề rồi chọn Thu/Mở nội dung tiêu đề) để ẩn toàn bộ nội dung nằm dưới tiêu đề đó cho đến tiêu đề tiếp theo cùng cấp hoặc cao hơn.",
+      "Bấm lại vào mũi tên để mở rộng và hiển thị lại toàn bộ nội dung đã thu gọn.",
+      "Khi thu gọn nội dung và bấm Lưu tệp (DOCX), toàn bộ văn bản vẫn được bảo toàn 100% không bị mất hay thiếu hụt, đồng thời trạng thái thu gọn được lưu theo chuẩn mở rộng tài liệu."
+    ]
+  },
+  {
     id: "writer.view.navigationPane.help",
     app: "writer",
     commandIds: ["writer.view.navigationPane"],

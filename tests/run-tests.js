@@ -73,6 +73,7 @@ import { runWriterMouseShortcutsTests } from "./unit/writer-mouse-shortcuts.test
 import { runRibbonGapsRealOfficeTests } from "./unit/ribbon-gaps-real-office.test.js";
 import { runSlidesMouseShortcutsTests } from "./unit/slides-mouse-shortcuts.test.js";
 import { runWriterSlidesInsertGapsTests } from "./unit/writer-slides-insert-gaps.test.js";
+import { runWriterViewOutlineDraftTests } from "./unit/writer-view-outline-draft.test.js";
 import { runWriterEquationEditorTests } from "./unit/writer-equation-editor.test.js";
 import { runSheetDataToolsTests } from "./unit/sheet-data-tools.test.js";
 import { runSlidesDialogsA11yTests } from "./unit/slides-dialogs-a11y.test.js";
@@ -558,7 +559,8 @@ async function runAll() {
     { title: "U1. Unit Tests — Ctrl+B/I/U tại con trỏ không bị kiểm tra chính tả xóa kiểu sắp gõ", runner: runSpellcheckPendingStyleTests },
     { title: "S-OBJ. Unit Tests — Sheet Object Context Menu & Page Setup Sheet Tab (agy)", runner: runSheetObjectMenuTests },
     { title: "256. Unit Tests — Writer DOCX document properties metadata", runner: runWriterDocumentPropertiesTests },
-    { title: "257. Unit Tests — Writer AutoCorrect and Vietnamese-safe transforms", runner: runWriterAutoCorrectTests }
+    { title: "257. Unit Tests — Writer AutoCorrect and Vietnamese-safe transforms", runner: runWriterAutoCorrectTests },
+    { title: "258. Unit Tests — Writer Outline, Draft Views and Collapsible Headings (WORD-W2)", runner: runWriterViewOutlineDraftTests }
   ];
 
   for (const suite of suites) {
