@@ -90,6 +90,21 @@ try {
   check("Độ rộng cột... mở hộp thoại", (await ev(`!!document.querySelector('[role="dialog"], .vno-dialog, .vno-modal')`)) === true);
   await closeAll();
 
+  // --- Menu o trong bang (Table) ---
+  await ev(`(() => { const g = ${grid}; g.selectCell('A', 1); g.selectCell('B', 4, true); g.formatAsTable('tableBlue'); return true; })()`);
+  await sleep(500);
+  await mouseClick(cdp, ...Object.values(await center('.vno-grid-cell[data-coord="B3"]')));
+  await mouseRightClick(cdp, ...Object.values(await center('.vno-grid-cell[data-coord="B3"]')));
+  await sleep(400);
+  labels = await menuLabels();
+  check("Ô trong bảng: menu có Chọn và Bảng", labels.some((l) => l.startsWith("Chọn")) && labels.some((l) => l.startsWith("Bảng")), JSON.stringify(labels));
+  await clickMenu("Chọn"); await sleep(300); await clickMenu("Dữ liệu cột của bảng");
+  const rng = await ev(`JSON.stringify(${grid}._rangeLabel(${grid}.selectionRange))`);
+  check("Chọn dữ liệu cột bảng = B2:B4", JSON.parse(rng) === "B2:B4", rng);
+  await mouseRightClick(cdp, ...Object.values(await center('.vno-grid-cell[data-coord="B3"]')));
+  await sleep(400); await clickMenu("Bảng"); await sleep(300); await clickMenu("Chuyển thành phạm vi");
+  const tcount = await ev(`(${grid}.tablesBySheet[${grid}.activeSheet] || []).length`);
+  check("Chuyển thành phạm vi gỡ bảng", tcount === 0, String(tcount));
   // --- Menu tab trang tính ---
   await mouseRightClick(cdp, ...Object.values(await center('.vno-sheet-tab-item')));
   await sleep(400);
