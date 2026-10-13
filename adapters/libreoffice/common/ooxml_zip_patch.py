@@ -5641,7 +5641,9 @@ def _sheet_chart_plot(feature: dict[str, object], original_plot: str) -> str:
         x_values = _chart_component(x_source, "val") or _chart_component(x_source, "yVal")
         y_values = _chart_component(y_source, "val") or _chart_component(y_source, "yVal")
         size_values = _chart_component(size_source, "val") or _chart_component(size_source, "bubbleSize")
-        point_series = f'<c:ser><c:idx val="0"/><c:order val="0"/>{tx}<c:xVal>{x_values}</c:xVal><c:yVal>{y_values}</c:yVal>'
+        # Phân tán chuẩn của bảng tính thông dụng: chỉ có điểm (đường nối tắt, dấu chấm tròn).
+        scatter_style = '<c:spPr><a:ln w="19050"><a:noFill/></a:ln></c:spPr><c:marker><c:symbol val="circle"/><c:size val="7"/></c:marker>' if chart_type == "scatter" else ""
+        point_series = f'<c:ser><c:idx val="0"/><c:order val="0"/>{tx}{scatter_style}<c:xVal>{x_values}</c:xVal><c:yVal>{y_values}</c:yVal>'
         if chart_type == "bubble":
             point_series += f'<c:bubbleSize>{size_values}</c:bubbleSize><c:bubble3D val="0"/>'
             block = f'<c:bubbleChart><c:varyColors val="0"/>{point_series}</c:ser>{dlabels}<c:bubbleScale val="100"/><c:showNegBubbles val="0"/>{axes_ids}</c:bubbleChart>'
@@ -5660,6 +5662,29 @@ def _sheet_chart_plot(feature: dict[str, object], original_plot: str) -> str:
         if chart_close:
             current = current[:chart_close.start()] + dlabels + current[chart_close.start():]
     return current
+
+
+def _normalize_scatter_chart_markers(xlsx_bytes: bytes, replacements: dict[str, str]) -> None:
+    """Biểu đồ phân tán chuẩn của bảng tính thông dụng chỉ có điểm: LibreOffice xuất kiểu 'line' không điểm
+    (đọc ra là Scatter with Straight Lines). Đổi thành lineMarker + đường nối tắt + dấu chấm tròn."""
+    with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+        for part in package.namelist():
+            if not re.fullmatch(r"xl/charts/chart\d+\.xml", part):
+                continue
+            xml = replacements.get(part)
+            if xml is None:
+                xml = package.read(part).decode("utf-8", errors="replace")
+            if "<c:scatterChart" not in xml or 'val="line"/>' not in xml:
+                continue
+            block = re.search(r"<c:scatterChart\b[\s\S]*?</c:scatterChart\s*>", xml)
+            if not block or "<c:scatterStyle val=\"line\"/>" not in block.group(0):
+                continue
+            body = block.group(0).replace('<c:scatterStyle val="line"/>', '<c:scatterStyle val="lineMarker"/>', 1)
+            # Chỉ chuẩn hóa chuỗi chưa có điểm: bỏ nét nối, hiện dấu chấm tròn.
+            body = re.sub(r'<c:marker><c:symbol val="none"/></c:marker>', '<c:marker><c:symbol val="circle"/><c:size val="7"/></c:marker>', body)
+            body = re.sub(r'(<c:spPr>)<a:solidFill>(<a:srgbClr val="[0-9A-Fa-f]{6}"/>)</a:solidFill><a:ln w="0">[\s\S]*?</a:ln>(</c:spPr>)',
+                          r'\1<a:solidFill>\2</a:solidFill><a:ln w="19050"><a:noFill/></a:ln>\3', body)
+            replacements[part] = xml[:block.start()] + body + xml[block.end():]
 
 
 def _apply_sheet_chart_features_from_fods(xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]) -> None:
@@ -6284,6 +6309,7 @@ def postprocess_sheet_xlsx(
         _clear_print_areas_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_refreshed_pivot_locations_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_sheet_chart_features_from_fods(xlsx_bytes, source_fods, replacements)
+        _normalize_scatter_chart_markers(xlsx_bytes, replacements)
         _apply_pivot_chart_links_from_fods(xlsx_bytes, source_fods, replacements, workbook_filename)
 
     if source_fods:

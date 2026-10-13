@@ -108,6 +108,26 @@ class SheetChartTypesXlsxTests(unittest.TestCase):
         self.assertIn('vno:data-labels="true"', overlaid)
         self.assertIn('vno:trendline="true"', overlaid)
 
+class ScatterMarkerNormalizationTests(unittest.TestCase):
+    def test_libreoffice_line_scatter_becomes_marker_only_scatter(self):
+        import io, zipfile
+        from adapters.libreoffice.common import ooxml_zip_patch
+        chart = ('<c:chartSpace xmlns:c="http://schemas.openxmlformats.org/drawingml/2006/chart" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"><c:chart><c:plotArea>'
+                 '<c:scatterChart><c:scatterStyle val="line"/><c:varyColors val="0"/><c:ser><c:idx val="0"/><c:order val="0"/>'
+                 '<c:spPr><a:solidFill><a:srgbClr val="99CCFF"/></a:solidFill><a:ln w="0"><a:solidFill><a:srgbClr val="99CCFF"/></a:solidFill></a:ln></c:spPr>'
+                 '<c:marker><c:symbol val="none"/></c:marker></c:ser></c:scatterChart></c:plotArea></c:chart></c:chartSpace>')
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w") as package:
+            package.writestr("xl/charts/chart1.xml", chart)
+        replacements = {}
+        ooxml_zip_patch._normalize_scatter_chart_markers(buffer.getvalue(), replacements)
+        updated = replacements["xl/charts/chart1.xml"]
+        self.assertIn('<c:scatterStyle val="lineMarker"/>', updated)
+        self.assertIn('<c:symbol val="circle"/>', updated)
+        self.assertIn('<a:ln w="19050"><a:noFill/></a:ln>', updated)
+        self.assertNotIn('<c:symbol val="none"/>', updated)
+        untouched = {}
+        ooxml_zip_patch._normalize_scatter_chart_markers(buffer.getvalue().replace(b"x", b"x"), untouched)
 
 if __name__ == "__main__":
     unittest.main()
