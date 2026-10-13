@@ -17,6 +17,35 @@ export const viStrings = {
     position: { topLeft: "Trên trái", topCenter: "Trên giữa", topRight: "Trên phải", middleLeft: "Giữa trái", center: "Chính giữa", middleRight: "Giữa phải", bottomLeft: "Dưới trái", bottomCenter: "Dưới giữa", bottomRight: "Dưới phải" },
     align: { left: "Trái", center: "Giữa ngang", right: "Phải", top: "Trên", middle: "Giữa dọc", bottom: "Dưới" }
   },
+  writerDocumentProperties: {
+    backstage: "Thông tin",
+    dialogTitle: "Thuộc tính tài liệu",
+    title: "Tiêu đề",
+    creator: "Tác giả",
+    subject: "Chủ đề",
+    keywords: "Từ khóa",
+    keywordsHint: "Phân tách nhiều từ khóa bằng dấu phẩy hoặc dấu chấm phẩy.",
+    description: "Ghi chú",
+    saved: "Đã cập nhật thuộc tính tài liệu. Nhấn Ctrl+S để lưu vào tệp."
+  },
+  writerAutoCorrect: {
+    optionsTitle: "Tự sửa lỗi gõ",
+    enabled: "Bật Tự sửa lỗi gõ trong Doc",
+    replaceText: "Thay văn bản khi gõ",
+    capitalizeSentences: "Tự viết hoa chữ đầu câu",
+    smartQuotes: "Đổi ngoặc kép và nháy đơn thành dạng thông minh",
+    smartDashes: "Đổi hai gạch nối (--) thành gạch ngang (–)",
+    fractions: "Đổi 1/2 thành ký tự phân số (½)",
+    replace: "Thay",
+    with: "Bằng",
+    add: "Thêm dòng",
+    remove: "Xóa dòng thay thế",
+    reset: "Khôi phục mặc định",
+    imeHint: "Tự sửa chỉ xử lý từ đã gõ xong; chuỗi đang được bộ gõ tiếng Việt đặt dấu không bị thay đổi.",
+    incompleteRow: "Mỗi dòng thay thế phải có đủ nội dung ở cả ô Thay và Bằng.",
+    replacementRequired: "Hãy giữ ít nhất một dòng thay thế hoặc bỏ chọn Thay văn bản khi gõ.",
+    storageFailed: "Không lưu được tùy chọn Tự sửa lỗi gõ. Hãy kiểm tra quyền lưu dữ liệu ứng dụng."
+  },
   common: {
     save: "Lưu tài liệu",
     undo: "Hoàn tác",
@@ -393,6 +422,8 @@ export const viStrings = {
     colorRed: "Đỏ", colorBlue: "Xanh lam", colorYellow: "Vàng", colorGreen: "Xanh lá", colorBlack: "Đen"
   },
   commands: {
+    "writer.file.properties": { label: "Thuộc tính tài liệu", tooltip: "Xem và sửa tiêu đề, tác giả, chủ đề, từ khóa và ghi chú" },
+    "writer.file.options": { label: "Tùy chọn", tooltip: "Mở Tùy chọn: giao diện, tự sửa lỗi gõ và ký tự thông minh" },
     "writer.edit.select": { label: "Chọn", tooltip: "Chọn văn bản hoặc đối tượng" },
     "writer.edit.pasteSpecial": { label: "Dán đặc biệt", tooltip: "Dán kèm tùy chọn nâng cao (giữ định dạng nguồn, chỉ giữ văn bản) (Ctrl+Alt+V)" },
     "writer.para.lineSpacing": { label: "Giãn dòng", tooltip: "Khoảng cách giữa các dòng trong đoạn văn" },

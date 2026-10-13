@@ -1852,6 +1852,9 @@ def _apply_native_export_postprocess(
                     )
                     patched = patcher.postprocess_writer_strip_markers(patched)
                     patched = patcher.postprocess_writer_schema_fixes(patched)
+                patched = patcher.postprocess_writer_document_properties(
+                    patched, source_html=source_html,
+                )
                 chart_metadata = re.search(r"<!--vno-native-charts-fodt:([A-Za-z0-9+/=]+)-->", source_html or "")
                 if chart_metadata:
                     try:
@@ -4765,6 +4768,7 @@ class VnOfficeApi:
                             "ooxmlStylesXml": _read_docx_zip_entry(convert_src_path, "word/styles.xml"),
                             "ooxmlNumberingXml": _read_docx_zip_entry(convert_src_path, "word/numbering.xml"),
                             "ooxmlSettingsXml": _read_docx_zip_entry(convert_src_path, "word/settings.xml"),
+                            "ooxmlCorePropertiesXml": _read_docx_zip_entry(convert_src_path, "docProps/core.xml"),
                         }
                         header_xml, footer_xml, all_hdrs, all_ftrs, all_rels = _read_all_docx_headers_footers(convert_src_path)
                         writer_ooxml_metadata["ooxmlHeaderXml"] = header_xml
@@ -4919,6 +4923,13 @@ class VnOfficeApi:
                 payload["ooxmlHeaderXml"] = header_xml
             if footer_xml:
                 payload["ooxmlFooterXml"] = footer_xml
+            core_properties_xml = (
+                writer_ooxml_metadata.get("ooxmlCorePropertiesXml")
+                if writer_ooxml_metadata is not None
+                else _read_docx_zip_entry(src_path, "docProps/core.xml")
+            )
+            if core_properties_xml:
+                payload["ooxmlCorePropertiesXml"] = core_properties_xml
         elif app_kind == "sheet":
             workbook_xml = sheet_ooxml_workbook_xml or _read_xlsx_workbook_xml(src_path)
             if workbook_xml:

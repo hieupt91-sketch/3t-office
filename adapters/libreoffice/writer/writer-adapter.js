@@ -55,6 +55,12 @@ import {
 } from "../../../apps/writer/captions.js";
 import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlListMarkerStats, extractOoxmlDocumentText, extractWordCountText, showWordCountDialog } from "../../../apps/writer/word-count.js";
 import { showFontDialog } from "../../../apps/writer/font-dialog.js";
+import {
+  documentPropertiesMarker,
+  normalizeDocumentProperties,
+  parseCorePropertiesXml,
+  showDocumentPropertiesDialog
+} from "../../../apps/writer/document-properties.js";
 
 let writerInsertDialogsPromise;
 let writerMailMergeDialogsPromise;
@@ -295,6 +301,7 @@ export class WriterAdapter {
     this.isNewApplicationDocument = true;
     this._openedEditorDomHash = null;
     this.sourceFileName = "TaiLieu";
+    this.documentProperties = normalizeDocumentProperties();
     this.pageSetup = {
       size: "a4",
       orientation: "portrait",
@@ -596,6 +603,8 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.trackChanges.acceptAll", () => this.acceptAllTrackChanges());
     globalCommandBus.bindHandler("writer.trackChanges.rejectAll", () => this.rejectAllTrackChanges());
     globalCommandBus.bindHandler("writer.review.wordCount", () => this.openWordCountDialog());
+    globalCommandBus.bindHandler("writer.file.properties", () => this.openDocumentPropertiesDialog());
+    globalCommandBus.bindHandler("writer.file.options", () => { if (typeof this.shell?.showOptionsDialog !== "function") return false; this.shell.showOptionsDialog(); return true; });
 
     // Bind undo/redo listeners & command handlers
     this._bindUndoRedo();
@@ -2394,6 +2403,17 @@ export class WriterAdapter {
   openWordCountDialog() {
     const stats = this.getWordCountStats({ preferSelection: true });
     return showWordCountDialog(stats);
+  }
+
+  async openDocumentPropertiesDialog() {
+    const updated = await showDocumentPropertiesDialog(this.documentProperties);
+    if (!updated) return false;
+    const normalized = normalizeDocumentProperties(updated);
+    if (JSON.stringify(normalized) === JSON.stringify(this.documentProperties)) return true;
+    this.documentProperties = normalized;
+    this.isDirty = true;
+    this.shell?.setStatus?.(t("writerDocumentProperties.saved"));
+    return true;
   }
 
   _serializeNativeDiagramsToFodt(diagrams) {
@@ -15514,7 +15534,7 @@ export class WriterAdapter {
     const themeMarker = this.documentTheme && this.documentTheme !== "office"
       ? `<!--vno-document-theme:${String(this.documentTheme).replace(/[^a-z0-9_-]/gi, "")}-->`
       : "";
-    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${nativeDiagramMarker}${nativeWordArtMarker}${nativeWatermarkMarker}${themeMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
+    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${documentPropertiesMarker(this.documentProperties)}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${nativeDiagramMarker}${nativeWordArtMarker}${nativeWatermarkMarker}${themeMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }
@@ -15773,6 +15793,7 @@ export class WriterAdapter {
       }
       this._initZones();
       this._sourcePath = result.sourcePath || null;
+      this.documentProperties = parseCorePropertiesXml(result.ooxmlCorePropertiesXml || "");
       this._wordCountSourceText = extractOoxmlDocumentText(result.ooxmlDocumentXml);
       this._wordCountSourceListItems = this._ooxmlListParagraphs(result.ooxmlDocumentXml, result.ooxmlStylesXml, result.ooxmlNumberingXml);
       this.isNewApplicationDocument = false;
@@ -15978,6 +15999,7 @@ export class WriterAdapter {
   async newDocument() {
     this._initZones();
     this._sourcePath = null;
+    this.documentProperties = normalizeDocumentProperties();
     this._wordCountSourceText = null;
     this._wordCountSourceTextInvalidated = true;
     this._wordCountSourceListItems = [];

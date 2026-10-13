@@ -18,6 +18,35 @@ export const enStrings = {
     position: { topLeft: "Top Left", topCenter: "Top Center", topRight: "Top Right", middleLeft: "Middle Left", center: "Center", middleRight: "Middle Right", bottomLeft: "Bottom Left", bottomCenter: "Bottom Center", bottomRight: "Bottom Right" },
     align: { left: "Left", center: "Center", right: "Right", top: "Top", middle: "Middle", bottom: "Bottom" }
   },
+  writerDocumentProperties: {
+    backstage: "Info",
+    dialogTitle: "Document properties",
+    title: "Title",
+    creator: "Author",
+    subject: "Subject",
+    keywords: "Keywords",
+    keywordsHint: "Separate multiple keywords with commas or semicolons.",
+    description: "Comments",
+    saved: "Document properties updated. Press Ctrl+S to save them to the file."
+  },
+  writerAutoCorrect: {
+    optionsTitle: "Typing corrections",
+    enabled: "Enable typing corrections in Doc",
+    replaceText: "Replace text as you type",
+    capitalizeSentences: "Capitalize the first letter of sentences",
+    smartQuotes: "Replace straight quotation marks with smart quotation marks",
+    smartDashes: "Replace two hyphens (--) with an en dash (–)",
+    fractions: "Replace 1/2 with the fraction character (½)",
+    replace: "Replace",
+    with: "With",
+    add: "Add row",
+    remove: "Remove replacement row",
+    reset: "Restore defaults",
+    imeHint: "Corrections only process committed words; text currently being composed by a Vietnamese input method is left unchanged.",
+    incompleteRow: "Each replacement row must contain both the Replace and With values.",
+    replacementRequired: "Keep at least one replacement row or turn off Replace text as you type.",
+    storageFailed: "Typing correction settings could not be saved. Check the application's data-storage permission."
+  },
   common: {
     save: "Save document",
     undo: "Undo",
@@ -392,6 +421,8 @@ export const enStrings = {
     colorRed: "Red", colorBlue: "Blue", colorYellow: "Yellow", colorGreen: "Green", colorBlack: "Black"
   },
   commands: {
+    "writer.file.properties": { label: "Document properties", tooltip: "View and edit the title, author, subject, keywords, and comments" },
+    "writer.file.options": { label: "Options", tooltip: "Open Options: appearance, AutoCorrect and smart characters" },
     "writer.edit.select": { label: "Select", tooltip: "Select text or objects in the document" },
     "writer.edit.pasteSpecial": { label: "Paste Special", tooltip: "Paste with advanced options (keep source formatting, plain text) (Ctrl+Alt+V)" },
     "writer.para.lineSpacing": { label: "Line Spacing", tooltip: "Adjust spacing between lines of text" },
