@@ -290,6 +290,8 @@ export class WriterApp {
       verticalRuler,
       shell: this.shell
     }).attach();
+    this.viewController.adapter = this.adapter;
+    if (this.adapter) this.adapter.viewController = this.viewController;
 
     this.rulerController = new WriterRulerController({
       ruler,

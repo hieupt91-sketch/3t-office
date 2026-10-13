@@ -862,7 +862,39 @@ export const WRITER_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "writer.view.readMode", isLarge: true },
           { type: "button", commandId: "writer.view.printLayout", isLarge: true },
-          { type: "button", commandId: "writer.view.webLayout", isLarge: true }
+          { type: "button", commandId: "writer.view.webLayout", isLarge: true },
+          { type: "button", commandId: "writer.view.outline", isLarge: true },
+          { type: "button", commandId: "writer.view.draft", isLarge: true }
+        ]
+      },
+      {
+        id: "outline",
+        label: "Dàn bài",
+        labelKey: "writerRibbon.group.outline",
+        items: [
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.outline.promote" },
+              { type: "button", commandId: "writer.outline.demote" },
+              { type: "button", commandId: "writer.view.toggleHeadingCollapse" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.outline.moveUp" },
+              { type: "button", commandId: "writer.outline.moveDown" },
+              { type: "button", commandId: "writer.outline.close" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.outline.expand" },
+              { type: "button", commandId: "writer.outline.collapse" }
+            ]
+          }
         ]
       },
       {
