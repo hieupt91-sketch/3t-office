@@ -56,18 +56,17 @@ export function inspectDocument(adapter) {
 
   // 1. Comments
   let commentCount = 0;
-  if (Array.isArray(adapter.comments)) {
-    commentCount = adapter.comments.length;
-  } else if (adapter.bodyDom?.querySelectorAll) {
-    commentCount = adapter.bodyDom.querySelectorAll(".vno-comment-anchor, [data-comment-id]").length;
-  }
+  const domComments = adapter.bodyDom?.querySelectorAll ? adapter.bodyDom.querySelectorAll(".vno-comment-anchor, [data-comment-id]").length : 0;
+  const memComments = Array.isArray(adapter.comments) ? adapter.comments.length : 0;
+  commentCount = Math.max(memComments, domComments);
 
   // 2. Track Changes
   let trackChangeCount = 0;
   if (typeof adapter._listTrackChanges === "function") {
     trackChangeCount = adapter._listTrackChanges().length;
-  } else if (adapter.bodyDom?.querySelectorAll) {
-    trackChangeCount = adapter.bodyDom.querySelectorAll('ins[data-vno-change="insert"], del[data-vno-change="delete"]').length;
+  }
+  if (!trackChangeCount && adapter.bodyDom?.querySelectorAll) {
+    trackChangeCount = adapter.bodyDom.querySelectorAll('ins[data-vno-change="insert"], del[data-vno-change="delete"], .vno-track-insert, .vno-track-delete, [data-track="insert"], [data-track="delete"]').length;
   }
 
   // 3. Hidden Text
@@ -86,10 +85,11 @@ export function inspectDocument(adapter) {
 
   // 4. Personal Information
   let personalCount = 0;
-  if (adapter.documentProperties && typeof adapter.documentProperties === "object") {
-    const fields = ["author", "creator", "lastModifiedBy", "company", "manager", "title", "subject", "keywords", "description", "category"];
+  const props = adapter.documentProperties || adapter.metadata;
+  if (props && typeof props === "object") {
+    const fields = ["author", "creator", "lastModifiedBy", "company", "manager", "title", "subject", "keywords", "description", "category", "comments"];
     for (const f of fields) {
-      if (adapter.documentProperties[f] && String(adapter.documentProperties[f]).trim()) {
+      if (props[f] && String(props[f]).trim()) {
         personalCount++;
       }
     }
@@ -160,11 +160,20 @@ export function removeDocumentCategory(adapter, categoryId) {
       return adapter.deletePersonalInformation();
     }
     let count = 0;
-    if (adapter.documentProperties) {
-      const fields = ["author", "creator", "lastModifiedBy", "company", "manager", "title", "subject", "keywords", "description", "category"];
+    const props = adapter.documentProperties;
+    const fields = ["author", "creator", "lastModifiedBy", "company", "manager", "title", "subject", "keywords", "description", "category", "comments"];
+    if (props && typeof props === "object") {
       for (const f of fields) {
-        if (adapter.documentProperties[f]) {
-          adapter.documentProperties[f] = "";
+        if (props[f]) {
+          props[f] = "";
+          count++;
+        }
+      }
+    }
+    if (adapter.metadata && typeof adapter.metadata === "object") {
+      for (const f of fields) {
+        if (adapter.metadata[f]) {
+          adapter.metadata[f] = "";
           count++;
         }
       }
@@ -184,7 +193,7 @@ export function showDocumentInspectorDialog({
   document.getElementById("vno-doc-inspector-dialog-overlay")?.remove();
 
   const overlay = document.createElement("div");
-  overlay.className = "vno-dialog-overlay";
+  overlay.className = "vno-dialog-overlay vno-document-inspector-dialog vno-document-inspector-modal";
   overlay.id = "vno-doc-inspector-dialog-overlay";
 
   let inspectedState = null;

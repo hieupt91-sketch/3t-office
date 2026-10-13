@@ -1171,7 +1171,9 @@ export class WriterAdapter {
     if (!slices.length) return false;
     const fragmentText = slices.map(slice => slice.node.data.slice(slice.from, slice.to)).join("");
 
-    const mode = typeof targetCase === "string" ? targetCase.toLowerCase() : "";
+    const mode = typeof targetCase === "string"
+      ? targetCase.toLowerCase()
+      : (typeof targetCase === "object" && targetCase ? (targetCase.type || targetCase.mode || "").toLowerCase() : "");
     const transformCase = value => {
       if (mode === "sentence" || mode === "sentencecase") {
         return value.toLowerCase().replace(/(^|[.!?]\s+)(\p{L})/gu, (m, p, c) => p + c.toUpperCase());
@@ -1192,10 +1194,14 @@ export class WriterAdapter {
           return c === u && c !== l ? l : (c === l && c !== u ? u : c);
         }).join("");
       }
-      // Mặc định Shift+F3 xoay vòng: HOA -> Tiêu đề; Thường -> HOA; Khác -> Thường
-      return isAllUpper
-        ? value.toLowerCase().replace(/(^|\s)\S/g, char => char.toUpperCase())
-        : isAllLower ? value.toUpperCase() : value.toLowerCase();
+      // Mặc định Shift+F3 xoay vòng: thường -> Tiêu đề -> HOA -> thường
+      if (isAllLower) {
+        return value.toLowerCase().replace(/(^|[\s\p{P}\u2018-\u201D]+)(\p{L})/gu, (m, p, c) => p + c.toUpperCase());
+      }
+      if (isAllUpper) {
+        return value.toLowerCase();
+      }
+      return value.toUpperCase();
     };
 
     const convertedText = transformCase(fragmentText);
@@ -1224,33 +1230,29 @@ export class WriterAdapter {
   openChangeCaseDialog() {
     if (typeof window === "undefined") return false;
     const sel = window.getSelection?.();
-    if (!sel || sel.rangeCount === 0) return false;
-
-    let range = sel.getRangeAt(0);
-    if (sel.isCollapsed && range) {
-      const node = sel.anchorNode;
-      if (node && node.nodeType === 3) {
-        const text = node.textContent || "";
-        const offset = sel.anchorOffset;
-        let start = offset;
-        let end = offset;
-        while (start > 0 && /\S/.test(text[start - 1])) start--;
-        while (end < text.length && /\S/.test(text[end])) end++;
-        if (end > start && typeof document !== "undefined") {
-          const newRange = document.createRange?.();
-          if (newRange) {
-            newRange.setStart(node, start);
-            newRange.setEnd(node, end);
-            sel.removeAllRanges();
-            sel.addRange(newRange);
-            range = newRange;
+    if (sel && sel.rangeCount > 0) {
+      let range = sel.getRangeAt(0);
+      if (sel.isCollapsed && range) {
+        const node = sel.anchorNode;
+        if (node && node.nodeType === 3) {
+          const text = node.textContent || "";
+          const offset = sel.anchorOffset;
+          let start = offset;
+          let end = offset;
+          while (start > 0 && /\S/.test(text[start - 1])) start--;
+          while (end < text.length && /\S/.test(text[end])) end++;
+          if (end > start && typeof document !== "undefined") {
+            const newRange = document.createRange?.();
+            if (newRange) {
+              newRange.setStart(node, start);
+              newRange.setEnd(node, end);
+              sel.removeAllRanges();
+              sel.addRange(newRange);
+            }
           }
         }
       }
     }
-
-    const text = sel.toString();
-    if (!text) return false;
 
     return showChangeCaseDialog({
       onApply: (mode) => {
@@ -2297,8 +2299,8 @@ export class WriterAdapter {
 
   _listTrackChanges() {
     if (!this.bodyDom?.querySelectorAll) return [];
-    const insertions = [...(this.bodyDom.querySelectorAll('ins[data-vno-change="insert"]') || [])];
-    const deletions = [...(this.bodyDom.querySelectorAll('del[data-vno-change="delete"]') || [])];
+    const insertions = [...(this.bodyDom.querySelectorAll('ins[data-vno-change="insert"], ins.vno-track-insert, .vno-track-insert, [data-track="insert"]') || [])];
+    const deletions = [...(this.bodyDom.querySelectorAll('del[data-vno-change="delete"], del.vno-track-delete, .vno-track-delete, [data-track="delete"]') || [])];
     const all = [...insertions, ...deletions].filter((node) => !node.removed);
     if (all.length > 1 && typeof all[0].compareDocumentPosition === "function") {
       all.sort((a, b) => {
@@ -2444,6 +2446,11 @@ export class WriterAdapter {
     return this.trackChangesDisplayMode || "all";
   }
 
+  toggleTrackChangesDisplayMode() {
+    const current = this.getTrackChangesDisplayMode();
+    return this.setTrackChangesDisplayMode(current === "simple" ? "all" : "simple");
+  }
+
   _updateRevisionIndicators(mode = this.trackChangesDisplayMode || "all") {
     if (!this.bodyDom?.querySelectorAll) return;
     const changes = this._listTrackChanges();
@@ -2571,15 +2578,17 @@ export class WriterAdapter {
   }
 
   deleteAllComments() {
-    if (!this.comments?.length && !this.bodyDom?.querySelectorAll?.(".vno-comment-anchor, [data-comment-id]")?.length) return 0;
-    const count = this.comments?.length || 0;
+    const domCount = this.bodyDom?.querySelectorAll ? this.bodyDom.querySelectorAll(".vno-comment-anchor, [data-comment-id]").length : 0;
+    const memCount = Array.isArray(this.comments) ? this.comments.length : 0;
+    if (!memCount && !domCount) return 0;
+    const count = Math.max(memCount, domCount);
     if (Array.isArray(this.comments)) {
       this.comments.length = 0;
     }
     if (this.bodyDom?.querySelectorAll) {
       const anchors = this.bodyDom.querySelectorAll(".vno-comment-anchor, [data-comment-id]");
       for (const a of anchors) {
-        if (typeof a.replaceWith === "function") a.replaceWith(...a.childNodes);
+        if (typeof a.replaceWith === "function" && a.childNodes) a.replaceWith(...a.childNodes);
         else a.remove?.();
       }
     }
@@ -2613,11 +2622,19 @@ export class WriterAdapter {
 
   deletePersonalInformation() {
     let count = 0;
-    if (this.documentProperties) {
-      const fields = ["author", "creator", "lastModifiedBy", "company", "manager", "title", "subject", "keywords", "description", "category"];
+    const fields = ["author", "creator", "lastModifiedBy", "company", "manager", "title", "subject", "keywords", "description", "category", "comments"];
+    if (this.documentProperties && typeof this.documentProperties === "object") {
       for (const f of fields) {
         if (this.documentProperties[f]) {
           this.documentProperties[f] = "";
+          count++;
+        }
+      }
+    }
+    if (this.metadata && typeof this.metadata === "object") {
+      for (const f of fields) {
+        if (this.metadata[f]) {
+          this.metadata[f] = "";
           count++;
         }
       }

@@ -25,7 +25,7 @@ export function showChangeCaseDialog({
   document.getElementById("vno-change-case-dialog-overlay")?.remove();
 
   const overlay = document.createElement("div");
-  overlay.className = "vno-dialog-overlay";
+  overlay.className = "vno-dialog-overlay vno-change-case-dialog";
   overlay.id = "vno-change-case-dialog-overlay";
   overlay.innerHTML = `
     <section class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="vno-change-case-title" style="width:min(440px, calc(100vw - 32px))">
