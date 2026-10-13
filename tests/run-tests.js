@@ -55,6 +55,7 @@ import { runSlidesDiagramTests } from "./unit/slides-diagrams.test.js";
 import { runShortcutScopeTests } from "./unit/shortcut-scope.test.js";
 import { runWriterRefMailAuditTests } from "./unit/writer-refmail-audit.test.js";
 import { runSheetImageTests } from "./unit/sheet-images.test.js";
+import { runSheetObjectMenuTests } from "./unit/sheet-object-menu.test.js";
 import { runSlidesSlideSizeTests } from "./unit/slides-slide-size.test.js";
 import { runWriterRibbonBreadthTests } from "./unit/writer-ribbon-breadth.test.js";
 import { runSheetKeyboardAuditTests } from "./unit/sheet-keyboard-audit.test.js";
@@ -552,7 +553,8 @@ async function runAll() {
     { title: "254. Unit Tests — VN Writer Table Edits Export", runner: runWriterTableEditsExportTests },
     { title: "255. Unit Tests — VN Office Panel Overlay & Drawer (TICKET UI-P1)", runner: runPanelOverlayUiP1Tests },
     { title: "S-X. Unit Tests — Sheet lưu XLSX giữ Gói văn bản, Căn phải và Viền (đối chiếu Excel thật)", runner: runSheetStyleExportWrapBorderAlignTests },
-    { title: "U1. Unit Tests — Ctrl+B/I/U tại con trỏ không bị kiểm tra chính tả xóa kiểu sắp gõ", runner: runSpellcheckPendingStyleTests }
+    { title: "U1. Unit Tests — Ctrl+B/I/U tại con trỏ không bị kiểm tra chính tả xóa kiểu sắp gõ", runner: runSpellcheckPendingStyleTests },
+    { title: "S-OBJ. Unit Tests — Sheet Object Context Menu & Page Setup Sheet Tab (agy)", runner: runSheetObjectMenuTests }
   ];
 
   for (const suite of suites) {

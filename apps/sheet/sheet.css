@@ -1996,4 +1996,24 @@ tr.is-filtered-out {
   color: #f1f5f9 !important;
 }
 
+/* --- Sheet Floating Object (Image & TextBox) Styles --- */
+.vno-sheet-textbox {
+  box-sizing: border-box;
+  outline: none;
+  transition: outline 0.1s ease;
+}
+.vno-sheet-textbox:focus,
+.vno-sheet-textbox.is-selected {
+  outline: 2px solid var(--vno-sheet-primary, #0f6d38) !important;
+  outline-offset: 1px;
+}
+[data-theme="dark"] .vno-sheet-textbox {
+  background: #1e1e1e !important;
+  color: #f1f5f9 !important;
+  border-color: #52525b !important;
+}
+[data-theme="dark"] .vno-sheet-textbox.is-selected {
+  outline-color: #4ade80 !important;
+}
+
 
