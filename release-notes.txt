@@ -1,3 +1,27 @@
+3T Office — Thông tin phát hành phiên bản 0.9.11
+Ngày phát hành: 13/10/2026
+
+Bản vá quan trọng: sửa lỗi tính toán tra cứu ở bảng tính và đưa Sheet sát hơn với bảng tính thông dụng (đã đối chiếu với bản Office thật).
+
+1. Sửa lỗi quan trọng (khuyến nghị cập nhật):
+- Sheet: sửa lỗi hàm tra cứu (VLOOKUP) trả về #N/A khi tra theo cả cột trong sổ làm việc có mã dạng chữ hoặc số có số 0 đứng đầu (lỗi xuất hiện ở bản 0.9.10). Đã đo trên 28 tệp thực của công ty: 99,98% ô công thức khớp giá trị gốc.
+- Sheet: lưu .xlsx rồi mở lại không còn mất hình ảnh trong ô và không đổi định dạng ô chữ.
+
+2. Mới ở Sheet:
+- Tốc độ: mở tệp lớn thấy dữ liệu sau khoảng 2 giây, có thể gõ và hoàn tác ngay trong lúc phần mềm tải nốt; sửa ô chỉ tính lại các công thức liên quan.
+- Chia ngăn (Chế độ xem ▸ Chia), tiêu đề riêng cho từng trục biểu đồ, dòng tổng của bảng, chèn/xóa hàng và cột của bảng, đổi loại/chọn dữ liệu/di chuyển biểu đồ.
+- Đến (Ctrl+G) và Đến đặc biệt: nhảy tới ô, vùng, tên đã xác định và chọn nhanh ô trống, công thức, ghi chú...
+- Menu chuột phải ô, hàng, cột, tab trang tính, bảng và biểu đồ sắp xếp và đầy đủ như bảng tính thông dụng; lọc theo giá trị của ô, xóa/áp dụng lại bộ lọc, ghi chú, siêu liên kết.
+- Nhập giờ bằng Ctrl+Shift+; lưu thành giá trị số đúng định dạng giờ; thêm nhiều hàm, tiền tố hàm mới khi lưu .xlsx để mở đúng ở bảng tính khác.
+- Thanh ribbon tab Trang đầu vừa khít màn hình 1366 px, không bị cắt nút.
+
+3. Chung:
+- Tệp ▸ Xuất và chuyển đổi: xuất PDF và chuyển sang các định dạng khác của bảng tính, văn bản và trình chiếu, có thông báo kết quả và nút mở thư mục chứa tệp.
+- Hướng dẫn tiếng Việt trong Trợ giúp được bổ sung cho các tính năng mới.
+
+Cập nhật: phần mềm tự phát hiện bản mới khi khởi động, bạn chọn cập nhật và khởi động lại để áp dụng.
+====
+
 3T Office — Thông tin phát hành phiên bản 0.9.10
 Ngày phát hành: 11/10/2026
 
