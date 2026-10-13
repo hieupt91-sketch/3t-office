@@ -181,18 +181,29 @@ function Start-VNOffice([bool]$withHealthToken) {
     return [System.Diagnostics.Process]::Start($info)
 }
 
+function Get-LongPath([string]$path) {
+    # Đường dẫn dài hơn 259 ký tự (tên người dùng dài + thư mục seed sâu) làm Copy/Test-Path lỗi trên Windows mặc định:
+    # dùng tiền tố \\?\ để thao tác tệp bằng .NET ổn định.
+    $full = [System.IO.Path]::GetFullPath($path)
+    if ($full.Length -ge 240 -and -not $full.StartsWith('\\?\')) {
+        if ($full.StartsWith('\\')) { return '\\?\UNC\' + $full.Substring(2) }
+        return '\\?\' + $full
+    }
+    return $full
+}
+
 function Restore-Backup {
     foreach ($relative in $changedPaths) {
         $target = Resolve-InstallPath $relative
         $backupFile = Join-Path $backup ($relative.Replace('/', '\'))
-        if (Test-Path -LiteralPath $backupFile -PathType Leaf) {
+        if ([System.IO.File]::Exists((Get-LongPath $backupFile))) {
             $parent = Split-Path -Parent $target
-            New-Item -ItemType Directory -Force -Path $parent | Out-Null
+            [System.IO.Directory]::CreateDirectory((Get-LongPath $parent)) | Out-Null
             $restoreTemp = $target + '.vno-restore-tmp'
-            [System.IO.File]::Copy($backupFile, $restoreTemp, $true)
+            [System.IO.File]::Copy((Get-LongPath $backupFile), (Get-LongPath $restoreTemp), $true)
             Move-FileAtomically $restoreTemp $target
-        } elseif (Test-Path -LiteralPath $target -PathType Leaf) {
-            [System.IO.File]::Delete($target)
+        } elseif ([System.IO.File]::Exists((Get-LongPath $target))) {
+            [System.IO.File]::Delete((Get-LongPath $target))
         }
     }
 }
@@ -224,10 +235,10 @@ public static class VnoUpdatePathApi {
     # Save every affected old file before changing or removing anything.
     foreach ($relative in $changedPaths) {
         $target = Resolve-InstallPath $relative
-        if (Test-Path -LiteralPath $target -PathType Leaf) {
+        if ([System.IO.File]::Exists((Get-LongPath $target))) {
             $backupFile = Join-Path $backup ($relative.Replace('/', '\'))
-            New-Item -ItemType Directory -Force -Path (Split-Path -Parent $backupFile) | Out-Null
-            [System.IO.File]::Copy($target, $backupFile, $false)
+            [System.IO.Directory]::CreateDirectory((Get-LongPath (Split-Path -Parent $backupFile))) | Out-Null
+            [System.IO.File]::Copy((Get-LongPath $target), (Get-LongPath $backupFile), $false)
         }
     }
 
