@@ -1723,7 +1723,11 @@ def parse_autofilter_from_worksheet(sheet_xml: str | None) -> str | None:
     return m.group(1) if m else None
 
 
-def apply_autofilter_to_fods(fods_xml: str, autofilter_by_sheet: dict[str, str]) -> str:
+def apply_autofilter_to_fods(
+    fods_xml: str,
+    autofilter_by_sheet: dict[str, str],
+    filter_columns_by_sheet: dict[str, list[dict]] | None = None,
+) -> str:
     """Inject <table:database-ranges> into FODS before </office:spreadsheet>.
     Each entry: {sheet_name: "A1:D10"}.  Used during File → Mở."""
     xml = fods_xml or ""
@@ -1735,10 +1739,12 @@ def apply_autofilter_to_fods(fods_xml: str, autofilter_by_sheet: dict[str, str])
     # Excel Table part (xl/tables/tableN.xml) that Excel rejects when the range
     # is header-only or has an empty column caption (measured on lan11.xlsx).
     for index, (sheet_name, ref) in enumerate(autofilter_by_sheet.items()):
+        columns = (filter_columns_by_sheet or {}).get(sheet_name) or []
+        columns_attr = f' vno:filter-columns="{_escape_xml(json.dumps(columns, ensure_ascii=False, separators=(",", ":")))}"' if columns else ""
         ranges_xml.append(
             f'<table:database-range table:name="__Anonymous_Sheet_DB__{index}"'
             f' table:target-range-address="{_escape_xml(sheet_name)}.{_escape_xml(ref)}"'
-            f' table:display-filter-buttons="true"/>'
+            f' table:display-filter-buttons="true"{columns_attr}/>'
         )
     db_block = f'<table:database-ranges>{"".join(ranges_xml)}</table:database-ranges>'
     marker = "</office:spreadsheet>"
@@ -1746,6 +1752,54 @@ def apply_autofilter_to_fods(fods_xml: str, autofilter_by_sheet: dict[str, str])
     if idx == -1:
         return xml + db_block
     return xml[:idx] + db_block + xml[idx:]
+
+
+def parse_autofilter_filter_columns_from_worksheet(sheet_xml: str | None) -> list[dict]:
+    """Translate common OOXML filterColumn forms into the app's persisted filter model."""
+    paired = re.search(r'<autoFilter\b[^>]*>([\s\S]*?)</autoFilter>', sheet_xml or "", re.IGNORECASE)
+    if not paired:
+        return []
+    result: list[dict] = []
+    for match in re.finditer(r'<filterColumn\b([^>]*)>([\s\S]*?)</filterColumn>', paired.group(1), re.IGNORECASE):
+        col_match = re.search(r'\bcolId="(\d+)"', match.group(1))
+        if not col_match:
+            continue
+        body = match.group(2)
+        values = [_unescape_xml(value) for value in re.findall(r'<filter\b[^>]*\bval="([^"]*)"', body, re.IGNORECASE)]
+        criterion = None
+        top = re.search(r'<top10\b[^>]*\bval="([^"]*)"', body, re.IGNORECASE)
+        dynamic = re.search(r'<dynamicFilter\b[^>]*\btype="([^"]*)"', body, re.IGNORECASE)
+        customs = list(re.finditer(r'<customFilter\b([^>]*)/?>', body, re.IGNORECASE))
+        if top:
+            criterion = {"type": "number", "operator": "top10", "count": int(float(top.group(1)))}
+        elif dynamic and dynamic.group(1) in ("today", "thisMonth", "thisYear"):
+            criterion = {"type": "date", "operator": dynamic.group(1)}
+        elif customs:
+            parsed = []
+            for custom in customs:
+                attrs = custom.group(1)
+                op = (re.search(r'\boperator="([^"]*)"', attrs) or [None, "equal"])[1]
+                val = _unescape_xml((re.search(r'\bval="([^"]*)"', attrs) or [None, ""])[1])
+                parsed.append((op, val))
+            if len(parsed) == 2 and parsed[0][0] == "greaterThanOrEqual" and parsed[1][0] == "lessThanOrEqual":
+                criterion = {"type": "number", "operator": "between", "value": parsed[0][1], "value2": parsed[1][1]}
+            elif parsed:
+                op, val = parsed[0]
+                if val.startswith("*") and val.endswith("*"):
+                    criterion = {"type": "text", "operator": "notContains" if op == "notEqual" else "contains", "value": val[1:-1]}
+                elif val.endswith("*"):
+                    criterion = {"type": "text", "operator": "startsWith", "value": val[:-1]}
+                elif val.startswith("*"):
+                    criterion = {"type": "text", "operator": "endsWith", "value": val[1:]}
+                elif re.fullmatch(r'[+-]?(?:\d+\.?\d*|\.\d+)', val):
+                    criterion = {"type": "number", "operator": op, "value": val}
+                else:
+                    criterion = {"type": "text", "operator": "notEqual" if op == "notEqual" else "equal", "value": val}
+        item = {"colId": int(col_match.group(1)), "values": values}
+        if criterion:
+            item["criterion"] = criterion
+        result.append(item)
+    return result
 
 
 _TABLE_PART_NAME_RE = re.compile(r'<table\b[^>]*\bname="([^"]*)"', re.IGNORECASE)
@@ -1882,12 +1936,111 @@ def parse_autofilter_filter_columns_from_fods(fods_xml: str | None) -> dict[str,
             continue
         sheet_name = range_match.group(1).strip("'")
         if sheet_name and isinstance(decoded, list):
-            result[sheet_name] = [
-                {"colId": int(item["colId"]), "values": [str(value) for value in item["values"]]}
-                for item in decoded
-                if isinstance(item, dict) and isinstance(item.get("values"), list)
-            ]
+            columns = []
+            for item in decoded:
+                if not isinstance(item, dict) or not isinstance(item.get("values"), list):
+                    continue
+                column = {"colId": int(item["colId"]), "values": [str(value) for value in item["values"]]}
+                if isinstance(item.get("criterion"), dict):
+                    column["criterion"] = item["criterion"]
+                columns.append(column)
+            result[sheet_name] = columns
     return result
+
+
+def parse_data_validations_from_fods(fods_xml: str | None) -> dict[str, list[dict]]:
+    """Read app-authored validation metadata without reparsing or rewriting FODS XML."""
+    result: dict[str, list[dict]] = {}
+    for match in re.finditer(r'<table:content-validation\b([^>]*)>', fods_xml or "", re.IGNORECASE):
+        attrs = match.group(1) or ""
+        sheet_match = re.search(r'vno:validation-sheet="([^"]*)"', attrs, re.IGNORECASE)
+        range_match = re.search(r'vno:validation-range="([^"]*)"', attrs, re.IGNORECASE)
+        json_match = re.search(r'vno:validation-json="([^"]*)"', attrs, re.IGNORECASE)
+        if not sheet_match or not range_match or not json_match:
+            continue
+        try:
+            rule = json.loads(_unescape_xml(json_match.group(1)))
+        except (TypeError, ValueError):
+            continue
+        if not isinstance(rule, dict):
+            continue
+        rule = dict(rule)
+        rule["sqref"] = _unescape_xml(range_match.group(1))
+        result.setdefault(_unescape_xml(sheet_match.group(1)), []).append(rule)
+    return result
+
+
+def apply_data_validations_to_worksheet(sheet_xml: str, validations: list[dict]) -> str:
+    """Replace worksheet data validations from explicit app metadata using string patches only."""
+    xml = re.sub(
+        r'<dataValidations\b[^>]*>[\s\S]*?</dataValidations>|<dataValidations\b[^>]*/>',
+        "",
+        sheet_xml or "",
+        flags=re.IGNORECASE,
+    )
+    if not validations:
+        return xml
+    type_map = {
+        "numberRange": "whole", "whole": "whole", "decimal": "decimal", "list": "list",
+        "date": "date", "time": "time", "textLength": "textLength", "custom": "custom",
+    }
+    operator_map = {
+        "between": "between", "notBetween": "notBetween", "equal": "equal", "notEqual": "notEqual",
+        "greaterThan": "greaterThan", "lessThan": "lessThan",
+        "greaterThanOrEqual": "greaterThanOrEqual", "lessThanOrEqual": "lessThanOrEqual",
+    }
+    elements: list[str] = []
+    for rule in validations:
+        validation_type = type_map.get(str(rule.get("type") or ""))
+        sqref = str(rule.get("sqref") or "")
+        if not validation_type or not re.fullmatch(r'[A-Z]{1,3}\d+:[A-Z]{1,3}\d+|[A-Z]{1,3}\d+', sqref, re.IGNORECASE):
+            continue
+        attrs = [
+            f'type="{validation_type}"',
+            f'allowBlank="{1 if rule.get("allowBlank", True) else 0}"',
+            f'showInputMessage="{1 if rule.get("showInputMessage") else 0}"',
+            f'showErrorMessage="{1 if rule.get("showErrorMessage", True) else 0}"',
+            f'sqref="{_escape_xml(sqref)}"',
+        ]
+        if validation_type == "list":
+            attrs.append('showDropDown="0"')
+        elif validation_type != "custom":
+            attrs.append(f'operator="{operator_map.get(str(rule.get("operator") or "between"), "between")}"')
+        if rule.get("showInputMessage"):
+            attrs.append(f'promptTitle="{_escape_xml(str(rule.get("inputTitle") or ""))}"')
+            attrs.append(f'prompt="{_escape_xml(str(rule.get("inputMessage") or ""))}"')
+        if rule.get("showErrorMessage", True):
+            style = str(rule.get("errorStyle") or "stop")
+            attrs.append(f'errorStyle="{style if style in ("stop", "warning", "information") else "stop"}"')
+            attrs.append(f'errorTitle="{_escape_xml(str(rule.get("errorTitle") or ""))}"')
+            attrs.append(f'error="{_escape_xml(str(rule.get("errorMessage") or ""))}"')
+        if validation_type == "list":
+            values = rule.get("values") if isinstance(rule.get("values"), list) else str(rule.get("formula1") or "").split(",")
+            joined = ",".join(str(value).replace('"', '""') for value in values)
+            formula1 = f'"{joined}"'
+        elif validation_type == "custom":
+            formula1 = str(rule.get("formula1") or "").lstrip("=")
+        else:
+            formula1 = str(rule.get("formula1", rule.get("min", "")))
+        formula2 = str(rule.get("formula2", rule.get("max", ""))) if operator_map.get(str(rule.get("operator") or "between"), "between") in ("between", "notBetween") else ""
+        children = f'<formula1>{_escape_xml(formula1)}</formula1>'
+        if formula2:
+            children += f'<formula2>{_escape_xml(formula2)}</formula2>'
+        elements.append(f'<dataValidation {" ".join(attrs)}>{children}</dataValidation>')
+    if not elements:
+        return xml
+    block = f'<dataValidations count="{len(elements)}">{"".join(elements)}</dataValidations>'
+    target_index = _WORKSHEET_CHILD_ORDER_INDEX["datavalidations"]
+    later_names = _WORKSHEET_CHILD_ORDER[target_index + 1:]
+    later = re.search(
+        r'<(?:[\w]+:)?(?:' + '|'.join(re.escape(name) for name in later_names) + r')\b',
+        xml,
+        re.IGNORECASE,
+    )
+    if later:
+        return xml[:later.start()] + block + xml[later.start():]
+    closing = xml.rfind("</worksheet>")
+    return xml[:closing] + block + xml[closing:] if closing >= 0 else xml + block
 
 
 def parse_tables_from_fods(fods_xml: str | None) -> dict[str, dict]:
@@ -2022,12 +2175,36 @@ def apply_autofilter_to_worksheet(sheet_xml: str, ref: str, filter_columns: list
         return xml
     existing = _AUTOFILTER_REF_RE.search(xml)
     if filter_columns:
-        column_xml = "".join(
-            f'<filterColumn colId="{int(column["colId"])}"><filters>'
-            + "".join(f'<filter val="{_escape_xml(str(value))}"/>' for value in column["values"])
-            + "</filters></filterColumn>"
-            for column in filter_columns if column.get("values")
-        )
+        def filter_column_xml(column: dict) -> str:
+            criterion = column.get("criterion") if isinstance(column.get("criterion"), dict) else None
+            body = ""
+            if criterion and criterion.get("type") == "text":
+                operator = str(criterion.get("operator") or "contains")
+                raw = str(criterion.get("value") or "")
+                pattern = f'*{raw}*' if operator in ("contains", "notContains") else f'{raw}*' if operator == "startsWith" else f'*{raw}' if operator == "endsWith" else raw
+                op = "notEqual" if operator in ("notContains", "notEqual") else "equal"
+                body = f'<customFilters><customFilter operator="{op}" val="{_escape_xml(pattern)}"/></customFilters>'
+            elif criterion and criterion.get("type") == "number":
+                operator = str(criterion.get("operator") or "equal")
+                if operator == "top10":
+                    count = max(1, int(float(criterion.get("count") or criterion.get("value") or 10)))
+                    body = f'<top10 top="1" percent="0" val="{count}"/>'
+                else:
+                    op_map = {"equal": "equal", "notEqual": "notEqual", "greaterThan": "greaterThan", "greaterThanOrEqual": "greaterThanOrEqual", "lessThan": "lessThan", "lessThanOrEqual": "lessThanOrEqual"}
+                    first = f'<customFilter operator="{op_map.get(operator, "equal")}" val="{_escape_xml(str(criterion.get("value") or ""))}"/>'
+                    second = ""
+                    if operator == "between":
+                        first = f'<customFilter operator="greaterThanOrEqual" val="{_escape_xml(str(criterion.get("value") or ""))}"/>'
+                        second = f'<customFilter operator="lessThanOrEqual" val="{_escape_xml(str(criterion.get("value2") or ""))}"/>'
+                    body = f'<customFilters and="1">{first}{second}</customFilters>'
+            elif criterion and criterion.get("type") == "date" and criterion.get("operator") in ("today", "thisMonth", "thisYear"):
+                dynamic = {"today": "today", "thisMonth": "thisMonth", "thisYear": "thisYear"}[criterion["operator"]]
+                body = f'<dynamicFilter type="{dynamic}"/>'
+            if not body:
+                body = "<filters>" + "".join(f'<filter val="{_escape_xml(str(value))}"/>' for value in column.get("values", [])) + "</filters>"
+            return f'<filterColumn colId="{int(column["colId"])}">{body}</filterColumn>'
+
+        column_xml = "".join(filter_column_xml(column) for column in filter_columns if column.get("values") or column.get("criterion"))
         paired = re.search(r'<autoFilter\b([^>]*)>([\s\S]*?)</autoFilter>', xml, re.IGNORECASE)
         if paired:
             attrs, body = paired.group(1), paired.group(2)
@@ -5251,6 +5428,23 @@ def postprocess_sheet_xlsx(
             pass
         if source_xlsx_bytes:
             _restore_autofilter_filter_columns_step(xlsx_bytes, source_xlsx_bytes, replacements)
+
+    validations_by_sheet = parse_data_validations_from_fods(source_fods)
+    if validations_by_sheet:
+        sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+        for sheet_name, validations in validations_by_sheet.items():
+            entry_path = _sheet_name_equivalent_value(sheet_entries, sheet_name)
+            if not entry_path:
+                continue
+            sheet_xml = replacements.get(entry_path)
+            if sheet_xml is None:
+                entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+                if not entry_bytes:
+                    continue
+                sheet_xml = entry_bytes.decode("utf-8", errors="replace")
+            next_sheet_xml = apply_data_validations_to_worksheet(sheet_xml, validations)
+            if next_sheet_xml != sheet_xml:
+                replacements[entry_path] = next_sheet_xml
 
     _apply_table_metadata_from_fods(xlsx_bytes, source_fods, replacements)
 

@@ -345,7 +345,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.data.filter", category: "data", label: "Bộ lọc", shortcut: "Ctrl+Shift+L", icon: "filter", tooltip: "Bật/tắt chế độ lọc AutoFilter (Ctrl+Shift+L)", isToggle: true },
   { id: "sheet.data.customSort", category: "data", label: "Sắp xếp tùy chỉnh", icon: "sortCustom", tooltip: "Sắp xếp theo nhiều cột (Sort by Column, Then by Column...)" },
   { id: "sheet.format.conditional", category: "format", label: "Định dạng có điều kiện", icon: "conditionalFormat", tooltip: "Tô nổi bật các ô theo giá trị hoặc trạng thái trống" },
-  { id: "sheet.data.validation", category: "data", label: "Kiểm tra dữ liệu", icon: "dataValidation", tooltip: "Tạo danh sách lựa chọn hoặc giới hạn số trong khoảng" },
+  { id: "sheet.data.validation", category: "data", label: "Kiểm tra dữ liệu", icon: "dataValidation", tooltip: "Giới hạn số, ngày, giờ, độ dài, danh sách hoặc công thức; đặt thông báo và cảnh báo lỗi" },
   { id: "sheet.data.textToColumns", category: "data", label: "Tách văn bản", icon: "textToColumns", tooltip: "Tách một cột theo dấu phân cách hoặc độ rộng cố định" },
   { id: "sheet.data.flashFill", category: "data", label: "Điền nhanh", icon: "flashFill", tooltip: "Điền theo mẫu từ ví dụ ở cột kế bên" },
   { id: "sheet.data.removeDuplicates", category: "data", label: "Xóa trùng lặp", icon: "removeDuplicates", tooltip: "Xóa hàng trùng theo các cột được chọn" },

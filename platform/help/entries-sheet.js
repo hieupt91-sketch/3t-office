@@ -316,14 +316,16 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.data.validation"],
     title: "Kiểm tra dữ liệu",
-    summary: "Giới hạn giá trị nhập: danh sách xổ xuống (các mục cách nhau bằng dấu phẩy) hoặc số trong khoảng tối thiểu–tối đa. Ô có danh sách hiện mũi tên chọn.",
+    summary: "Giới hạn dữ liệu nhập theo số nguyên, số thập phân, danh sách, ngày, giờ, độ dài văn bản hoặc công thức; kèm thông báo nhập và ba mức cảnh báo lỗi.",
     ribbon: { tab: "Dữ liệu", tabId: "data", group: "Công cụ dữ liệu" },
-    keywords: ["kiểm tra dữ liệu", "data validation", "danh sách", "dropdown", "khoảng số", "chọn giá trị"],
+    keywords: ["kiểm tra dữ liệu", "data validation", "danh sách", "số nguyên", "số thập phân", "ngày", "giờ", "độ dài văn bản", "công thức tùy chỉnh", "thông báo nhập", "cảnh báo lỗi", "khoanh dữ liệu sai"],
     steps: [
       "Bôi các ô cần giới hạn. Mở tab Dữ liệu, nhóm Công cụ dữ liệu, nhấn Kiểm tra dữ liệu (cột giữa, dưới Điền nhanh / Xóa trùng lặp).",
-      "Cho phép: chọn Danh sách lựa chọn hoặc Số trong khoảng.",
-      "Danh sách: nhập các giá trị cách nhau bằng dấu phẩy, ví dụ Đạt, Chưa đạt, Đang xử lý. Số trong khoảng: điền Tối thiểu và Tối đa.",
-      "Nhấn Áp dụng. Ô danh sách có mũi tên; bấm để chọn. Ô số ngoài khoảng sẽ bị từ chối khi nhập.",
+      "Trong Thiết đặt, chọn loại: Số nguyên, Số thập phân, Danh sách lựa chọn, Ngày, Giờ, Độ dài văn bản hoặc Tùy chỉnh (công thức). Với số/ngày/giờ/độ dài, chọn toán tử giữa, không giữa, bằng, khác, lớn hơn, nhỏ hơn… rồi nhập một hoặc hai giới hạn. Danh sách nhận các mục cách nhau bằng dấu phẩy; công thức tùy chỉnh bắt đầu bằng dấu =.",
+      "Mở phần Thông báo nhập, đánh dấu Hiện thông báo khi chọn ô rồi nhập Tiêu đề và Nội dung. Thông báo này hiện khi trỏ vào ô đã kiểm tra.",
+      "Trong Cảnh báo lỗi, chọn Dừng để từ chối dữ liệu sai; Cảnh báo hoặc Thông tin để báo nhưng vẫn cho giữ giá trị. Có thể tự đặt tiêu đề và nội dung lỗi. Nhấn Đồng ý để áp dụng.",
+      "Nhấn Khoanh vòng dữ liệu sai để đánh dấu các ô hiện có đang vi phạm. Nút Xóa tất cả gỡ quy tắc khỏi đúng vùng đang chọn, không xóa dữ liệu trong ô.",
+      "Ô danh sách có mũi tên chọn. Khi lưu tệp bảng tính hiện đại rồi mở lại, loại, toán tử, công thức và nội dung cảnh báo được giữ cùng tài liệu.",
       "Cùng nhóm còn Tách văn bản, Điền nhanh, Xóa trùng lặp, Hợp nhất dữ liệu và menu Phân tích What-If."
     ]
   },
@@ -667,14 +669,16 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.data.sortAsc", "sheet.data.sortDesc", "sheet.data.filter", "sheet.data.customSort"],
     title: "Sắp xếp và bộ lọc",
-    summary: "Sắp xếp A–Z hoặc Z–A theo cột đang chọn (ưu tiên đúng vùng bôi), hoặc mở Sắp xếp tùy chỉnh để sắp theo nhiều cột cùng lúc. Bộ lọc (Ctrl+Shift+L) hiện nút trên tiêu đề cột để lọc theo giá trị hoặc sắp xếp từ menu cột.",
+    summary: "Sắp xếp theo giá trị hoặc màu; lọc theo danh sách, điều kiện văn bản, số, ngày, màu ô và màu chữ từ nút ở tiêu đề cột.",
     ribbon: { tab: "Dữ liệu", tabId: "data", group: "Sắp xếp & Lọc" },
     keywords: ["sắp xếp", "a-z", "z-a", "bộ lọc", "autofilter", "lọc", "sort", "filter", "ctrl+shift+l", "sắp xếp tùy chỉnh", "custom sort", "nhiều cột", "multi-level sort"],
     steps: [
       "Bôi bảng (gồm hàng tiêu đề nếu có) hoặc đứng trên một ô trong cột khóa. Tab Dữ liệu, nhóm Sắp xếp & Lọc — ba nút lớn: Sắp xếp A-Z, Sắp xếp Z-A, Bộ lọc, và nút nhỏ Sắp xếp tùy chỉnh. Cùng lệnh cũng có trên tab Trang đầu, nhóm Chỉnh sửa.",
       "A–Z / Z–A sắp cả hàng theo cột đang chọn. Số so sánh như số; chữ theo locale vi-VN. Hàng «Tổng» (chữ Tổng hoặc công thức SUM) được bỏ qua khi không bôi vùng. Cần ít nhất 2 hàng dữ liệu.",
       "Sắp xếp tùy chỉnh mở hộp thoại nhiều cấp (như phần mềm bảng tính khác Data > Sort): đánh dấu Dữ liệu có hàng tiêu đề nếu có, chọn cột và thứ tự A→Z/Z→A cho từng cấp «Sắp xếp theo» / «Sau đó theo», bấm + Thêm cấp để thêm tối đa 4 cấp, dấu × để xóa một cấp. Hàng trùng ở cấp trước giữ nguyên thứ tự tương đối và được phân theo cấp sau.",
-      "Bộ lọc (Ctrl+Shift+L) bật/tắt AutoFilter: nút lọc hiện trên tiêu đề cột. Nhấn nút cột để mở menu: ▲ Sắp xếp tăng dần, ▼ Sắp xếp giảm dần, rồi danh sách giá trị kèm Tất cả / Bỏ chọn / Áp dụng.",
+      "Bộ lọc (Ctrl+Shift+L) bật/tắt nút lọc trên hàng tiêu đề. Nhấn nút của một cột: phía trên có sắp tăng/giảm; nếu cột có màu, các ô màu cho phép đưa màu ô hoặc màu chữ đã chọn lên đầu, hoặc chỉ giữ các hàng có màu đó.",
+      "Lọc theo điều kiện: chọn Văn bản để dùng chứa, không chứa, bắt đầu bằng, kết thúc bằng, bằng hoặc khác; chọn Số để dùng lớn hơn/nhỏ hơn, giữa hoặc các giá trị lớn nhất; chọn Ngày để dùng hôm nay, tháng này, năm nay, trước/sau hoặc giữa hai ngày. Nhập giá trị rồi bấm Lọc.",
+      "Lọc theo giá trị vẫn cho phép đánh dấu từng mục; mục (Trống) điều khiển riêng các hàng có ô trống. Nhiều cột có thể cùng mang điều kiện và một hàng chỉ hiện khi thỏa tất cả điều kiện.",
       "Tắt Bộ lọc gỡ điều kiện và hiện lại mọi hàng đã ẩn vì lọc. Ctrl+Z hoàn tác lần sắp hoặc lần bật/tắt lọc."
     ]
   },

@@ -1,5 +1,6 @@
 /** Behavioral tests — Sheet conditional formatting and data validation. */
 import { SheetGridController } from "../../apps/sheet/sheet-grid.js";
+import { dateToSerial } from "../../apps/sheet/sheet-data-rules.js";
 import { createSheetGridWithSheets } from "./sheet-test-fixtures.js";
 
 function container() {
@@ -84,6 +85,49 @@ export async function runSheetRulesValidationTests() {
     assert(grid.validateCellValue("D", 5).valid, "15 phải hợp lệ trong khoảng 10-20");
     grid.switchSheet("Nhân sự");
     assert(grid.getDataValidations().length === 0 && grid.validateCellValue("D", 5, 25).valid, "validation không được rò sang sheet Nhân sự");
+  });
+
+  test("Data Validation đủ kiểu, toán tử và mức cảnh báo", () => {
+    const grid = createSheetGridWithSheets(container(), ["Dữ liệu"]);
+    const one = { start: { c: "A", r: 1 }, end: { c: "A", r: 1 } };
+    const cases = [
+      [{ type: "whole", operator: "greaterThan", formula1: 5 }, 6, 5],
+      [{ type: "decimal", operator: "notBetween", formula1: 1.5, formula2: 2.5 }, 3.1, 2],
+      [{ type: "date", operator: "between", formula1: "2026-10-01", formula2: "2026-10-31" }, dateToSerial(new Date(2026, 9, 13)), dateToSerial(new Date(2026, 10, 1))],
+      [{ type: "time", operator: "lessThan", formula1: "12:00" }, "08:30", "13:00"],
+      [{ type: "textLength", operator: "lessThanOrEqual", formula1: 4 }, "Bốn", "Năm ký"]
+    ];
+    cases.forEach(([config, good, bad], index) => {
+      const col = grid._columnLabel(index + 1);
+      const range = { start: { c: col, r: 1 }, end: { c: col, r: 1 } };
+      const rule = grid.addDataValidation(range, { ...config, inputTitle: "Gợi ý", inputMessage: "Nhập đúng", showInputMessage: true, errorStyle: "warning", errorTitle: "Chưa đúng", errorMessage: "Kiểm tra lại" });
+      assert(rule && grid.validateCellValue(col, 1, good).valid, `${config.type} phải nhận giá trị hợp lệ`);
+      const invalid = grid.validateCellValue(col, 1, bad);
+      assert(!invalid.valid && invalid.message === "Kiểm tra lại" && invalid.rule.errorStyle === "warning", `${config.type} phải giữ thông báo/mức cảnh báo`);
+    });
+    grid.formulaEngine.evaluate = formula => formula === "=A1>0";
+    grid.addDataValidation({ start: { c: "F", r: 1 }, end: { c: "F", r: 1 } }, { type: "custom", formula1: "=A1>0" });
+    assert(grid.validateCellValue("F", 1, "x").valid, "công thức tùy chỉnh phải được đánh giá qua formula engine");
+    assert(grid.clearDataValidations(one), "Xóa tất cả phải gỡ validation đúng vùng chọn");
+    assert(grid.getValidationForCell("A", 1) === null && grid.getValidationForCell("B", 1), "Xóa vùng A1 không được gỡ quy tắc ở B1");
+  });
+
+  test("Bộ lọc điều kiện và màu ẩn đúng hàng, kể cả giá trị trùng màu khác", () => {
+    const grid = createSheetGridWithSheets(container(), ["Lọc"]);
+    grid.sheetStates[grid.activeSheet].filterRange = "A1:C6";
+    [[2, "An", 5], [3, "Bình", 12], [4, "Anh", 20], [5, "Chi", 8], [6, "An", 30]].forEach(([row, name, amount]) => {
+      grid.setCellValue("A", row, name); grid.setCellValue("B", row, amount);
+    });
+    grid.cellsData.get("A2").style.backgroundColor = "#ff0000";
+    grid.cellsData.get("A6").style.backgroundColor = "#00ff00";
+    grid.applyAdvancedFilter("A", { type: "text", operator: "startsWith", value: "An" });
+    assert(!grid.hiddenRows.has(2) && !grid.hiddenRows.has(4) && !grid.hiddenRows.has(6) && grid.hiddenRows.has(3) && grid.hiddenRows.has(5), "lọc bắt đầu bằng phải ẩn đúng hàng");
+    grid.clearAllFilters();
+    grid.applyAdvancedFilter("B", { type: "number", operator: "top10", count: 2 });
+    assert(!grid.hiddenRows.has(4) && !grid.hiddenRows.has(6) && grid.hiddenRows.has(2), "Top N phải giữ hai số lớn nhất");
+    grid.clearAllFilters();
+    grid.applyAdvancedFilter("A", { type: "color", colorType: "fill", color: "#ff0000" });
+    assert(!grid.hiddenRows.has(2) && grid.hiddenRows.has(6), "lọc màu phải phân biệt hai ô cùng chữ nhưng khác màu");
   });
 
   return results;

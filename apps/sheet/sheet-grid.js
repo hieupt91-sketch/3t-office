@@ -27,6 +27,13 @@ import { createMatcher } from "../../platform/find/find-engine.js";
 import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 import { isSpellcheckEnabled, setSpellcheckEnabled } from "../../platform/text/spellcheck-dom-controller.js";
 import { showContextMenu, closeActiveContextMenu } from "../../platform/ui-kit/components.js";
+import {
+  cellColor,
+  defaultValidationMessage,
+  matchesFilterCriterion,
+  normalizeValidationConfig,
+  validateDataRule
+} from "./sheet-data-rules.js";
 
 
 const { showAlertDialog, showConfirmDialog, showPromptDialog, showFindReplaceDialog } = createLazyDialogs("sheet");
@@ -70,6 +77,28 @@ export const MAX_COL_WIDTH_PX = 500;
 export const MAX_SHEET_NAME_LENGTH = 31;
 export const INVALID_SHEET_NAME_CHARS = /[/\\?*\[\]:]/;
 export const SHEET_MOVE_TO_END = "__end__";
+
+function cloneFilterValues(values) {
+  const clone = new Set(values || []);
+  if (values?.criterion) clone.criterion = structuredClone(values.criterion);
+  return clone;
+}
+
+function cloneActiveFilters(filters) {
+  return new Map(Array.from(filters || [], ([column, values]) => [column, cloneFilterValues(values)]));
+}
+
+function serializeActiveFilters(filters) {
+  return Array.from(filters || [], ([column, values]) => [column, [...values], values?.criterion ? structuredClone(values.criterion) : null]);
+}
+
+function restoreActiveFilters(entries) {
+  return new Map((entries || []).map(([column, values, criterion]) => {
+    const restored = new Set(values || []);
+    if (criterion) restored.criterion = structuredClone(criterion);
+    return [column, restored];
+  }));
+}
 
 // Cùng bảng khổ giấy (mm) và hệ số quy đổi 96dpi mà Writer đã dùng cho Print Preview,
 // để 3 app có cùng một kích thước A4/Letter/Legal thực tế khi in.
@@ -313,6 +342,7 @@ export class SheetGridController {
     this.isFilterActive = false;
     this.hiddenRows = new Set();
     this.activeFilters = new Map();
+    this.showInvalidDataCircles = false;
 
     // View state is workbook UI state. Gridlines/headings default to visible.
     this.zoomLevel = 1;
@@ -1658,15 +1688,20 @@ export class SheetGridController {
   _validateDataValidationCommit(col, row, value, originalValue) {
     const result = this.validateCellValue(col, row, value);
     if (result.valid) return true;
-    showAlertDialog({
-      title: t("sheetDialogs.dataValidation", "Kiểm tra dữ liệu"),
-      message: result.message
-    });
-    this.setCellValue(col, row, originalValue ?? "", false);
-    if (this.formulaInput && this.selectedCoord.c === col && this.selectedCoord.r === row) {
-      this.formulaInput.value = String(originalValue ?? "");
+    if (result.rule?.showErrorMessage !== false) {
+      showAlertDialog({
+        title: result.rule?.errorTitle || t("sheetDialogs.dataValidation", "Kiểm tra dữ liệu"),
+        message: result.message
+      });
     }
-    return false;
+    if ((result.rule?.errorStyle || "stop") === "stop") {
+      this.setCellValue(col, row, originalValue ?? "", false);
+      if (this.formulaInput && this.selectedCoord.c === col && this.selectedCoord.r === row) {
+        this.formulaInput.value = String(originalValue ?? "");
+      }
+      return false;
+    }
+    return true;
   }
 
   _cellEditorValue(item) {
@@ -3347,7 +3382,7 @@ export class SheetGridController {
       this.sheetStates[this.activeSheet] = {
         ...(this.sheetStates[this.activeSheet] || {}),
         hiddenRows: new Set(this.hiddenRows || []),
-        activeFilters: new Map(this.activeFilters || []),
+        activeFilters: cloneActiveFilters(this.activeFilters),
         isFilterActive: !!this.isFilterActive,
         isFrozenPanes: !!this.isFrozenPanes,
         frozenRows: this.frozenRows || 0,
@@ -3380,7 +3415,7 @@ export class SheetGridController {
     }
     const nextState = this.sheetStates[sheetName];
     this.hiddenRows = new Set(nextState.hiddenRows);
-    this.activeFilters = new Map(nextState.activeFilters);
+    this.activeFilters = cloneActiveFilters(nextState.activeFilters);
     this.isFilterActive = nextState.isFilterActive;
     this.frozenRows = nextState.frozenRows || 0;
     this.frozenCols = nextState.frozenCols || 0;
@@ -3633,7 +3668,7 @@ export class SheetGridController {
     this.sheetStates[this.activeSheet] = {
       ...(this.sheetStates[this.activeSheet] || {}),
       hiddenRows: new Set(this.hiddenRows || []),
-      activeFilters: new Map(this.activeFilters || []),
+      activeFilters: cloneActiveFilters(this.activeFilters),
       isFilterActive: !!this.isFilterActive,
       isFrozenPanes: !!this.isFrozenPanes,
       frozenRows: this.frozenRows || 0,
@@ -4085,7 +4120,7 @@ export class SheetGridController {
     const state = this.sheetStates[sourceName] || {};
     this.sheetStates[targetName] = {
       hiddenRows: new Set(state.hiddenRows || []),
-      activeFilters: new Map([...(state.activeFilters || [])].map(([key, values]) => [key, new Set(values)])),
+      activeFilters: cloneActiveFilters(state.activeFilters),
       isFilterActive: !!state.isFilterActive,
       isFrozenPanes: !!state.isFrozenPanes,
       frozenRows: state.frozenRows || 0,
@@ -10943,6 +10978,9 @@ _bindGridKeyboardNavigation() {
       this._restoreCells(direction === "undo" ? action.before : action.after);
     } else if (action.type === "scenario-state") {
       this.scenariosBySheet[action.sheet] = structuredClone(direction === "undo" ? action.before : action.after);
+    } else if (action.type === "collection-replace") {
+      this[action.collection][action.sheet] = structuredClone(direction === "undo" ? action.before : action.after);
+      this._refreshVisibleRuleVisuals();
     } else if (action.type === "collection") {
       const collection = this[action.collection][action.sheet] ||= [];
       if (action.operation === "update" || action.operation === "move") {
@@ -11286,15 +11324,13 @@ _bindGridKeyboardNavigation() {
     popover.setAttribute("aria-label", `Lọc và sắp xếp cột ${col}`);
     popover.setAttribute("tabindex", "-1");
 
-    const valuesSet = new Set();
-    for (const [k, itm] of this.cellsData.entries()) {
-      const m = k.match(/^([A-Z]+)(\d+)$/);
-      if (m && m[1] === col) {
-        const r = parseInt(m[2], 10);
-        if (r >= this._filterDataStartRow() && itm.val !== undefined && itm.val !== "") {
-          valuesSet.add(String(itm.val));
-        }
-      }
+    const valuesSet = new Set(), fillColors = new Set(), fontColors = new Set();
+    for (let row = this._filterDataStartRow(); row <= this._filterDataEndRow(); row++) {
+      const item = this.cellsData.get(`${col}${row}`) || { val: "", style: {} };
+      valuesSet.add(String(item.val ?? ""));
+      const fill = cellColor(item, "fill"), font = cellColor(item, "font");
+      if (fill) fillColors.add(fill);
+      if (font) fontColors.add(font);
     }
     const uniqueVals = Array.from(valuesSet);
     const currentAllowed = this.activeFilters.get(col) || new Set(uniqueVals);
@@ -11306,13 +11342,26 @@ _bindGridKeyboardNavigation() {
       <div class="vno-filter-popover-item" id="vno-filter-sort-desc" role="button" tabindex="0" aria-label="Sắp xếp giảm dần Z-A">
         <span>▼ Sắp xếp giảm dần (Z-A)</span>
       </div>
+      ${(fillColors.size || fontColors.size) ? `<div class="vno-filter-color-actions" aria-label="${t("sheetFilter.colorActions", "Màu")}">
+        ${Array.from(fillColors, color => `<button type="button" class="vno-filter-color-btn" data-sort-color="${this._escapeHtml(color)}" data-color-type="fill" title="${t("sheetFilter.sortFillColor", "Sắp xếp theo màu ô")}"><span style="background:${this._escapeHtml(color)}"></span></button><button type="button" class="vno-filter-color-btn" data-filter-color="${this._escapeHtml(color)}" data-color-type="fill" title="${t("sheetFilter.filterFillColor", "Lọc theo màu ô")}"><span style="background:${this._escapeHtml(color)}"></span>⌄</button>`).join("")}
+        ${Array.from(fontColors, color => `<button type="button" class="vno-filter-font-color-btn" data-sort-color="${this._escapeHtml(color)}" data-color-type="font" title="${t("sheetFilter.sortFontColor", "Sắp xếp theo màu chữ")}" style="color:${this._escapeHtml(color)}">A</button><button type="button" class="vno-filter-font-color-btn" data-filter-color="${this._escapeHtml(color)}" data-color-type="font" title="${t("sheetFilter.filterFontColor", "Lọc theo màu chữ")}" style="color:${this._escapeHtml(color)}">A⌄</button>`).join("")}
+      </div>` : ""}
       <div class="vno-filter-divider"></div>
-      <div class="vno-filter-label">Lọc theo giá trị:</div>
+      <div class="vno-filter-label">${t("sheetFilter.advanced", "Lọc theo điều kiện")}</div>
+      <div class="vno-filter-advanced">
+        <select id="vno-filter-type" aria-label="${t("sheetFilter.type", "Loại bộ lọc")}"><option value="text">${t("sheetFilter.text", "Văn bản")}</option><option value="number">${t("sheetFilter.number", "Số")}</option><option value="date">${t("sheetFilter.date", "Ngày")}</option></select>
+        <select id="vno-filter-operator" aria-label="${t("sheetFilter.operator", "Điều kiện")}"></select>
+        <input id="vno-filter-criterion" type="text" aria-label="${t("sheetFilter.value", "Giá trị")}">
+        <input id="vno-filter-criterion2" type="text" aria-label="${t("sheetFilter.secondValue", "Giá trị thứ hai")}" hidden>
+        <button type="button" class="vno-btn" id="vno-filter-advanced-apply">${t("sheetFilter.applyCondition", "Lọc")}</button>
+      </div>
+      <div class="vno-filter-divider"></div>
+      <div class="vno-filter-label">${t("sheetFilter.byValue", "Lọc theo giá trị")}</div>
       <div class="vno-filter-values-list" role="group" aria-label="Danh sách giá trị cần lọc">
         ${uniqueVals.map(val => `
           <label class="vno-filter-value-row">
-            <input type="checkbox" value="${val}" ${currentAllowed.has(val) ? "checked" : ""} aria-label="${val}" />
-            <span>${val}</span>
+            <input type="checkbox" value="${this._escapeHtml(val)}" ${currentAllowed.has(val) ? "checked" : ""} aria-label="${this._escapeHtml(val || t("sheetFilter.blank", "Trống"))}" />
+            <span>${this._escapeHtml(val || t("sheetFilter.blank", "(Trống)"))}</span>
           </label>
         `).join("")}
       </div>
@@ -11381,6 +11430,50 @@ _bindGridKeyboardNavigation() {
       }
     });
 
+    popover.querySelectorAll("[data-sort-color]").forEach(button => button.addEventListener("click", () => {
+      this.sortByColor(col, button.dataset.colorType, button.dataset.sortColor);
+      closeMenu();
+    }));
+    popover.querySelectorAll("[data-filter-color]").forEach(button => button.addEventListener("click", () => {
+      this.applyAdvancedFilter(col, { type: "color", colorType: button.dataset.colorType, color: button.dataset.filterColor });
+      closeMenu();
+    }));
+
+    const filterType = popover.querySelector("#vno-filter-type");
+    const filterOperator = popover.querySelector("#vno-filter-operator");
+    const criterion1 = popover.querySelector("#vno-filter-criterion");
+    const criterion2 = popover.querySelector("#vno-filter-criterion2");
+    const operatorOptions = {
+      text: [["contains", t("sheetFilter.contains", "chứa")], ["notContains", t("sheetFilter.notContains", "không chứa")], ["startsWith", t("sheetFilter.startsWith", "bắt đầu bằng")], ["endsWith", t("sheetFilter.endsWith", "kết thúc bằng")], ["equal", t("sheetFilter.equals", "bằng")], ["notEqual", t("sheetFilter.notEqual", "khác")]],
+      number: [["greaterThan", t("sheetFilter.greaterThan", "lớn hơn")], ["greaterThanOrEqual", t("sheetFilter.greaterThanOrEqual", "lớn hơn hoặc bằng")], ["lessThan", t("sheetFilter.lessThan", "nhỏ hơn")], ["lessThanOrEqual", t("sheetFilter.lessThanOrEqual", "nhỏ hơn hoặc bằng")], ["equal", t("sheetFilter.equals", "bằng")], ["between", t("sheetFilter.between", "giữa")], ["top10", t("sheetFilter.top10", "10 giá trị lớn nhất")]],
+      date: [["today", t("sheetFilter.today", "hôm nay")], ["thisMonth", t("sheetFilter.thisMonth", "tháng này")], ["thisYear", t("sheetFilter.thisYear", "năm nay")], ["equal", t("sheetFilter.equals", "bằng ngày")], ["between", t("sheetFilter.between", "giữa hai ngày")], ["before", t("sheetFilter.before", "trước ngày")], ["after", t("sheetFilter.after", "sau ngày")]]
+    };
+    const updateAdvancedFilter = () => {
+      filterOperator.innerHTML = (operatorOptions[filterType.value] || []).map(([value, label]) => `<option value="${value}">${this._escapeHtml(label)}</option>`).join("");
+      const date = filterType.value === "date";
+      criterion1.type = date ? "date" : "text";
+      criterion2.type = date ? "date" : "text";
+      const noValue = date && ["today", "thisMonth", "thisYear"].includes(filterOperator.value);
+      criterion1.hidden = noValue;
+      criterion2.hidden = !["between"].includes(filterOperator.value);
+      criterion1.placeholder = filterOperator.value === "top10" ? t("sheetFilter.topCount", "Số lượng (mặc định 10)") : t("sheetFilter.value", "Giá trị");
+    };
+    filterType?.addEventListener("change", updateAdvancedFilter);
+    filterOperator?.addEventListener("change", () => {
+      const noValue = filterType.value === "date" && ["today", "thisMonth", "thisYear"].includes(filterOperator.value);
+      criterion1.hidden = noValue;
+      criterion2.hidden = filterOperator.value !== "between";
+    });
+    updateAdvancedFilter();
+    popover.querySelector("#vno-filter-advanced-apply")?.addEventListener("click", () => {
+      const rawOperator = filterOperator.value;
+      const operator = rawOperator === "before" ? "lessThan" : rawOperator === "after" ? "greaterThan" : rawOperator;
+      const criterion = { type: filterType.value, operator, value: criterion1.value, value2: criterion2.value };
+      if (rawOperator === "top10") criterion.count = Number(criterion1.value || 10);
+      this.applyAdvancedFilter(col, criterion);
+      closeMenu();
+    });
+
     popover.querySelector("#vno-filter-select-all")?.addEventListener("click", () => {
       popover.querySelectorAll(".vno-filter-value-row input").forEach(cb => cb.checked = true);
     });
@@ -11434,18 +11527,88 @@ _bindGridKeyboardNavigation() {
     return parsed ? Math.min(parsed.start.r, parsed.end.r) + 1 : 4;
   }
 
+  _filterDataEndRow() {
+    const range = this.sheetStates?.[this.activeSheet]?.filterRange;
+    const parsed = range ? this._parseRange(range) : null;
+    if (parsed) return Math.max(parsed.start.r, parsed.end.r);
+    let maxRow = this._filterDataStartRow();
+    for (const key of this.cellsData.keys()) {
+      const match = /^(?:[A-Z]+)(\d+)$/.exec(key);
+      if (match) maxRow = Math.max(maxRow, Number(match[1]));
+    }
+    return maxRow;
+  }
+
+  _filterContext(col, criterion) {
+    if (criterion?.type !== "number" || criterion.operator !== "top10") return {};
+    const values = [];
+    for (let row = this._filterDataStartRow(); row <= this._filterDataEndRow(); row++) {
+      const value = Number(this.cellsData.get(`${col}${row}`)?.val);
+      if (Number.isFinite(value)) values.push(value);
+    }
+    values.sort((a, b) => b - a);
+    const count = Math.max(1, Math.min(values.length, Number(criterion.count || criterion.value || 10)));
+    return { topThreshold: values[count - 1] };
+  }
+
+  applyAdvancedFilter(col, criterion, recordUndo = true) {
+    const allowed = new Set();
+    const context = this._filterContext(col, criterion);
+    for (let row = this._filterDataStartRow(); row <= this._filterDataEndRow(); row++) {
+      const cell = this.cellsData.get(`${col}${row}`) || { val: "", style: {} };
+      if (matchesFilterCriterion(cell, criterion, context)) allowed.add(String(cell.val ?? ""));
+    }
+    allowed.criterion = structuredClone(criterion);
+    return this.applyFilter(col, allowed, recordUndo);
+  }
+
+  sortByColor(col, colorType, color) {
+    const before = this._snapshotCells();
+    const start = this._filterDataStartRow();
+    const end = this._filterDataEndRow();
+    if (end < start) return false;
+    const configured = this._parseRange(this.sheetStates?.[this.activeSheet]?.filterRange || "") || this._usedRangeForCells(this.cellsData);
+    const columns = this.cols.slice(this._columnNumber(configured?.start.c || "A") - 1, this._columnNumber(configured?.end.c || col));
+    const rows = [];
+    for (let row = start; row <= end; row++) {
+      const data = {};
+      columns.forEach(column => {
+        const cell = this.cellsData.get(`${column}${row}`);
+        if (cell) data[column] = structuredClone(cell);
+      });
+      rows.push({ row, data, match: cellColor(data[col], colorType) === String(color || "").toLowerCase() });
+    }
+    rows.sort((a, b) => Number(b.match) - Number(a.match) || a.row - b.row);
+    rows.forEach((entry, index) => {
+      const targetRow = start + index;
+      columns.forEach(column => {
+        const key = `${column}${targetRow}`;
+        if (entry.data[column]) this.cellsData.set(key, entry.data[column]);
+        else this.cellsData.delete(key);
+      });
+    });
+    this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+    this._recalculateAllFormulas();
+    this._recordHistory({ type: "sort", sheet: this.activeSheet, col, ascending: true, before, after: this._snapshotCells() });
+    return true;
+  }
+
   applyFilter(col, allowedSet, recordUndo = true) {
     const previous = this._snapshotFilterState();
     this.activeFilters.set(col, allowedSet);
     this.hiddenRows.clear();
 
-    for (let r = this._filterDataStartRow(); r <= this.rowCount; r++) {
+    const contexts = new Map(Array.from(this.activeFilters, ([filterCol, allowed]) => [filterCol, this._filterContext(filterCol, allowed?.criterion)]));
+    for (let r = this._filterDataStartRow(); r <= this._filterDataEndRow(); r++) {
       let shouldHide = false;
       for (const [filterCol, allowed] of this.activeFilters.entries()) {
         const key = `${filterCol}${r}`;
-        const itm = this.cellsData.get(key);
+        const itm = this.cellsData.get(key) || { val: "", style: {} };
         const val = itm ? String(itm.val ?? "") : "";
-        if (val && !allowed.has(val)) {
+        const matches = allowed?.criterion
+          ? matchesFilterCriterion(itm, allowed.criterion, contexts.get(filterCol))
+          : allowed.has(val);
+        if (!matches) {
           shouldHide = true;
           break;
         }
@@ -11476,7 +11639,7 @@ _bindGridKeyboardNavigation() {
       pageBreaks: structuredClone(this.pageBreaksBySheet[sheetName] || { rows: [], cols: [] }),
       pageSetup: structuredClone(this.pageSetupBySheet[sheetName] || newSheetPageSetup()),
       hiddenRows: [...(sheetName === this.activeSheet ? this.hiddenRows : (state.hiddenRows || []))],
-      activeFilters: Array.from(sheetName === this.activeSheet ? this.activeFilters : (state.activeFilters || []), ([col, values]) => [col, [...values]]),
+      activeFilters: serializeActiveFilters(sheetName === this.activeSheet ? this.activeFilters : state.activeFilters),
       filterRange: state.filterRange || "",
       selectedCoord: { ...(sheetName === this.activeSheet ? this.selectedCoord : (state.selectedCoord || { r: 1, c: "A" })) },
       selectionRange: structuredClone(this.selectionRange),
@@ -11498,7 +11661,7 @@ _bindGridKeyboardNavigation() {
     this.pageBreaksBySheet[snapshot.sheetName] = structuredClone(snapshot.pageBreaks);
     this.pageSetupBySheet[snapshot.sheetName] = newSheetPageSetup(snapshot.pageSetup);
     this.hiddenRows = new Set(snapshot.hiddenRows);
-    this.activeFilters = new Map(snapshot.activeFilters.map(([col, values]) => [col, new Set(values)]));
+    this.activeFilters = restoreActiveFilters(snapshot.activeFilters);
     this.selectedCoord = { ...snapshot.selectedCoord };
     this.selectionRange = structuredClone(snapshot.selectionRange);
     this.outlineGroupsBySheet[snapshot.sheetName] = structuredClone(snapshot.outlineGroups || []);
@@ -11508,7 +11671,7 @@ _bindGridKeyboardNavigation() {
     if (this.sheetStates[snapshot.sheetName]) {
       Object.assign(this.sheetStates[snapshot.sheetName], {
         hiddenRows: new Set(this.hiddenRows),
-        activeFilters: new Map(this.activeFilters),
+        activeFilters: cloneActiveFilters(this.activeFilters),
         filterRange: snapshot.filterRange || "",
         selectedCoord: { ...this.selectedCoord }
       });
@@ -12310,16 +12473,16 @@ _bindGridKeyboardNavigation() {
     return {
       isFilterActive: !!this.isFilterActive,
       hiddenRows: [...this.hiddenRows],
-      activeFilters: Array.from(this.activeFilters, ([col, values]) => [col, [...values]])
+      activeFilters: serializeActiveFilters(this.activeFilters)
     };
   }
 
   _restoreFilterState(snapshot) {
     this.isFilterActive = !!snapshot.isFilterActive;
     this.hiddenRows = new Set(snapshot.hiddenRows);
-    this.activeFilters = new Map(snapshot.activeFilters.map(([col, values]) => [col, new Set(values)]));
+    this.activeFilters = restoreActiveFilters(snapshot.activeFilters);
     const state = this.sheetStates[this.activeSheet];
-    if (state) Object.assign(state, { isFilterActive: this.isFilterActive, hiddenRows: new Set(this.hiddenRows), activeFilters: new Map(this.activeFilters) });
+    if (state) Object.assign(state, { isFilterActive: this.isFilterActive, hiddenRows: new Set(this.hiddenRows), activeFilters: cloneActiveFilters(this.activeFilters) });
     this.container?.classList?.toggle?.("vno-filter-mode", this.isFilterActive);
     this._updateFilterButtons();
     this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
@@ -12340,7 +12503,7 @@ _bindGridKeyboardNavigation() {
       cells: this._snapshotCells(sheetName),
       state: {
         hiddenRows: [...(state.hiddenRows || [])],
-        activeFilters: Array.from(state.activeFilters || [], ([col, values]) => [col, [...values]]),
+        activeFilters: serializeActiveFilters(state.activeFilters),
         isFilterActive: !!state.isFilterActive,
         isFrozenPanes: !!state.isFrozenPanes,
         frozenRows: state.frozenRows || 0,
@@ -12371,7 +12534,7 @@ _bindGridKeyboardNavigation() {
     this.sheetsData[sheetName] = new Map(snapshot.cells.map(([key, value]) => [key, structuredClone(value)]));
     this.sheetStates[sheetName] = {
       hiddenRows: new Set(snapshot.state.hiddenRows),
-      activeFilters: new Map(snapshot.state.activeFilters.map(([col, values]) => [col, new Set(values)])),
+      activeFilters: restoreActiveFilters(snapshot.state.activeFilters),
       isFilterActive: snapshot.state.isFilterActive,
       isFrozenPanes: snapshot.state.isFrozenPanes,
       frozenRows: snapshot.state.frozenRows || 0,
@@ -12612,20 +12775,8 @@ _bindGridKeyboardNavigation() {
   }
 
   addDataValidation(range, config, recordUndo = true) {
-    if (!config || !["list", "numberRange"].includes(config.type)) return false;
-    let normalizedConfig;
-    if (config.type === "list") {
-      const values = Array.isArray(config.values)
-        ? config.values.map(String).map(v => v.trim()).filter(Boolean)
-        : String(config.values || "").split(",").map(v => v.trim()).filter(Boolean);
-      if (!values.length) return false;
-      normalizedConfig = { type: "list", values: [...new Set(values)] };
-    } else {
-      const min = Number(config.min);
-      const max = Number(config.max);
-      if (!Number.isFinite(min) || !Number.isFinite(max) || min > max) return false;
-      normalizedConfig = { type: "numberRange", min, max };
-    }
+    const normalizedConfig = normalizeValidationConfig(config);
+    if (!normalizedConfig) return false;
     const validation = {
       id: `dv-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       range: this._normalizeRange(range),
@@ -12652,14 +12803,48 @@ _bindGridKeyboardNavigation() {
 
   validateCellValue(col, row, value = this.cellsData.get(`${col}${row}`)?.val ?? "") {
     const rule = this.getValidationForCell(col, row);
-    if (!rule || String(value).trim() === "") return { valid: true, rule };
-    if (rule.type === "list") {
-      const valid = rule.values.includes(String(value).trim());
-      return { valid, rule, message: valid ? "" : `Giá trị phải thuộc danh sách: ${rule.values.join(", ")}` };
+    const result = validateDataRule(rule, value, formula => this.formulaEngine?.evaluate?.(formula));
+    return { ...result, message: result.valid ? "" : defaultValidationMessage(rule) };
+  }
+
+  clearDataValidations(range = this.selectionRange, recordUndo = true) {
+    const selected = this._normalizeRange(range);
+    const before = structuredClone(this.dataValidationsBySheet[this.activeSheet] || []);
+    const colNum = value => this._columnNumber(value);
+    const pieces = [];
+    for (const rule of before) {
+      const source = this._normalizeRange(rule.range);
+      const left = Math.max(colNum(source.start.c), colNum(selected.start.c));
+      const right = Math.min(colNum(source.end.c), colNum(selected.end.c));
+      const top = Math.max(source.start.r, selected.start.r);
+      const bottom = Math.min(source.end.r, selected.end.r);
+      if (left > right || top > bottom) {
+        pieces.push(rule);
+        continue;
+      }
+      const addPiece = (startCol, startRow, endCol, endRow) => {
+        if (startCol > endCol || startRow > endRow) return;
+        pieces.push({ ...structuredClone(rule), id: `${rule.id}-part-${pieces.length + 1}`, range: {
+          start: { c: this._columnLabel(startCol), r: startRow },
+          end: { c: this._columnLabel(endCol), r: endRow }
+        } });
+      };
+      addPiece(colNum(source.start.c), source.start.r, colNum(source.end.c), top - 1);
+      addPiece(colNum(source.start.c), bottom + 1, colNum(source.end.c), source.end.r);
+      addPiece(colNum(source.start.c), top, left - 1, bottom);
+      addPiece(right + 1, top, colNum(source.end.c), bottom);
     }
-    const numeric = this._numericCellValue(value);
-    const valid = Number.isFinite(numeric) && numeric >= rule.min && numeric <= rule.max;
-    return { valid, rule, message: valid ? "" : `Giá trị phải là số từ ${rule.min} đến ${rule.max}` };
+    if (JSON.stringify(before) === JSON.stringify(pieces)) return false;
+    this.dataValidationsBySheet[this.activeSheet] = pieces;
+    this._refreshVisibleRuleVisuals();
+    if (recordUndo) this._recordHistory({ type: "collection-replace", sheet: this.activeSheet, collection: "dataValidationsBySheet", before, after: structuredClone(pieces) });
+    return true;
+  }
+
+  circleInvalidData(enabled = true) {
+    this.showInvalidDataCircles = !!enabled;
+    this._refreshVisibleRuleVisuals();
+    return this.showInvalidDataCircles;
   }
 
   _applyRuleVisuals(dom, col, row) {
@@ -12669,12 +12854,14 @@ _bindGridKeyboardNavigation() {
     dom.style.backgroundColor = conditionalRule?.color || item?.style?.backgroundColor || "";
     dom.classList.toggle("has-validation", !!this.getValidationForCell(col, row));
     const validation = this.validateCellValue(col, row);
-    dom.classList.toggle("is-validation-invalid", !validation.valid);
+    dom.classList.toggle("is-validation-invalid", this.showInvalidDataCircles && !validation.valid);
     if (!validation.valid) {
-      dom.title = `Cảnh báo kiểm tra dữ liệu: ${validation.message}`;
+      dom.title = validation.rule?.errorTitle ? `${validation.rule.errorTitle}: ${validation.message}` : `Cảnh báo kiểm tra dữ liệu: ${validation.message}`;
       dom.setAttribute("aria-invalid", "true");
     } else {
-      if (dom.title?.startsWith("Cảnh báo kiểm tra dữ liệu:")) dom.title = "";
+      const rule = validation.rule;
+      if (rule?.showInputMessage && rule.inputMessage) dom.title = rule.inputTitle ? `${rule.inputTitle}: ${rule.inputMessage}` : rule.inputMessage;
+      else if (dom.title?.startsWith("Cảnh báo kiểm tra dữ liệu:") || dom.title === rule?.inputMessage) dom.title = "";
       dom.removeAttribute?.("aria-invalid");
     }
   }
@@ -14711,23 +14898,90 @@ _bindGridKeyboardNavigation() {
   showDataValidationDialog() {
     const overlay = this._createSheetDialog(t("sheetDialogs.dataValidation"), `
       <p class="vno-rule-range">${t("sheetDialogs.range")}: <strong>${this.getSelectedRangeLabel()}</strong></p>
-      <label>${t("sheetDialogs.allow")}<select id="vno-dv-type" aria-label="${t("sheetDialogs.allow")}"><option value="list">${t("sheetDialogs.list")}</option><option value="numberRange">${t("sheetDialogs.numberRange")}</option></select></label>
-      <label id="vno-dv-list-row">${t("sheetDialogs.listValues")}<input id="vno-dv-list" type="text" placeholder="${t("sheetDialogs.listPlaceholder")}" aria-label="${t("sheetDialogs.listValues")}"></label>
-      <div id="vno-dv-number-row" hidden><label>${t("sheetDialogs.minimum")}<input id="vno-dv-min" type="number" value="0" aria-label="${t("sheetDialogs.minimum")}"></label><label>${t("sheetDialogs.maximum")}<input id="vno-dv-max" type="number" value="100" aria-label="${t("sheetDialogs.maximum")}"></label></div>
+      <fieldset><legend>${t("sheetDialogs.validationSettings", "Thiết đặt")}</legend>
+        <label>${t("sheetDialogs.allow")}<select id="vno-dv-type" aria-label="${t("sheetDialogs.allow")}">
+          <option value="whole">${t("sheetDialogs.wholeNumber", "Số nguyên")}</option>
+          <option value="decimal">${t("sheetDialogs.decimal", "Số thập phân")}</option>
+          <option value="list">${t("sheetDialogs.list")}</option>
+          <option value="date">${t("sheetDialogs.date", "Ngày")}</option>
+          <option value="time">${t("sheetDialogs.time", "Giờ")}</option>
+          <option value="textLength">${t("sheetDialogs.textLength", "Độ dài văn bản")}</option>
+          <option value="custom">${t("sheetDialogs.customFormula", "Tùy chỉnh (công thức)")}</option>
+        </select></label>
+        <label id="vno-dv-operator-row">${t("sheetDialogs.operator", "Toán tử")}<select id="vno-dv-operator">
+          <option value="between">${t("sheetDialogs.between", "giữa")}</option><option value="notBetween">${t("sheetDialogs.notBetween", "không giữa")}</option>
+          <option value="equal">${t("sheetDialogs.equal", "bằng")}</option><option value="notEqual">${t("sheetDialogs.notEqual", "khác")}</option>
+          <option value="greaterThan">${t("sheetDialogs.greaterThan", "lớn hơn")}</option><option value="lessThan">${t("sheetDialogs.lessThan", "nhỏ hơn")}</option>
+          <option value="greaterThanOrEqual">${t("sheetDialogs.greaterThanOrEqual", "lớn hơn hoặc bằng")}</option><option value="lessThanOrEqual">${t("sheetDialogs.lessThanOrEqual", "nhỏ hơn hoặc bằng")}</option>
+        </select></label>
+        <label id="vno-dv-list-row" hidden>${t("sheetDialogs.listValues")}<input id="vno-dv-list" type="text" placeholder="${t("sheetDialogs.listPlaceholder")}" aria-label="${t("sheetDialogs.listValues")}"></label>
+        <div id="vno-dv-values-row" class="vno-dv-values"><label><span id="vno-dv-value1-label">${t("sheetDialogs.minimum")}</span><input id="vno-dv-value1" type="text" value="0"></label><label id="vno-dv-value2-wrap"><span id="vno-dv-value2-label">${t("sheetDialogs.maximum")}</span><input id="vno-dv-value2" type="text" value="100"></label></div>
+        <label id="vno-dv-custom-row" hidden>${t("sheetDialogs.formula", "Công thức")}<input id="vno-dv-custom" type="text" placeholder="=A1&gt;0"></label>
+        <label class="vno-dv-check"><input id="vno-dv-allow-blank" type="checkbox" checked> ${t("sheetDialogs.allowBlank", "Bỏ qua ô trống")}</label>
+      </fieldset>
+      <fieldset><legend>${t("sheetDialogs.inputMessage", "Thông báo nhập")}</legend>
+        <label class="vno-dv-check"><input id="vno-dv-show-input" type="checkbox"> ${t("sheetDialogs.showInputMessage", "Hiện thông báo khi chọn ô")}</label>
+        <label>${t("sheetDialogs.title", "Tiêu đề")}<input id="vno-dv-input-title" type="text" maxlength="32"></label>
+        <label>${t("sheetDialogs.message", "Nội dung")}<textarea id="vno-dv-input-message" rows="2" maxlength="255"></textarea></label>
+      </fieldset>
+      <fieldset><legend>${t("sheetDialogs.errorAlert", "Cảnh báo lỗi")}</legend>
+        <label class="vno-dv-check"><input id="vno-dv-show-error" type="checkbox" checked> ${t("sheetDialogs.showErrorAlert", "Hiện cảnh báo khi nhập dữ liệu sai")}</label>
+        <label>${t("sheetDialogs.style", "Kiểu")}<select id="vno-dv-error-style"><option value="stop">${t("sheetDialogs.stop", "Dừng")}</option><option value="warning">${t("sheetDialogs.warning", "Cảnh báo")}</option><option value="information">${t("sheetDialogs.information", "Thông tin")}</option></select></label>
+        <label>${t("sheetDialogs.title", "Tiêu đề")}<input id="vno-dv-error-title" type="text" maxlength="32"></label>
+        <label>${t("sheetDialogs.message", "Nội dung")}<textarea id="vno-dv-error-message" rows="2" maxlength="255"></textarea></label>
+      </fieldset>
+      <div class="vno-dv-actions"><button type="button" class="vno-btn" id="vno-dv-circle-invalid">${t("sheetDialogs.circleInvalid", "Khoanh vòng dữ liệu sai")}</button><button type="button" class="vno-btn" id="vno-dv-clear-all">${t("sheetDialogs.clearValidation", "Xóa tất cả")}</button></div>
       <div class="vno-rule-error" role="alert"></div>`);
     if (!overlay) return false;
     const type = overlay.querySelector("#vno-dv-type");
-    type.addEventListener("change", () => {
-      overlay.querySelector("#vno-dv-list-row").hidden = type.value !== "list";
-      overlay.querySelector("#vno-dv-number-row").hidden = type.value !== "numberRange";
+    const operator = overlay.querySelector("#vno-dv-operator");
+    const updateRows = () => {
+      const isList = type.value === "list", isCustom = type.value === "custom";
+      overlay.querySelector("#vno-dv-list-row").hidden = !isList;
+      overlay.querySelector("#vno-dv-custom-row").hidden = !isCustom;
+      overlay.querySelector("#vno-dv-operator-row").hidden = isList || isCustom;
+      overlay.querySelector("#vno-dv-values-row").hidden = isList || isCustom;
+      overlay.querySelector("#vno-dv-value2-wrap").hidden = !["between", "notBetween"].includes(operator.value);
+      const inputType = type.value === "date" ? "date" : type.value === "time" ? "time" : "text";
+      overlay.querySelector("#vno-dv-value1").type = inputType;
+      overlay.querySelector("#vno-dv-value2").type = inputType;
+    };
+    type.addEventListener("change", updateRows);
+    operator.addEventListener("change", updateRows);
+    updateRows();
+    overlay.querySelector("#vno-dv-circle-invalid").addEventListener("click", () => {
+      this.circleInvalidData(true);
+      overlay.querySelector(".vno-rule-error").style.color = "#0f6d38";
+      overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.invalidCircled", "Đã khoanh các ô không thỏa quy tắc kiểm tra dữ liệu.");
+    });
+    overlay.querySelector("#vno-dv-clear-all").addEventListener("click", () => {
+      if (this.clearDataValidations(this.selectionRange)) overlay.closeDialog();
+      else overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.noValidationToClear", "Vùng chọn không có quy tắc để xóa.");
     });
     overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
-      const config = type.value === "list"
-        ? { type: "list", values: overlay.querySelector("#vno-dv-list").value }
-        : { type: "numberRange", min: overlay.querySelector("#vno-dv-min").value, max: overlay.querySelector("#vno-dv-max").value };
-      const result = this.addDataValidation(this.selectionRange, config);
-      if (!result) overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.invalidValidation");
-      else overlay.closeDialog();
+      const config = {
+        type: type.value,
+        operator: operator.value,
+        formula1: type.value === "custom" ? overlay.querySelector("#vno-dv-custom").value : overlay.querySelector("#vno-dv-value1").value,
+        formula2: overlay.querySelector("#vno-dv-value2").value,
+        values: overlay.querySelector("#vno-dv-list").value,
+        allowBlank: overlay.querySelector("#vno-dv-allow-blank").checked,
+        showInputMessage: overlay.querySelector("#vno-dv-show-input").checked,
+        inputTitle: overlay.querySelector("#vno-dv-input-title").value,
+        inputMessage: overlay.querySelector("#vno-dv-input-message").value,
+        showErrorMessage: overlay.querySelector("#vno-dv-show-error").checked,
+        errorStyle: overlay.querySelector("#vno-dv-error-style").value,
+        errorTitle: overlay.querySelector("#vno-dv-error-title").value,
+        errorMessage: overlay.querySelector("#vno-dv-error-message").value
+      };
+      const normalized = normalizeValidationConfig(config);
+      if (!normalized) {
+        overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.invalidValidation");
+        return;
+      }
+      this.clearDataValidations(this.selectionRange, false);
+      this.addDataValidation(this.selectionRange, normalized);
+      overlay.closeDialog();
     });
     return true;
   }

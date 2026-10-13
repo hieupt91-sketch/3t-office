@@ -3082,8 +3082,9 @@ export class SheetAdapter {
       const startCol = this._columnNumber(start.match(/^\$?([A-Z]+)/)?.[1] || "A");
       const filterColumns = Array.from(filters || [], ([column, values]) => ({
         colId: this._columnNumber(column) - startCol,
-        values: Array.from(values || [], value => String(value))
-      })).filter(item => item.colId >= 0 && item.values.length > 0);
+        values: Array.from(values || [], value => String(value)),
+        criterion: values?.criterion ? structuredClone(values.criterion) : undefined
+      })).filter(item => item.colId >= 0 && (item.values.length > 0 || item.criterion));
       const filterAttr = filterColumns.length
         ? ` vno:filter-columns="${this._escapeXml(JSON.stringify(filterColumns))}"`
         : "";
@@ -3444,7 +3445,7 @@ export class SheetAdapter {
       }).filter(Boolean).join("");
 
       (this.grid.dataValidationsBySheet?.[sheetName] || []).forEach((rule, ruleIndex) => {
-        if (!rule?.range || !["list", "numberRange"].includes(rule.type)) return;
+        if (!rule?.range || !["list", "numberRange", "whole", "decimal", "date", "time", "textLength", "custom"].includes(rule.type)) return;
         const name = `vno_validation_${sheetIndex + 1}_${ruleIndex + 1}`;
         let condition = "";
         if (rule.type === "list") {
@@ -3452,12 +3453,38 @@ export class SheetAdapter {
           const quoted = values.map(value => `&quot;${this._escapeXml(String(value).trim().replace(/"/g, '""'))}&quot;`).join(";");
           if (!quoted) return;
           condition = `of:cell-content-is-in-list(${quoted})`;
+        } else if (rule.type === "custom") {
+          const formula = String(rule.formula1 || "").replace(/^=/, "");
+          if (!formula) return;
+          condition = `of:is-true-formula(${this._escapeXml(formula)})`;
         } else {
-          if (!Number.isFinite(Number(rule.min)) || !Number.isFinite(Number(rule.max))) return;
-          condition = `of:cell-content-is-whole-number() and cell-content-is-between(${Number(rule.min)},${Number(rule.max)})`;
+          const first = Number(rule.formula1 ?? rule.min);
+          const second = Number(rule.formula2 ?? rule.max);
+          if (!Number.isFinite(first)) return;
+          const typeGuard = {
+            numberRange: "cell-content-is-whole-number()", whole: "cell-content-is-whole-number()",
+            decimal: "cell-content-is-decimal-number()", date: "cell-content-is-date()",
+            time: "cell-content-is-time()", textLength: "cell-content-text-length()"
+          }[rule.type];
+          const operator = rule.operator || "between";
+          const expression = operator === "between" ? `cell-content-is-between(${first},${second})`
+            : operator === "notBetween" ? `cell-content-is-not-between(${first},${second})`
+              : operator === "equal" ? `cell-content()=${first}` : operator === "notEqual" ? `cell-content()!=${first}`
+                : operator === "greaterThan" ? `cell-content()&gt;${first}` : operator === "lessThan" ? `cell-content()&lt;${first}`
+                  : operator === "greaterThanOrEqual" ? `cell-content()&gt;=${first}` : `cell-content()&lt;=${first}`;
+          condition = `of:${typeGuard} and ${expression}`;
         }
         const base = odfAddress(sheetName, `${rule.range.start.c}${rule.range.start.r}`);
-        validationDefinitions.push(`<table:content-validation table:name="${name}" table:condition="${condition}" table:base-cell-address="${this._escapeXml(base)}" table:allow-empty-cell="true" table:display-list="unsorted"/>`);
+        const validationMetadata = this._escapeXml(JSON.stringify({
+          ...rule,
+          showInputMessage: rule.showInputMessage, inputTitle: rule.inputTitle, inputMessage: rule.inputMessage,
+          showErrorMessage: rule.showErrorMessage, errorStyle: rule.errorStyle,
+          errorTitle: rule.errorTitle, errorMessage: rule.errorMessage
+        }));
+        const messages = `${rule.showInputMessage && rule.inputMessage ? `<table:help-message table:display="true" table:title="${this._escapeXml(rule.inputTitle || "")}"><text:p>${this._escapeXml(rule.inputMessage)}</text:p></table:help-message>` : ""}`
+          + `${rule.showErrorMessage === true ? `<table:error-message table:display="true" table:message-type="${this._escapeXml(rule.errorStyle || "stop")}" table:title="${this._escapeXml(rule.errorTitle || "")}"><text:p>${this._escapeXml(rule.errorMessage || "")}</text:p></table:error-message>` : ""}`;
+        const validationRange = `${rule.range.start.c}${rule.range.start.r}:${rule.range.end.c}${rule.range.end.r}`;
+        validationDefinitions.push(`<table:content-validation table:name="${name}" table:condition="${condition}" table:base-cell-address="${this._escapeXml(base)}" table:allow-empty-cell="${rule.allowBlank === false ? "false" : "true"}" table:display-list="unsorted" vno:validation-sheet="${this._escapeXml(sheetName)}" vno:validation-range="${validationRange}" vno:validation-json="${validationMetadata}">${messages}</table:content-validation>`);
         const sheetCells = validationsByCell.get(sheetName) || new Map();
         for (let row = rule.range.start.r; row <= rule.range.end.r; row++) {
           for (let column = this._columnNumber(rule.range.start.c); column <= this._columnNumber(rule.range.end.c); column++) {
@@ -4293,7 +4320,21 @@ ${pristineXlsxMarker}
       return values.length ? { type: "list", values } : null;
     }
     const between = raw.match(/cell-content-is-between\(\s*([+-]?\d+(?:\.\d+)?)\s*[,;]\s*([+-]?\d+(?:\.\d+)?)\s*\)/i);
-    if (between) return { type: "numberRange", min: Number(between[1]), max: Number(between[2]) };
+    const type = /whole-number/i.test(raw) ? "whole" : /decimal-number/i.test(raw) ? "decimal" : /is-date/i.test(raw) ? "date" : /is-time/i.test(raw) ? "time" : /text-length/i.test(raw) ? "textLength" : null;
+    if (between && (!type || type === "whole")) return { type: "numberRange", min: Number(between[1]), max: Number(between[2]) };
+    const custom = raw.match(/is-true-formula\((.+)\)\s*$/i);
+    if (custom) return { type: "custom", operator: "equal", formula1: this._formulaFromOdf(`of:=${custom[1]}`) };
+    if (!type) return null;
+    const notBetween = raw.match(/(?:is-not-between|not-between)\(\s*([+-]?\d+(?:\.\d+)?)\s*[,;]\s*([+-]?\d+(?:\.\d+)?)\s*\)/i);
+    if (notBetween) return { type, operator: "notBetween", formula1: Number(notBetween[1]), formula2: Number(notBetween[2]) };
+    if (between) return { type, operator: "between", formula1: Number(between[1]), formula2: Number(between[2]) };
+    const comparison = raw.match(type === "textLength"
+      ? /cell-content-text-length\(\)\s*(>=|<=|!=|=|>|<)\s*([+-]?\d+(?:\.\d+)?)/i
+      : /cell-content\(\)\s*(>=|<=|!=|=|>|<)\s*([+-]?\d+(?:\.\d+)?)/i);
+    if (comparison) {
+      const operators = { ">": "greaterThan", "<": "lessThan", ">=": "greaterThanOrEqual", "<=": "lessThanOrEqual", "=": "equal", "!=": "notEqual" };
+      return { type, operator: operators[comparison[1]], formula1: Number(comparison[2]) };
+    }
     return null;
   }
 
@@ -4345,9 +4386,34 @@ ${pristineXlsxMarker}
     String(xmlText || "").replace(/<table:content-validation\b([^>]*)\/?\s*>/gi, (_, attrs) => {
       const name = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
       if (!name) return "";
+      const metadataText = this._unescapeXml(attrs.match(/vno:validation-json=["']([^"']*)["']/i)?.[1] || "");
+      let metadata = null;
+      try { metadata = metadataText ? JSON.parse(metadataText) : null; } catch { metadata = null; }
       definitions.set(name, {
         condition: this._unescapeXml(attrs.match(/table:condition=["']([^"']*)["']/i)?.[1] || ""),
-        base: this._unescapeXml(attrs.match(/table:base-cell-address=["']([^"']*)["']/i)?.[1] || "")
+        base: this._unescapeXml(attrs.match(/table:base-cell-address=["']([^"']*)["']/i)?.[1] || ""),
+        allowBlank: attrs.match(/table:allow-empty-cell=["']([^"']*)["']/i)?.[1] !== "false",
+        metadata
+      });
+      return "";
+    });
+    String(xmlText || "").replace(/<table:content-validation\b([^>]*)>([\s\S]*?)<\/table:content-validation>/gi, (_, attrs, body) => {
+      const name = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
+      const definition = definitions.get(name);
+      if (!definition || definition.metadata) return "";
+      const help = body.match(/<table:help-message\b([^>]*)>([\s\S]*?)<\/table:help-message>/i);
+      const error = body.match(/<table:error-message\b([^>]*)>([\s\S]*?)<\/table:error-message>/i);
+      const textOf = content => this._unescapeXml(String(content || "").replace(/<[^>]+>/g, "").trim());
+      if (help && !/table:display=["']false["']/i.test(help[1])) Object.assign(definition, {
+        showInputMessage: true,
+        inputTitle: this._unescapeXml(help[1].match(/table:title=["']([^"']*)["']/i)?.[1] || ""),
+        inputMessage: textOf(help[2])
+      });
+      if (error && !/table:display=["']false["']/i.test(error[1])) Object.assign(definition, {
+        showErrorMessage: true,
+        errorStyle: error[1].match(/table:message-type=["']([^"']*)["']/i)?.[1] || "stop",
+        errorTitle: this._unescapeXml(error[1].match(/table:title=["']([^"']*)["']/i)?.[1] || ""),
+        errorMessage: textOf(error[2])
       });
       return "";
     });
@@ -4360,7 +4426,7 @@ ${pristineXlsxMarker}
 
     let dvIndex = 0;
     for (const [name, definition] of definitions.entries()) {
-      const parsed = this._parseValidationCondition(definition.condition);
+      const parsed = definition.metadata || this._parseValidationCondition(definition.condition);
       if (!parsed) continue;
       const hits = hitsByName.get(name) || [];
       const bySheet = new Map();
@@ -4375,11 +4441,26 @@ ${pristineXlsxMarker}
       for (const [sheet, coords] of bySheet.entries()) {
         const range = this._rangeFromCoords(coords);
         if (!range || !workbook.dataValidationsBySheet[sheet]) continue;
-        workbook.dataValidationsBySheet[sheet].push({
+        const importedValidation = {
           id: `dv-import-${++dvIndex}`,
           range,
           ...parsed
-        });
+        };
+        if (!definition.metadata && definition.allowBlank === false) importedValidation.allowBlank = false;
+        if (!definition.metadata) {
+          const optional = {};
+          if (definition.showInputMessage !== undefined) Object.assign(optional, {
+            showInputMessage: definition.showInputMessage, inputTitle: definition.inputTitle, inputMessage: definition.inputMessage
+          });
+          if (definition.showErrorMessage !== undefined) Object.assign(optional, {
+            showErrorMessage: definition.showErrorMessage, errorStyle: definition.errorStyle,
+            errorTitle: definition.errorTitle, errorMessage: definition.errorMessage
+          });
+          for (const [key, value] of Object.entries(optional)) {
+            Object.defineProperty(importedValidation, key, { value, writable: true, configurable: true, enumerable: false });
+          }
+        }
+        workbook.dataValidationsBySheet[sheet].push(importedValidation);
       }
     }
     delete workbook.validationHits;
