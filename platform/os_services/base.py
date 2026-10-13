@@ -231,9 +231,13 @@ class OSServices:
     clipboard_extras: ClipboardExtras | None = None
     device_id: DeviceId | None = None
     office_automation: OfficeAutomation | None = None
+    # Optional desktop webview implementation selected by the OS shell.
+    # None preserves pywebview's existing platform default.
+    desktop_webview_gui: str | None = None
 
 
 SERVICE_FIELDS = (
     "data_dirs", "single_instance", "process_tracker", "app_identity", "file_associations",
     "launcher", "update_applier", "clipboard_extras", "device_id", "office_automation",
+    "desktop_webview_gui",
 )

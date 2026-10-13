@@ -149,4 +149,9 @@ class MacOSUpdateApplier:
 
 def build_services() -> OSServices:
     data_dirs = PortableDataDirs()
-    return OSServices(data_dirs=data_dirs, launcher=MacOSLauncher(), update_applier=MacOSUpdateApplier(data_dirs))
+    return OSServices(
+        data_dirs=data_dirs,
+        launcher=MacOSLauncher(),
+        update_applier=MacOSUpdateApplier(data_dirs),
+        desktop_webview_gui="qt",
+    )

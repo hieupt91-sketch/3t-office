@@ -88,8 +88,14 @@ class FactoryTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):
             self.pkg.get_services("fakeos-1", strict=True)
 
-    def test_contract_lists_the_ten_services_and_closed_child_purposes(self):
-        self.assertEqual(len(self.pkg.SERVICE_FIELDS), 10)
+    def test_macos_backend_selects_qt_chromium_shell(self):
+        services = self.pkg.get_services("darwin")
+        self.assertEqual(services.desktop_webview_gui, "qt")
+        self.assertIsNotNone(services.data_dirs)
+        self.assertIsNotNone(services.launcher)
+
+    def test_contract_lists_the_services_and_closed_child_purposes(self):
+        self.assertEqual(len(self.pkg.SERVICE_FIELDS), 11)
         self.assertEqual(
             set(self.pkg.CHILD_PURPOSES),
             {"uno-worker", "document-engine", "print", "update-helper", "open-path"},

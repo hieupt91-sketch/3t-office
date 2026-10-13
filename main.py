@@ -5690,8 +5690,13 @@ def main(argv: list[str] | None = None):
         pass
 
     try:
+        services = _os_services()
+        desktop_webview_gui = (
+            services.desktop_webview_gui if services is not None else None
+        )
         webview.start(
             lambda: _INSTANCE_DISPATCH_READY.set(),
+            gui=desktop_webview_gui,
             debug=os.environ.get("VNO_PERF_DEBUG") == "1",
             icon=app_icon,
         )
