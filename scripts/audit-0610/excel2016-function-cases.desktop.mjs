@@ -14,15 +14,6 @@ const localAppData = path.join(process.env.VNO_CDP_LOCALAPPDATA || path.join(os.
 const reportPath = path.join(root, "docs/EXCEL2016-FUNCTIONS-COM-CASES.json");
 const catalogPath = path.join(root, "docs/EXCEL2016-FUNCTION-CATALOG.json");
 const resultColumn = "H";
-const targetCategories = new Set([
-  "Math and trigonometry functions",
-  "Statistical functions",
-  "Text functions",
-  "Date and time functions",
-  "Lookup and reference functions",
-  "Logical functions",
-  "Financial functions",
-]);
 const categoryAliases = new Map([
   ["math", "Math and trigonometry functions"],
   ["statistical", "Statistical functions"],
@@ -32,15 +23,23 @@ const categoryAliases = new Map([
   ["lookup", "Lookup and reference functions"],
   ["logical", "Logical functions"],
   ["financial", "Financial functions"],
+  ["engineering", "Engineering functions"],
+  ["information", "Information functions"],
+  ["cubes", "Cubes"],
+  ["database", "Database functions"],
 ]);
 const requestedGroup = String(process.argv[2] || "all").toLowerCase();
 const catalog = JSON.parse(await fs.readFile(catalogPath, "utf8"));
 const appByName = new Map(EXTENDED_FUNCTION_CATALOG.map(item => [item.name, item]));
 const requestedCategory = categoryAliases.get(requestedGroup);
 if (requestedGroup !== "all" && !requestedCategory) {
-  throw new Error(`Unknown group ${requestedGroup}; use all, math, statistical, text, date, lookup, logical, or financial.`);
+  throw new Error(`Unknown group ${requestedGroup}; use all or a supported category alias.`);
 }
-const functions = catalog.functions.filter(item => item.excel2016 && targetCategories.has(item.category) && (!requestedCategory || item.category === requestedCategory));
+const requestedNames = new Set(String(process.env.VNO_E1C_FUNCTIONS || "").split(",").map(name => name.trim().toUpperCase()).filter(Boolean));
+const functions = catalog.functions.filter(item => item.excel2016
+  && (!requestedCategory || item.category === requestedCategory)
+  && (!requestedNames.size || requestedNames.has(item.name)));
+if (!functions.length) throw new Error("No Excel 2016 functions matched the requested group/name filter.");
 const volatile = new Set(["TODAY", "NOW", "RAND", "RANDBETWEEN"]);
 
 function normalizeDelimiter(formula) {
@@ -203,6 +202,15 @@ try {
     `String(window.__vnoAppInstance?.adapter?.sourceFilePath || "").toLowerCase().endsWith(${JSON.stringify(workName)}) && window.__vnoAppInstance?.grid?.cellsData?.size > 0`,
     { timeoutMilliseconds: 60000 },
   );
+  // Imported workbooks intentionally expose only 50 spare rows beyond their used range.
+  // This audit needs one visible desktop cell per probe, so extend the in-memory grid
+  // before entering formulas; the saved XLSX still contains only the cells we touch.
+  await cdp.evaluate(`(() => {
+    const grid = window.__vnoAppInstance.grid;
+    grid.rowCount = Math.max(grid.rowCount, ${probes.length + 2});
+    grid._renderVirtualRows(grid.currentStartRow || 1, grid.currentEndRow || 40);
+    return grid.rowCount;
+  })()`);
   await cdp.waitFor(`document.querySelector('.vno-grid-cell[data-coord="${resultColumn}2"]')`, { timeoutMilliseconds: 30000 });
   await click(cdp, `.vno-grid-cell[data-coord="${resultColumn}2"]`);
   for (let index = 0; index < probes.length; index += 1) {

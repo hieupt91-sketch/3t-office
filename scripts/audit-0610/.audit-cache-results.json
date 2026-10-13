@@ -1,0 +1,418 @@
+{
+  "lan28.xlsx": {
+    "fileName": "lan28.xlsx",
+    "totalFormulas": 739,
+    "skippedSharedSlaves": 464,
+    "skippedArray": 0,
+    "skippedNoCache": 0,
+    "evaluated": 275,
+    "matched": 270,
+    "mismatched": 5,
+    "matchRate": "98.18%",
+    "backgroundChecks": 6,
+    "backgroundMismatched": 0,
+    "externalCacheCells": 0,
+    "byFunction": {
+      "SUM": {
+        "total": 27,
+        "matched": 26,
+        "mismatched": 1,
+        "examples": [
+          {
+            "sheet": "KPI Hiếu",
+            "coord": "M1",
+            "formula": "SUM(M3:M91)",
+            "cacheVal": 0,
+            "cacheType": "number",
+            "appVal": 39446975046,
+            "func": "SUM"
+          }
+        ]
+      },
+      "VLOOKUP": {
+        "total": 142,
+        "matched": 141,
+        "mismatched": 1,
+        "examples": [
+          {
+            "sheet": "Bảng Lương",
+            "coord": "B4",
+            "formula": "VLOOKUP($E$1,TTNV!$A:$E,3,FALSE)",
+            "cacheVal": "\n0833280691",
+            "cacheType": "string",
+            "appVal": 833280691,
+            "func": "VLOOKUP"
+          }
+        ]
+      },
+      "Toán tử (+, -, *, /)": {
+        "total": 93,
+        "matched": 92,
+        "mismatched": 1,
+        "examples": [
+          {
+            "sheet": "KPI Tùng",
+            "coord": "S18",
+            "formula": "P18-Q18",
+            "cacheVal": -27000,
+            "cacheType": "number",
+            "appVal": "#VALUE!",
+            "func": "Toán tử (+, -, *, /)"
+          }
+        ]
+      },
+      "Tham chiếu ô": {
+        "total": 10,
+        "matched": 10,
+        "mismatched": 0,
+        "examples": []
+      },
+      "TODAY": {
+        "total": 1,
+        "matched": 0,
+        "mismatched": 1,
+        "examples": [
+          {
+            "sheet": "Hàm cơ bàn",
+            "coord": "A2",
+            "formula": "TODAY()",
+            "cacheVal": 43894,
+            "cacheType": "number",
+            "appVal": 46308,
+            "func": "TODAY"
+          }
+        ]
+      },
+      "LEFT": {
+        "total": 1,
+        "matched": 0,
+        "mismatched": 1,
+        "examples": [
+          {
+            "sheet": "Hàm cơ bàn",
+            "coord": "B2",
+            "formula": "LEFT(A2,2)",
+            "cacheVal": "43",
+            "cacheType": "string",
+            "appVal": "46",
+            "func": "LEFT"
+          }
+        ]
+      },
+      "RIGHT": {
+        "total": 1,
+        "matched": 1,
+        "mismatched": 0,
+        "examples": []
+      }
+    },
+    "mismatches": [
+      {
+        "sheet": "KPI Tùng",
+        "coord": "S18",
+        "formula": "P18-Q18",
+        "cacheVal": -27000,
+        "cacheType": "number",
+        "appVal": "#VALUE!",
+        "func": "Toán tử (+, -, *, /)"
+      },
+      {
+        "sheet": "KPI Hiếu",
+        "coord": "M1",
+        "formula": "SUM(M3:M91)",
+        "cacheVal": 0,
+        "cacheType": "number",
+        "appVal": 39446975046,
+        "func": "SUM"
+      },
+      {
+        "sheet": "Bảng Lương",
+        "coord": "B4",
+        "formula": "VLOOKUP($E$1,TTNV!$A:$E,3,FALSE)",
+        "cacheVal": "\n0833280691",
+        "cacheType": "string",
+        "appVal": 833280691,
+        "func": "VLOOKUP"
+      },
+      {
+        "sheet": "Hàm cơ bàn",
+        "coord": "A2",
+        "formula": "TODAY()",
+        "cacheVal": 43894,
+        "cacheType": "number",
+        "appVal": 46308,
+        "func": "TODAY"
+      },
+      {
+        "sheet": "Hàm cơ bàn",
+        "coord": "B2",
+        "formula": "LEFT(A2,2)",
+        "cacheVal": "43",
+        "cacheType": "string",
+        "appVal": "46",
+        "func": "LEFT"
+      }
+    ],
+    "evaluatedSamples": [
+      {
+        "coord": "E1",
+        "formula": "SUM(E3:E18)",
+        "cacheVal": 89,
+        "appVal": 89,
+        "match": true
+      },
+      {
+        "coord": "F1",
+        "formula": "SUM(F3:F18)",
+        "cacheVal": 3292000,
+        "appVal": 3292000,
+        "match": true
+      },
+      {
+        "coord": "N3",
+        "formula": "VLOOKUP(B3,'Giá cost1'!$A:$C,3,FALSE)",
+        "cacheVal": 2131,
+        "appVal": 2131,
+        "match": true
+      },
+      {
+        "coord": "O3",
+        "formula": "E3*N3",
+        "cacheVal": 63930,
+        "appVal": 63930,
+        "match": true
+      },
+      {
+        "coord": "P3",
+        "formula": "H3-O3",
+        "cacheVal": 176070,
+        "appVal": 176070,
+        "match": true
+      }
+    ]
+  },
+  "lan01.xlsx": {
+    "fileName": "lan01.xlsx",
+    "totalFormulas": 1285,
+    "skippedSharedSlaves": 420,
+    "skippedArray": 0,
+    "skippedNoCache": 0,
+    "evaluated": 865,
+    "matched": 865,
+    "mismatched": 0,
+    "matchRate": "100.00%",
+    "backgroundChecks": 78,
+    "backgroundMismatched": 0,
+    "externalCacheCells": 0,
+    "byFunction": {
+      "SUMIF": {
+        "total": 854,
+        "matched": 854,
+        "mismatched": 0,
+        "examples": []
+      },
+      "Toán tử (+, -, *, /)": {
+        "total": 10,
+        "matched": 10,
+        "mismatched": 0,
+        "examples": []
+      },
+      "& (Nối chuỗi)": {
+        "total": 1,
+        "matched": 1,
+        "mismatched": 0,
+        "examples": []
+      }
+    },
+    "mismatches": [],
+    "evaluatedSamples": [
+      {
+        "coord": "I2",
+        "formula": "SUMIF('Nguồn lệ phí'!$E$2:$L$300,'DS lệ phí CĐKQHT 2020'!B2,'Nguồn lệ phí'!$L$2:$L$300)",
+        "cacheVal": 1974000,
+        "appVal": 1974000,
+        "match": true
+      },
+      {
+        "coord": "J2",
+        "formula": "H2-I2",
+        "cacheVal": 1128000,
+        "appVal": 1128000,
+        "match": true
+      },
+      {
+        "coord": "L2",
+        "formula": "SUMIF('Nguồn CĐKQHT 2020 (GVCN Trang)'!$A$2:$H$3000,'DS lệ phí CĐKQHT 2020'!B2,'Nguồn CĐKQHT 2020 (GVCN Trang)'!$H$2:$H$3000)",
+        "cacheVal": 33,
+        "appVal": 33,
+        "match": true
+      },
+      {
+        "coord": "I3",
+        "formula": "SUMIF('Nguồn lệ phí'!$E$2:$L$300,'DS lệ phí CĐKQHT 2020'!B3,'Nguồn lệ phí'!$L$2:$L$300)",
+        "cacheVal": 0,
+        "appVal": 0,
+        "match": true
+      },
+      {
+        "coord": "J3",
+        "formula": "H3-I3",
+        "cacheVal": 470000,
+        "appVal": 470000,
+        "match": true
+      }
+    ]
+  },
+  "lan04.xlsx": {
+    "fileName": "lan04.xlsx",
+    "totalFormulas": 56,
+    "skippedSharedSlaves": 7,
+    "skippedArray": 0,
+    "skippedNoCache": 0,
+    "evaluated": 49,
+    "matched": 49,
+    "mismatched": 0,
+    "matchRate": "100.00%",
+    "backgroundChecks": 7,
+    "backgroundMismatched": 0,
+    "externalCacheCells": 0,
+    "byFunction": {
+      "Toán tử (+, -, *, /)": {
+        "total": 47,
+        "matched": 47,
+        "mismatched": 0,
+        "examples": []
+      },
+      "SUM": {
+        "total": 2,
+        "matched": 2,
+        "mismatched": 0,
+        "examples": []
+      }
+    },
+    "mismatches": [],
+    "evaluatedSamples": [
+      {
+        "coord": "A10",
+        "formula": "A6+1",
+        "cacheVal": 2,
+        "appVal": 2,
+        "match": true
+      },
+      {
+        "coord": "A12",
+        "formula": "#REF!+1",
+        "cacheVal": "#REF!",
+        "appVal": "#REF!",
+        "match": true
+      },
+      {
+        "coord": "A13",
+        "formula": "A12+1",
+        "cacheVal": "#REF!",
+        "appVal": "#REF!",
+        "match": true
+      },
+      {
+        "coord": "A19",
+        "formula": "A17+1",
+        "cacheVal": 1,
+        "appVal": 1,
+        "match": true
+      },
+      {
+        "coord": "A20",
+        "formula": "A19+1",
+        "cacheVal": 2,
+        "appVal": 2,
+        "match": true
+      }
+    ]
+  },
+  "lan19.xlsx": {
+    "fileName": "lan19.xlsx",
+    "totalFormulas": 7,
+    "skippedSharedSlaves": 2,
+    "skippedArray": 0,
+    "skippedNoCache": 0,
+    "evaluated": 5,
+    "matched": 4,
+    "mismatched": 1,
+    "matchRate": "80.00%",
+    "backgroundChecks": 0,
+    "backgroundMismatched": 0,
+    "externalCacheCells": 0,
+    "byFunction": {
+      "Toán tử (+, -, *, /)": {
+        "total": 3,
+        "matched": 3,
+        "mismatched": 0,
+        "examples": []
+      },
+      "SUM": {
+        "total": 2,
+        "matched": 1,
+        "mismatched": 1,
+        "examples": [
+          {
+            "sheet": "Sheet1",
+            "coord": "G13",
+            "formula": "SUM(H9:H12)*F13",
+            "cacheVal": 326000,
+            "cacheType": "number",
+            "appVal": "#VALUE!",
+            "func": "SUM"
+          }
+        ]
+      }
+    },
+    "mismatches": [
+      {
+        "sheet": "Sheet1",
+        "coord": "G13",
+        "formula": "SUM(H9:H12)*F13",
+        "cacheVal": 326000,
+        "cacheType": "number",
+        "appVal": "#VALUE!",
+        "func": "SUM"
+      }
+    ],
+    "evaluatedSamples": [
+      {
+        "coord": "H9",
+        "formula": "G9*F9",
+        "cacheVal": 2585000,
+        "appVal": 2585000,
+        "match": true
+      },
+      {
+        "coord": "H10",
+        "formula": "G10*F10",
+        "cacheVal": 1760000,
+        "appVal": 1760000,
+        "match": true
+      },
+      {
+        "coord": "G13",
+        "formula": "SUM(H9:H12)*F13",
+        "cacheVal": 326000,
+        "appVal": "#VALUE!",
+        "match": false
+      },
+      {
+        "coord": "G14",
+        "formula": "SUM(H9:H12)",
+        "cacheVal": 6520000,
+        "appVal": 6520000,
+        "match": true
+      },
+      {
+        "coord": "G15",
+        "formula": "G14+G13",
+        "cacheVal": 6846000,
+        "appVal": 6846000,
+        "match": true
+      }
+    ]
+  }
+}
