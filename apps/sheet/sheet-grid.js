@@ -10740,11 +10740,15 @@ _bindGridKeyboardNavigation() {
     const row = Math.max(0, (this.selectedCoord?.r || 1) - 1);
     const col = Math.max(0, this._columnNumber(this.selectedCoord?.c || "A") - 1);
     if (row === 0 && col === 0) return false;
+    // OOXML split coordinates include the row/column header bands. The grid
+    // offsets below start at the first data cell. Read-only desktop validation
+    // measures the compatible header offsets as 42 px horizontally and 14 px
+    // vertically before converting CSS pixels to twentieths of a point.
     return this._setSplitPanes({
       row,
       col,
-      x: col > 0 ? Math.round(this._colLeft(col + 1) * 15) : 0,
-      y: row > 0 ? Math.round(this._rowTop(row + 1) * 15) : 0
+      x: col > 0 ? Math.round((this._colLeft(col + 1) + 42) * 15) : 0,
+      y: row > 0 ? Math.round((this._rowTop(row + 1) + 14) * 15) : 0
     }, true);
   }
 

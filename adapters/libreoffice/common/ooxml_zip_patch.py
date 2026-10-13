@@ -4255,8 +4255,14 @@ def _preserve_external_formulas(
             replacements[out_entry] = out_sheet_xml
 
 
-def _apply_accounting_number_formats_from_fods(xlsx_bytes: bytes, source_fods: str, replacements: dict[str, str]) -> None:
-    """Restore Excel's Accounting format code for cells newly formatted in VN Sheet."""
+def _apply_accounting_number_formats_from_fods(
+    xlsx_bytes: bytes,
+    source_fods: str,
+    replacements: dict[str, str],
+    *,
+    include_excel_codes: bool = False,
+) -> None:
+    """Restore exact Excel codes and synthesize new Accounting codes."""
     try:
         root = ET.fromstring(source_fods)
     except (ET.ParseError, TypeError):
@@ -4298,12 +4304,14 @@ def _apply_accounting_number_formats_from_fods(xlsx_bytes: bytes, source_fods: s
                         config = json.loads(raw_format)
                     except (json.JSONDecodeError, TypeError):
                         config = {}
-                    if config.get("category") == "accounting" and not config.get("excelCode") and not config.get("odf"):
+                    code = str(config.get("excelCode") or "") if include_excel_codes else ""
+                    if not code and config.get("category") == "accounting" and not config.get("excelCode") and not config.get("odf"):
                         decimals = max(0, min(30, int(config.get("decimals", 2))))
                         number = "#,##" + "0" + ("." + "0" * decimals if decimals else "")
                         symbol = str(config.get("currencySymbol") or "₫")
                         currency = f"[${symbol}]" if symbol in {"₫", "$", "€", "£", "¥"} else f'"{symbol}"'
                         code = f'_(* {number} {currency}_);_(* ({number} {currency})_);_(* "-"?? {currency}_);_(@_)'
+                    if code:
                         for offset in range(column_repeat):
                             target_cells[f"{sheet_name}!{column_name(column_number + offset)}{row_number + 1}"] = {"code": code}
                 column_number += column_repeat
@@ -4321,10 +4329,12 @@ def _apply_accounting_number_formats_from_fods(xlsx_bytes: bytes, source_fods: s
     if not sheet_paths:
         return
 
-    styles_bytes = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
-    if not styles_bytes:
+    styles_source = replacements.get(XLSX_STYLES_ENTRY)
+    if styles_source is None:
+        styles_source = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
+    if not styles_source:
         return
-    styles = ET.fromstring(styles_bytes)
+    styles = ET.fromstring(styles_source)
     num_fmts = styles.find(f"{{{main_ns}}}numFmts")
     if num_fmts is None:
         num_fmts = ET.Element(f"{{{main_ns}}}numFmts", {"count": "0"})
@@ -4336,10 +4346,12 @@ def _apply_accounting_number_formats_from_fods(xlsx_bytes: bytes, source_fods: s
     next_num_fmt = max([163, *existing_formats.values()]) + 1
     xfs: dict[tuple[int, str], int] = {}
     for sheet_name, entry in sheet_paths.items():
-        sheet_bytes = read_zip_entry(xlsx_bytes, entry)
-        if not sheet_bytes:
+        sheet_source = replacements.get(entry)
+        if sheet_source is None:
+            sheet_source = read_zip_entry(xlsx_bytes, entry)
+        if not sheet_source:
             continue
-        sheet = ET.fromstring(sheet_bytes)
+        sheet = ET.fromstring(sheet_source)
         changed = False
         for cell in sheet.iter(f"{{{main_ns}}}c"):
             address = cell.get("r", "")
@@ -5350,7 +5362,9 @@ def postprocess_sheet_xlsx(
             pass
 
     if source_fods:
-        _apply_accounting_number_formats_from_fods(xlsx_bytes, source_fods, replacements)
+        _apply_accounting_number_formats_from_fods(
+            xlsx_bytes, source_fods, replacements, include_excel_codes=True
+        )
         _apply_sheet_view_state_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_workbook_view_state_from_fods(xlsx_bytes, source_fods, replacements)
         _clear_print_areas_from_fods(xlsx_bytes, source_fods, replacements)
