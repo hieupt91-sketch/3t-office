@@ -56,6 +56,7 @@ import {
 import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlListMarkerStats, extractOoxmlDocumentText, extractWordCountText, showWordCountDialog } from "../../../apps/writer/word-count.js";
 import { showFontDialog } from "../../../apps/writer/font-dialog.js";
 import { showChangeCaseDialog } from "../../../apps/writer/change-case-dialog.js";
+import { showDocumentInspectorDialog, inspectDocument, removeDocumentCategory } from "../../../apps/writer/document-inspector-dialog.js";
 import {
   documentPropertiesMarker,
   normalizeDocumentProperties,
@@ -615,6 +616,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.trackChanges.displayOriginal", () => this.setTrackChangesDisplayMode("original"));
     globalCommandBus.bindHandler("writer.review.wordCount", () => this.openWordCountDialog());
     globalCommandBus.bindHandler("writer.file.properties", () => this.openDocumentPropertiesDialog());
+    globalCommandBus.bindHandler("writer.file.inspectDocument", () => this.openDocumentInspectorDialog());
     globalCommandBus.bindHandler("writer.file.options", () => { if (typeof this.shell?.showOptionsDialog !== "function") return false; this.shell.showOptionsDialog(); return true; });
 
     // Bind undo/redo listeners & command handlers
@@ -2555,6 +2557,81 @@ export class WriterAdapter {
     this.isDirty = true;
     this.shell?.setStatus?.(t("writerDocumentProperties.saved"));
     return true;
+  }
+
+  openDocumentInspectorDialog() {
+    return showDocumentInspectorDialog({ adapter: this });
+  }
+
+  inspectDocument() {
+    return inspectDocument(this);
+  }
+
+  deleteAllComments() {
+    if (!this.comments?.length && !this.bodyDom?.querySelectorAll?.(".vno-comment-anchor, [data-comment-id]")?.length) return 0;
+    const count = this.comments?.length || 0;
+    if (Array.isArray(this.comments)) {
+      this.comments.length = 0;
+    }
+    if (this.bodyDom?.querySelectorAll) {
+      const anchors = this.bodyDom.querySelectorAll(".vno-comment-anchor, [data-comment-id]");
+      for (const a of anchors) {
+        if (typeof a.replaceWith === "function") a.replaceWith(...a.childNodes);
+        else a.remove?.();
+      }
+    }
+    this.activeCommentId = null;
+    this.isDirty = true;
+    this._renderCommentsPanel?.();
+    this.recordSnapshot("writer.review.commentDeleteAll");
+    return count || 1;
+  }
+
+  deleteHiddenText() {
+    if (!this.bodyDom?.querySelectorAll) return 0;
+    const hiddenEls = [
+      ...this.bodyDom.querySelectorAll('[style*="display: none"]'),
+      ...this.bodyDom.querySelectorAll('[style*="display:none"]'),
+      ...this.bodyDom.querySelectorAll('[style*="visibility: hidden"]'),
+      ...this.bodyDom.querySelectorAll('[style*="visibility:hidden"]'),
+      ...this.bodyDom.querySelectorAll(".vno-hidden-text"),
+      ...this.bodyDom.querySelectorAll('[data-vno-hidden="true"]')
+    ];
+    const unique = [...new Set(hiddenEls)];
+    for (const el of unique) {
+      el.remove?.();
+    }
+    if (unique.length > 0) {
+      this.isDirty = true;
+      this.recordSnapshot("writer.edit.deleteHiddenText");
+    }
+    return unique.length;
+  }
+
+  deletePersonalInformation() {
+    let count = 0;
+    if (this.documentProperties) {
+      const fields = ["author", "creator", "lastModifiedBy", "company", "manager", "title", "subject", "keywords", "description", "category"];
+      for (const f of fields) {
+        if (this.documentProperties[f]) {
+          this.documentProperties[f] = "";
+          count++;
+        }
+      }
+    }
+    if (Array.isArray(this.comments)) {
+      for (const c of this.comments) {
+        if (c.author) {
+          c.author = "Tác giả";
+          count++;
+        }
+      }
+    }
+    if (count > 0) {
+      this.isDirty = true;
+      this.recordSnapshot("writer.file.deletePersonalInfo");
+    }
+    return count;
   }
 
   _serializeNativeDiagramsToFodt(diagrams) {
@@ -7771,6 +7848,7 @@ export class WriterAdapter {
     if (cmd === "writer.trackChanges.displayNone") return this.setTrackChangesDisplayMode("none");
     if (cmd === "writer.trackChanges.displayOriginal") return this.setTrackChangesDisplayMode("original");
     if (cmd === "writer.review.wordCount") return this.openWordCountDialog();
+    if (cmd === "writer.file.inspectDocument") return this.openDocumentInspectorDialog();
 
     if (cmd !== "common.edit.undo" && cmd !== "common.edit.redo") {
       this.flushTyping();

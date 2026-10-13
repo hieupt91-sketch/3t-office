@@ -440,6 +440,7 @@ export const viStrings = {
   },
   commands: {
     "writer.file.properties": { label: "Thuộc tính tài liệu", tooltip: "Xem và sửa tiêu đề, tác giả, chủ đề, từ khóa và ghi chú" },
+    "writer.file.inspectDocument": { label: "Kiểm tra tài liệu", tooltip: "Kiểm tra và loại bỏ nhận xét, thay đổi theo dõi, văn bản ẩn và thông tin cá nhân" },
     "writer.file.options": { label: "Tùy chọn", tooltip: "Mở Tùy chọn: giao diện, tự sửa lỗi gõ và ký tự thông minh" },
     "writer.edit.select": { label: "Chọn", tooltip: "Chọn văn bản hoặc đối tượng" },
     "writer.edit.pasteSpecial": { label: "Dán đặc biệt", tooltip: "Dán kèm tùy chọn nâng cao (giữ định dạng nguồn, chỉ giữ văn bản) (Ctrl+Alt+V)" },
@@ -1039,6 +1040,7 @@ export const viStrings = {
       proofread: "Chính tả & Ngữ pháp",
       comments: "Ghi chú",
       tracking: "Theo dõi thay đổi",
+      inspect: "Kiểm tra tài liệu",
       views: "Dạng xem",
       show: "Hiển thị",
       zoom: "Thu phóng",

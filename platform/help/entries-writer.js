@@ -280,6 +280,22 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.file.inspectDocumentHelp",
+    app: "writer",
+    commandIds: ["writer.file.inspectDocument"],
+    title: "Kiểm tra tài liệu (Document Inspector)",
+    summary: "Quét và loại bỏ nhận xét, bản sửa đổi theo dõi, văn bản ẩn và thông tin cá nhân hoặc thuộc tính tài liệu trước khi chia sẻ.",
+    ribbon: { tab: "Xem lại", tabId: "review", group: "Kiểm tra tài liệu" },
+    keywords: ["kiểm tra tài liệu", "document inspector", "xóa nhận xét", "xóa bản sửa đổi", "xóa văn bản ẩn", "thông tin cá nhân", "bảo vệ tài liệu", "thuộc tính tài liệu"],
+    steps: [
+      "Mở tab Xem lại (hoặc Đánh giá), nhóm Kiểm tra tài liệu, nhấn nút Kiểm tra tài liệu để mở hộp thoại.",
+      "Trong hộp thoại Kiểm tra tài liệu, đánh dấu các nhóm nội dung cần rà soát: Nhận xét và chú thích, Theo dõi thay đổi và bản sửa đổi, Văn bản ẩn, Thuộc tính tài liệu và thông tin cá nhân.",
+      "Nhấn nút Kiểm tra để bắt đầu quét toàn bộ nội dung tài liệu. Hộp thoại sẽ chuyển sang giao diện kết quả hiển thị tình trạng từng nhóm kèm biểu tượng cảnh báo nếu phát hiện dữ liệu nhạy cảm.",
+      "Đối với mỗi nhóm tìm thấy dữ liệu, bạn có thể nhấn nút Xóa tất cả tương ứng để loại bỏ độc lập nhóm đó (ví dụ: chỉ xóa nhận xét hoặc chỉ chấp nhận toàn bộ thay đổi theo dõi).",
+      "Nhấn Kiểm tra lại để quét lại tài liệu và xác nhận toàn bộ các nhóm đã ở trạng thái an toàn trước khi gửi hoặc lưu tệp."
+    ]
+  },
+  {
     id: "writer.reference.citations",
     app: "writer",
     commandIds: [

@@ -439,6 +439,7 @@ export const enStrings = {
   },
   commands: {
     "writer.file.properties": { label: "Document properties", tooltip: "View and edit the title, author, subject, keywords, and comments" },
+    "writer.file.inspectDocument": { label: "Inspect Document", tooltip: "Inspect and remove comments, revisions, hidden text, and personal properties" },
     "writer.file.options": { label: "Options", tooltip: "Open Options: appearance, AutoCorrect and smart characters" },
     "writer.edit.select": { label: "Select", tooltip: "Select text or objects in the document" },
     "writer.edit.pasteSpecial": { label: "Paste Special", tooltip: "Paste with advanced options (keep source formatting, plain text) (Ctrl+Alt+V)" },
@@ -1038,6 +1039,7 @@ export const enStrings = {
       proofread: "Proofing",
       comments: "Comments",
       tracking: "Tracking",
+      inspect: "Document Inspector",
       views: "Views",
       show: "Show",
       zoom: "Zoom",

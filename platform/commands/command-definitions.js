@@ -218,6 +218,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.review.toggleSpellCheck", category: "review", label: "Kiểm tra chính tả", icon: "sheetSpellCheck", tooltip: "Bật hoặc tắt gạch đỏ kiểm tra chính tả tiếng Việt", isToggle: true },
   { id: "writer.help.open", category: "help", label: "Trợ giúp", shortcut: "F1", icon: "help", tooltip: "Mở hướng dẫn sử dụng (F1)", isToggle: true },
   { id: "writer.file.properties", category: "file", label: "Thuộc tính tài liệu", tooltip: "Xem và sửa tiêu đề, tác giả, chủ đề, từ khóa và ghi chú" },
+  { id: "writer.file.inspectDocument", category: "file", label: "Kiểm tra tài liệu", icon: "search", tooltip: "Kiểm tra và loại bỏ nhận xét, thay đổi theo dõi, văn bản ẩn và thông tin cá nhân" },
   { id: "writer.file.options", category: "file", label: "Tùy chọn", tooltip: "Mở Tùy chọn: giao diện, tự sửa lỗi gõ và ký tự thông minh" },
 
   // Bố trí trang (Layout)

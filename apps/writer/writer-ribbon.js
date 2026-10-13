@@ -864,6 +864,14 @@ export const WRITER_RIBBON_TABS = [
             ]
           }
         ]
+      },
+      {
+        id: "inspect",
+        label: "Kiểm tra tài liệu",
+        labelKey: "writerRibbon.group.inspect",
+        items: [
+          { type: "button", commandId: "writer.file.inspectDocument", isLarge: true }
+        ]
       }
     ]
   },
