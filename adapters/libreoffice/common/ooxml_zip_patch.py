@@ -10873,7 +10873,7 @@ def _xlsx_native_formats_by_xf(xlsx_bytes: bytes) -> list[dict]:
             font = None
         if font is not None:
             underline = font.find(q("u"))
-            if underline is not None:
+            if underline is not None and underline.get("val", "single") != "none":
                 config["fontUnderline"] = underline.get("val", "single")
             position = font.find(q("vertAlign"))
             if position is not None and position.get("val") in {"superscript", "subscript"}:
@@ -10899,7 +10899,7 @@ def _xlsx_native_formats_by_xf(xlsx_bytes: bytes) -> list[dict]:
                         "color2": colors[-1],
                         "direction": {0: "horizontal", 90: "vertical", 45: "diagonalUp", 135: "diagonalDown"}.get(degree, "horizontal"),
                     }
-            elif pattern is not None and pattern.get("patternType") not in {None, "none"}:
+            elif pattern is not None and pattern.get("patternType") not in {None, "none", "solid"}:
                 config["fillPattern"] = pattern.get("patternType")
                 pattern_color = color_value(pattern.find(q("fgColor")))
                 if pattern_color:

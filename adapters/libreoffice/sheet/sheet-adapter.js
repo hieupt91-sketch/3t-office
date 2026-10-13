@@ -3783,7 +3783,8 @@ export class SheetAdapter {
           }
           const nativeFormatKeys = ["horizontalAlignment", "verticalAlignment", "indentLevel", "whiteSpace", "shrinkToFit", "textDirection", "textRotation", "fontUnderline", "fontPosition", "fillPattern", "fillPatternColor", "fillGradient", "borderDiagonalUp", "borderDiagonalDown", "locked", "formulaHidden"];
           const nativeFormat = Object.fromEntries(nativeFormatKeys.filter(key => item.style?.[key] !== undefined).map(key => [key, item.style[key]]));
-          const nativeFormatAttr = Object.keys(nativeFormat).length ? ` vno:cell-format="${this._escapeXml(JSON.stringify(nativeFormat))}"` : "";
+          // O chua sua (xfAttr) duoc khoi phuc nguyen xf goc; chi ghi dinh dang rieng cho o da sua/o moi.
+          const nativeFormatAttr = (!xfAttr && Object.keys(nativeFormat).length) ? ` vno:cell-format="${this._escapeXml(JSON.stringify(nativeFormat))}"` : "";
           const cellAttrs = `${formulaAttrs}${matrixAttrs}${mergeAttrs}${numFmtAttr}${nativeFormatAttr}${cellStyleName ? ` table:style-name="${cellStyleName}"` : ""}${validationAttr}${xfAttr}`;
           const comment = comments[coordinate];
           const annotationXml = comment ? `<office:annotation><dc:creator>${this._escapeXml(comment.author || "")}</dc:creator>${comment.timestamp ? `<dc:date>${this._escapeXml(comment.timestamp)}</dc:date>` : ""}<text:p>${this._escapeXml(comment.text || "")}</text:p></office:annotation>` : "";
@@ -4243,6 +4244,8 @@ ${pristineXlsxMarker}
       try {
         const nativeFormat = JSON.parse(nativeFormatAttr);
         for (const [key, val] of Object.entries(nativeFormat || {})) style[key] = val;
+        // Nguon XLSX la chuan: LibreOffice co the them gach chan gia o FODS; neu xf goc khong co thi bo.
+        if (nativeFormat && !("fontUnderline" in nativeFormat) && origXf !== "") delete style.fontUnderline;
       } catch {}
     }
     // S8: Preserve original xf index for untouched cells round-trip.
