@@ -21,9 +21,11 @@ IMPLEMENTATION SUMMARY:
 - Chạy `open -R <absolute path>` bằng argv list, `shell=False` mặc định, timeout 15 giây.
 - Map lỗi sang `ServiceResult`: `invalid_input`, `permission_denied`, retryable `timeout`, `not_available`; message tiếng Việt an toàn để hiển thị.
 - `build_services()` giữ `PortableDataDirs` và cung cấp `MacOSLauncher`; không sửa app, updater, base, portable, Windows hoặc selector.
+- Backend selector map `darwin` sang `macos`, nên `get_services("darwin").launcher` thực sự dùng `MacOSLauncher`.
 
 FILES CHANGED:
 - `platform/os_services/macos.py`
+- `platform/os_services/__init__.py`
 - `tests/test_os_services_reveal.py`
 - `docs/macos/PLAN-REVEAL-PATH-0.9.11.md`
 - `docs/macos/HANDOFF-REVEAL-PATH-0.9.11.md`
@@ -46,10 +48,10 @@ TEST RESULTS:
 KNOWN FAILURES: Hai test P2 nêu trên không portable khi chạy Darwin; không do diff này.
 
 RISKS:
-- `platform/os_services/__init__.py` tại base `5def067` vẫn map Darwin sang portable. Theo giới hạn task, commit không sửa selector; khi tích hợp với backend macOS đầy đủ phải giữ method này trong `MacOSLauncher` hiện hữu và mapping macOS hiện hữu.
+- Khi tích hợp với backend macOS đầy đủ, giữ method `reveal_path` này trong `MacOSLauncher` hiện hữu; selector Darwin đã được nối sang `macos` trong task này.
 - Finder/LaunchServices không sẵn sàng sẽ trả `not_available`; timeout cho phép retry.
 
-DEPENDENCIES/BLOCKERS: Không có blocker cho method. Việc wiring backend thuộc nhánh tích hợp macOS, ngoài scope commit này.
+DEPENDENCIES/BLOCKERS: Không.
 
 CORE PATCH ID (if any): Không.
 

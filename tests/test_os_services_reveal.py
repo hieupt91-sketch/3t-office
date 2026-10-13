@@ -74,6 +74,21 @@ class RevealPathTests(unittest.TestCase):
         self.assertFalse(run.call_args.kwargs.get("shell", False))
         self.assertEqual(run.call_args.kwargs["timeout"], 15)
 
+    def test_darwin_selector_builds_macos_launcher_and_reaches_open_reveal(self):
+        package = sys.modules[NAME]
+        self.assertEqual(package.backend_name_for("darwin"), "macos")
+        services = package.get_services("darwin")
+        self.assertIsInstance(services.launcher, self.macos.MacOSLauncher)
+
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "Kết quả có khoảng trắng.pdf"
+            target.write_bytes(b"%PDF-")
+            with mock.patch(NAME + ".macos.subprocess.run", return_value=mock.Mock(returncode=0)) as run:
+                result = services.launcher.reveal_path(target)
+
+        self.assertTrue(result.is_ok)
+        self.assertEqual(run.call_args.args[0], ["open", "-R", str(target.resolve())])
+
     def test_macos_open_nonzero_exit_reports_not_available(self):
         with tempfile.TemporaryDirectory() as folder:
             target = Path(folder) / "bao cao.xlsx"
