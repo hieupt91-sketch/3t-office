@@ -7,6 +7,22 @@ import { registerHelpEntries } from "./help-catalog.js";
 
 export const SHEET_HELP_ENTRIES = [
   {
+    id: "sheet.contextMenu.rightClick",
+    app: "sheet",
+    commandIds: [],
+    title: "Menu chuột phải: ô, hàng, cột và tab trang tính",
+    summary: "Bấm chuột phải để dùng nhanh các lệnh thường gặp, sắp xếp giống Excel: Cắt/Sao chép/Dán, Chèn, Xóa, Lọc, Sắp xếp, Ghi chú, Định dạng ô, Siêu liên kết; riêng hàng, cột và tab trang tính có menu riêng.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
+    keywords: ["chuột phải", "menu ngữ cảnh", "context menu", "chèn ô", "xóa ô", "lọc theo giá trị", "ghi chú", "siêu liên kết", "chiều cao hàng", "độ rộng cột", "tab trang tính", "Shift+F10"],
+    steps: [
+      "Chuột phải vào một ô: chọn Cắt, Sao chép, Dán hoặc Dán đặc biệt (chỉ giá trị, công thức, định dạng, chuyển vị). Chèn... và Xóa... mở hộp thoại hỏi dịch ô sang phải/xuống hoặc chèn/xóa cả hàng/cột; Xóa nội dung chỉ xóa dữ liệu, giữ định dạng.",
+      "Mục Lọc: Lọc theo giá trị của ô đã chọn chỉ giữ các hàng có cùng giá trị với ô bạn bấm; Xóa bộ lọc hiện lại mọi hàng; Áp dụng lại lọc lại sau khi dữ liệu đổi. Mục Sắp xếp: A đến Z, Z đến A hoặc Sắp xếp tùy chỉnh theo nhiều cột.",
+      "Chèn ghi chú thêm ghi chú cho ô; nếu ô đã có ghi chú, menu đổi thành Sửa ghi chú và Xóa ghi chú. Định dạng ô... (Ctrl+1) mở hộp thoại định dạng; Xác định tên... đặt tên cho vùng chọn; Siêu liên kết... (Ctrl+K) chèn liên kết, và khi ô đã có liên kết sẽ có thêm Mở siêu liên kết và Xóa siêu liên kết.",
+      "Chuột phải vào tiêu đề hàng (số 1, 2, 3…) hoặc tiêu đề cột (A, B, C…): có Chèn, Xóa, Xóa nội dung, Định dạng ô..., Chiều cao hàng... hoặc Độ rộng cột..., Tự vừa khít, Ẩn và Hiện.",
+      "Chuột phải vào tab trang tính ở cuối cửa sổ: Chèn trang tính, Xóa trang tính, Đổi tên, Di chuyển hoặc Sao chép, Bảo vệ trang tính, Màu tab, Ẩn trang tính và Hiện trang tính. Nhấn Esc để đóng menu; dùng phím mũi tên để chọn mục."
+    ]
+  },
+  {
     id: "sheet.input.nativeValues",
     app: "sheet",
     commandIds: [],
