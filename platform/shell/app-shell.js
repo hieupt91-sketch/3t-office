@@ -963,6 +963,7 @@ export class AppShell {
         <button type="button" class="vno-backstage-nav-btn" data-backstage-tab="export" id="vno-backstage-nav-export">${t("backstage.exportConvert")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.exportPdf" id="vno-backstage-nav-exportpdf">${t("backstage.exportPdf")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-tab="recent" id="vno-backstage-nav-recent">${t("backstage.recent")}</button>
+        ${this.appName === "writer" ? `<button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="writer.file.properties" id="vno-backstage-writer-info">${t("writerDocumentProperties.backstage")}</button>` : ""}
         <button type="button" class="vno-backstage-nav-btn" data-backstage-action="closeDocument" id="vno-backstage-close">${t("backstage.close")}</button>
         <div style="flex:1;"></div>
         <button type="button" class="vno-backstage-nav-btn" id="vno-backstage-account">${t("backstage.account")}</button>

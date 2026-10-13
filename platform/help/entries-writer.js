@@ -1797,5 +1797,20 @@ export const WRITER_HELP_ENTRIES = [
     "Chuyển sang tab «Dòng và ngắt trang» để thiết lập các tùy chọn phân trang như Ngắt trang trước đoạn, Giữ với đoạn kế tiếp hoặc Kiểm soát dòng đầu/cuối mồ côi.",
     "Bấm Áp dụng (hoặc nhấn Enter) để thực hiện định dạng; bấm Đặt lại để quay về thông số ban đầu, hoặc bấm Hủy / nhấn Esc để đóng hộp thoại mà không thay đổi."
   ]
+},
+{
+  id: "writer.file.documentProperties",
+  app: "writer",
+  commandIds: ["writer.file.properties"],
+  title: "Thuộc tính tài liệu",
+  summary: "Khai báo tiêu đề, tác giả, chủ đề, từ khóa và ghi chú để người nhận dễ nhận biết, tìm kiếm và quản lý tài liệu DOCX.",
+  ribbon: { tab: "Tệp", tabId: "file", group: "Thông tin" },
+  keywords: ["thuộc tính tài liệu", "tiêu đề", "tác giả", "chủ đề", "từ khóa", "ghi chú", "thông tin docx"],
+  steps: [
+    "Mở Tệp, chọn Thông tin để mở hộp Thuộc tính tài liệu.",
+    "Nhập Tiêu đề, Tác giả và Chủ đề. Ở ô Từ khóa, có thể phân tách nhiều từ bằng dấu phẩy hoặc dấu chấm phẩy; ô Ghi chú dùng cho mô tả dài hơn.",
+    "Bấm Đồng ý để áp dụng. Thanh trạng thái nhắc rằng tài liệu cần được lưu; nếu bấm Hủy bỏ hoặc nhấn Esc, các giá trị cũ được giữ nguyên.",
+    "Nhấn Ctrl+S hoặc chọn Tệp > Lưu. Với DOCX, năm trường được ghi vào thuộc tính lõi của tệp và được nạp lại khi mở tài liệu lần sau."
+  ]
 }
 ];

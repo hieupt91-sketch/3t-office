@@ -18,6 +18,17 @@ export const enStrings = {
     position: { topLeft: "Top Left", topCenter: "Top Center", topRight: "Top Right", middleLeft: "Middle Left", center: "Center", middleRight: "Middle Right", bottomLeft: "Bottom Left", bottomCenter: "Bottom Center", bottomRight: "Bottom Right" },
     align: { left: "Left", center: "Center", right: "Right", top: "Top", middle: "Middle", bottom: "Bottom" }
   },
+  writerDocumentProperties: {
+    backstage: "Info",
+    dialogTitle: "Document properties",
+    title: "Title",
+    creator: "Author",
+    subject: "Subject",
+    keywords: "Keywords",
+    keywordsHint: "Separate multiple keywords with commas or semicolons.",
+    description: "Comments",
+    saved: "Document properties updated. Press Ctrl+S to save them to the file."
+  },
   common: {
     save: "Save document",
     undo: "Undo",
@@ -392,6 +403,7 @@ export const enStrings = {
     colorRed: "Red", colorBlue: "Blue", colorYellow: "Yellow", colorGreen: "Green", colorBlack: "Black"
   },
   commands: {
+    "writer.file.properties": { label: "Document properties", tooltip: "View and edit the title, author, subject, keywords, and comments" },
     "writer.edit.select": { label: "Select", tooltip: "Select text or objects in the document" },
     "writer.edit.pasteSpecial": { label: "Paste Special", tooltip: "Paste with advanced options (keep source formatting, plain text) (Ctrl+Alt+V)" },
     "writer.para.lineSpacing": { label: "Line Spacing", tooltip: "Adjust spacing between lines of text" },

@@ -21064,6 +21064,114 @@ def writer_accepted_view_html(source_html: str) -> str:
     return result
 
 
+def _writer_document_properties_metadata(source_html: str | None) -> dict[str, str] | None:
+    match = re.search(
+        r"<!--vno-document-properties-hex:([0-9a-f]+)-->",
+        source_html or "", re.IGNORECASE,
+    )
+    if not match:
+        return None
+    try:
+        payload = json.loads(bytes.fromhex(match.group(1)).decode("utf-8"))
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Metadata thuộc tính tài liệu không hợp lệ.") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("Metadata thuộc tính tài liệu phải là một đối tượng.")
+    limits = {
+        "title": 255,
+        "creator": 255,
+        "subject": 255,
+        "keywords": 1024,
+        "description": 4096,
+    }
+    normalized: dict[str, str] = {}
+    for key, limit in limits.items():
+        value = str(payload.get(key) or "").replace("\r\n", "\n").replace("\r", "\n")[:limit]
+        normalized[key] = "".join(
+            character for character in value
+            if character in "\t\n\r" or ord(character) >= 0x20
+        )
+    return normalized
+
+
+def postprocess_writer_document_properties(
+    docx_bytes: bytes, *, source_html: str | None = None,
+) -> bytes:
+    """Write Writer's five editable properties to docProps/core.xml.
+
+    The converted package remains the source of all other core properties
+    (created/modified timestamps, revision and lastModifiedBy).
+    """
+    properties = _writer_document_properties_metadata(source_html)
+    if properties is None:
+        return docx_bytes
+
+    core_bytes = read_zip_entry(docx_bytes, "docProps/core.xml")
+    core_xml = core_bytes.decode("utf-8", errors="strict") if core_bytes else (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<cp:coreProperties '
+        'xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" '
+        'xmlns:dc="http://purl.org/dc/elements/1.1/" '
+        'xmlns:dcterms="http://purl.org/dc/terms/" '
+        'xmlns:dcmitype="http://purl.org/dc/dcmitype/" '
+        'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">'
+        '</cp:coreProperties>'
+    )
+    fields = {
+        "title": "dc:title",
+        "creator": "dc:creator",
+        "subject": "dc:subject",
+        "keywords": "cp:keywords",
+        "description": "dc:description",
+    }
+    for key, tag in fields.items():
+        pattern = re.compile(
+            rf"<{re.escape(tag)}\b[^>]*>[\s\S]*?</{re.escape(tag)}\s*>|<{re.escape(tag)}\b[^>]*/\s*>",
+            re.IGNORECASE,
+        )
+        core_xml = pattern.sub("", core_xml)
+        value = properties[key]
+        if value:
+            element = f"<{tag}>{html.escape(value, quote=False)}</{tag}>"
+            core_xml = re.sub(
+                r"</cp:coreProperties\s*>", element + "</cp:coreProperties>",
+                core_xml, count=1, flags=re.IGNORECASE,
+            )
+
+    replacements: dict[str, bytes] = {"docProps/core.xml": core_xml.encode("utf-8")}
+    if not core_bytes:
+        content_types_bytes = read_zip_entry(docx_bytes, "[Content_Types].xml")
+        content_types = (content_types_bytes or b"").decode("utf-8", errors="strict")
+        if "/docProps/core.xml" not in content_types:
+            override = (
+                '<Override PartName="/docProps/core.xml" '
+                'ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'
+            )
+            content_types = re.sub(
+                r"</Types\s*>", override + "</Types>", content_types,
+                count=1, flags=re.IGNORECASE,
+            )
+            replacements["[Content_Types].xml"] = content_types.encode("utf-8")
+        rels_bytes = read_zip_entry(docx_bytes, "_rels/.rels")
+        rels = (rels_bytes or b"").decode("utf-8", errors="strict")
+        if "metadata/core-properties" not in rels:
+            used_ids = {int(value) for value in re.findall(r'\bId="rId(\d+)"', rels)}
+            next_id = 1
+            while next_id in used_ids:
+                next_id += 1
+            relationship = (
+                f'<Relationship Id="rId{next_id}" '
+                'Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" '
+                'Target="docProps/core.xml"/>'
+            )
+            rels = re.sub(
+                r"</Relationships\s*>", relationship + "</Relationships>", rels,
+                count=1, flags=re.IGNORECASE,
+            )
+            replacements["_rels/.rels"] = rels.encode("utf-8")
+    return patch_ooxml_zip(docx_bytes, replacements)
+
+
 def _writer_find_review_bookmark_pair(document_xml: str, name: str) -> tuple[re.Match, re.Match]:
     escaped = re.escape(name)
     start_match = re.search(
