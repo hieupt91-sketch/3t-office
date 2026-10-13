@@ -33,14 +33,24 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ? Array(ProcessInfo.processInfo.arguments.dropFirst()).filter { !$0.hasPrefix("-psn_") }
             : pendingFiles
 
-        let applicationSupport = FileManager.default.urls(
-            for: .applicationSupportDirectory, in: .userDomainMask
-        ).first!.appendingPathComponent("VNOffice", isDirectory: true)
-        let versionRoot = environment["VNO_APP_VERSION_ROOT"].map(URL.init(fileURLWithPath:))
-            ?? applicationSupport.appendingPathComponent("current", isDirectory: true)
+        let applicationSupport = environment["VNO_APPLICATION_SUPPORT_ROOT"]
+            .map { URL(fileURLWithPath: $0, isDirectory: true) }
+            ?? FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask)
+                .first!.appendingPathComponent("VNOffice", isDirectory: true)
+        let distributionRoot = Bundle.main.bundleURL.deletingLastPathComponent()
+        let versionRoot: URL
+        do {
+            versionRoot = try resolveVersionRoot(
+                environment: environment,
+                applicationSupport: applicationSupport,
+                distributionRoot: distributionRoot
+            )
+        } catch {
+            showError("Không thể khởi tạo mã ứng dụng: \(error.localizedDescription)")
+            return
+        }
         let mainScript = versionRoot.appendingPathComponent("app/main.py")
 
-        let distributionRoot = Bundle.main.bundleURL.deletingLastPathComponent()
         let runtimePython = environment["VNO_RUNTIME_PYTHON"].map(URL.init(fileURLWithPath:))
             ?? distributionRoot.appendingPathComponent("Runtime/bin/python3")
         let arguments = [mainScript.path, "--app=\(appKind)"] + fileArguments
@@ -64,7 +74,12 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         process.executableURL = runtimePython
         process.arguments = arguments
         process.currentDirectoryURL = versionRoot
-        process.environment = environment
+        var childEnvironment = environment
+        if childEnvironment["VNOFFICE_SOFFICE_PATH"] == nil {
+            childEnvironment["VNOFFICE_SOFFICE_PATH"] = distributionRoot
+                .appendingPathComponent("LibreOffice.app/Contents/MacOS/soffice").path
+        }
+        process.environment = childEnvironment
         process.terminationHandler = { _ in DispatchQueue.main.async { NSApp.terminate(nil) } }
         do {
             try process.run()
@@ -83,6 +98,63 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         alert.runModal()
         NSApp.terminate(nil)
     }
+}
+
+private func resolveVersionRoot(
+    environment: [String: String], applicationSupport: URL, distributionRoot: URL
+) throws -> URL {
+    if let override = environment["VNO_APP_VERSION_ROOT"] {
+        return URL(fileURLWithPath: override, isDirectory: true)
+    }
+    let current = applicationSupport.appendingPathComponent("current", isDirectory: true)
+    let main = current.appendingPathComponent("app/main.py")
+    if FileManager.default.fileExists(atPath: main.path) { return current }
+
+    let versionsRoot = distributionRoot.appendingPathComponent("Versions", isDirectory: true)
+    let seedCurrent = versionsRoot.appendingPathComponent("current", isDirectory: true)
+    let seedMain = seedCurrent.appendingPathComponent("app/main.py")
+    guard FileManager.default.fileExists(atPath: seedMain.path) else { return current }
+
+    let resolvedSeed = seedCurrent.resolvingSymlinksInPath()
+    let versionName = resolvedSeed.lastPathComponent
+    guard versionName.hasPrefix("app-"),
+          resolvedSeed.path.hasPrefix(versionsRoot.resolvingSymlinksInPath().path + "/") else {
+        throw NSError(domain: "VNOfficeLauncher", code: 1,
+                      userInfo: [NSLocalizedDescriptionKey: "Seed version không hợp lệ"])
+    }
+    let manager = FileManager.default
+    try manager.createDirectory(at: applicationSupport, withIntermediateDirectories: true)
+    let target = applicationSupport.appendingPathComponent(versionName, isDirectory: true)
+    if !manager.fileExists(atPath: target.path) {
+        let staging = applicationSupport.appendingPathComponent(".seed-\(UUID().uuidString)")
+        do {
+            try manager.copyItem(at: resolvedSeed, to: staging)
+            do { try manager.moveItem(at: staging, to: target) }
+            catch {
+                try? manager.removeItem(at: staging)
+                if !manager.fileExists(atPath: target.path) { throw error }
+            }
+        } catch {
+            try? manager.removeItem(at: staging)
+            throw error
+        }
+    }
+    guard manager.fileExists(atPath: target.appendingPathComponent("app/main.py").path) else {
+        throw NSError(domain: "VNOfficeLauncher", code: 2,
+                      userInfo: [NSLocalizedDescriptionKey: "Phiên bản đã cài không đầy đủ: \(versionName)"])
+    }
+    let temporary = applicationSupport.appendingPathComponent(".current-\(UUID().uuidString)")
+    try manager.createSymbolicLink(atPath: temporary.path, withDestinationPath: versionName)
+    if manager.fileExists(atPath: current.path)
+        || (try? manager.destinationOfSymbolicLink(atPath: current.path)) != nil {
+        try? manager.removeItem(at: current)
+    }
+    do { try manager.moveItem(at: temporary, to: current) }
+    catch {
+        try? manager.removeItem(at: temporary)
+        if !manager.fileExists(atPath: current.appendingPathComponent("app/main.py").path) { throw error }
+    }
+    return current
 }
 
 @main

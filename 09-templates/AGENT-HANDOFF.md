@@ -19,6 +19,26 @@ NEXT ACTION: Merge this evidence handoff, then repeat the same three-file gate a
 ---
 
 # Agent Handoff
+TASK: macOS 0.9.11 offline pilot runtime packaging
+AGENT/ROLE: Codex / macOS Packaging
+BRANCH: codex/macos-runtime-packaging-0911
+WORKTREE: /Volumes/Data/Worktrees/macos-runtime-packaging-0911
+OBJECTIVE: Build a self-contained Apple Silicon pilot layout with three native app launchers, Python/PySide6/QtWebEngine, versioned VN Office source, and LibreOffice, without downloading dependencies or signing/notarizing.
+FINDINGS: The local tested runtime is arm64 Python 3.12.15 with PySide6 6.12.0 and pywebview 6.2.1; LibreOffice is 26.8.0.3 arm64. The final layout is 2.1 GB. Launcher bootstrap needed an explicitly relative `current -> app-0.9.11` symlink; using Foundation's URL overload accidentally produced an absolute path, caught by clean-root native smoke and fixed. Intel remains unsupported because the embedded Python runtime is arm64-only.
+IMPLEMENTATION SUMMARY: Added plan gate, atomic staging build, runtime/legal metadata validator, pilot/source-offer notices, first-run seed bootstrap into Application Support, embedded LibreOffice discovery, and relative-output normalization for the Xcode development build. No network dependencies, secrets, signing, notarization, or DMG work was performed.
+FILES CHANGED: docs/macos/PLAN-PILOT-OFFLINE-PACKAGING-0.9.11.md; ports/macos/launcher/AppDelegate.swift; ports/macos/scripts/build-development.sh; ports/macos/scripts/build-offline-pilot.sh; ports/macos/scripts/validate-offline-pilot.py; ports/macos/legal/PILOT-README.txt; ports/macos/legal/SOURCE-OFFER.txt; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: bash syntax and Python compile checks; relative-path Xcode development build; three complete offline pilot builds; standalone artifact validator; launcher print-command smoke for Doc/Sheet/Slide; native Doc.app start with isolated HOME/application-support root and embedded-server probe.
+BUILD RESULT: PASS — Xcode built and validated Doc.app, Sheet.app and Slide.app; offline artifact created at ignored path build/macos-offline-pilot (2.1 GB).
+TEST RESULTS: PASS — artifact validator imported PySide6, QtWebEngineWidgets and pywebview from packaged Runtime; checked required files, bundle app kinds, arm64 binaries and all symlinks staying inside artifact. PASS — clean-root Doc.app bootstrap produced relative current symlink, started packaged Python from app-0.9.11 and served UI at its embedded localhost server. PASS — launcher command smoke for all three apps. Full Node/Python suites: NOT RUN because changes are confined to macOS launcher/packaging and prior integration suites are owned by the parent task.
+KNOWN FAILURES: None in packaging build/validator/smoke. Visual interaction and save/reopen workflows from the final packaged artifact are NOT RUN in this subtask.
+RISKS: Unsigned/unnotarized pilot may trigger Gatekeeper. Legal files are staging only, not a legal-release-ready determination; public release still needs exact archived corresponding sources and final notice review. Intel is NOT SUPPORTED. The 2.1 GB unpacked size should be optimized after functional pilot acceptance.
+DEPENDENCIES/BLOCKERS: Developer ID/notarization and DMG require the owner's Apple Developer credentials and were intentionally not attempted. Intel requires a matching x86_64/universal Python/Qt/LibreOffice runtime.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Parent should cherry-pick this commit, rebuild from approved runtime paths, visually test final Doc/Sheet/Slide artifact and document save/reopen on a clean Apple Silicon account, then proceed to signing/notarization/DMG when credentials are available.
+
+---
+
+# Agent Handoff
 TASK: FIX-P1b (Sheet formula regression audit and P1 edit latency)
 AGENT/ROLE: Codex / Sheet QA
 BRANCH: fix/sheet-p1b-codex

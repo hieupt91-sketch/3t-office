@@ -1,0 +1,24 @@
+3T Office macOS 0.9.11 Pilot — nguồn thành phần nguồn mở
+=========================================================
+
+Artifact pilot này phân phối các binary chưa sửa đổi của Python, PySide6/Qt,
+QtWebEngine/Chromium, pywebview và LibreOffice. Mã ứng dụng 3T Office có giấy
+phép riêng; giấy phép nguồn mở của các thành phần không bị EULA của 3T hạn chế.
+
+Nguồn tương ứng với các phiên bản binary trong `COMPONENTS.txt`:
+
+- CPython: https://www.python.org/downloads/source/
+- PySide6 / Qt for Python: https://code.qt.io/cgit/pyside/pyside-setup.git/
+- Qt 6: https://code.qt.io/cgit/qt/
+- QtWebEngine và Chromium third-party notices:
+  https://code.qt.io/cgit/qt/qtwebengine.git/
+- pywebview: https://github.com/r0x0r/pywebview
+- LibreOffice: https://download.documentfoundation.org/libreoffice/src/
+
+Người nhận bản pilot có thể yêu cầu bản sao mã nguồn tương ứng bằng kênh hỗ trợ
+nội bộ đã cung cấp cùng bản thử. Trước khi phát hành ra ngoài, chủ sở hữu phải
+điền địa chỉ liên hệ pháp lý ổn định, lưu archive nguồn chính xác và rà soát
+toàn bộ giấy phép/notice sinh từ artifact cuối.
+
+Đây là source-offer staging cho pilot nội bộ, không phải xác nhận pháp lý rằng
+artifact đã sẵn sàng phát hành công khai.
