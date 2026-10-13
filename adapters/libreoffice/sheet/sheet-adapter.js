@@ -1541,11 +1541,21 @@ export class SheetAdapter {
     return Math.min(546, Math.round(h5 + (lines - 5) * (h5 - h3) / 2));
   }
 
+  /** Hàng đang bị bộ lọc ẩn (khác hàng người dùng ẩn) của một trang tính. */
+  _filteredRowsForSheet(sheetName) {
+    const grid = this.grid;
+    const isActive = sheetName === grid?.activeSheet;
+    const filterOn = isActive ? !!grid?.isFilterActive : !!grid?.sheetStates?.[sheetName]?.isFilterActive;
+    if (!filterOn) return new Set();
+    return this._asLayoutSet(isActive ? grid.hiddenRows : grid.sheetStates?.[sheetName]?.hiddenRows, true);
+  }
+
   _sheetRowColLayout(sheetName) {
     return {
       rowHeights: this._asLayoutMap(this.grid?.rowHeightsBySheet?.[sheetName], true),
       colWidths: this._asLayoutMap(this.grid?.colWidthsBySheet?.[sheetName], false),
-      hiddenRows: this._asLayoutSet(this.grid?.userHiddenRowsBySheet?.[sheetName], true),
+      // Hàng bị bộ lọc ẩn được ghi như hàng ẩn: nếu không, tệp lưu có tiêu chí lọc nhưng mọi hàng vẫn hiện khi mở lại.
+      hiddenRows: new Set([...this._asLayoutSet(this.grid?.userHiddenRowsBySheet?.[sheetName], true), ...this._filteredRowsForSheet(sheetName)]),
       hiddenCols: this._asLayoutSet(this.grid?.userHiddenColsBySheet?.[sheetName], false)
     };
   }
