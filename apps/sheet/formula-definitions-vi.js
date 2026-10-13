@@ -947,7 +947,8 @@ export const VI_FORMULA_CATALOG = [
     syntaxVi: "XOR(điều_kiện1, [điều_kiện2], ...)",
     params: [
       { name: "điều_kiện1", desc: "Điều kiện logic thứ nhất." },
-      { name: "[điều_kiện2]", desc: "Các điều kiện logic bổ sung.", optional: true }
+      { name: "[điều_kiện2]", desc: "Điều kiện logic thứ hai trở đi (tùy chọn).", optional: true },
+      { name: "...", desc: "Các điều kiện bổ sung tiếp theo.", optional: true }
     ],
     example: "=XOR(A2>0; B2>0)"
   },
