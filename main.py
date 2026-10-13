@@ -4017,6 +4017,16 @@ class VnOfficeApi:
             content, app_kind, suggested_name, source_path,
         )
 
+    def open_containing_folder(self, file_path):
+        """Mở thư mục chứa tệp vừa xuất (Xuất và chuyển đổi > Mở thư mục chứa tệp)."""
+        services = _os_services()
+        if services is None or getattr(services, "launcher", None) is None or not hasattr(services.launcher, "reveal_path"):
+            return {"status": "error", "message": "Chức năng mở thư mục chưa khả dụng trên hệ điều hành này."}
+        result = services.launcher.reveal_path(Path(str(file_path or "")))
+        if result.is_ok:
+            return {"status": "ok"}
+        return {"status": "error", "message": result.error.message if result.error else "Không mở được thư mục chứa tệp."}
+
     def prepare_print_document(
         self, app_kind, content, suggested_name="TaiLieu", source_path=None,
         use_office=True, print_options=None,

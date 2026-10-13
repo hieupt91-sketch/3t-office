@@ -52,6 +52,19 @@ class WindowsLauncher:
         text = str(Path(path).resolve())
         return Path(text if text.startswith("\\\\?\\") else "\\\\?\\" + text)
 
+    def reveal_path(self, path: Path) -> ServiceResult[None]:
+        target = Path(path)
+        if not target.exists():
+            return ServiceResult.fail("invalid_input", "Không tìm thấy tệp để mở thư mục chứa nó.")
+        try:
+            import subprocess
+
+            # Explorer cần đối số một mảnh dạng /select,<đường dẫn> để chọn đúng tệp.
+            subprocess.Popen(["explorer.exe", f"/select,{target.resolve()}"])
+            return ServiceResult.ok()
+        except Exception:
+            return ServiceResult.fail("not_available", "Không mở được thư mục chứa tệp.")
+
     def show_error(self, title: str, message: str) -> ServiceResult[None]:
         try:
             import ctypes
