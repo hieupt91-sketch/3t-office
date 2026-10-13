@@ -43,19 +43,30 @@ export class WriterViewController {
   }
 
   attach() {
-    const bind = (id, handler) => globalCommandBus.bindHandler(id, handler);
-    bind("writer.view.printLayout", () => this.setMode("printLayout"));
-    bind("writer.view.webLayout", () => this.setMode("webLayout"));
-    bind("writer.view.readMode", () => this.setMode("readMode"));
-    bind("writer.view.ruler", () => this.toggleRuler());
-    bind("writer.view.gridlines", () => this.toggleGridlines());
-    bind("writer.view.navigationPane", () => this.navigationPane?.toggle());
-    bind("writer.view.zoomIn", () => this.zoomIn());
-    bind("writer.view.zoomOut", () => this.zoomOut());
-    bind("writer.view.zoomReset", () => this.zoomReset());
-    bind("writer.view.zoom100", () => this.zoomReset());
-    bind("writer.view.pageWidth", () => this.pageWidth());
-    bind("writer.view.newWindow", () => this.newWindow());
+    globalCommandBus.bindHandler("writer.view.printLayout", () => this.setMode("printLayout"));
+    globalCommandBus.bindHandler("writer.view.webLayout", () => this.setMode("webLayout"));
+    globalCommandBus.bindHandler("writer.view.readMode", () => this.setMode("readMode"));
+    globalCommandBus.bindHandler("writer.view.ruler", () => this.toggleRuler());
+    globalCommandBus.bindHandler("writer.view.gridlines", () => this.toggleGridlines());
+    globalCommandBus.bindHandler("writer.view.navigationPane", () => this.navigationPane?.toggle());
+    globalCommandBus.bindHandler("writer.view.zoomIn", () => this.zoomIn());
+    globalCommandBus.bindHandler("writer.view.zoomOut", () => this.zoomOut());
+    globalCommandBus.bindHandler("writer.view.zoomReset", () => this.zoomReset());
+    globalCommandBus.bindHandler("writer.view.zoom100", () => this.zoomReset());
+    globalCommandBus.bindHandler("writer.view.pageWidth", () => this.pageWidth());
+    globalCommandBus.bindHandler("writer.view.newWindow", () => {
+      const run = () => this.newWindow();
+      const result = run();
+      const show = (value) => {
+        if (value === false) {
+          const msg = "Không mở được cửa sổ mới trong ứng dụng desktop. Hãy mở lại tệp từ Tệp > Mở để xem ở cửa sổ khác.";
+          this.shell?.setStatus?.(msg);
+          if (this.shell?.showNotification) this.shell.showNotification({ type: "info", message: msg });
+        }
+        return value;
+      };
+      return typeof result?.then === "function" ? result.then(show) : show(result);
+    });
     if (typeof document !== "undefined") document.addEventListener?.("keydown", this._escapeHandler);
     if (typeof window !== "undefined") window.addEventListener?.("resize", this._resizeHandler);
     this.viewport?.addEventListener?.("scroll", this._scrollHandler, { passive: true });
@@ -116,14 +127,16 @@ export class WriterViewController {
     this.rulerVisible = !this.rulerVisible;
     this._applyViewState();
     this._syncCommandStates();
-    return this.rulerVisible;
+    this.shell?.setStatus?.(this.rulerVisible ? "Đã hiện thước đo." : "Đã ẩn thước đo.");
+    return true;
   }
 
   toggleGridlines() {
     this.gridlinesVisible = !this.gridlinesVisible;
     this._applyViewState();
     this._syncCommandStates();
-    return this.gridlinesVisible;
+    this.shell?.setStatus?.(this.gridlinesVisible ? "Đã hiện đường lưới." : "Đã ẩn đường lưới.");
+    return true;
   }
 
   setZoom(level, { pageWidth = false } = {}) {

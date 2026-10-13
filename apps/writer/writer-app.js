@@ -491,7 +491,8 @@ export class WriterApp {
       setSpellcheckEnabled(next);
     }).catch(() => {});
     globalCommandBus.updateState("writer.review.toggleSpellCheck", { checked: next });
-    return next;
+    this.shell?.setStatus?.(next ? "Đã bật kiểm tra chính tả." : "Đã tắt kiểm tra chính tả.");
+    return true;
   }
 
   _setupVietnameseSpellcheck(editableRoots, { VietnameseSpellChecker, SpellcheckDomController, VIETNAMESE_DICTIONARY_WORDS }) {
