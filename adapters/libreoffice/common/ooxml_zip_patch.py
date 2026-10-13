@@ -1706,6 +1706,355 @@ def _insert_worksheet_child_in_schema_order(
     return xml[:pos] + element_xml + xml[pos:]
 
 
+# Conditional formatting (full app model in FODS metadata <-> native OOXML)
+# ---------------------------------------------------------------------------
+
+_FODS_CF_ATTR_RE = re.compile(r'\s+vno:conditional-formatting=["\'][^"\']*["\']', re.IGNORECASE)
+
+
+def parse_conditional_formatting_from_fods(fods_xml: str | None) -> dict[str, list[dict]]:
+    result: dict[str, list[dict]] = {}
+    if not fods_xml:
+        return result
+    table_re = re.compile(r'<table:table(?=[\s>/])([^>]*)>', re.IGNORECASE)
+    for match in table_re.finditer(fods_xml):
+        attrs = match.group(1)
+        name_match = re.search(r'table:name=["\']([^"\']*)["\']', attrs, re.IGNORECASE)
+        rules_match = re.search(r'vno:conditional-formatting=["\']([^"\']*)["\']', attrs, re.IGNORECASE)
+        if not name_match or not rules_match:
+            continue
+        try:
+            sheet_name = html.unescape(name_match.group(1))
+            rules = json.loads(html.unescape(rules_match.group(1)))
+            if isinstance(rules, list):
+                result[sheet_name] = [rule for rule in rules if isinstance(rule, dict) and rule.get("type") and rule.get("range")]
+        except (TypeError, ValueError, json.JSONDecodeError):
+            continue
+    return result
+
+
+def _cf_range_ref(rule: dict) -> str:
+    try:
+        start = rule["range"]["start"]
+        end = rule["range"]["end"]
+        first = f'{str(start["c"]).upper()}{int(start["r"])}'
+        last = f'{str(end["c"]).upper()}{int(end["r"])}'
+        if not re.fullmatch(r"[A-Z]{1,3}\d+", first) or not re.fullmatch(r"[A-Z]{1,3}\d+", last):
+            return ""
+        return first if first == last else f"{first}:{last}"
+    except (KeyError, TypeError, ValueError):
+        return ""
+
+
+def _cf_arg(value) -> str:
+    if isinstance(value, (int, float)) and not isinstance(value, bool):
+        return str(value)
+    return '"' + str(value or "").replace('"', '""') + '"'
+
+
+def _cf_date_formula(period: str, cell: str) -> str:
+    formulas = {
+        "yesterday": f"FLOOR({cell},1)=TODAY()-1",
+        "today": f"FLOOR({cell},1)=TODAY()",
+        "tomorrow": f"FLOOR({cell},1)=TODAY()+1",
+        "last7Days": f"AND(TODAY()-FLOOR({cell},1)&lt;=6,FLOOR({cell},1)&lt;=TODAY())",
+        "lastWeek": f"AND(TODAY()-ROUNDDOWN({cell},0)&gt;=(WEEKDAY(TODAY())),TODAY()-ROUNDDOWN({cell},0)&lt;(WEEKDAY(TODAY())+7))",
+        "thisWeek": f"AND(TODAY()-ROUNDDOWN({cell},0)&lt;WEEKDAY(TODAY()),TODAY()-ROUNDDOWN({cell},0)&gt;=(WEEKDAY(TODAY())-7))",
+        "nextWeek": f"AND(ROUNDDOWN({cell},0)-TODAY()&gt;(7-WEEKDAY(TODAY())),ROUNDDOWN({cell},0)-TODAY()&lt;(15-WEEKDAY(TODAY())))",
+        "lastMonth": f"AND(MONTH({cell})=MONTH(EDATE(TODAY(),-1)),YEAR({cell})=YEAR(EDATE(TODAY(),-1)))",
+        "thisMonth": f"AND(MONTH({cell})=MONTH(TODAY()),YEAR({cell})=YEAR(TODAY()))",
+        "nextMonth": f"AND(MONTH({cell})=MONTH(EDATE(TODAY(),1)),YEAR({cell})=YEAR(EDATE(TODAY(),1)))",
+    }
+    return formulas.get(period, formulas["today"])
+
+
+def _cf_threshold_xml(rule: dict, count: int) -> str:
+    thresholds = rule.get("thresholds")
+    if isinstance(thresholds, list) and len(thresholds) == count:
+        parts = []
+        for item in thresholds:
+            if not isinstance(item, dict):
+                break
+            kind = item.get("type") or "percent"
+            val = item.get("val")
+            val_attr = "" if val is None else f' val="{html.escape(str(val), quote=True)}"'
+            gte_attr = ' gte="0"' if item.get("gte") is False else ""
+            parts.append(f'<cfvo type="{html.escape(str(kind), quote=True)}"{val_attr}{gte_attr}/>')
+        if len(parts) == count:
+            return "".join(parts)
+    if count == 2:
+        return '<cfvo type="min"/><cfvo type="max"/>'
+    return "".join(f'<cfvo type="percent" val="{round(index * 100 / count)}"/>' for index in range(count))
+
+
+def _cf_rule_xml(rule: dict, priority: int, dxf_id: int | None) -> str:
+    kind = str(rule.get("type") or "")
+    cell_range = _cf_range_ref(rule)
+    if not cell_range:
+        return ""
+    first = cell_range.split(":", 1)[0]
+    dxf = f' dxfId="{dxf_id}"' if dxf_id is not None else ""
+    p = f' priority="{priority}"'
+    formula = ""
+    if kind in ("greaterThan", "lessThan", "equal", "between"):
+        operator = {"greaterThan": "greaterThan", "lessThan": "lessThan", "equal": "equal", "between": "between"}[kind]
+        formula = f'<formula>{html.escape(_cf_arg(rule.get("value")), quote=False)}</formula>'
+        if kind == "between":
+            formula += f'<formula>{html.escape(_cf_arg(rule.get("value2")), quote=False)}</formula>'
+        body = f'<cfRule type="cellIs"{dxf}{p} operator="{operator}">{formula}</cfRule>'
+    elif kind == "blank":
+        body = f'<cfRule type="containsBlanks"{dxf}{p}><formula>LEN(TRIM({first}))=0</formula></cfRule>'
+    elif kind == "duplicate":
+        body = f'<cfRule type="duplicateValues"{dxf}{p}/>'
+    elif kind == "textContains":
+        text = str(rule.get("text") or "")
+        search = text.replace('"', '""')
+        body = f'<cfRule type="containsText"{dxf}{p} operator="containsText" text="{html.escape(text, quote=True)}"><formula>NOT(ISERROR(SEARCH("{html.escape(search, quote=False)}",{first})))</formula></cfRule>'
+    elif kind == "dateOccurs":
+        period = str(rule.get("timePeriod") or "today")
+        body = f'<cfRule type="timePeriod"{dxf}{p} timePeriod="{html.escape(period, quote=True)}"><formula>{_cf_date_formula(period, first)}</formula></cfRule>'
+    elif kind in ("top", "bottom"):
+        rank = max(1, min(1000, int(rule.get("rank") or 10)))
+        bottom = ' bottom="1"' if kind == "bottom" else ""
+        body = f'<cfRule type="top10"{dxf}{p} rank="{rank}"{bottom}/>'
+    elif kind in ("aboveAverage", "belowAverage"):
+        below = ' aboveAverage="0"' if kind == "belowAverage" else ""
+        body = f'<cfRule type="aboveAverage"{dxf}{p}{below}/>'
+    elif kind == "formula":
+        raw = str(rule.get("formula") or "=").lstrip("=")
+        body = f'<cfRule type="expression"{dxf}{p}><formula>{html.escape(raw, quote=False)}</formula></cfRule>'
+    elif kind == "dataBar":
+        rgb = "FF" + str(rule.get("color") or "#638ec6").lstrip("#").upper()
+        show = "1" if rule.get("showValue", True) else "0"
+        body = f'<cfRule type="dataBar"{p}><dataBar showValue="{show}">{_cf_threshold_xml(rule, 2)}<color rgb="{rgb}"/></dataBar></cfRule>'
+    elif kind in ("colorScale2", "colorScale3"):
+        count = 2 if kind == "colorScale2" else 3
+        defaults = ["#f8696b", "#63be7b"] if count == 2 else ["#f8696b", "#ffeb84", "#63be7b"]
+        colors = rule.get("colors") if isinstance(rule.get("colors"), list) else defaults
+        color_xml = "".join(f'<color rgb="FF{str(colors[index] if index < len(colors) else defaults[index]).lstrip("#").upper()}"/>' for index in range(count))
+        thresholds = _cf_threshold_xml(rule, count) if rule.get("thresholds") else (
+            '<cfvo type="min"/><cfvo type="max"/>' if count == 2
+            else '<cfvo type="min"/><cfvo type="percentile" val="50"/><cfvo type="max"/>'
+        )
+        body = f'<cfRule type="colorScale"{p}><colorScale>{thresholds}{color_xml}</colorScale></cfRule>'
+    elif kind == "iconSet":
+        icon_set = str(rule.get("iconSet") or "3TrafficLights1")
+        count = 5 if icon_set.startswith("5") else 4 if icon_set.startswith("4") else 3
+        reverse = ' reverse="1"' if rule.get("reverse") else ""
+        show = "1" if rule.get("showValue", True) else "0"
+        body = f'<cfRule type="iconSet"{p}><iconSet iconSet="{html.escape(icon_set, quote=True)}" showValue="{show}"{reverse}>{_cf_threshold_xml(rule, count)}</iconSet></cfRule>'
+    else:
+        return ""
+    return f'<conditionalFormatting sqref="{cell_range}">{body}</conditionalFormatting>'
+
+
+def _append_conditional_dxfs(styles_xml: str, colors: list[str]) -> tuple[str, dict[str, int]]:
+    normalized = []
+    for value in colors:
+        color = str(value or "#fff2cc").lower()
+        if color not in normalized:
+            normalized.append(color)
+    if not normalized:
+        return styles_xml, {}
+    block = re.search(r'<dxfs\b([^>]*)>([\s\S]*?)</dxfs>', styles_xml, re.IGNORECASE)
+    self_closing = re.search(r'<dxfs\b([^>]*)/>', styles_xml, re.IGNORECASE)
+    existing_body = block.group(2) if block else ""
+    existing_count = len(re.findall(r'<dxf\b', existing_body, re.IGNORECASE))
+    ids = {color: existing_count + index for index, color in enumerate(normalized)}
+    additions = "".join(
+        f'<dxf><fill><patternFill patternType="solid"><fgColor rgb="FF{color.lstrip("#").upper()}"/><bgColor indexed="64"/></patternFill></fill></dxf>'
+        for color in normalized
+    )
+    total = existing_count + len(normalized)
+    if block:
+        attrs = re.sub(r'\s+count="[^"]*"', "", block.group(1), flags=re.IGNORECASE)
+        replacement = f'<dxfs{attrs} count="{total}">{existing_body}{additions}</dxfs>'
+        return styles_xml[:block.start()] + replacement + styles_xml[block.end():], ids
+    if self_closing:
+        attrs = re.sub(r'\s+count="[^"]*"', "", self_closing.group(1), flags=re.IGNORECASE)
+        replacement = f'<dxfs{attrs} count="{total}">{additions}</dxfs>'
+        return styles_xml[:self_closing.start()] + replacement + styles_xml[self_closing.end():], ids
+    insert = re.search(r'<(?:tableStyles|colors|extLst)\b|</styleSheet>', styles_xml, re.IGNORECASE)
+    pos = insert.start() if insert else len(styles_xml)
+    return styles_xml[:pos] + f'<dxfs count="{total}">{additions}</dxfs>' + styles_xml[pos:], ids
+
+
+def apply_conditional_formatting_from_fods(
+    xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
+) -> None:
+    rules_by_sheet = parse_conditional_formatting_from_fods(source_fods)
+    if not rules_by_sheet:
+        return
+    style_source = replacements.get(XLSX_STYLES_ENTRY)
+    if style_source is None:
+        entry = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
+        style_source = entry.decode("utf-8", errors="replace") if entry else ""
+    highlight_types = {"greaterThan", "lessThan", "between", "equal", "blank", "textContains", "dateOccurs", "duplicate", "top", "bottom", "aboveAverage", "belowAverage", "formula"}
+    colors = [rule.get("color") or "#fff2cc" for rules in rules_by_sheet.values() for rule in rules if rule.get("type") in highlight_types]
+    dxf_ids: dict[str, int] = {}
+    if style_source and colors:
+        style_source, dxf_ids = _append_conditional_dxfs(style_source, colors)
+        replacements[XLSX_STYLES_ENTRY] = style_source
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    for sheet_name, rules in rules_by_sheet.items():
+        entry_path = _sheet_name_equivalent_value(sheet_entries, sheet_name)
+        if not entry_path:
+            continue
+        sheet_xml = replacements.get(entry_path)
+        if sheet_xml is None:
+            entry = read_zip_entry(xlsx_bytes, entry_path)
+            sheet_xml = entry.decode("utf-8", errors="replace") if entry else ""
+        if not sheet_xml:
+            continue
+        sheet_xml = re.sub(r'<(?:\w+:)?conditionalFormatting\b[^>]*>[\s\S]*?</(?:\w+:)?conditionalFormatting\s*>', "", sheet_xml, flags=re.IGNORECASE)
+        sheet_xml = re.sub(r'<(?:\w+:)?conditionalFormatting\b[^>]*/>', "", sheet_xml, flags=re.IGNORECASE)
+        parts = []
+        for priority, rule in enumerate(rules, start=1):
+            color = str(rule.get("color") or "#fff2cc").lower()
+            dxf_id = dxf_ids.get(color) if rule.get("type") in highlight_types else None
+            built = _cf_rule_xml(rule, priority, dxf_id)
+            if built:
+                parts.append(built)
+        if parts:
+            block = "".join(parts)
+            later = re.search(r'<(?:\w+:)?(?:dataValidations|hyperlinks|printOptions|pageMargins|pageSetup|headerFooter|rowBreaks|colBreaks|customProperties|cellWatches|ignoredErrors|smartTags|drawing|legacyDrawing|legacyDrawingHF|picture|oleObjects|controls|webPublishItems|tableParts|extLst)\b', sheet_xml, re.IGNORECASE)
+            if later:
+                sheet_xml = sheet_xml[:later.start()] + block + sheet_xml[later.start():]
+            else:
+                close = re.search(r'</(?:\w+:)?worksheet\s*>', sheet_xml, re.IGNORECASE)
+                pos = close.start() if close else len(sheet_xml)
+                sheet_xml = sheet_xml[:pos] + block + sheet_xml[pos:]
+        replacements[entry_path] = sheet_xml
+
+
+def _parse_dxf_fill_colors(styles_xml: str) -> list[str]:
+    block = re.search(r'<dxfs\b[^>]*>([\s\S]*?)</dxfs>', styles_xml or "", re.IGNORECASE)
+    if not block:
+        return []
+    colors = []
+    for match in re.finditer(r'<dxf\b[^>]*>([\s\S]*?)</dxf>', block.group(1), re.IGNORECASE):
+        rgb = re.search(r'<fgColor\b[^>]*\brgb="(?:[0-9A-Fa-f]{2})?([0-9A-Fa-f]{6})"', match.group(1), re.IGNORECASE)
+        colors.append(f'#{rgb.group(1).lower()}' if rgb else "#fff2cc")
+    return colors
+
+
+def _cf_attrs(raw: str) -> dict[str, str]:
+    return {key: html.unescape(value) for key, value in re.findall(r'([\w:]+)="([^"]*)"', raw or "")}
+
+
+def _cf_thresholds(body: str) -> list[dict]:
+    result = []
+    for match in re.finditer(r'<cfvo\b([^>]*)/>', body or "", re.IGNORECASE):
+        attrs = _cf_attrs(match.group(1))
+        item = {"type": attrs.get("type", "percent")}
+        if "val" in attrs:
+            try:
+                item["val"] = float(attrs["val"]) if "." in attrs["val"] else int(attrs["val"])
+            except ValueError:
+                item["val"] = attrs["val"]
+        if attrs.get("gte") == "0":
+            item["gte"] = False
+        result.append(item)
+    return result
+
+
+def _range_model(ref: str) -> dict | None:
+    match = re.fullmatch(r'\$?([A-Z]{1,3})\$?(\d+)(?::\$?([A-Z]{1,3})\$?(\d+))?', ref.strip(), re.IGNORECASE)
+    if not match:
+        return None
+    return {"start": {"c": match.group(1).upper(), "r": int(match.group(2))}, "end": {"c": (match.group(3) or match.group(1)).upper(), "r": int(match.group(4) or match.group(2))}}
+
+
+def parse_conditional_formatting_from_xlsx(xlsx_bytes: bytes) -> dict[str, list[dict]]:
+    styles_entry = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
+    dxf_colors = _parse_dxf_fill_colors(styles_entry.decode("utf-8", errors="replace") if styles_entry else "")
+    result: dict[str, list[dict]] = {}
+    for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        entry = read_zip_entry(xlsx_bytes, entry_path)
+        if not entry:
+            continue
+        xml = entry.decode("utf-8", errors="replace")
+        rules = []
+        for cf_match in re.finditer(r'<(?:\w+:)?conditionalFormatting\b([^>]*)>([\s\S]*?)</(?:\w+:)?conditionalFormatting\s*>', xml, re.IGNORECASE):
+            sqref = _cf_attrs(cf_match.group(1)).get("sqref", "")
+            ranges = [_range_model(ref) for ref in sqref.split()]
+            ranges = [item for item in ranges if item]
+            rule_re = re.compile(r'<(?:\w+:)?cfRule\b([^>]*?)(?:/>|>([\s\S]*?)</(?:\w+:)?cfRule\s*>)', re.IGNORECASE)
+            for rule_match in rule_re.finditer(cf_match.group(2)):
+                attrs = _cf_attrs(rule_match.group(1))
+                body = rule_match.group(2) or ""
+                native_type = attrs.get("type", "")
+                rule: dict = {"priority": int(attrs.get("priority") or len(rules) + 1)}
+                dxf_index = int(attrs.get("dxfId", "-1")) if attrs.get("dxfId", "-1").isdigit() else -1
+                if dxf_index >= 0:
+                    rule["color"] = dxf_colors[dxf_index] if dxf_index < len(dxf_colors) else "#fff2cc"
+                formulas = [html.unescape(re.sub(r'<[^>]+>', '', item)) for item in re.findall(r'<(?:\w+:)?formula\b[^>]*>([\s\S]*?)</(?:\w+:)?formula>', body, re.IGNORECASE)]
+                if native_type == "cellIs":
+                    rule["type"] = {"greaterThan": "greaterThan", "lessThan": "lessThan", "between": "between", "equal": "equal"}.get(attrs.get("operator"), "equal")
+                    if formulas:
+                        raw = formulas[0]
+                        try: rule["value"] = float(raw) if "." in raw else int(raw)
+                        except ValueError: rule["value"] = raw.strip('"').replace('""', '"')
+                    if len(formulas) > 1:
+                        try: rule["value2"] = float(formulas[1]) if "." in formulas[1] else int(formulas[1])
+                        except ValueError: rule["value2"] = formulas[1]
+                elif native_type in ("containsBlanks", "notContainsBlanks"):
+                    rule["type"] = "blank"
+                elif native_type == "duplicateValues": rule["type"] = "duplicate"
+                elif native_type in ("containsText", "notContainsText", "beginsWith", "endsWith"):
+                    rule.update(type="textContains", text=attrs.get("text", ""))
+                elif native_type == "timePeriod": rule.update(type="dateOccurs", timePeriod=attrs.get("timePeriod", "today"))
+                elif native_type == "top10": rule.update(type="bottom" if attrs.get("bottom") in ("1", "true") else "top", rank=int(attrs.get("rank") or 10))
+                elif native_type == "aboveAverage": rule["type"] = "belowAverage" if attrs.get("aboveAverage") in ("0", "false") else "aboveAverage"
+                elif native_type == "expression": rule.update(type="formula", formula="=" + (formulas[0] if formulas else "TRUE"))
+                elif native_type == "dataBar":
+                    color_match = re.search(r'<color\b[^>]*rgb="(?:[0-9A-Fa-f]{2})?([0-9A-Fa-f]{6})"', body, re.IGNORECASE)
+                    data_attrs = _cf_attrs(re.search(r'<dataBar\b([^>]*)>', body, re.IGNORECASE).group(1) if re.search(r'<dataBar\b([^>]*)>', body, re.IGNORECASE) else "")
+                    rule.update(type="dataBar", color=f'#{color_match.group(1).lower()}' if color_match else "#638ec6", showValue=data_attrs.get("showValue", "1") not in ("0", "false"), thresholds=_cf_thresholds(body))
+                elif native_type == "colorScale":
+                    colors = [f'#{value.lower()}' for value in re.findall(r'<color\b[^>]*rgb="(?:[0-9A-Fa-f]{2})?([0-9A-Fa-f]{6})"', body, re.IGNORECASE)]
+                    rule.update(type="colorScale3" if len(colors) >= 3 else "colorScale2", colors=colors[:3], thresholds=_cf_thresholds(body))
+                elif native_type == "iconSet":
+                    icon_match = re.search(r'<iconSet\b([^>]*)>', body, re.IGNORECASE)
+                    icon_attrs = _cf_attrs(icon_match.group(1) if icon_match else "")
+                    rule.update(type="iconSet", iconSet=icon_attrs.get("iconSet", "3TrafficLights1"), reverse=icon_attrs.get("reverse") in ("1", "true"), showValue=icon_attrs.get("showValue", "1") not in ("0", "false"), thresholds=_cf_thresholds(body))
+                else:
+                    continue
+                rule.setdefault("color", "#fff2cc")
+                for range_model in ranges:
+                    item = dict(rule)
+                    item["range"] = range_model
+                    rules.append(item)
+        if rules:
+            rules.sort(key=lambda item: item.get("priority", 10**9))
+            for index, rule in enumerate(rules, start=1):
+                rule.pop("priority", None)
+                rule["id"] = f"cf-import-{index}"
+            result[sheet_name] = rules
+    return result
+
+
+def apply_conditional_formatting_to_fods(fods_xml: str, rules_by_sheet: dict[str, list[dict]]) -> str:
+    if not rules_by_sheet:
+        return fods_xml
+    def replace(match: re.Match) -> str:
+        attrs = match.group(1)
+        name_match = re.search(r'table:name=["\']([^"\']*)["\']', attrs, re.IGNORECASE)
+        if not name_match:
+            return match.group(0)
+        sheet_name = html.unescape(name_match.group(1))
+        rules = rules_by_sheet.get(sheet_name)
+        if not rules:
+            return match.group(0)
+        attrs = _FODS_CF_ATTR_RE.sub("", attrs)
+        payload = html.escape(json.dumps(rules, ensure_ascii=False, separators=(",", ":")), quote=True)
+        return f'<table:table{attrs} vno:conditional-formatting="{payload}">'
+    result = re.sub(r'<table:table(?=[\s>/])([^>]*)>', replace, fods_xml, flags=re.IGNORECASE)
+    if not _declares_vno_namespace(result):
+        result = re.sub(r'<office:document\b', f'<office:document xmlns:vno="{SHEET_VNO_NS}"', result, count=1)
+    return result
+
+
 # AutoFilter overlay (database-ranges in ODF ↔ <autoFilter> in OOXML)
 # ---------------------------------------------------------------------------
 
@@ -5636,6 +5985,9 @@ def postprocess_sheet_xlsx(
     if source_fods:
         _apply_sheet_text_boxes_to_xlsx(xlsx_bytes, _parse_fods_text_boxes(source_fods), replacements)
         _apply_sheet_resolved_comments_to_xlsx(xlsx_bytes, _parse_fods_resolved_comments(source_fods), replacements)
+        # Run last so broad style/layout fidelity repairs cannot overwrite the
+        # dxfs or worksheet conditionalFormatting blocks authored by the app.
+        apply_conditional_formatting_from_fods(xlsx_bytes, source_fods, replacements)
 
     calculation_mode = parse_calculation_mode_from_fods(source_fods)
     if calculation_mode:
@@ -9470,6 +9822,7 @@ def overlay_sheet_xlsx_fods(
     xml = overlay_pivot_chart_metadata_to_fods(xlsx_bytes, xml)
     # Scenarios: overlay vno:scenarios from XLSX worksheet XMLs
     xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
+    xml = apply_conditional_formatting_to_fods(xml, parse_conditional_formatting_from_xlsx(xlsx_bytes))
     return xml
 
 
@@ -9535,6 +9888,7 @@ def overlay_sheet_xlsx_fods_p1(
     xml = overlay_pivot_chart_metadata_to_fods(xlsx_bytes, xml)
     if not skeleton:
         xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
+    xml = apply_conditional_formatting_to_fods(xml, parse_conditional_formatting_from_xlsx(xlsx_bytes))
     return xml
 
 

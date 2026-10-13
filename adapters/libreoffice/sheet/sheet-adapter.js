@@ -3913,9 +3913,13 @@ export class SheetAdapter {
       const imagesAtOpen = Math.max(0, Number(this.grid.imagesAtOpenBySheet?.[sheetName]) || 0);
       const scenarios = this.grid.getScenarios ? this.grid.getScenarios(sheetName) : (this.grid.scenariosBySheet?.[sheetName] || []);
       const scenariosAttr = scenarios && scenarios.length ? ` vno:scenarios="${this._escapeXml(JSON.stringify(scenarios))}"` : "";
+      const conditionalRules = this.grid.conditionalFormattingBySheet?.[sheetName] || [];
+      // Always mark the collection, including [], so deleting the final rule
+      // is an explicit edit and the XLSX postprocessor removes stale source CF.
+      const conditionalRulesAttr = ` vno:conditional-formatting="${this._escapeXml(JSON.stringify(conditionalRules))}"`;
       const textBoxes = this.grid.textBoxesBySheet?.[sheetName] || [];
       const textBoxesAttr = textBoxes.length ? ` vno:text-boxes="${this._escapeXml(JSON.stringify(textBoxes.map(box => ({ text: String(box.text || ""), anchor: box.anchor, widthPx: Math.max(180, Number(box.widthPx) || 180), heightPx: Math.max(54, Number(box.heightPx) || 54) }))))}"` : "";
-      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${splitAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${textBoxesAttr}${resolvedCommentsAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${splitAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${conditionalRulesAttr}${textBoxesAttr}${resolvedCommentsAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
@@ -4357,6 +4361,27 @@ ${pristineXlsxMarker}
     workbook.conditionalFormattingBySheet = Object.fromEntries((workbook.sheets || []).map(name => [name, []]));
     workbook.dataValidationsBySheet = Object.fromEntries((workbook.sheets || []).map(name => [name, []]));
 
+    // VN-authored FODS and the XLSX-open overlay carry the full rule model in
+    // one escaped JSON attribute. It is authoritative because calcext cannot
+    // represent data bars, color scales, icon sets, or priority faithfully.
+    const metadataSheets = new Set();
+    String(xmlText || "").replace(/<table:table(?=[\s>/])([^>]*)>/gi, (_, attrs) => {
+      const sheetName = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
+      const raw = attrs.match(/vno:conditional-formatting=["']([^"']*)["']/i)?.[1] || "";
+      if (!sheetName || !raw || !workbook.conditionalFormattingBySheet[sheetName]) return "";
+      try {
+        const rules = JSON.parse(this._unescapeXml(raw));
+        if (Array.isArray(rules)) {
+          workbook.conditionalFormattingBySheet[sheetName] = rules.filter(rule => rule?.range && rule?.type).map((rule, index) => ({
+            ...rule,
+            id: rule.id || `cf-import-${sheetName}-${index + 1}`
+          }));
+          metadataSheets.add(sheetName);
+        }
+      } catch (_) {}
+      return "";
+    });
+
     let cfIndex = 0;
     String(xmlText || "").replace(/<calcext:conditional-format\b([^>]*)>([\s\S]*?)<\/calcext:conditional-format>/gi, (_, attrs, body) => {
       const rawTarget = attrs.match(/calcext:target-range-address=["']([^"']*)["']/i)?.[1] || "";
@@ -4368,6 +4393,7 @@ ${pristineXlsxMarker}
         const parsed = this._parseConditionalCondition(value, styleName, colors);
         if (!parsed) return "";
         for (const target of targets) {
+          if (metadataSheets.has(target.sheet)) continue;
           if (!workbook.conditionalFormattingBySheet[target.sheet]) continue;
           workbook.conditionalFormattingBySheet[target.sheet].push({
             id: `cf-import-${++cfIndex}`,

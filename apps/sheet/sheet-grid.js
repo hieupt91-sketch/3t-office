@@ -34,6 +34,13 @@ import {
   normalizeValidationConfig,
   validateDataRule
 } from "./sheet-data-rules.js";
+import {
+  conditionalRuleMatches,
+  computeRangeStats,
+  conditionalVisual,
+  normalizeConditionalRule
+} from "./conditional-formatting.js";
+
 
 
 const { showAlertDialog, showConfirmDialog, showPromptDialog, showFindReplaceDialog } = createLazyDialogs("sheet");
@@ -5616,6 +5623,7 @@ _bindGridKeyboardNavigation() {
   }
 
   setCellValue(col, row, val, recordUndo = true, historyOptions = {}) {
+    this._cfEpoch = (this._cfEpoch || 0) + 1;
     if (typeof val === "string") val = val.normalize("NFC");
     if (recordUndo && this._guardProtectedMutation()) return false;
     const key = `${col}${row}`;
@@ -5921,6 +5929,7 @@ _bindGridKeyboardNavigation() {
   }
 
   _recalculateAllFormulas(excludeKey, force = false, incremental = null) {
+    this._cfEpoch = (this._cfEpoch || 0) + 1;
     if (this.calculationMode === "manual" && !force) return;
     if (!incremental || force) this._formulaDependencyGraph = null;
     const activeSheet = this.activeSheet;
@@ -10065,6 +10074,7 @@ _bindGridKeyboardNavigation() {
   }
 
   _recordHistory(action, { coalesce = false } = {}) {
+    this._cfEpoch = (this._cfEpoch || 0) + 1;
     if (action?.type === "cell" &&
       Object.is(action.prevVal, action.nextVal) &&
       action.prevWasText === action.nextWasText &&
@@ -10980,6 +10990,10 @@ _bindGridKeyboardNavigation() {
       this.scenariosBySheet[action.sheet] = structuredClone(direction === "undo" ? action.before : action.after);
     } else if (action.type === "collection-replace") {
       this[action.collection][action.sheet] = structuredClone(direction === "undo" ? action.before : action.after);
+      this._refreshVisibleRuleVisuals();
+    } else if (action.type === "conditional-rules") {
+      this.conditionalFormattingBySheet[action.sheet] = structuredClone(direction === "undo" ? action.before : action.after);
+
       this._refreshVisibleRuleVisuals();
     } else if (action.type === "collection") {
       const collection = this[action.collection][action.sheet] ||= [];
@@ -12715,16 +12729,12 @@ _bindGridKeyboardNavigation() {
   }
 
   addConditionalFormattingRule(range, config, recordUndo = true) {
-    const validTypes = ["greaterThan", "lessThan", "blank"];
-    if (!config || !validTypes.includes(config.type)) return false;
-    const numericThreshold = config.type === "blank" ? null : Number(config.value);
-    if (config.type !== "blank" && !Number.isFinite(numericThreshold)) return false;
+    const normalized = normalizeConditionalRule(config);
+    if (!normalized) return false;
     const rule = {
       id: `cf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
       range: this._normalizeRange(range),
-      type: config.type,
-      value: numericThreshold,
-      color: config.color || "#fff2cc"
+      ...normalized
     };
     this.conditionalFormattingBySheet[this.activeSheet].push(rule);
     this._refreshVisibleRuleVisuals();
@@ -12740,6 +12750,30 @@ _bindGridKeyboardNavigation() {
     return [...(this.conditionalFormattingBySheet[sheetName] || [])];
   }
 
+  updateConditionalFormattingRule(ruleId, config, range = null, recordUndo = true) {
+    const rules = this.conditionalFormattingBySheet[this.activeSheet] || [];
+    const index = rules.findIndex(rule => rule.id === ruleId);
+    const normalized = normalizeConditionalRule(config);
+    if (index < 0 || !normalized) return false;
+    const before = structuredClone(rules);
+    rules[index] = { id: ruleId, range: this._normalizeRange(range || rules[index].range), ...normalized };
+    if (recordUndo) this._recordHistory({ type: "conditional-rules", sheet: this.activeSheet, before, after: structuredClone(rules) });
+    this._refreshVisibleRuleVisuals();
+    return rules[index];
+  }
+
+  moveConditionalFormattingRule(ruleId, direction, recordUndo = true) {
+    const rules = this.conditionalFormattingBySheet[this.activeSheet] || [];
+    const index = rules.findIndex(rule => rule.id === ruleId);
+    const nextIndex = direction === "up" ? index - 1 : index + 1;
+    if (index < 0 || nextIndex < 0 || nextIndex >= rules.length) return false;
+    const before = structuredClone(rules);
+    [rules[index], rules[nextIndex]] = [rules[nextIndex], rules[index]];
+    if (recordUndo) this._recordHistory({ type: "conditional-rules", sheet: this.activeSheet, before, after: structuredClone(rules) });
+    this._refreshVisibleRuleVisuals();
+    return true;
+  }
+
   _numericCellValue(value) {
     if (typeof value === "number") return value;
     const text = String(value ?? "").trim();
@@ -12748,30 +12782,84 @@ _bindGridKeyboardNavigation() {
     return Number(normalized);
   }
 
+  _conditionalRangeValues(rule) {
+    if (this._cfRenderCache?.has(rule.id)) return this._cfRenderCache.get(rule.id);
+    const values = [];
+    const range = this._normalizeRange(rule.range);
+    const firstCol = this._columnNumber(range.start.c), lastCol = this._columnNumber(range.end.c);
+    const rangeCells = (range.end.r - range.start.r + 1) * (lastCol - firstCol + 1);
+    if (rangeCells <= this.cellsData.size * 2) {
+      // Vùng nhỏ hơn dữ liệu: đọc trực tiếp từng ô trong vùng (không quét cả sổ).
+      for (let col = firstCol; col <= lastCol; col++) {
+        const label = this._columnLabel(col);
+        for (let row = range.start.r; row <= range.end.r; row++) {
+          const item = this.cellsData.get(label + row);
+          if (item) values.push(item.val ?? "");
+        }
+      }
+    } else {
+      for (const [coord, item] of this.cellsData.entries()) {
+        const match = String(coord).match(/^([A-Z]+)(\d+)$/);
+        if (match && this._rangeContains(rule.range, match[1], Number(match[2]))) values.push(item?.val ?? "");
+      }
+    }
+    this._cfRenderCache?.set(rule.id, values);
+    return values;
+  }
+
+  /** Thống kê vùng của một quy tắc, giữ trong bộ nhớ đệm đến khi dữ liệu đổi (epoch/kích thước) hoặc quá 1 giây. */
+  _conditionalStats(rule) {
+    const cache = this._cfStatsCache ||= new Map();
+    const now = typeof performance !== "undefined" && performance.now ? performance.now() : Date.now();
+    const key = `${this.activeSheet}\u0000${rule.id}`;
+    const entry = cache.get(key);
+    if (entry && entry.epoch === this._cfEpoch && entry.size === this.cellsData.size && now - entry.at < 1000
+      && entry.rangeLabel === this._rangeLabel(rule.range) && entry.type === rule.type) return entry.stats;
+    const stats = computeRangeStats(this._conditionalRangeValues(rule), value => this._numericCellValue(value), rule.type === "duplicate");
+    cache.set(key, { stats, at: now, epoch: this._cfEpoch, size: this.cellsData.size, rangeLabel: this._rangeLabel(rule.range), type: rule.type });
+    return stats;
+  }
+
+  _conditionalContext() {
+    return {
+      contains: (range, col, row) => this._rangeContains(range, col, row),
+      values: range => this._conditionalRangeValues({
+        id: `range:${this._rangeLabel(range)}`,
+        range
+      }),
+      numeric: value => this._numericCellValue(value),
+      stats: rule => this._conditionalStats(rule),
+      now: () => new Date(),
+      formula: (rule, col, row) => {
+        const baseCol = this._columnNumber(rule.range.start.c);
+        const targetCol = this._columnNumber(col);
+        const formula = this._offsetFormula(rule.formula, targetCol - baseCol, row - rule.range.start.r);
+        const result = this.formulaEngine.evaluate(formula);
+        return result === true || result === 1 || String(result).toUpperCase() === "TRUE";
+      }
+    };
+  }
+
   _matchingConditionalRule(col, row) {
     const value = this.cellsData.get(`${col}${row}`)?.val ?? "";
-    return (this.conditionalFormattingBySheet[this.activeSheet] || []).find(rule => {
-      if (!this._rangeContains(rule.range, col, row)) return false;
-      if (rule.type === "blank") return String(value).trim() === "";
-      if (rule.type === "duplicate") {
-        if (String(value).trim() === "") return false;
-        let count = 0;
-        const norm = String(value).trim().toLowerCase();
-        for (let r = rule.range.start.r; r <= rule.range.end.r; r++) {
-          for (let cNum = this._columnNumber(rule.range.start.c); cNum <= this._columnNumber(rule.range.end.c); cNum++) {
-            const v = this.cellsData.get(`${this._columnLabel(cNum)}${r}`)?.val ?? "";
-            if (String(v).trim().toLowerCase() === norm) {
-              count++;
-              if (count > 1) return true;
-            }
-          }
-        }
-        return false;
+    const context = this._conditionalContext();
+    return (this.conditionalFormattingBySheet[this.activeSheet] || [])
+      .find(rule => conditionalRuleMatches(rule, value, col, row, context)) || null;
+  }
+
+  _conditionalCellVisual(col, row) {
+    const value = this.cellsData.get(`${col}${row}`)?.val ?? "";
+    const context = this._conditionalContext();
+    const visual = {};
+    for (const rule of this.conditionalFormattingBySheet[this.activeSheet] || []) {
+      if (!conditionalRuleMatches(rule, value, col, row, context)) continue;
+      if (["dataBar", "colorScale2", "colorScale3", "iconSet"].includes(rule.type)) {
+        Object.assign(visual, conditionalVisual(rule, value, context));
+      } else if (!visual.fill && rule.color) {
+        visual.fill = rule.color;
       }
-      const numeric = this._numericCellValue(value);
-      if (!Number.isFinite(numeric)) return false;
-      return rule.type === "greaterThan" ? numeric > rule.value : numeric < rule.value;
-    }) || null;
+    }
+    return visual;
   }
 
   addDataValidation(range, config, recordUndo = true) {
@@ -12850,8 +12938,18 @@ _bindGridKeyboardNavigation() {
   _applyRuleVisuals(dom, col, row) {
     if (!dom) return;
     const item = this.cellsData.get(`${col}${row}`);
-    const conditionalRule = this._matchingConditionalRule(col, row);
-    dom.style.backgroundColor = conditionalRule?.color || item?.style?.backgroundColor || "";
+    const visual = this._conditionalCellVisual(col, row);
+    dom.style.backgroundColor = visual.fill || item?.style?.backgroundColor || "";
+    dom.style.backgroundImage = visual.dataBar
+      ? `linear-gradient(90deg, ${visual.dataBar.color}aa 0%, ${visual.dataBar.color}aa ${visual.dataBar.percent}%, transparent ${visual.dataBar.percent}%, transparent 100%)`
+      : "";
+    if (visual.icon) {
+      dom.dataset.cfIcon = visual.icon;
+      dom.style.setProperty?.("--vno-cf-icon-color", visual.iconColor || "currentColor");
+    } else {
+      delete dom.dataset.cfIcon;
+      dom.style.removeProperty?.("--vno-cf-icon-color");
+    }
     dom.classList.toggle("has-validation", !!this.getValidationForCell(col, row));
     const validation = this.validateCellValue(col, row);
     dom.classList.toggle("is-validation-invalid", this.showInvalidDataCircles && !validation.valid);
@@ -12868,9 +12966,11 @@ _bindGridKeyboardNavigation() {
 
   _refreshVisibleRuleVisuals() {
     if (!this.container?.querySelectorAll) return;
+    this._cfRenderCache = new Map();
     this.container.querySelectorAll(".vno-grid-cell[data-coord]").forEach(dom => {
       this._applyRuleVisuals(dom, dom.dataset.col, Number(dom.dataset.row));
     });
+    this._cfRenderCache = null;
   }
 
   _showValidationDropdown(cell, col, row) {
@@ -14855,43 +14955,146 @@ _bindGridKeyboardNavigation() {
     const selectedRange = structuredClone(this.selectionRange);
     const selectedRangeLabel = this.getSelectedRangeLabel();
     const overlay = this._createSheetDialog(t("sheetDialogs.conditionalFormatting"), `
-      <p class="vno-rule-range">${t("sheetDialogs.range")}: <strong>${selectedRangeLabel}</strong></p>
       <section class="vno-cf-rule-manager" aria-label="${t("sheetDialogs.cfCurrentRules")}">
         <h3>${t("sheetDialogs.cfCurrentRules")}</h3>
         <div id="vno-cf-rule-list" aria-live="polite"></div>
+        <button type="button" class="vno-btn" id="vno-cf-new">${t("sheetDialogs.cfNewRule")}</button>
       </section>
-      <label>${t("sheetDialogs.rule")}<select id="vno-cf-type" aria-label="${t("sheetDialogs.rule")}"><option value="greaterThan">${t("sheetDialogs.greaterThan")}</option><option value="lessThan">${t("sheetDialogs.lessThan")}</option><option value="blank">${t("sheetDialogs.blankCell")}</option></select></label>
-      <label id="vno-cf-value-row">${t("sheetDialogs.value")}<input id="vno-cf-value" type="number" value="0" aria-label="${t("sheetDialogs.value")}"></label>
-      <label>${t("sheetDialogs.fillColor")}<input id="vno-cf-color" type="color" value="#fff2cc" aria-label="${t("sheetDialogs.fillColor")}"></label>
+      <section class="vno-cf-editor" aria-label="${t("sheetDialogs.cfRuleEditor")}">
+      <label>${t("sheetDialogs.range")}<input id="vno-cf-range" value="${this._escapeHtml(selectedRangeLabel)}" aria-label="${t("sheetDialogs.range")}"></label>
+      <label>${t("sheetDialogs.rule")}<select id="vno-cf-type" aria-label="${t("sheetDialogs.rule")}">
+        <optgroup label="${t("sheetDialogs.cfHighlightCells")}">
+          <option value="greaterThan">${t("sheetDialogs.greaterThan")}</option><option value="lessThan">${t("sheetDialogs.lessThan")}</option>
+          <option value="between">${t("sheetDialogs.between")}</option><option value="equal">${t("sheetDialogs.equalTo")}</option>
+          <option value="textContains">${t("sheetDialogs.textContains")}</option><option value="dateOccurs">${t("sheetDialogs.dateOccurs")}</option>
+          <option value="duplicate">${t("sheetDialogs.duplicateValues")}</option><option value="blank">${t("sheetDialogs.blankCell")}</option>
+        </optgroup>
+        <optgroup label="${t("sheetDialogs.cfTopBottom")}">
+          <option value="top">${t("sheetDialogs.topN")}</option><option value="bottom">${t("sheetDialogs.bottomN")}</option>
+          <option value="aboveAverage">${t("sheetDialogs.aboveAverage")}</option><option value="belowAverage">${t("sheetDialogs.belowAverage")}</option>
+        </optgroup>
+        <optgroup label="${t("sheetDialogs.cfVisual")}">
+          <option value="dataBar">${t("sheetDialogs.dataBar")}</option><option value="colorScale2">${t("sheetDialogs.colorScale2")}</option>
+          <option value="colorScale3">${t("sheetDialogs.colorScale3")}</option><option value="iconSet">${t("sheetDialogs.iconSet")}</option>
+        </optgroup>
+        <optgroup label="${t("sheetDialogs.cfAdvanced")}"><option value="formula">${t("sheetDialogs.formulaRule")}</option></optgroup>
+      </select></label>
+      <label id="vno-cf-value-row">${t("sheetDialogs.value")}<input id="vno-cf-value" type="text" value="0"></label>
+      <label id="vno-cf-value2-row">${t("sheetDialogs.maximum")}<input id="vno-cf-value2" type="number" value="100"></label>
+      <label id="vno-cf-text-row">${t("sheetDialogs.textValue")}<input id="vno-cf-text" type="text"></label>
+      <label id="vno-cf-date-row">${t("sheetDialogs.datePeriod")}<select id="vno-cf-date"><option value="yesterday">${t("sheetDialogs.yesterday")}</option><option value="today">${t("sheetDialogs.today")}</option><option value="tomorrow">${t("sheetDialogs.tomorrow")}</option><option value="last7Days">${t("sheetDialogs.last7Days")}</option><option value="lastWeek">${t("sheetDialogs.lastWeek")}</option><option value="thisWeek">${t("sheetDialogs.thisWeek")}</option><option value="nextWeek">${t("sheetDialogs.nextWeek")}</option><option value="lastMonth">${t("sheetDialogs.lastMonth")}</option><option value="thisMonth">${t("sheetDialogs.thisMonth")}</option><option value="nextMonth">${t("sheetDialogs.nextMonth")}</option></select></label>
+      <label id="vno-cf-rank-row">${t("sheetDialogs.rankCount")}<input id="vno-cf-rank" type="number" min="1" max="1000" value="10"></label>
+      <label id="vno-cf-formula-row">${t("sheetDialogs.formula")}<input id="vno-cf-formula" type="text" value="=" placeholder="=$A1&gt;100"></label>
+      <label id="vno-cf-color-row">${t("sheetDialogs.fillColor")}<input id="vno-cf-color" type="color" value="#fff2cc"></label>
+      <div id="vno-cf-scale-row" class="vno-cf-colors"><label>${t("sheetDialogs.minimumColor")}<input id="vno-cf-color1" type="color" value="#f8696b"></label><label id="vno-cf-mid-color">${t("sheetDialogs.midpointColor")}<input id="vno-cf-color2" type="color" value="#ffeb84"></label><label>${t("sheetDialogs.maximumColor")}<input id="vno-cf-color3" type="color" value="#63be7b"></label></div>
+      <div id="vno-cf-icon-row"><label>${t("sheetDialogs.iconStyle")}<select id="vno-cf-icon"><option value="3TrafficLights1">${t("sheetDialogs.iconTrafficLights")}</option><option value="3Arrows">${t("sheetDialogs.iconArrows3")}</option><option value="3Symbols">${t("sheetDialogs.iconSymbols3")}</option><option value="4Arrows">${t("sheetDialogs.iconArrows4")}</option><option value="4Rating">${t("sheetDialogs.iconRating4")}</option><option value="5Arrows">${t("sheetDialogs.iconArrows5")}</option><option value="5Rating">${t("sheetDialogs.iconRating5")}</option></select></label><label class="vno-cf-check"><input id="vno-cf-reverse" type="checkbox">${t("sheetDialogs.reverseIconOrder")}</label></div>
+      </section>
       <div class="vno-rule-error" role="alert"></div>`);
     if (!overlay) return false;
+    overlay.classList.add("vno-cf-dialog");
+    overlay.querySelector(".vno-rule-cancel").textContent = t("sheetDialogs.close");
+    let editingId = null;
+    const type = overlay.querySelector("#vno-cf-type");
+    const ruleLabel = rule => {
+      const labels = {
+        greaterThan: "greaterThan", lessThan: "lessThan", between: "between", equal: "equalTo", blank: "blankCell",
+        textContains: "textContains", dateOccurs: "dateOccurs", duplicate: "duplicateValues", top: "topN", bottom: "bottomN",
+        aboveAverage: "aboveAverage", belowAverage: "belowAverage", dataBar: "dataBar", colorScale2: "colorScale2",
+        colorScale3: "colorScale3", iconSet: "iconSet", formula: "formulaRule"
+      };
+      let detail = "";
+      if (["greaterThan", "lessThan", "equal"].includes(rule.type)) detail = `: ${rule.value}`;
+      else if (rule.type === "between") detail = `: ${rule.value} – ${rule.value2}`;
+      else if (rule.type === "textContains") detail = `: ${rule.text}`;
+      else if (rule.type === "dateOccurs") detail = `: ${t(`sheetDialogs.${rule.timePeriod}`)}`;
+      else if (["top", "bottom"].includes(rule.type)) detail = `: ${rule.rank}`;
+      else if (rule.type === "formula") detail = `: ${rule.formula}`;
+      return `${t(`sheetDialogs.${labels[rule.type] || "rule"}`)}${detail}`;
+    };
     const renderRules = () => {
       const host = overlay.querySelector("#vno-cf-rule-list");
       const rules = this.getConditionalFormattingRules();
-      host.innerHTML = rules.length ? rules.map(rule => {
-        const condition = rule.type === "blank"
-          ? t("sheetDialogs.blankCell")
-          : `${t(rule.type === "lessThan" ? "sheetDialogs.lessThan" : "sheetDialogs.greaterThan")}: ${this._escapeHtml(rule.value)}`;
-        return `<div class="vno-cf-rule-row" data-rule-id="${this._escapeHtml(rule.id)}"><span>${this._escapeHtml(rule.rangeLabel || this._rangeLabel(rule.range))} · ${condition}</span><span class="vno-cf-rule-color" style="background:${this._escapeHtml(rule.color)}" aria-label="${t("sheetDialogs.fillColor")}: ${this._escapeHtml(rule.color)}"></span><button type="button" class="vno-btn" data-cf-remove="${this._escapeHtml(rule.id)}">${t("sheetDialogs.cfRemoveRule")}</button></div>`;
+      host.innerHTML = rules.length ? rules.map((rule, index) => {
+        const swatch = rule.color || rule.colors?.[Math.floor(rule.colors.length / 2)] || "#ffffff";
+        return `<div class="vno-cf-rule-row" data-rule-id="${this._escapeHtml(rule.id)}"><button type="button" class="vno-cf-rule-select" data-cf-edit="${this._escapeHtml(rule.id)}"><strong>${index + 1}. ${this._escapeHtml(ruleLabel(rule))}</strong><span>${this._escapeHtml(this._rangeLabel(rule.range))}</span></button><span class="vno-cf-rule-color" style="background:${this._escapeHtml(swatch)}"></span><span class="vno-cf-order"><button type="button" class="vno-btn" data-cf-up="${this._escapeHtml(rule.id)}" ${index === 0 ? "disabled" : ""} aria-label="${t("sheetDialogs.moveRuleUp")}">↑</button><button type="button" class="vno-btn" data-cf-down="${this._escapeHtml(rule.id)}" ${index === rules.length - 1 ? "disabled" : ""} aria-label="${t("sheetDialogs.moveRuleDown")}">↓</button><button type="button" class="vno-btn" data-cf-remove="${this._escapeHtml(rule.id)}">${t("sheetDialogs.cfRemoveRule")}</button></span></div>`;
       }).join("") : `<p class="vno-cf-empty">${t("sheetDialogs.cfNoRules")}</p>`;
+      host.querySelectorAll("[data-cf-edit]").forEach(button => button.addEventListener("click", () => editRule(rules.find(rule => rule.id === button.dataset.cfEdit))));
+      host.querySelectorAll("[data-cf-up]").forEach(button => button.addEventListener("click", () => { this.moveConditionalFormattingRule(button.dataset.cfUp, "up"); renderRules(); }));
+      host.querySelectorAll("[data-cf-down]").forEach(button => button.addEventListener("click", () => { this.moveConditionalFormattingRule(button.dataset.cfDown, "down"); renderRules(); }));
       host.querySelectorAll("[data-cf-remove]").forEach(button => button.addEventListener("click", () => {
-        if (this.deleteConditionalFormattingRule(button.dataset.cfRemove)) renderRules();
+        if (this.deleteConditionalFormattingRule(button.dataset.cfRemove)) { if (editingId === button.dataset.cfRemove) resetEditor(); renderRules(); }
       }));
     };
-    overlay.querySelector(".vno-rule-apply").textContent = t("sheetDialogs.cfAddRule");
-    renderRules();
-    const type = overlay.querySelector("#vno-cf-type");
-    const valueRow = overlay.querySelector("#vno-cf-value-row");
-    type.addEventListener("change", () => { valueRow.hidden = type.value === "blank"; });
+    const updateFields = () => {
+      const current = type.value;
+      overlay.querySelector("#vno-cf-value-row").hidden = !["greaterThan", "lessThan", "between", "equal"].includes(current);
+      overlay.querySelector("#vno-cf-value2-row").hidden = current !== "between";
+      overlay.querySelector("#vno-cf-text-row").hidden = current !== "textContains";
+      overlay.querySelector("#vno-cf-date-row").hidden = current !== "dateOccurs";
+      overlay.querySelector("#vno-cf-rank-row").hidden = !["top", "bottom"].includes(current);
+      overlay.querySelector("#vno-cf-formula-row").hidden = current !== "formula";
+      overlay.querySelector("#vno-cf-color-row").hidden = ["colorScale2", "colorScale3", "iconSet"].includes(current);
+      overlay.querySelector("#vno-cf-scale-row").hidden = !["colorScale2", "colorScale3"].includes(current);
+      overlay.querySelector("#vno-cf-mid-color").hidden = current !== "colorScale3";
+      overlay.querySelector("#vno-cf-icon-row").hidden = current !== "iconSet";
+    };
+    const resetEditor = () => {
+      editingId = null;
+      type.value = "greaterThan";
+      overlay.querySelector("#vno-cf-range").value = selectedRangeLabel;
+      overlay.querySelector("#vno-cf-value").value = "0";
+      overlay.querySelector("#vno-cf-value2").value = "100";
+      overlay.querySelector("#vno-cf-text").value = "";
+      overlay.querySelector("#vno-cf-formula").value = "=";
+      overlay.querySelector("#vno-cf-rank").value = "10";
+      overlay.querySelector(".vno-rule-apply").textContent = t("sheetDialogs.cfAddRule");
+      overlay.querySelector(".vno-rule-error").textContent = "";
+      updateFields();
+    };
+    const editRule = rule => {
+      if (!rule) return;
+      editingId = rule.id;
+      type.value = rule.type;
+      overlay.querySelector("#vno-cf-range").value = this._rangeLabel(rule.range);
+      overlay.querySelector("#vno-cf-value").value = rule.value ?? "0";
+      overlay.querySelector("#vno-cf-value2").value = rule.value2 ?? "100";
+      overlay.querySelector("#vno-cf-text").value = rule.text || "";
+      overlay.querySelector("#vno-cf-date").value = rule.timePeriod || "today";
+      overlay.querySelector("#vno-cf-rank").value = rule.rank || 10;
+      overlay.querySelector("#vno-cf-formula").value = rule.formula || "=";
+      overlay.querySelector("#vno-cf-color").value = rule.color || "#fff2cc";
+      (rule.colors || []).forEach((color, index) => { const input = overlay.querySelector(`#vno-cf-color${index + 1}`); if (input) input.value = color; });
+      overlay.querySelector("#vno-cf-icon").value = rule.iconSet || "3TrafficLights1";
+      overlay.querySelector("#vno-cf-reverse").checked = !!rule.reverse;
+      overlay.querySelector(".vno-rule-apply").textContent = t("sheetDialogs.cfSaveRule");
+      updateFields();
+      type.focus();
+    };
+    overlay.querySelector("#vno-cf-new").addEventListener("click", resetEditor);
+    type.addEventListener("change", updateFields);
     overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
-      const result = this.addConditionalFormattingRule(selectedRange, {
+      const range = this._parseRange(overlay.querySelector("#vno-cf-range").value);
+      const config = {
         type: type.value,
         value: overlay.querySelector("#vno-cf-value").value,
-        color: overlay.querySelector("#vno-cf-color").value
-      });
-      if (!result) overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.invalidNumber");
-      else overlay.closeDialog();
+        value2: overlay.querySelector("#vno-cf-value2").value,
+        text: overlay.querySelector("#vno-cf-text").value,
+        timePeriod: overlay.querySelector("#vno-cf-date").value,
+        rank: overlay.querySelector("#vno-cf-rank").value,
+        formula: overlay.querySelector("#vno-cf-formula").value,
+        color: overlay.querySelector("#vno-cf-color").value,
+        colors: [overlay.querySelector("#vno-cf-color1").value, overlay.querySelector("#vno-cf-color2").value, overlay.querySelector("#vno-cf-color3").value],
+        iconSet: overlay.querySelector("#vno-cf-icon").value,
+        reverse: overlay.querySelector("#vno-cf-reverse").checked
+      };
+      const result = range && (editingId
+        ? this.updateConditionalFormattingRule(editingId, config, range)
+        : this.addConditionalFormattingRule(range, config));
+      if (!result) overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.invalidConditionalRule");
+      else { resetEditor(); renderRules(); }
     });
+    resetEditor();
+    renderRules();
     return true;
   }
 
