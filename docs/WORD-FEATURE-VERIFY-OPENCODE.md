@@ -77,3 +77,95 @@
 | Hyphenation | Chua co | Khong tim thay "hyphenation" / "Hyphenation" / "writer.hyphenation" / "ngat tu" / "tu ngat" trong .js | Can them: Automatic/None/Manual hyphenation, Hyphenation zone, Limit consecutive hyphens |
 | Indent/Spacing | Co | adapters/libreoffice/writer/writer-adapter.js:699-700,1289-1342,1445-1480,1587-1623; apps/writer/paragraph-dialog.js; apps/writer/paragraph-indent.js; platform/commands/command-definitions.js (writer.para.indentInc/Dec, spacingBefore/After, lineSpacing) | - |
 | Position/Wrap Text/Bring Forward/Align/Group/Rotate | Mot phan | adapters/libreoffice/writer/writer-adapter.js (shapes: moveShape, _renderShapes); apps/writer/writer-arrange.js (arrange commands); platform/commands/command-definitions.js (writer.arrange.*); apps/writer/writer-ribbon.js (tableAlignGroup: alignTop/Middle/Bottom) | Thieu: Position (More Layout Options), Wrap Text (Square/Tight/Through/Top and Bottom/Behind/In Front), Bring Forward/Send Backward, Group/Ungroup, Rotate (More Rotation Options) - can kiem tra writer-arrange.js |
+
+## THAM CHIEU (References)
+
+| Tinh nang | Trang thai | Bang chung | Thieu gi |
+|---|---|---|---|
+| Table of Contents | Co | adapters/libreoffice/writer/writer-adapter.js:609-610,8092-8097,18730-18803; apps/writer/writer-ribbon.js:681-682; platform/commands/command-definitions.js:239-240; platform/i18n/strings-vi.js:900-901; platform/help/entries-writer.js:305-307 | - |
+| Add Text/Update Table | Co | adapters/libreoffice/writer/writer-adapter.js:610,8095-8097; platform/commands/command-definitions.js:240 (writer.reference.tocUpdate) | - |
+| Footnote/Endnote | Co | adapters/libreoffice/writer/writer-adapter.js:611-612,8098-8103,19154-19467; apps/writer/writer-ribbon.js:690-691; platform/commands/command-definitions.js:241-242; platform/i18n/strings-vi.js:902-903; platform/help/entries-writer.js:858-860 | - |
+| Insert Citation/Bibliography/Manage Sources | Co | adapters/libreoffice/writer/writer-adapter.js:613-616,8104-8110,19644-19712; apps/writer/citations.js; apps/writer/writer-ribbon.js:695-707; platform/commands/command-definitions.js:243-246; platform/i18n/strings-vi.js:904-907; platform/help/entries-writer.js:203-209 | - |
+| Captions | Co | adapters/libreoffice/writer/writer-adapter.js:617-618,8107-8110,19966-20038; apps/writer/captions.js; apps/writer/writer-ribbon.js:715-720; platform/commands/command-definitions.js:247-249; platform/i18n/strings-vi.js:908-910; platform/help/entries-writer.js:225-230 | - |
+| Insert Table of Figures | Co | adapters/libreoffice/writer/writer-adapter.js:618-619,8107-8110,20156-20214; platform/commands/command-definitions.js:248-249; platform/i18n/strings-vi.js:909-910 | - |
+| Mark Entry/Insert Index | Chua co | Khong tim thay "mark entry" / "insert index" / "writer.index" / "chi muc" / "dao tu" trong .js | Can them: Mark Entry, Insert Index, Concordance file, AutoMark |
+
+## THU/MAIL (Mailings)
+
+| Tinh nang | Trang thai | Bang chung | Thieu gi |
+|---|---|---|---|
+| Envelopes | Co | apps/writer/envelopes-labels.js (showEnvelopeDialog, generateEnvelopeHtml); platform/commands/command-definitions.js (writer.mail.envelope); apps/writer/writer-ribbon.js | - |
+| Labels | Co | apps/writer/envelopes-labels.js (showLabelDialog, generateLabelHtml); platform/commands/command-definitions.js (writer.mail.label); apps/writer/writer-ribbon.js | - |
+| Start Mail Merge | Co | apps/writer/mail-merge.js (showMailMergeDialog, startMailMerge); apps/writer/mail-merge-data.js; apps/writer/writer-ribbon.js (mailings tab) | - |
+| Select Recipients | Co | apps/writer/mail-merge.js (recipient selection); apps/writer/mail-merge-data.js (recipient data) | - |
+| Insert Merge Field | Co | apps/writer/mail-merge.js (merge field insertion); apps/writer/writer-ribbon.js | - |
+| Rules | Chua co | Khong tim thay "mail merge rule" / "skip record" / "next record" / "if then else" / "fill in" / "ask" / "set bookmark" trong .js | Can them: Skip Record If, Next Record If, If...Then...Else, Fill In, Ask, Set Bookmark |
+| Preview Results | Co | apps/writer/mail-merge.js (preview merge results) | - |
+| Finish & Merge | Co | apps/writer/mail-merge.js (finishMailMerge, mergeToNewDocument, mergeToPrinter, mergeToEmail) | - |
+
+## XEM LAI (Review)
+
+| Tinh nang | Trang thai | Bang chung | Thieu gi |
+|---|---|---|---|
+| Spelling & Grammar | Co | adapters/libreoffice/writer/writer-adapter.js (spellcheck integration); platform/text/vi-spellchecker.js; platform/text/spellcheck-dom-controller.js; apps/writer/writer-app.js:229,482,499; apps/writer/writer-ribbon.js:795; platform/commands/command-definitions.js:201 (writer.review.toggleSpellCheck); platform/i18n/strings-vi.js:854 | Grammar check (kiem tra ngap phap) chua co - chi co spellcheck tieng Viet |
+| Thesaurus | Chua co | Khong tim thay "thesaurus" / "Thesaurus" / "tu dong nghia" / "synonym" trong writer .js | Can them: Thesaurus, Synonyms, Research pane |
+| Word Count | Co | apps/writer/word-count.js; adapters/libreoffice/writer/writer-adapter.js:598,7607; apps/writer/writer-ribbon.js:796; platform/commands/command-definitions.js:200; platform/i18n/strings-vi.js:853; platform/help/entries-writer.js:161-163 | - |
+| Translate | Chua co | Khong tim thay "translate" / "Translate" / "dich" / "translation" trong writer .js | Can them: Translate Document, Translate Selected Text, Mini Translator |
+| New/Delete/Next/Previous Comment | Co | adapters/libreoffice/writer/writer-adapter.js:586-590,8294-8316; apps/writer/writer-ribbon.js:808-817; platform/commands/command-definitions.js:188-192; platform/i18n/strings-vi.js:841-845; platform/help/entries-writer.js:339-340 | - |
+| Track Changes | Co | adapters/libreoffice/writer/writer-adapter.js (track changes: _activeTrackChange, _clearTrackChangeHighlight, import/export); platform/commands/command-definitions.js (writer.review.trackChanges); platform/i18n/strings-vi.js; platform/help/entries-writer.js | Can kiem tra: Track Changes on/off, Lock Tracking, Change Tracking Options |
+| Simple/All Markup | Mot phan | adapters/libreoffice/writer/writer-adapter.js (track changes display); apps/writer/writer-ribbon.js (tracking display options) | Can kiem tra: Simple Markup, All Markup, No Markup, Original display modes |
+| Accept/Reject | Co | adapters/libreoffice/writer/writer-adapter.js (accept/reject changes); apps/writer/writer-ribbon.js (accept/reject buttons) | - |
+| Compare | Chua co | Khong tim thay "compare" / "Compare" / "writer.review.compare" / "so sanh" trong writer .js | Can them: Compare Documents, Combine Documents |
+| Combine | Chua co | Khong tim thay "combine" / "Combine" / "writer.review.combine" / "hop nhat" trong writer .js | Can them: Combine revisions from multiple authors |
+| Restrict Editing | Chua co | Khong tim thay "restrict editing" / "RestrictEditing" / "writer.review.restrict" / "han che chinh sua" trong writer .js | Can them: Restrict Editing, Editing Restrictions, Start Enforcement, Exceptions |
+
+## XEM (View)
+
+| Tinh nang | Trang thai | Bang chung | Thieu gi |
+|---|---|---|---|
+| Read Mode | Co | adapters/libreoffice/common/command-dispatch-mapper.js:43 (writer.view.readMode -> .uno:FullScreen); apps/writer/writer-view-controller.js (reading view); platform/commands/command-definitions.js (writer.view.readMode); platform/i18n/strings-vi.js:887 | - |
+| Print Layout | Co | adapters/libreoffice/common/command-dispatch-mapper.js:41 (writer.view.printLayout -> .uno:PrintLayout); platform/commands/command-definitions.js; platform/i18n/strings-vi.js:885 | - |
+| Web Layout | Co | adapters/libreoffice/common/command-dispatch-mapper.js:42 (writer.view.webLayout -> .uno:BrowseView); platform/commands/command-definitions.js; platform/i18n/strings-vi.js:886 | - |
+| Outline | Chua co | Khong tim thay "outline" / "Outline" / "writer.view.outline" / "view.outline" / "dang bai" trong writer .js | Can them: Outline View, Outline level, Show/Hide Level |
+| Draft | Chua co | Khong tim thay "draft" / "Draft" / "writer.view.draft" / "che do nhap" trong writer .js | Can them: Draft View (khong hien header/footer/margin) |
+| Ruler | Co | adapters/libreoffice/common/command-dispatch-mapper.js:44 (writer.view.ruler -> .uno:ShowRuler); apps/writer/writer-ruler-controller.js; platform/commands/command-definitions.js; platform/i18n/strings-vi.js:888 | - |
+| Gridlines | Co | adapters/libreoffice/common/command-dispatch-mapper.js:45 (writer.view.gridlines -> .uno:GridVisible); platform/commands/command-definitions.js; platform/i18n/strings-vi.js:893 | - |
+| Navigation Pane | Co | apps/writer/writer-nav-pane.js; apps/writer/writer-view-controller.js:52,67; apps/writer/writer-ribbon.js:873; platform/commands/command-definitions.js (writer.view.navigationPane); platform/i18n/strings-vi.js:889; platform/help/entries-writer.js | - |
+| Zoom (dialog/100%/One Page/Multiple Pages/Page Width) | Co | adapters/libreoffice/common/command-dispatch-mapper.js:35-51 (zoomIn/Out/Reset/100/PageWidth); adapters/libreoffice/writer/writer-adapter.js:16420-16769 (print preview zoom); apps/writer/writer-ribbon.js; platform/commands/command-definitions.js; platform/i18n/strings-vi.js:894-899 | One Page / Multiple Pages zoom mode can kiem tra |
+| New Window | Co | adapters/libreoffice/common/command-dispatch-mapper.js:51 (writer.view.newWindow -> .uno:NewWindow); platform/commands/command-definitions.js; platform/i18n/strings-vi.js:899 | - |
+| Arrange All | Chua co | Khong tim thay "arrange all" / "ArrangeAll" / "writer.view.arrange" / "sap xep tat ca" trong writer .js | Can them: Arrange All windows (tile/cascade) |
+| Split | Co | adapters/libreoffice/sheet/sheet-adapter.js:401 (sheet.view.split); platform/commands/command-definitions.js (sheet.view.split); writer co the co nhuong | Can kiem tra writer.view.split |
+| View Side by Side | Chua co | Khong tim thay "side by side" / "SideBySide" / "writer.view.sideBySide" / "song song" trong writer .js | Can them: View Side by Side, Synchronous Scrolling |
+| Switch Windows | Chua co | Khong tim thay "switch window" / "SwitchWindow" / "writer.view.switchWindow" / "chuyen cua so" trong writer .js | Can them: Switch Windows list |
+| Macros | Chua co | Khong tim thay "macro" / "Macro" / "writer.macro" / "macro manager" trong writer .js (chi co platform/commands/macro-manager.js cho platform) | Can them: View Macros, Record Macro, Macro Security |
+
+## TEP (File)
+
+| Tinh nang | Trang thai | Bang chung | Thieu gi |
+|---|---|---|---|
+| Open recent | Co | main.py (file handling); adapters/libreoffice/common/command-dispatch-mapper.js:10 (common.file.open); platform/commands/command-definitions.js | - |
+| Save As (DOCX/DOC/ODT/RTF/PDF/TXT) | Mot phan | adapters/libreoffice/common/command-dispatch-mapper.js:12 (common.file.saveAs -> .uno:SaveAs); common.file.exportPdf -> .uno:ExportDirectToPDF; apps/writer/writer-adapter.js:8002-8017; main.py (file export) | Can kiem tra tat ca dinh dang: DOCX, DOC, ODT, RTF, PDF, TXT, HTML, XML |
+| Print preview | Co | adapters/libreoffice/writer/writer-adapter.js:16420-16769 (openPrintPreview); apps/writer/writer-ribbon.js:543; platform/commands/command-definitions.js (writer.file.printPreview); command-dispatch-mapper.js:134 | - |
+| Export PDF | Co | adapters/libreoffice/common/command-dispatch-mapper.js:13 (common.file.exportPdf -> .uno:ExportDirectToPDF); adapters/libreoffice/common/uno-bridge.js:306; main.py | - |
+| Document Properties | Chua co | Khong tim thay "document property" / "DocumentProperty" / "writer.file.property" / "thuoc tinh tai lieu" trong writer .js | Can them: Document Properties dialog (General/Summary/Statistics/Contents/Custom) |
+| Protect Document (password/encrypt) | Chua co | Khong tim thay "protect document" / "ProtectDocument" / "encrypt" / "mat khau" / "password" trong writer .js | Can them: Encrypt with Password, Restrict Editing, Add Digital Signature, Mark as Final |
+| Inspect Document | Chua co | Khong tim thay "inspect document" / "InspectDocument" / "kiem tra tai lieu" / "document inspector" trong writer .js | Can them: Document Inspector (comments, revisions, versions, annotations, hidden text, personal info) |
+| Info | Mot phan | main.py (app info); adapters/libreoffice/common/uno-bridge.js (file info) | Can kiem tra: File Info panel (Permissions, Prepare for Sharing, Versions, Browser File Sizes) |
+
+## KHAC (Other)
+
+| Tinh nang | Trang thai | Bang chung | Thieu gi |
+|---|---|---|---|
+| Tables Tools (Merge/Split cells, Cell Alignment, AutoFit, Repeat Header Rows, Sort, Formula, Table Styles, Borders) | Co | adapters/libreoffice/writer/writer-adapter.js:8431-8456,8507-8847; apps/writer/writer-table.js; apps/writer/writer-ribbon.js (tableDesign, tableLayout tabs); platform/commands/command-definitions.js (writer.table.*); platform/i18n/strings-vi.js | - |
+| Picture Tools (Crop, Size, Wrap, Rotate, Corrections) | Mot phan | adapters/libreoffice/writer/writer-adapter.js (images); apps/writer/writer-arrange.js (WRAP_MODES: inline, square, tight, behind, front, topBottom); apps/writer/writer-ribbon.js (picture tools contextual tab) | Thieu: Crop (cat hinh), Corrections (Sharpen/Soften, Brightness/Contrast), Artistic Effects, Remove Background, Compress Pictures, Change Picture, Reset Picture |
+| Mouse: chuot phai (van ban, bang, hinh, tieu de) | Co | apps/writer/writer-table.js (context menu); apps/writer/writer-app.js (context menus); platform/ui-kit/context-menu.js | - |
+| Keo thuc (Drag & Drop) | Co | apps/writer/writer-table.js (column/row resize drag); apps/writer/writer-ruler-controller.js (marker drag); apps/writer/writer-arrange.js (shape drag) | - |
+| Tab stops | Co | apps/writer/tab-stops.js; apps/writer/paragraph-dialog.js; platform/commands/command-definitions.js (writer.paragraph.tabStops, writer.format.tabStops); platform/i18n/strings-vi.js | - |
+| Spell check inline | Co | platform/text/vi-spellchecker.js; platform/text/spellcheck-dom-controller.js; apps/writer/writer-app.js:229,482,499; apps/sheet/sheet-inline-spellcheck.js | - |
+| AutoCorrect | Chua co | Khong tim thay "autocorrect" / "AutoCorrect" / "tu dong sua" / "tu dong thay the" trong writer .js | Can them: AutoCorrect options, Replace text as you type, Exceptions, Math AutoCorrect |
+| Auto numbering | Co | adapters/libreoffice/writer/writer-adapter.js (multilevel list, numbered list); apps/writer/writer-ribbon.js:142,146-153; apps/writer/writer-app.js:814-821 | - |
+| Smart quotes | Chua co | Khong tim thay "smart quote" / "SmartQuote" / "ngoac don thong minh" / "ngoac kep thong minh" trong writer .js | Can them: "Straight quotes" with "Smart quotes", AutoFormat As You Type |
+| Line/page/section navigation | Co | apps/writer/writer-nav-pane.js (heading navigation); apps/writer/writer-app.js (page navigation); adapters/libreoffice/writer/writer-adapter.js (section breaks) | - |
+| Track changes balloons | Mot phan | adapters/libreoffice/writer/writer-adapter.js (track changes import/export); platform/help/entries-writer.js (balloons) | Can kiem tra: Show revisions in balloons, Show only comments and formatting in balloons |
+| Styles pane | Co | apps/writer/style-gallery.js (style gallery dropdown/strip); adapters/libreoffice/writer/writer-adapter.js (writer.style.gallery); apps/writer/writer-ribbon.js:228,375 | Can kiem tra: Styles pane (dong ben phai), Manage Styles, Style Inspector |
+| Dictate | Chua co | Khong tim thay "dictate" / "Dictate" / "nhap bang gioi" / "voice typing" trong writer .js (X trong danh sach) | Yeu cau tinh nang AI/cloud rieng, can xin phep |
