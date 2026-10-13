@@ -57,7 +57,7 @@ Trang đầu|Số|Định dạng số dạng Phân số (Fraction) và Đặc bi
 Trang đầu|Số|Mã định dạng tùy chỉnh (Custom)|P|2|Giữ mã gốc khi lưu; chưa có giao diện soạn mã đầy đủ
 Trang đầu|Số|Kế toán / % / Dấu phẩy / Tăng-giảm số lẻ|A|-|sheet.format.*
 Trang đầu|Kiểu|Định dạng có điều kiện: Tô sáng ô — Lớn hơn / Nhỏ hơn|V|-|Quy tắc >2000 đã đọc lại bằng Excel 2016
-Trang đầu|Kiểu|Tô sáng ô — Giữa / Bằng / Chứa văn bản / Ngày xảy ra / Trùng lặp|N|1|Hiện chỉ có Lớn hơn, Nhỏ hơn, Ô trống
+Trang đầu|Kiểu|Tô sáng ô — Giữa / Bằng / Chứa văn bản / Ngày xảy ra / Trùng lặp|N|1|Hộp thoại chỉ có Lớn hơn, Nhỏ hơn, Ô trống; mã có xử lý luật duplicate nhưng chưa có trong hộp thoại (opencode xác nhận)
 Trang đầu|Kiểu|Quy tắc Trên/Dưới (Top-Bottom 10, Trên/Dưới trung bình)|N|1|
 Trang đầu|Kiểu|Thanh dữ liệu (Data Bars)|N|1|Chưa có
 Trang đầu|Kiểu|Thang màu (Color Scales)|N|1|Chưa có
@@ -84,7 +84,7 @@ Trang đầu|Chỉnh sửa|Bộ lọc (AutoFilter) bật/tắt|V|-|AutoFilterMod
 Trang đầu|Chỉnh sửa|Lọc theo màu / theo văn bản-số-ngày (text/number/date filters)|N|1|Chỉ lọc theo danh sách giá trị
 Trang đầu|Chỉnh sửa|Xóa bộ lọc / Áp dụng lại|A|-|Thêm vào menu chuột phải 13/10
 Trang đầu|Chỉnh sửa|Tìm (Ctrl+F) / Thay thế (Ctrl+H), tùy chọn phân biệt hoa-thường, trong công thức|V|-|Thay thế trên hai trang đã đối chiếu
-Trang đầu|Chỉnh sửa|Đến (Go To, F5) / Đến đặc biệt (Go To Special)|N|1|Chưa thấy lệnh
+Trang đầu|Chỉnh sửa|Đến (Go To, F5/Ctrl+G) / Đến đặc biệt (Go To Special)|A|-|Mới 13/10: sheet-goto.js, test desktop 11/11; chưa đối chiếu với Excel
 Trang đầu|Chỉnh sửa|Chọn khung chọn / Chọn đối tượng|N|3|
 Chèn|Bảng|PivotTable (tạo, kéo thả trường, làm mới)|V|-|PivotTables.Count đã đối chiếu
 Chèn|Bảng|PivotTable được đề xuất|N|3|
@@ -121,7 +121,7 @@ Bố trí trang|Thiết lập trang|Hình nền (Background)|N|3|
 Bố trí trang|Thiết lập trang|In tiêu đề (Print Titles)|V|-|TitlesRows đã đối chiếu
 Bố trí trang|Thiết lập trang|Hộp thoại Page Setup đủ tab Trang/Lề/Đầu-Chân/Trang tính|P|1|Thiếu một số tùy chọn tab Trang tính (in lưới, tiêu đề, thứ tự trang)
 Bố trí trang|Vừa trang|Chiều rộng / Chiều cao (Fit to pages) / Tỷ lệ %|P|1|Có Tỷ lệ; chưa có Fit to W x H tách riêng
-Bố trí trang|Tùy chọn trang tính|Hiện/In đường lưới và tiêu đề|P|2|Hiện có; tùy chọn In cần kiểm
+Bố trí trang|Tùy chọn trang tính|Hiện/In đường lưới và tiêu đề|P|2|Hiện có; hộp xem trước in có tùy chọn in đường lưới; in tiêu đề hàng/cột cần kiểm
 Bố trí trang|Sắp xếp|Đưa lên trên / Xuống dưới / Ngăn chọn / Căn / Nhóm / Xoay đối tượng|N|2|
 Công thức|Thư viện hàm|Chèn hàm (Shift+F3) + hộp thoại đối số|A|-|sheet.formula.insertFunction
 Công thức|Thư viện hàm|Tổng tự động; Dùng gần đây; Tài chính / Logic / Văn bản / Ngày giờ / Tra cứu / Toán|A|-|Các nhóm hàm trong ribbon
@@ -168,7 +168,8 @@ Xem xét|Thay đổi|Bảo vệ sổ làm việc (cấu trúc)|A|-|sheet.workboo
 Xem xét|Thay đổi|Cho phép người dùng sửa vùng (Allow Users to Edit Ranges)|N|3|
 Xem xét|Thay đổi|Chia sẻ sổ làm việc / Theo dõi thay đổi (cũ)|N|3|
 Chế độ xem|Chế độ xem sổ|Bình thường / Xem ngắt trang / Bố trí trang|A|-|
-Chế độ xem|Chế độ xem sổ|Chế độ xem tùy chỉnh (Custom Views) / Toàn màn hình|N|3|
+Chế độ xem|Chế độ xem sổ|Chế độ xem tùy chỉnh (Custom Views)|N|3|
+Chế độ xem|Chế độ xem sổ|Toàn màn hình (F11)|A|-|common.view.fullScreen
 Chế độ xem|Hiển thị|Thước / Đường lưới / Thanh công thức / Tiêu đề|A|-|Thước chỉ ở bố trí trang
 Chế độ xem|Thu phóng|Thu phóng (hộp thoại) / 100% / Phóng vùng chọn|A|-|sheet.view.zoom*
 Chế độ xem|Cửa sổ|Cửa sổ mới|A|-|sheet.view.newWindow

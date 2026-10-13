@@ -17,13 +17,13 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Excel 2016 | 45 | 22% |
-| 🟢 Có, chưa đối chiếu | 59 | 28% |
+| 🟢 Có, chưa đối chiếu | 61 | 29% |
 | 🟡 Có một phần | 29 | 14% |
-| 🔴 Chưa có | 75 | 36% |
+| 🔴 Chưa có | 74 | 35% |
 | ⚪ Ngoài phạm vi | 4 | - |
-| **Tổng** | **212** (áp dụng: 208) | |
+| **Tổng** | **213** (áp dụng: 209) | |
 
-- **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 57%**
+- **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 58%**
 - **Đã xác minh bằng đối chiếu Excel 2016 thật: 22%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ 462 hàm) chỉ tính một mục; mức phủ hàm nằm ở dòng riêng và ở `EXCEL2016-FUNCTIONS-MATRIX.md`.
@@ -33,13 +33,13 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 3 | 6 | 1 | 6 | 1 | 59% |
-| Trang đầu | 53 | 13 | 16 | 8 | 16 | 0 | 62% |
+| Trang đầu | 53 | 13 | 17 | 8 | 15 | 0 | 64% |
 | Chèn | 27 | 5 | 5 | 2 | 13 | 2 | 44% |
 | Bố trí trang | 10 | 4 | 0 | 3 | 3 | 0 | 55% |
 | Công thức | 13 | 1 | 6 | 2 | 4 | 0 | 62% |
 | Dữ liệu | 19 | 2 | 7 | 3 | 7 | 0 | 55% |
 | Xem xét | 12 | 1 | 3 | 2 | 5 | 1 | 45% |
-| Chế độ xem | 11 | 2 | 5 | 1 | 3 | 0 | 68% |
+| Chế độ xem | 12 | 2 | 6 | 1 | 3 | 0 | 71% |
 | Nhà phát triển | 3 | 0 | 0 | 0 | 3 | 0 | 0% |
 | Trợ giúp | 2 | 0 | 2 | 0 | 0 | 0 | 100% |
 | Công cụ Bảng | 7 | 1 | 3 | 1 | 2 | 0 | 64% |
@@ -56,7 +56,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 |---|---|---|---|---|
 | Tệp (Backstage) | Tệp | Xuất / Chuyển đổi định dạng (mục riêng, giữ bố cục) | 🔴 | Đang giao agy (feat/export-convert-agy) |
 | Tệp (Backstage) | Thông tin | Bảo vệ sổ làm việc bằng mật khẩu mở file (mã hóa) | 🔴 | Chưa có mã hóa file; chỉ có bảo vệ cấu trúc |
-| Trang đầu | Kiểu | Tô sáng ô — Giữa / Bằng / Chứa văn bản / Ngày xảy ra / Trùng lặp | 🔴 | Hiện chỉ có Lớn hơn, Nhỏ hơn, Ô trống |
+| Trang đầu | Kiểu | Tô sáng ô — Giữa / Bằng / Chứa văn bản / Ngày xảy ra / Trùng lặp | 🔴 | Hộp thoại chỉ có Lớn hơn, Nhỏ hơn, Ô trống; mã có xử lý luật duplicate nhưng chưa có trong hộp thoại (opencode xác nhận) |
 | Trang đầu | Kiểu | Quy tắc Trên/Dưới (Top-Bottom 10, Trên/Dưới trung bình) | 🔴 |  |
 | Trang đầu | Kiểu | Thanh dữ liệu (Data Bars) | 🔴 | Chưa có |
 | Trang đầu | Kiểu | Thang màu (Color Scales) | 🔴 | Chưa có |
@@ -64,7 +64,6 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Trang đầu | Kiểu | Quy tắc mới theo công thức | 🔴 |  |
 | Trang đầu | Kiểu | Quản lý quy tắc (xem, xóa, thứ tự ưu tiên, Stop If True) | 🟡 | Xem + xóa; thiếu sửa, thứ tự ưu tiên |
 | Trang đầu | Chỉnh sửa | Lọc theo màu / theo văn bản-số-ngày (text/number/date filters) | 🔴 | Chỉ lọc theo danh sách giá trị |
-| Trang đầu | Chỉnh sửa | Đến (Go To, F5) / Đến đặc biệt (Go To Special) | 🔴 | Chưa thấy lệnh |
 | Chèn | Biểu đồ | Cột chồng / Cột 100% / Cột 3-D / Thanh ngang | 🔴 | Chỉ cột nhóm, chưa có chồng/ngang/3-D |
 | Chèn | Biểu đồ | Phân tán (Scatter) / Bong bóng | 🔴 |  |
 | Chèn | Bộ lọc | Slicer | 🔴 | Chưa có |
@@ -80,7 +79,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Không thuộc ribbon | Chuột phải | Menu hình / ảnh / hộp văn bản | 🔴 | Chưa có |
 | Không thuộc ribbon | Chuột | Kéo chốt điền (Fill Handle), nhấp đúp điền xuống, tùy chọn tự điền | 🟡 | Điền chuỗi có; nhấp đúp và Auto Fill Options cần kiểm |
 
-Tổng: 25 mục ưu tiên 1.
+Tổng: 24 mục ưu tiên 1.
 
 ## Chi tiết từng tab
 
@@ -134,7 +133,7 @@ Tổng: 25 mục ưu tiên 1.
 | Số | Mã định dạng tùy chỉnh (Custom) | 🟡 | 2 | Giữ mã gốc khi lưu; chưa có giao diện soạn mã đầy đủ |
 | Số | Kế toán / % / Dấu phẩy / Tăng-giảm số lẻ | 🟢 | - | sheet.format.* |
 | Kiểu | Định dạng có điều kiện: Tô sáng ô — Lớn hơn / Nhỏ hơn | ✅ | - | Quy tắc >2000 đã đọc lại bằng Excel 2016 |
-| Kiểu | Tô sáng ô — Giữa / Bằng / Chứa văn bản / Ngày xảy ra / Trùng lặp | 🔴 | 1 | Hiện chỉ có Lớn hơn, Nhỏ hơn, Ô trống |
+| Kiểu | Tô sáng ô — Giữa / Bằng / Chứa văn bản / Ngày xảy ra / Trùng lặp | 🔴 | 1 | Hộp thoại chỉ có Lớn hơn, Nhỏ hơn, Ô trống; mã có xử lý luật duplicate nhưng chưa có trong hộp thoại (opencode xác nhận) |
 | Kiểu | Quy tắc Trên/Dưới (Top-Bottom 10, Trên/Dưới trung bình) | 🔴 | 1 |  |
 | Kiểu | Thanh dữ liệu (Data Bars) | 🔴 | 1 | Chưa có |
 | Kiểu | Thang màu (Color Scales) | 🔴 | 1 | Chưa có |
@@ -161,7 +160,7 @@ Tổng: 25 mục ưu tiên 1.
 | Chỉnh sửa | Lọc theo màu / theo văn bản-số-ngày (text/number/date filters) | 🔴 | 1 | Chỉ lọc theo danh sách giá trị |
 | Chỉnh sửa | Xóa bộ lọc / Áp dụng lại | 🟢 | - | Thêm vào menu chuột phải 13/10 |
 | Chỉnh sửa | Tìm (Ctrl+F) / Thay thế (Ctrl+H), tùy chọn phân biệt hoa-thường, trong công thức | ✅ | - | Thay thế trên hai trang đã đối chiếu |
-| Chỉnh sửa | Đến (Go To, F5) / Đến đặc biệt (Go To Special) | 🔴 | 1 | Chưa thấy lệnh |
+| Chỉnh sửa | Đến (Go To, F5/Ctrl+G) / Đến đặc biệt (Go To Special) | 🟢 | - | Mới 13/10: sheet-goto.js, test desktop 11/11; chưa đối chiếu với Excel |
 | Chỉnh sửa | Chọn khung chọn / Chọn đối tượng | 🔴 | 3 |  |
 
 ### Chèn
@@ -208,7 +207,7 @@ Tổng: 25 mục ưu tiên 1.
 | Thiết lập trang | In tiêu đề (Print Titles) | ✅ | - | TitlesRows đã đối chiếu |
 | Thiết lập trang | Hộp thoại Page Setup đủ tab Trang/Lề/Đầu-Chân/Trang tính | 🟡 | 1 | Thiếu một số tùy chọn tab Trang tính (in lưới, tiêu đề, thứ tự trang) |
 | Vừa trang | Chiều rộng / Chiều cao (Fit to pages) / Tỷ lệ % | 🟡 | 1 | Có Tỷ lệ; chưa có Fit to W x H tách riêng |
-| Tùy chọn trang tính | Hiện/In đường lưới và tiêu đề | 🟡 | 2 | Hiện có; tùy chọn In cần kiểm |
+| Tùy chọn trang tính | Hiện/In đường lưới và tiêu đề | 🟡 | 2 | Hiện có; hộp xem trước in có tùy chọn in đường lưới; in tiêu đề hàng/cột cần kiểm |
 | Sắp xếp | Đưa lên trên / Xuống dưới / Ngăn chọn / Căn / Nhóm / Xoay đối tượng | 🔴 | 2 |  |
 
 ### Công thức
@@ -275,7 +274,8 @@ Tổng: 25 mục ưu tiên 1.
 | Nhóm | Tính năng Excel 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Sheet |
 |---|---|---|---|---|
 | Chế độ xem sổ | Bình thường / Xem ngắt trang / Bố trí trang | 🟢 | - |  |
-| Chế độ xem sổ | Chế độ xem tùy chỉnh (Custom Views) / Toàn màn hình | 🔴 | 3 |  |
+| Chế độ xem sổ | Chế độ xem tùy chỉnh (Custom Views) | 🔴 | 3 |  |
+| Chế độ xem sổ | Toàn màn hình (F11) | 🟢 | - | common.view.fullScreen |
 | Hiển thị | Thước / Đường lưới / Thanh công thức / Tiêu đề | 🟢 | - | Thước chỉ ở bố trí trang |
 | Thu phóng | Thu phóng (hộp thoại) / 100% / Phóng vùng chọn | 🟢 | - | sheet.view.zoom* |
 | Cửa sổ | Cửa sổ mới | 🟢 | - | sheet.view.newWindow |
