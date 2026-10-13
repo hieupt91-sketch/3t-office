@@ -3342,7 +3342,7 @@ export class SheetAdapter {
       const scale = { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...(setup.scale || {}) };
       const headerFooter = { header: { left: "", center: "", right: "", ...(setup.headerFooter?.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(setup.headerFooter?.footer || {}) } };
       const centerOnPage = { horizontal: false, vertical: false, ...(setup.centerOnPage || {}) };
-      const printOptions = { gridlines: false, headings: false, ...(setup.printOptions || {}) };
+      const printOptions = { gridlines: false, headings: false, comments: "none", cellErrors: "displayed", pageOrder: "downThenOver", ...(setup.printOptions || {}) };
       const printTokens = ["objects", "charts", "drawings", "zero-values", printOptions.gridlines ? "grid" : "", printOptions.headings ? "headers" : ""].filter(Boolean).join(" ");
       const tableCentering = centerOnPage.horizontal && centerOnPage.vertical ? "both" : centerOnPage.horizontal ? "horizontal" : centerOnPage.vertical ? "vertical" : "none";
       const scaleAttribute = scale.mode === "pages"

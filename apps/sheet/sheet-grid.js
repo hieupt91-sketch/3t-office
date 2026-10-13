@@ -52,7 +52,13 @@ export const DEFAULT_SHEET_PAGE_SETUP = Object.freeze({
   scale: Object.freeze({ mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0 }),
   headerFooter: Object.freeze({ header: Object.freeze({ left: "", center: "", right: "" }), footer: Object.freeze({ left: "", center: "Trang &P / &N", right: "" }) }),
   centerOnPage: Object.freeze({ horizontal: false, vertical: false }),
-  printOptions: Object.freeze({ gridlines: false, headings: false }),
+  printOptions: Object.freeze({
+    gridlines: false,
+    headings: false,
+    comments: "none",
+    cellErrors: "displayed",
+    pageOrder: "downThenOver"
+  }),
   printTitles: Object.freeze({ rows: "", cols: "" })
 });
 
@@ -2403,6 +2409,12 @@ export class SheetGridController {
   }
 
   copySelection(isCut = false) {
+    if (this.selectedImageId) {
+      return this.copyObject("image", this.selectedImageId, isCut);
+    }
+    if (this.selectedTextBoxId) {
+      return this.copyObject("textbox", this.selectedTextBoxId, isCut);
+    }
     const range = this.selectionRange || (this.selectedCoord ? { start: this.selectedCoord, end: this.selectedCoord } : null);
     if (!range) return false;
     this.setClipboardRange(range, isCut ? "cut" : "copy", this.activeSheet);
@@ -2410,6 +2422,9 @@ export class SheetGridController {
   }
 
   pasteClipboard(plainTextOnly = false) {
+    if (this._objectClipboard) {
+      return this.pasteObject();
+    }
     if (!this._clipboardRange || !this.selectedCoord) return false;
     const cb = this._clipboardRange;
     const srcSheet = cb.sheet || this.activeSheet;
@@ -5080,9 +5095,20 @@ _bindGridKeyboardNavigation() {
         showGoToDialog(this, t);
         return;
       } else if ((e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) && !e.ctrlKey && !e.altKey && !e.metaKey) {
-        // Shift+F10 hoặc ContextMenu key: mở context menu trên ô đang chọn
-        // (giống chuột phải) mà không cần chuột — chuẩn accessibility
+        // Shift+F10 hoặc ContextMenu key: mở context menu trên đối tượng hoặc ô đang chọn
         e.preventDefault();
+        if (this.selectedImageId) {
+          const imgEl = this.imageLayer?.querySelector(`[data-image-id="${this.selectedImageId}"]`);
+          const rect = imgEl?.getBoundingClientRect() || { left: 100, top: 100 };
+          this._showObjectContextMenu({ clientX: rect.left + 20, clientY: rect.top + 20, currentTarget: imgEl, preventDefault: () => {}, stopPropagation: () => {} }, "image", this.selectedImageId);
+          return;
+        }
+        if (this.selectedTextBoxId) {
+          const boxEl = this.textBoxLayer?.querySelector(`[data-textbox-id="${this.selectedTextBoxId}"]`);
+          const rect = boxEl?.getBoundingClientRect() || { left: 100, top: 100 };
+          this._showObjectContextMenu({ clientX: rect.left + 20, clientY: rect.top + 20, currentTarget: boxEl, preventDefault: () => {}, stopPropagation: () => {} }, "textbox", this.selectedTextBoxId);
+          return;
+        }
         const cellSelector = `.vno-grid-cell[data-coord="${this.selectedCoord.c}${this.selectedCoord.r}"]`;
         const cellEl = this.container.querySelector(cellSelector);
         let clientX = 8;
@@ -5177,6 +5203,14 @@ _bindGridKeyboardNavigation() {
         // Xóa nội dung ô hoặc vùng đang chọn ngay, đúng hành vi Excel thật
         e.preventDefault();
         if (this._guardProtectedMutation()) return;
+        if (this.selectedImageId) {
+          this.deleteImage(this.selectedImageId);
+          return;
+        }
+        if (this.selectedTextBoxId) {
+          this.deleteTextBox(this.selectedTextBoxId);
+          return;
+        }
         if (this._isMultiRangeSelection()) {
           const cells = [...new Set(this._getSelectionRanges().flatMap(range =>
             this.formulaEngine.expandRange(this._rangeLabel(this._normalizeRange(range)))
@@ -7872,6 +7906,445 @@ _bindGridKeyboardNavigation() {
     }
   }
 
+  _updateTextBoxSelection() {
+    if (!this.textBoxLayer) return;
+    const boxes = this.textBoxLayer.querySelectorAll?.(".vno-sheet-textbox") || [];
+    for (const b of boxes) {
+      const isSelected = b.dataset?.textboxId === this.selectedTextBoxId;
+      if (isSelected) {
+        b.classList?.add("is-selected");
+      } else {
+        b.classList?.remove("is-selected");
+      }
+    }
+  }
+
+  _findObjectById(typeOrId, idOrSheet, maybeSheet) {
+    let type = null;
+    let id = null;
+    let sheetName = this.activeSheet;
+    if (idOrSheet && (typeOrId === "image" || typeOrId === "textbox")) {
+      type = typeOrId;
+      id = idOrSheet;
+      if (maybeSheet) sheetName = maybeSheet;
+    } else {
+      id = typeOrId;
+      if (idOrSheet && typeof idOrSheet === "string") sheetName = idOrSheet;
+    }
+
+    if (type === "image") {
+      const item = (this.imagesBySheet[sheetName] || []).find(item => item.id === id);
+      return item || null;
+    }
+    if (type === "textbox") {
+      const item = (this.textBoxesBySheet[sheetName] || []).find(item => item.id === id);
+      return item || null;
+    }
+
+    const img = (this.imagesBySheet[sheetName] || []).find(item => item.id === id);
+    if (img) return { type: "image", item: img, ...img };
+    const tb = (this.textBoxesBySheet[sheetName] || []).find(item => item.id === id);
+    if (tb) return { type: "textbox", item: tb, ...tb };
+    return null;
+  }
+
+  _resolveObjectTarget(typeOrId, idOrSheet, maybeSheet) {
+    let type = typeOrId;
+    let id = idOrSheet;
+    let sheetName = maybeSheet || this.activeSheet;
+    if (!idOrSheet || (typeOrId !== "image" && typeOrId !== "textbox")) {
+      const found = this._findObjectById(typeOrId, sheetName);
+      if (!found) return null;
+      type = found.type;
+      id = typeOrId;
+      if (idOrSheet && typeof idOrSheet === "string") sheetName = idOrSheet;
+    }
+    return { type, id, sheetName };
+  }
+
+  deleteTextBox(boxId, sheetName = this.activeSheet, recordUndo = true) {
+    const boxes = this.textBoxesBySheet[sheetName] || [];
+    const index = boxes.findIndex(box => box.id === boxId);
+    if (index < 0) return false;
+    const [box] = boxes.splice(index, 1);
+    if (this.selectedTextBoxId === boxId) this.selectedTextBoxId = null;
+    if (sheetName === this.activeSheet) this.renderTextBoxes();
+    if (recordUndo) {
+      this._recordHistory({
+        type: "collection",
+        sheet: sheetName,
+        collection: "textBoxesBySheet",
+        operation: "delete",
+        index,
+        item: structuredClone(box)
+      });
+    }
+    return true;
+  }
+
+  deleteObject(typeOrId, idOrSheet, maybeSheet) {
+    const target = this._resolveObjectTarget(typeOrId, idOrSheet, maybeSheet);
+    if (!target) return false;
+    if (target.type === "image") return this.deleteImage(target.id, target.sheetName);
+    if (target.type === "textbox") return this.deleteTextBox(target.id, target.sheetName);
+    return false;
+  }
+
+  cutObject(typeOrId, idOrSheet) {
+    const target = this._resolveObjectTarget(typeOrId, idOrSheet);
+    if (!target) return false;
+    const obj = this._findObjectById(target.type, target.id, target.sheetName);
+    if (!obj) return false;
+    this._objectClipboard = {
+      type: target.type,
+      data: structuredClone(obj),
+      mode: "cut",
+      sheet: target.sheetName
+    };
+    if (target.type === "image") this.deleteImage(target.id, target.sheetName);
+    else if (target.type === "textbox") this.deleteTextBox(target.id, target.sheetName);
+    return true;
+  }
+
+  copyObject(typeOrId, idOrSheet, isCut = false) {
+    const target = this._resolveObjectTarget(typeOrId, idOrSheet);
+    if (!target) return false;
+    const obj = this._findObjectById(target.type, target.id, target.sheetName);
+    if (!obj) return false;
+    this._objectClipboard = {
+      type: target.type,
+      data: structuredClone(obj),
+      mode: isCut ? "cut" : "copy",
+      sheet: target.sheetName
+    };
+    return true;
+  }
+
+  pasteObject(anchor = this.selectedCoord) {
+    if (!this._objectClipboard) {
+      if (this._clipboardRange) return this.pasteClipboard();
+      return null;
+    }
+    const cb = this._objectClipboard;
+    const targetAnchor = { c: anchor?.c || this.selectedCoord.c, r: Number(anchor?.r || this.selectedCoord.r) };
+    let pasted = null;
+    if (cb.type === "image") {
+      const newImg = structuredClone(cb.data);
+      newImg.id = `image-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      newImg.anchor = targetAnchor;
+      this.imagesBySheet[this.activeSheet] ||= [];
+      this.imagesBySheet[this.activeSheet].push(newImg);
+      this.selectedImageId = newImg.id;
+      this.selectedTextBoxId = null;
+      this.renderImages();
+      this._recordHistory({
+        type: "collection",
+        sheet: this.activeSheet,
+        collection: "imagesBySheet",
+        operation: "insert",
+        index: this.imagesBySheet[this.activeSheet].length - 1,
+        item: structuredClone(newImg)
+      });
+      pasted = { type: "image", item: newImg };
+    } else if (cb.type === "textbox") {
+      const newBox = structuredClone(cb.data);
+      newBox.id = `textbox-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      newBox.anchor = targetAnchor;
+      this.textBoxesBySheet[this.activeSheet] ||= [];
+      this.textBoxesBySheet[this.activeSheet].push(newBox);
+      this.selectedTextBoxId = newBox.id;
+      this.selectedImageId = null;
+      this.renderTextBoxes();
+      this._recordHistory({
+        type: "collection",
+        sheet: this.activeSheet,
+        collection: "textBoxesBySheet",
+        operation: "insert",
+        index: this.textBoxesBySheet[this.activeSheet].length - 1,
+        item: structuredClone(newBox)
+      });
+      pasted = { type: "textbox", item: newBox };
+    }
+    if (cb.mode === "cut") {
+      this._objectClipboard = null;
+    }
+    return pasted;
+  }
+
+  _reorderObject(type, id, direction, sheetName = this.activeSheet) {
+    const collectionName = type === "image" ? "imagesBySheet" : (type === "textbox" ? "textBoxesBySheet" : null);
+    if (!collectionName) return false;
+    const list = this[collectionName]?.[sheetName] || [];
+    const index = list.findIndex(item => item.id === id);
+    if (index < 0) return false;
+
+    let newIndex = index;
+    if (direction === "front") newIndex = list.length - 1;
+    else if (direction === "forward") newIndex = Math.min(list.length - 1, index + 1);
+    else if (direction === "backward") newIndex = Math.max(0, index - 1);
+    else if (direction === "back") newIndex = 0;
+
+    if (newIndex === index) return true;
+
+    const beforeList = structuredClone(list);
+    const [item] = list.splice(index, 1);
+    list.splice(newIndex, 0, item);
+    const afterList = structuredClone(list);
+
+    this._recordHistory({
+      type: "collection-replace",
+      sheet: sheetName,
+      collection: collectionName,
+      before: beforeList,
+      after: afterList
+    });
+
+    if (sheetName === this.activeSheet) {
+      if (type === "image") this.renderImages();
+      else if (type === "textbox") this.renderTextBoxes();
+    }
+    return true;
+  }
+
+  bringObjectToFront(typeOrId, idOrSheet, maybeSheet) {
+    const target = this._resolveObjectTarget(typeOrId, idOrSheet, maybeSheet);
+    return target ? this._reorderObject(target.type, target.id, "front", target.sheetName) : false;
+  }
+
+  bringObjectForward(typeOrId, idOrSheet, maybeSheet) {
+    const target = this._resolveObjectTarget(typeOrId, idOrSheet, maybeSheet);
+    return target ? this._reorderObject(target.type, target.id, "forward", target.sheetName) : false;
+  }
+
+  sendObjectBackward(typeOrId, idOrSheet, maybeSheet) {
+    const target = this._resolveObjectTarget(typeOrId, idOrSheet, maybeSheet);
+    return target ? this._reorderObject(target.type, target.id, "backward", target.sheetName) : false;
+  }
+
+  sendObjectToBack(typeOrId, idOrSheet, maybeSheet) {
+    const target = this._resolveObjectTarget(typeOrId, idOrSheet, maybeSheet);
+    return target ? this._reorderObject(target.type, target.id, "back", target.sheetName) : false;
+  }
+
+  showFormatObjectDialog(typeOrId, idOrSheet, maybeSheet) {
+    const target = this._resolveObjectTarget(typeOrId, idOrSheet, maybeSheet);
+    if (!target) return false;
+    const { type, id, sheetName } = target;
+    if (typeof document === "undefined" || !document.body) return false;
+    const obj = this._findObjectById(type, id, sheetName);
+    if (!obj) return false;
+
+    const isImage = type === "image";
+    const title = t("sheetContextMenu.formatObjectDialog", "Định dạng đối tượng");
+    const widthVal = isImage ? (obj.widthCm ?? 6.35) : (obj.widthPx ?? 180);
+    const heightVal = isImage ? (obj.heightCm ?? 2.12) : (obj.heightPx ?? 54);
+    const unit = isImage ? "cm" : "px";
+    const anchorCol = obj.anchor?.c || "A";
+    const anchorRow = obj.anchor?.r || 1;
+    const offsetX = Number(obj.offsetXCm ?? (obj.offsetX ? (Number(obj.offsetX) / 37.795).toFixed(2) : 0));
+    const offsetY = Number(obj.offsetYCm ?? (obj.offsetY ? (Number(obj.offsetY) / 37.795).toFixed(2) : 0));
+
+    const textRow = !isImage ? `
+      <label style="display:block;margin-top:10px">${t("sheetContextMenu.textContent", "Nội dung văn bản")}
+        <textarea id="vno-obj-text" class="vno-dialog-input" rows="3" style="width:100%;box-sizing:border-box;margin-top:4px">${this._escapeHtml(obj.text || "")}</textarea>
+      </label>
+    ` : "";
+
+    const overlay = this._createSheetDialog(title, `
+      <fieldset style="border:1px solid var(--vno-border-default);border-radius:6px;margin-bottom:10px">
+        <legend>${t("sheetContextMenu.objectSize", "Kích thước")}</legend>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <label>${t("sheetContextMenu.objectWidth", "Chiều rộng")} (${unit})
+            <input id="vno-obj-width" type="number" min="0.1" step="${isImage ? "0.01" : "1"}" value="${widthVal}" class="vno-dialog-input" style="width:100%;box-sizing:border-box;margin-top:4px">
+          </label>
+          <label>${t("sheetContextMenu.objectHeight", "Chiều cao")} (${unit})
+            <input id="vno-obj-height" type="number" min="0.1" step="${isImage ? "0.01" : "1"}" value="${heightVal}" class="vno-dialog-input" style="width:100%;box-sizing:border-box;margin-top:4px">
+          </label>
+        </div>
+      </fieldset>
+      <fieldset style="border:1px solid var(--vno-border-default);border-radius:6px;margin-bottom:10px">
+        <legend>${t("sheetContextMenu.objectPosition", "Vị trí")}</legend>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+          <label>${t("sheetContextMenu.anchorCol", "Cột neo")}
+            <input id="vno-obj-col" type="text" maxlength="3" value="${this._escapeHtml(anchorCol)}" class="vno-dialog-input" style="width:100%;box-sizing:border-box;margin-top:4px;text-transform:uppercase">
+          </label>
+          <label>${t("sheetContextMenu.anchorRow", "Hàng neo")}
+            <input id="vno-obj-row" type="number" min="1" max="${this.rowCount}" value="${anchorRow}" class="vno-dialog-input" style="width:100%;box-sizing:border-box;margin-top:4px">
+          </label>
+        </div>
+        ${isImage ? `
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+          <label>${t("sheetContextMenu.offsetX", "Độ lệch ngang")} (cm)
+            <input id="vno-obj-offset-x" type="number" step="0.01" value="${offsetX}" class="vno-dialog-input" style="width:100%;box-sizing:border-box;margin-top:4px">
+          </label>
+          <label>${t("sheetContextMenu.offsetY", "Độ lệch dọc")} (cm)
+            <input id="vno-obj-offset-y" type="number" step="0.01" value="${offsetY}" class="vno-dialog-input" style="width:100%;box-sizing:border-box;margin-top:4px">
+          </label>
+        </div>` : ""}
+      </fieldset>
+      ${textRow}
+      <div class="vno-rule-error" role="alert" style="color:var(--vno-danger,#dc2626);font-size:12px;margin-top:6px"></div>
+    `);
+
+    if (!overlay) return false;
+
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const w = parseFloat(overlay.querySelector("#vno-obj-width").value);
+      const h = parseFloat(overlay.querySelector("#vno-obj-height").value);
+      const c = overlay.querySelector("#vno-obj-col").value.trim().toUpperCase();
+      const r = parseInt(overlay.querySelector("#vno-obj-row").value, 10);
+
+      if (!Number.isFinite(w) || w <= 0 || !Number.isFinite(h) || h <= 0) {
+        overlay.querySelector(".vno-rule-error").textContent = "Kích thước không hợp lệ.";
+        return;
+      }
+      if (!/^[A-Z]{1,3}$/.test(c) || !Number.isInteger(r) || r < 1 || r > this.rowCount) {
+        overlay.querySelector(".vno-rule-error").textContent = "Tọa độ ô neo không hợp lệ.";
+        return;
+      }
+
+      const before = structuredClone(obj);
+
+      if (isImage) {
+        obj.widthCm = parseFloat(w.toFixed(3));
+        obj.heightCm = parseFloat(h.toFixed(3));
+        obj.anchor = { c, r };
+        const ox = parseFloat(overlay.querySelector("#vno-obj-offset-x")?.value);
+        const oy = parseFloat(overlay.querySelector("#vno-obj-offset-y")?.value);
+        if (Number.isFinite(ox)) obj.offsetXCm = parseFloat(ox.toFixed(3));
+        if (Number.isFinite(oy)) obj.offsetYCm = parseFloat(oy.toFixed(3));
+      } else {
+        obj.widthPx = Math.max(50, Math.round(w));
+        obj.heightPx = Math.max(20, Math.round(h));
+        obj.anchor = { c, r };
+        const textVal = overlay.querySelector("#vno-obj-text")?.value;
+        if (typeof textVal === "string") obj.text = textVal;
+      }
+
+      const after = structuredClone(obj);
+      this._recordHistory({
+        type: "collection",
+        sheet: sheetName,
+        collection: isImage ? "imagesBySheet" : "textBoxesBySheet",
+        operation: "update",
+        id: obj.id,
+        before,
+        after,
+        item: structuredClone(obj)
+      });
+
+      if (sheetName === this.activeSheet) {
+        if (isImage) this.renderImages();
+        else this.renderTextBoxes();
+      }
+      overlay.closeDialog();
+    });
+
+    return true;
+  }
+
+  _showObjectContextMenu(event, typeOrId, maybeId) {
+    if (event?.preventDefault) event.preventDefault();
+    if (event?.stopPropagation) event.stopPropagation();
+
+    const target = this._resolveObjectTarget(typeOrId, maybeId);
+    if (!target) return null;
+    const { type, id: objectId } = target;
+    const obj = this._findObjectById(type, objectId);
+    if (!obj) return null;
+
+    if (type === "image") {
+      this.selectedImageId = objectId;
+      this.selectedTextBoxId = null;
+      this._updateImageSelection();
+      this._updateTextBoxSelection();
+    } else if (type === "textbox") {
+      this.selectedTextBoxId = objectId;
+      this.selectedImageId = null;
+      this._updateTextBoxSelection();
+      this._updateImageSelection();
+    }
+
+    const items = [
+      {
+        label: t("sheetContextMenu.cut", "Cắt"),
+        shortcut: "Ctrl+X",
+        action: () => this.cutObject(type, objectId)
+      },
+      {
+        label: t("sheetContextMenu.copy", "Sao chép"),
+        shortcut: "Ctrl+C",
+        action: () => this.copyObject(type, objectId)
+      },
+      {
+        label: t("sheetContextMenu.paste", "Dán"),
+        shortcut: "Ctrl+V",
+        disabled: !this._objectClipboard && !this._clipboardRange,
+        action: () => this.pasteObject()
+      },
+      { sep: true },
+      {
+        label: t("sheetContextMenu.bringToFront", "Đưa lên trên"),
+        items: [
+          {
+            label: t("sheetContextMenu.bringToFrontTop", "Đưa lên trên cùng"),
+            action: () => this.bringObjectToFront(type, objectId)
+          },
+          {
+            label: t("sheetContextMenu.bringForward", "Đưa lên trên một lớp"),
+            action: () => this.bringObjectForward(type, objectId)
+          }
+        ]
+      },
+      {
+        label: t("sheetContextMenu.sendToBack", "Đưa xuống dưới"),
+        items: [
+          {
+            label: t("sheetContextMenu.sendToBackBottom", "Đưa xuống dưới cùng"),
+            action: () => this.sendObjectToBack(type, objectId)
+          },
+          {
+            label: t("sheetContextMenu.sendBackward", "Đưa xuống dưới một lớp"),
+            action: () => this.sendObjectBackward(type, objectId)
+          }
+        ]
+      },
+      { sep: true },
+      {
+        label: t("sheetContextMenu.deleteObject", "Xóa"),
+        shortcut: "Delete",
+        action: () => this.deleteObject(type, objectId)
+      },
+      { sep: true },
+      {
+        label: t("sheetContextMenu.formatObject", "Định dạng đối tượng..."),
+        action: () => this.showFormatObjectDialog(type, objectId)
+      }
+    ];
+
+    this._lastObjectContextMenuItems = items;
+    if (typeof this._showCustomContextMenu === "function") {
+      this._showCustomContextMenu(event, items);
+      return items;
+    }
+
+    this._contextMenuPreviousFocus = event.currentTarget || (typeof document !== "undefined" && document.activeElement);
+    this._activeContextMenu = showContextMenu({
+      items,
+      x: event.clientX,
+      y: event.clientY,
+      className: "vno-sheet-context-menu vno-sheet-object-context-menu",
+      ariaLabel: t("sheetContextMenu.objectMenu", "Menu đối tượng"),
+      previousFocus: this._contextMenuPreviousFocus,
+      onClose: () => {
+        this._activeContextMenu = null;
+        this._contextMenuPreviousFocus = null;
+      }
+    });
+    return this._activeContextMenu;
+  }
+
+
   _getAnchorFromPixel(left, top) {
     // Lỗi thật đã xác nhận: renderImages() dùng offset header 44px(cột)/
     // 24px(hàng) (thống nhất với _applyFreezeVisuals(), xem
@@ -7915,7 +8388,10 @@ _bindGridKeyboardNavigation() {
       if (event.button != null && event.button !== 0) return;
 
       this.selectedImageId = image.id;
+      this.selectedTextBoxId = null;
       this._updateImageSelection();
+      this._updateTextBoxSelection();
+      try { panel.focus(); } catch (_) { /* ignore */ }
 
       const pointerId = event.pointerId;
       if (panel.setPointerCapture && pointerId != null) {
@@ -8172,9 +8648,41 @@ _bindGridKeyboardNavigation() {
 
       const isSelected = this.selectedImageId === image.id;
       panel.className = isSelected ? "vno-sheet-image is-selected" : "vno-sheet-image";
+      panel.tabIndex = 0;
+      panel.setAttribute("role", "figure");
+      panel.setAttribute("aria-label", t("sheetDialogs.insertedImageAlt", "Ảnh được chèn trong trang tính"));
       panel.dataset.imageId = image.id;
       panel.dataset.sheet = this.activeSheet;
       panel.dataset.anchor = `${anchor.c}${anchor.r}`;
+      panel.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.selectedImageId = image.id;
+        this.selectedTextBoxId = null;
+        this._updateImageSelection();
+        this._updateTextBoxSelection();
+        this._showObjectContextMenu(e, "image", image.id);
+      });
+      panel.addEventListener("keydown", (e) => {
+        if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
+          e.preventDefault();
+          e.stopPropagation();
+          const rect = panel.getBoundingClientRect();
+          this._showObjectContextMenu({ clientX: rect.left + 20, clientY: rect.top + 20, currentTarget: panel, preventDefault: () => {}, stopPropagation: () => {} }, "image", image.id);
+        } else if (e.key === "Delete" || e.key === "Backspace") {
+          e.preventDefault();
+          e.stopPropagation();
+          this.deleteImage(image.id);
+        } else if ((e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "C")) {
+          e.preventDefault();
+          e.stopPropagation();
+          this.copyObject("image", image.id);
+        } else if ((e.ctrlKey || e.metaKey) && (e.key === "x" || e.key === "X")) {
+          e.preventDefault();
+          e.stopPropagation();
+          this.cutObject("image", image.id);
+        }
+      });
       if (isFrozen) {
         panel.dataset.frozen = "true";
         if (isInFrozenRow) panel.dataset.frozenRow = "true";
@@ -8397,8 +8905,30 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
-  insertTextBox(text, anchor = this.selectedCoord) {
-    const box = { id: `textbox-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, text: String(text), anchor: { c: anchor.c, r: anchor.r }, widthPx: 180, heightPx: 54 };
+  insertTextBox(textOrOptions, anchor = this.selectedCoord) {
+    let text = textOrOptions;
+    let targetAnchor = anchor;
+    let widthPx = 180;
+    let heightPx = 54;
+    let offsetX = 0;
+    let offsetY = 0;
+    if (typeof textOrOptions === "object" && textOrOptions !== null) {
+      text = textOrOptions.text ?? "";
+      targetAnchor = textOrOptions.anchor || anchor;
+      if (textOrOptions.widthPx) widthPx = Number(textOrOptions.widthPx);
+      if (textOrOptions.heightPx) heightPx = Number(textOrOptions.heightPx);
+      if (textOrOptions.offsetX) offsetX = Number(textOrOptions.offsetX);
+      if (textOrOptions.offsetY) offsetY = Number(textOrOptions.offsetY);
+    }
+    const box = {
+      id: `textbox-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      text: String(text ?? ""),
+      anchor: { c: targetAnchor?.c || "A", r: Number(targetAnchor?.r || 1) },
+      widthPx: Math.max(20, widthPx),
+      heightPx: Math.max(20, heightPx),
+      ...(offsetX ? { offsetX } : {}),
+      ...(offsetY ? { offsetY } : {})
+    };
     this.textBoxesBySheet[this.activeSheet] ||= [];
     this.textBoxesBySheet[this.activeSheet].push(box);
     this.renderTextBoxes();
@@ -8411,13 +8941,39 @@ _bindGridKeyboardNavigation() {
     this.textBoxLayer.innerHTML = "";
     for (const box of this.textBoxesBySheet[this.activeSheet] || []) {
       const el = document.createElement("div");
-      el.className = "vno-sheet-textbox";
+      el.className = this.selectedTextBoxId === box.id ? "vno-sheet-textbox is-selected" : "vno-sheet-textbox";
+      el.tabIndex = 0;
+      el.setAttribute("role", "textbox");
+      el.setAttribute("aria-label", "Hộp văn bản");
       el.dataset.textboxId = box.id;
       el.contentEditable = "true";
       el.textContent = box.text;
       const widthPx = Math.max(180, Number(box.widthPx) || 180);
       const heightPx = Math.max(54, Number(box.heightPx) || 54);
       el.style.cssText = `position:absolute;left:${Math.max(0, this.cols.indexOf(box.anchor.c)) * 100 + 46}px;top:${Math.max(0, box.anchor.r - 1) * this.rowHeight + 28}px;width:${widthPx}px;height:${heightPx}px;min-width:180px;min-height:54px;padding:10px;background:#fff;border:1px solid #64748b;box-shadow:0 4px 12px rgba(15,23,42,.16);pointer-events:auto;resize:both;overflow:auto`;
+      el.addEventListener("pointerdown", () => {
+        this.selectedTextBoxId = box.id;
+        this.selectedImageId = null;
+        this._updateTextBoxSelection();
+        this._updateImageSelection();
+      });
+      el.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.selectedTextBoxId = box.id;
+        this.selectedImageId = null;
+        this._updateTextBoxSelection();
+        this._updateImageSelection();
+        this._showObjectContextMenu(e, "textbox", box.id);
+      });
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
+          e.preventDefault();
+          e.stopPropagation();
+          const rect = el.getBoundingClientRect();
+          this._showObjectContextMenu({ clientX: rect.left + 20, clientY: rect.top + 20, currentTarget: el, preventDefault: () => {}, stopPropagation: () => {} }, "textbox", box.id);
+        }
+      });
       el.addEventListener("input", () => { box.text = el.textContent || ""; });
       const saveSize = () => {
         const rect = el.getBoundingClientRect();
@@ -11031,7 +11587,10 @@ _bindGridKeyboardNavigation() {
       this.scenariosBySheet[action.sheet] = structuredClone(direction === "undo" ? action.before : action.after);
     } else if (action.type === "collection-replace") {
       this[action.collection][action.sheet] = structuredClone(direction === "undo" ? action.before : action.after);
-      this._refreshVisibleRuleVisuals();
+      if (action.collection === "imagesBySheet") this.renderImages();
+      else if (action.collection === "textBoxesBySheet") this.renderTextBoxes();
+      else if (action.collection === "chartsBySheet") this.renderCharts();
+      else this._refreshVisibleRuleVisuals();
     } else if (action.type === "conditional-rules") {
       this.conditionalFormattingBySheet[action.sheet] = structuredClone(direction === "undo" ? action.before : action.after);
 
@@ -13520,8 +14079,14 @@ _bindGridKeyboardNavigation() {
     return structuredClone(this.pageSetupBySheet[sheetName] || newSheetPageSetup());
   }
 
-  setPageSetup(changes = {}) {
-    const before = this.getPageSetup();
+  setPageSetup(sheetOrChanges = {}, maybeChanges = null) {
+    let sheetName = this.activeSheet;
+    let changes = sheetOrChanges;
+    if (typeof sheetOrChanges === "string") {
+      sheetName = sheetOrChanges;
+      changes = maybeChanges || {};
+    }
+    const before = this.getPageSetup(sheetName);
     const presets = {
       normal: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78 },
       wide: { top: 2.54, bottom: 2.54, left: 5.08, right: 5.08 },
@@ -13564,10 +14129,21 @@ _bindGridKeyboardNavigation() {
     const printOptions = { ...before.printOptions, ...(changes.printOptions || {}) };
     printOptions.gridlines = Boolean(printOptions.gridlines);
     printOptions.headings = Boolean(printOptions.headings);
+    const rawComments = changes.printOptions?.comments;
+    const normComments = rawComments === "atEnd" ? "sheetEnd" : rawComments;
+    printOptions.comments = ["none", "sheetEnd", "asDisplayed"].includes(normComments)
+      ? normComments
+      : (before.printOptions?.comments || "none");
+    printOptions.cellErrors = ["displayed", "blank", "dash", "na"].includes(changes.printOptions?.cellErrors)
+      ? changes.printOptions.cellErrors
+      : (before.printOptions?.cellErrors || "displayed");
+    printOptions.pageOrder = ["downThenOver", "overThenDown"].includes(changes.printOptions?.pageOrder)
+      ? changes.printOptions.pageOrder
+      : (before.printOptions?.pageOrder || "downThenOver");
     const after = { margins, orientation, size, scale, headerFooter, centerOnPage, printOptions, printTitles };
     if (JSON.stringify(before) === JSON.stringify(after)) return after;
-    this.pageSetupBySheet[this.activeSheet] = after;
-    this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "pageSetupBySheet", before, after: structuredClone(after) });
+    this.pageSetupBySheet[sheetName] = after;
+    this._recordHistory({ type: "sheet-page-layout", sheet: sheetName, property: "pageSetupBySheet", before, after: structuredClone(after) });
     return structuredClone(after);
   }
 
@@ -13594,7 +14170,37 @@ _bindGridKeyboardNavigation() {
         <label><input type="radio" name="vno-sheet-scale-mode" value="pages" ${setup.scale.mode === "pages" ? "checked" : ""}> Vừa trong <input id="vno-sheet-scale-wide" type="number" min="0" max="1000" value="${setup.scale.pagesWide}" class="vno-dialog-input" style="width:64px"> trang ngang × <input id="vno-sheet-scale-tall" type="number" min="0" max="1000" value="${setup.scale.pagesTall}" class="vno-dialog-input" style="width:64px"> trang dọc <small>(0 = tự động)</small></label>
       </fieldset>
       <fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>Căn giữa trang khi in</legend><label><input id="vno-sheet-center-horizontal" type="checkbox" ${setup.centerOnPage.horizontal ? "checked" : ""}> Theo chiều ngang</label><label><input id="vno-sheet-center-vertical" type="checkbox" ${setup.centerOnPage.vertical ? "checked" : ""}> Theo chiều dọc</label></fieldset>
-      <fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>Tùy chọn in</legend><label><input id="vno-sheet-print-gridlines" type="checkbox" ${setup.printOptions.gridlines ? "checked" : ""}> In đường kẻ ô</label><label><input id="vno-sheet-print-headings" type="checkbox" ${setup.printOptions.headings ? "checked" : ""}> In tiêu đề hàng và cột</label></fieldset>
+      <fieldset style="border:1px solid var(--vno-border-default);border-radius:6px" class="vno-sheet-pagesetup-sheet-group">
+        <legend>${t("sheetDialogs.sheetTab", "Trang tính")}</legend>
+        <div style="font-weight:600;margin-bottom:6px">Tùy chọn in:</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+          <label><input id="vno-sheet-print-gridlines" type="checkbox" ${setup.printOptions.gridlines ? "checked" : ""}> ${t("sheetDialogs.printGridlines", "In đường lưới")}</label>
+          <label><input id="vno-sheet-print-headings" type="checkbox" ${setup.printOptions.headings ? "checked" : ""}> ${t("sheetDialogs.printHeadings", "In tiêu đề hàng và cột")}</label>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:8px">
+          <label>${t("sheetDialogs.printComments", "In ghi chú:")}
+            <select id="vno-sheet-print-comments" class="vno-select" style="width:100%;margin-top:4px">
+              <option value="none" ${setup.printOptions.comments === "none" ? "selected" : ""}>${t("sheetDialogs.commentsNone", "(Không)")}</option>
+              <option value="sheetEnd" ${setup.printOptions.comments === "sheetEnd" ? "selected" : ""}>${t("sheetDialogs.commentsAtEnd", "Ở cuối trang tính")}</option>
+              <option value="asDisplayed" ${setup.printOptions.comments === "asDisplayed" ? "selected" : ""}>${t("sheetDialogs.commentsAsDisplayed", "Như hiển thị trên trang tính")}</option>
+            </select>
+          </label>
+          <label>${t("sheetDialogs.cellErrors", "Lỗi ô hiển thị:")}
+            <select id="vno-sheet-print-cell-errors" class="vno-select" style="width:100%;margin-top:4px">
+              <option value="displayed" ${setup.printOptions.cellErrors === "displayed" ? "selected" : ""}>${t("sheetDialogs.errorsDisplayed", "Như hiển thị")}</option>
+              <option value="blank" ${setup.printOptions.cellErrors === "blank" ? "selected" : ""}>${t("sheetDialogs.errorsBlank", "<trống>")}</option>
+              <option value="dash" ${setup.printOptions.cellErrors === "dash" ? "selected" : ""}>${t("sheetDialogs.errorsDash", "--")}</option>
+              <option value="na" ${setup.printOptions.cellErrors === "na" ? "selected" : ""}>${t("sheetDialogs.errorsNa", "#N/A")}</option>
+            </select>
+          </label>
+        </div>
+        <label>${t("sheetDialogs.pageOrder", "Thứ tự trang:")}
+          <select id="vno-sheet-print-page-order" class="vno-select" style="width:100%;margin-top:4px">
+            <option value="downThenOver" ${setup.printOptions.pageOrder === "downThenOver" ? "selected" : ""}>${t("sheetDialogs.orderDownThenOver", "Xuống rồi sang")}</option>
+            <option value="overThenDown" ${setup.printOptions.pageOrder === "overThenDown" ? "selected" : ""}>${t("sheetDialogs.orderOverThenDown", "Sang rồi xuống")}</option>
+          </select>
+        </label>
+      </fieldset>
       <div class="vno-rule-error" role="alert"></div>`);
     if (!overlay) return false;
     const presets = { normal: [1.91, 1.91, 1.78, 1.78], wide: [2.54, 2.54, 5.08, 5.08], narrow: [1.27, 1.27, 1.27, 1.27] };
@@ -13609,7 +14215,13 @@ _bindGridKeyboardNavigation() {
         size: overlay.querySelector("#vno-sheet-size").value,
         scale: { mode: overlay.querySelector('[name="vno-sheet-scale-mode"]:checked').value, percent: overlay.querySelector("#vno-sheet-scale-percent").value, pagesWide: overlay.querySelector("#vno-sheet-scale-wide").value, pagesTall: overlay.querySelector("#vno-sheet-scale-tall").value },
         centerOnPage: { horizontal: overlay.querySelector("#vno-sheet-center-horizontal").checked, vertical: overlay.querySelector("#vno-sheet-center-vertical").checked },
-        printOptions: { gridlines: overlay.querySelector("#vno-sheet-print-gridlines").checked, headings: overlay.querySelector("#vno-sheet-print-headings").checked },
+        printOptions: {
+          gridlines: overlay.querySelector("#vno-sheet-print-gridlines").checked,
+          headings: overlay.querySelector("#vno-sheet-print-headings").checked,
+          comments: overlay.querySelector("#vno-sheet-print-comments")?.value || "none",
+          cellErrors: overlay.querySelector("#vno-sheet-print-cell-errors")?.value || "displayed",
+          pageOrder: overlay.querySelector("#vno-sheet-print-page-order")?.value || "downThenOver"
+        },
         printTitles: { rows: overlay.querySelector("#vno-sheet-title-rows").value, cols: overlay.querySelector("#vno-sheet-title-cols").value }
       });
       if (!result) { overlay.querySelector(".vno-rule-error").textContent = "Giá trị lề hoặc tiêu đề in không hợp lệ."; return; }
@@ -13621,7 +14233,7 @@ _bindGridKeyboardNavigation() {
     const clearPending = () => { this._printTitleSelect = null; };
     overlay.querySelector(".vno-rule-cancel")?.addEventListener("click", clearPending);
     overlay.querySelector(".vno-rule-close")?.addEventListener("click", clearPending);
-    const focusIds = { margins: "vno-sheet-margin-preset", orientation: "vno-sheet-orientation", size: "vno-sheet-size", scale: "vno-sheet-scale-percent", printTitles: "vno-sheet-title-rows" };
+    const focusIds = { margins: "vno-sheet-margin-preset", orientation: "vno-sheet-orientation", size: "vno-sheet-size", scale: "vno-sheet-scale-percent", printTitles: "vno-sheet-title-rows", sheet: "vno-sheet-print-gridlines" };
     overlay.querySelector(`#${focusIds[focusField] || focusIds.margins}`)?.focus();
     return true;
   }
