@@ -129,7 +129,7 @@ try {
     if (collapsed) await click(cdp, `[data-group-id="${groupId}"] .vno-ribbon-group-collapsed-btn`);
     for (const id of ids) labelledControls[id] = await visibleCommandState(id);
   }
-  check("Nút Định dạng bảng, Kiểu ô và Chèn/Xóa hàng cột có nhãn", Object.values(labelledControls).every(value => value?.text?.length > 0), JSON.stringify(labelledControls));
+  check("Nút Định dạng bảng, Kiểu ô và Chèn/Xóa hàng cột có nhãn", Object.values(labelledControls).every(value => value?.text?.length > 0 || (/vno-group-icon-only/.test(value?.group || "") && value?.labelText?.length > 0)), JSON.stringify(labelledControls));
 
   await click(cdp, '.vno-grid-cell[data-coord="A1"]');
   await typeText(cdp, "demo");

@@ -519,10 +519,8 @@ body {
   .vno-ribbon-group-items {
     gap: 2px;
   }
-  /* Nhom Kieu o: Dinh dang bang va Kieu o hien thi dang icon button gon gang */
-  .vno-ribbon-group[data-group-id="styles"] .vno-ribbon-btn-small .vno-btn-label {
-    display: none;
-  }
+  /* Nhom Kieu o / O: nut nho GIU nhan chu (nhu Excel); khi thieu cho, co che co gian
+     trong ribbon-host.js (icon-only) moi an nhan. */
 }
 
 /* Responsive ribbon breakpoint 2: man hinh <= 1550px (laptop 1440px, 1366px pho bien tai VN)
@@ -539,10 +537,6 @@ body {
   }
   .vno-ribbon-group-items {
     gap: 2px;
-  }
-  /* Nhom O (Cells): Chen hang/cot, Xoa hang/cot thu gon thanh icon buttons */
-  .vno-ribbon-group[data-group-id="cells"] .vno-btn-label {
-    display: none;
   }
   .vno-ribbon-group[data-group-id="cells"] .vno-ribbon-btn-small {
     padding: 2px 5px;

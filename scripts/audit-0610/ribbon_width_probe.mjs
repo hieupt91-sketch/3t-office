@@ -1,0 +1,23 @@
+// Chup man hinh ribbon Sheet o do rong cho truoc (mac dinh 1366x768) de kiem tra cat/tran.
+// Chay: [VNO_PROBE_APP=writer|sheet|slides] VNO_APP_ROOT=<repo> node --experimental-websocket scripts/audit-0610/ribbon_width_probe.mjs <LOCALAPPDATA> <ra.png> [rong] [cao]
+import { writeFileSync } from "node:fs";
+import { launchApp } from "../../tests/live/cdp/session.mjs";
+const [lad, out, w = "1366", h = "768"] = process.argv.slice(2);
+const session = await launchApp(process.env.VNO_PROBE_APP || "sheet", { localAppData: lad, startTimeoutMilliseconds: 300000, readyTimeoutMilliseconds: 300000 });
+try {
+  await session.cdp.send("Emulation.setDeviceMetricsOverride", { width: Number(w), height: Number(h), deviceScaleFactor: 1, mobile: false });
+  await new Promise((r) => setTimeout(r, 1500));
+  const info = await session.cdp.evaluate(`JSON.stringify((() => { const rb = document.querySelector('.vno-ribbon, .ribbon, [class*=ribbon]'); const r = rb?.getBoundingClientRect(); const groups = [...document.querySelectorAll('[class*=ribbon-group]')].map(g => { const b = g.getBoundingClientRect(); return { cls: String(g.className).slice(0, 40), l: Math.round(b.left), r: Math.round(b.right) }; }); return { vw: innerWidth, ribbon: r && { l: Math.round(r.left), r: Math.round(r.right), scrollW: rb.scrollWidth, clientW: rb.clientWidth }, over: groups.filter(g => g.r > innerWidth + 1) }; })())`, { awaitPromise: true });
+  console.log(info);
+  const fit = `JSON.stringify((() => { const c = document.querySelector('.vno-ribbon-content'); return { sw: c.scrollWidth, cw: c.clientWidth, sh: c.scrollHeight, ch: c.clientHeight, collapsed: document.querySelectorAll('.vno-group-collapsed').length, compact: document.querySelectorAll('.vno-group-compact').length }; })())`;
+  console.log("sau emulate:", await session.cdp.evaluate(fit, { awaitPromise: true }));
+  await session.cdp.evaluate(`window.dispatchEvent(new Event('resize')); true`, { awaitPromise: true });
+  await new Promise((r) => setTimeout(r, 1200));
+  console.log("sau resize :", await session.cdp.evaluate(fit, { awaitPromise: true }));
+  console.log("nhom tran:", await session.cdp.evaluate(`JSON.stringify([...document.querySelectorAll('.vno-ribbon-group')].map((g) => { const it = g.querySelector('.vno-ribbon-group-items'); const c = document.querySelector('.vno-ribbon-content').getBoundingClientRect(); const kids = it ? [...it.children].map((k) => { const r = k.getBoundingClientRect(); return { cls: String(k.className).slice(0, 30), t: Math.round(r.top - c.top), b: Math.round(r.bottom - c.top) }; }) : []; return { id: g.dataset.groupId, cls: g.className.replace('vno-ribbon-group', '').trim(), gh: g.clientHeight, gs: g.scrollHeight, ih: it && it.clientHeight, is: it && it.scrollHeight, minTop: Math.min(...kids.map((k) => k.t)), maxBot: Math.max(...kids.map((k) => k.b)) }; }).filter((x) => x.gs > x.gh + 1 || x.minTop < 0 || x.is > x.ih + 1))`, { awaitPromise: true }));
+  console.log("chi tiet number/styles:", await session.cdp.evaluate(`JSON.stringify(['number', 'styles'].map((id) => { const g = document.querySelector('.vno-ribbon-group[data-group-id="' + id + '"] .vno-ribbon-group-items'); const base = g.getBoundingClientRect().top; const walk = (e, d) => [...e.children].map((k) => { const r = k.getBoundingClientRect(); const cs = getComputedStyle(k); return { d, tag: k.tagName, cls: String(k.className).slice(0, 38), top: Math.round(r.top - base), h: Math.round(r.height), w: Math.round(r.width), fd: cs.flexDirection, fw: cs.flexWrap }; }).concat(d < 1 ? [...e.children].flatMap((k) => walk(k, d + 1)) : []); return { id, kids: walk(g, 0) }; }))`, { awaitPromise: true }));
+  // Chuoi cha cua nut dau tien trong ribbon: chieu cao/overflow tung cap de tim cho bi cat.
+  console.log(await session.cdp.evaluate(`JSON.stringify((() => { const out = []; let e = [...document.querySelectorAll('.vno-ribbon *')].find((n) => n.children.length === 0 && n.textContent.trim() === 'Dán'); while (e && e !== document.body && out.length < 10) { const c = getComputedStyle(e); out.push({ tag: e.tagName, cls: String(e.className).slice(0, 50), h: Math.round(e.getBoundingClientRect().height), sh: e.scrollHeight, ox: c.overflowX, oy: c.overflowY, maxH: c.maxHeight }); e = e.parentElement; } return out; })())`, { awaitPromise: true }));
+  const shot = await session.cdp.send("Page.captureScreenshot", { format: "png" });
+  writeFileSync(out, Buffer.from((shot.result || shot).data, "base64"));
+} finally { try { await session.close(); } catch {} }
