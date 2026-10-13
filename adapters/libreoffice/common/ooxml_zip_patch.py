@@ -5708,6 +5708,151 @@ def _apply_sheet_chart_features_from_fods(xlsx_bytes: bytes, source_fods: str | 
                     replacements[part] = updated
 
 
+_PRINT_COMMENTS_TO_XLSX = {"none": "none", "sheetend": "atEnd", "asdisplayed": "asDisplayed"}
+_PRINT_ERRORS_TO_XLSX = {"displayed": "displayed", "blank": "blank", "dash": "dash", "na": "NA"}
+_PRINT_ORDER_TO_XLSX = {"downthenover": "downThenOver", "overthendown": "overThenDown"}
+
+
+def _fods_page_print_options(source_fods: str | None) -> dict[str, dict]:
+    """Read vno:page-print-options (JSON) per sheet name from FODS table tags."""
+    result: dict[str, dict] = {}
+    if not source_fods or "vno:page-print-options" not in source_fods:
+        return result
+
+    def _collect(match: re.Match[str]) -> str:
+        attrs = match.group(1) or ""
+        name_match = re.search(r'table:name="([^"]*)"', attrs)
+        opt_match = re.search(r'vno:page-print-options="([^"]*)"', attrs)
+        if name_match and opt_match:
+            try:
+                value = json.loads(_unescape_xml(opt_match.group(1)))
+            except ValueError:
+                value = None
+            if isinstance(value, dict):
+                result[_unescape_xml(name_match.group(1))] = value
+        return match.group(0)
+
+    _sub_table_open_tags(source_fods, _collect)
+    return result
+
+
+def _set_xml_tag_attrs(tag: str, values: dict[str, str]) -> str:
+    for name, value in values.items():
+        if re.search(rf'\b{name}\s*=', tag):
+            tag = re.sub(rf'\b{name}\s*=\s*(["\'])[^"\']*\1', f'{name}="{value}"', tag, count=1)
+        elif tag.endswith("/>"):
+            tag = tag[:-2].rstrip() + f' {name}="{value}"/>'
+        else:
+            tag = tag[:-1] + f' {name}="{value}">'
+    return tag
+
+
+def _apply_sheet_print_options_from_fods(xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]) -> None:
+    """Persist print gridlines/headings/comments/errors/page order into worksheet XML (string edits)."""
+    options_by_sheet = _fods_page_print_options(source_fods)
+    if not options_by_sheet:
+        return
+    entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    for sheet_name, options in options_by_sheet.items():
+        entry_path = entries.get(sheet_name)
+        if not entry_path:
+            continue
+        current = replacements.get(entry_path)
+        if current is None:
+            raw = read_zip_entry(xlsx_bytes, entry_path)
+            if not raw:
+                continue
+            current = raw.decode("utf-8", errors="replace")
+        updated = current
+        print_values = {
+            "headings": "1" if options.get("headings") else "0",
+            "gridLines": "1" if options.get("gridlines") else "0",
+        }
+        if re.search(r"<printOptions\b[^>]*>", updated):
+            updated = re.sub(r"<printOptions\b[^>]*>", lambda m: _set_xml_tag_attrs(re.sub(r'\s+gridLinesSet\s*=\s*"[^"]*"', "", m.group(0)), print_values), updated, count=1)
+        else:
+            anchor = re.search(r"<pageMargins\b", updated)
+            if anchor and (options.get("headings") or options.get("gridlines")):
+                tag = _set_xml_tag_attrs("<printOptions/>", print_values)
+                updated = updated[:anchor.start()] + tag + updated[anchor.start():]
+        setup_values: dict[str, str] = {}
+        comments = _PRINT_COMMENTS_TO_XLSX.get(str(options.get("comments", "none")).lower())
+        errors = _PRINT_ERRORS_TO_XLSX.get(str(options.get("cellErrors", "displayed")).lower())
+        order = _PRINT_ORDER_TO_XLSX.get(str(options.get("pageOrder", "downThenOver")).lower())
+        if comments:
+            setup_values["cellComments"] = comments
+        if errors:
+            setup_values["errors"] = errors
+        if order:
+            setup_values["pageOrder"] = order
+        if setup_values and re.search(r"<pageSetup\b[^>]*>", updated):
+            updated = re.sub(r"<pageSetup\b[^>]*>", lambda m: _set_xml_tag_attrs(m.group(0), setup_values), updated, count=1)
+        if updated != current:
+            replacements[entry_path] = updated
+
+
+def parse_print_options_from_sheet_xml(sheet_xml: str | None) -> dict | None:
+    """Read printOptions + pageSetup print attributes from a worksheet XML."""
+    xml = sheet_xml or ""
+    po = re.search(r"<printOptions\b([^>]*)>", xml)
+    ps = re.search(r"<pageSetup\b([^>]*)>", xml)
+    if not po and not ps:
+        return None
+
+    def attr(text: str, key: str) -> str:
+        found = re.search(rf'\b{key}\s*=\s*"([^"]*)"', text or "")
+        return found.group(1) if found else ""
+
+    truthy = lambda v: v.strip().lower() in ("1", "true")
+    comments_back = {"none": "none", "atEnd": "sheetEnd", "asDisplayed": "asDisplayed"}
+    errors_back = {"displayed": "displayed", "blank": "blank", "dash": "dash", "NA": "na"}
+    ps_attrs = ps.group(1) if ps else ""
+    po_attrs = po.group(1) if po else ""
+    return {
+        "gridlines": truthy(attr(po_attrs, "gridLines")),
+        "headings": truthy(attr(po_attrs, "headings")),
+        "comments": comments_back.get(attr(ps_attrs, "cellComments"), "none"),
+        "cellErrors": errors_back.get(attr(ps_attrs, "errors"), "displayed"),
+        "pageOrder": "overThenDown" if attr(ps_attrs, "pageOrder") == "overThenDown" else "downThenOver",
+    }
+
+
+def apply_print_options_to_fods(fods_xml: str, options_by_sheet: dict[str, dict]) -> str:
+    if not options_by_sheet:
+        return fods_xml or ""
+
+    def _replace(match: re.Match[str]) -> str:
+        attrs = match.group(1) or ""
+        name_match = re.search(r'table:name="([^"]*)"', attrs)
+        if not name_match:
+            return match.group(0)
+        options = options_by_sheet.get(_unescape_xml(name_match.group(1)))
+        if not options:
+            return match.group(0)
+        value = _escape_xml(json.dumps(options, separators=(",", ":")))
+        if re.search(r'vno:page-print-options="', attrs):
+            attrs = re.sub(r'vno:page-print-options="[^"]*"', lambda _m: f'vno:page-print-options="{value}"', attrs, count=1)
+        else:
+            attrs += f' vno:page-print-options="{value}"'
+        return f"<table:table{attrs}>"
+
+    return _sub_table_open_tags(fods_xml or "", _replace)
+
+
+def overlay_sheet_xlsx_print_options(xlsx_bytes: bytes, fods_xml: str | None) -> str:
+    """Restore real print options from each worksheet over the FODS before parseFods()."""
+    xml = fods_xml or ""
+    by_sheet: dict[str, dict] = {}
+    for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+        if not entry_bytes:
+            continue
+        options = parse_print_options_from_sheet_xml(entry_bytes.decode("utf-8", errors="replace"))
+        if options:
+            by_sheet[sheet_name] = options
+    return apply_print_options_to_fods(xml, by_sheet)
+
+
 def _fods_pivot_table_names(source_fods: str | None) -> dict[str, str]:
     """Map VN pivot ids to the stable native DataPilot table names."""
     result = {}
@@ -6309,6 +6454,7 @@ def postprocess_sheet_xlsx(
         _clear_print_areas_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_refreshed_pivot_locations_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_sheet_chart_features_from_fods(xlsx_bytes, source_fods, replacements)
+        _apply_sheet_print_options_from_fods(xlsx_bytes, source_fods, replacements)
         _normalize_scatter_chart_markers(xlsx_bytes, replacements)
         _apply_pivot_chart_links_from_fods(xlsx_bytes, source_fods, replacements, workbook_filename)
 
@@ -10129,6 +10275,7 @@ def overlay_sheet_xlsx_fods(
     xml = overlay_page_margins_to_fods(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_split_panes(xlsx_bytes, xml)
+    xml = overlay_sheet_xlsx_print_options(xlsx_bytes, xml)
     # AutoFilter: read <autoFilter ref> from original worksheet XMLs and
     # inject <table:database-ranges> into FODS so parseFods can restore
     # the filter state.
@@ -10195,6 +10342,7 @@ def overlay_sheet_xlsx_fods_p1(
     xml = overlay_page_margins_to_fods(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_split_panes(xlsx_bytes, xml)
+    xml = overlay_sheet_xlsx_print_options(xlsx_bytes, xml)
     xml = _overlay_autofilter_from_xlsx(xlsx_bytes, xml)
     xml = _overlay_sheet_layout_from_xlsx(xlsx_bytes, xml)
     tab_colors = parse_tab_colors_from_xlsx(xlsx_bytes)
