@@ -335,7 +335,12 @@ def _update_install_root() -> Path | None:
     app_dir = Path(ROOT_DIR)
     install_root = app_dir.parent
     required = (install_root / "python" / "pythonw.exe", install_root / "VERSION.txt")
-    return install_root if app_dir.name.lower() == "app" and all(path.is_file() for path in required) else None
+    if app_dir.name.lower() == "app" and all(path.is_file() for path in required):
+        return install_root
+    services = _os_services()
+    if services is not None and services.update_applier is not None:
+        return services.update_applier.install_root(app_dir)
+    return None
 
 
 def _notify_update_ui(state: dict[str, object]) -> None:
@@ -393,6 +398,7 @@ def _initialize_deferred_services(api, app_kind: str, launch_args: list[str]) ->
         try:
             installed_version = (install_root / "VERSION.txt").read_text(encoding="ascii").strip() or APP_VERSION
             update_config = _load_update_config()
+            services = _os_services()
             _UPDATE_MANAGER = UpdaterManager(
                 install_dir=install_root,
                 updates_dir=_UPDATE_DATA_DIR,
@@ -401,6 +407,7 @@ def _initialize_deferred_services(api, app_kind: str, launch_args: list[str]) ->
                 channel=update_config["channel"],
                 public_key=get_public_key(),
                 on_state=_notify_update_ui,
+                update_applier=services.update_applier if services is not None else None,
             )
             _UPDATE_MANAGER.set_launch_args(launch_args)
             # This function is entered only after the renderer's first paint. Start

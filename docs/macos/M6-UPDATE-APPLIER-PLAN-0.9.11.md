@@ -6,6 +6,12 @@
 
 `current` → sao chép vào `app-<version>.staging` → áp replacements/removals → kiểm hash toàn manifest → promote nguyên tử thành `app-<version>` → đổi symlink `current` nguyên tử → health check → giữ bản mới hoặc rollback về bản cũ.
 
+### Production wiring follow-up (2026-10-13)
+
+Nối helper vào luồng desktop thật qua `UpdateApplier` của OS service. `UpdaterManager`
+chỉ chuyển giao task đã stage/xác minh; backend macOS tạo task theo layout versioned và
+khởi chạy helper bằng argv Python, không shell. Windows tiếp tục dùng đường PowerShell cũ.
+
 ## Current capability
 
 - `adapters/updater/updater.py` xác minh chữ ký, đọc **mọi nguồn**, chọn phiên bản mới nhất và tải blob theo nội dung. Hành vi này phải giữ nguyên.
@@ -19,8 +25,12 @@
 - `ports/macos/__init__.py`: package marker.
 - `tests/macos/test_update_applier.py`: fixture tạm và test focused.
 - `docs/macos/HANDOFF-M6-UPDATE-APPLIER-0.9.11.md`: handoff chuẩn.
+- `platform/os_services/macos.py`: backend `MacOSUpdateApplier`, task writer và launcher argv.
+- `adapters/updater/updater.py`: optional delegation sang OS service; không đổi source selection.
+- `main.py`: inject backend và nhận diện install tree ngoài `.app` qua capability.
+- `tests/macos/test_update_service.py`: task/launch/backend selection và caller wiring.
 
-Không sửa `adapters/updater/updater.py`, `apply-helper.ps1`, `ooxml_zip_patch.py`, document model hay file format semantics.
+Không sửa `apply-helper.ps1`, `ooxml_zip_patch.py`, document model hay file format semantics.
 
 ## Dependencies and architecture decision
 
@@ -46,4 +56,5 @@ Tái sử dụng `validate_package_path`, `version_key` và `sha256_file` từ u
 
 ## Rollback
 
-Revert commit task. Helper chưa được nối vào updater Windows hay `main.py`, nên rollback không cần migration và không ảnh hưởng nguồn cập nhật hiện có.
+Revert commit task. Wiring không migration dữ liệu; task chưa launch có thể xóa cùng
+staging. Windows không được inject backend nên vẫn giữ nguyên helper PowerShell.

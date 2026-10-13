@@ -14,7 +14,7 @@ import time
 import uuid
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Callable
+from typing import Callable, Mapping, Protocol
 
 from .crypto import verify_sha256_pkcs1v15
 from .manifest import (
@@ -40,6 +40,11 @@ CHECK_INTERVAL_SECONDS = 4 * 60 * 60
 
 class UpdateRefused(ValueError):
     pass
+
+
+class _UpdateApplier(Protocol):
+    def create_apply_task(self, request: Mapping[str, object]): ...
+    def launch(self, task_path: Path): ...
 
 
 def is_update_allowed(manifest: dict[str, object], license_info: object = None) -> bool:
@@ -134,6 +139,7 @@ class UpdaterManager:
         timeout: int = 12,
         max_package_bytes: int = MAX_PACKAGE_BYTES,
         on_state: Callable[[dict[str, object]], None] | None = None,
+        update_applier: _UpdateApplier | None = None,
     ) -> None:
         self.install_dir = Path(install_dir)
         self.updates_dir = Path(updates_dir)
@@ -150,6 +156,7 @@ class UpdaterManager:
         self.timeout = timeout
         self.max_package_bytes = min(int(max_package_bytes), MAX_PACKAGE_BYTES)
         self.on_state = on_state
+        self.update_applier = update_applier
         self._lock = threading.RLock()
         self._check_lock = threading.Lock()
         self._periodic_stop = threading.Event()
@@ -489,6 +496,25 @@ class UpdaterManager:
             raise UpdateRefused("Chưa có bản cập nhật đã xác minh để áp dụng")
         if app_kind not in {"writer", "sheet", "slides"}:
             raise UpdateRefused("Ứng dụng khởi chạy không hợp lệ")
+        if self.update_applier is not None:
+            stage = self.updates_dir / str(self._manifest["version"])
+            request = {
+                "app_kind": app_kind,
+                "install_dir": str(Path(install_root).resolve()),
+                "stage_dir": str(stage.resolve()),
+                "updates_dir": str(self.updates_dir.resolve()),
+                "old_version": self.current_version,
+                "new_version": self._manifest["version"],
+                "manifest": self._manifest,
+                "replacements": self._changed,
+                "removals": self._removals,
+                "launch_args": list(self._launch_args if launch_args is None else launch_args),
+                "restore_documents": [str(path) for path in (restore_documents or [])],
+            }
+            result = self.update_applier.create_apply_task(request)
+            if not result.is_ok or result.value is None:
+                raise UpdateRefused(result.error.message if result.error else "Không thể tạo tác vụ cập nhật")
+            return Path(result.value)
         _append_update_log(
             self.updates_dir,
             f"task-create-start app={app_kind} old={self.current_version} new={self._manifest['version']}",
@@ -549,6 +575,11 @@ class UpdaterManager:
 
     def launch_apply_helper(self, task_path: str | Path) -> bool:
         task_path = Path(task_path).resolve()
+        if self.update_applier is not None:
+            result = self.update_applier.launch(task_path)
+            if not result.is_ok:
+                raise UpdateRefused(result.error.message if result.error else "Không thể khởi chạy trình cập nhật")
+            return result.value is not None
         helper_path = task_path.parent / "apply-helper.ps1"
         _append_update_log(self.updates_dir, f"helper-launch-request helper=\"{helper_path}\" task=\"{task_path}\"")
         if os.name != "nt":
