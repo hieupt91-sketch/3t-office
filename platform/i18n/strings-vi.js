@@ -122,7 +122,57 @@ export const viStrings = {
     fileNotFoundTitle: "Không tìm thấy tệp",
     fileNotFoundMessage: "Tệp \"{name}\" không còn tồn tại tại vị trí cũ hoặc đã bị xóa. Bạn có muốn gỡ tệp này khỏi danh sách gần đây không?",
     emptyRecentTitle: "Chưa có tài liệu gần đây",
-    emptyRecentDesc: "Các tài liệu bạn vừa khởi tạo hoặc chỉnh sửa sẽ tự động xuất hiện tại đây để truy cập nhanh."
+    emptyRecentDesc: "Các tài liệu bạn vừa khởi tạo hoặc chỉnh sửa sẽ tự động xuất hiện tại đây để truy cập nhanh.",
+    exportConvert: "Xuất và chuyển đổi",
+    exportConvertTitle: "Xuất và chuyển đổi định dạng tệp",
+    exportConvertSubtitle: "Xuất tài liệu sang PDF hoặc chuyển đổi sang các định dạng tệp khác tương thích cao với Office.",
+    officeCompatGroup: "Tùy chọn tương thích",
+    officeCompat: "Tương thích Office",
+    officeCompatDesc: "Tối ưu hóa bố cục, bảng mã và định dạng để mở trọn vẹn trong các bộ ứng dụng Office.",
+    exportPdfSection: "Xuất bản tài liệu PDF",
+    exportConvertSection: "Chuyển đổi sang định dạng khác",
+    exportBtn: "Xuất tệp...",
+    exporting: "Đang xuất...",
+    exportingStatus: "Đang xuất tài liệu sang định dạng được chọn...",
+    exportSuccess: "Xuất tệp thành công",
+    exportSuccessMsg: "Tệp đã được xuất và lưu thành công tại:",
+    openFolder: "Mở thư mục chứa tệp",
+    openFolderTitle: "Mở thư mục chứa tệp",
+    openFolderFallback: "Đường dẫn tệp:",
+    openFolderNotSupported: "(Nền tảng desktop hiện tại chưa hỗ trợ tự động mở trình quản lý tệp trực tiếp.)",
+    exportErrorTitle: "Không thể xuất tệp",
+    exportErrorGeneric: "Đã xảy ra lỗi trong quá trình xuất tệp. Vui lòng kiểm tra quyền ghi và thử lại.",
+    exportFormatUnsupported: "Định dạng xuất không được hỗ trợ:",
+    exportFormatInvalid: "Định dạng xuất không hợp lệ.",
+    exportNoContent: "Không thể lấy nội dung tài liệu để xuất.",
+    exportSuccessStatus: "Đã xuất tệp thành công:",
+    exportCancelled: "Đã hủy xuất tệp.",
+    formatPdfTitle: "Tài liệu PDF (.pdf)",
+    formatPdfDesc: "Giữ nguyên tuyệt đối bố cục, kiểu chữ tiếng Việt, hình ảnh và trang in trên mọi thiết bị; không thể chỉnh sửa trực tiếp nội dung.",
+    formatXlsxTitle: "Bảng tính Office (.xlsx)",
+    formatXlsxDesc: "Giữ nguyên tối đa dữ liệu, công thức tính toán, định dạng ô, bảng biểu và nhiều trang tính tương thích với Office.",
+    formatXlsTitle: "Bảng tính Office 97-2003 (.xls)",
+    formatXlsDesc: "Tương thích với các phiên bản Office cũ; giới hạn tối đa 65.536 hàng và 256 cột, có thể lược bớt một số định dạng mới.",
+    formatOdsTitle: "Bảng tính OpenDocument (.ods)",
+    formatOdsDesc: "Định dạng bảng tính mở tiêu chuẩn quốc tế; lưu giữ đầy đủ cấu trúc ô, dữ liệu số và công thức.",
+    formatCsvTitle: "Văn bản phân tách dấu phẩy UTF-8 (.csv)",
+    formatCsvDesc: "Chỉ lưu dữ liệu thô dạng văn bản của trang tính hiện tại theo bảng mã UTF-8; không giữ định dạng, màu sắc hay công thức.",
+    formatDocxTitle: "Tài liệu Office (.docx)",
+    formatDocxDesc: "Giữ nguyên tối đa bố cục trang, phông chữ, bảng biểu, hình vẽ và định dạng văn bản khi mở bằng Office.",
+    formatDocTitle: "Văn bản Office 97-2003 (.doc)",
+    formatDocDesc: "Tương thích với các phiên bản Office cũ; giữ cấu trúc văn bản cơ bản nhưng có thể chuyển đổi một số định dạng nâng cao.",
+    formatOdtTitle: "Văn bản OpenDocument (.odt)",
+    formatOdtDesc: "Định dạng văn bản mở tiêu chuẩn quốc tế; bảo toàn cấu trúc nội dung, kiểu dáng và bảng biểu.",
+    formatRtfTitle: "Định dạng Rich Text (.rtf)",
+    formatRtfDesc: "Giữ định dạng văn bản và bảng cơ bản; tương thích rộng rãi với hầu hết các trình xử lý văn bản.",
+    formatTxtTitle: "Văn bản thuần (.txt)",
+    formatTxtDesc: "Chỉ lưu nội dung chữ thuần túy mã hóa UTF-8; loại bỏ hoàn toàn mọi kiểu chữ, hình ảnh, bảng biểu và bố cục trang.",
+    formatPptxTitle: "Bản trình chiếu Office (.pptx)",
+    formatPptxDesc: "Giữ nguyên bố cục trang chiếu, hình khối, màu sắc, hiệu ứng hoạt họa và ghi chú khi mở bằng Office.",
+    formatPptTitle: "Bản trình chiếu Office 97-2003 (.ppt)",
+    formatPptDesc: "Tương thích với các phiên bản Office cũ; một số hình vẽ mới hoặc hiệu ứng có thể được chuyển đổi đơn giản hơn.",
+    formatOdpTitle: "Bản trình chiếu OpenDocument (.odp)",
+    formatOdpDesc: "Định dạng trình chiếu mở tiêu chuẩn quốc tế; lưu giữ các trang chiếu, hình khối và nội dung trình bày."
   },
   dialog: {
     notice: "Thông báo",
@@ -168,7 +218,7 @@ export const viStrings = {
     editing: { fill: "Điền", clear: "Xóa" },
     cells: { format: "Định dạng" },
     alignment: { orientation: "Hướng chữ" },
-    window: { freezePanes: "Cố định ô" }
+    window: { freezePanes: "Cố định ô", split: "Chia" }
   },
   sheetFormulaEntry: {
     status: { enter: "Nhập", edit: "Sửa", point: "Trỏ" },
@@ -193,7 +243,7 @@ export const viStrings = {
     nameManagerTitle: "Trình quản lý tên", nameNew: "Thêm mới", nameEdit: "Sửa", nameDelete: "Xóa", noNamedRanges: "Chưa có vùng được đặt tên.", invalidNameOrRef: "Tên hoặc vùng tham chiếu không hợp lệ/trùng lặp.",
     newComment: "Ghi chú mới {coord}", editComment: "Sửa ghi chú {coord}", commentContent: "Nội dung ghi chú", commentPlaceholder: "Nhập ghi chú cho {coord}", author: "Tác giả", defaultAuthor: "Người dùng 3T Office", saveChanges: "Lưu thay đổi", addComment: "Thêm ghi chú", deleteComment: "Xóa ghi chú", emptyComment: "Nội dung ghi chú không được để trống.",
     spellcheckTitle: "Chính tả", spellcheckNotInDictionary: "Không có trong từ điển:", spellcheckCell: "Ô", spellcheckContext: "Nội dung ô", spellcheckSuggestions: "Gợi ý:", spellcheckNoSuggestions: "(Không có gợi ý gần)", spellcheckIgnore: "Bỏ qua", spellcheckIgnoreAll: "Bỏ qua tất cả", spellcheckAdd: "Thêm vào từ điển", spellcheckReplace: "Thay thế", spellcheckReplaceAll: "Thay thế tất cả", spellcheckClose: "Đóng", spellcheckStatus: "Lỗi {current} / {total}", spellcheckComplete: "Đã kiểm tra xong toàn bộ trang tính. Không tìm thấy lỗi chính tả.", spellcheckCompleteRemaining: "Đã kiểm tra xong. Không còn lỗi chính tả.",
-    conditionalFormatting: "Định dạng có điều kiện", rule: "Quy tắc", greaterThan: "Giá trị lớn hơn", lessThan: "Giá trị nhỏ hơn", blankCell: "Ô trống", fillColor: "Màu nền", invalidNumber: "Vui lòng nhập một giá trị số hợp lệ.",
+    conditionalFormatting: "Định dạng có điều kiện", cfCurrentRules: "Quy tắc hiện có", cfNoRules: "Chưa có quy tắc nào trong trang tính này.", cfRemoveRule: "Xóa quy tắc", cfAddRule: "Thêm quy tắc", rule: "Quy tắc", greaterThan: "Giá trị lớn hơn", lessThan: "Giá trị nhỏ hơn", blankCell: "Ô trống", fillColor: "Màu nền", invalidNumber: "Vui lòng nhập một giá trị số hợp lệ.",
     dataValidation: "Kiểm tra dữ liệu", allow: "Cho phép", list: "Danh sách lựa chọn", numberRange: "Số trong khoảng", listValues: "Các giá trị (cách nhau bằng dấu phẩy)", listPlaceholder: "Đạt, Chưa đạt, Đang xử lý", minimum: "Tối thiểu", maximum: "Tối đa", invalidValidation: "Thông tin kiểm tra dữ liệu chưa hợp lệ.", chooseOption: "-- Chọn --", selectCellValue: "Chọn giá trị cho ô {col}{row}",
     removeDuplicatesTitle: "Xóa trùng lặp", myHeaderRow: "Dữ liệu có hàng tiêu đề", columnsToCompare: "Cột dùng để xét trùng", selectAtLeastOneColumn: "Hãy chọn ít nhất một cột.", duplicatesRemovedResult: "Đã xóa {removed} hàng trùng lặp; còn {remaining} hàng dữ liệu.",
     customSortTitle: "Sắp xếp", customSortNeedsRange: "Sắp xếp tùy chỉnh cần vùng có ít nhất hai hàng. Hãy chọn một ô trong vùng dữ liệu hoặc chọn nhiều ô trước khi mở lệnh.", createNamesNeedsRange: "Tạo từ vùng chọn cần ít nhất hai hàng: hàng đầu làm tiêu đề, các hàng bên dưới là dữ liệu. Hãy chọn cả tiêu đề và dữ liệu rồi thử lại.", createNamesNoHeaders: "Không tìm thấy tiêu đề hợp lệ để tạo tên vùng. Hãy kiểm tra hàng tiêu đề trong vùng đã chọn.", addLevel: "Thêm cấp", removeLevel: "Xóa cấp", sortBy: "Sắp xếp theo", thenBy: "Sau đó theo", sortByColumn: "Cột sắp xếp", sortOrder: "Thứ tự", sortAtoZ: "A → Z", sortZtoA: "Z → A",
@@ -214,9 +264,10 @@ export const viStrings = {
     sparklineColumn: "Biểu đồ mini dạng cột", sparklineLine: "Biểu đồ mini dạng đường",
     hfPresetLabel: "Mẫu dùng sẵn", hfPresetCustom: "Tùy chỉnh", hfPresetPage: "Trang X", hfPresetSheet: "Tên trang tính", hfPresetDate: "Ngày", hfPresetNone: "Không có", hfPresetPageVal: "Trang &P", hfPresetSheetVal: "Tên trang tính: &A", hfPresetDateVal: "Ngày: &D", hfLeft: "Trái", hfCenter: "Giữa", hfRight: "Phải", headerFooterTitle: "Tiêu đề Đầu/Cuối trang", headerTitle: "Đầu trang", footerTitle: "Cuối trang", hfDynamicCodesHint: "Mã động: &P số trang, &N tổng số trang, &D ngày, &T giờ, &F tên tệp, &A tên trang tính.",
     pivotTitle: "Tạo Bảng tổng hợp", pivotSource: "Vùng dữ liệu nguồn (hàng đầu là tiêu đề)", loadFields: "Đọc tên cột", chooseFields: "Chọn trường cho từng vùng:", aggregateFor: "Phép tổng hợp cho {field}", sourceRangeFormat: "Vùng nguồn phải có dạng A1:D20.", sourceNeedsHeaders: "Hàng đầu tiên của vùng nguồn phải có tiêu đề.", uniqueHeaders: "Tiêu đề cột trong vùng nguồn phải là duy nhất.", selectValue: "Hãy chọn ít nhất một trường Values.", columnNotFound: "Không tìm thấy cột {field}.", sourceSheetNotFound: "Không tìm thấy sheet dữ liệu nguồn.", createPivotBtn: "Tạo Pivot Table",
-    chartDefaultTitle: "Biểu đồ dữ liệu", chartUnsupported: "Kiểu biểu đồ không được hỗ trợ: {type}", chartItem: "Mục {number}", chartNoNumericData: "Vùng đã chọn không có dữ liệu số", chartPiePositive: "Biểu đồ tròn cần giá trị dương", chartInsertFrom: "Chèn biểu đồ từ {range}", selectedRange: "vùng đã chọn", chartType: "Kiểu biểu đồ", chartColumn: "Cột", chartLine: "Đường", chartPie: "Tròn", chartArea: "Miền", insertIntoSheet: "Chèn vào bảng tính", insertedImageAlt: "Ảnh được chèn trong trang tính", deleteImage: "Xóa ảnh", imageFormatUnsupported: "Định dạng ảnh không được hỗ trợ",
+    chartDefaultTitle: "Biểu đồ dữ liệu", chartUnsupported: "Kiểu biểu đồ không được hỗ trợ: {type}", chartItem: "Mục {number}", chartNoNumericData: "Vùng đã chọn không có dữ liệu số", chartPiePositive: "Biểu đồ tròn cần giá trị dương", chartInsertFrom: "Chèn biểu đồ từ {range}", selectedRange: "vùng đã chọn", chartType: "Kiểu biểu đồ", chartColumn: "Cột", chartLine: "Đường", chartPie: "Tròn", chartArea: "Miền", insertIntoSheet: "Chèn vào bảng tính", chartAxisTitles: "Tiêu đề trục", chartAxisTitlesEdit: "Sửa tiêu đề trục", chartHorizontalAxis: "Trục ngang (X)", chartVerticalAxis: "Trục dọc (Y)", chartAxisHorizontalPlaceholder: "Ví dụ: Tháng", chartAxisVerticalPlaceholder: "Ví dụ: Doanh thu", chartAxisApply: "Áp dụng", chartDelete: "Xóa biểu đồ", splitVerticalSeparator: "Vạch chia dọc cửa sổ", splitHorizontalSeparator: "Vạch chia ngang cửa sổ", insertedImageAlt: "Ảnh được chèn trong trang tính", deleteImage: "Xóa ảnh", imageFormatUnsupported: "Định dạng ảnh không được hỗ trợ",
     cellStylesTitle: "Thư viện kiểu ô (Cell Styles)", cellStylesHint: "Chọn một kiểu để áp dụng ngay lập tức cho các ô đang chọn:",
-    formatAsTableTitle: "Định dạng theo bảng (Format as Table)", formatAsTableHint: "Chọn kiểu bảng để áp dụng màu tiêu đề và hàng xen kẽ (banded rows):",
+    formatAsTableTitle: "Định dạng theo bảng (Format as Table)", formatAsTableHint: "Tạo bảng có tên, tiêu đề, nút lọc và hàng màu xen kẽ; các hàng nhập kề sẽ tự mở rộng.",
+    formatTableRange: "Vùng dữ liệu", formatTableHeaders: "Bảng có tiêu đề", formatTableNameLabel: "Tên bảng", formatTableCreate: "Tạo bảng", formatTableRenameLabel: "Tên mới", formatTableRename: "Đổi tên bảng", formatTableConvert: "Chuyển thành vùng", formatTableInvalid: "Vùng hoặc tên bảng không hợp lệ, hoặc vùng đang chồng lấp với bảng khác.",
     rowHeightTitle: "Chiều cao hàng", rowHeightMessage: "Chiều cao hàng (pixel):",
     colWidthTitle: "Độ rộng cột", colWidthMessage: "Độ rộng cột (pixel):",
     invalidRowColSize: "Vui lòng nhập một số hợp lệ trong khoảng cho phép.",
@@ -377,6 +428,7 @@ export const viStrings = {
     "common.file.save": { label: "Lưu", tooltip: "Lưu tài liệu hiện tại (Ctrl+S)" },
     "common.file.saveAs": { label: "Lưu bản sao", tooltip: "Lưu tài liệu dưới tên khác (F12)" },
     "common.file.exportPdf": { label: "Xuất PDF", tooltip: "Xuất nội dung sang định dạng PDF tiêu chuẩn" },
+    "common.file.exportConvert": { label: "Xuất và chuyển đổi", tooltip: "Xuất tài liệu sang PDF hoặc các định dạng tệp khác" },
     "common.file.print": { label: "In tài liệu", tooltip: "In tài liệu (Ctrl+P)" },
     "common.file.close": { label: "Đóng", tooltip: "Đóng tài liệu (Ctrl+W)" },
     "common.help.about": { label: "Giới thiệu 3T Office", tooltip: "Xem thông tin phiên bản, bản quyền và giấy phép nguồn mở 3T Office" },
@@ -385,9 +437,9 @@ export const viStrings = {
     "common.edit.undo": { label: "Hoàn tác", tooltip: "Hoàn tác thao tác vừa thực hiện (Ctrl+Z)" },
     "common.edit.redo": { label: "Làm lại", tooltip: "Làm lại thao tác vừa hoàn tác (Ctrl+Y)" },
     "common.edit.repeat": { label: "Lặp lại", tooltip: "Lặp lại thao tác cuối (F4)" },
-    "common.edit.cut": { label: "Cắt", tooltip: "Cắt vùng chọn vào bộ nhớ tạm (Ctrl+X)" },
-    "common.edit.copy": { label: "Sao chép", tooltip: "Sao chép vùng chọn (Ctrl+C)" },
-    "common.edit.paste": { label: "Dán", tooltip: "Dán nội dung từ bộ nhớ tạm (Ctrl+V)" },
+    "common.edit.cut": { label: "Cắt", tooltip: "Cắt văn bản hoặc đối tượng đang chọn vào bộ nhớ tạm (Ctrl+X)" },
+    "common.edit.copy": { label: "Sao chép", tooltip: "Sao chép văn bản hoặc đối tượng đang chọn vào bộ nhớ tạm (Ctrl+C)" },
+    "common.edit.paste": { label: "Dán", tooltip: "Dán nội dung clipboard vào vùng đang chọn hoặc trang chiếu hiện tại (Ctrl+V)" },
     "common.edit.pastePlain": { label: "Dán văn bản thuần", tooltip: "Dán văn bản không giữ định dạng (Ctrl+Shift+V)" },
     "sheet.edit.pasteSpecial": { label: "Dán đặc biệt", tooltip: "Chọn cách dán giá trị, công thức, định dạng hoặc chuyển vị (Ctrl+Alt+V)" },
     "sheet.edit.formatPainter": { label: "Sao chép định dạng", tooltip: "Sao chép định dạng ô nguồn sang ô hoặc vùng đích. Nhấp đúp để khóa và áp dụng nhiều lần. Esc để hủy." },
@@ -442,7 +494,7 @@ export const viStrings = {
     ,"sheet.format.percent": { label: "Phần trăm", tooltip: "Định dạng phần trăm % (Ctrl+Shift+5)" }
     ,"sheet.format.standard": { label: "Phân cách hàng nghìn", tooltip: "Dấu phẩy phân cách hàng nghìn (Ctrl+Shift+1)" }
     ,"sheet.insert.date": { label: "Chèn ngày hiện tại", tooltip: "Chèn ngày hôm nay (Ctrl+;)" }
-    ,"sheet.insert.time": { label: "Chèn giờ hiện tại", tooltip: "Chèn giờ hiện tại (Ctrl+Shift+;)" }
+    ,"sheet.insert.time": { label: "Chèn giờ hiện tại", tooltip: "Chèn giờ hiện tại dạng giá trị số có thể tính toán (Ctrl+Shift+;)" }
     ,"sheet.formula.insertFunction": { label: "Chèn hàm", tooltip: "Mở hộp thoại Chèn hàm fx (Shift+F3)" }
     ,"sheet.formula.sum": { label: "AutoSum", tooltip: "Hàm tính tổng tự động AutoSum (Alt+=)" }
     ,"sheet.formula.average": { label: "Trung bình", tooltip: "Hàm tính trung bình cộng (AVERAGE)" }
@@ -500,6 +552,7 @@ export const viStrings = {
     ,"sheet.view.freezePanes": { label: "Cố định ô", tooltip: "Cố định các hàng phía trên và cột bên trái Ô đang chọn khi cuộn (Freeze Panes)" }
     ,"sheet.view.freezeTopRow": { label: "Cố định hàng trên cùng", tooltip: "Chỉ cố định hàng 1 khi cuộn dọc (Freeze Top Row)" }
     ,"sheet.view.freezeFirstColumn": { label: "Cố định cột đầu tiên", tooltip: "Chỉ cố định cột A khi cuộn ngang (Freeze First Column)" }
+    ,"sheet.view.split": { label: "Chia", tooltip: "Chia cửa sổ tại ô hiện tại; các ngăn không bị đóng băng" }
     ,"sheet.view.zoomIn": { label: "Phóng to", tooltip: "Tăng tỉ lệ hiển thị bảng tính" }
     ,"sheet.view.zoomOut": { label: "Thu nhỏ", tooltip: "Giảm tỉ lệ hiển thị bảng tính" }
     ,"sheet.view.zoomReset": { label: "100%", tooltip: "Đặt lại tỉ lệ hiển thị 100%" }
@@ -544,6 +597,8 @@ export const viStrings = {
     ,"sheet.insert.image": { label: "Chèn ảnh", tooltip: "Chèn ảnh vào ô đang chọn" }
     ,"sheet.style.formatAsTable": { label: "Định dạng bảng", tooltip: "Định dạng vùng chọn theo kiểu bảng có màu xen kẽ" }
     ,"sheet.style.cellStyles": { label: "Kiểu ô", tooltip: "Mở thư viện kiểu ô định sẵn (Normal, Good, Bad, Neutral...)" }
+    ,"sheet.edit.goTo": { label: "Đến...", tooltip: "Chuyển nhanh tới ô, vùng hoặc tên đã xác định (F5 hoặc Ctrl+G)" }
+    ,"sheet.edit.goToSpecial": { label: "Đến đặc biệt...", tooltip: "Chọn nhanh các ô theo loại: ghi chú, công thức, ô trống, vùng hiện tại..." }
     ,"sheet.edit.fillDown": { label: "Điền xuống", tooltip: "Sao chép giá trị và công thức ô trên xuống các ô dưới (Ctrl+D)" }
     ,"sheet.edit.fillRight": { label: "Điền phải", tooltip: "Sao chép giá trị và công thức ô bên trái sang phải (Ctrl+R)" }
     ,"sheet.edit.clearAll": { label: "Xóa tất cả", tooltip: "Xóa toàn bộ nội dung, công thức và định dạng của các ô đã chọn" }
@@ -787,6 +842,7 @@ export const viStrings = {
     "writer.review.commentNext": { label: "Nhận xét sau", tooltip: "Nhảy tới nhận xét tiếp theo" },
     "writer.review.commentDelete": { label: "Xóa nhận xét", tooltip: "Xóa nhận xét đang chọn" },
     "writer.review.commentResolve": { label: "Đã xử lý", tooltip: "Đánh dấu hoặc mở lại nhận xét đang chọn" },
+    "writer.review.commentReply": { label: "Trả lời nhận xét", tooltip: "Trả lời nhận xét đang chọn" },
     "writer.trackChanges.toggle": { label: "Theo dõi thay đổi", tooltip: "Bật/tắt đánh dấu nội dung thêm và xóa (Ctrl+Shift+E)" },
     "writer.trackChanges.previous": { label: "Thay đổi trước", tooltip: "Nhảy tới thay đổi trước đó" },
     "writer.trackChanges.next": { label: "Thay đổi sau", tooltip: "Nhảy tới thay đổi tiếp theo" },
@@ -1175,10 +1231,12 @@ export const viStrings = {
       title: "Thư viện Kiểu dáng (Styles Gallery)",
       hint: "Nhấp để áp dụng ngay",
       normal: { label: "Normal", sublabel: "Văn bản thường", desc: "Văn bản thường, phông chữ chuẩn 14pt căn đều hai bên (Nghị định 30/2020/NĐ-CP)" },
+      subtitle: { label: "Phụ đề", sublabel: "Subtitle", desc: "Kiểu Subtitle dựng sẵn, dùng dưới tiêu đề tài liệu" },
       h1: { label: "Tiêu đề 1", sublabel: "Heading 1", desc: "Tiêu đề cấp 1: Chữ hoa, in đậm, căn giữa, cỡ 16pt (QUYẾT ĐỊNH, CHỈ THỊ...)" },
       h2: { label: "Tiêu đề 2", sublabel: "Heading 2", desc: "Tiêu đề cấp 2: Chữ thường in đậm, cỡ 14pt (Điều 1, Mục I...)" },
       h3: { label: "Tiêu đề 3", sublabel: "Heading 3", desc: "Tiêu đề cấp 3: In đậm nghiêng, cỡ 13pt (Khoản 1, Điểm a...)" },
-      quote: { label: "Trích dẫn", sublabel: "Quote", desc: "Khối trích dẫn: In nghiêng, thụt lề 24pt, viền xanh bên trái" },
+      quote: { label: "Trích dẫn", sublabel: "Quote", desc: "Kiểu Quote dựng sẵn: chữ nghiêng, căn giữa và thụt lề" },
+      listparagraph: { label: "Đoạn danh sách", sublabel: "List Paragraph", desc: "Kiểu List Paragraph dựng sẵn, thụt lề 0,5 inch" },
       emphasis: { label: "Nhấn mạnh", sublabel: "Emphasis", desc: "Đoạn nhấn mạnh: In đậm, in nghiêng, màu sắc nổi bật" }
     },
     comments: {
@@ -1187,6 +1245,9 @@ export const viStrings = {
       addCommentTitle: "Thêm ghi chú",
       addCommentPlaceholder: "Nhập nội dung ghi chú...",
       addCommentBtn: "Thêm ghi chú",
+      replyTitle: "Trả lời nhận xét",
+      replyPlaceholder: "Nhập nội dung trả lời...",
+      replyBtn: "Gửi trả lời",
       panelLabel: "Ghi chú tài liệu",
       openCommentAria: "Mở ghi chú cho: {text}",
       placeholderHeader: "Nhấp để nhập tiêu đề đầu trang (Header)...",
@@ -1220,6 +1281,22 @@ export const viStrings = {
       jumpToEndnote: "Nhấp để chuyển đến chú thích cuối",
       jumpToRef: "Chuyển tới vị trí tham chiếu"
     }
+  },
+  sheetContextMenu: {
+    insert: "Chèn", delete: "Xóa", select: "Chọn", table: "Bảng", move: "Di chuyển",
+    tableColumnLeft: "Cột bảng bên trái", tableColumnRight: "Cột bảng bên phải",
+    tableRowAbove: "Hàng bảng phía trên", tableRowBelow: "Hàng bảng phía dưới",
+    tableColumn: "Cột của bảng", tableRow: "Hàng của bảng",
+    tableColumnData: "Dữ liệu cột của bảng", tableColumnAll: "Toàn bộ cột của bảng", tableRowSelect: "Hàng của bảng",
+    totalRow: "Dòng tổng", totalLabel: "Tổng", convertToRange: "Chuyển thành phạm vi",
+    chartArea: "Vùng biểu đồ", plotArea: "Vùng vẽ", series: "Chuỗi dữ liệu",
+    chartType: "Đổi loại biểu đồ...", chartTypeDialog: "Đổi loại biểu đồ",
+    selectData: "Chọn dữ liệu...", chartDataRange: "Nhập vùng dữ liệu cho biểu đồ (ví dụ A1:B10):", invalidChartRange: "Vùng dữ liệu không hợp lệ.",
+    moveChart: "Di chuyển biểu đồ...", moveChartMessage: "Nhập tên trang tính muốn chuyển biểu đồ tới. Các trang tính hiện có: {sheets}", invalidSheetName: "Không tìm thấy trang tính với tên đã nhập.",
+    deleteObject: "Xóa"
+  },  sheetGoTo: {
+    title: "Đến", reference: "Tham chiếu", placeholder: "Ví dụ: B5, A1:C10, Sheet2!D3 hoặc một tên", nameList: "Tên đã xác định", noNames: "Chưa có tên nào.",
+    invalid: "Tham chiếu không hợp lệ.", special: "Đặc biệt...", specialTitle: "Đến đặc biệt", select: "Chọn", noCells: "Không tìm thấy ô nào.", truncated: "Có quá nhiều vùng; chỉ chọn một phần đầu tiên."
   },
   sheetFormatCells: {
     dialogTitle: "Định dạng ô (Format Cells)",

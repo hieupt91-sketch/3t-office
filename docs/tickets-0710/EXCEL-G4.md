@@ -1,0 +1,3 @@
+# EXCEL-G4: Công thức nâng cao + điền dữ liệu + chọn nhiều trang
+Làm: tham chiếu có cấu trúc Table1[Cột] (đọc, nhập, lưu `_xlfn`/structured ref đúng OOXML), tham chiếu 3-D Sheet1:Sheet3!A1, Điền lên/trái/Chuỗi (Series)/Căn đều/Trên các trang, nhấp đúp chốt điền, Auto Fill Options, chọn nhiều trang tính (nhóm trang) và thao tác đồng thời, hoàn thành 337 hàm còn lại (EXCEL-E1c).
+Nghiệm thu: so Excel 2016 bằng COM chỉ-đọc cho từng ca; lan28 >= 98,18%, lan01/lan04 100%, bộ 8 tệp LAN 0 chênh lệch.

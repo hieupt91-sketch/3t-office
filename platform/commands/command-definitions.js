@@ -14,6 +14,7 @@ export const COMMON_COMMANDS = [
   { id: "common.file.save", category: "file", label: "Lưu", shortcut: "Ctrl+S", icon: "fileSave", tooltip: "Lưu tài liệu hiện tại (Ctrl+S)" },
   { id: "common.file.saveAs", category: "file", label: "Lưu bản sao", shortcut: "F12", icon: "fileSave", tooltip: "Lưu tài liệu dưới tên khác (F12)" },
   { id: "common.file.exportPdf", category: "file", label: "Xuất PDF", icon: "filePdf", tooltip: "Xuất nội dung sang định dạng PDF tiêu chuẩn" },
+  { id: "common.file.exportConvert", category: "file", label: "Xuất và chuyển đổi", icon: "filePdf", tooltip: "Xuất tài liệu sang PDF hoặc các định dạng tệp khác" },
   { id: "common.file.print", category: "file", label: "In tài liệu", shortcut: "Ctrl+P", icon: "filePrint", tooltip: "In tài liệu (Ctrl+P)" },
   { id: "common.file.close", category: "file", label: "Đóng", shortcut: "Ctrl+W", icon: "close", tooltip: "Đóng tài liệu (Ctrl+W)" },
 
@@ -186,6 +187,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.comment.insert", category: "review", label: "Thêm ghi chú", shortcut: "Ctrl+Alt+M", icon: "comment", tooltip: "Thêm ghi chú vào đoạn văn bản đang chọn (Ctrl+Alt+M)" },
   { id: "writer.review.commentPrevious", category: "review", label: "Nhận xét trước", icon: "commentPrevious", tooltip: "Nhảy tới nhận xét trước đó" },
   { id: "writer.review.commentNext", category: "review", label: "Nhận xét sau", icon: "commentNext", tooltip: "Nhảy tới nhận xét tiếp theo" },
+  { id: "writer.review.commentReply", category: "review", label: "Trả lời nhận xét", icon: "commentReply", tooltip: "Trả lời nhận xét đang chọn" },
   { id: "writer.review.commentDelete", category: "review", label: "Xóa nhận xét", icon: "commentDelete", tooltip: "Xóa nhận xét đang chọn" },
   { id: "writer.review.commentResolve", category: "review", label: "Đã xử lý", icon: "commentResolve", tooltip: "Đánh dấu hoặc mở lại nhận xét đang chọn" },
   { id: "writer.trackChanges.toggle", category: "review", label: "Theo dõi thay đổi", shortcut: "Ctrl+Shift+E", icon: "trackChanges", tooltip: "Bật/tắt đánh dấu nội dung thêm và xóa (Ctrl+Shift+E)", isToggle: true },
@@ -366,6 +368,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.view.freezePanes", category: "view", label: "Cố định ô", icon: "freezePanes", tooltip: "Cố định các hàng phía trên và cột bên trái Ô đang chọn khi cuộn (Freeze Panes)", isToggle: true },
   { id: "sheet.view.freezeTopRow", category: "view", label: "Cố định hàng trên cùng", icon: "freezeTopRow", tooltip: "Chỉ cố định hàng 1 khi cuộn dọc (Freeze Top Row)", isToggle: true },
   { id: "sheet.view.freezeFirstColumn", category: "view", label: "Cố định cột đầu tiên", icon: "freezeFirstColumn", tooltip: "Chỉ cố định cột A khi cuộn ngang (Freeze First Column)", isToggle: true },
+  { id: "sheet.view.split", category: "view", label: "Chia", icon: "splitWindow", tooltip: "Chia cửa sổ trang tính tại ô hiện tại (không đóng băng)", isToggle: true },
   { id: "sheet.view.zoomIn", category: "view", label: "Phóng to", icon: "zoomIn", tooltip: "Tăng tỉ lệ hiển thị bảng tính" },
   { id: "sheet.view.zoomOut", category: "view", label: "Thu nhỏ", icon: "zoomOut", tooltip: "Giảm tỉ lệ hiển thị bảng tính" },
   { id: "sheet.view.zoomReset", category: "view", label: "100%", icon: "zoom100", tooltip: "Đặt lại tỉ lệ hiển thị 100%" },
@@ -424,11 +427,13 @@ export const SHEET_COMMANDS = [
   { id: "sheet.insert.symbol", category: "insert", label: "Ký hiệu", icon: "symbol", tooltip: "Chèn ký tự đặc biệt (Symbol)" },
 
   // Kiểu dáng & Định dạng bảng (Styles)
-  { id: "sheet.style.formatAsTable", category: "format", label: "Định dạng bảng", icon: "formatTable", tooltip: "Định dạng vùng chọn theo kiểu bảng có màu xen kẽ" },
+  { id: "sheet.style.formatAsTable", category: "format", label: "Định dạng thành Bảng", icon: "formatTable", tooltip: "Tạo bảng có tên, bộ lọc, hàng xen kẽ và tự mở rộng" },
   { id: "sheet.style.cellStyles", category: "format", label: "Kiểu ô", icon: "cellStyles", tooltip: "Mở thư viện kiểu ô định sẵn (Normal, Good, Bad, Neutral...)" },
 
   // Chỉnh sửa & Điền/Xóa (Editing: Fill & Clear)
   { id: "sheet.edit.fill", category: "edit", label: "Điền", icon: "fillDown", tooltip: "Điền dữ liệu theo hướng xuống, sang phải" },
+  { id: "sheet.edit.goTo", category: "edit", label: "Đến...", shortcut: "Ctrl+G", icon: "selectObjects", tooltip: "Chuyển nhanh tới ô, vùng hoặc tên đã xác định (F5 hoặc Ctrl+G)" },
+  { id: "sheet.edit.goToSpecial", category: "edit", label: "Đến đặc biệt...", shortcut: "", icon: "selectObjects", tooltip: "Chọn nhanh các ô theo loại: ghi chú, công thức, ô trống, vùng hiện tại... (F5 rồi Đặc biệt)" },
   { id: "sheet.edit.fillDown", category: "edit", label: "Điền xuống", shortcut: "Ctrl+D", icon: "fillDown", tooltip: "Sao chép giá trị và công thức ô trên xuống các ô dưới (Ctrl+D)" },
   { id: "sheet.edit.fillRight", category: "edit", label: "Điền phải", shortcut: "Ctrl+R", icon: "fillRight", tooltip: "Sao chép giá trị và công thức ô bên trái sang phải (Ctrl+R)" },
   { id: "sheet.edit.clear", category: "edit", label: "Xóa", icon: "clearAll", tooltip: "Xóa toàn bộ, xóa định dạng hoặc xóa nội dung ô" },

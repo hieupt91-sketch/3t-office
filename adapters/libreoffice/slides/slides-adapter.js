@@ -12,6 +12,11 @@ import { overlayFodpMasterLogo } from "./pptx-master-logo.js";
 import { overlayFodpSections } from "./pptx-section-list.js";
 import { overlayFodpShowProperties } from "./pptx-show-properties.js";
 import { parseOfficeHtmlTable, parseOfficeTsv, isCellBold } from "../../../platform/clipboard/office-clipboard.js";
+import { formatDateTime } from "../../../platform/ui-kit/datetime-format.js";
+
+export function stripClipboardFragmentMarkers(html) {
+  return String(html || "").replace(/<!--\s*(?:Start|End)Fragment\s*-->/gi, "");
+}
 
 const KNOWN_INSTALLED_FONTS = new Set([
   "arial",
@@ -270,7 +275,10 @@ export class SlidesAdapter {
     this._textFormatMouseDownHandler = (event) => {
       const host = event.target?.closest?.("[data-command-id]");
       const id = host?.getAttribute?.("data-command-id") || "";
-      if (!/^slides\.(text|font|para|list|color)\./.test(id) && id !== "slides.edit.formatPainter") return;
+      const editsText = /^slides\.(text|font|para|list|color)\./.test(id)
+        || id === "slides.edit.formatPainter"
+        || /^common\.edit\.(cut|copy|paste|pastePlain)$/.test(id);
+      if (!editsText) return;
       this._rememberTextSelection();
       const tag = (event.target?.tagName || host?.tagName || "").toUpperCase();
       if (tag === "SELECT" || tag === "OPTION") return;
@@ -753,6 +761,7 @@ export class SlidesAdapter {
     }
     const blocks = [];
     let current = { texts: [], align: base?.align || null, lineHeight: null, indent: null, list: null };
+    let blockquoteDepth = 0;
     const formatStack = [base?.fmt ? { ...base.fmt } : {}];
     const currentFmt = () => Object.assign({}, ...formatStack);
     const flush = () => {
@@ -768,7 +777,12 @@ export class SlidesAdapter {
         const css = this._styleFromHtmlAttrs(tag, attrs);
         if (css.align) current.align = css.align;
         if (css.lineHeight) current.lineHeight = css.lineHeight;
-        if (css.indent) current.indent = css.indent;
+        if (css.indent && !/^0(?:\.0+)?(?:[a-z%]+)?$/i.test(css.indent)) current.indent = css.indent;
+        if (tag === "blockquote") {
+          blockquoteDepth += 1;
+          // PowerPoint increases a paragraph's indent by 0.5 in (36 pt) per level.
+          current.indent = `${blockquoteDepth * 36}pt`;
+        }
         if (tag === "ul") current.list = "bullet";
         if (tag === "ol") current.list = "number";
         if (tag === "br") {
@@ -782,6 +796,11 @@ export class SlidesAdapter {
       close: (tag) => {
         if (tag === "li" || tag === "p" || tag === "div") {
           if (current.texts.length || tag === "li") flush();
+        }
+        if (tag === "blockquote") {
+          if (current.texts.length) flush();
+          blockquoteDepth = Math.max(0, blockquoteDepth - 1);
+          current.indent = blockquoteDepth ? `${blockquoteDepth * 36}pt` : (base?.indent || null);
         }
         if (tag === "ul" || tag === "ol") current.list = null;
         if (formatStack.length > 1) formatStack.pop();
@@ -2285,40 +2304,46 @@ export class SlidesAdapter {
   _serializeSlideShapes(shapes, idMap, richCtx, groupRecords = []) {
     if (!Array.isArray(shapes) || shapes.length === 0) return "";
     const map = idMap || this._collectShapeIdMap(shapes);
+    // Diagram connectors/nodes already behave as a unit in the canvas. Emit the
+    // same relationship as a real ODF group so the PPTX contains one grpSp.
+    const serializedShapes = shapes.map(shape => shape.diagramGroupId && !shape.groupId
+      ? { ...shape, groupId: shape.diagramGroupId }
+      : shape);
     const groups = Array.isArray(groupRecords) ? groupRecords.map(group => ({ ...group })) : [];
-    for (const shape of shapes) {
+    for (const shape of serializedShapes) {
       if (shape.groupId && !groups.some(group => group.id === shape.groupId)) {
         groups.push({ id: shape.groupId, parentId: null });
       }
     }
-    if (!groups.length) return shapes.map(shape => this._serializeShape(shape, map.get(String(shape.id)), map, richCtx)).join("");
+    if (!groups.length) return serializedShapes.map(shape => this._serializeShape(shape, map.get(String(shape.id)), map, richCtx)).join("");
 
+    const shapeList = serializedShapes;
     const groupById = new Map(groups.map(group => [String(group.id), group]));
-    const shapeOrder = new Map(shapes.map((shape, index) => [String(shape.id), index]));
+    const shapeOrder = new Map(shapeList.map((shape, index) => [String(shape.id), index]));
     const pageWidth = this._pxToOdf(this.canvas?.slideSize?.width || 960);
     const pageHeight = this._pxToOdf(this.canvas?.slideSize?.height || 540);
     const serializeGroup = (group) => {
       const id = String(group.id);
       const children = [];
       for (const child of groups.filter(item => String(item.parentId || "") === id)) {
-        const descendants = this._groupDescendantShapeIds(child.id, groups, shapes);
+        const descendants = this._groupDescendantShapeIds(child.id, groups, shapeList);
         const order = Math.min(...descendants.map(shapeId => shapeOrder.get(String(shapeId)) ?? Infinity));
         children.push({ order, xml: serializeGroup(child) });
       }
-      for (const shape of shapes.filter(item => String(item.groupId || "") === id)) {
+      for (const shape of shapeList.filter(item => String(item.groupId || "") === id)) {
         children.push({ order: shapeOrder.get(String(shape.id)), xml: this._serializeShape(shape, map.get(String(shape.id)), map, richCtx) });
       }
       children.sort((a, b) => a.order - b.order);
       return `<draw:g draw:name="VNOfficeGroup:${this._escapeXml(id)}" svg:x="0cm" svg:y="0cm" svg:width="${pageWidth}" svg:height="${pageHeight}">${children.map(item => item.xml).join("")}</draw:g>`;
     };
     const output = [];
-    for (const shape of shapes) {
+    for (const shape of shapeList) {
       if (!shape.groupId) {
         output.push({ order: shapeOrder.get(String(shape.id)), xml: this._serializeShape(shape, map.get(String(shape.id)), map, richCtx) });
       }
     }
     for (const group of groups.filter(item => !item.parentId)) {
-      const descendants = this._groupDescendantShapeIds(group.id, groups, shapes);
+      const descendants = this._groupDescendantShapeIds(group.id, groups, shapeList);
       const order = Math.min(...descendants.map(shapeId => shapeOrder.get(String(shapeId)) ?? Infinity));
       if (Number.isFinite(order)) output.push({ order, xml: serializeGroup(group) });
     }
@@ -2482,6 +2507,55 @@ export class SlidesAdapter {
       if (cls === className) frames.push(this._paragraphsFromXml(match[2]));
     }
     return frames.flat();
+  }
+
+  _parseSlideHeaderFooter(pageXml) {
+    const readFrame = (className) => {
+      const match = String(pageXml || "").match(new RegExp(`<draw:frame\\b(?=[^>]*presentation:class=["']${className}["'])[^>]*>([\\s\\S]*?)<\\/draw:frame>`, "i"));
+      if (!match) return null;
+      const text = (match[1].match(/<text:p\b[^>]*>([\s\S]*?)<\/text:p>/i)?.[1] || "")
+        .replace(/<[^>]+>/g, "");
+      return { text: this._unescapeXml(text), attrs: match[0].slice(0, match[0].indexOf(">") + 1) };
+    };
+    const date = readFrame("date-time");
+    const number = readFrame("page-number");
+    const footer = readFrame("footer");
+    if (!date && !number && !footer) return undefined;
+    const format = date?.attrs.match(/vno:date-format=["']([^"']*)["']/i)?.[1] || "dd/MM/yyyy";
+    return {
+      showDate: Boolean(date),
+      dateFormat: this._unescapeXml(format),
+      showSlideNumber: Boolean(number),
+      showFooter: Boolean(footer),
+      footerText: footer?.text || "",
+      applyToAll: false
+    };
+  }
+
+  _serializeSlideHeaderFooter(slide, pageWidthCm, pageHeightCm) {
+    const shared = this.canvas?.headerFooter;
+    const hasPerSlideApply = (this.canvas?.slides || []).some(item => item?.headerFooter?.applyToAll === false);
+    const hf = slide?.headerFooter || (!hasPerSlideApply && shared?.applyToAll !== false ? shared : null);
+    if (!hf) return "";
+    const height = "0.7cm";
+    const y = `${Math.max(0, pageHeightCm - 0.85).toFixed(3)}cm`;
+    const x = "0.6cm";
+    const width = `${Math.max(1, pageWidthCm - 1.2).toFixed(3)}cm`;
+    const frame = (cls, contents, extra = "") =>
+      `<draw:frame draw:name="VNOfficeHeaderFooter-${cls}" presentation:class="${cls}"${extra} svg:x="${x}" svg:y="${y}" svg:width="${width}" svg:height="${height}"><draw:text-box><text:p>${contents}</text:p></draw:text-box></draw:frame>`;
+    const result = [];
+    if (hf.showDate) {
+      const dateFormat = this._escapeXml(hf.dateFormat || "dd/MM/yyyy");
+      const displayDate = this._escapeXml(formatDateTime(new Date(), hf.dateFormat || "dd/MM/yyyy"));
+      result.push(frame("date-time", `<presentation:date-time presentation:date-time-value="${displayDate}">${displayDate}</presentation:date-time>`, ` vno:date-format="${dateFormat}"`));
+    }
+    if (hf.showSlideNumber !== false) {
+      result.push(frame("page-number", `<text:page-number>${(this.canvas?.slides?.indexOf(slide) ?? 0) + 1}</text:page-number>`));
+    }
+    if (hf.showFooter !== false) {
+      result.push(frame("footer", this._escapeXml(hf.footerText || "")));
+    }
+    return result.join("\n");
   }
 
   _parseDrawShape(tagName, attrs, inner, graphicStyles) {
@@ -3207,6 +3281,7 @@ export class SlidesAdapter {
     const effectiveFooterText = theme.footerText || "";
     const payload = {
       id: theme.id || theme.themeId || "",
+      name: theme.name || theme.id || theme.themeId || "",
       fontFamily: theme.fontFamily || "",
       titleColor: theme.titleColor || "",
       bodyColor: theme.bodyColor || "",
@@ -3248,6 +3323,8 @@ export class SlidesAdapter {
       ? `<draw:frame draw:style-name="grMasterLogo" svg:x="0.6cm" svg:y="0.4cm" svg:width="16cm" svg:height="0.8cm">\n        <draw:text-box><text:p>${logo}</text:p></draw:text-box>\n      </draw:frame>\n      `
       : "";
     const footerFrame = footer
+      && !(this.canvas?.headerFooter?.showFooter === true
+        || (this.canvas?.slides || []).some(slide => slide?.headerFooter?.showFooter === true))
       ? `<draw:frame draw:style-name="grMasterFooter" svg:x="0.6cm" svg:y="${footerYCm}cm" svg:width="${footerWidthCm}cm" svg:height="0.7cm">\n        <draw:text-box><text:p>${footer}</text:p></draw:text-box>\n      </draw:frame>`
       : "";
 
@@ -3269,6 +3346,18 @@ export class SlidesAdapter {
     const logoText = logoMatch ? this._unescapeXml(logoMatch[1].replace(/<[^>]+>/g, "")).trim() : "";
     if (!logoText) return null;
     return { logoText };
+  }
+
+  _serializeSlidePageLayouts() {
+    const layouts = [
+      ["VNOTitleContent", [["title", 2, 2, 24, 3], ["outline", 2, 5.5, 24, 11]]],
+      ["VNOTitleOnly", [["title", 2, 6, 24, 6]]],
+      ["VNOTwoContent", [["title", 2, 2, 24, 3], ["outline", 2, 5.5, 11.5, 11], ["outline", 14.5, 5.5, 11.5, 11]]],
+      ["VNOBlank", []]
+    ];
+    return layouts.map(([name, placeholders]) => `<style:presentation-page-layout style:name="${name}">${placeholders.map(([object, x, y, width, height]) =>
+      `<presentation:placeholder presentation:object="${object}" svg:x="${x}cm" svg:y="${y}cm" svg:width="${width}cm" svg:height="${height}cm"/>`
+    ).join("")}</style:presentation-page-layout>`).join("");
   }
 
   /**
@@ -3302,6 +3391,12 @@ export class SlidesAdapter {
       // «Trang chiếu N» thành chữ thật vào tệp của người dùng.
       const titleXml = this._richOrPlainXml(slide.title || "", slide.titleHtml, richCtx, this._themeTextBase("title", slide));
       const layoutType = slide.layoutType || "title-content";
+      const pageLayoutName = ({
+        "title-content": "VNOTitleContent",
+        "title-only": "VNOTitleOnly",
+        "two-content": "VNOTwoContent",
+        blank: "VNOBlank"
+      })[layoutType] || "VNOTitleContent";
 
       // Ghi chú người thuyết trình phải là placeholder «notes» thật (presentation:style-name +
       // ảnh trang chiếu) — thiếu style-name, LibreOffice xuất thành một hộp chữ xanh thường trên
@@ -3374,6 +3469,7 @@ export class SlidesAdapter {
       const pageStyleName = this._pageDrawingStyleName(slide, idx);
       const animXml = this._serializePageAnimXml(pageXmlId, slide, idMap, placeholderIds);
       const commentsXml = this._serializePageCommentsXml(slide.comments);
+      const headerFooterXml = this._serializeSlideHeaderFooter(slide, pageWidthCm, pageHeightCm);
 
       const vnTransitionAttr = slide.transition?.type === "morph" ? ' vno:transition="morph"' : "";
       const section = sections.find(item => item.id === slide.sectionId);
@@ -3387,18 +3483,16 @@ export class SlidesAdapter {
         ? ` vno:section-id="${this._escapeXml(section.id)}" vno:section-name="${this._escapeXml(section.name)}"`
         : "";
       pagesXml += `
-      <draw:page draw:name="${pageName}" draw:style-name="${pageStyleName}" draw:master-page-name="Standard" presentation:layout="${layoutType}" xml:id="${pageXmlId}" draw:id="${pageXmlId}"${vnTransitionAttr}${vnSectionAttrs}>
-        ${framesXml}${shapesXml}${animXml}${notesXml}${commentsXml}
+      <draw:page draw:name="${pageName}" draw:style-name="${pageStyleName}" draw:master-page-name="Standard" presentation:presentation-page-layout-name="${pageLayoutName}" xml:id="${pageXmlId}" draw:id="${pageXmlId}"${vnTransitionAttr}${vnSectionAttrs}>
+        ${framesXml}${headerFooterXml}${shapesXml}${animXml}${notesXml}${commentsXml}
       </draw:page>`;
     });
 
     const automaticStyles = this._serializeGraphicStyles(slides) + this._serializeRichTextStyles(richCtx);
     const backgroundResources = this._serializeBackgroundResources(slides);
-    const officeStyles = backgroundResources
-      ? `
-  <office:styles>${backgroundResources}
-  </office:styles>`
-      : "";
+    const officeStyles = `
+  <office:styles>${backgroundResources}${this._serializeSlidePageLayouts()}
+  </office:styles>`;
 
     return `<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
@@ -3488,8 +3582,10 @@ export class SlidesAdapter {
       if (sectionId && !parsedSections.some(section => section.id === sectionId)) {
         parsedSections.push({ id: sectionId, name: sectionName || "Phần không tên" });
       }
-      const layoutMatch = fullPageTag.match(/presentation:layout=["']([^"']+)["']/i);
-      let pageLayout = layoutMatch ? layoutMatch[1] : "";
+      const layoutMatch = fullPageTag.match(/presentation:presentation-page-layout-name=["']([^"']+)["']/i)
+        || fullPageTag.match(/presentation:layout=["']([^"']+)["']/i);
+      const layoutNames = { VNOTitleContent: "title-content", VNOTitleOnly: "title-only", VNOTwoContent: "two-content", VNOBlank: "blank" };
+      let pageLayout = layoutMatch ? (layoutNames[layoutMatch[1]] || layoutMatch[1]) : "";
       const originalPageXml = pageMatch[2];
       const pageTransition = this._parsePageTransition(fullPageTag, originalPageXml, drawingPageStyles);
       const animByTarget = this._parsePageAnimations(originalPageXml);
@@ -3550,7 +3646,7 @@ export class SlidesAdapter {
 
       const masterPageName = this._attr(fullPageTag, "draw:master-page-name");
       const hasTextBoxShapes = shapes.some(s => s.type === "textbox");
-      const isImportedSlide = !layoutMatch || masterPageName === "BLANK" || hasTextBoxShapes;
+      const isImportedSlide = !layoutMatch || masterPageName === "BLANK" || hasTextBoxShapes || shapes.length > 0;
 
       // PPTX hop drops presentation:layout; restore two-content / title-only from remaining placeholders.
       if (isImportedSlide && (hasTextBoxShapes || masterPageName === "BLANK" || shapes.length > 0)) {
@@ -3649,6 +3745,7 @@ export class SlidesAdapter {
         background = { type: "solid", color: "#ffffff" };
       }
 
+      const parsedHeaderFooter = this._parseSlideHeaderFooter(originalPageXml);
       const parsedSlide = {
         id: Date.now() + idx,
         title,
@@ -3661,6 +3758,7 @@ export class SlidesAdapter {
         shapes,
         groups: shapes.groups || [],
         notes: notesText,
+        ...(parsedHeaderFooter ? { headerFooter: parsedHeaderFooter } : {}),
         ...(background ? { background } : {}),
         comments: parsedComments.comments,
         hidden,
@@ -3997,21 +4095,39 @@ export class SlidesAdapter {
       const input = document.createElement("input");
       input.type = "file";
       input.accept = mediaType === "video" ? "video/*" : "audio/*";
+      input.setAttribute("aria-hidden", "true");
+      input.tabIndex = -1;
+      Object.assign(input.style, {
+        position: "fixed",
+        left: "-10000px",
+        width: "1px",
+        height: "1px",
+        opacity: "0",
+        pointerEvents: "none"
+      });
+      let settled = false;
+      const finish = (result) => {
+        if (settled) return;
+        settled = true;
+        input.remove();
+        resolve(result);
+      };
       input.onchange = (e) => {
-        const file = e.target.files[0];
+        const file = e.target.files?.[0];
         if (!file) {
-          resolve(false);
+          finish(false);
           return;
         }
         const reader = new FileReader();
         reader.onload = (evt) => {
           const ok = this.canvas.insertMedia ? this.canvas.insertMedia(mediaType, evt.target.result, file.size) : false;
-          resolve(ok);
+          finish(ok);
         };
-        reader.onerror = () => resolve(false);
+        reader.onerror = () => finish(false);
         reader.readAsDataURL(file);
       };
-      input.oncancel = () => resolve(false);
+      input.oncancel = () => finish(false);
+      document.body.appendChild(input);
       input.click();
     });
   }
@@ -4313,10 +4429,12 @@ export class SlidesAdapter {
         return this.canvas.insertWordArt ? await this.canvas.insertWordArt(args) : false;
 
       case "common.edit.cut":
+        this._restoreTextSelection();
         if (typeof document !== "undefined") document.execCommand("cut", false, null);
         return true;
 
       case "common.edit.copy": {
+        this._restoreTextSelection();
         const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
         if (selection && selection.rangeCount > 0 && !selection.isCollapsed) {
           const text = selection.toString();
@@ -4390,9 +4508,12 @@ export class SlidesAdapter {
   }
 
   async _readClipboardData() {
+    const stripFragmentMarkers = (clipboard) => clipboard && typeof clipboard === "object"
+      ? { ...clipboard, html: stripClipboardFragmentMarkers(clipboard.html) }
+      : clipboard;
     try {
       const native = await globalUnoBridge.readClipboardData?.();
-      if (native?.status === "ok") return native;
+      if (native?.status === "ok") return stripFragmentMarkers(native);
     } catch {}
     try {
       if (typeof navigator !== "undefined" && navigator.clipboard?.read) {
@@ -4403,17 +4524,18 @@ export class SlidesAdapter {
           const textType = types.find(type => type === "text/plain");
           const html = htmlType ? await (await item.getType(htmlType)).text() : "";
           const text = textType ? await (await item.getType(textType)).text() : "";
-          if (html || text) return { status: "ok", html, text };
+          if (html || text) return stripFragmentMarkers({ status: "ok", html, text });
         }
       }
       if (navigator.clipboard?.readText) {
-        return { status: "ok", text: await navigator.clipboard.readText(), html: "" };
+        return stripFragmentMarkers({ status: "ok", text: await navigator.clipboard.readText(), html: "" });
       }
     } catch {}
     return null;
   }
 
   async _paste() {
+    this._restoreTextSelection();
     const activeEl = typeof document !== "undefined" ? document.activeElement : null;
     const isEditable = activeEl && (activeEl.isContentEditable || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "INPUT");
 

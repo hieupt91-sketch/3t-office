@@ -1,0 +1,20 @@
+{
+  "suite": "tests/live/cdp/slides-fix-l2.desktop.mjs",
+  "status": "PASS",
+  "passed": 20,
+  "total": 20,
+  "appRoot": "E:/VNOffice-codex-fl12",
+  "profile": "E:/VNOffice-profiles/codex-fl12",
+  "fixtures": [
+    "E:/VN OFice/file test/sample-3.pptx",
+    "E:/VN OFice/file test/lan/BÁO CÁO KẾT QUẢ KINH DOANH NĂM 2021.pptx"
+  ],
+  "checks": [
+    "loaded source before measurement",
+    "inserted textbox and shape",
+    "duplicated slide three times",
+    "applied and saved Fade",
+    "reopened with 13 slides, textbox, shape order, and canvas count intact",
+    "business source retained 17 slides and per-slide shape counts after save"
+  ]
+}

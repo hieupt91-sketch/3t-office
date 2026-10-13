@@ -1,0 +1,14 @@
+{
+  "suite": "tests/live/cdp/slides-fix-l9-header-footer.desktop.mjs",
+  "status": "PASS",
+  "passed": 12,
+  "total": 12,
+  "appRoot": "E:/VNOffice-codex-fl12",
+  "profile": "E:/VNOffice-profiles/codex-fl12",
+  "output": "E:/VNOffice-profiles/codex-fl12/fix-l9/header-footer.pptx",
+  "checks": [
+    "applied date, slide number and footer to current slide only",
+    "saved PPTX with native placeholders/automatic fields",
+    "reopened app and preserved values only on slide 3"
+  ]
+}

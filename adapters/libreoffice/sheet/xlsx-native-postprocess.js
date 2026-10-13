@@ -14,8 +14,12 @@ import {
 import {
   applyFreezePaneToSheetXml,
   applyFreezePanesToFods,
+  applySplitPaneToSheetXml,
+  applySplitPanesToFods,
   parseFreezePaneFromSheetXml,
   parseFreezePanesFromFods,
+  parseSplitPaneFromSheetXml,
+  parseSplitPanesFromFods,
   resolveRidTargetMap,
   resolveSheetRidMap
 } from "./xlsx-freeze-panes.js";
@@ -401,6 +405,19 @@ export function postProcessSheetXlsx(xlsxPathOrBuffer, options = {}) {
     }
   }
 
+  const splitBySheet = parseSplitPanesFromFods(options.sourceFods);
+  if (Object.keys(splitBySheet).length > 0) {
+    const sheetEntries = resolveXlsxSheetEntries(source);
+    for (const [sheetName, split] of Object.entries(splitBySheet)) {
+      const entryPath = sheetEntries[sheetName];
+      if (!entryPath) continue;
+      const sheetXml = (replacements[entryPath] || readZipEntry(source, entryPath)?.toString("utf8"));
+      if (!sheetXml) continue;
+      const nextSheetXml = applySplitPaneToSheetXml(sheetXml, split);
+      if (nextSheetXml !== sheetXml) replacements[entryPath] = nextSheetXml;
+    }
+  }
+
   // Sheet visibility (veryHidden): soffice downgrades veryHidden → hidden
   // during FODS→XLSX. Read vno:sheet-state from FODS and write state back.
   const visibilityBySheet = parseSheetVisibilityFromFods(options.sourceFods);
@@ -474,6 +491,7 @@ export function overlaySheetXlsxFods(xlsxPathOrBuffer, fodsXml) {
     xml = applyPrintTitlesToFods(xml, parsePrintTitlesFromWorkbook(workbookXml));
   }
   xml = overlaySheetXlsxFreezePanes(source, xml);
+  xml = overlaySheetXlsxSplitPanes(source, xml);
   // AutoFilter: read <autoFilter ref> from worksheet XMLs and inject
   // <table:database-ranges> into FODS.
   xml = overlayAutofilterFromXlsx(source, xml);
@@ -530,4 +548,20 @@ export function overlaySheetXlsxFreezePanes(xlsxPathOrBuffer, fodsXml) {
     if (freeze) freezeBySheet[sheetName] = freeze;
   }
   return applyFreezePanesToFods(xml, freezeBySheet);
+}
+
+/** Preserve real state="split" panes separately from Freeze Panes on open. */
+export function overlaySheetXlsxSplitPanes(xlsxPathOrBuffer, fodsXml) {
+  const source = asBuffer(xlsxPathOrBuffer);
+  const xml = String(fodsXml || "");
+  const sheetEntries = resolveXlsxSheetEntries(source);
+  if (Object.keys(sheetEntries).length === 0) return xml;
+  const splitBySheet = {};
+  for (const [sheetName, entryPath] of Object.entries(sheetEntries)) {
+    const sheetXml = readZipEntry(source, entryPath)?.toString("utf8");
+    if (!sheetXml) continue;
+    const split = parseSplitPaneFromSheetXml(sheetXml);
+    if (split) splitBySheet[sheetName] = split;
+  }
+  return applySplitPanesToFods(xml, splitBySheet);
 }

@@ -1647,6 +1647,7 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
 
 
 _OOXML_ZIP_PATCH = None
+_SHEET_XLSX_PREVIEW = None
 
 
 def _ooxml_zip_patch():
@@ -1667,6 +1668,26 @@ def _ooxml_zip_patch():
             raise
         _OOXML_ZIP_PATCH = module
     return _OOXML_ZIP_PATCH
+
+
+def _sheet_xlsx_preview():
+    """Load the bounded, read-only XLSX preview parser owned by VN Sheet."""
+    global _SHEET_XLSX_PREVIEW
+    if _SHEET_XLSX_PREVIEW is None:
+        module_path = os.path.join(ROOT_DIR, "apps", "sheet", "xlsx_preview.py")
+        module_name = "vno_apps_sheet_xlsx_preview"
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        if spec is None or spec.loader is None:
+            raise DocumentEngineError("Không tải được bộ đọc xem nhanh bảng tính.")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        try:
+            spec.loader.exec_module(module)
+        except Exception:
+            sys.modules.pop(module_name, None)
+            raise
+        _SHEET_XLSX_PREVIEW = module
+    return _SHEET_XLSX_PREVIEW
 
 
 def _apply_native_export_postprocess(
@@ -1732,6 +1753,7 @@ def _apply_native_export_postprocess(
             else:
                 patched = patcher.postprocess_sheet_xlsx(
                     original, source_fods=fods, source_xlsx_bytes=source_xlsx_bytes,
+                    workbook_filename=Path(out_path).name,
                 )
             if patched != original:
                 with open(out_path, "wb") as handle:
@@ -1767,7 +1789,7 @@ def _apply_native_export_postprocess(
             raise
         except Exception as exc:
             raise DocumentEngineError(
-                f"Không bổ sung được thuộc tính native PPTX (khổ trang / logo / Sections / Set Up Show): {exc}"
+                f"Không bổ sung được thuộc tính native PPTX (khổ trang / logo / Sections / Set Up Show / Đầu-Chân trang): {exc}"
             ) from exc
     if app_kind == "writer" and fmt == "docx":
         try:
@@ -1830,6 +1852,86 @@ def _apply_native_export_postprocess(
                     )
                     patched = patcher.postprocess_writer_strip_markers(patched)
                     patched = patcher.postprocess_writer_schema_fixes(patched)
+                chart_metadata = re.search(r"<!--vno-native-charts-fodt:([A-Za-z0-9+/=]+)-->", source_html or "")
+                if chart_metadata:
+                    try:
+                        chart_fodt = base64.b64decode(chart_metadata.group(1), validate=True).decode("utf-8")
+                        with tempfile.TemporaryDirectory(prefix="vnoffice_native_charts_") as chart_dir:
+                            fodt_path = os.path.join(chart_dir, "new-charts.fodt")
+                            with open(fodt_path, "w", encoding="utf-8", newline="") as handle:
+                                handle.write(chart_fodt)
+                            chart_docx_path = _run_soffice_convert(
+                                fodt_path, "docx", chart_dir, app_kind="writer",
+                            )
+                            with open(chart_docx_path, "rb") as handle:
+                                chart_docx = handle.read()
+                        patched = patcher.postprocess_writer_native_charts(
+                            patched, chart_docx, source_html=source_html,
+                        )
+                    except Exception as exc:
+                        raise DocumentEngineError(
+                            f"Không thể tạo biểu đồ DOCX có thể chỉnh sửa: {exc}"
+                        ) from exc
+                diagram_metadata = re.search(r"<!--vno-native-diagrams-fodt:([A-Za-z0-9+/=]+)-->", source_html or "")
+                if diagram_metadata:
+                    try:
+                        diagram_fodt = base64.b64decode(diagram_metadata.group(1), validate=True).decode("utf-8")
+                        with tempfile.TemporaryDirectory(prefix="vnoffice_native_diagrams_") as diagram_dir:
+                            fodt_path = os.path.join(diagram_dir, "new-diagrams.fodt")
+                            with open(fodt_path, "w", encoding="utf-8", newline="") as handle:
+                                handle.write(diagram_fodt)
+                            diagram_docx_path = _run_soffice_convert(
+                                fodt_path, "docx", diagram_dir, app_kind="writer",
+                            )
+                            with open(diagram_docx_path, "rb") as handle:
+                                diagram_docx = handle.read()
+                        patched = patcher.postprocess_writer_native_diagrams(
+                            patched, diagram_docx, source_html=source_html,
+                        )
+                    except Exception as exc:
+                        raise DocumentEngineError(
+                            f"Không thể tạo sơ đồ DOCX có thể chỉnh sửa: {exc}"
+                        ) from exc
+                wordart_metadata = re.search(r"<!--vno-native-wordart-fodt:([A-Za-z0-9+/=]+)-->", source_html or "")
+                if wordart_metadata:
+                    try:
+                        wordart_fodt = base64.b64decode(wordart_metadata.group(1), validate=True).decode("utf-8")
+                        with tempfile.TemporaryDirectory(prefix="vnoffice_native_wordart_") as wordart_dir:
+                            fodt_path = os.path.join(wordart_dir, "wordart.fodt")
+                            with open(fodt_path, "w", encoding="utf-8", newline="") as handle:
+                                handle.write(wordart_fodt)
+                            wordart_docx_path = _run_soffice_convert(
+                                fodt_path, "docx", wordart_dir, app_kind="writer",
+                            )
+                            with open(wordart_docx_path, "rb") as handle:
+                                wordart_docx = handle.read()
+                        patched = patcher.postprocess_writer_native_wordart(
+                            patched, wordart_docx, source_html=source_html,
+                        )
+                    except Exception as exc:
+                        raise DocumentEngineError(
+                            f"Không thể tạo WordArt DOCX native: {exc}"
+                        ) from exc
+                watermark_metadata = re.search(r"<!--vno-native-watermark-fodt:([A-Za-z0-9+/=]+)-->", source_html or "")
+                if watermark_metadata:
+                    try:
+                        watermark_fodt = base64.b64decode(watermark_metadata.group(1), validate=True).decode("utf-8")
+                        with tempfile.TemporaryDirectory(prefix="vnoffice_native_watermark_") as watermark_dir:
+                            fodt_path = os.path.join(watermark_dir, "watermark.fodt")
+                            with open(fodt_path, "w", encoding="utf-8", newline="") as handle:
+                                handle.write(watermark_fodt)
+                            watermark_docx_path = _run_soffice_convert(
+                                fodt_path, "docx", watermark_dir, app_kind="writer",
+                            )
+                            with open(watermark_docx_path, "rb") as handle:
+                                watermark_docx = handle.read()
+                        patched = patcher.postprocess_writer_native_watermark(
+                            patched, watermark_docx, source_html=source_html,
+                        )
+                    except Exception as exc:
+                        raise DocumentEngineError(
+                            f"KhÃ´ng thá»ƒ táº¡o watermark DOCX native: {exc}"
+                        ) from exc
             if patched != converted_docx:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)
@@ -1848,7 +1950,25 @@ WRITER_DOC_EXPORT_VIA_DOCX = True
 
 def _convert_writer_html_to_doc(src_html: str, out_dir: str, source_path: str | None = None) -> str:
     """Export Writer HTML through the source-aware DOCX overlay before legacy DOC."""
-    intermediate_docx = _run_soffice_convert(src_html, "docx", out_dir, app_kind="writer")
+    conversion_html = src_html
+    try:
+        with open(src_html, "r", encoding="utf-8", errors="replace") as handle:
+            html_source = handle.read()
+        if "vno-native-watermark-fodt:" in html_source:
+            html_without_overlay = re.sub(
+                r'<div\b(?=[^>]*\bclass=["\'][^"\']*\bvno-export-watermark\b[^"\']*["\'])[^>]*>[\s\S]*?</div\s*>\s*',
+                "",
+                html_source,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+            if html_without_overlay != html_source:
+                conversion_html = os.path.join(out_dir, "writer-native-watermark-source.html")
+                with open(conversion_html, "w", encoding="utf-8", newline="") as handle:
+                    handle.write(html_without_overlay)
+    except OSError as exc:
+        raise DocumentEngineError(f"KhÃ´ng thá»ƒ chuáº©n bá»‹ HTML watermark cho DOCX: {exc}") from exc
+    intermediate_docx = _run_soffice_convert(conversion_html, "docx", out_dir, app_kind="writer")
     pristine_docx_source = bool(
         source_path and Path(source_path).suffix.lower() == ".docx"
     )
@@ -3657,13 +3777,16 @@ class VnOfficeApi:
 
     # --- P8 view-first (Sheet): query the document LibreOffice already holds, window by window. ---
     # Off by default in the UI (flag in the front end); these calls never touch the convert path.
-    def sheet_view_open(self, file_path):
+    def sheet_view_open(self, file_path, active_sheet_name=""):
         try:
             path = os.path.abspath(str(file_path))
             if not os.path.isfile(path):
                 return {"ok": False, "error": "Không tìm thấy tệp."}
             started = time.perf_counter()
-            result = _PERSISTENT_SOFFICE.view_operation("sheet", "view_open", timeout=180, source_path=path)
+            result = _PERSISTENT_SOFFICE.view_operation(
+                "sheet", "view_open", timeout=180, source_path=path,
+                active_sheet_name=str(active_sheet_name or ""),
+            )
             self._sheet_view_doc_ids.add(str(result["doc_id"]))
             _open_perf_log("sheet_view_open", (time.perf_counter() - started) * 1000, sheets=len(result.get("sheets", [])))
             return {"ok": True, "doc_id": result["doc_id"], "sheets": result["sheets"]}
@@ -3684,6 +3807,27 @@ class VnOfficeApi:
         except Exception as exc:
             return {"ok": False, "error": str(exc)[:300]}
 
+    def sheet_xlsx_preview_window(self, source_path, sheet, r0, c0, r1, c1):
+        """Read a local XLSX viewport until the background UNO view is ready."""
+        try:
+            path = os.path.abspath(str(source_path))
+            if not path.lower().endswith(".xlsx") or not os.path.isfile(path):
+                return {"ok": False, "error": "Không tìm thấy tệp XLSX xem nhanh."}
+            started = time.perf_counter()
+            result = _sheet_xlsx_preview().parse_xlsx_preview_window(
+                path, int(sheet), int(r0), int(c0), int(r1), int(c1)
+            )
+            window = result.get("window") or {}
+            window["ok"] = True
+            _open_perf_log(
+                "sheet_xlsx_preview_window",
+                (time.perf_counter() - started) * 1000,
+                sheet=int(sheet), r0=int(r0), c0=int(c0),
+            )
+            return window
+        except Exception as exc:
+            return {"ok": False, "error": str(exc)[:300]}
+
     def sheet_view_close(self, doc_id):
         doc_id = str(doc_id)
         try:
@@ -3699,35 +3843,130 @@ class VnOfficeApi:
         for doc_id in tuple(self._sheet_view_doc_ids):
             self.sheet_view_close(doc_id)
 
+    def _attach_sheet_quick_view_engine(self, path, active_sheet_name, ready_event):
+        """Open the UNO view after the local OOXML viewport has reached the UI."""
+        doc_id = None
+        try:
+            opened = self.sheet_view_open(path, active_sheet_name)
+            if not opened.get("ok") or not opened.get("sheets"):
+                return
+            doc_id = opened["doc_id"]
+            active_sheet_index = next(
+                (index for index, sheet in enumerate(opened["sheets"]) if sheet.get("name") == active_sheet_name),
+                0,
+            )
+            first_sheet = opened["sheets"][active_sheet_index]
+            r1 = min(max(0, int(first_sheet.get("rows", 1)) - 1), 39)
+            c1 = min(max(0, int(first_sheet.get("cols", 1)) - 1), 19)
+            first_window = self.sheet_view_window(doc_id, active_sheet_index, 0, 0, r1, c1, True, True)
+            if not first_window.get("ok"):
+                self.sheet_view_close(doc_id)
+                return
+            window = _active_window(self)
+            if not window:
+                self.sheet_view_close(doc_id)
+                return
+            payload = {
+                "doc_id": doc_id,
+                "sourcePath": path,
+                "sheets": opened["sheets"],
+                "sheet": active_sheet_index,
+                "r0": 0,
+                "c0": 0,
+                "window": first_window,
+            }
+            window.evaluate_js(
+                "window.__vnoSheetQuickViewAttachEngine?.("
+                + json.dumps(payload, ensure_ascii=True, separators=(",", ":"))
+                + ")"
+            )
+            _open_perf_log("sheet_quick_view_engine_attached", sheets=len(opened["sheets"]))
+        except Exception as exc:
+            if doc_id:
+                self.sheet_view_close(doc_id)
+            logging.getLogger("vnoffice.sheet").debug(
+                "Quick view UNO attachment failed: %s", type(exc).__name__
+            )
+        finally:
+            ready_event.set()
+
     def _open_sheet_quick_view_if_enabled(self, source_path):
-        """Paint the first XLSX window before the normal FODS conversion takes the worker lock."""
+        """Paint a bounded local XLSX viewport before waiting for UNO or full FODS conversion."""
         if not _view_first_enabled():
             return False
         try:
             path = os.path.abspath(str(source_path))
-            if not path.lower().endswith(".xlsx") or os.path.getsize(path) < 5 * 1024 * 1024:
+            if not path.lower().endswith(".xlsx"):
                 return False
         except OSError:
             return False
-        opened = self.sheet_view_open(path)
+
+        window = _active_window(self)
+        if window:
+            try:
+                parse_started = time.perf_counter()
+                preview = _sheet_xlsx_preview().parse_xlsx_preview(path)
+                _open_perf_log(
+                    "sheet_xlsx_preview_parse",
+                    (time.perf_counter() - parse_started) * 1000,
+                    rows=preview.get("rows", 0),
+                    cols=preview.get("cols", 0),
+                )
+                active_sheet_name = str(preview.get("active_sheet_name") or "")
+                preview_payload = {
+                    "doc_id": "xlsx-preview-" + uuid.uuid4().hex,
+                    "sourcePath": path,
+                    "sheets": preview["sheets"],
+                    "sheet": int(preview["sheet"]),
+                    "r0": 0,
+                    "c0": 0,
+                    "window": preview["window"],
+                }
+                has_quick_view = window.evaluate_js("!!window.__vnoSheetQuickViewOpen")
+                if has_quick_view:
+                    window.evaluate_js(
+                        "window.__vnoSheetQuickViewOpen?.("
+                        + json.dumps(preview_payload, ensure_ascii=True, separators=(",", ":"))
+                        + ")"
+                    )
+                    _open_perf_log("sheet_quick_view_first_window_source", source="xlsx-zip")
+                    ready_event = threading.Event()
+                    threading.Thread(
+                        target=self._attach_sheet_quick_view_engine,
+                        args=(path, active_sheet_name, ready_event),
+                        daemon=True,
+                        name="VNO Sheet preview UNO attach",
+                    ).start()
+                    # Keep the view worker ahead of the full-model conversion. The UI has
+                    # already received and rendered its local viewport while this waits.
+                    ready_event.wait(timeout=180)
+                    return True
+            except Exception as exc:
+                logging.getLogger("vnoffice.sheet").debug(
+                    "Fast XLSX preview unavailable; using UNO view-first: %s", type(exc).__name__
+                )
+
+        active_sheet_name = ""
+        try:
+            workbook_xml = _read_xlsx_workbook_xml(path)
+            active_sheet_name = _ooxml_zip_patch().parse_active_sheet_from_workbook(workbook_xml) or ""
+        except Exception:
+            # Active-sheet metadata is optional for the first-paint path.
+            pass
+        opened = self.sheet_view_open(path, active_sheet_name)
         if not opened.get("ok") or not opened.get("sheets"):
             return False
         doc_id = opened["doc_id"]
         active_sheet_index = 0
-        try:
-            workbook_xml = _read_xlsx_workbook_xml(path)
-            active_sheet_name = _ooxml_zip_patch().parse_active_sheet_from_workbook(workbook_xml)
-            if active_sheet_name:
-                active_sheet_index = next(
-                    (index for index, sheet in enumerate(opened["sheets"]) if sheet.get("name") == active_sheet_name),
-                    0,
-                )
-        except Exception:
-            # Quick view is an optional first paint; the full import owns error reporting.
-            active_sheet_index = 0
+        if active_sheet_name:
+            active_sheet_index = next(
+                (index for index, sheet in enumerate(opened["sheets"]) if sheet.get("name") == active_sheet_name),
+                0,
+            )
         first_sheet = opened["sheets"][active_sheet_index]
-        r1 = min(max(0, int(first_sheet.get("rows", 1)) - 1), 79)
-        c1 = min(max(0, int(first_sheet.get("cols", 1)) - 1), 29)
+        # First paint covers the ordinary viewport; later scrolls request adjacent 40x20 windows.
+        r1 = min(max(0, int(first_sheet.get("rows", 1)) - 1), 39)
+        c1 = min(max(0, int(first_sheet.get("cols", 1)) - 1), 19)
         first_window = self.sheet_view_window(doc_id, active_sheet_index, 0, 0, r1, c1, True, True)
         if not first_window.get("ok"):
             self.sheet_view_close(doc_id)
@@ -3738,6 +3977,7 @@ class VnOfficeApi:
             return False
         payload = {
             "doc_id": doc_id,
+            "sourcePath": path,
             "sheets": opened["sheets"],
             "sheet": active_sheet_index,
             "r0": 0,
@@ -3776,6 +4016,16 @@ class VnOfficeApi:
             "export_pdf_dialog", self._export_pdf_dialog_impl,
             content, app_kind, suggested_name, source_path,
         )
+
+    def open_containing_folder(self, file_path):
+        """Mở thư mục chứa tệp vừa xuất (Xuất và chuyển đổi > Mở thư mục chứa tệp)."""
+        services = _os_services()
+        if services is None or getattr(services, "launcher", None) is None or not hasattr(services.launcher, "reveal_path"):
+            return {"status": "error", "message": "Chức năng mở thư mục chưa khả dụng trên hệ điều hành này."}
+        result = services.launcher.reveal_path(Path(str(file_path or "")))
+        if result.is_ok:
+            return {"status": "ok"}
+        return {"status": "error", "message": result.error.message if result.error else "Không mở được thư mục chứa tệp."}
 
     def prepare_print_document(
         self, app_kind, content, suggested_name="TaiLieu", source_path=None,

@@ -51,6 +51,19 @@ export async function runSlidesDiagramTests() {
     if (dispatched !== "dialog-opened") throw new Error("handleDispatch chưa gọi dialog thật");
   });
 
+  await test("Diagram group round-trips as one editable group", () => {
+    const canvas = createController();
+    canvas.insertDiagram("process", 4);
+    const adapter = new SlidesAdapter(canvas);
+    const fodp = adapter.serializeToFodp();
+    if (!fodp.includes('draw:name="VNOfficeGroup:diagram-')) throw new Error("FODP missing named draw:g");
+    const reopened = adapter.parseFodp(fodp);
+    const restored = reopened[0]?.shapes || [];
+    if (restored.length !== canvas.slides[0].shapes.length) throw new Error("Shape/connector count changed on reopen");
+    const groups = new Set(restored.map(shape => shape.groupId).filter(Boolean));
+    if (groups.size !== 1 || restored.some(shape => !shape.groupId)) throw new Error("Diagram members did not reopen as one group");
+  });
+
   await test("SmartArt Process 4 bước tạo đúng 4 node + 3 connector trong slide.shapes", () => {
     const canvas = createController();
     const result = canvas.insertDiagram("process", 4);

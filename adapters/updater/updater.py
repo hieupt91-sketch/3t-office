@@ -246,15 +246,20 @@ class UpdaterManager:
             refused_errors: list[Exception] = []
             selected_source = ""
             release = None
+            # Đọc MỌI nguồn rồi chọn bản mới nhất: nếu nguồn đầu (ví dụ kho LAN) còn bản cũ mà nguồn sau
+            # (internet) đã có bản mới thì vẫn phải nâng cấp, không dừng ở nguồn đầu tiên kết nối được.
             for candidate in self.sources:
                 try:
-                    release = self._read_signed_release(candidate)
-                    selected_source = candidate
-                    break
+                    candidate_release = self._read_signed_release(candidate)
                 except UpdateSourceError as exc:
                     source_errors.append(exc)
+                    continue
                 except (UpdateRefused, ManifestError, ValueError) as exc:
                     refused_errors.append(exc)
+                    continue
+                if release is None or compare_versions(candidate_release[0], release[0]) > 0:
+                    release = candidate_release
+                    selected_source = candidate
             if release is None:
                 if refused_errors:
                     raise UpdateRefused(f"Từ chối cập nhật: {refused_errors[-1]}") from refused_errors[-1]

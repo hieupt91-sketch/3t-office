@@ -1,0 +1,107 @@
+{
+  "formula": "=TRANSPOSE(A1:C2)",
+  "targetRange": "D1:E3",
+  "source": [
+    [
+      1,
+      2,
+      3
+    ],
+    [
+      4,
+      5,
+      6
+    ]
+  ],
+  "cdpCells": [
+    {
+      "coord": "D1",
+      "val": 1,
+      "formula": "=TRANSPOSE(A1:C2)",
+      "isArrayFormula": true,
+      "arrayRange": "D1:E3"
+    },
+    {
+      "coord": "E1",
+      "val": 4,
+      "formula": "=TRANSPOSE(A1:C2)",
+      "isArrayFormula": true,
+      "arrayRange": "D1:E3"
+    },
+    {
+      "coord": "D2",
+      "val": 2,
+      "formula": "=TRANSPOSE(A1:C2)",
+      "isArrayFormula": true,
+      "arrayRange": "D1:E3"
+    },
+    {
+      "coord": "E2",
+      "val": 5,
+      "formula": "=TRANSPOSE(A1:C2)",
+      "isArrayFormula": true,
+      "arrayRange": "D1:E3"
+    },
+    {
+      "coord": "D3",
+      "val": 3,
+      "formula": "=TRANSPOSE(A1:C2)",
+      "isArrayFormula": true,
+      "arrayRange": "D1:E3"
+    },
+    {
+      "coord": "E3",
+      "val": 6,
+      "formula": "=TRANSPOSE(A1:C2)",
+      "isArrayFormula": true,
+      "arrayRange": "D1:E3"
+    }
+  ],
+  "excelVersion": "16.0.4266.1001",
+  "excelReadOnly": true,
+  "excelCells": [
+    {
+      "address": "D1",
+      "formula": "=TRANSPOSE(A1:C2)",
+      "value2": 1,
+      "valueType": "Double",
+      "text": "1"
+    },
+    {
+      "address": "E1",
+      "formula": "=TRANSPOSE(A1:C2)",
+      "value2": 4,
+      "valueType": "Double",
+      "text": "4"
+    },
+    {
+      "address": "D2",
+      "formula": "=TRANSPOSE(A1:C2)",
+      "value2": 2,
+      "valueType": "Double",
+      "text": "2"
+    },
+    {
+      "address": "E2",
+      "formula": "=TRANSPOSE(A1:C2)",
+      "value2": 5,
+      "valueType": "Double",
+      "text": "5"
+    },
+    {
+      "address": "D3",
+      "formula": "=TRANSPOSE(A1:C2)",
+      "value2": 3,
+      "valueType": "Double",
+      "text": "3"
+    },
+    {
+      "address": "E3",
+      "formula": "=TRANSPOSE(A1:C2)",
+      "value2": 6,
+      "valueType": "Double",
+      "text": "6"
+    }
+  ],
+  "match": true
+}

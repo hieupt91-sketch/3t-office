@@ -24,6 +24,15 @@ const PANE_RE = /<pane\b[^>]*\/>/gi;
 const SELECTION_RE = /<selection\b[^>]*\/>/gi;
 const PANE_MATCH_RE = /<pane\b([^>]*)\/>/i;
 
+function columnIndexFromLabel(label) {
+  let value = 0;
+  for (const char of String(label || "").toUpperCase()) {
+    if (char < "A" || char > "Z") return 0;
+    value = value * 26 + char.charCodeAt(0) - 64;
+  }
+  return value;
+}
+
 function unescapeXml(value) {
   return String(value ?? "")
     .replace(/&lt;/g, "<")
@@ -67,6 +76,25 @@ export function parseFreezePanesFromFods(fodsXml) {
   return result;
 }
 
+/** Read non-frozen split-window metadata persisted on each FODS table. */
+export function parseSplitPanesFromFods(fodsXml) {
+  const xml = String(fodsXml || "");
+  const result = {};
+  let match;
+  TABLE_TAG_RE.lastIndex = 0;
+  while ((match = TABLE_TAG_RE.exec(xml)) !== null) {
+    const attrs = match[1] || "";
+    const nameMatch = attrs.match(/table:name=["']([^"']*)["']/i);
+    if (!nameMatch) continue;
+    const row = Number(attrs.match(/vno:split-row=["'](\d+)["']/i)?.[1]) || 0;
+    const col = Number(attrs.match(/vno:split-col=["'](\d+)["']/i)?.[1]) || 0;
+    const x = Number(attrs.match(/vno:split-x=["']([\d.]+)["']/i)?.[1]) || 0;
+    const y = Number(attrs.match(/vno:split-y=["']([\d.]+)["']/i)?.[1]) || 0;
+    if (row > 0 || col > 0 || x > 0 || y > 0) result[unescapeXml(nameMatch[1])] = { row, col, x, y };
+  }
+  return result;
+}
+
 /** Đọc <pane state="frozen" xSplit ySplit> thật từ một worksheetN.xml XLSX. */
 export function parseFreezePaneFromSheetXml(sheetXml) {
   const match = String(sheetXml || "").match(PANE_MATCH_RE);
@@ -77,6 +105,24 @@ export function parseFreezePaneFromSheetXml(sheetXml) {
   const rows = Number(attrs.match(/ySplit=["'](\d+)["']/i)?.[1]) || 0;
   if (rows === 0 && cols === 0) return null;
   return { rows, cols };
+}
+
+/** Read an OOXML split pane without confusing it with Freeze Panes. */
+export function parseSplitPaneFromSheetXml(sheetXml) {
+  const match = String(sheetXml || "").match(PANE_MATCH_RE);
+  if (!match) return null;
+  const attrs = match[1] || "";
+  if (/state=["'](?:frozen|frozenSplit)["']/i.test(attrs)) return null;
+  const x = Number(attrs.match(/xSplit=["']([\d.]+)["']/i)?.[1]) || 0;
+  const y = Number(attrs.match(/ySplit=["']([\d.]+)["']/i)?.[1]) || 0;
+  if (x <= 0 && y <= 0) return null;
+  const topLeft = attrs.match(/topLeftCell=["']([A-Z]+)(\d+)["']/i);
+  return {
+    row: topLeft ? Math.max(0, Number(topLeft[2]) - 1) : 0,
+    col: topLeft ? Math.max(0, columnIndexFromLabel(topLeft[1]) - 1) : 0,
+    x,
+    y
+  };
 }
 
 /**
@@ -118,6 +164,40 @@ export function applyFreezePaneToSheetXml(sheetXml, rows, cols) {
   return xml;
 }
 
+/** Write a real, non-frozen OOXML split pane. x/y use twentieths of a point. */
+export function applySplitPaneToSheetXml(sheetXml, split) {
+  const xml = String(sheetXml || "");
+  const row = Math.max(0, Math.floor(Number(split?.row) || 0));
+  const col = Math.max(0, Math.floor(Number(split?.col) || 0));
+  const x = Math.max(0, Number(split?.x) || 0);
+  const y = Math.max(0, Number(split?.y) || 0);
+  if (x <= 0 && y <= 0) return xml;
+
+  const topLeftCell = `${columnLabelFromIndex(col + 1)}${row + 1}`;
+  const activePane = x > 0 && y > 0 ? "bottomRight" : y > 0 ? "bottomLeft" : "topRight";
+  const paneAttrs = [];
+  if (x > 0) paneAttrs.push(`xSplit="${x}"`);
+  if (y > 0) paneAttrs.push(`ySplit="${y}"`);
+  paneAttrs.push(`topLeftCell="${topLeftCell}"`, `activePane="${activePane}"`, 'state="split"');
+  const paneXml = `<pane ${paneAttrs.join(" ")}/>`;
+  const selectionXml = `<selection pane="${activePane}" activeCell="${topLeftCell}" sqref="${topLeftCell}"/>`;
+  const clean = (inner) => inner.replace(PANE_RE, "").replace(SELECTION_RE, "");
+
+  const openClose = xml.match(SHEET_VIEW_RE);
+  if (openClose) {
+    const [full, open, inner, close] = openClose;
+    const replacement = `${open}${paneXml}${selectionXml}${clean(inner)}${close}`;
+    return xml.slice(0, openClose.index) + replacement + xml.slice(openClose.index + full.length);
+  }
+  const selfClose = xml.match(SHEET_VIEW_SELFCLOSE_RE);
+  if (selfClose) {
+    const [full, attrs] = selfClose;
+    const replacement = `<sheetView${attrs}>${paneXml}${selectionXml}</sheetView>`;
+    return xml.slice(0, selfClose.index) + replacement + xml.slice(selfClose.index + full.length);
+  }
+  return xml;
+}
+
 /**
  * File → Mở: ghi vno:frozen-rows/cols vào đúng <table:table> trong FODS
  * (soffice XLSX->FODS xuất ra) TRƯỚC KHI SheetAdapter.parseFods() chạy, dựa
@@ -137,6 +217,22 @@ export function applyFreezePanesToFods(fodsXml, freezeBySheetName) {
     return `<table:table${nextAttrs}>`;
   });
   return xml;
+}
+
+/** Overlay split-window metadata onto FODS before SheetAdapter parses it. */
+export function applySplitPanesToFods(fodsXml, splitBySheetName) {
+  let xml = String(fodsXml || "");
+  if (!splitBySheetName || Object.keys(splitBySheetName).length === 0) return xml;
+  return xml.replace(/<table:table\b([^>]*)>/gi, (full, attrs) => {
+    const nameMatch = attrs.match(/table:name=["']([^"']*)["']/i);
+    if (!nameMatch) return full;
+    const split = splitBySheetName[unescapeXml(nameMatch[1])];
+    if (!split || (!(split.x > 0) && !(split.y > 0))) return full;
+    const clean = attrs
+      .replace(/\s*vno:split-(?:row|col|x|y)=["'][\d.]+["']/gi, "")
+      .replace(/\s*vno:frozen-(?:rows|cols)=["']\d+["']/gi, "");
+    return `<table:table${clean} vno:split-row="${split.row || 0}" vno:split-col="${split.col || 0}" vno:split-x="${split.x || 0}" vno:split-y="${split.y || 0}">`;
+  });
 }
 
 /** Ánh xạ tên sheet (3T Office) -> {rows, cols} -> tên sheet -> r:id -> ánh xạ tới file worksheetN.xml thật, dùng ở lớp Node/Python có quyền đọc ZIP. */

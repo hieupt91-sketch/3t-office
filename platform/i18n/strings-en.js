@@ -123,7 +123,57 @@ export const enStrings = {
     fileNotFoundTitle: "File Not Found",
     fileNotFoundMessage: "The file \"{name}\" no longer exists or was moved. Do you want to remove it from the recent list?",
     emptyRecentTitle: "No Recent Documents",
-    emptyRecentDesc: "Documents you create or edit will appear here for quick access."
+    emptyRecentDesc: "Documents you create or edit will appear here for quick access.",
+    exportConvert: "Export & Convert",
+    exportConvertTitle: "Export & Convert File Formats",
+    exportConvertSubtitle: "Export document to PDF or convert to other file formats with high Office compatibility.",
+    officeCompatGroup: "Compatibility Options",
+    officeCompat: "Office Compatibility",
+    officeCompatDesc: "Optimize layout, encoding, and formatting for full fidelity when opened in Office suites.",
+    exportPdfSection: "Export as PDF Document",
+    exportConvertSection: "Convert to Other Formats",
+    exportBtn: "Export...",
+    exporting: "Exporting...",
+    exportingStatus: "Exporting document to the selected format...",
+    exportSuccess: "File exported successfully",
+    exportSuccessMsg: "The file was successfully exported and saved to:",
+    openFolder: "Open containing folder",
+    openFolderTitle: "Open Containing Folder",
+    openFolderFallback: "File path:",
+    openFolderNotSupported: "(The current platform does not yet support opening the file manager directly.)",
+    exportErrorTitle: "Cannot Export File",
+    exportErrorGeneric: "An error occurred while exporting the file. Please verify write permissions and try again.",
+    exportFormatUnsupported: "Unsupported export format:",
+    exportFormatInvalid: "Invalid export format.",
+    exportNoContent: "Unable to retrieve document content for export.",
+    exportSuccessStatus: "File exported successfully:",
+    exportCancelled: "Export cancelled.",
+    formatPdfTitle: "PDF Document (.pdf)",
+    formatPdfDesc: "Preserves layout, fonts, images, and print formatting across all devices; content cannot be edited directly.",
+    formatXlsxTitle: "Office Spreadsheet (.xlsx)",
+    formatXlsxDesc: "Preserves formulas, cell formats, tables, and multiple sheets compatible with modern Office.",
+    formatXlsTitle: "Office 97-2003 Spreadsheet (.xls)",
+    formatXlsDesc: "Compatible with older Office versions; limited to 65,536 rows and 256 columns, newer styles may be simplified.",
+    formatOdsTitle: "OpenDocument Spreadsheet (.ods)",
+    formatOdsDesc: "International open standard format; fully preserves cell structure, numerical data, and formulas.",
+    formatCsvTitle: "Comma-Separated Values UTF-8 (.csv)",
+    formatCsvDesc: "Saves raw text data of the active sheet only using UTF-8 encoding; does not preserve styles or formulas.",
+    formatDocxTitle: "Office Document (.docx)",
+    formatDocxDesc: "Preserves page layout, fonts, tables, shapes, and text formatting compatible with Office.",
+    formatDocTitle: "Office 97-2003 Document (.doc)",
+    formatDocDesc: "Compatible with older Office versions; maintains basic layout while simplifying advanced effects.",
+    formatOdtTitle: "OpenDocument Text (.odt)",
+    formatOdtDesc: "International open standard text format; preserves content structure, styles, and tables.",
+    formatRtfTitle: "Rich Text Format (.rtf)",
+    formatRtfDesc: "Preserves basic text and table formatting; widely compatible across many word processors and platforms.",
+    formatTxtTitle: "Plain Text (.txt)",
+    formatTxtDesc: "Saves raw UTF-8 text only; strips all fonts, images, tables, and page layout formatting.",
+    formatPptxTitle: "Office Presentation (.pptx)",
+    formatPptxDesc: "Preserves slide layout, shapes, colors, animations, and speaker notes compatible with Office.",
+    formatPptTitle: "Office 97-2003 Presentation (.ppt)",
+    formatPptDesc: "Compatible with older Office versions; newer shapes or effects may be converted to simpler forms.",
+    formatOdpTitle: "OpenDocument Presentation (.odp)",
+    formatOdpDesc: "International open standard presentation format; preserves slides, graphic objects, and presentation content."
   },
   dialog: {
     notice: "Notice",
@@ -169,7 +219,7 @@ export const enStrings = {
     editing: { fill: "Fill", clear: "Clear" },
     alignment: { orientation: "Orientation" },
     cells: { format: "Format" },
-    window: { freezePanes: "Freeze Panes" }
+    window: { freezePanes: "Freeze Panes", split: "Split" }
   },
   sheetFormulaEntry: {
     status: { enter: "Enter", edit: "Edit", point: "Point" },
@@ -194,7 +244,7 @@ export const enStrings = {
     nameManagerTitle: "Name Manager", nameNew: "New...", nameEdit: "Edit...", nameDelete: "Delete", noNamedRanges: "No named ranges found.", invalidNameOrRef: "Name or reference is invalid or duplicate.",
     newComment: "New Comment {coord}", editComment: "Edit Comment {coord}", commentContent: "Comment", commentPlaceholder: "Enter a comment for {coord}", author: "Author", defaultAuthor: "3T Office User", saveChanges: "Save Changes", addComment: "Add Comment", deleteComment: "Delete Comment", emptyComment: "Comment text cannot be empty.",
     spellcheckTitle: "Spelling", spellcheckNotInDictionary: "Not in Dictionary:", spellcheckCell: "Cell", spellcheckContext: "Cell text", spellcheckSuggestions: "Suggestions:", spellcheckNoSuggestions: "(No close suggestions)", spellcheckIgnore: "Ignore Once", spellcheckIgnoreAll: "Ignore All", spellcheckAdd: "Add to Dictionary", spellcheckReplace: "Change", spellcheckReplaceAll: "Change All", spellcheckClose: "Close", spellcheckStatus: "Issue {current} of {total}", spellcheckComplete: "The spelling check is complete for the entire sheet. No misspellings were found.", spellcheckCompleteRemaining: "The spelling check is complete. No misspellings remain.",
-    conditionalFormatting: "Conditional Formatting", rule: "Rule", greaterThan: "Greater Than", lessThan: "Less Than", blankCell: "Blanks", fillColor: "Fill Color", invalidNumber: "Enter a valid number.",
+    conditionalFormatting: "Conditional Formatting", cfCurrentRules: "Current rules", cfNoRules: "This sheet has no rules yet.", cfRemoveRule: "Remove rule", cfAddRule: "Add rule", rule: "Rule", greaterThan: "Greater Than", lessThan: "Less Than", blankCell: "Blanks", fillColor: "Fill Color", invalidNumber: "Enter a valid number.",
     dataValidation: "Data Validation", allow: "Allow", list: "List", numberRange: "Whole number range", listValues: "Source values (comma-separated)", listPlaceholder: "Approved, Rejected, In progress", minimum: "Minimum", maximum: "Maximum", invalidValidation: "The data validation settings are not valid.", chooseOption: "-- Select --", selectCellValue: "Select value for cell {col}{row}",
     removeDuplicatesTitle: "Remove Duplicates", myHeaderRow: "My data has headers", columnsToCompare: "Columns to compare", selectAtLeastOneColumn: "Select at least one column.", duplicatesRemovedResult: "{removed} duplicate values found and removed; {remaining} unique values remain.",
     customSortTitle: "Sort", customSortNeedsRange: "Custom Sort needs a range with at least two rows. Select a cell in the data range or select multiple cells before opening this command.", createNamesNeedsRange: "Create from Selection needs at least two rows: the first row supplies headers and the rows below supply data. Select both the headers and data, then try again.", createNamesNoHeaders: "No valid headers were found for creating names. Check the header row in the selected range.", addLevel: "Add Level", removeLevel: "Delete Level", sortBy: "Sort by", thenBy: "Then by", sortByColumn: "Sort column", sortOrder: "Order", sortAtoZ: "A to Z", sortZtoA: "Z to A",
@@ -215,9 +265,10 @@ export const enStrings = {
     sparklineColumn: "Sparkline column", sparklineLine: "Sparkline line",
     hfPresetLabel: "Preset", hfPresetCustom: "Custom", hfPresetPage: "Page X", hfPresetSheet: "Sheet name", hfPresetDate: "Date", hfPresetNone: "None", hfPresetPageVal: "Page &P", hfPresetSheetVal: "Sheet name: &A", hfPresetDateVal: "Date: &D", hfLeft: "Left", hfCenter: "Center", hfRight: "Right", headerFooterTitle: "Header / Footer", headerTitle: "Header", footerTitle: "Footer", hfDynamicCodesHint: "Dynamic codes: &P page number, &N total pages, &D date, &T time, &F file name, &A sheet name.",
     pivotTitle: "Create PivotTable", pivotSource: "Table/Range (first row contains headers)", loadFields: "Load Fields", chooseFields: "Choose fields for each area:", aggregateFor: "Summarize values by for {field}", sourceRangeFormat: "The source range must use a format such as A1:D20.", sourceNeedsHeaders: "The first row of the source range must contain headers.", uniqueHeaders: "Each source column must have a unique header.", selectValue: "Select at least one Values field.", columnNotFound: "Column {field} was not found.", sourceSheetNotFound: "The source worksheet was not found.", createPivotBtn: "Create PivotTable",
-    chartDefaultTitle: "Data Chart", chartUnsupported: "Unsupported chart type: {type}", chartItem: "Item {number}", chartNoNumericData: "The selected range contains no numeric data", chartPiePositive: "A pie chart requires positive values", chartInsertFrom: "Insert Chart from {range}", selectedRange: "selected range", chartType: "Chart Type", chartColumn: "Column", chartLine: "Line", chartPie: "Pie", chartArea: "Area", insertIntoSheet: "Insert into Worksheet", insertedImageAlt: "Image inserted in the worksheet", deleteImage: "Delete image", imageFormatUnsupported: "Unsupported image format",
+    chartDefaultTitle: "Data Chart", chartUnsupported: "Unsupported chart type: {type}", chartItem: "Item {number}", chartNoNumericData: "The selected range contains no numeric data", chartPiePositive: "A pie chart requires positive values", chartInsertFrom: "Insert Chart from {range}", selectedRange: "selected range", chartType: "Chart Type", chartColumn: "Column", chartLine: "Line", chartPie: "Pie", chartArea: "Area", insertIntoSheet: "Insert into Worksheet", chartAxisTitles: "Axis Titles", chartAxisTitlesEdit: "Edit Axis Titles", chartHorizontalAxis: "Horizontal (X) axis", chartVerticalAxis: "Vertical (Y) axis", chartAxisHorizontalPlaceholder: "For example: Month", chartAxisVerticalPlaceholder: "For example: Revenue", chartAxisApply: "Apply", chartDelete: "Delete chart", splitVerticalSeparator: "Vertical window split", splitHorizontalSeparator: "Horizontal window split", insertedImageAlt: "Image inserted in the worksheet", deleteImage: "Delete image", imageFormatUnsupported: "Unsupported image format",
     cellStylesTitle: "Cell Styles Gallery", cellStylesHint: "Select a style to apply immediately to the selected cells:",
-    formatAsTableTitle: "Format as Table", formatAsTableHint: "Select a table style to apply header colors and banded rows:",
+    formatAsTableTitle: "Format as Table", formatAsTableHint: "Create a named table with headers, filter buttons, banded rows, and automatic adjacent expansion.",
+    formatTableRange: "Data range", formatTableHeaders: "My table has headers", formatTableNameLabel: "Table name", formatTableCreate: "Create table", formatTableRenameLabel: "New name", formatTableRename: "Rename table", formatTableConvert: "Convert to range", formatTableInvalid: "The range or table name is invalid, or the range overlaps another table.",
     rowHeightTitle: "Row Height", rowHeightMessage: "Row height (pixels):",
     colWidthTitle: "Column Width", colWidthMessage: "Column width (pixels):",
     invalidRowColSize: "Please enter a valid number in the allowed range.",
@@ -376,6 +427,7 @@ export const enStrings = {
     "common.file.save": { label: "Save", tooltip: "Save the current document (Ctrl+S)" },
     "common.file.saveAs": { label: "Save As", tooltip: "Save the document under a new name (F12)" },
     "common.file.exportPdf": { label: "Export PDF", tooltip: "Export content to standard PDF format" },
+    "common.file.exportConvert": { label: "Export & Convert", tooltip: "Export document to PDF or other file formats" },
     "common.file.print": { label: "Print", tooltip: "Print the document (Ctrl+P)" },
     "common.file.close": { label: "Close", tooltip: "Close the document (Ctrl+W)" },
     "common.help.about": { label: "About 3T Office", tooltip: "View version, copyright and open source licenses for 3T Office" },
@@ -384,9 +436,9 @@ export const enStrings = {
     "common.edit.undo": { label: "Undo", tooltip: "Undo the last action (Ctrl+Z)" },
     "common.edit.redo": { label: "Redo", tooltip: "Redo the last undone action (Ctrl+Y)" },
     "common.edit.repeat": { label: "Repeat", tooltip: "Repeat the last action (F4)" },
-    "common.edit.cut": { label: "Cut", tooltip: "Cut selection to clipboard (Ctrl+X)" },
-    "common.edit.copy": { label: "Copy", tooltip: "Copy selection (Ctrl+C)" },
-    "common.edit.paste": { label: "Paste", tooltip: "Paste from clipboard (Ctrl+V)" },
+    "common.edit.cut": { label: "Cut", tooltip: "Cut the selected text or object to the clipboard (Ctrl+X)" },
+    "common.edit.copy": { label: "Copy", tooltip: "Copy the selected text or object to the clipboard (Ctrl+C)" },
+    "common.edit.paste": { label: "Paste", tooltip: "Paste clipboard content into the current selection or slide (Ctrl+V)" },
     "common.edit.pastePlain": { label: "Paste Plain Text", tooltip: "Paste without formatting (Ctrl+Shift+V)" },
     "sheet.edit.pasteSpecial": { label: "Paste Special", tooltip: "Paste values, formulas, formats, or transpose (Ctrl+Alt+V)" },
     "sheet.edit.formatPainter": { label: "Format Painter", tooltip: "Copy cell formatting to another cell or range. Double-click to lock and apply multiple times. Esc to cancel." },
@@ -441,7 +493,7 @@ export const enStrings = {
     ,"sheet.format.percent": { label: "Percent Style", tooltip: "Apply percentage format (Ctrl+Shift+5)" }
     ,"sheet.format.standard": { label: "Comma Style", tooltip: "Apply number format with thousands separators (Ctrl+Shift+1)" }
     ,"sheet.insert.date": { label: "Current Date", tooltip: "Insert the current date (Ctrl+;)" }
-    ,"sheet.insert.time": { label: "Current Time", tooltip: "Insert the current time (Ctrl+Shift+;)" }
+    ,"sheet.insert.time": { label: "Current Time", tooltip: "Insert the current time as a numeric value that can be calculated (Ctrl+Shift+;)" }
     ,"sheet.formula.insertFunction": { label: "Insert Function", tooltip: "Open the Insert Function fx dialog (Shift+F3)" }
     ,"sheet.formula.sum": { label: "AutoSum", tooltip: "Insert an AutoSum formula (Alt+=)" }
     ,"sheet.formula.average": { label: "Average", tooltip: "Insert an AVERAGE formula" }
@@ -499,6 +551,7 @@ export const enStrings = {
     ,"sheet.view.freezePanes": { label: "Freeze Panes", tooltip: "Keep the rows above and columns to the left of the selected cell visible while scrolling" }
     ,"sheet.view.freezeTopRow": { label: "Freeze Top Row", tooltip: "Keep only row 1 visible while scrolling vertically" }
     ,"sheet.view.freezeFirstColumn": { label: "Freeze First Column", tooltip: "Keep only column A visible while scrolling horizontally" }
+    ,"sheet.view.split": { label: "Split", tooltip: "Split the window at the selected cell without freezing panes" }
     ,"sheet.view.zoomIn": { label: "Zoom In", tooltip: "Increase the worksheet zoom level" }
     ,"sheet.view.zoomOut": { label: "Zoom Out", tooltip: "Decrease the worksheet zoom level" }
     ,"sheet.view.zoomReset": { label: "100%", tooltip: "Reset the worksheet zoom level to 100%" }
@@ -541,8 +594,10 @@ export const enStrings = {
     ,"sheet.chart.insert": { label: "Chart", tooltip: "Insert a chart to visualize data" }
     ,"sheet.chart.pivotChart": { label: "PivotChart", tooltip: "Insert a Column or Pie chart linked to summarized Pivot data" }
     ,"sheet.insert.image": { label: "Pictures", tooltip: "Insert a picture at the selected cell" }
-    ,"sheet.style.formatAsTable": { label: "Format as Table", tooltip: "Format selected range as a styled table with alternating rows" }
+    ,"sheet.style.formatAsTable": { label: "Format as Table", tooltip: "Create a named table with filters and automatic expansion" }
     ,"sheet.style.cellStyles": { label: "Cell Styles", tooltip: "Open cell styles gallery (Normal, Good, Bad, Neutral...)" }
+    ,"sheet.edit.goTo": { label: "Go To...", tooltip: "Jump to a cell, range or defined name (F5 or Ctrl+G)" }
+    ,"sheet.edit.goToSpecial": { label: "Go To Special...", tooltip: "Select cells by type: comments, formulas, blanks, current region..." }
     ,"sheet.edit.fillDown": { label: "Fill Down", tooltip: "Fill down from the cell above (Ctrl+D)" }
     ,"sheet.edit.fillRight": { label: "Fill Right", tooltip: "Fill right from the cell to the left (Ctrl+R)" }
     ,"sheet.edit.clearAll": { label: "Clear All", tooltip: "Clear all contents, formulas, and formatting from selected cells" }
@@ -786,6 +841,7 @@ export const enStrings = {
     "writer.review.commentNext": { label: "Next Comment", tooltip: "Go to the next comment" },
     "writer.review.commentDelete": { label: "Delete Comment", tooltip: "Delete the selected comment" },
     "writer.review.commentResolve": { label: "Resolve Comment", tooltip: "Resolve or reopen the selected comment" },
+    "writer.review.commentReply": { label: "Reply to Comment", tooltip: "Reply to the selected comment" },
     "writer.trackChanges.toggle": { label: "Track Changes", tooltip: "Track changes in the document (Ctrl+Shift+E)" },
     "writer.trackChanges.previous": { label: "Previous Change", tooltip: "Go to the previous tracked change" },
     "writer.trackChanges.next": { label: "Next Change", tooltip: "Go to the next tracked change" },
@@ -1174,10 +1230,12 @@ export const enStrings = {
       title: "Styles Gallery",
       hint: "Click to apply style",
       normal: { label: "Normal", sublabel: "Normal text", desc: "Standard body text, 14pt justified (Decree 30/2020/ND-CP)" },
+      subtitle: { label: "Subtitle", sublabel: "Subtitle", desc: "Built-in Subtitle style for text below the title" },
       h1: { label: "Heading 1", sublabel: "Heading 1", desc: "Heading 1: Uppercase, bold, centered, 16pt" },
       h2: { label: "Heading 2", sublabel: "Heading 2", desc: "Heading 2: Title case bold, 14pt" },
       h3: { label: "Heading 3", sublabel: "Heading 3", desc: "Heading 3: Bold italic, 13pt" },
-      quote: { label: "Quote", sublabel: "Quote", desc: "Blockquote: Italic, 24pt indent, blue left border" },
+      quote: { label: "Quote", sublabel: "Quote", desc: "Built-in Quote style with italic, centered, indented text" },
+      listparagraph: { label: "List Paragraph", sublabel: "List Paragraph", desc: "Built-in List Paragraph style with a half-inch indent" },
       emphasis: { label: "Emphasis", sublabel: "Emphasis", desc: "Emphasis: Bold, italic, amber color" }
     },
     comments: {
@@ -1186,6 +1244,9 @@ export const enStrings = {
       addCommentTitle: "New Comment",
       addCommentPlaceholder: "Type your comment here...",
       addCommentBtn: "Add Comment",
+      replyTitle: "Reply to Comment",
+      replyPlaceholder: "Type your reply...",
+      replyBtn: "Send Reply",
       panelLabel: "Document Comments",
       openCommentAria: "Open comment for: {text}",
       placeholderHeader: "Click to enter header...",
@@ -1219,6 +1280,22 @@ export const enStrings = {
       jumpToEndnote: "Click to jump to endnote",
       jumpToRef: "Jump to reference"
     }
+  },
+  sheetContextMenu: {
+    insert: "Insert", delete: "Delete", select: "Select", table: "Table", move: "Move",
+    tableColumnLeft: "Table Columns to the Left", tableColumnRight: "Table Columns to the Right",
+    tableRowAbove: "Table Rows Above", tableRowBelow: "Table Rows Below",
+    tableColumn: "Table Columns", tableRow: "Table Rows",
+    tableColumnData: "Table Column Data", tableColumnAll: "Entire Table Column", tableRowSelect: "Table Row",
+    totalRow: "Totals Row", totalLabel: "Total", convertToRange: "Convert to Range",
+    chartArea: "Chart Area", plotArea: "Plot Area", series: "Series",
+    chartType: "Change Chart Type...", chartTypeDialog: "Change Chart Type",
+    selectData: "Select Data...", chartDataRange: "Enter the data range for the chart (for example A1:B10):", invalidChartRange: "The data range is not valid.",
+    moveChart: "Move Chart...", moveChartMessage: "Enter the name of the sheet to move the chart to. Available sheets: {sheets}", invalidSheetName: "No sheet with that name was found.",
+    deleteObject: "Delete"
+  },  sheetGoTo: {
+    title: "Go To", reference: "Reference", placeholder: "For example: B5, A1:C10, Sheet2!D3 or a name", nameList: "Defined names", noNames: "No names yet.",
+    invalid: "The reference is not valid.", special: "Special...", specialTitle: "Go To Special", select: "Select", noCells: "No cells were found.", truncated: "There are too many areas; only the first part was selected."
   },
   sheetFormatCells: {
     dialogTitle: "Format Cells",

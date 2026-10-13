@@ -322,8 +322,8 @@ export const WRITER_HELP_ENTRIES = [
     id: "writer.insert.wordart",
     app: "writer",
     commandIds: ["writer.insert.wordart"],
-    title: "Chữ nghệ thuật (phần mềm văn phòng khácArt)",
-    summary: "Chèn một dòng chữ trang trí (viền, đổ bóng hoặc gradient) ngay tại vị trí con trỏ trong đoạn văn. Khác Hộp văn bản: phần mềm văn phòng khácArt nằm trong dòng chữ, không phải khung kéo thả đè lên trang.",
+    title: "Chữ nghệ thuật",
+    summary: "Chèn một đối tượng chữ trang trí có viền, đổ bóng hoặc màu tô ngay tại vị trí con trỏ trong đoạn văn. Đối tượng nằm trong dòng như ký tự, không phải khung kéo thả đè lên trang.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Văn bản" },
     keywords: ["chữ nghệ thuật", "wordart", "word art", "tiêu đề", "gradient", "viền", "đổ bóng"],
     steps: [
@@ -331,17 +331,18 @@ export const WRITER_HELP_ENTRIES = [
       "Mở tab Chèn, nhóm Văn bản, nhấn nút lớn Chữ nghệ thuật (cạnh Hộp văn bản).",
       "Hộp thoại Chèn chữ nghệ thuật: gõ nội dung (mặc định «3T Office», tối đa 80 ký tự) rồi chọn một mẫu trong lưới (ví dụ Xanh đậm viền trắng, Gradient đại dương, Viền đậm trắng).",
       "Nhấn Chèn. Khối chữ xuất hiện ngay tại con trỏ. Nhấp một lần để chọn (viền xanh); nhấp đúp để sửa chữ; Delete hoặc Backspace khi đang chọn sẽ xóa cả khối. Ctrl+Z hoàn tác, Ctrl+Y làm lại.",
+      "Khi lưu DOCX, chữ nghệ thuật được lưu thành đối tượng hiệu ứng chữ có thể chọn và sửa tiếp trong tài liệu.",
       "Cùng nhóm Văn bản còn Hộp văn bản (khung kéo-thả độc lập), Chữ đầu đoạn và Ngày & Giờ."
     ]
   },
   {
     id: "writer.review.commentNavigation", app: "writer",
-    commandIds: ["writer.review.commentPrevious", "writer.review.commentNext", "writer.review.commentDelete", "writer.review.commentResolve"],
-    title: "Duyệt và xử lý nhận xét",
-    summary: "Duyệt lần lượt các nhận xét, đánh dấu đã xử lý mà vẫn giữ nội dung, mở lại hoặc xóa nhận xét.",
+    commandIds: ["writer.review.commentPrevious", "writer.review.commentNext", "writer.review.commentDelete", "writer.review.commentResolve", "writer.review.commentReply"],
+    title: "Duyệt, trả lời và xử lý nhận xét",
+    summary: "Duyệt nhận xét, trả lời trong cùng luồng, đánh dấu đã xử lý, mở lại hoặc xóa nhận xét. Câu trả lời được lưu trong DOCX dưới dạng reply thuộc nhận xét gốc.",
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Ghi chú" },
-    keywords: ["nhận xét", "ghi chú", "trước", "sau", "xử lý", "resolve", "xóa"],
-    steps: ["Mở tab Đánh giá, nhóm Ghi chú.", "Nhấn Nhận xét trước hoặc Nhận xét sau để cuộn tới và tô sáng nhận xét; hết danh sách sẽ quay vòng.", "Nhấn Đã xử lý để làm mờ nhận xét nhưng vẫn giữ lại; nhấn lại để mở lại. Trạng thái này được lưu trong DOCX và khôi phục khi mở lại tài liệu.", "Nhấn Xóa nhận xét để xóa nhận xét đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại Resolve hoặc Delete."]
+    keywords: ["nhận xét", "ghi chú", "trả lời", "reply", "trước", "sau", "xử lý", "resolve", "xóa"],
+    steps: ["Mở tab Đánh giá, nhóm Ghi chú. Nhấp vào thẻ nhận xét trong bảng bên cạnh trang hoặc dùng Nhận xét trước/Nhận xét sau để chọn nhận xét.", "Chọn nhận xét đang mở, nhấn Trả lời nhận xét, nhập nội dung rồi chọn Gửi trả lời. Reply xuất hiện lùi vào dưới nhận xét gốc.", "Nhấn Đã xử lý để đánh dấu hoàn tất; nhấn lại để mở lại. Trạng thái được lưu trong DOCX.", "Nhấn Xóa nhận xét để xóa nhận xét đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại thay đổi."]
   },
   {
     id: "writer.text.basicFormat",
@@ -617,7 +618,7 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.style.gallery", "writer.style.normal", "writer.style.apply", "writer.style.heading1", "writer.style.heading2", "writer.style.heading3"],
     title: "Thư viện kiểu và kiểu Thường",
-    summary: "Dải kiểu nhanh trên tab Trang đầu và nút Thư viện kiểu áp 7 kiểu dáng định dạng sẵn. Tiêu đề 1/2/3 trong tài liệu mới dùng cỡ chữ, phông, màu theme và khoảng cách theo chuẩn kiểu dáng tài liệu; tài liệu DOCX mở sẵn giữ nguyên định dạng nguồn. Hỗ trợ Ctrl+Alt+1/2/3 để áp dụng Heading 1/2/3 và Ctrl+Shift+N để về Normal.",
+    summary: "Tab Trang đầu > Kiểu dáng > Thư viện kiểu cung cấp Normal, Title, Subtitle, Heading 1–3, Quote, List Paragraph và Emphasis. Đoạn văn mới dùng các kiểu tiêu đề theo chuẩn kiểu dáng tài liệu; các kiểu dựng sẵn được lưu thành tên style tương ứng trong DOCX. Tài liệu DOCX mở sẵn giữ nguyên định dạng nguồn. Hỗ trợ Ctrl+Alt+1/2/3 cho Heading 1/2/3 và Ctrl+Shift+N để về Normal.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Kiểu dáng" },
     keywords: ["thư viện kiểu", "styles gallery", "tiêu đề", "normal", "tiêu đề 1", "tiêu đề 2", "tiêu đề 3", "heading", "ctrl+alt+1", "ctrl+alt+2", "ctrl+alt+3", "ctrl+shift+n", "trích dẫn", "nhấn mạnh"],
     steps: [
@@ -700,14 +701,14 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.shape.insert", "writer.diagram.insert", "writer.chart.insert"],
     title: "Chèn hình khối, sơ đồ và biểu đồ",
-    summary: "Ba nút lớn nhóm Minh họa mở hộp thoại chọn kiểu rồi mới chèn. Hình khối: chữ nhật / bo tròn / tròn / tam giác / hình thoi / mũi tên / đường thẳng. Sơ đồ: quy trình, chu trình, phân cấp, danh sách (3–6 phần tử). Biểu đồ: cột, đường, tròn, miền — nhập nhãn, giá trị và xem trước SVG.",
+    summary: "Ba nút lớn nhóm Minh họa mở hộp thoại chọn kiểu rồi mới chèn. Hình khối: chữ nhật / bo tròn / tròn / tam giác / hình thoi / mũi tên / đường thẳng. Sơ đồ: quy trình, chu trình, phân cấp, danh sách (3–6 phần tử). Biểu đồ: cột, đường, tròn, miền — nhập nhãn, giá trị và xem trước.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Minh họa" },
     keywords: ["hình khối", "sơ đồ", "biểu đồ", "shape", "smartart", "chart", "hộp thoại", "hình tròn", "tam giác", "hình thoi", "triangle", "diamond", "quy trình"],
     steps: [
       "Tab Chèn, nhóm Minh họa: Hình khối, Sơ đồ, Biểu đồ (ba nút lớn, cạnh Hình ảnh). Mỗi nút mở hộp thoại chọn kiểu; Hủy, nút ×, Esc hoặc bấm ra ngoài thì không chèn gì.",
       "Hình khối: hộp «Chèn hình khối» — bảy thẻ radio: Hình chữ nhật (140×80, nền #2563eb), Chữ nhật bo tròn, Hình tròn / Elip (110×110, #0ea5e9), Hình tam giác (120×100, #16a34a), Hình thoi (120×100, #9333ea), Mũi tên sang phải (140×70, #f59e0b), Đường thẳng ngang. Chọn thẻ rồi Chèn. Lớp nổi tại x=100, y lệch dần 160+(n×25); kéo để đặt, nút × xóa khi đang chọn.",
       "Sơ đồ: hộp «Chèn sơ đồ SmartArt» — Quy trình / Chu trình / Phân cấp / Danh sách, ô số bước 3–6 (mặc định 4). Nếu nhập số bước ngoài khoảng 3 đến 6, hộp thoại báo lỗi «Vui lòng nhập số nguyên từ 3 đến 6.» và giữ hộp thoại mở để sửa lại. Chèn sơ đồ tạo khối tiêu đề theo kiểu đã chọn, nút «Bước 1»… sửa được chữ, nút Xóa sơ đồ.",
-      "Biểu đồ: hộp «Chèn biểu đồ minh họa» — tiêu đề, kiểu Cột/Đường/Tròn/Miền, hàng nhãn & giá trị (mẫu Quý 1–4: 120, 190, 300, 250) và khung Xem trước trực quan. Nếu giá trị của một mục không phải là số hợp lệ, hộp thoại báo lỗi «Vui lòng nhập giá trị số hợp lệ cho mục...» và giữ hộp thoại mở để sửa lại. Chèn biểu đồ đưa SVG đã chọn vào trang. Ctrl+Z gỡ đối tượng vừa chèn. Hình ảnh cùng nhóm là bài riêng."
+      "Biểu đồ: hộp «Chèn biểu đồ minh họa» — tiêu đề, kiểu Cột/Đường/Tròn/Miền, hàng nhãn & giá trị (mẫu Quý 1–4: 120, 190, 300, 250) và khung Xem trước trực quan. Nếu giá trị của một mục không phải là số hợp lệ, hộp thoại báo lỗi «Vui lòng nhập giá trị số hợp lệ cho mục...» và giữ hộp thoại mở để sửa lại. Chèn biểu đồ, rồi nhấn Ctrl+Z nếu muốn gỡ đối tượng vừa chèn. Khi lưu thành DOCX, biểu đồ được lưu cùng workbook nhúng; mở tệp trong ứng dụng văn phòng có hỗ trợ biểu đồ native rồi nhấp đúp biểu đồ để sửa dữ liệu. Hình ảnh cùng nhóm là bài riêng."
     ]
   },
   {

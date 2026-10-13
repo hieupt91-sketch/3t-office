@@ -67,12 +67,14 @@ export async function runSheetMouseShortcutsTests() {
     assert(state2 === false && grid.showFormulas === false, "toggle lần 2 phải tắt false");
   });
 
-  await test("Sheet Parity: insertCurrentTime (Ctrl+Shift+;) chèn thời gian dạng hh:mm:ss", () => {
+  await test("Sheet Parity: insertCurrentTime (Ctrl+Shift+;) chèn serial có định dạng giờ", () => {
     const grid = new SheetGridController(mockContainer());
     grid.selectCell("B", 3);
     grid.insertCurrentTime();
     const data = grid.cellsData.get("B3");
-    assert(data && /^\d{2}:\d{2}:\d{2}$/.test(data.val), `Giá trị phải là giờ hh:mm:ss, thực tế: ${data?.val}`);
+    assert(data && typeof data.val === "number" && data.val >= 0 && data.val < 1, `Giá trị phải là serial giờ trong [0,1), thực tế: ${data?.val}`);
+    assert(data.style?.numberFormat?.category === "time", "Ô phải nhận định dạng số loại giờ");
+    assert(data.style?.numberFormat?.timeFormat === "HH:mm", `Mẫu giờ phải là HH:mm, thực tế: ${data.style?.numberFormat?.timeFormat}`);
   });
 
   await test("Sheet Parity: Autofill số tăng dần và công thức tương đối kèm Undo/Redo", () => {

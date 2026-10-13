@@ -91,7 +91,8 @@ export async function runSheetFormatCellsTests() {
     // Kiểm tra có nút trong column items
     const colItem = numberGroup.items.find(it => it.type === "column");
     assert(colItem, "Nhóm number phải có cột nút");
-    const dialogBtn = colItem.items.find(it => it.commandId === "sheet.format.cellsDialog");
+    const findCommand = (items) => items.reduce((hit, it) => hit || (it.commandId === "sheet.format.cellsDialog" ? it : findCommand(it.items || [])), null);
+    const dialogBtn = findCommand(colItem.items);
     assert(dialogBtn, "Cột nút phải chứa nút sheet.format.cellsDialog");
   });
 
@@ -594,14 +595,19 @@ export async function runSheetFormatCellsTests() {
     assert(NumberFormatter.formatValue(grid.cellsData.get("A1").val, nf).text === "13:45", "Ô vẫn hiển thị 13:45");
   });
 
-  test("Sheet Time Input: Ctrl+Shift+; vẫn chèn chuỗi HH:mm:ss, Undo/Redo giữ nguyên", () => {
+  test("Sheet Time Input: Ctrl+Shift+; chèn serial giờ, Undo/Redo giữ giá trị và định dạng", () => {
     const grid = new SheetGridController(mockContainer());
     grid.selectedCoord = { c: "B", r: 3 };
     const inserted = grid.insertCurrentTime();
     const data = grid.cellsData.get("B3");
-    assert(/^\d{2}:\d{2}:\d{2}$/.test(data.val), `Ô phải nhận chuỗi HH:mm:ss, nhận ${JSON.stringify(data.val)}`);
+    assert(typeof data.val === "number" && data.val >= 0 && data.val < 1, `Ô phải nhận serial giờ trong [0,1), nhận ${JSON.stringify(data.val)}`);
     assert(data.val === inserted, "Giá trị trong ô phải khớp giá trị trả về của lệnh");
-    assert(!data.style.numberFormat, "Lệnh chèn giờ hiện tại không tự gắn định dạng giờ");
+    assert(data.style.numberFormat?.category === "time", "Lệnh chèn giờ hiện tại phải gắn định dạng giờ");
+    assert(data.style.numberFormat?.timeFormat === "HH:mm", "Lệnh chèn giờ hiện tại phải dùng mẫu HH:mm");
+
+    grid.setCellValue("C", 3, "=B3+1/24");
+    assert(Math.abs(grid.cellsData.get("C3").val - (inserted + 1 / 24)) < 1e-12, "Serial giờ phải dùng được trong phép cộng giờ");
+    grid.undo();
 
     grid.undo();
     const afterUndo = grid.cellsData.get("B3");
@@ -609,7 +615,8 @@ export async function runSheetFormatCellsTests() {
 
     grid.redo();
     const afterRedo = grid.cellsData.get("B3");
-    assert(afterRedo && afterRedo.val === inserted, `Redo phải khôi phục đúng chuỗi ${inserted}, nhận ${JSON.stringify(afterRedo?.val)}`);
+    assert(afterRedo && afterRedo.val === inserted, `Redo phải khôi phục đúng serial ${inserted}, nhận ${JSON.stringify(afterRedo?.val)}`);
+    assert(afterRedo.style?.numberFormat?.category === "time" && afterRedo.style?.numberFormat?.timeFormat === "HH:mm", "Redo phải khôi phục định dạng giờ");
   });
 
   test("Sheet Time Input: lưu FODS giữ định dạng giờ và mở lại đúng serial", () => {

@@ -1,0 +1,140 @@
+{
+    "officeVersion":  "16.0",
+    "applicationHwnd":  64291812,
+    "baselinePresentationCount":  0,
+    "operations":  {
+                       "zoomIn":  {
+                                      "before":  55,
+                                      "after":  65
+                                  },
+                       "zoomOut":  {
+                                       "after":  55
+                                   },
+                       "zoomReset":  100,
+                       "fitToWindow":  {
+                                           "supported":  true,
+                                           "enabled":  true,
+                                           "zoom":  55
+                                       },
+                       "ruler":  {
+                                     "directComVisibilityProperty":  false,
+                                     "commandIdAccepted":  null,
+                                     "note":  "No stable COM visibility property is exposed by PowerPoint View/DocumentWindow."
+                                 },
+                       "gridlines":  {
+                                         "directComVisibilityProperty":  false,
+                                         "commandIdAccepted":  null,
+                                         "note":  "No stable COM visibility property is exposed by PowerPoint View/DocumentWindow."
+                                     },
+                       "guides":  {
+                                      "directComVisibilityProperty":  false,
+                                      "commandIdAccepted":  null,
+                                      "note":  "No stable COM visibility property is exposed by PowerPoint View/DocumentWindow."
+                                  },
+                       "viewType":  [
+                                        {
+                                            "requested":  9,
+                                            "readback":  9
+                                        },
+                                        {
+                                            "requested":  7,
+                                            "readback":  7
+                                        },
+                                        {
+                                            "requested":  9,
+                                            "readback":  9
+                                        }
+                                    ],
+                       "readingView":  {
+                                           "supportedByPpViewType":  false,
+                                           "availableViewTypes":  [
+                                                                      "ppViewSlide",
+                                                                      "ppViewSlideMaster",
+                                                                      "ppViewNotesPage",
+                                                                      "ppViewHandoutMaster",
+                                                                      "ppViewNotesMaster",
+                                                                      "ppViewOutline",
+                                                                      "ppViewSlideSorter",
+                                                                      "ppViewTitleMaster",
+                                                                      "ppViewNormal",
+                                                                      "ppViewPrintPreview",
+                                                                      "ppViewThumbnails",
+                                                                      "ppViewMasterThumbnails"
+                                                                  ]
+                                       },
+                       "comments":  [
+                                        {
+                                            "step":  "insert",
+                                            "count":  2,
+                                            "texts":  [
+                                                          "Audit comment Alpha",
+                                                          "Audit comment Beta"
+                                                      ]
+                                        },
+                                        {
+                                            "id":  "ReviewNextComment",
+                                            "label":  null,
+                                            "error":  "Value does not fall within the expected range."
+                                        },
+                                        {
+                                            "id":  "ReviewPreviousComment",
+                                            "label":  null,
+                                            "error":  "Value does not fall within the expected range."
+                                        },
+                                        {
+                                            "id":  "ReviewResolveComment",
+                                            "label":  null,
+                                            "error":  "Value does not fall within the expected range."
+                                        },
+                                        {
+                                            "step":  "resolvedReadback",
+                                            "resolved":  false,
+                                            "error":  null
+                                        },
+                                        {
+                                            "step":  "resolvedWriteback",
+                                            "resolved":  null,
+                                            "error":  "Exception setting \"Resolved\": \"The property \u0027Resolved\u0027 cannot be found on this object. Verify that the property exists and can be set.\""
+                                        }
+                                    ],
+                       "lineSpacing":  {
+                                           "before":  1,
+                                           "requested":  1.5,
+                                           "readback":  1.5,
+                                           "text":  "WEST COAST\u000bROAD TRIP"
+                                       },
+                       "presenter":  {
+                                         "showPresenterView":  true
+                                     },
+                       "newWindow":  {
+                                         "countAfterOpen":  2,
+                                         "returnedHwnd":  0,
+                                         "countAfterClose":  1
+                                     },
+                       "showFromBegin":  {
+                                             "returnedWindow":  true,
+                                             "viewAvailable":  false,
+                                             "slideShowWindows":  0
+                                         },
+                       "showFromCurrent":  {
+                                               "returnedWindow":  true,
+                                               "viewAvailable":  false,
+                                               "slideShowWindows":  0
+                                           }
+                   },
+    "cleanup":  {
+                    "ownerApplicationQuit":  false,
+                    "ownPresentationClosed":  true,
+                    "ownShowEnded":  false,
+                    "ownExtraWindowClosed":  true,
+                    "presentationsAfterClose":  0,
+                    "slideshowWindowsAfterClose":  0
+                },
+    "window":  {
+                   "presentations":  1,
+                   "windows":  1,
+                   "slides":  10,
+                   "viewType":  9,
+                   "zoom":  55
+               }
+}

@@ -56,6 +56,7 @@ export const BACKSTAGE_KEYTIP_MAP = [
   { selector: '[data-backstage-cmd="common.file.save"]', key: "S", label: "Lưu" },
   { selector: '[data-backstage-cmd="common.file.saveAs"]', key: "A", label: "Lưu thành" },
   { selector: '#vno-backstage-nav-print, [data-backstage-tab="print"]', key: "P", label: "In" },
+  { selector: '#vno-backstage-nav-export, [data-backstage-tab="export"]', key: "X", label: "Xuất" },
   { selector: '[data-backstage-cmd="common.file.exportPdf"]', key: "E", label: "Xuất PDF" },
   { selector: "#vno-backstage-close", key: "C", label: "Đóng" },
   { selector: "#vno-backstage-options", key: "T", label: "Tùy chọn" },

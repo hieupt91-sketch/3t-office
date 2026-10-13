@@ -1,0 +1,54 @@
+{
+  "file": "E:\\VNOffice-profiles\\codex-fl14\\fix-l14-lineSpacing.pptx",
+  "saved": true,
+  "command": "slides.para.lineSpacing",
+  "text": "FIX-L4 audit sample text",
+  "textHtml": "<div style=\"text-align: left; font-size: 14pt; line-height: 1.725; margin-left: 0cm;\"><span style=\"color:#000000;font-family:'Arial',sans-serif;font-size:14pt;font-weight:normal\">FIX-L4 audit sample text</span></div>",
+  "fontWeight": "normal",
+  "fontStyle": null,
+  "underline": null,
+  "strike": null,
+  "align": "left",
+  "bullet": null,
+  "indent": null,
+  "lineSpacing": "1.5",
+  "selected": 1,
+  "keyReadback": {
+    "before": {
+      "value": "1.0",
+      "disabled": false,
+      "activeElement": "DIV",
+      "selection": "FIX-L4 audit sample text"
+    },
+    "afterClick": {
+      "value": "1.0",
+      "disabled": false,
+      "activeElement": "DIV",
+      "selection": "FIX-L4 audit sample text"
+    },
+    "afterFocus": {
+      "value": "1.0",
+      "disabled": false,
+      "activeElement": "SELECT",
+      "selection": "FIX-L4 audit sample text"
+    },
+    "afterSpace": {
+      "value": "1.0",
+      "disabled": false,
+      "activeElement": "SELECT",
+      "selection": "FIX-L4 audit sample text"
+    },
+    "afterArrowDown": {
+      "value": "1.0",
+      "disabled": false,
+      "activeElement": "SELECT",
+      "selection": "FIX-L4 audit sample text"
+    },
+    "afterEnter": {
+      "value": "1.5",
+      "disabled": false,
+      "activeElement": "DIV",
+      "selection": "FIX-L4 audit sample text"
+    }
+  }
+}

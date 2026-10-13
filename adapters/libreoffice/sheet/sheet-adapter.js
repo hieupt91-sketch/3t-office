@@ -18,6 +18,42 @@ import {
   serializeSheetRangeToClipboard
 } from "../../../platform/clipboard/office-clipboard.js";
 import { extractSheetRangeData } from "../../../apps/sheet/sheet-chart-data.js";
+import { TABLE_STYLE_PRESETS } from "../../../apps/sheet/cell-style-presets.js";
+
+// MS-XLSX 2.2.3 marks these names as future functions. Keep only functions
+// present in the Excel 2016 catalog; newer names must not be advertised as
+// compatible with that version. Source: https://learn.microsoft.com/en-us/openspecs/office_standards/ms-xlsx/5d1b6d44-6fc1-4ecd-8fef-0b27406cc2bf
+export const EXCEL2016_OOXML_FUTURE_FUNCTIONS = new Set(`
+  ACOT ACOTH AGGREGATE ARABIC BASE BETA.DIST BETA.INV BINOM.DIST BINOM.DIST.RANGE BINOM.INV
+  BITAND BITLSHIFT BITOR BITRSHIFT BITXOR CEILING.MATH CEILING.PRECISE
+  CHISQ.DIST CHISQ.DIST.RT CHISQ.INV CHISQ.INV.RT CHISQ.TEST COMBINA
+  CONFIDENCE.NORM CONFIDENCE.T COT COTH COVARIANCE.P COVARIANCE.S CSC CSCH DAYS DECIMAL
+  ERF.PRECISE ERFC.PRECISE EXPON.DIST F.DIST F.DIST.RT F.INV F.INV.RT F.TEST
+  FLOOR.MATH FLOOR.PRECISE FORECAST.ETS FORECAST.ETS.CONFINT FORECAST.ETS.SEASONALITY
+  FORECAST.ETS.STAT FORECAST.LINEAR FORMULATEXT GAMMA GAMMA.DIST GAMMA.INV GAMMALN.PRECISE
+  GAUSS HYPGEOM.DIST IFNA IMCOSH IMCOT IMCSC IMCSCH IMSEC IMSECH IMSINH IMTAN ISFORMULA
+  ISOWEEKNUM LOGNORM.DIST LOGNORM.INV MODE.MULT MODE.SNGL MUNIT NEGBINOM.DIST NORM.DIST
+  NORM.INV NORM.S.DIST NORM.S.INV NUMBERVALUE PDURATION PERCENTILE.EXC PERCENTILE.INC
+  PERCENTRANK.EXC PERCENTRANK.INC PERMUTATIONA PHI POISSON.DIST QUARTILE.EXC QUARTILE.INC
+  RANK.AVG RANK.EQ RRI SEC SECH SHEET SHEETS SKEW.P STDEV.P STDEV.S T.DIST T.DIST.2T
+  T.DIST.RT T.INV T.INV.2T T.TEST UNICHAR UNICODE VAR.P VAR.S WEIBULL.DIST XOR Z.TEST
+`.trim().split(/\s+/));
+
+function mapOoxmlFunctionPrefixes(expression, { write }) {
+  return String(expression).split(/("(?:[^"]|"")*")/).map((part, index) => {
+    if (index % 2 === 1) return part;
+    return part.replace(/(^|[^A-Za-z0-9_.])((?:_xlfn\.)?_xlws\.|_xlfn\.)?([A-Za-z_][A-Za-z0-9_.]*)(\s*\()/gi,
+      (match, before, prefix = "", name, open) => {
+        const canonicalPrefix = String(prefix).toLowerCase();
+        const upperName = String(name).toUpperCase();
+        if (write) {
+          if (!EXCEL2016_OOXML_FUTURE_FUNCTIONS.has(upperName) || canonicalPrefix) return match;
+          return `${before}_xlfn.${name}${open}`;
+        }
+        return canonicalPrefix ? `${before}${name}${open}` : match;
+      });
+  }).join("");
+}
 
 export function numberFormatFromExcelCode(code) {
   const source = String(code ?? "").trim();
@@ -82,8 +118,9 @@ export class SheetAdapter {
   static get STYLE_ONLY_MAX_COLUMN_REPEAT() { return 64; }
   static get STYLE_ONLY_MAX_ROW_REPEAT() { return 32; }
 
-  constructor(gridController) {
+  constructor(gridController, options = {}) {
     this.grid = gridController;
+    this.options = { excel2016FunctionNameCompat: true, ...options };
     this.isDirty = false;
     this.sourceFileName = "BangTinh";
     this.sourceFilePath = "";
@@ -216,6 +253,13 @@ export class SheetAdapter {
     return true;
   }
 
+  async _refreshPivotTable() {
+    if (!this.grid?.pivotTableEngine && typeof this.grid?._loadPivotEngine === "function") {
+      await this.grid._loadPivotEngine();
+    }
+    return this.grid?.refreshPivotTable?.() || false;
+  }
+
   _bindFormatPainterRibbon() {
     if (this._formatPainterRibbonBound) return;
     if (typeof document === "undefined" || typeof document.addEventListener !== "function") return;
@@ -292,7 +336,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.data.dataTable", () => this.grid.showDataTableDialog());
     globalCommandBus.bindHandler("sheet.data.scenarioManager", () => this.grid.showScenarioManagerDialog());
     globalCommandBus.bindHandler("sheet.data.pivotTable", () => this.grid.showPivotTableDialog());
-    globalCommandBus.bindHandler("sheet.data.pivotRefresh", () => this.grid.refreshPivotTable());
+    globalCommandBus.bindHandler("sheet.data.pivotRefresh", () => this._refreshPivotTable());
     globalCommandBus.bindHandler("sheet.chart.pivotChart", () => this.grid.openPivotChartBuilder());
     globalCommandBus.bindHandler("sheet.formula.nameManager", (args) => {
       args = args || {};
@@ -354,6 +398,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.view.zoomToSelection", () => this.grid.zoomToSelection ? this.grid.zoomToSelection() : false);
     globalCommandBus.bindHandler("sheet.view.newWindow", () => this.grid.newWindow ? this.grid.newWindow() : false);
     globalCommandBus.bindHandler("sheet.view.freezePanesMenu", () => this.grid.toggleFreezePanes ? this.grid.toggleFreezePanes() : false);
+    globalCommandBus.bindHandler("sheet.view.split", () => this.grid.toggleSplitPanes ? this.grid.toggleSplitPanes() : false);
     globalCommandBus.bindHandler("sheet.view.zoomIn", (options) => {
       options = options || {};
       return this.grid.zoomIn();
@@ -1540,6 +1585,9 @@ export class SheetAdapter {
   _formulaToOdf(formula) {
     if (!formula || !String(formula).startsWith("=")) return "";
     let expression = String(formula).slice(1);
+    if (this.options?.excel2016FunctionNameCompat !== false) {
+      expression = mapOoxmlFunctionPrefixes(expression, { write: true });
+    }
     const references = [];
     // A deleted reference is `#REF!` in Excel syntax but `[#REF!]` in ODF. Written bare,
     // LibreOffice cannot parse the formula and saves `=#N/A` (legacy06.xls, 9 cells).
@@ -1598,6 +1646,7 @@ export class SheetAdapter {
   _formulaFromOdf(formula) {
     if (!formula) return "";
     let expression = String(formula).replace(/^of:=/i, "=");
+    expression = mapOoxmlFunctionPrefixes(expression, { write: false });
     // External workbook references contain "file:///E:" — resolve them before the
     // generic ':' split below, which would cut the path apart.
     const externals = [];
@@ -2584,11 +2633,12 @@ export class SheetAdapter {
       const x = Number.isFinite(Number(chart.x)) ? this._pxToOdfCm(chart.x) : (5.5 + (index % 2) * 0.4).toFixed(3);
       const y = Number.isFinite(Number(chart.y)) ? this._pxToOdfCm(chart.y) : (0.4 + index * 0.5).toFixed(3);
       const title = this._escapeXml(plan.title);
+      const xAxisTitle = this._escapeXml(String(chart.xAxisTitle || ""));
+      const yAxisTitle = this._escapeXml(String(chart.yAxisTitle || ""));
+      const axisTitle = text => text ? `<chart:title><text:p>${text}</text:p></chart:title>` : "";
       const kindAttr = chart.kind === "pivot" ? ` vno:chart-kind="pivot" vno:pivot-id="${this._escapeXml(chart.pivotId || "")}"` : "";
-      const categories = plan.categoriesRange
-        ? `<chart:axis chart:dimension="x" chart:name="primary-x"><chart:categories table:cell-range-address="${this._escapeXml(plan.categoriesRange)}"/></chart:axis>`
-        : "";
-      const yAxis = plan.chartClass === "circle" ? "" : `<chart:axis chart:dimension="y" chart:name="primary-y"><chart:grid chart:class="major"/></chart:axis>`;
+      const categories = plan.chartClass === "circle" ? "" : `<chart:axis chart:dimension="x" chart:name="primary-x">${axisTitle(xAxisTitle)}${plan.categoriesRange ? `<chart:categories table:cell-range-address="${this._escapeXml(plan.categoriesRange)}"/>` : ""}</chart:axis>`;
+      const yAxis = plan.chartClass === "circle" ? "" : `<chart:axis chart:dimension="y" chart:name="primary-y">${axisTitle(yAxisTitle)}<chart:grid chart:class="major"/></chart:axis>`;
       const labelAddr = plan.labelCellRange ? ` chart:label-cell-address="${this._escapeXml(plan.labelCellRange)}"` : "";
       const points = Array.from({ length: plan.pointCount }, () => "<chart:data-point/>").join("");
       const localRows = plan.localRows.map(row => `<table:table-row><table:table-cell office:value-type="string"><text:p>${this._escapeXml(row.label)}</text:p></table:table-cell><table:table-cell office:value-type="float" office:value="${row.value}"><text:p>${row.value}</text:p></table:table-cell></table:table-row>`).join("");
@@ -2800,12 +2850,63 @@ export class SheetAdapter {
    */
   _attachImportedFreezePanes(workbook, xmlText) {
     workbook.freezePanesBySheet = {};
+    const splitPanesBySheet = {};
     String(xmlText || "").replace(/<table:table(?=[\s>/])([^>]*)>/gi, (_, attrs) => {
       const name = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
       if (!name) return "";
       const rows = Number(attrs.match(/vno:frozen-rows=["'](\d+)["']/i)?.[1]) || 0;
       const cols = Number(attrs.match(/vno:frozen-cols=["'](\d+)["']/i)?.[1]) || 0;
       if (rows > 0 || cols > 0) workbook.freezePanesBySheet[name] = { rows, cols };
+      const split = {
+        row: Number(attrs.match(/vno:split-row=["'](\d+)["']/i)?.[1]) || 0,
+        col: Number(attrs.match(/vno:split-col=["'](\d+)["']/i)?.[1]) || 0,
+        x: Number(attrs.match(/vno:split-x=["']([\d.]+)["']/i)?.[1]) || 0,
+        y: Number(attrs.match(/vno:split-y=["']([\d.]+)["']/i)?.[1]) || 0
+      };
+      if (split.x > 0 || split.y > 0) splitPanesBySheet[name] = split;
+      return "";
+    });
+    // Preserve the historical parseFods shape for workbooks without Split.
+    // The loader already treats a missing mapping as an empty mapping.
+    if (Object.keys(splitPanesBySheet).length) workbook.splitPanesBySheet = splitPanesBySheet;
+  }
+
+  _attachImportedTextBoxes(workbook, xmlText) {
+    const importedTextBoxes = {};
+    String(xmlText || "").replace(/<table:table(?=[\s>/])([^>]*)>/gi, (_, attrs) => {
+      const sheetName = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
+      const raw = attrs.match(/vno:text-boxes=["']([^"']*)["']/i)?.[1];
+      if (!sheetName || !raw) return "";
+      try {
+        const boxes = JSON.parse(this._unescapeXml(raw));
+        if (!Array.isArray(boxes)) return "";
+        importedTextBoxes[sheetName] = boxes.filter(box => box && typeof box.text === "string" && box.anchor?.c && Number.isFinite(Number(box.anchor?.r)))
+          .map((box, index) => ({
+            id: `textbox-import-${sheetName}-${index}`,
+            text: box.text,
+            anchor: { c: String(box.anchor.c), r: Number(box.anchor.r) },
+            widthPx: Math.max(180, Number(box.widthPx) || 180),
+            heightPx: Math.max(54, Number(box.heightPx) || 54)
+          }));
+      } catch (_) {}
+      return "";
+    });
+    // Chỉ gắn khi tệp có hộp văn bản: giữ nguyên dấu băm snapshot của các sổ tính không có hộp văn bản.
+    if (Object.keys(importedTextBoxes).length) workbook.textBoxesBySheet = importedTextBoxes;
+  }
+
+  _attachImportedResolvedComments(workbook, xmlText) {
+    String(xmlText || "").replace(/<table:table(?=[\s>/])([^>]*)>/gi, (_, attrs) => {
+      const sheetName = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
+      const raw = attrs.match(/vno:resolved-comments=["']([^"']*)["']/i)?.[1];
+      if (!sheetName || !raw) return "";
+      try {
+        const states = JSON.parse(this._unescapeXml(raw));
+        for (const [coord, resolved] of Object.entries(states || {})) {
+          const comment = workbook.commentsBySheet?.[sheetName]?.[coord];
+          if (comment) comment.resolved = Boolean(resolved);
+        }
+      } catch (_) {}
       return "";
     });
   }
@@ -2843,7 +2944,7 @@ export class SheetAdapter {
     String(xmlText || "").replace(/<table:database-range\b([^>]*)\/?\s*>/gi, (_, attrs) => {
       const displayFilterButtons = attrs.match(/table:display-filter-buttons=["']([^"']*)["']/i)?.[1];
       if (displayFilterButtons !== "true") return "";
-      const target = this._unescapeXml(attrs.match(/table:target-range-address=["']([^"']*)["']/i)?.[1] || "");
+      const target = this._unescapeXml(attrs.match(/table:target-range-address="([^"]*)"/i)?.[1] || "");
       if (!target) return "";
       // Calc ghi 'Tên sheet'.A1:'Tên sheet'.J2650 (nháy đơn khi tên có dấu cách/ký tự đặc biệt) hoặc
       // Sheet.A3:Sheet.CF145 — tách theo dấu "." đầu tiên làm sai cả hai (đo vòng 8: lan01 sheet 3 và
@@ -2857,6 +2958,63 @@ export class SheetAdapter {
     });
   }
 
+  /** Nhãn ô đầu của dòng tổng bảng (ghi vào totalsRowLabel khi lưu XLSX). */
+  _tableTotalsLabel(sheetName, table) {
+    if (!table?.showTotals) return "";
+    const bounds = /^\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)$/i.exec(table.ref || "");
+    if (!bounds) return "";
+    const cells = sheetName === this.grid?.activeSheet ? this.grid?.cellsData : this.grid?.sheetsData?.[sheetName];
+    const cell = cells?.get?.(`${bounds[1]}${bounds[4]}`);
+    return String(cell?.val ?? "");
+  }
+
+  _attachImportedTables(workbook, xmlText) {
+    const importedTablesBySheet = {};
+    String(xmlText || "").replace(/<table:database-range\b([^>]*)\/?\s*>/gi, (_, attrs) => {
+      const get = name => this._unescapeXml(attrs.match(new RegExp(`(?:vno:)?${name}=["']([^"']*)["']`, "i"))?.[1] || "");
+      const name = get("table-name");
+      const target = this._unescapeXml(attrs.match(/table:target-range-address="([^"]*)"/i)?.[1] || "");
+      const match = target.match(/^(?:'((?:[^']|'')*)'|([^.'!]+))\.\$?([A-Z]+)\$?(\d+):(?:'(?:[^']|'')*'|[^.'!]+)\.\$?([A-Z]+)\$?(\d+)$/i);
+      if (!name || !match) return "";
+      const sheet = match[1] !== undefined ? match[1].replace(/''/g, "'") : match[2];
+      const table = {
+        name,
+        ref: `${match[3]}${match[4]}:${match[5]}${match[6]}`,
+        hasHeaders: get("table-headers") !== "false",
+        style: ({ TableStyleMedium2: "tableBlue", TableStyleMedium4: "tableGreen", TableStyleDark1: "tableDark" })[get("table-style")] || "tableBlue",
+        excelStyle: get("table-style") || "TableStyleMedium2",
+        showAutoFilter: get("table-show-autofilter") !== "false",
+        showRowStripes: get("table-row-stripes") !== "false",
+        showTotals: get("table-totals") === "true"
+      };
+      (importedTablesBySheet[sheet] ||= []).push(table);
+      return "";
+    });
+    if (Object.keys(importedTablesBySheet).length) workbook.tablesBySheet = importedTablesBySheet;
+    for (const [sheetName, tables] of Object.entries(importedTablesBySheet)) {
+      const cells = workbook.sheetsData?.[sheetName];
+      if (!cells) continue;
+      for (const table of tables) {
+        const bounds = /^\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)$/i.exec(table.ref);
+        if (!bounds) continue;
+        const preset = TABLE_STYLE_PRESETS.find(item => item.id === table.style) || TABLE_STYLE_PRESETS[0];
+        const startCol = this._columnNumber(bounds[1]), endCol = this._columnNumber(bounds[3]);
+        const startRow = Number(bounds[2]), endRow = Number(bounds[4]);
+        for (let row = startRow; row <= endRow; row++) {
+          for (let column = startCol; column <= endCol; column++) {
+            const coord = `${this._columnName(column)}${row}`;
+            const cell = cells.get(coord) || { val: "", formula: "", style: {} };
+            const rowStyle = table.hasHeaders !== false && row === startRow
+              ? preset.headerStyle
+              : ((row - startRow) % 2 === 1 ? preset.evenRowStyle : preset.oddRowStyle);
+            cell.style = { ...(cell.style || {}), ...rowStyle };
+            cells.set(coord, cell);
+          }
+        }
+      }
+    }
+  }
+
   /**
    * Serialize <table:database-ranges> for sheets with active AutoFilter.
    * Each range uses the stored filterRef from sheetStates or the sheet's
@@ -2864,7 +3022,7 @@ export class SheetAdapter {
    * round-trip via the Python postprocess layer.
    */
   _usedRangeOfSheet(sheetName) {
-    const cells = this.grid?.sheetsData?.[sheetName] || (sheetName === this.grid?.activeSheet ? this.grid?.cellsData : null);
+    const cells = sheetName === this.grid?.activeSheet ? this.grid?.cellsData : this.grid?.sheetsData?.[sheetName];
     if (!cells || typeof cells.keys !== "function") return "";
     let maxCol = 0, maxRow = 0;
     for (const coord of cells.keys()) {
@@ -2884,6 +3042,25 @@ export class SheetAdapter {
     // column captions (measured: lan11 "Reyee" A3:F3 could not be opened).
     sheetNames.forEach((sheetName, sheetIndex) => {
       const ss = this.grid.sheetStates?.[sheetName];
+      const tables = (this.grid.tablesBySheet?.[sheetName] || []).filter(table => table?.name && table?.ref);
+      for (const table of tables) {
+        const match = /^\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)$/i.exec(table.ref);
+        if (!match) continue;
+        const quotedSheet = /^[A-Za-z0-9_]+$/.test(sheetName) ? sheetName : `'${sheetName.replace(/'/g, "''")}'`;
+        const address = `${quotedSheet}.${match[1]}${match[2]}:${quotedSheet}.${match[3]}${match[4]}`;
+        const style = table.excelStyle || ({ tableBlue: "TableStyleMedium2", tableGreen: "TableStyleMedium4", tableDark: "TableStyleDark1" })[table.style] || "TableStyleMedium2";
+        ranges.push(
+          `<table:database-range table:name="${this._escapeXml(table.name)}"`
+          + ` table:target-range-address="${this._escapeXml(address)}" table:display-filter-buttons="${table.showAutoFilter === false ? "false" : "true"}"`
+          + ` table:contains-header="${table.hasHeaders === false ? "false" : "true"}"`
+          + ` vno:table-name="${this._escapeXml(table.name)}" vno:table-style="${style}"`
+          + ` vno:table-headers="${table.hasHeaders === false ? "false" : "true"}"`
+          + ` vno:table-show-autofilter="${table.showAutoFilter === false ? "false" : "true"}"`
+          + ` vno:table-row-stripes="${table.showRowStripes === false ? "false" : "true"}"`
+          + ` vno:table-totals="${table.showTotals ? "true" : "false"}"`
+          + ` vno:table-totals-label="${this._escapeXml(this._tableTotalsLabel(sheetName, table))}"/>`
+        );
+      }
       // The active sheet's live grid fields may be newer than sheetStates
       // (toggle/apply filter updates history first and persists sheet state on
       // sheet switch). Serialize the live state for that sheet.
@@ -2894,6 +3071,7 @@ export class SheetAdapter {
       // Bộ lọc người dùng bật trong app không có filterRange -> dùng vùng đã dùng của sheet
       const ref = liveRange || this._usedRangeOfSheet(sheetName) || "";
       if (!ref) return;
+      if (tables.some(table => table.ref === ref)) return;
       // Tên sheet có khoảng trắng/ký tự đặc biệt phải đặt trong nháy đơn ở CẢ HAI đầu vùng
       // ('Nguồn 2020 (GVCN)'.A1:'Nguồn 2020 (GVCN)'.J2650) như Calc ghi; không nháy LibreOffice
       // bỏ AutoFilter khi lưu XLSX (lan01.xlsx sheet 3: autoFilter A1:J2650 mất, sheet 1 tên không dấu cách giữ).
@@ -2996,7 +3174,10 @@ export class SheetAdapter {
   serializeToFods() {
     if (!this.grid) return "";
     const isNewWorkbook = !this.sourceFilePath;
-    const sourceIsPristineXlsx = !this.isDirty && /\.xlsx$/i.test(String(this.sourceFilePath || ""));
+    const hasNativeXlsxStateChanges = (this.grid.xlsxViewStateTouched?.size || 0) > 0
+      || (this.grid.printAreaTouchedBySheet?.size || 0) > 0
+      || (this.grid.pivotRefreshTouchedBySheet?.size || 0) > 0;
+    const sourceIsPristineXlsx = !this.isDirty && !hasNativeXlsxStateChanges && /\.xlsx$/i.test(String(this.sourceFilePath || ""));
     const pristineXlsxMarker = sourceIsPristineXlsx ? "<!-- vno-pristine-xlsx-source -->\n" : "";
     const sheetNames = (this.grid.sheets && this.grid.sheets.length)
       ? [...this.grid.sheets]
@@ -3111,7 +3292,9 @@ export class SheetAdapter {
       // LibreOffice đọc fo:text-align="right"/"left" thành "chung" (mất căn lề khi lưu XLSX); chỉ "end"/"start" được nhận (đo 11/10).
       const odfAlign = { right: "end", left: "start" }[s.textAlign] || s.textAlign;
       if (s.textAlign) paraProps.push(`fo:text-align="${this._escapeXml(odfAlign)}"`);
-      if (Number(s.indentLevel) > 0) paraProps.push(`fo:margin-left="${(Number(s.indentLevel) * 0.235).toFixed(3)}cm"`);
+      if (s.indentLevel !== undefined && s.indentLevel !== null && Number.isFinite(Number(s.indentLevel))) {
+        paraProps.push(`fo:margin-left="${(Math.max(0, Number(s.indentLevel)) * 0.235).toFixed(3)}cm"`);
+      }
       const textProps = [];
       if (s.fontSize) {
         const ptVal = s.fontSize.endsWith("px") ? Number((parseFloat(s.fontSize) * (72 / 96)).toFixed(2)) : s.fontSize;
@@ -3289,6 +3472,8 @@ export class SheetAdapter {
         || (sheetName === this.grid.activeSheet ? this.grid.cellsData : null)
         || new Map();
       const comments = this.grid.commentsBySheet?.[sheetName] || {};
+      const resolvedComments = Object.fromEntries(Object.entries(comments).filter(([, comment]) => comment).map(([coord, comment]) => [coord, Boolean(comment.resolved)]));
+      const resolvedCommentsAttr = Object.keys(resolvedComments).length ? ` vno:resolved-comments="${this._escapeXml(JSON.stringify(resolvedComments))}"` : "";
       const cellValidations = validationsByCell.get(sheetName) || new Map();
       const cellConditionalBases = conditionalBaseByCell.get(sheetName) || new Map();
       const mergeAnchors = new Map();
@@ -3534,6 +3719,10 @@ export class SheetAdapter {
           const cellAttrs = `${formulaAttrs}${matrixAttrs}${mergeAttrs}${numFmtAttr}${cellStyleName ? ` table:style-name="${cellStyleName}"` : ""}${validationAttr}${xfAttr}`;
           const comment = comments[coordinate];
           const annotationXml = comment ? `<office:annotation><dc:creator>${this._escapeXml(comment.author || "")}</dc:creator>${comment.timestamp ? `<dc:date>${this._escapeXml(comment.timestamp)}</dc:date>` : ""}<text:p>${this._escapeXml(comment.text || "")}</text:p></office:annotation>` : "";
+          const hyperlink = /^(https?:|mailto:)/i.test(String(item.hyperlink || "")) ? String(item.hyperlink) : "";
+          const linkText = content => hyperlink
+            ? `<text:a xlink:href="${this._escapeXml(hyperlink)}" xlink:type="simple">${content}</text:a>`
+            : content;
           const cellImages = imagesByAnchor.get(coordinate) || [];
           const cellImageXml = cellImages.length > 0
 ? cellImages.map(img => this._serializeCellImageXml(img)).join("")
@@ -3566,19 +3755,19 @@ export class SheetAdapter {
                   const m = isoTime ? isoTime.match(/^PT(\d+)H(\d+)M(\d+)S$/) : null;
                   if (m) dateValue = `${isoDate}T${m[1]}:${m[2]}:${m[3]}`;
                 }
-                appendCellXml(`<table:table-cell office:value-type="date" office:date-value="${dateValue}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`);
+                appendCellXml(`<table:table-cell office:value-type="date" office:date-value="${dateValue}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${linkText(this._escapeXml(item.val))}</text:p></table:table-cell>`);
               } else {
-                appendCellXml(`<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`);
+                appendCellXml(`<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${linkText(this._escapeXml(item.val))}</text:p></table:table-cell>`);
               }
             } else if (isTimeOnly) {
               const isoTime = this._excelSerialToIsoTime(item.val);
               if (isoTime) {
-                appendCellXml(`<table:table-cell office:value-type="time" office:time-value="${isoTime}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`);
+                appendCellXml(`<table:table-cell office:value-type="time" office:time-value="${isoTime}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${linkText(this._escapeXml(item.val))}</text:p></table:table-cell>`);
               } else {
-                appendCellXml(`<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`);
+                appendCellXml(`<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${linkText(this._escapeXml(item.val))}</text:p></table:table-cell>`);
               }
             } else {
-              appendCellXml(`<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${this._escapeXml(item.val)}</text:p></table:table-cell>`);
+              appendCellXml(`<table:table-cell office:value-type="float" office:value="${item.val}"${cellAttrs}>${cellImageXml}${annotationXml}<text:p>${linkText(this._escapeXml(item.val))}</text:p></table:table-cell>`);
             }
           } else {
             const text = item.val === undefined || item.val === null ? "" : String(item.val);
@@ -3602,14 +3791,14 @@ export class SheetAdapter {
               if (paraRuns.length === 0) paraRuns.push([{ text, style: {} }]);
               const paraXml = paraRuns.map(runs => {
                 if (runs.length === 1 && Object.keys(runs[0].style || {}).length === 0) {
-                  return `<text:p>${this._escapeXml(runs[0].text)}</text:p>`;
+                  return `<text:p>${linkText(this._escapeXml(runs[0].text))}</text:p>`;
                 }
                 const spanXml = runs.map(run => {
                   const styleName = richTextStyleFor(run.style);
                   const styleAttr = styleName ? ` text:style-name="${styleName}"` : "";
                   return `<text:span${styleAttr}>${this._escapeXml(run.text)}</text:span>`;
                 }).join("");
-                return `<text:p>${spanXml}</text:p>`;
+                return `<text:p>${linkText(spanXml)}</text:p>`;
               }).join("");
               appendCellXml(`<table:table-cell office:value-type="string"${cellAttrs}>${cellImageXml}${annotationXml}${paraXml}</table:table-cell>`);
             } else if (text === "" && !item.formula) {
@@ -3625,7 +3814,7 @@ export class SheetAdapter {
               // Excel lưu xuống dòng trong ô là "\n" (đôi khi "\r\n" qua vno:original-string);
               // một "\r" lẻ trong <text:p> sẽ bị XML chuẩn hoá thành "\n" -> thừa dòng trống.
               const lines = text.split(/\r\n|\r|\n/);
-              const linesXml = lines.map(line => `<text:p>${this._escapeXml(line)}</text:p>`).join("");
+              const linesXml = lines.map(line => `<text:p>${linkText(this._escapeXml(line))}</text:p>`).join("");
               appendCellXml(`<table:table-cell office:value-type="string"${cellAttrs}>${cellImageXml}${annotationXml}${linesXml}</table:table-cell>`);
             }
           }
@@ -3659,6 +3848,8 @@ export class SheetAdapter {
       const localNames = (this.grid.namedRangesBySheet?.[sheetName] || []).map(range => this._namedRangeXml(range, sheetName)).join("");
       const printRange = this._printRangeAddress(sheetName, this.grid.printAreaBySheet?.[sheetName]);
       const printRangeAttr = printRange ? ` table:print-ranges="${this._escapeXml(printRange)}"` : "";
+      const clearPrintAreaAttr = !printRange && this.grid.printAreaTouchedBySheet?.has(sheetName)
+        ? ' vno:clear-print-area="true"' : "";
       const pageStyle = pageStyleBySheet.get(sheetName);
       const printTitles = this.grid.pageSetupBySheet?.[sheetName]?.printTitles || {};
       const protectedSheet = !!this.grid.protectionBySheet?.[sheetName]?.enabled;
@@ -3672,6 +3863,13 @@ export class SheetAdapter {
       // Lưu riêng ở đây để tự round-trip đúng trong 3T Office; khi xuất XLSX
       // thật, postprocess_sheet_xlsx() đọc thuộc tính này để ghi <pane> chuẩn.
       const freezeAttr = (freezeRows > 0 || freezeCols > 0) ? ` vno:frozen-rows="${freezeRows}" vno:frozen-cols="${freezeCols}"` : "";
+      const activeState = this.grid.sheetStates?.[sheetName] || {};
+      const split = isActiveSheet
+        ? { row: this.grid.splitRow || 0, col: this.grid.splitCol || 0, x: this.grid.splitX || 0, y: this.grid.splitY || 0 }
+        : { row: activeState.splitRow || 0, col: activeState.splitCol || 0, x: activeState.splitX || 0, y: activeState.splitY || 0 };
+      const splitAttr = split.x > 0 || split.y > 0
+        ? ` vno:split-row="${split.row}" vno:split-col="${split.col}" vno:split-x="${split.x}" vno:split-y="${split.y}"`
+        : "";
       // vno:sheet-state: preserve hidden/veryHidden through round-trip.
       // LibreOffice downgrades veryHidden → hidden during XLSX→FODS; the
       // Python overlay writes vno:sheet-state so serializeToFods can echo it.
@@ -3688,12 +3886,14 @@ export class SheetAdapter {
       const imagesAtOpen = Math.max(0, Number(this.grid.imagesAtOpenBySheet?.[sheetName]) || 0);
       const scenarios = this.grid.getScenarios ? this.grid.getScenarios(sheetName) : (this.grid.scenariosBySheet?.[sheetName] || []);
       const scenariosAttr = scenarios && scenarios.length ? ` vno:scenarios="${this._escapeXml(JSON.stringify(scenarios))}"` : "";
-      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
+      const textBoxes = this.grid.textBoxesBySheet?.[sheetName] || [];
+      const textBoxesAttr = textBoxes.length ? ` vno:text-boxes="${this._escapeXml(JSON.stringify(textBoxes.map(box => ({ text: String(box.text || ""), anchor: box.anchor, widthPx: Math.max(180, Number(box.widthPx) || 180), heightPx: Math.max(54, Number(box.heightPx) || 54) }))))}"` : "";
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${splitAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${textBoxesAttr}${resolvedCommentsAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
       const shapesXml = this._serializePageAnchoredImagesXml(pageAnchoredImages);
-      return `<table:table table:name="${this._escapeXml(sheetName)}"${pageAttrs}${printRangeAttr}${protectedAttr}>${chartsXml}${shapesXml}${columnsXml}${rowsXml}${localNames ? `<table:named-expressions>${localNames}</table:named-expressions>` : ""}${conditionalXml ? `<calcext:conditional-formats>${conditionalXml}</calcext:conditional-formats>` : ""}${sparklinesXml}</table:table>`;
+      return `<table:table table:name="${this._escapeXml(sheetName)}"${pageAttrs}${printRangeAttr}${clearPrintAreaAttr}${protectedAttr}>${chartsXml}${shapesXml}${columnsXml}${rowsXml}${localNames ? `<table:named-expressions>${localNames}</table:named-expressions>` : ""}${conditionalXml ? `<calcext:conditional-formats>${conditionalXml}</calcext:conditional-formats>` : ""}${sparklinesXml}</table:table>`;
     }).join("");
 
     const dataPilotTables = [];
@@ -3715,11 +3915,17 @@ export class SheetAdapter {
           if (value?.field && fn) fields.push(`<table:data-pilot-field table:source-field-name="${this._escapeXml(value.field)}" table:orientation="data" table:function="${fn}"/>`);
         }
         if (!fields.some(field => /table:orientation="data"/.test(field))) continue;
+        const resultRange = pivot?.resultRange;
+        const resultLocation = this.grid.pivotRefreshTouchedBySheet?.has(targetSheet)
+          && resultRange?.start?.c && resultRange?.start?.r && resultRange?.end?.c && resultRange?.end?.r
+          ? ` vno:xlsx-location="${this._escapeXml(`${resultRange.start.c}${resultRange.start.r}:${resultRange.end.c}${resultRange.end.r}`)}"`
+          : "";
         const sourceRange = {
           start: { c: source[1], r: Number(source[2]) },
           end: { c: source[3], r: Number(source[4]) }
         };
-        dataPilotTables.push(`<table:data-pilot-table table:name="${this._escapeXml(pivot.name || pivot.id || `Pivot ${dataPilotTables.length + 1}`)}" table:target-range-address="${this._escapeXml(rangeAddress(targetSheet, usedRange(targetSheet)))}"><table:source-cell-range table:cell-range-address="${this._escapeXml(rangeAddress(sourceSheet, sourceRange))}"/>${fields.join("")}</table:data-pilot-table>`);
+        const pivotIdAttr = pivot.id ? ` vno:pivot-id="${this._escapeXml(pivot.id)}"` : "";
+        dataPilotTables.push(`<table:data-pilot-table table:name="${this._escapeXml(pivot.name || pivot.id || `Pivot ${dataPilotTables.length + 1}`)}"${pivotIdAttr} table:target-range-address="${this._escapeXml(rangeAddress(targetSheet, usedRange(targetSheet)))}"${resultLocation}><table:source-cell-range table:cell-range-address="${this._escapeXml(rangeAddress(sourceSheet, sourceRange))}"/>${fields.join("")}</table:data-pilot-table>`);
       }
     }
     const dataPilotXml = dataPilotTables.length ? `<table:data-pilot-tables>${dataPilotTables.join("")}</table:data-pilot-tables>` : "";
@@ -3730,6 +3936,19 @@ export class SheetAdapter {
           <config:config-item config:name="CursorPositionY" config:type="int">0</config:config-item>
         </config:config-item-map-entry>`).join("");
     const structureProtected = !!this.grid.workbookProtection?.enabled;
+    const xlsxViewState = this.grid.xlsxViewStateTouched instanceof Set ? this.grid.xlsxViewStateTouched : new Set();
+    const xlsxViewAttrs = [
+      ["showGridLines", "show-grid-lines", this.grid.gridlinesVisible],
+      ["showRowColHeaders", "show-row-col-headers", this.grid.headingsVisible],
+      ["showFormulas", "show-formulas", this.grid.showFormulas],
+      ["showFormulaBar", "show-formula-bar", this.grid.formulaBarVisible],
+      ["view", "sheet-view", this.grid.workbookView],
+      ["zoomScale", "zoom-scale", Math.round(Number(this.grid.zoomLevel || 1) * 100)],
+    ].filter(([key]) => xlsxViewState.has(key))
+      .map(([, attr, value]) => {
+        const encoded = typeof value === "boolean" ? (value ? "true" : "false") : String(value);
+        return ` vno:${attr}="${this._escapeXml(encoded)}"`;
+      }).join("");
     // ODF flag. LibreOffice FODS→XLSX keeps <workbookProtection> but drops
     // lockStructure; native-export post-process restores it (see xlsx-native-postprocess.js).
     const structureAttr = structureProtected ? ' table:structure-protected="true"' : "";
@@ -3752,7 +3971,7 @@ ${pristineXlsxMarker}
                  xmlns:loext="urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0"
                  xmlns:tableooo="http://openoffice.org/2009/table"
                  xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"
-                 office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet">
+                 office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.spreadsheet"${xlsxViewAttrs}>
   ${fontFaceDeclsXml}
   <office:styles>${isNewWorkbook ? '<style:default-style style:family="table-cell"><style:text-properties style:font-name="Calibri" fo:font-size="11pt"/></style:default-style>' : ""}${conditionalNamedStyles.join("")}</office:styles>
   <office:automatic-styles>${isNewWorkbook ? '<style:style style:name="vno-default-column" style:family="table-column"><style:table-column-properties style:column-width="1.693cm"/></style:style><style:style style:name="vno-default-row" style:family="table-row"><style:table-row-properties style:row-height="0.529cm" style:use-optimal-row-height="false"/></style:style>' : ""}${pageLayouts.join("")}${tablePageStyles.join("")}${dimensionStyles.join("")}${[...numberFormats.values()].map(format => `${this._numberFormatXml(format.config, format.dataStyle)}<style:style style:name="${format.cellStyle}" style:family="table-cell" style:data-style-name="${format.dataStyle}"/>`).join("")}${[...rotationStyles.values()].map(style => this._rotationCellStyleXml(style.styleName, style.textRotation)).join("")}${rotationCombinedStyles.join("")}${conditionalBaseStyles.join("")}${visualStyleEntries.join("")}${richTextAutoStyles.join("")}</office:automatic-styles>
@@ -3766,7 +3985,7 @@ ${pristineXlsxMarker}
       </config:config-item-map-entry></config:config-item-map-indexed>
     </config:config-item-set>
   </office:settings>
-  <office:body><office:spreadsheet${structureAttr}>${validationDefinitions.length ? `<table:content-validations>${validationDefinitions.join("")}</table:content-validations>` : ""}${tablesXml}${this.grid.namedRangesWorkbook?.length ? `<table:named-expressions>${this.grid.namedRangesWorkbook.map(range => this._namedRangeXml(range, range.sheet || activeSheet)).join("")}</table:named-expressions>` : ""}${dataPilotXml}${this._serializeDatabaseRanges(sheetNames)}</office:spreadsheet></office:body>
+  <office:body><office:spreadsheet${structureAttr}${["automatic", "manual"].includes(this.grid.calculationMode) ? ` vno:calculation-mode="${this.grid.calculationMode === "manual" ? "manual" : "auto"}"` : ""}>${validationDefinitions.length ? `<table:content-validations>${validationDefinitions.join("")}</table:content-validations>` : ""}${tablesXml}${this.grid.namedRangesWorkbook?.length ? `<table:named-expressions>${this.grid.namedRangesWorkbook.map(range => this._namedRangeXml(range, range.sheet || activeSheet)).join("")}</table:named-expressions>` : ""}${dataPilotXml}${this._serializeDatabaseRanges(sheetNames)}</office:spreadsheet></office:body>
 </office:document>`;
   }
 
@@ -3932,7 +4151,7 @@ ${pristineXlsxMarker}
       const fmt = { ...standardFormat };
       // Try to reconstruct excelCode from standard format
       const inferred = this._excelCodeFromNumberFormat(fmt);
-      if (inferred) fmt.excelCode = inferred;
+      if (inferred) { fmt.excelCode = inferred; fmt.excelCodeInferred = true; }
       style.numberFormat = fmt;
     } else if (valueType === "percentage") {
       style.numberFormat = { category: "percentage", decimals: 2 };
@@ -4262,6 +4481,13 @@ ${pristineXlsxMarker}
       const seriesType = this._mapOdfChartClass(seriesAttrs[0].match(/chart:class=["']([^"']+)["']/i)?.[1] || "") || type;
       const titleXml = chartMatch[2].match(/<chart:title\b[^>]*>([\s\S]*?)<\/chart:title>/i)?.[1] || "";
       const title = this._unescapeXml(titleXml.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+      const axisTitles = {};
+      chartMatch[2].replace(/<chart:axis\b([^>]*)>([\s\S]*?)<\/chart:axis>/gi, (_all, axisAttrs, axisBody) => {
+        const dimension = axisAttrs.match(/chart:dimension=["']([xy])["']/i)?.[1]?.toLowerCase();
+        const axisTitleXml = axisBody.match(/<chart:title\b[^>]*>([\s\S]*?)<\/chart:title>/i)?.[1] || "";
+        if (dimension && axisTitleXml) axisTitles[dimension] = this._unescapeXml(axisTitleXml.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+        return "";
+      });
       const categoryAttrs = chartMatch[2].match(/<chart:categories\b([^>]*)\/?\s*>/i)?.[1] || "";
       const ranges = [];
       const values = this._parseOdfTargetRange(
@@ -4281,6 +4507,8 @@ ${pristineXlsxMarker}
         type: seriesType,
         range: union.range,
         title: title || `Biểu đồ ${this._a1FromOdfRange(union)}`,
+        ...(axisTitles.x ? { xAxisTitle: axisTitles.x } : {}),
+        ...(axisTitles.y ? { yAxisTitle: axisTitles.y } : {}),
         labels: [],
         data: [],
         imported: true,
@@ -4351,8 +4579,9 @@ ${pristineXlsxMarker}
       if (targetSheet === source.sheet) return "";
 
       if (!workbook.pivotTablesBySheet[targetSheet]) workbook.pivotTablesBySheet[targetSheet] = [];
+      const pivotId = this._unescapeXml(attrs.match(/vno:pivot-id=["']([^"']*)["']/i)?.[1] || "");
       workbook.pivotTablesBySheet[targetSheet].push({
-        id: `pivot-import-${++index}`,
+        id: pivotId || `pivot-import-${++index}`,
         name: name || `pivot-import-${index}`,
         sourceSheet: source.sheet,
         sourceRange,
@@ -4370,6 +4599,8 @@ ${pristineXlsxMarker}
   parseFods(xmlText) {
     const workbook = { sheets: [], sheetsData: {}, activeSheet: "", commentsBySheet: {}, mergedRangesBySheet: {}, namedRangesWorkbook: [], namedRangesBySheet: {}, printAreaBySheet: {}, pageSetupBySheet: {}, validationHits: [], rowHeightsBySheet: {}, colWidthsBySheet: {}, userHiddenRowsBySheet: {}, userHiddenColsBySheet: {}, imagesAtOpenBySheet: {} };
     if (!xmlText) return workbook;
+    const calculationMode = String(xmlText).match(/<office:spreadsheet\b[^>]*\bvno:calculation-mode=["'](auto|manual)["']/i)?.[1]?.toLowerCase();
+    if (calculationMode) workbook.calculationMode = calculationMode === "manual" ? "manual" : "automatic";
     const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
     const perfNow = () => perfEnabled ? performance.now() : 0;
     const perfReport = (name, started) => { if (perfEnabled) window.__vnoPerfReport?.(`parseFods:${name}`, performance.now() - started); };
@@ -4590,6 +4821,11 @@ ${pristineXlsxMarker}
                   || (columnNumber <= lastDataCol && this._cellStyleHasBorder(attributes["table:style-name"], cellVisualStyles));
                 if (hasValue && (!isCovered || isCoveredErrorFormula)) {
                   const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
+                  const hyperlinkNode = Array.from(cell.getElementsByTagName("*") || []).find(node => node.localName === "a");
+                  const hyperlink = hyperlinkNode?.getAttribute("xlink:href")
+                    || hyperlinkNode?.getAttributeNS?.("http://www.w3.org/1999/xlink", "href")
+                    || "";
+                  if (/^(https?:|mailto:)/i.test(hyperlink)) item.hyperlink = hyperlink;
                   // Extract rich text runs from <text:span> elements
                   if (textStyles.size > 0) {
                     const cellVisual = cellVisualStyles.get(attributes["table:style-name"]) || {};
@@ -4866,6 +5102,9 @@ ${pristineXlsxMarker}
                 || (columnNumber <= lastDataCol && this._cellStyleHasBorder(attributes["table:style-name"], cellVisualStyles));
               if (hasValue && (!isCovered || isCoveredErrorFormula)) {
                 const item = this._cellFromFodsAttributes(attributes, text, numberStyles, rotationStyles, cellVisualStyles);
+                const hyperlink = valueContent.match(/<(?:text:)?a\b[^>]*\bxlink:href=["']([^"']+)["']/i)?.[1] || "";
+                const safeHyperlink = this._unescapeXml(hyperlink);
+                if (/^(https?:|mailto:)/i.test(safeHyperlink)) item.hyperlink = safeHyperlink;
                 // Extract rich text runs from <text:span> elements (regex branch)
                 if (textStyles.size > 0) {
                   const cellVisual = cellVisualStyles.get(attributes["table:style-name"]) || {};
@@ -4972,10 +5211,14 @@ ${pristineXlsxMarker}
     perfReport("attach visibility", phaseStart); phaseStart = perfNow();
     this._attachImportedAutoFilter(workbook, xmlText);
     perfReport("attach autofilter", phaseStart); phaseStart = perfNow();
+    this._attachImportedTables(workbook, xmlText);
+    perfReport("attach tables", phaseStart); phaseStart = perfNow();
     this._attachImportedSparklines(workbook, xmlText);
     perfReport("attach sparklines", phaseStart); phaseStart = perfNow();
     this._attachImportedOutline(workbook, tableXml);
     perfReport("attach outline", phaseStart);
+    this._attachImportedTextBoxes(workbook, tableXml);
+    this._attachImportedResolvedComments(workbook, tableXml);
     return workbook;
   }
 
@@ -5104,6 +5347,7 @@ ${pristineXlsxMarker}
       this.grid.defaultColWidth = 100;
     const firstSheet = workbook.sheets[0];
     if (typeof this.grid.resetToBlank === "function") this.grid.resetToBlank(firstSheet);
+    this.grid.calculationMode = workbook.calculationMode || "automatic";
     this.grid.sheets = [firstSheet];
     this.grid.sheetsData = { [firstSheet]: workbook.sheetsData[firstSheet] };
     this.grid.commentsBySheet = { [firstSheet]: workbook.commentsBySheet[firstSheet] || {} };
@@ -5141,6 +5385,8 @@ ${pristineXlsxMarker}
     // Store tabColors on grid for fallback access in _renderSheetTabs
     this.grid.tabColors = workbook.tabColors || {};
     this.grid.scenariosBySheet = workbook.scenariosBySheet || {};
+    this.grid.tablesBySheet = workbook.tablesBySheet || {};
+    this.grid.textBoxesBySheet = {};
     const equivalentSheetValue = (mapping, sheetName) => {
       if (!mapping) return undefined;
       if (Object.prototype.hasOwnProperty.call(mapping, sheetName)) return mapping[sheetName];
@@ -5149,12 +5395,14 @@ ${pristineXlsxMarker}
       return found === undefined ? undefined : mapping[found];
     };
     for (const sheetName of workbook.sheets) {
+      this.grid.tablesBySheet[sheetName] = workbook.tablesBySheet?.[sheetName] || [];
       this.grid.scenariosBySheet[sheetName] = workbook.scenariosBySheet?.[sheetName] || [];
       this.grid.conditionalFormattingBySheet[sheetName] = workbook.conditionalFormattingBySheet?.[sheetName] || [];
       this.grid.dataValidationsBySheet[sheetName] = workbook.dataValidationsBySheet?.[sheetName] || [];
       this.grid.pivotTablesBySheet[sheetName] = workbook.pivotTablesBySheet?.[sheetName] || [];
       this.grid.chartsBySheet[sheetName] = workbook.chartsBySheet?.[sheetName] || [];
       this.grid.imagesBySheet[sheetName] = workbook.imagesBySheet?.[sheetName] || [];
+      this.grid.textBoxesBySheet[sheetName] = workbook.textBoxesBySheet?.[sheetName] || [];
       this.grid.imagesAtOpenBySheet[sheetName] = workbook.imagesAtOpenBySheet?.[sheetName] || 0;
       this.grid.rowHeightsBySheet[sheetName] = this._asLayoutMap(equivalentSheetValue(workbook.rowHeightsBySheet, sheetName), true);
       this.grid.colWidthsBySheet[sheetName] = this._asLayoutMap(workbook.colWidthsBySheet?.[sheetName], false);
@@ -5166,6 +5414,7 @@ ${pristineXlsxMarker}
       this.grid.protectionBySheet[sheetName] = workbook.protectionBySheet?.[sheetName] || { enabled: false, password: "" };
       this.grid.outlineGroupsBySheet[sheetName] = workbook.outlineGroupsBySheet?.[sheetName] || [];
       const freeze = equivalentSheetValue(workbook.freezePanesBySheet, sheetName) || { rows: 0, cols: 0 };
+      const split = equivalentSheetValue(workbook.splitPanesBySheet, sheetName) || { row: 0, col: 0, x: 0, y: 0 };
       if (!this.grid.sheetStates) this.grid.sheetStates = {};
       if (!this.grid.sheetStates[sheetName]) {
         this.grid.sheetStates[sheetName] = { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, frozenRows: 0, frozenCols: 0, selectedCoord: { r: 1, c: "A" } };
@@ -5173,6 +5422,10 @@ ${pristineXlsxMarker}
       this.grid.sheetStates[sheetName].frozenRows = freeze.rows;
       this.grid.sheetStates[sheetName].frozenCols = freeze.cols;
       this.grid.sheetStates[sheetName].isFrozenPanes = freeze.rows > 0 || freeze.cols > 0;
+      this.grid.sheetStates[sheetName].splitRow = split.row || 0;
+      this.grid.sheetStates[sheetName].splitCol = split.col || 0;
+      this.grid.sheetStates[sheetName].splitX = split.x || 0;
+      this.grid.sheetStates[sheetName].splitY = split.y || 0;
       // Tab color: restore from workbook.tabColors
       if (workbook.tabColors?.[sheetName]) {
         this.grid.sheetStates[sheetName].tabColor = workbook.tabColors[sheetName];
@@ -5191,6 +5444,7 @@ ${pristineXlsxMarker}
     this.grid.activeSheet = null;
     if (typeof this.grid.switchSheet === "function") this.grid.switchSheet(workbook.activeSheet, { skipSave: true });
     else this.grid.activeSheet = workbook.activeSheet;
+    this.grid.renderTextBoxes?.();
     const activeFreezeState = this.grid.sheetStates[this.grid.activeSheet];
     this.grid.frozenRows = activeFreezeState?.frozenRows || 0;
     this.grid.frozenCols = activeFreezeState?.frozenCols || 0;
@@ -5594,9 +5848,6 @@ ${pristineXlsxMarker}
   }
 
   async _openWorkbookFromDisk() {
-    let previous = null;
-    let result = null;
-    let openId = null;
     const reportOpenIssue = (type, message) => {
       try {
         const pending = globalUnoBridge.reportFrontendError({ type, message, stack: "" });
@@ -5606,18 +5857,65 @@ ${pristineXlsxMarker}
       }
     };
     this.shell?.setStatus?.("Đang chuẩn bị mở bảng tính…");
+    let removeQuickViewListener = () => {};
     try {
-      try {
-        result = await globalUnoBridge.openRealFile("sheet");
-      } catch {
+      let quickViewReady = null;
+      if (typeof window !== "undefined" && window.__vnoSheetQuickViewController) {
+        quickViewReady = new Promise(resolve => {
+          const onReady = () => resolve(true);
+          window.addEventListener("vno:sheet-quick-view-ready", onReady, { once: true });
+          removeQuickViewListener = () => window.removeEventListener("vno:sheet-quick-view-ready", onReady);
+        });
+      }
+      const opening = (async () => {
+        try {
+          return await globalUnoBridge.openRealFile("sheet");
+        } catch {
         // A pywebview transfer can fail after Python has retained the FODS.
         // The latest session is process-local and exposes no filesystem path.
-        reportOpenIssue("SheetOpenPayloadTransferError", "Sheet payload transfer failed; requesting the retained FODS fallback.");
-        this.shell?.setStatus?.("Kết nối dữ liệu bị gián đoạn. Đang lấy bản dự phòng…");
-        result = await globalUnoBridge.getLatestSheetOpenFallback();
-        if (result?.status !== "ok") throw new Error("Không thể nhận dữ liệu dự phòng của bảng tính.");
-        openId = result.openId || null;
+          reportOpenIssue("SheetOpenPayloadTransferError", "Sheet payload transfer failed; requesting the retained FODS fallback.");
+          this.shell?.setStatus?.("Kết nối dữ liệu bị gián đoạn. Đang lấy bản dự phòng…");
+          const fallback = await globalUnoBridge.getLatestSheetOpenFallback();
+          if (fallback?.status !== "ok") throw new Error("Không thể nhận dữ liệu dự phòng của bảng tính.");
+          return fallback;
+        }
+      })();
+      const outcomes = [opening.then(result => ({ kind: "result", result }))];
+      if (quickViewReady) outcomes.push(quickViewReady.then(() => ({ kind: "quick-view" })));
+      const outcome = await Promise.race(outcomes);
+      removeQuickViewListener();
+      if (outcome.kind === "quick-view") {
+        // The pywebview bridge keeps its request open until full import finishes.
+        // Let the rendered quick view return control to WebView2, then apply the result.
+        this._backgroundSheetOpen = opening
+          .then(result => this._applyOpenedWorkbookResult(result, reportOpenIssue))
+          .catch(error => {
+            console.error("[SheetAdapter] Lỗi nạp nền bảng tính:", error);
+            window.dispatchEvent(new Event("vno:sheet-full-model-failed"));
+            this.shell?.setStatus?.("Không thể nạp đầy đủ bảng tính. Dữ liệu xem nhanh vẫn được giữ lại.");
+            return false;
+          });
+        return true;
       }
+      return await this._applyOpenedWorkbookResult(outcome.result, reportOpenIssue);
+    } catch {
+      removeQuickViewListener();
+      reportOpenIssue("SheetOpenError", "Workbook opening failed before a full model could be loaded.");
+      if (typeof window !== "undefined") window.dispatchEvent(new Event("vno:sheet-full-model-failed"));
+      this.shell?.setStatus?.("Không thể mở tệp. Sổ làm việc đang mở được giữ nguyên.");
+      await showAlertDialog({
+        title: "Không thể mở tệp",
+        message: "Sheet không thể nạp bảng tính từ dữ liệu đã đọc hoặc bản dự phòng. Sổ làm việc đang mở được giữ nguyên.",
+        type: "error"
+      });
+      return false;
+    }
+  }
+
+  async _applyOpenedWorkbookResult(result, reportOpenIssue) {
+    let previous = null;
+    let openId = null;
+    try {
       if (result?.status === "cancelled") return false;
       if (result?.status === "error") {
         if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") window.dispatchEvent(new Event("vno:sheet-full-model-failed"));
@@ -5664,6 +5962,8 @@ ${pristineXlsxMarker}
       this.sourceFilePath = result.sourcePath || "";
       this.isDirty = false;
       this.shell?.resetDocumentChrome?.(result.fileName || "Bảng tính 1.xlsx", null, true, result.sourcePath || "");
+      const quickView = typeof window !== "undefined" ? window.__vnoSheetQuickViewController : null;
+      quickView?.applyPendingEditsToGrid?.(this.grid);
       if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") window.dispatchEvent(new Event("vno:sheet-full-model-ready"));
       return true;
     } catch {
@@ -5709,6 +6009,7 @@ ${pristineXlsxMarker}
   }
 
   print() {
+    if (this._guardQuickViewReadOnly()) return false;
     const grid = this.grid;
     const setup = grid?.getPageSetup?.(grid.activeSheet) || grid?.pageSetupBySheet?.[grid?.activeSheet] || {};
     const pages = grid?.computePrintPages?.(grid.activeSheet)?.pages || [];
@@ -6138,7 +6439,7 @@ ${pristineXlsxMarker}
         return this.grid.showPivotTableDialog();
 
       case "sheet.data.pivotRefresh":
-        return this.grid.refreshPivotTable();
+        return this._refreshPivotTable();
 
       case "sheet.style.formatAsTable":
         return this.grid.showFormatAsTableDialog ? this.grid.showFormatAsTableDialog() : false;
@@ -6225,6 +6526,9 @@ ${pristineXlsxMarker}
 
       case "sheet.view.freezeFirstColumn":
         return this.grid.freezeFirstColumn ? this.grid.freezeFirstColumn() : false;
+
+      case "sheet.view.split":
+        return this.grid.toggleSplitPanes ? this.grid.toggleSplitPanes() : false;
 
       case "sheet.view.zoomIn":
         return this.grid.zoomIn ? this.grid.zoomIn() : false;

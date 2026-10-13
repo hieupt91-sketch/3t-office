@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Có gì mới — Nhật ký phát hành và cập nhật 3T Office</title>
-  <meta name="description" content="Lịch sử các bản cập nhật và ghi chú phát hành thực tế của bộ ứng dụng 3T Office từ bản 0.9.1 đến 0.9.9 mới nhất.">
+  <meta name="description" content="Lịch sử các bản cập nhật và ghi chú phát hành thực tế của bộ ứng dụng 3T Office từ bản 0.9.1 đến 0.9.11 mới nhất.">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
   <link rel="alternate icon" href="favicon.ico">
@@ -51,7 +51,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
           </svg>
-          Tải 0.9.9 Pilot
+          Tải 0.9.11 Pilot
         </a>
         <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Mở trình đơn chuyển hướng">
           ☰
@@ -72,14 +72,127 @@
         </div>
 
         <div class="timeline" id="releases-container">
-          <!-- Bản 0.9.9 mới nhất -->
+          <!-- Bản 0.9.11 mới nhất -->
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <article class="timeline-content">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="tag tag-ready">Phiên bản 0.9.11</span>
+                  <span style="font-weight: 700; color: var(--brand-orange); font-size: 0.875rem;">(Hiện tại)</span>
+                </div>
+                <span style="font-size: 0.813rem; color: var(--text-dim); font-weight: 600;">13/10/2026</span>
+              </div>
+              <h2 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 12px; color: var(--text-main);">
+                Sửa lỗi tra cứu VLOOKUP ở Sheet, lưu xlsx không mất ảnh, Sheet sát bảng tính thông dụng hơn, Xuất và chuyển đổi, cập nhật tin cậy hơn
+              </h2>
+              <div style="display: flex; flex-direction: column; gap: 16px; font-size: 0.938rem; color: var(--text-muted); line-height: 1.6;">
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">1. Sửa lỗi quan trọng (khuyến nghị cập nhật):</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Cập nhật: bản cập nhật không còn thất bại ở máy có tên người dùng dài; ứng dụng chọn nguồn có bản mới nhất thay vì dừng ở nguồn đầu tiên kết nối được.</li>
+                    <li>Sheet: sửa lỗi hàm tra cứu VLOOKUP trả về #N/A khi tra theo cả cột có mã dạng chữ hoặc số có số 0 đứng đầu (lỗi từ bản 0.9.10); trên 28 tệp thực, 99,98% ô công thức khớp giá trị gốc.</li>
+                    <li>Sheet: lưu .xlsx rồi mở lại không còn mất hình ảnh trong ô và không đổi định dạng ô chữ.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">2. Chung:</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Nút Bản quyền (Dùng thử · Nhập khóa / Đã kích hoạt) luôn hiện trên thanh tiêu đề.</li>
+                    <li>Tệp ▸ Xuất và chuyển đổi: xuất PDF và chuyển sang các định dạng khác của văn bản, bảng tính và trình chiếu, có nút mở thư mục chứa tệp.</li>
+                    <li>Doc: dải kiểu nhanh trong ribbon không còn phải cuộn ngang.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">3. Sheet:</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Mở tệp lớn thấy dữ liệu sau khoảng 2 giây, gõ và hoàn tác ngay trong lúc tải nốt; sửa ô chỉ tính lại công thức liên quan.</li>
+                    <li>Mới: Chia ngăn, tiêu đề riêng cho từng trục biểu đồ, dòng tổng của bảng, chèn/xóa hàng và cột của bảng, Đến (Ctrl+G) và Đến đặc biệt.</li>
+                    <li>Menu chuột phải ô, hàng, cột, tab trang tính, bảng và biểu đồ sắp xếp và đầy đủ như bảng tính thông dụng; lọc theo giá trị của ô, ghi chú, siêu liên kết.</li>
+                    <li>Nhập giờ bằng Ctrl+Shift+; lưu thành giá trị số; thêm nhiều hàm; ribbon Trang đầu vừa khít màn hình 1366 px.</li>
+                  </ul>
+                </div>
+              </div>
+            </article>
+          </div>
+          <!-- Bản 0.9.10 -->
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <article class="timeline-content">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="tag tag-ready">Phiên bản 0.9.10</span>
+
+                </div>
+                <span style="font-size: 0.813rem; color: var(--text-dim); font-weight: 600;">11/10/2026</span>
+              </div>
+              <h2 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 12px; color: var(--text-main);">
+                Sửa lỗi Lưu thành các định dạng cũ, sửa hai trường hợp tệp xlsx lưu xong không mở được, Doc/Sheet/Slide khớp bộ Office thông dụng hơn
+              </h2>
+              <div style="display: flex; flex-direction: column; gap: 16px; font-size: 0.938rem; color: var(--text-muted); line-height: 1.6;">
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">1. Sửa lỗi quan trọng (khuyến nghị cập nhật):</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Sửa lỗi Tệp ▸ Lưu thành... không lưu được ở các định dạng cũ (văn bản .doc, bảng tính .xls, trình chiếu .ppt); lỗi xuất hiện từ bản 0.9.7.</li>
+                    <li>Sheet: sửa hai trường hợp lưu .xlsx xong mà phần mềm bảng tính khác không mở được tệp (tệp có siêu liên kết kèm hình hoặc biểu đồ, và tệp có liên kết ngoài đến nhiều sổ tính). Đã kiểm lại 8 tệp thực tế: lưu rồi mở lại đều thành công.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">2. Chung:</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Menu chuột phải đầy đủ hơn; gạch đỏ chính tả không còn che mất định dạng chữ đang gõ.</li>
+                    <li>Hướng dẫn tiếng Việt trong Trợ giúp được bổ sung cho các lệnh mới.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">3. Doc:</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Bảng: tách ô đúng theo cột lưới, giữ định dạng ô khi tách; bảng mới trống và gộp/tách ô khôi phục đúng ô đã gộp; hộp văn bản chèn đúng vị trí con trỏ và đúng kích thước mặc định.</li>
+                    <li>Bố cục trang: lề chuẩn (Thường, Hẹp, Vừa, Rộng) và khổ A5; ngắt trang, ngắt mục và cột giữ nguyên chữ xung quanh.</li>
+                    <li>Tiêu đề (Heading 1–3) tạo mới có kiểu mặc định như bộ Office thông dụng.</li>
+                    <li>Hình khối và hình ảnh lưu DOCX giữ đúng bố cục và vị trí; chú thích hình, tham chiếu hình và mục lục giữ đúng khi lưu.</li>
+                    <li>Bình luận đã giải quyết được lưu và đọc lại đúng; theo dõi thay đổi, Tìm trước, chèn ký hiệu, đổi hoa/thường nhiều đoạn; Ctrl+B/I/U không bị chính tả xóa.</li>
+                    <li>Hoàn tác trả con trỏ về đúng chỗ; chia cột trong tài liệu nhiều mục không làm nhảy con trỏ. Số trang vẫn khớp bản gốc trên bộ tài liệu mẫu kiểm tra.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">4. Sheet:</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Nút Trang đầu khớp hành vi bảng tính thông dụng: tăng/giảm số thập phân, phần trăm, định dạng Số, ngày, tiền tệ (VND) và kế toán, phân cách hàng nghìn, màu tô và màu chữ mặc định.</li>
+                    <li>Sửa hàm CONCAT cho phần mềm bảng tính cũ, giữ nguyên hàm INDIRECT khi lưu .xlsx để tính đúng.</li>
+                    <li>Lưu .xlsx giữ đúng tự xuống dòng, căn phải và viền; giữ bộ lọc tự động, sheet đang chọn, độ rộng cột và chiều cao hàng.</li>
+                    <li>Mới: Ẩn sheet / Hiện sheet (tab Trang đầu ▸ Định dạng ▸ Sheet); Tìm và thay thế có tùy chọn khớp cả ô.</li>
+                    <li>Đã kiểm khớp: tên vùng, xoay chữ, lề in, sắp xếp nhiều cấp, xóa trùng lặp, đổi tên/di chuyển/xóa sheet, kiểm tra dữ liệu, cố định hàng/cột, vùng in, biểu đồ.</li>
+                    <li>Lưu tệp rất lớn nhanh hơn rõ rệt.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">5. Slide:</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Nhóm đối tượng giữ cấu trúc lồng nhau, đổi kích thước và xoay cả nhóm; thứ tự lớp được giữ khi mở và lưu.</li>
+                    <li>Chèn biểu đồ hoạt động; chọn chủ đề lưu đúng trong Slide Master; bút (Ctrl+P) và laser khi trình chiếu.</li>
+                    <li>Cỡ chữ tăng/giảm theo đúng các bước quen thuộc; tên phông không còn bị thêm số; khoảng cách dòng và phông của hình được giữ khi lưu.</li>
+                    <li>Màu chữ mặc định, Ẩn trang chiếu và menu chuột phải của hình thu nhỏ đầy đủ: sao chép, cắt, dán, ẩn, chuyển lên/xuống, bộ sắp xếp, bố cục.</li>
+                    <li>Hình khối: tô màu, viền, kích thước và xoay; Đặt lại bố cục; giữ loại hoạt ảnh khi lưu PPTX.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">6. Lưu ý:</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Sheet: "Định dạng thành bảng" hiện chỉ tô màu chứ chưa tạo bảng có cấu trúc; sẽ làm ở bản sau.</li>
+                    <li>Doc: trả lời bình luận và thư viện kiểu đầy đủ sẽ bổ sung ở bản sau.</li>
+                  </ul>
+                </div>
+              </div>
+            </article>
+          </div>
+          <!-- Bản 0.9.9 -->
           <div class="timeline-item">
             <div class="timeline-dot"></div>
             <article class="timeline-content">
               <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <span class="tag tag-ready">Phiên bản 0.9.9</span>
-                  <span style="font-weight: 700; color: var(--brand-orange); font-size: 0.875rem;">(Hiện tại)</span>
                 </div>
                 <span style="font-size: 0.813rem; color: var(--text-dim); font-weight: 600;">07/10/2026</span>
               </div>
@@ -412,7 +525,7 @@
           <h4>Thông tin</h4>
           <ul class="footer-links">
             <li><a href="tai-ve.html">Tải về bộ cài</a></li>
-            <li><a href="co-gi-moi.html">Có gì mới (0.9.9)</a></li>
+            <li><a href="co-gi-moi.html">Có gì mới (0.9.11)</a></li>
             <li><a href="huong-dan.html">Hướng dẫn sử dụng</a></li>
             <li><a href="ban-quyen.html">Chính sách bản quyền</a></li>
           </ul>

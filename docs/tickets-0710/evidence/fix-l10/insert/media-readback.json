@@ -1,0 +1,27 @@
+{
+    "file":  "E:\\VNOffice-profiles\\codex-fl10\\fix-l10-media.pptx",
+    "slides":  10,
+    "slide1ShapeCount":  5,
+    "shapes":  [
+                   {
+                       "type":  14,
+                       "name":  "PlaceHolder 1"
+                   },
+                   {
+                       "type":  14,
+                       "name":  "PlaceHolder 2"
+                   },
+                   {
+                       "type":  13,
+                       "name":  "Google Shape;60;p13"
+                   },
+                   {
+                       "type":  13,
+                       "name":  "Google Shape;61;p13"
+                   },
+                   {
+                       "type":  13,
+                       "name":  "Google Shape;62;p13"
+                   }
+               ]
+}

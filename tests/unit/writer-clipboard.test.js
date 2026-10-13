@@ -122,5 +122,51 @@ export async function runWriterClipboardTests() {
     assert.equal(insertedData.html, "<b>Sao chép thử nghiệm</b>", "Dán giữ định dạng phải giữ lại HTML");
   });
 
+  await test("Paste Plain Text: dùng text đã sao chép khi clipboard desktop chỉ trả HTML", async () => {
+    let insertedData = null;
+    adapter._clipboardMemory = { text: "Sao chép thử nghiệm", html: "<b>Sao chép thử nghiệm</b>" };
+    adapter._readClipboardFromSystem = async () => ({ status: "ok", html: "<b>Sao chép thử nghiệm</b>", text: "Sao\nchép thử nghiệm" });
+    adapter._insertClipboardContent = payload => { insertedData = payload; return true; };
+    await adapter._pastePlainText();
+    assert.deepEqual(insertedData, { html: "", text: "Sao chép thử nghiệm" });
+  });
+
+  await test("Word smart paste: thêm khoảng trắng khi dán câu mới sau dấu chấm ở cuối đoạn", () => {
+    const oldWindow = globalThis.window;
+    const oldDocument = globalThis.document;
+    const commands = [];
+    const paragraph = { textContent: "Câu trước.", contains: () => true };
+    const textNode = { nodeType: 3, parentElement: { closest: () => paragraph } };
+    const insertionRange = { startContainer: textNode, startOffset: 10 };
+    const selection = { rangeCount: 1, isCollapsed: true, anchorNode: textNode, anchorOffset: 10, getRangeAt: () => insertionRange, removeAllRanges() {}, addRange() {} };
+    globalThis.window = { getSelection: () => selection };
+    globalThis.document = {
+      createRange() {
+        let prefix = false;
+        return {
+          selectNodeContents() {},
+          setEnd() { prefix = true; },
+          setStart() { prefix = false; },
+          toString() { return prefix ? "Câu trước." : ""; }
+        };
+      },
+      execCommand(command, _showUI, value) { commands.push([command, value]); return true; }
+    };
+    const adapter = Object.create(WriterAdapter.prototype);
+    adapter.bodyDom = { contains: () => true, dispatchEvent() {} };
+    adapter.flushTyping = () => {};
+    adapter.recordSnapshot = () => {};
+    adapter._updateUndoRedoUI = () => {};
+    adapter._sanitizeClipboardHtml = html => html;
+    adapter._prepareClipboardHtmlForInsertion = html => html;
+    try {
+      assert.equal(adapter._insertClipboardContent({ html: "<b>Câu mới</b>", text: "Câu mới" }), true);
+      assert.deepEqual(commands, [["insertHTML", '<span style="white-space: pre-wrap"> </span><b>Câu mới</b>']]);
+    } finally {
+      globalThis.window = oldWindow;
+      globalThis.document = oldDocument;
+    }
+  });
+
   return results;
 }

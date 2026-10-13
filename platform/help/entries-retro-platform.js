@@ -269,5 +269,26 @@ export const RETRO_PLATFORM_HELP_ENTRIES = [
       "Menu chuyên biệt trong Doc: Nhấp chuột phải vào từ bị đánh dấu gợn sóng đỏ sẽ ưu tiên hiển thị gợi ý sửa chính tả tiếng Việt ở đầu menu; nhấp vào mục danh sách sẽ có các tùy chọn đổi dạng gạch đầu dòng, đánh số lại từ 1 hoặc tiếp tục đánh số.",
       "Menu chuyên biệt trong Sheet: Khi nhấp chuột phải vào ô dữ liệu, các tùy chọn Dán đặc biệt (giá trị, công thức, định dạng, chuyển vị), Chèn/Xóa (hàng, cột, ô), Sắp xếp và Lọc được gom nhóm gọn gàng, giúp thao tác bảng tính thuận tiện và chuyên nghiệp."
     ]
+  },
+  {
+    id: "common.platform.exportConvertHelp",
+    app: "common",
+    commandIds: [
+      "common.file.exportConvert",
+      "common.file.saveAs",
+      "common.file.exportPdf"
+    ],
+    title: "Xuất và chuyển đổi định dạng tệp",
+    summary: "Xuất tài liệu sang PDF hoặc chuyển đổi sang các định dạng tệp tương thích Office giữ nguyên tối đa bố cục, phông chữ và công thức.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Xuất & Chuyển đổi" },
+    keywords: ["xuất tệp", "chuyển đổi", "export", "convert", "pdf", "docx", "xlsx", "pptx", "tương thích office", "menu tệp", "backstage"],
+    steps: [
+      "Mở menu Tệp: Nhấn tổ hợp phím Alt+F hoặc nhấp chuột vào nút 'Tệp' ở góc trên bên trái cửa sổ ứng dụng để mở giao diện điều khiển Backstage.",
+      "Chọn mục 'Xuất và chuyển đổi' (phím tắt X trong chế độ KeyTips): Hệ thống hiển thị bảng điều khiển chuyên biệt gồm tùy chọn tương thích, xuất bản PDF và các định dạng chuyển đổi phù hợp với ứng dụng hiện tại.",
+      "Tùy chọn 'Tương thích Office': Được chọn sẵn theo mặc định nhằm tự động tối ưu hóa phông chữ, định dạng ô, bảng biểu và cấu trúc tài liệu để hiển thị chính xác khi mở trong các bộ ứng dụng Office.",
+      "Xuất bản tài liệu PDF: Chọn thẻ 'Tạo tài liệu PDF (.pdf)' để xuất tài liệu thành tệp PDF tiêu chuẩn, bảo toàn trọn vẹn bố cục trang in, kiểu chữ tiếng Việt và hình ảnh trên mọi thiết bị.",
+      "Chuyển đổi sang định dạng khác: Chọn định dạng mong muốn trong danh sách (đối với văn bản: .docx, .doc, .odt, .rtf, .txt; đối với bảng tính: .xlsx, .xls, .ods, .csv; đối với bản trình chiếu: .pptx, .ppt, .odp). Mỗi định dạng đều có phần mô tả chi tiết về mức độ bảo toàn bố cục.",
+      "Hoàn tất và mở thư mục: Nhấn nút 'Xuất tệp...' hoặc nhấn Enter/Space tại thẻ định dạng đã chọn để chỉ định nơi lưu. Sau khi hoàn tất, hệ thống hiển thị thông báo kèm đường dẫn tệp và nút 'Mở thư mục chứa tệp' để bạn truy cập nhanh."
+    ]
   }
 ];

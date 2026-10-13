@@ -3,7 +3,7 @@
  */
 
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
-import { countBlockLines, countBlockParagraphs, countDocumentStats, countListMarkerStats } from "../../apps/writer/word-count.js";
+import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlListMarkerStats, countOoxmlWhitespaceOnlyParagraphCharacters, extractOoxmlDocumentText, extractWordCountText } from "../../apps/writer/word-count.js";
 import { WRITER_RIBBON_TABS } from "../../apps/writer/writer-ribbon.js";
 import { WRITER_COMMANDS } from "../../platform/commands/command-definitions.js";
 import { ICONS } from "../../platform/ui-kit/icons.js";
@@ -26,6 +26,43 @@ export async function runWriterWordCountTests() {
     }
   };
 
+  await test("Word Count: OOXML list labels omit numFmt none items", () => {
+    const stats = countOoxmlListMarkerStats([
+      { numId: "1", ilvl: "0", numFmt: "decimal", lvlText: "%1.", value: 12 },
+      { numId: "1", ilvl: "0", numFmt: "none", lvlText: "%1.", value: 13 },
+      { numId: "2", ilvl: "0", numFmt: "bullet", lvlText: "•", value: 1 }
+    ]);
+    if (stats.words !== 1 || stats.charactersNoSpaces !== 4 || stats.charactersWithSpaces !== 6) {
+      throw new Error(`Unexpected OOXML marker stats: ${JSON.stringify(stats)}`);
+    }
+  });
+
+  await test("Word Count: count each CJK character as a Word word token", () => {
+    const stats = countDocumentStats("© ₫ ∑ → é 漢字");
+    if (stats.words !== 7) throw new Error(`Expected 7 Word tokens, got ${stats.words}`);
+  });
+
+  await test("Word Count: split a leading double-hyphen command flag as Word does", () => {
+    const stats = countDocumentStats("# code --project src --release");
+    if (stats.words !== 7) throw new Error(`Expected 7 Word tokens, got ${stats.words}`);
+  });
+
+  await test("Word Count: count visible legacy checkbox field result once", () => {
+    const xml = '<w:document><w:body><w:p><w:r><w:fldChar w:fldCharType="begin"><w:ffData><w:checkBox><w:default w:val="0"/></w:checkBox></w:ffData></w:fldChar></w:r><w:r><w:instrText> FORMCHECKBOX </w:instrText></w:r></w:p></w:body></w:document>';
+    const text = extractOoxmlDocumentText(xml);
+    if (text !== "□\n") throw new Error(`Checkbox field count is wrong: ${JSON.stringify(text)}`);
+  });
+
+  await test("Word Count: count standalone OOXML symbol runs as a Word token and character", () => {
+    const xml = '<w:document><w:body><w:p><w:r><w:sym w:font="Wingdings" w:char="F06F"/></w:r></w:p></w:body></w:document>';
+    const text = extractOoxmlDocumentText(xml);
+    const stats = countDocumentStats(text, { characterText: text });
+    if (text !== "\uF06F\n" || stats.words !== 1 || stats.charactersNoSpaces !== 1 || stats.charactersWithSpaces !== 1) {
+      throw new Error(`OOXML symbol was not counted once: ${JSON.stringify({ text, stats })}`);
+    }
+  });
+
+
   await test("Word Count: tách từ tiếng Việt theo khoảng trắng, bỏ token rỗng", () => {
     const stats = countDocumentStats("  Xin   chào   các bạn  ");
     if (stats.words !== 4) throw new Error(`Số từ sai: ${stats.words}`);
@@ -46,6 +83,72 @@ export async function runWriterWordCountTests() {
     if (spaces.words !== 0 || spaces.paragraphs !== 0 || spaces.lines !== 0) {
       throw new Error(`Chỉ khoảng trắng không về 0: ${JSON.stringify(spaces)}`);
     }
+    if (spaces.charactersWithSpaces !== 5) throw new Error(`Word vẫn tính run chỉ có khoảng trắng: ${JSON.stringify(spaces)}`);
+  });
+
+  await test("Word Count: giữ nguyên khoảng trắng lặp trong text node thay vì dùng innerText đã gộp", () => {
+    const body = { nodeType: 1, tagName: "DIV", childNodes: [] };
+    const paragraph = { nodeType: 1, tagName: "P", childNodes: [], parentElement: body };
+    const text = { nodeType: 3, nodeValue: "\nAlpha    beta", parentElement: paragraph };
+    paragraph.childNodes.push(text);
+    body.childNodes.push(paragraph);
+    const source = extractWordCountText(body);
+    const stats = countDocumentStats(source, { characterText: source });
+    if (stats.words !== 2 || stats.charactersNoSpaces !== 9 || stats.charactersWithSpaces !== 13) {
+      throw new Error(`Khoảng trắng lặp bị mất: ${JSON.stringify({ source, stats })}`);
+    }
+  });
+
+  await test("Word Count: bỏ tab phân cách ô và nội dung text frame, giữ text trong bảng", () => {
+    const makeElement = (tagName, children = [], attributes = {}) => {
+      const element = {
+        nodeType: 1, tagName, childNodes: children, parentElement: null,
+        hasAttribute: (name) => Object.hasOwn(attributes, name),
+        getAttribute: (name) => attributes[name] ?? null,
+        classList: { contains: () => false }
+      };
+      for (const child of children) child.parentElement = element;
+      return element;
+    };
+    const text = (value) => ({ nodeType: 3, nodeValue: value, parentElement: null });
+    const first = makeElement("P", [text("\nAlpha")]);
+    const second = makeElement("P", [text("Beta")]);
+    const cell1 = makeElement("TD", [first]);
+    const cell2 = makeElement("TD", [second]);
+    const row = makeElement("TR", [cell1, text("\n\t"), cell2]);
+    const table = makeElement("TABLE", [text("\n\t"), row]);
+    const float = makeElement("SPAN", [text("Frame words")], { "data-vno-float": "textbox" });
+    const body = makeElement("DIV", [table, float]);
+    const source = extractWordCountText(body);
+    const stats = countDocumentStats(source, { characterText: source });
+    if (stats.words !== 2 || stats.charactersNoSpaces !== 9 || stats.charactersWithSpaces !== 9) {
+      throw new Error(`Sai thống kê bảng/text frame: ${JSON.stringify({ source, stats })}`);
+    }
+  });
+
+  await test("Word Count: phục hồi run chỉ có khoảng trắng từ OOXML, bỏ qua text frame", () => {
+    const xml = '<w:document><w:body><w:p><w:r><w:t>Alpha</w:t></w:r></w:p><w:p><w:r><w:t xml:space="preserve">   </w:t></w:r></w:p><w:p><w:r><w:txbxContent><w:p><w:r><w:t>Frame</w:t></w:r></w:p></w:txbxContent></w:r></w:p></w:body></w:document>';
+    if (countOoxmlWhitespaceOnlyParagraphCharacters(xml) !== 3) {
+      throw new Error(`Không phục hồi đúng run khoảng trắng: ${countOoxmlWhitespaceOnlyParagraphCharacters(xml)}`);
+    }
+  });
+
+  await test("Word Count: đọc text runs OOXML, tab, ngắt dòng và kết quả field, bỏ chỉ dẫn/frame", () => {
+    const xml = '<w:document><w:body><w:p><w:pPr><w:tabs><w:tab w:val="left" w:pos="720"/></w:tabs></w:pPr><w:r><w:t>Alpha</w:t><w:tab/><w:t xml:space="preserve">  beta</w:t><w:br/><w:t>Gamma</w:t></w:r></w:p><w:p><w:r><w:t xml:space="preserve">   </w:t></w:r></w:p><w:p><w:r><w:instrText> PAGE </w:instrText><w:t>Body</w:t><w:txbxContent><w:p><w:r><w:t>Frame</w:t></w:r></w:p></w:txbxContent></w:r></w:p></w:body></w:document>';
+    const source = extractOoxmlDocumentText(xml);
+    const stats = countDocumentStats(source, { characterText: source });
+    if (stats.words !== 4 || stats.charactersNoSpaces !== 18 || stats.charactersWithSpaces !== 25) {
+      throw new Error(`Sai text stats OOXML: ${JSON.stringify({ source, stats })}`);
+    }
+  });
+
+  await test("Word Count: page breaks separate words without adding characters", () => {
+    const xml = '<w:document><w:body><w:p><w:r><w:t>Alpha</w:t><w:br w:type="page"/><w:t>Beta</w:t></w:r></w:p></w:body></w:document>';
+    const text = extractOoxmlDocumentText(xml);
+    const stats = countDocumentStats(text, { characterText: text });
+    if (text !== "Alpha\u2028Beta\n" || stats.words !== 2 || stats.charactersWithSpaces !== 9 || stats.charactersNoSpaces !== 9) {
+      throw new Error(`Page break word boundary is wrong: ${JSON.stringify({ text, stats })}`);
+    }
   });
 
   await test("Word Count: đoạn văn và dòng theo ngắt dòng innerText", () => {
@@ -53,6 +156,19 @@ export async function runWriterWordCountTests() {
     if (stats.paragraphs !== 3) throw new Error(`Số đoạn sai: ${stats.paragraphs}`);
     if (stats.lines !== 4) throw new Error(`Số dòng sai: ${stats.lines}`);
     if (stats.words !== 6) throw new Error(`Số từ sai: ${stats.words}`);
+  });
+
+  await test("Word Count: đếm ngắt dòng thủ công, không đếm dấu đoạn hay placeholder đoạn rỗng", () => {
+    const content = { textContent: "alpha beta", closest: (selector) => selector === "p, h1, h2, h3, h4, h5, h6, li, blockquote" ? content : null };
+    const emptyPlaceholder = { textContent: "", closest: (selector) => selector === "p, h1, h2, h3, h4, h5, h6, li, blockquote" ? emptyPlaceholder : null };
+    const body = { querySelectorAll: (selector) => selector === "br" ? [content, emptyPlaceholder] : [] };
+    const stats = countDocumentStats("alpha\nbeta", { markerStats: { charactersWithSpaces: countExplicitLineBreaks(body) } });
+    if (stats.charactersWithSpaces !== "alpha beta".length) {
+      throw new Error(`Ngắt dòng thủ công không được tính: ${JSON.stringify(stats)}`);
+    }
+    if (stats.charactersNoSpaces !== "alphabeta".length) {
+      throw new Error(`Ngắt dòng thủ công không được tính là ký tự không khoảng trắng: ${JSON.stringify(stats)}`);
+    }
   });
 
   await test("Word Count: countBlockParagraphs chỉ đếm khối có chữ", () => {
@@ -163,6 +279,25 @@ export async function runWriterWordCountTests() {
     if (stats.words !== 6) throw new Error(`Adapter đếm sai: ${stats.words}`);
     if (stats.scope !== "document") throw new Error(`Sai phạm vi: ${stats.scope}`);
     if (stats.paragraphs !== 1) throw new Error(`Sai số đoạn: ${stats.paragraphs}`);
+  });
+
+  await test("Word Count: giữ số liệu OOXML khi DOM chỉ chuẩn hóa Unicode nhưng không đổi chữ", () => {
+    const body = {
+      innerText: "Vệ",
+      textContent: "Vệ",
+      querySelectorAll(selector) {
+        if (String(selector).includes("p")) return [{ innerText: "Vệ" }];
+        return [];
+      },
+      contains() { return true; }
+    };
+    const adapter = new WriterAdapter({ querySelector: (selector) => selector === ".vno-writer-body" ? body : null });
+    adapter._wordCountSourceText = "Vê\u0323";
+    adapter.isDirty = true;
+    const stats = adapter.getWordCountStats({ preferSelection: false });
+    if (stats.charactersNoSpaces !== adapter._wordCountSourceText.length) {
+      throw new Error(`NFC conversion changed source character stats: ${JSON.stringify(stats)}`);
+    }
   });
 
   await test("Word Count: bỏ chữ trong hộp văn bản nổi như thống kê Word", () => {

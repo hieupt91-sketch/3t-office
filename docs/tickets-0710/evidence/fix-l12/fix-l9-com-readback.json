@@ -1,0 +1,100 @@
+{
+    "officeVersion":  "16.0",
+    "path":  "E:\\VNOffice-profiles\\codex-fl12\\fix-l9\\header-footer.pptx",
+    "slidesCount":  3,
+    "designName":  "modern-blue",
+    "slideWidth":  960,
+    "slideHeight":  540,
+    "slides":  [
+                   {
+                       "index":  1,
+                       "layout":  2,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "",
+                                          "groupItemCount":  null
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 2",
+                                          "type":  14,
+                                          "text":  "",
+                                          "groupItemCount":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  2,
+                       "layout":  2,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  0,
+                       "dateAndTimeVisible":  0,
+                       "dateAndTimeFormat":  0,
+                       "footerVisible":  0,
+                       "footerText":  "",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "",
+                                          "groupItemCount":  null
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 2",
+                                          "type":  14,
+                                          "text":  "",
+                                          "groupItemCount":  null
+                                      }
+                                  ]
+                   },
+                   {
+                       "index":  3,
+                       "layout":  2,
+                       "transitionEntryEffect":  0,
+                       "slideNumberVisible":  -1,
+                       "dateAndTimeVisible":  -1,
+                       "dateAndTimeFormat":  14,
+                       "footerVisible":  -1,
+                       "footerText":  "VN Office FIX-L9 footer",
+                       "shapes":  [
+                                      {
+                                          "name":  "PlaceHolder 1",
+                                          "type":  14,
+                                          "text":  "",
+                                          "groupItemCount":  null
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 2",
+                                          "type":  14,
+                                          "text":  "",
+                                          "groupItemCount":  null
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 3",
+                                          "type":  14,
+                                          "text":  "12/10/2026",
+                                          "groupItemCount":  null
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 4",
+                                          "type":  14,
+                                          "text":  "3",
+                                          "groupItemCount":  null
+                                      },
+                                      {
+                                          "name":  "PlaceHolder 5",
+                                          "type":  14,
+                                          "text":  "VN Office FIX-L9 footer",
+                                          "groupItemCount":  null
+                                      }
+                                  ]
+                   }
+               ]
+}

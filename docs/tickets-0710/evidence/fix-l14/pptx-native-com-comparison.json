@@ -1,0 +1,26 @@
+{
+  "source": "VN Slides desktop output, FIX-L12 office compare harness; copied to fl14 profile and re-read by PowerPoint COM",
+  "profilePath": "E:\\VNOffice-profiles\\codex-fl14\\fix-l12-office-compare.pptx",
+  "powerpointXml": [
+    {
+      "part": "ppt/slides/slide1.xml",
+      "transitions": [
+        "<ns0:transition xmlns:ns0=\"http://schemas.openxmlformats.org/presentationml/2006/main\"><ns0:zoom dir=\"out\" /></ns0:transition>"
+      ],
+      "wordArtShapes": [
+        {
+          "text": "3T OfficeL12 WordArt editable™",
+          "presetTextWarp": "textNoShape",
+          "hasBodyPr": true,
+          "warpXml": "<ns0:prstTxWarp xmlns:ns0=\"http://schemas.openxmlformats.org/drawingml/2006/main\" prst=\"textNoShape\"><ns0:avLst /></ns0:prstTxWarp>"
+        }
+      ]
+    }
+  ],
+  "comReadback": "app-com-readback.json",
+  "limitations": [
+    "PowerPoint Office version 16.0 returns app WordArt as Shape.Type=17 with TextEffect.PresetTextEffect=-2.",
+    "Shapes.AddTextEffect probes did not produce native WordArt in this Product Activation Failed session.",
+    "No source/user presentation was changed; only copies under the fl14 profile were opened and closed."
+  ]
+}

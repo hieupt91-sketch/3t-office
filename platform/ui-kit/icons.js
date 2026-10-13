@@ -1160,6 +1160,11 @@ export const ICONS = {
     <path d="M12 5v22" stroke="#0F6D38" stroke-width="1.6"/>
     <path d="M17 16h9M22 12l4 4-4 4" stroke="#2563EB" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
+  splitWindow: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
+    <rect x="4" y="5" width="24" height="22" rx="2" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.4"/>
+    <path d="M16 5v22M4 16h24" stroke="#2563EB" stroke-width="2"/>
+    <path d="M7 9h6M19 9h6M7 21h6M19 21h6" stroke="#94A3B8" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`,
 
   dataValidation: `<svg viewBox="0 0 32 32" width="28" height="28" fill="none">
     <rect x="4" y="6" width="24" height="20" rx="3" fill="#F8FAFC" stroke="#0F6D38" stroke-width="1.4"/>

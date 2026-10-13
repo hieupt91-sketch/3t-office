@@ -1,0 +1,56 @@
+[
+    {
+        "preset":  0,
+        "argCount":  8,
+        "type":  1,
+        "name":  "Rectangle 1",
+        "text":  "Native probe 0",
+        "presetTextEffect":  -2,
+        "error":  null
+    },
+    {
+        "preset":  0,
+        "argCount":  9,
+        "type":  null,
+        "name":  null,
+        "text":  null,
+        "presetTextEffect":  null,
+        "error":  "Cannot find an overload for \"AddTextEffect\" and the argument count: \"9\""
+    },
+    {
+        "preset":  1,
+        "argCount":  8,
+        "type":  1,
+        "name":  "Rectangle 2",
+        "text":  "Native probe 1",
+        "presetTextEffect":  -2,
+        "error":  null
+    },
+    {
+        "preset":  1,
+        "argCount":  9,
+        "type":  null,
+        "name":  null,
+        "text":  null,
+        "presetTextEffect":  null,
+        "error":  "Cannot find an overload for \"AddTextEffect\" and the argument count: \"9\""
+    },
+    {
+        "preset":  2,
+        "argCount":  8,
+        "type":  1,
+        "name":  "Rectangle 3",
+        "text":  "Native probe 2",
+        "presetTextEffect":  2,
+        "error":  null
+    },
+    {
+        "preset":  2,
+        "argCount":  9,
+        "type":  null,
+        "name":  null,
+        "text":  null,
+        "presetTextEffect":  null,
+        "error":  "Cannot find an overload for \"AddTextEffect\" and the argument count: \"9\""
+    }
+]

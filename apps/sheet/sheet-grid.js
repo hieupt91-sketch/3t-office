@@ -3,6 +3,7 @@
  */
 
 import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
+import { showGoToDialog, showGoToSpecialDialog } from "./sheet-goto.js";
 import { createEvaluateFormulaSessionFromGrid, formatFormulaValue, renderFormulaHtml } from "./evaluate-formula.js";
 import { FormulaAutocompleteController } from "./formula-autocomplete.js";
 import {
@@ -205,10 +206,10 @@ export class SheetGridController {
     /** @type {Record<string, Map<string, {val: string|number, formula: string, style: Object}>>} */
     this.sheetsData = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
 
-    /** @type {Record<string, {hiddenRows: Set<number>, activeFilters: Map<string, Set<string>>, isFilterActive: boolean, isFrozenPanes: boolean, frozenRows: number, frozenCols: number, selectedCoord: {r: number, c: string}}>} */
+    /** @type {Record<string, {hiddenRows: Set<number>, activeFilters: Map<string, Set<string>>, isFilterActive: boolean, isFrozenPanes: boolean, frozenRows: number, frozenCols: number, splitRow: number, splitCol: number, splitX: number, splitY: number, selectedCoord: {r: number, c: string}}>} */
     this.sheetStates = Object.fromEntries(this.sheets.map(name => [name, {
       hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false,
-      isFrozenPanes: false, frozenRows: 0, frozenCols: 0,
+      isFrozenPanes: false, frozenRows: 0, frozenCols: 0, splitRow: 0, splitCol: 0, splitX: 0, splitY: 0,
       selectedCoord: { r: 1, c: "A" }
     }]));
 
@@ -216,6 +217,7 @@ export class SheetGridController {
     this.namedRangesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.commentsBySheet = Object.fromEntries(this.sheets.map(name => [name, {}]));
     this.printAreaBySheet = Object.fromEntries(this.sheets.map(name => [name, null]));
+    this.printAreaTouchedBySheet = new Set();
     this.pageBreaksBySheet = Object.fromEntries(this.sheets.map(name => [name, { rows: [], cols: [] }]));
     this.pageSetupBySheet = Object.fromEntries(this.sheets.map(name => [name, newSheetPageSetup()]));
     this.mergedRangesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
@@ -247,7 +249,9 @@ export class SheetGridController {
     this.calculationMode = "automatic"; // "automatic" | "manual"
     this.auditArrows = [];
     this.watchedCells = new Set();
+    this._formulaDependencyGraph = null;
     this._isAutofilling = false;
+    this._endModeActive = false;
     this._autofillSource = null;
     this._autofillTarget = null;
     this._isMovingCell = false;
@@ -274,9 +278,13 @@ export class SheetGridController {
     this.imagesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.selectedImageId = null;
     this.textBoxesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.selectedTextBoxId = null;
+    this._objectClipboard = null;
     this.pivotTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.pivotRefreshTouchedBySheet = new Set();
     this.scenariosBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.dataTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.tablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this._dataTableEvaluating = false;
     this.outlineGroupsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.rowHeightsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
@@ -298,6 +306,10 @@ export class SheetGridController {
     this.isFrozenPanes = false;
     this.frozenRows = 0;
     this.frozenCols = 0;
+    this.splitRow = 0;
+    this.splitCol = 0;
+    this.splitX = 0;
+    this.splitY = 0;
     this.isFilterActive = false;
     this.hiddenRows = new Set();
     this.activeFilters = new Map();
@@ -306,6 +318,7 @@ export class SheetGridController {
     this.zoomLevel = 1;
     this.gridlinesVisible = true;
     this.headingsVisible = true;
+    this.xlsxViewStateTouched = new Set();
     this.workbookView = "normal"; // "normal" | "pageBreakPreview" | "pageLayout"
     this.formulaBarVisible = true;
     this.formulaBarEl = null;
@@ -381,9 +394,11 @@ export class SheetGridController {
     this.nameBox?.addEventListener("keydown", (e) => {
       if (e.key === "Enter") {
         e.preventDefault();
+        e.stopPropagation();
         this._jumpToNameBoxAddress(this.nameBox.value);
       } else if (e.key === "Escape") {
         e.preventDefault();
+        e.stopPropagation();
         this.nameBox.value = this.getSelectionNameLabel();
         this.focusGrid();
       }
@@ -430,6 +445,8 @@ export class SheetGridController {
     globalCommandBus.bindHandler("sheet.review.toggleSpellCheck", () => {
       return this.toggleSpellcheck();
     });
+    globalCommandBus.bindHandler("sheet.edit.goTo", () => showGoToDialog(this, t));
+    globalCommandBus.bindHandler("sheet.edit.goToSpecial", () => showGoToSpecialDialog(this, t));
 
     globalCommandBus.bindHandler("common.edit.copy", () => this.copySelection(false));
     globalCommandBus.bindHandler("common.edit.cut", () => this.copySelection(true));
@@ -443,7 +460,7 @@ export class SheetGridController {
     this.autocomplete.mount();
 
     this.formulaInput.addEventListener("focus", () => {
-      if (!this.formulaEntry) this._beginFormulaEntry("edit");
+      if (!this.formulaEntry && !this._isCancellingFormulaEntry) this._beginFormulaEntry("edit");
     });
 
     this.formulaInput.addEventListener("input", (e) => {
@@ -492,6 +509,14 @@ export class SheetGridController {
         return;
       }
 
+      // Escape always cancels the active cell edit, even while formula suggestions are open.
+      // The suggestion handler also consumes Escape, which otherwise left the cell in edit mode.
+      if (e.key === "Escape") {
+        e.preventDefault();
+        this.autocomplete.closeAll();
+        this._cancelFormulaEntry();
+        return;
+      }
       if (this.autocomplete.handleKeyDown(e)) {
         return;
       }
@@ -512,6 +537,17 @@ export class SheetGridController {
         this._movePointReferenceWithArrow(e.key);
         return;
       }
+      if (e.key === "Enter" && e.ctrlKey && !e.shiftKey) {
+        e.preventDefault();
+        const session = this.formulaEntry;
+        const sourceCoord = session?.coord || this.selectedCoord;
+        if (session?.update) session.update(this.formulaInput.value, this.formulaInput.selectionStart ?? this.formulaInput.value.length);
+        const value = session?.commit ? session.commit() : this.formulaInput.value;
+        this.autocomplete.closeAll();
+        if (session) this._cancelFormulaEntry();
+        this.fillSelectionWithValue(value, sourceCoord);
+        return;
+      }
       if (e.key === "Enter") {
         e.preventDefault();
         this.autocomplete.closeAll();
@@ -521,11 +557,6 @@ export class SheetGridController {
         e.preventDefault();
         this.autocomplete.closeAll();
         this._commitFormulaEntry({ move: true, shift: e.shiftKey, tab: true });
-        return;
-      } else if (e.key === "Escape") {
-        e.preventDefault();
-        this.autocomplete.closeAll();
-        this._cancelFormulaEntry();
         return;
       }
     });
@@ -705,6 +736,7 @@ export class SheetGridController {
 
   toggleShowFormulas() {
     this.showFormulas = !this.showFormulas;
+    this.xlsxViewStateTouched?.add("showFormulas");
     if (this.container) {
       this.container.classList.toggle("is-formula-view-mode", this.showFormulas);
     }
@@ -716,13 +748,12 @@ export class SheetGridController {
     const now = new Date();
     const hh = String(now.getHours()).padStart(2, "0");
     const mm = String(now.getMinutes()).padStart(2, "0");
-    const ss = String(now.getSeconds()).padStart(2, "0");
-    const timeStr = `${hh}:${mm}:${ss}`;
-    // Dấu nháy đơn giữ nguyên chuỗi HH:mm:ss như trước đây (không auto-detect
-    // thành serial giờ), vì lệnh này chèn chuỗi giờ chứ không nhập tay vào ô.
-    this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, `'${timeStr}`, true);
+    const timeStr = `${hh}:${mm}`;
+    // Route through normal time-input inference so the cell stores an Excel-compatible
+    // day fraction with a time number format, rather than display text.
+    this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, timeStr, true);
     if (this.formulaInput) this.formulaInput.value = timeStr;
-    return timeStr;
+    return this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val;
   }
 
   setCalculationMode(mode = "automatic") {
@@ -1654,6 +1685,11 @@ export class SheetGridController {
       ? String(initialValue)
       : String(this.formulaInput?.value ?? this._cellEditorValue(item));
     this.formulaEntry = new FormulaEntrySession({ original, value, caret: value.length, mode, sheet: this.activeSheet, coord });
+    this.formulaEntry.historyBefore = {
+      undoLength: this.undoStack.length,
+      lastUndo: this.undoStack.length ? structuredClone(this.undoStack[this.undoStack.length - 1]) : null,
+      redo: [...this.redoStack]
+    };
     this._updateFormulaEntryStatus();
     this._renderFormulaReferenceOverlay();
     return this.formulaEntry;
@@ -1894,6 +1930,7 @@ export class SheetGridController {
   _cancelFormulaEntry() {
     const session = this.formulaEntry;
     if (!session) return false;
+    this._isCancellingFormulaEntry = true;
     const coord = { ...session.coord };
     const ownerSheet = session.sheet;
     const original = typeof session.cancel === "function" ? session.cancel() : (session.original ?? this._cellValueBeforeEdit);
@@ -1912,6 +1949,17 @@ export class SheetGridController {
     this.autocomplete?.closeAll?.();
     this._refreshFormulaEntryVisuals();
     this.container?.focus?.({ preventScroll: true });
+    const historyBefore = session.historyBefore;
+    if (historyBefore) {
+      this.undoStack.length = historyBefore.undoLength;
+      if (historyBefore.lastUndo && historyBefore.undoLength) {
+        this.undoStack[historyBefore.undoLength - 1] = historyBefore.lastUndo;
+      }
+      this.redoStack = [...historyBefore.redo];
+      this._syncCommandStates();
+    }
+    this.formulaEntry = null;
+    this._isCancellingFormulaEntry = false;
     this.options.onSelect?.(`${coord.c}${coord.r}`, this.cellsData.get(`${coord.c}${coord.r}`), this._calculateStats());
     return true;
   }
@@ -2790,70 +2838,81 @@ export class SheetGridController {
           ]
         },
         { sep: true },
+        { label: "Chèn...", action: () => this.showInsertCellsDialog?.() },
+        { label: "Xóa...", action: () => this.showDeleteCellsDialog?.() },
+        { label: "Xóa nội dung", shortcut: "Delete", action: () => globalCommandBus.execute("sheet.edit.clearContents") },
+        { sep: true },
         {
-          label: "Chèn",
+          label: "Lọc",
           items: [
-            { label: "Chèn hàng", shortcut: "Ctrl+Shift+=", action: () => globalCommandBus.execute("sheet.row.insert") },
-            { label: "Chèn cột", action: () => globalCommandBus.execute("sheet.col.insert") },
-            { label: "Chèn ô...", action: () => this.showInsertCellsDialog?.() }
-          ]
-        },
-        {
-          label: "Xóa",
-          items: [
-            { label: "Xóa hàng", action: () => globalCommandBus.execute("sheet.row.delete") },
-            { label: "Xóa cột", action: () => globalCommandBus.execute("sheet.col.delete") },
-            { label: "Xóa nội dung", shortcut: "Delete", action: () => globalCommandBus.execute("sheet.edit.clearContents") },
-            { label: "Xóa ô...", action: () => this.showDeleteCellsDialog?.() }
+            { label: "Xóa bộ lọc", disabled: !this.activeFilters?.size, action: () => this.clearAllFilters() },
+            { label: "Áp dụng lại", disabled: !this.activeFilters?.size, action: () => this.reapplyFilters() },
+            { sep: true },
+            { label: "Lọc theo giá trị của ô đã chọn", action: () => this.filterBySelectedCellValue() },
+            { label: "Bộ lọc tự động", shortcut: "Ctrl+Shift+L", action: () => globalCommandBus.execute("sheet.data.filter") }
           ]
         },
         {
           label: "Sắp xếp",
           items: [
-            { label: "Sắp xếp tăng dần (A-Z)", action: () => globalCommandBus.execute("sheet.data.sortAsc") },
-            { label: "Sắp xếp giảm dần (Z-A)", action: () => globalCommandBus.execute("sheet.data.sortDesc") },
+            { label: "Sắp xếp A đến Z", action: () => globalCommandBus.execute("sheet.data.sortAsc") },
+            { label: "Sắp xếp Z đến A", action: () => globalCommandBus.execute("sheet.data.sortDesc") },
+            { sep: true },
             { label: "Sắp xếp tùy chỉnh...", action: () => globalCommandBus.execute("sheet.data.customSort") }
           ]
         },
-        {
-          label: "Lọc",
-          items: [
-            { label: "Bộ lọc tự động", shortcut: "Ctrl+Shift+L", action: () => globalCommandBus.execute("sheet.data.filter") }
-          ]
-        },
+        ...this._tableContextMenuItems(),
+        { sep: true },
+        ...(this.commentsBySheet?.[this.activeSheet]?.[`${this.selectedCoord.c}${this.selectedCoord.r}`]
+          ? [
+              { label: "Sửa ghi chú", shortcut: "Shift+F2", action: () => this.showCommentDialog({ source: "contextmenu" }) },
+              { label: "Xóa ghi chú", action: () => this.deleteComment() }
+            ]
+          : [{ label: "Chèn ghi chú", shortcut: "Shift+F2", action: () => this.showCommentDialog({ source: "contextmenu" }) }]),
         { sep: true },
         { label: "Định dạng ô...", shortcut: "Ctrl+1", action: () => globalCommandBus.execute("sheet.format.cellsDialog") },
-        { label: "Thêm ghi chú", shortcut: "Shift+F2", action: () => this.showCommentDialog({ source: "contextmenu" }) }
+        { label: "Xác định tên...", action: () => globalCommandBus.execute("sheet.formula.defineName") },
+        { label: "Siêu liên kết...", shortcut: "Ctrl+K", action: () => globalCommandBus.execute("sheet.insert.hyperlink") },
+        ...(this.cellsData?.get?.(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.hyperlink
+          ? [
+              { label: "Mở siêu liên kết", action: () => this.openHyperlinkAtSelection() },
+              { label: "Xóa siêu liên kết", action: () => this.removeHyperlink() }
+            ]
+          : [])
       ];
     } else if (type === "col") {
       items = [
         { label: "Cắt", shortcut: "Ctrl+X", action: () => globalCommandBus.execute("common.edit.cut") },
         { label: "Sao chép", shortcut: "Ctrl+C", action: () => globalCommandBus.execute("common.edit.copy") },
         { label: "Dán", shortcut: "Ctrl+V", action: () => globalCommandBus.execute("common.edit.paste") },
+        { label: "Dán đặc biệt...", shortcut: "Ctrl+Alt+V", action: () => globalCommandBus.execute("sheet.edit.pasteSpecial") },
         { sep: true },
-        { label: "Chèn cột", action: () => globalCommandBus.execute("sheet.col.insert") },
-        { label: "Xóa cột", action: () => globalCommandBus.execute("sheet.col.delete") },
-        { label: "Xóa nội dung cột", shortcut: "Delete", action: () => globalCommandBus.execute("sheet.edit.clearContents") },
+        { label: "Chèn", action: () => globalCommandBus.execute("sheet.col.insert") },
+        { label: "Xóa", action: () => globalCommandBus.execute("sheet.col.delete") },
+        { label: "Xóa nội dung", shortcut: "Delete", action: () => globalCommandBus.execute("sheet.edit.clearContents") },
         { sep: true },
+        { label: "Định dạng ô...", shortcut: "Ctrl+1", action: () => globalCommandBus.execute("sheet.format.cellsDialog") },
+        { label: "Độ rộng cột...", action: () => this.showColumnWidthDialog() },
         { label: "Tự vừa khít độ rộng cột", action: () => this.autoFitColumn(target) },
-        { label: "Ẩn cột", action: () => this.hideColumns([target]) },
-        { label: "Hiện cột", action: () => this.unhideColumns([target]) },
-        { label: "Định dạng ô...", shortcut: "Ctrl+1", action: () => globalCommandBus.execute("sheet.format.cellsDialog") }
+        { label: "Ẩn", action: () => this.hideColumns([target]) },
+        { label: "Hiện", action: () => this.unhideColumns([target]) }
       ];
     } else if (type === "row") {
       items = [
         { label: "Cắt", shortcut: "Ctrl+X", action: () => globalCommandBus.execute("common.edit.cut") },
         { label: "Sao chép", shortcut: "Ctrl+C", action: () => globalCommandBus.execute("common.edit.copy") },
         { label: "Dán", shortcut: "Ctrl+V", action: () => globalCommandBus.execute("common.edit.paste") },
+        { label: "Dán đặc biệt...", shortcut: "Ctrl+Alt+V", action: () => globalCommandBus.execute("sheet.edit.pasteSpecial") },
         { sep: true },
-        { label: "Chèn hàng", shortcut: "Ctrl+Shift+=", action: () => globalCommandBus.execute("sheet.row.insert") },
-        { label: "Xóa hàng", action: () => globalCommandBus.execute("sheet.row.delete") },
-        { label: "Xóa nội dung hàng", shortcut: "Delete", action: () => globalCommandBus.execute("sheet.edit.clearContents") },
+        { label: "Chèn", shortcut: "Ctrl+Shift+=", action: () => globalCommandBus.execute("sheet.row.insert") },
+        { label: "Xóa", action: () => globalCommandBus.execute("sheet.row.delete") },
+        { label: "Xóa nội dung", shortcut: "Delete", action: () => globalCommandBus.execute("sheet.edit.clearContents") },
         { sep: true },
+        { label: "Định dạng ô...", shortcut: "Ctrl+1", action: () => globalCommandBus.execute("sheet.format.cellsDialog") },
+        { label: "Chiều cao hàng...", action: () => this.showRowHeightDialog() },
         { label: "Tự vừa khít chiều cao hàng", action: () => this.autoFitRow(target) },
-        { label: "Ẩn hàng", action: () => this.hideRows([target]) },
-        { label: "Hiện hàng", action: () => this.unhideRows([target]) },
-        { label: "Định dạng ô...", shortcut: "Ctrl+1", action: () => globalCommandBus.execute("sheet.format.cellsDialog") }
+        { label: "Ẩn", action: () => this.hideRows([target]) },
+        { label: "Hiện", action: () => this.unhideRows([target]) }
       ];
     }
 
@@ -2879,6 +2938,197 @@ export class SheetGridController {
     });
 
     this._activeContextMenu = instance;
+  }
+
+  /** Các lệnh ngữ cảnh chỉ xuất hiện khi ô đang chọn nằm trong một bảng có cấu trúc. */
+  _tableContextMenuItems() {
+    const table = (this.tablesBySheet?.[this.activeSheet] || []).find(item => {
+      const b = this._parseRange(item.ref);
+      return b && this._rangeContains(b, this.selectedCoord.c, this.selectedCoord.r);
+    });
+    if (!table) return [];
+    const bounds = this._normalizeRange(this._parseRange(table.ref));
+    const dataStart = bounds.start.r + (table.hasHeaders === false ? 0 : 1);
+    const dataEnd = bounds.end.r - (table.showTotals ? 1 : 0);
+    const canDeleteColumn = this._columnNumber(bounds.end.c) > this._columnNumber(bounds.start.c);
+    const canDeleteRow = this.selectedCoord.r >= dataStart && this.selectedCoord.r <= dataEnd && dataEnd > dataStart;
+    const col = this.selectedCoord.c;
+    const pick = (c1, r1, c2, r2) => { this.selectCell(c1, r1); this.selectCell(c2, r2, true); };
+    return [
+      { sep: true },
+      {
+        label: t("sheetContextMenu.insert"),
+        items: [
+          { label: t("sheetContextMenu.tableColumnLeft"), action: () => this.insertTableColumn(table.name, "left") },
+          { label: t("sheetContextMenu.tableColumnRight"), action: () => this.insertTableColumn(table.name, "right") },
+          { sep: true },
+          { label: t("sheetContextMenu.tableRowAbove"), action: () => this.insertTableRow(table.name, "above") },
+          { label: t("sheetContextMenu.tableRowBelow"), action: () => this.insertTableRow(table.name, "below") }
+        ]
+      },
+      {
+        label: t("sheetContextMenu.delete"),
+        items: [
+          { label: t("sheetContextMenu.tableColumn"), disabled: !canDeleteColumn, action: () => this.deleteTableColumn(table.name) },
+          { label: t("sheetContextMenu.tableRow"), disabled: !canDeleteRow, action: () => this.deleteTableRow(table.name) }
+        ]
+      },
+      {
+        label: t("sheetContextMenu.select"),
+        items: [
+          { label: t("sheetContextMenu.tableColumnData"), action: () => pick(col, dataStart, col, dataEnd) },
+          { label: t("sheetContextMenu.tableColumnAll"), action: () => pick(col, bounds.start.r, col, bounds.end.r) },
+          { label: t("sheetContextMenu.tableRowSelect"), action: () => pick(bounds.start.c, this.selectedCoord.r, bounds.end.c, this.selectedCoord.r) }
+        ]
+      },
+      {
+        label: t("sheetContextMenu.table"),
+        items: [
+          { label: `${table.showTotals ? "✓ " : ""}${t("sheetContextMenu.totalRow")}`, action: () => this.toggleTableTotalRow(table.name) },
+          { label: t("sheetContextMenu.convertToRange"), action: () => this.convertTableToRange(table.name) }
+        ]
+      }
+    ];
+  }
+
+  _tableByName(name) {
+    return (this.tablesBySheet?.[this.activeSheet] || []).find(item => item.name === name) || null;
+  }
+
+  _syncTableRangeState(table) {
+    const state = this.sheetStates?.[this.activeSheet];
+    if (state?.filterRange && !((this.tablesBySheet[this.activeSheet] || []).some(item => item !== table && item.ref === state.filterRange))) {
+      state.filterRange = table.ref;
+    }
+    this._updateFilterButtons();
+  }
+
+  _styleTableRange(table) {
+    const bounds = this._normalizeRange(this._parseRange(table.ref));
+    const preset = TABLE_STYLE_PRESETS.find(item => item.id === table.style) || TABLE_STYLE_PRESETS[0];
+    const startCol = this._columnNumber(bounds.start.c);
+    const endCol = this._columnNumber(bounds.end.c);
+    for (let row = bounds.start.r; row <= bounds.end.r; row++) {
+      const isHeader = table.hasHeaders !== false && row === bounds.start.r;
+      const isTotals = table.showTotals && row === bounds.end.r;
+      const rowStyle = isHeader || isTotals
+        ? preset.headerStyle
+        : ((row - bounds.start.r) % 2 === 1 ? preset.evenRowStyle : preset.oddRowStyle);
+      for (let column = startCol; column <= endCol; column++) {
+        const coord = `${this._columnLabel(column)}${row}`;
+        const cell = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+        cell.style = { ...(cell.style || {}), ...rowStyle };
+        this.cellsData.set(coord, cell);
+      }
+    }
+  }
+
+  _finishTableStructureChange(before, table, focus = this.selectedCoord) {
+    this._styleTableRange(table);
+    this._syncTableRangeState(table);
+    this._renderColumnHeaders();
+    this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(focus.c, focus.r);
+    this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  insertTableColumn(name, side = "left") {
+    if (this._guardProtectedMutation()) return false;
+    const table = this._tableByName(name);
+    const bounds = table && this._normalizeRange(this._parseRange(table.ref));
+    if (!table || !bounds) return false;
+    const before = this._snapshotGridStructure();
+    const selected = this._columnNumber(this.selectedCoord.c);
+    const insertAt = Math.min(this._columnNumber(bounds.end.c) + 1, selected + (side === "right" ? 1 : 0));
+    const insertCol = this._columnLabel(insertAt);
+    this.shiftCellsRight({ start: { c: insertCol, r: bounds.start.r }, end: { c: insertCol, r: bounds.end.r } }, false);
+    table.ref = this._rangeLabel({ start: bounds.start, end: { c: this._columnLabel(this._columnNumber(bounds.end.c) + 1), r: bounds.end.r } });
+    if (table.hasHeaders !== false) {
+      const header = this.cellsData.get(`${insertCol}${bounds.start.r}`) || { val: "", formula: "", style: {} };
+      header.val = `Column${insertAt - this._columnNumber(bounds.start.c) + 1}`;
+      header.formula = "";
+      this.cellsData.set(`${insertCol}${bounds.start.r}`, header);
+    }
+    return this._finishTableStructureChange(before, table, { c: insertCol, r: this.selectedCoord.r });
+  }
+
+  deleteTableColumn(name) {
+    if (this._guardProtectedMutation()) return false;
+    const table = this._tableByName(name);
+    const bounds = table && this._normalizeRange(this._parseRange(table.ref));
+    if (!table || !bounds || this._columnNumber(bounds.end.c) <= this._columnNumber(bounds.start.c)) return false;
+    const before = this._snapshotGridStructure();
+    const deleteCol = this.selectedCoord.c;
+    this.shiftCellsLeft({ start: { c: deleteCol, r: bounds.start.r }, end: { c: deleteCol, r: bounds.end.r } }, false);
+    table.ref = this._rangeLabel({ start: bounds.start, end: { c: this._columnLabel(this._columnNumber(bounds.end.c) - 1), r: bounds.end.r } });
+    const focusCol = this._columnNumber(deleteCol) > this._columnNumber(table.ref.split(":").pop().match(/[A-Z]+/i)?.[0] || bounds.start.c)
+      ? this._columnLabel(this._columnNumber(deleteCol) - 1) : deleteCol;
+    return this._finishTableStructureChange(before, table, { c: focusCol, r: this.selectedCoord.r });
+  }
+
+  insertTableRow(name, side = "above") {
+    if (this._guardProtectedMutation()) return false;
+    const table = this._tableByName(name);
+    const bounds = table && this._normalizeRange(this._parseRange(table.ref));
+    if (!table || !bounds) return false;
+    const before = this._snapshotGridStructure();
+    const dataStart = bounds.start.r + (table.hasHeaders === false ? 0 : 1);
+    const dataEnd = bounds.end.r - (table.showTotals ? 1 : 0);
+    let insertAt = this.selectedCoord.r + (side === "below" ? 1 : 0);
+    insertAt = Math.max(dataStart, Math.min(insertAt, dataEnd + 1));
+    this.shiftCellsDown({ start: { c: bounds.start.c, r: insertAt }, end: { c: bounds.end.c, r: insertAt } }, false);
+    table.ref = this._rangeLabel({ start: bounds.start, end: { c: bounds.end.c, r: bounds.end.r + 1 } });
+    return this._finishTableStructureChange(before, table, { c: this.selectedCoord.c, r: insertAt });
+  }
+
+  deleteTableRow(name) {
+    if (this._guardProtectedMutation()) return false;
+    const table = this._tableByName(name);
+    const bounds = table && this._normalizeRange(this._parseRange(table.ref));
+    if (!table || !bounds) return false;
+    const dataStart = bounds.start.r + (table.hasHeaders === false ? 0 : 1);
+    const dataEnd = bounds.end.r - (table.showTotals ? 1 : 0);
+    const deleteRow = this.selectedCoord.r;
+    if (deleteRow < dataStart || deleteRow > dataEnd || dataEnd <= dataStart) return false;
+    const before = this._snapshotGridStructure();
+    this.shiftCellsUp({ start: { c: bounds.start.c, r: deleteRow }, end: { c: bounds.end.c, r: deleteRow } }, false);
+    table.ref = this._rangeLabel({ start: bounds.start, end: { c: bounds.end.c, r: bounds.end.r - 1 } });
+    return this._finishTableStructureChange(before, table, { c: this.selectedCoord.c, r: Math.min(deleteRow, bounds.end.r - 1) });
+  }
+
+  toggleTableTotalRow(name) {
+    if (this._guardProtectedMutation()) return false;
+    const table = this._tableByName(name);
+    const bounds = table && this._normalizeRange(this._parseRange(table.ref));
+    if (!table || !bounds) return false;
+    const before = this._snapshotGridStructure();
+    if (table.showTotals) {
+      this.shiftCellsUp({ start: { c: bounds.start.c, r: bounds.end.r }, end: { c: bounds.end.c, r: bounds.end.r } }, false);
+      table.showTotals = false;
+      table.ref = this._rangeLabel({ start: bounds.start, end: { c: bounds.end.c, r: bounds.end.r - 1 } });
+    } else {
+      const totalsRow = bounds.end.r + 1;
+      this.shiftCellsDown({ start: { c: bounds.start.c, r: totalsRow }, end: { c: bounds.end.c, r: totalsRow } }, false);
+      table.showTotals = true;
+      table.ref = this._rangeLabel({ start: bounds.start, end: { c: bounds.end.c, r: totalsRow } });
+      const firstCoord = `${bounds.start.c}${totalsRow}`;
+      const first = this.cellsData.get(firstCoord) || { val: "", formula: "", style: {} };
+      first.val = t("sheetContextMenu.totalLabel"); first.formula = "";
+      this.cellsData.set(firstCoord, first);
+      if (bounds.end.c !== bounds.start.c) {
+        const valueCoord = `${bounds.end.c}${totalsRow}`;
+        const value = this.cellsData.get(valueCoord) || { val: "", formula: "", style: {} };
+        const dataStart = bounds.start.r + (table.hasHeaders === false ? 0 : 1);
+        value.formula = `=SUBTOTAL(109,${bounds.end.c}${dataStart}:${bounds.end.c}${bounds.end.r})`;
+        value.val = "";
+        this.cellsData.set(valueCoord, value);
+      }
+    }
+    const nextBounds = this._normalizeRange(this._parseRange(table.ref));
+    return this._finishTableStructureChange(before, table, { c: bounds.start.c, r: nextBounds.end.r });
   }
 
   _showTabColorMenu(event, sheetName) {
@@ -2962,12 +3212,18 @@ export class SheetGridController {
   }
 
   selectAll() {
+    if (this._ctrlASelectAllPending) {
+      this._ctrlASelectAllPending = false;
+      this.selectCell("A", 1);
+      this.selectCell(this.cols[this.cols.length - 1], this.rowCount, true);
+      return true;
+    }
     const region = this._currentRegionFromSelection();
-    const current = this._normalizeRange(this.selectionRange);
-    if (region && (!current || this._rangeLabel(region) !== this._rangeLabel(current))) {
+    if (region) {
       this.selectionRange = structuredClone(region);
       this.selectionRanges = [this.selectionRange];
       this.selectionKind = "cell";
+      this._ctrlASelectAllPending = true;
       this._renderSelection?.();
       this._syncSelectionUi?.();
       return true;
@@ -2982,7 +3238,7 @@ export class SheetGridController {
     this.activeSheet = defaultSheetName;
     this.sheetsData = { [defaultSheetName]: new Map() };
     this.sheetStates = {
-      [defaultSheetName]: { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, frozenRows: 0, frozenCols: 0, selectedCoord: { r: 1, c: "A" } }
+      [defaultSheetName]: { hiddenRows: new Set(), activeFilters: new Map(), isFilterActive: false, isFrozenPanes: false, frozenRows: 0, frozenCols: 0, splitRow: 0, splitCol: 0, splitX: 0, splitY: 0, selectedCoord: { r: 1, c: "A" } }
     };
     this.namedRangesWorkbook = [];
     this.namedRangesBySheet = { [defaultSheetName]: [] };
@@ -3006,6 +3262,10 @@ export class SheetGridController {
     this.isFrozenPanes = false;
     this.frozenRows = 0;
     this.frozenCols = 0;
+    this.splitRow = 0;
+    this.splitCol = 0;
+    this.splitX = 0;
+    this.splitY = 0;
     this.isFilterActive = false;
     this.hiddenRows = new Set();
     this.activeFilters = new Map();
@@ -3068,6 +3328,7 @@ export class SheetGridController {
     if (!this.imagesBySheet[sheetName]) this.imagesBySheet[sheetName] = [];
     if (!this.textBoxesBySheet[sheetName]) this.textBoxesBySheet[sheetName] = [];
     if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
+    if (!this.tablesBySheet[sheetName]) this.tablesBySheet[sheetName] = [];
     if (!this.scenariosBySheet[sheetName]) this.scenariosBySheet[sheetName] = [];
     if (!this.namedRangesBySheet[sheetName]) this.namedRangesBySheet[sheetName] = [];
     if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
@@ -3091,6 +3352,10 @@ export class SheetGridController {
         isFrozenPanes: !!this.isFrozenPanes,
         frozenRows: this.frozenRows || 0,
         frozenCols: this.frozenCols || 0,
+        splitRow: this.splitRow || 0,
+        splitCol: this.splitCol || 0,
+        splitX: this.splitX || 0,
+        splitY: this.splitY || 0,
         selectedCoord: { ...(this.selectedCoord || { r: 1, c: "A" }) }
       };
     }
@@ -3109,7 +3374,7 @@ export class SheetGridController {
         isFilterActive: false,
         isFrozenPanes: false,
         frozenRows: 0,
-        frozenCols: 0,
+        frozenCols: 0, splitRow: 0, splitCol: 0, splitX: 0, splitY: 0,
         selectedCoord: { r: 1, c: "A" }
       };
     }
@@ -3120,6 +3385,10 @@ export class SheetGridController {
     this.frozenRows = nextState.frozenRows || 0;
     this.frozenCols = nextState.frozenCols || 0;
     this.isFrozenPanes = !!nextState.isFrozenPanes;
+    this.splitRow = nextState.splitRow || 0;
+    this.splitCol = nextState.splitCol || 0;
+    this.splitX = nextState.splitX || 0;
+    this.splitY = nextState.splitY || 0;
     this.selectedCoord = { ...nextState.selectedCoord };
     this.selectionRange = { start: { ...this.selectedCoord }, end: { ...this.selectedCoord } };
 
@@ -3131,6 +3400,7 @@ export class SheetGridController {
       }
       this.container.classList.toggle?.("vno-freeze-panes", this.isFrozenPanes);
     }
+    this._applySplitVisuals();
     if (typeof this._updateFilterButtons === "function") {
       this._updateFilterButtons();
     }
@@ -3212,6 +3482,7 @@ export class SheetGridController {
     if (!this.imagesBySheet[sheetName]) this.imagesBySheet[sheetName] = [];
     if (!this.textBoxesBySheet[sheetName]) this.textBoxesBySheet[sheetName] = [];
     if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
+    if (!this.tablesBySheet[sheetName]) this.tablesBySheet[sheetName] = [];
     if (!this.scenariosBySheet[sheetName]) this.scenariosBySheet[sheetName] = [];
     if (!this.namedRangesBySheet[sheetName]) this.namedRangesBySheet[sheetName] = [];
     if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
@@ -3321,6 +3592,7 @@ export class SheetGridController {
     delete this.imagesBySheet[sheetName];
     delete this.textBoxesBySheet[sheetName];
     delete this.pivotTablesBySheet[sheetName];
+    delete this.tablesBySheet[sheetName];
     delete this.scenariosBySheet[sheetName];
     delete this.namedRangesBySheet[sheetName];
     delete this.commentsBySheet[sheetName];
@@ -3349,7 +3621,7 @@ export class SheetGridController {
       "sheetsData", "sheetStates", "namedRangesBySheet", "commentsBySheet",
       "printAreaBySheet", "pageBreaksBySheet", "pageSetupBySheet", "mergedRangesBySheet",
       "conditionalFormattingBySheet", "dataValidationsBySheet", "chartsBySheet",
-      "imagesBySheet", "textBoxesBySheet", "pivotTablesBySheet", "outlineGroupsBySheet",
+      "imagesBySheet", "textBoxesBySheet", "pivotTablesBySheet", "tablesBySheet", "outlineGroupsBySheet",
       "rowHeightsBySheet", "colWidthsBySheet", "userHiddenRowsBySheet", "userHiddenColsBySheet",
       "protectionBySheet", "dataTablesBySheet"
     ];
@@ -3366,6 +3638,10 @@ export class SheetGridController {
       isFrozenPanes: !!this.isFrozenPanes,
       frozenRows: this.frozenRows || 0,
       frozenCols: this.frozenCols || 0,
+      splitRow: this.splitRow || 0,
+      splitCol: this.splitCol || 0,
+      splitX: this.splitX || 0,
+      splitY: this.splitY || 0,
       selectedCoord: { ...(this.selectedCoord || { r: 1, c: "A" }) }
     };
   }
@@ -3440,21 +3716,24 @@ export class SheetGridController {
     menu.className = "vno-sheet-context-menu";
     menu.setAttribute("role", "menu");
     menu.setAttribute("aria-label", "Tùy chọn trang tính");
+    // Thứ tự theo menu chuột phải tab trang tính của Excel 2016:
+    // Chèn, Xóa, Đổi tên, Di chuyển/Sao chép, Bảo vệ, Màu tab, Ẩn, Hiện.
     const items = [
-      { label: t("sheetDialogs.renameSheetMenu", "Đổi tên trang tính..."), action: () => this.showRenameSheetDialog(sheetName) },
-      { label: t("sheetDialogs.moveCopyMenu", "Di chuyển hoặc Sao chép trang tính..."), action: () => this.showMoveCopySheetDialog(sheetName) },
-      { label: t("sheetDialogs.hideSheetMenu", "Ẩn trang tính"), action: () => this.hideSheet(sheetName) },
-      ...(Object.values(this.sheetVisibilityBySheet || {}).some(state => state === "hidden" || state === "veryHidden")
-        ? [{ label: t("sheetDialogs.unhideSheetMenu", "Hiện trang tính..."), action: () => this.showUnhideSheetDialog() }]
-        : []),
+      { label: "Chèn trang tính", action: () => { if (sheetName !== this.activeSheet) this.switchSheet?.(sheetName); globalCommandBus.execute("sheet.sheet.insertBefore"); } },
       { label: "Xóa trang tính", action: () => {
         if (this.sheets.length <= 1) { this._showDataNotice("Không thể xóa trang tính cuối cùng."); return; }
         if (globalThis.confirm?.(`Xóa trang tính «${sheetName}»?`) !== false) this.deleteSheet(sheetName);
       } },
-      { label: "Màu tab", action: () => this._showTabColorMenu(event, sheetName) },
+      { label: t("sheetDialogs.renameSheetMenu", "Đổi tên trang tính..."), action: () => this.showRenameSheetDialog(sheetName) },
+      { label: t("sheetDialogs.moveCopyMenu", "Di chuyển hoặc Sao chép trang tính..."), action: () => this.showMoveCopySheetDialog(sheetName) },
       { label: this.isSheetProtected(sheetName)
         ? t("sheetDialogs.unprotectSheet", "Bỏ bảo vệ trang tính...")
-        : t("sheetDialogs.protectSheet", "Bảo vệ trang tính..."), action: () => this.showProtectSheetDialog(sheetName) }
+        : t("sheetDialogs.protectSheet", "Bảo vệ trang tính..."), action: () => this.showProtectSheetDialog(sheetName) },
+      { label: "Màu tab", action: () => this._showTabColorMenu(event, sheetName) },
+      { label: t("sheetDialogs.hideSheetMenu", "Ẩn trang tính"), action: () => this.hideSheet(sheetName) },
+      ...(Object.values(this.sheetVisibilityBySheet || {}).some(state => state === "hidden" || state === "veryHidden")
+        ? [{ label: t("sheetDialogs.unhideSheetMenu", "Hiện trang tính..."), action: () => this.showUnhideSheetDialog() }]
+        : [])
     ];
     items.forEach(item => {
       const btn = document.createElement("button");
@@ -4531,6 +4810,7 @@ export class SheetGridController {
     if (rowChanged || colChanged) {
       this._renderVirtualRows(startRow, endRow, startColNum, endColNum);
     }
+    this._positionSplitBars();
     this._updateFormulaReferenceVisuals();
     this._updateFrozenImages();
   }
@@ -4595,6 +4875,7 @@ _bindGridKeyboardNavigation() {
           return;
         }
         if (typeof document !== "undefined" && document?.activeElement === this.formulaInput) return;
+        if (typeof document !== "undefined" && document?.activeElement === this.nameBox) return;
         if (this._tabSequenceAnchor && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(e.key)) {
           this._tabSequenceAnchor = null;
         }
@@ -4625,6 +4906,34 @@ _bindGridKeyboardNavigation() {
         if (this.formulaEntry?.mode === "point" && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
           e.preventDefault();
           this._movePointReferenceWithArrow(e.key);
+          return;
+        }
+
+        if (this._endModeActive && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight"].includes(e.key)) {
+          e.preventDefault();
+          this._endModeActive = false;
+          const direction = { ArrowUp: -1, ArrowDown: 1, ArrowLeft: -1, ArrowRight: 1 }[e.key];
+          let endNextCol = this.selectedCoord.c;
+          let endNextRow = this.selectedCoord.r;
+          if (e.key === "ArrowUp" || e.key === "ArrowDown") {
+            endNextRow = this._findNextCtrlArrowRow(this.selectedCoord.c, this.selectedCoord.r, direction);
+          } else {
+            endNextCol = this._findNextCtrlArrowCol(this.selectedCoord.c, this.selectedCoord.r, direction);
+          }
+          this.selectCell(endNextCol, endNextRow, e.shiftKey);
+          return;
+        }
+        if (this._endModeActive) this._endModeActive = false;
+        if (e.key === "End" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+          e.preventDefault();
+          this._endModeActive = true;
+          return;
+        }
+
+        if ((e.key === "F5" || (e.ctrlKey && !e.altKey && !e.shiftKey && !e.metaKey && e.key.toLowerCase() === "g")) && !this.formulaEntry) {
+          e.preventDefault();
+          this.nameBox?.focus();
+          this.nameBox?.select?.();
           return;
         }
 
@@ -4676,6 +4985,9 @@ _bindGridKeyboardNavigation() {
           nextCol = this.cols[Math.min(this.cols.length - 1, colIdx + 1)];
         }
         extendRange = e.shiftKey;
+      } else if (e.key === "Home" && !e.ctrlKey && !e.altKey && !e.metaKey) {
+        nextCol = "A";
+        extendRange = e.shiftKey;
       } else if (e.key === "Home" && e.ctrlKey) {
         nextCol = "A";
         nextRow = 1;
@@ -4720,6 +5032,11 @@ _bindGridKeyboardNavigation() {
         if (this.viewport) this.viewport.scrollTop = Math.max(0, this._rowTop(nextRow));
         this.selectCell(nextCol, nextRow, extendRange);
         return;
+      } else if (e.key === "F5" && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
+        // F5 = Đến (Go To) như Excel; chặn tải lại trang của WebView.
+        e.preventDefault();
+        showGoToDialog(this, t);
+        return;
       } else if ((e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) && !e.ctrlKey && !e.altKey && !e.metaKey) {
         // Shift+F10 hoặc ContextMenu key: mở context menu trên ô đang chọn
         // (giống chuột phải) mà không cần chuột — chuẩn accessibility
@@ -4759,6 +5076,10 @@ _bindGridKeyboardNavigation() {
         e.preventDefault();
         this.insertCurrentTime();
         return;
+      } else if (e.key === ";" && e.ctrlKey && !e.shiftKey && !e.altKey && !e.metaKey) {
+        e.preventDefault();
+        this.insertCurrentDate();
+        return;
       } else if (e.key === "F11" && e.shiftKey && !e.ctrlKey && !e.altKey && !e.metaKey) {
         e.preventDefault();
         this.addSheetBefore();
@@ -4778,10 +5099,6 @@ _bindGridKeyboardNavigation() {
       } else if (e.key === "F9") {
         e.preventDefault();
         this.recalculateAll();
-        return;
-      } else if (e.key === "F4") {
-        e.preventDefault();
-        this.redo();
         return;
       } else if (e.key === "Enter" && e.altKey) {
         e.preventDefault();
@@ -4827,7 +5144,7 @@ _bindGridKeyboardNavigation() {
             this.setCellValue(c, r, "");
           });
         } else {
-          this.setCellValue(this.selectedCoord.c, this.selectedCoord.r, "");
+          this.clearContents(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
         }
         if (this.formulaInput) this.formulaInput.value = "";
         return;
@@ -5030,6 +5347,8 @@ _bindGridKeyboardNavigation() {
 
   selectCell(col, row, extendRange = false, addRange = false) {
     if (row < 1 || row > this.rowCount) return;
+    this._ctrlASelectAllPending = false;
+    this._endModeActive = false;
     if (this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput) {
       this._commitEditBeforeRangeSelection();
     }
@@ -5272,6 +5591,10 @@ _bindGridKeyboardNavigation() {
     const previousStyle = structuredClone(item.style || {});
     const previousRowHeight = this.getRowHeight(row);
     let nextStyle = structuredClone(item.style || {});
+    const tableStateBeforeEdit = historyOptions.userInput && historyOptions.commit
+      ? structuredClone(this.tablesBySheet?.[this.activeSheet] || [])
+      : null;
+    const tableFilterRangeBeforeEdit = tableStateBeforeEdit ? (this.sheetStates?.[this.activeSheet]?.filterRange || "") : "";
 
     if (recordUndo && val === "" && item.isArrayFormula && item.arrayRange) {
       return this._clearArrayFormula(item.arrayRange);
@@ -5345,7 +5668,19 @@ _bindGridKeyboardNavigation() {
     delete item.richText;
 
     this.cellsData.set(key, item);
-    this.formulaEngine?.bumpSheetVersion?.(this.activeSheet);
+    if ((previousValue?.formula || "") !== (item.formula || "")) this._formulaDependencyGraph = null;
+    if (tableStateBeforeEdit && (item.formula || String(item.val ?? "") !== "")) {
+      const expanded = this._expandTableForAdjacentEntry(col, Number(row));
+      if (expanded && historyAction) {
+        historyAction.tablesBefore = tableStateBeforeEdit;
+        historyAction.tablesAfter = structuredClone(this.tablesBySheet[this.activeSheet]);
+        historyAction.tableExpansionCellsBefore = expanded.beforeCells;
+        historyAction.tableExpansionCellsAfter = expanded.afterCells;
+        historyAction.tableFilterRangeBefore = tableFilterRangeBeforeEdit;
+        historyAction.tableFilterRangeAfter = expanded.ref;
+      }
+    }
+    this.formulaEngine?.bumpSheetVersion?.(this.activeSheet, key);
 
     const cell = this.container.querySelector(`.vno-grid-cell[data-coord="${key}"]`);
     if (cell) {
@@ -5373,8 +5708,8 @@ _bindGridKeyboardNavigation() {
     }
 
     // Tự động tính toán lại các ô có công thức khác (trừ khi ở chế độ Manual)
-    if (this.calculationMode !== "manual") {
-      this._recalculateAllFormulas(key);
+    if (this.calculationMode !== "manual" && !historyOptions.isComposing) {
+      this._recalculateAllFormulas(key, false, { sheet: this.activeSheet, coord: key });
     }
     this.refreshCharts();
     this._updateWatchWindow?.();
@@ -5451,21 +5786,131 @@ _bindGridKeyboardNavigation() {
     };
   }
 
-  _recalculateAllFormulas(excludeKey, force = false) {
+  _buildFormulaDependencyGraph() {
+    const originalSheet = this.activeSheet;
+    const fail = () => { this.activeSheet = originalSheet; return null; };
+    const formulas = new Map();
+    const formulaPositions = new Map();
+    const rangesByColumn = new Map();
+    const formulasBySheetColumn = new Map();
+    const columnKey = (sheet, column) => `${sheet}\u0000${column}`;
+    const formulaId = (sheet, coord) => JSON.stringify([sheet, coord]);
+
+    for (const sheet of this.sheets) {
+      const map = this.sheetsData[sheet];
+      if (!map) continue;
+      this.activeSheet = sheet;
+      for (const [coord, item] of map) {
+        if (!item?.formula || (item.externalLink && item.externalLink.formula === item.formula)) continue;
+        if (item.isArrayFormula) return fail();
+        const extracted = this.formulaEngine.getStaticFormulaReferences(item.formula, sheet);
+        if (!extracted.safe) return fail();
+        const id = formulaId(sheet, coord);
+        const formulaMatch = String(coord).match(/^([A-Z]+)(\d+)$/i);
+        if (!formulaMatch) return fail();
+        const formula = { id, sheet, coord, row: Number(formulaMatch[2]), column: this._columnNumber(formulaMatch[1]) - 1, refs: extracted.references, upstream: new Set() };
+        formulas.set(id, formula);
+        formulaPositions.set(`${sheet}\u0000${coord}`, id);
+        const key = columnKey(sheet, formula.column);
+        if (!formulasBySheetColumn.has(key)) formulasBySheetColumn.set(key, []);
+        formulasBySheetColumn.get(key).push(formula);
+      }
+    }
+
+    for (const formula of formulas.values()) {
+      for (const ref of formula.refs) {
+        const minColumn = Math.min(ref.startColumn, ref.endColumn);
+        const maxColumn = Math.max(ref.startColumn, ref.endColumn);
+        const minRow = Math.min(ref.startRow, ref.endRow);
+        const maxRow = Math.max(ref.startRow, ref.endRow);
+        if (maxColumn - minColumn > 255) return fail();
+        for (let column = minColumn; column <= maxColumn; column++) {
+          const key = columnKey(ref.sheet, column);
+          if (!rangesByColumn.has(key)) rangesByColumn.set(key, []);
+          rangesByColumn.get(key).push({ minRow, maxRow, formulaId: formula.id });
+          for (const source of formulasBySheetColumn.get(key) || []) {
+            if (source.row >= minRow && source.row <= maxRow) formula.upstream.add(source.id);
+          }
+        }
+      }
+    }
+    this.activeSheet = originalSheet;
+    return { formulas, formulaPositions, rangesByColumn };
+  }
+
+  _getDirtyFormulaOrder(graph, changed) {
+    const formulaIds = new Set();
+    const visitedCells = new Set();
+    const pending = [changed];
+    while (pending.length) {
+      const current = pending.pop();
+      const cellId = `${current.sheet}\u0000${current.coord}`;
+      if (visitedCells.has(cellId)) continue;
+      visitedCells.add(cellId);
+      const formulaIdsAtCell = new Set();
+      const directFormula = graph.formulaPositions.get(cellId);
+      if (directFormula) formulaIdsAtCell.add(directFormula);
+      const columnMatch = current.coord.match(/^([A-Z]+)(\d+)$/i);
+      if (!columnMatch) return null;
+      const column = this._columnNumber(columnMatch[1]) - 1;
+      const row = Number(columnMatch[2]);
+      for (const range of graph.rangesByColumn.get(`${current.sheet}\u0000${column}`) || []) {
+        if (row >= range.minRow && row <= range.maxRow) formulaIdsAtCell.add(range.formulaId);
+      }
+      for (const id of formulaIdsAtCell) {
+        if (id === JSON.stringify([changed.sheet, changed.coord]) || formulaIds.has(id)) continue;
+        formulaIds.add(id);
+        const formula = graph.formulas.get(id);
+        pending.push({ sheet: formula.sheet, coord: formula.coord });
+      }
+    }
+
+    const ordered = [];
+    const visiting = new Set();
+    const visited = new Set();
+    const visit = id => {
+      if (visiting.has(id)) return false;
+      if (visited.has(id)) return true;
+      visiting.add(id);
+      const formula = graph.formulas.get(id);
+      for (const upstream of formula?.upstream || []) {
+        if (formulaIds.has(upstream) && !visit(upstream)) return false;
+      }
+      visiting.delete(id);
+      visited.add(id);
+      ordered.push(id);
+      return true;
+    };
+    for (const id of formulaIds) if (!visit(id)) return null;
+    return ordered.map(id => graph.formulas.get(id));
+  }
+
+  _recalculateAllFormulas(excludeKey, force = false, incremental = null) {
     if (this.calculationMode === "manual" && !force) return;
-    this.formulaEngine?.clearCache?.();
+    if (!incremental || force) this._formulaDependencyGraph = null;
     const activeSheet = this.activeSheet;
+    let formulaFilter = null;
+    if (incremental && !force && this.formulaEngine?.getStaticFormulaReferences) {
+      if (!this._formulaDependencyGraph) {
+        this._formulaDependencyGraph = this._buildFormulaDependencyGraph();
+      }
+      if (this._formulaDependencyGraph) {
+        const dirty = this._getDirtyFormulaOrder(this._formulaDependencyGraph, incremental);
+        if (dirty) formulaFilter = new Map(dirty.map(formula => [JSON.stringify([formula.sheet, formula.coord]), formula]));
+      }
+    }
+    if (!formulaFilter) this.formulaEngine?.clearCache?.();
     const changedFormulaCells = new Set();
     for (const sheetName of this.sheets) {
       const map = this.sheetsData[sheetName];
       if (!map) continue;
       this.activeSheet = sheetName;
       if (this.formulaEngine) {
-        if (typeof this.formulaEngine.setCellsData === "function") this.formulaEngine.setCellsData(map);
-        else this.formulaEngine.cellsData = map;
+        this.formulaEngine.cellsData = () => this.cellsData;
       }
       for (const [k, itm] of map.entries()) {
-        if ((sheetName !== activeSheet || k !== excludeKey) && itm.formula) {
+        const included = !formulaFilter || formulaFilter.has(JSON.stringify([sheetName, k]));
+        if (included && (sheetName !== activeSheet || k !== excludeKey) && itm.formula) {
           // A link to another (closed) workbook keeps its cached value, as in
           // Excel; evaluating it here would overwrite the value with an error.
           if (itm.externalLink && itm.externalLink.formula === itm.formula) continue;
@@ -5483,7 +5928,7 @@ _bindGridKeyboardNavigation() {
           if (res !== itm.val) {
             itm.val = res;
             if (sheetName === activeSheet) changedFormulaCells.add(k);
-            this.formulaEngine?.bumpSheetVersion?.(sheetName);
+            this.formulaEngine?.bumpSheetVersion?.(sheetName, k);
           } else {
             itm.val = res;
           }
@@ -5506,9 +5951,7 @@ _bindGridKeyboardNavigation() {
     }
     this.activeSheet = activeSheet;
     if (this.formulaEngine) {
-      const activeMap = this.sheetsData[activeSheet];
-      if (typeof this.formulaEngine.setCellsData === "function") this.formulaEngine.setCellsData(activeMap);
-      else this.formulaEngine.cellsData = activeMap;
+      this.formulaEngine.cellsData = () => this.cellsData;
     }
     this._refreshVisibleRuleVisuals();
     this._updateWatchWindow?.();
@@ -5559,6 +6002,14 @@ _bindGridKeyboardNavigation() {
     const formula = String(options.formula ?? this.formulaInput?.value ?? "").trim();
     if (!formula.startsWith("=")) return false;
     const range = this._normalizeRange();
+    const transposeMatch = formula.match(/^=TRANSPOSE\s*\((.*)\)$/i);
+    if (transposeMatch) {
+      const args = this.formulaEngine._splitArgs(transposeMatch[1]);
+      const source = args.length === 1 ? this.formulaEngine._rangeDimensions(args[0]) : null;
+      const targetRows = range.end.r - range.start.r + 1;
+      const targetCols = this.cols.indexOf(range.end.c) - this.cols.indexOf(range.start.c) + 1;
+      if (!source || targetRows !== source.cols || targetCols !== source.rows) return false;
+    }
     const coords = [];
     for (let row = range.start.r; row <= range.end.r; row++) {
       for (let col = this.cols.indexOf(range.start.c); col <= this.cols.indexOf(range.end.c); col++) coords.push(`${this.cols[col]}${row}`);
@@ -5574,6 +6025,7 @@ _bindGridKeyboardNavigation() {
       if (consumesPending && coord === activeKey) return pending.prevVal ? { val: pending.prevVal, formula: pending.prevVal.startsWith?.("=") ? pending.prevVal : "", style: item?.style || {} } : null;
       return item;
     });
+    this._formulaDependencyGraph = null;
     if (consumesPending) this.undoStack.pop();
     const arrayRange = this.getSelectedRangeLabel();
     coords.forEach((coord, index) => {
@@ -5592,6 +6044,7 @@ _bindGridKeyboardNavigation() {
   _clearArrayFormula(arrayRange) {
     const coords = this.formulaEngine.expandRange(arrayRange);
     const before = coords.map(coord => structuredClone(this.cellsData.get(coord) || null));
+    this._formulaDependencyGraph = null;
     coords.forEach(coord => {
       this.cellsData.delete(coord);
       const dom = this.container.querySelector?.(`.vno-grid-cell[data-coord="${coord}"]`);
@@ -5605,8 +6058,17 @@ _bindGridKeyboardNavigation() {
   insertFormula(funcName = "SUM") {
     const col = this.selectedCoord.c;
     const r = this.selectedCoord.r;
-    const startR = Math.max(1, r - 4);
     const endR = Math.max(1, r - 1);
+    let startR = endR;
+    let foundNumber = false;
+    for (let scanR = endR; scanR >= 1; scanR--) {
+      const item = this.cellsData.get(`${col}${scanR}`);
+      const value = item?.calculatedValue ?? item?.val;
+      if (typeof value !== "number" || !Number.isFinite(value)) break;
+      startR = scanR;
+      foundNumber = true;
+    }
+    if (!foundNumber) startR = endR;
     const formulaStr = `=${funcName}(${col}${startR}:${col}${endR})`;
     this.setCellValue(col, r, formulaStr);
     if (this.formulaInput) this.formulaInput.value = formulaStr;
@@ -6989,6 +7451,139 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
+  updateChartType(chartId, type, sheetName = this.activeSheet, recordUndo = true) {
+    if (!SHEET_CHART_TYPES.includes(type)) return false;
+    const chart = (this.chartsBySheet[sheetName] || []).find(item => item.id === chartId);
+    if (!chart || chart.type === type) return chart || false;
+    const before = structuredClone(chart);
+    chart.type = type;
+    const after = structuredClone(chart);
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: sheetName, collection: "chartsBySheet", operation: "update", id: chartId, before, after });
+    if (sheetName === this.activeSheet) this.renderCharts();
+    return chart;
+  }
+
+  updateChartRange(chartId, range, sheetName = this.activeSheet, recordUndo = true) {
+    const chart = (this.chartsBySheet[sheetName] || []).find(item => item.id === chartId);
+    const parsed = typeof range === "string" ? this._parseRange(range.replace(/\$/g, "")) : range;
+    if (!chart || !parsed?.start || !parsed?.end) return false;
+    const normalized = this._normalizeRange(parsed);
+    if (!this.cols.includes(normalized.start.c) || !this.cols.includes(normalized.end.c)
+      || normalized.start.r < 1 || normalized.end.r > this.rowCount) return false;
+    const before = structuredClone(chart);
+    chart.range = normalized;
+    this._updateChartData(chart, sheetName);
+    const after = structuredClone(chart);
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: sheetName, collection: "chartsBySheet", operation: "update", id: chartId, before, after });
+    if (sheetName === this.activeSheet) this.renderCharts();
+    return chart;
+  }
+
+  async openChartTypeDialog(chartId, sheetName = this.activeSheet) {
+    const chart = (this.chartsBySheet[sheetName] || []).find(item => item.id === chartId);
+    if (!chart) return false;
+    const SheetChartBuilder = await this._loadChartBuilder();
+    const dataItems = (chart.labels || []).map((label, index) => ({ label, value: chart.data?.[index] }));
+    return SheetChartBuilder.showChartModal(dataItems, type => this.updateChartType(chartId, type, sheetName), {
+      rangeLabel: this._rangeLabel(chart.range),
+      title: chart.title,
+      initialType: chart.type,
+      dialogTitle: t("sheetContextMenu.chartTypeDialog"),
+      applyLabel: t("sheetDialogs.apply", "Áp dụng")
+    });
+  }
+
+  async openChartDataDialog(chartId, sheetName = this.activeSheet) {
+    const chart = (this.chartsBySheet[sheetName] || []).find(item => item.id === chartId);
+    if (!chart) return false;
+    const value = await showPromptDialog({
+      title: t("sheetContextMenu.selectData"),
+      message: t("sheetContextMenu.chartDataRange"),
+      defaultValue: this._rangeLabel(chart.range),
+      confirmText: t("sheetDialogs.apply", "Áp dụng"),
+      cancelText: t("sheetDialogs.cancel", "Hủy")
+    });
+    if (value == null) return false;
+    const updated = this.updateChartRange(chartId, value, sheetName);
+    if (!updated) await showAlertDialog({ title: t("sheetContextMenu.selectData"), message: t("sheetContextMenu.invalidChartRange") });
+    return updated;
+  }
+
+  moveChartToSheet(chartId, targetSheet, sourceSheet = this.activeSheet, recordUndo = true) {
+    if (!this.sheets.includes(targetSheet)) return false;
+    const source = this.chartsBySheet[sourceSheet] || [];
+    const sourceIndex = source.findIndex(item => item.id === chartId);
+    if (sourceIndex < 0) return false;
+    if (sourceSheet === targetSheet) return source[sourceIndex];
+    const [chart] = source.splice(sourceIndex, 1);
+    const target = this.chartsBySheet[targetSheet] ||= [];
+    const targetIndex = target.length;
+    target.push(chart);
+    if (recordUndo) this._recordHistory({ type: "chart-sheet-move", chart: structuredClone(chart), sourceSheet, targetSheet, sourceIndex, targetIndex });
+    if (sourceSheet === this.activeSheet || targetSheet === this.activeSheet) this.renderCharts();
+    return chart;
+  }
+
+  async openMoveChartDialog(chartId, sheetName = this.activeSheet) {
+    const target = await showPromptDialog({
+      title: t("sheetContextMenu.moveChart"),
+      message: t("sheetContextMenu.moveChartMessage", { sheets: this.sheets.join(", ") }),
+      defaultValue: sheetName,
+      confirmText: t("sheetContextMenu.move"),
+      cancelText: t("sheetDialogs.cancel", "Hủy")
+    });
+    if (target == null) return false;
+    const exact = this.sheets.find(name => name.toLocaleLowerCase() === String(target).trim().toLocaleLowerCase());
+    if (!exact) {
+      await showAlertDialog({ title: t("sheetContextMenu.moveChart"), message: t("sheetContextMenu.invalidSheetName") });
+      return false;
+    }
+    return this.moveChartToSheet(chartId, exact, sheetName);
+  }
+
+  _showChartContextMenu(event, chart, part = "area") {
+    event.preventDefault();
+    event.stopPropagation();
+    const labels = { area: t("sheetContextMenu.chartArea"), plot: t("sheetContextMenu.plotArea"), series: t("sheetContextMenu.series") };
+    this._contextMenuPreviousFocus = event.currentTarget || document.activeElement;
+    this._activeContextMenu = showContextMenu({
+      items: [
+        { label: t("sheetContextMenu.chartType"), action: () => this.openChartTypeDialog(chart.id) },
+        { label: t("sheetContextMenu.selectData"), action: () => this.openChartDataDialog(chart.id) },
+        { label: t("sheetContextMenu.moveChart"), action: () => this.openMoveChartDialog(chart.id) },
+        { sep: true },
+        { label: t("sheetContextMenu.deleteObject"), shortcut: "Delete", action: () => this.deleteChart(chart.id) }
+      ],
+      x: event.clientX,
+      y: event.clientY,
+      className: "vno-sheet-context-menu vno-sheet-object-context-menu",
+      ariaLabel: labels[part] || labels.area,
+      previousFocus: this._contextMenuPreviousFocus,
+      onClose: () => { this._activeContextMenu = null; this._contextMenuPreviousFocus = null; }
+    });
+  }
+
+  async openChartAxisTitles(chartId, sheetName = this.activeSheet) {
+    const chart = (this.chartsBySheet[sheetName] || []).find(item => item.id === chartId);
+    if (!chart || chart.type === "pie") return false;
+    const SheetChartBuilder = await this._loadChartBuilder();
+    return SheetChartBuilder.showAxisTitlesModal(chart, values => this.updateChartAxisTitles(chartId, values, sheetName));
+  }
+
+  updateChartAxisTitles(chartId, values, sheetName = this.activeSheet, recordUndo = true) {
+    const chart = (this.chartsBySheet[sheetName] || []).find(item => item.id === chartId);
+    if (!chart || chart.type === "pie") return false;
+    const before = structuredClone({ ...chart, xAxisTitle: chart.xAxisTitle || "", yAxisTitle: chart.yAxisTitle || "" });
+    chart.xAxisTitle = String(values?.xAxisTitle || "").trim().slice(0, 255);
+    chart.yAxisTitle = String(values?.yAxisTitle || "").trim().slice(0, 255);
+    const after = structuredClone(chart);
+    if (recordUndo && (before.xAxisTitle !== after.xAxisTitle || before.yAxisTitle !== after.yAxisTitle)) {
+      this._recordHistory({ type: "collection", sheet: sheetName, collection: "chartsBySheet", operation: "update", id: chartId, before, after });
+    }
+    if (sheetName === this.activeSheet) this.renderCharts();
+    return chart;
+  }
+
   _rangeLabel(range) {
     const first = `${range.start.c}${range.start.r}`;
     const last = `${range.end.c}${range.end.r}`;
@@ -7024,11 +7619,24 @@ _bindGridKeyboardNavigation() {
       const colOffset = Math.max(0, this.cols.indexOf(chart.range.end.c) + 1) * 100 + 46;
       const rowOffset = Math.max(0, chart.range.start.r - 1) * this.rowHeight + 28;
       panel.className = "vno-sheet-chart";
+      panel.tabIndex = 0;
+      panel.setAttribute?.("aria-label", t("sheetContextMenu.chartArea"));
       panel.dataset.chartId = chart.id;
       panel.dataset.sheet = this.activeSheet;
       panel.style.cssText = `position:absolute;left:${colOffset}px;top:${rowOffset}px;width:520px;height:300px;background:#fff;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 8px 24px rgba(15,23,42,.18);pointer-events:auto;overflow:hidden`;
-      panel.innerHTML = `<button type="button" data-chart-delete aria-label="Xóa biểu đồ" title="Xóa biểu đồ" style="position:absolute;right:6px;top:4px;z-index:1;border:0;background:#fff;border-radius:4px;font-size:18px;cursor:pointer">&times;</button>${this.sheetChartBuilder.generateSvg(chart)}`;
+      const axisButton = chart.type === "pie" ? "" : `<button type="button" data-chart-axis-titles aria-label="${t("sheetDialogs.chartAxisTitlesEdit")}" title="${t("sheetDialogs.chartAxisTitlesEdit")}" style="position:absolute;right:34px;top:5px;z-index:1;border:1px solid #cbd5e1;background:#fff;border-radius:4px;padding:2px 7px;font-size:11px;cursor:pointer">${t("sheetDialogs.chartAxisTitles")}</button>`;
+      panel.innerHTML = `${axisButton}<button type="button" data-chart-delete aria-label="${t("sheetDialogs.chartDelete")}" title="${t("sheetDialogs.chartDelete")}" style="position:absolute;right:6px;top:4px;z-index:1;border:0;background:#fff;border-radius:4px;font-size:18px;cursor:pointer">&times;</button>${this.sheetChartBuilder.generateSvg(chart)}`;
       panel.querySelector("[data-chart-delete]")?.addEventListener("click", () => this.deleteChart(chart.id));
+      panel.querySelector("[data-chart-axis-titles]")?.addEventListener("click", () => this.openChartAxisTitles(chart.id));
+      panel.addEventListener("contextmenu", event => {
+        const part = event.target.closest?.("[data-value]") ? "series" : (event.target.closest?.("svg") ? "plot" : "area");
+        this._showChartContextMenu(event, chart, part);
+      });
+      panel.addEventListener("keydown", event => {
+        if (!(event.key === "ContextMenu" || (event.shiftKey && event.key === "F10"))) return;
+        const rect = panel.getBoundingClientRect();
+        this._showChartContextMenu({ ...event, currentTarget: panel, clientX: rect.left + 16, clientY: rect.top + 16 }, chart, "area");
+      });
       this.chartLayer.appendChild(panel);
     }
   }
@@ -7630,6 +8238,57 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
+  removeHyperlink() {
+    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
+    const existing = this.cellsData.get(key);
+    if (!existing?.hyperlink) return false;
+    const oldItem = structuredClone(existing);
+    delete existing.hyperlink;
+    this.cellsData.set(key, existing);
+    this._renderCellVisual(this.container?.querySelector?.(`.vno-grid-cell[data-coord="${key}"]`), existing, this.selectedCoord.c, this.selectedCoord.r);
+    this._recordHistory?.({
+      type: "cell",
+      coord: key,
+      before: { val: oldItem.val, formula: oldItem.formula, style: oldItem.style, hyperlink: oldItem.hyperlink },
+      after: { val: existing.val, formula: existing.formula, style: existing.style, hyperlink: undefined }
+    });
+    return true;
+  }
+
+  openHyperlinkAtSelection() {
+    const url = String(this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.hyperlink || "");
+    if (!/^(https?:|mailto:)/i.test(url)) return false;
+    globalThis.open?.(url, "_blank", "noopener,noreferrer");
+    return true;
+  }
+
+  clearAllFilters() {
+    if (!this.activeFilters?.size) return false;
+    const previous = this._snapshotFilterState();
+    this.activeFilters.clear();
+    this.hiddenRows.clear();
+    this._updateFilterButtons();
+    this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+    this._recordHistory({ type: "filter", sheet: this.activeSheet, prevVal: previous, nextVal: this._snapshotFilterState() });
+    return true;
+  }
+
+  reapplyFilters() {
+    if (!this.activeFilters?.size) return false;
+    const [firstCol, allowed] = this.activeFilters.entries().next().value;
+    this.applyFilter(firstCol, allowed, false);
+    return true;
+  }
+
+  filterBySelectedCellValue() {
+    const col = this.selectedCoord.c;
+    const cell = this.cellsData.get(`${col}${this.selectedCoord.r}`);
+    const value = cell ? String(cell.val ?? "") : "";
+    if (!this.isFilterActive) this.toggleFilter();
+    this.applyFilter(col, new Set([value]));
+    return true;
+  }
+
   insertSymbol(symbol) {
     if (!symbol) return false;
     const ch = String(symbol);
@@ -7654,7 +8313,7 @@ _bindGridKeyboardNavigation() {
   }
 
   insertTextBox(text, anchor = this.selectedCoord) {
-    const box = { id: `textbox-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, text: String(text), anchor: { c: anchor.c, r: anchor.r } };
+    const box = { id: `textbox-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, text: String(text), anchor: { c: anchor.c, r: anchor.r }, widthPx: 180, heightPx: 54 };
     this.textBoxesBySheet[this.activeSheet] ||= [];
     this.textBoxesBySheet[this.activeSheet].push(box);
     this.renderTextBoxes();
@@ -7671,8 +8330,33 @@ _bindGridKeyboardNavigation() {
       el.dataset.textboxId = box.id;
       el.contentEditable = "true";
       el.textContent = box.text;
-      el.style.cssText = `position:absolute;left:${Math.max(0, this.cols.indexOf(box.anchor.c)) * 100 + 46}px;top:${Math.max(0, box.anchor.r - 1) * this.rowHeight + 28}px;min-width:180px;min-height:54px;padding:10px;background:#fff;border:1px solid #64748b;box-shadow:0 4px 12px rgba(15,23,42,.16);pointer-events:auto;resize:both;overflow:auto`;
+      const widthPx = Math.max(180, Number(box.widthPx) || 180);
+      const heightPx = Math.max(54, Number(box.heightPx) || 54);
+      el.style.cssText = `position:absolute;left:${Math.max(0, this.cols.indexOf(box.anchor.c)) * 100 + 46}px;top:${Math.max(0, box.anchor.r - 1) * this.rowHeight + 28}px;width:${widthPx}px;height:${heightPx}px;min-width:180px;min-height:54px;padding:10px;background:#fff;border:1px solid #64748b;box-shadow:0 4px 12px rgba(15,23,42,.16);pointer-events:auto;resize:both;overflow:auto`;
       el.addEventListener("input", () => { box.text = el.textContent || ""; });
+      const saveSize = () => {
+        const rect = el.getBoundingClientRect();
+        if (rect.width >= 180 && rect.height >= 54) {
+          const before = { widthPx: Number(box.widthPx) || 180, heightPx: Number(box.heightPx) || 54 };
+          const after = { widthPx: Math.round(rect.width), heightPx: Math.round(rect.height) };
+          if (before.widthPx !== after.widthPx || before.heightPx !== after.heightPx) {
+            box.widthPx = after.widthPx;
+            box.heightPx = after.heightPx;
+            this._recordHistory({
+              type: "collection",
+              sheet: this.activeSheet,
+              collection: "textBoxesBySheet",
+              operation: "update",
+              id: box.id,
+              item: { id: box.id },
+              before,
+              after
+            });
+          }
+        }
+      };
+      el.addEventListener("pointerup", () => requestAnimationFrame(saveSize));
+      el.addEventListener("mouseup", () => requestAnimationFrame(saveSize));
       this.textBoxLayer.appendChild(el);
     }
   }
@@ -7922,20 +8606,54 @@ _bindGridKeyboardNavigation() {
     return showCellStylesDialog(this);
   }
 
-  formatAsTable(presetOrId, range = null, recordUndo = true) {
+  formatAsTable(presetOrId, range = null, recordUndo = true, options = {}) {
     let preset = presetOrId;
     if (typeof presetOrId === "string") {
       preset = TABLE_STYLE_PRESETS.find(p => p.id === presetOrId) || TABLE_STYLE_PRESETS[0];
     }
     if (!preset) return false;
 
+    options = options || {};
     const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const tableName = this._uniqueTableName(options.name || this._nextTableName());
+    const headers = options.hasHeaders !== false;
+    const table = {
+      name: tableName,
+      ref: this._rangeLabel(targetRange),
+      hasHeaders: headers,
+      style: preset.id,
+      excelStyle: ({ tableBlue: "TableStyleMedium2", tableGreen: "TableStyleMedium4", tableDark: "TableStyleDark1" })[preset.id] || "TableStyleMedium2",
+      showAutoFilter: true,
+      showRowStripes: true
+    };
+    const currentTables = this.tablesBySheet[this.activeSheet] || [];
+    if (!tableName || currentTables.some(item => this._rangesOverlap(item.ref, table.ref))) return false;
+    const tableBefore = structuredClone(currentTables);
+    const filterBefore = this._snapshotFilterState();
+    const filterRangeBefore = this.sheetStates[this.activeSheet]?.filterRange || "";
+    if (!this.tablesBySheet[this.activeSheet]) this.tablesBySheet[this.activeSheet] = [];
+    this.tablesBySheet[this.activeSheet].push(table);
     const coords = this.formulaEngine.expandRange(this._rangeLabel(targetRange));
 
     const minRow = Math.min(targetRange.start.r, targetRange.end.r);
 
     const before = {};
     const after = {};
+    const headerNames = new Set();
+    const normalizedHeaders = new Map();
+    if (headers) {
+      const firstRow = targetRange.start.r;
+      for (let colNum = this._columnNumber(targetRange.start.c); colNum <= this._columnNumber(targetRange.end.c); colNum++) {
+        const col = this._columnLabel(colNum), coord = `${col}${firstRow}`;
+        const cell = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+        let label = String(cell.val ?? "").trim() || `Column${colNum - this._columnNumber(targetRange.start.c) + 1}`;
+        const base = label;
+        let suffix = 2;
+        while (headerNames.has(label.toLocaleLowerCase())) label = `${base}_${suffix++}`;
+        headerNames.add(label.toLocaleLowerCase());
+        normalizedHeaders.set(coord, label);
+      }
+    }
 
     coords.forEach(coord => {
       const [c, r] = this._splitCoord(coord);
@@ -7950,7 +8668,9 @@ _bindGridKeyboardNavigation() {
 
       existing.style = existing.style ? structuredClone(existing.style) : {};
 
-      if (rowNum === minRow) {
+      if (headers && rowNum === minRow) {
+        existing.val = normalizedHeaders.get(coord) || existing.val;
+        existing.formula = "";
         Object.assign(existing.style, preset.headerStyle);
       } else {
         const isEvenBanded = (rowNum - minRow) % 2 === 1;
@@ -7977,10 +8697,161 @@ _bindGridKeyboardNavigation() {
         type: "format-table",
         sheet: this.activeSheet,
         before,
-        after
+        after,
+        tablesBefore: tableBefore,
+        tablesAfter: structuredClone(this.tablesBySheet[this.activeSheet]),
+        filterBefore,
+        filterAfter: null,
+        filterRangeBefore,
+        filterRangeAfter: table.ref
       });
     }
 
+    this.sheetStates[this.activeSheet] = {
+      ...(this.sheetStates[this.activeSheet] || {}),
+      filterRange: table.ref,
+      filterSetByUser: true,
+      isFilterActive: true
+    };
+    this.isFilterActive = true;
+    if (recordUndo) this.undoStack[this.undoStack.length - 1].filterAfter = this._snapshotFilterState();
+    this.container?.classList.add("vno-filter-mode");
+    this._updateFilterButtons();
+    this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+
+    return true;
+  }
+
+  _expandTableForAdjacentEntry(col, row) {
+    const tables = this.tablesBySheet?.[this.activeSheet] || [];
+    const colNum = this._columnNumber(col);
+    for (const table of tables) {
+      const bounds = this._parseRange(table.ref);
+      if (!bounds) continue;
+      const startCol = this._columnNumber(bounds.start.c), endCol = this._columnNumber(bounds.end.c);
+      let next = null;
+      if (row === bounds.end.r + 1 && colNum >= startCol && colNum <= endCol) {
+        next = { ...bounds, end: { c: bounds.end.c, r: row } };
+      } else if (colNum === endCol + 1 && row >= bounds.start.r && row <= bounds.end.r) {
+        next = { ...bounds, end: { c: col, r: bounds.end.r } };
+      }
+      if (!next) continue;
+      const nextRef = this._rangeLabel(next);
+      if (tables.some(other => other !== table && this._rangesOverlap(other.ref, nextRef))) continue;
+      table.ref = nextRef;
+      const preset = TABLE_STYLE_PRESETS.find(item => item.id === table.style) || TABLE_STYLE_PRESETS[0];
+      const minRow = next.start.r, maxRow = next.end.r;
+      const minCol = this._columnNumber(next.start.c), maxCol = this._columnNumber(next.end.c);
+      const beforeCells = {}, afterCells = {};
+      for (let currentRow = minRow; currentRow <= maxRow; currentRow++) {
+        for (let currentCol = minCol; currentCol <= maxCol; currentCol++) {
+          const currentName = this._columnLabel(currentCol), coord = `${currentName}${currentRow}`;
+          if (coord === `${col}${row}`) continue;
+          const cell = this.cellsData.get(coord);
+          beforeCells[coord] = cell ? structuredClone(cell) : null;
+        }
+      }
+      if (colNum > endCol && table.hasHeaders !== false) {
+        const headerCoord = `${col}${minRow}`;
+        const header = this.cellsData.get(headerCoord) || { val: `Column${maxCol - minCol + 1}`, formula: "", style: {} };
+        if (header.val === "" && !header.formula) header.val = `Column${maxCol - minCol + 1}`;
+        header.style = { ...(header.style || {}), ...preset.headerStyle };
+        this.cellsData.set(headerCoord, header);
+      }
+      for (let currentRow = minRow; currentRow <= maxRow; currentRow++) {
+        if (table.hasHeaders !== false && currentRow === minRow) continue;
+        const rowStyle = (currentRow - minRow) % 2 === 1 ? preset.evenRowStyle : preset.oddRowStyle;
+        for (let currentCol = minCol; currentCol <= maxCol; currentCol++) {
+          const currentName = this._columnLabel(currentCol), coord = `${currentName}${currentRow}`;
+          const cell = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+          cell.style = { ...(cell.style || {}), ...rowStyle };
+          this.cellsData.set(coord, cell);
+        }
+      }
+      for (const coord of Object.keys(beforeCells)) {
+        const cell = this.cellsData.get(coord);
+        afterCells[coord] = cell ? structuredClone(cell) : null;
+      }
+      const state = this.sheetStates?.[this.activeSheet];
+      if (state) state.filterRange = nextRef;
+      this._updateFilterButtons();
+      for (const [coord, cell] of Object.entries(afterCells)) {
+        if (!cell) continue;
+        const [cellCol, cellRow] = this._splitCoord(coord);
+        const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+        if (dom) this._renderCellVisual(dom, cell, cellCol, cellRow);
+      }
+      return { beforeCells, afterCells, ref: nextRef };
+    }
+    return false;
+  }
+
+  _nextTableName() {
+    const names = Object.values(this.tablesBySheet || {}).flat().map(table => String(table.name).toLowerCase());
+    let index = 1;
+    while (names.includes(`table${index}`)) index++;
+    return `Table${index}`;
+  }
+
+  _uniqueTableName(requested, exceptName = "") {
+    let name = String(requested || this._nextTableName()).trim().replace(/[^A-Za-z0-9_.]/g, "_");
+    if (!/^[A-Za-z_\\]/.test(name)) name = `Table_${name}`;
+    name = name.slice(0, 255) || this._nextTableName();
+    if (/^[A-Z]{1,3}\$?\d+$/i.test(name) || /^R\d+C\d+$/i.test(name)) return "";
+    const names = Object.values(this.tablesBySheet || {}).flat().map(table => String(table.name).toLowerCase());
+    if (names.includes(name.toLowerCase())) return "";
+    return name;
+  }
+
+  _rangesOverlap(aLabel, bLabel) {
+    const a = this._parseRange(aLabel), b = this._parseRange(bLabel);
+    if (!a || !b) return false;
+    const col = value => this._columnNumber(value);
+    return col(a.start.c) <= col(b.end.c) && col(b.start.c) <= col(a.end.c)
+      && a.start.r <= b.end.r && b.start.r <= a.end.r;
+  }
+
+  getTableAtSelection() {
+    return (this.tablesBySheet?.[this.activeSheet] || []).find(table => this._rangesOverlap(table.ref, this._rangeLabel(this.selectionRange))) || null;
+  }
+
+  renameTable(oldName, requestedName, recordUndo = true) {
+    const tables = this.tablesBySheet?.[this.activeSheet] || [];
+    const table = tables.find(item => item.name === oldName);
+    if (String(requestedName || "").trim() === oldName) return true;
+    const name = this._uniqueTableName(requestedName);
+    if (!table || !name) return false;
+    const before = structuredClone(tables);
+    table.name = name;
+    if (recordUndo) this._recordHistory({ type: "sheet-tables", sheet: this.activeSheet, before, after: structuredClone(tables) });
+    return true;
+  }
+
+  convertTableToRange(name, recordUndo = true) {
+    const tables = this.tablesBySheet?.[this.activeSheet] || [];
+    const index = tables.findIndex(item => item.name === name);
+    if (index < 0) return false;
+    const before = structuredClone(tables);
+    const filterBefore = this._snapshotFilterState();
+    const filterRangeBefore = this.sheetStates?.[this.activeSheet]?.filterRange || "";
+    const convertedRange = tables[index].ref;
+    tables.splice(index, 1);
+    const otherTable = tables.find(item => item.ref === convertedRange);
+    if (!otherTable && this.sheetStates?.[this.activeSheet]?.filterRange === convertedRange) {
+      this.sheetStates[this.activeSheet].isFilterActive = false;
+      this.sheetStates[this.activeSheet].filterRange = "";
+      this.isFilterActive = false;
+      this.container?.classList?.remove?.("vno-filter-mode");
+      this.activeFilters.clear();
+      this.hiddenRows.clear();
+      this._updateFilterButtons();
+      this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+    }
+    if (recordUndo) this._recordHistory({
+      type: "sheet-tables", sheet: this.activeSheet, before, after: structuredClone(tables),
+      filterBefore, filterAfter: this._snapshotFilterState(), filterRangeBefore,
+      filterRangeAfter: this.sheetStates?.[this.activeSheet]?.filterRange || ""
+    });
     return true;
   }
 
@@ -8551,6 +9422,68 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
+  _translateFormulaForFill(formula, sourceCoord, targetCoord) {
+    const rowOffset = targetCoord.r - sourceCoord.r;
+    const colOffset = this._columnNumber(targetCoord.c) - this._columnNumber(sourceCoord.c);
+    if (!rowOffset && !colOffset) return formula;
+    return String(formula).split(/("(?:""|[^"])*")/).map((segment, index) => {
+      if (index % 2 === 1) return segment;
+      return segment.replace(/(^|[^A-Z0-9_.])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![A-Z0-9_])/gi,
+        (match, prefix, colAbsolute, column, rowAbsolute, row, offset, whole) => {
+          const after = whole[offset + match.length] || "";
+          const sourceColumn = this._columnNumber(column);
+          const sourceRow = Number(row);
+          if (sourceColumn > this.cols.length || sourceRow > this.rowCount || after === "(") return match;
+          const targetColumn = sourceColumn + (colAbsolute ? 0 : colOffset);
+          const targetRow = sourceRow + (rowAbsolute ? 0 : rowOffset);
+          if (targetColumn < 1 || targetColumn > this.cols.length || targetRow < 1 || targetRow > this.rowCount) return `${prefix}#REF!`;
+          return `${prefix}${colAbsolute}${this._columnLabel(targetColumn)}${rowAbsolute}${targetRow}`;
+        });
+    }).join("");
+  }
+
+  fillSelectionWithValue(value, sourceCoord = this.selectedCoord) {
+    if (this._guardProtectedMutation()) return false;
+    const ranges = this._getSelectionRanges().map(range => this._normalizeRange(range));
+    const coordinates = [...new Set(ranges.flatMap(range =>
+      this.formulaEngine.expandRange(this._rangeLabel(range))
+    ))];
+    if (!coordinates.length) coordinates.push(`${this.selectedCoord.c}${this.selectedCoord.r}`);
+
+    const before = {};
+    for (const coord of coordinates) {
+      const item = this.cellsData.get(coord);
+      before[coord] = item ? {
+        val: item.val ?? "",
+        formula: item.formula ?? "",
+        style: structuredClone(item.style || {})
+      } : null;
+    }
+    for (const coord of coordinates) {
+      const [col, row] = this._splitCoord(coord);
+      const nextValue = typeof value === "string" && value.startsWith("=")
+        ? this._translateFormulaForFill(value, sourceCoord, { c: col, r: row })
+        : value;
+      this.setCellValue(col, row, nextValue, false, { commit: true, userInput: true });
+    }
+    const after = {};
+    for (const coord of coordinates) {
+      const item = this.cellsData.get(coord);
+      after[coord] = item ? {
+        val: item.val ?? "",
+        formula: item.formula ?? "",
+        style: structuredClone(item.style || {})
+      } : null;
+    }
+    this._recordHistory({
+      type: "batch-workbook",
+      beforeBySheet: { [this.activeSheet]: before },
+      afterBySheet: { [this.activeSheet]: after }
+    });
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    return true;
+  }
+
   clearContents(range = null, recordUndo = true) {
     if (recordUndo && this._guardProtectedMutation()) return false;
     const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
@@ -8954,7 +9887,7 @@ _bindGridKeyboardNavigation() {
     const steps = [8, 9, 10, 11, 12, 14, 16, 18, 20, 24, 28, 36, 48, 72];
     const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
     const currentPx = Number.parseFloat(this.cellsData.get(key)?.style?.fontSize);
-    const current = Number.isFinite(currentPx) ? currentPx * 3 / 4 : 11;
+    const current = Number.isFinite(currentPx) ? Math.round(currentPx * 3 / 4 * 100) / 100 : 11;
     const next = direction > 0
       ? (steps.find(size => size > current) || steps[steps.length - 1])
       : ([...steps].reverse().find(size => size < current) || steps[0]);
@@ -8993,6 +9926,13 @@ _bindGridKeyboardNavigation() {
     const level = Math.max(0, Math.round((next - 8) / 12));
     const changed = this.setStyle("paddingLeft", `${next}px`);
     this.setStyle("indentLevel", level);
+    const updated = this.cellsData.get(key);
+    if (updated?.style) {
+      // Imported UI state can already be zero while the original XLSX XF has
+      // indent=1. An explicit decrease must invalidate that source-XF marker.
+      delete updated.style.origXf;
+      delete updated.style.styleHashAtImport;
+    }
     return changed;
   }
 
@@ -9090,6 +10030,14 @@ _bindGridKeyboardNavigation() {
   }
 
   _recordHistory(action, { coalesce = false } = {}) {
+    if (action?.type === "cell" &&
+      Object.is(action.prevVal, action.nextVal) &&
+      action.prevWasText === action.nextWasText &&
+      JSON.stringify(action.prevStyle || {}) === JSON.stringify(action.nextStyle || {}) &&
+      JSON.stringify(action.prevValRichText || null) === JSON.stringify(action.nextValRichText || null) &&
+      action.prevRowHeight === action.nextRowHeight) {
+      return null;
+    }
     const previous = this.undoStack[this.undoStack.length - 1];
     const mergeCellEdit = coalesce && previous?.type === "cell" && action.type === "cell" &&
       previous.sheet === action.sheet && previous.col === action.col && previous.row === action.row &&
@@ -9116,6 +10064,7 @@ _bindGridKeyboardNavigation() {
     globalCommandBus?.updateState?.("sheet.view.freezePanes", { checked: !!this.isFrozenPanes });
     globalCommandBus?.updateState?.("sheet.view.freezeTopRow", { checked: this.frozenRows === 1 && this.frozenCols === 0 });
     globalCommandBus?.updateState?.("sheet.view.freezeFirstColumn", { checked: this.frozenCols === 1 && this.frozenRows === 0 });
+    globalCommandBus?.updateState?.("sheet.view.split", { checked: (this.splitX || 0) > 0 || (this.splitY || 0) > 0 });
     globalCommandBus?.updateState?.("sheet.data.filter", { checked: !!this.isFilterActive });
     globalCommandBus?.updateState?.("sheet.view.gridlines", { checked: this.gridlinesVisible });
     globalCommandBus?.updateState?.("sheet.view.headings", { checked: this.headingsVisible });
@@ -9162,6 +10111,7 @@ _bindGridKeyboardNavigation() {
   setWorkbookView(viewMode) {
     if (!["normal", "pageBreakPreview", "pageLayout"].includes(viewMode)) return false;
     this.workbookView = viewMode;
+    this.xlsxViewStateTouched?.add("view");
     this._applyViewState();
     this._refreshPageAndCommentVisuals();
     this._syncCommandStates();
@@ -9170,6 +10120,7 @@ _bindGridKeyboardNavigation() {
 
   toggleFormulaBar() {
     this.formulaBarVisible = !this.formulaBarVisible;
+    this.xlsxViewStateTouched?.add("showFormulaBar");
     this._applyViewState();
     this._syncCommandStates();
     return this.formulaBarVisible;
@@ -9179,6 +10130,7 @@ _bindGridKeyboardNavigation() {
     const next = Math.min(2, Math.max(0.5, Math.round(Number(level) * 10) / 10));
     if (!Number.isFinite(next)) return false;
     this.zoomLevel = next;
+    this.xlsxViewStateTouched?.add("zoomScale");
     this._applyViewState();
     this.options.onZoomChange?.(this.zoomLevel);
     return this.zoomLevel;
@@ -9735,6 +10687,7 @@ _bindGridKeyboardNavigation() {
 
   toggleGridlines() {
     this.gridlinesVisible = !this.gridlinesVisible;
+    this.xlsxViewStateTouched?.add("showGridLines");
     this._applyViewState();
     this._syncCommandStates();
     return this.gridlinesVisible;
@@ -9742,6 +10695,7 @@ _bindGridKeyboardNavigation() {
 
   toggleHeadings() {
     this.headingsVisible = !this.headingsVisible;
+    this.xlsxViewStateTouched?.add("showRowColHeaders");
     this._applyViewState();
     this._syncCommandStates();
     return this.headingsVisible;
@@ -9867,6 +10821,22 @@ _bindGridKeyboardNavigation() {
         const richItem = this.cellsData.get(key);
         if (richItem) richItem.richText = action[value + "RichText"];
       }
+      if (action.tablesBefore && action.tablesAfter) {
+        this.tablesBySheet[action.sheet] = structuredClone(direction === "undo" ? action.tablesBefore : action.tablesAfter);
+        if (this.sheetStates[action.sheet]) this.sheetStates[action.sheet].filterRange = direction === "undo" ? action.tableFilterRangeBefore : action.tableFilterRangeAfter;
+        this._updateFilterButtons();
+        const snapshots = direction === "undo" ? action.tableExpansionCellsBefore : action.tableExpansionCellsAfter;
+        for (const [coord, snapshot] of Object.entries(snapshots || {})) {
+          if (snapshot) this.cellsData.set(coord, structuredClone(snapshot));
+          else this.cellsData.delete(coord);
+          const [cellCol, cellRow] = this._splitCoord(coord);
+          const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+          const current = this.cellsData.get(coord);
+          if (dom && current) this._renderCellVisual(dom, current, cellCol, cellRow);
+          else if (dom) { dom.textContent = ""; dom.style.cssText = ""; }
+        }
+        this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+      }
       this.selectCell(action.col, action.row);
     } else if (action.type === "array-formula") {
       const snapshots = direction === "undo" ? action.before : action.after;
@@ -9928,7 +10898,24 @@ _bindGridKeyboardNavigation() {
       if (action.type === "batch-cells" && action.beforeLayout && action.afterLayout) {
         this._restoreRowColLayout(direction === "undo" ? action.beforeLayout : action.afterLayout);
       }
+      if (action.type === "format-table" && action.tablesBefore && action.tablesAfter) {
+        this.tablesBySheet[action.sheet] = structuredClone(direction === "undo" ? action.tablesBefore : action.tablesAfter);
+        this.sheetStates[action.sheet] = {
+          ...(this.sheetStates[action.sheet] || {}),
+          filterRange: direction === "undo" ? action.filterRangeBefore : action.filterRangeAfter
+        };
+        this._restoreFilterState(direction === "undo" ? action.filterBefore : action.filterAfter);
+      }
       this._recalculateAllFormulas();
+    } else if (action.type === "sheet-tables") {
+      this.tablesBySheet[action.sheet] = structuredClone(direction === "undo" ? action.before : action.after);
+      if (action.filterRangeBefore !== undefined || action.filterRangeAfter !== undefined) {
+        this.sheetStates[action.sheet] = {
+          ...(this.sheetStates[action.sheet] || {}),
+          filterRange: direction === "undo" ? action.filterRangeBefore : action.filterRangeAfter
+        };
+      }
+      if (action.filterBefore && action.filterAfter) this._restoreFilterState(direction === "undo" ? action.filterBefore : action.filterAfter);
     } else if (action.type === "batch-workbook") {
       const bySheet = direction === "undo" ? action.beforeBySheet : action.afterBySheet;
       for (const [sheetName, snapshots] of Object.entries(bySheet || {})) {
@@ -10001,6 +10988,8 @@ _bindGridKeyboardNavigation() {
     } else if (action.type === "freeze") {
       if (direction === "undo") this._setFreezePanes(action.prevRows, action.prevCols, false);
       else this._setFreezePanes(action.nextRows, action.nextCols, false);
+    } else if (action.type === "split") {
+      this._setSplitPanes(direction === "undo" ? action.before : action.after, false);
     } else if (action.type === "filter") {
       this._restoreFilterState(action[value]);
     } else return false;
@@ -10042,6 +11031,10 @@ _bindGridKeyboardNavigation() {
     this.frozenRows = nextRows;
     this.frozenCols = nextCols;
     this.isFrozenPanes = nextRows > 0 || nextCols > 0;
+    if (this.isFrozenPanes) {
+      this.splitRow = this.splitCol = this.splitX = this.splitY = 0;
+      this._applySplitVisuals();
+    }
     if (this.container) {
       if (this.isFrozenPanes) {
         this.container.classList.add("vno-freeze-panes");
@@ -10062,6 +11055,87 @@ _bindGridKeyboardNavigation() {
     this.renderImages();
     this._updateFrozenImages();
     return this.isFrozenPanes;
+  }
+
+  /** Split the sheet window at the selected cell without freezing rows/columns. */
+  toggleSplitPanes() {
+    if ((this.splitX || 0) > 0 || (this.splitY || 0) > 0) {
+      return this._setSplitPanes({ row: 0, col: 0, x: 0, y: 0 }, true);
+    }
+    const row = Math.max(0, (this.selectedCoord?.r || 1) - 1);
+    const col = Math.max(0, this._columnNumber(this.selectedCoord?.c || "A") - 1);
+    if (row === 0 && col === 0) return false;
+    // OOXML split coordinates include the row/column header bands. The grid
+    // offsets below start at the first data cell. Read-only desktop validation
+    // measures the compatible header offsets as 42 px horizontally and 14 px
+    // vertically before converting CSS pixels to twentieths of a point.
+    return this._setSplitPanes({
+      row,
+      col,
+      x: col > 0 ? Math.round((this._colLeft(col + 1) + 42) * 15) : 0,
+      y: row > 0 ? Math.round((this._rowTop(row + 1) + 14) * 15) : 0
+    }, true);
+  }
+
+  _setSplitPanes(split, recordUndo = false) {
+    const before = { row: this.splitRow || 0, col: this.splitCol || 0, x: this.splitX || 0, y: this.splitY || 0 };
+    const next = {
+      row: Math.max(0, Math.floor(Number(split?.row) || 0)),
+      col: Math.max(0, Math.floor(Number(split?.col) || 0)),
+      x: Math.max(0, Number(split?.x) || 0),
+      y: Math.max(0, Number(split?.y) || 0)
+    };
+    if (next.x > 0 || next.y > 0) this._setFreezePanes(0, 0, false);
+    this.splitRow = next.row;
+    this.splitCol = next.col;
+    this.splitX = next.x;
+    this.splitY = next.y;
+    const state = this.sheetStates?.[this.activeSheet];
+    if (state) Object.assign(state, { splitRow: next.row, splitCol: next.col, splitX: next.x, splitY: next.y });
+    this._applySplitVisuals();
+    if (recordUndo && JSON.stringify(before) !== JSON.stringify(next)) {
+      this._recordHistory({ type: "split", sheet: this.activeSheet, before, after: { ...next } });
+    }
+    this._syncCommandStates();
+    return next.x > 0 || next.y > 0;
+  }
+
+  _applySplitVisuals() {
+    if (!this.viewport || typeof document === "undefined") return;
+    this.viewport.querySelectorAll?.(".vno-sheet-split-bar").forEach(element => element.remove());
+    const active = (this.splitX || 0) > 0 || (this.splitY || 0) > 0;
+    this.container?.classList?.toggle?.("vno-split-panes", active);
+    if (!active) return;
+    const addBar = (axis, pixels, label) => {
+      const bar = document.createElement("div");
+      bar.className = `vno-sheet-split-bar is-${axis}`;
+      bar.setAttribute("role", "separator");
+      bar.setAttribute("aria-label", label);
+      bar.dataset.axis = axis;
+      bar.dataset.offset = String(axis === "vertical"
+        ? Math.max(42, Math.min(pixels + 42, (this.viewport.clientWidth || pixels + 58) - 16))
+        : Math.max(24, Math.min(pixels + 24, (this.viewport.clientHeight || pixels + 40) - 16)));
+      this.viewport.appendChild(bar);
+    };
+    if (this.splitX > 0) addBar("vertical", this._colLeft(this.splitCol + 1), t("sheetDialogs.splitVerticalSeparator", "Vạch chia dọc cửa sổ"));
+    if (this.splitY > 0) addBar("horizontal", this._rowTop(this.splitRow + 1), t("sheetDialogs.splitHorizontalSeparator", "Vạch chia ngang cửa sổ"));
+    this._positionSplitBars();
+  }
+
+  _positionSplitBars() {
+    if (!this.viewport) return;
+    const scrollLeft = this.viewport.scrollLeft || 0;
+    const scrollTop = this.viewport.scrollTop || 0;
+    this.viewport.querySelectorAll?.(".vno-sheet-split-bar").forEach(bar => {
+      const offset = Number(bar.dataset.offset) || 0;
+      if (bar.dataset.axis === "vertical") {
+        bar.style.left = `${scrollLeft + offset}px`;
+        bar.style.top = `${scrollTop}px`;
+      } else {
+        bar.style.left = `${scrollLeft}px`;
+        bar.style.top = `${scrollTop + offset}px`;
+      }
+    });
   }
 
   sort(col = this.selectedCoord.c, ascending = true) {
@@ -10217,7 +11291,7 @@ _bindGridKeyboardNavigation() {
       const m = k.match(/^([A-Z]+)(\d+)$/);
       if (m && m[1] === col) {
         const r = parseInt(m[2], 10);
-        if (r >= 4 && itm.val !== undefined && itm.val !== "") {
+        if (r >= this._filterDataStartRow() && itm.val !== undefined && itm.val !== "") {
           valuesSet.add(String(itm.val));
         }
       }
@@ -10353,12 +11427,19 @@ _bindGridKeyboardNavigation() {
     }, 10);
   }
 
+  /** Hàng dữ liệu đầu tiên của vùng lọc (ngay dưới hàng tiêu đề); mặc định 4 khi chưa có vùng lọc rõ ràng. */
+  _filterDataStartRow() {
+    const range = this.sheetStates?.[this.activeSheet]?.filterRange;
+    const parsed = range ? this._parseRange(range) : null;
+    return parsed ? Math.min(parsed.start.r, parsed.end.r) + 1 : 4;
+  }
+
   applyFilter(col, allowedSet, recordUndo = true) {
     const previous = this._snapshotFilterState();
     this.activeFilters.set(col, allowedSet);
     this.hiddenRows.clear();
 
-    for (let r = 4; r <= this.rowCount; r++) {
+    for (let r = this._filterDataStartRow(); r <= this.rowCount; r++) {
       let shouldHide = false;
       for (const [filterCol, allowed] of this.activeFilters.entries()) {
         const key = `${filterCol}${r}`;
@@ -10396,10 +11477,12 @@ _bindGridKeyboardNavigation() {
       pageSetup: structuredClone(this.pageSetupBySheet[sheetName] || newSheetPageSetup()),
       hiddenRows: [...(sheetName === this.activeSheet ? this.hiddenRows : (state.hiddenRows || []))],
       activeFilters: Array.from(sheetName === this.activeSheet ? this.activeFilters : (state.activeFilters || []), ([col, values]) => [col, [...values]]),
+      filterRange: state.filterRange || "",
       selectedCoord: { ...(sheetName === this.activeSheet ? this.selectedCoord : (state.selectedCoord || { r: 1, c: "A" })) },
       selectionRange: structuredClone(this.selectionRange),
       outlineGroups: structuredClone(this.outlineGroupsBySheet[sheetName] || [])
       ,mergedRanges: structuredClone(this.mergedRangesBySheet[sheetName] || []),
+      tables: structuredClone(this.tablesBySheet[sheetName] || []),
       rowColLayout: this._snapshotRowColLayout(sheetName)
     };
   }
@@ -10420,11 +11503,13 @@ _bindGridKeyboardNavigation() {
     this.selectionRange = structuredClone(snapshot.selectionRange);
     this.outlineGroupsBySheet[snapshot.sheetName] = structuredClone(snapshot.outlineGroups || []);
     this.mergedRangesBySheet[snapshot.sheetName] = structuredClone(snapshot.mergedRanges || []);
+    this.tablesBySheet[snapshot.sheetName] = structuredClone(snapshot.tables || []);
     if (snapshot.rowColLayout) this._restoreRowColLayout({ ...snapshot.rowColLayout, sheetName: snapshot.sheetName }, { render: false });
     if (this.sheetStates[snapshot.sheetName]) {
       Object.assign(this.sheetStates[snapshot.sheetName], {
         hiddenRows: new Set(this.hiddenRows),
         activeFilters: new Map(this.activeFilters),
+        filterRange: snapshot.filterRange || "",
         selectedCoord: { ...this.selectedCoord }
       });
     }
@@ -12323,6 +13408,7 @@ _bindGridKeyboardNavigation() {
     </fieldset>`;
     const overlay = this._createSheetDialog(t("sheetDialogs.headerFooterTitle", "Tiêu đề Đầu/Cuối trang"), `${fieldset("header", t("sheetDialogs.headerTitle", "Đầu trang"))}${fieldset("footer", t("sheetDialogs.footerTitle", "Cuối trang"))}<p><small>${t("sheetDialogs.hfDynamicCodesHint", "Mã động: &P số trang, &N tổng số trang, &D ngày, &T giờ, &F tên tệp, &A tên trang tính.")}</small></p><div class="vno-rule-error" role="alert"></div>`);
     if (!overlay) return false;
+    overlay.classList.add("vno-sheet-header-footer-dialog");
     overlay.querySelectorAll(".vno-sheet-hf-preset").forEach(select => select.addEventListener("change", event => {
       const kind = event.target.dataset.kind;
       const preset = { page: t("sheetDialogs.hfPresetPageVal", "Trang &P"), sheet: t("sheetDialogs.hfPresetSheetVal", "Tên trang tính: &A"), date: t("sheetDialogs.hfPresetDateVal", "Ngày: &D"), none: "" }[event.target.value];
@@ -12345,6 +13431,7 @@ _bindGridKeyboardNavigation() {
     const before = this.printAreaBySheet[this.activeSheet] || null;
     if (before === next) return next;
     this.printAreaBySheet[this.activeSheet] = next;
+    this.printAreaTouchedBySheet?.add(this.activeSheet);
     this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "printAreaBySheet", before, after: next });
     this._refreshPageAndCommentVisuals();
     return next;
@@ -12355,6 +13442,7 @@ _bindGridKeyboardNavigation() {
     const before = this.printAreaBySheet[this.activeSheet] || null;
     if (!before) return false;
     this.printAreaBySheet[this.activeSheet] = null;
+    this.printAreaTouchedBySheet?.add(this.activeSheet);
     this._recordHistory({ type: "sheet-page-layout", sheet: this.activeSheet, property: "printAreaBySheet", before, after: null });
     this._refreshPageAndCommentVisuals();
     return true;
@@ -13577,18 +14665,39 @@ _bindGridKeyboardNavigation() {
   }
 
   showConditionalFormattingDialog() {
+    const selectedRange = structuredClone(this.selectionRange);
+    const selectedRangeLabel = this.getSelectedRangeLabel();
     const overlay = this._createSheetDialog(t("sheetDialogs.conditionalFormatting"), `
-      <p class="vno-rule-range">${t("sheetDialogs.range")}: <strong>${this.getSelectedRangeLabel()}</strong></p>
+      <p class="vno-rule-range">${t("sheetDialogs.range")}: <strong>${selectedRangeLabel}</strong></p>
+      <section class="vno-cf-rule-manager" aria-label="${t("sheetDialogs.cfCurrentRules")}">
+        <h3>${t("sheetDialogs.cfCurrentRules")}</h3>
+        <div id="vno-cf-rule-list" aria-live="polite"></div>
+      </section>
       <label>${t("sheetDialogs.rule")}<select id="vno-cf-type" aria-label="${t("sheetDialogs.rule")}"><option value="greaterThan">${t("sheetDialogs.greaterThan")}</option><option value="lessThan">${t("sheetDialogs.lessThan")}</option><option value="blank">${t("sheetDialogs.blankCell")}</option></select></label>
       <label id="vno-cf-value-row">${t("sheetDialogs.value")}<input id="vno-cf-value" type="number" value="0" aria-label="${t("sheetDialogs.value")}"></label>
       <label>${t("sheetDialogs.fillColor")}<input id="vno-cf-color" type="color" value="#fff2cc" aria-label="${t("sheetDialogs.fillColor")}"></label>
       <div class="vno-rule-error" role="alert"></div>`);
     if (!overlay) return false;
+    const renderRules = () => {
+      const host = overlay.querySelector("#vno-cf-rule-list");
+      const rules = this.getConditionalFormattingRules();
+      host.innerHTML = rules.length ? rules.map(rule => {
+        const condition = rule.type === "blank"
+          ? t("sheetDialogs.blankCell")
+          : `${t(rule.type === "lessThan" ? "sheetDialogs.lessThan" : "sheetDialogs.greaterThan")}: ${this._escapeHtml(rule.value)}`;
+        return `<div class="vno-cf-rule-row" data-rule-id="${this._escapeHtml(rule.id)}"><span>${this._escapeHtml(rule.rangeLabel || this._rangeLabel(rule.range))} · ${condition}</span><span class="vno-cf-rule-color" style="background:${this._escapeHtml(rule.color)}" aria-label="${t("sheetDialogs.fillColor")}: ${this._escapeHtml(rule.color)}"></span><button type="button" class="vno-btn" data-cf-remove="${this._escapeHtml(rule.id)}">${t("sheetDialogs.cfRemoveRule")}</button></div>`;
+      }).join("") : `<p class="vno-cf-empty">${t("sheetDialogs.cfNoRules")}</p>`;
+      host.querySelectorAll("[data-cf-remove]").forEach(button => button.addEventListener("click", () => {
+        if (this.deleteConditionalFormattingRule(button.dataset.cfRemove)) renderRules();
+      }));
+    };
+    overlay.querySelector(".vno-rule-apply").textContent = t("sheetDialogs.cfAddRule");
+    renderRules();
     const type = overlay.querySelector("#vno-cf-type");
     const valueRow = overlay.querySelector("#vno-cf-value-row");
     type.addEventListener("change", () => { valueRow.hidden = type.value === "blank"; });
     overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
-      const result = this.addConditionalFormattingRule(this.selectionRange, {
+      const result = this.addConditionalFormattingRule(selectedRange, {
         type: type.value,
         value: overlay.querySelector("#vno-cf-value").value,
         color: overlay.querySelector("#vno-cf-color").value
@@ -13655,6 +14764,7 @@ _bindGridKeyboardNavigation() {
     const table = this.pivotTableEngine.aggregate(sourceCells, pivot);
     this.sheetsData[sheetName] = this.pivotTableEngine.toCells(table);
     pivot.resultRange = this.pivotTableEngine.resultRange(table);
+    this.pivotRefreshTouchedBySheet?.add(sheetName);
     for (const chart of this.chartsBySheet[sheetName] || []) if (chart.kind === "pivot" && chart.pivotId === pivot.id) chart.range = structuredClone(pivot.resultRange);
     this.refreshCharts(sheetName);
     if (sheetName === this.activeSheet) {

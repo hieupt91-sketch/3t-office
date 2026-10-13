@@ -33,6 +33,35 @@ export async function runFormulaEngineTests() {
 
   const engine = new FormulaEngine(cellsData);
 
+  const staticReferences = engine.getStaticFormulaReferences('=IF(A1>0,SUM(B2:B4),"C99")', "Sheet1");
+  results.push({
+    name: "Formula dependencies: extract cell and range refs while ignoring quoted text",
+    pass: staticReferences.safe && staticReferences.references.length === 2 &&
+      staticReferences.references[0].sheet === "Sheet1" &&
+      staticReferences.references[0].startRow === 1 &&
+      staticReferences.references[1].startColumn === 1 &&
+      staticReferences.references[1].startRow === 2 &&
+      staticReferences.references[1].endRow === 4
+  });
+  results.push({
+    name: "Formula dependencies: dynamic references request full-recalculation fallback",
+    pass: engine.getStaticFormulaReferences('=INDIRECT("A1")', "Sheet1").safe === false
+  });
+  const wholeColumnReferences = engine.getStaticFormulaReferences("=VLOOKUP(A1,P:AD,2,0)", "Sheet1");
+  results.push({
+    name: "Formula dependencies: index whole-column lookup ranges",
+    pass: wholeColumnReferences.safe && wholeColumnReferences.references.length === 2 &&
+      wholeColumnReferences.references[1].startColumn === engine._columnIndex("P") &&
+      wholeColumnReferences.references[1].endColumn === engine._columnIndex("AD") &&
+      wholeColumnReferences.references[1].startRow === 1 &&
+      wholeColumnReferences.references[1].endRow === Number.MAX_SAFE_INTEGER
+  });
+  results.push({
+    name: "Formula dependencies: recognize literal spreadsheet errors without references",
+    pass: engine.getStaticFormulaReferences("=#N/A", "Sheet1").safe &&
+      engine.getStaticFormulaReferences("=#REF!", "Sheet1").safe
+  });
+
   // 1. SUM
   const sumRes = engine.evaluate("=SUM(A1:A3)");
   results.push({
@@ -374,6 +403,31 @@ export async function runFormulaEngineTests() {
   results.push({
     name: "VLOOKUP: Exact match case-insensitive with 0",
     pass: vlEngine.evaluate('=VLOOKUP("apple", A1:B5, 2, 0)') === 100
+  });
+
+  const wholeColumnData = new Map([
+    ["P1", { val: "Key", formula: "", style: {} }],
+    ["Q1", { val: "First", formula: "", style: {} }],
+    ["Q2", { val: "First blank row", formula: "", style: {} }],
+    ["P3", { val: "Key", formula: "", style: {} }],
+    ["Q3", { val: "Second", formula: "", style: {} }],
+    ["P5", { val: "Other", formula: "", style: {} }],
+    ["Q5", { val: "Third", formula: "", style: {} }]
+  ]);
+  const wholeColumnEngine = new FormulaEngine(wholeColumnData, null, null, () => "Sheet1", () => ["Sheet1"]);
+  let wholeColumnReads = 0;
+  const getWholeColumnCell = wholeColumnEngine.getCellValue.bind(wholeColumnEngine);
+  wholeColumnEngine.getCellValue = (...args) => { wholeColumnReads++; return getWholeColumnCell(...args); };
+  const wholeColumnInitial = wholeColumnEngine.evaluate('=VLOOKUP("Key",P:Q,2,FALSE)');
+  const wholeColumnAvoidedMatrix = wholeColumnEngine._rangeMatrixCache.size === 0;
+  const wholeColumnBlankMatch = wholeColumnEngine.evaluate("=VLOOKUP(0,P:Q,2,FALSE)");
+  const wholeColumnSparseReads = wholeColumnReads < 20;
+  wholeColumnData.set("P1", { val: "Updated", formula: "", style: {} });
+  wholeColumnEngine.bumpSheetVersion("Sheet1", "P1");
+  results.push({
+    name: "VLOOKUP: whole-column exact index preserves first match and invalidates on edit",
+    pass: wholeColumnInitial === "First" && wholeColumnAvoidedMatrix && wholeColumnBlankMatch === "First blank row" && wholeColumnSparseReads &&
+      wholeColumnEngine.evaluate('=VLOOKUP("Key",P:Q,2,FALSE)') === "Second"
   });
 
   // Numeric lookup key
@@ -945,6 +999,45 @@ export async function runFormulaEngineTests() {
     pass: sb9Nhom2Engine.evaluate("=VLOOKUP(5, A2:B2, 2, FALSE)") === "#N/A" &&
           sb9Nhom2Engine.evaluate('=VLOOKUP("5", A1:B1, 2, FALSE)') === "#N/A"
   });
+  const e0LookupCurrent = new Map([
+    ["B3", { val: "00020413", formula: "", style: { numberFormat: { category: "number" } } }]
+  ]);
+  const e0LookupTable = new Map([
+    ["A40", { val: "00020413", formula: "", style: { numberFormat: { category: "text" } } }],
+    ["C40", { val: 2131, formula: "", style: {} }]
+  ]);
+  const e0LookupEngine = new FormulaEngine(
+    () => e0LookupCurrent,
+    null,
+    name => name === "Giá cost1" ? e0LookupTable : null,
+    () => "KPI Toàn"
+  );
+  results.push({
+    name: "E0: zero-padded text key matches numeric lookup across whole columns",
+    pass: e0LookupEngine.evaluate("=VLOOKUP(B3,'Giá cost1'!$A:$C,3,FALSE)") === 2131
+  });
+  const e0LongCodeCurrent = new Map([
+    ["B3", { val: "12345678", formula: "", style: { numberFormat: { category: "number" } } }]
+  ]);
+  const e0LongCodeTable = new Map([
+    ["A40", { val: "12345678", formula: "", style: { numberFormat: { category: "text" } } }],
+    ["C40", { val: 3500, formula: "", style: {} }]
+  ]);
+  const e0LongCodeEngine = new FormulaEngine(
+    () => e0LongCodeCurrent,
+    null,
+    name => name === "Giá cost1" ? e0LongCodeTable : null,
+    () => "KPI Toàn"
+  );
+  results.push({
+    name: "E0: numeric lookup matches matching long digit-code text key",
+    pass: e0LongCodeEngine.evaluate("=VLOOKUP(B3,'Giá cost1'!$A:$C,3,FALSE)") === 3500
+  });
+  const e0UnresolvedExternalEngine = new FormulaEngine(new Map());
+  results.push({
+    name: "E0: unresolved external VLOOKUP preserves the 0.9.9 #N/A fallback",
+    pass: e0UnresolvedExternalEngine.evaluate("=VLOOKUP(1,'[2]all'!A:B,2,FALSE)") === "#N/A"
+  });
   results.push({
     name: 'SB9 NHÓM 2: VLOOKUP exact match không phân biệt hoa thường',
     pass: sb9Nhom2Engine.evaluate('=VLOOKUP("pRoDuCt aLpHa", A3:B3, 2, FALSE)') === 100
@@ -1068,6 +1161,86 @@ export async function runFormulaEngineTests() {
     name: "SB9 NHÓM 4: INDEX chỉ số âm trả về #VALUE!",
     pass: sb9Nhom4Engine.evaluate("=INDEX(A1:A3, -1, 1)") === "#VALUE!" &&
           sb9Nhom4Engine.evaluate("=INDEX(A1:A3, 1, -1)") === "#VALUE!"
+  });
+
+  const indexedCells = new Map([
+    ["A1", { val: 1, formula: "", style: {} }],
+    ["B1", { val: "Một", formula: "", style: {} }],
+    ["A2", { val: 2, formula: "", style: {} }],
+    ["B2", { val: "Hai", formula: "", style: {} }]
+  ]);
+  const indexedEngine = new FormulaEngine(indexedCells, null, name => name === "S1" ? indexedCells : null, () => "S1");
+  const indexedResult = indexedEngine.evaluate("=VLOOKUP(2,A1:B2,2,FALSE)");
+  indexedEngine.bumpSheetVersion("S1", "Z99");
+  const retainedLookupIndex = indexedEngine._lookupIndexCache.size === 1;
+  indexedEngine.bumpSheetVersion("S1", "A2");
+  const invalidatedLookupIndex = indexedEngine._lookupIndexCache.size === 0;
+  indexedCells.get("A2").val = 3;
+  results.push({
+    name: "Formula lookup cache: reuse outside its range and invalidate inside its range",
+    pass: indexedResult === "Hai" && retainedLookupIndex && invalidatedLookupIndex &&
+      indexedEngine.evaluate("=VLOOKUP(3,A1:B2,2,FALSE)") === "Hai"
+  });
+  const parseCacheEngine = new FormulaEngine(new Map());
+  parseCacheEngine._parseNumberOrCurrency("1.234 ₫");
+  const parsedNumberCacheSize = parseCacheEngine._parsedNumberCache.size;
+  parseCacheEngine._parseNumberOrCurrency("1.234 ₫");
+  results.push({
+    name: "Formula values: cache repeated localized number parsing",
+    pass: parsedNumberCacheSize === 1 && parseCacheEngine._parsedNumberCache.size === 1 &&
+      parseCacheEngine._parseNumberOrCurrency("1.234 ₫") === 1234
+  });
+
+  const criteriaCells = new Map([
+    ["A1", { val: "đạt", formula: "", style: {} }],
+    ["A2", { val: "chưa", formula: "", style: {} }],
+    ["A3", { val: "đạt", formula: "", style: {} }],
+    ["B1", { val: 10, formula: "", style: {} }],
+    ["B2", { val: 20, formula: "", style: {} }],
+    ["B3", { val: 30, formula: "", style: {} }]
+  ]);
+  const criteriaEngine = new FormulaEngine(criteriaCells, null, name => name === "S1" ? criteriaCells : null, () => "S1");
+  const countBeforeEdit = criteriaEngine.evaluate('=COUNTIF(A1:A3,"đạt")');
+  const sumBeforeEdit = criteriaEngine.evaluate('=SUMIF(A1:A3,"đạt",B1:B3)');
+  const criteriaIndex = [...criteriaEngine._criteriaIndexCache.values()][0];
+  criteriaEngine.bumpSheetVersion("S1", "Z10");
+  const indexRetainedOutsideRange = criteriaEngine._criteriaIndexCache.size === 1;
+  criteriaEngine.bumpSheetVersion("S1", "A2");
+  const indexInvalidatedInsideRange = criteriaEngine._criteriaIndexCache.size === 0;
+  criteriaCells.get("A2").val = "đạt";
+  results.push({
+    name: "Formula criteria indexes: COUNTIF/SUMIF reuse results and invalidate changed ranges",
+    pass: countBeforeEdit === 2 && sumBeforeEdit === 40 && criteriaIndex.matches.size === 1 &&
+      indexRetainedOutsideRange && indexInvalidatedInsideRange &&
+      criteriaEngine.evaluate('=COUNTIF(A1:A3,"đạt")') === 3 &&
+      criteriaEngine.evaluate('=SUMIF(A1:A3,"đạt",B1:B3)') === 60
+  });
+  const matrixCriteriaEngine = new FormulaEngine(new Map([
+    ["A1", { val: "có", formula: "", style: {} }], ["B1", { val: "không", formula: "", style: {} }],
+    ["A2", { val: "không", formula: "", style: {} }], ["B2", { val: "có", formula: "", style: {} }],
+    ["C1", { val: 10, formula: "", style: {} }], ["D1", { val: 20, formula: "", style: {} }],
+    ["C2", { val: 30, formula: "", style: {} }], ["D2", { val: 40, formula: "", style: {} }],
+    ["E1", { val: "#N/A", formula: "", style: {} }], ["E2", { val: "có", formula: "", style: {} }],
+    ["F1", { val: 3, formula: "", style: {} }], ["F2", { val: 5, formula: "", style: {} }]
+  ]));
+  results.push({
+    name: "Formula criteria indexes: SUMIF preserves row-major range alignment and error propagation",
+    pass: matrixCriteriaEngine.evaluate('=SUMIF(A1:B2,"có",C1:D2)') === 50 &&
+      matrixCriteriaEngine.evaluate('=SUMIF(E1:E2,"có",F1:F2)') === "#N/A"
+  });
+
+  const matchCells = new Map(Array.from({ length: 500 }, (_, index) => [
+    `A${index + 1}`, { val: `key-${index + 1}`, formula: "", style: {} }
+  ]));
+  const matchEngine = new FormulaEngine(matchCells);
+  let exactScanComparisons = 0;
+  const lookupEquals = matchEngine._lookupExactEquals.bind(matchEngine);
+  matchEngine._lookupExactEquals = (...args) => { exactScanComparisons++; return lookupEquals(...args); };
+  const missingVlookup = matchEngine.evaluate("=VLOOKUP(1001,A1:A500,1,FALSE)");
+  const missingMatch = matchEngine.evaluate('=MATCH("absent",A1:A500,0)');
+  results.push({
+    name: "Formula lookup indexes: VLOOKUP and MATCH misses avoid a full exact scan",
+    pass: missingVlookup === "#N/A" && missingMatch === "#N/A" && exactScanComparisons === 0
   });
 
   return results;

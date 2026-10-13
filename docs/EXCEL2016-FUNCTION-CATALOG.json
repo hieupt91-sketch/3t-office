@@ -1,0 +1,3245 @@
+{
+  "source": "https://support.microsoft.com/en-us/excel/excel-functions-by-category",
+  "capturedOn": "2026-10-13",
+  "note": "Use the source year annotation when present; functions not tagged after 2016 are treated as available by Excel 2016; SUMIFS, AVERAGEIFS, COUNTIFS are available since Excel 2007.",
+  "functions": [
+    {
+      "name": "ABS",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ACCRINT",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ACCRINTM",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ACOS",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ACOSH",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ACOT",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "ACOTH",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "ADDRESS",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "AGGREGATE",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "AMORDEGRC",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "AMORLINC",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "AND",
+      "category": "Logical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ARABIC",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "AREAS",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ARRAYTOTEXT",
+      "category": "Text functions",
+      "sourceYearTag": "2021",
+      "excel2016": false,
+      "year": "2021"
+    },
+    {
+      "name": "ASC",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ASIN",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ASINH",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ATAN",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ATAN2",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ATANH",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "AVEDEV",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "AVERAGE",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "AVERAGEA",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "AVERAGEIF",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "AVERAGEIFS",
+      "category": "Statistical functions",
+      "sourceYearTag": "2019",
+      "excel2016": true,
+      "year": "2007"
+    },
+    {
+      "name": "BAHTTEXT",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "BASE",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "BESSELI",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "BESSELJ",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "BESSELK",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "BESSELY",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "BETA.DIST",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "BETA.INV",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "BIN2DEC",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "BIN2HEX",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "BIN2OCT",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "BINOM.DIST",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "BINOM.DIST.RANGE",
+      "category": "Statistical functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "BINOM.INV",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "BITAND",
+      "category": "Engineering functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "BITLSHIFT",
+      "category": "Engineering functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "BITOR",
+      "category": "Engineering functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "BITRSHIFT",
+      "category": "Engineering functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "BITXOR",
+      "category": "Engineering functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "BYCOL",
+      "category": "Logical functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024",
+      "note": "Không có trong Excel 2016; hàm mảng động của Microsoft 365."
+    },
+    {
+      "name": "BYROW",
+      "category": "Logical functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "CEILING",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "CEILING.MATH",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "CEILING.PRECISE",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "CELL",
+      "category": "Information functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "CHAR",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "CHISQ.DIST",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "CHISQ.DIST.RT",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "CHISQ.INV",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "CHISQ.INV.RT",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "CHISQ.TEST",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "CHOOSE",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "CHOOSECOLS",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "CHOOSEROWS",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "CLEAN",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "CODE",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "COLUMN",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "COLUMNS",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "COMBIN",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "COMBINA",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "COMPLEX",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "CONCAT",
+      "category": "Text functions",
+      "sourceYearTag": "2019",
+      "excel2016": false,
+      "year": "2019"
+    },
+    {
+      "name": "CONCATENATE",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "CONFIDENCE.NORM",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "CONFIDENCE.T",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "CONVERT",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "CORREL",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "COS",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "COSH",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "COT",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "COTH",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "COUNT",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "COUNTA",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "COUNTBLANK",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "COUNTIF",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "COUNTIFS",
+      "category": "Statistical functions",
+      "sourceYearTag": "2019",
+      "excel2016": true,
+      "year": "2007"
+    },
+    {
+      "name": "COUPDAYBS",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "COUPDAYS",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "COUPDAYSNC",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "COUPNCD",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "COUPNUM",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "COUPPCD",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "COVARIANCE.P",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "COVARIANCE.S",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "CSC",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "CSCH",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "CUBEKPIMEMBER",
+      "category": "Cubes",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "CUBEMEMBER",
+      "category": "Cubes",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "CUBEMEMBERPROPERTY",
+      "category": "Cubes",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "CUBERANKEDMEMBER",
+      "category": "Cubes",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "CUBESET",
+      "category": "Cubes",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "CUBESETCOUNT",
+      "category": "Cubes",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "CUBEVALUE",
+      "category": "Cubes",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "CUMIPMT",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "CUMPRINC",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DATE",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DATEDIF",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DATEVALUE",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DAVERAGE",
+      "category": "Database functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DAY",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DAYS",
+      "category": "Date and time functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "DAYS360",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DB",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DBCS",
+      "category": "Text functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "DCOUNT",
+      "category": "Database functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DCOUNTA",
+      "category": "Database functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DDB",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DEC2BIN",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DEC2HEX",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DEC2OCT",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DECIMAL",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "DEGREES",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DELTA",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DETECTLANGUAGE",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DEVSQ",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DGET",
+      "category": "Database functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DISC",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DMAX",
+      "category": "Database functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DMIN",
+      "category": "Database functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DOLLAR",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DOLLARDE",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DOLLARFR",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DPRODUCT",
+      "category": "Database functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DROP",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "DSTDEV",
+      "category": "Database functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DSTDEVP",
+      "category": "Database functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DSUM",
+      "category": "Database functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DURATION",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DVAR",
+      "category": "Database functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "DVARP",
+      "category": "Database functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "EDATE",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "EFFECT",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "EOMONTH",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ERF",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ERF.PRECISE",
+      "category": "Engineering functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "ERFC",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ERFC.PRECISE",
+      "category": "Engineering functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "ERROR.TYPE",
+      "category": "Information functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "EVEN",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "EXACT",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "EXP",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "EXPAND",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "EXPON.DIST",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "F.DIST",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "F.DIST.RT",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "F.INV",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "F.INV.RT",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "F.TEST",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "FACT",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "FACTDOUBLE",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "FALSE",
+      "category": "Logical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "FILTER",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "2021",
+      "excel2016": false,
+      "year": "2021"
+    },
+    {
+      "name": "FISHER",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "FISHERINV",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "FIXED",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "FLOOR",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "FLOOR.MATH",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "FLOOR.PRECISE",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "FORECAST",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "FORECAST.ETS",
+      "category": "Statistical functions",
+      "sourceYearTag": "2016",
+      "excel2016": true,
+      "year": "2016"
+    },
+    {
+      "name": "FORECAST.ETS.CONFINT",
+      "category": "Statistical functions",
+      "sourceYearTag": "2016",
+      "excel2016": true,
+      "year": "2016"
+    },
+    {
+      "name": "FORECAST.ETS.SEASONALITY",
+      "category": "Statistical functions",
+      "sourceYearTag": "2016",
+      "excel2016": true,
+      "year": "2016"
+    },
+    {
+      "name": "FORECAST.ETS.STAT",
+      "category": "Statistical functions",
+      "sourceYearTag": "2016",
+      "excel2016": true,
+      "year": "2016"
+    },
+    {
+      "name": "FORECAST.LINEAR",
+      "category": "Statistical functions",
+      "sourceYearTag": "2016",
+      "excel2016": true,
+      "year": "2016"
+    },
+    {
+      "name": "FORMULATEXT",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "FREQUENCY",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "FV",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "FVSCHEDULE",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "GAMMA",
+      "category": "Statistical functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "GAMMA.DIST",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "GAMMA.INV",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "GAMMALN",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "GAMMALN.PRECISE",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "GAUSS",
+      "category": "Statistical functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "GCD",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "GEOMEAN",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "GESTEP",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "GETPIVOTDATA",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "GROUPBY",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "GROWTH",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "HARMEAN",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "HEX2BIN",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "HEX2DEC",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "HEX2OCT",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "HLOOKUP",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "HOUR",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "HSTACK",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "HYPERLINK",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "HYPGEOM.DIST",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IF",
+      "category": "Logical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IFERROR",
+      "category": "Logical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IFNA",
+      "category": "Logical functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "IFS",
+      "category": "Logical functions",
+      "sourceYearTag": "2019",
+      "excel2016": false,
+      "year": "2019"
+    },
+    {
+      "name": "IMABS",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IMAGE",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "IMAGINARY",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IMARGUMENT",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IMCONJUGATE",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IMCOS",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IMCOSH",
+      "category": "Engineering functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "IMCOT",
+      "category": "Engineering functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "IMCSC",
+      "category": "Engineering functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "IMCSCH",
+      "category": "Engineering functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "IMDIV",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IMEXP",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IMLN",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IMLOG10",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IMLOG2",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IMPOWER",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IMPRODUCT",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IMREAL",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IMSEC",
+      "category": "Engineering functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "IMSECH",
+      "category": "Engineering functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "IMSIN",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IMSINH",
+      "category": "Engineering functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "IMSQRT",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IMSUB",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IMSUM",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IMTAN",
+      "category": "Engineering functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "INDEX",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "INDIRECT",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "INFO",
+      "category": "Information functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "INT",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "INTERCEPT",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "INTRATE",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IPMT",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "IRR",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ISBLANK",
+      "category": "Information functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ISERR",
+      "category": "Information functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ISERROR",
+      "category": "Information functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ISEVEN",
+      "category": "Information functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ISFORMULA",
+      "category": "Information functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "ISLOGICAL",
+      "category": "Information functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ISNA",
+      "category": "Information functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ISNONTEXT",
+      "category": "Information functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ISNUMBER",
+      "category": "Information functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ISO.CEILING",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "ISODD",
+      "category": "Information functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ISOMITTED",
+      "category": "Information functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "ISOWEEKNUM",
+      "category": "Date and time functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "ISPMT",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ISREF",
+      "category": "Information functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ISTEXT",
+      "category": "Information functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "KURT",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "LAMBDA",
+      "category": "Logical functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "LARGE",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "LCM",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "LET",
+      "category": "Logical functions",
+      "sourceYearTag": "2021",
+      "excel2016": false,
+      "year": "2021"
+    },
+    {
+      "name": "LINEST",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "LN",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "LOG",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "LOG10",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "LOGEST",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "LOGNORM.DIST",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "LOGNORM.INV",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "LOOKUP",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "LOWER",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "MAKEARRAY",
+      "category": "Logical functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "MAP",
+      "category": "Logical functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "MATCH",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "MAX",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "MAXA",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "MAXIFS",
+      "category": "Statistical functions",
+      "sourceYearTag": "2019",
+      "excel2016": false,
+      "year": "2019"
+    },
+    {
+      "name": "MDETERM",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "MDURATION",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "MEDIAN",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "MIN",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "MINA",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "MINIFS",
+      "category": "Statistical functions",
+      "sourceYearTag": "2019",
+      "excel2016": false,
+      "year": "2019"
+    },
+    {
+      "name": "MINUTE",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "MINVERSE",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "MIRR",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "MMULT",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "MOD",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "MODE.MULT",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "MODE.SNGL",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "MONTH",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "MROUND",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "MULTINOMIAL",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "MUNIT",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "N",
+      "category": "Information functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "NA",
+      "category": "Information functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "NEGBINOM.DIST",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "NETWORKDAYS",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "NETWORKDAYS.INTL",
+      "category": "Date and time functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "NOMINAL",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "NORM.DIST",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "NORM.INV",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "NORM.S.DIST",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "NORM.S.INV",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "NOT",
+      "category": "Logical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "NOW",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "NPER",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "NPV",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "NUMBERVALUE",
+      "category": "Text functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "OCT2BIN",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "OCT2DEC",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "OCT2HEX",
+      "category": "Engineering functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ODD",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ODDFPRICE",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ODDFYIELD",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ODDLPRICE",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ODDLYIELD",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "OFFSET",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "OR",
+      "category": "Logical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "PDURATION",
+      "category": "Financial functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "PEARSON",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "PERCENTILE.EXC",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "PERCENTILE.INC",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "PERCENTOF",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "PERCENTRANK.EXC",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "PERCENTRANK.INC",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "PERMUT",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "PERMUTATIONA",
+      "category": "Statistical functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "PHI",
+      "category": "Statistical functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "PHONETIC",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "PI",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "PIVOTBY",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "PMT",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "POISSON.DIST",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "POWER",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "PPMT",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "PRICE",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "PRICEDISC",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "PRICEMAT",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "PROB",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "PRODUCT",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "PROPER",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "PV",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "QUARTILE.EXC",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "QUARTILE.INC",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "QUOTIENT",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "RADIANS",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "RAND",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "RANDARRA",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "2021",
+      "excel2016": false,
+      "year": "2021"
+    },
+    {
+      "name": "RANDBETWEEN",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "RANK.AVG",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "RANK.EQ",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "RATE",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "RECEIVED",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "REDUCE",
+      "category": "Logical functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "REGEXEXTRACT",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "REGEXREPLACE",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "REGEXTEST",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "REPT",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ROMAN",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ROUND",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ROUNDDOWN",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ROUNDUP",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ROW",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "ROWS",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "RRI",
+      "category": "Financial functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "RSQ",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "RTD",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "SCAN",
+      "category": "Logical functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "SEC",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "SECH",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "SECOND",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "SEQUENCE",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "2021",
+      "excel2016": false,
+      "year": "2021",
+      "note": "Không có trong Excel 2016; hàm mảng động của Microsoft 365."
+    },
+    {
+      "name": "SERIESSUM",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "SHEET",
+      "category": "Information functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "SHEETS",
+      "category": "Information functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "SIGN",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "SIN",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "SINH",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "SKEW",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "SKEW.P",
+      "category": "Statistical functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "SLN",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "SLOPE",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "SMALL",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "SORT",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "2021",
+      "excel2016": false,
+      "year": "2021"
+    },
+    {
+      "name": "SORTBY",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "2021",
+      "excel2016": false,
+      "year": "2021"
+    },
+    {
+      "name": "SQRT",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "SQRTPI",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "STANDARDIZE",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "STDEV.P",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "STDEV.S",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "STDEVA",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "STDEVPA",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "STEYX",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "STOCKHISTORY",
+      "category": "Information functions",
+      "sourceYearTag": "2021",
+      "excel2016": false,
+      "year": "2021",
+      "note": "Không có trong Excel 2016; hàm dữ liệu liên kết của Microsoft 365."
+    },
+    {
+      "name": "SUBSTITUTE",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "SUBTOTAL",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "SUM",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "SUMIF",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "SUMIFS",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "2019",
+      "excel2016": true,
+      "year": "2007"
+    },
+    {
+      "name": "SUMPRODUCT",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "SUMSQ",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "SUMX2MY2",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "SUMX2PY2",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "SUMXMY2",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "SWITCH",
+      "category": "Logical functions",
+      "sourceYearTag": "2016",
+      "excel2016": false,
+      "year": "2019",
+      "note": "Excel 2019/365 per Microsoft function page; the installed Excel 2016 COM oracle returns #NAME?"
+    },
+    {
+      "name": "SYD",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "T",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "T.DIST",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "T.DIST.2T",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "T.DIST.RT",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "T.INV",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "T.INV.2T",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "T.TEST",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "TAKE",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "TAN",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "TANH",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "TBILLEQ",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "TBILLPRICE",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "TBILLYIELD",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "TEXT",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "TEXTAFTER",
+      "category": "Text functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "TEXTBEFORE",
+      "category": "Text functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "TEXTJOIN",
+      "category": "Text functions",
+      "sourceYearTag": "2019",
+      "excel2016": false,
+      "year": "2019"
+    },
+    {
+      "name": "TEXTSPLIT",
+      "category": "Text functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "TIME",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "TIMEVALUE",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "TOCOL",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "TODAY",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "TOROW",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "TRANSLATE",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "TRANSPOSE",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "TREND",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "TRIM",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "TRIMMEAN",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "TRIMRANGE",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "TRUE",
+      "category": "Logical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "TRUNC",
+      "category": "Math and trigonometry functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "TYPE",
+      "category": "Information functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "UNICHAR",
+      "category": "Text functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "UNICODE",
+      "category": "Text functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "UNIQUE",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "2021",
+      "excel2016": false,
+      "year": "2021"
+    },
+    {
+      "name": "UPPER",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "VALUE",
+      "category": "Text functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "VALUETOTEXT",
+      "category": "Text functions",
+      "sourceYearTag": "2021",
+      "excel2016": false,
+      "year": "2021"
+    },
+    {
+      "name": "VAR.P",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "VAR.S",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "VARA",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "VARPA",
+      "category": "Statistical functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "VDB",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "VLOOKUP",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "VSTACK",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "WEEKDAY",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "WEEKNUM",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "WEIBULL.DIST",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "WORKDAY",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "WORKDAY.INTL",
+      "category": "Date and time functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    },
+    {
+      "name": "WRAPCOLS",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "WRAPROWS",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "2024",
+      "excel2016": false,
+      "year": "2024"
+    },
+    {
+      "name": "XIRR",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "XLOOKUP",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "2021",
+      "excel2016": false,
+      "year": "2021"
+    },
+    {
+      "name": "XMATCH",
+      "category": "Lookup and reference functions",
+      "sourceYearTag": "2021",
+      "excel2016": false,
+      "year": "2021"
+    },
+    {
+      "name": "XNPV",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "XOR",
+      "category": "Logical functions",
+      "sourceYearTag": "2013",
+      "excel2016": true,
+      "year": "2013"
+    },
+    {
+      "name": "YEAR",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "YEARFRAC",
+      "category": "Date and time functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "YIELD",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "YIELDDISC",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "YIELDMAT",
+      "category": "Financial functions",
+      "sourceYearTag": "",
+      "excel2016": true,
+      "year": ""
+    },
+    {
+      "name": "Z.TEST",
+      "category": "Statistical functions",
+      "sourceYearTag": "2010",
+      "excel2016": true,
+      "year": "2010"
+    }
+  ]
+}

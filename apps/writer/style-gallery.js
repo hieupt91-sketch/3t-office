@@ -13,8 +13,18 @@ export const STYLE_PRESETS = [
     label: "Tiêu đề",
     sublabel: "Title",
     previewSample: "Tiêu đề tài liệu",
-    previewCss: "font-family:'Times New Roman', serif; font-size:18px; font-weight:700; color:var(--vno-style-preview-title, #1f4e79); text-align:center;",
-    description: "Tiêu đề tài liệu nổi bật, chữ đậm màu xanh và căn giữa"
+    previewCss: "font-family:Calibri, sans-serif; font-size:28px; font-weight:400; color:var(--vno-style-preview-title, #404040);",
+    description: "Kiểu Title dựng sẵn: phông chủ đề tiêu đề, cỡ 28pt"
+  },
+  {
+    id: "subtitle",
+    tag: "p",
+    className: "vno-style-subtitle",
+    label: "Phụ đề",
+    sublabel: "Subtitle",
+    previewSample: "Phụ đề tài liệu",
+    previewCss: "font-family:Calibri, sans-serif; font-size:15px; color:var(--vno-style-preview-muted, #5a5a5a);",
+    description: "Kiểu Subtitle dựng sẵn, dùng dưới tiêu đề tài liệu"
   },
   {
     id: "normal",
@@ -59,8 +69,18 @@ export const STYLE_PRESETS = [
     label: "Trích dẫn",
     sublabel: "Quote",
     previewSample: "“Trích dẫn…”",
-    previewCss: "font-family:'Times New Roman', serif; font-size:12px; font-style:italic; color:var(--vno-style-preview-muted, #475569); border-left:3px solid var(--vno-style-preview-heading, #0f4c81); padding-left:6px;",
-    description: "Khối trích dẫn: In nghiêng, thụt lề 24pt, viền xanh bên trái"
+    previewCss: "font-family:Calibri, sans-serif; font-size:15px; font-style:italic; color:var(--vno-style-preview-muted, #404040); text-align:center;",
+    description: "Kiểu Quote dựng sẵn: chữ nghiêng, căn giữa và thụt lề"
+  },
+  {
+    id: "listparagraph",
+    tag: "p",
+    className: "vno-style-list-paragraph",
+    label: "Đoạn danh sách",
+    sublabel: "List Paragraph",
+    previewSample: "•  Mục danh sách",
+    previewCss: "font-family:Calibri, sans-serif; font-size:15px; color:var(--vno-style-preview-normal, #1e293b); padding-left:12px;",
+    description: "Kiểu List Paragraph dựng sẵn, thụt lề 0,5 inch"
   },
   {
     id: "emphasis",
@@ -286,7 +306,7 @@ export function createStyleGalleryStrip(options = {}) {
 
   const items = [];
 
-  STYLE_PRESETS.slice(0, 3).forEach((preset, idx) => {
+  STYLE_PRESETS.filter(preset => ["normal", "h1", "h2", "h3"].includes(preset.id)).forEach((preset, idx) => {
     const { label, desc } = getPresetStrings(preset);
     const isActive = (preset.id === activeStyle) || (preset.id === "normal" && activeStyle === "p");
     const item = document.createElement("button");
@@ -310,27 +330,30 @@ export function createStyleGalleryStrip(options = {}) {
   });
 
   // ArrowLeft/Right để điều hướng giữa các style item (WAI-ARIA toolbar pattern)
+  // Chỉ điều hướng qua các kiểu đang hiện (hàng đầu); kiểu bị ẩn do hết chỗ không nhận tiêu điểm.
+  const visibleItems = () => items.filter((it) => it.offsetTop <= items[0].offsetTop + 2);
   strip.addEventListener("keydown", (e) => {
     const focused = document.activeElement;
-    const idx = items.indexOf(focused);
+    const nav = visibleItems();
+    const idx = nav.indexOf(focused);
     if (idx === -1) return;
     let targetIdx = -1;
     if (e.key === "ArrowRight") {
       e.preventDefault();
-      targetIdx = (idx + 1) % items.length;
+      targetIdx = (idx + 1) % nav.length;
     } else if (e.key === "ArrowLeft") {
       e.preventDefault();
-      targetIdx = (idx - 1 + items.length) % items.length;
+      targetIdx = (idx - 1 + nav.length) % nav.length;
     } else if (e.key === "Home") {
       e.preventDefault();
       targetIdx = 0;
     } else if (e.key === "End") {
       e.preventDefault();
-      targetIdx = items.length - 1;
+      targetIdx = nav.length - 1;
     }
     if (targetIdx !== -1) {
-      items.forEach((it, i) => { it.tabIndex = i === targetIdx ? 0 : -1; });
-      items[targetIdx].focus();
+      items.forEach((it) => { it.tabIndex = it === nav[targetIdx] ? 0 : -1; });
+      nav[targetIdx].focus();
     }
   });
 

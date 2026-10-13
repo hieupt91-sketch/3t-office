@@ -7,6 +7,40 @@ import { registerHelpEntries } from "./help-catalog.js";
 
 export const SHEET_HELP_ENTRIES = [
   {
+    id: "sheet.goTo.special",
+    app: "sheet",
+    commandIds: ["sheet.edit.goTo"],
+    title: "Đến (Go To) và Đến đặc biệt: nhảy tới ô và chọn nhanh theo loại",
+    summary: "Nhấn Ctrl+G để nhập một ô, vùng hay tên đã xác định rồi nhảy tới đó; nút Đặc biệt chọn cùng lúc mọi ô thuộc một loại như ô trống, công thức, ghi chú.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["đến", "go to", "nhảy tới ô", "đến đặc biệt", "go to special", "chọn ô trống", "chọn công thức", "chọn ghi chú", "vùng hiện tại", "ô cuối cùng", "tên đã xác định"],
+    steps: [
+      "Nhấn Ctrl+G hoặc bấm nút Đến... ở tab Trang đầu, nhóm Chỉnh sửa. Hộp thoại Đến mở ra.",
+      "Gõ tham chiếu cần tới: một ô (B5), một vùng (A1:C10), ô ở trang khác (Sheet2!D3) hoặc tên đã xác định; hoặc bấm một tên trong danh sách Tên đã xác định. Nhấn Enter hoặc Đồng ý: Sheet nhảy tới và chọn đúng vùng đó. Tham chiếu sai sẽ báo lỗi và giữ hộp thoại để bạn sửa.",
+      "Bấm nút Đặc biệt... để chọn nhiều ô cùng lúc theo loại: Ghi chú, Hằng số, Công thức, Ô trống, Vùng hiện tại, Ô cuối cùng, Khác biệt theo hàng, Khác biệt theo cột, Chỉ ô nhìn thấy, Định dạng có điều kiện, Kiểm tra dữ liệu.",
+      "Nếu đang chọn một vùng nhiều ô thì Đặc biệt chỉ tìm trong vùng đó; nếu chỉ chọn một ô thì tìm trong toàn bộ vùng có dữ liệu của trang. Khác biệt theo hàng/cột so sánh với ô đang hoạt động và cần chọn vùng từ hai cột (hoặc hai hàng) trở lên.",
+      "Sau khi chọn xong có thể nhấn Delete để xóa, hoặc đặt màu nền ngay cho tất cả ô vừa chọn (ví dụ tô màu mọi ô trống). Không tìm thấy ô nào thì hộp thoại báo Không tìm thấy ô nào."
+    ]
+  },
+  {
+    id: "sheet.contextMenu.rightClick",
+    app: "sheet",
+    commandIds: [],
+    title: "Menu chuột phải: ô, hàng, cột và tab trang tính",
+    summary: "Bấm chuột phải để dùng nhanh các lệnh thường gặp, sắp xếp theo thói quen của phần mềm bảng tính văn phòng: Cắt/Sao chép/Dán, Chèn, Xóa, Lọc, Sắp xếp, Ghi chú, Định dạng ô, Siêu liên kết; riêng hàng, cột và tab trang tính có menu riêng.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
+    keywords: ["chuột phải", "menu ngữ cảnh", "context menu", "chèn ô", "xóa ô", "lọc theo giá trị", "ghi chú", "siêu liên kết", "chiều cao hàng", "độ rộng cột", "tab trang tính", "Shift+F10"],
+    steps: [
+      "Chuột phải vào một ô: chọn Cắt, Sao chép, Dán hoặc Dán đặc biệt (chỉ giá trị, công thức, định dạng, chuyển vị). Chèn... và Xóa... mở hộp thoại hỏi dịch ô sang phải/xuống hoặc chèn/xóa cả hàng/cột; Xóa nội dung chỉ xóa dữ liệu, giữ định dạng.",
+      "Mục Lọc: Lọc theo giá trị của ô đã chọn chỉ giữ các hàng có cùng giá trị với ô bạn bấm; Xóa bộ lọc hiện lại mọi hàng; Áp dụng lại lọc lại sau khi dữ liệu đổi. Mục Sắp xếp: A đến Z, Z đến A hoặc Sắp xếp tùy chỉnh theo nhiều cột.",
+      "Chèn ghi chú thêm ghi chú cho ô; nếu ô đã có ghi chú, menu đổi thành Sửa ghi chú và Xóa ghi chú. Định dạng ô... (Ctrl+1) mở hộp thoại định dạng; Xác định tên... đặt tên cho vùng chọn; Siêu liên kết... (Ctrl+K) chèn liên kết, và khi ô đã có liên kết sẽ có thêm Mở siêu liên kết và Xóa siêu liên kết.",
+      "Chuột phải vào một ô nằm trong bảng: ngoài các mục trên có Chèn (cột bảng bên trái/phải, hàng bảng phía trên/dưới), Xóa (cột bảng, hàng bảng), Chọn (dữ liệu cột, toàn bộ cột, hàng) và Bảng (Dòng tổng, Chuyển thành phạm vi). Mỗi thao tác chèn/xóa hoàn tác được bằng một lần Ctrl+Z; Dòng tổng thêm hàng cuối bảng với nhãn Tổng và công thức cộng cột cuối, lưu XLSX rồi mở lại vẫn giữ.",
+      "Chuột phải vào biểu đồ: Đổi loại biểu đồ..., Chọn dữ liệu... (nhập lại vùng dữ liệu, ví dụ A1:B10), Di chuyển biểu đồ... (sang trang tính khác) và Xóa. Có thể mở menu bằng bàn phím: chọn biểu đồ rồi nhấn phím Menu (phím ngữ cảnh) trên bàn phím.",
+      "Chuột phải vào tiêu đề hàng (số 1, 2, 3…) hoặc tiêu đề cột (A, B, C…): có Chèn, Xóa, Xóa nội dung, Định dạng ô..., Chiều cao hàng... hoặc Độ rộng cột..., Tự vừa khít, Ẩn và Hiện.",
+      "Chuột phải vào tab trang tính ở cuối cửa sổ: Chèn trang tính, Xóa trang tính, Đổi tên, Di chuyển hoặc Sao chép, Bảo vệ trang tính, Màu tab, Ẩn trang tính và Hiện trang tính. Nhấn Esc để đóng menu; dùng phím mũi tên để chọn mục."
+    ]
+  },
+  {
     id: "sheet.input.nativeValues",
     app: "sheet",
     commandIds: [],
@@ -146,6 +180,25 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.formula.excel2016Functions",
+    app: "sheet",
+    commandIds: ["sheet.formula.insertFunction"],
+    title: "Hàm thống kê, tham chiếu và cơ sở ngày nâng cao",
+    summary: "Dùng MODE/PERCENTILE cho thống kê; TRUE, FALSE, XOR và IF cho logic; ADDRESS/FORMULATEXT cho tham chiếu; YEARFRAC cho ngày và HYPERLINK cho liên kết.",
+    ribbon: { tab: "Công thức", tabId: "formulas", group: "Hàm tính toán" },
+    keywords: ["MODE", "PERCENTILE", "TRUE", "FALSE", "XOR", "IF", "ADDRESS", "FORMULATEXT", "YEARFRAC", "HYPERLINK", "phân vị", "logic", "địa chỉ ô", "công thức dạng chữ", "phần năm", "siêu liên kết"],
+    steps: [
+      "Chọn ô kết quả rồi gõ công thức trên lưới hoặc Thanh công thức Sheet; nhấn Enter để tính. Cũng có thể mở tab Công thức → nhóm Hàm tính toán → Chèn hàm, tìm tên hàm rồi chèn cú pháp vào ô.",
+      "Dùng =MODE(A2:A20) để tìm số xuất hiện thường xuyên nhất; nếu nhiều số đồng hạng, kết quả là số nhỏ nhất. Nếu không có số lặp, hàm trả lỗi #N/A.",
+      "Dùng =PERCENTILE(A2:A20,0.9) để lấy phân vị 90%; đối số thứ hai phải từ 0 đến 1. Hàm bỏ qua văn bản trong vùng và nội suy theo phương pháp inclusive.",
+      "Dùng =ADDRESS(3,2) để tạo địa chỉ tuyệt đối $B$3. Đối số thứ ba chọn kiểu khóa hàng/cột: 1 khóa cả hai, 2 khóa hàng, 3 khóa cột, 4 không khóa. Có thể thêm tên trang tính ở đối số thứ năm.",
+      "Dùng =FORMULATEXT(C5) để hiện công thức đang lưu trong C5 dưới dạng văn bản. Nếu C5 không chứa công thức, kết quả là #N/A.",
+      "Dùng =TRUE() và =FALSE() khi cần hằng logic. Dùng =XOR(A2>0,B2>0) khi chỉ một trong hai điều kiện cần đúng; với nhiều điều kiện, XOR trả TRUE khi có số lẻ điều kiện đúng. Văn bản nhập trực tiếp vào IF/AND/OR/NOT/XOR không được coi là TRUE và trả #VALUE!; ô trống hoặc văn bản nằm trong vùng tham chiếu của AND/OR/XOR được bỏ qua.",
+      "Dùng =YEARFRAC(A2,B2,1) để tính khoảng thời gian giữa hai ngày theo cơ sở Actual/Actual. Đối số cơ sở tùy chọn nhận 0 đến 4; bỏ trống sẽ dùng cơ sở 0 (30/360).",
+      "Dùng =HYPERLINK(\"#B2\",\"Xem dữ liệu\") để tạo liên kết trong workbook và đặt nhãn dễ hiểu trong ô. Có thể thay #B2 bằng địa chỉ web; nhấp vào nhãn để mở đích liên kết."
+    ]
+  },
+  {
     id: "sheet.formula.excelEntry",
     app: "sheet",
     commandIds: ["sheet.formula.insertFunction", "sheet.formula.arrayEnter"],
@@ -246,12 +299,13 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.format.conditional"],
     title: "Định dạng có điều kiện",
-    summary: "Tô màu nền các ô trong vùng chọn khi giá trị lớn hơn một số, nhỏ hơn một số, hoặc ô trống. Màu chọn bằng bảng màu trong hộp thoại.",
+    summary: "Tạo, xem và xóa quy tắc tô màu nền ô theo điều kiện lớn hơn, nhỏ hơn hoặc ô trống. Mỗi quy tắc lưu cùng sổ tính.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Kiểu ô" },
     keywords: ["định dạng có điều kiện", "conditional formatting", "tô màu", "quy tắc", "ô trống", "lớn hơn"],
     steps: [
       "Bôi vùng cần tô nổi (ví dụ cột điểm). Tab Trang đầu, nhóm Kiểu ô, nhấn nút lớn Định dạng có điều kiện.",
-      "Hộp thoại hiện Phạm vi đang chọn. Chọn Quy tắc: Giá trị lớn hơn, Giá trị nhỏ hơn, hoặc Ô trống.",
+      "Hộp thoại hiển thị danh sách Quy tắc hiện có. Nhấn Xóa quy tắc ở dòng tương ứng để bỏ quy tắc khỏi trang tính.",
+      "Để thêm quy tắc, chọn Giá trị lớn hơn, Giá trị nhỏ hơn hoặc Ô trống; nhập ngưỡng nếu cần và chọn Màu nền.",
       "Với lớn hơn / nhỏ hơn: nhập ngưỡng ở ô Giá trị. Chọn Màu nền bằng bảng màu (mặc định vàng nhạt).",
       "Nhấn Áp dụng. Các ô khớp quy tắc được tô ngay. Ô trống chỉ cần chọn quy tắc Ô trống, không nhập số.",
       "Cùng nhóm Kiểu ô còn Định dạng bảng (màu xen kẽ) và Kiểu ô (Normal, Good, Bad, Neutral…) — khác với quy tắc có điều kiện."
@@ -358,6 +412,7 @@ export const SHEET_HELP_ENTRIES = [
       "Mở tab Chèn, nhóm Biểu đồ, nhấn nút lớn Biểu đồ (hoặc nhấn nút mũi tên mở rộng ở góc dưới phải nhóm Biểu đồ chuẩn phần mềm bảng tính khác).",
       "Hộp thoại Chèn biểu đồ từ «vùng» có bốn kiểu: Cột, Đường, Tròn, Miền. Chọn kiểu để xem trước. Biểu đồ tròn cần giá trị dương.",
       "Nhấn Chèn vào bảng tính. Biểu đồ nằm trên lưới, dùng dữ liệu của vùng đã chọn. Đổi số trong vùng nguồn rồi biểu đồ cập nhật theo dữ liệu sheet.",
+      "Với biểu đồ Cột, Đường hoặc Miền, nhấn nút «Tiêu đề trục» ở góc trên biểu đồ. Nhập riêng «Trục ngang (X)» và «Trục dọc (Y)», rồi nhấn Áp dụng; để trống một ô nếu không muốn hiện tiêu đề trục đó. Tiêu đề được lưu vào biểu đồ native trong XLSX.",
       "Cùng tab Chèn còn Biểu đồ thu nhỏ (Đường / Cột sparkline) — đó là mini-chart trong ô, khác biểu đồ lớn này."
     ]
   },
@@ -390,6 +445,22 @@ export const SHEET_HELP_ENTRIES = [
       "Chọn «Cố định hàng trên cùng» (Freeze Top Row): chỉ cố định hàng 1 khi cuộn dọc bảng tính, không phụ thuộc vị trí ô đang chọn.",
       "Chọn «Cố định cột đầu tiên» (Freeze First Column): chỉ cố định cột A khi cuộn ngang bảng tính, không phụ thuộc vị trí ô đang chọn.",
       "Để bỏ cố định: mở lại menu và chọn lệnh cố định đang kích hoạt để hủy. Có thể dùng Ctrl+Z / Ctrl+Y để hoàn tác hoặc làm lại thao tác."
+    ]
+  },
+  {
+    id: "sheet.view.split",
+    app: "sheet",
+    commandIds: ["sheet.view.split"],
+    title: "Chia cửa sổ trang tính (Split)",
+    summary: "Chia cửa sổ tại ô hiện tại thành các ngăn xem nhưng không đóng băng hàng/cột; trạng thái Split được giữ khi lưu và mở lại XLSX.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Cửa sổ" },
+    keywords: ["chia", "split", "chia cửa sổ", "ngăn xem", "không đóng băng", "pane"],
+    steps: [
+      "Chọn ô nằm ngay bên dưới và bên phải vị trí muốn chia. Ví dụ chọn C4 để đặt vạch chia sau cột B và sau hàng 3.",
+      "Mở tab Chế độ xem, nhóm Cửa sổ, nhấn «Chia». Vạch ngang, vạch dọc hoặc cả hai xuất hiện tùy vị trí ô; đây là Split, không phải Cố định ô.",
+      "Cuộn trang tính để xem vùng dữ liệu ở hai phía vạch chia. Hàng và cột không bị ghim cố định như Freeze Panes.",
+      "Nhấn «Chia» lần nữa để bỏ chia. Bật Cố định ô sẽ thay thế Split và ngược lại; có thể dùng Ctrl+Z/Ctrl+Y để hoàn tác hoặc làm lại.",
+      "Khi lưu XLSX, Sheet ghi pane ở trạng thái split. Mở lại trong Sheet hoặc ứng dụng bảng tính tương thích vẫn giữ Split, không chuyển thành Freeze Panes."
     ]
   },
   {
@@ -435,7 +506,7 @@ export const SHEET_HELP_ENTRIES = [
     summary: "Duyệt nhận xét theo thứ tự ô và trang tính, đánh dấu đã xử lý, mở lại hoặc xóa.",
     ribbon: { tab: "Xem xét", tabId: "review", group: "Ghi chú" },
     keywords: ["nhận xét", "ghi chú ô", "trước", "sau", "xử lý", "resolve", "xóa"],
-    steps: ["Mở tab Xem xét, nhóm Ghi chú.", "Nhấn Nhận xét trước hoặc Nhận xét sau; Sheet chọn ô có ghi chú và tự chuyển sheet khi cần, rồi quay vòng ở cuối danh sách.", "Nhấn Đã xử lý để đổi dấu góc sang màu xám nhưng vẫn giữ ghi chú; nhấn lại để mở lại.", "Nhấn Xóa nhận xét để xóa ghi chú ở ô đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại."]
+    steps: ["Mở tab Xem xét, nhóm Ghi chú.", "Nhấn Nhận xét trước hoặc Nhận xét sau; Sheet chọn ô có ghi chú và tự chuyển sheet khi cần, rồi quay vòng ở cuối danh sách.", "Nhấn Đã xử lý để đổi dấu góc sang màu xám nhưng vẫn giữ ghi chú; nhấn lại để mở lại. Nhấn Ctrl+S rồi mở lại tệp trong Sheet để kiểm tra trạng thái đã lưu.", "XLSX hiện giữ ghi chú theo định dạng legacy và lưu trạng thái Đã xử lý trong phần mở rộng riêng của Sheet. Ứng dụng bảng tính khác vẫn hiển thị ghi chú nhưng không hiển thị trạng thái Đã xử lý; trạng thái này chưa theo định dạng threaded comment.", "Nhấn Xóa nhận xét để xóa ghi chú ở ô đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại."]
   },
   {
     id: "sheet.sheet.rename",
@@ -755,9 +826,9 @@ export const SHEET_HELP_ENTRIES = [
     keywords: ["hộp văn bản", "textbox", "chú thích nổi", "khung chữ", "ghi chú ô"],
     steps: [
       "Chọn ô neo (góc trên-trái hộp sẽ bám ô này). Tab Chèn, nhóm Văn bản, nhấn Hộp văn bản.",
-      "Hộp «Chèn hộp văn bản» hỏi nội dung. Nhập chữ rồi xác nhận. Hộp trắng, viền xám, tối thiểu khoảng 180×54 px, hiện trên lớp nổi của sheet.",
-      "Nhấp vào hộp để sửa chữ. Kéo góc (resize trình duyệt) để đổi cỡ. Xóa hộp bằng hoàn tác Ctrl+Z ngay sau khi chèn.",
-      "Mỗi trang tính có danh sách hộp riêng. Hộp không đi cùng khi in như một đối tượng phần mềm bảng tính khác đầy đủ — dùng cho chú thích trên màn hình."
+      "Hộp «Chèn hộp văn bản» hỏi nội dung. Nhập chữ rồi xác nhận. Hộp trắng, viền xám, kích thước ban đầu khoảng 180×54 px, hiện trên lớp nổi của sheet.",
+      "Nhấp vào hộp để sửa chữ. Kéo góc dưới bên phải để đổi cỡ; vị trí neo theo ô đã chọn, hiện chưa kéo hộp sang ô khác được. Nhấn Ctrl+S để lưu XLSX; khi mở lại trong Sheet hoặc ứng dụng bảng tính khác, nội dung, ô neo và kích thước được giữ. Xóa hộp bằng Ctrl+Z ngay sau khi chèn.",
+      "Mỗi trang tính có danh sách hộp riêng. Hộp được xuất thành đối tượng DrawingML trong XLSX để các ứng dụng hỗ trợ định dạng này hiển thị và in cùng trang tính."
     ]
   },
   {
@@ -765,14 +836,14 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.insert.date", "sheet.insert.time"],
     title: "Chèn ngày và giờ hiện tại",
-    summary: "Hai lệnh bàn phím, không có nút riêng trên ribbon: Ctrl+; ghi ngày hôm nay dạng dd/MM/yyyy vào ô đang chọn; Ctrl+Shift+; ghi giờ hiện tại dạng HH:mm:ss.",
+    summary: "Hai lệnh bàn phím, không có nút riêng trên ribbon: Ctrl+; ghi ngày hôm nay vào ô đang chọn; Ctrl+Shift+; ghi giờ hiện tại dưới dạng giá trị số có định dạng giờ.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Văn bản" },
     keywords: ["chèn ngày", "chèn giờ", "ctrl+;", "hôm nay", "today", "now", "dd/mm/yyyy", "giờ hiện tại"],
     steps: [
       "Chọn ô trống (hoặc ô muốn ghi đè). Không có nút Ngày/Giờ trên ribbon Sheet — dùng phím tắt.",
       "Ctrl+; (Ctrl và phím chấm phẩy) chèn ngày máy tính, ví dụ 06/09/2026. Đây là chữ/ngày tĩnh, không tự đổi ngày mai.",
-      "Ctrl+Shift+; chèn giờ máy tính, ví dụ 14:05:09, đồng thời hiện trên thanh công thức.",
-      "Muốn hiển thị kiểu Ngày trong Định dạng số: bôi ô rồi tab Trang đầu → Định dạng số → Ngày, hoặc Ctrl+1. Ctrl+Z xóa giá trị vừa chèn."
+      "Ctrl+Shift+; chèn giờ máy tính, ví dụ 14:05. Ô được lưu dưới dạng số có định dạng giờ nên có thể cộng, trừ hoặc dùng trong công thức; đây là giá trị tĩnh và không tự chạy theo đồng hồ.",
+      "Muốn đổi cách hiển thị, chọn ô rồi nhấn Ctrl+1 để mở Định dạng ô và chọn kiểu Ngày hoặc Giờ phù hợp. Ctrl+Z xóa giá trị vừa chèn; Ctrl+Y khôi phục cả giá trị lẫn định dạng."
     ]
   },
   {
@@ -856,11 +927,11 @@ export const SHEET_HELP_ENTRIES = [
     title: "Chế độ tính toán, F9 và công thức mảng",
     summary: "Mặc định Tự động: sửa ô nguồn là tính lại ngay. Thủ công giữ nguyên kết quả cũ cho tới F9 (toàn workbook) hoặc Shift+F9 (trang hiện tại). Ctrl+Shift+Enter nhập công thức mảng cho vùng đã bôi.",
     ribbon: { tab: "Công thức", tabId: "formulas", group: "Tính toán" },
-    keywords: ["tính toán", "tự động", "thủ công", "manual", "f9", "shift+f9", "công thức mảng", "ctrl+shift+enter", "array formula", "tính lại"],
+    keywords: ["tính toán", "tự động", "thủ công", "manual", "f9", "shift+f9", "công thức mảng", "ctrl+shift+enter", "array formula", "TRANSPOSE", "chuyển vị", "tính lại"],
     steps: [
-      "Tab Công thức, nhóm Tính toán: hộp chọn Tự động (Automatic) / Thủ công (Manual), nút Tính lại toàn bộ (F9), Tính trang hiện tại (Shift+F9). Hai lệnh modeAutomatic / modeManual không có nút riêng — chúng là giá trị của hộp Tùy chọn tính toán.",
+      "Tab Công thức, nhóm Tính toán: hộp chọn Tự động (Automatic) / Thủ công (Manual), nút Tính lại toàn bộ (F9), Tính trang hiện tại (Shift+F9). Chọn Thủ công rồi nhấn Ctrl+S để lưu; XLSX ghi chế độ manual, các ứng dụng hỗ trợ thiết lập này sẽ mở tệp ở chế độ tính thủ công. Hai lệnh modeAutomatic / modeManual không có nút riêng — chúng là giá trị của hộp Tùy chọn tính toán.",
       "Tự động (mặc định): mỗi lần setCellValue chạy tính lại phụ thuộc. Thủ công: sửa A1 không đổi ô =A1*2 cho tới khi nhấn F9 (mọi sheet) hoặc Shift+F9 (chỉ sheet đang mở). Chuyển từ Thủ công về Tự động sẽ tính lại toàn bộ ngay.",
-      "Công thức mảng không có nút ribbon: bôi vùng kết quả, gõ công thức bắt đầu bằng = trên thanh công thức, nhấn Ctrl+Shift+Enter. Engine evaluateArray; số phần tử kết quả phải khớp số ô đã bôi — lệch thì lệnh không ghi. Mỗi ô mang cờ isArrayFormula và arrayRange chung.",
+      "Công thức mảng không có nút ribbon: bôi vùng kết quả, gõ công thức bắt đầu bằng = trên thanh công thức, nhấn Ctrl+Shift+Enter. Ví dụ, dữ liệu A1:C2 có 2 hàng × 3 cột thì bôi D1:E3 (3 hàng × 2 cột), nhập =TRANSPOSE(A1:C2), rồi nhấn Ctrl+Shift+Enter để chuyển hàng thành cột. Nếu chỉ nhấn Enter, kết quả theo giao mảng tại vị trí ô và có thể là #VALUE!; Ctrl+Shift+Enter điền toàn bộ mảng. Kích thước vùng đích phải khớp kết quả — lệch thì lệnh không ghi.",
       "F9 / Shift+F9 dùng cả khi đang Tự động (ép tính lại). Ctrl+Z hoàn tác lần nhập mảng. Công thức thường (không mảng) xác nhận bằng Enter."
     ]
   },
@@ -986,15 +1057,17 @@ export const SHEET_HELP_ENTRIES = [
     id: "sheet.style.tableAndCells",
     app: "sheet",
     commandIds: ["sheet.style.formatAsTable", "sheet.style.cellStyles"],
-    title: "Định dạng bảng và kiểu ô",
-    summary: "Định dạng bảng tô hàng tiêu đề đậm + hàng xen kẽ (5 mẫu màu). Kiểu ô áp một preset lên vùng chọn: Tốt/Kém/Trung tính, Tiêu đề 1/2, Ô nhập liệu, Tiền tệ ₫, Tổng cộng, Điểm nhấn.",
+    title: "Tạo bảng có bộ lọc và kiểu ô",
+    summary: "Định dạng thành Bảng tạo cấu trúc bảng có tên, vùng dữ liệu, hàng tiêu đề tùy chọn, nút lọc, kiểu hàng xen kẽ và tự mở rộng khi nhập liền dưới hoặc bên phải. Kiểu ô áp một preset riêng lên vùng chọn.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Kiểu ô" },
-    keywords: ["định dạng bảng", "format as table", "kiểu ô", "cell styles", "tốt", "kém", "banded rows", "tiền tệ"],
+    keywords: ["định dạng thành bảng", "format as table", "bảng có cấu trúc", "tên bảng", "bộ lọc bảng", "chuyển thành vùng", "đổi tên bảng", "hàng xen kẽ", "kiểu ô", "cell styles", "tốt", "kém", "banded rows", "tiền tệ"],
     steps: [
-      "Bôi vùng. Tab Trang đầu, nhóm Kiểu ô: Định dạng có điều kiện (nút lớn, bài riêng) rồi cột Định dạng bảng / Kiểu ô.",
-      "Định dạng bảng — hộp «Định dạng theo bảng (Format as Table)» (650 px) hiện «Vùng áp dụng bảng: A1:D10» (nhãn vùng đang bôi) và 5 mẫu: Bảng Xanh Lam (#2563eb), Xanh Lá (#16a34a), Xám Đậm (#334155), Cam Ấm (#ea580c), Tím Hiện Đại (#7c3aed). Hàng đầu chữ trắng nền màu; hàng chẵn/lẻ xen kẽ. Nhấp mẫu để áp ngay. Esc / × đóng.",
+      "Bôi vùng dữ liệu có ít nhất một hàng. Tab Trang đầu, nhóm Kiểu ô, chọn Định dạng thành Bảng. Hộp thoại hiển thị Vùng dữ liệu; sửa tham chiếu nếu cần, ví dụ A1:D10. Bật Bảng có tiêu đề nếu hàng đầu đã chứa tên cột. Khi tắt, hàng đầu được giữ làm dữ liệu và Sheet tạo tên cột như Column1, Column2.",
+      "Chọn một trong năm mẫu Bảng Xanh Lam, Xanh Lá, Xám Đậm, Cam Ấm hoặc Tím Hiện Đại rồi nhấn Tạo bảng. Sheet đặt tên mặc định Table1, Table2…; có thể nhập tên khác trong Tên bảng. Tiêu đề trống được điền tên cột và tiêu đề trùng được thêm hậu tố để tạo tên duy nhất. Nút lọc xuất hiện ở hàng tiêu đề; dùng nút đó để lọc như các cột lọc của Sheet.",
+      "Nhập thêm bản ghi ở hàng ngay dưới bảng hoặc nhập vào cột liền bên phải để bảng tự mở rộng. Nhấn Ctrl+Z để hoàn tác lần nhập cùng phần mở rộng; Ctrl+Y để khôi phục.",
+      "Đổi tên hoặc bỏ cấu trúc bảng: chọn một ô trong bảng, mở lại Trang đầu > Kiểu ô > Định dạng thành Bảng. Trong phần thao tác bảng, nhập tên mới rồi chọn Đổi tên bảng, hoặc chọn Chuyển thành vùng để giữ nội dung và màu nhưng bỏ tên bảng, tự mở rộng và cấu trúc bộ lọc. Ctrl+Z hoàn tác thao tác chuyển vùng.",
       "Kiểu ô — hộp «Thư viện kiểu ô (Cell Styles)» (720 px), lưới 2 cột: Bình thường (xóa màu, chữ #0f172a 13px), Tốt (nền #c6efce chữ #006100), Kém / Xấu (#ffc7ce / #9c0006), Trung tính (#ffeb9c / #9c6500), Tiêu đề 1 (16px đậm #1e3a8a, gạch dưới 2px), Tiêu đề 2 (14px, gạch 1px), Ô nhập liệu (nền #fff2cc), Tiền tệ (căn phải, ký hiệu ₫ sau số, 0 thập phân), Tổng cộng (viền trên đơn, dưới đôi), Điểm nhấn (nền #dbeafe). Nhấp thẻ áp ngay cho vùng chọn.",
-      "Đây là tô kiểu, không tạo đối tượng Table phần mềm bảng tính khác (không auto-filter riêng). Ctrl+Z hoàn tác. Xóa định dạng (menu Xóa) gỡ màu/kiểu, giữ số."
+      "Kiểu ô là preset định dạng riêng. Định dạng thành Bảng tạo đối tượng bảng thật khi lưu XLSX; mở lại tệp sẽ khôi phục vùng, tên và kiểu bảng. Xóa định dạng trong menu Xóa gỡ màu ô nhưng không đổi vùng hay tên bảng."
     ]
   },
   {
@@ -1186,7 +1259,24 @@ export const SHEET_HELP_ENTRIES = [
       "Nhấn F1 để mở Trợ giúp 3T Office và tìm 'Tab', 'Dán' hoặc 'bộ nhớ tạm'."
     ]
   },
-{
+  {
+    id: "sheet.input.navigationFillClipboard",
+    app: "sheet",
+    commandIds: [],
+    title: "Di chuyển, chọn, điền và sao chép ô bằng phím hoặc chuột",
+    summary: "Dùng lưới trang tính để chọn ô/vùng, nhập hoặc sửa nội dung, điền chuỗi, sao chép dữ liệu và hoàn tác. Nhấn F1 rồi tìm ‘chọn ô’ để mở lại hướng dẫn này.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["chọn ô", "di chuyển ô", "Ctrl+G", "F5", "F2", "điền xuống", "kéo tay nắm", "sao chép", "dán", "menu chuột phải", "hoàn tác"],
+    steps: [
+      "Nhấp vào ô trong lưới để chọn. Dùng các phím mũi tên để đi từng ô; giữ Shift khi nhấn mũi tên để mở rộng vùng. Nhấn End rồi một phím mũi tên để đi tới ô cuối theo hướng đó.",
+      "Đặt con trỏ vào Hộp tên bên trái thanh công thức. Gõ địa chỉ như D7, vùng như B2:D10, hoặc tên vùng rồi nhấn Enter để đi tới đó.",
+      "Khi một ô đang được chọn, gõ chữ hoặc số để thay nội dung rồi nhấn Enter. Sửa nội dung hiện có trực tiếp trong ô; Enter xác nhận, Esc hủy phần sửa và khôi phục giá trị cũ. Tab xác nhận rồi chuyển sang ô bên phải. Khi đã chọn nhiều ô, nhập giá trị hoặc công thức rồi dùng lệnh điền vùng. Delete xóa nội dung của cả vùng đang chọn.",
+      "Kéo chuột từ ô đầu đến ô cuối để chọn một khối. Nhấp chữ cái đầu cột hoặc số đầu hàng để chọn cả cột/hàng. Để điền, chọn vùng có ô nguồn ở cạnh trên hoặc bên trái rồi dùng lệnh Điền xuống/Điền sang phải trên tab Trang đầu; hoặc kéo tay nắm nhỏ ở góc dưới phải vùng chọn tới ô đích để tiếp tục chuỗi số/ngày.",
+      "Chọn ô/vùng nguồn rồi nhấn Ctrl+C để sao chép hoặc Ctrl+X để cắt; chọn ô đích và nhấn Ctrl+V để dán. Ctrl+Alt+V mở Dán đặc biệt để chọn giá trị, công thức, định dạng hoặc chuyển vị. Nhấp chuột phải lên ô để mở cùng các lệnh theo ngữ cảnh. Ctrl+Z hoàn tác một thao tác; Ctrl+Y làm lại.",
+      "Nội dung hướng dẫn không thay thế thao tác lưu tệp; hãy lưu bằng nút Lưu hoặc Ctrl+S sau khi sửa dữ liệu."
+    ]
+  },
+  {
     id: "sheet.keyboard.basicEditing",
     app: "sheet",
     commandIds: [],

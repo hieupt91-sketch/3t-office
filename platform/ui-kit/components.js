@@ -168,6 +168,7 @@ export function resolveIcon(commandId, iconName) {
   if (idLower.includes("freezetoprow")) return ICONS.freezeTopRow;
   if (idLower.includes("freezefirstcolumn")) return ICONS.freezeFirstColumn;
   if (idLower.includes("freezepanes")) return ICONS.freezePanes;
+  if (idLower.includes("splitwindow") || idLower.includes("view.split")) return ICONS.splitWindow;
   if (idLower.includes("normalview") || idLower.includes("view.normal")) return ICONS.sheetNormalView || ICONS.slidesNormalView;
   if (idLower.includes("pagebreakpreview")) return ICONS.sheetPageBreakPreview;
   if (idLower.includes("sheetpagelayout") || idLower.includes("pagelayout")) return ICONS.sheetPageLayout;

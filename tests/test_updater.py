@@ -284,6 +284,24 @@ class UpdaterTests(unittest.TestCase):
             log = (root / "updates" / "update-log.txt").read_text(encoding="utf-8")
             self.assertIn(f'source="{valid}"', log)
 
+    def test_newest_version_wins_when_first_source_is_older(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            lan, internet, packages = root / "lan-old", root / "internet-new", root / "packages"
+            lan.mkdir(); internet.mkdir(); packages.mkdir()
+            installed = create_fake_package(packages, "0.9.0", b"old", key=self.key)
+            install = root / "install"
+            shutil.copytree(installed, install)
+            self._publish_package(lan, packages, "0.9.1", b"lan has the older release")
+            self._publish_package(internet, packages, "0.9.2", b"internet has the newest release")
+            manager = UpdaterManager(
+                install_dir=install, updates_dir=root / "updates", current_version="0.9.0",
+                sources=[str(lan), str(internet)], channel="pilot", public_key=self.public_key,
+            )
+            state = manager.check_and_stage()
+            self.assertTrue(state["ready"])
+            self.assertEqual(state["available_version"], "0.9.2")
+            self.assertEqual(state["selected_source"], str(internet))
     def test_update_config_prefers_sources_and_keeps_legacy_source_compatible(self):
         import main
 

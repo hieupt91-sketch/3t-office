@@ -1,0 +1,89 @@
+{
+  "file": "E:\\VNOffice-profiles\\codex-fl12\\fix-l10-media.pptx",
+  "videoFile": "E:\\VNOffice-profiles\\codex-fl12\\fix-l10-video.mp4",
+  "audioFile": "E:\\VNOffice-profiles\\codex-fl12\\fix-l10-audio.mp3",
+  "video": {
+    "selected": true,
+    "state": {
+      "slides": 10,
+      "index": 0,
+      "shapes": [
+        {
+          "type": "textbox",
+          "srcLength": 0,
+          "sizeBytes": null
+        },
+        {
+          "type": "textbox",
+          "srcLength": 0,
+          "sizeBytes": null
+        },
+        {
+          "type": "image",
+          "srcLength": 758571,
+          "sizeBytes": null
+        },
+        {
+          "type": "image",
+          "srcLength": 393851,
+          "sizeBytes": null
+        },
+        {
+          "type": "image",
+          "srcLength": 970699,
+          "sizeBytes": null
+        },
+        {
+          "type": "video",
+          "srcLength": 570,
+          "sizeBytes": null
+        }
+      ]
+    }
+  },
+  "audio": {
+    "selected": true,
+    "state": {
+      "slides": 10,
+      "index": 0,
+      "shapes": [
+        {
+          "type": "textbox",
+          "srcLength": 0,
+          "sizeBytes": null
+        },
+        {
+          "type": "textbox",
+          "srcLength": 0,
+          "sizeBytes": null
+        },
+        {
+          "type": "image",
+          "srcLength": 758571,
+          "sizeBytes": null
+        },
+        {
+          "type": "image",
+          "srcLength": 393851,
+          "sizeBytes": null
+        },
+        {
+          "type": "image",
+          "srcLength": 970699,
+          "sizeBytes": null
+        },
+        {
+          "type": "video",
+          "srcLength": 570,
+          "sizeBytes": null
+        },
+        {
+          "type": "audio",
+          "srcLength": 579,
+          "sizeBytes": null
+        }
+      ]
+    }
+  },
+  "saved": true
+}

@@ -55,6 +55,10 @@ P14_NS = "http://schemas.microsoft.com/office/powerpoint/2010/main"
 PRESENTATION_NS = "http://schemas.openxmlformats.org/presentationml/2006/main"
 DRAWINGML_NS = "http://schemas.openxmlformats.org/drawingml/2006/main"
 DEFAULT_POINTER_COLOR = "#DC2626"
+ODF_STYLE_NS = "urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+ODF_FO_NS = "urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+ODF_TEXT_NS = "urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ODF_DRAW_NS = "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
 SECTION_LIST_URI = "{521415D9-36F7-43E2-AB2F-B90AF26B5E84}"
 DEFAULT_SECTION_NAME = "Default Section"
 SECTION_GUID_NAME_PREFIX = "urn:vn-office:slides:section:"
@@ -356,6 +360,7 @@ def _sub_table_open_tags(xml: str, replace, follow: str = " \t\r\n\f\v>/") -> st
 
 _FREEZE_ROWS_ATTR_RE = re.compile(r'vno:frozen-rows="(\d+)"', re.IGNORECASE)
 _FREEZE_COLS_ATTR_RE = re.compile(r'vno:frozen-cols="(\d+)"', re.IGNORECASE)
+_SPLIT_ATTR_RE = re.compile(r'vno:split-(row|col|x|y)="([\d.]+)"', re.IGNORECASE)
 _SHEET_VIEW_RE = re.compile(r"(<sheetView\b[^>]*>)([\s\S]*?)(</sheetView>)", re.IGNORECASE)
 _SHEET_VIEW_SELFCLOSE_RE = re.compile(r"<sheetView\b([^>]*)/>", re.IGNORECASE)
 _PANE_TAG_RE = re.compile(r"<pane\b[^>]*/>", re.IGNORECASE)
@@ -417,6 +422,49 @@ def apply_freeze_panes_to_fods(fods_xml: str, freeze_by_sheet: dict[str, dict[st
     return _sub_table_open_tags(xml, _replace)
 
 
+def parse_split_panes_from_fods(fods_xml: str | None) -> dict[str, dict[str, float | int]]:
+    """Read non-frozen split metadata persisted on FODS table elements."""
+    result: dict[str, dict[str, float | int]] = {}
+    for match in _FREEZE_TABLE_TAG_RE.finditer(fods_xml or ""):
+        attrs = match.group(1) or ""
+        name_match = re.search(r'table:name="([^"]*)"', attrs)
+        if not name_match:
+            continue
+        values = {key.lower(): float(value) for key, value in _SPLIT_ATTR_RE.findall(attrs)}
+        if values.get("x", 0) > 0 or values.get("y", 0) > 0:
+            result[_unescape_xml(name_match.group(1))] = {
+                "row": int(values.get("row", 0)), "col": int(values.get("col", 0)),
+                "x": values.get("x", 0), "y": values.get("y", 0),
+            }
+    return result
+
+
+def apply_split_panes_to_fods(fods_xml: str, split_by_sheet: dict[str, dict[str, float | int]]) -> str:
+    """Overlay state=split pane metadata without setting frozen rows or columns."""
+    if not split_by_sheet:
+        return fods_xml or ""
+
+    def _replace(match: re.Match[str]) -> str:
+        attrs = match.group(1) or ""
+        name_match = re.search(r'table:name="([^"]*)"', attrs)
+        if not name_match:
+            return match.group(0)
+        name = _unescape_xml(name_match.group(1))
+        split = _sheet_name_equivalent_value(split_by_sheet, name)
+        if not split or (float(split.get("x", 0)) <= 0 and float(split.get("y", 0)) <= 0):
+            return match.group(0)
+        next_attrs = _SPLIT_ATTR_RE.sub("", attrs)
+        next_attrs = _FREEZE_ROWS_ATTR_RE.sub("", next_attrs)
+        next_attrs = _FREEZE_COLS_ATTR_RE.sub("", next_attrs)
+        next_attrs += (
+            f' vno:split-row="{int(split.get("row", 0))}" vno:split-col="{int(split.get("col", 0))}"'
+            f' vno:split-x="{split.get("x", 0)}" vno:split-y="{split.get("y", 0)}"'
+        )
+        return f"<table:table{next_attrs}>"
+
+    return _sub_table_open_tags(fods_xml or "", _replace)
+
+
 def parse_freeze_pane_from_sheet_xml(sheet_xml: str | None) -> dict[str, int] | None:
     """Đọc <pane state="frozen" xSplit ySplit> thật từ một worksheetN.xml XLSX."""
     match = _PANE_MATCH_RE.search(sheet_xml or "")
@@ -432,6 +480,31 @@ def parse_freeze_pane_from_sheet_xml(sheet_xml: str | None) -> dict[str, int] | 
     if rows == 0 and cols == 0:
         return None
     return {"rows": rows, "cols": cols}
+
+
+def parse_split_pane_from_sheet_xml(sheet_xml: str | None) -> dict[str, float | int] | None:
+    """Read state=split (or the OOXML default split state), never frozen panes."""
+    match = _PANE_MATCH_RE.search(sheet_xml or "")
+    if not match:
+        return None
+    attrs = match.group(1) or ""
+    if re.search(r'state="(?:frozen|frozenSplit)"', attrs, re.IGNORECASE):
+        return None
+    x_match = re.search(r'xSplit="([\d.]+)"', attrs)
+    y_match = re.search(r'ySplit="([\d.]+)"', attrs)
+    x = float(x_match.group(1)) if x_match else 0.0
+    y = float(y_match.group(1)) if y_match else 0.0
+    if x <= 0 and y <= 0:
+        return None
+    top_left = re.search(r'topLeftCell="([A-Z]+)(\d+)"', attrs, re.IGNORECASE)
+    col = 0
+    row = 0
+    if top_left:
+        for char in top_left.group(1).upper():
+            col = col * 26 + ord(char) - 64
+        col = max(0, col - 1)
+        row = max(0, int(top_left.group(2)) - 1)
+    return {"row": row, "col": col, "x": x, "y": y}
 
 
 def apply_freeze_pane_to_sheet_xml(sheet_xml: str, rows: int, cols: int) -> str:
@@ -472,6 +545,38 @@ def apply_freeze_pane_to_sheet_xml(sheet_xml: str, rows: int, cols: int) -> str:
     return xml
 
 
+def apply_split_pane_to_sheet_xml(sheet_xml: str, split: dict[str, float | int]) -> str:
+    """Write a real non-frozen OOXML split pane; x/y are twentieths of a point."""
+    xml = sheet_xml or ""
+    row = max(0, int(split.get("row", 0)))
+    col = max(0, int(split.get("col", 0)))
+    x = max(0.0, float(split.get("x", 0)))
+    y = max(0.0, float(split.get("y", 0)))
+    if x <= 0 and y <= 0:
+        return xml
+    top_left_cell = f"{column_label_from_index(col + 1)}{row + 1}"
+    active_pane = "bottomRight" if x > 0 and y > 0 else ("bottomLeft" if y > 0 else "topRight")
+    number = lambda value: str(int(value)) if float(value).is_integer() else str(value)
+    pane_attrs: list[str] = []
+    if x > 0:
+        pane_attrs.append(f'xSplit="{number(x)}"')
+    if y > 0:
+        pane_attrs.append(f'ySplit="{number(y)}"')
+    pane_attrs.extend((f'topLeftCell="{top_left_cell}"', f'activePane="{active_pane}"', 'state="split"'))
+    pane_xml = f'<pane {" ".join(pane_attrs)}/>'
+    selection_xml = f'<selection pane="{active_pane}" activeCell="{top_left_cell}" sqref="{top_left_cell}"/>'
+    clean = lambda inner: _SELECTION_TAG_RE.sub("", _PANE_TAG_RE.sub("", inner))
+    match = _SHEET_VIEW_RE.search(xml)
+    if match:
+        replacement = f"{match.group(1)}{pane_xml}{selection_xml}{clean(match.group(2))}{match.group(3)}"
+        return xml[:match.start()] + replacement + xml[match.end():]
+    self_close = _SHEET_VIEW_SELFCLOSE_RE.search(xml)
+    if self_close:
+        replacement = f"<sheetView{self_close.group(1)}>{pane_xml}{selection_xml}</sheetView>"
+        return xml[:self_close.start()] + replacement + xml[self_close.end():]
+    return xml
+
+
 # ---------------------------------------------------------------------------
 # Sheet visibility (veryHidden) overlay
 # ---------------------------------------------------------------------------
@@ -499,6 +604,341 @@ def parse_sheet_visibility_from_workbook(workbook_xml: str | None) -> dict[str, 
             if state.lower() in ("hidden", "veryhidden"):
                 result[_unescape_xml(name_match.group(1))] = state
     return result
+
+
+def parse_calculation_mode_from_workbook(workbook_xml: str | None) -> str | None:
+    """Return the explicit Excel calculation mode, or None for automatic/default."""
+    match = re.search(r"<(?:[\w.-]+:)?calcPr\b([^>]*)/?>", workbook_xml or "", re.IGNORECASE)
+    if not match:
+        return None
+    mode = re.search(r'\bcalcMode\s*=\s*(["\'])(.*?)\1', match.group(1), re.IGNORECASE)
+    value = mode.group(2).strip().lower() if mode else ""
+    return value if value in {"auto", "manual", "autonotable"} else None
+
+
+def apply_calculation_mode_to_fods(fods_xml: str, mode: str | None) -> str:
+    """Carry explicit workbook calculation mode across LibreOffice's FODS import."""
+    if mode not in {"auto", "manual", "autoNoTable"}:
+        return fods_xml or ""
+    xml = fods_xml or ""
+    pattern = re.compile(r"<office:spreadsheet\b([^>]*)>", re.IGNORECASE)
+
+    def replace(match: re.Match[str]) -> str:
+        attrs = re.sub(r'\s+vno:calculation-mode=("[^"]*"|\'[^\']*\')', "", match.group(1), flags=re.IGNORECASE)
+        return f'<office:spreadsheet{attrs} vno:calculation-mode="{mode}">'
+
+    return pattern.sub(replace, xml, count=1)
+
+
+def parse_calculation_mode_from_fods(fods_xml: str | None) -> str | None:
+    match = re.search(r"<office:spreadsheet\b([^>]*)>", fods_xml or "", re.IGNORECASE)
+    if not match:
+        return None
+    value = re.search(r'\bvno:calculation-mode\s*=\s*(["\'])(.*?)\1', match.group(1), re.IGNORECASE)
+    mode = value.group(2) if value else ""
+    return mode if mode in {"auto", "manual", "autoNoTable"} else None
+
+
+def _parse_fods_text_boxes(fods_xml: str | None) -> dict[str, list[dict]]:
+    result: dict[str, list[dict]] = {}
+    for match in re.finditer(r"<table:table\b([^>]*)>", fods_xml or "", re.IGNORECASE):
+        attrs = match.group(1)
+        name = re.search(r'table:name\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+        boxes_match = re.search(r'vno:text-boxes\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+        if not name or not boxes_match:
+            continue
+        try:
+            boxes = json.loads(html.unescape(boxes_match.group(2)))
+        except (TypeError, ValueError):
+            continue
+        if isinstance(boxes, list):
+            result[_unescape_xml(name.group(2))] = [box for box in boxes if isinstance(box, dict)]
+    return result
+
+
+def _drawing_textbox_shape(box: dict, shape_id: int) -> str:
+    anchor = box.get("anchor") if isinstance(box.get("anchor"), dict) else {}
+    col_match = re.fullmatch(r"([A-Z]+)", str(anchor.get("c", "A")).upper())
+    col = 0
+    if col_match:
+        for char in col_match.group(1):
+            col = col * 26 + ord(char) - 64
+        col = max(0, col - 1)
+    row = max(0, int(anchor.get("r", 1) or 1) - 1)
+    width = max(180, int(float(box.get("widthPx", 180) or 180)))
+    height = max(54, int(float(box.get("heightPx", 54) or 54)))
+    text = str(box.get("text", ""))
+    paragraphs = "".join(
+        f"<a:p><a:r><a:rPr lang=\"vi-VN\" dirty=\"0\"/><a:t>{_escape_xml(line)}</a:t></a:r><a:endParaRPr lang=\"vi-VN\"/></a:p>"
+        for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    ) or "<a:p><a:endParaRPr lang=\"vi-VN\"/></a:p>"
+    return (
+        '<xdr:oneCellAnchor><xdr:from>'
+        f'<xdr:col>{col}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>{row}</xdr:row><xdr:rowOff>0</xdr:rowOff>'
+        '</xdr:from><xdr:ext cx="' + str(width * 9525) + '" cy="' + str(height * 9525) + '"/>'
+        '<xdr:sp macro="" textlink=""><xdr:nvSpPr><xdr:cNvPr id="' + str(shape_id) + '" name="Text Box ' + str(shape_id) + '"/><xdr:cNvSpPr txBox="1"/></xdr:nvSpPr>'
+        '<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' + str(width * 9525) + '" cy="' + str(height * 9525) + '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:ln w="9525"><a:solidFill><a:srgbClr val="64748B"/></a:solidFill></a:ln></xdr:spPr>'
+        '<xdr:txBody><a:bodyPr wrap="square" lIns="95250" tIns="95250" rIns="95250" bIns="95250" anchor="t"/><a:lstStyle/>' + paragraphs + '</xdr:txBody></xdr:sp><xdr:clientData/></xdr:oneCellAnchor>'
+    )
+
+
+def _apply_sheet_text_boxes_to_xlsx(xlsx_bytes: bytes, text_boxes_by_sheet: dict[str, list[dict]], replacements: dict[str, str | bytes | None]) -> None:
+    if not text_boxes_by_sheet:
+        return
+
+    def current_xml(path: str) -> str:
+        value = replacements.get(path)
+        if value is None:
+            value = read_zip_entry(xlsx_bytes, path) or b""
+        return value.decode("utf-8", errors="replace") if isinstance(value, bytes) else str(value)
+
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    content_types = (read_zip_entry(xlsx_bytes, "[Content_Types].xml") or b"").decode("utf-8", errors="replace")
+    for sheet_name, boxes in text_boxes_by_sheet.items():
+        sheet_path = _sheet_name_equivalent_value(sheet_entries, sheet_name)
+        if not sheet_path or not boxes:
+            continue
+        rels_path = sheet_path.replace("/worksheets/", "/worksheets/_rels/") + ".rels"
+        rels = current_xml(rels_path)
+        worksheet = current_xml(sheet_path)
+        rel_match = re.search(r'<Relationship\b([^>]*Type="[^"]*/drawing"[^>]*)/?>', rels, re.IGNORECASE)
+        drawing_path = ""
+        rel_id = ""
+        if rel_match:
+            attrs = rel_match.group(1)
+            target = re.search(r'Target="([^"]*)"', attrs, re.IGNORECASE)
+            rid = re.search(r'Id="([^"]*)"', attrs, re.IGNORECASE)
+            if target and rid:
+                drawing_path = posixpath.normpath(posixpath.join(posixpath.dirname(sheet_path), target.group(1)))
+                rel_id = rid.group(1)
+        if not drawing_path:
+            existing = set(re.findall(r"xl/drawings/drawing(\d+)\.xml", "\n".join(_zip_entry_names(xlsx_bytes) + list(replacements)), re.IGNORECASE))
+            index = 1
+            while str(index) in existing:
+                index += 1
+            drawing_path = f"xl/drawings/drawing{index}.xml"
+            used_ids = set(re.findall(r'\bId="(rId\d+)"', rels))
+            rid_no = 1
+            while f"rId{rid_no}" in used_ids:
+                rid_no += 1
+            rel_id = f"rId{rid_no}"
+            if not rels:
+                rels = '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+            rel_tag = f'<Relationship Id="{rel_id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing" Target="../drawings/{posixpath.basename(drawing_path)}"/>'
+            rels = rels.replace("</Relationships>", rel_tag + "</Relationships>")
+            if not re.search(r'<drawing\b', worksheet, re.IGNORECASE):
+                drawing_tag = f'<drawing r:id="{rel_id}"/>'
+                ext = re.search(r'<extLst\b', worksheet, re.IGNORECASE)
+                position = ext.start() if ext else worksheet.lower().rfind("</worksheet>")
+                if position >= 0:
+                    worksheet = worksheet[:position] + drawing_tag + worksheet[position:]
+            replacements[rels_path] = rels
+        drawing = current_xml(drawing_path)
+        if not drawing:
+            drawing = '<xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"></xdr:wsDr>'
+            if not re.search(rf'<Override\b[^>]*PartName="/{re.escape(drawing_path)}"', content_types, re.IGNORECASE):
+                content_types = content_types.replace("</Types>", f'<Override PartName="/{drawing_path}" ContentType="application/vnd.openxmlformats-officedocument.drawing+xml"/></Types>')
+        if "xmlns:xdr=" not in drawing:
+            drawing = re.sub(r"<([\w.-]+:)?wsDr\b", r'<\g<0> xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"', drawing, count=1)
+        if "xmlns:a=" not in drawing:
+            drawing = re.sub(r"<([\w.-]+:)?wsDr\b", r'<\g<0> xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"', drawing, count=1)
+        ids = [int(value) for value in re.findall(r'<(?:[\w.-]+:)?cNvPr\b[^>]*\bid="(\d+)"', drawing, re.IGNORECASE)]
+        next_id = max(ids, default=0) + 1
+        body = "".join(_drawing_textbox_shape(box, next_id + index) for index, box in enumerate(boxes))
+        close = re.search(r"</(?:[\w.-]+:)?wsDr\s*>", drawing, re.IGNORECASE)
+        if close:
+            drawing = drawing[:close.start()] + body + drawing[close.start():]
+        replacements[drawing_path] = drawing
+        replacements[sheet_path] = worksheet
+    if content_types:
+        replacements["[Content_Types].xml"] = content_types
+
+
+def _zip_entry_names(xlsx_bytes: bytes) -> list[str]:
+    try:
+        with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+            return package.namelist()
+    except (zipfile.BadZipFile, OSError, ValueError):
+        return []
+
+
+def _parse_xlsx_drawing_text_boxes(xlsx_bytes: bytes) -> dict[str, list[dict]]:
+    result: dict[str, list[dict]] = {}
+    rel_ns = "http://schemas.openxmlformats.org/package/2006/relationships"
+    xdr_ns = "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"
+    a_ns = "http://schemas.openxmlformats.org/drawingml/2006/main"
+    for sheet_name, sheet_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        rels_path = sheet_path.replace("/worksheets/", "/worksheets/_rels/") + ".rels"
+        rels_bytes = read_zip_entry(xlsx_bytes, rels_path)
+        if not rels_bytes:
+            continue
+        try:
+            rels_root = ET.fromstring(rels_bytes)
+            target = next((rel.attrib.get("Target") for rel in rels_root.findall(f"{{{rel_ns}}}Relationship") if rel.attrib.get("Type", "").endswith("/drawing")), None)
+            if not target:
+                continue
+            drawing_path = posixpath.normpath(posixpath.join(posixpath.dirname(sheet_path), target))
+            drawing_bytes = read_zip_entry(xlsx_bytes, drawing_path)
+            if not drawing_bytes:
+                continue
+            drawing_root = ET.fromstring(drawing_bytes)
+        except (ET.ParseError, ValueError):
+            continue
+        boxes = []
+        for anchor in drawing_root.findall(f"{{{xdr_ns}}}oneCellAnchor"):
+            shape = anchor.find(f"{{{xdr_ns}}}sp")
+            nonvisual = shape.find(f"{{{xdr_ns}}}nvSpPr/{{{xdr_ns}}}cNvSpPr") if shape is not None else None
+            if nonvisual is None or nonvisual.attrib.get("txBox") != "1":
+                continue
+            position = anchor.find(f"{{{xdr_ns}}}from")
+            extent = anchor.find(f"{{{xdr_ns}}}ext")
+            if position is None or extent is None:
+                continue
+            values = {child.tag.rsplit("}", 1)[-1]: child.text or "0" for child in list(position)}
+            try:
+                col = max(0, int(values.get("col", "0")))
+                row = max(0, int(values.get("row", "0")))
+                width = max(180, round(int(extent.attrib.get("cx", "0")) / 9525))
+                height = max(54, round(int(extent.attrib.get("cy", "0")) / 9525))
+            except (TypeError, ValueError):
+                continue
+            column = ""
+            number = col + 1
+            while number:
+                number, rem = divmod(number - 1, 26)
+                column = chr(65 + rem) + column
+            body = shape.find(f"{{{xdr_ns}}}txBody")
+            paragraphs = []
+            if body is not None:
+                for paragraph in body.findall(f"{{{a_ns}}}p"):
+                    paragraphs.append("".join(item.text or "" for item in paragraph.findall(f".//{{{a_ns}}}t")))
+            boxes.append({"text": "\n".join(paragraphs), "anchor": {"c": column, "r": row + 1}, "widthPx": width, "heightPx": height})
+        if boxes:
+            result[sheet_name] = boxes
+    return result
+
+
+def _overlay_sheet_drawing_text_boxes(xlsx_bytes: bytes, fods_xml: str) -> str:
+    boxes_by_sheet = _parse_xlsx_drawing_text_boxes(xlsx_bytes)
+    if not boxes_by_sheet:
+        return fods_xml or ""
+
+    def process_table(match) -> str:
+        opening, body, closing = match.group(1), match.group(2), match.group(3)
+        attrs = _xml_attrs(opening)
+        sheet_name = _unescape_xml(attrs.get("table:name", ""))
+        boxes = boxes_by_sheet.get(sheet_name)
+        if not boxes:
+            return match.group(0)
+        serialized = _escape_xml(json.dumps(boxes, ensure_ascii=False, separators=(",", ":")))
+        opening = re.sub(r'\s+vno:text-boxes=("[^"]*"|\'[^\']*\')', "", opening, flags=re.IGNORECASE)
+        return f'{opening[:-1]} vno:text-boxes="{serialized}">{body}{closing}'
+
+    return _sub_fods_tables(fods_xml or "", process_table)
+
+
+def _parse_fods_resolved_comments(fods_xml: str | None) -> dict[str, dict[str, bool]]:
+    result: dict[str, dict[str, bool]] = {}
+    for match in re.finditer(r"<table:table\b([^>]*)>", fods_xml or "", re.IGNORECASE):
+        attrs = match.group(1)
+        name = re.search(r'table:name\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+        state_match = re.search(r'vno:resolved-comments\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+        if not name or not state_match:
+            continue
+        try:
+            states = json.loads(html.unescape(state_match.group(2)))
+        except (TypeError, ValueError):
+            continue
+        if isinstance(states, dict):
+            result[_unescape_xml(name.group(2))] = {str(ref): bool(value) for ref, value in states.items() if re.fullmatch(r"[A-Z]{1,3}\d+", str(ref), re.IGNORECASE)}
+    return result
+
+
+def _parse_xlsx_resolved_comments(xlsx_bytes: bytes) -> dict[str, dict[str, bool]]:
+    result: dict[str, dict[str, bool]] = {}
+    namespace = "https://vnoffice.vn/ns/spreadsheet/1.0"
+    for sheet_name, sheet_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        sheet_bytes = read_zip_entry(xlsx_bytes, sheet_path)
+        if not sheet_bytes:
+            continue
+        try:
+            root = ET.fromstring(sheet_bytes)
+        except ET.ParseError:
+            continue
+        states = {}
+        for comment in root.findall(f".//{{{namespace}}}resolvedComments/{{{namespace}}}comment"):
+            ref = comment.attrib.get("ref", "")
+            if re.fullmatch(r"[A-Z]{1,3}\d+", ref, re.IGNORECASE):
+                states[ref.upper()] = comment.attrib.get("done", "0") in {"1", "true"}
+        if states:
+            result[sheet_name] = states
+    return result
+
+
+def _overlay_sheet_resolved_comments(xlsx_bytes: bytes, fods_xml: str) -> str:
+    states_by_sheet = _parse_xlsx_resolved_comments(xlsx_bytes)
+    if not states_by_sheet:
+        return fods_xml or ""
+
+    def process_table(match) -> str:
+        opening, body, closing = match.group(1), match.group(2), match.group(3)
+        attrs = _xml_attrs(opening)
+        sheet_name = _unescape_xml(attrs.get("table:name", ""))
+        states = states_by_sheet.get(sheet_name)
+        if not states:
+            return match.group(0)
+        serialized = _escape_xml(json.dumps(states, separators=(",", ":")))
+        opening = re.sub(r'\s+vno:resolved-comments=("[^"]*"|\'[^\']*\')', "", opening, flags=re.IGNORECASE)
+        return f'{opening[:-1]} vno:resolved-comments="{serialized}">{body}{closing}'
+
+    return _sub_fods_tables(fods_xml or "", process_table)
+
+
+def _apply_sheet_resolved_comments_to_xlsx(xlsx_bytes: bytes, states_by_sheet: dict[str, dict[str, bool]], replacements: dict[str, str | bytes | None]) -> None:
+    namespace = "https://vnoffice.vn/ns/spreadsheet/1.0"
+    for sheet_name, states in states_by_sheet.items():
+        sheet_path = _sheet_name_equivalent_value(_resolve_xlsx_sheet_entries(xlsx_bytes), sheet_name)
+        if not sheet_path or not states:
+            continue
+        current = replacements.get(sheet_path)
+        if current is None:
+            current = read_zip_entry(xlsx_bytes, sheet_path) or b""
+        worksheet = current.decode("utf-8", errors="replace") if isinstance(current, bytes) else str(current)
+        children = "".join(
+            f'<vno:comment ref="{_escape_xml(ref)}" done="{"1" if done else "0"}"/>'
+            for ref, done in sorted(states.items())
+        )
+        extension = f'<ext uri="{{7A6A35E2-09C8-4C6A-97C8-3F5F0E1A0710}}"><vno:resolvedComments xmlns:vno="{namespace}">{children}</vno:resolvedComments></ext>'
+        ext_list = re.search(r"<(?:[\w.-]+:)?extLst\b[^>]*>([\s\S]*?)</(?:[\w.-]+:)?extLst\s*>", worksheet, re.IGNORECASE)
+        if ext_list:
+            body = re.sub(r'<(?:[\w.-]+:)?ext\b(?=[^>]*uri=["\']\{7A6A35E2-09C8-4C6A-97C8-3F5F0E1A0710\}["\'])[^>]*>[\s\S]*?</(?:[\w.-]+:)?ext\s*>', "", ext_list.group(1), flags=re.IGNORECASE)
+            updated = f'<extLst>{body}{extension}</extLst>'
+            worksheet = worksheet[:ext_list.start()] + updated + worksheet[ext_list.end():]
+        else:
+            close = re.search(r"</(?:[\w.-]+:)?worksheet\s*>", worksheet, re.IGNORECASE)
+            if not close:
+                continue
+            worksheet = worksheet[:close.start()] + f"<extLst>{extension}</extLst>" + worksheet[close.start():]
+        replacements[sheet_path] = worksheet
+
+
+def apply_calculation_mode_to_workbook(workbook_xml: str, mode: str | None) -> str:
+    """Set calcPr.calcMode while preserving all other calculation attributes."""
+    normalized = {"automatic": "auto", "auto": "auto", "manual": "manual", "autoNoTable": "autoNoTable"}.get(mode or "")
+    if normalized is None:
+        return workbook_xml or ""
+    xml = workbook_xml or ""
+    match = re.search(r"<((?:[\w.-]+:)?calcPr)\b([^>]*)/?>", xml, re.IGNORECASE)
+    if match:
+        tag_name = match.group(1)
+        attrs = re.sub(r"/\s*$", "", match.group(2))
+        attrs = re.sub(r'\s+calcMode\s*=\s*(["\']).*?\1', "", attrs, flags=re.IGNORECASE)
+        tag = f'<{tag_name}{attrs} calcMode="{normalized}"/>'
+        return xml[:match.start()] + tag + xml[match.end():]
+    insertion = re.search(r"</(?:[\w.-]+:)?workbook\s*>", xml, re.IGNORECASE)
+    if not insertion:
+        return xml
+    return xml[:insertion.start()] + f'<calcPr calcMode="{normalized}"/>' + xml[insertion.start():]
 
 
 def apply_sheet_visibility_to_fods(fods_xml: str, visibility_by_sheet: dict[str, str]) -> str:
@@ -1398,6 +1838,8 @@ def parse_autofilter_from_fods(fods_xml: str | None) -> dict[str, str]:
         return result
     for match in _DB_RANGE_RE.finditer(fods_xml):
         attrs = match.group(1) or ""
+        if re.search(r'\bvno:table-name="', attrs, re.IGNORECASE):
+            continue
         target_match = re.search(r'table:target-range-address="([^"]*)"', attrs)
         if not target_match:
             continue
@@ -1424,6 +1866,8 @@ def parse_autofilter_filter_columns_from_fods(fods_xml: str | None) -> dict[str,
         return result
     for match in _DB_RANGE_RE.finditer(fods_xml):
         attrs = match.group(1) or ""
+        if re.search(r'\bvno:table-name="', attrs, re.IGNORECASE):
+            continue
         target_match = re.search(r'table:target-range-address="([^"]*)"', attrs)
         columns_match = re.search(r'vno:filter-columns="([^"]*)"', attrs, re.IGNORECASE)
         if not target_match or not columns_match:
@@ -1444,6 +1888,127 @@ def parse_autofilter_filter_columns_from_fods(fods_xml: str | None) -> dict[str,
                 if isinstance(item, dict) and isinstance(item.get("values"), list)
             ]
     return result
+
+
+def parse_tables_from_fods(fods_xml: str | None) -> dict[str, dict]:
+    """Read explicit VN table definitions from FODS database ranges by name."""
+    result: dict[str, dict] = {}
+    for match in _DB_RANGE_RE.finditer(fods_xml or ""):
+        attrs = match.group(1) or ""
+        name = re.search(r'vno:table-name="([^"]*)"', attrs, re.IGNORECASE)
+        target = re.search(r'table:target-range-address="([^"]*)"', attrs, re.IGNORECASE)
+        if not name or not target:
+            continue
+        target_value = _unescape_xml(target.group(1))
+        range_match = re.match(r"^(?:'((?:[^']|'')*)'|([^.'!]+))\.\$?([A-Z]+)\$?(\d+):(?:'(?:[^']|'')*'|[^.'!]+)\.\$?([A-Z]+)\$?(\d+)$", target_value, re.IGNORECASE)
+        if not range_match:
+            continue
+        sheet = range_match.group(1).replace("''", "'") if range_match.group(1) is not None else range_match.group(2)
+        def attr_value(key: str, default: str) -> str:
+            value = re.search(rf'vno:{key}="([^"]*)"', attrs, re.IGNORECASE)
+            return _unescape_xml(value.group(1)) if value else default
+        table_name = _unescape_xml(name.group(1))
+        result[table_name] = {
+            "sheet": sheet,
+            "ref": f"{range_match.group(3)}{range_match.group(4)}:{range_match.group(5)}{range_match.group(6)}",
+            "style": attr_value("table-style", "TableStyleMedium2"),
+            "has_headers": attr_value("table-headers", "true") != "false",
+            "show_autofilter": attr_value("table-show-autofilter", "true") != "false",
+            "row_stripes": attr_value("table-row-stripes", "true") != "false",
+            "totals": attr_value("table-totals", "false") == "true",
+            "totals_label": attr_value("table-totals-label", ""),
+        }
+    return result
+
+
+def _apply_table_metadata_from_fods(xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]) -> None:
+    """Set real table names, refs, header/filter flags and style on LO table parts."""
+    tables = parse_tables_from_fods(source_fods)
+    if not tables:
+        return
+    for path in zipfile.ZipFile(io.BytesIO(xlsx_bytes)).namelist():
+        if not re.fullmatch(r"xl/tables/table\d+\.xml", path):
+            continue
+        raw = replacements.get(path)
+        if raw is None:
+            entry = read_zip_entry(xlsx_bytes, path)
+            if not entry:
+                continue
+            raw = entry.decode("utf-8", errors="replace")
+        root = re.search(r"<table\b([^>]*)>", raw)
+        if not root:
+            continue
+        attrs = root.group(1)
+        current_name = re.search(r'\b(?:displayName|name)="([^"]+)"', attrs)
+        metadata = tables.get(_unescape_xml(current_name.group(1))) if current_name else None
+        if metadata is None:
+            # LO can normalize the database name when creating the table part.
+            metadata = next((item for name, item in tables.items() if name in attrs), None)
+        if metadata is None:
+            continue
+        table_name = next((name for name, item in tables.items() if item is metadata), "")
+        if not table_name:
+            continue
+        attrs = re.sub(r'\bname="[^"]*"', f'name="{_escape_xml(table_name)}"', attrs, count=1)
+        if re.search(r'\bdisplayName="[^"]*"', attrs):
+            attrs = re.sub(r'\bdisplayName="[^"]*"', f'displayName="{_escape_xml(table_name)}"', attrs, count=1)
+        else:
+            attrs += f' displayName="{_escape_xml(table_name)}"'
+        attrs = re.sub(r'\bref="[^"]*"', f'ref="{metadata["ref"]}"', attrs, count=1)
+        if re.search(r'\bheaderRowCount="[^"]*"', attrs):
+            attrs = re.sub(r'\bheaderRowCount="[^"]*"', f'headerRowCount="{1 if metadata["has_headers"] else 0}"', attrs, count=1)
+        elif not metadata["has_headers"]:
+            attrs += ' headerRowCount="0"'
+        if metadata.get("totals"):
+            if re.search(r'\btotalsRowCount="[^"]*"', attrs):
+                attrs = re.sub(r'\btotalsRowCount="[^"]*"', 'totalsRowCount="1"', attrs, count=1)
+            else:
+                attrs += ' totalsRowCount="1"'
+            attrs = re.sub(r'\btotalsRowShown="[^"]*"', '', attrs)
+        xml = raw[:root.start()] + f"<table{attrs}>" + raw[root.end():]
+        auto_filter = re.search(r'<autoFilter\b[^>]*/>|<autoFilter\b[^>]*>[\s\S]*?</autoFilter>', xml)
+        filter_ref = metadata["ref"]
+        if metadata.get("totals"):
+            # Vùng lọc của bảng không gồm dòng tổng (hàng cuối của ref).
+            cols_part, end_part = filter_ref.split(":", 1)
+            end_match = re.match(r"([A-Z]+)(\d+)$", end_part)
+            if end_match:
+                filter_ref = f"{cols_part}:{end_match.group(1)}{max(1, int(end_match.group(2)) - 1)}"
+        if metadata["show_autofilter"]:
+            filter_xml = f'<autoFilter ref="{filter_ref}"/>'
+            if auto_filter:
+                xml = xml[:auto_filter.start()] + filter_xml + xml[auto_filter.end():]
+            else:
+                col_match = re.search(r'<tableColumns\b', xml)
+                if col_match:
+                    xml = xml[:col_match.start()] + filter_xml + xml[col_match.start():]
+        elif auto_filter:
+            xml = xml[:auto_filter.start()] + xml[auto_filter.end():]
+        if metadata.get("totals"):
+            # Dòng tổng: cột đầu mang nhãn, cột cuối (nếu có ≥2 cột) tính SUM — khớp công thức SUBTOTAL(109,...) trong ô.
+            column_matches = list(re.finditer(r"<tableColumn\b([^>]*?)(/?)>", xml))
+            last_index = len(column_matches) - 1
+            for index in range(last_index, -1, -1):
+                column = column_matches[index]
+                attrs_text = column.group(1)
+                if index == 0 and "totalsRowLabel=" not in attrs_text:
+                    attrs_text += f' totalsRowLabel="{_escape_xml(metadata.get("totals_label") or "Total")}"'
+                elif index == last_index and last_index > 0 and "totalsRowFunction=" not in attrs_text:
+                    attrs_text += ' totalsRowFunction="sum"'
+                else:
+                    continue
+                xml = xml[:column.start()] + f"<tableColumn{attrs_text}{column.group(2)}>" + xml[column.end():]
+        style = metadata["style"] or "TableStyleMedium2"
+        style_xml = (f'<tableStyleInfo name="{_escape_xml(style)}" showFirstColumn="0" showLastColumn="0" '
+                     f'showRowStripes="{1 if metadata["row_stripes"] else 0}" showColumnStripes="0"/>')
+        style_match = re.search(r'<tableStyleInfo\b[^>]*/>', xml)
+        if style_match:
+            xml = xml[:style_match.start()] + style_xml + xml[style_match.end():]
+        else:
+            close = xml.rfind("</table>")
+            if close >= 0:
+                xml = xml[:close] + style_xml + xml[close:]
+        replacements[path] = xml
 
 
 def apply_autofilter_to_worksheet(sheet_xml: str, ref: str, filter_columns: list[dict] | None = None) -> str:
@@ -3719,8 +4284,14 @@ def _preserve_external_formulas(
             replacements[out_entry] = out_sheet_xml
 
 
-def _apply_accounting_number_formats_from_fods(xlsx_bytes: bytes, source_fods: str, replacements: dict[str, str]) -> None:
-    """Restore Excel's Accounting format code for cells newly formatted in VN Sheet."""
+def _apply_accounting_number_formats_from_fods(
+    xlsx_bytes: bytes,
+    source_fods: str,
+    replacements: dict[str, str],
+    *,
+    include_excel_codes: bool = False,
+) -> None:
+    """Restore exact Excel codes and synthesize new Accounting codes."""
     try:
         root = ET.fromstring(source_fods)
     except (ET.ParseError, TypeError):
@@ -3762,55 +4333,80 @@ def _apply_accounting_number_formats_from_fods(xlsx_bytes: bytes, source_fods: s
                         config = json.loads(raw_format)
                     except (json.JSONDecodeError, TypeError):
                         config = {}
-                    if config.get("category") == "accounting" and not config.get("excelCode") and not config.get("odf"):
+                    # Ô kiểu chữ (value-type="string") giữ General như file gốc
+                    # (LibreOffice gán N0 cho một số ô chữ → nếu ghi lại sẽ đổi General thành "0;0;0;@").
+                    numeric_cell = cell.get(f"{{{office_ns}}}value-type") != "string"
+                    # excelCodeInferred: mã do app tự suy ra từ kiểu số mặc định của LibreOffice (không có trong file gốc) → không ghi lại.
+                    code = str(config.get("excelCode") or "") if include_excel_codes and numeric_cell and not config.get("excelCodeInferred") else ""
+                    restored = bool(code)
+                    if not code and config.get("category") == "accounting" and not config.get("excelCode") and not config.get("odf"):
                         decimals = max(0, min(30, int(config.get("decimals", 2))))
                         number = "#,##" + "0" + ("." + "0" * decimals if decimals else "")
                         symbol = str(config.get("currencySymbol") or "₫")
                         currency = f"[${symbol}]" if symbol in {"₫", "$", "€", "£", "¥"} else f'"{symbol}"'
                         code = f'_(* {number} {currency}_);_(* ({number} {currency})_);_(* "-"?? {currency}_);_(@_)'
+                    if code:
                         for offset in range(column_repeat):
-                            target_cells[f"{sheet_name}!{column_name(column_number + offset)}{row_number + 1}"] = {"code": code}
+                            target_cells[f"{sheet_name}!{column_name(column_number + offset)}{row_number + 1}"] = {"code": code, "restored": restored}
                 column_number += column_repeat
             row_number += row_repeat
 
     if not target_cells:
         return
     sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
-    by_sheet: dict[str, dict[str, str]] = {}
+    by_sheet: dict[str, dict[str, dict]] = {}
     for key, item in target_cells.items():
         sheet_name, address = key.rsplit("!", 1)
-        by_sheet.setdefault(sheet_name, {})[address] = item["code"]
+        by_sheet.setdefault(sheet_name, {})[address] = item
     sheet_paths = {name: _sheet_name_equivalent_value(sheet_entries, name) for name in by_sheet}
     sheet_paths = {name: entry for name, entry in sheet_paths.items() if entry}
     if not sheet_paths:
         return
 
-    styles_bytes = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
-    if not styles_bytes:
+    # Sửa theo CHUỖI (không parse/serialize lại bằng ElementTree): ET đổi tiền tố namespace
+    # (ns0:, ns1:) và làm rơi khai báo mc:Ignorable → app mất ảnh/đối tượng khi mở lại file đã lưu.
+    styles_source = replacements.get(XLSX_STYLES_ENTRY)
+    if styles_source is None:
+        styles_source = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
+    if not styles_source:
         return
-    styles = ET.fromstring(styles_bytes)
-    num_fmts = styles.find(f"{{{main_ns}}}numFmts")
-    if num_fmts is None:
-        num_fmts = ET.Element(f"{{{main_ns}}}numFmts", {"count": "0"})
-        styles.insert(0, num_fmts)
-    cell_xfs = styles.find(f"{{{main_ns}}}cellXfs")
-    if cell_xfs is None:
+    styles_xml = styles_source if isinstance(styles_source, str) else styles_source.decode("utf-8", errors="replace")
+    xfs_match = re.search(r"(<cellXfs\b[^>]*>)([\s\S]*?)(</cellXfs>)", styles_xml)
+    if not xfs_match:
         return
-    existing_formats = {node.get("formatCode", ""): int(node.get("numFmtId", "0")) for node in num_fmts}
+    xf_items = re.findall(r"<xf\b[^>]*?/>|<xf\b[^>]*?>[\s\S]*?</xf>", xfs_match.group(2))
+    num_fmts_match = re.search(r"<numFmts\b[^>]*>([\s\S]*?)</numFmts>", styles_xml)
+    existing_formats: dict[str, int] = {}
+    if num_fmts_match:
+        for node in re.finditer(r"<numFmt\b[^>]*?/>", num_fmts_match.group(1)):
+            fid = re.search(r'numFmtId="(\d+)"', node.group(0))
+            code_attr = re.search(r'formatCode="([^"]*)"', node.group(0))
+            if fid and code_attr:
+                existing_formats[_unescape_xml(code_attr.group(1))] = int(fid.group(1))
     next_num_fmt = max([163, *existing_formats.values()]) + 1
+    new_num_fmts: list[str] = []
+    new_xfs: list[str] = []
     xfs: dict[tuple[int, str], int] = {}
     for sheet_name, entry in sheet_paths.items():
-        sheet_bytes = read_zip_entry(xlsx_bytes, entry)
-        if not sheet_bytes:
+        sheet_source = replacements.get(entry)
+        if sheet_source is None:
+            sheet_source = read_zip_entry(xlsx_bytes, entry)
+        if not sheet_source:
             continue
-        sheet = ET.fromstring(sheet_bytes)
+        sheet_xml = sheet_source if isinstance(sheet_source, str) else sheet_source.decode("utf-8", errors="replace")
+        codes_by_address = by_sheet[sheet_name]
         changed = False
-        for cell in sheet.iter(f"{{{main_ns}}}c"):
-            address = cell.get("r", "")
-            code = by_sheet[sheet_name].get(address)
-            if not code:
-                continue
-            source_xf = int(cell.get("s", "0"))
+
+        def restyle(match: re.Match) -> str:
+            nonlocal next_num_fmt, changed
+            attrs = match.group(1)
+            address_match = re.search(r'\br="([A-Z]+\d+)"', attrs)
+            item = codes_by_address.get(address_match.group(1)) if address_match else None
+            if not item:
+                return match.group(0)
+            code = item["code"]
+            style_match = re.search(r'\bs="(\d+)"', attrs)
+            source_xf = int(style_match.group(1)) if style_match else 0
             key = (source_xf, code)
             target_xf = xfs.get(key)
             if target_xf is None:
@@ -3818,24 +4414,44 @@ def _apply_accounting_number_formats_from_fods(xlsx_bytes: bytes, source_fods: s
                 if num_fmt_id is None:
                     num_fmt_id = next_num_fmt
                     next_num_fmt += 1
-                    ET.SubElement(num_fmts, f"{{{main_ns}}}numFmt", {"numFmtId": str(num_fmt_id), "formatCode": code})
+                    new_num_fmts.append(f'<numFmt numFmtId="{num_fmt_id}" formatCode="{_escape_xml(code)}"/>')
                     existing_formats[code] = num_fmt_id
-                source_style = cell_xfs[source_xf] if source_xf < len(cell_xfs) else cell_xfs[0]
-                target_style = ET.fromstring(ET.tostring(source_style, encoding="utf-8"))
-                target_style.set("numFmtId", str(num_fmt_id))
-                target_style.set("applyNumberFormat", "1")
-                cell_xfs.append(target_style)
-                target_xf = len(cell_xfs) - 1
+                source_style = (xf_items + new_xfs)[source_xf] if source_xf < len(xf_items) + len(new_xfs) else xf_items[0]
+                target_style = re.sub(r'\snumFmtId="\d+"', "", source_style, count=1)
+                target_style = re.sub(r"<xf\b", f'<xf numFmtId="{num_fmt_id}"', target_style, count=1)
+                if re.search(r'\bapplyNumberFormat="[^"]*"', target_style):
+                    target_style = re.sub(r'\bapplyNumberFormat="[^"]*"', 'applyNumberFormat="1"', target_style, count=1)
+                else:
+                    target_style = re.sub(r"<xf\b", '<xf applyNumberFormat="1"', target_style, count=1)
+                new_xfs.append(target_style)
+                target_xf = len(xf_items) + len(new_xfs) - 1
                 xfs[key] = target_xf
-            cell.set("s", str(target_xf))
+            if style_match:
+                attrs = attrs[:style_match.start()] + f's="{target_xf}"' + attrs[style_match.end():]
+            else:
+                attrs += f' s="{target_xf}"'
             changed = True
-        if changed:
-            replacements[entry] = ET.tostring(sheet, encoding="unicode")
-    if xfs:
-        num_fmts.set("count", str(len(num_fmts)))
-        cell_xfs.set("count", str(len(cell_xfs)))
-        replacements[XLSX_STYLES_ENTRY] = ET.tostring(styles, encoding="unicode")
+            return f"<c{attrs}{match.group(2)}>"
 
+        new_sheet_xml = re.sub(r"<c\b([^>]*?)(/?)>", restyle, sheet_xml)
+        if changed:
+            replacements[entry] = new_sheet_xml
+    if xfs:
+        total_xfs = len(xf_items) + len(new_xfs)
+        xfs_open = re.sub(r'\bcount="\d+"', f'count="{total_xfs}"', xfs_match.group(1), count=1)
+        styles_xml = styles_xml[:xfs_match.start()] + xfs_open + xfs_match.group(2) + "".join(new_xfs) + xfs_match.group(3) + styles_xml[xfs_match.end():]
+        if new_num_fmts:
+            num_fmts_match = re.search(r"<numFmts\b([^>]*)>([\s\S]*?)</numFmts>", styles_xml)
+            if num_fmts_match:
+                total_fmts = len(re.findall(r"<numFmt\b", num_fmts_match.group(2))) + len(new_num_fmts)
+                attrs = re.sub(r'\bcount="\d+"', f'count="{total_fmts}"', num_fmts_match.group(1), count=1) if re.search(r'\bcount="', num_fmts_match.group(1)) else num_fmts_match.group(1) + f' count="{total_fmts}"'
+                styles_xml = styles_xml[:num_fmts_match.start()] + f"<numFmts{attrs}>" + num_fmts_match.group(2) + "".join(new_num_fmts) + "</numFmts>" + styles_xml[num_fmts_match.end():]
+            else:
+                root_open = re.search(r"<styleSheet\b[^>]*>", styles_xml)
+                if root_open:
+                    block = f'<numFmts count="{len(new_num_fmts)}">' + "".join(new_num_fmts) + "</numFmts>"
+                    styles_xml = styles_xml[:root_open.end()] + block + styles_xml[root_open.end():]
+        replacements[XLSX_STYLES_ENTRY] = styles_xml
 
 _XLSX_FORMULA_TAG_RE = re.compile(r"(<f\b[^>]*>)([\s\S]*?)(</f>)", re.IGNORECASE)
 _CONCAT_FUNCTION_RE = re.compile(r"(?<![A-Za-z0-9_.])CONCAT(?=\s*\()", re.IGNORECASE)
@@ -3967,18 +4583,548 @@ def _apply_indirect_excel_compatibility(xlsx_bytes: bytes, replacements: dict[st
             replacements[entry] = updated
 
 
+def _apply_sheet_view_state_from_fods(
+    xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
+) -> None:
+    """Apply explicitly changed VN view toggles to each worksheet's OOXML view."""
+    if not source_fods or not re.search(r"<office:document\b[^>]*\bvno:(?:show-(?:grid-lines|row-col-headers|formulas)|sheet-view|zoom-scale)=", source_fods, re.IGNORECASE):
+        return
+    root = re.search(r"<office:document\b([^>]*)>", source_fods, re.IGNORECASE)
+    if not root:
+        return
+    attrs = _xml_attrs(root.group(1))
+    view_attrs: dict[str, str] = {}
+    for fods_name, xlsx_name in (("show-grid-lines", "showGridLines"), ("show-row-col-headers", "showRowColHeaders"), ("show-formulas", "showFormulas")):
+        value = attrs.get(f"vno:{fods_name}")
+        if value is not None:
+            view_attrs[xlsx_name] = "0" if value.strip().lower() in ("false", "0", "no") else "1"
+    sheet_view = attrs.get("vno:sheet-view")
+    if sheet_view in ("normal", "pageBreakPreview", "pageLayout"):
+        view_attrs["view"] = sheet_view
+    try:
+        zoom = int(attrs.get("vno:zoom-scale", ""))
+    except ValueError:
+        zoom = 0
+    if 10 <= zoom <= 400:
+        view_attrs["zoomScale"] = str(zoom)
+        view_attrs["zoomScaleNormal"] = str(zoom)
+    if not view_attrs:
+        return
+
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    for entry_path in sheet_entries.values():
+        current = replacements.get(entry_path)
+        if current is None:
+            entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+            if not entry_bytes:
+                continue
+            current = entry_bytes.decode("utf-8", errors="replace")
+
+        def update_view(match: re.Match[str]) -> str:
+            tag = match.group(0)
+            for name, value in view_attrs.items():
+                if re.search(rf"\b{name}\s*=", tag, re.IGNORECASE):
+                    tag = re.sub(rf"\b{name}\s*=\s*(['\"])[^'\"]*\1", f'{name}="{value}"', tag, count=1, flags=re.IGNORECASE)
+                else:
+                    tag = tag[:-2] + f' {name}="{value}"/>' if tag.endswith("/>") else tag[:-1] + f' {name}="{value}">'
+            return tag
+
+        updated = re.sub(r"<sheetView\b[^>]*(?:/>|>)", update_view, current, count=1, flags=re.IGNORECASE)
+        if updated != current:
+            replacements[entry_path] = updated
+
+
+def _restore_view_attributes_from_source_step(
+    xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str]
+) -> None:
+    """Retain source worksheet/window view when the user did not change it."""
+    source_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
+    output_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    sheet_attributes = ("showGridLines", "showRowColHeaders", "showFormulas", "view", "zoomScale", "zoomScaleNormal")
+
+    def update_tag(xml: str, tag_pattern: str, values: dict[str, str]) -> str:
+        match = re.search(tag_pattern, xml, re.IGNORECASE)
+        if not match:
+            return xml
+        tag = match.group(0)
+        for name, value in values.items():
+            if re.search(rf"\b{name}\s*=", tag, re.IGNORECASE):
+                tag = re.sub(rf"\b{name}\s*=\s*(['\"])[^'\"]*\1", lambda m: f'{name}={m.group(1)}{value}{m.group(1)}', tag, count=1, flags=re.IGNORECASE)
+            else:
+                tag = tag[:-2] + f' {name}="{value}"/>' if tag.endswith("/>") else tag[:-1] + f' {name}="{value}">'
+        return xml[:match.start()] + tag + xml[match.end():]
+
+    for sheet_name, output_path in output_entries.items():
+        source_path = _sheet_name_equivalent_value(source_entries, sheet_name)
+        if not source_path:
+            continue
+        source_xml_bytes = read_zip_entry(source_xlsx_bytes, source_path)
+        if not source_xml_bytes:
+            continue
+        source_xml = source_xml_bytes.decode("utf-8", errors="replace")
+        source_view = re.search(r"<sheetView\b[^>]*/?>", source_xml, re.IGNORECASE)
+        if not source_view:
+            continue
+        attrs = _xml_attrs(source_view.group(0))
+        values = {name: attrs[name] for name in sheet_attributes if name in attrs}
+        if not values:
+            continue
+        current = replacements.get(output_path)
+        if current is None:
+            output_xml_bytes = read_zip_entry(xlsx_bytes, output_path)
+            if not output_xml_bytes:
+                continue
+            current = output_xml_bytes.decode("utf-8", errors="replace")
+        updated = update_tag(current, r"<sheetView\b[^>]*/?>", values)
+        if updated != current:
+            replacements[output_path] = updated
+
+    source_workbook = read_zip_entry(source_xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+    output_workbook = replacements.get(XLSX_WORKBOOK_ENTRY)
+    if output_workbook is None:
+        output_workbook_bytes = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+        output_workbook = output_workbook_bytes.decode("utf-8", errors="replace") if output_workbook_bytes else None
+    if source_workbook and output_workbook:
+        source_view = re.search(r"<(?:[\w.-]+:)?workbookView\b[^>]*/?>", source_workbook.decode("utf-8", errors="replace"), re.IGNORECASE)
+        source_attrs = _xml_attrs(source_view.group(0)) if source_view else {}
+        if "showFormulaBar" in source_attrs:
+            updated = update_tag(output_workbook, r"<(?:[\w.-]+:)?workbookView\b[^>]*/?>", {"showFormulaBar": source_attrs["showFormulaBar"]})
+            if updated != output_workbook:
+                replacements[XLSX_WORKBOOK_ENTRY] = updated
+
+
+def _apply_workbook_view_state_from_fods(
+    xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
+) -> None:
+    """Apply explicitly changed workbook-window view settings from VN metadata."""
+    root = re.search(r"<office:document\b([^>]*)>", source_fods or "", re.IGNORECASE)
+    if not root:
+        return
+    value = _xml_attrs(root.group(1)).get("vno:show-formula-bar")
+    if value is None:
+        return
+    enabled = "0" if value.strip().lower() in ("false", "0", "no") else "1"
+    current = replacements.get(XLSX_WORKBOOK_ENTRY)
+    if current is None:
+        workbook = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+        if not workbook:
+            return
+        current = workbook.decode("utf-8", errors="replace")
+    view = re.search(r"<(?:[\w.-]+:)?workbookView\b[^>]*(?:/>|>)", current, re.IGNORECASE)
+    if not view:
+        return
+    tag = view.group(0)
+    if re.search(r"\bshowFormulaBar\s*=", tag, re.IGNORECASE):
+        updated_tag = re.sub(r"\bshowFormulaBar\s*=\s*(['\"])\w+\1", f'showFormulaBar="{enabled}"', tag, count=1, flags=re.IGNORECASE)
+    else:
+        updated_tag = tag[:-2] + f' showFormulaBar="{enabled}"/>' if tag.endswith("/>") else tag[:-1] + f' showFormulaBar="{enabled}">'
+    updated = current[:view.start()] + updated_tag + current[view.end():]
+    if updated != current:
+        replacements[XLSX_WORKBOOK_ENTRY] = updated
+
+
+def _clear_print_areas_from_fods(
+    xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
+) -> None:
+    """Remove source Print_Area names explicitly cleared in the VN Sheet UI."""
+    cleared = set()
+    for match in re.finditer(r"<table:table\b([^>]*)>", source_fods or "", re.IGNORECASE):
+        attrs = _xml_attrs(match.group(1))
+        if attrs.get("vno:clear-print-area", "").lower() == "true" and attrs.get("table:name"):
+            cleared.add(_unescape_xml(attrs["table:name"]))
+    if not cleared:
+        return
+    current = replacements.get(XLSX_WORKBOOK_ENTRY)
+    if current is None:
+        workbook = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+        if not workbook:
+            return
+        current = workbook.decode("utf-8", errors="replace")
+    names = parse_sheet_names_from_workbook(current)
+    indexes = {index for index, name in enumerate(names) if _sheet_name_equivalence_key(name) in {_sheet_name_equivalence_key(item) for item in cleared}}
+    if not indexes:
+        return
+    pattern = re.compile(r"<(?P<tag>(?:[\w.-]+:)?definedName)\b(?P<attrs>[^>]*?)(?:\s*/>|>(?P<body>[\s\S]*?)</(?P=tag)\s*>)", re.IGNORECASE)
+    def remove(match: re.Match[str]) -> str:
+        attrs = _xml_attrs(match.group("attrs"))
+        try:
+            local_id = int(attrs.get("localSheetId", "-1"))
+        except ValueError:
+            return match.group(0)
+        return "" if attrs.get("name", "").casefold() == "_xlnm.print_area" and local_id in indexes else match.group(0)
+    updated = pattern.sub(remove, current)
+    updated = re.sub(r"<(?P<tag>(?:[\w.-]+:)?definedNames)\b[^>]*>\s*</(?P=tag)\s*>", "", updated, flags=re.IGNORECASE)
+    if updated != current:
+        replacements[XLSX_WORKBOOK_ENTRY] = updated
+
+
+def _apply_refreshed_pivot_locations_from_fods(
+    xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
+) -> None:
+    """Align an exported PivotTable's native location with its refreshed cell result range."""
+    locations = {}
+    for match in re.finditer(r"<table:data-pilot-table\b([^>]*)>", source_fods or "", re.IGNORECASE):
+        attrs = _xml_attrs(match.group(1))
+        name = attrs.get("table:name")
+        location = attrs.get("vno:xlsx-location")
+        if name and re.fullmatch(r"[A-Z]+\d+:[A-Z]+\d+", location or "", re.IGNORECASE):
+            locations[_unescape_xml(name)] = location.upper()
+    if not locations:
+        return
+    with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+        pivot_entries = [name for name in package.namelist() if re.fullmatch(r"xl/pivotTables/pivotTable\d+\.xml", name, re.IGNORECASE)]
+    for entry in pivot_entries:
+        current = replacements.get(entry)
+        if current is None:
+            data = read_zip_entry(xlsx_bytes, entry)
+            if not data:
+                continue
+            current = data.decode("utf-8", errors="replace")
+        definition = re.search(r"<(?:[\w.-]+:)?pivotTableDefinition\b([^>]*)>", current, re.IGNORECASE)
+        if not definition:
+            continue
+        name = _xml_attrs(definition.group(1)).get("name")
+        location = locations.get(_unescape_xml(name or ""))
+        if not location:
+            continue
+        location_tag = re.search(r"<(?:[\w.-]+:)?location\b[^>]*?/?>", current, re.IGNORECASE)
+        if not location_tag:
+            continue
+        tag = location_tag.group(0)
+        updated_tag = re.sub(r"\bref\s*=\s*(['\"])[^'\"]*\1", f'ref="{location}"', tag, count=1, flags=re.IGNORECASE)
+        updated = current[:location_tag.start()] + updated_tag + current[location_tag.end():]
+        if updated != current:
+            replacements[entry] = updated
+
+
+def _resolve_relationship_target(source_part: str, target: str) -> str:
+    """Resolve an OPC relationship target relative to its source part."""
+    if target.startswith("/"):
+        return target.lstrip("/")
+    return posixpath.normpath(posixpath.join(posixpath.dirname(source_part), target))
+
+
+def _relationship_part_name(source_part: str) -> str:
+    directory, filename = posixpath.split(source_part)
+    return posixpath.join(directory, "_rels", filename + ".rels")
+
+
+def _read_relationships(package: zipfile.ZipFile, source_part: str) -> dict[str, str]:
+    rels_path = _relationship_part_name(source_part)
+    try:
+        root = ET.fromstring(package.read(rels_path))
+    except (KeyError, ET.ParseError):
+        return {}
+    result = {}
+    for relationship in root:
+        rel_id = relationship.attrib.get("Id")
+        target = relationship.attrib.get("Target")
+        if rel_id and target:
+            result[rel_id] = _resolve_relationship_target(source_part, target)
+    return result
+
+
+def _fods_pivot_charts(source_fods: str | None) -> dict[str, list[str]]:
+    """Return sheet name → pivot ids in serialized chart order."""
+    result: dict[str, list[str]] = {}
+    try:
+        root = ET.fromstring(source_fods or "")
+    except ET.ParseError:
+        return result
+    for table in root.iter():
+        if table.tag.rsplit("}", 1)[-1] != "table":
+            continue
+        attrs = {key.rsplit("}", 1)[-1]: value for key, value in table.attrib.items()}
+        sheet_name = attrs.get("name")
+        if not sheet_name:
+            continue
+        ids = []
+        for frame in table.iter():
+            if frame.tag.rsplit("}", 1)[-1] != "frame":
+                continue
+            if not any(node.tag.rsplit("}", 1)[-1] == "chart" for node in frame.iter()):
+                continue
+            frame_attrs = {key.rsplit("}", 1)[-1]: value for key, value in frame.attrib.items()}
+            if frame_attrs.get("chart-kind") != "pivot":
+                ids.append("")
+                continue
+            ids.append(_unescape_xml(frame_attrs.get("pivot-id", "")).strip())
+        if ids:
+            result[_unescape_xml(sheet_name)] = ids
+    return result
+
+
+def _fods_pivot_table_names(source_fods: str | None) -> dict[str, str]:
+    """Map VN pivot ids to the stable native DataPilot table names."""
+    result = {}
+    try:
+        root = ET.fromstring(source_fods or "")
+    except ET.ParseError:
+        return result
+    for node in root.iter():
+        if node.tag.rsplit("}", 1)[-1] != "data-pilot-table":
+            continue
+        attrs = {key.rsplit("}", 1)[-1]: value for key, value in node.attrib.items()}
+        pivot_id = _unescape_xml(attrs.get("pivot-id", "")).strip()
+        name = _unescape_xml(attrs.get("name", "")).strip()
+        if pivot_id and name:
+            result[pivot_id] = name
+    return result
+
+
+def _insert_pivot_chart_binding(chart_xml: str, pivot_name: str, chart_id: int, fmt_id: int) -> str:
+    """Add standard chart-space pivotSource and chart pivotFmts metadata."""
+    if not re.search(r"<c:chartSpace\b", chart_xml):
+        return chart_xml
+    source = (
+        f'<c:pivotSource><c:name>{_escape_xml(pivot_name)}</c:name>'
+        f'<c:fmtId val="{chart_id}"/></c:pivotSource>'
+    )
+    if re.search(r"<c:pivotSource\b", chart_xml):
+        chart_xml = re.sub(r"<c:pivotSource\b[\s\S]*?</c:pivotSource\s*>", source, chart_xml, count=1)
+    else:
+        chart_tag = re.search(r"<c:chart\b[^>]*>", chart_xml)
+        if not chart_tag:
+            return chart_xml
+        chart_xml = chart_xml[:chart_tag.start()] + source + chart_xml[chart_tag.start():]
+
+    pivot_fmts = (
+        f'<c:pivotFmts><c:pivotFmt><c:idx val="{fmt_id}"/>'
+        '<c:spPr><a:noFill/><a:ln><a:noFill/></a:ln></c:spPr>'
+        '</c:pivotFmt></c:pivotFmts>'
+    )
+    if re.search(r"<c:pivotFmts\b", chart_xml):
+        chart_xml = re.sub(r"<c:pivotFmts\b[\s\S]*?</c:pivotFmts\s*>", pivot_fmts, chart_xml, count=1)
+    else:
+        plot_area = re.search(r"<c:plotArea\b", chart_xml)
+        chart_open = re.search(r"<c:chart\b[^>]*>", chart_xml)
+        if not plot_area or not chart_open or plot_area.start() < chart_open.end():
+            return chart_xml
+        chart_xml = chart_xml[:plot_area.start()] + pivot_fmts + chart_xml[plot_area.start():]
+    return chart_xml
+
+
+def _add_pivot_chart_format(pivot_xml: str, chart_id: int, fmt_id: int) -> str:
+    definition = re.search(r"<(?P<tag>(?:[\w.-]+:)?pivotTableDefinition)\b[^>]*>", pivot_xml, re.IGNORECASE)
+    if not definition:
+        return pivot_xml
+    chart_formats = re.search(r"<(?:[\w.-]+:)?chartFormats\b[^>]*>[\s\S]*?</(?:[\w.-]+:)?chartFormats\s*>", pivot_xml, re.IGNORECASE)
+    chart_format = (
+        f'<chartFormat chart="{chart_id}" format="{fmt_id}" series="1">'
+        '<pivotArea type="data" outline="0"/>'
+        '</chartFormat>'
+    )
+    if chart_formats:
+        body = chart_formats.group(0)
+        if re.search(rf"<chartFormat\b(?=[^>]*\bchart=[\"']{chart_id}[\"'])", body, re.IGNORECASE):
+            updated_body = re.sub(rf"<chartFormat\b(?=[^>]*\bchart=[\"']{chart_id}[\"'])[^>]*/>|<chartFormat\b(?=[^>]*\bchart=[\"']{chart_id}[\"'])[^>]*>[\s\S]*?</chartFormat\s*>", chart_format, body, count=1, flags=re.IGNORECASE)
+        else:
+            updated_body = body.replace("</chartFormats>", chart_format + "</chartFormats>")
+        return pivot_xml[:chart_formats.start()] + updated_body + pivot_xml[chart_formats.end():]
+
+    collection = f"<chartFormats count=\"1\">{chart_format}</chartFormats>"
+    # chartFormats follows conditionalFormats and precedes pivotHierarchies,
+    # pivotTableStyleInfo and filters in CT_PivotTableDefinition.
+    next_part = re.search(r"<(?:[\w.-]+:)?(?:pivotHierarchies|pivotTableStyleInfo|filters)\b", pivot_xml[definition.end():], re.IGNORECASE)
+    insert_at = definition.end() + next_part.start() if next_part else pivot_xml.lower().rfind(f"</{definition.group('tag').lower()}")
+    if insert_at < definition.end():
+        return pivot_xml
+    return pivot_xml[:insert_at] + collection + pivot_xml[insert_at:]
+
+
+def _pivot_chart_parts_by_sheet(xlsx_bytes: bytes) -> dict[str, list[str]]:
+    """Return chart PivotTable names in worksheet chart order; regular charts use an empty name."""
+    result: dict[str, list[str]] = {}
+    with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+        for sheet_name, sheet_part in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+            sheet_xml = read_zip_entry(xlsx_bytes, sheet_part)
+            if not sheet_xml:
+                continue
+            sheet_root = ET.fromstring(sheet_xml)
+            drawing_rid = next((
+                value for node in sheet_root.iter() if node.tag.rsplit("}", 1)[-1] == "drawing"
+                for key, value in node.attrib.items() if key.rsplit("}", 1)[-1] == "id"
+            ), "")
+            drawing_part = _read_relationships(package, sheet_part).get(drawing_rid)
+            if not drawing_part or drawing_part not in package.namelist():
+                continue
+            drawing_root = ET.fromstring(package.read(drawing_part))
+            drawing_rels = _read_relationships(package, drawing_part)
+            chart_names = []
+            for node in drawing_root.iter():
+                if node.tag.rsplit("}", 1)[-1] != "chart":
+                    continue
+                rid = next((value for key, value in node.attrib.items() if key.rsplit("}", 1)[-1] == "id"), "")
+                chart_part = drawing_rels.get(rid)
+                if not chart_part or chart_part not in package.namelist():
+                    continue
+                chart_root = ET.fromstring(package.read(chart_part))
+                pivot_name = ""
+                for source in chart_root.iter():
+                    if source.tag.rsplit("}", 1)[-1] != "pivotSource":
+                        continue
+                    pivot_name = next((child.text or "" for child in source.iter() if child.tag.rsplit("}", 1)[-1] == "name"), "").strip()
+                    if "!" in pivot_name:
+                        pivot_name = pivot_name.rsplit("!", 1)[-1]
+                    break
+                chart_names.append(pivot_name)
+            if chart_names:
+                result[sheet_name] = chart_names
+    return result
+
+
+def overlay_pivot_chart_metadata_to_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
+    """Restore pivot links on FODS chart frames after native XLSX→FODS conversion."""
+    xml = fods_xml or ""
+    chart_names_by_sheet = _pivot_chart_parts_by_sheet(xlsx_bytes)
+    if not any(any(name for name in names) for names in chart_names_by_sheet.values()):
+        return xml
+    sheet_order = list(_resolve_xlsx_sheet_entries(xlsx_bytes))
+    pivot_names = [name for sheet in sheet_order for name in chart_names_by_sheet.get(sheet, [])]
+    def chart_frame_spans(text: str) -> list[re.Match[str]]:
+        return [match for match in re.finditer(r"<draw:frame\b[^>]*>([\s\S]*?)</draw:frame\s*>", text, re.IGNORECASE)
+                if re.search(r"<chart:chart\b", match.group(1), re.IGNORECASE)]
+    if len(chart_frame_spans(xml)) != len(pivot_names):
+        return xml
+
+    names_to_ids = {name: f"xlsx-pivot:{name}" for name in pivot_names if name}
+    if names_to_ids:
+        def add_pivot_id(match: re.Match[str]) -> str:
+            tag = match.group(0)
+            attrs = _xml_attrs(tag[len("<table:data-pilot-table"): -1])
+            pivot_id = names_to_ids.get(_unescape_xml(attrs.get("table:name", "")))
+            if not pivot_id or "vno:pivot-id" in attrs:
+                return tag
+            self_closing = tag.endswith("/>")
+            base = tag[:-2] if self_closing else tag[:-1]
+            ending = "/>" if self_closing else ">"
+            return base + f' vno:pivot-id="{_escape_xml(pivot_id)}"' + ending
+        xml = re.sub(r"<table:data-pilot-table\b[^>]*>", add_pivot_id, xml, flags=re.IGNORECASE)
+
+    additions = []
+    for match, pivot_name in zip(chart_frame_spans(xml), pivot_names):
+        if not pivot_name:
+            continue
+        attrs_start = match.start()
+        frame_open = re.match(r"<draw:frame\b[^>]*>", match.group(0), re.IGNORECASE)
+        if not frame_open:
+            continue
+        attrs = _xml_attrs(frame_open.group(0)[len("<draw:frame"): -1])
+        if attrs.get("vno:chart-kind") == "pivot":
+            continue
+        pivot_id = names_to_ids.get(pivot_name)
+        if not pivot_id:
+            continue
+        replacement = frame_open.group(0)[:-1] + f' vno:chart-kind="pivot" vno:pivot-id="{_escape_xml(pivot_id)}">'
+        additions.append((attrs_start, attrs_start + frame_open.end(), replacement))
+    for start, end, replacement in reversed(additions):
+        xml = xml[:start] + replacement + xml[end:]
+    if additions:
+        if not _declares_vno_namespace(xml):
+            root = _OFFICE_DOCUMENT_OPEN_RE.search(xml)
+            if root:
+                xml = xml[:root.start()] + f'<office:document{root.group(1)} xmlns:vno="{SHEET_VNO_NS}">' + xml[root.end():]
+    return xml
+
+
+def _apply_pivot_chart_links_from_fods(
+    xlsx_bytes: bytes,
+    source_fods: str | None,
+    replacements: dict[str, str],
+    workbook_filename: str | None = None,
+) -> None:
+    """Bind exported PivotCharts to LibreOffice's existing PivotTable parts."""
+    if not workbook_filename:
+        return
+    charts_by_sheet = _fods_pivot_charts(source_fods)
+    if not any(any(pivot_id for pivot_id in ids) for ids in charts_by_sheet.values()):
+        return
+    pivot_names = _fods_pivot_table_names(source_fods)
+    with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+        sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+        pivot_parts: dict[str, str] = {}
+        for part in package.namelist():
+            if not re.fullmatch(r"xl/pivotTables/pivotTable\d+\.xml", part, re.IGNORECASE):
+                continue
+            xml = (replacements.get(part) or package.read(part).decode("utf-8", errors="replace"))
+            definition = re.search(r"<(?:[\w.-]+:)?pivotTableDefinition\b([^>]*)>", xml, re.IGNORECASE)
+            name = _xml_attrs(definition.group(1)).get("name") if definition else None
+            if name:
+                pivot_parts[_unescape_xml(name)] = part
+
+        pivot_sheet_by_part: dict[str, str] = {}
+        for sheet_name, sheet_part in sheet_entries.items():
+            for related_part in _read_relationships(package, sheet_part).values():
+                if related_part in pivot_parts.values():
+                    pivot_sheet_by_part[related_part] = sheet_name
+
+        for sheet_name, pivot_ids in charts_by_sheet.items():
+            sheet_part = _sheet_name_equivalent_value(sheet_entries, sheet_name)
+            if not sheet_part:
+                continue
+            sheet_rels = _read_relationships(package, sheet_part)
+            sheet_xml = package.read(sheet_part).decode("utf-8", errors="replace")
+            drawing_ref = re.search(r"<(?:[\w.-]+:)?drawing\b[^>]*\br:id=[\"']([^\"']+)[\"']", sheet_xml, re.IGNORECASE)
+            drawing_part = sheet_rels.get(drawing_ref.group(1)) if drawing_ref else None
+            if not drawing_part or drawing_part not in package.namelist():
+                continue
+            drawing_rels = _read_relationships(package, drawing_part)
+            drawing_xml = package.read(drawing_part)
+            try:
+                drawing_root = ET.fromstring(drawing_xml)
+            except ET.ParseError:
+                continue
+            chart_refs = []
+            for node in drawing_root.iter():
+                if node.tag.rsplit("}", 1)[-1] != "chart":
+                    continue
+                rid = next((value for key, value in node.attrib.items() if key.rsplit("}", 1)[-1] == "id"), "")
+                target = drawing_rels.get(rid)
+                if target:
+                    chart_refs.append(target)
+
+            if len(chart_refs) != len(pivot_ids):
+                # Ambiguous frame mapping: leave every chart on this sheet unchanged.
+                continue
+            pivot_chart_counts: dict[str, int] = {}
+            for chart_part, pivot_id in zip(chart_refs, pivot_ids):
+                if not pivot_id:
+                    continue
+                pivot_name = pivot_names.get(pivot_id, pivot_id)
+                pivot_part = pivot_parts.get(pivot_name)
+                if not pivot_part:
+                    continue
+                pivot_sheet = pivot_sheet_by_part.get(pivot_part)
+                if not pivot_sheet:
+                    continue
+                pivot_source_name = f"[{workbook_filename}]{pivot_sheet}!{pivot_name}"
+                pivot_xml = replacements.get(pivot_part) or package.read(pivot_part).decode("utf-8", errors="replace")
+                chart_id = pivot_chart_counts.get(pivot_id, 0)
+                pivot_chart_counts[pivot_id] = chart_id + 1
+                fmt_id = 0
+                chart_xml = replacements.get(chart_part) or package.read(chart_part).decode("utf-8", errors="replace")
+                updated_chart = _insert_pivot_chart_binding(chart_xml, pivot_source_name, chart_id, fmt_id)
+                updated_pivot = _add_pivot_chart_format(pivot_xml, chart_id, fmt_id)
+                if updated_chart != chart_xml:
+                    replacements[chart_part] = updated_chart
+                if updated_pivot != pivot_xml:
+                    replacements[pivot_part] = updated_pivot
+
+
 def postprocess_sheet_xlsx(
     xlsx_bytes: bytes,
     *,
     source_fods: str | None = None,
     enabled: bool | None = None,
     source_xlsx_bytes: bytes | None = None,
+    workbook_filename: str | None = None,
 ) -> bytes:
     """Return patched XLSX bytes, or the original buffer when no patch is needed."""
     replacements: dict[str, str] = {}
     _apply_scalar_concat_excel_compatibility(xlsx_bytes, replacements)
     _apply_indirect_excel_compatibility(xlsx_bytes, replacements)
     source_xlsx_bytes = normalize_source_xlsx(source_xlsx_bytes)  # S23: XLSX gốc có tiền tố x: (lan23)
+
 
     # Extract original font and sheetFormatPr from source XLSX if available
     original_font = None
@@ -3998,6 +5144,7 @@ def postprocess_sheet_xlsx(
         _restore_formula_results_and_missing_errors_step(xlsx_bytes, source_xlsx_bytes, replacements, early_copier if early_copier.available else None)
         _remove_spurious_center_continuous_merges_step(xlsx_bytes, source_xlsx_bytes, replacements)
         _restore_sheet_zoom_step(xlsx_bytes, source_xlsx_bytes, replacements)
+        _restore_view_attributes_from_source_step(xlsx_bytes, source_xlsx_bytes, replacements)
         _restore_autofilter_filter_columns_step(xlsx_bytes, source_xlsx_bytes, replacements)
         _restore_missing_defined_names_step(xlsx_bytes, source_xlsx_bytes, replacements)
         _restore_missing_hyperlinks_step(xlsx_bytes, source_xlsx_bytes, replacements)
@@ -4038,6 +5185,23 @@ def postprocess_sheet_xlsx(
                     continue
                 sheet_xml = entry_bytes.decode("utf-8", errors="replace")
             next_sheet_xml = apply_freeze_pane_to_sheet_xml(sheet_xml, freeze["rows"], freeze["cols"])
+            if next_sheet_xml != sheet_xml:
+                replacements[entry_path] = next_sheet_xml
+
+    split_by_sheet = parse_split_panes_from_fods(source_fods)
+    if split_by_sheet:
+        sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+        for sheet_name, split in split_by_sheet.items():
+            entry_path = _sheet_name_equivalent_value(sheet_entries, sheet_name)
+            if not entry_path:
+                continue
+            sheet_xml = replacements.get(entry_path)
+            if sheet_xml is None:
+                entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+                if not entry_bytes:
+                    continue
+                sheet_xml = entry_bytes.decode("utf-8", errors="replace")
+            next_sheet_xml = apply_split_pane_to_sheet_xml(sheet_xml, split)
             if next_sheet_xml != sheet_xml:
                 replacements[entry_path] = next_sheet_xml
 
@@ -4087,6 +5251,8 @@ def postprocess_sheet_xlsx(
             pass
         if source_xlsx_bytes:
             _restore_autofilter_filter_columns_step(xlsx_bytes, source_xlsx_bytes, replacements)
+
+    _apply_table_metadata_from_fods(xlsx_bytes, source_fods, replacements)
 
     # Scenarios: soffice drops <scenarios> during FODS -> XLSX. Read
     # vno:scenarios from FODS and write <scenarios> into worksheets.
@@ -4264,7 +5430,28 @@ def postprocess_sheet_xlsx(
             pass
 
     if source_fods:
-        _apply_accounting_number_formats_from_fods(xlsx_bytes, source_fods, replacements)
+        _apply_accounting_number_formats_from_fods(
+            xlsx_bytes, source_fods, replacements, include_excel_codes=True
+        )
+        _apply_sheet_view_state_from_fods(xlsx_bytes, source_fods, replacements)
+        _apply_workbook_view_state_from_fods(xlsx_bytes, source_fods, replacements)
+        _clear_print_areas_from_fods(xlsx_bytes, source_fods, replacements)
+        _apply_refreshed_pivot_locations_from_fods(xlsx_bytes, source_fods, replacements)
+        _apply_pivot_chart_links_from_fods(xlsx_bytes, source_fods, replacements, workbook_filename)
+
+    if source_fods:
+        _apply_sheet_text_boxes_to_xlsx(xlsx_bytes, _parse_fods_text_boxes(source_fods), replacements)
+        _apply_sheet_resolved_comments_to_xlsx(xlsx_bytes, _parse_fods_resolved_comments(source_fods), replacements)
+
+    calculation_mode = parse_calculation_mode_from_fods(source_fods)
+    if calculation_mode:
+        workbook_xml = replacements.get(XLSX_WORKBOOK_ENTRY)
+        if workbook_xml is None:
+            workbook_raw = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+            workbook_xml = workbook_raw.decode("utf-8", errors="replace") if workbook_raw else ""
+        next_workbook_xml = apply_calculation_mode_to_workbook(str(workbook_xml), calculation_mode)
+        if next_workbook_xml != workbook_xml:
+            replacements[XLSX_WORKBOOK_ENTRY] = next_workbook_xml
 
     if not replacements:
         return xlsx_bytes
@@ -6293,6 +7480,157 @@ def parse_master_theme_id_from_fodp(fodp_xml: str | None) -> str:
         return ""
 
 
+def _parse_master_theme_payload_from_fodp(fodp_xml: str | None) -> dict:
+    xml = str(fodp_xml or "")
+    match = re.search(r"<style:master-page\b([^>]*)>", xml, re.IGNORECASE)
+    attr = re.search(r"\bvno:master-theme\s*=\s*([\"'])(.*?)\1", match.group(1) if match else "", re.IGNORECASE)
+    if not attr:
+        return {}
+    try:
+        payload = json.loads(html.unescape(attr.group(2)))
+        return payload if isinstance(payload, dict) else {}
+    except (TypeError, ValueError):
+        return {}
+
+
+def _set_xml_tag_attribute(xml: str, tag_pattern: str, attribute: str, value: str) -> str:
+    def replace(match: re.Match[str]) -> str:
+        attrs = match.group(1) or ""
+        encoded = html.escape(value, quote=True)
+        if re.search(rf"\b{re.escape(attribute)}=[\"']", attrs, re.IGNORECASE):
+            attrs = re.sub(rf"\b{re.escape(attribute)}=[\"'][^\"']*[\"']", f'{attribute}="{encoded}"', attrs, count=1, flags=re.IGNORECASE)
+        else:
+            attrs = f'{attrs.rstrip()} {attribute}="{encoded}"'
+        return f"<{match.group(0).split()[0][1:]}{attrs}>"
+    return re.sub(tag_pattern, replace, xml, count=1, flags=re.IGNORECASE)
+
+
+def apply_native_slides_theme(theme_xml: str, payload: dict | None) -> str:
+    """Write VN theme name, palette, and typefaces into a DrawingML theme part."""
+    data = payload if isinstance(payload, dict) else {}
+    xml = str(theme_xml or "")
+    if not xml or not data.get("id"):
+        return xml
+    name = str(data.get("name") or data.get("id") or "").strip()
+    if name:
+        xml = _set_xml_tag_attribute(xml, r"<a:theme\b([^>]*)>", "name", name)
+        xml = _set_xml_tag_attribute(xml, r"<a:clrScheme\b([^>]*)>", "name", name)
+    colors = {
+        "lt1": data.get("bgColor"),
+        "dk1": data.get("bodyColor"),
+        "lt2": data.get("titleColor"),
+        "dk2": data.get("titleColor"),
+        "accent1": data.get("accentColor"),
+    }
+    for slot, raw_color in colors.items():
+        color = str(raw_color or "").strip().lstrip("#")
+        if not re.fullmatch(r"[0-9a-fA-F]{6}", color):
+            continue
+        xml = re.sub(
+            rf"(<a:{slot}\b[^>]*>)[\s\S]*?(</a:{slot}\s*>)",
+            rf'\1<a:srgbClr val="{color.upper()}"/>\2',
+            xml,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+    font = _latin_face(str(data.get("fontFamily") or ""))
+    if font:
+        for family in ("majorFont", "minorFont"):
+            pattern = rf"(<a:{family}\b[^>]*>[\s\S]*?<a:latin\b[^>]*\btypeface=)[\"'][^\"']*[\"']"
+            xml = re.sub(pattern, rf'\1"{html.escape(font, quote=True)}"', xml, count=1, flags=re.IGNORECASE)
+    return xml
+
+
+def _related_theme_part_paths(pptx_bytes: bytes) -> set[str]:
+    paths: set[str] = set()
+    with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+        for name in package.namelist():
+            if not SLIDE_MASTER_ENTRY_RE.match(name):
+                continue
+            master_number = re.search(r"slideMaster(\d+)\.xml$", name, re.IGNORECASE)
+            if not master_number:
+                continue
+            rels_name = f"ppt/slideMasters/_rels/slideMaster{master_number.group(1)}.xml.rels"
+            rels = read_zip_entry(pptx_bytes, rels_name)
+            if not rels:
+                continue
+            for rel in re.finditer(r"<Relationship\b([^>]*)/?>", rels.decode("utf-8", errors="replace"), re.IGNORECASE):
+                attrs = rel.group(1)
+                rel_type = re.search(r"\bType=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
+                target = re.search(r"\bTarget=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
+                if rel_type and target and rel_type.group(1).rstrip("/").endswith("/theme"):
+                    paths.add(posixpath.normpath(posixpath.join(posixpath.dirname(name), target.group(1))))
+    return paths
+
+
+def _patch_slides_theme_parts(pptx_bytes: bytes, payload: dict | None) -> dict[str, str]:
+    if not isinstance(payload, dict) or not payload.get("id"):
+        return {}
+    replacements: dict[str, str] = {}
+    for path in _related_theme_part_paths(pptx_bytes):
+        raw = read_zip_entry(pptx_bytes, path)
+        if not raw:
+            continue
+        original = raw.decode("utf-8", errors="replace")
+        updated = apply_native_slides_theme(original, payload)
+        if updated != original:
+            replacements[path] = updated
+    return replacements
+
+
+def overlay_fodp_native_slides_theme(fodp_xml: str, pptx_bytes: bytes) -> str:
+    paths = _related_theme_part_paths(pptx_bytes)
+    if len(paths) != 1:
+        return fodp_xml or ""
+    raw = read_zip_entry(pptx_bytes, next(iter(paths)))
+    if not raw:
+        return fodp_xml or ""
+    theme_xml = raw.decode("utf-8", errors="replace")
+    theme_name = re.search(r"<a:theme\b[^>]*\bname=[\"']([^\"']*)[\"']", theme_xml, re.IGNORECASE)
+    clr_scheme = re.search(r"<a:clrScheme\b[^>]*\bname=[\"']([^\"']*)[\"']", theme_xml, re.IGNORECASE)
+    values: dict[str, str] = {}
+    name = html.unescape(theme_name.group(1) if theme_name else clr_scheme.group(1) if clr_scheme else "")
+    if name:
+        values["name"] = name
+    for slot, key in (("lt1", "bgColor"), ("dk1", "bodyColor"), ("lt2", "titleColor"), ("accent1", "accentColor")):
+        slot_xml = re.search(rf"<a:{slot}\b[^>]*>([\s\S]*?)</a:{slot}\s*>", theme_xml, re.IGNORECASE)
+        color = re.search(r"<(?:a:)?srgbClr\b[^>]*\bval=[\"']([0-9a-fA-F]{6})[\"']", slot_xml.group(1) if slot_xml else "", re.IGNORECASE)
+        if color:
+            values[key] = "#" + color.group(1).upper()
+    latin = re.search(r"<a:majorFont\b[\s\S]*?<a:latin\b[^>]*\btypeface=[\"']([^\"']+)[\"']", theme_xml, re.IGNORECASE)
+    if latin:
+        values["fontFamily"] = html.unescape(latin.group(1))
+    if not values:
+        return fodp_xml or ""
+    xml = fodp_xml or ""
+    match = re.search(r"<style:master-page\b([^>]*)/?>", xml, re.IGNORECASE)
+    if not match:
+        return xml
+    attrs = re.sub(r"/\s*$", "", match.group(1) or "")
+    attr = re.search(r"\bvno:master-theme\s*=\s*([\"'])(.*?)\1", attrs, re.IGNORECASE)
+    payload = {}
+    if attr:
+        try:
+            parsed = json.loads(html.unescape(attr.group(2)))
+            if isinstance(parsed, dict):
+                payload = parsed
+        except (TypeError, ValueError):
+            pass
+    # Only overlay theme-part values for a theme selected in VN Office. A plain
+    # master-logo payload can coexist with LibreOffice's generated default theme;
+    # copying that palette back would overwrite the user's original FODP values.
+    if not (payload.get("id") or payload.get("themeId")):
+        return xml
+    payload.update(values)
+    next_attr = 'vno:master-theme="' + html.escape(json.dumps(payload, ensure_ascii=False, separators=(",", ":")), quote=True) + '"'
+    attrs = attrs[:attr.start()] + next_attr + attrs[attr.end():] if attr else attrs.rstrip() + " " + next_attr
+    tag = re.match(r"<([\w:.-]+)", match.group(0))
+    tag_name = tag.group(1) if tag else "style:master-page"
+    close = "/" if re.search(r"/\s*>$", match.group(0)) else ""
+    replacement = f"<{tag_name}{attrs}{close}>"
+    return xml[:match.start()] + replacement + xml[match.end():]
+
+
 def overlay_fodp_master_theme_id(fodp_xml: str, master_xml: str | list[str] | None) -> str:
     masters = master_xml if isinstance(master_xml, list) else ([master_xml] if master_xml else [])
     ids = {parse_master_theme_id(item) for item in masters} - {""}
@@ -6646,6 +7984,466 @@ def _normalize_slides_animation_timing(pptx_bytes: bytes) -> dict[str, str]:
     return replacements
 
 
+def _odf_length_to_pt(value: str) -> float | None:
+    match = re.fullmatch(r"\s*([+-]?[\d.]+)\s*(pt|px|in|cm|mm)?\s*", value or "", re.IGNORECASE)
+    if not match:
+        return None
+    amount = float(match.group(1))
+    unit = (match.group(2) or "pt").lower()
+    return amount * {"pt": 1.0, "px": 0.75, "in": 72.0, "cm": 72.0 / 2.54, "mm": 72.0 / 25.4}[unit]
+
+
+def _slides_paragraph_levels_from_fodp(source_fodp: str | None) -> list[dict[str, list[int]]]:
+    """Read explicit PowerPoint-sized paragraph levels from generated FODP text."""
+    if not source_fodp:
+        return []
+    try:
+        root = ET.fromstring(source_fodp)
+    except ET.ParseError:
+        return []
+
+    paragraph_style_names: dict[str, int] = {}
+    for style in root.iter(f"{{{ODF_STYLE_NS}}}style"):
+        if style.get(f"{{{ODF_STYLE_NS}}}family") != "paragraph":
+            continue
+        name = style.get(f"{{{ODF_STYLE_NS}}}name")
+        properties = style.find(f"{{{ODF_STYLE_NS}}}paragraph-properties")
+        if not name or properties is None:
+            continue
+        margin_pt = _odf_length_to_pt(properties.get(f"{{{ODF_FO_NS}}}margin-left", ""))
+        if margin_pt is None or margin_pt < 18:
+            continue
+        # PowerPoint paragraph levels are zero-based in DrawingML; its second
+        # level has a measured 36 pt left indent. Keep only whole Office steps.
+        level = max(1, int(round(margin_pt / 36.0)))
+        paragraph_style_names[name] = level
+
+    pages = root.findall(f".//{{{ODF_DRAW_NS}}}page")
+    page_levels: list[dict[str, list[int]]] = []
+    for page in pages:
+        levels: dict[str, list[int]] = {}
+        for paragraph in page.iter(f"{{{ODF_TEXT_NS}}}p"):
+            style_name = paragraph.get(f"{{{ODF_TEXT_NS}}}style-name")
+            level = paragraph_style_names.get(style_name or "")
+            if level is None:
+                continue
+            text = re.sub(r"\s+", " ", "".join(paragraph.itertext())).strip()
+            if text:
+                levels.setdefault(text, []).append(level)
+        page_levels.append(levels)
+    return page_levels
+
+
+def _set_drawingml_paragraph_level(paragraph_xml: str, level: int) -> str:
+    """Write a paragraph level in schema position without replacing other pPr."""
+    ppr = re.search(r"<a:pPr\b[^>]*(?:/>|>[\s\S]*?</a:pPr\s*>)", paragraph_xml, re.IGNORECASE)
+    if ppr:
+        block = re.sub(r"\s+lvl=[\"'][^\"']*[\"']", "", ppr.group(0), count=1, flags=re.IGNORECASE)
+        if block.rstrip().endswith("/>"):
+            block = re.sub(r"/\s*>", f' lvl="{level}"/>', block, count=1)
+        else:
+            block = re.sub(r"(<a:pPr\b)", rf'\1 lvl="{level}"', block, count=1, flags=re.IGNORECASE)
+        return paragraph_xml[:ppr.start()] + block + paragraph_xml[ppr.end():]
+    return re.sub(r"(<a:p\b[^>]*>)", rf'\1<a:pPr lvl="{level}"/>', paragraph_xml, count=1, flags=re.IGNORECASE)
+
+
+def _apply_slides_paragraph_levels(pptx_bytes: bytes, source_fodp: str | None) -> dict[str, str]:
+    """Restore FODP paragraph indent levels LibreOffice omits from PPTX."""
+    page_levels = _slides_paragraph_levels_from_fodp(source_fodp)
+    if not any(page_levels):
+        return {}
+    try:
+        with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+            entries = sorted(
+                (name for name in package.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", name)),
+                key=lambda name: int(re.search(r"slide(\d+)\.xml$", name).group(1)),
+            )
+    except Exception:
+        return {}
+
+    replacements: dict[str, str] = {}
+    paragraph_re = re.compile(r"<a:p\b[^>]*>[\s\S]*?</a:p\s*>", re.IGNORECASE)
+    text_re = re.compile(r"<a:t\b[^>]*>([\s\S]*?)</a:t\s*>", re.IGNORECASE)
+    for page_index, entry in enumerate(entries):
+        if page_index >= len(page_levels) or not page_levels[page_index]:
+            continue
+        original = read_zip_entry(pptx_bytes, entry)
+        if not original:
+            continue
+        xml = original.decode("utf-8", errors="replace")
+        pending = {text: list(levels) for text, levels in page_levels[page_index].items()}
+        changed = False
+
+        def patch_paragraph(match: re.Match[str]) -> str:
+            nonlocal changed
+            block = match.group(0)
+            text = re.sub(r"\s+", " ", "".join(html.unescape(part) for part in text_re.findall(block))).strip()
+            levels = pending.get(text)
+            if not text or not levels:
+                return block
+            level = levels.pop(0)
+            updated = _set_drawingml_paragraph_level(block, level)
+            changed = changed or updated != block
+            return updated
+
+        next_xml = paragraph_re.sub(patch_paragraph, xml)
+        if changed and next_xml != xml:
+            replacements[entry] = next_xml
+    return replacements
+
+
+def _slide_header_footer_fields_from_fodp(source_fodp: str | None) -> list[dict[str, dict[str, str]]]:
+    """Read only VNOffice header/footer frames emitted on each FODP page."""
+    if not source_fodp:
+        return []
+    pages = re.findall(r"<draw:page\b[^>]*?/>|<draw:page\b[^>]*>[\s\S]*?</draw:page>", source_fodp, re.IGNORECASE)
+    result: list[dict[str, dict[str, str]]] = []
+    for page in pages:
+        fields: dict[str, dict[str, str]] = {}
+        for kind, odf_class in (("date", "date-time"), ("number", "page-number"), ("footer", "footer")):
+            pattern = rf"<draw:frame\b(?=[^>]*presentation:class=[\"']{re.escape(odf_class)}[\"'])[^>]*>([\s\S]*?)</draw:frame>"
+            match = re.search(pattern, page, re.IGNORECASE)
+            if not match:
+                continue
+            attrs = page[match.start():page.find(">", match.start()) + 1]
+            paragraphs = re.findall(r"<text:p\b[^>]*>([\s\S]*?)</text:p>", match.group(1), re.IGNORECASE)
+            raw_text = "".join(paragraphs)
+            raw_text = re.sub(r"<presentation:date-time\b[^>]*>|</presentation:date-time>", "", raw_text, flags=re.IGNORECASE)
+            raw_text = re.sub(r"<text:page-number\b[^>]*>|</text:page-number>", "", raw_text, flags=re.IGNORECASE)
+            value = html.unescape(re.sub(r"<[^>]+>", "", raw_text))
+            fields[kind] = {
+                "text": value,
+                "format": html.unescape(re.search(r"\bvno:date-format=[\"']([^\"']*)[\"']", attrs, re.IGNORECASE).group(1))
+                if re.search(r"\bvno:date-format=[\"']([^\"']*)[\"']", attrs, re.IGNORECASE) else "dd/MM/yyyy",
+            }
+        result.append(fields)
+    return result if any(result) else []
+
+
+def _slide_placeholder_present(slide_xml: str, placeholder_type: str) -> bool:
+    return bool(re.search(
+        rf"<p:ph\b[^>]*\btype=[\"']{re.escape(placeholder_type)}[\"']",
+        slide_xml,
+        re.IGNORECASE,
+    ))
+
+
+def _slide_header_footer_shape(placeholder_type: str, shape_id: int, data: dict[str, str], slide_name: str, align: str, slide_cy: int, slide_cx: int) -> str:
+    idx = {"dt": "10", "ftr": "11", "sldNum": "12"}[placeholder_type]
+    text = data.get("text", "")
+    guid = lambda suffix: "{" + str(uuid.uuid5(uuid.NAMESPACE_URL, f"vno:{slide_name}:{suffix}")).upper() + "}"
+    field = ""
+    if placeholder_type == "dt":
+        field_type = {
+            "dd/MM/yyyy": "datetimeFigureOut",
+            "dd/MM/yyyy HH:mm": "datetime8",
+            "d MMMM yyyy": "datetime3",
+            "yyyy-MM-dd": "datetime3",
+            "HH:mm": "datetime10",
+        }.get(data.get("format", "dd/MM/yyyy"), "datetime")
+        field = f'<a:fld id="{guid("date")}" type="{field_type}"><a:rPr lang="vi-VN" dirty="0"/><a:pPr/><a:t>{html.escape(text)}</a:t></a:fld>'
+    elif placeholder_type == "sldNum":
+        field = f'<a:fld id="{guid("number")}" type="slidenum"><a:rPr lang="vi-VN" dirty="0"/><a:pPr/><a:t>{html.escape(text)}</a:t></a:fld>'
+    else:
+        field = f'<a:r><a:rPr lang="vi-VN" dirty="0"/><a:t xml:space="preserve">{html.escape(text)}</a:t></a:r>'
+    y = max(0, slide_cy - 620040)
+    body = (
+        f'<p:sp><p:nvSpPr><p:cNvPr id="{shape_id}" name="VNOffice {placeholder_type}"/>'
+        f'<p:cNvSpPr/><p:nvPr><p:ph type="{placeholder_type}" idx="{idx}"/></p:nvPr></p:nvSpPr>'
+        f'<p:spPr><a:xfrm><a:off x="274320" y="{y}"/><a:ext cx="{max(1, slide_cx - 548640)}" cy="320040"/></a:xfrm></p:spPr>'
+        f'<p:txBody><a:bodyPr/><a:lstStyle/><a:p><a:pPr algn="{align}"/>{field}'
+        f'<a:endParaRPr lang="vi-VN"/></a:p></p:txBody></p:sp>'
+    )
+    return body
+
+
+def _ensure_slide_date_time_field(slide_xml: str, data: dict[str, str], slide_name: str) -> str:
+    """LibreOffice emits a dt placeholder but leaves its date text as a normal run."""
+    if re.search(r"<a:fld\b[^>]*\btype=[\"']datetime", slide_xml, re.IGNORECASE):
+        return slide_xml
+    field_type = {
+        "dd/MM/yyyy": "datetimeFigureOut",
+        "dd/MM/yyyy HH:mm": "datetime8",
+        "d MMMM yyyy": "datetime3",
+        "yyyy-MM-dd": "datetimeFigureOut",
+        "HH:mm": "datetime10",
+    }.get(data.get("format", "dd/MM/yyyy"), "datetimeFigureOut")
+    field_id = "{" + str(uuid.uuid5(uuid.NAMESPACE_URL, f"vno:{slide_name}:date")).upper() + "}"
+    value = html.escape(data.get("text", ""))
+    shape_re = re.compile(r"<p:sp\b[\s\S]*?<p:ph\b(?=[^>]*\btype=[\"']dt[\"'])[^>]*/>[\s\S]*?</p:sp>", re.IGNORECASE)
+
+    def patch_shape(match: re.Match[str]) -> str:
+        shape = match.group(0)
+        run = re.search(r"<a:r\b[^>]*>([\s\S]*?)</a:r>", shape, re.IGNORECASE)
+        if run:
+            run_body = run.group(1)
+            rpr = re.search(r"<a:rPr\b[^>]*/>|<a:rPr\b[^>]*>[\s\S]*?</a:rPr>", run_body, re.IGNORECASE)
+            run_props = rpr.group(0) if rpr else '<a:rPr lang="vi-VN" dirty="0"/>'
+            field = f'<a:fld id="{field_id}" type="{field_type}">{run_props}<a:pPr/><a:t>{value}</a:t></a:fld>'
+            return shape[:run.start()] + field + shape[run.end():]
+        paragraph = re.search(r"<a:p\b[^>]*>[\s\S]*?</a:p>", shape, re.IGNORECASE)
+        if not paragraph:
+            return shape
+        field = f'<a:fld id="{field_id}" type="{field_type}"><a:rPr lang="vi-VN" dirty="0"/><a:pPr/><a:t>{value}</a:t></a:fld>'
+        para = paragraph.group(0)
+        next_para = re.sub(r"(<a:pPr\b[^>]*/>|<a:pPr\b[^>]*>[\s\S]*?</a:pPr>)", r"\1" + field, para, count=1, flags=re.IGNORECASE)
+        if next_para == para:
+            next_para = para.replace("</a:p>", field + "</a:p>")
+        return shape[:paragraph.start()] + next_para + shape[paragraph.end():]
+
+    return shape_re.sub(patch_shape, slide_xml, count=1)
+
+
+def _postprocess_slides_header_footer(pptx_bytes: bytes, source_fodp: str | None) -> dict[str, str]:
+    fields_by_slide = _slide_header_footer_fields_from_fodp(source_fodp)
+    if not fields_by_slide:
+        return {}
+    with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+        names = sorted(
+            (name for name in package.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", name, re.IGNORECASE)),
+            key=lambda name: int(re.search(r"slide(\d+)", name, re.IGNORECASE).group(1)),
+        )
+    presentation = read_zip_entry(pptx_bytes, PPTX_PRESENTATION_ENTRY)
+    size_xml = presentation.decode("utf-8") if presentation else ""
+    size_match = re.search(r"<p:sldSz\b([^>]*)/?>", size_xml, re.IGNORECASE)
+    size_attrs = size_match.group(1) if size_match else ""
+    slide_cx = int(re.search(r"\bcx=[\"'](\d+)[\"']", size_attrs, re.IGNORECASE).group(1)) if re.search(r"\bcx=[\"'](\d+)[\"']", size_attrs, re.IGNORECASE) else 12192000
+    slide_cy = int(re.search(r"\bcy=[\"'](\d+)[\"']", size_attrs, re.IGNORECASE).group(1)) if re.search(r"\bcy=[\"'](\d+)[\"']", size_attrs, re.IGNORECASE) else 6858000
+    if len(names) != len(fields_by_slide):
+        raise ValueError("Số trang chiếu FODP và PPTX không trùng khi lưu placeholder đầu/chân trang")
+    replacements: dict[str, str] = {}
+    for index, name in enumerate(names):
+        current = read_zip_entry(pptx_bytes, name)
+        if not current:
+            raise ValueError(f"PPTX thiếu {name} khi lưu placeholder đầu/chân trang")
+        xml = current.decode("utf-8")
+        original_xml = xml
+        missing = fields_by_slide[index]
+        shapes: list[str] = []
+        next_id = max((int(value) for value in re.findall(r"<p:cNvPr\b[^>]*\bid=[\"'](\d+)[\"']", xml)), default=1) + 1
+        for kind, placeholder_type, align in (("date", "dt", "l"), ("footer", "ftr", "ctr"), ("number", "sldNum", "r")):
+            data = missing.get(kind)
+            if data is None:
+                continue
+            if placeholder_type == "dt" and _slide_placeholder_present(xml, placeholder_type):
+                xml = _ensure_slide_date_time_field(xml, data, name)
+                continue
+            if _slide_placeholder_present(xml, placeholder_type):
+                continue
+            shapes.append(_slide_header_footer_shape(placeholder_type, next_id, data, name, align, slide_cy, slide_cx))
+            next_id += 1
+        if shapes:
+            if "</p:spTree>" not in xml:
+                raise ValueError(f"PPTX {name} thiếu p:spTree khi lưu placeholder đầu/chân trang")
+            replacements[name] = xml.replace("</p:spTree>", "".join(shapes) + "</p:spTree>", 1)
+        elif xml != original_xml:
+            replacements[name] = xml
+    return replacements
+
+
+_PPTX_SLIDE_TRANSITION_EFFECTS = {
+    "fade": '<p:fade/>',
+    "pushwipe": '<p:push dir="l"/>',
+    "zoom": '<p:zoom dir="out"/>',
+    "iriswipe": '<p:zoom dir="out"/>',
+    "fadeovercolor": '<p:flip dir="l"/>',
+}
+
+
+def _slides_transition_types_from_fodp(fodp_xml: str | None) -> list[str | None]:
+    """Read per-page ODF transition types in document order."""
+    xml = str(fodp_xml or "")
+    styles: dict[str, str] = {}
+    for match in re.finditer(r"<style:style\b([^>]*)>([\s\S]*?)</style:style\s*>", xml, re.IGNORECASE):
+        attrs = match.group(1)
+        name = re.search(r"\bstyle:name=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
+        family = re.search(r"\bstyle:family=[\"']drawing-page[\"']", attrs, re.IGNORECASE)
+        if not name or not family:
+            continue
+        props = re.search(r"<style:drawing-page-properties\b([^>]*)/?>", match.group(2), re.IGNORECASE)
+        transition = re.search(r"\bsmil:type=[\"']([^\"']+)[\"']", props.group(1) if props else "", re.IGNORECASE)
+        styles[name.group(1)] = transition.group(1).lower() if transition else ""
+    result: list[str | None] = []
+    for page in re.finditer(r"<draw:page\b(?![-\w])([^>]*)>", xml, re.IGNORECASE):
+        style = re.search(r"\bdraw:style-name=[\"']([^\"']+)[\"']", page.group(1), re.IGNORECASE)
+        transition = styles.get(style.group(1), "") if style else ""
+        result.append(transition or None)
+    return result
+
+
+def _apply_slides_transition_effects(
+    pptx_bytes: bytes, source_fodp: str | None, base_replacements: dict[str, str] | None = None
+) -> dict[str, str]:
+    transitions = _slides_transition_types_from_fodp(source_fodp)
+    if not transitions:
+        return {}
+    replacements: dict[str, str] = {}
+    with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+        slide_names = sorted(
+            (name for name in package.namelist() if re.match(r"^ppt/slides/slide\d+\.xml$", name, re.IGNORECASE)),
+            key=lambda name: int(re.search(r"slide(\d+)", name, re.IGNORECASE).group(1)),
+        )
+        for index, name in enumerate(slide_names):
+            if index >= len(transitions) or not transitions[index]:
+                continue
+            effect = _PPTX_SLIDE_TRANSITION_EFFECTS.get(transitions[index])
+            if not effect:
+                continue
+            original = (base_replacements or {}).get(name) or package.read(name).decode("utf-8", errors="replace")
+            match = re.search(r"<p:transition\b([^>]*?)(?:/\s*>|>([\s\S]*?)</p:transition\s*>)", original, re.IGNORECASE)
+            if match:
+                attrs = re.sub(r"/\s*$", "", match.group(1) or "").rstrip()
+                replacement = f"<p:transition{(' ' + attrs) if attrs else ''}>{effect}</p:transition>"
+                updated = original[:match.start()] + replacement + original[match.end():]
+            else:
+                insertion = re.search(r"<(?:p:timing|p:extLst)\b|</p:sld\s*>", original, re.IGNORECASE)
+                if not insertion:
+                    continue
+                updated = original[:insertion.start()] + f"<p:transition>{effect}</p:transition>" + original[insertion.start():]
+            if updated != original:
+                replacements[name] = updated
+    return replacements
+
+
+def _slides_wordart_ids_from_fodp(fodp_xml: str | None) -> list[set[str]]:
+    pages: list[set[str]] = []
+    for page in re.finditer(r"<draw:page\b(?![-\w])[^>]*>([\s\S]*?)</draw:page\s*>", str(fodp_xml or ""), re.IGNORECASE):
+        ids = set()
+        for shape in re.finditer(r"<draw:frame\b([^>]*)>", page.group(1), re.IGNORECASE):
+            attrs = shape.group(1)
+            if not re.search(r"\bvno:wordart=[\"']true[\"']", attrs, re.IGNORECASE):
+                continue
+            name = re.search(r"\bdraw:name=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
+            if name:
+                ids.add(html.unescape(name.group(1)))
+        pages.append(ids)
+    return pages
+
+
+def _apply_native_wordart_slide_xml(slide_xml: str, wordart_ids: set[str]) -> str:
+    if not wordart_ids:
+        return slide_xml
+
+    def patch_shape(match: re.Match[str]) -> str:
+        shape = match.group(0)
+        name = re.search(r"<p:cNvPr\b[^>]*\bname=[\"']([^\"']+)[\"']", shape, re.IGNORECASE)
+        if not name or html.unescape(name.group(1)) not in wordart_ids:
+            return shape
+        body = re.search(r"<a:bodyPr\b([^>]*)/\s*>", shape, re.IGNORECASE)
+        if body:
+            attrs = body.group(1)
+            replacement = f'<a:bodyPr{attrs}><a:prstTxWarp prst="textNoShape"><a:avLst/></a:prstTxWarp></a:bodyPr>'
+            shape = shape[:body.start()] + replacement + shape[body.end():]
+        else:
+            body = re.search(r"<a:bodyPr\b([^>]*)>([\s\S]*?)</a:bodyPr\s*>", shape, re.IGNORECASE)
+            if not body or re.search(r"<a:prstTxWarp\b", body.group(2), re.IGNORECASE):
+                return shape
+            replacement = f'<a:bodyPr{body.group(1)}><a:prstTxWarp prst="textNoShape"><a:avLst/></a:prstTxWarp>{body.group(2)}</a:bodyPr>'
+            shape = shape[:body.start()] + replacement + shape[body.end():]
+        return shape
+
+    return re.sub(r"<p:sp\b[\s\S]*?</p:sp\s*>", patch_shape, slide_xml, flags=re.IGNORECASE)
+
+
+def _apply_slides_native_wordart(
+    pptx_bytes: bytes, source_fodp: str | None, base_replacements: dict[str, str] | None = None
+) -> dict[str, str]:
+    wordart_pages = _slides_wordart_ids_from_fodp(source_fodp)
+    if not wordart_pages:
+        return {}
+    replacements: dict[str, str] = {}
+    with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+        slide_names = sorted(
+            (name for name in package.namelist() if re.match(r"^ppt/slides/slide\d+\.xml$", name, re.IGNORECASE)),
+            key=lambda name: int(re.search(r"slide(\d+)", name, re.IGNORECASE).group(1)),
+        )
+        for index, name in enumerate(slide_names):
+            if index >= len(wordart_pages) or not wordart_pages[index]:
+                continue
+            original = (base_replacements or {}).get(name) or package.read(name).decode("utf-8", errors="replace")
+            updated = _apply_native_wordart_slide_xml(original, wordart_pages[index])
+            if updated != original:
+                replacements[name] = updated
+    return replacements
+
+
+def _slides_layout_names_from_fodp(fodp_xml: str | None) -> list[str | None]:
+    result: list[str | None] = []
+    for page in re.finditer(r"<draw:page\b(?![-\w])([^>]*)>", str(fodp_xml or ""), re.IGNORECASE):
+        layout = re.search(r"\bpresentation:presentation-page-layout-name=[\"']([^\"']+)[\"']", page.group(1), re.IGNORECASE)
+        result.append(layout.group(1) if layout else None)
+    return result
+
+
+def _set_layout_placeholder_types(xml: str) -> str:
+    index = 0
+
+    def patch_shape(match: re.Match[str]) -> str:
+        nonlocal index
+        shape = match.group(0)
+        ph = re.search(r"<p:ph\b([^>]*)/\s*>", shape, re.IGNORECASE)
+        if not ph or re.search(r"\btype=[\"']", ph.group(1), re.IGNORECASE):
+            return shape
+        index += 1
+        attrs = ph.group(1).rstrip()
+        attrs += f' type="body" idx="{index}"'
+        return shape[:ph.start()] + f"<p:ph{attrs}/>" + shape[ph.end():]
+
+    return re.sub(r"<p:sp\b[\s\S]*?</p:sp\s*>", patch_shape, xml, flags=re.IGNORECASE)
+
+
+def _apply_slides_native_layout_types(
+    pptx_bytes: bytes, source_fodp: str | None, base_replacements: dict[str, str] | None = None
+) -> dict[str, str]:
+    layout_types = {"VNOTwoContent": "twoColTx"}
+    page_layouts = _slides_layout_names_from_fodp(source_fodp)
+    if not page_layouts:
+        return {}
+    replacements: dict[str, str] = {}
+    with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+        slide_names = sorted(
+            (name for name in package.namelist() if re.match(r"^ppt/slides/slide\d+\.xml$", name, re.IGNORECASE)),
+            key=lambda name: int(re.search(r"slide(\d+)", name, re.IGNORECASE).group(1)),
+        )
+        for index, slide_path in enumerate(slide_names):
+            if index >= len(page_layouts) or page_layouts[index] not in layout_types:
+                continue
+            rels_path = posixpath.join(posixpath.dirname(slide_path), "_rels", posixpath.basename(slide_path) + ".rels")
+            rels_raw = read_zip_entry(pptx_bytes, rels_path)
+            if not rels_raw:
+                continue
+            rels_xml = rels_raw.decode("utf-8", errors="replace")
+            target_path = ""
+            for rel in re.finditer(r"<Relationship\b([^>]*)/?>", rels_xml, re.IGNORECASE):
+                attrs = rel.group(1)
+                rel_type = re.search(r"\bType=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
+                target = re.search(r"\bTarget=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
+                if rel_type and target and rel_type.group(1).rstrip("/").endswith("/slideLayout"):
+                    raw_target = target.group(1).lstrip("/")
+                    target_path = raw_target if raw_target.startswith("ppt/") else posixpath.normpath(posixpath.join(posixpath.dirname(slide_path), raw_target))
+                    break
+            if not target_path:
+                continue
+            layout_raw = read_zip_entry(pptx_bytes, target_path)
+            slide_raw = read_zip_entry(pptx_bytes, slide_path)
+            if not layout_raw or not slide_raw:
+                continue
+            layout_xml = layout_raw.decode("utf-8", errors="replace")
+            slide_xml = (base_replacements or {}).get(slide_path) or slide_raw.decode("utf-8", errors="replace")
+            layout_tag = re.search(r"<p:sldLayout\b([^>]*)>", layout_xml, re.IGNORECASE)
+            if layout_tag:
+                attrs = layout_tag.group(1)
+                attrs = re.sub(r"\btype=[\"'][^\"']*[\"']", f'type="{layout_types[page_layouts[index]]}"', attrs, count=1, flags=re.IGNORECASE)
+                layout_xml = layout_xml[:layout_tag.start()] + f"<p:sldLayout{attrs}>" + layout_xml[layout_tag.end():]
+            layout_xml = _set_layout_placeholder_types(layout_xml)
+            slide_xml = _set_layout_placeholder_types(slide_xml)
+            if layout_xml != layout_raw.decode("utf-8", errors="replace"):
+                replacements[target_path] = layout_xml
+            if slide_xml != slide_raw.decode("utf-8", errors="replace"):
+                replacements[slide_path] = slide_xml
+    return replacements
+
+
 def postprocess_slides_pptx(
     pptx_bytes: bytes,
     *,
@@ -6673,6 +8471,8 @@ def postprocess_slides_pptx(
     if apply_logo and source_fodp and not fodp_has_master_logo(source_fodp) and logo_text is None:
         apply_logo = False
     theme_id = parse_master_theme_id_from_fodp(source_fodp)
+    theme_payload = _parse_master_theme_payload_from_fodp(source_fodp)
+    theme_replacements = _patch_slides_theme_parts(pptx_bytes, theme_payload)
     apply_sections = bool(sections) if sections is not None else fodp_has_sections(source_fodp)
     apply_show = bool(show_without_narration or pointer_color) or fodp_has_show_setup_patch(source_fodp)
 
@@ -6711,9 +8511,24 @@ def postprocess_slides_pptx(
     notes_by_slide = parse_notes_from_fodp(source_fodp) if source_fodp else {}
 
     animation_replacements = _normalize_slides_animation_timing(pptx_bytes)
-    if not apply_logo and not theme_id and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements:
+    paragraph_level_replacements = _apply_slides_paragraph_levels(pptx_bytes, source_fodp)
+    header_footer_replacements = _postprocess_slides_header_footer(pptx_bytes, source_fodp)
+    transition_replacements = _apply_slides_transition_effects(pptx_bytes, source_fodp, animation_replacements)
+    wordart_replacements = _apply_slides_native_wordart(
+        pptx_bytes, source_fodp, {**animation_replacements, **transition_replacements}
+    )
+    layout_replacements = _apply_slides_native_layout_types(
+        pptx_bytes, source_fodp, {**animation_replacements, **transition_replacements, **wordart_replacements}
+    )
+    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements:
         return pptx_bytes
     replacements.update(animation_replacements)
+    replacements.update(paragraph_level_replacements)
+    replacements.update(header_footer_replacements)
+    replacements.update(theme_replacements)
+    replacements.update(transition_replacements)
+    replacements.update(wordart_replacements)
+    replacements.update(layout_replacements)
 
     if apply_slide_size and presentation_xml:
         presentation_xml = apply_intended_slide_size(presentation_xml, intended_size)
@@ -7423,6 +9238,7 @@ def overlay_sheet_xlsx_fods(
     if current:
         workbook_xml = current.decode("utf-8", errors="replace")
         xml = overlay_fods_structure_protection(xml, workbook_xml)
+        xml = apply_calculation_mode_to_fods(xml, parse_calculation_mode_from_workbook(workbook_xml))
         # Sheet visibility (veryHidden → vno:sheet-state): soffice downgrades
         # veryHidden to hidden during XLSX→FODS, so we read the original state
         # and write vno:sheet-state for round-trip fidelity.
@@ -7436,6 +9252,7 @@ def overlay_sheet_xlsx_fods(
         xml = apply_print_titles_to_fods(xml, parse_print_titles_from_workbook(workbook_xml))
     xml = overlay_page_margins_to_fods(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
+    xml = overlay_sheet_xlsx_split_panes(xlsx_bytes, xml)
     # AutoFilter: read <autoFilter ref> from original worksheet XMLs and
     # inject <table:database-ranges> into FODS so parseFods can restore
     # the filter state.
@@ -7454,6 +9271,9 @@ def overlay_sheet_xlsx_fods(
         xml = apply_tab_colors_to_fods(xml, tab_colors)
     # Drawing images: overlay vno:image-id on <draw:frame> elements
     xml = _overlay_sheet_drawing_image_ids(xlsx_bytes, xml)
+    xml = _overlay_sheet_drawing_text_boxes(xlsx_bytes, xml)
+    xml = _overlay_sheet_resolved_comments(xlsx_bytes, xml)
+    xml = overlay_pivot_chart_metadata_to_fods(xlsx_bytes, xml)
     # Scenarios: overlay vno:scenarios from XLSX worksheet XMLs
     xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
     return xml
@@ -7488,6 +9308,7 @@ def overlay_sheet_xlsx_fods_p1(
     if current:
         workbook_xml = current.decode("utf-8", errors="replace")
         xml = overlay_fods_structure_protection(xml, workbook_xml)
+        xml = apply_calculation_mode_to_fods(xml, parse_calculation_mode_from_workbook(workbook_xml))
         visibility = parse_sheet_visibility_from_workbook(workbook_xml)
         if visibility:
             xml = apply_sheet_visibility_to_fods(xml, visibility)
@@ -7495,6 +9316,7 @@ def overlay_sheet_xlsx_fods_p1(
         xml = apply_print_titles_to_fods(xml, parse_print_titles_from_workbook(workbook_xml))
     xml = overlay_page_margins_to_fods(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
+    xml = overlay_sheet_xlsx_split_panes(xlsx_bytes, xml)
     xml = _overlay_autofilter_from_xlsx(xlsx_bytes, xml)
     xml = _overlay_sheet_layout_from_xlsx(xlsx_bytes, xml)
     tab_colors = parse_tab_colors_from_xlsx(xlsx_bytes)
@@ -7514,6 +9336,9 @@ def overlay_sheet_xlsx_fods_p1(
         if tab_colors:
             xml = apply_tab_colors_to_fods(xml, tab_colors)
     xml = _overlay_sheet_drawing_image_ids(xlsx_bytes, xml)
+    xml = _overlay_sheet_drawing_text_boxes(xlsx_bytes, xml)
+    xml = _overlay_sheet_resolved_comments(xlsx_bytes, xml)
+    xml = overlay_pivot_chart_metadata_to_fods(xlsx_bytes, xml)
     if not skeleton:
         xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
     return xml
@@ -10582,15 +12407,92 @@ def _overlay_autofilter_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
     sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
     if not sheet_entries:
         return fods_xml
+    tables_by_sheet = _parse_xlsx_tables(xlsx_bytes, sheet_entries)
+    table_refs = {sheet: {table["ref"] for table in tables} for sheet, tables in tables_by_sheet.items()}
     autofilter_by_sheet: dict[str, str] = {}
     for sheet_name, entry_path in sheet_entries.items():
         entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
         if not entry_bytes:
             continue
         ref = parse_autofilter_from_worksheet(entry_bytes.decode("utf-8", errors="replace"))
-        if ref:
+        if ref and ref not in table_refs.get(sheet_name, set()):
             autofilter_by_sheet[sheet_name] = ref
-    return apply_autofilter_to_fods(fods_xml, autofilter_by_sheet)
+    xml = apply_autofilter_to_fods(fods_xml, autofilter_by_sheet)
+    if not tables_by_sheet:
+        return xml
+    ranges_xml = []
+    for sheet_name, tables in tables_by_sheet.items():
+        target_sheet = sheet_name if re.fullmatch(r"[A-Za-z0-9_]+", sheet_name) else "'" + sheet_name.replace("'", "''") + "'"
+        for table in tables:
+            ranges_xml.append(
+                f'<table:database-range table:name="{_escape_xml(table["name"])}"'
+                f' table:target-range-address="{_escape_xml(target_sheet)}.{_escape_xml(table["ref"].split(":", 1)[0])}:{_escape_xml(target_sheet)}.{_escape_xml(table["ref"].split(":", 1)[-1])}"'
+                f' table:display-filter-buttons="{"true" if table["show_autofilter"] else "false"}" vno:table-name="{_escape_xml(table["name"])}"'
+                f' vno:table-style="{_escape_xml(table["style"])}"'
+                f' vno:table-headers="{"true" if table["has_headers"] else "false"}"'
+                f' vno:table-show-autofilter="{"true" if table["show_autofilter"] else "false"}"'
+                f' vno:table-row-stripes="{"true" if table["row_stripes"] else "false"}"'
+                f' vno:table-totals="{"true" if table.get("totals") else "false"}"/>'
+            )
+    db_block = f'<table:database-ranges>{"".join(ranges_xml)}</table:database-ranges>'
+    marker = "</office:spreadsheet>"
+    index = xml.rfind(marker)
+    return xml[:index] + db_block + xml[index:] if index >= 0 else xml + db_block
+
+
+def _parse_xlsx_tables(xlsx_bytes: bytes, sheet_entries: dict[str, str] | None = None) -> dict[str, list[dict]]:
+    """Read actual worksheet tableParts and their linked table definitions."""
+    sheet_entries = sheet_entries or _resolve_xlsx_sheet_entries(xlsx_bytes)
+    result: dict[str, list[dict]] = {}
+    for sheet_name, sheet_path in sheet_entries.items():
+        sheet_xml_raw = read_zip_entry(xlsx_bytes, sheet_path)
+        if not sheet_xml_raw:
+            continue
+        sheet_xml = sheet_xml_raw.decode("utf-8", errors="replace")
+        table_rids = re.findall(r'<tablePart\b[^>]*\br:id="([^"]+)"', sheet_xml)
+        if not table_rids:
+            continue
+        rels_path = posixpath.join(posixpath.dirname(sheet_path), "_rels", posixpath.basename(sheet_path) + ".rels")
+        rels_raw = read_zip_entry(xlsx_bytes, rels_path)
+        if not rels_raw:
+            continue
+        rels_xml = rels_raw.decode("utf-8", errors="replace")
+        targets = {}
+        for match in _WB_RELATIONSHIP_TAG_RE.finditer(rels_xml):
+            attrs = match.group(1) or ""
+            rid = re.search(r'\bId="([^"]+)"', attrs)
+            target = re.search(r'\bTarget="([^"]+)"', attrs)
+            if rid and target:
+                targets[rid.group(1)] = posixpath.normpath(posixpath.join(posixpath.dirname(sheet_path), target.group(1)))
+        for rid in table_rids:
+            table_path = targets.get(rid)
+            table_raw = read_zip_entry(xlsx_bytes, table_path) if table_path else None
+            if not table_raw:
+                continue
+            table_xml = table_raw.decode("utf-8", errors="replace")
+            root = re.search(r'<table\b([^>]*)>', table_xml)
+            if not root:
+                continue
+            attrs = root.group(1)
+            get_attr = lambda text, key: (re.search(rf'\b{key}="([^"]*)"', text or "") or [None, ""])[1]
+            ref = get_attr(attrs, "ref")
+            display_name = get_attr(attrs, "displayName") or get_attr(attrs, "name")
+            if not ref or not display_name:
+                continue
+            style_match = re.search(r'<tableStyleInfo\b([^>]*)/?>', table_xml)
+            style_attrs = style_match.group(1) if style_match else ""
+            style_name = get_attr(style_attrs, "name") or "TableStyleMedium2"
+            result.setdefault(sheet_name, []).append({
+                "name": display_name,
+                "ref": ref,
+                "style": style_name,
+                "has_headers": get_attr(attrs, "headerRowCount") != "0",
+                "show_autofilter": bool(re.search(r'<autoFilter\b', table_xml)),
+                "row_stripes": get_attr(style_attrs, "showRowStripes") not in {"0", "false"},
+                "totals": get_attr(attrs, "totalsRowCount") not in {"", "0"},
+                "totals_label": "",
+            })
+    return result
 
 
 def overlay_sheet_xlsx_freeze_panes(xlsx_bytes: bytes, fods_xml: str | None) -> str:
@@ -10609,6 +12511,20 @@ def overlay_sheet_xlsx_freeze_panes(xlsx_bytes: bytes, fods_xml: str | None) -> 
         if freeze:
             freeze_by_sheet[sheet_name] = freeze
     return apply_freeze_panes_to_fods(xml, freeze_by_sheet)
+
+
+def overlay_sheet_xlsx_split_panes(xlsx_bytes: bytes, fods_xml: str | None) -> str:
+    """Read real non-frozen split panes from every worksheet and overlay FODS."""
+    xml = fods_xml or ""
+    split_by_sheet: dict[str, dict[str, float | int]] = {}
+    for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        entry_bytes = read_zip_entry(xlsx_bytes, entry_path)
+        if not entry_bytes:
+            continue
+        split = parse_split_pane_from_sheet_xml(entry_bytes.decode("utf-8", errors="replace"))
+        if split:
+            split_by_sheet[sheet_name] = split
+    return apply_split_panes_to_fods(xml, split_by_sheet)
 
 
 def overlay_slides_pptx_fodp(pptx_bytes: bytes, fodp_xml: str | None) -> str:
@@ -10639,6 +12555,7 @@ def overlay_slides_pptx_fodp(pptx_bytes: bytes, fodp_xml: str | None) -> str:
         masters.append(entry.decode("utf-8", errors="replace"))
     xml = overlay_fodp_master_logo(xml, masters)
     xml = overlay_fodp_master_theme_id(xml, masters)
+    xml = overlay_fodp_native_slides_theme(xml, pptx_bytes)
     props = read_zip_entry(pptx_bytes, PPTX_PRESPROPS_ENTRY)
     if props:
         xml = overlay_fodp_show_properties(xml, props.decode("utf-8", errors="replace"))
@@ -10888,6 +12805,8 @@ _DOCX_COMMENTS_EXTENDED_REL_TYPE = (
 _DOCX_COMMENTS_EXTENDED_CONTENT_TYPE = (
     "application/vnd.openxmlformats-officedocument.wordprocessingml.commentsExtended+xml"
 )
+_DOCX_PEOPLE_REL_TYPE = "http://schemas.microsoft.com/office/2011/relationships/people"
+_DOCX_PEOPLE_CONTENT_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.people+xml"
 
 
 _DOCX_HF_EXTRA_CONTENT_TYPES = {
@@ -15888,6 +17807,92 @@ def _writer_restore_heading_styles(
     return document_xml, styles_xml
 
 
+def _writer_restore_gallery_builtin_styles(document_xml: str, styles_xml: str, source_html: str) -> tuple[str, str]:
+    """Restore semantic Word built-in paragraph styles used by the Writer gallery."""
+    mapping = {
+        "vno-style-title": "Title",
+        "vno-style-subtitle": "Subtitle",
+        "vno-style-quote": "Quote",
+        "vno-style-list-paragraph": "ListParagraph",
+    }
+    run_style_properties = {
+        "Title": '<w:rFonts w:ascii="Calibri Light" w:hAnsi="Calibri Light" w:eastAsia="Calibri Light" w:cs="Calibri Light"/><w:sz w:val="56"/><w:szCs w:val="56"/>',
+        "Subtitle": '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:color w:val="5A5A5A"/><w:sz w:val="22"/><w:szCs w:val="22"/>',
+        "Quote": '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:i/><w:iCs/><w:color w:val="404040"/><w:sz w:val="22"/><w:szCs w:val="22"/>',
+        "ListParagraph": '<w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:sz w:val="22"/><w:szCs w:val="22"/>',
+    }
+    sources = []
+    for class_name, style_id in mapping.items():
+        pattern = re.compile(
+            rf'<(?:p|div|blockquote)\b(?=[^>]*\bclass=["\'][^"\']*\b{re.escape(class_name)}\b[^"\']*["\'])[^>]*>([\s\S]*?)</(?:p|div|blockquote)\s*>',
+            re.IGNORECASE,
+        )
+        for match in pattern.finditer(source_html or ""):
+            text = re.sub(r"\s+", " ", _writer_html_plain(match.group(1))).strip()
+            if text:
+                sources.append((text, style_id))
+    style_definitions = {
+        "Title": '<w:style w:type="paragraph" w:styleId="Title"><w:name w:val="Title"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:after="0" w:line="240" w:lineRule="auto"/><w:contextualSpacing/></w:pPr><w:rPr><w:rFonts w:ascii="Calibri Light" w:hAnsi="Calibri Light" w:eastAsia="Calibri Light" w:cs="Calibri Light"/><w:sz w:val="56"/><w:szCs w:val="56"/></w:rPr></w:style>',
+        "Subtitle": '<w:style w:type="paragraph" w:styleId="Subtitle"><w:name w:val="Subtitle"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr/><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:color w:val="5A5A5A"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>',
+        "Quote": '<w:style w:type="paragraph" w:styleId="Quote"><w:name w:val="Quote"/><w:basedOn w:val="Normal"/><w:next w:val="Normal"/><w:qFormat/><w:pPr><w:spacing w:before="200"/><w:ind w:left="864" w:right="864"/><w:jc w:val="center"/></w:pPr><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:i/><w:iCs/><w:color w:val="404040"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>',
+        "ListParagraph": '<w:style w:type="paragraph" w:styleId="ListParagraph"><w:name w:val="List Paragraph"/><w:basedOn w:val="Normal"/><w:uiPriority w:val="34"/><w:qFormat/><w:pPr><w:ind w:left="720"/><w:jc w:val="left"/><w:contextualSpacing/></w:pPr><w:rPr><w:rFonts w:ascii="Calibri" w:hAnsi="Calibri" w:eastAsia="Calibri" w:cs="Calibri"/><w:sz w:val="22"/><w:szCs w:val="22"/></w:rPr></w:style>',
+    }
+    for style_id, definition in style_definitions.items():
+        if any(required == style_id for _text, required in sources):
+            existing = re.search(
+                rf'<w:style\b(?=[^>]*\bw:styleId=["\']{style_id}["\'])[^>]*>[\s\S]*?</w:style\s*>',
+                styles_xml, re.IGNORECASE,
+            )
+            if existing:
+                styles_xml = styles_xml[:existing.start()] + definition + styles_xml[existing.end():]
+            else:
+                styles_xml = styles_xml.replace("</w:styles>", definition + "</w:styles>", 1)
+    if not sources:
+        return document_xml, styles_xml
+    paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+    cursor = 0
+    updates = {}
+    for expected, style_id in sources:
+        for index in range(cursor, len(paragraphs)):
+            if _paragraph_plain_text(paragraphs[index].group(0)).strip() == expected:
+                paragraph = paragraphs[index].group(0)
+                ppr_match = re.search(r"<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>", paragraph, re.IGNORECASE)
+                if ppr_match:
+                    ppr = re.sub(r"<w:(?:spacing|ind|jc|rPr)\b[^>]*/>|<w:rPr\b[^>]*>[\s\S]*?</w:rPr\s*>", "", ppr_match.group(0), flags=re.IGNORECASE)
+                    paragraph = paragraph[:ppr_match.start()] + ppr + paragraph[ppr_match.end():]
+                paragraph = re.sub(
+                    r"<w:rPr\b[^>]*>([\s\S]*?)</w:rPr\s*>",
+                    lambda match: "<w:rPr>" + re.sub(
+                        r"<w:(?:rFonts|sz|szCs|color|b|bCs|i|iCs)\b[^>]*/>", "", match.group(1), flags=re.IGNORECASE
+                    ) + "</w:rPr>",
+                    paragraph, flags=re.IGNORECASE,
+                )
+                run_props = run_style_properties[style_id]
+                def apply_default_style_to_run(run_match: re.Match) -> str:
+                    run = run_match.group(0)
+                    rpr = f"<w:rPr>{run_props}</w:rPr>"
+                    existing_rpr = re.search(r"<w:rPr\b[^>]*>[\s\S]*?</w:rPr\s*>", run, re.IGNORECASE)
+                    if existing_rpr:
+                        return run[:existing_rpr.start()] + rpr + run[existing_rpr.end():]
+                    opening = re.match(r"<w:r\b[^>]*>", run, re.IGNORECASE)
+                    return run[:opening.end()] + rpr + run[opening.end():] if opening else run
+                paragraph = re.sub(r"<w:r\b[^>]*>[\s\S]*?</w:r\s*>", apply_default_style_to_run, paragraph, flags=re.IGNORECASE)
+                updates[index] = _writer_upsert_ppr_empty(
+                    paragraph, "pStyle", f'<w:pStyle w:val="{style_id}"/>'
+                )
+                cursor = index + 1
+                break
+    if not updates:
+        return document_xml, styles_xml
+    output = []
+    previous = 0
+    for index, paragraph in enumerate(paragraphs):
+        output.extend((document_xml[previous:paragraph.start()], updates.get(index, paragraph.group(0))))
+        previous = paragraph.end()
+    output.append(document_xml[previous:])
+    return "".join(output), styles_xml
+
+
 def _writer_balanced_html_element(source: str, start: int, tag: str) -> str:
     token_re = re.compile(rf"</?{re.escape(tag)}\b[^>]*>", re.IGNORECASE)
     depth = 0
@@ -17862,6 +19867,7 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
     styles_xml = styles_bytes.decode("utf-8", errors="replace") if styles_bytes else ""
     if styles_xml:
         document_xml, styles_xml = _writer_restore_heading_styles(document_xml, styles_xml, source_html)
+        document_xml, styles_xml = _writer_restore_gallery_builtin_styles(document_xml, styles_xml, source_html)
         document_xml, styles_xml = _writer_apply_word_default_heading_styles_for_new_documents(
             document_xml, styles_xml, source_html
         )
@@ -18524,8 +20530,9 @@ def postprocess_writer_page_decor(docx_bytes: bytes, *, source_html: str | None 
     if not docx_bytes or not source_html:
         return docx_bytes
     line_numbers = re.search(r"<!--vno-line-numbers:(\d+):(continuous|page|section)-->", source_html)
+    theme = re.search(r"<!--vno-document-theme:(office|administrative|modern|elegant|minimal|emerald)-->", source_html)
     block = re.search(r"@page\s*\{([^}]*)\}", source_html, re.IGNORECASE)
-    if not block and not line_numbers:
+    if not block and not line_numbers and not theme:
         return docx_bytes
     css = block.group(1) if block else ""
     border = re.search(
@@ -18533,7 +20540,7 @@ def postprocess_writer_page_decor(docx_bytes: bytes, *, source_html: str | None 
         css, re.IGNORECASE,
     )
     background = re.search(r"background-color\s*:\s*(#[0-9a-fA-F]{3,8}|rgba?\([^)]*\)|[a-zA-Z]+)", css, re.IGNORECASE)
-    if not border and not background and not line_numbers:
+    if not border and not background and not line_numbers and not theme:
         return docx_bytes
     document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
     if not document_bytes:
@@ -18589,6 +20596,434 @@ def postprocess_writer_page_decor(docx_bytes: bytes, *, source_html: str | None 
                     settings_xml = re.sub(r"(<w:settings\b[^>]*>)", r"\1<w:displayBackgroundShape/>", settings_xml, count=1, flags=re.IGNORECASE)
                 replacements["word/settings.xml"] = settings_xml.encode("utf-8")
     replacements["word/document.xml"] = document_xml.encode("utf-8")
+    if theme:
+        theme_bytes = read_zip_entry(docx_bytes, "word/theme/theme1.xml")
+        if theme_bytes:
+            theme_xml = theme_bytes.decode("utf-8", errors="replace")
+            schemes = {
+                "office": ("Times New Roman", ["0F4C81", "1D4ED8", "2563EB", "64748B", "94A3B8", "0F172A"]),
+                "administrative": ("Times New Roman", ["000000", "C01E17", "7F1D1D", "44403C", "78716C", "A8A29E"]),
+                "modern": ("Be Vietnam Pro", ["0284C7", "0369A1", "075985", "0EA5E9", "38BDF8", "0F172A"]),
+                "elegant": ("Georgia", ["854D0E", "A16207", "CA8A04", "B45309", "D97706", "78350F"]),
+                "minimal": ("Arial", ["3F3F46", "52525B", "71717A", "27272A", "A1A1AA", "18181B"]),
+                "emerald": ("Calibri", ["0F766E", "0D9488", "14B8A6", "115E59", "2DD4BF", "134E4A"]),
+            }
+            font, accents = schemes[theme.group(1)]
+            theme_xml = re.sub(
+                r"(<a:fontScheme\b[^>]*>[\s\S]*?<a:(?:majorFont|minorFont)>[\s\S]*?<a:latin\b[^>]*\btypeface=\")[^\"]*",
+                rf"\g<1>{font}", theme_xml, flags=re.IGNORECASE,
+            )
+            # Both major and minor fonts must follow the selected document theme.
+            for tag in ("majorFont", "minorFont"):
+                theme_xml = re.sub(
+                    rf"(<a:{tag}\b[^>]*>[\s\S]*?<a:latin\b[^>]*\btypeface=\")[^\"]*",
+                    rf"\g<1>{font}", theme_xml, count=1, flags=re.IGNORECASE,
+                )
+            for index, color in enumerate(accents, start=1):
+                theme_xml = re.sub(
+                    rf"(<a:accent{index}\b[^>]*>[\s\S]*?<a:srgbClr\b[^>]*\bval=\")[^\"]*",
+                    rf"\g<1>{color}", theme_xml, count=1, flags=re.IGNORECASE,
+                )
+            replacements["word/theme/theme1.xml"] = theme_xml.encode("utf-8")
+    return patch_ooxml_zip(docx_bytes, replacements)
+
+
+def _writer_chart_xlsx(labels: list[str], values: list[str]) -> bytes:
+    """Build a small embedded workbook for a single-series Writer chart."""
+    if not labels or len(labels) != len(values):
+        raise ValueError("Dữ liệu biểu đồ không đủ nhãn và giá trị để tạo workbook nhúng.")
+    def cell_text(value: str) -> str:
+        return html.escape(str(value), quote=False)
+    rows = ['<row r="1"><c r="A1" t="inlineStr"><is><t>Category</t></is></c><c r="B1" t="inlineStr"><is><t>Series</t></is></c></row>']
+    for index, (label, value) in enumerate(zip(labels, values), start=2):
+        numeric = float(value)
+        if not math.isfinite(numeric):
+            raise ValueError("Giá trị biểu đồ phải là số hữu hạn.")
+        number = str(int(numeric)) if numeric.is_integer() else format(numeric, ".15g")
+        rows.append(
+            f'<row r="{index}"><c r="A{index}" t="inlineStr"><is><t>{cell_text(label)}</t></is></c>'
+            f'<c r="B{index}"><v>{number}</v></c></row>'
+        )
+    parts = {
+        "[Content_Types].xml": '<?xml version="1.0" encoding="UTF-8"?><Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types"><Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/><Override PartName="/xl/workbook.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"/><Override PartName="/xl/worksheets/sheet1.xml" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.worksheet+xml"/></Types>',
+        "_rels/.rels": '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="xl/workbook.xml"/></Relationships>',
+        "xl/workbook.xml": '<?xml version="1.0" encoding="UTF-8"?><workbook xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships"><sheets><sheet name="Sheet1" sheetId="1" r:id="rId1"/></sheets></workbook>',
+        "xl/_rels/workbook.xml.rels": '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/worksheet" Target="worksheets/sheet1.xml"/></Relationships>',
+        "xl/worksheets/sheet1.xml": '<?xml version="1.0" encoding="UTF-8"?><worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData>' + "".join(rows) + "</sheetData></worksheet>",
+    }
+    output = io.BytesIO()
+    with zipfile.ZipFile(output, "w", compression=zipfile.ZIP_DEFLATED) as archive:
+        for name, content in parts.items():
+            archive.writestr(name, content.encode("utf-8"))
+    return output.getvalue()
+
+
+def _writer_chart_with_embedded_workbook(chart_xml: str, workbook_name: str) -> tuple[str, str, bytes]:
+    """Link the cached chart data to an editable, embedded XLSX workbook."""
+    label_values = re.findall(r"<c:cat\b[\s\S]*?<c:pt\b[^>]*><c:v>([\s\S]*?)</c:v>", chart_xml, re.IGNORECASE)
+    numeric_values = re.findall(r"<c:val\b[\s\S]*?<c:pt\b[^>]*><c:v>([\s\S]*?)</c:v>", chart_xml, re.IGNORECASE)
+    labels = [html.unescape(value) for value in label_values]
+    values = [html.unescape(value) for value in numeric_values]
+    if not labels or not values:
+        raise ValueError("LibreOffice không xuất được dữ liệu cache biểu đồ để nhúng.")
+    workbook = _writer_chart_xlsx(labels, values)
+    last_row = len(labels) + 1
+    def formula(block: str, value: str) -> str:
+        return re.sub(r"<c:f>[^<]*</c:f>", f"<c:f>'Sheet1'!{value}</c:f>", block, count=1)
+    chart_xml = re.sub(r"(<c:tx\b[\s\S]*?</c:tx>)", lambda match: formula(match.group(1), "$B$1"), chart_xml, count=1, flags=re.IGNORECASE)
+    chart_xml = re.sub(r"(<c:cat\b[\s\S]*?</c:cat>)", lambda match: formula(match.group(1), f"$A$2:$A${last_row}"), chart_xml, count=1, flags=re.IGNORECASE)
+    chart_xml = re.sub(r"(<c:val\b[\s\S]*?</c:val>)", lambda match: formula(match.group(1), f"$B$2:$B${last_row}"), chart_xml, count=1, flags=re.IGNORECASE)
+    rel_id = "rIdVnoEmbeddedWorkbook"
+    if "<c:externalData" not in chart_xml:
+        chart_xml = chart_xml.replace(
+            "</c:chartSpace>",
+            f'<c:externalData r:id="{rel_id}"><c:autoUpdate val="0"/></c:externalData></c:chartSpace>',
+        )
+    rels = (
+        '<?xml version="1.0" encoding="UTF-8"?>'
+        '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+        f'<Relationship Id="{rel_id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/package" Target="../embeddings/{workbook_name}"/>'
+        '</Relationships>'
+    )
+    return chart_xml, rels, workbook
+
+
+def postprocess_writer_native_charts(
+    docx_bytes: bytes,
+    chart_docx_bytes: bytes,
+    *,
+    source_html: str | None = None,
+) -> bytes:
+    """Replace newly inserted chart placeholders with LibreOffice-native DOCX charts.
+
+    The auxiliary FODT conversion supplies the editable Chart object; only the
+    bookmarked new chart region is replaced in the user's DOCX package.
+    """
+    if not docx_bytes or not chart_docx_bytes or not source_html or "vno-native-charts-fodt:" not in source_html:
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    aux_document_bytes = read_zip_entry(chart_docx_bytes, "word/document.xml")
+    aux_rels_bytes = read_zip_entry(chart_docx_bytes, "word/_rels/document.xml.rels")
+    if not document_bytes or not aux_document_bytes or not aux_rels_bytes:
+        raise ValueError("Không đọc được cấu trúc DOCX biểu đồ do LibreOffice tạo.")
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    aux_document_xml = aux_document_bytes.decode("utf-8", errors="replace")
+    aux_rels_xml = aux_rels_bytes.decode("utf-8", errors="replace")
+    rels = {
+        rel_id: posixpath.normpath(posixpath.join("word", target))
+        for rel_id, target in re.findall(
+            r'<Relationship\b(?=[^>]*\bType="[^"]*/chart")(?=[^>]*\bId="([^"]+)")(?=[^>]*\bTarget="([^"]+)")[^>]*/?>',
+            aux_rels_xml,
+            re.IGNORECASE,
+        )
+    }
+    drawings = re.findall(r"<w:drawing\b[\s\S]*?</w:drawing\s*>", aux_document_xml, re.IGNORECASE)
+    if not drawings:
+        raise ValueError("Tài liệu biểu đồ phụ không có đối tượng Chart native.")
+    source_chart_ids = []
+    for drawing in drawings:
+        match = re.search(r'<c:chart\b[^>]*\br:id="([^"]+)"', drawing, re.IGNORECASE)
+        if match and match.group(1) in rels:
+            source_chart_ids.append((drawing, rels[match.group(1)]))
+    if not source_chart_ids:
+        raise ValueError("Không ánh xạ được quan hệ chart của DOCX phụ.")
+
+    target_rels_bytes = read_zip_entry(docx_bytes, "word/_rels/document.xml.rels")
+    target_rels_xml = target_rels_bytes.decode("utf-8", errors="replace") if target_rels_bytes else (
+        '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+    )
+    content_types_bytes = read_zip_entry(docx_bytes, "[Content_Types].xml")
+    content_types_xml = content_types_bytes.decode("utf-8", errors="replace") if content_types_bytes else ""
+    package_names = set()
+    try:
+        with zipfile.ZipFile(io.BytesIO(docx_bytes), "r") as package:
+            package_names.update(package.namelist())
+    except (zipfile.BadZipFile, OSError):
+        return docx_bytes
+    replacements: dict[str, bytes | str | None] = {}
+    max_rid = max((int(value) for value in re.findall(r'\bId="rId(\d+)"', target_rels_xml)), default=0)
+    max_docpr = max((int(value) for value in re.findall(r'<wp:docPr\b[^>]*\bid="(\d+)"', document_xml)), default=0)
+    chart_paths = {name for name in package_names if re.fullmatch(r"word/charts/[^/]+\.xml", name)}
+    workbook_paths = {name for name in package_names if name.startswith("word/embeddings/")}
+    replaced_document = document_xml
+    content_type_additions = []
+    for index, (drawing, source_part) in enumerate(source_chart_ids, start=1):
+        chart_bytes = read_zip_entry(chart_docx_bytes, source_part)
+        if not chart_bytes:
+            raise ValueError(f"Thiếu phần XML biểu đồ phụ: {source_part}")
+        chart_xml = chart_bytes.decode("utf-8", errors="replace")
+        chart_base = f"vnoChart{index}"
+        target_part = f"word/charts/{chart_base}.xml"
+        suffix = index
+        while target_part in chart_paths:
+            suffix += 1
+            chart_base = f"vnoChart{suffix}"
+            target_part = f"word/charts/{chart_base}.xml"
+        workbook_name = f"{chart_base}.xlsx"
+        workbook_path = f"word/embeddings/{workbook_name}"
+        wb_suffix = 1
+        while workbook_path in workbook_paths:
+            wb_suffix += 1
+            workbook_name = f"{chart_base}-{wb_suffix}.xlsx"
+            workbook_path = f"word/embeddings/{workbook_name}"
+        chart_xml, chart_rels_xml, workbook_bytes = _writer_chart_with_embedded_workbook(chart_xml, workbook_name)
+        chart_paths.add(target_part)
+        workbook_paths.add(workbook_path)
+        replacements[target_part] = chart_xml.encode("utf-8")
+        replacements[f"word/charts/_rels/{chart_base}.xml.rels"] = chart_rels_xml.encode("utf-8")
+        replacements[workbook_path] = workbook_bytes
+        max_rid += 1
+        new_rel_id = f"rId{max_rid}"
+        target_rels_xml = target_rels_xml.replace(
+            "</Relationships>",
+            f'<Relationship Id="{new_rel_id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/chart" Target="charts/{chart_base}.xml"/></Relationships>',
+        )
+        drawing = re.sub(r'(<c:chart\b[^>]*\br:id=")[^"]+', rf'\g<1>{new_rel_id}', drawing, count=1)
+        max_docpr += 1
+        drawing = re.sub(r'(<wp:docPr\b[^>]*\bid=")[0-9]+', rf'\g<1>{max_docpr}', drawing, count=1)
+
+        token = f"VNO_NATIVE_CHART_{index}"
+        paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", replaced_document, re.IGNORECASE))
+        start_index = next((i for i, match in enumerate(paragraphs) if f'{token}_START' in match.group(0)), None)
+        if start_index is None:
+            raise ValueError(f"Không tìm được điểm chèn DOCX cho biểu đồ {index}.")
+        start_match = re.search(r'<w:bookmarkStart\b(?=[^>]*\bw:name="' + re.escape(token) + r'_START")(?=[^>]*\bw:id="([^"]+)")[^>]*/>', paragraphs[start_index].group(0), re.IGNORECASE)
+        if not start_match:
+            raise ValueError(f"Thiếu dấu neo bắt đầu cho biểu đồ {index}.")
+        end_index = next((i for i in range(start_index, len(paragraphs)) if f'{token}_END' in paragraphs[i].group(0)), None)
+        if end_index is None:
+            raise ValueError(f"Thiếu bookmark kết thúc cho biểu đồ {index}.")
+        if not re.search(
+            r'<w:bookmarkStart\b(?=[^>]*\bw:name="' + re.escape(token) + r'_END")[^>]*/>',
+            paragraphs[end_index].group(0),
+            re.IGNORECASE,
+        ):
+            raise ValueError(f"Bookmark kết thúc cho biểu đồ {index} không hợp lệ.")
+        first_paragraph = paragraphs[start_index].group(0)
+        ppr = re.search(r"<w:pPr\b[\s\S]*?</w:pPr\s*>", first_paragraph, re.IGNORECASE)
+        replacement_paragraph = f'<w:p>{ppr.group(0) if ppr else ""}<w:r>{drawing}</w:r></w:p>'
+        replaced_document = replaced_document[:paragraphs[start_index].start()] + replacement_paragraph + replaced_document[paragraphs[end_index].end():]
+        if f'/word/charts/{chart_base}.xml"' not in content_types_xml:
+            content_type_additions.append(f'<Override PartName="/{target_part}" ContentType="application/vnd.openxmlformats-officedocument.drawingml.chart+xml"/>')
+    if content_type_additions:
+        if "</Types>" not in content_types_xml:
+            raise ValueError("DOCX thiếu [Content_Types].xml hợp lệ để thêm biểu đồ.")
+        if "Extension=" not in content_types_xml or not re.search(r'<Default\b[^>]*\bExtension="xlsx"', content_types_xml, re.IGNORECASE):
+            xlsx_type = '<Default Extension="xlsx" ContentType="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"/>'
+            content_types_xml = content_types_xml.replace("</Types>", xlsx_type + "</Types>")
+        content_types_xml = content_types_xml.replace("</Types>", "".join(content_type_additions) + "</Types>")
+    replacements.update({
+        "word/document.xml": replaced_document.encode("utf-8"),
+        "word/_rels/document.xml.rels": target_rels_xml.encode("utf-8"),
+        "[Content_Types].xml": content_types_xml.encode("utf-8"),
+    })
+    return patch_ooxml_zip(docx_bytes, replacements)
+
+
+def postprocess_writer_native_diagrams(
+    docx_bytes: bytes,
+    diagram_docx_bytes: bytes,
+    *,
+    source_html: str | None = None,
+) -> bytes:
+    """Replace newly inserted diagram placeholders with editable DrawingML groups."""
+    if not docx_bytes or not diagram_docx_bytes or not source_html or "vno-native-diagrams-fodt:" not in source_html:
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    diagram_document_bytes = read_zip_entry(diagram_docx_bytes, "word/document.xml")
+    if not document_bytes or not diagram_document_bytes:
+        raise ValueError("Không đọc được cấu trúc DOCX sơ đồ do LibreOffice tạo.")
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    diagram_document_xml = diagram_document_bytes.decode("utf-8", errors="replace")
+    drawings = [
+        drawing for drawing in re.findall(r"<w:drawing\b[\s\S]*?</w:drawing\s*>", diagram_document_xml, re.IGNORECASE)
+        if "<wpg:wgp" in drawing
+    ]
+    if not drawings:
+        raise ValueError("LibreOffice không xuất được nhóm hình cho sơ đồ.")
+    max_docpr = max((int(value) for value in re.findall(r'<wp:docPr\b[^>]*\bid="(\d+)"', document_xml)), default=0)
+    for index, drawing in enumerate(drawings, start=1):
+        token = f"VNO_NATIVE_DIAGRAM_{index}"
+        paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+        start_index = next((i for i, match in enumerate(paragraphs) if f'{token}_START' in match.group(0)), None)
+        end_index = next((i for i, match in enumerate(paragraphs) if f'{token}_END' in match.group(0)), None)
+        if start_index is None or end_index is None or end_index < start_index:
+            raise ValueError(f"Không tìm được vùng DOCX của sơ đồ {index}.")
+        if not re.search(
+            r'<w:bookmarkStart\b(?=[^>]*\bw:name="' + re.escape(token) + r'_START")[^>]*/>',
+            paragraphs[start_index].group(0),
+            re.IGNORECASE,
+        ) or not re.search(
+            r'<w:bookmarkStart\b(?=[^>]*\bw:name="' + re.escape(token) + r'_END")[^>]*/>',
+            paragraphs[end_index].group(0),
+            re.IGNORECASE,
+        ):
+            raise ValueError(f"Bookmark cho sơ đồ {index} không hợp lệ.")
+        ppr = re.search(r"<w:pPr\b[\s\S]*?</w:pPr\s*>", paragraphs[start_index].group(0), re.IGNORECASE)
+        max_docpr += 1
+        drawing = re.sub(r'(<wp:docPr\b[^>]*\bid=")[0-9]+', rf'\g<1>{max_docpr}', drawing, count=1)
+        replacement_paragraph = f'<w:p>{ppr.group(0) if ppr else ""}<w:r>{drawing}</w:r></w:p>'
+        document_xml = document_xml[:paragraphs[start_index].start()] + replacement_paragraph + document_xml[paragraphs[end_index].end():]
+    return patch_ooxml_zip(docx_bytes, {"word/document.xml": document_xml.encode("utf-8")})
+
+
+def postprocess_writer_native_wordart(
+    docx_bytes: bytes,
+    wordart_docx_bytes: bytes,
+    *,
+    source_html: str | None = None,
+) -> bytes:
+    """Replace WordArt text placeholders with editable DrawingML text effects."""
+    if not docx_bytes or not wordart_docx_bytes or not source_html or "vno-native-wordart-fodt:" not in source_html:
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    wordart_document_bytes = read_zip_entry(wordart_docx_bytes, "word/document.xml")
+    if not document_bytes or not wordart_document_bytes:
+        raise ValueError("Không đọc được cấu trúc DOCX WordArt do LibreOffice tạo.")
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    wordart_document_xml = wordart_document_bytes.decode("utf-8", errors="replace")
+    drawings = [
+        drawing for drawing in re.findall(r"<w:drawing\b[\s\S]*?</w:drawing\s*>", wordart_document_xml, re.IGNORECASE)
+        if "<a:prstTxWarp" in drawing
+    ]
+    if not drawings:
+        raise ValueError("LibreOffice không xuất được WordArt DrawingML có hiệu ứng chữ native.")
+    placeholder_indexes = sorted({
+        int(value) for value in re.findall(r"VNO_NATIVE_WORDART_(\d+)_START", source_html)
+    })
+    if placeholder_indexes != list(range(1, len(drawings) + 1)):
+        raise ValueError("Số WordArt trong DOCX không khớp số đối tượng được chèn.")
+
+    max_docpr = max((int(value) for value in re.findall(r'<wp:docPr\b[^>]*\bid="(\d+)"', document_xml)), default=0)
+    for index, drawing in enumerate(drawings, start=1):
+        token = f"VNO_NATIVE_WORDART_{index}"
+        paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
+        start_index = next((i for i, match in enumerate(paragraphs) if f"{token}_START" in match.group(0)), None)
+        end_index = next((i for i, match in enumerate(paragraphs) if f"{token}_END" in match.group(0)), None)
+        if start_index is None or end_index is None or start_index != end_index:
+            raise ValueError(f"Không tìm thấy cặp bookmark cùng đoạn cho WordArt {index}.")
+        paragraph = paragraphs[start_index].group(0)
+        start_match = re.search(
+            r'<w:bookmarkStart\b(?=[^>]*\bw:name="' + re.escape(token) + r'_START")[^>]*/>',
+            paragraph, re.IGNORECASE,
+        )
+        end_match = re.search(
+            r'<w:bookmarkStart\b(?=[^>]*\bw:name="' + re.escape(token) + r'_END")[^>]*/>',
+            paragraph, re.IGNORECASE,
+        )
+        if not start_match or not end_match or start_match.end() > end_match.start():
+            raise ValueError(f"Bookmark của WordArt {index} không hợp lệ.")
+        start_id = re.search(r'\bw:id="([^"]+)"', start_match.group(0), re.IGNORECASE)
+        end_id = re.search(r'\bw:id="([^"]+)"', end_match.group(0), re.IGNORECASE)
+        if not start_id or not end_id:
+            raise ValueError(f"Bookmark WordArt {index} thiếu mã neo.")
+        start_end = re.search(
+            r'<w:bookmarkEnd\b(?=[^>]*\bw:id="' + re.escape(start_id.group(1)) + r'")[^>]*/>',
+            paragraph, re.IGNORECASE,
+        )
+        end_end = re.search(
+            r'<w:bookmarkEnd\b(?=[^>]*\bw:id="' + re.escape(end_id.group(1)) + r'")[^>]*/>',
+            paragraph, re.IGNORECASE,
+        )
+        if not start_end or not end_end or start_end.start() < start_match.end() or end_end.end() < end_match.end():
+            raise ValueError(f"Bookmark end của WordArt {index} không hợp lệ.")
+        max_docpr += 1
+        drawing = re.sub(r'(<wp:docPr\b[^>]*\bid=")[0-9]+', rf'\g<1>{max_docpr}', drawing, count=1)
+        replacement_paragraph = (
+            paragraph[:start_match.start()] + f"<w:r>{drawing}</w:r>" + paragraph[end_end.end():]
+        )
+        document_xml = (
+            document_xml[:paragraphs[start_index].start()] + replacement_paragraph
+            + document_xml[paragraphs[start_index].end():]
+        )
+    return patch_ooxml_zip(docx_bytes, {"word/document.xml": document_xml.encode("utf-8")})
+
+
+def postprocess_writer_native_watermark(
+    docx_bytes: bytes,
+    watermark_docx_bytes: bytes,
+    *,
+    source_html: str | None = None,
+) -> bytes:
+    """Move the newly exported watermark drawing into a Word header part."""
+    if not docx_bytes or not watermark_docx_bytes or not source_html or "vno-native-watermark-fodt:" not in source_html:
+        return docx_bytes
+    source_header = read_zip_entry(watermark_docx_bytes, "word/header1.xml")
+    if not source_header:
+        raise ValueError("LibreOffice không xuất được watermark trong header DOCX.")
+    source_xml = source_header.decode("utf-8", errors="replace")
+    drawing_match = re.search(r"<w:drawing\b[\s\S]*?</w:drawing\s*>", source_xml, re.IGNORECASE)
+    if not drawing_match:
+        raise ValueError("Header DOCX phụ không có watermark DrawingML.")
+    drawing = drawing_match.group(0)
+    drawing = re.sub(r'(<wp:docPr\b[^>]*\bname=")[^"]*', r'\g<1>PowerPlusWaterMarkObject1', drawing, count=1)
+    drawing = re.sub(r'(<v:shape\b[^>]*\bid=")[^"]*', r'\g<1>PowerPlusWaterMarkObject1', drawing, count=1)
+
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    rels_bytes = read_zip_entry(docx_bytes, "word/_rels/document.xml.rels")
+    if not document_bytes:
+        raise ValueError("DOCX thiếu word/document.xml để gắn watermark.")
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    rels_xml = rels_bytes.decode("utf-8", errors="replace") if rels_bytes else (
+        '<?xml version="1.0" encoding="UTF-8"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+    )
+    header_rels = list(re.finditer(
+        r'<Relationship\b(?=[^>]*\bType="[^"]*/header")(?=[^>]*\bId="([^"]+)")(?=[^>]*\bTarget="([^"]+)")[^>]*/?>',
+        rels_xml, re.IGNORECASE,
+    ))
+    replacements: dict[str, bytes | str | None] = {}
+    if header_rels:
+        rel = header_rels[0]
+        header_part = posixpath.normpath(posixpath.join("word", rel.group(2)))
+        header_bytes = read_zip_entry(docx_bytes, header_part)
+        if not header_bytes:
+            raise ValueError(f"DOCX header part không tồn tại: {header_part}")
+        header_xml = header_bytes.decode("utf-8", errors="replace")
+        # Add namespaces used by the copied anchor at the root if the target header lacks them.
+        source_root = re.search(r"<w:hdr\b([^>]*)>", source_xml, re.IGNORECASE)
+        target_root = re.search(r"<w:hdr\b([^>]*)>", header_xml, re.IGNORECASE)
+        if source_root and target_root:
+            attrs = dict(re.findall(r'\b(xmlns(?::[\w.-]+)?)="([^"]+)"', source_root.group(1)))
+            missing = "".join(f' {key}="{value}"' for key, value in attrs.items() if not re.search(r'\b' + re.escape(key) + r'="', target_root.group(1)))
+            if missing:
+                header_xml = header_xml[:target_root.end(1)] + missing + header_xml[target_root.end(1):]
+        paragraph = f'<w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r>{drawing}</w:r></w:p>'
+        body_match = re.search(r"<w:hdr\b[^>]*>([\s\S]*?)</w:hdr\s*>", header_xml, re.IGNORECASE)
+        if not body_match:
+            raise ValueError("DOCX header XML không hợp lệ.")
+        body = body_match.group(1)
+        first_para = re.search(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", body, re.IGNORECASE)
+        body = body[:first_para.end()] + paragraph + body[first_para.end():] if first_para else paragraph + body
+        header_xml = header_xml[:body_match.start(1)] + body + header_xml[body_match.end(1):]
+        replacements[header_part] = header_xml.encode("utf-8")
+    else:
+        header_part = "word/header1.xml"
+        suffix = 1
+        while read_zip_entry(docx_bytes, header_part):
+            suffix += 1
+            header_part = f"word/header{suffix}.xml"
+        source_root = re.search(r"<w:hdr\b([^>]*)>", source_xml, re.IGNORECASE)
+        namespaces = source_root.group(1) if source_root else 'xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" xmlns:wp="http://schemas.openxmlformats.org/drawingml/2006/wordprocessingDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"'
+        header_xml = f'<?xml version="1.0" encoding="UTF-8"?><w:hdr{namespaces}><w:p><w:pPr><w:jc w:val="center"/></w:pPr><w:r>{drawing}</w:r></w:p></w:hdr>'
+        replacements[header_part] = header_xml.encode("utf-8")
+        max_rid = max((int(value) for value in re.findall(r'\bId="rId(\d+)"', rels_xml)), default=0) + 1
+        rel_id = f"rId{max_rid}"
+        rels_xml = rels_xml.replace("</Relationships>", f'<Relationship Id="{rel_id}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="{posixpath.basename(header_part)}"/></Relationships>')
+        document_xml = re.sub(
+            r"(<w:sectPr\b[^>]*>)",
+            rf'\1<w:headerReference w:type="default" r:id="{rel_id}"/>',
+            document_xml,
+            flags=re.IGNORECASE,
+        )
+        if "<w:sectPr" not in document_xml:
+            document_xml = document_xml.replace("</w:body>", f'<w:sectPr><w:headerReference w:type="default" r:id="{rel_id}"/></w:sectPr></w:body>')
+        replacements["word/document.xml"] = document_xml.encode("utf-8")
+        replacements["word/_rels/document.xml.rels"] = rels_xml.encode("utf-8")
+        content_types = read_zip_entry(docx_bytes, "[Content_Types].xml")
+        content_types_xml = content_types.decode("utf-8", errors="replace") if content_types else ""
+        if f'PartName="/{header_part}"' not in content_types_xml:
+            content_types_xml = content_types_xml.replace("</Types>", f'<Override PartName="/{header_part}" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.header+xml"/></Types>')
+            replacements["[Content_Types].xml"] = content_types_xml.encode("utf-8")
     return patch_ooxml_zip(docx_bytes, replacements)
 
 
@@ -18652,6 +21087,7 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
             )
         ]
         comment_id = str(max(
+            1,
             _writer_next_ooxml_id(document_xml, "commentRangeStart"),
             max(existing_comment_ids, default=-1) + 1,
         ))
@@ -18679,6 +21115,7 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
             "date": str(record.get("date") or ""),
             "content": content,
             "resolved": bool(record.get("resolved")),
+            "parentStartBookmark": str(record.get("parentStartBookmark") or ""),
         })
 
     revision_id = _writer_next_ooxml_id(document_xml, "ins")
@@ -18738,12 +21175,24 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
                     used_para_ids.add(para_id)
                     comment["paraId"] = para_id
                     break
+        bookmark_para_ids = {
+            str(record.get("startBookmark") or ""): comment["paraId"]
+            for record, comment in zip((record for record in records if record.get("type") == "comment"), comments)
+        }
+        for comment in comments:
+            parent_bookmark = comment.pop("parentStartBookmark", "")
+            if parent_bookmark:
+                comment["paraIdParent"] = bookmark_para_ids.get(parent_bookmark)
+                if not comment["paraIdParent"]:
+                    raise ValueError("Không tìm thấy comment gốc của reply trong DOCX.")
         if comments_bytes:
             for comment in comments:
                 para_id_attr = f' w14:paraId="{comment["paraId"]}"'
                 lines = comment["content"].splitlines() or [""]
                 paragraphs = "".join(
                     f'<w:p{para_id_attr if index == len(lines) - 1 else ""}>'
+                    f'<w:pPr><w:pStyle w:val="CommentText"/></w:pPr>'
+                    f'<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:annotationRef/></w:r>'
                     f'<w:r><w:t xml:space="preserve">{_escape_xml(line)}</w:t></w:r></w:p>'
                     for index, line in enumerate(lines)
                 )
@@ -18759,6 +21208,8 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
                 lines = comment["content"].splitlines() or [""]
                 paragraphs = "".join(
                     f'<w:p{para_id_attr if index == len(lines) - 1 else ""}>'
+                    f'<w:pPr><w:pStyle w:val="CommentText"/></w:pPr>'
+                    f'<w:r><w:rPr><w:rStyle w:val="CommentReference"/></w:rPr><w:annotationRef/></w:r>'
                     f'<w:r><w:t xml:space="preserve">{_escape_xml(line)}</w:t></w:r></w:p>'
                     for index, line in enumerate(lines)
                 )
@@ -18801,8 +21252,10 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
             'xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml"></w15:commentsEx>'
         )
         for comment in comments:
+            parent_attr = f' w15:paraIdParent="{comment["paraIdParent"]}"' if comment.get("paraIdParent") else ""
             entry = (
                 f'<w15:commentEx w15:paraId="{comment["paraId"]}"'
+                f'{parent_attr}'
                 f' w15:done="{"1" if comment["resolved"] else "0"}"/>'
             )
             extended_xml = re.sub(
@@ -18824,6 +21277,33 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
             replacements["word/_rels/document.xml.rels"] = rels_xml.encode("utf-8")
         content_types_xml = _add_content_types_override(
             content_types_xml, "/word/commentsExtended.xml", _DOCX_COMMENTS_EXTENDED_CONTENT_TYPE,
+        )
+        people_bytes = read_zip_entry(docx_bytes, "word/people.xml")
+        people_xml = people_bytes.decode("utf-8", errors="replace") if people_bytes else (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<w15:people xmlns:w15="http://schemas.microsoft.com/office/word/2012/wordml"></w15:people>'
+        )
+        for author in dict.fromkeys(str(comment.get("author") or "3T Office") for comment in comments):
+            author_xml = _escape_xml(author)
+            if re.search(rf'<w15:person\b[^>]*\bw15:author=["\']{re.escape(author_xml)}["\']', people_xml, re.IGNORECASE):
+                continue
+            person = (
+                f'<w15:person w15:author="{author_xml}">'
+                f'<w15:presenceInfo w15:providerId="None" w15:userId="{author_xml}"/>'
+                '</w15:person>'
+            )
+            people_xml = people_xml.replace("</w15:people>", person + "</w15:people>", 1)
+        replacements["word/people.xml"] = people_xml.encode("utf-8")
+        people_rel = re.search(
+            r'<Relationship\b(?=[^>]*\bType=["\'][^"\']*/people["\'])[^>]*/?>', rels_xml, re.IGNORECASE,
+        )
+        if not people_rel:
+            rels_xml = _add_rels_entry(
+                rels_xml, f"rId{_max_rels_rid(rels_xml) + 1}", _DOCX_PEOPLE_REL_TYPE, "people.xml",
+            )
+            replacements["word/_rels/document.xml.rels"] = rels_xml.encode("utf-8")
+        content_types_xml = _add_content_types_override(
+            content_types_xml, "/word/people.xml", _DOCX_PEOPLE_CONTENT_TYPE,
         )
         replacements["[Content_Types].xml"] = content_types_xml.encode("utf-8")
 

@@ -149,7 +149,7 @@ export const SHEET_RIBBON_TABS = [
               {
                 type: "row",
                 items: [
-                  { type: "button", commandId: "sheet.cell.mergeCenter", isLarge: true },
+                  { type: "button", commandId: "sheet.cell.mergeCenter", iconOnly: true },
                   { type: "button", commandId: "sheet.cell.mergeAcross", iconOnly: true },
                   { type: "button", commandId: "sheet.cell.mergeCells", iconOnly: true },
                   { type: "button", commandId: "sheet.cell.unmerge", iconOnly: true }
@@ -187,14 +187,14 @@ export const SHEET_RIBBON_TABS = [
               {
                 type: "row",
                 items: [
-                  { type: "button", commandId: "sheet.format.currencyVND", isLarge: true },
+                  { type: "button", commandId: "sheet.format.currencyVND", iconOnly: true },
                   { type: "button", commandId: "sheet.format.percent", iconOnly: true },
                   { type: "button", commandId: "sheet.format.standard", iconOnly: true },
-                  { type: "button", commandId: "sheet.format.increaseDecimal", isLarge: true },
-                  { type: "button", commandId: "sheet.format.decreaseDecimal", isLarge: true }
+                  { type: "button", commandId: "sheet.format.increaseDecimal", iconOnly: true },
+                  { type: "button", commandId: "sheet.format.decreaseDecimal", iconOnly: true },
+                  { type: "button", commandId: "sheet.format.cellsDialog", iconOnly: true }
                 ]
-              },
-              { type: "button", commandId: "sheet.format.cellsDialog", isLarge: true }
+              }
             ]
           }
         ]
@@ -208,8 +208,8 @@ export const SHEET_RIBBON_TABS = [
           {
             type: "column",
             items: [
-              { type: "button", commandId: "sheet.style.formatAsTable", isLarge: true },
-              { type: "button", commandId: "sheet.style.cellStyles", isLarge: true }
+              { type: "button", commandId: "sheet.style.formatAsTable" },
+              { type: "button", commandId: "sheet.style.cellStyles" }
             ]
           }
         ]
@@ -222,15 +222,15 @@ export const SHEET_RIBBON_TABS = [
           {
             type: "column",
             items: [
-              { type: "button", commandId: "sheet.row.insert", isLarge: true },
-              { type: "button", commandId: "sheet.col.insert", isLarge: true }
+              { type: "button", commandId: "sheet.row.insert" },
+              { type: "button", commandId: "sheet.col.insert" }
             ]
           },
           {
             type: "column",
             items: [
-              { type: "button", commandId: "sheet.row.delete", isLarge: true },
-              { type: "button", commandId: "sheet.col.delete", isLarge: true }
+              { type: "button", commandId: "sheet.row.delete" },
+              { type: "button", commandId: "sheet.col.delete" }
             ]
           },
           {
@@ -304,7 +304,8 @@ export const SHEET_RIBBON_TABS = [
             type: "column",
             items: [
               { type: "button", commandId: "common.edit.find", iconOnly: true },
-              { type: "button", commandId: "common.edit.replace", iconOnly: true }
+              { type: "button", commandId: "common.edit.replace", iconOnly: true },
+              { type: "button", commandId: "sheet.edit.goTo", iconOnly: true }
             ]
           }
         ]
@@ -697,7 +698,8 @@ export const SHEET_RIBBON_TABS = [
               { commandId: "sheet.view.freezeTopRow" },
               { commandId: "sheet.view.freezeFirstColumn" }
             ]
-          }
+          },
+          { type: "button", commandId: "sheet.view.split", isLarge: true }
         ]
       },
       {

@@ -53,7 +53,7 @@ import {
   tableOfFiguresTitle,
   tofMarkerHtml
 } from "../../../apps/writer/captions.js";
-import { countBlockLines, countBlockParagraphs, countDocumentStats, countListMarkerStats, showWordCountDialog } from "../../../apps/writer/word-count.js";
+import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlListMarkerStats, extractOoxmlDocumentText, extractWordCountText, showWordCountDialog } from "../../../apps/writer/word-count.js";
 import { showFontDialog } from "../../../apps/writer/font-dialog.js";
 
 let writerInsertDialogsPromise;
@@ -289,6 +289,9 @@ export class WriterAdapter {
     this.editorDom = editorDom;
     this.documentContent = "";
     this.isDirty = false;
+    this._wordCountSourceText = null;
+    this._wordCountSourceTextInvalidated = false;
+    this._wordCountSourceListItems = [];
     this.isNewApplicationDocument = true;
     this._openedEditorDomHash = null;
     this.sourceFileName = "TaiLieu";
@@ -584,6 +587,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.review.commentNext", () => this.nextComment());
     globalCommandBus.bindHandler("writer.review.commentDelete", () => this.deleteActiveComment());
     globalCommandBus.bindHandler("writer.review.commentResolve", () => this.toggleActiveCommentResolved());
+    globalCommandBus.bindHandler("writer.review.commentReply", (args) => this.replyToActiveComment(args));
     globalCommandBus.bindHandler("writer.trackChanges.toggle", (args) => this.toggleTrackChanges(args?.enabled));
     globalCommandBus.bindHandler("writer.trackChanges.previous", () => this.previousTrackChange());
     globalCommandBus.bindHandler("writer.trackChanges.next", () => this.nextTrackChange());
@@ -598,6 +602,7 @@ export class WriterAdapter {
     this._bindClipboardEvents();
     globalCommandBus.bindHandler("common.edit.undo", () => this.undo());
     globalCommandBus.bindHandler("common.edit.redo", () => this.redo());
+    globalCommandBus.bindHandler("common.edit.hyperlink", (args) => this._insertHyperlink(args));
 
     // Bind References (TOC & Footnotes/Endnotes)
     this._bindReferenceInteractions();
@@ -656,6 +661,14 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.page.columns2", () => this.setColumns({ count: 2, gap: 10, rule: false }));
     globalCommandBus.bindHandler("writer.page.columns3", () => this.setColumns({ count: 3, gap: 10, rule: false }));
     globalCommandBus.bindHandler("writer.layout.lineNumbers", (args) => this.setLineNumbers(args));
+    this._firstLineIndentTargetHandler = (event) => {
+      const control = event?.target?.closest?.('select[data-command-id="writer.para.firstLineIndent"]');
+      if (!control) return;
+      this._pendingFirstLineIndentBlocks = this._getSelectedParagraphBlocks();
+    };
+    if (typeof document !== "undefined" && typeof document.addEventListener === "function") {
+      document.addEventListener("mousedown", this._firstLineIndentTargetHandler, true);
+    }
     globalCommandBus.bindHandler("writer.shape.insert", (args) => this.insertShapeFromCommand(args));
     globalCommandBus.bindHandler("writer.diagram.insert", (args) => this.insertDiagramFromCommand(args));
     globalCommandBus.bindHandler("writer.chart.insert", (args) => this.insertChartFromCommand(args));
@@ -668,6 +681,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.insert.symbol", (args) => this.insertSymbol(args));
     globalCommandBus.bindHandler("writer.insert.bookmark", (args) => this.insertBookmark(args));
     globalCommandBus.bindHandler("writer.insert.crossReference", (args) => this.insertCrossReference(args));
+    globalCommandBus.bindHandler("writer.table.fromText", (args) => this.convertTextToTable(args));
 
     // Bind Office Parity Mouse & Shortcuts
     this._bindMouseAndKeyboardParity();
@@ -1465,7 +1479,9 @@ export class WriterAdapter {
   applyParagraphFirstLineIndent(args) {
     const pt = this._parseParagraphSpacingPt(args);
     if (pt == null) return false;
-    return this._applyParagraphVisualStyle({ textIndent: `${pt}pt` }, "writer.para.firstLineIndent");
+    const selectedBlocks = this._pendingFirstLineIndentBlocks;
+    this._pendingFirstLineIndentBlocks = null;
+    return this._applyParagraphVisualStyle({ textIndent: `${pt}pt` }, "writer.para.firstLineIndent", selectedBlocks);
   }
 
   getRulerState() {
@@ -2340,25 +2356,37 @@ export class WriterAdapter {
       return countDocumentStats(selectedText, { scope: "selection" });
     }
 
-    const text = body.innerText != null ? body.innerText : (body.textContent || "");
+    const hasLiveDom = Boolean(body.childNodes);
+    const currentText = hasLiveDom
+      ? extractWordCountText(body)
+      : (body.innerText != null ? body.innerText : (body.textContent || ""));
+    const sourceText = typeof this._wordCountSourceText === "string" && !this._wordCountSourceTextInvalidated
+      ? this._wordCountSourceText
+      : null;
+    const sourceStillMatches = sourceText != null;
+    const text = sourceStillMatches ? sourceText : currentText;
     const paragraphCount = countBlockParagraphs(body);
     const lineCount = countBlockLines(body);
-    const markerStats = countListMarkerStats(body);
+    const markerStats = sourceStillMatches && this._wordCountSourceListItems?.length
+      ? countOoxmlListMarkerStats(this._wordCountSourceListItems)
+      : countListMarkerStats(body);
+    if (!sourceStillMatches) markerStats.charactersWithSpaces += countExplicitLineBreaks(body);
     const stats = countDocumentStats(text, {
       scope: "document",
+      characterText: text,
       paragraphCount,
       lineCount: lineCount == null ? undefined : lineCount,
       markerStats
     });
-    // Word's document statistics omit floating text boxes and shapes. They are
-    // visible in Writer's DOM body, so subtract their text explicitly.
-    const floatingShapes = Array.from(body.querySelectorAll('[data-vno-float]'))
-      .filter((shape) => !shape.parentElement?.closest?.('[data-vno-float]'));
-    for (const shape of floatingShapes) {
-      const floatingStats = countDocumentStats(shape.innerText ?? shape.textContent ?? "");
-      stats.words = Math.max(0, stats.words - floatingStats.words);
-      stats.charactersWithSpaces = Math.max(0, stats.charactersWithSpaces - floatingStats.charactersWithSpaces);
-      stats.charactersNoSpaces = Math.max(0, stats.charactersNoSpaces - floatingStats.charactersNoSpaces);
+    if (!hasLiveDom) {
+      const floatingShapes = Array.from(body.querySelectorAll('[data-vno-float]'))
+        .filter((shape) => !shape.parentElement?.closest?.('[data-vno-float]'));
+      for (const shape of floatingShapes) {
+        const floatingStats = countDocumentStats(shape.innerText ?? shape.textContent ?? "");
+        stats.words = Math.max(0, stats.words - floatingStats.words);
+        stats.charactersWithSpaces = Math.max(0, stats.charactersWithSpaces - floatingStats.charactersWithSpaces);
+        stats.charactersNoSpaces = Math.max(0, stats.charactersNoSpaces - floatingStats.charactersNoSpaces);
+      }
     }
     return stats;
   }
@@ -2366,6 +2394,34 @@ export class WriterAdapter {
   openWordCountDialog() {
     const stats = this.getWordCountStats({ preferSelection: true });
     return showWordCountDialog(stats);
+  }
+
+  _serializeNativeDiagramsToFodt(diagrams) {
+    const palette = ["#2563eb", "#0f6d38", "#d97706", "#dc2626", "#7c3aed", "#0891b2"];
+    const shapes = [];
+    const styleXml = [];
+    let shapeIndex = 0;
+    for (const [diagramIndex, diagram] of diagrams.entries()) {
+      const labels = Array.from(diagram.querySelectorAll?.(".vno-diagram-node-text") || [])
+        .map((node) => String(node.textContent || "").trim()).filter(Boolean);
+      if (!labels.length) throw new Error("Sơ đồ cần có ít nhất một nhãn để lưu thành nhóm hình.");
+      const type = String(diagram.getAttribute?.("data-diagram-type") || "process");
+      const nodeWidth = Math.max(2.1, Math.min(3.4, (16.5 - (labels.length - 1) * 0.2) / labels.length));
+      const totalWidth = labels.length * nodeWidth + (labels.length - 1) * 0.2;
+      const groupName = `VNODiagram${diagramIndex + 1}`;
+      const nodeXml = labels.map((label, index) => {
+        const styleName = `vnoDiagram${++shapeIndex}`;
+        const color = type === "hierarchy" && index === 0 ? "#0f4c81" : palette[index % palette.length];
+        styleXml.push(`<style:style style:name="${styleName}" style:family="graphic"><style:graphic-properties draw:fill="solid" draw:fill-color="${color}" draw:stroke="solid" svg:stroke-width="0.05cm" svg:stroke-color="${color}"/></style:style>`);
+        const x = (index * (nodeWidth + 0.2)).toFixed(3);
+        const safeLabel = this._fodtEscapeXml(label);
+        return `<draw:rect draw:style-name="${styleName}" draw:name="${this._fodtEscapeXml(`Node${index + 1}`)}" text:anchor-type="as-char" svg:width="${nodeWidth.toFixed(3)}cm" svg:height="1.25cm" svg:x="${x}cm" svg:y="0cm"><text:p><text:span>${safeLabel}</text:span></text:p></draw:rect>`;
+      }).join("");
+      shapes.push(`<text:p><draw:g draw:name="${groupName}" svg:width="${totalWidth.toFixed(3)}cm" svg:height="1.25cm">${nodeXml}</draw:g></text:p>`);
+    }
+    const pageLayout = this._fodtPageLayoutXml("pm1", this.pageSetup || DEFAULT_PAGE_SETUP);
+    const master = this._fodtMasterPageXml("Standard", "pm1");
+    return `<?xml version="1.0" encoding="UTF-8"?><office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0" xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.text"><office:automatic-styles>${pageLayout}${styleXml.join("")}</office:automatic-styles><office:master-styles>${master}</office:master-styles><office:body><office:text>${shapes.join("")}</office:text></office:body></office:document>`;
   }
 
   /**
@@ -7115,14 +7171,15 @@ export class WriterAdapter {
    */
   _extractOoxmlCommentBodies(commentsXml, commentsExtendedXml = "") {
     const source = String(commentsXml || "");
-    const resolvedParaIds = new Set();
+    const resolvedParaIds = new Map();
     const extendedRe = /<w15:commentEx\b([^>]*)\/?\s*>/gi;
     let extendedMatch;
     while ((extendedMatch = extendedRe.exec(String(commentsExtendedXml || "")))) {
       const attrs = extendedMatch[1] || "";
       const paraId = (attrs.match(/\bw15:paraId=["']([0-9a-f]{8})["']/i) || [])[1];
       const done = (attrs.match(/\bw15:done=["']([^"']+)["']/i) || [])[1];
-      if (paraId && /^(?:1|true|on)$/i.test(done || "")) resolvedParaIds.add(paraId.toUpperCase());
+      const parentParaId = (attrs.match(/\bw15:paraIdParent=["']([0-9a-f]{8})["']/i) || [])[1] || "";
+      if (paraId) resolvedParaIds.set(paraId.toUpperCase(), { done, parentParaId: parentParaId.toUpperCase() });
     }
     const bodies = new Map();
     const blockRe = /<w:comment\b([^>]*)>([\s\S]*?)<\/w:comment>/gi;
@@ -7137,6 +7194,7 @@ export class WriterAdapter {
       const commentParagraphs = [...inner.matchAll(/<w:p\b[^>]*>/gi)];
       const lastParagraph = commentParagraphs.at(-1)?.[0] || "";
       const paraId = (lastParagraph.match(/\bw14:paraId=["']([0-9a-f]{8})["']/i) || [])[1] || "";
+      const extension = paraId ? resolvedParaIds.get(paraId.toUpperCase()) : null;
       const paragraphs = [];
       const pRe = /<w:p\b[^>]*>([\s\S]*?)<\/w:p>/gi;
       let pMatch;
@@ -7146,7 +7204,8 @@ export class WriterAdapter {
       }
       bodies.set(id, {
         author, date, content: paragraphs.join("\n").trim(),
-        resolved: Boolean(paraId && resolvedParaIds.has(paraId.toUpperCase()))
+        paraId: paraId.toUpperCase(), parentParaId: extension?.parentParaId || "",
+        resolved: Boolean(extension && /^(?:1|true|on)$/i.test(extension.done || ""))
       });
     }
     return bodies;
@@ -7249,6 +7308,7 @@ export class WriterAdapter {
     let next = String(html || "");
     const imported = [];
     for (const [ooxmlId, body] of bodies) {
+      if (body.parentParaId) continue;
       const anchor = anchors.get(ooxmlId) || { text: "", prefix: "", suffix: "" };
       const id = `writer-comment-import-${ooxmlId}`;
       const wrapped = this._wrapImportedCommentInHtml(next, {
@@ -7258,17 +7318,22 @@ export class WriterAdapter {
         suffix: this._firstWords(anchor.suffix, 4),
         content: body.content,
         author: body.author,
-        resolved: body.resolved
+        resolved: body.resolved, paraId: body.paraId, parentParaId: body.parentParaId
       });
       if (!wrapped.applied) continue;
       next = wrapped.html;
+      const replies = [...bodies.values()]
+        .filter(reply => reply.parentParaId && reply.parentParaId === body.paraId)
+        .map(reply => ({
+          content: reply.content, author: reply.author || "", createdAt: reply.date || new Date().toISOString()
+        }));
       imported.push({
         id,
         anchorText: String(anchor.text || "").trim().replace(/\s+/g, " "),
         content: body.content,
         author: body.author || "",
         createdAt: body.date || new Date().toISOString(),
-        resolved: body.resolved
+        resolved: body.resolved, paraId: body.paraId, parentParaId: body.parentParaId, replies
       });
     }
     for (const comment of imported) {
@@ -8230,6 +8295,28 @@ export class WriterAdapter {
     return comment.resolved;
   }
 
+  async replyToActiveComment(args = {}) {
+    const comment = this.comments.find(item => item.id === this.activeCommentId) || this.comments[0];
+    if (!comment || comment.resolved) return false;
+    const title = t("writerDialogs.comments.replyTitle");
+    const content = Object.prototype.hasOwnProperty.call(args || {}, "content")
+      ? args.content
+      : await showPromptDialog({
+          title: title === "writerDialogs.comments.replyTitle" ? "Trả lời nhận xét" : title,
+          message: `Trả lời nhận xét của ${comment.author || "người dùng"}`,
+          placeholder: t("writerDialogs.comments.replyPlaceholder"),
+          confirmText: t("writerDialogs.comments.replyBtn")
+        });
+    if (!String(content || "").trim()) return false;
+    comment.replies ||= [];
+    comment.replies.push({ content: String(content).trim(), author: "3T Office", createdAt: new Date().toISOString() });
+    this.isDirty = true;
+    this._renderCommentsPanel();
+    this.focusComment(comment.id);
+    this.recordSnapshot("writer.review.commentReply");
+    return true;
+  }
+
   deleteComment(commentId) {
     const index = this.comments.findIndex((item) => item.id === commentId);
     if (index < 0) return false;
@@ -8294,6 +8381,16 @@ export class WriterAdapter {
       remove.textContent = "Xóa";
       meta.append(info, remove);
       card.append(preview, content, meta);
+      for (const reply of comment.replies || []) {
+        const replyEl = document.createElement("div");
+        replyEl.className = "vno-comment-reply";
+        const replyAuthor = document.createElement("strong");
+        replyAuthor.textContent = reply.author || "3T Office";
+        const replyText = document.createElement("p");
+        replyText.textContent = reply.content;
+        replyEl.append(replyAuthor, replyText);
+        card.appendChild(replyEl);
+      }
       this.commentsPanel.appendChild(card);
     }
   }
@@ -9042,6 +9139,12 @@ export class WriterAdapter {
     } else if (styleKey === "quote" || styleKey === "trichdan" || styleKey === "blockquote") {
       targetTag = "blockquote";
       addClass = "vno-style-quote";
+    } else if (styleKey === "subtitle" || styleKey === "phude") {
+      targetTag = "p";
+      addClass = "vno-style-subtitle";
+    } else if (styleKey === "listparagraph" || styleKey === "list-paragraph" || styleKey === "doandanh sach") {
+      targetTag = "p";
+      addClass = "vno-style-list-paragraph";
     } else if (styleKey === "emphasis" || styleKey === "nhanmanh") {
       targetTag = "p";
       addClass = "vno-style-emphasis";
@@ -9072,16 +9175,6 @@ export class WriterAdapter {
     }
 
     this._updateCurrentBlockStyle(targetTag, addClass, origId);
-    if (styleKey === "title" || styleKey === "tieude") {
-      this._getSelectedParagraphBlocks().forEach((block) => Object.assign(block.style, {
-        fontSize: "26pt",
-        fontWeight: "bold",
-        color: "#1f4e79",
-        textAlign: "center",
-        marginBottom: "8pt"
-      }));
-    }
-
     this.isDirty = true;
     this.recordSnapshot("writer.style.apply");
     this._syncActiveStyleUI();
@@ -9161,6 +9254,10 @@ export class WriterAdapter {
       }
       if (addClass) {
         block.classList?.add?.(addClass);
+        if (addClass === "vno-style-title" && block.style) {
+          block.style.fontSize = "26pt";
+          block.style.textAlign = "center";
+        }
       }
     }
   }
@@ -10827,11 +10924,18 @@ export class WriterAdapter {
       if (typeof window !== "undefined" && typeof document !== "undefined" && document.body) {
         const sel = window.getSelection ? window.getSelection() : null;
         const selectedText = sel && sel.rangeCount > 0 ? sel.toString().trim() : "";
+        const savedRange = sel?.rangeCount > 0 && this.bodyDom?.contains?.(sel.anchorNode)
+          ? sel.getRangeAt(0).cloneRange()
+          : null;
         const result = await showHyperlinkDialog({
           url: "https://",
           text: text || selectedText
         });
         if (!result || !result.url) return false;
+        if (savedRange && sel) {
+          sel.removeAllRanges();
+          sel.addRange(savedRange);
+        }
         url = result.url;
         text = result.text || text || selectedText;
       }
@@ -14913,6 +15017,25 @@ export class WriterAdapter {
       const suffix = String(records.length).padStart(5, "0");
       record.startBookmark = `vno-review-start-${suffix}`;
       record.endBookmark = `vno-review-end-${suffix}`;
+      const replyRecords = [];
+      Object.defineProperty(record, "replyRecords", { value: replyRecords, enumerable: false });
+      if (record.type === "comment") {
+        for (const reply of record.replies || []) {
+          if (!String(reply.content || "").trim()) continue;
+          const replySuffix = String(records.length + 1).padStart(5, "0");
+          const replyRecord = {
+            type: "comment",
+            author: String(reply.author || "3T Office"),
+            date: String(reply.createdAt || new Date().toISOString()),
+            content: String(reply.content).trim(),
+            parentStartBookmark: record.startBookmark,
+            startBookmark: `vno-review-start-${replySuffix}`,
+            endBookmark: `vno-review-end-${replySuffix}`
+          };
+          records.push(replyRecord);
+          replyRecords.push(replyRecord);
+        }
+      }
       return record;
     };
 
@@ -14942,6 +15065,7 @@ export class WriterAdapter {
         while (stack.length > stackIndex) {
           const entry = stack.pop();
           output += `<a name="${entry.record.endBookmark}"></a>`;
+          for (const reply of entry.record.replyRecords) output += `<a name="${reply.endBookmark}"></a>`;
         }
         continue;
       }
@@ -14964,7 +15088,12 @@ export class WriterAdapter {
             author: String(comment.author || attrValue(attrs, "data-vno-comment-author") || "3T Office"),
             date: String(comment.createdAt || new Date().toISOString()),
             content: String(comment.content).trim(),
-            resolved: Boolean(comment.resolved)
+            resolved: Boolean(comment.resolved),
+            replies: (comment.replies || []).filter(reply => String(reply.content || "").trim()).map(reply => ({
+              author: String(reply.author || "3T Office"),
+              date: String(reply.createdAt || new Date().toISOString()),
+              content: String(reply.content).trim()
+            }))
           });
         }
       }
@@ -14973,12 +15102,14 @@ export class WriterAdapter {
         continue;
       }
       output += `<a name="${record.startBookmark}"></a>`;
+      for (const reply of record.replyRecords) output += `<a name="${reply.startBookmark}"></a>`;
       stack.push({ tag, record });
     }
     output += source.slice(cursor);
     while (stack.length) {
       const entry = stack.pop();
       output += `<a name="${entry.record.endBookmark}"></a>`;
+      for (const reply of entry.record.replyRecords) output += `<a name="${reply.endBookmark}"></a>`;
     }
 
     if (!records.length) return { html: output, metadataComment: "" };
@@ -15055,6 +15186,7 @@ export class WriterAdapter {
     let watermarkHtml = "";
     let reviewMetaComment = "";
     let tableEditsComment = "";
+    let nativeChartHtml = [];
 
     if (this.watermark && this.watermark.text) {
       const angle = this.watermark.angle ?? 45;
@@ -15068,8 +15200,128 @@ export class WriterAdapter {
       headerHtml = `<div title="header">\n${this.headerDom.innerHTML}\n</div>\n`;
     }
 
+    let nativeChartFodt = "";
+    let nativeDiagramFodt = "";
+    let nativeWordArtFodt = "";
+    let nativeWatermarkFodt = "";
+    const chartNodes = Array.from(this.bodyDom?.querySelectorAll?.('.vno-writer-chart[data-vno-chart="true"]') || []);
+    const diagramNodes = Array.from(this.bodyDom?.querySelectorAll?.('.vno-writer-diagram[data-vno-diagram="true"]') || []);
+    if (chartNodes.length && !acceptedView) {
+      nativeChartHtml = chartNodes.map((node) => String(node.outerHTML || "")).filter(Boolean);
+      if (nativeChartHtml.length !== chartNodes.length) {
+        throw new Error("Không thể chuẩn bị biểu đồ để lưu dưới dạng đối tượng có thể chỉnh sửa.");
+      }
+      const chartAdapter = Object.create(Object.getPrototypeOf(this));
+      Object.assign(chartAdapter, this);
+      const chartBody = { innerHTML: nativeChartHtml.join("") };
+      chartAdapter.editorDom = {
+        innerHTML: chartBody.innerHTML,
+        querySelector(selector) {
+          return selector === ".vno-writer-body" ? chartBody : null;
+        }
+      };
+      chartAdapter.bodyDom = chartBody;
+      chartAdapter.headerDom = null;
+      chartAdapter.footerDom = null;
+      chartAdapter.watermark = null;
+      chartAdapter.shapes = [];
+      chartAdapter.sectionPageSetups = {};
+      chartAdapter.sectionHeadersFooters = {};
+      nativeChartFodt = chartAdapter.serializeToFodt();
+    }
+    if (diagramNodes.length && !acceptedView) {
+      nativeDiagramFodt = this._serializeNativeDiagramsToFodt(diagramNodes);
+    }
+    const wordArtNodes = Array.from(this.bodyDom?.querySelectorAll?.('.vno-writer-wordart[data-vno-wordart="true"]') || []);
+    if (wordArtNodes.length && !acceptedView) {
+      const wordArtBody = { innerHTML: wordArtNodes.map(node => `<p>${String(node.outerHTML || "")}</p>`).filter(Boolean).join("") };
+      if (!wordArtBody.innerHTML || (wordArtBody.innerHTML.match(/data-vno-wordart="true"/g) || []).length !== wordArtNodes.length) {
+        throw new Error("KhÃ´ng thá»ƒ chuáº©n bá»‹ WordArt native Ä‘á»ƒ lÆ°u DOCX.");
+      }
+      const wordArtAdapter = Object.create(Object.getPrototypeOf(this));
+      Object.assign(wordArtAdapter, this);
+      wordArtAdapter.editorDom = {
+        innerHTML: wordArtBody.innerHTML,
+        querySelector(selector) {
+          return selector === ".vno-writer-body" ? wordArtBody : null;
+        }
+      };
+      wordArtAdapter.bodyDom = wordArtBody;
+      wordArtAdapter.headerDom = null;
+      wordArtAdapter.footerDom = null;
+      wordArtAdapter.watermark = null;
+      wordArtAdapter.shapes = [];
+      wordArtAdapter.sectionPageSetups = {};
+      wordArtAdapter.sectionHeadersFooters = {};
+      nativeWordArtFodt = wordArtAdapter.serializeToFodt();
+    }
+    if (this.watermark?.text && !acceptedView) {
+      const watermarkAdapter = Object.create(Object.getPrototypeOf(this));
+      Object.assign(watermarkAdapter, this);
+      const watermarkBody = { innerHTML: "<p><br></p>" };
+      watermarkAdapter.editorDom = {
+        innerHTML: watermarkBody.innerHTML,
+        querySelector(selector) {
+          return selector === ".vno-writer-body" ? watermarkBody : null;
+        }
+      };
+      watermarkAdapter.bodyDom = watermarkBody;
+      watermarkAdapter.headerDom = null;
+      watermarkAdapter.footerDom = null;
+      watermarkAdapter.shapes = [];
+      watermarkAdapter.sectionPageSetups = {};
+      watermarkAdapter.sectionHeadersFooters = {};
+      nativeWatermarkFodt = watermarkAdapter.serializeToFodt();
+    }
+
     if (this.bodyDom) {
       const exportRoot = this.bodyDom.cloneNode?.(true) || this.bodyDom;
+      if (nativeChartFodt && !acceptedView && typeof document !== "undefined") {
+        const exportCharts = Array.from(exportRoot.querySelectorAll?.('.vno-writer-chart[data-vno-chart="true"]') || []);
+        exportCharts.forEach((chart, index) => {
+          const parent = chart.parentNode;
+          if (!parent?.insertBefore) return;
+          const token = `VNO_NATIVE_CHART_${index + 1}`;
+          const start = document.createElement("a");
+          start.setAttribute("name", `${token}_START`);
+          const end = document.createElement("a");
+          end.setAttribute("name", `${token}_END`);
+          parent.insertBefore(start, chart);
+          parent.insertBefore(end, chart.nextSibling);
+        });
+      }
+      if (nativeDiagramFodt && !acceptedView && typeof document !== "undefined") {
+        const exportDiagrams = Array.from(exportRoot.querySelectorAll?.('.vno-writer-diagram[data-vno-diagram="true"]') || []);
+        exportDiagrams.forEach((diagram, index) => {
+          const parent = diagram.parentNode;
+          if (!parent?.insertBefore) return;
+          const token = `VNO_NATIVE_DIAGRAM_${index + 1}`;
+          const start = document.createElement("a");
+          start.setAttribute("name", `${token}_START`);
+          const end = document.createElement("a");
+          end.setAttribute("name", `${token}_END`);
+          parent.insertBefore(start, diagram);
+          parent.insertBefore(end, diagram.nextSibling);
+        });
+      }
+      if (nativeWordArtFodt && !acceptedView && typeof document !== "undefined") {
+        const exportWordArts = Array.from(exportRoot.querySelectorAll?.('.vno-writer-wordart[data-vno-wordart="true"]') || []);
+        if (exportWordArts.length !== wordArtNodes.length) {
+          throw new Error("WordArt trong báº£n DOCX khÃ´ng khớp vá»›i Ä‘á»‘i tÆ°á»£ng Ä‘Æ°á»£c chÃ¨n.");
+        }
+        exportWordArts.forEach((wordArt, index) => {
+          const parent = wordArt.parentNode;
+          if (!parent?.insertBefore) return;
+          const token = `VNO_NATIVE_WORDART_${index + 1}`;
+          const start = document.createElement("a");
+          start.setAttribute("name", `${token}_START`);
+          const end = document.createElement("a");
+          end.setAttribute("name", `${token}_END`);
+          parent.insertBefore(start, wordArt);
+          parent.insertBefore(end, wordArt.nextSibling);
+          wordArt.remove?.();
+        });
+      }
       const wrappers = Array.from(exportRoot.querySelectorAll?.(".vno-section-content") || []);
       for (const w of wrappers) {
         while (w.firstChild) w.parentNode?.insertBefore(w.firstChild, w);
@@ -15247,7 +15499,22 @@ export class WriterAdapter {
 
     const pristineMarker = this._isOpenedDocumentPristine() ? '<a name="vno-pristine-document"></a>' : "";
     const newDocumentStyleMarker = this.isNewApplicationDocument ? "<!--vno-new-document-style-defaults-->" : "";
-    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
+    const nativeChartMarker = nativeChartFodt
+      ? `<!--vno-native-charts-fodt:${btoa(Array.from(new TextEncoder().encode(nativeChartFodt), byte => String.fromCharCode(byte)).join(""))}-->`
+      : "";
+    const nativeDiagramMarker = nativeDiagramFodt
+      ? `<!--vno-native-diagrams-fodt:${btoa(Array.from(new TextEncoder().encode(nativeDiagramFodt), byte => String.fromCharCode(byte)).join(""))}-->`
+      : "";
+    const nativeWordArtMarker = nativeWordArtFodt
+      ? `<!--vno-native-wordart-fodt:${btoa(Array.from(new TextEncoder().encode(nativeWordArtFodt), byte => String.fromCharCode(byte)).join(""))}-->`
+      : "";
+    const nativeWatermarkMarker = nativeWatermarkFodt
+      ? `<!--vno-native-watermark-fodt:${btoa(Array.from(new TextEncoder().encode(nativeWatermarkFodt), byte => String.fromCharCode(byte)).join(""))}-->`
+      : "";
+    const themeMarker = this.documentTheme && this.documentTheme !== "office"
+      ? `<!--vno-document-theme:${String(this.documentTheme).replace(/[^a-z0-9_-]/gi, "")}-->`
+      : "";
+    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${nativeDiagramMarker}${nativeWordArtMarker}${nativeWatermarkMarker}${themeMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }
@@ -15379,6 +15646,7 @@ export class WriterAdapter {
     );
 
     if (result.status === "ok") {
+      if (this.isDirty) { this._wordCountSourceText = null; this._wordCountSourceTextInvalidated = true; }
       this.isDirty = false;
       const savedPath = result.path || this._sourcePath;
       if (savedPath) {
@@ -15431,6 +15699,7 @@ export class WriterAdapter {
         this.shell?.setStatus?.(`Đã xuất PDF: ${String(savedPath).split(/[/\\]/).pop()}`);
         return true;
       }
+      if (this.isDirty) { this._wordCountSourceText = null; this._wordCountSourceTextInvalidated = true; }
       this.isDirty = false;
       if (savedPath) {
         this._sourcePath = savedPath;
@@ -15504,6 +15773,8 @@ export class WriterAdapter {
       }
       this._initZones();
       this._sourcePath = result.sourcePath || null;
+      this._wordCountSourceText = extractOoxmlDocumentText(result.ooxmlDocumentXml);
+      this._wordCountSourceListItems = this._ooxmlListParagraphs(result.ooxmlDocumentXml, result.ooxmlStylesXml, result.ooxmlNumberingXml);
       this.isNewApplicationDocument = false;
       this.bodyDom?.classList?.remove("vno-new-application-document");
       // Comments chỉ thuộc tài liệu đang mở trong phiên; file khác không dùng lại anchor cũ.
@@ -15605,6 +15876,7 @@ export class WriterAdapter {
       this.documentContent = this.editorDom ? this.editorDom.innerHTML : raw;
       this.sourceFileName = (result.fileName || "TaiLieu").replace(/\.[^/.]+$/, "");
       this.isDirty = false;
+      this._wordCountSourceTextInvalidated = false;
       this._openedEditorDomHash = this._editorDomFingerprint();
       this._updateTrackChangesCommandState();
       this.clearUndoRedo();
@@ -15625,6 +15897,9 @@ export class WriterAdapter {
     if (!/<(?:html|body|div|p|table|span|h[1-6]|ul|ol)\b/i.test(String(content || ""))) return false;
     this._initZones();
     this._sourcePath = null;
+    this._wordCountSourceText = null;
+    this._wordCountSourceTextInvalidated = true;
+    this._wordCountSourceListItems = [];
     this.isNewApplicationDocument = false;
     this.bodyDom?.classList?.remove("vno-new-application-document");
     this.comments = [];
@@ -15703,6 +15978,9 @@ export class WriterAdapter {
   async newDocument() {
     this._initZones();
     this._sourcePath = null;
+    this._wordCountSourceText = null;
+    this._wordCountSourceTextInvalidated = true;
+    this._wordCountSourceListItems = [];
     this.isNewApplicationDocument = true;
     this.comments = [];
     this.trackChangesEnabled = false;
@@ -17732,9 +18010,41 @@ export class WriterAdapter {
 
   _insertClipboardContent({ html = "", text = "" } = {}) {
     const sanitizedHtml = html ? this._sanitizeClipboardHtml(cleanWordHtml(html)) : "";
-    const cleanHtml = this._prepareClipboardHtmlForInsertion(sanitizedHtml);
+    let cleanHtml = this._prepareClipboardHtmlForInsertion(sanitizedHtml);
     if (cleanHtml || text) this.flushTyping();
     let inserted = false;
+    const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+    let clipboardPlainText = text;
+    if (!clipboardPlainText && sanitizedHtml && typeof document !== "undefined") {
+      const textProbe = document.createElement("div");
+      textProbe.innerHTML = sanitizedHtml;
+      clipboardPlainText = textProbe.textContent || "";
+    }
+    let insertSmartPasteSpace = false;
+    if (typeof document !== "undefined" && selection?.rangeCount && selection.isCollapsed && clipboardPlainText && this.bodyDom?.contains?.(selection.anchorNode)) {
+      const range = selection.getRangeAt(0);
+      const block = selection.anchorNode?.nodeType === 3
+        ? selection.anchorNode.parentElement?.closest?.("p,li,blockquote,h1,h2,h3,h4,h5,h6,td,th")
+        : selection.anchorNode?.closest?.("p,li,blockquote,h1,h2,h3,h4,h5,h6,td,th");
+      if (block && this.bodyDom.contains(block)) {
+        const before = document.createRange();
+        before.selectNodeContents(block);
+        before.setEnd(range.startContainer, range.startOffset);
+        const after = document.createRange();
+        after.selectNodeContents(block);
+        after.setStart(range.startContainer, range.startOffset);
+        const prefix = before.toString();
+        const suffix = after.toString();
+        if (/\.$/.test(prefix) && !suffix && /^\s*[A-ZÀ-Ỹ]/u.test(clipboardPlainText)) {
+          // Word's smart paste inserts a sentence separator when copied text is pasted at a sentence end.
+          insertSmartPasteSpace = true;
+        }
+      }
+    }
+    if (insertSmartPasteSpace) {
+      if (cleanHtml) cleanHtml = `<span style="white-space: pre-wrap"> </span>${cleanHtml}`;
+      else if (text) text = ` ${text}`;
+    }
     if (cleanHtml) {
       if (document.execCommand?.("insertHTML", false, cleanHtml)) {
         inserted = true;
@@ -17835,9 +18145,23 @@ export class WriterAdapter {
       this.shell?.setStatus?.("Không đọc được bộ nhớ tạm. Hãy dùng Ctrl+V trong vùng soạn thảo hoặc kiểm tra quyền clipboard.");
       return false;
     }
+    let clipboardText = clipboard.text || "";
+    if (!clipboardText && clipboard.html && typeof document !== "undefined") {
+      const textProbe = document.createElement("div");
+      textProbe.innerHTML = this._sanitizeClipboardHtml(cleanWordHtml(clipboard.html));
+      clipboardText = textProbe.textContent || "";
+    }
+    if (!clipboardText) clipboardText = this._clipboardMemory?.text || "";
+    const normalizeClipboardText = value => String(value || "").replace(/[\r\n]+/g, " ").replace(/[\t ]+/g, " ").trim();
+    if (plainTextOnly && this._clipboardMemory?.text && clipboard.html
+      && normalizeClipboardText(clipboardText) === normalizeClipboardText(this._clipboardMemory.text)) {
+      // The app's clipboard bridge may expose formatting-source newlines as literal
+      // plain-text line breaks. Prefer the structured text serialized at Copy time.
+      clipboardText = this._clipboardMemory.text || clipboardText;
+    }
     const inserted = this._insertClipboardContent({
       html: plainTextOnly ? "" : (clipboard.html || ""),
-      text: clipboard.text || ""
+      text: clipboardText
     });
     if (!inserted) this.shell?.setStatus?.("Bộ nhớ tạm không có nội dung để dán.");
     return inserted;
@@ -20251,6 +20575,9 @@ export class WriterAdapter {
     if (!this.bodyDom) return false;
 
     const activeRecords = this._getActiveMailMergeRecords();
+    const mergeTemplateHtml = this.mailMergePreview?.enabled && this._mailMergeTemplateHtml != null
+      ? this._mailMergeTemplateHtml
+      : (this.bodyDom.innerHTML || "");
 
     // Nếu gọi trực tiếp từ thanh Ribbon (không tham số mode) và có DOM -> mở hộp thoại Hoàn tất trộn
     if (
@@ -20260,7 +20587,7 @@ export class WriterAdapter {
       typeof document.createElement === "function" &&
       document.body &&
       activeRecords.length > 0 &&
-      (this.bodyDom.innerHTML || "").includes("vno-merge-field")
+      mergeTemplateHtml.includes("vno-merge-field")
     ) {
       loadWriterMailMergeDialogs().then(({ showFinishMailMergeDialog }) => {
         showFinishMailMergeDialog({

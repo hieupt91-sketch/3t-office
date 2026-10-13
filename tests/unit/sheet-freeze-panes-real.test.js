@@ -13,9 +13,13 @@ import { SHEET_COMMANDS } from "../../platform/commands/command-definitions.js";
 import {
   applyFreezePaneToSheetXml,
   applyFreezePanesToFods,
+  applySplitPaneToSheetXml,
+  applySplitPanesToFods,
   columnLabelFromIndex,
   parseFreezePaneFromSheetXml,
-  parseFreezePanesFromFods
+  parseFreezePanesFromFods,
+  parseSplitPaneFromSheetXml,
+  parseSplitPanesFromFods
 } from "../../adapters/libreoffice/sheet/xlsx-freeze-panes.js";
 
 const assert = (value, message) => { if (!value) throw new Error(message); };
@@ -30,6 +34,28 @@ function container() {
 export async function runSheetFreezePanesRealTests() {
   const results = [];
   const test = (name, fn) => { try { fn(); results.push({ name, pass: true }); } catch (error) { results.push({ name, pass: false, error: error.message }); } };
+
+  test("Split: chia tại ô C4, không bật Freeze Panes và bấm lại để bỏ chia", () => {
+    const grid = createSheetGridWithSheets(container(), ["Sheet1"]);
+    grid.selectedCoord = { c: "C", r: 4 };
+    assert(grid.toggleSplitPanes() === true, "phải bật Split");
+    assert(grid.splitRow === 3 && grid.splitCol === 2, JSON.stringify({ row: grid.splitRow, col: grid.splitCol }));
+    assert(grid.splitX > 0 && grid.splitY > 0, "phải có vị trí split OOXML theo cả hai trục");
+    assert(grid.isFrozenPanes === false && grid.frozenRows === 0 && grid.frozenCols === 0, "Split không được biến thành Freeze Panes");
+    assert(grid.toggleSplitPanes() === false && grid.splitX === 0 && grid.splitY === 0, "bấm lại phải bỏ Split");
+  });
+
+  test("Split OOXML/FODS: state=split round-trip riêng, không bị parser Freeze nhận nhầm", () => {
+    const base = '<worksheet><sheetViews><sheetView workbookViewId="0"/></sheetViews></worksheet>';
+    const patched = applySplitPaneToSheetXml(base, { row: 3, col: 2, x: 1920, y: 900 });
+    assert(patched.includes('state="split"') && patched.includes('topLeftCell="C4"'), patched);
+    assert(parseFreezePaneFromSheetXml(patched) === null, "Split không phải Freeze");
+    const split = parseSplitPaneFromSheetXml(patched);
+    assert(split?.row === 3 && split?.col === 2 && split?.x === 1920 && split?.y === 900, JSON.stringify(split));
+    const fods = applySplitPanesToFods('<table:table table:name="Sheet1"></table:table>', { Sheet1: split });
+    assert(!fods.includes("vno:frozen"), fods);
+    assert(parseSplitPanesFromFods(fods).Sheet1?.row === 3, fods);
+  });
 
   test("Khai báo đủ 3 lệnh Freeze Panes, có mapping UNO thật", () => {
     ["freezePanes", "freezeTopRow", "freezeFirstColumn"].forEach(id => {

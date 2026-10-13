@@ -103,6 +103,13 @@ class XlsxNumfmtRoundtripTests(unittest.TestCase):
         ooxml_zip_patch._apply_accounting_number_formats_from_fods(xlsx, imported_fods, preserved)
         self.assertEqual(preserved, {}, "Imported Accounting formats with original Excel metadata must remain untouched")
 
+        exact = {}
+        ooxml_zip_patch._apply_accounting_number_formats_from_fods(
+            xlsx, imported_fods, exact, include_excel_codes=True
+        )
+        self.assertIn('formatCode="custom-import-code"', exact["xl/styles.xml"])
+        self.assertIn('r="B2" s="2"', exact["xl/worksheets/sheet1.xml"])
+
     def test_parse_styles_builtin_and_custom(self):
         styles = (
             '<styleSheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">'

@@ -57,6 +57,10 @@ class PortableLauncher:
         print(f"[3T Office] {message}", file=sys.stderr)
         return ServiceResult.ok()
 
+    def reveal_path(self, path: Path) -> ServiceResult[None]:
+        # Bản portable chưa có trình quản lý tệp chuẩn để gọi; báo rõ thay vì im lặng.
+        return ServiceResult.fail("not_supported", "Hệ điều hành này chưa hỗ trợ mở thư mục chứa tệp.")
+
 
 def build_services() -> OSServices:
     return OSServices(data_dirs=PortableDataDirs(), launcher=PortableLauncher())

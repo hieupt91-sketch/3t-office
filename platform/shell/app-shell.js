@@ -191,6 +191,9 @@ export class AppShell {
 
       <!-- Right Actions: Language Switcher, AI Assistant & Controls -->
       <div class="vno-topbar-right">
+        <button class="vno-btn vno-license-chip" id="vno-license-chip" type="button" aria-label="Bản quyền: nhập khóa kích hoạt" title="Bản quyền: nhập khóa kích hoạt hoặc xem trạng thái">
+          <span class="vno-license-chip-dot" aria-hidden="true"></span><span class="vno-license-chip-label">Nhập khóa</span>
+        </button>
         <div class="vno-lang-switch-wrap" style="position:relative;">
           <button class="vno-btn vno-lang-switch-btn" id="vno-toggle-lang-btn"
                   aria-haspopup="true" aria-expanded="false" aria-controls="vno-lang-menu"
@@ -292,6 +295,11 @@ export class AppShell {
     });
 
     bar.querySelector("#vno-toggle-ai-btn").addEventListener("click", () => this.toggleAiSidebar());
+
+    // Nút Bản quyền luôn thấy trên thanh tiêu đề: bấm để nhập khóa; nhãn đổi theo trạng thái thật (dùng thử / đã kích hoạt).
+    const licenseChip = bar.querySelector("#vno-license-chip");
+    licenseChip?.addEventListener("click", () => this._showLicenseDialog());
+    this._refreshLicenseChip(licenseChip);
 
     // Dropdown chọn ngôn ngữ + nút Áp dụng riêng biệt
     const langToggleBtn = bar.querySelector("#vno-toggle-lang-btn");
@@ -814,6 +822,25 @@ export class AppShell {
     return showAboutDialog();
   }
 
+  async _refreshLicenseChip(chip) {
+    if (!chip) return;
+    try {
+      const api = globalUnoBridge.desktopApi || (typeof window !== "undefined" ? window.pywebview?.api : null);
+      if (typeof api?.license_status !== "function") return;
+      const status = await api.license_status();
+      const label = chip.querySelector(".vno-license-chip-label");
+      if (status?.ok && status.licensed) {
+        chip.classList.add("is-active");
+        chip.classList.remove("is-trial");
+        if (label) label.textContent = "Đã kích hoạt";
+      } else {
+        chip.classList.add("is-trial");
+        chip.classList.remove("is-active");
+        if (label) label.textContent = status?.state === "trial" ? "Dùng thử · Nhập khóa" : "Nhập khóa";
+      }
+    } catch (_) { /* không chặn giao diện nếu đọc trạng thái lỗi */ }
+  }
+
   async _showLicenseDialog() {
     const { showLicenseDialog } = await withLazyFeatureProgress(
       this.appName,
@@ -823,7 +850,7 @@ export class AppShell {
     return showLicenseDialog();
   }
 
-  showBackstageMenu() {
+  showBackstageMenu(initialTab = "home") {
     captureEditorFocus();
     const previousFocused = document.activeElement;
     const modal = document.createElement("div");
@@ -933,6 +960,7 @@ export class AppShell {
         <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.save" id="vno-backstage-nav-save">${t("backstage.save")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.saveAs" id="vno-backstage-nav-saveas">${t("backstage.saveAs")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-tab="print" id="vno-backstage-nav-print">${t("backstage.print")}</button>
+        <button type="button" class="vno-backstage-nav-btn" data-backstage-tab="export" id="vno-backstage-nav-export">${t("backstage.exportConvert")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.exportPdf" id="vno-backstage-nav-exportpdf">${t("backstage.exportPdf")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-tab="recent" id="vno-backstage-nav-recent">${t("backstage.recent")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-action="closeDocument" id="vno-backstage-close">${t("backstage.close")}</button>
@@ -962,17 +990,23 @@ export class AppShell {
         </div>
 
         <div class="vno-backstage-tab-content" id="vno-backstage-print-view" style="display:none;"></div>
+        <div class="vno-backstage-tab-content" id="vno-backstage-export-view" style="display:none;"></div>
       </div>
     `;
 
     document.body.appendChild(modal);
 
     let printPanelCleanup = null;
+    let exportPanelCleanup = null;
 
     const closeModal = () => {
       if (typeof printPanelCleanup === "function") {
         printPanelCleanup();
         printPanelCleanup = null;
+      }
+      if (typeof exportPanelCleanup === "function") {
+        exportPanelCleanup();
+        exportPanelCleanup = null;
       }
       document.removeEventListener("keydown", onBackstageKeyDown);
       if (modal.parentNode) modal.parentNode.removeChild(modal);
@@ -1042,6 +1076,28 @@ export class AppShell {
           e.preventDefault();
           const printNav = modal.querySelector("#vno-backstage-nav-print") || modal.querySelector("#vno-backstage-back");
           printNav?.focus();
+        }
+      } else if (modal.querySelector("#vno-backstage-export-view")?.contains(document.activeElement)) {
+        if (e.key === "ArrowLeft" && (document.activeElement?.id === "vno-export-item-pdf" || document.activeElement?.id === "vno-export-compat-checkbox")) {
+          e.preventDefault();
+          modal.querySelector("#vno-backstage-nav-export")?.focus();
+        }
+      } else if (document.activeElement?.classList?.contains("vno-export-card")) {
+        const cards = Array.from(modal.querySelectorAll(".vno-export-card"))
+          .filter(el => el.offsetParent !== null || el.offsetWidth > 0 || el.offsetHeight > 0);
+        const curIdx = cards.indexOf(document.activeElement);
+        if (curIdx !== -1) {
+          if (e.key === "ArrowRight" || e.key === "ArrowDown") {
+            e.preventDefault();
+            cards[(curIdx + 1) % cards.length]?.focus();
+          } else if (e.key === "ArrowLeft" || e.key === "ArrowUp") {
+            e.preventDefault();
+            if (curIdx === 0 && e.key === "ArrowLeft") {
+              modal.querySelector("#vno-backstage-nav-export")?.focus();
+            } else {
+              cards[(curIdx - 1 + cards.length) % cards.length]?.focus();
+            }
+          }
         }
       } else if (document.activeElement?.classList?.contains("vno-template-card")) {
         const cards = Array.from(modal.querySelectorAll(".vno-template-card"))
@@ -1214,17 +1270,51 @@ export class AppShell {
     const homeNavBtn = modal.querySelector("#vno-backstage-nav-home");
     const recentNavBtn = modal.querySelector("#vno-backstage-nav-recent");
     const printNavBtn = modal.querySelector("#vno-backstage-nav-print");
+    const exportNavBtn = modal.querySelector("#vno-backstage-nav-export");
     const homeView = modal.querySelector("#vno-backstage-home-view");
     const recentView = modal.querySelector("#vno-backstage-recent-view");
     const printView = modal.querySelector("#vno-backstage-print-view");
+    const exportView = modal.querySelector("#vno-backstage-export-view");
 
     const showTab = (tabName) => {
-      if (tabName === "print") {
+      if (tabName === "export") {
         homeNavBtn?.classList.remove("is-active");
         recentNavBtn?.classList.remove("is-active");
+        printNavBtn?.classList.remove("is-active");
+        exportNavBtn?.classList.add("is-active");
+        if (homeView) homeView.style.display = "none";
+        if (recentView) recentView.style.display = "none";
+        if (printView) {
+          printView.style.display = "none";
+          if (typeof printPanelCleanup === "function") {
+            printPanelCleanup();
+            printPanelCleanup = null;
+          }
+          printView.innerHTML = "";
+        }
+        if (exportView) {
+          exportView.style.display = "block";
+          if (typeof exportPanelCleanup === "function") {
+            exportPanelCleanup();
+            exportPanelCleanup = null;
+          }
+          exportPanelCleanup = this._renderBackstageExportPanel(exportView, closeModal);
+        }
+      } else if (tabName === "print") {
+        homeNavBtn?.classList.remove("is-active");
+        recentNavBtn?.classList.remove("is-active");
+        exportNavBtn?.classList.remove("is-active");
         printNavBtn?.classList.add("is-active");
         if (homeView) homeView.style.display = "none";
         if (recentView) recentView.style.display = "none";
+        if (exportView) {
+          exportView.style.display = "none";
+          if (typeof exportPanelCleanup === "function") {
+            exportPanelCleanup();
+            exportPanelCleanup = null;
+          }
+          exportView.innerHTML = "";
+        }
         if (printView) {
           printView.style.display = "block";
           if (typeof printPanelCleanup === "function") {
@@ -1236,6 +1326,7 @@ export class AppShell {
       } else if (tabName === "recent") {
         homeNavBtn?.classList.remove("is-active");
         printNavBtn?.classList.remove("is-active");
+        exportNavBtn?.classList.remove("is-active");
         recentNavBtn?.classList.add("is-active");
         if (homeView) homeView.style.display = "none";
         if (printView) {
@@ -1246,10 +1337,19 @@ export class AppShell {
           }
           printView.innerHTML = "";
         }
+        if (exportView) {
+          exportView.style.display = "none";
+          if (typeof exportPanelCleanup === "function") {
+            exportPanelCleanup();
+            exportPanelCleanup = null;
+          }
+          exportView.innerHTML = "";
+        }
         if (recentView) recentView.style.display = "block";
       } else {
         printNavBtn?.classList.remove("is-active");
         recentNavBtn?.classList.remove("is-active");
+        exportNavBtn?.classList.remove("is-active");
         homeNavBtn?.classList.add("is-active");
         if (recentView) recentView.style.display = "none";
         if (printView) {
@@ -1260,12 +1360,21 @@ export class AppShell {
           }
           printView.innerHTML = "";
         }
+        if (exportView) {
+          exportView.style.display = "none";
+          if (typeof exportPanelCleanup === "function") {
+            exportPanelCleanup();
+            exportPanelCleanup = null;
+          }
+          exportView.innerHTML = "";
+        }
         if (homeView) homeView.style.display = "block";
       }
     };
 
     homeNavBtn?.addEventListener("click", () => showTab("home"));
     recentNavBtn?.addEventListener("click", () => showTab("recent"));
+    exportNavBtn?.addEventListener("click", () => showTab("export"));
     printNavBtn?.addEventListener("click", () => {
       closeModal();
       globalCommandBus.execute("common.file.print");
@@ -1289,8 +1398,12 @@ export class AppShell {
       });
     });
 
-    // Tự động focus nút Quay lại khi mở
-    modal.querySelector("#vno-backstage-back")?.focus();
+    if (initialTab && initialTab !== "home") {
+      showTab(initialTab);
+    } else {
+      // Tự động focus nút Quay lại khi mở
+      modal.querySelector("#vno-backstage-back")?.focus();
+    }
   }
 
   /**
@@ -1809,6 +1922,258 @@ export class AppShell {
     };
   }
 
+  _renderBackstageExportPanel(container, closeModal) {
+    container.innerHTML = "";
+
+    let formats = [];
+    if (this.appName === "sheet") {
+      formats = [
+        { id: "xlsx", label: t("backstage.format.xlsx", "Sổ làm việc (*.xlsx)"), badge: "XLSX", desc: t("backstage.format.xlsxDesc", "Định dạng bảng tính tiêu chuẩn mới nhất, giữ đầy đủ công thức, định dạng có điều kiện và biểu đồ.") },
+        { id: "xls", label: t("backstage.format.xls", "Sổ làm việc 97-2003 (*.xls)"), badge: "XLS", desc: t("backstage.format.xlsDesc", "Tương thích các phiên bản cũ, giữ cấu trúc ô và dữ liệu cơ bản.") },
+        { id: "ods", label: t("backstage.format.ods", "Bảng tính OpenDocument (*.ods)"), badge: "ODS", desc: t("backstage.format.odsDesc", "Định dạng mã nguồn mở quốc tế, hiển thị chuẩn xác trên các bộ ứng dụng văn phòng.") },
+        { id: "csv", label: t("backstage.format.csv", "Bảng dữ liệu CSV UTF-8 (*.csv)"), badge: "CSV", desc: t("backstage.format.csvDesc", "Chỉ lưu trang tính hiện hành dưới dạng văn bản phân tách bằng dấu phẩy, dùng để trao đổi dữ liệu.") }
+      ];
+    } else if (this.appName === "slides") {
+      formats = [
+        { id: "pptx", label: t("backstage.format.pptx", "Bản trình chiếu (*.pptx)"), badge: "PPTX", desc: t("backstage.format.pptxDesc", "Định dạng trình chiếu hiện đại, bảo toàn bố cục trang chiếu, hiệu ứng và hình dạng vẽ.") },
+        { id: "ppt", label: t("backstage.format.ppt", "Bản trình chiếu 97-2003 (*.ppt)"), badge: "PPT", desc: t("backstage.format.pptDesc", "Tương thích các phiên bản cũ, bảo toàn văn bản và hình ảnh chính.") },
+        { id: "odp", label: t("backstage.format.odp", "Bản trình chiếu OpenDocument (*.odp)"), badge: "ODP", desc: t("backstage.format.odpDesc", "Định dạng trình chiếu chuẩn mở quốc tế.") }
+      ];
+    } else {
+      formats = [
+        { id: "docx", label: t("backstage.format.docx", "Tài liệu (*.docx)"), badge: "DOCX", desc: t("backstage.format.docxDesc", "Định dạng văn bản chuẩn hiện đại, bảo toàn toàn bộ bố cục trang, bảng biểu và phông chữ.") },
+        { id: "doc", label: t("backstage.format.doc", "Tài liệu 97-2003 (*.doc)"), badge: "DOC", desc: t("backstage.format.docDesc", "Tương thích các hệ thống cũ, giữ nội dung văn bản và định dạng cơ bản.") },
+        { id: "odt", label: t("backstage.format.odt", "Văn bản OpenDocument (*.odt)"), badge: "ODT", desc: t("backstage.format.odtDesc", "Định dạng văn bản chuẩn mở quốc tế ISO/IEC.") },
+        { id: "rtf", label: t("backstage.format.rtf", "Văn bản RTF có định dạng (*.rtf)"), badge: "RTF", desc: t("backstage.format.rtfDesc", "Định dạng văn bản phong phú có thể mở trên nhiều hệ thống khác nhau.") },
+        { id: "txt", label: t("backstage.format.txt", "Văn bản thuần túy (*.txt)"), badge: "TXT", desc: t("backstage.format.txtDesc", "Chỉ lưu nội dung chữ không kèm định dạng phông hay màu sắc.") }
+      ];
+    }
+
+    const formatsHtml = formats.map(f => `
+      <div class="vno-export-card" role="button" tabindex="0" data-export-format="${f.id}" id="vno-export-card-${f.id}" aria-label="${f.label}">
+        <div class="vno-export-card-header">
+          <span class="vno-export-card-badge vno-badge-${f.id}">${f.badge}</span>
+          <h3 class="vno-export-card-title">${f.label}</h3>
+        </div>
+        <p class="vno-export-card-desc">${f.desc}</p>
+      </div>
+    `).join("");
+
+    container.innerHTML = `
+      <div class="vno-export-panel">
+        <div class="vno-export-header">
+          <h2 class="vno-export-title">${t("backstage.exportConvert", "Xuất & Chuyển đổi")}</h2>
+          <p class="vno-export-desc">${t("backstage.exportConvertDesc", "Xuất tài liệu sang PDF hoặc chuyển đổi sang các định dạng Office/tiêu chuẩn mở khác mà bố cục và định dạng được giữ nguyên.")}</p>
+        </div>
+
+        <div class="vno-export-options-box">
+          <div class="vno-export-options-title">${t("backstage.optionsGroup", "Tùy chọn chuyển đổi")}</div>
+          <label class="vno-export-checkbox-label">
+            <input type="checkbox" id="vno-export-compat-checkbox" checked>
+            <span>${t("backstage.officeCompatOption", "Tương thích Office (khuyên dùng)")}</span>
+          </label>
+          <div class="vno-export-option-hint">${t("backstage.officeCompatHint", "Tối ưu hóa các bảng thuộc tính, kiểu dáng và phông chữ để tài liệu mở bằng Office hiển thị chuẩn xác nhất.")}</div>
+        </div>
+
+        <div class="vno-export-loading" id="vno-export-loading" style="display:none;" aria-live="polite">
+          <div class="vno-export-spinner" aria-hidden="true"></div>
+          <span class="vno-export-loading-text">${t("backstage.exportingStatus", "Đang xuất tệp...")}</span>
+        </div>
+
+        <div class="vno-export-success-banner" id="vno-export-success-banner" style="display:none;" role="region" aria-label="${t("backstage.exportSuccess", "Xuất tệp thành công!")}">
+          <div class="vno-export-success-title">
+            <svg class="vno-export-success-icon" viewBox="0 0 20 20" fill="currentColor" width="20" height="20" aria-hidden="true"><path fill-rule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clip-rule="evenodd"/></svg>
+            <span>${t("backstage.exportSuccess", "Xuất tệp thành công!")}</span>
+          </div>
+          <div class="vno-export-success-path">
+            <span>${t("backstage.exportSuccessPath", "Đã lưu tại:")}</span>
+            <code id="vno-export-result-path"></code>
+          </div>
+          <div class="vno-export-success-actions">
+            <button type="button" class="vno-btn vno-btn-primary" id="vno-export-open-folder-btn">
+              <svg viewBox="0 0 20 20" fill="currentColor" width="16" height="16" aria-hidden="true" style="margin-right:6px;"><path d="M2 6a2 2 0 012-2h5l2 2h5a2 2 0 012 2v6a2 2 0 01-2 2H4a2 2 0 01-2-2V6z"/></svg>
+              <span>${t("backstage.openFolder", "Mở thư mục chứa tệp")}</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="vno-export-section">
+          <div class="vno-export-section-title">${t("backstage.exportPdfGroup", "Xuất tệp PDF tiêu chuẩn")}</div>
+          <p class="vno-export-section-desc">${t("backstage.exportPdfDesc", "Tạo bản sao PDF giữ nguyên 100% bố cục trang, font chữ và hình ảnh, thích hợp để chia sẻ và in ấn.")}</p>
+          <div class="vno-export-grid">
+            <div class="vno-export-card" role="button" tabindex="0" data-export-format="pdf" id="vno-export-card-pdf" aria-label="${t("backstage.format.pdf", "Tài liệu PDF (*.pdf)")}">
+              <div class="vno-export-card-header">
+                <span class="vno-export-card-badge vno-badge-pdf">PDF</span>
+                <h3 class="vno-export-card-title">${t("backstage.format.pdf", "Tài liệu PDF (*.pdf)")}</h3>
+              </div>
+              <p class="vno-export-card-desc">${t("backstage.format.pdfDesc", "Giữ nguyên 100% bố cục trang, phông chữ và hình ảnh để in ấn và gửi đối tác.")}</p>
+            </div>
+          </div>
+        </div>
+
+        <div class="vno-export-section">
+          <div class="vno-export-section-title">${t("backstage.convertGroup", "Chuyển đổi định dạng tệp")}</div>
+          <div class="vno-export-grid">
+            ${formatsHtml}
+          </div>
+        </div>
+      </div>
+    `;
+
+    const loadingEl = container.querySelector("#vno-export-loading");
+    const successBannerEl = container.querySelector("#vno-export-success-banner");
+    const resultPathEl = container.querySelector("#vno-export-result-path");
+    const openFolderBtn = container.querySelector("#vno-export-open-folder-btn");
+    const compatCheckbox = container.querySelector("#vno-export-compat-checkbox");
+    const cards = container.querySelectorAll(".vno-export-card");
+
+    let isBusy = false;
+    let lastExportedPath = "";
+
+    const onOpenFolderClick = () => {
+      if (lastExportedPath) {
+        this.openContainingFolder(lastExportedPath);
+      }
+    };
+    openFolderBtn?.addEventListener("click", onOpenFolderClick);
+
+    const runExport = async (format) => {
+      if (isBusy) return;
+      isBusy = true;
+      if (loadingEl) loadingEl.style.display = "flex";
+      if (successBannerEl) successBannerEl.style.display = "none";
+      cards.forEach(c => c.classList.add("vno-export-card-disabled"));
+
+      try {
+        const officeCompatibility = Boolean(compatCheckbox?.checked);
+        const result = await this.exportDocument(format, { officeCompatibility });
+
+        if (result && result.status === "ok") {
+          lastExportedPath = result.path || result.fileName || "";
+          if (resultPathEl) resultPathEl.textContent = lastExportedPath;
+          if (successBannerEl) {
+            successBannerEl.style.display = "block";
+            successBannerEl.scrollIntoView({ behavior: "smooth", block: "nearest" });
+          }
+          this.setStatus?.(`${t("backstage.exportSuccess", "Xuất tệp thành công!")}: ${lastExportedPath.split(/[/\\]/).pop() || lastExportedPath}`);
+        } else if (result && result.status === "cancelled") {
+          // Người dùng hủy chọn tệp trong hộp thoại lưu, không báo lỗi
+        } else {
+          const errMsg = (result && result.message) ? result.message : t("backstage.exportFailed", "Không thể xuất tệp");
+          await showAlertDialog({
+            title: t("backstage.exportFailed", "Không thể xuất tệp"),
+            message: errMsg,
+            type: "error"
+          });
+        }
+      } catch (err) {
+        await showAlertDialog({
+          title: t("backstage.exportFailed", "Không thể xuất tệp"),
+          message: err?.message || String(err),
+          type: "error"
+        });
+      } finally {
+        isBusy = false;
+        if (loadingEl) loadingEl.style.display = "none";
+        cards.forEach(c => c.classList.remove("vno-export-card-disabled"));
+      }
+    };
+
+    const cardHandlers = [];
+    cards.forEach(card => {
+      const format = card.getAttribute("data-export-format");
+      const onClick = () => runExport(format);
+      const onKeyDown = (e) => {
+        if (e.key === "Enter" || e.key === " ") {
+          e.preventDefault();
+          runExport(format);
+        }
+      };
+      card.addEventListener("click", onClick);
+      card.addEventListener("keydown", onKeyDown);
+      cardHandlers.push({ card, onClick, onKeyDown });
+    });
+
+    return () => {
+      openFolderBtn?.removeEventListener("click", onOpenFolderClick);
+      cardHandlers.forEach(({ card, onClick, onKeyDown }) => {
+        card.removeEventListener("click", onClick);
+        card.removeEventListener("keydown", onKeyDown);
+      });
+      container.innerHTML = "";
+    };
+  }
+
+  async exportDocument(targetFormat, options = {}) {
+    const format = String(targetFormat || "").toLowerCase();
+    const appKind = this.appName || "writer";
+
+    if (format === "pdf") {
+      let content = "";
+      if (appKind === "sheet") {
+        content = this.adapter?.serializeToFods ? this.adapter.serializeToFods() : (this.grid?.serializeToFods ? this.grid.serializeToFods() : "");
+      } else if (appKind === "slides") {
+        content = this.adapter?.serializeToFodp ? this.adapter.serializeToFodp() : (this.canvas?.serializeToFodp ? this.canvas.serializeToFodp() : "");
+      } else {
+        content = this.adapter?._contentForExport ? this.adapter._contentForExport({ acceptedView: true }) : (this.adapter?.editorDom?.innerHTML || "");
+      }
+
+      const currentName = this.adapter?.sourceFileName || this.sourceFileName || (this.documentName ? this.documentName.replace(/\.[^/.]+$/, "") : (appKind === "sheet" ? "BangTinh" : appKind === "slides" ? "BanTrinhChieu" : "TaiLieu"));
+      const sourcePath = this.adapter?._sourcePath || this.adapter?.sourceFilePath || null;
+
+      return await globalUnoBridge.exportRealPdf(appKind, content, currentName, sourcePath);
+    }
+
+    const validFormatsByApp = {
+      writer: ["docx", "doc", "odt", "rtf", "txt"],
+      sheet: ["xlsx", "xls", "ods", "csv"],
+      slides: ["pptx", "ppt", "odp"]
+    };
+
+    const allowed = validFormatsByApp[appKind] || validFormatsByApp.writer;
+    if (!allowed.includes(format)) {
+      return {
+        status: "error",
+        message: `${t("backstage.unsupportedFormat", "Định dạng không được hỗ trợ")}: .${format}`
+      };
+    }
+
+    let content = "";
+    if (appKind === "sheet") {
+      if (this.adapter?._guardQuickViewReadOnly?.()) return { status: "cancelled" };
+      content = this.adapter?.serializeToFods ? this.adapter.serializeToFods() : "";
+    } else if (appKind === "slides") {
+      content = this.adapter?.serializeToFodp ? this.adapter.serializeToFodp() : "";
+    } else {
+      content = this.adapter?._contentForExport ? this.adapter._contentForExport() : (this.adapter?.editorDom?.innerHTML || "");
+    }
+
+    const currentName = this.adapter?.sourceFileName || this.sourceFileName || (this.documentName ? this.documentName.replace(/\.[^/.]+$/, "") : (appKind === "sheet" ? "BangTinh" : appKind === "slides" ? "BanTrinhChieu" : "TaiLieu"));
+    const sourcePath = this.adapter?._sourcePath || this.adapter?.sourceFilePath || null;
+    const suggestedName = `${currentName}.${format}`;
+
+    return await globalUnoBridge.saveRealFile(appKind, content, format, suggestedName, sourcePath);
+  }
+
+  async openContainingFolder(filePath) {
+    if (!filePath) return;
+    const api = globalUnoBridge.desktopApi || (typeof window !== "undefined" ? window.pywebview?.api : null);
+    if (typeof api?.open_containing_folder === "function") {
+      try {
+        const res = await api.open_containing_folder(filePath);
+        if (res && res.status === "ok") return res;
+      } catch (err) {
+        console.warn("[AppShell] Không thể mở thư mục qua bridge:", err);
+      }
+    }
+
+    await showAlertDialog({
+      title: t("backstage.openFolder", "Mở thư mục chứa tệp"),
+      message: `${t("backstage.exportSuccessPath", "Đã lưu tại:")}\n${filePath}\n\n(Chức năng mở trực tiếp thư mục chưa được backend hỗ trợ; bạn có thể mở đường dẫn trên từ trình quản lý tệp).`,
+      type: "info"
+    });
+  }
+
   async applyTemplate(templateId) {
     if (templateId === "blank") {
       return await globalCommandBus.execute("common.file.new");
@@ -1926,6 +2291,12 @@ export class AppShell {
     // Mở menu Tệp (Backstage) bằng phím tắt Alt+F
     globalCommandBus.bindHandler("common.file.backstage", () => {
       this.showBackstageMenu();
+      return true;
+    });
+
+    // Mở trực tiếp mục Xuất và chuyển đổi trong Backstage
+    globalCommandBus.bindHandler("common.file.exportConvert", () => {
+      this.showBackstageMenu("export");
       return true;
     });
 

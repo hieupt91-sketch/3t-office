@@ -60,6 +60,25 @@ export async function runSheetArrayFormulaTests() {
     assert(numberAt(grid, grid.activeSheet, "C3") === 40, "Array formula phải recalc theo nguồn");
   });
 
+  await test("TRANSPOSE: Ctrl+Shift+Enter fills only the transposed shape and recalculates", () => {
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
+    [[1, 2, 3], [4, 5, 6]].forEach((row, rowIndex) => row.forEach((value, colIndex) => {
+      grid.setCellValue(grid.cols[colIndex], rowIndex + 1, value, false);
+    }));
+    grid.undoStack = [];
+    grid.selectionRange = { start: { c: "D", r: 1 }, end: { c: "E", r: 3 } };
+    grid.selectedCoord = { c: "D", r: 1 };
+    assert(grid.enterArrayFormula({ formula: "=TRANSPOSE(A1:C2)" }), "TRANSPOSE phải nhận vùng đích 3 hàng × 2 cột");
+    assert([[1, 4], [2, 5], [3, 6]].every((row, rowIndex) => row.every((value, colIndex) =>
+      numberAt(grid, grid.activeSheet, `${grid.cols[3 + colIndex]}${rowIndex + 1}`) === value)), "TRANSPOSE phải đảo hàng/cột theo thứ tự ô");
+    assert(grid.formulaEngine.evaluate("=TRANSPOSE(A1:C2)") === "#VALUE!", "Nhập như công thức scalar phải trả #VALUE! như Excel 2016");
+    grid.selectionRange = { start: { c: "F", r: 1 }, end: { c: "H", r: 2 } };
+    grid.selectedCoord = { c: "F", r: 1 };
+    assert(!grid.enterArrayFormula({ formula: "=TRANSPOSE(A1:C2)" }), "Sai kích thước vùng đích phải bị từ chối");
+    grid.setCellValue("C", 2, 9, false);
+    assert(numberAt(grid, grid.activeSheet, "E3") === 9, "Mảng TRANSPOSE phải tính lại khi ô nguồn đổi");
+  });
+
   await test("Array formula: một bước Undo/Redo khôi phục nguyên cả vùng", () => {
     const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     for (let row = 1; row <= 5; row++) { grid.setCellValue("A", row, row, false); grid.setCellValue("B", row, 2, false); grid.setCellValue("C", row, `old-${row}`, false); }

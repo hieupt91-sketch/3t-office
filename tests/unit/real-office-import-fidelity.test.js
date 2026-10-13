@@ -243,8 +243,10 @@ export async function runRealOfficeImportFidelityTests() {
       ["sample-sheet-pivot.fods", "9da11d96699646fd171f3e71d520aeeb5c3ce61fea3683e1657fd601195c56c5"],
       ["sample-sheet-formulas.fods", "6fe5161ffbdb734037194fd132e3ddfd615074142f7a4ff2c00f9b3b9f19d9db"]
     ]);
-    const normalizeWorkbook = value => JSON.stringify(value, (_, item) =>
-      item instanceof Map ? { __map: [...item.entries()] } : item instanceof Set ? { __set: [...item.values()] } : item);
+    // excelCodeInferred là cờ mới (đánh dấu mã định dạng do app suy ra, không ghi lại như mã gốc);
+    // loại khỏi snapshot để baseline trước-tối-ưu vẫn so được phần dữ liệu còn lại.
+    const normalizeWorkbook = value => JSON.stringify(value, (key, item) =>
+      key === "excelCodeInferred" ? undefined : item instanceof Map ? { __map: [...item.entries()] } : item instanceof Set ? { __set: [...item.values()] } : item);
     for (const [filename, expectedHash] of baselineHashes) {
       const xml = fs.readFileSync(`tests/fixtures/real-office-samples/src/${filename}`, "utf8");
       const workbook = new SheetAdapter(null).parseFods(xml);

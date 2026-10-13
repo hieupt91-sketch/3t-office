@@ -61,6 +61,7 @@ import { runSheetKeyboardAuditTests } from "./unit/sheet-keyboard-audit.test.js"
 import { runSheetFormatCellsTests } from "./unit/sheet-format-cells.test.js";
 import { runSheetEditingStylesTests } from "./unit/sheet-editing-styles.test.js";
 import { runSheetReferenceFunctionTests } from "./unit/sheet-reference-functions.test.js";
+import { runSheetExcel2016FunctionGapTests } from "./unit/sheet-excel2016-function-gaps.test.js";
 import { runSheetMathStatFunctionTests } from "./unit/sheet-math-stat-functions.test.js";
 import { runSheetTextFunctionTests } from "./unit/sheet-text-functions.test.js";
 import { runSheetDateFunctionTests } from "./unit/sheet-date-functions.test.js";
@@ -161,6 +162,7 @@ import { runSlidesPptxSectionListTests } from "./unit/slides-pptx-section-list.t
 import { runSlidesPptxSectionsOpenOverlayTests } from "./unit/slides-pptx-sections-open-overlay.test.js";
 import { runSlidesPptxMasterLogoOpenOverlayTests } from "./unit/slides-pptx-masterlogo-open-overlay.test.js";
 import { runSlidesPptxShowPropertiesTests } from "./unit/slides-pptx-show-properties.test.js";
+import { runSlidesHeaderFooterPptxTests } from "./unit/slides-header-footer-pptx.test.js";
 import { runSlidesPptxSlideSizeTests } from "./unit/slides-pptx-slide-size.test.js";
 import { runSlidesTextVerticalDirectionTests } from "./unit/slides-text-vertical-direction.test.js";
 import { runSheetFreezePanesRealTests } from "./unit/sheet-freeze-panes-real.test.js";
@@ -180,6 +182,7 @@ import { runSlidesPrintPreviewTests } from "./unit/slides-print-preview.test.js"
 import { runSheetPagesetupRealFileImportTests } from "./unit/sheet-pagesetup-real-file-import.test.js";
 import { runSheetPrintTitlesRealFileImportTests } from "./unit/sheet-print-titles-real-file-import.test.js";
 import { runSheetPrintTitlesGridSelectionTests } from "./unit/sheet-print-titles-grid-selection.test.js";
+import { runSheetGridInsertFormulaTests } from "./unit/sheet-grid-insert-formula.test.js";
 import { runWriterFodtRealDocxParsingTests } from "./unit/writer-fodt-real-docx-parsing.test.js";
 import { runBackstagePrintThumbnailTests } from "./unit/backstage-print-thumbnail.test.js";
 import { runSlidesShapeAlignmentTests } from "./unit/slides-shape-alignment.test.js";
@@ -338,6 +341,7 @@ async function runAll() {
     { title: "54. Behavioral & Unit Tests — VN Sheet Format Cells Dialog & Number Formats", runner: runSheetFormatCellsTests },
     { title: "55. Behavioral & Unit Tests — VN Sheet Styles & Editing Groups", runner: runSheetEditingStylesTests },
     { title: "56. Unit Tests — VN Sheet Cross-Sheet Reference Functions", runner: runSheetReferenceFunctionTests },
+    { title: "E1. Unit Tests — Excel 2016 Legacy Function Gaps", runner: runSheetExcel2016FunctionGapTests },
     { title: "57. Unit Tests — VN Sheet Math & Statistics Functions", runner: runSheetMathStatFunctionTests },
     { title: "58. Unit Tests — VN Sheet Text Functions", runner: runSheetTextFunctionTests },
     { title: "59. Unit Tests — VN Sheet Date Functions", runner: runSheetDateFunctionTests },
@@ -429,6 +433,7 @@ async function runAll() {
     { title: "141. Unit Tests — Slides native PPTX open overlay (VNOfficeMasterLogo → vno:master-theme)", runner: runSlidesPptxMasterLogoOpenOverlayTests },
     { title: "142. Unit Tests — Slides native PPTX post-process (p:showPr Set Up Show)", runner: runSlidesPptxShowPropertiesTests },
     { title: "143. Unit Tests — Slides native PPTX open overlay (p:showPr → vno Set Up Show)", runner: runSlidesPptxSetupShowOpenOverlayTests },
+    { title: "144. Unit Tests — Slides native header/footer placeholders save and reopen", runner: runSlidesHeaderFooterPptxTests },
     { title: "144. Unit Tests — Writer paragraph spacing before/after (pt)", runner: runWriterParagraphSpacingTests },
     { title: "145. Unit Tests — Writer find/replace preserves inline formatting nodes", runner: runWriterFindReplaceDomTests },
     { title: "146. Unit Tests — Writer line numbers (FODT linenumbering-configuration)", runner: runWriterLineNumbersTests },
@@ -439,6 +444,7 @@ async function runAll() {
     { title: "151. Unit Tests — VN Sheet Page Setup: đọc đúng file ODF thật (không phụ thuộc thuộc tính riêng vno:page-*)", runner: runSheetPagesetupRealFileImportTests },
     { title: "152. Unit Tests — VN Sheet Print Titles: đọc đúng Print Titles từ file ODF thật (_xlnm.Print_Titles)", runner: runSheetPrintTitlesRealFileImportTests },
     { title: "153. Unit Tests — VN Sheet Print Titles: nhập tham chiếu $1:$2/$A:$B + chọn trên lưới + serialisation", runner: runSheetPrintTitlesGridSelectionTests },
+    { title: "FIX-S12 Unit Tests — Sheet AutoSum/AutoAverage tự nhận dải liền kề", runner: runSheetGridInsertFormulaTests },
     { title: "154. Unit Tests — Writer parseFodt(): đọc đúng file FODT thật từ vòng chuyển đổi DOCX (page-layout regex + text:sequence-decls)", runner: runWriterFodtRealDocxParsingTests },
     { title: "155. Unit & Behavioral Tests — VN Office Backstage Print Thumbnail & Live Preview", runner: runBackstagePrintThumbnailTests },
     { title: "156. Unit & Behavioral Tests — VN Slides Multi-Shape Align/Distribute (GAP-SLIDES-01/02/03)", runner: runSlidesShapeAlignmentTests },

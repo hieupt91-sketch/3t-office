@@ -282,3 +282,61 @@ Phần “chưa chạy” này là ghi nhận giữa chừng, đã được thay
 - `python -m unittest discover -s tests` với `VNO_APP_ROOT=E:\VNOffice-codex-ft9`, `LOCALAPPDATA=E:\VNOffice-profiles\codex-ft9\python-localappdata`: **861 tests OK**, 502.437 giây; còn ResourceWarning hai pipe chưa đóng.
 - Batch `scripts/layout-audit/batch_document_audit.py docx` với nguồn `E:\VN OFice\file test\landocx`: **5/5 PASS**, edit PASS, page delta 0. d01 19/19; d07 23/23; d13 10/10; d20 3/3; d24 16/16. Báo cáo ở `E:\VNOffice-profiles\codex-ft9\batch-audit-final\batch_document_audit_report.md`.
 - Hạn chế tái hiện: header/footer First/Even chưa có vùng nhập riêng; Comment reply chưa có UI; gallery thiếu Subtitle/List Paragraph và lưu Title thành Body Text; shape chưa có sửa/xoay; Shift+Enter soft break không roundtrip; CDP parity của danh sách đa cấp chưa xác minh. Ngắt cột đã sửa và kiểm chứng giữ nội dung sau marker. Chi tiết và hướng xử lý nằm ở `docs/RIBBON-BACKLOG.md`.
+
+### FIX-T11 nhóm 1 — Trang đầu — 11/10/2026
+
+1. **App/CDP:** dùng chuột chọn đoạn và bấm ribbon cho Tăng/Giảm cỡ, Xóa định dạng, Sao chép định dạng, Giảm thụt lề, Tô nền, Sắp xếp, Hiện ký tự định dạng, Viền đoạn, Sao chép/Cắt/Dán và hai kiểu Dán đặc biệt; ảnh từng thao tác ở `E:\VNOffice-profiles\codex-ft11\t11_*.png`, DOCX ở cùng profile.
+2. **Word COM:** tạo fixture ba đoạn tương ứng, thực hiện lệnh và đọc lại cỡ/phông, thụt lề, nền đoạn, viền, thứ tự đoạn, ShowAll, định dạng đoạn thứ ba và nội dung. `t11_group1_compare.json` ghi **13/13 nút KHỚP**; clipboard thường và Dán đặc biệt nguồn giữ định dạng, Dán đặc biệt văn bản thuần đưa nội dung về Calibri 11 và giữ cùng đoạn như Word.
+3. **Kết quả/sửa:** Word tăng 12→14 pt và giảm 12→11 pt; app đã khớp. COM phát hiện khoảng trắng thiếu giữa hai câu khi Dán thường, đã sửa smart paste. Dán văn bản thuần trước đó biến xuống dòng định dạng nội bộ thành ngắt đoạn; serializer clipboard chuẩn hóa khoảng trắng và adapter ưu tiên text đã tuần tự hóa khi payload HTML cùng nội dung. Chạy lại CDP và COM sau sửa, không còn khác biệt. Help cụ thể cho các lệnh đã có trong `platform/help/entries-writer.js` và i18n VI/EN tương ứng.
+
+### FIX-T11 nhóm 2 — Chèn — 11/10/2026
+
+1. **App/CDP:** bấm ribbon Chèn và thao tác trên DOCX fixture riêng; ảnh `E:\VNOffice-profiles\codex-ft11\t11_*.png`. Kết quả sau mở lại bằng Word COM: Trang trắng 3 trang; Văn bản thành bảng 2×4; hyperlink giữ đoạn chọn và URL; bookmark `SectionStart`; Drop Cap 3 dòng; ngày `2026-10-11`; phương trình 1 OMath.
+2. **Word COM:** chạy lệnh tương ứng trong tài liệu mới rồi đọc thuộc tính: 3 trang, bảng 2×4, hyperlink + URL, bookmark cùng chữ hoa/thường, DropCap Position=1/3 dòng, ngày văn bản cùng giá trị, một OMath. Đầu ra DOCX app khớp ở cả 7 phép thử này. Word COM tạo biểu đồ native bị treo tại `InlineShapes.AddChart`; không kết luận PASS cho Chart/Diagram.
+3. **Kết quả/sửa:** CDP phát hiện `common.edit.hyperlink` và `writer.table.fromText` có implementation nhưng thiếu đăng ký CommandBus; đã thêm binding. Thao tác link phát hiện selection bị mất khi hộp thoại lấy focus, làm hyperlink bị thêm ở cuối tài liệu; adapter giờ chụp và khôi phục Range nên thay đúng vùng chọn. Bookmark trước đó đổi hoa/thường; `slugBookmarkName` giữ casing tên hợp lệ như Word. Tài liệu app có 0 đối tượng Chart/SmartArt native (0 InlineShapes/Shapes), nên `writer.chart.insert` và `writer.diagram.insert` ghi **LỆCH ĐÃ BIẾT**; chưa sửa serializer/OOXML.
+
+## FIX-T11 nhóm 3 — Thiết kế/Bố cục
+- CDP thật: theme Administrative (Times New Roman, line-height 22px), watermark `DỰ THẢO T11` đỏ 20%/45°/72px, nền #dbeafe, viền dashed 3 pt đỏ, line numbers mỗi trang, thụt đầu dòng 14.17 pt. Preview tích hợp hoàn tất trạng thái `Sẵn sàng in.`, 1 trang A4 dọc.
+- Word COM mở các DOCX do app lưu: màu nền, viền trang (dashed, 3 pt, #dc2626), khổ A4 và first-line indent (14.15 pt) khớp. Sửa giữ vùng chọn khi bấm select thụt đầu dòng.
+- Lệch đo được: theme Administrative không thành theme Word; watermark được nhập thành dòng text thường; Word COM không thấy numbering type dù app lưu cấu hình `page`. Đánh dấu LỆCH ĐÃ BIẾT.
+- PDF: chưa có phép đo byte/page size từ file PDF của app; Xuất PDF gọi hộp thoại Save native, không điều khiển được bằng CDP. Word COM print preview không có giao diện cùng cơ chế để so trực tiếp. Ma trận ghi rõ giới hạn, không tính là PASS.
+
+## FIX-T11 nhóm 4 — Tham chiếu
+- CDP qua ribbon Tham chiếu: thêm nguồn (tác giả, tiêu đề, năm, nhà xuất bản, URL), chọn MLA, chèn trích dẫn và Works Cited; lưu DOCX.
+- Word COM mở DOCX app: có `(Nguyễn)`, `Works Cited`, tiêu đề nguồn, nhà xuất bản và năm; 1 trang. Ma trận đánh dấu 4 lệnh KHỚP.
+
+## FIX-T11 nhóm 5 — Trộn thư
+- CDP: nhập CSV 2 người nhận (Name/City/VIP), chèn trường Name và quy tắc VIP=yes → “Ưu tiên”, xem bản ghi 1→2→1, hoàn tất toàn bộ; tạo phong bì và nhãn từ cùng nguồn.
+- Sửa lỗi: Hoàn tất khi preview bật trước đây kiểm tra HTML đã thay thế nên bỏ qua hộp chọn kiểu/phạm vi. Giờ kiểm tra mẫu gốc, hộp chọn vẫn xuất hiện; gửi hoàn tất toàn bộ sinh 2 bản.
+- Word COM: DOCX có cả hai tên, kết quả hai nhánh điều kiện, không còn Name/VIP chưa thay, 2 trang; bản phong bì/nhãn giữ đủ hai địa chỉ, 1 bảng nhãn. Ma trận đánh dấu 9 nút KHỚP.
+
+## FIX-T11 nhóm 6 — Đánh giá/Xem
+- CDP: kiểm tra chính tả đổi ON/OFF; Đếm từ mở đúng số liệu; chế độ đọc thoát bằng Esc; bố trí Web/In; ngăn dẫn hướng; ẩn/hiện thước ngang+dọc và lưới; zoom 110%→100%→100%; macro ghi tên `T11 Macro`, chạy lại lệnh zoom 100%→110%. Mẫu ngắn (11 từ, 48 ký tự không khoảng trắng, 56 có khoảng trắng, 3 đoạn/dòng) khớp Word COM chính xác.
+- Batch Word COM và app trên d01,d02,d06,d07,d13,d20,d24: từ và ký tự không khoảng trắng gần khớp. Ký tự có khoảng trắng còn lệch (app − Word): d01 −200 (−0.53%), d02 −62 (−0.26%), d06 −1061 (−51.58%), d07 −632 (−1.70%), d13 −107 (−0.67%), d20 −414 (−4.72%). d24 là tài liệu ảnh/đối tượng, Word trả 0 từ và −2 ký tự có khoảng trắng; app trả 0 cho cả hai. Không đưa thay đổi đếm thô vì thử nghiệm tăng sai số ở các tệp còn lại.
+- Ma trận giữ Đếm từ ở LỆCH ĐÃ BIẾT với số đo; không đánh dấu hoàn tất. Đã kiểm tra menu Macro qua giao diện; macro cơ bản ghi lại lệnh Command Bus và phát lại được.
+- Word COM riêng xác nhận trạng thái tương đương cho spellcheck, read/web/print, navigation pane, thước ngang/dọc, gridlines và zoom 110%→100%; phép thử tương ứng nằm ở `scripts/audit-0610/word_parallel/group6-t11-view-word.ps1`. Hai nút Macro còn CHƯA ĐỐI CHIẾU với Word COM nên giữ trạng thái đó trong ma trận.
+- `npm test`: lần đầu 3036/3067 PASS do constructor Writer gọi `document.addEventListener` trên document giả không có API này; đã thêm kiểm tra API trước khi gắn listener. Chạy lại sau sửa: 3072/3072 PASS.
+- `python -m unittest discover -s tests`: 864 tests OK (591.186s); có hai `ResourceWarning` về pipe chưa đóng, không có lỗi test.
+- Encoding sweep cho 26 đường dẫn thuộc thay đổi: UTF-8, không BOM, không phát hiện mojibake. `git diff --check` sạch.
+
+### Round-trip batch DOCX
+- `scripts/layout-audit/batch_document_audit.py docx` với đầu vào junction `file test/landocx` và profile tách biệt: d01,d02,d06,d07,d13,d20,d24 đều mở/lưu qua app, Word COM xác nhận số trang không đổi và thao tác sửa đã lưu: 7/7 PASS, 0 FAIL/BLOCKED. Báo cáo đầy đủ ở profile `E:\VNOffice-profiles\codex-ft11\batch-audit\batch_document_audit_report.md`.
+## Kế hoạch FIX-T10 — 11/10/2026
+
+- **Mục tiêu:** bổ sung reply comment roundtrip DOCX/Word COM; đưa gallery Title/Subtitle/Quote/List Paragraph về built-in style semantics/format của Word; phân loại lại các gap T9 còn lại.
+- **Năng lực hiện tại:** resolve comment đã có `commentsExtended.xml`; gallery có Home/Heading/Quote nhưng semantic Title và hai card còn thiếu. Footnote/endnote đã khớp trong phép T9; multilevel UI/COM là NOT RUN; shape chỉ đo lúc tạo.
+- **Files/modules:** Writer adapter/UI/ribbon, `ooxml_zip_patch.py`, Help+i18n, unit tests, CDP+Word COM harnesses, báo cáo audit và backlog. Không sửa LibreOffice Core, không thêm dependency.
+- **Dependency/risk:** dùng LibreOffice/Word COM tại máy; Word có yêu cầu cấu trúc reply gồm comment range riêng, paraIdParent và author record; style format phụ thuộc theme/default Word.
+- **Test/rollback:** CDP mouse+keyboard và ảnh, Word COM đọc DOCX app/đối chứng; unittest, `npm test`, batch DOCX d01/d02/d06/d07/d13/d20/d24. Mỗi nhóm commit riêng; revert nhóm nếu roundtrip hồi quy.
+
+## FIX-T10 — Reply nhận xét và Thư viện kiểu — 11/10/2026
+
+- **Reply comment — PASS:** tab **Đánh giá > Ghi chú > Trả lời nhận xét** mở hộp nhập; ảnh CDP `E:\VNOffice-profiles\codex-ft10\comments-reply-t10.png`. Lưu `comments-reply-t10.docx`; Word COM đọc `Comments.Count=2`, nhận parent `Parent comment`, `Replies.Count=1`, nội dung `Reply body`. DOCX chứa `commentsExtended.xml` với `w15:paraIdParent`; hướng dẫn VI và nhãn VI/EN đã cập nhật. Harness Word COM cũng tạo tài liệu đối chứng cùng cấu trúc.
+- **Thư viện kiểu — PASS:** qua **Trang đầu > Thư viện kiểu**, áp dụng Title, Subtitle, Quote, List Paragraph bằng CDP mouse và lưu DOCX; ảnh `E:\VNOffice-profiles\codex-ft10\styles-gallery-t10.png`. Word COM so với tài liệu dựng bằng Word: style name, font, cỡ, bold/italic và căn lề khớp lần lượt: Title (Calibri Light, 28 pt), Subtitle (Calibri, 11 pt), Quote (Calibri, 11 pt, italic, centered), List Paragraph (Calibri, 11 pt, left). Subtitle/List Paragraph có card; tiêu đề/Quote giữ Word built-in style IDs.
+- **Giới hạn còn lại (không suy rộng từ phép đo khác):** footnote/endnote **T9 COM PASS**, nhưng phép T10 **NOT RUN**; danh sách nhiều cấp serializer **PASS**, UI/Word COM **NOT RUN**; hình khối mới có fill/line **T9 COM PASS**, sửa fill/line sau khi tạo và xoay **thiếu luồng UI / NOT RUN**. Chi tiết và trạng thái backlog đã cập nhật.
+- **Commits:** Style gallery `3a9e1acb`; reply comment `072851ac`.
+- **Word COM:** app và tài liệu dựng bằng Word khớp tên style và thuộc tính đo; reply thread app/Word đều đọc parent + một reply. CDP dùng chuột/phím thật, không dùng SendKeys/OS input. PID app mới được đóng theo PID; ảnh và DOCX ở `E:\VNOffice-profiles\codex-ft10`.
+- **Kiểm tra cuối:** `python -m unittest discover -s tests`: **869 tests OK** (466.959 giây); `npm test`: **3069/3071 PASS, 2 FAIL**; batch DOCX **7/7 PASS**, mọi fixture edit PASS, Word/saved page counts khớp. Chi tiết 2 lỗi npm: test cũ vẫn đòi Title 26pt/căn giữa thay cho built-in đo bằng Word COM 28pt/căn trái; scanner tên sản phẩm phát hiện nội dung release notes 0.9.10 ngoài phạm vi. Không sửa test/release notes.
+- **Build:** NOT RUN (không nằm trong lệnh xác minh được yêu cầu).
+- **Artifact CDP/COM:** `comments-reply-t10.png`, `styles-gallery-t10.png`, `comments-reply-t10.docx`, `styles-gallery-t10.docx`; PID gần nhất của harness gallery `15520`. Batch report: `E:\VNOffice-profiles\codex-ft10\batch-audit-final\batch_document_audit_report.md`.
+- **Commits:** Style gallery `3a9e1acb`; reply comment `072851ac`; style/Help compatibility `0b66ca71`; hồ sơ audit/handoff commit riêng.

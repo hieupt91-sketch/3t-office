@@ -1,0 +1,147 @@
+"""Generate the Slides ribbon button comparison matrix from the scan JSON.
+
+Usage: python -X utf8 scripts/audit-0610/gen_slides_button_matrix.py \
+    docs/ribbon-scan-slides-1011.json docs/SLIDES-BUTTON-MATRIX-1011.md
+"""
+import json
+import sys
+from collections import Counter
+from pathlib import Path
+
+
+MATCH = "KHỚP POWERPOINT"
+INTENTIONAL = "KHÁC CÓ CHỦ Ý"
+KNOWN_GAP = "LỆCH ĐÃ BIẾT"
+UNCHECKED = "CHƯA ĐỐI CHIẾU"
+
+# Each entry is scoped to what the cited COM and app evidence actually measured.
+# A result for one value/fixture is not generalized to the entire feature.
+EVIDENCE = {
+    "slides.slide.new": (MATCH, "FIX-L8: CDP bấm Trang mới, model tăng 10→11; PowerPoint COM đọc 11 slide trong PPTX đã lưu. [Ảnh](tickets-0710/evidence/fix-l8/home/slide-new.png), [COM](tickets-0710/evidence/fix-l8/home/slide-new-readback.json)"),
+    "slides.slide.delete": (MATCH, "FIX-L8: CDP xóa trang mới vừa tạo; model giảm 11→10; PowerPoint COM đọc 10 slide trong PPTX đã lưu. [Ảnh](tickets-0710/evidence/fix-l8/home/slide-delete.png), [COM](tickets-0710/evidence/fix-l8/home/slide-delete-readback.json)"),
+    "slides.para.alignLeft": (MATCH, "FIX-L8: CDP chọn Căn phải rồi bấm Căn trái; PowerPoint COM đọc Paragraph.Alignment=1 (left). [Ảnh](tickets-0710/evidence/fix-l8/home/align-left.png), [COM](tickets-0710/evidence/fix-l8/home/align-left-readback.json)"),
+    "common.edit.cut": (MATCH, "FIX-L8: CDP bôi đen toàn văn bản, bấm Cắt; PowerPoint COM đọc lại văn bản rỗng và số shape giữ nguyên 5. Nút giữ focus vùng chữ trước lệnh cắt. [CDP](tickets-0710/evidence/fix-l8/home/clipboard-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/home/clipboard-cut-readback.json)"),
+    "common.edit.copy": (MATCH, "FIX-L8: CDP bôi đen toàn văn bản, bấm Sao chép; clipboard cục bộ giữ đúng văn bản/HTML và vùng chọn còn nguyên. [CDP](tickets-0710/evidence/fix-l8/home/clipboard-cdp-readback.json)"),
+    "common.edit.paste": (MATCH, "FIX-L8: CDP sao chép rồi dán vào vùng chữ đang chọn; nội dung được thay đúng trong textbox, không thêm shape. PowerPoint COM đọc lại nguyên văn và 5 shape. Đã bỏ marker CF_HTML trước khi chèn HTML. [CDP](tickets-0710/evidence/fix-l8/home/clipboard-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/home/clipboard-paste-readback.json)"),
+    "common.edit.find": (MATCH, "FIX-L8: CDP tìm ROAD TRIP trong tiêu đề; model có matchIndex=10, matchLength=9. PowerPoint COM Find trả về đúng chuỗi ROAD TRIP trên PPTX đã lưu. [CDP](tickets-0710/evidence/fix-l8/home/find-replace-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/home/find-replace-readback.json)"),
+    "common.edit.replace": (MATCH, "FIX-L8: CDP Thay thế tất cả Your Name→Presenter báo 2 lần thay; PowerPoint COM đọc shape 2 là Presenter • Sept 20XX. [CDP](tickets-0710/evidence/fix-l8/home/find-replace-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/home/find-replace-readback.json)"),
+    "slides.color.highlight": (MATCH, "FIX-L8: CDP bôi đen tiêu đề và bấm Màu nền chữ; PowerPoint COM đọc Highlight.RGB=52735 so với baseline 1894392. [Ảnh](tickets-0710/evidence/fix-l8/home/highlight.png), [COM](tickets-0710/evidence/fix-l8/home/highlight-readback.json), [no-op](tickets-0710/evidence/fix-l8/home/noop-readback.json)"),
+    "slides.font.family": (MATCH, "FIX-L4: chỉnh sửa văn bản trong deck thật; tập font hiển thị trước/sau qua PowerPoint COM đều là Calibri, Calibri Light. Alias Arial1 được unit test, không có trong deck nguồn. [FIX-L4 audit](AUDIT-SLIDES-OFFICE-PARITY-1011.md#kết-quả-đã-đo)"),
+    "slides.font.size": (MATCH, "FIX-L4: chuỗi đổi cỡ chữ trong app; PowerPoint COM đọc cỡ cuối 18 pt. [FIX-L4 audit](AUDIT-SLIDES-OFFICE-PARITY-1011.md#kết-quả-đã-đo)"),
+    "slides.font.grow": (MATCH, "FIX-L4: app chạy thang 18→20→24→28→32→36 pt; COM đọc cỡ cuối 18 pt sau cả chuỗi tăng/giảm. [FIX-L4 audit](AUDIT-SLIDES-OFFICE-PARITY-1011.md#kết-quả-đã-đo)"),
+    "slides.font.shrink": (MATCH, "FIX-L4: app chạy thang giảm theo điểm chuẩn PowerPoint; COM đọc cỡ cuối 18 pt sau cả chuỗi tăng/giảm. [FIX-L4 audit](AUDIT-SLIDES-OFFICE-PARITY-1011.md#kết-quả-đã-đo)"),
+    "slides.text.bold": (MATCH, "FIX-L4: thao tác trong app; PowerPoint COM đọc Bold=true trên textbox audit. [FIX-L4 audit](AUDIT-SLIDES-OFFICE-PARITY-1011.md#kết-quả-đã-đo)"),
+    "slides.text.italic": (MATCH, "FIX-L7: CDP chọn toàn văn bản, bấm Nghiêng; COM đọc TextRange2.Font.Italic=-1. [Ảnh CDP](tickets-0710/evidence/fix-l7/text/italic.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-text-readback.json)"),
+    "slides.text.underline": (MATCH, "FIX-L7: CDP chọn toàn văn bản, bấm Gạch chân; COM đọc Font.Underline=-1. [Ảnh CDP](tickets-0710/evidence/fix-l7/text/underline.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-text-readback.json)"),
+    "slides.text.strike": (MATCH, "FIX-L7: CDP chọn toàn văn bản, bấm Gạch ngang; PowerPoint COM TextFrame2.Font.Strike=1. [Ảnh CDP](tickets-0710/evidence/fix-l7/text/strike.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-text-readback.json)"),
+    "slides.text.clearFormat": (MATCH, "FIX-L7: CDP bấm Đậm rồi Xóa định dạng; PowerPoint COM đọc Bold=0, Italic=0, Underline=0, Strike=0. [Ảnh CDP](tickets-0710/evidence/fix-l7/text/clearFormat.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-text-readback.json)"),
+    "slides.color.text": (MATCH, "FIX-L7/FIX-L5: CDP áp màu chữ mặc định; PowerPoint COM đọc RGB=255. [Ảnh CDP](tickets-0710/evidence/fix-l7/text/colorDefault.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-text-readback.json)"),
+    "slides.para.alignCenter": (MATCH, "FIX-L4: thao tác trong app; PowerPoint COM đọc Alignment=2 (center). [FIX-L4 audit](AUDIT-SLIDES-OFFICE-PARITY-1011.md#kết-quả-đã-đo)"),
+    "slides.para.alignRight": (MATCH, "FIX-L7: CDP bấm Căn phải; PowerPoint COM đọc Paragraph.Alignment=3. [Ảnh CDP](tickets-0710/evidence/fix-l7/text/alignRight.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-text-readback.json)"),
+    "slides.para.justify": (MATCH, "FIX-L7: CDP bấm Căn đều; PowerPoint COM đọc Paragraph.Alignment=4. [Ảnh CDP](tickets-0710/evidence/fix-l7/text/alignJustify.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-text-readback.json)"),
+    "slides.para.indentInc": (MATCH, "FIX-L7 sửa: CDP tăng thụt lề; lưu PPTX, PowerPoint COM đọc LeftIndent=36 pt và IndentLevel=2. [Ảnh CDP](tickets-0710/evidence/fix-l7/text/indentInc.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-text-readback.json)"),
+    "slides.para.indentDec": (MATCH, "FIX-L8: CDP tăng thụt lề rồi giảm thụt lề trên cùng vùng chữ; PowerPoint COM đọc lại TextFrame2.LeftIndent=0 pt, khớp baseline 0 pt, và 5 shape giữ nguyên. [CDP](tickets-0710/evidence/fix-l8/home/indent-dec-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/home/indent-dec-readback.json)"),
+    "slides.list.bullet": (MATCH, "FIX-L7: CDP bật dấu đầu dòng; PowerPoint COM đọc Bullet.Visible=-1, Type=1. [Ảnh CDP](tickets-0710/evidence/fix-l7/text/bullet.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-text-readback.json)"),
+    "slides.list.numbered": (MATCH, "FIX-L7: CDP bật đánh số; PowerPoint COM đọc Bullet.Visible=-1, Type=2. [Ảnh CDP](tickets-0710/evidence/fix-l7/text/numbered.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-text-readback.json)"),
+    "slides.shape.insert": (MATCH, "FIX-L6: chèn shape trong app, lưu/mở bằng PowerPoint; COM đọc shape cùng fill/line RGB, kích thước và rotation được đo. [FIX-L6 results](tickets-0710/FIX-L6-RESULTS.md#kiểm-tra)"),
+    "slides.text.insert": (MATCH, "FIX-L6: chèn textbox trong app, lưu/mở bằng PowerPoint COM; đọc được đối tượng msoTextBox. [FIX-L6 results](tickets-0710/FIX-L6-RESULTS.md#kiểm-tra)"),
+    "slides.image.insert": (MATCH, "FIX-L6: chèn ảnh trong app, lưu/mở bằng PowerPoint COM; đọc được đối tượng ảnh. [FIX-L6 results](tickets-0710/FIX-L6-RESULTS.md#kiểm-tra)"),
+    "slides.insert.table": (MATCH, "FIX-L6: chèn bảng trong app, lưu/mở bằng PowerPoint COM; đọc được bảng 3×3. [FIX-L6 results](tickets-0710/FIX-L6-RESULTS.md#kiểm-tra)"),
+    "slides.insert.headerFooter": (MATCH, "FIX-L12: CDP bật ngày, số trang và footer chỉ cho trang 3; COM mở PPTX đọc SlideNumber.Visible=-1, DateAndTime.Visible=-1, Footer.Visible=-1 cùng chữ footer. Trang 1–2 giữ cả ba Visible=0. [L9 CDP](tickets-0710/evidence/fix-l12/cdp-fix-l9.json), [COM](tickets-0710/evidence/fix-l12/fix-l9-com-readback.json)"),
+    "slides.insert.dateTime": (MATCH, "FIX-L12: CDP chọn dd/MM/yyyy cho riêng trang 3; COM đọc DateAndTime.Visible=-1, Format=14, ngày hiển thị 12/10/2026. Hai trang còn lại không có placeholder ngày. [L9 CDP](tickets-0710/evidence/fix-l12/cdp-fix-l9.json), [COM](tickets-0710/evidence/fix-l12/fix-l9-com-readback.json)"),
+    "slides.insert.slideNumber": (MATCH, "FIX-L12: CDP bật số trang cho riêng trang 3; COM đọc SlideNumber.Visible=-1 và placeholder tự hiển thị số `3`. Trang 1–2 không bị thêm trường. [L9 CDP](tickets-0710/evidence/fix-l12/cdp-fix-l9.json), [COM](tickets-0710/evidence/fix-l12/fix-l9-com-readback.json)"),
+    "slides.insert.wordart": (KNOWN_GAP, "FIX-L14: PowerPoint COM đọc shape VN Slides là Type=17, TextEffect.Text có chữ nhưng PresetTextEffect=-2. Thử lại đường ODF Fontwork có `a:prstTxWarp textFadeRight`; PowerPoint vẫn đọc Type=17/PresetTextEffect=-2. COM AddTextEffect trong phiên Product Activation Failed cũng chỉ tạo Type=1, không có warp nên không làm được mẫu native để kết luận cách chuyển sang Type=15. Không nhận là native WordArt. [L14 COM/XML](tickets-0710/evidence/fix-l14/pptx-native-com-comparison.json), [Fontwork probe](tickets-0710/evidence/fix-l14/fontwork-reuse-probe.json), [L14 COM call](tickets-0710/evidence/fix-l14/addtext-effect-enum-probe.json)"),
+    "slides.design.slideSize": (MATCH, "FIX-L8: CDP đổi Wide 16:9 sang Standard 4:3; PowerPoint COM đọc PageSetup=720×540 pt (25.4×19.05 cm) sau khi mở PPTX, cùng model. [CDP](tickets-0710/evidence/fix-l8/design/design-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/design/design-readback.json)"),
+    "slides.design.formatBackground": (MATCH, "FIX-L8: CDP chọn nền gradient ngang (#1e3a8a→#ffffff); PowerPoint COM đọc Fill.Type=3 và RGB=9058846 (#1e3a8a) sau khi mở PPTX. [CDP](tickets-0710/evidence/fix-l8/design/design-cdp-readback.json), [COM](tickets-0710/evidence/fix-l8/design/design-readback.json)"),
+    "slides.insert.chart": (MATCH, "FIX-L6: chèn chart trong app, lưu/mở bằng PowerPoint COM; đọc được đối tượng chart (ChartType 51). [FIX-L6 results](tickets-0710/FIX-L6-RESULTS.md#kiểm-tra)"),
+    "slides.insert.symbol": (MATCH, "FIX-L12: nhấp ™ trong bộ chọn ký hiệu khi WordArt đang chọn; model và PPTX giữ nguyên văn bản kèm ™. PowerPoint COM đọc lại ký tự trong nội dung shape sau khi mở file đã lưu. [CDP](tickets-0710/evidence/fix-l12/office-compare-cdp.json), [COM](tickets-0710/evidence/fix-l12/office-compare-com-readback.json)"),
+    "slides.media.insertVideo": (MATCH, "FIX-L12: chọn tệp video bằng input của app qua CDP, lưu PPTX; PowerPoint COM đọc shape Type=16 (Media), MediaType=3 (video). [CDP](tickets-0710/evidence/fix-l12/cdp-media.json), [COM](tickets-0710/evidence/fix-l12/fix-l10-media-com-readback.json)"),
+    "slides.media.insertAudio": (MATCH, "FIX-L12: chọn tệp âm thanh bằng input của app qua CDP, lưu PPTX; PowerPoint COM đọc shape Type=16 (Media), MediaType=2 (audio). [CDP](tickets-0710/evidence/fix-l12/cdp-media.json), [COM](tickets-0710/evidence/fix-l12/fix-l10-media-com-readback.json)"),
+    "slides.edit.formatPainter": (MATCH, "FIX-L10: CDP chọn toàn văn bản tiêu đề, bấm Sao chép định dạng rồi nhấp đúp vào phụ đề. App áp Oswald 48 pt, màu và highlight; PowerPoint COM đọc lại textbox đích là Oswald 48 pt, RGB/highlight khớp nguồn, với 10 slide/5 shape. [CDP](tickets-0710/evidence/fix-l10/home/format-painter-cdp-readback.json), [COM](tickets-0710/evidence/fix-l10/home/format-painter-readback.json)"),
+    "slides.layout.reset": (MATCH, "FIX-L12: sau khi áp Hai nội dung, bấm Đặt lại trong ribbon; model vẫn ở `two-content`, PowerPoint COM đọc Layout=3 và ba placeholder. [CDP](tickets-0710/evidence/fix-l12/office-compare-cdp.json), [COM](tickets-0710/evidence/fix-l12/office-compare-com-readback.json)"),
+    "slides.para.lineSpacing": (MATCH, "FIX-L14: CDP chọn văn bản trong textbox, nhấn Space rồi mũi tên xuống/Enter tại Giãn dòng để đổi 1.0→1.5; HTML đã lưu có `line-height:1.725`. PowerPoint COM đọc PPTX xuất ra, `ParagraphFormat.LineRuleWithin=-1`, `SpaceWithin=1.5`. [CDP JSON](tickets-0710/evidence/fix-l14/lineSpacing-cdp-readback.json), [ảnh](tickets-0710/evidence/fix-l14/lineSpacing.png), [COM](tickets-0710/evidence/fix-l14/lineSpacing-com-readback.json)"),
+    "slides.diagram.insert": (INTENTIONAL, "FIX-L12: sơ đồ tạo thành nhóm 7 shape; CDP chọn cả nhóm bằng cách nhấp một node và kéo cả cụm, COM đọc Shape.Type=6/GroupItems.Count=7 sau lưu. SmartArt native không có mô hình tạo trong luồng ODF của LibreOffice Impress; tạo đối tượng đó cần các DrawingML diagram data/layout/style parts và relationships riêng. [CDP](tickets-0710/evidence/fix-l12/office-compare-cdp.json), [COM](tickets-0710/evidence/fix-l12/office-compare-com-readback.json), [giới hạn](tickets-0710/evidence/fix-l12/smartart-com-readback.json)"),
+    "slides.design.themeGallery": (MATCH, "FIX-L12: chọn `minimal-dark`; sau mở PPTX, PowerPoint COM đọc Design.Name=`Than Chì Hiện Đại`, Major/Minor font `system-ui` (fallback DejaVu Sans), và theme scheme có các màu #CBD5E1/#0F172A/#F8FAFC/#38BDF8 phù hợp mẫu. [CDP](tickets-0710/evidence/fix-l12/office-compare-cdp.json), [COM](tickets-0710/evidence/fix-l12/office-compare-com-readback.json)"),
+    "slides.layout.apply": (MATCH, "FIX-L12: áp Hai nội dung từ ribbon, sau lưu PowerPoint COM đọc `Slide.Layout=3`; bố cục và ba placeholder tiếp tục còn sau lệnh Đặt lại. [CDP](tickets-0710/evidence/fix-l12/office-compare-cdp.json), [COM](tickets-0710/evidence/fix-l12/office-compare-com-readback.json)"),
+    "slides.transition.apply": (KNOWN_GAP, "FIX-L14: PowerPoint COM đọc `<p:zoom dir=\"out\"/>` là `EntryEffect=3073` (`ppEffectBoxOut`). Enum `ppEffectZoomIn/Out/Center` (3345–3350) đều bị từ chối cho `EntryEffect`; phiên Product Activation Failed không cung cấp UI label/mẫu Zoom native để xác định mapping khác. Giữ lệch đã biết. [L14 CDP+XML](tickets-0710/evidence/fix-l14/pptx-native-com-comparison.json), [COM](tickets-0710/evidence/fix-l14/app-com-readback.json), [enum probe](tickets-0710/evidence/fix-l12/transition-enum-com.json)"),
+    "slides.animation.apply": (MATCH, "FIX-L6 sau sửa adapter: PowerPoint COM đọc lại Fade, Fade, Fly đúng thứ tự; EffectType 10,10,2, TriggerType=click, duration 0.8/0.8/0.5 s. Chưa suy rộng tới mọi preset. [FIX-L6 results](tickets-0710/FIX-L6-RESULTS.md#kiểm-tra)"),
+    "slides.slide.toggleHidden": (MATCH, "FIX-L5/L6: ẩn slide qua lệnh app; PowerPoint COM đọc Hidden=-1 và PPTX có show=0. [FIX-L5 handoff](AGENT-HANDOFF-FIX-L5-CODEX.md), [FIX-L6 results](tickets-0710/FIX-L6-RESULTS.md#kiểm-tra)"),
+    "slides.slide.duplicate": (MATCH, "FIX-L7: CDP nhân đôi slide, thêm textbox/shape và Fade; sau mở lại, PowerPoint COM đọc 11 slide, nội dung mới trên slide 2 và transition EntryEffect=3849/0.5 s. [Ảnh trước lưu](tickets-0710/evidence/fix-l7/fix-l7-roundtrip-before-save.png), [Ảnh mở lại](tickets-0710/evidence/fix-l7/fix-l7-roundtrip-after-open.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-roundtrip-readback.json)"),
+    "slides.notes.toggle": (MATCH, "FIX-L4/L6: ghi chú diễn giả nhập qua app; PowerPoint COM đọc lại đúng nội dung. [FIX-L4 audit](AUDIT-SLIDES-OFFICE-PARITY-1011.md), [FIX-L6 results](tickets-0710/FIX-L6-RESULTS.md#kiểm-tra)"),
+    "slides.animation.pane": (MATCH, "FIX-L7: CDP mở Ngăn hoạt hình, đổi thứ tự hai hiệu ứng; PowerPoint COM đọc lại Fly In trước Fade In, đúng model sau thao tác. [Ảnh trước](tickets-0710/evidence/fix-l7/animation-pane-before-order.png), [Ảnh sau](tickets-0710/evidence/fix-l7/animation-pane-after-order.png), [COM](tickets-0710/evidence/fix-l7/powerpoint-controls-readback.json)"),
+    "slides.master.apply": (MATCH, "FIX-L12: qua hộp Mẫu Slide Master chọn Than Chì Hiện Đại; PowerPoint COM mở PPTX đọc đúng Design.Name, theme palette và font scheme. [CDP](tickets-0710/evidence/fix-l12/office-compare-cdp.json), [COM](tickets-0710/evidence/fix-l12/office-compare-com-readback.json)"),
+    "slides.show.startFromBegin": (UNCHECKED, "L14 CDP vẫn xác nhận Từ đầu mở overlay ở trang 1/10 và Esc thoát. PowerPoint COM `SlideShowSettings.Run()` trả object không có `View`; `SlideShowWindows.Count=0`, không đọc được CurrentShowPosition. Giữ CHƯA ĐỐI CHIẾU. [CDP](tickets-0710/evidence/fix-l13/show/show-cdp-readback.json), [COM](tickets-0710/evidence/fix-l14/com-audit.json)"),
+    "slides.show.startFromCurrent": (UNCHECKED, "L14 CDP vẫn xác nhận Từ trang này mở overlay ở trang 2/10. `SlideShowSettings.Run()` của PowerPoint COM không trả `View`/SlideShowWindow khả dụng; không đo được CurrentShowPosition. Giữ CHƯA ĐỐI CHIẾU. [CDP](tickets-0710/evidence/fix-l13/show/show-cdp-readback.json), [COM](tickets-0710/evidence/fix-l14/com-audit.json)"),
+    "slides.show.presenterMode": (UNCHECKED, "L14 CDP mở `.vno-presenter-overlay` tại trang 2 rồi đóng được. PowerPoint COM đặt `ShowPresenterView=true`, nhưng không tạo được SlideShowWindow có View để xác minh chế độ Presenter đang chạy. [CDP](tickets-0710/evidence/fix-l13/show/show-cdp-readback.json), [COM](tickets-0710/evidence/fix-l14/com-audit.json)"),
+    "slides.show.setupShow": (MATCH, "FIX-L10: CDP bật `Lặp lại liên tục đến khi nhấn Esc` trong Thiết lập trình chiếu và lưu PPTX. PowerPoint COM đọc `SlideShowSettings.LoopUntilStopped=-1`; `ShowWithNarration=-1` khớp trạng thái không tắt thuyết minh. [CDP](tickets-0710/evidence/fix-l10/show/show-cdp-readback.json), [COM](tickets-0710/evidence/fix-l10/show/show-readback.json)"),
+    "slides.show.rehearseTimings": (UNCHECKED, "L13 CDP mở chế độ tập dượt tại trang 2. PowerPoint COM không tạo được SlideShowWindow có View nên không đo được thời gian tập dượt sau khi thoát; giữ CHƯA ĐỐI CHIẾU. [CDP](tickets-0710/evidence/fix-l13/show/show-cdp-readback.json), [COM](tickets-0710/evidence/fix-l14/com-audit.json)"),
+    "slides.review.commentInsert": (MATCH, "FIX-L10: CDP tạo hai nhận xét ở tab Đánh giá. PowerPoint COM đọc 2 `Slide.Comments` với đúng tác giả/nội dung; hàng cùng ID ở tab Chèn dùng chung kết quả. [CDP](tickets-0710/evidence/fix-l10/review/comments-cdp-readback.json), [COM](tickets-0710/evidence/fix-l10/review/comments-readback.json)"),
+    "slides.review.commentDelete": (MATCH, "FIX-L10: CDP xóa Beta sau khi lưu bản 2 nhận xét; PowerPoint COM đọc bản sau xóa còn đúng Alpha (1 nhận xét), 10 slide/5 shape. [CDP](tickets-0710/evidence/fix-l10/review/comments-cdp-readback.json), [COM](tickets-0710/evidence/fix-l10/review/comments-readback.json)"),
+    "slides.review.commentNext": (UNCHECKED, "L14 PowerPoint COM thêm/đọc được hai `Slide.Comments`, nhưng command điều hướng không có label Mso khả dụng và Selection không cho biết comment đang chọn; giữ CHƯA ĐỐI CHIẾU. [CDP](tickets-0710/evidence/fix-l13/review/comments-cdp-readback.json), [COM](tickets-0710/evidence/fix-l14/com-audit.json)"),
+    "slides.review.commentPrevious": (UNCHECKED, "L14 PowerPoint COM thêm/đọc được hai `Slide.Comments`, nhưng command điều hướng không có label Mso khả dụng và Selection không cho biết comment đang chọn; giữ CHƯA ĐỐI CHIẾU. [CDP](tickets-0710/evidence/fix-l13/review/comments-cdp-readback.json), [COM](tickets-0710/evidence/fix-l14/com-audit.json)"),
+    "slides.review.commentResolve": (UNCHECKED, "L14 comment legacy của PowerPoint đọc `Resolved=false` nhưng không có property `Resolved` để đổi; chưa xác minh hành vi resolve tương đương. [CDP](tickets-0710/evidence/fix-l13/review/comments-cdp-readback.json), [COM](tickets-0710/evidence/fix-l14/com-audit.json)"),
+    "slides.review.spellCheck": (UNCHECKED, "L13 CDP mở kiểm tra chính tả, báo hoàn tất và đóng bằng Esc. L14 không mở dialog kiểm lỗi qua COM vì không có đường dismiss dialog không dùng OS input; chưa so sánh hành vi Office. [CDP](tickets-0710/evidence/fix-l13/review/spellcheck-cdp-readback.json), [COM context](tickets-0710/evidence/fix-l14/com-audit.json)"),
+    "slides.review.toggleSpellCheck": (UNCHECKED, "L13 CDP xác nhận bật→tắt→bật và lưu. PowerPoint COM không cung cấp trạng thái gạch đỏ/toggle tương đương đã đo; giữ CHƯA ĐỐI CHIẾU. [CDP](tickets-0710/evidence/fix-l13/review/spellcheck-cdp-readback.json), [COM](tickets-0710/evidence/fix-l14/com-audit.json)"),
+    "slides.view.newWindow": (INTENTIONAL, "FIX-L13: desktop CDP bấm nút, command trả `false` và số page giữ 1; cửa sổ hiện tại giữ nguyên deck. VN Slides chỉ có một WebView cho deck đang mở trong mỗi cửa sổ ứng dụng; PowerPoint có thể tạo thêm DocumentWindow cho cùng presentation. Khác biệt tiện ích giao diện đã biết. [CDP](tickets-0710/evidence/fix-l13/view/view-macro-cdp-readback.json)"),
+    "common.macro.recordToggle": (INTENTIONAL, "FIX-L13: bộ ghi lưu lệnh VN Slides thành macro cục bộ của ứng dụng; không ghi VBA project vào PPTX và không chạy mã VBA trong PowerPoint. CDP xác nhận indicator bật khi ghi, Phóng to được ghi, indicator tắt khi dừng và macro xuất hiện trong danh sách. [CDP](tickets-0710/evidence/fix-l13/view/view-macro-cdp-readback.json)"),
+    "common.macro.manager": (INTENTIONAL, "FIX-L13: Quản lý Macro liệt kê các macro cục bộ của VN Office; không quản lý thư viện VBA của PowerPoint. CDP mở danh sách và thấy macro vừa ghi trong ứng dụng. [CDP](tickets-0710/evidence/fix-l13/view/view-macro-cdp-readback.json)"),
+    "slides.view.normal": (MATCH, "FIX-L14: CDP chuyển về `presentationView=normal`; PowerPoint COM đặt/đọc `ActiveWindow.ViewType=9` (`ppViewNormal`). [CDP](tickets-0710/evidence/fix-l13/view/view-help-cdp-readback.json), [COM](tickets-0710/evidence/fix-l14/com-audit.json)"),
+    "slides.view.slideSorter": (MATCH, "FIX-L14: CDP chuyển `presentationView=slideSorter` rồi Esc trở về Bình thường; PowerPoint COM đặt/đọc `ViewType=7` (`ppViewSlideSorter`). [CDP](tickets-0710/evidence/fix-l13/view/view-help-cdp-readback.json), [COM](tickets-0710/evidence/fix-l14/com-audit.json)"),
+    "slides.view.reading": (UNCHECKED, "L13 CDP chuyển `presentationView=reading`, Escape trở về Bình thường. L14 enum `PpViewType` không có `ppViewReading`, còn COM không tạo được SlideShowWindow có View để kiểm chứng Reading View. Giữ CHƯA ĐỐI CHIẾU. [CDP](tickets-0710/evidence/fix-l13/view/view-help-cdp-readback.json), [COM](tickets-0710/evidence/fix-l14/com-audit.json)"),
+    "slides.file.printPreview": (INTENTIONAL, "FIX-L12: app mở lớp xem trước in riêng và đóng bằng Esc; đây là bản xem trước trong WebView, không phải Backstage Print của PowerPoint với máy in/phạm vi/bố trí. CDP xác nhận hộp xem trước mở và đóng được. [CDP](tickets-0710/evidence/fix-l10/view/view-help-cdp-readback.json)"),
+    "slides.view.ruler": (UNCHECKED, "L13 CDP bật `ruler=true` rồi tắt lại. L14 không tìm được thuộc tính thước trên COM `View`/`DocumentWindow`; các ID Mso dự đoán cho toggle cũng bị từ chối. Chưa đo pixel/UI PowerPoint. [CDP](tickets-0710/evidence/fix-l13/view/view-help-cdp-readback.json), [COM](tickets-0710/evidence/fix-l14/com-audit.json)"),
+    "slides.view.gridlines": (UNCHECKED, "L13 CDP bật/tắt đường lưới. L14 COM `View` không có thuộc tính visibility; các ID Mso thử không được nhận. Chưa đo trạng thái UI PowerPoint. [CDP](tickets-0710/evidence/fix-l13/view/view-help-cdp-readback.json), [COM](tickets-0710/evidence/fix-l14/com-audit.json)"),
+    "slides.view.guides": (UNCHECKED, "L13 CDP bật/tắt đường hướng dẫn. L14 COM `View`/`DocumentWindow` không có thuộc tính visibility và không chấp nhận ID Mso đã thử; giữ chưa đối chiếu. [CDP](tickets-0710/evidence/fix-l13/view/view-help-cdp-readback.json), [COM](tickets-0710/evidence/fix-l14/com-audit.json)"),
+    "slides.view.zoomIn": (MATCH, "FIX-L14: CDP đổi 100%→110%; PowerPoint COM đổi `View.Zoom` 55→65. Cùng bước tăng 10 điểm phần trăm. [CDP](tickets-0710/evidence/fix-l13/view/view-help-cdp-readback.json), [COM](tickets-0710/evidence/fix-l14/com-audit.json)"),
+    "slides.view.zoomOut": (MATCH, "FIX-L14: CDP đổi 110%→100%; PowerPoint COM đổi `View.Zoom` 65→55. Cùng bước giảm 10 điểm phần trăm. [CDP](tickets-0710/evidence/fix-l13/view/view-help-cdp-readback.json), [COM](tickets-0710/evidence/fix-l14/com-audit.json)"),
+    "slides.view.zoomReset": (MATCH, "FIX-L14: CDP 100%→100%; PowerPoint COM `View.Zoom=100` sau reset. [CDP](tickets-0710/evidence/fix-l13/view/view-help-cdp-readback.json), [COM](tickets-0710/evidence/fix-l14/com-audit.json)"),
+    "slides.view.fitToWindow": (MATCH, "FIX-L14: CDP bật Vừa cửa sổ và đo zoom 70% theo viewport; PowerPoint COM `View.ZoomToFit=true` bật tự khớp cửa sổ (zoom đọc là 55% theo kích thước cửa sổ audit). [CDP](tickets-0710/evidence/fix-l13/view/view-help-cdp-readback.json), [COM](tickets-0710/evidence/fix-l14/com-audit.json)"),
+    "slides.help.open": (INTENTIONAL, "FIX-L13: tab Trợ giúp > Trợ giúp mở panel hướng dẫn tiếng Việt trong ứng dụng. PowerPoint COM không có panel hướng dẫn của VN Office. CDP xác nhận panel mở. [CDP](tickets-0710/evidence/fix-l13/view/view-help-cdp-readback.json)"),
+    "common.help.about": (INTENTIONAL, "FIX-L13: Giới thiệu hiển thị thông tin phiên bản/nhà phát hành VN Office trong ứng dụng. PowerPoint COM không có hộp thoại thông tin của VN Office. CDP xác nhận hộp thoại mở. [CDP](tickets-0710/evidence/fix-l13/view/view-help-cdp-readback.json)"),
+}
+
+
+def main():
+    source, output = map(Path, sys.argv[1:3])
+    rows = json.loads(source.read_text(encoding="utf-8"))
+    result = []
+    for row in rows:
+        feature_id = row["id"]
+        state, note = EVIDENCE.get(feature_id, (UNCHECKED, ""))
+        if row["tab"].startswith("Trợ lý 3T AI"):
+            state = INTENTIONAL
+            note = "Lệnh AI là năng lực riêng của VN Office, không có lệnh tương ứng trực tiếp trong ribbon PowerPoint cơ bản; không chạy lệnh AI trong lượt audit tài liệu này."
+        elif row.get("reaction", "").startswith("disabled"):
+            note = (note + " " if note else "") + "Scan 1011 ghi nút disabled trong trạng thái ban đầu; chưa có phép đo hành vi PowerPoint."
+        elif row.get("reaction", "").startswith("skipped(dangerous)"):
+            note = (note + " " if note else "") + "Scan 1011 bỏ qua thao tác có thể phá huỷ/chuyển trạng thái; cần kịch bản fixture an toàn trước khi kiểm."
+        result.append((row["tab"], feature_id, row["label"], state, note))
+
+    counts = Counter(row[3] for row in result)
+    lines = [
+        "# Slides: ma trận đối chiếu từng nút ribbon với PowerPoint (11/10/2026)",
+        "",
+        "Nguồn danh sách nút: [`ribbon-scan-slides-1011.json`](ribbon-scan-slides-1011.json). Ma trận giữ đủ từng dòng scan (kể cả ID xuất hiện ở nhiều tab); trạng thái chỉ áp dụng tới thuộc tính/kịch bản ghi trong bằng chứng.",
+        "",
+        f"Tổng: {len(result)} dòng. " + ", ".join(f"**{key}**: {value}" for key, value in counts.items()) + ".",
+        "",
+        f"- **{MATCH}**: thao tác VN Slides được thực hiện; PowerPoint COM đọc lại cùng thuộc tính và kết quả khớp.",
+        f"- **{INTENTIONAL}**: khác biệt sản phẩm có chủ ý hoặc không có nút đối ứng; nêu rõ lý do.",
+        f"- **{KNOWN_GAP}**: có lệch/giới hạn đã đo; không ngụ ý đã sửa.",
+        f"- **{UNCHECKED}**: chưa có phép đo app + PowerPoint đủ để kết luận.",
+        "",
+        "Các kết quả kế thừa được giới hạn theo báo cáo FIX-L4/L5/L6; lỗi harness, kết quả unit test hoặc giá trị mặc định COM không được tính là xác minh parity.",
+        "",
+        "| Tab | Lệnh | Nút | Trạng thái | Bằng chứng / ghi chú |",
+        "|---|---|---|---|---|",
+    ]
+    for tab, feature_id, label, state, note in result:
+        label = label.replace("|", "\\|")
+        note = note.replace("|", "\\|")
+        lines.append(f"| {tab} | `{feature_id}` | {label} | {state} | {note} |")
+    output.write_text("\n".join(lines) + "\n", encoding="utf-8", newline="\n")
+    print(f"Wrote {output}: {len(result)} rows; " + ", ".join(f"{key}={value}" for key, value in counts.items()))
+
+
+if __name__ == "__main__":
+    main()

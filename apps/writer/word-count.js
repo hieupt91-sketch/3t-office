@@ -50,19 +50,26 @@ export function countDocumentStats(text, options = {}) {
   const scope = options.scope || "document";
   const markerStats = options.markerStats || {};
   const raw = String(text ?? "").replace(/\u00a0/g, " ");
+  const characterText = String(options.characterText ?? raw).replace(/\u00a0/g, " ");
+  const charactersWithSpaces = characterText.replace(/[\r\n\u2028\u2029]/g, "").length + (Number(markerStats.charactersWithSpaces) || 0);
+  const charactersNoSpaces = characterText.replace(/\s+/g, "").length + (Number(markerStats.charactersNoSpaces) || 0);
   const trimmed = raw.trim();
   if (!trimmed) {
     const empty = emptyStats(scope);
     empty.words = Number(markerStats.words) || 0;
-    empty.charactersWithSpaces = Number(markerStats.charactersWithSpaces) || 0;
-    empty.charactersNoSpaces = Number(markerStats.charactersNoSpaces) || 0;
+    empty.charactersWithSpaces = charactersWithSpaces;
+    empty.charactersNoSpaces = charactersNoSpaces;
     empty.lines = options.lineCount != null ? options.lineCount : 0;
     return empty;
   }
 
-  const words = trimmed.split(/\s+/).filter(Boolean).length + (Number(markerStats.words) || 0);
-  const charactersWithSpaces = raw.replace(/[\r\n\u2028\u2029]/g, "").length + (Number(markerStats.charactersWithSpaces) || 0);
-  const charactersNoSpaces = raw.replace(/\s+/g, "").length + (Number(markerStats.charactersNoSpaces) || 0);
+  const tokens = trimmed.split(/\s+/).filter(Boolean);
+  const tokenWords = tokens.reduce((total, token) => total + (/^--[\p{L}\p{N}]/u.test(token) ? 2 : 1), 0);
+  const cjkWordBonus = tokens.reduce((total, token) => {
+    const cjk = token.match(/[\p{Script=Han}\p{Script=Hiragana}\p{Script=Katakana}\p{Script=Hangul}]/gu) || [];
+    return total + Math.max(0, cjk.length - 1);
+  }, 0);
+  const words = tokenWords + cjkWordBonus + (Number(markerStats.words) || 0);
   const paragraphs = options.paragraphCount != null
     ? options.paragraphCount
     : raw.split(/\n+/).filter((block) => block.trim().length > 0).length;
@@ -78,6 +85,133 @@ export function countDocumentStats(text, options = {}) {
     lines,
     scope
   };
+}
+
+const WORD_COUNT_BLOCK_TAGS = new Set(["P", "H1", "H2", "H3", "H4", "H5", "H6", "LI", "BLOCKQUOTE", "TD", "TH"]);
+const WORD_COUNT_LAYOUT_TAGS = new Set(["TABLE", "THEAD", "TBODY", "TFOOT", "TR", "COLGROUP", "COL"]);
+
+function hasWordCountAttribute(element, name) {
+  return Boolean(element?.hasAttribute?.(name) || element?.getAttribute?.(name) != null);
+}
+
+function isWordCountExcludedElement(element) {
+  return hasWordCountAttribute(element, "data-vno-float")
+    || hasWordCountAttribute(element, "data-vno-auto-page-gap")
+    || hasWordCountAttribute(element, "data-vno-section-break")
+    || element?.classList?.contains?.("vno-section-break")
+    || element?.classList?.contains?.("vno-page-break");
+}
+
+function wordCountBlock(element, root) {
+  for (let current = element; current && current !== root; current = current.parentElement) {
+    if (WORD_COUNT_BLOCK_TAGS.has(String(current.tagName || "").toUpperCase())) return current;
+  }
+  return root;
+}
+
+function trimWordCountHtmlIndentation(value) {
+  return String(value || "")
+    .replace(/^(?:\r?\n[\t ]*)+/, "")
+    .replace(/[\t ]*(?:\r?\n)+$/, "");
+}
+
+/**
+ * Read editable text without browser-collapsing repeated spaces or counting
+ * HTML serialization indentation around document blocks and tables.
+ * Floating objects are excluded to match Word's main document story.
+ * @param {Element | null | undefined} bodyEl
+ */
+export function extractWordCountText(bodyEl) {
+  if (!bodyEl || !bodyEl.childNodes) return "";
+  let result = "";
+  let activeBlock = null;
+  const append = (block, value) => {
+    if (!value) return;
+    if (result && block !== activeBlock && !result.endsWith("\n")) result += "\n";
+    activeBlock = block;
+    result += value;
+  };
+
+  const visit = (node) => {
+    if (!node) return;
+    if (node !== bodyEl && node.nodeType === 1 && isWordCountExcludedElement(node)) return;
+    if (node.nodeType === 3) {
+      const parent = node.parentElement;
+      const parentTag = String(parent?.tagName || "").toUpperCase();
+      if (WORD_COUNT_LAYOUT_TAGS.has(parentTag)) return;
+      const value = trimWordCountHtmlIndentation(node.nodeValue);
+      if (/^[\r\n\t ]*$/.test(value) && parentTag && !WORD_COUNT_BLOCK_TAGS.has(parentTag)) return;
+      append(wordCountBlock(parent, bodyEl), value);
+      return;
+    }
+    if (node.nodeType === 1 && String(node.tagName || "").toUpperCase() === "BR") {
+      append(wordCountBlock(node.parentElement, bodyEl), "\n");
+      return;
+    }
+    for (const child of Array.from(node.childNodes || [])) visit(child);
+  };
+
+  visit(bodyEl);
+  return result;
+}
+
+function decodeXmlText(value) {
+  return String(value || "")
+    .replace(/&#x([0-9a-f]+);/gi, (_, code) => String.fromCodePoint(parseInt(code, 16)))
+    .replace(/&#([0-9]+);/g, (_, code) => String.fromCodePoint(Number(code)))
+    .replace(/&lt;/g, "<")
+    .replace(/&gt;/g, ">")
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&amp;/g, "&");
+}
+
+/** Count text preserved in Word paragraphs that the HTML importer renders as an empty <br>. */
+export function countOoxmlWhitespaceOnlyParagraphCharacters(ooxmlDocumentXml) {
+  let xml = String(ooxmlDocumentXml || "");
+  const body = xml.match(/<w:body\b[^>]*>([\s\S]*?)<\/w:body>/i);
+  if (!body) return 0;
+  xml = body[1].replace(/<w:txbxContent\b[^>]*>[\s\S]*?<\/w:txbxContent>/gi, "");
+  let count = 0;
+  for (const paragraph of xml.matchAll(/<w:p\b[^>]*>([\s\S]*?)<\/w:p>/gi)) {
+    const text = Array.from(paragraph[1].matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/gi), (match) => decodeXmlText(match[1])).join("");
+    if (text && !/\S/u.test(text)) count += text.length;
+  }
+  return count;
+}
+
+/** Extract Word's main-body text runs while excluding paragraph marks, field instructions, and text frames. */
+export function extractOoxmlDocumentText(ooxmlDocumentXml) {
+  const match = String(ooxmlDocumentXml || "").match(/<w:body\b[^>]*>([\s\S]*?)<\/w:body>/i);
+  if (!match) return null;
+  const xml = match[1]
+    .replace(/<w:txbxContent\b[^>]*>[\s\S]*?<\/w:txbxContent>/gi, "")
+    .replace(/<w:fldChar\b[^>]*>(?:(?!<w:fldChar\b)[\s\S])*?<\/w:fldChar>/gi, (field) => /<w:ffData\b[\s\S]*?<w:checkBox\b/i.test(field) ? "<w:t>□</w:t>" : field)
+    .replace(/<w:instrText\b[^>]*>[\s\S]*?<\/w:instrText>/gi, "")
+    .replace(/<w:del\b[^>]*>[\s\S]*?<\/w:del>/gi, "");
+  let text = "";
+  for (const token of xml.matchAll(/<w:p\b[^>]*>|<\/w:p>|<w:t\b[^>]*>([\s\S]*?)<\/w:t>|<w:sym\b[^>]*\/?\s*>|<w:tab\b[^>]*\/?\s*>|<w:(?:br|cr)\b[^>]*\/?\s*>/gi)) {
+    const value = token[0];
+    if (/^<w:p\b/i.test(value)) {
+      if (text && !text.endsWith("\n")) text += "\n";
+    } else if (/^<\/w:p/i.test(value)) {
+      if (!text.endsWith("\n")) text += "\n";
+    } else if (token[1] != null) {
+      text += decodeXmlText(token[1]);
+    } else if (/^<w:sym\b/i.test(value)) {
+      const code = value.match(/\bw:char=["']([0-9a-f]{1,6})["']/i)?.[1];
+      const codePoint = code ? Number.parseInt(code, 16) : NaN;
+      if (Number.isInteger(codePoint) && codePoint >= 0 && codePoint <= 0x10ffff) {
+        text += String.fromCodePoint(codePoint);
+      }
+    } else if (/^<w:tab\s*\/?\s*>$/i.test(value)) {
+      text += "\t";
+    } else if (/^<w:(?:br|cr)\b/i.test(value)) {
+      // Word's page/column breaks separate adjacent words but do not count as characters.
+      text += /\bw:type=["'](?:page|column)["']/i.test(value) ? "\u2028" : "\u000b";
+    }
+  }
+  return text;
 }
 
 /**
@@ -212,6 +346,60 @@ export function countListMarkerStats(bodyEl) {
     charactersWithSpaces += label.length + 1;
   }
   return { words, charactersNoSpaces, charactersWithSpaces };
+}
+
+/** Count native Word list labels from the imported OOXML paragraph metadata. */
+export function countOoxmlListMarkerStats(items = []) {
+  let words = 0;
+  let charactersNoSpaces = 0;
+  let charactersWithSpaces = 0;
+  const counters = new Map();
+  const formatCounter = (value, format) => {
+    const kind = String(format || "decimal").toLowerCase();
+    if (kind === "upperletter" || kind === "upperalpha") return alphaCounter(value, true);
+    if (kind === "lowerletter" || kind === "loweralpha") return alphaCounter(value, false);
+    if (kind === "upperroman") return romanCounter(value, true);
+    if (kind === "lowerroman") return romanCounter(value, false);
+    return String(value);
+  };
+  for (const item of items || []) {
+    if (!item || String(item.numFmt || "").toLowerCase() === "none") continue;
+    const level = Math.max(0, Number(item.ilvl) || 0);
+    const key = String(item.numId || "");
+    if (!counters.has(key)) counters.set(key, new Map());
+    const levels = counters.get(key);
+    const value = Math.max(1, Number(item.value) || 1);
+    levels.set(level, value);
+    let label = String(item.lvlText || "");
+    label = label.replace(/%([1-9])/g, (_, levelText) => {
+      const referencedLevel = Number(levelText) - 1;
+      const referencedValue = levels.get(referencedLevel) || value;
+      return formatCounter(referencedValue, referencedLevel === level ? item.numFmt : "decimal");
+    });
+    if (!label) continue;
+    charactersNoSpaces += label.length;
+    charactersWithSpaces += label.length + 1;
+    if (/[\p{L}\p{N}]/u.test(label)) words += 1;
+  }
+  return { words, charactersNoSpaces, charactersWithSpaces };
+}
+
+/**
+ * Word counts an explicit line break inside a paragraph as a character, but
+ * excludes paragraph marks. `innerText` exposes both as newlines, which the
+ * plain-text counter removes, so restore only real `<br>` elements in content
+ * blocks. Empty-paragraph placeholders (`<p><br></p>`) are not characters.
+ * @param {ParentNode | null | undefined} bodyEl
+ */
+export function countExplicitLineBreaks(bodyEl) {
+  if (!bodyEl || typeof bodyEl.querySelectorAll !== "function") return 0;
+  let count = 0;
+  for (const br of bodyEl.querySelectorAll("br")) {
+    const block = br.closest?.("p, h1, h2, h3, h4, h5, h6, li, blockquote");
+    if (!block || isFloatingShapeContent(block)) continue;
+    if (String(block.textContent || "").trim()) count += 1;
+  }
+  return count;
 }
 
 function formatNumber(value) {

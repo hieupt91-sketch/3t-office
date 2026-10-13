@@ -1,0 +1,178 @@
+{
+    "baseline":  "E:\\VN OFice\\file test\\sample-3.pptx",
+    "appFile":  "E:\\VNOffice-profiles\\codex-fl8\\fix-l8-insert-art-symbol.pptx",
+    "baselineReadback":  {
+                             "slides":  10,
+                             "shapes":  5,
+                             "slideWidth":  720,
+                             "slideHeight":  405,
+                             "slideBackgroundFillType":  1,
+                             "slideBackgroundRgb":  16777215,
+                             "layout":  12,
+                             "titleText":  "WEST COAST\u000bROAD TRIP",
+                             "findRoadTrip":  "ROAD TRIP",
+                             "alignment":  1,
+                             "leftIndent":  null,
+                             "indentLevel":  null,
+                             "lineSpacingRule":  -1,
+                             "lineSpacing":  1,
+                             "alignmentTextFrame2":  1,
+                             "leftIndentTextFrame2":  0,
+                             "firstLineIndentTextFrame2":  0,
+                             "lineSpacingTextFrame2":  1,
+                             "textColorRgb":  6710886,
+                             "highlightRgb":  1894392,
+                             "finalShapeText":  null,
+                             "headerFooter":  {
+                                                  "slideNumberVisible":  0,
+                                                  "dateVisible":  0,
+                                                  "dateText":  null,
+                                                  "footerVisible":  0,
+                                                  "footerText":  null
+                                              },
+                             "shapeReadbacks":  [
+                                                    {
+                                                        "index":  1,
+                                                        "name":  "Google Shape;58;p13",
+                                                        "type":  14,
+                                                        "text":  "WEST COAST\u000bROAD TRIP",
+                                                        "fontName":  "Oswald",
+                                                        "fontSize":  48,
+                                                        "highlightRgb":  1894392,
+                                                        "alignment":  1
+                                                    },
+                                                    {
+                                                        "index":  2,
+                                                        "name":  "Google Shape;59;p13",
+                                                        "type":  14,
+                                                        "text":  "Your Name • Sept 20XX",
+                                                        "fontName":  "Playfair Display",
+                                                        "fontSize":  18,
+                                                        "highlightRgb":  0,
+                                                        "alignment":  1
+                                                    },
+                                                    {
+                                                        "index":  3,
+                                                        "name":  "Google Shape;60;p13",
+                                                        "type":  13,
+                                                        "text":  "",
+                                                        "fontName":  null,
+                                                        "fontSize":  null,
+                                                        "highlightRgb":  null,
+                                                        "alignment":  null
+                                                    },
+                                                    {
+                                                        "index":  4,
+                                                        "name":  "Google Shape;61;p13",
+                                                        "type":  13,
+                                                        "text":  "",
+                                                        "fontName":  null,
+                                                        "fontSize":  null,
+                                                        "highlightRgb":  null,
+                                                        "alignment":  null
+                                                    },
+                                                    {
+                                                        "index":  5,
+                                                        "name":  "Google Shape;62;p13",
+                                                        "type":  13,
+                                                        "text":  "",
+                                                        "fontName":  null,
+                                                        "fontSize":  null,
+                                                        "highlightRgb":  null,
+                                                        "alignment":  null
+                                                    }
+                                                ]
+                         },
+    "appReadback":  {
+                        "slides":  10,
+                        "shapes":  6,
+                        "slideWidth":  720,
+                        "slideHeight":  405,
+                        "slideBackgroundFillType":  1,
+                        "slideBackgroundRgb":  16777215,
+                        "layout":  1,
+                        "titleText":  "WEST COAST\rROAD TRIP",
+                        "findRoadTrip":  "ROAD TRIP",
+                        "alignment":  1,
+                        "leftIndent":  null,
+                        "indentLevel":  null,
+                        "lineSpacingRule":  -1,
+                        "lineSpacing":  0.9,
+                        "alignmentTextFrame2":  1,
+                        "leftIndentTextFrame2":  0,
+                        "firstLineIndentTextFrame2":  0,
+                        "lineSpacingTextFrame2":  0.9,
+                        "textColorRgb":  -2147483648,
+                        "highlightRgb":  1894392,
+                        "finalShapeText":  "3T OfficeAudit WordArt",
+                        "headerFooter":  {
+                                             "slideNumberVisible":  0,
+                                             "dateVisible":  0,
+                                             "dateText":  null,
+                                             "footerVisible":  0,
+                                             "footerText":  null
+                                         },
+                        "shapeReadbacks":  [
+                                               {
+                                                   "index":  1,
+                                                   "name":  "PlaceHolder 1",
+                                                   "type":  14,
+                                                   "text":  "WEST COAST\rROAD TRIP",
+                                                   "fontName":  null,
+                                                   "fontSize":  48,
+                                                   "highlightRgb":  1894392,
+                                                   "alignment":  1
+                                               },
+                                               {
+                                                   "index":  2,
+                                                   "name":  "PlaceHolder 2",
+                                                   "type":  14,
+                                                   "text":  "Your Name • Sept 20XX",
+                                                   "fontName":  "Playfair Display",
+                                                   "fontSize":  18,
+                                                   "highlightRgb":  0,
+                                                   "alignment":  1
+                                               },
+                                               {
+                                                   "index":  3,
+                                                   "name":  "Google Shape;60;p13",
+                                                   "type":  13,
+                                                   "text":  "",
+                                                   "fontName":  null,
+                                                   "fontSize":  null,
+                                                   "highlightRgb":  null,
+                                                   "alignment":  null
+                                               },
+                                               {
+                                                   "index":  4,
+                                                   "name":  "Google Shape;61;p13",
+                                                   "type":  13,
+                                                   "text":  "",
+                                                   "fontName":  null,
+                                                   "fontSize":  null,
+                                                   "highlightRgb":  null,
+                                                   "alignment":  null
+                                               },
+                                               {
+                                                   "index":  5,
+                                                   "name":  "Google Shape;62;p13",
+                                                   "type":  13,
+                                                   "text":  "",
+                                                   "fontName":  null,
+                                                   "fontSize":  null,
+                                                   "highlightRgb":  null,
+                                                   "alignment":  null
+                                               },
+                                               {
+                                                   "index":  6,
+                                                   "name":  "1791751598979",
+                                                   "type":  17,
+                                                   "text":  "3T OfficeAudit WordArt",
+                                                   "fontName":  "Impact",
+                                                   "fontSize":  48,
+                                                   "highlightRgb":  0,
+                                                   "alignment":  1
+                                               }
+                                           ]
+                    }
+}
