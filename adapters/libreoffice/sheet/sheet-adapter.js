@@ -2958,6 +2958,16 @@ export class SheetAdapter {
     });
   }
 
+  /** Nhãn ô đầu của dòng tổng bảng (ghi vào totalsRowLabel khi lưu XLSX). */
+  _tableTotalsLabel(sheetName, table) {
+    if (!table?.showTotals) return "";
+    const bounds = /^\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)$/i.exec(table.ref || "");
+    if (!bounds) return "";
+    const cells = sheetName === this.grid?.activeSheet ? this.grid?.cellsData : this.grid?.sheetsData?.[sheetName];
+    const cell = cells?.get?.(`${bounds[1]}${bounds[4]}`);
+    return String(cell?.val ?? "");
+  }
+
   _attachImportedTables(workbook, xmlText) {
     const importedTablesBySheet = {};
     String(xmlText || "").replace(/<table:database-range\b([^>]*)\/?\s*>/gi, (_, attrs) => {
@@ -2974,7 +2984,8 @@ export class SheetAdapter {
         style: ({ TableStyleMedium2: "tableBlue", TableStyleMedium4: "tableGreen", TableStyleDark1: "tableDark" })[get("table-style")] || "tableBlue",
         excelStyle: get("table-style") || "TableStyleMedium2",
         showAutoFilter: get("table-show-autofilter") !== "false",
-        showRowStripes: get("table-row-stripes") !== "false"
+        showRowStripes: get("table-row-stripes") !== "false",
+        showTotals: get("table-totals") === "true"
       };
       (importedTablesBySheet[sheet] ||= []).push(table);
       return "";
@@ -3011,7 +3022,7 @@ export class SheetAdapter {
    * round-trip via the Python postprocess layer.
    */
   _usedRangeOfSheet(sheetName) {
-    const cells = this.grid?.sheetsData?.[sheetName] || (sheetName === this.grid?.activeSheet ? this.grid?.cellsData : null);
+    const cells = sheetName === this.grid?.activeSheet ? this.grid?.cellsData : this.grid?.sheetsData?.[sheetName];
     if (!cells || typeof cells.keys !== "function") return "";
     let maxCol = 0, maxRow = 0;
     for (const coord of cells.keys()) {
@@ -3045,7 +3056,9 @@ export class SheetAdapter {
           + ` vno:table-name="${this._escapeXml(table.name)}" vno:table-style="${style}"`
           + ` vno:table-headers="${table.hasHeaders === false ? "false" : "true"}"`
           + ` vno:table-show-autofilter="${table.showAutoFilter === false ? "false" : "true"}"`
-          + ` vno:table-row-stripes="${table.showRowStripes === false ? "false" : "true"}"/>`
+          + ` vno:table-row-stripes="${table.showRowStripes === false ? "false" : "true"}"`
+          + ` vno:table-totals="${table.showTotals ? "true" : "false"}"`
+          + ` vno:table-totals-label="${this._escapeXml(this._tableTotalsLabel(sheetName, table))}"/>`
         );
       }
       // The active sheet's live grid fields may be newer than sheetStates

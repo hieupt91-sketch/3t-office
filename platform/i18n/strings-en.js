@@ -1228,7 +1228,19 @@ export const enStrings = {
       jumpToRef: "Jump to reference"
     }
   },
-  sheetFormatCells: {
+  sheetContextMenu: {
+    insert: "Insert", delete: "Delete", select: "Select", table: "Table", move: "Move",
+    tableColumnLeft: "Table Columns to the Left", tableColumnRight: "Table Columns to the Right",
+    tableRowAbove: "Table Rows Above", tableRowBelow: "Table Rows Below",
+    tableColumn: "Table Columns", tableRow: "Table Rows",
+    tableColumnData: "Table Column Data", tableColumnAll: "Entire Table Column", tableRowSelect: "Table Row",
+    totalRow: "Totals Row", totalLabel: "Total", convertToRange: "Convert to Range",
+    chartArea: "Chart Area", plotArea: "Plot Area", series: "Series",
+    chartType: "Change Chart Type...", chartTypeDialog: "Change Chart Type",
+    selectData: "Select Data...", chartDataRange: "Enter the data range for the chart (for example A1:B10):", invalidChartRange: "The data range is not valid.",
+    moveChart: "Move Chart...", moveChartMessage: "Enter the name of the sheet to move the chart to. Available sheets: {sheets}", invalidSheetName: "No sheet with that name was found.",
+    deleteObject: "Delete"
+  },  sheetFormatCells: {
     dialogTitle: "Format Cells",
     tabNumber: "Number",
     tabAlignment: "Alignment",

@@ -1915,6 +1915,8 @@ def parse_tables_from_fods(fods_xml: str | None) -> dict[str, dict]:
             "has_headers": attr_value("table-headers", "true") != "false",
             "show_autofilter": attr_value("table-show-autofilter", "true") != "false",
             "row_stripes": attr_value("table-row-stripes", "true") != "false",
+            "totals": attr_value("table-totals", "false") == "true",
+            "totals_label": attr_value("table-totals-label", ""),
         }
     return result
 
@@ -1957,10 +1959,23 @@ def _apply_table_metadata_from_fods(xlsx_bytes: bytes, source_fods: str | None, 
             attrs = re.sub(r'\bheaderRowCount="[^"]*"', f'headerRowCount="{1 if metadata["has_headers"] else 0}"', attrs, count=1)
         elif not metadata["has_headers"]:
             attrs += ' headerRowCount="0"'
+        if metadata.get("totals"):
+            if re.search(r'\btotalsRowCount="[^"]*"', attrs):
+                attrs = re.sub(r'\btotalsRowCount="[^"]*"', 'totalsRowCount="1"', attrs, count=1)
+            else:
+                attrs += ' totalsRowCount="1"'
+            attrs = re.sub(r'\btotalsRowShown="[^"]*"', '', attrs)
         xml = raw[:root.start()] + f"<table{attrs}>" + raw[root.end():]
         auto_filter = re.search(r'<autoFilter\b[^>]*/>|<autoFilter\b[^>]*>[\s\S]*?</autoFilter>', xml)
+        filter_ref = metadata["ref"]
+        if metadata.get("totals"):
+            # Vùng lọc của bảng không gồm dòng tổng (hàng cuối của ref).
+            cols_part, end_part = filter_ref.split(":", 1)
+            end_match = re.match(r"([A-Z]+)(\d+)$", end_part)
+            if end_match:
+                filter_ref = f"{cols_part}:{end_match.group(1)}{max(1, int(end_match.group(2)) - 1)}"
         if metadata["show_autofilter"]:
-            filter_xml = f'<autoFilter ref="{metadata["ref"]}"/>'
+            filter_xml = f'<autoFilter ref="{filter_ref}"/>'
             if auto_filter:
                 xml = xml[:auto_filter.start()] + filter_xml + xml[auto_filter.end():]
             else:
@@ -1969,6 +1984,20 @@ def _apply_table_metadata_from_fods(xlsx_bytes: bytes, source_fods: str | None, 
                     xml = xml[:col_match.start()] + filter_xml + xml[col_match.start():]
         elif auto_filter:
             xml = xml[:auto_filter.start()] + xml[auto_filter.end():]
+        if metadata.get("totals"):
+            # Dòng tổng: cột đầu mang nhãn, cột cuối (nếu có ≥2 cột) tính SUM — khớp công thức SUBTOTAL(109,...) trong ô.
+            column_matches = list(re.finditer(r"<tableColumn\b([^>]*?)(/?)>", xml))
+            last_index = len(column_matches) - 1
+            for index in range(last_index, -1, -1):
+                column = column_matches[index]
+                attrs_text = column.group(1)
+                if index == 0 and "totalsRowLabel=" not in attrs_text:
+                    attrs_text += f' totalsRowLabel="{_escape_xml(metadata.get("totals_label") or "Total")}"'
+                elif index == last_index and last_index > 0 and "totalsRowFunction=" not in attrs_text:
+                    attrs_text += ' totalsRowFunction="sum"'
+                else:
+                    continue
+                xml = xml[:column.start()] + f"<tableColumn{attrs_text}{column.group(2)}>" + xml[column.end():]
         style = metadata["style"] or "TableStyleMedium2"
         style_xml = (f'<tableStyleInfo name="{_escape_xml(style)}" showFirstColumn="0" showLastColumn="0" '
                      f'showRowStripes="{1 if metadata["row_stripes"] else 0}" showColumnStripes="0"/>')
@@ -12402,7 +12431,8 @@ def _overlay_autofilter_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
                 f' vno:table-style="{_escape_xml(table["style"])}"'
                 f' vno:table-headers="{"true" if table["has_headers"] else "false"}"'
                 f' vno:table-show-autofilter="{"true" if table["show_autofilter"] else "false"}"'
-                f' vno:table-row-stripes="{"true" if table["row_stripes"] else "false"}"/>'
+                f' vno:table-row-stripes="{"true" if table["row_stripes"] else "false"}"'
+                f' vno:table-totals="{"true" if table.get("totals") else "false"}"/>'
             )
     db_block = f'<table:database-ranges>{"".join(ranges_xml)}</table:database-ranges>'
     marker = "</office:spreadsheet>"
@@ -12459,6 +12489,8 @@ def _parse_xlsx_tables(xlsx_bytes: bytes, sheet_entries: dict[str, str] | None =
                 "has_headers": get_attr(attrs, "headerRowCount") != "0",
                 "show_autofilter": bool(re.search(r'<autoFilter\b', table_xml)),
                 "row_stripes": get_attr(style_attrs, "showRowStripes") not in {"0", "false"},
+                "totals": get_attr(attrs, "totalsRowCount") not in {"", "0"},
+                "totals_label": "",
             })
     return result
 

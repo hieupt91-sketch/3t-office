@@ -101,10 +101,48 @@ try {
   await clickMenu("Chọn"); await sleep(300); await clickMenu("Dữ liệu cột của bảng");
   const rng = await ev(`JSON.stringify(${grid}._rangeLabel(${grid}.selectionRange))`);
   check("Chọn dữ liệu cột bảng = B2:B4", JSON.parse(rng) === "B2:B4", rng);
-  await mouseRightClick(cdp, ...Object.values(await center('.vno-grid-cell[data-coord="B3"]')));
+  // Chèn/Xóa hàng-cột bảng, Dòng tổng: so với vùng bảng (ref) và hoàn tác một bước
+  const tref = async () => JSON.parse(await ev(`JSON.stringify((${grid}.tablesBySheet[${grid}.activeSheet] || [])[0]?.ref || null)`));
+  const clickExact = async (label) => {
+    const p = JSON.parse(await ev(`JSON.stringify((() => { const e = [...document.querySelectorAll('.vno-context-menu-item')].find(n => n.getBoundingClientRect().width > 0 && ((n.querySelector('.vno-context-menu-label') || n).textContent.trim() === ${JSON.stringify(label)})); if (!e) return null; const r = e.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2 }; })())`));
+    if (!p) return false; await mouseClick(cdp, p.x, p.y); await sleep(400); return true;
+  };
+  const rc = async () => { await mouseClick(cdp, ...Object.values(await center('.vno-grid-cell[data-coord="B3"]'))); await mouseRightClick(cdp, ...Object.values(await center('.vno-grid-cell[data-coord="B3"]'))); await sleep(400); };
+  await rc(); await clickExact("Chèn"); await sleep(300); await clickExact("Hàng bảng phía dưới");
+  check("Chèn hàng bảng phía dưới mở rộng bảng A1:B5", (await tref()) === "A1:B5", String(await tref()));
+  await press(cdp, "z", { ctrl: true }); await sleep(500);
+  check("Ctrl+Z hoàn tác chèn hàng bảng trong một bước", (await tref()) === "A1:B4", String(await tref()));
+  await rc(); await clickExact("Chèn"); await sleep(300); await clickExact("Cột bảng bên phải");
+  check("Chèn cột bảng bên phải mở rộng bảng A1:C4", (await tref()) === "A1:C4", String(await tref()));
+  await rc(); await clickExact("Xóa"); await sleep(300); await clickExact("Cột của bảng");
+  check("Xóa cột bảng thu bảng về A1:B4", (await tref()) === "A1:B4", String(await tref()));
+  await rc(); await clickExact("Xóa"); await sleep(300); await clickExact("Hàng của bảng");
+  check("Xóa hàng bảng thu bảng về A1:B3", (await tref()) === "A1:B3", String(await tref()));
+  await rc(); await clickExact("Bảng"); await sleep(300); await clickExact("Dòng tổng");
+  const totals = await ev(`!!(${grid}.tablesBySheet[${grid}.activeSheet] || [])[0]?.showTotals`);
+  check("Bảng > Dòng tổng bật hàng tổng", totals === true);
+  await rc(); await clickExact("Bảng"); await sleep(300); await clickExact("✓ Dòng tổng");
+  check("Bảng > Dòng tổng tắt lại", (await ev(`!(${grid}.tablesBySheet[${grid}.activeSheet] || [])[0]?.showTotals`)) === true);
+  await rc();
   await sleep(400); await clickMenu("Bảng"); await sleep(300); await clickMenu("Chuyển thành phạm vi");
   const tcount = await ev(`(${grid}.tablesBySheet[${grid}.activeSheet] || []).length`);
   check("Chuyển thành phạm vi gỡ bảng", tcount === 0, String(tcount));
+  // --- Menu biểu đồ ---
+  await ev(`(() => { const g = ${grid}; g.selectCell('A', 1); g.selectCell('B', 4, true); g.insertChart('bar'); return true; })()`);
+  await sleep(700);
+  const chartPt = await center('.vno-sheet-chart');
+  check("Biểu đồ được tạo", !!chartPt);
+  await mouseRightClick(cdp, chartPt.x, chartPt.y + 40);
+  await sleep(500);
+  labels = await menuLabels();
+  check("Chuột phải biểu đồ có Đổi loại/Chọn dữ liệu/Di chuyển/Xóa", ["Đổi loại biểu đồ...", "Chọn dữ liệu...", "Di chuyển biểu đồ...", "Xóa"].every((n) => labels.some((l) => l.startsWith(n))), JSON.stringify(labels));
+  await clickExact("Chọn dữ liệu...");
+  check("Chọn dữ liệu... mở hộp thoại", (await ev(`!!document.querySelector('[role="dialog"], .vno-dialog, .vno-modal')`)) === true);
+  await closeAll();
+  await mouseRightClick(cdp, chartPt.x, chartPt.y + 40);
+  await sleep(500); await clickExact("Xóa");
+  check("Xóa từ menu chuột phải gỡ biểu đồ", (await ev(`!document.querySelector('.vno-sheet-chart')`)) === true);
+
   // --- Menu tab trang tính ---
   await mouseRightClick(cdp, ...Object.values(await center('.vno-sheet-tab-item')));
   await sleep(400);

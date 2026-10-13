@@ -277,6 +277,8 @@ export class SheetGridController {
     this.imagesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.selectedImageId = null;
     this.textBoxesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.selectedTextBoxId = null;
+    this._objectClipboard = null;
     this.pivotTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.pivotRefreshTouchedBySheet = new Set();
     this.scenariosBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
@@ -2935,9 +2937,8 @@ export class SheetGridController {
     this._activeContextMenu = instance;
   }
 
-  /** Mục "Chọn" và "Bảng" của menu chuột phải khi ô đang chọn nằm trong một bảng (Table). */
+  /** Các lệnh ngữ cảnh chỉ xuất hiện khi ô đang chọn nằm trong một bảng có cấu trúc. */
   _tableContextMenuItems() {
-    const coord = `${this.selectedCoord.c}${this.selectedCoord.r}`;
     const table = (this.tablesBySheet?.[this.activeSheet] || []).find(item => {
       const b = this._parseRange(item.ref);
       return b && this._rangeContains(b, this.selectedCoord.c, this.selectedCoord.r);
@@ -2945,25 +2946,186 @@ export class SheetGridController {
     if (!table) return [];
     const bounds = this._normalizeRange(this._parseRange(table.ref));
     const dataStart = bounds.start.r + (table.hasHeaders === false ? 0 : 1);
+    const dataEnd = bounds.end.r - (table.showTotals ? 1 : 0);
+    const canDeleteColumn = this._columnNumber(bounds.end.c) > this._columnNumber(bounds.start.c);
+    const canDeleteRow = this.selectedCoord.r >= dataStart && this.selectedCoord.r <= dataEnd && dataEnd > dataStart;
     const col = this.selectedCoord.c;
     const pick = (c1, r1, c2, r2) => { this.selectCell(c1, r1); this.selectCell(c2, r2, true); };
     return [
       { sep: true },
       {
-        label: "Chọn",
+        label: t("sheetContextMenu.insert"),
         items: [
-          { label: "Dữ liệu cột của bảng", action: () => pick(col, dataStart, col, bounds.end.r) },
-          { label: "Toàn bộ cột của bảng", action: () => pick(col, bounds.start.r, col, bounds.end.r) },
-          { label: "Hàng của bảng", action: () => pick(bounds.start.c, this.selectedCoord.r, bounds.end.c, this.selectedCoord.r) }
+          { label: t("sheetContextMenu.tableColumnLeft"), action: () => this.insertTableColumn(table.name, "left") },
+          { label: t("sheetContextMenu.tableColumnRight"), action: () => this.insertTableColumn(table.name, "right") },
+          { sep: true },
+          { label: t("sheetContextMenu.tableRowAbove"), action: () => this.insertTableRow(table.name, "above") },
+          { label: t("sheetContextMenu.tableRowBelow"), action: () => this.insertTableRow(table.name, "below") }
         ]
       },
       {
-        label: "Bảng",
+        label: t("sheetContextMenu.delete"),
         items: [
-          { label: "Chuyển thành phạm vi", action: () => this.convertTableToRange(table.name) }
+          { label: t("sheetContextMenu.tableColumn"), disabled: !canDeleteColumn, action: () => this.deleteTableColumn(table.name) },
+          { label: t("sheetContextMenu.tableRow"), disabled: !canDeleteRow, action: () => this.deleteTableRow(table.name) }
+        ]
+      },
+      {
+        label: t("sheetContextMenu.select"),
+        items: [
+          { label: t("sheetContextMenu.tableColumnData"), action: () => pick(col, dataStart, col, dataEnd) },
+          { label: t("sheetContextMenu.tableColumnAll"), action: () => pick(col, bounds.start.r, col, bounds.end.r) },
+          { label: t("sheetContextMenu.tableRowSelect"), action: () => pick(bounds.start.c, this.selectedCoord.r, bounds.end.c, this.selectedCoord.r) }
+        ]
+      },
+      {
+        label: t("sheetContextMenu.table"),
+        items: [
+          { label: `${table.showTotals ? "✓ " : ""}${t("sheetContextMenu.totalRow")}`, action: () => this.toggleTableTotalRow(table.name) },
+          { label: t("sheetContextMenu.convertToRange"), action: () => this.convertTableToRange(table.name) }
         ]
       }
     ];
+  }
+
+  _tableByName(name) {
+    return (this.tablesBySheet?.[this.activeSheet] || []).find(item => item.name === name) || null;
+  }
+
+  _syncTableRangeState(table) {
+    const state = this.sheetStates?.[this.activeSheet];
+    if (state?.filterRange && !((this.tablesBySheet[this.activeSheet] || []).some(item => item !== table && item.ref === state.filterRange))) {
+      state.filterRange = table.ref;
+    }
+    this._updateFilterButtons();
+  }
+
+  _styleTableRange(table) {
+    const bounds = this._normalizeRange(this._parseRange(table.ref));
+    const preset = TABLE_STYLE_PRESETS.find(item => item.id === table.style) || TABLE_STYLE_PRESETS[0];
+    const startCol = this._columnNumber(bounds.start.c);
+    const endCol = this._columnNumber(bounds.end.c);
+    for (let row = bounds.start.r; row <= bounds.end.r; row++) {
+      const isHeader = table.hasHeaders !== false && row === bounds.start.r;
+      const isTotals = table.showTotals && row === bounds.end.r;
+      const rowStyle = isHeader || isTotals
+        ? preset.headerStyle
+        : ((row - bounds.start.r) % 2 === 1 ? preset.evenRowStyle : preset.oddRowStyle);
+      for (let column = startCol; column <= endCol; column++) {
+        const coord = `${this._columnLabel(column)}${row}`;
+        const cell = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+        cell.style = { ...(cell.style || {}), ...rowStyle };
+        this.cellsData.set(coord, cell);
+      }
+    }
+  }
+
+  _finishTableStructureChange(before, table, focus = this.selectedCoord) {
+    this._styleTableRange(table);
+    this._syncTableRangeState(table);
+    this._renderColumnHeaders();
+    this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
+    this._recalculateAllFormulas();
+    this.refreshCharts();
+    this.selectCell(focus.c, focus.r);
+    this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  insertTableColumn(name, side = "left") {
+    if (this._guardProtectedMutation()) return false;
+    const table = this._tableByName(name);
+    const bounds = table && this._normalizeRange(this._parseRange(table.ref));
+    if (!table || !bounds) return false;
+    const before = this._snapshotGridStructure();
+    const selected = this._columnNumber(this.selectedCoord.c);
+    const insertAt = Math.min(this._columnNumber(bounds.end.c) + 1, selected + (side === "right" ? 1 : 0));
+    const insertCol = this._columnLabel(insertAt);
+    this.shiftCellsRight({ start: { c: insertCol, r: bounds.start.r }, end: { c: insertCol, r: bounds.end.r } }, false);
+    table.ref = this._rangeLabel({ start: bounds.start, end: { c: this._columnLabel(this._columnNumber(bounds.end.c) + 1), r: bounds.end.r } });
+    if (table.hasHeaders !== false) {
+      const header = this.cellsData.get(`${insertCol}${bounds.start.r}`) || { val: "", formula: "", style: {} };
+      header.val = `Column${insertAt - this._columnNumber(bounds.start.c) + 1}`;
+      header.formula = "";
+      this.cellsData.set(`${insertCol}${bounds.start.r}`, header);
+    }
+    return this._finishTableStructureChange(before, table, { c: insertCol, r: this.selectedCoord.r });
+  }
+
+  deleteTableColumn(name) {
+    if (this._guardProtectedMutation()) return false;
+    const table = this._tableByName(name);
+    const bounds = table && this._normalizeRange(this._parseRange(table.ref));
+    if (!table || !bounds || this._columnNumber(bounds.end.c) <= this._columnNumber(bounds.start.c)) return false;
+    const before = this._snapshotGridStructure();
+    const deleteCol = this.selectedCoord.c;
+    this.shiftCellsLeft({ start: { c: deleteCol, r: bounds.start.r }, end: { c: deleteCol, r: bounds.end.r } }, false);
+    table.ref = this._rangeLabel({ start: bounds.start, end: { c: this._columnLabel(this._columnNumber(bounds.end.c) - 1), r: bounds.end.r } });
+    const focusCol = this._columnNumber(deleteCol) > this._columnNumber(table.ref.split(":").pop().match(/[A-Z]+/i)?.[0] || bounds.start.c)
+      ? this._columnLabel(this._columnNumber(deleteCol) - 1) : deleteCol;
+    return this._finishTableStructureChange(before, table, { c: focusCol, r: this.selectedCoord.r });
+  }
+
+  insertTableRow(name, side = "above") {
+    if (this._guardProtectedMutation()) return false;
+    const table = this._tableByName(name);
+    const bounds = table && this._normalizeRange(this._parseRange(table.ref));
+    if (!table || !bounds) return false;
+    const before = this._snapshotGridStructure();
+    const dataStart = bounds.start.r + (table.hasHeaders === false ? 0 : 1);
+    const dataEnd = bounds.end.r - (table.showTotals ? 1 : 0);
+    let insertAt = this.selectedCoord.r + (side === "below" ? 1 : 0);
+    insertAt = Math.max(dataStart, Math.min(insertAt, dataEnd + 1));
+    this.shiftCellsDown({ start: { c: bounds.start.c, r: insertAt }, end: { c: bounds.end.c, r: insertAt } }, false);
+    table.ref = this._rangeLabel({ start: bounds.start, end: { c: bounds.end.c, r: bounds.end.r + 1 } });
+    return this._finishTableStructureChange(before, table, { c: this.selectedCoord.c, r: insertAt });
+  }
+
+  deleteTableRow(name) {
+    if (this._guardProtectedMutation()) return false;
+    const table = this._tableByName(name);
+    const bounds = table && this._normalizeRange(this._parseRange(table.ref));
+    if (!table || !bounds) return false;
+    const dataStart = bounds.start.r + (table.hasHeaders === false ? 0 : 1);
+    const dataEnd = bounds.end.r - (table.showTotals ? 1 : 0);
+    const deleteRow = this.selectedCoord.r;
+    if (deleteRow < dataStart || deleteRow > dataEnd || dataEnd <= dataStart) return false;
+    const before = this._snapshotGridStructure();
+    this.shiftCellsUp({ start: { c: bounds.start.c, r: deleteRow }, end: { c: bounds.end.c, r: deleteRow } }, false);
+    table.ref = this._rangeLabel({ start: bounds.start, end: { c: bounds.end.c, r: bounds.end.r - 1 } });
+    return this._finishTableStructureChange(before, table, { c: this.selectedCoord.c, r: Math.min(deleteRow, bounds.end.r - 1) });
+  }
+
+  toggleTableTotalRow(name) {
+    if (this._guardProtectedMutation()) return false;
+    const table = this._tableByName(name);
+    const bounds = table && this._normalizeRange(this._parseRange(table.ref));
+    if (!table || !bounds) return false;
+    const before = this._snapshotGridStructure();
+    if (table.showTotals) {
+      this.shiftCellsUp({ start: { c: bounds.start.c, r: bounds.end.r }, end: { c: bounds.end.c, r: bounds.end.r } }, false);
+      table.showTotals = false;
+      table.ref = this._rangeLabel({ start: bounds.start, end: { c: bounds.end.c, r: bounds.end.r - 1 } });
+    } else {
+      const totalsRow = bounds.end.r + 1;
+      this.shiftCellsDown({ start: { c: bounds.start.c, r: totalsRow }, end: { c: bounds.end.c, r: totalsRow } }, false);
+      table.showTotals = true;
+      table.ref = this._rangeLabel({ start: bounds.start, end: { c: bounds.end.c, r: totalsRow } });
+      const firstCoord = `${bounds.start.c}${totalsRow}`;
+      const first = this.cellsData.get(firstCoord) || { val: "", formula: "", style: {} };
+      first.val = t("sheetContextMenu.totalLabel"); first.formula = "";
+      this.cellsData.set(firstCoord, first);
+      if (bounds.end.c !== bounds.start.c) {
+        const valueCoord = `${bounds.end.c}${totalsRow}`;
+        const value = this.cellsData.get(valueCoord) || { val: "", formula: "", style: {} };
+        const dataStart = bounds.start.r + (table.hasHeaders === false ? 0 : 1);
+        value.formula = `=SUBTOTAL(109,${bounds.end.c}${dataStart}:${bounds.end.c}${bounds.end.r})`;
+        value.val = "";
+        this.cellsData.set(valueCoord, value);
+      }
+    }
+    const nextBounds = this._normalizeRange(this._parseRange(table.ref));
+    return this._finishTableStructureChange(before, table, { c: bounds.start.c, r: nextBounds.end.r });
   }
 
   _showTabColorMenu(event, sheetName) {
@@ -7281,6 +7443,118 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
+  updateChartType(chartId, type, sheetName = this.activeSheet, recordUndo = true) {
+    if (!SHEET_CHART_TYPES.includes(type)) return false;
+    const chart = (this.chartsBySheet[sheetName] || []).find(item => item.id === chartId);
+    if (!chart || chart.type === type) return chart || false;
+    const before = structuredClone(chart);
+    chart.type = type;
+    const after = structuredClone(chart);
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: sheetName, collection: "chartsBySheet", operation: "update", id: chartId, before, after });
+    if (sheetName === this.activeSheet) this.renderCharts();
+    return chart;
+  }
+
+  updateChartRange(chartId, range, sheetName = this.activeSheet, recordUndo = true) {
+    const chart = (this.chartsBySheet[sheetName] || []).find(item => item.id === chartId);
+    const parsed = typeof range === "string" ? this._parseRange(range.replace(/\$/g, "")) : range;
+    if (!chart || !parsed?.start || !parsed?.end) return false;
+    const normalized = this._normalizeRange(parsed);
+    if (!this.cols.includes(normalized.start.c) || !this.cols.includes(normalized.end.c)
+      || normalized.start.r < 1 || normalized.end.r > this.rowCount) return false;
+    const before = structuredClone(chart);
+    chart.range = normalized;
+    this._updateChartData(chart, sheetName);
+    const after = structuredClone(chart);
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: sheetName, collection: "chartsBySheet", operation: "update", id: chartId, before, after });
+    if (sheetName === this.activeSheet) this.renderCharts();
+    return chart;
+  }
+
+  async openChartTypeDialog(chartId, sheetName = this.activeSheet) {
+    const chart = (this.chartsBySheet[sheetName] || []).find(item => item.id === chartId);
+    if (!chart) return false;
+    const SheetChartBuilder = await this._loadChartBuilder();
+    const dataItems = (chart.labels || []).map((label, index) => ({ label, value: chart.data?.[index] }));
+    return SheetChartBuilder.showChartModal(dataItems, type => this.updateChartType(chartId, type, sheetName), {
+      rangeLabel: this._rangeLabel(chart.range),
+      title: chart.title,
+      initialType: chart.type,
+      dialogTitle: t("sheetContextMenu.chartTypeDialog"),
+      applyLabel: t("sheetDialogs.apply", "Áp dụng")
+    });
+  }
+
+  async openChartDataDialog(chartId, sheetName = this.activeSheet) {
+    const chart = (this.chartsBySheet[sheetName] || []).find(item => item.id === chartId);
+    if (!chart) return false;
+    const value = await showPromptDialog({
+      title: t("sheetContextMenu.selectData"),
+      message: t("sheetContextMenu.chartDataRange"),
+      defaultValue: this._rangeLabel(chart.range),
+      confirmText: t("sheetDialogs.apply", "Áp dụng"),
+      cancelText: t("sheetDialogs.cancel", "Hủy")
+    });
+    if (value == null) return false;
+    const updated = this.updateChartRange(chartId, value, sheetName);
+    if (!updated) await showAlertDialog({ title: t("sheetContextMenu.selectData"), message: t("sheetContextMenu.invalidChartRange") });
+    return updated;
+  }
+
+  moveChartToSheet(chartId, targetSheet, sourceSheet = this.activeSheet, recordUndo = true) {
+    if (!this.sheets.includes(targetSheet)) return false;
+    const source = this.chartsBySheet[sourceSheet] || [];
+    const sourceIndex = source.findIndex(item => item.id === chartId);
+    if (sourceIndex < 0) return false;
+    if (sourceSheet === targetSheet) return source[sourceIndex];
+    const [chart] = source.splice(sourceIndex, 1);
+    const target = this.chartsBySheet[targetSheet] ||= [];
+    const targetIndex = target.length;
+    target.push(chart);
+    if (recordUndo) this._recordHistory({ type: "chart-sheet-move", chart: structuredClone(chart), sourceSheet, targetSheet, sourceIndex, targetIndex });
+    if (sourceSheet === this.activeSheet || targetSheet === this.activeSheet) this.renderCharts();
+    return chart;
+  }
+
+  async openMoveChartDialog(chartId, sheetName = this.activeSheet) {
+    const target = await showPromptDialog({
+      title: t("sheetContextMenu.moveChart"),
+      message: t("sheetContextMenu.moveChartMessage", { sheets: this.sheets.join(", ") }),
+      defaultValue: sheetName,
+      confirmText: t("sheetContextMenu.move"),
+      cancelText: t("sheetDialogs.cancel", "Hủy")
+    });
+    if (target == null) return false;
+    const exact = this.sheets.find(name => name.toLocaleLowerCase() === String(target).trim().toLocaleLowerCase());
+    if (!exact) {
+      await showAlertDialog({ title: t("sheetContextMenu.moveChart"), message: t("sheetContextMenu.invalidSheetName") });
+      return false;
+    }
+    return this.moveChartToSheet(chartId, exact, sheetName);
+  }
+
+  _showChartContextMenu(event, chart, part = "area") {
+    event.preventDefault();
+    event.stopPropagation();
+    const labels = { area: t("sheetContextMenu.chartArea"), plot: t("sheetContextMenu.plotArea"), series: t("sheetContextMenu.series") };
+    this._contextMenuPreviousFocus = event.currentTarget || document.activeElement;
+    this._activeContextMenu = showContextMenu({
+      items: [
+        { label: t("sheetContextMenu.chartType"), action: () => this.openChartTypeDialog(chart.id) },
+        { label: t("sheetContextMenu.selectData"), action: () => this.openChartDataDialog(chart.id) },
+        { label: t("sheetContextMenu.moveChart"), action: () => this.openMoveChartDialog(chart.id) },
+        { sep: true },
+        { label: t("sheetContextMenu.deleteObject"), shortcut: "Delete", action: () => this.deleteChart(chart.id) }
+      ],
+      x: event.clientX,
+      y: event.clientY,
+      className: "vno-sheet-context-menu vno-sheet-object-context-menu",
+      ariaLabel: labels[part] || labels.area,
+      previousFocus: this._contextMenuPreviousFocus,
+      onClose: () => { this._activeContextMenu = null; this._contextMenuPreviousFocus = null; }
+    });
+  }
+
   async openChartAxisTitles(chartId, sheetName = this.activeSheet) {
     const chart = (this.chartsBySheet[sheetName] || []).find(item => item.id === chartId);
     if (!chart || chart.type === "pie") return false;
@@ -7337,6 +7611,8 @@ _bindGridKeyboardNavigation() {
       const colOffset = Math.max(0, this.cols.indexOf(chart.range.end.c) + 1) * 100 + 46;
       const rowOffset = Math.max(0, chart.range.start.r - 1) * this.rowHeight + 28;
       panel.className = "vno-sheet-chart";
+      panel.tabIndex = 0;
+      panel.setAttribute?.("aria-label", t("sheetContextMenu.chartArea"));
       panel.dataset.chartId = chart.id;
       panel.dataset.sheet = this.activeSheet;
       panel.style.cssText = `position:absolute;left:${colOffset}px;top:${rowOffset}px;width:520px;height:300px;background:#fff;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 8px 24px rgba(15,23,42,.18);pointer-events:auto;overflow:hidden`;
@@ -7344,6 +7620,15 @@ _bindGridKeyboardNavigation() {
       panel.innerHTML = `${axisButton}<button type="button" data-chart-delete aria-label="${t("sheetDialogs.chartDelete")}" title="${t("sheetDialogs.chartDelete")}" style="position:absolute;right:6px;top:4px;z-index:1;border:0;background:#fff;border-radius:4px;font-size:18px;cursor:pointer">&times;</button>${this.sheetChartBuilder.generateSvg(chart)}`;
       panel.querySelector("[data-chart-delete]")?.addEventListener("click", () => this.deleteChart(chart.id));
       panel.querySelector("[data-chart-axis-titles]")?.addEventListener("click", () => this.openChartAxisTitles(chart.id));
+      panel.addEventListener("contextmenu", event => {
+        const part = event.target.closest?.("[data-value]") ? "series" : (event.target.closest?.("svg") ? "plot" : "area");
+        this._showChartContextMenu(event, chart, part);
+      });
+      panel.addEventListener("keydown", event => {
+        if (!(event.key === "ContextMenu" || (event.shiftKey && event.key === "F10"))) return;
+        const rect = panel.getBoundingClientRect();
+        this._showChartContextMenu({ ...event, currentTarget: panel, clientX: rect.left + 16, clientY: rect.top + 16 }, chart, "area");
+      });
       this.chartLayer.appendChild(panel);
     }
   }
@@ -11184,6 +11469,7 @@ _bindGridKeyboardNavigation() {
       pageSetup: structuredClone(this.pageSetupBySheet[sheetName] || newSheetPageSetup()),
       hiddenRows: [...(sheetName === this.activeSheet ? this.hiddenRows : (state.hiddenRows || []))],
       activeFilters: Array.from(sheetName === this.activeSheet ? this.activeFilters : (state.activeFilters || []), ([col, values]) => [col, [...values]]),
+      filterRange: state.filterRange || "",
       selectedCoord: { ...(sheetName === this.activeSheet ? this.selectedCoord : (state.selectedCoord || { r: 1, c: "A" })) },
       selectionRange: structuredClone(this.selectionRange),
       outlineGroups: structuredClone(this.outlineGroupsBySheet[sheetName] || [])
@@ -11215,6 +11501,7 @@ _bindGridKeyboardNavigation() {
       Object.assign(this.sheetStates[snapshot.sheetName], {
         hiddenRows: new Set(this.hiddenRows),
         activeFilters: new Map(this.activeFilters),
+        filterRange: snapshot.filterRange || "",
         selectedCoord: { ...this.selectedCoord }
       });
     }

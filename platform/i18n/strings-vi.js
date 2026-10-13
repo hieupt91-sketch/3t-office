@@ -1229,7 +1229,19 @@ export const viStrings = {
       jumpToRef: "Chuyển tới vị trí tham chiếu"
     }
   },
-  sheetFormatCells: {
+  sheetContextMenu: {
+    insert: "Chèn", delete: "Xóa", select: "Chọn", table: "Bảng", move: "Di chuyển",
+    tableColumnLeft: "Cột bảng bên trái", tableColumnRight: "Cột bảng bên phải",
+    tableRowAbove: "Hàng bảng phía trên", tableRowBelow: "Hàng bảng phía dưới",
+    tableColumn: "Cột của bảng", tableRow: "Hàng của bảng",
+    tableColumnData: "Dữ liệu cột của bảng", tableColumnAll: "Toàn bộ cột của bảng", tableRowSelect: "Hàng của bảng",
+    totalRow: "Dòng tổng", totalLabel: "Tổng", convertToRange: "Chuyển thành phạm vi",
+    chartArea: "Vùng biểu đồ", plotArea: "Vùng vẽ", series: "Chuỗi dữ liệu",
+    chartType: "Đổi loại biểu đồ...", chartTypeDialog: "Đổi loại biểu đồ",
+    selectData: "Chọn dữ liệu...", chartDataRange: "Nhập vùng dữ liệu cho biểu đồ (ví dụ A1:B10):", invalidChartRange: "Vùng dữ liệu không hợp lệ.",
+    moveChart: "Di chuyển biểu đồ...", moveChartMessage: "Nhập tên trang tính muốn chuyển biểu đồ tới. Các trang tính hiện có: {sheets}", invalidSheetName: "Không tìm thấy trang tính với tên đã nhập.",
+    deleteObject: "Xóa"
+  },  sheetFormatCells: {
     dialogTitle: "Định dạng ô (Format Cells)",
     tabNumber: "Số",
     tabAlignment: "Căn chỉnh",

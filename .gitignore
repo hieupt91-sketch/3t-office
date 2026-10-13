@@ -74,3 +74,5 @@ docs/screenshots/**/*d[0-9][0-9]_*
 
 # Pre-warmed LibreOffice profiles are generated at packaging time (scripts/release/build-seed-profiles.py)
 /seed/
+
+scripts/audit-0610/.audit-cache-results.json

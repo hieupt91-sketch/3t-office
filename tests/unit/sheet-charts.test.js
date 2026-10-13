@@ -26,6 +26,8 @@ class FakePanel {
   }
   set innerHTML(value) { this._innerHTML = String(value); }
   get innerHTML() { return this._innerHTML; }
+  setAttribute() {}
+  addEventListener() {}
   querySelector(selector) {
     if (selector !== "[data-chart-delete]") return null;
     return { addEventListener: (_event, handler) => { this.deleteHandler = handler; } };
