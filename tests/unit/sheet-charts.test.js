@@ -121,6 +121,32 @@ export async function runSheetChartTests() {
       assert(!chart.xAxisTitle && !chart.yAxisTitle, "Ctrl+Z phải trả hai tiêu đề trục về trạng thái trước");
     });
 
+    await test("Sheet Charts G3: đủ loại, nhiều chuỗi, nhãn, chuyển hàng/cột và xu hướng đều hoạt động", async () => {
+      const grid = createSheetGridWithSheets(container(), ["Dữ liệu", "Trang 2"]);
+      await grid.initializeOptionalDocumentFeatures();
+      grid.chartLayer = chartLayer();
+      [["A", 1, "Tháng"], ["B", 1, "Thực hiện"], ["C", 1, "Kế hoạch"], ["D", 1, "Quy mô"],
+        ["A", 2, "T1"], ["B", 2, 10], ["C", 2, 15], ["D", 2, 5],
+        ["A", 3, "T2"], ["B", 3, 20], ["C", 3, 18], ["D", 3, 9]].forEach(([c, r, value]) => grid.setCellValue(c, r, value));
+      const range = { start: { c: "A", r: 1 }, end: { c: "D", r: 3 } };
+      for (const type of ["bar-horizontal", "column-stacked", "column-stacked-100", "scatter", "combo", "radar", "bubble"]) {
+        const chart = grid.insertChart(type, range);
+        assert(chart?.series?.length === 3, `${type}: phải giữ 3 chuỗi số`);
+        assert(SheetChartBuilder.generateSvg(chart).includes(`data-chart-type="${type}"`), `${type}: SVG không đúng loại`);
+        grid.deleteChart(chart.id);
+      }
+      const chart = grid.insertChart("combo", range);
+      grid.toggleChartDataLabels(chart.id);
+      grid.toggleChartTrendline(chart.id);
+      let svg = SheetChartBuilder.generateSvg(chart);
+      assert(chart.dataLabels && svg.includes("data-chart-label"), "Nhãn dữ liệu phải hiện thật trên SVG");
+      assert(chart.trendline && svg.includes("data-chart-trendline"), "Đường xu hướng phải hiện thật trên SVG");
+      grid.switchChartRowsColumns(chart.id);
+      assert(chart.switchRowsColumns && chart.series.length === 2 && chart.series[0].values.length === 3, JSON.stringify(chart.series));
+      svg = SheetChartBuilder.generateSvg(chart);
+      assert(svg.includes('data-series-index="1"'), "Chuyển hàng/cột phải vẽ lại nhiều chuỗi");
+    });
+
     await test("Sheet Charts: state và DOM không rò rỉ chéo sheet", async () => {
       const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       await grid.initializeOptionalDocumentFeatures();

@@ -5380,6 +5380,309 @@ def _fods_pivot_charts(source_fods: str | None) -> dict[str, list[str]]:
     return result
 
 
+def _xlsx_chart_parts_by_sheet(xlsx_bytes: bytes) -> dict[str, list[str]]:
+    """Return worksheet chart part names in drawing order (read-only XML parsing)."""
+    result: dict[str, list[str]] = {}
+    with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+        for sheet_name, sheet_part in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+            sheet_xml = read_zip_entry(xlsx_bytes, sheet_part)
+            if not sheet_xml:
+                continue
+            try:
+                sheet_root = ET.fromstring(sheet_xml)
+            except ET.ParseError:
+                continue
+            drawing_rid = next((
+                value for node in sheet_root.iter() if node.tag.rsplit("}", 1)[-1] == "drawing"
+                for key, value in node.attrib.items() if key.rsplit("}", 1)[-1] == "id"
+            ), "")
+            drawing_part = _read_relationships(package, sheet_part).get(drawing_rid)
+            if not drawing_part or drawing_part not in package.namelist():
+                continue
+            try:
+                drawing_root = ET.fromstring(package.read(drawing_part))
+            except ET.ParseError:
+                continue
+            drawing_rels = _read_relationships(package, drawing_part)
+            parts = []
+            for node in drawing_root.iter():
+                if node.tag.rsplit("}", 1)[-1] != "chart":
+                    continue
+                rid = next((value for key, value in node.attrib.items() if key.rsplit("}", 1)[-1] == "id"), "")
+                target = drawing_rels.get(rid)
+                if target and target in package.namelist():
+                    parts.append(target)
+            if parts:
+                result[sheet_name] = parts
+    return result
+
+
+def _chart_feature_from_xml(chart_xml: str) -> dict[str, object]:
+    chart_type = ""
+    if re.search(r"<c:barChart\b", chart_xml):
+        direction = re.search(r'<c:barDir\b[^>]*\bval=["\']([^"\']+)', chart_xml)
+        grouping = re.search(r'<c:grouping\b[^>]*\bval=["\']([^"\']+)', chart_xml)
+        if re.search(r"<c:lineChart\b", chart_xml):
+            chart_type = "combo"
+        elif direction and direction.group(1).lower() == "bar":
+            chart_type = "bar-horizontal"
+        elif grouping and grouping.group(1).lower() == "percentstacked":
+            chart_type = "column-stacked-100"
+        elif grouping and grouping.group(1).lower() == "stacked":
+            chart_type = "column-stacked"
+        else:
+            chart_type = "bar"
+    elif re.search(r"<c:scatterChart\b", chart_xml):
+        chart_type = "scatter"
+    elif re.search(r"<c:bubbleChart\b", chart_xml):
+        chart_type = "bubble"
+    elif re.search(r"<c:radarChart\b", chart_xml):
+        chart_type = "radar"
+    elif re.search(r"<c:lineChart\b", chart_xml):
+        chart_type = "line"
+    elif re.search(r"<c:pieChart\b", chart_xml):
+        chart_type = "pie"
+    elif re.search(r"<c:areaChart\b", chart_xml):
+        chart_type = "area"
+    value_formulas = re.findall(r"<c:(?:val|yVal)\b[\s\S]*?<c:f>([^<]+)</c:f>", chart_xml, re.IGNORECASE)
+    switched = False
+    if value_formulas:
+        address = re.search(r"\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)", _unescape_xml(value_formulas[0]).upper())
+        switched = bool(address and address.group(2) == address.group(4) and address.group(1) != address.group(3))
+    formula_cells = []
+    source_sheet = ""
+    for formula in re.findall(r"<c:f>([^<]+)</c:f>", chart_xml, re.IGNORECASE):
+        decoded = _unescape_xml(formula)
+        if "!" in decoded and not source_sheet:
+            source_sheet = decoded.rsplit("!", 1)[0].strip("'").replace("''", "'")
+        formula_cells.extend((column, int(row)) for column, row in re.findall(r"\$?([A-Z]{1,3})\$?(\d+)", decoded.upper()))
+    source_range = ""
+    if formula_cells:
+        def column_number(column: str) -> int:
+            value = 0
+            for char in column:
+                value = value * 26 + ord(char) - 64
+            return value
+        def column_letters(number: int) -> str:
+            value = ""
+            while number > 0:
+                number, remainder = divmod(number - 1, 26)
+                value = chr(65 + remainder) + value
+            return value
+        column_numbers = [column_number(column) for column, _row in formula_cells]
+        rows = [row for _column, row in formula_cells]
+        source_range = f"{column_letters(min(column_numbers))}{min(rows)}:{column_letters(max(column_numbers))}{max(rows)}"
+    return {
+        "type": chart_type,
+        "data_labels": bool(re.search(r"<c:dLbls\b[\s\S]*?<c:showVal\b[^>]*\bval=[\"']1[\"']", chart_xml, re.IGNORECASE)),
+        "trendline": bool(re.search(r"<c:trendline\b", chart_xml, re.IGNORECASE)),
+        "switch_rows_columns": switched,
+        "source_sheet": source_sheet,
+        "source_range": source_range,
+    }
+
+
+def overlay_sheet_chart_metadata_to_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
+    """Annotate converted FODS chart frames so VN chart semantics survive reopen."""
+    xml = fods_xml or ""
+    parts_by_sheet = _xlsx_chart_parts_by_sheet(xlsx_bytes)
+    if not parts_by_sheet:
+        return xml
+    features = []
+    with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+        for sheet_name in _resolve_xlsx_sheet_entries(xlsx_bytes):
+            for part in parts_by_sheet.get(sheet_name, []):
+                features.append(_chart_feature_from_xml(package.read(part).decode("utf-8", errors="replace")))
+    frames = [match for match in re.finditer(r"<draw:frame\b[^>]*>([\s\S]*?)</draw:frame\s*>", xml, re.IGNORECASE)
+              if re.search(r"<chart:chart\b", match.group(1), re.IGNORECASE)]
+    if len(frames) != len(features):
+        return xml
+    additions = []
+    for frame, feature in zip(frames, features):
+        opening = re.match(r"<draw:frame\b[^>]*>", frame.group(0), re.IGNORECASE)
+        if not opening or not feature.get("type"):
+            continue
+        tag = opening.group(0)
+        attrs = _xml_attrs(tag[len("<draw:frame"): -1])
+        values = {
+            "vno:chart-type": str(feature["type"]),
+            "vno:data-labels": "true" if feature["data_labels"] else "",
+            "vno:trendline": "true" if feature["trendline"] else "",
+            "vno:switch-rows-columns": "true" if feature["switch_rows_columns"] else "",
+            "vno:chart-source-sheet": str(feature.get("source_sheet") or ""),
+            "vno:chart-source-range": str(feature.get("source_range") or ""),
+        }
+        for name, value in values.items():
+            if value and name not in attrs:
+                tag = tag[:-1] + f' {name}="{_escape_xml(value)}">'
+        additions.append((frame.start(), frame.start() + opening.end(), tag))
+    for start, end, tag in reversed(additions):
+        xml = xml[:start] + tag + xml[end:]
+    if additions and not _declares_vno_namespace(xml):
+        root = _OFFICE_DOCUMENT_OPEN_RE.search(xml)
+        if root:
+            xml = xml[:root.start()] + f'<office:document{root.group(1)} xmlns:vno="{SHEET_VNO_NS}">' + xml[root.end():]
+    return xml
+
+
+def _fods_chart_features(source_fods: str | None) -> dict[str, list[dict[str, object]]]:
+    result: dict[str, list[dict[str, object]]] = {}
+    try:
+        root = ET.fromstring(source_fods or "")
+    except ET.ParseError:
+        return result
+    for table in root.iter():
+        if table.tag.rsplit("}", 1)[-1] != "table":
+            continue
+        attrs = {key.rsplit("}", 1)[-1]: value for key, value in table.attrib.items()}
+        sheet_name = attrs.get("name", "")
+        if not sheet_name or sheet_name == "local-table":
+            continue
+        items = []
+        for frame in table.iter():
+            if frame.tag.rsplit("}", 1)[-1] != "frame":
+                continue
+            if not any(node.tag.rsplit("}", 1)[-1] == "chart" for node in frame.iter()):
+                continue
+            frame_attrs = {key.rsplit("}", 1)[-1]: value for key, value in frame.attrib.items()}
+            items.append({
+                "type": frame_attrs.get("chart-type", ""),
+                "data_labels": frame_attrs.get("data-labels") == "true",
+                "trendline": frame_attrs.get("trendline") == "true",
+                "switch_rows_columns": frame_attrs.get("switch-rows-columns") == "true",
+            })
+        if items:
+            result[_unescape_xml(sheet_name)] = items
+    return result
+
+
+def _chart_ser_index(series_xml: str, index: int) -> str:
+    series_xml = re.sub(r'<c:idx\b[^>]*/>', f'<c:idx val="{index}"/>', series_xml, count=1)
+    series_xml = re.sub(r'<c:order\b[^>]*/>', f'<c:order val="{index}"/>', series_xml, count=1)
+    return series_xml
+
+
+def _chart_component(series_xml: str, name: str) -> str:
+    match = re.search(rf"<c:{name}\b[^>]*>([\s\S]*?)</c:{name}\s*>", series_xml, re.IGNORECASE)
+    return match.group(1) if match else ""
+
+
+def _chart_series_tx(series_xml: str) -> str:
+    match = re.search(r"<c:tx\b[^>]*>[\s\S]*?</c:tx\s*>", series_xml, re.IGNORECASE)
+    return match.group(0) if match else ""
+
+
+def _sheet_chart_plot(feature: dict[str, object], original_plot: str) -> str:
+    chart_type = str(feature.get("type") or "bar")
+    series = re.findall(r"<c:ser\b[^>]*>[\s\S]*?</c:ser\s*>", original_plot, re.IGNORECASE)
+    if not series:
+        return original_plot
+    series = [_chart_ser_index(item, index) for index, item in enumerate(series)]
+    dlabels = '<c:dLbls><c:showLegendKey val="0"/><c:showVal val="1"/><c:showCatName val="0"/><c:showSerName val="0"/></c:dLbls>' if feature.get("data_labels") else ""
+    if feature.get("trendline"):
+        series[0] = series[0].replace("</c:ser>", '<c:trendline><c:trendlineType val="linear"/></c:trendline></c:ser>', 1)
+
+    def apply_components(plot_xml: str) -> str:
+        if feature.get("trendline"):
+            plot_xml = re.sub(r"<c:ser\b[^>]*>[\s\S]*?</c:ser\s*>", series[0], plot_xml, count=1, flags=re.IGNORECASE)
+        if feature.get("data_labels"):
+            plot_xml = re.sub(r'(<c:showVal\b[^>]*\bval=["\'])0(["\'])', r'\g<1>1\2', plot_xml, flags=re.IGNORECASE)
+        return plot_xml
+
+    # LibreOffice already emits schema-valid native blocks for these chart
+    # classes (including the correct axes). Preserve those blocks byte-for-byte
+    # and only toggle components that it generated with showVal=0.
+    native_marker = {
+        "scatter": "scatterChart",
+        "combo": "lineChart",
+        "radar": "radarChart",
+        "bubble": "bubbleChart",
+    }.get(chart_type)
+    if native_marker and re.search(rf"<c:{native_marker}\b", original_plot, re.IGNORECASE):
+        return apply_components(original_plot)
+
+    if chart_type in {"bar", "bar-horizontal", "column-stacked", "column-stacked-100"} and re.search(r"<c:barChart\b", original_plot, re.IGNORECASE):
+        direction = "bar" if chart_type == "bar-horizontal" else "col"
+        grouping = {"column-stacked": "stacked", "column-stacked-100": "percentStacked"}.get(chart_type, "clustered")
+        current = re.sub(r'(<c:barDir\b[^>]*\bval=["\'])[^"\']+(["\'])', rf'\g<1>{direction}\2', original_plot, count=1, flags=re.IGNORECASE)
+        current = re.sub(r'(<c:grouping\b[^>]*\bval=["\'])[^"\']+(["\'])', rf'\g<1>{grouping}\2', current, count=1, flags=re.IGNORECASE)
+        if "stacked" in chart_type:
+            current = re.sub(r'(<c:overlap\b[^>]*\bval=["\'])[^"\']+(["\'])', r'\g<1>100\2', current, count=1, flags=re.IGNORECASE)
+        return apply_components(current)
+    cat_axes = ('<c:catAx><c:axId val="1"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/>'
+                '<c:axPos val="b"/><c:tickLblPos val="nextTo"/><c:crossAx val="2"/><c:crosses val="autoZero"/>'
+                '<c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/></c:catAx>'
+                '<c:valAx><c:axId val="2"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/>'
+                '<c:axPos val="l"/><c:majorGridlines/><c:numFmt formatCode="General" sourceLinked="1"/>'
+                '<c:tickLblPos val="nextTo"/><c:crossAx val="1"/><c:crosses val="autoZero"/><c:crossBetween val="between"/></c:valAx>')
+    val_axes = ('<c:valAx><c:axId val="1"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/>'
+                '<c:axPos val="b"/><c:numFmt formatCode="General" sourceLinked="1"/><c:tickLblPos val="nextTo"/>'
+                '<c:crossAx val="2"/><c:crosses val="autoZero"/><c:crossBetween val="midCat"/></c:valAx>'
+                '<c:valAx><c:axId val="2"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/>'
+                '<c:axPos val="l"/><c:majorGridlines/><c:numFmt formatCode="General" sourceLinked="1"/>'
+                '<c:tickLblPos val="nextTo"/><c:crossAx val="1"/><c:crosses val="autoZero"/><c:crossBetween val="midCat"/></c:valAx>')
+    axes_ids = '<c:axId val="1"/><c:axId val="2"/>'
+
+    if chart_type in {"bar", "bar-horizontal", "column-stacked", "column-stacked-100"}:
+        direction = "bar" if chart_type == "bar-horizontal" else "col"
+        grouping = {"column-stacked": "stacked", "column-stacked-100": "percentStacked"}.get(chart_type, "clustered")
+        overlap = '<c:overlap val="100"/>' if "stacked" in chart_type else ""
+        block = f'<c:barChart><c:barDir val="{direction}"/><c:grouping val="{grouping}"/><c:varyColors val="0"/>{"".join(series)}{dlabels}<c:gapWidth val="150"/>{overlap}{axes_ids}</c:barChart>'
+        return f"<c:plotArea>{block}{cat_axes}</c:plotArea>"
+    if chart_type == "combo" and len(series) >= 2:
+        bar = f'<c:barChart><c:barDir val="col"/><c:grouping val="clustered"/>{series[0]}{dlabels}<c:gapWidth val="150"/>{axes_ids}</c:barChart>'
+        line = f'<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>{"".join(series[1:])}{dlabels}<c:marker val="1"/><c:smooth val="0"/>{axes_ids}</c:lineChart>'
+        return f"<c:plotArea>{bar}{line}{cat_axes}</c:plotArea>"
+    if chart_type in {"scatter", "bubble"}:
+        x_source = series[0]
+        y_source = series[1] if len(series) > 1 else series[0]
+        size_source = series[2] if len(series) > 2 else y_source
+        tx = _chart_series_tx(y_source)
+        x_values = _chart_component(x_source, "val") or _chart_component(x_source, "yVal")
+        y_values = _chart_component(y_source, "val") or _chart_component(y_source, "yVal")
+        size_values = _chart_component(size_source, "val") or _chart_component(size_source, "bubbleSize")
+        point_series = f'<c:ser><c:idx val="0"/><c:order val="0"/>{tx}<c:xVal>{x_values}</c:xVal><c:yVal>{y_values}</c:yVal>'
+        if chart_type == "bubble":
+            point_series += f'<c:bubbleSize>{size_values}</c:bubbleSize><c:bubble3D val="0"/>'
+            block = f'<c:bubbleChart><c:varyColors val="0"/>{point_series}</c:ser>{dlabels}<c:bubbleScale val="100"/><c:showNegBubbles val="0"/>{axes_ids}</c:bubbleChart>'
+        else:
+            block = f'<c:scatterChart><c:scatterStyle val="lineMarker"/><c:varyColors val="0"/>{point_series}<c:smooth val="0"/></c:ser>{dlabels}{axes_ids}</c:scatterChart>'
+        return f"<c:plotArea>{block}{val_axes}</c:plotArea>"
+    if chart_type == "radar":
+        block = f'<c:radarChart><c:radarStyle val="marker"/><c:varyColors val="0"/>{"".join(series)}{dlabels}{axes_ids}</c:radarChart>'
+        return f"<c:plotArea>{block}{cat_axes}</c:plotArea>"
+    # Existing line/pie/area output is already native; only add requested elements.
+    current = original_plot
+    if feature.get("trendline"):
+        current = re.sub(r"<c:ser\b[^>]*>[\s\S]*?</c:ser\s*>", series[0], current, count=1, flags=re.IGNORECASE)
+    if dlabels and not re.search(r"<c:dLbls\b", current):
+        chart_close = re.search(r"</c:(?:lineChart|pieChart|areaChart)\s*>", current, re.IGNORECASE)
+        if chart_close:
+            current = current[:chart_close.start()] + dlabels + current[chart_close.start():]
+    return current
+
+
+def _apply_sheet_chart_features_from_fods(xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]) -> None:
+    features_by_sheet = _fods_chart_features(source_fods)
+    if not features_by_sheet:
+        return
+    parts_by_sheet = _xlsx_chart_parts_by_sheet(xlsx_bytes)
+    with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+        for sheet_name, features in features_by_sheet.items():
+            parts = parts_by_sheet.get(sheet_name, [])
+            if len(parts) != len(features):
+                continue
+            for part, feature in zip(parts, features):
+                chart_xml = replacements.get(part) or package.read(part).decode("utf-8", errors="replace")
+                plot = re.search(r"<c:plotArea\b[^>]*>[\s\S]*?</c:plotArea\s*>", chart_xml, re.IGNORECASE)
+                if not plot:
+                    continue
+                updated_plot = _sheet_chart_plot(feature, plot.group(0))
+                updated = chart_xml[:plot.start()] + updated_plot + chart_xml[plot.end():]
+                if updated != chart_xml:
+                    replacements[part] = updated
+
+
 def _fods_pivot_table_names(source_fods: str | None) -> dict[str, str]:
     """Map VN pivot ids to the stable native DataPilot table names."""
     result = {}
@@ -5980,6 +6283,7 @@ def postprocess_sheet_xlsx(
         _apply_workbook_view_state_from_fods(xlsx_bytes, source_fods, replacements)
         _clear_print_areas_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_refreshed_pivot_locations_from_fods(xlsx_bytes, source_fods, replacements)
+        _apply_sheet_chart_features_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_pivot_chart_links_from_fods(xlsx_bytes, source_fods, replacements, workbook_filename)
 
     if source_fods:
@@ -9820,6 +10124,7 @@ def overlay_sheet_xlsx_fods(
     xml = _overlay_sheet_drawing_text_boxes(xlsx_bytes, xml)
     xml = _overlay_sheet_resolved_comments(xlsx_bytes, xml)
     xml = overlay_pivot_chart_metadata_to_fods(xlsx_bytes, xml)
+    xml = overlay_sheet_chart_metadata_to_fods(xlsx_bytes, xml)
     # Scenarios: overlay vno:scenarios from XLSX worksheet XMLs
     xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
     xml = apply_conditional_formatting_to_fods(xml, parse_conditional_formatting_from_xlsx(xlsx_bytes))
@@ -9886,6 +10191,7 @@ def overlay_sheet_xlsx_fods_p1(
     xml = _overlay_sheet_drawing_text_boxes(xlsx_bytes, xml)
     xml = _overlay_sheet_resolved_comments(xlsx_bytes, xml)
     xml = overlay_pivot_chart_metadata_to_fods(xlsx_bytes, xml)
+    xml = overlay_sheet_chart_metadata_to_fods(xlsx_bytes, xml)
     if not skeleton:
         xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
     xml = apply_conditional_formatting_to_fods(xml, parse_conditional_formatting_from_xlsx(xlsx_bytes))

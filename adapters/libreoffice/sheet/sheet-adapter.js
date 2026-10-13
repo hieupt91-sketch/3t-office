@@ -17,7 +17,7 @@ import {
   parseOfficeTsv,
   serializeSheetRangeToClipboard
 } from "../../../platform/clipboard/office-clipboard.js";
-import { extractSheetRangeData } from "../../../apps/sheet/sheet-chart-data.js";
+import { extractSheetRangeData, extractSheetChartData } from "../../../apps/sheet/sheet-chart-data.js";
 import { TABLE_STYLE_PRESETS } from "../../../apps/sheet/cell-style-presets.js";
 
 // MS-XLSX 2.2.3 marks these names as future functions. Keep only functions
@@ -2063,7 +2063,8 @@ export class SheetAdapter {
   _odfChartClass(type) {
     const raw = String(type || "").toLowerCase();
     if (raw === "pie") return "circle";
-    if (raw === "bar" || raw === "column") return "bar";
+    if (["bar", "column", "bar-horizontal", "column-stacked", "column-stacked-100", "combo"].includes(raw)) return "bar";
+    if (["scatter", "radar", "bubble"].includes(raw)) return raw;
     if (raw === "line" || raw === "area") return raw;
     return null;
   }
@@ -2576,58 +2577,31 @@ export class SheetAdapter {
     const cells = this.grid.sheetsData?.[sheetName]
       || (sheetName === this.grid.activeSheet ? this.grid.cellsData : null)
       || new Map();
-    const numeric = (col, row) => {
-      const raw = cells.get(`${this._columnName(col)}${row}`)?.val;
-      if (typeof raw === "number") return Number.isFinite(raw);
-      const text = String(raw ?? "").trim();
-      return text !== "" && Number.isFinite(Number(text.replace(/\s/g, "").replace(",", ".")));
-    };
-    let valueCol = -1;
-    for (let col = left === right ? left : left + 1; col <= right; col++) {
-      for (let row = top; row <= bottom; row++) {
-        if (numeric(col, row)) { valueCol = col; break; }
-      }
-      if (valueCol > 0) break;
-    }
-    if (valueCol < 0) {
-      for (let col = left; col <= right; col++) {
-        for (let row = top; row <= bottom; row++) {
-          if (numeric(col, row)) { valueCol = col; break; }
-        }
-        if (valueCol > 0) break;
-      }
-    }
-    if (valueCol < 0) return null;
-    const labelCol = left !== valueCol ? left : 0;
-    const headerIsText = !numeric(valueCol, top);
-    const dataTop = headerIsText && top < bottom ? top + 1 : top;
-    const pointCount = bottom - dataTop + 1;
-    if (pointCount < 1) return null;
-    const valueStart = `${this._columnName(valueCol)}${dataTop}`;
-    const valueEnd = `${this._columnName(valueCol)}${bottom}`;
-    const categoryStart = labelCol ? `${this._columnName(labelCol)}${dataTop}` : "";
-    const categoryEnd = labelCol ? `${this._columnName(labelCol)}${bottom}` : "";
-    const labelCell = headerIsText ? `${this._columnName(valueCol)}${top}` : "";
+    const columns = this._columnsForChartExtract();
+    const extracted = extractSheetChartData(cells, {
+      start: { c: this._columnName(left), r: top },
+      end: { c: this._columnName(right), r: bottom }
+    }, columns, chart.switchRowsColumns === true);
+    if (!extracted.series.length) return null;
     const plotStart = `${this._columnName(left)}${top}`;
     const plotEnd = `${this._columnName(right)}${bottom}`;
-    const localRows = [];
-    for (let row = dataTop; row <= bottom; row++) {
-      const labelVal = labelCol
-        ? String(cells.get(`${this._columnName(labelCol)}${row}`)?.val ?? `${this._columnName(valueCol)}${row}`)
-        : `${this._columnName(valueCol)}${row}`;
-      const raw = cells.get(`${this._columnName(valueCol)}${row}`)?.val;
-      const number = typeof raw === "number" ? raw : Number(String(raw ?? "").replace(/\s/g, "").replace(",", "."));
-      localRows.push({ label: labelVal, value: Number.isFinite(number) ? number : 0 });
-    }
+    const categoryStart = extracted.categoryStart ? `${extracted.categoryStart.c}${extracted.categoryStart.r}` : "";
+    const categoryEnd = extracted.categoryEnd ? `${extracted.categoryEnd.c}${extracted.categoryEnd.r}` : "";
+    const series = extracted.series.map((item, index) => ({
+      ...item,
+      index,
+      pointCount: item.values.length,
+      valuesRange: this._odfRangePair(sheetName, `${item.start.c}${item.start.r}`, `${item.end.c}${item.end.r}`),
+      labelCellRange: item.labelCell ? this._odfCellAddress(sheetName, `${item.labelCell.c}${item.labelCell.r}`) : "",
+      chartClass: chart.type === "combo" && index > 0 ? "line" : chartClass
+    }));
     return {
       chartClass,
-      pointCount,
       plotRange: this._odfRangePair(sheetName, plotStart, plotEnd),
-      valuesRange: this._odfRangePair(sheetName, valueStart, valueEnd),
       categoriesRange: categoryStart ? this._odfRangePair(sheetName, categoryStart, categoryEnd) : "",
-      labelCellRange: labelCell ? this._odfCellAddress(sheetName, labelCell) : "",
       notifyRange: this._odfRangePair(sheetName, plotStart, plotEnd),
-      localRows,
+      labels: extracted.labels,
+      series,
       title: String(chart.title || `Biểu đồ ${plotStart}:${plotEnd}`)
     };
   }
@@ -2647,12 +2621,17 @@ export class SheetAdapter {
       const yAxisTitle = this._escapeXml(String(chart.yAxisTitle || ""));
       const axisTitle = text => text ? `<chart:title><text:p>${text}</text:p></chart:title>` : "";
       const kindAttr = chart.kind === "pivot" ? ` vno:chart-kind="pivot" vno:pivot-id="${this._escapeXml(chart.pivotId || "")}"` : "";
+      const featureAttrs = ` vno:chart-type="${this._escapeXml(chart.type)}"${chart.dataLabels ? ' vno:data-labels="true"' : ""}${chart.switchRowsColumns ? ' vno:switch-rows-columns="true"' : ""}${chart.trendline ? ' vno:trendline="true"' : ""}`;
       const categories = plan.chartClass === "circle" ? "" : `<chart:axis chart:dimension="x" chart:name="primary-x">${axisTitle(xAxisTitle)}${plan.categoriesRange ? `<chart:categories table:cell-range-address="${this._escapeXml(plan.categoriesRange)}"/>` : ""}</chart:axis>`;
       const yAxis = plan.chartClass === "circle" ? "" : `<chart:axis chart:dimension="y" chart:name="primary-y">${axisTitle(yAxisTitle)}<chart:grid chart:class="major"/></chart:axis>`;
-      const labelAddr = plan.labelCellRange ? ` chart:label-cell-address="${this._escapeXml(plan.labelCellRange)}"` : "";
-      const points = Array.from({ length: plan.pointCount }, () => "<chart:data-point/>").join("");
-      const localRows = plan.localRows.map(row => `<table:table-row><table:table-cell office:value-type="string"><text:p>${this._escapeXml(row.label)}</text:p></table:table-cell><table:table-cell office:value-type="float" office:value="${row.value}"><text:p>${row.value}</text:p></table:table-cell></table:table-row>`).join("");
-      frames.push(`<draw:frame draw:name="${this._escapeXml(chart.id || `Chart${index + 1}`)}" draw:z-index="${index}" svg:width="${width}cm" svg:height="${height}cm" svg:x="${x}cm" svg:y="${y}cm"${kindAttr}>
+      const seriesXml = plan.series.map(item => {
+        const labelAddr = item.labelCellRange ? ` chart:label-cell-address="${this._escapeXml(item.labelCellRange)}"` : "";
+        const points = Array.from({ length: item.pointCount }, () => "<chart:data-point/>").join("");
+        return `<chart:series chart:values-cell-range-address="${this._escapeXml(item.valuesRange)}"${labelAddr} chart:class="chart:${item.chartClass}">${points}</chart:series>`;
+      }).join("");
+      const headerCells = plan.series.map(item => `<table:table-cell office:value-type="string"><text:p>${this._escapeXml(item.name)}</text:p></table:table-cell>`).join("");
+      const localRows = plan.labels.map((label, rowIndex) => `<table:table-row><table:table-cell office:value-type="string"><text:p>${this._escapeXml(label)}</text:p></table:table-cell>${plan.series.map(item => { const value = Number(item.values[rowIndex] || 0); return `<table:table-cell office:value-type="float" office:value="${value}"><text:p>${value}</text:p></table:table-cell>`; }).join("")}</table:table-row>`).join("");
+      frames.push(`<draw:frame draw:name="${this._escapeXml(chart.id || `Chart${index + 1}`)}" draw:z-index="${index}" svg:width="${width}cm" svg:height="${height}cm" svg:x="${x}cm" svg:y="${y}cm"${kindAttr}${featureAttrs}>
           <draw:object draw:notify-on-update-of-ranges="${this._escapeXml(plan.notifyRange)}">
             <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:chart="urn:oasis:names:tc:opendocument:xmlns:chart:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink" office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.chart">
               <office:body><office:chart>
@@ -2661,10 +2640,10 @@ export class SheetAdapter {
                   <chart:legend chart:legend-position="end"/>
                   <chart:plot-area table:cell-range-address="${this._escapeXml(plan.plotRange)}" chart:data-source-has-labels="${plan.labelCellRange || plan.categoriesRange ? "both" : "none"}">
                     ${categories}${yAxis}
-                    <chart:series chart:values-cell-range-address="${this._escapeXml(plan.valuesRange)}"${labelAddr} chart:class="chart:${plan.chartClass}">${points}</chart:series>
+                    ${seriesXml}
                   </chart:plot-area>
                   <table:table table:name="local-table">
-                    <table:table-header-rows><table:table-row><table:table-cell/><table:table-cell office:value-type="string"><text:p>${title}</text:p></table:table-cell></table:table-row></table:table-header-rows>
+                    <table:table-header-rows><table:table-row><table:table-cell/>${headerCells}</table:table-row></table:table-header-rows>
                     <table:table-rows>${localRows}</table:table-rows>
                   </table:table>
                 </chart:chart>
@@ -4539,6 +4518,9 @@ ${pristineXlsxMarker}
     if (raw === "line") return "line";
     if (raw === "area") return "area";
     if (raw === "circle" || raw === "ring" || raw === "pie") return "pie";
+    if (raw === "scatter" || raw === "xy") return "scatter";
+    if (raw === "radar" || raw === "net" || raw === "filled-radar") return "radar";
+    if (raw === "bubble") return "bubble";
     return null;
   }
 
@@ -4588,14 +4570,15 @@ ${pristineXlsxMarker}
     String(xmlText || "").replace(/<draw:frame\b([^>]*)>([\s\S]*?)<\/draw:frame>/gi, (_, frameAttrs, body) => {
       const chartMatch = body.match(/<chart:chart\b([^>]*)>([\s\S]*?)<\/chart:chart>/i);
       if (!chartMatch) return "";
-      const type = this._mapOdfChartClass(chartMatch[1].match(/chart:class=["']([^"']+)["']/i)?.[1] || "");
+      const explicitType = this._unescapeXml(String(frameAttrs || "").match(/vno:chart-type=["']([^"']+)["']/i)?.[1] || "");
+      const type = explicitType || this._mapOdfChartClass(chartMatch[1].match(/chart:class=["']([^"']+)["']/i)?.[1] || "");
       const seriesAttrs = [];
       chartMatch[2].replace(/<chart:series\b([^>]*)(?:\/>|>([\s\S]*?)<\/chart:series>)/gi, (all, attrs) => {
         seriesAttrs.push(attrs);
         return "";
       });
       if (!type || !seriesAttrs.length) return "";
-      const seriesType = this._mapOdfChartClass(seriesAttrs[0].match(/chart:class=["']([^"']+)["']/i)?.[1] || "") || type;
+      const seriesType = explicitType || this._mapOdfChartClass(seriesAttrs[0].match(/chart:class=["']([^"']+)["']/i)?.[1] || "") || type;
       const titleXml = chartMatch[2].match(/<chart:title\b[^>]*>([\s\S]*?)<\/chart:title>/i)?.[1] || "";
       const title = this._unescapeXml(titleXml.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
       const axisTitles = {};
@@ -4607,18 +4590,32 @@ ${pristineXlsxMarker}
       });
       const categoryAttrs = chartMatch[2].match(/<chart:categories\b([^>]*)\/?\s*>/i)?.[1] || "";
       const ranges = [];
-      const values = this._parseOdfTargetRange(
-        seriesAttrs[0].match(/chart:values-cell-range-address=["']([^"']+)["']/i)?.[1] || "",
-        workbook.sheets[0]
-      );
-      if (values) ranges.push(values);
+      for (const attrs of seriesAttrs) {
+        const values = this._parseOdfTargetRange(
+          attrs.match(/chart:values-cell-range-address=["']([^"']+)["']/i)?.[1] || "",
+          workbook.sheets[0]
+        );
+        if (values) ranges.push(values);
+      }
       const categories = this._parseOdfTargetRange(
         categoryAttrs.match(/table:cell-range-address=["']([^"']+)["']/i)?.[1] || "",
         workbook.sheets[0]
       );
       if (categories) ranges.push(categories);
-      const union = this._unionOdfRanges(ranges, workbook.sheets[0]);
-      if (!union?.range || !union.sheet || !workbook.sheets.includes(union.sheet)) return "";
+      let union = this._unionOdfRanges(ranges, workbook.sheets[0]);
+      if (!union?.range || !union.sheet || !workbook.sheets.includes(union.sheet)) {
+        const sourceSheet = this._unescapeXml(String(frameAttrs || "").match(/vno:chart-source-sheet=["']([^"']+)["']/i)?.[1] || "");
+        const sourceRange = this._unescapeXml(String(frameAttrs || "").match(/vno:chart-source-range=["']([^"']+)["']/i)?.[1] || "");
+        const parsedRange = sourceRange.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/i);
+        if (!parsedRange || !workbook.sheets.includes(sourceSheet)) return "";
+        union = {
+          sheet: sourceSheet,
+          range: {
+            start: { c: parsedRange[1].toUpperCase(), r: Number(parsedRange[2]) },
+            end: { c: parsedRange[3].toUpperCase(), r: Number(parsedRange[4]) }
+          }
+        };
+      }
       const chart = {
         id: `chart-import-${++index}`,
         type: seriesType,
@@ -4626,8 +4623,12 @@ ${pristineXlsxMarker}
         title: title || `Biểu đồ ${this._a1FromOdfRange(union)}`,
         ...(axisTitles.x ? { xAxisTitle: axisTitles.x } : {}),
         ...(axisTitles.y ? { yAxisTitle: axisTitles.y } : {}),
+        ...(String(frameAttrs || "").match(/vno:data-labels=["']true["']/i) ? { dataLabels: true } : {}),
+        ...(String(frameAttrs || "").match(/vno:trendline=["']true["']/i) ? { trendline: true } : {}),
+        ...(String(frameAttrs || "").match(/vno:switch-rows-columns=["']true["']/i) ? { switchRowsColumns: true } : {}),
         labels: [],
         data: [],
+        series: [],
         imported: true,
         seriesCount: seriesAttrs.length
       };
@@ -4637,9 +4638,10 @@ ${pristineXlsxMarker}
       }
       const cells = workbook.sheetsData[union.sheet];
       if (cells instanceof Map) {
-        const extracted = extractSheetRangeData(cells, chart.range, this._columnsForChartExtract());
+        const extracted = extractSheetChartData(cells, chart.range, this._columnsForChartExtract(), chart.switchRowsColumns === true);
         chart.labels = extracted.labels;
-        chart.data = extracted.data;
+        chart.series = extracted.series;
+        chart.data = extracted.series[0]?.values || [];
       }
       workbook.chartsBySheet[union.sheet].push(chart);
       return "";

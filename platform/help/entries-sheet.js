@@ -406,15 +406,16 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.chart.insert"],
     title: "Chèn biểu đồ",
-    summary: "Vẽ biểu đồ Cột, Đường, Tròn hoặc Miền từ vùng đang chọn. Cột nhãn + cột số; hộp thoại xem trước SVG rồi chèn vào trang tính.",
+    summary: "Vẽ biểu đồ Cột, Thanh ngang, Cột chồng, Phân tán, Kết hợp, Radar, Bong bóng và các loại thông dụng khác; có nhãn dữ liệu, chuyển hàng/cột và đường xu hướng.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Biểu đồ" },
-    keywords: ["biểu đồ", "chart", "cột", "đường", "tròn", "miền", "pie", "bar"],
+    keywords: ["biểu đồ", "chart", "cột", "thanh ngang", "cột chồng", "100%", "phân tán", "kết hợp", "radar", "bong bóng", "nhãn dữ liệu", "chuyển hàng cột", "đường xu hướng"],
     steps: [
       "Bôi vùng dữ liệu: thường cột nhãn (chữ) kèm cột số, có thể gồm hàng tiêu đề. Vùng không có số sẽ báo lỗi.",
       "Mở tab Chèn, nhóm Biểu đồ, nhấn nút lớn Biểu đồ (hoặc nhấn nút mũi tên mở rộng ở góc dưới phải nhóm Biểu đồ chuẩn phần mềm bảng tính khác).",
-      "Hộp thoại Chèn biểu đồ từ «vùng» có bốn kiểu: Cột, Đường, Tròn, Miền. Chọn kiểu để xem trước. Biểu đồ tròn cần giá trị dương.",
+      "Trong hộp thoại Chèn biểu đồ từ «vùng», chọn Cột, Thanh ngang, Cột chồng, Cột chồng 100%, Đường, Tròn, Miền, Phân tán, Kết hợp, Radar hoặc Bong bóng để xem trước. Phân tán cần ít nhất hai cột số (X, Y); Bong bóng nên có ba cột số (X, Y, kích thước); Kết hợp cần từ hai chuỗi số.",
       "Nhấn Chèn vào bảng tính. Biểu đồ nằm trên lưới, dùng dữ liệu của vùng đã chọn. Đổi số trong vùng nguồn rồi biểu đồ cập nhật theo dữ liệu sheet.",
-      "Với biểu đồ Cột, Đường hoặc Miền, nhấn nút «Tiêu đề trục» ở góc trên biểu đồ. Nhập riêng «Trục ngang (X)» và «Trục dọc (Y)», rồi nhấn Áp dụng; để trống một ô nếu không muốn hiện tiêu đề trục đó. Tiêu đề được lưu vào biểu đồ native trong XLSX.",
+      "Trên biểu đồ, nhấn Nhãn để hiện/ẩn giá trị tại từng điểm; nhấn Hàng/cột để đổi cách mỗi hàng hoặc cột trở thành một chuỗi; nhấn Xu hướng để thêm/bỏ đường xu hướng tuyến tính. Các nút đổi trạng thái ngay, có thể hoàn tác bằng Ctrl+Z. Cũng có thể dùng các lệnh tương ứng trong menu chuột phải của biểu đồ.",
+      "Với biểu đồ có trục, nhấn «Tiêu đề trục» ở góc trên biểu đồ. Nhập riêng «Trục ngang (X)» và «Trục dọc (Y)», rồi nhấn Áp dụng; để trống một ô nếu không muốn hiện tiêu đề trục đó. Khi lưu XLSX rồi mở lại, loại biểu đồ, các chuỗi, nhãn dữ liệu, hướng hàng/cột và đường xu hướng vẫn được giữ.",
       "Cùng tab Chèn còn Biểu đồ thu nhỏ (Đường / Cột sparkline) — đó là mini-chart trong ô, khác biểu đồ lớn này."
     ]
   },

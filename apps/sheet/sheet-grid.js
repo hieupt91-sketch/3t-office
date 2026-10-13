@@ -20,7 +20,7 @@ import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
 import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
 import { createLazyDialogs } from "../../platform/ui-kit/lazy-dialogs.js";
-import { extractSheetRangeData, SHEET_CHART_TYPES } from "./sheet-chart-data.js";
+import { extractSheetRangeData, extractSheetChartData, SHEET_CHART_TYPES } from "./sheet-chart-data.js";
 import { SheetDataTools } from "./data-tools.js";
 import { computeConsolidate, formatSheetRange, parseConsolidateReference, CONSOLIDATE_FUNCTIONS } from "./consolidate.js";
 import { createMatcher } from "../../platform/find/find-engine.js";
@@ -7421,7 +7421,8 @@ _bindGridKeyboardNavigation() {
     const rangeLabel = this._rangeLabel(range);
     return SheetChartBuilder.showChartModal(dataItems, chartType => this.insertChart(chartType, range), {
       rangeLabel,
-      title: `Biểu đồ ${rangeLabel}`
+      title: `Biểu đồ ${rangeLabel}`,
+      series: extracted.series || []
     });
   }
 
@@ -7507,6 +7508,37 @@ _bindGridKeyboardNavigation() {
     return chart;
   }
 
+  updateChartOptions(chartId, values, sheetName = this.activeSheet, recordUndo = true) {
+    const chart = (this.chartsBySheet[sheetName] || []).find(item => item.id === chartId);
+    if (!chart) return false;
+    const before = structuredClone(chart);
+    if (Object.hasOwn(values || {}, "dataLabels")) chart.dataLabels = Boolean(values.dataLabels);
+    if (Object.hasOwn(values || {}, "trendline")) chart.trendline = Boolean(values.trendline);
+    if (Object.hasOwn(values || {}, "switchRowsColumns")) {
+      chart.switchRowsColumns = Boolean(values.switchRowsColumns);
+      this._updateChartData(chart, sheetName);
+    }
+    const after = structuredClone(chart);
+    if (recordUndo) this._recordHistory({ type: "collection", sheet: sheetName, collection: "chartsBySheet", operation: "update", id: chartId, before, after });
+    if (sheetName === this.activeSheet) this.renderCharts();
+    return chart;
+  }
+
+  toggleChartDataLabels(chartId, sheetName = this.activeSheet) {
+    const chart = (this.chartsBySheet[sheetName] || []).find(item => item.id === chartId);
+    return chart && this.updateChartOptions(chartId, { dataLabels: !chart.dataLabels }, sheetName);
+  }
+
+  switchChartRowsColumns(chartId, sheetName = this.activeSheet) {
+    const chart = (this.chartsBySheet[sheetName] || []).find(item => item.id === chartId);
+    return chart && this.updateChartOptions(chartId, { switchRowsColumns: !chart.switchRowsColumns }, sheetName);
+  }
+
+  toggleChartTrendline(chartId, sheetName = this.activeSheet) {
+    const chart = (this.chartsBySheet[sheetName] || []).find(item => item.id === chartId);
+    return chart && this.updateChartOptions(chartId, { trendline: !chart.trendline }, sheetName);
+  }
+
   updateChartRange(chartId, range, sheetName = this.activeSheet, recordUndo = true) {
     const chart = (this.chartsBySheet[sheetName] || []).find(item => item.id === chartId);
     const parsed = typeof range === "string" ? this._parseRange(range.replace(/\$/g, "")) : range;
@@ -7532,6 +7564,7 @@ _bindGridKeyboardNavigation() {
       rangeLabel: this._rangeLabel(chart.range),
       title: chart.title,
       initialType: chart.type,
+      series: chart.series || [],
       dialogTitle: t("sheetContextMenu.chartTypeDialog"),
       applyLabel: t("sheetDialogs.apply", "Áp dụng")
     });
@@ -7594,6 +7627,9 @@ _bindGridKeyboardNavigation() {
       items: [
         { label: t("sheetContextMenu.chartType"), action: () => this.openChartTypeDialog(chart.id) },
         { label: t("sheetContextMenu.selectData"), action: () => this.openChartDataDialog(chart.id) },
+        { label: chart.dataLabels ? t("sheetContextMenu.hideDataLabels") : t("sheetContextMenu.showDataLabels"), action: () => this.toggleChartDataLabels(chart.id) },
+        { label: t("sheetContextMenu.switchRowsColumns"), action: () => this.switchChartRowsColumns(chart.id) },
+        ...(["pie", "radar", "bubble"].includes(chart.type) ? [] : [{ label: chart.trendline ? t("sheetContextMenu.removeTrendline") : t("sheetContextMenu.addTrendline"), action: () => this.toggleChartTrendline(chart.id) }]),
         { label: t("sheetContextMenu.moveChart"), action: () => this.openMoveChartDialog(chart.id) },
         { sep: true },
         { label: t("sheetContextMenu.deleteObject"), shortcut: "Delete", action: () => this.deleteChart(chart.id) }
@@ -7635,9 +7671,10 @@ _bindGridKeyboardNavigation() {
   }
 
   _updateChartData(chart, sheetName = this.activeSheet) {
-    const extracted = extractSheetRangeData(this.sheetsData[sheetName] || this.cellsData, chart.range, this.cols);
+    const extracted = extractSheetChartData(this.sheetsData[sheetName] || this.cellsData, chart.range, this.cols, chart.switchRowsColumns === true);
     chart.labels = extracted.labels;
-    chart.data = extracted.data;
+    chart.series = extracted.series;
+    chart.data = extracted.series[0]?.values || [];
     return chart;
   }
 
@@ -7669,9 +7706,13 @@ _bindGridKeyboardNavigation() {
       panel.dataset.sheet = this.activeSheet;
       panel.style.cssText = `position:absolute;left:${colOffset}px;top:${rowOffset}px;width:520px;height:300px;background:#fff;border:1px solid #cbd5e1;border-radius:8px;box-shadow:0 8px 24px rgba(15,23,42,.18);pointer-events:auto;overflow:hidden`;
       const axisButton = chart.type === "pie" ? "" : `<button type="button" data-chart-axis-titles aria-label="${t("sheetDialogs.chartAxisTitlesEdit")}" title="${t("sheetDialogs.chartAxisTitlesEdit")}" style="position:absolute;right:34px;top:5px;z-index:1;border:1px solid #cbd5e1;background:#fff;border-radius:4px;padding:2px 7px;font-size:11px;cursor:pointer">${t("sheetDialogs.chartAxisTitles")}</button>`;
-      panel.innerHTML = `${axisButton}<button type="button" data-chart-delete aria-label="${t("sheetDialogs.chartDelete")}" title="${t("sheetDialogs.chartDelete")}" style="position:absolute;right:6px;top:4px;z-index:1;border:0;background:#fff;border-radius:4px;font-size:18px;cursor:pointer">&times;</button>${this.sheetChartBuilder.generateSvg(chart)}`;
+      const optionButtons = `<div style="position:absolute;left:6px;top:5px;z-index:1;display:flex;gap:4px"><button type="button" class="vno-btn" data-chart-data-labels aria-pressed="${Boolean(chart.dataLabels)}" title="${t("sheetDialogs.chartDataLabels")}">${t("sheetDialogs.chartDataLabelsShort")}</button><button type="button" class="vno-btn" data-chart-switch title="${t("sheetDialogs.chartSwitchRowsColumns")}">${t("sheetDialogs.chartSwitchShort")}</button>${["pie", "radar", "bubble"].includes(chart.type) ? "" : `<button type="button" class="vno-btn" data-chart-trendline aria-pressed="${Boolean(chart.trendline)}" title="${t("sheetDialogs.chartTrendline")}">${t("sheetDialogs.chartTrendlineShort")}</button>`}</div>`;
+      panel.innerHTML = `${optionButtons}${axisButton}<button type="button" data-chart-delete aria-label="${t("sheetDialogs.chartDelete")}" title="${t("sheetDialogs.chartDelete")}" style="position:absolute;right:6px;top:4px;z-index:1;border:0;background:#fff;border-radius:4px;font-size:18px;cursor:pointer">&times;</button>${this.sheetChartBuilder.generateSvg(chart)}`;
       panel.querySelector("[data-chart-delete]")?.addEventListener("click", () => this.deleteChart(chart.id));
       panel.querySelector("[data-chart-axis-titles]")?.addEventListener("click", () => this.openChartAxisTitles(chart.id));
+      panel.querySelector("[data-chart-data-labels]")?.addEventListener("click", () => this.toggleChartDataLabels(chart.id));
+      panel.querySelector("[data-chart-switch]")?.addEventListener("click", () => this.switchChartRowsColumns(chart.id));
+      panel.querySelector("[data-chart-trendline]")?.addEventListener("click", () => this.toggleChartTrendline(chart.id));
       panel.addEventListener("contextmenu", event => {
         const part = event.target.closest?.("[data-value]") ? "series" : (event.target.closest?.("svg") ? "plot" : "area");
         this._showChartContextMenu(event, chart, part);
