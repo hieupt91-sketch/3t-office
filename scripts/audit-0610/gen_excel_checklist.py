@@ -57,13 +57,13 @@ Trang đầu|Số|Định dạng số dạng Phân số (Fraction) và Đặc bi
 Trang đầu|Số|Mã định dạng tùy chỉnh (Custom)|P|2|Giữ mã gốc khi lưu; chưa có giao diện soạn mã đầy đủ
 Trang đầu|Số|Kế toán / % / Dấu phẩy / Tăng-giảm số lẻ|A|-|sheet.format.*
 Trang đầu|Kiểu|Định dạng có điều kiện: Tô sáng ô — Lớn hơn / Nhỏ hơn|V|-|Quy tắc >2000 đã đọc lại bằng Excel 2016
-Trang đầu|Kiểu|Tô sáng ô — Giữa / Bằng / Chứa văn bản / Ngày xảy ra / Trùng lặp|N|1|Hộp thoại chỉ có Lớn hơn, Nhỏ hơn, Ô trống; mã có xử lý luật duplicate nhưng chưa có trong hộp thoại (opencode xác nhận)
-Trang đầu|Kiểu|Quy tắc Trên/Dưới (Top-Bottom 10, Trên/Dưới trung bình)|N|1|
-Trang đầu|Kiểu|Thanh dữ liệu (Data Bars)|N|1|Chưa có
-Trang đầu|Kiểu|Thang màu (Color Scales)|N|1|Chưa có
-Trang đầu|Kiểu|Bộ biểu tượng (Icon Sets)|N|1|Chưa có
-Trang đầu|Kiểu|Quy tắc mới theo công thức|N|1|
-Trang đầu|Kiểu|Quản lý quy tắc (xem, xóa, thứ tự ưu tiên, Stop If True)|P|1|Xem + xóa; thiếu sửa, thứ tự ưu tiên
+Trang đầu|Kiểu|Tô sáng ô — Giữa / Bằng / Chứa văn bản / Ngày xảy ra / Trùng lặp|V|-|G1 13/10: Excel 2016 đọc đúng luật gốcHộp thoại chỉ có Lớn hơn, Nhỏ hơn, Ô trống; mã có xử lý luật duplicate nhưng chưa có trong hộp thoại (opencode xác nhận)
+Trang đầu|Kiểu|Quy tắc Trên/Dưới (Top-Bottom 10, Trên/Dưới trung bình)|V|-|G1: Excel 2016 đọc đúng
+Trang đầu|Kiểu|Thanh dữ liệu (Data Bars)|V|-|G1: Excel 2016 đọc Type=Databar
+Trang đầu|Kiểu|Thang màu (Color Scales)|V|-|G1: 2 và 3 màu, Excel 2016 đọc đúng
+Trang đầu|Kiểu|Bộ biểu tượng (Icon Sets)|V|-|G1: Excel 2016 đọc IconSet.ID
+Trang đầu|Kiểu|Quy tắc mới theo công thức|V|-|G1: Excel 2016 đọc Type=Expression
+Trang đầu|Kiểu|Quản lý quy tắc (xem, xóa, sửa, thứ tự ưu tiên, Stop If True)|P|2|G1: có xem, sửa, đổi thứ tự, xóa; thiếu Stop If True
 Trang đầu|Kiểu|Xóa quy tắc (vùng chọn / cả trang)|P|2|Xóa từng quy tắc trong quản lý
 Trang đầu|Kiểu|Định dạng dưới dạng Bảng (gallery kiểu)|P|2|Có hộp thoại; chỉ vài kiểu bảng, Excel có 60
 Trang đầu|Kiểu|Kiểu ô (Cell Styles) có sẵn + tạo kiểu mới|A|-|sheet.style.cellStyles
@@ -79,9 +79,9 @@ Trang đầu|Chỉnh sửa|Điền: lên / sang trái / Chuỗi (Series) / Căn 
 Trang đầu|Chỉnh sửa|Xóa: tất cả / định dạng / nội dung|A|-|
 Trang đầu|Chỉnh sửa|Xóa ghi chú / Xóa siêu liên kết (trong menu Xóa)|N|2|
 Trang đầu|Chỉnh sửa|Sắp xếp A-Z / Z-A / Tùy chỉnh nhiều cấp|V|-|Sắp xếp hai cấp đã đọc lại bằng Excel 2016
-Trang đầu|Chỉnh sửa|Sắp xếp theo màu ô/màu chữ/biểu tượng|N|2|
+Trang đầu|Chỉnh sửa|Sắp xếp theo màu ô/màu chữ/biểu tượng|P|3|G2: có sắp xếp theo màu ô/chữ; chưa có theo biểu tượng
 Trang đầu|Chỉnh sửa|Bộ lọc (AutoFilter) bật/tắt|V|-|AutoFilterMode đã đối chiếu
-Trang đầu|Chỉnh sửa|Lọc theo màu / theo văn bản-số-ngày (text/number/date filters)|N|1|Chỉ lọc theo danh sách giá trị
+Trang đầu|Chỉnh sửa|Lọc theo màu / theo văn bản-số-ngày (text/number/date filters)|V|-|G2: lọc văn bản/số/ngày/màu; lưu giữ hàng ẩn đúng
 Trang đầu|Chỉnh sửa|Xóa bộ lọc / Áp dụng lại|A|-|Thêm vào menu chuột phải 13/10
 Trang đầu|Chỉnh sửa|Tìm (Ctrl+F) / Thay thế (Ctrl+H), tùy chọn phân biệt hoa-thường, trong công thức|V|-|Thay thế trên hai trang đã đối chiếu
 Trang đầu|Chỉnh sửa|Đến (Go To, F5/Ctrl+G) / Đến đặc biệt (Go To Special)|A|-|Mới 13/10: sheet-goto.js, test desktop 11/11; chưa đối chiếu với Excel
@@ -95,9 +95,11 @@ Chèn|Minh họa|Hình dạng (Shapes)|P|2|Có hình dạng cơ bản; chưa ki�
 Chèn|Minh họa|SmartArt|N|3|
 Chèn|Add-in|Cửa hàng / Add-in của tôi|X|-|Cần cửa hàng Microsoft
 Chèn|Biểu đồ|Cột nhóm / Đường / Tròn / Vùng|V|-|4 loại biểu đồ đã đọc lại bằng Excel 2016 (loại 51/4/5/1)
-Chèn|Biểu đồ|Cột chồng / Cột 100% / Cột 3-D / Thanh ngang|N|1|Chỉ cột nhóm, chưa có chồng/ngang/3-D
-Chèn|Biểu đồ|Phân tán (Scatter) / Bong bóng|N|1|
-Chèn|Biểu đồ|Radar / Chứng khoán / Bề mặt / Kết hợp (Combo)|N|2|
+Chèn|Biểu đồ|Cột chồng / Cột 100% / Thanh ngang|V|-|G3: Excel 2016 đọc đúng (52/53/57)
+Chèn|Biểu đồ|Cột 3-D|N|3|
+Chèn|Biểu đồ|Phân tán (Scatter) / Bong bóng|V|-|G3: Excel 2016 đọc -4169 / 15
+Chèn|Biểu đồ|Radar / Kết hợp (Combo)|V|-|G3: Excel 2016 đọc -4151 / -4111
+Chèn|Biểu đồ|Chứng khoán / Bề mặt|N|3|
 Chèn|Biểu đồ|Biểu đồ mới 2016: Waterfall / Histogram / Pareto / Box / Treemap / Sunburst|N|3|
 Chèn|Biểu đồ|Biểu đồ được đề xuất / hộp thoại Tất cả biểu đồ|N|3|
 Chèn|Biểu đồ|PivotChart|A|-|sheet.chart.pivotChart
@@ -144,9 +146,9 @@ Dữ liệu|Công cụ dữ liệu|Tách văn bản thành cột|A|-|sheet.data.
 Dữ liệu|Công cụ dữ liệu|Flash Fill|A|-|
 Dữ liệu|Công cụ dữ liệu|Xóa trùng lặp|A|-|
 Dữ liệu|Công cụ dữ liệu|Kiểm tra dữ liệu: Danh sách|V|-|Validation.Type=3 đã đối chiếu
-Dữ liệu|Công cụ dữ liệu|Kiểm tra dữ liệu: Số nguyên / Số thập phân|P|1|Chỉ có khoảng số; chưa tách nguyên/thập phân, chưa có toán tử (giữa, lớn hơn...)
-Dữ liệu|Công cụ dữ liệu|Kiểm tra dữ liệu: Ngày / Giờ / Độ dài văn bản / Tùy chỉnh (công thức)|N|1|Chưa có
-Dữ liệu|Công cụ dữ liệu|Kiểm tra dữ liệu: Thông báo nhập, Cảnh báo lỗi (Stop/Warning/Info), Khoanh vòng dữ liệu sai|N|1|Chưa có
+Dữ liệu|Công cụ dữ liệu|Kiểm tra dữ liệu: Số nguyên / Số thập phân|V|-|G2: Excel 2016 đọc Type 1/2 + toán tử
+Dữ liệu|Công cụ dữ liệu|Kiểm tra dữ liệu: Ngày / Giờ / Độ dài văn bản / Tùy chỉnh (công thức)|V|-|G2: Excel 2016 đọc Type 4/5/6/7
+Dữ liệu|Công cụ dữ liệu|Kiểm tra dữ liệu: Thông báo nhập, Cảnh báo lỗi (Stop/Warning/Info), Khoanh vòng dữ liệu sai|P|3|G2: thông báo nhập + 3 mức cảnh báo Excel 2016 đọc đúng; khoanh vòng chưa so hình
 Dữ liệu|Công cụ dữ liệu|Hợp nhất dữ liệu (Consolidate)|A|-|
 Dữ liệu|Công cụ dữ liệu|Quan hệ giữa bảng / Mô hình dữ liệu (Power Pivot)|N|3|
 Dữ liệu|Dự báo|Phân tích What-If: Trình quản lý kịch bản|A|-|sheet.data.scenarioManager
@@ -192,10 +194,11 @@ Công cụ Bảng|Thiết kế|Đổi kích thước bảng (Resize Table)|N|2|
 Công cụ Bảng|Thiết kế|Tùy chọn kiểu: Hàng tiêu đề, Cột đầu/cuối, Hàng/Cột sọc, Nút lọc|P|2|Có sọc hàng và nút lọc; thiếu cột đầu/cuối, sọc cột
 Công cụ Bảng|Thiết kế|Chèn Slicer / Xuất bảng|N|2|
 Công cụ Biểu đồ|Thiết kế|Thêm thành phần: tiêu đề trục|V|-|Mới 13/10, Excel 2016 đọc đúng
-Công cụ Biểu đồ|Thiết kế|Thêm thành phần: tiêu đề biểu đồ, chú giải, nhãn dữ liệu, lưới, đường xu hướng, thanh sai số|P|1|Có tiêu đề + chú giải; thiếu nhãn dữ liệu, đường xu hướng, thanh sai số
+Công cụ Biểu đồ|Thiết kế|Thêm thành phần: tiêu đề biểu đồ, chú giải, nhãn dữ liệu, đường xu hướng|V|-|G3: Excel 2016 đọc HasDataLabels/Trendlines
+Công cụ Biểu đồ|Thiết kế|Thêm thành phần: lưới, thanh sai số|N|3|
 Công cụ Biểu đồ|Thiết kế|Bố cục nhanh / Đổi màu / Kiểu biểu đồ|N|2|
 Công cụ Biểu đồ|Thiết kế|Chọn dữ liệu / Đổi loại / Di chuyển biểu đồ|A|-|Menu chuột phải biểu đồ 13/10
-Công cụ Biểu đồ|Thiết kế|Chuyển hàng/cột (Switch Row/Column)|N|2|
+Công cụ Biểu đồ|Thiết kế|Chuyển hàng/cột (Switch Row/Column)|V|-|G3: PlotBy đọc đúng
 Công cụ Biểu đồ|Định dạng|Màu/viền/hiệu ứng thành phần, kích thước, vị trí|N|2|
 Công cụ PivotTable|Phân tích|Làm mới / Đổi nguồn / Danh sách trường|P|2|Có làm mới; thiếu đổi nguồn
 Công cụ PivotTable|Phân tích|Nhóm (ngày/số) / Trường tính toán / Slicer|N|2|

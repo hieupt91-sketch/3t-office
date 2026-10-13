@@ -16,15 +16,15 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu Excel 2016 | 45 | 22% |
+| ✅ Đã đối chiếu Excel 2016 | 59 | 28% |
 | 🟢 Có, chưa đối chiếu | 61 | 29% |
 | 🟡 Có một phần | 29 | 14% |
-| 🔴 Chưa có | 74 | 35% |
+| 🔴 Chưa có | 63 | 30% |
 | ⚪ Ngoài phạm vi | 4 | - |
-| **Tổng** | **213** (áp dụng: 209) | |
+| **Tổng** | **216** (áp dụng: 212) | |
 
-- **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 58%**
-- **Đã xác minh bằng đối chiếu Excel 2016 thật: 22%** các mục áp dụng
+- **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 63%**
+- **Đã xác minh bằng đối chiếu Excel 2016 thật: 28%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ 462 hàm) chỉ tính một mục; mức phủ hàm nằm ở dòng riêng và ở `EXCEL2016-FUNCTIONS-MATRIX.md`.
 
@@ -33,17 +33,17 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 3 | 6 | 1 | 6 | 1 | 59% |
-| Trang đầu | 53 | 13 | 17 | 8 | 15 | 0 | 64% |
-| Chèn | 27 | 5 | 5 | 2 | 13 | 2 | 44% |
+| Trang đầu | 53 | 20 | 17 | 9 | 7 | 0 | 78% |
+| Chèn | 29 | 8 | 5 | 2 | 12 | 2 | 52% |
 | Bố trí trang | 10 | 4 | 0 | 3 | 3 | 0 | 55% |
 | Công thức | 13 | 1 | 6 | 2 | 4 | 0 | 62% |
-| Dữ liệu | 19 | 2 | 7 | 3 | 7 | 0 | 55% |
+| Dữ liệu | 19 | 4 | 7 | 3 | 5 | 0 | 66% |
 | Xem xét | 12 | 1 | 3 | 2 | 5 | 1 | 45% |
 | Chế độ xem | 12 | 2 | 6 | 1 | 3 | 0 | 71% |
 | Nhà phát triển | 3 | 0 | 0 | 0 | 3 | 0 | 0% |
 | Trợ giúp | 2 | 0 | 2 | 0 | 0 | 0 | 100% |
 | Công cụ Bảng | 7 | 1 | 3 | 1 | 2 | 0 | 64% |
-| Công cụ Biểu đồ | 6 | 1 | 1 | 1 | 3 | 0 | 42% |
+| Công cụ Biểu đồ | 7 | 3 | 1 | 0 | 3 | 0 | 57% |
 | Công cụ PivotTable | 3 | 0 | 0 | 1 | 2 | 0 | 17% |
 | Công cụ Hình ảnh | 1 | 0 | 0 | 0 | 1 | 0 | 0% |
 | Công cụ Vẽ | 1 | 0 | 0 | 0 | 1 | 0 | 0% |
@@ -56,30 +56,16 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 |---|---|---|---|---|
 | Tệp (Backstage) | Tệp | Xuất / Chuyển đổi định dạng (mục riêng, giữ bố cục) | 🔴 | Đang giao agy (feat/export-convert-agy) |
 | Tệp (Backstage) | Thông tin | Bảo vệ sổ làm việc bằng mật khẩu mở file (mã hóa) | 🔴 | Chưa có mã hóa file; chỉ có bảo vệ cấu trúc |
-| Trang đầu | Kiểu | Tô sáng ô — Giữa / Bằng / Chứa văn bản / Ngày xảy ra / Trùng lặp | 🔴 | Hộp thoại chỉ có Lớn hơn, Nhỏ hơn, Ô trống; mã có xử lý luật duplicate nhưng chưa có trong hộp thoại (opencode xác nhận) |
-| Trang đầu | Kiểu | Quy tắc Trên/Dưới (Top-Bottom 10, Trên/Dưới trung bình) | 🔴 |  |
-| Trang đầu | Kiểu | Thanh dữ liệu (Data Bars) | 🔴 | Chưa có |
-| Trang đầu | Kiểu | Thang màu (Color Scales) | 🔴 | Chưa có |
-| Trang đầu | Kiểu | Bộ biểu tượng (Icon Sets) | 🔴 | Chưa có |
-| Trang đầu | Kiểu | Quy tắc mới theo công thức | 🔴 |  |
-| Trang đầu | Kiểu | Quản lý quy tắc (xem, xóa, thứ tự ưu tiên, Stop If True) | 🟡 | Xem + xóa; thiếu sửa, thứ tự ưu tiên |
-| Trang đầu | Chỉnh sửa | Lọc theo màu / theo văn bản-số-ngày (text/number/date filters) | 🔴 | Chỉ lọc theo danh sách giá trị |
-| Chèn | Biểu đồ | Cột chồng / Cột 100% / Cột 3-D / Thanh ngang | 🔴 | Chỉ cột nhóm, chưa có chồng/ngang/3-D |
-| Chèn | Biểu đồ | Phân tán (Scatter) / Bong bóng | 🔴 |  |
 | Chèn | Bộ lọc | Slicer | 🔴 | Chưa có |
 | Bố trí trang | Thiết lập trang | Hộp thoại Page Setup đủ tab Trang/Lề/Đầu-Chân/Trang tính | 🟡 | Thiếu một số tùy chọn tab Trang tính (in lưới, tiêu đề, thứ tự trang) |
 | Bố trí trang | Vừa trang | Chiều rộng / Chiều cao (Fit to pages) / Tỷ lệ % | 🟡 | Có Tỷ lệ; chưa có Fit to W x H tách riêng |
 | Công thức | Thư viện hàm | Độ phủ hàm Excel 2016 (462 hàm) | 🟡 | Đã đối chiếu 137 hàm, 118 khớp; ~337 hàm chưa kiểm (xem EXCEL2016-FUNCTIONS-MATRIX.md) |
 | Công thức | Thư viện hàm | Công thức mảng (CSE, Ctrl+Shift+Enter) | 🟡 | Có hỗ trợ mảng; chưa đối chiếu đủ |
 | Công thức | Thư viện hàm | Tham chiếu có cấu trúc (Table1[Cột]) | 🔴 | Chưa có |
-| Dữ liệu | Công cụ dữ liệu | Kiểm tra dữ liệu: Số nguyên / Số thập phân | 🟡 | Chỉ có khoảng số; chưa tách nguyên/thập phân, chưa có toán tử (giữa, lớn hơn...) |
-| Dữ liệu | Công cụ dữ liệu | Kiểm tra dữ liệu: Ngày / Giờ / Độ dài văn bản / Tùy chỉnh (công thức) | 🔴 | Chưa có |
-| Dữ liệu | Công cụ dữ liệu | Kiểm tra dữ liệu: Thông báo nhập, Cảnh báo lỗi (Stop/Warning/Info), Khoanh vòng dữ liệu sai | 🔴 | Chưa có |
-| Công cụ Biểu đồ | Thiết kế | Thêm thành phần: tiêu đề biểu đồ, chú giải, nhãn dữ liệu, lưới, đường xu hướng, thanh sai số | 🟡 | Có tiêu đề + chú giải; thiếu nhãn dữ liệu, đường xu hướng, thanh sai số |
 | Không thuộc ribbon | Chuột phải | Menu hình / ảnh / hộp văn bản | 🔴 | Chưa có |
 | Không thuộc ribbon | Chuột | Kéo chốt điền (Fill Handle), nhấp đúp điền xuống, tùy chọn tự điền | 🟡 | Điền chuỗi có; nhấp đúp và Auto Fill Options cần kiểm |
 
-Tổng: 24 mục ưu tiên 1.
+Tổng: 10 mục ưu tiên 1.
 
 ## Chi tiết từng tab
 
@@ -133,13 +119,13 @@ Tổng: 24 mục ưu tiên 1.
 | Số | Mã định dạng tùy chỉnh (Custom) | 🟡 | 2 | Giữ mã gốc khi lưu; chưa có giao diện soạn mã đầy đủ |
 | Số | Kế toán / % / Dấu phẩy / Tăng-giảm số lẻ | 🟢 | - | sheet.format.* |
 | Kiểu | Định dạng có điều kiện: Tô sáng ô — Lớn hơn / Nhỏ hơn | ✅ | - | Quy tắc >2000 đã đọc lại bằng Excel 2016 |
-| Kiểu | Tô sáng ô — Giữa / Bằng / Chứa văn bản / Ngày xảy ra / Trùng lặp | 🔴 | 1 | Hộp thoại chỉ có Lớn hơn, Nhỏ hơn, Ô trống; mã có xử lý luật duplicate nhưng chưa có trong hộp thoại (opencode xác nhận) |
-| Kiểu | Quy tắc Trên/Dưới (Top-Bottom 10, Trên/Dưới trung bình) | 🔴 | 1 |  |
-| Kiểu | Thanh dữ liệu (Data Bars) | 🔴 | 1 | Chưa có |
-| Kiểu | Thang màu (Color Scales) | 🔴 | 1 | Chưa có |
-| Kiểu | Bộ biểu tượng (Icon Sets) | 🔴 | 1 | Chưa có |
-| Kiểu | Quy tắc mới theo công thức | 🔴 | 1 |  |
-| Kiểu | Quản lý quy tắc (xem, xóa, thứ tự ưu tiên, Stop If True) | 🟡 | 1 | Xem + xóa; thiếu sửa, thứ tự ưu tiên |
+| Kiểu | Tô sáng ô — Giữa / Bằng / Chứa văn bản / Ngày xảy ra / Trùng lặp | ✅ | - | G1 13/10: Excel 2016 đọc đúng luật gốcHộp thoại chỉ có Lớn hơn, Nhỏ hơn, Ô trống; mã có xử lý luật duplicate nhưng chưa có trong hộp thoại (opencode xác nhận) |
+| Kiểu | Quy tắc Trên/Dưới (Top-Bottom 10, Trên/Dưới trung bình) | ✅ | - | G1: Excel 2016 đọc đúng |
+| Kiểu | Thanh dữ liệu (Data Bars) | ✅ | - | G1: Excel 2016 đọc Type=Databar |
+| Kiểu | Thang màu (Color Scales) | ✅ | - | G1: 2 và 3 màu, Excel 2016 đọc đúng |
+| Kiểu | Bộ biểu tượng (Icon Sets) | ✅ | - | G1: Excel 2016 đọc IconSet.ID |
+| Kiểu | Quy tắc mới theo công thức | ✅ | - | G1: Excel 2016 đọc Type=Expression |
+| Kiểu | Quản lý quy tắc (xem, xóa, sửa, thứ tự ưu tiên, Stop If True) | 🟡 | 2 | G1: có xem, sửa, đổi thứ tự, xóa; thiếu Stop If True |
 | Kiểu | Xóa quy tắc (vùng chọn / cả trang) | 🟡 | 2 | Xóa từng quy tắc trong quản lý |
 | Kiểu | Định dạng dưới dạng Bảng (gallery kiểu) | 🟡 | 2 | Có hộp thoại; chỉ vài kiểu bảng, Excel có 60 |
 | Kiểu | Kiểu ô (Cell Styles) có sẵn + tạo kiểu mới | 🟢 | - | sheet.style.cellStyles |
@@ -155,9 +141,9 @@ Tổng: 24 mục ưu tiên 1.
 | Chỉnh sửa | Xóa: tất cả / định dạng / nội dung | 🟢 | - |  |
 | Chỉnh sửa | Xóa ghi chú / Xóa siêu liên kết (trong menu Xóa) | 🔴 | 2 |  |
 | Chỉnh sửa | Sắp xếp A-Z / Z-A / Tùy chỉnh nhiều cấp | ✅ | - | Sắp xếp hai cấp đã đọc lại bằng Excel 2016 |
-| Chỉnh sửa | Sắp xếp theo màu ô/màu chữ/biểu tượng | 🔴 | 2 |  |
+| Chỉnh sửa | Sắp xếp theo màu ô/màu chữ/biểu tượng | 🟡 | 3 | G2: có sắp xếp theo màu ô/chữ; chưa có theo biểu tượng |
 | Chỉnh sửa | Bộ lọc (AutoFilter) bật/tắt | ✅ | - | AutoFilterMode đã đối chiếu |
-| Chỉnh sửa | Lọc theo màu / theo văn bản-số-ngày (text/number/date filters) | 🔴 | 1 | Chỉ lọc theo danh sách giá trị |
+| Chỉnh sửa | Lọc theo màu / theo văn bản-số-ngày (text/number/date filters) | ✅ | - | G2: lọc văn bản/số/ngày/màu; lưu giữ hàng ẩn đúng |
 | Chỉnh sửa | Xóa bộ lọc / Áp dụng lại | 🟢 | - | Thêm vào menu chuột phải 13/10 |
 | Chỉnh sửa | Tìm (Ctrl+F) / Thay thế (Ctrl+H), tùy chọn phân biệt hoa-thường, trong công thức | ✅ | - | Thay thế trên hai trang đã đối chiếu |
 | Chỉnh sửa | Đến (Go To, F5/Ctrl+G) / Đến đặc biệt (Go To Special) | 🟢 | - | Mới 13/10: sheet-goto.js, test desktop 11/11; chưa đối chiếu với Excel |
@@ -176,9 +162,11 @@ Tổng: 24 mục ưu tiên 1.
 | Minh họa | SmartArt | 🔴 | 3 |  |
 | Add-in | Cửa hàng / Add-in của tôi | ⚪ | - | Cần cửa hàng Microsoft |
 | Biểu đồ | Cột nhóm / Đường / Tròn / Vùng | ✅ | - | 4 loại biểu đồ đã đọc lại bằng Excel 2016 (loại 51/4/5/1) |
-| Biểu đồ | Cột chồng / Cột 100% / Cột 3-D / Thanh ngang | 🔴 | 1 | Chỉ cột nhóm, chưa có chồng/ngang/3-D |
-| Biểu đồ | Phân tán (Scatter) / Bong bóng | 🔴 | 1 |  |
-| Biểu đồ | Radar / Chứng khoán / Bề mặt / Kết hợp (Combo) | 🔴 | 2 |  |
+| Biểu đồ | Cột chồng / Cột 100% / Thanh ngang | ✅ | - | G3: Excel 2016 đọc đúng (52/53/57) |
+| Biểu đồ | Cột 3-D | 🔴 | 3 |  |
+| Biểu đồ | Phân tán (Scatter) / Bong bóng | ✅ | - | G3: Excel 2016 đọc -4169 / 15 |
+| Biểu đồ | Radar / Kết hợp (Combo) | ✅ | - | G3: Excel 2016 đọc -4151 / -4111 |
+| Biểu đồ | Chứng khoán / Bề mặt | 🔴 | 3 |  |
 | Biểu đồ | Biểu đồ mới 2016: Waterfall / Histogram / Pareto / Box / Treemap / Sunburst | 🔴 | 3 |  |
 | Biểu đồ | Biểu đồ được đề xuất / hộp thoại Tất cả biểu đồ | 🔴 | 3 |  |
 | Biểu đồ | PivotChart | 🟢 | - | sheet.chart.pivotChart |
@@ -240,9 +228,9 @@ Tổng: 24 mục ưu tiên 1.
 | Công cụ dữ liệu | Flash Fill | 🟢 | - |  |
 | Công cụ dữ liệu | Xóa trùng lặp | 🟢 | - |  |
 | Công cụ dữ liệu | Kiểm tra dữ liệu: Danh sách | ✅ | - | Validation.Type=3 đã đối chiếu |
-| Công cụ dữ liệu | Kiểm tra dữ liệu: Số nguyên / Số thập phân | 🟡 | 1 | Chỉ có khoảng số; chưa tách nguyên/thập phân, chưa có toán tử (giữa, lớn hơn...) |
-| Công cụ dữ liệu | Kiểm tra dữ liệu: Ngày / Giờ / Độ dài văn bản / Tùy chỉnh (công thức) | 🔴 | 1 | Chưa có |
-| Công cụ dữ liệu | Kiểm tra dữ liệu: Thông báo nhập, Cảnh báo lỗi (Stop/Warning/Info), Khoanh vòng dữ liệu sai | 🔴 | 1 | Chưa có |
+| Công cụ dữ liệu | Kiểm tra dữ liệu: Số nguyên / Số thập phân | ✅ | - | G2: Excel 2016 đọc Type 1/2 + toán tử |
+| Công cụ dữ liệu | Kiểm tra dữ liệu: Ngày / Giờ / Độ dài văn bản / Tùy chỉnh (công thức) | ✅ | - | G2: Excel 2016 đọc Type 4/5/6/7 |
+| Công cụ dữ liệu | Kiểm tra dữ liệu: Thông báo nhập, Cảnh báo lỗi (Stop/Warning/Info), Khoanh vòng dữ liệu sai | 🟡 | 3 | G2: thông báo nhập + 3 mức cảnh báo Excel 2016 đọc đúng; khoanh vòng chưa so hình |
 | Công cụ dữ liệu | Hợp nhất dữ liệu (Consolidate) | 🟢 | - |  |
 | Công cụ dữ liệu | Quan hệ giữa bảng / Mô hình dữ liệu (Power Pivot) | 🔴 | 3 |  |
 | Dự báo | Phân tích What-If: Trình quản lý kịch bản | 🟢 | - | sheet.data.scenarioManager |
@@ -318,10 +306,11 @@ Tổng: 24 mục ưu tiên 1.
 | Nhóm | Tính năng Excel 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Sheet |
 |---|---|---|---|---|
 | Thiết kế | Thêm thành phần: tiêu đề trục | ✅ | - | Mới 13/10, Excel 2016 đọc đúng |
-| Thiết kế | Thêm thành phần: tiêu đề biểu đồ, chú giải, nhãn dữ liệu, lưới, đường xu hướng, thanh sai số | 🟡 | 1 | Có tiêu đề + chú giải; thiếu nhãn dữ liệu, đường xu hướng, thanh sai số |
+| Thiết kế | Thêm thành phần: tiêu đề biểu đồ, chú giải, nhãn dữ liệu, đường xu hướng | ✅ | - | G3: Excel 2016 đọc HasDataLabels/Trendlines |
+| Thiết kế | Thêm thành phần: lưới, thanh sai số | 🔴 | 3 |  |
 | Thiết kế | Bố cục nhanh / Đổi màu / Kiểu biểu đồ | 🔴 | 2 |  |
 | Thiết kế | Chọn dữ liệu / Đổi loại / Di chuyển biểu đồ | 🟢 | - | Menu chuột phải biểu đồ 13/10 |
-| Thiết kế | Chuyển hàng/cột (Switch Row/Column) | 🔴 | 2 |  |
+| Thiết kế | Chuyển hàng/cột (Switch Row/Column) | ✅ | - | G3: PlotBy đọc đúng |
 | Định dạng | Màu/viền/hiệu ứng thành phần, kích thước, vị trí | 🔴 | 2 |  |
 
 ### Công cụ PivotTable
