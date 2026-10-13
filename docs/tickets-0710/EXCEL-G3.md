@@ -1,0 +1,3 @@
+# EXCEL-G3: Biểu đồ đủ loại và thành phần
+Bằng chứng: chỉ có cột nhóm, đường, tròn, vùng; thiếu cột chồng/100%, thanh ngang, phân tán, bong bóng, radar, kết hợp; thiếu nhãn dữ liệu, đường xu hướng, thanh sai số, bố cục nhanh, chuyển hàng/cột.
+Làm theo thứ tự: thanh ngang, cột chồng, cột 100%, phân tán, kết hợp, nhãn dữ liệu, chuyển hàng/cột, đường xu hướng; rồi radar/bong bóng. Mỗi loại: tạo bằng UI → lưu XLSX → Excel 2016 đọc ChartType/Series/HasDataLabels đúng → mở lại giữ.

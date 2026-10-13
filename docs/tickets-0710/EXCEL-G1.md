@@ -1,0 +1,4 @@
+# EXCEL-G1: Định dạng có điều kiện đủ loại (Excel 2016)
+Bằng chứng: hiện chỉ có 3 luật (lớn hơn, nhỏ hơn, ô trống) trong `showConditionalFormattingDialog` (apps/sheet/sheet-grid.js). docs/EXCEL2016-FEATURE-CHECKLIST.md mục Trang đầu > Kiểu.
+Làm: Tô sáng ô (giữa, bằng, chứa văn bản, ngày xảy ra, trùng lặp), Trên/Dưới N và trên/dưới trung bình, Thanh dữ liệu, Thang màu (2 và 3 màu), Bộ biểu tượng, luật theo công thức, sửa luật và thứ tự ưu tiên trong Quản lý quy tắc.
+Nghiệm thu: mỗi loại tạo qua UI desktop (CDP) → lưu XLSX → Excel 2016 đọc FormatConditions đúng loại/tham số (ReadOnly) → mở lại trong app giữ nguyên; không làm hồi quy bộ 8 tệp LAN (batch_document_audit.py xlsx) và npm test 100%. Hiển thị trên lưới đúng như Excel (so ảnh). Hướng dẫn tiếng Việt + i18n VI/EN.

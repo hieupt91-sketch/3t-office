@@ -1,0 +1,3 @@
+# EXCEL-G5: Slicer + chuột phải hình/ảnh/hộp văn bản + Thiết lập trang đủ
+Làm: Slicer cho bảng (và PivotTable nếu khả thi), menu chuột phải hình/ảnh/hộp văn bản (Cắt/Sao chép/Dán, Đưa lên trên/xuống dưới, Định dạng đối tượng, Xóa), Page Setup đủ tab Trang tính (in lưới, in tiêu đề, thứ tự trang, ghi chú, ô lỗi), Fit to W x H riêng.
+Nghiệm thu: Excel 2016 đọc Slicers/PageSetup đúng; test CDP; lưu-mở lại giữ.

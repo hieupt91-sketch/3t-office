@@ -1,0 +1,4 @@
+# EXCEL-G2: Kiểm tra dữ liệu đủ loại + Lọc theo màu/văn bản/số/ngày + Đến đặc biệt
+Bằng chứng: Kiểm tra dữ liệu chỉ có Danh sách và khoảng số; lọc chỉ theo giá trị; chưa có Go To/Go To Special. Xem checklist tab Dữ liệu, Trang đầu.
+Làm: (1) Whole number, Decimal, Date, Time, Text length, Custom (công thức) với toán tử (giữa, không giữa, bằng, lớn hơn...), thông báo nhập, cảnh báo lỗi (Stop/Warning/Information), khoanh vòng dữ liệu sai, xóa tất cả. (2) Bộ lọc theo văn bản (chứa, bắt đầu...), theo số (lớn hơn, top 10...), theo ngày (hôm nay, tháng này...), theo màu ô/màu chữ; Sắp xếp theo màu. (3) Đến (F5/Ctrl+G) và Đến đặc biệt (ô trống, hằng, công thức, ô khác biệt...).
+Nghiệm thu như EXCEL-G1: Excel 2016 đọc Validation.Type/Operator/Formula/ErrorTitle... đúng; lọc đúng hàng ẩn; test CDP desktop; lưu-mở lại đúng.
