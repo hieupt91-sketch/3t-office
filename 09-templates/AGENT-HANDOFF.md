@@ -1,4 +1,24 @@
 # Agent Handoff
+TASK: macOS 0.9.11 native app create/edit/save/close/reopen round-trip
+AGENT/ROLE: Codex / macOS Native QA
+BRANCH: codex/macos-native-roundtrip
+WORKTREE: /Users/hieupc/.codex/worktrees/macos-native-roundtrip/3t-office
+OBJECTIVE: Build the Xcode launchers and verify Doc, Sheet, and Slide through the real `.app`/Qt desktop path, without `scripts/serve.js` or an external browser, including create/edit/save/close/reopen and native OOXML inspection.
+FINDINGS: All three Xcode launchers started their own Python `main.py` child through the Qt backend. Doc saved two Vietnamese paragraphs and reopened them as two paragraphs. Sheet saved text, numeric value 9999, and formula `=B2*2`; reopening returned cached value 19998 with the formula retained. Slide saved and reopened its Vietnamese title/body and native editable text-box shapes. Reopened desktop screenshots were captured directly from each running Qt page at 1920x942 (Doc) and 1366x820 (Sheet/Slide), then visually inspected.
+IMPLEMENTATION SUMMARY: No product source changes were required. Test artifacts and screenshots were generated under `/tmp/vno-native-evidence`; all launcher and Python child processes created by this task were terminated after verification.
+FILES CHANGED: `09-templates/AGENT-HANDOFF.md` only.
+COMMANDS RUN: `DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer ports/macos/scripts/build-development.sh /tmp/vno-native-roundtrip-apps`; launched `/tmp/vno-native-roundtrip-apps/{Doc,Sheet,Slide}.app/Contents/MacOS/{Doc,Sheet,Slide}` with isolated HOME/version-root/runtime and per-app Qt CDP ports; invoked the app's own save bridge; closed the editor window and reopened the saved path through its `.app` launcher; inspected the reopened in-app model and OOXML ZIP; `unzip -t`; `sips`; SHA-256 evidence checks.
+BUILD RESULT: PASS — universal arm64+x86_64 Doc.app, Sheet.app, and Slide.app built successfully; development-bundle validator passed all three.
+TEST RESULTS: PASS — Doc `.docx`: 2/2 Vietnamese paragraphs present after reopen and `word/document.xml` contains two `w:p`; Sheet `.xlsx`: A1/B1/A2/B2 and B3 formula/value persisted (`=B2*2`, 19998); Slide `.pptx`: title/body and two editable text-box shapes persisted. `unzip -t` reported no compressed-data errors for all three files. Screenshot SHA-256: Doc `31ae5e8110fcc2a3a739bb9ade6978f1212373fa7ac31731ef040aa46706abec`; Sheet `f0925e12f85e2aa388667a885c2d62ee5fac93d5d4640bf106cd19795cc50837`; Slide `65cfa191c18a31ebfafe75eccb42937fe4f102977907735529476fd8130f0618`.
+KNOWN FAILURES: None in this focused native round-trip.
+RISKS: This verifies the development `.app` bundles using the repository virtualenv and installed LibreOffice. It does not prove the future self-contained signed/notarized DMG works on a clean Mac.
+DEPENDENCIES/BLOCKERS: Production runtime embedding, code signing/notarization, and clean-machine DMG testing remain outside this task.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Merge this evidence handoff, then repeat the same three-file gate against the final self-contained DMG on a clean macOS account before pilot distribution.
+
+---
+
+# Agent Handoff
 TASK: FIX-P1b (Sheet formula regression audit and P1 edit latency)
 AGENT/ROLE: Codex / Sheet QA
 BRANCH: fix/sheet-p1b-codex
