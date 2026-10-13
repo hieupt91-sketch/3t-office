@@ -21030,6 +21030,59 @@ def _writer_review_metadata(source_html: str) -> dict | None:
     return metadata
 
 
+def _writer_document_protection_metadata(source_html: str | None) -> dict | None:
+    match = re.search(
+        r"<!--vno-document-protection-hex:([0-9a-f]+)-->",
+        source_html or "", re.IGNORECASE,
+    )
+    if not match:
+        return None
+    try:
+        metadata = json.loads(bytes.fromhex(match.group(1)).decode("utf-8"))
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Dữ liệu hạn chế chỉnh sửa trong bản xuất không hợp lệ.") from exc
+    if not isinstance(metadata, dict) or metadata.get("mode") not in {"none", "readOnly", "trackedChanges"}:
+        raise ValueError("Kiểu hạn chế chỉnh sửa không hợp lệ.")
+    return metadata
+
+
+def postprocess_writer_document_protection(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
+    """Write standard w:documentProtection without encrypting the DOCX package."""
+    metadata = _writer_document_protection_metadata(source_html)
+    if metadata is None:
+        return docx_bytes
+    settings_bytes = read_zip_entry(docx_bytes, "word/settings.xml")
+    settings_xml = settings_bytes.decode("utf-8", errors="replace") if settings_bytes else (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"></w:settings>'
+    )
+    settings_xml = re.sub(
+        r"<w:documentProtection\b[^>]*(?:/>|>[\s\S]*?</w:documentProtection\s*>)",
+        "", settings_xml, flags=re.IGNORECASE,
+    )
+    mode = metadata.get("mode")
+    if mode != "none":
+        attrs = [f'w:edit="{mode}"', 'w:enforcement="1"', 'w:formatting="0"']
+        if metadata.get("algorithm") == "SHA-512" and metadata.get("hash") and metadata.get("salt"):
+            spin_count = max(1, int(metadata.get("spinCount") or 1))
+            attrs.extend([
+                'w:cryptProviderType="rsaAES"',
+                'w:cryptAlgorithmClass="hash"',
+                'w:cryptAlgorithmType="typeAny"',
+                'w:cryptAlgorithmSid="14"',
+                f'w:cryptSpinCount="{spin_count}"',
+                f'w:hash="{_escape_xml(str(metadata["hash"]))}"',
+                f'w:salt="{_escape_xml(str(metadata["salt"]))}"',
+            ])
+        protection_xml = "<w:documentProtection " + " ".join(attrs) + "/>"
+        anchor = re.search(r"<w:(?:proofState|defaultTabStop|compat|rsids)\b", settings_xml, re.IGNORECASE)
+        if anchor:
+            settings_xml = settings_xml[:anchor.start()] + protection_xml + settings_xml[anchor.start():]
+        else:
+            settings_xml = settings_xml.replace("</w:settings>", protection_xml + "</w:settings>", 1)
+    return patch_ooxml_zip(docx_bytes, {"word/settings.xml": settings_xml.encode("utf-8")})
+
+
 def writer_accepted_view_html(source_html: str) -> str:
     """Remove deleted review ranges and temporary anchors for PDF/print output."""
     metadata = _writer_review_metadata(source_html)

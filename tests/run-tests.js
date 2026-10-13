@@ -30,6 +30,7 @@ import { runWriterCommentsTests } from "./unit/writer-comments.test.js";
 import { runSlidesAnimationsNotesTests } from "./unit/slides-animations-notes.test.js";
 import { runSheetRulesValidationTests } from "./unit/sheet-rules-validation.test.js";
 import { runWriterTrackChangesTests } from "./unit/writer-track-changes.test.js";
+import { runWriterDocumentReviewTests } from "./unit/writer-document-review.test.js";
 import { runWriterReviewExportTests } from "./unit/writer-review-export.test.js";
 import { runWriterDocumentPropertiesTests } from "./unit/writer-document-properties.test.js";
 import { runWriterAutoCorrectTests } from "./unit/writer-auto-correct.test.js";
@@ -314,6 +315,7 @@ async function runAll() {
     { title: "24. Unit Tests — VN Slides Object Animations & Speaker Notes", runner: runSlidesAnimationsNotesTests },
     { title: "25. Behavioral Tests — Sheet Conditional Formatting & Data Validation", runner: runSheetRulesValidationTests },
     { title: "26. Behavioral Tests — VN Writer Track Changes", runner: runWriterTrackChangesTests },
+    { title: "26b. Behavioral Tests — VN Writer Compare & Protect", runner: runWriterDocumentReviewTests },
     { title: "27. Behavioral Tests — VN Writer Print Preview", runner: runWriterPrintPreviewTests },
     { title: "28. Behavioral Tests — VN Slides Slide Layouts", runner: runSlidesLayoutsTests },
     { title: "29. Behavioral Tests — VN Sheet Live Charts", runner: runSheetChartTests },

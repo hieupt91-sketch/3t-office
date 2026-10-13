@@ -61,6 +61,14 @@ import {
   parseCorePropertiesXml,
   showDocumentPropertiesDialog
 } from "../../../apps/writer/document-properties.js";
+import {
+  buildParagraphComparison,
+  createDocumentProtection,
+  documentProtectionMetadataComment,
+  parseDocumentProtection,
+  showDocumentProtectionDialog,
+  verifyDocumentProtection
+} from "../../../apps/writer/document-review.js";
 
 let writerInsertDialogsPromise;
 let writerMailMergeDialogsPromise;
@@ -340,6 +348,8 @@ export class WriterAdapter {
     this._commentAnchorKeyHandler = null;
     this._commentPanelKeyHandler = null;
     this.trackChangesEnabled = false;
+    this.documentProtection = { mode: "none" };
+    this._removeDocumentProtectionCommandGuard = null;
     this._activeTrackChange = null;
     this._trackChangesBeforeInputHandler = null;
     this._workflowBeforeInputHandler = null;
@@ -602,6 +612,9 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.trackChanges.rejectOne", () => this.rejectOneTrackChange());
     globalCommandBus.bindHandler("writer.trackChanges.acceptAll", () => this.acceptAllTrackChanges());
     globalCommandBus.bindHandler("writer.trackChanges.rejectAll", () => this.rejectAllTrackChanges());
+    globalCommandBus.bindHandler("writer.review.compare", () => this.compareWithDocument("compare"));
+    globalCommandBus.bindHandler("writer.review.combine", () => this.compareWithDocument("combine"));
+    globalCommandBus.bindHandler("writer.review.restrictEditing", () => this.openDocumentProtectionDialog());
     globalCommandBus.bindHandler("writer.review.wordCount", () => this.openWordCountDialog());
     globalCommandBus.bindHandler("writer.file.properties", () => this.openDocumentPropertiesDialog());
     globalCommandBus.bindHandler("writer.file.options", () => { if (typeof this.shell?.showOptionsDialog !== "function") return false; this.shell.showOptionsDialog(); return true; });
@@ -743,6 +756,32 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.insert.coverPage", (args) => this.openCoverPageDialog(args));
     globalCommandBus.bindHandler("writer.insert.removeCoverPage", () => this._hintIfFalse(() => this.removeCoverPage(), "Tài liệu hiện tại không có trang bìa để xóa."));
     this._bindTableCommands();
+
+    if (!this._removeDocumentProtectionCommandGuard) {
+      this._removeDocumentProtectionCommandGuard = globalCommandBus.addExecutionGuard((commandId) => {
+        const mode = this.documentProtection?.mode || "none";
+        if (mode === "none") return true;
+        const allowed = new Set([
+          "writer.review.restrictEditing", "writer.review.compare", "writer.review.combine",
+          "writer.trackChanges.previous", "writer.trackChanges.next", "writer.review.wordCount",
+          "writer.review.toggleSpellCheck", "writer.review.commentPrevious", "writer.review.commentNext",
+          "common.edit.copy", "common.edit.find", "common.edit.selectAll"
+        ]);
+        if (allowed.has(commandId)
+          || /^(?:common\.file|common\.help|writer\.file|writer\.view|writer\.help|writer\.nav)\./.test(commandId)) {
+          return true;
+        }
+        if (!/^(?:writer\.|common\.edit\.)/.test(commandId)) return true;
+        showAlertDialog({
+          title: t("writerReview.protectTitle", "Hạn chế chỉnh sửa"),
+          message: mode === "readOnly"
+            ? t("writerReview.readOnlyBlocked", "Tài liệu đang ở chế độ chỉ đọc. Hãy bỏ hạn chế chỉnh sửa để thay đổi nội dung.")
+            : t("writerReview.trackedCommandBlocked", "Tài liệu chỉ cho phép thay đổi văn bản có đánh dấu. Hãy bỏ hạn chế để dùng lệnh định dạng hoặc chèn đối tượng."),
+          type: "warning"
+        });
+        return { allowed: false, result: false };
+      });
+    }
 
     if (!this._lastSnapshot) {
       this._lastSnapshot = this._createSnapshot("Initial State");
@@ -2166,6 +2205,14 @@ export class WriterAdapter {
   }
 
   toggleTrackChanges(force) {
+    if (this.documentProtection?.mode === "trackedChanges" && force !== true && this.trackChangesEnabled) {
+      showAlertDialog({
+        title: t("writerReview.protectTitle", "Hạn chế chỉnh sửa"),
+        message: t("writerReview.trackRequired", "Tài liệu đang buộc theo dõi mọi thay đổi. Hãy bỏ hạn chế chỉnh sửa trước khi tắt theo dõi."),
+        type: "warning"
+      });
+      return true;
+    }
     this.trackChangesEnabled = typeof force === "boolean" ? force : !this.trackChangesEnabled;
     this._updateTrackChangesCommandState();
     return this.trackChangesEnabled;
@@ -2207,6 +2254,138 @@ export class WriterAdapter {
 
   rejectOneTrackChange() {
     return this._resolveCurrentTrackChange(false);
+  }
+
+  async compareWithDocument(mode = "compare") {
+    const reference = await globalUnoBridge.openWriterReferenceDocument();
+    if (reference?.status === "cancelled") return false;
+    if (reference?.status !== "ok") {
+      await showAlertDialog({
+        title: t("writerReview.compareFailedTitle", "Không thể đọc tài liệu tham chiếu"),
+        message: reference?.message || t("writerReview.compareFailed", "Hãy kiểm tra tệp và thử lại."),
+        type: "error"
+      });
+      return false;
+    }
+    let imported;
+    try {
+      imported = this._normalizeImportedHtml(
+        reference.content || "", reference.ooxmlDocumentXml, reference.ooxmlCommentsXml,
+        reference.ooxmlStylesXml, reference.ooxmlNumberingXml, reference.ooxmlHeaderXml,
+        reference.ooxmlFooterXml, reference.ooxmlHeaders, reference.ooxmlFooters,
+        reference.ooxmlRels, reference.ooxmlSettingsXml, reference.ooxmlCommentsExtendedXml
+      );
+    } catch {
+      await showAlertDialog({
+        title: t("writerReview.compareFailedTitle", "Không thể đọc tài liệu tham chiếu"),
+        message: t("writerReview.compareFailed", "Hãy kiểm tra tệp và thử lại."),
+        type: "error"
+      });
+      return false;
+    }
+    let comparison;
+    try {
+      comparison = buildParagraphComparison(
+        this._acceptedReviewHtml(this.bodyDom?.innerHTML || this.editorDom?.innerHTML || ""),
+        this._acceptedReviewHtml(imported.body || "")
+      );
+    } catch (error) {
+      await showAlertDialog({
+        title: t("writerReview.compareFailedTitle", "Không thể so sánh tài liệu"),
+        message: error?.message || t("writerReview.compareFailed", "Hãy kiểm tra tệp và thử lại."),
+        type: "error"
+      });
+      return false;
+    }
+    if (!comparison.changed) {
+      await showAlertDialog({
+        title: t("writerReview.noDifferencesTitle", "Không có khác biệt"),
+        message: t("writerReview.noDifferences", "Hai tài liệu có cùng nội dung theo từng đoạn; không tạo tài liệu kết quả."),
+        type: "info"
+      });
+      return false;
+    }
+
+    this._initZones();
+    this.bodyDom.innerHTML = comparison.html;
+    this._sourcePath = null;
+    this.sourceFileName = mode === "combine" ? "TaiLieuGop" : "TaiLieuSoSanh";
+    this.isNewApplicationDocument = true;
+    this.comments = [];
+    this.activeCommentId = null;
+    this.documentProtection = { mode: "none" };
+    this.trackChangesEnabled = true;
+    this.isDirty = true;
+    this._openedEditorDomHash = null;
+    this._wordCountSourceText = null;
+    this._wordCountSourceTextInvalidated = true;
+    this._renderCommentsPanel();
+    this._applyDocumentProtectionState();
+    this._updateTrackChangesCommandState();
+    this.clearUndoRedo();
+    this.recordSnapshot(mode === "combine" ? "writer.review.combine" : "writer.review.compare");
+    const resultName = `${this.sourceFileName}.docx`;
+    this.shell?.resetDocumentChrome?.(resultName, null, false, "");
+    this.shell?.setStatus?.(t(
+      "writerReview.compareComplete",
+      `Đã tạo tài liệu kết quả: ${comparison.insertions} đoạn chèn, ${comparison.deletions} đoạn xóa.`
+    ).replace("{insertions}", comparison.insertions).replace("{deletions}", comparison.deletions));
+    this._recomputeLivePagination?.();
+    return true;
+  }
+
+  async openDocumentProtectionDialog() {
+    const choice = await showDocumentProtectionDialog(this.documentProtection);
+    if (!choice) return false;
+    if (choice.action === "protect") {
+      try {
+        this.documentProtection = await createDocumentProtection(choice.mode, choice.password);
+      } catch (error) {
+        await showAlertDialog({
+          title: t("writerReview.protectFailedTitle", "Không thể bật hạn chế chỉnh sửa"),
+          message: error?.message || t("writerReview.protectFailed", "Không tạo được bộ xác minh mật khẩu cục bộ."),
+          type: "error"
+        });
+        return false;
+      }
+      this.isDirty = true;
+      this._applyDocumentProtectionState();
+      this.shell?.setStatus?.(t("writerReview.protected", "Đã bật hạn chế chỉnh sửa. Nhấn Ctrl+S để lưu vào DOCX."));
+      return true;
+    }
+    const valid = await verifyDocumentProtection(choice.password, this.documentProtection);
+    if (!valid) {
+      await showAlertDialog({
+        title: t("writerReview.unprotectTitle", "Bỏ hạn chế chỉnh sửa"),
+        message: t("writerReview.passwordWrong", "Mật khẩu không đúng hoặc kiểu mật khẩu của tệp chưa được hỗ trợ."),
+        type: "error"
+      });
+      return false;
+    }
+    this.documentProtection = { mode: "none" };
+    this.isDirty = true;
+    this._applyDocumentProtectionState();
+    this.shell?.setStatus?.(t("writerReview.unprotected", "Đã bỏ hạn chế chỉnh sửa. Nhấn Ctrl+S để lưu thay đổi."));
+    return true;
+  }
+
+  _applyDocumentProtectionState() {
+    const mode = this.documentProtection?.mode || "none";
+    const readOnly = mode === "readOnly";
+    for (const root of [this.bodyDom, this.headerDom, this.footerDom]) {
+      if (!root?.setAttribute) continue;
+      root.setAttribute("contenteditable", readOnly ? "false" : "true");
+      root.setAttribute("aria-readonly", readOnly ? "true" : "false");
+    }
+    this.editorDom?.classList?.toggle?.("vno-writer-readonly", readOnly);
+    if (mode === "trackedChanges") this.trackChangesEnabled = true;
+    globalCommandBus.updateState("writer.review.restrictEditing", {
+      checked: mode !== "none",
+      label: mode === "none"
+        ? t("writerReview.protectCommand", "Hạn chế chỉnh sửa")
+        : t("writerReview.unprotectCommand", "Bỏ hạn chế chỉnh sửa")
+    });
+    this._updateTrackChangesCommandState();
   }
 
   _listTrackChanges() {
@@ -2323,13 +2502,15 @@ export class WriterAdapter {
 
   _updateTrackChangesCommandState() {
     const hasChanges = !!this.bodyDom?.querySelector?.("[data-vno-change]");
+    const reviewLocked = this.documentProtection?.mode && this.documentProtection.mode !== "none";
     globalCommandBus.updateState("writer.trackChanges.toggle", { checked: this.trackChangesEnabled });
-    globalCommandBus.updateState("writer.trackChanges.acceptAll", { enabled: hasChanges });
-    globalCommandBus.updateState("writer.trackChanges.rejectAll", { enabled: hasChanges });
+    globalCommandBus.updateState("writer.trackChanges.toggle", { enabled: this.documentProtection?.mode !== "trackedChanges" });
+    globalCommandBus.updateState("writer.trackChanges.acceptAll", { enabled: hasChanges && !reviewLocked });
+    globalCommandBus.updateState("writer.trackChanges.rejectAll", { enabled: hasChanges && !reviewLocked });
     globalCommandBus.updateState("writer.trackChanges.previous", { enabled: hasChanges });
     globalCommandBus.updateState("writer.trackChanges.next", { enabled: hasChanges });
-    globalCommandBus.updateState("writer.trackChanges.acceptOne", { enabled: hasChanges });
-    globalCommandBus.updateState("writer.trackChanges.rejectOne", { enabled: hasChanges });
+    globalCommandBus.updateState("writer.trackChanges.acceptOne", { enabled: hasChanges && !reviewLocked });
+    globalCommandBus.updateState("writer.trackChanges.rejectOne", { enabled: hasChanges && !reviewLocked });
   }
 
   /**
@@ -3378,7 +3559,8 @@ export class WriterAdapter {
     }
 
     const trackingEnabled = /<w:trackRevisions\b/i.test(String(ooxmlSettingsXml || ""));
-    return { body: html.trim(), header, footer, page, comments, docStyles, shapes, sectionPageSetups, sectionHeadersFooters, trackingEnabled };
+    const documentProtection = parseDocumentProtection(ooxmlSettingsXml);
+    return { body: html.trim(), header, footer, page, comments, docStyles, shapes, sectionPageSetups, sectionHeadersFooters, trackingEnabled, documentProtection };
   }
 
   /**
@@ -15550,7 +15732,7 @@ export class WriterAdapter {
     const themeMarker = this.documentTheme && this.documentTheme !== "office"
       ? `<!--vno-document-theme:${String(this.documentTheme).replace(/[^a-z0-9_-]/gi, "")}-->`
       : "";
-    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${documentPropertiesMarker(this.documentProperties)}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${nativeDiagramMarker}${nativeWordArtMarker}${nativeWatermarkMarker}${themeMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
+    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${documentPropertiesMarker(this.documentProperties)}${documentProtectionMetadataComment(this.documentProtection)}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${nativeDiagramMarker}${nativeWordArtMarker}${nativeWatermarkMarker}${themeMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }
@@ -15817,6 +15999,7 @@ export class WriterAdapter {
       // Comments chỉ thuộc tài liệu đang mở trong phiên; file khác không dùng lại anchor cũ.
       this.comments = [];
       this.trackChangesEnabled = Boolean(imported.trackingEnabled);
+      this.documentProtection = imported.documentProtection || { mode: "none" };
       this.activeCommentId = null;
       this._renderCommentsPanel();
       if (imported.sectionPageSetups && Object.keys(imported.sectionPageSetups).length > 0) {
@@ -15915,6 +16098,7 @@ export class WriterAdapter {
       this.isDirty = false;
       this._wordCountSourceTextInvalidated = false;
       this._openedEditorDomHash = this._editorDomFingerprint();
+      this._applyDocumentProtectionState();
       this._updateTrackChangesCommandState();
       this.clearUndoRedo();
       this.shell?.resetDocumentChrome?.(result.fileName || "Tài liệu 1.docx", null, true, result.sourcePath || "");
@@ -15941,6 +16125,7 @@ export class WriterAdapter {
     this.bodyDom?.classList?.remove("vno-new-application-document");
     this.comments = [];
     this.trackChangesEnabled = false;
+    this.documentProtection = { mode: "none" };
     this.activeCommentId = null;
     this._renderCommentsPanel();
     const imported = this._normalizeImportedHtml(String(content || ""));
@@ -16022,6 +16207,7 @@ export class WriterAdapter {
     this.isNewApplicationDocument = true;
     this.comments = [];
     this.trackChangesEnabled = false;
+    this.documentProtection = { mode: "none" };
     this.activeCommentId = null;
     this._renderCommentsPanel?.();
 

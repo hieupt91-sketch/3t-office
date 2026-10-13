@@ -847,6 +847,21 @@ export const WRITER_RIBBON_TABS = [
             ]
           }
         ]
+      },
+      {
+        id: "documentReview",
+        label: "So sánh & Bảo vệ",
+        labelKey: "writerRibbon.group.documentReview",
+        items: [
+          { type: "button", commandId: "writer.review.compare", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.review.combine" },
+              { type: "button", commandId: "writer.review.restrictEditing" }
+            ]
+          }
+        ]
       }
     ]
   },

@@ -200,6 +200,38 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.review.compareCombine",
+    app: "writer",
+    commandIds: ["writer.review.compare", "writer.review.combine"],
+    title: "So sánh và gộp tài liệu",
+    summary: "Đối chiếu tài liệu đang mở với một tệp khác theo từng đoạn, rồi tạo một tài liệu kết quả mới. Đoạn bị bỏ được đánh dấu là xóa; đoạn mới được đánh dấu là chèn để bạn duyệt, chấp nhận hoặc từ chối.",
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "So sánh & Bảo vệ" },
+    keywords: ["so sánh tài liệu", "gộp tài liệu", "đối chiếu", "compare", "combine", "revision", "chèn xóa"],
+    steps: [
+      "Mở tài liệu dùng làm bản gốc, rồi chọn tab Đánh giá, nhóm So sánh & Bảo vệ.",
+      "Nhấn So sánh tài liệu để tạo bản đối chiếu, hoặc Gộp tài liệu để đưa khác biệt của tệp được chọn vào cùng luồng duyệt thay đổi.",
+      "Trong hộp chọn tệp của máy, chọn tài liệu đã sửa. Toàn bộ việc đọc và so sánh chạy cục bộ, không gửi nội dung ra mạng.",
+      "Doc tạo một tài liệu chưa lưu: đoạn màu đỏ/gạch ngang là nội dung bị xóa, đoạn màu xanh/gạch chân là nội dung được chèn. Nếu hai tài liệu giống nhau, ứng dụng báo rõ và không thay tài liệu đang mở.",
+      "Dùng Thay đổi trước/sau, Chấp nhận hoặc Từ chối trong nhóm Theo dõi thay đổi. Nhấn Ctrl+S để lưu tài liệu kết quả thành DOCX; các dấu chèn/xóa chưa duyệt vẫn được giữ."
+    ]
+  },
+  {
+    id: "writer.review.restrictEditing",
+    app: "writer",
+    commandIds: ["writer.review.restrictEditing"],
+    title: "Hạn chế chỉnh sửa",
+    summary: "Đặt tài liệu ở chế độ chỉ đọc hoặc buộc mọi chỉnh sửa phải được theo dõi. Mật khẩu chỉ dùng để bỏ hạn chế chỉnh sửa; tính năng này không mã hóa tệp và không đặt mật khẩu mở tệp.",
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "So sánh & Bảo vệ" },
+    keywords: ["hạn chế chỉnh sửa", "chỉ đọc", "bảo vệ tài liệu", "mật khẩu bỏ bảo vệ", "restrict editing", "read only"],
+    steps: [
+      "Mở tab Đánh giá, nhóm So sánh & Bảo vệ, rồi nhấn Hạn chế chỉnh sửa.",
+      "Chọn Chỉ cho phép chỉnh sửa có theo dõi thay đổi nếu người nhận vẫn được sửa nhưng mọi chèn/xóa phải có dấu; chọn Chỉ đọc nếu không muốn nội dung bị sửa.",
+      "Nhập cùng một mật khẩu ở hai ô và nhấn Đồng ý. Nhấn Ctrl+S để ghi trạng thái bảo vệ chuẩn vào DOCX.",
+      "Muốn mở khóa, nhấn lại nút đang mang nhãn Bỏ hạn chế chỉnh sửa, nhập mật khẩu rồi nhấn Đồng ý. Mật khẩu sai được báo rõ và tài liệu vẫn được bảo vệ.",
+      "Mật khẩu bỏ bảo vệ không phải mật khẩu mở tệp. DOCX vẫn mở được để đọc; không dùng tính năng này khi yêu cầu mã hóa nội dung."
+    ]
+  },
+  {
     id: "writer.reference.citations",
     app: "writer",
     commandIds: [

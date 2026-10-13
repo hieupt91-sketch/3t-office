@@ -117,6 +117,20 @@ export class UnoBridge {
     return await this.desktopApi.open_document_dialog(appKind);
   }
 
+  /** Chọn và đọc một tài liệu Doc làm bản tham chiếu, không thay tài liệu đang mở. */
+  async openWriterReferenceDocument() {
+    if (!this.desktopApi || !this.hasRealEngine) {
+      return {
+        status: "error",
+        message: "So sánh tài liệu chỉ khả dụng trong ứng dụng Desktop chạy trên máy."
+      };
+    }
+    if (typeof this.desktopApi.open_writer_reference_document !== "function") {
+      return { status: "error", message: "Dịch vụ đọc tài liệu tham chiếu chưa sẵn sàng." };
+    }
+    return await this.desktopApi.open_writer_reference_document();
+  }
+
   /** P8 Sheet viewport-first APIs. UI talks to this adapter, never to UNO directly. */
   async sheetViewWindow(docId, sheet, r0, c0, r1, c1, includeStrings = true, includeFormats = true) {
     if (!this.desktopApi?.sheet_view_window) {

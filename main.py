@@ -1832,6 +1832,9 @@ def _apply_native_export_postprocess(
                     patched = patcher.postprocess_writer_review_markup(
                         patched, source_html=source_html,
                     )
+                    patched = patcher.postprocess_writer_document_protection(
+                        patched, source_html=source_html,
+                    )
                     patched = patcher.postprocess_writer_notes(
                         patched, source_html=source_html,
                     )
@@ -3774,6 +3777,13 @@ class VnOfficeApi:
         self._start_document_engine()
         return self._invoke_reported_api("open_document_dialog", self._open_document_dialog_impl, app_kind)
 
+    def open_writer_reference_document(self):
+        """Đọc một tài liệu tham chiếu cho So sánh/Gộp mà không đổi tài liệu hiện tại."""
+        self._start_document_engine()
+        return self._invoke_reported_api(
+            "open_writer_reference_document", self._open_writer_reference_document_impl
+        )
+
     def start_document_engine(self):
         """Start LibreOffice after the user first needs a document operation."""
         return {"started": self._start_document_engine()}
@@ -4944,6 +4954,33 @@ class VnOfficeApi:
             pres_props_xml = _read_pptx_pres_props_xml(src_path)
             if pres_props_xml:
                 payload["ooxmlPresPropsXml"] = pres_props_xml
+        return payload
+
+    def _open_writer_reference_document_impl(self):
+        window = _active_window(self)
+        if not window:
+            return {"status": "error", "message": "Cửa sổ ứng dụng chưa sẵn sàng."}
+        try:
+            result = window.create_file_dialog(
+                webview.OPEN_DIALOG,
+                file_types=OPEN_FILE_TYPES.get("writer", ("Tất cả tệp (*.*)",)),
+            )
+        except Exception as exc:
+            return {"status": "error", "message": f"Không mở được hộp thoại: {exc}"}
+        if not result:
+            return {"status": "cancelled"}
+
+        reference_path = result[0]
+        previous_initial = self._initial_file
+        previous_current = self._current_file_path
+        try:
+            self._initial_file = reference_path
+            payload = self._open_document_dialog_impl("writer")
+        finally:
+            self._initial_file = previous_initial
+            self._current_file_path = previous_current
+        if isinstance(payload, dict) and payload.get("status") == "ok":
+            payload["referenceOnly"] = True
         return payload
 
     def _open_mail_merge_data_dialog_impl(self):
