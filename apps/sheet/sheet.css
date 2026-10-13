@@ -581,9 +581,21 @@
 .vno-rule-range { margin: 0; padding: 8px; border-radius: 4px; background: var(--vno-bg-muted); color: var(--vno-text-primary); font-size: 12px; }
 .vno-cf-rule-manager { display: grid; gap: 6px; max-height: 180px; overflow: auto; }
 .vno-cf-rule-manager h3 { margin: 0; font-size: 13px; color: var(--vno-text-primary); }
+.vno-cf-dialog .vno-dialog-box { width: 680px; }
 .vno-cf-rule-row { display: grid; grid-template-columns: minmax(0,1fr) 24px auto; align-items: center; gap: 8px; padding: 6px; border: 1px solid var(--vno-border); border-radius: 5px; color: var(--vno-text-primary); font-size: 12px; }
+.vno-cf-rule-select { display: grid; gap: 2px; min-width: 0; padding: 2px; border: 0; background: transparent; color: inherit; text-align: left; cursor: pointer; }
+.vno-cf-rule-select span { color: var(--vno-text-secondary); }
+.vno-cf-rule-select:focus-visible { outline: 2px solid var(--vno-border-focus, #0f6d38); border-radius: 3px; }
+.vno-cf-order { display: flex; gap: 4px; }
+.vno-cf-order .vno-btn { min-width: 28px; padding: 4px 6px; }
 .vno-cf-rule-color { width: 18px; height: 18px; border: 1px solid var(--vno-border); border-radius: 3px; }
 .vno-cf-empty { margin: 0; color: var(--vno-text-secondary); font-size: 12px; }
+.vno-cf-editor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; padding-top: 4px; border-top: 1px solid var(--vno-border); }
+.vno-cf-editor > label:first-child, .vno-cf-editor > label:nth-child(2), .vno-cf-editor > #vno-cf-formula-row, .vno-cf-colors, #vno-cf-icon-row { grid-column: 1 / -1; }
+.vno-cf-colors { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.vno-cf-check { margin-top: 8px; }
+.vno-grid-cell[data-cf-icon]::after { content: attr(data-cf-icon); position: absolute; left: 3px; top: 50%; z-index: 1; transform: translateY(-50%); color: var(--vno-cf-icon-color); font-size: 11px; font-weight: 700; pointer-events: none; }
+.vno-grid-cell[data-cf-icon] { padding-left: 20px; }
 .vno-data-preview { margin: 0; padding: 8px; border-radius: 4px; background: var(--vno-bg-muted); color: var(--vno-text-primary); font-size: 12px; }
 .vno-rule-error { min-height: 16px; color: #b91c1c; font-size: 12px; }
 [data-theme="dark"] .vno-rule-error { color: #f87171; }

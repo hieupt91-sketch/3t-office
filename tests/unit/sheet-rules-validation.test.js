@@ -63,6 +63,33 @@ export async function runSheetRulesValidationTests() {
     assert(grid.getConditionalFormattingRules().some(item => item.id === rule.id), "hoàn tác phải khôi phục đúng quy tắc");
   });
 
+  test("EXCEL-G1: đủ nhóm quy tắc, sửa và đổi thứ tự ưu tiên", () => {
+    const grid = createSheetGridWithSheets(container(), ["Báo cáo"]);
+    const range = { start: { c: "A", r: 1 }, end: { c: "A", r: 5 } };
+    [10, 20, 20, 40, 50].forEach((value, index) => grid.setCellValue("A", index + 1, value));
+    const configs = [
+      { type: "between", value: 15, value2: 25 }, { type: "equal", value: 40 },
+      { type: "textContains", text: "20" }, { type: "dateOccurs", timePeriod: "today" },
+      { type: "duplicate" }, { type: "top", rank: 2 }, { type: "bottom", rank: 2 },
+      { type: "aboveAverage" }, { type: "belowAverage" }, { type: "dataBar", color: "#638ec6" },
+      { type: "colorScale2", colors: ["#f8696b", "#63be7b"] },
+      { type: "colorScale3", colors: ["#f8696b", "#ffeb84", "#63be7b"] },
+      { type: "iconSet", iconSet: "3TrafficLights1" }, { type: "formula", formula: "=A1>=40" }
+    ];
+    const rules = configs.map(config => grid.addConditionalFormattingRule(range, config));
+    assert(rules.every(Boolean), "mọi loại quy tắc phải tạo được qua model UI");
+    assert(grid.getConditionalFormattingRules().length === configs.length, "phải giữ đủ mọi quy tắc");
+    assert(grid._matchingConditionalRule("A", 2)?.type === "between", "20 phải khớp quy tắc giữa ưu tiên đầu");
+    const visual = grid._conditionalCellVisual("A", 5);
+    assert(visual.dataBar?.percent === 100 && visual.fill && visual.icon, "ô lớn nhất phải có thanh, thang màu và biểu tượng");
+    const edited = grid.updateConditionalFormattingRule(rules[0].id, { type: "greaterThan", value: 45, color: "#ff0000" }, range);
+    assert(edited?.type === "greaterThan", "quản lý quy tắc phải sửa được rule");
+    assert(grid.moveConditionalFormattingRule(rules[1].id, "up"), "phải tăng được mức ưu tiên");
+    assert(grid.getConditionalFormattingRules()[0].id === rules[1].id, "thứ tự mảng phải phản ánh ưu tiên");
+    assert(grid.undo(), "đổi ưu tiên phải hoàn tác được");
+    assert(grid.getConditionalFormattingRules()[0].id === rules[0].id, "hoàn tác phải trả lại ưu tiên cũ");
+  });
+
   test("Data Validation danh sách: cho qua giá trị hợp lệ và cảnh báo giá trị lạ", () => {
     const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     const range = { start: { c: "C", r: 1 }, end: { c: "C", r: 3 } };
