@@ -797,6 +797,7 @@ export const enStrings = {
     "writer.style.heading2": { label: "Heading 2", tooltip: "Apply the standard Heading 2 style in new documents (Ctrl+Alt+2)" },
     "writer.style.heading3": { label: "Heading 3", tooltip: "Apply the standard Heading 3 style in new documents (Ctrl+Alt+3)" },
     "writer.text.changeCase": { label: "Change Case", tooltip: "Cycle lowercase / UPPERCASE / Title Case (Shift+F3)" },
+    "writer.text.changeCaseDialog": { label: "Change Case Dialog…", tooltip: "Open Change Case dialog (Sentence case, UPPERCASE, lowercase, Capitalize Each Word, tOGGLE cASE)" },
     "writer.para.sort": { label: "Sort", tooltip: "Sort selected paragraphs or list items A–Z" },
     "writer.para.showFormattingMarks": { label: "Show/Hide Formatting Marks", tooltip: "Show or hide paragraph and line-break marks (Ctrl+*)" },
     "writer.para.shading": { label: "Shading", tooltip: "Apply paragraph or table-cell shading" },

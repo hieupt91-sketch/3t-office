@@ -705,16 +705,17 @@ export const WRITER_HELP_ENTRIES = [
   {
     id: "writer.text.changeCaseHelp",
     app: "writer",
-    commandIds: ["writer.text.changeCase"],
+    commandIds: ["writer.text.changeCase", "writer.text.changeCaseDialog"],
     title: "Đổi chữ hoa / thường",
-    summary: "Shift+F3 (hoặc nút trên nhóm Phông chữ) xoay vòng hoa/thường/tiêu đề cho vùng đang bôi; nếu chưa bôi thì lấy cả từ tại con trỏ.",
+    summary: "Hộp thoại đổi chữ hoa/thường (Sentence case, chữ thường, CHỮ HOA, Viết Hoa Mỗi Từ, bẬT/tẮT) và phím tắt Shift+F3 xoay vòng nhanh.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
-    keywords: ["đổi chữ hoa", "chữ thường", "title case", "shift+f3", "change case", "in hoa"],
+    keywords: ["đổi chữ hoa", "chữ thường", "title case", "sentence case", "shift+f3", "change case", "in hoa"],
     steps: [
-      "Bôi chữ (hoặc đặt con trỏ trong một từ). Tab Trang đầu, nhóm Phông chữ, nút Đổi chữ hoa/thường (hàng icon, cạnh Gạch ngang) — hoặc Shift+F3.",
-      "Chu kỳ: đang viết HOA TOÀN BỘ → Title Case (Hoa Chữ Đầu); đang thường hết → HOA TOÀN BỘ; hỗn hợp hoặc Title Case → chữ thường.",
-      "Không có menu Sentence case / tOGGLE CASE như các phần mềm soạn thảo văn bản khác. Nhấn lại Shift+F3 để vòng tiếp.",
-      "Ctrl+Z hoàn tác lần đổi."
+      "Bôi đen đoạn văn bản cần đổi (hoặc đặt con trỏ trong một từ). Mở tab Trang đầu, nhóm Phông chữ, nút Đổi chữ hoa/thường (icon Aa) hoặc phím tắt Shift+F3.",
+      "Nhấn Shift+F3 để xoay vòng nhanh giữa: chữ thường, CHỮ HOA và Viết Hoa Đầu Từ.",
+      "Hoặc mở Hộp thoại Đổi chữ hoa/thường (nhấp chuột phải vào văn bản chọn 'Đổi chữ hoa/thường…' hoặc chạy lệnh) để chọn chính xác 5 kiểu: Chữ hoa đầu câu (Sentence case), chữ thường (lowercase), CHỮ HOA (UPPERCASE), Viết Hoa Mỗi Từ (Capitalize Each Word), hoặc bẬT/tẮT hOA tHƯỜNG (tOGGLE cASE).",
+      "Hỗ trợ đầy đủ tiếng Việt có dấu (kể cả các ký tự Đ, Ă, Â, Ê, Ô, Ơ, Ư). Nhấn Áp dụng để hoàn tất.",
+      "Nhấn Ctrl+Z để hoàn tác lần đổi nếu muốn quay lại ban đầu."
     ]
   },
   {

@@ -798,6 +798,7 @@ export const viStrings = {
     "writer.style.heading2": { label: "Tiêu đề 2", tooltip: "Áp dụng kiểu Tiêu đề 2 chuẩn cho tài liệu mới (Ctrl+Alt+2)" },
     "writer.style.heading3": { label: "Tiêu đề 3", tooltip: "Áp dụng kiểu Tiêu đề 3 chuẩn cho tài liệu mới (Ctrl+Alt+3)" },
     "writer.text.changeCase": { label: "Đổi chữ hoa/thường", tooltip: "Chuyển đổi chữ hoa / thường / Tiêu đề (Shift+F3)" },
+    "writer.text.changeCaseDialog": { label: "Hộp thoại Đổi chữ hoa/thường…", tooltip: "Mở hộp thoại Đổi chữ hoa/thường (chữ hoa đầu câu, in hoa, chữ thường, viết hoa từng từ, bật/tắt)" },
     "writer.para.sort": { label: "Sắp xếp", tooltip: "Sắp xếp danh sách hoặc đoạn văn theo A–Z" },
     "writer.para.showFormattingMarks": { label: "Hiện/ẩn ký tự định dạng", tooltip: "Hiện hoặc ẩn dấu đoạn và xuống dòng (Ctrl+*)" },
     "writer.para.shading": { label: "Tô nền đoạn", tooltip: "Tô màu nền đoạn văn hoặc ô bảng" },

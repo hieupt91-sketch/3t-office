@@ -108,6 +108,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.style.heading2", category: "format", label: "Tiêu đề 2", shortcut: "Ctrl+Alt+2", icon: "heading2", tooltip: "Áp dụng kiểu Tiêu đề 2 (Ctrl+Alt+2)" },
   { id: "writer.style.heading3", category: "format", label: "Tiêu đề 3", shortcut: "Ctrl+Alt+3", icon: "heading3", tooltip: "Áp dụng kiểu Tiêu đề 3 (Ctrl+Alt+3)" },
   { id: "writer.text.changeCase", category: "format", label: "Đổi chữ hoa/thường", shortcut: "Shift+F3", icon: "changeCase", tooltip: "Chuyển đổi chữ hoa / thường / Tiêu đề (Shift+F3)" },
+  { id: "writer.text.changeCaseDialog", category: "format", label: "Hộp thoại Đổi chữ hoa/thường…", icon: "changeCase", tooltip: "Mở hộp thoại Đổi chữ hoa/thường (Sentence case, in hoa, chữ thường, viết hoa từng từ, bật/tắt hoa thường)" },
   { id: "writer.font.family", category: "format", label: "Phông chữ", shortcut: "Ctrl+Shift+F", tooltip: "Chọn phông chữ (Ctrl+Shift+F)" },
   { id: "writer.format.fontDialog", category: "format", label: "Hộp thoại Phông chữ", shortcut: "Ctrl+D", tooltip: "Mở hộp thoại Phông chữ (Ctrl+D)" },
   { id: "writer.font.size", category: "format", label: "Cỡ chữ", shortcut: "Ctrl+Shift+P", tooltip: "Chọn cỡ chữ (Ctrl+Shift+P)" },

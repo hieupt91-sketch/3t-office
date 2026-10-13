@@ -55,6 +55,7 @@ import {
 } from "../../../apps/writer/captions.js";
 import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlListMarkerStats, extractOoxmlDocumentText, extractWordCountText, showWordCountDialog } from "../../../apps/writer/word-count.js";
 import { showFontDialog } from "../../../apps/writer/font-dialog.js";
+import { showChangeCaseDialog } from "../../../apps/writer/change-case-dialog.js";
 import {
   documentPropertiesMarker,
   normalizeDocumentProperties,
@@ -699,7 +700,8 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.style.heading1", () => this._applyParagraphStyle("h1"));
     globalCommandBus.bindHandler("writer.style.heading2", () => this._applyParagraphStyle("h2"));
     globalCommandBus.bindHandler("writer.style.heading3", () => this._applyParagraphStyle("h3"));
-    globalCommandBus.bindHandler("writer.text.changeCase", () => this._hintIfFalse(() => this.changeCase(), "Hãy chọn đoạn văn bản cần đổi chữ hoa / chữ thường."));
+    globalCommandBus.bindHandler("writer.text.changeCase", (args) => this._hintIfFalse(() => this.changeCase(args), "Hãy chọn đoạn văn bản cần đổi chữ hoa / chữ thường."));
+    globalCommandBus.bindHandler("writer.text.changeCaseDialog", () => this._hintIfFalse(() => this.openChangeCaseDialog(), "Hãy chọn đoạn văn bản cần đổi chữ hoa / chữ thường."));
     globalCommandBus.bindHandler("writer.format.fontDialog", () => this.openFontDialog());
     globalCommandBus.bindHandler("writer.para.sort", () => this.sortParagraphs());
     globalCommandBus.bindHandler("writer.para.showFormattingMarks", () => this.toggleFormattingMarks());
@@ -1088,7 +1090,10 @@ export class WriterAdapter {
     return true;
   }
 
-  changeCase() {
+  changeCase(targetCase) {
+    if (targetCase === "dialog" || (targetCase && typeof targetCase === "object" && targetCase.showDialog)) {
+      return this.openChangeCaseDialog();
+    }
     if (typeof window === "undefined") return false;
     const sel = window.getSelection?.();
     if (!sel || sel.rangeCount === 0) return false;
@@ -1150,9 +1155,34 @@ export class WriterAdapter {
     }).filter(slice => slice.to > slice.from);
     if (!slices.length) return false;
     const fragmentText = slices.map(slice => slice.node.data.slice(slice.from, slice.to)).join("");
-    const transformCase = value => isAllUpper
-      ? value.toLowerCase().replace(/(^|\s)\S/g, char => char.toUpperCase())
-      : isAllLower ? value.toUpperCase() : value.toLowerCase();
+
+    const mode = typeof targetCase === "string" ? targetCase.toLowerCase() : "";
+    const transformCase = value => {
+      if (mode === "sentence" || mode === "sentencecase") {
+        return value.toLowerCase().replace(/(^|[.!?]\s+)(\p{L})/gu, (m, p, c) => p + c.toUpperCase());
+      }
+      if (mode === "lowercase" || mode === "lower") {
+        return value.toLowerCase();
+      }
+      if (mode === "uppercase" || mode === "upper") {
+        return value.toUpperCase();
+      }
+      if (mode === "capitalize" || mode === "capitalizeeachword" || mode === "title") {
+        return value.toLowerCase().replace(/(^|[\s\p{P}\u2018-\u201D]+)(\p{L})/gu, (m, p, c) => p + c.toUpperCase());
+      }
+      if (mode === "toggle" || mode === "togglecase") {
+        return Array.from(value).map(c => {
+          const u = c.toUpperCase();
+          const l = c.toLowerCase();
+          return c === u && c !== l ? l : (c === l && c !== u ? u : c);
+        }).join("");
+      }
+      // Mặc định Shift+F3 xoay vòng: HOA -> Tiêu đề; Thường -> HOA; Khác -> Thường
+      return isAllUpper
+        ? value.toLowerCase().replace(/(^|\s)\S/g, char => char.toUpperCase())
+        : isAllLower ? value.toUpperCase() : value.toLowerCase();
+    };
+
     const convertedText = transformCase(fragmentText);
     let sourceOffset = 0;
     let newEndOffset = endOffsetOriginal;
@@ -1174,6 +1204,44 @@ export class WriterAdapter {
     this.isDirty = true;
     this.recordSnapshot("writer.text.changeCase");
     return true;
+  }
+
+  openChangeCaseDialog() {
+    if (typeof window === "undefined") return false;
+    const sel = window.getSelection?.();
+    if (!sel || sel.rangeCount === 0) return false;
+
+    let range = sel.getRangeAt(0);
+    if (sel.isCollapsed && range) {
+      const node = sel.anchorNode;
+      if (node && node.nodeType === 3) {
+        const text = node.textContent || "";
+        const offset = sel.anchorOffset;
+        let start = offset;
+        let end = offset;
+        while (start > 0 && /\S/.test(text[start - 1])) start--;
+        while (end < text.length && /\S/.test(text[end])) end++;
+        if (end > start && typeof document !== "undefined") {
+          const newRange = document.createRange?.();
+          if (newRange) {
+            newRange.setStart(node, start);
+            newRange.setEnd(node, end);
+            sel.removeAllRanges();
+            sel.addRange(newRange);
+            range = newRange;
+          }
+        }
+      }
+    }
+
+    const text = sel.toString();
+    if (!text) return false;
+
+    return showChangeCaseDialog({
+      onApply: (mode) => {
+        this.changeCase(mode);
+      }
+    });
   }
 
   openFontDialog() {
@@ -8001,7 +8069,10 @@ export class WriterAdapter {
         return this._applyParagraphStyle("h3");
 
       case "writer.text.changeCase":
-        return this.changeCase();
+        return this.changeCase(args);
+
+      case "writer.text.changeCaseDialog":
+        return this.openChangeCaseDialog();
 
       case "writer.para.moveUp":
         return this.moveParagraph("up");
