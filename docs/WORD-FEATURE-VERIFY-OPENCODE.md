@@ -1,5 +1,8 @@
 # Xac minh tinh nang Word 2016 trong VN Writer
 
+> **Ghi chú kiểm tra (Claude, 13/10/2026):** tài liệu do opencode lập bằng đọc mã; tôi kiểm lại 28 mục 'Chua co' bằng tìm kiếm độc lập: 3 mục sai (Hiện/Ẩn ký tự định dạng, Kiểm tra chính tả, Macro) đã sửa; các mục còn lại khớp (không thấy trong mã). Độ tin cậy mục 'Chua co' khoảng 89%; mục 'Co' đã kiểm ngẫu nhiên đúng. Dùng làm danh sách việc cần làm cho Doc, vẫn cần đối chiếu từng mục với Word thật.
+
+
 | Tinh nang | Trang thai | Bang chung | Thieu gi |
 |---|---|---|---|
 
@@ -17,7 +20,7 @@
 | Bullet/Numbering/Multilevel list | Co | adapters/libreoffice/writer/writer-adapter.js:194,7764-7780,9361-9362; apps/writer/writer-ribbon.js:141-153; apps/writer/writer-app.js:813-821; platform/commands/command-definitions.js:121-123; platform/i18n/strings-vi.js:714,755 | - |
 | Giam/Tang thut le (Indent Dec/Inc) | Co | adapters/libreoffice/writer/writer-adapter.js:1289,1325-1342,1587-1623; apps/writer/writer-ribbon.js:156-157; apps/writer/paragraph-indent.js; platform/commands/command-definitions.js (writer.para.indentInc/Dec) | - |
 | Sort paragraphs | Co | apps/writer/writer-ribbon.js:158; platform/ui-kit/icons.js:167 (paragraphSort); platform/commands/command-definitions.js (writer.para.sort) | Can kiem tra logic sort thuc te trong adapter |
-| Show/Hide paragraph marks | Chua co | Chi tim thay "paragraph mark" trong word-count.js:183,389 va test; khong co command/UI toggle | Can them: command writer.para.showFormattingMarks, icon, toggle hien thi ky tu an |
+| Show/Hide paragraph marks | Co | platform/commands/command-definitions.js, apps/writer/writer-ribbon.js, platform/help/entries-writer.js (Ctrl+*) (Claude đã kiểm lại 13/10, sửa kết luận sai của opencode) | - |
 | Align (trai/giua/phai/deu) | Co | adapters/libreoffice/writer/writer-adapter.js:7708-7718,9357-9359; apps/writer/writer-ribbon.js:178-180; platform/commands/command-definitions.js:110-113; platform/i18n/strings-vi.js:744-746 | - |
 | Line spacing | Co | adapters/libreoffice/writer/writer-adapter.js:659,707-719,1454-1464; apps/writer/writer-ribbon.js:184-196; platform/commands/command-definitions.js:114-117; platform/i18n/strings-vi.js:396,399 | - |
 | Shading | Co | adapters/libreoffice/writer/writer-adapter.js:697,1430-1432,7734-7735; apps/writer/writer-ribbon.js:199; platform/commands/command-definitions.js:132; platform/i18n/strings-vi.js:770; platform/help/entries-writer.js:685 | - |
@@ -107,7 +110,7 @@
 
 | Tinh nang | Trang thai | Bang chung | Thieu gi |
 |---|---|---|---|
-| Spelling & Grammar | Co | adapters/libreoffice/writer/writer-adapter.js (spellcheck integration); platform/text/vi-spellchecker.js; platform/text/spellcheck-dom-controller.js; apps/writer/writer-app.js:229,482,499; apps/writer/writer-ribbon.js:795; platform/commands/command-definitions.js:201 (writer.review.toggleSpellCheck); platform/i18n/strings-vi.js:854 | Grammar check (kiem tra ngap phap) chua co - chi co spellcheck tieng Viet |
+| Spelling & Grammar | Mot phan | platform/commands/command-definitions.js, apps/writer/writer-app.js (kiểm tra chính tả tiếng Việt, gạch đỏ khi gõ); chưa có kiểm tra ngữ pháp (Claude đã kiểm lại 13/10, sửa kết luận sai của opencode) | Ngữ pháp |
 | Thesaurus | Chua co | Khong tim thay "thesaurus" / "Thesaurus" / "tu dong nghia" / "synonym" trong writer .js | Can them: Thesaurus, Synonyms, Research pane |
 | Word Count | Co | apps/writer/word-count.js; adapters/libreoffice/writer/writer-adapter.js:598,7607; apps/writer/writer-ribbon.js:796; platform/commands/command-definitions.js:200; platform/i18n/strings-vi.js:853; platform/help/entries-writer.js:161-163 | - |
 | Translate | Chua co | Khong tim thay "translate" / "Translate" / "dich" / "translation" trong writer .js | Can them: Translate Document, Translate Selected Text, Mini Translator |
@@ -137,7 +140,7 @@
 | Split | Co | adapters/libreoffice/sheet/sheet-adapter.js:401 (sheet.view.split); platform/commands/command-definitions.js (sheet.view.split); writer co the co nhuong | Can kiem tra writer.view.split |
 | View Side by Side | Chua co | Khong tim thay "side by side" / "SideBySide" / "writer.view.sideBySide" / "song song" trong writer .js | Can them: View Side by Side, Synchronous Scrolling |
 | Switch Windows | Chua co | Khong tim thay "switch window" / "SwitchWindow" / "writer.view.switchWindow" / "chuyen cua so" trong writer .js | Can them: Switch Windows list |
-| Macros | Chua co | Khong tim thay "macro" / "Macro" / "writer.macro" / "macro manager" trong writer .js (chi co platform/commands/macro-manager.js cho platform) | Can them: View Macros, Record Macro, Macro Security |
+| Macros | Co | platform/commands/command-definitions.js, apps/writer/macro-manager.js (Claude đã kiểm lại 13/10, sửa kết luận sai của opencode) | - |
 
 ## TEP (File)
 
