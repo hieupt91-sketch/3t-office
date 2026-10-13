@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Có gì mới — Nhật ký phát hành và cập nhật 3T Office</title>
-  <meta name="description" content="Lịch sử các bản cập nhật và ghi chú phát hành thực tế của bộ ứng dụng 3T Office từ bản 0.9.1 đến 0.9.10 mới nhất.">
+  <meta name="description" content="Lịch sử các bản cập nhật và ghi chú phát hành thực tế của bộ ứng dụng 3T Office từ bản 0.9.1 đến 0.9.11 mới nhất.">
   <link rel="icon" type="image/png" sizes="32x32" href="favicon-32x32.png">
   <link rel="icon" type="image/png" sizes="16x16" href="favicon-16x16.png">
   <link rel="alternate icon" href="favicon.ico">
@@ -51,7 +51,7 @@
           <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
             <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
           </svg>
-          Tải 0.9.10 Pilot
+          Tải 0.9.11 Pilot
         </a>
         <button type="button" class="nav-toggle" aria-expanded="false" aria-controls="primary-nav" aria-label="Mở trình đơn chuyển hướng">
           ☰
@@ -72,14 +72,57 @@
         </div>
 
         <div class="timeline" id="releases-container">
-          <!-- Bản 0.9.10 mới nhất -->
+          <!-- Bản 0.9.11 mới nhất -->
+          <div class="timeline-item">
+            <div class="timeline-dot"></div>
+            <article class="timeline-content">
+              <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
+                <div style="display: flex; align-items: center; gap: 8px;">
+                  <span class="tag tag-ready">Phiên bản 0.9.11</span>
+                  <span style="font-weight: 700; color: var(--brand-orange); font-size: 0.875rem;">(Hiện tại)</span>
+                </div>
+                <span style="font-size: 0.813rem; color: var(--text-dim); font-weight: 600;">13/10/2026</span>
+              </div>
+              <h2 style="font-size: 1.25rem; font-weight: 800; margin-bottom: 12px; color: var(--text-main);">
+                Sửa lỗi tra cứu VLOOKUP ở Sheet, lưu xlsx không mất ảnh, Sheet sát bảng tính thông dụng hơn, Xuất và chuyển đổi, cập nhật tin cậy hơn
+              </h2>
+              <div style="display: flex; flex-direction: column; gap: 16px; font-size: 0.938rem; color: var(--text-muted); line-height: 1.6;">
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">1. Sửa lỗi quan trọng (khuyến nghị cập nhật):</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Cập nhật: bản cập nhật không còn thất bại ở máy có tên người dùng dài; ứng dụng chọn nguồn có bản mới nhất thay vì dừng ở nguồn đầu tiên kết nối được.</li>
+                    <li>Sheet: sửa lỗi hàm tra cứu VLOOKUP trả về #N/A khi tra theo cả cột có mã dạng chữ hoặc số có số 0 đứng đầu (lỗi từ bản 0.9.10); trên 28 tệp thực, 99,98% ô công thức khớp giá trị gốc.</li>
+                    <li>Sheet: lưu .xlsx rồi mở lại không còn mất hình ảnh trong ô và không đổi định dạng ô chữ.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">2. Chung:</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Nút Bản quyền (Dùng thử · Nhập khóa / Đã kích hoạt) luôn hiện trên thanh tiêu đề.</li>
+                    <li>Tệp ▸ Xuất và chuyển đổi: xuất PDF và chuyển sang các định dạng khác của văn bản, bảng tính và trình chiếu, có nút mở thư mục chứa tệp.</li>
+                    <li>Doc: dải kiểu nhanh trong ribbon không còn phải cuộn ngang.</li>
+                  </ul>
+                </div>
+                <div>
+                  <h3 style="font-size: 1rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">3. Sheet:</h3>
+                  <ul style="list-style: disc; padding-left: 20px; display: flex; flex-direction: column; gap: 6px;">
+                    <li>Mở tệp lớn thấy dữ liệu sau khoảng 2 giây, gõ và hoàn tác ngay trong lúc tải nốt; sửa ô chỉ tính lại công thức liên quan.</li>
+                    <li>Mới: Chia ngăn, tiêu đề riêng cho từng trục biểu đồ, dòng tổng của bảng, chèn/xóa hàng và cột của bảng, Đến (Ctrl+G) và Đến đặc biệt.</li>
+                    <li>Menu chuột phải ô, hàng, cột, tab trang tính, bảng và biểu đồ sắp xếp và đầy đủ như bảng tính thông dụng; lọc theo giá trị của ô, ghi chú, siêu liên kết.</li>
+                    <li>Nhập giờ bằng Ctrl+Shift+; lưu thành giá trị số; thêm nhiều hàm; ribbon Trang đầu vừa khít màn hình 1366 px.</li>
+                  </ul>
+                </div>
+              </div>
+            </article>
+          </div>
+          <!-- Bản 0.9.10 -->
           <div class="timeline-item">
             <div class="timeline-dot"></div>
             <article class="timeline-content">
               <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 8px; margin-bottom: 12px;">
                 <div style="display: flex; align-items: center; gap: 8px;">
                   <span class="tag tag-ready">Phiên bản 0.9.10</span>
-                  <span style="font-weight: 700; color: var(--brand-orange); font-size: 0.875rem;">(Hiện tại)</span>
+
                 </div>
                 <span style="font-size: 0.813rem; color: var(--text-dim); font-weight: 600;">11/10/2026</span>
               </div>
@@ -482,7 +525,7 @@
           <h4>Thông tin</h4>
           <ul class="footer-links">
             <li><a href="tai-ve.html">Tải về bộ cài</a></li>
-            <li><a href="co-gi-moi.html">Có gì mới (0.9.10)</a></li>
+            <li><a href="co-gi-moi.html">Có gì mới (0.9.11)</a></li>
             <li><a href="huong-dan.html">Hướng dẫn sử dụng</a></li>
             <li><a href="ban-quyen.html">Chính sách bản quyền</a></li>
           </ul>

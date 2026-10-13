@@ -1,16 +1,16 @@
 {
   "product": "3T Office",
-  "current_version": "0.9.10",
+  "current_version": "0.9.11",
   "version_family": "0.9.x",
   "channel": "pilot",
-  "release_date": "2026-10-11",
+  "release_date": "2026-10-13",
   "download": {
-    "file_name": "VNOffice-Setup-0.9.10.exe",
-    "alias_file_name": "Setup-0.9.10.exe",
-    "file_size_bytes": 401481861,
+    "file_name": "VNOffice-Setup-0.9.11.exe",
+    "alias_file_name": "Setup-0.9.11.exe",
+    "file_size_bytes": 401718681,
     "file_size_formatted": "383 MB",
-    "sha256": "D21CBC6CC457D54FFCAEE486294B68B851BA5DDDBADEA3374E777C7A43C365E7",
-    "url": "https://office.3tcomputer.com/downloads/VNOffice-Setup-0.9.10.exe",
+    "sha256": "41CC7DB664203D8A15A2E9F030F50A6F28E09F17B6DE139C194B9114D7A274BE",
+    "url": "https://office.3tcomputer.com/downloads/VNOffice-Setup-0.9.11.exe",
     "status": "ready",
     "public_download_status": "Sẵn sàng tải về từ hạ tầng phân phối máy chủ 3T Cloud",
     "requirements": {
