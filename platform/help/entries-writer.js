@@ -285,7 +285,7 @@ export const WRITER_HELP_ENTRIES = [
     commandIds: ["writer.file.inspectDocument"],
     title: "Kiểm tra tài liệu (Document Inspector)",
     summary: "Quét và loại bỏ nhận xét, bản sửa đổi theo dõi, văn bản ẩn và thông tin cá nhân hoặc thuộc tính tài liệu trước khi chia sẻ.",
-    ribbon: { tab: "Xem lại", tabId: "review", group: "Kiểm tra tài liệu" },
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "Kiểm tra tài liệu" },
     keywords: ["kiểm tra tài liệu", "document inspector", "xóa nhận xét", "xóa bản sửa đổi", "xóa văn bản ẩn", "thông tin cá nhân", "bảo vệ tài liệu", "thuộc tính tài liệu"],
     steps: [
       "Mở tab Xem lại (hoặc Đánh giá), nhóm Kiểm tra tài liệu, nhấn nút Kiểm tra tài liệu để mở hộp thoại.",

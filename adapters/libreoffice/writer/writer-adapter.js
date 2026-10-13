@@ -441,8 +441,11 @@ export class WriterAdapter {
     this.bodyDom = this.editorDom.querySelector(".vno-writer-body") || this.editorDom;
     this.footerDom = this.editorDom.querySelector(".vno-writer-footer");
     this.bodyDom?.classList?.toggle?.("vno-new-application-document", Boolean(this.isNewApplicationDocument));
-    if (this.bodyDom?.setAttribute && !this.bodyDom.hasAttribute("data-track-display")) {
-      this.bodyDom.setAttribute("data-track-display", this.trackChangesDisplayMode || "all");
+    if (typeof this.bodyDom?.setAttribute === "function") {
+      const hasAttr = typeof this.bodyDom.hasAttribute === "function" ? this.bodyDom.hasAttribute("data-track-display") : Boolean(this.bodyDom.getAttribute?.("data-track-display"));
+      if (!hasAttr) {
+        this.bodyDom.setAttribute("data-track-display", this.trackChangesDisplayMode || "all");
+      }
     }
   }
 
