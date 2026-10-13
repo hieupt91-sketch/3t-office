@@ -545,6 +545,8 @@ export const enStrings = {
     ,"sheet.insert.image": { label: "Pictures", tooltip: "Insert a picture at the selected cell" }
     ,"sheet.style.formatAsTable": { label: "Format as Table", tooltip: "Create a named table with filters and automatic expansion" }
     ,"sheet.style.cellStyles": { label: "Cell Styles", tooltip: "Open cell styles gallery (Normal, Good, Bad, Neutral...)" }
+    ,"sheet.edit.goTo": { label: "Go To...", tooltip: "Jump to a cell, range or defined name (F5 or Ctrl+G)" }
+    ,"sheet.edit.goToSpecial": { label: "Go To Special...", tooltip: "Select cells by type: comments, formulas, blanks, current region..." }
     ,"sheet.edit.fillDown": { label: "Fill Down", tooltip: "Fill down from the cell above (Ctrl+D)" }
     ,"sheet.edit.fillRight": { label: "Fill Right", tooltip: "Fill right from the cell to the left (Ctrl+R)" }
     ,"sheet.edit.clearAll": { label: "Clear All", tooltip: "Clear all contents, formulas, and formatting from selected cells" }
@@ -1240,7 +1242,11 @@ export const enStrings = {
     selectData: "Select Data...", chartDataRange: "Enter the data range for the chart (for example A1:B10):", invalidChartRange: "The data range is not valid.",
     moveChart: "Move Chart...", moveChartMessage: "Enter the name of the sheet to move the chart to. Available sheets: {sheets}", invalidSheetName: "No sheet with that name was found.",
     deleteObject: "Delete"
-  },  sheetFormatCells: {
+  },  sheetGoTo: {
+    title: "Go To", reference: "Reference", placeholder: "For example: B5, A1:C10, Sheet2!D3 or a name", nameList: "Defined names", noNames: "No names yet.",
+    invalid: "The reference is not valid.", special: "Special...", specialTitle: "Go To Special", select: "Select", noCells: "No cells were found.", truncated: "There are too many areas; only the first part was selected."
+  },
+  sheetFormatCells: {
     dialogTitle: "Format Cells",
     tabNumber: "Number",
     tabAlignment: "Alignment",

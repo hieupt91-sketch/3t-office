@@ -3,6 +3,7 @@
  */
 
 import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
+import { showGoToDialog, showGoToSpecialDialog } from "./sheet-goto.js";
 import { createEvaluateFormulaSessionFromGrid, formatFormulaValue, renderFormulaHtml } from "./evaluate-formula.js";
 import { FormulaAutocompleteController } from "./formula-autocomplete.js";
 import {
@@ -444,6 +445,8 @@ export class SheetGridController {
     globalCommandBus.bindHandler("sheet.review.toggleSpellCheck", () => {
       return this.toggleSpellcheck();
     });
+    globalCommandBus.bindHandler("sheet.edit.goTo", () => showGoToDialog(this, t));
+    globalCommandBus.bindHandler("sheet.edit.goToSpecial", () => showGoToSpecialDialog(this, t));
 
     globalCommandBus.bindHandler("common.edit.copy", () => this.copySelection(false));
     globalCommandBus.bindHandler("common.edit.cut", () => this.copySelection(true));
@@ -5028,6 +5031,11 @@ _bindGridKeyboardNavigation() {
         extendRange = e.shiftKey;
         if (this.viewport) this.viewport.scrollTop = Math.max(0, this._rowTop(nextRow));
         this.selectCell(nextCol, nextRow, extendRange);
+        return;
+      } else if (e.key === "F5" && !e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey) {
+        // F5 = Đến (Go To) như Excel; chặn tải lại trang của WebView.
+        e.preventDefault();
+        showGoToDialog(this, t);
         return;
       } else if ((e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) && !e.ctrlKey && !e.altKey && !e.metaKey) {
         // Shift+F10 hoặc ContextMenu key: mở context menu trên ô đang chọn

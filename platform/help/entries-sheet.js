@@ -7,6 +7,22 @@ import { registerHelpEntries } from "./help-catalog.js";
 
 export const SHEET_HELP_ENTRIES = [
   {
+    id: "sheet.goTo.special",
+    app: "sheet",
+    commandIds: ["sheet.edit.goTo"],
+    title: "Đến (Go To) và Đến đặc biệt: nhảy tới ô và chọn nhanh theo loại",
+    summary: "Nhấn Ctrl+G để nhập một ô, vùng hay tên đã xác định rồi nhảy tới đó; nút Đặc biệt chọn cùng lúc mọi ô thuộc một loại như ô trống, công thức, ghi chú.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["đến", "go to", "nhảy tới ô", "đến đặc biệt", "go to special", "chọn ô trống", "chọn công thức", "chọn ghi chú", "vùng hiện tại", "ô cuối cùng", "tên đã xác định"],
+    steps: [
+      "Nhấn Ctrl+G hoặc bấm nút Đến... ở tab Trang đầu, nhóm Chỉnh sửa. Hộp thoại Đến mở ra.",
+      "Gõ tham chiếu cần tới: một ô (B5), một vùng (A1:C10), ô ở trang khác (Sheet2!D3) hoặc tên đã xác định; hoặc bấm một tên trong danh sách Tên đã xác định. Nhấn Enter hoặc Đồng ý: Sheet nhảy tới và chọn đúng vùng đó. Tham chiếu sai sẽ báo lỗi và giữ hộp thoại để bạn sửa.",
+      "Bấm nút Đặc biệt... để chọn nhiều ô cùng lúc theo loại: Ghi chú, Hằng số, Công thức, Ô trống, Vùng hiện tại, Ô cuối cùng, Khác biệt theo hàng, Khác biệt theo cột, Chỉ ô nhìn thấy, Định dạng có điều kiện, Kiểm tra dữ liệu.",
+      "Nếu đang chọn một vùng nhiều ô thì Đặc biệt chỉ tìm trong vùng đó; nếu chỉ chọn một ô thì tìm trong toàn bộ vùng có dữ liệu của trang. Khác biệt theo hàng/cột so sánh với ô đang hoạt động và cần chọn vùng từ hai cột (hoặc hai hàng) trở lên.",
+      "Sau khi chọn xong có thể nhấn Delete để xóa, hoặc đặt màu nền ngay cho tất cả ô vừa chọn (ví dụ tô màu mọi ô trống). Không tìm thấy ô nào thì hộp thoại báo Không tìm thấy ô nào."
+    ]
+  },
+  {
     id: "sheet.contextMenu.rightClick",
     app: "sheet",
     commandIds: [],

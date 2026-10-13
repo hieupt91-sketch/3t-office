@@ -304,7 +304,8 @@ export const SHEET_RIBBON_TABS = [
             type: "column",
             items: [
               { type: "button", commandId: "common.edit.find", iconOnly: true },
-              { type: "button", commandId: "common.edit.replace", iconOnly: true }
+              { type: "button", commandId: "common.edit.replace", iconOnly: true },
+              { type: "button", commandId: "sheet.edit.goTo", iconOnly: true }
             ]
           }
         ]
