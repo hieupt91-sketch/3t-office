@@ -4304,7 +4304,12 @@ def _apply_accounting_number_formats_from_fods(
                         config = json.loads(raw_format)
                     except (json.JSONDecodeError, TypeError):
                         config = {}
-                    code = str(config.get("excelCode") or "") if include_excel_codes else ""
+                    # Ô kiểu chữ (value-type="string") giữ General như file gốc
+                    # (LibreOffice gán N0 cho một số ô chữ → nếu ghi lại sẽ đổi General thành "0;0;0;@").
+                    numeric_cell = cell.get(f"{{{office_ns}}}value-type") != "string"
+                    # excelCodeInferred: mã do app tự suy ra từ kiểu số mặc định của LibreOffice (không có trong file gốc) → không ghi lại.
+                    code = str(config.get("excelCode") or "") if include_excel_codes and numeric_cell and not config.get("excelCodeInferred") else ""
+                    restored = bool(code)
                     if not code and config.get("category") == "accounting" and not config.get("excelCode") and not config.get("odf"):
                         decimals = max(0, min(30, int(config.get("decimals", 2))))
                         number = "#,##" + "0" + ("." + "0" * decimals if decimals else "")
@@ -4313,37 +4318,45 @@ def _apply_accounting_number_formats_from_fods(
                         code = f'_(* {number} {currency}_);_(* ({number} {currency})_);_(* "-"?? {currency}_);_(@_)'
                     if code:
                         for offset in range(column_repeat):
-                            target_cells[f"{sheet_name}!{column_name(column_number + offset)}{row_number + 1}"] = {"code": code}
+                            target_cells[f"{sheet_name}!{column_name(column_number + offset)}{row_number + 1}"] = {"code": code, "restored": restored}
                 column_number += column_repeat
             row_number += row_repeat
 
     if not target_cells:
         return
     sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
-    by_sheet: dict[str, dict[str, str]] = {}
+    by_sheet: dict[str, dict[str, dict]] = {}
     for key, item in target_cells.items():
         sheet_name, address = key.rsplit("!", 1)
-        by_sheet.setdefault(sheet_name, {})[address] = item["code"]
+        by_sheet.setdefault(sheet_name, {})[address] = item
     sheet_paths = {name: _sheet_name_equivalent_value(sheet_entries, name) for name in by_sheet}
     sheet_paths = {name: entry for name, entry in sheet_paths.items() if entry}
     if not sheet_paths:
         return
 
+    # Sửa theo CHUỖI (không parse/serialize lại bằng ElementTree): ET đổi tiền tố namespace
+    # (ns0:, ns1:) và làm rơi khai báo mc:Ignorable → app mất ảnh/đối tượng khi mở lại file đã lưu.
     styles_source = replacements.get(XLSX_STYLES_ENTRY)
     if styles_source is None:
         styles_source = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
     if not styles_source:
         return
-    styles = ET.fromstring(styles_source)
-    num_fmts = styles.find(f"{{{main_ns}}}numFmts")
-    if num_fmts is None:
-        num_fmts = ET.Element(f"{{{main_ns}}}numFmts", {"count": "0"})
-        styles.insert(0, num_fmts)
-    cell_xfs = styles.find(f"{{{main_ns}}}cellXfs")
-    if cell_xfs is None:
+    styles_xml = styles_source if isinstance(styles_source, str) else styles_source.decode("utf-8", errors="replace")
+    xfs_match = re.search(r"(<cellXfs\b[^>]*>)([\s\S]*?)(</cellXfs>)", styles_xml)
+    if not xfs_match:
         return
-    existing_formats = {node.get("formatCode", ""): int(node.get("numFmtId", "0")) for node in num_fmts}
+    xf_items = re.findall(r"<xf\b[^>]*?/>|<xf\b[^>]*?>[\s\S]*?</xf>", xfs_match.group(2))
+    num_fmts_match = re.search(r"<numFmts\b[^>]*>([\s\S]*?)</numFmts>", styles_xml)
+    existing_formats: dict[str, int] = {}
+    if num_fmts_match:
+        for node in re.finditer(r"<numFmt\b[^>]*?/>", num_fmts_match.group(1)):
+            fid = re.search(r'numFmtId="(\d+)"', node.group(0))
+            code_attr = re.search(r'formatCode="([^"]*)"', node.group(0))
+            if fid and code_attr:
+                existing_formats[_unescape_xml(code_attr.group(1))] = int(fid.group(1))
     next_num_fmt = max([163, *existing_formats.values()]) + 1
+    new_num_fmts: list[str] = []
+    new_xfs: list[str] = []
     xfs: dict[tuple[int, str], int] = {}
     for sheet_name, entry in sheet_paths.items():
         sheet_source = replacements.get(entry)
@@ -4351,14 +4364,20 @@ def _apply_accounting_number_formats_from_fods(
             sheet_source = read_zip_entry(xlsx_bytes, entry)
         if not sheet_source:
             continue
-        sheet = ET.fromstring(sheet_source)
+        sheet_xml = sheet_source if isinstance(sheet_source, str) else sheet_source.decode("utf-8", errors="replace")
+        codes_by_address = by_sheet[sheet_name]
         changed = False
-        for cell in sheet.iter(f"{{{main_ns}}}c"):
-            address = cell.get("r", "")
-            code = by_sheet[sheet_name].get(address)
-            if not code:
-                continue
-            source_xf = int(cell.get("s", "0"))
+
+        def restyle(match: re.Match) -> str:
+            nonlocal next_num_fmt, changed
+            attrs = match.group(1)
+            address_match = re.search(r'\br="([A-Z]+\d+)"', attrs)
+            item = codes_by_address.get(address_match.group(1)) if address_match else None
+            if not item:
+                return match.group(0)
+            code = item["code"]
+            style_match = re.search(r'\bs="(\d+)"', attrs)
+            source_xf = int(style_match.group(1)) if style_match else 0
             key = (source_xf, code)
             target_xf = xfs.get(key)
             if target_xf is None:
@@ -4366,24 +4385,44 @@ def _apply_accounting_number_formats_from_fods(
                 if num_fmt_id is None:
                     num_fmt_id = next_num_fmt
                     next_num_fmt += 1
-                    ET.SubElement(num_fmts, f"{{{main_ns}}}numFmt", {"numFmtId": str(num_fmt_id), "formatCode": code})
+                    new_num_fmts.append(f'<numFmt numFmtId="{num_fmt_id}" formatCode="{_escape_xml(code)}"/>')
                     existing_formats[code] = num_fmt_id
-                source_style = cell_xfs[source_xf] if source_xf < len(cell_xfs) else cell_xfs[0]
-                target_style = ET.fromstring(ET.tostring(source_style, encoding="utf-8"))
-                target_style.set("numFmtId", str(num_fmt_id))
-                target_style.set("applyNumberFormat", "1")
-                cell_xfs.append(target_style)
-                target_xf = len(cell_xfs) - 1
+                source_style = (xf_items + new_xfs)[source_xf] if source_xf < len(xf_items) + len(new_xfs) else xf_items[0]
+                target_style = re.sub(r'\snumFmtId="\d+"', "", source_style, count=1)
+                target_style = re.sub(r"<xf\b", f'<xf numFmtId="{num_fmt_id}"', target_style, count=1)
+                if re.search(r'\bapplyNumberFormat="[^"]*"', target_style):
+                    target_style = re.sub(r'\bapplyNumberFormat="[^"]*"', 'applyNumberFormat="1"', target_style, count=1)
+                else:
+                    target_style = re.sub(r"<xf\b", '<xf applyNumberFormat="1"', target_style, count=1)
+                new_xfs.append(target_style)
+                target_xf = len(xf_items) + len(new_xfs) - 1
                 xfs[key] = target_xf
-            cell.set("s", str(target_xf))
+            if style_match:
+                attrs = attrs[:style_match.start()] + f's="{target_xf}"' + attrs[style_match.end():]
+            else:
+                attrs += f' s="{target_xf}"'
             changed = True
-        if changed:
-            replacements[entry] = ET.tostring(sheet, encoding="unicode")
-    if xfs:
-        num_fmts.set("count", str(len(num_fmts)))
-        cell_xfs.set("count", str(len(cell_xfs)))
-        replacements[XLSX_STYLES_ENTRY] = ET.tostring(styles, encoding="unicode")
+            return f"<c{attrs}{match.group(2)}>"
 
+        new_sheet_xml = re.sub(r"<c\b([^>]*?)(/?)>", restyle, sheet_xml)
+        if changed:
+            replacements[entry] = new_sheet_xml
+    if xfs:
+        total_xfs = len(xf_items) + len(new_xfs)
+        xfs_open = re.sub(r'\bcount="\d+"', f'count="{total_xfs}"', xfs_match.group(1), count=1)
+        styles_xml = styles_xml[:xfs_match.start()] + xfs_open + xfs_match.group(2) + "".join(new_xfs) + xfs_match.group(3) + styles_xml[xfs_match.end():]
+        if new_num_fmts:
+            num_fmts_match = re.search(r"<numFmts\b([^>]*)>([\s\S]*?)</numFmts>", styles_xml)
+            if num_fmts_match:
+                total_fmts = len(re.findall(r"<numFmt\b", num_fmts_match.group(2))) + len(new_num_fmts)
+                attrs = re.sub(r'\bcount="\d+"', f'count="{total_fmts}"', num_fmts_match.group(1), count=1) if re.search(r'\bcount="', num_fmts_match.group(1)) else num_fmts_match.group(1) + f' count="{total_fmts}"'
+                styles_xml = styles_xml[:num_fmts_match.start()] + f"<numFmts{attrs}>" + num_fmts_match.group(2) + "".join(new_num_fmts) + "</numFmts>" + styles_xml[num_fmts_match.end():]
+            else:
+                root_open = re.search(r"<styleSheet\b[^>]*>", styles_xml)
+                if root_open:
+                    block = f'<numFmts count="{len(new_num_fmts)}">' + "".join(new_num_fmts) + "</numFmts>"
+                    styles_xml = styles_xml[:root_open.end()] + block + styles_xml[root_open.end():]
+        replacements[XLSX_STYLES_ENTRY] = styles_xml
 
 _XLSX_FORMULA_TAG_RE = re.compile(r"(<f\b[^>]*>)([\s\S]*?)(</f>)", re.IGNORECASE)
 _CONCAT_FUNCTION_RE = re.compile(r"(?<![A-Za-z0-9_.])CONCAT(?=\s*\()", re.IGNORECASE)

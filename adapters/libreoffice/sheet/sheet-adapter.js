@@ -4138,7 +4138,7 @@ ${pristineXlsxMarker}
       const fmt = { ...standardFormat };
       // Try to reconstruct excelCode from standard format
       const inferred = this._excelCodeFromNumberFormat(fmt);
-      if (inferred) fmt.excelCode = inferred;
+      if (inferred) { fmt.excelCode = inferred; fmt.excelCodeInferred = true; }
       style.numberFormat = fmt;
     } else if (valueType === "percentage") {
       style.numberFormat = { category: "percentage", decimals: 2 };
