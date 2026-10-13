@@ -5,7 +5,7 @@
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showPromptDialog, showFindReplaceDialog, showAlertDialog, showHyperlinkDialog } from "../../../platform/ui-kit/dialogs.js";
-import { createMatcher } from "../../../platform/find/find-engine.js";
+import { createMatcher, nodeMatchesFormat } from "../../../platform/find/find-engine.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { getPendingTypingStyleCommands } from "../../../platform/text/spellcheck-dom-controller.js";
 import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
@@ -240,6 +240,7 @@ export function replaceTextInTextNodes(nodes, findText, replacementText, replace
   const matcher = createMatcher(needle, options);
   for (const node of nodes || []) {
     if (!node || typeof node.data !== "string") continue;
+    if (options.format && !nodeMatchesFormat(node, options.format)) continue;
     const res = matcher.replace(node.data, replacement, replaceAll);
     if (res.count > 0) {
       node.data = res.text;
@@ -12595,6 +12596,7 @@ export class WriterAdapter {
         ? (startNodeIdx - step + totalNodes) % totalNodes
         : (startNodeIdx + step) % totalNodes;
       const textNode = nodes[idx];
+      if (options.format && !nodeMatchesFormat(textNode, options.format)) continue;
       const matches = matcher.findAll(textNode.data || "");
       if (matches.length > 0) {
         let m = backward ? matches[matches.length - 1] : matches[0];

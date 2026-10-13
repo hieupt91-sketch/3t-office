@@ -13,7 +13,7 @@ export const CHANGE_CASE_OPTIONS = [
   { id: "sentence", label: "Chữ hoa đầu câu (Sentence case.)", value: "sentence" },
   { id: "lowercase", label: "chữ thường (lowercase)", value: "lowercase" },
   { id: "uppercase", label: "CHỮ HOA (UPPERCASE)", value: "uppercase" },
-  { id: "capitalize", label: "Viết Hoa Mỗi Từ (Capitalize Each Word)", value: "capitalize" },
+  { id: "capitalize", label: "Viết Hoa Mỗi Từ (Title case)", value: "capitalize" },
   { id: "toggle", label: "bẬT/tẮT hOA tHƯỜNG (tOGGLE cASE)", value: "toggle" }
 ];
 

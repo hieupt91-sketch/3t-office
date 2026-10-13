@@ -713,7 +713,7 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Bôi đen đoạn văn bản cần đổi (hoặc đặt con trỏ trong một từ). Mở tab Trang đầu, nhóm Phông chữ, nút Đổi chữ hoa/thường (icon Aa) hoặc phím tắt Shift+F3.",
       "Nhấn Shift+F3 để xoay vòng nhanh giữa: chữ thường, CHỮ HOA và Viết Hoa Đầu Từ.",
-      "Hoặc mở Hộp thoại Đổi chữ hoa/thường (nhấp chuột phải vào văn bản chọn 'Đổi chữ hoa/thường…' hoặc chạy lệnh) để chọn chính xác 5 kiểu: Chữ hoa đầu câu (Sentence case), chữ thường (lowercase), CHỮ HOA (UPPERCASE), Viết Hoa Mỗi Từ (Capitalize Each Word), hoặc bẬT/tẮT hOA tHƯỜNG (tOGGLE cASE).",
+      "Hoặc mở Hộp thoại Đổi chữ hoa/thường (nhấp chuột phải vào văn bản chọn 'Đổi chữ hoa/thường…' hoặc chạy lệnh) để chọn chính xác 5 kiểu: Chữ hoa đầu câu (Sentence case), chữ thường (lowercase), CHỮ HOA (UPPERCASE), Viết Hoa Mỗi Từ (Title case), hoặc bẬT/tẮT hOA tHƯỜNG (tOGGLE cASE).",
       "Hỗ trợ đầy đủ tiếng Việt có dấu (kể cả các ký tự Đ, Ă, Â, Ê, Ô, Ơ, Ư). Nhấn Áp dụng để hoàn tất.",
       "Nhấn Ctrl+Z để hoàn tác lần đổi nếu muốn quay lại ban đầu."
     ]
@@ -1163,16 +1163,17 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["common.edit.find", "common.edit.replace", "common.edit.selectAll"],
     title: "Tìm kiếm và Thay thế trong Doc",
-    summary: "Hộp thoại Tìm kiếm và Thay thế dùng chung phong cách Office cho Doc với hai tab: Tìm (Ctrl+F) và Thay thế (Ctrl+H). Hỗ trợ tiếng Việt có dấu chuẩn Unicode NFC, bỏ qua dấu, tự động cuộn trang bôi đen kết quả và Hoàn tác một bước (Ctrl+Z).",
+    summary: "Hộp thoại Tìm kiếm và Thay thế dùng chung cho Doc với hai tab: Tìm (Ctrl+F) và Thay thế (Ctrl+H). Hỗ trợ ký tự đặc biệt (^p, ^t, ^?), ký tự đại diện, tìm theo định dạng (font, đậm, nghiêng, màu), báo số lần thay thế và Hoàn tác một bước (Ctrl+Z).",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
-    keywords: ["tìm kiếm", "thay thế", "chọn tất cả", "find", "replace", "select all", "Ctrl+F", "Ctrl+H", "Ctrl+A", "Doc", "chỉnh sửa"],
+    keywords: ["tìm kiếm", "thay thế", "chọn tất cả", "find", "replace", "select all", "Ctrl+F", "Ctrl+H", "Ctrl+A", "Doc", "ký tự đặc biệt", "wildcard", "định dạng"],
     steps: [
-      "Truy cập: Mở tab Trang đầu trên thanh ribbon, nhìn sang nhóm Chỉnh sửa ở phía ngoài cùng bên phải, nhấn nút Tìm kiếm (Ctrl+F) hoặc Thay thế (Ctrl+H) để mở hộp thoại Tìm kiếm và Thay thế gồm hai tab.",
-      "Tìm kiếm văn bản: Chọn tab «Tìm» (Ctrl+F), nhập từ hoặc cụm từ cần tìm vào ô «Tìm gì:». Nhấn nút «Tìm tiếp» để nhảy tới kết quả kế tiếp; nhấn «Tìm trước» để lùi lại kết quả trước. Doc tự động cuộn trang và bôi đen vị trí khớp trong tài liệu.",
-      "Thay thế nội dung: Chọn tab «Thay thế» (Ctrl+H), nhập chuỗi cần tìm vào «Tìm gì:» và nội dung mới vào «Thay bằng:». Nhấn nút «Thay thế» để đổi từng vị trí, hoặc nhấn «Thay thế tất cả» để thay thế toàn bộ văn bản khớp trong tài liệu và nhận thông báo tổng số lượng thay thế thành công.",
-      "Tùy chọn tìm kiếm: Đánh dấu các ô chọn theo nhu cầu: «Khớp chữ hoa/thường» (phân biệt HOA/thường chính xác), «Chỉ toàn bộ từ» (không khớp các từ con), hoặc «Bỏ qua dấu» (tìm kiếm tiếng Việt không dấu khớp cả từ có dấu). Cả hai bên đều được chuẩn hóa Unicode NFC tự động.",
-      "Đóng và Hoàn tác: Phím Esc đóng hộp thoại. Sau khi đóng hộp thoại, hệ thống vẫn duy trì phiên tìm kiếm cho tài liệu. Mọi thao tác «Thay thế tất cả» đều được ghi nhận là đúng 1 bước Hoàn tác (nhấn Ctrl+Z để phục hồi lại nguyên trạng ban đầu).",
-      "Để chọn nhanh toàn bộ tài liệu: Nhấn nút «Chọn tất cả» trong nhóm Chỉnh sửa hoặc bấm tổ hợp phím Ctrl+A."
+      "Truy cập: Mở tab Trang đầu trên thanh ribbon, tại nhóm Chỉnh sửa nhấn nút Tìm kiếm (Ctrl+F) hoặc Thay thế (Ctrl+H) để mở hộp thoại Tìm kiếm và Thay thế.",
+      "Tìm kiếm cơ bản: Nhập nội dung vào «Tìm gì:», nhấn «Tìm tiếp» hoặc «Tìm trước». Hộp thoại báo trạng thái tìm thấy và tự động cuộn trang bôi đen kết quả.",
+      "Ký tự đặc biệt (^p, ^t, ^?): Nhấn nút «Đặc biệt ▼» để chèn nhanh ký tự đặc biệt: ^p (dấu ngắt đoạn), ^t (ký tự Tab), ^? (bất kỳ ký tự nào), ^w (khoảng trắng), ^^ (dấu mũ), hoặc ^& (chèn lại nội dung tìm được vào ô Thay bằng).",
+      "Ký tự đại diện: Đánh dấu «Dùng ký tự đại diện (*, ?)» để tìm theo mẫu: dấu * đại diện cho chuỗi ký tự bất kỳ, dấu ? đại diện cho đúng một ký tự.",
+      "Tìm theo định dạng: Nhấn nút «Định dạng…» để lọc theo phông chữ, chữ đậm, chữ nghiêng hoặc màu chữ cụ thể. Nhấn «Xóa định dạng» khi muốn quay lại tìm văn bản thông thường.",
+      "Thay thế và báo số lần: Nhấn «Thay thế» để đổi từng vị trí, hoặc nhấn «Thay thế tất cả» để thay thế toàn bộ và xem thông báo tổng số lần đã thay thế thành công.",
+      "Đóng và Hoàn tác: Phím Esc đóng hộp thoại. Mọi thao tác thay thế đều có thể hoàn tác ngay bằng Ctrl+Z."
     ]
   },
   {
