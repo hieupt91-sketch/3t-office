@@ -1,0 +1,4 @@
+# WORD-W1: Tự sửa lỗi gõ (AutoCorrect), ngoặc kép thông minh, thuộc tính tài liệu (Word 2016)
+Bằng chứng: docs/WORD-FEATURE-VERIFY-OPENCODE.md (đã kiểm lại): không thấy AutoCorrect, Smart quotes, Document Properties trong VN Doc.
+Làm: (1) Tùy chọn Tự sửa (Tệp ▸ Tùy chọn): danh sách thay thế (ví dụ (c) → ©, :) → ☺, "teh" → "the"), tự viết hoa đầu câu, ngoặc kép/nháy đơn thông minh, gạch nối -- thành –, ký hiệu phân số 1/2 → ½, tự thêm/bớt; tương thích gõ tiếng Việt (Unikey/EVKey): KHÔNG làm hỏng chữ đang gõ dở dấu. (2) Tệp ▸ Thông tin: Thuộc tính tài liệu (tiêu đề, tác giả, chủ đề, từ khóa, ghi chú), lưu DOCX vào docProps/core.xml (Word đọc đúng).
+Nghiệm thu: test CDP gõ thật (từng ký tự), mở/lưu DOCX giữ nguyên số trang bộ mẫu (batch_document_audit.py docx), Word thật đọc lại thuộc tính (COM), hướng dẫn tiếng Việt, i18n VI/EN.
