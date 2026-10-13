@@ -236,9 +236,58 @@ export async function runRealOfficeImportFidelityTests() {
     }
   });
 
+  test("Sheet: sample-sheet.fods fixture giữ semantics (khóa trước khi nhận baseline mới)", () => {
+    const xml = fs.readFileSync("tests/fixtures/real-office-samples/src/sample-sheet.fods", "utf8");
+    const workbook = new SheetAdapter(null).parseFods(xml);
+    if (workbook.sheets.join("|") !== "Doanh thu|Chi phí") {
+      throw new Error(`Sheets fixture sai: ${workbook.sheets.join("|")}`);
+    }
+    const revenue = workbook.sheetsData["Doanh thu"];
+    const cost = workbook.sheetsData["Chi phí"];
+    if (revenue.get("B2")?.val !== 120 || revenue.get("B3")?.val !== 150 || revenue.get("B4")?.val !== 180) {
+      throw new Error("Mất số liệu Doanh thu B2/B3/B4");
+    }
+    if (revenue.get("B5")?.formula !== "=SUM(B2:B4)" || revenue.get("B5")?.val !== 450) {
+      throw new Error(`SUM fixture sai: ${JSON.stringify(revenue.get("B5"))}`);
+    }
+    if (cost.get("A2")?.val !== "Văn phòng phẩm" || cost.get("A3")?.val !== "Đi lại") {
+      throw new Error(`Khoản mục Chi phí sai: A2=${cost.get("A2")?.val} A3=${cost.get("A3")?.val}`);
+    }
+    for (const coord of ["B2", "B3"]) {
+      const cell = cost.get(coord);
+      const expected = coord === "B2" ? 1250000 : 850000;
+      if (cell?.val !== expected) throw new Error(`${coord} giá trị sai: ${JSON.stringify(cell)}`);
+      if (cell.style?.numberFormat?.category !== "currency" || cell.style.numberFormat.currencySymbol !== "₫") {
+        throw new Error(`${coord} mất định dạng currency ₫: ${JSON.stringify(cell.style)}`);
+      }
+      // Mã excel do app suy ra (không ghi lại như mã gốc theo ooxml_zip_patch): phải có cờ đánh dấu.
+      if (!cell.style.numberFormat.excelCode || cell.style.numberFormat.excelCodeInferred !== true) {
+        throw new Error(`${coord} thiếu excelCode/excelCodeInferred: ${JSON.stringify(cell.style.numberFormat)}`);
+      }
+    }
+    // Fixture này không có bảng/loại trừ 0.9.11 (tables/hyperlink/split/text-boxes) — khóa để phát hiện rò rỉ parse.
+    if (workbook.tablesBySheet && Object.keys(workbook.tablesBySheet).length) {
+      throw new Error(`Fixture không có database-range nhưng parse ra tables: ${JSON.stringify(workbook.tablesBySheet)}`);
+    }
+    if (workbook.splitPanesBySheet && Object.keys(workbook.splitPanesBySheet).length) {
+      throw new Error("Fixture không có split nhưng parse ra splitPanesBySheet");
+    }
+    if (workbook.textBoxesBySheet && Object.keys(workbook.textBoxesBySheet).length) {
+      throw new Error("Fixture không có text-box nhưng parse ra textBoxesBySheet");
+    }
+    if (workbook.calculationMode) throw new Error(`Fixture không có vno:calculation-mode nhưng parse ra ${workbook.calculationMode}`);
+    for (const [, cells] of Object.entries(workbook.sheetsData)) {
+      for (const [coord, cell] of cells.entries()) {
+        if (cell?.hyperlink) throw new Error(`Fixture không có hyperlink nhưng ${coord} có hyperlink=${cell.hyperlink}`);
+      }
+    }
+  });
+
   test("Sheet: parseFods workbook snapshots match pre-optimization results", () => {
     const baselineHashes = new Map([
-      ["sample-sheet.fods", "27d6a029634b9d23b3018034ec3ac3e31f2695dc336f60a081eac86a2de15129"],
+      // sample-sheet.fods: baseline 27d6a029… stale (fixture 4037 bytes lúc ROUND4 → 3977 bytes hiện tại;
+      // parse 0.9.10 và 0.9.11 cho cùng hash 6490dc31…, semantics đã khóa ở test trên).
+      ["sample-sheet.fods", "6490dc31f4627743669263da9e197bf0ff13c6ced1943e2aa61ffb9d93dfef9f"],
       ["sample-sheet-validation.fods", "5a61f84f3e86fec0fbda3ce2f3184723f5282a2109e2669ac85bd5c7343bf4d0"],
       ["sample-sheet-pivot.fods", "9da11d96699646fd171f3e71d520aeeb5c3ce61fea3683e1657fd601195c56c5"],
       ["sample-sheet-formulas.fods", "6fe5161ffbdb734037194fd132e3ddfd615074142f7a4ff2c00f9b3b9f19d9db"]
