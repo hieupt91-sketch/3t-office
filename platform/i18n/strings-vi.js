@@ -28,6 +28,24 @@ export const viStrings = {
     description: "Ghi chú",
     saved: "Đã cập nhật thuộc tính tài liệu. Nhấn Ctrl+S để lưu vào tệp."
   },
+  writerAutoCorrect: {
+    optionsTitle: "Tự sửa lỗi gõ",
+    enabled: "Bật Tự sửa lỗi gõ trong Doc",
+    replaceText: "Thay văn bản khi gõ",
+    capitalizeSentences: "Tự viết hoa chữ đầu câu",
+    smartQuotes: "Đổi ngoặc kép và nháy đơn thành dạng thông minh",
+    smartDashes: "Đổi hai gạch nối (--) thành gạch ngang (–)",
+    fractions: "Đổi 1/2 thành ký tự phân số (½)",
+    replace: "Thay",
+    with: "Bằng",
+    add: "Thêm dòng",
+    remove: "Xóa dòng thay thế",
+    reset: "Khôi phục mặc định",
+    imeHint: "Tự sửa chỉ xử lý từ đã gõ xong; chuỗi đang được bộ gõ tiếng Việt đặt dấu không bị thay đổi.",
+    incompleteRow: "Mỗi dòng thay thế phải có đủ nội dung ở cả ô Thay và Bằng.",
+    replacementRequired: "Hãy giữ ít nhất một dòng thay thế hoặc bỏ chọn Thay văn bản khi gõ.",
+    storageFailed: "Không lưu được tùy chọn Tự sửa lỗi gõ. Hãy kiểm tra quyền lưu dữ liệu ứng dụng."
+  },
   common: {
     save: "Lưu tài liệu",
     undo: "Hoàn tác",

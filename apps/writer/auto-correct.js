@@ -13,6 +13,8 @@ export const DEFAULT_AUTO_CORRECT_REPLACEMENTS = Object.freeze([
   Object.freeze({ from: "teh", to: "the" })
 ]);
 
+const AUTO_CORRECT_STORAGE_KEY = "vno-writer-autocorrect-v1";
+
 const WORD_BOUNDARY = /[\s.,;:!?)]/u;
 const SENTENCE_END = /[.!?]/u;
 const OPEN_QUOTE_CONTEXT = /[\s([{\u2013\u2014-]/u;
@@ -41,6 +43,63 @@ export function normalizeAutoCorrectReplacements(replacements = DEFAULT_AUTO_COR
     if (normalized.length >= 100) break;
   }
   return normalized;
+}
+
+export class WriterAutoCorrectPreferences {
+  constructor(storage = (typeof localStorage !== "undefined" ? localStorage : null)) {
+    this.storage = storage;
+    this.settings = normalizeAutoCorrectSettings();
+    this.replacements = normalizeAutoCorrectReplacements();
+    this.lastLoadError = "";
+    this._load();
+  }
+
+  _load() {
+    if (!this.storage?.getItem) return;
+    try {
+      const raw = this.storage.getItem(AUTO_CORRECT_STORAGE_KEY);
+      if (!raw) return;
+      const parsed = JSON.parse(raw);
+      this.settings = normalizeAutoCorrectSettings(parsed?.settings);
+      this.replacements = normalizeAutoCorrectReplacements(parsed?.replacements);
+    } catch (error) {
+      this.lastLoadError = String(error?.message || error);
+      this.settings = normalizeAutoCorrectSettings();
+      this.replacements = normalizeAutoCorrectReplacements();
+    }
+  }
+
+  getSettings() {
+    return { ...this.settings };
+  }
+
+  getReplacements() {
+    return this.replacements.map(entry => ({ ...entry }));
+  }
+
+  save(settings, replacements) {
+    const nextSettings = normalizeAutoCorrectSettings(settings);
+    const nextReplacements = normalizeAutoCorrectReplacements(replacements);
+    if (nextSettings.replaceText && nextReplacements.length === 0) {
+      return { ok: false, message: "replacementRequired" };
+    }
+    try {
+      this.storage?.setItem?.(AUTO_CORRECT_STORAGE_KEY, JSON.stringify({
+        settings: nextSettings,
+        replacements: nextReplacements
+      }));
+    } catch (error) {
+      return { ok: false, message: "storageFailed", detail: String(error?.message || error) };
+    }
+    this.settings = nextSettings;
+    this.replacements = nextReplacements;
+    return { ok: true };
+  }
+
+  reset() {
+    this.settings = normalizeAutoCorrectSettings();
+    this.replacements = normalizeAutoCorrectReplacements();
+  }
 }
 
 function replaceRange(text, start, end, replacement, caretOffset) {

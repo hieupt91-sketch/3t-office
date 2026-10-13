@@ -29,6 +29,24 @@ export const enStrings = {
     description: "Comments",
     saved: "Document properties updated. Press Ctrl+S to save them to the file."
   },
+  writerAutoCorrect: {
+    optionsTitle: "Typing corrections",
+    enabled: "Enable typing corrections in Doc",
+    replaceText: "Replace text as you type",
+    capitalizeSentences: "Capitalize the first letter of sentences",
+    smartQuotes: "Replace straight quotation marks with smart quotation marks",
+    smartDashes: "Replace two hyphens (--) with an en dash (–)",
+    fractions: "Replace 1/2 with the fraction character (½)",
+    replace: "Replace",
+    with: "With",
+    add: "Add row",
+    remove: "Remove replacement row",
+    reset: "Restore defaults",
+    imeHint: "Corrections only process committed words; text currently being composed by a Vietnamese input method is left unchanged.",
+    incompleteRow: "Each replacement row must contain both the Replace and With values.",
+    replacementRequired: "Keep at least one replacement row or turn off Replace text as you type.",
+    storageFailed: "Typing correction settings could not be saved. Check the application's data-storage permission."
+  },
   common: {
     save: "Save document",
     undo: "Undo",

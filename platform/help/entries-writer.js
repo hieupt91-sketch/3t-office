@@ -1812,5 +1812,21 @@ export const WRITER_HELP_ENTRIES = [
     "Bấm Đồng ý để áp dụng. Thanh trạng thái nhắc rằng tài liệu cần được lưu; nếu bấm Hủy bỏ hoặc nhấn Esc, các giá trị cũ được giữ nguyên.",
     "Nhấn Ctrl+S hoặc chọn Tệp > Lưu. Với DOCX, năm trường được ghi vào thuộc tính lõi của tệp và được nạp lại khi mở tài liệu lần sau."
   ]
+},
+{
+  id: "writer.options.autoCorrect",
+  app: "writer",
+  commandIds: ["common.file.options"],
+  title: "Tự sửa lỗi gõ và ký tự thông minh",
+  summary: "Tự thay lỗi gõ theo bảng riêng, viết hoa đầu câu và đổi ngoặc, gạch ngang, phân số sau khi từ đã được bộ gõ tiếng Việt hoàn tất.",
+  ribbon: { tab: "Tệp", tabId: "file", group: "Tùy chọn" },
+  keywords: ["tự sửa", "autocorrect", "ngoặc thông minh", "nháy đơn", "gạch ngang", "phân số", "viết hoa đầu câu", "unikey", "evkey", "telex"],
+  steps: [
+    "Mở Tệp > Tùy chọn, tìm nhóm Tự sửa lỗi gõ. Chọn hoặc bỏ chọn Bật Tự sửa lỗi gõ trong Doc để bật hoặc tắt toàn bộ tính năng.",
+    "Dùng các ô riêng để bật Thay văn bản khi gõ, viết hoa chữ đầu câu, ngoặc thông minh, đổi -- thành – và đổi 1/2 thành ½.",
+    "Trong bảng Thay/Bằng, bấm Thêm dòng để khai báo cặp mới, ví dụ «teh» thành «the»; bấm nút × ở cuối dòng để xóa. Mỗi dòng phải có đủ hai giá trị, nếu không hộp thoại sẽ báo lỗi và không đóng.",
+    "Bấm Đồng ý để lưu lựa chọn trên máy. Khi soạn thảo, cặp thay thế và viết hoa được áp dụng lúc gõ dấu cách hoặc dấu câu; ©, ½, – và ngoặc thông minh được đổi ngay khi mẫu hoàn tất.",
+    "Với Unikey, EVKey hoặc kiểu gõ Telex, hãy gõ bình thường. Doc bỏ qua sự kiện khi bộ gõ còn đang ghép chữ/đặt dấu và chỉ sửa từ đã chốt, vì vậy chuỗi tiếng Việt đang gõ dở không bị can thiệp."
+  ]
 }
 ];

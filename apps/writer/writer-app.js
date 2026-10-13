@@ -18,11 +18,8 @@ import { getHelpEntryById } from "../../platform/help/help-catalog.js";
 import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 import { showContextMenu, closeActiveContextMenu } from "../../platform/ui-kit/components.js";
 import { showPageSetupDialog } from "./page-setup-dialog.js";
-import {
-  DEFAULT_AUTO_CORRECT_REPLACEMENTS,
-  DEFAULT_AUTO_CORRECT_SETTINGS,
-  WriterAutoCorrectController
-} from "./auto-correct.js";
+import { WriterAutoCorrectPreferences, WriterAutoCorrectController } from "./auto-correct.js";
+import { createWriterAutoCorrectOptionsProvider } from "./auto-correct-options.js";
 
 export class WriterApp {
   constructor(mountElement) {
@@ -39,6 +36,7 @@ export class WriterApp {
     this.workspace = null;
     this._styleGalleryModulePromise = null;
     this._helpPanelPromise = null;
+    this.autoCorrectPreferences = new WriterAutoCorrectPreferences();
   }
 
   async init(options = {}) {
@@ -51,7 +49,8 @@ export class WriterApp {
       appName: "writer",
       appTitle: "Doc",
       documentName: options.documentName || (isBlank ? "Tài liệu 1.docx" : "Quyết định ban hành tiêu chuẩn 01.docx"),
-      onApplyTemplate: (selectedTemplateId) => this._applyTemplate(selectedTemplateId)
+      onApplyTemplate: (selectedTemplateId) => this._applyTemplate(selectedTemplateId),
+      optionsProvider: createWriterAutoCorrectOptionsProvider(this.autoCorrectPreferences)
     });
     // Dùng cùng bộ đếm với thanh trạng thái và hộp thoại Đếm từ khi Trợ lý AI tóm tắt.
     this.shell.getDocumentWordCount = () => this.adapter?.getWordCountStats({ preferSelection: false })?.words;
@@ -310,8 +309,8 @@ export class WriterApp {
       onWordCommit: () => this.adapter?.recordSnapshot?.("Gõ chữ")
     }).attach(root));
     this.autoCorrectController = new WriterAutoCorrectController({
-      getSettings: () => DEFAULT_AUTO_CORRECT_SETTINGS,
-      getReplacements: () => DEFAULT_AUTO_CORRECT_REPLACEMENTS,
+      getSettings: () => this.autoCorrectPreferences.getSettings(),
+      getReplacements: () => this.autoCorrectPreferences.getReplacements(),
       onCorrect: () => { if (this.adapter) this.adapter.isDirty = true; }
     }).attach(this._editableRoots);
     this._autoRecoverOptions = options;
