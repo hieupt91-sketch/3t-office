@@ -14441,10 +14441,11 @@ _bindGridKeyboardNavigation() {
     const area = this._normalizeRange(this.selectionRange);
     const wholeRows = area.start.c === this.cols[0] && (area.end.c === this.cols[this.cols.length - 1] || area.end.c === "Z");
     const wholeCols = area.start.r === 1 && (area.end.r === this.rowCount || area.end.r === 200);
-    const axis = wholeCols ? "col" : "row";
+    // Chọn một vùng ô (không phải cả hàng/cột): nhóm theo hàng nếu vùng có ≥2 hàng, ngược lại theo cột.
+    const axis = wholeCols ? "col" : (wholeRows || area.end.r > area.start.r) ? "row" : "col";
     const start = axis === "row" ? area.start.r : this._columnNumber(area.start.c);
     const end = axis === "row" ? area.end.r : this._columnNumber(area.end.c);
-    if (end <= start || (!wholeRows && !wholeCols)) return false;
+    if (end <= start) return false;
     if (this._outlineGroups().some(group => group.axis === axis && group.start === start && group.end === end)) return false;
     const before = this._snapshotGridStructure();
     this._outlineGroups().push({ id: `outline-${Date.now()}`, axis, start, end, collapsed: false });
