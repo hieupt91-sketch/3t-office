@@ -18,6 +18,11 @@ import { getHelpEntryById } from "../../platform/help/help-catalog.js";
 import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 import { showContextMenu, closeActiveContextMenu } from "../../platform/ui-kit/components.js";
 import { showPageSetupDialog } from "./page-setup-dialog.js";
+import {
+  DEFAULT_AUTO_CORRECT_REPLACEMENTS,
+  DEFAULT_AUTO_CORRECT_SETTINGS,
+  WriterAutoCorrectController
+} from "./auto-correct.js";
 
 export class WriterApp {
   constructor(mountElement) {
@@ -304,6 +309,11 @@ export class WriterApp {
       target: root,
       onWordCommit: () => this.adapter?.recordSnapshot?.("Gõ chữ")
     }).attach(root));
+    this.autoCorrectController = new WriterAutoCorrectController({
+      getSettings: () => DEFAULT_AUTO_CORRECT_SETTINGS,
+      getReplacements: () => DEFAULT_AUTO_CORRECT_REPLACEMENTS,
+      onCorrect: () => { if (this.adapter) this.adapter.isDirty = true; }
+    }).attach(this._editableRoots);
     this._autoRecoverOptions = options;
     this._setupContextMenu(body);
     this._setupTextDragDrop(body);
@@ -462,6 +472,8 @@ export class WriterApp {
     this.spellcheckController = null;
     this._normalizers?.forEach(n => n.destroy());
     this._normalizers = [];
+    this.autoCorrectController?.destroy();
+    this.autoCorrectController = null;
     this._closeContextMenu();
     if (this._statusSelectionChangeHandler && typeof document !== "undefined") {
       document.removeEventListener?.("selectionchange", this._statusSelectionChangeHandler);
