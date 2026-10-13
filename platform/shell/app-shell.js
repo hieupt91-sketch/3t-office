@@ -191,6 +191,9 @@ export class AppShell {
 
       <!-- Right Actions: Language Switcher, AI Assistant & Controls -->
       <div class="vno-topbar-right">
+        <button class="vno-btn vno-license-chip" id="vno-license-chip" type="button" aria-label="Bản quyền: nhập khóa kích hoạt" title="Bản quyền: nhập khóa kích hoạt hoặc xem trạng thái">
+          <span class="vno-license-chip-dot" aria-hidden="true"></span><span class="vno-license-chip-label">Nhập khóa</span>
+        </button>
         <div class="vno-lang-switch-wrap" style="position:relative;">
           <button class="vno-btn vno-lang-switch-btn" id="vno-toggle-lang-btn"
                   aria-haspopup="true" aria-expanded="false" aria-controls="vno-lang-menu"
@@ -292,6 +295,11 @@ export class AppShell {
     });
 
     bar.querySelector("#vno-toggle-ai-btn").addEventListener("click", () => this.toggleAiSidebar());
+
+    // Nút Bản quyền luôn thấy trên thanh tiêu đề: bấm để nhập khóa; nhãn đổi theo trạng thái thật (dùng thử / đã kích hoạt).
+    const licenseChip = bar.querySelector("#vno-license-chip");
+    licenseChip?.addEventListener("click", () => this._showLicenseDialog());
+    this._refreshLicenseChip(licenseChip);
 
     // Dropdown chọn ngôn ngữ + nút Áp dụng riêng biệt
     const langToggleBtn = bar.querySelector("#vno-toggle-lang-btn");
@@ -812,6 +820,25 @@ export class AppShell {
       () => import("../about/about-dialog.js")
     );
     return showAboutDialog();
+  }
+
+  async _refreshLicenseChip(chip) {
+    if (!chip) return;
+    try {
+      const api = globalUnoBridge.desktopApi || (typeof window !== "undefined" ? window.pywebview?.api : null);
+      if (typeof api?.license_status !== "function") return;
+      const status = await api.license_status();
+      const label = chip.querySelector(".vno-license-chip-label");
+      if (status?.ok && status.licensed) {
+        chip.classList.add("is-active");
+        chip.classList.remove("is-trial");
+        if (label) label.textContent = "Đã kích hoạt";
+      } else {
+        chip.classList.add("is-trial");
+        chip.classList.remove("is-active");
+        if (label) label.textContent = status?.state === "trial" ? "Dùng thử · Nhập khóa" : "Nhập khóa";
+      }
+    } catch (_) { /* không chặn giao diện nếu đọc trạng thái lỗi */ }
   }
 
   async _showLicenseDialog() {

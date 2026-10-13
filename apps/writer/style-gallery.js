@@ -330,27 +330,30 @@ export function createStyleGalleryStrip(options = {}) {
   });
 
   // ArrowLeft/Right để điều hướng giữa các style item (WAI-ARIA toolbar pattern)
+  // Chỉ điều hướng qua các kiểu đang hiện (hàng đầu); kiểu bị ẩn do hết chỗ không nhận tiêu điểm.
+  const visibleItems = () => items.filter((it) => it.offsetTop <= items[0].offsetTop + 2);
   strip.addEventListener("keydown", (e) => {
     const focused = document.activeElement;
-    const idx = items.indexOf(focused);
+    const nav = visibleItems();
+    const idx = nav.indexOf(focused);
     if (idx === -1) return;
     let targetIdx = -1;
     if (e.key === "ArrowRight") {
       e.preventDefault();
-      targetIdx = (idx + 1) % items.length;
+      targetIdx = (idx + 1) % nav.length;
     } else if (e.key === "ArrowLeft") {
       e.preventDefault();
-      targetIdx = (idx - 1 + items.length) % items.length;
+      targetIdx = (idx - 1 + nav.length) % nav.length;
     } else if (e.key === "Home") {
       e.preventDefault();
       targetIdx = 0;
     } else if (e.key === "End") {
       e.preventDefault();
-      targetIdx = items.length - 1;
+      targetIdx = nav.length - 1;
     }
     if (targetIdx !== -1) {
-      items.forEach((it, i) => { it.tabIndex = i === targetIdx ? 0 : -1; });
-      items[targetIdx].focus();
+      items.forEach((it) => { it.tabIndex = it === nav[targetIdx] ? 0 : -1; });
+      nav[targetIdx].focus();
     }
   });
 

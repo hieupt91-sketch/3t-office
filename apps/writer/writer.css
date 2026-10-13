@@ -2735,10 +2735,13 @@ sup.vno-endnote-ref:hover {
   display: flex;
   gap: 4px;
   align-items: center;
-  overflow-x: auto;
+  /* Không cuộn ngang trong ribbon: khi hẹp, các kiểu không vừa chỗ xuống dòng và bị ẩn (xem ngăn Kiểu để dùng đủ). */
+  flex-wrap: wrap;
+  align-content: flex-start;
+  height: 54px;
+  overflow: hidden;
   padding: 2px;
   max-width: 290px;
-  scrollbar-width: none;
 }
 .vno-style-gallery-strip::-webkit-scrollbar {
   display: none;

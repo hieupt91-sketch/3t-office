@@ -2323,3 +2323,11 @@ body {
   white-space: nowrap;
 }
 
+
+/* Nút Bản quyền trên thanh tiêu đề */
+.vno-license-chip { display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border-radius: 999px; font-size: 12px; font-weight: 600; white-space: nowrap; border: 1px solid var(--vno-border-default); background: var(--vno-bg-surface); color: var(--vno-text-primary); cursor: pointer; }
+.vno-license-chip:hover { background: var(--vno-bg-hover); }
+.vno-license-chip:focus-visible { outline: 2px solid var(--vno-primary, #0f6d38); outline-offset: 2px; }
+.vno-license-chip-dot { width: 8px; height: 8px; border-radius: 50%; background: #d97706; }
+.vno-license-chip.is-active .vno-license-chip-dot { background: #16a34a; }
+.vno-license-chip.is-trial { border-color: #d97706; }
