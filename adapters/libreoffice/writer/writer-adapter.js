@@ -604,6 +604,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.trackChanges.rejectAll", () => this.rejectAllTrackChanges());
     globalCommandBus.bindHandler("writer.review.wordCount", () => this.openWordCountDialog());
     globalCommandBus.bindHandler("writer.file.properties", () => this.openDocumentPropertiesDialog());
+    globalCommandBus.bindHandler("writer.file.options", () => { if (typeof this.shell?.showOptionsDialog !== "function") return false; this.shell.showOptionsDialog(); return true; });
 
     // Bind undo/redo listeners & command handlers
     this._bindUndoRedo();

@@ -1816,7 +1816,7 @@ export const WRITER_HELP_ENTRIES = [
 {
   id: "writer.options.autoCorrect",
   app: "writer",
-  commandIds: ["common.file.options"],
+  commandIds: ["writer.file.options"],
   title: "Tự sửa lỗi gõ và ký tự thông minh",
   summary: "Tự thay lỗi gõ theo bảng riêng, viết hoa đầu câu và đổi ngoặc, gạch ngang, phân số sau khi từ đã được bộ gõ tiếng Việt hoàn tất.",
   ribbon: { tab: "Tệp", tabId: "file", group: "Tùy chọn" },

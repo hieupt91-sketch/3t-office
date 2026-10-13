@@ -422,6 +422,7 @@ export const enStrings = {
   },
   commands: {
     "writer.file.properties": { label: "Document properties", tooltip: "View and edit the title, author, subject, keywords, and comments" },
+    "writer.file.options": { label: "Options", tooltip: "Open Options: appearance, AutoCorrect and smart characters" },
     "writer.edit.select": { label: "Select", tooltip: "Select text or objects in the document" },
     "writer.edit.pasteSpecial": { label: "Paste Special", tooltip: "Paste with advanced options (keep source formatting, plain text) (Ctrl+Alt+V)" },
     "writer.para.lineSpacing": { label: "Line Spacing", tooltip: "Adjust spacing between lines of text" },

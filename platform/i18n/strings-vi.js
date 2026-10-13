@@ -423,6 +423,7 @@ export const viStrings = {
   },
   commands: {
     "writer.file.properties": { label: "Thuộc tính tài liệu", tooltip: "Xem và sửa tiêu đề, tác giả, chủ đề, từ khóa và ghi chú" },
+    "writer.file.options": { label: "Tùy chọn", tooltip: "Mở Tùy chọn: giao diện, tự sửa lỗi gõ và ký tự thông minh" },
     "writer.edit.select": { label: "Chọn", tooltip: "Chọn văn bản hoặc đối tượng" },
     "writer.edit.pasteSpecial": { label: "Dán đặc biệt", tooltip: "Dán kèm tùy chọn nâng cao (giữ định dạng nguồn, chỉ giữ văn bản) (Ctrl+Alt+V)" },
     "writer.para.lineSpacing": { label: "Giãn dòng", tooltip: "Khoảng cách giữa các dòng trong đoạn văn" },
