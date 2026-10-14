@@ -124,6 +124,27 @@ function amorArgs(engine, args) {
   return { cost, purchase: Math.floor(purchase), first: Math.floor(first), salvage, period: Math.trunc(period), rate, basis };
 }
 
+function oddLastArgs(engine, args) {
+  if (args.length < 8 || args.length > 9) return { error: "#VALUE!" };
+  const s = dateArg(engine, args[0]); if (isErr(s)) return { error: s };
+  const m = dateArg(engine, args[1]); if (isErr(m)) return { error: m };
+  const l = dateArg(engine, args[2]); if (isErr(l)) return { error: l };
+  const n = [];
+  for (const i of [3, 4, 5]) { const v = num(engine, args[i]); if (isErr(v)) return { error: v }; n.push(v); }
+  const fb = freqBasis(engine, args[6], args[7]); if (fb.error) return fb;
+  return { s: Math.floor(s), m: Math.floor(m), l: Math.floor(l), rate: n[0], second: n[1], redemption: n[2], ...fb };
+}
+
+function oddLastTerms(a) {
+  const dayYear = (x, y) => {
+    if (a.basis === 0) return days30(x, y, false);
+    if (a.basis === 4) return days30(x, y, true);
+    return y - x;
+  };
+  const E = a.basis === 0 || a.basis === 4 ? 360 / a.freq : a.m - addMonths(a.m, -12 / a.freq, isEom(a.m));
+  const DSM = dayYear(a.s, a.m); const DLM = dayYear(a.l, a.m); const A = dayYear(a.l, a.s);
+  return { E, DSM, DLM, A };
+}
 const round = x => Math.round(x);
 
 export const SECURITIES_FUNCTIONS = {
@@ -202,7 +223,21 @@ export const SECURITIES_FUNCTIONS = {
     periodStart = addMonths(I, full * step, false);
     return par * rate / fb.freq * (full + (S - periodStart) / firstLength);
   },
-  AMORLINC(engine, args) {
+  ODDLPRICE(engine, args) {
+    const a = oddLastArgs(engine, args); if (a.error) return a.error;
+    if (!(a.m > a.s && a.s > a.l) || a.rate < 0 || a.second < 0) return "#NUM!";
+    const { E, DSM, DLM, A } = oddLastTerms(a);
+    const c = 100 * a.rate / a.freq;
+    return (a.redemption + DLM / E * c) / (1 + DSM / E * a.second / a.freq) - A / E * c;
+  },
+  ODDLYIELD(engine, args) {
+    const a = oddLastArgs(engine, args); if (a.error) return a.error;
+    if (!(a.m > a.s && a.s > a.l) || a.rate < 0 || a.second <= 0) return "#NUM!";
+    const { E, DSM, DLM, A } = oddLastTerms(a);
+    const c = 100 * a.rate / a.freq;
+    const dirty = a.second + A / E * c;
+    return ((a.redemption + DLM / E * c) - dirty) / dirty * (E / DSM) * a.freq;
+  },  AMORLINC(engine, args) {
     const a = amorArgs(engine, args); if (a.error) return a.error;
     const oneRate = a.cost * a.rate;
     const frac = yfrac(engine, a.purchase, a.first, a.basis); if (isErr(frac)) return frac;
