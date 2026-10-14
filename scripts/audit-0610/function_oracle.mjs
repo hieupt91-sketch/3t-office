@@ -30,7 +30,8 @@ const toArrayLiteral = formula => formula.replace(/(?<![A-Za-z0-9_$!])\$?([A-Z]{
 });
 // Mặc định: tạo tệp XLSX tạm từ spec.cells để Excel (chỉ-đọc) tính công thức có vùng ô thật. --array-literals: dùng hằng mảng thay vì tệp.
 const useArrays = argv.includes("--array-literals");
-const excelFormulas = (spec.formulas || []).map(item => typeof item === "string" ? (useArrays ? toArrayLiteral(item) : item) : item.excel);
+const formulaText = item => (typeof item === "string" ? item : item.f);
+const excelFormulas = (spec.formulas || []).map(item => (useArrays ? toArrayLiteral(formulaText(item)) : formulaText(item)));
 const input = path.join(work, "in.json");
 const output = path.join(work, "out.json");
 writeFileSync(input, JSON.stringify({ formulas: excelFormulas }));
@@ -58,11 +59,14 @@ const { EN_LOCALE } = await import(pathToFileURL(path.resolve("apps/sheet/excel-
 const engine = new FormulaEngine(() => cells, null, () => cells, () => "Sheet1", () => ["Sheet1"]);
 engine.textLocale = EN_LOCALE;
 
-const near = (a, b) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
+let currentTol = 1e-9;
+const near = (a, b) => Math.abs(a - b) <= currentTol * Math.max(1, Math.abs(a), Math.abs(b));
 const rows = [];
-const mineFormulas = (spec.formulas || []).map(item => typeof item === "string" ? item : item.mine);
+const mineFormulas = (spec.formulas || []).map(formulaText);
+const tolerances = (spec.formulas || []).map(item => (typeof item === "string" ? null : item.tol ?? null));
 for (const [index, item] of excelList.entries()) {
   let mine;
+  currentTol = tolerances[index] ?? 1e-9;
   try { mine = engine.evaluate(mineFormulas[index]); } catch (error) { mine = `#THROW ${error.message}`; }
   if (mine instanceof String) mine = String(mine);
   let pass = false;
@@ -71,7 +75,7 @@ for (const [index, item] of excelList.entries()) {
   else if (item.type === "boolean") pass = mine === item.value;
   else if (item.type === "error") pass = String(mine).split(" ")[0] === item.value;
   else if (item.type === "array") pass = Array.isArray(mine) && mine.length === item.value.length && item.value.every((v, i) => (typeof v === "number" ? near(Number(mine[i]), v) : String(mine[i]) === String(v)));
-  rows.push({ formula: item.formula, excel: item.value, excelType: item.type, mine, pass });
+  rows.push({ formula: item.formula, excel: item.value, excelType: item.type, mine, pass, tol: tolerances[index] ?? undefined });
 }
 const failed = rows.filter(row => !row.pass);
 for (const row of failed) console.log(`FAIL | ${row.formula} | Excel=${JSON.stringify(row.excel)} (${row.excelType}) | VN=${JSON.stringify(row.mine)}`);
@@ -80,7 +84,7 @@ if (outIndex >= 0) writeFileSync(path.resolve(argv[outIndex + 1]), JSON.stringif
 // --golden <file>: lưu giá trị Excel làm bộ kiểm thử vàng cho npm test (không cần Excel khi chạy lại).
 const goldenIndex = argv.indexOf("--golden");
 if (goldenIndex >= 0 && !failed.length) {
-  const golden = { generatedFrom: "Excel 2016 (16.0.4266) Application.Evaluate", cells: spec.cells || {}, cases: rows.map(row => ({ formula: row.formula, excel: row.excel, type: row.excelType })) };
+  const golden = { generatedFrom: "Excel 2016 (16.0.4266) Application.Evaluate", cells: spec.cells || {}, cases: rows.map(row => ({ formula: row.formula, excel: row.excel, type: row.excelType, ...(row.tol ? { tol: row.tol } : {}) })) };
   writeFileSync(path.resolve(argv[goldenIndex + 1]), JSON.stringify(golden, null, 1));
   console.log(`Đã lưu bộ giá trị vàng: ${argv[goldenIndex + 1]}`);
 }

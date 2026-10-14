@@ -10,7 +10,7 @@ const serialToUtc = serial => EPOCH + Math.floor(serial) * DAY_MS;
 const utcToSerial = utc => Math.round((utc - EPOCH) / DAY_MS);
 const weekdayOf = serial => new Date(serialToUtc(serial)).getUTCDay(); // 0 = Chủ nhật
 
-function dateArg(engine, arg) {
+export function dateArg(engine, arg) {
   const value = scalar(engine, arg);
   if (isErr(value)) return value;
   if (typeof value === "number") return value;

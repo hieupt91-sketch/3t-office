@@ -11,7 +11,8 @@ const dir = path.resolve("tests/functions");
 
 export async function runFunctionGoldenTests() {
   const results = [];
-  const near = (a, b) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
+  let tol = 1e-9;
+  const near = (a, b) => Math.abs(a - b) <= tol * Math.max(1, Math.abs(a), Math.abs(b));
   for (const file of readdirSync(dir).filter(name => name.startsWith("golden-") && name.endsWith(".json")).sort()) {
     const golden = JSON.parse(readFileSync(path.join(dir, file), "utf8"));
     const cells = new Map();
@@ -21,6 +22,7 @@ export async function runFunctionGoldenTests() {
     const failures = [];
     for (const item of golden.cases) {
       let mine;
+      tol = item.tol ?? 1e-9;
       try { mine = engine.evaluate(item.formula); } catch (error) { mine = `#THROW ${error.message}`; }
       if (mine instanceof String) mine = String(mine);
       let pass = false;
