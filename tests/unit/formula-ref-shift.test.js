@@ -1,4 +1,4 @@
-import { shiftFormulaRefs, translateFormulaRefs } from "../../apps/sheet/formula-ref-shift.js";
+import { shiftFormulaRefs, translateFormulaRefs, moveFormulaRefs } from "../../apps/sheet/formula-ref-shift.js";
 
 export async function runFormulaRefShiftTests() {
   const results = [];
@@ -64,6 +64,16 @@ export async function runFormulaRefShiftTests() {
     eq(translateFormulaRefs("=Y1+AA1", 0, 3), "=AB1+AD1");
     eq(translateFormulaRefs('=LOG10(A1)&"A1"', 1, 0), '=LOG10(A2)&"A1"');
     eq(translateFormulaRefs("=Sheet2!A1+A1", 1, 0), "=Sheet2!A2+A2");
+  });
+
+  await test("Cắt-dán: tham chiếu vào khối bị di chuyển đi theo khối (kể cả $), vùng chỉ đi khi nằm trọn trong khối", () => {
+    const mv = (formula, extra = {}) => moveFormulaRefs(formula, { ownerSheet: "S1", targetSheet: "S1", range: { c1: 1, r1: 1, c2: 1, r2: 3 }, deltaCol: 3, deltaRow: 4, ...extra });
+    eq(mv("=A1*2"), "=D5*2");
+    eq(mv("=$A$2+B1"), "=$D$6+B1");
+    eq(mv("=SUM(A1:A3)"), "=SUM(D5:D7)");
+    eq(mv("=SUM(A1:A5)"), "=SUM(A1:A5)");
+    eq(mv("=Sheet2!A1+A1", { ownerSheet: "S1" }), "=Sheet2!A1+D5");
+    eq(mv("=S1!A1", { ownerSheet: "Sheet2" }), "=S1!D5");
   });
 
   return results;

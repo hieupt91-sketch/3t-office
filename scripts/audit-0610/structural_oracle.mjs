@@ -52,6 +52,16 @@ for (const scenario of spec.scenarios) {
         case "fillUp": grid.fillUp(parseRange(op.range)); break;
         case "fillLeft": grid.fillLeft(parseRange(op.range)); break;
         case "sort": { const [kc] = split(op.key); grid.selectionRange = parseRange(op.range); grid.selectedCoord = { ...grid.selectionRange.start }; grid.sort(kc, Number(op.order) === 1); break; }
+        case "deleteRows": for (let i = op.from; i <= op.to; i++) grid.deleteRow(op.from); break;
+        case "insertRows": for (let i = 0; i < op.count; i++) grid.insertRow(op.at); break;
+        case "copyPaste": case "cutPaste": {
+          grid.selectionRange = parseRange(op.from); grid.selectedCoord = { ...grid.selectionRange.start };
+          grid.copySelection(op.type === "cutPaste");
+          const [dc, dr] = split(op.to.split(":")[0]);
+          grid.selectedCoord = { c: dc, r: dr }; grid.selectionRange = { start: { c: dc, r: dr }, end: { c: dc, r: dr } };
+          grid.pasteClipboard();
+          break;
+        }
         default: throw new Error(`op chua ho tro: ${op.type}`);
       }
     }

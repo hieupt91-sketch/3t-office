@@ -1,0 +1,14 @@
+{ "scenarios": [
+ { "name": "sao chep o cong thuc tuong doi", "cells": {"A1":1,"A2":2,"B1":"=A1*2","D5":9}, "ops": [{"type":"copyPaste","from":"B1","to":"C2"}] },
+ { "name": "sao chep vung cong thuc", "cells": {"A1":1,"A2":2,"B1":"=A1*2","B2":"=A2*2+$A$1","C1":"=B1+B2"}, "ops": [{"type":"copyPaste","from":"B1:C2","to":"E4"}] },
+ { "name": "sao chep tuyet doi hon hop", "cells": {"A1":5,"B1":"=$A1+A$1+$A$1"}, "ops": [{"type":"copyPaste","from":"B1","to":"D3"}] },
+ { "name": "sao chep len tren giua ra ngoai bien", "cells": {"B2":"=A1+1","A1":4}, "ops": [{"type":"copyPaste","from":"B2","to":"A1"}] },
+ { "name": "cat dan o duoc tham chieu", "cells": {"A1":5,"B1":"=A1*2","C1":"=SUM(A1:A2)","A2":6}, "ops": [{"type":"cutPaste","from":"A1","to":"E5"}] },
+ { "name": "cat dan vung duoc tham chieu", "cells": {"A1":1,"A2":2,"A3":3,"B1":"=SUM(A1:A3)","B2":"=A2"}, "ops": [{"type":"cutPaste","from":"A1:A3","to":"D1"}] },
+ { "name": "cat dan o co cong thuc", "cells": {"A1":3,"B1":"=A1+1","C1":"=B1*2"}, "ops": [{"type":"cutPaste","from":"B1","to":"B4"}] },
+ { "name": "xoa nhieu dong lien tiep", "cells": {"A1":1,"A2":2,"A3":3,"A4":4,"A5":5,"A6":"=SUM(A1:A5)","B1":"=A3","B2":"=A5"}, "ops": [{"type":"deleteRows","from":2,"to":3}] },
+ { "name": "xoa nhieu dong gom dau vung", "cells": {"A1":1,"A2":2,"A3":3,"A4":4,"A5":"=SUM(A2:A4)"}, "ops": [{"type":"deleteRows","from":1,"to":2}] },
+ { "name": "chen nhieu dong", "cells": {"A1":1,"A2":2,"A3":"=SUM(A1:A2)","B1":"=A2"}, "ops": [{"type":"insertRows","at":2,"count":3}] },
+ { "name": "dien xuong tong tich luy", "cells": {"A1":1,"A2":2,"A3":3,"A4":4,"B1":"=SUM($A$1:A1)"}, "ops": [{"type":"fillDown","range":"B1:B4"}] },
+ { "name": "dien xuong tham chieu trang khac khong co", "cells": {"A1":10,"B1":"=A1/$A$1"}, "ops": [{"type":"fillDown","range":"B1:B3"}] }
+]}

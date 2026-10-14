@@ -145,3 +145,30 @@ export function translateFormulaRefs(formula, deltaRow, deltaCol) {
     return invalid ? "#REF!" : prefix + formatBody(parsed);
   });
 }
+
+/**
+ * Cắt-dán (di chuyển ô): tham chiếu tới ô nằm trong vùng bị di chuyển đi theo vùng (Excel).
+ * Ô đơn nằm trong vùng → dịch; vùng nhiều ô chỉ dịch khi CẢ vùng nằm trong khối bị di chuyển. Cả $ tuyệt đối cũng đi theo.
+ * range = { c1, r1, c2, r2 } (số cột 1-based).
+ */
+export function moveFormulaRefs(formula, { ownerSheet, targetSheet, range, deltaCol, deltaRow }) {
+  if (typeof formula !== "string" || formula === "" || (!deltaCol && !deltaRow)) return formula;
+  const target = String(targetSheet).toLowerCase();
+  const owner = String(ownerSheet).toLowerCase();
+  const inside = (col, row) => col >= range.c1 && col <= range.c2 && row >= range.r1 && row <= range.r2;
+  return mapReferences(formula, ({ prefix, body, sheet }) => {
+    const refSheet = (sheet === undefined || sheet === "" ? owner : String(sheet).toLowerCase());
+    if (refSheet !== target) return undefined;
+    const parsed = parseBody(body);
+    if (!parsed || parsed.kind !== "cells") return undefined;
+    const f = parsed.first; const s = parsed.second;
+    if (!s) {
+      if (!inside(f.col, f.row)) return undefined;
+      f.col += deltaCol; f.row += deltaRow;
+    } else {
+      if (!inside(f.col, f.row) || !inside(s.col, s.row)) return undefined;
+      f.col += deltaCol; f.row += deltaRow; s.col += deltaCol; s.row += deltaRow;
+    }
+    return prefix + formatBody(parsed);
+  });
+}

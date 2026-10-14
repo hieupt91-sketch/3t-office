@@ -34,6 +34,8 @@ try {
         "fillUp" { Retry { [void]$ws.Range($op.range).FillUp() } }
         "fillLeft" { Retry { [void]$ws.Range($op.range).FillLeft() } }
         "sort" { Retry { [void]$ws.Range($op.range).Sort($ws.Range($op.key), [int]$op.order, $missing, $missing, 1, $missing, 1, 0) } }
+        "deleteRows" { Retry { [void]$ws.Rows("$($op.from):$($op.to)").Delete() } }
+        "insertRows" { Retry { [void]$ws.Rows("$($op.at):$($op.at + $op.count - 1)").Insert() } }
         "copyPaste" { Retry { $ws.Range($op.from).Copy($ws.Range($op.to)) | Out-Null } }
         "cutPaste" { Retry { $ws.Range($op.from).Cut($ws.Range($op.to)) | Out-Null } }
       }

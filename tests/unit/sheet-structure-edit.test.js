@@ -63,5 +63,18 @@ export async function runSheetStructureEditTests() {
     assert(col("D").map(x => x.val).join() === "giữ1,giữ2,giữ3", "Cột ngoài vùng chọn không được xáo trộn");
   });
 
+  await test("Cắt-dán: công thức trỏ vào ô bị cắt đi theo ô, công thức bị cắt giữ nguyên tham chiếu, hoàn tác khôi phục", () => {
+    const grid = new SheetGridController(mockContainer());
+    grid.setCellValue("A", 1, 5); grid.setCellValue("B", 1, "=A1*2"); grid.setCellValue("C", 1, "=B1+1");
+    grid.selectionRange = { start: { c: "B", r: 1 }, end: { c: "B", r: 1 } }; grid.selectedCoord = { c: "B", r: 1 };
+    assert(grid.copySelection(true), "cắt phải chạy");
+    grid.selectedCoord = { c: "B", r: 4 }; grid.selectionRange = { start: { c: "B", r: 4 }, end: { c: "B", r: 4 } };
+    assert(grid.pasteClipboard(), "dán phải chạy");
+    assert(grid.cellsData.get("B4").formula === "=A1*2", `Ô bị cắt phải giữ tham chiếu: ${grid.cellsData.get("B4").formula}`);
+    assert(grid.cellsData.get("C1").formula === "=B4+1", `Công thức trỏ vào ô bị cắt phải đi theo: ${grid.cellsData.get("C1").formula}`);
+    assert(grid.undo(), "hoàn tác phải chạy");
+    assert(grid.cellsData.get("C1").formula === "=B1+1" && grid.cellsData.get("B1").formula === "=A1*2", "Hoàn tác phải trả lại công thức gốc");
+  });
+
   return results;
 }

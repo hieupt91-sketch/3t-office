@@ -3,7 +3,7 @@
  */
 
 import { buildSeries } from "./sheet-series.js";
-import { shiftFormulaRefs, translateFormulaRefs } from "./formula-ref-shift.js";
+import { shiftFormulaRefs, translateFormulaRefs, moveFormulaRefs } from "./formula-ref-shift.js";
 import { expandStructuredReferences, hasStructuredReference } from "./structured-references.js";
 import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { showGoToDialog, showGoToSpecialDialog } from "./sheet-goto.js";
@@ -9657,6 +9657,33 @@ _bindGridKeyboardNavigation() {
     return translateFormulaRefs(formula, deltaRow, deltaCol);
   }
 
+  /**
+   * Sau cắt-dán: mọi công thức (mọi trang) trỏ vào khối vừa di chuyển được cập nhật sang vị trí mới.
+   * Ghi thêm các ô trang hiện tại bị đổi vào before/after; trả về danh sách ô ở trang khác để hoàn tác.
+   */
+  _updateReferencesForMove(moveRange, deltaCol, deltaRow, before, after) {
+    const range = { c1: this._columnNumber(moveRange.start.c), r1: moveRange.start.r, c2: this._columnNumber(moveRange.end.c), r2: moveRange.end.r };
+    const cross = [];
+    for (const sheet of this.sheets || [this.activeSheet]) {
+      const map = sheet === this.activeSheet ? this.cellsData : this.sheetsData[sheet];
+      if (!map) continue;
+      for (const [key, item] of map.entries()) {
+        if (!item?.formula) continue;
+        const next = moveFormulaRefs(item.formula, { ownerSheet: sheet, targetSheet: this.activeSheet, range, deltaCol, deltaRow });
+        if (next === item.formula) continue;
+        if (sheet === this.activeSheet) {
+          if (!Object.prototype.hasOwnProperty.call(before, key)) before[key] = { val: item.val, formula: item.formula, style: structuredClone(item.style || {}) };
+          item.formula = next;
+          after[key] = { val: item.val, formula: next, style: structuredClone(item.style || {}) };
+        } else {
+          cross.push({ sheet, key, before: item.formula, after: next });
+          item.formula = next;
+        }
+      }
+    }
+    return cross;
+  }
+
   applyPasteSpecial(clipboard, mode = "source", destination = this.selectedCoord, options = {}) {
     if (!clipboard?.cells?.length || !destination) return false;
     const sourceRows = clipboard.cells;
@@ -9729,7 +9756,7 @@ _bindGridKeyboardNavigation() {
           const sourceColOffset = transpose ? rowOffset : colOffset;
           const sourceRowOffset = transpose ? colOffset : rowOffset;
           const formula = source.formula
-            ? this._offsetFormula(source.formula, destColNumber - (sourceStartCol + sourceColOffset), destRow - (sourceStartRow + sourceRowOffset))
+            ? (moveRange && !transpose ? source.formula : this._offsetFormula(source.formula, destColNumber - (sourceStartCol + sourceColOffset), destRow - (sourceStartRow + sourceRowOffset)))
             : "";
           next.val = mode === "formulas" && !formula ? "" : (source.val ?? "");
           next.formula = formula;
@@ -9784,8 +9811,12 @@ _bindGridKeyboardNavigation() {
       this._invalidateColLeftsCache?.();
     }
     for (const [coord, item] of Object.entries(after)) this.cellsData.set(coord, item);
+    let crossSheet = null;
+    if (moveRange && isSourceMode && !transpose) {
+      crossSheet = this._updateReferencesForMove(moveRange, destStartCol - this._columnNumber(moveRange.start.c), destStartRow - moveRange.start.r, before, after);
+    }
     const afterLayout = beforeLayout ? this._snapshotRowColLayout() : null;
-    this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after, beforeRanges, afterRanges, beforeLayout, afterLayout });
+    this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after, beforeRanges, afterRanges, beforeLayout, afterLayout, ...(crossSheet?.length ? { crossSheet } : {}) });
     this._recalculateAllFormulas();
     if (beforeLayout) this._renderColumnHeaders();
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
@@ -11848,6 +11879,12 @@ _bindGridKeyboardNavigation() {
             dom.textContent = "";
             dom.style.cssText = "";
           }
+        }
+      }
+      if (action.type === "batch-cells" && Array.isArray(action.crossSheet)) {
+        for (const entry of action.crossSheet) {
+          const target = this.sheetsData[entry.sheet]?.get(entry.key);
+          if (target) target.formula = direction === "undo" ? entry.before : entry.after;
         }
       }
       if (action.type === "batch-cells" && Array.isArray(action.beforeRanges) && Array.isArray(action.afterRanges)) {
