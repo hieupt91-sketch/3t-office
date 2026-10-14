@@ -14,4 +14,4 @@ File đổi: `platform/i18n/strings-vi.js`; `platform/i18n/strings-en.js`; `plat
 
 Đã làm: Audit lại toàn bộ gate cuối trên HEAD bằng các profile riêng WORD-W3; tài liệu thật và kết quả audit đều ở ngoài Git.
 PASS: `npm test` 3197/3197; CDP desktop So sánh/Gộp/Bảo vệ PASS, `ProtectionType=0→-1`, `Revisions=2`; DOCX audit 7/7 (`d01,d02,d06,d07,d13,d20,d24`) edit PASS và page delta 0.
-File đổi: `tests/run-tests.js`; báo cáo ngoài repo tại `E:\VNOffice-profiles\word-w3-codex-docx-20261014-a\batch\batch_document_audit_report.md`.
+File đổi: `tests/run-tests.js`; báo cáo tái nghiệm thu ngoài repo tại `E:\VNOffice-profiles\word-w3-codex-final-docx\batch\batch_document_audit_report.md`.
