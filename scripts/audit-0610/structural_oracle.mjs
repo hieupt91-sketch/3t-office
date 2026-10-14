@@ -52,6 +52,8 @@ for (const scenario of spec.scenarios) {
         case "fillUp": grid.fillUp(parseRange(op.range)); break;
         case "fillLeft": grid.fillLeft(parseRange(op.range)); break;
         case "sort": { const [kc] = split(op.key); grid.selectionRange = parseRange(op.range); grid.selectedCoord = { ...grid.selectionRange.start }; grid.sort(kc, Number(op.order) === 1); break; }
+        case "filterEq": grid.isFilterActive = true; grid.sheetStates[grid.activeSheet].filterRange = op.range; grid.applyFilter(op.col, new Set([String(op.value)])); break;
+        case "hideRow": grid.hideRows([op.at]); break;
         case "deleteRows": for (let i = op.from; i <= op.to; i++) grid.deleteRow(op.from); break;
         case "insertRows": for (let i = 0; i < op.count; i++) grid.insertRow(op.at); break;
         case "copyPaste": case "cutPaste": {

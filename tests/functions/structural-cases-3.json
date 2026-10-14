@@ -1,0 +1,5 @@
+{ "scenarios": [
+ { "name": "SUBTOTAL sau khi loc", "cells": {"A1":"Ten","B1":"Gia","A2":"x","B2":10,"A3":"y","B3":20,"A4":"x","B4":30,"A5":"y","B5":40,"D1":"=SUBTOTAL(9,B2:B5)","D2":"=SUBTOTAL(109,B2:B5)","D3":"=SUM(B2:B5)","D4":"=SUBTOTAL(3,A2:A5)","D5":"=SUBTOTAL(103,A2:A5)","D6":"=SUBTOTAL(1,B2:B5)","D7":"=SUBTOTAL(4,B2:B5)","D8":"=SUBTOTAL(2,B2:B5)"}, "ops": [{"type":"filterEq","range":"A1:B5","col":"A","field":1,"value":"x"}] },
+ { "name": "SUBTOTAL an hang thu cong", "cells": {"A2":1,"A3":2,"A4":3,"A5":4,"C1":"=SUBTOTAL(9,A2:A5)","C2":"=SUBTOTAL(109,A2:A5)","C3":"=SUBTOTAL(103,A2:A5)","C4":"=SUBTOTAL(3,A2:A5)"}, "ops": [{"type":"hideRow","at":3}] },
+ { "name": "SUBTOTAL long nhau bi bo qua", "cells": {"A1":1,"A2":2,"A3":"=SUBTOTAL(9,A1:A2)","A4":3,"B1":"=SUBTOTAL(9,A1:A4)"}, "ops": [] }
+]}
