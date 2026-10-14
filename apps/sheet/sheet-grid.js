@@ -4243,12 +4243,15 @@ export class SheetGridController {
 
   _guardProtectedMutation() {
     if (!this.isSheetProtected()) return false;
+    const activeStyle = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.style || {};
+    if (activeStyle.locked === false) return false;
     this._notifySheetProtected();
     return true;
   }
 
   _applyProtectionUi({ renderTabs = false } = {}) {
-    const locked = this.isSheetProtected();
+    const activeStyle = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.style || {};
+    const locked = this.isSheetProtected() && activeStyle.locked !== false;
     this.container?.classList?.toggle?.("vno-sheet-protected", locked);
     if (this.formulaInput) {
       this.formulaInput.readOnly = locked;
@@ -9021,17 +9024,7 @@ _bindGridKeyboardNavigation() {
       currentStyle: item?.style,
       isMerged: Boolean(this.getMergedRangeForCell(this.selectedCoord.c, this.selectedCoord.r)),
       sampleValue: item?.val,
-      onApply: (config) => {
-        if (config && config.category) {
-          // Hộp thoại định dạng ô chưa có nhóm "Giờ": nếu ô đang định dạng giờ,
-          // giữ nguyên mẫu giờ và bỏ dateFormat mặc định của hộp thoại (nếu không,
-          // định dạng giờ sẽ bị ghi đè thành ngày tháng).
-          if (config.category === "time") {
-            config = { ...config, timeFormat: config.timeFormat || "HH:mm" };
-            delete config.dateFormat;
-          }
-          this.applyNumberFormat(config);
-        }
+      onApply: () => {
         if (typeof this.container?.focus === "function") {
           this.container.focus({ preventScroll: true });
         }
@@ -9042,6 +9035,60 @@ _bindGridKeyboardNavigation() {
         }
       }
     });
+    return true;
+  }
+
+  /** Áp dụng cấu hình từ dialog cho toàn vùng bằng một bước undo. */
+  applyCellFormat(format = {}, range = null, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const target = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const coords = this.formulaEngine.expandRange(this._rangeLabel(target));
+    if (!coords.length) return false;
+    const before = {}, after = {};
+    const minCol = this._columnNumber(target.start.c), maxCol = this._columnNumber(target.end.c);
+    const minRow = target.start.r, maxRow = target.end.r;
+    const borderKey = { left: "borderLeft", right: "borderRight", top: "borderTop", bottom: "borderBottom", diagonalUp: "borderDiagonalUp", diagonalDown: "borderDiagonalDown" };
+    for (const coord of coords) {
+      const current = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      before[coord] = structuredClone(current);
+      const next = { ...current, style: structuredClone(current.style || {}) };
+      for (const [key, value] of Object.entries(format.stylePatch || {})) {
+        if (value === null || value === undefined || value === "") delete next.style[key];
+        else next.style[key] = structuredClone(value);
+      }
+      if (format.numberFormat !== undefined) {
+        if (!format.numberFormat || format.numberFormat.category === "general") delete next.style.numberFormat;
+        else next.style.numberFormat = structuredClone(format.numberFormat);
+        if (format.numberFormat?.category === "text") next.style.textAlign = "left";
+      }
+      if (format.borders) {
+        const [column, row] = this._splitCoord(coord);
+        const columnNumber = this._columnNumber(column);
+        for (const [name, styleKey] of Object.entries(borderKey)) {
+          const applies = name.startsWith("diagonal") || (name === "left" && columnNumber === minCol) || (name === "right" && columnNumber === maxCol) || (name === "top" && row === minRow) || (name === "bottom" && row === maxRow);
+          if (!applies) continue;
+          if (format.borders[name]) next.style[styleKey] = format.borders[name];
+          else delete next.style[styleKey];
+        }
+        const insideH = format.borders.insideHorizontal || "";
+        const insideV = format.borders.insideVertical || "";
+        if (row < maxRow) insideH ? next.style.borderBottom = insideH : delete next.style.borderBottom;
+        if (row > minRow) insideH ? next.style.borderTop = insideH : delete next.style.borderTop;
+        if (columnNumber < maxCol) insideV ? next.style.borderRight = insideV : delete next.style.borderRight;
+        if (columnNumber > minCol) insideV ? next.style.borderLeft = insideV : delete next.style.borderLeft;
+        next.style.borderInsideHorizontal = insideH;
+        next.style.borderInsideVertical = insideV;
+      }
+      delete next.style.origXf;
+      delete next.style.styleHashAtImport;
+      this.cellsData.set(coord, next);
+      after[coord] = structuredClone(next);
+      const [c, r] = this._splitCoord(coord);
+      const dom = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (dom) this._renderCellVisual(dom, next, c, r);
+    }
+    if (recordUndo) this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after });
+    this._scheduleFormatToggleSync();
     return true;
   }
 
