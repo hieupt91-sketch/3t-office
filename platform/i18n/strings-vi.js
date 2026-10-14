@@ -279,6 +279,7 @@ export const viStrings = {
     section: "Phần"
   },
   sheetDialogs: {
+    fillSeriesTitle: "Chuỗi", fillSeriesIn: "Chuỗi theo", fillSeriesRows: "Hàng", fillSeriesColumns: "Cột", fillSeriesType: "Loại", fillSeriesLinear: "Tuyến tính", fillSeriesGrowth: "Tăng trưởng", fillSeriesDate: "Ngày", fillSeriesDateUnit: "Đơn vị ngày", fillSeriesUnitDay: "Ngày", fillSeriesUnitWeekday: "Ngày làm việc", fillSeriesUnitMonth: "Tháng", fillSeriesUnitYear: "Năm", fillSeriesStep: "Bước nhảy", fillSeriesStop: "Giá trị dừng", fillSeriesBadStep: "Bước nhảy phải là một số.", fillSeriesBadStart: "Ô đầu của vùng chọn phải chứa số (hoặc ngày dạng dd/mm/yyyy khi chọn loại Ngày).", fillSeriesNothing: "Không có ô nào để điền. Hãy chọn vùng gồm ô bắt đầu và các ô cần điền, hoặc nhập Giá trị dừng khi chỉ chọn một ô.", fillSeriesFailed: "Không điền được chuỗi.", fillSeriesDone: "Đã điền {{count}} ô.",
     hideSheetMenu: "Ẩn trang tính", unhideSheetMenu: "Hiện trang tính...", unhideSheetTitle: "Hiện trang tính", unhideSheetChoose: "Chọn trang tính cần hiện:", unhideSheetAction: "Hiện", cannotHideLastSheet: "Không thể ẩn trang tính cuối cùng đang hiển thị.", noHiddenSheets: "Không có trang tính nào đang ẩn.",
     close: "Đóng", cancel: "Hủy", cancelLong: "Hủy bỏ", apply: "Áp dụng", range: "Phạm vi", rangeLabel: "Vùng:", value: "Giá trị", save: "Lưu",
     pasteSpecialTitle: "Dán đặc biệt", pasteSpecialGroup: "Dán", pasteSpecialSource: "Giữ định dạng nguồn", pasteSpecialKeepSource: "Giữ định dạng nguồn", pasteSpecialText: "Chỉ giữ văn bản", pasteSpecialAll: "Giữ định dạng nguồn", pasteSpecialValues: "Chỉ giá trị", pasteSpecialFormulas: "Chỉ công thức", pasteSpecialFormats: "Chỉ định dạng", pasteSpecialTranspose: "Chuyển vị (đổi hàng/cột)",
@@ -651,7 +652,10 @@ export const viStrings = {
     ,"sheet.edit.goTo": { label: "Đến...", tooltip: "Chuyển nhanh tới ô, vùng hoặc tên đã xác định (F5 hoặc Ctrl+G)" }
     ,"sheet.edit.goToSpecial": { label: "Đến đặc biệt...", tooltip: "Chọn nhanh các ô theo loại: ghi chú, công thức, ô trống, vùng hiện tại..." }
     ,"sheet.edit.fillDown": { label: "Điền xuống", tooltip: "Sao chép giá trị và công thức ô trên xuống các ô dưới (Ctrl+D)" }
-    ,"sheet.edit.fillRight": { label: "Điền phải", tooltip: "Sao chép giá trị và công thức ô bên trái sang phải (Ctrl+R)" }
+    ,"sheet.edit.fillRight": { label: "Điền phải", tooltip: "Sao chép giá trị và công thức ô bên trái sang phải (Ctrl+R)" }
+  ,"sheet.edit.fillUp": { label: "Điền lên", tooltip: "Sao chép ô dưới cùng của vùng chọn lên các ô phía trên" }
+  ,"sheet.edit.fillLeft": { label: "Điền trái", tooltip: "Sao chép cột phải nhất của vùng chọn sang các cột bên trái" }
+  ,"sheet.edit.fillSeries": { label: "Chuỗi...", tooltip: "Điền chuỗi số hoặc ngày: tuyến tính, tăng trưởng, ngày/tháng/năm" }
     ,"sheet.edit.clearAll": { label: "Xóa tất cả", tooltip: "Xóa toàn bộ nội dung, công thức và định dạng của các ô đã chọn" }
     ,"sheet.edit.clearFormats": { label: "Xóa định dạng", tooltip: "Xóa định dạng ô và đưa về mặc định nhưng giữ nguyên nội dung" }
     ,"sheet.edit.clearContents": { label: "Xóa nội dung", tooltip: "Xóa nội dung và công thức của ô nhưng giữ nguyên định dạng" }

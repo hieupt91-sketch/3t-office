@@ -837,6 +837,25 @@ export const ICONS = {
     <path d="M9 12H16M13 9L16 12L13 15" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
   </svg>`,
 
+  fillUp: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="4" y="14" width="16" height="7" rx="1.5" fill="#BBF7D0" stroke="#16A34A" stroke-width="1.2"/>
+    <rect x="4" y="3" width="16" height="7" rx="1.5" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2" stroke-dasharray="2 2"/>
+    <path d="M12 15V8M9 11L12 8L15 11" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  fillLeft: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="14" y="4" width="7" height="16" rx="1.5" fill="#BBF7D0" stroke="#16A34A" stroke-width="1.2"/>
+    <rect x="3" y="4" width="7" height="16" rx="1.5" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2" stroke-dasharray="2 2"/>
+    <path d="M15 12H8M11 9L8 12L11 15" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  fillSeries: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="3" width="18" height="5" rx="1.2" fill="#BBF7D0" stroke="#16A34A" stroke-width="1.1"/>
+    <rect x="3" y="10" width="18" height="5" rx="1.2" fill="#DCFCE7" stroke="#16A34A" stroke-width="1.1"/>
+    <rect x="3" y="17" width="18" height="4" rx="1.2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.1" stroke-dasharray="2 2"/>
+    <path d="M8 5.5H10M8 12.5H12M8 19H14" stroke="#0F6D38" stroke-width="1.4" stroke-linecap="round"/>
+  </svg>`,
+
   clearAll: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
     <path d="M19 7L18.1 19.1C18 20.2 17.1 21 16 21H8C6.9 21 6 20.2 5.9 19.1L5 7M3 7H21M9 7V4C9 3.4 9.4 3 10 3H14C14.6 3 15 3.4 15 4V7" stroke="#DC2626" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/>
     <line x1="10" y1="11" x2="10" y2="17" stroke="#DC2626" stroke-width="1.4" stroke-linecap="round"/>
