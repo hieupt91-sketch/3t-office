@@ -289,6 +289,7 @@ import { runWriterParagraphIndentTests } from "./unit/writer-paragraph-indent.te
 import { runPanelOverlayUiP1Tests } from "./unit/panel-overlay-ui-p1.test.js";
 import { runSpellcheckPendingStyleTests } from "./unit/spellcheck-pending-style.test.js";
 import { runSheetStyleExportWrapBorderAlignTests } from "./unit/sheet-style-export-wrap-border-align.test.js";
+import { runWriterWordW7Tests } from "./unit/writer-word-w7.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -586,7 +587,8 @@ async function runAll() {
     { title: "258. Unit Tests — Writer Outline, Draft Views and Collapsible Headings (WORD-W2)", runner: runWriterViewOutlineDraftTests },
     { title: "259. Unit Tests — Writer Change Case (WORD-W5)", runner: runWriterChangeCaseTests },
     { title: "260. Unit Tests — Writer Track Changes Display Modes (WORD-W5)", runner: runWriterTrackChangesDisplayTests },
-    { title: "261. Unit Tests — Writer Document Inspector (WORD-W5)", runner: runWriterDocumentInspectorTests }
+    { title: "261. Unit Tests — Writer Document Inspector (WORD-W5)", runner: runWriterDocumentInspectorTests },
+    { title: "262. Unit Tests — Writer WORD-W7 Balloons, Mark as Final and Save As (agy)", runner: runWriterWordW7Tests }
   ];
 
   for (const suite of suites) {

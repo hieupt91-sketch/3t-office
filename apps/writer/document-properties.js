@@ -5,7 +5,8 @@ export const EMPTY_DOCUMENT_PROPERTIES = Object.freeze({
   creator: "",
   subject: "",
   keywords: "",
-  description: ""
+  description: "",
+  contentStatus: ""
 });
 
 const PROPERTY_LIMITS = Object.freeze({
@@ -13,7 +14,8 @@ const PROPERTY_LIMITS = Object.freeze({
   creator: 255,
   subject: 255,
   keywords: 1024,
-  description: 4096
+  description: 4096,
+  contentStatus: 255
 });
 
 function decodeXmlText(value) {
@@ -38,7 +40,11 @@ function readCoreProperty(xml, prefix, localName) {
 export function normalizeDocumentProperties(properties = {}) {
   const normalized = {};
   for (const [key, limit] of Object.entries(PROPERTY_LIMITS)) {
-    normalized[key] = String(properties?.[key] || "").replace(/\r\n?/g, "\n").slice(0, limit);
+    let val = String(properties?.[key] || "").replace(/\r\n?/g, "\n").slice(0, limit);
+    if (key === "contentStatus") {
+      val = val.trim();
+    }
+    normalized[key] = val;
   }
   return normalized;
 }
@@ -49,7 +55,8 @@ export function parseCorePropertiesXml(xml) {
     creator: readCoreProperty(xml, "dc", "creator"),
     subject: readCoreProperty(xml, "dc", "subject"),
     keywords: readCoreProperty(xml, "cp", "keywords"),
-    description: readCoreProperty(xml, "dc", "description")
+    description: readCoreProperty(xml, "dc", "description"),
+    contentStatus: readCoreProperty(xml, "cp", "contentStatus")
   });
 }
 
@@ -94,7 +101,11 @@ export function showDocumentPropertiesDialog(initialProperties = {}) {
   document.body.appendChild(overlay);
   const dialog = overlay.querySelector(".vno-dialog-box");
   const form = overlay.querySelector(".vno-document-properties-form");
-  for (const key of Object.keys(PROPERTY_LIMITS)) form.elements.namedItem(key).value = initial[key];
+  const EDITABLE_FIELDS = ["title", "creator", "subject", "keywords", "description"];
+  for (const key of EDITABLE_FIELDS) {
+    const el = form.elements.namedItem(key);
+    if (el) el.value = initial[key] || "";
+  }
 
   return new Promise(resolve => {
     let settled = false;
@@ -106,9 +117,12 @@ export function showDocumentPropertiesDialog(initialProperties = {}) {
       previousFocused?.focus?.();
       resolve(result);
     };
-    const save = () => close(normalizeDocumentProperties(Object.fromEntries(
-      Object.keys(PROPERTY_LIMITS).map(key => [key, form.elements.namedItem(key).value])
-    )));
+    const save = () => close(normalizeDocumentProperties({
+      contentStatus: initial.contentStatus || "",
+      ...Object.fromEntries(
+        EDITABLE_FIELDS.map(key => [key, form.elements.namedItem(key)?.value || ""])
+      )
+    }));
     const onKeyDown = event => {
       if (event.key === "Escape") {
         event.preventDefault();

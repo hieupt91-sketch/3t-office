@@ -965,7 +965,7 @@ export class AppShell {
         <button type="button" class="vno-backstage-nav-btn" data-backstage-tab="export" id="vno-backstage-nav-export">${t("backstage.exportConvert")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.exportPdf" id="vno-backstage-nav-exportpdf">${t("backstage.exportPdf")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-tab="recent" id="vno-backstage-nav-recent">${t("backstage.recent")}</button>
-        ${this.appName === "writer" ? `<button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="writer.file.properties" id="vno-backstage-writer-info">${t("writerDocumentProperties.backstage")}</button>` : ""}
+        ${this.appName === "writer" ? `<button type="button" class="vno-backstage-nav-btn" data-backstage-tab="info" id="vno-backstage-writer-info">${t("writerDocumentProperties.backstage")}</button>` : ""}
         <button type="button" class="vno-backstage-nav-btn" data-backstage-action="closeDocument" id="vno-backstage-close">${t("backstage.close")}</button>
         <div style="flex:1;"></div>
         <button type="button" class="vno-backstage-nav-btn" id="vno-backstage-account">${t("backstage.account")}</button>
@@ -994,6 +994,7 @@ export class AppShell {
 
         <div class="vno-backstage-tab-content" id="vno-backstage-print-view" style="display:none;"></div>
         <div class="vno-backstage-tab-content" id="vno-backstage-export-view" style="display:none;"></div>
+        <div class="vno-backstage-tab-content" id="vno-backstage-info-view" style="display:none;"></div>
       </div>
     `;
 
@@ -1001,8 +1002,13 @@ export class AppShell {
 
     let printPanelCleanup = null;
     let exportPanelCleanup = null;
+    let infoPanelCleanup = null;
 
     const closeModal = () => {
+      if (typeof infoPanelCleanup === "function") {
+        infoPanelCleanup();
+        infoPanelCleanup = null;
+      }
       if (typeof printPanelCleanup === "function") {
         printPanelCleanup();
         printPanelCleanup = null;
@@ -1274,19 +1280,62 @@ export class AppShell {
     const recentNavBtn = modal.querySelector("#vno-backstage-nav-recent");
     const printNavBtn = modal.querySelector("#vno-backstage-nav-print");
     const exportNavBtn = modal.querySelector("#vno-backstage-nav-export");
+    const infoNavBtn = modal.querySelector("#vno-backstage-writer-info");
     const homeView = modal.querySelector("#vno-backstage-home-view");
     const recentView = modal.querySelector("#vno-backstage-recent-view");
     const printView = modal.querySelector("#vno-backstage-print-view");
     const exportView = modal.querySelector("#vno-backstage-export-view");
+    const infoView = modal.querySelector("#vno-backstage-info-view");
 
     const showTab = (tabName) => {
-      if (tabName === "export") {
+      if (tabName === "info") {
+        homeNavBtn?.classList.remove("is-active");
+        recentNavBtn?.classList.remove("is-active");
+        exportNavBtn?.classList.remove("is-active");
+        printNavBtn?.classList.remove("is-active");
+        infoNavBtn?.classList.add("is-active");
+        if (homeView) homeView.style.display = "none";
+        if (recentView) recentView.style.display = "none";
+        if (printView) {
+          printView.style.display = "none";
+          if (typeof printPanelCleanup === "function") {
+            printPanelCleanup();
+            printPanelCleanup = null;
+          }
+          printView.innerHTML = "";
+        }
+        if (exportView) {
+          exportView.style.display = "none";
+          if (typeof exportPanelCleanup === "function") {
+            exportPanelCleanup();
+            exportPanelCleanup = null;
+          }
+          exportView.innerHTML = "";
+        }
+        if (infoView) {
+          infoView.style.display = "block";
+          if (typeof infoPanelCleanup === "function") {
+            infoPanelCleanup();
+            infoPanelCleanup = null;
+          }
+          infoPanelCleanup = this._renderBackstageInfoPanel(infoView, closeModal);
+        }
+      } else if (tabName === "export") {
         homeNavBtn?.classList.remove("is-active");
         recentNavBtn?.classList.remove("is-active");
         printNavBtn?.classList.remove("is-active");
+        infoNavBtn?.classList.remove("is-active");
         exportNavBtn?.classList.add("is-active");
         if (homeView) homeView.style.display = "none";
         if (recentView) recentView.style.display = "none";
+        if (infoView) {
+          infoView.style.display = "none";
+          if (typeof infoPanelCleanup === "function") {
+            infoPanelCleanup();
+            infoPanelCleanup = null;
+          }
+          infoView.innerHTML = "";
+        }
         if (printView) {
           printView.style.display = "none";
           if (typeof printPanelCleanup === "function") {
@@ -1307,9 +1356,18 @@ export class AppShell {
         homeNavBtn?.classList.remove("is-active");
         recentNavBtn?.classList.remove("is-active");
         exportNavBtn?.classList.remove("is-active");
+        infoNavBtn?.classList.remove("is-active");
         printNavBtn?.classList.add("is-active");
         if (homeView) homeView.style.display = "none";
         if (recentView) recentView.style.display = "none";
+        if (infoView) {
+          infoView.style.display = "none";
+          if (typeof infoPanelCleanup === "function") {
+            infoPanelCleanup();
+            infoPanelCleanup = null;
+          }
+          infoView.innerHTML = "";
+        }
         if (exportView) {
           exportView.style.display = "none";
           if (typeof exportPanelCleanup === "function") {
@@ -1330,8 +1388,17 @@ export class AppShell {
         homeNavBtn?.classList.remove("is-active");
         printNavBtn?.classList.remove("is-active");
         exportNavBtn?.classList.remove("is-active");
+        infoNavBtn?.classList.remove("is-active");
         recentNavBtn?.classList.add("is-active");
         if (homeView) homeView.style.display = "none";
+        if (infoView) {
+          infoView.style.display = "none";
+          if (typeof infoPanelCleanup === "function") {
+            infoPanelCleanup();
+            infoPanelCleanup = null;
+          }
+          infoView.innerHTML = "";
+        }
         if (printView) {
           printView.style.display = "none";
           if (typeof printPanelCleanup === "function") {
@@ -1353,8 +1420,17 @@ export class AppShell {
         printNavBtn?.classList.remove("is-active");
         recentNavBtn?.classList.remove("is-active");
         exportNavBtn?.classList.remove("is-active");
+        infoNavBtn?.classList.remove("is-active");
         homeNavBtn?.classList.add("is-active");
         if (recentView) recentView.style.display = "none";
+        if (infoView) {
+          infoView.style.display = "none";
+          if (typeof infoPanelCleanup === "function") {
+            infoPanelCleanup();
+            infoPanelCleanup = null;
+          }
+          infoView.innerHTML = "";
+        }
         if (printView) {
           printView.style.display = "none";
           if (typeof printPanelCleanup === "function") {
@@ -1378,6 +1454,7 @@ export class AppShell {
     homeNavBtn?.addEventListener("click", () => showTab("home"));
     recentNavBtn?.addEventListener("click", () => showTab("recent"));
     exportNavBtn?.addEventListener("click", () => showTab("export"));
+    infoNavBtn?.addEventListener("click", () => showTab("info"));
     printNavBtn?.addEventListener("click", () => {
       closeModal();
       globalCommandBus.execute("common.file.print");
@@ -2117,6 +2194,159 @@ export class AppShell {
     };
   }
 
+  _renderBackstageInfoPanel(container, closeModal) {
+    const adapter = this.adapter || globalUnoBridge?.activeDocument;
+    const props = adapter?.documentProperties || {};
+    const wordStats = adapter?.getWordCountStats ? adapter.getWordCountStats() : (adapter?.getWordCount ? adapter.getWordCount() : { words: 0, characters: 0 });
+    const pageCount = adapter?.getPageCount ? adapter.getPageCount() : 1;
+    const isFinal = Boolean(adapter?.isFinal || (props?.contentStatus && String(props.contentStatus).toLowerCase() === "final"));
+
+    const fileName = this.documentName || adapter?.sourceFileName || "Tài liệu";
+    const author = props.creator || props.author || "Chưa đặt";
+    const title = props.title || fileName || "Chưa đặt";
+    const modifiedDate = props.modified ? new Date(props.modified).toLocaleString("vi-VN") : "Hôm nay";
+    const createdDate = props.created ? new Date(props.created).toLocaleString("vi-VN") : "Hôm nay";
+    const words = wordStats.words || 0;
+
+    let fileSizeStr = "Chưa lưu";
+    if (adapter?._sourcePath || adapter?.sourceFilePath) {
+      fileSizeStr = "Đã lưu trên máy";
+    }
+
+    container.innerHTML = `
+      <div class="vno-backstage-info-panel" role="region" aria-label="Thông tin tài liệu">
+        <h1 style="font-size:24px;font-weight:700;margin-bottom:8px;color:var(--vno-text-primary);">${t("writerDocumentProperties.backstage", "Thông tin tài liệu")}</h1>
+        <p style="color:var(--vno-text-muted);font-size:13px;margin-bottom:24px;">Xem thuộc tính, thống kê và thiết lập trạng thái bảo vệ cho tài liệu đang mở.</p>
+
+        <div class="vno-backstage-info-grid" style="display:grid;grid-template-columns:1fr 320px;gap:32px;">
+          <!-- Cột trái: Quản lý & Bảo vệ -->
+          <div class="vno-backstage-info-main" style="display:flex;flex-direction:column;gap:20px;">
+            <div class="vno-info-card" style="border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md, 8px);padding:20px;background:var(--vno-bg-window);">
+              <div style="display:flex;align-items:flex-start;gap:16px;">
+                <div style="width:48px;height:48px;border-radius:8px;background:rgba(234,179,8,0.15);color:#ca8a04;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                </div>
+                <div style="flex:1;">
+                  <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+                    <h2 style="font-size:16px;font-weight:700;margin:0;color:var(--vno-text-primary);">${t("writerDocumentProperties.protectDocument", "Bảo vệ tài liệu")}</h2>
+                    <span id="vno-info-final-status" class="vno-info-status-badge" style="font-size:11px;padding:2px 8px;border-radius:12px;font-weight:600;${isFinal ? "background:#fef3c7;color:#92400e;border:1px solid #fde68a;" : "background:var(--vno-bg-subtle);color:var(--vno-text-muted);border:1px solid var(--vno-border-default);"}">
+                      ${isFinal ? t("writerDocumentProperties.statusFinal", "ĐÃ ĐÁNH DẤU LÀ CUỐI CÙNG") : t("writerDocumentProperties.statusEditable", "Cho phép chỉnh sửa")}
+                    </span>
+                  </div>
+                  <p style="font-size:12px;color:var(--vno-text-muted);margin:0 0 16px 0;line-height:1.5;">
+                    ${isFinal 
+                      ? t("writerDocumentProperties.finalDescActive", "Tác giả đã đánh dấu tài liệu này là bản hoàn chỉnh để ngăn chặn việc chỉnh sửa vô ý. Tài liệu đang ở chế độ chỉ đọc mềm.")
+                      : t("writerDocumentProperties.finalDescInactive", "Cho người đọc biết tài liệu đã hoàn tất và đặt chế độ chỉ đọc để ngăn chặn chỉnh sửa vô ý trước khi chia sẻ.")}
+                  </p>
+                  <button type="button" class="vno-btn ${isFinal ? "vno-btn-secondary" : "vno-btn-primary"}" id="vno-info-mark-as-final" style="padding:7px 16px;font-weight:600;">
+                    ${isFinal ? t("writerDocumentProperties.unmarkFinal", "Gỡ đánh dấu cuối cùng") : t("writerDocumentProperties.markAsFinal", "Đánh dấu là cuối cùng")}
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <div class="vno-info-card" style="border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md, 8px);padding:20px;background:var(--vno-bg-window);">
+              <div style="display:flex;align-items:flex-start;gap:16px;">
+                <div style="width:48px;height:48px;border-radius:8px;background:rgba(59,130,246,0.12);color:#2563eb;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+                  <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                </div>
+                <div style="flex:1;">
+                  <h2 style="font-size:16px;font-weight:700;margin:0 0 4px 0;color:var(--vno-text-primary);">${t("writerDocumentProperties.inspectTitle", "Kiểm tra tài liệu")}</h2>
+                  <p style="font-size:12px;color:var(--vno-text-muted);margin:0 0 16px 0;line-height:1.5;">
+                    Kiểm tra các thuộc tính ẩn, thông tin cá nhân và đánh dấu sửa đổi trước khi xuất bản hoặc gửi tài liệu.
+                  </p>
+                  <button type="button" class="vno-btn" id="vno-info-inspect-document" style="padding:7px 16px;">
+                    ${t("writerDocumentProperties.inspectBtn", "Kiểm tra tài liệu…")}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Cột phải: Bảng thuộc tính (Properties) -->
+          <div class="vno-backstage-info-sidebar" style="border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md, 8px);padding:20px;background:var(--vno-bg-window);">
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--vno-border-default);">
+              <h2 style="font-size:15px;font-weight:700;margin:0;color:var(--vno-text-primary);">${t("writerDocumentProperties.propertiesTitle", "Thuộc tính")}</h2>
+              <button type="button" class="vno-btn" id="vno-info-edit-properties" style="font-size:11px;padding:3px 8px;">
+                ${t("writerDocumentProperties.editPropertiesBtn", "Chỉnh sửa…")}
+              </button>
+            </div>
+
+            <div class="vno-info-prop-row" style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid var(--vno-border-subtle, #f1f5f9);">
+              <span style="color:var(--vno-text-muted);">${t("writerDocumentProperties.size", "Kích thước")}:</span>
+              <span id="vno-info-prop-size" style="font-weight:600;color:var(--vno-text-primary);">${fileSizeStr}</span>
+            </div>
+            <div class="vno-info-prop-row" style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid var(--vno-border-subtle, #f1f5f9);">
+              <span style="color:var(--vno-text-muted);">${t("writerDocumentProperties.pages", "Số trang")}:</span>
+              <span id="vno-info-prop-pages" style="font-weight:600;color:var(--vno-text-primary);">${pageCount}</span>
+            </div>
+            <div class="vno-info-prop-row" style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid var(--vno-border-subtle, #f1f5f9);">
+              <span style="color:var(--vno-text-muted);">${t("writerDocumentProperties.words", "Số từ")}:</span>
+              <span id="vno-info-prop-words" style="font-weight:600;color:var(--vno-text-primary);">${words}</span>
+            </div>
+            <div class="vno-info-prop-row" style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid var(--vno-border-subtle, #f1f5f9);">
+              <span style="color:var(--vno-text-muted);">${t("writerDocumentProperties.title", "Tiêu đề")}:</span>
+              <span id="vno-info-prop-title" style="font-weight:600;color:var(--vno-text-primary);text-align:right;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${title}">${title}</span>
+            </div>
+            <div class="vno-info-prop-row" style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid var(--vno-border-subtle, #f1f5f9);">
+              <span style="color:var(--vno-text-muted);">${t("writerDocumentProperties.author", "Tác giả")}:</span>
+              <span id="vno-info-prop-author" style="font-weight:600;color:var(--vno-text-primary);text-align:right;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${author}">${author}</span>
+            </div>
+            <div class="vno-info-prop-row" style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid var(--vno-border-subtle, #f1f5f9);">
+              <span style="color:var(--vno-text-muted);">${t("writerDocumentProperties.modified", "Ngày sửa đổi")}:</span>
+              <span id="vno-info-prop-modified" style="font-weight:600;color:var(--vno-text-primary);">${modifiedDate}</span>
+            </div>
+            <div class="vno-info-prop-row" style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;">
+              <span style="color:var(--vno-text-muted);">${t("writerDocumentProperties.created", "Ngày tạo")}:</span>
+              <span id="vno-info-prop-created" style="font-weight:600;color:var(--vno-text-primary);">${createdDate}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    `;
+
+    const markBtn = container.querySelector("#vno-info-mark-as-final");
+    const editPropsBtn = container.querySelector("#vno-info-edit-properties");
+    const inspectBtn = container.querySelector("#vno-info-inspect-document");
+
+    const onMarkClick = () => {
+      const currentFinal = Boolean(adapter?.isFinal || (adapter?.documentProperties?.contentStatus && String(adapter.documentProperties.contentStatus).toLowerCase() === "final"));
+      if (adapter?.markAsFinal) {
+        adapter.markAsFinal(!currentFinal);
+      }
+      closeModal();
+    };
+
+    const onEditPropsClick = async () => {
+      closeModal();
+      if (adapter?.openDocumentPropertiesDialog) {
+        await adapter.openDocumentPropertiesDialog();
+      } else {
+        globalCommandBus.execute("writer.file.properties");
+      }
+    };
+
+    const onInspectClick = async () => {
+      closeModal();
+      if (adapter?.openDocumentInspectorDialog) {
+        await adapter.openDocumentInspectorDialog();
+      } else {
+        globalCommandBus.execute("writer.file.inspectDocument");
+      }
+    };
+
+    markBtn?.addEventListener("click", onMarkClick);
+    editPropsBtn?.addEventListener("click", onEditPropsClick);
+    inspectBtn?.addEventListener("click", onInspectClick);
+
+    return () => {
+      markBtn?.removeEventListener("click", onMarkClick);
+      editPropsBtn?.removeEventListener("click", onEditPropsClick);
+      inspectBtn?.removeEventListener("click", onInspectClick);
+      container.innerHTML = "";
+    };
+  }
+
   async exportDocument(targetFormat, options = {}) {
     const format = String(targetFormat || "").toLowerCase();
     const appKind = this.appName || "writer";
@@ -2138,7 +2368,7 @@ export class AppShell {
     }
 
     const validFormatsByApp = {
-      writer: ["docx", "doc", "odt", "rtf", "txt"],
+      writer: ["docx", "doc", "odt", "rtf", "txt", "html"],
       sheet: ["xlsx", "xls", "ods", "csv"],
       slides: ["pptx", "ppt", "odp"]
     };

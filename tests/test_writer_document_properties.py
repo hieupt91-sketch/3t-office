@@ -75,6 +75,28 @@ class WriterDocumentPropertiesTests(unittest.TestCase):
         self.assertNotIn("dc:title", core)
         self.assertNotIn("dc:description", core)
 
+    def test_content_status_final_writes_core_and_custom_xml(self):
+        original = _package(
+            '<cp:coreProperties xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" '
+            'xmlns:dc="http://purl.org/dc/elements/1.1/">'
+            '<dc:title>Tài liệu</dc:title>'
+            '</cp:coreProperties>'
+        )
+        marker = json.dumps({"title": "Tài liệu", "contentStatus": "Final"}, ensure_ascii=False).encode("utf-8").hex()
+        patched = postprocess_writer_document_properties(
+            original, source_html=f"<!--vno-document-properties-hex:{marker}-->",
+        )
+        core = read_zip_entry(patched, "docProps/core.xml").decode("utf-8")
+        self.assertIn("<cp:contentStatus>Final</cp:contentStatus>", core)
+        custom = read_zip_entry(patched, "docProps/custom.xml").decode("utf-8")
+        self.assertIn('name="_MarkAsFinal"', custom)
+        self.assertIn('<vt:bool>true</vt:bool>', custom)
+        ct = read_zip_entry(patched, "[Content_Types].xml").decode("utf-8")
+        self.assertIn('/docProps/custom.xml', ct)
+        rels = read_zip_entry(patched, "_rels/.rels").decode("utf-8")
+        self.assertIn('custom-properties', rels)
+
 
 if __name__ == "__main__":
     unittest.main()
+

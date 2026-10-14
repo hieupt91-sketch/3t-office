@@ -388,6 +388,47 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.trackChanges.balloonsHelp",
+    app: "writer",
+    commandIds: [
+      "writer.trackChanges.showMarkup",
+      "writer.trackChanges.balloons",
+      "writer.trackChanges.balloonsMode",
+      "writer.trackChanges.balloonsRevisions",
+      "writer.trackChanges.balloonsInline",
+      "writer.trackChanges.balloonsCommentsOnly"
+    ],
+    title: "Tùy chọn bong bóng theo dõi thay đổi (Balloons)",
+    summary: "Tùy chọn hiển thị bản sửa và chú thích trong bong bóng lề phải hoặc trong dòng văn bản: Hiện bản sửa trong bong bóng, Hiện tất cả bản sửa trong dòng, hoặc Chỉ hiện chú thích và định dạng trong bong bóng.",
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "Theo dõi thay đổi" },
+    keywords: ["bong bóng", "balloons", "theo dõi thay đổi", "hiển thị đánh dấu", "hiện bản sửa trong bong bóng", "hiện tất cả bản sửa trong dòng", "chỉ hiện chú thích và định dạng trong bong bóng", "lề phải", "chú thích"],
+    steps: [
+      "Mở tab Đánh giá (hoặc Xem lại), nhóm Theo dõi thay đổi.",
+      "Nhấp vào nút Hiển thị đánh dấu trên thanh công cụ, sau đó chọn mục Bong bóng để mở danh sách 3 chế độ.",
+      "Hiện bản sửa trong bong bóng: Hiển thị các nội dung xóa và chỉnh sửa trong các thẻ bong bóng ở lề phải trang giấy, giữ phần văn bản chính rõ ràng và dễ đối chiếu.",
+      "Hiện tất cả bản sửa trong dòng: Hiển thị trực tiếp toàn bộ các thao tác chèn và xóa xen kẽ ngay trong dòng văn bản.",
+      "Chỉ hiện chú thích và định dạng trong bong bóng: Hiển thị các bản sửa đổi chữ trong dòng, còn các chú thích và thay đổi định dạng sẽ xuất hiện trong bong bóng ở lề phải.",
+      "Lựa chọn hiển thị được lưu lại trong phiên làm việc hiện tại mà không làm thay đổi mô hình dữ liệu của tài liệu."
+    ]
+  },
+  {
+    id: "writer.file.markAsFinalHelp",
+    app: "writer",
+    commandIds: ["writer.file.markAsFinal", "writer.file.properties"],
+    title: "Thông tin tệp và Đánh dấu là cuối cùng (Mark as Final)",
+    summary: "Xem thông tin thuộc tính tệp (tác giả, tiêu đề, kích thước, ngày sửa) và đặt cờ Đánh dấu là cuối cùng để bảo vệ tài liệu ở chế độ chỉ đọc mềm.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Thông tin" },
+    keywords: ["thông tin tệp", "file info", "đánh dấu là cuối cùng", "mark as final", "chỉ đọc", "tác giả", "tiêu đề", "kích thước", "ngày sửa", "vẫn chỉnh sửa", "bảo vệ tài liệu"],
+    steps: [
+      "Nhấp vào thẻ Tệp ở góc trên bên trái cửa sổ ứng dụng để mở giao diện tổng quan.",
+      "Chọn mục Thông tin trên thanh điều hướng bên trái để xem đầy đủ các thông tin: Tác giả, Tiêu đề, Kích thước tệp và Ngày sửa đổi lần cuối.",
+      "Trong phần Bảo vệ tài liệu, bấm nút Đánh dấu là cuối cùng để thông báo cho người đọc biết đây là bản tài liệu hoàn chỉnh.",
+      "Khi đã đánh dấu, tài liệu sẽ kích hoạt cờ chỉ đọc mềm: thanh thông báo màu vàng xuất hiện dưới thanh công cụ và trình soạn thảo sẽ chặn mọi thao tác gõ phím.",
+      "Nếu cần sửa đổi tiếp, người dùng chỉ cần bấm nút Vẫn chỉnh sửa trên thanh thông báo để mở lại quyền nhập liệu bình thường.",
+      "Thuộc tính trạng thái cuối cùng được ghi vào tệp tài liệu để các ứng dụng tương thích nhận diện đúng trạng thái của văn bản."
+    ]
+  },
+  {
     id: "writer.file.inspectDocumentHelp",
     app: "writer",
     commandIds: ["writer.file.inspectDocument"],

@@ -22053,10 +22053,14 @@ def _writer_document_properties_metadata(source_html: str | None) -> dict[str, s
         "subject": 255,
         "keywords": 1024,
         "description": 4096,
+        "contentStatus": 255,
     }
     normalized: dict[str, str] = {}
     for key, limit in limits.items():
-        value = str(payload.get(key) or "").replace("\r\n", "\n").replace("\r", "\n")[:limit]
+        val = payload.get(key)
+        if val is None and key == "contentStatus":
+            val = payload.get("content_status")
+        value = str(val or "").replace("\r\n", "\n").replace("\r", "\n")[:limit]
         normalized[key] = "".join(
             character for character in value
             if character in "\t\n\r" or ord(character) >= 0x20
@@ -22067,7 +22071,7 @@ def _writer_document_properties_metadata(source_html: str | None) -> dict[str, s
 def postprocess_writer_document_properties(
     docx_bytes: bytes, *, source_html: str | None = None,
 ) -> bytes:
-    """Write Writer's five editable properties to docProps/core.xml.
+    """Write Writer's five editable properties and contentStatus to docProps/core.xml.
 
     The converted package remains the source of all other core properties
     (created/modified timestamps, revision and lastModifiedBy).
@@ -22093,6 +22097,7 @@ def postprocess_writer_document_properties(
         "subject": "dc:subject",
         "keywords": "cp:keywords",
         "description": "dc:description",
+        "contentStatus": "cp:contentStatus",
     }
     for key, tag in fields.items():
         pattern = re.compile(
@@ -22100,7 +22105,7 @@ def postprocess_writer_document_properties(
             re.IGNORECASE,
         )
         core_xml = pattern.sub("", core_xml)
-        value = properties[key]
+        value = properties.get(key, "")
         if value:
             element = f"<{tag}>{html.escape(value, quote=False)}</{tag}>"
             core_xml = re.sub(
@@ -22139,6 +22144,66 @@ def postprocess_writer_document_properties(
                 count=1, flags=re.IGNORECASE,
             )
             replacements["_rels/.rels"] = rels.encode("utf-8")
+
+    # Word COM d.Final requires docProps/custom.xml _MarkAsFinal property
+    is_final = properties.get("contentStatus") == "Final"
+    custom_bytes = read_zip_entry(docx_bytes, "docProps/custom.xml")
+    if is_final:
+        if custom_bytes:
+            custom_xml = custom_bytes.decode("utf-8", errors="strict")
+            if 'name="_MarkAsFinal"' in custom_xml:
+                custom_xml = re.sub(
+                    r'<property\b(?=[^>]*name="_MarkAsFinal")[^>]*>[\s\S]*?</property>',
+                    '<property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="2" name="_MarkAsFinal"><vt:bool>true</vt:bool></property>',
+                    custom_xml,
+                    flags=re.IGNORECASE,
+                )
+            else:
+                prop_element = '<property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="2" name="_MarkAsFinal"><vt:bool>true</vt:bool></property>'
+                custom_xml = re.sub(r'</Properties\s*>', prop_element + '</Properties>', custom_xml, count=1, flags=re.IGNORECASE)
+        else:
+            custom_xml = (
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+                '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" '
+                'xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">'
+                '<property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="2" name="_MarkAsFinal"><vt:bool>true</vt:bool></property>'
+                '</Properties>'
+            )
+        replacements["docProps/custom.xml"] = custom_xml.encode("utf-8")
+        content_types_bytes = replacements.get("[Content_Types].xml") or read_zip_entry(docx_bytes, "[Content_Types].xml")
+        content_types = (content_types_bytes or b"").decode("utf-8", errors="strict")
+        if "/docProps/custom.xml" not in content_types:
+            override = (
+                '<Override PartName="/docProps/custom.xml" '
+                'ContentType="application/vnd.openxmlformats-officedocument.custom-properties+xml"/>'
+            )
+            content_types = re.sub(r"</Types\s*>", override + "</Types>", content_types, count=1, flags=re.IGNORECASE)
+            replacements["[Content_Types].xml"] = content_types.encode("utf-8")
+        rels_bytes = replacements.get("_rels/.rels") or read_zip_entry(docx_bytes, "_rels/.rels")
+        rels = (rels_bytes or b"").decode("utf-8", errors="strict")
+        if "custom-properties" not in rels:
+            used_ids = {int(value) for value in re.findall(r'\bId="rId(\d+)"', rels)}
+            next_id = 1
+            while next_id in used_ids:
+                next_id += 1
+            relationship = (
+                f'<Relationship Id="rId{next_id}" '
+                'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/custom-properties" '
+                'Target="docProps/custom.xml"/>'
+            )
+            rels = re.sub(r"</Relationships\s*>", relationship + "</Relationships>", rels, count=1, flags=re.IGNORECASE)
+            replacements["_rels/.rels"] = rels.encode("utf-8")
+    elif custom_bytes:
+        custom_xml = custom_bytes.decode("utf-8", errors="strict")
+        if 'name="_MarkAsFinal"' in custom_xml:
+            custom_xml = re.sub(
+                r'<property\b(?=[^>]*name="_MarkAsFinal")[^>]*>[\s\S]*?</property>',
+                '',
+                custom_xml,
+                flags=re.IGNORECASE,
+            )
+            replacements["docProps/custom.xml"] = custom_xml.encode("utf-8")
+
     return patch_ooxml_zip(docx_bytes, replacements)
 
 

@@ -387,6 +387,17 @@ export class WriterAdapter {
     this.documentProtection = { mode: "none" };
     this._removeDocumentProtectionCommandGuard = null;
     this.trackChangesDisplayMode = "all";
+    let initialBalloons = "comments-only";
+    if (typeof sessionStorage !== "undefined") {
+      try {
+        const saved = sessionStorage.getItem("vno-writer-balloons-mode");
+        if (saved && ["revisions", "inline", "comments-only"].includes(saved)) {
+          initialBalloons = saved;
+        }
+      } catch (_) {}
+    }
+    this.trackChangesBalloonsMode = initialBalloons;
+    this.isFinal = false;
     this._activeTrackChange = null;
     this._trackChangesBeforeInputHandler = null;
     this._workflowBeforeInputHandler = null;
@@ -664,6 +675,26 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.trackChanges.displayAll", () => this.setTrackChangesDisplayMode("all"));
     globalCommandBus.bindHandler("writer.trackChanges.displayNone", () => this.setTrackChangesDisplayMode("none"));
     globalCommandBus.bindHandler("writer.trackChanges.displayOriginal", () => this.setTrackChangesDisplayMode("original"));
+    globalCommandBus.bindHandler("writer.trackChanges.balloonsMode", (args) => this.setTrackChangesBalloonsMode(args));
+    globalCommandBus.bindHandler("writer.trackChanges.balloonsRevisions", () => this.setTrackChangesBalloonsMode("revisions"));
+    globalCommandBus.bindHandler("writer.trackChanges.balloonsInline", () => this.setTrackChangesBalloonsMode("inline"));
+    globalCommandBus.bindHandler("writer.trackChanges.balloonsCommentsOnly", () => this.setTrackChangesBalloonsMode("comments-only"));
+    globalCommandBus.bindHandler("writer.trackChanges.balloons", (args) => {
+      if (args) return this.setTrackChangesBalloonsMode(args);
+      const cur = this.getTrackChangesBalloonsMode();
+      const next = cur === "comments-only" ? "revisions" : cur === "revisions" ? "inline" : "comments-only";
+      return this.setTrackChangesBalloonsMode(next);
+    });
+    globalCommandBus.bindHandler("writer.trackChanges.showMarkup", (args) => {
+      if (args) return this.setTrackChangesBalloonsMode(args);
+      const cur = this.getTrackChangesBalloonsMode();
+      const next = cur === "comments-only" ? "revisions" : cur === "revisions" ? "inline" : "comments-only";
+      return this.setTrackChangesBalloonsMode(next);
+    });
+    globalCommandBus.bindHandler("writer.file.markAsFinal", (args) => {
+      const enable = args?.enable !== undefined ? Boolean(args.enable) : !this.isFinal;
+      return this.markAsFinal(enable);
+    });
     globalCommandBus.bindHandler("writer.review.wordCount", () => this.openWordCountDialog());
     globalCommandBus.bindHandler("writer.file.properties", () => this.openDocumentPropertiesDialog());
     globalCommandBus.bindHandler("writer.file.inspectDocument", () => this.openDocumentInspectorDialog());
@@ -2650,6 +2681,10 @@ export class WriterAdapter {
     globalCommandBus.updateState("writer.trackChanges.acceptOne", { enabled: hasChanges && !reviewLocked });
     globalCommandBus.updateState("writer.trackChanges.rejectOne", { enabled: hasChanges && !reviewLocked });
     globalCommandBus.updateState("writer.trackChanges.displayMode", { value: this.trackChangesDisplayMode || "all" });
+    globalCommandBus.updateState("writer.trackChanges.balloonsRevisions", { checked: this.trackChangesBalloonsMode === "revisions" });
+    globalCommandBus.updateState("writer.trackChanges.balloonsInline", { checked: this.trackChangesBalloonsMode === "inline" });
+    globalCommandBus.updateState("writer.trackChanges.balloonsCommentsOnly", { checked: this.trackChangesBalloonsMode === "comments-only" });
+    globalCommandBus.updateState("writer.trackChanges.balloonsMode", { value: this.trackChangesBalloonsMode || "comments-only" });
     this._updateRevisionIndicators();
   }
 
@@ -2680,6 +2715,96 @@ export class WriterAdapter {
   toggleTrackChangesDisplayMode() {
     const current = this.getTrackChangesDisplayMode();
     return this.setTrackChangesDisplayMode(current === "simple" ? "all" : "simple");
+  }
+
+  getTrackChangesBalloonsMode() {
+    return this.trackChangesBalloonsMode || "comments-only";
+  }
+
+  setTrackChangesBalloonsMode(mode) {
+    const raw = typeof mode === "object" && mode !== null ? (mode.value || mode.mode) : mode;
+    const normalized = String(raw || "").trim().toLowerCase();
+    const validModes = ["revisions", "inline", "comments-only"];
+    const target = validModes.includes(normalized) ? normalized : "comments-only";
+
+    this.trackChangesBalloonsMode = target;
+    if (typeof sessionStorage !== "undefined") {
+      try {
+        sessionStorage.setItem("vno-writer-balloons-mode", target);
+      } catch (_) {}
+    }
+
+    if (this.editorDom?.setAttribute) {
+      this.editorDom.setAttribute("data-vno-balloons", target);
+    }
+    if (this.bodyDom?.setAttribute) {
+      this.bodyDom.setAttribute("data-vno-balloons", target);
+    }
+    if (this.container?.setAttribute) {
+      this.container.setAttribute("data-vno-balloons", target);
+    }
+
+    this._updateTrackChangesCommandState();
+    this._renderCommentsPanel();
+    return target;
+  }
+
+  markAsFinal(enable = true) {
+    if (enable) {
+      this.documentProperties = normalizeDocumentProperties({
+        ...(this.documentProperties || {}),
+        contentStatus: "Final"
+      });
+      this.isFinal = true;
+      this.isDirty = true;
+      if (this.bodyDom) {
+        this.bodyDom.setAttribute("contenteditable", "false");
+      }
+      if (this.editorDom) {
+        this.editorDom.setAttribute("data-vno-final", "true");
+      }
+      if (this.shell?.showNotification) {
+        this.shell.showNotification({
+          type: "warning",
+          message: t("writerDocumentProperties.finalBanner", "Tài liệu đã được đánh dấu là cuối cùng để ngăn chỉnh sửa vô ý."),
+          action: {
+            label: t("writerDocumentProperties.editAnyway", "Vẫn chỉnh sửa"),
+            onClick: () => this.unmarkFinal()
+          },
+          dismissible: false
+        });
+      }
+    } else {
+      this.unmarkFinal();
+    }
+    return this.isFinal;
+  }
+
+  unmarkFinal() {
+    if (this.documentProperties) {
+      this.documentProperties = normalizeDocumentProperties({
+        ...this.documentProperties,
+        contentStatus: ""
+      });
+    }
+    this.isFinal = false;
+    this.isDirty = true;
+    if (this.bodyDom) {
+      this.bodyDom.setAttribute("contenteditable", "true");
+    }
+    if (this.editorDom) {
+      this.editorDom.removeAttribute("data-vno-final");
+    }
+    this.shell?.clearNotification?.();
+    return true;
+  }
+
+  getPageCount() {
+    return Math.max(1, Number(this._livePageCount) || 1);
+  }
+
+  getWordCount() {
+    return this.getWordCountStats();
   }
 
   _updateRevisionIndicators(mode = this.trackChangesDisplayMode || "all") {
@@ -8266,6 +8391,13 @@ export class WriterAdapter {
     if (cmd === "writer.trackChanges.displayAll") return this.setTrackChangesDisplayMode("all");
     if (cmd === "writer.trackChanges.displayNone") return this.setTrackChangesDisplayMode("none");
     if (cmd === "writer.trackChanges.displayOriginal") return this.setTrackChangesDisplayMode("original");
+    if (cmd === "writer.trackChanges.balloonsMode") return this.setTrackChangesBalloonsMode(args);
+    if (cmd === "writer.trackChanges.balloonsRevisions") return this.setTrackChangesBalloonsMode("revisions");
+    if (cmd === "writer.trackChanges.balloonsInline") return this.setTrackChangesBalloonsMode("inline");
+    if (cmd === "writer.trackChanges.balloonsCommentsOnly") return this.setTrackChangesBalloonsMode("comments-only");
+    if (cmd === "writer.trackChanges.balloons") return this.setTrackChangesBalloonsMode(args || "revisions");
+    if (cmd === "writer.trackChanges.showMarkup") return this.setTrackChangesBalloonsMode(args || "revisions");
+    if (cmd === "writer.file.markAsFinal") return this.markAsFinal(args?.enable !== undefined ? args.enable : !this.isFinal);
     if (cmd === "writer.review.wordCount") return this.openWordCountDialog();
     if (cmd === "writer.file.inspectDocument") return this.openDocumentInspectorDialog();
 
@@ -9043,15 +9175,27 @@ export class WriterAdapter {
   _renderCommentsPanel() {
     if (!this.commentsPanel || typeof document === "undefined") return;
     this.commentsPanel.replaceChildren?.();
-    this.commentsPanel.hidden = this.comments.length === 0;
-    if (this.comments.length === 0) return;
+
+    const balloonsMode = this.getTrackChangesBalloonsMode();
+    const trackChanges = balloonsMode === "revisions" ? this._listTrackChanges() : [];
+    const hasComments = Array.isArray(this.comments) && this.comments.length > 0;
+    const hasRevisions = trackChanges.length > 0;
+
+    if (!hasComments && !hasRevisions) {
+      this.commentsPanel.hidden = true;
+      return;
+    }
+    this.commentsPanel.hidden = false;
 
     const title = document.createElement("h2");
     title.className = "vno-comments-title";
-    title.textContent = `Ghi chú (${this.comments.length})`;
+    const titleParts = [];
+    if (hasComments) titleParts.push(`Ghi chú (${this.comments.length})`);
+    if (hasRevisions) titleParts.push(`Bản sửa (${trackChanges.length})`);
+    title.textContent = titleParts.join(" • ") || "Đánh dấu";
     this.commentsPanel.appendChild(title);
 
-    for (const comment of this.comments) {
+    for (const comment of (this.comments || [])) {
       const card = document.createElement("article");
       card.className = `vno-comment-card${comment.id === this.activeCommentId ? " is-active" : ""}${comment.resolved ? " is-resolved" : ""}`;
       if (card.dataset) card.dataset.commentResolved = String(!!comment.resolved);
@@ -9097,6 +9241,70 @@ export class WriterAdapter {
         card.appendChild(replyEl);
       }
       this.commentsPanel.appendChild(card);
+    }
+
+    if (hasRevisions) {
+      for (const change of trackChanges) {
+        const changeType = change.getAttribute("data-vno-change") || "change";
+        const author = change.getAttribute("data-vno-author") || "Người dùng";
+        const timeAttr = change.getAttribute("data-vno-time") || "";
+        const changeText = (change.textContent || "").trim() || "(khoảng trắng)";
+
+        const card = document.createElement("article");
+        card.className = `vno-comment-card vno-revision-balloon vno-revision-${changeType}`;
+        card.tabIndex = 0;
+        card.setAttribute("role", "article");
+        card.setAttribute("aria-label", `${changeType === "insert" ? "Đã chèn" : "Đã xóa"}: ${changeText}`);
+
+        const badge = document.createElement("div");
+        badge.className = "vno-revision-badge";
+        badge.textContent = changeType === "insert" ? "Đã chèn" : "Đã xóa";
+
+        const preview = document.createElement("div");
+        preview.className = "vno-comment-content";
+        preview.textContent = `“${changeText}”`;
+
+        const meta = document.createElement("div");
+        meta.className = "vno-comment-meta";
+        const info = document.createElement("span");
+        info.className = "vno-comment-info";
+        const who = document.createElement("span");
+        who.className = "vno-comment-author";
+        who.textContent = author;
+        info.appendChild(who);
+
+        if (timeAttr) {
+          const time = document.createElement("time");
+          time.dateTime = timeAttr;
+          try {
+            time.textContent = new Date(timeAttr).toLocaleString("vi-VN");
+          } catch (_) {
+            time.textContent = timeAttr;
+          }
+          info.appendChild(time);
+        }
+
+        meta.appendChild(info);
+        card.append(badge, preview, meta);
+
+        const onCardActivate = () => {
+          this.commentsPanel.querySelectorAll(".vno-revision-balloon").forEach(c => c.classList.remove("is-active"));
+          card.classList.add("is-active");
+          change.scrollIntoView({ behavior: "smooth", block: "center" });
+          change.classList.add("vno-change-highlight");
+          setTimeout(() => change.classList.remove("vno-change-highlight"), 1800);
+        };
+
+        card.addEventListener("click", onCardActivate);
+        card.addEventListener("keydown", (e) => {
+          if (e.key === "Enter" || e.key === " ") {
+            e.preventDefault();
+            onCardActivate();
+          }
+        });
+
+        this.commentsPanel.appendChild(card);
+      }
     }
   }
 
@@ -16827,6 +17035,11 @@ export class WriterAdapter {
       this._initZones();
       this._sourcePath = result.sourcePath || null;
       this.documentProperties = parseCorePropertiesXml(result.ooxmlCorePropertiesXml || "");
+      if (this.documentProperties?.contentStatus && String(this.documentProperties.contentStatus).trim().toLowerCase() === "final") {
+        this.markAsFinal(true);
+      } else {
+        this.isFinal = false;
+      }
       this._wordCountSourceText = extractOoxmlDocumentText(result.ooxmlDocumentXml);
       this._wordCountSourceListItems = this._ooxmlListParagraphs(result.ooxmlDocumentXml, result.ooxmlStylesXml, result.ooxmlNumberingXml);
       this.isNewApplicationDocument = false;

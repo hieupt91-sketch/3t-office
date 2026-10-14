@@ -871,6 +871,39 @@ export const WRITER_RIBBON_TABS = [
                   { value: "none", label: "Không đánh dấu (No Markup)" },
                   { value: "original", label: "Bản gốc (Original)" }
                 ]
+              },
+              {
+                type: "dropdown",
+                id: "writer.trackChanges.showMarkup",
+                commandId: "writer.trackChanges.showMarkup",
+                label: "Hiển thị đánh dấu",
+                labelKey: "writerTrackChanges.showMarkup",
+                icon: "comment",
+                items: [
+                  {
+                    id: "writer.trackChanges.balloons",
+                    commandId: "writer.trackChanges.balloons",
+                    label: "Bong bóng",
+                    labelKey: "writerTrackChanges.balloons",
+                    items: [
+                      {
+                        commandId: "writer.trackChanges.balloonsRevisions",
+                        label: "Hiện bản sửa trong bong bóng",
+                        labelKey: "writerTrackChanges.balloonsRevisions"
+                      },
+                      {
+                        commandId: "writer.trackChanges.balloonsInline",
+                        label: "Hiện tất cả bản sửa trong dòng",
+                        labelKey: "writerTrackChanges.balloonsInline"
+                      },
+                      {
+                        commandId: "writer.trackChanges.balloonsCommentsOnly",
+                        label: "Chỉ hiện chú thích và định dạng trong bong bóng",
+                        labelKey: "writerTrackChanges.balloonsCommentsOnly"
+                      }
+                    ]
+                  }
+                ]
               }
             ]
           },

@@ -709,8 +709,19 @@ export function createDropdownButton({
 
   let menuEl = null;
   let focusedIndex = -1;
+  let activeSubMenuEl = null;
+  let focusedSubIndex = -1;
+
+  const closeSubMenu = () => {
+    if (activeSubMenuEl) {
+      if (activeSubMenuEl.parentNode) activeSubMenuEl.parentNode.removeChild(activeSubMenuEl);
+      activeSubMenuEl = null;
+    }
+    focusedSubIndex = -1;
+  };
 
   const closeMenu = () => {
+    closeSubMenu();
     if (menuEl) {
       if (typeof menuEl._cleanup === "function") menuEl._cleanup();
       if (menuEl.parentNode) menuEl.parentNode.removeChild(menuEl);
@@ -738,6 +749,70 @@ export function createDropdownButton({
     });
   };
 
+  const openSubMenuForItem = (sub, parentEl) => {
+    closeSubMenu();
+    if (!sub || !Array.isArray(sub.items) || sub.items.length === 0) return;
+    const subMenu = document.createElement("div");
+    subMenu.className = "vno-ribbon-dropdown-menu vno-ribbon-submenu";
+    subMenu.setAttribute("role", "menu");
+    subMenu.setAttribute("aria-label", sub.label || sub.id);
+
+    sub.items.forEach((childItem, cIdx) => {
+      const cDef = globalCommandBus.getDefinition(childItem.commandId);
+      const cState = globalCommandBus.getState(childItem.commandId);
+      const cLabel = childItem.label || (cState ? cState.label : (cDef ? cDef.label : childItem.commandId));
+      const cIconKey = childItem.icon || (cState && cState.icon ? cState.icon : (cDef && cDef.icon ? cDef.icon : ""));
+      const cIconSvg = resolveIcon(childItem.commandId, cIconKey);
+      const cShortcut = cState ? cState.shortcut : (cDef ? cDef.shortcut : "");
+
+      const childEl = document.createElement("div");
+      childEl.className = "vno-ribbon-dropdown-item";
+      childEl.setAttribute("role", "menuitem");
+      childEl.setAttribute("tabindex", "-1");
+      childEl.setAttribute("data-command-id", childItem.commandId);
+      childEl.setAttribute("aria-label", cShortcut ? `${cLabel} (${cShortcut})` : cLabel);
+      childEl.innerHTML = `
+        <span class="vno-menu-item-icon" aria-hidden="true">${cIconSvg}</span>
+        <span class="vno-menu-item-label">${cLabel}</span>
+        ${cShortcut ? `<span class="vno-menu-item-shortcut">${cShortcut}</span>` : ""}
+      `;
+      if (cDef && cDef.isToggle) {
+        childEl.setAttribute("role", "menuitemcheckbox");
+        const isChecked = Boolean(cState && cState.checked);
+        childEl.setAttribute("aria-checked", String(isChecked));
+        if (isChecked) childEl.classList.add("is-checked");
+      }
+      childEl.addEventListener("mousedown", (e) => e.preventDefault());
+      childEl.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        closeMenu();
+        globalCommandBus.execute(childItem.commandId, childItem.args);
+      });
+      childEl.addEventListener("mouseenter", () => {
+        focusedSubIndex = cIdx;
+        const allC = subMenu.querySelectorAll(".vno-ribbon-dropdown-item");
+        allC.forEach((el, i) => {
+          if (i === cIdx) { el.classList.add("is-focused"); el.focus(); }
+          else el.classList.remove("is-focused");
+        });
+      });
+      subMenu.appendChild(childEl);
+    });
+
+    document.body.appendChild(subMenu);
+    const pRect = parentEl.getBoundingClientRect();
+    const subW = subMenu.offsetWidth || 180;
+    let sLeft = pRect.right + 2;
+    if (sLeft + subW > window.innerWidth - 10) {
+      sLeft = Math.max(10, pRect.left - subW - 2);
+    }
+    subMenu.style.top = `${pRect.top}px`;
+    subMenu.style.left = `${sLeft}px`;
+    parentEl.setAttribute("aria-expanded", "true");
+    activeSubMenuEl = subMenu;
+  };
+
   const openMenu = () => {
     closeActiveDropdown();
 
@@ -755,19 +830,30 @@ export function createDropdownButton({
       const subIconKey = subItem.icon || (state && state.icon ? state.icon : (def && def.icon ? def.icon : ""));
       const subIconSvg = resolveIcon(subItem.commandId, subIconKey);
       const shortcut = state ? state.shortcut : (def ? def.shortcut : "");
+      const hasSubmenu = Array.isArray(subItem.items) && subItem.items.length > 0;
 
       const itemEl = document.createElement("div");
       itemEl.className = "vno-ribbon-dropdown-item";
       itemEl.setAttribute("role", "menuitem");
       itemEl.setAttribute("tabindex", "-1");
-      itemEl.setAttribute("data-command-id", subItem.commandId);
+      if (subItem.commandId) itemEl.setAttribute("data-command-id", subItem.commandId);
       itemEl.setAttribute("aria-label", shortcut ? `${subLabel} (${shortcut})` : subLabel);
 
-      itemEl.innerHTML = `
-        <span class="vno-menu-item-icon" aria-hidden="true">${subIconSvg}</span>
-        <span class="vno-menu-item-label">${subLabel}</span>
-        ${shortcut ? `<span class="vno-menu-item-shortcut">${shortcut}</span>` : ""}
-      `;
+      if (hasSubmenu) {
+        itemEl.setAttribute("aria-haspopup", "menu");
+        itemEl.setAttribute("aria-expanded", "false");
+        itemEl.innerHTML = `
+          <span class="vno-menu-item-icon" aria-hidden="true">${subIconSvg}</span>
+          <span class="vno-menu-item-label">${subLabel}</span>
+          <span class="vno-menu-item-arrow" aria-hidden="true" style="margin-left:auto;padding-left:12px;font-size:10px;">▸</span>
+        `;
+      } else {
+        itemEl.innerHTML = `
+          <span class="vno-menu-item-icon" aria-hidden="true">${subIconSvg}</span>
+          <span class="vno-menu-item-label">${subLabel}</span>
+          ${shortcut ? `<span class="vno-menu-item-shortcut">${shortcut}</span>` : ""}
+        `;
+      }
 
       if (state && !state.enabled) {
         itemEl.classList.add("is-disabled");
@@ -788,12 +874,22 @@ export function createDropdownButton({
       itemEl.addEventListener("click", (e) => {
         e.preventDefault();
         e.stopPropagation();
+        if (hasSubmenu) {
+          if (activeSubMenuEl) closeSubMenu();
+          else openSubMenuForItem(subItem, itemEl);
+          return;
+        }
         closeMenu();
         globalCommandBus.execute(subItem.commandId, subItem.args);
       });
 
       itemEl.addEventListener("mouseenter", () => {
         setFocusedIndex(idx);
+        if (hasSubmenu) {
+          openSubMenuForItem(subItem, itemEl);
+        } else {
+          closeSubMenu();
+        }
       });
 
       menuEl.appendChild(itemEl);
@@ -815,7 +911,7 @@ export function createDropdownButton({
     btn.classList.add("is-active");
 
     const onDocMouseDown = (e) => {
-      if (!menuEl.contains(e.target) && !btn.contains(e.target)) {
+      if (!menuEl.contains(e.target) && (!activeSubMenuEl || !activeSubMenuEl.contains(e.target)) && !btn.contains(e.target)) {
         closeMenu();
       }
     };
@@ -827,14 +923,54 @@ export function createDropdownButton({
         btn.focus();
       } else if (e.key === "ArrowDown") {
         e.preventDefault();
-        const nextIdx = focusedIndex < items.length - 1 ? focusedIndex + 1 : 0;
-        setFocusedIndex(nextIdx);
+        if (activeSubMenuEl) {
+          const subItems = activeSubMenuEl.querySelectorAll(".vno-ribbon-dropdown-item");
+          focusedSubIndex = focusedSubIndex < subItems.length - 1 ? focusedSubIndex + 1 : 0;
+          subItems.forEach((el, i) => {
+            if (i === focusedSubIndex) { el.classList.add("is-focused"); el.focus(); }
+            else el.classList.remove("is-focused");
+          });
+        } else {
+          const nextIdx = focusedIndex < items.length - 1 ? focusedIndex + 1 : 0;
+          setFocusedIndex(nextIdx);
+        }
       } else if (e.key === "ArrowUp") {
         e.preventDefault();
-        const prevIdx = focusedIndex > 0 ? focusedIndex - 1 : items.length - 1;
-        setFocusedIndex(prevIdx);
+        if (activeSubMenuEl) {
+          const subItems = activeSubMenuEl.querySelectorAll(".vno-ribbon-dropdown-item");
+          focusedSubIndex = focusedSubIndex > 0 ? focusedSubIndex - 1 : subItems.length - 1;
+          subItems.forEach((el, i) => {
+            if (i === focusedSubIndex) { el.classList.add("is-focused"); el.focus(); }
+            else el.classList.remove("is-focused");
+          });
+        } else {
+          const prevIdx = focusedIndex > 0 ? focusedIndex - 1 : items.length - 1;
+          setFocusedIndex(prevIdx);
+        }
+      } else if (e.key === "ArrowRight") {
+        if (!activeSubMenuEl && focusedIndex >= 0 && items[focusedIndex]?.items?.length > 0) {
+          e.preventDefault();
+          const itemEls = menuEl.querySelectorAll(".vno-ribbon-dropdown-item");
+          openSubMenuForItem(items[focusedIndex], itemEls[focusedIndex]);
+          const subItems = activeSubMenuEl?.querySelectorAll(".vno-ribbon-dropdown-item");
+          if (subItems && subItems[0]) {
+            focusedSubIndex = 0;
+            subItems[0].classList.add("is-focused");
+            subItems[0].focus();
+          }
+        }
+      } else if (e.key === "ArrowLeft") {
+        if (activeSubMenuEl) {
+          e.preventDefault();
+          closeSubMenu();
+          setFocusedIndex(focusedIndex);
+        }
       } else if (e.key === "Enter" || e.key === " ") {
-        if (focusedIndex >= 0 && focusedIndex < items.length) {
+        if (activeSubMenuEl && focusedSubIndex >= 0) {
+          e.preventDefault();
+          const subItems = activeSubMenuEl.querySelectorAll(".vno-ribbon-dropdown-item");
+          if (subItems[focusedSubIndex]) subItems[focusedSubIndex].click();
+        } else if (focusedIndex >= 0 && focusedIndex < items.length) {
           e.preventDefault();
           const itemEls = menuEl.querySelectorAll(".vno-ribbon-dropdown-item");
           if (itemEls[focusedIndex]) itemEls[focusedIndex].click();

@@ -609,6 +609,77 @@
   background: rgba(96, 165, 250, 0.2);
 }
 
+/* Chế độ Bong bóng (Balloons) cho Track Changes */
+.vno-revision-balloon {
+  border-left-width: 3px !important;
+  transition: all 0.15s ease;
+}
+.vno-revision-balloon.vno-revision-insert {
+  border-left-color: #16a34a !important;
+}
+.vno-revision-balloon.vno-revision-delete {
+  border-left-color: #dc2626 !important;
+}
+.vno-revision-badge {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-bottom: 4px;
+}
+.vno-revision-insert .vno-revision-badge {
+  color: #16a34a;
+}
+.vno-revision-delete .vno-revision-badge {
+  color: #dc2626;
+}
+
+.vno-change-highlight {
+  outline: 2px solid #3b82f6 !important;
+  outline-offset: 2px !important;
+  background-color: rgba(59, 130, 246, 0.2) !important;
+  transition: background-color 0.5s ease;
+}
+
+/* Chế độ hiển thị: Revisions in Balloons (Bong bóng hiển thị bản sửa) */
+[data-vno-balloons="revisions"] .vno-writer-body del[data-vno-change="delete"] {
+  opacity: 0.5;
+  background: rgba(239, 68, 68, 0.05);
+}
+
+/* Đánh dấu tài liệu là cuối cùng (Mark as Final - Soft Read-Only) */
+[data-vno-final="true"] .vno-writer-body {
+  cursor: default;
+  user-select: text;
+}
+[data-vno-final="true"] .vno-writer-body [contenteditable="false"] {
+  outline: none;
+}
+
+[data-theme="dark"] .vno-revision-balloon.vno-revision-insert {
+  border-left-color: #22c55e !important;
+}
+[data-theme="dark"] .vno-revision-balloon.vno-revision-delete {
+  border-left-color: #ef4444 !important;
+}
+[data-theme="dark"] .vno-revision-insert .vno-revision-badge {
+  color: #4ade80;
+}
+[data-theme="dark"] .vno-revision-delete .vno-revision-badge {
+  color: #f87171;
+}
+[data-theme="dark"] .vno-info-card {
+  background: var(--vno-bg-surface, #252526) !important;
+  border-color: var(--vno-border-default, #3f3f46) !important;
+}
+[data-theme="dark"] .vno-backstage-info-sidebar {
+  background: var(--vno-bg-surface, #252526) !important;
+  border-color: var(--vno-border-default, #3f3f46) !important;
+}
+[data-theme="dark"] .vno-info-prop-row {
+  border-bottom-color: var(--vno-border-default, #3f3f46) !important;
+}
+
 
 .vno-status-wordcount {
   background: transparent;

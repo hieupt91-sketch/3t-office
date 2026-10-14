@@ -15,7 +15,8 @@ export async function runWriterDocumentPropertiesTests() {
     creator: "Nguyễn Văn An",
     subject: "Quý IV",
     keywords: "ngân sách; nội bộ",
-    description: "Dòng 1\nDòng 2"
+    description: "Dòng 1\nDòng 2",
+    contentStatus: ""
   });
 
   const normalized = normalizeDocumentProperties({ title: "A".repeat(300), creator: null });
@@ -30,7 +31,8 @@ export async function runWriterDocumentPropertiesTests() {
     creator: "Trần Thị Hoa",
     subject: "",
     keywords: "",
-    description: ""
+    description: "",
+    contentStatus: ""
   });
 
   return [{ name: "Writer parses and exports UTF-8 DOCX core properties metadata", pass: true }];
