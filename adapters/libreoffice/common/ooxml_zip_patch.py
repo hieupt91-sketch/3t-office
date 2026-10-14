@@ -7041,6 +7041,7 @@ def postprocess_sheet_xlsx(
         _apply_refreshed_pivot_locations_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_sheet_chart_features_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_sheet_print_options_from_fods(xlsx_bytes, source_fods, replacements)
+        _apply_sheet_page_setup_from_fods(xlsx_bytes, source_fods, replacements)
         _restore_structured_formula_cells_step(xlsx_bytes, source_fods, replacements)
         _normalize_scatter_chart_markers(xlsx_bytes, replacements)
         _apply_pivot_chart_links_from_fods(xlsx_bytes, source_fods, replacements, workbook_filename)
@@ -10863,6 +10864,7 @@ def overlay_sheet_xlsx_fods(
     xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_split_panes(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_print_options(xlsx_bytes, xml)
+    xml = overlay_sheet_xlsx_page_setup(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_structured_formulas(xlsx_bytes, xml)
     # AutoFilter: read <autoFilter ref> from original worksheet XMLs and
     # inject <table:database-ranges> into FODS so parseFods can restore
@@ -10932,6 +10934,7 @@ def overlay_sheet_xlsx_fods_p1(
     xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_split_panes(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_print_options(xlsx_bytes, xml)
+    xml = overlay_sheet_xlsx_page_setup(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_structured_formulas(xlsx_bytes, xml)
     xml = _overlay_autofilter_from_xlsx(xlsx_bytes, xml)
     xml = _overlay_sheet_layout_from_xlsx(xlsx_bytes, xml)
