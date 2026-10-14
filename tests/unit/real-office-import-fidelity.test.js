@@ -245,8 +245,16 @@ export async function runRealOfficeImportFidelityTests() {
     ]);
     // excelCodeInferred là cờ mới (đánh dấu mã định dạng do app suy ra, không ghi lại như mã gốc);
     // loại khỏi snapshot để baseline trước-tối-ưu vẫn so được phần dữ liệu còn lại.
-    const normalizeWorkbook = value => JSON.stringify(value, (key, item) =>
-      key === "excelCodeInferred" ? undefined : item instanceof Map ? { __map: [...item.entries()] } : item instanceof Set ? { __set: [...item.values()] } : item);
+    // EXCEL-H2: thiết lập trang có thêm trường mới (lề đầu/chân trang, chất lượng in, cờ đầu/chân trang,
+    // tùy chọn in); loại khỏi snapshot để phần dữ liệu cũ vẫn được so với baseline.
+    const H2_PAGE_KEYS = new Set(["pageSettings", "differentOddEven", "differentFirst", "scaleWithDocument", "alignWithMargins"]);
+    const H2_PRINT_KEYS = new Set(["blackAndWhite", "draft", "comments", "cellErrors", "pageOrder"]);
+    const normalizeWorkbook = value => JSON.stringify(value, function (key, item) {
+      if (key === "excelCodeInferred" || H2_PAGE_KEYS.has(key)) return undefined;
+      if ((key === "header" || key === "footer") && typeof item === "number") return undefined;
+      if (H2_PRINT_KEYS.has(key) && this && Object.hasOwn(this, "gridlines")) return undefined;
+      return item instanceof Map ? { __map: [...item.entries()] } : item instanceof Set ? { __set: [...item.values()] } : item;
+    });
     for (const [filename, expectedHash] of baselineHashes) {
       const xml = fs.readFileSync(`tests/fixtures/real-office-samples/src/${filename}`, "utf8");
       const workbook = new SheetAdapter(null).parseFods(xml);

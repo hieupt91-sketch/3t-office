@@ -275,7 +275,10 @@ export const SHEET_RIBBON_TABS = [
                 icon: "fillDown",
                 items: [
                   { commandId: "sheet.edit.fillDown" },
-                  { commandId: "sheet.edit.fillRight" }
+                  { commandId: "sheet.edit.fillRight" },
+                  { commandId: "sheet.edit.fillUp" },
+                  { commandId: "sheet.edit.fillLeft" },
+                  { commandId: "sheet.edit.fillSeries" }
                 ]
               },
               {

@@ -242,15 +242,19 @@ export const SHEET_HELP_ENTRIES = [
     id: "sheet.format.cellsDialog",
     app: "sheet",
     commandIds: ["sheet.format.cellsDialog"],
-    title: "Định dạng ô (Format Cells)",
-    summary: "Hộp thoại đầy đủ để chọn loại số, số thập phân, dấu phân cách hàng nghìn, ký hiệu tiền (₫), kiểu ngày, khoa học, văn bản hoặc mẫu tùy chỉnh. Áp dụng cho vùng đang chọn.",
+    title: "Định dạng ô",
+    summary: "Hộp thoại sáu thẻ để định dạng số, căn chỉnh, phông chữ, đường viền, màu nền và trạng thái bảo vệ cho ô hoặc vùng đang chọn; mọi thay đổi được lưu cùng tệp XLSX.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Định dạng số" },
-    keywords: ["định dạng ô", "format cells", "ctrl+1", "số thập phân", "tiền tệ", "ngày tháng", "tùy chỉnh"],
+    keywords: ["định dạng ô", "ctrl+1", "số thập phân", "tiền tệ", "ngày tháng", "phông chữ", "viền", "tô màu", "bảo vệ", "tùy chỉnh"],
     steps: [
       "Chọn ô hoặc vùng cần đổi. Nhấn Ctrl+1, hoặc tab Trang đầu → nhóm Định dạng số → nút Định dạng ô..., hoặc mũi tên nhỏ góc phải nhóm.",
-      "Hộp thoại liệt kê danh mục bên trái: Chung (General), Số (Number), Tiền tệ (Currency), Kế toán (Accounting), Ngày tháng (Date), Phần trăm (Percentage), Khoa học (Scientific), Văn bản (Text), Tùy chỉnh (Custom).",
-      "Với Số/Tiền tệ: chỉnh số chữ số thập phân, bật dấu phân cách hàng nghìn, chọn kiểu số âm. Tiền tệ có ký hiệu ₫. Ngày có mẫu dd/mm/yyyy. Tùy chỉnh cho phép nhập pattern như 0.00.",
-      "Xem trước giá trị mẫu ở hộp thoại, rồi nhấn OK để áp dụng cho vùng chọn. Esc hoặc Đóng để hủy. Hoàn tác bằng Ctrl+Z."
+      "Thẻ Số: chọn Chung, Số, Tiền tệ, Kế toán, Ngày, Giờ, Phần trăm, Phân số, Khoa học, Văn bản, Đặc biệt hoặc Tùy chỉnh. Từng nhóm có tùy chọn riêng cho phần thập phân, dấu phân cách, kiểu số âm, ký hiệu, vùng và mã định dạng; hộp Mẫu cập nhật trước khi áp dụng.",
+      "Với Tùy chỉnh, nhập mã vào ô Mã định dạng rồi nhấn Đồng ý để áp dụng và thêm mã vào danh sách dùng lại trong phiên. Muốn bỏ một mã đã tạo, chọn mã trong danh sách rồi bấm Xóa mã; các mã dựng sẵn không thể xóa và ứng dụng sẽ báo rõ lý do.",
+      "Thẻ Căn chỉnh: đặt căn ngang/dọc, thụt lề, ngắt dòng, thu nhỏ vừa ô, hướng đọc, góc xoay hoặc xếp chữ dọc. Chọn một vùng trước khi bật Hợp nhất ô; khi tắt tùy chọn, vùng gộp hiện tại được tách.",
+      "Thẻ Phông chữ: chọn họ font, kiểu thường/đậm/nghiêng, cỡ, gạch chân, màu, gạch ngang, chỉ số trên hoặc dưới. Phông mặc định đưa các giá trị này về cấu hình mặc định của bảng tính.",
+      "Thẻ Viền: chọn kiểu và màu đường trước, rồi bấm Ngoài/Bên trong hoặc từng cạnh Trái/Phải/Trên/Dưới/Ngang trong/Dọc trong/Chéo. Thẻ Tô màu đặt màu nền, màu và kiểu mẫu; Hiệu ứng tô tạo chuyển màu hai màu theo hướng đã chọn.",
+      "Thẻ Bảo vệ: Đã khóa ngăn sửa ô và Ẩn công thức che công thức sau khi trang tính được bảo vệ. Bấm Bảo vệ trang tính... ngay trong thẻ để mở thiết lập bảo vệ; hai cờ không tự khóa trang nếu chưa bật bảo vệ.",
+      "Nhấn Đồng ý để áp dụng cho toàn vùng đang chọn. Hủy bỏ, nút Đóng hoặc Esc không thay đổi tài liệu. Ctrl+Z hoàn tác toàn bộ lần định dạng trong một bước."
     ]
   },
   {
@@ -660,7 +664,7 @@ export const SHEET_HELP_ENTRIES = [
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Căn chỉnh" },
     keywords: ["căn giữa", "căn trái", "căn phải", "căn trên", "ngắt dòng", "wrap", "thụt lề", "trộn ô", "merge", "unmerge", "hợp nhất", "xoay chữ", "orientation", "hướng chữ", "format cells", "định dạng ô", "căn chỉnh ô"],
     steps: [
-      "Chọn ô hoặc vùng. Tab Trang đầu, nhóm Căn chỉnh: hàng trên Căn trên / Căn giữa dọc / Căn dưới / Ngắt dòng tự động / Hướng chữ (dropdown); hàng giữa Căn trái / giữa / phải, Giảm/Tăng thụt lề; hàng dưới bốn nút trộn ô. Nhấn mũi tên nhỏ ở góc phải nhóm để mở hộp thoại Căn chỉnh chi tiết (Format Cells - thẻ Căn chỉnh).",
+      "Chọn ô hoặc vùng. Tab Trang đầu, nhóm Căn chỉnh: hàng trên Căn trên / Căn giữa dọc / Căn dưới / Ngắt dòng tự động / Hướng chữ; hàng giữa Căn trái / giữa / phải, Giảm/Tăng thụt lề; hàng dưới bốn nút trộn ô. Nhấn mũi tên nhỏ ở góc phải nhóm để mở hộp thoại Định dạng ô tại thẻ Căn chỉnh.",
       "Hướng chữ: mở dropdown chọn 0° (ngang), 45°, -45°, 90° (xoay lên), -90° (xoay xuống), hoặc «Dọc từ dưới lên» (chữ xếp dọc, phần mềm bảng tính khác chữ xếp dọc). Góc lưu trong kiểu ô và khi Lưu ra file thật (XLSX). Ngắt dòng tự động cho chữ dài xuống dòng trong ô và tăng chiều cao hàng. Tăng thụt lề thêm 12 px (tối đa 56 px); Giảm thụt lề hạ dần về 8 px.",
       "Bôi ít nhất 2 ô rồi: Trộn & căn giữa gộp thành một ô và căn giữa; Trộn ô gộp nhưng giữ căn đang có; Trộn theo hàng gộp riêng từng hàng trong vùng. Nếu nhiều ô có dữ liệu, hộp «Trộn ô» cảnh báo chỉ giữ ô trên cùng bên trái — chọn Tiếp tục gộp hoặc Hủy.",
       "Tách ô hoàn tác vùng đã trộn (dữ liệu đã mất khi gộp không tự hiện lại, trừ khi Ctrl+Z ngay). Không trộn đè lên vùng đã trộn sẵn.",
@@ -1081,22 +1085,45 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.formula.structuredRefs",
+    app: "sheet",
+    commandIds: ["sheet.style.formatAsTable"],
+    title: "Công thức theo tên bảng và tên cột",
+    summary: "Sau khi Định dạng thành Bảng, viết công thức bằng tên bảng và tên cột thay cho địa chỉ ô: =SUM(Table1[Số lượng]). Công thức tự theo kịp khi bảng thêm hoặc bớt dòng, và lưu vào tệp XLSX đúng dạng Table1[Cột].",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Kiểu ô" },
+    keywords: ["tham chiếu bảng", "tham chiếu có cấu trúc", "structured reference", "Table1[Cột]", "[@Cột]", "#All", "#Headers", "#Totals", "#This Row", "tên cột", "tên bảng", "cột tính toán", "Định dạng thành Bảng"],
+    steps: [
+      "Tạo bảng: bôi vùng dữ liệu có hàng tiêu đề, tab Trang đầu, nhóm Kiểu ô, chọn Định dạng thành Bảng. Ghi nhớ Tên bảng (mặc định Table1, có thể đổi) và tên các cột ở hàng tiêu đề.",
+      "Tổng một cột: nhập =SUM(Table1[Số lượng]) vào ô bất kỳ. Tên cột đặt trong ngoặc vuông; tên bảng không phân biệt chữ hoa, chữ thường. Cũng dùng được trong AVERAGE, COUNT, MAX, MIN, VLOOKUP và mọi hàm nhận vùng ô.",
+      "Công thức theo từng dòng: trong cột của bảng nhập =[@Số lượng]*[@Đơn giá]. Ký hiệu @ nghĩa là dòng đang tính, nên mỗi dòng tự lấy số liệu của chính dòng đó. Khi lưu tệp, dạng này được ghi là Table1[[#This Row],[Số lượng]] và vẫn tính đúng khi mở lại.",
+      "Các vùng đặc biệt: Table1[#All] là cả bảng gồm tiêu đề và dòng tổng; Table1[#Headers] là hàng tiêu đề; Table1[#Data] là phần dữ liệu; Table1[#Totals] là dòng tổng. Kết hợp với cột: Table1[[#All],[Số lượng]] hoặc Table1[[#Headers],[Đơn giá]].",
+      "Nhiều cột liền nhau: Table1[[Số lượng]:[Đơn giá]]. Bảng nằm ở trang tính khác vẫn dùng được: =SUM(Table1[Số lượng]) ở bất kỳ trang nào, Sheet tự tìm bảng theo tên.",
+      "Tên cột có ký tự đặc biệt: đặt dấu nháy đơn trước ký tự [ ] # '. Nếu gõ sai tên cột, ô báo #REF!; nếu dùng [@Cột] ở ô nằm ngoài các dòng dữ liệu của bảng, ô báo #VALUE!.",
+      "Lưu và mở lại: công thức dạng Table1[Cột] được ghi đúng vào XLSX kèm đối tượng bảng nên các phần mềm bảng tính khác mở ra vẫn thấy đúng công thức. Khi đổi tên cột tiêu đề, hãy cập nhật lại các công thức đang dùng tên cũ."
+    ]
+  },
+  {
     id: "sheet.edit.fillAndClear",
     app: "sheet",
     commandIds: [
       "sheet.edit.fillDown",
       "sheet.edit.fillRight",
+      "sheet.edit.fillUp",
+      "sheet.edit.fillLeft",
+      "sheet.edit.fillSeries",
       "sheet.edit.clearAll",
       "sheet.edit.clearFormats",
       "sheet.edit.clearContents"
     ],
-    title: "Điền xuống/phải và xóa nội dung hay định dạng",
-    summary: "Ctrl+D sao chép ô trên xuống (công thức tự lệch hàng); Ctrl+R sao chép sang phải (lệch cột). Menu Xóa: Tất cả, chỉ định dạng, hoặc chỉ nội dung (giữ kiểu).",
+    title: "Điền xuống/phải/lên/trái, điền chuỗi và xóa nội dung hay định dạng",
+    summary: "Ctrl+D sao chép ô trên xuống (công thức tự lệch hàng); Ctrl+R sao chép sang phải (lệch cột); menu Điền còn có Điền lên, Điền trái và Chuỗi (tuyến tính, tăng trưởng, ngày). Menu Xóa: Tất cả, chỉ định dạng, hoặc chỉ nội dung (giữ kiểu).",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
-    keywords: ["điền xuống", "điền phải", "ctrl+d", "ctrl+r", "xóa tất cả", "xóa định dạng", "xóa nội dung", "fill down", "clear"],
+    keywords: ["điền xuống", "điền phải", "điền lên", "điền trái", "chuỗi", "series", "tuyến tính", "tăng trưởng", "ngày làm việc", "ctrl+d", "ctrl+r", "xóa tất cả", "xóa định dạng", "xóa nội dung", "fill down", "fill series", "clear"],
     steps: [
       "Tab Trang đầu, nhóm Chỉnh sửa: menu Điền (nút lớn) gồm Điền xuống (Ctrl+D) và Điền phải (Ctrl+R); menu Xóa gồm Xóa tất cả / Xóa định dạng / Xóa nội dung. Chuột phải ô cũng có Xóa nội dung (Delete).",
       "Điền xuống: bôi từ ô nguồn xuống các ô đích — ô đầu là nguồn, các ô dưới nhận bản sao; công thức =A1 thành =A2, =A3… (lệch hàng). Nếu chỉ chọn 1 hàng, nguồn là hàng ngay phía trên (hàng 1 thì không điền được). Điền phải tương tự theo cột; chọn 1 cột thì lấy cột bên trái.",
+      "Điền lên và Điền trái (cũng nằm trong menu Điền): bôi vùng gồm ô nguồn và các ô cần điền; với Điền lên, ô dưới cùng là nguồn và các ô phía trên nhận bản sao; với Điền trái, cột phải nhất là nguồn. Chọn một ô thì lấy ô ngay bên dưới (Điền lên) hoặc ngay bên phải (Điền trái). Công thức tự lệch địa chỉ như khi điền xuống.",
+      "Chuỗi... (menu Điền): bôi vùng bắt đầu từ ô chứa giá trị đầu, mở Chuỗi rồi chọn Chuỗi theo Hàng hoặc Cột, Loại Tuyến tính (cộng thêm Bước nhảy), Tăng trưởng (nhân với Bước nhảy) hoặc Ngày. Với loại Ngày chọn đơn vị Ngày, Ngày làm việc (bỏ thứ bảy và chủ nhật), Tháng hoặc Năm; ô đầu phải là ngày dạng dd/mm/yyyy hoặc yyyy-mm-dd. Giá trị dừng là tùy chọn: chỉ chọn một ô và nhập Giá trị dừng để Sheet tự điền tới khi đạt giá trị đó.",
       "Xóa tất cả: xóa giá trị, công thức và style. Xóa định dạng: giữ số/công thức, bỏ màu/viền/cỡ chữ. Xóa nội dung: xóa chữ và công thức, giữ style. Sheet đang bảo vệ thì Xóa tất cả / Xóa nội dung / Điền bị chặn.",
       "Ctrl+Z hoàn tác cả khối điền hoặc xóa. Delete mặc định gần với xóa nội dung, không xóa định dạng."
     ]

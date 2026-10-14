@@ -1,0 +1,491 @@
+{
+ "generatedFrom": "Excel 2016 (16.0.4266) Application.Evaluate",
+ "cells": {},
+ "cases": [
+  {
+   "formula": "=COUPPCD(DATE(2011,1,25),DATE(2011,11,15),2,1)",
+   "excel": 40497,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPNCD(DATE(2011,1,25),DATE(2011,11,15),2,1)",
+   "excel": 40678,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPNUM(DATE(2011,1,25),DATE(2011,11,15),2,1)",
+   "excel": 2,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYBS(DATE(2011,1,25),DATE(2011,11,15),2,1)",
+   "excel": 71,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYS(DATE(2011,1,25),DATE(2011,11,15),2,1)",
+   "excel": 181,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYSNC(DATE(2011,1,25),DATE(2011,11,15),2,1)",
+   "excel": 110,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYBS(DATE(2011,1,25),DATE(2011,11,15),2,0)",
+   "excel": 70,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYS(DATE(2011,1,25),DATE(2011,11,15),2,0)",
+   "excel": 180,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYSNC(DATE(2011,1,25),DATE(2011,11,15),2,0)",
+   "excel": 110,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYBS(DATE(2011,1,25),DATE(2011,11,15),2,2)",
+   "excel": 71,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYS(DATE(2011,1,25),DATE(2011,11,15),2,2)",
+   "excel": 180,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYSNC(DATE(2011,1,25),DATE(2011,11,15),2,2)",
+   "excel": 110,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYBS(DATE(2011,1,25),DATE(2011,11,15),2,3)",
+   "excel": 71,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYS(DATE(2011,1,25),DATE(2011,11,15),2,3)",
+   "excel": 182.5,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYSNC(DATE(2011,1,25),DATE(2011,11,15),2,3)",
+   "excel": 110,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYBS(DATE(2011,1,25),DATE(2011,11,15),2,4)",
+   "excel": 70,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYS(DATE(2011,1,25),DATE(2011,11,15),2,4)",
+   "excel": 180,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYSNC(DATE(2011,1,25),DATE(2011,11,15),2,4)",
+   "excel": 110,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPNUM(DATE(2007,1,25),DATE(2008,11,15),2,1)",
+   "excel": 4,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPNCD(DATE(2007,1,25),DATE(2008,11,15),4,0)",
+   "excel": 39128,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPPCD(DATE(2007,1,25),DATE(2008,11,15),1,0)",
+   "excel": 39036,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPNUM(DATE(2007,1,25),DATE(2008,11,15),1)",
+   "excel": 2,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPNCD(DATE(2011,2,10),DATE(2012,2,29),2,1)",
+   "excel": 40602,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPPCD(DATE(2011,2,10),DATE(2012,2,29),2,1)",
+   "excel": 40421,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYBS(DATE(2011,2,10),DATE(2012,2,29),2,1)",
+   "excel": 163,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYS(DATE(2011,2,10),DATE(2012,2,29),2,1)",
+   "excel": 181,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYSNC(DATE(2011,2,10),DATE(2012,2,29),2,0)",
+   "excel": 20,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPNCD(DATE(2011,5,15),DATE(2011,11,15),2,1)",
+   "excel": 40862,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPPCD(DATE(2011,11,15),DATE(2013,11,15),2,1)",
+   "excel": 40862,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYBS(DATE(2012,5,15),DATE(2013,5,15),2,1)",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYS(DATE(2012,2,1),DATE(2012,8,1),2,1)",
+   "excel": 182,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPDAYS(DATE(2012,2,1),DATE(2012,8,1),4,1)",
+   "excel": 90,
+   "type": "number"
+  },
+  {
+   "formula": "=COUPNUM(DATE(2011,1,25),DATE(2011,11,15),3,1)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=COUPNUM(DATE(2011,11,15),DATE(2011,1,25),2,1)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=COUPNUM(DATE(2011,1,25),DATE(2011,11,15),2,5)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=COUPNUM(DATE(2011,1,25),DATE(2011,1,25),2,1)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=PRICE(DATE(2008,2,15),DATE(2017,11,15),0.0575,0.065,100,2,0)",
+   "excel": 94.63436162132213,
+   "type": "number"
+  },
+  {
+   "formula": "=PRICE(DATE(2008,2,15),DATE(2017,11,15),0.0575,0.065,100,2,1)",
+   "excel": 94.6354492078772,
+   "type": "number"
+  },
+  {
+   "formula": "=PRICE(DATE(2008,2,15),DATE(2017,11,15),0.0575,0.065,100,2,2)",
+   "excel": 94.63656403002507,
+   "type": "number"
+  },
+  {
+   "formula": "=PRICE(DATE(2008,2,15),DATE(2017,11,15),0.0575,0.065,100,2,3)",
+   "excel": 94.63517479678454,
+   "type": "number"
+  },
+  {
+   "formula": "=PRICE(DATE(2008,2,15),DATE(2017,11,15),0.0575,0.065,100,2,4)",
+   "excel": 94.63436162132213,
+   "type": "number"
+  },
+  {
+   "formula": "=PRICE(DATE(2008,2,15),DATE(2008,11,15),0.0575,0.065,100,2,0)",
+   "excel": 99.4480220310011,
+   "type": "number"
+  },
+  {
+   "formula": "=PRICE(DATE(2008,2,15),DATE(2008,5,15),0.05,0.06,100,4,1)",
+   "excel": 99.7536945812808,
+   "type": "number"
+  },
+  {
+   "formula": "=PRICE(DATE(2008,2,15),DATE(2009,2,15),0.05,0.04,100,1,1)",
+   "excel": 100.96153846153845,
+   "type": "number"
+  },
+  {
+   "formula": "=PRICE(DATE(2011,1,25),DATE(2011,11,15),0.08,0.07,105,2,1)",
+   "excel": 105.4832519327389,
+   "type": "number"
+  },
+  {
+   "formula": "=PRICE(DATE(2008,2,15),DATE(2020,2,15),0,0.05,100,2,0)",
+   "excel": 55.28753541855118,
+   "type": "number"
+  },
+  {
+   "formula": "=PRICE(DATE(2008,2,15),DATE(2017,11,15),0.0575,0,100,2,0)",
+   "excel": 156.0625,
+   "type": "number"
+  },
+  {
+   "formula": "=PRICE(DATE(2008,2,15),DATE(2017,11,15),0.0575,0.065,100,3,0)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=PRICE(DATE(2018,2,15),DATE(2017,11,15),0.0575,0.065,100,2,0)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=PRICE(DATE(2008,2,15),DATE(2017,11,15),-0.01,0.065,100,2,0)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=YIELD(DATE(2008,2,15),DATE(2016,11,15),0.0575,95.04287,100,2,0)",
+   "excel": 0.06500000688073143,
+   "type": "number",
+   "tol": 1e-7
+  },
+  {
+   "formula": "=YIELD(DATE(2008,2,15),DATE(2016,11,15),0.0575,95.04287,100,2,1)",
+   "excel": 0.06500182060552322,
+   "type": "number",
+   "tol": 1e-7
+  },
+  {
+   "formula": "=YIELD(DATE(2008,2,15),DATE(2008,11,15),0.0575,99,100,2,0)",
+   "excel": 0.07125361695454112,
+   "type": "number",
+   "tol": 1e-7
+  },
+  {
+   "formula": "=YIELD(DATE(2008,2,15),DATE(2008,5,15),0.05,100.5,100,4,1)",
+   "excel": 0.029850746268656966,
+   "type": "number",
+   "tol": 1e-7
+  },
+  {
+   "formula": "=YIELD(DATE(2008,2,15),DATE(2020,2,15),0.08,110,100,2,3)",
+   "excel": 0.06769567003159953,
+   "type": "number",
+   "tol": 1e-7
+  },
+  {
+   "formula": "=YIELD(DATE(2008,2,15),DATE(2016,11,15),0.0575,0,100,2,0)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=DURATION(DATE(2008,1,1),DATE(2016,1,1),0.08,0.09,2,1)",
+   "excel": 5.993774955545186,
+   "type": "number"
+  },
+  {
+   "formula": "=DURATION(DATE(2008,1,1),DATE(2016,1,1),0.08,0.09,2,0)",
+   "excel": 5.993774955545186,
+   "type": "number"
+  },
+  {
+   "formula": "=DURATION(DATE(2008,1,1),DATE(2016,1,1),0.08,0.09,1,3)",
+   "excel": 6.149067886773246,
+   "type": "number"
+  },
+  {
+   "formula": "=DURATION(DATE(2008,1,1),DATE(2016,1,1),0,0.09,2,1)",
+   "excel": 8,
+   "type": "number"
+  },
+  {
+   "formula": "=DURATION(DATE(2008,3,17),DATE(2013,8,2),0.05,0.04,4,4)",
+   "excel": 4.736681203845893,
+   "type": "number"
+  },
+  {
+   "formula": "=DURATION(DATE(2008,1,1),DATE(2008,12,31),0.08,0.09,2,1)",
+   "excel": 0.977933094821614,
+   "type": "number"
+  },
+  {
+   "formula": "=MDURATION(DATE(2008,1,1),DATE(2016,1,1),0.08,0.09,2,1)",
+   "excel": 5.735669813918839,
+   "type": "number"
+  },
+  {
+   "formula": "=MDURATION(DATE(2008,1,1),DATE(2016,1,1),0.08,0.09,2,0)",
+   "excel": 5.735669813918839,
+   "type": "number"
+  },
+  {
+   "formula": "=MDURATION(DATE(2008,3,17),DATE(2013,8,2),0.05,0.04,4,4)",
+   "excel": 4.689783370144449,
+   "type": "number"
+  },
+  {
+   "formula": "=ACCRINT(DATE(2008,3,1),DATE(2008,8,31),DATE(2008,5,1),0.1,1000,2,0)",
+   "excel": 16.666666666666664,
+   "type": "number"
+  },
+  {
+   "formula": "=ACCRINT(DATE(2008,3,1),DATE(2008,8,31),DATE(2008,5,1),0.1,1000,2,1)",
+   "excel": 16.57608695652174,
+   "type": "number"
+  },
+  {
+   "formula": "=ACCRINT(DATE(2008,3,1),DATE(2008,8,31),DATE(2008,5,1),0.1,1000,2,2)",
+   "excel": 16.944444444444446,
+   "type": "number"
+  },
+  {
+   "formula": "=ACCRINT(DATE(2008,3,1),DATE(2008,8,31),DATE(2008,5,1),0.1,1000,2,3)",
+   "excel": 16.71232876712329,
+   "type": "number"
+  },
+  {
+   "formula": "=ACCRINT(DATE(2008,3,1),DATE(2008,8,31),DATE(2008,5,1),0.1,1000,2,4)",
+   "excel": 16.666666666666664,
+   "type": "number"
+  },
+  {
+   "formula": "=ACCRINT(DATE(2008,3,1),DATE(2008,8,31),DATE(2008,10,1),0.1,1000,2,1)",
+   "excel": 58.152173913043484,
+   "type": "number"
+  },
+  {
+   "formula": "=ACCRINT(DATE(2008,3,1),DATE(2008,8,31),DATE(2008,10,1),0.1,1000,2,1,FALSE)",
+   "excel": 58.152173913043484,
+   "type": "number"
+  },
+  {
+   "formula": "=ACCRINT(DATE(2008,3,1),DATE(2008,8,31),DATE(2008,10,1),0.1,1000,2,0,FALSE)",
+   "excel": 58.333333333333336,
+   "type": "number"
+  },
+  {
+   "formula": "=ACCRINT(DATE(2007,3,1),DATE(2008,8,31),DATE(2009,5,1),0.06,1000,4,1)",
+   "excel": 129.94565217391303,
+   "type": "number"
+  },
+  {
+   "formula": "=ACCRINT(DATE(2008,5,1),DATE(2008,8,31),DATE(2008,3,1),0.1,1000,2,0)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=ACCRINT(DATE(2008,3,1),DATE(2008,8,31),DATE(2008,5,1),0,1000,2,0)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=AMORLINC(2400,DATE(2008,8,19),DATE(2008,12,31),300,1,0.15,1)",
+   "excel": 360,
+   "type": "number"
+  },
+  {
+   "formula": "=AMORLINC(2400,DATE(2008,8,19),DATE(2008,12,31),300,0,0.15,1)",
+   "excel": 131.8032786885246,
+   "type": "number"
+  },
+  {
+   "formula": "=AMORLINC(2400,DATE(2008,8,19),DATE(2008,12,31),300,2,0.15,1)",
+   "excel": 360,
+   "type": "number"
+  },
+  {
+   "formula": "=AMORLINC(2400,DATE(2008,8,19),DATE(2008,12,31),300,10,0.15,1)",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=AMORLINC(2400,DATE(2008,8,19),DATE(2008,12,31),300,6,0.15,1)",
+   "excel": 168.19672131147536,
+   "type": "number"
+  },
+  {
+   "formula": "=AMORLINC(2400,DATE(2008,8,19),DATE(2008,12,31),300,7,0.15,1)",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=AMORLINC(2400,DATE(2008,8,19),DATE(2008,12,31),300,1,0.15,0)",
+   "excel": 360,
+   "type": "number"
+  },
+  {
+   "formula": "=AMORLINC(2400,DATE(2008,8,19),DATE(2008,12,31),300,1,0.15,3)",
+   "excel": 360,
+   "type": "number"
+  },
+  {
+   "formula": "=AMORLINC(2400,DATE(2008,8,19),DATE(2008,12,31),300,1,0.15,2)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=AMORDEGRC(2400,DATE(2008,8,19),DATE(2008,12,31),300,1,0.15,1)",
+   "excel": 776,
+   "type": "number"
+  },
+  {
+   "formula": "=AMORDEGRC(2400,DATE(2008,8,19),DATE(2008,12,31),300,0,0.15,1)",
+   "excel": 330,
+   "type": "number"
+  },
+  {
+   "formula": "=AMORDEGRC(2400,DATE(2008,8,19),DATE(2008,12,31),300,2,0.15,1)",
+   "excel": 485,
+   "type": "number"
+  },
+  {
+   "formula": "=AMORDEGRC(2400,DATE(2008,8,19),DATE(2008,12,31),300,3,0.15,1)",
+   "excel": 303,
+   "type": "number"
+  },
+  {
+   "formula": "=AMORDEGRC(2400,DATE(2008,8,19),DATE(2008,12,31),300,4,0.15,1)",
+   "excel": 190,
+   "type": "number"
+  },
+  {
+   "formula": "=AMORDEGRC(2400,DATE(2008,8,19),DATE(2008,12,31),300,5,0.15,1)",
+   "excel": 158,
+   "type": "number"
+  },
+  {
+   "formula": "=AMORDEGRC(2400,DATE(2008,8,19),DATE(2008,12,31),300,6,0.15,1)",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=AMORDEGRC(2400,DATE(2008,8,19),DATE(2008,12,31),300,1,0.3,1)",
+   "excel": 902,
+   "type": "number"
+  },
+  {
+   "formula": "=AMORDEGRC(2400,DATE(2008,8,19),DATE(2008,12,31),300,1,0.1,0)",
+   "excel": 545,
+   "type": "number"
+  },
+  {
+   "formula": "=AMORDEGRC(2400,DATE(2008,8,19),DATE(2008,12,31),300,3,0.1,4)",
+   "excel": 307,
+   "type": "number"
+  },
+  {
+   "formula": "=AMORDEGRC(2400,DATE(2008,8,19),DATE(2008,12,31),300,1,0.22,1)",
+   "excel": 886,
+   "type": "number"
+  }
+ ]
+}

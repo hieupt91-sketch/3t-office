@@ -1,0 +1,777 @@
+{
+ "generatedFrom": "Excel 2016 (16.0.4266) Application.Evaluate",
+ "cells": {
+  "A1": 2,
+  "A2": 4,
+  "A3": 4,
+  "A4": 4,
+  "A5": 5,
+  "A6": 5,
+  "A7": 7,
+  "A8": 9,
+  "B1": 1,
+  "B2": 3,
+  "B3": 2,
+  "B4": 5,
+  "B5": 4,
+  "B6": 6,
+  "B7": 8,
+  "B8": 7,
+  "C1": 0.1,
+  "C2": 0.2,
+  "C3": 0.3,
+  "C4": 0.4,
+  "D1": 1,
+  "D2": 2,
+  "D3": 3,
+  "D4": 4,
+  "E1": "txt",
+  "E2": 3,
+  "E3": true,
+  "E4": 5
+ },
+ "cases": [
+  {
+   "formula": "=STDEV.S(A1:A8)",
+   "excel": 2.138089935299395,
+   "type": "number"
+  },
+  {
+   "formula": "=STDEV.P(A1:A8)",
+   "excel": 2,
+   "type": "number"
+  },
+  {
+   "formula": "=VAR.S(A1:A8)",
+   "excel": 4.571428571428571,
+   "type": "number"
+  },
+  {
+   "formula": "=VAR.P(A1:A8)",
+   "excel": 4,
+   "type": "number"
+  },
+  {
+   "formula": "=STDEVP(A1:A8)",
+   "excel": 2,
+   "type": "number"
+  },
+  {
+   "formula": "=VARP(A1:A8)",
+   "excel": 4,
+   "type": "number"
+  },
+  {
+   "formula": "=STDEVA(E1:E4)",
+   "excel": 2.217355782608345,
+   "type": "number"
+  },
+  {
+   "formula": "=STDEVPA(E1:E4)",
+   "excel": 1.920286436967152,
+   "type": "number"
+  },
+  {
+   "formula": "=VARA(E1:E4)",
+   "excel": 4.916666666666667,
+   "type": "number"
+  },
+  {
+   "formula": "=VARPA(E1:E4)",
+   "excel": 3.6875,
+   "type": "number"
+  },
+  {
+   "formula": "=AVERAGEA(E1:E4)",
+   "excel": 2.25,
+   "type": "number"
+  },
+  {
+   "formula": "=MAXA(E1:E4)",
+   "excel": 5,
+   "type": "number"
+  },
+  {
+   "formula": "=MINA(E1:E4)",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=DEVSQ(A1:A8)",
+   "excel": 32,
+   "type": "number"
+  },
+  {
+   "formula": "=AVEDEV(A1:A8)",
+   "excel": 1.5,
+   "type": "number"
+  },
+  {
+   "formula": "=GEOMEAN(A1:A8)",
+   "excel": 4.603215596046737,
+   "type": "number"
+  },
+  {
+   "formula": "=HARMEAN(A1:A8)",
+   "excel": 4.201750729470613,
+   "type": "number"
+  },
+  {
+   "formula": "=TRIMMEAN(A1:A8,0.25)",
+   "excel": 4.833333333333333,
+   "type": "number"
+  },
+  {
+   "formula": "=KURT(A1:A8)",
+   "excel": 0.9406249999999998,
+   "type": "number"
+  },
+  {
+   "formula": "=SKEW(A1:A8)",
+   "excel": 0.8184875533567997,
+   "type": "number"
+  },
+  {
+   "formula": "=SKEW.P(A1:A8)",
+   "excel": 0.65625,
+   "type": "number"
+  },
+  {
+   "formula": "=STANDARDIZE(5,4,2)",
+   "excel": 0.5,
+   "type": "number"
+  },
+  {
+   "formula": "=PERMUT(5,2)",
+   "excel": 20,
+   "type": "number"
+  },
+  {
+   "formula": "=PERMUTATIONA(3,2)",
+   "excel": 9,
+   "type": "number"
+  },
+  {
+   "formula": "=FISHER(0.5)",
+   "excel": 0.5493061443340549,
+   "type": "number"
+  },
+  {
+   "formula": "=FISHERINV(0.5)",
+   "excel": 0.46211715726000974,
+   "type": "number"
+  },
+  {
+   "formula": "=GAUSS(1)",
+   "excel": 0.34134474606854304,
+   "type": "number"
+  },
+  {
+   "formula": "=PHI(0.5)",
+   "excel": 0.3520653267642995,
+   "type": "number"
+  },
+  {
+   "formula": "=MODE.SNGL(A1:A8)",
+   "excel": 4,
+   "type": "number"
+  },
+  {
+   "formula": "=MODE.MULT(A1:A8)",
+   "excel": [
+    4
+   ],
+   "type": "array"
+  },
+  {
+   "formula": "=PERCENTILE.INC(A1:A8,0.3)",
+   "excel": 4,
+   "type": "number"
+  },
+  {
+   "formula": "=PERCENTILE.EXC(A1:A8,0.3)",
+   "excel": 4,
+   "type": "number"
+  },
+  {
+   "formula": "=QUARTILE.INC(A1:A8,1)",
+   "excel": 4,
+   "type": "number"
+  },
+  {
+   "formula": "=QUARTILE.EXC(A1:A8,3)",
+   "excel": 6.5,
+   "type": "number"
+  },
+  {
+   "formula": "=QUARTILE(A1:A8,2)",
+   "excel": 4.5,
+   "type": "number"
+  },
+  {
+   "formula": "=PERCENTRANK.INC(A1:A8,5)",
+   "excel": 0.571,
+   "type": "number"
+  },
+  {
+   "formula": "=PERCENTRANK.EXC(A1:A8,5)",
+   "excel": 0.555,
+   "type": "number"
+  },
+  {
+   "formula": "=PERCENTRANK(A1:A8,6)",
+   "excel": 0.785,
+   "type": "number"
+  },
+  {
+   "formula": "=PERCENTRANK.INC(A1:A8,4.5,4)",
+   "excel": 0.5,
+   "type": "number"
+  },
+  {
+   "formula": "=RANK.AVG(4,A1:A8)",
+   "excel": 6,
+   "type": "number"
+  },
+  {
+   "formula": "=RANK.AVG(5,A1:A8,1)",
+   "excel": 5.5,
+   "type": "number"
+  },
+  {
+   "formula": "=CORREL(A1:A8,B1:B8)",
+   "excel": 0.8455943246644705,
+   "type": "number"
+  },
+  {
+   "formula": "=PEARSON(A1:A8,B1:B8)",
+   "excel": 0.8455943246644705,
+   "type": "number"
+  },
+  {
+   "formula": "=RSQ(A1:A8,B1:B8)",
+   "excel": 0.7150297619047621,
+   "type": "number"
+  },
+  {
+   "formula": "=SLOPE(B1:B8,A1:A8)",
+   "excel": 0.96875,
+   "type": "number"
+  },
+  {
+   "formula": "=INTERCEPT(B1:B8,A1:A8)",
+   "excel": -0.34375,
+   "type": "number"
+  },
+  {
+   "formula": "=COVARIANCE.P(A1:A8,B1:B8)",
+   "excel": 3.875,
+   "type": "number"
+  },
+  {
+   "formula": "=COVARIANCE.S(A1:A8,B1:B8)",
+   "excel": 4.428571428571429,
+   "type": "number"
+  },
+  {
+   "formula": "=COVAR(A1:A8,B1:B8)",
+   "excel": 3.875,
+   "type": "number"
+  },
+  {
+   "formula": "=STEYX(B1:B8,A1:A8)",
+   "excel": 1.4123709380565244,
+   "type": "number"
+  },
+  {
+   "formula": "=FORECAST.LINEAR(10,B1:B8,A1:A8)",
+   "excel": 9.34375,
+   "type": "number"
+  },
+  {
+   "formula": "=FORECAST(3,B1:B8,A1:A8)",
+   "excel": 2.5625,
+   "type": "number"
+  },
+  {
+   "formula": "=PROB(D1:D4,C1:C4,2,3)",
+   "excel": 0.5,
+   "type": "number"
+  },
+  {
+   "formula": "=PROB(D1:D4,C1:C4,2)",
+   "excel": 0.2,
+   "type": "number"
+  },
+  {
+   "formula": "=NORM.DIST(1,0,1,TRUE)",
+   "excel": 0.841344746068543,
+   "type": "number"
+  },
+  {
+   "formula": "=NORM.DIST(1,0,1,FALSE)",
+   "excel": 0.24197072451914337,
+   "type": "number"
+  },
+  {
+   "formula": "=NORM.DIST(110,100,15,TRUE)",
+   "excel": 0.7475074624530771,
+   "type": "number"
+  },
+  {
+   "formula": "=NORM.S.DIST(1.5,TRUE)",
+   "excel": 0.9331927987311419,
+   "type": "number"
+  },
+  {
+   "formula": "=NORM.S.DIST(1.5,FALSE)",
+   "excel": 0.12951759566589174,
+   "type": "number"
+  },
+  {
+   "formula": "=NORM.INV(0.975,0,1)",
+   "excel": 1.9599639845400536,
+   "type": "number"
+  },
+  {
+   "formula": "=NORM.INV(0.3,100,15)",
+   "excel": 92.13399230937938,
+   "type": "number"
+  },
+  {
+   "formula": "=NORM.S.INV(0.9)",
+   "excel": 1.2815515655446006,
+   "type": "number"
+  },
+  {
+   "formula": "=NORM.S.INV(0.001)",
+   "excel": -3.090232306167813,
+   "type": "number"
+  },
+  {
+   "formula": "=NORMDIST(0.5,0,1,TRUE)",
+   "excel": 0.6914624612740131,
+   "type": "number"
+  },
+  {
+   "formula": "=NORMSDIST(0.5)",
+   "excel": 0.6914624612740131,
+   "type": "number"
+  },
+  {
+   "formula": "=NORMINV(0.6,10,2)",
+   "excel": 10.5066942062716,
+   "type": "number"
+  },
+  {
+   "formula": "=NORMSINV(0.6)",
+   "excel": 0.2533471031357998,
+   "type": "number"
+  },
+  {
+   "formula": "=LOGNORM.DIST(2,0,1,TRUE)",
+   "excel": 0.7558914042144174,
+   "type": "number"
+  },
+  {
+   "formula": "=LOGNORM.DIST(2,0,1,FALSE)",
+   "excel": 0.1568740192789811,
+   "type": "number"
+  },
+  {
+   "formula": "=LOGNORMDIST(2,0,1)",
+   "excel": 0.7558914042144174,
+   "type": "number"
+  },
+  {
+   "formula": "=LOGNORM.INV(0.7,0,1)",
+   "excel": 1.6894457434840042,
+   "type": "number"
+  },
+  {
+   "formula": "=LOGINV(0.7,0,1)",
+   "excel": 1.6894457434840042,
+   "type": "number"
+  },
+  {
+   "formula": "=EXPON.DIST(1,2,TRUE)",
+   "excel": 0.8646647167633873,
+   "type": "number"
+  },
+  {
+   "formula": "=EXPON.DIST(1,2,FALSE)",
+   "excel": 0.2706705664732254,
+   "type": "number"
+  },
+  {
+   "formula": "=EXPONDIST(0.5,3,TRUE)",
+   "excel": 0.7768698398515702,
+   "type": "number"
+  },
+  {
+   "formula": "=WEIBULL.DIST(2,1.5,3,TRUE)",
+   "excel": 0.41977020402532705,
+   "type": "number"
+  },
+  {
+   "formula": "=WEIBULL.DIST(2,1.5,3,FALSE)",
+   "excel": 0.23687782228285617,
+   "type": "number"
+  },
+  {
+   "formula": "=WEIBULL(2,1.5,3,TRUE)",
+   "excel": 0.41977020402532705,
+   "type": "number"
+  },
+  {
+   "formula": "=GAMMALN(5)",
+   "excel": 3.1780538303479458,
+   "type": "number"
+  },
+  {
+   "formula": "=GAMMALN(0.5)",
+   "excel": 0.5723649429247001,
+   "type": "number"
+  },
+  {
+   "formula": "=GAMMALN.PRECISE(10.5)",
+   "excel": 13.940625219403762,
+   "type": "number"
+  },
+  {
+   "formula": "=GAMMA.DIST(5,2,3,TRUE)",
+   "excel": 0.4963317257665019,
+   "type": "number"
+  },
+  {
+   "formula": "=GAMMA.DIST(5,2,3,FALSE)",
+   "excel": 0.10493089046531218,
+   "type": "number"
+  },
+  {
+   "formula": "=GAMMADIST(2,3,1,TRUE)",
+   "excel": 0.3233235838169366,
+   "type": "number"
+  },
+  {
+   "formula": "=GAMMA.INV(0.6,2,3)",
+   "excel": 6.066939735973969,
+   "type": "number"
+  },
+  {
+   "formula": "=GAMMAINV(0.9,5,2)",
+   "excel": 15.987179172105261,
+   "type": "number"
+  },
+  {
+   "formula": "=BETA.DIST(0.4,2,3,TRUE)",
+   "excel": 0.5248,
+   "type": "number"
+  },
+  {
+   "formula": "=BETA.DIST(0.4,2,3,FALSE)",
+   "excel": 1.728,
+   "type": "number"
+  },
+  {
+   "formula": "=BETA.DIST(3,2,3,TRUE,1,5)",
+   "excel": 0.6875,
+   "type": "number"
+  },
+  {
+   "formula": "=BETADIST(0.4,2,3)",
+   "excel": 0.5248,
+   "type": "number"
+  },
+  {
+   "formula": "=BETA.INV(0.6,2,3)",
+   "excel": 0.4445000020837674,
+   "type": "number"
+  },
+  {
+   "formula": "=BETAINV(0.2,3,4)",
+   "excel": 0.2686491542206679,
+   "type": "number"
+  },
+  {
+   "formula": "=CHISQ.DIST(3,4,TRUE)",
+   "excel": 0.44217459962892536,
+   "type": "number"
+  },
+  {
+   "formula": "=CHISQ.DIST(3,4,FALSE)",
+   "excel": 0.16734762011132237,
+   "type": "number"
+  },
+  {
+   "formula": "=CHISQ.DIST.RT(3,4)",
+   "excel": 0.5578254003710746,
+   "type": "number"
+  },
+  {
+   "formula": "=CHIDIST(5,2)",
+   "excel": 0.0820849986238988,
+   "type": "number"
+  },
+  {
+   "formula": "=CHISQ.INV(0.9,4)",
+   "excel": 7.779440339734859,
+   "type": "number"
+  },
+  {
+   "formula": "=CHISQ.INV.RT(0.05,3)",
+   "excel": 7.814727903251179,
+   "type": "number"
+  },
+  {
+   "formula": "=CHIINV(0.1,6)",
+   "excel": 10.64464067566842,
+   "type": "number"
+  },
+  {
+   "formula": "=F.DIST(2,3,5,TRUE)",
+   "excel": 0.7673760819999216,
+   "type": "number"
+  },
+  {
+   "formula": "=F.DIST(2,3,5,FALSE)",
+   "excel": 0.14289639090753167,
+   "type": "number"
+  },
+  {
+   "formula": "=F.DIST.RT(2.5,4,6)",
+   "excel": 0.15161132812499994,
+   "type": "number"
+  },
+  {
+   "formula": "=FDIST(1.5,3,7)",
+   "excel": 0.2958089192964377,
+   "type": "number"
+  },
+  {
+   "formula": "=F.INV(0.95,3,5)",
+   "excel": 5.409451318056487,
+   "type": "number"
+  },
+  {
+   "formula": "=F.INV.RT(0.05,4,8)",
+   "excel": 3.8378533545558975,
+   "type": "number"
+  },
+  {
+   "formula": "=FINV(0.1,2,9)",
+   "excel": 3.006452417400265,
+   "type": "number"
+  },
+  {
+   "formula": "=T.DIST(1.5,10,TRUE)",
+   "excel": 0.9177463367772799,
+   "type": "number"
+  },
+  {
+   "formula": "=T.DIST(1.5,10,FALSE)",
+   "excel": 0.1274447942870917,
+   "type": "number"
+  },
+  {
+   "formula": "=T.DIST(-1,5,TRUE)",
+   "excel": 0.18160873382456139,
+   "type": "number"
+  },
+  {
+   "formula": "=T.DIST.2T(2,12)",
+   "excel": 0.06865501403808594,
+   "type": "number"
+  },
+  {
+   "formula": "=T.DIST.RT(1.2,8)",
+   "excel": 0.13223355260090816,
+   "type": "number"
+  },
+  {
+   "formula": "=TDIST(2,10,1)",
+   "excel": 0.0366940173853702,
+   "type": "number"
+  },
+  {
+   "formula": "=TDIST(2,10,2)",
+   "excel": 0.0733880347707404,
+   "type": "number"
+  },
+  {
+   "formula": "=T.INV(0.9,7)",
+   "excel": 1.4149239276505086,
+   "type": "number"
+  },
+  {
+   "formula": "=T.INV(0.1,7)",
+   "excel": -1.414923927650508,
+   "type": "number"
+  },
+  {
+   "formula": "=T.INV.2T(0.05,10)",
+   "excel": 2.2281388519862744,
+   "type": "number"
+  },
+  {
+   "formula": "=TINV(0.1,15)",
+   "excel": 1.7530503556925723,
+   "type": "number"
+  },
+  {
+   "formula": "=BINOM.DIST(3,10,0.4,TRUE)",
+   "excel": 0.3822806015999999,
+   "type": "number"
+  },
+  {
+   "formula": "=BINOM.DIST(3,10,0.4,FALSE)",
+   "excel": 0.21499084800000007,
+   "type": "number"
+  },
+  {
+   "formula": "=BINOMDIST(5,10,0.5,FALSE)",
+   "excel": 0.24609375000000008,
+   "type": "number"
+  },
+  {
+   "formula": "=BINOM.INV(10,0.4,0.7)",
+   "excel": 5,
+   "type": "number"
+  },
+  {
+   "formula": "=CRITBINOM(20,0.3,0.9)",
+   "excel": 9,
+   "type": "number"
+  },
+  {
+   "formula": "=BINOM.DIST.RANGE(10,0.4,2,5)",
+   "excel": 0.7874039808,
+   "type": "number"
+  },
+  {
+   "formula": "=BINOM.DIST.RANGE(10,0.4,3)",
+   "excel": 0.21499084800000007,
+   "type": "number"
+  },
+  {
+   "formula": "=POISSON.DIST(3,2.5,TRUE)",
+   "excel": 0.7575761331330659,
+   "type": "number"
+  },
+  {
+   "formula": "=POISSON.DIST(3,2.5,FALSE)",
+   "excel": 0.21376301724973648,
+   "type": "number"
+  },
+  {
+   "formula": "=POISSON(2,4,TRUE)",
+   "excel": 0.2381033055535443,
+   "type": "number"
+  },
+  {
+   "formula": "=NEGBINOM.DIST(3,2,0.4,TRUE)",
+   "excel": 0.6630400000000001,
+   "type": "number"
+  },
+  {
+   "formula": "=NEGBINOM.DIST(3,2,0.4,FALSE)",
+   "excel": 0.13823999999999997,
+   "type": "number"
+  },
+  {
+   "formula": "=NEGBINOMDIST(2,3,0.5)",
+   "excel": 0.1875,
+   "type": "number"
+  },
+  {
+   "formula": "=HYPGEOM.DIST(2,5,8,20,TRUE)",
+   "excel": 0.7038183694530444,
+   "type": "number"
+  },
+  {
+   "formula": "=HYPGEOM.DIST(2,5,8,20,FALSE)",
+   "excel": 0.39731682146542835,
+   "type": "number"
+  },
+  {
+   "formula": "=HYPGEOMDIST(1,4,6,15)",
+   "excel": 0.3692307692307693,
+   "type": "number"
+  },
+  {
+   "formula": "=CONFIDENCE.NORM(0.05,2.5,50)",
+   "excel": 0.6929519121748386,
+   "type": "number"
+  },
+  {
+   "formula": "=CONFIDENCE(0.1,3,30)",
+   "excel": 0.9009234352755083,
+   "type": "number"
+  },
+  {
+   "formula": "=CONFIDENCE.T(0.05,2.5,20)",
+   "excel": 1.1700360160497998,
+   "type": "number"
+  },
+  {
+   "formula": "=Z.TEST(A1:A8,4)",
+   "excel": 0.09293836618293795,
+   "type": "number"
+  },
+  {
+   "formula": "=Z.TEST(A1:A8,6,2)",
+   "excel": 0.9213503964748575,
+   "type": "number"
+  },
+  {
+   "formula": "=ZTEST(A1:A8,5)",
+   "excel": 0.5,
+   "type": "number"
+  },
+  {
+   "formula": "=NORM.DIST(1,0,-1,TRUE)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=NORM.INV(1.2,0,1)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=BINOM.DIST(11,10,0.4,TRUE)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=STDEV.S(A1)",
+   "excel": "#DIV/0!",
+   "type": "error"
+  },
+  {
+   "formula": "=GEOMEAN(C1:C4,-1)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=KURT(A1:A3)",
+   "excel": "#DIV/0!",
+   "type": "error"
+  },
+  {
+   "formula": "=PERCENTILE.EXC(A1:A8,0.05)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=PERCENTRANK.INC(A1:A8,100)",
+   "excel": "#N/A",
+   "type": "error"
+  },
+  {
+   "formula": "=CORREL(A1:A8,B1:B7)",
+   "excel": "#N/A",
+   "type": "error"
+  }
+ ]
+}

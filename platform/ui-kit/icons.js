@@ -107,6 +107,15 @@ export const ICONS = {
   writerPrintLayout: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="5" y="2.5" width="14" height="19" rx="1.5" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.5"/><path d="M8 7h8M8 10h8M8 13h6M8 17h8" stroke="#60A5FA" stroke-width="1.4" stroke-linecap="round"/></svg>`,
   writerWebLayout: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="2.5" y="4" width="19" height="16" rx="2" fill="#ECFEFF" stroke="#0F4C81" stroke-width="1.5"/><path d="M3 8h18M7 4v4M11 4v4M7 12h10M7 15h7" stroke="#0891B2" stroke-width="1.4" stroke-linecap="round"/></svg>`,
   writerReadMode: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><path d="M3 5.5c3.3-1.3 6.3-.7 9 1.3v13c-2.7-2-5.7-2.6-9-1.3v-13Z" fill="#DBEAFE" stroke="#0F4C81" stroke-width="1.4"/><path d="M21 5.5c-3.3-1.3-6.3-.7-9 1.3v13c2.7-2 5.7-2.6 9-1.3v-13Z" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.4"/></svg>`,
+  writerOutlineView: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="3" y="3" width="18" height="18" rx="2" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.4"/><circle cx="7" cy="7.5" r="1.5" fill="#2563EB"/><line x1="11" y1="7.5" x2="19" y2="7.5" stroke="#0F4C81" stroke-width="1.6" stroke-linecap="round"/><circle cx="9.5" cy="12" r="1.2" fill="#3B82F6"/><line x1="13" y1="12" x2="19" y2="12" stroke="#2563EB" stroke-width="1.4" stroke-linecap="round"/><circle cx="12" cy="16.5" r="1.2" fill="#60A5FA"/><line x1="15" y1="16.5" x2="19" y2="16.5" stroke="#60A5FA" stroke-width="1.4" stroke-linecap="round"/></svg>`,
+  writerDraftView: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="3" y="3" width="18" height="18" rx="1.5" fill="#F8FAFC" stroke="#64748B" stroke-width="1.4" stroke-dasharray="2 2"/><line x1="6" y1="7" x2="18" y2="7" stroke="#334155" stroke-width="1.5" stroke-linecap="round"/><line x1="6" y1="11" x2="18" y2="11" stroke="#475569" stroke-width="1.5" stroke-linecap="round"/><line x1="6" y1="15" x2="15" y2="15" stroke="#64748B" stroke-width="1.5" stroke-linecap="round"/></svg>`,
+  promoteHeading: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>`,
+  demoteHeading: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#2563EB" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>`,
+  moveUpHeading: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#0F4C81" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"/></svg>`,
+  moveDownHeading: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#0F4C81" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M19 12l-7 7-7-7"/></svg>`,
+  expandOutline: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#16A34A" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="12" y1="8" x2="12" y2="16"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`,
+  collapseOutline: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round"><circle cx="12" cy="12" r="9"/><line x1="8" y1="12" x2="16" y2="12"/></svg>`,
+  closeOutline: `<svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="#DC2626" stroke-width="2" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>`,
   writerRuler: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="2" y="7" width="20" height="10" rx="1.5" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.4"/><path d="M6 7v5M10 7v3M14 7v5M18 7v3" stroke="#2563EB" stroke-width="1.3"/></svg>`,
   writerGridlines: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="3" y="3" width="18" height="18" rx="1.5" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.4"/><path d="M8 3v18M13 3v18M18 3v18M3 8h18M3 13h18M3 18h18" stroke="#2563EB" stroke-width="1" stroke-dasharray="1.5 1.5"/></svg>`,
   writerPageWidth: `<svg viewBox="0 0 24 24" width="20" height="20" fill="none"><rect x="5" y="3" width="14" height="18" rx="1.5" fill="#EFF6FF" stroke="#0F4C81" stroke-width="1.4"/><path d="M2 12h20M2 12l3-3M2 12l3 3M22 12l-3-3M22 12l-3 3" stroke="#2563EB" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
@@ -164,6 +173,10 @@ export const ICONS = {
   fontGrow: `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M3.5 19 9 5h2.2l5.5 14h-2.5l-1.35-3.65H7.3L5.95 19H3.5Zm4.55-5.75h4.05L10.08 7.7l-2.03 5.55Z" fill="#334155"/><path d="M18.5 11V4.5m-3.25 3.25 3.25-3.25 3.25 3.25" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   fontShrink: `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M3.5 19 9 5h2.2l5.5 14h-2.5l-1.35-3.65H7.3L5.95 19H3.5Zm4.55-5.75h4.05L10.08 7.7l-2.03 5.55Z" fill="#334155"/><path d="M18.5 4.5V11m-3.25-3.25L18.5 11l3.25-3.25" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   changeCase: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><path d="M2.5 18 7.7 5h2.15l5.2 13h-2.4l-1.2-3.25H6.1L4.9 18H2.5Zm4.35-5.3h3.85L8.78 7.45 6.85 12.7Z" fill="#334155"/><path d="M15.2 11.4c.85-.55 1.82-.82 2.9-.82 2.05 0 3.4 1.04 3.4 3.08V18h-1.95v-.9c-.68.72-1.52 1.08-2.52 1.08-1.55 0-2.63-.9-2.63-2.25 0-1.45 1.18-2.32 3.23-2.32h1.92v-.18c0-.82-.58-1.25-1.72-1.25-.72 0-1.4.2-2.05.62l-.58-1.4Zm4.35 3.45h-1.67c-.98 0-1.48.32-1.48.95 0 .58.45.88 1.18.88.9 0 1.97-.58 1.97-1.55v-.28Z" fill="#0F4C81"/></svg>`,
+  textEffects: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><path d="M4 19 9.5 5h2.3l5.5 14h-2.5l-1.35-3.65H7.8L6.45 19H4Zm4.55-5.75h4.05L10.58 7.7l-2.03 5.55Z" stroke="#2563EB" stroke-width="1.8" fill="#DBEAFE"/><path d="M18 4l.8 1.8L20.6 6.6l-1.8.8L18 9.2l-.8-1.8-1.8-.8 1.8-.8L18 4Z" fill="#F59E0B"/></svg>`,
+  textOutline: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><path d="M4 19 9.5 5h2.3l5.5 14h-2.5l-1.35-3.65H7.8L6.45 19H4Zm4.55-5.75h4.05L10.58 7.7l-2.03 5.55Z" stroke="#2563EB" stroke-width="2" fill="none"/></svg>`,
+  textShadow: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><path d="M7 21 11.5 9h2.3l4.5 12h-2.2l-1.1-3H10.1l-1.1 3H7Z" fill="#94A3B8" opacity="0.6"/><path d="M4 18 9.5 5h2.3l5.5 13h-2.5l-1.35-3.65H7.8L6.45 18H4Zm4.55-5.75h4.05L10.58 7.7l-2.03 5.25Z" fill="#1E293B"/></svg>`,
+  textGlow: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><circle cx="11" cy="12" r="9" fill="#93C5FD" opacity="0.4"/><path d="M5 19 10.5 5h2.3l5.5 14h-2.5l-1.35-3.65H8.8L7.45 19H5Zm4.55-5.75h4.05L11.58 7.7l-2.03 5.55Z" fill="#1D4ED8"/></svg>`,
   paragraphSort: `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M3 5h7M3 9h5M3 13h7" stroke="#334155" stroke-width="1.7" stroke-linecap="round"/><path d="M15 5v14m-3-3 3 3 3-3" stroke="#0F4C81" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/><path d="m19 6 1.5-3L22 6m-2.4-1.2h1.8" stroke="#334155" stroke-width="1.2" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   formattingMarks: `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="M14.5 4v16M18 4v16M14.5 4h3.5M14.5 12h-2.2a4 4 0 0 1 0-8H18" stroke="#0F4C81" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"/></svg>`,
   paragraphShading: `<svg viewBox="0 0 24 24" width="17" height="17" fill="none" aria-hidden="true"><path d="m7 3 9 9-6.2 6.2a2 2 0 0 1-2.8 0l-3.2-3.2a2 2 0 0 1 0-2.8L10 6" fill="#FFF2CC" stroke="#334155" stroke-width="1.5" stroke-linejoin="round"/><path d="m7 3 3 3" stroke="#334155" stroke-width="1.7" stroke-linecap="round"/><path d="M14 20h7" stroke="#D6A800" stroke-width="2.4" stroke-linecap="round"/></svg>`,
@@ -826,6 +839,25 @@ export const ICONS = {
     <rect x="3" y="4" width="7" height="16" rx="1.5" fill="#BBF7D0" stroke="#16A34A" stroke-width="1.2"/>
     <rect x="14" y="4" width="7" height="16" rx="1.5" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2" stroke-dasharray="2 2"/>
     <path d="M9 12H16M13 9L16 12L13 15" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  fillUp: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="4" y="14" width="16" height="7" rx="1.5" fill="#BBF7D0" stroke="#16A34A" stroke-width="1.2"/>
+    <rect x="4" y="3" width="16" height="7" rx="1.5" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2" stroke-dasharray="2 2"/>
+    <path d="M12 15V8M9 11L12 8L15 11" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  fillLeft: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="14" y="4" width="7" height="16" rx="1.5" fill="#BBF7D0" stroke="#16A34A" stroke-width="1.2"/>
+    <rect x="3" y="4" width="7" height="16" rx="1.5" fill="#F8FAFC" stroke="#64748B" stroke-width="1.2" stroke-dasharray="2 2"/>
+    <path d="M15 12H8M11 9L8 12L11 15" stroke="#0F6D38" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/>
+  </svg>`,
+
+  fillSeries: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="3" width="18" height="5" rx="1.2" fill="#BBF7D0" stroke="#16A34A" stroke-width="1.1"/>
+    <rect x="3" y="10" width="18" height="5" rx="1.2" fill="#DCFCE7" stroke="#16A34A" stroke-width="1.1"/>
+    <rect x="3" y="17" width="18" height="4" rx="1.2" fill="#F8FAFC" stroke="#64748B" stroke-width="1.1" stroke-dasharray="2 2"/>
+    <path d="M8 5.5H10M8 12.5H12M8 19H14" stroke="#0F6D38" stroke-width="1.4" stroke-linecap="round"/>
   </svg>`,
 
   clearAll: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">

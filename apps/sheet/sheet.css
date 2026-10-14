@@ -1290,6 +1290,24 @@ tr.is-filtered-out {
   transition: all 0.15s ease;
   user-select: none;
 }
+.vno-fc-tabs { display:flex; gap:2px; padding:0 8px; background:var(--vno-bg-muted); border-bottom:1px solid var(--vno-border-default); }
+.vno-fc-columns { display:grid; grid-template-columns:190px 1fr; gap:16px; }
+.vno-fc-category-column, .vno-fc-options-column { display:flex; flex-direction:column; gap:8px; }
+.vno-fc-option-list { max-height:230px; overflow:auto; padding:3px; border:1px solid var(--vno-border-default); border-radius:4px; background:var(--vno-bg-surface); }
+.vno-fc-list-item { padding:5px 8px; border-radius:3px; cursor:pointer; color:var(--vno-text-primary); }
+.vno-fc-list-item:hover, .vno-fc-list-item.is-selected { background:var(--vno-sheet-light); color:var(--vno-sheet-primary); }
+.vno-fc-grid-two { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.vno-fc-grid-two fieldset { display:flex; flex-direction:column; gap:10px; min-width:0; padding:12px; border:1px solid var(--vno-border-default); border-radius:6px; }
+.vno-fc-field { display:flex; align-items:center; justify-content:space-between; gap:12px; font-size:12px; color:var(--vno-text-secondary); }
+.vno-fc-field input:not([type=color]), .vno-fc-field select { min-width:150px; padding:5px 7px; color:var(--vno-text-primary); background:var(--vno-bg-surface); border:1px solid var(--vno-border-default); border-radius:4px; }
+.vno-fc-check { display:flex; align-items:center; gap:8px; font-size:12px; color:var(--vno-text-primary); }
+.vno-fc-color-wrap { display:flex; flex-direction:column; gap:4px; align-items:flex-end; }
+.vno-fc-color-wrap > span { display:flex; flex-wrap:wrap; gap:2px; max-width:210px; }
+.vno-fc-color-swatch { width:20px; height:20px; padding:0; border:1px solid var(--vno-border-default); border-radius:2px; cursor:pointer; }
+#vno-fc-sample-box, #vno-fc-font-preview, #vno-fc-fill-preview { min-height:38px; padding:10px; border:1px solid var(--vno-border-default); border-radius:4px; background:var(--vno-bg-surface); }
+.vno-fc-orientation-row { display:flex; align-items:center; gap:14px; }
+#vno-fc-orient-preview { min-width:130px; min-height:80px; display:flex; align-items:center; justify-content:center; border:1px dashed var(--vno-border-default); overflow:hidden; }
+.vno-fc-border-toggle { margin:3px; }
 .vno-fc-tab:hover:not([aria-disabled="true"]) {
   background-color: var(--vno-bg-surface);
   color: var(--vno-sheet-primary);
@@ -1321,6 +1339,34 @@ tr.is-filtered-out {
 .vno-fc-tab[aria-disabled="true"]:hover {
   background-color: transparent !important;
   color: var(--vno-text-muted) !important;
+}
+
+/* Hộp thoại Thiết lập trang dùng cùng ngôn ngữ tab với Định dạng ô. */
+.vno-page-setup-box { width:760px; max-width:96vw; display:flex; flex-direction:column; overflow:hidden; }
+.vno-page-setup-box .vno-dialog-body { padding:0; max-height:72vh; overflow:auto; }
+.vno-ps-panels { padding:16px; min-height:390px; }
+.vno-ps-panel { display:grid; gap:14px; }
+.vno-ps-panel[hidden], .vno-ps-hf-editor[hidden] { display:none !important; }
+.vno-ps-panel fieldset { display:flex; flex-direction:column; gap:10px; min-width:0; padding:12px; border:1px solid var(--vno-border-default); border-radius:6px; }
+.vno-ps-panel legend { padding:0 5px; font-weight:600; color:var(--vno-text-primary); }
+.vno-ps-grid-two, .vno-ps-margin-grid { display:grid; grid-template-columns:1fr 1fr; gap:12px 18px; }
+.vno-ps-field { display:flex; align-items:center; justify-content:space-between; gap:12px; min-width:0; color:var(--vno-text-primary); }
+.vno-ps-field > span:first-child { font-size:12px; font-weight:600; }
+.vno-ps-field input, .vno-ps-field select { min-width:150px; box-sizing:border-box; }
+.vno-ps-scale-row { display:flex; align-items:center; gap:7px; flex-wrap:wrap; }
+.vno-ps-scale-row input[type="number"] { width:72px; min-width:72px; }
+.vno-ps-picker { display:flex; align-items:center; gap:5px; flex:1; max-width:500px; }
+.vno-ps-picker input { flex:1; }
+.vno-ps-check-grid { display:grid; grid-template-columns:1fr 1fr; gap:9px 18px; }
+.vno-ps-hf-row { display:grid; grid-template-columns:1fr auto; gap:8px; }
+.vno-ps-hf-editor { display:grid; grid-template-columns:repeat(3,1fr); gap:8px; padding-top:4px; }
+.vno-ps-hf-editor .vno-ps-field { display:grid; gap:4px; align-items:stretch; }
+.vno-ps-hf-editor .vno-ps-field input { min-width:0; width:100%; }
+.vno-ps-hf-editor small { grid-column:1/-1; color:var(--vno-text-secondary); }
+.vno-page-setup-dialog .vno-rule-error:not(:empty) { margin:0 16px 14px; }
+@media (max-width:700px) {
+  .vno-ps-grid-two, .vno-ps-margin-grid, .vno-ps-check-grid, .vno-ps-hf-editor { grid-template-columns:1fr; }
+  .vno-ps-hf-editor small { grid-column:auto; }
 }
 
 .vno-fc-cat-item {

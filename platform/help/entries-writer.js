@@ -5,6 +5,63 @@
 
 export const WRITER_HELP_ENTRIES = [
   {
+    id: "writer.view.outline.help",
+    app: "writer",
+    commandIds: [
+      "writer.view.outline",
+      "writer.outline.promote",
+      "writer.outline.demote",
+      "writer.outline.moveUp",
+      "writer.outline.moveDown",
+      "writer.outline.expand",
+      "writer.outline.collapse",
+      "writer.outline.showLevel",
+      "writer.outline.close"
+    ],
+    title: "Chế độ xem Dàn bài và tổ chức cây tiêu đề",
+    summary: "Chế độ Dàn bài (Outline) cho phép xem toàn bộ cấu trúc văn bản theo cấp tiêu đề, nâng hoặc hạ cấp bậc tiêu đề, di chuyển vị trí phần tài liệu lên hoặc xuống, và thu gọn/mở rộng từng nhánh nội dung.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dàn bài" },
+    keywords: ["dàn bài", "outline", "nâng cấp", "hạ cấp", "thu gọn", "mở rộng", "cấp tiêu đề", "di chuyển lên", "di chuyển xuống", "Alt Shift"],
+    steps: [
+      "Mở tab Chế độ xem trên thanh công cụ, chọn Dàn bài để chuyển sang giao diện tổ chức tài liệu theo cây phân cấp.",
+      "Thanh công cụ Dàn bài cung cấp các nút thao tác nhanh: Nâng cấp (Alt+Shift+Left) để tăng bậc tiêu đề, Hạ cấp (Alt+Shift+Right) để giảm bậc tiêu đề.",
+      "Bấm Di chuyển lên hoặc Di chuyển xuống để hoán đổi thứ tự toàn bộ phân đoạn tiêu đề cùng nội dung thuộc về nó.",
+      "Sử dụng nút Mở rộng (Alt+Shift++) hoặc Thu gọn (Alt+Shift+-) để ẩn hoặc hiện nội dung thân dưới tiêu đề đang chọn.",
+      "Hộp chọn 'Hiển thị cấp' cho phép lọc nhanh hiển thị: chỉ xem Tiêu đề Cấp 1, Cấp 2, Cấp 3 hoặc xem Tất cả các cấp.",
+      "Bấm nút Đóng Dàn bài trên thanh công cụ để quay lại chế độ Bố cục in bình thường. Toàn bộ cấu trúc phân cấp được lưu giữ nguyên vẹn vào tệp DOCX."
+    ]
+  },
+  {
+    id: "writer.view.draft.help",
+    app: "writer",
+    commandIds: ["writer.view.draft"],
+    title: "Chế độ xem Bản nháp và soạn thảo văn bản nhanh",
+    summary: "Chế độ Bản nháp (Draft) loại bỏ các đường viền trang, khoảng cách lề và bố cục trang phức tạp để người dùng tập trung hoàn toàn vào việc nhập và chỉnh sửa văn bản với tốc độ cao.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dạng xem" },
+    keywords: ["bản nháp", "draft", "soạn thảo nhanh", "không phân trang", "chế độ xem"],
+    steps: [
+      "Mở tab Chế độ xem, chọn Bản nháp trong nhóm Dạng xem.",
+      "Trang tài liệu sẽ hiển thị văn bản liền mạch không bị ngắt trang hoặc khoảng cách lề, giúp tăng tốc độ gõ chữ và chỉnh sửa văn bản dài.",
+      "Để quay lại chế độ xem có ranh giới trang đầy đủ, bấm Bố cục in trên tab Chế độ xem.",
+      "Khi lưu tài liệu sang định dạng DOCX, chế độ xem Bản nháp được lưu vào thiết lập tệp để các bộ ứng dụng văn phòng mở đúng giao diện tương ứng."
+    ]
+  },
+  {
+    id: "writer.view.collapsibleHeadings.help",
+    app: "writer",
+    commandIds: ["writer.view.toggleHeadingCollapse"],
+    title: "Thu gọn và mở rộng nội dung dưới tiêu đề trong Bố cục in",
+    summary: "Trong chế độ Bố cục in, mỗi tiêu đề đều có biểu tượng mũi tên để thu gọn hoặc mở rộng nhanh phần nội dung bên dưới, giúp dễ theo dõi tài liệu dài mà không làm mất dữ liệu khi lưu.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dàn bài" },
+    keywords: ["thu gọn tiêu đề", "mở rộng tiêu đề", "ẩn nội dung tiêu đề", "collapsible headings", "bố cục in"],
+    steps: [
+      "Di chuột lên bất kỳ tiêu đề nào (Cấp 1–6) trong trang tài liệu, một nút mũi tên nhỏ sẽ xuất hiện ở đầu tiêu đề.",
+      "Bấm vào mũi tên (hoặc nhấn chuột vào tiêu đề rồi chọn Thu/Mở nội dung tiêu đề) để ẩn toàn bộ nội dung nằm dưới tiêu đề đó cho đến tiêu đề tiếp theo cùng cấp hoặc cao hơn.",
+      "Bấm lại vào mũi tên để mở rộng và hiển thị lại toàn bộ nội dung đã thu gọn.",
+      "Khi thu gọn nội dung và bấm Lưu tệp (DOCX), toàn bộ văn bản vẫn được bảo toàn 100% không bị mất hay thiếu hụt, đồng thời trạng thái thu gọn được lưu theo chuẩn mở rộng tài liệu."
+    ]
+  },
+  {
     id: "writer.view.navigationPane.help",
     app: "writer",
     commandIds: ["writer.view.navigationPane"],
@@ -157,6 +214,38 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.table.quickTables",
+    app: "writer",
+    commandIds: ["writer.table.quickTables"],
+    title: "Chèn bảng dựng sẵn (Quick Tables)",
+    summary: "Chèn nhanh các mẫu bảng được thiết kế sẵn gồm Lịch tháng, Danh sách công việc và Ma trận phân tích SWOT vào văn bản.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Bảng biểu" },
+    keywords: ["bảng dựng sẵn", "quick tables", "mẫu bảng", "lịch tháng", "danh sách công việc", "ma trận swot"],
+    steps: [
+      "Đặt con trỏ văn bản tại vị trí muốn chèn bảng.",
+      "Mở tab Chèn trên thanh ribbon, tại nhóm Bảng biểu, bấm Bảng dựng sẵn.",
+      "Hộp thoại thư viện hiển thị các mẫu bảng: Lịch tháng, Danh sách công việc, Ma trận phân tích (SWOT).",
+      "Chọn mẫu bảng phù hợp rồi bấm Chèn bảng (hoặc nhấp đúp vào mẫu).",
+      "Bảng mẫu được chèn vào văn bản với đầy đủ định dạng viền, màu nền và nội dung gợi ý; bạn có thể nhấp vào từng ô để chỉnh sửa số liệu."
+    ]
+  },
+  {
+    id: "writer.table.toText",
+    app: "writer",
+    commandIds: ["writer.table.toText"],
+    title: "Chuyển bảng thành văn bản",
+    summary: "Chuyển bảng hiện tại thành các đoạn văn bản thường, phân tách nội dung giữa các ô bằng dấu Tab, dấu phẩy, dấu chấm phẩy hoặc dấu đoạn.",
+    ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Dữ liệu" },
+    keywords: ["bảng thành văn bản", "chuyển bảng", "table to text", "tách bảng", "bỏ bảng"],
+    steps: [
+      "Đặt con trỏ vào bên trong bảng hoặc chọn bảng cần chuyển thành văn bản.",
+      "Mở tab ngữ cảnh Bố cục Bảng trên thanh ribbon, tại nhóm Dữ liệu, bấm Bảng thành văn bản.",
+      "Trong hộp thoại, chọn dấu phân cách muốn dùng để tách các ô: Dấu Tab, Dấu phẩy, Dấu chấm phẩy, Dấu đoạn hoặc Ký tự khác.",
+      "Bấm Chuyển đổi (hoặc Enter). Khung bảng được gỡ bỏ và toàn bộ nội dung trong ô trở thành văn bản thường theo đúng dấu phân cách đã chọn.",
+      "Bấm Ctrl+Z nếu muốn hoàn tác để khôi phục lại bảng nguyên vẹn."
+    ]
+  },
+  {
     id: "writer.section.breaks",
     app: "writer",
     commandIds: ["writer.page.break", "writer.break.column", "writer.section.nextPage", "writer.section.continuous", "writer.section.evenPage", "writer.section.oddPage"],
@@ -273,6 +362,45 @@ export const WRITER_HELP_ENTRIES = [
       "Nhập cùng một mật khẩu ở hai ô và nhấn Đồng ý. Nhấn Ctrl+S để ghi trạng thái bảo vệ chuẩn vào DOCX.",
       "Muốn mở khóa, nhấn lại nút đang mang nhãn Bỏ hạn chế chỉnh sửa, nhập mật khẩu rồi nhấn Đồng ý. Mật khẩu sai được báo rõ và tài liệu vẫn được bảo vệ.",
       "Mật khẩu bỏ bảo vệ không phải mật khẩu mở tệp. DOCX vẫn mở được để đọc; không dùng tính năng này khi yêu cầu mã hóa nội dung."
+    ]
+  },
+  {
+    id: "writer.trackChanges.displayModeHelp",
+    app: "writer",
+    commandIds: [
+      "writer.trackChanges.displayMode",
+      "writer.trackChanges.displaySimple",
+      "writer.trackChanges.displayAll",
+      "writer.trackChanges.displayNone",
+      "writer.trackChanges.displayOriginal"
+    ],
+    title: "Chế độ hiển thị theo dõi thay đổi",
+    summary: "Hộp chọn chế độ hiển thị bản sửa đổi trên thanh công cụ: Đánh dấu đơn giản (Simple Markup), Tất cả đánh dấu (All Markup), Không đánh dấu (No Markup) và Bản gốc (Original).",
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "Theo dõi thay đổi" },
+    keywords: ["chế độ hiển thị", "theo dõi thay đổi", "simple markup", "all markup", "no markup", "original", "đánh dấu đơn giản", "tất cả đánh dấu", "không đánh dấu", "bản gốc", "vạch đỏ lề"],
+    steps: [
+      "Mở tab Xem lại (hoặc Đánh giá), nhóm Theo dõi thay đổi.",
+      "Nhấp vào hộp chọn Chế độ hiển thị thay đổi để chọn 1 trong 4 chế độ: Đánh dấu đơn giản, Tất cả đánh dấu, Không đánh dấu hoặc Bản gốc.",
+      "Chế độ Đánh dấu đơn giản (Simple Markup): Ẩn các đoạn chữ bị xóa và hiển thị chữ mới như bình thường, đồng thời vẽ đường vạch dọc màu đỏ ở lề bên trái của từng đoạn văn có sửa đổi. Nhấp chuột vào vạch đỏ ở lề để chuyển đổi nhanh giữa Đánh dấu đơn giản và Tất cả đánh dấu.",
+      "Chế độ Tất cả đánh dấu (All Markup): Hiển thị chi tiết toàn bộ các thao tác thêm mới bằng chữ gạch chân màu xanh và các thao tác xóa bằng chữ gạch ngang màu đỏ.",
+      "Chế độ Không đánh dấu (No Markup): Hiển thị diện mạo cuối cùng của tài liệu khi đã áp dụng đầy đủ mọi thay đổi mà không còn vạch đỏ hay dấu gạch màu.",
+      "Chế độ Bản gốc (Original): Hiển thị nội dung ban đầu của tài liệu trước khi có bất kỳ thao tác chỉnh sửa nào."
+    ]
+  },
+  {
+    id: "writer.file.inspectDocumentHelp",
+    app: "writer",
+    commandIds: ["writer.file.inspectDocument"],
+    title: "Kiểm tra tài liệu (Document Inspector)",
+    summary: "Quét và loại bỏ nhận xét, bản sửa đổi theo dõi, văn bản ẩn và thông tin cá nhân hoặc thuộc tính tài liệu trước khi chia sẻ.",
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "Kiểm tra tài liệu" },
+    keywords: ["kiểm tra tài liệu", "document inspector", "xóa nhận xét", "xóa bản sửa đổi", "xóa văn bản ẩn", "thông tin cá nhân", "bảo vệ tài liệu", "thuộc tính tài liệu"],
+    steps: [
+      "Mở tab Xem lại (hoặc Đánh giá), nhóm Kiểm tra tài liệu, nhấn nút Kiểm tra tài liệu để mở hộp thoại.",
+      "Trong hộp thoại Kiểm tra tài liệu, đánh dấu các nhóm nội dung cần rà soát: Nhận xét và chú thích, Theo dõi thay đổi và bản sửa đổi, Văn bản ẩn, Thuộc tính tài liệu và thông tin cá nhân.",
+      "Nhấn nút Kiểm tra để bắt đầu quét toàn bộ nội dung tài liệu. Hộp thoại sẽ chuyển sang giao diện kết quả hiển thị tình trạng từng nhóm kèm biểu tượng cảnh báo nếu phát hiện dữ liệu nhạy cảm.",
+      "Đối với mỗi nhóm tìm thấy dữ liệu, bạn có thể nhấn nút Xóa tất cả tương ứng để loại bỏ độc lập nhóm đó (ví dụ: chỉ xóa nhận xét hoặc chỉ chấp nhận toàn bộ thay đổi theo dõi).",
+      "Nhấn Kiểm tra lại để quét lại tài liệu và xác nhận toàn bộ các nhóm đã ở trạng thái an toàn trước khi gửi hoặc lưu tệp."
     ]
   },
   {
@@ -724,16 +852,17 @@ export const WRITER_HELP_ENTRIES = [
   {
     id: "writer.text.changeCaseHelp",
     app: "writer",
-    commandIds: ["writer.text.changeCase"],
+    commandIds: ["writer.text.changeCase", "writer.text.changeCaseDialog"],
     title: "Đổi chữ hoa / thường",
-    summary: "Shift+F3 (hoặc nút trên nhóm Phông chữ) xoay vòng hoa/thường/tiêu đề cho vùng đang bôi; nếu chưa bôi thì lấy cả từ tại con trỏ.",
+    summary: "Hộp thoại đổi chữ hoa/thường (Sentence case, chữ thường, CHỮ HOA, Viết Hoa Mỗi Từ, bẬT/tẮT) và phím tắt Shift+F3 xoay vòng nhanh.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
-    keywords: ["đổi chữ hoa", "chữ thường", "title case", "shift+f3", "change case", "in hoa"],
+    keywords: ["đổi chữ hoa", "chữ thường", "title case", "sentence case", "shift+f3", "change case", "in hoa"],
     steps: [
-      "Bôi chữ (hoặc đặt con trỏ trong một từ). Tab Trang đầu, nhóm Phông chữ, nút Đổi chữ hoa/thường (hàng icon, cạnh Gạch ngang) — hoặc Shift+F3.",
-      "Chu kỳ: đang viết HOA TOÀN BỘ → Title Case (Hoa Chữ Đầu); đang thường hết → HOA TOÀN BỘ; hỗn hợp hoặc Title Case → chữ thường.",
-      "Không có menu Sentence case / tOGGLE CASE như các phần mềm soạn thảo văn bản khác. Nhấn lại Shift+F3 để vòng tiếp.",
-      "Ctrl+Z hoàn tác lần đổi."
+      "Bôi đen đoạn văn bản cần đổi (hoặc đặt con trỏ trong một từ). Mở tab Trang đầu, nhóm Phông chữ, nút Đổi chữ hoa/thường (icon Aa) hoặc phím tắt Shift+F3.",
+      "Nhấn Shift+F3 để xoay vòng nhanh giữa: chữ thường, CHỮ HOA và Viết Hoa Đầu Từ.",
+      "Hoặc mở Hộp thoại Đổi chữ hoa/thường (nhấp chuột phải vào văn bản chọn 'Đổi chữ hoa/thường…' hoặc chạy lệnh) để chọn chính xác 5 kiểu: Chữ hoa đầu câu (Sentence case), chữ thường (lowercase), CHỮ HOA (UPPERCASE), Viết Hoa Mỗi Từ (Title case), hoặc bẬT/tẮT hOA tHƯỜNG (tOGGLE cASE).",
+      "Hỗ trợ đầy đủ tiếng Việt có dấu (kể cả các ký tự Đ, Ă, Â, Ê, Ô, Ơ, Ư). Nhấn Áp dụng để hoàn tất.",
+      "Nhấn Ctrl+Z để hoàn tác lần đổi nếu muốn quay lại ban đầu."
     ]
   },
   {
@@ -1181,16 +1310,17 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["common.edit.find", "common.edit.replace", "common.edit.selectAll"],
     title: "Tìm kiếm và Thay thế trong Doc",
-    summary: "Hộp thoại Tìm kiếm và Thay thế dùng chung phong cách Office cho Doc với hai tab: Tìm (Ctrl+F) và Thay thế (Ctrl+H). Hỗ trợ tiếng Việt có dấu chuẩn Unicode NFC, bỏ qua dấu, tự động cuộn trang bôi đen kết quả và Hoàn tác một bước (Ctrl+Z).",
+    summary: "Hộp thoại Tìm kiếm và Thay thế dùng chung cho Doc với hai tab: Tìm (Ctrl+F) và Thay thế (Ctrl+H). Hỗ trợ ký tự đặc biệt (^p, ^t, ^?), ký tự đại diện, tìm theo định dạng (font, đậm, nghiêng, màu), báo số lần thay thế và Hoàn tác một bước (Ctrl+Z).",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
-    keywords: ["tìm kiếm", "thay thế", "chọn tất cả", "find", "replace", "select all", "Ctrl+F", "Ctrl+H", "Ctrl+A", "Doc", "chỉnh sửa"],
+    keywords: ["tìm kiếm", "thay thế", "chọn tất cả", "find", "replace", "select all", "Ctrl+F", "Ctrl+H", "Ctrl+A", "Doc", "ký tự đặc biệt", "wildcard", "định dạng"],
     steps: [
-      "Truy cập: Mở tab Trang đầu trên thanh ribbon, nhìn sang nhóm Chỉnh sửa ở phía ngoài cùng bên phải, nhấn nút Tìm kiếm (Ctrl+F) hoặc Thay thế (Ctrl+H) để mở hộp thoại Tìm kiếm và Thay thế gồm hai tab.",
-      "Tìm kiếm văn bản: Chọn tab «Tìm» (Ctrl+F), nhập từ hoặc cụm từ cần tìm vào ô «Tìm gì:». Nhấn nút «Tìm tiếp» để nhảy tới kết quả kế tiếp; nhấn «Tìm trước» để lùi lại kết quả trước. Doc tự động cuộn trang và bôi đen vị trí khớp trong tài liệu.",
-      "Thay thế nội dung: Chọn tab «Thay thế» (Ctrl+H), nhập chuỗi cần tìm vào «Tìm gì:» và nội dung mới vào «Thay bằng:». Nhấn nút «Thay thế» để đổi từng vị trí, hoặc nhấn «Thay thế tất cả» để thay thế toàn bộ văn bản khớp trong tài liệu và nhận thông báo tổng số lượng thay thế thành công.",
-      "Tùy chọn tìm kiếm: Đánh dấu các ô chọn theo nhu cầu: «Khớp chữ hoa/thường» (phân biệt HOA/thường chính xác), «Chỉ toàn bộ từ» (không khớp các từ con), hoặc «Bỏ qua dấu» (tìm kiếm tiếng Việt không dấu khớp cả từ có dấu). Cả hai bên đều được chuẩn hóa Unicode NFC tự động.",
-      "Đóng và Hoàn tác: Phím Esc đóng hộp thoại. Sau khi đóng hộp thoại, hệ thống vẫn duy trì phiên tìm kiếm cho tài liệu. Mọi thao tác «Thay thế tất cả» đều được ghi nhận là đúng 1 bước Hoàn tác (nhấn Ctrl+Z để phục hồi lại nguyên trạng ban đầu).",
-      "Để chọn nhanh toàn bộ tài liệu: Nhấn nút «Chọn tất cả» trong nhóm Chỉnh sửa hoặc bấm tổ hợp phím Ctrl+A."
+      "Truy cập: Mở tab Trang đầu trên thanh ribbon, tại nhóm Chỉnh sửa nhấn nút Tìm kiếm (Ctrl+F) hoặc Thay thế (Ctrl+H) để mở hộp thoại Tìm kiếm và Thay thế.",
+      "Tìm kiếm cơ bản: Nhập nội dung vào «Tìm gì:», nhấn «Tìm tiếp» hoặc «Tìm trước». Hộp thoại báo trạng thái tìm thấy và tự động cuộn trang bôi đen kết quả.",
+      "Ký tự đặc biệt (^p, ^t, ^?): Nhấn nút «Đặc biệt ▼» để chèn nhanh ký tự đặc biệt: ^p (dấu ngắt đoạn), ^t (ký tự Tab), ^? (bất kỳ ký tự nào), ^w (khoảng trắng), ^^ (dấu mũ), hoặc ^& (chèn lại nội dung tìm được vào ô Thay bằng).",
+      "Ký tự đại diện: Đánh dấu «Dùng ký tự đại diện (*, ?)» để tìm theo mẫu: dấu * đại diện cho chuỗi ký tự bất kỳ, dấu ? đại diện cho đúng một ký tự.",
+      "Tìm theo định dạng: Nhấn nút «Định dạng…» để lọc theo phông chữ, chữ đậm, chữ nghiêng hoặc màu chữ cụ thể. Nhấn «Xóa định dạng» khi muốn quay lại tìm văn bản thông thường.",
+      "Thay thế và báo số lần: Nhấn «Thay thế» để đổi từng vị trí, hoặc nhấn «Thay thế tất cả» để thay thế toàn bộ và xem thông báo tổng số lần đã thay thế thành công.",
+      "Đóng và Hoàn tác: Phím Esc đóng hộp thoại. Mọi thao tác thay thế đều có thể hoàn tác ngay bằng Ctrl+Z."
     ]
   },
   {
@@ -1429,6 +1559,23 @@ export const WRITER_HELP_ENTRIES = [
       "Kéo một trong 4 tay cầm ở các góc để thay đổi kích thước ảnh mà vẫn giữ nguyên tỷ lệ khung hình; hoặc kéo các tay cầm ở 4 cạnh để kéo giãn theo một chiều.",
       "Nhập trực tiếp số đo chiều Cao (px) và chiều Rộng (px) tại nhóm Sắp xếp & Kích thước trên tab Định dạng Hình ảnh để đặt kích thước chính xác.",
       "Chọn kiểu trong danh sách Ngắt dòng văn bản trên tab Định dạng ảnh để chọn kiểu bọc chữ (Vuông, Khít, Phía sau văn bản, Phía trước văn bản, Trên và dưới, Cùng dòng với văn bản). Chọn Vị trí để đặt ảnh theo lưới; dùng các ô Cao/Rộng để nhập kích thước chính xác. Các lựa chọn này được lưu vào DOCX."
+    ]
+  },
+  {
+    id: "writer.image.tools",
+    app: "writer",
+    commandIds: ["writer.image.crop", "writer.image.corrections", "writer.image.changePicture", "writer.image.resetPicture", "writer.image.compress"],
+    title: "Công cụ xử lý hình ảnh (Cắt ảnh, Độ sáng, Đổi ảnh, Đặt lại và Nén ảnh)",
+    summary: "Bộ công cụ định dạng hình ảnh nâng cao: cắt ảnh theo 4 cạnh, chỉnh độ sáng và tương phản, đổi ảnh khác, đặt lại định dạng và nén dung lượng ảnh trực tiếp trong văn bản.",
+    ribbon: { tab: "Định dạng Hình ảnh", tabId: "pictureFormat", group: "Điều chỉnh / Cắt ảnh" },
+    keywords: ["cắt ảnh", "crop", "độ sáng", "tương phản", "đổi ảnh", "đặt lại ảnh", "nén ảnh", "công cụ ảnh", "picture tools", "corrections"],
+    steps: [
+      "Nhấp chuột vào hình ảnh trong tài liệu để chọn ảnh và kích hoạt tab ngữ cảnh Định dạng Hình ảnh trên thanh ribbon.",
+      "Cắt ảnh (Crop): Bấm nút Cắt ảnh tại nhóm Cắt ảnh hoặc nhập tỷ lệ % cắt bớt ở 4 mép (Trái, Trên, Phải, Dưới). Thông số cắt được lưu chuẩn xác vào tệp văn bản.",
+      "Chỉnh độ sáng và tương phản: Bấm Độ sáng & Tương phản tại nhóm Điều chỉnh, kéo thanh trượt hoặc chọn các mức mẫu nhanh (-20%, +20%) để cải thiện chất lượng ảnh.",
+      "Đổi ảnh khác: Bấm Đổi ảnh để thay thế bằng tệp hình ảnh mới trên máy tính mà vẫn giữ nguyên kích thước và kiểu bố cục ngắt dòng hiện tại.",
+      "Đặt lại ảnh: Bấm Đặt lại ảnh để xóa toàn bộ vết cắt, khôi phục màu sắc và kích thước gốc của hình ảnh.",
+      "Nén ảnh: Bấm Nén ảnh để tối ưu hóa kích thước dữ liệu và độ phân giải của ảnh, giúp giảm đáng kể dung lượng tệp tài liệu."
     ]
   },
   {
@@ -1903,6 +2050,25 @@ export const WRITER_HELP_ENTRIES = [
     "Trong bảng Thay/Bằng, bấm Thêm dòng để khai báo cặp mới, ví dụ «teh» thành «the»; bấm nút × ở cuối dòng để xóa. Mỗi dòng phải có đủ hai giá trị, nếu không hộp thoại sẽ báo lỗi và không đóng.",
     "Bấm Đồng ý để lưu lựa chọn trên máy. Khi soạn thảo, cặp thay thế và viết hoa được áp dụng lúc gõ dấu cách hoặc dấu câu; ©, ½, – và ngoặc thông minh được đổi ngay khi mẫu hoàn tất.",
     "Với Unikey, EVKey hoặc kiểu gõ Telex, hãy gõ bình thường. Doc bỏ qua sự kiện khi bộ gõ còn đang ghép chữ/đặt dấu và chỉ sửa từ đã chốt, vì vậy chuỗi tiếng Việt đang gõ dở không bị can thiệp."
+  ]
+},
+{
+  id: "writer.format.textEffects",
+  app: "writer",
+  commandIds: ["writer.format.textEffects", "writer.format.textOutline", "writer.format.textShadow", "writer.format.textGlow", "writer.format.clearTextEffects"],
+  title: "Hiệu ứng chữ nghệ thuật (Viền chữ, Bóng đổ, Phát sáng)",
+  summary: "Thêm các hiệu ứng chữ nghệ thuật như Viền chữ (Text Outline), Bóng đổ (Shadow) và Phát sáng (Glow) cho văn bản được chọn. Hiển thị sắc nét trong trình soạn thảo và lưu tương thích theo chuẩn WordML 2010 khi xuất DOCX.",
+  ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
+  keywords: ["hiệu ứng chữ", "text effects", "viền chữ", "text outline", "bóng đổ", "shadow", "phát sáng", "glow", "định dạng chữ"],
+  steps: [
+    "Bôi đen đoạn văn bản hoặc từ ngữ cần tạo hiệu ứng chữ nghệ thuật trên trang soạn thảo.",
+    "Trên thanh công cụ, mở tab Trang đầu (Home), tìm nhóm Phông chữ và nhấp vào nút «Hiệu ứng chữ» (biểu tượng chữ A phát sáng).",
+    "Trong hộp thoại Hiệu ứng chữ, bạn có thể tùy chỉnh 3 nhóm hiệu ứng qua các tab chuyên biệt:",
+    "• Viền chữ (Outline): Chọn Bật viền chữ, chọn màu viền và điều chỉnh độ dày nét viền từ 1/4 pt đến 6 pt.",
+    "• Bóng đổ (Shadow): Chọn Bật bóng đổ, chọn kiểu bóng cài sẵn (Góc dưới-phải, Dưới, Dưới-trái, Trên...) và màu bóng mong muốn.",
+    "• Phát sáng (Glow): Chọn Bật hiệu ứng phát sáng, chọn màu phát sáng và bán kính quầng sáng (5 pt, 8 pt, 11 pt, 18 pt).",
+    "Khung «Xem trước» ở đầu hộp thoại sẽ phản ánh ngay lập tức kiểu chữ kết hợp. Nhấn «Áp dụng» để gắn hiệu ứng vào văn bản, hoặc nhấn «Xóa hiệu ứng» để đưa chữ về dạng chuẩn thông thường.",
+    "Khi lưu tài liệu sang định dạng DOCX, toàn bộ hiệu ứng viền, bóng và phát sáng được bảo toàn nguyên vẹn bằng các thẻ WordML 2010 tiêu chuẩn."
   ]
 }
 ];

@@ -1,3 +1,6 @@
+import { expandStructuredReferences } from "./structured-references.js";
+import { EXTRA_FUNCTIONS } from "./formula-functions-extra.js";
+import { formatByCode, VI_LOCALE } from "./excel-format-code.js";
 import { NumberFormatter } from "./number-formatter.js";
 import { vndInWords } from "./vnd-words.js";
 import { VI_FORMULA_CATALOG, VI_FORMULA_MAP } from "./formula-definitions-vi.js";
@@ -165,8 +168,10 @@ export class FormulaEngine {
   /**
    * @param {Map<string, {val: string, formula: string, style: Object}> | (() => Map<string, any>)} cellsData
    */
-  constructor(cellsData, namedRangeResolver = null, sheetResolver = null, currentSheetResolver = null, sheetNamesResolver = null) {
+  constructor(cellsData, namedRangeResolver = null, sheetResolver = null, currentSheetResolver = null, sheetNamesResolver = null, tableResolver = null) {
     this.cellsData = cellsData;
+    this.tableResolver = tableResolver;
+    this._evalContext = null;
     this.namedRangeResolver = namedRangeResolver;
     this.sheetResolver = sheetResolver;
     this.currentSheetResolver = currentSheetResolver;
@@ -1232,9 +1237,32 @@ export class FormulaEngine {
    * @param {string} formula
    * @returns {string|number}
    */
-  evaluate(formula) {
+  /** Gắn bộ phân giải bảng cho tham chiếu cấu trúc Table1[Cột]. */
+  setTableResolver(resolver) {
+    this.tableResolver = resolver || null;
+    this.clearCache();
+  }
+
+  /**
+   * Tính công thức. `context` = { sheet, coord } của ô đang tính (cần cho [@Cột] và tên bảng ngầm định).
+   */
+  evaluate(formula, context = null) {
+    const previousContext = this._evalContext;
+    if (context) this._evalContext = context;
+    try {
+      return this._evaluateCore(formula);
+    } finally {
+      this._evalContext = previousContext;
+    }
+  }
+
+  _evaluateCore(formula) {
     if (!formula || !formula.startsWith("=")) return formula;
     let expr = formula.substring(1).trim();
+    if (this.tableResolver && expr.includes("[")) {
+      const sheet = typeof this.currentSheetResolver === "function" ? this.currentSheetResolver() : "";
+      expr = expandStructuredReferences(expr, { sheet, ...(this._evalContext || {}) }, this.tableResolver);
+    }
 
     // Excel prefix '+': tiền tố nhập công thức, không ép về số học
     while (expr.startsWith("+")) {
@@ -2292,50 +2320,12 @@ export class FormulaEngine {
       }
 
       case "TEXT": {
-        const value = this._resolveSingleValue(args[0]);
-        const format = String(this._resolveSingleValue(args[1]) || "").toLowerCase();
-        const numberFormats = {
-          "0": { decimals: 0, useThousands: false },
-          "0.0": { decimals: 1, useThousands: false },
-          "0.00": { decimals: 2, useThousands: false },
-          "0.000": { decimals: 3, useThousands: false },
-          "#,##0": { decimals: 0, useThousands: true },
-          "#,##0.00": { decimals: 2, useThousands: true }
-        };
-        if (numberFormats[format]) {
-          const parsed = NumberFormatter.parseNumber(value);
-          return parsed === null ? "#VALUE!" : NumberFormatter.formatNumber(parsed, numberFormats[format]).text;
-        }
-        if (format === "0%" || format === "0.00%") {
-          const parsed = NumberFormatter.parseNumber(value);
-          if (parsed === null) return "#VALUE!";
-          return NumberFormatter.formatPercentage(parsed, { decimals: format === "0%" ? 0 : 2 }).text;
-        }
-        if (format.includes("₫")) {
-          const numericPattern = format.replace(/₫/g, "").trim();
-          const config = numberFormats[numericPattern];
-          const parsed = NumberFormatter.parseNumber(value);
-          if (!config || parsed === null) return "#VALUE!";
-          return NumberFormatter.formatCurrency(parsed, {
-            ...config,
-            currencySymbol: "₫",
-            symbolPosition: format.indexOf("₫") > format.search(/[#0]/) ? "after" : "before"
-          }).text;
-        }
-        const dateFormats = new Set(["dd/mm/yyyy", "mm/dd/yyyy", "dd-mm-yyyy", "yyyy-mm-dd", "dd mmmm yyyy"]);
-        if (dateFormats.has(format)) {
-          const date = this._parseDate(value);
-          if (!date) return "#VALUE!";
-          if (format === "dd mmmm yyyy") {
-            const vietnameseMonths = ["tháng Một", "tháng Hai", "tháng Ba", "tháng Tư", "tháng Năm", "tháng Sáu", "tháng Bảy", "tháng Tám", "tháng Chín", "tháng Mười", "tháng Mười Một", "tháng Mười Hai"];
-            return `${String(date.getDate()).padStart(2, "0")} ${vietnameseMonths[date.getMonth()]} ${date.getFullYear()}`;
-          }
-          if (format === "mm/dd/yyyy") {
-            return `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}/${date.getFullYear()}`;
-          }
-          return NumberFormatter.formatDate(date, { dateFormat: format }).text;
-        }
-        return String(value);
+        if (args.length !== 2) return "#VALUE!";
+        const textValue = this._resolveSingleValue(args[0]);
+        if (this._isError(textValue)) return textValue;
+        const textFormat = this._resolveSingleValue(args[1]);
+        if (this._isError(textFormat)) return textFormat;
+        return this._formatTextFunction(textValue, String(textFormat ?? ""));
       }
 
       case "SUBSTITUTE": {
@@ -2954,11 +2944,32 @@ export class FormulaEngine {
         return typeof val === "number" ? val : (Number(val) || 0);
       }
 
-      default:
+      default: {
+        const extra = EXTRA_FUNCTIONS[funcName];
+        if (extra) {
+          const value = extra(this, args, funcName);
+          return value instanceof String ? String(value) : value;
+        }
         return `#NAME? (${funcName})`;
+      }
     }
   }
 
+  /** TEXT(giá trị, mã định dạng) theo mã định dạng Excel (excel-format-code.js). */
+  _formatTextFunction(rawValue, code) {
+    let value = rawValue instanceof String ? String(rawValue) : rawValue;
+    if (typeof value === "string" && value !== "" && !(rawValue && rawValue.isTextCell)) {
+      const numeric = this._parseNumberOrCurrency(value);
+      if (numeric !== null && Number.isFinite(numeric)) value = numeric;
+      else {
+        const date = this._parseDate?.(value);
+        if (date) value = Math.round((Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) - Date.UTC(1899, 11, 30)) / 86400000);
+      }
+    }
+    if (value === "" || value === null || value === undefined) value = typeof rawValue === "number" ? rawValue : "";
+    if (code.trim() === "") return "";
+    return formatByCode(value, code, { locale: this.textLocale || VI_LOCALE, general: n => NumberFormatter.formatGeneralNumber(n) });
+  }
   _evaluateCondition(condStr) {
     if (!condStr) return false;
     const match = condStr.match(/(>=|<=|!=|<>|>|<|=)(.*)/);
@@ -3034,7 +3045,8 @@ export class FormulaEngine {
     token = token.trim();
     if (this._isError(token)) return token;
     if (token.startsWith('"') && token.endsWith('"')) {
-      return token.slice(1, -1);
+      // Hằng chuỗi Excel: "" bên trong là một dấu nháy kép ("a""b" -> a"b).
+      return /^"(?:[^"]|"")*"$/.test(token) ? token.slice(1, -1).replace(/""/g, '"') : token.slice(1, -1);
     }
     if (/^(?:(?:'[^']+'|[^!]+)!)?\$?[A-Z]+\$?\d+$/i.test(token)) {
       const reference = this._parseReference(token);

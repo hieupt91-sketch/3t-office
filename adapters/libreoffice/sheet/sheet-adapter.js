@@ -211,7 +211,7 @@ export class SheetAdapter {
     const decimals = Math.max(0, Math.min(30, Number(fmt?.decimals) || 0));
     const number = `${fmt?.useThousands || category === "accounting" ? "#,##" : ""}0${decimals ? `.${"0".repeat(decimals)}` : ""}`;
     const symbol = String(fmt?.currencySymbol || "₫");
-    if (category === "currency" && symbol === "₫") return `${number} [$₫];-${number} [$₫];${number} [$₫];@`;
+    if (category === "currency" && symbol === "₫" && Number(fmt?.negativeStyle || 0) === 0) return `${number} [$₫];-${number} [$₫];${number} [$₫];@`;
     if (category === "accounting") {
       const currency = symbol === "₫" ? "[$₫]" : `[${symbol}]`;
       return `_(* ${number} ${currency}_);_(* (${number} ${currency})_);_(* \"-\"?? ${currency}_);_(@_)`;
@@ -536,6 +536,15 @@ export class SheetAdapter {
       options = options || {};
       return this.grid.fillRight ? this.grid.fillRight(options.range) : false;
     });
+    globalCommandBus.bindHandler("sheet.edit.fillUp", (options) => {
+      options = options || {};
+      return this._hintIfFalse(() => this.grid.fillUp(options.range), "Chọn từ hai ô trở lên (ô dưới cùng là nguồn), hoặc một ô có dữ liệu ngay bên dưới, rồi nhấn Điền lên.");
+    });
+    globalCommandBus.bindHandler("sheet.edit.fillLeft", (options) => {
+      options = options || {};
+      return this._hintIfFalse(() => this.grid.fillLeft(options.range), "Chọn từ hai ô trở lên (cột phải nhất là nguồn), hoặc một ô có dữ liệu ngay bên phải, rồi nhấn Điền trái.");
+    });
+    globalCommandBus.bindHandler("sheet.edit.fillSeries", () => this.grid.showFillSeriesDialog());
     globalCommandBus.bindHandler("sheet.edit.clearAll", (options) => {
       options = options || {};
       return this.grid.clearAll ? this.grid.clearAll(options.range) : false;
@@ -724,6 +733,13 @@ export class SheetAdapter {
     };
     // Viền chung (nút ribbon "Viền") chỉ vào hash khi có, để hash của ô không viền (và ảnh chụp kiểm thử cũ) không đổi.
     if (style.border) visualProps.border = style.border;
+    for (const key of ["horizontalAlignment", "verticalAlignment", "textDirection", "fontUnderline", "fontPosition", "fillPattern", "fillPatternColor", "borderDiagonalUp", "borderDiagonalDown"]) {
+      if (style[key] && style[key] !== "none" && style[key] !== "general") visualProps[key] = style[key];
+    }
+    if (style.shrinkToFit) visualProps.shrinkToFit = true;
+    if (style.fillGradient) visualProps.fillGradient = style.fillGradient;
+    if (style.locked === false) visualProps.locked = false;
+    if (style.formulaHidden) visualProps.formulaHidden = true;
     return JSON.stringify(visualProps);
   }
 
@@ -2096,7 +2112,10 @@ export class SheetAdapter {
     const s = item.style || {};
     const hasVisualStyle = s.backgroundColor || s.color || s.fontWeight || s.fontStyle ||
       s.textDecoration || s.fontFamily || s.fontSize || s.textAlign || s.verticalAlign ||
-      s.whiteSpace || s.borderLeft || s.borderRight || s.borderTop || s.borderBottom;
+      s.whiteSpace || s.borderLeft || s.borderRight || s.borderTop || s.borderBottom ||
+      s.borderDiagonalUp || s.borderDiagonalDown || s.fillPattern || s.fillGradient ||
+      s.shrinkToFit || s.textDirection || s.fontUnderline || s.fontPosition ||
+      s.locked === false || s.formulaHidden;
     if (hasVisualStyle) return true;
     return item.val !== "" && item.val !== undefined && item.val !== null;
   }
@@ -2104,7 +2123,7 @@ export class SheetAdapter {
   _normalizedTextRotation(value) {
     const rotation = Number(value);
     if (rotation === 255) return 255;
-    if ([45, -45, 90, -90].includes(rotation)) return rotation;
+    if (Number.isFinite(rotation) && rotation >= -90 && rotation <= 90 && rotation !== 0) return rotation;
     return null;
   }
 
@@ -2208,10 +2227,21 @@ export class SheetAdapter {
         const wrap = cellProps.match(/fo:wrap-option=["']([^"']+)["']/i)?.[1];
         if (wrap === "wrap") style.whiteSpace = "pre-wrap";
         else if (wrap === "no-wrap") style.whiteSpace = "nowrap";
+        if (cellProps.match(/style:shrink-to-fit=["']true["']/i)) style.shrinkToFit = true;
+        const writingMode = cellProps.match(/style:writing-mode=["']([^"']+)["']/i)?.[1];
+        if (writingMode === "rl-tb") style.textDirection = "rtl";
+        else if (writingMode === "lr-tb") style.textDirection = "ltr";
+        const cellProtect = cellProps.match(/style:cell-protect=["']([^"']+)["']/i)?.[1];
+        if (cellProtect) {
+          style.locked = !/\bnone\b/i.test(cellProtect);
+          style.formulaHidden = /formula-hidden/i.test(cellProtect);
+        }
         const borderLeft = cellProps.match(/fo:border-left=["']([^"']+)["']/i)?.[1];
         const borderRight = cellProps.match(/fo:border-right=["']([^"']+)["']/i)?.[1];
         const borderTop = cellProps.match(/fo:border-top=["']([^"']+)["']/i)?.[1];
         const borderBottom = cellProps.match(/fo:border-bottom=["']([^"']+)["']/i)?.[1];
+        const diagonalUp = cellProps.match(/style:diagonal-bl-tr=["']([^"']+)["']/i)?.[1];
+        const diagonalDown = cellProps.match(/style:diagonal-tl-br=["']([^"']+)["']/i)?.[1];
         const borderShorthand = cellProps.match(/fo:border=["']([^"']+)["']/i)?.[1];
         const odfBorderToCss = (val) => {
           if (!val || val === "none" || val === "hidden") return "none";
@@ -2248,6 +2278,8 @@ export class SheetAdapter {
           if (borderTop) style.borderTop = odfBorderToCss(borderTop);
           if (borderBottom) style.borderBottom = odfBorderToCss(borderBottom);
         }
+        if (diagonalUp) style.borderDiagonalUp = odfBorderToCss(diagonalUp);
+        if (diagonalDown) style.borderDiagonalDown = odfBorderToCss(diagonalDown);
         const hAlign = paraProps.match(/fo:text-align=["']([^"']+)["']/i)?.[1];
         if (hAlign) style.textAlign = hAlign;
         const fontSize = textProps.match(/fo:font-size=["']([^"']+)["']/i)?.[1];
@@ -2269,6 +2301,12 @@ export class SheetAdapter {
         if (fontStyle) style.fontStyle = fontStyle;
         const textDecoration = this._odfTextDecoration(textProps);
         if (textDecoration) style.textDecoration = textDecoration;
+        const underlineType = textProps.match(/style:text-underline-type=["']([^"']+)["']/i)?.[1];
+        const underlineMode = textProps.match(/style:text-underline-mode=["']([^"']+)["']/i)?.[1];
+        if (/underline/.test(textDecoration || "")) style.fontUnderline = underlineType === "double" ? (underlineMode === "skip-white-space" ? "doubleAccounting" : "double") : (underlineMode === "skip-white-space" ? "singleAccounting" : "single");
+        const position = textProps.match(/style:text-position=["']([^"']+)["']/i)?.[1];
+        if (/^super/i.test(position || "")) style.fontPosition = "super";
+        else if (/^sub/i.test(position || "")) style.fontPosition = "sub";
         const color = textProps.match(/fo:color=["']([^"']+)["']/i)?.[1];
         if (color) style.color = color;
         const fontName = this._resolveFontFaceName(textProps.match(/style:font-name=["']([^"']+)["']/i)?.[1], fontFaces);
@@ -3265,7 +3303,7 @@ export class SheetAdapter {
     };
     const visualStyleFor = (item) => {
       const s = item?.style || {};
-      const keys = ["backgroundColor", "color", "fontWeight", "fontStyle", "textDecoration", "fontFamily", "fontSize", "textAlign", "verticalAlign", "whiteSpace", "indentLevel", "borderLeft", "borderRight", "borderTop", "borderBottom", "border"];
+      const keys = ["backgroundColor", "color", "fontWeight", "fontStyle", "textDecoration", "fontFamily", "fontSize", "textAlign", "verticalAlign", "whiteSpace", "indentLevel", "borderLeft", "borderRight", "borderTop", "borderBottom", "border", "borderDiagonalUp", "borderDiagonalDown", "shrinkToFit", "textDirection", "fontUnderline", "fontPosition", "locked", "formulaHidden"];
       const hasVisual = keys.some(k => s[k] !== undefined && s[k] !== "" && s[k] !== null);
       if (!hasVisual) return null;
       const hash = JSON.stringify(keys.map(k => s[k] || ""));
@@ -3279,11 +3317,20 @@ export class SheetAdapter {
       // (viền 4 cạnh): trước đây cả hai bị bỏ qua khi xuất FODS nên mất khi lưu XLSX (đối chiếu Excel thật 11/10).
       if (s.whiteSpace === "pre-wrap" || s.whiteSpace === "normal" || s.whiteSpace === "pre-line" || s.whiteSpace === "break-spaces") cellProps.push(`fo:wrap-option="wrap"`);
       else if (s.whiteSpace === "nowrap") cellProps.push(`fo:wrap-option="no-wrap"`);
+      if (s.shrinkToFit) cellProps.push(`style:shrink-to-fit="true"`);
+      if (s.textDirection === "rtl") cellProps.push(`style:writing-mode="rl-tb"`);
+      else if (s.textDirection === "ltr") cellProps.push(`style:writing-mode="lr-tb"`);
+      if (s.locked === false || s.formulaHidden) {
+        const protect = [s.locked === false ? "none" : "protected", s.formulaHidden ? "formula-hidden" : ""].filter(Boolean).join(" ");
+        cellProps.push(`style:cell-protect="${protect}"`);
+      }
       const sideBorder = (side) => s[side] || s.border;
       if (sideBorder("borderLeft")) cellProps.push(cssToOdfBorder("fo:border-left", sideBorder("borderLeft")));
       if (sideBorder("borderRight")) cellProps.push(cssToOdfBorder("fo:border-right", sideBorder("borderRight")));
       if (sideBorder("borderTop")) cellProps.push(cssToOdfBorder("fo:border-top", sideBorder("borderTop")));
       if (sideBorder("borderBottom")) cellProps.push(cssToOdfBorder("fo:border-bottom", sideBorder("borderBottom")));
+      if (s.borderDiagonalUp) cellProps.push(cssToOdfBorder("style:diagonal-bl-tr", s.borderDiagonalUp));
+      if (s.borderDiagonalDown) cellProps.push(cssToOdfBorder("style:diagonal-tl-br", s.borderDiagonalDown));
       if (s.textAlign) cellProps.push(`style:text-align-source="fix"`);
       const paraProps = [];
       // LibreOffice đọc fo:text-align="right"/"left" thành "chung" (mất căn lề khi lưu XLSX); chỉ "end"/"start" được nhận (đo 11/10).
@@ -3300,6 +3347,10 @@ export class SheetAdapter {
       if (s.fontWeight) textProps.push(`fo:font-weight="${this._escapeXml(s.fontWeight)}"`);
       if (s.fontStyle) textProps.push(`fo:font-style="${this._escapeXml(s.fontStyle)}"`);
       if (s.textDecoration) textProps.push(...this._odfTextDecorationAttrs(s.textDecoration));
+      if (s.fontUnderline === "double" || s.fontUnderline === "doubleAccounting") textProps.push('style:text-underline-type="double"');
+      if (s.fontUnderline === "singleAccounting" || s.fontUnderline === "doubleAccounting") textProps.push('style:text-underline-mode="skip-white-space"');
+      if (s.fontPosition === "super") textProps.push('style:text-position="super 58%"');
+      if (s.fontPosition === "sub") textProps.push('style:text-position="sub 58%"');
       if (s.color) textProps.push(`fo:color="${this._escapeXml(s.color)}"`);
       if (s.fontFamily) textProps.push(`style:font-name="${this._escapeXml(this._normalizeFontFamily(s.fontFamily))}"`);
       const parts = [];
@@ -3332,7 +3383,7 @@ export class SheetAdapter {
       }
       return name;
     };
-    const paperSizes = { a4: [21, 29.7], letter: [21.59, 27.94], legal: [21.59, 35.56] };
+    const paperSizes = { a4: [21, 29.7], letter: [21.59, 27.94], legal: [21.59, 35.56], a3: [29.7, 42], a5: [14.8, 21] };
     const headerFooterTextXml = value => String(value || "").split(/(&[PNDTFA])/g).map(part => ({
       "&P": "<text:page-number>1</text:page-number>", "&N": "<text:page-count>1</text:page-count>",
       "&D": "<text:date/>", "&T": "<text:time/>", "&F": '<text:file-name text:display="name-and-extension"/>', "&A": "<text:sheet-name/>"
@@ -3345,18 +3396,21 @@ export class SheetAdapter {
       const base = paperSizes[size];
       const width = orientation === "landscape" ? base[1] : base[0];
       const height = orientation === "landscape" ? base[0] : base[1];
-      const margins = { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...(setup.margins || {}) };
+      const margins = { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, header: 0.76, footer: 0.76, ...(setup.margins || {}) };
       const scale = { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...(setup.scale || {}) };
-      const headerFooter = { header: { left: "", center: "", right: "", ...(setup.headerFooter?.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(setup.headerFooter?.footer || {}) } };
+      const pageSettings = { printQuality: 600, firstPageNumber: "auto", ...(setup.pageSettings || {}) };
+      const headerFooter = { header: { left: "", center: "", right: "", ...(setup.headerFooter?.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(setup.headerFooter?.footer || {}) }, differentOddEven: false, differentFirst: false, scaleWithDocument: true, alignWithMargins: true, ...(setup.headerFooter || {}) };
+      headerFooter.header = { left: "", center: "", right: "", ...(setup.headerFooter?.header || {}) };
+      headerFooter.footer = { left: "", center: "Trang &P / &N", right: "", ...(setup.headerFooter?.footer || {}) };
       const centerOnPage = { horizontal: false, vertical: false, ...(setup.centerOnPage || {}) };
-      const printOptions = { gridlines: false, headings: false, comments: "none", cellErrors: "displayed", pageOrder: "downThenOver", ...(setup.printOptions || {}) };
+      const printOptions = { gridlines: false, headings: false, blackAndWhite: false, draft: false, comments: "none", cellErrors: "displayed", pageOrder: "downThenOver", ...(setup.printOptions || {}) };
       const printTokens = ["objects", "charts", "drawings", "zero-values", printOptions.gridlines ? "grid" : "", printOptions.headings ? "headers" : ""].filter(Boolean).join(" ");
       const tableCentering = centerOnPage.horizontal && centerOnPage.vertical ? "both" : centerOnPage.horizontal ? "horizontal" : centerOnPage.vertical ? "vertical" : "none";
       const scaleAttribute = scale.mode === "pages"
         ? ` style:scale-to-X="${Math.max(0, scale.pagesWide)}" style:scale-to-Y="${Math.max(0, scale.pagesTall)}"`
         : ` style:scale-to="${Math.min(400, Math.max(10, scale.percent || 100))}%"`;
       const suffix = index + 1;
-      pageStyleBySheet.set(sheetName, { tableStyle: `vno-table-page-${suffix}`, size, orientation, margins, scale, headerFooter, centerOnPage, printOptions });
+      pageStyleBySheet.set(sheetName, { tableStyle: `vno-table-page-${suffix}`, size, orientation, margins, scale, pageSettings, headerFooter, centerOnPage, printOptions });
       pageLayouts.push(`<style:page-layout style:name="vno-page-layout-${suffix}"><style:page-layout-properties fo:page-width="${width}cm" fo:page-height="${height}cm" style:print-orientation="${orientation}" fo:margin-top="${margins.top}cm" fo:margin-bottom="${margins.bottom}cm" fo:margin-left="${margins.left}cm" fo:margin-right="${margins.right}cm" style:table-centering="${tableCentering}"${scaleAttribute}/><style:header-style><style:header-footer-properties fo:min-height="0.75cm" fo:margin-bottom="0.25cm"/></style:header-style><style:footer-style><style:header-footer-properties fo:min-height="0.75cm" fo:margin-top="0.25cm"/></style:footer-style></style:page-layout>`);
       const tabColor = (this.grid.sheetStates?.[sheetName]?.tabColor) || (this.grid.tabColors?.[sheetName]) || "";
       const tabColorProp = tabColor ? ` table:tab-color="${this._escapeXml(tabColor)}" tableooo:tab-color="${this._escapeXml(tabColor)}"` : "";
@@ -3670,10 +3724,15 @@ export class SheetAdapter {
           const arrayFormula = this._arrayFormulaInfo(coordinate, item);
           const formula = (!arrayFormula || arrayFormula.isAnchor) && item.formula && String(item.formula).startsWith("=") ? String(item.formula) : "";
           const untouchedExternal = formula && item.externalLink?.formula === formula;
+          // Tham chiếu bảng Table[Cột]: LibreOffice nhận địa chỉ A1 đã mở rộng; công thức gốc đi theo vno:formula
+          // và dạng tệp (vno:xlsx-formula) để ooxml_zip_patch ghi lại đúng Table[Cột] vào XLSX.
+          const structured = formula && !untouchedExternal && this.grid.hasStructuredReference?.(formula);
+          const odfSource = structured ? this.grid.expandStructuredFormula(formula, sheetName, coordinate) : formula;
+          const structuredAttr = structured ? ` vno:xlsx-formula="${this._escapeXml(this.grid.structuredFileFormula(formula, sheetName, coordinate))}"` : "";
           const formulaAttrs = untouchedExternal
             ? ` table:formula="${this._escapeXml(item.externalLink.odf)}"`
             : formula
-              ? ` table:formula="${this._escapeXml(this._formulaToOdf(formula))}" vno:formula="${this._escapeXml(formula)}"`
+              ? ` table:formula="${this._escapeXml(this._formulaToOdf(odfSource))}" vno:formula="${this._escapeXml(formula)}"${structuredAttr}`
               : "";
           const matrixAttrs = arrayFormula?.isAnchor
             ? ` table:number-matrix-columns-spanned="${arrayFormula.columns}" table:number-matrix-rows-spanned="${arrayFormula.rows}"`
@@ -3739,7 +3798,12 @@ export class SheetAdapter {
           if (item.style?.origXf != null && item.style.styleHashAtImport === this._computeStyleHash(item.style)) {
             xfAttr = ` vno:xf="${item.style.origXf}"`;
           }
-          const cellAttrs = `${formulaAttrs}${matrixAttrs}${mergeAttrs}${numFmtAttr}${cellStyleName ? ` table:style-name="${cellStyleName}"` : ""}${validationAttr}${xfAttr}`;
+          const nativeFormatKeys = ["horizontalAlignment", "verticalAlignment", "indentLevel", "whiteSpace", "shrinkToFit", "textDirection", "textRotation", "fontUnderline", "fontPosition", "fillPattern", "fillPatternColor", "fillGradient", "borderDiagonalUp", "borderDiagonalDown", "locked", "formulaHidden"];
+          const isNativeDefault = (key, value) => value === undefined || value === null || value === "none" || value === "general" || (key === "locked" && value === true) || (key === "formulaHidden" && value === false) || (key === "shrinkToFit" && value === false) || (key === "whiteSpace" && value === "nowrap" && item.style?.origXf == null);
+          const nativeFormat = Object.fromEntries(nativeFormatKeys.filter(key => !isNativeDefault(key, item.style?.[key])).map(key => [key, item.style[key]]));
+          // O chua sua (xfAttr) duoc khoi phuc nguyen xf goc; chi ghi dinh dang rieng cho o da sua/o moi.
+          const nativeFormatAttr = (!xfAttr && Object.keys(nativeFormat).length) ? ` vno:cell-format="${this._escapeXml(JSON.stringify(nativeFormat))}"` : "";
+          const cellAttrs = `${formulaAttrs}${matrixAttrs}${mergeAttrs}${numFmtAttr}${nativeFormatAttr}${cellStyleName ? ` table:style-name="${cellStyleName}"` : ""}${validationAttr}${xfAttr}`;
           const comment = comments[coordinate];
           const annotationXml = comment ? `<office:annotation><dc:creator>${this._escapeXml(comment.author || "")}</dc:creator>${comment.timestamp ? `<dc:date>${this._escapeXml(comment.timestamp)}</dc:date>` : ""}<text:p>${this._escapeXml(comment.text || "")}</text:p></office:annotation>` : "";
           const hyperlink = /^(https?:|mailto:)/i.test(String(item.hyperlink || "")) ? String(item.hyperlink) : "";
@@ -3915,7 +3979,7 @@ export class SheetAdapter {
       const conditionalRulesAttr = ` vno:conditional-formatting="${this._escapeXml(JSON.stringify(conditionalRules))}"`;
       const textBoxes = this.grid.textBoxesBySheet?.[sheetName] || [];
       const textBoxesAttr = textBoxes.length ? ` vno:text-boxes="${this._escapeXml(JSON.stringify(textBoxes.map(box => ({ text: String(box.text || ""), anchor: box.anchor, widthPx: Math.max(180, Number(box.widthPx) || 180), heightPx: Math.max(54, Number(box.heightPx) || 54) }))))}"` : "";
-      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${splitAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${conditionalRulesAttr}${textBoxesAttr}${resolvedCommentsAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-settings="${this._escapeXml(JSON.stringify(pageStyle.pageSettings))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${splitAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${conditionalRulesAttr}${textBoxesAttr}${resolvedCommentsAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
@@ -4134,8 +4198,9 @@ ${pristineXlsxMarker}
     const externalOdf = !get("vno:formula") && this._isExternalOdfFormula(odfFormula) ? odfFormula : "";
     const styleName = get("table:style-name");
     const numFmtAttr = get("vno:number-format");
+    const nativeFormatAttr = get("vno:cell-format");
     const origXf = get("vno:xf");
-    const styleKey = p2Cache ? `${styleName}\u0000${numFmtAttr}\u0000${origXf}\u0000${valueType}` : "";
+    const styleKey = p2Cache ? `${styleName}\u0000${numFmtAttr}\u0000${nativeFormatAttr}\u0000${origXf}\u0000${valueType}` : "";
     const cachedStyle = p2Cache?.styles.get(styleKey);
     const style = cachedStyle
       ? { ...cachedStyle, ...(cachedStyle.numberFormat ? { numberFormat: { ...cachedStyle.numberFormat } } : {}) }
@@ -4192,6 +4257,14 @@ ${pristineXlsxMarker}
       for (const [key, val] of Object.entries(visualStyle)) {
         if (val !== undefined && val !== null && val !== "") style[key] = val;
       }
+    }
+    if (nativeFormatAttr) {
+      try {
+        const nativeFormat = JSON.parse(nativeFormatAttr);
+        for (const [key, val] of Object.entries(nativeFormat || {})) style[key] = val;
+        // Nguon XLSX la chuan: LibreOffice co the them gach chan gia o FODS; neu xf goc khong co thi bo.
+        if (nativeFormat && !("fontUnderline" in nativeFormat) && origXf !== "") delete style.fontUnderline;
+      } catch {}
     }
     // S8: Preserve original xf index for untouched cells round-trip.
     if (origXf !== "") {
@@ -4779,6 +4852,8 @@ ${pristineXlsxMarker}
           try { pageMargins = JSON.parse(table.getAttribute("vno:page-margins") || "{}"); } catch (_) { pageMargins = {}; }
           let pageScale = {};
           try { pageScale = JSON.parse(table.getAttribute("vno:page-scale") || "{}"); } catch (_) { pageScale = {}; }
+          let pageSettings = {};
+          try { pageSettings = JSON.parse(table.getAttribute("vno:page-settings") || "{}"); } catch (_) { pageSettings = {}; }
           let pageHeaderFooter = {};
           try { pageHeaderFooter = JSON.parse(table.getAttribute("vno:page-header-footer") || "{}"); } catch (_) { pageHeaderFooter = {}; }
           let pageCentering = {};
@@ -4795,11 +4870,12 @@ ${pristineXlsxMarker}
           const pageSetup = {
             size: table.getAttribute("vno:page-size") || standardLayout?.size || "a4",
             orientation: table.getAttribute("vno:page-orientation") || standardLayout?.orientation || "portrait",
-            margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...(standardLayout?.margins || {}), ...pageMargins },
+            margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, header: 0.76, footer: 0.76, ...(standardLayout?.margins || {}), ...pageMargins },
             scale: { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...(standardLayout?.scale || {}), ...pageScale },
-            headerFooter: { header: { left: "", center: "", right: "", ...(standardLayout?.headerFooter?.header || {}), ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(standardLayout?.headerFooter?.footer || {}), ...(pageHeaderFooter.footer || {}) } },
+            pageSettings: { printQuality: 600, firstPageNumber: "auto", ...pageSettings },
+            headerFooter: { differentOddEven: false, differentFirst: false, scaleWithDocument: true, alignWithMargins: true, ...(standardLayout?.headerFooter || {}), ...pageHeaderFooter, header: { left: "", center: "", right: "", ...(standardLayout?.headerFooter?.header || {}), ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(standardLayout?.headerFooter?.footer || {}), ...(pageHeaderFooter.footer || {}) } },
             centerOnPage: { horizontal: false, vertical: false, ...(standardLayout?.centerOnPage || {}), ...pageCentering },
-            printOptions: { gridlines: false, headings: false, ...(standardLayout?.printOptions || {}), ...pagePrintOptions },
+            printOptions: { gridlines: false, headings: false, blackAndWhite: false, draft: false, comments: "none", cellErrors: "displayed", pageOrder: "downThenOver", ...(standardLayout?.printOptions || {}), ...pagePrintOptions },
             printTitles: { rows: table.getAttribute("vno:print-title-rows") || "", cols: table.getAttribute("vno:print-title-cols") || "" }
           };
           if (!pageSetup.printTitles.rows && !pageSetup.printTitles.cols) {
@@ -5077,6 +5153,8 @@ ${pristineXlsxMarker}
         try { pageMargins = JSON.parse(pageAttr("vno:page-margins") || "{}"); } catch (_) { pageMargins = {}; }
         let pageScale = {};
         try { pageScale = JSON.parse(pageAttr("vno:page-scale") || "{}"); } catch (_) { pageScale = {}; }
+        let pageSettings = {};
+        try { pageSettings = JSON.parse(pageAttr("vno:page-settings") || "{}"); } catch (_) { pageSettings = {}; }
         let pageHeaderFooter = {};
         try { pageHeaderFooter = JSON.parse(pageAttr("vno:page-header-footer") || "{}"); } catch (_) { pageHeaderFooter = {}; }
         let pageCentering = {};
@@ -5090,11 +5168,12 @@ ${pristineXlsxMarker}
         const pageSetup = {
           size: pageAttr("vno:page-size") || standardLayout?.size || "a4",
           orientation: pageAttr("vno:page-orientation") || standardLayout?.orientation || "portrait",
-          margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...(standardLayout?.margins || {}), ...pageMargins },
+          margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, header: 0.76, footer: 0.76, ...(standardLayout?.margins || {}), ...pageMargins },
           scale: { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...(standardLayout?.scale || {}), ...pageScale },
-          headerFooter: { header: { left: "", center: "", right: "", ...(standardLayout?.headerFooter?.header || {}), ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(standardLayout?.headerFooter?.footer || {}), ...(pageHeaderFooter.footer || {}) } },
+          pageSettings: { printQuality: 600, firstPageNumber: "auto", ...pageSettings },
+          headerFooter: { differentOddEven: false, differentFirst: false, scaleWithDocument: true, alignWithMargins: true, ...(standardLayout?.headerFooter || {}), ...pageHeaderFooter, header: { left: "", center: "", right: "", ...(standardLayout?.headerFooter?.header || {}), ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(standardLayout?.headerFooter?.footer || {}), ...(pageHeaderFooter.footer || {}) } },
           centerOnPage: { horizontal: false, vertical: false, ...(standardLayout?.centerOnPage || {}), ...pageCentering },
-          printOptions: { gridlines: false, headings: false, ...(standardLayout?.printOptions || {}), ...pagePrintOptions },
+          printOptions: { gridlines: false, headings: false, blackAndWhite: false, draft: false, comments: "none", cellErrors: "displayed", pageOrder: "downThenOver", ...(standardLayout?.printOptions || {}), ...pagePrintOptions },
           printTitles: { rows: pageAttr("vno:print-title-rows"), cols: pageAttr("vno:print-title-cols") }
         };
         if (!pageSetup.printTitles.rows && !pageSetup.printTitles.cols) {

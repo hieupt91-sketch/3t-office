@@ -1,0 +1,18 @@
+{
+  "cells": { "A1": 1, "A2": 2, "A3": 3, "A4": 4, "A5": 5, "B1": 10, "B2": 20, "B3": 30, "B4": 40, "B5": 50, "C1": 2.5, "C2": -1.5, "C3": 7, "C4": 0, "C5": 9, "D1": "x", "D2": "yy", "D3": "zzz" },
+  "formulas": [
+    "=ACOS(0.5)", "=ACOSH(2)", "=ACOT(2)", "=ACOTH(2)", "=ASIN(0.5)", "=ASINH(1)", "=ATAN(1)", "=ATAN2(1,1)", "=ATAN2(-1,-1)", "=ATANH(0.5)",
+    "=COSH(1)", "=SINH(1)", "=TANH(1)", "=COT(1)", "=COTH(1)", "=CSC(1)", "=CSCH(1)", "=SEC(1)", "=SECH(1)",
+    "=ROMAN(1999)", "=ROMAN(4)", "=ROMAN(3999)", "=ROMAN(0)", "=ARABIC(\"MCMXCIX\")", "=ARABIC(\"iv\")",
+    "=BASE(255,16)", "=BASE(255,2,10)", "=BASE(7,2)", "=DECIMAL(\"FF\",16)", "=DECIMAL(\"1010\",2)",
+    "=FACTDOUBLE(7)", "=FACTDOUBLE(8)", "=GCD(12,18)", "=GCD(12,18,24)", "=GCD(0,5)", "=LCM(4,6)", "=LCM(4,6,10)",
+    "=QUOTIENT(10,3)", "=QUOTIENT(-10,3)", "=QUOTIENT(5,0)", "=MULTINOMIAL(2,3,4)", "=COMBINA(4,3)", "=SQRTPI(2)",
+    "=CEILING.MATH(4.2)", "=CEILING.MATH(-4.2)", "=CEILING.MATH(-4.2,1,1)", "=CEILING.MATH(6.3,2)", "=CEILING.PRECISE(4.2)", "=CEILING.PRECISE(-4.2)", "=CEILING.PRECISE(4.2,-2)", "=ISO.CEILING(4.2)",
+    "=FLOOR.MATH(4.8)", "=FLOOR.MATH(-4.2)", "=FLOOR.MATH(-4.2,1,1)", "=FLOOR.MATH(7.5,2)", "=FLOOR.PRECISE(4.8)", "=FLOOR.PRECISE(-4.2)",
+    "=SUMSQ(A1:A5)", "=SUMSQ(1,2,3)", "=SUMX2MY2(A1:A5,B1:B5)", "=SUMX2PY2(A1:A5,B1:B5)", "=SUMXMY2(A1:A5,B1:B5)",
+    "=SERIESSUM(2,0,1,A1:A3)", "=SERIESSUM(2,1,2,A1:A3)",
+    "=SUBTOTAL(9,A1:A5)", "=SUBTOTAL(1,A1:A5)", "=SUBTOTAL(2,A1:A5)", "=SUBTOTAL(3,D1:D3)", "=SUBTOTAL(4,A1:A5)", "=SUBTOTAL(5,A1:A5)", "=SUBTOTAL(6,A1:A5)", "=SUBTOTAL(7,A1:A5)", "=SUBTOTAL(8,A1:A5)", "=SUBTOTAL(10,A1:A5)", "=SUBTOTAL(11,A1:A5)", "=SUBTOTAL(109,A1:A5)",
+    "=AGGREGATE(9,6,A1:A5)", "=AGGREGATE(4,6,A1:A5)", "=AGGREGATE(14,6,A1:A5,2)", "=AGGREGATE(15,6,A1:A5,2)", "=AGGREGATE(12,6,A1:A5)", "=AGGREGATE(1,6,A1:A5)",
+    "=MDETERM(A1:B2)", "=MDETERM(A1:C3)"
+  ]
+}
