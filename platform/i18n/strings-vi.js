@@ -67,6 +67,40 @@ export const viStrings = {
     editPropertiesBtn: "Chỉnh sửa…",
     editProperties: "Chỉnh sửa thuộc tính chi tiết…"
   },
+  sheetDocumentProperties: {
+    backstage: "Thông tin",
+    dialogTitle: "Thuộc tính sổ làm việc",
+    commandProperties: "Thuộc tính sổ làm việc",
+    title: "Tiêu đề",
+    creator: "Tác giả",
+    author: "Tác giả",
+    subject: "Chủ đề",
+    manager: "Quản lý",
+    company: "Công ty",
+    keywords: "Thẻ",
+    keywordsHint: "Các từ khóa cách nhau bằng dấu phẩy",
+    description: "Ghi chú",
+    comments: "Ghi chú",
+    sheets: "Số trang tính",
+    saved: "Đã cập nhật thuộc tính sổ làm việc. Nhấn Ctrl+S để lưu vào tệp.",
+    size: "Kích thước",
+    modified: "Ngày sửa đổi",
+    created: "Ngày tạo",
+    protectWorkbook: "Bảo vệ sổ làm việc",
+    markAsFinal: "Đánh dấu là cuối cùng",
+    unmarkFinal: "Gỡ đánh dấu cuối cùng",
+    statusFinal: "ĐÃ ĐÁNH DẤU LÀ CUỐI CÙNG",
+    statusEditable: "Cho phép chỉnh sửa",
+    finalDescActive: "Tác giả đã đánh dấu sổ làm việc này là bản hoàn chỉnh để ngăn chặn việc chỉnh sửa vô ý. Bảng tính đang ở chế độ chỉ đọc mềm.",
+    finalDescInactive: "Cho người đọc biết sổ làm việc đã hoàn tất và đặt chế độ chỉ đọc để ngăn chặn chỉnh sửa vô ý trước khi chia sẻ.",
+    editAnyway: "Vẫn chỉnh sửa",
+    finalBanner: "ĐÃ ĐÁNH DẤU LÀ CUỐI CÙNG — Tác giả đã đánh dấu sổ làm việc này là cuối cùng để ngăn chặn chỉnh sửa.",
+    finalReadOnlyToast: "Sổ làm việc đã được đánh dấu là cuối cùng để ngăn chỉnh sửa vô ý.",
+    finalReadOnlyTooltip: "Sổ làm việc đã được đánh dấu là cuối cùng (chỉ đọc).",
+    finalTitle: "Đã đánh dấu là cuối cùng",
+    propertiesTitle: "Thuộc tính",
+    editPropertiesBtn: "Chỉnh sửa…"
+  },
   writerReview: {
     protectCommand: "Hạn chế chỉnh sửa",
     unprotectCommand: "Bỏ hạn chế chỉnh sửa",
@@ -700,6 +734,8 @@ export const viStrings = {
     ,"sheet.review.commentNext": { label: "Nhận xét sau", tooltip: "Nhảy tới nhận xét tiếp theo" }
     ,"sheet.review.commentDelete": { label: "Xóa nhận xét", tooltip: "Xóa nhận xét đang chọn" }
     ,"sheet.review.commentResolve": { label: "Đã xử lý", tooltip: "Đánh dấu hoặc mở lại nhận xét đang chọn" }
+    ,"sheet.file.properties": { label: "Thuộc tính sổ làm việc", tooltip: "Xem và sửa tiêu đề, chủ đề, tác giả, quản lý, công ty, thẻ và ghi chú" }
+    ,"sheet.file.markAsFinal": { label: "Đánh dấu là cuối cùng", tooltip: "Đánh dấu sổ làm việc là bản cuối cùng và chuyển sang chế độ chỉ đọc để ngăn chỉnh sửa vô ý" }
     ,"sheet.file.printPreview": { label: "Xem trước khi in", tooltip: "Xem trước khi in (Ctrl+F2)" }
     ,"sheet.page.setPrintArea": { label: "Đặt vùng in", tooltip: "Đặt vùng đang chọn làm vùng in" }
     ,"sheet.page.clearPrintArea": { label: "Xóa vùng in", tooltip: "Xóa vùng in của trang tính hiện tại" }

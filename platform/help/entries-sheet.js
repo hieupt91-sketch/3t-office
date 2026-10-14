@@ -1510,6 +1510,23 @@ export const SHEET_HELP_ENTRIES = [
       "Di chuột tới vạch phân cách giữa hai tiêu đề cột/hàng để kéo thay đổi độ rộng/chiều cao. Nhấp đúp vào vạch phân cách cột để tự động vừa khít độ rộng theo nội dung dài nhất (Auto-fit).",
       "Khi đang soạn thảo văn bản hoặc gõ công thức dài trong ô, nếu các ô bên phải còn trống, nội dung đang gõ sẽ tự động hiển thị tràn sang các ô bên phải một cách tự nhiên, không bị cắt ngắn."
     ]
+  },
+  {
+    id: "sheet.file.markAsFinalHelp",
+    app: "sheet",
+    commandIds: ["sheet.file.markAsFinal", "sheet.file.properties"],
+    title: "Thông tin sổ làm việc và Đánh dấu là cuối cùng (Mark as Final)",
+    summary: "Xem và chỉnh sửa thuộc tính sổ làm việc (tiêu đề, chủ đề, tác giả, quản lý, công ty, thẻ, ghi chú) và đặt cờ Đánh dấu là cuối cùng để bảo vệ sổ làm việc ở chế độ chỉ đọc mềm.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Thông tin" },
+    keywords: ["thông tin", "thuộc tính", "sổ làm việc", "bảng tính", "đánh dấu là cuối cùng", "mark as final", "chỉ đọc", "tiêu đề", "tác giả", "quản lý", "công ty", "thẻ", "ghi chú", "vẫn chỉnh sửa", "bảo vệ"],
+    steps: [
+      "Bấm vào mục Tệp ở góc trên bên trái cửa sổ và chọn mục Thông tin trên bảng điều hướng để mở trang quản lý thuộc tính sổ làm việc.",
+      "Xem chi tiết các thuộc tính: Tiêu đề, Chủ đề, Tác giả, Quản lý, Công ty, Thẻ, Ghi chú, Kích thước tệp và Số trang tính.",
+      "Bấm nút Chỉnh sửa... trong phần Thuộc tính để mở hộp thoại và cập nhật các trường thông tin mong muốn, sau đó bấm Đồng ý.",
+      "Trong phần Bảo vệ sổ làm việc, bấm nút Đánh dấu là cuối cùng để thông báo cho người nhận biết đây là bản sổ làm việc hoàn chỉnh.",
+      "Khi đã đánh dấu là cuối cùng, ứng dụng hiển thị thanh thông báo màu vàng và đặt toàn bộ ô cùng thanh công thức ở chế độ chỉ đọc mềm để ngăn chặn chỉnh sửa ngoài ý muốn.",
+      "Nếu cần tiếp tục chỉnh sửa, người dùng chỉ cần bấm nút Vẫn chỉnh sửa trên thanh thông báo màu vàng hoặc bấm lại Đánh dấu là cuối cùng trong mục Thông tin."
+    ]
   }
 ];
 

@@ -6695,6 +6695,225 @@ def _apply_native_cell_formats_from_fods(
     replacements[XLSX_STYLES_ENTRY] = ET.tostring(root, encoding="unicode")
 
 
+def _sheet_document_properties_metadata(source_fods: str | None) -> dict[str, str] | None:
+    match = re.search(
+        r"<!--vno-document-properties-hex:([0-9a-f]+)-->",
+        source_fods or "", re.IGNORECASE,
+    )
+    if not match:
+        return None
+    try:
+        payload = json.loads(bytes.fromhex(match.group(1)).decode("utf-8"))
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Metadata thuộc tính tài liệu không hợp lệ.") from exc
+    if not isinstance(payload, dict):
+        raise ValueError("Metadata thuộc tính tài liệu phải là một đối tượng.")
+    limits = {
+        "title": 255,
+        "creator": 255,
+        "subject": 255,
+        "manager": 255,
+        "company": 255,
+        "keywords": 1024,
+        "description": 4096,
+        "contentStatus": 255,
+    }
+    normalized: dict[str, str] = {}
+    for key, limit in limits.items():
+        val = payload.get(key)
+        if val is None and key == "contentStatus":
+            val = payload.get("content_status")
+        value = str(val or "").replace("\r\n", "\n").replace("\r", "\n")[:limit]
+        normalized[key] = "".join(
+            character for character in value
+            if character in "\t\n\r" or ord(character) >= 0x20
+        )
+    return normalized
+
+
+def _apply_sheet_document_properties_to_xlsx(
+    xlsx_bytes: bytes,
+    source_fods: str | None,
+    replacements: dict[str, str | bytes | None],
+) -> None:
+    properties = _sheet_document_properties_metadata(source_fods)
+    if properties is None:
+        return
+
+    def current_xml(path: str) -> str:
+        value = replacements.get(path)
+        if value is None:
+            value = read_zip_entry(xlsx_bytes, path) or b""
+        return value.decode("utf-8", errors="replace") if isinstance(value, bytes) else str(value)
+
+    # 1. docProps/core.xml
+    core_xml = current_xml("docProps/core.xml")
+    if not core_xml:
+        core_xml = (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+            '<cp:coreProperties '
+            'xmlns:cp="http://schemas.openxmlformats.org/package/2006/metadata/core-properties" '
+            'xmlns:dc="http://purl.org/dc/elements/1.1/" '
+            'xmlns:dcterms="http://purl.org/dc/terms/" '
+            'xmlns:dcmitype="http://purl.org/dc/dcmitype/" '
+            'xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">\n'
+            '</cp:coreProperties>'
+        )
+    core_fields = {
+        "title": "dc:title",
+        "creator": "dc:creator",
+        "subject": "dc:subject",
+        "keywords": "cp:keywords",
+        "description": "dc:description",
+        "contentStatus": "cp:contentStatus",
+    }
+    for key, tag in core_fields.items():
+        pattern = re.compile(
+            rf"<{re.escape(tag)}\b[^>]*>[\s\S]*?</{re.escape(tag)}\s*>|<{re.escape(tag)}\b[^>]*/\s*>",
+            re.IGNORECASE,
+        )
+        core_xml = pattern.sub("", core_xml)
+        value = properties.get(key, "")
+        if value:
+            element = f"<{tag}>{html.escape(value, quote=False)}</{tag}>"
+            core_xml = re.sub(
+                r"</cp:coreProperties\s*>", element + "</cp:coreProperties>",
+                core_xml, count=1, flags=re.IGNORECASE,
+            )
+    replacements["docProps/core.xml"] = core_xml.encode("utf-8")
+
+    content_types = current_xml("[Content_Types].xml")
+    if "/docProps/core.xml" not in content_types and content_types:
+        override = (
+            '<Override PartName="/docProps/core.xml" '
+            'ContentType="application/vnd.openxmlformats-package.core-properties+xml"/>'
+        )
+        content_types = re.sub(r"</Types\s*>", override + "</Types>", content_types, count=1, flags=re.IGNORECASE)
+        replacements["[Content_Types].xml"] = content_types.encode("utf-8")
+
+    rels = current_xml("_rels/.rels")
+    if "metadata/core-properties" not in rels and rels:
+        used_ids = {int(v) for v in re.findall(r'\bId="rId(\d+)"', rels)}
+        next_id = 1
+        while next_id in used_ids:
+            next_id += 1
+        relationship = (
+            f'<Relationship Id="rId{next_id}" '
+            'Type="http://schemas.openxmlformats.org/package/2006/relationships/metadata/core-properties" '
+            'Target="docProps/core.xml"/>'
+        )
+        rels = re.sub(r"</Relationships\s*>", relationship + "</Relationships>", rels, count=1, flags=re.IGNORECASE)
+        replacements["_rels/.rels"] = rels.encode("utf-8")
+
+    # 2. docProps/app.xml (Manager, Company)
+    app_xml = current_xml("docProps/app.xml")
+    if not app_xml:
+        app_xml = (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+            '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/extended-properties" '
+            'xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">\n'
+            '</Properties>'
+        )
+    app_fields = {
+        "manager": "Manager",
+        "company": "Company",
+    }
+    for key, tag in app_fields.items():
+        pattern = re.compile(
+            rf"<{re.escape(tag)}\b[^>]*>[\s\S]*?</{re.escape(tag)}\s*>|<{re.escape(tag)}\b[^>]*/\s*>",
+            re.IGNORECASE,
+        )
+        app_xml = pattern.sub("", app_xml)
+        value = properties.get(key, "")
+        if value:
+            element = f"<{tag}>{html.escape(value, quote=False)}</{tag}>"
+            app_xml = re.sub(
+                r"</Properties\s*>", element + "</Properties>",
+                app_xml, count=1, flags=re.IGNORECASE,
+            )
+    replacements["docProps/app.xml"] = app_xml.encode("utf-8")
+
+    content_types = current_xml("[Content_Types].xml")
+    if "/docProps/app.xml" not in content_types and content_types:
+        override = (
+            '<Override PartName="/docProps/app.xml" '
+            'ContentType="application/vnd.openxmlformats-officedocument.extended-properties+xml"/>'
+        )
+        content_types = re.sub(r"</Types\s*>", override + "</Types>", content_types, count=1, flags=re.IGNORECASE)
+        replacements["[Content_Types].xml"] = content_types.encode("utf-8")
+
+    rels = current_xml("_rels/.rels")
+    if "extended-properties" not in rels and rels:
+        used_ids = {int(v) for v in re.findall(r'\bId="rId(\d+)"', rels)}
+        next_id = 1
+        while next_id in used_ids:
+            next_id += 1
+        relationship = (
+            f'<Relationship Id="rId{next_id}" '
+            'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/extended-properties" '
+            'Target="docProps/app.xml"/>'
+        )
+        rels = re.sub(r"</Relationships\s*>", relationship + "</Relationships>", rels, count=1, flags=re.IGNORECASE)
+        replacements["_rels/.rels"] = rels.encode("utf-8")
+
+    # 3. docProps/custom.xml (_MarkAsFinal)
+    is_final = properties.get("contentStatus") == "Final"
+    custom_xml = current_xml("docProps/custom.xml")
+    if is_final:
+        if custom_xml:
+            if 'name="_MarkAsFinal"' in custom_xml:
+                custom_xml = re.sub(
+                    r'<property\b(?=[^>]*name="_MarkAsFinal")[^>]*>[\s\S]*?</property>',
+                    '<property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="2" name="_MarkAsFinal"><vt:bool>true</vt:bool></property>',
+                    custom_xml,
+                    flags=re.IGNORECASE,
+                )
+            else:
+                prop_element = '<property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="2" name="_MarkAsFinal"><vt:bool>true</vt:bool></property>'
+                custom_xml = re.sub(r'</Properties\s*>', prop_element + '</Properties>', custom_xml, count=1, flags=re.IGNORECASE)
+        else:
+            custom_xml = (
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>\n'
+                '<Properties xmlns="http://schemas.openxmlformats.org/officeDocument/2006/custom-properties" '
+                'xmlns:vt="http://schemas.openxmlformats.org/officeDocument/2006/docPropsVTypes">\n'
+                '<property fmtid="{D5CDD505-2E9C-101B-9397-08002B2CF9AE}" pid="2" name="_MarkAsFinal"><vt:bool>true</vt:bool></property>\n'
+                '</Properties>'
+            )
+        replacements["docProps/custom.xml"] = custom_xml.encode("utf-8")
+
+        content_types = current_xml("[Content_Types].xml")
+        if "/docProps/custom.xml" not in content_types and content_types:
+            override = (
+                '<Override PartName="/docProps/custom.xml" '
+                'ContentType="application/vnd.openxmlformats-officedocument.custom-properties+xml"/>'
+            )
+            content_types = re.sub(r"</Types\s*>", override + "</Types>", content_types, count=1, flags=re.IGNORECASE)
+            replacements["[Content_Types].xml"] = content_types.encode("utf-8")
+
+        rels = current_xml("_rels/.rels")
+        if "custom-properties" not in rels and rels:
+            used_ids = {int(v) for v in re.findall(r'\bId="rId(\d+)"', rels)}
+            next_id = 1
+            while next_id in used_ids:
+                next_id += 1
+            relationship = (
+                f'<Relationship Id="rId{next_id}" '
+                'Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/custom-properties" '
+                'Target="docProps/custom.xml"/>'
+            )
+            rels = re.sub(r"</Relationships\s*>", relationship + "</Relationships>", rels, count=1, flags=re.IGNORECASE)
+            replacements["_rels/.rels"] = rels.encode("utf-8")
+    elif custom_xml:
+        if 'name="_MarkAsFinal"' in custom_xml:
+            custom_xml = re.sub(
+                r'<property\b(?=[^>]*name="_MarkAsFinal")[^>]*>[\s\S]*?</property>',
+                '',
+                custom_xml,
+                flags=re.IGNORECASE,
+            )
+            replacements["docProps/custom.xml"] = custom_xml.encode("utf-8")
+
+
 def postprocess_sheet_xlsx(
     xlsx_bytes: bytes,
     *,
@@ -7052,6 +7271,7 @@ def postprocess_sheet_xlsx(
         # Run last so broad style/layout fidelity repairs cannot overwrite the
         # dxfs or worksheet conditionalFormatting blocks authored by the app.
         apply_conditional_formatting_from_fods(xlsx_bytes, source_fods, replacements)
+        _apply_sheet_document_properties_to_xlsx(xlsx_bytes, source_fods, replacements)
 
     calculation_mode = parse_calculation_mode_from_fods(source_fods)
     if calculation_mode:

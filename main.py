@@ -2032,6 +2032,24 @@ def _read_xlsx_workbook_xml(src_path: str) -> str | None:
         return None
 
 
+def _read_xlsx_zip_entry(src_path: str, entry_name: str) -> str | None:
+    if not src_path or not str(src_path).lower().endswith(".xlsx"):
+        return None
+    if not entry_name or ".." in entry_name or entry_name.startswith(("/", "\\")):
+        return None
+    try:
+        with open(src_path, "rb") as handle:
+            package = handle.read()
+        entry = _ooxml_zip_patch().read_zip_entry(package, entry_name)
+        if not entry:
+            return None
+        return entry.decode("utf-8", errors="replace")
+    except (OSError, UnicodeError, DocumentEngineError):
+        return None
+    except Exception:
+        return None
+
+
 def _read_pptx_presentation_xml(src_path: str) -> str | None:
     """Read ppt/presentation.xml from the original .pptx via the shared ZIP helper.
 
@@ -4958,6 +4976,15 @@ class VnOfficeApi:
             workbook_xml = sheet_ooxml_workbook_xml or _read_xlsx_workbook_xml(src_path)
             if workbook_xml:
                 payload["ooxmlWorkbookXml"] = workbook_xml
+            core_props = _read_xlsx_zip_entry(src_path, "docProps/core.xml")
+            if core_props:
+                payload["ooxmlCorePropertiesXml"] = core_props
+            app_props = _read_xlsx_zip_entry(src_path, "docProps/app.xml")
+            if app_props:
+                payload["ooxmlAppPropertiesXml"] = app_props
+            custom_props = _read_xlsx_zip_entry(src_path, "docProps/custom.xml")
+            if custom_props:
+                payload["ooxmlCustomPropertiesXml"] = custom_props
         elif app_kind == "slides":
             presentation_xml = _read_pptx_presentation_xml(src_path)
             if presentation_xml:

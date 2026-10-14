@@ -36,6 +36,7 @@ import { runWriterTrackChangesTests } from "./unit/writer-track-changes.test.js"
 import { runWriterDocumentReviewTests } from "./unit/writer-document-review.test.js";
 import { runWriterReviewExportTests } from "./unit/writer-review-export.test.js";
 import { runWriterDocumentPropertiesTests } from "./unit/writer-document-properties.test.js";
+import { runSheetFileInfoTests } from "./unit/sheet-file-info.test.js";
 import { runWriterAutoCorrectTests } from "./unit/writer-auto-correct.test.js";
 import { runWriterPrintPreviewTests } from "./unit/writer-print-preview.test.js";
 import { runSlidesLayoutsTests } from "./unit/slides-layouts.test.js";
@@ -588,7 +589,8 @@ async function runAll() {
     { title: "259. Unit Tests — Writer Change Case (WORD-W5)", runner: runWriterChangeCaseTests },
     { title: "260. Unit Tests — Writer Track Changes Display Modes (WORD-W5)", runner: runWriterTrackChangesDisplayTests },
     { title: "261. Unit Tests — Writer Document Inspector (WORD-W5)", runner: runWriterDocumentInspectorTests },
-    { title: "262. Unit Tests — Writer WORD-W7 Balloons, Mark as Final and Save As (agy)", runner: runWriterWordW7Tests }
+    { title: "262. Unit Tests — Writer WORD-W7 Balloons, Mark as Final and Save As (agy)", runner: runWriterWordW7Tests },
+    { title: "263. Unit Tests — Sheet XLSX Document Properties & Mark as Final (AGY-SHEET-INFO)", runner: runSheetFileInfoTests }
   ];
 
   for (const suite of suites) {

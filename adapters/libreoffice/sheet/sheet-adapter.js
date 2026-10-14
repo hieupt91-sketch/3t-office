@@ -19,6 +19,15 @@ import {
 } from "../../../platform/clipboard/office-clipboard.js";
 import { extractSheetRangeData, extractSheetChartData } from "../../../apps/sheet/sheet-chart-data.js";
 import { TABLE_STYLE_PRESETS } from "../../../apps/sheet/cell-style-presets.js";
+import { t } from "../../../platform/i18n/i18n.js";
+import {
+  normalizeDocumentProperties,
+  parseCorePropertiesXml,
+  parseAppPropertiesXml,
+  parseCustomPropertiesXml,
+  documentPropertiesMarker,
+  showDocumentPropertiesDialog
+} from "../../../apps/sheet/document-properties.js";
 
 // MS-XLSX 2.2.3 marks these names as future functions. Keep only functions
 // present in the Excel 2016 catalog; newer names must not be advertised as
@@ -122,6 +131,8 @@ export class SheetAdapter {
     this.grid = gridController;
     this.options = { excel2016FunctionNameCompat: true, ...options };
     this.isDirty = false;
+    this.documentProperties = normalizeDocumentProperties();
+    this.isFinal = false;
     this.sourceFileName = "BangTinh";
     this.sourceFilePath = "";
     this.shell = null;
@@ -391,6 +402,11 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.review.commentDelete", () => this._hintIfFalse(() => this.grid.deleteCurrentComment?.(), "Ô đang chọn không có ghi chú để xóa."));
     globalCommandBus.bindHandler("sheet.review.commentResolve", () => this._hintIfFalse(() => this.grid.toggleCurrentCommentResolved?.(), "Ô đang chọn không có ghi chú để đánh dấu đã giải quyết."));
     globalCommandBus.bindHandler("sheet.file.printPreview", () => this.print());
+    globalCommandBus.bindHandler("sheet.file.markAsFinal", (args) => {
+      const enable = args?.enable !== undefined ? Boolean(args.enable) : !this.isFinal;
+      return this.markAsFinal(enable);
+    });
+    globalCommandBus.bindHandler("sheet.file.properties", () => this.openDocumentPropertiesDialog());
     globalCommandBus.bindHandler("sheet.view.normal", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("normal") : false);
     globalCommandBus.bindHandler("sheet.view.pageBreakPreview", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("pageBreakPreview") : false);
     globalCommandBus.bindHandler("sheet.view.pageLayout", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("pageLayout") : false);
@@ -4051,8 +4067,12 @@ export class SheetAdapter {
     // ODF flag. LibreOffice FODS→XLSX keeps <workbookProtection> but drops
     // lockStructure; native-export post-process restores it (see xlsx-native-postprocess.js).
     const structureAttr = structureProtected ? ' table:structure-protected="true"' : "";
+    const docPropsMarker = documentPropertiesMarker({
+      ...(this.documentProperties || {}),
+      contentStatus: this.isFinal ? "Final" : (this.documentProperties?.contentStatus === "Final" ? "" : (this.documentProperties?.contentStatus || ""))
+    });
     return `<?xml version="1.0" encoding="UTF-8"?>
-${pristineXlsxMarker}
+${pristineXlsxMarker}${docPropsMarker}
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
                  xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
                  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
@@ -5461,6 +5481,21 @@ ${pristineXlsxMarker}
       this.grid.defaultColWidth = oldDefaultColWidth;
     }
     if (workbook.sheets.length === 0) return false;
+    const docPropsMatch = String(fodsText || "").match(/<!--vno-document-properties-hex:([0-9a-fA-F]+)-->/);
+    if (docPropsMatch) {
+      try {
+        const hex = docPropsMatch[1];
+        const bytes = new Uint8Array(hex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+        const json = new TextDecoder().decode(bytes);
+        const parsed = JSON.parse(json);
+        this.documentProperties = normalizeDocumentProperties(parsed);
+        const isFinal = (parsed.contentStatus || "").toLowerCase() === "final";
+        this.isFinal = isFinal;
+        if (this.grid) this.grid.isFinal = isFinal;
+      } catch (err) {
+        console.warn("[SheetAdapter] Lỗi giải mã document-properties marker từ FODS:", err);
+      }
+    }
     return this._commitWorkbook(workbook, perfStart, "loadFromFods");
   }
 
@@ -5937,6 +5972,12 @@ ${pristineXlsxMarker}
     this.sourceFileName = "BangTinh";
     this.sourceFilePath = "";
     this.isDirty = false;
+    this.documentProperties = normalizeDocumentProperties();
+    this.isFinal = false;
+    if (this.grid) {
+      this.grid.isFinal = false;
+      this.grid._applyProtectionUi?.();
+    }
     this.shell?.clearNotification?.();
     this.shell?.resetDocumentChrome?.("Bảng tính 1.xlsx", "home", false);
     return true;
@@ -5945,6 +5986,67 @@ ${pristineXlsxMarker}
   async closeDocument() {
     if (this.shell?.requestCloseDocument) return await this.shell.requestCloseDocument();
     return await this.newDocument();
+  }
+
+  markAsFinal(enable = true) {
+    if (enable) {
+      this.documentProperties = normalizeDocumentProperties({
+        ...(this.documentProperties || {}),
+        contentStatus: "Final"
+      });
+      this.isFinal = true;
+      this.isDirty = true;
+      if (this.grid) {
+        this.grid.isFinal = true;
+        this.grid._applyProtectionUi?.();
+      }
+      if (this.shell?.showNotification) {
+        this.shell.showNotification({
+          type: "warning",
+          message: t("sheetDocumentProperties.finalBanner", "Sổ làm việc đã được đánh dấu là cuối cùng để ngăn chỉnh sửa vô ý."),
+          action: {
+            label: t("sheetDocumentProperties.editAnyway", "Vẫn chỉnh sửa"),
+            onClick: () => this.unmarkFinal()
+          },
+          dismissible: false
+        });
+      }
+    } else {
+      this.unmarkFinal();
+    }
+    return this.isFinal;
+  }
+
+  unmarkFinal() {
+    if (this.documentProperties) {
+      this.documentProperties = normalizeDocumentProperties({
+        ...this.documentProperties,
+        contentStatus: ""
+      });
+    }
+    this.isFinal = false;
+    this.isDirty = true;
+    if (this.grid) {
+      this.grid.isFinal = false;
+      this.grid._applyProtectionUi?.();
+    }
+    this.shell?.clearNotification?.();
+    return true;
+  }
+
+  async openDocumentPropertiesDialog() {
+    const updated = await showDocumentPropertiesDialog(this.documentProperties);
+    if (!updated) return false;
+    const normalized = normalizeDocumentProperties(updated);
+    if (JSON.stringify(normalized) === JSON.stringify(this.documentProperties)) return true;
+    this.documentProperties = normalized;
+    this.isDirty = true;
+    this.shell?.setStatus?.(t("sheetDocumentProperties.saved", "Đã cập nhật thuộc tính sổ làm việc. Nhấn Ctrl+S để lưu vào tệp."));
+    return true;
+  }
+
+  getPageCount() {
+    return this.grid?.sheets?.length || (this.grid?.sheetsData ? Object.keys(this.grid.sheetsData).length : 1);
   }
 
   /**
@@ -6174,7 +6276,35 @@ ${pristineXlsxMarker}
       this.sourceFileName = (result.fileName || "BangTinh").replace(/\.[^/.]+$/, "");
       this.sourceFilePath = result.sourcePath || "";
       this.isDirty = false;
+      if (result.ooxmlCorePropertiesXml || result.ooxmlAppPropertiesXml || result.ooxmlCustomPropertiesXml) {
+        const core = parseCorePropertiesXml(result.ooxmlCorePropertiesXml);
+        const app = parseAppPropertiesXml(result.ooxmlAppPropertiesXml);
+        const custom = parseCustomPropertiesXml(result.ooxmlCustomPropertiesXml);
+        this.documentProperties = normalizeDocumentProperties({
+          ...core,
+          ...app
+        });
+        const isFinal = Boolean(custom.isFinal || (core.contentStatus || "").toLowerCase() === "final");
+        this.isFinal = isFinal;
+        if (this.grid) this.grid.isFinal = isFinal;
+      }
       this.shell?.resetDocumentChrome?.(result.fileName || "Bảng tính 1.xlsx", null, true, result.sourcePath || "");
+      if (this.isFinal) {
+        this.grid?._applyProtectionUi?.();
+        if (this.shell?.showNotification) {
+          this.shell.showNotification({
+            type: "warning",
+            message: t("sheetDocumentProperties.finalBanner", "Sổ làm việc đã được đánh dấu là cuối cùng để ngăn chỉnh sửa vô ý."),
+            action: {
+              label: t("sheetDocumentProperties.editAnyway", "Vẫn chỉnh sửa"),
+              onClick: () => this.unmarkFinal()
+            },
+            dismissible: false
+          });
+        }
+      } else {
+        this.shell?.clearNotification?.();
+      }
       const quickView = typeof window !== "undefined" ? window.__vnoSheetQuickViewController : null;
       quickView?.applyPendingEditsToGrid?.(this.grid);
       if (typeof window !== "undefined" && typeof window.dispatchEvent === "function") window.dispatchEvent(new Event("vno:sheet-full-model-ready"));
@@ -6258,6 +6388,12 @@ ${pristineXlsxMarker}
     const cmd = vnCmdId || (unoUrl ? getVnCommand(unoUrl) : null) || unoUrl;
 
     switch (cmd) {
+      case "sheet.file.markAsFinal":
+        return this.markAsFinal(args?.enable !== undefined ? args.enable : !this.isFinal);
+
+      case "sheet.file.properties":
+        return this.openDocumentPropertiesDialog();
+
       case "sheet.file.printPreview":
       case ".uno:PrintPreview":
         return this.print();

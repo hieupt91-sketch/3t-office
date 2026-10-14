@@ -68,6 +68,40 @@ export const enStrings = {
     editPropertiesBtn: "Edit…",
     editProperties: "Edit Detailed Properties…"
   },
+  sheetDocumentProperties: {
+    backstage: "Info",
+    dialogTitle: "Workbook Properties",
+    commandProperties: "Workbook Properties",
+    title: "Title",
+    creator: "Author",
+    author: "Author",
+    subject: "Subject",
+    manager: "Manager",
+    company: "Company",
+    keywords: "Tags",
+    keywordsHint: "Separate keywords with commas",
+    description: "Comments",
+    comments: "Comments",
+    sheets: "Sheets",
+    saved: "Workbook properties updated. Press Ctrl+S to save them to the file.",
+    size: "Size",
+    modified: "Modified",
+    created: "Created",
+    protectWorkbook: "Protect Workbook",
+    markAsFinal: "Mark as Final",
+    unmarkFinal: "Unmark Final",
+    statusFinal: "MARKED AS FINAL",
+    statusEditable: "Allow Editing",
+    finalDescActive: "An author has marked this workbook as final to discourage editing. It is currently in soft read-only mode.",
+    finalDescInactive: "Let readers know the workbook is final and set read-only to prevent accidental editing before sharing.",
+    editAnyway: "Edit Anyway",
+    finalBanner: "MARKED AS FINAL — An author has marked this workbook as final to discourage editing.",
+    finalReadOnlyToast: "This workbook has been marked as final to discourage editing.",
+    finalReadOnlyTooltip: "This workbook has been marked as final (read-only).",
+    finalTitle: "Marked as Final",
+    propertiesTitle: "Properties",
+    editPropertiesBtn: "Edit…"
+  },
   writerReview: {
     protectCommand: "Restrict Editing",
     unprotectCommand: "Stop Protection",
@@ -699,6 +733,8 @@ export const enStrings = {
     ,"sheet.review.commentNext": { label: "Next Comment", tooltip: "Go to the next comment" }
     ,"sheet.review.commentDelete": { label: "Delete Comment", tooltip: "Delete the selected comment" }
     ,"sheet.review.commentResolve": { label: "Resolve Comment", tooltip: "Resolve or reopen the selected comment" }
+    ,"sheet.file.properties": { label: "Workbook Properties", tooltip: "View and edit title, subject, author, manager, company, tags, and comments" }
+    ,"sheet.file.markAsFinal": { label: "Mark as Final", tooltip: "Mark workbook as final and set read-only to prevent accidental editing" }
     ,"sheet.file.printPreview": { label: "Print Preview", tooltip: "Print Preview (Ctrl+F2)" }
     ,"sheet.page.setPrintArea": { label: "Set Print Area", tooltip: "Set the selected range as the print area" }
     ,"sheet.page.clearPrintArea": { label: "Clear Print Area", tooltip: "Clear the current worksheet's print area" }

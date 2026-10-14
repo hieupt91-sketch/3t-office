@@ -2196,14 +2196,20 @@ export class AppShell {
 
   _renderBackstageInfoPanel(container, closeModal) {
     const adapter = this.adapter || globalUnoBridge?.activeDocument;
+    const isSheet = this.appName === "sheet";
     const props = adapter?.documentProperties || {};
     const wordStats = adapter?.getWordCountStats ? adapter.getWordCountStats() : (adapter?.getWordCount ? adapter.getWordCount() : { words: 0, characters: 0 });
-    const pageCount = adapter?.getPageCount ? adapter.getPageCount() : 1;
+    const pageCount = adapter?.getPageCount ? adapter.getPageCount() : (isSheet ? (adapter?.grid?.sheets?.length || 1) : 1);
     const isFinal = Boolean(adapter?.isFinal || (props?.contentStatus && String(props.contentStatus).toLowerCase() === "final"));
 
-    const fileName = this.documentName || adapter?.sourceFileName || "Tài liệu";
+    const fileName = this.documentName || adapter?.sourceFileName || (isSheet ? "Bảng tính" : "Tài liệu");
     const author = props.creator || props.author || "Chưa đặt";
-    const title = props.title || fileName || "Chưa đặt";
+    const title = props.title || (isSheet ? (props.title || "Chưa đặt") : (fileName || "Chưa đặt"));
+    const subject = props.subject || "Chưa đặt";
+    const manager = props.manager || "Chưa đặt";
+    const company = props.company || "Chưa đặt";
+    const keywords = props.keywords || "Chưa đặt";
+    const comments = props.description || props.comments || "Chưa đặt";
     const modifiedDate = props.modified ? new Date(props.modified).toLocaleString("vi-VN") : "Hôm nay";
     const createdDate = props.created ? new Date(props.created).toLocaleString("vi-VN") : "Hôm nay";
     const words = wordStats.words || 0;
@@ -2215,8 +2221,8 @@ export class AppShell {
 
     container.innerHTML = `
       <div class="vno-backstage-info-panel" role="region" aria-label="Thông tin tài liệu">
-        <h1 style="font-size:24px;font-weight:700;margin-bottom:8px;color:var(--vno-text-primary);">${t("writerDocumentProperties.backstage", "Thông tin tài liệu")}</h1>
-        <p style="color:var(--vno-text-muted);font-size:13px;margin-bottom:24px;">Xem thuộc tính, thống kê và thiết lập trạng thái bảo vệ cho tài liệu đang mở.</p>
+        <h1 style="font-size:24px;font-weight:700;margin-bottom:8px;color:var(--vno-text-primary);">${isSheet ? t("sheetDocumentProperties.backstage", "Thông tin") : t("writerDocumentProperties.backstage", "Thông tin tài liệu")}</h1>
+        <p style="color:var(--vno-text-muted);font-size:13px;margin-bottom:24px;">${isSheet ? "Xem thuộc tính, số trang tính và thiết lập trạng thái bảo vệ cho sổ làm việc đang mở." : "Xem thuộc tính, thống kê và thiết lập trạng thái bảo vệ cho tài liệu đang mở."}</p>
 
         <div class="vno-backstage-info-grid" style="display:grid;grid-template-columns:1fr 320px;gap:32px;">
           <!-- Cột trái: Quản lý & Bảo vệ -->
@@ -2228,18 +2234,18 @@ export class AppShell {
                 </div>
                 <div style="flex:1;">
                   <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
-                    <h2 style="font-size:16px;font-weight:700;margin:0;color:var(--vno-text-primary);">${t("writerDocumentProperties.protectDocument", "Bảo vệ tài liệu")}</h2>
+                    <h2 style="font-size:16px;font-weight:700;margin:0;color:var(--vno-text-primary);">${isSheet ? t("sheetDocumentProperties.protectWorkbook", "Bảo vệ sổ làm việc") : t("writerDocumentProperties.protectDocument", "Bảo vệ tài liệu")}</h2>
                     <span id="vno-info-final-status" class="vno-info-status-badge" style="font-size:11px;padding:2px 8px;border-radius:12px;font-weight:600;${isFinal ? "background:#fef3c7;color:#92400e;border:1px solid #fde68a;" : "background:var(--vno-bg-subtle);color:var(--vno-text-muted);border:1px solid var(--vno-border-default);"}">
-                      ${isFinal ? t("writerDocumentProperties.statusFinal", "ĐÃ ĐÁNH DẤU LÀ CUỐI CÙNG") : t("writerDocumentProperties.statusEditable", "Cho phép chỉnh sửa")}
+                      ${isFinal ? (isSheet ? t("sheetDocumentProperties.statusFinal", "ĐÃ ĐÁNH DẤU LÀ CUỐI CÙNG") : t("writerDocumentProperties.statusFinal", "ĐÃ ĐÁNH DẤU LÀ CUỐI CÙNG")) : (isSheet ? t("sheetDocumentProperties.statusEditable", "Cho phép chỉnh sửa") : t("writerDocumentProperties.statusEditable", "Cho phép chỉnh sửa"))}
                     </span>
                   </div>
                   <p style="font-size:12px;color:var(--vno-text-muted);margin:0 0 16px 0;line-height:1.5;">
                     ${isFinal 
-                      ? t("writerDocumentProperties.finalDescActive", "Tác giả đã đánh dấu tài liệu này là bản hoàn chỉnh để ngăn chặn việc chỉnh sửa vô ý. Tài liệu đang ở chế độ chỉ đọc mềm.")
-                      : t("writerDocumentProperties.finalDescInactive", "Cho người đọc biết tài liệu đã hoàn tất và đặt chế độ chỉ đọc để ngăn chặn chỉnh sửa vô ý trước khi chia sẻ.")}
+                      ? (isSheet ? t("sheetDocumentProperties.finalDescActive", "Tác giả đã đánh dấu sổ làm việc này là bản hoàn chỉnh để ngăn chặn việc chỉnh sửa vô ý. Bảng tính đang ở chế độ chỉ đọc mềm.") : t("writerDocumentProperties.finalDescActive", "Tác giả đã đánh dấu tài liệu này là bản hoàn chỉnh để ngăn chặn việc chỉnh sửa vô ý. Tài liệu đang ở chế độ chỉ đọc mềm."))
+                      : (isSheet ? t("sheetDocumentProperties.finalDescInactive", "Cho người đọc biết sổ làm việc đã hoàn tất và đặt chế độ chỉ đọc để ngăn chặn chỉnh sửa vô ý trước khi chia sẻ.") : t("writerDocumentProperties.finalDescInactive", "Cho người đọc biết tài liệu đã hoàn tất và đặt chế độ chỉ đọc để ngăn chặn chỉnh sửa vô ý trước khi chia sẻ."))}
                   </p>
                   <button type="button" class="vno-btn ${isFinal ? "vno-btn-secondary" : "vno-btn-primary"}" id="vno-info-mark-as-final" style="padding:7px 16px;font-weight:600;">
-                    ${isFinal ? t("writerDocumentProperties.unmarkFinal", "Gỡ đánh dấu cuối cùng") : t("writerDocumentProperties.markAsFinal", "Đánh dấu là cuối cùng")}
+                    ${isFinal ? (isSheet ? t("sheetDocumentProperties.unmarkFinal", "Gỡ đánh dấu cuối cùng") : t("writerDocumentProperties.unmarkFinal", "Gỡ đánh dấu cuối cùng")) : (isSheet ? t("sheetDocumentProperties.markAsFinal", "Đánh dấu là cuối cùng") : t("writerDocumentProperties.markAsFinal", "Đánh dấu là cuối cùng"))}
                   </button>
                 </div>
               </div>
@@ -2266,9 +2272,9 @@ export class AppShell {
           <!-- Cột phải: Bảng thuộc tính (Properties) -->
           <div class="vno-backstage-info-sidebar" style="border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md, 8px);padding:20px;background:var(--vno-bg-window);">
             <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:10px;border-bottom:1px solid var(--vno-border-default);">
-              <h2 style="font-size:15px;font-weight:700;margin:0;color:var(--vno-text-primary);">${t("writerDocumentProperties.propertiesTitle", "Thuộc tính")}</h2>
+              <h2 style="font-size:15px;font-weight:700;margin:0;color:var(--vno-text-primary);">${isSheet ? t("sheetDocumentProperties.propertiesTitle", "Thuộc tính") : t("writerDocumentProperties.propertiesTitle", "Thuộc tính")}</h2>
               <button type="button" class="vno-btn" id="vno-info-edit-properties" style="font-size:11px;padding:3px 8px;">
-                ${t("writerDocumentProperties.editPropertiesBtn", "Chỉnh sửa…")}
+                ${isSheet ? t("sheetDocumentProperties.editPropertiesBtn", "Chỉnh sửa…") : t("writerDocumentProperties.editPropertiesBtn", "Chỉnh sửa…")}
               </button>
             </div>
 
@@ -2277,20 +2283,41 @@ export class AppShell {
               <span id="vno-info-prop-size" style="font-weight:600;color:var(--vno-text-primary);">${fileSizeStr}</span>
             </div>
             <div class="vno-info-prop-row" style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid var(--vno-border-subtle, #f1f5f9);">
-              <span style="color:var(--vno-text-muted);">${t("writerDocumentProperties.pages", "Số trang")}:</span>
+              <span style="color:var(--vno-text-muted);">${isSheet ? t("sheetDocumentProperties.sheets", "Số trang tính") : t("writerDocumentProperties.pages", "Số trang")}:</span>
               <span id="vno-info-prop-pages" style="font-weight:600;color:var(--vno-text-primary);">${pageCount}</span>
             </div>
+            ${!isSheet ? `
             <div class="vno-info-prop-row" style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid var(--vno-border-subtle, #f1f5f9);">
               <span style="color:var(--vno-text-muted);">${t("writerDocumentProperties.words", "Số từ")}:</span>
               <span id="vno-info-prop-words" style="font-weight:600;color:var(--vno-text-primary);">${words}</span>
-            </div>
+            </div>` : ""}
             <div class="vno-info-prop-row" style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid var(--vno-border-subtle, #f1f5f9);">
-              <span style="color:var(--vno-text-muted);">${t("writerDocumentProperties.title", "Tiêu đề")}:</span>
+              <span style="color:var(--vno-text-muted);">${isSheet ? t("sheetDocumentProperties.title", "Tiêu đề") : t("writerDocumentProperties.title", "Tiêu đề")}:</span>
               <span id="vno-info-prop-title" style="font-weight:600;color:var(--vno-text-primary);text-align:right;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${title}">${title}</span>
             </div>
             <div class="vno-info-prop-row" style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid var(--vno-border-subtle, #f1f5f9);">
-              <span style="color:var(--vno-text-muted);">${t("writerDocumentProperties.author", "Tác giả")}:</span>
+              <span style="color:var(--vno-text-muted);">${isSheet ? t("sheetDocumentProperties.subject", "Chủ đề") : t("writerDocumentProperties.subject", "Chủ đề")}:</span>
+              <span id="vno-info-prop-subject" style="font-weight:600;color:var(--vno-text-primary);text-align:right;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${subject}">${subject}</span>
+            </div>
+            <div class="vno-info-prop-row" style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid var(--vno-border-subtle, #f1f5f9);">
+              <span style="color:var(--vno-text-muted);">${isSheet ? t("sheetDocumentProperties.author", "Tác giả") : t("writerDocumentProperties.author", "Tác giả")}:</span>
               <span id="vno-info-prop-author" style="font-weight:600;color:var(--vno-text-primary);text-align:right;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${author}">${author}</span>
+            </div>
+            <div class="vno-info-prop-row" style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid var(--vno-border-subtle, #f1f5f9);">
+              <span style="color:var(--vno-text-muted);">${isSheet ? t("sheetDocumentProperties.manager", "Quản lý") : "Quản lý"}:</span>
+              <span id="vno-info-prop-manager" style="font-weight:600;color:var(--vno-text-primary);text-align:right;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${manager}">${manager}</span>
+            </div>
+            <div class="vno-info-prop-row" style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid var(--vno-border-subtle, #f1f5f9);">
+              <span style="color:var(--vno-text-muted);">${isSheet ? t("sheetDocumentProperties.company", "Công ty") : "Công ty"}:</span>
+              <span id="vno-info-prop-company" style="font-weight:600;color:var(--vno-text-primary);text-align:right;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${company}">${company}</span>
+            </div>
+            <div class="vno-info-prop-row" style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid var(--vno-border-subtle, #f1f5f9);">
+              <span style="color:var(--vno-text-muted);">${isSheet ? t("sheetDocumentProperties.keywords", "Thẻ") : t("writerDocumentProperties.keywords", "Từ khóa")}:</span>
+              <span id="vno-info-prop-keywords" style="font-weight:600;color:var(--vno-text-primary);text-align:right;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${keywords}">${keywords}</span>
+            </div>
+            <div class="vno-info-prop-row" style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid var(--vno-border-subtle, #f1f5f9);">
+              <span style="color:var(--vno-text-muted);">${isSheet ? t("sheetDocumentProperties.comments", "Ghi chú") : t("writerDocumentProperties.description", "Ghi chú")}:</span>
+              <span id="vno-info-prop-comments" style="font-weight:600;color:var(--vno-text-primary);text-align:right;max-width:180px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${comments}">${comments}</span>
             </div>
             <div class="vno-info-prop-row" style="display:flex;justify-content:space-between;padding:6px 0;font-size:12px;border-bottom:1px solid var(--vno-border-subtle, #f1f5f9);">
               <span style="color:var(--vno-text-muted);">${t("writerDocumentProperties.modified", "Ngày sửa đổi")}:</span>
@@ -2321,6 +2348,8 @@ export class AppShell {
       closeModal();
       if (adapter?.openDocumentPropertiesDialog) {
         await adapter.openDocumentPropertiesDialog();
+      } else if (this.appName === "sheet") {
+        globalCommandBus.execute("sheet.file.properties");
       } else {
         globalCommandBus.execute("writer.file.properties");
       }

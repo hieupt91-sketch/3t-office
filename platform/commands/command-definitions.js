@@ -429,6 +429,8 @@ export const SHEET_COMMANDS = [
   { id: "sheet.review.commentNext", category: "review", label: "Nhận xét sau", icon: "commentNext", tooltip: "Nhảy tới nhận xét tiếp theo" },
   { id: "sheet.review.commentDelete", category: "review", label: "Xóa nhận xét", icon: "commentDelete", tooltip: "Xóa nhận xét tại ô đang chọn" },
   { id: "sheet.review.commentResolve", category: "review", label: "Đã xử lý", icon: "commentResolve", tooltip: "Đánh dấu hoặc mở lại nhận xét tại ô đang chọn" },
+  { id: "sheet.file.properties", category: "file", label: "Thuộc tính sổ làm việc", labelKey: "sheetDocumentProperties.commandProperties", tooltip: "Xem và sửa tiêu đề, chủ đề, tác giả, quản lý, công ty, thẻ và ghi chú" },
+  { id: "sheet.file.markAsFinal", category: "file", label: "Đánh dấu là cuối cùng", labelKey: "sheetDocumentProperties.markAsFinal", icon: "protectSheet", tooltip: "Đánh dấu sổ làm việc là bản cuối cùng và chuyển sang chế độ chỉ đọc để ngăn chỉnh sửa vô ý", isToggle: true },
   { id: "sheet.file.printPreview", category: "file", label: "Xem trước khi in", shortcut: "Ctrl+F2", icon: "printPreview", tooltip: "Xem trước khi in (Ctrl+F2)" },
   { id: "sheet.page.margins", category: "page", label: "Căn lề", icon: "margins", tooltip: "Thiết lập khoảng cách lề trang tính" },
   { id: "sheet.page.orientation", category: "page", label: "Hướng giấy", icon: "orientation", tooltip: "Chọn hướng trang tính dọc hoặc ngang" },

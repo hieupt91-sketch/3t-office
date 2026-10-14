@@ -32,7 +32,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
-| Tệp (Backstage) | 17 | 3 | 6 | 5 | 2 | 1 | 72% |
+| Tệp (Backstage) | 17 | 5 | 6 | 5 | 0 | 1 | 84% |
 | Trang đầu | 53 | 20 | 20 | 8 | 5 | 0 | 83% |
 | Chèn | 29 | 8 | 5 | 2 | 12 | 2 | 52% |
 | Bố trí trang | 10 | 4 | 2 | 1 | 3 | 0 | 65% |
@@ -84,9 +84,9 @@ Tổng: 10 mục ưu tiên 1.
 | Tệp | In (Ctrl+P) + xem trước | ✅ | - | Thiết lập trang/in đã đọc lại bằng Excel 2016 |
 | Tệp | Đóng (Ctrl+W) | 🟢 | - | common.file.close |
 | Thông tin | Bảo vệ sổ làm việc bằng mật khẩu mở file (mã hóa) | 🔴 | 1 | Chưa có mã hóa file; chỉ có bảo vệ cấu trúc |
-| Thông tin | Kiểm tra tài liệu (Inspect) / Đánh dấu là cuối cùng | 🔴 | 3 | Sheet chưa có (Writer đã có; việc của Sheet chưa làm) |
+| Thông tin | Đánh dấu là cuối cùng (Mark as Final) | ✅ | - | Đánh dấu là cuối cùng: chỉ đọc mềm, ghi contentStatus="Final" và _MarkAsFinal=true |
 | Thông tin | Quản lý phiên bản / khôi phục tự động (AutoRecover) | 🟢 | - | Có cơ chế autorecover |
-| Thông tin | Thuộc tính tệp (tác giả, tiêu đề...) | 🔴 | 3 | Sheet chưa có (Writer đã có; việc của Sheet chưa làm) |
+| Thông tin | Thuộc tính tệp (7 trường: tiêu đề, chủ đề, tác giả, quản lý, công ty, thẻ, ghi chú) | ✅ | - | File > Info hiển thị & sửa 7 thuộc tính, lưu core.xml và app.xml chuẩn XLSX |
 | Tùy chọn | Hộp thoại Tùy chọn Excel (chung, công thức, lưu, nâng cao...) | 🟡 | 2 | Có một số tùy chọn rời; chưa có hộp thoại gộp |
 | Tùy chọn | Tùy biến ribbon / Thanh công cụ truy nhanh | 🔴 | 2 |  |
 | Chia sẻ | Chia sẻ/OneDrive/Email đính kèm | ⚪ | - | Cần dịch vụ đám mây |

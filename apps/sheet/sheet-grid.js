@@ -535,6 +535,13 @@ export class SheetGridController {
     });
 
     this.formulaInput.addEventListener("input", (e) => {
+      if (this.isFinal || this.adapter?.isFinal) {
+        e.target.value = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.formula
+          || this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val
+          || "";
+        this._notifyFinalReadOnly();
+        return;
+      }
       if (this.isSheetProtected()) {
         e.target.value = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.formula
           || this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val
@@ -4284,7 +4291,32 @@ export class SheetGridController {
     });
   }
 
+  _notifyFinalReadOnly() {
+    if (this.adapter?.shell?.showNotification) {
+      this.adapter.shell.showNotification({
+        type: "warning",
+        message: t("sheetDocumentProperties.finalReadOnlyToast", "Sổ làm việc đã được đánh dấu là cuối cùng để ngăn chỉnh sửa vô ý."),
+        action: {
+          label: t("sheetDocumentProperties.editAnyway", "Vẫn chỉnh sửa"),
+          onClick: () => this.adapter?.unmarkFinal?.()
+        },
+        dismissible: true
+      });
+      return;
+    }
+    if (typeof document === "undefined" || !document.body) return;
+    showAlertDialog({
+      title: t("sheetDocumentProperties.finalTitle", "Đã đánh dấu là cuối cùng"),
+      message: t("sheetDocumentProperties.finalReadOnlyToast", "Sổ làm việc đã được đánh dấu là cuối cùng để ngăn chỉnh sửa vô ý."),
+      type: "warning"
+    });
+  }
+
   _guardProtectedMutation() {
+    if (this.isFinal || this.adapter?.isFinal) {
+      this._notifyFinalReadOnly();
+      return true;
+    }
     if (!this.isSheetProtected()) return false;
     const activeStyle = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.style || {};
     if (activeStyle.locked === false) return false;
@@ -4293,14 +4325,16 @@ export class SheetGridController {
   }
 
   _applyProtectionUi({ renderTabs = false } = {}) {
+    const isFinalLocked = Boolean(this.isFinal || this.adapter?.isFinal);
     const activeStyle = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.style || {};
-    const locked = this.isSheetProtected() && activeStyle.locked !== false;
+    const sheetLocked = this.isSheetProtected() && activeStyle.locked !== false;
+    const locked = isFinalLocked || sheetLocked;
     this.container?.classList?.toggle?.("vno-sheet-protected", locked);
     if (this.formulaInput) {
       this.formulaInput.readOnly = locked;
-      this.formulaInput.title = locked
-        ? t("sheetDialogs.sheetProtectedEdit", "Trang tính đang được bảo vệ.")
-        : "";
+      this.formulaInput.title = isFinalLocked
+        ? t("sheetDocumentProperties.finalReadOnlyTooltip", "Sổ làm việc đã được đánh dấu là cuối cùng (chỉ đọc).")
+        : (sheetLocked ? t("sheetDialogs.sheetProtectedEdit", "Trang tính đang được bảo vệ.") : "");
     }
     globalCommandBus?.updateState?.("sheet.sheet.protect", {
       label: locked
