@@ -9,6 +9,7 @@ import { STAT_FUNCTIONS } from "./formula-functions-stats.js";
 import { MISC_FUNCTIONS } from "./formula-functions-misc.js";
 import { FINANCIAL_FUNCTIONS } from "./formula-functions-financial.js";
 import { ENGINEERING_FUNCTIONS } from "./formula-functions-engineering.js";
+import { SECURITIES_FUNCTIONS } from "./formula-functions-securities.js";
 
 /** Giá trị số của một vùng (bỏ ô trống/chuỗi, giữ lỗi để báo). */
 function rangeNumbers(engine, arg) {
@@ -304,7 +305,7 @@ const BASE_FUNCTIONS = {
   }
 };
 
-export const EXTRA_FUNCTIONS = { ...BASE_FUNCTIONS, ...STAT_FUNCTIONS, ...MISC_FUNCTIONS, ...FINANCIAL_FUNCTIONS, ...ENGINEERING_FUNCTIONS };
+export const EXTRA_FUNCTIONS = { ...BASE_FUNCTIONS, ...STAT_FUNCTIONS, ...MISC_FUNCTIONS, ...FINANCIAL_FUNCTIONS, ...ENGINEERING_FUNCTIONS, ...SECURITIES_FUNCTIONS };
 
 function pairSum(engine, args, fn) {
   if (args.length !== 2) return "#VALUE!";
