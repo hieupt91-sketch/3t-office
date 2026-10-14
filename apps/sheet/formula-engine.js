@@ -1,4 +1,5 @@
 import { expandStructuredReferences } from "./structured-references.js";
+import { EXTRA_FUNCTIONS } from "./formula-functions-extra.js";
 import { NumberFormatter } from "./number-formatter.js";
 import { vndInWords } from "./vnd-words.js";
 import { VI_FORMULA_CATALOG, VI_FORMULA_MAP } from "./formula-definitions-vi.js";
@@ -2980,8 +2981,14 @@ export class FormulaEngine {
         return typeof val === "number" ? val : (Number(val) || 0);
       }
 
-      default:
+      default: {
+        const extra = EXTRA_FUNCTIONS[funcName];
+        if (extra) {
+          const value = extra(this, args, funcName);
+          return value instanceof String ? String(value) : value;
+        }
         return `#NAME? (${funcName})`;
+      }
     }
   }
 
