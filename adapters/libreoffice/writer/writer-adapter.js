@@ -8966,9 +8966,6 @@ export class WriterAdapter {
   }
 
   _getActiveTable() {
-    if (this.tableController?.activeTable && this.tableController.activeTable.isConnected) {
-      return this.tableController.activeTable;
-    }
     if (typeof window !== "undefined") {
       const sel = window.getSelection?.();
       if (sel && sel.rangeCount > 0) {
@@ -8979,6 +8976,9 @@ export class WriterAdapter {
           return table;
         }
       }
+    }
+    if (this.tableController?.activeTable && this.tableController.activeTable.isConnected) {
+      return this.tableController.activeTable;
     }
     return (this.bodyDom || this.editorDom)?.querySelector?.("table") || null;
   }
@@ -9459,7 +9459,7 @@ export class WriterAdapter {
    * @param {object|null} args { delimiter: tab|comma|semicolon|paragraph|custom, custom } — không truyền thì mở hộp thoại.
    */
   async convertTableToText(args = null) {
-    const table = this._getActiveTable();
+    const table = (args && typeof args === "object" && args.table) || this._getActiveTable();
     if (!table) return false;
     const choice = args && typeof args === "object" && args.delimiter ? args : await showTableToTextDialog(table);
     if (!choice) return null;

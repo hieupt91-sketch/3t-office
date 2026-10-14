@@ -92,8 +92,13 @@ export function buildTextEffectsCss({ outline = null, shadow = null, glow = null
     }
   }
 
-  if (glow && glow.enabled !== false && glow.radEmu > 0) {
-    const gp = GLOW_PRESETS.find(p => p.rad === glow.radEmu) || GLOW_PRESETS[2];
+  let glowRad = glow?.radEmu || 0;
+  if (!glowRad && glow && glow.enabled !== false && glow.preset && glow.preset !== "off") {
+    const gp = GLOW_PRESETS.find(p => p.id === glow.preset || String(glow.preset).includes(p.id)) || GLOW_PRESETS[2];
+    glowRad = gp.rad;
+  }
+  if (glow && glow.enabled !== false && glowRad > 0) {
+    const gp = GLOW_PRESETS.find(p => p.rad === glowRad) || GLOW_PRESETS[2];
     const px = gp ? gp.cssPx : 8;
     const color = glow.color || "#2563EB";
     shadows.push(`0 0 ${px}px ${color}`);
@@ -139,9 +144,14 @@ export function applyTextEffectsToSpan(span, { outline = null, shadow = null, gl
   }
 
   // Glow
-  if (glow && glow.enabled !== false && glow.radEmu > 0) {
+  let targetGlowRad = glow?.radEmu || 0;
+  if (!targetGlowRad && glow && glow.enabled !== false && glow.preset && glow.preset !== "off") {
+    const gp = GLOW_PRESETS.find(p => p.id === glow.preset || String(glow.preset).includes(p.id)) || GLOW_PRESETS[2];
+    targetGlowRad = gp.rad;
+  }
+  if (glow && glow.enabled !== false && targetGlowRad > 0) {
     span.dataset.vnoGlowColor = glow.color || "#2563EB";
-    span.dataset.vnoGlowRad = String(glow.radEmu || 101600);
+    span.dataset.vnoGlowRad = String(targetGlowRad);
     span.dataset.vnoGlowAlpha = String(glow.alpha || 60000);
   } else {
     delete span.dataset.vnoGlowColor;
@@ -155,8 +165,8 @@ export function applyTextEffectsToSpan(span, { outline = null, shadow = null, gl
     const sp = SHADOW_PRESETS.find(p => p.id === (shadow.preset || "bottom-right")) || SHADOW_PRESETS[1];
     if (sp.css) shadows.push(sp.css);
   }
-  if (glow && glow.enabled !== false && glow.radEmu > 0) {
-    const gp = GLOW_PRESETS.find(p => p.rad === glow.radEmu) || GLOW_PRESETS[2];
+  if (glow && glow.enabled !== false && targetGlowRad > 0) {
+    const gp = GLOW_PRESETS.find(p => p.rad === targetGlowRad) || GLOW_PRESETS[2];
     const px = gp ? gp.cssPx : 8;
     shadows.push(`0 0 ${px}px ${glow.color || "#2563EB"}`);
   }
