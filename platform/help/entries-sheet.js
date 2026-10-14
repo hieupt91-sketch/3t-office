@@ -248,7 +248,8 @@ export const SHEET_HELP_ENTRIES = [
     keywords: ["định dạng ô", "ctrl+1", "số thập phân", "tiền tệ", "ngày tháng", "phông chữ", "viền", "tô màu", "bảo vệ", "tùy chỉnh"],
     steps: [
       "Chọn ô hoặc vùng cần đổi. Nhấn Ctrl+1, hoặc tab Trang đầu → nhóm Định dạng số → nút Định dạng ô..., hoặc mũi tên nhỏ góc phải nhóm.",
-      "Thẻ Số: chọn Chung, Số, Tiền tệ, Kế toán, Ngày, Giờ, Phần trăm, Phân số, Khoa học, Văn bản, Đặc biệt hoặc Tùy chỉnh. Các nhóm có control riêng cho phần thập phân, dấu phân cách, kiểu số âm, ký hiệu, vùng và mã định dạng; hộp Mẫu cập nhật trước khi áp dụng.",
+      "Thẻ Số: chọn Chung, Số, Tiền tệ, Kế toán, Ngày, Giờ, Phần trăm, Phân số, Khoa học, Văn bản, Đặc biệt hoặc Tùy chỉnh. Từng nhóm có tùy chọn riêng cho phần thập phân, dấu phân cách, kiểu số âm, ký hiệu, vùng và mã định dạng; hộp Mẫu cập nhật trước khi áp dụng.",
+      "Với Tùy chỉnh, nhập mã vào ô Mã định dạng rồi nhấn Đồng ý để áp dụng và thêm mã vào danh sách dùng lại trong phiên. Muốn bỏ một mã đã tạo, chọn mã trong danh sách rồi bấm Xóa mã; các mã dựng sẵn không thể xóa và ứng dụng sẽ báo rõ lý do.",
       "Thẻ Căn chỉnh: đặt căn ngang/dọc, thụt lề, ngắt dòng, thu nhỏ vừa ô, hướng đọc, góc xoay hoặc xếp chữ dọc. Chọn một vùng trước khi bật Hợp nhất ô; khi tắt tùy chọn, vùng gộp hiện tại được tách.",
       "Thẻ Phông chữ: chọn họ font, kiểu thường/đậm/nghiêng, cỡ, gạch chân, màu, gạch ngang, chỉ số trên hoặc dưới. Phông mặc định đưa các giá trị này về cấu hình mặc định của bảng tính.",
       "Thẻ Viền: chọn kiểu và màu đường trước, rồi bấm Ngoài/Bên trong hoặc từng cạnh Trái/Phải/Trên/Dưới/Ngang trong/Dọc trong/Chéo. Thẻ Tô màu đặt màu nền, màu và kiểu mẫu; Hiệu ứng tô tạo chuyển màu hai màu theo hướng đã chọn.",

@@ -29,6 +29,7 @@ import { createMatcher } from "../../platform/find/find-engine.js";
 import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 import { isSpellcheckEnabled, setSpellcheckEnabled } from "../../platform/text/spellcheck-dom-controller.js";
 import { showContextMenu, closeActiveContextMenu } from "../../platform/ui-kit/components.js";
+import { PageSetupDialog } from "./page-setup-dialog.js";
 import {
   cellColor,
   defaultValidationMessage,
@@ -48,15 +49,25 @@ import {
 const { showAlertDialog, showConfirmDialog, showPromptDialog, showFindReplaceDialog } = createLazyDialogs("sheet");
 
 export const DEFAULT_SHEET_PAGE_SETUP = Object.freeze({
-  margins: Object.freeze({ top: 1.91, bottom: 1.91, left: 1.78, right: 1.78 }),
+  margins: Object.freeze({ top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, header: 0.76, footer: 0.76 }),
   orientation: "portrait",
   size: "a4",
   scale: Object.freeze({ mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0 }),
-  headerFooter: Object.freeze({ header: Object.freeze({ left: "", center: "", right: "" }), footer: Object.freeze({ left: "", center: "Trang &P / &N", right: "" }) }),
+  pageSettings: Object.freeze({ printQuality: 600, firstPageNumber: "auto" }),
+  headerFooter: Object.freeze({
+    header: Object.freeze({ left: "", center: "", right: "" }),
+    footer: Object.freeze({ left: "", center: "Trang &P / &N", right: "" }),
+    differentOddEven: false,
+    differentFirst: false,
+    scaleWithDocument: true,
+    alignWithMargins: true
+  }),
   centerOnPage: Object.freeze({ horizontal: false, vertical: false }),
   printOptions: Object.freeze({
     gridlines: false,
     headings: false,
+    blackAndWhite: false,
+    draft: false,
     comments: "none",
     cellErrors: "displayed",
     pageOrder: "downThenOver"
@@ -116,11 +127,13 @@ function restoreActiveFilters(entries) {
 }
 
 // Cùng bảng khổ giấy (mm) và hệ số quy đổi 96dpi mà Writer đã dùng cho Print Preview,
-// để 3 app có cùng một kích thước A4/Letter/Legal thực tế khi in.
+// để 3 app có cùng một kích thước giấy thực tế khi in.
 export const SHEET_PAGE_SIZES_MM = Object.freeze({
   a4: Object.freeze({ label: "A4 (210 × 297 mm)", w: 210, h: 297 }),
   letter: Object.freeze({ label: "Letter (216 × 279 mm)", w: 216, h: 279 }),
-  legal: Object.freeze({ label: "Legal (216 × 356 mm)", w: 216, h: 356 })
+  legal: Object.freeze({ label: "Legal (216 × 356 mm)", w: 216, h: 356 }),
+  a3: Object.freeze({ label: "A3 (297 × 420 mm)", w: 297, h: 420 }),
+  a5: Object.freeze({ label: "A5 (148 × 210 mm)", w: 148, h: 210 })
 });
 export const SHEET_MM_TO_PX = 3.7795275591; // 96dpi
 // Lề trong pageSetupBySheet lưu bằng CM (xem showPageSetupDialog: input "(cm)"), khác mm.
@@ -193,9 +206,14 @@ function newSheetPageSetup(overrides = {}) {
     orientation: overrides.orientation || DEFAULT_SHEET_PAGE_SETUP.orientation,
     size: overrides.size || DEFAULT_SHEET_PAGE_SETUP.size,
     scale: { ...DEFAULT_SHEET_PAGE_SETUP.scale, ...(overrides.scale || {}) },
+    pageSettings: { ...DEFAULT_SHEET_PAGE_SETUP.pageSettings, ...(overrides.pageSettings || {}) },
     headerFooter: {
       header: { ...DEFAULT_SHEET_PAGE_SETUP.headerFooter.header, ...(overrides.headerFooter?.header || {}) },
-      footer: { ...DEFAULT_SHEET_PAGE_SETUP.headerFooter.footer, ...(overrides.headerFooter?.footer || {}) }
+      footer: { ...DEFAULT_SHEET_PAGE_SETUP.headerFooter.footer, ...(overrides.headerFooter?.footer || {}) },
+      differentOddEven: overrides.headerFooter?.differentOddEven ?? DEFAULT_SHEET_PAGE_SETUP.headerFooter.differentOddEven,
+      differentFirst: overrides.headerFooter?.differentFirst ?? DEFAULT_SHEET_PAGE_SETUP.headerFooter.differentFirst,
+      scaleWithDocument: overrides.headerFooter?.scaleWithDocument ?? DEFAULT_SHEET_PAGE_SETUP.headerFooter.scaleWithDocument,
+      alignWithMargins: overrides.headerFooter?.alignWithMargins ?? DEFAULT_SHEET_PAGE_SETUP.headerFooter.alignWithMargins
     },
     centerOnPage: { ...DEFAULT_SHEET_PAGE_SETUP.centerOnPage, ...(overrides.centerOnPage || {}) },
     printOptions: { ...DEFAULT_SHEET_PAGE_SETUP.printOptions, ...(overrides.printOptions || {}) },
@@ -14356,10 +14374,15 @@ _bindGridKeyboardNavigation() {
   }
 
   getPageSetup(sheetName = this.activeSheet) {
-    return structuredClone(this.pageSetupBySheet[sheetName] || newSheetPageSetup());
+    return structuredClone(newSheetPageSetup(this.pageSetupBySheet[sheetName] || {}));
   }
 
   setPageSetup(sheetOrChanges = {}, maybeChanges = null) {
+    this._lastPageSetupError = "";
+    const fail = message => {
+      this._lastPageSetupError = message;
+      return false;
+    };
     let sheetName = this.activeSheet;
     let changes = sheetOrChanges;
     if (typeof sheetOrChanges === "string") {
@@ -14374,28 +14397,36 @@ _bindGridKeyboardNavigation() {
     };
     const marginInput = presets[changes.marginPreset] || changes.margins || {};
     const margins = { ...before.margins };
-    for (const side of ["top", "bottom", "left", "right"]) {
+    for (const side of ["top", "bottom", "left", "right", "header", "footer"]) {
       if (marginInput[side] === undefined) continue;
       const value = Number(marginInput[side]);
-      if (!Number.isFinite(value) || value < 0 || value > 25) return false;
+      if (!Number.isFinite(value) || value < 0 || value > 25) return fail(t("sheetDialogs.pageSetup.invalidMargins"));
       margins[side] = Math.round(value * 1000) / 1000;
     }
     const orientation = changes.orientation || before.orientation;
     const size = changes.size || before.size;
-    if (!["portrait", "landscape"].includes(orientation) || !["a4", "letter", "legal"].includes(size)) return false;
+    if (!["portrait", "landscape"].includes(orientation)) return fail(t("sheetDialogs.pageSetup.invalidOrientation"));
+    if (!["a4", "letter", "legal", "a3", "a5"].includes(size)) return fail(t("sheetDialogs.pageSetup.invalidPaperSize"));
     const printTitles = { ...before.printTitles, ...(changes.printTitles || {}) };
     const normalizedTitles = this._normalizePrintTitlesInput(printTitles.rows, printTitles.cols);
     printTitles.rows = normalizedTitles.rows;
     printTitles.cols = normalizedTitles.cols;
-    if (printTitles.rows && !/^\d+(?::\d+)?$/.test(printTitles.rows)) return false;
-    if (printTitles.cols && !/^[A-Z]+(?::[A-Z]+)?$/.test(printTitles.cols)) return false;
+    if (printTitles.rows && !/^\d+(?::\d+)?$/.test(printTitles.rows)) return fail(t("sheetDialogs.pageSetup.invalidRows"));
+    if (printTitles.cols && !/^[A-Z]+(?::[A-Z]+)?$/.test(printTitles.cols)) return fail(t("sheetDialogs.pageSetup.invalidCols"));
     const scale = { ...before.scale, ...(changes.scale || {}) };
-    if (!["percent", "pages"].includes(scale.mode)) return false;
+    if (!["percent", "pages"].includes(scale.mode)) return fail(t("sheetDialogs.pageSetup.invalidScale"));
     scale.percent = Number(scale.percent);
     scale.pagesWide = Number(scale.pagesWide);
     scale.pagesTall = Number(scale.pagesTall);
-    if (!Number.isInteger(scale.percent) || scale.percent < 10 || scale.percent > 400) return false;
-    if (![scale.pagesWide, scale.pagesTall].every(value => Number.isInteger(value) && value >= 0 && value <= 1000)) return false;
+    if (!Number.isInteger(scale.percent) || scale.percent < 10 || scale.percent > 400) return fail(t("sheetDialogs.pageSetup.invalidScalePercent"));
+    if (![scale.pagesWide, scale.pagesTall].every(value => Number.isInteger(value) && value >= 0 && value <= 1000)) return fail(t("sheetDialogs.pageSetup.invalidFitPages"));
+    const pageSettings = { ...before.pageSettings, ...(changes.pageSettings || {}) };
+    pageSettings.printQuality = Number(pageSettings.printQuality);
+    if (!Number.isInteger(pageSettings.printQuality) || pageSettings.printQuality < 72 || pageSettings.printQuality > 2400) return fail(t("sheetDialogs.pageSetup.invalidPrintQuality"));
+    if (pageSettings.firstPageNumber !== "auto") {
+      pageSettings.firstPageNumber = Number(pageSettings.firstPageNumber);
+      if (!Number.isInteger(pageSettings.firstPageNumber) || pageSettings.firstPageNumber < 1 || pageSettings.firstPageNumber > 32767) return fail(t("sheetDialogs.pageSetup.invalidFirstPage"));
+    }
     const headerFooter = {
       header: { ...before.headerFooter.header, ...(changes.headerFooter?.header || {}) },
       footer: { ...before.headerFooter.footer, ...(changes.headerFooter?.footer || {}) }
@@ -14403,12 +14434,18 @@ _bindGridKeyboardNavigation() {
     for (const section of [headerFooter.header, headerFooter.footer]) {
       for (const position of ["left", "center", "right"]) section[position] = String(section[position] || "").slice(0, 500);
     }
+    headerFooter.differentOddEven = Boolean(changes.headerFooter?.differentOddEven ?? before.headerFooter?.differentOddEven);
+    headerFooter.differentFirst = Boolean(changes.headerFooter?.differentFirst ?? before.headerFooter?.differentFirst);
+    headerFooter.scaleWithDocument = Boolean(changes.headerFooter?.scaleWithDocument ?? before.headerFooter?.scaleWithDocument ?? true);
+    headerFooter.alignWithMargins = Boolean(changes.headerFooter?.alignWithMargins ?? before.headerFooter?.alignWithMargins ?? true);
     const centerOnPage = { ...before.centerOnPage, ...(changes.centerOnPage || {}) };
     centerOnPage.horizontal = Boolean(centerOnPage.horizontal);
     centerOnPage.vertical = Boolean(centerOnPage.vertical);
     const printOptions = { ...before.printOptions, ...(changes.printOptions || {}) };
     printOptions.gridlines = Boolean(printOptions.gridlines);
     printOptions.headings = Boolean(printOptions.headings);
+    printOptions.blackAndWhite = Boolean(printOptions.blackAndWhite);
+    printOptions.draft = Boolean(printOptions.draft);
     const rawComments = changes.printOptions?.comments;
     const normComments = rawComments === "atEnd" ? "sheetEnd" : rawComments;
     printOptions.comments = ["none", "sheetEnd", "asDisplayed"].includes(normComments)
@@ -14420,7 +14457,7 @@ _bindGridKeyboardNavigation() {
     printOptions.pageOrder = ["downThenOver", "overThenDown"].includes(changes.printOptions?.pageOrder)
       ? changes.printOptions.pageOrder
       : (before.printOptions?.pageOrder || "downThenOver");
-    const after = { margins, orientation, size, scale, headerFooter, centerOnPage, printOptions, printTitles };
+    const after = { margins, orientation, size, scale, pageSettings, headerFooter, centerOnPage, printOptions, printTitles };
     if (JSON.stringify(before) === JSON.stringify(after)) return after;
     this.pageSetupBySheet[sheetName] = after;
     this._recordHistory({ type: "sheet-page-layout", sheet: sheetName, property: "pageSetupBySheet", before, after: structuredClone(after) });
@@ -14428,6 +14465,10 @@ _bindGridKeyboardNavigation() {
   }
 
   showPageSetupDialog(focusField = "margins") {
+    return PageSetupDialog.show({ grid: this, focusField });
+  }
+
+  _showLegacyPageSetupDialog(focusField = "margins") {
     if (typeof document === "undefined" || !document.body) return false;
     const setup = this.getPageSetup();
     const pending = this._printTitleSelect;
@@ -14523,21 +14564,26 @@ _bindGridKeyboardNavigation() {
    * Hộp thoại được ẩn tạm; người dùng nhấp vào đầu hàng/cột để chọn,
    * Shift+nhấn để mở rộng vùng. Nhấn Esc hoặc «Quay lại hộp thoại» để trở về.
    */
+  beginPageSetupRangeSelection(field, overlay) {
+    return this.beginPrintTitleSelection(field, overlay);
+  }
+
   beginPrintTitleSelection(field, overlay) {
     if (typeof document === "undefined" || !document.body) return false;
-    if (!["rows", "cols"].includes(field)) return false;
+    if (!["area", "rows", "cols"].includes(field)) return false;
     this._teardownPrintTitleSelection();
     const hint = document.createElement("div");
     hint.className = "vno-print-title-hint";
     hint.setAttribute("role", "status");
     hint.style.cssText = "position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;padding:6px 12px;background:var(--vno-primary,#1a5fb4);color:#fff;font-size:13px;";
-    const label = field === "rows" ? "Chọn HÀNG lặp lại trên mỗi trang" : "Chọn CỘT lặp lại ở bên trái";
-    hint.innerHTML = `<strong>${label}</strong><span class="vno-print-title-hint-value">—</span><span style="opacity:.85">Nhấp vào đầu hàng/cột trên lưới, Shift+nhấn để mở rộng.</span><button type="button" class="vno-btn vno-print-title-hint-back" style="margin-left:auto">Quay lại hộp thoại</button>`;
+    const label = field === "area" ? t("sheetDialogs.pageSetup.selectPrintArea") : field === "rows" ? t("sheetDialogs.pageSetup.selectRows") : t("sheetDialogs.pageSetup.selectCols");
+    const instruction = field === "area" ? t("sheetDialogs.pageSetup.selectAreaHint") : t("sheetDialogs.pageSetup.selectTitlesHint");
+    hint.innerHTML = `<strong>${label}</strong><span class="vno-print-title-hint-value">—</span><span style="opacity:.85">${instruction}</span><button type="button" class="vno-btn vno-print-title-hint-back" style="margin-left:auto">${t("sheetDialogs.pageSetup.backToDialog")}</button>`;
     this.viewport?.insertBefore?.(hint, this.viewport.firstChild);
     const state = { field, overlay, anchor: null, current: null, pendingValue: null, hint, onClick: null, onKey: null };
-    state.onClick = event => this._onPrintTitleGridClick(event);
+    state.onClick = field === "area" ? null : event => this._onPrintTitleGridClick(event);
     state.onKey = event => { if (event.key === "Escape") this.endPrintTitleSelection(); };
-    this.table?.addEventListener?.("click", state.onClick, true);
+    if (state.onClick) this.table?.addEventListener?.("click", state.onClick, true);
     document.addEventListener("keydown", state.onKey);
     hint.querySelector(".vno-print-title-hint-back")?.addEventListener("click", () => this.endPrintTitleSelection());
     this._printTitleSelect = state;
@@ -14602,10 +14648,11 @@ _bindGridKeyboardNavigation() {
   endPrintTitleSelection() {
     const state = this._printTitleSelect;
     if (!state?.field) return false;
-    const { field, pendingValue } = state;
+    const { field } = state;
+    const pendingValue = field === "area" ? this.getSelectedRangeLabel() : state.pendingValue;
     this._teardownPrintTitleSelection();
     this._printTitleSelect = { field, pendingValue: pendingValue || null };
-    return this.showPageSetupDialog("printTitles");
+    return this.showPageSetupDialog(field === "area" ? "printArea" : "printTitles");
   }
 
   /** Dọn dẹp listener/thanh gợi ý của chế độ chọn Print Titles trên lưới (giữ lại pendingValue nếu có). */
@@ -14620,6 +14667,10 @@ _bindGridKeyboardNavigation() {
   }
 
   showHeaderFooterDialog() {
+    return this.showPageSetupDialog("headerFooter");
+  }
+
+  _showLegacyHeaderFooterDialog() {
     if (typeof document === "undefined" || !document.body) return false;
     const current = this.getPageSetup().headerFooter;
     const fieldset = (kind, title) => `<fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>${title}</legend>
