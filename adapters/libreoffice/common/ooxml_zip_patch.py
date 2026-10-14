@@ -21624,33 +21624,36 @@ def postprocess_writer_if_ref_fields(docx_bytes: bytes, *, source_html: str | No
             a = dict(attrs)
             if "data-merge-if" in a:
                 self.active = ["if", a, ""]
+            elif a.get("data-merge-rule") in {"skipIf", "nextIf", "fillIn"}:
+                self.active = [a["data-merge-rule"], a, ""]
             elif tag == "a" and "vno-cross-ref" in (a.get("class") or "") and (a.get("href") or "").startswith("#"):
                 self.active = ["ref", a, ""]
         def handle_data(self, data):
             if self.active: self.active[2] += data
         def handle_endtag(self, tag):
-            if self.active and ((self.active[0] == "if" and tag == "span") or (self.active[0] == "ref" and tag == "a")):
-                (self.rules if self.active[0] == "if" else self.refs).append(self.active)
+            if self.active and ((self.active[0] in {"if", "skipIf", "nextIf", "fillIn"} and tag == "span") or (self.active[0] == "ref" and tag == "a")):
+                (self.refs if self.active[0] == "ref" else self.rules).append(self.active)
                 self.active = None
     parser = _Fields()
     parser.feed(source_html)
+    auto_hyphenation = 'data-hyphenation="auto"' in source_html or "data-hyphenation='auto'" in source_html
     document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
-    if not document_bytes or not (parser.rules or parser.refs): return docx_bytes
+    if not document_bytes or not (parser.rules or parser.refs or auto_hyphenation): return docx_bytes
     xml = document_bytes.decode("utf-8", errors="replace")
     changed = False
-    for _, attrs, fallback in parser.rules:
-        field = (attrs.get("data-merge-if") or "").strip()
+    for rule_kind, attrs, fallback in parser.rules:
+        field = (attrs.get("data-merge-if") or attrs.get("data-field") or "").strip()
         op = attrs.get("data-op") or "equals"
         operators = {"equals": "=", "notEquals": "<>", "greaterThan": ">", "lessThan": "<", "empty": "=", "notEmpty": "<>"}
         # `contains` KHÔNG xuất được: đo bằng Word thật (06/10) thì IF "xxabcxx" = "*abc*" cho kết quả sai
         # (ký tự thay thế `*` ở cả hai đầu không được Word hỗ trợ), nên giữ nguyên văn bản kết quả.
-        if not field or op not in operators: continue
+        if rule_kind != "fillIn" and (not field or op not in operators): continue
         value = "" if op in ("empty", "notEmpty") else (attrs.get("data-value") or "")
         then = attrs.get("data-then") or ""
         otherwise = attrs.get("data-else") or ""
         # Word field arguments use escaped quotes inside quoted literals.
         quote = lambda value: '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
-        tail_instr = f' {operators[op]} {quote(value)} {quote(then)} {quote(otherwise)} '
+        tail_instr = f' {operators.get(op, "=")} {quote(value)} {quote(then)} {quote(otherwise)} '
 
         def _fld(kind: str, rpr: str = "") -> str:
             return f'<w:r>{rpr}<w:fldChar w:fldCharType="{kind}"/></w:r>'
@@ -21659,14 +21662,25 @@ def postprocess_writer_if_ref_fields(docx_bytes: bytes, *, source_html: str | No
             return f'<w:r>{rpr}<w:instrText xml:space="preserve">{_escape_xml(text)}</w:instrText></w:r>'
 
         def build_if_field(rpr: str = "") -> str:
+            if rule_kind == "fillIn":
+                prompt = attrs.get("data-prompt") or ""
+                default = attrs.get("data-default") or ""
+                instruction = f' FILLIN {quote(prompt)} \\d {quote(default)} '
+                return (
+                    _fld("begin", rpr) + _instr(instruction, rpr) + _fld("separate", rpr)
+                    + f'<w:r>{rpr}<w:t xml:space="preserve">{_escape_xml(default)}</w:t></w:r>' + _fld("end", rpr)
+                )
+            field_name = {"if": "IF", "skipIf": "SKIPIF", "nextIf": "NEXTIF"}.get(rule_kind, "IF")
+            rule_tail = tail_instr if rule_kind == "if" else f' {operators[op]} {quote(value)} '
+            display = fallback if rule_kind == "if" else ""
             # Word chỉ coi MERGEFIELD là trường lồng khi nó là trường phức (fldChar) nằm TRONG lệnh IF;
             # dấu `{ }` viết thẳng vào instr là chữ thường (Word hiện kết quả "MERGEFIELD" sai).
             return (
-                _fld("begin", rpr) + _instr(" IF ", rpr)
+                _fld("begin", rpr) + _instr(f" {field_name} ", rpr)
                 + _fld("begin", rpr) + _instr(f" MERGEFIELD {field} ", rpr) + _fld("separate", rpr)
                 + f'<w:r>{rpr}<w:t>«{_escape_xml(field)}»</w:t></w:r>' + _fld("end", rpr)
-                + _instr(tail_instr, rpr) + _fld("separate", rpr)
-                + f'<w:r>{rpr}<w:t xml:space="preserve">{_escape_xml(fallback)}</w:t></w:r>' + _fld("end", rpr)
+                + _instr(rule_tail, rpr) + _fld("separate", rpr)
+                + f'<w:r>{rpr}<w:t xml:space="preserve">{_escape_xml(display)}</w:t></w:r>' + _fld("end", rpr)
             )
         if fallback:
             text_pattern = re.compile(r'<w:r\b[^>]*>(?P<rpr><w:rPr>[\s\S]*?</w:rPr>)?<w:t(?:\s[^>]*)?>(?P<text>[^<]*)</w:t></w:r>')
@@ -21695,7 +21709,17 @@ def postprocess_writer_if_ref_fields(docx_bytes: bytes, *, source_html: str | No
         pattern = re.compile(r'<w:hyperlink\b(?=[^>]*\bw:anchor="' + re.escape(_escape_xml(target)) + r'")[^>]*>[\s\S]*?</w:hyperlink>')
         xml, count = pattern.subn(lambda _: field_xml, xml, count=1)
         changed |= count > 0
-    return patch_ooxml_zip(docx_bytes, {"word/document.xml": xml.encode("utf-8")}) if changed else docx_bytes
+    changes = {}
+    if changed:
+        changes["word/document.xml"] = xml.encode("utf-8")
+    if auto_hyphenation:
+        settings_bytes = read_zip_entry(docx_bytes, "word/settings.xml")
+        if settings_bytes:
+            settings = settings_bytes.decode("utf-8", errors="replace")
+            if "<w:autoHyphenation" not in settings:
+                settings = re.sub(r"(<w:settings\b[^>]*>)", r"\1<w:autoHyphenation/>", settings, count=1)
+                changes["word/settings.xml"] = settings.encode("utf-8")
+    return patch_ooxml_zip(docx_bytes, changes) if changes else docx_bytes
 
 
 _CSS_NAMED_COLORS = {"black": "000000", "white": "FFFFFF", "red": "FF0000", "green": "008000", "blue": "0000FF", "yellow": "FFFF00",

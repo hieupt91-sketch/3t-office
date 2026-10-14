@@ -974,9 +974,13 @@ export const viStrings = {
     "writer.reference.captionInsert": { label: "Chèn chú thích ảnh", tooltip: "Chèn chú thích tự đánh số cho hình ảnh, bảng hoặc phương trình" },
     "writer.reference.tofInsert": { label: "Danh mục hình ảnh", tooltip: "Chèn danh mục hình ảnh/bảng tự động từ các chú thích đã chèn" },
     "writer.reference.tofUpdate": { label: "Cập nhật danh mục", tooltip: "Cập nhật lại danh mục hình ảnh/bảng từ các chú thích hiện có" },
+    "writer.reference.indexMark": { label: "Đánh dấu mục", tooltip: "Đánh dấu từ hoặc cụm từ đang chọn để đưa vào chỉ mục" },
+    "writer.reference.indexInsert": { label: "Chèn chỉ mục", tooltip: "Tạo chỉ mục chữ cái từ các mục đã đánh dấu" },
+    "writer.insert.quickParts": { label: "Khối dựng sẵn", tooltip: "Lưu vùng chọn để dùng lại hoặc chèn một khối đã lưu" },
+    "writer.layout.hyphenation": { label: "Ngắt từ", tooltip: "Bật hoặc tắt dấu gạch nối tự động theo ngôn ngữ tài liệu" },
     "writer.mailMerge.open": { label: "Nguồn dữ liệu", tooltip: "Mở danh sách người nhận trộn thư từ tệp bảng tính (.xlsx, .xls) hoặc CSV/TSV" },
     "writer.mailMerge.insertField": { label: "Chèn trường", tooltip: "Chèn trường trộn thư tại vị trí con trỏ" },
-    "writer.mailMerge.ifRule": { label: "Quy tắc", tooltip: "Chèn quy tắc Nếu...Thì...Ngược lại; DOCX lưu quy tắc thành trường IF" },
+    "writer.mailMerge.ifRule": { label: "Quy tắc", tooltip: "Chèn Bỏ qua bản ghi nếu, Bản ghi kế nếu, Nếu…Thì…Khác hoặc Điền vào" },
     "writer.mailMerge.preview": { label: "Xem trước kết quả", tooltip: "Bật/tắt xem trước bản ghi trộn thư" },
     "writer.mailMerge.prevRecord": { label: "Bản ghi trước", tooltip: "Chuyển tới bản ghi trước" },
     "writer.mailMerge.nextRecord": { label: "Bản ghi sau", tooltip: "Chuyển tới bản ghi tiếp theo" },
@@ -1031,6 +1035,7 @@ export const viStrings = {
       footnotes: "Chú thích",
       citationsBibliography: "Trích dẫn & Thư mục tài liệu",
       captions: "Chú thích ảnh",
+      index: "Chỉ mục",
       createMailings: "Tạo",
       startMerge: "Bắt đầu trộn",
       writeInsert: "Viết & Chèn trường",
@@ -1046,7 +1051,8 @@ export const viStrings = {
       macro: "Macro",
       help: "Trợ giúp",
       aiFeatures: "Tính năng AI thuần Việt"
-    }
+    },
+    hyphenation: { none: "Ngắt từ: Không", auto: "Ngắt từ: Tự động" }
   },
   writerNavigation: {
     title: "Ngăn dẫn hướng",
@@ -1279,7 +1285,9 @@ export const viStrings = {
       finishTitle: "Hoàn tất và Trộn thư",
       finishNoData: "Chưa có nguồn dữ liệu trộn thư để tạo tài liệu. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp bảng tính hoặc dán bảng dữ liệu.",
       finishNoFields: "Tài liệu hiện tại chưa chứa trường trộn thư nào. Hãy dùng lệnh 'Chèn trường' để chèn ít nhất một trường trộn.",
-      finishSuccess: "Đã hoàn tất trộn thư thành công {count} bản ghi vào tài liệu. Bạn có thể xem trước khi in hoặc xuất tệp."
+      finishSuccess: "Đã hoàn tất trộn thư thành công {count} bản ghi vào tài liệu. Bạn có thể xem trước khi in hoặc xuất tệp.",
+      allRecordsSkipped: "Tất cả bản ghi đều bị loại bởi quy tắc Bỏ qua bản ghi nếu.",
+      previewSkipped: "Bản ghi này bị bỏ qua theo quy tắc trộn thư."
       ,ifTitle: "Quy tắc Nếu...Thì...Ngược lại", ifField: "Trường", ifFieldRequired: "Vui lòng chọn trường dữ liệu.", ifOperator: "Toán tử", ifValue: "Giá trị so sánh", ifThen: "Thì", ifElse: "Ngược lại", opEquals: "bằng", opNotEquals: "khác", opContains: "chứa", opGreater: "lớn hơn", opLess: "nhỏ hơn", opEmpty: "rỗng", opNotEmpty: "không rỗng"
     },
     printPreview: {

@@ -343,7 +343,8 @@ export const WRITER_RIBBON_TABS = [
             type: "column",
             items: [
               { type: "button", commandId: "writer.format.dropCap" },
-              { type: "button", commandId: "writer.insert.dateTime" }
+              { type: "button", commandId: "writer.insert.dateTime" },
+              { type: "button", commandId: "writer.insert.quickParts" }
             ]
           }
         ]
@@ -437,6 +438,16 @@ export const WRITER_RIBBON_TABS = [
               { value: "continuous", label: "Số dòng: Liên tục" },
               { value: "restartPage", label: "Số dòng: Mỗi trang" },
               { value: "restartSection", label: "Số dòng: Mỗi mục" }
+            ]
+          },
+          {
+            type: "select",
+            commandId: "writer.layout.hyphenation",
+            defaultValue: "none",
+            ariaLabel: "Ngắt từ tự động",
+            options: [
+              { value: "none", label: "Ngắt từ: Không", labelKey: "writerRibbon.hyphenation.none" },
+              { value: "auto", label: "Ngắt từ: Tự động", labelKey: "writerRibbon.hyphenation.auto" }
             ]
           },
           {
@@ -722,6 +733,15 @@ export const WRITER_RIBBON_TABS = [
             ]
           }
         ]
+      },
+      {
+        id: "index",
+        label: "Chỉ mục",
+        labelKey: "writerRibbon.group.index",
+        items: [
+          { type: "button", commandId: "writer.reference.indexMark", isLarge: true },
+          { type: "button", commandId: "writer.reference.indexInsert", isLarge: true }
+        ]
       }
     ]
   },
@@ -974,6 +994,20 @@ export const WRITER_RIBBON_TABS = [
  * @returns {Array}
  */
 export function applyLocaleToWriterRibbon(tabs = WRITER_RIBBON_TABS) {
+  const translateItems = (items = []) => {
+    for (const item of items) {
+      if (item.labelKey) {
+        const translated = t(item.labelKey);
+        if (translated && translated !== item.labelKey) item.label = translated;
+      }
+      for (const option of item.options || []) {
+        if (!option.labelKey) continue;
+        const translated = t(option.labelKey);
+        if (translated && translated !== option.labelKey) option.label = translated;
+      }
+      if (Array.isArray(item.items)) translateItems(item.items);
+    }
+  };
   for (const tab of tabs) {
     if (tab.labelKey) {
       const translated = t(tab.labelKey);
@@ -989,6 +1023,7 @@ export function applyLocaleToWriterRibbon(tabs = WRITER_RIBBON_TABS) {
             group.label = translated;
           }
         }
+        translateItems(group.items);
       }
     }
   }

@@ -973,9 +973,13 @@ export const enStrings = {
     "writer.reference.captionInsert": { label: "Insert Caption", tooltip: "Insert an auto-numbered caption for a picture, table, or equation" },
     "writer.reference.tofInsert": { label: "Insert Table of Figures", tooltip: "Insert a table of figures or tables from existing captions" },
     "writer.reference.tofUpdate": { label: "Update Table of Figures", tooltip: "Refresh the table of figures from captions in the document" },
+    "writer.reference.indexMark": { label: "Mark Entry", tooltip: "Mark the selected word or phrase for the alphabetical index" },
+    "writer.reference.indexInsert": { label: "Insert Index", tooltip: "Build an alphabetical index from marked entries" },
+    "writer.insert.quickParts": { label: "Reusable Blocks", tooltip: "Save the selection for reuse or insert a saved block" },
+    "writer.layout.hyphenation": { label: "Hyphenation", tooltip: "Turn automatic language-aware hyphenation on or off" },
     "writer.mailMerge.open": { label: "Select Recipients", tooltip: "Open mail merge recipient list from spreadsheet (.xlsx, .xls) or CSV/TSV file" },
     "writer.mailMerge.insertField": { label: "Insert Merge Field", tooltip: "Insert a mail merge field" },
-    "writer.mailMerge.ifRule": { label: "Rules", tooltip: "Insert an If...Then...Else rule; DOCX saves it as an IF field" },
+    "writer.mailMerge.ifRule": { label: "Rules", tooltip: "Insert Skip record if, Next record if, If…Then…Else, or Fill in" },
     "writer.mailMerge.preview": { label: "Preview Results", tooltip: "Preview merged records" },
     "writer.mailMerge.prevRecord": { label: "Previous Record", tooltip: "Go to previous record" },
     "writer.mailMerge.nextRecord": { label: "Next Record", tooltip: "Go to next record" },
@@ -1030,6 +1034,7 @@ export const enStrings = {
       footnotes: "Footnotes",
       citationsBibliography: "Citations & Bibliography",
       captions: "Captions",
+      index: "Index",
       createMailings: "Create",
       startMerge: "Start Mail Merge",
       writeInsert: "Write & Insert Fields",
@@ -1045,7 +1050,8 @@ export const enStrings = {
       macro: "Macros",
       help: "Help",
       aiFeatures: "Vietnamese AI Features"
-    }
+    },
+    hyphenation: { none: "Hyphenation: None", auto: "Hyphenation: Automatic" }
   },
   writerNavigation: {
     title: "Navigation Pane",
@@ -1278,7 +1284,9 @@ export const enStrings = {
       finishTitle: "Finish & Merge",
       finishNoData: "No mail merge data source to create documents. Please open 'Select Recipients' to select an spreadsheet/CSV file.",
       finishNoFields: "Current document contains no merge fields. Use 'Insert Merge Field' to insert at least one field.",
-      finishSuccess: "Successfully merged {count} records into document. You can preview or export the document."
+      finishSuccess: "Successfully merged {count} records into document. You can preview or export the document.",
+      allRecordsSkipped: "Every record was excluded by a Skip record if rule.",
+      previewSkipped: "This record is skipped by a mail merge rule."
       ,ifTitle: "If...Then...Else Rule", ifField: "Field", ifFieldRequired: "Select a data field.", ifOperator: "Comparison", ifValue: "Compare to", ifThen: "Then", ifElse: "Otherwise", opEquals: "equal to", opNotEquals: "not equal to", opContains: "contains", opGreater: "greater than", opLess: "less than", opEmpty: "is blank", opNotEmpty: "is not blank"
     },
     printPreview: {

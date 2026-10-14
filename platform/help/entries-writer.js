@@ -25,17 +25,61 @@ export const WRITER_HELP_ENTRIES = [
     id: "writer.mailMerge.ifRule.docx",
     app: "writer",
     commandIds: ["writer.mailMerge.ifRule"],
-    title: "Lưu quy tắc trộn thư và tham chiếu chéo vào tệp DOCX",
-    summary: "Quy tắc Nếu...Thì...Ngược lại được lưu thành trường IF của tệp DOCX; tham chiếu chéo tới dấu trang được lưu thành trường REF, để các phần mềm soạn thảo văn bản khác cập nhật được.",
+    title: "Chèn quy tắc khi trộn thư",
+    summary: "Điều khiển từng bản ghi bằng Bỏ qua bản ghi nếu, Bản ghi kế nếu, Nếu…Thì…Khác hoặc Điền vào; quy tắc được áp dụng khi xem trước và khi hoàn tất trộn.",
     ribbon: { tab: "Trộn thư", tabId: "mailings", group: "Viết & Chèn trường" },
     keywords: ["IF", "REF", "DOCX", "trộn thư", "quy tắc", "tham chiếu chéo", "dấu trang"],
     steps: [
-      "Mở tab Trộn thư, nhóm Viết & Chèn trường, bấm nút Quy tắc để mở hộp thoại Quy tắc Nếu...Thì...Ngược lại.",
-      "Chọn trường dữ liệu từ danh sách tại mục Trường. Nếu trường bị bỏ trống khi bấm Chèn, hộp thoại hiển thị cảnh báo lỗi «Vui lòng chọn trường dữ liệu.» và giữ hộp thoại mở để chọn lại.",
-      "Chọn phép so sánh tại mục Toán tử (bằng, khác, chứa, lớn hơn, nhỏ hơn, rỗng, không rỗng), sau đó nhập Giá trị so sánh, nội dung chèn khi đúng điều kiện tại mục Thì và nội dung chèn khi sai tại mục Ngược lại.",
-      "Dùng phím Tab để di chuyển giữa các trường nhập và nút bấm; nhấn Chèn (hoặc phím Enter khi nút Chèn nhận tiêu điểm) để hoàn tất. Nhấn phím Esc hoặc nút Hủy để đóng hộp thoại mà không thay đổi.",
-      "Khi lưu tệp dạng DOCX (Tệp > Lưu thành), quy tắc được ghi thành trường IF chuẩn; mở bằng các phần mềm soạn thảo khác có thể chọn trường và cập nhật bình thường.",
-      "Để tham chiếu tới tiêu đề hoặc dấu trang, mở tab Tham chiếu > nhóm Chú thích ảnh > Tham chiếu chéo; khi lưu DOCX, tham chiếu chéo trở thành trường REF trỏ tới dấu trang nội bộ."
+      "Mở tab Trộn thư, nhóm Viết & Chèn trường, bấm Quy tắc. Trước đó hãy mở Nguồn dữ liệu để danh sách Trường dữ liệu có nội dung.",
+      "Chọn Bỏ qua bản ghi nếu để loại bản ghi thỏa điều kiện, hoặc Bản ghi kế nếu để dùng dữ liệu của bản ghi kế tiếp khi điều kiện đúng.",
+      "Chọn Nếu…Thì…Khác, chọn Trường dữ liệu và Điều kiện, rồi nhập nội dung khi đúng và khi sai. Chọn Điền vào để đặt Lời nhắc nhập cùng Nội dung mặc định.",
+      "Dùng Tab và Shift+Tab để đi qua mọi ô và nút. Bấm Chèn để đặt quy tắc tại con trỏ; Esc đóng hộp thoại mà không thay đổi.",
+      "Bật Xem trước kết quả để kiểm tra từng bản ghi. Bản ghi bị bỏ qua có thông báo rõ; Hoàn tất & Trộn không tạo trang cho bản ghi đó."
+    ]
+  },
+  {
+    id: "writer.reference.index",
+    app: "writer",
+    commandIds: ["writer.reference.indexMark", "writer.reference.indexInsert"],
+    title: "Đánh dấu và chèn chỉ mục chữ cái",
+    summary: "Đánh dấu thuật ngữ trong tài liệu rồi tạo danh sách chữ cái có số trang ước lượng và liên kết quay lại từng thuật ngữ.",
+    ribbon: { tab: "Tham chiếu", tabId: "references", group: "Chỉ mục" },
+    keywords: ["chỉ mục", "đánh dấu mục", "mark entry", "index", "thuật ngữ", "số trang"],
+    steps: [
+      "Bôi đen một từ hoặc cụm từ trong trang soạn thảo. Mở tab Tham chiếu, nhóm Chỉ mục và bấm Đánh dấu mục.",
+      "Lặp lại với các thuật ngữ khác. Dấu gạch chấm dưới từ cho biết mục đã được đánh dấu nhưng không làm thay đổi nội dung đọc.",
+      "Đặt con trỏ ở nơi cần danh sách, thường ở cuối tài liệu, rồi bấm Chèn chỉ mục. Các mục trùng được gộp và sắp xếp theo bảng chữ cái tiếng Việt.",
+      "Nếu chưa đánh dấu mục nào, ứng dụng thông báo lý do và không chèn một khối rỗng. Có thể hoàn tác thao tác bằng Ctrl+Z."
+    ]
+  },
+  {
+    id: "writer.insert.quickParts",
+    app: "writer",
+    commandIds: ["writer.insert.quickParts"],
+    title: "Lưu và chèn khối dựng sẵn",
+    summary: "Lưu đoạn nội dung thường dùng ngay trên máy để chèn lại khi không có mạng; định dạng cơ bản của vùng chọn được giữ lại.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Văn bản" },
+    keywords: ["khối dựng sẵn", "chèn nhanh", "quick parts", "đoạn mẫu", "nội dung dùng lại", "offline"],
+    steps: [
+      "Bôi đen đoạn cần dùng lại, mở tab Chèn, nhóm Văn bản và bấm Khối dựng sẵn.",
+      "Nhập Tên khối và Nhóm rồi bấm Lưu vùng chọn. Khối được lưu cục bộ trên máy; nội dung tài liệu không được gửi ra mạng.",
+      "Để dùng lại, đặt con trỏ tại vị trí cần chèn, mở Khối dựng sẵn, chọn một dòng trong danh sách và bấm Chèn.",
+      "Chọn một khối rồi bấm Xóa để bỏ khỏi thư viện. Nếu vùng chọn trống hoặc tên trống, nút lưu bị vô hiệu hoặc hộp thoại nêu rõ nội dung cần bổ sung."
+    ]
+  },
+  {
+    id: "writer.layout.hyphenation",
+    app: "writer",
+    commandIds: ["writer.layout.hyphenation"],
+    title: "Bật ngắt từ tự động",
+    summary: "Tự đặt dấu gạch nối khi từ dài chạm mép dòng, dựa trên ngôn ngữ của tài liệu; nội dung gốc không bị chèn ký tự thủ công.",
+    ribbon: { tab: "Bố cục", tabId: "layout", group: "Thiết lập trang" },
+    keywords: ["ngắt từ", "gạch nối", "hyphenation", "tự động", "bố cục"],
+    steps: [
+      "Mở tab Bố cục, nhóm Thiết lập trang và mở danh sách Ngắt từ.",
+      "Chọn Ngắt từ: Tự động để trình bày các từ dài cân đối hơn ở cuối dòng. Tài liệu tiếng Việt được gắn ngôn ngữ tiếng Việt nếu chưa có ngôn ngữ.",
+      "Chọn Ngắt từ: Không để tắt. Thao tác chỉ thay đổi bố cục hiển thị và lưu; chữ trong tài liệu vẫn giữ nguyên để tìm kiếm và sao chép chính xác.",
+      "Có thể nhấn Ctrl+Z để hoàn tác lần đổi gần nhất; khi mở lại tài liệu, trạng thái tự động được khôi phục từ dấu thiết lập trong tài liệu."
     ]
   },
   {

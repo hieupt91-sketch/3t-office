@@ -298,28 +298,58 @@ export function parseCsv(text) {
  * @param {Record<string, string>} record
  * @returns {string}
  */
+export function evaluateMergeCondition(value, operator, expected = "") {
+  const actual = value == null ? "" : String(value);
+  const compare = String(expected ?? "");
+  switch (operator) {
+    case "equals": return actual === compare;
+    case "notEquals": return actual !== compare;
+    case "contains": return actual.includes(compare);
+    case "greaterThan": return Number(actual) > Number(compare);
+    case "lessThan": return Number(actual) < Number(compare);
+    case "empty": return actual.trim() === "";
+    case "notEmpty": return actual.trim() !== "";
+    default: return false;
+  }
+}
+
+function attrValue(attrs, name) {
+  return (String(attrs || "").match(new RegExp(`\\b${name}=["']([^"']*)["']`, "i")) || [])[1] || "";
+}
+
+/** Resolve record-control rules before replacing fields. */
+export function resolveMailMergeRecord(html, record, nextRecord = null) {
+  let skip = false;
+  let activeRecord = record || {};
+  String(html || "").replace(/<span\b([^>]*\bdata-merge-rule=["'](skipIf|nextIf)["'][^>]*)>[\s\S]*?<\/span>/gi,
+    (_match, attrs, type) => {
+      const field = attrValue(attrs, "data-field");
+      const pass = evaluateMergeCondition(activeRecord?.[field], attrValue(attrs, "data-op"), attrValue(attrs, "data-value"));
+      if (type === "skipIf" && pass) skip = true;
+      if (type === "nextIf" && pass && nextRecord) activeRecord = nextRecord;
+      return _match;
+    });
+  return { skip, record: activeRecord };
+}
+
 export function replaceMergeFields(html, record) {
   if (!html || typeof html !== "string") return "";
   const withRules = html.replace(/<span\b([^>]*\bdata-merge-if=["']([^"']+)["'][^>]*)>([\s\S]*?)<\/span>/gi,
     (match, attrs, field, fallback) => {
       const get = (name) => (attrs.match(new RegExp(`\\b${name}=["']([^"']*)["']`, "i")) || [])[1] || "";
-      const value = record?.[field] == null ? "" : String(record[field]);
-      const expected = get("data-value");
       const op = get("data-op");
-      let pass = false;
-      switch (op) {
-        case "equals": pass = value === expected; break;
-        case "notEquals": pass = value !== expected; break;
-        case "contains": pass = value.includes(expected); break;
-        case "greaterThan": pass = Number(value) > Number(expected); break;
-        case "lessThan": pass = Number(value) < Number(expected); break;
-        case "empty": pass = value.trim() === ""; break;
-        case "notEmpty": pass = value.trim() !== ""; break;
-        default: return fallback;
-      }
+      if (!["equals", "notEquals", "contains", "greaterThan", "lessThan", "empty", "notEmpty"].includes(op)) return fallback;
+      const pass = evaluateMergeCondition(record?.[field], op, get("data-value"));
       return pass ? get("data-then") : get("data-else");
     });
-  return withRules.replace(
+  const withoutControlRules = withRules.replace(
+    /<span\b[^>]*\bdata-merge-rule=["'](?:skipIf|nextIf)["'][^>]*>[\s\S]*?<\/span>/gi,
+    ""
+  ).replace(
+    /<span\b([^>]*\bdata-merge-rule=["']fillIn["'][^>]*)>[\s\S]*?<\/span>/gi,
+    (_match, attrs) => attrValue(attrs, "data-default")
+  );
+  return withoutControlRules.replace(
     /<span\b([^>]*\bdata-field=["']([^"']+)["'][^>]*)>([\s\S]*?)<\/span>/gi,
     (match, attrs, fieldName) => {
       if (record && record[fieldName] !== undefined) {

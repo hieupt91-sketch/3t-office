@@ -116,6 +116,7 @@ import { runSlidesChartTests } from "./unit/slides-charts.test.js";
 import { runWriterCitationsTests } from "./unit/writer-citations.test.js";
 import { runSlidesFontParagraphTests } from "./unit/slides-font-paragraph.test.js";
 import { runWriterCaptionsTests } from "./unit/writer-captions.test.js";
+import { runWriterW4Tests } from "./unit/writer-w4.test.js";
 import { runSheetFormatDropdownTests } from "./unit/sheet-format-dropdown.test.js";
 import { runSheetRenameMoveProtectTests } from "./unit/sheet-rename-move-protect.test.js";
 import { runSheetProtectWorkbookTests } from "./unit/sheet-protect-workbook.test.js";
@@ -393,6 +394,7 @@ async function runAll() {
     { title: "99. Behavioral Tests — VN Writer Citations & Bibliography", runner: runWriterCitationsTests },
     { title: "100. Behavioral Tests — VN Slides Font & Paragraph (Home tab)", runner: runSlidesFontParagraphTests },
     { title: "101. Behavioral Tests — VN Writer Captions & Table of Figures", runner: runWriterCaptionsTests },
+    { title: "WORD-W4. Writer Rules, Index, Reusable Blocks & Hyphenation", runner: runWriterW4Tests },
     { title: "102. Behavioral Tests — VN Sheet Home Cells Format dropdown (row/col size & hide)", runner: runSheetFormatDropdownTests },
     { title: "103. Behavioral Tests — VN Sheet Rename / Move-Copy / Protect Sheet", runner: runSheetRenameMoveProtectTests },
     { title: "104. Behavioral Tests — VN Sheet Protect Workbook", runner: runSheetProtectWorkbookTests },
