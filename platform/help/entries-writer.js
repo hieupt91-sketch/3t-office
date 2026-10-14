@@ -170,6 +170,38 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.table.quickTables",
+    app: "writer",
+    commandIds: ["writer.table.quickTables"],
+    title: "Chèn bảng dựng sẵn (Quick Tables)",
+    summary: "Chèn nhanh các mẫu bảng được thiết kế sẵn gồm Lịch tháng, Danh sách công việc và Ma trận phân tích SWOT vào văn bản.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Bảng biểu" },
+    keywords: ["bảng dựng sẵn", "quick tables", "mẫu bảng", "lịch tháng", "danh sách công việc", "ma trận swot"],
+    steps: [
+      "Đặt con trỏ văn bản tại vị trí muốn chèn bảng.",
+      "Mở tab Chèn trên thanh ribbon, tại nhóm Bảng biểu, bấm Bảng dựng sẵn.",
+      "Hộp thoại thư viện hiển thị các mẫu bảng: Lịch tháng, Danh sách công việc, Ma trận phân tích (SWOT).",
+      "Chọn mẫu bảng phù hợp rồi bấm Chèn bảng (hoặc nhấp đúp vào mẫu).",
+      "Bảng mẫu được chèn vào văn bản với đầy đủ định dạng viền, màu nền và nội dung gợi ý; bạn có thể nhấp vào từng ô để chỉnh sửa số liệu."
+    ]
+  },
+  {
+    id: "writer.table.toText",
+    app: "writer",
+    commandIds: ["writer.table.toText"],
+    title: "Chuyển bảng thành văn bản",
+    summary: "Chuyển bảng hiện tại thành các đoạn văn bản thường, phân tách nội dung giữa các ô bằng dấu Tab, dấu phẩy, dấu chấm phẩy hoặc dấu đoạn.",
+    ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Dữ liệu" },
+    keywords: ["bảng thành văn bản", "chuyển bảng", "table to text", "tách bảng", "bỏ bảng"],
+    steps: [
+      "Đặt con trỏ vào bên trong bảng hoặc chọn bảng cần chuyển thành văn bản.",
+      "Mở tab ngữ cảnh Bố cục Bảng trên thanh ribbon, tại nhóm Dữ liệu, bấm Bảng thành văn bản.",
+      "Trong hộp thoại, chọn dấu phân cách muốn dùng để tách các ô: Dấu Tab, Dấu phẩy, Dấu chấm phẩy, Dấu đoạn hoặc Ký tự khác.",
+      "Bấm Chuyển đổi (hoặc Enter). Khung bảng được gỡ bỏ và toàn bộ nội dung trong ô trở thành văn bản thường theo đúng dấu phân cách đã chọn.",
+      "Bấm Ctrl+Z nếu muốn hoàn tác để khôi phục lại bảng nguyên vẹn."
+    ]
+  },
+  {
     id: "writer.section.breaks",
     app: "writer",
     commandIds: ["writer.page.break", "writer.break.column", "writer.section.nextPage", "writer.section.continuous", "writer.section.evenPage", "writer.section.oddPage"],

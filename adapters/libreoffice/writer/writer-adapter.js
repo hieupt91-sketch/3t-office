@@ -25,7 +25,15 @@ import { showWatermarkDialog, showPageBorderDialog, showPageColorDialog } from "
 import { showColumnsDialog } from "../../../apps/writer/columns-dialog.js";
 import { showParagraphDialog } from "../../../apps/writer/paragraph-dialog.js";
 import { nextIndentPx, indentPxToCss, cssLengthToPx } from "../../../apps/writer/paragraph-indent.js";
-import { buildTableHtml, showTextToTableDialog, splitTextToRows } from "../../../apps/writer/text-to-table-dialog.js";
+import {
+  buildTableHtml,
+  convertTableToParagraphs,
+  QUICK_TABLES,
+  showQuickTablesDialog,
+  showTableToTextDialog,
+  showTextToTableDialog,
+  splitTextToRows
+} from "../../../apps/writer/text-to-table-dialog.js";
 import { parseTabStops, resolveTab, serializeTabStops, showTabStopsDialog, styleTabElement } from "../../../apps/writer/tab-stops.js";
 import { SHAPE_TYPES, showShapeDialog, renderShapeSvg, showDiagramDialog, generateDiagramHtml, showChartDialog, generateChartHtml } from "../../../apps/writer/writer-illustrations.js";
 import { DOCUMENT_THEMES, showThemeGalleryDialog } from "../../../apps/writer/theme-gallery.js";
@@ -706,7 +714,9 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.insert.symbol", (args) => this.insertSymbol(args));
     globalCommandBus.bindHandler("writer.insert.bookmark", (args) => this.insertBookmark(args));
     globalCommandBus.bindHandler("writer.insert.crossReference", (args) => this.insertCrossReference(args));
-    globalCommandBus.bindHandler("writer.table.fromText", (args) => this.convertTextToTable(args));
+    globalCommandBus.bindHandler("writer.table.fromText", (args) => this._hintIfFalse(() => this.convertTextToTable(args), "Hãy chọn ít nhất một đoạn văn bản ngoài bảng để chuyển thành bảng."));
+    globalCommandBus.bindHandler("writer.table.toText", (args) => this._hintIfFalse(() => this.convertTableToText(args), "Hãy đặt con trỏ vào bảng cần chuyển thành văn bản."));
+    globalCommandBus.bindHandler("writer.table.quickTables", (args) => this.insertQuickTable(args));
 
     // Bind Office Parity Mouse & Shortcuts
     this._bindMouseAndKeyboardParity();
@@ -8108,7 +8118,11 @@ export class WriterAdapter {
         return this.insertBlankPage();
 
       case "writer.table.fromText":
-        return this.convertTextToTable(args);
+        return this._hintIfFalse(() => this.convertTextToTable(args), "Hãy chọn ít nhất một đoạn văn bản ngoài bảng để chuyển thành bảng.");
+      case "writer.table.toText":
+        return this._hintIfFalse(() => this.convertTableToText(args), "Hãy đặt con trỏ vào bảng cần chuyển thành văn bản.");
+      case "writer.table.quickTables":
+        return this.insertQuickTable(args);
 
       case "writer.break.column":
         return this._insertColumnBreak();
@@ -9199,7 +9213,18 @@ export class WriterAdapter {
    * @param {object|null} args { delimiter: tab|comma|semicolon|space|custom, custom } — không truyền thì mở hộp thoại.
    */
   async convertTextToTable(args = null) {
-    const blocks = (this._getSelectedParagraphBlocks?.() || []).filter(block => block?.parentNode && !block.closest?.("table"));
+    let blocks = (this._getSelectedParagraphBlocks?.() || []).filter(block => block?.parentNode && !block.closest?.("table"));
+    if (!blocks.length) {
+      const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+      if (sel && sel.rangeCount > 0) {
+        const node = sel.anchorNode;
+        const el = node?.nodeType === 1 ? node : node?.parentElement;
+        const p = el?.closest?.("p, h1, h2, h3, h4, h5, h6, li, div");
+        if (p && !p.closest("table") && (this.bodyDom?.contains?.(p) || this.editorDom?.contains?.(p))) {
+          blocks = [p];
+        }
+      }
+    }
     if (!blocks.length) return false;
     const lines = blocks.map(block => String(block.innerText ?? block.textContent ?? "").replace(/ /g, " ").replace(/\n+$/, ""));
     const choice = args && typeof args === "object" && args.delimiter ? args : await showTextToTableDialog(lines);
@@ -9215,6 +9240,71 @@ export class WriterAdapter {
     if (!table.nextElementSibling) table.after(Object.assign(document.createElement("p"), { innerHTML: "<br>" }));
     this.isDirty = true;
     this.recordSnapshot("writer.table.fromText");
+    return true;
+  }
+
+  /**
+   * Bảng thành văn bản: chuyển bảng hiện tại → các đoạn văn bản thường theo dấu phân cách.
+   * @param {object|null} args { delimiter: tab|comma|semicolon|paragraph|custom, custom } — không truyền thì mở hộp thoại.
+   */
+  async convertTableToText(args = null) {
+    const table = this._getActiveTable();
+    if (!table) return false;
+    const choice = args && typeof args === "object" && args.delimiter ? args : await showTableToTextDialog(table);
+    if (!choice) return null;
+    const paragraphs = convertTableToParagraphs(table, choice.delimiter, choice.custom);
+    this.flushTyping();
+    const fragment = document.createDocumentFragment();
+    for (const text of paragraphs) {
+      const p = document.createElement("p");
+      p.textContent = text;
+      fragment.appendChild(p);
+    }
+    if (!fragment.childNodes.length) {
+      const p = document.createElement("p");
+      p.innerHTML = "<br>";
+      fragment.appendChild(p);
+    }
+    table.before(fragment);
+    table.remove();
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.toText");
+    this.tableController?._syncContextualTabs(false);
+    return true;
+  }
+
+  /**
+   * Chèn bảng dựng sẵn (Quick Tables): Lịch, Danh sách công việc, Ma trận SWOT.
+   * @param {object|string|null} args { templateId: calendar|list|matrix } hoặc chuỗi templateId.
+   */
+  async insertQuickTable(args = null) {
+    let templateId = typeof args === "string" ? args : (args && typeof args === "object" ? args.templateId : null);
+    if (!templateId) {
+      templateId = await showQuickTablesDialog();
+    }
+    if (!templateId) return null;
+    const template = QUICK_TABLES.find(t => t.id === templateId);
+    if (!template) return false;
+    this.flushTyping();
+    this._initZones();
+    const html = template.buildHtml();
+    let inserted = false;
+    if (typeof document !== "undefined" && typeof document.execCommand === "function") {
+      try {
+        const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+        if (sel && sel.rangeCount > 0 && (this.bodyDom?.contains?.(sel.anchorNode) || this.editorDom?.contains?.(sel.anchorNode))) {
+          inserted = document.execCommand("insertHTML", false, html);
+        }
+      } catch {
+        inserted = false;
+      }
+    }
+    const targetDom = this.bodyDom || this.editorDom;
+    if (!inserted && targetDom) {
+      targetDom.innerHTML = (targetDom.innerHTML || "") + html;
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.quickTables");
     return true;
   }
 

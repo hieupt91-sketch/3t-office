@@ -286,6 +286,7 @@ export const WRITER_RIBBON_TABS = [
         labelKey: "writerRibbon.group.tables",
         items: [
           { type: "button", commandId: "writer.table.insert", isLarge: true },
+          { type: "button", commandId: "writer.table.quickTables", isLarge: true },
           { type: "button", commandId: "writer.table.fromText", isLarge: true }
         ]
       },
@@ -664,6 +665,14 @@ export const WRITER_RIBBON_TABS = [
           { type: "button", commandId: "writer.table.alignTop" },
           { type: "button", commandId: "writer.table.alignMiddle" },
           { type: "button", commandId: "writer.table.alignBottom" }
+        ]
+      },
+      {
+        id: "tableDataGroup",
+        label: "Dữ liệu",
+        labelKey: "writerRibbon.group.tableDataGroup",
+        items: [
+          { type: "button", commandId: "writer.table.toText", isLarge: true }
         ]
       }
     ]

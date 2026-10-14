@@ -145,7 +145,9 @@ export const WRITER_COMMANDS = [
   { id: "writer.para.borders", category: "paragraph", label: "Viền đoạn", icon: "paragraphBorders", tooltip: "Chọn viền đoạn văn hoặc ô bảng" },
 
   { id: "writer.table.insert", category: "insert", label: "Bảng biểu", icon: "table", tooltip: "Chèn bảng mới vào văn bản" },
+  { id: "writer.table.quickTables", category: "insert", label: "Bảng dựng sẵn", icon: "table", tooltip: "Chèn bảng dựng sẵn như lịch, danh sách công việc hoặc ma trận phân tích" },
   { id: "writer.table.fromText", category: "insert", label: "Văn bản thành bảng", icon: "table", tooltip: "Chuyển các đoạn đang chọn thành bảng, tách ô theo dấu phân cách" },
+  { id: "writer.table.toText", category: "table", label: "Bảng thành văn bản", icon: "table", tooltip: "Chuyển bảng đang chọn thành văn bản thường theo dấu phân cách" },
   { id: "writer.table.insertRowAbove", category: "table", label: "Chèn hàng phía trên", icon: "insertRow", tooltip: "Chèn một hàng mới ngay phía trên hàng hiện tại" },
   { id: "writer.table.insertRowBelow", category: "table", label: "Chèn hàng phía dưới", icon: "insertRow", tooltip: "Chèn một hàng mới ngay phía dưới hàng hiện tại" },
   { id: "writer.table.insertColLeft", category: "table", label: "Chèn cột bên trái", icon: "insertCol", tooltip: "Chèn một cột mới bên trái cột hiện tại" },
