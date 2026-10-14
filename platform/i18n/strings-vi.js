@@ -709,6 +709,8 @@ export const viStrings = {
   ,"sheet.edit.fillSeries": { label: "Chuỗi...", tooltip: "Điền chuỗi số hoặc ngày: tuyến tính, tăng trưởng, ngày/tháng/năm" }
     ,"sheet.edit.clearAll": { label: "Xóa tất cả", tooltip: "Xóa toàn bộ nội dung, công thức và định dạng của các ô đã chọn" }
     ,"sheet.edit.clearFormats": { label: "Xóa định dạng", tooltip: "Xóa định dạng ô và đưa về mặc định nhưng giữ nguyên nội dung" }
+  ,"sheet.edit.clearComments": { label: "Xóa ghi chú", tooltip: "Xóa ghi chú (comment) trong các ô đang chọn, giữ nguyên nội dung ô" }
+  ,"sheet.edit.clearHyperlinks": { label: "Xóa siêu liên kết", tooltip: "Gỡ siêu liên kết trong các ô đang chọn nhưng giữ nguyên văn bản" }
     ,"sheet.edit.clearContents": { label: "Xóa nội dung", tooltip: "Xóa nội dung và công thức của ô nhưng giữ nguyên định dạng" }
     ,"slides.review.commentInsert": { label: "Nhận xét mới", tooltip: "Thêm nhận xét cho trang chiếu hiện tại" }
     ,"slides.review.commentPrevious": { label: "Nhận xét trước", tooltip: "Nhảy tới nhận xét trước đó" }

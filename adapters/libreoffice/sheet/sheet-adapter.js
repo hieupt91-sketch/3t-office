@@ -557,6 +557,14 @@ export class SheetAdapter {
       options = options || {};
       return this.grid.clearContents ? this.grid.clearContents(options.range) : false;
     });
+    globalCommandBus.bindHandler("sheet.edit.clearComments", (options) => {
+      options = options || {};
+      return this.grid.clearComments ? this.grid.clearComments(options.range) : false;
+    });
+    globalCommandBus.bindHandler("sheet.edit.clearHyperlinks", (options) => {
+      options = options || {};
+      return this.grid.clearHyperlinks ? this.grid.clearHyperlinks(options.range) : false;
+    });
     globalCommandBus.bindHandler("sheet.cells.format", () => this.grid.showFormatCellsDialog());
     globalCommandBus.bindHandler("sheet.edit.fill", (options) => {
       options = options || {};
@@ -6666,6 +6674,12 @@ ${pristineXlsxMarker}
 
       case "sheet.edit.clearContents":
         return this.grid.clearContents ? this.grid.clearContents(args?.range) : false;
+
+      case "sheet.edit.clearComments":
+        return this.grid.clearComments ? this.grid.clearComments(args?.range) : false;
+
+      case "sheet.edit.clearHyperlinks":
+        return this.grid.clearHyperlinks ? this.grid.clearHyperlinks(args?.range) : false;
 
       case "common.edit.find":
         return this._showFindReplaceDialog(false);

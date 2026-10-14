@@ -139,7 +139,7 @@ Tổng: 10 mục ưu tiên 1.
 | Chỉnh sửa | Điền: xuống / sang phải / Flash Fill | 🟢 | - | sheet.edit.fillDown/Right; Flash Fill có |
 | Chỉnh sửa | Điền: lên / sang trái / Chuỗi (Series) / Căn đều / Trên các trang | 🔴 | 2 | Chưa thấy lệnh trong ribbon |
 | Chỉnh sửa | Xóa: tất cả / định dạng / nội dung | 🟢 | - |  |
-| Chỉnh sửa | Xóa ghi chú / Xóa siêu liên kết (trong menu Xóa) | 🔴 | 2 |  |
+| Chỉnh sửa | Xóa ghi chú / Xóa siêu liên kết (trong menu Xóa) | ✅ | 2 | 14/10: lệnh Xóa ghi chú / Xóa siêu liên kết trong menu Xóa; Excel COM Comments=0, Hyperlinks=0 sau lưu|
 | Chỉnh sửa | Sắp xếp A-Z / Z-A / Tùy chỉnh nhiều cấp | ✅ | - | Sắp xếp hai cấp đã đọc lại bằng Excel 2016 |
 | Chỉnh sửa | Sắp xếp theo màu ô/màu chữ/biểu tượng | 🟡 | 3 | G2: có sắp xếp theo màu ô/chữ; chưa có theo biểu tượng |
 | Chỉnh sửa | Bộ lọc (AutoFilter) bật/tắt | ✅ | - | AutoFilterMode đã đối chiếu |
@@ -206,8 +206,8 @@ Tổng: 10 mục ưu tiên 1.
 | Thư viện hàm | Tổng tự động; Dùng gần đây; Tài chính / Logic / Văn bản / Ngày giờ / Tra cứu / Toán | 🟢 | - | Các nhóm hàm trong ribbon |
 | Thư viện hàm | Độ phủ hàm Excel 2016 (462 hàm) | 🟡 | 1 | Đã đối chiếu 137 hàm, 118 khớp; ~337 hàm chưa kiểm (xem EXCEL2016-FUNCTIONS-MATRIX.md) |
 | Thư viện hàm | Công thức mảng (CSE, Ctrl+Shift+Enter) | 🟡 | 1 | Có hỗ trợ mảng; chưa đối chiếu đủ |
-| Thư viện hàm | Tham chiếu có cấu trúc (Table1[Cột]) | 🔴 | 1 | Chưa có |
-| Thư viện hàm | Tham chiếu 3-D giữa các trang (Sheet1:Sheet3!A1) | 🔴 | 2 |  |
+| Thư viện hàm | Tham chiếu có cấu trúc (Table1[Cột]) | ✅ | 1 | G4 phần 1 (đã gộp main)|
+| Thư viện hàm | Tham chiếu 3-D giữa các trang (Sheet1:Sheet3!A1) | ✅ | 2 | 14/10: đối chiếu Excel 2016 75/75, lưu XLSX giữ công thức|
 | Tên đã xác định | Trình quản lý tên / Xác định tên / Tạo từ vùng chọn / Dùng trong công thức | ✅ | - | Tên SampleNames đã đối chiếu |
 | Kiểm tra công thức | Tìm ô tiền lệ / phụ thuộc / Xóa mũi tên | 🟢 | - |  |
 | Kiểm tra công thức | Hiện công thức (Ctrl+`) / Kiểm tra lỗi / Ước lượng công thức | 🟢 | - |  |

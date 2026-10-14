@@ -1113,18 +1113,21 @@ export const SHEET_HELP_ENTRIES = [
       "sheet.edit.fillSeries",
       "sheet.edit.clearAll",
       "sheet.edit.clearFormats",
-      "sheet.edit.clearContents"
+      "sheet.edit.clearContents",
+      "sheet.edit.clearComments",
+      "sheet.edit.clearHyperlinks"
     ],
     title: "Điền xuống/phải/lên/trái, điền chuỗi và xóa nội dung hay định dạng",
     summary: "Ctrl+D sao chép ô trên xuống (công thức tự lệch hàng); Ctrl+R sao chép sang phải (lệch cột); menu Điền còn có Điền lên, Điền trái và Chuỗi (tuyến tính, tăng trưởng, ngày). Menu Xóa: Tất cả, chỉ định dạng, hoặc chỉ nội dung (giữ kiểu).",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
-    keywords: ["điền xuống", "điền phải", "điền lên", "điền trái", "chuỗi", "series", "tuyến tính", "tăng trưởng", "ngày làm việc", "ctrl+d", "ctrl+r", "xóa tất cả", "xóa định dạng", "xóa nội dung", "fill down", "fill series", "clear"],
+    keywords: ["điền xuống", "điền phải", "điền lên", "điền trái", "chuỗi", "series", "tuyến tính", "tăng trưởng", "ngày làm việc", "ctrl+d", "ctrl+r", "xóa tất cả", "xóa định dạng", "xóa nội dung", "xóa ghi chú", "xóa siêu liên kết", "clear comments", "clear hyperlinks", "fill down", "fill series", "clear"],
     steps: [
       "Tab Trang đầu, nhóm Chỉnh sửa: menu Điền (nút lớn) gồm Điền xuống (Ctrl+D) và Điền phải (Ctrl+R); menu Xóa gồm Xóa tất cả / Xóa định dạng / Xóa nội dung. Chuột phải ô cũng có Xóa nội dung (Delete).",
       "Điền xuống: bôi từ ô nguồn xuống các ô đích — ô đầu là nguồn, các ô dưới nhận bản sao; công thức =A1 thành =A2, =A3… (lệch hàng). Nếu chỉ chọn 1 hàng, nguồn là hàng ngay phía trên (hàng 1 thì không điền được). Điền phải tương tự theo cột; chọn 1 cột thì lấy cột bên trái.",
       "Điền lên và Điền trái (cũng nằm trong menu Điền): bôi vùng gồm ô nguồn và các ô cần điền; với Điền lên, ô dưới cùng là nguồn và các ô phía trên nhận bản sao; với Điền trái, cột phải nhất là nguồn. Chọn một ô thì lấy ô ngay bên dưới (Điền lên) hoặc ngay bên phải (Điền trái). Công thức tự lệch địa chỉ như khi điền xuống.",
       "Chuỗi... (menu Điền): bôi vùng bắt đầu từ ô chứa giá trị đầu, mở Chuỗi rồi chọn Chuỗi theo Hàng hoặc Cột, Loại Tuyến tính (cộng thêm Bước nhảy), Tăng trưởng (nhân với Bước nhảy) hoặc Ngày. Với loại Ngày chọn đơn vị Ngày, Ngày làm việc (bỏ thứ bảy và chủ nhật), Tháng hoặc Năm; ô đầu phải là ngày dạng dd/mm/yyyy hoặc yyyy-mm-dd. Giá trị dừng là tùy chọn: chỉ chọn một ô và nhập Giá trị dừng để Sheet tự điền tới khi đạt giá trị đó.",
       "Xóa tất cả: xóa giá trị, công thức và style. Xóa định dạng: giữ số/công thức, bỏ màu/viền/cỡ chữ. Xóa nội dung: xóa chữ và công thức, giữ style. Sheet đang bảo vệ thì Xóa tất cả / Xóa nội dung / Điền bị chặn.",
+      "Xóa ghi chú: bôi vùng ô rồi mở menu Xóa và chọn Xóa ghi chú — mọi ghi chú (comment) trong vùng bị gỡ, nội dung ô giữ nguyên. Xóa siêu liên kết: chọn các ô có liên kết rồi chọn Xóa siêu liên kết — văn bản vẫn còn nhưng không còn bấm mở được. Nếu vùng không có ghi chú/siêu liên kết thì lệnh không làm gì. Cả hai đều hoàn tác được bằng Ctrl+Z.",
       "Ctrl+Z hoàn tác cả khối điền hoặc xóa. Delete mặc định gần với xóa nội dung, không xóa định dạng."
     ]
   },

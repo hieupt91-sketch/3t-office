@@ -91,6 +91,7 @@ import { runSheetSlidesViewTabTests } from "./unit/sheet-slides-view-tab.test.js
 import { runSlidesSpellcheckViTests } from "./unit/slides-spellcheck-vi.test.js";
 import { runSheetSpellcheckViTests } from "./unit/sheet-spellcheck-vi.test.js";
 import { runSheetFormulasTabTests } from "./unit/sheet-formulas-tab.test.js";
+import { runSheetClearNotesLinksTests } from "./unit/sheet-clear-notes-links.test.js";
 import { runDesktopLaunchContextTests } from "./unit/desktop-launch-context.test.js";
 import { runSheetCfValidationFodsRoundTripTests } from "./unit/sheet-cf-validation-fods-roundtrip.test.js";
 import { runWriterTrackChangesImportTests } from "./unit/writer-trackchanges-import.test.js";
@@ -378,6 +379,7 @@ async function runAll() {
     { title: "72. Behavioral & Unit Tests — Vietnamese Slides Spellchecker", runner: runSlidesSpellcheckViTests },
     { title: "73. Behavioral & Unit Tests — Vietnamese Sheet Spellchecker (F7 dialog scan)", runner: runSheetSpellcheckViTests },
     { title: "74. Behavioral & Unit Tests — VN Sheet Real Formulas Tab (Function Library, Defined Names, Auditing, Calculation Mode)", runner: runSheetFormulasTabTests },
+  { title: "Behavioral & Unit Tests — VN Sheet Xóa ghi chú / Xóa siêu liên kết (undo, redo)", runner: runSheetClearNotesLinksTests },
     { title: "75. Desktop Launch Context — Single App & Web Suite Mode", runner: runDesktopLaunchContextTests },
     { title: "76. Round-trip Tests — VN Sheet CF & Data Validation Save FODS", runner: runSheetCfValidationFodsRoundTripTests },
     { title: "77. Unit Tests — Writer Track Changes Import Fidelity (real DOCX w:ins/w:del)", runner: runWriterTrackChangesImportTests },

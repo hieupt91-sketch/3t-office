@@ -482,6 +482,8 @@ export const SHEET_COMMANDS = [
   { id: "sheet.edit.clearAll", category: "edit", label: "Xóa tất cả", icon: "clearAll", tooltip: "Xóa toàn bộ nội dung, công thức và định dạng của các ô đã chọn" },
   { id: "sheet.edit.clearFormats", category: "edit", label: "Xóa định dạng", icon: "clearFormat", tooltip: "Xóa định dạng ô và đưa về mặc định nhưng giữ nguyên nội dung" },
   { id: "sheet.edit.clearContents", category: "edit", label: "Xóa nội dung", icon: "clearContents", tooltip: "Xóa nội dung và công thức của ô nhưng giữ nguyên định dạng" },
+  { id: "sheet.edit.clearComments", category: "edit", label: "Xóa ghi chú", icon: "clearContents", tooltip: "Xóa ghi chú (comment) trong các ô đang chọn, giữ nguyên nội dung ô" },
+  { id: "sheet.edit.clearHyperlinks", category: "edit", label: "Xóa siêu liên kết", icon: "clearFormat", tooltip: "Gỡ siêu liên kết trong các ô đang chọn nhưng giữ nguyên văn bản" },
   { id: "sheet.help.open", category: "help", label: "Trợ giúp", shortcut: "F1", icon: "help", tooltip: "Mở hướng dẫn sử dụng (F1)", isToggle: true }
 ];
 

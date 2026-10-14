@@ -8872,6 +8872,43 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
+  /** Xóa ghi chú trong vùng chọn (menu Xóa > Xóa ghi chú). */
+  clearComments(range = null, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const coords = new Set(this.formulaEngine.expandRange(this._rangeLabel(targetRange)).map(coord => coord.toUpperCase()));
+    const comments = this.commentsBySheet[this.activeSheet] ||= {};
+    const removed = Object.keys(comments).filter(key => coords.has(key.toUpperCase()));
+    if (!removed.length) return false;
+    const before = {};
+    for (const key of removed) { before[key] = structuredClone(comments[key]); delete comments[key]; }
+    if (recordUndo) this._recordHistory({ type: "batch-comments", sheet: this.activeSheet, before, after: {} });
+    this._refreshPageAndCommentVisuals();
+    return removed.length;
+  }
+
+  /** Xóa siêu liên kết trong vùng chọn nhưng giữ nguyên văn bản (menu Xóa > Xóa siêu liên kết). */
+  clearHyperlinks(range = null, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const coords = this.formulaEngine.expandRange(this._rangeLabel(targetRange));
+    const before = {};
+    const after = {};
+    for (const coord of coords) {
+      const item = this.cellsData.get(coord);
+      if (!item?.hyperlink) continue;
+      before[coord] = { val: item.val, formula: item.formula, style: structuredClone(item.style || {}), hyperlink: item.hyperlink };
+      delete item.hyperlink;
+      after[coord] = { val: item.val, formula: item.formula, style: structuredClone(item.style || {}) };
+      const [c, r] = this._splitCoord(coord);
+      this._renderCellVisual(this.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord}"]`), item, c, r);
+    }
+    const count = Object.keys(before).length;
+    if (!count) return false;
+    if (recordUndo) this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after });
+    return count;
+  }
+
   openHyperlinkAtSelection() {
     const url = String(this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.hyperlink || "");
     if (!/^(https?:|mailto:)/i.test(url)) return false;
@@ -11816,6 +11853,7 @@ _bindGridKeyboardNavigation() {
             formula: snap.formula ?? "",
             style: structuredClone(snap.style || {})
           };
+          if (snap.hyperlink) itm.hyperlink = snap.hyperlink;
           this.cellsData.set(coord, itm);
         }
         const [c, r] = this._splitCoord(coord);
@@ -11923,6 +11961,12 @@ _bindGridKeyboardNavigation() {
       if (currentIndex >= 0) collection.splice(currentIndex, 1);
       if (desired) collection.splice(Math.min(action.index, collection.length), 0, structuredClone(desired));
       this._recalculateAllFormulas();
+    } else if (action.type === "batch-comments") {
+      const comments = this.commentsBySheet[action.sheet] ||= {};
+      const desired = direction === "undo" ? action.before : action.after;
+      for (const [coord, comment] of Object.entries(desired)) comments[coord] = structuredClone(comment);
+      if (direction === "redo") for (const coord of Object.keys(action.before)) if (!(coord in desired)) delete comments[coord];
+      this._refreshPageAndCommentVisuals();
     } else if (action.type === "comment") {
       const comments = this.commentsBySheet[action.sheet] ||= {};
       const desired = direction === "undo" ? action.before : action.after;
