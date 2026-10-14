@@ -2739,6 +2739,7 @@ def parse_page_margins_from_fods(fods_xml: str | None) -> dict[str, dict[str, fl
         try:
             margins = json.loads(attrs['vno:page-margins'])
             values = {side: float(margins[side]) for side in ('top', 'bottom', 'left', 'right')}
+            values.update({side: float(margins[side]) for side in ('header', 'footer') if side in margins})
         except (ValueError, TypeError, KeyError):
             continue
         if all(math.isfinite(value) and value >= 0 for value in values.values()):
@@ -2768,6 +2769,7 @@ def overlay_page_margins_to_fods(xlsx_bytes: bytes, fods_xml: str) -> str:
         attrs = _xml_attrs(match.group(1))
         try:
             margins = {side: round(float(attrs[side]) * 2.54, 12) for side in ('top', 'bottom', 'left', 'right')}
+            margins.update({side: round(float(attrs[side]) * 2.54, 12) for side in ('header', 'footer') if side in attrs})
         except (ValueError, KeyError):
             continue
         if all(math.isfinite(value) and value >= 0 for value in margins.values()):
@@ -5786,8 +5788,12 @@ def _apply_sheet_print_options_from_fods(xlsx_bytes: bytes, source_fods: str | N
             setup_values["errors"] = errors
         if order:
             setup_values["pageOrder"] = order
+        setup_values["blackAndWhite"] = "1" if options.get("blackAndWhite") else "0"
+        setup_values["draft"] = "1" if options.get("draft") else "0"
         if setup_values and re.search(r"<pageSetup\b[^>]*>", updated):
             updated = re.sub(r"<pageSetup\b[^>]*>", lambda m: _set_xml_tag_attrs(m.group(0), setup_values), updated, count=1)
+        elif setup_values:
+            updated = _insert_worksheet_child_in_schema_order(updated, _set_xml_tag_attrs("<pageSetup/>", setup_values), "pageSetup")
         if updated != current:
             replacements[entry_path] = updated
 
@@ -5812,6 +5818,8 @@ def parse_print_options_from_sheet_xml(sheet_xml: str | None) -> dict | None:
     return {
         "gridlines": truthy(attr(po_attrs, "gridLines")),
         "headings": truthy(attr(po_attrs, "headings")),
+        "blackAndWhite": truthy(attr(ps_attrs, "blackAndWhite")),
+        "draft": truthy(attr(ps_attrs, "draft")),
         "comments": comments_back.get(attr(ps_attrs, "cellComments"), "none"),
         "cellErrors": errors_back.get(attr(ps_attrs, "errors"), "displayed"),
         "pageOrder": "overThenDown" if attr(ps_attrs, "pageOrder") == "overThenDown" else "downThenOver",
@@ -5852,6 +5860,247 @@ def overlay_sheet_xlsx_print_options(xlsx_bytes: bytes, fods_xml: str | None) ->
         if options:
             by_sheet[sheet_name] = options
     return apply_print_options_to_fods(xml, by_sheet)
+
+
+_PAPER_SIZE_TO_XLSX = {"letter": "1", "legal": "5", "a3": "8", "a4": "9", "a5": "11"}
+_PAPER_SIZE_FROM_XLSX = {value: key for key, value in _PAPER_SIZE_TO_XLSX.items()}
+
+
+def _remove_xml_tag_attrs(tag: str, names: tuple[str, ...]) -> str:
+    for name in names:
+        tag = re.sub(rf'\s+{re.escape(name)}\s*=\s*(["\'])[^"\']*\1', '', tag, flags=re.IGNORECASE)
+    return tag
+
+
+def _page_setup_pr_fit_to_page(sheet_xml: str, enabled: bool) -> str:
+    value = "1" if enabled else "0"
+    paired = re.search(r'<sheetPr\b([^>]*)>([\s\S]*?)</sheetPr\s*>', sheet_xml, re.IGNORECASE)
+    if paired:
+        body = paired.group(2)
+        if re.search(r'<pageSetUpPr\b[^>]*/>', body, re.IGNORECASE):
+            body = re.sub(r'<pageSetUpPr\b[^>]*/>', lambda m: _set_xml_tag_attrs(m.group(0), {"fitToPage": value}), body, count=1, flags=re.IGNORECASE)
+        else:
+            body += f'<pageSetUpPr fitToPage="{value}"/>'
+        return sheet_xml[:paired.start()] + f'<sheetPr{paired.group(1)}>{body}</sheetPr>' + sheet_xml[paired.end():]
+    empty = re.search(r'<sheetPr\b([^>]*)/>', sheet_xml, re.IGNORECASE)
+    if empty:
+        replacement = f'<sheetPr{empty.group(1)}><pageSetUpPr fitToPage="{value}"/></sheetPr>'
+        return sheet_xml[:empty.start()] + replacement + sheet_xml[empty.end():]
+    opening = re.search(r'<worksheet\b[^>]*>', sheet_xml, re.IGNORECASE)
+    if not opening:
+        return sheet_xml
+    return sheet_xml[:opening.end()] + f'<sheetPr><pageSetUpPr fitToPage="{value}"/></sheetPr>' + sheet_xml[opening.end():]
+
+
+def _header_footer_sections(value: str) -> dict[str, str]:
+    result = {"left": "", "center": "", "right": ""}
+    current = "center"
+    parts = re.split(r'(&[LCR])', html.unescape(value or ""))
+    for part in parts:
+        if part in ("&L", "&C", "&R"):
+            current = {"&L": "left", "&C": "center", "&R": "right"}[part]
+        elif part:
+            result[current] += part
+    return result
+
+
+def _header_footer_xlsx_value(sections: dict | None) -> str:
+    source = sections or {}
+    return "".join(marker + str(source.get(position) or "") for marker, position in (("&L", "left"), ("&C", "center"), ("&R", "right")) if source.get(position))
+
+
+def parse_page_setup_metadata_from_sheet_xml(sheet_xml: str | None) -> dict:
+    xml = sheet_xml or ""
+    setup_match = re.search(r'<pageSetup\b([^>]*)>', xml, re.IGNORECASE)
+    print_match = re.search(r'<printOptions\b([^>]*)>', xml, re.IGNORECASE)
+    header_match = re.search(r'<headerFooter\b([^>]*)>([\s\S]*?)</headerFooter\s*>', xml, re.IGNORECASE)
+    setup_attrs = _xml_attrs(setup_match.group(1)) if setup_match else {}
+    print_attrs = _xml_attrs(print_match.group(1)) if print_match else {}
+    header_attrs = _xml_attrs(header_match.group(1)) if header_match else {}
+    fit_enabled = bool(re.search(r'<pageSetUpPr\b[^>]*\bfitToPage=["\'](?:1|true)["\']', xml, re.IGNORECASE))
+    has_fit = fit_enabled or "fitToWidth" in setup_attrs or "fitToHeight" in setup_attrs
+    if has_fit:
+        scale = {
+            "mode": "pages", "percent": 100,
+            "pagesWide": int(setup_attrs.get("fitToWidth") or 0),
+            "pagesTall": int(setup_attrs.get("fitToHeight") or 0),
+        }
+    else:
+        scale = {"mode": "percent", "percent": int(setup_attrs.get("scale") or 100), "pagesWide": 1, "pagesTall": 0}
+    quality = int(setup_attrs.get("horizontalDpi") or setup_attrs.get("verticalDpi") or 600)
+    first_page = int(setup_attrs["firstPageNumber"]) if setup_attrs.get("firstPageNumber", "").isdigit() else "auto"
+    truthy = lambda value, default=False: str(value).strip().lower() in ("1", "true") if value is not None else default
+    hf_body = header_match.group(2) if header_match else ""
+    odd_header = re.search(r'<oddHeader\b[^>]*>([\s\S]*?)</oddHeader\s*>', hf_body, re.IGNORECASE)
+    odd_footer = re.search(r'<oddFooter\b[^>]*>([\s\S]*?)</oddFooter\s*>', hf_body, re.IGNORECASE)
+    return {
+        "size": _PAPER_SIZE_FROM_XLSX.get(setup_attrs.get("paperSize"), "a4"),
+        "orientation": "landscape" if setup_attrs.get("orientation", "").lower() == "landscape" else "portrait",
+        "scale": scale,
+        "pageSettings": {"printQuality": quality, "firstPageNumber": first_page},
+        "centerOnPage": {
+            "horizontal": truthy(print_attrs.get("horizontalCentered")),
+            "vertical": truthy(print_attrs.get("verticalCentered")),
+        },
+        "headerFooter": {
+            "header": _header_footer_sections(odd_header.group(1) if odd_header else ""),
+            "footer": _header_footer_sections(odd_footer.group(1) if odd_footer else ""),
+            "differentOddEven": truthy(header_attrs.get("differentOddEven")),
+            "differentFirst": truthy(header_attrs.get("differentFirst")),
+            "scaleWithDocument": truthy(header_attrs.get("scaleWithDoc"), True),
+            "alignWithMargins": truthy(header_attrs.get("alignWithMargins"), True),
+        },
+    }
+
+
+def apply_page_setup_metadata_to_fods(fods_xml: str, metadata_by_sheet: dict[str, dict]) -> str:
+    if not metadata_by_sheet:
+        return fods_xml or ""
+
+    def replace_table(match: re.Match[str]) -> str:
+        attrs = match.group(1) or ""
+        parsed = _xml_attrs(attrs)
+        metadata = metadata_by_sheet.get(parsed.get("table:name", ""))
+        if not metadata:
+            return match.group(0)
+        values = {
+            "vno:page-size": metadata["size"],
+            "vno:page-orientation": metadata["orientation"],
+            "vno:page-scale": json.dumps(metadata["scale"], separators=(",", ":")),
+            "vno:page-settings": json.dumps(metadata["pageSettings"], separators=(",", ":")),
+            "vno:page-centering": json.dumps(metadata["centerOnPage"], separators=(",", ":")),
+            "vno:page-header-footer": json.dumps(metadata["headerFooter"], separators=(",", ":")),
+        }
+        for key, value in values.items():
+            encoded = _escape_xml(value)
+            if re.search(rf'\b{re.escape(key)}="', attrs, re.IGNORECASE):
+                attrs = re.sub(rf'\b{re.escape(key)}="[^"]*"', f'{key}="{encoded}"', attrs, count=1, flags=re.IGNORECASE)
+            else:
+                attrs += f' {key}="{encoded}"'
+        return f'<table:table{attrs}>'
+
+    xml = _sub_table_open_tags(fods_xml or "", replace_table)
+    if not _declares_vno_namespace(xml):
+        xml = re.sub(r'<office:document\b', f'<office:document xmlns:vno="{SHEET_VNO_NS}"', xml, count=1)
+    return xml
+
+
+def overlay_sheet_xlsx_page_setup(xlsx_bytes: bytes, fods_xml: str | None) -> str:
+    metadata = {}
+    for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        raw = read_zip_entry(xlsx_bytes, entry_path)
+        if raw:
+            metadata[sheet_name] = parse_page_setup_metadata_from_sheet_xml(raw.decode("utf-8", errors="replace"))
+    return apply_page_setup_metadata_to_fods(fods_xml or "", metadata)
+
+
+def _fods_page_setup_metadata(source_fods: str | None) -> dict[str, dict]:
+    result = {}
+    for match in re.finditer(r'<table:table(?=\s|>)([^>]*)>', source_fods or "", re.IGNORECASE):
+        attrs = _xml_attrs(match.group(1))
+        name = attrs.get("table:name")
+        if not name or not attrs.get("vno:page-settings"):
+            continue
+        try:
+            result[name] = {
+                "size": attrs.get("vno:page-size", "a4"),
+                "orientation": attrs.get("vno:page-orientation", "portrait"),
+                "scale": json.loads(attrs.get("vno:page-scale", "{}")),
+                "pageSettings": json.loads(attrs.get("vno:page-settings", "{}")),
+                "centerOnPage": json.loads(attrs.get("vno:page-centering", "{}")),
+                "headerFooter": json.loads(attrs.get("vno:page-header-footer", "{}")),
+            }
+        except (TypeError, ValueError):
+            continue
+    return result
+
+
+def _apply_header_footer_to_worksheet(sheet_xml: str, config: dict) -> str:
+    attrs = {
+        "differentOddEven": "1" if config.get("differentOddEven") else "0",
+        "differentFirst": "1" if config.get("differentFirst") else "0",
+        "scaleWithDoc": "1" if config.get("scaleWithDocument", True) else "0",
+        "alignWithMargins": "1" if config.get("alignWithMargins", True) else "0",
+    }
+    opening_values = _set_xml_tag_attrs("<headerFooter>", attrs)
+    children = {
+        "oddHeader": _header_footer_xlsx_value(config.get("header")),
+        "oddFooter": _header_footer_xlsx_value(config.get("footer")),
+    }
+    paired = re.search(r'<headerFooter\b([^>]*)>([\s\S]*?)</headerFooter\s*>', sheet_xml, re.IGNORECASE)
+    if paired:
+        opening = _set_xml_tag_attrs(f'<headerFooter{paired.group(1)}>', attrs)
+        body = paired.group(2)
+        for tag_name, value in children.items():
+            element = f'<{tag_name}>{_escape_xml(value)}</{tag_name}>'
+            if re.search(rf'<{tag_name}\b[^>]*>[\s\S]*?</{tag_name}\s*>', body, re.IGNORECASE):
+                body = re.sub(rf'<{tag_name}\b[^>]*>[\s\S]*?</{tag_name}\s*>', element, body, count=1, flags=re.IGNORECASE)
+            else:
+                body = element + body
+        replacement = opening + body + '</headerFooter>'
+        return sheet_xml[:paired.start()] + replacement + sheet_xml[paired.end():]
+    body = ''.join(f'<{name}>{_escape_xml(value)}</{name}>' for name, value in children.items())
+    return _insert_worksheet_child_in_schema_order(sheet_xml, opening_values + body + '</headerFooter>', 'headerFooter')
+
+
+def apply_page_setup_metadata_to_worksheet(sheet_xml: str, metadata: dict) -> str:
+    xml = sheet_xml or ""
+    scale = metadata.get("scale") or {}
+    settings = metadata.get("pageSettings") or {}
+    mode = scale.get("mode") == "pages"
+    values = {
+        "paperSize": _PAPER_SIZE_TO_XLSX.get(str(metadata.get("size") or "a4").lower(), "9"),
+        "orientation": "landscape" if metadata.get("orientation") == "landscape" else "portrait",
+        "horizontalDpi": str(int(settings.get("printQuality") or 600)),
+        "verticalDpi": str(int(settings.get("printQuality") or 600)),
+    }
+    if mode:
+        values.update({"fitToWidth": str(max(0, int(scale.get("pagesWide") or 0))), "fitToHeight": str(max(0, int(scale.get("pagesTall") or 0)))})
+    else:
+        values["scale"] = str(max(10, min(400, int(scale.get("percent") or 100))))
+    first_page = settings.get("firstPageNumber", "auto")
+    if first_page != "auto":
+        values.update({"firstPageNumber": str(int(first_page)), "useFirstPageNumber": "1"})
+    page_match = re.search(r'<pageSetup\b[^>]*>', xml, re.IGNORECASE)
+    tag = page_match.group(0) if page_match else '<pageSetup/>'
+    tag = _remove_xml_tag_attrs(tag, ("scale",) if mode else ("fitToWidth", "fitToHeight"))
+    if first_page == "auto":
+        tag = _remove_xml_tag_attrs(tag, ("firstPageNumber", "useFirstPageNumber"))
+    tag = _set_xml_tag_attrs(tag, values)
+    if page_match:
+        xml = xml[:page_match.start()] + tag + xml[page_match.end():]
+    else:
+        xml = _insert_worksheet_child_in_schema_order(xml, tag, "pageSetup")
+    xml = _page_setup_pr_fit_to_page(xml, mode)
+    center = metadata.get("centerOnPage") or {}
+    center_values = {"horizontalCentered": "1" if center.get("horizontal") else "0", "verticalCentered": "1" if center.get("vertical") else "0"}
+    print_match = re.search(r'<printOptions\b[^>]*>', xml, re.IGNORECASE)
+    if print_match:
+        print_tag = _set_xml_tag_attrs(print_match.group(0), center_values)
+        xml = xml[:print_match.start()] + print_tag + xml[print_match.end():]
+    else:
+        xml = _insert_worksheet_child_in_schema_order(xml, _set_xml_tag_attrs('<printOptions/>', center_values), 'printOptions')
+    return _apply_header_footer_to_worksheet(xml, metadata.get("headerFooter") or {})
+
+
+def _apply_sheet_page_setup_from_fods(xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]) -> None:
+    metadata_by_sheet = _fods_page_setup_metadata(source_fods)
+    if not metadata_by_sheet:
+        return
+    entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    for sheet_name, metadata in metadata_by_sheet.items():
+        entry_path = _sheet_name_equivalent_value(entries, sheet_name)
+        if not entry_path:
+            continue
+        current = replacements.get(entry_path)
+        if current is None:
+            raw = read_zip_entry(xlsx_bytes, entry_path)
+            if not raw:
+                continue
+            current = raw.decode("utf-8", errors="replace")
+        updated = apply_page_setup_metadata_to_worksheet(current, metadata)
+        if updated != current:
+            replacements[entry_path] = updated
 
 
 def _fods_pivot_table_names(source_fods: str | None) -> dict[str, str]:

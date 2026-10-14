@@ -342,6 +342,7 @@ function setupForSheet(adapter, table, tableXml, rowColStyles) {
   };
   const pageMargins = parseJson("vno:page-margins");
   const pageScale = parseJson("vno:page-scale");
+  const pageSettings = parseJson("vno:page-settings");
   const pageHeaderFooter = parseJson("vno:page-header-footer");
   const pageCentering = parseJson("vno:page-centering");
   const pagePrintOptions = parseJson("vno:page-print-options");
@@ -349,14 +350,17 @@ function setupForSheet(adapter, table, tableXml, rowColStyles) {
   const pageSetup = {
     size: attrs["vno:page-size"] || standardLayout?.size || "a4",
     orientation: attrs["vno:page-orientation"] || standardLayout?.orientation || "portrait",
-    margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...(standardLayout?.margins || {}), ...pageMargins },
+    margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, header: 0.76, footer: 0.76, ...(standardLayout?.margins || {}), ...pageMargins },
     scale: { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...(standardLayout?.scale || {}), ...pageScale },
+    pageSettings: { printQuality: 600, firstPageNumber: "auto", ...pageSettings },
     headerFooter: {
+      differentOddEven: false, differentFirst: false, scaleWithDocument: true, alignWithMargins: true,
+      ...(standardLayout?.headerFooter || {}), ...pageHeaderFooter,
       header: { left: "", center: "", right: "", ...(standardLayout?.headerFooter?.header || {}), ...(pageHeaderFooter.header || {}) },
       footer: { left: "", center: "Trang &P / &N", right: "", ...(standardLayout?.headerFooter?.footer || {}), ...(pageHeaderFooter.footer || {}) },
     },
     centerOnPage: { horizontal: false, vertical: false, ...(standardLayout?.centerOnPage || {}), ...pageCentering },
-    printOptions: { gridlines: false, headings: false, ...(standardLayout?.printOptions || {}), ...pagePrintOptions },
+    printOptions: { gridlines: false, headings: false, blackAndWhite: false, draft: false, comments: "none", cellErrors: "displayed", pageOrder: "downThenOver", ...(standardLayout?.printOptions || {}), ...pagePrintOptions },
     printTitles: { rows: attrs["vno:print-title-rows"] || "", cols: attrs["vno:print-title-cols"] || "" },
   };
   if (!pageSetup.printTitles.rows && !pageSetup.printTitles.cols) {

@@ -3374,7 +3374,7 @@ export class SheetAdapter {
       }
       return name;
     };
-    const paperSizes = { a4: [21, 29.7], letter: [21.59, 27.94], legal: [21.59, 35.56] };
+    const paperSizes = { a4: [21, 29.7], letter: [21.59, 27.94], legal: [21.59, 35.56], a3: [29.7, 42], a5: [14.8, 21] };
     const headerFooterTextXml = value => String(value || "").split(/(&[PNDTFA])/g).map(part => ({
       "&P": "<text:page-number>1</text:page-number>", "&N": "<text:page-count>1</text:page-count>",
       "&D": "<text:date/>", "&T": "<text:time/>", "&F": '<text:file-name text:display="name-and-extension"/>', "&A": "<text:sheet-name/>"
@@ -3387,18 +3387,21 @@ export class SheetAdapter {
       const base = paperSizes[size];
       const width = orientation === "landscape" ? base[1] : base[0];
       const height = orientation === "landscape" ? base[0] : base[1];
-      const margins = { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...(setup.margins || {}) };
+      const margins = { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, header: 0.76, footer: 0.76, ...(setup.margins || {}) };
       const scale = { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...(setup.scale || {}) };
-      const headerFooter = { header: { left: "", center: "", right: "", ...(setup.headerFooter?.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(setup.headerFooter?.footer || {}) } };
+      const pageSettings = { printQuality: 600, firstPageNumber: "auto", ...(setup.pageSettings || {}) };
+      const headerFooter = { header: { left: "", center: "", right: "", ...(setup.headerFooter?.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(setup.headerFooter?.footer || {}) }, differentOddEven: false, differentFirst: false, scaleWithDocument: true, alignWithMargins: true, ...(setup.headerFooter || {}) };
+      headerFooter.header = { left: "", center: "", right: "", ...(setup.headerFooter?.header || {}) };
+      headerFooter.footer = { left: "", center: "Trang &P / &N", right: "", ...(setup.headerFooter?.footer || {}) };
       const centerOnPage = { horizontal: false, vertical: false, ...(setup.centerOnPage || {}) };
-      const printOptions = { gridlines: false, headings: false, comments: "none", cellErrors: "displayed", pageOrder: "downThenOver", ...(setup.printOptions || {}) };
+      const printOptions = { gridlines: false, headings: false, blackAndWhite: false, draft: false, comments: "none", cellErrors: "displayed", pageOrder: "downThenOver", ...(setup.printOptions || {}) };
       const printTokens = ["objects", "charts", "drawings", "zero-values", printOptions.gridlines ? "grid" : "", printOptions.headings ? "headers" : ""].filter(Boolean).join(" ");
       const tableCentering = centerOnPage.horizontal && centerOnPage.vertical ? "both" : centerOnPage.horizontal ? "horizontal" : centerOnPage.vertical ? "vertical" : "none";
       const scaleAttribute = scale.mode === "pages"
         ? ` style:scale-to-X="${Math.max(0, scale.pagesWide)}" style:scale-to-Y="${Math.max(0, scale.pagesTall)}"`
         : ` style:scale-to="${Math.min(400, Math.max(10, scale.percent || 100))}%"`;
       const suffix = index + 1;
-      pageStyleBySheet.set(sheetName, { tableStyle: `vno-table-page-${suffix}`, size, orientation, margins, scale, headerFooter, centerOnPage, printOptions });
+      pageStyleBySheet.set(sheetName, { tableStyle: `vno-table-page-${suffix}`, size, orientation, margins, scale, pageSettings, headerFooter, centerOnPage, printOptions });
       pageLayouts.push(`<style:page-layout style:name="vno-page-layout-${suffix}"><style:page-layout-properties fo:page-width="${width}cm" fo:page-height="${height}cm" style:print-orientation="${orientation}" fo:margin-top="${margins.top}cm" fo:margin-bottom="${margins.bottom}cm" fo:margin-left="${margins.left}cm" fo:margin-right="${margins.right}cm" style:table-centering="${tableCentering}"${scaleAttribute}/><style:header-style><style:header-footer-properties fo:min-height="0.75cm" fo:margin-bottom="0.25cm"/></style:header-style><style:footer-style><style:header-footer-properties fo:min-height="0.75cm" fo:margin-top="0.25cm"/></style:footer-style></style:page-layout>`);
       const tabColor = (this.grid.sheetStates?.[sheetName]?.tabColor) || (this.grid.tabColors?.[sheetName]) || "";
       const tabColorProp = tabColor ? ` table:tab-color="${this._escapeXml(tabColor)}" tableooo:tab-color="${this._escapeXml(tabColor)}"` : "";
@@ -3962,7 +3965,7 @@ export class SheetAdapter {
       const conditionalRulesAttr = ` vno:conditional-formatting="${this._escapeXml(JSON.stringify(conditionalRules))}"`;
       const textBoxes = this.grid.textBoxesBySheet?.[sheetName] || [];
       const textBoxesAttr = textBoxes.length ? ` vno:text-boxes="${this._escapeXml(JSON.stringify(textBoxes.map(box => ({ text: String(box.text || ""), anchor: box.anchor, widthPx: Math.max(180, Number(box.widthPx) || 180), heightPx: Math.max(54, Number(box.heightPx) || 54) }))))}"` : "";
-      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${splitAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${conditionalRulesAttr}${textBoxesAttr}${resolvedCommentsAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-settings="${this._escapeXml(JSON.stringify(pageStyle.pageSettings))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${splitAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${conditionalRulesAttr}${textBoxesAttr}${resolvedCommentsAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
@@ -4835,6 +4838,8 @@ ${pristineXlsxMarker}
           try { pageMargins = JSON.parse(table.getAttribute("vno:page-margins") || "{}"); } catch (_) { pageMargins = {}; }
           let pageScale = {};
           try { pageScale = JSON.parse(table.getAttribute("vno:page-scale") || "{}"); } catch (_) { pageScale = {}; }
+          let pageSettings = {};
+          try { pageSettings = JSON.parse(table.getAttribute("vno:page-settings") || "{}"); } catch (_) { pageSettings = {}; }
           let pageHeaderFooter = {};
           try { pageHeaderFooter = JSON.parse(table.getAttribute("vno:page-header-footer") || "{}"); } catch (_) { pageHeaderFooter = {}; }
           let pageCentering = {};
@@ -4851,11 +4856,12 @@ ${pristineXlsxMarker}
           const pageSetup = {
             size: table.getAttribute("vno:page-size") || standardLayout?.size || "a4",
             orientation: table.getAttribute("vno:page-orientation") || standardLayout?.orientation || "portrait",
-            margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...(standardLayout?.margins || {}), ...pageMargins },
+            margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, header: 0.76, footer: 0.76, ...(standardLayout?.margins || {}), ...pageMargins },
             scale: { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...(standardLayout?.scale || {}), ...pageScale },
-            headerFooter: { header: { left: "", center: "", right: "", ...(standardLayout?.headerFooter?.header || {}), ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(standardLayout?.headerFooter?.footer || {}), ...(pageHeaderFooter.footer || {}) } },
+            pageSettings: { printQuality: 600, firstPageNumber: "auto", ...pageSettings },
+            headerFooter: { differentOddEven: false, differentFirst: false, scaleWithDocument: true, alignWithMargins: true, ...(standardLayout?.headerFooter || {}), ...pageHeaderFooter, header: { left: "", center: "", right: "", ...(standardLayout?.headerFooter?.header || {}), ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(standardLayout?.headerFooter?.footer || {}), ...(pageHeaderFooter.footer || {}) } },
             centerOnPage: { horizontal: false, vertical: false, ...(standardLayout?.centerOnPage || {}), ...pageCentering },
-            printOptions: { gridlines: false, headings: false, ...(standardLayout?.printOptions || {}), ...pagePrintOptions },
+            printOptions: { gridlines: false, headings: false, blackAndWhite: false, draft: false, comments: "none", cellErrors: "displayed", pageOrder: "downThenOver", ...(standardLayout?.printOptions || {}), ...pagePrintOptions },
             printTitles: { rows: table.getAttribute("vno:print-title-rows") || "", cols: table.getAttribute("vno:print-title-cols") || "" }
           };
           if (!pageSetup.printTitles.rows && !pageSetup.printTitles.cols) {
@@ -5133,6 +5139,8 @@ ${pristineXlsxMarker}
         try { pageMargins = JSON.parse(pageAttr("vno:page-margins") || "{}"); } catch (_) { pageMargins = {}; }
         let pageScale = {};
         try { pageScale = JSON.parse(pageAttr("vno:page-scale") || "{}"); } catch (_) { pageScale = {}; }
+        let pageSettings = {};
+        try { pageSettings = JSON.parse(pageAttr("vno:page-settings") || "{}"); } catch (_) { pageSettings = {}; }
         let pageHeaderFooter = {};
         try { pageHeaderFooter = JSON.parse(pageAttr("vno:page-header-footer") || "{}"); } catch (_) { pageHeaderFooter = {}; }
         let pageCentering = {};
@@ -5146,11 +5154,12 @@ ${pristineXlsxMarker}
         const pageSetup = {
           size: pageAttr("vno:page-size") || standardLayout?.size || "a4",
           orientation: pageAttr("vno:page-orientation") || standardLayout?.orientation || "portrait",
-          margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, ...(standardLayout?.margins || {}), ...pageMargins },
+          margins: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, header: 0.76, footer: 0.76, ...(standardLayout?.margins || {}), ...pageMargins },
           scale: { mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0, ...(standardLayout?.scale || {}), ...pageScale },
-          headerFooter: { header: { left: "", center: "", right: "", ...(standardLayout?.headerFooter?.header || {}), ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(standardLayout?.headerFooter?.footer || {}), ...(pageHeaderFooter.footer || {}) } },
+          pageSettings: { printQuality: 600, firstPageNumber: "auto", ...pageSettings },
+          headerFooter: { differentOddEven: false, differentFirst: false, scaleWithDocument: true, alignWithMargins: true, ...(standardLayout?.headerFooter || {}), ...pageHeaderFooter, header: { left: "", center: "", right: "", ...(standardLayout?.headerFooter?.header || {}), ...(pageHeaderFooter.header || {}) }, footer: { left: "", center: "Trang &P / &N", right: "", ...(standardLayout?.headerFooter?.footer || {}), ...(pageHeaderFooter.footer || {}) } },
           centerOnPage: { horizontal: false, vertical: false, ...(standardLayout?.centerOnPage || {}), ...pageCentering },
-          printOptions: { gridlines: false, headings: false, ...(standardLayout?.printOptions || {}), ...pagePrintOptions },
+          printOptions: { gridlines: false, headings: false, blackAndWhite: false, draft: false, comments: "none", cellErrors: "displayed", pageOrder: "downThenOver", ...(standardLayout?.printOptions || {}), ...pagePrintOptions },
           printTitles: { rows: pageAttr("vno:print-title-rows"), cols: pageAttr("vno:print-title-cols") }
         };
         if (!pageSetup.printTitles.rows && !pageSetup.printTitles.cols) {
