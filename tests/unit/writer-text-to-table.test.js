@@ -1,7 +1,7 @@
 /**
  * Behavioral tests — VN Writer: Văn bản thành bảng và Trang trắng.
  */
-import { splitTextToRows, buildTableHtml, TABLE_DELIMITERS } from "../../apps/writer/text-to-table-dialog.js";
+import { splitTextToRows, buildTableHtml, TABLE_DELIMITERS, convertTableToParagraphs, QUICK_TABLES } from "../../apps/writer/text-to-table-dialog.js";
 import { WRITER_COMMANDS } from "../../platform/commands/command-definitions.js";
 import { WRITER_RIBBON_TABS } from "../../apps/writer/writer-ribbon.js";
 import { WriterAdapter } from "../../adapters/libreoffice/writer/writer-adapter.js";
@@ -86,5 +86,70 @@ export async function runWriterTextToTableTests() {
     assert(/<li style="white-space: pre-wrap">D/.test(out), `mục danh sách có Tab chưa được thêm style: ${out}`);
     assert(adapter._tabCharactersForExport(out) === out, "chạy lại không được chồng thêm style");
   });
+
+  await test("Bảng thành văn bản: convertTableToParagraphs tách ô theo Tab, dấu phẩy, chấm phẩy, đoạn văn và ký tự khác", () => {
+    const dom = {
+      querySelectorAll: (sel) => {
+        if (sel === "tr") {
+          return [
+            { querySelectorAll: () => [{ innerText: "Cột 1" }, { innerText: "Cột 2" }] },
+            { querySelectorAll: () => [{ innerText: "Dữ liệu A" }, { innerText: "Dữ liệu B" }] }
+          ];
+        }
+        return [];
+      }
+    };
+    const tabRes = convertTableToParagraphs(dom, "tab");
+    assert(tabRes.length === 2 && tabRes[0] === "Cột 1\tCột 2" && tabRes[1] === "Dữ liệu A\tDữ liệu B", `tách tab sai: ${JSON.stringify(tabRes)}`);
+    const commaRes = convertTableToParagraphs(dom, "comma");
+    assert(commaRes[0] === "Cột 1, Cột 2", `tách phẩy sai: ${commaRes[0]}`);
+    const semiRes = convertTableToParagraphs(dom, "semicolon");
+    assert(semiRes[0] === "Cột 1; Cột 2", `tách chấm phẩy sai: ${semiRes[0]}`);
+    const paraRes = convertTableToParagraphs(dom, "paragraph");
+    assert(paraRes.length === 4 && paraRes[0] === "Cột 1" && paraRes[1] === "Cột 2", `tách đoạn văn sai: ${JSON.stringify(paraRes)}`);
+    const customRes = convertTableToParagraphs(dom, "custom", " | ");
+    assert(customRes[0] === "Cột 1 | Cột 2", `tách ký tự khác sai: ${customRes[0]}`);
+  });
+
+  await test("Quick Tables: đầy đủ 3 mẫu bảng (lịch, danh sách, ma trận) sinh đúng cấu trúc HTML bảng", () => {
+    assert(QUICK_TABLES.length === 3, "phải có đúng 3 mẫu bảng Quick Tables");
+    const ids = QUICK_TABLES.map(t => t.id);
+    assert(ids.includes("calendar") && ids.includes("list") && ids.includes("matrix"), `thiếu mẫu: ${ids.join(", ")}`);
+    for (const t of QUICK_TABLES) {
+      const html = t.buildHtml();
+      assert(html.includes("<table") && html.includes("</table>"), `mẫu ${t.id} không tạo thẻ table hợp lệ`);
+      assert(html.includes("border"), `mẫu ${t.id} thiếu viền bảng`);
+    }
+    const calHtml = QUICK_TABLES.find(t => t.id === "calendar").buildHtml();
+    assert(calHtml.includes("Tháng 10 / 2026") && calHtml.includes("T2"), "lịch tháng thiếu thông tin");
+    const listHtml = QUICK_TABLES.find(t => t.id === "list").buildHtml();
+    assert(listHtml.includes("STT") && listHtml.includes("Hạng mục công việc"), "danh sách thiếu cột chuẩn");
+    const matrixHtml = QUICK_TABLES.find(t => t.id === "matrix").buildHtml();
+    assert(matrixHtml.includes("ĐIỂM MẠNH") && matrixHtml.includes("ĐIỂM YẾU"), "ma trận thiếu góc phần tư SWOT");
+  });
+
+  await test("Bảng thành văn bản và Quick Tables: có lệnh, ribbon, và hoàn tác đúng mốc snapshot", () => {
+    assert(WRITER_COMMANDS.some(command => command.id === "writer.table.quickTables"), "thiếu lệnh Quick Tables");
+    assert(WRITER_COMMANDS.some(command => command.id === "writer.table.toText"), "thiếu lệnh Bảng thành văn bản");
+    const insertTab = WRITER_RIBBON_TABS.find(tab => tab.id === "insert");
+    const insertGroup = id => insertTab.groups.find(item => item.id === id)?.items.map(item => item.commandId) || [];
+    assert(insertGroup("tables").includes("writer.table.quickTables"), "Quick Tables phải nằm ở nhóm Bảng biểu tab Chèn");
+
+    const layoutTab = WRITER_RIBBON_TABS.find(tab => tab.id === "tableLayout");
+    const layoutGroup = id => layoutTab.groups.find(item => item.id === id)?.items.map(item => item.commandId) || [];
+    assert(layoutGroup("tableDataGroup").includes("writer.table.toText"), "Bảng thành văn bản phải nằm ở nhóm Dữ liệu tab Bố cục Bảng");
+
+    const adapter = new WriterAdapter(null);
+    let snapshots = [];
+    adapter.flushTyping = () => {};
+    adapter._initZones = () => {};
+    adapter.recordSnapshot = description => snapshots.push(description);
+    const host = { innerHTML: "" };
+    adapter.bodyDom = host;
+    adapter.insertQuickTable("calendar");
+    assert(host.innerHTML.includes("Tháng 10 / 2026"), "insertQuickTable không chèn nội dung vào bodyDom");
+    assert(snapshots.includes("writer.table.quickTables"), "thiếu snapshot writer.table.quickTables");
+  });
+
   return results;
 }

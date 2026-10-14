@@ -170,6 +170,38 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.table.quickTables",
+    app: "writer",
+    commandIds: ["writer.table.quickTables"],
+    title: "Chèn bảng dựng sẵn (Quick Tables)",
+    summary: "Chèn nhanh các mẫu bảng được thiết kế sẵn gồm Lịch tháng, Danh sách công việc và Ma trận phân tích SWOT vào văn bản.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Bảng biểu" },
+    keywords: ["bảng dựng sẵn", "quick tables", "mẫu bảng", "lịch tháng", "danh sách công việc", "ma trận swot"],
+    steps: [
+      "Đặt con trỏ văn bản tại vị trí muốn chèn bảng.",
+      "Mở tab Chèn trên thanh ribbon, tại nhóm Bảng biểu, bấm Bảng dựng sẵn.",
+      "Hộp thoại thư viện hiển thị các mẫu bảng: Lịch tháng, Danh sách công việc, Ma trận phân tích (SWOT).",
+      "Chọn mẫu bảng phù hợp rồi bấm Chèn bảng (hoặc nhấp đúp vào mẫu).",
+      "Bảng mẫu được chèn vào văn bản với đầy đủ định dạng viền, màu nền và nội dung gợi ý; bạn có thể nhấp vào từng ô để chỉnh sửa số liệu."
+    ]
+  },
+  {
+    id: "writer.table.toText",
+    app: "writer",
+    commandIds: ["writer.table.toText"],
+    title: "Chuyển bảng thành văn bản",
+    summary: "Chuyển bảng hiện tại thành các đoạn văn bản thường, phân tách nội dung giữa các ô bằng dấu Tab, dấu phẩy, dấu chấm phẩy hoặc dấu đoạn.",
+    ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Dữ liệu" },
+    keywords: ["bảng thành văn bản", "chuyển bảng", "table to text", "tách bảng", "bỏ bảng"],
+    steps: [
+      "Đặt con trỏ vào bên trong bảng hoặc chọn bảng cần chuyển thành văn bản.",
+      "Mở tab ngữ cảnh Bố cục Bảng trên thanh ribbon, tại nhóm Dữ liệu, bấm Bảng thành văn bản.",
+      "Trong hộp thoại, chọn dấu phân cách muốn dùng để tách các ô: Dấu Tab, Dấu phẩy, Dấu chấm phẩy, Dấu đoạn hoặc Ký tự khác.",
+      "Bấm Chuyển đổi (hoặc Enter). Khung bảng được gỡ bỏ và toàn bộ nội dung trong ô trở thành văn bản thường theo đúng dấu phân cách đã chọn.",
+      "Bấm Ctrl+Z nếu muốn hoàn tác để khôi phục lại bảng nguyên vẹn."
+    ]
+  },
+  {
     id: "writer.section.breaks",
     app: "writer",
     commandIds: ["writer.page.break", "writer.break.column", "writer.section.nextPage", "writer.section.continuous", "writer.section.evenPage", "writer.section.oddPage"],
@@ -1454,6 +1486,23 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.image.tools",
+    app: "writer",
+    commandIds: ["writer.image.crop", "writer.image.corrections", "writer.image.changePicture", "writer.image.resetPicture", "writer.image.compress"],
+    title: "Công cụ xử lý hình ảnh (Cắt ảnh, Độ sáng, Đổi ảnh, Đặt lại và Nén ảnh)",
+    summary: "Bộ công cụ định dạng hình ảnh nâng cao: cắt ảnh theo 4 cạnh, chỉnh độ sáng và tương phản, đổi ảnh khác, đặt lại định dạng và nén dung lượng ảnh trực tiếp trong văn bản.",
+    ribbon: { tab: "Định dạng Hình ảnh", tabId: "pictureFormat", group: "Điều chỉnh / Cắt ảnh" },
+    keywords: ["cắt ảnh", "crop", "độ sáng", "tương phản", "đổi ảnh", "đặt lại ảnh", "nén ảnh", "công cụ ảnh", "picture tools", "corrections"],
+    steps: [
+      "Nhấp chuột vào hình ảnh trong tài liệu để chọn ảnh và kích hoạt tab ngữ cảnh Định dạng Hình ảnh trên thanh ribbon.",
+      "Cắt ảnh (Crop): Bấm nút Cắt ảnh tại nhóm Cắt ảnh hoặc nhập tỷ lệ % cắt bớt ở 4 mép (Trái, Trên, Phải, Dưới). Thông số cắt được lưu chuẩn xác vào tệp văn bản.",
+      "Chỉnh độ sáng và tương phản: Bấm Độ sáng & Tương phản tại nhóm Điều chỉnh, kéo thanh trượt hoặc chọn các mức mẫu nhanh (-20%, +20%) để cải thiện chất lượng ảnh.",
+      "Đổi ảnh khác: Bấm Đổi ảnh để thay thế bằng tệp hình ảnh mới trên máy tính mà vẫn giữ nguyên kích thước và kiểu bố cục ngắt dòng hiện tại.",
+      "Đặt lại ảnh: Bấm Đặt lại ảnh để xóa toàn bộ vết cắt, khôi phục màu sắc và kích thước gốc của hình ảnh.",
+      "Nén ảnh: Bấm Nén ảnh để tối ưu hóa kích thước dữ liệu và độ phân giải của ảnh, giúp giảm đáng kể dung lượng tệp tài liệu."
+    ]
+  },
+  {
     id: "writer.list.restartContinue",
     app: "writer",
     commandIds: ["writer.list.restartNumbering", "writer.list.continueNumbering"],
@@ -1925,6 +1974,25 @@ export const WRITER_HELP_ENTRIES = [
     "Trong bảng Thay/Bằng, bấm Thêm dòng để khai báo cặp mới, ví dụ «teh» thành «the»; bấm nút × ở cuối dòng để xóa. Mỗi dòng phải có đủ hai giá trị, nếu không hộp thoại sẽ báo lỗi và không đóng.",
     "Bấm Đồng ý để lưu lựa chọn trên máy. Khi soạn thảo, cặp thay thế và viết hoa được áp dụng lúc gõ dấu cách hoặc dấu câu; ©, ½, – và ngoặc thông minh được đổi ngay khi mẫu hoàn tất.",
     "Với Unikey, EVKey hoặc kiểu gõ Telex, hãy gõ bình thường. Doc bỏ qua sự kiện khi bộ gõ còn đang ghép chữ/đặt dấu và chỉ sửa từ đã chốt, vì vậy chuỗi tiếng Việt đang gõ dở không bị can thiệp."
+  ]
+},
+{
+  id: "writer.format.textEffects",
+  app: "writer",
+  commandIds: ["writer.format.textEffects", "writer.format.textOutline", "writer.format.textShadow", "writer.format.textGlow", "writer.format.clearTextEffects"],
+  title: "Hiệu ứng chữ nghệ thuật (Viền chữ, Bóng đổ, Phát sáng)",
+  summary: "Thêm các hiệu ứng chữ nghệ thuật như Viền chữ (Text Outline), Bóng đổ (Shadow) và Phát sáng (Glow) cho văn bản được chọn. Hiển thị sắc nét trong trình soạn thảo và lưu tương thích theo chuẩn WordML 2010 khi xuất DOCX.",
+  ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
+  keywords: ["hiệu ứng chữ", "text effects", "viền chữ", "text outline", "bóng đổ", "shadow", "phát sáng", "glow", "định dạng chữ"],
+  steps: [
+    "Bôi đen đoạn văn bản hoặc từ ngữ cần tạo hiệu ứng chữ nghệ thuật trên trang soạn thảo.",
+    "Trên thanh công cụ, mở tab Trang đầu (Home), tìm nhóm Phông chữ và nhấp vào nút «Hiệu ứng chữ» (biểu tượng chữ A phát sáng).",
+    "Trong hộp thoại Hiệu ứng chữ, bạn có thể tùy chỉnh 3 nhóm hiệu ứng qua các tab chuyên biệt:",
+    "• Viền chữ (Outline): Chọn Bật viền chữ, chọn màu viền và điều chỉnh độ dày nét viền từ 1/4 pt đến 6 pt.",
+    "• Bóng đổ (Shadow): Chọn Bật bóng đổ, chọn kiểu bóng cài sẵn (Góc dưới-phải, Dưới, Dưới-trái, Trên...) và màu bóng mong muốn.",
+    "• Phát sáng (Glow): Chọn Bật hiệu ứng phát sáng, chọn màu phát sáng và bán kính quầng sáng (5 pt, 8 pt, 11 pt, 18 pt).",
+    "Khung «Xem trước» ở đầu hộp thoại sẽ phản ánh ngay lập tức kiểu chữ kết hợp. Nhấn «Áp dụng» để gắn hiệu ứng vào văn bản, hoặc nhấn «Xóa hiệu ứng» để đưa chữ về dạng chuẩn thông thường.",
+    "Khi lưu tài liệu sang định dạng DOCX, toàn bộ hiệu ứng viền, bóng và phát sáng được bảo toàn nguyên vẹn bằng các thẻ WordML 2010 tiêu chuẩn."
   ]
 }
 ];

@@ -117,6 +117,11 @@ export const WRITER_COMMANDS = [
   { id: "writer.design.themeGallery", category: "format", label: "Chủ đề văn bản", icon: "themeGallery", tooltip: "Mở thư viện chủ đề định dạng tài liệu (Document Themes)" },
   { id: "writer.color.text", category: "format", label: "Màu chữ", icon: "colorText", tooltip: "Đổi màu phông chữ" },
   { id: "writer.color.highlight", category: "format", label: "Màu nền chữ", shortcut: "Ctrl+Alt+H", icon: "colorHighlight", tooltip: "Tô màu nền văn bản (Ctrl+Alt+H)" },
+  { id: "writer.format.textEffects", category: "format", label: "Hiệu ứng chữ", icon: "textEffects", tooltip: "Thêm hiệu ứng viền chữ, bóng đổ và phát sáng (Text Effects)" },
+  { id: "writer.format.textOutline", category: "format", label: "Viền chữ", icon: "textOutline", tooltip: "Bật hoặc tùy chỉnh viền chữ (Text Outline)" },
+  { id: "writer.format.textShadow", category: "format", label: "Bóng đổ", icon: "textShadow", tooltip: "Bật hoặc tùy chỉnh bóng đổ (Shadow)" },
+  { id: "writer.format.textGlow", category: "format", label: "Phát sáng", icon: "textGlow", tooltip: "Bật hoặc tùy chỉnh hiệu ứng phát sáng (Glow)" },
+  { id: "writer.format.clearTextEffects", category: "format", label: "Xóa hiệu ứng chữ", icon: "clearFormat", tooltip: "Xóa toàn bộ hiệu ứng viền, bóng và phát sáng" },
 
   // Định dạng đoạn văn (Paragraph)
   { id: "writer.para.alignLeft", category: "paragraph", label: "Căn trái", shortcut: "Ctrl+L", icon: "alignLeft", tooltip: "Căn lề trái (Ctrl+L)", isToggle: true },
@@ -145,7 +150,9 @@ export const WRITER_COMMANDS = [
   { id: "writer.para.borders", category: "paragraph", label: "Viền đoạn", icon: "paragraphBorders", tooltip: "Chọn viền đoạn văn hoặc ô bảng" },
 
   { id: "writer.table.insert", category: "insert", label: "Bảng biểu", icon: "table", tooltip: "Chèn bảng mới vào văn bản" },
+  { id: "writer.table.quickTables", category: "insert", label: "Bảng dựng sẵn", icon: "table", tooltip: "Chèn bảng dựng sẵn như lịch, danh sách công việc hoặc ma trận phân tích" },
   { id: "writer.table.fromText", category: "insert", label: "Văn bản thành bảng", icon: "table", tooltip: "Chuyển các đoạn đang chọn thành bảng, tách ô theo dấu phân cách" },
+  { id: "writer.table.toText", category: "table", label: "Bảng thành văn bản", icon: "table", tooltip: "Chuyển bảng đang chọn thành văn bản thường theo dấu phân cách" },
   { id: "writer.table.insertRowAbove", category: "table", label: "Chèn hàng phía trên", icon: "insertRow", tooltip: "Chèn một hàng mới ngay phía trên hàng hiện tại" },
   { id: "writer.table.insertRowBelow", category: "table", label: "Chèn hàng phía dưới", icon: "insertRow", tooltip: "Chèn một hàng mới ngay phía dưới hàng hiện tại" },
   { id: "writer.table.insertColLeft", category: "table", label: "Chèn cột bên trái", icon: "insertCol", tooltip: "Chèn một cột mới bên trái cột hiện tại" },
@@ -194,6 +201,11 @@ export const WRITER_COMMANDS = [
   { id: "writer.insert.crossReference", category: "insert", label: "Tham chiếu chéo", icon: "crossReference", tooltip: "Chèn liên kết nội bộ tới tiêu đề hoặc đánh dấu" },
   { id: "writer.image.resize", category: "format", label: "Đổi kích thước ảnh", tooltip: "Thay đổi kích thước và tỷ lệ ảnh" },
   { id: "writer.image.wrap", category: "format", label: "Ngắt dòng văn bản", tooltip: "Tùy chọn ngắt dòng chữ quanh ảnh" },
+  { id: "writer.image.crop", category: "format", label: "Cắt ảnh", icon: "image", tooltip: "Cắt bớt các cạnh ngoài của hình ảnh (Crop)" },
+  { id: "writer.image.corrections", category: "format", label: "Độ sáng & Tương phản", icon: "image", tooltip: "Điều chỉnh độ sáng và tương phản của hình ảnh" },
+  { id: "writer.image.changePicture", category: "format", label: "Đổi ảnh khác", icon: "image", tooltip: "Thay thế ảnh hiện tại bằng một tệp ảnh khác nhưng giữ nguyên bố cục" },
+  { id: "writer.image.resetPicture", category: "format", label: "Đặt lại ảnh", icon: "image", tooltip: "Khôi phục ảnh về trạng thái kích thước và màu sắc ban đầu" },
+  { id: "writer.image.compress", category: "format", label: "Nén ảnh", icon: "image", tooltip: "Giảm dung lượng tệp ảnh để tối ưu kích thước tài liệu" },
 
   // Đánh giá (Review)
   { id: "writer.comment.insert", category: "review", label: "Thêm ghi chú", shortcut: "Ctrl+Alt+M", icon: "comment", tooltip: "Thêm ghi chú vào đoạn văn bản đang chọn (Ctrl+Alt+M)" },

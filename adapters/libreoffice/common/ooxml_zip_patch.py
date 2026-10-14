@@ -21120,6 +21120,8 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
     document_xml = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", patch_indent, document_xml, flags=re.IGNORECASE)
     document_xml = _writer_restore_created_paragraph_css(document_xml, source_html)
     document_xml = _writer_restore_created_image_layout(document_xml, source_html)
+    document_xml = _writer_restore_picture_tools_effects(document_xml, source_html)
+    document_xml = _writer_restore_text_effects(document_xml, source_html)
 
     section_meta: list[dict] = []
     meta_match = re.search(r"<!--vno-sections-meta:\s*(\[.*?\])\s*-->", source_html, re.IGNORECASE | re.DOTALL)
@@ -23120,6 +23122,309 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
         replacements["word/settings.xml"] = settings_xml.encode("utf-8")
 
     return patch_ooxml_zip(docx_bytes, replacements)
+
+
+def _patch_blip_fill(blip_fill_xml: str, crop: tuple[float, float, float, float], bright: float, contrast: float, reset: bool = False) -> str:
+    l, t, r, b = crop
+    has_crop = any(v > 0 for v in (l, t, r, b))
+    has_lum = abs(bright) > 0.001 or abs(contrast) > 0.001
+    result = blip_fill_xml
+
+    if reset:
+        result = re.sub(r"<a:lum\b[^>]*/?>", "", result, flags=re.IGNORECASE)
+        result = re.sub(r"<a:srcRect\b[^>]*/?>", "", result, flags=re.IGNORECASE)
+        return result
+
+    # 1. Luminance in a:blip
+    if has_lum:
+        b_val = max(-100000, min(100000, round(bright * 1000)))
+        c_val = max(-100000, min(100000, round(contrast * 1000)))
+        lum_attrs = []
+        if b_val:
+            lum_attrs.append(f'bright="{b_val}"')
+        if c_val:
+            lum_attrs.append(f'contrast="{c_val}"')
+        lum_tag = f'<a:lum {" ".join(lum_attrs)}/>'
+
+        if re.search(r"<a:lum\b[^>]*/?>", result, re.IGNORECASE):
+            result = re.sub(r"<a:lum\b[^>]*/?>", lum_tag, result, count=1, flags=re.IGNORECASE)
+        else:
+            def insert_lum(m: re.Match) -> str:
+                blip = m.group(0)
+                blip_trimmed = blip.rstrip()
+                if blip_trimmed.endswith("/>"):
+                    opening = blip_trimmed[:-2]
+                    return f"{opening}>{lum_tag}</a:blip>"
+                else:
+                    return re.sub(r"(<a:blip\b[^>]*>)", rf"\1{lum_tag}", blip, count=1, flags=re.IGNORECASE)
+            result = re.sub(r"<a:blip\b[^>]*/>|<a:blip\b[^>]*>[\s\S]*?</a:blip>", insert_lum, result, count=1, flags=re.IGNORECASE)
+
+    # 2. Crop via a:srcRect
+    if has_crop:
+        src_attrs = []
+        l_val = max(0, min(100000, round(l * 1000)))
+        t_val = max(0, min(100000, round(t * 1000)))
+        r_val = max(0, min(100000, round(r * 1000)))
+        b_val = max(0, min(100000, round(b * 1000)))
+        if l_val: src_attrs.append(f'l="{l_val}"')
+        if t_val: src_attrs.append(f't="{t_val}"')
+        if r_val: src_attrs.append(f'r="{r_val}"')
+        if b_val: src_attrs.append(f'b="{b_val}"')
+        src_tag = f'<a:srcRect {" ".join(src_attrs)}/>'
+
+        if re.search(r"<a:srcRect\b[^>]*/?>", result, re.IGNORECASE):
+            result = re.sub(r"<a:srcRect\b[^>]*/?>", src_tag, result, count=1, flags=re.IGNORECASE)
+        else:
+            def insert_srcrect(m: re.Match) -> str:
+                return m.group(0) + src_tag
+            result = re.sub(r"<a:blip\b[^>]*/>|<a:blip\b[^>]*>[\s\S]*?</a:blip>", insert_srcrect, result, count=1, flags=re.IGNORECASE)
+
+    return result
+
+
+def _writer_restore_picture_tools_effects(document_xml: str, source_html: str | None) -> str:
+    if not source_html or not document_xml:
+        return document_xml
+    image_tags = list(re.finditer(r"<img\b([^>]*)/?>", source_html, re.IGNORECASE))
+    if not image_tags:
+        return document_xml
+
+    has_any = any(
+        re.search(r"data-vno-(?:crop-[ltrb]|brightness|contrast|pic-reset)|clip-path|filter", tag.group(1), re.IGNORECASE)
+        for tag in image_tags
+    )
+    if not has_any:
+        return document_xml
+
+    blip_fills = list(re.finditer(r"<pic:blipFill\b[\s\S]*?</pic:blipFill\s*>", document_xml, re.IGNORECASE))
+    if not blip_fills:
+        return document_xml
+
+    replacements: list[tuple[int, int, str]] = []
+    for idx, tag in enumerate(image_tags):
+        if idx >= len(blip_fills):
+            break
+        attrs = tag.group(1)
+        reset = bool(re.search(r'data-vno-pic-reset=["\'](?:1|true)["\']', attrs, re.IGNORECASE))
+
+        # Parse crop
+        crop_l = re.search(r'data-vno-crop-l=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        crop_t = re.search(r'data-vno-crop-t=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        crop_r = re.search(r'data-vno-crop-r=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        crop_b = re.search(r'data-vno-crop-b=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        l = float(crop_l.group(1)) if crop_l else 0.0
+        t = float(crop_t.group(1)) if crop_t else 0.0
+        r = float(crop_r.group(1)) if crop_r else 0.0
+        b = float(crop_b.group(1)) if crop_b else 0.0
+        if not (l or t or r or b):
+            clip = re.search(r'inset\(\s*([\d.]+)%\s+([\d.]+)%\s+([\d.]+)%\s+([\d.]+)%\s*\)', attrs, re.IGNORECASE)
+            if clip:
+                t = float(clip.group(1))
+                r = float(clip.group(2))
+                b = float(clip.group(3))
+                l = float(clip.group(4))
+
+        # Parse brightness / contrast
+        bright_m = re.search(r'data-vno-brightness=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        contrast_m = re.search(r'data-vno-contrast=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        bright = float(bright_m.group(1)) if bright_m else 0.0
+        contrast = float(contrast_m.group(1)) if contrast_m else 0.0
+        if not bright:
+            br_f = re.search(r'brightness\(\s*([\d.]+)\s*\)', attrs, re.IGNORECASE)
+            if br_f:
+                bright = (float(br_f.group(1)) - 1.0) * 100.0
+        if not contrast:
+            ct_f = re.search(r'contrast\(\s*([\d.]+)\s*\)', attrs, re.IGNORECASE)
+            if ct_f:
+                contrast = (float(ct_f.group(1)) - 1.0) * 100.0
+
+        has_crop = any(v > 0 for v in (l, t, r, b))
+        has_lum = abs(bright) > 0.001 or abs(contrast) > 0.001
+        if not has_crop and not has_lum and not reset:
+            continue
+
+        bf_match = blip_fills[idx]
+        patched_bf = _patch_blip_fill(bf_match.group(0), (l, t, r, b), bright, contrast, reset=reset)
+        if patched_bf != bf_match.group(0):
+            replacements.append((bf_match.start(), bf_match.end(), patched_bf))
+
+    for start, end, rep in reversed(replacements):
+        document_xml = document_xml[:start] + rep + document_xml[end:]
+    return document_xml
+
+
+def postprocess_writer_picture_tools(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
+    """Áp dụng thuộc tính cắt ảnh (Crop <a:srcRect>) và độ sáng/tương phản (Corrections <a:lum>) vào DOCX."""
+    if not docx_bytes or not source_html:
+        return docx_bytes
+    if not any(k in source_html for k in ("data-vno-crop", "data-vno-brightness", "data-vno-contrast", "data-vno-pic-reset", "clip-path", "filter")):
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    if not document_bytes:
+        return docx_bytes
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    patched_xml = _writer_restore_picture_tools_effects(document_xml, source_html)
+    if patched_xml == document_xml:
+        return docx_bytes
+    return patch_ooxml_zip(docx_bytes, {"word/document.xml": patched_xml.encode("utf-8")})
+
+
+def _writer_restore_text_effects(document_xml: str, source_html: str | None) -> str:
+    """Áp dụng hiệu ứng chữ WordML 2010 (w14:textOutline, w14:shadow, w14:glow) vào word/document.xml."""
+    if not source_html or not document_xml:
+        return document_xml
+
+    # Find spans with text effects
+    effect_spans = list(re.finditer(
+        r'<span\b(?=[^>]*\b(?:data-vno-(?:outline|shadow|glow)|vno-text-effect|-webkit-text-stroke|text-shadow))([^>]*)>([\s\S]*?)</span\s*>',
+        source_html,
+        re.IGNORECASE
+    ))
+    if not effect_spans:
+        return document_xml
+
+    # Ensure xmlns:w14 namespace on root <w:document>
+    if "xmlns:w14=" not in document_xml:
+        document_xml = re.sub(
+            r"(<w:document\b[^>]*)>",
+            r'\1 xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml">',
+            document_xml,
+            count=1,
+            flags=re.IGNORECASE
+        )
+
+    for span in effect_spans:
+        attrs = span.group(1)
+        raw_text = span.group(2)
+        text = re.sub(r"<[^>]+>", "", raw_text).strip()
+        if not text:
+            continue
+
+        # Outline
+        has_outline = False
+        outline_color = "000000"
+        outline_w = 12700
+        out_col_m = re.search(r'data-vno-outline-color=["\']#?([0-9a-fA-F]{6})["\']', attrs, re.IGNORECASE)
+        out_w_m = re.search(r'data-vno-outline-width=["\'](\d+)["\']', attrs, re.IGNORECASE)
+        if out_col_m:
+            has_outline = True
+            outline_color = out_col_m.group(1).upper()
+            if out_w_m:
+                outline_w = int(out_w_m.group(1))
+        else:
+            stroke_m = re.search(r'(?:-webkit-)?text-stroke\s*:\s*([\d.]+)px\s+#?([0-9a-fA-F]{6})', attrs, re.IGNORECASE)
+            if stroke_m:
+                has_outline = True
+                outline_w = max(3175, round(float(stroke_m.group(1)) * 9525))
+                outline_color = stroke_m.group(2).upper()
+
+        # Shadow
+        has_shadow = False
+        shadow_blur = 50800
+        shadow_dist = 38100
+        shadow_dir = 5400000
+        shadow_color = "000000"
+        shadow_alpha = 50000
+        if re.search(r'data-vno-shadow=["\']1["\']', attrs, re.IGNORECASE) or "data-vno-shadow-blur" in attrs:
+            has_shadow = True
+            blur_m = re.search(r'data-vno-shadow-blur=["\'](\d+)["\']', attrs, re.IGNORECASE)
+            dist_m = re.search(r'data-vno-shadow-dist=["\'](\d+)["\']', attrs, re.IGNORECASE)
+            dir_m = re.search(r'data-vno-shadow-dir=["\'](\d+)["\']', attrs, re.IGNORECASE)
+            col_m = re.search(r'data-vno-shadow-color=["\']#?([0-9a-fA-F]{6})["\']', attrs, re.IGNORECASE)
+            alp_m = re.search(r'data-vno-shadow-alpha=["\'](\d+)["\']', attrs, re.IGNORECASE)
+            if blur_m: shadow_blur = int(blur_m.group(1))
+            if dist_m: shadow_dist = int(dist_m.group(1))
+            if dir_m: shadow_dir = int(dir_m.group(1))
+            if col_m: shadow_color = col_m.group(1).upper()
+            if alp_m: shadow_alpha = int(alp_m.group(1))
+        elif re.search(r'text-shadow\s*:\s*[^;]*(?:\d+px\s+\d+px)', attrs, re.IGNORECASE):
+            has_shadow = True
+
+        # Glow
+        has_glow = False
+        glow_rad = 101600
+        glow_color = "2563EB"
+        glow_alpha = 60000
+        glow_col_m = re.search(r'data-vno-glow-color=["\']#?([0-9a-fA-F]{6})["\']', attrs, re.IGNORECASE)
+        glow_rad_m = re.search(r'data-vno-glow-rad=["\'](\d+)["\']', attrs, re.IGNORECASE)
+        if glow_col_m or glow_rad_m:
+            has_glow = True
+            if glow_col_m: glow_color = glow_col_m.group(1).upper()
+            if glow_rad_m: glow_rad = int(glow_rad_m.group(1))
+            glow_alp_m = re.search(r'data-vno-glow-alpha=["\'](\d+)["\']', attrs, re.IGNORECASE)
+            if glow_alp_m: glow_alpha = int(glow_alp_m.group(1))
+
+        if not (has_outline or has_shadow or has_glow):
+            continue
+
+        effects_xml_parts = []
+        if has_outline:
+            effects_xml_parts.append(
+                f'<w14:textOutline w14:w="{outline_w}">'
+                f'<w14:solidFill><w14:srgbClr w14:val="{outline_color}"/></w14:solidFill>'
+                f'</w14:textOutline>'
+            )
+        if has_shadow:
+            effects_xml_parts.append(
+                f'<w14:shadow w14:blurRad="{shadow_blur}" w14:dist="{shadow_dist}" w14:dir="{shadow_dir}">'
+                f'<w14:srgbClr w14:val="{shadow_color}"><w14:alpha w14:val="{shadow_alpha}"/></w14:srgbClr>'
+                f'</w14:shadow>'
+            )
+        if has_glow:
+            effects_xml_parts.append(
+                f'<w14:glow w14:rad="{glow_rad}">'
+                f'<w14:srgbClr w14:val="{glow_color}"><w14:alpha w14:val="{glow_alpha}"/></w14:srgbClr>'
+                f'</w14:glow>'
+            )
+        effects_xml = "".join(effects_xml_parts)
+
+        # Inject into matching <w:r> containing text
+        escaped_text = html.escape(text)
+        pattern = re.compile(
+            r'(<w:r\b[^>]*>)(?:(<w:rPr>[\s\S]*?</w:rPr>))?([\s\S]*?<w:t\b[^>]*>(?:(?!</w:t>)[\s\S])*' +
+            re.escape(escaped_text) +
+            r'(?:(?!</w:t>)[\s\S])*</w:t>[\s\S]*?</w:r>)',
+            re.IGNORECASE
+        )
+
+        def inject_effects(m: re.Match) -> str:
+            r_open = m.group(1)
+            r_pr = m.group(2)
+            rest = m.group(3)
+            if r_pr:
+                clean_rpr = re.sub(r'<w14:(?:textOutline|shadow|glow)\b[\s\S]*?</w14:(?:textOutline|shadow|glow)>', '', r_pr, flags=re.IGNORECASE)
+                new_rpr = clean_rpr[:-8] + effects_xml + "</w:rPr>"
+            else:
+                new_rpr = f"<w:rPr>{effects_xml}</w:rPr>"
+            return f"{r_open}{new_rpr}{rest}"
+
+        document_xml, count = pattern.subn(inject_effects, document_xml, count=1)
+        if count == 0:
+            alt_pattern = re.compile(
+                r'(<w:r\b[^>]*>)(?:(<w:rPr>[\s\S]*?</w:rPr>))?([\s\S]*?<w:t\b[^>]*>(?:(?!</w:t>)[\s\S])*' +
+                re.escape(text) +
+                r'(?:(?!</w:t>)[\s\S])*</w:t>[\s\S]*?</w:r>)',
+                re.IGNORECASE
+            )
+            document_xml = alt_pattern.sub(inject_effects, document_xml, count=1)
+
+    return document_xml
+
+
+def postprocess_writer_text_effects(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
+    """Áp dụng các hiệu ứng chữ WordML 2010 (Viền chữ, Bóng đổ, Phát sáng) vào DOCX."""
+    if not docx_bytes or not source_html:
+        return docx_bytes
+    if not any(k in source_html for k in ("vno-text-effect", "data-vno-outline", "data-vno-shadow", "data-vno-glow", "-webkit-text-stroke")):
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    if not document_bytes:
+        return docx_bytes
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    patched_xml = _writer_restore_text_effects(document_xml, source_html)
+    if patched_xml == document_xml:
+        return docx_bytes
+    return patch_ooxml_zip(docx_bytes, {"word/document.xml": patched_xml.encode("utf-8")})
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:

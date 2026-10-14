@@ -17,6 +17,15 @@ export const viStrings = {
     position: { topLeft: "Trên trái", topCenter: "Trên giữa", topRight: "Trên phải", middleLeft: "Giữa trái", center: "Chính giữa", middleRight: "Giữa phải", bottomLeft: "Dưới trái", bottomCenter: "Dưới giữa", bottomRight: "Dưới phải" },
     align: { left: "Trái", center: "Giữa ngang", right: "Phải", top: "Trên", middle: "Giữa dọc", bottom: "Dưới" }
   },
+  writerPicture: {
+    adjustGroup: "Điều chỉnh",
+    cropGroup: "Cắt ảnh",
+    change: "Đổi ảnh…",
+    reset: "Đặt lại ảnh",
+    compress: "Nén ảnh",
+    corrections: "Độ sáng / Tương phản…",
+    crop: "Cắt ảnh…"
+  },
   writerDocumentProperties: {
     backstage: "Thông tin",
     dialogTitle: "Thuộc tính tài liệu",
@@ -652,7 +661,7 @@ export const viStrings = {
     ,"sheet.edit.goTo": { label: "Đến...", tooltip: "Chuyển nhanh tới ô, vùng hoặc tên đã xác định (F5 hoặc Ctrl+G)" }
     ,"sheet.edit.goToSpecial": { label: "Đến đặc biệt...", tooltip: "Chọn nhanh các ô theo loại: ghi chú, công thức, ô trống, vùng hiện tại..." }
     ,"sheet.edit.fillDown": { label: "Điền xuống", tooltip: "Sao chép giá trị và công thức ô trên xuống các ô dưới (Ctrl+D)" }
-    ,"sheet.edit.fillRight": { label: "Điền phải", tooltip: "Sao chép giá trị và công thức ô bên trái sang phải (Ctrl+R)" }
+    ,"sheet.edit.fillRight": { label: "Điền phải", tooltip: "Sao chép giá trị và công thức ô bên trái sang phải (Ctrl+R)" }
   ,"sheet.edit.fillUp": { label: "Điền lên", tooltip: "Sao chép ô dưới cùng của vùng chọn lên các ô phía trên" }
   ,"sheet.edit.fillLeft": { label: "Điền trái", tooltip: "Sao chép cột phải nhất của vùng chọn sang các cột bên trái" }
   ,"sheet.edit.fillSeries": { label: "Chuỗi...", tooltip: "Điền chuỗi số hoặc ngày: tuyến tính, tăng trưởng, ngày/tháng/năm" }
@@ -796,6 +805,11 @@ export const viStrings = {
     "writer.design.themeGallery": { label: "Chủ đề văn bản", tooltip: "Mở thư viện chủ đề định dạng tài liệu (Document Themes)" },
     "writer.color.text": { label: "Màu chữ", tooltip: "Đổi màu phông chữ" },
     "writer.color.highlight": { label: "Màu nền chữ", tooltip: "Tô màu nền văn bản (Ctrl+Alt+H)" },
+    "writer.format.textEffects": { label: "Hiệu ứng chữ", tooltip: "Thêm hiệu ứng viền chữ, bóng đổ và phát sáng" },
+    "writer.format.textOutline": { label: "Viền chữ", tooltip: "Bật hoặc tùy chỉnh viền chữ" },
+    "writer.format.textShadow": { label: "Bóng đổ", tooltip: "Bật hoặc tùy chỉnh bóng đổ" },
+    "writer.format.textGlow": { label: "Phát sáng", tooltip: "Bật hoặc tùy chỉnh hiệu ứng phát sáng" },
+    "writer.format.clearTextEffects": { label: "Xóa hiệu ứng chữ", tooltip: "Xóa toàn bộ hiệu ứng viền, bóng và phát sáng" },
     "writer.para.alignLeft": { label: "Căn trái", tooltip: "Căn lề trái (Ctrl+L)" },
     "writer.para.alignCenter": { label: "Căn giữa", tooltip: "Căn lề giữa (Ctrl+E)" },
     "writer.para.alignRight": { label: "Căn phải", tooltip: "Căn lề phải (Ctrl+R)" },
@@ -826,6 +840,8 @@ export const viStrings = {
     "writer.para.shading": { label: "Tô nền đoạn", tooltip: "Tô màu nền đoạn văn hoặc ô bảng" },
     "writer.para.borders": { label: "Viền đoạn", tooltip: "Chọn viền đoạn văn hoặc ô bảng" },
     "writer.table.insert": { label: "Bảng biểu", tooltip: "Chèn bảng mới vào văn bản" },
+    "writer.table.quickTables": { label: "Bảng dựng sẵn", tooltip: "Chèn bảng dựng sẵn như lịch, danh sách công việc hoặc ma trận phân tích" },
+    "writer.table.toText": { label: "Bảng thành văn bản", tooltip: "Chuyển bảng đang chọn thành văn bản thường theo dấu phân cách" },
     "writer.table.insertRowAbove": { label: "Chèn hàng phía trên", tooltip: "Chèn một hàng mới ngay phía trên hàng hiện tại" },
     "writer.table.insertRowBelow": { label: "Chèn hàng phía dưới", tooltip: "Chèn một hàng mới ngay phía dưới hàng hiện tại" },
     "writer.table.insertColLeft": { label: "Chèn cột bên trái", tooltip: "Chèn một cột mới bên trái cột hiện tại" },
@@ -857,6 +873,11 @@ export const viStrings = {
     "writer.image.insert": { label: "Hình ảnh", tooltip: "Chèn hình ảnh từ máy tính" },
     "writer.image.resize": { label: "Đổi kích thước ảnh", tooltip: "Thay đổi kích thước và tỷ lệ ảnh" },
     "writer.image.wrap": { label: "Ngắt dòng văn bản", tooltip: "Tùy chọn ngắt dòng chữ quanh ảnh" },
+    "writer.image.crop": { label: "Cắt ảnh", tooltip: "Cắt bớt các cạnh ngoài của hình ảnh (Crop)" },
+    "writer.image.corrections": { label: "Độ sáng & Tương phản", tooltip: "Điều chỉnh độ sáng và tương phản của hình ảnh" },
+    "writer.image.changePicture": { label: "Đổi ảnh khác", tooltip: "Thay thế ảnh hiện tại bằng một tệp ảnh khác nhưng giữ nguyên bố cục" },
+    "writer.image.resetPicture": { label: "Đặt lại ảnh", tooltip: "Khôi phục ảnh về trạng thái kích thước và màu sắc ban đầu" },
+    "writer.image.compress": { label: "Nén ảnh", tooltip: "Giảm dung lượng tệp ảnh để tối ưu kích thước tài liệu" },
     "writer.shape.insert": { label: "Hình khối", tooltip: "Chèn hình khối cơ bản (chữ nhật, hình tròn, mũi tên, đường thẳng)" },
     "writer.diagram.insert": { label: "Sơ đồ", tooltip: "Chèn sơ đồ quy trình, chu trình hoặc phân cấp" },
     "writer.chart.insert": { label: "Biểu đồ", tooltip: "Chèn biểu đồ minh họa dữ liệu" },
@@ -1021,6 +1042,7 @@ export const viStrings = {
       tableMergeGroup: "Hợp nhất",
       tableSizeGroup: "Kích cỡ ô",
       tableAlignGroup: "Căn lề ô",
+      tableDataGroup: "Dữ liệu",
       tablesIllustrations: "Bảng biểu & Hình",
       illustrations: "Minh họa",
       links: "Liên kết",

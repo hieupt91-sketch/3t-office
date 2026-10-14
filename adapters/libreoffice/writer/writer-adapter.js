@@ -25,7 +25,25 @@ import { showWatermarkDialog, showPageBorderDialog, showPageColorDialog } from "
 import { showColumnsDialog } from "../../../apps/writer/columns-dialog.js";
 import { showParagraphDialog } from "../../../apps/writer/paragraph-dialog.js";
 import { nextIndentPx, indentPxToCss, cssLengthToPx } from "../../../apps/writer/paragraph-indent.js";
-import { buildTableHtml, showTextToTableDialog, splitTextToRows } from "../../../apps/writer/text-to-table-dialog.js";
+import {
+  buildTableHtml,
+  convertTableToParagraphs,
+  QUICK_TABLES,
+  showQuickTablesDialog,
+  showTableToTextDialog,
+  showTextToTableDialog,
+  splitTextToRows
+} from "../../../apps/writer/text-to-table-dialog.js";
+import {
+  parseImageCrop,
+  applyImageCrop,
+  parseImageCorrections,
+  applyImageCorrections,
+  resetImageProperties,
+  compressImageElement,
+  showCropDialog,
+  showPictureCorrectionsDialog
+} from "../../../apps/writer/picture-tools-dialog.js";
 import { parseTabStops, resolveTab, serializeTabStops, showTabStopsDialog, styleTabElement } from "../../../apps/writer/tab-stops.js";
 import { SHAPE_TYPES, showShapeDialog, renderShapeSvg, showDiagramDialog, generateDiagramHtml, showChartDialog, generateChartHtml } from "../../../apps/writer/writer-illustrations.js";
 import { DOCUMENT_THEMES, showThemeGalleryDialog } from "../../../apps/writer/theme-gallery.js";
@@ -63,6 +81,14 @@ import {
   parseCorePropertiesXml,
   showDocumentPropertiesDialog
 } from "../../../apps/writer/document-properties.js";
+import {
+  showTextEffectsDialog,
+  applyTextEffectsToSpan,
+  parseTextEffects,
+  OUTLINE_WIDTHS,
+  SHADOW_PRESETS,
+  GLOW_PRESETS
+} from "../../../apps/writer/text-effects-dialog.js";
 
 let writerInsertDialogsPromise;
 let writerMailMergeDialogsPromise;
@@ -706,7 +732,14 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.insert.symbol", (args) => this.insertSymbol(args));
     globalCommandBus.bindHandler("writer.insert.bookmark", (args) => this.insertBookmark(args));
     globalCommandBus.bindHandler("writer.insert.crossReference", (args) => this.insertCrossReference(args));
-    globalCommandBus.bindHandler("writer.table.fromText", (args) => this.convertTextToTable(args));
+    globalCommandBus.bindHandler("writer.table.fromText", (args) => this._hintIfFalse(() => this.convertTextToTable(args), "Hãy chọn ít nhất một đoạn văn bản ngoài bảng để chuyển thành bảng."));
+    globalCommandBus.bindHandler("writer.table.toText", (args) => this._hintIfFalse(() => this.convertTableToText(args), "Hãy đặt con trỏ vào bảng cần chuyển thành văn bản."));
+    globalCommandBus.bindHandler("writer.table.quickTables", (args) => this.insertQuickTable(args));
+    globalCommandBus.bindHandler("writer.image.crop", (args) => this._hintIfFalse(() => this.cropImage(args), "Hãy chọn hình ảnh cần cắt (Crop)."));
+    globalCommandBus.bindHandler("writer.image.corrections", (args) => this._hintIfFalse(() => this.setPictureCorrections(args), "Hãy chọn hình ảnh cần điều chỉnh độ sáng và tương phản."));
+    globalCommandBus.bindHandler("writer.image.changePicture", (args) => this._hintIfFalse(() => this.changePicture(args), "Hãy chọn hình ảnh cần đổi."));
+    globalCommandBus.bindHandler("writer.image.resetPicture", () => this._hintIfFalse(() => this.resetPicture(), "Hãy chọn hình ảnh cần đặt lại."));
+    globalCommandBus.bindHandler("writer.image.compress", (args) => this._hintIfFalse(() => this.compressPicture(args), "Hãy chọn hình ảnh cần nén dung lượng."));
 
     // Bind Office Parity Mouse & Shortcuts
     this._bindMouseAndKeyboardParity();
@@ -718,6 +751,11 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.text.changeCase", (args) => this._hintIfFalse(() => this.changeCase(args), "Hãy chọn đoạn văn bản cần đổi chữ hoa / chữ thường."));
     globalCommandBus.bindHandler("writer.text.changeCaseDialog", () => this._hintIfFalse(() => this.openChangeCaseDialog(), "Hãy chọn đoạn văn bản cần đổi chữ hoa / chữ thường."));
     globalCommandBus.bindHandler("writer.format.fontDialog", () => this.openFontDialog());
+    globalCommandBus.bindHandler("writer.format.textEffects", () => this._hintIfFalse(() => this.openTextEffectsDialog(), "Hãy chọn đoạn văn bản cần áp dụng hiệu ứng chữ."));
+    globalCommandBus.bindHandler("writer.format.textOutline", (args) => this._hintIfFalse(() => this.setTextOutline(args), "Hãy chọn đoạn văn bản cần đặt viền chữ."));
+    globalCommandBus.bindHandler("writer.format.textShadow", (args) => this._hintIfFalse(() => this.setTextShadow(args), "Hãy chọn đoạn văn bản cần đặt bóng đổ."));
+    globalCommandBus.bindHandler("writer.format.textGlow", (args) => this._hintIfFalse(() => this.setTextGlow(args), "Hãy chọn đoạn văn bản cần đặt hiệu ứng phát sáng."));
+    globalCommandBus.bindHandler("writer.format.clearTextEffects", () => this._hintIfFalse(() => this.clearTextEffects(), "Hãy chọn đoạn văn bản cần xóa hiệu ứng chữ."));
     globalCommandBus.bindHandler("writer.para.sort", () => this.sortParagraphs());
     globalCommandBus.bindHandler("writer.para.showFormattingMarks", () => this.toggleFormattingMarks());
     globalCommandBus.bindHandler("writer.para.shading", (args) => this.applyParagraphShading(args));
@@ -3419,6 +3457,8 @@ export class WriterAdapter {
       html = this._applyOoxmlTableRowHeights(html, ooxmlDocumentXml);
       // W53: padding dọc ô = w:tcMar (LibreOffice chỉ ghi padding-bottom). Trước W44b để viền cộng lên lề thật.
       html = this._applyOoxmlTableCellMargins(html, ooxmlDocumentXml);
+      html = this._applyOoxmlImageProperties(html, ooxmlDocumentXml);
+      html = this._applyOoxmlTextEffects(html, ooxmlDocumentXml);
     }
     // W44: viền ô chỉ tô (box-shadow), không chiếm chỗ như Word
     html = this._applyPaintOnlyTableBorders(html);
@@ -5833,6 +5873,167 @@ export class WriterAdapter {
    * làm bảng 713→1039px, canvas 2→3 trang). d09 hàng 25.1px → ~29px (Word 28px). d07 logo 77→90px
    * (Word 90px = 2×100 twips). Padding gốc giữ ở `data-vno-lo-padding`.
    */
+  /**
+   * Phục hồi thuộc tính Cắt ảnh (Crop <a:srcRect>) và Độ sáng/Độ tương phản (Corrections <a:lum>)
+   * từ OOXML drawingml khi nhập tài liệu DOCX vào Writer.
+   */
+  _applyOoxmlImageProperties(html, ooxmlDocumentXml) {
+    if (!html || !ooxmlDocumentXml || !html.includes("<img")) return html;
+    const blipFills = [...ooxmlDocumentXml.matchAll(/<pic:blipFill\b[\s\S]*?<\/pic:blipFill>/gi)];
+    if (!blipFills.length) return html;
+
+    const imgTags = [...html.matchAll(/<img\b([^>]*)\/?>/gi)];
+    if (!imgTags.length) return html;
+
+    let modified = false;
+    let outHtml = html;
+
+    imgTags.forEach((match, index) => {
+      if (index >= blipFills.length) return;
+      const blipXml = blipFills[index][0];
+      const srcRectMatch = blipXml.match(/<a:srcRect\b([^>]*)\/?>/i);
+      const lumMatch = blipXml.match(/<a:lum\b([^>]*)\/?>/i);
+
+      if (!srcRectMatch && !lumMatch) return;
+
+      let fullTag = match[0];
+      let attrs = match[1];
+
+      // Parse crop
+      if (srcRectMatch) {
+        const sattrs = srcRectMatch[1];
+        const lm = sattrs.match(/\bl=["'](-?\d+)["']/i);
+        const tm = sattrs.match(/\bt=["'](-?\d+)["']/i);
+        const rm = sattrs.match(/\br=["'](-?\d+)["']/i);
+        const bm = sattrs.match(/\bb=["'](-?\d+)["']/i);
+        const l = lm ? Math.round(parseInt(lm[1], 10) / 1000) : 0;
+        const t = tm ? Math.round(parseInt(tm[1], 10) / 1000) : 0;
+        const r = rm ? Math.round(parseInt(rm[1], 10) / 1000) : 0;
+        const b = bm ? Math.round(parseInt(bm[1], 10) / 1000) : 0;
+        if (l > 0 || t > 0 || r > 0 || b > 0) {
+          attrs += ` data-vno-crop-l="${l}" data-vno-crop-t="${t}" data-vno-crop-r="${r}" data-vno-crop-b="${b}"`;
+          const clipStyle = `clip-path: inset(${t}% ${r}% ${b}% ${l}%);`;
+          if (/style=["']/.test(attrs)) {
+            attrs = attrs.replace(/style=["']([^"']*)["']/i, (m, s) => `style="${s.replace(/;?\s*$/, "; ")}${clipStyle}"`);
+          } else {
+            attrs += ` style="${clipStyle}"`;
+          }
+        }
+      }
+
+      // Parse luminance (brightness / contrast)
+      if (lumMatch) {
+        const lattrs = lumMatch[1];
+        const brm = lattrs.match(/\bbright=["'](-?\d+)["']/i);
+        const ctm = lattrs.match(/\bcontrast=["'](-?\d+)["']/i);
+        const bright = brm ? Math.round(parseInt(brm[1], 10) / 1000) : 0;
+        const contrast = ctm ? Math.round(parseInt(ctm[1], 10) / 1000) : 0;
+        if (bright !== 0 || contrast !== 0) {
+          attrs += ` data-vno-brightness="${bright}" data-vno-contrast="${contrast}"`;
+          const brRatio = Math.max(0, 1 + bright / 100);
+          const ctRatio = Math.max(0, 1 + contrast / 100);
+          const filterStyle = `filter: brightness(${brRatio.toFixed(2)}) contrast(${ctRatio.toFixed(2)});`;
+          if (/style=["']/.test(attrs)) {
+            attrs = attrs.replace(/style=["']([^"']*)["']/i, (m, s) => `style="${s.replace(/;?\s*$/, "; ")}${filterStyle}"`);
+          } else {
+            attrs += ` style="${filterStyle}"`;
+          }
+        }
+      }
+
+      const newTag = `<img${attrs}>`;
+      if (newTag !== fullTag) {
+        outHtml = outHtml.replace(fullTag, newTag);
+        modified = true;
+      }
+    });
+
+    return modified ? outHtml : html;
+  }
+
+  /**
+   * Phục hồi thuộc tính Hiệu ứng chữ WordML 2010 (w14:textOutline, w14:shadow, w14:glow)
+   * từ OOXML khi nhập tài liệu DOCX vào Writer.
+   */
+  _applyOoxmlTextEffects(html, ooxmlDocumentXml) {
+    if (!html || !ooxmlDocumentXml || !ooxmlDocumentXml.includes("w14:")) return html;
+    const runs = [...ooxmlDocumentXml.matchAll(/<w:r\b[^>]*>([\s\S]*?)<\/w:r>/gi)];
+    if (!runs.length) return html;
+
+    let outHtml = html;
+    let modified = false;
+
+    for (const rMatch of runs) {
+      const runContent = rMatch[1];
+      if (!runContent.includes("w14:")) continue;
+      const rPrMatch = runContent.match(/<w:rPr\b[^>]*>([\s\S]*?)<\/w:rPr>/i);
+      const tMatch = runContent.match(/<w:t\b[^>]*>([^<]+)<\/w:t>/i);
+      if (!rPrMatch || !tMatch) continue;
+
+      const rPr = rPrMatch[1];
+      const text = tMatch[1].trim();
+      if (!text) continue;
+
+      const hasOutline = rPr.includes("w14:textOutline");
+      const hasShadow = rPr.includes("w14:shadow");
+      const hasGlow = rPr.includes("w14:glow");
+
+      if (!hasOutline && !hasShadow && !hasGlow) continue;
+
+      let outlineAttr = "";
+      let strokeStyle = "";
+      if (hasOutline) {
+        const wm = rPr.match(/<w14:textOutline\b[^>]*\bw14:w=["'](\d+)["']/i);
+        const cm = rPr.match(/<w14:textOutline[\s\S]*?<w14:srgbClr\b[^>]*\bw14:val=["']([0-9a-fA-F]{6})["']/i);
+        const emu = wm ? parseInt(wm[1], 10) : 12700;
+        const color = cm ? `#${cm[1]}` : "#000000";
+        const widthEntry = OUTLINE_WIDTHS.find(w => w.emu === emu) || OUTLINE_WIDTHS[3];
+        outlineAttr = ` data-vno-outline-color="${color}" data-vno-outline-width="${emu}"`;
+        strokeStyle = `-webkit-text-stroke: ${widthEntry.px}px ${color};`;
+      }
+
+      let shadowAttr = "";
+      let shadowStyle = "";
+      if (hasShadow) {
+        const sm = rPr.match(/<w14:shadow\b([^>]*)/i);
+        const cm = rPr.match(/<w14:shadow[\s\S]*?<w14:srgbClr\b[^>]*\bw14:val=["']([0-9a-fA-F]{6})["']/i);
+        const sattrs = sm ? sm[1] : "";
+        const blurM = sattrs.match(/\bw14:blurRad=["'](\d+)["']/i);
+        const distM = sattrs.match(/\bw14:dist=["'](\d+)["']/i);
+        const dirM = sattrs.match(/\bw14:dir=["'](\d+)["']/i);
+        const blur = blurM ? blurM[1] : "50800";
+        const dist = distM ? distM[1] : "38100";
+        const dir = dirM ? dirM[1] : "5400000";
+        const color = cm ? `#${cm[1]}` : "#000000";
+        shadowAttr = ` data-vno-shadow="1" data-vno-shadow-blur="${blur}" data-vno-shadow-dist="${dist}" data-vno-shadow-dir="${dir}" data-vno-shadow-color="${color}"`;
+        shadowStyle = "2px 2px 3px rgba(0,0,0,0.5)";
+      }
+
+      let glowAttr = "";
+      let glowStyle = "";
+      if (hasGlow) {
+        const gm = rPr.match(/<w14:glow\b[^>]*\bw14:rad=["'](\d+)["']/i);
+        const cm = rPr.match(/<w14:glow[\s\S]*?<w14:srgbClr\b[^>]*\bw14:val=["']([0-9a-fA-F]{6})["']/i);
+        const rad = gm ? parseInt(gm[1], 10) : 101600;
+        const color = cm ? `#${cm[1]}` : "#2563EB";
+        const gp = GLOW_PRESETS.find(p => p.rad === rad) || GLOW_PRESETS[2];
+        glowAttr = ` data-vno-glow-color="${color}" data-vno-glow-rad="${rad}"`;
+        glowStyle = `0 0 ${gp.cssPx}px ${color}`;
+      }
+
+      const textShadows = [shadowStyle, glowStyle].filter(Boolean).join(", ");
+      const combinedStyle = [strokeStyle, textShadows ? `text-shadow: ${textShadows};` : ""].filter(Boolean).join(" ");
+      const replacementSpan = `<span class="vno-text-effect"${outlineAttr}${shadowAttr}${glowAttr} style="${combinedStyle}">${text}</span>`;
+
+      if (outHtml.includes(text) && !outHtml.includes(replacementSpan)) {
+        outHtml = outHtml.replace(text, replacementSpan);
+        modified = true;
+      }
+    }
+
+    return modified ? outHtml : html;
+  }
+
   _applyOoxmlTableCellMargins(html, ooxmlDocumentXml) {
     return this._runWithRangeVerify("tableCellMargins", incremental => this._applyOoxmlTableCellMarginsCore(html, ooxmlDocumentXml, incremental));
   }
@@ -8108,7 +8309,31 @@ export class WriterAdapter {
         return this.insertBlankPage();
 
       case "writer.table.fromText":
-        return this.convertTextToTable(args);
+        return this._hintIfFalse(() => this.convertTextToTable(args), "Hãy chọn ít nhất một đoạn văn bản ngoài bảng để chuyển thành bảng.");
+      case "writer.table.toText":
+        return this._hintIfFalse(() => this.convertTableToText(args), "Hãy đặt con trỏ vào bảng cần chuyển thành văn bản.");
+      case "writer.table.quickTables":
+        return this.insertQuickTable(args);
+      case "writer.image.crop":
+        return this._hintIfFalse(() => this.cropImage(args), "Hãy chọn hình ảnh cần cắt (Crop).");
+      case "writer.image.corrections":
+        return this._hintIfFalse(() => this.setPictureCorrections(args), "Hãy chọn hình ảnh cần điều chỉnh độ sáng và tương phản.");
+      case "writer.image.changePicture":
+        return this._hintIfFalse(() => this.changePicture(args), "Hãy chọn hình ảnh cần đổi.");
+      case "writer.image.resetPicture":
+        return this._hintIfFalse(() => this.resetPicture(), "Hãy chọn hình ảnh cần đặt lại.");
+      case "writer.image.compress":
+        return this._hintIfFalse(() => this.compressPicture(args), "Hãy chọn hình ảnh cần nén dung lượng.");
+      case "writer.format.textEffects":
+        return this._hintIfFalse(() => this.openTextEffectsDialog(), "Hãy chọn đoạn văn bản cần áp dụng hiệu ứng chữ.");
+      case "writer.format.textOutline":
+        return this._hintIfFalse(() => this.setTextOutline(args), "Hãy chọn đoạn văn bản cần đặt viền chữ.");
+      case "writer.format.textShadow":
+        return this._hintIfFalse(() => this.setTextShadow(args), "Hãy chọn đoạn văn bản cần đặt bóng đổ.");
+      case "writer.format.textGlow":
+        return this._hintIfFalse(() => this.setTextGlow(args), "Hãy chọn đoạn văn bản cần đặt hiệu ứng phát sáng.");
+      case "writer.format.clearTextEffects":
+        return this._hintIfFalse(() => this.clearTextEffects(), "Hãy chọn đoạn văn bản cần xóa hiệu ứng chữ.");
 
       case "writer.break.column":
         return this._insertColumnBreak();
@@ -8741,9 +8966,6 @@ export class WriterAdapter {
   }
 
   _getActiveTable() {
-    if (this.tableController?.activeTable && this.tableController.activeTable.isConnected) {
-      return this.tableController.activeTable;
-    }
     if (typeof window !== "undefined") {
       const sel = window.getSelection?.();
       if (sel && sel.rangeCount > 0) {
@@ -8754,6 +8976,9 @@ export class WriterAdapter {
           return table;
         }
       }
+    }
+    if (this.tableController?.activeTable && this.tableController.activeTable.isConnected) {
+      return this.tableController.activeTable;
     }
     return (this.bodyDom || this.editorDom)?.querySelector?.("table") || null;
   }
@@ -9199,7 +9424,18 @@ export class WriterAdapter {
    * @param {object|null} args { delimiter: tab|comma|semicolon|space|custom, custom } — không truyền thì mở hộp thoại.
    */
   async convertTextToTable(args = null) {
-    const blocks = (this._getSelectedParagraphBlocks?.() || []).filter(block => block?.parentNode && !block.closest?.("table"));
+    let blocks = (this._getSelectedParagraphBlocks?.() || []).filter(block => block?.parentNode && !block.closest?.("table"));
+    if (!blocks.length) {
+      const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+      if (sel && sel.rangeCount > 0) {
+        const node = sel.anchorNode;
+        const el = node?.nodeType === 1 ? node : node?.parentElement;
+        const p = el?.closest?.("p, h1, h2, h3, h4, h5, h6, li, div");
+        if (p && !p.closest("table") && (this.bodyDom?.contains?.(p) || this.editorDom?.contains?.(p))) {
+          blocks = [p];
+        }
+      }
+    }
     if (!blocks.length) return false;
     const lines = blocks.map(block => String(block.innerText ?? block.textContent ?? "").replace(/ /g, " ").replace(/\n+$/, ""));
     const choice = args && typeof args === "object" && args.delimiter ? args : await showTextToTableDialog(lines);
@@ -9216,6 +9452,293 @@ export class WriterAdapter {
     this.isDirty = true;
     this.recordSnapshot("writer.table.fromText");
     return true;
+  }
+
+  /**
+   * Bảng thành văn bản: chuyển bảng hiện tại → các đoạn văn bản thường theo dấu phân cách.
+   * @param {object|null} args { delimiter: tab|comma|semicolon|paragraph|custom, custom } — không truyền thì mở hộp thoại.
+   */
+  async convertTableToText(args = null) {
+    const table = (args && typeof args === "object" && args.table) || this._getActiveTable();
+    if (!table) return false;
+    const choice = args && typeof args === "object" && args.delimiter ? args : await showTableToTextDialog(table);
+    if (!choice) return null;
+    const paragraphs = convertTableToParagraphs(table, choice.delimiter, choice.custom);
+    this.flushTyping();
+    const fragment = document.createDocumentFragment();
+    for (const text of paragraphs) {
+      const p = document.createElement("p");
+      p.textContent = text;
+      fragment.appendChild(p);
+    }
+    if (!fragment.childNodes.length) {
+      const p = document.createElement("p");
+      p.innerHTML = "<br>";
+      fragment.appendChild(p);
+    }
+    table.before(fragment);
+    table.remove();
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.toText");
+    this.tableController?._syncContextualTabs(false);
+    return true;
+  }
+
+  /**
+   * Chèn bảng dựng sẵn (Quick Tables): Lịch, Danh sách công việc, Ma trận SWOT.
+   * @param {object|string|null} args { templateId: calendar|list|matrix } hoặc chuỗi templateId.
+   */
+  async insertQuickTable(args = null) {
+    let templateId = typeof args === "string" ? args : (args && typeof args === "object" ? args.templateId : null);
+    if (!templateId) {
+      templateId = await showQuickTablesDialog();
+    }
+    if (!templateId) return null;
+    const template = QUICK_TABLES.find(t => t.id === templateId);
+    if (!template) return false;
+    this.flushTyping();
+    this._initZones();
+    const html = template.buildHtml();
+    let inserted = false;
+    if (typeof document !== "undefined" && typeof document.execCommand === "function") {
+      try {
+        const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+        if (sel && sel.rangeCount > 0 && (this.bodyDom?.contains?.(sel.anchorNode) || this.editorDom?.contains?.(sel.anchorNode))) {
+          inserted = document.execCommand("insertHTML", false, html);
+        }
+      } catch {
+        inserted = false;
+      }
+    }
+    const targetDom = this.bodyDom || this.editorDom;
+    if (!inserted && targetDom) {
+      targetDom.innerHTML = (targetDom.innerHTML || "") + html;
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.quickTables");
+    return true;
+  }
+
+  _getSelectedImage() {
+    if (this.arrangeController?.selectedImage && this.arrangeController.selectedImage.isConnected) {
+      return this.arrangeController.selectedImage;
+    }
+    const selected = (this.bodyDom || this.editorDom)?.querySelector?.("img.is-vno-image-selected");
+    if (selected) return selected;
+    if (typeof window !== "undefined") {
+      const sel = window.getSelection?.();
+      if (sel && sel.rangeCount > 0) {
+        const node = sel.anchorNode;
+        const el = node?.nodeType === 1 ? node : node?.parentElement;
+        if (el?.tagName === "IMG") return el;
+        const img = el?.querySelector?.("img");
+        if (img) return img;
+      }
+    }
+    return (this.bodyDom || this.editorDom)?.querySelector?.("img") || null;
+  }
+
+  async cropImage(args = null) {
+    const img = this._getSelectedImage();
+    if (!img) return false;
+    let values = args && typeof args === "object" ? args : await showCropDialog(img);
+    if (!values) return null;
+    applyImageCrop(img, values);
+    this.isDirty = true;
+    this.recordSnapshot("writer.image.crop");
+    this.arrangeController?._updateOverlay?.();
+    return true;
+  }
+
+  async setPictureCorrections(args = null) {
+    const img = this._getSelectedImage();
+    if (!img) return false;
+    let values = args && typeof args === "object" ? args : await showPictureCorrectionsDialog(img);
+    if (!values) return null;
+    applyImageCorrections(img, values);
+    this.isDirty = true;
+    this.recordSnapshot("writer.image.corrections");
+    return true;
+  }
+
+  async changePicture(args = null) {
+    const img = this._getSelectedImage();
+    if (!img) return false;
+    if (args && typeof args === "object" && args.src) {
+      img.src = args.src;
+      this.isDirty = true;
+      this.recordSnapshot("writer.image.changePicture");
+      return true;
+    }
+    return new Promise((resolve) => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.onchange = (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            img.src = evt.target.result;
+            this.isDirty = true;
+            this.recordSnapshot("writer.image.changePicture");
+            resolve(true);
+          };
+          reader.readAsDataURL(file);
+        } else {
+          resolve(false);
+        }
+      };
+      input.click();
+    });
+  }
+
+  resetPicture() {
+    const img = this._getSelectedImage();
+    if (!img) return false;
+    resetImageProperties(img);
+    this.isDirty = true;
+    this.recordSnapshot("writer.image.resetPicture");
+    this.arrangeController?._updateOverlay?.();
+    return true;
+  }
+
+  async compressPicture(args = null) {
+    const img = this._getSelectedImage();
+    if (!img) return false;
+    const quality = args?.quality || 0.8;
+    const maxDim = args?.maxDimension || 1280;
+    const res = await compressImageElement(img, quality, maxDim);
+    if (res.success) {
+      this.shell?.setStatus?.(`Đã nén ảnh (tiết kiệm ${res.savingsPct}%)`);
+      this.isDirty = true;
+      this.recordSnapshot("writer.image.compress");
+      return true;
+    }
+    return false;
+  }
+
+  openTextEffectsDialog() {
+    if (typeof window === "undefined") return false;
+    const sel = window.getSelection?.();
+    if (!sel || sel.rangeCount === 0) return false;
+    let range = sel.getRangeAt(0);
+
+    // If collapsed, expand to current word if any
+    if (sel.isCollapsed && range) {
+      const node = sel.anchorNode;
+      if (node && node.nodeType === 3) {
+        const text = node.textContent || "";
+        const offset = sel.anchorOffset;
+        let start = offset;
+        let end = offset;
+        while (start > 0 && /\S/.test(text[start - 1])) start--;
+        while (end < text.length && /\S/.test(text[end])) end++;
+        if (end > start && typeof document !== "undefined") {
+          const newRange = document.createRange?.();
+          if (newRange) {
+            newRange.setStart(node, start);
+            newRange.setEnd(node, end);
+            sel.removeAllRanges();
+            sel.addRange(newRange);
+            range = newRange;
+          }
+        }
+      }
+    }
+
+    const selectedText = sel.toString();
+    if (!selectedText) return false;
+
+    const existingSpan = sel.anchorNode?.parentElement?.closest?.(".vno-text-effect");
+    const current = existingSpan ? parseTextEffects(existingSpan) : { outline: null, shadow: null, glow: null };
+
+    return showTextEffectsDialog({
+      initialOutline: current.outline,
+      initialShadow: current.shadow,
+      initialGlow: current.glow,
+      onApply: (effects) => {
+        this.applyTextEffects(effects);
+      }
+    });
+  }
+
+  applyTextEffects(effects = {}) {
+    if (typeof window === "undefined") return false;
+    const sel = window.getSelection?.();
+    if (!sel || sel.rangeCount === 0) return false;
+    const range = sel.getRangeAt(0);
+    const selectedText = sel.toString();
+    if (!selectedText && !range) return false;
+
+    this.flushTyping();
+
+    // Check if within existing effect span
+    let targetSpan = sel.anchorNode?.parentElement?.closest?.(".vno-text-effect");
+    if (targetSpan && targetSpan.textContent.trim() === selectedText.trim()) {
+      applyTextEffectsToSpan(targetSpan, effects);
+      this.isDirty = true;
+      this.recordSnapshot("writer.format.textEffects");
+      return true;
+    }
+
+    try {
+      const span = document.createElement("span");
+      span.className = "vno-text-effect";
+      applyTextEffectsToSpan(span, effects);
+      const contents = range.extractContents();
+      span.appendChild(contents);
+      range.insertNode(span);
+
+      sel.removeAllRanges();
+      const newRange = document.createRange();
+      newRange.selectNodeContents(span);
+      sel.addRange(newRange);
+
+      this.isDirty = true;
+      this.recordSnapshot("writer.format.textEffects");
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  setTextOutline(args = null) {
+    const color = args?.color || "#2563EB";
+    const widthEmu = args?.widthEmu || 12700;
+    return this.applyTextEffects({
+      outline: { enabled: true, color, widthEmu },
+      shadow: null,
+      glow: null
+    });
+  }
+
+  setTextShadow(args = null) {
+    const preset = args?.preset || "bottom-right";
+    const color = args?.color || "#000000";
+    return this.applyTextEffects({
+      outline: null,
+      shadow: { enabled: true, preset, color },
+      glow: null
+    });
+  }
+
+  setTextGlow(args = null) {
+    const radEmu = args?.radEmu || 101600;
+    const color = args?.color || "#2563EB";
+    return this.applyTextEffects({
+      outline: null,
+      shadow: null,
+      glow: { enabled: true, radEmu, color }
+    });
+  }
+
+  clearTextEffects() {
+    return this.applyTextEffects({
+      outline: { enabled: false },
+      shadow: { enabled: false },
+      glow: { enabled: false }
+    });
   }
 
   async openCoverPageDialog(options = {}) {
