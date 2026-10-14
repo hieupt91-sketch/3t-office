@@ -146,6 +146,40 @@ function pickError(left, right) {
   return left;
 }
 
+
+/** Ma trận giá trị (phép toán theo phần tử trong ngữ cảnh mảng, ví dụ SUMPRODUCT((A1:A9>1)*B1:B9)). */
+export class MatrixValue {
+  constructor(rows) { this.rows = rows; }
+  get height() { return this.rows.length; }
+  get width() { return this.rows[0]?.length || 0; }
+}
+
+function lift2(left, right, fn) {
+  const lm = left instanceof MatrixValue; const rm = right instanceof MatrixValue;
+  if (!lm && !rm) return fn(left, right);
+  const pick = (m, r, c) => {
+    const rr = m.height === 1 ? 0 : r; const cc = m.width === 1 ? 0 : c;
+    return m.rows[rr]?.[cc];
+  };
+  const height = Math.max(lm ? left.height : 1, rm ? right.height : 1);
+  const width = Math.max(lm ? left.width : 1, rm ? right.width : 1);
+  const rows = [];
+  for (let r = 0; r < height; r++) {
+    const row = [];
+    for (let c = 0; c < width; c++) {
+      const x = lm ? pick(left, r, c) : left; const y = rm ? pick(right, r, c) : right;
+      row.push(x === undefined || y === undefined ? "#N/A" : fn(x, y));
+    }
+    rows.push(row);
+  }
+  return new MatrixValue(rows);
+}
+
+function lift1(value, fn) {
+  if (!(value instanceof MatrixValue)) return fn(value);
+  return new MatrixValue(value.rows.map(row => row.map(fn)));
+}
+
 function typeRank(value) {
   if (typeof value === "number") return 1;
   if (typeof value === "boolean") return 3;
@@ -175,7 +209,7 @@ function compareValues(engine, a, b) {
   return x.localeCompare(y) < 0 ? -1 : 1;
 }
 
-function operandValue(engine, token) {
+function operandValue(engine, token, arrayMode = false) {
   switch (token.type) {
     case "number": return token.value;
     case "string": return token.value;
@@ -190,6 +224,10 @@ function operandValue(engine, token) {
       const parsed = engine._parseReference(token.value);
       if (parsed.error) return parsed.error;
       if (parsed.sheets) return "#VALUE!";
+      if (arrayMode) {
+        const dims = engine._rangeDimensions(token.value);
+        if (dims && (dims.rows > 1 || dims.cols > 1)) return new MatrixValue(engine._rangeMatrix(token.value).map(row => row.map(v => (v instanceof String ? String(v) : v))));
+      }
       if (token.value.includes(":") && !token.value.startsWith("'") || /!.*:/.test(token.value)) {
         // Vùng nhiều ô dùng như toán hạng: chỉ hợp lệ khi vùng là một ô, còn lại là #VALUE! (không có giao điểm ngầm).
         const dims = engine._rangeDimensions(token.value);
@@ -206,7 +244,7 @@ function operandValue(engine, token) {
 }
 
 class Parser {
-  constructor(engine, tokens) { this.engine = engine; this.tokens = tokens; this.pos = 0; }
+  constructor(engine, tokens, arrayMode = false) { this.engine = engine; this.tokens = tokens; this.pos = 0; this.arrayMode = arrayMode; }
   peek() { return this.tokens[this.pos]; }
   isOp(value) { const t = this.peek(); return t && t.type === "op" && t.value === value; }
   take() { return this.tokens[this.pos++]; }
@@ -224,10 +262,13 @@ class Parser {
       if (!(t && t.type === "op" && ["=", "<>", "<", ">", "<=", ">="].includes(t.value))) return left;
       this.take();
       const right = this.concat();
-      if (isErrorValue(this.engine, left)) continue;
-      if (isErrorValue(this.engine, right)) { left = right; continue; }
-      const c = compareValues(this.engine, left, right);
-      left = t.value === "=" ? c === 0 : t.value === "<>" ? c !== 0 : t.value === "<" ? c < 0 : t.value === ">" ? c > 0 : t.value === "<=" ? c <= 0 : c >= 0;
+      const op = t.value;
+      left = lift2(left, right, (x, y) => {
+        if (isErrorValue(this.engine, x)) return x;
+        if (isErrorValue(this.engine, y)) return y;
+        const c = compareValues(this.engine, x, y);
+        return op === "=" ? c === 0 : op === "<>" ? c !== 0 : op === "<" ? c < 0 : op === ">" ? c > 0 : op === "<=" ? c <= 0 : c >= 0;
+      });
     }
   }
 
@@ -236,10 +277,12 @@ class Parser {
     while (this.isOp("&")) {
       this.take();
       const right = this.additive();
-      if (isErrorValue(this.engine, left)) continue;
-      if (isErrorValue(this.engine, right)) { left = right; continue; }
       const text = v => (typeof v === "boolean" ? (v ? "TRUE" : "FALSE") : String(v ?? ""));
-      left = text(left) + text(right);
+      left = lift2(left, right, (x, y) => {
+        if (isErrorValue(this.engine, x)) return x;
+        if (isErrorValue(this.engine, y)) return y;
+        return text(x) + text(y);
+      });
     }
     return left;
   }
@@ -281,9 +324,7 @@ class Parser {
       const sign = this.take().value;
       const operand = this.unary();
       if (sign === "+") return operand;
-      const num = toNumber(this.engine, operand);
-      if (num.error) return num.error;
-      return -num.n;
+      return lift1(operand, v => { const num = toNumber(this.engine, v); return num.error ? num.error : -num.n; });
     }
     return this.percent();
   }
@@ -292,8 +333,7 @@ class Parser {
     let value = this.primary();
     while (this.isOp("%")) {
       this.take();
-      const num = toNumber(this.engine, value);
-      value = num.error ? num.error : num.n / 100;
+      value = lift1(value, v => { const num = toNumber(this.engine, v); return num.error ? num.error : num.n / 100; });
     }
     return value;
   }
@@ -310,10 +350,14 @@ class Parser {
     }
     if (t.type === "op") throw new FormulaParseError(`unexpected ${t.value}`);
     this.take();
-    return operandValue(this.engine, t);
+    return operandValue(this.engine, t, this.arrayMode);
   }
 
   arith(left, right, op) {
+    return lift2(left, right, (x, y) => this.arithScalar(x, y, op));
+  }
+
+  arithScalar(left, right, op) {
     const a = toNumber(this.engine, left);
     const b = toNumber(this.engine, right);
     if (a.error || b.error) return pickError(a.error, b.error);
@@ -349,15 +393,31 @@ export function isCompoundTokens(tokens) {
  * Tính biểu thức (không có dấu = đầu). Trả về { ok: true, value } hoặc { ok: false } nếu không phân tích được
  * (engine rơi về đường cũ).
  */
-export function evaluateExpression(engine, expr) {
+export function evaluateExpression(engine, expr, allowSingle = false) {
   let tokens;
   try { tokens = tokenize(expr); } catch (error) {
     if (error instanceof FormulaParseError) return { ok: false };
     throw error;
   }
-  if (!isCompoundTokens(tokens)) return { ok: false };
+  if (!isCompoundTokens(tokens) && !(allowSingle && tokens.length === 1 && ["string", "bool", "error", "number"].includes(tokens[0].type))) return { ok: false };
   try {
     return { ok: true, value: new Parser(engine, tokens).parse() };
+  } catch (error) {
+    if (error instanceof FormulaParseError) return { ok: false };
+    throw error;
+  }
+}
+
+/** Tính biểu thức ở ngữ cảnh mảng (đối số SUMPRODUCT): trả về MatrixValue hoặc giá trị đơn. */
+export function evaluateArrayExpression(engine, expr) {
+  let tokens;
+  try { tokens = tokenize(expr); } catch (error) {
+    if (error instanceof FormulaParseError) return { ok: false };
+    throw error;
+  }
+  if (!tokens.length) return { ok: false };
+  try {
+    return { ok: true, value: new Parser(engine, tokens, true).parse() };
   } catch (error) {
     if (error instanceof FormulaParseError) return { ok: false };
     throw error;

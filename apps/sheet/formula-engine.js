@@ -4,7 +4,7 @@ import { formatByCode, VI_LOCALE } from "./excel-format-code.js";
 import { NumberFormatter } from "./number-formatter.js";
 import { vndInWords } from "./vnd-words.js";
 import { VI_FORMULA_CATALOG, VI_FORMULA_MAP } from "./formula-definitions-vi.js";
-import { evaluateExpression } from "./formula-expression.js";
+import { evaluateExpression, evaluateArrayExpression, MatrixValue } from "./formula-expression.js";
 
 /**
  * 3T Sheet — Enterprise Spreadsheet Formula Calculation Engine
@@ -1083,12 +1083,6 @@ export class FormulaEngine {
   _lookupApproximateAscending(candidates, lookup) {
     if (!candidates || candidates.length === 0) return null;
 
-    const firstKey = candidates[0].key;
-    if (this._isError(firstKey)) return { error: firstKey };
-    if (this._compareLookupValues(firstKey, lookup) > 0) {
-      return null;
-    }
-
     let low = 0;
     let high = candidates.length - 1;
     let best = -1;
@@ -1320,6 +1314,12 @@ export class FormulaEngine {
         return evaluated.join("");
       }
 
+      // 1b. Hằng đơn: ="abc", =TRUE, =+"3"
+      if (/^[+-]*\s*(?:"|TRUE\b|FALSE\b|#)/i.test(expr)) {
+        const literal = evaluateExpression(this, expr, true);
+        if (literal.ok) return literal.value instanceof String ? String(literal.value) : literal.value;
+      }
+
       // 2. Tham chiếu ô đơn: =A1, =$A$1, ='Sheet1'!A1
       if (/^(?:(?:'(?:[^']|'')+'|[A-Za-zÀ-ỹ0-9_.\s]+)!)?\$?[A-Za-z]+\$?\d+$/i.test(expr)) {
         const reference = this._parseReference(expr);
@@ -1422,6 +1422,29 @@ export class FormulaEngine {
     return args;
   }
 
+  /**
+   * Đối số gõ trực tiếp (TRUE, FALSE, "3") của SUM/PRODUCT/AVERAGE/MIN/MAX: Excel đếm giá trị logic và
+   * chuỗi số, còn chuỗi không đổi được thành số cho #VALUE! (khác với ô tham chiếu, nơi chữ/logic bị bỏ qua).
+   */
+  _literalNumberArgs(args) {
+    const numbers = [];
+    const rest = [];
+    for (const arg of args) {
+      const text = typeof arg === "string" ? arg.trim() : "";
+      if (/^TRUE$/i.test(text)) { numbers.push(1); continue; }
+      if (/^FALSE$/i.test(text)) { numbers.push(0); continue; }
+      if (/^"(?:[^"]|"")*"$/.test(text)) {
+        const inner = text.slice(1, -1).replace(/""/g, '"');
+        const parsed = this._parseNumberOrCurrency(inner);
+        if (parsed === null || parsed === undefined || Number.isNaN(parsed)) return { error: "#VALUE!" };
+        numbers.push(parsed);
+        continue;
+      }
+      rest.push(arg);
+    }
+    return { numbers, rest };
+  }
+
   /** Hàm không hỗ trợ tham chiếu 3-D (Sheet1:Sheet3!A1): Excel trả lỗi cụ thể (đối chiếu Excel 2016). */
   _threeDArgumentError(funcName, args) {
     const group = THREE_D_UNSUPPORTED[funcName];
@@ -1440,6 +1463,9 @@ export class FormulaEngine {
     switch (funcName) {
       // Toán học
       case "SUM": {
+        const lit = this._literalNumberArgs(args);
+        if (lit.error) return lit.error;
+        args = lit.rest;
         const rawValues = this.collectValues(args);
         const err = rawValues.find(v => this._isError(v));
         if (err) return err;
@@ -1447,49 +1473,78 @@ export class FormulaEngine {
           .filter(v => !(v && v.isTextCell))
           .map(v => this._parseNumberOrCurrency(v))
           .filter(v => v !== null && !isNaN(v));
-        const sum = nums.reduce((acc, v) => acc + v, 0);
+        const sum = nums.reduce((acc, v) => acc + v, 0) + lit.numbers.reduce((acc, v) => acc + v, 0);
         return sum;
       }
 
       case "PRODUCT": {
+        const lit = this._literalNumberArgs(args);
+        if (lit.error) return lit.error;
+        args = lit.rest;
         const rawValues = this.collectValues(args);
         const err = rawValues.find(v => this._isError(v));
         if (err) return err;
-        const nums = this.collectNumericValues(args);
+        const nums = this.collectNumericValues(args).concat(lit.numbers);
         return nums.reduce((acc, v) => acc * v, 1);
       }
 
       case "SUMPRODUCT": {
         if (!args.length) return "#VALUE!";
-        const arrays = args.map(arg => this._rangeValues(arg));
+        // Mỗi đối số là một mảng: vùng ô hoặc biểu thức mảng như (A1:A9>1)*B1:B9. Phần tử không phải số tính là 0.
+        const arrays = [];
+        for (const arg of args) {
+          const text = arg.trim();
+          const isPlainRange = /^(?:(?:'[^']+'|[^!(),+\-*/^&<>=]+)!)?\$?[A-Z]+\$?\d+:\$?[A-Z]+\$?\d+$/i.test(text) || /^\$?[A-Z]+:\$?[A-Z]+$/i.test(text);
+          let flat;
+          if (isPlainRange) {
+            flat = this._rangeValues(arg);
+          } else {
+            const evaluated = evaluateArrayExpression(this, text);
+            if (!evaluated.ok) flat = this._rangeValues(arg);
+            else if (evaluated.value instanceof MatrixValue) flat = evaluated.value.rows.flat();
+            else flat = [evaluated.value];
+          }
+          arrays.push(flat);
+        }
         if (arrays.some(values => values.includes("#REF!"))) return "#REF!";
+        const firstError = arrays.flat().find(v => this._isError(v));
+        if (firstError) return firstError;
         if (arrays.some(values => values.length !== arrays[0].length)) return "#VALUE!";
-        return arrays[0].reduce((sum, _, index) => sum + arrays.reduce((product, values) => product * (Number(values[index]) || 0), 1), 0);
+        return arrays[0].reduce((sum, _, index) => sum + arrays.reduce((product, values) => product * (typeof values[index] === "number" ? values[index] : 0), 1), 0);
       }
 
       case "AVERAGE": {
+        const lit = this._literalNumberArgs(args);
+        if (lit.error) return lit.error;
+        args = lit.rest;
         const rawValues = this.collectValues(args);
         const err = rawValues.find(v => this._isError(v));
         if (err) return err;
-        const nums = this.collectNumericValues(args);
+        const nums = this.collectNumericValues(args).concat(lit.numbers);
         if (nums.length === 0) return "#DIV/0!";
         const sum = nums.reduce((acc, v) => acc + v, 0);
         return sum / nums.length;
       }
 
       case "MIN": {
+        const lit = this._literalNumberArgs(args);
+        if (lit.error) return lit.error;
+        args = lit.rest;
         const rawValues = this.collectValues(args);
         const err = rawValues.find(v => this._isError(v));
         if (err) return err;
-        const nums = this.collectNumericValues(args);
+        const nums = this.collectNumericValues(args).concat(lit.numbers);
         return nums.length ? Math.min(...nums) : 0;
       }
 
       case "MAX": {
+        const lit = this._literalNumberArgs(args);
+        if (lit.error) return lit.error;
+        args = lit.rest;
         const rawValues = this.collectValues(args);
         const err = rawValues.find(v => this._isError(v));
         if (err) return err;
-        const nums = this.collectNumericValues(args);
+        const nums = this.collectNumericValues(args).concat(lit.numbers);
         return nums.length ? Math.max(...nums) : 0;
       }
 
