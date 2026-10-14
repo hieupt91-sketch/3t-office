@@ -257,6 +257,45 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.trackChanges.displayModeHelp",
+    app: "writer",
+    commandIds: [
+      "writer.trackChanges.displayMode",
+      "writer.trackChanges.displaySimple",
+      "writer.trackChanges.displayAll",
+      "writer.trackChanges.displayNone",
+      "writer.trackChanges.displayOriginal"
+    ],
+    title: "Chế độ hiển thị theo dõi thay đổi",
+    summary: "Hộp chọn chế độ hiển thị bản sửa đổi trên thanh công cụ: Đánh dấu đơn giản (Simple Markup), Tất cả đánh dấu (All Markup), Không đánh dấu (No Markup) và Bản gốc (Original).",
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "Theo dõi thay đổi" },
+    keywords: ["chế độ hiển thị", "theo dõi thay đổi", "simple markup", "all markup", "no markup", "original", "đánh dấu đơn giản", "tất cả đánh dấu", "không đánh dấu", "bản gốc", "vạch đỏ lề"],
+    steps: [
+      "Mở tab Xem lại (hoặc Đánh giá), nhóm Theo dõi thay đổi.",
+      "Nhấp vào hộp chọn Chế độ hiển thị thay đổi để chọn 1 trong 4 chế độ: Đánh dấu đơn giản, Tất cả đánh dấu, Không đánh dấu hoặc Bản gốc.",
+      "Chế độ Đánh dấu đơn giản (Simple Markup): Ẩn các đoạn chữ bị xóa và hiển thị chữ mới như bình thường, đồng thời vẽ đường vạch dọc màu đỏ ở lề bên trái của từng đoạn văn có sửa đổi. Nhấp chuột vào vạch đỏ ở lề để chuyển đổi nhanh giữa Đánh dấu đơn giản và Tất cả đánh dấu.",
+      "Chế độ Tất cả đánh dấu (All Markup): Hiển thị chi tiết toàn bộ các thao tác thêm mới bằng chữ gạch chân màu xanh và các thao tác xóa bằng chữ gạch ngang màu đỏ.",
+      "Chế độ Không đánh dấu (No Markup): Hiển thị diện mạo cuối cùng của tài liệu khi đã áp dụng đầy đủ mọi thay đổi mà không còn vạch đỏ hay dấu gạch màu.",
+      "Chế độ Bản gốc (Original): Hiển thị nội dung ban đầu của tài liệu trước khi có bất kỳ thao tác chỉnh sửa nào."
+    ]
+  },
+  {
+    id: "writer.file.inspectDocumentHelp",
+    app: "writer",
+    commandIds: ["writer.file.inspectDocument"],
+    title: "Kiểm tra tài liệu (Document Inspector)",
+    summary: "Quét và loại bỏ nhận xét, bản sửa đổi theo dõi, văn bản ẩn và thông tin cá nhân hoặc thuộc tính tài liệu trước khi chia sẻ.",
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "Kiểm tra tài liệu" },
+    keywords: ["kiểm tra tài liệu", "document inspector", "xóa nhận xét", "xóa bản sửa đổi", "xóa văn bản ẩn", "thông tin cá nhân", "bảo vệ tài liệu", "thuộc tính tài liệu"],
+    steps: [
+      "Mở tab Xem lại (hoặc Đánh giá), nhóm Kiểm tra tài liệu, nhấn nút Kiểm tra tài liệu để mở hộp thoại.",
+      "Trong hộp thoại Kiểm tra tài liệu, đánh dấu các nhóm nội dung cần rà soát: Nhận xét và chú thích, Theo dõi thay đổi và bản sửa đổi, Văn bản ẩn, Thuộc tính tài liệu và thông tin cá nhân.",
+      "Nhấn nút Kiểm tra để bắt đầu quét toàn bộ nội dung tài liệu. Hộp thoại sẽ chuyển sang giao diện kết quả hiển thị tình trạng từng nhóm kèm biểu tượng cảnh báo nếu phát hiện dữ liệu nhạy cảm.",
+      "Đối với mỗi nhóm tìm thấy dữ liệu, bạn có thể nhấn nút Xóa tất cả tương ứng để loại bỏ độc lập nhóm đó (ví dụ: chỉ xóa nhận xét hoặc chỉ chấp nhận toàn bộ thay đổi theo dõi).",
+      "Nhấn Kiểm tra lại để quét lại tài liệu và xác nhận toàn bộ các nhóm đã ở trạng thái an toàn trước khi gửi hoặc lưu tệp."
+    ]
+  },
+  {
     id: "writer.reference.citations",
     app: "writer",
     commandIds: [
@@ -705,16 +744,17 @@ export const WRITER_HELP_ENTRIES = [
   {
     id: "writer.text.changeCaseHelp",
     app: "writer",
-    commandIds: ["writer.text.changeCase"],
+    commandIds: ["writer.text.changeCase", "writer.text.changeCaseDialog"],
     title: "Đổi chữ hoa / thường",
-    summary: "Shift+F3 (hoặc nút trên nhóm Phông chữ) xoay vòng hoa/thường/tiêu đề cho vùng đang bôi; nếu chưa bôi thì lấy cả từ tại con trỏ.",
+    summary: "Hộp thoại đổi chữ hoa/thường (Sentence case, chữ thường, CHỮ HOA, Viết Hoa Mỗi Từ, bẬT/tẮT) và phím tắt Shift+F3 xoay vòng nhanh.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
-    keywords: ["đổi chữ hoa", "chữ thường", "title case", "shift+f3", "change case", "in hoa"],
+    keywords: ["đổi chữ hoa", "chữ thường", "title case", "sentence case", "shift+f3", "change case", "in hoa"],
     steps: [
-      "Bôi chữ (hoặc đặt con trỏ trong một từ). Tab Trang đầu, nhóm Phông chữ, nút Đổi chữ hoa/thường (hàng icon, cạnh Gạch ngang) — hoặc Shift+F3.",
-      "Chu kỳ: đang viết HOA TOÀN BỘ → Title Case (Hoa Chữ Đầu); đang thường hết → HOA TOÀN BỘ; hỗn hợp hoặc Title Case → chữ thường.",
-      "Không có menu Sentence case / tOGGLE CASE như các phần mềm soạn thảo văn bản khác. Nhấn lại Shift+F3 để vòng tiếp.",
-      "Ctrl+Z hoàn tác lần đổi."
+      "Bôi đen đoạn văn bản cần đổi (hoặc đặt con trỏ trong một từ). Mở tab Trang đầu, nhóm Phông chữ, nút Đổi chữ hoa/thường (icon Aa) hoặc phím tắt Shift+F3.",
+      "Nhấn Shift+F3 để xoay vòng nhanh giữa: chữ thường, CHỮ HOA và Viết Hoa Đầu Từ.",
+      "Hoặc mở Hộp thoại Đổi chữ hoa/thường (nhấp chuột phải vào văn bản chọn 'Đổi chữ hoa/thường…' hoặc chạy lệnh) để chọn chính xác 5 kiểu: Chữ hoa đầu câu (Sentence case), chữ thường (lowercase), CHỮ HOA (UPPERCASE), Viết Hoa Mỗi Từ (Title case), hoặc bẬT/tẮT hOA tHƯỜNG (tOGGLE cASE).",
+      "Hỗ trợ đầy đủ tiếng Việt có dấu (kể cả các ký tự Đ, Ă, Â, Ê, Ô, Ơ, Ư). Nhấn Áp dụng để hoàn tất.",
+      "Nhấn Ctrl+Z để hoàn tác lần đổi nếu muốn quay lại ban đầu."
     ]
   },
   {
@@ -1162,16 +1202,17 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["common.edit.find", "common.edit.replace", "common.edit.selectAll"],
     title: "Tìm kiếm và Thay thế trong Doc",
-    summary: "Hộp thoại Tìm kiếm và Thay thế dùng chung phong cách Office cho Doc với hai tab: Tìm (Ctrl+F) và Thay thế (Ctrl+H). Hỗ trợ tiếng Việt có dấu chuẩn Unicode NFC, bỏ qua dấu, tự động cuộn trang bôi đen kết quả và Hoàn tác một bước (Ctrl+Z).",
+    summary: "Hộp thoại Tìm kiếm và Thay thế dùng chung cho Doc với hai tab: Tìm (Ctrl+F) và Thay thế (Ctrl+H). Hỗ trợ ký tự đặc biệt (^p, ^t, ^?), ký tự đại diện, tìm theo định dạng (font, đậm, nghiêng, màu), báo số lần thay thế và Hoàn tác một bước (Ctrl+Z).",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
-    keywords: ["tìm kiếm", "thay thế", "chọn tất cả", "find", "replace", "select all", "Ctrl+F", "Ctrl+H", "Ctrl+A", "Doc", "chỉnh sửa"],
+    keywords: ["tìm kiếm", "thay thế", "chọn tất cả", "find", "replace", "select all", "Ctrl+F", "Ctrl+H", "Ctrl+A", "Doc", "ký tự đặc biệt", "wildcard", "định dạng"],
     steps: [
-      "Truy cập: Mở tab Trang đầu trên thanh ribbon, nhìn sang nhóm Chỉnh sửa ở phía ngoài cùng bên phải, nhấn nút Tìm kiếm (Ctrl+F) hoặc Thay thế (Ctrl+H) để mở hộp thoại Tìm kiếm và Thay thế gồm hai tab.",
-      "Tìm kiếm văn bản: Chọn tab «Tìm» (Ctrl+F), nhập từ hoặc cụm từ cần tìm vào ô «Tìm gì:». Nhấn nút «Tìm tiếp» để nhảy tới kết quả kế tiếp; nhấn «Tìm trước» để lùi lại kết quả trước. Doc tự động cuộn trang và bôi đen vị trí khớp trong tài liệu.",
-      "Thay thế nội dung: Chọn tab «Thay thế» (Ctrl+H), nhập chuỗi cần tìm vào «Tìm gì:» và nội dung mới vào «Thay bằng:». Nhấn nút «Thay thế» để đổi từng vị trí, hoặc nhấn «Thay thế tất cả» để thay thế toàn bộ văn bản khớp trong tài liệu và nhận thông báo tổng số lượng thay thế thành công.",
-      "Tùy chọn tìm kiếm: Đánh dấu các ô chọn theo nhu cầu: «Khớp chữ hoa/thường» (phân biệt HOA/thường chính xác), «Chỉ toàn bộ từ» (không khớp các từ con), hoặc «Bỏ qua dấu» (tìm kiếm tiếng Việt không dấu khớp cả từ có dấu). Cả hai bên đều được chuẩn hóa Unicode NFC tự động.",
-      "Đóng và Hoàn tác: Phím Esc đóng hộp thoại. Sau khi đóng hộp thoại, hệ thống vẫn duy trì phiên tìm kiếm cho tài liệu. Mọi thao tác «Thay thế tất cả» đều được ghi nhận là đúng 1 bước Hoàn tác (nhấn Ctrl+Z để phục hồi lại nguyên trạng ban đầu).",
-      "Để chọn nhanh toàn bộ tài liệu: Nhấn nút «Chọn tất cả» trong nhóm Chỉnh sửa hoặc bấm tổ hợp phím Ctrl+A."
+      "Truy cập: Mở tab Trang đầu trên thanh ribbon, tại nhóm Chỉnh sửa nhấn nút Tìm kiếm (Ctrl+F) hoặc Thay thế (Ctrl+H) để mở hộp thoại Tìm kiếm và Thay thế.",
+      "Tìm kiếm cơ bản: Nhập nội dung vào «Tìm gì:», nhấn «Tìm tiếp» hoặc «Tìm trước». Hộp thoại báo trạng thái tìm thấy và tự động cuộn trang bôi đen kết quả.",
+      "Ký tự đặc biệt (^p, ^t, ^?): Nhấn nút «Đặc biệt ▼» để chèn nhanh ký tự đặc biệt: ^p (dấu ngắt đoạn), ^t (ký tự Tab), ^? (bất kỳ ký tự nào), ^w (khoảng trắng), ^^ (dấu mũ), hoặc ^& (chèn lại nội dung tìm được vào ô Thay bằng).",
+      "Ký tự đại diện: Đánh dấu «Dùng ký tự đại diện (*, ?)» để tìm theo mẫu: dấu * đại diện cho chuỗi ký tự bất kỳ, dấu ? đại diện cho đúng một ký tự.",
+      "Tìm theo định dạng: Nhấn nút «Định dạng…» để lọc theo phông chữ, chữ đậm, chữ nghiêng hoặc màu chữ cụ thể. Nhấn «Xóa định dạng» khi muốn quay lại tìm văn bản thông thường.",
+      "Thay thế và báo số lần: Nhấn «Thay thế» để đổi từng vị trí, hoặc nhấn «Thay thế tất cả» để thay thế toàn bộ và xem thông báo tổng số lần đã thay thế thành công.",
+      "Đóng và Hoàn tác: Phím Esc đóng hộp thoại. Mọi thao tác thay thế đều có thể hoàn tác ngay bằng Ctrl+Z."
     ]
   },
   {

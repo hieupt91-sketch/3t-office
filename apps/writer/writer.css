@@ -502,6 +502,60 @@
   user-select: text;
 }
 
+/* Chế độ hiển thị Track Changes: Simple Markup, All Markup, No Markup, Original (WORD-W5 Item 3) */
+.vno-writer-body[data-track-display="simple"] ins[data-vno-change="insert"],
+[data-track-display="simple"] .vno-writer-body ins[data-vno-change="insert"] {
+  color: inherit !important;
+  text-decoration: none !important;
+  background: transparent !important;
+}
+.vno-writer-body[data-track-display="simple"] del[data-vno-change="delete"],
+[data-track-display="simple"] .vno-writer-body del[data-vno-change="delete"] {
+  display: none !important;
+}
+.vno-writer-body[data-track-display="simple"] .vno-has-revision,
+[data-track-display="simple"] .vno-writer-body .vno-has-revision,
+.vno-writer-body[data-track-display="all"] .vno-has-revision,
+[data-track-display="all"] .vno-writer-body .vno-has-revision {
+  border-left: 3px solid #dc2626 !important;
+  padding-left: 8px !important;
+  position: relative;
+  cursor: pointer;
+}
+
+.vno-writer-body[data-track-display="none"] ins[data-vno-change="insert"],
+[data-track-display="none"] .vno-writer-body ins[data-vno-change="insert"] {
+  color: inherit !important;
+  text-decoration: none !important;
+  background: transparent !important;
+}
+.vno-writer-body[data-track-display="none"] del[data-vno-change="delete"],
+[data-track-display="none"] .vno-writer-body del[data-vno-change="delete"] {
+  display: none !important;
+}
+.vno-writer-body[data-track-display="none"] .vno-has-revision,
+[data-track-display="none"] .vno-writer-body .vno-has-revision {
+  border-left: none !important;
+  padding-left: 0 !important;
+}
+
+.vno-writer-body[data-track-display="original"] ins[data-vno-change="insert"],
+[data-track-display="original"] .vno-writer-body ins[data-vno-change="insert"] {
+  display: none !important;
+}
+.vno-writer-body[data-track-display="original"] del[data-vno-change="delete"],
+[data-track-display="original"] .vno-writer-body del[data-vno-change="delete"] {
+  color: inherit !important;
+  text-decoration: none !important;
+  background: transparent !important;
+  display: inline !important;
+}
+.vno-writer-body[data-track-display="original"] .vno-has-revision,
+[data-track-display="original"] .vno-writer-body .vno-has-revision {
+  border-left: none !important;
+  padding-left: 0 !important;
+}
+
 .vno-writer-body [data-vno-change].is-vno-change-active {
   outline: 2px solid #2563eb;
   outline-offset: 2px;

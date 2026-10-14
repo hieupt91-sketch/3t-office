@@ -821,6 +821,7 @@ export class WriterApp {
       { sep: true },
       { label: "Phông chữ", shortcut: "Ctrl+Shift+F", command: "writer.font.family" },
       { label: "Đoạn văn...", command: "writer.format.paragraphDialog" },
+      { label: "Đổi chữ hoa/thường...", command: "writer.text.changeCaseDialog" },
       {
         label: "Danh sách",
         items: [

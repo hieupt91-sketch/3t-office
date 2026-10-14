@@ -5,7 +5,7 @@
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showPromptDialog, showFindReplaceDialog, showAlertDialog, showHyperlinkDialog } from "../../../platform/ui-kit/dialogs.js";
-import { createMatcher } from "../../../platform/find/find-engine.js";
+import { createMatcher, nodeMatchesFormat } from "../../../platform/find/find-engine.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { getPendingTypingStyleCommands } from "../../../platform/text/spellcheck-dom-controller.js";
 import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
@@ -55,6 +55,8 @@ import {
 } from "../../../apps/writer/captions.js";
 import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlListMarkerStats, extractOoxmlDocumentText, extractWordCountText, showWordCountDialog } from "../../../apps/writer/word-count.js";
 import { showFontDialog } from "../../../apps/writer/font-dialog.js";
+import { showChangeCaseDialog } from "../../../apps/writer/change-case-dialog.js";
+import { showDocumentInspectorDialog, inspectDocument, removeDocumentCategory } from "../../../apps/writer/document-inspector-dialog.js";
 import {
   documentPropertiesMarker,
   normalizeDocumentProperties,
@@ -239,6 +241,7 @@ export function replaceTextInTextNodes(nodes, findText, replacementText, replace
   const matcher = createMatcher(needle, options);
   for (const node of nodes || []) {
     if (!node || typeof node.data !== "string") continue;
+    if (options.format && !nodeMatchesFormat(node, options.format)) continue;
     const res = matcher.replace(node.data, replacement, replaceAll);
     if (res.count > 0) {
       node.data = res.text;
@@ -340,6 +343,7 @@ export class WriterAdapter {
     this._commentAnchorKeyHandler = null;
     this._commentPanelKeyHandler = null;
     this.trackChangesEnabled = false;
+    this.trackChangesDisplayMode = "all";
     this._activeTrackChange = null;
     this._trackChangesBeforeInputHandler = null;
     this._workflowBeforeInputHandler = null;
@@ -437,6 +441,12 @@ export class WriterAdapter {
     this.bodyDom = this.editorDom.querySelector(".vno-writer-body") || this.editorDom;
     this.footerDom = this.editorDom.querySelector(".vno-writer-footer");
     this.bodyDom?.classList?.toggle?.("vno-new-application-document", Boolean(this.isNewApplicationDocument));
+    if (typeof this.bodyDom?.setAttribute === "function") {
+      const hasAttr = typeof this.bodyDom.hasAttribute === "function" ? this.bodyDom.hasAttribute("data-track-display") : Boolean(this.bodyDom.getAttribute?.("data-track-display"));
+      if (!hasAttr) {
+        this.bodyDom.setAttribute("data-track-display", this.trackChangesDisplayMode || "all");
+      }
+    }
   }
 
   _bindEquationInteractions() {
@@ -602,8 +612,14 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.trackChanges.rejectOne", () => this.rejectOneTrackChange());
     globalCommandBus.bindHandler("writer.trackChanges.acceptAll", () => this.acceptAllTrackChanges());
     globalCommandBus.bindHandler("writer.trackChanges.rejectAll", () => this.rejectAllTrackChanges());
+    globalCommandBus.bindHandler("writer.trackChanges.displayMode", (args) => this.setTrackChangesDisplayMode(args));
+    globalCommandBus.bindHandler("writer.trackChanges.displaySimple", () => this.setTrackChangesDisplayMode("simple"));
+    globalCommandBus.bindHandler("writer.trackChanges.displayAll", () => this.setTrackChangesDisplayMode("all"));
+    globalCommandBus.bindHandler("writer.trackChanges.displayNone", () => this.setTrackChangesDisplayMode("none"));
+    globalCommandBus.bindHandler("writer.trackChanges.displayOriginal", () => this.setTrackChangesDisplayMode("original"));
     globalCommandBus.bindHandler("writer.review.wordCount", () => this.openWordCountDialog());
     globalCommandBus.bindHandler("writer.file.properties", () => this.openDocumentPropertiesDialog());
+    globalCommandBus.bindHandler("writer.file.inspectDocument", () => this.openDocumentInspectorDialog());
     globalCommandBus.bindHandler("writer.file.options", () => { if (typeof this.shell?.showOptionsDialog !== "function") return false; this.shell.showOptionsDialog(); return true; });
 
     // Bind undo/redo listeners & command handlers
@@ -699,7 +715,8 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.style.heading1", () => this._applyParagraphStyle("h1"));
     globalCommandBus.bindHandler("writer.style.heading2", () => this._applyParagraphStyle("h2"));
     globalCommandBus.bindHandler("writer.style.heading3", () => this._applyParagraphStyle("h3"));
-    globalCommandBus.bindHandler("writer.text.changeCase", () => this._hintIfFalse(() => this.changeCase(), "Hãy chọn đoạn văn bản cần đổi chữ hoa / chữ thường."));
+    globalCommandBus.bindHandler("writer.text.changeCase", (args) => this._hintIfFalse(() => this.changeCase(args), "Hãy chọn đoạn văn bản cần đổi chữ hoa / chữ thường."));
+    globalCommandBus.bindHandler("writer.text.changeCaseDialog", () => this._hintIfFalse(() => this.openChangeCaseDialog(), "Hãy chọn đoạn văn bản cần đổi chữ hoa / chữ thường."));
     globalCommandBus.bindHandler("writer.format.fontDialog", () => this.openFontDialog());
     globalCommandBus.bindHandler("writer.para.sort", () => this.sortParagraphs());
     globalCommandBus.bindHandler("writer.para.showFormattingMarks", () => this.toggleFormattingMarks());
@@ -1088,7 +1105,10 @@ export class WriterAdapter {
     return true;
   }
 
-  changeCase() {
+  changeCase(targetCase) {
+    if (targetCase === "dialog" || (targetCase && typeof targetCase === "object" && targetCase.showDialog)) {
+      return this.openChangeCaseDialog();
+    }
     if (typeof window === "undefined") return false;
     const sel = window.getSelection?.();
     if (!sel || sel.rangeCount === 0) return false;
@@ -1150,9 +1170,40 @@ export class WriterAdapter {
     }).filter(slice => slice.to > slice.from);
     if (!slices.length) return false;
     const fragmentText = slices.map(slice => slice.node.data.slice(slice.from, slice.to)).join("");
-    const transformCase = value => isAllUpper
-      ? value.toLowerCase().replace(/(^|\s)\S/g, char => char.toUpperCase())
-      : isAllLower ? value.toUpperCase() : value.toLowerCase();
+
+    const mode = typeof targetCase === "string"
+      ? targetCase.toLowerCase()
+      : (typeof targetCase === "object" && targetCase ? (targetCase.type || targetCase.mode || "").toLowerCase() : "");
+    const transformCase = value => {
+      if (mode === "sentence" || mode === "sentencecase") {
+        return value.toLowerCase().replace(/(^|[.!?]\s+)(\p{L})/gu, (m, p, c) => p + c.toUpperCase());
+      }
+      if (mode === "lowercase" || mode === "lower") {
+        return value.toLowerCase();
+      }
+      if (mode === "uppercase" || mode === "upper") {
+        return value.toUpperCase();
+      }
+      if (mode === "capitalize" || mode === "capitalizeeachword" || mode === "title") {
+        return value.toLowerCase().replace(/(^|[\s\p{P}\u2018-\u201D]+)(\p{L})/gu, (m, p, c) => p + c.toUpperCase());
+      }
+      if (mode === "toggle" || mode === "togglecase") {
+        return Array.from(value).map(c => {
+          const u = c.toUpperCase();
+          const l = c.toLowerCase();
+          return c === u && c !== l ? l : (c === l && c !== u ? u : c);
+        }).join("");
+      }
+      // Mặc định Shift+F3 xoay vòng: thường -> Tiêu đề -> HOA -> thường
+      if (isAllLower) {
+        return value.toLowerCase().replace(/(^|[\s\p{P}\u2018-\u201D]+)(\p{L})/gu, (m, p, c) => p + c.toUpperCase());
+      }
+      if (isAllUpper) {
+        return value.toLowerCase();
+      }
+      return value.toUpperCase();
+    };
+
     const convertedText = transformCase(fragmentText);
     let sourceOffset = 0;
     let newEndOffset = endOffsetOriginal;
@@ -1174,6 +1225,40 @@ export class WriterAdapter {
     this.isDirty = true;
     this.recordSnapshot("writer.text.changeCase");
     return true;
+  }
+
+  openChangeCaseDialog() {
+    if (typeof window === "undefined") return false;
+    const sel = window.getSelection?.();
+    if (sel && sel.rangeCount > 0) {
+      let range = sel.getRangeAt(0);
+      if (sel.isCollapsed && range) {
+        const node = sel.anchorNode;
+        if (node && node.nodeType === 3) {
+          const text = node.textContent || "";
+          const offset = sel.anchorOffset;
+          let start = offset;
+          let end = offset;
+          while (start > 0 && /\S/.test(text[start - 1])) start--;
+          while (end < text.length && /\S/.test(text[end])) end++;
+          if (end > start && typeof document !== "undefined") {
+            const newRange = document.createRange?.();
+            if (newRange) {
+              newRange.setStart(node, start);
+              newRange.setEnd(node, end);
+              sel.removeAllRanges();
+              sel.addRange(newRange);
+            }
+          }
+        }
+      }
+    }
+
+    return showChangeCaseDialog({
+      onApply: (mode) => {
+        this.changeCase(mode);
+      }
+    });
   }
 
   openFontDialog() {
@@ -2214,8 +2299,8 @@ export class WriterAdapter {
 
   _listTrackChanges() {
     if (!this.bodyDom?.querySelectorAll) return [];
-    const insertions = [...(this.bodyDom.querySelectorAll('ins[data-vno-change="insert"]') || [])];
-    const deletions = [...(this.bodyDom.querySelectorAll('del[data-vno-change="delete"]') || [])];
+    const insertions = [...(this.bodyDom.querySelectorAll('ins[data-vno-change="insert"], ins.vno-track-insert, .vno-track-insert, [data-track="insert"]') || [])];
+    const deletions = [...(this.bodyDom.querySelectorAll('del[data-vno-change="delete"], del.vno-track-delete, .vno-track-delete, [data-track="delete"]') || [])];
     const all = [...insertions, ...deletions].filter((node) => !node.removed);
     if (all.length > 1 && typeof all[0].compareDocumentPosition === "function") {
       all.sort((a, b) => {
@@ -2333,6 +2418,70 @@ export class WriterAdapter {
     globalCommandBus.updateState("writer.trackChanges.next", { enabled: hasChanges });
     globalCommandBus.updateState("writer.trackChanges.acceptOne", { enabled: hasChanges });
     globalCommandBus.updateState("writer.trackChanges.rejectOne", { enabled: hasChanges });
+    globalCommandBus.updateState("writer.trackChanges.displayMode", { value: this.trackChangesDisplayMode || "all" });
+    this._updateRevisionIndicators();
+  }
+
+  setTrackChangesDisplayMode(mode) {
+    const raw = typeof mode === "object" && mode !== null ? (mode.value || mode.mode || mode.displayMode) : mode;
+    const normalized = String(raw || "").trim().toLowerCase();
+    const validModes = ["simple", "all", "none", "original"];
+    const targetMode = validModes.includes(normalized) ? normalized : "all";
+
+    this.trackChangesDisplayMode = targetMode;
+
+    if (this.bodyDom?.setAttribute) {
+      this.bodyDom.setAttribute("data-track-display", targetMode);
+    }
+    if (this.editorDom?.setAttribute) {
+      this.editorDom.setAttribute("data-track-display", targetMode);
+    }
+
+    this._updateRevisionIndicators(targetMode);
+    globalCommandBus.updateState?.("writer.trackChanges.displayMode", { value: targetMode });
+    return targetMode;
+  }
+
+  getTrackChangesDisplayMode() {
+    return this.trackChangesDisplayMode || "all";
+  }
+
+  toggleTrackChangesDisplayMode() {
+    const current = this.getTrackChangesDisplayMode();
+    return this.setTrackChangesDisplayMode(current === "simple" ? "all" : "simple");
+  }
+
+  _updateRevisionIndicators(mode = this.trackChangesDisplayMode || "all") {
+    if (!this.bodyDom?.querySelectorAll) return;
+    const changes = this._listTrackChanges();
+    const changedBlocks = new Set();
+    for (const node of changes) {
+      const block = node.closest?.("p, h1, h2, h3, h4, h5, h6, li, blockquote, div") || node.parentElement;
+      if (block && (!this.bodyDom || this.bodyDom.contains?.(block))) {
+        changedBlocks.add(block);
+      }
+    }
+
+    const existing = this.bodyDom.querySelectorAll(".vno-has-revision");
+    for (const el of existing) {
+      el.classList?.remove?.("vno-has-revision");
+    }
+
+    if (mode === "simple" || mode === "all") {
+      for (const block of changedBlocks) {
+        block.classList?.add?.("vno-has-revision");
+        if (!block._hasRevisionClickListener) {
+          block._hasRevisionClickListener = true;
+          block.addEventListener?.("click", (e) => {
+            const rect = block.getBoundingClientRect?.();
+            if (rect && e.clientX <= rect.left + 24) {
+              const current = this.getTrackChangesDisplayMode();
+              this.setTrackChangesDisplayMode(current === "simple" ? "all" : "simple");
+            }
+          });
+        }
+      }
+    }
   }
 
   /**
@@ -2418,6 +2567,91 @@ export class WriterAdapter {
     this.isDirty = true;
     this.shell?.setStatus?.(t("writerDocumentProperties.saved"));
     return true;
+  }
+
+  openDocumentInspectorDialog() {
+    return showDocumentInspectorDialog({ adapter: this });
+  }
+
+  inspectDocument() {
+    return inspectDocument(this);
+  }
+
+  deleteAllComments() {
+    const domCount = this.bodyDom?.querySelectorAll ? this.bodyDom.querySelectorAll(".vno-comment-anchor, [data-comment-id]").length : 0;
+    const memCount = Array.isArray(this.comments) ? this.comments.length : 0;
+    if (!memCount && !domCount) return 0;
+    const count = Math.max(memCount, domCount);
+    if (Array.isArray(this.comments)) {
+      this.comments.length = 0;
+    }
+    if (this.bodyDom?.querySelectorAll) {
+      const anchors = this.bodyDom.querySelectorAll(".vno-comment-anchor, [data-comment-id]");
+      for (const a of anchors) {
+        if (typeof a.replaceWith === "function" && a.childNodes) a.replaceWith(...a.childNodes);
+        else a.remove?.();
+      }
+    }
+    this.activeCommentId = null;
+    this.isDirty = true;
+    this._renderCommentsPanel?.();
+    this.recordSnapshot("writer.review.commentDeleteAll");
+    return count || 1;
+  }
+
+  deleteHiddenText() {
+    if (!this.bodyDom?.querySelectorAll) return 0;
+    const hiddenEls = [
+      ...this.bodyDom.querySelectorAll('[style*="display: none"]'),
+      ...this.bodyDom.querySelectorAll('[style*="display:none"]'),
+      ...this.bodyDom.querySelectorAll('[style*="visibility: hidden"]'),
+      ...this.bodyDom.querySelectorAll('[style*="visibility:hidden"]'),
+      ...this.bodyDom.querySelectorAll(".vno-hidden-text"),
+      ...this.bodyDom.querySelectorAll('[data-vno-hidden="true"]')
+    ];
+    const unique = [...new Set(hiddenEls)];
+    for (const el of unique) {
+      el.remove?.();
+    }
+    if (unique.length > 0) {
+      this.isDirty = true;
+      this.recordSnapshot("writer.edit.deleteHiddenText");
+    }
+    return unique.length;
+  }
+
+  deletePersonalInformation() {
+    let count = 0;
+    const fields = ["author", "creator", "lastModifiedBy", "company", "manager", "title", "subject", "keywords", "description", "category", "comments"];
+    if (this.documentProperties && typeof this.documentProperties === "object") {
+      for (const f of fields) {
+        if (this.documentProperties[f]) {
+          this.documentProperties[f] = "";
+          count++;
+        }
+      }
+    }
+    if (this.metadata && typeof this.metadata === "object") {
+      for (const f of fields) {
+        if (this.metadata[f]) {
+          this.metadata[f] = "";
+          count++;
+        }
+      }
+    }
+    if (Array.isArray(this.comments)) {
+      for (const c of this.comments) {
+        if (c.author) {
+          c.author = "Tác giả";
+          count++;
+        }
+      }
+    }
+    if (count > 0) {
+      this.isDirty = true;
+      this.recordSnapshot("writer.file.deletePersonalInfo");
+    }
+    return count;
   }
 
   _serializeNativeDiagramsToFodt(diagrams) {
@@ -7628,7 +7862,13 @@ export class WriterAdapter {
     if (cmd === "writer.trackChanges.rejectOne") return this.rejectOneTrackChange();
     if (cmd === "writer.trackChanges.acceptAll") return this.acceptAllTrackChanges();
     if (cmd === "writer.trackChanges.rejectAll") return this.rejectAllTrackChanges();
+    if (cmd === "writer.trackChanges.displayMode") return this.setTrackChangesDisplayMode(args);
+    if (cmd === "writer.trackChanges.displaySimple") return this.setTrackChangesDisplayMode("simple");
+    if (cmd === "writer.trackChanges.displayAll") return this.setTrackChangesDisplayMode("all");
+    if (cmd === "writer.trackChanges.displayNone") return this.setTrackChangesDisplayMode("none");
+    if (cmd === "writer.trackChanges.displayOriginal") return this.setTrackChangesDisplayMode("original");
     if (cmd === "writer.review.wordCount") return this.openWordCountDialog();
+    if (cmd === "writer.file.inspectDocument") return this.openDocumentInspectorDialog();
 
     if (cmd !== "common.edit.undo" && cmd !== "common.edit.redo") {
       this.flushTyping();
@@ -8001,7 +8241,10 @@ export class WriterAdapter {
         return this._applyParagraphStyle("h3");
 
       case "writer.text.changeCase":
-        return this.changeCase();
+        return this.changeCase(args);
+
+      case "writer.text.changeCaseDialog":
+        return this.openChangeCaseDialog();
 
       case "writer.para.moveUp":
         return this.moveParagraph("up");
@@ -12524,6 +12767,7 @@ export class WriterAdapter {
         ? (startNodeIdx - step + totalNodes) % totalNodes
         : (startNodeIdx + step) % totalNodes;
       const textNode = nodes[idx];
+      if (options.format && !nodeMatchesFormat(textNode, options.format)) continue;
       const matches = matcher.findAll(textNode.data || "");
       if (matches.length > 0) {
         let m = backward ? matches[matches.length - 1] : matches[0];
