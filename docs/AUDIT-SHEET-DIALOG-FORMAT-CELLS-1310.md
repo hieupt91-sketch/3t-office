@@ -92,7 +92,17 @@ Quy ước trạng thái ban đầu: **Có** = đã tác động model; **Một 
 | Hủy bỏ | Đóng không áp dụng | Có | `FC-G02`: đổi control rồi Hủy, model/COM không đổi |
 | Đồng ý | Áp dụng toàn bộ thay đổi đang chọn | Có | `FC-G03`: đổi nhiều thẻ rồi OK, tất cả giá trị được lưu |
 
-## Kết quả chạy
+## Kết quả chạy (14/10, Claude kiểm lại độc lập)
 
-Sẽ cập nhật trạng thái sau khi test thật. Không ghi PASS nếu chưa chạy.
+Bài kiểm tra `tests/live/cdp/sheet-format-cells-controls.desktop.mjs` trên app desktop: **18/18 PASS** (đặt control -> OK -> lưu XLSX -> mở lại trong app -> Excel 2016 COM chỉ-đọc cùng giá trị). Nhóm đã xác nhận bằng Excel 2016:
+- Số (FC-N03..N23): thập phân, nghìn, số âm, tiền tệ/ký hiệu, kế toán, ngày/giờ + vùng, phần trăm, phân số, khoa học, văn bản, đặc biệt, tùy chỉnh.
+- Căn chỉnh (FC-A01..A10): ngang/dọc, thụt lề, ngắt dòng, thu nhỏ vừa ô, gộp ô, hướng chữ, độ xoay, xếp dọc.
+- Phông chữ (FC-F01..F10): họ, kiểu, cỡ, gạch chân 5 loại, màu, mặc định, gạch ngang, chỉ số trên/dưới.
+- Viền (FC-B01..B14): kiểu, màu, Không/Ngoài/Trong, 4 cạnh, ngang/dọc trong, 2 đường chéo.
+- Tô màu (FC-L01..L06): màu nền, không màu, màu mẫu, kiểu mẫu, hiệu ứng tô (gradient 2 màu).
+- Bảo vệ (FC-P01..P03): Đã khóa, Ẩn công thức, liên kết Bảo vệ trang tính.
+- Đóng/Hủy/Đồng ý (FC-G01..G03).
 
+Cổng: `npm test` 3198/3198; batch LAN 10 tệp (lan01 02 04 06 09 11 22 26 13 19) = 0 diff; công thức lan28 98,18%, lan01 100%, lan04 100%.
+Lỗi hồi quy LAN do bản dở dang đã sửa (nền "solid" thành đen, gạch chân giả từ LibreOffice, ghi định dạng mặc định cho ~49.000 ô gây treo lan09): xem `docs/tickets-0710/H1-CLAUDE-NOTES.md`.
+Lưu ý: kiểm tra Excel mới đo một ô đại diện cho mỗi control; chưa phủ từng giá trị của mọi danh sách (ví dụ toàn bộ 7 loại gạch chân, mọi mẫu pattern).
