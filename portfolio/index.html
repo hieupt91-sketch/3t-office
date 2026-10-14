@@ -3,16 +3,34 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="theme-color" content="#0d1513" />
-    <meta name="description" content="Portfolio của Phạm Trung Hiếu — những sản phẩm số cho tài liệu, công việc và vận hành thực tế." />
-    <meta property="og:type" content="website" />
-    <meta property="og:title" content="Phạm Trung Hiếu | Xây dựng sản phẩm phần mềm" />
-    <meta property="og:description" content="Sản phẩm số cho tài liệu, công việc và vận hành thực tế." />
-    <link rel="icon" href="./favicon.svg" type="image/svg+xml" />
     <title>Phạm Trung Hiếu | Xây dựng sản phẩm phần mềm</title>
+    <meta name="description" content="Portfolio của Phạm Trung Hiếu — những sản phẩm số cho tài liệu, công việc và vận hành thực tế cùng 3T." />
+    <meta name="theme-color" content="#0a100e" />
+    <meta name="color-scheme" content="dark" />
+    <meta property="og:title" content="Phạm Trung Hiếu | Xây dựng sản phẩm phần mềm" />
+    <meta property="og:description" content="Portfolio của Phạm Trung Hiếu — những sản phẩm số cho tài liệu, công việc và vận hành thực tế." />
+    <meta property="og:type" content="website" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <!-- Inter font via Google Fonts (system-font fallback means it still works offline) -->
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      rel="stylesheet"
+      href="https://fonts.googleapis.com/css2?family=Inter:ital,opsz,wght@0,14..32,300..900;1,14..32,300..900&display=swap"
+    />
+    <script>
+      // Skip-link helper
+      document.addEventListener('DOMContentLoaded', function () {
+        var s = document.createElement('a');
+        s.href = '#main-content';
+        s.className = 'skip-link';
+        s.textContent = 'Bỏ qua điều hướng';
+        document.body.prepend(s);
+      });
+    </script>
   </head>
   <body>
-    <a class="skip-link" href="#main-content">Đi tới nội dung chính</a>
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   </body>

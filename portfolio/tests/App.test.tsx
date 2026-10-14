@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react'
+import { render, screen, within } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import App from '../src/App'
@@ -44,11 +44,13 @@ describe('portfolio experience', () => {
     const user = userEvent.setup()
     render(<App />)
     await user.click(screen.getByRole('button', { name: 'Gửi yêu cầu hợp tác' }))
-    await user.type(screen.getByLabelText(/Họ và tên/), 'Nguyễn Văn An')
-    await user.type(screen.getByLabelText(/^Email/), 'an@example.com')
-    await user.selectOptions(screen.getByLabelText(/Dịch vụ/), 'web')
-    await user.type(screen.getByLabelText(/Mô tả yêu cầu/), 'Tôi cần xây dựng một website giới thiệu sản phẩm.')
-    await user.click(screen.getByLabelText(/Tôi đồng ý/))
+    const dialog = screen.getByRole('dialog')
+    const within_dialog = (q: RegExp) => within(dialog).getByLabelText(q)
+    await user.type(within_dialog(/Họ và tên/), 'Nguyễn Văn An')
+    await user.type(within_dialog(/^Email/), 'an@example.com')
+    await user.selectOptions(within_dialog(/Dịch vụ/), 'web')
+    await user.type(within_dialog(/Mô tả yêu cầu/), 'Tôi cần xây dựng một website giới thiệu sản phẩm.')
+    await user.click(within_dialog(/Tôi đồng ý/))
     await user.click(screen.getByRole('button', { name: 'Gửi yêu cầu' }))
     expect(screen.getByRole('status')).toHaveTextContent('chế độ xem trước')
     expect(screen.queryByText(/đã được gửi/)).not.toBeInTheDocument()

@@ -95,14 +95,42 @@ export function ServiceRequestModal({ open, onClose, copy, language, onLanguage,
       {!configured && <div className="demo-notice" role="note"><strong>{copy.demoTitle}</strong><span>{copy.demoBody}</span></div>}
       <form noValidate onSubmit={handleSubmit}>
         <div className="form-grid">
-          <Field label={copy.fields.name} required error={errors.name}><input ref={firstFieldRef} name="name" autoComplete="name" value={values.name} onChange={(e) => update('name', e.target.value)} aria-invalid={Boolean(errors.name)} aria-describedby={fieldError('name')} /></Field>
-          <Field label={copy.fields.email} required error={errors.email}><input name="email" type="email" autoComplete="email" value={values.email} onChange={(e) => update('email', e.target.value)} aria-invalid={Boolean(errors.email)} aria-describedby={fieldError('email')} /></Field>
-          <Field label={copy.fields.phone} optional={copy.fields.optional} error={errors.phone}><input name="phone" type="tel" inputMode="tel" autoComplete="tel" value={values.phone} onChange={(e) => update('phone', e.target.value)} aria-invalid={Boolean(errors.phone)} aria-describedby={fieldError('phone')} /></Field>
-          <Field label={copy.fields.organization} optional={copy.fields.optional} error={errors.organization}><input name="organization" autoComplete="organization" value={values.organization} onChange={(e) => update('organization', e.target.value)} aria-invalid={Boolean(errors.organization)} aria-describedby={fieldError('organization')} /></Field>
-          <Field label={copy.fields.service} required error={errors.service}><select name="service" value={values.service} onChange={(e) => update('service', e.target.value)} aria-invalid={Boolean(errors.service)} aria-describedby={fieldError('service')}><option value="">{copy.placeholders.select}</option>{services.map((option) => <option key={option.value} value={option.value}>{option.label[language]}</option>)}</select></Field>
-          <Field label={copy.fields.budget} optional={copy.fields.optional} error={errors.budget}><select name="budget" value={values.budget} onChange={(e) => update('budget', e.target.value)} aria-invalid={Boolean(errors.budget)} aria-describedby={fieldError('budget')}><option value="">{copy.placeholders.select}</option>{budgets.map((option) => <option key={option.value} value={option.value}>{option.label[language]}</option>)}</select></Field>
-          <Field label={copy.fields.timeline} optional={copy.fields.optional} error={errors.timeline}><select name="timeline" value={values.timeline} onChange={(e) => update('timeline', e.target.value)} aria-invalid={Boolean(errors.timeline)} aria-describedby={fieldError('timeline')}><option value="">{copy.placeholders.select}</option>{timelines.map((option) => <option key={option.value} value={option.value}>{option.label[language]}</option>)}</select></Field>
-          <Field className="full-field" label={copy.fields.details} required error={errors.details}><textarea name="details" rows={5} maxLength={5000} placeholder={copy.placeholders.details} value={values.details} onChange={(e) => update('details', e.target.value)} aria-invalid={Boolean(errors.details)} aria-describedby={fieldError('details')} /><small>{values.details.length}/5000</small></Field>
+          <Field name="name" label={copy.fields.name} required error={errors.name}>
+            <input ref={firstFieldRef} name="name" autoComplete="name" value={values.name} onChange={(e) => update('name', e.target.value)} aria-invalid={Boolean(errors.name)} aria-describedby={fieldError('name')} />
+          </Field>
+          <Field name="email" label={copy.fields.email} required error={errors.email}>
+            <input name="email" type="email" autoComplete="email" value={values.email} onChange={(e) => update('email', e.target.value)} aria-invalid={Boolean(errors.email)} aria-describedby={fieldError('email')} />
+          </Field>
+          <Field name="phone" label={copy.fields.phone} optional={copy.fields.optional} error={errors.phone}>
+            <input name="phone" type="tel" inputMode="tel" autoComplete="tel" value={values.phone} onChange={(e) => update('phone', e.target.value)} aria-invalid={Boolean(errors.phone)} aria-describedby={fieldError('phone')} />
+          </Field>
+          <Field name="organization" label={copy.fields.organization} optional={copy.fields.optional} error={errors.organization}>
+            <input name="organization" autoComplete="organization" value={values.organization} onChange={(e) => update('organization', e.target.value)} aria-invalid={Boolean(errors.organization)} aria-describedby={fieldError('organization')} />
+          </Field>
+          <Field name="service" label={copy.fields.service} required error={errors.service}>
+            <select name="service" value={values.service} onChange={(e) => update('service', e.target.value)} aria-invalid={Boolean(errors.service)} aria-describedby={fieldError('service')}>
+              <option value="">{copy.placeholders.select}</option>
+              {services.map((option) => <option key={option.value} value={option.value}>{option.label[language]}</option>)}
+            </select>
+          </Field>
+          <Field name="budget" label={copy.fields.budget} optional={copy.fields.optional} error={errors.budget} note={copy.fields.budgetNote}>
+            <select name="budget" value={values.budget} onChange={(e) => update('budget', e.target.value)} aria-invalid={Boolean(errors.budget)} aria-describedby={['budget-error', 'budget-note'].join(' ')}>
+              <option value="">{copy.placeholders.select}</option>
+              {budgets.map((option) => <option key={option.value} value={option.value}>{option.label[language]}</option>)}
+            </select>
+          </Field>
+          <Field name="timeline" label={copy.fields.timeline} optional={copy.fields.optional} error={errors.timeline}>
+            <select name="timeline" value={values.timeline} onChange={(e) => update('timeline', e.target.value)} aria-invalid={Boolean(errors.timeline)} aria-describedby={fieldError('timeline')}>
+              <option value="">{copy.placeholders.select}</option>
+              {timelines.map((option) => <option key={option.value} value={option.value}>{option.label[language]}</option>)}
+            </select>
+          </Field>
+          <Field name="details" className="full-field" label={copy.fields.details} required error={errors.details}>
+            <>
+              <textarea name="details" rows={5} maxLength={5000} placeholder={copy.placeholders.details} value={values.details} onChange={(e) => update('details', e.target.value)} aria-invalid={Boolean(errors.details)} aria-describedby={fieldError('details')} />
+              <small>{values.details.length}/5000</small>
+            </>
+          </Field>
           <div className="honeypot" aria-hidden="true"><label>Website<input name="website" tabIndex={-1} autoComplete="off" value={values.website} onChange={(e) => update('website', e.target.value)} /></label></div>
         </div>
         <label className="consent"><input name="consent" type="checkbox" checked={values.consent} onChange={(e) => update('consent', e.target.checked)} aria-invalid={Boolean(errors.consent)} aria-describedby={fieldError('consent')} /><span>{copy.fields.consent}</span></label>
@@ -115,6 +143,28 @@ export function ServiceRequestModal({ open, onClose, copy, language, onLanguage,
   </dialog>
 }
 
-function Field({ label, required, optional, error, className = '', children }: { label: string; required?: boolean; optional?: string; error?: string; className?: string; children: React.ReactNode }) {
-  return <label className={`field ${className}`}><span>{label}{required && <b aria-hidden="true"> *</b>}{!required && optional && <em>{optional}</em>}</span>{children}{error && <span className="field-error" id={`${String((children as React.ReactElement<{ name?: string }>).props.name)}-error`}>{error}</span>}</label>
+function Field({
+  label, required, optional, error, note, name = '', className = '', children,
+}: {
+  label: string
+  required?: boolean
+  optional?: string
+  error?: string
+  note?: string
+  name?: string
+  className?: string
+  children: React.ReactNode
+}) {
+  return (
+    <label className={`field ${className}`}>
+      <span>
+        {label}
+        {required && <b aria-hidden="true"> *</b>}
+        {!required && optional && <em>{optional}</em>}
+      </span>
+      {children}
+      {note && <span id={name ? `${name}-note` : undefined} className="field-note">{note}</span>}
+      {error && <span className="field-error" id={name ? `${name}-error` : undefined}>{error}</span>}
+    </label>
+  )
 }
