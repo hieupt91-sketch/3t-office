@@ -1,0 +1,457 @@
+{
+ "generatedFrom": "Excel 2016 (16.0.4266) Application.Evaluate",
+ "cells": {
+  "A1": "Camera",
+  "A2": "NVR",
+  "A3": "HDD",
+  "A4": "Cap",
+  "B1": 1200000,
+  "B2": 3500000,
+  "B3": 1800000,
+  "B4": 50000,
+  "C1": 4,
+  "C2": 1,
+  "C3": 2,
+  "C4": 100,
+  "D1": 0.1,
+  "E1": "",
+  "F1": "Camera",
+  "G1": 15,
+  "G2": 25,
+  "G3": 35,
+  "H1": "x",
+  "H2": "y"
+ },
+ "cases": [
+  {
+   "formula": "=B1*C1",
+   "excel": 4800000,
+   "type": "number"
+  },
+  {
+   "formula": "=B1*C1*(1+D1)",
+   "excel": 5280000,
+   "type": "number"
+  },
+  {
+   "formula": "=ROUND(B1*C1*(1+D1),-3)",
+   "excel": 5280000,
+   "type": "number"
+  },
+  {
+   "formula": "=SUM(B1*C1,B2*C2,B3*C3)",
+   "excel": 11900000,
+   "type": "number"
+  },
+  {
+   "formula": "=SUMPRODUCT(B1:B4,C1:C4)",
+   "excel": 16900000,
+   "type": "number"
+  },
+  {
+   "formula": "=SUMPRODUCT(B1:B4,C1:C4)*(1+D1)",
+   "excel": 18590000,
+   "type": "number"
+  },
+  {
+   "formula": "=SUMPRODUCT((C1:C4>1)*B1:B4)",
+   "excel": 3050000,
+   "type": "number"
+  },
+  {
+   "formula": "=IF(C1>3,B1*C1*0.9,B1*C1)",
+   "excel": 4320000,
+   "type": "number"
+  },
+  {
+   "formula": "=IF(AND(C1>3,B1>1000000),\"Gia si\",\"Le\")",
+   "excel": "Gia si",
+   "type": "string"
+  },
+  {
+   "formula": "=IF(OR(C1>100,B1>1000000),1,0)",
+   "excel": 1,
+   "type": "number"
+  },
+  {
+   "formula": "=IF(C1>3,IF(B1>1000000,\"A\",\"B\"),\"C\")",
+   "excel": "A",
+   "type": "string"
+  },
+  {
+   "formula": "=IFERROR(VLOOKUP(\"HDD\",A1:C4,2,FALSE),0)*2",
+   "excel": 3600000,
+   "type": "number"
+  },
+  {
+   "formula": "=IFERROR(VLOOKUP(\"Zzz\",A1:C4,2,FALSE),\"none\")",
+   "excel": "none",
+   "type": "string"
+  },
+  {
+   "formula": "=VLOOKUP(F1,A1:C4,2,0)*C1",
+   "excel": 4800000,
+   "type": "number"
+  },
+  {
+   "formula": "=INDEX(B1:B4,MATCH(\"NVR\",A1:A4,0))+0",
+   "excel": 3500000,
+   "type": "number"
+  },
+  {
+   "formula": "=INDEX(B1:B4,MATCH(\"NVR\",A1:A4,0))*2+1",
+   "excel": 7000001,
+   "type": "number"
+  },
+  {
+   "formula": "=A1&\" - \"&C1&\" cai\"",
+   "excel": "Camera - 4 cai",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(B1*C1,\"#,##0\")&\" VND\"",
+   "excel": "4,800,000 VND",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(D1,\"0%\")",
+   "excel": "10%",
+   "type": "string"
+  },
+  {
+   "formula": "=B1/C1",
+   "excel": 300000,
+   "type": "number"
+  },
+  {
+   "formula": "=B1/E1",
+   "excel": "#DIV/0!",
+   "type": "error"
+  },
+  {
+   "formula": "=SUMIF(A1:A4,\"Camera\",B1:B4)*2",
+   "excel": 2400000,
+   "type": "number"
+  },
+  {
+   "formula": "=SUMIF(C1:C4,\">1\",B1:B4)",
+   "excel": 3050000,
+   "type": "number"
+  },
+  {
+   "formula": "=COUNTIF(A1:A4,\"*a*\")+COUNTIF(A1:A4,\"N*\")",
+   "excel": 3,
+   "type": "number"
+  },
+  {
+   "formula": "=MAX(B1:B4)-MIN(B1:B4)",
+   "excel": 3450000,
+   "type": "number"
+  },
+  {
+   "formula": "=AVERAGE(B1:B4)/1000",
+   "excel": 1637.5,
+   "type": "number"
+  },
+  {
+   "formula": "=ROUND(AVERAGE(B1:B3),0)",
+   "excel": 2166667,
+   "type": "number"
+  },
+  {
+   "formula": "=SUM(B1:B4)/SUM(C1:C4)",
+   "excel": 61214.95327102804,
+   "type": "number"
+  },
+  {
+   "formula": "=MAX(B1*C1,B2*C2)",
+   "excel": 4800000,
+   "type": "number"
+  },
+  {
+   "formula": "=MIN(B1:B3)*C1",
+   "excel": 4800000,
+   "type": "number"
+  },
+  {
+   "formula": "=LEN(A1)+LEN(A2)",
+   "excel": 9,
+   "type": "number"
+  },
+  {
+   "formula": "=UPPER(LEFT(A1,3))&MID(A1,4,10)",
+   "excel": "CAMera",
+   "type": "string"
+  },
+  {
+   "formula": "=SUBSTITUTE(A1,\"a\",\"A\")",
+   "excel": "CAmerA",
+   "type": "string"
+  },
+  {
+   "formula": "=IF(E1=\"\",\"empty\",\"filled\")",
+   "excel": "empty",
+   "type": "string"
+  },
+  {
+   "formula": "=IF(ISBLANK(E1),1,2)",
+   "excel": 1,
+   "type": "number"
+  },
+  {
+   "formula": "=IF(ISNUMBER(B1),\"num\",\"txt\")",
+   "excel": "num",
+   "type": "string"
+  },
+  {
+   "formula": "=ISNUMBER(A1)*1",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=NOT(C1>3)",
+   "excel": false,
+   "type": "boolean"
+  },
+  {
+   "formula": "=AND(C1>3,B1>1)",
+   "excel": true,
+   "type": "boolean"
+  },
+  {
+   "formula": "=OR(C1>100,B1>1)",
+   "excel": true,
+   "type": "boolean"
+  },
+  {
+   "formula": "=(C1>3)*(B1>1000)",
+   "excel": 1,
+   "type": "number"
+  },
+  {
+   "formula": "=--(C1>3)",
+   "excel": 1,
+   "type": "number"
+  },
+  {
+   "formula": "=B1>C1",
+   "excel": true,
+   "type": "boolean"
+  },
+  {
+   "formula": "=A1=F1",
+   "excel": true,
+   "type": "boolean"
+  },
+  {
+   "formula": "=A1<>F1",
+   "excel": false,
+   "type": "boolean"
+  },
+  {
+   "formula": "=SUM(B1:B3)>5000000",
+   "excel": true,
+   "type": "boolean"
+  },
+  {
+   "formula": "=ROUNDUP(B1/C1,-2)",
+   "excel": 300000,
+   "type": "number"
+  },
+  {
+   "formula": "=ROUNDDOWN(1234.567,1)",
+   "excel": 1234.5,
+   "type": "number"
+  },
+  {
+   "formula": "=MOD(B1,7)",
+   "excel": 4,
+   "type": "number"
+  },
+  {
+   "formula": "=INT(B1/C1)",
+   "excel": 300000,
+   "type": "number"
+  },
+  {
+   "formula": "=B1+B2+B3+B4",
+   "excel": 6550000,
+   "type": "number"
+  },
+  {
+   "formula": "=B1-B2*C1/C2",
+   "excel": -12800000,
+   "type": "number"
+  },
+  {
+   "formula": "=(B1+B2)/(C1+C2)",
+   "excel": 940000,
+   "type": "number"
+  },
+  {
+   "formula": "=B1^2",
+   "excel": 1440000000000,
+   "type": "number"
+  },
+  {
+   "formula": "=SQRT(B1)",
+   "excel": 1095.4451150103323,
+   "type": "number"
+  },
+  {
+   "formula": "=ABS(-B1)",
+   "excel": 1200000,
+   "type": "number"
+  },
+  {
+   "formula": "=B1*D1%",
+   "excel": 1200,
+   "type": "number"
+  },
+  {
+   "formula": "=100%",
+   "excel": 1,
+   "type": "number"
+  },
+  {
+   "formula": "=5%*B1",
+   "excel": 60000,
+   "type": "number"
+  },
+  {
+   "formula": "=1/3*3",
+   "excel": 1,
+   "type": "number"
+  },
+  {
+   "formula": "=0.1+0.2",
+   "excel": 0.30000000000000004,
+   "type": "number"
+  },
+  {
+   "formula": "=0.1+0.2-0.3",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=1E-5*2",
+   "excel": 0.00002,
+   "type": "number"
+  },
+  {
+   "formula": "=2^0.5",
+   "excel": 1.4142135623730951,
+   "type": "number"
+  },
+  {
+   "formula": "=10^-2",
+   "excel": 0.01,
+   "type": "number"
+  },
+  {
+   "formula": "=CHOOSE(2,A1,A2,A3)&\"\"",
+   "excel": "NVR",
+   "type": "string"
+  },
+  {
+   "formula": "=CHOOSE(C2,\"a\",\"b\")&\"!\"",
+   "excel": "a!",
+   "type": "string"
+  },
+  {
+   "formula": "=LOOKUP(2,C1:C4,B1:B4)",
+   "excel": 1800000,
+   "type": "number"
+  },
+  {
+   "formula": "=COUNTA(A1:A4)+COUNT(B1:B4)",
+   "excel": 8,
+   "type": "number"
+  },
+  {
+   "formula": "=DATE(2026,10,14)+30",
+   "excel": 46339,
+   "type": "number"
+  },
+  {
+   "formula": "=YEAR(DATE(2026,10,14))*2",
+   "excel": 4052,
+   "type": "number"
+  },
+  {
+   "formula": "=TODAY()>0",
+   "excel": true,
+   "type": "boolean"
+  },
+  {
+   "formula": "=SUM(C1:C4)*(1+D1)*B1/1000000",
+   "excel": 141.24,
+   "type": "number"
+  },
+  {
+   "formula": "=\"Tong: \"&TEXT(SUM(B1:B4),\"#,##0\")",
+   "excel": "Tong: 6,550,000",
+   "type": "string"
+  },
+  {
+   "formula": "=REPT(\"-\",C1)&\">\"",
+   "excel": "---->",
+   "type": "string"
+  },
+  {
+   "formula": "=TRIM(\"  a  b \")&\"|\"",
+   "excel": "a b|",
+   "type": "string"
+  },
+  {
+   "formula": "=VALUE(\"12\")+1",
+   "excel": 13,
+   "type": "number"
+  },
+  {
+   "formula": "=\"5\"*\"4\"",
+   "excel": 20,
+   "type": "number"
+  },
+  {
+   "formula": "=\"5\"&4+1",
+   "excel": "55",
+   "type": "string"
+  },
+  {
+   "formula": "=-\"3\"",
+   "excel": -3,
+   "type": "number"
+  },
+  {
+   "formula": "=+\"3\"",
+   "excel": "3",
+   "type": "string"
+  },
+  {
+   "formula": "=TRUE+TRUE",
+   "excel": 2,
+   "type": "number"
+  },
+  {
+   "formula": "=TRUE&\"x\"",
+   "excel": "TRUEx",
+   "type": "string"
+  },
+  {
+   "formula": "=SUM(TRUE,2)",
+   "excel": 3,
+   "type": "number"
+  },
+  {
+   "formula": "=SUM(\"3\",2)",
+   "excel": 5,
+   "type": "number"
+  },
+  {
+   "formula": "=SUM(\"a\",2)",
+   "excel": "#VALUE!",
+   "type": "error"
+  }
+ ]
+}

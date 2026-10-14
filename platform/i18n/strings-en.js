@@ -18,6 +18,15 @@ export const enStrings = {
     position: { topLeft: "Top Left", topCenter: "Top Center", topRight: "Top Right", middleLeft: "Middle Left", center: "Center", middleRight: "Middle Right", bottomLeft: "Bottom Left", bottomCenter: "Bottom Center", bottomRight: "Bottom Right" },
     align: { left: "Left", center: "Center", right: "Right", top: "Top", middle: "Middle", bottom: "Bottom" }
   },
+  writerPicture: {
+    adjustGroup: "Adjust",
+    cropGroup: "Crop",
+    change: "Change Picture…",
+    reset: "Reset Picture",
+    compress: "Compress Picture",
+    corrections: "Brightness & Contrast…",
+    crop: "Crop…"
+  },
   writerDocumentProperties: {
     backstage: "Info",
     dialogTitle: "Document properties",
@@ -28,6 +37,36 @@ export const enStrings = {
     keywordsHint: "Separate multiple keywords with commas or semicolons.",
     description: "Comments",
     saved: "Document properties updated. Press Ctrl+S to save them to the file."
+  },
+  writerReview: {
+    protectCommand: "Restrict Editing",
+    unprotectCommand: "Stop Protection",
+    protectTitle: "Restrict Editing",
+    unprotectTitle: "Stop Protection",
+    restrictionMode: "Restriction type",
+    trackOnly: "Allow only edits with tracked changes",
+    readOnly: "Read only",
+    password: "Password",
+    passwordConfirm: "Reenter password",
+    passwordRequired: "Enter a password for stopping protection.",
+    passwordMismatch: "The passwords do not match.",
+    passwordWrong: "The password is incorrect or this file's password scheme is unsupported.",
+    unprotectHint: "Enter the password that was set to allow normal editing.",
+    noOpenPassword: "This password only stops editing restrictions; it does not encrypt the file or create a file-open password.",
+    trackRequired: "This document requires every edit to be tracked. Stop protection before turning tracking off.",
+    readOnlyBlocked: "This document is read only. Stop protection before changing its content.",
+    trackedCommandBlocked: "This document only allows marked text changes. Stop protection to use formatting or object-insertion commands.",
+    protected: "Editing restrictions enabled. Press Ctrl+S to save them to DOCX.",
+    unprotected: "Editing restrictions removed. Press Ctrl+S to save the change.",
+    protectFailedTitle: "Could not restrict editing",
+    protectFailed: "Could not create the local password verifier.",
+    cryptoUnavailable: "This device does not provide local password hashing.",
+    compareFailedTitle: "Could not read the reference document",
+    compareFailed: "Check the file and try again.",
+    compareTooLarge: "The documents contain too many paragraphs to compare safely in this session.",
+    noDifferencesTitle: "No differences",
+    noDifferences: "The documents have the same paragraph content, so no result document was created.",
+    compareComplete: "Result document created: {insertions} inserted paragraphs, {deletions} deleted paragraphs."
   },
   writerAutoCorrect: {
     optionsTitle: "Typing corrections",
@@ -280,6 +319,7 @@ export const enStrings = {
     section: "Section"
   },
   sheetDialogs: {
+    fillSeriesTitle: "Series", fillSeriesIn: "Series in", fillSeriesRows: "Rows", fillSeriesColumns: "Columns", fillSeriesType: "Type", fillSeriesLinear: "Linear", fillSeriesGrowth: "Growth", fillSeriesDate: "Date", fillSeriesDateUnit: "Date unit", fillSeriesUnitDay: "Day", fillSeriesUnitWeekday: "Weekday", fillSeriesUnitMonth: "Month", fillSeriesUnitYear: "Year", fillSeriesStep: "Step value", fillSeriesStop: "Stop value", fillSeriesBadStep: "Step value must be a number.", fillSeriesBadStart: "The first cell of the selection must contain a number (or a dd/mm/yyyy date for the Date type).", fillSeriesNothing: "Nothing to fill. Select the start cell plus the cells to fill, or enter a Stop value when only one cell is selected.", fillSeriesFailed: "Could not fill the series.", fillSeriesDone: "Filled {{count}} cells.",
     hideSheetMenu: "Hide Sheet", unhideSheetMenu: "Unhide Sheet...", unhideSheetTitle: "Unhide Sheet", unhideSheetChoose: "Choose a sheet to show:", unhideSheetAction: "Unhide", cannotHideLastSheet: "You cannot hide the last visible worksheet.", noHiddenSheets: "There are no hidden worksheets.",
     close: "Close", cancel: "Cancel", cancelLong: "Cancel", apply: "Apply", range: "Range", rangeLabel: "Range:", value: "Value", save: "Save",
     pasteSpecialTitle: "Paste Special", pasteSpecialGroup: "Paste", pasteSpecialSource: "Keep Source Formatting", pasteSpecialAll: "All", pasteSpecialValues: "Values", pasteSpecialFormulas: "Formulas", pasteSpecialFormats: "Formats", pasteSpecialTranspose: "Transpose",
@@ -314,6 +354,18 @@ export const enStrings = {
     pivotTitle: "Create PivotTable", pivotSource: "Table/Range (first row contains headers)", loadFields: "Load Fields", chooseFields: "Choose fields for each area:", aggregateFor: "Summarize values by for {field}", sourceRangeFormat: "The source range must use a format such as A1:D20.", sourceNeedsHeaders: "The first row of the source range must contain headers.", uniqueHeaders: "Each source column must have a unique header.", selectValue: "Select at least one Values field.", columnNotFound: "Column {field} was not found.", sourceSheetNotFound: "The source worksheet was not found.", createPivotBtn: "Create PivotTable",
     chartDefaultTitle: "Data Chart", chartUnsupported: "Unsupported chart type: {type}", chartItem: "Item {number}", chartSeries: "Series {number}", chartNoNumericData: "The selected range contains no numeric data", chartPiePositive: "A pie chart requires positive values", chartInsertFrom: "Insert Chart from {range}", selectedRange: "selected range", chartType: "Chart Type", chartColumn: "Column", chartBarHorizontal: "Horizontal Bar", chartColumnStacked: "Stacked Column", chartColumnStacked100: "100% Stacked Column", chartLine: "Line", chartPie: "Pie", chartArea: "Area", chartScatter: "Scatter", chartCombo: "Combo", chartRadar: "Radar", chartBubble: "Bubble", insertIntoSheet: "Insert into Worksheet", chartAxisTitles: "Axis Titles", chartAxisTitlesEdit: "Edit Axis Titles", chartHorizontalAxis: "Horizontal (X) axis", chartVerticalAxis: "Vertical (Y) axis", chartAxisHorizontalPlaceholder: "For example: Month", chartAxisVerticalPlaceholder: "For example: Revenue", chartAxisApply: "Apply", chartDataLabels: "Show or hide data labels", chartDataLabelsShort: "Labels", chartSwitchRowsColumns: "Switch rows and columns", chartSwitchShort: "Rows/cols", chartTrendline: "Add or remove a linear trendline", chartTrendlineShort: "Trend", chartDelete: "Delete chart", splitVerticalSeparator: "Vertical window split", splitHorizontalSeparator: "Horizontal window split", insertedImageAlt: "Image inserted in the worksheet", deleteImage: "Delete image", imageFormatUnsupported: "Unsupported image format",
     sheetTab: "Sheet", printGridlines: "Print gridlines", printHeadings: "Print row and column headings", printComments: "Comments:", commentsNone: "(None)", commentsAtEnd: "At end of sheet", commentsAsDisplayed: "As displayed on sheet", cellErrors: "Cell errors as:", errorsDisplayed: "displayed", errorsBlank: "<blank>", errorsDash: "--", errorsNa: "#N/A", pageOrder: "Page order:", orderDownThenOver: "Down, then over", orderOverThenDown: "Over, then down",
+    pageSetup: {
+      title: "Page Setup", tabPage: "Page", tabMargins: "Margins", tabHeaderFooter: "Header / Footer", tabSheet: "Sheet",
+      orientation: "Orientation", portrait: "Portrait", landscape: "Landscape", scaling: "Scaling", adjustTo: "Adjust to", fitTo: "Fit to", pagesWideBy: "page(s) wide by", pagesTall: "tall", autoDimensionHint: "Enter 0 for an automatic dimension.",
+      paperSize: "Paper size", printQuality: "Print quality", firstPageNumber: "First page number", automatic: "Automatic",
+      marginTop: "Top (cm)", marginBottom: "Bottom (cm)", marginLeft: "Left (cm)", marginRight: "Right (cm)", marginHeader: "Header (cm)", marginFooter: "Footer (cm)", centerOnPage: "Center on page", horizontally: "Horizontally", vertically: "Vertically",
+      header: "Header", footer: "Footer", customHeader: "Custom header...", customFooter: "Custom footer...", left: "Left", center: "Center", right: "Right", dynamicCodesHint: "Dynamic codes: &P page number, &N total pages, &D date, &T time, &F file name, &A sheet name.",
+      presetCustom: "Custom", presetNone: "(None)", presetPage: "Page X", presetPages: "Page X of Y", presetSheet: "Sheet name", presetFile: "File name", presetDate: "Date", presetPageValue: "Page &P", presetPagesValue: "Page &P / &N", presetSheetValue: "Sheet &A", presetFileValue: "File &F", presetDateValue: "Date &D",
+      differentOddEven: "Different odd and even pages", differentFirst: "Different first page", scaleWithDocument: "Scale with document", alignWithMargins: "Align with page margins",
+      printAreaAndTitles: "Print area and print titles", printArea: "Print area", rowsToRepeat: "Rows to repeat at top", colsToRepeat: "Columns to repeat at left", pickPrintArea: "Select print area on the grid", pickRows: "Select repeating rows on the grid", pickCols: "Select repeating columns on the grid", print: "Print", blackAndWhite: "Black and white", draftQuality: "Draft quality",
+      selectPrintArea: "Select PRINT AREA", selectRows: "Select ROWS to repeat on each page", selectCols: "Select COLUMNS to repeat at left", selectAreaHint: "Select the cells to print, then choose Back to dialog.", selectTitlesHint: "Click row/column headers; hold Shift to extend.", backToDialog: "Back to dialog",
+      invalidValue: "A page setup value is invalid.", invalidMargins: "Margins must be numbers from 0 to 25 cm.", invalidOrientation: "The page orientation is invalid.", invalidPaperSize: "The paper size is not supported.", invalidRows: "Repeating rows must look like 1 or 1:2.", invalidCols: "Repeating columns must look like A or A:B.", invalidScale: "Choose a valid scaling mode.", invalidScalePercent: "Scale must be an integer from 10 to 400%.", invalidFitPages: "Wide/tall page counts must be integers from 0 to 1000.", invalidPrintQuality: "Print quality must be from 72 to 2400 dpi.", invalidFirstPage: "First page number must be Automatic or an integer from 1 to 32767.", invalidPrintArea: "Print area must look like A1 or A1:H40."
+    },
     cellStylesTitle: "Cell Styles Gallery", cellStylesHint: "Select a style to apply immediately to the selected cells:",
     formatAsTableTitle: "Format as Table", formatAsTableHint: "Create a named table with headers, filter buttons, banded rows, and automatic adjacent expansion.",
     formatTableRange: "Data range", formatTableHeaders: "My table has headers", formatTableNameLabel: "Table name", formatTableCreate: "Create table", formatTableRenameLabel: "New name", formatTableRename: "Rename table", formatTableConvert: "Convert to range", formatTableInvalid: "The range or table name is invalid, or the range overlaps another table.",
@@ -651,8 +703,13 @@ export const enStrings = {
     ,"sheet.edit.goToSpecial": { label: "Go To Special...", tooltip: "Select cells by type: comments, formulas, blanks, current region..." }
     ,"sheet.edit.fillDown": { label: "Fill Down", tooltip: "Fill down from the cell above (Ctrl+D)" }
     ,"sheet.edit.fillRight": { label: "Fill Right", tooltip: "Fill right from the cell to the left (Ctrl+R)" }
+  ,"sheet.edit.fillUp": { label: "Fill Up", tooltip: "Fill up from the bottom cell of the selection" }
+  ,"sheet.edit.fillLeft": { label: "Fill Left", tooltip: "Fill left from the right-most column of the selection" }
+  ,"sheet.edit.fillSeries": { label: "Series...", tooltip: "Fill a number or date series: linear, growth, day/month/year" }
     ,"sheet.edit.clearAll": { label: "Clear All", tooltip: "Clear all contents, formulas, and formatting from selected cells" }
     ,"sheet.edit.clearFormats": { label: "Clear Formats", tooltip: "Clear cell formatting back to default while keeping contents" }
+  ,"sheet.edit.clearComments": { label: "Clear Notes", tooltip: "Remove the notes (comments) from the selected cells and keep the cell contents" }
+  ,"sheet.edit.clearHyperlinks": { label: "Clear Hyperlinks", tooltip: "Remove hyperlinks from the selected cells and keep the text" }
     ,"sheet.edit.clearContents": { label: "Clear Contents", tooltip: "Clear cell contents and formulas while keeping formatting" }
     ,"slides.review.commentInsert": { label: "New Comment", tooltip: "Add a comment to the current slide" }
     ,"slides.review.commentPrevious": { label: "Previous Comment", tooltip: "Go to the previous comment" }
@@ -791,6 +848,11 @@ export const enStrings = {
     "writer.design.themeGallery": { label: "Document Themes", tooltip: "Open document themes and formatting gallery" },
     "writer.color.text": { label: "Font Color", tooltip: "Change font color" },
     "writer.color.highlight": { label: "Text Highlight Color", tooltip: "Highlight text (Ctrl+Alt+H)" },
+    "writer.format.textEffects": { label: "Text Effects", tooltip: "Add text outline, shadow, and glow effects" },
+    "writer.format.textOutline": { label: "Text Outline", tooltip: "Toggle or customize text outline" },
+    "writer.format.textShadow": { label: "Shadow", tooltip: "Toggle or customize text shadow" },
+    "writer.format.textGlow": { label: "Glow", tooltip: "Toggle or customize text glow effect" },
+    "writer.format.clearTextEffects": { label: "Clear Text Effects", tooltip: "Clear all outline, shadow, and glow effects" },
     "writer.para.alignLeft": { label: "Align Left", tooltip: "Align text left (Ctrl+L)" },
     "writer.para.alignCenter": { label: "Center", tooltip: "Center text (Ctrl+E)" },
     "writer.para.alignRight": { label: "Align Right", tooltip: "Align text right (Ctrl+R)" },
@@ -821,6 +883,8 @@ export const enStrings = {
     "writer.para.shading": { label: "Shading", tooltip: "Apply paragraph or table-cell shading" },
     "writer.para.borders": { label: "Borders", tooltip: "Choose paragraph or table-cell borders" },
     "writer.table.insert": { label: "Table", tooltip: "Insert a table into document" },
+    "writer.table.quickTables": { label: "Quick Tables", tooltip: "Insert built-in table templates such as calendars, checklists, or analysis matrices" },
+    "writer.table.toText": { label: "Convert Table to Text", tooltip: "Convert the current table into regular text separated by a delimiter" },
     "writer.table.insertRowAbove": { label: "Insert Above", tooltip: "Insert a new row above current row" },
     "writer.table.insertRowBelow": { label: "Insert Below", tooltip: "Insert a new row below current row" },
     "writer.table.insertColLeft": { label: "Insert Left", tooltip: "Insert a new column to the left" },
@@ -852,6 +916,11 @@ export const enStrings = {
     "writer.image.insert": { label: "Pictures", tooltip: "Insert pictures from your computer" },
     "writer.image.resize": { label: "Resize Picture", tooltip: "Resize picture and adjust aspect ratio" },
     "writer.image.wrap": { label: "Wrap Text", tooltip: "Configure text wrapping around picture" },
+    "writer.image.crop": { label: "Crop Picture", tooltip: "Crop the outer edges of the picture" },
+    "writer.image.corrections": { label: "Brightness & Contrast", tooltip: "Adjust the brightness and contrast of the picture" },
+    "writer.image.changePicture": { label: "Change Picture", tooltip: "Replace the current picture while keeping formatting" },
+    "writer.image.resetPicture": { label: "Reset Picture", tooltip: "Reset picture back to its original size and formatting" },
+    "writer.image.compress": { label: "Compress Picture", tooltip: "Compress picture data to optimize document file size" },
     "writer.shape.insert": { label: "Shapes", tooltip: "Insert basic shapes (rectangle, circle, arrow, line)" },
     "writer.diagram.insert": { label: "SmartArt", tooltip: "Insert a SmartArt diagram (process, cycle, hierarchy, list)" },
     "writer.chart.insert": { label: "Chart", tooltip: "Insert an illustration chart" },
@@ -901,6 +970,9 @@ export const enStrings = {
     "writer.trackChanges.rejectOne": { label: "Reject This", tooltip: "Reject the selected change" },
     "writer.trackChanges.acceptAll": { label: "Accept All Changes", tooltip: "Accept all changes in document" },
     "writer.trackChanges.rejectAll": { label: "Reject All Changes", tooltip: "Reject all changes in document" },
+    "writer.review.compare": { label: "Compare Documents", tooltip: "Choose a revised document and create a new result with inserted/deleted paragraphs marked" },
+    "writer.review.combine": { label: "Combine Documents", tooltip: "Combine differences from the selected document as reviewable changes" },
+    "writer.review.restrictEditing": { label: "Restrict Editing", tooltip: "Require tracked changes or make the document read only; the password only stops protection" },
     "writer.trackChanges.displayMode": { label: "Display for Review", tooltip: "Choose how to view changes: Simple Markup, All Markup, No Markup, Original" },
     "writer.trackChanges.displaySimple": { label: "Simple Markup", tooltip: "Show clean text with red revision line in the margin" },
     "writer.trackChanges.displayAll": { label: "All Markup", tooltip: "Show all insertions and deletions inline" },
@@ -975,9 +1047,13 @@ export const enStrings = {
     "writer.reference.captionInsert": { label: "Insert Caption", tooltip: "Insert an auto-numbered caption for a picture, table, or equation" },
     "writer.reference.tofInsert": { label: "Insert Table of Figures", tooltip: "Insert a table of figures or tables from existing captions" },
     "writer.reference.tofUpdate": { label: "Update Table of Figures", tooltip: "Refresh the table of figures from captions in the document" },
+    "writer.reference.indexMark": { label: "Mark Entry", tooltip: "Mark the selected word or phrase for the alphabetical index" },
+    "writer.reference.indexInsert": { label: "Insert Index", tooltip: "Build an alphabetical index from marked entries" },
+    "writer.insert.quickParts": { label: "Reusable Blocks", tooltip: "Save the selection for reuse or insert a saved block" },
+    "writer.layout.hyphenation": { label: "Hyphenation", tooltip: "Turn automatic language-aware hyphenation on or off" },
     "writer.mailMerge.open": { label: "Select Recipients", tooltip: "Open mail merge recipient list from spreadsheet (.xlsx, .xls) or CSV/TSV file" },
     "writer.mailMerge.insertField": { label: "Insert Merge Field", tooltip: "Insert a mail merge field" },
-    "writer.mailMerge.ifRule": { label: "Rules", tooltip: "Insert an If...Then...Else rule; DOCX saves it as an IF field" },
+    "writer.mailMerge.ifRule": { label: "Rules", tooltip: "Insert Skip record if, Next record if, If…Then…Else, or Fill in" },
     "writer.mailMerge.preview": { label: "Preview Results", tooltip: "Preview merged records" },
     "writer.mailMerge.prevRecord": { label: "Previous Record", tooltip: "Go to previous record" },
     "writer.mailMerge.nextRecord": { label: "Next Record", tooltip: "Go to next record" },
@@ -1001,6 +1077,7 @@ export const enStrings = {
       ai: "3T AI Assistant"
     },
     group: {
+      documentReview: "Compare & Protect",
       clipboard: "Clipboard",
       font: "Font",
       styles: "Styles",
@@ -1016,6 +1093,7 @@ export const enStrings = {
       tableMergeGroup: "Merge",
       tableSizeGroup: "Cell Size",
       tableAlignGroup: "Alignment",
+      tableDataGroup: "Data",
       tablesIllustrations: "Tables & Illustrations",
       illustrations: "Illustrations",
       links: "Links",
@@ -1031,6 +1109,7 @@ export const enStrings = {
       footnotes: "Footnotes",
       citationsBibliography: "Citations & Bibliography",
       captions: "Captions",
+      index: "Index",
       createMailings: "Create",
       startMerge: "Start Mail Merge",
       writeInsert: "Write & Insert Fields",
@@ -1047,7 +1126,8 @@ export const enStrings = {
       macro: "Macros",
       help: "Help",
       aiFeatures: "Vietnamese AI Features"
-    }
+    },
+    hyphenation: { none: "Hyphenation: None", auto: "Hyphenation: Automatic" }
   },
   writerNavigation: {
     title: "Navigation Pane",
@@ -1280,7 +1360,9 @@ export const enStrings = {
       finishTitle: "Finish & Merge",
       finishNoData: "No mail merge data source to create documents. Please open 'Select Recipients' to select an spreadsheet/CSV file.",
       finishNoFields: "Current document contains no merge fields. Use 'Insert Merge Field' to insert at least one field.",
-      finishSuccess: "Successfully merged {count} records into document. You can preview or export the document."
+      finishSuccess: "Successfully merged {count} records into document. You can preview or export the document.",
+      allRecordsSkipped: "Every record was excluded by a Skip record if rule.",
+      previewSkipped: "This record is skipped by a mail merge rule."
       ,ifTitle: "If...Then...Else Rule", ifField: "Field", ifFieldRequired: "Select a data field.", ifOperator: "Comparison", ifValue: "Compare to", ifThen: "Then", ifElse: "Otherwise", opEquals: "equal to", opNotEquals: "not equal to", opContains: "contains", opGreater: "greater than", opLess: "less than", opEmpty: "is blank", opNotEmpty: "is not blank"
     },
     printPreview: {
@@ -1416,7 +1498,7 @@ export const enStrings = {
     percentageDesc: "Percentage formats multiply the cell value by 100 and display the result with a percent symbol. Raw cell value remains unchanged. Typing numbers into a percentage-formatted cell will automatically divide by 100.",
     textDesc: "Text format cells are treated as text even when a number is in the cell. The cell is displayed exactly as entered and mathematical sum formulas ignore these cells.",
     customType: "Type:",
-    locale: "Locale", localeVietnam: "Vietnamese (Vietnam)", localeUs: "English (United States)", type: "Type", timeType: "Time type", deleteCustom: "Delete format", cannotDeleteBuiltin: "Built-in formats cannot be deleted.",
+    locale: "Locale", localeVietnam: "Vietnamese (Vietnam)", localeUs: "English (United States)", type: "Type", timeType: "Time type", deleteCustom: "Delete format", cannotDeleteBuiltin: "Built-in formats cannot be deleted.", customDeleted: "Deleted custom format {pattern}.",
     fractionOneDigit: "Up to one digit", fractionTwoDigits: "Up to two digits", fractionThreeDigits: "Up to three digits", fractionHalves: "As halves", fractionQuarters: "As quarters", specialPostal: "Postal code", specialPostalPlus: "Extended postal code", specialPhone: "Phone number", accountingDesc: "Accounting formats align symbols and decimal points by column.", scientificDesc: "Display the value in scientific notation.",
     textAlignment: "Text alignment",
     horizontal: "Horizontal:",

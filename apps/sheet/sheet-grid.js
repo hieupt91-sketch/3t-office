@@ -2,6 +2,9 @@
  * 3T Sheet — Enterprise Grid Controller & Microsoft Formula Calculation Engine
  */
 
+import { buildSeries } from "./sheet-series.js";
+import { shiftFormulaRefs, translateFormulaRefs, moveFormulaRefs } from "./formula-ref-shift.js";
+import { expandStructuredReferences, hasStructuredReference } from "./structured-references.js";
 import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { showGoToDialog, showGoToSpecialDialog } from "./sheet-goto.js";
 import { createEvaluateFormulaSessionFromGrid, formatFormulaValue, renderFormulaHtml } from "./evaluate-formula.js";
@@ -27,6 +30,7 @@ import { createMatcher } from "../../platform/find/find-engine.js";
 import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 import { isSpellcheckEnabled, setSpellcheckEnabled } from "../../platform/text/spellcheck-dom-controller.js";
 import { showContextMenu, closeActiveContextMenu } from "../../platform/ui-kit/components.js";
+import { PageSetupDialog } from "./page-setup-dialog.js";
 import {
   cellColor,
   defaultValidationMessage,
@@ -46,15 +50,25 @@ import {
 const { showAlertDialog, showConfirmDialog, showPromptDialog, showFindReplaceDialog } = createLazyDialogs("sheet");
 
 export const DEFAULT_SHEET_PAGE_SETUP = Object.freeze({
-  margins: Object.freeze({ top: 1.91, bottom: 1.91, left: 1.78, right: 1.78 }),
+  margins: Object.freeze({ top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, header: 0.76, footer: 0.76 }),
   orientation: "portrait",
   size: "a4",
   scale: Object.freeze({ mode: "percent", percent: 100, pagesWide: 1, pagesTall: 0 }),
-  headerFooter: Object.freeze({ header: Object.freeze({ left: "", center: "", right: "" }), footer: Object.freeze({ left: "", center: "Trang &P / &N", right: "" }) }),
+  pageSettings: Object.freeze({ printQuality: 600, firstPageNumber: "auto" }),
+  headerFooter: Object.freeze({
+    header: Object.freeze({ left: "", center: "", right: "" }),
+    footer: Object.freeze({ left: "", center: "Trang &P / &N", right: "" }),
+    differentOddEven: false,
+    differentFirst: false,
+    scaleWithDocument: true,
+    alignWithMargins: true
+  }),
   centerOnPage: Object.freeze({ horizontal: false, vertical: false }),
   printOptions: Object.freeze({
     gridlines: false,
     headings: false,
+    blackAndWhite: false,
+    draft: false,
     comments: "none",
     cellErrors: "displayed",
     pageOrder: "downThenOver"
@@ -114,11 +128,13 @@ function restoreActiveFilters(entries) {
 }
 
 // Cùng bảng khổ giấy (mm) và hệ số quy đổi 96dpi mà Writer đã dùng cho Print Preview,
-// để 3 app có cùng một kích thước A4/Letter/Legal thực tế khi in.
+// để 3 app có cùng một kích thước giấy thực tế khi in.
 export const SHEET_PAGE_SIZES_MM = Object.freeze({
   a4: Object.freeze({ label: "A4 (210 × 297 mm)", w: 210, h: 297 }),
   letter: Object.freeze({ label: "Letter (216 × 279 mm)", w: 216, h: 279 }),
-  legal: Object.freeze({ label: "Legal (216 × 356 mm)", w: 216, h: 356 })
+  legal: Object.freeze({ label: "Legal (216 × 356 mm)", w: 216, h: 356 }),
+  a3: Object.freeze({ label: "A3 (297 × 420 mm)", w: 297, h: 420 }),
+  a5: Object.freeze({ label: "A5 (148 × 210 mm)", w: 148, h: 210 })
 });
 export const SHEET_MM_TO_PX = 3.7795275591; // 96dpi
 // Lề trong pageSetupBySheet lưu bằng CM (xem showPageSetupDialog: input "(cm)"), khác mm.
@@ -191,9 +207,14 @@ function newSheetPageSetup(overrides = {}) {
     orientation: overrides.orientation || DEFAULT_SHEET_PAGE_SETUP.orientation,
     size: overrides.size || DEFAULT_SHEET_PAGE_SETUP.size,
     scale: { ...DEFAULT_SHEET_PAGE_SETUP.scale, ...(overrides.scale || {}) },
+    pageSettings: { ...DEFAULT_SHEET_PAGE_SETUP.pageSettings, ...(overrides.pageSettings || {}) },
     headerFooter: {
       header: { ...DEFAULT_SHEET_PAGE_SETUP.headerFooter.header, ...(overrides.headerFooter?.header || {}) },
-      footer: { ...DEFAULT_SHEET_PAGE_SETUP.headerFooter.footer, ...(overrides.headerFooter?.footer || {}) }
+      footer: { ...DEFAULT_SHEET_PAGE_SETUP.headerFooter.footer, ...(overrides.headerFooter?.footer || {}) },
+      differentOddEven: overrides.headerFooter?.differentOddEven ?? DEFAULT_SHEET_PAGE_SETUP.headerFooter.differentOddEven,
+      differentFirst: overrides.headerFooter?.differentFirst ?? DEFAULT_SHEET_PAGE_SETUP.headerFooter.differentFirst,
+      scaleWithDocument: overrides.headerFooter?.scaleWithDocument ?? DEFAULT_SHEET_PAGE_SETUP.headerFooter.scaleWithDocument,
+      alignWithMargins: overrides.headerFooter?.alignWithMargins ?? DEFAULT_SHEET_PAGE_SETUP.headerFooter.alignWithMargins
     },
     centerOnPage: { ...DEFAULT_SHEET_PAGE_SETUP.centerOnPage, ...(overrides.centerOnPage || {}) },
     printOptions: { ...DEFAULT_SHEET_PAGE_SETUP.printOptions, ...(overrides.printOptions || {}) },
@@ -268,7 +289,8 @@ export class SheetGridController {
       name => this.resolveNamedRange(name),
       sheetName => this.sheetsData?.[sheetName] || null,
       () => this.activeSheet,
-      () => this.sheets
+      () => this.sheets,
+      this._createTableResolver()
     );
     this.autocomplete = new FormulaAutocompleteController(this);
     this.formulaEntry = null;
@@ -822,7 +844,7 @@ export class SheetGridController {
           const coords = this.formulaEngine.expandRange(itm.arrayRange);
           res = Array.isArray(results) ? results[coords.indexOf(k)] : results;
         } else {
-          res = this.formulaEngine.evaluate(itm.formula);
+          res = this.formulaEngine.evaluate(itm.formula, { sheet: this.activeSheet, coord: k });
         }
         itm.val = res;
         const dom = sheetName === prevActive ? this.container.querySelector(`.vno-grid-cell[data-coord="${k}"]`) : null;
@@ -5707,7 +5729,7 @@ _bindGridKeyboardNavigation() {
       if (isComposingFormula) {
         item.val = val;
       } else {
-        item.val = this.formulaEngine.evaluate(val);
+        item.val = this.formulaEngine.evaluate(val, { sheet: this.activeSheet, coord: `${col}${row}` });
       }
       const category = item.style?.numberFormat?.category;
       if (!category || category === "general") {
@@ -6000,7 +6022,7 @@ _bindGridKeyboardNavigation() {
             const results = this.formulaEngine.evaluateArray(itm.formula);
             const coords = this.formulaEngine.expandRange(itm.arrayRange);
             res = Array.isArray(results) ? results[coords.indexOf(k)] : results;
-          } else res = this.formulaEngine.evaluate(itm.formula);
+          } else res = this.formulaEngine.evaluate(itm.formula, { sheet: sheetName, coord: k });
           // Store the raw computed value - see setCellValue() for why
           // auto-formatting a formula result as VNĐ currency text here is
           // wrong (destroys precision and corrupts any formula chain that
@@ -8851,6 +8873,43 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
+  /** Xóa ghi chú trong vùng chọn (menu Xóa > Xóa ghi chú). */
+  clearComments(range = null, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const coords = new Set(this.formulaEngine.expandRange(this._rangeLabel(targetRange)).map(coord => coord.toUpperCase()));
+    const comments = this.commentsBySheet[this.activeSheet] ||= {};
+    const removed = Object.keys(comments).filter(key => coords.has(key.toUpperCase()));
+    if (!removed.length) return false;
+    const before = {};
+    for (const key of removed) { before[key] = structuredClone(comments[key]); delete comments[key]; }
+    if (recordUndo) this._recordHistory({ type: "batch-comments", sheet: this.activeSheet, before, after: {} });
+    this._refreshPageAndCommentVisuals();
+    return removed.length;
+  }
+
+  /** Xóa siêu liên kết trong vùng chọn nhưng giữ nguyên văn bản (menu Xóa > Xóa siêu liên kết). */
+  clearHyperlinks(range = null, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const coords = this.formulaEngine.expandRange(this._rangeLabel(targetRange));
+    const before = {};
+    const after = {};
+    for (const coord of coords) {
+      const item = this.cellsData.get(coord);
+      if (!item?.hyperlink) continue;
+      before[coord] = { val: item.val, formula: item.formula, style: structuredClone(item.style || {}), hyperlink: item.hyperlink };
+      delete item.hyperlink;
+      after[coord] = { val: item.val, formula: item.formula, style: structuredClone(item.style || {}) };
+      const [c, r] = this._splitCoord(coord);
+      this._renderCellVisual(this.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord}"]`), item, c, r);
+    }
+    const count = Object.keys(before).length;
+    if (!count) return false;
+    if (recordUndo) this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after });
+    return count;
+  }
+
   openHyperlinkAtSelection() {
     const url = String(this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.hyperlink || "");
     if (!/^(https?:|mailto:)/i.test(url)) return false;
@@ -9548,28 +9607,81 @@ _bindGridKeyboardNavigation() {
     return showFormatAsTableDialog(this);
   }
 
+  /** Công thức có tham chiếu cấu trúc Table[Cột]/[@Cột] không. */
+  hasStructuredReference(formula) { return hasStructuredReference(formula); }
+
+  /** Đổi Table[Cột] thành địa chỉ A1 thật (để LibreOffice hiểu khi lưu). */
+  expandStructuredFormula(formula, sheetName, coord) {
+    if (!hasStructuredReference(formula)) return formula;
+    const resolver = this.formulaEngine?.tableResolver;
+    if (!resolver) return formula;
+    return "=" + expandStructuredReferences(String(formula).replace(/^=/, ""), { sheet: sheetName, coord }, resolver);
+  }
+
+  /** Dạng ghi vào tệp XLSX: [@Cột] thành Table[[#This Row],[Cột]]; các dạng khác giữ nguyên. */
+  structuredFileFormula(formula, sheetName, coord) {
+    const resolver = this.formulaEngine?.tableResolver;
+    if (!resolver) return formula;
+    return "=" + expandStructuredReferences(String(formula).replace(/^=/, ""), { sheet: sheetName, coord }, resolver, { mode: "file" });
+  }
+
+  /** Bộ phân giải bảng cho tham chiếu cấu trúc Table1[Cột] (xem structured-references.js). */
+  _createTableResolver() {
+    const allTables = () => Object.entries(this.tablesBySheet || {}).flatMap(([sheet, list]) => (list || []).map(table => ({ table, sheet })));
+    const describe = ({ table, sheet }) => ({ name: table.name, sheet, ref: table.ref, hasHeaders: table.hasHeaders !== false, totals: Boolean(table.showTotals) });
+    return {
+      byName: name => {
+        const found = allTables().find(entry => String(entry.table.name).toLowerCase() === String(name).toLowerCase());
+        return found ? describe(found) : null;
+      },
+      at: (sheet, coord) => {
+        const cell = String(coord).match(/^([A-Z]+)(\d+)$/i);
+        if (!cell) return null;
+        const col = this._columnNumber(cell[1].toUpperCase());
+        const row = Number(cell[2]);
+        for (const entry of allTables()) {
+          if (entry.sheet !== sheet) continue;
+          const range = this._parseRange?.(entry.table.ref);
+          if (!range) continue;
+          const bounds = this._normalizeRange(range);
+          if (row >= bounds.start.r && row <= bounds.end.r && col >= this._columnNumber(bounds.start.c) && col <= this._columnNumber(bounds.end.c)) return describe(entry);
+        }
+        return null;
+      },
+      headerValue: (sheet, coord) => this.sheetsData?.[sheet]?.get?.(String(coord).toUpperCase())?.val
+    };
+  }
+
   _offsetFormula(formula, deltaCol, deltaRow) {
     if (!formula || typeof formula !== "string" || !formula.startsWith("=")) return formula;
-    return formula.split(/("(?:""|[^"])*")/).map((segment, index) => {
-      if (index % 2 === 1) return segment;
-      return segment.replace(/(^|[^A-Z0-9_])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![A-Z0-9_])/gi, (match, prefix, colAbs, col, rowAbs, row) => {
-        let nextCol = col.toUpperCase();
-        let nextRow = Number(row);
-        if (!colAbs && deltaCol !== 0) {
-          const colNum = this._columnNumber(nextCol) + deltaCol;
-          if (colNum >= 1 && colNum <= 26) {
-            nextCol = this._columnLabel(colNum);
-          }
+    return translateFormulaRefs(formula, deltaRow, deltaCol);
+  }
+
+  /**
+   * Sau cắt-dán: mọi công thức (mọi trang) trỏ vào khối vừa di chuyển được cập nhật sang vị trí mới.
+   * Ghi thêm các ô trang hiện tại bị đổi vào before/after; trả về danh sách ô ở trang khác để hoàn tác.
+   */
+  _updateReferencesForMove(moveRange, deltaCol, deltaRow, before, after) {
+    const range = { c1: this._columnNumber(moveRange.start.c), r1: moveRange.start.r, c2: this._columnNumber(moveRange.end.c), r2: moveRange.end.r };
+    const cross = [];
+    for (const sheet of this.sheets || [this.activeSheet]) {
+      const map = sheet === this.activeSheet ? this.cellsData : this.sheetsData[sheet];
+      if (!map) continue;
+      for (const [key, item] of map.entries()) {
+        if (!item?.formula) continue;
+        const next = moveFormulaRefs(item.formula, { ownerSheet: sheet, targetSheet: this.activeSheet, range, deltaCol, deltaRow });
+        if (next === item.formula) continue;
+        if (sheet === this.activeSheet) {
+          if (!Object.prototype.hasOwnProperty.call(before, key)) before[key] = { val: item.val, formula: item.formula, style: structuredClone(item.style || {}) };
+          item.formula = next;
+          after[key] = { val: item.val, formula: next, style: structuredClone(item.style || {}) };
+        } else {
+          cross.push({ sheet, key, before: item.formula, after: next });
+          item.formula = next;
         }
-        if (!rowAbs && deltaRow !== 0) {
-          const rNum = nextRow + deltaRow;
-          if (rNum >= 1) {
-            nextRow = rNum;
-          }
-        }
-        return `${prefix}${colAbs}${nextCol}${rowAbs}${nextRow}`;
-      });
-    }).join("");
+      }
+    }
+    return cross;
   }
 
   applyPasteSpecial(clipboard, mode = "source", destination = this.selectedCoord, options = {}) {
@@ -9644,7 +9756,7 @@ _bindGridKeyboardNavigation() {
           const sourceColOffset = transpose ? rowOffset : colOffset;
           const sourceRowOffset = transpose ? colOffset : rowOffset;
           const formula = source.formula
-            ? this._offsetFormula(source.formula, destColNumber - (sourceStartCol + sourceColOffset), destRow - (sourceStartRow + sourceRowOffset))
+            ? (moveRange && !transpose ? source.formula : this._offsetFormula(source.formula, destColNumber - (sourceStartCol + sourceColOffset), destRow - (sourceStartRow + sourceRowOffset)))
             : "";
           next.val = mode === "formulas" && !formula ? "" : (source.val ?? "");
           next.formula = formula;
@@ -9699,8 +9811,12 @@ _bindGridKeyboardNavigation() {
       this._invalidateColLeftsCache?.();
     }
     for (const [coord, item] of Object.entries(after)) this.cellsData.set(coord, item);
+    let crossSheet = null;
+    if (moveRange && isSourceMode && !transpose) {
+      crossSheet = this._updateReferencesForMove(moveRange, destStartCol - this._columnNumber(moveRange.start.c), destStartRow - moveRange.start.r, before, after);
+    }
     const afterLayout = beforeLayout ? this._snapshotRowColLayout() : null;
-    this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after, beforeRanges, afterRanges, beforeLayout, afterLayout });
+    this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after, beforeRanges, afterRanges, beforeLayout, afterLayout, ...(crossSheet?.length ? { crossSheet } : {}) });
     this._recalculateAllFormulas();
     if (beforeLayout) this._renderColumnHeaders();
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
@@ -10013,6 +10129,190 @@ _bindGridKeyboardNavigation() {
     }
 
     this._recalculateAllFormulas();
+    return true;
+  }
+
+  /** Điền lên (Ctrl+Shift+Up trong menu Điền): sao chép ô dưới cùng của vùng chọn lên các ô phía trên. */
+  fillUp(range = null, recordUndo = true) { return this._fillCopyDirection("up", range, recordUndo); }
+
+  /** Điền sang trái: sao chép cột phải nhất của vùng chọn sang các cột bên trái. */
+  fillLeft(range = null, recordUndo = true) { return this._fillCopyDirection("left", range, recordUndo); }
+
+  _fillCopyDirection(direction, range, recordUndo) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const norm = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const minCol = this._columnNumber(norm.start.c);
+    const maxCol = this._columnNumber(norm.end.c);
+    const minRow = norm.start.r;
+    const maxRow = norm.end.r;
+    const pairs = [];
+    if (direction === "up") {
+      const single = minRow === maxRow;
+      const sourceRow = single ? minRow + 1 : maxRow;
+      const lastDest = single ? minRow : maxRow - 1;
+      for (let col = minCol; col <= maxCol; col++) {
+        for (let row = minRow; row <= lastDest; row++) pairs.push({ sourceCol: col, sourceRow, col, row });
+      }
+    } else {
+      const single = minCol === maxCol;
+      const sourceCol = single ? minCol + 1 : maxCol;
+      const lastDest = single ? minCol : maxCol - 1;
+      for (let row = minRow; row <= maxRow; row++) {
+        for (let col = minCol; col <= lastDest; col++) pairs.push({ sourceCol, sourceRow: row, col, row });
+      }
+    }
+    if (!pairs.length) return false;
+
+    const before = {};
+    const after = {};
+    for (const pair of pairs) {
+      const sourceKey = `${this._columnLabel(pair.sourceCol)}${pair.sourceRow}`;
+      const destLabel = this._columnLabel(pair.col);
+      const destKey = `${destLabel}${pair.row}`;
+      const sourceCell = this.cellsData.get(sourceKey) || { val: "", formula: "", style: {} };
+      const existing = this.cellsData.get(destKey) || { val: "", formula: "", style: {} };
+      before[destKey] = { val: existing.val, formula: existing.formula, style: structuredClone(existing.style || {}) };
+      let newFormula = "";
+      let newVal = sourceCell.val;
+      if (sourceCell.formula && sourceCell.formula.startsWith("=")) {
+        newFormula = this._offsetFormula(sourceCell.formula, pair.col - pair.sourceCol, pair.row - pair.sourceRow);
+        newVal = this.formulaEngine.evaluate(newFormula, { sheet: this.activeSheet, coord: destKey });
+      }
+      const newItem = { val: newVal, formula: newFormula, style: structuredClone(sourceCell.style || {}) };
+      this.cellsData.set(destKey, newItem);
+      after[destKey] = { val: newItem.val, formula: newItem.formula, style: structuredClone(newItem.style) };
+      const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${destKey}"]`);
+      if (dom) {
+        this._renderCellVisual(dom, newItem, destLabel, pair.row);
+        this._applyRuleVisuals?.(dom, destLabel, pair.row);
+      }
+    }
+    if (recordUndo) this._recordHistory({ type: "fill", sheet: this.activeSheet, before, after });
+    this._recalculateAllFormulas();
+    return true;
+  }
+
+  /**
+   * Điền > Chuỗi. options: { axis: "rows"|"columns"|"auto", type: "linear"|"growth"|"date", dateUnit, step, stop }.
+   * Giá trị đầu mỗi hàng/cột trong vùng chọn là giá trị bắt đầu; các ô còn lại của vùng được điền.
+   * Một ô đơn kèm giá trị dừng thì điền tới khi đạt giá trị dừng.
+   */
+  fillSeries(options = {}, range = null, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return { ok: false, reason: "protected" };
+    const norm = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const minCol = this._columnNumber(norm.start.c);
+    const maxCol = this._columnNumber(norm.end.c);
+    const minRow = norm.start.r;
+    const maxRow = norm.end.r;
+    const axis = options.axis === "rows" || options.axis === "columns"
+      ? options.axis
+      : (maxCol > minCol && maxRow === minRow ? "rows" : "columns");
+    const hasStop = options.stop !== undefined && options.stop !== null && String(options.stop).trim() !== "";
+    const lines = axis === "rows"
+      ? Array.from({ length: maxRow - minRow + 1 }, (_, i) => ({ fixed: minRow + i, from: minCol, to: maxCol }))
+      : Array.from({ length: maxCol - minCol + 1 }, (_, i) => ({ fixed: minCol + i, from: minRow, to: maxRow }));
+    const keyOf = (line, index) => axis === "rows" ? `${this._columnLabel(index)}${line.fixed}` : `${this._columnLabel(line.fixed)}${index}`;
+
+    const before = {};
+    const after = {};
+    let filled = 0;
+    for (const line of lines) {
+      const startKey = keyOf(line, line.from);
+      const startCell = this.cellsData.get(startKey) || { val: "", formula: "", style: {} };
+      const rawStart = startCell.val;
+      const type = options.type === "date" || options.type === "growth" ? options.type : "linear";
+      const startValue = type === "date" ? (typeof rawStart === "number" ? rawStart : String(rawStart ?? "")) : this.formulaEngine._parseNumberOrCurrency?.(rawStart) ?? Number(rawStart);
+      const span = line.to - line.from + 1;
+      const count = hasStop && span === 1 ? undefined : span;
+      const stopText = hasStop ? String(options.stop).trim() : null;
+      const built = buildSeries({
+        start: startValue,
+        type,
+        step: options.step,
+        stop: hasStop && type !== "date" ? Number(String(options.stop).replace(",", ".")) : (hasStop && Number.isFinite(Number(options.stop)) ? Number(options.stop) : (hasStop ? 1 : null)),
+        stopText: type === "date" ? stopText : undefined,
+        dateUnit: options.dateUnit,
+        count
+      });
+      if (built.error) return { ok: false, reason: built.error };
+      const values = built.values.slice(1);
+      for (let offset = 0; offset < values.length; offset++) {
+        const index = line.from + 1 + offset;
+        if (index > line.to && !(hasStop && span === 1)) break;
+        const destKey = keyOf(line, index);
+        const existing = this.cellsData.get(destKey) || { val: "", formula: "", style: {} };
+        before[destKey] = { val: existing.val, formula: existing.formula, style: structuredClone(existing.style || {}) };
+        const newItem = { val: values[offset], formula: "", style: structuredClone(startCell.style || {}) };
+        this.cellsData.set(destKey, newItem);
+        after[destKey] = { val: newItem.val, formula: "", style: structuredClone(newItem.style) };
+        const dom = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${destKey}"]`);
+        if (dom) {
+          const colLabel = axis === "rows" ? this._columnLabel(index) : this._columnLabel(line.fixed);
+          const rowNumber = axis === "rows" ? line.fixed : index;
+          this._renderCellVisual(dom, newItem, colLabel, rowNumber);
+          this._applyRuleVisuals?.(dom, colLabel, rowNumber);
+        }
+        filled++;
+      }
+    }
+    if (!filled) return { ok: false, reason: "empty" };
+    if (recordUndo) this._recordHistory({ type: "fill", sheet: this.activeSheet, before, after });
+    this._recalculateAllFormulas();
+    return { ok: true, filled };
+  }
+
+  showFillSeriesDialog() {
+    const area = this._normalizeRange(this.selectionRange);
+    const defaultAxis = area.end.c !== area.start.c && area.end.r === area.start.r ? "rows" : "columns";
+    const overlay = this._createSheetDialog(t("sheetDialogs.fillSeriesTitle", "Chuỗi"), `
+      <p>${t("sheetDialogs.rangeLabel", "Vùng:")} <strong>${this.getSelectedRangeLabel()}</strong></p>
+      <fieldset><legend>${t("sheetDialogs.fillSeriesIn", "Chuỗi theo")}</legend>
+        <label><input type="radio" name="vno-fs-axis" value="rows" ${defaultAxis === "rows" ? "checked" : ""}> ${t("sheetDialogs.fillSeriesRows", "Hàng")}</label>
+        <label><input type="radio" name="vno-fs-axis" value="columns" ${defaultAxis === "columns" ? "checked" : ""}> ${t("sheetDialogs.fillSeriesColumns", "Cột")}</label>
+      </fieldset>
+      <fieldset><legend>${t("sheetDialogs.fillSeriesType", "Loại")}</legend>
+        <label><input type="radio" name="vno-fs-type" value="linear" checked> ${t("sheetDialogs.fillSeriesLinear", "Tuyến tính")}</label>
+        <label><input type="radio" name="vno-fs-type" value="growth"> ${t("sheetDialogs.fillSeriesGrowth", "Tăng trưởng")}</label>
+        <label><input type="radio" name="vno-fs-type" value="date"> ${t("sheetDialogs.fillSeriesDate", "Ngày")}</label>
+      </fieldset>
+      <label>${t("sheetDialogs.fillSeriesDateUnit", "Đơn vị ngày")}
+        <select id="vno-fs-unit" disabled>
+          <option value="day">${t("sheetDialogs.fillSeriesUnitDay", "Ngày")}</option>
+          <option value="weekday">${t("sheetDialogs.fillSeriesUnitWeekday", "Ngày làm việc")}</option>
+          <option value="month">${t("sheetDialogs.fillSeriesUnitMonth", "Tháng")}</option>
+          <option value="year">${t("sheetDialogs.fillSeriesUnitYear", "Năm")}</option>
+        </select></label>
+      <label>${t("sheetDialogs.fillSeriesStep", "Bước nhảy")} <input id="vno-fs-step" type="text" inputmode="decimal" value="1"></label>
+      <label>${t("sheetDialogs.fillSeriesStop", "Giá trị dừng")} <input id="vno-fs-stop" type="text" value=""></label>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    const unit = overlay.querySelector("#vno-fs-unit");
+    overlay.querySelectorAll('input[name="vno-fs-type"]').forEach(radio => radio.addEventListener("change", () => {
+      unit.disabled = overlay.querySelector('input[name="vno-fs-type"]:checked').value !== "date";
+    }));
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const stepText = overlay.querySelector("#vno-fs-step").value.trim().replace(",", ".");
+      const step = stepText === "" ? 1 : Number(stepText);
+      const error = overlay.querySelector(".vno-rule-error");
+      if (!Number.isFinite(step)) { error.textContent = t("sheetDialogs.fillSeriesBadStep", "Bước nhảy phải là một số."); return; }
+      const result = this.fillSeries({
+        axis: overlay.querySelector('input[name="vno-fs-axis"]:checked').value,
+        type: overlay.querySelector('input[name="vno-fs-type"]:checked').value,
+        dateUnit: unit.value,
+        step,
+        stop: overlay.querySelector("#vno-fs-stop").value
+      });
+      if (!result.ok) {
+        error.textContent = result.reason === "start"
+          ? t("sheetDialogs.fillSeriesBadStart", "Ô đầu của vùng chọn phải chứa số (hoặc ngày dạng dd/mm/yyyy khi chọn loại Ngày).")
+          : result.reason === "empty"
+            ? t("sheetDialogs.fillSeriesNothing", "Không có ô nào để điền. Hãy chọn vùng gồm ô bắt đầu và các ô cần điền, hoặc nhập Giá trị dừng khi chỉ chọn một ô.")
+            : t("sheetDialogs.fillSeriesFailed", "Không điền được chuỗi.");
+        return;
+      }
+      overlay.closeDialog();
+      this._showDataNotice(t("sheetDialogs.fillSeriesDone", { count: result.filled }) || `Đã điền ${result.filled} ô.`);
+    });
     return true;
   }
 
@@ -11565,6 +11865,7 @@ _bindGridKeyboardNavigation() {
             formula: snap.formula ?? "",
             style: structuredClone(snap.style || {})
           };
+          if (snap.hyperlink) itm.hyperlink = snap.hyperlink;
           this.cellsData.set(coord, itm);
         }
         const [c, r] = this._splitCoord(coord);
@@ -11578,6 +11879,12 @@ _bindGridKeyboardNavigation() {
             dom.textContent = "";
             dom.style.cssText = "";
           }
+        }
+      }
+      if (action.type === "batch-cells" && Array.isArray(action.crossSheet)) {
+        for (const entry of action.crossSheet) {
+          const target = this.sheetsData[entry.sheet]?.get(entry.key);
+          if (target) target.formula = direction === "undo" ? entry.before : entry.after;
         }
       }
       if (action.type === "batch-cells" && Array.isArray(action.beforeRanges) && Array.isArray(action.afterRanges)) {
@@ -11672,6 +11979,12 @@ _bindGridKeyboardNavigation() {
       if (currentIndex >= 0) collection.splice(currentIndex, 1);
       if (desired) collection.splice(Math.min(action.index, collection.length), 0, structuredClone(desired));
       this._recalculateAllFormulas();
+    } else if (action.type === "batch-comments") {
+      const comments = this.commentsBySheet[action.sheet] ||= {};
+      const desired = direction === "undo" ? action.before : action.after;
+      for (const [coord, comment] of Object.entries(desired)) comments[coord] = structuredClone(comment);
+      if (direction === "redo") for (const coord of Object.keys(action.before)) if (!(coord in desired)) delete comments[coord];
+      this._refreshPageAndCommentVisuals();
     } else if (action.type === "comment") {
       const comments = this.commentsBySheet[action.sheet] ||= {};
       const desired = direction === "undo" ? action.before : action.after;
@@ -11837,49 +12150,64 @@ _bindGridKeyboardNavigation() {
     });
   }
 
-  sort(col = this.selectedCoord.c, ascending = true) {
-    const before = this._snapshotCells();
-    // Ưu tiên đúng vùng người dùng đã chọn. Trước đây hàm hard-code r >= 4,
-    // khiến Sort không làm gì với bảng bắt đầu ở hàng 1/2 dù dispatch vẫn chạy.
-    const selectedRange = this._normalizeRange(this.selectionRange);
-    const hasRowSelection = selectedRange.end.r > selectedRange.start.r;
-    const rowsWithData = hasRowSelection
-      ? Array.from({ length: selectedRange.end.r - selectedRange.start.r + 1 }, (_, index) => selectedRange.start.r + index)
-      : [];
-    for (const [key, item] of this.cellsData.entries()) {
-      if (hasRowSelection) break;
-      if ((item.val !== "" && item.val !== undefined) || item.formula) {
-        const m = key.match(/^([A-Z]+)(\d+)$/);
-        if (m) {
-          const r = parseInt(m[2], 10);
-          const isTotalRow = (item.formula && item.formula.toLowerCase().includes("sum")) || String(item.val).toLowerCase().includes("tổng");
-          if (!isTotalRow && !rowsWithData.includes(r)) {
-            rowsWithData.push(r);
-          }
-        }
+  /**
+   * Vùng sắp xếp như Excel: chọn nhiều ô thì sắp đúng vùng chọn; chọn một ô (hoặc một cột) thì mở rộng ra vùng dữ liệu liền kề.
+   * Chỉ các cột trong vùng được di chuyển — cột bên ngoài không bị xáo trộn.
+   */
+  _sortArea() {
+    const selected = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const multi = selected.end.r > selected.start.r || selected.end.c !== selected.start.c;
+    const singleColumn = selected.end.c === selected.start.c;
+    if (multi && !singleColumn) return selected;
+    const region = this._currentRegionFromSelection();
+    if (!region) {
+      if (multi) return selected;
+      // Ô đang chọn trống: lấy toàn bộ vùng đã dùng của trang (hành vi cũ, giữ tương thích).
+      let minRow = Infinity, maxRow = 0, minCol = Infinity, maxCol = 0;
+      for (const [key, item] of this.cellsData.entries()) {
+        if (!item || ((item.val === "" || item.val === undefined || item.val === null) && !item.formula)) continue;
+        const [c, r] = this._splitCoord(key);
+        const cn = this._columnNumber(c);
+        minRow = Math.min(minRow, r); maxRow = Math.max(maxRow, r); minCol = Math.min(minCol, cn); maxCol = Math.max(maxCol, cn);
       }
+      if (!Number.isFinite(minRow)) return null;
+      return { start: { c: this._columnLabel(minCol), r: minRow }, end: { c: this._columnLabel(maxCol), r: maxRow } };
     }
+    if (multi) {
+      // Chọn một cột nhiều hàng: mở rộng ngang theo vùng dữ liệu, giữ hàng đã chọn.
+      return { start: { c: region.start.c, r: selected.start.r }, end: { c: region.end.c, r: selected.end.r } };
+    }
+    return region;
+  }
 
-    if (rowsWithData.length < 2) return false;
+  sort(col = this.selectedCoord.c, ascending = true) {
+    const area = this._sortArea();
+    if (!area) return false;
+    const colStart = this._columnNumber(area.start.c);
+    const colEnd = this._columnNumber(area.end.c);
+    const keyColumn = this._columnNumber(col);
+    if (keyColumn < colStart || keyColumn > colEnd) return false;
+    const areaCols = Array.from({ length: colEnd - colStart + 1 }, (_, index) => this._columnLabel(colStart + index));
+    const before = this._snapshotCells();
 
-    // Excel treats a text first row as a header when sorting a contiguous table.
-    // Keep it in place for the simple A-Z/Z-A commands; the custom dialog already
-    // exposes an explicit "Dữ liệu có hàng tiêu đề" choice.
-    const firstRow = Math.min(...rowsWithData);
-    const firstRowValues = this.cols.map(c => this.cellsData.get(`${c}${firstRow}`)?.val).filter(v => v !== undefined && v !== "");
-    const hasHeader = firstRowValues.length > 0 && firstRowValues.every(v => typeof v === "string" && Number.isNaN(Number(String(v).replace(/[,\.]/g, ""))));
-    if (hasHeader) rowsWithData.splice(rowsWithData.indexOf(firstRow), 1);
-
-    rowsWithData.sort((a, b) => a - b);
-    const minRow = rowsWithData[0];
-    const maxRow = rowsWithData[rowsWithData.length - 1];
+    // Excel coi hàng đầu toàn chữ là tiêu đề khi sắp xếp một vùng liền kề.
+    let firstRow = area.start.r;
+    const firstRowValues = areaCols.map(c => this.cellsData.get(`${c}${firstRow}`)?.val).filter(v => v !== undefined && v !== "");
+    const firstRowAllText = firstRowValues.length > 0 && firstRowValues.every(v => typeof v === "string" && Number.isNaN(Number(String(v).replace(/[,\.]/g, ""))));
+    // Excel đoán tiêu đề: hàng đầu toàn chữ VÀ có cột bên dưới không phải chữ, hoặc hàng đầu được định dạng khác hàng sau.
+    const secondRow = firstRow + 1;
+    const belowHasNonText = areaCols.some(c => { const v = this.cellsData.get(`${c}${secondRow}`)?.val; return v !== undefined && v !== "" && !(typeof v === "string" && Number.isNaN(Number(String(v).replace(/[,\.]/g, "")))); });
+    const styleSignature = r => areaCols.map(c => { const s = this.cellsData.get(`${c}${r}`)?.style || {}; return `${s.fontWeight || ""}|${s.backgroundColor || ""}|${s.color || ""}`; }).join(";");
+    const hasHeader = firstRowAllText && (belowHasNonText || styleSignature(firstRow) !== styleSignature(secondRow));
+    if (hasHeader) firstRow++;
+    const lastRow = area.end.r;
+    if (lastRow - firstRow + 1 < 2) return false;
 
     const rowSnapshots = [];
-    for (let r = minRow; r <= maxRow; r++) {
+    for (let r = firstRow; r <= lastRow; r++) {
       const rowData = {};
-      this.cols.forEach(c => {
-        const k = `${c}${r}`;
-        const itm = this.cellsData.get(k);
+      areaCols.forEach(c => {
+        const itm = this.cellsData.get(`${c}${r}`);
         if (itm) rowData[c] = { ...itm, style: { ...itm.style } };
       });
       const sortVal = rowData[col]?.val ?? "";
@@ -11892,29 +12220,29 @@ _bindGridKeyboardNavigation() {
       const blankA = vA === null || vA === undefined || vA === "";
       const blankB = vB === null || vB === undefined || vB === "";
       // Excel keeps empty sort keys after populated keys in both A-Z and Z-A.
-      // Handle this before applying direction so descending sort cannot pull
-      // blank rows to the top.
       if (blankA || blankB) {
         if (blankA && blankB) return a.originalRow - b.originalRow;
         return blankA ? 1 : -1;
       }
       const numA = typeof vA === "number" ? vA : parseFloat(String(vA).replace(/\./g, "").replace(/[^\d-]/g, ""));
       const numB = typeof vB === "number" ? vB : parseFloat(String(vB).replace(/\./g, "").replace(/[^\d-]/g, ""));
-
       if (!isNaN(numA) && !isNaN(numB)) {
         return ascending ? numA - numB : numB - numA;
       }
-      return ascending 
-        ? String(vA).localeCompare(String(vB), "vi-VN") 
+      return ascending
+        ? String(vA).localeCompare(String(vB), "vi-VN")
         : String(vB).localeCompare(String(vA), "vi-VN");
     });
 
     rowSnapshots.forEach((snap, idx) => {
-      const targetRow = minRow + idx;
-      this.cols.forEach(c => {
+      const targetRow = firstRow + idx;
+      areaCols.forEach(c => {
         const k = `${c}${targetRow}`;
         if (snap.data[c]) {
-          this.cellsData.set(k, { ...snap.data[c] });
+          const moved = { ...snap.data[c] };
+          // Như Excel: công thức được "sao chép" sang hàng mới nên tham chiếu tương đối dịch theo.
+          if (moved.formula && targetRow !== snap.originalRow) moved.formula = translateFormulaRefs(moved.formula, targetRow - snap.originalRow, 0);
+          this.cellsData.set(k, moved);
         } else {
           this.cellsData.delete(k);
         }
@@ -12328,6 +12656,10 @@ _bindGridKeyboardNavigation() {
     this.outlineGroupsBySheet[snapshot.sheetName] = structuredClone(snapshot.outlineGroups || []);
     this.mergedRangesBySheet[snapshot.sheetName] = structuredClone(snapshot.mergedRanges || []);
     this.tablesBySheet[snapshot.sheetName] = structuredClone(snapshot.tables || []);
+    for (const entry of snapshot.crossSheet || []) {
+      const target = this.sheetsData[entry.sheet]?.get(entry.key);
+      if (target) target.formula = entry.formula;
+    }
     if (snapshot.rowColLayout) this._restoreRowColLayout({ ...snapshot.rowColLayout, sheetName: snapshot.sheetName }, { render: false });
     if (this.sheetStates[snapshot.sheetName]) {
       Object.assign(this.sheetStates[snapshot.sheetName], {
@@ -12510,6 +12842,34 @@ _bindGridKeyboardNavigation() {
     }
   }
 
+  /**
+   * Công thức ở CÁC TRANG KHÁC trỏ tới trang đang chèn/xóa hàng-cột cũng phải đổi (như Excel).
+   * Trả về danh sách thay đổi để hoàn tác: [{ sheet, key, before, after }].
+   */
+  _shiftOtherSheetFormulas(axis, at, delta) {
+    const changes = [];
+    for (const sheet of this.sheets || []) {
+      if (sheet === this.activeSheet) continue;
+      const map = this.sheetsData[sheet];
+      if (!map) continue;
+      for (const [key, item] of map.entries()) {
+        if (!item?.formula) continue;
+        const next = shiftFormulaRefs(item.formula, { ownerSheet: sheet, targetSheet: this.activeSheet, axis, at, delta });
+        if (next !== item.formula) { changes.push({ sheet, key, before: item.formula, after: next }); item.formula = next; }
+      }
+    }
+    return changes;
+  }
+
+  _recordGridStructureHistory(before, crossSheet = []) {
+    const after = this._snapshotGridStructure();
+    if (crossSheet.length) {
+      before.crossSheet = crossSheet.map(change => ({ sheet: change.sheet, key: change.key, formula: change.before }));
+      after.crossSheet = crossSheet.map(change => ({ sheet: change.sheet, key: change.key, formula: change.after }));
+    }
+    this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after });
+  }
+
   insertRow(atRow = this.selectedCoord.r, recordUndo = true) {
     if (recordUndo && this._guardProtectedMutation()) return false;
     atRow = Number(atRow);
@@ -12520,10 +12880,11 @@ _bindGridKeyboardNavigation() {
       const [col, row] = this._splitCoord(key);
       const nextKey = `${col}${row >= atRow ? row + 1 : row}`;
       const nextItem = structuredClone(item);
-      if (nextItem.formula) nextItem.formula = this._shiftCellReference(nextItem.formula, "row", atRow);
+      if (nextItem.formula) nextItem.formula = shiftFormulaRefs(nextItem.formula, { ownerSheet: this.activeSheet, targetSheet: this.activeSheet, axis: "row", at: atRow, delta: 1 });
       shifted.set(nextKey, nextItem);
     }
     this.sheetsData[this.activeSheet] = shifted;
+    const crossSheet = this._shiftOtherSheetFormulas("row", atRow, 1);
     this.rowCount++;
     this._shiftGridMetadata("row", atRow);
     this.selectedCoord = { c: this.selectedCoord.c, r: atRow };
@@ -12532,7 +12893,7 @@ _bindGridKeyboardNavigation() {
     this._recalculateAllFormulas();
     this.refreshCharts();
     this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
-    if (recordUndo) this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    if (recordUndo) this._recordGridStructureHistory(before, crossSheet);
     return true;
   }
 
@@ -12547,10 +12908,11 @@ _bindGridKeyboardNavigation() {
       const colNumber = this._columnNumber(col);
       const nextKey = `${colNumber >= atColumnNumber ? this._columnLabel(colNumber + 1) : col}${row}`;
       const nextItem = structuredClone(item);
-      if (nextItem.formula) nextItem.formula = this._shiftCellReference(nextItem.formula, "col", atColumnNumber);
+      if (nextItem.formula) nextItem.formula = shiftFormulaRefs(nextItem.formula, { ownerSheet: this.activeSheet, targetSheet: this.activeSheet, axis: "col", at: atColumnNumber, delta: 1 });
       shifted.set(nextKey, nextItem);
     }
     this.sheetsData[this.activeSheet] = shifted;
+    const crossSheet = this._shiftOtherSheetFormulas("col", atColumnNumber, 1);
     this.cols = Array.from({ length: this.cols.length + 1 }, (_, index) => this._columnLabel(index + 1));
     this._shiftGridMetadata("col", atColumnNumber);
     this.selectedCoord = { c: this._columnLabel(atColumnNumber), r: this.selectedCoord.r };
@@ -12560,7 +12922,7 @@ _bindGridKeyboardNavigation() {
     this._recalculateAllFormulas();
     this.refreshCharts();
     this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
-    if (recordUndo) this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    if (recordUndo) this._recordGridStructureHistory(before, crossSheet);
     return true;
   }
 
@@ -12575,10 +12937,11 @@ _bindGridKeyboardNavigation() {
       if (row === atRow) continue;
       const nextRow = row > atRow ? row - 1 : row;
       const nextItem = structuredClone(item);
-      if (nextItem.formula) nextItem.formula = this._shiftCellReference(nextItem.formula, "row", atRow, -1);
+      if (nextItem.formula) nextItem.formula = shiftFormulaRefs(nextItem.formula, { ownerSheet: this.activeSheet, targetSheet: this.activeSheet, axis: "row", at: atRow, delta: -1 });
       shifted.set(`${col}${nextRow}`, nextItem);
     }
     this.sheetsData[this.activeSheet] = shifted;
+    const crossSheet = this._shiftOtherSheetFormulas("row", atRow, -1);
     this.rowCount--;
     this._shiftGridMetadata("row", atRow, -1);
     this.selectedCoord = { c: this.selectedCoord.c, r: Math.min(atRow, this.rowCount) };
@@ -12587,7 +12950,7 @@ _bindGridKeyboardNavigation() {
     this._recalculateAllFormulas();
     this.refreshCharts();
     this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
-    if (recordUndo) this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    if (recordUndo) this._recordGridStructureHistory(before, crossSheet);
     return true;
   }
 
@@ -12603,10 +12966,11 @@ _bindGridKeyboardNavigation() {
       if (colNumber === atColumnNumber) continue;
       const nextCol = colNumber > atColumnNumber ? this._columnLabel(colNumber - 1) : col;
       const nextItem = structuredClone(item);
-      if (nextItem.formula) nextItem.formula = this._shiftCellReference(nextItem.formula, "col", atColumnNumber, -1);
+      if (nextItem.formula) nextItem.formula = shiftFormulaRefs(nextItem.formula, { ownerSheet: this.activeSheet, targetSheet: this.activeSheet, axis: "col", at: atColumnNumber, delta: -1 });
       shifted.set(`${nextCol}${row}`, nextItem);
     }
     this.sheetsData[this.activeSheet] = shifted;
+    const crossSheet = this._shiftOtherSheetFormulas("col", atColumnNumber, -1);
     this.cols = Array.from({ length: this.cols.length - 1 }, (_, index) => this._columnLabel(index + 1));
     this._shiftGridMetadata("col", atColumnNumber, -1);
     this.selectedCoord = { c: this._columnLabel(Math.min(atColumnNumber, this.cols.length)), r: this.selectedCoord.r };
@@ -12616,7 +12980,7 @@ _bindGridKeyboardNavigation() {
     this._recalculateAllFormulas();
     this.refreshCharts();
     this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
-    if (recordUndo) this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    if (recordUndo) this._recordGridStructureHistory(before, crossSheet);
     return true;
   }
 
@@ -14123,10 +14487,15 @@ _bindGridKeyboardNavigation() {
   }
 
   getPageSetup(sheetName = this.activeSheet) {
-    return structuredClone(this.pageSetupBySheet[sheetName] || newSheetPageSetup());
+    return structuredClone(newSheetPageSetup(this.pageSetupBySheet[sheetName] || {}));
   }
 
   setPageSetup(sheetOrChanges = {}, maybeChanges = null) {
+    this._lastPageSetupError = "";
+    const fail = message => {
+      this._lastPageSetupError = message;
+      return false;
+    };
     let sheetName = this.activeSheet;
     let changes = sheetOrChanges;
     if (typeof sheetOrChanges === "string") {
@@ -14141,28 +14510,36 @@ _bindGridKeyboardNavigation() {
     };
     const marginInput = presets[changes.marginPreset] || changes.margins || {};
     const margins = { ...before.margins };
-    for (const side of ["top", "bottom", "left", "right"]) {
+    for (const side of ["top", "bottom", "left", "right", "header", "footer"]) {
       if (marginInput[side] === undefined) continue;
       const value = Number(marginInput[side]);
-      if (!Number.isFinite(value) || value < 0 || value > 25) return false;
+      if (!Number.isFinite(value) || value < 0 || value > 25) return fail(t("sheetDialogs.pageSetup.invalidMargins"));
       margins[side] = Math.round(value * 1000) / 1000;
     }
     const orientation = changes.orientation || before.orientation;
     const size = changes.size || before.size;
-    if (!["portrait", "landscape"].includes(orientation) || !["a4", "letter", "legal"].includes(size)) return false;
+    if (!["portrait", "landscape"].includes(orientation)) return fail(t("sheetDialogs.pageSetup.invalidOrientation"));
+    if (!["a4", "letter", "legal", "a3", "a5"].includes(size)) return fail(t("sheetDialogs.pageSetup.invalidPaperSize"));
     const printTitles = { ...before.printTitles, ...(changes.printTitles || {}) };
     const normalizedTitles = this._normalizePrintTitlesInput(printTitles.rows, printTitles.cols);
     printTitles.rows = normalizedTitles.rows;
     printTitles.cols = normalizedTitles.cols;
-    if (printTitles.rows && !/^\d+(?::\d+)?$/.test(printTitles.rows)) return false;
-    if (printTitles.cols && !/^[A-Z]+(?::[A-Z]+)?$/.test(printTitles.cols)) return false;
+    if (printTitles.rows && !/^\d+(?::\d+)?$/.test(printTitles.rows)) return fail(t("sheetDialogs.pageSetup.invalidRows"));
+    if (printTitles.cols && !/^[A-Z]+(?::[A-Z]+)?$/.test(printTitles.cols)) return fail(t("sheetDialogs.pageSetup.invalidCols"));
     const scale = { ...before.scale, ...(changes.scale || {}) };
-    if (!["percent", "pages"].includes(scale.mode)) return false;
+    if (!["percent", "pages"].includes(scale.mode)) return fail(t("sheetDialogs.pageSetup.invalidScale"));
     scale.percent = Number(scale.percent);
     scale.pagesWide = Number(scale.pagesWide);
     scale.pagesTall = Number(scale.pagesTall);
-    if (!Number.isInteger(scale.percent) || scale.percent < 10 || scale.percent > 400) return false;
-    if (![scale.pagesWide, scale.pagesTall].every(value => Number.isInteger(value) && value >= 0 && value <= 1000)) return false;
+    if (!Number.isInteger(scale.percent) || scale.percent < 10 || scale.percent > 400) return fail(t("sheetDialogs.pageSetup.invalidScalePercent"));
+    if (![scale.pagesWide, scale.pagesTall].every(value => Number.isInteger(value) && value >= 0 && value <= 1000)) return fail(t("sheetDialogs.pageSetup.invalidFitPages"));
+    const pageSettings = { ...before.pageSettings, ...(changes.pageSettings || {}) };
+    pageSettings.printQuality = Number(pageSettings.printQuality);
+    if (!Number.isInteger(pageSettings.printQuality) || pageSettings.printQuality < 72 || pageSettings.printQuality > 2400) return fail(t("sheetDialogs.pageSetup.invalidPrintQuality"));
+    if (pageSettings.firstPageNumber !== "auto") {
+      pageSettings.firstPageNumber = Number(pageSettings.firstPageNumber);
+      if (!Number.isInteger(pageSettings.firstPageNumber) || pageSettings.firstPageNumber < 1 || pageSettings.firstPageNumber > 32767) return fail(t("sheetDialogs.pageSetup.invalidFirstPage"));
+    }
     const headerFooter = {
       header: { ...before.headerFooter.header, ...(changes.headerFooter?.header || {}) },
       footer: { ...before.headerFooter.footer, ...(changes.headerFooter?.footer || {}) }
@@ -14170,12 +14547,18 @@ _bindGridKeyboardNavigation() {
     for (const section of [headerFooter.header, headerFooter.footer]) {
       for (const position of ["left", "center", "right"]) section[position] = String(section[position] || "").slice(0, 500);
     }
+    headerFooter.differentOddEven = Boolean(changes.headerFooter?.differentOddEven ?? before.headerFooter?.differentOddEven);
+    headerFooter.differentFirst = Boolean(changes.headerFooter?.differentFirst ?? before.headerFooter?.differentFirst);
+    headerFooter.scaleWithDocument = Boolean(changes.headerFooter?.scaleWithDocument ?? before.headerFooter?.scaleWithDocument ?? true);
+    headerFooter.alignWithMargins = Boolean(changes.headerFooter?.alignWithMargins ?? before.headerFooter?.alignWithMargins ?? true);
     const centerOnPage = { ...before.centerOnPage, ...(changes.centerOnPage || {}) };
     centerOnPage.horizontal = Boolean(centerOnPage.horizontal);
     centerOnPage.vertical = Boolean(centerOnPage.vertical);
     const printOptions = { ...before.printOptions, ...(changes.printOptions || {}) };
     printOptions.gridlines = Boolean(printOptions.gridlines);
     printOptions.headings = Boolean(printOptions.headings);
+    printOptions.blackAndWhite = Boolean(printOptions.blackAndWhite);
+    printOptions.draft = Boolean(printOptions.draft);
     const rawComments = changes.printOptions?.comments;
     const normComments = rawComments === "atEnd" ? "sheetEnd" : rawComments;
     printOptions.comments = ["none", "sheetEnd", "asDisplayed"].includes(normComments)
@@ -14187,7 +14570,7 @@ _bindGridKeyboardNavigation() {
     printOptions.pageOrder = ["downThenOver", "overThenDown"].includes(changes.printOptions?.pageOrder)
       ? changes.printOptions.pageOrder
       : (before.printOptions?.pageOrder || "downThenOver");
-    const after = { margins, orientation, size, scale, headerFooter, centerOnPage, printOptions, printTitles };
+    const after = { margins, orientation, size, scale, pageSettings, headerFooter, centerOnPage, printOptions, printTitles };
     if (JSON.stringify(before) === JSON.stringify(after)) return after;
     this.pageSetupBySheet[sheetName] = after;
     this._recordHistory({ type: "sheet-page-layout", sheet: sheetName, property: "pageSetupBySheet", before, after: structuredClone(after) });
@@ -14195,6 +14578,10 @@ _bindGridKeyboardNavigation() {
   }
 
   showPageSetupDialog(focusField = "margins") {
+    return PageSetupDialog.show({ grid: this, focusField });
+  }
+
+  _showLegacyPageSetupDialog(focusField = "margins") {
     if (typeof document === "undefined" || !document.body) return false;
     const setup = this.getPageSetup();
     const pending = this._printTitleSelect;
@@ -14290,21 +14677,26 @@ _bindGridKeyboardNavigation() {
    * Hộp thoại được ẩn tạm; người dùng nhấp vào đầu hàng/cột để chọn,
    * Shift+nhấn để mở rộng vùng. Nhấn Esc hoặc «Quay lại hộp thoại» để trở về.
    */
+  beginPageSetupRangeSelection(field, overlay) {
+    return this.beginPrintTitleSelection(field, overlay);
+  }
+
   beginPrintTitleSelection(field, overlay) {
     if (typeof document === "undefined" || !document.body) return false;
-    if (!["rows", "cols"].includes(field)) return false;
+    if (!["area", "rows", "cols"].includes(field)) return false;
     this._teardownPrintTitleSelection();
     const hint = document.createElement("div");
     hint.className = "vno-print-title-hint";
     hint.setAttribute("role", "status");
     hint.style.cssText = "position:sticky;top:0;z-index:30;display:flex;align-items:center;gap:10px;padding:6px 12px;background:var(--vno-primary,#1a5fb4);color:#fff;font-size:13px;";
-    const label = field === "rows" ? "Chọn HÀNG lặp lại trên mỗi trang" : "Chọn CỘT lặp lại ở bên trái";
-    hint.innerHTML = `<strong>${label}</strong><span class="vno-print-title-hint-value">—</span><span style="opacity:.85">Nhấp vào đầu hàng/cột trên lưới, Shift+nhấn để mở rộng.</span><button type="button" class="vno-btn vno-print-title-hint-back" style="margin-left:auto">Quay lại hộp thoại</button>`;
+    const label = field === "area" ? t("sheetDialogs.pageSetup.selectPrintArea") : field === "rows" ? t("sheetDialogs.pageSetup.selectRows") : t("sheetDialogs.pageSetup.selectCols");
+    const instruction = field === "area" ? t("sheetDialogs.pageSetup.selectAreaHint") : t("sheetDialogs.pageSetup.selectTitlesHint");
+    hint.innerHTML = `<strong>${label}</strong><span class="vno-print-title-hint-value">—</span><span style="opacity:.85">${instruction}</span><button type="button" class="vno-btn vno-print-title-hint-back" style="margin-left:auto">${t("sheetDialogs.pageSetup.backToDialog")}</button>`;
     this.viewport?.insertBefore?.(hint, this.viewport.firstChild);
     const state = { field, overlay, anchor: null, current: null, pendingValue: null, hint, onClick: null, onKey: null };
-    state.onClick = event => this._onPrintTitleGridClick(event);
+    state.onClick = field === "area" ? null : event => this._onPrintTitleGridClick(event);
     state.onKey = event => { if (event.key === "Escape") this.endPrintTitleSelection(); };
-    this.table?.addEventListener?.("click", state.onClick, true);
+    if (state.onClick) this.table?.addEventListener?.("click", state.onClick, true);
     document.addEventListener("keydown", state.onKey);
     hint.querySelector(".vno-print-title-hint-back")?.addEventListener("click", () => this.endPrintTitleSelection());
     this._printTitleSelect = state;
@@ -14369,10 +14761,11 @@ _bindGridKeyboardNavigation() {
   endPrintTitleSelection() {
     const state = this._printTitleSelect;
     if (!state?.field) return false;
-    const { field, pendingValue } = state;
+    const { field } = state;
+    const pendingValue = field === "area" ? this.getSelectedRangeLabel() : state.pendingValue;
     this._teardownPrintTitleSelection();
     this._printTitleSelect = { field, pendingValue: pendingValue || null };
-    return this.showPageSetupDialog("printTitles");
+    return this.showPageSetupDialog(field === "area" ? "printArea" : "printTitles");
   }
 
   /** Dọn dẹp listener/thanh gợi ý của chế độ chọn Print Titles trên lưới (giữ lại pendingValue nếu có). */
@@ -14387,6 +14780,10 @@ _bindGridKeyboardNavigation() {
   }
 
   showHeaderFooterDialog() {
+    return this.showPageSetupDialog("headerFooter");
+  }
+
+  _showLegacyHeaderFooterDialog() {
     if (typeof document === "undefined" || !document.body) return false;
     const current = this.getPageSetup().headerFooter;
     const fieldset = (kind, title) => `<fieldset style="border:1px solid var(--vno-border-default);border-radius:6px"><legend>${title}</legend>

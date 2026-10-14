@@ -9,7 +9,7 @@ import { createMatcher, nodeMatchesFormat } from "../../../platform/find/find-en
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { getPendingTypingStyleCommands } from "../../../platform/text/spellcheck-dom-controller.js";
 import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
-import { parseCsv, parseDelimitedText, parseFodsData, replaceMergeFields } from "../../../apps/writer/mail-merge-data.js";
+import { parseCsv, parseDelimitedText, parseFodsData, replaceMergeFields, resolveMailMergeRecord } from "../../../apps/writer/mail-merge-data.js";
 import {
   ENVELOPE_SIZES,
   LABEL_LAYOUTS,
@@ -25,7 +25,25 @@ import { showWatermarkDialog, showPageBorderDialog, showPageColorDialog } from "
 import { showColumnsDialog } from "../../../apps/writer/columns-dialog.js";
 import { showParagraphDialog } from "../../../apps/writer/paragraph-dialog.js";
 import { nextIndentPx, indentPxToCss, cssLengthToPx } from "../../../apps/writer/paragraph-indent.js";
-import { buildTableHtml, showTextToTableDialog, splitTextToRows } from "../../../apps/writer/text-to-table-dialog.js";
+import {
+  buildTableHtml,
+  convertTableToParagraphs,
+  QUICK_TABLES,
+  showQuickTablesDialog,
+  showTableToTextDialog,
+  showTextToTableDialog,
+  splitTextToRows
+} from "../../../apps/writer/text-to-table-dialog.js";
+import {
+  parseImageCrop,
+  applyImageCrop,
+  parseImageCorrections,
+  applyImageCorrections,
+  resetImageProperties,
+  compressImageElement,
+  showCropDialog,
+  showPictureCorrectionsDialog
+} from "../../../apps/writer/picture-tools-dialog.js";
 import { parseTabStops, resolveTab, serializeTabStops, showTabStopsDialog, styleTabElement } from "../../../apps/writer/tab-stops.js";
 import { SHAPE_TYPES, showShapeDialog, renderShapeSvg, showDiagramDialog, generateDiagramHtml, showChartDialog, generateChartHtml } from "../../../apps/writer/writer-illustrations.js";
 import { DOCUMENT_THEMES, showThemeGalleryDialog } from "../../../apps/writer/theme-gallery.js";
@@ -63,6 +81,29 @@ import {
   parseCorePropertiesXml,
   showDocumentPropertiesDialog
 } from "../../../apps/writer/document-properties.js";
+import {
+  buildParagraphComparison,
+  createDocumentProtection,
+  documentProtectionMetadataComment,
+  parseDocumentProtection,
+  showDocumentProtectionDialog,
+  verifyDocumentProtection
+} from "../../../apps/writer/document-review.js";
+import {
+  WriterBuildingBlockStore,
+  buildIndexHtml,
+  sanitizeBuildingBlockHtml,
+  showMailMergeRuleDialog,
+  showQuickPartsDialog
+} from "../../../apps/writer/writer-w4.js";
+import {
+  showTextEffectsDialog,
+  applyTextEffectsToSpan,
+  parseTextEffects,
+  OUTLINE_WIDTHS,
+  SHADOW_PRESETS,
+  GLOW_PRESETS
+} from "../../../apps/writer/text-effects-dialog.js";
 
 let writerInsertDialogsPromise;
 let writerMailMergeDialogsPromise;
@@ -343,6 +384,8 @@ export class WriterAdapter {
     this._commentAnchorKeyHandler = null;
     this._commentPanelKeyHandler = null;
     this.trackChangesEnabled = false;
+    this.documentProtection = { mode: "none" };
+    this._removeDocumentProtectionCommandGuard = null;
     this.trackChangesDisplayMode = "all";
     this._activeTrackChange = null;
     this._trackChangesBeforeInputHandler = null;
@@ -587,6 +630,7 @@ export class WriterAdapter {
 
   attach() {
     this._initZones();
+    this._hydrateAutomaticHyphenation();
     globalUnoBridge.attachDocument(this);
     this._applyPageSetup();
     this._bindCommentInteractions();
@@ -612,6 +656,9 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.trackChanges.rejectOne", () => this.rejectOneTrackChange());
     globalCommandBus.bindHandler("writer.trackChanges.acceptAll", () => this.acceptAllTrackChanges());
     globalCommandBus.bindHandler("writer.trackChanges.rejectAll", () => this.rejectAllTrackChanges());
+    globalCommandBus.bindHandler("writer.review.compare", () => this.compareWithDocument("compare"));
+    globalCommandBus.bindHandler("writer.review.combine", () => this.compareWithDocument("combine"));
+    globalCommandBus.bindHandler("writer.review.restrictEditing", () => this.openDocumentProtectionDialog());
     globalCommandBus.bindHandler("writer.trackChanges.displayMode", (args) => this.setTrackChangesDisplayMode(args));
     globalCommandBus.bindHandler("writer.trackChanges.displaySimple", () => this.setTrackChangesDisplayMode("simple"));
     globalCommandBus.bindHandler("writer.trackChanges.displayAll", () => this.setTrackChangesDisplayMode("all"));
@@ -642,18 +689,22 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.reference.captionInsert", (args) => this.openInsertCaptionDialog(args));
     globalCommandBus.bindHandler("writer.reference.tofInsert", (args) => this.openInsertTableOfFiguresDialog(args));
     globalCommandBus.bindHandler("writer.reference.tofUpdate", (args) => this.updateTableOfFigures(args));
+    globalCommandBus.bindHandler("writer.reference.indexMark", (args) => this._hintIfFalse(() => this.markIndexEntry(args), "Hãy chọn từ hoặc cụm từ cần đánh dấu cho chỉ mục."));
+    globalCommandBus.bindHandler("writer.reference.indexInsert", (args) => this._hintIfFalse(() => this.insertAlphabeticalIndex(args), "Tài liệu chưa có mục chỉ mục nào. Hãy dùng lệnh Đánh dấu mục trước."));
     this._bindCaptionObserver();
 
     // Bind Mail Merge (Trộn thư)
     globalCommandBus.bindHandler("writer.mailMerge.open", (args) => this.openMailMergeDataSourceDialog(args));
     globalCommandBus.bindHandler("writer.mailMerge.insertField", (args) => this.insertMergeField(args));
-    globalCommandBus.bindHandler("writer.mailMerge.ifRule", (args) => this.insertMailMergeIfRule(args));
+    globalCommandBus.bindHandler("writer.mailMerge.ifRule", (args) => this.insertMailMergeRule(args));
     globalCommandBus.bindHandler("writer.mailMerge.preview", (args) => this.toggleMailMergePreview(args));
     globalCommandBus.bindHandler("writer.mailMerge.prevRecord", (args) => this.prevMailMergeRecord(args));
     globalCommandBus.bindHandler("writer.mailMerge.nextRecord", (args) => this.nextMailMergeRecord(args));
     globalCommandBus.bindHandler("writer.mailMerge.finish", (args) => this.finishMailMerge(args));
     globalCommandBus.bindHandler("writer.mailings.envelopes", (args) => this.openEnvelopeDialog(args));
     globalCommandBus.bindHandler("writer.mailings.labels", (args) => this.openLabelsDialog(args));
+    globalCommandBus.bindHandler("writer.insert.quickParts", (args) => this.openQuickPartsDialog(args));
+    globalCommandBus.bindHandler("writer.layout.hyphenation", (args) => this.setAutomaticHyphenation(args));
     this._updateMailMergeCommandStates();
 
     // Áp dụng trang trí trang (Hình mờ & Viền trang)
@@ -706,7 +757,14 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.insert.symbol", (args) => this.insertSymbol(args));
     globalCommandBus.bindHandler("writer.insert.bookmark", (args) => this.insertBookmark(args));
     globalCommandBus.bindHandler("writer.insert.crossReference", (args) => this.insertCrossReference(args));
-    globalCommandBus.bindHandler("writer.table.fromText", (args) => this.convertTextToTable(args));
+    globalCommandBus.bindHandler("writer.table.fromText", (args) => this._hintIfFalse(() => this.convertTextToTable(args), "Hãy chọn ít nhất một đoạn văn bản ngoài bảng để chuyển thành bảng."));
+    globalCommandBus.bindHandler("writer.table.toText", (args) => this._hintIfFalse(() => this.convertTableToText(args), "Hãy đặt con trỏ vào bảng cần chuyển thành văn bản."));
+    globalCommandBus.bindHandler("writer.table.quickTables", (args) => this.insertQuickTable(args));
+    globalCommandBus.bindHandler("writer.image.crop", (args) => this._hintIfFalse(() => this.cropImage(args), "Hãy chọn hình ảnh cần cắt (Crop)."));
+    globalCommandBus.bindHandler("writer.image.corrections", (args) => this._hintIfFalse(() => this.setPictureCorrections(args), "Hãy chọn hình ảnh cần điều chỉnh độ sáng và tương phản."));
+    globalCommandBus.bindHandler("writer.image.changePicture", (args) => this._hintIfFalse(() => this.changePicture(args), "Hãy chọn hình ảnh cần đổi."));
+    globalCommandBus.bindHandler("writer.image.resetPicture", () => this._hintIfFalse(() => this.resetPicture(), "Hãy chọn hình ảnh cần đặt lại."));
+    globalCommandBus.bindHandler("writer.image.compress", (args) => this._hintIfFalse(() => this.compressPicture(args), "Hãy chọn hình ảnh cần nén dung lượng."));
 
     // Bind Office Parity Mouse & Shortcuts
     this._bindMouseAndKeyboardParity();
@@ -718,6 +776,11 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.text.changeCase", (args) => this._hintIfFalse(() => this.changeCase(args), "Hãy chọn đoạn văn bản cần đổi chữ hoa / chữ thường."));
     globalCommandBus.bindHandler("writer.text.changeCaseDialog", () => this._hintIfFalse(() => this.openChangeCaseDialog(), "Hãy chọn đoạn văn bản cần đổi chữ hoa / chữ thường."));
     globalCommandBus.bindHandler("writer.format.fontDialog", () => this.openFontDialog());
+    globalCommandBus.bindHandler("writer.format.textEffects", () => this._hintIfFalse(() => this.openTextEffectsDialog(), "Hãy chọn đoạn văn bản cần áp dụng hiệu ứng chữ."));
+    globalCommandBus.bindHandler("writer.format.textOutline", (args) => this._hintIfFalse(() => this.setTextOutline(args), "Hãy chọn đoạn văn bản cần đặt viền chữ."));
+    globalCommandBus.bindHandler("writer.format.textShadow", (args) => this._hintIfFalse(() => this.setTextShadow(args), "Hãy chọn đoạn văn bản cần đặt bóng đổ."));
+    globalCommandBus.bindHandler("writer.format.textGlow", (args) => this._hintIfFalse(() => this.setTextGlow(args), "Hãy chọn đoạn văn bản cần đặt hiệu ứng phát sáng."));
+    globalCommandBus.bindHandler("writer.format.clearTextEffects", () => this._hintIfFalse(() => this.clearTextEffects(), "Hãy chọn đoạn văn bản cần xóa hiệu ứng chữ."));
     globalCommandBus.bindHandler("writer.para.sort", () => this.sortParagraphs());
     globalCommandBus.bindHandler("writer.para.showFormattingMarks", () => this.toggleFormattingMarks());
     globalCommandBus.bindHandler("writer.para.shading", (args) => this.applyParagraphShading(args));
@@ -760,6 +823,32 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.insert.coverPage", (args) => this.openCoverPageDialog(args));
     globalCommandBus.bindHandler("writer.insert.removeCoverPage", () => this._hintIfFalse(() => this.removeCoverPage(), "Tài liệu hiện tại không có trang bìa để xóa."));
     this._bindTableCommands();
+
+    if (!this._removeDocumentProtectionCommandGuard) {
+      this._removeDocumentProtectionCommandGuard = globalCommandBus.addExecutionGuard((commandId) => {
+        const mode = this.documentProtection?.mode || "none";
+        if (mode === "none") return true;
+        const allowed = new Set([
+          "writer.review.restrictEditing", "writer.review.compare", "writer.review.combine",
+          "writer.trackChanges.previous", "writer.trackChanges.next", "writer.review.wordCount",
+          "writer.review.toggleSpellCheck", "writer.review.commentPrevious", "writer.review.commentNext",
+          "common.edit.copy", "common.edit.find", "common.edit.selectAll"
+        ]);
+        if (allowed.has(commandId)
+          || /^(?:common\.file|common\.help|writer\.file|writer\.view|writer\.help|writer\.nav)\./.test(commandId)) {
+          return true;
+        }
+        if (!/^(?:writer\.|common\.edit\.)/.test(commandId)) return true;
+        showAlertDialog({
+          title: t("writerReview.protectTitle", "Hạn chế chỉnh sửa"),
+          message: mode === "readOnly"
+            ? t("writerReview.readOnlyBlocked", "Tài liệu đang ở chế độ chỉ đọc. Hãy bỏ hạn chế chỉnh sửa để thay đổi nội dung.")
+            : t("writerReview.trackedCommandBlocked", "Tài liệu chỉ cho phép thay đổi văn bản có đánh dấu. Hãy bỏ hạn chế để dùng lệnh định dạng hoặc chèn đối tượng."),
+          type: "warning"
+        });
+        return { allowed: false, result: false };
+      });
+    }
 
     if (!this._lastSnapshot) {
       this._lastSnapshot = this._createSnapshot("Initial State");
@@ -2254,6 +2343,14 @@ export class WriterAdapter {
   }
 
   toggleTrackChanges(force) {
+    if (this.documentProtection?.mode === "trackedChanges" && force !== true && this.trackChangesEnabled) {
+      showAlertDialog({
+        title: t("writerReview.protectTitle", "Hạn chế chỉnh sửa"),
+        message: t("writerReview.trackRequired", "Tài liệu đang buộc theo dõi mọi thay đổi. Hãy bỏ hạn chế chỉnh sửa trước khi tắt theo dõi."),
+        type: "warning"
+      });
+      return true;
+    }
     this.trackChangesEnabled = typeof force === "boolean" ? force : !this.trackChangesEnabled;
     this._updateTrackChangesCommandState();
     return this.trackChangesEnabled;
@@ -2295,6 +2392,138 @@ export class WriterAdapter {
 
   rejectOneTrackChange() {
     return this._resolveCurrentTrackChange(false);
+  }
+
+  async compareWithDocument(mode = "compare") {
+    const reference = await globalUnoBridge.openWriterReferenceDocument();
+    if (reference?.status === "cancelled") return false;
+    if (reference?.status !== "ok") {
+      await showAlertDialog({
+        title: t("writerReview.compareFailedTitle", "Không thể đọc tài liệu tham chiếu"),
+        message: reference?.message || t("writerReview.compareFailed", "Hãy kiểm tra tệp và thử lại."),
+        type: "error"
+      });
+      return false;
+    }
+    let imported;
+    try {
+      imported = this._normalizeImportedHtml(
+        reference.content || "", reference.ooxmlDocumentXml, reference.ooxmlCommentsXml,
+        reference.ooxmlStylesXml, reference.ooxmlNumberingXml, reference.ooxmlHeaderXml,
+        reference.ooxmlFooterXml, reference.ooxmlHeaders, reference.ooxmlFooters,
+        reference.ooxmlRels, reference.ooxmlSettingsXml, reference.ooxmlCommentsExtendedXml
+      );
+    } catch {
+      await showAlertDialog({
+        title: t("writerReview.compareFailedTitle", "Không thể đọc tài liệu tham chiếu"),
+        message: t("writerReview.compareFailed", "Hãy kiểm tra tệp và thử lại."),
+        type: "error"
+      });
+      return false;
+    }
+    let comparison;
+    try {
+      comparison = buildParagraphComparison(
+        this._acceptedReviewHtml(this.bodyDom?.innerHTML || this.editorDom?.innerHTML || ""),
+        this._acceptedReviewHtml(imported.body || "")
+      );
+    } catch (error) {
+      await showAlertDialog({
+        title: t("writerReview.compareFailedTitle", "Không thể so sánh tài liệu"),
+        message: error?.message || t("writerReview.compareFailed", "Hãy kiểm tra tệp và thử lại."),
+        type: "error"
+      });
+      return false;
+    }
+    if (!comparison.changed) {
+      await showAlertDialog({
+        title: t("writerReview.noDifferencesTitle", "Không có khác biệt"),
+        message: t("writerReview.noDifferences", "Hai tài liệu có cùng nội dung theo từng đoạn; không tạo tài liệu kết quả."),
+        type: "info"
+      });
+      return false;
+    }
+
+    this._initZones();
+    this.bodyDom.innerHTML = comparison.html;
+    this._sourcePath = null;
+    this.sourceFileName = mode === "combine" ? "TaiLieuGop" : "TaiLieuSoSanh";
+    this.isNewApplicationDocument = true;
+    this.comments = [];
+    this.activeCommentId = null;
+    this.documentProtection = { mode: "none" };
+    this.trackChangesEnabled = true;
+    this.isDirty = true;
+    this._openedEditorDomHash = null;
+    this._wordCountSourceText = null;
+    this._wordCountSourceTextInvalidated = true;
+    this._renderCommentsPanel();
+    this._applyDocumentProtectionState();
+    this._updateTrackChangesCommandState();
+    this.clearUndoRedo();
+    this.recordSnapshot(mode === "combine" ? "writer.review.combine" : "writer.review.compare");
+    const resultName = `${this.sourceFileName}.docx`;
+    this.shell?.resetDocumentChrome?.(resultName, null, false, "");
+    this.shell?.setStatus?.(t(
+      "writerReview.compareComplete",
+      `Đã tạo tài liệu kết quả: ${comparison.insertions} đoạn chèn, ${comparison.deletions} đoạn xóa.`
+    ).replace("{insertions}", comparison.insertions).replace("{deletions}", comparison.deletions));
+    this._recomputeLivePagination?.();
+    return true;
+  }
+
+  async openDocumentProtectionDialog() {
+    const choice = await showDocumentProtectionDialog(this.documentProtection);
+    if (!choice) return false;
+    if (choice.action === "protect") {
+      try {
+        this.documentProtection = await createDocumentProtection(choice.mode, choice.password);
+      } catch (error) {
+        await showAlertDialog({
+          title: t("writerReview.protectFailedTitle", "Không thể bật hạn chế chỉnh sửa"),
+          message: error?.message || t("writerReview.protectFailed", "Không tạo được bộ xác minh mật khẩu cục bộ."),
+          type: "error"
+        });
+        return false;
+      }
+      this.isDirty = true;
+      this._applyDocumentProtectionState();
+      this.shell?.setStatus?.(t("writerReview.protected", "Đã bật hạn chế chỉnh sửa. Nhấn Ctrl+S để lưu vào DOCX."));
+      return true;
+    }
+    const valid = await verifyDocumentProtection(choice.password, this.documentProtection);
+    if (!valid) {
+      await showAlertDialog({
+        title: t("writerReview.unprotectTitle", "Bỏ hạn chế chỉnh sửa"),
+        message: t("writerReview.passwordWrong", "Mật khẩu không đúng hoặc kiểu mật khẩu của tệp chưa được hỗ trợ."),
+        type: "error"
+      });
+      return false;
+    }
+    this.documentProtection = { mode: "none" };
+    this.isDirty = true;
+    this._applyDocumentProtectionState();
+    this.shell?.setStatus?.(t("writerReview.unprotected", "Đã bỏ hạn chế chỉnh sửa. Nhấn Ctrl+S để lưu thay đổi."));
+    return true;
+  }
+
+  _applyDocumentProtectionState() {
+    const mode = this.documentProtection?.mode || "none";
+    const readOnly = mode === "readOnly";
+    for (const root of [this.bodyDom, this.headerDom, this.footerDom]) {
+      if (!root?.setAttribute) continue;
+      root.setAttribute("contenteditable", readOnly ? "false" : "true");
+      root.setAttribute("aria-readonly", readOnly ? "true" : "false");
+    }
+    this.editorDom?.classList?.toggle?.("vno-writer-readonly", readOnly);
+    if (mode === "trackedChanges") this.trackChangesEnabled = true;
+    globalCommandBus.updateState("writer.review.restrictEditing", {
+      checked: mode !== "none",
+      label: mode === "none"
+        ? t("writerReview.protectCommand", "Hạn chế chỉnh sửa")
+        : t("writerReview.unprotectCommand", "Bỏ hạn chế chỉnh sửa")
+    });
+    this._updateTrackChangesCommandState();
   }
 
   _listTrackChanges() {
@@ -2411,13 +2640,15 @@ export class WriterAdapter {
 
   _updateTrackChangesCommandState() {
     const hasChanges = !!this.bodyDom?.querySelector?.("[data-vno-change]");
+    const reviewLocked = this.documentProtection?.mode && this.documentProtection.mode !== "none";
     globalCommandBus.updateState("writer.trackChanges.toggle", { checked: this.trackChangesEnabled });
-    globalCommandBus.updateState("writer.trackChanges.acceptAll", { enabled: hasChanges });
-    globalCommandBus.updateState("writer.trackChanges.rejectAll", { enabled: hasChanges });
+    globalCommandBus.updateState("writer.trackChanges.toggle", { enabled: this.documentProtection?.mode !== "trackedChanges" });
+    globalCommandBus.updateState("writer.trackChanges.acceptAll", { enabled: hasChanges && !reviewLocked });
+    globalCommandBus.updateState("writer.trackChanges.rejectAll", { enabled: hasChanges && !reviewLocked });
     globalCommandBus.updateState("writer.trackChanges.previous", { enabled: hasChanges });
     globalCommandBus.updateState("writer.trackChanges.next", { enabled: hasChanges });
-    globalCommandBus.updateState("writer.trackChanges.acceptOne", { enabled: hasChanges });
-    globalCommandBus.updateState("writer.trackChanges.rejectOne", { enabled: hasChanges });
+    globalCommandBus.updateState("writer.trackChanges.acceptOne", { enabled: hasChanges && !reviewLocked });
+    globalCommandBus.updateState("writer.trackChanges.rejectOne", { enabled: hasChanges && !reviewLocked });
     globalCommandBus.updateState("writer.trackChanges.displayMode", { value: this.trackChangesDisplayMode || "all" });
     this._updateRevisionIndicators();
   }
@@ -3419,6 +3650,8 @@ export class WriterAdapter {
       html = this._applyOoxmlTableRowHeights(html, ooxmlDocumentXml);
       // W53: padding dọc ô = w:tcMar (LibreOffice chỉ ghi padding-bottom). Trước W44b để viền cộng lên lề thật.
       html = this._applyOoxmlTableCellMargins(html, ooxmlDocumentXml);
+      html = this._applyOoxmlImageProperties(html, ooxmlDocumentXml);
+      html = this._applyOoxmlTextEffects(html, ooxmlDocumentXml);
     }
     // W44: viền ô chỉ tô (box-shadow), không chiếm chỗ như Word
     html = this._applyPaintOnlyTableBorders(html);
@@ -3615,7 +3848,12 @@ export class WriterAdapter {
     }
 
     const trackingEnabled = /<w:trackRevisions\b/i.test(String(ooxmlSettingsXml || ""));
-    return { body: html.trim(), header, footer, page, comments, docStyles, shapes, sectionPageSetups, sectionHeadersFooters, trackingEnabled };
+    const hyphenationEnabled = /<w:autoHyphenation\b(?![^>]*\bw:val=["'](?:0|false|off)["'])/i.test(String(ooxmlSettingsXml || ""));
+    if (hyphenationEnabled && !/data-hyphenation=["']auto["']/i.test(html)) {
+      html = '<span class="vno-hyphenation-marker" data-hyphenation="auto" aria-hidden="true" contenteditable="false" style="display:none">VNO_HYPHENATION_AUTO_V1</span>' + html;
+    }
+    const documentProtection = parseDocumentProtection(ooxmlSettingsXml);
+    return { body: html.trim(), header, footer, page, comments, docStyles, shapes, sectionPageSetups, sectionHeadersFooters, trackingEnabled, hyphenationEnabled, documentProtection };
   }
 
   /**
@@ -5833,6 +6071,167 @@ export class WriterAdapter {
    * làm bảng 713→1039px, canvas 2→3 trang). d09 hàng 25.1px → ~29px (Word 28px). d07 logo 77→90px
    * (Word 90px = 2×100 twips). Padding gốc giữ ở `data-vno-lo-padding`.
    */
+  /**
+   * Phục hồi thuộc tính Cắt ảnh (Crop <a:srcRect>) và Độ sáng/Độ tương phản (Corrections <a:lum>)
+   * từ OOXML drawingml khi nhập tài liệu DOCX vào Writer.
+   */
+  _applyOoxmlImageProperties(html, ooxmlDocumentXml) {
+    if (!html || !ooxmlDocumentXml || !html.includes("<img")) return html;
+    const blipFills = [...ooxmlDocumentXml.matchAll(/<pic:blipFill\b[\s\S]*?<\/pic:blipFill>/gi)];
+    if (!blipFills.length) return html;
+
+    const imgTags = [...html.matchAll(/<img\b([^>]*)\/?>/gi)];
+    if (!imgTags.length) return html;
+
+    let modified = false;
+    let outHtml = html;
+
+    imgTags.forEach((match, index) => {
+      if (index >= blipFills.length) return;
+      const blipXml = blipFills[index][0];
+      const srcRectMatch = blipXml.match(/<a:srcRect\b([^>]*)\/?>/i);
+      const lumMatch = blipXml.match(/<a:lum\b([^>]*)\/?>/i);
+
+      if (!srcRectMatch && !lumMatch) return;
+
+      let fullTag = match[0];
+      let attrs = match[1];
+
+      // Parse crop
+      if (srcRectMatch) {
+        const sattrs = srcRectMatch[1];
+        const lm = sattrs.match(/\bl=["'](-?\d+)["']/i);
+        const tm = sattrs.match(/\bt=["'](-?\d+)["']/i);
+        const rm = sattrs.match(/\br=["'](-?\d+)["']/i);
+        const bm = sattrs.match(/\bb=["'](-?\d+)["']/i);
+        const l = lm ? Math.round(parseInt(lm[1], 10) / 1000) : 0;
+        const t = tm ? Math.round(parseInt(tm[1], 10) / 1000) : 0;
+        const r = rm ? Math.round(parseInt(rm[1], 10) / 1000) : 0;
+        const b = bm ? Math.round(parseInt(bm[1], 10) / 1000) : 0;
+        if (l > 0 || t > 0 || r > 0 || b > 0) {
+          attrs += ` data-vno-crop-l="${l}" data-vno-crop-t="${t}" data-vno-crop-r="${r}" data-vno-crop-b="${b}"`;
+          const clipStyle = `clip-path: inset(${t}% ${r}% ${b}% ${l}%);`;
+          if (/style=["']/.test(attrs)) {
+            attrs = attrs.replace(/style=["']([^"']*)["']/i, (m, s) => `style="${s.replace(/;?\s*$/, "; ")}${clipStyle}"`);
+          } else {
+            attrs += ` style="${clipStyle}"`;
+          }
+        }
+      }
+
+      // Parse luminance (brightness / contrast)
+      if (lumMatch) {
+        const lattrs = lumMatch[1];
+        const brm = lattrs.match(/\bbright=["'](-?\d+)["']/i);
+        const ctm = lattrs.match(/\bcontrast=["'](-?\d+)["']/i);
+        const bright = brm ? Math.round(parseInt(brm[1], 10) / 1000) : 0;
+        const contrast = ctm ? Math.round(parseInt(ctm[1], 10) / 1000) : 0;
+        if (bright !== 0 || contrast !== 0) {
+          attrs += ` data-vno-brightness="${bright}" data-vno-contrast="${contrast}"`;
+          const brRatio = Math.max(0, 1 + bright / 100);
+          const ctRatio = Math.max(0, 1 + contrast / 100);
+          const filterStyle = `filter: brightness(${brRatio.toFixed(2)}) contrast(${ctRatio.toFixed(2)});`;
+          if (/style=["']/.test(attrs)) {
+            attrs = attrs.replace(/style=["']([^"']*)["']/i, (m, s) => `style="${s.replace(/;?\s*$/, "; ")}${filterStyle}"`);
+          } else {
+            attrs += ` style="${filterStyle}"`;
+          }
+        }
+      }
+
+      const newTag = `<img${attrs}>`;
+      if (newTag !== fullTag) {
+        outHtml = outHtml.replace(fullTag, newTag);
+        modified = true;
+      }
+    });
+
+    return modified ? outHtml : html;
+  }
+
+  /**
+   * Phục hồi thuộc tính Hiệu ứng chữ WordML 2010 (w14:textOutline, w14:shadow, w14:glow)
+   * từ OOXML khi nhập tài liệu DOCX vào Writer.
+   */
+  _applyOoxmlTextEffects(html, ooxmlDocumentXml) {
+    if (!html || !ooxmlDocumentXml || !ooxmlDocumentXml.includes("w14:")) return html;
+    const runs = [...ooxmlDocumentXml.matchAll(/<w:r\b[^>]*>([\s\S]*?)<\/w:r>/gi)];
+    if (!runs.length) return html;
+
+    let outHtml = html;
+    let modified = false;
+
+    for (const rMatch of runs) {
+      const runContent = rMatch[1];
+      if (!runContent.includes("w14:")) continue;
+      const rPrMatch = runContent.match(/<w:rPr\b[^>]*>([\s\S]*?)<\/w:rPr>/i);
+      const tMatch = runContent.match(/<w:t\b[^>]*>([^<]+)<\/w:t>/i);
+      if (!rPrMatch || !tMatch) continue;
+
+      const rPr = rPrMatch[1];
+      const text = tMatch[1].trim();
+      if (!text) continue;
+
+      const hasOutline = rPr.includes("w14:textOutline");
+      const hasShadow = rPr.includes("w14:shadow");
+      const hasGlow = rPr.includes("w14:glow");
+
+      if (!hasOutline && !hasShadow && !hasGlow) continue;
+
+      let outlineAttr = "";
+      let strokeStyle = "";
+      if (hasOutline) {
+        const wm = rPr.match(/<w14:textOutline\b[^>]*\bw14:w=["'](\d+)["']/i);
+        const cm = rPr.match(/<w14:textOutline[\s\S]*?<w14:srgbClr\b[^>]*\bw14:val=["']([0-9a-fA-F]{6})["']/i);
+        const emu = wm ? parseInt(wm[1], 10) : 12700;
+        const color = cm ? `#${cm[1]}` : "#000000";
+        const widthEntry = OUTLINE_WIDTHS.find(w => w.emu === emu) || OUTLINE_WIDTHS[3];
+        outlineAttr = ` data-vno-outline-color="${color}" data-vno-outline-width="${emu}"`;
+        strokeStyle = `-webkit-text-stroke: ${widthEntry.px}px ${color};`;
+      }
+
+      let shadowAttr = "";
+      let shadowStyle = "";
+      if (hasShadow) {
+        const sm = rPr.match(/<w14:shadow\b([^>]*)/i);
+        const cm = rPr.match(/<w14:shadow[\s\S]*?<w14:srgbClr\b[^>]*\bw14:val=["']([0-9a-fA-F]{6})["']/i);
+        const sattrs = sm ? sm[1] : "";
+        const blurM = sattrs.match(/\bw14:blurRad=["'](\d+)["']/i);
+        const distM = sattrs.match(/\bw14:dist=["'](\d+)["']/i);
+        const dirM = sattrs.match(/\bw14:dir=["'](\d+)["']/i);
+        const blur = blurM ? blurM[1] : "50800";
+        const dist = distM ? distM[1] : "38100";
+        const dir = dirM ? dirM[1] : "5400000";
+        const color = cm ? `#${cm[1]}` : "#000000";
+        shadowAttr = ` data-vno-shadow="1" data-vno-shadow-blur="${blur}" data-vno-shadow-dist="${dist}" data-vno-shadow-dir="${dir}" data-vno-shadow-color="${color}"`;
+        shadowStyle = "2px 2px 3px rgba(0,0,0,0.5)";
+      }
+
+      let glowAttr = "";
+      let glowStyle = "";
+      if (hasGlow) {
+        const gm = rPr.match(/<w14:glow\b[^>]*\bw14:rad=["'](\d+)["']/i);
+        const cm = rPr.match(/<w14:glow[\s\S]*?<w14:srgbClr\b[^>]*\bw14:val=["']([0-9a-fA-F]{6})["']/i);
+        const rad = gm ? parseInt(gm[1], 10) : 101600;
+        const color = cm ? `#${cm[1]}` : "#2563EB";
+        const gp = GLOW_PRESETS.find(p => p.rad === rad) || GLOW_PRESETS[2];
+        glowAttr = ` data-vno-glow-color="${color}" data-vno-glow-rad="${rad}"`;
+        glowStyle = `0 0 ${gp.cssPx}px ${color}`;
+      }
+
+      const textShadows = [shadowStyle, glowStyle].filter(Boolean).join(", ");
+      const combinedStyle = [strokeStyle, textShadows ? `text-shadow: ${textShadows};` : ""].filter(Boolean).join(" ");
+      const replacementSpan = `<span class="vno-text-effect"${outlineAttr}${shadowAttr}${glowAttr} style="${combinedStyle}">${text}</span>`;
+
+      if (outHtml.includes(text) && !outHtml.includes(replacementSpan)) {
+        outHtml = outHtml.replace(text, replacementSpan);
+        modified = true;
+      }
+    }
+
+    return modified ? outHtml : html;
+  }
+
   _applyOoxmlTableCellMargins(html, ooxmlDocumentXml) {
     return this._runWithRangeVerify("tableCellMargins", incremental => this._applyOoxmlTableCellMarginsCore(html, ooxmlDocumentXml, incremental));
   }
@@ -8108,7 +8507,31 @@ export class WriterAdapter {
         return this.insertBlankPage();
 
       case "writer.table.fromText":
-        return this.convertTextToTable(args);
+        return this._hintIfFalse(() => this.convertTextToTable(args), "Hãy chọn ít nhất một đoạn văn bản ngoài bảng để chuyển thành bảng.");
+      case "writer.table.toText":
+        return this._hintIfFalse(() => this.convertTableToText(args), "Hãy đặt con trỏ vào bảng cần chuyển thành văn bản.");
+      case "writer.table.quickTables":
+        return this.insertQuickTable(args);
+      case "writer.image.crop":
+        return this._hintIfFalse(() => this.cropImage(args), "Hãy chọn hình ảnh cần cắt (Crop).");
+      case "writer.image.corrections":
+        return this._hintIfFalse(() => this.setPictureCorrections(args), "Hãy chọn hình ảnh cần điều chỉnh độ sáng và tương phản.");
+      case "writer.image.changePicture":
+        return this._hintIfFalse(() => this.changePicture(args), "Hãy chọn hình ảnh cần đổi.");
+      case "writer.image.resetPicture":
+        return this._hintIfFalse(() => this.resetPicture(), "Hãy chọn hình ảnh cần đặt lại.");
+      case "writer.image.compress":
+        return this._hintIfFalse(() => this.compressPicture(args), "Hãy chọn hình ảnh cần nén dung lượng.");
+      case "writer.format.textEffects":
+        return this._hintIfFalse(() => this.openTextEffectsDialog(), "Hãy chọn đoạn văn bản cần áp dụng hiệu ứng chữ.");
+      case "writer.format.textOutline":
+        return this._hintIfFalse(() => this.setTextOutline(args), "Hãy chọn đoạn văn bản cần đặt viền chữ.");
+      case "writer.format.textShadow":
+        return this._hintIfFalse(() => this.setTextShadow(args), "Hãy chọn đoạn văn bản cần đặt bóng đổ.");
+      case "writer.format.textGlow":
+        return this._hintIfFalse(() => this.setTextGlow(args), "Hãy chọn đoạn văn bản cần đặt hiệu ứng phát sáng.");
+      case "writer.format.clearTextEffects":
+        return this._hintIfFalse(() => this.clearTextEffects(), "Hãy chọn đoạn văn bản cần xóa hiệu ứng chữ.");
 
       case "writer.break.column":
         return this._insertColumnBreak();
@@ -8320,6 +8743,9 @@ export class WriterAdapter {
       case "writer.layout.lineNumbers":
         return this.setLineNumbers(args);
 
+      case "writer.layout.hyphenation":
+        return this.setAutomaticHyphenation(args);
+
       case "writer.shape.insert":
         return await this.insertShapeFromCommand(args);
 
@@ -8377,11 +8803,20 @@ export class WriterAdapter {
       case "writer.reference.tofUpdate":
         return this.updateTableOfFigures(args);
 
+      case "writer.reference.indexMark":
+        return Boolean(this.markIndexEntry(args));
+
+      case "writer.reference.indexInsert":
+        return Boolean(this.insertAlphabeticalIndex(args));
+
       case "writer.mailMerge.open":
         return await this.openMailMergeDataSourceDialog(args);
 
       case "writer.mailMerge.insertField":
         return Boolean(this.insertMergeField(args));
+
+      case "writer.mailMerge.ifRule":
+        return Boolean(await this.insertMailMergeRule(args));
 
       case "writer.mailMerge.preview":
         return Boolean(this.toggleMailMergePreview(args));
@@ -8400,6 +8835,9 @@ export class WriterAdapter {
 
       case "writer.mailings.labels":
         return this.openLabelsDialog(args);
+
+      case "writer.insert.quickParts":
+        return Boolean(await this.openQuickPartsDialog(args));
 
       default:
         return false;
@@ -8741,9 +9179,6 @@ export class WriterAdapter {
   }
 
   _getActiveTable() {
-    if (this.tableController?.activeTable && this.tableController.activeTable.isConnected) {
-      return this.tableController.activeTable;
-    }
     if (typeof window !== "undefined") {
       const sel = window.getSelection?.();
       if (sel && sel.rangeCount > 0) {
@@ -8754,6 +9189,9 @@ export class WriterAdapter {
           return table;
         }
       }
+    }
+    if (this.tableController?.activeTable && this.tableController.activeTable.isConnected) {
+      return this.tableController.activeTable;
     }
     return (this.bodyDom || this.editorDom)?.querySelector?.("table") || null;
   }
@@ -9199,7 +9637,18 @@ export class WriterAdapter {
    * @param {object|null} args { delimiter: tab|comma|semicolon|space|custom, custom } — không truyền thì mở hộp thoại.
    */
   async convertTextToTable(args = null) {
-    const blocks = (this._getSelectedParagraphBlocks?.() || []).filter(block => block?.parentNode && !block.closest?.("table"));
+    let blocks = (this._getSelectedParagraphBlocks?.() || []).filter(block => block?.parentNode && !block.closest?.("table"));
+    if (!blocks.length) {
+      const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+      if (sel && sel.rangeCount > 0) {
+        const node = sel.anchorNode;
+        const el = node?.nodeType === 1 ? node : node?.parentElement;
+        const p = el?.closest?.("p, h1, h2, h3, h4, h5, h6, li, div");
+        if (p && !p.closest("table") && (this.bodyDom?.contains?.(p) || this.editorDom?.contains?.(p))) {
+          blocks = [p];
+        }
+      }
+    }
     if (!blocks.length) return false;
     const lines = blocks.map(block => String(block.innerText ?? block.textContent ?? "").replace(/ /g, " ").replace(/\n+$/, ""));
     const choice = args && typeof args === "object" && args.delimiter ? args : await showTextToTableDialog(lines);
@@ -9216,6 +9665,293 @@ export class WriterAdapter {
     this.isDirty = true;
     this.recordSnapshot("writer.table.fromText");
     return true;
+  }
+
+  /**
+   * Bảng thành văn bản: chuyển bảng hiện tại → các đoạn văn bản thường theo dấu phân cách.
+   * @param {object|null} args { delimiter: tab|comma|semicolon|paragraph|custom, custom } — không truyền thì mở hộp thoại.
+   */
+  async convertTableToText(args = null) {
+    const table = (args && typeof args === "object" && args.table) || this._getActiveTable();
+    if (!table) return false;
+    const choice = args && typeof args === "object" && args.delimiter ? args : await showTableToTextDialog(table);
+    if (!choice) return null;
+    const paragraphs = convertTableToParagraphs(table, choice.delimiter, choice.custom);
+    this.flushTyping();
+    const fragment = document.createDocumentFragment();
+    for (const text of paragraphs) {
+      const p = document.createElement("p");
+      p.textContent = text;
+      fragment.appendChild(p);
+    }
+    if (!fragment.childNodes.length) {
+      const p = document.createElement("p");
+      p.innerHTML = "<br>";
+      fragment.appendChild(p);
+    }
+    table.before(fragment);
+    table.remove();
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.toText");
+    this.tableController?._syncContextualTabs(false);
+    return true;
+  }
+
+  /**
+   * Chèn bảng dựng sẵn (Quick Tables): Lịch, Danh sách công việc, Ma trận SWOT.
+   * @param {object|string|null} args { templateId: calendar|list|matrix } hoặc chuỗi templateId.
+   */
+  async insertQuickTable(args = null) {
+    let templateId = typeof args === "string" ? args : (args && typeof args === "object" ? args.templateId : null);
+    if (!templateId) {
+      templateId = await showQuickTablesDialog();
+    }
+    if (!templateId) return null;
+    const template = QUICK_TABLES.find(t => t.id === templateId);
+    if (!template) return false;
+    this.flushTyping();
+    this._initZones();
+    const html = template.buildHtml();
+    let inserted = false;
+    if (typeof document !== "undefined" && typeof document.execCommand === "function") {
+      try {
+        const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+        if (sel && sel.rangeCount > 0 && (this.bodyDom?.contains?.(sel.anchorNode) || this.editorDom?.contains?.(sel.anchorNode))) {
+          inserted = document.execCommand("insertHTML", false, html);
+        }
+      } catch {
+        inserted = false;
+      }
+    }
+    const targetDom = this.bodyDom || this.editorDom;
+    if (!inserted && targetDom) {
+      targetDom.innerHTML = (targetDom.innerHTML || "") + html;
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.quickTables");
+    return true;
+  }
+
+  _getSelectedImage() {
+    if (this.arrangeController?.selectedImage && this.arrangeController.selectedImage.isConnected) {
+      return this.arrangeController.selectedImage;
+    }
+    const selected = (this.bodyDom || this.editorDom)?.querySelector?.("img.is-vno-image-selected");
+    if (selected) return selected;
+    if (typeof window !== "undefined") {
+      const sel = window.getSelection?.();
+      if (sel && sel.rangeCount > 0) {
+        const node = sel.anchorNode;
+        const el = node?.nodeType === 1 ? node : node?.parentElement;
+        if (el?.tagName === "IMG") return el;
+        const img = el?.querySelector?.("img");
+        if (img) return img;
+      }
+    }
+    return (this.bodyDom || this.editorDom)?.querySelector?.("img") || null;
+  }
+
+  async cropImage(args = null) {
+    const img = this._getSelectedImage();
+    if (!img) return false;
+    let values = args && typeof args === "object" ? args : await showCropDialog(img);
+    if (!values) return null;
+    applyImageCrop(img, values);
+    this.isDirty = true;
+    this.recordSnapshot("writer.image.crop");
+    this.arrangeController?._updateOverlay?.();
+    return true;
+  }
+
+  async setPictureCorrections(args = null) {
+    const img = this._getSelectedImage();
+    if (!img) return false;
+    let values = args && typeof args === "object" ? args : await showPictureCorrectionsDialog(img);
+    if (!values) return null;
+    applyImageCorrections(img, values);
+    this.isDirty = true;
+    this.recordSnapshot("writer.image.corrections");
+    return true;
+  }
+
+  async changePicture(args = null) {
+    const img = this._getSelectedImage();
+    if (!img) return false;
+    if (args && typeof args === "object" && args.src) {
+      img.src = args.src;
+      this.isDirty = true;
+      this.recordSnapshot("writer.image.changePicture");
+      return true;
+    }
+    return new Promise((resolve) => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.onchange = (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            img.src = evt.target.result;
+            this.isDirty = true;
+            this.recordSnapshot("writer.image.changePicture");
+            resolve(true);
+          };
+          reader.readAsDataURL(file);
+        } else {
+          resolve(false);
+        }
+      };
+      input.click();
+    });
+  }
+
+  resetPicture() {
+    const img = this._getSelectedImage();
+    if (!img) return false;
+    resetImageProperties(img);
+    this.isDirty = true;
+    this.recordSnapshot("writer.image.resetPicture");
+    this.arrangeController?._updateOverlay?.();
+    return true;
+  }
+
+  async compressPicture(args = null) {
+    const img = this._getSelectedImage();
+    if (!img) return false;
+    const quality = args?.quality || 0.8;
+    const maxDim = args?.maxDimension || 1280;
+    const res = await compressImageElement(img, quality, maxDim);
+    if (res.success) {
+      this.shell?.setStatus?.(`Đã nén ảnh (tiết kiệm ${res.savingsPct}%)`);
+      this.isDirty = true;
+      this.recordSnapshot("writer.image.compress");
+      return true;
+    }
+    return false;
+  }
+
+  openTextEffectsDialog() {
+    if (typeof window === "undefined") return false;
+    const sel = window.getSelection?.();
+    if (!sel || sel.rangeCount === 0) return false;
+    let range = sel.getRangeAt(0);
+
+    // If collapsed, expand to current word if any
+    if (sel.isCollapsed && range) {
+      const node = sel.anchorNode;
+      if (node && node.nodeType === 3) {
+        const text = node.textContent || "";
+        const offset = sel.anchorOffset;
+        let start = offset;
+        let end = offset;
+        while (start > 0 && /\S/.test(text[start - 1])) start--;
+        while (end < text.length && /\S/.test(text[end])) end++;
+        if (end > start && typeof document !== "undefined") {
+          const newRange = document.createRange?.();
+          if (newRange) {
+            newRange.setStart(node, start);
+            newRange.setEnd(node, end);
+            sel.removeAllRanges();
+            sel.addRange(newRange);
+            range = newRange;
+          }
+        }
+      }
+    }
+
+    const selectedText = sel.toString();
+    if (!selectedText) return false;
+
+    const existingSpan = sel.anchorNode?.parentElement?.closest?.(".vno-text-effect");
+    const current = existingSpan ? parseTextEffects(existingSpan) : { outline: null, shadow: null, glow: null };
+
+    return showTextEffectsDialog({
+      initialOutline: current.outline,
+      initialShadow: current.shadow,
+      initialGlow: current.glow,
+      onApply: (effects) => {
+        this.applyTextEffects(effects);
+      }
+    });
+  }
+
+  applyTextEffects(effects = {}) {
+    if (typeof window === "undefined") return false;
+    const sel = window.getSelection?.();
+    if (!sel || sel.rangeCount === 0) return false;
+    const range = sel.getRangeAt(0);
+    const selectedText = sel.toString();
+    if (!selectedText && !range) return false;
+
+    this.flushTyping();
+
+    // Check if within existing effect span
+    let targetSpan = sel.anchorNode?.parentElement?.closest?.(".vno-text-effect");
+    if (targetSpan && targetSpan.textContent.trim() === selectedText.trim()) {
+      applyTextEffectsToSpan(targetSpan, effects);
+      this.isDirty = true;
+      this.recordSnapshot("writer.format.textEffects");
+      return true;
+    }
+
+    try {
+      const span = document.createElement("span");
+      span.className = "vno-text-effect";
+      applyTextEffectsToSpan(span, effects);
+      const contents = range.extractContents();
+      span.appendChild(contents);
+      range.insertNode(span);
+
+      sel.removeAllRanges();
+      const newRange = document.createRange();
+      newRange.selectNodeContents(span);
+      sel.addRange(newRange);
+
+      this.isDirty = true;
+      this.recordSnapshot("writer.format.textEffects");
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  setTextOutline(args = null) {
+    const color = args?.color || "#2563EB";
+    const widthEmu = args?.widthEmu || 12700;
+    return this.applyTextEffects({
+      outline: { enabled: true, color, widthEmu },
+      shadow: null,
+      glow: null
+    });
+  }
+
+  setTextShadow(args = null) {
+    const preset = args?.preset || "bottom-right";
+    const color = args?.color || "#000000";
+    return this.applyTextEffects({
+      outline: null,
+      shadow: { enabled: true, preset, color },
+      glow: null
+    });
+  }
+
+  setTextGlow(args = null) {
+    const radEmu = args?.radEmu || 101600;
+    const color = args?.color || "#2563EB";
+    return this.applyTextEffects({
+      outline: null,
+      shadow: null,
+      glow: { enabled: true, radEmu, color }
+    });
+  }
+
+  clearTextEffects() {
+    return this.applyTextEffects({
+      outline: { enabled: false },
+      shadow: { enabled: false },
+      glow: { enabled: false }
+    });
   }
 
   async openCoverPageDialog(options = {}) {
@@ -13958,6 +14694,9 @@ export class WriterAdapter {
   _fodtOfficeStylesXml(body) {
     const children = [];
     if (/<text:note[\s>]/.test(body || "")) children.push(this._fodtNotesConfigurationXml());
+    if (this.bodyDom?.querySelector?.('[data-hyphenation="auto"]')) {
+      children.push('<style:default-style style:family="paragraph"><style:paragraph-properties fo:hyphenate="true"/></style:default-style>');
+    }
     const lineXml = this._fodtLineNumberingConfigurationXml();
     if (lineXml) children.push(lineXml);
     return children.length ? `<office:styles>${children.join("")}</office:styles>` : "";
@@ -14142,6 +14881,14 @@ export class WriterAdapter {
       }
       if (node.name === "br") return "<text:line-break/>";
       if (node.name === "img") return imageXml(node);
+      if (node.name === "span" && node.attrs["data-hyphenation"] === "auto") return "";
+      if (node.name === "span" && node.attrs["data-index-entry"]) {
+        const term = node.attrs["data-index-entry"];
+        return `${inlineXml(node.children, inherited)}<text:alphabetical-index-mark text:string-value="${this._fodtEscapeXml(term)}"/>`;
+      }
+      if (node.name === "span" && node.attrs["data-merge-rule"]) {
+        return inlineXml(node.children, inherited);
+      }
       if (this._fodtIsWordArtHtmlNode(node)) {
         if (!allowWordArt) throw this._fodtError("WordArt trong header/footer chưa hỗ trợ");
         return wordArtXml(node);
@@ -14547,6 +15294,9 @@ export class WriterAdapter {
         throw this._fodtError("đổi khổ trang (master-page) phải bắt đầu bằng đoạn văn hoặc tiêu đề");
       }
       if (this._fodtIsTocBlock(node)) return this._fodtTocXml(node);
+      if (node.name === "div" && node.attrs["data-index-block"] === "true") {
+        return `<text:p>${this._fodtTextXml(this._fodtPlainLoose(node.children).trim())}</text:p>`;
+      }
       if (this._fodtIsChartHtmlNode(node)) {
         if (!allowChart) throw this._fodtError("biểu đồ trong header/footer chưa hỗ trợ");
         return `<text:p>${chartXml(node)}</text:p>`;
@@ -14559,6 +15309,7 @@ export class WriterAdapter {
     const bodyParts = [];
     for (const node of topLevel) {
       if (this._fodtIsNoteContainer(node)) continue;
+      if (node.name === "span" && node.attrs["data-hyphenation"] === "auto") continue;
       if (isSectionBreak(node)) {
         const master = masterBySection.get(node.attrs["data-vno-section-id"]);
         if (!master) throw this._fodtError(`ngắt mục '${node.attrs["data-vno-section-id"]}' không có page setup`);
@@ -15083,6 +15834,9 @@ export class WriterAdapter {
       bodyNodes.push(node);
     }
     let html = blocksHtml(bodyNodes, { allowMasterSwitch: true });
+    if (/<style:default-style\b(?=[^>]*style:family=["']paragraph["'])[\s\S]*?<style:paragraph-properties\b(?=[^>]*fo:hyphenate=["']true["'])/i.test(xml)) {
+      html = '<span class="vno-hyphenation-marker" data-hyphenation="auto" aria-hidden="true" contenteditable="false" style="display:none">VNO_HYPHENATION_AUTO_V1</span>' + html;
+    }
     html += this._fodtNoteContainerHtml("footnote", parsedFootnotes);
     html += this._fodtNoteContainerHtml("endnote", parsedEndnotes);
     this._initZones();
@@ -15102,6 +15856,7 @@ export class WriterAdapter {
     }
     this.lineNumbers = this._fodtParseLineNumbers(xml);
     this._applyLineNumbersIndicator();
+    this._hydrateAutomaticHyphenation();
     return html;
   }
 
@@ -15810,7 +16565,7 @@ export class WriterAdapter {
     const viewMarker = (activeViewMode && activeViewMode !== "printLayout")
       ? `<!--vno-view-mode:${activeViewMode}-->`
       : "";
-    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${documentPropertiesMarker(this.documentProperties)}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${nativeDiagramMarker}${nativeWordArtMarker}${nativeWatermarkMarker}${themeMarker}${viewMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
+    const fullHtml = `${pristineMarker}${newDocumentStyleMarker}${documentPropertiesMarker(this.documentProperties)}${documentProtectionMetadataComment(this.documentProtection)}${mutationMarkers}${watermarkHtml}${shapesHtml}${headerHtml}${bodyExportHtml}${footerHtml}${sectionsMetaComment}${tableEditsComment}${reviewMetaComment}${notesExport.metadataComment}${nativeChartMarker}${nativeDiagramMarker}${nativeWordArtMarker}${nativeWatermarkMarker}${themeMarker}${viewMarker}${this.lineNumbers?.enabled ? `<!--vno-line-numbers:${Math.max(1, Number(this.lineNumbers.countBy) || 1)}:${["page", "section"].includes(this.lineNumbers.restart) ? this.lineNumbers.restart : "continuous"}-->` : ""}`;
     const rawExport = `<style>${this._getPageSetupCss()}\n${this._getSectionPageCss()}${columnsCss}</style>${fullHtml}`;
     return this._sanitizeExportHtmlForWordCompat(rawExport);
   }
@@ -16079,6 +16834,7 @@ export class WriterAdapter {
       // Comments chỉ thuộc tài liệu đang mở trong phiên; file khác không dùng lại anchor cũ.
       this.comments = [];
       this.trackChangesEnabled = Boolean(imported.trackingEnabled);
+      this.documentProtection = imported.documentProtection || { mode: "none" };
       this.activeCommentId = null;
       this._renderCommentsPanel();
       if (imported.sectionPageSetups && Object.keys(imported.sectionPageSetups).length > 0) {
@@ -16171,12 +16927,14 @@ export class WriterAdapter {
       this._hydrateCitationsFromDom(result.content || imported.body);
       this._hydrateCaptionsFromDom(result.content || imported.body);
       this._hydrateWordArtFromDom();
+      this._hydrateAutomaticHyphenation();
 
       this.documentContent = this.editorDom ? this.editorDom.innerHTML : raw;
       this.sourceFileName = (result.fileName || "TaiLieu").replace(/\.[^/.]+$/, "");
       this.isDirty = false;
       this._wordCountSourceTextInvalidated = false;
       this._openedEditorDomHash = this._editorDomFingerprint();
+      this._applyDocumentProtectionState();
       this._updateTrackChangesCommandState();
       this.clearUndoRedo();
       this.shell?.resetDocumentChrome?.(result.fileName || "Tài liệu 1.docx", null, true, result.sourcePath || "");
@@ -16203,6 +16961,7 @@ export class WriterAdapter {
     this.bodyDom?.classList?.remove("vno-new-application-document");
     this.comments = [];
     this.trackChangesEnabled = false;
+    this.documentProtection = { mode: "none" };
     this.activeCommentId = null;
     this._renderCommentsPanel();
     const imported = this._normalizeImportedHtml(String(content || ""));
@@ -16284,6 +17043,7 @@ export class WriterAdapter {
     this.isNewApplicationDocument = true;
     this.comments = [];
     this.trackChangesEnabled = false;
+    this.documentProtection = { mode: "none" };
     this.activeCommentId = null;
     this._renderCommentsPanel?.();
 
@@ -20741,24 +21501,206 @@ export class WriterAdapter {
     return span;
   }
 
-  insertMailMergeIfRule() {
-    this.flushTyping(); this._initZones();
-    if (!this.bodyDom) return null;
-    loadWriterMailMergeDialogs().then(({ showMailMergeIfDialog }) => showMailMergeIfDialog({
-      fields: this.mailMergeData?.fields || [],
-      onInsert: ({ field, op, value, then, otherwise }) => {
-        const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({ "&":"&amp;", "<":"&lt;", ">":"&gt;", '"':"&quot;", "'":"&#39;" }[c]));
+  _captureW4Selection() {
+    try {
+      const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+      if (!selection?.rangeCount || !this.bodyDom?.contains?.(selection.getRangeAt(0).commonAncestorContainer)) return null;
+      return selection.getRangeAt(0).cloneRange();
+    } catch {
+      return null;
+    }
+  }
+
+  _restoreW4Selection(range) {
+    try {
+      if (!range || !range.startContainer?.isConnected || !this.bodyDom?.contains?.(range.commonAncestorContainer)) return false;
+      const selection = window.getSelection?.();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  _selectionHtml(range) {
+    if (!range || range.collapsed || typeof document === "undefined") return "";
+    try {
+      const container = document.createElement("div");
+      container.appendChild(range.cloneContents());
+      return sanitizeBuildingBlockHtml(container.innerHTML);
+    } catch {
+      return "";
+    }
+  }
+
+  async insertMailMergeRule(options = null) {
+    this.flushTyping();
+    this._initZones();
+    if (!this.bodyDom) return false;
+    options = options || {};
+    const fields = this.mailMergeData?.fields || [];
+    if (!options.type && fields.length === 0) {
+      const message = "Hãy mở Nguồn dữ liệu trước khi chèn quy tắc có điều kiện.";
+      this.shell?.setStatus?.(message);
+      this.shell?.showNotification?.({ type: "info", message });
+      return false;
+    }
+    const savedRange = this._captureW4Selection();
+    const picked = options.type ? options : await showMailMergeRuleDialog({ fields, type: options.type || "ifThenElse" });
+    if (!picked) return false;
+    if (picked.type !== "fillIn" && !String(picked.field || "").trim()) {
+      this.shell?.showNotification?.({ type: "info", message: "Hãy chọn trường dữ liệu cho quy tắc trộn thư." });
+      return false;
+    }
+    if (picked.type === "fillIn" && !String(picked.prompt || "").trim()) {
+      this.shell?.showNotification?.({ type: "info", message: "Hãy nhập lời nhắc cho quy tắc Điền vào." });
+      return false;
+    }
+
+    const field = this._escapeHtml(picked.field || "");
+    const op = this._escapeHtml(picked.op || "equals");
+    const value = this._escapeHtml(picked.value || "");
+    let html;
+    if (picked.type === "ifThenElse") {
+      html = `<span class="vno-merge-if" data-merge-if="${field}" data-op="${op}" data-value="${value}" data-then="${this._escapeHtml(picked.then || "")}" data-else="${this._escapeHtml(picked.otherwise || "")}" contenteditable="false">Nếu ${field} ${op} ${value} thì ${this._escapeHtml(picked.then || "")} khác ${this._escapeHtml(picked.otherwise || "")}</span>`;
+    } else if (picked.type === "fillIn") {
+      html = `<span class="vno-merge-rule" data-merge-rule="fillIn" data-prompt="${this._escapeHtml(picked.prompt)}" data-default="${this._escapeHtml(picked.defaultText || "")}" contenteditable="false">Điền vào: ${this._escapeHtml(picked.prompt)}</span>`;
+    } else {
+      const label = picked.type === "skipIf" ? "Bỏ qua bản ghi nếu" : "Bản ghi kế nếu";
+      html = `<span class="vno-merge-rule" data-merge-rule="${picked.type}" data-field="${field}" data-op="${op}" data-value="${value}" contenteditable="false">${label} ${field} ${op} ${value}</span>`;
+    }
+    this._restoreW4Selection(savedRange);
+    this._insertHtmlAtCursor(html);
+    this.recordSnapshot("writer.mailMerge.ifRule");
+    return true;
+  }
+
+  // Backward-compatible API used by existing integrations.
+  insertMailMergeIfRule(options = null) {
+    return this.insertMailMergeRule({ ...(options || {}), type: options?.type || "ifThenElse" });
+  }
+
+  markIndexEntry(options = null) {
+    this.flushTyping();
+    this._initZones();
+    if (!this.bodyDom) return false;
+    options = options || {};
+    const range = options.range || this._captureW4Selection();
+    const term = String(options.term || range?.toString?.() || "").replace(/\s+/g, " ").trim();
+    if (!term) return false;
+    const id = options.id || `index-entry-${Date.now()}-${Math.floor(Math.random() * 1000)}`;
+    const html = `<span class="vno-index-entry" data-index-entry="${this._escapeHtml(term)}" id="${this._escapeHtml(id)}">${this._escapeHtml(term)}</span>`;
+    if (range && !range.collapsed && typeof document !== "undefined") {
+      try {
         const span = document.createElement("span");
-        span.className = "vno-merge-if";
-        span.setAttribute("data-merge-if", field); span.setAttribute("data-op", op);
-        span.setAttribute("data-value", value); span.setAttribute("data-then", then); span.setAttribute("data-else", otherwise);
-        span.textContent = `Nếu ${field} ${op} ${value} thì ${then} ngược lại ${otherwise}`;
-        const sel = window.getSelection?.();
-        if (sel?.rangeCount) { const range = sel.getRangeAt(0); range.deleteContents(); range.insertNode(span); range.setStartAfter(span); range.collapse(true); sel.removeAllRanges(); sel.addRange(range); }
-        else this.bodyDom.appendChild(span);
-        this.isDirty = true; this.recordSnapshot("writer.mailMerge.ifRule");
+        span.className = "vno-index-entry";
+        span.setAttribute("data-index-entry", term);
+        span.id = id;
+        span.appendChild(range.extractContents());
+        range.insertNode(span);
+      } catch {
+        this._insertHtmlAtCursor(html);
       }
-    })).catch((error) => { console.error("Could not open mail merge rule dialog.", error); });
+    } else {
+      this._insertHtmlAtCursor(html);
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.reference.indexMark");
+    return { id, term };
+  }
+
+  _collectIndexEntries() {
+    this._initZones();
+    const nodes = this.bodyDom?.querySelectorAll?.("[data-index-entry]") || [];
+    return Array.from(nodes).map((node) => ({
+      term: node.getAttribute?.("data-index-entry") || node.textContent || "",
+      targetId: node.id || node.getAttribute?.("id") || "",
+      page: this._estimateHeadingPage(node)
+    }));
+  }
+
+  insertAlphabeticalIndex(options = null) {
+    this.flushTyping();
+    this._initZones();
+    if (!this.bodyDom) return false;
+    const entries = options?.entries || this._collectIndexEntries();
+    if (!entries.length) return false;
+    const html = buildIndexHtml(entries, options?.locale);
+    const existing = this.bodyDom.querySelector?.('[data-index-block="true"]');
+    if (existing) existing.outerHTML = html;
+    else this._insertHtmlAtCursor(html);
+    this.isDirty = true;
+    this.recordSnapshot("writer.reference.indexInsert");
+    return true;
+  }
+
+  async openQuickPartsDialog(options = null) {
+    this._initZones();
+    if (!this.bodyDom) return false;
+    options = options || {};
+    const store = new WriterBuildingBlockStore(options.storage);
+    const range = this._captureW4Selection();
+    const selectionHtml = options.html || this._selectionHtml(range);
+    const picked = options.action ? { ...options, html: selectionHtml || options.html } : await showQuickPartsDialog({ blocks: store.list(), selectionHtml });
+    if (!picked) return false;
+    if (picked.action === "save") {
+      const saved = store.save(picked);
+      if (!saved) {
+        this.shell?.showNotification?.({ type: "warning", message: "Không thể lưu khối dựng sẵn. Hãy chọn nội dung và nhập tên hợp lệ." });
+        return false;
+      }
+      this.shell?.showNotification?.({ type: "success", message: `Đã lưu khối dựng sẵn “${saved.name}”.` });
+      return true;
+    }
+    if (picked.action === "delete") {
+      const removed = store.remove(picked.id);
+      if (!removed) this.shell?.showNotification?.({ type: "info", message: "Không tìm thấy khối dựng sẵn cần xóa." });
+      return removed;
+    }
+    if (picked.action === "insert") {
+      const block = store.list().find((item) => item.id === picked.id);
+      if (!block) {
+        this.shell?.showNotification?.({ type: "info", message: "Khối dựng sẵn đã chọn không còn tồn tại." });
+        return false;
+      }
+      this._restoreW4Selection(range);
+      this._insertHtmlAtCursor(block.html);
+      this.recordSnapshot("writer.insert.quickParts");
+      return true;
+    }
+    return false;
+  }
+
+  _hydrateAutomaticHyphenation() {
+    this._initZones();
+    if (!this.bodyDom) return false;
+    const enabled = Boolean(this.bodyDom.querySelector?.('[data-hyphenation="auto"]'));
+    this.bodyDom.classList?.toggle?.("vno-hyphenation-auto", enabled);
+    globalCommandBus.updateState?.("writer.layout.hyphenation", { value: enabled ? "auto" : "none", checked: enabled });
+    return enabled;
+  }
+
+  setAutomaticHyphenation(options = null) {
+    this._initZones();
+    if (!this.bodyDom) return false;
+    const value = typeof options === "string" ? options : (options?.value || options?.mode || (options?.enabled === false ? "none" : "auto"));
+    const enabled = value !== "none" && value !== false;
+    let marker = this.bodyDom.querySelector?.('[data-hyphenation="auto"]');
+    if (enabled && !marker) {
+      const html = '<span class="vno-hyphenation-marker" data-hyphenation="auto" aria-hidden="true" contenteditable="false" style="display:none">VNO_HYPHENATION_AUTO_V1</span>';
+      if (this.bodyDom.insertAdjacentHTML) this.bodyDom.insertAdjacentHTML("afterbegin", html);
+      else this.bodyDom.innerHTML = html + (this.bodyDom.innerHTML || "");
+      marker = this.bodyDom.querySelector?.('[data-hyphenation="auto"]');
+    } else if (!enabled && marker) {
+      marker.remove?.();
+      if (marker.parentNode?.removeChild) marker.parentNode.removeChild(marker);
+    }
+    this.bodyDom.classList?.toggle?.("vno-hyphenation-auto", enabled);
+    if (enabled && !this.bodyDom.getAttribute?.("lang")) this.bodyDom.setAttribute?.("lang", "vi");
+    globalCommandBus.updateState?.("writer.layout.hyphenation", { value: enabled ? "auto" : "none", checked: enabled });
+    this.isDirty = true;
+    this.recordSnapshot("writer.layout.hyphenation");
     return true;
   }
 
@@ -20946,7 +21888,7 @@ export class WriterAdapter {
 
     const templateHtml = this.bodyDom.innerHTML || "";
 
-    const hasField = templateHtml.includes("vno-merge-field") || templateHtml.includes("data-field") || templateHtml.includes("data-merge-if");
+    const hasField = templateHtml.includes("vno-merge-field") || templateHtml.includes("data-field") || templateHtml.includes("data-merge-if") || templateHtml.includes("data-merge-rule");
     if (!hasField) {
       if (typeof document !== "undefined" && typeof document.createElement === "function" && document.body) {
         showAlertDialog({
@@ -20966,9 +21908,20 @@ export class WriterAdapter {
     // in real DOCX/PDF export.
     const PAGE_BREAK_HTML = `<p style="page-break-before:always; break-before:page; border-top:2px dashed #94a3b8; margin:24px 0; text-align:center; color:#94a3b8; font-size:11px; user-select:none;">--- Phân tách trang (Page Break) ---</p>`;
 
-    const copies = records.map((record) => {
-      return replaceMergeFields(templateHtml, record);
+    const copies = [];
+    records.forEach((record, index) => {
+      const resolved = resolveMailMergeRecord(templateHtml, record, records[index + 1] || null);
+      if (!resolved.skip) copies.push(replaceMergeFields(templateHtml, resolved.record));
     });
+
+    if (copies.length === 0) {
+      showAlertDialog({
+        title: finishTitle,
+        message: t("writerDialogs.mailMerge.allRecordsSkipped", "Tất cả bản ghi đều bị loại bởi quy tắc Bỏ qua bản ghi nếu."),
+        type: "warning"
+      });
+      return false;
+    }
 
     const mergedHtml = copies.join(`\n${PAGE_BREAK_HTML}\n`);
 
@@ -21002,7 +21955,12 @@ export class WriterAdapter {
   _renderMergePreview(record) {
     if (!this.bodyDom) return;
     if (this._mailMergeTemplateHtml != null) {
-      this.bodyDom.innerHTML = replaceMergeFields(this._mailMergeTemplateHtml, record);
+      const records = this._getActiveMailMergeRecords();
+      const index = Math.max(0, records.indexOf(record));
+      const resolved = resolveMailMergeRecord(this._mailMergeTemplateHtml, record, records[index + 1] || null);
+      this.bodyDom.innerHTML = resolved.skip
+        ? `<p class="vno-merge-skipped">${t("writerDialogs.mailMerge.previewSkipped", "Bản ghi này bị bỏ qua theo quy tắc trộn thư.")}</p>`
+        : replaceMergeFields(this._mailMergeTemplateHtml, resolved.record);
       return;
     }
     const fields = this.bodyDom.querySelectorAll

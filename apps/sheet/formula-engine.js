@@ -1,6 +1,10 @@
+import { expandStructuredReferences } from "./structured-references.js";
+import { EXTRA_FUNCTIONS } from "./formula-functions-extra.js";
+import { formatByCode, VI_LOCALE } from "./excel-format-code.js";
 import { NumberFormatter } from "./number-formatter.js";
 import { vndInWords } from "./vnd-words.js";
 import { VI_FORMULA_CATALOG, VI_FORMULA_MAP } from "./formula-definitions-vi.js";
+import { evaluateExpression, evaluateArrayExpression, MatrixValue, generalNumberText } from "./formula-expression.js";
 
 /**
  * 3T Sheet — Enterprise Spreadsheet Formula Calculation Engine
@@ -161,12 +165,21 @@ export const SUPPORTED_FUNCTION_NAMES = new Set([
 ]);
 export const SUPPORTED_FUNCTION_CATALOG = EXTENDED_FUNCTION_CATALOG.filter(item => SUPPORTED_FUNCTION_NAMES.has(item.name));
 
+const THREE_D_UNSUPPORTED = Object.fromEntries([
+  ...["SUMIF", "COUNTIF", "AVERAGEIF", "SUMIFS", "COUNTIFS", "AVERAGEIFS", "MAXIFS", "MINIFS", "ROWS", "COLUMNS", "COUNTBLANK", "SUBTOTAL", "AGGREGATE", "VLOOKUP", "HLOOKUP", "INDEX", "MATCH", "LOOKUP", "ROW", "COLUMN", "TRANSPOSE", "OFFSET", "AREAS", "FREQUENCY", "MMULT"].map(name => [name, "#VALUE!"]),
+  ...["SUMPRODUCT", "CORREL", "MODE", "COVAR", "SLOPE", "INTERCEPT", "RSQ", "PEARSON", "STEYX", "FORECAST", "SUMX2MY2", "SUMX2PY2", "SUMXMY2"].map(name => [name, "#REF!"]),
+  ...["ABS", "LEN", "CONCATENATE", "INT", "SQRT", "LEFT", "RIGHT", "LOWER", "VALUE", "EXP", "LN", "SIGN", "CODE", "CHAR", "PROPER", "ROUNDUP", "ROUNDDOWN", "POWER", "MOD", "LOG", "LOG10", "FLOOR", "CEILING", "SIN", "COS", "TAN", "ASIN", "ACOS", "ATAN", "FACT", "UPPER", "TRIM", "MID", "SUBSTITUTE", "REPLACE", "REPT", "EXACT", "NOT"].map(name => [name, "#REF!"]),
+  ["N", "#VALUE!"], ["ISEVEN", "#VALUE!"], ["ISODD", "#VALUE!"], ["ISNUMBER", false], ["ISTEXT", false], ["ISBLANK", false], ["ISLOGICAL", false], ["ISERROR", true], ["TYPE", 16]
+]);
+
 export class FormulaEngine {
   /**
    * @param {Map<string, {val: string, formula: string, style: Object}> | (() => Map<string, any>)} cellsData
    */
-  constructor(cellsData, namedRangeResolver = null, sheetResolver = null, currentSheetResolver = null, sheetNamesResolver = null) {
+  constructor(cellsData, namedRangeResolver = null, sheetResolver = null, currentSheetResolver = null, sheetNamesResolver = null, tableResolver = null) {
     this.cellsData = cellsData;
+    this.tableResolver = tableResolver;
+    this._evalContext = null;
     this.namedRangeResolver = namedRangeResolver;
     this.sheetResolver = sheetResolver;
     this.currentSheetResolver = currentSheetResolver;
@@ -424,7 +437,17 @@ export class FormulaEngine {
     if (reference.sheets) {
       const values = [];
       for (const sheet of reference.sheets) {
-        for (const coord of this.expandRange(reference.ref)) values.push(this._getRangeCellValue(coord, sheet));
+        let ref = reference.ref;
+        const colRange = ref.match(/^([A-Z]+):([A-Z]+)$/);
+        const rowRange = ref.match(/^(\d+):(\d+)$/);
+        if (colRange) ref = `${colRange[1]}1:${colRange[2]}${this._maxUsedRow(sheet)}`;
+        else if (rowRange) {
+          let maxCol = 0;
+          const map = typeof this.sheetResolver === "function" ? this.sheetResolver(sheet) : null;
+          for (const key of map?.keys?.() || []) { const m = String(key).match(/^([A-Z]+)\d+$/); if (m) maxCol = Math.max(maxCol, this._columnIndex(m[1]) + 1); }
+          ref = `A${rowRange[1]}:${this._columnName(Math.max(0, maxCol - 1))}${rowRange[2]}`;
+        }
+        for (const coord of this.expandRange(ref)) values.push(this._getRangeCellValue(coord, sheet));
       }
       return values;
     }
@@ -488,6 +511,9 @@ export class FormulaEngine {
         values.push(...this._referenceValues(arg));
       } else if (typeof arg === "string" && /^[A-Z]+\d+$/i.test(arg.trim())) {
         values.push(this._getRangeCellValue(arg.trim()));
+      } else if (typeof arg === "string" && Number.isNaN(Number(arg)) && /[+\-*/^&%()<>=]/.test(arg)) {
+        // Biểu thức trong đối số (7/2, A1*2, 10%): tính trước, giống Excel.
+        values.push(this._resolveSingleValue(arg));
       } else {
         values.push(arg);
       }
@@ -654,7 +680,13 @@ export class FormulaEngine {
       this._parsedReferenceCache.set(parseKey, parsed);
       return parsed;
     }
-    const threeD = raw.match(/^(?:'((?:[^']|'')+)'|([^':!]+))\s*:\s*(?:'((?:[^']|'')+)'|([^'!]+))!\s*(\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?)$/i);
+    const REF_PART = "(\\$?[A-Z]+\\$?\\d+(?::\\$?[A-Z]+\\$?\\d+)?|\\$?[A-Z]+:\\$?[A-Z]+|\\$?\\d+:\\$?\\d+)";
+    const threeD = raw.match(new RegExp("^(?:'((?:[^']|'')+)'|([^':!]+))\\s*:\\s*(?:'((?:[^']|'')+)'|([^'!]+))!\\s*" + REF_PART + "$", "i"))
+      || (() => {
+        // Dạng Excel ghi: 'Trang đầu:Trang cuối'!A1 (một cặp nháy bao cả hai tên)
+        const m = raw.match(new RegExp("^'((?:[^'!:]|'')+):((?:[^'!:]|'')+)'!\\s*" + REF_PART + "$", "i"));
+        return m ? [m[0], null, m[1], null, m[2], m[3]] : null;
+      })();
     if (threeD) {
       const first = (threeD[1] ? threeD[1].replace(/''/g, "'") : threeD[2]).trim();
       const last = (threeD[3] ? threeD[3].replace(/''/g, "'") : threeD[4]).trim();
@@ -1051,12 +1083,6 @@ export class FormulaEngine {
   _lookupApproximateAscending(candidates, lookup) {
     if (!candidates || candidates.length === 0) return null;
 
-    const firstKey = candidates[0].key;
-    if (this._isError(firstKey)) return { error: firstKey };
-    if (this._compareLookupValues(firstKey, lookup) > 0) {
-      return null;
-    }
-
     let low = 0;
     let high = candidates.length - 1;
     let best = -1;
@@ -1232,9 +1258,32 @@ export class FormulaEngine {
    * @param {string} formula
    * @returns {string|number}
    */
-  evaluate(formula) {
+  /** Gắn bộ phân giải bảng cho tham chiếu cấu trúc Table1[Cột]. */
+  setTableResolver(resolver) {
+    this.tableResolver = resolver || null;
+    this.clearCache();
+  }
+
+  /**
+   * Tính công thức. `context` = { sheet, coord } của ô đang tính (cần cho [@Cột] và tên bảng ngầm định).
+   */
+  evaluate(formula, context = null) {
+    const previousContext = this._evalContext;
+    if (context) this._evalContext = context;
+    try {
+      return this._evaluateCore(formula);
+    } finally {
+      this._evalContext = previousContext;
+    }
+  }
+
+  _evaluateCore(formula) {
     if (!formula || !formula.startsWith("=")) return formula;
     let expr = formula.substring(1).trim();
+    if (this.tableResolver && expr.includes("[")) {
+      const sheet = typeof this.currentSheetResolver === "function" ? this.currentSheetResolver() : "";
+      expr = expandStructuredReferences(expr, { sheet, ...(this._evalContext || {}) }, this.tableResolver);
+    }
 
     // Excel prefix '+': tiền tố nhập công thức, không ép về số học
     while (expr.startsWith("+")) {
@@ -1247,7 +1296,11 @@ export class FormulaEngine {
         return expr.toUpperCase();
       }
 
-      // 1. Phép toán nối chuỗi ký tự: &
+      // 1. Phép toán nối chuỗi ký tự: & (bộ phân tích biểu thức trước, đường cũ làm dự phòng)
+      if (expr.includes("&")) {
+        const joined = evaluateExpression(this, expr);
+        if (joined.ok) return joined.value instanceof String ? String(joined.value) : joined.value;
+      }
       const concatParts = this._splitConcat(expr);
       if (concatParts) {
         let errorResult = null;
@@ -1263,6 +1316,12 @@ export class FormulaEngine {
         });
         if (errorResult) return errorResult;
         return evaluated.join("");
+      }
+
+      // 1b. Hằng đơn: ="abc", =TRUE, =+"3"
+      if (/^[+-]*\s*(?:"|TRUE\b|FALSE\b|#)/i.test(expr)) {
+        const literal = evaluateExpression(this, expr, true);
+        if (literal.ok) return literal.value instanceof String ? String(literal.value) : literal.value;
       }
 
       // 2. Tham chiếu ô đơn: =A1, =$A$1, ='Sheet1'!A1
@@ -1281,7 +1340,13 @@ export class FormulaEngine {
         }
       }
 
-      // 3. Phân tích hàm có tên: TÊN_HÀM(đối số...)
+      // 3. Biểu thức hỗn hợp hàm + toán tử (=SUM(A1:A3)*2, =MAX(..)-MIN(..)): bộ phân tích thứ tự ưu tiên Excel.
+      if (!this._isSingleFunctionCall(expr)) {
+        const compound = evaluateExpression(this, expr);
+        if (compound.ok) return compound.value instanceof String ? String(compound.value) : compound.value;
+      }
+
+      // 3b. Phân tích hàm có tên: TÊN_HÀM(đối số...)
       const funcMatch = expr.match(/^([A-Z0-9_.]+)\s*\((.*)\)$/i);
       if (funcMatch) {
         const funcName = funcMatch[1].replace(/^_xlfn\./i, "").toUpperCase();
@@ -1361,10 +1426,50 @@ export class FormulaEngine {
     return args;
   }
 
+  /**
+   * Đối số gõ trực tiếp (TRUE, FALSE, "3") của SUM/PRODUCT/AVERAGE/MIN/MAX: Excel đếm giá trị logic và
+   * chuỗi số, còn chuỗi không đổi được thành số cho #VALUE! (khác với ô tham chiếu, nơi chữ/logic bị bỏ qua).
+   */
+  _literalNumberArgs(args) {
+    const numbers = [];
+    const rest = [];
+    for (const arg of args) {
+      const text = typeof arg === "string" ? arg.trim() : "";
+      if (/^TRUE$/i.test(text)) { numbers.push(1); continue; }
+      if (/^FALSE$/i.test(text)) { numbers.push(0); continue; }
+      if (/^"(?:[^"]|"")*"$/.test(text)) {
+        const inner = text.slice(1, -1).replace(/""/g, '"');
+        const parsed = this._parseNumberOrCurrency(inner);
+        if (parsed === null || parsed === undefined || Number.isNaN(parsed)) return { error: "#VALUE!" };
+        numbers.push(parsed);
+        continue;
+      }
+      rest.push(arg);
+    }
+    return { numbers, rest };
+  }
+
+  /** Hàm không hỗ trợ tham chiếu 3-D (Sheet1:Sheet3!A1): Excel trả lỗi cụ thể (đối chiếu Excel 2016). */
+  _threeDArgumentError(funcName, args) {
+    const group = THREE_D_UNSUPPORTED[funcName];
+    if (group === undefined) return null;
+    for (const arg of args) {
+      if (typeof arg !== "string" || !arg.includes("!") || !arg.includes(":")) continue;
+      const parsed = this._parseReference(arg.trim());
+      if (parsed && parsed.sheets) return group;
+    }
+    return null;
+  }
+
   _executeFunction(funcName, args) {
+    const threeDError = this._threeDArgumentError(funcName, args);
+    if (threeDError !== null) return threeDError;
     switch (funcName) {
       // Toán học
       case "SUM": {
+        const lit = this._literalNumberArgs(args);
+        if (lit.error) return lit.error;
+        args = lit.rest;
         const rawValues = this.collectValues(args);
         const err = rawValues.find(v => this._isError(v));
         if (err) return err;
@@ -1372,49 +1477,78 @@ export class FormulaEngine {
           .filter(v => !(v && v.isTextCell))
           .map(v => this._parseNumberOrCurrency(v))
           .filter(v => v !== null && !isNaN(v));
-        const sum = nums.reduce((acc, v) => acc + v, 0);
+        const sum = nums.reduce((acc, v) => acc + v, 0) + lit.numbers.reduce((acc, v) => acc + v, 0);
         return sum;
       }
 
       case "PRODUCT": {
+        const lit = this._literalNumberArgs(args);
+        if (lit.error) return lit.error;
+        args = lit.rest;
         const rawValues = this.collectValues(args);
         const err = rawValues.find(v => this._isError(v));
         if (err) return err;
-        const nums = this.collectNumericValues(args);
+        const nums = this.collectNumericValues(args).concat(lit.numbers);
         return nums.reduce((acc, v) => acc * v, 1);
       }
 
       case "SUMPRODUCT": {
         if (!args.length) return "#VALUE!";
-        const arrays = args.map(arg => this._rangeValues(arg));
+        // Mỗi đối số là một mảng: vùng ô hoặc biểu thức mảng như (A1:A9>1)*B1:B9. Phần tử không phải số tính là 0.
+        const arrays = [];
+        for (const arg of args) {
+          const text = arg.trim();
+          const isPlainRange = /^(?:(?:'[^']+'|[^!(),+\-*/^&<>=]+)!)?\$?[A-Z]+\$?\d+:\$?[A-Z]+\$?\d+$/i.test(text) || /^\$?[A-Z]+:\$?[A-Z]+$/i.test(text);
+          let flat;
+          if (isPlainRange) {
+            flat = this._rangeValues(arg);
+          } else {
+            const evaluated = evaluateArrayExpression(this, text);
+            if (!evaluated.ok) flat = this._rangeValues(arg);
+            else if (evaluated.value instanceof MatrixValue) flat = evaluated.value.rows.flat();
+            else flat = [evaluated.value];
+          }
+          arrays.push(flat);
+        }
         if (arrays.some(values => values.includes("#REF!"))) return "#REF!";
+        const firstError = arrays.flat().find(v => this._isError(v));
+        if (firstError) return firstError;
         if (arrays.some(values => values.length !== arrays[0].length)) return "#VALUE!";
-        return arrays[0].reduce((sum, _, index) => sum + arrays.reduce((product, values) => product * (Number(values[index]) || 0), 1), 0);
+        return arrays[0].reduce((sum, _, index) => sum + arrays.reduce((product, values) => product * (typeof values[index] === "number" ? values[index] : 0), 1), 0);
       }
 
       case "AVERAGE": {
+        const lit = this._literalNumberArgs(args);
+        if (lit.error) return lit.error;
+        args = lit.rest;
         const rawValues = this.collectValues(args);
         const err = rawValues.find(v => this._isError(v));
         if (err) return err;
-        const nums = this.collectNumericValues(args);
-        if (nums.length === 0) return 0;
+        const nums = this.collectNumericValues(args).concat(lit.numbers);
+        if (nums.length === 0) return "#DIV/0!";
         const sum = nums.reduce((acc, v) => acc + v, 0);
         return sum / nums.length;
       }
 
       case "MIN": {
+        const lit = this._literalNumberArgs(args);
+        if (lit.error) return lit.error;
+        args = lit.rest;
         const rawValues = this.collectValues(args);
         const err = rawValues.find(v => this._isError(v));
         if (err) return err;
-        const nums = this.collectNumericValues(args);
+        const nums = this.collectNumericValues(args).concat(lit.numbers);
         return nums.length ? Math.min(...nums) : 0;
       }
 
       case "MAX": {
+        const lit = this._literalNumberArgs(args);
+        if (lit.error) return lit.error;
+        args = lit.rest;
         const rawValues = this.collectValues(args);
         const err = rawValues.find(v => this._isError(v));
         if (err) return err;
-        const nums = this.collectNumericValues(args);
+        const nums = this.collectNumericValues(args).concat(lit.numbers);
         return nums.length ? Math.max(...nums) : 0;
       }
 
@@ -2256,7 +2390,9 @@ export class FormulaEngine {
       case "CONCAT":
       case "CONCATENATE": {
         const vals = this.collectValues(args);
-        return vals.join("");
+        const bad = vals.find(v => this._isError(v));
+        if (bad) return bad;
+        return vals.map(v => (typeof v === "number" ? generalNumberText(v) : typeof v === "boolean" ? (v ? "TRUE" : "FALSE") : String(v ?? ""))).join("");
       }
 
       case "UPPER": {
@@ -2270,7 +2406,8 @@ export class FormulaEngine {
       }
 
       case "LEN": {
-        const text = String(this._resolveSingleValue(args[0]) || "");
+        const lenSource = this._resolveSingleValue(args[0]);
+        const text = typeof lenSource === "number" ? generalNumberText(lenSource) : String(lenSource || "");
         return text.length;
       }
 
@@ -2292,50 +2429,12 @@ export class FormulaEngine {
       }
 
       case "TEXT": {
-        const value = this._resolveSingleValue(args[0]);
-        const format = String(this._resolveSingleValue(args[1]) || "").toLowerCase();
-        const numberFormats = {
-          "0": { decimals: 0, useThousands: false },
-          "0.0": { decimals: 1, useThousands: false },
-          "0.00": { decimals: 2, useThousands: false },
-          "0.000": { decimals: 3, useThousands: false },
-          "#,##0": { decimals: 0, useThousands: true },
-          "#,##0.00": { decimals: 2, useThousands: true }
-        };
-        if (numberFormats[format]) {
-          const parsed = NumberFormatter.parseNumber(value);
-          return parsed === null ? "#VALUE!" : NumberFormatter.formatNumber(parsed, numberFormats[format]).text;
-        }
-        if (format === "0%" || format === "0.00%") {
-          const parsed = NumberFormatter.parseNumber(value);
-          if (parsed === null) return "#VALUE!";
-          return NumberFormatter.formatPercentage(parsed, { decimals: format === "0%" ? 0 : 2 }).text;
-        }
-        if (format.includes("₫")) {
-          const numericPattern = format.replace(/₫/g, "").trim();
-          const config = numberFormats[numericPattern];
-          const parsed = NumberFormatter.parseNumber(value);
-          if (!config || parsed === null) return "#VALUE!";
-          return NumberFormatter.formatCurrency(parsed, {
-            ...config,
-            currencySymbol: "₫",
-            symbolPosition: format.indexOf("₫") > format.search(/[#0]/) ? "after" : "before"
-          }).text;
-        }
-        const dateFormats = new Set(["dd/mm/yyyy", "mm/dd/yyyy", "dd-mm-yyyy", "yyyy-mm-dd", "dd mmmm yyyy"]);
-        if (dateFormats.has(format)) {
-          const date = this._parseDate(value);
-          if (!date) return "#VALUE!";
-          if (format === "dd mmmm yyyy") {
-            const vietnameseMonths = ["tháng Một", "tháng Hai", "tháng Ba", "tháng Tư", "tháng Năm", "tháng Sáu", "tháng Bảy", "tháng Tám", "tháng Chín", "tháng Mười", "tháng Mười Một", "tháng Mười Hai"];
-            return `${String(date.getDate()).padStart(2, "0")} ${vietnameseMonths[date.getMonth()]} ${date.getFullYear()}`;
-          }
-          if (format === "mm/dd/yyyy") {
-            return `${String(date.getMonth() + 1).padStart(2, "0")}/${String(date.getDate()).padStart(2, "0")}/${date.getFullYear()}`;
-          }
-          return NumberFormatter.formatDate(date, { dateFormat: format }).text;
-        }
-        return String(value);
+        if (args.length !== 2) return "#VALUE!";
+        const textValue = this._resolveSingleValue(args[0]);
+        if (this._isError(textValue)) return textValue;
+        const textFormat = this._resolveSingleValue(args[1]);
+        if (this._isError(textFormat)) return textFormat;
+        return this._formatTextFunction(textValue, String(textFormat ?? ""));
       }
 
       case "SUBSTITUTE": {
@@ -2954,13 +3053,43 @@ export class FormulaEngine {
         return typeof val === "number" ? val : (Number(val) || 0);
       }
 
-      default:
+      default: {
+        const extra = EXTRA_FUNCTIONS[funcName];
+        if (extra) {
+          const value = extra(this, args, funcName);
+          return value instanceof String ? String(value) : value;
+        }
         return `#NAME? (${funcName})`;
+      }
     }
   }
 
+  /** TEXT(giá trị, mã định dạng) theo mã định dạng Excel (excel-format-code.js). */
+  _formatTextFunction(rawValue, code) {
+    let value = rawValue instanceof String ? String(rawValue) : rawValue;
+    if (typeof value === "string" && value !== "" && !(rawValue && rawValue.isTextCell)) {
+      const numeric = this._parseNumberOrCurrency(value);
+      if (numeric !== null && Number.isFinite(numeric)) value = numeric;
+      else {
+        const date = this._parseDate?.(value);
+        if (date) value = Math.round((Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) - Date.UTC(1899, 11, 30)) / 86400000);
+      }
+    }
+    if (value === "" || value === null || value === undefined) value = typeof rawValue === "number" ? rawValue : "";
+    if (code.trim() === "") return "";
+    return formatByCode(value, code, { locale: this.textLocale || VI_LOCALE, general: n => NumberFormatter.formatGeneralNumber(n) });
+  }
   _evaluateCondition(condStr) {
     if (!condStr) return false;
+    const parsedCondition = evaluateExpression(this, String(condStr));
+    if (parsedCondition.ok) {
+      const value = parsedCondition.value instanceof String ? String(parsedCondition.value) : parsedCondition.value;
+      if (this._isError(value)) return value;
+      if (typeof value === "boolean") return value;
+      if (typeof value === "number") return value !== 0;
+      if (value === "") return false;
+      return "#VALUE!";
+    }
     const match = condStr.match(/(>=|<=|!=|<>|>|<|=)(.*)/);
     if (match) {
       const op = match[1];
@@ -3034,7 +3163,12 @@ export class FormulaEngine {
     token = token.trim();
     if (this._isError(token)) return token;
     if (token.startsWith('"') && token.endsWith('"')) {
-      return token.slice(1, -1);
+      // Hằng chuỗi Excel: "" bên trong là một dấu nháy kép ("a""b" -> a"b).
+      return /^"(?:[^"]|"")*"$/.test(token) ? token.slice(1, -1).replace(/""/g, '"') : token.slice(1, -1);
+    }
+    if (token.includes("!") && token.includes(":") && /^(?:'[^']+:[^']+'|[^'!:]+:[^'!]+)!/.test(token)) {
+      const threeD = this._parseReference(token);
+      if (threeD && threeD.sheets) return "#REF!";
     }
     if (/^(?:(?:'[^']+'|[^!]+)!)?\$?[A-Z]+\$?\d+$/i.test(token)) {
       const reference = this._parseReference(token);
@@ -3061,7 +3195,11 @@ export class FormulaEngine {
       }
     }
 
-    // Hỗ trợ biểu thức số học trong đối số hàm (ví dụ: 0.08/12, 12*5, A1/12)
+    // Hỗ trợ biểu thức số học trong đối số hàm (ví dụ: 0.08/12, 12*5, A1/12, SUM(A1:A3)*2)
+    if (/[+\-*/^()%&<>=]/.test(token) && !this._isSingleFunctionCall(token)) {
+      const compound = evaluateExpression(this, token);
+      if (compound.ok) return compound.value instanceof String ? String(compound.value) : compound.value;
+    }
     if (/[+\-*/^()]/.test(token)) {
       let arithmeticToken = token;
       const functionCall = /\b([A-Z][A-Z0-9_.]*)\s*\(([^()]*)\)/gi;

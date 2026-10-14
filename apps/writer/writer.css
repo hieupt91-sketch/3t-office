@@ -12,6 +12,35 @@
   overflow: hidden;
 }
 
+/* WORD-W4 — automatic hyphenation, index marks and generated index. */
+.vno-writer-body.vno-hyphenation-auto,
+.vno-writer-body.vno-hyphenation-auto p,
+.vno-writer-body.vno-hyphenation-auto li {
+  -webkit-hyphens: auto;
+  hyphens: auto;
+  overflow-wrap: normal;
+}
+
+.vno-index-entry {
+  text-decoration: underline dotted color-mix(in srgb, var(--vno-primary, #0f4c81) 55%, transparent);
+  text-underline-offset: 3px;
+}
+
+.vno-index-block {
+  margin: 18pt 0;
+  padding: 12pt;
+  border: 1px solid var(--vno-border-default, #cbd5e1);
+  background: var(--vno-bg-surface, #fff);
+}
+
+.vno-index-title { font-size: 16pt; font-weight: 700; text-align: center; margin-bottom: 10pt; }
+.vno-index-item { display: flex; gap: 6px; line-height: 1.65; }
+.vno-index-leader { flex: 1; border-bottom: 1px dotted currentColor; transform: translateY(-5px); }
+.vno-index-pages { min-width: 24px; text-align: right; }
+.vno-w4-form { display: grid; gap: 10px; min-width: 420px; }
+.vno-w4-form label { display: grid; gap: 4px; font-size: 13px; }
+.vno-w4-form input, .vno-w4-form select { min-height: 32px; }
+
 .vno-writer-workspace {
   display: flex;
   flex: 1;

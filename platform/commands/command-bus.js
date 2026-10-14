@@ -15,6 +15,8 @@ export class CommandBus {
     this._handlers = new Map();
     /** @type {Set<Function>} */
     this._listeners = new Set();
+    /** @type {Set<Function>} guards may block a command with an explicit UI reason. */
+    this._executionGuards = new Set();
     /** @type {Array<{commandId: string, timestamp: number, args: any}>} */
     this._history = [];
     this._maxHistory = 100;
@@ -93,6 +95,12 @@ export class CommandBus {
     return this._handlers.has(commandId);
   }
 
+  addExecutionGuard(guard) {
+    if (typeof guard !== "function") throw new Error("Command guard must be a function.");
+    this._executionGuards.add(guard);
+    return () => this._executionGuards.delete(guard);
+  }
+
   /**
    * Cập nhật trạng thái lệnh (enabled, checked, visible...)
    * @param {string} commandId 
@@ -137,6 +145,19 @@ export class CommandBus {
   async execute(commandId, args = null) {
     const def = this._definitions.get(commandId);
     const state = this._states.get(commandId);
+
+    for (const guard of this._executionGuards) {
+      const pendingVerdict = guard(commandId, args, state);
+      // Keep the established synchronous dispatch semantics when a guard can
+      // decide immediately.  Only async guards should defer handler dispatch.
+      const verdict = pendingVerdict && typeof pendingVerdict.then === "function"
+        ? await pendingVerdict
+        : pendingVerdict;
+      if (verdict === false) return false;
+      if (verdict && typeof verdict === "object" && verdict.allowed === false) {
+        return verdict.result !== undefined ? verdict.result : false;
+      }
+    }
 
     if (state && !state.enabled) {
       console.warn(`[CommandBus] Lệnh ${commandId} hiện đang bị vô hiệu hóa (disabled).`);

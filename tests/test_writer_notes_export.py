@@ -425,6 +425,31 @@ class WriterMergeFieldExportTests(unittest.TestCase):
         self.assertEqual(doc.count('w:fldCharType="end"'), 2)
         self.assertEqual(doc.count('w:fldCharType="separate"'), 2)
         self.assertLess(doc.index(' IF </w:instrText>'), doc.index(' MERGEFIELD City </w:instrText>'))
+
+    def test_w4_record_rules_and_fill_in_become_native_fields(self):
+        html = ('<span data-merge-rule="skipIf" data-field="Status" data-op="equals" data-value="Bỏ">skip-marker</span>'
+                '<span data-merge-rule="nextIf" data-field="Next" data-op="notEquals" data-value="Không">next-marker</span>'
+                '<span data-merge-rule="fillIn" data-prompt="Nhập mã" data-default="A-01">fill-marker</span>')
+        body = ''.join(f'<w:p><w:r><w:t>{text}</w:t></w:r></w:p>' for text in ('skip-marker', 'next-marker', 'fill-marker'))
+        doc = _read(patcher.postprocess_writer_if_ref_fields(_docx(body), source_html=html), 'word/document.xml')
+        self.assertIn(' SKIPIF ', doc)
+        self.assertIn(' NEXTIF ', doc)
+        self.assertIn(' FILLIN &quot;Nhập mã&quot; \\d &quot;A-01&quot; ', doc)
+        self.assertIn(' MERGEFIELD Status ', doc)
+        self.assertIn(' MERGEFIELD Next ', doc)
+        self.assertNotIn('skip-marker', doc)
+        self.assertNotIn('next-marker', doc)
+
+    def test_w4_automatic_hyphenation_updates_docx_settings(self):
+        docx = _docx('<w:p><w:r><w:t>Nội dung</w:t></w:r></w:p>')
+        out = patcher.postprocess_writer_if_ref_fields(
+            docx,
+            source_html='<span data-hyphenation="auto" style="display:none">VNO_HYPHENATION_AUTO_V1</span><p>Nội dung</p>',
+        )
+        settings = _read(out, 'word/settings.xml')
+        self.assertIn('<w:autoHyphenation/>', settings)
+        self.assertEqual(settings.count('<w:autoHyphenation'), 1)
+
     def test_cross_reference_anchor_becomes_ref_hyperlink_field(self):
         body = '<w:p><w:bookmarkStart w:id="4" w:name="Heading_1"/><w:hyperlink w:anchor="Heading_1"><w:r><w:t>Mục 1</w:t></w:r></w:hyperlink></w:p>'
         html = '<a class="vno-cross-ref" data-xref-type="heading" href="#Heading_1">Mục 1</a>'

@@ -1,4 +1,5 @@
 /** 3T Sheet data transformations. All mutations stay local and are undoable. */
+import { translateFormulaRefs } from "./formula-ref-shift.js";
 export class SheetDataTools {
   constructor(grid) { this.grid = grid; }
 
@@ -143,9 +144,10 @@ export class SheetDataTools {
     if (sortedRows.every((row, index) => row === sourceRows[index])) return { sorted: 0 };
 
     return this.snapshotMutation(() => {
+      // Chỉ các cột trong vùng sắp xếp được di chuyển; công thức dịch tham chiếu tương đối như Excel.
       const rowSnapshots = sortedRows.map(sourceRow => {
         const rowData = {};
-        this.grid.cols.forEach(col => {
+        allColumns.forEach(col => {
           const item = this.grid.cellsData.get(`${col}${sourceRow}`);
           if (item) rowData[col] = structuredClone(item);
         });
@@ -153,10 +155,13 @@ export class SheetDataTools {
       });
       rowSnapshots.forEach((rowData, index) => {
         const targetRow = firstDataRow + index;
-        this.grid.cols.forEach(col => {
+        const sourceRow = sortedRows[index];
+        allColumns.forEach(col => {
           const key = `${col}${targetRow}`;
-          if (rowData[col]) this.grid.cellsData.set(key, rowData[col]);
-          else this.grid.cellsData.delete(key);
+          if (rowData[col]) {
+            if (rowData[col].formula && targetRow !== sourceRow) rowData[col].formula = translateFormulaRefs(rowData[col].formula, targetRow - sourceRow, 0);
+            this.grid.cellsData.set(key, rowData[col]);
+          } else this.grid.cellsData.delete(key);
         });
       });
       return { sorted: sortedRows.length };

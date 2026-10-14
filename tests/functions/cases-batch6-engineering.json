@@ -1,0 +1,22 @@
+{
+  "cells": {},
+  "formulas": [
+    "=BIN2DEC(\"1010\")", "=BIN2DEC(\"1111111111\")", "=BIN2DEC(\"1000000000\")", "=BIN2DEC(\"102\")", "=BIN2DEC(\"\")", "=BIN2HEX(\"1111\")", "=BIN2HEX(\"1111111111\")", "=BIN2HEX(\"101\",4)", "=BIN2OCT(\"1101\")", "=BIN2OCT(\"1111111111\")",
+    "=OCT2DEC(\"17\")", "=OCT2DEC(\"7777777777\")", "=OCT2BIN(\"17\")", "=OCT2BIN(\"17\",8)", "=OCT2HEX(\"377\")", "=OCT2BIN(\"7777777000\")", "=OCT2DEC(\"8\")",
+    "=HEX2DEC(\"FF\")", "=HEX2DEC(\"FFFFFFFFFF\")", "=HEX2DEC(\"ff\")", "=HEX2BIN(\"1F\")", "=HEX2BIN(\"FFFFFFFFFF\")", "=HEX2OCT(\"FF\")", "=HEX2OCT(\"1F\",5)", "=HEX2DEC(\"G\")", "=HEX2BIN(\"3FF\")", "=HEX2BIN(\"200\")",
+    "=DEC2BIN(9)", "=DEC2BIN(9,8)", "=DEC2BIN(-5)", "=DEC2BIN(511)", "=DEC2BIN(512)", "=DEC2BIN(-512)", "=DEC2BIN(-513)", "=DEC2BIN(0)", "=DEC2BIN(9,3)", "=DEC2BIN(9.9)",
+    "=DEC2OCT(58)", "=DEC2OCT(58,5)", "=DEC2OCT(-100)", "=DEC2HEX(255)", "=DEC2HEX(255,4)", "=DEC2HEX(-1)", "=DEC2HEX(549755813887)", "=DEC2HEX(549755813888)", "=DEC2HEX(-549755813888)",
+    "=BITAND(13,25)", "=BITOR(13,25)", "=BITXOR(13,25)", "=BITLSHIFT(4,2)", "=BITRSHIFT(16,2)", "=BITLSHIFT(4,-1)", "=BITAND(-1,5)", "=BITAND(1.5,5)", "=BITLSHIFT(1,60)", "=BITOR(281474976710655,1)", "=BITAND(281474976710656,1)",
+    "=DELTA(5,4)", "=DELTA(5,5)", "=DELTA(0.5)", "=GESTEP(5,4)", "=GESTEP(3,4)", "=GESTEP(-1)", "=GESTEP(0)",
+    "=ERF(1)", "=ERF(0.5,1.5)", "=ERF(-1)", "=ERF(0)", "=ERF.PRECISE(0.745)", "=ERFC(1)", "=ERFC(-1)", "=ERFC.PRECISE(-1)", "=ERFC(0)", "=ERF(2.5)", "=ERFC(3)",
+    "=COMPLEX(3,4)", "=COMPLEX(3,-4)", "=COMPLEX(0,1)", "=COMPLEX(0,-1)", "=COMPLEX(5,0)", "=COMPLEX(0,0)", "=COMPLEX(1.5,2.25,\"j\")", "=COMPLEX(1,1,\"k\")", "=COMPLEX(0,5)", "=COMPLEX(-2,-1)",
+    "=IMREAL(\"3+4i\")", "=IMAGINARY(\"3+4i\")", "=IMAGINARY(\"4\")", "=IMREAL(\"-i\")", "=IMAGINARY(\"-i\")", "=IMREAL(\"5j\")", "=IMABS(\"3+4i\")", "=IMABS(\"1\")", "=IMARGUMENT(\"3+4i\")", "=IMARGUMENT(\"-1\")", "=IMARGUMENT(\"0\")", "=IMCONJUGATE(\"3+4i\")", "=IMCONJUGATE(\"5\")", "=IMREAL(\"abc\")", "=IMABS(\"1+\")",
+    "=IMSUM(\"3+4i\",\"5-3i\")", "=IMSUM(\"3+4i\",\"5-3i\",\"1\")", "=IMSUB(\"13+4i\",\"5+3i\")", "=IMPRODUCT(\"3+4i\",\"5-3i\")", "=IMPRODUCT(\"1+2i\",\"3+4i\",\"5+6i\")", "=IMDIV(\"-238+240i\",\"10+24i\")", "=IMDIV(\"1\",\"0\")", "=IMDIV(\"5\",\"2\")",
+    "=IMEXP(\"1+i\")", "=IMEXP(\"0\")", "=IMLN(\"3+4i\")", "=IMLN(\"0\")", "=IMLOG10(\"3+4i\")", "=IMLOG2(\"3+4i\")", "=IMSQRT(\"1+i\")", "=IMSQRT(\"4\")", "=IMPOWER(\"2+3i\",3)", "=IMPOWER(\"2+3i\",0.5)", "=IMPOWER(\"2\",2)", "=IMPOWER(\"0\",2)", "=IMPOWER(\"1+i\",-1)",
+    "=IMSIN(\"1+i\")", "=IMCOS(\"1+i\")", "=IMTAN(\"1+i\")", "=IMSINH(\"1+i\")", "=IMCOSH(\"1+i\")", "=IMSEC(\"1+i\")", "=IMCOT(\"1+i\")", "=IMSECH(\"1+i\")", "=IMSIN(\"0\")", "=IMCOS(\"0\")",
+    "=CONVERT(1,\"lbm\",\"kg\")", "=CONVERT(1,\"kg\",\"lbm\")", "=CONVERT(68,\"F\",\"C\")", "=CONVERT(100,\"C\",\"F\")", "=CONVERT(0,\"C\",\"K\")", "=CONVERT(1,\"mi\",\"km\")", "=CONVERT(5,\"ft\",\"m\")", "=CONVERT(1,\"hr\",\"mn\")", "=CONVERT(1,\"day\",\"sec\")", "=CONVERT(1,\"yr\",\"day\")",
+    "=CONVERT(1,\"atm\",\"Pa\")", "=CONVERT(1,\"atm\",\"mmHg\")", "=CONVERT(1,\"mmHg\",\"Pa\")", "=CONVERT(1,\"Torr\",\"Pa\")", "=CONVERT(1,\"atm\",\"Torr\")", "=CONVERT(1,\"N\",\"lbf\")", "=CONVERT(1,\"J\",\"cal\")", "=CONVERT(1,\"cal\",\"J\")", "=CONVERT(1,\"eV\",\"J\")", "=CONVERT(1,\"HP\",\"W\")", "=CONVERT(1,\"gal\",\"l\")", "=CONVERT(1,\"l\",\"gal\")", "=CONVERT(1,\"m3\",\"l\")", "=CONVERT(1,\"ft3\",\"l\")", "=CONVERT(1,\"in2\",\"cm2\")",
+    "=CONVERT(1,\"mi2\",\"km2\")", "=CONVERT(1,\"ha\",\"m2\")", "=CONVERT(1,\"kbyte\",\"byte\")", "=CONVERT(1,\"kibyte\",\"byte\")", "=CONVERT(1,\"Mbit\",\"kbit\")", "=CONVERT(1,\"mph\",\"m/s\")", "=CONVERT(1,\"kn\",\"m/s\")", "=CONVERT(1,\"T\",\"ga\")", "=CONVERT(1,\"km\",\"m\")", "=CONVERT(1,\"mm\",\"cm\")", "=CONVERT(1,\"g\",\"mg\")", "=CONVERT(5,\"kg\",\"g\")", "=CONVERT(1,\"nm\",\"m\")", "=CONVERT(1,\"GW\",\"W\")",
+    "=CONVERT(1,\"m\",\"kg\")", "=CONVERT(1,\"xyz\",\"m\")", "=CONVERT(1,\"C\",\"F\")", "=CONVERT(37,\"C\",\"K\")", "=CONVERT(98.6,\"F\",\"K\")", "=CONVERT(100,\"Rank\",\"K\")", "=CONVERT(1,\"in3\",\"cm3\")", "=CONVERT(1,\"yd\",\"in\")", "=CONVERT(1,\"Nmi\",\"m\")", "=CONVERT(1,\"stone\",\"lbm\")"
+  ]
+}

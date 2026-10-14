@@ -82,17 +82,61 @@ export const WRITER_HELP_ENTRIES = [
     id: "writer.mailMerge.ifRule.docx",
     app: "writer",
     commandIds: ["writer.mailMerge.ifRule"],
-    title: "Lưu quy tắc trộn thư và tham chiếu chéo vào tệp DOCX",
-    summary: "Quy tắc Nếu...Thì...Ngược lại được lưu thành trường IF của tệp DOCX; tham chiếu chéo tới dấu trang được lưu thành trường REF, để các phần mềm soạn thảo văn bản khác cập nhật được.",
+    title: "Chèn quy tắc khi trộn thư",
+    summary: "Điều khiển từng bản ghi bằng Bỏ qua bản ghi nếu, Bản ghi kế nếu, Nếu…Thì…Khác hoặc Điền vào; quy tắc được áp dụng khi xem trước và khi hoàn tất trộn.",
     ribbon: { tab: "Trộn thư", tabId: "mailings", group: "Viết & Chèn trường" },
     keywords: ["IF", "REF", "DOCX", "trộn thư", "quy tắc", "tham chiếu chéo", "dấu trang"],
     steps: [
-      "Mở tab Trộn thư, nhóm Viết & Chèn trường, bấm nút Quy tắc để mở hộp thoại Quy tắc Nếu...Thì...Ngược lại.",
-      "Chọn trường dữ liệu từ danh sách tại mục Trường. Nếu trường bị bỏ trống khi bấm Chèn, hộp thoại hiển thị cảnh báo lỗi «Vui lòng chọn trường dữ liệu.» và giữ hộp thoại mở để chọn lại.",
-      "Chọn phép so sánh tại mục Toán tử (bằng, khác, chứa, lớn hơn, nhỏ hơn, rỗng, không rỗng), sau đó nhập Giá trị so sánh, nội dung chèn khi đúng điều kiện tại mục Thì và nội dung chèn khi sai tại mục Ngược lại.",
-      "Dùng phím Tab để di chuyển giữa các trường nhập và nút bấm; nhấn Chèn (hoặc phím Enter khi nút Chèn nhận tiêu điểm) để hoàn tất. Nhấn phím Esc hoặc nút Hủy để đóng hộp thoại mà không thay đổi.",
-      "Khi lưu tệp dạng DOCX (Tệp > Lưu thành), quy tắc được ghi thành trường IF chuẩn; mở bằng các phần mềm soạn thảo khác có thể chọn trường và cập nhật bình thường.",
-      "Để tham chiếu tới tiêu đề hoặc dấu trang, mở tab Tham chiếu > nhóm Chú thích ảnh > Tham chiếu chéo; khi lưu DOCX, tham chiếu chéo trở thành trường REF trỏ tới dấu trang nội bộ."
+      "Mở tab Trộn thư, nhóm Viết & Chèn trường, bấm Quy tắc. Trước đó hãy mở Nguồn dữ liệu để danh sách Trường dữ liệu có nội dung.",
+      "Chọn Bỏ qua bản ghi nếu để loại bản ghi thỏa điều kiện, hoặc Bản ghi kế nếu để dùng dữ liệu của bản ghi kế tiếp khi điều kiện đúng.",
+      "Chọn Nếu…Thì…Khác, chọn Trường dữ liệu và Điều kiện, rồi nhập nội dung khi đúng và khi sai. Chọn Điền vào để đặt Lời nhắc nhập cùng Nội dung mặc định.",
+      "Dùng phím Tab để đi qua mọi ô và nút (giữ phím Shift khi nhấn Tab để đi ngược lại). Bấm Chèn để đặt quy tắc tại con trỏ; Esc đóng hộp thoại mà không thay đổi.",
+      "Bật Xem trước kết quả để kiểm tra từng bản ghi. Bản ghi bị bỏ qua có thông báo rõ; Hoàn tất & Trộn không tạo trang cho bản ghi đó."
+    ]
+  },
+  {
+    id: "writer.reference.index",
+    app: "writer",
+    commandIds: ["writer.reference.indexMark", "writer.reference.indexInsert"],
+    title: "Đánh dấu và chèn chỉ mục chữ cái",
+    summary: "Đánh dấu thuật ngữ trong tài liệu rồi tạo danh sách chữ cái có số trang ước lượng và liên kết quay lại từng thuật ngữ.",
+    ribbon: { tab: "Tham chiếu", tabId: "references", group: "Chỉ mục" },
+    keywords: ["chỉ mục", "đánh dấu mục", "mark entry", "index", "thuật ngữ", "số trang"],
+    steps: [
+      "Bôi đen một từ hoặc cụm từ trong trang soạn thảo. Mở tab Tham chiếu, nhóm Chỉ mục và bấm Đánh dấu mục.",
+      "Lặp lại với các thuật ngữ khác. Dấu gạch chấm dưới từ cho biết mục đã được đánh dấu nhưng không làm thay đổi nội dung đọc.",
+      "Đặt con trỏ ở nơi cần danh sách, thường ở cuối tài liệu, rồi bấm Chèn chỉ mục. Các mục trùng được gộp và sắp xếp theo bảng chữ cái tiếng Việt.",
+      "Nếu chưa đánh dấu mục nào, ứng dụng thông báo lý do và không chèn một khối rỗng. Có thể hoàn tác thao tác bằng Ctrl+Z."
+    ]
+  },
+  {
+    id: "writer.insert.quickParts",
+    app: "writer",
+    commandIds: ["writer.insert.quickParts"],
+    title: "Lưu và chèn khối dựng sẵn",
+    summary: "Lưu đoạn nội dung thường dùng ngay trên máy để chèn lại khi không có mạng; định dạng cơ bản của vùng chọn được giữ lại.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Văn bản" },
+    keywords: ["khối dựng sẵn", "chèn nhanh", "quick parts", "đoạn mẫu", "nội dung dùng lại", "offline"],
+    steps: [
+      "Bôi đen đoạn cần dùng lại, mở tab Chèn, nhóm Văn bản và bấm Khối dựng sẵn.",
+      "Nhập Tên khối và Nhóm rồi bấm Lưu vùng chọn. Khối được lưu cục bộ trên máy; nội dung tài liệu không được gửi ra mạng.",
+      "Để dùng lại, đặt con trỏ tại vị trí cần chèn, mở Khối dựng sẵn, chọn một dòng trong danh sách và bấm Chèn.",
+      "Chọn một khối rồi bấm Xóa để bỏ khỏi thư viện. Nếu vùng chọn trống hoặc tên trống, nút lưu bị vô hiệu hoặc hộp thoại nêu rõ nội dung cần bổ sung."
+    ]
+  },
+  {
+    id: "writer.layout.hyphenation",
+    app: "writer",
+    commandIds: ["writer.layout.hyphenation"],
+    title: "Bật ngắt từ tự động",
+    summary: "Tự đặt dấu gạch nối khi từ dài chạm mép dòng, dựa trên ngôn ngữ của tài liệu; nội dung gốc không bị chèn ký tự thủ công.",
+    ribbon: { tab: "Bố cục", tabId: "layout", group: "Thiết lập trang" },
+    keywords: ["ngắt từ", "gạch nối", "hyphenation", "tự động", "bố cục"],
+    steps: [
+      "Mở tab Bố cục, nhóm Thiết lập trang và mở danh sách Ngắt từ.",
+      "Chọn Ngắt từ: Tự động để trình bày các từ dài cân đối hơn ở cuối dòng. Tài liệu tiếng Việt được gắn ngôn ngữ tiếng Việt nếu chưa có ngôn ngữ.",
+      "Chọn Ngắt từ: Không để tắt. Thao tác chỉ thay đổi bố cục hiển thị và lưu; chữ trong tài liệu vẫn giữ nguyên để tìm kiếm và sao chép chính xác.",
+      "Có thể nhấn Ctrl+Z để hoàn tác lần đổi gần nhất; khi mở lại tài liệu, trạng thái tự động được khôi phục từ dấu thiết lập trong tài liệu."
     ]
   },
   {
@@ -167,6 +211,38 @@ export const WRITER_HELP_ENTRIES = [
       "Trong hộp thoại, chọn Tách văn bản tại: Tab, Dấu phẩy, Dấu chấm phẩy, Khoảng trắng hoặc Ký tự khác (nhập ký tự vào ô hiện ra). Dòng chữ bên dưới cho biết số hàng và số cột sẽ tạo.",
       "Bấm Tạo bảng (hoặc Enter). Bảng thay thế đoạn đã chọn; dòng nào ít ô hơn được bù ô trống. Bấm Hủy hoặc Esc để thoát mà không đổi gì.",
       "Bấm Ctrl+Z để hoàn tác: các đoạn văn bản gốc được khôi phục nguyên vẹn."
+    ]
+  },
+  {
+    id: "writer.table.quickTables",
+    app: "writer",
+    commandIds: ["writer.table.quickTables"],
+    title: "Chèn bảng dựng sẵn (Quick Tables)",
+    summary: "Chèn nhanh các mẫu bảng được thiết kế sẵn gồm Lịch tháng, Danh sách công việc và Ma trận phân tích SWOT vào văn bản.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Bảng biểu" },
+    keywords: ["bảng dựng sẵn", "quick tables", "mẫu bảng", "lịch tháng", "danh sách công việc", "ma trận swot"],
+    steps: [
+      "Đặt con trỏ văn bản tại vị trí muốn chèn bảng.",
+      "Mở tab Chèn trên thanh ribbon, tại nhóm Bảng biểu, bấm Bảng dựng sẵn.",
+      "Hộp thoại thư viện hiển thị các mẫu bảng: Lịch tháng, Danh sách công việc, Ma trận phân tích (SWOT).",
+      "Chọn mẫu bảng phù hợp rồi bấm Chèn bảng (hoặc nhấp đúp vào mẫu).",
+      "Bảng mẫu được chèn vào văn bản với đầy đủ định dạng viền, màu nền và nội dung gợi ý; bạn có thể nhấp vào từng ô để chỉnh sửa số liệu."
+    ]
+  },
+  {
+    id: "writer.table.toText",
+    app: "writer",
+    commandIds: ["writer.table.toText"],
+    title: "Chuyển bảng thành văn bản",
+    summary: "Chuyển bảng hiện tại thành các đoạn văn bản thường, phân tách nội dung giữa các ô bằng dấu Tab, dấu phẩy, dấu chấm phẩy hoặc dấu đoạn.",
+    ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Dữ liệu" },
+    keywords: ["bảng thành văn bản", "chuyển bảng", "table to text", "tách bảng", "bỏ bảng"],
+    steps: [
+      "Đặt con trỏ vào bên trong bảng hoặc chọn bảng cần chuyển thành văn bản.",
+      "Mở tab ngữ cảnh Bố cục Bảng trên thanh ribbon, tại nhóm Dữ liệu, bấm Bảng thành văn bản.",
+      "Trong hộp thoại, chọn dấu phân cách muốn dùng để tách các ô: Dấu Tab, Dấu phẩy, Dấu chấm phẩy, Dấu đoạn hoặc Ký tự khác.",
+      "Bấm Chuyển đổi (hoặc Enter). Khung bảng được gỡ bỏ và toàn bộ nội dung trong ô trở thành văn bản thường theo đúng dấu phân cách đã chọn.",
+      "Bấm Ctrl+Z nếu muốn hoàn tác để khôi phục lại bảng nguyên vẹn."
     ]
   },
   {
@@ -254,6 +330,38 @@ export const WRITER_HELP_ENTRIES = [
       "Nhấn Chấp nhận một để giữ phần chèn / bỏ phần xóa của thay đổi đang chọn, rồi tự chuyển tới thay đổi kế tiếp.",
       "Nhấn Từ chối một để bỏ phần chèn / khôi phục phần xóa của thay đổi đang chọn.",
       "Chấp nhận thay đổi và Từ chối thay đổi áp dụng cho toàn bộ tài liệu. Nhấn Ctrl+S để lưu DOCX: các thay đổi chưa duyệt giữ tác giả và thời gian, mở lại trong Doc hoặc ứng dụng đọc DOCX khác vẫn duyệt được. PDF dùng bản đã chấp nhận, không còn màu đánh dấu."
+    ]
+  },
+  {
+    id: "writer.review.compareCombine",
+    app: "writer",
+    commandIds: ["writer.review.compare", "writer.review.combine"],
+    title: "So sánh và gộp tài liệu",
+    summary: "Đối chiếu tài liệu đang mở với một tệp khác theo từng đoạn, rồi tạo một tài liệu kết quả mới. Đoạn bị bỏ được đánh dấu là xóa; đoạn mới được đánh dấu là chèn để bạn duyệt, chấp nhận hoặc từ chối.",
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "So sánh & Bảo vệ" },
+    keywords: ["so sánh tài liệu", "gộp tài liệu", "đối chiếu", "compare", "combine", "revision", "chèn xóa"],
+    steps: [
+      "Mở tài liệu dùng làm bản gốc, rồi chọn tab Đánh giá, nhóm So sánh & Bảo vệ.",
+      "Nhấn So sánh tài liệu để tạo bản đối chiếu, hoặc Gộp tài liệu để đưa khác biệt của tệp được chọn vào cùng luồng duyệt thay đổi.",
+      "Trong hộp chọn tệp của máy, chọn tài liệu đã sửa. Toàn bộ việc đọc và so sánh chạy cục bộ, không gửi nội dung ra mạng.",
+      "Doc tạo một tài liệu chưa lưu: đoạn màu đỏ/gạch ngang là nội dung bị xóa, đoạn màu xanh/gạch chân là nội dung được chèn. Nếu hai tài liệu giống nhau, ứng dụng báo rõ và không thay tài liệu đang mở.",
+      "Dùng Thay đổi trước/sau, Chấp nhận hoặc Từ chối trong nhóm Theo dõi thay đổi. Nhấn Ctrl+S để lưu tài liệu kết quả thành DOCX; các dấu chèn/xóa chưa duyệt vẫn được giữ."
+    ]
+  },
+  {
+    id: "writer.review.restrictEditing",
+    app: "writer",
+    commandIds: ["writer.review.restrictEditing"],
+    title: "Hạn chế chỉnh sửa",
+    summary: "Đặt tài liệu ở chế độ chỉ đọc hoặc buộc mọi chỉnh sửa phải được theo dõi. Mật khẩu chỉ dùng để bỏ hạn chế chỉnh sửa; tính năng này không mã hóa tệp và không đặt mật khẩu mở tệp.",
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "So sánh & Bảo vệ" },
+    keywords: ["hạn chế chỉnh sửa", "chỉ đọc", "bảo vệ tài liệu", "mật khẩu bỏ bảo vệ", "restrict editing", "read only"],
+    steps: [
+      "Mở tab Đánh giá, nhóm So sánh & Bảo vệ, rồi nhấn Hạn chế chỉnh sửa.",
+      "Chọn Chỉ cho phép chỉnh sửa có theo dõi thay đổi nếu người nhận vẫn được sửa nhưng mọi chèn/xóa phải có dấu; chọn Chỉ đọc nếu không muốn nội dung bị sửa.",
+      "Nhập cùng một mật khẩu ở hai ô và nhấn Đồng ý. Nhấn Ctrl+S để ghi trạng thái bảo vệ chuẩn vào DOCX.",
+      "Muốn mở khóa, nhấn lại nút đang mang nhãn Bỏ hạn chế chỉnh sửa, nhập mật khẩu rồi nhấn Đồng ý. Mật khẩu sai được báo rõ và tài liệu vẫn được bảo vệ.",
+      "Mật khẩu bỏ bảo vệ không phải mật khẩu mở tệp. DOCX vẫn mở được để đọc; không dùng tính năng này khi yêu cầu mã hóa nội dung."
     ]
   },
   {
@@ -1454,6 +1562,23 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.image.tools",
+    app: "writer",
+    commandIds: ["writer.image.crop", "writer.image.corrections", "writer.image.changePicture", "writer.image.resetPicture", "writer.image.compress"],
+    title: "Công cụ xử lý hình ảnh (Cắt ảnh, Độ sáng, Đổi ảnh, Đặt lại và Nén ảnh)",
+    summary: "Bộ công cụ định dạng hình ảnh nâng cao: cắt ảnh theo 4 cạnh, chỉnh độ sáng và tương phản, đổi ảnh khác, đặt lại định dạng và nén dung lượng ảnh trực tiếp trong văn bản.",
+    ribbon: { tab: "Định dạng Hình ảnh", tabId: "pictureFormat", group: "Điều chỉnh / Cắt ảnh" },
+    keywords: ["cắt ảnh", "crop", "độ sáng", "tương phản", "đổi ảnh", "đặt lại ảnh", "nén ảnh", "công cụ ảnh", "picture tools", "corrections"],
+    steps: [
+      "Nhấp chuột vào hình ảnh trong tài liệu để chọn ảnh và kích hoạt tab ngữ cảnh Định dạng Hình ảnh trên thanh ribbon.",
+      "Cắt ảnh (Crop): Bấm nút Cắt ảnh tại nhóm Cắt ảnh hoặc nhập tỷ lệ % cắt bớt ở 4 mép (Trái, Trên, Phải, Dưới). Thông số cắt được lưu chuẩn xác vào tệp văn bản.",
+      "Chỉnh độ sáng và tương phản: Bấm Độ sáng & Tương phản tại nhóm Điều chỉnh, kéo thanh trượt hoặc chọn các mức mẫu nhanh (-20%, +20%) để cải thiện chất lượng ảnh.",
+      "Đổi ảnh khác: Bấm Đổi ảnh để thay thế bằng tệp hình ảnh mới trên máy tính mà vẫn giữ nguyên kích thước và kiểu bố cục ngắt dòng hiện tại.",
+      "Đặt lại ảnh: Bấm Đặt lại ảnh để xóa toàn bộ vết cắt, khôi phục màu sắc và kích thước gốc của hình ảnh.",
+      "Nén ảnh: Bấm Nén ảnh để tối ưu hóa kích thước dữ liệu và độ phân giải của ảnh, giúp giảm đáng kể dung lượng tệp tài liệu."
+    ]
+  },
+  {
     id: "writer.list.restartContinue",
     app: "writer",
     commandIds: ["writer.list.restartNumbering", "writer.list.continueNumbering"],
@@ -1925,6 +2050,25 @@ export const WRITER_HELP_ENTRIES = [
     "Trong bảng Thay/Bằng, bấm Thêm dòng để khai báo cặp mới, ví dụ «teh» thành «the»; bấm nút × ở cuối dòng để xóa. Mỗi dòng phải có đủ hai giá trị, nếu không hộp thoại sẽ báo lỗi và không đóng.",
     "Bấm Đồng ý để lưu lựa chọn trên máy. Khi soạn thảo, cặp thay thế và viết hoa được áp dụng lúc gõ dấu cách hoặc dấu câu; ©, ½, – và ngoặc thông minh được đổi ngay khi mẫu hoàn tất.",
     "Với Unikey, EVKey hoặc kiểu gõ Telex, hãy gõ bình thường. Doc bỏ qua sự kiện khi bộ gõ còn đang ghép chữ/đặt dấu và chỉ sửa từ đã chốt, vì vậy chuỗi tiếng Việt đang gõ dở không bị can thiệp."
+  ]
+},
+{
+  id: "writer.format.textEffects",
+  app: "writer",
+  commandIds: ["writer.format.textEffects", "writer.format.textOutline", "writer.format.textShadow", "writer.format.textGlow", "writer.format.clearTextEffects"],
+  title: "Hiệu ứng chữ nghệ thuật (Viền chữ, Bóng đổ, Phát sáng)",
+  summary: "Thêm các hiệu ứng chữ nghệ thuật như Viền chữ (Text Outline), Bóng đổ (Shadow) và Phát sáng (Glow) cho văn bản được chọn. Hiển thị sắc nét trong trình soạn thảo và lưu tương thích theo chuẩn WordML 2010 khi xuất DOCX.",
+  ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
+  keywords: ["hiệu ứng chữ", "text effects", "viền chữ", "text outline", "bóng đổ", "shadow", "phát sáng", "glow", "định dạng chữ"],
+  steps: [
+    "Bôi đen đoạn văn bản hoặc từ ngữ cần tạo hiệu ứng chữ nghệ thuật trên trang soạn thảo.",
+    "Trên thanh công cụ, mở tab Trang đầu (Home), tìm nhóm Phông chữ và nhấp vào nút «Hiệu ứng chữ» (biểu tượng chữ A phát sáng).",
+    "Trong hộp thoại Hiệu ứng chữ, bạn có thể tùy chỉnh 3 nhóm hiệu ứng qua các tab chuyên biệt:",
+    "• Viền chữ (Outline): Chọn Bật viền chữ, chọn màu viền và điều chỉnh độ dày nét viền từ 1/4 pt đến 6 pt.",
+    "• Bóng đổ (Shadow): Chọn Bật bóng đổ, chọn kiểu bóng cài sẵn (Góc dưới-phải, Dưới, Dưới-trái, Trên...) và màu bóng mong muốn.",
+    "• Phát sáng (Glow): Chọn Bật hiệu ứng phát sáng, chọn màu phát sáng và bán kính quầng sáng (5 pt, 8 pt, 11 pt, 18 pt).",
+    "Khung «Xem trước» ở đầu hộp thoại sẽ phản ánh ngay lập tức kiểu chữ kết hợp. Nhấn «Áp dụng» để gắn hiệu ứng vào văn bản, hoặc nhấn «Xóa hiệu ứng» để đưa chữ về dạng chuẩn thông thường.",
+    "Khi lưu tài liệu sang định dạng DOCX, toàn bộ hiệu ứng viền, bóng và phát sáng được bảo toàn nguyên vẹn bằng các thẻ WordML 2010 tiêu chuẩn."
   ]
 }
 ];

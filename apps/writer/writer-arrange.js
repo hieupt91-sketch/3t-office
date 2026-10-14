@@ -1,4 +1,14 @@
 import { t } from "../../platform/i18n/i18n.js";
+import {
+  parseImageCrop,
+  applyImageCrop,
+  parseImageCorrections,
+  applyImageCorrections,
+  resetImageProperties,
+  compressImageElement,
+  showCropDialog,
+  showPictureCorrectionsDialog
+} from "./picture-tools-dialog.js";
 
 const translate = (key, fallback) => {
   const value = t(key);
@@ -480,6 +490,57 @@ export class WriterArrangeController {
 
     const curWidth = this.selectedImage.offsetWidth || parseInt(this.selectedImage.style.width, 10) || 200;
     const curHeight = this.selectedImage.offsetHeight || parseInt(this.selectedImage.style.height, 10) || 150;
+    const curCrop = parseImageCrop(this.selectedImage);
+
+    // 1. Nhóm Điều chỉnh (Adjust)
+    const adjustGroup = document.createElement("section");
+    adjustGroup.className = "vno-ribbon-group vno-writer-picture-adjust-group";
+    adjustGroup.dataset.groupId = "pictureAdjust";
+    adjustGroup.innerHTML = `<div class="vno-ribbon-group-items" style="display:flex; gap:6px; align-items:center;">
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <button type="button" class="vno-btn" data-pic="change" style="font-size:11px; padding:3px 6px;">${translate("writerPicture.change", "Đổi ảnh…")}</button>
+        <button type="button" class="vno-btn" data-pic="reset" style="font-size:11px; padding:3px 6px;">${translate("writerPicture.reset", "Đặt lại ảnh")}</button>
+      </div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <button type="button" class="vno-btn" data-pic="compress" style="font-size:11px; padding:3px 6px;">${translate("writerPicture.compress", "Nén ảnh")}</button>
+        <button type="button" class="vno-btn" data-pic="corrections" style="font-size:11px; padding:3px 6px;">${translate("writerPicture.corrections", "Độ sáng / Tương phản…")}</button>
+      </div>
+    </div><div class="vno-ribbon-group-label">${translate("writerPicture.adjustGroup", "Điều chỉnh")}</div>`;
+
+    adjustGroup.addEventListener("click", (e) => {
+      const act = e.target.closest("button")?.dataset.pic;
+      if (act === "change") this.adapter?.changePicture?.();
+      if (act === "reset") this.adapter?.resetPicture?.();
+      if (act === "compress") this.adapter?.compressPicture?.();
+      if (act === "corrections") this.adapter?.setPictureCorrections?.();
+    });
+
+    // 2. Nhóm Cắt ảnh (Crop)
+    const cropGroup = document.createElement("section");
+    cropGroup.className = "vno-ribbon-group vno-writer-picture-crop-group";
+    cropGroup.dataset.groupId = "pictureCrop";
+    cropGroup.innerHTML = `<div class="vno-ribbon-group-items" style="display:flex; gap:6px; align-items:center;">
+      <button type="button" class="vno-btn" data-pic="crop" style="font-size:12px; font-weight:600; padding:6px 10px; height:100%;">${translate("writerPicture.crop", "Cắt ảnh…")}</button>
+      <div style="display:grid; grid-template-columns:1fr 1fr; gap:4px; font-size:10px;">
+        <label>T %<input type="number" min="0" max="80" data-crop="top" value="${curCrop.top}" style="width:36px; padding:1px 2px; font-size:10px;" /></label>
+        <label>B %<input type="number" min="0" max="80" data-crop="bottom" value="${curCrop.bottom}" style="width:36px; padding:1px 2px; font-size:10px;" /></label>
+        <label>L %<input type="number" min="0" max="80" data-crop="left" value="${curCrop.left}" style="width:36px; padding:1px 2px; font-size:10px;" /></label>
+        <label>R %<input type="number" min="0" max="80" data-crop="right" value="${curCrop.right}" style="width:36px; padding:1px 2px; font-size:10px;" /></label>
+      </div>
+    </div><div class="vno-ribbon-group-label">${translate("writerPicture.cropGroup", "Cắt ảnh")}</div>`;
+
+    cropGroup.addEventListener("click", (e) => {
+      const act = e.target.closest("button")?.dataset.pic;
+      if (act === "crop") this.adapter?.cropImage?.();
+    });
+
+    cropGroup.addEventListener("change", (e) => {
+      const l = parseFloat(cropGroup.querySelector("[data-crop='left']")?.value) || 0;
+      const t = parseFloat(cropGroup.querySelector("[data-crop='top']")?.value) || 0;
+      const r = parseFloat(cropGroup.querySelector("[data-crop='right']")?.value) || 0;
+      const b = parseFloat(cropGroup.querySelector("[data-crop='bottom']")?.value) || 0;
+      this.adapter?.cropImage?.({ left: l, top: t, right: r, bottom: b });
+    });
 
     const group = document.createElement("section");
     group.className = "vno-ribbon-group vno-writer-arrange-group";
@@ -513,6 +574,8 @@ export class WriterArrangeController {
       if (action === "backward") this.sendBackward();
     });
 
+    panel.appendChild(adjustGroup);
+    panel.appendChild(cropGroup);
     panel.appendChild(group);
   }
 }

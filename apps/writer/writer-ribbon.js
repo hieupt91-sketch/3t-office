@@ -37,6 +37,8 @@ export const WRITER_RIBBON_TABS = [
         id: "font",
         label: "Phông chữ",
         labelKey: "writerRibbon.group.font",
+        launcherCommandId: "writer.format.fontDialog",
+        launcherTooltip: "Phông chữ…",
         items: [
           {
             type: "column",
@@ -116,6 +118,7 @@ export const WRITER_RIBBON_TABS = [
                   { type: "button", commandId: "writer.text.subscript", iconOnly: true },
                   { type: "button", commandId: "writer.text.superscript", iconOnly: true },
                   { type: "button", commandId: "writer.text.changeCase", iconOnly: true },
+                  { type: "button", commandId: "writer.format.textEffects", iconOnly: true },
                   { type: "button", commandId: "writer.text.clearFormat", iconOnly: true },
                   { type: "button", commandId: "writer.color.highlight", iconOnly: true },
                   { type: "button", commandId: "writer.color.text", iconOnly: true }
@@ -286,6 +289,7 @@ export const WRITER_RIBBON_TABS = [
         labelKey: "writerRibbon.group.tables",
         items: [
           { type: "button", commandId: "writer.table.insert", isLarge: true },
+          { type: "button", commandId: "writer.table.quickTables", isLarge: true },
           { type: "button", commandId: "writer.table.fromText", isLarge: true }
         ]
       },
@@ -343,7 +347,8 @@ export const WRITER_RIBBON_TABS = [
             type: "column",
             items: [
               { type: "button", commandId: "writer.format.dropCap" },
-              { type: "button", commandId: "writer.insert.dateTime" }
+              { type: "button", commandId: "writer.insert.dateTime" },
+              { type: "button", commandId: "writer.insert.quickParts" }
             ]
           }
         ]
@@ -437,6 +442,16 @@ export const WRITER_RIBBON_TABS = [
               { value: "continuous", label: "Số dòng: Liên tục" },
               { value: "restartPage", label: "Số dòng: Mỗi trang" },
               { value: "restartSection", label: "Số dòng: Mỗi mục" }
+            ]
+          },
+          {
+            type: "select",
+            commandId: "writer.layout.hyphenation",
+            defaultValue: "none",
+            ariaLabel: "Ngắt từ tự động",
+            options: [
+              { value: "none", label: "Ngắt từ: Không", labelKey: "writerRibbon.hyphenation.none" },
+              { value: "auto", label: "Ngắt từ: Tự động", labelKey: "writerRibbon.hyphenation.auto" }
             ]
           },
           {
@@ -665,6 +680,14 @@ export const WRITER_RIBBON_TABS = [
           { type: "button", commandId: "writer.table.alignMiddle" },
           { type: "button", commandId: "writer.table.alignBottom" }
         ]
+      },
+      {
+        id: "tableDataGroup",
+        label: "Dữ liệu",
+        labelKey: "writerRibbon.group.tableDataGroup",
+        items: [
+          { type: "button", commandId: "writer.table.toText", isLarge: true }
+        ]
       }
     ]
   },
@@ -721,6 +744,15 @@ export const WRITER_RIBBON_TABS = [
               { type: "button", commandId: "writer.insert.crossReference" }
             ]
           }
+        ]
+      },
+      {
+        id: "index",
+        label: "Chỉ mục",
+        labelKey: "writerRibbon.group.index",
+        items: [
+          { type: "button", commandId: "writer.reference.indexMark", isLarge: true },
+          { type: "button", commandId: "writer.reference.indexInsert", isLarge: true }
         ]
       }
     ]
@@ -861,6 +893,21 @@ export const WRITER_RIBBON_TABS = [
             items: [
               { type: "button", commandId: "writer.trackChanges.previous" },
               { type: "button", commandId: "writer.trackChanges.next" }
+            ]
+          }
+        ]
+      },
+      {
+        id: "documentReview",
+        label: "So sánh & Bảo vệ",
+        labelKey: "writerRibbon.group.documentReview",
+        items: [
+          { type: "button", commandId: "writer.review.compare", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.review.combine" },
+              { type: "button", commandId: "writer.review.restrictEditing" }
             ]
           }
         ]
@@ -1016,6 +1063,20 @@ export const WRITER_RIBBON_TABS = [
  * @returns {Array}
  */
 export function applyLocaleToWriterRibbon(tabs = WRITER_RIBBON_TABS) {
+  const translateItems = (items = []) => {
+    for (const item of items) {
+      if (item.labelKey) {
+        const translated = t(item.labelKey);
+        if (translated && translated !== item.labelKey) item.label = translated;
+      }
+      for (const option of item.options || []) {
+        if (!option.labelKey) continue;
+        const translated = t(option.labelKey);
+        if (translated && translated !== option.labelKey) option.label = translated;
+      }
+      if (Array.isArray(item.items)) translateItems(item.items);
+    }
+  };
   for (const tab of tabs) {
     if (tab.labelKey) {
       const translated = t(tab.labelKey);
@@ -1031,6 +1092,7 @@ export function applyLocaleToWriterRibbon(tabs = WRITER_RIBBON_TABS) {
             group.label = translated;
           }
         }
+        translateItems(group.items);
       }
     }
   }

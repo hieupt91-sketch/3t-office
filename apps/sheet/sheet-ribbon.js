@@ -275,7 +275,10 @@ export const SHEET_RIBBON_TABS = [
                 icon: "fillDown",
                 items: [
                   { commandId: "sheet.edit.fillDown" },
-                  { commandId: "sheet.edit.fillRight" }
+                  { commandId: "sheet.edit.fillRight" },
+                  { commandId: "sheet.edit.fillUp" },
+                  { commandId: "sheet.edit.fillLeft" },
+                  { commandId: "sheet.edit.fillSeries" }
                 ]
               },
               {
@@ -287,7 +290,9 @@ export const SHEET_RIBBON_TABS = [
                 items: [
                   { commandId: "sheet.edit.clearAll" },
                   { commandId: "sheet.edit.clearFormats" },
-                  { commandId: "sheet.edit.clearContents" }
+                  { commandId: "sheet.edit.clearContents" },
+                  { commandId: "sheet.edit.clearComments" },
+                  { commandId: "sheet.edit.clearHyperlinks" }
                 ]
               }
             ]

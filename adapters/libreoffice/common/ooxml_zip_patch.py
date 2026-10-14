@@ -2739,6 +2739,7 @@ def parse_page_margins_from_fods(fods_xml: str | None) -> dict[str, dict[str, fl
         try:
             margins = json.loads(attrs['vno:page-margins'])
             values = {side: float(margins[side]) for side in ('top', 'bottom', 'left', 'right')}
+            values.update({side: float(margins[side]) for side in ('header', 'footer') if side in margins})
         except (ValueError, TypeError, KeyError):
             continue
         if all(math.isfinite(value) and value >= 0 for value in values.values()):
@@ -2768,6 +2769,7 @@ def overlay_page_margins_to_fods(xlsx_bytes: bytes, fods_xml: str) -> str:
         attrs = _xml_attrs(match.group(1))
         try:
             margins = {side: round(float(attrs[side]) * 2.54, 12) for side in ('top', 'bottom', 'left', 'right')}
+            margins.update({side: round(float(attrs[side]) * 2.54, 12) for side in ('header', 'footer') if side in attrs})
         except (ValueError, KeyError):
             continue
         if all(math.isfinite(value) and value >= 0 for value in margins.values()):
@@ -3812,6 +3814,68 @@ def _restore_vnd_addin_cells_step(
             formula, text = by_ref[ref]
             style = f' s="{attrs["s"]}"' if attrs.get("s") else ""
             return f'<c r="{ref}"{style} t="str"><f>{_escape_xml(formula)}</f><v>{_escape_xml(text)}</v></c>'
+
+        next_xml = cell_re.sub(fix, out_xml)
+        if next_xml != out_xml:
+            replacements[out_path] = next_xml
+
+
+def _fods_structured_formulas(fods_xml: str | None) -> dict[str, dict[str, str]]:
+    """{sheet: {A1-ref: xlsx formula without '='}} cho ô có tham chiếu bảng Table[Cột] do app gửi (vno:xlsx-formula)."""
+    result: dict[str, dict[str, str]] = {}
+    if not fods_xml or "vno:xlsx-formula=" not in fods_xml:
+        return result
+    for table_start, table_end in _flat_xml_blocks(fods_xml, ("table:table",)):
+        table_xml = fods_xml[table_start:table_end]
+        if "vno:xlsx-formula=" not in table_xml:
+            continue
+        sheet_name = _unescape_xml(_xml_attrs(re.match(r"<[^>]+", table_xml).group(0)).get("table:name", ""))
+        targets: dict[str, str] = {}
+        row_number = 1
+        for row_start, row_end in _flat_xml_blocks(table_xml, ("table:table-row",)):
+            row_xml = table_xml[row_start:row_end]
+            col_number = 1
+            for cell_start, cell_end in _flat_xml_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
+                cell_xml = row_xml[cell_start:cell_end]
+                match = re.search(r'vno:xlsx-formula="([^"]*)"', cell_xml)
+                if match:
+                    formula = _unescape_xml(match.group(1)).strip()
+                    targets[f"{_column_letter(col_number)}{row_number}"] = formula[1:] if formula.startswith("=") else formula
+                col_number += _repeat_count(cell_xml, "table:number-columns-repeated")
+            row_number += _repeat_count(row_xml, "table:number-rows-repeated")
+        if targets and sheet_name:
+            result[sheet_name] = targets
+    return result
+
+
+def _restore_structured_formula_cells_step(
+    xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
+) -> None:
+    """Ghi lại công thức dạng Table[Cột] vào XLSX (LibreOffice nhận địa chỉ A1 đã mở rộng nên xuất A1)."""
+    structured = _fods_structured_formulas(source_fods)
+    if not structured:
+        return
+    cell_re = re.compile(r'<c\b((?:[^>/]|/(?!>))*)>([\s\S]*?)</c>', re.IGNORECASE)
+    for sheet_name, out_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        targets = structured.get(sheet_name)
+        if not targets:
+            continue
+        out_xml = replacements.get(out_path) or (read_zip_entry(xlsx_bytes, out_path) or b"").decode("utf-8", errors="replace")
+
+        def fix(match: re.Match[str]) -> str:
+            attrs = _xml_attrs(match.group(1))
+            ref = (attrs.get("r") or "").upper()
+            formula = targets.get(ref)
+            if formula is None:
+                return match.group(0)
+            body = match.group(2)
+            if re.search(r"<f\b[^>]*/>", body):
+                body = re.sub(r"<f\b[^>]*/>", lambda _m: f"<f>{_escape_xml(formula)}</f>", body, count=1)
+            elif re.search(r"<f\b[^>]*>[\s\S]*?</f>", body):
+                body = re.sub(r"(<f\b[^>]*>)[\s\S]*?(</f>)", lambda m: f"{m.group(1)}{_escape_xml(formula)}{m.group(2)}", body, count=1)
+            else:
+                body = f"<f>{_escape_xml(formula)}</f>" + body
+            return f"<c{match.group(1)}>{body}</c>"
 
         next_xml = cell_re.sub(fix, out_xml)
         if next_xml != out_xml:
@@ -5786,8 +5850,12 @@ def _apply_sheet_print_options_from_fods(xlsx_bytes: bytes, source_fods: str | N
             setup_values["errors"] = errors
         if order:
             setup_values["pageOrder"] = order
+        setup_values["blackAndWhite"] = "1" if options.get("blackAndWhite") else "0"
+        setup_values["draft"] = "1" if options.get("draft") else "0"
         if setup_values and re.search(r"<pageSetup\b[^>]*>", updated):
             updated = re.sub(r"<pageSetup\b[^>]*>", lambda m: _set_xml_tag_attrs(m.group(0), setup_values), updated, count=1)
+        elif setup_values:
+            updated = _insert_worksheet_child_in_schema_order(updated, _set_xml_tag_attrs("<pageSetup/>", setup_values), "pageSetup")
         if updated != current:
             replacements[entry_path] = updated
 
@@ -5812,6 +5880,8 @@ def parse_print_options_from_sheet_xml(sheet_xml: str | None) -> dict | None:
     return {
         "gridlines": truthy(attr(po_attrs, "gridLines")),
         "headings": truthy(attr(po_attrs, "headings")),
+        "blackAndWhite": truthy(attr(ps_attrs, "blackAndWhite")),
+        "draft": truthy(attr(ps_attrs, "draft")),
         "comments": comments_back.get(attr(ps_attrs, "cellComments"), "none"),
         "cellErrors": errors_back.get(attr(ps_attrs, "errors"), "displayed"),
         "pageOrder": "overThenDown" if attr(ps_attrs, "pageOrder") == "overThenDown" else "downThenOver",
@@ -5840,6 +5910,89 @@ def apply_print_options_to_fods(fods_xml: str, options_by_sheet: dict[str, dict]
     return _sub_table_open_tags(fods_xml or "", _replace)
 
 
+_STRUCTURED_FORMULA_RE = re.compile(r"(?:^|[^A-Za-z0-9_.\]'])[A-Za-z_\\][A-Za-z0-9_.\\]*\[(?!\d+\])|(?:^|[^A-Za-z0-9_.\]'])\[(?:@|#|\[)")
+
+
+def _xlsx_structured_formulas(xlsx_bytes: bytes) -> dict[str, dict[tuple[int, int], str]]:
+    """{sheet: {(row, col): '=Table1[Cột]'}} cho ô XLSX có tham chiếu bảng; LibreOffice đổi chúng thành địa chỉ A1."""
+    result: dict[str, dict[tuple[int, int], str]] = {}
+    cell_re = re.compile(r'<c\b((?:[^>/]|/(?!>))*)>([\s\S]*?)</c>', re.IGNORECASE)
+    for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        raw = read_zip_entry(xlsx_bytes, entry_path)
+        if not raw:
+            continue
+        xml = raw.decode("utf-8", errors="replace")
+        if "[" not in xml:
+            continue
+        targets: dict[tuple[int, int], str] = {}
+        for match in cell_re.finditer(xml):
+            formula_match = re.search(r"<f\b[^>]*>([\s\S]*?)</f>", match.group(2), re.IGNORECASE)
+            if not formula_match:
+                continue
+            text = _unescape_xml(formula_match.group(1))
+            if not _STRUCTURED_FORMULA_RE.search(re.sub(r'"(?:""|[^"])*"', '""', text)):
+                continue
+            ref = (_xml_attrs(match.group(1)).get("r") or "").upper()
+            parts = re.match(r"^([A-Z]+)(\d+)$", ref)
+            if not parts:
+                continue
+            col = 0
+            for ch in parts.group(1):
+                col = col * 26 + ord(ch) - 64
+            targets[(int(parts.group(2)), col)] = "=" + text
+        if targets:
+            result[sheet_name] = targets
+    return result
+
+
+def overlay_sheet_xlsx_structured_formulas(xlsx_bytes: bytes, fods_xml: str | None) -> str:
+    """Giữ công thức gốc Table1[Cột] của XLSX trong FODS (vno:formula) thay vì địa chỉ A1 do LibreOffice dịch."""
+    xml = fods_xml or ""
+    targets_by_sheet = _xlsx_structured_formulas(xlsx_bytes)
+    if not targets_by_sheet:
+        return xml
+    formula_attr_re = re.compile(r'\svno:formula="[^"]*"')
+    pieces, cursor = [], 0
+    for table_start, table_end in _flat_xml_blocks(xml, ("table:table",)):
+        pieces.append(xml[cursor:table_start])
+        table_xml = xml[table_start:table_end]
+        opening = re.match(r"<[^>]+", table_xml)
+        sheet_name = _unescape_xml(_xml_attrs(opening.group(0)).get("table:name", "")) if opening else ""
+        targets = targets_by_sheet.get(sheet_name)
+        if targets:
+            rows = {}
+            for (row, col), formula in targets.items():
+                rows.setdefault(row, {})[col] = formula
+            parts, table_cursor, row_number = [], 0, 1
+            for row_start, row_end in _flat_xml_blocks(table_xml, ("table:table-row",)):
+                parts.append(table_xml[table_cursor:row_start])
+                row_xml = table_xml[row_start:row_end]
+                repeat = _repeat_count(row_xml, "table:number-rows-repeated")
+                row_targets = rows.get(row_number) if repeat == 1 else None
+                if row_targets:
+                    cells, cell_cursor, column = [], 0, 1
+                    for cell_start, cell_end in _flat_xml_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
+                        cells.append(row_xml[cell_cursor:cell_start])
+                        cell = row_xml[cell_start:cell_end]
+                        cell_repeat = _repeat_count(cell, "table:number-columns-repeated")
+                        formula = row_targets.get(column) if cell_repeat == 1 else None
+                        if formula and "table:formula=" in cell[:cell.find(">") + 1]:
+                            stamped = _stamp_table_cell_attr(cell, f' vno:formula="{_escape_xml(formula)}"', formula_attr_re)
+                            cell = stamped if stamped is not None else cell
+                        cells.append(cell)
+                        cell_cursor, column = cell_end, column + cell_repeat
+                    cells.append(row_xml[cell_cursor:])
+                    row_xml = "".join(cells)
+                parts.append(row_xml)
+                table_cursor, row_number = row_end, row_number + repeat
+            parts.append(table_xml[table_cursor:])
+            table_xml = "".join(parts)
+        pieces.append(table_xml)
+        cursor = table_end
+    pieces.append(xml[cursor:])
+    return "".join(pieces)
+
+
 def overlay_sheet_xlsx_print_options(xlsx_bytes: bytes, fods_xml: str | None) -> str:
     """Restore real print options from each worksheet over the FODS before parseFods()."""
     xml = fods_xml or ""
@@ -5852,6 +6005,247 @@ def overlay_sheet_xlsx_print_options(xlsx_bytes: bytes, fods_xml: str | None) ->
         if options:
             by_sheet[sheet_name] = options
     return apply_print_options_to_fods(xml, by_sheet)
+
+
+_PAPER_SIZE_TO_XLSX = {"letter": "1", "legal": "5", "a3": "8", "a4": "9", "a5": "11"}
+_PAPER_SIZE_FROM_XLSX = {value: key for key, value in _PAPER_SIZE_TO_XLSX.items()}
+
+
+def _remove_xml_tag_attrs(tag: str, names: tuple[str, ...]) -> str:
+    for name in names:
+        tag = re.sub(rf'\s+{re.escape(name)}\s*=\s*(["\'])[^"\']*\1', '', tag, flags=re.IGNORECASE)
+    return tag
+
+
+def _page_setup_pr_fit_to_page(sheet_xml: str, enabled: bool) -> str:
+    value = "1" if enabled else "0"
+    paired = re.search(r'<sheetPr\b([^>]*)>([\s\S]*?)</sheetPr\s*>', sheet_xml, re.IGNORECASE)
+    if paired:
+        body = paired.group(2)
+        if re.search(r'<pageSetUpPr\b[^>]*/>', body, re.IGNORECASE):
+            body = re.sub(r'<pageSetUpPr\b[^>]*/>', lambda m: _set_xml_tag_attrs(m.group(0), {"fitToPage": value}), body, count=1, flags=re.IGNORECASE)
+        else:
+            body += f'<pageSetUpPr fitToPage="{value}"/>'
+        return sheet_xml[:paired.start()] + f'<sheetPr{paired.group(1)}>{body}</sheetPr>' + sheet_xml[paired.end():]
+    empty = re.search(r'<sheetPr\b([^>]*)/>', sheet_xml, re.IGNORECASE)
+    if empty:
+        replacement = f'<sheetPr{empty.group(1)}><pageSetUpPr fitToPage="{value}"/></sheetPr>'
+        return sheet_xml[:empty.start()] + replacement + sheet_xml[empty.end():]
+    opening = re.search(r'<worksheet\b[^>]*>', sheet_xml, re.IGNORECASE)
+    if not opening:
+        return sheet_xml
+    return sheet_xml[:opening.end()] + f'<sheetPr><pageSetUpPr fitToPage="{value}"/></sheetPr>' + sheet_xml[opening.end():]
+
+
+def _header_footer_sections(value: str) -> dict[str, str]:
+    result = {"left": "", "center": "", "right": ""}
+    current = "center"
+    parts = re.split(r'(&[LCR])', html.unescape(value or ""))
+    for part in parts:
+        if part in ("&L", "&C", "&R"):
+            current = {"&L": "left", "&C": "center", "&R": "right"}[part]
+        elif part:
+            result[current] += part
+    return result
+
+
+def _header_footer_xlsx_value(sections: dict | None) -> str:
+    source = sections or {}
+    return "".join(marker + str(source.get(position) or "") for marker, position in (("&L", "left"), ("&C", "center"), ("&R", "right")) if source.get(position))
+
+
+def parse_page_setup_metadata_from_sheet_xml(sheet_xml: str | None) -> dict:
+    xml = sheet_xml or ""
+    setup_match = re.search(r'<pageSetup\b([^>]*)>', xml, re.IGNORECASE)
+    print_match = re.search(r'<printOptions\b([^>]*)>', xml, re.IGNORECASE)
+    header_match = re.search(r'<headerFooter\b([^>]*)>([\s\S]*?)</headerFooter\s*>', xml, re.IGNORECASE)
+    setup_attrs = _xml_attrs(setup_match.group(1)) if setup_match else {}
+    print_attrs = _xml_attrs(print_match.group(1)) if print_match else {}
+    header_attrs = _xml_attrs(header_match.group(1)) if header_match else {}
+    fit_enabled = bool(re.search(r'<pageSetUpPr\b[^>]*\bfitToPage=["\'](?:1|true)["\']', xml, re.IGNORECASE))
+    has_fit = fit_enabled or "fitToWidth" in setup_attrs or "fitToHeight" in setup_attrs
+    if has_fit:
+        scale = {
+            "mode": "pages", "percent": 100,
+            "pagesWide": int(setup_attrs.get("fitToWidth") or 0),
+            "pagesTall": int(setup_attrs.get("fitToHeight") or 0),
+        }
+    else:
+        scale = {"mode": "percent", "percent": int(setup_attrs.get("scale") or 100), "pagesWide": 1, "pagesTall": 0}
+    quality = int(setup_attrs.get("horizontalDpi") or setup_attrs.get("verticalDpi") or 600)
+    first_page = int(setup_attrs["firstPageNumber"]) if setup_attrs.get("firstPageNumber", "").isdigit() else "auto"
+    truthy = lambda value, default=False: str(value).strip().lower() in ("1", "true") if value is not None else default
+    hf_body = header_match.group(2) if header_match else ""
+    odd_header = re.search(r'<oddHeader\b[^>]*>([\s\S]*?)</oddHeader\s*>', hf_body, re.IGNORECASE)
+    odd_footer = re.search(r'<oddFooter\b[^>]*>([\s\S]*?)</oddFooter\s*>', hf_body, re.IGNORECASE)
+    return {
+        "size": _PAPER_SIZE_FROM_XLSX.get(setup_attrs.get("paperSize"), "a4"),
+        "orientation": "landscape" if setup_attrs.get("orientation", "").lower() == "landscape" else "portrait",
+        "scale": scale,
+        "pageSettings": {"printQuality": quality, "firstPageNumber": first_page},
+        "centerOnPage": {
+            "horizontal": truthy(print_attrs.get("horizontalCentered")),
+            "vertical": truthy(print_attrs.get("verticalCentered")),
+        },
+        "headerFooter": {
+            "header": _header_footer_sections(odd_header.group(1) if odd_header else ""),
+            "footer": _header_footer_sections(odd_footer.group(1) if odd_footer else ""),
+            "differentOddEven": truthy(header_attrs.get("differentOddEven")),
+            "differentFirst": truthy(header_attrs.get("differentFirst")),
+            "scaleWithDocument": truthy(header_attrs.get("scaleWithDoc"), True),
+            "alignWithMargins": truthy(header_attrs.get("alignWithMargins"), True),
+        },
+    }
+
+
+def apply_page_setup_metadata_to_fods(fods_xml: str, metadata_by_sheet: dict[str, dict]) -> str:
+    if not metadata_by_sheet:
+        return fods_xml or ""
+
+    def replace_table(match: re.Match[str]) -> str:
+        attrs = match.group(1) or ""
+        parsed = _xml_attrs(attrs)
+        metadata = metadata_by_sheet.get(parsed.get("table:name", ""))
+        if not metadata:
+            return match.group(0)
+        values = {
+            "vno:page-size": metadata["size"],
+            "vno:page-orientation": metadata["orientation"],
+            "vno:page-scale": json.dumps(metadata["scale"], separators=(",", ":")),
+            "vno:page-settings": json.dumps(metadata["pageSettings"], separators=(",", ":")),
+            "vno:page-centering": json.dumps(metadata["centerOnPage"], separators=(",", ":")),
+            "vno:page-header-footer": json.dumps(metadata["headerFooter"], separators=(",", ":")),
+        }
+        for key, value in values.items():
+            encoded = _escape_xml(value)
+            if re.search(rf'\b{re.escape(key)}="', attrs, re.IGNORECASE):
+                attrs = re.sub(rf'\b{re.escape(key)}="[^"]*"', f'{key}="{encoded}"', attrs, count=1, flags=re.IGNORECASE)
+            else:
+                attrs += f' {key}="{encoded}"'
+        return f'<table:table{attrs}>'
+
+    xml = _sub_table_open_tags(fods_xml or "", replace_table)
+    if not _declares_vno_namespace(xml):
+        xml = re.sub(r'<office:document\b', f'<office:document xmlns:vno="{SHEET_VNO_NS}"', xml, count=1)
+    return xml
+
+
+def overlay_sheet_xlsx_page_setup(xlsx_bytes: bytes, fods_xml: str | None) -> str:
+    metadata = {}
+    for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        raw = read_zip_entry(xlsx_bytes, entry_path)
+        if raw:
+            metadata[sheet_name] = parse_page_setup_metadata_from_sheet_xml(raw.decode("utf-8", errors="replace"))
+    return apply_page_setup_metadata_to_fods(fods_xml or "", metadata)
+
+
+def _fods_page_setup_metadata(source_fods: str | None) -> dict[str, dict]:
+    result = {}
+    for match in re.finditer(r'<table:table(?=\s|>)([^>]*)>', source_fods or "", re.IGNORECASE):
+        attrs = _xml_attrs(match.group(1))
+        name = attrs.get("table:name")
+        if not name or not attrs.get("vno:page-settings"):
+            continue
+        try:
+            result[name] = {
+                "size": attrs.get("vno:page-size", "a4"),
+                "orientation": attrs.get("vno:page-orientation", "portrait"),
+                "scale": json.loads(attrs.get("vno:page-scale", "{}")),
+                "pageSettings": json.loads(attrs.get("vno:page-settings", "{}")),
+                "centerOnPage": json.loads(attrs.get("vno:page-centering", "{}")),
+                "headerFooter": json.loads(attrs.get("vno:page-header-footer", "{}")),
+            }
+        except (TypeError, ValueError):
+            continue
+    return result
+
+
+def _apply_header_footer_to_worksheet(sheet_xml: str, config: dict) -> str:
+    attrs = {
+        "differentOddEven": "1" if config.get("differentOddEven") else "0",
+        "differentFirst": "1" if config.get("differentFirst") else "0",
+        "scaleWithDoc": "1" if config.get("scaleWithDocument", True) else "0",
+        "alignWithMargins": "1" if config.get("alignWithMargins", True) else "0",
+    }
+    opening_values = _set_xml_tag_attrs("<headerFooter>", attrs)
+    children = {
+        "oddHeader": _header_footer_xlsx_value(config.get("header")),
+        "oddFooter": _header_footer_xlsx_value(config.get("footer")),
+    }
+    paired = re.search(r'<headerFooter\b([^>]*)>([\s\S]*?)</headerFooter\s*>', sheet_xml, re.IGNORECASE)
+    if paired:
+        opening = _set_xml_tag_attrs(f'<headerFooter{paired.group(1)}>', attrs)
+        body = paired.group(2)
+        for tag_name, value in children.items():
+            element = f'<{tag_name}>{_escape_xml(value)}</{tag_name}>'
+            if re.search(rf'<{tag_name}\b[^>]*>[\s\S]*?</{tag_name}\s*>', body, re.IGNORECASE):
+                body = re.sub(rf'<{tag_name}\b[^>]*>[\s\S]*?</{tag_name}\s*>', element, body, count=1, flags=re.IGNORECASE)
+            else:
+                body = element + body
+        replacement = opening + body + '</headerFooter>'
+        return sheet_xml[:paired.start()] + replacement + sheet_xml[paired.end():]
+    body = ''.join(f'<{name}>{_escape_xml(value)}</{name}>' for name, value in children.items())
+    return _insert_worksheet_child_in_schema_order(sheet_xml, opening_values + body + '</headerFooter>', 'headerFooter')
+
+
+def apply_page_setup_metadata_to_worksheet(sheet_xml: str, metadata: dict) -> str:
+    xml = sheet_xml or ""
+    scale = metadata.get("scale") or {}
+    settings = metadata.get("pageSettings") or {}
+    mode = scale.get("mode") == "pages"
+    values = {
+        "paperSize": _PAPER_SIZE_TO_XLSX.get(str(metadata.get("size") or "a4").lower(), "9"),
+        "orientation": "landscape" if metadata.get("orientation") == "landscape" else "portrait",
+        "horizontalDpi": str(int(settings.get("printQuality") or 600)),
+        "verticalDpi": str(int(settings.get("printQuality") or 600)),
+    }
+    if mode:
+        values.update({"fitToWidth": str(max(0, int(scale.get("pagesWide") or 0))), "fitToHeight": str(max(0, int(scale.get("pagesTall") or 0)))})
+    else:
+        values["scale"] = str(max(10, min(400, int(scale.get("percent") or 100))))
+    first_page = settings.get("firstPageNumber", "auto")
+    if first_page != "auto":
+        values.update({"firstPageNumber": str(int(first_page)), "useFirstPageNumber": "1"})
+    page_match = re.search(r'<pageSetup\b[^>]*>', xml, re.IGNORECASE)
+    tag = page_match.group(0) if page_match else '<pageSetup/>'
+    tag = _remove_xml_tag_attrs(tag, ("scale",) if mode else ("fitToWidth", "fitToHeight"))
+    if first_page == "auto":
+        tag = _remove_xml_tag_attrs(tag, ("firstPageNumber", "useFirstPageNumber"))
+    tag = _set_xml_tag_attrs(tag, values)
+    if page_match:
+        xml = xml[:page_match.start()] + tag + xml[page_match.end():]
+    else:
+        xml = _insert_worksheet_child_in_schema_order(xml, tag, "pageSetup")
+    xml = _page_setup_pr_fit_to_page(xml, mode)
+    center = metadata.get("centerOnPage") or {}
+    center_values = {"horizontalCentered": "1" if center.get("horizontal") else "0", "verticalCentered": "1" if center.get("vertical") else "0"}
+    print_match = re.search(r'<printOptions\b[^>]*>', xml, re.IGNORECASE)
+    if print_match:
+        print_tag = _set_xml_tag_attrs(print_match.group(0), center_values)
+        xml = xml[:print_match.start()] + print_tag + xml[print_match.end():]
+    else:
+        xml = _insert_worksheet_child_in_schema_order(xml, _set_xml_tag_attrs('<printOptions/>', center_values), 'printOptions')
+    return _apply_header_footer_to_worksheet(xml, metadata.get("headerFooter") or {})
+
+
+def _apply_sheet_page_setup_from_fods(xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]) -> None:
+    metadata_by_sheet = _fods_page_setup_metadata(source_fods)
+    if not metadata_by_sheet:
+        return
+    entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    for sheet_name, metadata in metadata_by_sheet.items():
+        entry_path = _sheet_name_equivalent_value(entries, sheet_name)
+        if not entry_path:
+            continue
+        current = replacements.get(entry_path)
+        if current is None:
+            raw = read_zip_entry(xlsx_bytes, entry_path)
+            if not raw:
+                continue
+            current = raw.decode("utf-8", errors="replace")
+        updated = apply_page_setup_metadata_to_worksheet(current, metadata)
+        if updated != current:
+            replacements[entry_path] = updated
 
 
 def _fods_pivot_table_names(source_fods: str | None) -> dict[str, str]:
@@ -6647,6 +7041,8 @@ def postprocess_sheet_xlsx(
         _apply_refreshed_pivot_locations_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_sheet_chart_features_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_sheet_print_options_from_fods(xlsx_bytes, source_fods, replacements)
+        _apply_sheet_page_setup_from_fods(xlsx_bytes, source_fods, replacements)
+        _restore_structured_formula_cells_step(xlsx_bytes, source_fods, replacements)
         _normalize_scatter_chart_markers(xlsx_bytes, replacements)
         _apply_pivot_chart_links_from_fods(xlsx_bytes, source_fods, replacements, workbook_filename)
 
@@ -10468,6 +10864,8 @@ def overlay_sheet_xlsx_fods(
     xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_split_panes(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_print_options(xlsx_bytes, xml)
+    xml = overlay_sheet_xlsx_page_setup(xlsx_bytes, xml)
+    xml = overlay_sheet_xlsx_structured_formulas(xlsx_bytes, xml)
     # AutoFilter: read <autoFilter ref> from original worksheet XMLs and
     # inject <table:database-ranges> into FODS so parseFods can restore
     # the filter state.
@@ -10536,6 +10934,8 @@ def overlay_sheet_xlsx_fods_p1(
     xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_split_panes(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_print_options(xlsx_bytes, xml)
+    xml = overlay_sheet_xlsx_page_setup(xlsx_bytes, xml)
+    xml = overlay_sheet_xlsx_structured_formulas(xlsx_bytes, xml)
     xml = _overlay_autofilter_from_xlsx(xlsx_bytes, xml)
     xml = _overlay_sheet_layout_from_xlsx(xlsx_bytes, xml)
     tab_colors = parse_tab_colors_from_xlsx(xlsx_bytes)
@@ -20972,6 +21372,8 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
     document_xml = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", patch_indent, document_xml, flags=re.IGNORECASE)
     document_xml = _writer_restore_created_paragraph_css(document_xml, source_html)
     document_xml = _writer_restore_created_image_layout(document_xml, source_html)
+    document_xml = _writer_restore_picture_tools_effects(document_xml, source_html)
+    document_xml = _writer_restore_text_effects(document_xml, source_html)
 
     section_meta: list[dict] = []
     meta_match = re.search(r"<!--vno-sections-meta:\s*(\[.*?\])\s*-->", source_html, re.IGNORECASE | re.DOTALL)
@@ -21543,6 +21945,61 @@ def _writer_review_metadata(source_html: str) -> dict | None:
     return metadata
 
 
+def _writer_document_protection_metadata(source_html: str | None) -> dict | None:
+    match = re.search(
+        r"<!--vno-document-protection-hex:([0-9a-f]+)-->",
+        source_html or "", re.IGNORECASE,
+    )
+    if not match:
+        return None
+    try:
+        metadata = json.loads(bytes.fromhex(match.group(1)).decode("utf-8"))
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError) as exc:
+        raise ValueError("Dữ liệu hạn chế chỉnh sửa trong bản xuất không hợp lệ.") from exc
+    if not isinstance(metadata, dict) or metadata.get("mode") not in {"none", "readOnly", "trackedChanges"}:
+        raise ValueError("Kiểu hạn chế chỉnh sửa không hợp lệ.")
+    return metadata
+
+
+def postprocess_writer_document_protection(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
+    """Write standard w:documentProtection without encrypting the DOCX package."""
+    metadata = _writer_document_protection_metadata(source_html)
+    if metadata is None:
+        return docx_bytes
+    settings_bytes = read_zip_entry(docx_bytes, "word/settings.xml")
+    settings_xml = settings_bytes.decode("utf-8", errors="replace") if settings_bytes else (
+        '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+        '<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"></w:settings>'
+    )
+    settings_xml = re.sub(
+        r"<w:documentProtection\b[^>]*(?:/>|>[\s\S]*?</w:documentProtection\s*>)",
+        "", settings_xml, flags=re.IGNORECASE,
+    )
+    mode = metadata.get("mode")
+    if mode != "none":
+        attrs = [f'w:edit="{mode}"', 'w:enforcement="1"', 'w:formatting="0"']
+        algorithm_sids = {"SHA-1": "4", "SHA-256": "12", "SHA-384": "13", "SHA-512": "14"}
+        algorithm_sid = algorithm_sids.get(str(metadata.get("algorithm") or "").upper())
+        if algorithm_sid and metadata.get("hash") and metadata.get("salt"):
+            spin_count = max(0, int(metadata.get("spinCount") or 0))
+            attrs.extend([
+                'w:cryptProviderType="rsaAES"',
+                'w:cryptAlgorithmClass="hash"',
+                'w:cryptAlgorithmType="typeAny"',
+                f'w:cryptAlgorithmSid="{algorithm_sid}"',
+                f'w:cryptSpinCount="{spin_count}"',
+                f'w:hash="{_escape_xml(str(metadata["hash"]))}"',
+                f'w:salt="{_escape_xml(str(metadata["salt"]))}"',
+            ])
+        protection_xml = "<w:documentProtection " + " ".join(attrs) + "/>"
+        anchor = re.search(r"<w:(?:proofState|defaultTabStop|compat|rsids)\b", settings_xml, re.IGNORECASE)
+        if anchor:
+            settings_xml = settings_xml[:anchor.start()] + protection_xml + settings_xml[anchor.start():]
+        else:
+            settings_xml = settings_xml.replace("</w:settings>", protection_xml + "</w:settings>", 1)
+    return patch_ooxml_zip(docx_bytes, {"word/settings.xml": settings_xml.encode("utf-8")})
+
+
 def writer_accepted_view_html(source_html: str) -> str:
     """Remove deleted review ranges and temporary anchors for PDF/print output."""
     metadata = _writer_review_metadata(source_html)
@@ -22076,39 +22533,45 @@ def postprocess_writer_if_ref_fields(docx_bytes: bytes, *, source_html: str | No
             super().__init__(convert_charrefs=True)
             self.rules = []
             self.refs = []
+            self.index_entries = []
             self.active = None
         def handle_starttag(self, tag, attrs):
             if tag != "span" and tag != "a": return
             a = dict(attrs)
             if "data-merge-if" in a:
                 self.active = ["if", a, ""]
+            elif a.get("data-merge-rule") in {"skipIf", "nextIf", "fillIn"}:
+                self.active = [a["data-merge-rule"], a, ""]
+            elif tag == "span" and a.get("data-index-entry") and a.get("id"):
+                self.index_entries.append((a["id"], a["data-index-entry"]))
             elif tag == "a" and "vno-cross-ref" in (a.get("class") or "") and (a.get("href") or "").startswith("#"):
                 self.active = ["ref", a, ""]
         def handle_data(self, data):
             if self.active: self.active[2] += data
         def handle_endtag(self, tag):
-            if self.active and ((self.active[0] == "if" and tag == "span") or (self.active[0] == "ref" and tag == "a")):
-                (self.rules if self.active[0] == "if" else self.refs).append(self.active)
+            if self.active and ((self.active[0] in {"if", "skipIf", "nextIf", "fillIn"} and tag == "span") or (self.active[0] == "ref" and tag == "a")):
+                (self.refs if self.active[0] == "ref" else self.rules).append(self.active)
                 self.active = None
     parser = _Fields()
     parser.feed(source_html)
+    auto_hyphenation = 'data-hyphenation="auto"' in source_html or "data-hyphenation='auto'" in source_html
     document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
-    if not document_bytes or not (parser.rules or parser.refs): return docx_bytes
+    if not document_bytes or not (parser.rules or parser.refs or auto_hyphenation or parser.index_entries): return docx_bytes
     xml = document_bytes.decode("utf-8", errors="replace")
     changed = False
-    for _, attrs, fallback in parser.rules:
-        field = (attrs.get("data-merge-if") or "").strip()
+    for rule_kind, attrs, fallback in parser.rules:
+        field = (attrs.get("data-merge-if") or attrs.get("data-field") or "").strip()
         op = attrs.get("data-op") or "equals"
         operators = {"equals": "=", "notEquals": "<>", "greaterThan": ">", "lessThan": "<", "empty": "=", "notEmpty": "<>"}
         # `contains` KHÔNG xuất được: đo bằng Word thật (06/10) thì IF "xxabcxx" = "*abc*" cho kết quả sai
         # (ký tự thay thế `*` ở cả hai đầu không được Word hỗ trợ), nên giữ nguyên văn bản kết quả.
-        if not field or op not in operators: continue
+        if rule_kind != "fillIn" and (not field or op not in operators): continue
         value = "" if op in ("empty", "notEmpty") else (attrs.get("data-value") or "")
         then = attrs.get("data-then") or ""
         otherwise = attrs.get("data-else") or ""
         # Word field arguments use escaped quotes inside quoted literals.
         quote = lambda value: '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
-        tail_instr = f' {operators[op]} {quote(value)} {quote(then)} {quote(otherwise)} '
+        tail_instr = f' {operators.get(op, "=")} {quote(value)} {quote(then)} {quote(otherwise)} '
 
         def _fld(kind: str, rpr: str = "") -> str:
             return f'<w:r>{rpr}<w:fldChar w:fldCharType="{kind}"/></w:r>'
@@ -22117,17 +22580,28 @@ def postprocess_writer_if_ref_fields(docx_bytes: bytes, *, source_html: str | No
             return f'<w:r>{rpr}<w:instrText xml:space="preserve">{_escape_xml(text)}</w:instrText></w:r>'
 
         def build_if_field(rpr: str = "") -> str:
+            if rule_kind == "fillIn":
+                prompt = attrs.get("data-prompt") or ""
+                default = attrs.get("data-default") or ""
+                instruction = f' FILLIN {quote(prompt)} \\d {quote(default)} '
+                return (
+                    _fld("begin", rpr) + _instr(instruction, rpr) + _fld("separate", rpr)
+                    + f'<w:r>{rpr}<w:t xml:space="preserve">{_escape_xml(default)}</w:t></w:r>' + _fld("end", rpr)
+                )
+            field_name = {"if": "IF", "skipIf": "SKIPIF", "nextIf": "NEXTIF"}.get(rule_kind, "IF")
+            rule_tail = tail_instr if rule_kind == "if" else f' {operators[op]} {quote(value)} '
+            display = fallback if rule_kind == "if" else ""
             # Word chỉ coi MERGEFIELD là trường lồng khi nó là trường phức (fldChar) nằm TRONG lệnh IF;
             # dấu `{ }` viết thẳng vào instr là chữ thường (Word hiện kết quả "MERGEFIELD" sai).
             return (
-                _fld("begin", rpr) + _instr(" IF ", rpr)
+                _fld("begin", rpr) + _instr(f" {field_name} ", rpr)
                 + _fld("begin", rpr) + _instr(f" MERGEFIELD {field} ", rpr) + _fld("separate", rpr)
                 + f'<w:r>{rpr}<w:t>«{_escape_xml(field)}»</w:t></w:r>' + _fld("end", rpr)
-                + _instr(tail_instr, rpr) + _fld("separate", rpr)
-                + f'<w:r>{rpr}<w:t xml:space="preserve">{_escape_xml(fallback)}</w:t></w:r>' + _fld("end", rpr)
+                + _instr(rule_tail, rpr) + _fld("separate", rpr)
+                + f'<w:r>{rpr}<w:t xml:space="preserve">{_escape_xml(display)}</w:t></w:r>' + _fld("end", rpr)
             )
         if fallback:
-            text_pattern = re.compile(r'<w:r\b[^>]*>(?P<rpr><w:rPr>[\s\S]*?</w:rPr>)?<w:t(?:\s[^>]*)?>(?P<text>[^<]*)</w:t></w:r>')
+            text_pattern = re.compile(r'<w:r\b[^>]*>(?P<rpr><w:rPr>(?:(?!</w:rPr>)[\s\S])*</w:rPr>)?<w:t(?:\s[^>]*)?>(?P<text>[^<]*)</w:t></w:r>')
             escaped_fallback = _escape_xml(fallback)
             runs = list(text_pattern.finditer(xml))
             exact = next((m for m in runs if m.group("text") == escaped_fallback), None)
@@ -22153,7 +22627,55 @@ def postprocess_writer_if_ref_fields(docx_bytes: bytes, *, source_html: str | No
         pattern = re.compile(r'<w:hyperlink\b(?=[^>]*\bw:anchor="' + re.escape(_escape_xml(target)) + r'")[^>]*>[\s\S]*?</w:hyperlink>')
         xml, count = pattern.subn(lambda _: field_xml, xml, count=1)
         changed |= count > 0
-    return patch_ooxml_zip(docx_bytes, {"word/document.xml": xml.encode("utf-8")}) if changed else docx_bytes
+    if parser.index_entries:
+        def _xe_quote(term: str) -> str:
+            return '"' + term.replace('\\', '\\\\').replace('"', '\\"') + '"'
+        for entry_id, term in parser.index_entries:
+            pattern = re.compile(r'(<w:bookmarkStart\b[^>]*w:name="' + re.escape(_escape_xml(entry_id)) + r'"[^>]*/>\s*<w:bookmarkEnd\b[^>]*/>)')
+            xe = (
+                '<w:r><w:rPr><w:vanish/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r>'
+                f'<w:r><w:rPr><w:vanish/></w:rPr><w:instrText xml:space="preserve"> XE {_escape_xml(_xe_quote(term))} </w:instrText></w:r>'
+                '<w:r><w:rPr><w:vanish/></w:rPr><w:fldChar w:fldCharType="end"/></w:r>'
+            )
+            xml, count = pattern.subn(lambda m: m.group(1) + xe, xml, count=1)
+            changed |= count > 0
+        # Khối chỉ mục: bọc các đoạn liên tiếp chứa liên kết index-entry thành một trường INDEX.
+        paragraphs = list(re.finditer(r'<w:p\b[^>]*>(?:(?!</w:p>)[\s\S])*</w:p>', xml))
+        flagged = [m for m in paragraphs if 'w:anchor="index-entry-' in m.group(0)]
+        if flagged and "INDEX " not in xml:
+            first, last = flagged[0], flagged[-1]
+            begin = ('<w:r><w:fldChar w:fldCharType="begin"/></w:r>'
+                     '<w:r><w:instrText xml:space="preserve"> INDEX \\c "1" \\z "1066" </w:instrText></w:r>'
+                     '<w:r><w:fldChar w:fldCharType="separate"/></w:r>')
+            end = '<w:r><w:fldChar w:fldCharType="end"/></w:r>'
+            last_text = last.group(0)
+            new_last = last_text[:-len("</w:p>")] + end + "</w:p>"
+            first_text = first.group(0)
+            ppr_end = first_text.find("</w:pPr>")
+            insert_at = ppr_end + len("</w:pPr>") if ppr_end >= 0 else first_text.find(">") + 1
+            new_first = first_text[:insert_at] + begin + first_text[insert_at:]
+            if first is last:
+                new_first = new_first[:-len("</w:p>")] + end + "</w:p>"
+                xml = xml[:first.start()] + new_first + xml[first.end():]
+            else:
+                xml = xml[:last.start()] + new_last + xml[last.end():]
+                xml = xml[:first.start()] + new_first + xml[first.end():]
+            changed = True
+    if auto_hyphenation:
+        marker_para = re.compile(r'<w:p\b[^>]*>(?:(?!</w:p>)[\s\S])*?VNO_HYPHENATION_AUTO_V1(?:(?!</w:p>)[\s\S])*?</w:p>')
+        xml, removed = marker_para.subn("", xml, count=1)
+        changed |= removed > 0
+    changes = {}
+    if changed:
+        changes["word/document.xml"] = xml.encode("utf-8")
+    if auto_hyphenation:
+        settings_bytes = read_zip_entry(docx_bytes, "word/settings.xml")
+        if settings_bytes:
+            settings = settings_bytes.decode("utf-8", errors="replace")
+            if "<w:autoHyphenation" not in settings:
+                settings = re.sub(r"(<w:settings\b[^>]*>)", r"\1<w:autoHyphenation/>", settings, count=1)
+                changes["word/settings.xml"] = settings.encode("utf-8")
+    return patch_ooxml_zip(docx_bytes, changes) if changes else docx_bytes
 
 
 _CSS_NAMED_COLORS = {"black": "000000", "white": "FFFFFF", "red": "FF0000", "green": "008000", "blue": "0000FF", "yellow": "FFFF00",
@@ -22972,6 +23494,309 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
         replacements["word/settings.xml"] = settings_xml.encode("utf-8")
 
     return patch_ooxml_zip(docx_bytes, replacements)
+
+
+def _patch_blip_fill(blip_fill_xml: str, crop: tuple[float, float, float, float], bright: float, contrast: float, reset: bool = False) -> str:
+    l, t, r, b = crop
+    has_crop = any(v > 0 for v in (l, t, r, b))
+    has_lum = abs(bright) > 0.001 or abs(contrast) > 0.001
+    result = blip_fill_xml
+
+    if reset:
+        result = re.sub(r"<a:lum\b[^>]*/?>", "", result, flags=re.IGNORECASE)
+        result = re.sub(r"<a:srcRect\b[^>]*/?>", "", result, flags=re.IGNORECASE)
+        return result
+
+    # 1. Luminance in a:blip
+    if has_lum:
+        b_val = max(-100000, min(100000, round(bright * 1000)))
+        c_val = max(-100000, min(100000, round(contrast * 1000)))
+        lum_attrs = []
+        if b_val:
+            lum_attrs.append(f'bright="{b_val}"')
+        if c_val:
+            lum_attrs.append(f'contrast="{c_val}"')
+        lum_tag = f'<a:lum {" ".join(lum_attrs)}/>'
+
+        if re.search(r"<a:lum\b[^>]*/?>", result, re.IGNORECASE):
+            result = re.sub(r"<a:lum\b[^>]*/?>", lum_tag, result, count=1, flags=re.IGNORECASE)
+        else:
+            def insert_lum(m: re.Match) -> str:
+                blip = m.group(0)
+                blip_trimmed = blip.rstrip()
+                if blip_trimmed.endswith("/>"):
+                    opening = blip_trimmed[:-2]
+                    return f"{opening}>{lum_tag}</a:blip>"
+                else:
+                    return re.sub(r"(<a:blip\b[^>]*>)", rf"\1{lum_tag}", blip, count=1, flags=re.IGNORECASE)
+            result = re.sub(r"<a:blip\b[^>]*/>|<a:blip\b[^>]*>[\s\S]*?</a:blip>", insert_lum, result, count=1, flags=re.IGNORECASE)
+
+    # 2. Crop via a:srcRect
+    if has_crop:
+        src_attrs = []
+        l_val = max(0, min(100000, round(l * 1000)))
+        t_val = max(0, min(100000, round(t * 1000)))
+        r_val = max(0, min(100000, round(r * 1000)))
+        b_val = max(0, min(100000, round(b * 1000)))
+        if l_val: src_attrs.append(f'l="{l_val}"')
+        if t_val: src_attrs.append(f't="{t_val}"')
+        if r_val: src_attrs.append(f'r="{r_val}"')
+        if b_val: src_attrs.append(f'b="{b_val}"')
+        src_tag = f'<a:srcRect {" ".join(src_attrs)}/>'
+
+        if re.search(r"<a:srcRect\b[^>]*/?>", result, re.IGNORECASE):
+            result = re.sub(r"<a:srcRect\b[^>]*/?>", src_tag, result, count=1, flags=re.IGNORECASE)
+        else:
+            def insert_srcrect(m: re.Match) -> str:
+                return m.group(0) + src_tag
+            result = re.sub(r"<a:blip\b[^>]*/>|<a:blip\b[^>]*>[\s\S]*?</a:blip>", insert_srcrect, result, count=1, flags=re.IGNORECASE)
+
+    return result
+
+
+def _writer_restore_picture_tools_effects(document_xml: str, source_html: str | None) -> str:
+    if not source_html or not document_xml:
+        return document_xml
+    image_tags = list(re.finditer(r"<img\b([^>]*)/?>", source_html, re.IGNORECASE))
+    if not image_tags:
+        return document_xml
+
+    has_any = any(
+        re.search(r"data-vno-(?:crop-[ltrb]|brightness|contrast|pic-reset)|clip-path|filter", tag.group(1), re.IGNORECASE)
+        for tag in image_tags
+    )
+    if not has_any:
+        return document_xml
+
+    blip_fills = list(re.finditer(r"<pic:blipFill\b[\s\S]*?</pic:blipFill\s*>", document_xml, re.IGNORECASE))
+    if not blip_fills:
+        return document_xml
+
+    replacements: list[tuple[int, int, str]] = []
+    for idx, tag in enumerate(image_tags):
+        if idx >= len(blip_fills):
+            break
+        attrs = tag.group(1)
+        reset = bool(re.search(r'data-vno-pic-reset=["\'](?:1|true)["\']', attrs, re.IGNORECASE))
+
+        # Parse crop
+        crop_l = re.search(r'data-vno-crop-l=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        crop_t = re.search(r'data-vno-crop-t=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        crop_r = re.search(r'data-vno-crop-r=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        crop_b = re.search(r'data-vno-crop-b=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        l = float(crop_l.group(1)) if crop_l else 0.0
+        t = float(crop_t.group(1)) if crop_t else 0.0
+        r = float(crop_r.group(1)) if crop_r else 0.0
+        b = float(crop_b.group(1)) if crop_b else 0.0
+        if not (l or t or r or b):
+            clip = re.search(r'inset\(\s*([\d.]+)%\s+([\d.]+)%\s+([\d.]+)%\s+([\d.]+)%\s*\)', attrs, re.IGNORECASE)
+            if clip:
+                t = float(clip.group(1))
+                r = float(clip.group(2))
+                b = float(clip.group(3))
+                l = float(clip.group(4))
+
+        # Parse brightness / contrast
+        bright_m = re.search(r'data-vno-brightness=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        contrast_m = re.search(r'data-vno-contrast=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        bright = float(bright_m.group(1)) if bright_m else 0.0
+        contrast = float(contrast_m.group(1)) if contrast_m else 0.0
+        if not bright:
+            br_f = re.search(r'brightness\(\s*([\d.]+)\s*\)', attrs, re.IGNORECASE)
+            if br_f:
+                bright = (float(br_f.group(1)) - 1.0) * 100.0
+        if not contrast:
+            ct_f = re.search(r'contrast\(\s*([\d.]+)\s*\)', attrs, re.IGNORECASE)
+            if ct_f:
+                contrast = (float(ct_f.group(1)) - 1.0) * 100.0
+
+        has_crop = any(v > 0 for v in (l, t, r, b))
+        has_lum = abs(bright) > 0.001 or abs(contrast) > 0.001
+        if not has_crop and not has_lum and not reset:
+            continue
+
+        bf_match = blip_fills[idx]
+        patched_bf = _patch_blip_fill(bf_match.group(0), (l, t, r, b), bright, contrast, reset=reset)
+        if patched_bf != bf_match.group(0):
+            replacements.append((bf_match.start(), bf_match.end(), patched_bf))
+
+    for start, end, rep in reversed(replacements):
+        document_xml = document_xml[:start] + rep + document_xml[end:]
+    return document_xml
+
+
+def postprocess_writer_picture_tools(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
+    """Áp dụng thuộc tính cắt ảnh (Crop <a:srcRect>) và độ sáng/tương phản (Corrections <a:lum>) vào DOCX."""
+    if not docx_bytes or not source_html:
+        return docx_bytes
+    if not any(k in source_html for k in ("data-vno-crop", "data-vno-brightness", "data-vno-contrast", "data-vno-pic-reset", "clip-path", "filter")):
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    if not document_bytes:
+        return docx_bytes
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    patched_xml = _writer_restore_picture_tools_effects(document_xml, source_html)
+    if patched_xml == document_xml:
+        return docx_bytes
+    return patch_ooxml_zip(docx_bytes, {"word/document.xml": patched_xml.encode("utf-8")})
+
+
+def _writer_restore_text_effects(document_xml: str, source_html: str | None) -> str:
+    """Áp dụng hiệu ứng chữ WordML 2010 (w14:textOutline, w14:shadow, w14:glow) vào word/document.xml."""
+    if not source_html or not document_xml:
+        return document_xml
+
+    # Find spans with text effects
+    effect_spans = list(re.finditer(
+        r'<span\b(?=[^>]*\b(?:data-vno-(?:outline|shadow|glow)|vno-text-effect|-webkit-text-stroke|text-shadow))([^>]*)>([\s\S]*?)</span\s*>',
+        source_html,
+        re.IGNORECASE
+    ))
+    if not effect_spans:
+        return document_xml
+
+    # Ensure xmlns:w14 namespace on root <w:document>
+    if "xmlns:w14=" not in document_xml:
+        document_xml = re.sub(
+            r"(<w:document\b[^>]*)>",
+            r'\1 xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml">',
+            document_xml,
+            count=1,
+            flags=re.IGNORECASE
+        )
+
+    for span in effect_spans:
+        attrs = span.group(1)
+        raw_text = span.group(2)
+        text = re.sub(r"<[^>]+>", "", raw_text).strip()
+        if not text:
+            continue
+
+        # Outline
+        has_outline = False
+        outline_color = "000000"
+        outline_w = 12700
+        out_col_m = re.search(r'data-vno-outline-color=["\']#?([0-9a-fA-F]{6})["\']', attrs, re.IGNORECASE)
+        out_w_m = re.search(r'data-vno-outline-width=["\'](\d+)["\']', attrs, re.IGNORECASE)
+        if out_col_m:
+            has_outline = True
+            outline_color = out_col_m.group(1).upper()
+            if out_w_m:
+                outline_w = int(out_w_m.group(1))
+        else:
+            stroke_m = re.search(r'(?:-webkit-)?text-stroke\s*:\s*([\d.]+)px\s+#?([0-9a-fA-F]{6})', attrs, re.IGNORECASE)
+            if stroke_m:
+                has_outline = True
+                outline_w = max(3175, round(float(stroke_m.group(1)) * 9525))
+                outline_color = stroke_m.group(2).upper()
+
+        # Shadow
+        has_shadow = False
+        shadow_blur = 50800
+        shadow_dist = 38100
+        shadow_dir = 5400000
+        shadow_color = "000000"
+        shadow_alpha = 50000
+        if re.search(r'data-vno-shadow=["\']1["\']', attrs, re.IGNORECASE) or "data-vno-shadow-blur" in attrs:
+            has_shadow = True
+            blur_m = re.search(r'data-vno-shadow-blur=["\'](\d+)["\']', attrs, re.IGNORECASE)
+            dist_m = re.search(r'data-vno-shadow-dist=["\'](\d+)["\']', attrs, re.IGNORECASE)
+            dir_m = re.search(r'data-vno-shadow-dir=["\'](\d+)["\']', attrs, re.IGNORECASE)
+            col_m = re.search(r'data-vno-shadow-color=["\']#?([0-9a-fA-F]{6})["\']', attrs, re.IGNORECASE)
+            alp_m = re.search(r'data-vno-shadow-alpha=["\'](\d+)["\']', attrs, re.IGNORECASE)
+            if blur_m: shadow_blur = int(blur_m.group(1))
+            if dist_m: shadow_dist = int(dist_m.group(1))
+            if dir_m: shadow_dir = int(dir_m.group(1))
+            if col_m: shadow_color = col_m.group(1).upper()
+            if alp_m: shadow_alpha = int(alp_m.group(1))
+        elif re.search(r'text-shadow\s*:\s*[^;]*(?:\d+px\s+\d+px)', attrs, re.IGNORECASE):
+            has_shadow = True
+
+        # Glow
+        has_glow = False
+        glow_rad = 101600
+        glow_color = "2563EB"
+        glow_alpha = 60000
+        glow_col_m = re.search(r'data-vno-glow-color=["\']#?([0-9a-fA-F]{6})["\']', attrs, re.IGNORECASE)
+        glow_rad_m = re.search(r'data-vno-glow-rad=["\'](\d+)["\']', attrs, re.IGNORECASE)
+        if glow_col_m or glow_rad_m:
+            has_glow = True
+            if glow_col_m: glow_color = glow_col_m.group(1).upper()
+            if glow_rad_m: glow_rad = int(glow_rad_m.group(1))
+            glow_alp_m = re.search(r'data-vno-glow-alpha=["\'](\d+)["\']', attrs, re.IGNORECASE)
+            if glow_alp_m: glow_alpha = int(glow_alp_m.group(1))
+
+        if not (has_outline or has_shadow or has_glow):
+            continue
+
+        effects_xml_parts = []
+        if has_outline:
+            effects_xml_parts.append(
+                f'<w14:textOutline w14:w="{outline_w}">'
+                f'<w14:solidFill><w14:srgbClr w14:val="{outline_color}"/></w14:solidFill>'
+                f'</w14:textOutline>'
+            )
+        if has_shadow:
+            effects_xml_parts.append(
+                f'<w14:shadow w14:blurRad="{shadow_blur}" w14:dist="{shadow_dist}" w14:dir="{shadow_dir}">'
+                f'<w14:srgbClr w14:val="{shadow_color}"><w14:alpha w14:val="{shadow_alpha}"/></w14:srgbClr>'
+                f'</w14:shadow>'
+            )
+        if has_glow:
+            effects_xml_parts.append(
+                f'<w14:glow w14:rad="{glow_rad}">'
+                f'<w14:srgbClr w14:val="{glow_color}"><w14:alpha w14:val="{glow_alpha}"/></w14:srgbClr>'
+                f'</w14:glow>'
+            )
+        effects_xml = "".join(effects_xml_parts)
+
+        # Inject into matching <w:r> containing text
+        escaped_text = html.escape(text)
+        pattern = re.compile(
+            r'(<w:r\b[^>]*>)(?:(<w:rPr>[\s\S]*?</w:rPr>))?([\s\S]*?<w:t\b[^>]*>(?:(?!</w:t>)[\s\S])*' +
+            re.escape(escaped_text) +
+            r'(?:(?!</w:t>)[\s\S])*</w:t>[\s\S]*?</w:r>)',
+            re.IGNORECASE
+        )
+
+        def inject_effects(m: re.Match) -> str:
+            r_open = m.group(1)
+            r_pr = m.group(2)
+            rest = m.group(3)
+            if r_pr:
+                clean_rpr = re.sub(r'<w14:(?:textOutline|shadow|glow)\b[\s\S]*?</w14:(?:textOutline|shadow|glow)>', '', r_pr, flags=re.IGNORECASE)
+                new_rpr = clean_rpr[:-8] + effects_xml + "</w:rPr>"
+            else:
+                new_rpr = f"<w:rPr>{effects_xml}</w:rPr>"
+            return f"{r_open}{new_rpr}{rest}"
+
+        document_xml, count = pattern.subn(inject_effects, document_xml, count=1)
+        if count == 0:
+            alt_pattern = re.compile(
+                r'(<w:r\b[^>]*>)(?:(<w:rPr>[\s\S]*?</w:rPr>))?([\s\S]*?<w:t\b[^>]*>(?:(?!</w:t>)[\s\S])*' +
+                re.escape(text) +
+                r'(?:(?!</w:t>)[\s\S])*</w:t>[\s\S]*?</w:r>)',
+                re.IGNORECASE
+            )
+            document_xml = alt_pattern.sub(inject_effects, document_xml, count=1)
+
+    return document_xml
+
+
+def postprocess_writer_text_effects(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
+    """Áp dụng các hiệu ứng chữ WordML 2010 (Viền chữ, Bóng đổ, Phát sáng) vào DOCX."""
+    if not docx_bytes or not source_html:
+        return docx_bytes
+    if not any(k in source_html for k in ("vno-text-effect", "data-vno-outline", "data-vno-shadow", "data-vno-glow", "-webkit-text-stroke")):
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    if not document_bytes:
+        return docx_bytes
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    patched_xml = _writer_restore_text_effects(document_xml, source_html)
+    if patched_xml == document_xml:
+        return docx_bytes
+    return patch_ooxml_zip(docx_bytes, {"word/document.xml": patched_xml.encode("utf-8")})
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:

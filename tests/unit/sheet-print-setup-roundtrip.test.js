@@ -37,7 +37,7 @@ export async function runSheetPrintSetupRoundTripTests() {
     const setup = parsed.pageSetupBySheet.Audit;
     assert.equal(setup.size, "legal");
     assert.equal(setup.orientation, "landscape");
-    assert.deepEqual(setup.margins, { top: 2.54, bottom: 2.1, left: 1.27, right: 1.5 });
+    assert.deepEqual(setup.margins, { top: 2.54, bottom: 2.1, left: 1.27, right: 1.5, header: 0.76, footer: 0.76 });
     assert.deepEqual(setup.scale, { mode: "pages", percent: 100, pagesWide: 1, pagesTall: 2 });
     assert.equal(parsed.printAreaBySheet.Audit, "A1:B5");
     assert.equal(setup.headerFooter.header.center, "Báo cáo quý");
