@@ -75,7 +75,7 @@ for (const [index, item] of excelList.entries()) {
   else if (item.type === "boolean") pass = mine === item.value;
   else if (item.type === "error") pass = String(mine).split(" ")[0] === item.value;
   else if (item.type === "array") pass = Array.isArray(mine) && mine.length === item.value.length && item.value.every((v, i) => (typeof v === "number" ? near(Number(mine[i]), v) : String(mine[i]) === String(v)));
-  rows.push({ formula: item.formula, excel: item.value, excelType: item.type, mine, pass, tol: tolerances[index] ?? undefined });
+  rows.push({ formula: mineFormulas[index], excel: item.value, excelType: item.type, mine, pass, tol: tolerances[index] ?? undefined });
 }
 const failed = rows.filter(row => !row.pass);
 for (const row of failed) console.log(`FAIL | ${row.formula} | Excel=${JSON.stringify(row.excel)} (${row.excelType}) | VN=${JSON.stringify(row.mine)}`);
