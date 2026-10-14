@@ -54,7 +54,9 @@ const excelList = Array.isArray(excel) ? excel : [excel];
 const { FormulaEngine } = await import(pathToFileURL(path.resolve("apps/sheet/formula-engine.js")).href);
 const cells = new Map();
 for (const [key, value] of Object.entries(spec.cells || {})) cells.set(key, { val: value, formula: "", style: {} });
+const { EN_LOCALE } = await import(pathToFileURL(path.resolve("apps/sheet/excel-format-code.js")).href);
 const engine = new FormulaEngine(() => cells, null, () => cells, () => "Sheet1", () => ["Sheet1"]);
+engine.textLocale = EN_LOCALE;
 
 const near = (a, b) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
 const rows = [];

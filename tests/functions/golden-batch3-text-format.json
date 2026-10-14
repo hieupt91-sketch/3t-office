@@ -1,0 +1,490 @@
+{
+ "generatedFrom": "Excel 2016 (16.0.4266) Application.Evaluate",
+ "cells": {
+  "A1": 1234.5678,
+  "A2": -1234.5678,
+  "A3": 0,
+  "A4": 0.256,
+  "A5": 45356.75,
+  "A6": 0.5,
+  "A7": 1234567.891,
+  "A8": 0.000123,
+  "A9": 5,
+  "A10": 1.75,
+  "A11": 100,
+  "B1": "hello",
+  "B2": 12
+ },
+ "cases": [
+  {
+   "formula": "=TEXT(A1,\"0\")",
+   "excel": "1235",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A1,\"0.0\")",
+   "excel": "1234.6",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A1,\"0.00\")",
+   "excel": "1234.57",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A1,\"0.000\")",
+   "excel": "1234.568",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A1,\"#,##0\")",
+   "excel": "1,235",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A1,\"#,##0.00\")",
+   "excel": "1,234.57",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A1,\"#.##\")",
+   "excel": "1234.57",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A1,\"000000.00\")",
+   "excel": "001234.57",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A1,\"#,###\")",
+   "excel": "1,235",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A1,\"##0.0#\")",
+   "excel": "1234.57",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A2,\"0.00\")",
+   "excel": "-1234.57",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A2,\"#,##0.00\")",
+   "excel": "-1,234.57",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A2,\"0.00;(0.00)\")",
+   "excel": "(1234.57)",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A2,\"0.00;[Red]-0.00\")",
+   "excel": "-1234.57",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A2,\"#,##0;(#,##0)\")",
+   "excel": "(1,235)",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A3,\"0.00\")",
+   "excel": "0.00",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A3,\"#\")",
+   "excel": "",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A3,\"0.00;-0.00;\"\"zero\"\"\")",
+   "excel": "zero",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A3,\"#,##0.00;;-\")",
+   "excel": "-",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A4,\"0%\")",
+   "excel": "26%",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A4,\"0.0%\")",
+   "excel": "25.6%",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A4,\"0.00%\")",
+   "excel": "25.60%",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(0.5,\"0%\")",
+   "excel": "50%",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(1.2345,\"0.0%\")",
+   "excel": "123.5%",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A5,\"dd/mm/yyyy\")",
+   "excel": "05/03/2024",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A5,\"d/m/yy\")",
+   "excel": "5/3/24",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A5,\"dddd\")",
+   "excel": "Tuesday",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A5,\"ddd\")",
+   "excel": "Tue",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A5,\"mmmm\")",
+   "excel": "March",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A5,\"mmm\")",
+   "excel": "Mar",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A5,\"mmmmm\")",
+   "excel": "M",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A5,\"yyyy-mm-dd\")",
+   "excel": "2024-03-05",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A5,\"dd mmmm yyyy\")",
+   "excel": "05 March 2024",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A5,\"dddd, mmmm d, yyyy\")",
+   "excel": "Tuesday, March 5, 2024",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A5,\"hh:mm\")",
+   "excel": "18:00",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A5,\"hh:mm:ss\")",
+   "excel": "18:00:00",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A5,\"h:mm AM/PM\")",
+   "excel": "6:00 PM",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A5,\"hh:mm A/P\")",
+   "excel": "06:00 P",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A5,\"dd/mm/yyyy hh:mm\")",
+   "excel": "05/03/2024 18:00",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A6,\"hh:mm:ss\")",
+   "excel": "12:00:00",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A6,\"h:mm AM/PM\")",
+   "excel": "12:00 PM",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A6,\"[h]:mm\")",
+   "excel": "12:00",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(1.5,\"[h]:mm:ss\")",
+   "excel": "36:00:00",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(0.0123,\"mm:ss\")",
+   "excel": "17:43",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(0.0123,\"[m]:ss\")",
+   "excel": "17:43",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(0.00012345,\"ss.00\")",
+   "excel": "10.67",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A7,\"#,##0.00\")",
+   "excel": "1,234,567.89",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A7,\"#,##0,\")",
+   "excel": "1,235",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A7,\"#,##0.0,,\"\"M\"\"\")",
+   "excel": "1.2M",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A7,\"0.00E+00\")",
+   "excel": "1.23E+06",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A8,\"0.00E+00\")",
+   "excel": "1.23E-04",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A7,\"##0.0E+0\")",
+   "excel": "1.2E+6",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A7,\"0E-00\")",
+   "excel": "1E06",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A9,\"00\")",
+   "excel": "05",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A9,\"000\")",
+   "excel": "005",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A9,\"0.0\")",
+   "excel": "5.0",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A9,\"\"\"No. \"\"0\")",
+   "excel": "No. 5",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A9,\"0\"\" items\"\"\")",
+   "excel": "5 items",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A9,\"#,##0 \"\"VND\"\"\")",
+   "excel": "5 VND",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A10,\"# ?/?\")",
+   "excel": "1 3/4",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A10,\"# ??/??\")",
+   "excel": "1  3/4 ",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(0.333,\"?/?\")",
+   "excel": "1/3",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(2.5,\"# ?/2\")",
+   "excel": "2 1/2",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(0.75,\"# ?/?\")",
+   "excel": " 3/4",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(A11,\"[>=100]\"\"big\"\";\"\"small\"\"\")",
+   "excel": "big",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(50,\"[>=100]\"\"big\"\";\"\"small\"\"\")",
+   "excel": "small",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(5,\"[<10]0.0;0\")",
+   "excel": "5.0",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(15,\"[<10]0.0;0\")",
+   "excel": "15",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(0,\"[=0]\"\"zero\"\";0\")",
+   "excel": "zero",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(B1,\"@\")",
+   "excel": "hello",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(B1,\"@@\")",
+   "excel": "hellohello",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(B1,\"\"\"Hi \"\"@\")",
+   "excel": "Hi hello",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(B1,\"0.00;0.00;0.00;\"\"text:\"\"@\")",
+   "excel": "text:hello",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(B2,\"@\")",
+   "excel": "12",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(1234.5,\"General\")",
+   "excel": "1234.5",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(0.1+0.2,\"General\")",
+   "excel": "0.3",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(1234.5,\"\"\"Total: \"\"General\")",
+   "excel": "Total: 1234.5",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(12345678,\"000-0000\")",
+   "excel": "1234-5678",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(1234567,\"(###) ###-####\")",
+   "excel": "() 123-4567",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(9,\"0000\")",
+   "excel": "0009",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(123456789,\"#,##0\")",
+   "excel": "123,456,789",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(0.5,\"0.00\")",
+   "excel": "0.50",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(1.005,\"0.00\")",
+   "excel": "1.01",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(2.675,\"0.00\")",
+   "excel": "2.68",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(-0.001,\"0.00\")",
+   "excel": "0.00",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(-0.5,\"0\")",
+   "excel": "-1",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(0.5,\"0\")",
+   "excel": "1",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(1.5,\"0\")",
+   "excel": "2",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(2.5,\"0\")",
+   "excel": "3",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(\"2024-03-05\",\"dd/mm/yyyy\")",
+   "excel": "05/03/2024",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(\"12.5\",\"0.00\")",
+   "excel": "12.50",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(TRUE,\"0\")",
+   "excel": "TRUE",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(1000,\"$#,##0\")",
+   "excel": "$1,000",
+   "type": "string"
+  },
+  {
+   "formula": "=TEXT(1000,\"#,##0\"\" $\"\"\")",
+   "excel": "1,000 $",
+   "type": "string"
+  }
+ ]
+}

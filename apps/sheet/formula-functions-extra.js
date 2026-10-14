@@ -4,46 +4,8 @@
  * (bộ ca trong tests/functions/*.json); không thêm hàm nào mà chưa có ca đối chiếu.
  */
 
-const isErr = value => typeof value === "string" && /^#(?:DIV\/0!|N\/A|NAME\?|NULL!|NUM!|REF!|VALUE!)/.test(value);
-
-/** Tính một đối số về giá trị vô hướng; trả lỗi Excel nếu có. */
-function scalar(engine, arg) {
-  if (arg === undefined) return undefined;
-  const value = engine._resolveSingleValue(arg);
-  return value instanceof String ? String(value) : value;
-}
-
-/** Đối số số: TRUE=1, chuỗi số được ép số, chuỗi khác -> #VALUE!. */
-function num(engine, arg) {
-  const value = scalar(engine, arg);
-  if (isErr(value)) return value;
-  if (typeof value === "number") return value;
-  if (typeof value === "boolean") return value ? 1 : 0;
-  if (value === "" || value === null || value === undefined) return 0;
-  const parsed = engine._parseNumberOrCurrency?.(value);
-  if (parsed !== null && parsed !== undefined && Number.isFinite(parsed)) return parsed;
-  const direct = Number(String(value).trim());
-  return Number.isFinite(direct) ? direct : "#VALUE!";
-}
-
-const nums = (engine, args, from = 0) => {
-  const out = [];
-  for (let i = from; i < args.length; i++) {
-    const value = num(engine, args[i]);
-    if (isErr(value)) return { error: value };
-    out.push(value);
-  }
-  return { values: out };
-};
-
-const finite = value => Number.isFinite(value) ? value : "#NUM!";
-const unary = fn => (engine, args) => {
-  if (args.length !== 1) return "#VALUE!";
-  const x = num(engine, args[0]);
-  if (isErr(x)) return x;
-  const result = fn(x);
-  return typeof result === "number" ? finite(result) : result;
-};
+import { isErr, scalar, num, nums, finite, unary } from "./formula-function-helpers.js";
+import { STAT_FUNCTIONS } from "./formula-functions-stats.js";
 
 /** Giá trị số của một vùng (bỏ ô trống/chuỗi, giữ lỗi để báo). */
 function rangeNumbers(engine, arg) {
@@ -78,7 +40,7 @@ function floorMath(x, significance, mode) {
 
 const round15 = value => Number(Number(value).toPrecision(15));
 
-export const EXTRA_FUNCTIONS = {
+const BASE_FUNCTIONS = {
   // ---- Lượng giác / hyperbolic
   ACOS: unary(x => (x < -1 || x > 1 ? "#NUM!" : Math.acos(x))),
   ASIN: unary(x => (x < -1 || x > 1 ? "#NUM!" : Math.asin(x))),
@@ -338,6 +300,8 @@ export const EXTRA_FUNCTIONS = {
     return 1;
   }
 };
+
+export const EXTRA_FUNCTIONS = { ...BASE_FUNCTIONS, ...STAT_FUNCTIONS };
 
 function pairSum(engine, args, fn) {
   if (args.length !== 2) return "#VALUE!";

@@ -5,6 +5,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import path from "node:path";
 import { FormulaEngine } from "../../apps/sheet/formula-engine.js";
+import { EN_LOCALE } from "../../apps/sheet/excel-format-code.js";
 
 const dir = path.resolve("tests/functions");
 
@@ -16,6 +17,7 @@ export async function runFunctionGoldenTests() {
     const cells = new Map();
     for (const [key, value] of Object.entries(golden.cells || {})) cells.set(key, { val: value, formula: "", style: {} });
     const engine = new FormulaEngine(() => cells, null, () => cells, () => "Sheet1", () => ["Sheet1"]);
+    engine.textLocale = EN_LOCALE;
     const failures = [];
     for (const item of golden.cases) {
       let mine;
