@@ -1486,6 +1486,23 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.image.tools",
+    app: "writer",
+    commandIds: ["writer.image.crop", "writer.image.corrections", "writer.image.changePicture", "writer.image.resetPicture", "writer.image.compress"],
+    title: "Công cụ xử lý hình ảnh (Cắt ảnh, Độ sáng, Đổi ảnh, Đặt lại và Nén ảnh)",
+    summary: "Bộ công cụ định dạng hình ảnh nâng cao: cắt ảnh theo 4 cạnh, chỉnh độ sáng và tương phản, đổi ảnh khác, đặt lại định dạng và nén dung lượng ảnh trực tiếp trong văn bản.",
+    ribbon: { tab: "Định dạng Hình ảnh", tabId: "pictureFormat", group: "Điều chỉnh / Cắt ảnh" },
+    keywords: ["cắt ảnh", "crop", "độ sáng", "tương phản", "đổi ảnh", "đặt lại ảnh", "nén ảnh", "công cụ ảnh", "picture tools", "corrections"],
+    steps: [
+      "Nhấp chuột vào hình ảnh trong tài liệu để chọn ảnh và kích hoạt tab ngữ cảnh Định dạng Hình ảnh trên thanh ribbon.",
+      "Cắt ảnh (Crop): Bấm nút Cắt ảnh tại nhóm Cắt ảnh hoặc nhập tỷ lệ % cắt bớt ở 4 mép (Trái, Trên, Phải, Dưới). Thông số cắt được lưu chuẩn xác vào tệp văn bản.",
+      "Chỉnh độ sáng và tương phản: Bấm Độ sáng & Tương phản tại nhóm Điều chỉnh, kéo thanh trượt hoặc chọn các mức mẫu nhanh (-20%, +20%) để cải thiện chất lượng ảnh.",
+      "Đổi ảnh khác: Bấm Đổi ảnh để thay thế bằng tệp hình ảnh mới trên máy tính mà vẫn giữ nguyên kích thước và kiểu bố cục ngắt dòng hiện tại.",
+      "Đặt lại ảnh: Bấm Đặt lại ảnh để xóa toàn bộ vết cắt, khôi phục màu sắc và kích thước gốc của hình ảnh.",
+      "Nén ảnh: Bấm Nén ảnh để tối ưu hóa kích thước dữ liệu và độ phân giải của ảnh, giúp giảm đáng kể dung lượng tệp tài liệu."
+    ]
+  },
+  {
     id: "writer.list.restartContinue",
     app: "writer",
     commandIds: ["writer.list.restartNumbering", "writer.list.continueNumbering"],

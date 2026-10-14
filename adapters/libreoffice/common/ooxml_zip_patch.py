@@ -20972,6 +20972,7 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
     document_xml = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", patch_indent, document_xml, flags=re.IGNORECASE)
     document_xml = _writer_restore_created_paragraph_css(document_xml, source_html)
     document_xml = _writer_restore_created_image_layout(document_xml, source_html)
+    document_xml = _writer_restore_picture_tools_effects(document_xml, source_html)
 
     section_meta: list[dict] = []
     meta_match = re.search(r"<!--vno-sections-meta:\s*(\[.*?\])\s*-->", source_html, re.IGNORECASE | re.DOTALL)
@@ -22972,6 +22973,151 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
         replacements["word/settings.xml"] = settings_xml.encode("utf-8")
 
     return patch_ooxml_zip(docx_bytes, replacements)
+
+
+def _patch_blip_fill(blip_fill_xml: str, crop: tuple[float, float, float, float], bright: float, contrast: float, reset: bool = False) -> str:
+    l, t, r, b = crop
+    has_crop = any(v > 0 for v in (l, t, r, b))
+    has_lum = abs(bright) > 0.001 or abs(contrast) > 0.001
+    result = blip_fill_xml
+
+    if reset:
+        result = re.sub(r"<a:lum\b[^>]*/?>", "", result, flags=re.IGNORECASE)
+        result = re.sub(r"<a:srcRect\b[^>]*/?>", "", result, flags=re.IGNORECASE)
+        return result
+
+    # 1. Luminance in a:blip
+    if has_lum:
+        b_val = max(-100000, min(100000, round(bright * 1000)))
+        c_val = max(-100000, min(100000, round(contrast * 1000)))
+        lum_attrs = []
+        if b_val:
+            lum_attrs.append(f'bright="{b_val}"')
+        if c_val:
+            lum_attrs.append(f'contrast="{c_val}"')
+        lum_tag = f'<a:lum {" ".join(lum_attrs)}/>'
+
+        if re.search(r"<a:lum\b[^>]*/?>", result, re.IGNORECASE):
+            result = re.sub(r"<a:lum\b[^>]*/?>", lum_tag, result, count=1, flags=re.IGNORECASE)
+        else:
+            def insert_lum(m: re.Match) -> str:
+                blip = m.group(0)
+                blip_trimmed = blip.rstrip()
+                if blip_trimmed.endswith("/>"):
+                    opening = blip_trimmed[:-2]
+                    return f"{opening}>{lum_tag}</a:blip>"
+                else:
+                    return re.sub(r"(<a:blip\b[^>]*>)", rf"\1{lum_tag}", blip, count=1, flags=re.IGNORECASE)
+            result = re.sub(r"<a:blip\b[^>]*/>|<a:blip\b[^>]*>[\s\S]*?</a:blip>", insert_lum, result, count=1, flags=re.IGNORECASE)
+
+    # 2. Crop via a:srcRect
+    if has_crop:
+        src_attrs = []
+        l_val = max(0, min(100000, round(l * 1000)))
+        t_val = max(0, min(100000, round(t * 1000)))
+        r_val = max(0, min(100000, round(r * 1000)))
+        b_val = max(0, min(100000, round(b * 1000)))
+        if l_val: src_attrs.append(f'l="{l_val}"')
+        if t_val: src_attrs.append(f't="{t_val}"')
+        if r_val: src_attrs.append(f'r="{r_val}"')
+        if b_val: src_attrs.append(f'b="{b_val}"')
+        src_tag = f'<a:srcRect {" ".join(src_attrs)}/>'
+
+        if re.search(r"<a:srcRect\b[^>]*/?>", result, re.IGNORECASE):
+            result = re.sub(r"<a:srcRect\b[^>]*/?>", src_tag, result, count=1, flags=re.IGNORECASE)
+        else:
+            def insert_srcrect(m: re.Match) -> str:
+                return m.group(0) + src_tag
+            result = re.sub(r"<a:blip\b[^>]*/>|<a:blip\b[^>]*>[\s\S]*?</a:blip>", insert_srcrect, result, count=1, flags=re.IGNORECASE)
+
+    return result
+
+
+def _writer_restore_picture_tools_effects(document_xml: str, source_html: str | None) -> str:
+    if not source_html or not document_xml:
+        return document_xml
+    image_tags = list(re.finditer(r"<img\b([^>]*)/?>", source_html, re.IGNORECASE))
+    if not image_tags:
+        return document_xml
+
+    has_any = any(
+        re.search(r"data-vno-(?:crop-[ltrb]|brightness|contrast|pic-reset)|clip-path|filter", tag.group(1), re.IGNORECASE)
+        for tag in image_tags
+    )
+    if not has_any:
+        return document_xml
+
+    blip_fills = list(re.finditer(r"<pic:blipFill\b[\s\S]*?</pic:blipFill\s*>", document_xml, re.IGNORECASE))
+    if not blip_fills:
+        return document_xml
+
+    replacements: list[tuple[int, int, str]] = []
+    for idx, tag in enumerate(image_tags):
+        if idx >= len(blip_fills):
+            break
+        attrs = tag.group(1)
+        reset = bool(re.search(r'data-vno-pic-reset=["\'](?:1|true)["\']', attrs, re.IGNORECASE))
+
+        # Parse crop
+        crop_l = re.search(r'data-vno-crop-l=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        crop_t = re.search(r'data-vno-crop-t=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        crop_r = re.search(r'data-vno-crop-r=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        crop_b = re.search(r'data-vno-crop-b=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        l = float(crop_l.group(1)) if crop_l else 0.0
+        t = float(crop_t.group(1)) if crop_t else 0.0
+        r = float(crop_r.group(1)) if crop_r else 0.0
+        b = float(crop_b.group(1)) if crop_b else 0.0
+        if not (l or t or r or b):
+            clip = re.search(r'inset\(\s*([\d.]+)%\s+([\d.]+)%\s+([\d.]+)%\s+([\d.]+)%\s*\)', attrs, re.IGNORECASE)
+            if clip:
+                t = float(clip.group(1))
+                r = float(clip.group(2))
+                b = float(clip.group(3))
+                l = float(clip.group(4))
+
+        # Parse brightness / contrast
+        bright_m = re.search(r'data-vno-brightness=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        contrast_m = re.search(r'data-vno-contrast=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        bright = float(bright_m.group(1)) if bright_m else 0.0
+        contrast = float(contrast_m.group(1)) if contrast_m else 0.0
+        if not bright:
+            br_f = re.search(r'brightness\(\s*([\d.]+)\s*\)', attrs, re.IGNORECASE)
+            if br_f:
+                bright = (float(br_f.group(1)) - 1.0) * 100.0
+        if not contrast:
+            ct_f = re.search(r'contrast\(\s*([\d.]+)\s*\)', attrs, re.IGNORECASE)
+            if ct_f:
+                contrast = (float(ct_f.group(1)) - 1.0) * 100.0
+
+        has_crop = any(v > 0 for v in (l, t, r, b))
+        has_lum = abs(bright) > 0.001 or abs(contrast) > 0.001
+        if not has_crop and not has_lum and not reset:
+            continue
+
+        bf_match = blip_fills[idx]
+        patched_bf = _patch_blip_fill(bf_match.group(0), (l, t, r, b), bright, contrast, reset=reset)
+        if patched_bf != bf_match.group(0):
+            replacements.append((bf_match.start(), bf_match.end(), patched_bf))
+
+    for start, end, rep in reversed(replacements):
+        document_xml = document_xml[:start] + rep + document_xml[end:]
+    return document_xml
+
+
+def postprocess_writer_picture_tools(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
+    """Áp dụng thuộc tính cắt ảnh (Crop <a:srcRect>) và độ sáng/tương phản (Corrections <a:lum>) vào DOCX."""
+    if not docx_bytes or not source_html:
+        return docx_bytes
+    if not any(k in source_html for k in ("data-vno-crop", "data-vno-brightness", "data-vno-contrast", "data-vno-pic-reset", "clip-path", "filter")):
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    if not document_bytes:
+        return docx_bytes
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    patched_xml = _writer_restore_picture_tools_effects(document_xml, source_html)
+    if patched_xml == document_xml:
+        return docx_bytes
+    return patch_ooxml_zip(docx_bytes, {"word/document.xml": patched_xml.encode("utf-8")})
 
 
 def _parse_args(argv: list[str] | None = None) -> argparse.Namespace:

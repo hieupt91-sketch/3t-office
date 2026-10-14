@@ -34,6 +34,16 @@ import {
   showTextToTableDialog,
   splitTextToRows
 } from "../../../apps/writer/text-to-table-dialog.js";
+import {
+  parseImageCrop,
+  applyImageCrop,
+  parseImageCorrections,
+  applyImageCorrections,
+  resetImageProperties,
+  compressImageElement,
+  showCropDialog,
+  showPictureCorrectionsDialog
+} from "../../../apps/writer/picture-tools-dialog.js";
 import { parseTabStops, resolveTab, serializeTabStops, showTabStopsDialog, styleTabElement } from "../../../apps/writer/tab-stops.js";
 import { SHAPE_TYPES, showShapeDialog, renderShapeSvg, showDiagramDialog, generateDiagramHtml, showChartDialog, generateChartHtml } from "../../../apps/writer/writer-illustrations.js";
 import { DOCUMENT_THEMES, showThemeGalleryDialog } from "../../../apps/writer/theme-gallery.js";
@@ -717,6 +727,11 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.table.fromText", (args) => this._hintIfFalse(() => this.convertTextToTable(args), "Hãy chọn ít nhất một đoạn văn bản ngoài bảng để chuyển thành bảng."));
     globalCommandBus.bindHandler("writer.table.toText", (args) => this._hintIfFalse(() => this.convertTableToText(args), "Hãy đặt con trỏ vào bảng cần chuyển thành văn bản."));
     globalCommandBus.bindHandler("writer.table.quickTables", (args) => this.insertQuickTable(args));
+    globalCommandBus.bindHandler("writer.image.crop", (args) => this._hintIfFalse(() => this.cropImage(args), "Hãy chọn hình ảnh cần cắt (Crop)."));
+    globalCommandBus.bindHandler("writer.image.corrections", (args) => this._hintIfFalse(() => this.setPictureCorrections(args), "Hãy chọn hình ảnh cần điều chỉnh độ sáng và tương phản."));
+    globalCommandBus.bindHandler("writer.image.changePicture", (args) => this._hintIfFalse(() => this.changePicture(args), "Hãy chọn hình ảnh cần đổi."));
+    globalCommandBus.bindHandler("writer.image.resetPicture", () => this._hintIfFalse(() => this.resetPicture(), "Hãy chọn hình ảnh cần đặt lại."));
+    globalCommandBus.bindHandler("writer.image.compress", (args) => this._hintIfFalse(() => this.compressPicture(args), "Hãy chọn hình ảnh cần nén dung lượng."));
 
     // Bind Office Parity Mouse & Shortcuts
     this._bindMouseAndKeyboardParity();
@@ -3429,6 +3444,7 @@ export class WriterAdapter {
       html = this._applyOoxmlTableRowHeights(html, ooxmlDocumentXml);
       // W53: padding dọc ô = w:tcMar (LibreOffice chỉ ghi padding-bottom). Trước W44b để viền cộng lên lề thật.
       html = this._applyOoxmlTableCellMargins(html, ooxmlDocumentXml);
+      html = this._applyOoxmlImageProperties(html, ooxmlDocumentXml);
     }
     // W44: viền ô chỉ tô (box-shadow), không chiếm chỗ như Word
     html = this._applyPaintOnlyTableBorders(html);
@@ -5843,6 +5859,84 @@ export class WriterAdapter {
    * làm bảng 713→1039px, canvas 2→3 trang). d09 hàng 25.1px → ~29px (Word 28px). d07 logo 77→90px
    * (Word 90px = 2×100 twips). Padding gốc giữ ở `data-vno-lo-padding`.
    */
+  /**
+   * Phục hồi thuộc tính Cắt ảnh (Crop <a:srcRect>) và Độ sáng/Độ tương phản (Corrections <a:lum>)
+   * từ OOXML drawingml khi nhập tài liệu DOCX vào Writer.
+   */
+  _applyOoxmlImageProperties(html, ooxmlDocumentXml) {
+    if (!html || !ooxmlDocumentXml || !html.includes("<img")) return html;
+    const blipFills = [...ooxmlDocumentXml.matchAll(/<pic:blipFill\b[\s\S]*?<\/pic:blipFill>/gi)];
+    if (!blipFills.length) return html;
+
+    const imgTags = [...html.matchAll(/<img\b([^>]*)\/?>/gi)];
+    if (!imgTags.length) return html;
+
+    let modified = false;
+    let outHtml = html;
+
+    imgTags.forEach((match, index) => {
+      if (index >= blipFills.length) return;
+      const blipXml = blipFills[index][0];
+      const srcRectMatch = blipXml.match(/<a:srcRect\b([^>]*)\/?>/i);
+      const lumMatch = blipXml.match(/<a:lum\b([^>]*)\/?>/i);
+
+      if (!srcRectMatch && !lumMatch) return;
+
+      let fullTag = match[0];
+      let attrs = match[1];
+
+      // Parse crop
+      if (srcRectMatch) {
+        const sattrs = srcRectMatch[1];
+        const lm = sattrs.match(/\bl=["'](-?\d+)["']/i);
+        const tm = sattrs.match(/\bt=["'](-?\d+)["']/i);
+        const rm = sattrs.match(/\br=["'](-?\d+)["']/i);
+        const bm = sattrs.match(/\bb=["'](-?\d+)["']/i);
+        const l = lm ? Math.round(parseInt(lm[1], 10) / 1000) : 0;
+        const t = tm ? Math.round(parseInt(tm[1], 10) / 1000) : 0;
+        const r = rm ? Math.round(parseInt(rm[1], 10) / 1000) : 0;
+        const b = bm ? Math.round(parseInt(bm[1], 10) / 1000) : 0;
+        if (l > 0 || t > 0 || r > 0 || b > 0) {
+          attrs += ` data-vno-crop-l="${l}" data-vno-crop-t="${t}" data-vno-crop-r="${r}" data-vno-crop-b="${b}"`;
+          const clipStyle = `clip-path: inset(${t}% ${r}% ${b}% ${l}%);`;
+          if (/style=["']/.test(attrs)) {
+            attrs = attrs.replace(/style=["']([^"']*)["']/i, (m, s) => `style="${s.replace(/;?\s*$/, "; ")}${clipStyle}"`);
+          } else {
+            attrs += ` style="${clipStyle}"`;
+          }
+        }
+      }
+
+      // Parse luminance (brightness / contrast)
+      if (lumMatch) {
+        const lattrs = lumMatch[1];
+        const brm = lattrs.match(/\bbright=["'](-?\d+)["']/i);
+        const ctm = lattrs.match(/\bcontrast=["'](-?\d+)["']/i);
+        const bright = brm ? Math.round(parseInt(brm[1], 10) / 1000) : 0;
+        const contrast = ctm ? Math.round(parseInt(ctm[1], 10) / 1000) : 0;
+        if (bright !== 0 || contrast !== 0) {
+          attrs += ` data-vno-brightness="${bright}" data-vno-contrast="${contrast}"`;
+          const brRatio = Math.max(0, 1 + bright / 100);
+          const ctRatio = Math.max(0, 1 + contrast / 100);
+          const filterStyle = `filter: brightness(${brRatio.toFixed(2)}) contrast(${ctRatio.toFixed(2)});`;
+          if (/style=["']/.test(attrs)) {
+            attrs = attrs.replace(/style=["']([^"']*)["']/i, (m, s) => `style="${s.replace(/;?\s*$/, "; ")}${filterStyle}"`);
+          } else {
+            attrs += ` style="${filterStyle}"`;
+          }
+        }
+      }
+
+      const newTag = `<img${attrs}>`;
+      if (newTag !== fullTag) {
+        outHtml = outHtml.replace(fullTag, newTag);
+        modified = true;
+      }
+    });
+
+    return modified ? outHtml : html;
+  }
+
   _applyOoxmlTableCellMargins(html, ooxmlDocumentXml) {
     return this._runWithRangeVerify("tableCellMargins", incremental => this._applyOoxmlTableCellMarginsCore(html, ooxmlDocumentXml, incremental));
   }
@@ -8123,6 +8217,16 @@ export class WriterAdapter {
         return this._hintIfFalse(() => this.convertTableToText(args), "Hãy đặt con trỏ vào bảng cần chuyển thành văn bản.");
       case "writer.table.quickTables":
         return this.insertQuickTable(args);
+      case "writer.image.crop":
+        return this._hintIfFalse(() => this.cropImage(args), "Hãy chọn hình ảnh cần cắt (Crop).");
+      case "writer.image.corrections":
+        return this._hintIfFalse(() => this.setPictureCorrections(args), "Hãy chọn hình ảnh cần điều chỉnh độ sáng và tương phản.");
+      case "writer.image.changePicture":
+        return this._hintIfFalse(() => this.changePicture(args), "Hãy chọn hình ảnh cần đổi.");
+      case "writer.image.resetPicture":
+        return this._hintIfFalse(() => this.resetPicture(), "Hãy chọn hình ảnh cần đặt lại.");
+      case "writer.image.compress":
+        return this._hintIfFalse(() => this.compressPicture(args), "Hãy chọn hình ảnh cần nén dung lượng.");
 
       case "writer.break.column":
         return this._insertColumnBreak();
@@ -9306,6 +9410,105 @@ export class WriterAdapter {
     this.isDirty = true;
     this.recordSnapshot("writer.table.quickTables");
     return true;
+  }
+
+  _getSelectedImage() {
+    if (this.arrangeController?.selectedImage && this.arrangeController.selectedImage.isConnected) {
+      return this.arrangeController.selectedImage;
+    }
+    const selected = (this.bodyDom || this.editorDom)?.querySelector?.("img.is-vno-image-selected");
+    if (selected) return selected;
+    if (typeof window !== "undefined") {
+      const sel = window.getSelection?.();
+      if (sel && sel.rangeCount > 0) {
+        const node = sel.anchorNode;
+        const el = node?.nodeType === 1 ? node : node?.parentElement;
+        if (el?.tagName === "IMG") return el;
+        const img = el?.querySelector?.("img");
+        if (img) return img;
+      }
+    }
+    return (this.bodyDom || this.editorDom)?.querySelector?.("img") || null;
+  }
+
+  async cropImage(args = null) {
+    const img = this._getSelectedImage();
+    if (!img) return false;
+    let values = args && typeof args === "object" ? args : await showCropDialog(img);
+    if (!values) return null;
+    applyImageCrop(img, values);
+    this.isDirty = true;
+    this.recordSnapshot("writer.image.crop");
+    this.arrangeController?._updateOverlay?.();
+    return true;
+  }
+
+  async setPictureCorrections(args = null) {
+    const img = this._getSelectedImage();
+    if (!img) return false;
+    let values = args && typeof args === "object" ? args : await showPictureCorrectionsDialog(img);
+    if (!values) return null;
+    applyImageCorrections(img, values);
+    this.isDirty = true;
+    this.recordSnapshot("writer.image.corrections");
+    return true;
+  }
+
+  async changePicture(args = null) {
+    const img = this._getSelectedImage();
+    if (!img) return false;
+    if (args && typeof args === "object" && args.src) {
+      img.src = args.src;
+      this.isDirty = true;
+      this.recordSnapshot("writer.image.changePicture");
+      return true;
+    }
+    return new Promise((resolve) => {
+      const input = document.createElement("input");
+      input.type = "file";
+      input.accept = "image/*";
+      input.onchange = (e) => {
+        const file = e.target.files?.[0];
+        if (file) {
+          const reader = new FileReader();
+          reader.onload = (evt) => {
+            img.src = evt.target.result;
+            this.isDirty = true;
+            this.recordSnapshot("writer.image.changePicture");
+            resolve(true);
+          };
+          reader.readAsDataURL(file);
+        } else {
+          resolve(false);
+        }
+      };
+      input.click();
+    });
+  }
+
+  resetPicture() {
+    const img = this._getSelectedImage();
+    if (!img) return false;
+    resetImageProperties(img);
+    this.isDirty = true;
+    this.recordSnapshot("writer.image.resetPicture");
+    this.arrangeController?._updateOverlay?.();
+    return true;
+  }
+
+  async compressPicture(args = null) {
+    const img = this._getSelectedImage();
+    if (!img) return false;
+    const quality = args?.quality || 0.8;
+    const maxDim = args?.maxDimension || 1280;
+    const res = await compressImageElement(img, quality, maxDim);
+    if (res.success) {
+      this.shell?.setStatus?.(`Đã nén ảnh (tiết kiệm ${res.savingsPct}%)`);
+      this.isDirty = true;
+      this.recordSnapshot("writer.image.compress");
+      return true;
+    }
+    return false;
   }
 
   async openCoverPageDialog(options = {}) {

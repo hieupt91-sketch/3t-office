@@ -18,6 +18,15 @@ export const enStrings = {
     position: { topLeft: "Top Left", topCenter: "Top Center", topRight: "Top Right", middleLeft: "Middle Left", center: "Center", middleRight: "Middle Right", bottomLeft: "Bottom Left", bottomCenter: "Bottom Center", bottomRight: "Bottom Right" },
     align: { left: "Left", center: "Center", right: "Right", top: "Top", middle: "Middle", bottom: "Bottom" }
   },
+  writerPicture: {
+    adjustGroup: "Adjust",
+    cropGroup: "Crop",
+    change: "Change Picture…",
+    reset: "Reset Picture",
+    compress: "Compress Picture",
+    corrections: "Brightness & Contrast…",
+    crop: "Crop…"
+  },
   writerDocumentProperties: {
     backstage: "Info",
     dialogTitle: "Document properties",
@@ -854,6 +863,11 @@ export const enStrings = {
     "writer.image.insert": { label: "Pictures", tooltip: "Insert pictures from your computer" },
     "writer.image.resize": { label: "Resize Picture", tooltip: "Resize picture and adjust aspect ratio" },
     "writer.image.wrap": { label: "Wrap Text", tooltip: "Configure text wrapping around picture" },
+    "writer.image.crop": { label: "Crop Picture", tooltip: "Crop the outer edges of the picture" },
+    "writer.image.corrections": { label: "Brightness & Contrast", tooltip: "Adjust the brightness and contrast of the picture" },
+    "writer.image.changePicture": { label: "Change Picture", tooltip: "Replace the current picture while keeping formatting" },
+    "writer.image.resetPicture": { label: "Reset Picture", tooltip: "Reset picture back to its original size and formatting" },
+    "writer.image.compress": { label: "Compress Picture", tooltip: "Compress picture data to optimize document file size" },
     "writer.shape.insert": { label: "Shapes", tooltip: "Insert basic shapes (rectangle, circle, arrow, line)" },
     "writer.diagram.insert": { label: "SmartArt", tooltip: "Insert a SmartArt diagram (process, cycle, hierarchy, list)" },
     "writer.chart.insert": { label: "Chart", tooltip: "Insert an illustration chart" },

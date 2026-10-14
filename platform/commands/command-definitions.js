@@ -196,6 +196,11 @@ export const WRITER_COMMANDS = [
   { id: "writer.insert.crossReference", category: "insert", label: "Tham chiếu chéo", icon: "crossReference", tooltip: "Chèn liên kết nội bộ tới tiêu đề hoặc đánh dấu" },
   { id: "writer.image.resize", category: "format", label: "Đổi kích thước ảnh", tooltip: "Thay đổi kích thước và tỷ lệ ảnh" },
   { id: "writer.image.wrap", category: "format", label: "Ngắt dòng văn bản", tooltip: "Tùy chọn ngắt dòng chữ quanh ảnh" },
+  { id: "writer.image.crop", category: "format", label: "Cắt ảnh", icon: "image", tooltip: "Cắt bớt các cạnh ngoài của hình ảnh (Crop)" },
+  { id: "writer.image.corrections", category: "format", label: "Độ sáng & Tương phản", icon: "image", tooltip: "Điều chỉnh độ sáng và tương phản của hình ảnh" },
+  { id: "writer.image.changePicture", category: "format", label: "Đổi ảnh khác", icon: "image", tooltip: "Thay thế ảnh hiện tại bằng một tệp ảnh khác nhưng giữ nguyên bố cục" },
+  { id: "writer.image.resetPicture", category: "format", label: "Đặt lại ảnh", icon: "image", tooltip: "Khôi phục ảnh về trạng thái kích thước và màu sắc ban đầu" },
+  { id: "writer.image.compress", category: "format", label: "Nén ảnh", icon: "image", tooltip: "Giảm dung lượng tệp ảnh để tối ưu kích thước tài liệu" },
 
   // Đánh giá (Review)
   { id: "writer.comment.insert", category: "review", label: "Thêm ghi chú", shortcut: "Ctrl+Alt+M", icon: "comment", tooltip: "Thêm ghi chú vào đoạn văn bản đang chọn (Ctrl+Alt+M)" },

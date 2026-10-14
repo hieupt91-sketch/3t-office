@@ -17,6 +17,15 @@ export const viStrings = {
     position: { topLeft: "Trên trái", topCenter: "Trên giữa", topRight: "Trên phải", middleLeft: "Giữa trái", center: "Chính giữa", middleRight: "Giữa phải", bottomLeft: "Dưới trái", bottomCenter: "Dưới giữa", bottomRight: "Dưới phải" },
     align: { left: "Trái", center: "Giữa ngang", right: "Phải", top: "Trên", middle: "Giữa dọc", bottom: "Dưới" }
   },
+  writerPicture: {
+    adjustGroup: "Điều chỉnh",
+    cropGroup: "Cắt ảnh",
+    change: "Đổi ảnh…",
+    reset: "Đặt lại ảnh",
+    compress: "Nén ảnh",
+    corrections: "Độ sáng / Tương phản…",
+    crop: "Cắt ảnh…"
+  },
   writerDocumentProperties: {
     backstage: "Thông tin",
     dialogTitle: "Thuộc tính tài liệu",
@@ -855,6 +864,11 @@ export const viStrings = {
     "writer.image.insert": { label: "Hình ảnh", tooltip: "Chèn hình ảnh từ máy tính" },
     "writer.image.resize": { label: "Đổi kích thước ảnh", tooltip: "Thay đổi kích thước và tỷ lệ ảnh" },
     "writer.image.wrap": { label: "Ngắt dòng văn bản", tooltip: "Tùy chọn ngắt dòng chữ quanh ảnh" },
+    "writer.image.crop": { label: "Cắt ảnh", tooltip: "Cắt bớt các cạnh ngoài của hình ảnh (Crop)" },
+    "writer.image.corrections": { label: "Độ sáng & Tương phản", tooltip: "Điều chỉnh độ sáng và tương phản của hình ảnh" },
+    "writer.image.changePicture": { label: "Đổi ảnh khác", tooltip: "Thay thế ảnh hiện tại bằng một tệp ảnh khác nhưng giữ nguyên bố cục" },
+    "writer.image.resetPicture": { label: "Đặt lại ảnh", tooltip: "Khôi phục ảnh về trạng thái kích thước và màu sắc ban đầu" },
+    "writer.image.compress": { label: "Nén ảnh", tooltip: "Giảm dung lượng tệp ảnh để tối ưu kích thước tài liệu" },
     "writer.shape.insert": { label: "Hình khối", tooltip: "Chèn hình khối cơ bản (chữ nhật, hình tròn, mũi tên, đường thẳng)" },
     "writer.diagram.insert": { label: "Sơ đồ", tooltip: "Chèn sơ đồ quy trình, chu trình hoặc phân cấp" },
     "writer.chart.insert": { label: "Biểu đồ", tooltip: "Chèn biểu đồ minh họa dữ liệu" },
