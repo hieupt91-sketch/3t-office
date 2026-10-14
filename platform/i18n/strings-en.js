@@ -18,6 +18,15 @@ export const enStrings = {
     position: { topLeft: "Top Left", topCenter: "Top Center", topRight: "Top Right", middleLeft: "Middle Left", center: "Center", middleRight: "Middle Right", bottomLeft: "Bottom Left", bottomCenter: "Bottom Center", bottomRight: "Bottom Right" },
     align: { left: "Left", center: "Center", right: "Right", top: "Top", middle: "Middle", bottom: "Bottom" }
   },
+  writerPicture: {
+    adjustGroup: "Adjust",
+    cropGroup: "Crop",
+    change: "Change Picture…",
+    reset: "Reset Picture",
+    compress: "Compress Picture",
+    corrections: "Brightness & Contrast…",
+    crop: "Crop…"
+  },
   writerDocumentProperties: {
     backstage: "Info",
     dialogTitle: "Document properties",
@@ -651,7 +660,7 @@ export const enStrings = {
     ,"sheet.edit.goTo": { label: "Go To...", tooltip: "Jump to a cell, range or defined name (F5 or Ctrl+G)" }
     ,"sheet.edit.goToSpecial": { label: "Go To Special...", tooltip: "Select cells by type: comments, formulas, blanks, current region..." }
     ,"sheet.edit.fillDown": { label: "Fill Down", tooltip: "Fill down from the cell above (Ctrl+D)" }
-    ,"sheet.edit.fillRight": { label: "Fill Right", tooltip: "Fill right from the cell to the left (Ctrl+R)" }
+    ,"sheet.edit.fillRight": { label: "Fill Right", tooltip: "Fill right from the cell to the left (Ctrl+R)" }
   ,"sheet.edit.fillUp": { label: "Fill Up", tooltip: "Fill up from the bottom cell of the selection" }
   ,"sheet.edit.fillLeft": { label: "Fill Left", tooltip: "Fill left from the right-most column of the selection" }
   ,"sheet.edit.fillSeries": { label: "Series...", tooltip: "Fill a number or date series: linear, growth, day/month/year" }
@@ -795,6 +804,11 @@ export const enStrings = {
     "writer.design.themeGallery": { label: "Document Themes", tooltip: "Open document themes and formatting gallery" },
     "writer.color.text": { label: "Font Color", tooltip: "Change font color" },
     "writer.color.highlight": { label: "Text Highlight Color", tooltip: "Highlight text (Ctrl+Alt+H)" },
+    "writer.format.textEffects": { label: "Text Effects", tooltip: "Add text outline, shadow, and glow effects" },
+    "writer.format.textOutline": { label: "Text Outline", tooltip: "Toggle or customize text outline" },
+    "writer.format.textShadow": { label: "Shadow", tooltip: "Toggle or customize text shadow" },
+    "writer.format.textGlow": { label: "Glow", tooltip: "Toggle or customize text glow effect" },
+    "writer.format.clearTextEffects": { label: "Clear Text Effects", tooltip: "Clear all outline, shadow, and glow effects" },
     "writer.para.alignLeft": { label: "Align Left", tooltip: "Align text left (Ctrl+L)" },
     "writer.para.alignCenter": { label: "Center", tooltip: "Center text (Ctrl+E)" },
     "writer.para.alignRight": { label: "Align Right", tooltip: "Align text right (Ctrl+R)" },
@@ -825,6 +839,8 @@ export const enStrings = {
     "writer.para.shading": { label: "Shading", tooltip: "Apply paragraph or table-cell shading" },
     "writer.para.borders": { label: "Borders", tooltip: "Choose paragraph or table-cell borders" },
     "writer.table.insert": { label: "Table", tooltip: "Insert a table into document" },
+    "writer.table.quickTables": { label: "Quick Tables", tooltip: "Insert built-in table templates such as calendars, checklists, or analysis matrices" },
+    "writer.table.toText": { label: "Convert Table to Text", tooltip: "Convert the current table into regular text separated by a delimiter" },
     "writer.table.insertRowAbove": { label: "Insert Above", tooltip: "Insert a new row above current row" },
     "writer.table.insertRowBelow": { label: "Insert Below", tooltip: "Insert a new row below current row" },
     "writer.table.insertColLeft": { label: "Insert Left", tooltip: "Insert a new column to the left" },
@@ -856,6 +872,11 @@ export const enStrings = {
     "writer.image.insert": { label: "Pictures", tooltip: "Insert pictures from your computer" },
     "writer.image.resize": { label: "Resize Picture", tooltip: "Resize picture and adjust aspect ratio" },
     "writer.image.wrap": { label: "Wrap Text", tooltip: "Configure text wrapping around picture" },
+    "writer.image.crop": { label: "Crop Picture", tooltip: "Crop the outer edges of the picture" },
+    "writer.image.corrections": { label: "Brightness & Contrast", tooltip: "Adjust the brightness and contrast of the picture" },
+    "writer.image.changePicture": { label: "Change Picture", tooltip: "Replace the current picture while keeping formatting" },
+    "writer.image.resetPicture": { label: "Reset Picture", tooltip: "Reset picture back to its original size and formatting" },
+    "writer.image.compress": { label: "Compress Picture", tooltip: "Compress picture data to optimize document file size" },
     "writer.shape.insert": { label: "Shapes", tooltip: "Insert basic shapes (rectangle, circle, arrow, line)" },
     "writer.diagram.insert": { label: "SmartArt", tooltip: "Insert a SmartArt diagram (process, cycle, hierarchy, list)" },
     "writer.chart.insert": { label: "Chart", tooltip: "Insert an illustration chart" },
@@ -1020,6 +1041,7 @@ export const enStrings = {
       tableMergeGroup: "Merge",
       tableSizeGroup: "Cell Size",
       tableAlignGroup: "Alignment",
+      tableDataGroup: "Data",
       tablesIllustrations: "Tables & Illustrations",
       illustrations: "Illustrations",
       links: "Links",
