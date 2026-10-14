@@ -1,0 +1,609 @@
+{
+ "generatedFrom": "Excel 2016 (16.0.4266) Application.Evaluate",
+ "cells": {
+  "A1": "Tree",
+  "B1": "Height",
+  "C1": "Age",
+  "D1": "Yield",
+  "E1": "Profit",
+  "A2": "Apple",
+  "B2": 18,
+  "C2": 20,
+  "D2": 14,
+  "E2": 105,
+  "A3": "Pear",
+  "B3": 12,
+  "C3": 12,
+  "D3": 10,
+  "E3": 96,
+  "A4": "Cherry",
+  "B4": 13,
+  "C4": 14,
+  "D4": 9,
+  "E4": 105,
+  "A5": "Apple",
+  "B5": 14,
+  "C5": 15,
+  "D5": 10,
+  "E5": 75,
+  "A6": "Pear",
+  "B6": 9,
+  "C6": 8,
+  "D6": 8,
+  "E6": 77,
+  "A7": "Apple",
+  "B7": 8,
+  "C7": 9,
+  "D7": 6,
+  "E7": 45,
+  "A8": "Pear",
+  "B8": 9,
+  "C8": 8,
+  "D8": 7,
+  "E8": 50,
+  "G1": "Tree",
+  "G2": "Apple",
+  "H1": "Height",
+  "H2": ">10",
+  "G4": "Tree",
+  "G5": "Pear",
+  "G6": "Cherry",
+  "G8": "Height",
+  "G9": ">12",
+  "H8": "Age",
+  "H9": "<20",
+  "J1": "Tree",
+  "K1": "Height",
+  "J2": "Apple",
+  "K2": ">15",
+  "J3": "Pear",
+  "K3": "<10",
+  "M1": "Tree",
+  "M2": "A*",
+  "P1": "Tree",
+  "P2": "=",
+  "G3": "Pear"
+ },
+ "cases": [
+  {
+   "formula": "=DSUM(A1:E8,\"Yield\",G1:G2)",
+   "excel": 30,
+   "type": "number"
+  },
+  {
+   "formula": "=DSUM(A1:E8,\"Profit\",G1:H2)",
+   "excel": 180,
+   "type": "number"
+  },
+  {
+   "formula": "=DSUM(A1:E8,\"Height\",G4:G6)",
+   "excel": 43,
+   "type": "number"
+  },
+  {
+   "formula": "=DSUM(A1:E8,\"Age\",G8:H9)",
+   "excel": 29,
+   "type": "number"
+  },
+  {
+   "formula": "=DSUM(A1:E8,3,J1:K3)",
+   "excel": 36,
+   "type": "number"
+  },
+  {
+   "formula": "=DSUM(A1:E8,\"Yield\",M1:M2)",
+   "excel": 30,
+   "type": "number"
+  },
+  {
+   "formula": "=DSUM(A1:E8,\"Profit\",P1:P2)",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=DSUM(A1:E8,\"Yield\",G1:G3)",
+   "excel": 55,
+   "type": "number"
+  },
+  {
+   "formula": "=DAVERAGE(A1:E8,\"Yield\",G1:G2)",
+   "excel": 10,
+   "type": "number"
+  },
+  {
+   "formula": "=DAVERAGE(A1:E8,\"Profit\",G1:H2)",
+   "excel": 90,
+   "type": "number"
+  },
+  {
+   "formula": "=DAVERAGE(A1:E8,\"Height\",G4:G6)",
+   "excel": 10.75,
+   "type": "number"
+  },
+  {
+   "formula": "=DAVERAGE(A1:E8,\"Age\",G8:H9)",
+   "excel": 14.5,
+   "type": "number"
+  },
+  {
+   "formula": "=DAVERAGE(A1:E8,3,J1:K3)",
+   "excel": 12,
+   "type": "number"
+  },
+  {
+   "formula": "=DAVERAGE(A1:E8,\"Yield\",M1:M2)",
+   "excel": 10,
+   "type": "number"
+  },
+  {
+   "formula": "=DAVERAGE(A1:E8,\"Profit\",P1:P2)",
+   "excel": "#DIV/0!",
+   "type": "error"
+  },
+  {
+   "formula": "=DAVERAGE(A1:E8,\"Yield\",G1:G3)",
+   "excel": 9.166666666666666,
+   "type": "number"
+  },
+  {
+   "formula": "=DCOUNT(A1:E8,\"Yield\",G1:G2)",
+   "excel": 3,
+   "type": "number"
+  },
+  {
+   "formula": "=DCOUNT(A1:E8,\"Profit\",G1:H2)",
+   "excel": 2,
+   "type": "number"
+  },
+  {
+   "formula": "=DCOUNT(A1:E8,\"Height\",G4:G6)",
+   "excel": 4,
+   "type": "number"
+  },
+  {
+   "formula": "=DCOUNT(A1:E8,\"Age\",G8:H9)",
+   "excel": 2,
+   "type": "number"
+  },
+  {
+   "formula": "=DCOUNT(A1:E8,3,J1:K3)",
+   "excel": 3,
+   "type": "number"
+  },
+  {
+   "formula": "=DCOUNT(A1:E8,\"Yield\",M1:M2)",
+   "excel": 3,
+   "type": "number"
+  },
+  {
+   "formula": "=DCOUNT(A1:E8,\"Profit\",P1:P2)",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=DCOUNT(A1:E8,\"Yield\",G1:G3)",
+   "excel": 6,
+   "type": "number"
+  },
+  {
+   "formula": "=DCOUNTA(A1:E8,\"Yield\",G1:G2)",
+   "excel": 3,
+   "type": "number"
+  },
+  {
+   "formula": "=DCOUNTA(A1:E8,\"Profit\",G1:H2)",
+   "excel": 2,
+   "type": "number"
+  },
+  {
+   "formula": "=DCOUNTA(A1:E8,\"Height\",G4:G6)",
+   "excel": 4,
+   "type": "number"
+  },
+  {
+   "formula": "=DCOUNTA(A1:E8,\"Age\",G8:H9)",
+   "excel": 2,
+   "type": "number"
+  },
+  {
+   "formula": "=DCOUNTA(A1:E8,3,J1:K3)",
+   "excel": 3,
+   "type": "number"
+  },
+  {
+   "formula": "=DCOUNTA(A1:E8,\"Yield\",M1:M2)",
+   "excel": 3,
+   "type": "number"
+  },
+  {
+   "formula": "=DCOUNTA(A1:E8,\"Profit\",P1:P2)",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=DCOUNTA(A1:E8,\"Yield\",G1:G3)",
+   "excel": 6,
+   "type": "number"
+  },
+  {
+   "formula": "=DMAX(A1:E8,\"Yield\",G1:G2)",
+   "excel": 14,
+   "type": "number"
+  },
+  {
+   "formula": "=DMAX(A1:E8,\"Profit\",G1:H2)",
+   "excel": 105,
+   "type": "number"
+  },
+  {
+   "formula": "=DMAX(A1:E8,\"Height\",G4:G6)",
+   "excel": 13,
+   "type": "number"
+  },
+  {
+   "formula": "=DMAX(A1:E8,\"Age\",G8:H9)",
+   "excel": 15,
+   "type": "number"
+  },
+  {
+   "formula": "=DMAX(A1:E8,3,J1:K3)",
+   "excel": 20,
+   "type": "number"
+  },
+  {
+   "formula": "=DMAX(A1:E8,\"Yield\",M1:M2)",
+   "excel": 14,
+   "type": "number"
+  },
+  {
+   "formula": "=DMAX(A1:E8,\"Profit\",P1:P2)",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=DMAX(A1:E8,\"Yield\",G1:G3)",
+   "excel": 14,
+   "type": "number"
+  },
+  {
+   "formula": "=DMIN(A1:E8,\"Yield\",G1:G2)",
+   "excel": 6,
+   "type": "number"
+  },
+  {
+   "formula": "=DMIN(A1:E8,\"Profit\",G1:H2)",
+   "excel": 75,
+   "type": "number"
+  },
+  {
+   "formula": "=DMIN(A1:E8,\"Height\",G4:G6)",
+   "excel": 9,
+   "type": "number"
+  },
+  {
+   "formula": "=DMIN(A1:E8,\"Age\",G8:H9)",
+   "excel": 14,
+   "type": "number"
+  },
+  {
+   "formula": "=DMIN(A1:E8,3,J1:K3)",
+   "excel": 8,
+   "type": "number"
+  },
+  {
+   "formula": "=DMIN(A1:E8,\"Yield\",M1:M2)",
+   "excel": 6,
+   "type": "number"
+  },
+  {
+   "formula": "=DMIN(A1:E8,\"Profit\",P1:P2)",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=DMIN(A1:E8,\"Yield\",G1:G3)",
+   "excel": 6,
+   "type": "number"
+  },
+  {
+   "formula": "=DPRODUCT(A1:E8,\"Yield\",G1:G2)",
+   "excel": 840,
+   "type": "number"
+  },
+  {
+   "formula": "=DPRODUCT(A1:E8,\"Profit\",G1:H2)",
+   "excel": 7875,
+   "type": "number"
+  },
+  {
+   "formula": "=DPRODUCT(A1:E8,\"Height\",G4:G6)",
+   "excel": 12636,
+   "type": "number"
+  },
+  {
+   "formula": "=DPRODUCT(A1:E8,\"Age\",G8:H9)",
+   "excel": 210,
+   "type": "number"
+  },
+  {
+   "formula": "=DPRODUCT(A1:E8,3,J1:K3)",
+   "excel": 1280,
+   "type": "number"
+  },
+  {
+   "formula": "=DPRODUCT(A1:E8,\"Yield\",M1:M2)",
+   "excel": 840,
+   "type": "number"
+  },
+  {
+   "formula": "=DPRODUCT(A1:E8,\"Profit\",P1:P2)",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=DPRODUCT(A1:E8,\"Yield\",G1:G3)",
+   "excel": 470400,
+   "type": "number"
+  },
+  {
+   "formula": "=DGET(A1:E8,\"Yield\",G1:G2)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=DGET(A1:E8,\"Profit\",G1:H2)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=DGET(A1:E8,\"Height\",G4:G6)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=DGET(A1:E8,\"Age\",G8:H9)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=DGET(A1:E8,3,J1:K3)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=DGET(A1:E8,\"Yield\",M1:M2)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=DGET(A1:E8,\"Profit\",P1:P2)",
+   "excel": "#VALUE!",
+   "type": "error"
+  },
+  {
+   "formula": "=DGET(A1:E8,\"Yield\",G1:G3)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=DVAR(A1:E8,\"Yield\",G1:G2)",
+   "excel": 16,
+   "type": "number"
+  },
+  {
+   "formula": "=DVAR(A1:E8,\"Profit\",G1:H2)",
+   "excel": 450,
+   "type": "number"
+  },
+  {
+   "formula": "=DVAR(A1:E8,\"Height\",G4:G6)",
+   "excel": 4.25,
+   "type": "number"
+  },
+  {
+   "formula": "=DVAR(A1:E8,\"Age\",G8:H9)",
+   "excel": 0.5,
+   "type": "number"
+  },
+  {
+   "formula": "=DVAR(A1:E8,3,J1:K3)",
+   "excel": 48,
+   "type": "number"
+  },
+  {
+   "formula": "=DVAR(A1:E8,\"Yield\",M1:M2)",
+   "excel": 16,
+   "type": "number"
+  },
+  {
+   "formula": "=DVAR(A1:E8,\"Profit\",P1:P2)",
+   "excel": "#DIV/0!",
+   "type": "error"
+  },
+  {
+   "formula": "=DVAR(A1:E8,\"Yield\",G1:G3)",
+   "excel": 8.166666666666663,
+   "type": "number"
+  },
+  {
+   "formula": "=DVARP(A1:E8,\"Yield\",G1:G2)",
+   "excel": 10.666666666666666,
+   "type": "number"
+  },
+  {
+   "formula": "=DVARP(A1:E8,\"Profit\",G1:H2)",
+   "excel": 225,
+   "type": "number"
+  },
+  {
+   "formula": "=DVARP(A1:E8,\"Height\",G4:G6)",
+   "excel": 3.1875,
+   "type": "number"
+  },
+  {
+   "formula": "=DVARP(A1:E8,\"Age\",G8:H9)",
+   "excel": 0.25,
+   "type": "number"
+  },
+  {
+   "formula": "=DVARP(A1:E8,3,J1:K3)",
+   "excel": 32,
+   "type": "number"
+  },
+  {
+   "formula": "=DVARP(A1:E8,\"Yield\",M1:M2)",
+   "excel": 10.666666666666666,
+   "type": "number"
+  },
+  {
+   "formula": "=DVARP(A1:E8,\"Profit\",P1:P2)",
+   "excel": "#DIV/0!",
+   "type": "error"
+  },
+  {
+   "formula": "=DVARP(A1:E8,\"Yield\",G1:G3)",
+   "excel": 6.805555555555555,
+   "type": "number"
+  },
+  {
+   "formula": "=DSTDEV(A1:E8,\"Yield\",G1:G2)",
+   "excel": 4,
+   "type": "number"
+  },
+  {
+   "formula": "=DSTDEV(A1:E8,\"Profit\",G1:H2)",
+   "excel": 21.213203435596427,
+   "type": "number"
+  },
+  {
+   "formula": "=DSTDEV(A1:E8,\"Height\",G4:G6)",
+   "excel": 2.0615528128088303,
+   "type": "number"
+  },
+  {
+   "formula": "=DSTDEV(A1:E8,\"Age\",G8:H9)",
+   "excel": 0.7071067811865476,
+   "type": "number"
+  },
+  {
+   "formula": "=DSTDEV(A1:E8,3,J1:K3)",
+   "excel": 6.928203230275509,
+   "type": "number"
+  },
+  {
+   "formula": "=DSTDEV(A1:E8,\"Yield\",M1:M2)",
+   "excel": 4,
+   "type": "number"
+  },
+  {
+   "formula": "=DSTDEV(A1:E8,\"Profit\",P1:P2)",
+   "excel": "#DIV/0!",
+   "type": "error"
+  },
+  {
+   "formula": "=DSTDEV(A1:E8,\"Yield\",G1:G3)",
+   "excel": 2.8577380332470406,
+   "type": "number"
+  },
+  {
+   "formula": "=DSTDEVP(A1:E8,\"Yield\",G1:G2)",
+   "excel": 3.265986323710904,
+   "type": "number"
+  },
+  {
+   "formula": "=DSTDEVP(A1:E8,\"Profit\",G1:H2)",
+   "excel": 15,
+   "type": "number"
+  },
+  {
+   "formula": "=DSTDEVP(A1:E8,\"Height\",G4:G6)",
+   "excel": 1.7853571071357126,
+   "type": "number"
+  },
+  {
+   "formula": "=DSTDEVP(A1:E8,\"Age\",G8:H9)",
+   "excel": 0.5,
+   "type": "number"
+  },
+  {
+   "formula": "=DSTDEVP(A1:E8,3,J1:K3)",
+   "excel": 5.656854249492381,
+   "type": "number"
+  },
+  {
+   "formula": "=DSTDEVP(A1:E8,\"Yield\",M1:M2)",
+   "excel": 3.265986323710904,
+   "type": "number"
+  },
+  {
+   "formula": "=DSTDEVP(A1:E8,\"Profit\",P1:P2)",
+   "excel": "#DIV/0!",
+   "type": "error"
+  },
+  {
+   "formula": "=DSTDEVP(A1:E8,\"Yield\",G1:G3)",
+   "excel": 2.6087459737497545,
+   "type": "number"
+  },
+  {
+   "formula": "=DSUM(A1:E8,2,G1:G2)",
+   "excel": 40,
+   "type": "number"
+  },
+  {
+   "formula": "=DSUM(A1:E8,0,G1:G2)",
+   "excel": "#VALUE!",
+   "type": "error"
+  },
+  {
+   "formula": "=DSUM(A1:E8,9,G1:G2)",
+   "excel": "#VALUE!",
+   "type": "error"
+  },
+  {
+   "formula": "=DSUM(A1:E8,\"Nope\",G1:G2)",
+   "excel": "#VALUE!",
+   "type": "error"
+  },
+  {
+   "formula": "=DCOUNT(A1:E8,2,G1:G2)",
+   "excel": 3,
+   "type": "number"
+  },
+  {
+   "formula": "=DCOUNT(A1:E8,0,G1:G2)",
+   "excel": "#VALUE!",
+   "type": "error"
+  },
+  {
+   "formula": "=DCOUNT(A1:E8,9,G1:G2)",
+   "excel": "#VALUE!",
+   "type": "error"
+  },
+  {
+   "formula": "=DCOUNT(A1:E8,\"Nope\",G1:G2)",
+   "excel": "#VALUE!",
+   "type": "error"
+  },
+  {
+   "formula": "=DGET(A1:E8,2,G1:G2)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=DGET(A1:E8,0,G1:G2)",
+   "excel": "#VALUE!",
+   "type": "error"
+  },
+  {
+   "formula": "=DGET(A1:E8,9,G1:G2)",
+   "excel": "#VALUE!",
+   "type": "error"
+  },
+  {
+   "formula": "=DGET(A1:E8,\"Nope\",G1:G2)",
+   "excel": "#VALUE!",
+   "type": "error"
+  }
+ ]
+}

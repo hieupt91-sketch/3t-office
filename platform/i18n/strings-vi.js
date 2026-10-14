@@ -17,6 +17,15 @@ export const viStrings = {
     position: { topLeft: "Trên trái", topCenter: "Trên giữa", topRight: "Trên phải", middleLeft: "Giữa trái", center: "Chính giữa", middleRight: "Giữa phải", bottomLeft: "Dưới trái", bottomCenter: "Dưới giữa", bottomRight: "Dưới phải" },
     align: { left: "Trái", center: "Giữa ngang", right: "Phải", top: "Trên", middle: "Giữa dọc", bottom: "Dưới" }
   },
+  writerPicture: {
+    adjustGroup: "Điều chỉnh",
+    cropGroup: "Cắt ảnh",
+    change: "Đổi ảnh…",
+    reset: "Đặt lại ảnh",
+    compress: "Nén ảnh",
+    corrections: "Độ sáng / Tương phản…",
+    crop: "Cắt ảnh…"
+  },
   writerDocumentProperties: {
     backstage: "Thông tin",
     dialogTitle: "Thuộc tính tài liệu",
@@ -238,7 +247,24 @@ export const viStrings = {
     notFound: "Không tìm thấy nội dung cần tìm.",
     notFoundReplace: "Không tìm thấy nội dung để thay thế.",
     emptyInput: "Vui lòng nhập từ hoặc cụm từ cần tìm.",
-    replacedCount: "Đã hoàn tất tìm kiếm và thực hiện {count} thay thế."
+    replacedCount: "Đã hoàn tất tìm kiếm và thực hiện {count} thay thế.",
+    foundNext: "Đã tìm thấy kết quả kế tiếp.",
+    foundPrev: "Đã tìm thấy kết quả liền trước.",
+    replacedOne: "Đã thay thế 1 lần.",
+    useWildcards: "Dùng ký tự đại diện (*, ?)",
+    btnFormat: "Định dạng…",
+    btnSpecial: "Đặc biệt ▼",
+    clearFormat: "Xóa định dạng",
+    fmtBold: "Đậm",
+    fmtItalic: "Nghiêng",
+    fmtFont: "Phông:",
+    fmtColor: "Màu:",
+    specParagraph: "Dấu ngắt đoạn (^p)",
+    specTab: "Ký tự Tab (^t)",
+    specAnyChar: "Bất kỳ ký tự nào (^?)",
+    specWhitespace: "Khoảng trắng (^w)",
+    specCaret: "Dấu mũ (^^)",
+    specFindWhat: "Nội dung tìm được (^&)"
   },
   sheetRibbon: {
     whatIfAnalysis: "Phân tích What-If",
@@ -262,6 +288,7 @@ export const viStrings = {
     section: "Phần"
   },
   sheetDialogs: {
+    fillSeriesTitle: "Chuỗi", fillSeriesIn: "Chuỗi theo", fillSeriesRows: "Hàng", fillSeriesColumns: "Cột", fillSeriesType: "Loại", fillSeriesLinear: "Tuyến tính", fillSeriesGrowth: "Tăng trưởng", fillSeriesDate: "Ngày", fillSeriesDateUnit: "Đơn vị ngày", fillSeriesUnitDay: "Ngày", fillSeriesUnitWeekday: "Ngày làm việc", fillSeriesUnitMonth: "Tháng", fillSeriesUnitYear: "Năm", fillSeriesStep: "Bước nhảy", fillSeriesStop: "Giá trị dừng", fillSeriesBadStep: "Bước nhảy phải là một số.", fillSeriesBadStart: "Ô đầu của vùng chọn phải chứa số (hoặc ngày dạng dd/mm/yyyy khi chọn loại Ngày).", fillSeriesNothing: "Không có ô nào để điền. Hãy chọn vùng gồm ô bắt đầu và các ô cần điền, hoặc nhập Giá trị dừng khi chỉ chọn một ô.", fillSeriesFailed: "Không điền được chuỗi.", fillSeriesDone: "Đã điền {{count}} ô.",
     hideSheetMenu: "Ẩn trang tính", unhideSheetMenu: "Hiện trang tính...", unhideSheetTitle: "Hiện trang tính", unhideSheetChoose: "Chọn trang tính cần hiện:", unhideSheetAction: "Hiện", cannotHideLastSheet: "Không thể ẩn trang tính cuối cùng đang hiển thị.", noHiddenSheets: "Không có trang tính nào đang ẩn.",
     close: "Đóng", cancel: "Hủy", cancelLong: "Hủy bỏ", apply: "Áp dụng", range: "Phạm vi", rangeLabel: "Vùng:", value: "Giá trị", save: "Lưu",
     pasteSpecialTitle: "Dán đặc biệt", pasteSpecialGroup: "Dán", pasteSpecialSource: "Giữ định dạng nguồn", pasteSpecialKeepSource: "Giữ định dạng nguồn", pasteSpecialText: "Chỉ giữ văn bản", pasteSpecialAll: "Giữ định dạng nguồn", pasteSpecialValues: "Chỉ giá trị", pasteSpecialFormulas: "Chỉ công thức", pasteSpecialFormats: "Chỉ định dạng", pasteSpecialTranspose: "Chuyển vị (đổi hàng/cột)",
@@ -435,6 +462,7 @@ export const viStrings = {
   },
   commands: {
     "writer.file.properties": { label: "Thuộc tính tài liệu", tooltip: "Xem và sửa tiêu đề, tác giả, chủ đề, từ khóa và ghi chú" },
+    "writer.file.inspectDocument": { label: "Kiểm tra tài liệu", tooltip: "Kiểm tra và loại bỏ nhận xét, thay đổi theo dõi, văn bản ẩn và thông tin cá nhân" },
     "writer.file.options": { label: "Tùy chọn", tooltip: "Mở Tùy chọn: giao diện, tự sửa lỗi gõ và ký tự thông minh" },
     "writer.edit.select": { label: "Chọn", tooltip: "Chọn văn bản hoặc đối tượng" },
     "writer.edit.pasteSpecial": { label: "Dán đặc biệt", tooltip: "Dán kèm tùy chọn nâng cao (giữ định dạng nguồn, chỉ giữ văn bản) (Ctrl+Alt+V)" },
@@ -646,6 +674,9 @@ export const viStrings = {
     ,"sheet.edit.goToSpecial": { label: "Đến đặc biệt...", tooltip: "Chọn nhanh các ô theo loại: ghi chú, công thức, ô trống, vùng hiện tại..." }
     ,"sheet.edit.fillDown": { label: "Điền xuống", tooltip: "Sao chép giá trị và công thức ô trên xuống các ô dưới (Ctrl+D)" }
     ,"sheet.edit.fillRight": { label: "Điền phải", tooltip: "Sao chép giá trị và công thức ô bên trái sang phải (Ctrl+R)" }
+  ,"sheet.edit.fillUp": { label: "Điền lên", tooltip: "Sao chép ô dưới cùng của vùng chọn lên các ô phía trên" }
+  ,"sheet.edit.fillLeft": { label: "Điền trái", tooltip: "Sao chép cột phải nhất của vùng chọn sang các cột bên trái" }
+  ,"sheet.edit.fillSeries": { label: "Chuỗi...", tooltip: "Điền chuỗi số hoặc ngày: tuyến tính, tăng trưởng, ngày/tháng/năm" }
     ,"sheet.edit.clearAll": { label: "Xóa tất cả", tooltip: "Xóa toàn bộ nội dung, công thức và định dạng của các ô đã chọn" }
     ,"sheet.edit.clearFormats": { label: "Xóa định dạng", tooltip: "Xóa định dạng ô và đưa về mặc định nhưng giữ nguyên nội dung" }
     ,"sheet.edit.clearContents": { label: "Xóa nội dung", tooltip: "Xóa nội dung và công thức của ô nhưng giữ nguyên định dạng" }
@@ -786,6 +817,11 @@ export const viStrings = {
     "writer.design.themeGallery": { label: "Chủ đề văn bản", tooltip: "Mở thư viện chủ đề định dạng tài liệu (Document Themes)" },
     "writer.color.text": { label: "Màu chữ", tooltip: "Đổi màu phông chữ" },
     "writer.color.highlight": { label: "Màu nền chữ", tooltip: "Tô màu nền văn bản (Ctrl+Alt+H)" },
+    "writer.format.textEffects": { label: "Hiệu ứng chữ", tooltip: "Thêm hiệu ứng viền chữ, bóng đổ và phát sáng" },
+    "writer.format.textOutline": { label: "Viền chữ", tooltip: "Bật hoặc tùy chỉnh viền chữ" },
+    "writer.format.textShadow": { label: "Bóng đổ", tooltip: "Bật hoặc tùy chỉnh bóng đổ" },
+    "writer.format.textGlow": { label: "Phát sáng", tooltip: "Bật hoặc tùy chỉnh hiệu ứng phát sáng" },
+    "writer.format.clearTextEffects": { label: "Xóa hiệu ứng chữ", tooltip: "Xóa toàn bộ hiệu ứng viền, bóng và phát sáng" },
     "writer.para.alignLeft": { label: "Căn trái", tooltip: "Căn lề trái (Ctrl+L)" },
     "writer.para.alignCenter": { label: "Căn giữa", tooltip: "Căn lề giữa (Ctrl+E)" },
     "writer.para.alignRight": { label: "Căn phải", tooltip: "Căn lề phải (Ctrl+R)" },
@@ -810,11 +846,14 @@ export const viStrings = {
     "writer.style.heading2": { label: "Tiêu đề 2", tooltip: "Áp dụng kiểu Tiêu đề 2 chuẩn cho tài liệu mới (Ctrl+Alt+2)" },
     "writer.style.heading3": { label: "Tiêu đề 3", tooltip: "Áp dụng kiểu Tiêu đề 3 chuẩn cho tài liệu mới (Ctrl+Alt+3)" },
     "writer.text.changeCase": { label: "Đổi chữ hoa/thường", tooltip: "Chuyển đổi chữ hoa / thường / Tiêu đề (Shift+F3)" },
+    "writer.text.changeCaseDialog": { label: "Hộp thoại Đổi chữ hoa/thường…", tooltip: "Mở hộp thoại Đổi chữ hoa/thường (chữ hoa đầu câu, in hoa, chữ thường, viết hoa từng từ, bật/tắt)" },
     "writer.para.sort": { label: "Sắp xếp", tooltip: "Sắp xếp danh sách hoặc đoạn văn theo A–Z" },
     "writer.para.showFormattingMarks": { label: "Hiện/ẩn ký tự định dạng", tooltip: "Hiện hoặc ẩn dấu đoạn và xuống dòng (Ctrl+*)" },
     "writer.para.shading": { label: "Tô nền đoạn", tooltip: "Tô màu nền đoạn văn hoặc ô bảng" },
     "writer.para.borders": { label: "Viền đoạn", tooltip: "Chọn viền đoạn văn hoặc ô bảng" },
     "writer.table.insert": { label: "Bảng biểu", tooltip: "Chèn bảng mới vào văn bản" },
+    "writer.table.quickTables": { label: "Bảng dựng sẵn", tooltip: "Chèn bảng dựng sẵn như lịch, danh sách công việc hoặc ma trận phân tích" },
+    "writer.table.toText": { label: "Bảng thành văn bản", tooltip: "Chuyển bảng đang chọn thành văn bản thường theo dấu phân cách" },
     "writer.table.insertRowAbove": { label: "Chèn hàng phía trên", tooltip: "Chèn một hàng mới ngay phía trên hàng hiện tại" },
     "writer.table.insertRowBelow": { label: "Chèn hàng phía dưới", tooltip: "Chèn một hàng mới ngay phía dưới hàng hiện tại" },
     "writer.table.insertColLeft": { label: "Chèn cột bên trái", tooltip: "Chèn một cột mới bên trái cột hiện tại" },
@@ -846,6 +885,11 @@ export const viStrings = {
     "writer.image.insert": { label: "Hình ảnh", tooltip: "Chèn hình ảnh từ máy tính" },
     "writer.image.resize": { label: "Đổi kích thước ảnh", tooltip: "Thay đổi kích thước và tỷ lệ ảnh" },
     "writer.image.wrap": { label: "Ngắt dòng văn bản", tooltip: "Tùy chọn ngắt dòng chữ quanh ảnh" },
+    "writer.image.crop": { label: "Cắt ảnh", tooltip: "Cắt bớt các cạnh ngoài của hình ảnh (Crop)" },
+    "writer.image.corrections": { label: "Độ sáng & Tương phản", tooltip: "Điều chỉnh độ sáng và tương phản của hình ảnh" },
+    "writer.image.changePicture": { label: "Đổi ảnh khác", tooltip: "Thay thế ảnh hiện tại bằng một tệp ảnh khác nhưng giữ nguyên bố cục" },
+    "writer.image.resetPicture": { label: "Đặt lại ảnh", tooltip: "Khôi phục ảnh về trạng thái kích thước và màu sắc ban đầu" },
+    "writer.image.compress": { label: "Nén ảnh", tooltip: "Giảm dung lượng tệp ảnh để tối ưu kích thước tài liệu" },
     "writer.shape.insert": { label: "Hình khối", tooltip: "Chèn hình khối cơ bản (chữ nhật, hình tròn, mũi tên, đường thẳng)" },
     "writer.diagram.insert": { label: "Sơ đồ", tooltip: "Chèn sơ đồ quy trình, chu trình hoặc phân cấp" },
     "writer.chart.insert": { label: "Biểu đồ", tooltip: "Chèn biểu đồ minh họa dữ liệu" },
@@ -895,6 +939,11 @@ export const viStrings = {
     "writer.trackChanges.rejectOne": { label: "Từ chối một", tooltip: "Từ chối thay đổi đang chọn" },
     "writer.trackChanges.acceptAll": { label: "Chấp nhận thay đổi", tooltip: "Chấp nhận toàn bộ thay đổi trong tài liệu" },
     "writer.trackChanges.rejectAll": { label: "Từ chối thay đổi", tooltip: "Từ chối toàn bộ thay đổi trong tài liệu" },
+    "writer.trackChanges.displayMode": { label: "Chế độ hiển thị thay đổi", tooltip: "Chọn chế độ hiển thị: Đánh dấu đơn giản, Tất cả đánh dấu, Không đánh dấu, Bản gốc" },
+    "writer.trackChanges.displaySimple": { label: "Đánh dấu đơn giản", tooltip: "Hiển thị văn bản sạch kèm vạch đỏ ở lề" },
+    "writer.trackChanges.displayAll": { label: "Tất cả đánh dấu", tooltip: "Hiển thị chi tiết toàn bộ nội dung thêm và xóa" },
+    "writer.trackChanges.displayNone": { label: "Không đánh dấu", tooltip: "Xem tài liệu đã áp dụng các thay đổi" },
+    "writer.trackChanges.displayOriginal": { label: "Bản gốc", tooltip: "Xem tài liệu ban đầu trước khi sửa đổi" },
     "writer.review.wordCount": { label: "Đếm từ", tooltip: "Xem số từ, ký tự, đoạn văn và dòng của tài liệu" },
     "writer.review.toggleSpellCheck": { label: "Kiểm tra chính tả", tooltip: "Bật hoặc tắt gạch đỏ kiểm tra chính tả tiếng Việt" },
     "writer.help.open": { label: "Trợ giúp", tooltip: "Mở hướng dẫn sử dụng (F1)" },
@@ -1005,6 +1054,7 @@ export const viStrings = {
       tableMergeGroup: "Hợp nhất",
       tableSizeGroup: "Kích cỡ ô",
       tableAlignGroup: "Căn lề ô",
+      tableDataGroup: "Dữ liệu",
       tablesIllustrations: "Bảng biểu & Hình",
       illustrations: "Minh họa",
       links: "Liên kết",
@@ -1028,6 +1078,7 @@ export const viStrings = {
       proofread: "Chính tả & Ngữ pháp",
       comments: "Ghi chú",
       tracking: "Theo dõi thay đổi",
+      inspect: "Kiểm tra tài liệu",
       views: "Dạng xem",
       show: "Hiển thị",
       zoom: "Thu phóng",

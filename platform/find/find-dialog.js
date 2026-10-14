@@ -215,7 +215,59 @@ export function showFindReplaceDialog({
             <input type="checkbox" id="vno-fr-opt-diacritics" ${initialOptions.ignoreDiacritics ? "checked" : ""} />
             <span>${t("findReplace.ignoreDiacritics", "Bỏ qua dấu")}</span>
           </label>
+          <label style="display:flex; align-items:center; gap:6px; font-size:12px; color:var(--vno-text-primary, #374151); cursor:pointer; user-select:none;">
+            <input type="checkbox" id="vno-fr-opt-wildcards" ${initialOptions.useWildcards ? "checked" : ""} />
+            <span>${t("findReplace.useWildcards", "Dùng ký tự đại diện (*, ?)")}</span>
+          </label>
         </div>
+
+        <!-- Advanced tools: Định dạng & Đặc biệt -->
+        <div style="display:flex; justify-content:space-between; align-items:center; border-top:1px dashed var(--vno-border-default, #e5e7eb); padding-top:6px; margin-top:2px;">
+          <div style="display:flex; gap:8px; align-items:center;">
+            <button type="button" class="vno-btn" id="vno-fr-format-btn" style="font-size:11px; padding:3px 8px;">${t("findReplace.btnFormat", "Định dạng…")}</button>
+            <div style="position:relative; display:inline-block;">
+              <button type="button" class="vno-btn" id="vno-fr-special-btn" style="font-size:11px; padding:3px 8px;">${t("findReplace.btnSpecial", "Đặc biệt ▼")}</button>
+              <div id="vno-fr-special-menu" style="display:none; position:absolute; bottom:100%; left:0; background:var(--vno-bg-surface, #fff); border:1px solid var(--vno-border-default, #d1d5db); border-radius:4px; box-shadow:0 4px 12px rgba(0,0,0,0.15); z-index:1000; min-width:210px; margin-bottom:4px; padding:4px 0;">
+                <button type="button" class="vno-fr-spec-item" data-token="^p" style="display:block; width:100%; text-align:left; background:none; border:none; padding:5px 12px; font-size:12px; cursor:pointer;">${t("findReplace.specParagraph", "Dấu ngắt đoạn (^p)")}</button>
+                <button type="button" class="vno-fr-spec-item" data-token="^t" style="display:block; width:100%; text-align:left; background:none; border:none; padding:5px 12px; font-size:12px; cursor:pointer;">${t("findReplace.specTab", "Ký tự Tab (^t)")}</button>
+                <button type="button" class="vno-fr-spec-item" data-token="^?" style="display:block; width:100%; text-align:left; background:none; border:none; padding:5px 12px; font-size:12px; cursor:pointer;">${t("findReplace.specAnyChar", "Bất kỳ ký tự nào (^?)")}</button>
+                <button type="button" class="vno-fr-spec-item" data-token="^w" style="display:block; width:100%; text-align:left; background:none; border:none; padding:5px 12px; font-size:12px; cursor:pointer;">${t("findReplace.specWhitespace", "Khoảng trắng (^w)")}</button>
+                <button type="button" class="vno-fr-spec-item" data-token="^^" style="display:block; width:100%; text-align:left; background:none; border:none; padding:5px 12px; font-size:12px; cursor:pointer;">${t("findReplace.specCaret", "Dấu mũ (^^)")}</button>
+                <button type="button" class="vno-fr-spec-item" data-token="^&" style="display:block; width:100%; text-align:left; background:none; border:none; padding:5px 12px; font-size:12px; cursor:pointer;">${t("findReplace.specFindWhat", "Nội dung tìm được (^&)")}</button>
+              </div>
+            </div>
+          </div>
+          <button type="button" class="vno-btn" id="vno-fr-clear-format-btn" style="font-size:11px; padding:3px 8px; display:none;">${t("findReplace.clearFormat", "Xóa định dạng")}</button>
+        </div>
+
+        <!-- Format options panel -->
+        <div id="vno-fr-format-panel" style="display:none; flex-direction:column; gap:8px; padding:8px 10px; background:var(--vno-bg-panel, #f8fafc); border:1px solid var(--vno-border-default, #e2e8f0); border-radius:4px;">
+          <div style="font-size:11px; font-weight:600; color:var(--vno-text-secondary, #475569);">Tìm theo định dạng:</div>
+          <div style="display:flex; flex-wrap:wrap; gap:12px; align-items:center;">
+            <label style="display:flex; align-items:center; gap:4px; font-size:12px; cursor:pointer;">
+              <input type="checkbox" id="vno-fr-fmt-bold"> <strong>${t("findReplace.fmtBold", "Đậm")}</strong>
+            </label>
+            <label style="display:flex; align-items:center; gap:4px; font-size:12px; cursor:pointer;">
+              <input type="checkbox" id="vno-fr-fmt-italic"> <em>${t("findReplace.fmtItalic", "Nghiêng")}</em>
+            </label>
+            <label style="display:flex; align-items:center; gap:4px; font-size:12px;">
+              <span>${t("findReplace.fmtFont", "Phông:")}</span>
+              <select id="vno-fr-fmt-font" style="padding:2px 4px; font-size:12px;">
+                <option value="">-- Bất kỳ --</option>
+                <option value="Times New Roman">Times New Roman</option>
+                <option value="Arial">Arial</option>
+                <option value="Calibri">Calibri</option>
+                <option value="Be Vietnam Pro">Be Vietnam Pro</option>
+              </select>
+            </label>
+            <label style="display:flex; align-items:center; gap:4px; font-size:12px;">
+              <input type="checkbox" id="vno-fr-fmt-color-enable">
+              <span>${t("findReplace.fmtColor", "Màu:")}</span>
+              <input type="color" id="vno-fr-fmt-color" value="#000000" style="width:28px; height:20px; padding:0; border:none; cursor:pointer;">
+            </label>
+          </div>
+        </div>
+        <div id="vno-fr-format-summary" style="display:none; font-size:11px; font-style:italic; color:var(--vno-primary, #0284c7);"></div>
 
         <!-- Sheet-specific options -->
         <div id="vno-fr-sheet-options" style="display:${isSheet ? "grid" : "none"}; grid-template-columns: repeat(3, 1fr); gap:12px; padding:10px; background:var(--vno-bg-panel, #f3f4f6); border-radius:var(--vno-radius-md, 4px); border:1px solid var(--vno-border-default, #e5e7eb);">
@@ -273,26 +325,129 @@ export function showFindReplaceDialog({
   const optWord = overlay.querySelector("#vno-fr-opt-word");
   const optCell = overlay.querySelector("#vno-fr-opt-cell");
   const optDiacritics = overlay.querySelector("#vno-fr-opt-diacritics");
+  const optWildcards = overlay.querySelector("#vno-fr-opt-wildcards");
   const optScope = overlay.querySelector("#vno-fr-opt-scope");
   const optDirection = overlay.querySelector("#vno-fr-opt-direction");
   const optLookin = overlay.querySelector("#vno-fr-opt-lookin");
   const statusEl = overlay.querySelector("#vno-fr-status");
+
+  // Format & Special controls
+  const formatBtn = overlay.querySelector("#vno-fr-format-btn");
+  const formatPanel = overlay.querySelector("#vno-fr-format-panel");
+  const clearFormatBtn = overlay.querySelector("#vno-fr-clear-format-btn");
+  const formatSummary = overlay.querySelector("#vno-fr-format-summary");
+  const optFmtBold = overlay.querySelector("#vno-fr-fmt-bold");
+  const optFmtItalic = overlay.querySelector("#vno-fr-fmt-italic");
+  const optFmtFont = overlay.querySelector("#vno-fr-fmt-font");
+  const optFmtColor = overlay.querySelector("#vno-fr-fmt-color");
+  const optFmtColorEnable = overlay.querySelector("#vno-fr-fmt-color-enable");
+
+  const specialBtn = overlay.querySelector("#vno-fr-special-btn");
+  const specialMenu = overlay.querySelector("#vno-fr-special-menu");
+
+  let lastActiveInput = findInput;
+  findInput.addEventListener("focus", () => { lastActiveInput = findInput; });
+  replaceInput.addEventListener("focus", () => { lastActiveInput = replaceInput; });
+
+  const updateFormatSummary = () => {
+    const parts = [];
+    if (optFmtBold?.checked) parts.push("Đậm");
+    if (optFmtItalic?.checked) parts.push("Nghiêng");
+    if (optFmtFont?.value) parts.push(`Phông: ${optFmtFont.value}`);
+    if (optFmtColorEnable?.checked && optFmtColor?.value) parts.push(`Màu: ${optFmtColor.value}`);
+
+    if (parts.length > 0) {
+      if (formatSummary) {
+        formatSummary.textContent = "Định dạng tìm: " + parts.join(", ");
+        formatSummary.style.display = "block";
+      }
+      if (clearFormatBtn) clearFormatBtn.style.display = "inline-flex";
+    } else {
+      if (formatSummary) {
+        formatSummary.textContent = "";
+        formatSummary.style.display = "none";
+      }
+      if (clearFormatBtn) clearFormatBtn.style.display = "none";
+    }
+  };
+
+  [optFmtBold, optFmtItalic, optFmtFont, optFmtColor, optFmtColorEnable].forEach(ctrl => {
+    ctrl?.addEventListener("change", () => {
+      updateFormatSummary();
+      syncSession();
+    });
+  });
+
+  formatBtn?.addEventListener("click", () => {
+    if (!formatPanel) return;
+    const isHidden = formatPanel.style.display === "none";
+    formatPanel.style.display = isHidden ? "flex" : "none";
+  });
+
+  clearFormatBtn?.addEventListener("click", () => {
+    if (optFmtBold) optFmtBold.checked = false;
+    if (optFmtItalic) optFmtItalic.checked = false;
+    if (optFmtFont) optFmtFont.value = "";
+    if (optFmtColorEnable) optFmtColorEnable.checked = false;
+    updateFormatSummary();
+    syncSession();
+  });
+
+  specialBtn?.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (!specialMenu) return;
+    const isHidden = specialMenu.style.display === "none";
+    specialMenu.style.display = isHidden ? "block" : "none";
+  });
+
+  overlay.querySelectorAll(".vno-fr-spec-item").forEach(item => {
+    item.addEventListener("click", (e) => {
+      e.stopPropagation();
+      const token = item.getAttribute("data-token");
+      if (!token) return;
+      const targetInput = lastActiveInput || findInput;
+      const start = targetInput.selectionStart ?? targetInput.value.length;
+      const end = targetInput.selectionEnd ?? targetInput.value.length;
+      const val = targetInput.value;
+      targetInput.value = val.slice(0, start) + token + val.slice(end);
+      targetInput.focus();
+      targetInput.setSelectionRange(start + token.length, start + token.length);
+      if (specialMenu) specialMenu.style.display = "none";
+      syncSession();
+    });
+  });
+
+  document.addEventListener("click", (e) => {
+    if (specialMenu && !specialMenu.contains(e.target) && e.target !== specialBtn) {
+      specialMenu.style.display = "none";
+    }
+  });
 
   const findNextBtn = overlay.querySelector("#vno-fr-find-next-btn");
   const findPrevBtn = overlay.querySelector("#vno-fr-find-prev-btn");
   const replaceBtn = overlay.querySelector("#vno-fr-replace-btn");
   const replaceAllBtn = overlay.querySelector("#vno-fr-replace-all-btn");
 
-  const getOptions = (extra = {}) => ({
-    matchCase: !!optCase?.checked,
-    wholeWord: !!optWord?.checked,
-    matchCell: !!optCell?.checked,
-    ignoreDiacritics: !!optDiacritics?.checked,
-    scope: optScope ? optScope.value : "sheet",
-    searchBy: optDirection ? optDirection.value : "rows",
-    lookIn: optLookin ? optLookin.value : "values",
-    ...extra
-  });
+  const getOptions = (extra = {}) => {
+    const format = {};
+    if (optFmtBold?.checked) format.bold = true;
+    if (optFmtItalic?.checked) format.italic = true;
+    if (optFmtFont?.value) format.fontFamily = optFmtFont.value;
+    if (optFmtColorEnable?.checked && optFmtColor?.value) format.color = optFmtColor.value;
+
+    return {
+      matchCase: !!optCase?.checked,
+      wholeWord: !!optWord?.checked,
+      matchCell: !!optCell?.checked,
+      ignoreDiacritics: !!optDiacritics?.checked,
+      useWildcards: !!optWildcards?.checked,
+      format: Object.keys(format).length > 0 ? format : null,
+      scope: optScope ? optScope.value : "sheet",
+      searchBy: optDirection ? optDirection.value : "rows",
+      lookIn: optLookin ? optLookin.value : "values",
+      ...extra
+    };
+  };
 
   const syncSession = () => {
     lastFindSession = {
@@ -375,7 +530,7 @@ export function showFindReplaceDialog({
     if (!res && statusEl) {
       statusEl.textContent = t("findReplace.notFound", "Không tìm thấy nội dung cần tìm.");
     } else if (statusEl) {
-      statusEl.textContent = "";
+      statusEl.textContent = t("findReplace.foundNext", "Đã tìm thấy kết quả kế tiếp.");
     }
     return res;
   };
@@ -397,7 +552,7 @@ export function showFindReplaceDialog({
     if (!res && statusEl) {
       statusEl.textContent = t("findReplace.notFound", "Không tìm thấy nội dung cần tìm.");
     } else if (statusEl) {
-      statusEl.textContent = "";
+      statusEl.textContent = t("findReplace.foundPrev", "Đã tìm thấy kết quả liền trước.");
     }
     return res;
   };
@@ -418,7 +573,7 @@ export function showFindReplaceDialog({
     if (!res && statusEl) {
       statusEl.textContent = t("findReplace.notFoundReplace", "Không tìm thấy nội dung để thay thế.");
     } else if (statusEl) {
-      statusEl.textContent = "";
+      statusEl.textContent = t("findReplace.replacedOne", "Đã thay thế 1 lần.");
     }
     return res;
   };

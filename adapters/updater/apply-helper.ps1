@@ -77,12 +77,12 @@ function Quote-ProcessArgument([string]$value) {
 }
 
 function Move-FileAtomically([string]$source, [string]$target) {
-    if (Test-Path -LiteralPath $target -PathType Leaf) {
+    if ([System.IO.File]::Exists((Get-LongPath $target))) {
         $swapBackup = $target + '.vno-swap-' + [Guid]::NewGuid().ToString('N')
-        [System.IO.File]::Replace($source, $target, $swapBackup, $true)
-        [System.IO.File]::Delete($swapBackup)
+        [System.IO.File]::Replace((Get-LongPath $source), (Get-LongPath $target), (Get-LongPath $swapBackup), $true)
+        [System.IO.File]::Delete((Get-LongPath $swapBackup))
     } else {
-        [System.IO.File]::Move($source, $target)
+        [System.IO.File]::Move((Get-LongPath $source), (Get-LongPath $target))
     }
 }
 
@@ -254,15 +254,15 @@ public static class VnoUpdatePathApi {
             throw "Staged blob verification failed: $relative"
         }
         $parent = Split-Path -Parent $target
-        New-Item -ItemType Directory -Force -Path $parent | Out-Null
+        [System.IO.Directory]::CreateDirectory((Get-LongPath $parent)) | Out-Null
         $temp = $target + '.vno-update-tmp'
-        [System.IO.File]::Copy($blob, $temp, $true)
+        [System.IO.File]::Copy($blob, (Get-LongPath $temp), $true)
         Move-FileAtomically $temp $target
     }
     foreach ($relative in @($taskData.removals)) {
         Write-UpdateLog ('STEP remove-file path="{0}"' -f $relative)
         $target = Resolve-InstallPath ([string]$relative)
-        if (Test-Path -LiteralPath $target -PathType Leaf) { [System.IO.File]::Delete($target) }
+        if ([System.IO.File]::Exists((Get-LongPath $target))) { [System.IO.File]::Delete((Get-LongPath $target)) }
     }
     $versionFile = Join-Path $install 'VERSION.txt'
     if (-not (Test-Path -LiteralPath $versionFile -PathType Leaf) -or (Get-Content -LiteralPath $versionFile -Raw -Encoding ASCII).Trim() -ne [string]$taskData.new_version) {

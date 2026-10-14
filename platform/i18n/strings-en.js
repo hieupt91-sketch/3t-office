@@ -18,6 +18,15 @@ export const enStrings = {
     position: { topLeft: "Top Left", topCenter: "Top Center", topRight: "Top Right", middleLeft: "Middle Left", center: "Center", middleRight: "Middle Right", bottomLeft: "Bottom Left", bottomCenter: "Bottom Center", bottomRight: "Bottom Right" },
     align: { left: "Left", center: "Center", right: "Right", top: "Top", middle: "Middle", bottom: "Bottom" }
   },
+  writerPicture: {
+    adjustGroup: "Adjust",
+    cropGroup: "Crop",
+    change: "Change Picture…",
+    reset: "Reset Picture",
+    compress: "Compress Picture",
+    corrections: "Brightness & Contrast…",
+    crop: "Crop…"
+  },
   writerDocumentProperties: {
     backstage: "Info",
     dialogTitle: "Document properties",
@@ -239,7 +248,24 @@ export const enStrings = {
     notFound: "Cannot find what you are looking for.",
     notFoundReplace: "Cannot find what to replace.",
     emptyInput: "Please enter text to find.",
-    replacedCount: "All done. We made {count} replacements."
+    replacedCount: "All done. We made {count} replacements.",
+    foundNext: "Found next match.",
+    foundPrev: "Found previous match.",
+    replacedOne: "Made 1 replacement.",
+    useWildcards: "Use wildcards (*, ?)",
+    btnFormat: "Format…",
+    btnSpecial: "Special ▼",
+    clearFormat: "No Formatting",
+    fmtBold: "Bold",
+    fmtItalic: "Italic",
+    fmtFont: "Font:",
+    fmtColor: "Color:",
+    specParagraph: "Paragraph Mark (^p)",
+    specTab: "Tab Character (^t)",
+    specAnyChar: "Any Character (^?)",
+    specWhitespace: "White Space (^w)",
+    specCaret: "Caret Character (^^)",
+    specFindWhat: "Find What Text (^&)"
   },
   sheetRibbon: {
     whatIfAnalysis: "What-If Analysis",
@@ -263,6 +289,7 @@ export const enStrings = {
     section: "Section"
   },
   sheetDialogs: {
+    fillSeriesTitle: "Series", fillSeriesIn: "Series in", fillSeriesRows: "Rows", fillSeriesColumns: "Columns", fillSeriesType: "Type", fillSeriesLinear: "Linear", fillSeriesGrowth: "Growth", fillSeriesDate: "Date", fillSeriesDateUnit: "Date unit", fillSeriesUnitDay: "Day", fillSeriesUnitWeekday: "Weekday", fillSeriesUnitMonth: "Month", fillSeriesUnitYear: "Year", fillSeriesStep: "Step value", fillSeriesStop: "Stop value", fillSeriesBadStep: "Step value must be a number.", fillSeriesBadStart: "The first cell of the selection must contain a number (or a dd/mm/yyyy date for the Date type).", fillSeriesNothing: "Nothing to fill. Select the start cell plus the cells to fill, or enter a Stop value when only one cell is selected.", fillSeriesFailed: "Could not fill the series.", fillSeriesDone: "Filled {{count}} cells.",
     hideSheetMenu: "Hide Sheet", unhideSheetMenu: "Unhide Sheet...", unhideSheetTitle: "Unhide Sheet", unhideSheetChoose: "Choose a sheet to show:", unhideSheetAction: "Unhide", cannotHideLastSheet: "You cannot hide the last visible worksheet.", noHiddenSheets: "There are no hidden worksheets.",
     close: "Close", cancel: "Cancel", cancelLong: "Cancel", apply: "Apply", range: "Range", rangeLabel: "Range:", value: "Value", save: "Save",
     pasteSpecialTitle: "Paste Special", pasteSpecialGroup: "Paste", pasteSpecialSource: "Keep Source Formatting", pasteSpecialAll: "All", pasteSpecialValues: "Values", pasteSpecialFormulas: "Formulas", pasteSpecialFormats: "Formats", pasteSpecialTranspose: "Transpose",
@@ -434,6 +461,7 @@ export const enStrings = {
   },
   commands: {
     "writer.file.properties": { label: "Document properties", tooltip: "View and edit the title, author, subject, keywords, and comments" },
+    "writer.file.inspectDocument": { label: "Inspect Document", tooltip: "Inspect and remove comments, revisions, hidden text, and personal properties" },
     "writer.file.options": { label: "Options", tooltip: "Open Options: appearance, AutoCorrect and smart characters" },
     "writer.edit.select": { label: "Select", tooltip: "Select text or objects in the document" },
     "writer.edit.pasteSpecial": { label: "Paste Special", tooltip: "Paste with advanced options (keep source formatting, plain text) (Ctrl+Alt+V)" },
@@ -645,6 +673,9 @@ export const enStrings = {
     ,"sheet.edit.goToSpecial": { label: "Go To Special...", tooltip: "Select cells by type: comments, formulas, blanks, current region..." }
     ,"sheet.edit.fillDown": { label: "Fill Down", tooltip: "Fill down from the cell above (Ctrl+D)" }
     ,"sheet.edit.fillRight": { label: "Fill Right", tooltip: "Fill right from the cell to the left (Ctrl+R)" }
+  ,"sheet.edit.fillUp": { label: "Fill Up", tooltip: "Fill up from the bottom cell of the selection" }
+  ,"sheet.edit.fillLeft": { label: "Fill Left", tooltip: "Fill left from the right-most column of the selection" }
+  ,"sheet.edit.fillSeries": { label: "Series...", tooltip: "Fill a number or date series: linear, growth, day/month/year" }
     ,"sheet.edit.clearAll": { label: "Clear All", tooltip: "Clear all contents, formulas, and formatting from selected cells" }
     ,"sheet.edit.clearFormats": { label: "Clear Formats", tooltip: "Clear cell formatting back to default while keeping contents" }
     ,"sheet.edit.clearContents": { label: "Clear Contents", tooltip: "Clear cell contents and formulas while keeping formatting" }
@@ -785,6 +816,11 @@ export const enStrings = {
     "writer.design.themeGallery": { label: "Document Themes", tooltip: "Open document themes and formatting gallery" },
     "writer.color.text": { label: "Font Color", tooltip: "Change font color" },
     "writer.color.highlight": { label: "Text Highlight Color", tooltip: "Highlight text (Ctrl+Alt+H)" },
+    "writer.format.textEffects": { label: "Text Effects", tooltip: "Add text outline, shadow, and glow effects" },
+    "writer.format.textOutline": { label: "Text Outline", tooltip: "Toggle or customize text outline" },
+    "writer.format.textShadow": { label: "Shadow", tooltip: "Toggle or customize text shadow" },
+    "writer.format.textGlow": { label: "Glow", tooltip: "Toggle or customize text glow effect" },
+    "writer.format.clearTextEffects": { label: "Clear Text Effects", tooltip: "Clear all outline, shadow, and glow effects" },
     "writer.para.alignLeft": { label: "Align Left", tooltip: "Align text left (Ctrl+L)" },
     "writer.para.alignCenter": { label: "Center", tooltip: "Center text (Ctrl+E)" },
     "writer.para.alignRight": { label: "Align Right", tooltip: "Align text right (Ctrl+R)" },
@@ -809,11 +845,14 @@ export const enStrings = {
     "writer.style.heading2": { label: "Heading 2", tooltip: "Apply the standard Heading 2 style in new documents (Ctrl+Alt+2)" },
     "writer.style.heading3": { label: "Heading 3", tooltip: "Apply the standard Heading 3 style in new documents (Ctrl+Alt+3)" },
     "writer.text.changeCase": { label: "Change Case", tooltip: "Cycle lowercase / UPPERCASE / Title Case (Shift+F3)" },
+    "writer.text.changeCaseDialog": { label: "Change Case Dialog…", tooltip: "Open Change Case dialog (Sentence case, UPPERCASE, lowercase, Title case, tOGGLE cASE)" },
     "writer.para.sort": { label: "Sort", tooltip: "Sort selected paragraphs or list items A–Z" },
     "writer.para.showFormattingMarks": { label: "Show/Hide Formatting Marks", tooltip: "Show or hide paragraph and line-break marks (Ctrl+*)" },
     "writer.para.shading": { label: "Shading", tooltip: "Apply paragraph or table-cell shading" },
     "writer.para.borders": { label: "Borders", tooltip: "Choose paragraph or table-cell borders" },
     "writer.table.insert": { label: "Table", tooltip: "Insert a table into document" },
+    "writer.table.quickTables": { label: "Quick Tables", tooltip: "Insert built-in table templates such as calendars, checklists, or analysis matrices" },
+    "writer.table.toText": { label: "Convert Table to Text", tooltip: "Convert the current table into regular text separated by a delimiter" },
     "writer.table.insertRowAbove": { label: "Insert Above", tooltip: "Insert a new row above current row" },
     "writer.table.insertRowBelow": { label: "Insert Below", tooltip: "Insert a new row below current row" },
     "writer.table.insertColLeft": { label: "Insert Left", tooltip: "Insert a new column to the left" },
@@ -845,6 +884,11 @@ export const enStrings = {
     "writer.image.insert": { label: "Pictures", tooltip: "Insert pictures from your computer" },
     "writer.image.resize": { label: "Resize Picture", tooltip: "Resize picture and adjust aspect ratio" },
     "writer.image.wrap": { label: "Wrap Text", tooltip: "Configure text wrapping around picture" },
+    "writer.image.crop": { label: "Crop Picture", tooltip: "Crop the outer edges of the picture" },
+    "writer.image.corrections": { label: "Brightness & Contrast", tooltip: "Adjust the brightness and contrast of the picture" },
+    "writer.image.changePicture": { label: "Change Picture", tooltip: "Replace the current picture while keeping formatting" },
+    "writer.image.resetPicture": { label: "Reset Picture", tooltip: "Reset picture back to its original size and formatting" },
+    "writer.image.compress": { label: "Compress Picture", tooltip: "Compress picture data to optimize document file size" },
     "writer.shape.insert": { label: "Shapes", tooltip: "Insert basic shapes (rectangle, circle, arrow, line)" },
     "writer.diagram.insert": { label: "SmartArt", tooltip: "Insert a SmartArt diagram (process, cycle, hierarchy, list)" },
     "writer.chart.insert": { label: "Chart", tooltip: "Insert an illustration chart" },
@@ -894,6 +938,11 @@ export const enStrings = {
     "writer.trackChanges.rejectOne": { label: "Reject This", tooltip: "Reject the selected change" },
     "writer.trackChanges.acceptAll": { label: "Accept All Changes", tooltip: "Accept all changes in document" },
     "writer.trackChanges.rejectAll": { label: "Reject All Changes", tooltip: "Reject all changes in document" },
+    "writer.trackChanges.displayMode": { label: "Display for Review", tooltip: "Choose how to view changes: Simple Markup, All Markup, No Markup, Original" },
+    "writer.trackChanges.displaySimple": { label: "Simple Markup", tooltip: "Show clean text with red revision line in the margin" },
+    "writer.trackChanges.displayAll": { label: "All Markup", tooltip: "Show all insertions and deletions inline" },
+    "writer.trackChanges.displayNone": { label: "No Markup", tooltip: "Preview document with all changes accepted" },
+    "writer.trackChanges.displayOriginal": { label: "Original", tooltip: "Preview original document before any changes" },
     "writer.review.wordCount": { label: "Document Statistics", tooltip: "Show words, characters, paragraphs and lines in the document" },
     "writer.review.toggleSpellCheck": { label: "Spell Check", tooltip: "Toggle Vietnamese inline spelling check on/off" },
     "writer.help.open": { label: "Help", tooltip: "Open the in-app user guide (F1)" },
@@ -1004,6 +1053,7 @@ export const enStrings = {
       tableMergeGroup: "Merge",
       tableSizeGroup: "Cell Size",
       tableAlignGroup: "Alignment",
+      tableDataGroup: "Data",
       tablesIllustrations: "Tables & Illustrations",
       illustrations: "Illustrations",
       links: "Links",
@@ -1027,6 +1077,7 @@ export const enStrings = {
       proofread: "Proofing",
       comments: "Comments",
       tracking: "Tracking",
+      inspect: "Document Inspector",
       views: "Views",
       show: "Show",
       zoom: "Zoom",

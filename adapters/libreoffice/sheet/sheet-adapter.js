@@ -536,6 +536,15 @@ export class SheetAdapter {
       options = options || {};
       return this.grid.fillRight ? this.grid.fillRight(options.range) : false;
     });
+    globalCommandBus.bindHandler("sheet.edit.fillUp", (options) => {
+      options = options || {};
+      return this._hintIfFalse(() => this.grid.fillUp(options.range), "Chọn từ hai ô trở lên (ô dưới cùng là nguồn), hoặc một ô có dữ liệu ngay bên dưới, rồi nhấn Điền lên.");
+    });
+    globalCommandBus.bindHandler("sheet.edit.fillLeft", (options) => {
+      options = options || {};
+      return this._hintIfFalse(() => this.grid.fillLeft(options.range), "Chọn từ hai ô trở lên (cột phải nhất là nguồn), hoặc một ô có dữ liệu ngay bên phải, rồi nhấn Điền trái.");
+    });
+    globalCommandBus.bindHandler("sheet.edit.fillSeries", () => this.grid.showFillSeriesDialog());
     globalCommandBus.bindHandler("sheet.edit.clearAll", (options) => {
       options = options || {};
       return this.grid.clearAll ? this.grid.clearAll(options.range) : false;
@@ -3715,10 +3724,15 @@ export class SheetAdapter {
           const arrayFormula = this._arrayFormulaInfo(coordinate, item);
           const formula = (!arrayFormula || arrayFormula.isAnchor) && item.formula && String(item.formula).startsWith("=") ? String(item.formula) : "";
           const untouchedExternal = formula && item.externalLink?.formula === formula;
+          // Tham chiếu bảng Table[Cột]: LibreOffice nhận địa chỉ A1 đã mở rộng; công thức gốc đi theo vno:formula
+          // và dạng tệp (vno:xlsx-formula) để ooxml_zip_patch ghi lại đúng Table[Cột] vào XLSX.
+          const structured = formula && !untouchedExternal && this.grid.hasStructuredReference?.(formula);
+          const odfSource = structured ? this.grid.expandStructuredFormula(formula, sheetName, coordinate) : formula;
+          const structuredAttr = structured ? ` vno:xlsx-formula="${this._escapeXml(this.grid.structuredFileFormula(formula, sheetName, coordinate))}"` : "";
           const formulaAttrs = untouchedExternal
             ? ` table:formula="${this._escapeXml(item.externalLink.odf)}"`
             : formula
-              ? ` table:formula="${this._escapeXml(this._formulaToOdf(formula))}" vno:formula="${this._escapeXml(formula)}"`
+              ? ` table:formula="${this._escapeXml(this._formulaToOdf(odfSource))}" vno:formula="${this._escapeXml(formula)}"${structuredAttr}`
               : "";
           const matrixAttrs = arrayFormula?.isAnchor
             ? ` table:number-matrix-columns-spanned="${arrayFormula.columns}" table:number-matrix-rows-spanned="${arrayFormula.rows}"`

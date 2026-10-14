@@ -1,0 +1,906 @@
+{
+ "generatedFrom": "Excel 2016 (16.0.4266) Application.Evaluate",
+ "cells": {},
+ "cases": [
+  {
+   "formula": "=BIN2DEC(\"1010\")",
+   "excel": 10,
+   "type": "number"
+  },
+  {
+   "formula": "=BIN2DEC(\"1111111111\")",
+   "excel": -1,
+   "type": "number"
+  },
+  {
+   "formula": "=BIN2DEC(\"1000000000\")",
+   "excel": -512,
+   "type": "number"
+  },
+  {
+   "formula": "=BIN2DEC(\"102\")",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=BIN2DEC(\"\")",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=BIN2HEX(\"1111\")",
+   "excel": "F",
+   "type": "string"
+  },
+  {
+   "formula": "=BIN2HEX(\"1111111111\")",
+   "excel": "FFFFFFFFFF",
+   "type": "string"
+  },
+  {
+   "formula": "=BIN2HEX(\"101\",4)",
+   "excel": "0005",
+   "type": "string"
+  },
+  {
+   "formula": "=BIN2OCT(\"1101\")",
+   "excel": "15",
+   "type": "string"
+  },
+  {
+   "formula": "=BIN2OCT(\"1111111111\")",
+   "excel": "7777777777",
+   "type": "string"
+  },
+  {
+   "formula": "=OCT2DEC(\"17\")",
+   "excel": 15,
+   "type": "number"
+  },
+  {
+   "formula": "=OCT2DEC(\"7777777777\")",
+   "excel": -1,
+   "type": "number"
+  },
+  {
+   "formula": "=OCT2BIN(\"17\")",
+   "excel": "1111",
+   "type": "string"
+  },
+  {
+   "formula": "=OCT2BIN(\"17\",8)",
+   "excel": "00001111",
+   "type": "string"
+  },
+  {
+   "formula": "=OCT2HEX(\"377\")",
+   "excel": "FF",
+   "type": "string"
+  },
+  {
+   "formula": "=OCT2BIN(\"7777777000\")",
+   "excel": "1000000000",
+   "type": "string"
+  },
+  {
+   "formula": "=OCT2DEC(\"8\")",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=HEX2DEC(\"FF\")",
+   "excel": 255,
+   "type": "number"
+  },
+  {
+   "formula": "=HEX2DEC(\"FFFFFFFFFF\")",
+   "excel": -1,
+   "type": "number"
+  },
+  {
+   "formula": "=HEX2DEC(\"ff\")",
+   "excel": 255,
+   "type": "number"
+  },
+  {
+   "formula": "=HEX2BIN(\"1F\")",
+   "excel": "11111",
+   "type": "string"
+  },
+  {
+   "formula": "=HEX2BIN(\"FFFFFFFFFF\")",
+   "excel": "1111111111",
+   "type": "string"
+  },
+  {
+   "formula": "=HEX2OCT(\"FF\")",
+   "excel": "377",
+   "type": "string"
+  },
+  {
+   "formula": "=HEX2OCT(\"1F\",5)",
+   "excel": "00037",
+   "type": "string"
+  },
+  {
+   "formula": "=HEX2DEC(\"G\")",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=HEX2BIN(\"3FF\")",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=HEX2BIN(\"200\")",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=DEC2BIN(9)",
+   "excel": "1001",
+   "type": "string"
+  },
+  {
+   "formula": "=DEC2BIN(9,8)",
+   "excel": "00001001",
+   "type": "string"
+  },
+  {
+   "formula": "=DEC2BIN(-5)",
+   "excel": "1111111011",
+   "type": "string"
+  },
+  {
+   "formula": "=DEC2BIN(511)",
+   "excel": "111111111",
+   "type": "string"
+  },
+  {
+   "formula": "=DEC2BIN(512)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=DEC2BIN(-512)",
+   "excel": "1000000000",
+   "type": "string"
+  },
+  {
+   "formula": "=DEC2BIN(-513)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=DEC2BIN(0)",
+   "excel": "0",
+   "type": "string"
+  },
+  {
+   "formula": "=DEC2BIN(9,3)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=DEC2BIN(9.9)",
+   "excel": "1001",
+   "type": "string"
+  },
+  {
+   "formula": "=DEC2OCT(58)",
+   "excel": "72",
+   "type": "string"
+  },
+  {
+   "formula": "=DEC2OCT(58,5)",
+   "excel": "00072",
+   "type": "string"
+  },
+  {
+   "formula": "=DEC2OCT(-100)",
+   "excel": "7777777634",
+   "type": "string"
+  },
+  {
+   "formula": "=DEC2HEX(255)",
+   "excel": "FF",
+   "type": "string"
+  },
+  {
+   "formula": "=DEC2HEX(255,4)",
+   "excel": "00FF",
+   "type": "string"
+  },
+  {
+   "formula": "=DEC2HEX(-1)",
+   "excel": "FFFFFFFFFF",
+   "type": "string"
+  },
+  {
+   "formula": "=DEC2HEX(549755813887)",
+   "excel": "7FFFFFFFFF",
+   "type": "string"
+  },
+  {
+   "formula": "=DEC2HEX(549755813888)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=DEC2HEX(-549755813888)",
+   "excel": "8000000000",
+   "type": "string"
+  },
+  {
+   "formula": "=BITAND(13,25)",
+   "excel": 9,
+   "type": "number"
+  },
+  {
+   "formula": "=BITOR(13,25)",
+   "excel": 29,
+   "type": "number"
+  },
+  {
+   "formula": "=BITXOR(13,25)",
+   "excel": 20,
+   "type": "number"
+  },
+  {
+   "formula": "=BITLSHIFT(4,2)",
+   "excel": 16,
+   "type": "number"
+  },
+  {
+   "formula": "=BITRSHIFT(16,2)",
+   "excel": 4,
+   "type": "number"
+  },
+  {
+   "formula": "=BITLSHIFT(4,-1)",
+   "excel": 2,
+   "type": "number"
+  },
+  {
+   "formula": "=BITAND(-1,5)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=BITAND(1.5,5)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=BITLSHIFT(1,60)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=BITOR(281474976710655,1)",
+   "excel": 281474976710655,
+   "type": "number"
+  },
+  {
+   "formula": "=BITAND(281474976710656,1)",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=DELTA(5,4)",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=DELTA(5,5)",
+   "excel": 1,
+   "type": "number"
+  },
+  {
+   "formula": "=DELTA(0.5)",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=GESTEP(5,4)",
+   "excel": 1,
+   "type": "number"
+  },
+  {
+   "formula": "=GESTEP(3,4)",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=GESTEP(-1)",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=GESTEP(0)",
+   "excel": 1,
+   "type": "number"
+  },
+  {
+   "formula": "=ERF(1)",
+   "excel": 0.8427007929497149,
+   "type": "number"
+  },
+  {
+   "formula": "=ERF(0.5,1.5)",
+   "excel": 0.44560526866226424,
+   "type": "number"
+  },
+  {
+   "formula": "=ERF(-1)",
+   "excel": -0.8427007929497149,
+   "type": "number"
+  },
+  {
+   "formula": "=ERF(0)",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=ERF.PRECISE(0.745)",
+   "excel": 0.7079289200957377,
+   "type": "number"
+  },
+  {
+   "formula": "=ERFC(1)",
+   "excel": 0.15729920705028513,
+   "type": "number"
+  },
+  {
+   "formula": "=ERFC(-1)",
+   "excel": 1.8427007929497148,
+   "type": "number"
+  },
+  {
+   "formula": "=ERFC.PRECISE(-1)",
+   "excel": 1.8427007929497148,
+   "type": "number"
+  },
+  {
+   "formula": "=ERFC(0)",
+   "excel": 1,
+   "type": "number"
+  },
+  {
+   "formula": "=ERF(2.5)",
+   "excel": 0.999593047982555,
+   "type": "number"
+  },
+  {
+   "formula": "=ERFC(3)",
+   "excel": 0.00002209049699858544,
+   "type": "number"
+  },
+  {
+   "formula": "=COMPLEX(3,4)",
+   "excel": "3+4i",
+   "type": "string"
+  },
+  {
+   "formula": "=COMPLEX(3,-4)",
+   "excel": "3-4i",
+   "type": "string"
+  },
+  {
+   "formula": "=COMPLEX(0,1)",
+   "excel": "i",
+   "type": "string"
+  },
+  {
+   "formula": "=COMPLEX(0,-1)",
+   "excel": "-i",
+   "type": "string"
+  },
+  {
+   "formula": "=COMPLEX(5,0)",
+   "excel": "5",
+   "type": "string"
+  },
+  {
+   "formula": "=COMPLEX(0,0)",
+   "excel": "0",
+   "type": "string"
+  },
+  {
+   "formula": "=COMPLEX(1.5,2.25,\"j\")",
+   "excel": "1.5+2.25j",
+   "type": "string"
+  },
+  {
+   "formula": "=COMPLEX(1,1,\"k\")",
+   "excel": "#VALUE!",
+   "type": "error"
+  },
+  {
+   "formula": "=COMPLEX(0,5)",
+   "excel": "5i",
+   "type": "string"
+  },
+  {
+   "formula": "=COMPLEX(-2,-1)",
+   "excel": "-2-i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMREAL(\"3+4i\")",
+   "excel": 3,
+   "type": "number"
+  },
+  {
+   "formula": "=IMAGINARY(\"3+4i\")",
+   "excel": 4,
+   "type": "number"
+  },
+  {
+   "formula": "=IMAGINARY(\"4\")",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=IMREAL(\"-i\")",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=IMAGINARY(\"-i\")",
+   "excel": -1,
+   "type": "number"
+  },
+  {
+   "formula": "=IMREAL(\"5j\")",
+   "excel": 0,
+   "type": "number"
+  },
+  {
+   "formula": "=IMABS(\"3+4i\")",
+   "excel": 5,
+   "type": "number"
+  },
+  {
+   "formula": "=IMABS(\"1\")",
+   "excel": 1,
+   "type": "number"
+  },
+  {
+   "formula": "=IMARGUMENT(\"3+4i\")",
+   "excel": 0.9272952180016122,
+   "type": "number"
+  },
+  {
+   "formula": "=IMARGUMENT(\"-1\")",
+   "excel": 3.141592653589793,
+   "type": "number"
+  },
+  {
+   "formula": "=IMARGUMENT(\"0\")",
+   "excel": "#DIV/0!",
+   "type": "error"
+  },
+  {
+   "formula": "=IMCONJUGATE(\"3+4i\")",
+   "excel": "3-4i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMCONJUGATE(\"5\")",
+   "excel": "5",
+   "type": "string"
+  },
+  {
+   "formula": "=IMREAL(\"abc\")",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=IMABS(\"1+\")",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=IMSUM(\"3+4i\",\"5-3i\")",
+   "excel": "8+i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMSUM(\"3+4i\",\"5-3i\",\"1\")",
+   "excel": "9+i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMSUB(\"13+4i\",\"5+3i\")",
+   "excel": "8+i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMPRODUCT(\"3+4i\",\"5-3i\")",
+   "excel": "27+11i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMPRODUCT(\"1+2i\",\"3+4i\",\"5+6i\")",
+   "excel": "-85+20i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMDIV(\"-238+240i\",\"10+24i\")",
+   "excel": "5+12i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMDIV(\"1\",\"0\")",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=IMDIV(\"5\",\"2\")",
+   "excel": "2.5",
+   "type": "string"
+  },
+  {
+   "formula": "=IMEXP(\"1+i\")",
+   "excel": "1.46869393991589+2.28735528717884i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMEXP(\"0\")",
+   "excel": "1",
+   "type": "string"
+  },
+  {
+   "formula": "=IMLN(\"3+4i\")",
+   "excel": "1.6094379124341+0.927295218001612i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMLN(\"0\")",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=IMLOG10(\"3+4i\")",
+   "excel": "0.698970004336019+0.402719196273373i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMLOG2(\"3+4i\")",
+   "excel": "2.32192809488736+1.33780421245098i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMSQRT(\"1+i\")",
+   "excel": "1.09868411346781+0.455089860562227i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMSQRT(\"4\")",
+   "excel": "2",
+   "type": "string"
+  },
+  {
+   "formula": "=IMPOWER(\"2+3i\",3)",
+   "excel": "-46+9.00000000000001i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMPOWER(\"2+3i\",0.5)",
+   "excel": "1.67414922803554+0.895977476129838i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMPOWER(\"2\",2)",
+   "excel": "4",
+   "type": "string"
+  },
+  {
+   "formula": "=IMPOWER(\"0\",2)",
+   "excel": "0",
+   "type": "string"
+  },
+  {
+   "formula": "=IMPOWER(\"1+i\",-1)",
+   "excel": "0.5-0.5i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMSIN(\"1+i\")",
+   "excel": "1.29845758141598+0.634963914784736i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMCOS(\"1+i\")",
+   "excel": "0.833730025131149-0.988897705762865i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMTAN(\"1+i\")",
+   "excel": "0.271752585319512+1.08392332733869i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMSINH(\"1+i\")",
+   "excel": "0.634963914784736+1.29845758141598i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMCOSH(\"1+i\")",
+   "excel": "0.833730025131149+0.988897705762865i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMSEC(\"1+i\")",
+   "excel": "0.498337030555187+0.591083841721045i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMCOT(\"1+i\")",
+   "excel": "0.217621561854403-0.868014142895925i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMSECH(\"1+i\")",
+   "excel": "0.498337030555187-0.591083841721045i",
+   "type": "string"
+  },
+  {
+   "formula": "=IMSIN(\"0\")",
+   "excel": "0",
+   "type": "string"
+  },
+  {
+   "formula": "=IMCOS(\"0\")",
+   "excel": "1",
+   "type": "string"
+  },
+  {
+   "formula": "=CONVERT(1,\"lbm\",\"kg\")",
+   "excel": 0.45359237,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"kg\",\"lbm\")",
+   "excel": 2.2046226218487757,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(68,\"F\",\"C\")",
+   "excel": 20,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(100,\"C\",\"F\")",
+   "excel": 212,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(0,\"C\",\"K\")",
+   "excel": 273.15,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"mi\",\"km\")",
+   "excel": 1.609344,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(5,\"ft\",\"m\")",
+   "excel": 1.524,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"hr\",\"mn\")",
+   "excel": 60,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"day\",\"sec\")",
+   "excel": 86400,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"yr\",\"day\")",
+   "excel": 365.25,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"atm\",\"Pa\")",
+   "excel": 101325,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"atm\",\"mmHg\")",
+   "excel": 760.0021001785152,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"mmHg\",\"Pa\")",
+   "excel": 133.322,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"Torr\",\"Pa\")",
+   "excel": 133.32236842105263,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"atm\",\"Torr\")",
+   "excel": 760,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"N\",\"lbf\")",
+   "excel": 0.22480894309971047,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"J\",\"cal\")",
+   "excel": 0.23884589662749595,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"cal\",\"J\")",
+   "excel": 4.1868,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"eV\",\"J\")",
+   "excel": 1.602176487e-19,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"HP\",\"W\")",
+   "excel": 745.6998715822702,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"gal\",\"l\")",
+   "excel": 3.785411784,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"l\",\"gal\")",
+   "excel": 0.26417205235814845,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"m3\",\"l\")",
+   "excel": 1000,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"ft3\",\"l\")",
+   "excel": 28.316846592,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"in2\",\"cm2\")",
+   "excel": 6.4516,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"mi2\",\"km2\")",
+   "excel": 2.589988110336,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"ha\",\"m2\")",
+   "excel": 10000,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"kbyte\",\"byte\")",
+   "excel": 1000,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"kibyte\",\"byte\")",
+   "excel": 1024,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"Mbit\",\"kbit\")",
+   "excel": 1000,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"mph\",\"m/s\")",
+   "excel": 0.44704,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"kn\",\"m/s\")",
+   "excel": 0.5144444444444445,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"T\",\"ga\")",
+   "excel": 10000,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"km\",\"m\")",
+   "excel": 1000,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"mm\",\"cm\")",
+   "excel": 0.1,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"g\",\"mg\")",
+   "excel": 1000,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(5,\"kg\",\"g\")",
+   "excel": 5000,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"nm\",\"m\")",
+   "excel": 1e-9,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"GW\",\"W\")",
+   "excel": 1000000000,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"m\",\"kg\")",
+   "excel": "#N/A",
+   "type": "error"
+  },
+  {
+   "formula": "=CONVERT(1,\"xyz\",\"m\")",
+   "excel": "#N/A",
+   "type": "error"
+  },
+  {
+   "formula": "=CONVERT(1,\"C\",\"F\")",
+   "excel": 33.8,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(37,\"C\",\"K\")",
+   "excel": 310.15,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(98.6,\"F\",\"K\")",
+   "excel": 310.15,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(100,\"Rank\",\"K\")",
+   "excel": 55.55555555555556,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"in3\",\"cm3\")",
+   "excel": 16.387064,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"yd\",\"in\")",
+   "excel": 36,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"Nmi\",\"m\")",
+   "excel": 1852,
+   "type": "number"
+  },
+  {
+   "formula": "=CONVERT(1,\"stone\",\"lbm\")",
+   "excel": 13.999999999999998,
+   "type": "number"
+  }
+ ]
+}

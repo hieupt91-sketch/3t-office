@@ -9,6 +9,9 @@ import { runWriterNavigationPaneTests } from "./unit/writer-nav-pane.test.js";
 import { runAdapterMappingTests } from "./unit/adapter-mapping.test.js";
 import { runSuiteSmokeTests } from "./smoke/suite-smoke.test.js";
 import { runFormulaEngineTests } from "./unit/formula-engine.test.js";
+import { runStructuredReferenceTests } from "./unit/structured-references.test.js";
+import { runSheetSeriesTests } from "./unit/sheet-series.test.js";
+import { runFunctionGoldenTests } from "./unit/function-golden.test.js";
 import { runSheetExternalLinksTests } from "./unit/sheet-external-links.test.js";
 import { runSheetVndWordsTests } from "./unit/sheet-vnd-words.test.js";
 import { runSheetFormulaOdfTests } from "./unit/sheet-formula-odf.test.js";
@@ -74,6 +77,9 @@ import { runRibbonGapsRealOfficeTests } from "./unit/ribbon-gaps-real-office.tes
 import { runSlidesMouseShortcutsTests } from "./unit/slides-mouse-shortcuts.test.js";
 import { runWriterSlidesInsertGapsTests } from "./unit/writer-slides-insert-gaps.test.js";
 import { runWriterViewOutlineDraftTests } from "./unit/writer-view-outline-draft.test.js";
+import { runWriterChangeCaseTests } from "./unit/writer-change-case.test.js";
+import { runWriterTrackChangesDisplayTests } from "./unit/writer-track-changes-display.test.js";
+import { runWriterDocumentInspectorTests } from "./unit/writer-document-inspector.test.js";
 import { runWriterEquationEditorTests } from "./unit/writer-equation-editor.test.js";
 import { runSheetDataToolsTests } from "./unit/sheet-data-tools.test.js";
 import { runSlidesDialogsA11yTests } from "./unit/slides-dialogs-a11y.test.js";
@@ -127,6 +133,8 @@ import { runSlidesFormatBackgroundTests } from "./unit/slides-format-background.
 import { runWriterWordCountTests } from "./unit/writer-word-count.test.js";
 import { runWriterParagraphDialogTests } from "./unit/writer-paragraph-dialog.test.js";
 import { runWriterTextToTableTests } from "./unit/writer-text-to-table.test.js";
+import { runWriterPictureToolsTests } from "./unit/writer-picture-tools.test.js";
+import { runWriterTextEffectsTests } from "./unit/writer-text-effects.test.js";
 import { runI18nFlatKeyTests } from "./unit/i18n-flat-keys.test.js";
 import { runHeaderThemeTests } from "./unit/header-theme.test.js";
 import { runOfficeClipboardWordPasteTests } from "./unit/office-clipboard-word-paste.test.js";
@@ -292,6 +300,9 @@ async function runAll() {
     { title: "1. Unit Tests — Command Bus", runner: runCommandBusTests },
     { title: "2. Unit Tests — LibreOffice Adapter Mapping", runner: runAdapterMappingTests },
     { title: "3. Unit Tests — Excel Spreadsheet Formula Engine", runner: runFormulaEngineTests },
+    { title: "3b. Unit Tests — Tham chiếu có cấu trúc Table[Cột]", runner: runStructuredReferenceTests },
+    { title: "3c. Unit Tests — Điền > Chuỗi (Series)", runner: runSheetSeriesTests },
+    { title: "3d. Unit Tests — Hàm đối chiếu Excel 2016 (bộ giá trị vàng)", runner: runFunctionGoldenTests },
     { title: "4. Unit Tests — Sheet external workbook links", runner: runSheetExternalLinksTests },
     { title: "5. Unit Tests — VND() số tiền bằng chữ", runner: runSheetVndWordsTests },
     { title: "6. Unit Tests — Sheet công thức #REF! ⇄ ODF", runner: runSheetFormulaOdfTests },
@@ -541,6 +552,8 @@ async function runAll() {
     { title: "243. Unit Tests — Chunked hand-over of very large save content", runner: runUnoBridgeContentStageTests },
     { title: "244. Unit Tests — VN Writer Paragraph dialog (Đoạn văn)", runner: runWriterParagraphDialogTests },
   { title: "246. Unit Tests — VN Writer Văn bản thành bảng và Trang trắng", runner: runWriterTextToTableTests },
+  { title: "246b. Unit Tests — VN Writer Picture Tools (Crop, Corrections, Compress, Reset)", runner: runWriterPictureToolsTests },
+  { title: "246c. Unit Tests — VN Writer Text Effects (Outline, Shadow, Glow)", runner: runWriterTextEffectsTests },
   { title: "247. Unit Tests — i18n khóa phẳng và chuỗi dự phòng", runner: runI18nFlatKeyTests },
   { title: "248. Unit Tests — Tùy biến khu vực tiêu đề (màu/hình ảnh)", runner: runHeaderThemeTests },
   { title: "249. Unit Tests — Dán từ Word (danh sách, font, an toàn)", runner: runOfficeClipboardWordPasteTests },
@@ -560,7 +573,10 @@ async function runAll() {
     { title: "S-OBJ. Unit Tests — Sheet Object Context Menu & Page Setup Sheet Tab (agy)", runner: runSheetObjectMenuTests },
     { title: "256. Unit Tests — Writer DOCX document properties metadata", runner: runWriterDocumentPropertiesTests },
     { title: "257. Unit Tests — Writer AutoCorrect and Vietnamese-safe transforms", runner: runWriterAutoCorrectTests },
-    { title: "258. Unit Tests — Writer Outline, Draft Views and Collapsible Headings (WORD-W2)", runner: runWriterViewOutlineDraftTests }
+    { title: "258. Unit Tests — Writer Outline, Draft Views and Collapsible Headings (WORD-W2)", runner: runWriterViewOutlineDraftTests },
+    { title: "259. Unit Tests — Writer Change Case (WORD-W5)", runner: runWriterChangeCaseTests },
+    { title: "260. Unit Tests — Writer Track Changes Display Modes (WORD-W5)", runner: runWriterTrackChangesDisplayTests },
+    { title: "261. Unit Tests — Writer Document Inspector (WORD-W5)", runner: runWriterDocumentInspectorTests }
   ];
 
   for (const suite of suites) {
