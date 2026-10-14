@@ -76,5 +76,19 @@ export async function runSheetStructureEditTests() {
     assert(grid.cellsData.get("C1").formula === "=B1+1" && grid.cellsData.get("B1").formula === "=A1*2", "Hoàn tác phải trả lại công thức gốc");
   });
 
+  await test("SUBTOTAL/AGGREGATE bỏ hàng bị lọc, mã 101-111 bỏ cả hàng ẩn tay, tính lại khi lọc/ẩn/bỏ lọc", () => {
+    const grid = new SheetGridController(mockContainer());
+    [["A", 1, "Ten"], ["B", 1, "Gia"], ["A", 2, "x"], ["B", 2, 10], ["A", 3, "y"], ["B", 3, 20], ["A", 4, "x"], ["B", 4, 30], ["A", 5, "y"], ["B", 5, 40]].forEach(([c, r, v]) => grid.setCellValue(c, r, v));
+    ["=SUBTOTAL(9,B2:B5)", "=SUBTOTAL(109,B2:B5)", "=SUM(B2:B5)", "=SUBTOTAL(3,A2:A5)", "=SUBTOTAL(103,A2:A5)", "=AGGREGATE(9,5,B2:B5)"].forEach((f, i) => grid.setCellValue("D", i + 1, f));
+    const read = () => [1, 2, 3, 4, 5, 6].map(r => grid.cellsData.get(`D${r}`).val).join(",");
+    grid.isFilterActive = true; grid.sheetStates[grid.activeSheet].filterRange = "A1:B5";
+    grid.applyFilter("A", new Set(["x"]));
+    assert(read() === "40,40,100,2,2,40", `Sau khi lọc: ${read()}`);
+    grid.hideRows([2]);
+    assert(read() === "40,30,100,2,1,30", `Sau khi ẩn tay hàng 2: ${read()}`);
+    grid.unhideRows([2]); grid.clearAllFilters();
+    assert(read() === "100,100,100,4,4,100", `Sau khi bỏ lọc: ${read()}`);
+  });
+
   return results;
 }

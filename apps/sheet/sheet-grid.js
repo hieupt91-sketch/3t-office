@@ -292,6 +292,12 @@ export class SheetGridController {
       () => this.sheets,
       this._createTableResolver()
     );
+    // SUBTOTAL/AGGREGATE cần biết hàng nào bị lọc (luôn bị bỏ) hoặc bị ẩn thủ công (bỏ khi dùng mã 101-111).
+    this.formulaEngine.rowVisibilityResolver = (sheetName, row) => {
+      const filteredSet = sheetName === this.activeSheet || !sheetName ? this.hiddenRows : this.sheetStates?.[sheetName]?.hiddenRows;
+      const manual = this.userHiddenRowsBySheet?.[sheetName || this.activeSheet];
+      return { filtered: Boolean(filteredSet?.has?.(row)), hidden: Boolean(manual?.has?.(row)) };
+    };
     this.autocomplete = new FormulaAutocompleteController(this);
     this.formulaEntry = null;
     this.formulaReferenceOverlay = null;
@@ -1440,6 +1446,19 @@ export class SheetGridController {
     return true;
   }
 
+  /** Lọc/ẩn hàng làm đổi kết quả SUBTOTAL/AGGREGATE: chỉ tính lại khi sổ có dùng các hàm này. */
+  _recalcIfVisibilityDependent() {
+    const pattern = /\b(?:SUBTOTAL|AGGREGATE)\s*\(/i;
+    for (const sheet of this.sheets || []) {
+      const map = this.sheetsData?.[sheet];
+      if (!map) continue;
+      for (const item of map.values()) {
+        if (item?.formula && pattern.test(item.formula)) { this._recalculateAllFormulas(); return true; }
+      }
+    }
+    return false;
+  }
+
   hideRows(rows = this._selectedRows(), recordUndo = true) {
     if (recordUndo && this._guardProtectedMutation()) return false;
     const targets = (rows || []).map(Number).filter(row => Number.isInteger(row) && row >= 1 && row <= this.rowCount);
@@ -1450,6 +1469,7 @@ export class SheetGridController {
     this._invalidateRowTopsCache();
     this._refreshRowColLayoutView();
     this._moveSelectionOffHidden();
+    this._recalcIfVisibilityDependent();
     if (recordUndo) this._recordRowColLayoutChange(before);
     return true;
   }
@@ -1470,6 +1490,7 @@ export class SheetGridController {
     for (const row of toShow) hidden.delete(row);
     this._invalidateRowTopsCache();
     this._refreshRowColLayoutView();
+    this._recalcIfVisibilityDependent();
     if (recordUndo) this._recordRowColLayoutChange(before);
     return true;
   }
@@ -8924,6 +8945,7 @@ _bindGridKeyboardNavigation() {
     this.hiddenRows.clear();
     this._updateFilterButtons();
     this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+    this._recalcIfVisibilityDependent();
     this._recordHistory({ type: "filter", sheet: this.activeSheet, prevVal: previous, nextVal: this._snapshotFilterState() });
     return true;
   }
@@ -12607,6 +12629,7 @@ _bindGridKeyboardNavigation() {
 
     this._updateFilterButtons();
     this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+    this._recalcIfVisibilityDependent();
     if (recordUndo) this._recordHistory({ type: "filter", sheet: this.activeSheet, prevVal: previous, nextVal: this._snapshotFilterState() });
   }
 
