@@ -38,7 +38,7 @@ writeFileSync(input, JSON.stringify({ formulas: excelFormulas }));
 const dataFile = path.join(work, "data.xlsx");
 if (!useArrays) {
   const cellsJson = path.join(work, "cells.json");
-  writeFileSync(cellsJson, JSON.stringify(spec.cells || {}));
+  writeFileSync(cellsJson, JSON.stringify(spec.sheets ? { __sheets__: { Sheet1: spec.cells || {}, ...spec.sheets } } : (spec.cells || {})));
   execFileSync("python", ["-I", path.resolve("scripts/audit-0610/make_oracle_xlsx.py"), cellsJson, dataFile], { encoding: "utf8" });
 }
 
@@ -53,10 +53,11 @@ if (!excel) { console.error("BLOCKED: không lấy được kết quả Excel");
 const excelList = Array.isArray(excel) ? excel : [excel];
 
 const { FormulaEngine } = await import(pathToFileURL(path.resolve("apps/sheet/formula-engine.js")).href);
-const cells = new Map();
-for (const [key, value] of Object.entries(spec.cells || {})) cells.set(key, { val: value, formula: "", style: {} });
+const toMap = obj => { const map = new Map(); for (const [key, value] of Object.entries(obj || {})) map.set(key, { val: value, formula: "", style: {} }); return map; };
+const cells = toMap(spec.cells);
+const sheetMaps = { Sheet1: cells, ...Object.fromEntries(Object.entries(spec.sheets || {}).map(([name, obj]) => [name, toMap(obj)])) };
 const { EN_LOCALE } = await import(pathToFileURL(path.resolve("apps/sheet/excel-format-code.js")).href);
-const engine = new FormulaEngine(() => cells, null, () => cells, () => "Sheet1", () => ["Sheet1"]);
+const engine = new FormulaEngine(() => cells, null, name => sheetMaps[String(name).trim()] || null, () => "Sheet1", () => Object.keys(sheetMaps));
 engine.textLocale = EN_LOCALE;
 
 let currentTol = 1e-9;
@@ -84,7 +85,7 @@ if (outIndex >= 0) writeFileSync(path.resolve(argv[outIndex + 1]), JSON.stringif
 // --golden <file>: lưu giá trị Excel làm bộ kiểm thử vàng cho npm test (không cần Excel khi chạy lại).
 const goldenIndex = argv.indexOf("--golden");
 if (goldenIndex >= 0 && !failed.length) {
-  const golden = { generatedFrom: "Excel 2016 (16.0.4266) Application.Evaluate", cells: spec.cells || {}, cases: rows.map(row => ({ formula: row.formula, excel: row.excel, type: row.excelType, ...(row.tol ? { tol: row.tol } : {}) })) };
+  const golden = { generatedFrom: "Excel 2016 (16.0.4266) Application.Evaluate", cells: spec.cells || {}, ...(spec.sheets ? { sheets: spec.sheets } : {}), cases: rows.map(row => ({ formula: row.formula, excel: row.excel, type: row.excelType, ...(row.tol ? { tol: row.tol } : {}) })) };
   writeFileSync(path.resolve(argv[goldenIndex + 1]), JSON.stringify(golden, null, 1));
   console.log(`Đã lưu bộ giá trị vàng: ${argv[goldenIndex + 1]}`);
 }

@@ -1,0 +1,15 @@
+{
+ "cells": {"A1": 1, "A2": 2, "B1": 10, "B2": 20, "C1": "x"},
+ "sheets": {
+  "Sheet2": {"A1": 3, "A2": 4, "B1": 30, "B2": 40, "C1": "y"},
+  "Sheet3": {"A1": 5, "A2": 6, "B1": 50, "B2": 60, "C1": "z", "D1": true},
+  "Sheet 4": {"A1": 7, "A2": 8, "B1": 70, "B2": 80}
+ },
+ "formulas": [
+  "=SUM(Sheet1:Sheet3!A1)", "=SUM(Sheet1:Sheet3!A1:B2)", "=AVERAGE(Sheet1:Sheet3!A1:A2)", "=COUNT(Sheet1:Sheet3!A1:C1)", "=COUNTA(Sheet1:Sheet3!A1:D1)",
+  "=MAX(Sheet1:Sheet3!B1:B2)", "=MIN(Sheet1:Sheet3!A1:B2)", "=PRODUCT(Sheet1:Sheet3!A1)", "=SUM(Sheet3:Sheet1!A1)", "=SUM(Sheet2:Sheet2!A1:A2)",
+  "=SUM('Sheet1:Sheet 4'!A1)", "=SUM('Sheet1:Sheet 4'!B1:B2)", "=SUM('Sheet 4:Sheet3'!B1:B2)", "=SUM(Sheet1:Sheet3!A1,10)", "=SUM(Sheet1:Sheet3!A1)+SUM(Sheet1:Sheet3!B1)", "=SUMPRODUCT(Sheet1:Sheet3!A1)",
+  "=SUM(Sheet1:Sheet3!A1:B2)/COUNT(Sheet1:Sheet3!A1:B2)", "=STDEV(Sheet1:Sheet3!A1:A2)", "=MEDIAN(Sheet1:Sheet3!A1:B2)", "=LARGE(Sheet1:Sheet3!A1:A2,2)",
+  "=SUMIF(Sheet1:Sheet3!A1:A2,\">2\")", "=COUNTIF(Sheet1:Sheet3!A1:A2,\">2\")", "=VAR(Sheet1:Sheet3!B1:B2)", "=SUM(Sheet1:Sheet3!$A$1:$B$2)", "=AVERAGEA(Sheet1:Sheet3!A1:C1)", "=ROWS(Sheet1:Sheet3!A1:A2)", "=COLUMNS(Sheet1:Sheet3!A1:B2)", "=COUNTBLANK(Sheet1:Sheet3!A1:D1)", "=SUMSQ(Sheet1:Sheet3!A1:A2)", "=SUBTOTAL(9,Sheet1:Sheet3!A1:A2)", "=RANK(5,Sheet1:Sheet3!A1:A2)", "=VLOOKUP(1,Sheet1:Sheet3!A1:B2,2,FALSE)", "=INDEX(Sheet1:Sheet3!A1:B2,1,1)", "=MATCH(1,Sheet1:Sheet3!A1:A2,0)", "=AND(Sheet1:Sheet3!D1)", "=SMALL(Sheet1:Sheet3!A1:A2,1)", "=COUNTA(Sheet1:Sheet3!A1)", "=AVERAGEIF(Sheet1:Sheet3!A1:A2,\">2\")", "=SUMIFS(Sheet1:Sheet3!A1:A2,Sheet1:Sheet3!B1:B2,\">10\")", "=PERCENTILE(Sheet1:Sheet3!A1:A2,0.5)", "=DEVSQ(Sheet1:Sheet3!A1:A2)", "=GEOMEAN(Sheet1:Sheet3!A1:A2)", "=CORREL(Sheet1:Sheet3!A1:A2,Sheet1:Sheet3!B1:B2)", "=MODE(Sheet1:Sheet3!A1:A2)", "=ROW(Sheet1:Sheet3!A1)", "=SUM(Sheet1:Sheet3!A:A)", "=SUM(Sheet1:Sheet3!1:2)", "=COUNT(Sheet1:Sheet3!A1:A2,5)", "=HLOOKUP(1,Sheet1:Sheet3!A1:B2,2,FALSE)", "=LOOKUP(1,Sheet1:Sheet3!A1:A2)", "=COLUMN(Sheet1:Sheet3!A1)", "=COVAR(Sheet1:Sheet3!A1:A2,Sheet1:Sheet3!B1:B2)", "=SLOPE(Sheet1:Sheet3!B1:B2,Sheet1:Sheet3!A1:A2)", "=INTERCEPT(Sheet1:Sheet3!B1:B2,Sheet1:Sheet3!A1:A2)", "=RSQ(Sheet1:Sheet3!B1:B2,Sheet1:Sheet3!A1:A2)", "=PEARSON(Sheet1:Sheet3!B1:B2,Sheet1:Sheet3!A1:A2)", "=FORECAST(2,Sheet1:Sheet3!B1:B2,Sheet1:Sheet3!A1:A2)", "=STEYX(Sheet1:Sheet3!B1:B2,Sheet1:Sheet3!A1:A2)", "=COUNTIFS(Sheet1:Sheet3!A1:A2,\">2\")", "=AREAS(Sheet1:Sheet3!A1)", "=SUMX2MY2(Sheet1:Sheet3!A1:A2,Sheet1:Sheet3!B1:B2)", "=QUARTILE(Sheet1:Sheet3!A1:A2,1)", "=VARP(Sheet1:Sheet3!A1:A2)", "=STDEVP(Sheet1:Sheet3!A1:A2)", "=AVERAGE(Sheet1:Sheet3!C1)", "=SUM(Sheet2:Sheet3!A1:A2)*2", "=KURT(Sheet1:Sheet3!A1:A2,Sheet1:Sheet3!B1)", "=AND(Sheet1:Sheet3!A1:A2)", "=OR(Sheet1:Sheet3!A1:A2)", "=CONCATENATE(Sheet1:Sheet3!A1)", "=N(Sheet1:Sheet3!A1)", "=ISNUMBER(Sheet1:Sheet3!A1)", "=LEN(Sheet1:Sheet3!A1)", "=ABS(Sheet1:Sheet3!A1)", "=IF(Sheet1:Sheet3!A1>0,1,0)"
+ ]
+}
