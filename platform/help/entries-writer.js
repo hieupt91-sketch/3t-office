@@ -90,7 +90,7 @@ export const WRITER_HELP_ENTRIES = [
       "Mở tab Trộn thư, nhóm Viết & Chèn trường, bấm Quy tắc. Trước đó hãy mở Nguồn dữ liệu để danh sách Trường dữ liệu có nội dung.",
       "Chọn Bỏ qua bản ghi nếu để loại bản ghi thỏa điều kiện, hoặc Bản ghi kế nếu để dùng dữ liệu của bản ghi kế tiếp khi điều kiện đúng.",
       "Chọn Nếu…Thì…Khác, chọn Trường dữ liệu và Điều kiện, rồi nhập nội dung khi đúng và khi sai. Chọn Điền vào để đặt Lời nhắc nhập cùng Nội dung mặc định.",
-      "Dùng Tab và Shift+Tab để đi qua mọi ô và nút. Bấm Chèn để đặt quy tắc tại con trỏ; Esc đóng hộp thoại mà không thay đổi.",
+      "Dùng phím Tab để đi qua mọi ô và nút (giữ phím Shift khi nhấn Tab để đi ngược lại). Bấm Chèn để đặt quy tắc tại con trỏ; Esc đóng hộp thoại mà không thay đổi.",
       "Bật Xem trước kết quả để kiểm tra từng bản ghi. Bản ghi bị bỏ qua có thông báo rõ; Hoàn tất & Trộn không tạo trang cho bản ghi đó."
     ]
   },
