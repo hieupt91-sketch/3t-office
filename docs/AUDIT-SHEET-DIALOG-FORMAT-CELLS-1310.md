@@ -92,7 +92,7 @@ Trạng thái trong bảng là trạng thái hiện tại: **Có** = control đ�
 | Hủy bỏ | Đóng không áp dụng | Có | `FC-G02`: đổi control rồi Hủy, model/COM không đổi |
 | Đồng ý | Áp dụng toàn bộ thay đổi đang chọn | Có | `FC-G03`: đổi nhiều thẻ rồi OK, tất cả giá trị được lưu |
 
-## Kết quả chạy (14/10, Claude kiểm lại độc lập)
+## Kết quả chạy (14/10, Codex kiểm lại độc lập)
 
 Bài kiểm tra `tests/live/cdp/sheet-format-cells-controls.desktop.mjs` trên app desktop: **77/77 PASS**. Có 76 kết quả độc lập cho từng control/tác vụ lưu và 1 xác nhận COM mở file ở chế độ chỉ-đọc; mỗi thuộc tính được đặt qua dialog, áp dụng, lưu chung một XLSX, mở lại trong app rồi đọc riêng bằng Excel 2016 COM.
 - Số (FC-N03..N23): thập phân, nghìn, số âm, tiền tệ/ký hiệu, kế toán, ngày/giờ + vùng, phần trăm, phân số, khoa học, văn bản, đặc biệt, tùy chỉnh.
@@ -103,6 +103,6 @@ Bài kiểm tra `tests/live/cdp/sheet-format-cells-controls.desktop.mjs` trên a
 - Bảo vệ (FC-P01..P03): Đã khóa, Ẩn công thức, liên kết Bảo vệ trang tính.
 - Đóng/Hủy/Đồng ý (FC-G01..G03).
 
-Cổng: `npm test` 3198/3198; batch LAN 10 tệp (lan01 02 04 06 09 11 22 26 13 19) = 0 diff; công thức lan28 98,18%, lan01 100%, lan04 100%.
+Cổng: `npm test` 3199/3199; batch LAN 10 tệp (lan01 02 04 06 09 11 22 26 13 19) = 0 diff, lint sạch và Excel COM mở được; công thức lan28 270/275 (98,18%), lan01 865/865 (100%), lan04 49/49 (100%). Audit runtime ribbon có 157 lệnh: `NO_HANDLER=0`, `THREW=0` (hai launcher Định dạng ô và Căn chỉnh đều `OK`).
 Lỗi hồi quy LAN do bản dở dang đã sửa (nền "solid" thành đen, gạch chân giả từ LibreOffice, ghi định dạng mặc định cho ~49.000 ô gây treo lan09): xem `docs/tickets-0710/H1-CLAUDE-NOTES.md`.
 Độ phủ chi tiết: từng control có ID riêng; riêng Gạch chân kiểm đủ Không/Đơn/Kép/Đơn kế toán/Kép kế toán, Viền kiểm riêng từng preset/cạnh/đường chéo và màu, Tô kiểm riêng không màu/pattern/gradient. Mã tiền ₫ giữ đúng kiểu số âm trong ngoặc; mã Tùy chỉnh mới được thêm vào danh sách và có thể xóa với phản hồi rõ ràng.
