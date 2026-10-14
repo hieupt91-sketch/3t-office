@@ -289,6 +289,7 @@ export const enStrings = {
     section: "Section"
   },
   sheetDialogs: {
+    fillSeriesTitle: "Series", fillSeriesIn: "Series in", fillSeriesRows: "Rows", fillSeriesColumns: "Columns", fillSeriesType: "Type", fillSeriesLinear: "Linear", fillSeriesGrowth: "Growth", fillSeriesDate: "Date", fillSeriesDateUnit: "Date unit", fillSeriesUnitDay: "Day", fillSeriesUnitWeekday: "Weekday", fillSeriesUnitMonth: "Month", fillSeriesUnitYear: "Year", fillSeriesStep: "Step value", fillSeriesStop: "Stop value", fillSeriesBadStep: "Step value must be a number.", fillSeriesBadStart: "The first cell of the selection must contain a number (or a dd/mm/yyyy date for the Date type).", fillSeriesNothing: "Nothing to fill. Select the start cell plus the cells to fill, or enter a Stop value when only one cell is selected.", fillSeriesFailed: "Could not fill the series.", fillSeriesDone: "Filled {{count}} cells.",
     hideSheetMenu: "Hide Sheet", unhideSheetMenu: "Unhide Sheet...", unhideSheetTitle: "Unhide Sheet", unhideSheetChoose: "Choose a sheet to show:", unhideSheetAction: "Unhide", cannotHideLastSheet: "You cannot hide the last visible worksheet.", noHiddenSheets: "There are no hidden worksheets.",
     close: "Close", cancel: "Cancel", cancelLong: "Cancel", apply: "Apply", range: "Range", rangeLabel: "Range:", value: "Value", save: "Save",
     pasteSpecialTitle: "Paste Special", pasteSpecialGroup: "Paste", pasteSpecialSource: "Keep Source Formatting", pasteSpecialAll: "All", pasteSpecialValues: "Values", pasteSpecialFormulas: "Formulas", pasteSpecialFormats: "Formats", pasteSpecialTranspose: "Transpose",
@@ -660,6 +661,9 @@ export const enStrings = {
     ,"sheet.edit.goToSpecial": { label: "Go To Special...", tooltip: "Select cells by type: comments, formulas, blanks, current region..." }
     ,"sheet.edit.fillDown": { label: "Fill Down", tooltip: "Fill down from the cell above (Ctrl+D)" }
     ,"sheet.edit.fillRight": { label: "Fill Right", tooltip: "Fill right from the cell to the left (Ctrl+R)" }
+  ,"sheet.edit.fillUp": { label: "Fill Up", tooltip: "Fill up from the bottom cell of the selection" }
+  ,"sheet.edit.fillLeft": { label: "Fill Left", tooltip: "Fill left from the right-most column of the selection" }
+  ,"sheet.edit.fillSeries": { label: "Series...", tooltip: "Fill a number or date series: linear, growth, day/month/year" }
     ,"sheet.edit.clearAll": { label: "Clear All", tooltip: "Clear all contents, formulas, and formatting from selected cells" }
     ,"sheet.edit.clearFormats": { label: "Clear Formats", tooltip: "Clear cell formatting back to default while keeping contents" }
     ,"sheet.edit.clearContents": { label: "Clear Contents", tooltip: "Clear cell contents and formulas while keeping formatting" }

@@ -3818,6 +3818,68 @@ def _restore_vnd_addin_cells_step(
             replacements[out_path] = next_xml
 
 
+def _fods_structured_formulas(fods_xml: str | None) -> dict[str, dict[str, str]]:
+    """{sheet: {A1-ref: xlsx formula without '='}} cho ô có tham chiếu bảng Table[Cột] do app gửi (vno:xlsx-formula)."""
+    result: dict[str, dict[str, str]] = {}
+    if not fods_xml or "vno:xlsx-formula=" not in fods_xml:
+        return result
+    for table_start, table_end in _flat_xml_blocks(fods_xml, ("table:table",)):
+        table_xml = fods_xml[table_start:table_end]
+        if "vno:xlsx-formula=" not in table_xml:
+            continue
+        sheet_name = _unescape_xml(_xml_attrs(re.match(r"<[^>]+", table_xml).group(0)).get("table:name", ""))
+        targets: dict[str, str] = {}
+        row_number = 1
+        for row_start, row_end in _flat_xml_blocks(table_xml, ("table:table-row",)):
+            row_xml = table_xml[row_start:row_end]
+            col_number = 1
+            for cell_start, cell_end in _flat_xml_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
+                cell_xml = row_xml[cell_start:cell_end]
+                match = re.search(r'vno:xlsx-formula="([^"]*)"', cell_xml)
+                if match:
+                    formula = _unescape_xml(match.group(1)).strip()
+                    targets[f"{_column_letter(col_number)}{row_number}"] = formula[1:] if formula.startswith("=") else formula
+                col_number += _repeat_count(cell_xml, "table:number-columns-repeated")
+            row_number += _repeat_count(row_xml, "table:number-rows-repeated")
+        if targets and sheet_name:
+            result[sheet_name] = targets
+    return result
+
+
+def _restore_structured_formula_cells_step(
+    xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
+) -> None:
+    """Ghi lại công thức dạng Table[Cột] vào XLSX (LibreOffice nhận địa chỉ A1 đã mở rộng nên xuất A1)."""
+    structured = _fods_structured_formulas(source_fods)
+    if not structured:
+        return
+    cell_re = re.compile(r'<c\b((?:[^>/]|/(?!>))*)>([\s\S]*?)</c>', re.IGNORECASE)
+    for sheet_name, out_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        targets = structured.get(sheet_name)
+        if not targets:
+            continue
+        out_xml = replacements.get(out_path) or (read_zip_entry(xlsx_bytes, out_path) or b"").decode("utf-8", errors="replace")
+
+        def fix(match: re.Match[str]) -> str:
+            attrs = _xml_attrs(match.group(1))
+            ref = (attrs.get("r") or "").upper()
+            formula = targets.get(ref)
+            if formula is None:
+                return match.group(0)
+            body = match.group(2)
+            if re.search(r"<f\b[^>]*/>", body):
+                body = re.sub(r"<f\b[^>]*/>", lambda _m: f"<f>{_escape_xml(formula)}</f>", body, count=1)
+            elif re.search(r"<f\b[^>]*>[\s\S]*?</f>", body):
+                body = re.sub(r"(<f\b[^>]*>)[\s\S]*?(</f>)", lambda m: f"{m.group(1)}{_escape_xml(formula)}{m.group(2)}", body, count=1)
+            else:
+                body = f"<f>{_escape_xml(formula)}</f>" + body
+            return f"<c{match.group(1)}>{body}</c>"
+
+        next_xml = cell_re.sub(fix, out_xml)
+        if next_xml != out_xml:
+            replacements[out_path] = next_xml
+
+
 def _restore_formula_results_and_missing_errors_step(
     xlsx_bytes: bytes, source_xlsx_bytes: bytes, replacements: dict[str, str], copier: "_SourceXfCopier | None"
 ) -> None:
@@ -5840,6 +5902,89 @@ def apply_print_options_to_fods(fods_xml: str, options_by_sheet: dict[str, dict]
     return _sub_table_open_tags(fods_xml or "", _replace)
 
 
+_STRUCTURED_FORMULA_RE = re.compile(r"(?:^|[^A-Za-z0-9_.\]'])[A-Za-z_\\][A-Za-z0-9_.\\]*\[(?!\d+\])|(?:^|[^A-Za-z0-9_.\]'])\[(?:@|#|\[)")
+
+
+def _xlsx_structured_formulas(xlsx_bytes: bytes) -> dict[str, dict[tuple[int, int], str]]:
+    """{sheet: {(row, col): '=Table1[Cột]'}} cho ô XLSX có tham chiếu bảng; LibreOffice đổi chúng thành địa chỉ A1."""
+    result: dict[str, dict[tuple[int, int], str]] = {}
+    cell_re = re.compile(r'<c\b((?:[^>/]|/(?!>))*)>([\s\S]*?)</c>', re.IGNORECASE)
+    for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        raw = read_zip_entry(xlsx_bytes, entry_path)
+        if not raw:
+            continue
+        xml = raw.decode("utf-8", errors="replace")
+        if "[" not in xml:
+            continue
+        targets: dict[tuple[int, int], str] = {}
+        for match in cell_re.finditer(xml):
+            formula_match = re.search(r"<f\b[^>]*>([\s\S]*?)</f>", match.group(2), re.IGNORECASE)
+            if not formula_match:
+                continue
+            text = _unescape_xml(formula_match.group(1))
+            if not _STRUCTURED_FORMULA_RE.search(re.sub(r'"(?:""|[^"])*"', '""', text)):
+                continue
+            ref = (_xml_attrs(match.group(1)).get("r") or "").upper()
+            parts = re.match(r"^([A-Z]+)(\d+)$", ref)
+            if not parts:
+                continue
+            col = 0
+            for ch in parts.group(1):
+                col = col * 26 + ord(ch) - 64
+            targets[(int(parts.group(2)), col)] = "=" + text
+        if targets:
+            result[sheet_name] = targets
+    return result
+
+
+def overlay_sheet_xlsx_structured_formulas(xlsx_bytes: bytes, fods_xml: str | None) -> str:
+    """Giữ công thức gốc Table1[Cột] của XLSX trong FODS (vno:formula) thay vì địa chỉ A1 do LibreOffice dịch."""
+    xml = fods_xml or ""
+    targets_by_sheet = _xlsx_structured_formulas(xlsx_bytes)
+    if not targets_by_sheet:
+        return xml
+    formula_attr_re = re.compile(r'\svno:formula="[^"]*"')
+    pieces, cursor = [], 0
+    for table_start, table_end in _flat_xml_blocks(xml, ("table:table",)):
+        pieces.append(xml[cursor:table_start])
+        table_xml = xml[table_start:table_end]
+        opening = re.match(r"<[^>]+", table_xml)
+        sheet_name = _unescape_xml(_xml_attrs(opening.group(0)).get("table:name", "")) if opening else ""
+        targets = targets_by_sheet.get(sheet_name)
+        if targets:
+            rows = {}
+            for (row, col), formula in targets.items():
+                rows.setdefault(row, {})[col] = formula
+            parts, table_cursor, row_number = [], 0, 1
+            for row_start, row_end in _flat_xml_blocks(table_xml, ("table:table-row",)):
+                parts.append(table_xml[table_cursor:row_start])
+                row_xml = table_xml[row_start:row_end]
+                repeat = _repeat_count(row_xml, "table:number-rows-repeated")
+                row_targets = rows.get(row_number) if repeat == 1 else None
+                if row_targets:
+                    cells, cell_cursor, column = [], 0, 1
+                    for cell_start, cell_end in _flat_xml_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
+                        cells.append(row_xml[cell_cursor:cell_start])
+                        cell = row_xml[cell_start:cell_end]
+                        cell_repeat = _repeat_count(cell, "table:number-columns-repeated")
+                        formula = row_targets.get(column) if cell_repeat == 1 else None
+                        if formula and "table:formula=" in cell[:cell.find(">") + 1]:
+                            stamped = _stamp_table_cell_attr(cell, f' vno:formula="{_escape_xml(formula)}"', formula_attr_re)
+                            cell = stamped if stamped is not None else cell
+                        cells.append(cell)
+                        cell_cursor, column = cell_end, column + cell_repeat
+                    cells.append(row_xml[cell_cursor:])
+                    row_xml = "".join(cells)
+                parts.append(row_xml)
+                table_cursor, row_number = row_end, row_number + repeat
+            parts.append(table_xml[table_cursor:])
+            table_xml = "".join(parts)
+        pieces.append(table_xml)
+        cursor = table_end
+    pieces.append(xml[cursor:])
+    return "".join(pieces)
+
+
 def overlay_sheet_xlsx_print_options(xlsx_bytes: bytes, fods_xml: str | None) -> str:
     """Restore real print options from each worksheet over the FODS before parseFods()."""
     xml = fods_xml or ""
@@ -6647,6 +6792,7 @@ def postprocess_sheet_xlsx(
         _apply_refreshed_pivot_locations_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_sheet_chart_features_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_sheet_print_options_from_fods(xlsx_bytes, source_fods, replacements)
+        _restore_structured_formula_cells_step(xlsx_bytes, source_fods, replacements)
         _normalize_scatter_chart_markers(xlsx_bytes, replacements)
         _apply_pivot_chart_links_from_fods(xlsx_bytes, source_fods, replacements, workbook_filename)
 
@@ -10468,6 +10614,7 @@ def overlay_sheet_xlsx_fods(
     xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_split_panes(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_print_options(xlsx_bytes, xml)
+    xml = overlay_sheet_xlsx_structured_formulas(xlsx_bytes, xml)
     # AutoFilter: read <autoFilter ref> from original worksheet XMLs and
     # inject <table:database-ranges> into FODS so parseFods can restore
     # the filter state.
@@ -10536,6 +10683,7 @@ def overlay_sheet_xlsx_fods_p1(
     xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_split_panes(xlsx_bytes, xml)
     xml = overlay_sheet_xlsx_print_options(xlsx_bytes, xml)
+    xml = overlay_sheet_xlsx_structured_formulas(xlsx_bytes, xml)
     xml = _overlay_autofilter_from_xlsx(xlsx_bytes, xml)
     xml = _overlay_sheet_layout_from_xlsx(xlsx_bytes, xml)
     tab_colors = parse_tab_colors_from_xlsx(xlsx_bytes)
