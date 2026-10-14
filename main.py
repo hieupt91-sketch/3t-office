@@ -1853,6 +1853,9 @@ def _apply_native_export_postprocess(
                     patched = patcher.postprocess_writer_picture_tools(
                         patched, source_html=source_html,
                     )
+                    patched = patcher.postprocess_writer_text_effects(
+                        patched, source_html=source_html,
+                    )
                     patched = patcher.postprocess_writer_strip_markers(patched)
                     patched = patcher.postprocess_writer_schema_fixes(patched)
                 patched = patcher.postprocess_writer_document_properties(

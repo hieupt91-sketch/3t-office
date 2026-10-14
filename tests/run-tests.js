@@ -131,6 +131,7 @@ import { runWriterWordCountTests } from "./unit/writer-word-count.test.js";
 import { runWriterParagraphDialogTests } from "./unit/writer-paragraph-dialog.test.js";
 import { runWriterTextToTableTests } from "./unit/writer-text-to-table.test.js";
 import { runWriterPictureToolsTests } from "./unit/writer-picture-tools.test.js";
+import { runWriterTextEffectsTests } from "./unit/writer-text-effects.test.js";
 import { runI18nFlatKeyTests } from "./unit/i18n-flat-keys.test.js";
 import { runHeaderThemeTests } from "./unit/header-theme.test.js";
 import { runOfficeClipboardWordPasteTests } from "./unit/office-clipboard-word-paste.test.js";
@@ -546,6 +547,7 @@ async function runAll() {
     { title: "244. Unit Tests — VN Writer Paragraph dialog (Đoạn văn)", runner: runWriterParagraphDialogTests },
   { title: "246. Unit Tests — VN Writer Văn bản thành bảng và Trang trắng", runner: runWriterTextToTableTests },
   { title: "246b. Unit Tests — VN Writer Picture Tools (Crop, Corrections, Compress, Reset)", runner: runWriterPictureToolsTests },
+  { title: "246c. Unit Tests — VN Writer Text Effects (Outline, Shadow, Glow)", runner: runWriterTextEffectsTests },
   { title: "247. Unit Tests — i18n khóa phẳng và chuỗi dự phòng", runner: runI18nFlatKeyTests },
   { title: "248. Unit Tests — Tùy biến khu vực tiêu đề (màu/hình ảnh)", runner: runHeaderThemeTests },
   { title: "249. Unit Tests — Dán từ Word (danh sách, font, an toàn)", runner: runOfficeClipboardWordPasteTests },

@@ -20973,6 +20973,7 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
     document_xml = _writer_restore_created_paragraph_css(document_xml, source_html)
     document_xml = _writer_restore_created_image_layout(document_xml, source_html)
     document_xml = _writer_restore_picture_tools_effects(document_xml, source_html)
+    document_xml = _writer_restore_text_effects(document_xml, source_html)
 
     section_meta: list[dict] = []
     meta_match = re.search(r"<!--vno-sections-meta:\s*(\[.*?\])\s*-->", source_html, re.IGNORECASE | re.DOTALL)
@@ -23115,6 +23116,164 @@ def postprocess_writer_picture_tools(docx_bytes: bytes, *, source_html: str | No
         return docx_bytes
     document_xml = document_bytes.decode("utf-8", errors="replace")
     patched_xml = _writer_restore_picture_tools_effects(document_xml, source_html)
+    if patched_xml == document_xml:
+        return docx_bytes
+    return patch_ooxml_zip(docx_bytes, {"word/document.xml": patched_xml.encode("utf-8")})
+
+
+def _writer_restore_text_effects(document_xml: str, source_html: str | None) -> str:
+    """Áp dụng hiệu ứng chữ WordML 2010 (w14:textOutline, w14:shadow, w14:glow) vào word/document.xml."""
+    if not source_html or not document_xml:
+        return document_xml
+
+    # Find spans with text effects
+    effect_spans = list(re.finditer(
+        r'<span\b(?=[^>]*\b(?:data-vno-(?:outline|shadow|glow)|vno-text-effect|-webkit-text-stroke|text-shadow))([^>]*)>([\s\S]*?)</span\s*>',
+        source_html,
+        re.IGNORECASE
+    ))
+    if not effect_spans:
+        return document_xml
+
+    # Ensure xmlns:w14 namespace on root <w:document>
+    if "xmlns:w14=" not in document_xml:
+        document_xml = re.sub(
+            r"(<w:document\b[^>]*)>",
+            r'\1 xmlns:w14="http://schemas.microsoft.com/office/word/2010/wordml">',
+            document_xml,
+            count=1,
+            flags=re.IGNORECASE
+        )
+
+    for span in effect_spans:
+        attrs = span.group(1)
+        raw_text = span.group(2)
+        text = re.sub(r"<[^>]+>", "", raw_text).strip()
+        if not text:
+            continue
+
+        # Outline
+        has_outline = False
+        outline_color = "000000"
+        outline_w = 12700
+        out_col_m = re.search(r'data-vno-outline-color=["\']#?([0-9a-fA-F]{6})["\']', attrs, re.IGNORECASE)
+        out_w_m = re.search(r'data-vno-outline-width=["\'](\d+)["\']', attrs, re.IGNORECASE)
+        if out_col_m:
+            has_outline = True
+            outline_color = out_col_m.group(1).upper()
+            if out_w_m:
+                outline_w = int(out_w_m.group(1))
+        else:
+            stroke_m = re.search(r'(?:-webkit-)?text-stroke\s*:\s*([\d.]+)px\s+#?([0-9a-fA-F]{6})', attrs, re.IGNORECASE)
+            if stroke_m:
+                has_outline = True
+                outline_w = max(3175, round(float(stroke_m.group(1)) * 9525))
+                outline_color = stroke_m.group(2).upper()
+
+        # Shadow
+        has_shadow = False
+        shadow_blur = 50800
+        shadow_dist = 38100
+        shadow_dir = 5400000
+        shadow_color = "000000"
+        shadow_alpha = 50000
+        if re.search(r'data-vno-shadow=["\']1["\']', attrs, re.IGNORECASE) or "data-vno-shadow-blur" in attrs:
+            has_shadow = True
+            blur_m = re.search(r'data-vno-shadow-blur=["\'](\d+)["\']', attrs, re.IGNORECASE)
+            dist_m = re.search(r'data-vno-shadow-dist=["\'](\d+)["\']', attrs, re.IGNORECASE)
+            dir_m = re.search(r'data-vno-shadow-dir=["\'](\d+)["\']', attrs, re.IGNORECASE)
+            col_m = re.search(r'data-vno-shadow-color=["\']#?([0-9a-fA-F]{6})["\']', attrs, re.IGNORECASE)
+            alp_m = re.search(r'data-vno-shadow-alpha=["\'](\d+)["\']', attrs, re.IGNORECASE)
+            if blur_m: shadow_blur = int(blur_m.group(1))
+            if dist_m: shadow_dist = int(dist_m.group(1))
+            if dir_m: shadow_dir = int(dir_m.group(1))
+            if col_m: shadow_color = col_m.group(1).upper()
+            if alp_m: shadow_alpha = int(alp_m.group(1))
+        elif re.search(r'text-shadow\s*:\s*[^;]*(?:\d+px\s+\d+px)', attrs, re.IGNORECASE):
+            has_shadow = True
+
+        # Glow
+        has_glow = False
+        glow_rad = 101600
+        glow_color = "2563EB"
+        glow_alpha = 60000
+        glow_col_m = re.search(r'data-vno-glow-color=["\']#?([0-9a-fA-F]{6})["\']', attrs, re.IGNORECASE)
+        glow_rad_m = re.search(r'data-vno-glow-rad=["\'](\d+)["\']', attrs, re.IGNORECASE)
+        if glow_col_m or glow_rad_m:
+            has_glow = True
+            if glow_col_m: glow_color = glow_col_m.group(1).upper()
+            if glow_rad_m: glow_rad = int(glow_rad_m.group(1))
+            glow_alp_m = re.search(r'data-vno-glow-alpha=["\'](\d+)["\']', attrs, re.IGNORECASE)
+            if glow_alp_m: glow_alpha = int(glow_alp_m.group(1))
+
+        if not (has_outline or has_shadow or has_glow):
+            continue
+
+        effects_xml_parts = []
+        if has_outline:
+            effects_xml_parts.append(
+                f'<w14:textOutline w14:w="{outline_w}">'
+                f'<w14:solidFill><w14:srgbClr w14:val="{outline_color}"/></w14:solidFill>'
+                f'</w14:textOutline>'
+            )
+        if has_shadow:
+            effects_xml_parts.append(
+                f'<w14:shadow w14:blurRad="{shadow_blur}" w14:dist="{shadow_dist}" w14:dir="{shadow_dir}">'
+                f'<w14:srgbClr w14:val="{shadow_color}"><w14:alpha w14:val="{shadow_alpha}"/></w14:srgbClr>'
+                f'</w14:shadow>'
+            )
+        if has_glow:
+            effects_xml_parts.append(
+                f'<w14:glow w14:rad="{glow_rad}">'
+                f'<w14:srgbClr w14:val="{glow_color}"><w14:alpha w14:val="{glow_alpha}"/></w14:srgbClr>'
+                f'</w14:glow>'
+            )
+        effects_xml = "".join(effects_xml_parts)
+
+        # Inject into matching <w:r> containing text
+        escaped_text = html.escape(text)
+        pattern = re.compile(
+            r'(<w:r\b[^>]*>)(?:(<w:rPr>[\s\S]*?</w:rPr>))?([\s\S]*?<w:t\b[^>]*>(?:(?!</w:t>)[\s\S])*' +
+            re.escape(escaped_text) +
+            r'(?:(?!</w:t>)[\s\S])*</w:t>[\s\S]*?</w:r>)',
+            re.IGNORECASE
+        )
+
+        def inject_effects(m: re.Match) -> str:
+            r_open = m.group(1)
+            r_pr = m.group(2)
+            rest = m.group(3)
+            if r_pr:
+                clean_rpr = re.sub(r'<w14:(?:textOutline|shadow|glow)\b[\s\S]*?</w14:(?:textOutline|shadow|glow)>', '', r_pr, flags=re.IGNORECASE)
+                new_rpr = clean_rpr[:-8] + effects_xml + "</w:rPr>"
+            else:
+                new_rpr = f"<w:rPr>{effects_xml}</w:rPr>"
+            return f"{r_open}{new_rpr}{rest}"
+
+        document_xml, count = pattern.subn(inject_effects, document_xml, count=1)
+        if count == 0:
+            alt_pattern = re.compile(
+                r'(<w:r\b[^>]*>)(?:(<w:rPr>[\s\S]*?</w:rPr>))?([\s\S]*?<w:t\b[^>]*>(?:(?!</w:t>)[\s\S])*' +
+                re.escape(text) +
+                r'(?:(?!</w:t>)[\s\S])*</w:t>[\s\S]*?</w:r>)',
+                re.IGNORECASE
+            )
+            document_xml = alt_pattern.sub(inject_effects, document_xml, count=1)
+
+    return document_xml
+
+
+def postprocess_writer_text_effects(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
+    """Áp dụng các hiệu ứng chữ WordML 2010 (Viền chữ, Bóng đổ, Phát sáng) vào DOCX."""
+    if not docx_bytes or not source_html:
+        return docx_bytes
+    if not any(k in source_html for k in ("vno-text-effect", "data-vno-outline", "data-vno-shadow", "data-vno-glow", "-webkit-text-stroke")):
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    if not document_bytes:
+        return docx_bytes
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    patched_xml = _writer_restore_text_effects(document_xml, source_html)
     if patched_xml == document_xml:
         return docx_bytes
     return patch_ooxml_zip(docx_bytes, {"word/document.xml": patched_xml.encode("utf-8")})

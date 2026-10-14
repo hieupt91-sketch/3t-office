@@ -81,6 +81,14 @@ import {
   parseCorePropertiesXml,
   showDocumentPropertiesDialog
 } from "../../../apps/writer/document-properties.js";
+import {
+  showTextEffectsDialog,
+  applyTextEffectsToSpan,
+  parseTextEffects,
+  OUTLINE_WIDTHS,
+  SHADOW_PRESETS,
+  GLOW_PRESETS
+} from "../../../apps/writer/text-effects-dialog.js";
 
 let writerInsertDialogsPromise;
 let writerMailMergeDialogsPromise;
@@ -743,6 +751,11 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.text.changeCase", (args) => this._hintIfFalse(() => this.changeCase(args), "Hãy chọn đoạn văn bản cần đổi chữ hoa / chữ thường."));
     globalCommandBus.bindHandler("writer.text.changeCaseDialog", () => this._hintIfFalse(() => this.openChangeCaseDialog(), "Hãy chọn đoạn văn bản cần đổi chữ hoa / chữ thường."));
     globalCommandBus.bindHandler("writer.format.fontDialog", () => this.openFontDialog());
+    globalCommandBus.bindHandler("writer.format.textEffects", () => this._hintIfFalse(() => this.openTextEffectsDialog(), "Hãy chọn đoạn văn bản cần áp dụng hiệu ứng chữ."));
+    globalCommandBus.bindHandler("writer.format.textOutline", (args) => this._hintIfFalse(() => this.setTextOutline(args), "Hãy chọn đoạn văn bản cần đặt viền chữ."));
+    globalCommandBus.bindHandler("writer.format.textShadow", (args) => this._hintIfFalse(() => this.setTextShadow(args), "Hãy chọn đoạn văn bản cần đặt bóng đổ."));
+    globalCommandBus.bindHandler("writer.format.textGlow", (args) => this._hintIfFalse(() => this.setTextGlow(args), "Hãy chọn đoạn văn bản cần đặt hiệu ứng phát sáng."));
+    globalCommandBus.bindHandler("writer.format.clearTextEffects", () => this._hintIfFalse(() => this.clearTextEffects(), "Hãy chọn đoạn văn bản cần xóa hiệu ứng chữ."));
     globalCommandBus.bindHandler("writer.para.sort", () => this.sortParagraphs());
     globalCommandBus.bindHandler("writer.para.showFormattingMarks", () => this.toggleFormattingMarks());
     globalCommandBus.bindHandler("writer.para.shading", (args) => this.applyParagraphShading(args));
@@ -3445,6 +3458,7 @@ export class WriterAdapter {
       // W53: padding dọc ô = w:tcMar (LibreOffice chỉ ghi padding-bottom). Trước W44b để viền cộng lên lề thật.
       html = this._applyOoxmlTableCellMargins(html, ooxmlDocumentXml);
       html = this._applyOoxmlImageProperties(html, ooxmlDocumentXml);
+      html = this._applyOoxmlTextEffects(html, ooxmlDocumentXml);
     }
     // W44: viền ô chỉ tô (box-shadow), không chiếm chỗ như Word
     html = this._applyPaintOnlyTableBorders(html);
@@ -5937,6 +5951,89 @@ export class WriterAdapter {
     return modified ? outHtml : html;
   }
 
+  /**
+   * Phục hồi thuộc tính Hiệu ứng chữ WordML 2010 (w14:textOutline, w14:shadow, w14:glow)
+   * từ OOXML khi nhập tài liệu DOCX vào Writer.
+   */
+  _applyOoxmlTextEffects(html, ooxmlDocumentXml) {
+    if (!html || !ooxmlDocumentXml || !ooxmlDocumentXml.includes("w14:")) return html;
+    const runs = [...ooxmlDocumentXml.matchAll(/<w:r\b[^>]*>([\s\S]*?)<\/w:r>/gi)];
+    if (!runs.length) return html;
+
+    let outHtml = html;
+    let modified = false;
+
+    for (const rMatch of runs) {
+      const runContent = rMatch[1];
+      if (!runContent.includes("w14:")) continue;
+      const rPrMatch = runContent.match(/<w:rPr\b[^>]*>([\s\S]*?)<\/w:rPr>/i);
+      const tMatch = runContent.match(/<w:t\b[^>]*>([^<]+)<\/w:t>/i);
+      if (!rPrMatch || !tMatch) continue;
+
+      const rPr = rPrMatch[1];
+      const text = tMatch[1].trim();
+      if (!text) continue;
+
+      const hasOutline = rPr.includes("w14:textOutline");
+      const hasShadow = rPr.includes("w14:shadow");
+      const hasGlow = rPr.includes("w14:glow");
+
+      if (!hasOutline && !hasShadow && !hasGlow) continue;
+
+      let outlineAttr = "";
+      let strokeStyle = "";
+      if (hasOutline) {
+        const wm = rPr.match(/<w14:textOutline\b[^>]*\bw14:w=["'](\d+)["']/i);
+        const cm = rPr.match(/<w14:textOutline[\s\S]*?<w14:srgbClr\b[^>]*\bw14:val=["']([0-9a-fA-F]{6})["']/i);
+        const emu = wm ? parseInt(wm[1], 10) : 12700;
+        const color = cm ? `#${cm[1]}` : "#000000";
+        const widthEntry = OUTLINE_WIDTHS.find(w => w.emu === emu) || OUTLINE_WIDTHS[3];
+        outlineAttr = ` data-vno-outline-color="${color}" data-vno-outline-width="${emu}"`;
+        strokeStyle = `-webkit-text-stroke: ${widthEntry.px}px ${color};`;
+      }
+
+      let shadowAttr = "";
+      let shadowStyle = "";
+      if (hasShadow) {
+        const sm = rPr.match(/<w14:shadow\b([^>]*)/i);
+        const cm = rPr.match(/<w14:shadow[\s\S]*?<w14:srgbClr\b[^>]*\bw14:val=["']([0-9a-fA-F]{6})["']/i);
+        const sattrs = sm ? sm[1] : "";
+        const blurM = sattrs.match(/\bw14:blurRad=["'](\d+)["']/i);
+        const distM = sattrs.match(/\bw14:dist=["'](\d+)["']/i);
+        const dirM = sattrs.match(/\bw14:dir=["'](\d+)["']/i);
+        const blur = blurM ? blurM[1] : "50800";
+        const dist = distM ? distM[1] : "38100";
+        const dir = dirM ? dirM[1] : "5400000";
+        const color = cm ? `#${cm[1]}` : "#000000";
+        shadowAttr = ` data-vno-shadow="1" data-vno-shadow-blur="${blur}" data-vno-shadow-dist="${dist}" data-vno-shadow-dir="${dir}" data-vno-shadow-color="${color}"`;
+        shadowStyle = "2px 2px 3px rgba(0,0,0,0.5)";
+      }
+
+      let glowAttr = "";
+      let glowStyle = "";
+      if (hasGlow) {
+        const gm = rPr.match(/<w14:glow\b[^>]*\bw14:rad=["'](\d+)["']/i);
+        const cm = rPr.match(/<w14:glow[\s\S]*?<w14:srgbClr\b[^>]*\bw14:val=["']([0-9a-fA-F]{6})["']/i);
+        const rad = gm ? parseInt(gm[1], 10) : 101600;
+        const color = cm ? `#${cm[1]}` : "#2563EB";
+        const gp = GLOW_PRESETS.find(p => p.rad === rad) || GLOW_PRESETS[2];
+        glowAttr = ` data-vno-glow-color="${color}" data-vno-glow-rad="${rad}"`;
+        glowStyle = `0 0 ${gp.cssPx}px ${color}`;
+      }
+
+      const textShadows = [shadowStyle, glowStyle].filter(Boolean).join(", ");
+      const combinedStyle = [strokeStyle, textShadows ? `text-shadow: ${textShadows};` : ""].filter(Boolean).join(" ");
+      const replacementSpan = `<span class="vno-text-effect"${outlineAttr}${shadowAttr}${glowAttr} style="${combinedStyle}">${text}</span>`;
+
+      if (outHtml.includes(text) && !outHtml.includes(replacementSpan)) {
+        outHtml = outHtml.replace(text, replacementSpan);
+        modified = true;
+      }
+    }
+
+    return modified ? outHtml : html;
+  }
+
   _applyOoxmlTableCellMargins(html, ooxmlDocumentXml) {
     return this._runWithRangeVerify("tableCellMargins", incremental => this._applyOoxmlTableCellMarginsCore(html, ooxmlDocumentXml, incremental));
   }
@@ -8227,6 +8324,16 @@ export class WriterAdapter {
         return this._hintIfFalse(() => this.resetPicture(), "Hãy chọn hình ảnh cần đặt lại.");
       case "writer.image.compress":
         return this._hintIfFalse(() => this.compressPicture(args), "Hãy chọn hình ảnh cần nén dung lượng.");
+      case "writer.format.textEffects":
+        return this._hintIfFalse(() => this.openTextEffectsDialog(), "Hãy chọn đoạn văn bản cần áp dụng hiệu ứng chữ.");
+      case "writer.format.textOutline":
+        return this._hintIfFalse(() => this.setTextOutline(args), "Hãy chọn đoạn văn bản cần đặt viền chữ.");
+      case "writer.format.textShadow":
+        return this._hintIfFalse(() => this.setTextShadow(args), "Hãy chọn đoạn văn bản cần đặt bóng đổ.");
+      case "writer.format.textGlow":
+        return this._hintIfFalse(() => this.setTextGlow(args), "Hãy chọn đoạn văn bản cần đặt hiệu ứng phát sáng.");
+      case "writer.format.clearTextEffects":
+        return this._hintIfFalse(() => this.clearTextEffects(), "Hãy chọn đoạn văn bản cần xóa hiệu ứng chữ.");
 
       case "writer.break.column":
         return this._insertColumnBreak();
@@ -9509,6 +9616,129 @@ export class WriterAdapter {
       return true;
     }
     return false;
+  }
+
+  openTextEffectsDialog() {
+    if (typeof window === "undefined") return false;
+    const sel = window.getSelection?.();
+    if (!sel || sel.rangeCount === 0) return false;
+    let range = sel.getRangeAt(0);
+
+    // If collapsed, expand to current word if any
+    if (sel.isCollapsed && range) {
+      const node = sel.anchorNode;
+      if (node && node.nodeType === 3) {
+        const text = node.textContent || "";
+        const offset = sel.anchorOffset;
+        let start = offset;
+        let end = offset;
+        while (start > 0 && /\S/.test(text[start - 1])) start--;
+        while (end < text.length && /\S/.test(text[end])) end++;
+        if (end > start && typeof document !== "undefined") {
+          const newRange = document.createRange?.();
+          if (newRange) {
+            newRange.setStart(node, start);
+            newRange.setEnd(node, end);
+            sel.removeAllRanges();
+            sel.addRange(newRange);
+            range = newRange;
+          }
+        }
+      }
+    }
+
+    const selectedText = sel.toString();
+    if (!selectedText) return false;
+
+    const existingSpan = sel.anchorNode?.parentElement?.closest?.(".vno-text-effect");
+    const current = existingSpan ? parseTextEffects(existingSpan) : { outline: null, shadow: null, glow: null };
+
+    return showTextEffectsDialog({
+      initialOutline: current.outline,
+      initialShadow: current.shadow,
+      initialGlow: current.glow,
+      onApply: (effects) => {
+        this.applyTextEffects(effects);
+      }
+    });
+  }
+
+  applyTextEffects(effects = {}) {
+    if (typeof window === "undefined") return false;
+    const sel = window.getSelection?.();
+    if (!sel || sel.rangeCount === 0) return false;
+    const range = sel.getRangeAt(0);
+    const selectedText = sel.toString();
+    if (!selectedText && !range) return false;
+
+    this.flushTyping();
+
+    // Check if within existing effect span
+    let targetSpan = sel.anchorNode?.parentElement?.closest?.(".vno-text-effect");
+    if (targetSpan && targetSpan.textContent.trim() === selectedText.trim()) {
+      applyTextEffectsToSpan(targetSpan, effects);
+      this.isDirty = true;
+      this.recordSnapshot("writer.format.textEffects");
+      return true;
+    }
+
+    try {
+      const span = document.createElement("span");
+      span.className = "vno-text-effect";
+      applyTextEffectsToSpan(span, effects);
+      const contents = range.extractContents();
+      span.appendChild(contents);
+      range.insertNode(span);
+
+      sel.removeAllRanges();
+      const newRange = document.createRange();
+      newRange.selectNodeContents(span);
+      sel.addRange(newRange);
+
+      this.isDirty = true;
+      this.recordSnapshot("writer.format.textEffects");
+      return true;
+    } catch {
+      return false;
+    }
+  }
+
+  setTextOutline(args = null) {
+    const color = args?.color || "#2563EB";
+    const widthEmu = args?.widthEmu || 12700;
+    return this.applyTextEffects({
+      outline: { enabled: true, color, widthEmu },
+      shadow: null,
+      glow: null
+    });
+  }
+
+  setTextShadow(args = null) {
+    const preset = args?.preset || "bottom-right";
+    const color = args?.color || "#000000";
+    return this.applyTextEffects({
+      outline: null,
+      shadow: { enabled: true, preset, color },
+      glow: null
+    });
+  }
+
+  setTextGlow(args = null) {
+    const radEmu = args?.radEmu || 101600;
+    const color = args?.color || "#2563EB";
+    return this.applyTextEffects({
+      outline: null,
+      shadow: null,
+      glow: { enabled: true, radEmu, color }
+    });
+  }
+
+  clearTextEffects() {
+    return this.applyTextEffects({
+      outline: { enabled: false },
+      shadow: { enabled: false },
+      glow: { enabled: false }
+    });
   }
 
   async openCoverPageDialog(options = {}) {

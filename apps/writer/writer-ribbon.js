@@ -37,6 +37,8 @@ export const WRITER_RIBBON_TABS = [
         id: "font",
         label: "Phông chữ",
         labelKey: "writerRibbon.group.font",
+        launcherCommandId: "writer.format.fontDialog",
+        launcherTooltip: "Phông chữ…",
         items: [
           {
             type: "column",
@@ -116,6 +118,7 @@ export const WRITER_RIBBON_TABS = [
                   { type: "button", commandId: "writer.text.subscript", iconOnly: true },
                   { type: "button", commandId: "writer.text.superscript", iconOnly: true },
                   { type: "button", commandId: "writer.text.changeCase", iconOnly: true },
+                  { type: "button", commandId: "writer.format.textEffects", iconOnly: true },
                   { type: "button", commandId: "writer.text.clearFormat", iconOnly: true },
                   { type: "button", commandId: "writer.color.highlight", iconOnly: true },
                   { type: "button", commandId: "writer.color.text", iconOnly: true }

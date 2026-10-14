@@ -1975,5 +1975,24 @@ export const WRITER_HELP_ENTRIES = [
     "Bấm Đồng ý để lưu lựa chọn trên máy. Khi soạn thảo, cặp thay thế và viết hoa được áp dụng lúc gõ dấu cách hoặc dấu câu; ©, ½, – và ngoặc thông minh được đổi ngay khi mẫu hoàn tất.",
     "Với Unikey, EVKey hoặc kiểu gõ Telex, hãy gõ bình thường. Doc bỏ qua sự kiện khi bộ gõ còn đang ghép chữ/đặt dấu và chỉ sửa từ đã chốt, vì vậy chuỗi tiếng Việt đang gõ dở không bị can thiệp."
   ]
+},
+{
+  id: "writer.format.textEffects",
+  app: "writer",
+  commandIds: ["writer.format.textEffects", "writer.format.textOutline", "writer.format.textShadow", "writer.format.textGlow", "writer.format.clearTextEffects"],
+  title: "Hiệu ứng chữ nghệ thuật (Viền chữ, Bóng đổ, Phát sáng)",
+  summary: "Thêm các hiệu ứng chữ nghệ thuật như Viền chữ (Text Outline), Bóng đổ (Shadow) và Phát sáng (Glow) cho văn bản được chọn. Hiển thị sắc nét trong trình soạn thảo và lưu tương thích theo chuẩn WordML 2010 khi xuất DOCX.",
+  ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
+  keywords: ["hiệu ứng chữ", "text effects", "viền chữ", "text outline", "bóng đổ", "shadow", "phát sáng", "glow", "định dạng chữ"],
+  steps: [
+    "Bôi đen đoạn văn bản hoặc từ ngữ cần tạo hiệu ứng chữ nghệ thuật trên trang soạn thảo.",
+    "Trên thanh công cụ, mở tab Trang đầu (Home), tìm nhóm Phông chữ và nhấp vào nút «Hiệu ứng chữ» (biểu tượng chữ A phát sáng).",
+    "Trong hộp thoại Hiệu ứng chữ, bạn có thể tùy chỉnh 3 nhóm hiệu ứng qua các tab chuyên biệt:",
+    "• Viền chữ (Outline): Chọn Bật viền chữ, chọn màu viền và điều chỉnh độ dày nét viền từ 1/4 pt đến 6 pt.",
+    "• Bóng đổ (Shadow): Chọn Bật bóng đổ, chọn kiểu bóng cài sẵn (Góc dưới-phải, Dưới, Dưới-trái, Trên...) và màu bóng mong muốn.",
+    "• Phát sáng (Glow): Chọn Bật hiệu ứng phát sáng, chọn màu phát sáng và bán kính quầng sáng (5 pt, 8 pt, 11 pt, 18 pt).",
+    "Khung «Xem trước» ở đầu hộp thoại sẽ phản ánh ngay lập tức kiểu chữ kết hợp. Nhấn «Áp dụng» để gắn hiệu ứng vào văn bản, hoặc nhấn «Xóa hiệu ứng» để đưa chữ về dạng chuẩn thông thường.",
+    "Khi lưu tài liệu sang định dạng DOCX, toàn bộ hiệu ứng viền, bóng và phát sáng được bảo toàn nguyên vẹn bằng các thẻ WordML 2010 tiêu chuẩn."
+  ]
 }
 ];
