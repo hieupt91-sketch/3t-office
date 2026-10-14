@@ -3,6 +3,7 @@
  */
 
 import { buildSeries } from "./sheet-series.js";
+import { shiftFormulaRefs, translateFormulaRefs } from "./formula-ref-shift.js";
 import { expandStructuredReferences, hasStructuredReference } from "./structured-references.js";
 import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { showGoToDialog, showGoToSpecialDialog } from "./sheet-goto.js";
@@ -9653,27 +9654,7 @@ _bindGridKeyboardNavigation() {
 
   _offsetFormula(formula, deltaCol, deltaRow) {
     if (!formula || typeof formula !== "string" || !formula.startsWith("=")) return formula;
-    return formula.split(/("(?:""|[^"])*")/).map((segment, index) => {
-      if (index % 2 === 1) return segment;
-      // Tham chiếu cấu trúc Table1[Cột] / [@Cột]: nội dung trong ngoặc vuông không phải địa chỉ ô, giữ nguyên.
-      return segment.split(/(\[(?:[^\[\]]|\[[^\[\]]*\])*\])/).map((part, partIndex) => partIndex % 2 === 1 ? part : part.replace(/(^|[^A-Z0-9_])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![A-Z0-9_])/gi, (match, prefix, colAbs, col, rowAbs, row) => {
-        let nextCol = col.toUpperCase();
-        let nextRow = Number(row);
-        if (!colAbs && deltaCol !== 0) {
-          const colNum = this._columnNumber(nextCol) + deltaCol;
-          if (colNum >= 1 && colNum <= 26) {
-            nextCol = this._columnLabel(colNum);
-          }
-        }
-        if (!rowAbs && deltaRow !== 0) {
-          const rNum = nextRow + deltaRow;
-          if (rNum >= 1) {
-            nextRow = rNum;
-          }
-        }
-        return `${prefix}${colAbs}${nextCol}${rowAbs}${nextRow}`;
-      })).join("");
-    }).join("");
+    return translateFormulaRefs(formula, deltaRow, deltaCol);
   }
 
   applyPasteSpecial(clipboard, mode = "source", destination = this.selectedCoord, options = {}) {
@@ -12132,49 +12113,64 @@ _bindGridKeyboardNavigation() {
     });
   }
 
-  sort(col = this.selectedCoord.c, ascending = true) {
-    const before = this._snapshotCells();
-    // Ưu tiên đúng vùng người dùng đã chọn. Trước đây hàm hard-code r >= 4,
-    // khiến Sort không làm gì với bảng bắt đầu ở hàng 1/2 dù dispatch vẫn chạy.
-    const selectedRange = this._normalizeRange(this.selectionRange);
-    const hasRowSelection = selectedRange.end.r > selectedRange.start.r;
-    const rowsWithData = hasRowSelection
-      ? Array.from({ length: selectedRange.end.r - selectedRange.start.r + 1 }, (_, index) => selectedRange.start.r + index)
-      : [];
-    for (const [key, item] of this.cellsData.entries()) {
-      if (hasRowSelection) break;
-      if ((item.val !== "" && item.val !== undefined) || item.formula) {
-        const m = key.match(/^([A-Z]+)(\d+)$/);
-        if (m) {
-          const r = parseInt(m[2], 10);
-          const isTotalRow = (item.formula && item.formula.toLowerCase().includes("sum")) || String(item.val).toLowerCase().includes("tổng");
-          if (!isTotalRow && !rowsWithData.includes(r)) {
-            rowsWithData.push(r);
-          }
-        }
+  /**
+   * Vùng sắp xếp như Excel: chọn nhiều ô thì sắp đúng vùng chọn; chọn một ô (hoặc một cột) thì mở rộng ra vùng dữ liệu liền kề.
+   * Chỉ các cột trong vùng được di chuyển — cột bên ngoài không bị xáo trộn.
+   */
+  _sortArea() {
+    const selected = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const multi = selected.end.r > selected.start.r || selected.end.c !== selected.start.c;
+    const singleColumn = selected.end.c === selected.start.c;
+    if (multi && !singleColumn) return selected;
+    const region = this._currentRegionFromSelection();
+    if (!region) {
+      if (multi) return selected;
+      // Ô đang chọn trống: lấy toàn bộ vùng đã dùng của trang (hành vi cũ, giữ tương thích).
+      let minRow = Infinity, maxRow = 0, minCol = Infinity, maxCol = 0;
+      for (const [key, item] of this.cellsData.entries()) {
+        if (!item || ((item.val === "" || item.val === undefined || item.val === null) && !item.formula)) continue;
+        const [c, r] = this._splitCoord(key);
+        const cn = this._columnNumber(c);
+        minRow = Math.min(minRow, r); maxRow = Math.max(maxRow, r); minCol = Math.min(minCol, cn); maxCol = Math.max(maxCol, cn);
       }
+      if (!Number.isFinite(minRow)) return null;
+      return { start: { c: this._columnLabel(minCol), r: minRow }, end: { c: this._columnLabel(maxCol), r: maxRow } };
     }
+    if (multi) {
+      // Chọn một cột nhiều hàng: mở rộng ngang theo vùng dữ liệu, giữ hàng đã chọn.
+      return { start: { c: region.start.c, r: selected.start.r }, end: { c: region.end.c, r: selected.end.r } };
+    }
+    return region;
+  }
 
-    if (rowsWithData.length < 2) return false;
+  sort(col = this.selectedCoord.c, ascending = true) {
+    const area = this._sortArea();
+    if (!area) return false;
+    const colStart = this._columnNumber(area.start.c);
+    const colEnd = this._columnNumber(area.end.c);
+    const keyColumn = this._columnNumber(col);
+    if (keyColumn < colStart || keyColumn > colEnd) return false;
+    const areaCols = Array.from({ length: colEnd - colStart + 1 }, (_, index) => this._columnLabel(colStart + index));
+    const before = this._snapshotCells();
 
-    // Excel treats a text first row as a header when sorting a contiguous table.
-    // Keep it in place for the simple A-Z/Z-A commands; the custom dialog already
-    // exposes an explicit "Dữ liệu có hàng tiêu đề" choice.
-    const firstRow = Math.min(...rowsWithData);
-    const firstRowValues = this.cols.map(c => this.cellsData.get(`${c}${firstRow}`)?.val).filter(v => v !== undefined && v !== "");
-    const hasHeader = firstRowValues.length > 0 && firstRowValues.every(v => typeof v === "string" && Number.isNaN(Number(String(v).replace(/[,\.]/g, ""))));
-    if (hasHeader) rowsWithData.splice(rowsWithData.indexOf(firstRow), 1);
-
-    rowsWithData.sort((a, b) => a - b);
-    const minRow = rowsWithData[0];
-    const maxRow = rowsWithData[rowsWithData.length - 1];
+    // Excel coi hàng đầu toàn chữ là tiêu đề khi sắp xếp một vùng liền kề.
+    let firstRow = area.start.r;
+    const firstRowValues = areaCols.map(c => this.cellsData.get(`${c}${firstRow}`)?.val).filter(v => v !== undefined && v !== "");
+    const firstRowAllText = firstRowValues.length > 0 && firstRowValues.every(v => typeof v === "string" && Number.isNaN(Number(String(v).replace(/[,\.]/g, ""))));
+    // Excel đoán tiêu đề: hàng đầu toàn chữ VÀ có cột bên dưới không phải chữ, hoặc hàng đầu được định dạng khác hàng sau.
+    const secondRow = firstRow + 1;
+    const belowHasNonText = areaCols.some(c => { const v = this.cellsData.get(`${c}${secondRow}`)?.val; return v !== undefined && v !== "" && !(typeof v === "string" && Number.isNaN(Number(String(v).replace(/[,\.]/g, "")))); });
+    const styleSignature = r => areaCols.map(c => { const s = this.cellsData.get(`${c}${r}`)?.style || {}; return `${s.fontWeight || ""}|${s.backgroundColor || ""}|${s.color || ""}`; }).join(";");
+    const hasHeader = firstRowAllText && (belowHasNonText || styleSignature(firstRow) !== styleSignature(secondRow));
+    if (hasHeader) firstRow++;
+    const lastRow = area.end.r;
+    if (lastRow - firstRow + 1 < 2) return false;
 
     const rowSnapshots = [];
-    for (let r = minRow; r <= maxRow; r++) {
+    for (let r = firstRow; r <= lastRow; r++) {
       const rowData = {};
-      this.cols.forEach(c => {
-        const k = `${c}${r}`;
-        const itm = this.cellsData.get(k);
+      areaCols.forEach(c => {
+        const itm = this.cellsData.get(`${c}${r}`);
         if (itm) rowData[c] = { ...itm, style: { ...itm.style } };
       });
       const sortVal = rowData[col]?.val ?? "";
@@ -12187,29 +12183,29 @@ _bindGridKeyboardNavigation() {
       const blankA = vA === null || vA === undefined || vA === "";
       const blankB = vB === null || vB === undefined || vB === "";
       // Excel keeps empty sort keys after populated keys in both A-Z and Z-A.
-      // Handle this before applying direction so descending sort cannot pull
-      // blank rows to the top.
       if (blankA || blankB) {
         if (blankA && blankB) return a.originalRow - b.originalRow;
         return blankA ? 1 : -1;
       }
       const numA = typeof vA === "number" ? vA : parseFloat(String(vA).replace(/\./g, "").replace(/[^\d-]/g, ""));
       const numB = typeof vB === "number" ? vB : parseFloat(String(vB).replace(/\./g, "").replace(/[^\d-]/g, ""));
-
       if (!isNaN(numA) && !isNaN(numB)) {
         return ascending ? numA - numB : numB - numA;
       }
-      return ascending 
-        ? String(vA).localeCompare(String(vB), "vi-VN") 
+      return ascending
+        ? String(vA).localeCompare(String(vB), "vi-VN")
         : String(vB).localeCompare(String(vA), "vi-VN");
     });
 
     rowSnapshots.forEach((snap, idx) => {
-      const targetRow = minRow + idx;
-      this.cols.forEach(c => {
+      const targetRow = firstRow + idx;
+      areaCols.forEach(c => {
         const k = `${c}${targetRow}`;
         if (snap.data[c]) {
-          this.cellsData.set(k, { ...snap.data[c] });
+          const moved = { ...snap.data[c] };
+          // Như Excel: công thức được "sao chép" sang hàng mới nên tham chiếu tương đối dịch theo.
+          if (moved.formula && targetRow !== snap.originalRow) moved.formula = translateFormulaRefs(moved.formula, targetRow - snap.originalRow, 0);
+          this.cellsData.set(k, moved);
         } else {
           this.cellsData.delete(k);
         }
@@ -12623,6 +12619,10 @@ _bindGridKeyboardNavigation() {
     this.outlineGroupsBySheet[snapshot.sheetName] = structuredClone(snapshot.outlineGroups || []);
     this.mergedRangesBySheet[snapshot.sheetName] = structuredClone(snapshot.mergedRanges || []);
     this.tablesBySheet[snapshot.sheetName] = structuredClone(snapshot.tables || []);
+    for (const entry of snapshot.crossSheet || []) {
+      const target = this.sheetsData[entry.sheet]?.get(entry.key);
+      if (target) target.formula = entry.formula;
+    }
     if (snapshot.rowColLayout) this._restoreRowColLayout({ ...snapshot.rowColLayout, sheetName: snapshot.sheetName }, { render: false });
     if (this.sheetStates[snapshot.sheetName]) {
       Object.assign(this.sheetStates[snapshot.sheetName], {
@@ -12805,6 +12805,34 @@ _bindGridKeyboardNavigation() {
     }
   }
 
+  /**
+   * Công thức ở CÁC TRANG KHÁC trỏ tới trang đang chèn/xóa hàng-cột cũng phải đổi (như Excel).
+   * Trả về danh sách thay đổi để hoàn tác: [{ sheet, key, before, after }].
+   */
+  _shiftOtherSheetFormulas(axis, at, delta) {
+    const changes = [];
+    for (const sheet of this.sheets || []) {
+      if (sheet === this.activeSheet) continue;
+      const map = this.sheetsData[sheet];
+      if (!map) continue;
+      for (const [key, item] of map.entries()) {
+        if (!item?.formula) continue;
+        const next = shiftFormulaRefs(item.formula, { ownerSheet: sheet, targetSheet: this.activeSheet, axis, at, delta });
+        if (next !== item.formula) { changes.push({ sheet, key, before: item.formula, after: next }); item.formula = next; }
+      }
+    }
+    return changes;
+  }
+
+  _recordGridStructureHistory(before, crossSheet = []) {
+    const after = this._snapshotGridStructure();
+    if (crossSheet.length) {
+      before.crossSheet = crossSheet.map(change => ({ sheet: change.sheet, key: change.key, formula: change.before }));
+      after.crossSheet = crossSheet.map(change => ({ sheet: change.sheet, key: change.key, formula: change.after }));
+    }
+    this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after });
+  }
+
   insertRow(atRow = this.selectedCoord.r, recordUndo = true) {
     if (recordUndo && this._guardProtectedMutation()) return false;
     atRow = Number(atRow);
@@ -12815,10 +12843,11 @@ _bindGridKeyboardNavigation() {
       const [col, row] = this._splitCoord(key);
       const nextKey = `${col}${row >= atRow ? row + 1 : row}`;
       const nextItem = structuredClone(item);
-      if (nextItem.formula) nextItem.formula = this._shiftCellReference(nextItem.formula, "row", atRow);
+      if (nextItem.formula) nextItem.formula = shiftFormulaRefs(nextItem.formula, { ownerSheet: this.activeSheet, targetSheet: this.activeSheet, axis: "row", at: atRow, delta: 1 });
       shifted.set(nextKey, nextItem);
     }
     this.sheetsData[this.activeSheet] = shifted;
+    const crossSheet = this._shiftOtherSheetFormulas("row", atRow, 1);
     this.rowCount++;
     this._shiftGridMetadata("row", atRow);
     this.selectedCoord = { c: this.selectedCoord.c, r: atRow };
@@ -12827,7 +12856,7 @@ _bindGridKeyboardNavigation() {
     this._recalculateAllFormulas();
     this.refreshCharts();
     this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
-    if (recordUndo) this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    if (recordUndo) this._recordGridStructureHistory(before, crossSheet);
     return true;
   }
 
@@ -12842,10 +12871,11 @@ _bindGridKeyboardNavigation() {
       const colNumber = this._columnNumber(col);
       const nextKey = `${colNumber >= atColumnNumber ? this._columnLabel(colNumber + 1) : col}${row}`;
       const nextItem = structuredClone(item);
-      if (nextItem.formula) nextItem.formula = this._shiftCellReference(nextItem.formula, "col", atColumnNumber);
+      if (nextItem.formula) nextItem.formula = shiftFormulaRefs(nextItem.formula, { ownerSheet: this.activeSheet, targetSheet: this.activeSheet, axis: "col", at: atColumnNumber, delta: 1 });
       shifted.set(nextKey, nextItem);
     }
     this.sheetsData[this.activeSheet] = shifted;
+    const crossSheet = this._shiftOtherSheetFormulas("col", atColumnNumber, 1);
     this.cols = Array.from({ length: this.cols.length + 1 }, (_, index) => this._columnLabel(index + 1));
     this._shiftGridMetadata("col", atColumnNumber);
     this.selectedCoord = { c: this._columnLabel(atColumnNumber), r: this.selectedCoord.r };
@@ -12855,7 +12885,7 @@ _bindGridKeyboardNavigation() {
     this._recalculateAllFormulas();
     this.refreshCharts();
     this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
-    if (recordUndo) this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    if (recordUndo) this._recordGridStructureHistory(before, crossSheet);
     return true;
   }
 
@@ -12870,10 +12900,11 @@ _bindGridKeyboardNavigation() {
       if (row === atRow) continue;
       const nextRow = row > atRow ? row - 1 : row;
       const nextItem = structuredClone(item);
-      if (nextItem.formula) nextItem.formula = this._shiftCellReference(nextItem.formula, "row", atRow, -1);
+      if (nextItem.formula) nextItem.formula = shiftFormulaRefs(nextItem.formula, { ownerSheet: this.activeSheet, targetSheet: this.activeSheet, axis: "row", at: atRow, delta: -1 });
       shifted.set(`${col}${nextRow}`, nextItem);
     }
     this.sheetsData[this.activeSheet] = shifted;
+    const crossSheet = this._shiftOtherSheetFormulas("row", atRow, -1);
     this.rowCount--;
     this._shiftGridMetadata("row", atRow, -1);
     this.selectedCoord = { c: this.selectedCoord.c, r: Math.min(atRow, this.rowCount) };
@@ -12882,7 +12913,7 @@ _bindGridKeyboardNavigation() {
     this._recalculateAllFormulas();
     this.refreshCharts();
     this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
-    if (recordUndo) this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    if (recordUndo) this._recordGridStructureHistory(before, crossSheet);
     return true;
   }
 
@@ -12898,10 +12929,11 @@ _bindGridKeyboardNavigation() {
       if (colNumber === atColumnNumber) continue;
       const nextCol = colNumber > atColumnNumber ? this._columnLabel(colNumber - 1) : col;
       const nextItem = structuredClone(item);
-      if (nextItem.formula) nextItem.formula = this._shiftCellReference(nextItem.formula, "col", atColumnNumber, -1);
+      if (nextItem.formula) nextItem.formula = shiftFormulaRefs(nextItem.formula, { ownerSheet: this.activeSheet, targetSheet: this.activeSheet, axis: "col", at: atColumnNumber, delta: -1 });
       shifted.set(`${nextCol}${row}`, nextItem);
     }
     this.sheetsData[this.activeSheet] = shifted;
+    const crossSheet = this._shiftOtherSheetFormulas("col", atColumnNumber, -1);
     this.cols = Array.from({ length: this.cols.length - 1 }, (_, index) => this._columnLabel(index + 1));
     this._shiftGridMetadata("col", atColumnNumber, -1);
     this.selectedCoord = { c: this._columnLabel(Math.min(atColumnNumber, this.cols.length)), r: this.selectedCoord.r };
@@ -12911,7 +12943,7 @@ _bindGridKeyboardNavigation() {
     this._recalculateAllFormulas();
     this.refreshCharts();
     this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
-    if (recordUndo) this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    if (recordUndo) this._recordGridStructureHistory(before, crossSheet);
     return true;
   }
 

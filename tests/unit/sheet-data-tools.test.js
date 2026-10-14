@@ -123,6 +123,8 @@ export async function runSheetDataToolsTests() {
     const sortedValues = (values, ascending) => {
       const grid = new SheetGridController(container());
       put(grid, "A1", "Giá trị");
+      // Excel đoán hàng đầu là tiêu đề khi nó được định dạng khác dữ liệu (ở đây: chữ đậm).
+      grid.cellsData.get("A1").style = { fontWeight: "bold" };
       values.forEach((value, index) => {
         put(grid, `A${index + 2}`, value);
         put(grid, `B${index + 2}`, `hàng-${index + 1}`);
