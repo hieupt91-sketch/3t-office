@@ -377,6 +377,40 @@ export async function runSheetFormatCellsTests() {
     assert(c3.text === "(5,000)", `Custom pattern cho số âm: ${c3.text}`);
   });
 
+  test("Category Fraction và Special: hiển thị phân số, mã bưu chính và điện thoại thật", () => {
+    assert(NumberFormatter.formatFraction(2.375, { fractionFormat: "# ??/??" }).text === "2 3/8", "2.375 phải hiện 2 3/8");
+    assert(NumberFormatter.formatSpecial(123, { specialFormat: "00000" }).text === "00123", "Mã bưu chính phải giữ số 0 đầu");
+    assert(NumberFormatter.formatSpecial(2125551212, { specialFormat: "[<=9999999]###-####;(###) ###-####" }).text === "(212) 555-1212", "Số điện thoại phải theo pattern");
+  });
+
+  test("SheetGridController: applyCellFormat áp dụng font/fill/protection/viền cho toàn vùng và Undo một bước", () => {
+    const grid = new SheetGridController(mockContainer());
+    grid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "B", r: 2 } };
+    grid.applyCellFormat({
+      stylePatch: { fontFamily: "Arial", fontSize: "18.67px", backgroundColor: "#FFFF00", locked: false, shrinkToFit: true },
+      borders: { left: "1px solid #FF0000", right: "1px solid #FF0000", top: "", bottom: "", insideHorizontal: "", insideVertical: "", diagonalUp: "", diagonalDown: "" }
+    });
+    for (const coord of ["A1", "A2", "B1", "B2"]) {
+      const style = grid.cellsData.get(coord)?.style;
+      assert(style?.fontFamily === "Arial" && style?.backgroundColor === "#FFFF00" && style?.locked === false && style?.shrinkToFit, `${coord} phải nhận style thật`);
+    }
+    assert(grid.cellsData.get("A1").style.borderLeft && !grid.cellsData.get("B1").style.borderLeft, "Viền trái chỉ nằm ở cạnh ngoài");
+    grid.undo();
+    assert(!grid.cellsData.get("A1")?.style?.fontFamily, "Undo phải gỡ cả nhóm định dạng trong một bước");
+  });
+
+  test("SheetAdapter: metadata native của alignment/font/fill/border/protection round-trip FODS", () => {
+    const grid = new SheetGridController(mockContainer());
+    grid.setCellValue("A", 1, 12.5);
+    grid.selectionRange = { start: { c: "A", r: 1 }, end: { c: "A", r: 1 } };
+    grid.applyCellFormat({ stylePatch: { horizontalAlignment: "centerContinuous", shrinkToFit: true, textDirection: "rtl", fontUnderline: "doubleAccounting", fontPosition: "super", fillPattern: "darkDown", fillPatternColor: "#FF0000", locked: false, formulaHidden: true }, borders: { diagonalUp: "2px solid #00B050", diagonalDown: "", left: "", right: "", top: "", bottom: "", insideHorizontal: "", insideVertical: "" } });
+    const adapter = new SheetAdapter(grid);
+    const xml = adapter.serializeToFods();
+    assert(xml.includes("vno:cell-format"), "FODS phải có metadata native cho XLSX post-process");
+    const parsed = adapter.parseFods(xml).sheetsData[grid.activeSheet].get("A1").style;
+    assert(parsed.horizontalAlignment === "centerContinuous" && parsed.fontUnderline === "doubleAccounting" && parsed.locked === false && parsed.formulaHidden === true, "Parse FODS phải khôi phục metadata native");
+  });
+
   // 9. Integration Test: SheetGridController applyNumberFormat trên vùng chọn nhiều ô & Undo/Redo
   test("SheetGridController: Áp dụng định dạng cho vùng chọn nhiều ô (A1:B3) đồng loạt", () => {
     const container = mockContainer();
