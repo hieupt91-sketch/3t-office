@@ -1,4 +1,24 @@
 # Agent Handoff
+TASK: Personal portfolio premium polish & Vercel deployment preparation
+AGENT/ROLE: AGY (Antigravity) / Web Product Engineering & Art Direction
+BRANCH: agy/personal-portfolio-premium
+WORKTREE: /Volumes/Data/Worktrees/agy-personal-portfolio-premium
+OBJECTIVE: Deliver executive-level premium visual polish for Pham Trung Hieu's bilingual portfolio, replace all placeholder graphics with authentic first-party product screenshots and official 3T logo, fix layered UI and double scrollbars across devices (desktop, tablet <=1024, mobile <=640), add phone contact, convert English budget ranges to natural USD equivalents with live currency note, verify 7/7 tests, and push the branch to GitHub for Vercel deployment.
+FINDINGS: The 3T logo (1024x1024 RGBA) was fetched directly from 3tcomputer.com and integrated into the company section. All 6 projects now feature authentic high-resolution screenshots. Double scrollbars on modal were resolved by scoping scroll purely to .dialog-panel with overflow-x hidden. Budget dropdown in EN now displays USD values ($400-$4,000+) with localized explanatory disclaimer. All responsive breakpoints for tablet and mobile were tuned to prevent horizontal scroll leaks.
+IMPLEMENTATION SUMMARY: Updated projects.ts with real imagery; updated copy.ts with phone number (+84 967 136 099) and USD budget notes; updated services.ts with USD ranges; updated globals.css with premium dark aesthetic, grain noise, pointer radial glow, orbit rings, and isolated scroll containers; updated Sections.tsx with staggered animations and 3T logo; updated ServiceRequestModal.tsx with robust note prop and clean form grid; added vercel.json SPA rewrites; pushed branch `agy/personal-portfolio-premium` to GitHub remote.
+FILES CHANGED: portfolio/index.html; portfolio/src/data/projects.ts; portfolio/src/data/services.ts; portfolio/src/content/copy.ts; portfolio/src/styles/globals.css; portfolio/src/components/Header.tsx; portfolio/src/components/Hero.tsx; portfolio/src/components/Sections.tsx; portfolio/src/components/ServiceRequestModal.tsx; portfolio/vercel.json; portfolio/tests/App.test.tsx; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: npm install; npm run typecheck; npm run lint; npm test; npm run build; git commit; git push -u origin agy/personal-portfolio-premium.
+BUILD RESULT: PASS — Production build (23.1 kB CSS, 256.4 kB JS, gzip 80.5 kB).
+TEST RESULTS: PASS — Vitest 7/7; TypeScript; ESLint.
+KNOWN FAILURES: None.
+RISKS: Connecting live email provider (Formspree/Getform) still required for real form delivery to inbox.
+DEPENDENCIES/BLOCKERS: None. Branch is pushed to GitHub.
+CORE PATCH ID (if any): None.
+NEXT ACTION: User completes 30-second Vercel import to get live phamtrunghieu.vercel.app URL.
+
+---
+
+# Agent Handoff
 TASK: Personal portfolio v1 — local implementation and QA
 AGENT/ROLE: Codex primary + AGY independent reviewer / Web product engineering
 BRANCH: feat/personal-portfolio
