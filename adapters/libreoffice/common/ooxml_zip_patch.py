@@ -22533,6 +22533,7 @@ def postprocess_writer_if_ref_fields(docx_bytes: bytes, *, source_html: str | No
             super().__init__(convert_charrefs=True)
             self.rules = []
             self.refs = []
+            self.index_entries = []
             self.active = None
         def handle_starttag(self, tag, attrs):
             if tag != "span" and tag != "a": return
@@ -22541,6 +22542,8 @@ def postprocess_writer_if_ref_fields(docx_bytes: bytes, *, source_html: str | No
                 self.active = ["if", a, ""]
             elif a.get("data-merge-rule") in {"skipIf", "nextIf", "fillIn"}:
                 self.active = [a["data-merge-rule"], a, ""]
+            elif tag == "span" and a.get("data-index-entry") and a.get("id"):
+                self.index_entries.append((a["id"], a["data-index-entry"]))
             elif tag == "a" and "vno-cross-ref" in (a.get("class") or "") and (a.get("href") or "").startswith("#"):
                 self.active = ["ref", a, ""]
         def handle_data(self, data):
@@ -22553,7 +22556,7 @@ def postprocess_writer_if_ref_fields(docx_bytes: bytes, *, source_html: str | No
     parser.feed(source_html)
     auto_hyphenation = 'data-hyphenation="auto"' in source_html or "data-hyphenation='auto'" in source_html
     document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
-    if not document_bytes or not (parser.rules or parser.refs or auto_hyphenation): return docx_bytes
+    if not document_bytes or not (parser.rules or parser.refs or auto_hyphenation or parser.index_entries): return docx_bytes
     xml = document_bytes.decode("utf-8", errors="replace")
     changed = False
     for rule_kind, attrs, fallback in parser.rules:
@@ -22598,7 +22601,7 @@ def postprocess_writer_if_ref_fields(docx_bytes: bytes, *, source_html: str | No
                 + f'<w:r>{rpr}<w:t xml:space="preserve">{_escape_xml(display)}</w:t></w:r>' + _fld("end", rpr)
             )
         if fallback:
-            text_pattern = re.compile(r'<w:r\b[^>]*>(?P<rpr><w:rPr>[\s\S]*?</w:rPr>)?<w:t(?:\s[^>]*)?>(?P<text>[^<]*)</w:t></w:r>')
+            text_pattern = re.compile(r'<w:r\b[^>]*>(?P<rpr><w:rPr>(?:(?!</w:rPr>)[\s\S])*</w:rPr>)?<w:t(?:\s[^>]*)?>(?P<text>[^<]*)</w:t></w:r>')
             escaped_fallback = _escape_xml(fallback)
             runs = list(text_pattern.finditer(xml))
             exact = next((m for m in runs if m.group("text") == escaped_fallback), None)
@@ -22624,6 +22627,44 @@ def postprocess_writer_if_ref_fields(docx_bytes: bytes, *, source_html: str | No
         pattern = re.compile(r'<w:hyperlink\b(?=[^>]*\bw:anchor="' + re.escape(_escape_xml(target)) + r'")[^>]*>[\s\S]*?</w:hyperlink>')
         xml, count = pattern.subn(lambda _: field_xml, xml, count=1)
         changed |= count > 0
+    if parser.index_entries:
+        def _xe_quote(term: str) -> str:
+            return '"' + term.replace('\\', '\\\\').replace('"', '\\"') + '"'
+        for entry_id, term in parser.index_entries:
+            pattern = re.compile(r'(<w:bookmarkStart\b[^>]*w:name="' + re.escape(_escape_xml(entry_id)) + r'"[^>]*/>\s*<w:bookmarkEnd\b[^>]*/>)')
+            xe = (
+                '<w:r><w:rPr><w:vanish/></w:rPr><w:fldChar w:fldCharType="begin"/></w:r>'
+                f'<w:r><w:rPr><w:vanish/></w:rPr><w:instrText xml:space="preserve"> XE {_escape_xml(_xe_quote(term))} </w:instrText></w:r>'
+                '<w:r><w:rPr><w:vanish/></w:rPr><w:fldChar w:fldCharType="end"/></w:r>'
+            )
+            xml, count = pattern.subn(lambda m: m.group(1) + xe, xml, count=1)
+            changed |= count > 0
+        # Khối chỉ mục: bọc các đoạn liên tiếp chứa liên kết index-entry thành một trường INDEX.
+        paragraphs = list(re.finditer(r'<w:p\b[^>]*>(?:(?!</w:p>)[\s\S])*</w:p>', xml))
+        flagged = [m for m in paragraphs if 'w:anchor="index-entry-' in m.group(0)]
+        if flagged and "INDEX " not in xml:
+            first, last = flagged[0], flagged[-1]
+            begin = ('<w:r><w:fldChar w:fldCharType="begin"/></w:r>'
+                     '<w:r><w:instrText xml:space="preserve"> INDEX \\c "1" \\z "1066" </w:instrText></w:r>'
+                     '<w:r><w:fldChar w:fldCharType="separate"/></w:r>')
+            end = '<w:r><w:fldChar w:fldCharType="end"/></w:r>'
+            last_text = last.group(0)
+            new_last = last_text[:-len("</w:p>")] + end + "</w:p>"
+            first_text = first.group(0)
+            ppr_end = first_text.find("</w:pPr>")
+            insert_at = ppr_end + len("</w:pPr>") if ppr_end >= 0 else first_text.find(">") + 1
+            new_first = first_text[:insert_at] + begin + first_text[insert_at:]
+            if first is last:
+                new_first = new_first[:-len("</w:p>")] + end + "</w:p>"
+                xml = xml[:first.start()] + new_first + xml[first.end():]
+            else:
+                xml = xml[:last.start()] + new_last + xml[last.end():]
+                xml = xml[:first.start()] + new_first + xml[first.end():]
+            changed = True
+    if auto_hyphenation:
+        marker_para = re.compile(r'<w:p\b[^>]*>(?:(?!</w:p>)[\s\S])*?VNO_HYPHENATION_AUTO_V1(?:(?!</w:p>)[\s\S])*?</w:p>')
+        xml, removed = marker_para.subn("", xml, count=1)
+        changed |= removed > 0
     changes = {}
     if changed:
         changes["word/document.xml"] = xml.encode("utf-8")
