@@ -33,6 +33,20 @@ try {
   assert.equal(compared.sourcePath, null);
   console.log("WORD-W3 CDP: compare PASS");
 
+  const combined = JSON.parse(await cdp.evaluate(`(async () => {
+    const adapter = window.__vnoAppInstance.adapter;
+    const bus = (await import('/platform/commands/command-bus.js')).globalCommandBus;
+    document.querySelector('.vno-writer-body').innerHTML = '<p>Đoạn giữ nguyên</p><p>Nội dung cũ</p>';
+    const result = await bus.execute('writer.review.combine');
+    const body = document.querySelector('.vno-writer-body');
+    return JSON.stringify({ result, ins: body.querySelectorAll('ins[data-vno-change="insert"]').length, del: body.querySelectorAll('del[data-vno-change="delete"]').length, name: adapter.sourceFileName });
+  })()`, { awaitPromise: true, timeoutMilliseconds: 30000 }));
+  assert.equal(combined.result, true);
+  assert.equal(combined.ins, 1);
+  assert.equal(combined.del, 1);
+  assert.equal(combined.name, "TaiLieuGop");
+  console.log("WORD-W3 CDP: combine PASS");
+
   const protectedState = JSON.parse(await cdp.evaluate(`(async () => {
     const bus = (await import('/platform/commands/command-bus.js')).globalCommandBus;
     const promise = bus.execute('writer.review.restrictEditing');
@@ -75,7 +89,7 @@ try {
     }, 1000);
     return true;
   })()`, { awaitPromise: true, timeoutMilliseconds: 10000 });
-  await cdp.waitFor("!!document.querySelector('.vno-dialog-overlay:not(.vno-writer-review-dialog)')", { timeoutMilliseconds: 120000 });
+  await cdp.waitFor("!!window.__wordW3UnprotectPromise && /không đúng|incorrect|not supported/i.test(document.querySelector('.vno-dialog-overlay:not(.vno-writer-review-dialog)')?.innerText || '')", { timeoutMilliseconds: 120000 });
   const wrongPassword = JSON.parse(await cdp.evaluate(`(async () => {
     const alert = document.querySelector('.vno-dialog-overlay:not(.vno-writer-review-dialog)');
     const reason = alert?.innerText || '';
@@ -147,10 +161,11 @@ assert.equal((documentXml.match(/<w:del\b/g) || []).length, 1);
 
 let com = { skipped: true };
 if (process.platform === "win32") {
-  const command = `$ErrorActionPreference='Stop';$w=New-Object -ComObject Word.Application;try{$w.Visible=$false;$d=$w.Documents.Open(${JSON.stringify(output)},$false,$true);[pscustomobject]@{ProtectionType=[int]$d.ProtectionType;Revisions=[int]$d.Revisions.Count}|ConvertTo-Json -Compress;$d.Close($false)}finally{$w.Quit()}`;
+  const command = `$ErrorActionPreference='Stop';$w=New-Object -ComObject Word.Application;try{$w.Visible=$false;$d=$w.Documents.Open(${JSON.stringify(output)},$false,$true);$before=[int]$d.ProtectionType;$revisions=[int]$d.Revisions.Count;$d.Unprotect('w3-local-pass');[pscustomobject]@{ProtectionType=$before;UnprotectedType=[int]$d.ProtectionType;Revisions=$revisions}|ConvertTo-Json -Compress;$d.Close($false)}finally{$w.Quit()}`;
   com = JSON.parse(execFileSync("powershell.exe", ["-NoProfile", "-Command", command], { encoding: "utf8", timeout: 120000 }).trim());
   assert.equal(com.ProtectionType, 0, JSON.stringify(com));
+  assert.equal(com.UnprotectedType, -1, JSON.stringify(com));
   assert.equal(com.Revisions, 2, JSON.stringify(com));
 }
 
-console.log(JSON.stringify({ status: "PASS", compare: { insertions: 1, deletions: 1 }, protectionType: com.ProtectionType ?? "NOT RUN", revisions: com.Revisions ?? "NOT RUN", output }));
+console.log(JSON.stringify({ status: "PASS", compare: { insertions: 1, deletions: 1 }, protectionType: com.ProtectionType ?? "NOT RUN", unprotectedType: com.UnprotectedType ?? "NOT RUN", revisions: com.Revisions ?? "NOT RUN", output }));

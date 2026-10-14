@@ -102,18 +102,35 @@ function attr(xml, name) {
   return String(xml || "").match(new RegExp(`\\bw:${name}=["']([^"']*)["']`, "i"))?.[1] || "";
 }
 
+const PROTECTION_ALGORITHMS_BY_SID = {
+  "4": "SHA-1",
+  "12": "SHA-256",
+  "13": "SHA-384",
+  "14": "SHA-512"
+};
+
+function normalizeProtectionAlgorithm(value) {
+  const normalized = String(value || "").toUpperCase().replace(/_/g, "-");
+  if (/^SHA-?(?:1|256|384|512)$/.test(normalized)) {
+    return normalized.replace(/^SHA(?=\d)/, "SHA-");
+  }
+  return "";
+}
+
 export function parseDocumentProtection(settingsXml) {
   const tag = String(settingsXml || "").match(/<w:documentProtection\b[^>]*\/?\s*>/i)?.[0] || "";
   if (!tag || /\bw:enforcement=["'](?:0|false|off)["']/i.test(tag)) return { mode: "none" };
   const edit = attr(tag, "edit");
   const mode = edit === "trackedChanges" ? "trackedChanges" : edit === "readOnly" ? "readOnly" : "none";
   if (mode === "none") return { mode };
+  const algorithm = PROTECTION_ALGORITHMS_BY_SID[attr(tag, "cryptAlgorithmSid")]
+    || normalizeProtectionAlgorithm(attr(tag, "algorithmName"));
   return {
     mode,
-    algorithm: attr(tag, "cryptAlgorithmSid") === "14" ? "SHA-512" : (attr(tag, "algorithmName") || ""),
+    algorithm,
     spinCount: Number(attr(tag, "cryptSpinCount") || attr(tag, "spinCount") || 0),
-    hash: attr(tag, "hash"),
-    salt: attr(tag, "salt")
+    hash: attr(tag, "hash") || attr(tag, "hashValue"),
+    salt: attr(tag, "salt") || attr(tag, "saltValue")
   };
 }
 
@@ -145,14 +162,14 @@ function concatBytes(...parts) {
   return output;
 }
 
-async function protectionHash(password, salt, spinCount, cryptoApi) {
+async function protectionHash(password, salt, spinCount, cryptoApi, algorithm = "SHA-512") {
   if (!cryptoApi?.subtle) throw new Error(t("writerReview.cryptoUnavailable", "Máy này không cung cấp bộ băm mật khẩu cục bộ."));
-  // w:documentProtection uses the Word-compatible ordering: UTF-16LE password,
-  // then the decoded salt bytes. The initial hash is not part of spinCount.
-  let hash = new Uint8Array(await cryptoApi.subtle.digest("SHA-512", concatBytes(utf16le(password), salt)));
+  // ISO/IEC 29500 documentProtection prepends the decoded salt to the
+  // UTF-16LE password. The initial hash is not part of spinCount.
+  let hash = new Uint8Array(await cryptoApi.subtle.digest(algorithm, concatBytes(salt, utf16le(password))));
   for (let i = 0; i < spinCount; i += 1) {
     const counter = Uint8Array.of(i & 255, (i >>> 8) & 255, (i >>> 16) & 255, (i >>> 24) & 255);
-    hash = new Uint8Array(await cryptoApi.subtle.digest("SHA-512", concatBytes(hash, counter)));
+    hash = new Uint8Array(await cryptoApi.subtle.digest(algorithm, concatBytes(hash, counter)));
   }
   return hash;
 }
@@ -170,8 +187,15 @@ export async function createDocumentProtection(mode, password, options = {}) {
 
 export async function verifyDocumentProtection(password, protection, cryptoApi = globalThis.crypto) {
   if (!protection?.hash) return !password;
-  if (protection.algorithm !== "SHA-512" || !protection.salt || !protection.spinCount) return false;
-  const actual = await protectionHash(password, base64ToBytes(protection.salt), protection.spinCount, cryptoApi);
+  const algorithm = normalizeProtectionAlgorithm(protection.algorithm);
+  const spinCount = Number(protection.spinCount);
+  if (!algorithm || !protection.salt || !Number.isInteger(spinCount) || spinCount < 0) return false;
+  let actual;
+  try {
+    actual = await protectionHash(password, base64ToBytes(protection.salt), spinCount, cryptoApi, algorithm);
+  } catch {
+    return false;
+  }
   const expected = base64ToBytes(protection.hash);
   if (actual.length !== expected.length) return false;
   let mismatch = 0;

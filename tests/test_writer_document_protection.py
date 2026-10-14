@@ -45,6 +45,17 @@ class WriterDocumentProtectionTests(unittest.TestCase):
         unprotected = postprocess_writer_document_protection(tracked, source_html=_marker({"version": 1, "mode": "none"}))
         self.assertNotIn("documentProtection", read_zip_entry(unprotected, "word/settings.xml").decode("utf-8"))
 
+    def test_preserves_supported_imported_hash_algorithm(self):
+        source = _tiny_docx('<w:settings xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:compat/></w:settings>')
+        patched = postprocess_writer_document_protection(source, source_html=_marker({
+            "version": 1, "mode": "readOnly", "algorithm": "SHA-256", "spinCount": 0,
+            "hash": "aGFzaA==", "salt": "c2FsdA==",
+        }))
+        settings = read_zip_entry(patched, "word/settings.xml").decode("utf-8")
+        self.assertIn('w:cryptAlgorithmSid="12"', settings)
+        self.assertIn('w:cryptSpinCount="0"', settings)
+        self.assertIn('w:hash="aGFzaA=="', settings)
+
 
 if __name__ == "__main__":
     unittest.main()

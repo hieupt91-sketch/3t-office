@@ -21063,13 +21063,15 @@ def postprocess_writer_document_protection(docx_bytes: bytes, *, source_html: st
     mode = metadata.get("mode")
     if mode != "none":
         attrs = [f'w:edit="{mode}"', 'w:enforcement="1"', 'w:formatting="0"']
-        if metadata.get("algorithm") == "SHA-512" and metadata.get("hash") and metadata.get("salt"):
-            spin_count = max(1, int(metadata.get("spinCount") or 1))
+        algorithm_sids = {"SHA-1": "4", "SHA-256": "12", "SHA-384": "13", "SHA-512": "14"}
+        algorithm_sid = algorithm_sids.get(str(metadata.get("algorithm") or "").upper())
+        if algorithm_sid and metadata.get("hash") and metadata.get("salt"):
+            spin_count = max(0, int(metadata.get("spinCount") or 0))
             attrs.extend([
                 'w:cryptProviderType="rsaAES"',
                 'w:cryptAlgorithmClass="hash"',
                 'w:cryptAlgorithmType="typeAny"',
-                'w:cryptAlgorithmSid="14"',
+                f'w:cryptAlgorithmSid="{algorithm_sid}"',
                 f'w:cryptSpinCount="{spin_count}"',
                 f'w:hash="{_escape_xml(str(metadata["hash"]))}"',
                 f'w:salt="{_escape_xml(str(metadata["salt"]))}"',

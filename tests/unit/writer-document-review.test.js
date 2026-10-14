@@ -48,6 +48,9 @@ export async function runWriterDocumentReviewTests() {
     if (!protection.hash || !protection.salt || protection.mode !== "readOnly") throw new Error("Thiếu verifier");
     if (!await verifyDocumentProtection("mật-khẩu", protection, webcrypto)) throw new Error("Đúng mật khẩu nhưng không mở");
     if (await verifyDocumentProtection("sai", protection, webcrypto)) throw new Error("Sai mật khẩu vẫn mở");
+    if (protection.hash !== "DWM8a1uTqGOlLPqLX+1Q0MVhPy6ambo8bC4ep3IHyaM5+VjfZ8QphtNGerxEO2sclVIUcpj4ieBkIkA1pqIjow==") {
+      throw new Error(`Hash không khớp vector OOXML salt + UTF-16LE password: ${protection.hash}`);
+    }
     const marker = documentProtectionMetadataComment(protection);
     if (!marker.includes("vno-document-protection-hex:")) throw new Error("Thiếu metadata export");
   });
@@ -56,8 +59,10 @@ export async function runWriterDocumentReviewTests() {
     const readOnly = parseDocumentProtection('<w:settings><w:documentProtection w:edit="readOnly" w:enforcement="1" w:cryptAlgorithmSid="14" w:cryptSpinCount="2" w:hash="AA==" w:salt="AQ=="/></w:settings>');
     const tracked = parseDocumentProtection('<w:settings><w:documentProtection w:edit="trackedChanges" w:enforcement="1"/></w:settings>');
     const off = parseDocumentProtection('<w:settings><w:documentProtection w:edit="readOnly" w:enforcement="0"/></w:settings>');
+    const iso = parseDocumentProtection('<w:settings><w:documentProtection w:edit="readOnly" w:enforcement="1" w:algorithmName="SHA-256" w:spinCount="0" w:hashValue="AA==" w:saltValue="AQ=="/></w:settings>');
     if (readOnly.mode !== "readOnly" || readOnly.algorithm !== "SHA-512") throw new Error("Sai readOnly");
     if (tracked.mode !== "trackedChanges" || off.mode !== "none") throw new Error("Sai tracked/off");
+    if (iso.algorithm !== "SHA-256" || iso.spinCount !== 0 || iso.hash !== "AA==" || iso.salt !== "AQ==") throw new Error("Sai thuộc tính ISO protection");
   });
 
   await test("Writer Review: command, ribbon, Help và i18n VI/EN đầy đủ", () => {
