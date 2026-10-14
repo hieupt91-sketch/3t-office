@@ -1,0 +1,16 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="800" viewBox="0 0 1200 800">
+  <defs>
+    <linearGradient id="g" x1="0" x2="1" y1="0" y2="1">
+      <stop offset="0%" stop-color="#EAF7FF"/>
+      <stop offset="50%" stop-color="#FFF3C4"/>
+      <stop offset="100%" stop-color="#EAFBF0"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="800" fill="url(#g)"/>
+  <circle cx="220" cy="180" r="90" fill="#4DA8DA" opacity=".35"/>
+  <circle cx="970" cy="160" r="120" fill="#7ACB8F" opacity=".35"/>
+  <circle cx="980" cy="620" r="80" fill="#FFB86B" opacity=".35"/>
+  <rect x="220" y="280" width="760" height="260" rx="44" fill="#fff" opacity=".75"/>
+  <text x="600" y="375" text-anchor="middle" font-family="Arial, sans-serif" font-size="56" font-weight="700" fill="#1F5F8B">Happy Kids</text>
+  <text x="600" y="445" text-anchor="middle" font-family="Arial, sans-serif" font-size="34" fill="#4B5563">Quảng Bình</text>
+</svg>

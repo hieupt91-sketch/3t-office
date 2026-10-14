@@ -1,4 +1,24 @@
 # Agent Handoff
+TASK: Personal portfolio v1 — local implementation and QA
+AGENT/ROLE: Codex primary + AGY independent reviewer / Web product engineering
+BRANCH: feat/personal-portfolio
+WORKTREE: /Volumes/Data/Worktrees/personal-portfolio
+OBJECTIVE: Build the bilingual, profile-first portfolio from PERSONAL_PORTFOLIO_FULL_SPEC.md, including responsive i18n, verified product/project content, a focused visual direction, and an accessible service-request dialog that remains closed until explicitly opened; keep the work local and do not deploy.
+FINDINGS: No portfolio existed in the monorepo. The existing `server/3t-web` serves a different company site and was left untouched. Private birth date/place and all unconfirmed biography, technology, social, role, and status claims were excluded from frontend source and build output. A real email provider cannot be completed safely until the owner selects/configures it and approves its retention/privacy terms.
+IMPLEMENTATION SUMMARY: Added an isolated React/TypeScript/Vite app under `portfolio/`; structured VI/EN content and project data; a responsive dark visual direction with pointer glow, scroll reveal, layered motion and reduced-motion fallback; mobile navigation; richer source-verified summaries for 4 products and 2 client projects; locally stored first-party imagery from 3T Office, ZCP, and Happy Kids; dynamic language metadata; floating service action; accessible native dialog with focus restoration/trap, dirty-close confirmation, scroll lock, in-dialog language switching, field errors, whitelist validation, honeypot, double-submit guard, and explicit no-fake-success preview mode. Removed the role-led headline and theme switch so the portfolio centers on personal product-building work. The Sites skill influenced the presentation-led narrative, local preview workflow, and no-deploy handoff.
+FILES CHANGED: docs/PLAN-PERSONAL-PORTFOLIO.md; portfolio/**; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: Sites dependency installer; npm install (lock refresh for patched Vitest); npm audit --audit-level=moderate; npm run typecheck; npm run lint; npm test; npm run build; npm run preview; source privacy/secret scan; Chrome desktop and 390x844 browser QA with modal/language/overflow/console checks.
+BUILD RESULT: PASS — Vite production build completed; output JS 251.12 kB (78.43 kB gzip), CSS 14.17 kB (4.08 kB gzip).
+TEST RESULTS: PASS — Vitest 7/7; ESLint; TypeScript; npm audit (0 vulnerabilities). PASS — real Chrome desktop and 390x844 checks: no horizontal overflow, modal closed on initial load, dialog width 374px at 390px viewport, body scroll locked while open, language changed to EN inside the open modal without closing it, no console errors.
+KNOWN FAILURES: Real provider submission/inbox/spam verification is BLOCKED because no provider account, verified endpoint, retention/privacy decision, or domain was supplied. Lighthouse, screen-reader software, 200/400% zoom, forced-colors, and physical mobile-keyboard testing are NOT RUN.
+RISKS: Provider-side rate limiting, validation, origin restriction, retention, privacy notice, and anti-spam remain mandatory before enabling live submission. Placeholder typographic visuals must be replaced only with approved real assets. Canonical/OG image/robots/sitemap require the final domain.
+DEPENDENCIES/BLOCKERS: Owner decisions listed in `portfolio/README.md`, especially legal company name, role/Founder wording, public social links, approved imagery, project roles/statuses/technology, provider/privacy policy, and final domain.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Owner reviews the local UI/content and answers the confirmation checklist; then configure a verified form provider and run real inbox/spam/security/a11y/Lighthouse gates before any deployment.
+
+---
+
+# Agent Handoff
 TASK: macOS 0.9.11 native app create/edit/save/close/reopen round-trip
 AGENT/ROLE: Codex / macOS Native QA
 BRANCH: codex/macos-native-roundtrip
