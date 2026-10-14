@@ -1391,7 +1391,7 @@ export const enStrings = {
     percentageDesc: "Percentage formats multiply the cell value by 100 and display the result with a percent symbol. Raw cell value remains unchanged. Typing numbers into a percentage-formatted cell will automatically divide by 100.",
     textDesc: "Text format cells are treated as text even when a number is in the cell. The cell is displayed exactly as entered and mathematical sum formulas ignore these cells.",
     customType: "Type:",
-    locale: "Locale", localeVietnam: "Vietnamese (Vietnam)", localeUs: "English (United States)", type: "Type", timeType: "Time type", deleteCustom: "Delete format", cannotDeleteBuiltin: "Built-in formats cannot be deleted.",
+    locale: "Locale", localeVietnam: "Vietnamese (Vietnam)", localeUs: "English (United States)", type: "Type", timeType: "Time type", deleteCustom: "Delete format", cannotDeleteBuiltin: "Built-in formats cannot be deleted.", customDeleted: "Deleted custom format {pattern}.",
     fractionOneDigit: "Up to one digit", fractionTwoDigits: "Up to two digits", fractionThreeDigits: "Up to three digits", fractionHalves: "As halves", fractionQuarters: "As quarters", specialPostal: "Postal code", specialPostalPlus: "Extended postal code", specialPhone: "Phone number", accountingDesc: "Accounting formats align symbols and decimal points by column.", scientificDesc: "Display the value in scientific notation.",
     textAlignment: "Text alignment",
     horizontal: "Horizontal:",

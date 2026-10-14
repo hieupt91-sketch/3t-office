@@ -377,6 +377,12 @@ export async function runSheetFormatCellsTests() {
     assert(c3.text === "(5,000)", `Custom pattern cho số âm: ${c3.text}`);
   });
 
+  test("Category Currency: mã XLSX tiền đồng giữ lựa chọn số âm trong ngoặc", () => {
+    const adapter = new SheetAdapter(new SheetGridController(mockContainer()));
+    const code = adapter._excelCodeForNewNumberFormat({ category: "currency", currencySymbol: "₫", decimals: 2, useThousands: true, negativeStyle: 2 });
+    assert(/;\([^;]+\)/.test(code), `Mã tiền tệ phải có section âm trong ngoặc, nhận: ${code}`);
+  });
+
   test("Category Fraction và Special: hiển thị phân số, mã bưu chính và điện thoại thật", () => {
     assert(NumberFormatter.formatFraction(2.375, { fractionFormat: "# ??/??" }).text === "2 3/8", "2.375 phải hiện 2 3/8");
     assert(NumberFormatter.formatSpecial(123, { specialFormat: "00000" }).text === "00123", "Mã bưu chính phải giữ số 0 đầu");

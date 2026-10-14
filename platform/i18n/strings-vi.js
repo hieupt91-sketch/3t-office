@@ -1381,7 +1381,7 @@ export const viStrings = {
     percentageDesc: "Định dạng Phần trăm nhân giá trị ô với 100 và hiển thị kết quả kèm ký hiệu %. Giá trị lưu trữ gốc không đổi (ví dụ: 0.5 hiển thị là 50%). Khi gõ số mới vào ô đã định dạng %, số đó tự động chia cho 100.",
     textDesc: "Các ô định dạng Văn bản được xử lý như chuỗi ký tự thô, ngay cả khi ô chứa số. Ô sẽ được căn lề trái tự nhiên và các hàm tính toán tổng số học như SUM sẽ bỏ qua ô này giống chuẩn bảng tính.",
     customType: "Mã định dạng (Type):",
-    locale: "Vùng", localeVietnam: "Tiếng Việt (Việt Nam)", localeUs: "Tiếng Anh (Hoa Kỳ)", type: "Kiểu", timeType: "Kiểu giờ", deleteCustom: "Xóa mã", cannotDeleteBuiltin: "Không thể xóa mã định dạng dựng sẵn.",
+    locale: "Vùng", localeVietnam: "Tiếng Việt (Việt Nam)", localeUs: "Tiếng Anh (Hoa Kỳ)", type: "Kiểu", timeType: "Kiểu giờ", deleteCustom: "Xóa mã", cannotDeleteBuiltin: "Không thể xóa mã định dạng dựng sẵn.", customDeleted: "Đã xóa mã định dạng tùy chỉnh {pattern}.",
     fractionOneDigit: "Tối đa một chữ số", fractionTwoDigits: "Tối đa hai chữ số", fractionThreeDigits: "Tối đa ba chữ số", fractionHalves: "Theo phần hai", fractionQuarters: "Theo phần tư",
     specialPostal: "Mã bưu chính", specialPostalPlus: "Mã bưu chính mở rộng", specialPhone: "Số điện thoại", accountingDesc: "Định dạng kế toán căn ký hiệu và dấu thập phân theo cột.", scientificDesc: "Hiển thị số bằng ký hiệu khoa học.",
     textAlignment: "Căn chỉnh văn bản",

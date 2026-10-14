@@ -211,7 +211,7 @@ export class SheetAdapter {
     const decimals = Math.max(0, Math.min(30, Number(fmt?.decimals) || 0));
     const number = `${fmt?.useThousands || category === "accounting" ? "#,##" : ""}0${decimals ? `.${"0".repeat(decimals)}` : ""}`;
     const symbol = String(fmt?.currencySymbol || "₫");
-    if (category === "currency" && symbol === "₫") return `${number} [$₫];-${number} [$₫];${number} [$₫];@`;
+    if (category === "currency" && symbol === "₫" && Number(fmt?.negativeStyle || 0) === 0) return `${number} [$₫];-${number} [$₫];${number} [$₫];@`;
     if (category === "accounting") {
       const currency = symbol === "₫" ? "[$₫]" : `[${symbol}]`;
       return `_(* ${number} ${currency}_);_(* (${number} ${currency})_);_(* \"-\"?? ${currency}_);_(@_)`;
