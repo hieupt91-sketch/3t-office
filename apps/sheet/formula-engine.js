@@ -4,7 +4,7 @@ import { formatByCode, VI_LOCALE } from "./excel-format-code.js";
 import { NumberFormatter } from "./number-formatter.js";
 import { vndInWords } from "./vnd-words.js";
 import { VI_FORMULA_CATALOG, VI_FORMULA_MAP } from "./formula-definitions-vi.js";
-import { evaluateExpression, evaluateArrayExpression, MatrixValue } from "./formula-expression.js";
+import { evaluateExpression, evaluateArrayExpression, MatrixValue, generalNumberText } from "./formula-expression.js";
 
 /**
  * 3T Sheet — Enterprise Spreadsheet Formula Calculation Engine
@@ -1296,7 +1296,11 @@ export class FormulaEngine {
         return expr.toUpperCase();
       }
 
-      // 1. Phép toán nối chuỗi ký tự: &
+      // 1. Phép toán nối chuỗi ký tự: & (bộ phân tích biểu thức trước, đường cũ làm dự phòng)
+      if (expr.includes("&")) {
+        const joined = evaluateExpression(this, expr);
+        if (joined.ok) return joined.value instanceof String ? String(joined.value) : joined.value;
+      }
       const concatParts = this._splitConcat(expr);
       if (concatParts) {
         let errorResult = null;
@@ -2386,7 +2390,9 @@ export class FormulaEngine {
       case "CONCAT":
       case "CONCATENATE": {
         const vals = this.collectValues(args);
-        return vals.join("");
+        const bad = vals.find(v => this._isError(v));
+        if (bad) return bad;
+        return vals.map(v => (typeof v === "number" ? generalNumberText(v) : typeof v === "boolean" ? (v ? "TRUE" : "FALSE") : String(v ?? ""))).join("");
       }
 
       case "UPPER": {
@@ -2400,7 +2406,8 @@ export class FormulaEngine {
       }
 
       case "LEN": {
-        const text = String(this._resolveSingleValue(args[0]) || "");
+        const lenSource = this._resolveSingleValue(args[0]);
+        const text = typeof lenSource === "number" ? generalNumberText(lenSource) : String(lenSource || "");
         return text.length;
       }
 
@@ -3074,6 +3081,15 @@ export class FormulaEngine {
   }
   _evaluateCondition(condStr) {
     if (!condStr) return false;
+    const parsedCondition = evaluateExpression(this, String(condStr));
+    if (parsedCondition.ok) {
+      const value = parsedCondition.value instanceof String ? String(parsedCondition.value) : parsedCondition.value;
+      if (this._isError(value)) return value;
+      if (typeof value === "boolean") return value;
+      if (typeof value === "number") return value !== 0;
+      if (value === "") return false;
+      return "#VALUE!";
+    }
     const match = condStr.match(/(>=|<=|!=|<>|>|<|=)(.*)/);
     if (match) {
       const op = match[1];

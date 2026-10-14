@@ -15,6 +15,19 @@ const ERROR_LITERAL = /#(?:N\/A|VALUE!|REF!|DIV\/0!|NUM!|NAME\?|NULL!)/iy;
 
 export class FormulaParseError extends Error {}
 
+
+/** Hằng số gõ trong công thức chỉ giữ 15 chữ số có nghĩa (Excel cắt bớt phần dư, không làm tròn). */
+function literalNumber(text) {
+  const match = text.match(/^(\d*)\.?(\d*)(?:[eE]([+-]?\d+))?$/);
+  if (!match) return Number(text);
+  const intPart = match[1]; const fracPart = match[2]; const exp = Number(match[3] || 0);
+  const all = (intPart + fracPart).replace(/^0+/, "");
+  if (all.length <= 15) return Number(text);
+  const lead = (intPart + fracPart).length - (intPart + fracPart).replace(/^0+/, "").length;
+  const pointShift = intPart.length - lead; // vị trí dấu thập phân so với chữ số có nghĩa đầu tiên
+  return Number(`${all.slice(0, 15)}e${exp + pointShift - 15}`);
+}
+
 function tokenize(source) {
   const tokens = [];
   let i = 0;
@@ -43,7 +56,7 @@ function tokenize(source) {
       const match = /(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?/y;
       match.lastIndex = i;
       const found = match.exec(source);
-      tokens.push({ type: "number", value: Number(found[0]) });
+      tokens.push({ type: "number", value: literalNumber(found[0]) });
       i += found[0].length; continue;
     }
     if (ch === "#") {
@@ -180,6 +193,37 @@ function lift1(value, fn) {
   return new MatrixValue(value.rows.map(row => row.map(fn)));
 }
 
+
+/** Số -> chuỗi như Excel khi nối chuỗi: 15 chữ số có nghĩa; dùng ký hiệu khoa học khi dạng thường dài hơn 20 ký tự. */
+export function generalNumberText(n) {
+  if (!Number.isFinite(n)) return String(n);
+  if (n === 0) return "0";
+  if (Number.isInteger(n) && Math.abs(n) < 1e15) return String(n);
+  const sign = n < 0 ? "-" : "";
+  const [mantissa, exponentText] = Math.abs(n).toExponential(14).split("e");
+  const exp = Number(exponentText);
+  const digits = mantissa.replace(".", "").replace(/0+$/, "") || "0";
+  let plainLength;
+  if (exp >= 0) plainLength = Math.max(exp + 1, digits.length) + (digits.length > exp + 1 ? 1 : 0);
+  else plainLength = 2 + (-exp - 1) + digits.length;
+  if (plainLength <= 20) {
+    if (exp >= 0) {
+      if (digits.length <= exp + 1) return sign + digits.padEnd(exp + 1, "0");
+      return sign + digits.slice(0, exp + 1) + "." + digits.slice(exp + 1);
+    }
+    return sign + "0." + "0".repeat(-exp - 1) + digits;
+  }
+  const head = digits.length > 1 ? digits[0] + "." + digits.slice(1) : digits;
+  return sign + head + "E" + (exp < 0 ? "-" : "+") + String(Math.abs(exp)).padStart(2, "0");
+}
+
+/** Excel so sánh hai số sau khi làm tròn còn 15 chữ số có nghĩa (0.1+0.2 = 0.3 là TRUE). */
+function sameNumber15(a, b) {
+  if (a === b) return 0;
+  const x = Number(a.toPrecision(15)); const y = Number(b.toPrecision(15));
+  return x < y ? -1 : x > y ? 1 : 0;
+}
+
 function typeRank(value) {
   if (typeof value === "number") return 1;
   if (typeof value === "boolean") return 3;
@@ -202,7 +246,7 @@ function compareValues(engine, a, b) {
   }
   const ra = typeRank(a); const rb = typeRank(b);
   if (ra !== rb) return ra < rb ? -1 : 1;
-  if (ra === 1) return a < b ? -1 : a > b ? 1 : 0;
+  if (ra === 1) return sameNumber15(a, b);
   if (ra === 3) return a === b ? 0 : (a ? 1 : -1);
   const x = String(a).toLowerCase(); const y = String(b).toLowerCase();
   if (x === y) return 0;
@@ -223,7 +267,7 @@ function operandValue(engine, token, arrayMode = false) {
     case "ref": {
       const parsed = engine._parseReference(token.value);
       if (parsed.error) return parsed.error;
-      if (parsed.sheets) return "#VALUE!";
+      if (parsed.sheets) return "#REF!";
       if (arrayMode) {
         const dims = engine._rangeDimensions(token.value);
         if (dims && (dims.rows > 1 || dims.cols > 1)) return new MatrixValue(engine._rangeMatrix(token.value).map(row => row.map(v => (v instanceof String ? String(v) : v))));
@@ -277,7 +321,7 @@ class Parser {
     while (this.isOp("&")) {
       this.take();
       const right = this.additive();
-      const text = v => (typeof v === "boolean" ? (v ? "TRUE" : "FALSE") : String(v ?? ""));
+      const text = v => (typeof v === "boolean" ? (v ? "TRUE" : "FALSE") : (typeof v === "number" ? generalNumberText(v) : String(v ?? "")));
       left = lift2(left, right, (x, y) => {
         if (isErrorValue(this.engine, x)) return x;
         if (isErrorValue(this.engine, y)) return y;

@@ -1,0 +1,196 @@
+{
+ "generatedFrom": "Excel 2016 (16.0.4266) Application.Evaluate",
+ "cells": {},
+ "cases": [
+  {
+   "formula": "=\"x\"&1E21",
+   "excel": "x1E+21",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&1E20",
+   "excel": "x1E+20",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&1E15",
+   "excel": "x1000000000000000",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&1E11",
+   "excel": "x100000000000",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&123456789012345678",
+   "excel": "x123456789012345000",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&12345678901234567890",
+   "excel": "x12345678901234500000",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&0.1234567890123456789",
+   "excel": "x0.123456789012345",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&1E-5",
+   "excel": "x0.00001",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&1E-7",
+   "excel": "x0.0000001",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&1E-9",
+   "excel": "x0.000000001",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&1E-10",
+   "excel": "x0.0000000001",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&1E-11",
+   "excel": "x0.00000000001",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&0.00001234",
+   "excel": "x0.00001234",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&0.000000000123",
+   "excel": "x0.000000000123",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&(1/3)",
+   "excel": "x0.333333333333333",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&(2/3)",
+   "excel": "x0.666666666666667",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&(10/3)",
+   "excel": "x3.33333333333333",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&(1/7)",
+   "excel": "x0.142857142857143",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&100000000000000000000",
+   "excel": "x1E+20",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&(0.1+0.2)",
+   "excel": "x0.3",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&(1-0.9)",
+   "excel": "x0.1",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&-0.5",
+   "excel": "x-0.5",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&1234567.891",
+   "excel": "x1234567.891",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&(2^70)",
+   "excel": "x1.18059162071741E+21",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&(2^-20)",
+   "excel": "x9.5367431640625E-07",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&(1E300*10)",
+   "excel": "x1E+301",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&1.5E-300",
+   "excel": "x1.5E-300",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&999999999999999",
+   "excel": "x999999999999999",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&9999999999999999",
+   "excel": "x9999999999999990",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&0.999999999999999",
+   "excel": "x0.999999999999999",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&0.9999999999999999",
+   "excel": "x0.999999999999999",
+   "type": "string"
+  },
+  {
+   "formula": "=\"x\"&1234.5E10",
+   "excel": "x12345000000000",
+   "type": "string"
+  },
+  {
+   "formula": "=LEN(1/3)",
+   "excel": 17,
+   "type": "number"
+  },
+  {
+   "formula": "=LEN(1E15)",
+   "excel": 16,
+   "type": "number"
+  },
+  {
+   "formula": "=1/3&\"\"",
+   "excel": "0.333333333333333",
+   "type": "string"
+  },
+  {
+   "formula": "=100/3&\"\"",
+   "excel": "33.3333333333333",
+   "type": "string"
+  },
+  {
+   "formula": "=CONCATENATE(1/3)",
+   "excel": "0.333333333333333",
+   "type": "string"
+  },
+  {
+   "formula": "=VALUE(1/3&\"\")*3",
+   "excel": 0.9999999999999989,
+   "type": "number"
+  }
+ ]
+}
