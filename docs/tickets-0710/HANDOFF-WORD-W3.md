@@ -12,6 +12,6 @@ File đổi: `apps/writer/document-review.js`; `adapters/libreoffice/writer/writ
 PASS: `npm test` gồm guard command/ribbon/Help/i18n và hard-coded English UI đều đạt; không dùng tên sản phẩm khác trong Help/dialog/i18n mới.
 File đổi: `platform/i18n/strings-vi.js`; `platform/i18n/strings-en.js`; `platform/help/entries-writer.js`; `apps/writer/writer-ribbon.js`.
 
-Đã làm: Chạy gate cuối trên mã hoàn chỉnh bằng profile riêng cho ticket, không dùng tài liệu thật trong Git.
-PASS: `npm test` 3197/3197; DOCX audit 7/7 (`d01,d02,d06,d07,d13,d20,d24`) edit PASS và page delta 0; `git diff --check` PASS.
-File đổi: `tests/run-tests.js`; báo cáo ngoài repo tại `E:\VNOffice-profiles\codex-word-w3-audit-final-20261014\batch\batch_document_audit_report.md`.
+Đã làm: Audit lại toàn bộ gate cuối trên HEAD bằng các profile riêng WORD-W3; tài liệu thật và kết quả audit đều ở ngoài Git.
+PASS: `npm test` 3197/3197; CDP desktop So sánh/Gộp/Bảo vệ PASS, `ProtectionType=0→-1`, `Revisions=2`; DOCX audit 7/7 (`d01,d02,d06,d07,d13,d20,d24`) edit PASS và page delta 0.
+File đổi: `tests/run-tests.js`; báo cáo ngoài repo tại `E:\VNOffice-profiles\word-w3-codex-docx-20261014-a\batch\batch_document_audit_report.md`.
