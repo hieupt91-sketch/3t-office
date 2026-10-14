@@ -2,6 +2,8 @@
  * 3T Sheet — Enterprise Grid Controller & Microsoft Formula Calculation Engine
  */
 
+import { buildSeries } from "./sheet-series.js";
+import { expandStructuredReferences, hasStructuredReference } from "./structured-references.js";
 import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { showGoToDialog, showGoToSpecialDialog } from "./sheet-goto.js";
 import { createEvaluateFormulaSessionFromGrid, formatFormulaValue, renderFormulaHtml } from "./evaluate-formula.js";
@@ -268,7 +270,8 @@ export class SheetGridController {
       name => this.resolveNamedRange(name),
       sheetName => this.sheetsData?.[sheetName] || null,
       () => this.activeSheet,
-      () => this.sheets
+      () => this.sheets,
+      this._createTableResolver()
     );
     this.autocomplete = new FormulaAutocompleteController(this);
     this.formulaEntry = null;
@@ -822,7 +825,7 @@ export class SheetGridController {
           const coords = this.formulaEngine.expandRange(itm.arrayRange);
           res = Array.isArray(results) ? results[coords.indexOf(k)] : results;
         } else {
-          res = this.formulaEngine.evaluate(itm.formula);
+          res = this.formulaEngine.evaluate(itm.formula, { sheet: this.activeSheet, coord: k });
         }
         itm.val = res;
         const dom = sheetName === prevActive ? this.container.querySelector(`.vno-grid-cell[data-coord="${k}"]`) : null;
@@ -5707,7 +5710,7 @@ _bindGridKeyboardNavigation() {
       if (isComposingFormula) {
         item.val = val;
       } else {
-        item.val = this.formulaEngine.evaluate(val);
+        item.val = this.formulaEngine.evaluate(val, { sheet: this.activeSheet, coord: `${col}${row}` });
       }
       const category = item.style?.numberFormat?.category;
       if (!category || category === "general") {
@@ -6000,7 +6003,7 @@ _bindGridKeyboardNavigation() {
             const results = this.formulaEngine.evaluateArray(itm.formula);
             const coords = this.formulaEngine.expandRange(itm.arrayRange);
             res = Array.isArray(results) ? results[coords.indexOf(k)] : results;
-          } else res = this.formulaEngine.evaluate(itm.formula);
+          } else res = this.formulaEngine.evaluate(itm.formula, { sheet: sheetName, coord: k });
           // Store the raw computed value - see setCellValue() for why
           // auto-formatting a formula result as VNĐ currency text here is
           // wrong (destroys precision and corrupts any formula chain that
@@ -9548,11 +9551,57 @@ _bindGridKeyboardNavigation() {
     return showFormatAsTableDialog(this);
   }
 
+  /** Công thức có tham chiếu cấu trúc Table[Cột]/[@Cột] không. */
+  hasStructuredReference(formula) { return hasStructuredReference(formula); }
+
+  /** Đổi Table[Cột] thành địa chỉ A1 thật (để LibreOffice hiểu khi lưu). */
+  expandStructuredFormula(formula, sheetName, coord) {
+    if (!hasStructuredReference(formula)) return formula;
+    const resolver = this.formulaEngine?.tableResolver;
+    if (!resolver) return formula;
+    return "=" + expandStructuredReferences(String(formula).replace(/^=/, ""), { sheet: sheetName, coord }, resolver);
+  }
+
+  /** Dạng ghi vào tệp XLSX: [@Cột] thành Table[[#This Row],[Cột]]; các dạng khác giữ nguyên. */
+  structuredFileFormula(formula, sheetName, coord) {
+    const resolver = this.formulaEngine?.tableResolver;
+    if (!resolver) return formula;
+    return "=" + expandStructuredReferences(String(formula).replace(/^=/, ""), { sheet: sheetName, coord }, resolver, { mode: "file" });
+  }
+
+  /** Bộ phân giải bảng cho tham chiếu cấu trúc Table1[Cột] (xem structured-references.js). */
+  _createTableResolver() {
+    const allTables = () => Object.entries(this.tablesBySheet || {}).flatMap(([sheet, list]) => (list || []).map(table => ({ table, sheet })));
+    const describe = ({ table, sheet }) => ({ name: table.name, sheet, ref: table.ref, hasHeaders: table.hasHeaders !== false, totals: Boolean(table.showTotals) });
+    return {
+      byName: name => {
+        const found = allTables().find(entry => String(entry.table.name).toLowerCase() === String(name).toLowerCase());
+        return found ? describe(found) : null;
+      },
+      at: (sheet, coord) => {
+        const cell = String(coord).match(/^([A-Z]+)(\d+)$/i);
+        if (!cell) return null;
+        const col = this._columnNumber(cell[1].toUpperCase());
+        const row = Number(cell[2]);
+        for (const entry of allTables()) {
+          if (entry.sheet !== sheet) continue;
+          const range = this._parseRange?.(entry.table.ref);
+          if (!range) continue;
+          const bounds = this._normalizeRange(range);
+          if (row >= bounds.start.r && row <= bounds.end.r && col >= this._columnNumber(bounds.start.c) && col <= this._columnNumber(bounds.end.c)) return describe(entry);
+        }
+        return null;
+      },
+      headerValue: (sheet, coord) => this.sheetsData?.[sheet]?.get?.(String(coord).toUpperCase())?.val
+    };
+  }
+
   _offsetFormula(formula, deltaCol, deltaRow) {
     if (!formula || typeof formula !== "string" || !formula.startsWith("=")) return formula;
     return formula.split(/("(?:""|[^"])*")/).map((segment, index) => {
       if (index % 2 === 1) return segment;
-      return segment.replace(/(^|[^A-Z0-9_])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![A-Z0-9_])/gi, (match, prefix, colAbs, col, rowAbs, row) => {
+      // Tham chiếu cấu trúc Table1[Cột] / [@Cột]: nội dung trong ngoặc vuông không phải địa chỉ ô, giữ nguyên.
+      return segment.split(/(\[(?:[^\[\]]|\[[^\[\]]*\])*\])/).map((part, partIndex) => partIndex % 2 === 1 ? part : part.replace(/(^|[^A-Z0-9_])(\$?)([A-Z]{1,3})(\$?)(\d+)(?![A-Z0-9_])/gi, (match, prefix, colAbs, col, rowAbs, row) => {
         let nextCol = col.toUpperCase();
         let nextRow = Number(row);
         if (!colAbs && deltaCol !== 0) {
@@ -9568,7 +9617,7 @@ _bindGridKeyboardNavigation() {
           }
         }
         return `${prefix}${colAbs}${nextCol}${rowAbs}${nextRow}`;
-      });
+      })).join("");
     }).join("");
   }
 
@@ -10013,6 +10062,190 @@ _bindGridKeyboardNavigation() {
     }
 
     this._recalculateAllFormulas();
+    return true;
+  }
+
+  /** Điền lên (Ctrl+Shift+Up trong menu Điền): sao chép ô dưới cùng của vùng chọn lên các ô phía trên. */
+  fillUp(range = null, recordUndo = true) { return this._fillCopyDirection("up", range, recordUndo); }
+
+  /** Điền sang trái: sao chép cột phải nhất của vùng chọn sang các cột bên trái. */
+  fillLeft(range = null, recordUndo = true) { return this._fillCopyDirection("left", range, recordUndo); }
+
+  _fillCopyDirection(direction, range, recordUndo) {
+    if (recordUndo && this._guardProtectedMutation()) return false;
+    const norm = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const minCol = this._columnNumber(norm.start.c);
+    const maxCol = this._columnNumber(norm.end.c);
+    const minRow = norm.start.r;
+    const maxRow = norm.end.r;
+    const pairs = [];
+    if (direction === "up") {
+      const single = minRow === maxRow;
+      const sourceRow = single ? minRow + 1 : maxRow;
+      const lastDest = single ? minRow : maxRow - 1;
+      for (let col = minCol; col <= maxCol; col++) {
+        for (let row = minRow; row <= lastDest; row++) pairs.push({ sourceCol: col, sourceRow, col, row });
+      }
+    } else {
+      const single = minCol === maxCol;
+      const sourceCol = single ? minCol + 1 : maxCol;
+      const lastDest = single ? minCol : maxCol - 1;
+      for (let row = minRow; row <= maxRow; row++) {
+        for (let col = minCol; col <= lastDest; col++) pairs.push({ sourceCol, sourceRow: row, col, row });
+      }
+    }
+    if (!pairs.length) return false;
+
+    const before = {};
+    const after = {};
+    for (const pair of pairs) {
+      const sourceKey = `${this._columnLabel(pair.sourceCol)}${pair.sourceRow}`;
+      const destLabel = this._columnLabel(pair.col);
+      const destKey = `${destLabel}${pair.row}`;
+      const sourceCell = this.cellsData.get(sourceKey) || { val: "", formula: "", style: {} };
+      const existing = this.cellsData.get(destKey) || { val: "", formula: "", style: {} };
+      before[destKey] = { val: existing.val, formula: existing.formula, style: structuredClone(existing.style || {}) };
+      let newFormula = "";
+      let newVal = sourceCell.val;
+      if (sourceCell.formula && sourceCell.formula.startsWith("=")) {
+        newFormula = this._offsetFormula(sourceCell.formula, pair.col - pair.sourceCol, pair.row - pair.sourceRow);
+        newVal = this.formulaEngine.evaluate(newFormula, { sheet: this.activeSheet, coord: destKey });
+      }
+      const newItem = { val: newVal, formula: newFormula, style: structuredClone(sourceCell.style || {}) };
+      this.cellsData.set(destKey, newItem);
+      after[destKey] = { val: newItem.val, formula: newItem.formula, style: structuredClone(newItem.style) };
+      const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${destKey}"]`);
+      if (dom) {
+        this._renderCellVisual(dom, newItem, destLabel, pair.row);
+        this._applyRuleVisuals?.(dom, destLabel, pair.row);
+      }
+    }
+    if (recordUndo) this._recordHistory({ type: "fill", sheet: this.activeSheet, before, after });
+    this._recalculateAllFormulas();
+    return true;
+  }
+
+  /**
+   * Điền > Chuỗi. options: { axis: "rows"|"columns"|"auto", type: "linear"|"growth"|"date", dateUnit, step, stop }.
+   * Giá trị đầu mỗi hàng/cột trong vùng chọn là giá trị bắt đầu; các ô còn lại của vùng được điền.
+   * Một ô đơn kèm giá trị dừng thì điền tới khi đạt giá trị dừng.
+   */
+  fillSeries(options = {}, range = null, recordUndo = true) {
+    if (recordUndo && this._guardProtectedMutation()) return { ok: false, reason: "protected" };
+    const norm = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const minCol = this._columnNumber(norm.start.c);
+    const maxCol = this._columnNumber(norm.end.c);
+    const minRow = norm.start.r;
+    const maxRow = norm.end.r;
+    const axis = options.axis === "rows" || options.axis === "columns"
+      ? options.axis
+      : (maxCol > minCol && maxRow === minRow ? "rows" : "columns");
+    const hasStop = options.stop !== undefined && options.stop !== null && String(options.stop).trim() !== "";
+    const lines = axis === "rows"
+      ? Array.from({ length: maxRow - minRow + 1 }, (_, i) => ({ fixed: minRow + i, from: minCol, to: maxCol }))
+      : Array.from({ length: maxCol - minCol + 1 }, (_, i) => ({ fixed: minCol + i, from: minRow, to: maxRow }));
+    const keyOf = (line, index) => axis === "rows" ? `${this._columnLabel(index)}${line.fixed}` : `${this._columnLabel(line.fixed)}${index}`;
+
+    const before = {};
+    const after = {};
+    let filled = 0;
+    for (const line of lines) {
+      const startKey = keyOf(line, line.from);
+      const startCell = this.cellsData.get(startKey) || { val: "", formula: "", style: {} };
+      const rawStart = startCell.val;
+      const type = options.type === "date" || options.type === "growth" ? options.type : "linear";
+      const startValue = type === "date" ? (typeof rawStart === "number" ? rawStart : String(rawStart ?? "")) : this.formulaEngine._parseNumberOrCurrency?.(rawStart) ?? Number(rawStart);
+      const span = line.to - line.from + 1;
+      const count = hasStop && span === 1 ? undefined : span;
+      const stopText = hasStop ? String(options.stop).trim() : null;
+      const built = buildSeries({
+        start: startValue,
+        type,
+        step: options.step,
+        stop: hasStop && type !== "date" ? Number(String(options.stop).replace(",", ".")) : (hasStop && Number.isFinite(Number(options.stop)) ? Number(options.stop) : (hasStop ? 1 : null)),
+        stopText: type === "date" ? stopText : undefined,
+        dateUnit: options.dateUnit,
+        count
+      });
+      if (built.error) return { ok: false, reason: built.error };
+      const values = built.values.slice(1);
+      for (let offset = 0; offset < values.length; offset++) {
+        const index = line.from + 1 + offset;
+        if (index > line.to && !(hasStop && span === 1)) break;
+        const destKey = keyOf(line, index);
+        const existing = this.cellsData.get(destKey) || { val: "", formula: "", style: {} };
+        before[destKey] = { val: existing.val, formula: existing.formula, style: structuredClone(existing.style || {}) };
+        const newItem = { val: values[offset], formula: "", style: structuredClone(startCell.style || {}) };
+        this.cellsData.set(destKey, newItem);
+        after[destKey] = { val: newItem.val, formula: "", style: structuredClone(newItem.style) };
+        const dom = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${destKey}"]`);
+        if (dom) {
+          const colLabel = axis === "rows" ? this._columnLabel(index) : this._columnLabel(line.fixed);
+          const rowNumber = axis === "rows" ? line.fixed : index;
+          this._renderCellVisual(dom, newItem, colLabel, rowNumber);
+          this._applyRuleVisuals?.(dom, colLabel, rowNumber);
+        }
+        filled++;
+      }
+    }
+    if (!filled) return { ok: false, reason: "empty" };
+    if (recordUndo) this._recordHistory({ type: "fill", sheet: this.activeSheet, before, after });
+    this._recalculateAllFormulas();
+    return { ok: true, filled };
+  }
+
+  showFillSeriesDialog() {
+    const area = this._normalizeRange(this.selectionRange);
+    const defaultAxis = area.end.c !== area.start.c && area.end.r === area.start.r ? "rows" : "columns";
+    const overlay = this._createSheetDialog(t("sheetDialogs.fillSeriesTitle", "Chuỗi"), `
+      <p>${t("sheetDialogs.rangeLabel", "Vùng:")} <strong>${this.getSelectedRangeLabel()}</strong></p>
+      <fieldset><legend>${t("sheetDialogs.fillSeriesIn", "Chuỗi theo")}</legend>
+        <label><input type="radio" name="vno-fs-axis" value="rows" ${defaultAxis === "rows" ? "checked" : ""}> ${t("sheetDialogs.fillSeriesRows", "Hàng")}</label>
+        <label><input type="radio" name="vno-fs-axis" value="columns" ${defaultAxis === "columns" ? "checked" : ""}> ${t("sheetDialogs.fillSeriesColumns", "Cột")}</label>
+      </fieldset>
+      <fieldset><legend>${t("sheetDialogs.fillSeriesType", "Loại")}</legend>
+        <label><input type="radio" name="vno-fs-type" value="linear" checked> ${t("sheetDialogs.fillSeriesLinear", "Tuyến tính")}</label>
+        <label><input type="radio" name="vno-fs-type" value="growth"> ${t("sheetDialogs.fillSeriesGrowth", "Tăng trưởng")}</label>
+        <label><input type="radio" name="vno-fs-type" value="date"> ${t("sheetDialogs.fillSeriesDate", "Ngày")}</label>
+      </fieldset>
+      <label>${t("sheetDialogs.fillSeriesDateUnit", "Đơn vị ngày")}
+        <select id="vno-fs-unit" disabled>
+          <option value="day">${t("sheetDialogs.fillSeriesUnitDay", "Ngày")}</option>
+          <option value="weekday">${t("sheetDialogs.fillSeriesUnitWeekday", "Ngày làm việc")}</option>
+          <option value="month">${t("sheetDialogs.fillSeriesUnitMonth", "Tháng")}</option>
+          <option value="year">${t("sheetDialogs.fillSeriesUnitYear", "Năm")}</option>
+        </select></label>
+      <label>${t("sheetDialogs.fillSeriesStep", "Bước nhảy")} <input id="vno-fs-step" type="text" inputmode="decimal" value="1"></label>
+      <label>${t("sheetDialogs.fillSeriesStop", "Giá trị dừng")} <input id="vno-fs-stop" type="text" value=""></label>
+      <div class="vno-rule-error" role="alert"></div>`);
+    if (!overlay) return false;
+    const unit = overlay.querySelector("#vno-fs-unit");
+    overlay.querySelectorAll('input[name="vno-fs-type"]').forEach(radio => radio.addEventListener("change", () => {
+      unit.disabled = overlay.querySelector('input[name="vno-fs-type"]:checked').value !== "date";
+    }));
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const stepText = overlay.querySelector("#vno-fs-step").value.trim().replace(",", ".");
+      const step = stepText === "" ? 1 : Number(stepText);
+      const error = overlay.querySelector(".vno-rule-error");
+      if (!Number.isFinite(step)) { error.textContent = t("sheetDialogs.fillSeriesBadStep", "Bước nhảy phải là một số."); return; }
+      const result = this.fillSeries({
+        axis: overlay.querySelector('input[name="vno-fs-axis"]:checked').value,
+        type: overlay.querySelector('input[name="vno-fs-type"]:checked').value,
+        dateUnit: unit.value,
+        step,
+        stop: overlay.querySelector("#vno-fs-stop").value
+      });
+      if (!result.ok) {
+        error.textContent = result.reason === "start"
+          ? t("sheetDialogs.fillSeriesBadStart", "Ô đầu của vùng chọn phải chứa số (hoặc ngày dạng dd/mm/yyyy khi chọn loại Ngày).")
+          : result.reason === "empty"
+            ? t("sheetDialogs.fillSeriesNothing", "Không có ô nào để điền. Hãy chọn vùng gồm ô bắt đầu và các ô cần điền, hoặc nhập Giá trị dừng khi chỉ chọn một ô.")
+            : t("sheetDialogs.fillSeriesFailed", "Không điền được chuỗi.");
+        return;
+      }
+      overlay.closeDialog();
+      this._showDataNotice(t("sheetDialogs.fillSeriesDone", { count: result.filled }) || `Đã điền ${result.filled} ô.`);
+    });
     return true;
   }
 

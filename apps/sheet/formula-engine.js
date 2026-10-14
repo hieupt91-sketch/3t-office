@@ -1,3 +1,4 @@
+import { expandStructuredReferences } from "./structured-references.js";
 import { NumberFormatter } from "./number-formatter.js";
 import { vndInWords } from "./vnd-words.js";
 import { VI_FORMULA_CATALOG, VI_FORMULA_MAP } from "./formula-definitions-vi.js";
@@ -165,8 +166,10 @@ export class FormulaEngine {
   /**
    * @param {Map<string, {val: string, formula: string, style: Object}> | (() => Map<string, any>)} cellsData
    */
-  constructor(cellsData, namedRangeResolver = null, sheetResolver = null, currentSheetResolver = null, sheetNamesResolver = null) {
+  constructor(cellsData, namedRangeResolver = null, sheetResolver = null, currentSheetResolver = null, sheetNamesResolver = null, tableResolver = null) {
     this.cellsData = cellsData;
+    this.tableResolver = tableResolver;
+    this._evalContext = null;
     this.namedRangeResolver = namedRangeResolver;
     this.sheetResolver = sheetResolver;
     this.currentSheetResolver = currentSheetResolver;
@@ -1232,9 +1235,32 @@ export class FormulaEngine {
    * @param {string} formula
    * @returns {string|number}
    */
-  evaluate(formula) {
+  /** Gắn bộ phân giải bảng cho tham chiếu cấu trúc Table1[Cột]. */
+  setTableResolver(resolver) {
+    this.tableResolver = resolver || null;
+    this.clearCache();
+  }
+
+  /**
+   * Tính công thức. `context` = { sheet, coord } của ô đang tính (cần cho [@Cột] và tên bảng ngầm định).
+   */
+  evaluate(formula, context = null) {
+    const previousContext = this._evalContext;
+    if (context) this._evalContext = context;
+    try {
+      return this._evaluateCore(formula);
+    } finally {
+      this._evalContext = previousContext;
+    }
+  }
+
+  _evaluateCore(formula) {
     if (!formula || !formula.startsWith("=")) return formula;
     let expr = formula.substring(1).trim();
+    if (this.tableResolver && expr.includes("[")) {
+      const sheet = typeof this.currentSheetResolver === "function" ? this.currentSheetResolver() : "";
+      expr = expandStructuredReferences(expr, { sheet, ...(this._evalContext || {}) }, this.tableResolver);
+    }
 
     // Excel prefix '+': tiền tố nhập công thức, không ép về số học
     while (expr.startsWith("+")) {
