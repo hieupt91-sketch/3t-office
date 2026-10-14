@@ -819,6 +819,7 @@ FORMAT_FILTERS = {
     # "Text (encoded)" + UTF8 ghi UTF-8 có BOM, Word/Notepad đọc đúng (đo G7).
     "txt": "Text (encoded):UTF8",
     "html": "HTML (StarWriter)",
+    "htm": "HTML (StarWriter)",
     "pdf": "writer_pdf_Export",
     "xlsx": "Calc MS Excel 2007 XML",
     "xls": "MS Excel 97",
@@ -2319,7 +2320,7 @@ def _inline_html_images(html_text: str, html_path: str) -> str:
 
 
 OPEN_FILE_TYPES = {
-    "writer": ("Tài liệu Word (*.docx;*.doc;*.odt;*.rtf;*.txt)", "Tất cả tệp (*.*)"),
+    "writer": ("Tài liệu Word (*.docx;*.doc;*.odt;*.rtf;*.txt;*.htm;*.html)", "Tất cả tệp (*.*)"),
     "sheet": ("Bảng tính Excel (*.xlsx;*.xls;*.ods;*.csv;*.tsv)", "Tất cả tệp (*.*)"),
     "slides": ("Bản trình chiếu PowerPoint (*.pptx;*.ppt;*.odp)", "Tất cả tệp (*.*)"),
 }
@@ -2337,6 +2338,7 @@ SAVE_FILE_TYPES = {
         "Tài liệu ODF (*.odt)",
         "Định dạng Rich Text (*.rtf)",
         "Văn bản thuần (*.txt)",
+        "Trang web (*.htm;*.html)",
         "Tài liệu PDF (*.pdf)",
         "Tất cả tệp (*.*)",
     ),
@@ -2361,8 +2363,12 @@ SAVE_FILE_TYPES = {
 def _save_file_types_for_format(app_kind: str | None, current_ext: str | None) -> tuple[str, ...]:
     """Save As filters with the current document format selected first (as Office does)."""
     file_types = SAVE_FILE_TYPES.get(app_kind, ("Tất cả tệp (*.*)",))
-    marker = f"(*.{(current_ext or '').lower()})"
-    current = [item for item in file_types if item.lower().endswith(marker)]
+    target = (current_ext or '').lower()
+    if target in {"html", "htm"}:
+        current = [item for item in file_types if "(*.htm;*.html)" in item.lower()]
+    else:
+        marker = f"(*.{target})"
+        current = [item for item in file_types if item.lower().endswith(marker)]
     if not current:
         return file_types
     return tuple(current + [item for item in file_types if item not in current])
@@ -2387,7 +2393,9 @@ def _infer_save_format_from_path(file_path: str, app_kind: str | None = None) ->
         return resolved_path, default_ext
 
     ext = suffix.lstrip(".")
-    if ext in FORMAT_FILTERS or ext in {"doc", "xls", "rtf", "txt", "docx", "xlsx", "ppt", "pptx", "odt", "ods", "odp", "pdf", "csv"}:
+    if ext in FORMAT_FILTERS or ext in {"doc", "xls", "rtf", "txt", "docx", "xlsx", "ppt", "pptx", "odt", "ods", "odp", "pdf", "csv", "html", "htm"}:
+        if ext == "htm":
+            return file_path, "html"
         return file_path, ext
 
     return file_path, default_ext
@@ -5091,8 +5099,8 @@ class VnOfficeApi:
                 default_stem = Path(suggested_name).stem or suggested_name
         elif suggested_name:
             s_ext = Path(suggested_name).suffix.lower().lstrip(".")
-            if s_ext in FORMAT_FILTERS or s_ext in {"doc", "xls", "rtf", "txt", "docx", "xlsx", "ppt", "pptx"}:
-                default_ext = s_ext
+            if s_ext in FORMAT_FILTERS or s_ext in {"doc", "xls", "rtf", "txt", "docx", "xlsx", "ppt", "pptx", "html", "htm"}:
+                default_ext = "html" if s_ext == "htm" else s_ext
                 default_stem = Path(suggested_name).stem
 
         if target_format == "pdf":

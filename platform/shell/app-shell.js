@@ -1957,7 +1957,8 @@ export class AppShell {
         { id: "doc", label: t("backstage.format.doc", "Tài liệu 97-2003 (*.doc)"), badge: "DOC", desc: t("backstage.format.docDesc", "Tương thích các hệ thống cũ, giữ nội dung văn bản và định dạng cơ bản.") },
         { id: "odt", label: t("backstage.format.odt", "Văn bản OpenDocument (*.odt)"), badge: "ODT", desc: t("backstage.format.odtDesc", "Định dạng văn bản chuẩn mở quốc tế ISO/IEC.") },
         { id: "rtf", label: t("backstage.format.rtf", "Văn bản RTF có định dạng (*.rtf)"), badge: "RTF", desc: t("backstage.format.rtfDesc", "Định dạng văn bản phong phú có thể mở trên nhiều hệ thống khác nhau.") },
-        { id: "txt", label: t("backstage.format.txt", "Văn bản thuần túy (*.txt)"), badge: "TXT", desc: t("backstage.format.txtDesc", "Chỉ lưu nội dung chữ không kèm định dạng phông hay màu sắc.") }
+        { id: "txt", label: t("backstage.format.txt", "Văn bản thuần túy (*.txt)"), badge: "TXT", desc: t("backstage.format.txtDesc", "Chỉ lưu nội dung chữ không kèm định dạng phông hay màu sắc.") },
+        { id: "html", label: t("backstage.format.html", "Trang web (*.html)"), badge: "HTML", desc: t("backstage.format.htmlDesc", "Định dạng trang web tiêu chuẩn mở, dễ dàng xem trực tiếp trên mọi trình duyệt web.") }
       ];
     }
 

@@ -17,6 +17,7 @@ class SaveAsDialogTests(unittest.TestCase):
         cases = {
             ("writer", "doc"): "Văn bản Word 97 đến 2003 (*.doc)",
             ("writer", "docx"): "Tài liệu Word (*.docx)",
+            ("writer", "html"): "Trang web (*.htm;*.html)",
             ("sheet", "xls"): "Bảng tính Excel 97 đến 2003 (*.xls)",
             ("sheet", "csv"): "Văn bản phân tách dấu phẩy (*.csv)",
             ("slides", "odp"): "Bản trình chiếu ODF (*.odp)",
@@ -97,6 +98,7 @@ class SaveAsAlternateFormatTests(unittest.TestCase):
     FORMATS = (
         ("writer", "docx", "odt", "<p>Văn bản</p>"),
         ("writer", "docx", "pdf", "<p>Văn bản</p>"),
+        ("writer", "docx", "html", "<p>Văn bản</p>"),
         ("sheet", "xlsx", "ods", "<office:body><table:table table:name='Sheet1'/></office:body>"),
         ("sheet", "xlsx", "csv", "<office:body><table:table table:name='Sheet1'/><table:table table:name='Sheet2'/></office:body>"),
         ("slides", "pptx", "odp", "<office:presentation/>"),
