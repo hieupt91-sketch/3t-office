@@ -172,3 +172,61 @@ export function moveFormulaRefs(formula, { ownerSheet, targetSheet, range, delta
     return prefix + formatBody(parsed);
   });
 }
+
+/**
+ * Chuyển vị công thức (Transpose): hoán đổi trục hàng và cột của các tham chiếu tương đối (Excel).
+ * sourceCol/sourceRow: tọa độ ô nguồn chứa công thức.
+ * destCol/destRow: tọa độ ô đích nhận công thức sau chuyển vị.
+ */
+export function transposeFormulaRefs(formula, { sourceStartCol, sourceStartRow, destStartCol, destStartRow, sourceCol, sourceRow, destCol, destRow }) {
+  if (typeof formula !== "string" || formula === "") return formula;
+  return mapReferences(formula, ({ prefix, body }) => {
+    const parsed = parseBody(body);
+    if (!parsed) return undefined;
+    let invalid = false;
+    const transposeCell = c => {
+      const colAbs = !!c.colAbs;
+      const rowAbs = !!c.rowAbs;
+      if (colAbs && rowAbs) {
+        if (sourceStartCol != null && sourceStartRow != null && destStartCol != null && destStartRow != null) {
+          const relC = c.col - sourceStartCol;
+          const relR = c.row - sourceStartRow;
+          c.col = destStartCol + relR;
+          c.row = destStartRow + relC;
+        }
+        return;
+      }
+      if (!colAbs && !rowAbs) {
+        const dCol = c.col - sourceCol;
+        const dRow = c.row - sourceRow;
+        c.col = destCol + dRow;
+        c.row = destRow + dCol;
+        if (c.col < 1 || c.col > 16384 || c.row < 1 || c.row > 1048576) invalid = true;
+        return;
+      }
+      c.colAbs = rowAbs ? "$" : "";
+      c.rowAbs = colAbs ? "$" : "";
+      if (colAbs && !rowAbs) {
+        const dRow = c.row - sourceRow;
+        c.col = destCol + dRow;
+        c.row = (sourceStartRow != null && destStartRow != null) ? destStartRow + (c.col - sourceStartCol) : c.row;
+      } else {
+        const dCol = c.col - sourceCol;
+        c.row = destRow + dCol;
+        c.col = (sourceStartCol != null && destStartCol != null) ? destStartCol + (c.row - sourceStartRow) : c.col;
+      }
+      if (c.col < 1 || c.col > 16384 || c.row < 1 || c.row > 1048576) invalid = true;
+    };
+    if (parsed.kind === "cells") {
+      transposeCell(parsed.first);
+      if (parsed.second) transposeCell(parsed.second);
+    } else if (parsed.kind === "cols") {
+      const abs1 = parsed.first.abs; const abs2 = parsed.second.abs;
+      return prefix + `${abs1}${parsed.first.n}:${abs2}${parsed.second.n}`;
+    } else if (parsed.kind === "rows") {
+      const abs1 = parsed.first.abs; const abs2 = parsed.second.abs;
+      return prefix + `${abs1}${colLabel(parsed.first.n)}:${abs2}${colLabel(parsed.second.n)}`;
+    }
+    return invalid ? "#REF!" : prefix + formatBody(parsed);
+  });
+}

@@ -3,7 +3,7 @@
  */
 
 import { buildSeries } from "./sheet-series.js";
-import { shiftFormulaRefs, translateFormulaRefs, moveFormulaRefs } from "./formula-ref-shift.js";
+import { shiftFormulaRefs, translateFormulaRefs, moveFormulaRefs, transposeFormulaRefs } from "./formula-ref-shift.js";
 import { expandStructuredReferences, hasStructuredReference } from "./structured-references.js";
 import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { showGoToDialog, showGoToSpecialDialog } from "./sheet-goto.js";
@@ -9743,7 +9743,7 @@ _bindGridKeyboardNavigation() {
   applyPasteSpecial(clipboard, mode = "source", destination = this.selectedCoord, options = {}) {
     if (!clipboard?.cells?.length || !destination) return false;
     const sourceRows = clipboard.cells;
-    const transpose = mode === "transpose";
+    const transpose = mode === "transpose" || !!options.transpose;
     const height = transpose ? sourceRows[0].length : sourceRows.length;
     const width = transpose ? sourceRows.length : sourceRows[0].length;
     const before = {};
@@ -9756,7 +9756,7 @@ _bindGridKeyboardNavigation() {
     const moveRange = options.moveRange && options.sourceSheet === this.activeSheet
       ? this._normalizeRange(options.moveRange)
       : null;
-    const isSourceMode = mode === "source" || mode === "all";
+    const isSourceMode = mode === "source" || mode === "all" || mode === "transpose" || mode === "allExceptBorders";
     const pasteColumnWidths = isSourceMode && !transpose && Array.isArray(clipboard.colWidths)
       ? clipboard.colWidths.slice(0, width).map(value => this._clampColWidth(value))
       : [];
@@ -9802,22 +9802,79 @@ _bindGridKeyboardNavigation() {
         const coord = `${this._columnLabel(destColNumber)}${destRow}`;
         const existing = structuredClone(this.cellsData.get(coord) || { val: "", formula: "", style: {} });
         if (!Object.prototype.hasOwnProperty.call(before, coord)) before[coord] = existing;
+
+        // Bỏ qua ô trống (skip blanks)
+        const isBlank = !source.formula && (source.val === "" || source.val === null || source.val === undefined);
+        if (options.skipBlanks && isBlank) {
+          continue;
+        }
+
         let next = structuredClone(existing);
+        const curSourceCol = transpose ? (sourceStartCol + rowOffset) : (sourceStartCol + colOffset);
+        const curSourceRow = transpose ? (sourceStartRow + colOffset) : (sourceStartRow + rowOffset);
+
         if (mode === "formats") {
           next.style = structuredClone(source.style || {});
         } else if (mode === "values") {
           next.val = source.val ?? "";
           next.formula = "";
         } else {
-          const sourceColOffset = transpose ? rowOffset : colOffset;
-          const sourceRowOffset = transpose ? colOffset : rowOffset;
-          const formula = source.formula
-            ? (moveRange && !transpose ? source.formula : this._offsetFormula(source.formula, destColNumber - (sourceStartCol + sourceColOffset), destRow - (sourceStartRow + sourceRowOffset)))
-            : "";
+          let formula = "";
+          if (source.formula) {
+            if (moveRange && !transpose) {
+              formula = source.formula;
+            } else if (transpose) {
+              formula = transposeFormulaRefs(source.formula, {
+                sourceStartCol, sourceStartRow,
+                destStartCol, destStartRow,
+                sourceCol: curSourceCol, sourceRow: curSourceRow,
+                destCol: destColNumber, destRow
+              });
+            } else {
+              formula = this._offsetFormula(source.formula, destColNumber - curSourceCol, destRow - curSourceRow);
+            }
+          }
           next.val = mode === "formulas" && !formula ? "" : (source.val ?? "");
           next.formula = formula;
-          if (mode !== "formulas") next.style = structuredClone(source.style || {});
+          if (mode === "allExceptBorders") {
+            const st = structuredClone(source.style || {});
+            delete st.border; delete st.borderTop; delete st.borderBottom; delete st.borderLeft; delete st.borderRight;
+            if (existing.style?.border) st.border = existing.style.border;
+            next.style = st;
+          } else if (mode !== "formulas") {
+            next.style = structuredClone(source.style || {});
+          }
         }
+
+        // Xử lý thao tác toán học (Add, Subtract, Multiply, Divide)
+        const op = options.operation && options.operation !== "none" ? String(options.operation).toLowerCase() : null;
+        if (op && mode !== "formats") {
+          const opSymbol = op === "add" ? "+" : op === "subtract" ? "-" : op === "multiply" ? "*" : op === "divide" ? "/" : null;
+          if (opSymbol) {
+            const hasFormula = Boolean(existing.formula || (mode !== "values" && next.formula));
+            if (hasFormula) {
+              const leftExpr = existing.formula
+                ? `(${existing.formula.replace(/^=/, "")})`
+                : (existing.val !== "" && existing.val !== undefined && existing.val !== null ? String(existing.val) : "0");
+              const rightExpr = (mode !== "values" && next.formula)
+                ? `(${next.formula.replace(/^=/, "")})`
+                : (source.val !== "" && source.val !== undefined && source.val !== null ? String(source.val) : "0");
+              next.formula = `=${leftExpr}${opSymbol}${rightExpr}`;
+              next.val = "";
+            } else {
+              const eNum = existing.val !== "" && existing.val !== undefined && existing.val !== null ? Number(existing.val) : 0;
+              const sNum = source.val !== "" && source.val !== undefined && source.val !== null ? Number(source.val) : 0;
+              if (Number.isFinite(eNum) && Number.isFinite(sNum)) {
+                if (op === "add") next.val = eNum + sNum;
+                else if (op === "subtract") next.val = eNum - sNum;
+                else if (op === "multiply") next.val = eNum * sNum;
+                else if (op === "divide") next.val = sNum === 0 ? "#DIV/0!" : eNum / sNum;
+                next.formula = "";
+              }
+            }
+          }
+        }
+
         // Only text is normalized like typed input; numbers already parsed from the
         // clipboard (e.g. 0.25 for "25%") must not be divided by 100 a second time.
         if (options.coerceInput && !next.formula && typeof next.val === "string") {
@@ -9828,7 +9885,7 @@ _bindGridKeyboardNavigation() {
         after[coord] = structuredClone(next);
       }
     }
-    if (!Object.keys(after).length) return false;
+    if (!Object.keys(after).length) return !!options.skipBlanks;
     const beforeRanges = structuredClone(this.getMergedRanges());
     let afterRanges = beforeRanges;
     if (isSourceMode && (clipboard.mergedRanges?.length || moveRange)) {
@@ -10002,21 +10059,39 @@ _bindGridKeyboardNavigation() {
     const overlay = this._createSheetDialog(title, `
       <form class="vno-paste-special-dialog" aria-label="${title}">
         <fieldset><legend>${t("sheetDialogs.pasteSpecialGroup", "Dán")}</legend>
-          <label><input type="radio" name="paste-special-mode" value="source" checked> ${t("sheetDialogs.pasteSpecialSource", "Giữ định dạng nguồn")}</label>
+          <label><input type="radio" name="paste-special-mode" value="all" checked> ${t("sheetDialogs.pasteSpecialAll", "Tất cả")}</label>
           <label><input type="radio" name="paste-special-mode" value="values"> ${t("sheetDialogs.pasteSpecialValues", "Chỉ giá trị")}</label>
+          <label><input type="radio" name="paste-special-mode" value="formulas"> ${t("sheetDialogs.pasteSpecialFormulas", "Chỉ công thức")}</label>
           <label><input type="radio" name="paste-special-mode" value="formats"> ${t("sheetDialogs.pasteSpecialFormats", "Chỉ định dạng")}</label>
+          <label><input type="radio" name="paste-special-mode" value="allExceptBorders"> ${t("sheetDialogs.pasteSpecialAllExceptBorders", "Tất cả trừ đường viền")}</label>
           <label><input type="radio" name="paste-special-mode" value="transpose"> ${t("sheetDialogs.pasteSpecialTranspose", "Chuyển vị (đổi hàng/cột)")}</label>
+        </fieldset>
+        <fieldset><legend>${t("sheetDialogs.pasteSpecialOperationGroup", "Thao tác")}</legend>
+          <label><input type="radio" name="paste-special-operation" value="none" checked> ${t("sheetDialogs.pasteSpecialOpNone", "Không")}</label>
+          <label><input type="radio" name="paste-special-operation" value="add"> ${t("sheetDialogs.pasteSpecialOpAdd", "Cộng")}</label>
+          <label><input type="radio" name="paste-special-operation" value="subtract"> ${t("sheetDialogs.pasteSpecialOpSubtract", "Trừ")}</label>
+          <label><input type="radio" name="paste-special-operation" value="multiply"> ${t("sheetDialogs.pasteSpecialOpMultiply", "Nhân")}</label>
+          <label><input type="radio" name="paste-special-operation" value="divide"> ${t("sheetDialogs.pasteSpecialOpDivide", "Chia")}</label>
+        </fieldset>
+        <fieldset class="vno-paste-special-checkboxes">
+          <label><input type="checkbox" name="paste-special-skip-blanks"> ${t("sheetDialogs.pasteSpecialSkipBlanks", "Bỏ qua ô trống")}</label>
         </fieldset>
       </form>`);
     if (!overlay) return false;
     const form = overlay.querySelector(".vno-paste-special-dialog");
     const paste = () => {
-      const mode = form.querySelector('input[name="paste-special-mode"]:checked')?.value || "source";
+      const mode = form.querySelector('input[name="paste-special-mode"]:checked')?.value || "all";
+      const operation = form.querySelector('input[name="paste-special-operation"]:checked')?.value || "none";
+      const skipBlanks = !!form.querySelector('input[name="paste-special-skip-blanks"]')?.checked;
+      const transpose = mode === "transpose";
       const cut = !!clipboard.sourceSheet && clipboard.sourceSheet === this.activeSheet &&
         this._clipboardRange?.mode === "cut" && this._clipboardRange.sheet === this.activeSheet;
       const applied = this.applyPasteSpecial(clipboard, mode, this.selectedCoord, {
         moveRange: cut ? this._clipboardRange.range : null,
-        sourceSheet: clipboard.sourceSheet
+        sourceSheet: clipboard.sourceSheet,
+        operation,
+        skipBlanks,
+        transpose
       });
       if (applied && cut) this.clearClipboardRange();
       overlay.closeDialog();

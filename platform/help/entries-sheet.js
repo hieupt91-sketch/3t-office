@@ -954,14 +954,16 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.edit.pasteSpecial"],
     title: "Dán đặc biệt",
-    summary: "Sau khi Copy, Ctrl+Alt+V (hoặc nút Dán đặc biệt trên nhóm Bảng nhớ tạm) mở hộp chọn: Tất cả, Chỉ giá trị, Chỉ công thức, Chỉ định dạng, hoặc Chuyển vị hàng/cột.",
+    summary: "Sau khi Sao chép, nhấn Ctrl+Alt+V (hoặc mở Trang đầu > Dán > Dán đặc biệt) để dán linh hoạt: Tất cả, Chỉ giá trị, Chỉ công thức, Chỉ định dạng, Tất cả trừ đường viền, hoặc Chuyển vị kèm phép toán cộng/trừ/nhân/chia.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
-    keywords: ["dán đặc biệt", "paste special", "ctrl+alt+v", "chỉ giá trị", "công thức", "định dạng", "chuyển vị", "transpose"],
+    keywords: ["dán đặc biệt", "paste special", "ctrl+alt+v", "chỉ giá trị", "công thức", "định dạng", "chuyển vị", "transpose", "cộng", "trừ", "nhân", "chia", "bỏ qua ô trống"],
     steps: [
-      "Bôi vùng nguồn, Copy (Ctrl+C) hoặc Cut. Chọn ô đích. Tab Trang đầu, nhóm Bảng nhớ tạm: nút Dán đặc biệt nằm hàng dưới Cut/Copy, cạnh Sao chép định dạng — hoặc Ctrl+Alt+V.",
-      "Hộp «Dán đặc biệt», nhóm Dán: Tất cả (mặc định), Chỉ giá trị (bỏ công thức, giữ số/chữ đã tính), Chỉ công thức, Chỉ định dạng, Chuyển vị (đổi hàng/cột). Enter hoặc nút áp dụng để dán. Esc hủy.",
-      "Chưa Copy thì hộp không mở (cần clipboard nội bộ có cells). Chuyển vị dán hàng thành cột và ngược lại.",
-      "Ctrl+Z hoàn tác lần dán. Dán thường (Ctrl+V) vẫn dán tất cả, không hỏi."
+      "Bôi đen vùng nguồn cần sao chép rồi nhấn Ctrl+C hoặc nút Sao chép. Chọn ô đích (hoặc vùng đích) cần dán.",
+      "Mở hộp thoại: vào tab Trang đầu, nhóm Bảng nhớ tạm, bấm vào mũi tên nút Dán rồi chọn Dán đặc biệt... (hoặc nhấn tổ hợp phím Ctrl+Alt+V, hay bấm chuột phải vào ô đích chọn Dán đặc biệt).",
+      "Nhóm Dán gồm các lựa chọn: Tất cả (dán đầy đủ dữ liệu, công thức và định dạng), Chỉ giá trị (loại bỏ công thức, chỉ giữ số hoặc văn bản đã tính toán, không ảnh hưởng định dạng đích), Chỉ công thức (dán công thức kèm tịnh tiến tham chiếu tương đối, giữ nguyên định dạng ô đích), Chỉ định dạng (dán màu sắc, kiểu chữ, kiểu số mà không làm đổi dữ liệu đích), Tất cả trừ đường viền (dán toàn bộ nhưng giữ nguyên đường viền sẵn có của ô đích), Chuyển vị (đổi hàng thành cột và cột thành hàng, các công thức tự động xoay trục tham chiếu tương ứng).",
+      "Nhóm Thao tác cho phép tính toán trực tiếp lên ô đích: Không (mặc định), Cộng (cộng thêm giá trị nguồn vào ô đích), Trừ (lấy ô đích trừ đi giá trị nguồn), Nhân (nhân ô đích với giá trị nguồn), Chia (chia ô đích cho giá trị nguồn). Nếu ô đích có công thức, phép tính được ghép nối an toàn vào biểu thức.",
+      "Tùy chọn Bỏ qua ô trống: khi bật, những ô trống ở vùng nguồn sẽ không ghi đè hay làm mất dữ liệu hiện có tại các ô tương ứng ở vùng đích.",
+      "Nhấn Enter hoặc nút Áp dụng để dán; nhấn Esc hoặc nút Hủy bỏ để đóng hộp thoại mà không thay đổi dữ liệu. Nhấn Ctrl+Z để hoàn tác toàn bộ thao tác dán trong đúng một bước."
     ]
   },
   {

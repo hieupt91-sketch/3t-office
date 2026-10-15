@@ -590,7 +590,8 @@ async function runAll() {
     { title: "260. Unit Tests — Writer Track Changes Display Modes (WORD-W5)", runner: runWriterTrackChangesDisplayTests },
     { title: "261. Unit Tests — Writer Document Inspector (WORD-W5)", runner: runWriterDocumentInspectorTests },
     { title: "262. Unit Tests — Writer WORD-W7 Balloons, Mark as Final and Save As (agy)", runner: runWriterWordW7Tests },
-    { title: "263. Unit Tests — Sheet XLSX Document Properties & Mark as Final (AGY-SHEET-INFO)", runner: runSheetFileInfoTests }
+    { title: "263. Unit Tests — Sheet XLSX Document Properties & Mark as Final (AGY-SHEET-INFO)", runner: runSheetFileInfoTests },
+    { title: "264. Unit Tests — Sheet Paste Special (values, formulas, formats, transpose, operations, skipBlanks)", runner: runSheetPasteSpecialTests }
   ];
 
   for (const suite of suites) {

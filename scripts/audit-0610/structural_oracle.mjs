@@ -38,7 +38,24 @@ const normFormula = f => String(f ?? "").replace(/\s+/g, "").toUpperCase();
 let pass = 0; let total = 0; const failures = [];
 for (const scenario of spec.scenarios) {
   const grid = new SheetGridController(mockContainer());
-  for (const [ref, value] of Object.entries(scenario.cells)) { const [c, r] = split(ref); grid.setCellValue(c, r, value); }
+  for (const [ref, rawValue] of Object.entries(scenario.cells)) {
+    const [c, r] = split(ref);
+    if (rawValue && typeof rawValue === "object" && !Array.isArray(rawValue)) {
+      const v = rawValue.f || rawValue.formula || (rawValue.v !== undefined ? rawValue.v : (rawValue.val !== undefined ? rawValue.val : ""));
+      grid.setCellValue(c, r, v);
+      const coord = `${c}${r}`;
+      const item = grid.cellsData.get(coord) || { val: "", formula: "", style: {} };
+      if (!item.style) item.style = {};
+      if (rawValue.bold) item.style.fontWeight = "bold";
+      const col = rawValue.color || rawValue.backgroundColor;
+      if (col) item.style.backgroundColor = String(col).toUpperCase();
+      const fmt = rawValue.format || rawValue.numberFormat;
+      if (fmt) item.style.numberFormat = typeof fmt === "string" ? { code: fmt, formatCode: fmt } : fmt;
+      grid.cellsData.set(coord, item);
+    } else {
+      grid.setCellValue(c, r, rawValue);
+    }
+  }
   let opError = "";
   try {
     for (const op of scenario.ops) {
@@ -64,6 +81,37 @@ for (const scenario of spec.scenarios) {
           grid.pasteClipboard();
           break;
         }
+        case "pasteSpecial": {
+          grid.selectionRange = parseRange(op.from);
+          grid.selectedCoord = { ...grid.selectionRange.start };
+          grid.copySelection(false);
+          const cb = grid._clipboardRange;
+          const startCol = grid._columnNumber(cb.range.start.c);
+          const endCol = grid._columnNumber(cb.range.end.c);
+          const startRow = Number(cb.range.start.r);
+          const endRow = Number(cb.range.end.r);
+          const cells = [];
+          for (let r = startRow; r <= endRow; r++) {
+            const row = [];
+            for (let c = startCol; c <= endCol; c++) {
+              const item = grid.cellsData.get(`${grid._columnLabel(c)}${r}`) || { val: "", formula: "", style: {} };
+              row.push(structuredClone(item));
+            }
+            cells.push(row);
+          }
+          const model = { range: structuredClone(cb.range), cells, sourceSheet: grid.activeSheet };
+          const [dc, dr] = split(op.to.split(":")[0]);
+          grid.selectedCoord = { c: dc, r: dr };
+          grid.selectionRange = { start: { c: dc, r: dr }, end: { c: dc, r: dr } };
+          const mode = op.mode || op.paste || "source";
+          const options = {
+            operation: op.operation || "none",
+            skipBlanks: !!op.skipBlanks,
+            transpose: !!op.transpose || op.mode === "transpose"
+          };
+          grid.applyPasteSpecial(model, mode, { c: dc, r: dr }, options);
+          break;
+        }
         default: throw new Error(`op chua ho tro: ${op.type}`);
       }
     }
@@ -73,8 +121,27 @@ for (const scenario of spec.scenarios) {
   const got = {};
   for (const [coord, item] of grid.cellsData.entries()) {
     const text = item.formula || (item.val !== "" && item.val !== undefined && item.val !== null ? String(item.val) : "");
-    if (text === "") continue;
-    got[coord] = { f: item.formula ? (item.formula.startsWith("=") ? item.formula : `=${item.formula}`) : String(item.val), v: item.val };
+    const style = item.style || {};
+    const bold = style.fontWeight === "bold" || style.fontWeight === "700" || Number(style.fontWeight) >= 600;
+    const color = style.backgroundColor ? style.backgroundColor.toUpperCase() : "";
+    let format = "";
+    if (style.numberFormat) {
+      if (typeof style.numberFormat === "string") format = style.numberFormat;
+      else format = style.numberFormat.formatCode || style.numberFormat.code || "";
+      if (!format && style.numberFormat.category === "percentage") format = "0.00%";
+      if (!format && style.numberFormat.category === "date") format = "dd/mm/yyyy";
+    }
+    const hasFmt = scenario.compareFormat && (bold || color || format);
+    if (text === "" && !hasFmt) continue;
+    const cellGot = { f: item.formula ? (item.formula.startsWith("=") ? item.formula : `=${item.formula}`) : String(item.val), v: item.val };
+    if (scenario.compareFormat) {
+      const fmt = {};
+      if (bold) fmt.bold = true;
+      if (color) fmt.color = color;
+      if (format) fmt.format = format;
+      cellGot.fmt = fmt;
+    }
+    got[coord] = cellGot;
   }
   const coords = new Set([...Object.keys(want), ...Object.keys(got)]);
   const bad = [];
@@ -86,9 +153,21 @@ for (const scenario of spec.scenarios) {
       const fOk = normFormula(w.f) === normFormula(g.f);
       let vOk;
       if (typeof w.v === "number") vOk = typeof g.v === "number" ? near(w.v, g.v) : (String(g.v) !== "" && near(w.v, Number(g.v)));
+      else if (w.v === "" || w.v === null || w.v === undefined) vOk = (g.v === "" || g.v === null || g.v === undefined);
       else vOk = String(w.v ?? "") === String(g.v ?? "");
-      ok = fOk && vOk;
-      if (!ok) bad.push(`${coord}: Excel ${w.f} = ${JSON.stringify(w.v)} | VN ${g.f} = ${JSON.stringify(g.v)}`);
+      let fmtOk = true;
+      if (scenario.compareFormat) {
+        const wFmt = w.fmt || {};
+        const gFmt = g.fmt || {};
+        const boldOk = (!!wFmt.bold) === (!!gFmt.bold);
+        const colorOk = String(wFmt.color || "").toUpperCase() === String(gFmt.color || "").toUpperCase();
+        const normFmt = s => String(s || "").toLowerCase().replace(/[\s_"\\]/g, "");
+        const formatOk = !wFmt.format && !gFmt.format ? true : normFmt(wFmt.format) === normFmt(gFmt.format);
+        fmtOk = boldOk && colorOk && formatOk;
+        if (!fmtOk) bad.push(`${coord} [fmt]: Excel ${JSON.stringify(wFmt)} | VN ${JSON.stringify(gFmt)}`);
+      }
+      ok = fOk && vOk && fmtOk;
+      if (!ok && !bad.some(b => b.startsWith(coord))) bad.push(`${coord}: Excel ${w.f} = ${JSON.stringify(w.v)} | VN ${g.f} = ${JSON.stringify(g.v)}`);
     } else bad.push(`${coord}: Excel ${w ? `${w.f} = ${JSON.stringify(w.v)}` : "(trong)"} | VN ${g ? `${g.f} = ${JSON.stringify(g.v)}` : "(trong)"}`);
     if (ok) pass++;
   }
