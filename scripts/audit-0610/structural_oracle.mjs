@@ -54,6 +54,12 @@ for (const scenario of spec.scenarios) {
         case "sort": { const [kc] = split(op.key); grid.selectionRange = parseRange(op.range); grid.selectedCoord = { ...grid.selectionRange.start }; grid.sort(kc, Number(op.order) === 1); break; }
         case "filterEq": grid.isFilterActive = true; grid.sheetStates[grid.activeSheet].filterRange = op.range; grid.applyFilter(op.col, new Set([String(op.value)])); break;
         case "hideRow": grid.hideRows([op.at]); break;
+        case "autoFill": {
+          const s = parseRange(op.src); const d = parseRange(op.dest);
+          const down = d.end.r > s.end.r; const right = colNumber(d.end.c) > colNumber(s.end.c);
+          grid._executeAutofill(s, down ? { direction: "down", startCol: s.start.c, endCol: s.end.c, startRow: s.end.r + 1, endRow: d.end.r } : right ? { direction: "right", startColNum: colNumber(s.end.c) + 1, endColNum: colNumber(d.end.c), startRow: s.start.r, endRow: s.end.r } : (() => { throw new Error("autoFill chi ho tro xuong/phai"); })());
+          break;
+        }
         case "deleteRows": for (let i = op.from; i <= op.to; i++) grid.deleteRow(op.from); break;
         case "insertRows": for (let i = 0; i < op.count; i++) grid.insertRow(op.at); break;
         case "copyPaste": case "cutPaste": {

@@ -2592,11 +2592,11 @@ export class SheetGridController {
     }
   }
 
-  _onAutofillMouseUp() {
+  _onAutofillMouseUp(upEvent) {
     this.container?.querySelectorAll?.(".is-autofill-preview").forEach(c => c.classList.remove("is-autofill-preview"));
     this._isAutofilling = false;
     if (this._autofillSource && this._autofillTarget) {
-      this._executeAutofill(this._autofillSource, this._autofillTarget);
+      this._executeAutofill(this._autofillSource, { ...this._autofillTarget, series: Boolean(upEvent && (upEvent.ctrlKey || upEvent.metaKey)) });
     }
     this._autofillSource = null;
     this._autofillTarget = null;
@@ -2631,6 +2631,50 @@ export class SheetGridController {
       endRow
     });
     return true;
+  }
+
+  /**
+   * Giá trị ô điền tự động (kéo chốt điền) theo Excel: một số → sao chép (giữ Ctrl để tạo chuỗi); từ hai số trở lên → chuỗi tuyến tính
+   * (hồi quy bình phương tối thiểu như Excel); chữ có số ở cuối (Item 1, SP01) → tăng số; tên tháng/thứ → xoay vòng; còn lại → lặp.
+   */
+  _autofillSeriesValue(sourceCells, stepOffset, forceSeries, cycleCell) {
+    const monthsVi = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
+    const monthsEn = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+    const daysVi = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
+    const count = sourceCells.length;
+    const raws = sourceCells.map(cell => String(cell.val ?? "").trim());
+    const fit = values => {
+      const n = values.length;
+      if (n === 1) return (forceSeries ? values[0] + stepOffset : values[0]);
+      const xs = values.map((_, index) => index + 1);
+      const xMean = xs.reduce((a, b) => a + b, 0) / n;
+      const yMean = values.reduce((a, b) => a + b, 0) / n;
+      let num = 0; let den = 0;
+      for (let i = 0; i < n; i++) { num += (xs[i] - xMean) * (values[i] - yMean); den += (xs[i] - xMean) ** 2; }
+      const slope = num / den;
+      return yMean + slope * (n + stepOffset - xMean);
+    };
+    const nums = raws.map(raw => (raw !== "" ? Number(raw) : NaN));
+    if (nums.every(Number.isFinite)) {
+      const result = fit(nums);
+      return Number(result.toPrecision(15));
+    }
+    const tails = raws.map(raw => raw.match(/^(.*?)(\d+)$/));
+    if (tails.every(Boolean) && tails.every(m => m[1] === tails[0][1])) {
+      const values = tails.map(m => parseInt(m[2], 10));
+      const width = tails[tails.length - 1][2].length;
+      const next = values.length === 1 ? values[0] + stepOffset : Math.round(fit(values));
+      return `${tails[0][1]}${String(Math.max(0, next)).padStart(width, "0")}`;
+    }
+    if (count === 1) {
+      const mViIdx = monthsVi.indexOf(raws[0]);
+      const mEnIdx = monthsEn.indexOf(raws[0]);
+      const dViIdx = daysVi.indexOf(raws[0]);
+      if (mViIdx !== -1) return monthsVi[(mViIdx + stepOffset) % monthsVi.length];
+      if (mEnIdx !== -1) return monthsEn[(mEnIdx + stepOffset) % monthsEn.length];
+      if (dViIdx !== -1) return daysVi[(dViIdx + stepOffset) % daysVi.length];
+    }
+    return cycleCell.val;
   }
 
   _executeAutofill(src, target) {
@@ -2711,38 +2755,8 @@ export class SheetGridController {
             newVal = this.formulaEngine.evaluate(newFormula);
           } else if (dateValue !== null) {
             newVal = dateValue;
-          } else if (srcCount === 1) {
-            const rawVal = String(sourceCell.val || "").trim();
-            const numVal = Number(rawVal);
-            const numEndMatch = rawVal.match(/^(.*?)(\d+)$/);
-            const mViIdx = monthsVi.indexOf(rawVal);
-            const mEnIdx = monthsEn.indexOf(rawVal);
-            const dViIdx = daysVi.indexOf(rawVal);
-
-            if (Number.isFinite(numVal) && rawVal !== "") {
-              newVal = numVal + stepOffset;
-            } else if (numEndMatch) {
-              const prefix = numEndMatch[1];
-              const digits = numEndMatch[2];
-              const nextNum = parseInt(digits, 10) + stepOffset;
-              newVal = `${prefix}${String(nextNum).padStart(digits.length, "0")}`;
-            } else if (mViIdx !== -1) {
-              newVal = monthsVi[(mViIdx + stepOffset) % monthsVi.length];
-            } else if (mEnIdx !== -1) {
-              newVal = monthsEn[(mEnIdx + stepOffset) % monthsEn.length];
-            } else if (dViIdx !== -1) {
-              newVal = daysVi[(dViIdx + stepOffset) % daysVi.length];
-            } else {
-              newVal = sourceCell.val;
-            }
           } else {
-            const vals = sourceCells.map(c => Number(c.val));
-            if (vals.every(v => Number.isFinite(v))) {
-              const step = (vals[vals.length - 1] - vals[0]) / (srcCount - 1);
-              newVal = vals[vals.length - 1] + step * stepOffset;
-            } else {
-              newVal = sourceCell.val;
-            }
+            newVal = this._autofillSeriesValue(sourceCells, stepOffset, target.series, sourceCell);
           }
 
           const newItem = { val: newVal, formula: newFormula, style: newStyle };
@@ -2784,28 +2798,8 @@ export class SheetGridController {
             newVal = this.formulaEngine.evaluate(newFormula);
           } else if (dateValue !== null) {
             newVal = dateValue;
-          } else if (srcCount === 1) {
-            const rawVal = String(sourceCell.val || "").trim();
-            const numVal = Number(rawVal);
-            const numEndMatch = rawVal.match(/^(.*?)(\d+)$/);
-            if (Number.isFinite(numVal) && rawVal !== "") {
-              newVal = numVal + stepOffset;
-            } else if (numEndMatch) {
-              const prefix = numEndMatch[1];
-              const digits = numEndMatch[2];
-              const nextNum = parseInt(digits, 10) + stepOffset;
-              newVal = `${prefix}${String(nextNum).padStart(digits.length, "0")}`;
-            } else {
-              newVal = sourceCell.val;
-            }
           } else {
-            const vals = sourceCells.map(c => Number(c.val));
-            if (vals.every(v => Number.isFinite(v))) {
-              const step = (vals[vals.length - 1] - vals[0]) / (srcCount - 1);
-              newVal = vals[vals.length - 1] + step * stepOffset;
-            } else {
-              newVal = sourceCell.val;
-            }
+            newVal = this._autofillSeriesValue(sourceCells, stepOffset, target.series, sourceCell);
           }
 
           const newItem = { val: newVal, formula: newFormula, style: newStyle };
