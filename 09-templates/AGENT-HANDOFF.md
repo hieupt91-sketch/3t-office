@@ -1,4 +1,24 @@
 # Agent Handoff
+TASK: macOS 0.9.11 native PKG installer pipeline
+AGENT/ROLE: Codex / macOS Release Packaging
+BRANCH: codex/macos-pkg-installer
+WORKTREE: /Users/hieupc/.codex/worktrees/macos-dmg-release/3t-office
+OBJECTIVE: Build a native macOS Installer PKG for the self-contained arm64 suite, with optional Developer ID signing and notarization that never stores credentials in Git.
+FINDINGS: The 2.1 GB offline layout packages to a 771 MB PKG. This Mac has only an Apple Development identity; Developer ID Application/Installer identities and a notarytool Keychain profile are unavailable.
+IMPLEMENTATION SUMMARY: Added PKG planning, Vietnamese Installer resources, system-wide `/Applications/3T Office` packaging, nested-code signing, notarization/stapling, expanded-payload validation, and focused unit tests. DMG delivery was intentionally not implemented after the owner chose an installer workflow.
+FILES CHANGED: See `docs/macos/HANDOFF-PKG-INSTALLER-0.9.11.md`.
+COMMANDS RUN: See `docs/macos/HANDOFF-PKG-INSTALLER-0.9.11.md`.
+BUILD RESULT: PASS — unsigned QA PKG, 771 MB, SHA-256 `455162e150dd8bf4350afc2943fba8ca852a04d3ec1cc123172d978a04e57d1b`.
+TEST RESULTS: PASS — runtime validator, 3/3 unit tests, PKG expand/payload/layout validation and Installer choices. Signing/notarization BLOCKED; clean-machine install NOT RUN.
+KNOWN FAILURES: No unsigned build/validation failure.
+RISKS: arm64 only; public distribution is blocked until signing/notarization, legal review and clean-machine acceptance.
+DEPENDENCIES/BLOCKERS: Developer ID Application + Installer identities and notarytool Keychain profile.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Sign, notarize, staple, run clean-machine acceptance, then publish PKG and checksum to the VPS.
+
+---
+
+# Agent Handoff
 TASK: macOS 0.9.11 native app create/edit/save/close/reopen round-trip
 AGENT/ROLE: Codex / macOS Native QA
 BRANCH: codex/macos-native-roundtrip
