@@ -1,0 +1,19 @@
+<?xml version="1.0" encoding="utf-8"?>
+<installer-gui-script minSpecVersion="2">
+    <title>3T Office 0.9.11</title>
+    <organization>vn.office</organization>
+    <domains enable_localSystem="true" enable_currentUserHome="false" enable_anywhere="false"/>
+    <options customize="never" require-scripts="false" rootVolumeOnly="true"/>
+    <allowed-os-versions>
+        <os-version min="13.0"/>
+    </allowed-os-versions>
+    <welcome file="welcome.html" mime-type="text/html"/>
+    <readme file="readme.html" mime-type="text/html"/>
+    <choices-outline>
+        <line choice="vn.office.suite"/>
+    </choices-outline>
+    <choice id="vn.office.suite" visible="false">
+        <pkg-ref id="vn.office.suite.pkg"/>
+    </choice>
+    <pkg-ref id="vn.office.suite.pkg" version="0.9.11" onConclusion="none">3TOffice-component.pkg</pkg-ref>
+</installer-gui-script>
