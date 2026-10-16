@@ -231,10 +231,17 @@
       });
     if (launchContext.openInitialFile) {
       window.dispatchEvent(new CustomEvent("vno:document-open-progress"));
-      await documentServicesReady;
-      await globalCommandBus.execute("common.file.open");
-      window.__vnoStartupMark?.("initial_file_open_resolved");
-      window.__vnoStartupMark?.("document_open_complete");
+      try {
+        await documentServicesReady;
+        await globalCommandBus.execute("common.file.open");
+        window.__vnoStartupMark?.("initial_file_open_resolved");
+      } finally {
+        // Adapters may emit this event themselves, but the shell owns the
+        // initial-open progress indicator and must always close it, including
+        // Slide and error paths where an adapter cannot emit completion.
+        window.dispatchEvent(new CustomEvent("vno:document-open-complete"));
+        window.__vnoStartupMark?.("document_open_complete");
+      }
     }
     if (!launchContext.openInitialFile) void ancillaryStartupPromise;
   </script>
