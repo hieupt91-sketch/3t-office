@@ -11,6 +11,7 @@ import { runSuiteSmokeTests } from "./smoke/suite-smoke.test.js";
 import { runFormulaEngineTests } from "./unit/formula-engine.test.js";
 import { runStructuredReferenceTests } from "./unit/structured-references.test.js";
 import { runSheetTableTests } from "./unit/sheet-table.test.js";
+import { runSheetSlicerTests } from "./unit/sheet-slicer.test.js";
 import { runSheetTemplateSaveTests } from "./unit/sheet-template-save.test.js";
 import { runSheetSeriesTests } from "./unit/sheet-series.test.js";
 import { runFunctionGoldenTests } from "./unit/function-golden.test.js";
@@ -315,6 +316,7 @@ async function runAll() {
     { title: "3. Unit Tests — Excel Spreadsheet Formula Engine", runner: runFormulaEngineTests },
     { title: "3b. Unit Tests — Tham chiếu có cấu trúc Table[Cột]", runner: runStructuredReferenceTests },
     { title: "3b2. Unit Tests — Thao tác Bảng Table/ListObject (AGY-TABLE)", runner: runSheetTableTests },
+    { title: "3b2a. Unit Tests — Bộ lọc trực quan cho Bảng", runner: runSheetSlicerTests },
     { title: "3b3. Unit Tests — Lưu thành mẫu .xltx (Sheet)", runner: runSheetTemplateSaveTests },
     { title: "3c. Unit Tests — Điền > Chuỗi (Series)", runner: runSheetSeriesTests },
     { title: "3d. Unit Tests — Hàm đối chiếu Excel 2016 (bộ giá trị vàng)", runner: runFunctionGoldenTests },

@@ -7127,6 +7127,289 @@ def _apply_sheet_document_properties_to_xlsx(
             replacements["docProps/custom.xml"] = custom_xml.encode("utf-8")
 
 
+def parse_sheet_slicers_from_fods(fods_xml: str | None) -> dict[str, list[dict]]:
+    result: dict[str, list[dict]] = {}
+    xml = fods_xml or ""
+    for match in _FREEZE_TABLE_TAG_RE.finditer(xml):
+        attrs = match.group(1) or ""
+        name = re.search(r'table:name=["\']([^"\']*)["\']', attrs, re.IGNORECASE)
+        payload = re.search(r'vno:slicers=["\']([^"\']*)["\']', attrs, re.IGNORECASE)
+        if not name or not payload:
+            continue
+        try:
+            value = json.loads(_unescape_xml(payload.group(1)))
+        except (TypeError, ValueError, json.JSONDecodeError):
+            value = []
+        if isinstance(value, list):
+            result[_unescape_xml(name.group(1))] = [item for item in value if isinstance(item, dict)]
+    return result
+
+
+def _slicer_current_text(xlsx_bytes: bytes, replacements: dict, entry: str) -> str:
+    current = replacements.get(entry)
+    if current is None:
+        current = read_zip_entry(xlsx_bytes, entry) or b""
+    return current.decode("utf-8", errors="replace") if isinstance(current, bytes) else str(current or "")
+
+
+def _slicer_next_rid(rels_xml: str) -> str:
+    used = {int(value) for value in re.findall(r'\bId=["\']rId(\d+)["\']', rels_xml, re.IGNORECASE)}
+    value = 1
+    while value in used:
+        value += 1
+    return f"rId{value}"
+
+
+def _slicer_add_relationship(rels_xml: str, rel_type: str, target: str) -> tuple[str, str]:
+    rel_id = _slicer_next_rid(rels_xml)
+    element = f'<Relationship Id="{rel_id}" Type="{rel_type}" Target="{target}"/>'
+    close = rels_xml.rfind("</Relationships>")
+    if close < 0:
+        rels_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+        close = rels_xml.rfind("</Relationships>")
+    return rels_xml[:close] + element + rels_xml[close:], rel_id
+
+
+def _slicer_remove_relationship_type(rels_xml: str, suffix: str) -> str:
+    return re.sub(
+        rf'<Relationship\b(?=[^>]*\bType=["\'][^"\']*/{re.escape(suffix)}["\'])[^>]*/>',
+        "",
+        rels_xml,
+        flags=re.IGNORECASE,
+    )
+
+
+def _slicer_replace_extension(xml: str, uri: str, extension: str, root_name: str) -> str:
+    ext_pattern = rf'<(?:[\w.-]+:)?ext\b(?=[^>]*\buri=["\']{re.escape(uri)}["\'])[^>]*>[\s\S]*?</(?:[\w.-]+:)?ext\s*>'
+    xml = re.sub(ext_pattern, "", xml, flags=re.IGNORECASE)
+    ext_list = re.search(r'<(?:[\w.-]+:)?extLst\b[^>]*>([\s\S]*?)</(?:[\w.-]+:)?extLst\s*>', xml, re.IGNORECASE)
+    if ext_list:
+        replacement = f"<extLst>{ext_list.group(1)}{extension}</extLst>"
+        return xml[:ext_list.start()] + replacement + xml[ext_list.end():]
+    close = re.search(rf'</(?:[\w.-]+:)?{re.escape(root_name)}\s*>', xml, re.IGNORECASE)
+    if not close:
+        return xml
+    return xml[:close.start()] + f"<extLst>{extension}</extLst>" + xml[close.start():]
+
+
+def _slicer_content_type_override(content_types: str, part: str, content_type: str) -> str:
+    if re.search(rf'<Override\b[^>]*\bPartName=["\']/{re.escape(part)}["\']', content_types, re.IGNORECASE):
+        return content_types
+    close = content_types.rfind("</Types>")
+    if close < 0:
+        return content_types
+    element = f'<Override PartName="/{part}" ContentType="{content_type}"/>'
+    return content_types[:close] + element + content_types[close:]
+
+
+def _slicer_table_filter(table_xml: str, column_index: int, values: list[str]) -> str:
+    column_pattern = rf'<(?:[\w.-]+:)?filterColumn\b(?=[^>]*\bcolId=["\']{column_index}["\'])[^>]*>[\s\S]*?</(?:[\w.-]+:)?filterColumn\s*>'
+    auto = re.search(r'<(?:[\w.-]+:)?autoFilter\b([^>]*)>([\s\S]*?)</(?:[\w.-]+:)?autoFilter\s*>', table_xml, re.IGNORECASE)
+    auto_empty = re.search(r'<(?:[\w.-]+:)?autoFilter\b([^>]*)/>', table_xml, re.IGNORECASE)
+    filters = "".join(f'<filter val="{_escape_xml(str(value))}"/>' for value in values)
+    column = f'<filterColumn colId="{column_index}"><filters>{filters}</filters></filterColumn>' if filters else ""
+    if auto:
+        body = re.sub(column_pattern, "", auto.group(2), flags=re.IGNORECASE) + column
+        replacement = f'<autoFilter{auto.group(1)}>{body}</autoFilter>'
+        return table_xml[:auto.start()] + replacement + table_xml[auto.end():]
+    if auto_empty:
+        if not column:
+            return table_xml
+        replacement = f'<autoFilter{auto_empty.group(1)}>{column}</autoFilter>'
+        return table_xml[:auto_empty.start()] + replacement + table_xml[auto_empty.end():]
+    if not column:
+        return table_xml
+    root = re.search(r'<(?:[\w.-]+:)?table\b([^>]*)>', table_xml, re.IGNORECASE)
+    if not root:
+        return table_xml
+    ref = _xml_attrs(root.group(1)).get("ref", "A1:A1")
+    return table_xml[:root.end()] + f'<autoFilter ref="{_escape_xml(ref)}">{column}</autoFilter>' + table_xml[root.end():]
+
+
+def _slicer_drawing_anchor(item: dict, drawing_id: int) -> str:
+    left = max(0.0, float(item.get("left", 24) or 24))
+    top = max(0.0, float(item.get("top", 24) or 24))
+    width = max(140.0, float(item.get("width", 180) or 180))
+    height = max(140.0, float(item.get("height", 220) or 220))
+    x, y, cx, cy = (round(value * 9525) for value in (left, top, width, height))
+    from_col, from_x = divmod(x, 64 * 9525)
+    from_row, from_y = divmod(y, 20 * 9525)
+    to_col, to_x = divmod(x + cx, 64 * 9525)
+    to_row, to_y = divmod(y + cy, 20 * 9525)
+    name = _escape_xml(str(item.get("name", f"Slicer{drawing_id}")))
+    message = "This shape represents a table slicer. Table slicers require a compatible spreadsheet application."
+    return (
+        '<xdr:twoCellAnchor editAs="absolute">'
+        f'<xdr:from><xdr:col>{from_col}</xdr:col><xdr:colOff>{from_x}</xdr:colOff><xdr:row>{from_row}</xdr:row><xdr:rowOff>{from_y}</xdr:rowOff></xdr:from>'
+        f'<xdr:to><xdr:col>{to_col}</xdr:col><xdr:colOff>{to_x}</xdr:colOff><xdr:row>{to_row}</xdr:row><xdr:rowOff>{to_y}</xdr:rowOff></xdr:to>'
+        '<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Choice xmlns:sle15="http://schemas.microsoft.com/office/drawing/2012/slicer" Requires="sle15">'
+        f'<xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="{drawing_id}" name="{name}"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm><a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/drawing/2010/slicer"><sle:slicer xmlns:sle="http://schemas.microsoft.com/office/drawing/2010/slicer" name="{name}"/></a:graphicData></a:graphic></xdr:graphicFrame>'
+        '</mc:Choice><mc:Fallback><xdr:sp macro="" textlink=""><xdr:nvSpPr><xdr:cNvPr id="0" name=""/><xdr:cNvSpPr><a:spLocks noTextEdit="1"/></xdr:cNvSpPr></xdr:nvSpPr>'
+        f'<xdr:spPr><a:xfrm><a:off x="{x}" y="{y}"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:prstClr val="white"/></a:solidFill><a:ln w="1"><a:solidFill><a:prstClr val="green"/></a:solidFill></a:ln></xdr:spPr><xdr:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="en-US" sz="1100"/><a:t>{message}</a:t></a:r></a:p></xdr:txBody></xdr:sp></mc:Fallback></mc:AlternateContent><xdr:clientData/></xdr:twoCellAnchor>'
+    )
+
+
+def _strip_slicer_drawing_anchors(drawing_xml: str) -> str:
+    """Remove only anchors that contain slicer graphics; preserve other drawings."""
+    anchor_pattern = re.compile(
+        r'<xdr:(twoCellAnchor|oneCellAnchor|absoluteAnchor)\b[\s\S]*?</xdr:\1\s*>',
+        re.IGNORECASE,
+    )
+    return anchor_pattern.sub(
+        lambda match: "" if "drawing/2010/slicer" in match.group(0) else match.group(0),
+        drawing_xml,
+    )
+
+
+def _apply_sheet_slicers_to_xlsx(xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str | bytes | None]) -> None:
+    slicers_by_sheet = parse_sheet_slicers_from_fods(source_fods)
+    if not slicers_by_sheet:
+        return
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    package_names: set[str] = set()
+    try:
+        with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+            package_names = set(package.namelist())
+    except zipfile.BadZipFile:
+        return
+    for name in package_names:
+        if name.startswith("xl/slicers/") or name.startswith("xl/slicerCaches/"):
+            replacements[name] = None
+
+    content_types = _slicer_current_text(xlsx_bytes, replacements, "[Content_Types].xml")
+    content_types = re.sub(r'<Override\b(?=[^>]*\bPartName=["\']/xl/(?:slicers|slicerCaches)/)[^>]*/>', "", content_types, flags=re.IGNORECASE)
+    workbook_xml = _slicer_current_text(xlsx_bytes, replacements, XLSX_WORKBOOK_ENTRY)
+    workbook_rels = _slicer_current_text(xlsx_bytes, replacements, XLSX_WORKBOOK_RELS_ENTRY)
+    workbook_rels = _slicer_remove_relationship_type(workbook_rels, "slicerCache")
+    workbook_xml = re.sub(r'<(?:[\w.-]+:)?definedName\b(?=[^>]*\bname=["\']Slicer_[^"\']*["\'])[^>]*>[\s\S]*?</(?:[\w.-]+:)?definedName\s*>', "", workbook_xml, flags=re.IGNORECASE)
+
+    caches: list[tuple[str, str]] = []
+    defined_names: list[str] = []
+    cache_index = 0
+    slicer_part_index = 0
+    used_cache_names: set[str] = set()
+    drawing_parts = [int(value) for value in re.findall(r'^xl/drawings/drawing(\d+)\.xml$', "\n".join(package_names), re.MULTILINE)]
+    next_drawing = max(drawing_parts, default=0) + 1
+
+    for sheet_name, raw_items in slicers_by_sheet.items():
+        items = [item for item in raw_items if isinstance(item, dict) and item.get("tableName") and item.get("name")]
+        sheet_path = _sheet_name_equivalent_value(sheet_entries, sheet_name)
+        if sheet_path is None:
+            continue
+        sheet_xml = _slicer_current_text(xlsx_bytes, replacements, sheet_path)
+        rels_path = _relationship_part_name(sheet_path)
+        sheet_rels = _slicer_current_text(xlsx_bytes, replacements, rels_path)
+        if not sheet_rels:
+            sheet_rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
+        sheet_rels = _slicer_remove_relationship_type(sheet_rels, "slicer")
+
+        table_parts: dict[str, dict] = {}
+        drawing_path = ""
+        for record in _relationship_records(sheet_rels).values():
+            target = _resolve_relationship_target(sheet_path, record.get("Target", ""))
+            if record.get("Type", "").endswith("/table"):
+                table_xml = _slicer_current_text(xlsx_bytes, replacements, target)
+                root = re.search(r'<(?:[\w.-]+:)?table\b([^>]*)>', table_xml, re.IGNORECASE)
+                if root:
+                    attrs = _xml_attrs(root.group(1))
+                    table_parts[_unescape_xml(attrs.get("name") or attrs.get("displayName", ""))] = {
+                        "path": target,
+                        "xml": table_xml,
+                        "id": int(attrs.get("id", "0") or 0),
+                    }
+            elif record.get("Type", "").endswith("/drawing"):
+                drawing_path = target
+
+        valid: list[tuple[dict, dict, str]] = []
+        for item in items:
+            table = table_parts.get(str(item.get("tableName", "")))
+            if not table:
+                continue
+            cache_index += 1
+            base = re.sub(r'[^A-Za-z0-9_]', '_', f'Slicer_{item.get("columnName") or item.get("caption") or cache_index}') or f"Slicer_{cache_index}"
+            cache_name = base
+            suffix = 2
+            while cache_name.lower() in used_cache_names:
+                cache_name = f"{base}_{suffix}"
+                suffix += 1
+            used_cache_names.add(cache_name.lower())
+            cache_path = f"xl/slicerCaches/slicerCache{cache_index}.xml"
+            cache_xml = (
+                '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                '<slicerCacheDefinition xmlns="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="x" xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main"'
+                f' name="{_escape_xml(cache_name)}" sourceName="{_escape_xml(str(item.get("columnName") or item.get("caption") or ""))}"><extLst><x:ext uri="{{2F2917AC-EB37-4324-AD4E-5DD8C200BD13}}" xmlns:x15="http://schemas.microsoft.com/office/spreadsheetml/2010/11/main"><x15:tableSlicerCache tableId="{table["id"]}" column="{max(0, int(item.get("columnIndex", 0) or 0)) + 1}"/></x:ext></extLst></slicerCacheDefinition>'
+            )
+            replacements[cache_path] = cache_xml
+            content_types = _slicer_content_type_override(content_types, cache_path, "application/vnd.ms-excel.slicerCache+xml")
+            workbook_rels, cache_rid = _slicer_add_relationship(workbook_rels, "http://schemas.microsoft.com/office/2007/relationships/slicerCache", f"slicerCaches/slicerCache{cache_index}.xml")
+            caches.append((cache_rid, cache_name))
+            defined_names.append(cache_name)
+            column_index = max(0, int(item.get("columnIndex", 0) or 0))
+            table["xml"] = _slicer_table_filter(table["xml"], column_index, [str(value) for value in item.get("selectedValues", [])])
+            valid.append((item, table, cache_name))
+
+        for table in table_parts.values():
+            replacements[table["path"]] = table["xml"]
+        if not valid:
+            if drawing_path:
+                drawing_xml = _slicer_current_text(xlsx_bytes, replacements, drawing_path)
+                replacements[drawing_path] = _strip_slicer_drawing_anchors(drawing_xml)
+            replacements[sheet_path] = _slicer_replace_extension(sheet_xml, "{3A4CF648-6AED-40f4-86FF-DC5316D8AED3}", "", "worksheet")
+            replacements[rels_path] = sheet_rels
+            continue
+
+        slicer_part_index += 1
+        slicer_path = f"xl/slicers/slicer{slicer_part_index}.xml"
+        children = "".join(
+            f'<slicer name="{_escape_xml(str(item.get("name")))}" cache="{_escape_xml(cache_name)}" caption="{_escape_xml(str(item.get("caption") or item.get("columnName") or ""))}" columnCount="{max(1, int(item.get("numberOfColumns", 1) or 1))}" rowHeight="241300"/>'
+            for item, _table, cache_name in valid
+        )
+        replacements[slicer_path] = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><slicers xmlns="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="x" xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' + children + '</slicers>'
+        content_types = _slicer_content_type_override(content_types, slicer_path, "application/vnd.ms-excel.slicer+xml")
+        sheet_rels, slicer_rid = _slicer_add_relationship(sheet_rels, "http://schemas.microsoft.com/office/2007/relationships/slicer", f"../slicers/slicer{slicer_part_index}.xml")
+        extension = f'<ext uri="{{3A4CF648-6AED-40f4-86FF-DC5316D8AED3}}" xmlns:x15="http://schemas.microsoft.com/office/spreadsheetml/2010/11/main"><x14:slicerList xmlns:x14="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main"><x14:slicer r:id="{slicer_rid}"/></x14:slicerList></ext>'
+        sheet_xml = _slicer_replace_extension(sheet_xml, "{3A4CF648-6AED-40f4-86FF-DC5316D8AED3}", extension, "worksheet")
+
+        if not drawing_path:
+            drawing_path = f"xl/drawings/drawing{next_drawing}.xml"
+            next_drawing += 1
+            sheet_rels, drawing_rid = _slicer_add_relationship(sheet_rels, "http://schemas.openxmlformats.org/officeDocument/2006/relationships/drawing", f"../drawings/{posixpath.basename(drawing_path)}")
+            drawing_tag = f'<drawing r:id="{drawing_rid}"/>'
+            anchor = re.search(r'<(?:[\w.-]+:)?(?:legacyDrawing|legacyDrawingHF|picture|oleObjects|controls|webPublishItems|tableParts|extLst)\b|</(?:[\w.-]+:)?worksheet\s*>', sheet_xml, re.IGNORECASE)
+            if anchor:
+                sheet_xml = sheet_xml[:anchor.start()] + drawing_tag + sheet_xml[anchor.start():]
+            drawing_xml = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><xdr:wsDr xmlns:xdr="http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing" xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"></xdr:wsDr>'
+            content_types = _slicer_content_type_override(content_types, drawing_path, "application/vnd.openxmlformats-officedocument.drawing+xml")
+        else:
+            drawing_xml = _slicer_current_text(xlsx_bytes, replacements, drawing_path)
+        drawing_xml = _strip_slicer_drawing_anchors(drawing_xml)
+        max_id = max([int(value) for value in re.findall(r'<xdr:cNvPr\b[^>]*\bid=["\'](\d+)["\']', drawing_xml, re.IGNORECASE)] or [1])
+        anchors = "".join(_slicer_drawing_anchor(item, max_id + index + 1) for index, (item, _table, _cache) in enumerate(valid))
+        close = drawing_xml.rfind("</xdr:wsDr>")
+        if close >= 0:
+            drawing_xml = drawing_xml[:close] + anchors + drawing_xml[close:]
+        replacements[drawing_path] = drawing_xml
+        replacements[sheet_path] = sheet_xml
+        replacements[rels_path] = sheet_rels
+
+    cache_refs = "".join(f'<x14:slicerCache r:id="{rid}"/>' for rid, _name in caches)
+    workbook_extension = f'<ext uri="{{46BE6895-7355-4a93-B00E-2C351335B9C9}}" xmlns:x15="http://schemas.microsoft.com/office/spreadsheetml/2010/11/main"><x15:slicerCaches xmlns:x14="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main">{cache_refs}</x15:slicerCaches></ext>' if cache_refs else ""
+    workbook_xml = _slicer_replace_extension(workbook_xml, "{46BE6895-7355-4a93-B00E-2C351335B9C9}", workbook_extension, "workbook")
+    if defined_names:
+        entries = "".join(f'<definedName name="{_escape_xml(name)}">#N/A</definedName>' for name in defined_names)
+        names = re.search(r'<(?:[\w.-]+:)?definedNames\b[^>]*>([\s\S]*?)</(?:[\w.-]+:)?definedNames\s*>', workbook_xml, re.IGNORECASE)
+        if names:
+            replacement = f'<definedNames>{names.group(1)}{entries}</definedNames>'
+            workbook_xml = workbook_xml[:names.start()] + replacement + workbook_xml[names.end():]
+        else:
+            anchor = re.search(r'<(?:[\w.-]+:)?(?:calcPr|oleSize|customWorkbookViews|extLst)\b|</(?:[\w.-]+:)?workbook\s*>', workbook_xml, re.IGNORECASE)
+            if anchor:
+                workbook_xml = workbook_xml[:anchor.start()] + f'<definedNames>{entries}</definedNames>' + workbook_xml[anchor.start():]
+    replacements[XLSX_WORKBOOK_ENTRY] = workbook_xml
+    replacements[XLSX_WORKBOOK_RELS_ENTRY] = workbook_rels
+    replacements["[Content_Types].xml"] = content_types
+
+
 def postprocess_sheet_xlsx(
     xlsx_bytes: bytes,
     *,
@@ -7485,6 +7768,7 @@ def postprocess_sheet_xlsx(
         # dxfs or worksheet conditionalFormatting blocks authored by the app.
         apply_conditional_formatting_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_sheet_document_properties_to_xlsx(xlsx_bytes, source_fods, replacements)
+        _apply_sheet_slicers_to_xlsx(xlsx_bytes, source_fods, replacements)
 
     calc_options = parse_calculation_options_from_fods(source_fods)
     if calc_options:
@@ -11262,6 +11546,155 @@ def normalize_source_xlsx(xlsx_bytes: bytes | None) -> bytes | None:
         return xlsx_bytes
 
 
+def _xlsx_table_slicer_metadata(xlsx_bytes: bytes) -> dict[str, list[dict]]:
+    """Read table slicers from an XLSX package into the app's portable model."""
+    result: dict[str, list[dict]] = {}
+    try:
+        with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+            sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+            workbook_rels = _relationship_records((read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_RELS_ENTRY) or b"").decode("utf-8", errors="replace"))
+            caches: dict[str, dict] = {}
+            for record in workbook_rels.values():
+                if not record.get("Type", "").endswith("/slicerCache"):
+                    continue
+                cache_path = _resolve_relationship_target(XLSX_WORKBOOK_ENTRY, record.get("Target", ""))
+                try:
+                    cache_xml = package.read(cache_path).decode("utf-8", errors="replace")
+                except KeyError:
+                    continue
+                root = re.search(r"<(?:[\w.-]+:)?slicerCacheDefinition\b([^>]*)>", cache_xml, re.IGNORECASE)
+                table_cache = re.search(r"<(?:[\w.-]+:)?tableSlicerCache\b([^>]*)/?>", cache_xml, re.IGNORECASE)
+                if not root or not table_cache:
+                    continue
+                attrs = _xml_attrs(root.group(1))
+                table_attrs = _xml_attrs(table_cache.group(1))
+                cache_name = _unescape_xml(attrs.get("name", ""))
+                if cache_name:
+                    caches[cache_name] = {
+                        "sourceName": _unescape_xml(attrs.get("sourceName", "")),
+                        "tableId": int(table_attrs.get("tableId", "0") or 0),
+                        "column": max(0, int(table_attrs.get("column", "1") or 1) - 1),
+                    }
+
+            for sheet_name, sheet_path in sheet_entries.items():
+                rels_path = _relationship_part_name(sheet_path)
+                try:
+                    rels_xml = package.read(rels_path).decode("utf-8", errors="replace")
+                except KeyError:
+                    continue
+                rels = _relationship_records(rels_xml)
+                tables_by_id: dict[int, dict] = {}
+                drawing_xml = ""
+                for record in rels.values():
+                    target = _resolve_relationship_target(sheet_path, record.get("Target", ""))
+                    if record.get("Type", "").endswith("/table"):
+                        try:
+                            table_xml = package.read(target).decode("utf-8", errors="replace")
+                        except KeyError:
+                            continue
+                        table_root = re.search(r"<(?:[\w.-]+:)?table\b([^>]*)>", table_xml, re.IGNORECASE)
+                        if not table_root:
+                            continue
+                        table_attrs = _xml_attrs(table_root.group(1))
+                        table_id = int(table_attrs.get("id", "0") or 0)
+                        filters: dict[int, list[str]] = {}
+                        auto = re.search(r"<(?:[\w.-]+:)?autoFilter\b[^>]*>([\s\S]*?)</(?:[\w.-]+:)?autoFilter\s*>", table_xml, re.IGNORECASE)
+                        if auto:
+                            for column in re.finditer(r"<(?:[\w.-]+:)?filterColumn\b([^>]*)>([\s\S]*?)</(?:[\w.-]+:)?filterColumn\s*>", auto.group(1), re.IGNORECASE):
+                                column_id = int(_xml_attrs(column.group(1)).get("colId", "-1") or -1)
+                                filters[column_id] = [_unescape_xml(value) for value in re.findall(r'<(?:[\w.-]+:)?filter\b[^>]*\bval=["\']([^"\']*)["\']', column.group(2), re.IGNORECASE)]
+                        tables_by_id[table_id] = {
+                            "name": _unescape_xml(table_attrs.get("name") or table_attrs.get("displayName", "")),
+                            "filters": filters,
+                        }
+                    elif record.get("Type", "").endswith("/drawing"):
+                        try:
+                            drawing_xml = package.read(target).decode("utf-8", errors="replace")
+                        except KeyError:
+                            drawing_xml = ""
+
+                geometry: dict[str, dict[str, float]] = {}
+                for anchor in re.findall(r"<(?:xdr:)?(?:twoCellAnchor|oneCellAnchor|absoluteAnchor)\b[\s\S]*?</(?:xdr:)?(?:twoCellAnchor|oneCellAnchor|absoluteAnchor)\s*>", drawing_xml, re.IGNORECASE):
+                    if "drawing/2010/slicer" not in anchor:
+                        continue
+                    name = re.search(r'<(?:xdr:)?cNvPr\b[^>]*\bname=["\']([^"\']+)["\']', anchor, re.IGNORECASE)
+                    transforms = list(re.finditer(r'<a:xfrm\b[^>]*>[\s\S]*?<a:off\b[^>]*\bx=["\'](\d+)["\'][^>]*\by=["\'](\d+)["\'][^>]*/>[\s\S]*?<a:ext\b[^>]*\bcx=["\'](\d+)["\'][^>]*\bcy=["\'](\d+)["\'][^>]*/>', anchor, re.IGNORECASE))
+                    transform = next((candidate for candidate in reversed(transforms) if int(candidate.group(3)) > 0 and int(candidate.group(4)) > 0), None)
+                    if name and transform:
+                        geometry[_unescape_xml(name.group(1))] = {
+                            "left": round(int(transform.group(1)) / 9525, 3),
+                            "top": round(int(transform.group(2)) / 9525, 3),
+                            "width": round(int(transform.group(3)) / 9525, 3),
+                            "height": round(int(transform.group(4)) / 9525, 3),
+                        }
+
+                sheet_slicers: list[dict] = []
+                for record in rels.values():
+                    if not record.get("Type", "").endswith("/slicer"):
+                        continue
+                    slicer_path = _resolve_relationship_target(sheet_path, record.get("Target", ""))
+                    try:
+                        slicer_xml = package.read(slicer_path).decode("utf-8", errors="replace")
+                    except KeyError:
+                        continue
+                    for match in re.finditer(r"<(?:[\w.-]+:)?slicer\b([^>]*)/?>", slicer_xml, re.IGNORECASE):
+                        attrs = _xml_attrs(match.group(1))
+                        slicer_name = _unescape_xml(attrs.get("name", ""))
+                        cache_name = _unescape_xml(attrs.get("cache", ""))
+                        cache = caches.get(cache_name)
+                        table = tables_by_id.get(cache.get("tableId", 0)) if cache else None
+                        if not slicer_name or not cache or not table:
+                            continue
+                        item = {
+                            "id": f"ooxml:{cache_name}:{slicer_name}",
+                            "name": slicer_name,
+                            "caption": _unescape_xml(attrs.get("caption") or cache.get("sourceName", "")),
+                            "tableName": table.get("name", ""),
+                            "columnName": cache.get("sourceName", ""),
+                            "columnIndex": cache.get("column", 0),
+                            "left": 24,
+                            "top": 24,
+                            "width": 180,
+                            "height": 220,
+                            "numberOfColumns": max(1, int(attrs.get("columnCount", "1") or 1)),
+                            "multiSelect": False,
+                            "selectedValues": table.get("filters", {}).get(cache.get("column", 0), []),
+                            "anchorValue": None,
+                        }
+                        item.update(geometry.get(slicer_name, {}))
+                        sheet_slicers.append(item)
+                if sheet_slicers:
+                    result[sheet_name] = sheet_slicers
+    except (zipfile.BadZipFile, OSError, ValueError):
+        return {}
+    return result
+
+
+def _overlay_sheet_slicers_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
+    slicers_by_sheet = _xlsx_table_slicer_metadata(xlsx_bytes)
+    if not slicers_by_sheet:
+        return fods_xml
+
+    def replace_table(match) -> str:
+        attrs = match.group(1) or ""
+        name = re.search(r'table:name=["\']([^"\']*)["\']', attrs, re.IGNORECASE)
+        sheet_name = _unescape_xml(name.group(1)) if name else ""
+        slicers = slicers_by_sheet.get(sheet_name)
+        if not slicers:
+            return match.group(0)
+        attrs = re.sub(r'\s+vno:slicers=(["\']).*?\1', "", attrs, flags=re.IGNORECASE)
+        payload = _escape_xml(json.dumps(slicers, ensure_ascii=False, separators=(",", ":")))
+        return f'<table:table{attrs} vno:slicers="{payload}">'
+
+    xml = _sub_table_open_tags(fods_xml or "", replace_table)
+    if _declares_vno_namespace(xml):
+        return xml
+    match = _OFFICE_DOCUMENT_OPEN_RE.search(xml)
+    if not match:
+        return xml
+    return xml[:match.start()] + f'<office:document{match.group(1)} xmlns:vno="{SHEET_VNO_NS}">' + xml[match.end():]
+
+
 def overlay_sheet_xlsx_fods(
     xlsx_bytes: bytes,
     fods_xml: str | None,
@@ -11324,6 +11757,7 @@ def overlay_sheet_xlsx_fods(
     xml = overlay_sheet_chart_metadata_to_fods(xlsx_bytes, xml)
     # Scenarios: overlay vno:scenarios from XLSX worksheet XMLs
     xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
+    xml = _overlay_sheet_slicers_from_xlsx(xlsx_bytes, xml)
     xml = apply_conditional_formatting_to_fods(xml, parse_conditional_formatting_from_xlsx(xlsx_bytes))
     return xml
 
@@ -11376,6 +11810,7 @@ def overlay_sheet_xlsx_fods_p1(
         if tab_colors:
             xml = apply_tab_colors_to_fods(xml, tab_colors)
         xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
+        xml = _overlay_sheet_slicers_from_xlsx(xlsx_bytes, xml)
         xml = _put_back_table_bodies(xml, bodies)
         bodies = None
     xml = _overlay_sheet_cell_metadata_from_xlsx_p1(
@@ -11395,6 +11830,7 @@ def overlay_sheet_xlsx_fods_p1(
     xml = overlay_sheet_chart_metadata_to_fods(xlsx_bytes, xml)
     if not skeleton:
         xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
+        xml = _overlay_sheet_slicers_from_xlsx(xlsx_bytes, xml)
     xml = apply_conditional_formatting_to_fods(xml, parse_conditional_formatting_from_xlsx(xlsx_bytes))
     return xml
 

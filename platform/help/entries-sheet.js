@@ -1106,6 +1106,23 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.table.slicer",
+    app: "sheet",
+    commandIds: ["sheet.table.insertSlicer"],
+    title: "Lọc Bảng bằng bộ lọc trực quan",
+    summary: "Bộ lọc trực quan tạo một khung nút nổi cho từng giá trị của cột Bảng. Khi chọn mục, Sheet chỉ hiện những dòng thỏa đồng thời mọi khung lọc và bộ lọc tự động đang dùng; các công thức SUBTOTAL cũng cập nhật theo những dòng còn hiện.",
+    ribbon: { tab: "Thiết kế Bảng", tabId: "tableDesign", group: "Bộ lọc" },
+    keywords: ["bộ lọc trực quan", "lọc bảng", "chọn nhiều", "xóa bộ lọc", "khung lọc nổi", "SUBTOTAL", "Thiết kế Bảng"],
+    steps: [
+      "Nhấp một ô trong Bảng để mở tab theo ngữ cảnh Thiết kế Bảng, vào nhóm Bộ lọc và bấm Chèn bộ lọc trực quan. Trong hộp thoại, đánh dấu một hoặc nhiều cột rồi bấm Đồng ý; mỗi cột tạo một khung lọc nổi riêng.",
+      "Bấm một mục để chỉ giữ các dòng có giá trị đó. Giữ Ctrl để thêm hoặc bỏ từng mục, giữ Shift để chọn một dải mục, hoặc bật nút Chọn nhiều trên đầu khung rồi bấm liên tiếp các mục. Nhiều khung trên các cột khác nhau kết hợp theo điều kiện VÀ.",
+      "Mục có chữ và nền nhạt kèm viền đứt là mục hiện không còn dữ liệu do các bộ lọc khác, nhưng vẫn có thể được chọn. Nút Xóa bộ lọc ở đầu khung chọn lại toàn bộ mục mà không xóa khung.",
+      "Kéo phần tiêu đề để di chuyển khung; kéo góc dưới bên phải để đổi kích cỡ. Các thao tác chọn, xóa, di chuyển và đổi cỡ đều có thể Hoàn tác hoặc Làm lại.",
+      "Bấm dấu × để xóa hẳn khung lọc. Khi lưu dạng XLSX, thông tin khung, vị trí và trạng thái chọn được ghi cùng Bảng để mở lại vẫn tiếp tục lọc đúng."
+    ],
+    note: "Bộ lọc chạy hoàn toàn trên máy. Nếu đồng thời lọc bằng mũi tên ở hàng tiêu đề Bảng, một dòng chỉ hiện khi thỏa cả bộ lọc tự động và mọi khung lọc trực quan."
+  },
+  {
     id: "sheet.table.tools",
     app: "sheet",
     commandIds: [

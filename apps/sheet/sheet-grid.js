@@ -34,6 +34,7 @@ import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 import { isSpellcheckEnabled, setSpellcheckEnabled } from "../../platform/text/spellcheck-dom-controller.js";
 import { showContextMenu, closeActiveContextMenu } from "../../platform/ui-kit/components.js";
 import { PageSetupDialog } from "./page-setup-dialog.js";
+import { TableSlicerController, normalizeTableSlicer } from "./table-slicer.js";
 import {
   cellColor,
   defaultValidationMessage,
@@ -370,6 +371,8 @@ export class SheetGridController {
     this.scenariosBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.dataTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.tablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.slicersBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.tableSlicer = new TableSlicerController(this);
     this._dataTableEvaluating = false;
     this.outlineGroupsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.rowHeightsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
@@ -555,6 +558,7 @@ export class SheetGridController {
       if (t) return this.convertTableToRange(t.name);
       return false;
     });
+    globalCommandBus.bindHandler("sheet.table.insertSlicer", () => this.tableSlicer.showInsertDialog());
 
     this.autocomplete.mount();
 
@@ -816,6 +820,7 @@ export class SheetGridController {
     this.renderCharts();
     this.renderImages();
     this.renderTextBoxes();
+    this.tableSlicer.render();
     this.selectCell("A", 1);
     this.focusGrid();
     this._bindGridKeyboardNavigation();
@@ -3587,6 +3592,8 @@ export class SheetGridController {
     this.selectedObjectIds = new Set();
     this.isSelectionPaneOpen = false;
     this.pivotTablesBySheet = { [defaultSheetName]: [] };
+    this.tablesBySheet = { [defaultSheetName]: [] };
+    this.slicersBySheet = { [defaultSheetName]: [] };
     this.scenariosBySheet = { [defaultSheetName]: [] };
     this.rowHeightsBySheet = { [defaultSheetName]: new Map() };
     this.colWidthsBySheet = { [defaultSheetName]: new Map() };
@@ -3631,6 +3638,7 @@ export class SheetGridController {
     this.renderCharts();
     this.renderImages();
     this.renderTextBoxes();
+    this.tableSlicer.render();
     this.selectCell("A", 1);
     if (this.formulaInput) this.formulaInput.value = "";
     this._syncCommandStates();
@@ -3670,6 +3678,7 @@ export class SheetGridController {
     if (!this.groupsBySheet[sheetName]) this.groupsBySheet[sheetName] = [];
     if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
     if (!this.tablesBySheet[sheetName]) this.tablesBySheet[sheetName] = [];
+    if (!this.slicersBySheet[sheetName]) this.slicersBySheet[sheetName] = [];
     if (!this.scenariosBySheet[sheetName]) this.scenariosBySheet[sheetName] = [];
     if (!this.namedRangesBySheet[sheetName]) this.namedRangesBySheet[sheetName] = [];
     if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
@@ -3799,6 +3808,7 @@ export class SheetGridController {
     this._syncCommandStates();
     this._applyProtectionUi();
     this._updateWatchWindow?.();
+    this.tableSlicer.render();
 
     return true;
   }
@@ -3824,6 +3834,7 @@ export class SheetGridController {
     if (!this.textBoxesBySheet[sheetName]) this.textBoxesBySheet[sheetName] = [];
     if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
     if (!this.tablesBySheet[sheetName]) this.tablesBySheet[sheetName] = [];
+    if (!this.slicersBySheet[sheetName]) this.slicersBySheet[sheetName] = [];
     if (!this.scenariosBySheet[sheetName]) this.scenariosBySheet[sheetName] = [];
     if (!this.namedRangesBySheet[sheetName]) this.namedRangesBySheet[sheetName] = [];
     if (!this.commentsBySheet[sheetName]) this.commentsBySheet[sheetName] = {};
@@ -10501,14 +10512,13 @@ _bindGridKeyboardNavigation() {
   }
 
   clearAllFilters() {
-    if (!this.activeFilters?.size && !this._advancedFilterConfig()) return false;
+    const hasSlicerFilter = (this.slicersBySheet?.[this.activeSheet] || []).some(item => item.selectedValues?.length);
+    if (!this.activeFilters?.size && !this._advancedFilterConfig() && !hasSlicerFilter) return false;
     const previous = this._snapshotFilterState();
     this.activeFilters.clear();
-    this.hiddenRows.clear();
+    for (const slicer of this.slicersBySheet?.[this.activeSheet] || []) slicer.selectedValues = [];
     if (this.advancedFilterBySheet) delete this.advancedFilterBySheet[this.activeSheet];
-    this._updateFilterButtons();
-    this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
-    this._recalcIfVisibilityDependent();
+    this._recomputeFilteredRows();
     this._recordHistory({ type: "filter", sheet: this.activeSheet, prevVal: previous, nextVal: this._snapshotFilterState() });
     return true;
   }
@@ -10578,7 +10588,7 @@ _bindGridKeyboardNavigation() {
     this.hiddenRows.clear();
     for (let r = firstRow + 1; r <= listNorm.end.r; r++) if (!visible.has(r)) this.hiddenRows.add(r);
     this.advancedFilterBySheet ||= {};
-    this.advancedFilterBySheet[this.activeSheet] = { listRange: this._rangeLabel(listNorm), criteriaRange: criteria ? this._rangeLabel(this._normalizeRange(criteria)) : "", unique: Boolean(options.unique) };
+    this.advancedFilterBySheet[this.activeSheet] = { listRange: this._rangeLabel(listNorm), criteriaRange: criteria ? this._rangeLabel(this._normalizeRange(criteria)) : "", unique: Boolean(options.unique), matchedRows: [...visible] };
     this._updateFilterButtons?.();
     this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
     this._recalcIfVisibilityDependent();
@@ -11357,7 +11367,9 @@ _bindGridKeyboardNavigation() {
     const name = this._uniqueTableName(requestedName);
     if (!table || !name) return false;
     const before = structuredClone(tables);
+    const slicersBefore = structuredClone(this.slicersBySheet?.[this.activeSheet] || []);
     table.name = name;
+    for (const slicer of this.slicersBySheet?.[this.activeSheet] || []) if (slicer.tableName === oldName) slicer.tableName = name;
 
     // Update all formulas referencing oldName
     for (const sheetName of this.sheets || [this.activeSheet]) {
@@ -11373,7 +11385,7 @@ _bindGridKeyboardNavigation() {
       }
     }
 
-    if (recordUndo) this._recordHistory({ type: "sheet-tables", sheet: this.activeSheet, before, after: structuredClone(tables) });
+    if (recordUndo) this._recordHistory({ type: "sheet-tables", sheet: this.activeSheet, before, after: structuredClone(tables), slicersBefore, slicersAfter: structuredClone(this.slicersBySheet[this.activeSheet]) });
     this._recalculateAllFormulas();
     return true;
   }
@@ -11426,6 +11438,12 @@ _bindGridKeyboardNavigation() {
     headerCell.val = cleanNewName;
     headerCell.formula = "";
     this.cellsData.set(hCoord, headerCell);
+    for (const slicer of this.slicersBySheet?.[this.activeSheet] || []) {
+      if (slicer.tableName === tableName && slicer.columnIndex === targetColNum - startColNum) {
+        slicer.columnName = cleanNewName;
+        slicer.caption = cleanNewName;
+      }
+    }
 
     for (const sheetName of this.sheets || [this.activeSheet]) {
       const map = sheetName === this.activeSheet ? this.cellsData : this.sheetsData?.[sheetName];
@@ -11555,6 +11573,7 @@ _bindGridKeyboardNavigation() {
     if (index < 0) return false;
     const table = tables[index];
     const before = structuredClone(tables);
+    const slicersBefore = structuredClone(this.slicersBySheet?.[this.activeSheet] || []);
     const filterBefore = this._snapshotFilterState();
     const filterRangeBefore = this.sheetStates?.[this.activeSheet]?.filterRange || "";
     const convertedRange = table.ref;
@@ -11574,6 +11593,7 @@ _bindGridKeyboardNavigation() {
     }
 
     tables.splice(index, 1);
+    this.slicersBySheet[this.activeSheet] = (this.slicersBySheet?.[this.activeSheet] || []).filter(item => item.tableName !== name);
     const otherTable = tables.find(item => item.ref === convertedRange);
     if (!otherTable && this.sheetStates?.[this.activeSheet]?.filterRange === convertedRange) {
       this.sheetStates[this.activeSheet].isFilterActive = false;
@@ -11588,8 +11608,10 @@ _bindGridKeyboardNavigation() {
     if (recordUndo) this._recordHistory({
       type: "sheet-tables", sheet: this.activeSheet, before, after: structuredClone(tables),
       filterBefore, filterAfter: this._snapshotFilterState(), filterRangeBefore,
-      filterRangeAfter: this.sheetStates?.[this.activeSheet]?.filterRange || ""
+      filterRangeAfter: this.sheetStates?.[this.activeSheet]?.filterRange || "",
+      slicersBefore, slicersAfter: structuredClone(this.slicersBySheet[this.activeSheet])
     });
+    this._recomputeFilteredRows();
     this._recalculateAllFormulas();
     return true;
   }
@@ -14297,6 +14319,9 @@ _bindGridKeyboardNavigation() {
       this._recalculateAllFormulas();
     } else if (action.type === "sheet-tables") {
       this.tablesBySheet[action.sheet] = structuredClone(direction === "undo" ? action.before : action.after);
+      if (action.slicersBefore && action.slicersAfter) {
+        this.slicersBySheet[action.sheet] = structuredClone(direction === "undo" ? action.slicersBefore : action.slicersAfter).map(normalizeTableSlicer);
+      }
       if (action.filterRangeBefore !== undefined || action.filterRangeAfter !== undefined) {
         this.sheetStates[action.sheet] = {
           ...(this.sheetStates[action.sheet] || {}),
@@ -14304,6 +14329,10 @@ _bindGridKeyboardNavigation() {
         };
       }
       if (action.filterBefore && action.filterAfter) this._restoreFilterState(direction === "undo" ? action.filterBefore : action.filterAfter);
+      this.tableSlicer.render();
+    } else if (action.type === "sheet-slicers") {
+      this.slicersBySheet[action.sheet] = structuredClone(direction === "undo" ? action.before : action.after).map(normalizeTableSlicer);
+      this._recomputeFilteredRows();
     } else if (action.type === "batch-workbook") {
       const bySheet = direction === "undo" ? action.beforeBySheet : action.afterBySheet;
       for (const [sheetName, snapshots] of Object.entries(bySheet || {})) {
@@ -14751,12 +14780,10 @@ _bindGridKeyboardNavigation() {
         this.container.classList.add("vno-filter-mode");
       } else {
         this.container.classList.remove("vno-filter-mode");
-        this.hiddenRows.clear();
         this.activeFilters.clear();
       }
     }
-    this._updateFilterButtons();
-    this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+    this._recomputeFilteredRows();
     this._recordHistory({ type: "filter", sheet: this.activeSheet, prevVal: previous, nextVal: this._snapshotFilterState() });
     this._syncCommandStates();
     return this.isFilterActive;
@@ -15064,30 +15091,81 @@ _bindGridKeyboardNavigation() {
   applyFilter(col, allowedSet, recordUndo = true) {
     const previous = this._snapshotFilterState();
     this.activeFilters.set(col, allowedSet);
-    this.hiddenRows.clear();
+    this._recomputeFilteredRows();
+    if (recordUndo) this._recordHistory({ type: "filter", sheet: this.activeSheet, prevVal: previous, nextVal: this._snapshotFilterState() });
+  }
 
-    const contexts = new Map(Array.from(this.activeFilters, ([filterCol, allowed]) => [filterCol, this._filterContext(filterCol, allowed?.criterion)]));
-    for (let r = this._filterDataStartRow(); r <= this._filterDataEndRow(); r++) {
-      let shouldHide = false;
-      for (const [filterCol, allowed] of this.activeFilters.entries()) {
-        const key = `${filterCol}${r}`;
-        const itm = this.cellsData.get(key) || { val: "", style: {} };
-        const val = itm ? String(itm.val ?? "") : "";
-        const matches = allowed?.criterion
-          ? matchesFilterCriterion(itm, allowed.criterion, contexts.get(filterCol))
-          : allowed.has(val);
-        if (!matches) {
-          shouldHide = true;
-          break;
-        }
-      }
-      if (shouldHide) this.hiddenRows.add(r);
+  _rowMatchesActiveFilters(row) {
+    const advanced = this._advancedFilterConfig();
+    if (advanced?.matchedRows?.length) {
+      const range = this._parseRange(advanced.listRange || "");
+      if (range && row > range.start.r && row <= range.end.r && !advanced.matchedRows.includes(row)) return false;
     }
+    if (!this.activeFilters?.size) return true;
+    const range = this._parseRange(this.sheetStates?.[this.activeSheet]?.filterRange || "");
+    if (range && (row <= Math.min(range.start.r, range.end.r) || row > Math.max(range.start.r, range.end.r))) return true;
+    for (const [filterCol, allowed] of this.activeFilters.entries()) {
+      const item = this.cellsData.get(`${filterCol}${row}`) || { val: "", style: {} };
+      const matches = allowed?.criterion
+        ? matchesFilterCriterion(item, allowed.criterion, this._filterContext(filterCol, allowed.criterion))
+        : allowed.has(String(item.val ?? ""));
+      if (!matches) return false;
+    }
+    return true;
+  }
 
+  _rowMatchesSlicers(row, excludedId = null) {
+    for (const slicer of this.slicersBySheet?.[this.activeSheet] || []) {
+      if (slicer.id === excludedId || !slicer.selectedValues?.length) continue;
+      const table = this._tableByName(slicer.tableName);
+      const bounds = table && this._normalizeRange(this._parseRange(table.ref));
+      if (!bounds) continue;
+      const firstRow = bounds.start.r + (table.hasHeaders === false ? 0 : 1);
+      const lastRow = bounds.end.r - (table.showTotals ? 1 : 0);
+      if (row < firstRow || row > lastRow) continue;
+      const col = this._columnLabel(this._columnNumber(bounds.start.c) + slicer.columnIndex);
+      const value = String(this.cellsData.get(`${col}${row}`)?.val ?? "");
+      if (!slicer.selectedValues.includes(value)) return false;
+    }
+    return true;
+  }
+
+  _slicerValueHasData(slicer, value) {
+    const table = this._tableByName(slicer.tableName);
+    const bounds = table && this._normalizeRange(this._parseRange(table.ref));
+    if (!bounds) return false;
+    const col = this._columnLabel(this._columnNumber(bounds.start.c) + slicer.columnIndex);
+    const firstRow = bounds.start.r + (table.hasHeaders === false ? 0 : 1);
+    const lastRow = bounds.end.r - (table.showTotals ? 1 : 0);
+    for (let row = firstRow; row <= lastRow; row++) {
+      if (String(this.cellsData.get(`${col}${row}`)?.val ?? "") === String(value) && this._rowMatchesActiveFilters(row) && this._rowMatchesSlicers(row, slicer.id)) return true;
+    }
+    return false;
+  }
+
+  _recomputeFilteredRows() {
+    this.hiddenRows.clear();
+    const rows = new Set();
+    const filterRange = this._parseRange(this.sheetStates?.[this.activeSheet]?.filterRange || "");
+    if (filterRange) for (let row = Math.min(filterRange.start.r, filterRange.end.r) + 1; row <= Math.max(filterRange.start.r, filterRange.end.r); row++) rows.add(row);
+    const advancedRange = this._parseRange(this._advancedFilterConfig()?.listRange || "");
+    if (advancedRange) for (let row = advancedRange.start.r + 1; row <= advancedRange.end.r; row++) rows.add(row);
+    for (const slicer of this.slicersBySheet?.[this.activeSheet] || []) {
+      const table = this._tableByName(slicer.tableName);
+      const bounds = table && this._normalizeRange(this._parseRange(table.ref));
+      if (!bounds) continue;
+      const firstRow = bounds.start.r + (table.hasHeaders === false ? 0 : 1);
+      const lastRow = bounds.end.r - (table.showTotals ? 1 : 0);
+      for (let row = firstRow; row <= lastRow; row++) rows.add(row);
+    }
+    for (const row of rows) if (!this._rowMatchesActiveFilters(row) || !this._rowMatchesSlicers(row)) this.hiddenRows.add(row);
+    const state = this.sheetStates?.[this.activeSheet];
+    if (state) state.hiddenRows = new Set(this.hiddenRows);
     this._updateFilterButtons();
     this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
     this._recalcIfVisibilityDependent();
-    if (recordUndo) this._recordHistory({ type: "filter", sheet: this.activeSheet, prevVal: previous, nextVal: this._snapshotFilterState() });
+    this.tableSlicer.render();
+    return this.hiddenRows;
   }
 
   _snapshotCells(sheetName = this.activeSheet) {
@@ -15114,6 +15192,7 @@ _bindGridKeyboardNavigation() {
       selectionRange: structuredClone(this.selectionRange),
       outlineGroups: structuredClone(this.outlineGroupsBySheet[sheetName] || [])
       ,mergedRanges: structuredClone(this.mergedRangesBySheet[sheetName] || []),
+      slicers: structuredClone(this.slicersBySheet?.[sheetName] || []),
       tables: structuredClone(this.tablesBySheet[sheetName] || []),
       rowColLayout: this._snapshotRowColLayout(sheetName)
     };
@@ -15136,6 +15215,7 @@ _bindGridKeyboardNavigation() {
     this.outlineGroupsBySheet[snapshot.sheetName] = structuredClone(snapshot.outlineGroups || []);
     this.mergedRangesBySheet[snapshot.sheetName] = structuredClone(snapshot.mergedRanges || []);
     this.tablesBySheet[snapshot.sheetName] = structuredClone(snapshot.tables || []);
+    this.slicersBySheet[snapshot.sheetName] = (snapshot.slicers || []).map(normalizeTableSlicer);
     for (const entry of snapshot.crossSheet || []) {
       const target = this.sheetsData[entry.sheet]?.get(entry.key);
       if (target) target.formula = entry.formula;
@@ -15153,6 +15233,7 @@ _bindGridKeyboardNavigation() {
     this._renderVirtualRows(this.currentStartRow || 1, Math.min(this.currentEndRow || 40, this.rowCount));
     this._recalculateAllFormulas();
     this.refreshCharts();
+    this.tableSlicer.render();
     this.selectCell(this.selectedCoord.c, this.selectedCoord.r);
   }
 
@@ -15978,7 +16059,8 @@ _bindGridKeyboardNavigation() {
     return {
       isFilterActive: !!this.isFilterActive,
       hiddenRows: [...this.hiddenRows],
-      activeFilters: serializeActiveFilters(this.activeFilters)
+      activeFilters: serializeActiveFilters(this.activeFilters),
+      slicerSelections: Object.fromEntries((this.slicersBySheet?.[this.activeSheet] || []).map(item => [item.id, [...(item.selectedValues || [])]]))
     };
   }
 
@@ -15986,11 +16068,15 @@ _bindGridKeyboardNavigation() {
     this.isFilterActive = !!snapshot.isFilterActive;
     this.hiddenRows = new Set(snapshot.hiddenRows);
     this.activeFilters = restoreActiveFilters(snapshot.activeFilters);
+    for (const slicer of this.slicersBySheet?.[this.activeSheet] || []) {
+      if (snapshot.slicerSelections && Object.prototype.hasOwnProperty.call(snapshot.slicerSelections, slicer.id)) slicer.selectedValues = [...snapshot.slicerSelections[slicer.id]];
+    }
     const state = this.sheetStates[this.activeSheet];
     if (state) Object.assign(state, { isFilterActive: this.isFilterActive, hiddenRows: new Set(this.hiddenRows), activeFilters: cloneActiveFilters(this.activeFilters) });
     this.container?.classList?.toggle?.("vno-filter-mode", this.isFilterActive);
     this._updateFilterButtons();
     this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+    this.tableSlicer.render();
   }
 
   _snapshotSheet(sheetName) {
@@ -16021,6 +16107,8 @@ _bindGridKeyboardNavigation() {
       images: structuredClone(this.imagesBySheet[sheetName] || []),
       textBoxes: structuredClone(this.textBoxesBySheet[sheetName] || []),
       pivotTables: structuredClone(this.pivotTablesBySheet[sheetName] || []),
+      tables: structuredClone(this.tablesBySheet[sheetName] || []),
+      slicers: structuredClone(this.slicersBySheet[sheetName] || []),
       scenarios: structuredClone(this.scenariosBySheet[sheetName] || []),
       dataTables: structuredClone(this.dataTablesBySheet[sheetName] || []),
       namedRanges: structuredClone(this.namedRangesBySheet[sheetName] || []),
@@ -16052,6 +16140,8 @@ _bindGridKeyboardNavigation() {
     this.imagesBySheet[sheetName] = structuredClone(snapshot.images || []);
     this.textBoxesBySheet[sheetName] = structuredClone(snapshot.textBoxes || []);
     this.pivotTablesBySheet[sheetName] = structuredClone(snapshot.pivotTables || []);
+    this.tablesBySheet[sheetName] = structuredClone(snapshot.tables || []);
+    this.slicersBySheet[sheetName] = (snapshot.slicers || []).map(normalizeTableSlicer);
     this.scenariosBySheet[sheetName] = structuredClone(snapshot.scenarios || []);
     this.dataTablesBySheet[sheetName] = structuredClone(snapshot.dataTables || []);
     this.namedRangesBySheet[sheetName] = structuredClone(snapshot.namedRanges || []);

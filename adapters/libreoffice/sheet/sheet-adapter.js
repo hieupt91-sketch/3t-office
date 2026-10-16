@@ -4120,6 +4120,8 @@ export class SheetAdapter {
       const imagesAtOpen = Math.max(0, Number(this.grid.imagesAtOpenBySheet?.[sheetName]) || 0);
       const scenarios = this.grid.getScenarios ? this.grid.getScenarios(sheetName) : (this.grid.scenariosBySheet?.[sheetName] || []);
       const scenariosAttr = scenarios && scenarios.length ? ` vno:scenarios="${this._escapeXml(JSON.stringify(scenarios))}"` : "";
+      const slicers = this.grid.slicersBySheet?.[sheetName] || [];
+      const slicersAttr = ` vno:slicers="${this._escapeXml(JSON.stringify(slicers))}"`;
       const conditionalRules = this.grid.conditionalFormattingBySheet?.[sheetName] || [];
       // Always mark the collection, including [], so deleting the final rule
       // is an explicit edit and the XLSX postprocessor removes stale source CF.
@@ -4144,7 +4146,7 @@ export class SheetAdapter {
       const drawingOrderAttr = drawingOrder.length ? ` vno:drawing-order="${this._escapeXml(JSON.stringify(drawingOrder))}"` : "";
       const groups = this.grid.groupsBySheet?.[sheetName] || [];
       const groupsAttr = groups.length ? ` vno:groups="${this._escapeXml(JSON.stringify(groups))}"` : "";
-      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-settings="${this._escapeXml(JSON.stringify(pageStyle.pageSettings))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${splitAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${conditionalRulesAttr}${textBoxesAttr}${drawingOrderAttr}${groupsAttr}${resolvedCommentsAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-settings="${this._escapeXml(JSON.stringify(pageStyle.pageSettings))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${splitAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${slicersAttr}${conditionalRulesAttr}${textBoxesAttr}${drawingOrderAttr}${groupsAttr}${resolvedCommentsAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
@@ -5319,6 +5321,16 @@ ${pristineXlsxMarker}${docPropsMarker}
               }
             } catch (_) {}
           }
+          const slicersRaw = table.getAttribute("vno:slicers");
+          if (slicersRaw) {
+            try {
+              const slicers = JSON.parse(slicersRaw);
+              if (Array.isArray(slicers)) {
+                workbook.slicersBySheet ||= {};
+                workbook.slicersBySheet[name] = slicers;
+              }
+            } catch (_) {}
+          }
         });
         perfReport("DOM worksheet traversal", phaseStart);
         if (perfEnabled) {
@@ -5591,6 +5603,16 @@ ${pristineXlsxMarker}${docPropsMarker}
             }
           } catch (_) {}
         }
+        const slicersRaw = pageAttr("vno:slicers");
+        if (slicersRaw) {
+          try {
+            const slicers = JSON.parse(slicersRaw);
+            if (Array.isArray(slicers)) {
+              workbook.slicersBySheet ||= {};
+              workbook.slicersBySheet[name] = slicers;
+            }
+          } catch (_) {}
+        }
       }
     }
     if (!workbook.sheets.includes(workbook.activeSheet)) workbook.activeSheet = workbook.sheets[0] || "";
@@ -5815,6 +5837,7 @@ ${pristineXlsxMarker}${docPropsMarker}
     this.grid.tabColors = workbook.tabColors || {};
     this.grid.scenariosBySheet = workbook.scenariosBySheet || {};
     this.grid.tablesBySheet = workbook.tablesBySheet || {};
+    this.grid.slicersBySheet = workbook.slicersBySheet || {};
     this.grid.textBoxesBySheet = {};
     this.grid.drawingOrderBySheet = {};
     this.grid.groupsBySheet = {};
@@ -5827,6 +5850,7 @@ ${pristineXlsxMarker}${docPropsMarker}
     };
     for (const sheetName of workbook.sheets) {
       this.grid.tablesBySheet[sheetName] = workbook.tablesBySheet?.[sheetName] || [];
+      this.grid.slicersBySheet[sheetName] = workbook.slicersBySheet?.[sheetName] || [];
       this.grid.scenariosBySheet[sheetName] = workbook.scenariosBySheet?.[sheetName] || [];
       this.grid.conditionalFormattingBySheet[sheetName] = workbook.conditionalFormattingBySheet?.[sheetName] || [];
       this.grid.dataValidationsBySheet[sheetName] = workbook.dataValidationsBySheet?.[sheetName] || [];
@@ -5888,6 +5912,13 @@ ${pristineXlsxMarker}${docPropsMarker}
       this.grid.isFilterActive = true;
       this.grid.container?.classList?.add?.("vno-filter-mode");
       this.grid._updateFilterButtons?.();
+    }
+    // Standard XLSX stores a slicer's active choices in the table AutoFilter.
+    // Reapply the portable slicer model after switchSheet has installed the
+    // active sheet's cells and table metadata, otherwise the panel reopens with
+    // selected buttons while all data rows remain visible.
+    if ((this.grid.slicersBySheet?.[this.grid.activeSheet] || []).some(slicer => slicer.selectedValues?.length)) {
+      this.grid._recomputeFilteredRows?.();
     }
     this.grid.undoStack = [];
     this.grid.redoStack = [];

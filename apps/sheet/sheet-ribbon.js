@@ -864,6 +864,14 @@ export const SHEET_RIBBON_TABS = [
         ]
       },
       {
+        id: "filters",
+        label: "Bộ lọc",
+        labelKey: "sheetRibbon.group.filters",
+        items: [
+          { type: "button", commandId: "sheet.table.insertSlicer", isLarge: true }
+        ]
+      },
+      {
         id: "tools",
         label: "Công cụ",
         labelKey: "sheetRibbon.group.tools",
