@@ -16,7 +16,6 @@ $book = $null
 $ownedPid = 0
 try {
   $app = New-Object -ComObject Excel.Application
-  $app.Visible = $false
   $app.DisplayAlerts = $false
   $pidValue = [uint32]0
   [void][VnoExcelG2WindowPid]::GetWindowThreadProcessId([IntPtr]$app.Hwnd, [ref]$pidValue)
@@ -30,7 +29,11 @@ try {
     @{ Cell='G2'; Type=5; Operator=6 },
     @{ Cell='H2'; Type=6; Operator=8 },
     @{ Cell='I2'; Type=7; Operator=0 },
-    @{ Cell='J2'; Type=3; Operator=1 }
+    @{ Cell='J2'; Type=3; Operator=1 },
+    @{ Cell='K2'; Type=2; Operator=2 },
+    @{ Cell='L2'; Type=2; Operator=3 },
+    @{ Cell='M2'; Type=2; Operator=4 },
+    @{ Cell='N2'; Type=2; Operator=7 }
   )
   $rules = @()
   foreach ($item in $expected) {

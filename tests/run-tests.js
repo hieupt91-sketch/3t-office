@@ -32,6 +32,7 @@ import { runMultiSheetTests } from "./unit/sheet-multi-sheet.test.js";
 import { runWriterCommentsTests } from "./unit/writer-comments.test.js";
 import { runSlidesAnimationsNotesTests } from "./unit/slides-animations-notes.test.js";
 import { runSheetRulesValidationTests } from "./unit/sheet-rules-validation.test.js";
+import { runSheetCfDvExcel2016ParityTests } from "./unit/sheet-cf-dv-excel2016-parity.test.js";
 import { runWriterTrackChangesTests } from "./unit/writer-track-changes.test.js";
 import { runWriterDocumentReviewTests } from "./unit/writer-document-review.test.js";
 import { runWriterReviewExportTests } from "./unit/writer-review-export.test.js";
@@ -332,6 +333,7 @@ async function runAll() {
     { title: "23. Behavioral Tests — VN Writer Comments", runner: runWriterCommentsTests },
     { title: "24. Unit Tests — VN Slides Object Animations & Speaker Notes", runner: runSlidesAnimationsNotesTests },
     { title: "25. Behavioral Tests — Sheet Conditional Formatting & Data Validation", runner: runSheetRulesValidationTests },
+    { title: "25b. Unit Tests — Sheet CF/DV Excel 2016 Parity", runner: runSheetCfDvExcel2016ParityTests },
     { title: "26. Behavioral Tests — VN Writer Track Changes", runner: runWriterTrackChangesTests },
     { title: "26b. Behavioral Tests — VN Writer Compare & Protect", runner: runWriterDocumentReviewTests },
     { title: "27. Behavioral Tests — VN Writer Print Preview", runner: runWriterPrintPreviewTests },

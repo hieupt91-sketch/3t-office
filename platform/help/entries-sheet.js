@@ -304,13 +304,13 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.format.conditional"],
     title: "Định dạng có điều kiện",
-    summary: "Tô nổi ô theo điều kiện: so sánh giá trị, văn bản chứa, ngày, trùng lặp, trên/dưới N, trên/dưới trung bình, thanh dữ liệu, thang màu, bộ biểu tượng hoặc công thức. Mỗi quy tắc lưu cùng sổ tính; mở bằng phần mềm bảng tính khác vẫn là quy tắc định dạng có điều kiện gốc.",
+    summary: "Tô nổi ô theo điều kiện: so sánh giá trị, văn bản chứa, ngày, trùng lặp, trên/dưới N hoặc phần trăm, trên/dưới trung bình, thanh dữ liệu, thang màu, bộ biểu tượng hoặc công thức. Mỗi quy tắc lưu cùng sổ tính; mở bằng phần mềm bảng tính khác vẫn là quy tắc định dạng có điều kiện gốc.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Kiểu ô" },
     keywords: ["định dạng có điều kiện", "conditional formatting", "tô màu", "quy tắc", "ô trống", "lớn hơn", "thanh dữ liệu", "thang màu", "bộ biểu tượng", "trùng lặp", "trên dưới", "trung bình", "ngày xảy ra", "công thức"],
     steps: [
       "Bôi vùng cần tô nổi (ví dụ cột điểm). Tab Trang đầu, nhóm Kiểu ô, nhấn nút lớn Định dạng có điều kiện. Hộp thoại có danh sách Quy tắc hiện có ở trên và khung Quy tắc ở dưới.",
-      "Chọn loại quy tắc. Tô sáng ô: Lớn hơn, Nhỏ hơn, Giữa hai giá trị, Bằng, Chứa văn bản, Ngày xảy ra (hôm qua, hôm nay, tuần này, tháng này…), Giá trị trùng lặp, Ô trống. Trên/Dưới: N giá trị lớn nhất hoặc nhỏ nhất, trên hoặc dưới mức trung bình. Hiển thị trực quan: Thanh dữ liệu, Thang màu 2 màu hoặc 3 màu, Bộ biểu tượng (mũi tên, đèn giao thông, ký hiệu, xếp hạng; có tùy chọn đảo thứ tự biểu tượng). Nâng cao: Công thức, ví dụ =$B2>100 tô cả hàng theo cột B.",
-      "Nhập ngưỡng, văn bản, số N hoặc công thức nếu loại quy tắc yêu cầu; chọn Màu nền (hoặc các màu của thang/thanh). Có thể sửa Vùng áp dụng ngay trong hộp thoại. Nhấn Áp dụng: các ô khớp được tô ngay.",
+      "Chọn loại quy tắc. Tô sáng ô: Lớn hơn, Nhỏ hơn, Giữa hai giá trị, Bằng, Chứa văn bản, Ngày xảy ra (hôm qua, hôm nay, tuần này, tháng này…), Giá trị trùng lặp, Ô trống. Trên/Dưới: N giá trị hoặc tỷ lệ phần trăm cao nhất/thấp nhất, trên hoặc dưới mức trung bình. Hiển thị trực quan: Thanh dữ liệu, Thang màu 2 màu hoặc 3 màu, Bộ biểu tượng (mũi tên, đèn tín hiệu, ký hiệu, xếp hạng; có tùy chọn đảo thứ tự biểu tượng). Nâng cao: Công thức, ví dụ =$B2>100 tô cả hàng theo cột B.",
+      "Nhập ngưỡng, văn bản, số N, tỷ lệ từ 1 đến 100 hoặc công thức nếu loại quy tắc yêu cầu; chọn Màu nền (hoặc các màu của thang/thanh). Thang 3 màu dùng phân vị 50 (trung vị) làm màu giữa. Có thể sửa Vùng áp dụng ngay trong hộp thoại. Nhấn Áp dụng: các ô khớp được tô ngay.",
       "Trong danh sách Quy tắc hiện có: bấm một dòng để sửa, bấm mũi tên lên/xuống để đổi thứ tự ưu tiên (quy tắc ở trên được xét trước), bấm Xóa quy tắc để bỏ. Mọi thay đổi hoàn tác được bằng Ctrl+Z.",
       "Khi lưu .xlsx, các quy tắc được ghi thành quy tắc định dạng có điều kiện chuẩn; mở lại trong Sheet hoặc bảng tính khác đều thấy đúng loại, vùng và màu.",
       "Cùng nhóm Kiểu ô còn Định dạng bảng (màu xen kẽ) và Kiểu ô (Normal, Good, Bad, Neutral…) — khác với quy tắc có điều kiện."

@@ -9,7 +9,7 @@ try {
   for ($a = 0; $a -lt 25 -and -not $wb; $a++) { try { $wb = $x.Workbooks.Open($File, 0, $true) } catch { Start-Sleep -Milliseconds 700 } }
   if (-not $wb) { "OPEN FAILED"; return }
   $ws = $wb.Worksheets.Item(1)
-  foreach ($col in "B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R") {
+  foreach ($col in "B","C","D","E","F","G","H","I","J","K","L","M","N","O","P","Q","R","S","T") {
     $fc = $ws.Range("${col}1:${col}6").FormatConditions
     $n = [int]$fc.Count
     for ($i = 1; $i -le $n; $i++) {
@@ -19,7 +19,7 @@ try {
       try { $row.f1 = [string]$c.Formula1 } catch {}
       try { $row.f2 = [string]$c.Formula2 } catch {}
       try { $row.text = [string]$c.Text } catch {}
-      try { $row.rank = [int]$c.Rank; $row.topBottom = [int]$c.TopBottom } catch {}
+      try { $row.rank = [int]$c.Rank; $row.topBottom = [int]$c.TopBottom; $row.percent = [bool]$c.Percent } catch {}
       try { $row.aboveBelow = [int]$c.AboveBelow } catch {}
       try { $row.dupUnique = [int]$c.DupeUnique } catch {}
       try { $row.timePeriod = [int]$c.DateOperator } catch {}
