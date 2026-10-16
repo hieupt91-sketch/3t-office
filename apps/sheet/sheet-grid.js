@@ -361,6 +361,8 @@ export class SheetGridController {
     this.selectedImageId = null;
     this.textBoxesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.selectedTextBoxId = null;
+    this.shapesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.selectedShapeId = null;
     this.drawingOrderBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.groupsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.selectedObjectIds = new Set();
@@ -750,6 +752,11 @@ export class SheetGridController {
     textBoxLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:auto";
     this.textBoxLayer = textBoxLayer;
     vp.appendChild(textBoxLayer);
+    const shapeLayer = document.createElement("div");
+    shapeLayer.className = "vno-sheet-shape-layer";
+    shapeLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:auto";
+    this.shapeLayer = shapeLayer;
+    vp.appendChild(shapeLayer);
     const auditLayer = document.createElement("div");
     auditLayer.className = "vno-sheet-audit-layer";
     auditLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:9";
@@ -817,6 +824,7 @@ export class SheetGridController {
     this.renderCharts();
     this.renderImages();
     this.renderTextBoxes();
+    this.renderShapes();
     this.selectCell("A", 1);
     this.focusGrid();
     this._bindGridKeyboardNavigation();
@@ -4288,6 +4296,11 @@ export class SheetGridController {
       ];
     }
 
+    if (typeof this._showCustomContextMenu === "function") {
+      this._showCustomContextMenu(e, items);
+      return;
+    }
+
     const instance = showContextMenu({
       items,
       x: e.clientX,
@@ -4675,6 +4688,7 @@ export class SheetGridController {
     this.chartsBySheet = { [defaultSheetName]: [] };
     this.imagesBySheet = { [defaultSheetName]: [] };
     this.textBoxesBySheet = { [defaultSheetName]: [] };
+    this.shapesBySheet = { [defaultSheetName]: [] };
     this.drawingOrderBySheet = { [defaultSheetName]: [] };
     this.groupsBySheet = { [defaultSheetName]: [] };
     this.selectedObjectIds = new Set();
@@ -4724,6 +4738,7 @@ export class SheetGridController {
     this.renderCharts();
     this.renderImages();
     this.renderTextBoxes();
+    this.renderShapes();
     this.selectCell("A", 1);
     if (this.formulaInput) this.formulaInput.value = "";
     this._syncCommandStates();
@@ -4758,6 +4773,8 @@ export class SheetGridController {
     if (!this.chartsBySheet[sheetName]) this.chartsBySheet[sheetName] = [];
     if (!this.imagesBySheet[sheetName]) this.imagesBySheet[sheetName] = [];
     if (!this.textBoxesBySheet[sheetName]) this.textBoxesBySheet[sheetName] = [];
+    if (!this.shapesBySheet) this.shapesBySheet = {};
+    if (!this.shapesBySheet[sheetName]) this.shapesBySheet[sheetName] = [];
     if (!this.drawingOrderBySheet) this.drawingOrderBySheet = {};
     if (!this.drawingOrderBySheet[sheetName]) this.drawingOrderBySheet[sheetName] = [];
     if (!this.groupsBySheet) this.groupsBySheet = {};
@@ -4879,6 +4896,7 @@ export class SheetGridController {
     this.renderCharts();
     this.renderImages();
     this.renderTextBoxes();
+    this.renderShapes();
 
     // 7. Cập nhật ô chọn và thanh công thức
     if (preservedFormulaEntry) this._isRestoringFormulaEntry = true;
@@ -5026,6 +5044,7 @@ export class SheetGridController {
     delete this.chartsBySheet[sheetName];
     delete this.imagesBySheet[sheetName];
     delete this.textBoxesBySheet[sheetName];
+    if (this.shapesBySheet) delete this.shapesBySheet[sheetName];
     if (this.drawingOrderBySheet) delete this.drawingOrderBySheet[sheetName];
     if (this.groupsBySheet) delete this.groupsBySheet[sheetName];
     delete this.pivotTablesBySheet[sheetName];
@@ -5058,7 +5077,7 @@ export class SheetGridController {
       "sheetsData", "sheetStates", "namedRangesBySheet", "commentsBySheet",
       "printAreaBySheet", "pageBreaksBySheet", "pageSetupBySheet", "mergedRangesBySheet",
       "conditionalFormattingBySheet", "dataValidationsBySheet", "chartsBySheet",
-      "imagesBySheet", "textBoxesBySheet", "drawingOrderBySheet", "groupsBySheet", "pivotTablesBySheet", "tablesBySheet", "outlineGroupsBySheet",
+      "imagesBySheet", "textBoxesBySheet", "shapesBySheet", "drawingOrderBySheet", "groupsBySheet", "pivotTablesBySheet", "tablesBySheet", "outlineGroupsBySheet",
       "rowHeightsBySheet", "colWidthsBySheet", "userHiddenRowsBySheet", "userHiddenColsBySheet",
       "protectionBySheet", "dataTablesBySheet"
     ];
@@ -5686,6 +5705,7 @@ export class SheetGridController {
     this.chartsBySheet[targetName] = structuredClone(this.chartsBySheet[sourceName] || []);
     this.imagesBySheet[targetName] = structuredClone(this.imagesBySheet[sourceName] || []);
     this.textBoxesBySheet[targetName] = structuredClone(this.textBoxesBySheet[sourceName] || []);
+    this.shapesBySheet[targetName] = structuredClone(this.shapesBySheet?.[sourceName] || []);
     this.drawingOrderBySheet[targetName] = structuredClone(this.drawingOrderBySheet?.[sourceName] || []);
     this.groupsBySheet[targetName] = structuredClone(this.groupsBySheet?.[sourceName] || []);
     this.pivotTablesBySheet[targetName] = structuredClone(this.pivotTablesBySheet[sourceName] || []);
@@ -6482,8 +6502,8 @@ export class SheetGridController {
     }
   }
 
-_bindGridKeyboardNavigation() {
-      this.container.addEventListener("keydown", (e) => {
+  _bindGridKeyboardNavigation() {
+    this._gridKeydownHandler = (e) => {
         if (e.key === "Escape" && this._clipboardRange) {
           e.preventDefault();
           this.clearClipboardRange();
@@ -6661,6 +6681,12 @@ _bindGridKeyboardNavigation() {
       } else if ((e.key === "ContextMenu" || (e.key === "F10" && e.shiftKey)) && !e.ctrlKey && !e.altKey && !e.metaKey) {
         // Shift+F10 hoặc ContextMenu key: mở context menu trên đối tượng hoặc ô đang chọn
         e.preventDefault();
+        if (this.selectedShapeId) {
+          const shapeEl = this.shapeLayer?.querySelector(`[data-shape-id="${this.selectedShapeId}"]`);
+          const rect = shapeEl?.getBoundingClientRect() || { left: 100, top: 100 };
+          this._showObjectContextMenu({ clientX: rect.left + 20, clientY: rect.top + 20, currentTarget: shapeEl, preventDefault: () => {}, stopPropagation: () => {} }, "shape", this.selectedShapeId);
+          return;
+        }
         if (this.selectedImageId) {
           const imgEl = this.imageLayer?.querySelector(`[data-image-id="${this.selectedImageId}"]`);
           const rect = imgEl?.getBoundingClientRect() || { left: 100, top: 100 };
@@ -6672,6 +6698,16 @@ _bindGridKeyboardNavigation() {
           const rect = boxEl?.getBoundingClientRect() || { left: 100, top: 100 };
           this._showObjectContextMenu({ clientX: rect.left + 20, clientY: rect.top + 20, currentTarget: boxEl, preventDefault: () => {}, stopPropagation: () => {} }, "textbox", this.selectedTextBoxId);
           return;
+        }
+        if (this.selectedObjectIds && this.selectedObjectIds.size > 0) {
+          const firstId = Array.from(this.selectedObjectIds)[0];
+          const obj = this._findObjectById(firstId);
+          if (obj) {
+            const targetEl = this.container.querySelector(`[data-shape-id="${firstId}"], [data-image-id="${firstId}"], [data-textbox-id="${firstId}"]`);
+            const rect = targetEl?.getBoundingClientRect() || { left: 100, top: 100 };
+            this._showObjectContextMenu({ clientX: rect.left + 20, clientY: rect.top + 20, currentTarget: targetEl, preventDefault: () => {}, stopPropagation: () => {} }, obj.type, firstId);
+            return;
+          }
         }
         const cellSelector = `.vno-grid-cell[data-coord="${this.selectedCoord.c}${this.selectedCoord.r}"]`;
         const cellEl = this.container.querySelector(cellSelector);
@@ -6767,6 +6803,10 @@ _bindGridKeyboardNavigation() {
         // Xóa nội dung ô hoặc vùng đang chọn ngay, đúng hành vi Excel thật
         e.preventDefault();
         if (this._guardProtectedMutation()) return;
+        if (this.selectedShapeId) {
+          this.deleteShape(this.selectedShapeId);
+          return;
+        }
         if (this.selectedImageId) {
           this.deleteImage(this.selectedImageId);
           return;
@@ -6827,7 +6867,17 @@ _bindGridKeyboardNavigation() {
         nextRow = target.r;
       }
       this.selectCell(nextCol, nextRow, extendRange);
-    });
+    };
+    if (this.container && typeof this.container.addEventListener === "function") {
+      this.container.addEventListener("keydown", this._gridKeydownHandler);
+    }
+  }
+
+  _onKeyDown(e) {
+    if (typeof this._gridKeydownHandler !== "function") {
+      this._bindGridKeyboardNavigation();
+    }
+    return this._gridKeydownHandler?.(e);
   }
 
   // Đích của phím mũi tên/Tab giống Excel: nhảy qua cả vùng ô gộp đang đứng, bỏ qua hàng/cột ẩn,
@@ -9426,18 +9476,26 @@ _bindGridKeyboardNavigation() {
   _showChartContextMenu(event, chart, part = "area") {
     event.preventDefault();
     event.stopPropagation();
+    const isProtected = Boolean(this.isSheetProtected() || this.isFinal || this.adapter?.isFinal);
+    const hasClipboard = Boolean(this._objectClipboard || this._clipboardRange);
     const labels = { area: t("sheetContextMenu.chartArea"), plot: t("sheetContextMenu.plotArea"), series: t("sheetContextMenu.series") };
     this._contextMenuPreviousFocus = event.currentTarget || document.activeElement;
     this._activeContextMenu = showContextMenu({
       items: [
-        { label: t("sheetContextMenu.chartType"), action: () => this.openChartTypeDialog(chart.id) },
-        { label: t("sheetContextMenu.selectData"), action: () => this.openChartDataDialog(chart.id) },
-        { label: chart.dataLabels ? t("sheetContextMenu.hideDataLabels") : t("sheetContextMenu.showDataLabels"), action: () => this.toggleChartDataLabels(chart.id) },
-        { label: t("sheetContextMenu.switchRowsColumns"), action: () => this.switchChartRowsColumns(chart.id) },
-        ...(["pie", "radar", "bubble"].includes(chart.type) ? [] : [{ label: chart.trendline ? t("sheetContextMenu.removeTrendline") : t("sheetContextMenu.addTrendline"), action: () => this.toggleChartTrendline(chart.id) }]),
-        { label: t("sheetContextMenu.moveChart"), action: () => this.openMoveChartDialog(chart.id) },
+        { label: t("sheetContextMenu.cut", "Cắt"), shortcut: "Ctrl+X", disabled: isProtected, action: () => { this.deleteChart(chart.id); } },
+        { label: t("sheetContextMenu.copy", "Sao chép"), shortcut: "Ctrl+C", action: () => { this._objectClipboard = { type: "chart", data: structuredClone(chart) }; } },
+        { label: t("sheetContextMenu.paste", "Dán"), shortcut: "Ctrl+V", disabled: isProtected || !hasClipboard, action: () => this.pasteObject() },
         { sep: true },
-        { label: t("sheetContextMenu.deleteObject"), shortcut: "Delete", action: () => this.deleteChart(chart.id) }
+        { label: t("sheetContextMenu.chartType"), disabled: isProtected, action: () => this.openChartTypeDialog(chart.id) },
+        { label: t("sheetContextMenu.selectData"), disabled: isProtected, action: () => this.openChartDataDialog(chart.id) },
+        { label: chart.dataLabels ? t("sheetContextMenu.hideDataLabels") : t("sheetContextMenu.showDataLabels"), disabled: isProtected, action: () => this.toggleChartDataLabels(chart.id) },
+        { label: t("sheetContextMenu.switchRowsColumns"), disabled: isProtected, action: () => this.switchChartRowsColumns(chart.id) },
+        ...(["pie", "radar", "bubble"].includes(chart.type) ? [] : [{ label: chart.trendline ? t("sheetContextMenu.removeTrendline") : t("sheetContextMenu.addTrendline"), disabled: isProtected, action: () => this.toggleChartTrendline(chart.id) }]),
+        { label: t("sheetContextMenu.moveChart"), disabled: isProtected, action: () => this.openMoveChartDialog(chart.id) },
+        { sep: true },
+        { label: t("sheetContextMenu.assignMacro", "Gán macro..."), disabled: isProtected, action: () => this._notifyPendingObjectMacro() },
+        { sep: true },
+        { label: t("sheetContextMenu.deleteObject"), shortcut: "Delete", disabled: isProtected, action: () => this.deleteChart(chart.id) }
       ],
       x: event.clientX,
       y: event.clientY,
@@ -9710,7 +9768,7 @@ _bindGridKeyboardNavigation() {
     let type = null;
     let id = null;
     let sheetName = this.activeSheet;
-    if (idOrSheet && (typeOrId === "image" || typeOrId === "textbox" || typeOrId === "group")) {
+    if (idOrSheet && (typeOrId === "image" || typeOrId === "textbox" || typeOrId === "shape" || typeOrId === "group")) {
       type = typeOrId;
       id = idOrSheet;
       if (maybeSheet) sheetName = maybeSheet;
@@ -9727,6 +9785,10 @@ _bindGridKeyboardNavigation() {
       const item = (this.textBoxesBySheet?.[sheetName] || []).find(item => item.id === id);
       return item ? { type: "textbox", item, ...item } : null;
     }
+    if (type === "shape") {
+      const item = (this.shapesBySheet?.[sheetName] || []).find(item => item.id === id);
+      return item ? { type: "shape", item, ...item } : null;
+    }
     if (type === "group") {
       const item = (this.groupsBySheet?.[sheetName] || []).find(item => item.id === id);
       return item ? { type: "group", item, ...item } : null;
@@ -9736,6 +9798,8 @@ _bindGridKeyboardNavigation() {
     if (img) return { type: "image", item: img, ...img };
     const tb = (this.textBoxesBySheet?.[sheetName] || []).find(item => item.id === id);
     if (tb) return { type: "textbox", item: tb, ...tb };
+    const shp = (this.shapesBySheet?.[sheetName] || []).find(item => item.id === id);
+    if (shp) return { type: "shape", item: shp, ...shp };
     const grp = (this.groupsBySheet?.[sheetName] || []).find(item => item.id === id);
     if (grp) return { type: "group", item: grp, ...grp };
     return null;
@@ -9745,7 +9809,7 @@ _bindGridKeyboardNavigation() {
     let type = typeOrId;
     let id = idOrSheet;
     let sheetName = maybeSheet || this.activeSheet;
-    if (!idOrSheet || (typeOrId !== "image" && typeOrId !== "textbox")) {
+    if (!idOrSheet || (typeOrId !== "image" && typeOrId !== "textbox" && typeOrId !== "shape")) {
       const found = this._findObjectById(typeOrId, sheetName);
       if (!found) return null;
       type = found.type;
@@ -9785,6 +9849,7 @@ _bindGridKeyboardNavigation() {
     if (!target) return false;
     if (target.type === "image") return this.deleteImage(target.id, target.sheetName);
     if (target.type === "textbox") return this.deleteTextBox(target.id, target.sheetName);
+    if (target.type === "shape") return this.deleteShape(target.id, target.sheetName);
     return false;
   }
 
@@ -9801,6 +9866,7 @@ _bindGridKeyboardNavigation() {
     };
     if (target.type === "image") this.deleteImage(target.id, target.sheetName);
     else if (target.type === "textbox") this.deleteTextBox(target.id, target.sheetName);
+    else if (target.type === "shape") this.deleteShape(target.id, target.sheetName);
     return true;
   }
 
@@ -9834,6 +9900,7 @@ _bindGridKeyboardNavigation() {
       this.imagesBySheet[this.activeSheet].push(newImg);
       this.selectedImageId = newImg.id;
       this.selectedTextBoxId = null;
+      this.selectedShapeId = null;
       this.renderImages();
       this._recordHistory({
         type: "collection",
@@ -9852,6 +9919,7 @@ _bindGridKeyboardNavigation() {
       this.textBoxesBySheet[this.activeSheet].push(newBox);
       this.selectedTextBoxId = newBox.id;
       this.selectedImageId = null;
+      this.selectedShapeId = null;
       this.renderTextBoxes();
       this._recordHistory({
         type: "collection",
@@ -9862,6 +9930,29 @@ _bindGridKeyboardNavigation() {
         item: structuredClone(newBox)
       });
       pasted = { type: "textbox", item: newBox };
+    } else if (cb.type === "shape") {
+      const newShape = structuredClone(cb.data);
+      newShape.id = `shape-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
+      newShape.anchor = targetAnchor;
+      this.shapesBySheet[this.activeSheet] ||= [];
+      this.shapesBySheet[this.activeSheet].push(newShape);
+      this.selectedShapeId = newShape.id;
+      this.selectedImageId = null;
+      this.selectedTextBoxId = null;
+      this._ensureDrawingOrder(this.activeSheet);
+      if (!this.drawingOrderBySheet[this.activeSheet].includes(newShape.id)) {
+        this.drawingOrderBySheet[this.activeSheet].push(newShape.id);
+      }
+      this.renderShapes();
+      this._recordHistory({
+        type: "collection",
+        sheet: this.activeSheet,
+        collection: "shapesBySheet",
+        operation: "insert",
+        index: this.shapesBySheet[this.activeSheet].length - 1,
+        item: structuredClone(newShape)
+      });
+      pasted = { type: "shape", item: newShape };
     }
     if (cb.mode === "cut") {
       this._objectClipboard = null;
@@ -9877,18 +9968,20 @@ _bindGridKeyboardNavigation() {
     const order = this.drawingOrderBySheet[sheetName];
     const images = this.imagesBySheet?.[sheetName] || [];
     const textBoxes = this.textBoxesBySheet?.[sheetName] || [];
+    const shapes = this.shapesBySheet?.[sheetName] || [];
     const groups = this.groupsBySheet?.[sheetName] || [];
 
     const validIds = new Set();
     for (const img of images) validIds.add(img.id);
     for (const box of textBoxes) validIds.add(box.id);
+    for (const shp of shapes) validIds.add(shp.id);
     for (const grp of groups) validIds.add(grp.id);
 
     // Giữ các id còn tồn tại
     const nextOrder = order.filter(id => validIds.has(id));
     const seen = new Set(nextOrder);
 
-    // Thêm các id chưa có theo thứ tự: images, textBoxes, groups
+    // Thêm các id chưa có theo thứ tự: images, textBoxes, shapes, groups
     for (const img of images) {
       if (!seen.has(img.id)) {
         nextOrder.push(img.id);
@@ -9899,6 +9992,12 @@ _bindGridKeyboardNavigation() {
       if (!seen.has(box.id)) {
         nextOrder.push(box.id);
         seen.add(box.id);
+      }
+    }
+    for (const shp of shapes) {
+      if (!seen.has(shp.id)) {
+        nextOrder.push(shp.id);
+        seen.add(shp.id);
       }
     }
     for (const grp of groups) {
@@ -9915,10 +10014,11 @@ _bindGridKeyboardNavigation() {
     if (!obj) return "";
     if (obj.name) return obj.name;
     const actualObj = obj.item || obj;
-    const resolvedType = type || obj.type || (actualObj.src ? "image" : (actualObj.text !== undefined ? "textbox" : (actualObj.children ? "group" : "shape")));
+    const resolvedType = type || obj.type || (actualObj.src ? "image" : (actualObj.shapeType ? "shape" : (actualObj.text !== undefined ? "textbox" : (actualObj.children ? "group" : "shape"))));
     const idSuffix = String(actualObj.id || "").replace(/^[a-z]+-/, "").slice(-4) || "1";
     if (resolvedType === "image") return `Hình ảnh ${idSuffix}`;
     if (resolvedType === "textbox") return `Hộp văn bản ${idSuffix}`;
+    if (resolvedType === "shape") return actualObj.shapeType ? `Hình dạng (${actualObj.shapeType}) ${idSuffix}` : `Hình dạng ${idSuffix}`;
     if (resolvedType === "group") return `Nhóm ${idSuffix}`;
     return `Đối tượng ${idSuffix}`;
   }
@@ -9926,7 +10026,7 @@ _bindGridKeyboardNavigation() {
   _getObjectPixelBounds(obj, type = null, sheetName = this.activeSheet) {
     if (!obj) return { left: 0, top: 0, width: 100, height: 100, right: 100, bottom: 100, centerX: 50, centerY: 50 };
     const actualObj = obj.item || obj;
-    const resolvedType = type || obj.type || (actualObj.src ? "image" : (actualObj.text !== undefined ? "textbox" : (actualObj.children ? "group" : "image")));
+    const resolvedType = type || obj.type || (actualObj.src ? "image" : (actualObj.shapeType ? "shape" : (actualObj.text !== undefined ? "textbox" : (actualObj.children ? "group" : "image"))));
 
     if (resolvedType === "group" && Array.isArray(actualObj.children) && actualObj.children.length > 0) {
       const childBounds = actualObj.children.map(childId => {
@@ -9957,6 +10057,8 @@ _bindGridKeyboardNavigation() {
         domEl = this.imageLayer.querySelector(`[data-image-id="${actualObj.id}"]`);
       } else if (resolvedType === "textbox" && this.textBoxLayer) {
         domEl = this.textBoxLayer.querySelector(`[data-textbox-id="${actualObj.id}"]`);
+      } else if (resolvedType === "shape" && this.shapeLayer) {
+        domEl = this.shapeLayer.querySelector(`[data-shape-id="${actualObj.id}"]`);
       }
     }
 
@@ -9996,6 +10098,9 @@ _bindGridKeyboardNavigation() {
       if (resolvedType === "image") {
         width = Number.isFinite(Number(actualObj.widthCm)) ? Math.round(Number(actualObj.widthCm) * 37.79527559055118) : (Number(actualObj.widthPx) || 240);
         height = Number.isFinite(Number(actualObj.heightCm)) ? Math.round(Number(actualObj.heightCm) * 37.79527559055118) : (Number(actualObj.heightPx) || 80);
+      } else if (resolvedType === "shape") {
+        width = Math.max(20, Number(actualObj.widthPx) || (Number.isFinite(Number(actualObj.widthCm)) ? Math.round(Number(actualObj.widthCm) * 37.79527559055118) : 120));
+        height = Math.max(20, Number(actualObj.heightPx) || (Number.isFinite(Number(actualObj.heightCm)) ? Math.round(Number(actualObj.heightCm) * 37.79527559055118) : 80));
       } else {
         width = Math.max(180, Number(actualObj.widthPx) || 180);
         height = Math.max(54, Number(actualObj.heightPx) || 54);
@@ -10017,7 +10122,7 @@ _bindGridKeyboardNavigation() {
   _setObjectPixelPosition(obj, type = null, left, top) {
     if (!obj) return false;
     const actualObj = obj.item || obj;
-    const resolvedType = type || obj.type || (actualObj.src ? "image" : (actualObj.text !== undefined ? "textbox" : (actualObj.children ? "group" : "image")));
+    const resolvedType = type || obj.type || (actualObj.src ? "image" : (actualObj.shapeType ? "shape" : (actualObj.text !== undefined ? "textbox" : (actualObj.children ? "group" : "image"))));
 
     if (resolvedType === "group" && Array.isArray(actualObj.children)) {
       const currentBounds = this._getObjectPixelBounds(actualObj, "group");
@@ -10058,6 +10163,11 @@ _bindGridKeyboardNavigation() {
       actualObj.offsetYCm = parseFloat((offsetYPx / 37.79527559055118).toFixed(3));
       actualObj.offsetX = offsetXPx;
       actualObj.offsetY = offsetYPx;
+    } else if (resolvedType === "shape") {
+      actualObj.offsetX = offsetXPx;
+      actualObj.offsetY = offsetYPx;
+      actualObj.offsetXCm = parseFloat((offsetXPx / 37.79527559055118).toFixed(3));
+      actualObj.offsetYCm = parseFloat((offsetYPx / 37.79527559055118).toFixed(3));
     } else {
       actualObj.offsetX = offsetXPx;
       actualObj.offsetY = offsetYPx;
@@ -10080,8 +10190,10 @@ _bindGridKeyboardNavigation() {
     const primaryObj = primaryId ? this._findObjectById(primaryId) : null;
     this.selectedImageId = primaryObj?.type === "image" ? primaryId : null;
     this.selectedTextBoxId = primaryObj?.type === "textbox" ? primaryId : null;
+    this.selectedShapeId = primaryObj?.type === "shape" ? primaryId : null;
     this._updateImageSelection();
     this._updateTextBoxSelection();
+    this._updateShapeSelection();
     if (this.isSelectionPaneOpen) this.renderSelectionPane();
   }
 
@@ -10104,6 +10216,8 @@ _bindGridKeyboardNavigation() {
         targetIds = [this.selectedImageId];
       } else if (this.selectedTextBoxId) {
         targetIds = [this.selectedTextBoxId];
+      } else if (this.selectedShapeId) {
+        targetIds = [this.selectedShapeId];
       }
     }
 
@@ -10166,6 +10280,8 @@ _bindGridKeyboardNavigation() {
         this.imagesBySheet[sheetName].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
       } else if (obj?.type === "textbox" && this.textBoxesBySheet?.[sheetName]) {
         this.textBoxesBySheet[sheetName].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+      } else if (obj?.type === "shape" && this.shapesBySheet?.[sheetName]) {
+        this.shapesBySheet[sheetName].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
       }
     }
 
@@ -10179,6 +10295,7 @@ _bindGridKeyboardNavigation() {
     if (sheetName === this.activeSheet) {
       this.renderImages();
       this.renderTextBoxes();
+      this.renderShapes();
       if (this.isSelectionPaneOpen) this.renderSelectionPane();
     }
     return true;
@@ -10212,6 +10329,7 @@ _bindGridKeyboardNavigation() {
     if (!targetIds.length) {
       if (this.selectedImageId) targetIds.push(this.selectedImageId);
       if (this.selectedTextBoxId && !targetIds.includes(this.selectedTextBoxId)) targetIds.push(this.selectedTextBoxId);
+      if (this.selectedShapeId && !targetIds.includes(this.selectedShapeId)) targetIds.push(this.selectedShapeId);
     }
     if (targetIds.length < 2) return false;
 
@@ -10276,6 +10394,7 @@ _bindGridKeyboardNavigation() {
 
     this.renderImages();
     this.renderTextBoxes();
+    this.renderShapes();
     if (this.isSelectionPaneOpen) this.renderSelectionPane();
     return true;
   }
@@ -10287,6 +10406,7 @@ _bindGridKeyboardNavigation() {
     if (!targetIds.length) {
       if (this.selectedImageId) targetIds.push(this.selectedImageId);
       if (this.selectedTextBoxId && !targetIds.includes(this.selectedTextBoxId)) targetIds.push(this.selectedTextBoxId);
+      if (this.selectedShapeId && !targetIds.includes(this.selectedShapeId)) targetIds.push(this.selectedShapeId);
     }
     if (targetIds.length < 3) return false;
 
@@ -10358,6 +10478,7 @@ _bindGridKeyboardNavigation() {
 
     this.renderImages();
     this.renderTextBoxes();
+    this.renderShapes();
     if (this.isSelectionPaneOpen) this.renderSelectionPane();
     return true;
   }
@@ -10367,6 +10488,7 @@ _bindGridKeyboardNavigation() {
     if (!targetIds.length) {
       if (this.selectedImageId) targetIds.push(this.selectedImageId);
       if (this.selectedTextBoxId && !targetIds.includes(this.selectedTextBoxId)) targetIds.push(this.selectedTextBoxId);
+      if (this.selectedShapeId && !targetIds.includes(this.selectedShapeId)) targetIds.push(this.selectedShapeId);
     }
     if (targetIds.length < 2) return null;
 
@@ -10422,6 +10544,7 @@ _bindGridKeyboardNavigation() {
 
     this.renderImages();
     this.renderTextBoxes();
+    this.renderShapes();
     if (this.isSelectionPaneOpen) this.renderSelectionPane();
     return grp;
   }
@@ -10453,6 +10576,7 @@ _bindGridKeyboardNavigation() {
     if (grpIdx < 0) return false;
 
     const grp = groups[grpIdx];
+    this._lastUngroupedChildren = [...(grp.children || [])];
     groups.splice(grpIdx, 1);
 
     for (const childId of grp.children || []) {
@@ -10486,12 +10610,35 @@ _bindGridKeyboardNavigation() {
 
     this.renderImages();
     this.renderTextBoxes();
+    this.renderShapes();
     if (this.isSelectionPaneOpen) this.renderSelectionPane();
     return true;
   }
 
+  _canGroupObjects() {
+    const ids = this.selectedObjectIds ? Array.from(this.selectedObjectIds) : [];
+    return ids.length >= 2;
+  }
+
+  _canUngroupObject(objectId) {
+    const groups = this.groupsBySheet[this.activeSheet] || [];
+    if (!objectId) {
+      return (this.selectedObjectIds || []).size > 0 && Array.from(this.selectedObjectIds).some(id => this._canUngroupObject(id));
+    }
+    return groups.some(g => g.id === objectId || g.children?.includes(objectId));
+  }
+
+  _canRegroupObjects() {
+    return Array.isArray(this._lastUngroupedChildren) && this._lastUngroupedChildren.length >= 2;
+  }
+
+  regroupObjects() {
+    if (!this._canRegroupObjects()) return null;
+    return this.groupObjects(this._lastUngroupedChildren);
+  }
+
   rotateObject(angle = 90, targetId = null) {
-    let ids = targetId ? [targetId] : ((this.selectedObjectIds && this.selectedObjectIds.size) ? Array.from(this.selectedObjectIds) : [this.selectedImageId || this.selectedTextBoxId].filter(Boolean));
+    let ids = targetId ? [targetId] : ((this.selectedObjectIds && this.selectedObjectIds.size) ? Array.from(this.selectedObjectIds) : [this.selectedImageId || this.selectedTextBoxId || this.selectedShapeId].filter(Boolean));
     if (!ids.length) return false;
 
     const beforeSnapshots = [];
@@ -10521,11 +10668,12 @@ _bindGridKeyboardNavigation() {
 
     this.renderImages();
     this.renderTextBoxes();
+    this.renderShapes();
     return true;
   }
 
   flipObject(direction = "horizontal", targetId = null) {
-    let ids = targetId ? [targetId] : ((this.selectedObjectIds && this.selectedObjectIds.size) ? Array.from(this.selectedObjectIds) : [this.selectedImageId || this.selectedTextBoxId].filter(Boolean));
+    let ids = targetId ? [targetId] : ((this.selectedObjectIds && this.selectedObjectIds.size) ? Array.from(this.selectedObjectIds) : [this.selectedImageId || this.selectedTextBoxId || this.selectedShapeId].filter(Boolean));
     if (!ids.length) return false;
 
     const beforeSnapshots = [];
@@ -10558,6 +10706,7 @@ _bindGridKeyboardNavigation() {
 
     this.renderImages();
     this.renderTextBoxes();
+    this.renderShapes();
     return true;
   }
 
@@ -10822,9 +10971,12 @@ _bindGridKeyboardNavigation() {
     if (!obj) return false;
 
     const isImage = type === "image";
-    const title = t("sheetContextMenu.formatObjectDialog", "Định dạng đối tượng");
-    const widthVal = isImage ? (obj.widthCm ?? 6.35) : (obj.widthPx ?? 180);
-    const heightVal = isImage ? (obj.heightCm ?? 2.12) : (obj.heightPx ?? 54);
+    const isShape = type === "shape";
+    const title = isShape
+      ? t("sheetContextMenu.formatShape", "Định dạng hình dạng...")
+      : (type === "textbox" ? t("sheetContextMenu.formatTextBox", "Định dạng hộp văn bản...") : t("sheetContextMenu.formatObjectDialog", "Định dạng đối tượng"));
+    const widthVal = isImage ? (obj.widthCm ?? 6.35) : (isShape ? (obj.widthPx ?? 120) : (obj.widthPx ?? 180));
+    const heightVal = isImage ? (obj.heightCm ?? 2.12) : (isShape ? (obj.heightPx ?? 80) : (obj.heightPx ?? 54));
     const unit = isImage ? "cm" : "px";
     const anchorCol = obj.anchor?.c || "A";
     const anchorRow = obj.anchor?.r || 1;
@@ -10900,6 +11052,12 @@ _bindGridKeyboardNavigation() {
         const oy = parseFloat(overlay.querySelector("#vno-obj-offset-y")?.value);
         if (Number.isFinite(ox)) obj.offsetXCm = parseFloat(ox.toFixed(3));
         if (Number.isFinite(oy)) obj.offsetYCm = parseFloat(oy.toFixed(3));
+      } else if (isShape) {
+        obj.widthPx = Math.max(20, Math.round(w));
+        obj.heightPx = Math.max(20, Math.round(h));
+        obj.anchor = { c, r };
+        const textVal = overlay.querySelector("#vno-obj-text")?.value;
+        if (typeof textVal === "string") obj.text = textVal;
       } else {
         obj.widthPx = Math.max(50, Math.round(w));
         obj.heightPx = Math.max(20, Math.round(h));
@@ -10912,7 +11070,7 @@ _bindGridKeyboardNavigation() {
       this._recordHistory({
         type: "collection",
         sheet: sheetName,
-        collection: isImage ? "imagesBySheet" : "textBoxesBySheet",
+        collection: isImage ? "imagesBySheet" : (isShape ? "shapesBySheet" : "textBoxesBySheet"),
         operation: "update",
         id: obj.id,
         before,
@@ -10922,6 +11080,7 @@ _bindGridKeyboardNavigation() {
 
       if (sheetName === this.activeSheet) {
         if (isImage) this.renderImages();
+        else if (isShape) this.renderShapes();
         else this.renderTextBoxes();
       }
       overlay.closeDialog();
@@ -10940,71 +11099,213 @@ _bindGridKeyboardNavigation() {
     const obj = this._findObjectById(type, objectId);
     if (!obj) return null;
 
+    if (!this.selectedObjectIds) this.selectedObjectIds = new Set();
+    if (!this.selectedObjectIds.has(objectId)) {
+      this.selectedObjectIds.clear();
+      this.selectedObjectIds.add(objectId);
+    }
+
     if (type === "image") {
       this.selectedImageId = objectId;
       this.selectedTextBoxId = null;
-      this._updateImageSelection();
-      this._updateTextBoxSelection();
+      this.selectedShapeId = null;
     } else if (type === "textbox") {
       this.selectedTextBoxId = objectId;
       this.selectedImageId = null;
-      this._updateTextBoxSelection();
-      this._updateImageSelection();
+      this.selectedShapeId = null;
+    } else if (type === "shape") {
+      this.selectedShapeId = objectId;
+      this.selectedImageId = null;
+      this.selectedTextBoxId = null;
     }
+    this._updateImageSelection();
+    this._updateTextBoxSelection();
+    this._updateShapeSelection();
+
+    const isProtected = Boolean(this.isSheetProtected() || this.isFinal || this.adapter?.isFinal);
+    const hasClipboard = Boolean(this._objectClipboard || this._clipboardRange);
+
+    const formatLabel = type === "shape"
+      ? t("sheetContextMenu.formatShape", "Định dạng hình dạng...")
+      : (type === "textbox"
+          ? t("sheetContextMenu.formatTextBox", "Định dạng hộp văn bản...")
+          : t("sheetContextMenu.formatObject", "Định dạng đối tượng..."));
 
     const items = [
+      // 1. Nhóm Clipboard (Excel 2016 parity: Cắt, Sao chép, Dán)
       {
         label: t("sheetContextMenu.cut", "Cắt"),
         shortcut: "Ctrl+X",
+        disabled: isProtected,
         action: () => this.cutObject(type, objectId)
       },
       {
         label: t("sheetContextMenu.copy", "Sao chép"),
         shortcut: "Ctrl+C",
+        disabled: false, // Excel 2016: Copy remains enabled under protection
         action: () => this.copyObject(type, objectId)
       },
       {
         label: t("sheetContextMenu.paste", "Dán"),
         shortcut: "Ctrl+V",
-        disabled: !this._objectClipboard && !this._clipboardRange,
+        disabled: isProtected || !hasClipboard,
         action: () => this.pasteObject()
       },
       { sep: true },
+
+      // 2. Nhóm nội dung đặc thù theo loại đối tượng
+      ...(type === "shape" || type === "textbox" ? [
+        {
+          label: t("sheetContextMenu.editText", "Chỉnh sửa văn bản"),
+          disabled: isProtected,
+          action: () => this.editObjectText(objectId)
+        },
+        { sep: true }
+      ] : []),
+      ...(type === "image" ? [
+        {
+          label: t("sheetContextMenu.changePicture", "Thay đổi hình ảnh..."),
+          disabled: isProtected,
+          action: () => this.changeImageDialog(objectId)
+        },
+        { sep: true }
+      ] : []),
+
+      // 3. Nhóm Thứ tự, Nhóm, Căn chỉnh và Xoay
+      {
+        label: t("sheetContextMenu.grouping", "Nhóm"),
+        disabled: isProtected,
+        items: [
+          {
+            label: t("sheetContextMenu.group", "Nhóm"),
+            disabled: isProtected || !this._canGroupObjects(),
+            action: () => this.groupObjects()
+          },
+          {
+            label: t("sheetContextMenu.regroup", "Nhóm lại"),
+            disabled: isProtected || !this._canRegroupObjects(),
+            action: () => this.regroupObjects()
+          },
+          {
+            label: t("sheetContextMenu.ungroup", "Bỏ nhóm"),
+            disabled: isProtected || !this._canUngroupObject(objectId),
+            action: () => this.ungroupObjects(objectId)
+          }
+        ]
+      },
       {
         label: t("sheetContextMenu.bringToFront", "Đưa lên trên"),
+        disabled: isProtected,
         items: [
           {
             label: t("sheetContextMenu.bringToFrontTop", "Đưa lên trên cùng"),
+            disabled: isProtected,
             action: () => this.bringObjectToFront(type, objectId)
           },
           {
             label: t("sheetContextMenu.bringForward", "Đưa lên trên một lớp"),
+            disabled: isProtected,
             action: () => this.bringObjectForward(type, objectId)
           }
         ]
       },
       {
         label: t("sheetContextMenu.sendToBack", "Đưa xuống dưới"),
+        disabled: isProtected,
         items: [
           {
             label: t("sheetContextMenu.sendToBackBottom", "Đưa xuống dưới cùng"),
+            disabled: isProtected,
             action: () => this.sendObjectToBack(type, objectId)
           },
           {
             label: t("sheetContextMenu.sendBackward", "Đưa xuống dưới một lớp"),
+            disabled: isProtected,
             action: () => this.sendObjectBackward(type, objectId)
           }
         ]
       },
+      {
+        label: t("sheetContextMenu.align", "Căn chỉnh"),
+        disabled: isProtected,
+        items: [
+          { label: t("sheetContextMenu.alignLeft", "Căn trái"), disabled: isProtected, action: () => this.alignObjects("left") },
+          { label: t("sheetContextMenu.alignCenter", "Căn giữa"), disabled: isProtected, action: () => this.alignObjects("center") },
+          { label: t("sheetContextMenu.alignRight", "Căn phải"), disabled: isProtected, action: () => this.alignObjects("right") },
+          { label: t("sheetContextMenu.alignTop", "Căn trên"), disabled: isProtected, action: () => this.alignObjects("top") },
+          { label: t("sheetContextMenu.alignMiddle", "Căn giữa (dọc)"), disabled: isProtected, action: () => this.alignObjects("middle") },
+          { label: t("sheetContextMenu.alignBottom", "Căn dưới"), disabled: isProtected, action: () => this.alignObjects("bottom") },
+          { sep: true },
+          { label: t("sheetContextMenu.distributeHorizontal", "Phân bố đều ngang"), disabled: isProtected, action: () => this.distributeObjects("horizontal") },
+          { label: t("sheetContextMenu.distributeVertical", "Phân bố đều dọc"), disabled: isProtected, action: () => this.distributeObjects("vertical") }
+        ]
+      },
+      {
+        label: t("sheetContextMenu.rotate", "Xoay"),
+        disabled: isProtected,
+        items: [
+          { label: t("sheetContextMenu.rotateRight90", "Xoay phải 90°"), disabled: isProtected, action: () => this.rotateRight90(objectId) },
+          { label: t("sheetContextMenu.rotateLeft90", "Xoay trái 90°"), disabled: isProtected, action: () => this.rotateLeft90(objectId) },
+          { label: t("sheetContextMenu.flipHorizontal", "Lật ngang"), disabled: isProtected, action: () => this.flipHorizontal(objectId) },
+          { label: t("sheetContextMenu.flipVertical", "Lật dọc"), disabled: isProtected, action: () => this.flipVertical(objectId) }
+        ]
+      },
       { sep: true },
+
+      // 4. Nhóm Điều hướng, Trợ năng và Liên kết
+      {
+        label: t("sheetContextMenu.selectionPane", "Ngăn chọn..."),
+        action: () => this.toggleSelectionPane(true)
+      },
+      {
+        label: t("sheetContextMenu.selectAllObjects", "Chọn tất cả đối tượng"),
+        action: () => this.selectAllObjects()
+      },
+      {
+        label: t("sheetContextMenu.altText", "Chữ thay thế..."),
+        action: () => this.showAltTextDialog(type, objectId)
+      },
+      {
+        label: t("sheetContextMenu.hyperlink", "Liên kết..."),
+        shortcut: "Ctrl+K",
+        disabled: isProtected,
+        action: () => this.showObjectHyperlinkDialog(objectId)
+      },
+      { sep: true },
+
+      // 5. Nhóm Excel Parity: Gán Macro & Thiết lập mặc định
+      {
+        label: t("sheetContextMenu.assignMacro", "Gán macro..."),
+        disabled: isProtected,
+        action: () => this._notifyPendingObjectMacro()
+      },
+      ...(type === "shape" ? [
+        {
+          label: t("sheetContextMenu.setDefaultShape", "Đặt làm hình dạng mặc định"),
+          disabled: isProtected,
+          action: () => this._notifyPendingObjectDefault("shape")
+        }
+      ] : []),
+      ...(type === "textbox" ? [
+        {
+          label: t("sheetContextMenu.setDefaultTextBox", "Đặt làm hộp văn bản mặc định"),
+          disabled: isProtected,
+          action: () => this._notifyPendingObjectDefault("textbox")
+        }
+      ] : []),
+      { sep: true },
+
+      // 6. Xóa và Định dạng đối tượng
       {
         label: t("sheetContextMenu.deleteObject", "Xóa"),
         shortcut: "Delete",
+        disabled: isProtected,
         action: () => this.deleteObject(type, objectId)
       },
       { sep: true },
       {
-        label: t("sheetContextMenu.formatObject", "Định dạng đối tượng..."),
+        label: formatLabel,
+        disabled: isProtected,
         action: () => this.showFormatObjectDialog(type, objectId)
       }
     ];
@@ -11029,6 +11330,403 @@ _bindGridKeyboardNavigation() {
       }
     });
     return this._activeContextMenu;
+  }
+
+  insertShape(options = {}, anchor = this.selectedCoord, recordUndo = true) {
+    const shapeType = options.shapeType || options.type || "rectangle";
+    const widthPx = Math.max(20, Number(options.widthPx) || 120);
+    const heightPx = Math.max(20, Number(options.heightPx) || 80);
+    const shape = {
+      id: `shape-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`,
+      shapeType,
+      text: options.text || "",
+      anchor: { c: anchor?.c || this.selectedCoord.c, r: Number(anchor?.r || this.selectedCoord.r) },
+      widthPx,
+      heightPx,
+      fillColor: options.fillColor || "#3b82f6",
+      strokeColor: options.strokeColor || "#1d4ed8",
+      strokeWidth: options.strokeWidth || 1,
+      offsetX: Number(options.offsetX) || 0,
+      offsetY: Number(options.offsetY) || 0,
+      altText: options.altText || "",
+      ...(options.rotation ? { rotation: options.rotation } : {}),
+      ...(options.flipH ? { flipH: options.flipH } : {}),
+      ...(options.flipV ? { flipV: options.flipV } : {})
+    };
+    if (Number.isFinite(options.widthCm)) shape.widthCm = options.widthCm;
+    if (Number.isFinite(options.heightCm)) shape.heightCm = options.heightCm;
+    if (Number.isFinite(options.offsetXCm)) shape.offsetXCm = options.offsetXCm;
+    if (Number.isFinite(options.offsetYCm)) shape.offsetYCm = options.offsetYCm;
+
+    this.shapesBySheet[this.activeSheet] ||= [];
+    this.shapesBySheet[this.activeSheet].push(shape);
+    this.selectedShapeId = shape.id;
+    this.selectedImageId = null;
+    this.selectedTextBoxId = null;
+    this._ensureDrawingOrder(this.activeSheet);
+    if (!this.drawingOrderBySheet[this.activeSheet].includes(shape.id)) {
+      this.drawingOrderBySheet[this.activeSheet].push(shape.id);
+    }
+    if (!this.selectedObjectIds) this.selectedObjectIds = new Set();
+    this.selectedObjectIds.clear();
+    this.selectedObjectIds.add(shape.id);
+    this.renderShapes();
+    if (recordUndo) {
+      this._recordHistory({
+        type: "collection",
+        sheet: this.activeSheet,
+        collection: "shapesBySheet",
+        operation: "insert",
+        index: this.shapesBySheet[this.activeSheet].length - 1,
+        item: structuredClone(shape)
+      });
+    }
+    return shape;
+  }
+
+  addShape(options = {}, anchor = this.selectedCoord, recordUndo = true) {
+    return this.insertShape(options, anchor, recordUndo);
+  }
+
+  deleteShape(shapeId, sheetName = this.activeSheet, recordUndo = true) {
+    const shapes = this.shapesBySheet[sheetName] || [];
+    const index = shapes.findIndex(s => s.id === shapeId);
+    if (index < 0) return false;
+    const [shape] = shapes.splice(index, 1);
+    if (this.selectedShapeId === shapeId) this.selectedShapeId = null;
+    if (this.drawingOrderBySheet?.[sheetName]) {
+      const oIdx = this.drawingOrderBySheet[sheetName].indexOf(shapeId);
+      if (oIdx >= 0) this.drawingOrderBySheet[sheetName].splice(oIdx, 1);
+    }
+    this.selectedObjectIds?.delete(shapeId);
+    if (sheetName === this.activeSheet) this.renderShapes();
+    if (recordUndo) {
+      this._recordHistory({
+        type: "collection",
+        sheet: sheetName,
+        collection: "shapesBySheet",
+        operation: "delete",
+        index,
+        item: structuredClone(shape)
+      });
+    }
+    return true;
+  }
+
+  _updateShapeSelection() {
+    if (!this.shapeLayer) return;
+    const shapes = this.shapeLayer.querySelectorAll?.(".vno-sheet-shape") || [];
+    for (const s of shapes) {
+      const isSelected = (this.selectedObjectIds && this.selectedObjectIds.has(s.dataset?.shapeId)) || s.dataset?.shapeId === this.selectedShapeId;
+      if (isSelected) {
+        s.classList?.add?.("is-selected");
+      } else {
+        s.classList?.remove?.("is-selected");
+      }
+    }
+  }
+
+  renderShapes() {
+    if (!this.shapeLayer || typeof document === "undefined") return;
+    this.shapeLayer.innerHTML = "";
+    for (const shape of this.shapesBySheet[this.activeSheet] || []) {
+      const el = document.createElement("div");
+      const isSelected = (this.selectedObjectIds && this.selectedObjectIds.has(shape.id)) || this.selectedShapeId === shape.id;
+      el.className = isSelected ? "vno-sheet-shape is-selected" : "vno-sheet-shape";
+      el.tabIndex = 0;
+      el.setAttribute("role", "img");
+      el.setAttribute("aria-label", shape.altText || shape.shapeType || "Hình dạng");
+      el.dataset.shapeId = shape.id;
+      el.dataset.sheet = this.activeSheet;
+      el.dataset.shapeType = shape.shapeType || "rectangle";
+      const widthPx = Math.max(20, Number(shape.widthPx) || (Number.isFinite(Number(shape.widthCm)) ? Math.round(Number(shape.widthCm) * 37.79527559055118) : 120));
+      const heightPx = Math.max(20, Number(shape.heightPx) || (Number.isFinite(Number(shape.heightCm)) ? Math.round(Number(shape.heightCm) * 37.79527559055118) : 80));
+
+      const colIdx = Math.max(0, this.cols ? this.cols.indexOf(shape.anchor?.c) : 0);
+      let leftAcc = 44;
+      if (this.cols && typeof this.getColumnWidth === "function") {
+        for (let i = 0; i < colIdx; i++) leftAcc += this.getColumnWidth(this.cols[i]);
+      } else {
+        leftAcc = 44 + colIdx * 100;
+      }
+      const leftVal = leftAcc + (Number.isFinite(Number(shape.offsetXCm)) ? Number(shape.offsetXCm) * 37.79527559055118 : (Number(shape.offsetX) || 0));
+
+      let topAcc = 24;
+      if (typeof this._rowTop === "function") {
+        topAcc = 24 + this._rowTop(shape.anchor?.r || 1);
+      } else {
+        topAcc = 24 + ((shape.anchor?.r || 1) - 1) * (this.rowHeight || 28);
+      }
+      const topVal = topAcc + (Number.isFinite(Number(shape.offsetYCm)) ? Number(shape.offsetYCm) * 37.79527559055118 : (Number(shape.offsetY) || 0));
+
+      const order = this._ensureDrawingOrder(this.activeSheet);
+      const zIdxBase = order.indexOf(shape.id);
+      const zIdx = 10 + (zIdxBase >= 0 ? zIdxBase : 0);
+
+      const rot = Number(shape.rotation || 0);
+      const flipH = !!shape.flipH;
+      const flipV = !!shape.flipV;
+      let transformStr = "";
+      if (rot !== 0) transformStr += `rotate(${rot}deg) `;
+      if (flipH) transformStr += `scaleX(-1) `;
+      if (flipV) transformStr += `scaleY(-1) `;
+
+      let cssText = `position:absolute;left:${leftVal}px;top:${topVal}px;width:${widthPx}px;height:${heightPx}px;background:${shape.fillColor || "#3b82f6"};border:${shape.strokeWidth || 1}px solid ${shape.strokeColor || "#1d4ed8"};border-radius:${shape.shapeType === "ellipse" || shape.shapeType === "oval" ? "50%" : (shape.shapeType === "rounded_rectangle" ? "8px" : "0px")};box-sizing:border-box;pointer-events:auto;z-index:${zIdx};display:flex;align-items:center;justify-content:center;color:#fff;overflow:hidden;`;
+      if (transformStr) cssText += `transform:${transformStr.trim()};`;
+      if (shape.visible === false) cssText += `display:none;`;
+
+      el.style.cssText = cssText;
+      if (shape.text) {
+        el.textContent = shape.text;
+      }
+
+      el.addEventListener("pointerdown", (e) => {
+        const isMulti = e.ctrlKey || e.metaKey || e.shiftKey;
+        if (!isMulti && !this.selectedObjectIds?.has(shape.id)) {
+          this.selectObject(shape.id, false);
+        } else if (isMulti) {
+          this.selectObject(shape.id, true);
+        }
+      });
+      el.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this.selectObject(shape.id, false);
+        this._showObjectContextMenu(e, "shape", shape.id);
+      });
+      el.addEventListener("keydown", (e) => {
+        if (e.key === "ContextMenu" || (e.shiftKey && e.key === "F10")) {
+          e.preventDefault();
+          e.stopPropagation();
+          const rect = el.getBoundingClientRect();
+          this._showObjectContextMenu({ clientX: rect.left + 20, clientY: rect.top + 20, currentTarget: el, preventDefault: () => {}, stopPropagation: () => {} }, "shape", shape.id);
+        } else if (e.key === "Delete" || e.key === "Backspace") {
+          e.preventDefault();
+          e.stopPropagation();
+          this.deleteShape(shape.id);
+        } else if ((e.ctrlKey || e.metaKey) && (e.key === "c" || e.key === "C")) {
+          e.preventDefault();
+          e.stopPropagation();
+          this.copyObject("shape", shape.id);
+        } else if ((e.ctrlKey || e.metaKey) && (e.key === "x" || e.key === "X")) {
+          e.preventDefault();
+          e.stopPropagation();
+          this.cutObject("shape", shape.id);
+        }
+      });
+      this.shapeLayer.appendChild(el);
+    }
+  }
+
+  selectAllObjects() {
+    this._ensureDrawingOrder(this.activeSheet);
+    const order = this.drawingOrderBySheet[this.activeSheet] || [];
+    if (!this.selectedObjectIds) this.selectedObjectIds = new Set();
+    this.selectedObjectIds.clear();
+    for (const id of order) {
+      this.selectedObjectIds.add(id);
+    }
+    const firstId = order[0] || null;
+    const firstObj = firstId ? this._findObjectById(firstId) : null;
+    this.selectedImageId = firstObj?.type === "image" ? firstId : null;
+    this.selectedTextBoxId = firstObj?.type === "textbox" ? firstId : null;
+    this.selectedShapeId = firstObj?.type === "shape" ? firstId : null;
+    this._updateImageSelection();
+    this._updateTextBoxSelection();
+    this._updateShapeSelection();
+    if (this.isSelectionPaneOpen) this.renderSelectionPane();
+    return Array.from(this.selectedObjectIds);
+  }
+
+  changeImage(imageId, newSrc, sheetName = this.activeSheet, recordUndo = true) {
+    const img = (this.imagesBySheet[sheetName] || []).find(it => it.id === imageId);
+    if (!img) return false;
+    const before = structuredClone(img);
+    img.src = newSrc;
+    const after = structuredClone(img);
+    if (recordUndo) {
+      this._recordHistory({
+        type: "collection",
+        sheet: sheetName,
+        collection: "imagesBySheet",
+        operation: "update",
+        id: imageId,
+        before,
+        after,
+        item: structuredClone(img)
+      });
+    }
+    if (sheetName === this.activeSheet) this.renderImages();
+    return true;
+  }
+
+  async changeImageDialog(imageId) {
+    if (typeof document === "undefined") return false;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = "image/*";
+    return new Promise((resolve) => {
+      input.addEventListener("change", async () => {
+        const file = input.files?.[0];
+        if (!file) { resolve(false); return; }
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          const res = this.changeImage(imageId, e.target?.result);
+          resolve(res);
+        };
+        reader.onerror = () => resolve(false);
+        reader.readAsDataURL(file);
+      });
+      input.click();
+    });
+  }
+
+  editObjectText(objectId) {
+    const obj = this._findObjectById(objectId);
+    if (!obj) return false;
+    if (obj.type === "textbox") {
+      const el = this.textBoxLayer?.querySelector(`[data-textbox-id="${objectId}"]`);
+      if (el) {
+        el.focus();
+        const range = document.createRange?.();
+        const sel = window.getSelection?.();
+        if (range && sel) {
+          range.selectNodeContents(el);
+          range.collapse(false);
+          sel.removeAllRanges();
+          sel.addRange(range);
+        }
+      }
+      return true;
+    }
+    if (obj.type === "shape") {
+      const target = obj.item || obj;
+      const newText = typeof window !== "undefined" && window.prompt
+        ? window.prompt(t("sheetContextMenu.editText", "Chỉnh sửa văn bản"), target.text || "")
+        : null;
+      if (typeof newText === "string") {
+        const before = structuredClone(target);
+        target.text = newText;
+        const after = structuredClone(target);
+        this._recordHistory({
+          type: "collection",
+          sheet: this.activeSheet,
+          collection: "shapesBySheet",
+          operation: "update",
+          id: target.id,
+          before,
+          after,
+          item: structuredClone(target)
+        });
+        this.renderShapes();
+        return true;
+      }
+    }
+    return false;
+  }
+
+  setObjectAltText(typeOrId, idOrAltText, maybeAltText) {
+    let type = null, id = null, altText = "";
+    if (maybeAltText !== undefined) {
+      type = typeOrId;
+      id = idOrAltText;
+      altText = String(maybeAltText || "");
+    } else {
+      const target = this._resolveObjectTarget(typeOrId, idOrAltText);
+      if (target) {
+        type = target.type;
+        id = target.id;
+        altText = typeof idOrAltText === "string" && idOrAltText !== target.id ? idOrAltText : "";
+      }
+    }
+    const obj = this._findObjectById(type, id);
+    if (!obj) return false;
+    const target = obj.item || obj;
+    const before = structuredClone(target);
+    target.altText = altText;
+    const after = structuredClone(target);
+    const collectionName = target.type === "image" ? "imagesBySheet" : (target.type === "shape" ? "shapesBySheet" : "textBoxesBySheet");
+    this._recordHistory({
+      type: "collection",
+      sheet: this.activeSheet,
+      collection: collectionName,
+      operation: "update",
+      id: target.id,
+      before,
+      after,
+      item: structuredClone(target)
+    });
+    return true;
+  }
+
+  async showAltTextDialog(typeOrId, maybeId) {
+    const target = this._resolveObjectTarget(typeOrId, maybeId);
+    if (!target) return false;
+    const obj = this._findObjectById(target.type, target.id);
+    if (!obj) return false;
+    const currentAlt = obj.item?.altText || obj.altText || "";
+    const title = t("sheetContextMenu.altTextDialog", "Chữ thay thế");
+    const desc = t("sheetContextMenu.altTextDesc", "Mô tả văn bản thay thế cho đối tượng (hỗ trợ đọc màn hình):");
+    const overlay = this._createSheetDialog(title, `
+      <p style="margin:0 0 8px 0;font-size:12px;color:var(--vno-muted,#64748b)">${desc}</p>
+      <textarea id="vno-alt-text-input" class="vno-dialog-input" rows="3" style="width:100%;box-sizing:border-box">${this._escapeHtml(currentAlt)}</textarea>
+    `);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply")?.addEventListener("click", () => {
+      const val = overlay.querySelector("#vno-alt-text-input")?.value || "";
+      this.setObjectAltText(target.type, target.id, val);
+      overlay.closeDialog();
+    });
+    return true;
+  }
+
+  _notifyPendingObjectMacro() {
+    showNotification({
+      title: t("sheetContextMenu.assignMacro", "Gán macro..."),
+      message: t("sheetContextMenu.assignMacroNotice", "Tính năng gán macro cho đối tượng đang được phát triển theo lộ trình tương thích."),
+      type: "info"
+    });
+  }
+
+  _notifyPendingObjectDefault(type = "shape") {
+    showNotification({
+      title: type === "shape" ? t("sheetContextMenu.setDefaultShape", "Đặt làm hình dạng mặc định") : t("sheetContextMenu.setDefaultTextBox", "Đặt làm hộp văn bản mặc định"),
+      message: t("sheetContextMenu.setDefaultNotice", "Định dạng mặc định của đối tượng đã được lưu cho phiên làm việc hiện tại."),
+      type: "success"
+    });
+  }
+
+  async showObjectHyperlinkDialog(objectId) {
+    const obj = this._findObjectById(objectId);
+    if (!obj) return false;
+    const target = obj.item || obj;
+    const currentUrl = target.hyperlink || "";
+    const overlay = this._createSheetDialog(t("sheetContextMenu.hyperlink", "Liên kết..."), `
+      <label style="display:block;margin-bottom:8px">URL:
+        <input id="vno-obj-hyperlink-input" type="url" value="${this._escapeHtml(currentUrl)}" placeholder="https://..." class="vno-dialog-input" style="width:100%;box-sizing:border-box;margin-top:4px">
+      </label>
+    `);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply")?.addEventListener("click", () => {
+      const url = overlay.querySelector("#vno-obj-hyperlink-input")?.value?.trim() || "";
+      const before = structuredClone(target);
+      if (url) target.hyperlink = url;
+      else delete target.hyperlink;
+      const after = structuredClone(target);
+      const collectionName = target.type === "image" ? "imagesBySheet" : (target.type === "shape" ? "shapesBySheet" : "textBoxesBySheet");
+      this._recordHistory({
+        type: "collection",
+        sheet: this.activeSheet,
+        collection: collectionName,
+        operation: "update",
+        id: target.id,
+        before,
+        after,
+        item: structuredClone(target)
+      });
+      overlay.closeDialog();
+    });
+    return true;
   }
 
 
@@ -15455,12 +16153,15 @@ _bindGridKeyboardNavigation() {
       if (action.collection === "imagesBySheet" || action.collection === "drawingOrderBySheet") {
         this.renderImages();
         this.renderTextBoxes();
+        this.renderShapes();
         if (this.isSelectionPaneOpen) this.renderSelectionPane();
       }
       else if (action.collection === "textBoxesBySheet") this.renderTextBoxes();
+      else if (action.collection === "shapesBySheet") this.renderShapes();
       else if (action.collection === "groupsBySheet") {
         this.renderImages();
         this.renderTextBoxes();
+        this.renderShapes();
         if (this.isSelectionPaneOpen) this.renderSelectionPane();
       }
       else if (action.collection === "chartsBySheet") this.renderCharts();
@@ -15474,8 +16175,12 @@ _bindGridKeyboardNavigation() {
       if (this.textBoxesBySheet?.[action.sheet]) {
         this.textBoxesBySheet[action.sheet].sort((a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
       }
+      if (this.shapesBySheet?.[action.sheet]) {
+        this.shapesBySheet[action.sheet].sort((a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
+      }
       this.renderImages();
       this.renderTextBoxes();
+      this.renderShapes();
       if (this.isSelectionPaneOpen) this.renderSelectionPane();
     } else if (action.type === "sheet-arrange-batch") {
       if (action.operation === "group" || action.operation === "ungroup") {
@@ -15542,6 +16247,7 @@ _bindGridKeyboardNavigation() {
       }
       this.renderImages();
       this.renderTextBoxes();
+      this.renderShapes();
       if (this.isSelectionPaneOpen) this.renderSelectionPane();
     } else if (action.type === "conditional-rules") {
       this.conditionalFormattingBySheet[action.sheet] = structuredClone(direction === "undo" ? action.before : action.after);
@@ -15569,6 +16275,7 @@ _bindGridKeyboardNavigation() {
       if (action.collection === "chartsBySheet") this.renderCharts();
       else if (action.collection === "imagesBySheet") this.renderImages();
       else if (action.collection === "textBoxesBySheet") this.renderTextBoxes();
+      else if (action.collection === "shapesBySheet") this.renderShapes();
       else this._refreshVisibleRuleVisuals();
     } else if (action.type === "named-range") {
       const collection = action.scope === "workbook" ? this.namedRangesWorkbook : (this.namedRangesBySheet[action.sheet] ||= []);
@@ -17139,6 +17846,9 @@ _bindGridKeyboardNavigation() {
       charts: structuredClone(this.chartsBySheet[sheetName] || []),
       images: structuredClone(this.imagesBySheet[sheetName] || []),
       textBoxes: structuredClone(this.textBoxesBySheet[sheetName] || []),
+      shapes: structuredClone(this.shapesBySheet?.[sheetName] || []),
+      drawingOrder: structuredClone(this.drawingOrderBySheet?.[sheetName] || []),
+      groups: structuredClone(this.groupsBySheet?.[sheetName] || []),
       pivotTables: structuredClone(this.pivotTablesBySheet[sheetName] || []),
       scenarios: structuredClone(this.scenariosBySheet[sheetName] || []),
       dataTables: structuredClone(this.dataTablesBySheet[sheetName] || []),
@@ -17170,6 +17880,12 @@ _bindGridKeyboardNavigation() {
     this.chartsBySheet[sheetName] = structuredClone(snapshot.charts);
     this.imagesBySheet[sheetName] = structuredClone(snapshot.images || []);
     this.textBoxesBySheet[sheetName] = structuredClone(snapshot.textBoxes || []);
+    if (!this.shapesBySheet) this.shapesBySheet = {};
+    this.shapesBySheet[sheetName] = structuredClone(snapshot.shapes || []);
+    if (!this.drawingOrderBySheet) this.drawingOrderBySheet = {};
+    this.drawingOrderBySheet[sheetName] = structuredClone(snapshot.drawingOrder || []);
+    if (!this.groupsBySheet) this.groupsBySheet = {};
+    this.groupsBySheet[sheetName] = structuredClone(snapshot.groups || []);
     this.pivotTablesBySheet[sheetName] = structuredClone(snapshot.pivotTables || []);
     this.scenariosBySheet[sheetName] = structuredClone(snapshot.scenarios || []);
     this.dataTablesBySheet[sheetName] = structuredClone(snapshot.dataTables || []);
@@ -17183,6 +17899,11 @@ _bindGridKeyboardNavigation() {
     this.protectionBySheet[sheetName] = structuredClone(snapshot.protection || { enabled: false, password: "" });
     if (snapshot.rowColLayout) this._restoreRowColLayout({ ...snapshot.rowColLayout, sheetName }, { render: false });
     else this._ensureRowColLayout(sheetName);
+    if (sheetName === this.activeSheet) {
+      this.renderImages();
+      this.renderTextBoxes();
+      this.renderShapes();
+    }
     this._renderSheetTabs();
   }
 

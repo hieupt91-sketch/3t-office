@@ -42,6 +42,25 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.contextMenu.objects",
+    app: "sheet",
+    commandIds: [],
+    title: "Menu chuột phải cho hình, ảnh, hộp văn bản",
+    summary: "Nhấp chuột phải hoặc nhấn phím Menu ngữ cảnh trên hình dạng, hình ảnh hoặc hộp văn bản để thao tác nhanh các lệnh sao chép, thứ tự lớp, căn chỉnh, xoay lật, thay ảnh, chữ thay thế, định dạng và bảo vệ trang tính.",
+    ribbon: { tab: "Bố trí trang", tabId: "pageLayout", group: "Sắp xếp" },
+    keywords: ["menu chuột phải cho hình, ảnh, hộp văn bản", "chuột phải hình dạng", "chuột phải hình ảnh", "chuột phải hộp văn bản", "thay ảnh", "chữ thay thế", "nhóm", "thứ tự lớp", "căn chỉnh", "xoay", "định dạng đối tượng", "bảo vệ trang tính", "phím menu", "ngữ cảnh"],
+    steps: [
+      "Nhấp chuột phải trực tiếp vào một hình dạng (Shape), hình ảnh (Picture) hoặc hộp văn bản (TextBox) trên trang tính. Hoặc dùng chuột để chọn đối tượng rồi nhấn phím Menu (ngữ cảnh) trên bàn phím để mở menu. Nhấn phím Esc để đóng menu bất cứ lúc nào.",
+      "Nhóm lệnh Chỉnh sửa cơ bản: Cắt (Ctrl+X), Sao chép (Ctrl+C) và Dán (Ctrl+V). Thao tác dán đối tượng giữ nguyên kích thước và định dạng, bám sát ô neo hiện hành trên trang tính.",
+      "Lệnh chuyên biệt theo loại đối tượng: Đối với hình ảnh, chọn Thay đổi hình ảnh... để chọn tệp ảnh mới thay thế ảnh hiện tại mà vẫn giữ nguyên kích thước và vị trí neo. Đối với hình dạng và hộp văn bản, chọn Chỉnh sửa văn bản để kích hoạt con trỏ nhập văn bản bên trong đối tượng.",
+      "Nhóm lệnh Sắp xếp và Thứ tự lớp: Menu Nhóm (Nhóm, Bỏ nhóm, Nhóm lại); Đưa lên trên (Đưa lên trên cùng, Đưa lên trên một lớp); Đưa xuống dưới (Đưa xuống dưới cùng, Đưa xuống dưới một lớp); Căn chỉnh (Căn trái, Căn giữa, Căn phải, Căn trên, Căn giữa dọc, Căn dưới, Phân bố đều ngang, Phân bố đều dọc); và Xoay (Xoay phải 90°, Xoay trái 90°, Lật ngang, Lật dọc).",
+      "Thông tin bổ sung và Thiết lập: Chọn Chữ thay thế... để nhập nội dung mô tả cho người khiếm thị sử dụng trình đọc màn hình; Gán macro... hiển thị thông báo tiến trình tích hợp tự động hóa; Đặt làm hình dạng mặc định / Đặt làm hộp văn bản mặc định lưu lại kiểu dáng cho các đối tượng mới tiếp theo; Liên kết... (Ctrl+K) gắn siêu liên kết cho đối tượng.",
+      "Quản lý và Xóa: Mục Xóa (phím Delete) xóa đối tượng khỏi trang tính kèm đầy đủ khả năng Hoàn tác (Ctrl+Z) và Làm lại (Ctrl+Y); Chọn tất cả đối tượng chọn toàn bộ hình ảnh và hộp văn bản đang có trên trang tính; Ngăn chọn... mở pa-nen quản lý thứ tự lớp và ẩn/hiện từng đối tượng.",
+      "Định dạng chuyên sâu: Mục Định dạng hình dạng... / Định dạng ảnh... / Định dạng hộp văn bản... mở hộp thoại tinh chỉnh chi tiết kích thước (cm/px), tọa độ ô neo, khoảng cách lệch ngang/dọc và nội dung chữ.",
+      "Trạng thái khi trang tính được bảo vệ: Khi bật tính năng Bảo vệ trang tính hoặc Sổ làm việc đã đánh dấu là cuối cùng, các lệnh chỉnh sửa làm thay đổi đối tượng (Cắt, Dán, Xóa, Nhóm, Thứ tự lớp, Căn chỉnh, Xoay, Định dạng...) tự động bị khóa mờ; lệnh Sao chép (Ctrl+C) và Xem chữ thay thế vẫn cho phép sử dụng bình thường."
+    ]
+  },
+  {
     id: "sheet.input.nativeValues",
     app: "sheet",
     commandIds: [],

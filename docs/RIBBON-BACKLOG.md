@@ -59,6 +59,8 @@ FIX-L1 chỉ xử lý nhãn, trạng thái, lệnh đã có và khả năng hi�
 | **VN Writer (3T Doc)** | Chuột phải | Menu ngữ cảnh | Đoạn văn... | `writer.format.paragraphDialog` | Đã hoàn thành 05/10/2026: hộp thoại Đoạn văn (căn lề, thụt trái/phải, dòng đầu/treo, cách đoạn trước/sau, giãn dòng đơn/1,5/kép/nhiều dòng/chính xác, khung xem trước); mở từ chuột phải ▸ Đoạn văn… và nút góc nhóm Đoạn văn (tab Trang đầu và Bố cục); một Áp dụng = một Hoàn tác; có bài Hướng dẫn | Chưa có: ngắt dòng/ngắt trang trong tab "Ngắt dòng và ngắt trang" của Word, mức đề mục (Outline level), tab stop | Small | Đã xong (feat/writer-paragraph-dialog-claude) |
 | **VN Writer** | Chế độ xem | Cửa sổ | Cửa sổ mới | `writer.view.newWindow` | Hiện thông báo lý do khi không mở được trong desktop app; hỗ trợ mở cửa sổ tài liệu mới | Mở cửa sổ thứ hai xem cùng tài liệu đang mở (multi-window sync view) trong app desktop | Medium | Backlog |
 | **VN Slides** | Chế độ xem | Cửa sổ | Cửa sổ mới | `slides.view.newWindow` | Hiện thông báo lý do khi không mở được trong desktop app; hỗ trợ mở cửa sổ trình bày mới | Mở cửa sổ thứ hai xem cùng bài trình bày đang mở (multi-window sync view) trong app desktop | Medium | Backlog |
+| **VN Sheet** | Chuột phải | Đối tượng | Gán macro cho đối tượng | `sheet.object.assignMacro` | Hiển thị thông báo khi bấm trên menu chuột phải của hình/ảnh/hộp văn bản | Tích hợp trình soạn thảo macro/VBA và gán sự kiện click cho đối tượng đồ họa | Medium | Backlog |
+| **VN Sheet** | Chuột phải | Đối tượng | Đặt làm hình/hộp văn bản mặc định | `sheet.object.setDefault` | Hiển thị thông báo ghi nhớ định dạng trong phiên | Lưu cấu hình kiểu mặc định vào preferences của người dùng và template | Small | Backlog |
 
 ---
 
