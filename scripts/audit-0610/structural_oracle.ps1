@@ -1,4 +1,4 @@
-﻿param(
+param(
   [Parameter(Mandatory = $true)][string]$InputJson,
   [Parameter(Mandatory = $true)][string]$OutputJson
 )
@@ -19,6 +19,11 @@ try {
   $results = [ordered]@{}
   foreach ($scenario in $spec.scenarios) {
     $ws = Retry { $wb.Worksheets.Add() }
+    if ($scenario.colWidths) {
+      foreach ($colProp in $scenario.colWidths.PSObject.Properties) {
+        Retry { $ws.Columns($colProp.Name).ColumnWidth = [double]$colProp.Value }
+      }
+    }
     foreach ($prop in $scenario.cells.PSObject.Properties) {
       $valObj = $prop.Value
       if ($valObj -is [System.Management.Automation.PSCustomObject]) {
@@ -29,6 +34,8 @@ try {
         $hasFormula = $valObj.PSObject.Properties["formula"] -ne $null
         $cellForm = if ($hasF) { $valObj.f } elseif ($hasFormula) { $valObj.formula } else { $null }
         Retry {
+          $fmt = if ($valObj.format) { $valObj.format } else { $valObj.numberFormat }
+          if ($fmt) { $ws.Range($prop.Name).NumberFormat = [string]$fmt }
           if ($cellForm) { $ws.Range($prop.Name).Formula = [string]$cellForm }
           elseif ($cellVal -ne $null) {
             if ($cellVal -is [string]) { $ws.Range($prop.Name).Value2 = $cellVal }
@@ -43,8 +50,6 @@ try {
             $b = [Convert]::ToInt32($hex.Substring(4,2), 16)
             $ws.Range($prop.Name).Interior.Color = $r + ($g -shl 8) + ($b -shl 16)
           }
-          $fmt = if ($valObj.format) { $valObj.format } else { $valObj.numberFormat }
-          if ($fmt) { $ws.Range($prop.Name).NumberFormat = [string]$fmt }
         }
       } else {
         $value = $valObj
@@ -53,6 +58,15 @@ try {
     }
     foreach ($op in $scenario.ops) {
       switch ($op.type) {
+        "setColWidth" { Retry { $ws.Columns($op.col).ColumnWidth = [double]$op.width } }
+        "justify" {
+          if ($op.colWidth) {
+            $colLetter = $op.col
+            if (-not $colLetter) { $colLetter = [regex]::Match($op.range, "^[A-Z]+").Value }
+            Retry { $ws.Columns($colLetter).ColumnWidth = [double]$op.colWidth }
+          }
+          Retry { [void]$ws.Range($op.range).Justify() }
+        }
         "deleteRow" { Retry { [void]$ws.Rows($op.at).Delete() } }
         "insertRow" { Retry { [void]$ws.Rows($op.at).Insert() } }
         "deleteCol" { Retry { [void]$ws.Columns($op.at).Delete() } }

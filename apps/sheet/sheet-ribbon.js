@@ -279,7 +279,8 @@ export const SHEET_RIBBON_TABS = [
                   { commandId: "sheet.edit.fillUp" },
                   { commandId: "sheet.edit.fillLeft" },
                   { commandId: "sheet.edit.fillSeries" },
-            { commandId: "sheet.edit.fillAcrossSheets" }
+                  { commandId: "sheet.edit.fillAcrossSheets" },
+                  { commandId: "sheet.edit.fillJustify" }
                 ]
               },
               {
