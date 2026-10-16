@@ -1,5 +1,7 @@
 # Bàn giao cho team macOS — trạng thái tương đương bản Windows 0.9.10
 
+> **Cập nhật 17/10/2026:** mốc này (0.9.10) đã cũ. Đọc tiếp docs/THONG-TIN-TEAM-MAC-0.9.11.md (13/10) rồi **docs/THONG-TIN-TEAM-MAC-1710.md** (thay đổi mới + danh sách việc MAC-1…MAC-10 giao cho team Mac).
+
 Mục tiêu: team Mac clone repo, làm theo tài liệu này và `docs/SPEC-MACOS-PORT.md` để đạt **cùng tính năng, cùng hành vi soạn thảo, cùng độ trung thực khi mở/lưu tài liệu** như bản Windows 0.9.10.
 
 ## 1. Repo này chứa gì
