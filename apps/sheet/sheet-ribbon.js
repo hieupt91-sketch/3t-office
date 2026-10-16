@@ -426,6 +426,87 @@ export const SHEET_RIBBON_TABS = [
             ]
           }
         ]
+      },
+      {
+        id: "arrange",
+        label: "Sắp xếp",
+        labelKey: "sheetRibbon.group.arrange",
+        items: [
+          {
+            type: "column",
+            items: [
+              {
+                type: "dropdown",
+                id: "sheet.arrange.bringForwardMenu",
+                label: "Đưa lên trên",
+                labelKey: "sheetRibbon.arrange.bringForward",
+                icon: "bringForward",
+                items: [
+                  { commandId: "sheet.arrange.bringForward" },
+                  { commandId: "sheet.arrange.bringToFront" }
+                ]
+              },
+              {
+                type: "dropdown",
+                id: "sheet.arrange.sendBackwardMenu",
+                label: "Đưa xuống dưới",
+                labelKey: "sheetRibbon.arrange.sendBackward",
+                icon: "sendBackward",
+                items: [
+                  { commandId: "sheet.arrange.sendBackward" },
+                  { commandId: "sheet.arrange.sendToBack" }
+                ]
+              },
+              { type: "button", commandId: "sheet.view.selectionPane" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              {
+                type: "dropdown",
+                id: "sheet.arrange.alignMenu",
+                label: "Căn chỉnh",
+                labelKey: "sheetRibbon.arrange.align",
+                icon: "alignObjLeft",
+                items: [
+                  { commandId: "sheet.arrange.alignLeft" },
+                  { commandId: "sheet.arrange.alignCenter" },
+                  { commandId: "sheet.arrange.alignRight" },
+                  { commandId: "sheet.arrange.alignTop" },
+                  { commandId: "sheet.arrange.alignMiddle" },
+                  { commandId: "sheet.arrange.alignBottom" },
+                  { commandId: "sheet.arrange.distributeHorizontal" },
+                  { commandId: "sheet.arrange.distributeVertical" }
+                ]
+              },
+              {
+                type: "dropdown",
+                id: "sheet.arrange.groupMenu",
+                label: "Nhóm",
+                labelKey: "sheetRibbon.arrange.group",
+                icon: "shapeGroup",
+                items: [
+                  { commandId: "sheet.arrange.group" },
+                  { commandId: "sheet.arrange.ungroup" }
+                ]
+              },
+              {
+                type: "dropdown",
+                id: "sheet.arrange.rotateMenu",
+                label: "Xoay",
+                labelKey: "sheetRibbon.arrange.rotate",
+                icon: "rotateRight90",
+                items: [
+                  { commandId: "sheet.arrange.rotateRight90" },
+                  { commandId: "sheet.arrange.rotateLeft90" },
+                  { commandId: "sheet.arrange.flipHorizontal" },
+                  { commandId: "sheet.arrange.flipVertical" }
+                ]
+              }
+            ]
+          }
+        ]
       }
     ]
   },

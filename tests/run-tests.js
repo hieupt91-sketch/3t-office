@@ -34,6 +34,7 @@ import { runMultiSheetTests } from "./unit/sheet-multi-sheet.test.js";
 import { runWriterCommentsTests } from "./unit/writer-comments.test.js";
 import { runSlidesAnimationsNotesTests } from "./unit/slides-animations-notes.test.js";
 import { runSheetRulesValidationTests } from "./unit/sheet-rules-validation.test.js";
+import { runSheetCfDvExcel2016ParityTests } from "./unit/sheet-cf-dv-excel2016-parity.test.js";
 import { runWriterTrackChangesTests } from "./unit/writer-track-changes.test.js";
 import { runWriterDocumentReviewTests } from "./unit/writer-document-review.test.js";
 import { runWriterReviewExportTests } from "./unit/writer-review-export.test.js";
@@ -124,6 +125,7 @@ import { runSheetGoalSeekTests } from "./unit/sheet-goal-seek.test.js";
 import { runSheetWhatIfAnalysisTests } from "./unit/sheet-what-if-analysis.test.js";
 import { runSheetPivotChartTests } from "./unit/sheet-pivot-chart.test.js";
 import { runWriterArrangeTests } from "./unit/writer-arrange.test.js";
+import { runSheetArrangeTests } from "./unit/sheet-arrange.test.js";
 import { runSlidesHideSlideTests } from "./unit/slides-hide-slide.test.js";
 import { runSlidesChartTests } from "./unit/slides-charts.test.js";
 import { runWriterCitationsTests } from "./unit/writer-citations.test.js";
@@ -339,6 +341,7 @@ async function runAll() {
     { title: "23. Behavioral Tests — VN Writer Comments", runner: runWriterCommentsTests },
     { title: "24. Unit Tests — VN Slides Object Animations & Speaker Notes", runner: runSlidesAnimationsNotesTests },
     { title: "25. Behavioral Tests — Sheet Conditional Formatting & Data Validation", runner: runSheetRulesValidationTests },
+    { title: "25b. Unit Tests — Sheet CF/DV Excel 2016 Parity", runner: runSheetCfDvExcel2016ParityTests },
     { title: "26. Behavioral Tests — VN Writer Track Changes", runner: runWriterTrackChangesTests },
     { title: "26b. Behavioral Tests — VN Writer Compare & Protect", runner: runWriterDocumentReviewTests },
     { title: "27. Behavioral Tests — VN Writer Print Preview", runner: runWriterPrintPreviewTests },
@@ -600,8 +603,9 @@ async function runAll() {
     { title: "263. Unit Tests — Sheet XLSX Document Properties & Mark as Final (AGY-SHEET-INFO)", runner: runSheetFileInfoTests },
     { title: "264. Unit Tests — Sheet Paste Special (values, formulas, formats, transpose, operations, skipBlanks)", runner: runSheetPasteSpecialTests },
     { title: "265. Unit Tests — Sheet Fill Justify & Alignment Styles (AGY-JUSTIFY)", runner: runSheetFillJustifyTests },
-    { title: "266. Unit Tests — Sheet Calculation Options & Formula Parity (AGY-CALC)", runner: runSheetCalcOptionsTests },
-    { title: "267. Unit Tests — Sheet External Links & Edit Links Dialog (AGY-LINKS)", runner: runSheetExternalLinksDialogTests }
+    { title: "266. Unit Tests — Sheet Arrange Z-Order, Align, Distribute, Group, Rotate/Flip, Selection Pane (AGY-ARRANGE)", runner: runSheetArrangeTests },
+    { title: "267. Unit Tests — Sheet Calculation Options & Formula Parity (AGY-CALC)", runner: runSheetCalcOptionsTests },
+    { title: "268. Unit Tests — Sheet External Links & Edit Links Dialog (AGY-LINKS)", runner: runSheetExternalLinksDialogTests }
   ];
 
   for (const suite of suites) {

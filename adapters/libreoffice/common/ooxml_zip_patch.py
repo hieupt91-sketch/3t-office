@@ -785,12 +785,18 @@ def _drawing_textbox_shape(box: dict, shape_id: int) -> str:
         f"<a:p><a:r><a:rPr lang=\"vi-VN\" dirty=\"0\"/><a:t>{_escape_xml(line)}</a:t></a:r><a:endParaRPr lang=\"vi-VN\"/></a:p>"
         for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
     ) or "<a:p><a:endParaRPr lang=\"vi-VN\"/></a:p>"
+    shape_name = _escape_xml(str(box.get("name") or f"Text Box {shape_id}"))
+    hidden_attr = ' hidden="1"' if box.get("visible") is False else ""
+    rot = int(round(float(box.get("rotation", 0) or 0) * 60000))
+    rot_attr = f' rot="{rot}"' if rot != 0 else ""
+    fliph_attr = ' flipH="1"' if box.get("flipH") else ""
+    flipv_attr = ' flipV="1"' if box.get("flipV") else ""
     return (
         '<xdr:oneCellAnchor><xdr:from>'
         f'<xdr:col>{col}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>{row}</xdr:row><xdr:rowOff>0</xdr:rowOff>'
         '</xdr:from><xdr:ext cx="' + str(width * 9525) + '" cy="' + str(height * 9525) + '"/>'
-        '<xdr:sp macro="" textlink=""><xdr:nvSpPr><xdr:cNvPr id="' + str(shape_id) + '" name="Text Box ' + str(shape_id) + '"/><xdr:cNvSpPr txBox="1"/></xdr:nvSpPr>'
-        '<xdr:spPr><a:xfrm><a:off x="0" y="0"/><a:ext cx="' + str(width * 9525) + '" cy="' + str(height * 9525) + '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:ln w="9525"><a:solidFill><a:srgbClr val="64748B"/></a:solidFill></a:ln></xdr:spPr>'
+        f'<xdr:sp macro="" textlink=""><xdr:nvSpPr><xdr:cNvPr id="{shape_id}" name="{shape_name}"{hidden_attr}/><xdr:cNvSpPr txBox="1"/></xdr:nvSpPr>'
+        f'<xdr:spPr><a:xfrm{rot_attr}{fliph_attr}{flipv_attr}><a:off x="0" y="0"/><a:ext cx="' + str(width * 9525) + '" cy="' + str(height * 9525) + '"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill><a:ln w="9525"><a:solidFill><a:srgbClr val="64748B"/></a:solidFill></a:ln></xdr:spPr>'
         '<xdr:txBody><a:bodyPr wrap="square" lIns="95250" tIns="95250" rIns="95250" bIns="95250" anchor="t"/><a:lstStyle/>' + paragraphs + '</xdr:txBody></xdr:sp><xdr:clientData/></xdr:oneCellAnchor>'
     )
 
@@ -925,7 +931,27 @@ def _parse_xlsx_drawing_text_boxes(xlsx_bytes: bytes) -> dict[str, list[dict]]:
             if body is not None:
                 for paragraph in body.findall(f"{{{a_ns}}}p"):
                     paragraphs.append("".join(item.text or "" for item in paragraph.findall(f".//{{{a_ns}}}t")))
-            boxes.append({"text": "\n".join(paragraphs), "anchor": {"c": column, "r": row + 1}, "widthPx": width, "heightPx": height})
+            cnv_pr = shape.find(f"{{{xdr_ns}}}nvSpPr/{{{xdr_ns}}}cNvPr") if shape is not None else None
+            shape_name = cnv_pr.attrib.get("name") if cnv_pr is not None else None
+            is_hidden = cnv_pr.attrib.get("hidden") == "1" if cnv_pr is not None else False
+            xfrm = shape.find(f"{{{xdr_ns}}}spPr/{{{a_ns}}}xfrm") if shape is not None else None
+            rot_val = int(xfrm.attrib.get("rot", "0")) if xfrm is not None else 0
+            rotation = round(rot_val / 60000) if rot_val else 0
+            flip_h = xfrm.attrib.get("flipH") == "1" if xfrm is not None else False
+            flip_v = xfrm.attrib.get("flipV") == "1" if xfrm is not None else False
+
+            box_item = {"text": "\n".join(paragraphs), "anchor": {"c": column, "r": row + 1}, "widthPx": width, "heightPx": height}
+            if shape_name:
+                box_item["name"] = shape_name
+            if is_hidden:
+                box_item["visible"] = False
+            if rotation:
+                box_item["rotation"] = rotation
+            if flip_h:
+                box_item["flipH"] = True
+            if flip_v:
+                box_item["flipV"] = True
+            boxes.append(box_item)
         if boxes:
             result[sheet_name] = boxes
     return result
@@ -1993,10 +2019,12 @@ def _cf_rule_xml(rule: dict, priority: int, dxf_id: int | None) -> str:
     elif kind == "dateOccurs":
         period = str(rule.get("timePeriod") or "today")
         body = f'<cfRule type="timePeriod"{dxf}{p} timePeriod="{html.escape(period, quote=True)}"><formula>{_cf_date_formula(period, first)}</formula></cfRule>'
-    elif kind in ("top", "bottom"):
-        rank = max(1, min(1000, int(rule.get("rank") or 10)))
-        bottom = ' bottom="1"' if kind == "bottom" else ""
-        body = f'<cfRule type="top10"{dxf}{p} rank="{rank}"{bottom}/>'
+    elif kind in ("top", "bottom", "topPercent", "bottomPercent"):
+        is_percent = kind in ("topPercent", "bottomPercent")
+        rank = max(1, min(100 if is_percent else 1000, int(rule.get("rank") or 10)))
+        bottom = ' bottom="1"' if kind in ("bottom", "bottomPercent") else ""
+        percent = ' percent="1"' if is_percent else ""
+        body = f'<cfRule type="top10"{dxf}{p} rank="{rank}"{bottom}{percent}/>'
     elif kind in ("aboveAverage", "belowAverage"):
         below = ' aboveAverage="0"' if kind == "belowAverage" else ""
         body = f'<cfRule type="aboveAverage"{dxf}{p}{below}/>'
@@ -2069,7 +2097,7 @@ def apply_conditional_formatting_from_fods(
     if style_source is None:
         entry = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
         style_source = entry.decode("utf-8", errors="replace") if entry else ""
-    highlight_types = {"greaterThan", "lessThan", "between", "equal", "blank", "textContains", "dateOccurs", "duplicate", "top", "bottom", "aboveAverage", "belowAverage", "formula"}
+    highlight_types = {"greaterThan", "lessThan", "between", "equal", "blank", "textContains", "dateOccurs", "duplicate", "top", "bottom", "topPercent", "bottomPercent", "aboveAverage", "belowAverage", "formula"}
     colors = [rule.get("color") or "#fff2cc" for rules in rules_by_sheet.values() for rule in rules if rule.get("type") in highlight_types]
     dxf_ids: dict[str, int] = {}
     if style_source and colors:
@@ -2184,7 +2212,13 @@ def parse_conditional_formatting_from_xlsx(xlsx_bytes: bytes) -> dict[str, list[
                 elif native_type in ("containsText", "notContainsText", "beginsWith", "endsWith"):
                     rule.update(type="textContains", text=attrs.get("text", ""))
                 elif native_type == "timePeriod": rule.update(type="dateOccurs", timePeriod=attrs.get("timePeriod", "today"))
-                elif native_type == "top10": rule.update(type="bottom" if attrs.get("bottom") in ("1", "true") else "top", rank=int(attrs.get("rank") or 10))
+                elif native_type == "top10":
+                    bottom = attrs.get("bottom") in ("1", "true")
+                    percent = attrs.get("percent") in ("1", "true")
+                    rule.update(
+                        type=("bottomPercent" if bottom else "topPercent") if percent else ("bottom" if bottom else "top"),
+                        rank=int(attrs.get("rank") or 10),
+                    )
                 elif native_type == "aboveAverage": rule["type"] = "belowAverage" if attrs.get("aboveAverage") in ("0", "false") else "aboveAverage"
                 elif native_type == "expression": rule.update(type="formula", formula="=" + (formulas[0] if formulas else "TRUE"))
                 elif native_type == "dataBar":

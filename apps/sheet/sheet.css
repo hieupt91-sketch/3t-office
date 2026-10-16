@@ -2066,3 +2066,147 @@ tr.is-filtered-out {
 
 .vno-sheet-tab-item.is-grouped { background: #e6f0fb; box-shadow: inset 0 -3px 0 #217346; }
 .vno-sheet-tab-item.is-grouped.is-active { background: #ffffff; }
+
+/* --- Sheet Selection Pane --- */
+.vno-sheet-selection-pane {
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 260px;
+  height: 100%;
+  background: var(--vno-sheet-panel-bg, #ffffff);
+  border-left: 1px solid var(--vno-sheet-border, #cbd5e1);
+  box-shadow: -2px 0 8px rgba(0, 0, 0, 0.08);
+  display: flex;
+  flex-direction: column;
+  z-index: 1000;
+  box-sizing: border-box;
+  font-family: inherit;
+  font-size: 13px;
+  user-select: none;
+}
+.vno-selection-pane-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #f8fafc;
+}
+.vno-selection-pane-header h3 {
+  margin: 0;
+  font-size: 13px;
+  font-weight: 600;
+  color: #1e293b;
+}
+.vno-selection-pane-close {
+  background: none;
+  border: none;
+  font-size: 18px;
+  cursor: pointer;
+  color: #64748b;
+  line-height: 1;
+  padding: 0 4px;
+}
+.vno-selection-pane-close:hover {
+  color: #b91c1c;
+}
+.vno-selection-pane-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 12px;
+  border-bottom: 1px solid #f1f5f9;
+  background: #fafafa;
+}
+.vno-selection-pane-toolbar button {
+  padding: 3px 8px;
+  font-size: 11px;
+  border: 1px solid #cbd5e1;
+  border-radius: 4px;
+  background: #ffffff;
+  cursor: pointer;
+  color: #334155;
+}
+.vno-selection-pane-toolbar button:hover {
+  background: #f1f5f9;
+  border-color: #94a3b8;
+}
+.vno-selection-pane-list {
+  list-style: none;
+  margin: 0;
+  padding: 6px 0;
+  overflow-y: auto;
+  flex: 1;
+}
+.vno-selection-pane-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 14px;
+  cursor: pointer;
+  border-bottom: 1px solid #f8fafc;
+}
+.vno-selection-pane-item:hover {
+  background: #f1f5f9;
+}
+.vno-selection-pane-item.is-selected {
+  background: #e2e8f0;
+  font-weight: 500;
+}
+.vno-selection-pane-eye {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 14px;
+  padding: 0;
+  line-height: 1;
+  width: 20px;
+  text-align: center;
+}
+.vno-selection-pane-name {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #1e293b;
+}
+.vno-selection-pane-edit {
+  flex: 1;
+  padding: 2px 4px;
+  font-size: 12px;
+  border: 1px solid var(--vno-sheet-primary, #0f6d38);
+  border-radius: 3px;
+  outline: none;
+}
+[data-theme="dark"] .vno-sheet-selection-pane {
+  background: #1e1e1e !important;
+  border-left-color: #3e3e42 !important;
+  color: #f1f5f9 !important;
+}
+[data-theme="dark"] .vno-selection-pane-header {
+  background: #252526 !important;
+  border-bottom-color: #3e3e42 !important;
+}
+[data-theme="dark"] .vno-selection-pane-header h3 {
+  color: #f1f5f9 !important;
+}
+[data-theme="dark"] .vno-selection-pane-toolbar {
+  background: #252526 !important;
+  border-bottom-color: #3e3e42 !important;
+}
+[data-theme="dark"] .vno-selection-pane-toolbar button {
+  background: #2d2d2d !important;
+  border-color: #52525b !important;
+  color: #f1f5f9 !important;
+}
+[data-theme="dark"] .vno-selection-pane-item:hover {
+  background: #2d2d2d !important;
+}
+[data-theme="dark"] .vno-selection-pane-item.is-selected {
+  background: #3e3e42 !important;
+}
+[data-theme="dark"] .vno-selection-pane-name {
+  color: #f1f5f9 !important;
+}
+

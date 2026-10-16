@@ -73,6 +73,30 @@ for (const scenario of spec.scenarios) {
       grid.setCellValue(c, r, rawValue);
     }
   }
+  if (scenario.shapes) {
+    for (const s of scenario.shapes) {
+      const leftPx = Math.round((s.left ?? 0) * 4 / 3);
+      const topPx = Math.round((s.top ?? 0) * 4 / 3);
+      const widthPx = Math.round((s.width ?? 100) * 4 / 3);
+      const heightPx = Math.round((s.height ?? 60) * 4 / 3);
+      const tb = {
+        id: s.id || s.name,
+        name: s.name,
+        anchor: { c: "A", r: 1 },
+        offsetX: leftPx,
+        offsetY: topPx,
+        widthPx: widthPx,
+        heightPx: heightPx,
+        text: s.text || s.name,
+        rotation: s.rotation || 0,
+        flipH: !!s.flipH,
+        flipV: !!s.flipV,
+        visible: s.visible !== false
+      };
+      grid.textBoxesBySheet[grid.activeSheet].push(tb);
+    }
+    grid._ensureDrawingOrder(grid.activeSheet);
+  }
   let opError = "";
   try {
     for (const op of scenario.ops) {
@@ -272,6 +296,49 @@ for (const scenario of spec.scenarios) {
           grid.convertTableToRange(tbl.name, false);
           break;
         }
+        case "bringToFront": grid.bringObjectToFront(op.target); break;
+        case "sendToBack": grid.sendObjectToBack(op.target); break;
+        case "bringForward": grid.bringObjectForward(op.target); break;
+        case "sendBackward": grid.sendObjectBackward(op.target); break;
+        case "align": {
+          grid.selectedObjectIds = new Set(op.targets);
+          grid.alignObjects(op.alignment);
+          break;
+        }
+        case "distribute": {
+          grid.selectedObjectIds = new Set(op.targets);
+          grid.distributeObjects(op.direction);
+          break;
+        }
+        case "group": {
+          grid.selectedObjectIds = new Set(op.targets);
+          const grp = grid.groupObjects();
+          const grpId = grp?.id || grp;
+          if (op.name && grpId) grid.renameObject(grpId, op.name);
+          break;
+        }
+        case "ungroup": {
+          grid.ungroupObjects(op.target);
+          break;
+        }
+        case "rotate": {
+          if (op.angle === 90) grid.rotateRight90(op.target);
+          else if (op.angle === -90 || op.angle === 270) grid.rotateLeft90(op.target);
+          else grid.rotateObject(op.angle, op.target);
+          break;
+        }
+        case "flip": {
+          grid.flipObject(op.direction, op.target);
+          break;
+        }
+        case "setShapeVisible": {
+          grid.toggleObjectVisibility(op.target, op.visible);
+          break;
+        }
+        case "renameShape": {
+          grid.renameObject(op.target, op.newName);
+          break;
+        }
         case "setCalculationMode": {
           grid.setCalculationMode(op.mode);
           break;
@@ -323,6 +390,8 @@ for (const scenario of spec.scenarios) {
   const wantRaw = excel[scenario.name] || {};
   const want = wantRaw.cells !== undefined ? wantRaw.cells : wantRaw;
   const wantTables = wantRaw.tables !== undefined ? wantRaw.tables : null;
+  const hasShapeOps = scenario.ops?.some(op => ["bringToFront", "sendToBack", "bringForward", "sendBackward", "align", "distribute", "group", "ungroup", "rotate", "flip", "setShapeVisible", "renameShape"].includes(op.type));
+  const wantShapes = (scenario.shapes || hasShapeOps) && wantRaw.shapes !== undefined ? wantRaw.shapes : null;
   const got = {};
   for (const [coord, item] of grid.cellsData.entries()) {
     const text = item.formula || (item.val !== "" && item.val !== undefined && item.val !== null ? String(item.val) : "");
@@ -423,6 +492,131 @@ for (const scenario of spec.scenarios) {
           bad.push(`Table ${wT.name} headers: Excel ${wHeaders} | VN ${gHeaders}`);
         }
         if (tblOk) pass++;
+      }
+    }
+  }
+  if (wantShapes !== null) {
+    const gotShapes = [];
+    const sheet = grid.activeSheet;
+    grid._ensureDrawingOrder(sheet);
+    const order = grid.drawingOrderBySheet[sheet] || [];
+    const groups = grid.groupsBySheet[sheet] || [];
+    const textboxes = grid.textBoxesBySheet[sheet] || [];
+    const images = grid.imagesBySheet[sheet] || [];
+
+    for (let i = 0; i < order.length; i++) {
+      const id = order[i];
+      const grp = groups.find(g => g.id === id);
+      if (grp) {
+        const bounds = grid._getObjectPixelBounds(grp, "group");
+        const sheetLeft = Math.max(0, bounds.left - 44);
+        const sheetTop = Math.max(0, bounds.top - 24);
+        gotShapes.push({
+          name: grp.name || grp.id,
+          left: Math.round(sheetLeft * 0.75 * 100) / 100,
+          top: Math.round(sheetTop * 0.75 * 100) / 100,
+          width: Math.round(bounds.width * 0.75 * 100) / 100,
+          height: Math.round(bounds.height * 0.75 * 100) / 100,
+          zOrder: i + 1,
+          rotation: Math.round(((grp.rotation || 0) % 360 + 360) % 360 * 10) / 10,
+          flipH: !!grp.flipH,
+          flipV: !!grp.flipV,
+          visible: grp.visible !== false,
+          type: 6
+        });
+        continue;
+      }
+      const tb = textboxes.find(t => t.id === id || t.name === id);
+      if (tb) {
+        if (tb.groupId && groups.some(g => g.id === tb.groupId)) {
+          continue;
+        }
+        const bounds = grid._getObjectPixelBounds(tb, "textbox");
+        const sheetLeft = Math.max(0, bounds.left - 44);
+        const sheetTop = Math.max(0, bounds.top - 24);
+        gotShapes.push({
+          name: tb.name || tb.id,
+          left: Math.round(sheetLeft * 0.75 * 100) / 100,
+          top: Math.round(sheetTop * 0.75 * 100) / 100,
+          width: Math.round(bounds.width * 0.75 * 100) / 100,
+          height: Math.round(bounds.height * 0.75 * 100) / 100,
+          zOrder: i + 1,
+          rotation: Math.round(((tb.rotation || 0) % 360 + 360) % 360 * 10) / 10,
+          flipH: !!tb.flipH,
+          flipV: !!tb.flipV,
+          visible: tb.visible !== false,
+          type: 1
+        });
+        continue;
+      }
+      const img = images.find(m => m.id === id || m.name === id);
+      if (img) {
+        if (img.groupId && groups.some(g => g.id === img.groupId)) {
+          continue;
+        }
+        const bounds = grid._getObjectPixelBounds(img, "image");
+        const sheetLeft = Math.max(0, bounds.left - 44);
+        const sheetTop = Math.max(0, bounds.top - 24);
+        gotShapes.push({
+          name: img.name || img.id,
+          left: Math.round(sheetLeft * 0.75 * 100) / 100,
+          top: Math.round(sheetTop * 0.75 * 100) / 100,
+          width: Math.round(bounds.width * 0.75 * 100) / 100,
+          height: Math.round(bounds.height * 0.75 * 100) / 100,
+          zOrder: i + 1,
+          rotation: Math.round(((img.rotation || 0) % 360 + 360) % 360 * 10) / 10,
+          flipH: !!img.flipH,
+          flipV: !!img.flipV,
+          visible: img.visible !== false,
+          type: 13
+        });
+        continue;
+      }
+    }
+
+    gotShapes.forEach((s, idx) => { s.zOrder = idx + 1; });
+
+    if (wantShapes.length !== gotShapes.length) {
+      total++;
+      bad.push(`Shapes count: Excel ${wantShapes.length} | VN ${gotShapes.length}`);
+    } else {
+      for (const wS of wantShapes) {
+        total++;
+        const gS = gotShapes.find(s => s.name.toLowerCase() === wS.name.toLowerCase());
+        if (!gS) {
+          bad.push(`Shape missing in VN: Excel ${wS.name}`);
+          continue;
+        }
+        let shapeOk = true;
+        if (wS.zOrder !== gS.zOrder) {
+          shapeOk = false;
+          bad.push(`Shape ${wS.name} zOrder: Excel ${wS.zOrder} | VN ${gS.zOrder}`);
+        }
+        if (Math.abs(wS.left - gS.left) > 0.5) {
+          shapeOk = false;
+          bad.push(`Shape ${wS.name} left: Excel ${wS.left} pt | VN ${gS.left} pt`);
+        }
+        if (Math.abs(wS.top - gS.top) > 0.5) {
+          shapeOk = false;
+          bad.push(`Shape ${wS.name} top: Excel ${wS.top} pt | VN ${gS.top} pt`);
+        }
+        if (Math.abs(wS.rotation - gS.rotation) > 1) {
+          shapeOk = false;
+          bad.push(`Shape ${wS.name} rotation: Excel ${wS.rotation}° | VN ${gS.rotation}°`);
+        }
+        if (wS.flipH !== gS.flipH) {
+          shapeOk = false;
+          bad.push(`Shape ${wS.name} flipH: Excel ${wS.flipH} | VN ${gS.flipH}`);
+        }
+        if (wS.flipV !== gS.flipV) {
+          shapeOk = false;
+          bad.push(`Shape ${wS.name} flipV: Excel ${wS.flipV} | VN ${gS.flipV}`);
+        }
+        if (wS.visible !== gS.visible) {
+          shapeOk = false;
+          bad.push(`Shape ${wS.name} visible: Excel ${wS.visible} | VN ${gS.visible}`);
+        }
+        if (shapeOk) pass++;
       }
     }
   }

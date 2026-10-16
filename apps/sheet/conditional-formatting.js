@@ -2,7 +2,7 @@
 
 export const CONDITIONAL_FORMAT_TYPES = Object.freeze([
   "greaterThan", "lessThan", "between", "equal", "blank", "textContains",
-  "dateOccurs", "duplicate", "top", "bottom", "aboveAverage", "belowAverage",
+  "dateOccurs", "duplicate", "top", "bottom", "topPercent", "bottomPercent", "aboveAverage", "belowAverage",
   "dataBar", "colorScale2", "colorScale3", "iconSet", "formula"
 ]);
 
@@ -53,8 +53,9 @@ export function normalizeConditionalRule(config) {
     if (!rule.text) return null;
   } else if (rule.type === "dateOccurs") {
     rule.timePeriod = CONDITIONAL_DATE_PERIODS.includes(config.timePeriod) ? config.timePeriod : "today";
-  } else if (["top", "bottom"].includes(rule.type)) {
-    rule.rank = Math.max(1, Math.min(1000, Math.trunc(Number(config.rank) || 10)));
+  } else if (["top", "bottom", "topPercent", "bottomPercent"].includes(rule.type)) {
+    const maximum = rule.type.endsWith("Percent") ? 100 : 1000;
+    rule.rank = Math.max(1, Math.min(maximum, Math.trunc(Number(config.rank) || 10)));
   } else if (rule.type === "formula") {
     const raw = String(config.formula || "").trim();
     if (!raw || raw === "=") return null;
@@ -148,9 +149,9 @@ function rangeStats(rule, context) {
   return computeRangeStats(context.values(rule.range), context.numeric, rule.type === "duplicate");
 }
 
-function rankThreshold(stats, type, rank) {
+function rankThreshold(stats, top, rank) {
   const size = Math.min(Math.max(1, rank || 10), stats.count);
-  if (type === "top") {
+  if (top) {
     stats.sortedDesc ||= [...stats.nums].sort((a, b) => b - a);
     return stats.sortedDesc[size - 1];
   }
@@ -182,17 +183,60 @@ export function conditionalRuleMatches(rule, value, col, row, context) {
   if (rule.type === "aboveAverage" || rule.type === "belowAverage") {
     return rule.type === "aboveAverage" ? numeric > stats.average : numeric < stats.average;
   }
-  if (rule.type === "top" || rule.type === "bottom") {
-    const threshold = rankThreshold(stats, rule.type, rule.rank);
-    return rule.type === "top" ? numeric >= threshold : numeric <= threshold;
+  if (["top", "bottom", "topPercent", "bottomPercent"].includes(rule.type)) {
+    const top = rule.type === "top" || rule.type === "topPercent";
+    const count = rule.type.endsWith("Percent")
+      ? Math.max(1, Math.ceil(stats.count * rule.rank / 100))
+      : rule.rank;
+    const threshold = rankThreshold(stats, top, count);
+    return top ? numeric >= threshold : numeric <= threshold;
   }
   return ["dataBar", "colorScale2", "colorScale3", "iconSet"].includes(rule.type);
 }
 
 function mixColor(start, end, ratio) {
   const channel = (hex, offset) => parseInt(hex.slice(offset, offset + 2), 16);
-  const result = [1, 3, 5].map(offset => Math.round(channel(start, offset) + (channel(end, offset) - channel(start, offset)) * ratio));
+  // Excel 2016 truncates the signed channel delta before adding it to the
+  // start colour (rather than rounding the final channel value).
+  const result = [1, 3, 5].map(offset => channel(start, offset) + Math.trunc((channel(end, offset) - channel(start, offset)) * ratio));
   return `#${result.map(value => value.toString(16).padStart(2, "0")).join("")}`;
+}
+
+function percentile(stats, percentage) {
+  if (!stats.count) return NaN;
+  stats.sortedAsc ||= [...stats.nums].sort((a, b) => a - b);
+  const position = Math.max(0, Math.min(100, percentage)) / 100 * (stats.count - 1);
+  const lower = Math.floor(position), upper = Math.ceil(position);
+  if (lower === upper) return stats.sortedAsc[lower];
+  return stats.sortedAsc[lower] + (stats.sortedAsc[upper] - stats.sortedAsc[lower]) * (position - lower);
+}
+
+function defaultThresholds(rule, count) {
+  if (rule.type === "colorScale3") return [{ type: "min" }, { type: "percentile", val: 50 }, { type: "max" }];
+  if (rule.type === "iconSet") return Array.from({ length: count }, (_, index) => ({ type: "percent", val: Math.round(index * 100 / count) }));
+  return [{ type: "min" }, { type: "max" }];
+}
+
+function thresholdValue(item, stats, context, rule) {
+  const kind = String(item?.type || "percent");
+  if (kind === "min") return stats.min;
+  if (kind === "max") return stats.max;
+  const value = Number(item?.val);
+  if (kind === "num") return value;
+  if (kind === "percentile") return percentile(stats, Number.isFinite(value) ? value : 50);
+  if (kind === "formula") {
+    const evaluated = context.thresholdFormula?.(item?.val, rule);
+    return Number.isFinite(Number(evaluated)) ? Number(evaluated) : stats.min;
+  }
+  const percentage = Number.isFinite(value) ? value : 0;
+  return stats.min + (stats.max - stats.min) * percentage / 100;
+}
+
+function visualThresholds(rule, count, stats, context) {
+  const configured = Array.isArray(rule.thresholds) && rule.thresholds.length === count
+    ? rule.thresholds
+    : defaultThresholds(rule, count);
+  return configured.map(item => ({ value: thresholdValue(item, stats, context, rule), gte: item?.gte !== false }));
 }
 
 const ICONS = Object.freeze({
@@ -206,14 +250,30 @@ export function conditionalVisual(rule, value, context) {
   if (!Number.isFinite(numeric)) return {};
   const stats = rangeStats(rule, context);
   if (!stats.count) return {};
-  const { min, max } = stats;
-  const ratio = max === min ? 1 : Math.max(0, Math.min(1, (numeric - min) / (max - min)));
-  if (rule.type === "dataBar") return { dataBar: { color: rule.color, percent: Math.max(1, Math.round(ratio * 100)) } };
-  if (rule.type === "colorScale2") return { fill: mixColor(rule.colors[0], rule.colors[1], ratio) };
-  if (rule.type === "colorScale3") return { fill: ratio <= 0.5 ? mixColor(rule.colors[0], rule.colors[1], ratio * 2) : mixColor(rule.colors[1], rule.colors[2], (ratio - 0.5) * 2) };
+  const clampRatio = (value, low, high) => high === low ? 1 : Math.max(0, Math.min(1, (value - low) / (high - low)));
+  if (rule.type === "dataBar") {
+    const thresholds = visualThresholds(rule, 2, stats, context);
+    return { dataBar: { color: rule.color, percent: Math.round(clampRatio(numeric, thresholds[0].value, thresholds[1].value) * 100) } };
+  }
+  if (rule.type === "colorScale2") {
+    const thresholds = visualThresholds(rule, 2, stats, context);
+    return { fill: mixColor(rule.colors[0], rule.colors[1], clampRatio(numeric, thresholds[0].value, thresholds[1].value)) };
+  }
+  if (rule.type === "colorScale3") {
+    const thresholds = visualThresholds(rule, 3, stats, context);
+    const midpoint = thresholds[1].value;
+    return { fill: numeric <= midpoint
+      ? mixColor(rule.colors[0], rule.colors[1], clampRatio(numeric, thresholds[0].value, midpoint))
+      : mixColor(rule.colors[1], rule.colors[2], clampRatio(numeric, midpoint, thresholds[2].value)) };
+  }
   if (rule.type === "iconSet") {
     const icons = ICONS[rule.iconSet] || ICONS["3TrafficLights1"];
-    let index = Math.min(icons.length - 1, Math.floor(ratio * icons.length));
+    const thresholds = visualThresholds(rule, icons.length, stats, context);
+    let index = 0;
+    for (let candidate = 1; candidate < thresholds.length; candidate++) {
+      const threshold = thresholds[candidate];
+      if (threshold.gte ? numeric >= threshold.value : numeric > threshold.value) index = candidate;
+    }
     if (rule.reverse) index = icons.length - 1 - index;
     const palette = index === 0 ? "#dc2626" : index === icons.length - 1 ? "#16a34a" : "#ca8a04";
     return { icon: icons[index], iconColor: palette };

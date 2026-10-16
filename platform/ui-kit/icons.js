@@ -505,6 +505,32 @@ export const ICONS = {
     <rect x="3" y="11" width="10" height="10" rx="1" fill="#E2E8F0" stroke="#64748B" stroke-width="1.2"/>
     <rect x="11" y="3" width="10" height="10" rx="1" fill="#E2E8F0" stroke="#64748B" stroke-width="1.2"/>
   </svg>`,
+  rotateRight90: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm-6.2 3.2L4.34 8.66A7.89 7.89 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8z" fill="#2563EB"/>
+  </svg>`,
+  rotateLeft90: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <g transform="scale(-1, 1) translate(-24, 0)">
+      <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm-6.2 3.2L4.34 8.66A7.89 7.89 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8z" fill="#2563EB"/>
+    </g>
+  </svg>`,
+  flipHorizontal: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <line x1="12" y1="2" x2="12" y2="22" stroke="#64748B" stroke-width="1.5" stroke-dasharray="2 2"/>
+    <path d="M9 7L3 17h6V7z" fill="#3B82F6"/>
+    <path d="M15 7l6 10h-6V7z" fill="#93C5FD"/>
+  </svg>`,
+  flipVertical: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <line x1="2" y1="12" x2="22" y2="12" stroke="#64748B" stroke-width="1.5" stroke-dasharray="2 2"/>
+    <path d="M7 9L17 3v6H7z" fill="#3B82F6"/>
+    <path d="M7 15l10 6v-6H7z" fill="#93C5FD"/>
+  </svg>`,
+  selectionPane: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
+    <rect x="3" y="3" width="18" height="18" rx="2" stroke="#64748B" stroke-width="1.4"/>
+    <line x1="15" y1="3" x2="15" y2="21" stroke="#2563EB" stroke-width="1.4"/>
+    <line x1="6" y1="7" x2="12" y2="7" stroke="#64748B" stroke-width="1.2"/>
+    <line x1="6" y1="11" x2="12" y2="11" stroke="#64748B" stroke-width="1.2"/>
+    <circle cx="18" cy="7" r="1.5" fill="#10B981"/>
+    <circle cx="18" cy="11" r="1.5" fill="#10B981"/>
+  </svg>`,
   textVAlignTop: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
     <rect x="2.5" y="2.5" width="19" height="19" rx="1.5" stroke="#64748B" stroke-width="1.4"/>
     <path d="M6 6h12M6 9h8M6 12h9" stroke="#3B82F6" stroke-width="1.6" stroke-linecap="round"/>

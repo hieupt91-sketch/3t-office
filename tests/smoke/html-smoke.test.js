@@ -211,14 +211,15 @@ export async function runHtmlSmokeTests() {
     // running audits). Retry ONLY while the page has not mounted at all; a genuinely broken UI fails every attempt.
     const dumpDomWithRetry = (url, virtualTimeBudget, mountedMarker) => {
       let last;
-      for (let attempt = 0; attempt < 3; attempt++) {
+      for (let attempt = 0; attempt < 5; attempt++) {
+        const budget = attempt === 0 ? virtualTimeBudget : Math.max(virtualTimeBudget, 15000);
         last = spawnSync(browserBinary, [
           "--headless=new",
           "--allow-file-access-from-files",
-          `--virtual-time-budget=${virtualTimeBudget}`,
+          `--virtual-time-budget=${budget}`,
           "--dump-dom",
           url
-        ], { encoding: "utf8", timeout: 30000, windowsHide: true });
+        ], { encoding: "utf8", timeout: 35000, windowsHide: true });
         if (last.status === 0 && (last.stdout || "").includes(mountedMarker)) break;
       }
       return last;

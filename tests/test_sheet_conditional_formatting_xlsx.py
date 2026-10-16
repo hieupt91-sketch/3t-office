@@ -47,6 +47,7 @@ def rules():
     rng = {"start": {"c": "A", "r": 1}, "end": {"c": "A", "r": 10}}
     return [
         {"id": "greater", "range": rng, "type": "greaterThan", "value": 10, "color": "#c6efce"},
+        {"id": "less", "range": rng, "type": "lessThan", "value": 2, "color": "#ffc7ce"},
         {"id": "between", "range": rng, "type": "between", "value": 5, "value2": 9, "color": "#fff2cc"},
         {"id": "equal", "range": rng, "type": "equal", "value": 7, "color": "#ffc7ce"},
         {"id": "text", "range": rng, "type": "textContains", "text": "VN", "color": "#ffc7ce"},
@@ -54,6 +55,8 @@ def rules():
         {"id": "duplicate", "range": rng, "type": "duplicate", "color": "#ffc7ce"},
         {"id": "top", "range": rng, "type": "top", "rank": 3, "color": "#c6efce"},
         {"id": "bottom", "range": rng, "type": "bottom", "rank": 2, "color": "#ffc7ce"},
+        {"id": "top-percent", "range": rng, "type": "topPercent", "rank": 40, "color": "#c6efce"},
+        {"id": "bottom-percent", "range": rng, "type": "bottomPercent", "rank": 30, "color": "#ffc7ce"},
         {"id": "above", "range": rng, "type": "aboveAverage", "color": "#c6efce"},
         {"id": "below", "range": rng, "type": "belowAverage", "color": "#ffc7ce"},
         {"id": "bar", "range": rng, "type": "dataBar", "color": "#638ec6", "showValue": True},
@@ -61,6 +64,7 @@ def rules():
         {"id": "scale3", "range": rng, "type": "colorScale3", "colors": ["#f8696b", "#ffeb84", "#63be7b"]},
         {"id": "icons", "range": rng, "type": "iconSet", "iconSet": "3TrafficLights1", "reverse": True},
         {"id": "formula", "range": rng, "type": "formula", "formula": "=A1>25", "color": "#c6efce"},
+        {"id": "blank", "range": rng, "type": "blank", "color": "#fff2cc"},
     ]
 
 
@@ -85,6 +89,8 @@ class SheetConditionalFormattingXlsxTests(unittest.TestCase):
         self.assertIn('<cfRule type="cellIs" dxfId="0" priority="1" operator="greaterThan">', sheet)
         self.assertIn('<cfRule type="top10"', sheet)
         self.assertIn('rank="2" bottom="1"', sheet)
+        self.assertIn('rank="40" percent="1"', sheet)
+        self.assertIn('rank="30" bottom="1" percent="1"', sheet)
         self.assertIn('<cfRule type="dataBar"', sheet)
         self.assertIn('<cfRule type="colorScale"', sheet)
         self.assertIn('<cfRule type="iconSet"', sheet)
@@ -94,10 +100,23 @@ class SheetConditionalFormattingXlsxTests(unittest.TestCase):
 
         parsed = patcher.parse_conditional_formatting_from_xlsx(patched)["Sheet1"]
         self.assertEqual([item["type"] for item in parsed], [item["type"] for item in rules()])
-        self.assertEqual(parsed[7]["rank"], 2)
-        self.assertEqual(parsed[13]["iconSet"], "3TrafficLights1")
-        self.assertTrue(parsed[13]["reverse"])
-        self.assertEqual(parsed[14]["formula"], "=A1>25")
+        by_type = {item["type"]: item for item in parsed}
+        self.assertEqual(by_type["bottom"]["rank"], 2)
+        self.assertEqual(by_type["topPercent"]["rank"], 40)
+        self.assertEqual(by_type["bottomPercent"]["rank"], 30)
+        self.assertEqual(by_type["dataBar"]["thresholds"], [{"type": "min"}, {"type": "max"}])
+        self.assertEqual(by_type["colorScale2"]["thresholds"], [{"type": "min"}, {"type": "max"}])
+        self.assertEqual(
+            by_type["colorScale3"]["thresholds"],
+            [{"type": "min"}, {"type": "percentile", "val": 50}, {"type": "max"}],
+        )
+        self.assertEqual(by_type["iconSet"]["iconSet"], "3TrafficLights1")
+        self.assertTrue(by_type["iconSet"]["reverse"])
+        self.assertEqual(
+            by_type["iconSet"]["thresholds"],
+            [{"type": "percent", "val": 0}, {"type": "percent", "val": 33}, {"type": "percent", "val": 67}],
+        )
+        self.assertEqual(by_type["formula"]["formula"], "=A1>25")
 
     def test_open_overlay_adds_metadata_without_rewriting_sheet_xml(self):
         source = make_xlsx()
@@ -108,7 +127,7 @@ class SheetConditionalFormattingXlsxTests(unittest.TestCase):
             '</office:spreadsheet></office:body></office:document>'
         )
         # First create a package containing native rules, then exercise the open overlay.
-        metadata = html.escape(json.dumps(rules()[:2], separators=(",", ":")), quote=True)
+        metadata = html.escape(json.dumps([rules()[0], rules()[2]], separators=(",", ":")), quote=True)
         authored = fods.replace('<table:table table:name="Sheet1"', f'<table:table table:name="Sheet1" xmlns:vno="{patcher.SHEET_VNO_NS}" vno:conditional-formatting="{metadata}"')
         replacements = {}
         patcher.apply_conditional_formatting_from_fods(source, authored, replacements)

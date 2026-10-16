@@ -1,0 +1,80 @@
+{
+  "scenarios": [
+    {
+      "name": "arrange zorder bring send",
+      "cells": { "A1": "ZOrder Test" },
+      "shapes": [
+        { "name": "Box1", "left": 30, "top": 30, "width": 60, "height": 45 },
+        { "name": "Box2", "left": 60, "top": 60, "width": 60, "height": 45 },
+        { "name": "Box3", "left": 90, "top": 90, "width": 60, "height": 45 }
+      ],
+      "ops": [
+        { "type": "bringToFront", "target": "Box1" },
+        { "type": "sendBackward", "target": "Box1" }
+      ]
+    },
+    {
+      "name": "arrange align multi shapes",
+      "cells": { "A1": "Align Test" },
+      "shapes": [
+        { "name": "S1", "left": 30, "top": 30, "width": 60, "height": 45 },
+        { "name": "S2", "left": 90, "top": 60, "width": 60, "height": 45 },
+        { "name": "S3", "left": 150, "top": 90, "width": 60, "height": 45 }
+      ],
+      "ops": [
+        { "type": "align", "alignment": "left", "targets": ["S1", "S2", "S3"] },
+        { "type": "align", "alignment": "top", "targets": ["S1", "S2", "S3"] }
+      ]
+    },
+    {
+      "name": "arrange distribute horizontal and vertical",
+      "cells": { "A1": "Distribute Test" },
+      "shapes": [
+        { "name": "D1", "left": 30, "top": 30, "width": 30, "height": 30 },
+        { "name": "D2", "left": 75, "top": 60, "width": 30, "height": 30 },
+        { "name": "D3", "left": 150, "top": 120, "width": 30, "height": 30 }
+      ],
+      "ops": [
+        { "type": "distribute", "direction": "horizontal", "targets": ["D1", "D2", "D3"] },
+        { "type": "distribute", "direction": "vertical", "targets": ["D1", "D2", "D3"] }
+      ]
+    },
+    {
+      "name": "arrange group and ungroup",
+      "cells": { "A1": "Group Test" },
+      "shapes": [
+        { "name": "G1", "left": 30, "top": 30, "width": 60, "height": 45 },
+        { "name": "G2", "left": 120, "top": 60, "width": 60, "height": 45 }
+      ],
+      "ops": [
+        { "type": "group", "targets": ["G1", "G2"], "name": "GroupA" },
+        { "type": "ungroup", "target": "GroupA" }
+      ]
+    },
+    {
+      "name": "arrange rotate and flip",
+      "cells": { "A1": "Rotate Flip Test" },
+      "shapes": [
+        { "name": "R1", "left": 30, "top": 30, "width": 60, "height": 45 },
+        { "name": "R2", "left": 120, "top": 30, "width": 60, "height": 45 }
+      ],
+      "ops": [
+        { "type": "rotate", "target": "R1", "angle": 90 },
+        { "type": "flip", "target": "R2", "direction": "horizontal" },
+        { "type": "flip", "target": "R2", "direction": "vertical" }
+      ]
+    },
+    {
+      "name": "arrange selection visibility and rename",
+      "cells": { "A1": "Selection Pane Test" },
+      "shapes": [
+        { "name": "V1", "left": 30, "top": 30, "width": 60, "height": 45 },
+        { "name": "V2", "left": 120, "top": 30, "width": 60, "height": 45 }
+      ],
+      "ops": [
+        { "type": "setShapeVisible", "target": "V1", "visible": false },
+        { "type": "renameShape", "target": "V2", "newName": "RenamedV2" }
+      ]
+    }
+  ]
+}
