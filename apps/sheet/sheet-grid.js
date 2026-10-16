@@ -19,6 +19,8 @@ import {
 } from "./formula-entry.js";
 import { WhatIfAnalysisEngine } from "./what-if-analysis.js";
 import { NumberFormatter } from "./number-formatter.js";
+import { a1ToR1C1, r1c1ToA1, isR1C1Formula, formatAddressAsR1C1, parseR1C1Address } from "./r1c1-converter.js";
+import { CalcOptionsDialog } from "./calc-options-dialog.js";
 import { CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS } from "./cell-style-presets.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
@@ -317,7 +319,15 @@ export class SheetGridController {
     this.selectionRanges = [this.selectionRange];
     this.selectionKind = "cell";
     this.showFormulas = false;
-    this.calculationMode = "automatic"; // "automatic" | "manual"
+    this.calculationMode = "automatic"; // "automatic" | "autoNoTable" | "manual"
+    this.calculateBeforeSave = true;
+    this.iteration = false;
+    this.maxIterations = 100;
+    this.maxChange = 0.001;
+    this.precisionAsDisplayed = false;
+    this.date1904 = false;
+    this.referenceStyle = "A1"; // "A1" | "R1C1"
+    this.circularReference = null;
     this.auditArrows = [];
     this.watchedCells = new Set();
     this._formulaDependencyGraph = null;
@@ -848,14 +858,86 @@ export class SheetGridController {
     return this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.val;
   }
 
-  setCalculationMode(mode = "automatic") {
-    if (!["automatic", "manual"].includes(mode)) return false;
+  setCalculationMode(mode = "automatic", calculateBeforeSave = true) {
+    if (!["automatic", "autoNoTable", "manual"].includes(mode)) return false;
     const prev = this.calculationMode;
     this.calculationMode = mode;
-    if (prev === "manual" && mode === "automatic") {
+    this.calculateBeforeSave = Boolean(calculateBeforeSave);
+    if (prev === "manual" && (mode === "automatic" || mode === "autoNoTable")) {
       this.recalculateAll();
     }
     return this.calculationMode;
+  }
+
+  setIterativeCalculation(enabled, maxIter = 100, maxChange = 0.001) {
+    this.iteration = Boolean(enabled);
+    this.maxIterations = Math.max(1, Math.min(32767, Math.floor(Number(maxIter) || 100)));
+    this.maxChange = Math.max(0, Number(maxChange) || 0.001);
+    if (this.formulaEngine) {
+      this.formulaEngine.iteration = this.iteration;
+      this.formulaEngine.maxIterations = this.maxIterations;
+      this.formulaEngine.maxChange = this.maxChange;
+    }
+    this.recalculateAll();
+    return this.iteration;
+  }
+
+  setPrecisionAsDisplayed(enabled) {
+    this.precisionAsDisplayed = Boolean(enabled);
+    if (this.formulaEngine) {
+      this.formulaEngine.precisionAsDisplayed = this.precisionAsDisplayed;
+    }
+    if (this.precisionAsDisplayed) {
+      for (const sheetName of this.sheets) {
+        const map = this.sheetsData[sheetName];
+        if (!map) continue;
+        for (const itm of map.values()) {
+          if (typeof itm.val === "number") {
+            const fmt = itm.format || itm.style?.numberFormat;
+            itm.val = NumberFormatter.roundToFormatPrecision(itm.val, fmt);
+          }
+        }
+      }
+      this.recalculateAll();
+    }
+    return this.precisionAsDisplayed;
+  }
+
+  setDate1904(enabled) {
+    this.date1904 = Boolean(enabled);
+    if (this.formulaEngine) {
+      this.formulaEngine.date1904 = this.date1904;
+    }
+    NumberFormatter.date1904 = this.date1904;
+    this.recalculateAll();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    return this.date1904;
+  }
+
+  setReferenceStyle(style = "A1") {
+    const s = String(style).toUpperCase() === "R1C1" ? "R1C1" : "A1";
+    this.referenceStyle = s;
+    if (this.formulaEngine) {
+      this.formulaEngine.referenceStyle = s;
+    }
+    if (this.nameBox) {
+      this.nameBox.value = this.getSelectionNameLabel();
+    }
+    const currentData = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`);
+    if (this.formulaInput) {
+      this.formulaInput.value = this._formulaBarTextFor(currentData);
+    }
+    this._renderColumnHeaders();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    return this.referenceStyle;
+  }
+
+  toggleR1C1() {
+    return this.setReferenceStyle(this.referenceStyle === "R1C1" ? "A1" : "R1C1");
+  }
+
+  showCalculationOptionsDialog() {
+    return CalcOptionsDialog.show(this);
   }
 
   calculateSheet(sheetName = this.activeSheet) {
@@ -863,7 +945,69 @@ export class SheetGridController {
     if (!map) return false;
     const prevActive = this.activeSheet;
     this.activeSheet = sheetName;
+    if (this.formulaEngine) {
+      this.formulaEngine.cellsData = () => this.cellsData;
+    }
+    if (!this._formulaDependencyGraph) {
+      this._formulaDependencyGraph = this._buildFormulaDependencyGraph();
+    }
+    const graph = this._formulaDependencyGraph;
+    const circularIds = this._detectCircularFormulas(graph);
+    const sheetCircularIds = new Set();
+    for (const id of circularIds) {
+      try {
+        if (JSON.parse(id)[0] === sheetName) sheetCircularIds.add(id);
+      } catch {}
+    }
+
+    if (sheetCircularIds.size > 0) {
+      if (!this.iteration) {
+        for (const id of sheetCircularIds) {
+          try {
+            const [, coord] = JSON.parse(id);
+            const item = map.get(coord);
+            if (item) item.val = 0;
+          } catch {}
+        }
+      } else {
+        const maxIter = this.maxIterations || 100;
+        const maxChange = this.maxChange ?? 0.001;
+        for (let iter = 0; iter < maxIter; iter++) {
+          let maxDelta = 0;
+          for (const id of sheetCircularIds) {
+            try {
+              const [, coord] = JSON.parse(id);
+              const item = map.get(coord);
+              if (item?.formula) {
+                const prevNum = typeof item.val === "number" ? item.val : (Number(item.val) || 0);
+                const nextVal = this.formulaEngine.evaluate(item.formula, { sheet: sheetName, coord });
+                item.val = nextVal;
+                const nextNum = typeof nextVal === "number" ? nextVal : (Number(nextVal) || 0);
+                const delta = Math.abs(nextNum - prevNum);
+                if (delta > maxDelta) maxDelta = delta;
+              }
+            } catch {}
+          }
+          if (maxDelta <= maxChange) break;
+        }
+      }
+    }
+
     for (const [k, itm] of map.entries()) {
+      const id = JSON.stringify([sheetName, k]);
+      if (sheetCircularIds.has(id)) {
+        if (!this.iteration) itm.val = 0;
+        else if (this.precisionAsDisplayed && typeof itm.val === "number") {
+          itm.val = NumberFormatter.roundToFormatPrecision(itm.val, itm.format || itm.style?.numberFormat);
+        }
+        const dom = sheetName === prevActive ? this.container?.querySelector?.(`.vno-grid-cell[data-coord="${k}"]`) : null;
+        if (dom) {
+          const [cCoord, rCoord] = this._splitCoord(k);
+          this._renderCellVisual(dom, itm, cCoord, rCoord);
+          this._applyRuleVisuals?.(dom, cCoord, rCoord);
+        }
+        continue;
+      }
       if (itm.formula) {
         let res;
         if (itm.isArrayFormula && itm.arrayRange) {
@@ -873,12 +1017,15 @@ export class SheetGridController {
         } else {
           res = this.formulaEngine.evaluate(itm.formula, { sheet: this.activeSheet, coord: k });
         }
+        if (this.precisionAsDisplayed && typeof res === "number") {
+          res = NumberFormatter.roundToFormatPrecision(res, itm.format || itm.style?.numberFormat);
+        }
         itm.val = res;
-        const dom = sheetName === prevActive ? this.container.querySelector(`.vno-grid-cell[data-coord="${k}"]`) : null;
+        const dom = sheetName === prevActive ? this.container?.querySelector?.(`.vno-grid-cell[data-coord="${k}"]`) : null;
         if (dom) {
           const [cCoord, rCoord] = this._splitCoord(k);
           this._renderCellVisual(dom, itm, cCoord, rCoord);
-          this._applyRuleVisuals(dom, cCoord, rCoord);
+          this._applyRuleVisuals?.(dom, cCoord, rCoord);
         }
       }
     }
@@ -1637,9 +1784,10 @@ export class SheetGridController {
       th.style.minWidth = `${width}px`;
       th.style.maxWidth = `${width}px`;
     }
+    const displayCol = this.referenceStyle === "R1C1" ? this._columnNumber(col) : col;
     th.innerHTML = `
       ${this._outlineToggleHtml("col", col)}
-      <span class="vno-col-title">${col}</span>
+      <span class="vno-col-title">${displayCol}</span>
       <button class="vno-filter-btn" data-col="${col}" title="Lọc và sắp xếp cột ${col}" style="display:none;">▼</button>
       <div class="vno-col-resizer" data-col="${col}" title="Nhấp đúp để tự động vừa độ rộng cột ${col}"></div>
     `;
@@ -1739,9 +1887,21 @@ export class SheetGridController {
 
   // Thanh công thức hiện giá trị như Excel: ngày/giờ/phần trăm ở dạng người dùng gõ vào, không phải số serial.
   // Nhập lại đúng chuỗi này vẫn được nhận cùng kiểu (ngày dd/mm/yyyy, giờ h:mm[:ss], phần trăm).
-  _formulaBarTextFor(data) {
+  _formulaBarTextFor(dataOrCoord) {
+    let data = dataOrCoord;
+    let baseCoord = this.selectedCoord;
+    if (typeof dataOrCoord === "string") {
+      data = this.cellsData.get(dataOrCoord);
+      const [c, r] = this._splitCoord(dataOrCoord);
+      baseCoord = { c, r: Number(r) };
+    }
     if (!data) return "";
-    if (data.formula) return data.formula;
+    if (data.formula) {
+      if (this.referenceStyle === "R1C1") {
+        return a1ToR1C1(data.formula, { row: Number(baseCoord.r), col: this._columnNumber(baseCoord.c) });
+      }
+      return data.formula;
+    }
     const val = data.val;
     const category = data.style?.numberFormat?.category;
     if (typeof val !== "number" || !Number.isFinite(val)) return val ?? "";
@@ -5833,6 +5993,75 @@ _bindGridKeyboardNavigation() {
       }
     }
 
+    // R1C1 row range: e.g. "R2:R5"
+    const r1c1RowRangeMatch = /^R(\d+):R(\d+)$/i.exec(unquoted);
+    if (r1c1RowRangeMatch) {
+      const r1 = Number.parseInt(r1c1RowRangeMatch[1], 10);
+      const r2 = Number.parseInt(r1c1RowRangeMatch[2], 10);
+      if (r1 >= 1 && r1 <= this.rowCount && r2 >= 1 && r2 <= this.rowCount) {
+        const startR = Math.min(r1, r2);
+        const endR = Math.max(r1, r2);
+        const range = createSheetSelectionRange({ c: this.cols[0], r: startR }, { c: this.cols[this.cols.length - 1], r: endR });
+        this._applySelectionRange(range, { c: this.cols[0], r: startR }, { kind: "row", scrollActive: true });
+        if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+        return true;
+      }
+    }
+
+    // R1C1 col range: e.g. "C2:C5"
+    const r1c1ColRangeMatch = /^C(\d+):C(\d+)$/i.exec(unquoted);
+    if (r1c1ColRangeMatch) {
+      const c1Num = Number.parseInt(r1c1ColRangeMatch[1], 10);
+      const c2Num = Number.parseInt(r1c1ColRangeMatch[2], 10);
+      if (c1Num >= 1 && c1Num <= this.cols.length && c2Num >= 1 && c2Num <= this.cols.length) {
+        const startC = this.cols[Math.min(c1Num, c2Num) - 1];
+        const endC = this.cols[Math.max(c1Num, c2Num) - 1];
+        const range = createSheetSelectionRange({ c: startC, r: 1 }, { c: endC, r: this.rowCount });
+        this._applySelectionRange(range, { c: startC, r: 1 }, { kind: "column", scrollActive: true });
+        if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+        return true;
+      }
+    }
+
+    // R1C1 range: e.g. "R2C2:R5C4"
+    const r1c1RangeMatch = /^R(\d+)C(\d+):R(\d+)C(\d+)$/i.exec(unquoted);
+    if (r1c1RangeMatch) {
+      const r1 = Number.parseInt(r1c1RangeMatch[1], 10);
+      const c1Num = Number.parseInt(r1c1RangeMatch[2], 10);
+      const r2 = Number.parseInt(r1c1RangeMatch[3], 10);
+      const c2Num = Number.parseInt(r1c1RangeMatch[4], 10);
+      if (
+        c1Num >= 1 && c1Num <= this.cols.length &&
+        c2Num >= 1 && c2Num <= this.cols.length &&
+        r1 >= 1 && r1 <= this.rowCount &&
+        r2 >= 1 && r2 <= this.rowCount
+      ) {
+        const col1 = this.cols[c1Num - 1];
+        const col2 = this.cols[c2Num - 1];
+        const startC = c1Num <= c2Num ? col1 : col2;
+        const endC = c1Num <= c2Num ? col2 : col1;
+        const startR = Math.min(r1, r2);
+        const endR = Math.max(r1, r2);
+        const range = createSheetSelectionRange({ c: startC, r: startR }, { c: endC, r: endR });
+        this._applySelectionRange(range, { c: col1, r: r1 }, { kind: "range", scrollActive: true });
+        if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+        return true;
+      }
+    }
+
+    // R1C1 single cell: e.g. "R2C3"
+    const r1c1CellMatch = /^R(\d+)C(\d+)$/i.exec(unquoted);
+    if (r1c1CellMatch) {
+      const r = Number.parseInt(r1c1CellMatch[1], 10);
+      const colNum = Number.parseInt(r1c1CellMatch[2], 10);
+      if (colNum >= 1 && colNum <= this.cols.length && r >= 1 && r <= this.rowCount) {
+        const col = this.cols[colNum - 1];
+        this.selectCell(col, r);
+        if (this.nameBox) this.nameBox.value = this.getSelectionNameLabel();
+        return true;
+      }
+    }
+
     // Cell range: e.g. "B2:D10"
     const rangeMatch = /^([A-Z]+)(\d+):([A-Z]+)(\d+)$/.exec(unquoted);
     if (rangeMatch) {
@@ -5982,7 +6211,11 @@ _bindGridKeyboardNavigation() {
     if (JSON.stringify(item.style || {}) !== JSON.stringify(nextStyle)) item.style = nextStyle;
     if (escapedText) val = val.slice(1);
     if (!escapedText && typeof val === "string" && val.startsWith("=")) {
-      item.formula = val;
+      let formulaToStore = val;
+      if (this.referenceStyle === "R1C1" || isR1C1Formula(val)) {
+        formulaToStore = r1c1ToA1(val, { row: Number(row), col: this._columnNumber(col) });
+      }
+      item.formula = formulaToStore;
       // Store the raw computed value (number, string, or #ERROR!). Do NOT
       // pre-format as VNĐ currency text here: that both destroys precision
       // for non-money formulas (percentages, ratios, statistics...) and
@@ -6002,11 +6235,14 @@ _bindGridKeyboardNavigation() {
       if (isComposingFormula) {
         item.val = val;
       } else {
-        item.val = this.formulaEngine.evaluate(val, { sheet: this.activeSheet, coord: `${col}${row}` });
+        item.val = this.formulaEngine.evaluate(item.formula, { sheet: this.activeSheet, coord: `${col}${row}` });
+        if (this.precisionAsDisplayed && typeof item.val === "number") {
+          item.val = NumberFormatter.roundToFormatPrecision(item.val, item.format || item.style?.numberFormat);
+        }
       }
       const category = item.style?.numberFormat?.category;
       if (!category || category === "general") {
-        const trimmedFormula = String(val).trim();
+        const trimmedFormula = String(item.formula).trim();
         if (/^=\s*\(?\s*NOW\s*\(/i.test(trimmedFormula)) {
           item.style = { ...(item.style || {}), numberFormat: { category: "date", dateFormat: "dd/mm/yyyy hh:mm" } };
         } else if (/^=\s*\(?\s*(?:DATE|TODAY|EDATE|EOMONTH|WORKDAY)\s*\(/i.test(trimmedFormula)) {
@@ -6017,6 +6253,9 @@ _bindGridKeyboardNavigation() {
       item.formula = "";
       const normalized = this._normalizeCellInput(val, item.style, escapedText);
       item.val = normalized.value;
+      if (this.precisionAsDisplayed && typeof item.val === "number") {
+        item.val = NumberFormatter.roundToFormatPrecision(item.val, item.format || item.style?.numberFormat);
+      }
       item.style = normalized.style;
     }
     let historyAction = null;
@@ -6163,7 +6402,6 @@ _bindGridKeyboardNavigation() {
 
   _buildFormulaDependencyGraph() {
     const originalSheet = this.activeSheet;
-    const fail = () => { this.activeSheet = originalSheet; return null; };
     const formulas = new Map();
     const formulaPositions = new Map();
     const rangesByColumn = new Map();
@@ -6177,12 +6415,11 @@ _bindGridKeyboardNavigation() {
       this.activeSheet = sheet;
       for (const [coord, item] of map) {
         if (!item?.formula || (item.externalLink && item.externalLink.formula === item.formula)) continue;
-        if (item.isArrayFormula) return fail();
-        const extracted = this.formulaEngine.getStaticFormulaReferences(item.formula, sheet);
-        if (!extracted.safe) return fail();
+        const extracted = this.formulaEngine?.getStaticFormulaReferences?.(item.formula, sheet);
+        if (!extracted || !extracted.safe) continue;
         const id = formulaId(sheet, coord);
         const formulaMatch = String(coord).match(/^([A-Z]+)(\d+)$/i);
-        if (!formulaMatch) return fail();
+        if (!formulaMatch) continue;
         const formula = { id, sheet, coord, row: Number(formulaMatch[2]), column: this._columnNumber(formulaMatch[1]) - 1, refs: extracted.references, upstream: new Set() };
         formulas.set(id, formula);
         formulaPositions.set(`${sheet}\u0000${coord}`, id);
@@ -6198,7 +6435,7 @@ _bindGridKeyboardNavigation() {
         const maxColumn = Math.max(ref.startColumn, ref.endColumn);
         const minRow = Math.min(ref.startRow, ref.endRow);
         const maxRow = Math.max(ref.startRow, ref.endRow);
-        if (maxColumn - minColumn > 255) return fail();
+        if (maxColumn - minColumn > 255) continue;
         for (let column = minColumn; column <= maxColumn; column++) {
           const key = columnKey(ref.sheet, column);
           if (!rangesByColumn.has(key)) rangesByColumn.set(key, []);
@@ -6211,6 +6448,47 @@ _bindGridKeyboardNavigation() {
     }
     this.activeSheet = originalSheet;
     return { formulas, formulaPositions, rangesByColumn };
+  }
+
+  _detectCircularFormulas(graph) {
+    if (!graph || !graph.formulas) return new Set();
+    const circularIds = new Set();
+    const visited = new Set();
+    const visiting = new Set();
+    const path = [];
+
+    const dfs = (id) => {
+      visiting.add(id);
+      path.push(id);
+      const formula = graph.formulas.get(id);
+      if (formula?.upstream) {
+        for (const upId of formula.upstream) {
+          if (visiting.has(upId)) {
+            const idx = path.indexOf(upId);
+            if (idx !== -1) {
+              for (let i = idx; i < path.length; i++) {
+                circularIds.add(path[i]);
+              }
+            } else {
+              circularIds.add(upId);
+              circularIds.add(id);
+            }
+          } else if (!visited.has(upId)) {
+            dfs(upId);
+          }
+        }
+      }
+      path.pop();
+      visiting.delete(id);
+      visited.add(id);
+    };
+
+    for (const id of graph.formulas.keys()) {
+      if (!visited.has(id)) {
+        dfs(id);
+      }
+    }
+    return circularIds;
   }
 
   _getDirtyFormulaOrder(graph, changed) {
@@ -6265,13 +6543,71 @@ _bindGridKeyboardNavigation() {
     if (this.calculationMode === "manual" && !force) return;
     if (!incremental || force) this._formulaDependencyGraph = null;
     const activeSheet = this.activeSheet;
-    let formulaFilter = null;
-    if (incremental && !force && this.formulaEngine?.getStaticFormulaReferences) {
-      if (!this._formulaDependencyGraph) {
-        this._formulaDependencyGraph = this._buildFormulaDependencyGraph();
+
+    if (!this._formulaDependencyGraph) {
+      this._formulaDependencyGraph = this._buildFormulaDependencyGraph();
+    }
+    const graph = this._formulaDependencyGraph;
+    const circularIds = this._detectCircularFormulas(graph);
+
+    if (circularIds.size > 0) {
+      if (!this.iteration) {
+        // Without iteration: find first circular cell in activeSheet or first
+        const firstId = Array.from(circularIds).find(id => {
+          try { return JSON.parse(id)[0] === activeSheet; } catch { return false; }
+        }) || Array.from(circularIds)[0];
+        try {
+          const [, coord] = JSON.parse(firstId);
+          const [c, r] = this._splitCoord(coord);
+          this.circularReference = `$${c}$${r}`;
+        } catch {
+          this.circularReference = "$A$1";
+        }
+        for (const id of circularIds) {
+          try {
+            const [sh, coord] = JSON.parse(id);
+            const item = this.sheetsData[sh]?.get(coord);
+            if (item) item.val = 0;
+          } catch {}
+        }
+      } else {
+        this.circularReference = null;
+        for (const id of circularIds) {
+          try {
+            const [sh, coord] = JSON.parse(id);
+            const item = this.sheetsData[sh]?.get(coord);
+            if (item) item.val = 0;
+          } catch {}
+        }
+        const maxIter = this.maxIterations || 100;
+        const maxChange = this.maxChange ?? 0.001;
+        for (let iter = 0; iter < maxIter; iter++) {
+          let maxDelta = 0;
+          for (const id of circularIds) {
+            try {
+              const [sh, coord] = JSON.parse(id);
+              const item = this.sheetsData[sh]?.get(coord);
+              if (item?.formula) {
+                const prevNum = typeof item.val === "number" ? item.val : (Number(item.val) || 0);
+                const nextVal = this.formulaEngine.evaluate(item.formula, { sheet: sh, coord });
+                item.val = nextVal;
+                const nextNum = typeof nextVal === "number" ? nextVal : (Number(nextVal) || 0);
+                const delta = Math.abs(nextNum - prevNum);
+                if (delta > maxDelta) maxDelta = delta;
+              }
+            } catch {}
+          }
+          if (maxDelta <= maxChange) break;
+        }
       }
-      if (this._formulaDependencyGraph) {
-        const dirty = this._getDirtyFormulaOrder(this._formulaDependencyGraph, incremental);
+    } else {
+      this.circularReference = null;
+    }
+
+    let formulaFilter = null;
+    if (incremental && !force && circularIds.size === 0 && this.formulaEngine?.getStaticFormulaReferences) {
+      if (graph) {
+        const dirty = this._getDirtyFormulaOrder(graph, incremental);
         if (dirty) formulaFilter = new Map(dirty.map(formula => [JSON.stringify([formula.sheet, formula.coord]), formula]));
       }
     }
@@ -6285,7 +6621,30 @@ _bindGridKeyboardNavigation() {
         this.formulaEngine.cellsData = () => this.cellsData;
       }
       for (const [k, itm] of map.entries()) {
-        const included = !formulaFilter || formulaFilter.has(JSON.stringify([sheetName, k]));
+        const id = JSON.stringify([sheetName, k]);
+        if (circularIds.has(id)) {
+          if (!this.iteration) {
+            itm.val = 0;
+          } else if (this.precisionAsDisplayed && typeof itm.val === "number") {
+            itm.val = NumberFormatter.roundToFormatPrecision(itm.val, itm.format || itm.style?.numberFormat);
+          }
+          if (sheetName === activeSheet && this.container) {
+            const [cCoord, rCoord] = this._splitCoord(k);
+            const rNum = Number(rCoord);
+            const startR = this.currentStartRow || 1;
+            const endR = this.currentEndRow || 40;
+            if (rNum >= startR && rNum <= endR) {
+              const dom = this.container.querySelector(`.vno-grid-cell[data-coord="${k}"]`);
+              if (dom) {
+                this._renderCellVisual(dom, itm, cCoord, rCoord);
+                this._applyRuleVisuals?.(dom, cCoord, rCoord);
+              }
+            }
+          }
+          continue;
+        }
+
+        const included = !formulaFilter || formulaFilter.has(id);
         if (included && (sheetName !== activeSheet || k !== excludeKey) && itm.formula) {
           // A link to another (closed) workbook keeps its cached value, as in
           // Excel; evaluating it here would overwrite the value with an error.
@@ -6295,12 +6654,12 @@ _bindGridKeyboardNavigation() {
             const results = this.formulaEngine.evaluateArray(itm.formula);
             const coords = this.formulaEngine.expandRange(itm.arrayRange);
             res = Array.isArray(results) ? results[coords.indexOf(k)] : results;
-          } else res = this.formulaEngine.evaluate(itm.formula, { sheet: sheetName, coord: k });
-          // Store the raw computed value - see setCellValue() for why
-          // auto-formatting a formula result as VNĐ currency text here is
-          // wrong (destroys precision and corrupts any formula chain that
-          // references this cell). Display formatting is NumberFormatter's
-          // job at render time, driven by the cell's actual numberFormat.
+          } else {
+            res = this.formulaEngine.evaluate(itm.formula, { sheet: sheetName, coord: k });
+          }
+          if (this.precisionAsDisplayed && typeof res === "number") {
+            res = NumberFormatter.roundToFormatPrecision(res, itm.format || itm.style?.numberFormat);
+          }
           if (res !== itm.val) {
             itm.val = res;
             if (sheetName === activeSheet) changedFormulaCells.add(k);
@@ -6331,7 +6690,7 @@ _bindGridKeyboardNavigation() {
     }
     this._refreshVisibleRuleVisuals();
     this._updateWatchWindow?.();
-    this._refreshDataTables(changedFormulaCells, excludeKey);
+    this._refreshDataTables(changedFormulaCells, excludeKey, force);
   }
 
   /**
@@ -6339,7 +6698,8 @@ _bindGridKeyboardNavigation() {
    * dữ liệu thay đổi, tính lại toàn bộ phần thân bảng. Chỉ chạy ngoài chế độ
    * thử nghiệm (trial) để tránh đệ quy vô hạn.
    */
-  _refreshDataTables(changedFormulaCells, editedKey) {
+  _refreshDataTables(changedFormulaCells, editedKey, force = false) {
+    if (this.calculationMode === "autoNoTable" && !force) return;
     if (this._dataTableEvaluating || this._applyingHistory) return;
     const tables = this.dataTablesBySheet[this.activeSheet];
     if (!tables?.length) return;
@@ -14660,14 +15020,27 @@ _bindGridKeyboardNavigation() {
     const ranges = this._getSelectionRanges();
     if (ranges.length === 1 && this.selectionKind === "row") {
       const normalized = this._normalizeRange(ranges[0]);
-      return `${normalized.start.r}:${normalized.end.r}`;
+      return this.referenceStyle === "R1C1"
+        ? `R${normalized.start.r}:R${normalized.end.r}`
+        : `${normalized.start.r}:${normalized.end.r}`;
     }
     if (ranges.length === 1 && this.selectionKind === "column") {
       const normalized = this._normalizeRange(ranges[0]);
-      return `${normalized.start.c}:${normalized.end.c}`;
+      const c1Num = this._columnNumber(normalized.start.c);
+      const c2Num = this._columnNumber(normalized.end.c);
+      return this.referenceStyle === "R1C1"
+        ? `C${c1Num}:C${c2Num}`
+        : `${normalized.start.c}:${normalized.end.c}`;
     }
     return ranges.map(range => {
       const normalized = this._normalizeRange(range);
+      if (this.referenceStyle === "R1C1") {
+        const c1Num = this._columnNumber(normalized.start.c);
+        const c2Num = this._columnNumber(normalized.end.c);
+        const first = `R${normalized.start.r}C${c1Num}`;
+        const last = `R${normalized.end.r}C${c2Num}`;
+        return first === last ? first : `${first}:${last}`;
+      }
       const first = `${normalized.start.c}${normalized.start.r}`;
       const last = `${normalized.end.c}${normalized.end.r}`;
       return first === last ? first : `${first}:${last}`;
@@ -17547,7 +17920,9 @@ _bindGridKeyboardNavigation() {
     }
 
     if (this.showFormulas && itm.formula) {
-      td.textContent = itm.formula;
+      td.textContent = this.referenceStyle === "R1C1"
+        ? a1ToR1C1(itm.formula, { row: Number(row), col: this._columnNumber(col) })
+        : itm.formula;
       td.style.textAlign = "left";
       if (col && row && typeof this._applyRowColSizeToCell === "function") this._applyRowColSizeToCell(td, col, row);
       return;

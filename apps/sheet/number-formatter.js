@@ -287,7 +287,7 @@ export class NumberFormatter {
    * Định dạng Ngày tháng (Date)
    */
   static formatDate(val, config = {}) {
-    const date = this._parseDate(val);
+    const date = this._parseDate(val, config);
     if (!date || isNaN(date.getTime())) {
       return { text: String(val) };
     }
@@ -494,12 +494,50 @@ export class NumberFormatter {
     return decimals > 0 && decPart ? `${formattedInt}.${decPart}` : formattedInt;
   }
 
-  static _parseDate(val) {
+  /**
+   * Xác định số chữ số phần thập phân của cấu hình định dạng ô.
+   * Trả về số nguyên >= 0 hoặc null nếu định dạng General/không cố định thập phân.
+   */
+  static getFormatDecimals(formatConfig) {
+    if (!formatConfig) return null;
+    const cfg = typeof formatConfig === "string" ? { code: formatConfig } : formatConfig;
+    if (typeof cfg !== "object") return null;
+    if (cfg.decimals !== undefined && cfg.decimals !== null) {
+      return Math.max(0, Math.min(30, Number(cfg.decimals)));
+    }
+    const code = cfg.code || cfg.formatCode || "";
+    if (typeof code === "string" && code) {
+      const match = code.match(/\.([0#]+)/);
+      if (match) return match[1].length;
+      if (/^[0#,\s%]+$/.test(code) && !code.includes(".")) return 0;
+    }
+    const cat = cfg.category;
+    if (cat === "number" || cat === "currency" || cat === "accounting" || cat === "percentage") {
+      return 2;
+    }
+    return null;
+  }
+
+  /**
+   * Làm tròn giá trị số theo độ chính xác của định dạng hiển thị.
+   * Dùng khi bật tùy chọn Precision as displayed (fullPrecision="0").
+   */
+  static roundToFormatPrecision(val, formatConfig) {
+    if (typeof val !== "number" || !Number.isFinite(val)) return val;
+    const decimals = this.getFormatDecimals(formatConfig);
+    if (decimals === null) return val;
+    const factor = Math.pow(10, decimals);
+    return Math.round(val * factor) / factor;
+  }
+
+  static _parseDate(val, config = {}) {
     if (val instanceof Date) return val;
     if (typeof val === "number") {
       if (val > 10000000000) return new Date(val);
       if (val > 0 && val < 200000) {
-        const utcDays = val - 25569;
+        const is1904 = Boolean(config?.date1904 ?? this.date1904);
+        const offset = is1904 ? 24107 : 25569;
+        const utcDays = val - offset;
         return new Date(utcDays * 86400 * 1000);
       }
       return new Date(val);

@@ -384,6 +384,26 @@ export const viStrings = {
   sheetDialogs: {
     fillSeriesTitle: "Chuỗi", fillSeriesIn: "Chuỗi theo", fillSeriesRows: "Hàng", fillSeriesColumns: "Cột", fillSeriesType: "Loại", fillSeriesLinear: "Tuyến tính", fillSeriesGrowth: "Tăng trưởng", fillSeriesDate: "Ngày", fillSeriesDateUnit: "Đơn vị ngày", fillSeriesUnitDay: "Ngày", fillSeriesUnitWeekday: "Ngày làm việc", fillSeriesUnitMonth: "Tháng", fillSeriesUnitYear: "Năm", fillSeriesStep: "Bước nhảy", fillSeriesStop: "Giá trị dừng", fillSeriesBadStep: "Bước nhảy phải là một số.", fillSeriesBadStart: "Ô đầu của vùng chọn phải chứa số (hoặc ngày dạng dd/mm/yyyy khi chọn loại Ngày).", fillSeriesNothing: "Không có ô nào để điền. Hãy chọn vùng gồm ô bắt đầu và các ô cần điền, hoặc nhập Giá trị dừng khi chỉ chọn một ô.", fillSeriesFailed: "Không điền được chuỗi.", fillSeriesDone: "Đã điền {{count}} ô.",
     fillJustifyTitle: "Căn đều", fillJustifyOverflow: "Chữ sẽ tràn xuống dưới vùng chọn.", fillJustifyNoNumbers: "Không thể căn đều ô chứa số hoặc công thức.",
+    calcOptions: {
+      title: "Tùy chọn công thức và tính toán",
+      calcGroup: "Tính toán sổ làm việc",
+      modeAuto: "Tự động",
+      modeAutoNoTable: "Tự động ngoại trừ bảng dữ liệu",
+      modeManual: "Thủ công",
+      recalcBeforeSave: "Tính toán lại sổ làm việc trước khi lưu",
+      iterGroup: "Tính toán lặp",
+      enableIteration: "Bật tính toán lặp (giải quyết tham chiếu vòng)",
+      maxIterations: "Số lần lặp tối đa:",
+      maxChange: "Độ lệch tối đa:",
+      formulaGroup: "Làm việc với công thức",
+      r1c1Style: "Kiểu tham chiếu R1C1 (hàng và cột đều hiển thị số)",
+      workbookGroup: "Tùy chọn cho sổ làm việc này",
+      precisionAsDisplayed: "Đặt độ chính xác như hiển thị",
+      precisionDesc: "Làm tròn vĩnh viễn các giá trị số và kết quả công thức theo định dạng hiển thị của ô.",
+      date1904: "Sử dụng hệ thống ngày 1904",
+      date1904Desc: "Bắt đầu tính số sê-ri ngày từ ngày 01/01/1904 thay vì 01/01/1900.",
+      precisionWarning: "Dữ liệu số sẽ bị mất độ chính xác vĩnh viễn theo định dạng ô hiển thị. Bạn có chắc chắn muốn tiếp tục?"
+    },
     hideSheetMenu: "Ẩn trang tính", unhideSheetMenu: "Hiện trang tính...", unhideSheetTitle: "Hiện trang tính", unhideSheetChoose: "Chọn trang tính cần hiện:", unhideSheetAction: "Hiện", cannotHideLastSheet: "Không thể ẩn trang tính cuối cùng đang hiển thị.", noHiddenSheets: "Không có trang tính nào đang ẩn.",
     close: "Đóng", cancel: "Hủy", cancelLong: "Hủy bỏ", apply: "Áp dụng", range: "Phạm vi", rangeLabel: "Vùng:", value: "Giá trị", save: "Lưu",
     pasteSpecialTitle: "Dán đặc biệt", pasteSpecialGroup: "Dán", pasteSpecialSource: "Giữ định dạng nguồn", pasteSpecialKeepSource: "Giữ định dạng nguồn", pasteSpecialText: "Chỉ giữ văn bản", pasteSpecialAll: "Tất cả", pasteSpecialValues: "Chỉ giá trị", pasteSpecialFormulas: "Chỉ công thức", pasteSpecialFormats: "Chỉ định dạng", pasteSpecialAllExceptBorders: "Tất cả trừ đường viền", pasteSpecialTranspose: "Chuyển vị (đổi hàng/cột)", pasteSpecialOperationGroup: "Thao tác", pasteSpecialOpNone: "Không", pasteSpecialOpAdd: "Cộng", pasteSpecialOpSubtract: "Trừ", pasteSpecialOpMultiply: "Nhân", pasteSpecialOpDivide: "Chia", pasteSpecialSkipBlanks: "Bỏ qua ô trống",
@@ -690,9 +710,15 @@ export const viStrings = {
     ,"sheet.formula.evaluateFormula": { label: "Ước lượng công thức", tooltip: "Ước lượng từng phần của công thức đang chọn để xem giá trị trung gian" }
     ,"sheet.calc.calculationOptions": { label: "Tùy chọn tính toán", tooltip: "Chọn chế độ tính toán tự động hoặc thủ công" }
     ,"sheet.calc.modeAutomatic": { label: "Tự động", tooltip: "Tự động tính lại công thức khi dữ liệu thay đổi" }
+    ,"sheet.calc.modeAutoNoTable": { label: "Tự động trừ bảng dữ liệu", tooltip: "Tự động tính lại mọi công thức ngoại trừ bảng dữ liệu (Data Tables)" }
     ,"sheet.calc.modeManual": { label: "Thủ công", tooltip: "Chỉ tính lại công thức khi nhấn Tính lại (F9)" }
+    ,"sheet.calc.optionsDialog": { label: "Tùy chọn công thức và tính toán", tooltip: "Mở hộp thoại thiết lập tùy chọn tính toán và công thức" }
     ,"sheet.calc.calculateSheet": { label: "Tính trang hiện tại", tooltip: "Tính lại công thức trong trang tính hiện tại (Shift+F9)" }
     ,"sheet.calc.calculateNow": { label: "Tính lại ngay", tooltip: "Tính lại toàn bộ sổ làm việc ngay lập tức (F9)" }
+    ,"sheet.calc.toggleR1C1": { label: "Kiểu tham chiếu R1C1", tooltip: "Chuyển đổi giữa kiểu tham chiếu A1 và R1C1" }
+    ,"sheet.calc.toggleIterative": { label: "Tính toán lặp", tooltip: "Bật hoặc tắt tính toán lặp cho các công thức vòng lặp" }
+    ,"sheet.calc.togglePrecisionAsDisplayed": { label: "Độ chính xác như hiển thị", tooltip: "Làm tròn vĩnh viễn giá trị theo định dạng hiển thị của ô" }
+    ,"sheet.calc.toggleDate1904": { label: "Hệ thống ngày 1904", tooltip: "Chuyển đổi sang hệ thống ngày bắt đầu từ năm 1904" }
     ,"sheet.formula.arrayEnter": { label: "Nhập công thức mảng", tooltip: "Nhập công thức mảng cho vùng đã chọn (Ctrl+Shift+Enter)" }
     ,"sheet.formula.recalculate": { label: "Tính lại toàn bộ", tooltip: "Tính lại toàn bộ công thức bảng tính (F9)" }
     ,"sheet.data.sortAsc": { label: "Sắp xếp A-Z", tooltip: "Sắp xếp dữ liệu tăng dần" }

@@ -376,10 +376,25 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.formula.errorChecking", () => this.grid.showErrorCheckingDialog ? this.grid.showErrorCheckingDialog() : false);
     globalCommandBus.bindHandler("sheet.formula.watchWindow", () => this.grid.showWatchWindow ? this.grid.showWatchWindow() : false);
     globalCommandBus.bindHandler("sheet.formula.evaluateFormula", () => this.grid.showEvaluateFormulaDialog ? this.grid.showEvaluateFormulaDialog() : false);
-    globalCommandBus.bindHandler("sheet.calc.calculationOptions", (args) => { const mode = (typeof args === "string" ? args : args?.value || args?.mode) || (this.grid.calculationMode === "manual" ? "automatic" : "manual"); const result = this.grid.setCalculationMode(mode); this.grid._showDataNotice?.(result === "manual" ? "Đã chuyển sang tính toán thủ công. Nhấn F9 để tính lại." : "Đã chuyển sang tính toán tự động."); return result; });
+    globalCommandBus.bindHandler("sheet.calc.calculationOptions", (args) => {
+      const mode = (typeof args === "string" ? args : args?.value || args?.mode) || (this.grid.calculationMode === "manual" ? "automatic" : "manual");
+      const result = this.grid.setCalculationMode(mode);
+      const notice = result === "manual"
+        ? "Đã chuyển sang tính toán thủ công. Nhấn F9 để tính lại."
+        : (result === "autoNoTable" ? "Đã chuyển sang tính toán tự động trừ bảng dữ liệu." : "Đã chuyển sang tính toán tự động.");
+      this.grid._showDataNotice?.(notice);
+      return result;
+    });
     globalCommandBus.bindHandler("sheet.calc.modeAutomatic", () => this.grid.setCalculationMode ? this.grid.setCalculationMode("automatic") : false);
+    globalCommandBus.bindHandler("sheet.calc.modeAutoNoTable", () => this.grid.setCalculationMode ? this.grid.setCalculationMode("autoNoTable") : false);
     globalCommandBus.bindHandler("sheet.calc.modeManual", () => this.grid.setCalculationMode ? this.grid.setCalculationMode("manual") : false);
+    globalCommandBus.bindHandler("sheet.calc.optionsDialog", () => this.grid.showCalculationOptionsDialog ? this.grid.showCalculationOptionsDialog() : false);
+    globalCommandBus.bindHandler("sheet.calc.calculateNow", () => this.grid.recalculateAll ? this.grid.recalculateAll() : false);
     globalCommandBus.bindHandler("sheet.calc.calculateSheet", () => this.grid.calculateSheet ? this.grid.calculateSheet() : false);
+    globalCommandBus.bindHandler("sheet.calc.toggleR1C1", () => this.grid.toggleR1C1 ? this.grid.toggleR1C1() : false);
+    globalCommandBus.bindHandler("sheet.calc.toggleIterative", () => this.grid.setIterativeCalculation ? this.grid.setIterativeCalculation(!this.grid.iteration) : false);
+    globalCommandBus.bindHandler("sheet.calc.togglePrecisionAsDisplayed", () => this.grid.setPrecisionAsDisplayed ? this.grid.setPrecisionAsDisplayed(!this.grid.precisionAsDisplayed) : false);
+    globalCommandBus.bindHandler("sheet.calc.toggleDate1904", () => this.grid.setDate1904 ? this.grid.setDate1904(!this.grid.date1904) : false);
     globalCommandBus.bindHandler("sheet.formula.arrayEnter", (options) => {
       options = options || {};
       return this.grid.enterArrayFormula(options);
@@ -4075,6 +4090,14 @@ export class SheetAdapter {
     // ODF flag. LibreOffice FODS→XLSX keeps <workbookProtection> but drops
     // lockStructure; native-export post-process restores it (see xlsx-native-postprocess.js).
     const structureAttr = structureProtected ? ' table:structure-protected="true"' : "";
+    const calcAttrs = this.grid ? [
+      this.grid.calculationMode ? ` vno:calculation-mode="${this.grid.calculationMode === "autoNoTable" ? "autoNoTable" : (this.grid.calculationMode === "manual" ? "manual" : "auto")}"` : "",
+      this.grid.calculateBeforeSave === false ? ` vno:calculate-on-save="0"` : "",
+      this.grid.iteration ? ` vno:iteration="1" vno:max-iterations="${this.grid.maxIterations || 100}" vno:max-change="${this.grid.maxChange ?? 0.001}"` : "",
+      this.grid.precisionAsDisplayed ? ` vno:precision-as-displayed="1"` : "",
+      this.grid.date1904 ? ` vno:date1904="1"` : "",
+      this.grid.referenceStyle === "R1C1" ? ` vno:reference-style="R1C1"` : ""
+    ].join("") : "";
     const docPropsMarker = documentPropertiesMarker({
       ...(this.documentProperties || {}),
       contentStatus: this.isFinal ? "Final" : (this.documentProperties?.contentStatus === "Final" ? "" : (this.documentProperties?.contentStatus || ""))
@@ -4112,7 +4135,7 @@ ${pristineXlsxMarker}${docPropsMarker}
       </config:config-item-map-entry></config:config-item-map-indexed>
     </config:config-item-set>
   </office:settings>
-  <office:body><office:spreadsheet${structureAttr}${["automatic", "manual"].includes(this.grid.calculationMode) ? ` vno:calculation-mode="${this.grid.calculationMode === "manual" ? "manual" : "auto"}"` : ""}>${validationDefinitions.length ? `<table:content-validations>${validationDefinitions.join("")}</table:content-validations>` : ""}${tablesXml}${this.grid.namedRangesWorkbook?.length ? `<table:named-expressions>${this.grid.namedRangesWorkbook.map(range => this._namedRangeXml(range, range.sheet || activeSheet)).join("")}</table:named-expressions>` : ""}${dataPilotXml}${this._serializeDatabaseRanges(sheetNames)}</office:spreadsheet></office:body>
+  <office:body><office:spreadsheet${structureAttr}${calcAttrs}>${validationDefinitions.length ? `<table:content-validations>${validationDefinitions.join("")}</table:content-validations>` : ""}${tablesXml}${this.grid.namedRangesWorkbook?.length ? `<table:named-expressions>${this.grid.namedRangesWorkbook.map(range => this._namedRangeXml(range, range.sheet || activeSheet)).join("")}</table:named-expressions>` : ""}${dataPilotXml}${this._serializeDatabaseRanges(sheetNames)}</office:spreadsheet></office:body>
 </office:document>`;
   }
 
@@ -4834,8 +4857,26 @@ ${pristineXlsxMarker}${docPropsMarker}
   parseFods(xmlText) {
     const workbook = { sheets: [], sheetsData: {}, activeSheet: "", commentsBySheet: {}, mergedRangesBySheet: {}, namedRangesWorkbook: [], namedRangesBySheet: {}, printAreaBySheet: {}, pageSetupBySheet: {}, validationHits: [], rowHeightsBySheet: {}, colWidthsBySheet: {}, userHiddenRowsBySheet: {}, userHiddenColsBySheet: {}, imagesAtOpenBySheet: {} };
     if (!xmlText) return workbook;
-    const calculationMode = String(xmlText).match(/<office:spreadsheet\b[^>]*\bvno:calculation-mode=["'](auto|manual)["']/i)?.[1]?.toLowerCase();
-    if (calculationMode) workbook.calculationMode = calculationMode === "manual" ? "manual" : "automatic";
+    const ssMatch = String(xmlText).match(/<office:spreadsheet\b([^>]*)>/i);
+    const ssAttrs = ssMatch ? ssMatch[1] : "";
+    const calculationMode = ssAttrs.match(/\bvno:calculation-mode=["'](auto|manual|autoNoTable)["']/i)?.[1]?.toLowerCase();
+    if (calculationMode) workbook.calculationMode = calculationMode === "manual" ? "manual" : (calculationMode === "autonotable" ? "autoNoTable" : "automatic");
+    const calcOnSave = ssAttrs.match(/\bvno:calculate-on-save=["'](0|1)["']/i)?.[1];
+    if (calcOnSave !== undefined) workbook.calculateBeforeSave = calcOnSave === "1";
+    const iterationAttr = ssAttrs.match(/\bvno:iteration=["'](0|1)["']/i)?.[1];
+    if (iterationAttr !== undefined) {
+      workbook.iteration = iterationAttr === "1";
+      const maxIter = ssAttrs.match(/\bvno:max-iterations=["'](\d+)["']/i)?.[1];
+      if (maxIter) workbook.maxIterations = Number(maxIter);
+      const maxChange = ssAttrs.match(/\bvno:max-change=["']([\d.]+)["']/i)?.[1];
+      if (maxChange) workbook.maxChange = Number(maxChange);
+    }
+    const precAttr = ssAttrs.match(/\bvno:precision-as-displayed=["'](0|1)["']/i)?.[1];
+    if (precAttr !== undefined) workbook.precisionAsDisplayed = precAttr === "1";
+    const d1904Attr = ssAttrs.match(/\bvno:date1904=["'](0|1)["']/i)?.[1];
+    if (d1904Attr !== undefined) workbook.date1904 = d1904Attr === "1";
+    const refStyleAttr = ssAttrs.match(/\bvno:reference-style=["'](A1|R1C1)["']/i)?.[1];
+    if (refStyleAttr) workbook.referenceStyle = refStyleAttr.toUpperCase();
     const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
     const perfNow = () => perfEnabled ? performance.now() : 0;
     const perfReport = (name, started) => { if (perfEnabled) window.__vnoPerfReport?.(`parseFods:${name}`, performance.now() - started); };
@@ -5604,6 +5645,19 @@ ${pristineXlsxMarker}${docPropsMarker}
     const firstSheet = workbook.sheets[0];
     if (typeof this.grid.resetToBlank === "function") this.grid.resetToBlank(firstSheet);
     this.grid.calculationMode = workbook.calculationMode || "automatic";
+    if (workbook.calculateBeforeSave !== undefined) this.grid.calculateBeforeSave = workbook.calculateBeforeSave;
+    if (workbook.iteration !== undefined) {
+      this.grid.setIterativeCalculation?.(workbook.iteration, workbook.maxIterations, workbook.maxChange);
+    }
+    if (workbook.precisionAsDisplayed !== undefined) {
+      this.grid.setPrecisionAsDisplayed?.(workbook.precisionAsDisplayed);
+    }
+    if (workbook.date1904 !== undefined) {
+      this.grid.setDate1904?.(workbook.date1904);
+    }
+    if (workbook.referenceStyle !== undefined) {
+      this.grid.setReferenceStyle?.(workbook.referenceStyle);
+    }
     this.grid.sheets = [firstSheet];
     this.grid.sheetsData = { [firstSheet]: workbook.sheetsData[firstSheet] };
     this.grid.commentsBySheet = { [firstSheet]: workbook.commentsBySheet[firstSheet] || {} };
@@ -6065,6 +6119,9 @@ ${pristineXlsxMarker}${docPropsMarker}
    */
   async save() {
     if (this._guardQuickViewReadOnly()) return false;
+    if (this.grid?.calculationMode === "manual" && this.grid?.calculateBeforeSave !== false) {
+      this.grid?.recalculateAll?.();
+    }
     if (!this.sourceFilePath) {
       return await this.saveAs();
     }
@@ -6107,6 +6164,9 @@ ${pristineXlsxMarker}${docPropsMarker}
    */
   async saveAs() {
     if (this._guardQuickViewReadOnly()) return false;
+    if (this.grid?.calculationMode === "manual" && this.grid?.calculateBeforeSave !== false) {
+      this.grid?.recalculateAll?.();
+    }
     const fodsContent = this.serializeToFods();
     const currentName = this.sourceFileName || "BangTinh";
     const suggestedName = this.sourceFilePath
@@ -6757,9 +6817,15 @@ ${pristineXlsxMarker}${docPropsMarker}
       case ".uno:AutomaticCalculation":
         return this.grid.setCalculationMode ? this.grid.setCalculationMode("automatic") : false;
 
+      case "sheet.calc.modeAutoNoTable":
+        return this.grid.setCalculationMode ? this.grid.setCalculationMode("autoNoTable") : false;
+
       case "sheet.calc.modeManual":
       case ".uno:ManualCalculation":
         return this.grid.setCalculationMode ? this.grid.setCalculationMode("manual") : false;
+
+      case "sheet.calc.optionsDialog":
+        return this.grid.showCalculationOptionsDialog ? this.grid.showCalculationOptionsDialog() : false;
 
       case "sheet.calc.calculateNow":
       case "sheet.formula.recalculate":
@@ -6769,6 +6835,18 @@ ${pristineXlsxMarker}${docPropsMarker}
       case "sheet.calc.calculateSheet":
       case ".uno:CalculateHard":
         return this.grid.calculateSheet ? this.grid.calculateSheet() : false;
+
+      case "sheet.calc.toggleR1C1":
+        return this.grid.toggleR1C1 ? this.grid.toggleR1C1() : false;
+
+      case "sheet.calc.toggleIterative":
+        return this.grid.setIterativeCalculation ? this.grid.setIterativeCalculation(!this.grid.iteration) : false;
+
+      case "sheet.calc.togglePrecisionAsDisplayed":
+        return this.grid.setPrecisionAsDisplayed ? this.grid.setPrecisionAsDisplayed(!this.grid.precisionAsDisplayed) : false;
+
+      case "sheet.calc.toggleDate1904":
+        return this.grid.setDate1904 ? this.grid.setDate1904(!this.grid.date1904) : false;
 
       case "sheet.formula.arrayEnter":
         return this.grid.enterArrayFormula(args || {});

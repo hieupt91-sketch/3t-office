@@ -19,6 +19,30 @@ try {
   $results = [ordered]@{}
   foreach ($scenario in $spec.scenarios) {
     $ws = Retry { $wb.Worksheets.Add() }
+    if ($scenario.calcMode) {
+      switch ($scenario.calcMode.ToLower()) {
+        "auto" { Retry { $x.Calculation = -4105 } }
+        "manual" { Retry { $x.Calculation = -4135 } }
+        "autonotable" { Retry { $x.Calculation = 2 } }
+      }
+    }
+    if ($scenario.iteration) {
+      Retry {
+        if ($scenario.iteration.maxIterations) { $x.MaxIterations = [int]$scenario.iteration.maxIterations }
+        if ($scenario.iteration.maxChange) { $x.MaxChange = [double]$scenario.iteration.maxChange }
+        $x.Iteration = [bool]$scenario.iteration.enabled
+      }
+    }
+    if ($scenario.precisionAsDisplayed -ne $null) {
+      Retry { $wb.PrecisionAsDisplayed = [bool]$scenario.precisionAsDisplayed }
+    }
+    if ($scenario.date1904 -ne $null) {
+      Retry { $wb.Date1904 = [bool]$scenario.date1904 }
+    }
+    if ($scenario.referenceStyle) {
+      $style = if ($scenario.referenceStyle -eq "R1C1") { -4150 } else { 1 }
+      Retry { $x.ReferenceStyle = $style }
+    }
     if ($scenario.colWidths) {
       foreach ($colProp in $scenario.colWidths.PSObject.Properties) {
         Retry { $ws.Columns($colProp.Name).ColumnWidth = [double]$colProp.Value }
@@ -179,9 +203,46 @@ try {
             $tbl = if ($op.table) { $ws.ListObjects.Item($op.table) } else { $ws.ListObjects.Item(1) }
             Retry { [void]$tbl.Unlist() }
           }
+          "setCalculationMode" {
+            $mode = [string]$op.mode
+            switch ($mode.ToLower()) {
+              "auto" { Retry { $x.Calculation = -4105 } }
+              "automatic" { Retry { $x.Calculation = -4105 } }
+              "manual" { Retry { $x.Calculation = -4135 } }
+              "autonotable" { Retry { $x.Calculation = 2 } }
+            }
+          }
+          "setIteration" {
+            Retry {
+              $x.Iteration = [bool]$op.enabled
+              if ($op.maxIterations) { $x.MaxIterations = [int]$op.maxIterations }
+              if ($op.maxChange) { $x.MaxChange = [double]$op.maxChange }
+            }
+          }
+          "setPrecisionAsDisplayed" {
+            Retry { $wb.PrecisionAsDisplayed = [bool]$op.enabled }
+          }
+          "setDate1904" {
+            Retry { $wb.Date1904 = [bool]$op.enabled }
+          }
+          "setReferenceStyle" {
+            $style = if ($op.style -eq "R1C1") { -4150 } else { 1 }
+            Retry { $x.ReferenceStyle = $style }
+          }
+          "calculateNow" {
+            Retry { $x.Calculate() }
+          }
+          "calculateSheet" {
+            Retry { $ws.Calculate() }
+          }
+          "enterR1C1Formula" {
+            Retry { $ws.Range($op.coord).FormulaR1C1 = [string]$op.formula }
+          }
         }
       }
-    Retry { $x.Calculate() }
+    if (-not $scenario.skipFinalCalculate -and $x.Calculation -ne -4135) {
+      Retry { $x.Calculate() }
+    }
     $out = [ordered]@{}
     $used = $ws.UsedRange
     $rows = $used.Rows.Count + $used.Row - 1
@@ -246,6 +307,15 @@ try {
       $results[$scenario.name] = $out
     }
     Retry { $ws.Delete() } | Out-Null
+    Retry {
+      $x.Calculation = -4105
+      $x.Iteration = $false
+      $x.MaxIterations = 100
+      $x.MaxChange = 0.001
+      $x.ReferenceStyle = 1
+      $wb.PrecisionAsDisplayed = $false
+      $wb.Date1904 = $false
+    }
   }
   ($results | ConvertTo-Json -Depth 6 -Compress) | Set-Content -LiteralPath $OutputJson -Encoding UTF8
   Retry { $wb.Close($false) }

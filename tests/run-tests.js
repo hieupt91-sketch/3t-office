@@ -190,6 +190,7 @@ import { runSheetStatusBarSumTests } from "./unit/sheet-status-bar-sum.test.js";
 import { runSheetRangeSelectionTests } from "./unit/sheet-range-selection.test.js";
 import { runSheetAutoFillTests } from "./unit/sheet-autofill.test.js";
 import { runSheetFillJustifyTests } from "./unit/sheet-fill-justify.test.js";
+import { runSheetCalcOptionsTests } from "./unit/sheet-calc-options.test.js";
 import { runSlidesPptxSetupShowOpenOverlayTests } from "./unit/slides-pptx-setup-show-open-overlay.test.js";
 import { runWriterParagraphSpacingTests } from "./unit/writer-paragraph-spacing.test.js";
 import { runWriterFindReplaceDomTests } from "./unit/writer-find-replace-dom.test.js";
@@ -595,7 +596,8 @@ async function runAll() {
     { title: "262. Unit Tests — Writer WORD-W7 Balloons, Mark as Final and Save As (agy)", runner: runWriterWordW7Tests },
     { title: "263. Unit Tests — Sheet XLSX Document Properties & Mark as Final (AGY-SHEET-INFO)", runner: runSheetFileInfoTests },
     { title: "264. Unit Tests — Sheet Paste Special (values, formulas, formats, transpose, operations, skipBlanks)", runner: runSheetPasteSpecialTests },
-    { title: "265. Unit Tests — Sheet Fill Justify & Alignment Styles (AGY-JUSTIFY)", runner: runSheetFillJustifyTests }
+    { title: "265. Unit Tests — Sheet Fill Justify & Alignment Styles (AGY-JUSTIFY)", runner: runSheetFillJustifyTests },
+    { title: "266. Unit Tests — Sheet Calculation Options & Formula Parity (AGY-CALC)", runner: runSheetCalcOptionsTests }
   ];
 
   for (const suite of suites) {

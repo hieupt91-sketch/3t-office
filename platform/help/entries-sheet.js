@@ -1595,6 +1595,24 @@ export const SHEET_HELP_ENTRIES = [
       "Khi đã đánh dấu là cuối cùng, ứng dụng hiển thị thanh thông báo màu vàng và đặt toàn bộ ô cùng thanh công thức ở chế độ chỉ đọc mềm để ngăn chặn chỉnh sửa ngoài ý muốn.",
       "Nếu cần tiếp tục chỉnh sửa, người dùng chỉ cần bấm nút Vẫn chỉnh sửa trên thanh thông báo màu vàng hoặc bấm lại Đánh dấu là cuối cùng trong mục Thông tin."
     ]
+  },
+  {
+    id: "sheet.calc.optionsHelp",
+    app: "sheet",
+    commandIds: ["sheet.calc.optionsDialog"],
+    title: "Tùy chọn công thức và tính toán",
+    summary: "Thiết lập toàn diện các tùy chọn tính toán của bảng tính: chế độ tính toán tự động hoặc thủ công, tính toán lại trước khi lưu, tính toán lặp cho các công thức vòng lặp, kiểu tham chiếu R1C1, làm tròn độ chính xác như hiển thị, và hệ thống ngày 1904.",
+    ribbon: { tab: "Công thức", tabId: "formulas", group: "Tính toán" },
+    keywords: ["tùy chọn tính toán", "công thức", "tính toán lặp", "iterative calculation", "vòng lặp", "tham chiếu vòng", "circular reference", "độ chính xác như hiển thị", "precision as displayed", "hệ ngày 1904", "1904 date system", "R1C1", "tự động", "thủ công", "F9", "Shift+F9", "bảng dữ liệu"],
+    steps: [
+      "Mở hộp thoại tùy chọn: Trên thanh ruy-băng, chuyển sang thẻ Công thức, nhìn sang nhóm Tính toán và bấm vào nút mở hộp thoại nhỏ ở góc dưới bên phải nhóm Tính toán.",
+      "Chế độ tính toán sổ làm việc: Chọn Tự động để tính lại mọi công thức mỗi khi dữ liệu thay đổi; chọn Tự động ngoại trừ bảng dữ liệu để bỏ qua việc cập nhật bảng dữ liệu khi nhập liệu thường; hoặc chọn Thủ công để chỉ tính toán lại khi bạn nhấn phím F9 (Tính lại toàn bộ) hoặc Shift+F9 (Tính trang hiện tại).",
+      "Tính toán lại trước khi lưu: Khi ở chế độ Thủ công, đánh dấu chọn ô Tính toán lại sổ làm việc trước khi lưu để tự động cập nhật kết quả các công thức mới nhất mỗi khi lưu tệp.",
+      "Bật tính toán lặp (Iterative Calculation): Đánh dấu chọn Bật tính toán lặp khi sổ làm việc chứa các công thức tham chiếu vòng (ô phụ thuộc trực tiếp hoặc gián tiếp vào chính nó). Bạn có thể chỉ định Số lần lặp tối đa (mặc định 100 lần) và Độ lệch tối đa (mặc định 0,001) để dừng vòng lặp khi giá trị đã hội tụ.",
+      "Kiểu tham chiếu R1C1: Đánh dấu chọn Kiểu tham chiếu R1C1 để chuyển cả tiêu đề hàng và cột sang dạng số (R1C1). Các công thức và hộp Tên ô sẽ hiển thị theo tọa độ hàng-cột số tương đối hoặc tuyệt đối.",
+      "Độ chính xác như hiển thị (Precision as displayed): Đánh dấu chọn tùy chọn này để làm tròn vĩnh viễn giá trị số và kết quả công thức theo định dạng hiển thị của ô (ví dụ ô hiển thị 2 chữ số thập phân sẽ làm tròn số thực tế về 2 chữ số). Cần cân nhắc kỹ trước khi bật vì độ chính xác nguyên bản sẽ không khôi phục lại được.",
+      "Hệ thống ngày 1904: Đánh dấu chọn Sử dụng hệ thống ngày 1904 để tính ngày bắt đầu từ mốc 01/01/1904 thay vì 01/01/1900, phù hợp khi trao đổi tệp với một số hệ thống bảng tính đặc thù."
+    ]
   }
 ];
 
