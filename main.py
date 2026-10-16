@@ -77,7 +77,7 @@ def _early_forward_if_running(argv: list[str]) -> bool:
     file_path = None
     app_by_extension = {
         ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer", ".txt": "writer",
-        ".xlsx": "sheet", ".xls": "sheet", ".ods": "sheet", ".csv": "sheet",
+        ".xlsx": "sheet", ".xls": "sheet", ".ods": "sheet", ".csv": "sheet", ".xltx": "sheet", ".xlt": "sheet",
         ".pptx": "slides", ".ppt": "slides", ".odp": "slides",
     }
     for arg in argv:
@@ -573,7 +573,7 @@ TASKBAR_LAUNCHER_EXES = {"writer": "Doc.exe", "sheet": "Sheet.exe", "slides": "S
 SUITE_TITLE = "3T Office — Bộ Ứng Dụng Văn Phòng Việt"
 FILE_APP_KINDS = {
     ".docx": "writer", ".doc": "writer", ".odt": "writer", ".rtf": "writer", ".txt": "writer",
-    ".xlsx": "sheet", ".xls": "sheet", ".ods": "sheet", ".csv": "sheet",
+    ".xlsx": "sheet", ".xls": "sheet", ".ods": "sheet", ".csv": "sheet", ".xltx": "sheet", ".xlt": "sheet",
     ".pptx": "slides", ".ppt": "slides", ".odp": "slides",
 }
 
@@ -822,6 +822,7 @@ FORMAT_FILTERS = {
     "htm": "HTML (StarWriter)",
     "pdf": "writer_pdf_Export",
     "xlsx": "Calc MS Excel 2007 XML",
+    "xltx": "Calc MS Excel 2007 XML Template",
     "xls": "MS Excel 97",
     "ods": "calc8",
     "csv": "Text - txt - csv (StarCalc)",
@@ -2348,7 +2349,7 @@ def _inline_html_images(html_text: str, html_path: str) -> str:
 
 OPEN_FILE_TYPES = {
     "writer": ("Tài liệu Word (*.docx;*.doc;*.odt;*.rtf;*.txt;*.htm;*.html)", "Tất cả tệp (*.*)"),
-    "sheet": ("Bảng tính Excel (*.xlsx;*.xls;*.ods;*.csv;*.tsv)", "Tất cả tệp (*.*)"),
+    "sheet": ("Bảng tính Excel (*.xlsx;*.xls;*.ods;*.csv;*.tsv;*.xltx;*.xlt)", "Tất cả tệp (*.*)"),
     "slides": ("Bản trình chiếu PowerPoint (*.pptx;*.ppt;*.odp)", "Tất cả tệp (*.*)"),
 }
 
@@ -2372,6 +2373,7 @@ SAVE_FILE_TYPES = {
     "sheet": (
         "Bảng tính Excel (*.xlsx)",
         "Bảng tính Excel 97 đến 2003 (*.xls)",
+        "Mẫu bảng tính Excel (*.xltx)",
         "Bảng tính ODF (*.ods)",
         "Văn bản phân tách dấu phẩy (*.csv)",
         "Tài liệu PDF (*.pdf)",
@@ -2420,12 +2422,30 @@ def _infer_save_format_from_path(file_path: str, app_kind: str | None = None) ->
         return resolved_path, default_ext
 
     ext = suffix.lstrip(".")
-    if ext in FORMAT_FILTERS or ext in {"doc", "xls", "rtf", "txt", "docx", "xlsx", "ppt", "pptx", "odt", "ods", "odp", "pdf", "csv", "html", "htm"}:
+    if ext in FORMAT_FILTERS or ext in {"doc", "xls", "rtf", "txt", "docx", "xlsx", "xltx", "ppt", "pptx", "odt", "ods", "odp", "pdf", "csv", "html", "htm"}:
         if ext == "htm":
             return file_path, "html"
         return file_path, ext
 
     return file_path, default_ext
+
+
+def _convert_xlsx_to_template(xlsx_path: str) -> None:
+    """Đổi gói .xlsx đã lưu thành mẫu .xltx: chỉ thay loại nội dung của xl/workbook.xml."""
+    import zipfile
+    main_ct = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet.main+xml"
+    template_ct = "application/vnd.openxmlformats-officedocument.spreadsheetml.template.main+xml"
+    tmp_path = xlsx_path + ".tpl"
+    with zipfile.ZipFile(xlsx_path) as zin, zipfile.ZipFile(tmp_path, "w", zipfile.ZIP_DEFLATED) as zout:
+        for item in zin.infolist():
+            data = zin.read(item.filename)
+            if item.filename == "[Content_Types].xml":
+                text = data.decode("utf-8")
+                if main_ct not in text:
+                    raise DocumentEngineError("Không tạo được mẫu: gói bảng tính thiếu phần sổ làm việc.")
+                data = text.replace(main_ct, template_ct).encode("utf-8")
+            zout.writestr(item, data)
+    os.replace(tmp_path, xlsx_path)
 
 
 def _sheet_fods_for_export(fods: str, target_format: str | None) -> str:
@@ -5120,13 +5140,16 @@ class VnOfficeApi:
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_save_inplace_") as tmp:
                 stage_started = time.perf_counter()
-                src_path = _write_save_source(content, app_kind, tmp, target_format)
+                build_format = "xlsx" if (app_kind == "sheet" and target_format == "xltx") else target_format
+                src_path = _write_save_source(content, app_kind, tmp, build_format)
                 if audit_timings is not None:
                     audit_timings["fodsWriteMs"] = round((time.perf_counter() - stage_started) * 1000, 1)
                     audit_timings["fodsBytes"] = os.path.getsize(src_path)
                 out_path = _convert_save_source_to_native(
-                    src_path, app_kind, target_format, source_document_path=source_path, timings=audit_timings,
+                    src_path, app_kind, build_format, source_document_path=source_path, timings=audit_timings,
                 )
+                if build_format != target_format:
+                    _convert_xlsx_to_template(out_path)
                 stage_started = time.perf_counter()
                 _atomic_replace_file(out_path, target_path)
                 if audit_timings is not None:
@@ -5169,7 +5192,7 @@ class VnOfficeApi:
                 default_stem = Path(suggested_name).stem or suggested_name
         elif suggested_name:
             s_ext = Path(suggested_name).suffix.lower().lstrip(".")
-            if s_ext in FORMAT_FILTERS or s_ext in {"doc", "xls", "rtf", "txt", "docx", "xlsx", "ppt", "pptx", "html", "htm"}:
+            if s_ext in FORMAT_FILTERS or s_ext in {"doc", "xls", "rtf", "txt", "docx", "xlsx", "xltx", "ppt", "pptx", "html", "htm"}:
                 default_ext = "html" if s_ext == "htm" else s_ext
                 default_stem = Path(suggested_name).stem
 
@@ -5221,10 +5244,15 @@ class VnOfficeApi:
                         return_engine=True,
                     )
                 else:
-                    src_path = _write_save_source(content, app_kind, tmp, target_format)
+                    # Mẫu .xltx: đi hết đường lưu .xlsx (giữ mọi bước hậu kỳ của VN Office)
+                    # rồi chỉ đổi loại nội dung của sổ thành "template".
+                    build_format = "xlsx" if (app_kind == "sheet" and target_format == "xltx") else target_format
+                    src_path = _write_save_source(content, app_kind, tmp, build_format)
                     out_path = _convert_save_source_to_native(
-                        src_path, app_kind, target_format, source_document_path=source_path,
+                        src_path, app_kind, build_format, source_document_path=source_path,
                     )
+                    if build_format != target_format:
+                        _convert_xlsx_to_template(out_path)
                 _atomic_replace_file(out_path, dest_path)
                 _verify_saved_file(dest_path)
         except DocumentEngineError as exc:
