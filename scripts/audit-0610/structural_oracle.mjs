@@ -150,7 +150,7 @@ for (const scenario of spec.scenarios) {
     }
     got[coord] = cellGot;
   }
-  for (const r of grid.hiddenRows || []) got[`_H${r}`] = { f: "hidden", v: true };
+  for (const r of [...(grid.hiddenRows || []), ...(grid._userHiddenRows?.() || [])]) got[`_H${r}`] = { f: "hidden", v: true };
   const coords = new Set([...Object.keys(want), ...Object.keys(got)]);
   const bad = [];
   for (const coord of [...coords].sort((a, b) => split(a)[1] - split(b)[1] || colNumber(split(a)[0]) - colNumber(split(b)[0]))) {
