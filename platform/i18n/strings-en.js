@@ -371,7 +371,7 @@ export const enStrings = {
   sheetRibbon: {
     whatIfAnalysis: "What-If Analysis",
     tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant", tableDesign: "Table Design" },
-    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", connections: "Connections", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", tables: "Tables", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", pageSetup: "Page Setup", scaleToFit: "Scale to Fit", sheetOptions: "Sheet Options", proofing: "Proofing", comments: "Comments", protection: "Protect", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiAnalysis: "AI Data Analysis", properties: "Table Properties", tableStyleOptions: "Table Style Options", tools: "Tools", arrange: "Arrange" },
+    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", connections: "Connections", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", tables: "Tables", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", pageSetup: "Page Setup", scaleToFit: "Scale to Fit", sheetOptions: "Sheet Options", proofing: "Proofing", comments: "Comments", protection: "Protect", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiAnalysis: "AI Data Analysis", properties: "Table Properties", tableStyleOptions: "Table Style Options", filters: "Filters", tools: "Tools", arrange: "Arrange" },
     refreshAllSuccess: "Refreshed all links and external data.",
     editing: { fill: "Fill", clear: "Clear" },
     alignment: { orientation: "Orientation" },
@@ -384,6 +384,7 @@ export const enStrings = {
     referenceHint: "Click or drag across cells to insert references; press F2 to switch between Edit and Point.",
     formulaBarLabel: "Sheet Formula Bar"
   },
+  sheetSlicer: { selectTable: "Select a cell in a table before inserting a visual filter.", layer: "Visual filters", aria: "Filter", multi: "Multi-select", clear: "Clear filter", close: "Remove visual filter" },
   slidesRibbon: {
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant" },
     group: { slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
@@ -392,6 +393,7 @@ export const enStrings = {
     section: "Section"
   },
   sheetDialogs: {
+    slicer: { title: "Insert visual filter", hint: "Choose one or more table columns to create floating filters.", columns: "Table columns", chooseColumn: "Choose at least one column." },
     editLinks: {
       title: "Edit Links",
       colSource: "Source",
@@ -868,6 +870,7 @@ export const enStrings = {
     ,"sheet.style.formatAsTable": { label: "Format as Table", tooltip: "Create a named table with filters and automatic expansion" }
     ,"sheet.table.resize": { label: "Resize Table", tooltip: "Change the data range of the table" }
     ,"sheet.table.toggleTotalRow": { label: "Total Row", tooltip: "Toggle the total row at the bottom of the table" }
+    ,"sheet.table.insertSlicer": { label: "Insert Visual Filter", tooltip: "Filter a table quickly with floating value buttons" }
     ,"sheet.table.convertToRange": { label: "Convert to Range", tooltip: "Convert the table into a regular cell range while keeping formats" }
     ,"sheet.style.cellStyles": { label: "Cell Styles", tooltip: "Open cell styles gallery (Normal, Good, Bad, Neutral...)" }
     ,"sheet.edit.goTo": { label: "Go To...", tooltip: "Jump to a cell, range or defined name (F5 or Ctrl+G)" }

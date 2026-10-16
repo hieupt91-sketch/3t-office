@@ -370,7 +370,7 @@ export const viStrings = {
   sheetRibbon: {
     whatIfAnalysis: "Phân tích What-If",
     tab: { home: "Trang đầu", formulas: "Công thức", data: "Dữ liệu", insert: "Chèn", pageLayout: "Bố trí trang", review: "Xem xét", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI", tableDesign: "Thiết kế Bảng" },
-    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", connections: "Kết nối", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", tables: "Bảng", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", pageSetup: "Thiết lập trang", scaleToFit: "Vừa trang", sheetOptions: "Tùy chọn trang tính", proofing: "Kiểm lỗi", comments: "Ghi chú", protection: "Bảo vệ", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiAnalysis: "Phân tích dữ liệu AI", properties: "Thuộc tính bảng", tableStyleOptions: "Tùy chọn kiểu bảng", tools: "Công cụ", arrange: "Sắp xếp" },
+    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", connections: "Kết nối", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", tables: "Bảng", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", pageSetup: "Thiết lập trang", scaleToFit: "Vừa trang", sheetOptions: "Tùy chọn trang tính", proofing: "Kiểm lỗi", comments: "Ghi chú", protection: "Bảo vệ", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiAnalysis: "Phân tích dữ liệu AI", properties: "Thuộc tính bảng", tableStyleOptions: "Tùy chọn kiểu bảng", filters: "Bộ lọc", tools: "Công cụ", arrange: "Sắp xếp" },
     refreshAllSuccess: "Đã làm mới tất cả các liên kết và dữ liệu ngoài.",
     editing: { fill: "Điền", clear: "Xóa" },
     cells: { format: "Định dạng" },
@@ -383,6 +383,7 @@ export const viStrings = {
     referenceHint: "Chọn hoặc kéo qua ô để chèn tham chiếu; F2 chuyển giữa Sửa và Trỏ.",
     formulaBarLabel: "Thanh công thức Sheet"
   },
+  sheetSlicer: { selectTable: "Hãy chọn một ô trong bảng trước khi chèn bộ lọc trực quan.", layer: "Bộ lọc trực quan", aria: "Bộ lọc", multi: "Chọn nhiều", clear: "Xóa bộ lọc", close: "Xóa bộ lọc trực quan" },
   slidesRibbon: {
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI" },
     group: { slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Hiệu đính", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
@@ -391,6 +392,7 @@ export const viStrings = {
     section: "Phần"
   },
   sheetDialogs: {
+    slicer: { title: "Chèn bộ lọc trực quan", hint: "Chọn một hoặc nhiều cột của bảng để tạo bộ lọc nổi.", columns: "Cột của bảng", chooseColumn: "Hãy chọn ít nhất một cột." },
     editLinks: {
       title: "Chỉnh sửa liên kết",
       colSource: "Nguồn",
@@ -867,6 +869,7 @@ export const viStrings = {
     ,"sheet.style.formatAsTable": { label: "Định dạng bảng", tooltip: "Định dạng vùng chọn theo kiểu bảng có màu xen kẽ" }
     ,"sheet.table.resize": { label: "Đổi kích cỡ bảng", tooltip: "Thay đổi vùng dữ liệu của bảng" }
     ,"sheet.table.toggleTotalRow": { label: "Dòng tổng cộng", tooltip: "Bật hoặc tắt dòng tính tổng ở cuối bảng" }
+    ,"sheet.table.insertSlicer": { label: "Chèn bộ lọc trực quan", tooltip: "Lọc nhanh bảng bằng các nút giá trị nổi" }
     ,"sheet.table.convertToRange": { label: "Chuyển thành vùng", tooltip: "Chuyển bảng thành vùng ô thông thường giữ nguyên định dạng" }
     ,"sheet.style.cellStyles": { label: "Kiểu ô", tooltip: "Mở thư viện kiểu ô định sẵn (Normal, Good, Bad, Neutral...)" }
     ,"sheet.edit.goTo": { label: "Đến...", tooltip: "Chuyển nhanh tới ô, vùng hoặc tên đã xác định (F5 hoặc Ctrl+G)" }

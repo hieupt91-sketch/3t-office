@@ -520,6 +520,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.style.cellStyles", category: "format", label: "Kiểu ô", icon: "cellStyles", tooltip: "Mở thư viện kiểu ô định sẵn (Normal, Good, Bad, Neutral...)" },
   { id: "sheet.table.resize", category: "format", label: "Đổi kích cỡ bảng", icon: "formatTable", tooltip: "Thay đổi vùng dữ liệu của bảng" },
   { id: "sheet.table.toggleTotalRow", category: "format", label: "Dòng tổng cộng", icon: "formatTable", isToggle: true, tooltip: "Bật hoặc tắt dòng tính tổng ở cuối bảng" },
+  { id: "sheet.table.insertSlicer", category: "filter", label: "Chèn bộ lọc trực quan", icon: "filter", tooltip: "Lọc nhanh bảng bằng các nút giá trị nổi" },
   { id: "sheet.table.convertToRange", category: "format", label: "Chuyển thành vùng", icon: "formatTable", tooltip: "Chuyển bảng thành vùng ô thông thường giữ nguyên định dạng" },
 
   // Chỉnh sửa & Điền/Xóa (Editing: Fill & Clear)

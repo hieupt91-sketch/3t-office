@@ -106,7 +106,7 @@ Chèn|Biểu đồ|PivotChart|A|-|sheet.chart.pivotChart
 Chèn|Biểu đồ|Bản đồ 3-D (3D Map)|N|3|
 Chèn|Sparkline|Đường / Cột|V|-|SparklineGroups đã đối chiếu
 Chèn|Sparkline|Thắng-thua (Win/Loss)|N|3|
-Chèn|Bộ lọc|Slicer|N|1|Chưa có
+Chèn|Bộ lọc|Slicer cho Bảng|V|-|Thiết kế Bảng > Chèn Slicer; Excel 2016 đọc lại cache, panel và lựa chọn
 Chèn|Bộ lọc|Timeline|N|2|
 Chèn|Liên kết|Siêu liên kết (Ctrl+K), Mở, Xóa, Sửa|A|-|Thêm Mở/Xóa trong menu chuột phải 13/10
 Chèn|Liên kết|Liên kết tới ô khác / trang khác / email trong cùng sổ|P|2|Chỉ http(s) và mailto
@@ -192,7 +192,8 @@ Công cụ Bảng|Thiết kế|Chuyển thành phạm vi|A|-|Menu chuột phải
 Công cụ Bảng|Thiết kế|Chèn/Xóa cột-hàng bảng|A|-|Menu chuột phải bảng 13/10; mở lại giữ vùng bảng
 Công cụ Bảng|Thiết kế|Đổi kích thước bảng (Resize Table)|V|-|16/10 (AGY-TABLE): cases-8 26/26 kịch bản, 189/189 ô khớp Excel 2016
 Công cụ Bảng|Thiết kế|Tùy chọn kiểu: Hàng tiêu đề, Cột đầu/cuối, Hàng/Cột sọc, Nút lọc|P|2|Có sọc hàng và nút lọc; thiếu cột đầu/cuối, sọc cột
-Công cụ Bảng|Thiết kế|Chèn Slicer / Xuất bảng|N|2|
+Công cụ Bảng|Thiết kế|Chèn Slicer|V|-|Giai đoạn 1 hoàn thành 16/10: panel nổi, đa chọn, lọc kết hợp, XLSX native
+Công cụ Bảng|Thiết kế|Xuất bảng|N|2|
 Công cụ Biểu đồ|Thiết kế|Thêm thành phần: tiêu đề trục|V|-|Mới 13/10, Excel 2016 đọc đúng
 Công cụ Biểu đồ|Thiết kế|Thêm thành phần: tiêu đề biểu đồ, chú giải, nhãn dữ liệu, đường xu hướng|V|-|G3: Excel 2016 đọc HasDataLabels/Trendlines
 Công cụ Biểu đồ|Thiết kế|Thêm thành phần: lưới, thanh sai số|N|3|
