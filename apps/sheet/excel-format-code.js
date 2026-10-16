@@ -335,11 +335,15 @@ function formatFractionSection(tokens, value, isOnlySection, negativeFromValue) 
 }
 
 // ---------- Ngày giờ ----------
-export function serialToParts(serial) {
+export function serialToParts(serial, date1904 = false) {
   const total = Math.floor(serial);
   let day = total;
   let year; let month; let dayOfMonth; let weekday;
-  if (total === 0) { year = 1900; month = 1; dayOfMonth = 0; weekday = 6; }
+  if (date1904) {
+    const date = new Date(Date.UTC(1904, 0, 1) + total * 86400000);
+    year = date.getUTCFullYear(); month = date.getUTCMonth() + 1; dayOfMonth = date.getUTCDate(); weekday = date.getUTCDay();
+    day = total;
+  } else if (total === 0) { year = 1900; month = 1; dayOfMonth = 0; weekday = 6; }
   else if (total === 60) { year = 1900; month = 2; dayOfMonth = 29; weekday = 3; }
   else {
     const adjust = total > 60 ? total : total + 1;
@@ -351,7 +355,7 @@ export function serialToParts(serial) {
   return { year, month, day: dayOfMonth, weekday, fraction, serialDays: total };
 }
 
-function formatDateTimeSection(tokens, value, locale) {
+function formatDateTimeSection(tokens, value, locale, date1904 = false) {
   // Làm tròn tới 1/1000 giây theo hiển thị giây (Excel làm tròn giây khi không có phần lẻ giây)
   const hasSubSecond = tokens.some((t, i) => t.type === "point" && tokens[i + 1]?.type === "digit");
   let serial = value;
@@ -359,7 +363,7 @@ function formatDateTimeSection(tokens, value, locale) {
   let totalSeconds = Math.round(serial * 86400 * 10 ** subDigits) / 10 ** subDigits;
   if (!hasSubSecond) totalSeconds = Math.round(serial * 86400);
   serial = totalSeconds / 86400;
-  const parts = serialToParts(serial < 0 ? 0 : serial);
+  const parts = serialToParts(serial < 0 ? 0 : serial, date1904);
   const dayFraction = serial - Math.floor(serial);
   const secondsOfDay = Math.round(dayFraction * 86400 * 10 ** subDigits) / 10 ** subDigits;
   const hours = Math.floor(secondsOfDay / 3600);
@@ -479,7 +483,7 @@ export function formatByCode(value, code, options = {}) {
   }
   if (isDateTime(tokens)) {
     if (number < 0) return "#".repeat(10);
-    return formatDateTimeSection(tokens, effective, locale);
+    return formatDateTimeSection(tokens, effective, locale, Boolean(options.date1904));
   }
   if (tokens.some(t => t.type === "slash") && tokens.some(t => t.type === "digit") && !tokens.some(t => t.type === "exp")) {
     return formatFractionSection(tokens, effective, onlySection, number < 0 && !useAbs);

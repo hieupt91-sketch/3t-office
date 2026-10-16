@@ -105,3 +105,5 @@ Toàn bộ phím tắt trong bảng tồn đọng trước đây đã được h
 | Hình khối đổi màu/viền/xoay sau khi tạo | Chèn hình mới và màu/viền lúc tạo đã đo khớp; chưa có luồng chọn hình đã tạo để sửa/rotate | Thiếu UI edit/rotation và Word COM parity; NOT RUN | Writer |
 | Danh sách nhiều cấp | Serializer DOCX đã kiểm thử; thao tác ribbon/CDP không tạo ba cấp ổn định | UI/Word COM parity NOT RUN; cần harness đầu vào ổn định | Writer |
 | Chú thích trang/cuối tài liệu | Footnote/endnote có số lượng/nội dung khớp Word COM ở FIX-T9; phép T10 mới chưa chạy | Đã có năng lực; T10 recheck NOT RUN | Writer |
+
+- Sheet: mở tệp mẫu .xltx/.xlt đang đi đường mở chung của LibreOffice (chưa có đường mở xlsx riêng, mất một phần giữ độ chính xác); lưu .xltx đã đủ (16/10).

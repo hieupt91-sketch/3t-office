@@ -607,37 +607,149 @@ def parse_sheet_visibility_from_workbook(workbook_xml: str | None) -> dict[str, 
     return result
 
 
+def parse_calculation_options_from_workbook(workbook_xml: str | None) -> dict:
+    """Return explicit calculation and date options from xl/workbook.xml."""
+    result: dict[str, Any] = {}
+    xml = workbook_xml or ""
+    calc_match = re.search(r"<(?:[\w.-]+:)?calcPr\b([^>]*)/?>", xml, re.IGNORECASE)
+    if calc_match:
+        attrs = calc_match.group(1)
+        mode_m = re.search(r'\bcalcMode\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+        if mode_m:
+            mode_val = mode_m.group(2).strip().lower()
+            if mode_val in {"auto", "manual", "autonotable"}:
+                result["calcMode"] = "autoNoTable" if mode_val == "autonotable" else mode_val
+        save_m = re.search(r'\bcalcOnSave\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+        if save_m:
+            result["calcOnSave"] = save_m.group(2).strip().lower() in {"1", "true"}
+        iter_m = re.search(r'\biterate\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+        if iter_m:
+            result["iteration"] = iter_m.group(2).strip().lower() in {"1", "true"}
+        iter_cnt = re.search(r'\biterateCount\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+        if iter_cnt:
+            try:
+                result["maxIterations"] = int(iter_cnt.group(2).strip())
+            except ValueError:
+                pass
+        iter_delta = re.search(r'\biterateDelta\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+        if iter_delta:
+            try:
+                result["maxChange"] = float(iter_delta.group(2).strip())
+            except ValueError:
+                pass
+        full_prec = re.search(r'\bfullPrecision\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+        if full_prec:
+            val = full_prec.group(2).strip().lower()
+            if val in {"0", "false"}:
+                result["precisionAsDisplayed"] = True
+            elif val in {"1", "true"}:
+                result["precisionAsDisplayed"] = False
+
+    wb_match = re.search(r"<(?:[\w.-]+:)?workbookPr\b([^>]*)/?>", xml, re.IGNORECASE)
+    if wb_match:
+        d1904_m = re.search(r'\bdate1904\s*=\s*(["\'])(.*?)\1', wb_match.group(1), re.IGNORECASE)
+        if d1904_m:
+            result["date1904"] = d1904_m.group(2).strip().lower() in {"1", "true"}
+
+    return result
+
+
 def parse_calculation_mode_from_workbook(workbook_xml: str | None) -> str | None:
     """Return the explicit Excel calculation mode, or None for automatic/default."""
-    match = re.search(r"<(?:[\w.-]+:)?calcPr\b([^>]*)/?>", workbook_xml or "", re.IGNORECASE)
-    if not match:
-        return None
-    mode = re.search(r'\bcalcMode\s*=\s*(["\'])(.*?)\1', match.group(1), re.IGNORECASE)
-    value = mode.group(2).strip().lower() if mode else ""
-    return value if value in {"auto", "manual", "autonotable"} else None
+    opts = parse_calculation_options_from_workbook(workbook_xml)
+    return opts.get("calcMode")
+
+
+def apply_calculation_options_to_fods(fods_xml: str, options: dict) -> str:
+    """Carry explicit workbook calculation options across LibreOffice's FODS import."""
+    if not options or not isinstance(options, dict):
+        return fods_xml or ""
+    xml = fods_xml or ""
+    pattern = re.compile(r"<office:spreadsheet\b([^>]*)>", re.IGNORECASE)
+
+    def replace(match: re.Match[str]) -> str:
+        attrs = match.group(1)
+        attrs = re.sub(r'\s+vno:calculation-mode=("[^"]*"|\'[^\']*\')', "", attrs, flags=re.IGNORECASE)
+        attrs = re.sub(r'\s+vno:calculate-on-save=("[^"]*"|\'[^\']*\')', "", attrs, flags=re.IGNORECASE)
+        attrs = re.sub(r'\s+vno:iteration=("[^"]*"|\'[^\']*\')', "", attrs, flags=re.IGNORECASE)
+        attrs = re.sub(r'\s+vno:max-iterations=("[^"]*"|\'[^\']*\')', "", attrs, flags=re.IGNORECASE)
+        attrs = re.sub(r'\s+vno:max-change=("[^"]*"|\'[^\']*\')', "", attrs, flags=re.IGNORECASE)
+        attrs = re.sub(r'\s+vno:precision-as-displayed=("[^"]*"|\'[^\']*\')', "", attrs, flags=re.IGNORECASE)
+        attrs = re.sub(r'\s+vno:date1904=("[^"]*"|\'[^\']*\')', "", attrs, flags=re.IGNORECASE)
+
+        additions = []
+        if "calcMode" in options and options["calcMode"] in {"auto", "manual", "autoNoTable"}:
+            additions.append(f'vno:calculation-mode="{options["calcMode"]}"')
+        if "calcOnSave" in options:
+            additions.append(f'vno:calculate-on-save="{"1" if options["calcOnSave"] else "0"}"')
+        if options.get("iteration"):
+            additions.append('vno:iteration="1"')
+            if "maxIterations" in options:
+                additions.append(f'vno:max-iterations="{options["maxIterations"]}"')
+            if "maxChange" in options:
+                additions.append(f'vno:max-change="{options["maxChange"]}"')
+        if options.get("precisionAsDisplayed"):
+            additions.append('vno:precision-as-displayed="1"')
+        if options.get("date1904"):
+            additions.append('vno:date1904="1"')
+
+        extra = (" " + " ".join(additions)) if additions else ""
+        return f'<office:spreadsheet{attrs}{extra}>'
+
+    return pattern.sub(replace, xml, count=1)
 
 
 def apply_calculation_mode_to_fods(fods_xml: str, mode: str | None) -> str:
     """Carry explicit workbook calculation mode across LibreOffice's FODS import."""
     if mode not in {"auto", "manual", "autoNoTable"}:
         return fods_xml or ""
-    xml = fods_xml or ""
-    pattern = re.compile(r"<office:spreadsheet\b([^>]*)>", re.IGNORECASE)
+    return apply_calculation_options_to_fods(fods_xml, {"calcMode": mode})
 
-    def replace(match: re.Match[str]) -> str:
-        attrs = re.sub(r'\s+vno:calculation-mode=("[^"]*"|\'[^\']*\')', "", match.group(1), flags=re.IGNORECASE)
-        return f'<office:spreadsheet{attrs} vno:calculation-mode="{mode}">'
 
-    return pattern.sub(replace, xml, count=1)
+def parse_calculation_options_from_fods(fods_xml: str | None) -> dict:
+    match = re.search(r"<office:spreadsheet\b([^>]*)>", fods_xml or "", re.IGNORECASE)
+    if not match:
+        return {}
+    attrs = match.group(1)
+    result: dict[str, Any] = {}
+    mode_m = re.search(r'\bvno:calculation-mode\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+    if mode_m:
+        val = mode_m.group(2).strip()
+        if val.lower() in {"auto", "manual", "autonotable"}:
+            result["calcMode"] = "autoNoTable" if val.lower() == "autonotable" else val
+    save_m = re.search(r'\bvno:calculate-on-save\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+    if save_m:
+        result["calcOnSave"] = save_m.group(2).strip() == "1"
+    iter_m = re.search(r'\bvno:iteration\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+    if iter_m:
+        result["iteration"] = iter_m.group(2).strip() == "1"
+    cnt_m = re.search(r'\bvno:max-iterations\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+    if cnt_m:
+        try:
+            result["maxIterations"] = int(cnt_m.group(2).strip())
+        except ValueError:
+            pass
+    delta_m = re.search(r'\bvno:max-change\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+    if delta_m:
+        try:
+            result["maxChange"] = float(delta_m.group(2).strip())
+        except ValueError:
+            pass
+    prec_m = re.search(r'\bvno:precision-as-displayed\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+    if prec_m:
+        result["precisionAsDisplayed"] = prec_m.group(2).strip() == "1"
+    d1904_m = re.search(r'\bvno:date1904\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+    if d1904_m:
+        result["date1904"] = d1904_m.group(2).strip() == "1"
+    ref_m = re.search(r'\bvno:reference-style\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+    if ref_m:
+        result["referenceStyle"] = ref_m.group(2).strip().upper()
+    return result
 
 
 def parse_calculation_mode_from_fods(fods_xml: str | None) -> str | None:
-    match = re.search(r"<office:spreadsheet\b([^>]*)>", fods_xml or "", re.IGNORECASE)
-    if not match:
-        return None
-    value = re.search(r'\bvno:calculation-mode\s*=\s*(["\'])(.*?)\1', match.group(1), re.IGNORECASE)
-    mode = value.group(2) if value else ""
-    return mode if mode in {"auto", "manual", "autoNoTable"} else None
+    opts = parse_calculation_options_from_fods(fods_xml)
+    return opts.get("calcMode")
 
 
 def _parse_fods_text_boxes(fods_xml: str | None) -> dict[str, list[dict]]:
@@ -949,23 +1061,90 @@ def _apply_sheet_resolved_comments_to_xlsx(xlsx_bytes: bytes, states_by_sheet: d
         replacements[sheet_path] = worksheet
 
 
-def apply_calculation_mode_to_workbook(workbook_xml: str, mode: str | None) -> str:
-    """Set calcPr.calcMode while preserving all other calculation attributes."""
-    normalized = {"automatic": "auto", "auto": "auto", "manual": "manual", "autoNoTable": "autoNoTable"}.get(mode or "")
-    if normalized is None:
+def apply_calculation_options_to_workbook(workbook_xml: str, options: dict) -> str:
+    """Apply calcPr and workbookPr options to xl/workbook.xml."""
+    if not options or not isinstance(options, dict):
         return workbook_xml or ""
     xml = workbook_xml or ""
-    match = re.search(r"<((?:[\w.-]+:)?calcPr)\b([^>]*)/?>", xml, re.IGNORECASE)
-    if match:
-        tag_name = match.group(1)
-        attrs = re.sub(r"/\s*$", "", match.group(2))
-        attrs = re.sub(r'\s+calcMode\s*=\s*(["\']).*?\1', "", attrs, flags=re.IGNORECASE)
-        tag = f'<{tag_name}{attrs} calcMode="{normalized}"/>'
-        return xml[:match.start()] + tag + xml[match.end():]
-    insertion = re.search(r"</(?:[\w.-]+:)?workbook\s*>", xml, re.IGNORECASE)
-    if not insertion:
-        return xml
-    return xml[:insertion.start()] + f'<calcPr calcMode="{normalized}"/>' + xml[insertion.start():]
+
+    # 1. Handle workbookPr (date1904)
+    if "date1904" in options:
+        wb_match = re.search(r"<((?:[\w.-]+:)?workbookPr)\b([^>]*)/?>", xml, re.IGNORECASE)
+        if wb_match:
+            tag_name = wb_match.group(1)
+            attrs = re.sub(r"/\s*$", "", wb_match.group(2))
+            attrs = re.sub(r'\s+date1904\s*=\s*(["\']).*?\1', "", attrs, flags=re.IGNORECASE)
+            if options["date1904"]:
+                tag = f'<{tag_name}{attrs} date1904="1"/>'
+            else:
+                tag = f'<{tag_name}{attrs}/>'
+            xml = xml[:wb_match.start()] + tag + xml[wb_match.end():]
+        elif options["date1904"]:
+            sibling = re.search(r"<(?:[\w.-]+:)?(?:workbookProtection|bookViews|sheets)\b", xml, re.IGNORECASE)
+            if sibling:
+                xml = xml[:sibling.start()] + '<workbookPr date1904="1"/>' + xml[sibling.start():]
+            else:
+                open_tag = re.search(r"<((?:[\w.-]+:)?workbook)\b([^>]*)>", xml, re.IGNORECASE)
+                if open_tag:
+                    xml = xml[:open_tag.end()] + '<workbookPr date1904="1"/>' + xml[open_tag.end():]
+
+    # 2. Handle calcPr
+    calc_keys = {"calcMode", "calcOnSave", "iteration", "maxIterations", "maxChange", "precisionAsDisplayed"}
+    if any(k in options for k in calc_keys):
+        calc_match = re.search(r"<((?:[\w.-]+:)?calcPr)\b([^>]*)/?>", xml, re.IGNORECASE)
+        if calc_match:
+            tag_name = calc_match.group(1)
+            attrs = re.sub(r"/\s*$", "", calc_match.group(2))
+            if "calcMode" in options:
+                attrs = re.sub(r'\s+calcMode\s*=\s*(["\']).*?\1', "", attrs, flags=re.IGNORECASE)
+                mode_norm = {"automatic": "auto", "auto": "auto", "manual": "manual", "autoNoTable": "autoNoTable"}.get(options["calcMode"], "auto")
+                attrs += f' calcMode="{mode_norm}"'
+            if "calcOnSave" in options:
+                attrs = re.sub(r'\s+calcOnSave\s*=\s*(["\']).*?\1', "", attrs, flags=re.IGNORECASE)
+                if not options["calcOnSave"]:
+                    attrs += ' calcOnSave="0"'
+            if "iteration" in options:
+                attrs = re.sub(r'\s+iterate\s*=\s*(["\']).*?\1', "", attrs, flags=re.IGNORECASE)
+                attrs = re.sub(r'\s+iterateCount\s*=\s*(["\']).*?\1', "", attrs, flags=re.IGNORECASE)
+                attrs = re.sub(r'\s+iterateDelta\s*=\s*(["\']).*?\1', "", attrs, flags=re.IGNORECASE)
+                if options["iteration"]:
+                    attrs += ' iterate="1"'
+                    cnt = options.get("maxIterations", 100)
+                    delta = options.get("maxChange", 0.001)
+                    attrs += f' iterateCount="{cnt}" iterateDelta="{delta}"'
+            if "precisionAsDisplayed" in options:
+                attrs = re.sub(r'\s+fullPrecision\s*=\s*(["\']).*?\1', "", attrs, flags=re.IGNORECASE)
+                if options["precisionAsDisplayed"]:
+                    attrs += ' fullPrecision="0"'
+            tag = f'<{tag_name}{attrs}/>'
+            xml = xml[:calc_match.start()] + tag + xml[calc_match.end():]
+        else:
+            calc_attrs = []
+            if "calcMode" in options:
+                mode_norm = {"automatic": "auto", "auto": "auto", "manual": "manual", "autoNoTable": "autoNoTable"}.get(options["calcMode"], "auto")
+                calc_attrs.append(f'calcMode="{mode_norm}"')
+            if "calcOnSave" in options and not options["calcOnSave"]:
+                calc_attrs.append('calcOnSave="0"')
+            if options.get("iteration"):
+                calc_attrs.append('iterate="1"')
+                calc_attrs.append(f'iterateCount="{options.get("maxIterations", 100)}"')
+                calc_attrs.append(f'iterateDelta="{options.get("maxChange", 0.001)}"')
+            if options.get("precisionAsDisplayed"):
+                calc_attrs.append('fullPrecision="0"')
+            if calc_attrs:
+                tag = f'<calcPr {" ".join(calc_attrs)}/>'
+                insertion = re.search(r"</(?:[\w.-]+:)?workbook\s*>", xml, re.IGNORECASE)
+                if insertion:
+                    xml = xml[:insertion.start()] + tag + xml[insertion.start():]
+
+    return xml
+
+
+def apply_calculation_mode_to_workbook(workbook_xml: str, mode: str | None) -> str:
+    """Set calcPr.calcMode while preserving all other calculation attributes."""
+    if not mode:
+        return workbook_xml or ""
+    return apply_calculation_options_to_workbook(workbook_xml, {"calcMode": mode})
 
 
 def apply_sheet_visibility_to_fods(fods_xml: str, visibility_by_sheet: dict[str, str]) -> str:
@@ -7299,13 +7478,13 @@ def postprocess_sheet_xlsx(
         apply_conditional_formatting_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_sheet_document_properties_to_xlsx(xlsx_bytes, source_fods, replacements)
 
-    calculation_mode = parse_calculation_mode_from_fods(source_fods)
-    if calculation_mode:
+    calc_options = parse_calculation_options_from_fods(source_fods)
+    if calc_options:
         workbook_xml = replacements.get(XLSX_WORKBOOK_ENTRY)
         if workbook_xml is None:
             workbook_raw = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
             workbook_xml = workbook_raw.decode("utf-8", errors="replace") if workbook_raw else ""
-        next_workbook_xml = apply_calculation_mode_to_workbook(str(workbook_xml), calculation_mode)
+        next_workbook_xml = apply_calculation_options_to_workbook(str(workbook_xml), calc_options)
         if next_workbook_xml != workbook_xml:
             replacements[XLSX_WORKBOOK_ENTRY] = next_workbook_xml
 
@@ -11094,7 +11273,7 @@ def overlay_sheet_xlsx_fods(
     if current:
         workbook_xml = current.decode("utf-8", errors="replace")
         xml = overlay_fods_structure_protection(xml, workbook_xml)
-        xml = apply_calculation_mode_to_fods(xml, parse_calculation_mode_from_workbook(workbook_xml))
+        xml = apply_calculation_options_to_fods(xml, parse_calculation_options_from_workbook(workbook_xml))
         # Sheet visibility (veryHidden → vno:sheet-state): soffice downgrades
         # veryHidden to hidden during XLSX→FODS, so we read the original state
         # and write vno:sheet-state for round-trip fidelity.
@@ -11170,7 +11349,7 @@ def overlay_sheet_xlsx_fods_p1(
     if current:
         workbook_xml = current.decode("utf-8", errors="replace")
         xml = overlay_fods_structure_protection(xml, workbook_xml)
-        xml = apply_calculation_mode_to_fods(xml, parse_calculation_mode_from_workbook(workbook_xml))
+        xml = apply_calculation_options_to_fods(xml, parse_calculation_options_from_workbook(workbook_xml))
         visibility = parse_sheet_visibility_from_workbook(workbook_xml)
         if visibility:
             xml = apply_sheet_visibility_to_fods(xml, visibility)

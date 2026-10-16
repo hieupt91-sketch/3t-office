@@ -38,6 +38,11 @@ const normFormula = f => String(f ?? "").replace(/\s+/g, "").replace(/SHEET\d+!/
 let pass = 0; let total = 0; const failures = [];
 for (const scenario of spec.scenarios) {
   const grid = new SheetGridController(mockContainer());
+  if (scenario.calcMode) grid.setCalculationMode(scenario.calcMode);
+  if (scenario.iteration) grid.setIterativeCalculation(Boolean(scenario.iteration.enabled), scenario.iteration.maxIterations, scenario.iteration.maxChange);
+  if (scenario.precisionAsDisplayed !== undefined) grid.setPrecisionAsDisplayed(Boolean(scenario.precisionAsDisplayed));
+  if (scenario.date1904 !== undefined) grid.setDate1904(Boolean(scenario.date1904));
+  if (scenario.referenceStyle) grid.setReferenceStyle(scenario.referenceStyle);
   if (scenario.colWidths) {
     for (const [col, width] of Object.entries(scenario.colWidths)) {
       const widthPx = typeof width === "number" && width <= 60 ? Math.round(width * 7 + 5) : width;
@@ -47,8 +52,6 @@ for (const scenario of spec.scenarios) {
   for (const [ref, rawValue] of Object.entries(scenario.cells)) {
     const [c, r] = split(ref);
     if (rawValue && typeof rawValue === "object" && !Array.isArray(rawValue)) {
-      const v = rawValue.f || rawValue.formula || (rawValue.v !== undefined ? rawValue.v : (rawValue.val !== undefined ? rawValue.val : ""));
-      grid.setCellValue(c, r, v);
       const coord = `${c}${r}`;
       const item = grid.cellsData.get(coord) || { val: "", formula: "", style: {} };
       if (!item.style) item.style = {};
@@ -58,6 +61,8 @@ for (const scenario of spec.scenarios) {
       const fmt = rawValue.format || rawValue.numberFormat;
       if (fmt) item.style.numberFormat = typeof fmt === "string" ? { code: fmt, formatCode: fmt } : fmt;
       grid.cellsData.set(coord, item);
+      const v = rawValue.f || rawValue.formula || (rawValue.v !== undefined ? rawValue.v : (rawValue.val !== undefined ? rawValue.val : ""));
+      grid.setCellValue(c, r, v);
     } else {
       grid.setCellValue(c, r, rawValue);
     }
@@ -328,15 +333,51 @@ for (const scenario of spec.scenarios) {
           grid.renameObject(op.target, op.newName);
           break;
         }
+        case "setCalculationMode": {
+          grid.setCalculationMode(op.mode);
+          break;
+        }
+        case "setIteration": {
+          grid.setIterativeCalculation(Boolean(op.enabled), op.maxIterations, op.maxChange);
+          break;
+        }
+        case "setPrecisionAsDisplayed": {
+          grid.setPrecisionAsDisplayed(Boolean(op.enabled));
+          break;
+        }
+        case "setDate1904": {
+          grid.setDate1904(Boolean(op.enabled));
+          break;
+        }
+        case "setReferenceStyle": {
+          grid.setReferenceStyle(op.style || "A1");
+          break;
+        }
+        case "calculateNow": {
+          grid.recalculateAll();
+          break;
+        }
+        case "calculateSheet": {
+          grid.calculateSheet(grid.activeSheet, { force: true });
+          break;
+        }
+        case "enterR1C1Formula": {
+          const [c, r] = split(op.coord);
+          grid.setCellValue(c, r, op.formula, false, { userInput: true, commit: true });
+          break;
+        }
         default: throw new Error(`op chua ho tro: ${op.type}`);
       }
     }
-    grid._recalculateAllFormulas();
+    if (!scenario.skipFinalCalculate && grid.calculationMode !== "manual") {
+      grid._recalculateAllFormulas();
+    }
   } catch (error) { opError = String(error.message || error); }
   const wantRaw = excel[scenario.name] || {};
   const want = wantRaw.cells !== undefined ? wantRaw.cells : wantRaw;
   const wantTables = wantRaw.tables !== undefined ? wantRaw.tables : null;
-  const wantShapes = wantRaw.shapes !== undefined ? wantRaw.shapes : null;
+  const hasShapeOps = scenario.ops?.some(op => ["bringToFront", "sendToBack", "bringForward", "sendBackward", "align", "distribute", "group", "ungroup", "rotate", "flip", "setShapeVisible", "renameShape"].includes(op.type));
+  const wantShapes = (scenario.shapes || hasShapeOps) && wantRaw.shapes !== undefined ? wantRaw.shapes : null;
   const got = {};
   for (const [coord, item] of grid.cellsData.entries()) {
     const text = item.formula || (item.val !== "" && item.val !== undefined && item.val !== null ? String(item.val) : "");

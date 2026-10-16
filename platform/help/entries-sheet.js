@@ -66,11 +66,12 @@ export const SHEET_HELP_ENTRIES = [
     title: "Tạo, mở, lưu và in sổ làm việc",
     summary: "Sổ mới bắt đầu với một trang tính Sheet1 trống tại ô A1. Dùng Tệp để mở hoặc lưu XLSX, XLS, ODS, CSV; Ctrl+P mở bản xem trước in.",
     ribbon: { tab: "Tệp", tabId: "file", group: "Sổ làm việc" },
-    keywords: ["tạo mới", "mở tệp", "lưu", "lưu thành", "in", "phạm vi sổ làm việc", "trang tính hiện hoạt", "toàn bộ sổ làm việc", "in vùng chọn", "Ctrl+N", "Ctrl+O", "Ctrl+S", "F12", "Ctrl+P", "Sheet1", "cửa sổ riêng", "mở nhiều cửa sổ", "Explorer"],
+    keywords: ["tạo mới", "mở tệp", "lưu", "lưu thành", "lưu thành mẫu", "xltx", "mẫu bảng tính", "in", "phạm vi sổ làm việc", "trang tính hiện hoạt", "toàn bộ sổ làm việc", "in vùng chọn", "Ctrl+N", "Ctrl+O", "Ctrl+S", "F12", "Ctrl+P", "Sheet1", "cửa sổ riêng", "mở nhiều cửa sổ", "Explorer"],
     steps: [
       "Tạo sổ trống: nhấn Ctrl+N hoặc mở Tệp > Mới. Một cửa sổ mới tên Bảng tính 2, Bảng tính 3… xuất hiện với duy nhất Sheet1, ô A1 đang chọn và chưa có dữ liệu. Trong Desktop, khi Sheet đang mở, nhấp đúp thêm tệp XLSX/XLS/ODS/CSV trong Explorer hoặc bấm lại shortcut Sheet ở Start sẽ mở thêm cửa sổ trong cùng tiến trình. Mỗi cửa sổ có sổ làm việc, trạng thái sửa, lệnh Lưu và lời nhắc Đóng riêng; cửa sổ cuối cùng mới kết thúc ứng dụng.",
       "Mở sổ: nhấn Ctrl+O hoặc chọn Tệp > Mở, chọn XLSX, XLS, ODS hoặc CSV. Nếu sổ hiện tại có thay đổi, chọn Lưu, Không lưu hoặc Hủy trước khi chọn tệp; Hủy thao tác mở sẽ giữ sổ hiện tại. Với XLSX lớn, theo dõi dòng “Đang mở bảng tính lớn… N%” ở thanh trạng thái; bạn vẫn có thể di chuyển hoặc thu nhỏ cửa sổ trong lúc Sheet đọc dữ liệu. Chỉ bắt đầu sửa khi thanh trạng thái trở về trạng thái sẵn sàng.",
       "Lưu: Ctrl+S mở hộp thoại Lưu thành cho sổ mới. Với tệp đã mở/lưu, Ctrl+S giữ nguyên định dạng hiện tại. Dùng F12 hoặc Ctrl+Shift+S để lưu tên/định dạng khác; xác nhận ghi đè khi được hỏi. Chọn PDF trong Lưu thành chỉ xuất một bản PDF; tệp đang mở vẫn giữ tên và định dạng cũ.",
+      "Lưu thành mẫu: nhấn F12, ở ô Lưu dạng chọn “Mẫu bảng tính (*.xltx)” rồi Lưu. Tệp mẫu giữ nguyên dữ liệu, định dạng, công thức và cài đặt trang; khi nhấp đúp để mở bằng trình quản lý tệp, ứng dụng bảng tính sẽ tạo một sổ mới từ mẫu thay vì sửa trực tiếp tệp mẫu. Dùng cách này cho báo cáo, biểu mẫu hoặc hóa đơn lặp lại. Sau khi lưu, sổ đang mở chuyển sang tên tệp mẫu; muốn giữ bản thường, hãy lưu lại thành XLSX với tên khác trước đó.",
       "In: chọn Tệp > In hoặc nhấn Ctrl+P để mở bản xem trước. Trong Phạm vi sổ làm việc, chọn In các trang tính hiện hoạt (mặc định, theo trang tính đang hoạt động hoặc các tab đang được chọn), In toàn bộ sổ làm việc, hoặc In vùng chọn. Muốn in vùng chọn, bôi đen ô hoặc dải ô trên lưới trước khi mở hộp thoại; lựa chọn này chỉ khả dụng khi đã có vùng ô. Mỗi lần đổi phạm vi, 3T dựng lại PDF và cập nhật tổng số trang. Phạm vi trang ở bên dưới chọn trang trong PDF đó. Kiểm tra bản xem trước, chọn máy in và số bản rồi nhấn In. Khi phần mềm văn phòng khác có sẵn, Dùng phần mềm văn phòng có sẵn trên máy để in được chọn sẵn; nhãn Bộ dựng trang in cho biết bộ máy đã tạo bản xem trước. Bỏ chọn tùy chọn này để dùng bộ dựng tích hợp của 3T Office."
     ]
   },
@@ -1632,6 +1633,24 @@ export const SHEET_HELP_ENTRIES = [
       "Nhóm và Bỏ nhóm đối tượng: Chọn nhiều đối tượng, mở menu Nhóm > chọn Nhóm để kết hợp các hình thành một khối duy nhất giúp di chuyển, đổi cỡ hoặc xóa thuận tiện. Khi cần tách riêng, mở menu Nhóm > chọn Bỏ nhóm.",
       "Xoay và Lật hình: Chọn đối tượng, mở menu Xoay để xoay góc 90 độ sang phải, xoay 90 độ sang trái, hoặc chọn Lật ngang, Lật dọc để tạo hình phản chiếu đối xứng.",
       "Sử dụng Ngăn chọn (Selection Pane): Bấm nút Ngăn chọn trong nhóm Sắp xếp để mở thanh danh sách bên phải màn hình. Danh sách liệt kê mọi đối tượng theo đúng thứ tự lớp từ trên xuống dưới. Nhấp vào biểu tượng con mắt để ẩn hoặc hiện nhanh đối tượng; nhấp đúp vào tên để sửa tên trực tiếp; dùng nút Đưa lên / Hạ xuống ở đầu ngăn để đổi thứ tự lớp."
+    ]
+  },
+  {
+    id: "sheet.calc.optionsHelp",
+    app: "sheet",
+    commandIds: ["sheet.calc.optionsDialog"],
+    title: "Tùy chọn công thức và tính toán",
+    summary: "Thiết lập toàn diện các tùy chọn tính toán của bảng tính: chế độ tính toán tự động hoặc thủ công, tính toán lại trước khi lưu, tính toán lặp cho các công thức vòng lặp, kiểu tham chiếu R1C1, làm tròn độ chính xác như hiển thị, và hệ thống ngày 1904.",
+    ribbon: { tab: "Công thức", tabId: "formulas", group: "Tính toán" },
+    keywords: ["tùy chọn tính toán", "công thức", "tính toán lặp", "iterative calculation", "vòng lặp", "tham chiếu vòng", "circular reference", "độ chính xác như hiển thị", "precision as displayed", "hệ ngày 1904", "1904 date system", "R1C1", "tự động", "thủ công", "F9", "Shift+F9", "bảng dữ liệu"],
+    steps: [
+      "Mở hộp thoại tùy chọn: Trên thanh ruy-băng, chuyển sang thẻ Công thức, nhìn sang nhóm Tính toán và bấm vào nút mở hộp thoại nhỏ ở góc dưới bên phải nhóm Tính toán.",
+      "Chế độ tính toán sổ làm việc: Chọn Tự động để tính lại mọi công thức mỗi khi dữ liệu thay đổi; chọn Tự động ngoại trừ bảng dữ liệu để bỏ qua việc cập nhật bảng dữ liệu khi nhập liệu thường; hoặc chọn Thủ công để chỉ tính toán lại khi bạn nhấn phím F9 (Tính lại toàn bộ) hoặc Shift+F9 (Tính trang hiện tại).",
+      "Tính toán lại trước khi lưu: Khi ở chế độ Thủ công, đánh dấu chọn ô Tính toán lại sổ làm việc trước khi lưu để tự động cập nhật kết quả các công thức mới nhất mỗi khi lưu tệp.",
+      "Bật tính toán lặp (Iterative Calculation): Đánh dấu chọn Bật tính toán lặp khi sổ làm việc chứa các công thức tham chiếu vòng (ô phụ thuộc trực tiếp hoặc gián tiếp vào chính nó). Bạn có thể chỉ định Số lần lặp tối đa (mặc định 100 lần) và Độ lệch tối đa (mặc định 0,001) để dừng vòng lặp khi giá trị đã hội tụ.",
+      "Kiểu tham chiếu R1C1: Đánh dấu chọn Kiểu tham chiếu R1C1 để chuyển cả tiêu đề hàng và cột sang dạng số (R1C1). Các công thức và hộp Tên ô sẽ hiển thị theo tọa độ hàng-cột số tương đối hoặc tuyệt đối.",
+      "Độ chính xác như hiển thị (Precision as displayed): Đánh dấu chọn tùy chọn này để làm tròn vĩnh viễn giá trị số và kết quả công thức theo định dạng hiển thị của ô (ví dụ ô hiển thị 2 chữ số thập phân sẽ làm tròn số thực tế về 2 chữ số). Cần cân nhắc kỹ trước khi bật vì độ chính xác nguyên bản sẽ không khôi phục lại được.",
+      "Hệ thống ngày 1904: Đánh dấu chọn Sử dụng hệ thống ngày 1904 để tính ngày bắt đầu từ mốc 01/01/1904 thay vì 01/01/1900, phù hợp khi trao đổi tệp với một số hệ thống bảng tính đặc thù."
     ]
   }
 ];

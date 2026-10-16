@@ -388,6 +388,26 @@ export const enStrings = {
     tabColorMenu: "Tab color", noTabColor: "No color", pasteSpecialKeepSource: "Keep source formatting", pasteSpecialText: "Keep text only",
     fillSeriesTitle: "Series", fillSeriesIn: "Series in", fillSeriesRows: "Rows", fillSeriesColumns: "Columns", fillSeriesType: "Type", fillSeriesLinear: "Linear", fillSeriesGrowth: "Growth", fillSeriesDate: "Date", fillSeriesDateUnit: "Date unit", fillSeriesUnitDay: "Day", fillSeriesUnitWeekday: "Weekday", fillSeriesUnitMonth: "Month", fillSeriesUnitYear: "Year", fillSeriesStep: "Step value", fillSeriesStop: "Stop value", fillSeriesBadStep: "Step value must be a number.", fillSeriesBadStart: "The first cell of the selection must contain a number (or a dd/mm/yyyy date for the Date type).", fillSeriesNothing: "Nothing to fill. Select the start cell plus the cells to fill, or enter a Stop value when only one cell is selected.", fillSeriesFailed: "Could not fill the series.", fillSeriesDone: "Filled {{count}} cells.",
     fillJustifyTitle: "Justify", fillJustifyOverflow: "Text will extend below selected range.", fillJustifyNoNumbers: "Cannot justify cells containing numbers or formulas.",
+    calcOptions: {
+      title: "Formula & Calculation Options",
+      calcGroup: "Workbook Calculation",
+      modeAuto: "Automatic",
+      modeAutoNoTable: "Automatic except for data tables",
+      modeManual: "Manual",
+      recalcBeforeSave: "Recalculate workbook before saving",
+      iterGroup: "Iterative Calculation",
+      enableIteration: "Enable iterative calculation",
+      maxIterations: "Maximum Iterations:",
+      maxChange: "Maximum Change:",
+      formulaGroup: "Working with formulas",
+      r1c1Style: "R1C1 reference style",
+      workbookGroup: "When calculating this workbook",
+      precisionAsDisplayed: "Set precision as displayed",
+      precisionDesc: "Permanently round stored numeric cell values and formula results to displayed format.",
+      date1904: "Use 1904 date system",
+      date1904Desc: "Calculate serial dates starting from January 1, 1904 instead of 1900.",
+      precisionWarning: "Data will permanently lose accuracy according to displayed format. Do you want to continue?"
+    },
     hideSheetMenu: "Hide Sheet", unhideSheetMenu: "Unhide Sheet...", unhideSheetTitle: "Unhide Sheet", unhideSheetChoose: "Choose a sheet to show:", unhideSheetAction: "Unhide", cannotHideLastSheet: "You cannot hide the last visible worksheet.", noHiddenSheets: "There are no hidden worksheets.",
     close: "Close", cancel: "Cancel", cancelLong: "Cancel", apply: "Apply", range: "Range", rangeLabel: "Range:", value: "Value", save: "Save",
     pasteSpecialTitle: "Paste Special", pasteSpecialGroup: "Paste", pasteSpecialSource: "Keep Source Formatting", pasteSpecialAll: "All", pasteSpecialValues: "Values", pasteSpecialFormulas: "Formulas", pasteSpecialFormats: "Formats", pasteSpecialAllExceptBorders: "All except borders", pasteSpecialTranspose: "Transpose", pasteSpecialOperationGroup: "Operation", pasteSpecialOpNone: "None", pasteSpecialOpAdd: "Add", pasteSpecialOpSubtract: "Subtract", pasteSpecialOpMultiply: "Multiply", pasteSpecialOpDivide: "Divide", pasteSpecialSkipBlanks: "Skip blanks",
@@ -692,9 +712,15 @@ export const enStrings = {
     ,"sheet.formula.evaluateFormula": { label: "Evaluate Formula", tooltip: "Step through the selected formula and inspect intermediate values" }
     ,"sheet.calc.calculationOptions": { label: "Calculation Options", tooltip: "Choose automatic or manual calculation mode" }
     ,"sheet.calc.modeAutomatic": { label: "Automatic", tooltip: "Recalculate formulas automatically when values change" }
+    ,"sheet.calc.modeAutoNoTable": { label: "Automatic Except Data Tables", tooltip: "Recalculate formulas automatically except for data tables" }
     ,"sheet.calc.modeManual": { label: "Manual", tooltip: "Recalculate formulas only when you press Calculate Now (F9)" }
+    ,"sheet.calc.optionsDialog": { label: "Formula & Calculation Options", tooltip: "Open dialog to configure calculation and formula options" }
     ,"sheet.calc.calculateSheet": { label: "Calculate Sheet", tooltip: "Recalculate formulas in the active worksheet (Shift+F9)" }
     ,"sheet.calc.calculateNow": { label: "Calculate Now", tooltip: "Recalculate all formulas in the workbook immediately (F9)" }
+    ,"sheet.calc.toggleR1C1": { label: "R1C1 Reference Style", tooltip: "Toggle between A1 and R1C1 reference styles" }
+    ,"sheet.calc.toggleIterative": { label: "Iterative Calculation", tooltip: "Enable or disable iterative calculation for circular formulas" }
+    ,"sheet.calc.togglePrecisionAsDisplayed": { label: "Precision as Displayed", tooltip: "Permanently round values to displayed number format" }
+    ,"sheet.calc.toggleDate1904": { label: "1904 Date System", tooltip: "Switch workbook to use the 1904 date system" }
     ,"sheet.formula.arrayEnter": { label: "Enter Array Formula", tooltip: "Enter an array formula for the selected range (Ctrl+Shift+Enter)" }
     ,"sheet.formula.recalculate": { label: "Calculate Now", tooltip: "Recalculate all formulas in workbook (F9)" }
     ,"sheet.data.sortAsc": { label: "Sort A to Z", tooltip: "Sort data in ascending order" }

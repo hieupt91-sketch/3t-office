@@ -194,6 +194,12 @@ export class FormulaEngine {
     this._parsedReferenceCache = new Map();
     this._parsedNumberCache = new Map();
     this._equalityValueCache = new Map();
+    this.iteration = false;
+    this.maxIterations = 100;
+    this.maxChange = 0.001;
+    this.precisionAsDisplayed = false;
+    this.date1904 = false;
+    this.referenceStyle = "A1";
   }
 
   getSheetVersion(sheetName) {
@@ -3072,12 +3078,15 @@ export class FormulaEngine {
       if (numeric !== null && Number.isFinite(numeric)) value = numeric;
       else {
         const date = this._parseDate?.(value);
-        if (date) value = Math.round((Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) - Date.UTC(1899, 11, 30)) / 86400000);
+        if (date) {
+          const epoch = this.date1904 ? Date.UTC(1904, 0, 1) : Date.UTC(1899, 11, 30);
+          value = Math.round((Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) - epoch) / 86400000);
+        }
       }
     }
     if (value === "" || value === null || value === undefined) value = typeof rawValue === "number" ? rawValue : "";
     if (code.trim() === "") return "";
-    return formatByCode(value, code, { locale: this.textLocale || VI_LOCALE, general: n => NumberFormatter.formatGeneralNumber(n) });
+    return formatByCode(value, code, { locale: this.textLocale || VI_LOCALE, general: n => NumberFormatter.formatGeneralNumber(n), date1904: this.date1904 });
   }
   _evaluateCondition(condStr) {
     if (!condStr) return false;
@@ -3228,16 +3237,16 @@ export class FormulaEngine {
 
   _dateToSerial(date) {
     if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "#VALUE!";
-    const epoch = Date.UTC(1899, 11, 30);
+    const epoch = this.date1904 ? Date.UTC(1904, 0, 1) : Date.UTC(1899, 11, 30);
     const utc = Date.UTC(date.getFullYear(), date.getMonth(), date.getDate());
     return Math.round((utc - epoch) / 86400000);
   }
 
   _parseDate(value) {
     if (value instanceof Date && !Number.isNaN(value.getTime())) return new Date(value);
+    const epoch = this.date1904 ? Date.UTC(1904, 0, 1) : Date.UTC(1899, 11, 30);
     if (typeof value === "number" && Number.isFinite(value)) {
       if (value > 0 && value < 200000) {
-        const epoch = Date.UTC(1899, 11, 30);
         const ms = epoch + Math.round(value * 86400000);
         const utc = new Date(ms);
         return new Date(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate(), utc.getUTCHours(), utc.getUTCMinutes(), utc.getUTCSeconds());
@@ -3249,7 +3258,6 @@ export class FormulaEngine {
     if (/^\d+(?:\.\d+)?$/.test(text)) {
       const num = Number(text);
       if (Number.isFinite(num) && num > 0 && num < 200000) {
-        const epoch = Date.UTC(1899, 11, 30);
         const ms = epoch + Math.round(num * 86400000);
         const utc = new Date(ms);
         return new Date(utc.getUTCFullYear(), utc.getUTCMonth(), utc.getUTCDate(), utc.getUTCHours(), utc.getUTCMinutes(), utc.getUTCSeconds());

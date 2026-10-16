@@ -1,0 +1,88 @@
+{
+  "scenarios": [
+    {
+      "name": "iteration bat voi cong thuc hoi tu",
+      "iteration": { "enabled": true, "maxIterations": 100, "maxChange": 0.001 },
+      "skipFinalCalculate": true,
+      "cells": {
+        "A1": "=0.5*A1+1"
+      },
+      "ops": []
+    },
+    {
+      "name": "iteration bat voi maxIterations",
+      "iteration": { "enabled": true, "maxIterations": 50, "maxChange": 0.0001 },
+      "skipFinalCalculate": true,
+      "cells": {
+        "A1": "=A1+1"
+      },
+      "ops": []
+    },
+    {
+      "name": "vong lap khong bat iteration tra ve 0",
+      "cells": {
+        "A1": "=A1+10"
+      },
+      "ops": [
+        { "type": "setIteration", "enabled": false }
+      ]
+    },
+    {
+      "name": "precision as displayed lam tron theo dinh dang",
+      "precisionAsDisplayed": true,
+      "compareFormat": true,
+      "cells": {
+        "A1": { "v": 1.2345, "format": "0.00" },
+        "A2": { "v": 1.2345, "format": "0.00" },
+        "A3": { "formula": "=A1+A2", "format": "0.00" }
+      },
+      "ops": []
+    },
+    {
+      "name": "precision as displayed tat khong lam tron",
+      "precisionAsDisplayed": false,
+      "compareFormat": true,
+      "cells": {
+        "A1": { "v": 1.2345, "format": "0.00" },
+        "A2": { "v": 1.2345, "format": "0.00" },
+        "A3": { "formula": "=A1+A2", "format": "0.00" }
+      },
+      "ops": []
+    },
+    {
+      "name": "nhap cong thuc r1c1 va tinh dung",
+      "cells": {
+        "A1": 10,
+        "A2": 20
+      },
+      "ops": [
+        { "type": "setReferenceStyle", "style": "R1C1" },
+        { "type": "enterR1C1Formula", "coord": "A3", "formula": "=R[-2]C+R[-1]C" }
+      ]
+    },
+    {
+      "name": "tinh toan thu cong khong tu dong tinh lai",
+      "calcMode": "manual",
+      "skipFinalCalculate": true,
+      "cells": {
+        "A1": 10,
+        "B1": "=A1*2"
+      },
+      "ops": [
+        { "type": "enterCell", "coord": "A1", "val": 50 }
+      ]
+    },
+    {
+      "name": "tinh toan thu cong voi calculateNow tinh lai",
+      "calcMode": "manual",
+      "cells": {
+        "A1": 10,
+        "B1": "=A1*2"
+      },
+      "ops": [
+        { "type": "enterCell", "coord": "A1", "val": 50 },
+        { "type": "calculateNow" }
+      ]
+    }
+  ]
+}

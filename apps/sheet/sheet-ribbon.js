@@ -605,6 +605,8 @@ export const SHEET_RIBBON_TABS = [
         id: "calculation",
         label: "Tính toán",
         labelKey: "sheetRibbon.group.calculation",
+        launcherCommandId: "sheet.calc.optionsDialog",
+        launcherTooltip: "Tùy chọn công thức và tính toán...",
         items: [
           {
             type: "column",
@@ -615,6 +617,7 @@ export const SHEET_RIBBON_TABS = [
                 defaultValue: "automatic",
                 options: [
                   { value: "automatic", label: "Tự động (Automatic)" },
+                  { value: "autoNoTable", label: "Tự động trừ bảng dữ liệu (Automatic Except Data Tables)" },
                   { value: "manual", label: "Thủ công (Manual)" }
                 ]
               },
