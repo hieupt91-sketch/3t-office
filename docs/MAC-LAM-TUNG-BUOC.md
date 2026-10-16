@@ -1,5 +1,7 @@
 # Làm từng bước để đưa 3T Office lên macOS (tương đương bản Windows 0.9.10)
 
+> **Cập nhật 17/10/2026:** sau khi xong các mốc M0–M1 ở đây, làm tiếp các việc **MAC-1…MAC-10** trong docs/THONG-TIN-TEAM-MAC-1710.md (phím tắt Cmd/Option, kiểm thử giao diện CDP trên macOS, .xltx, đường in, cập nhật tự động).
+
 Đọc cùng: `docs/BAN-GIAO-MAC.md` (có gì / không có gì trong repo), `docs/SPEC-MACOS-PORT.md` (đặc tả, mốc M0–M8), `docs/PLAN-OS-SERVICES.md` (hợp đồng dịch vụ hệ điều hành), `AGENTS.md` (luật dự án).
 Tài liệu này là **hướng dẫn thao tác**: lệnh cụ thể, tệp cụ thể, cách biết là đã xong.
 
