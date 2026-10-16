@@ -123,6 +123,7 @@ import { runSheetGoalSeekTests } from "./unit/sheet-goal-seek.test.js";
 import { runSheetWhatIfAnalysisTests } from "./unit/sheet-what-if-analysis.test.js";
 import { runSheetPivotChartTests } from "./unit/sheet-pivot-chart.test.js";
 import { runWriterArrangeTests } from "./unit/writer-arrange.test.js";
+import { runSheetArrangeTests } from "./unit/sheet-arrange.test.js";
 import { runSlidesHideSlideTests } from "./unit/slides-hide-slide.test.js";
 import { runSlidesChartTests } from "./unit/slides-charts.test.js";
 import { runWriterCitationsTests } from "./unit/writer-citations.test.js";
@@ -595,7 +596,8 @@ async function runAll() {
     { title: "262. Unit Tests — Writer WORD-W7 Balloons, Mark as Final and Save As (agy)", runner: runWriterWordW7Tests },
     { title: "263. Unit Tests — Sheet XLSX Document Properties & Mark as Final (AGY-SHEET-INFO)", runner: runSheetFileInfoTests },
     { title: "264. Unit Tests — Sheet Paste Special (values, formulas, formats, transpose, operations, skipBlanks)", runner: runSheetPasteSpecialTests },
-    { title: "265. Unit Tests — Sheet Fill Justify & Alignment Styles (AGY-JUSTIFY)", runner: runSheetFillJustifyTests }
+    { title: "265. Unit Tests — Sheet Fill Justify & Alignment Styles (AGY-JUSTIFY)", runner: runSheetFillJustifyTests },
+    { title: "266. Unit Tests — Sheet Arrange Z-Order, Align, Distribute, Group, Rotate/Flip, Selection Pane (AGY-ARRANGE)", runner: runSheetArrangeTests }
   ];
 
   for (const suite of suites) {

@@ -363,10 +363,11 @@ export const viStrings = {
   sheetRibbon: {
     whatIfAnalysis: "Phân tích What-If",
     tab: { home: "Trang đầu", formulas: "Công thức", data: "Dữ liệu", insert: "Chèn", pageLayout: "Bố trí trang", review: "Xem xét", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI", tableDesign: "Thiết kế Bảng" },
-    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", tables: "Bảng", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", pageSetup: "Thiết lập trang", scaleToFit: "Vừa trang", sheetOptions: "Tùy chọn trang tính", proofing: "Kiểm lỗi", comments: "Ghi chú", protection: "Bảo vệ", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiAnalysis: "Phân tích dữ liệu AI", properties: "Thuộc tính bảng", tableStyleOptions: "Tùy chọn kiểu bảng", tools: "Công cụ" },
+    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", tables: "Bảng", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", pageSetup: "Thiết lập trang", scaleToFit: "Vừa trang", sheetOptions: "Tùy chọn trang tính", proofing: "Kiểm lỗi", comments: "Ghi chú", protection: "Bảo vệ", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiAnalysis: "Phân tích dữ liệu AI", properties: "Thuộc tính bảng", tableStyleOptions: "Tùy chọn kiểu bảng", tools: "Công cụ", arrange: "Sắp xếp" },
     editing: { fill: "Điền", clear: "Xóa" },
     cells: { format: "Định dạng" },
     alignment: { orientation: "Hướng chữ" },
+    arrange: { bringForward: "Đưa lên trên", sendBackward: "Đưa xuống dưới", align: "Căn chỉnh", group: "Nhóm", rotate: "Xoay" },
     window: { freezePanes: "Cố định ô", split: "Chia" }
   },
   sheetFormulaEntry: {
@@ -743,6 +744,30 @@ export const viStrings = {
     ,"sheet.page.clearPrintArea": { label: "Xóa vùng in", tooltip: "Xóa vùng in của trang tính hiện tại" }
     ,"sheet.page.insertPageBreak": { label: "Chèn ngắt trang", tooltip: "Chèn ngắt hàng và cột tại ô đang chọn" }
     ,"sheet.page.removePageBreak": { label: "Xóa ngắt trang", tooltip: "Xóa ngắt hàng và cột tại ô đang chọn" }
+    ,"sheet.arrange.bringToFront": { label: "Đưa lên trên cùng", tooltip: "Đưa đối tượng đang chọn lên trên tất cả đối tượng khác" }
+    ,"sheet.arrange.bringForward": { label: "Đưa lên một lớp", tooltip: "Đưa đối tượng đang chọn lên trên một lớp" }
+    ,"sheet.arrange.sendBackward": { label: "Lùi một lớp", tooltip: "Đưa đối tượng đang chọn xuống dưới một lớp" }
+    ,"sheet.arrange.sendToBack": { label: "Xuống dưới cùng", tooltip: "Đưa đối tượng đang chọn xuống dưới tất cả đối tượng khác" }
+    ,"sheet.arrange.alignLeft": { label: "Căn trái", tooltip: "Căn các đối tượng đang chọn theo mép trái" }
+    ,"sheet.arrange.alignCenter": { label: "Căn giữa (ngang)", tooltip: "Căn các đối tượng đang chọn giữa theo chiều ngang" }
+    ,"sheet.arrange.alignRight": { label: "Căn phải", tooltip: "Căn các đối tượng đang chọn theo mép phải" }
+    ,"sheet.arrange.alignTop": { label: "Căn trên", tooltip: "Căn các đối tượng đang chọn theo mép trên" }
+    ,"sheet.arrange.alignMiddle": { label: "Căn giữa (dọc)", tooltip: "Căn các đối tượng đang chọn giữa theo chiều dọc" }
+    ,"sheet.arrange.alignBottom": { label: "Căn dưới", tooltip: "Căn các đối tượng đang chọn theo mép dưới" }
+    ,"sheet.arrange.distributeHorizontal": { label: "Phân bố đều ngang", tooltip: "Chia đều khoảng cách ngang giữa các đối tượng (từ 3 đối tượng trở lên)" }
+    ,"sheet.arrange.distributeVertical": { label: "Phân bố đều dọc", tooltip: "Chia đều khoảng cách dọc giữa các đối tượng (từ 3 đối tượng trở lên)" }
+    ,"sheet.arrange.bringForwardMenu": { label: "Đưa lên một lớp", tooltip: "Tùy chọn đưa đối tượng lên trên" }
+    ,"sheet.arrange.sendBackwardMenu": { label: "Lùi một lớp", tooltip: "Tùy chọn lùi đối tượng xuống dưới" }
+    ,"sheet.arrange.alignMenu": { label: "Căn chỉnh", tooltip: "Căn chỉnh các đối tượng đang chọn" }
+    ,"sheet.arrange.groupMenu": { label: "Nhóm", tooltip: "Nhóm hoặc bỏ nhóm các đối tượng đang chọn" }
+    ,"sheet.arrange.rotateMenu": { label: "Xoay", tooltip: "Xoay hoặc lật đối tượng đang chọn" }
+    ,"sheet.arrange.group": { label: "Nhóm", tooltip: "Nhóm các đối tượng đang chọn thành một khối" }
+    ,"sheet.arrange.ungroup": { label: "Bỏ nhóm", tooltip: "Tách nhóm đối tượng đang chọn" }
+    ,"sheet.arrange.rotateRight90": { label: "Xoay phải 90°", tooltip: "Xoay đối tượng đang chọn sang phải 90 độ" }
+    ,"sheet.arrange.rotateLeft90": { label: "Xoay trái 90°", tooltip: "Xoay đối tượng đang chọn sang trái 90 độ" }
+    ,"sheet.arrange.flipHorizontal": { label: "Lật ngang", tooltip: "Lật đối tượng đang chọn theo chiều ngang" }
+    ,"sheet.arrange.flipVertical": { label: "Lật dọc", tooltip: "Lật đối tượng đang chọn theo chiều dọc" }
+    ,"sheet.view.selectionPane": { label: "Ngăn chọn", tooltip: "Bật hoặc tắt ngăn chọn đối tượng trên trang tính" }
     ,"sheet.insert.cells": { label: "Chèn ô/hàng/cột...", tooltip: "Chèn ô, hàng hoặc cột (Ctrl+Shift++)" }
     ,"sheet.sheet.insertBefore": { label: "Chèn trang tính mới", tooltip: "Chèn trang tính mới trước trang hiện tại (Shift+F11)" }
     ,"sheet.row.insert": { label: "Chèn hàng", tooltip: "Chèn thêm hàng mới (Ctrl+Shift+=)" }

@@ -24,6 +24,20 @@ try {
         Retry { $ws.Columns($colProp.Name).ColumnWidth = [double]$colProp.Value }
       }
     }
+    if ($scenario.shapes) {
+      foreach ($s in $scenario.shapes) {
+        $left = if ($s.left -ne $null) { [double]$s.left } else { 0 }
+        $top = if ($s.top -ne $null) { [double]$s.top } else { 0 }
+        $width = if ($s.width -ne $null) { [double]$s.width } else { 100 }
+        $height = if ($s.height -ne $null) { [double]$s.height } else { 60 }
+        $sh = Retry { $ws.Shapes.AddShape(1, $left, $top, $width, $height) }
+        if ($s.name) { Retry { $sh.Name = [string]$s.name } }
+        if ($s.rotation) { Retry { $sh.IncrementRotation([double]$s.rotation) } }
+        if ($s.flipH) { Retry { $sh.Flip(0) } }
+        if ($s.flipV) { Retry { $sh.Flip(1) } }
+        if ($s.visible -eq $false) { Retry { $sh.Visible = 0 } }
+      }
+    }
     foreach ($prop in $scenario.cells.PSObject.Properties) {
       $valObj = $prop.Value
       if ($valObj -is [System.Management.Automation.PSCustomObject]) {
@@ -179,6 +193,56 @@ try {
             $tbl = if ($op.table) { $ws.ListObjects.Item($op.table) } else { $ws.ListObjects.Item(1) }
             Retry { [void]$tbl.Unlist() }
           }
+          "bringToFront" { Retry { $ws.Shapes.Item([string]$op.target).ZOrder(0) } }
+          "sendToBack" { Retry { $ws.Shapes.Item([string]$op.target).ZOrder(1) } }
+          "bringForward" { Retry { $ws.Shapes.Item([string]$op.target).ZOrder(2) } }
+          "sendBackward" { Retry { $ws.Shapes.Item([string]$op.target).ZOrder(3) } }
+          "align" {
+            $alignCmd = switch ($op.alignment) {
+              "left" { 0 }
+              "center" { 1 }
+              "right" { 2 }
+              "top" { 3 }
+              "middle" { 4 }
+              "bottom" { 5 }
+              default { 0 }
+            }
+            $targets = [string[]]$op.targets
+            Retry { $ws.Shapes.Range($targets).Align($alignCmd, 0) }
+          }
+          "distribute" {
+            $distCmd = switch ($op.direction) {
+              "horizontal" { 0 }
+              "vertical" { 1 }
+              default { 0 }
+            }
+            $targets = [string[]]$op.targets
+            Retry { $ws.Shapes.Range($targets).Distribute($distCmd, 0) }
+          }
+          "group" {
+            $targets = [string[]]$op.targets
+            Retry {
+              $grp = $ws.Shapes.Range($targets).Group()
+              if ($op.name) { $grp.Name = [string]$op.name }
+            }
+          }
+          "ungroup" {
+            Retry { [void]$ws.Shapes.Item([string]$op.target).Ungroup() }
+          }
+          "rotate" {
+            Retry { $ws.Shapes.Item([string]$op.target).IncrementRotation([double]$op.angle) }
+          }
+          "flip" {
+            $flipCmd = if ($op.direction -eq "vertical") { 1 } else { 0 }
+            Retry { $ws.Shapes.Item([string]$op.target).Flip($flipCmd) }
+          }
+          "setShapeVisible" {
+            $vis = if ($op.visible -eq $false) { 0 } else { -1 }
+            Retry { $ws.Shapes.Item([string]$op.target).Visible = $vis }
+          }
+          "renameShape" {
+            Retry { $ws.Shapes.Item([string]$op.target).Name = [string]$op.newName }
+          }
         }
       }
     Retry { $x.Calculate() }
@@ -233,15 +297,39 @@ try {
         showTotals = [bool]$tbl.ShowTotals
       }
     }
-    $hasTableOps = $false
-    foreach ($op in $scenario.ops) {
-      if ($op.type -like "*Table*" -or $op.type -eq "enterCell") { $hasTableOps = $true; break }
-    }
-    if ($tableData.Count -gt 0 -or $scenario.compareTables -or $hasTableOps) {
-      $results[$scenario.name] = [ordered]@{
-        cells = $out
-        tables = $tableData
+    $shapeData = @()
+    if ($ws.Shapes.Count -gt 0) {
+      foreach ($shape in $ws.Shapes) {
+        $shapeData += [ordered]@{
+          name = [string]$shape.Name
+          left = [Math]::Round([double]$shape.Left, 2)
+          top = [Math]::Round([double]$shape.Top, 2)
+          width = [Math]::Round([double]$shape.Width, 2)
+          height = [Math]::Round([double]$shape.Height, 2)
+          zOrder = [int]$shape.ZOrderPosition
+          rotation = [Math]::Round(([double]$shape.Rotation % 360 + 360) % 360, 1)
+          flipH = [bool]($shape.HorizontalFlip -ne 0)
+          flipV = [bool]($shape.VerticalFlip -ne 0)
+          visible = [bool]($shape.Visible -ne 0)
+          type = [int]$shape.Type
+        }
       }
+    }
+    $hasShapeOps = $false
+    foreach ($op in $scenario.ops) {
+      if ($op.type -in @("bringToFront", "sendToBack", "bringForward", "sendBackward", "align", "distribute", "group", "ungroup", "rotate", "flip", "setShapeVisible", "renameShape")) {
+        $hasShapeOps = $true; break
+      }
+    }
+    if ($tableData.Count -gt 0 -or $scenario.compareTables -or $hasTableOps -or $shapeData.Count -gt 0 -or $scenario.shapes -or $hasShapeOps) {
+      $itemRes = [ordered]@{ cells = $out }
+      if ($tableData.Count -gt 0 -or $scenario.compareTables -or $hasTableOps) {
+        $itemRes["tables"] = $tableData
+      }
+      if ($shapeData.Count -gt 0 -or $scenario.shapes -or $hasShapeOps) {
+        $itemRes["shapes"] = $shapeData
+      }
+      $results[$scenario.name] = $itemRes
     } else {
       $results[$scenario.name] = $out
     }

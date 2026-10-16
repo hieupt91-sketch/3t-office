@@ -350,6 +350,10 @@ export class SheetGridController {
     this.selectedImageId = null;
     this.textBoxesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.selectedTextBoxId = null;
+    this.drawingOrderBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.groupsBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.selectedObjectIds = new Set();
+    this.isSelectionPaneOpen = false;
     this._objectClipboard = null;
     this.pivotTablesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.pivotRefreshTouchedBySheet = new Set();
@@ -727,12 +731,12 @@ export class SheetGridController {
     vp.appendChild(chartLayer);
     const imageLayer = document.createElement("div");
     imageLayer.className = "vno-sheet-image-layer";
-    imageLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:7";
+    imageLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:auto";
     this.imageLayer = imageLayer;
     vp.appendChild(imageLayer);
     const textBoxLayer = document.createElement("div");
     textBoxLayer.className = "vno-sheet-textbox-layer";
-    textBoxLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:8";
+    textBoxLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:auto";
     this.textBoxLayer = textBoxLayer;
     vp.appendChild(textBoxLayer);
     const auditLayer = document.createElement("div");
@@ -3418,6 +3422,10 @@ export class SheetGridController {
     this.chartsBySheet = { [defaultSheetName]: [] };
     this.imagesBySheet = { [defaultSheetName]: [] };
     this.textBoxesBySheet = { [defaultSheetName]: [] };
+    this.drawingOrderBySheet = { [defaultSheetName]: [] };
+    this.groupsBySheet = { [defaultSheetName]: [] };
+    this.selectedObjectIds = new Set();
+    this.isSelectionPaneOpen = false;
     this.pivotTablesBySheet = { [defaultSheetName]: [] };
     this.scenariosBySheet = { [defaultSheetName]: [] };
     this.rowHeightsBySheet = { [defaultSheetName]: new Map() };
@@ -3496,6 +3504,10 @@ export class SheetGridController {
     if (!this.chartsBySheet[sheetName]) this.chartsBySheet[sheetName] = [];
     if (!this.imagesBySheet[sheetName]) this.imagesBySheet[sheetName] = [];
     if (!this.textBoxesBySheet[sheetName]) this.textBoxesBySheet[sheetName] = [];
+    if (!this.drawingOrderBySheet) this.drawingOrderBySheet = {};
+    if (!this.drawingOrderBySheet[sheetName]) this.drawingOrderBySheet[sheetName] = [];
+    if (!this.groupsBySheet) this.groupsBySheet = {};
+    if (!this.groupsBySheet[sheetName]) this.groupsBySheet[sheetName] = [];
     if (!this.pivotTablesBySheet[sheetName]) this.pivotTablesBySheet[sheetName] = [];
     if (!this.tablesBySheet[sheetName]) this.tablesBySheet[sheetName] = [];
     if (!this.scenariosBySheet[sheetName]) this.scenariosBySheet[sheetName] = [];
@@ -3760,6 +3772,8 @@ export class SheetGridController {
     delete this.chartsBySheet[sheetName];
     delete this.imagesBySheet[sheetName];
     delete this.textBoxesBySheet[sheetName];
+    if (this.drawingOrderBySheet) delete this.drawingOrderBySheet[sheetName];
+    if (this.groupsBySheet) delete this.groupsBySheet[sheetName];
     delete this.pivotTablesBySheet[sheetName];
     delete this.tablesBySheet[sheetName];
     delete this.scenariosBySheet[sheetName];
@@ -3790,7 +3804,7 @@ export class SheetGridController {
       "sheetsData", "sheetStates", "namedRangesBySheet", "commentsBySheet",
       "printAreaBySheet", "pageBreaksBySheet", "pageSetupBySheet", "mergedRangesBySheet",
       "conditionalFormattingBySheet", "dataValidationsBySheet", "chartsBySheet",
-      "imagesBySheet", "textBoxesBySheet", "pivotTablesBySheet", "tablesBySheet", "outlineGroupsBySheet",
+      "imagesBySheet", "textBoxesBySheet", "drawingOrderBySheet", "groupsBySheet", "pivotTablesBySheet", "tablesBySheet", "outlineGroupsBySheet",
       "rowHeightsBySheet", "colWidthsBySheet", "userHiddenRowsBySheet", "userHiddenColsBySheet",
       "protectionBySheet", "dataTablesBySheet"
     ];
@@ -4418,6 +4432,8 @@ export class SheetGridController {
     this.chartsBySheet[targetName] = structuredClone(this.chartsBySheet[sourceName] || []);
     this.imagesBySheet[targetName] = structuredClone(this.imagesBySheet[sourceName] || []);
     this.textBoxesBySheet[targetName] = structuredClone(this.textBoxesBySheet[sourceName] || []);
+    this.drawingOrderBySheet[targetName] = structuredClone(this.drawingOrderBySheet?.[sourceName] || []);
+    this.groupsBySheet[targetName] = structuredClone(this.groupsBySheet?.[sourceName] || []);
     this.pivotTablesBySheet[targetName] = structuredClone(this.pivotTablesBySheet[sourceName] || []);
     this.scenariosBySheet[targetName] = structuredClone(this.scenariosBySheet[sourceName] || []);
     this.namedRangesBySheet[targetName] = structuredClone(this.namedRangesBySheet[sourceName] || []);
@@ -8169,9 +8185,20 @@ _bindGridKeyboardNavigation() {
     this.imagesBySheet[this.activeSheet] ||= [];
     this.imagesBySheet[this.activeSheet].push(image);
     this.selectedImageId = image.id;
+    this._ensureDrawingOrder(this.activeSheet);
+    if (!this.drawingOrderBySheet[this.activeSheet].includes(image.id)) {
+      this.drawingOrderBySheet[this.activeSheet].push(image.id);
+    }
+    if (!this.selectedObjectIds) this.selectedObjectIds = new Set();
+    this.selectedObjectIds.clear();
+    this.selectedObjectIds.add(image.id);
     this.renderImages();
     if (recordUndo) this._recordHistory({ type: "collection", sheet: this.activeSheet, collection: "imagesBySheet", operation: "insert", index: this.imagesBySheet[this.activeSheet].length - 1, item: structuredClone(image) });
     return image;
+  }
+
+  addImage(src, anchor = this.selectedCoord, recordUndo = true, options = {}) {
+    return this.insertImage(src, anchor, recordUndo, options);
   }
 
   deleteImage(imageId, sheetName = this.activeSheet, recordUndo = true) {
@@ -8180,6 +8207,11 @@ _bindGridKeyboardNavigation() {
     if (index < 0) return false;
     const [image] = images.splice(index, 1);
     if (this.selectedImageId === imageId) this.selectedImageId = null;
+    if (this.drawingOrderBySheet?.[sheetName]) {
+      const oIdx = this.drawingOrderBySheet[sheetName].indexOf(imageId);
+      if (oIdx >= 0) this.drawingOrderBySheet[sheetName].splice(oIdx, 1);
+    }
+    this.selectedObjectIds?.delete(imageId);
     if (sheetName === this.activeSheet) this.renderImages();
     if (recordUndo) this._recordHistory({ type: "collection", sheet: sheetName, collection: "imagesBySheet", operation: "delete", index, item: structuredClone(image) });
     return true;
@@ -8189,7 +8221,7 @@ _bindGridKeyboardNavigation() {
     if (!this.imageLayer) return;
     const panels = this.imageLayer.querySelectorAll?.(".vno-sheet-image") || [];
     for (const p of panels) {
-      const isSelected = p.dataset?.imageId === this.selectedImageId;
+      const isSelected = (this.selectedObjectIds && this.selectedObjectIds.has(p.dataset?.imageId)) || p.dataset?.imageId === this.selectedImageId;
       if (isSelected) {
         p.classList?.add?.("is-selected");
         if (typeof p.className === "string" && !p.className.includes("is-selected")) {
@@ -8208,7 +8240,7 @@ _bindGridKeyboardNavigation() {
     if (!this.textBoxLayer) return;
     const boxes = this.textBoxLayer.querySelectorAll?.(".vno-sheet-textbox") || [];
     for (const b of boxes) {
-      const isSelected = b.dataset?.textboxId === this.selectedTextBoxId;
+      const isSelected = (this.selectedObjectIds && this.selectedObjectIds.has(b.dataset?.textboxId)) || b.dataset?.textboxId === this.selectedTextBoxId;
       if (isSelected) {
         b.classList?.add("is-selected");
       } else {
@@ -8221,7 +8253,7 @@ _bindGridKeyboardNavigation() {
     let type = null;
     let id = null;
     let sheetName = this.activeSheet;
-    if (idOrSheet && (typeOrId === "image" || typeOrId === "textbox")) {
+    if (idOrSheet && (typeOrId === "image" || typeOrId === "textbox" || typeOrId === "group")) {
       type = typeOrId;
       id = idOrSheet;
       if (maybeSheet) sheetName = maybeSheet;
@@ -8231,18 +8263,24 @@ _bindGridKeyboardNavigation() {
     }
 
     if (type === "image") {
-      const item = (this.imagesBySheet[sheetName] || []).find(item => item.id === id);
-      return item || null;
+      const item = (this.imagesBySheet?.[sheetName] || []).find(item => item.id === id);
+      return item ? { type: "image", item, ...item } : null;
     }
     if (type === "textbox") {
-      const item = (this.textBoxesBySheet[sheetName] || []).find(item => item.id === id);
-      return item || null;
+      const item = (this.textBoxesBySheet?.[sheetName] || []).find(item => item.id === id);
+      return item ? { type: "textbox", item, ...item } : null;
+    }
+    if (type === "group") {
+      const item = (this.groupsBySheet?.[sheetName] || []).find(item => item.id === id);
+      return item ? { type: "group", item, ...item } : null;
     }
 
-    const img = (this.imagesBySheet[sheetName] || []).find(item => item.id === id);
+    const img = (this.imagesBySheet?.[sheetName] || []).find(item => item.id === id);
     if (img) return { type: "image", item: img, ...img };
-    const tb = (this.textBoxesBySheet[sheetName] || []).find(item => item.id === id);
+    const tb = (this.textBoxesBySheet?.[sheetName] || []).find(item => item.id === id);
     if (tb) return { type: "textbox", item: tb, ...tb };
+    const grp = (this.groupsBySheet?.[sheetName] || []).find(item => item.id === id);
+    if (grp) return { type: "group", item: grp, ...grp };
     return null;
   }
 
@@ -8266,6 +8304,11 @@ _bindGridKeyboardNavigation() {
     if (index < 0) return false;
     const [box] = boxes.splice(index, 1);
     if (this.selectedTextBoxId === boxId) this.selectedTextBoxId = null;
+    if (this.drawingOrderBySheet?.[sheetName]) {
+      const oIdx = this.drawingOrderBySheet[sheetName].indexOf(boxId);
+      if (oIdx >= 0) this.drawingOrderBySheet[sheetName].splice(oIdx, 1);
+    }
+    this.selectedObjectIds?.delete(boxId);
     if (sheetName === this.activeSheet) this.renderTextBoxes();
     if (recordUndo) {
       this._recordHistory({
@@ -8369,59 +8412,948 @@ _bindGridKeyboardNavigation() {
     return pasted;
   }
 
-  _reorderObject(type, id, direction, sheetName = this.activeSheet) {
-    const collectionName = type === "image" ? "imagesBySheet" : (type === "textbox" ? "textBoxesBySheet" : null);
-    if (!collectionName) return false;
-    const list = this[collectionName]?.[sheetName] || [];
-    const index = list.findIndex(item => item.id === id);
-    if (index < 0) return false;
+  _ensureDrawingOrder(sheetName = this.activeSheet) {
+    if (!this.drawingOrderBySheet) this.drawingOrderBySheet = {};
+    if (!Array.isArray(this.drawingOrderBySheet[sheetName])) {
+      this.drawingOrderBySheet[sheetName] = [];
+    }
+    const order = this.drawingOrderBySheet[sheetName];
+    const images = this.imagesBySheet?.[sheetName] || [];
+    const textBoxes = this.textBoxesBySheet?.[sheetName] || [];
+    const groups = this.groupsBySheet?.[sheetName] || [];
 
-    let newIndex = index;
-    if (direction === "front") newIndex = list.length - 1;
-    else if (direction === "forward") newIndex = Math.min(list.length - 1, index + 1);
-    else if (direction === "backward") newIndex = Math.max(0, index - 1);
-    else if (direction === "back") newIndex = 0;
+    const validIds = new Set();
+    for (const img of images) validIds.add(img.id);
+    for (const box of textBoxes) validIds.add(box.id);
+    for (const grp of groups) validIds.add(grp.id);
 
-    if (newIndex === index) return true;
+    // Giữ các id còn tồn tại
+    const nextOrder = order.filter(id => validIds.has(id));
+    const seen = new Set(nextOrder);
 
-    const beforeList = structuredClone(list);
-    const [item] = list.splice(index, 1);
-    list.splice(newIndex, 0, item);
-    const afterList = structuredClone(list);
+    // Thêm các id chưa có theo thứ tự: images, textBoxes, groups
+    for (const img of images) {
+      if (!seen.has(img.id)) {
+        nextOrder.push(img.id);
+        seen.add(img.id);
+      }
+    }
+    for (const box of textBoxes) {
+      if (!seen.has(box.id)) {
+        nextOrder.push(box.id);
+        seen.add(box.id);
+      }
+    }
+    for (const grp of groups) {
+      if (!seen.has(grp.id)) {
+        nextOrder.push(grp.id);
+        seen.add(grp.id);
+      }
+    }
+    this.drawingOrderBySheet[sheetName] = nextOrder;
+    return nextOrder;
+  }
 
-    this._recordHistory({
-      type: "collection-replace",
-      sheet: sheetName,
-      collection: collectionName,
-      before: beforeList,
-      after: afterList
-    });
+  getObjectName(obj, type = null) {
+    if (!obj) return "";
+    if (obj.name) return obj.name;
+    const actualObj = obj.item || obj;
+    const resolvedType = type || obj.type || (actualObj.src ? "image" : (actualObj.text !== undefined ? "textbox" : (actualObj.children ? "group" : "shape")));
+    const idSuffix = String(actualObj.id || "").replace(/^[a-z]+-/, "").slice(-4) || "1";
+    if (resolvedType === "image") return `Hình ảnh ${idSuffix}`;
+    if (resolvedType === "textbox") return `Hộp văn bản ${idSuffix}`;
+    if (resolvedType === "group") return `Nhóm ${idSuffix}`;
+    return `Đối tượng ${idSuffix}`;
+  }
 
-    if (sheetName === this.activeSheet) {
-      if (type === "image") this.renderImages();
-      else if (type === "textbox") this.renderTextBoxes();
+  _getObjectPixelBounds(obj, type = null, sheetName = this.activeSheet) {
+    if (!obj) return { left: 0, top: 0, width: 100, height: 100, right: 100, bottom: 100, centerX: 50, centerY: 50 };
+    const actualObj = obj.item || obj;
+    const resolvedType = type || obj.type || (actualObj.src ? "image" : (actualObj.text !== undefined ? "textbox" : (actualObj.children ? "group" : "image")));
+
+    if (resolvedType === "group" && Array.isArray(actualObj.children) && actualObj.children.length > 0) {
+      const childBounds = actualObj.children.map(childId => {
+        const child = this._findObjectById(childId, sheetName);
+        return child ? this._getObjectPixelBounds(child, child.type, sheetName) : null;
+      }).filter(Boolean);
+      if (childBounds.length > 0) {
+        const minL = Math.min(...childBounds.map(b => b.left));
+        const minT = Math.min(...childBounds.map(b => b.top));
+        const maxR = Math.max(...childBounds.map(b => b.right));
+        const maxB = Math.max(...childBounds.map(b => b.bottom));
+        return {
+          left: minL,
+          top: minT,
+          width: maxR - minL,
+          height: maxB - minT,
+          right: maxR,
+          bottom: maxB,
+          centerX: (minL + maxR) / 2,
+          centerY: (minT + maxB) / 2
+        };
+      }
+    }
+
+    let domEl = null;
+    if (typeof document !== "undefined") {
+      if (resolvedType === "image" && this.imageLayer) {
+        domEl = this.imageLayer.querySelector(`[data-image-id="${actualObj.id}"]`);
+      } else if (resolvedType === "textbox" && this.textBoxLayer) {
+        domEl = this.textBoxLayer.querySelector(`[data-textbox-id="${actualObj.id}"]`);
+      }
+    }
+
+    let left = 0, top = 0, width = 100, height = 50;
+    if (domEl && domEl.style.left && domEl.style.top) {
+      left = parseFloat(domEl.style.left) || 0;
+      top = parseFloat(domEl.style.top) || 0;
+      width = parseFloat(domEl.style.width) || (domEl.offsetWidth || 100);
+      height = parseFloat(domEl.style.height) || (domEl.offsetHeight || 50);
+    } else {
+      const anchor = actualObj.anchor || { c: "A", r: 1 };
+      const colIdx = Math.max(0, this.cols ? this.cols.indexOf(anchor.c) : 0);
+      let leftAcc = 44;
+      if (this.cols && typeof this.getColumnWidth === "function") {
+        for (let i = 0; i < colIdx; i++) {
+          leftAcc += this.getColumnWidth(this.cols[i]);
+        }
+      } else {
+        leftAcc = 44 + colIdx * 100;
+      }
+      const offsetXPx = Number.isFinite(Number(actualObj.offsetXCm))
+        ? Number(actualObj.offsetXCm) * 37.79527559055118
+        : (Number.isFinite(Number(actualObj.offsetX)) ? Number(actualObj.offsetX) : 0);
+      left = leftAcc + offsetXPx;
+
+      let topAcc = 24;
+      if (typeof this._rowTop === "function") {
+        topAcc = 24 + this._rowTop(anchor.r, sheetName);
+      } else {
+        topAcc = 24 + (anchor.r - 1) * (this.rowHeight || 28);
+      }
+      const offsetYPx = Number.isFinite(Number(actualObj.offsetYCm))
+        ? Number(actualObj.offsetYCm) * 37.79527559055118
+        : (Number.isFinite(Number(actualObj.offsetY)) ? Number(actualObj.offsetY) : 0);
+      top = topAcc + offsetYPx;
+
+      if (resolvedType === "image") {
+        width = Number.isFinite(Number(actualObj.widthCm)) ? Math.round(Number(actualObj.widthCm) * 37.79527559055118) : (Number(actualObj.widthPx) || 240);
+        height = Number.isFinite(Number(actualObj.heightCm)) ? Math.round(Number(actualObj.heightCm) * 37.79527559055118) : (Number(actualObj.heightPx) || 80);
+      } else {
+        width = Math.max(180, Number(actualObj.widthPx) || 180);
+        height = Math.max(54, Number(actualObj.heightPx) || 54);
+      }
+    }
+
+    return {
+      left,
+      top,
+      width,
+      height,
+      right: left + width,
+      bottom: top + height,
+      centerX: left + width / 2,
+      centerY: top + height / 2
+    };
+  }
+
+  _setObjectPixelPosition(obj, type = null, left, top) {
+    if (!obj) return false;
+    const actualObj = obj.item || obj;
+    const resolvedType = type || obj.type || (actualObj.src ? "image" : (actualObj.text !== undefined ? "textbox" : (actualObj.children ? "group" : "image")));
+
+    if (resolvedType === "group" && Array.isArray(actualObj.children)) {
+      const currentBounds = this._getObjectPixelBounds(actualObj, "group");
+      const dx = left - currentBounds.left;
+      const dy = top - currentBounds.top;
+      for (const childId of actualObj.children) {
+        const child = this._findObjectById(childId);
+        if (child) {
+          const childBounds = this._getObjectPixelBounds(child, child.type);
+          this._setObjectPixelPosition(child, child.type, childBounds.left + dx, childBounds.top + dy);
+        }
+      }
+      return true;
+    }
+
+    const newAnchor = this._getAnchorFromPixel(left, top);
+    actualObj.anchor = { c: newAnchor.c, r: Number(newAnchor.r) };
+
+    const colIdx = Math.max(0, this.cols ? this.cols.indexOf(newAnchor.c) : 0);
+    let leftAcc = 44;
+    if (this.cols && typeof this.getColumnWidth === "function") {
+      for (let i = 0; i < colIdx; i++) leftAcc += this.getColumnWidth(this.cols[i]);
+    } else {
+      leftAcc = 44 + colIdx * 100;
+    }
+    const offsetXPx = left - leftAcc;
+
+    let topAcc = 24;
+    if (typeof this._rowTop === "function") {
+      topAcc = 24 + this._rowTop(newAnchor.r);
+    } else {
+      topAcc = 24 + (newAnchor.r - 1) * (this.rowHeight || 28);
+    }
+    const offsetYPx = top - topAcc;
+
+    if (resolvedType === "image") {
+      actualObj.offsetXCm = parseFloat((offsetXPx / 37.79527559055118).toFixed(3));
+      actualObj.offsetYCm = parseFloat((offsetYPx / 37.79527559055118).toFixed(3));
+      actualObj.offsetX = offsetXPx;
+      actualObj.offsetY = offsetYPx;
+    } else {
+      actualObj.offsetX = offsetXPx;
+      actualObj.offsetY = offsetYPx;
     }
     return true;
   }
 
+  selectObject(id, addToSelection = false) {
+    if (!addToSelection) {
+      this.selectedObjectIds.clear();
+    }
+    if (id) {
+      if (this.selectedObjectIds.has(id) && addToSelection) {
+        this.selectedObjectIds.delete(id);
+      } else {
+        this.selectedObjectIds.add(id);
+      }
+    }
+    const primaryId = Array.from(this.selectedObjectIds)[0] || null;
+    const primaryObj = primaryId ? this._findObjectById(primaryId) : null;
+    this.selectedImageId = primaryObj?.type === "image" ? primaryId : null;
+    this.selectedTextBoxId = primaryObj?.type === "textbox" ? primaryId : null;
+    this._updateImageSelection();
+    this._updateTextBoxSelection();
+    if (this.isSelectionPaneOpen) this.renderSelectionPane();
+  }
+
+  _changeZOrder(direction, typeOrId, idOrSheet, maybeSheet) {
+    let sheetName = this.activeSheet;
+    let targetIds = [];
+
+    if (typeOrId && typeof typeOrId === "string") {
+      const target = this._resolveObjectTarget(typeOrId, idOrSheet, maybeSheet);
+      if (target) {
+        targetIds = [target.id];
+        sheetName = target.sheetName || this.activeSheet;
+      }
+    }
+
+    if (!targetIds.length) {
+      if (this.selectedObjectIds && this.selectedObjectIds.size > 0) {
+        targetIds = Array.from(this.selectedObjectIds);
+      } else if (this.selectedImageId) {
+        targetIds = [this.selectedImageId];
+      } else if (this.selectedTextBoxId) {
+        targetIds = [this.selectedTextBoxId];
+      }
+    }
+
+    if (!targetIds.length) return false;
+
+    this._ensureDrawingOrder(sheetName);
+    const order = [...(this.drawingOrderBySheet[sheetName] || [])];
+    const beforeOrder = [...order];
+
+    const orderedTargets = order.filter(id => targetIds.includes(id));
+    if (!orderedTargets.length) return false;
+
+    if (direction === "front") {
+      for (const id of orderedTargets) {
+        const idx = order.indexOf(id);
+        if (idx >= 0) order.splice(idx, 1);
+        order.push(id);
+      }
+    } else if (direction === "back") {
+      for (let i = orderedTargets.length - 1; i >= 0; i--) {
+        const id = orderedTargets[i];
+        const idx = order.indexOf(id);
+        if (idx >= 0) order.splice(idx, 1);
+        order.unshift(id);
+      }
+    } else if (direction === "forward") {
+      for (let i = orderedTargets.length - 1; i >= 0; i--) {
+        const id = orderedTargets[i];
+        const idx = order.indexOf(id);
+        if (idx >= 0 && idx < order.length - 1) {
+          const nextId = order[idx + 1];
+          if (!targetIds.includes(nextId)) {
+            order[idx] = nextId;
+            order[idx + 1] = id;
+          }
+        }
+      }
+    } else if (direction === "backward") {
+      for (let i = 0; i < orderedTargets.length; i++) {
+        const id = orderedTargets[i];
+        const idx = order.indexOf(id);
+        if (idx > 0) {
+          const prevId = order[idx - 1];
+          if (!targetIds.includes(prevId)) {
+            order[idx] = prevId;
+            order[idx - 1] = id;
+          }
+        }
+      }
+    }
+
+    const changed = order.some((id, idx) => id !== beforeOrder[idx]);
+    if (!changed) return true;
+
+    this.drawingOrderBySheet[sheetName] = order;
+
+    for (const targetId of targetIds) {
+      const obj = this._findObjectById(targetId, sheetName);
+      if (obj?.type === "image" && this.imagesBySheet?.[sheetName]) {
+        this.imagesBySheet[sheetName].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+      } else if (obj?.type === "textbox" && this.textBoxesBySheet?.[sheetName]) {
+        this.textBoxesBySheet[sheetName].sort((a, b) => order.indexOf(a.id) - order.indexOf(b.id));
+      }
+    }
+
+    this._recordHistory({
+      type: "sheet-drawing-order",
+      sheet: sheetName,
+      before: beforeOrder,
+      after: [...order]
+    });
+
+    if (sheetName === this.activeSheet) {
+      this.renderImages();
+      this.renderTextBoxes();
+      if (this.isSelectionPaneOpen) this.renderSelectionPane();
+    }
+    return true;
+  }
+
+  _reorderObject(type, id, direction, sheetName = this.activeSheet) {
+    return this._changeZOrder(direction, type, id, sheetName);
+  }
+
   bringObjectToFront(typeOrId, idOrSheet, maybeSheet) {
-    const target = this._resolveObjectTarget(typeOrId, idOrSheet, maybeSheet);
-    return target ? this._reorderObject(target.type, target.id, "front", target.sheetName) : false;
+    return this._changeZOrder("front", typeOrId, idOrSheet, maybeSheet);
   }
 
   bringObjectForward(typeOrId, idOrSheet, maybeSheet) {
-    const target = this._resolveObjectTarget(typeOrId, idOrSheet, maybeSheet);
-    return target ? this._reorderObject(target.type, target.id, "forward", target.sheetName) : false;
+    return this._changeZOrder("forward", typeOrId, idOrSheet, maybeSheet);
   }
 
   sendObjectBackward(typeOrId, idOrSheet, maybeSheet) {
-    const target = this._resolveObjectTarget(typeOrId, idOrSheet, maybeSheet);
-    return target ? this._reorderObject(target.type, target.id, "backward", target.sheetName) : false;
+    return this._changeZOrder("backward", typeOrId, idOrSheet, maybeSheet);
   }
 
   sendObjectToBack(typeOrId, idOrSheet, maybeSheet) {
-    const target = this._resolveObjectTarget(typeOrId, idOrSheet, maybeSheet);
-    return target ? this._reorderObject(target.type, target.id, "back", target.sheetName) : false;
+    return this._changeZOrder("back", typeOrId, idOrSheet, maybeSheet);
+  }
+
+  alignObjects(mode, ids = null) {
+    const validModes = ["left", "center", "right", "top", "middle", "bottom"];
+    if (!validModes.includes(mode)) return false;
+
+    let targetIds = ids || Array.from(this.selectedObjectIds || []);
+    if (!targetIds.length) {
+      if (this.selectedImageId) targetIds.push(this.selectedImageId);
+      if (this.selectedTextBoxId && !targetIds.includes(this.selectedTextBoxId)) targetIds.push(this.selectedTextBoxId);
+    }
+    if (targetIds.length < 2) return false;
+
+    const items = targetIds.map(id => {
+      const obj = this._findObjectById(id);
+      if (!obj) return null;
+      const bounds = this._getObjectPixelBounds(obj, obj.type);
+      return { id, obj, type: obj.type, item: obj.item || obj, bounds };
+    }).filter(Boolean);
+
+    if (items.length < 2) return false;
+
+    const minLeft = Math.min(...items.map(it => it.bounds.left));
+    const maxRight = Math.max(...items.map(it => it.bounds.right));
+    const minTop = Math.min(...items.map(it => it.bounds.top));
+    const maxBottom = Math.max(...items.map(it => it.bounds.bottom));
+    const boxCenterX = (minLeft + maxRight) / 2;
+    const boxCenterY = (minTop + maxBottom) / 2;
+
+    const beforeSnapshots = items.map(it => ({
+      id: it.id,
+      type: it.type,
+      anchor: structuredClone(it.item.anchor),
+      offsetX: it.item.offsetX,
+      offsetY: it.item.offsetY,
+      offsetXCm: it.item.offsetXCm,
+      offsetYCm: it.item.offsetYCm
+    }));
+
+    for (const it of items) {
+      let newLeft = it.bounds.left;
+      let newTop = it.bounds.top;
+
+      if (mode === "left") newLeft = minLeft;
+      else if (mode === "center") newLeft = boxCenterX - it.bounds.width / 2;
+      else if (mode === "right") newLeft = maxRight - it.bounds.width;
+      else if (mode === "top") newTop = minTop;
+      else if (mode === "middle") newTop = boxCenterY - it.bounds.height / 2;
+      else if (mode === "bottom") newTop = maxBottom - it.bounds.height;
+
+      this._setObjectPixelPosition(it.item, it.type, newLeft, newTop);
+    }
+
+    const afterSnapshots = items.map(it => ({
+      id: it.id,
+      type: it.type,
+      anchor: structuredClone(it.item.anchor),
+      offsetX: it.item.offsetX,
+      offsetY: it.item.offsetY,
+      offsetXCm: it.item.offsetXCm,
+      offsetYCm: it.item.offsetYCm
+    }));
+
+    this._recordHistory({
+      type: "sheet-arrange-batch",
+      sheet: this.activeSheet,
+      operation: "align",
+      mode,
+      before: beforeSnapshots,
+      after: afterSnapshots
+    });
+
+    this.renderImages();
+    this.renderTextBoxes();
+    if (this.isSelectionPaneOpen) this.renderSelectionPane();
+    return true;
+  }
+
+  distributeObjects(axis, ids = null) {
+    if (axis !== "horizontal" && axis !== "vertical") return false;
+
+    let targetIds = ids || Array.from(this.selectedObjectIds || []);
+    if (!targetIds.length) {
+      if (this.selectedImageId) targetIds.push(this.selectedImageId);
+      if (this.selectedTextBoxId && !targetIds.includes(this.selectedTextBoxId)) targetIds.push(this.selectedTextBoxId);
+    }
+    if (targetIds.length < 3) return false;
+
+    const items = targetIds.map(id => {
+      const obj = this._findObjectById(id);
+      if (!obj) return null;
+      const bounds = this._getObjectPixelBounds(obj, obj.type);
+      return { id, obj, type: obj.type, item: obj.item || obj, bounds };
+    }).filter(Boolean);
+
+    if (items.length < 3) return false;
+
+    const beforeSnapshots = items.map(it => ({
+      id: it.id,
+      type: it.type,
+      anchor: structuredClone(it.item.anchor),
+      offsetX: it.item.offsetX,
+      offsetY: it.item.offsetY,
+      offsetXCm: it.item.offsetXCm,
+      offsetYCm: it.item.offsetYCm
+    }));
+
+    if (axis === "horizontal") {
+      items.sort((a, b) => a.bounds.left - b.bounds.left);
+      const first = items[0];
+      const last = items[items.length - 1];
+      const totalSpan = last.bounds.left - first.bounds.right;
+      const sumMiddleWidth = items.slice(1, -1).reduce((sum, it) => sum + it.bounds.width, 0);
+      const gap = (totalSpan - sumMiddleWidth) / (items.length - 1);
+
+      let curLeft = first.bounds.right + gap;
+      for (let i = 1; i < items.length - 1; i++) {
+        this._setObjectPixelPosition(items[i].item, items[i].type, curLeft, items[i].bounds.top);
+        curLeft += items[i].bounds.width + gap;
+      }
+    } else {
+      items.sort((a, b) => a.bounds.top - b.bounds.top);
+      const first = items[0];
+      const last = items[items.length - 1];
+      const totalSpan = last.bounds.top - first.bounds.bottom;
+      const sumMiddleHeight = items.slice(1, -1).reduce((sum, it) => sum + it.bounds.height, 0);
+      const gap = (totalSpan - sumMiddleHeight) / (items.length - 1);
+
+      let curTop = first.bounds.bottom + gap;
+      for (let i = 1; i < items.length - 1; i++) {
+        this._setObjectPixelPosition(items[i].item, items[i].type, items[i].bounds.left, curTop);
+        curTop += items[i].bounds.height + gap;
+      }
+    }
+
+    const afterSnapshots = items.map(it => ({
+      id: it.id,
+      type: it.type,
+      anchor: structuredClone(it.item.anchor),
+      offsetX: it.item.offsetX,
+      offsetY: it.item.offsetY,
+      offsetXCm: it.item.offsetXCm,
+      offsetYCm: it.item.offsetYCm
+    }));
+
+    this._recordHistory({
+      type: "sheet-arrange-batch",
+      sheet: this.activeSheet,
+      operation: "distribute",
+      axis,
+      before: beforeSnapshots,
+      after: afterSnapshots
+    });
+
+    this.renderImages();
+    this.renderTextBoxes();
+    if (this.isSelectionPaneOpen) this.renderSelectionPane();
+    return true;
+  }
+
+  groupObjects(ids = null) {
+    let targetIds = ids || Array.from(this.selectedObjectIds || []);
+    if (!targetIds.length) {
+      if (this.selectedImageId) targetIds.push(this.selectedImageId);
+      if (this.selectedTextBoxId && !targetIds.includes(this.selectedTextBoxId)) targetIds.push(this.selectedTextBoxId);
+    }
+    if (targetIds.length < 2) return null;
+
+    this.groupsBySheet[this.activeSheet] ||= [];
+    const count = this.groupsBySheet[this.activeSheet].length + 1;
+    const groupId = `group-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+    const groupName = `Nhóm ${count}`;
+
+    const grp = {
+      id: groupId,
+      name: groupName,
+      children: [...targetIds],
+      visible: true
+    };
+
+    for (const childId of targetIds) {
+      const found = this._findObjectById(childId);
+      if (found?.item) found.item.groupId = groupId;
+    }
+
+    this._ensureDrawingOrder(this.activeSheet);
+    this.groupsBySheet[this.activeSheet].push(grp);
+
+    const order = [...(this.drawingOrderBySheet[this.activeSheet] || [])];
+    const beforeOrder = [...order];
+
+    let insertIdx = -1;
+    for (let i = 0; i < order.length; i++) {
+      if (targetIds.includes(order[i])) {
+        insertIdx = i;
+      }
+    }
+    const filteredOrder = order.filter(id => !targetIds.includes(id) && id !== groupId);
+    if (insertIdx >= 0) {
+      const actualInsertIdx = Math.min(insertIdx, filteredOrder.length);
+      filteredOrder.splice(actualInsertIdx, 0, groupId);
+    } else {
+      filteredOrder.push(groupId);
+    }
+    this.drawingOrderBySheet[this.activeSheet] = filteredOrder;
+
+    this.selectedObjectIds.clear();
+    this.selectedObjectIds.add(groupId);
+
+    this._recordHistory({
+      type: "sheet-arrange-batch",
+      sheet: this.activeSheet,
+      operation: "group",
+      group: structuredClone(grp),
+      beforeOrder,
+      afterOrder: [...filteredOrder]
+    });
+
+    this.renderImages();
+    this.renderTextBoxes();
+    if (this.isSelectionPaneOpen) this.renderSelectionPane();
+    return grp;
+  }
+
+  ungroupObjects(groupId = null) {
+    const groups = this.groupsBySheet[this.activeSheet] || [];
+    let targetGroupId = groupId;
+    if (!targetGroupId) {
+      for (const id of (this.selectedObjectIds || [])) {
+        const foundGrp = groups.find(g => g.id === id || g.name === id);
+        if (foundGrp) {
+          targetGroupId = foundGrp.id;
+          break;
+        }
+        const obj = this._findObjectById(id);
+        if (obj?.item?.groupId) {
+          targetGroupId = obj.item.groupId;
+          break;
+        }
+      }
+    } else {
+      const foundGrp = groups.find(g => g.id === targetGroupId || g.name === targetGroupId);
+      if (foundGrp) targetGroupId = foundGrp.id;
+    }
+
+    if (!targetGroupId) return false;
+
+    const grpIdx = groups.findIndex(g => g.id === targetGroupId || g.name === targetGroupId);
+    if (grpIdx < 0) return false;
+
+    const grp = groups[grpIdx];
+    groups.splice(grpIdx, 1);
+
+    for (const childId of grp.children || []) {
+      const found = this._findObjectById(childId);
+      if (found?.item) delete found.item.groupId;
+    }
+
+    let order = [...(this.drawingOrderBySheet[this.activeSheet] || [])];
+    const beforeOrder = [...order];
+    const idx = order.indexOf(targetGroupId);
+    if (idx >= 0) {
+      order.splice(idx, 1, ...(grp.children || []));
+    } else {
+      order.push(...(grp.children || []));
+    }
+    const seen = new Set();
+    order = order.filter(id => id !== targetGroupId && !seen.has(id) && (seen.add(id), true));
+    this.drawingOrderBySheet[this.activeSheet] = order;
+    this._ensureDrawingOrder(this.activeSheet);
+
+    this.selectedObjectIds = new Set(grp.children || []);
+
+    this._recordHistory({
+      type: "sheet-arrange-batch",
+      sheet: this.activeSheet,
+      operation: "ungroup",
+      group: structuredClone(grp),
+      beforeOrder,
+      afterOrder: [...order]
+    });
+
+    this.renderImages();
+    this.renderTextBoxes();
+    if (this.isSelectionPaneOpen) this.renderSelectionPane();
+    return true;
+  }
+
+  rotateObject(angle = 90, targetId = null) {
+    let ids = targetId ? [targetId] : ((this.selectedObjectIds && this.selectedObjectIds.size) ? Array.from(this.selectedObjectIds) : [this.selectedImageId || this.selectedTextBoxId].filter(Boolean));
+    if (!ids.length) return false;
+
+    const beforeSnapshots = [];
+    const afterSnapshots = [];
+
+    for (const id of ids) {
+      const obj = this._findObjectById(id);
+      const target = obj?.item || obj;
+      if (!target) continue;
+
+      const beforeRot = Number(target.rotation || 0);
+      const afterRot = (((beforeRot + angle) % 360) + 360) % 360;
+      beforeSnapshots.push({ id, rotation: beforeRot });
+      afterSnapshots.push({ id, rotation: afterRot });
+      target.rotation = afterRot;
+    }
+
+    if (!afterSnapshots.length) return false;
+
+    this._recordHistory({
+      type: "sheet-arrange-batch",
+      sheet: this.activeSheet,
+      operation: "rotate",
+      before: beforeSnapshots,
+      after: afterSnapshots
+    });
+
+    this.renderImages();
+    this.renderTextBoxes();
+    return true;
+  }
+
+  flipObject(direction = "horizontal", targetId = null) {
+    let ids = targetId ? [targetId] : ((this.selectedObjectIds && this.selectedObjectIds.size) ? Array.from(this.selectedObjectIds) : [this.selectedImageId || this.selectedTextBoxId].filter(Boolean));
+    if (!ids.length) return false;
+
+    const beforeSnapshots = [];
+    const afterSnapshots = [];
+
+    for (const id of ids) {
+      const obj = this._findObjectById(id);
+      const target = obj?.item || obj;
+      if (!target) continue;
+
+      beforeSnapshots.push({ id, flipH: !!target.flipH, flipV: !!target.flipV });
+      if (direction === "horizontal") {
+        target.flipH = !target.flipH;
+      } else {
+        target.flipV = !target.flipV;
+      }
+      afterSnapshots.push({ id, flipH: !!target.flipH, flipV: !!target.flipV });
+    }
+
+    if (!afterSnapshots.length) return false;
+
+    this._recordHistory({
+      type: "sheet-arrange-batch",
+      sheet: this.activeSheet,
+      operation: "flip",
+      direction,
+      before: beforeSnapshots,
+      after: afterSnapshots
+    });
+
+    this.renderImages();
+    this.renderTextBoxes();
+    return true;
+  }
+
+  rotateRight90(id = null) {
+    return this.rotateObject(90, id);
+  }
+
+  rotateLeft90(id = null) {
+    return this.rotateObject(-90, id);
+  }
+
+  flipHorizontal(id = null) {
+    return this.flipObject("horizontal", id);
+  }
+
+  flipVertical(id = null) {
+    return this.flipObject("vertical", id);
+  }
+
+  toggleSelectionPane(forceState = null) {
+    this.isSelectionPaneOpen = (forceState !== null) ? !!forceState : !this.isSelectionPaneOpen;
+    let pane = this.container?.querySelector?.("#vno-sheet-selection-pane");
+    if (!this.isSelectionPaneOpen) {
+      if (pane) pane.style.display = "none";
+      return false;
+    }
+    if (!pane && this.container && typeof document !== "undefined") {
+      pane = document.createElement("aside");
+      pane.id = "vno-sheet-selection-pane";
+      pane.className = "vno-sheet-selection-pane";
+      pane.setAttribute("role", "region");
+      pane.setAttribute("aria-label", t("sheetRibbon.selectionPane", "Ngăn chọn"));
+      this.container.appendChild(pane);
+    }
+    if (pane) pane.style.display = "flex";
+    this.renderSelectionPane();
+    return true;
+  }
+
+  renderSelectionPane() {
+    if (!this.isSelectionPaneOpen || typeof document === "undefined" || !this.container) return;
+    let pane = this.container.querySelector("#vno-sheet-selection-pane");
+    if (!pane) {
+      this.toggleSelectionPane(true);
+      pane = this.container.querySelector("#vno-sheet-selection-pane");
+      if (!pane) return;
+    }
+
+    this._ensureDrawingOrder(this.activeSheet);
+    const order = this.drawingOrderBySheet[this.activeSheet] || [];
+    const reversedOrder = [...order].reverse();
+
+    pane.innerHTML = "";
+
+    const header = document.createElement("div");
+    header.className = "vno-selection-pane-header";
+    const title = document.createElement("h3");
+    title.textContent = t("sheetRibbon.selectionPane", "Lựa chọn");
+    header.appendChild(title);
+
+    const closeBtn = document.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.className = "vno-selection-pane-close";
+    closeBtn.textContent = "×";
+    closeBtn.setAttribute("aria-label", "Đóng ngăn chọn");
+    closeBtn.addEventListener("click", () => this.toggleSelectionPane(false));
+    header.appendChild(closeBtn);
+    pane.appendChild(header);
+
+    const toolbar = document.createElement("div");
+    toolbar.className = "vno-selection-pane-toolbar";
+
+    const showAllBtn = document.createElement("button");
+    showAllBtn.type = "button";
+    showAllBtn.textContent = t("sheetArrange.showAll", "Hiện tất cả");
+    showAllBtn.addEventListener("click", () => this.showAllObjects());
+    toolbar.appendChild(showAllBtn);
+
+    const hideAllBtn = document.createElement("button");
+    hideAllBtn.type = "button";
+    hideAllBtn.textContent = t("sheetArrange.hideAll", "Ẩn tất cả");
+    hideAllBtn.addEventListener("click", () => this.hideAllObjects());
+    toolbar.appendChild(hideAllBtn);
+
+    const upBtn = document.createElement("button");
+    upBtn.type = "button";
+    upBtn.innerHTML = "▲";
+    upBtn.title = t("sheetRibbon.bringForward", "Đưa lên một lớp");
+    upBtn.addEventListener("click", () => this.bringObjectForward());
+    toolbar.appendChild(upBtn);
+
+    const downBtn = document.createElement("button");
+    downBtn.type = "button";
+    downBtn.innerHTML = "▼";
+    downBtn.title = t("sheetRibbon.sendBackward", "Đưa về một lớp");
+    downBtn.addEventListener("click", () => this.sendObjectBackward());
+    toolbar.appendChild(downBtn);
+
+    pane.appendChild(toolbar);
+
+    const list = document.createElement("ul");
+    list.className = "vno-selection-pane-list";
+
+    for (const id of reversedOrder) {
+      const obj = this._findObjectById(id);
+      if (!obj) continue;
+      const target = obj.item || obj;
+      const isSelected = this.selectedObjectIds ? this.selectedObjectIds.has(id) : false;
+      const isVisible = target.visible !== false;
+      const name = this.getObjectName(target, obj.type);
+
+      const li = document.createElement("li");
+      li.className = isSelected ? "vno-selection-pane-item is-selected" : "vno-selection-pane-item";
+      li.dataset.objectId = id;
+
+      const eyeBtn = document.createElement("button");
+      eyeBtn.type = "button";
+      eyeBtn.className = "vno-selection-pane-eye";
+      eyeBtn.textContent = isVisible ? "👁" : "🚫";
+      eyeBtn.title = isVisible ? "Ẩn đối tượng" : "Hiện đối tượng";
+      eyeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.toggleObjectVisibility(id);
+      });
+      li.appendChild(eyeBtn);
+
+      const nameSpan = document.createElement("span");
+      nameSpan.className = "vno-selection-pane-name";
+      nameSpan.textContent = name;
+      nameSpan.title = "Nhấp đúp để đổi tên";
+      nameSpan.addEventListener("dblclick", (e) => {
+        e.stopPropagation();
+        const input = document.createElement("input");
+        input.type = "text";
+        input.value = target.name || name;
+        input.className = "vno-selection-pane-edit";
+        const commit = () => {
+          this.renameObject(id, input.value);
+        };
+        input.addEventListener("blur", commit);
+        input.addEventListener("keydown", (ke) => {
+          if (ke.key === "Enter") { input.blur(); }
+          else if (ke.key === "Escape") { this.renderSelectionPane(); }
+        });
+        nameSpan.replaceWith(input);
+        input.focus();
+        input.select();
+      });
+      li.appendChild(nameSpan);
+
+      li.addEventListener("click", (e) => {
+        const addToSelection = e.ctrlKey || e.metaKey || e.shiftKey;
+        this.selectObject(id, addToSelection);
+      });
+
+      list.appendChild(li);
+    }
+
+    pane.appendChild(list);
+  }
+
+  renameObject(id, newName) {
+    const obj = this._findObjectById(id);
+    const target = obj?.item || obj;
+    if (!target) return false;
+    const cleanName = String(newName || "").trim();
+    if (!cleanName) return false;
+    const beforeName = target.name || this.getObjectName(target, obj.type);
+    target.name = cleanName;
+
+    this._recordHistory({
+      type: "sheet-arrange-batch",
+      sheet: this.activeSheet,
+      operation: "rename",
+      id,
+      before: beforeName,
+      after: cleanName
+    });
+
+    if (this.isSelectionPaneOpen) this.renderSelectionPane();
+    return true;
+  }
+
+  toggleObjectVisibility(id, visible = null) {
+    const obj = this._findObjectById(id);
+    const target = obj?.item || obj;
+    if (!target) return false;
+
+    const beforeVisible = target.visible !== false;
+    const nextVisible = visible !== null ? !!visible : !beforeVisible;
+    target.visible = nextVisible;
+
+    this._recordHistory({
+      type: "sheet-arrange-batch",
+      sheet: this.activeSheet,
+      operation: "visibility",
+      id,
+      before: beforeVisible,
+      after: nextVisible
+    });
+
+    this.renderImages();
+    this.renderTextBoxes();
+    if (this.isSelectionPaneOpen) this.renderSelectionPane();
+    return true;
+  }
+
+  showAllObjects() {
+    this._ensureDrawingOrder(this.activeSheet);
+    const order = this.drawingOrderBySheet[this.activeSheet] || [];
+    const snapshots = [];
+    for (const id of order) {
+      const obj = this._findObjectById(id);
+      const target = obj?.item || obj;
+      if (target) {
+        snapshots.push({ id, before: target.visible !== false });
+        target.visible = true;
+      }
+    }
+    this._recordHistory({
+      type: "sheet-arrange-batch",
+      sheet: this.activeSheet,
+      operation: "showAll",
+      snapshots
+    });
+    this.renderImages();
+    this.renderTextBoxes();
+    if (this.isSelectionPaneOpen) this.renderSelectionPane();
+    return true;
+  }
+
+  hideAllObjects() {
+    this._ensureDrawingOrder(this.activeSheet);
+    const order = this.drawingOrderBySheet[this.activeSheet] || [];
+    const snapshots = [];
+    for (const id of order) {
+      const obj = this._findObjectById(id);
+      const target = obj?.item || obj;
+      if (target) {
+        snapshots.push({ id, before: target.visible !== false });
+        target.visible = false;
+      }
+    }
+    this._recordHistory({
+      type: "sheet-arrange-batch",
+      sheet: this.activeSheet,
+      operation: "hideAll",
+      snapshots
+    });
+    this.renderImages();
+    this.renderTextBoxes();
+    if (this.isSelectionPaneOpen) this.renderSelectionPane();
+    return true;
   }
 
   showFormatObjectDialog(typeOrId, idOrSheet, maybeSheet) {
@@ -8685,10 +9617,12 @@ _bindGridKeyboardNavigation() {
       if (event.target?.closest?.("[data-image-delete]")) return;
       if (event.button != null && event.button !== 0) return;
 
-      this.selectedImageId = image.id;
-      this.selectedTextBoxId = null;
-      this._updateImageSelection();
-      this._updateTextBoxSelection();
+      const isMulti = event.ctrlKey || event.metaKey || event.shiftKey;
+      if (!isMulti && !this.selectedObjectIds.has(image.id)) {
+        this.selectObject(image.id, false);
+      } else if (isMulti) {
+        this.selectObject(image.id, true);
+      }
       try { panel.focus(); } catch (_) { /* ignore */ }
 
       const pointerId = event.pointerId;
@@ -8955,10 +9889,7 @@ _bindGridKeyboardNavigation() {
       panel.addEventListener("contextmenu", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        this.selectedImageId = image.id;
-        this.selectedTextBoxId = null;
-        this._updateImageSelection();
-        this._updateTextBoxSelection();
+        this.selectObject(image.id, false);
         this._showObjectContextMenu(e, "image", image.id);
       });
       panel.addEventListener("keydown", (e) => {
@@ -8986,7 +9917,9 @@ _bindGridKeyboardNavigation() {
         if (isInFrozenRow) panel.dataset.frozenRow = "true";
         if (isInFrozenCol) panel.dataset.frozenCol = "true";
       }
-      const zIdx = isFrozen ? 10 : 7;
+      const order = this._ensureDrawingOrder(this.activeSheet);
+      const zIdxBase = order.indexOf(image.id);
+      const zIdx = isFrozen ? 10 : (10 + (zIdxBase >= 0 ? zIdxBase : 0));
 
       const hasWidth = Number.isFinite(Number(image.widthCm)) && Number(image.widthCm) > 0;
       const hasHeight = Number.isFinite(Number(image.heightCm)) && Number(image.heightCm) >= 0;
@@ -9002,6 +9935,21 @@ _bindGridKeyboardNavigation() {
         panel.style.height = `${heightPx}px`;
         cssText += `height:${heightPx}px;`;
       }
+      const rot = Number(image.rotation || 0);
+      const flipH = !!image.flipH;
+      const flipV = !!image.flipV;
+      let transformStr = "";
+      if (rot !== 0) transformStr += `rotate(${rot}deg) `;
+      if (flipH) transformStr += `scaleX(-1) `;
+      if (flipV) transformStr += `scaleY(-1) `;
+      if (transformStr) {
+        panel.style.transform = transformStr.trim();
+        cssText += `transform:${transformStr.trim()};`;
+      }
+      if (image.visible === false) {
+        panel.style.display = "none";
+        cssText += "display:none;";
+      }
       panel.style.cssText = cssText;
       panel.style.position = "absolute";
       panel.style.left = `${leftVal}px`;
@@ -9011,6 +9959,8 @@ _bindGridKeyboardNavigation() {
       panel.style.padding = "0";
       panel.style.pointerEvents = "auto";
       panel.style.boxSizing = "border-box";
+      if (transformStr) panel.style.transform = transformStr.trim();
+      if (image.visible === false) panel.style.display = "none";
       if (hasWidth) panel.style.width = `${Math.round(Number(image.widthCm) * 37.79527559055118)}px`;
       if (hasHeight) panel.style.height = `${Math.round(Number(image.heightCm) * 37.79527559055118)}px`;
 
@@ -9387,6 +10337,14 @@ _bindGridKeyboardNavigation() {
     };
     this.textBoxesBySheet[this.activeSheet] ||= [];
     this.textBoxesBySheet[this.activeSheet].push(box);
+    this.selectedTextBoxId = box.id;
+    this._ensureDrawingOrder(this.activeSheet);
+    if (!this.drawingOrderBySheet[this.activeSheet].includes(box.id)) {
+      this.drawingOrderBySheet[this.activeSheet].push(box.id);
+    }
+    if (!this.selectedObjectIds) this.selectedObjectIds = new Set();
+    this.selectedObjectIds.clear();
+    this.selectedObjectIds.add(box.id);
     this.renderTextBoxes();
     this._recordHistory({ type: "collection", sheet: this.activeSheet, collection: "textBoxesBySheet", operation: "insert", index: this.textBoxesBySheet[this.activeSheet].length - 1, item: structuredClone(box) });
     return box;
@@ -9397,7 +10355,8 @@ _bindGridKeyboardNavigation() {
     this.textBoxLayer.innerHTML = "";
     for (const box of this.textBoxesBySheet[this.activeSheet] || []) {
       const el = document.createElement("div");
-      el.className = this.selectedTextBoxId === box.id ? "vno-sheet-textbox is-selected" : "vno-sheet-textbox";
+      const isSelected = (this.selectedObjectIds && this.selectedObjectIds.has(box.id)) || this.selectedTextBoxId === box.id;
+      el.className = isSelected ? "vno-sheet-textbox is-selected" : "vno-sheet-textbox";
       el.tabIndex = 0;
       el.setAttribute("role", "textbox");
       el.setAttribute("aria-label", "Hộp văn bản");
@@ -9406,20 +10365,59 @@ _bindGridKeyboardNavigation() {
       el.textContent = box.text;
       const widthPx = Math.max(180, Number(box.widthPx) || 180);
       const heightPx = Math.max(54, Number(box.heightPx) || 54);
-      el.style.cssText = `position:absolute;left:${Math.max(0, this.cols.indexOf(box.anchor.c)) * 100 + 46}px;top:${Math.max(0, box.anchor.r - 1) * this.rowHeight + 28}px;width:${widthPx}px;height:${heightPx}px;min-width:180px;min-height:54px;padding:10px;background:#fff;border:1px solid #64748b;box-shadow:0 4px 12px rgba(15,23,42,.16);pointer-events:auto;resize:both;overflow:auto`;
-      el.addEventListener("pointerdown", () => {
-        this.selectedTextBoxId = box.id;
-        this.selectedImageId = null;
-        this._updateTextBoxSelection();
-        this._updateImageSelection();
+
+      const colIdx = Math.max(0, this.cols ? this.cols.indexOf(box.anchor.c) : 0);
+      let leftAcc = 44;
+      if (this.cols && typeof this.getColumnWidth === "function") {
+        for (let i = 0; i < colIdx; i++) leftAcc += this.getColumnWidth(this.cols[i]);
+      } else {
+        leftAcc = 44 + colIdx * 100;
+      }
+      const leftVal = leftAcc + (Number(box.offsetX) || 0);
+
+      let topAcc = 24;
+      if (typeof this._rowTop === "function") {
+        topAcc = 24 + this._rowTop(box.anchor.r);
+      } else {
+        topAcc = 24 + (box.anchor.r - 1) * (this.rowHeight || 28);
+      }
+      const topVal = topAcc + (Number(box.offsetY) || 0);
+
+      const order = this._ensureDrawingOrder(this.activeSheet);
+      const zIdxBase = order.indexOf(box.id);
+      const zIdx = 10 + (zIdxBase >= 0 ? zIdxBase : 0);
+
+      let cssText = `position:absolute;left:${leftVal}px;top:${topVal}px;width:${widthPx}px;height:${heightPx}px;min-width:180px;min-height:54px;padding:10px;background:#fff;border:1px solid #64748b;box-shadow:0 4px 12px rgba(15,23,42,.16);pointer-events:auto;resize:both;overflow:auto;z-index:${zIdx};box-sizing:border-box;`;
+
+      const rot = Number(box.rotation || 0);
+      const flipH = !!box.flipH;
+      const flipV = !!box.flipV;
+      let transformStr = "";
+      if (rot !== 0) transformStr += `rotate(${rot}deg) `;
+      if (flipH) transformStr += `scaleX(-1) `;
+      if (flipV) transformStr += `scaleY(-1) `;
+      if (transformStr) {
+        cssText += `transform:${transformStr.trim()};`;
+      }
+      if (box.visible === false) {
+        cssText += "display:none;";
+      }
+      el.style.cssText = cssText;
+      if (transformStr) el.style.transform = transformStr.trim();
+      if (box.visible === false) el.style.display = "none";
+
+      el.addEventListener("pointerdown", (e) => {
+        const isMulti = e.ctrlKey || e.metaKey || e.shiftKey;
+        if (!isMulti && !this.selectedObjectIds.has(box.id)) {
+          this.selectObject(box.id, false);
+        } else if (isMulti) {
+          this.selectObject(box.id, true);
+        }
       });
       el.addEventListener("contextmenu", (e) => {
         e.preventDefault();
         e.stopPropagation();
-        this.selectedTextBoxId = box.id;
-        this.selectedImageId = null;
-        this._updateTextBoxSelection();
-        this._updateImageSelection();
+        this.selectObject(box.id, false);
         this._showObjectContextMenu(e, "textbox", box.id);
       });
       el.addEventListener("keydown", (e) => {
@@ -12975,10 +13973,97 @@ _bindGridKeyboardNavigation() {
       this.scenariosBySheet[action.sheet] = structuredClone(direction === "undo" ? action.before : action.after);
     } else if (action.type === "collection-replace") {
       this[action.collection][action.sheet] = structuredClone(direction === "undo" ? action.before : action.after);
-      if (action.collection === "imagesBySheet") this.renderImages();
+      if (action.collection === "imagesBySheet" || action.collection === "drawingOrderBySheet") {
+        this.renderImages();
+        this.renderTextBoxes();
+        if (this.isSelectionPaneOpen) this.renderSelectionPane();
+      }
       else if (action.collection === "textBoxesBySheet") this.renderTextBoxes();
+      else if (action.collection === "groupsBySheet") {
+        this.renderImages();
+        this.renderTextBoxes();
+        if (this.isSelectionPaneOpen) this.renderSelectionPane();
+      }
       else if (action.collection === "chartsBySheet") this.renderCharts();
       else this._refreshVisibleRuleVisuals();
+    } else if (action.type === "sheet-drawing-order") {
+      const newOrder = structuredClone(direction === "undo" ? action.before : action.after);
+      this.drawingOrderBySheet[action.sheet] = newOrder;
+      if (this.imagesBySheet?.[action.sheet]) {
+        this.imagesBySheet[action.sheet].sort((a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
+      }
+      if (this.textBoxesBySheet?.[action.sheet]) {
+        this.textBoxesBySheet[action.sheet].sort((a, b) => newOrder.indexOf(a.id) - newOrder.indexOf(b.id));
+      }
+      this.renderImages();
+      this.renderTextBoxes();
+      if (this.isSelectionPaneOpen) this.renderSelectionPane();
+    } else if (action.type === "sheet-arrange-batch") {
+      if (action.operation === "group" || action.operation === "ungroup") {
+        const targetOrder = direction === "undo" ? action.beforeOrder : action.afterOrder;
+        if (targetOrder) this.drawingOrderBySheet[action.sheet] = structuredClone(targetOrder);
+        const grp = action.group;
+        if (grp) {
+          const isInsert = (action.operation === "group") === (direction === "redo");
+          this.groupsBySheet[action.sheet] ||= [];
+          const idx = this.groupsBySheet[action.sheet].findIndex(g => g.id === grp.id);
+          if (isInsert && idx < 0) {
+            this.groupsBySheet[action.sheet].push(structuredClone(grp));
+            for (const cId of grp.children || []) {
+              const ch = this._findObjectById(cId, action.sheet);
+              if (ch?.item) ch.item.groupId = grp.id;
+            }
+          } else if (!isInsert && idx >= 0) {
+            this.groupsBySheet[action.sheet].splice(idx, 1);
+            for (const cId of grp.children || []) {
+              const ch = this._findObjectById(cId, action.sheet);
+              if (ch?.item) delete ch.item.groupId;
+            }
+          }
+        }
+      } else if (action.operation === "align" || action.operation === "distribute") {
+        const list = direction === "undo" ? action.before : action.after;
+        for (const snap of list || []) {
+          const obj = this._findObjectById(snap.id, action.sheet);
+          if (obj?.item) {
+            if (snap.anchor) obj.item.anchor = structuredClone(snap.anchor);
+            if (snap.offsetX !== undefined) obj.item.offsetX = snap.offsetX;
+            if (snap.offsetY !== undefined) obj.item.offsetY = snap.offsetY;
+            if (snap.offsetXCm !== undefined) obj.item.offsetXCm = snap.offsetXCm;
+            if (snap.offsetYCm !== undefined) obj.item.offsetYCm = snap.offsetYCm;
+          }
+        }
+      } else if (action.operation === "rotate") {
+        const list = direction === "undo" ? action.before : action.after;
+        for (const snap of list || []) {
+          const obj = this._findObjectById(snap.id, action.sheet);
+          if (obj?.item) obj.item.rotation = snap.rotation;
+        }
+      } else if (action.operation === "flip") {
+        const list = direction === "undo" ? action.before : action.after;
+        for (const snap of list || []) {
+          const obj = this._findObjectById(snap.id, action.sheet);
+          if (obj?.item) {
+            obj.item.flipH = snap.flipH;
+            obj.item.flipV = snap.flipV;
+          }
+        }
+      } else if (action.operation === "rename") {
+        const obj = this._findObjectById(action.id, action.sheet);
+        if (obj?.item) obj.item.name = direction === "undo" ? action.before : action.after;
+      } else if (action.operation === "visibility") {
+        const obj = this._findObjectById(action.id, action.sheet);
+        if (obj?.item) obj.item.visible = direction === "undo" ? action.before : action.after;
+      } else if (action.operation === "showAll" || action.operation === "hideAll") {
+        const desiredVisible = (action.operation === "showAll") === (direction === "redo");
+        for (const snap of action.snapshots || []) {
+          const obj = this._findObjectById(snap.id, action.sheet);
+          if (obj?.item) obj.item.visible = direction === "undo" ? snap.before : desiredVisible;
+        }
+      }
+      this.renderImages();
+      this.renderTextBoxes();
+      if (this.isSelectionPaneOpen) this.renderSelectionPane();
     } else if (action.type === "conditional-rules") {
       this.conditionalFormattingBySheet[action.sheet] = structuredClone(direction === "undo" ? action.before : action.after);
 

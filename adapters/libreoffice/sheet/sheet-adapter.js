@@ -566,6 +566,30 @@ export class SheetAdapter {
       options = options || {};
       return this.grid.fillJustify ? this.grid.fillJustify(options.range, true, true) : false;
     });
+    globalCommandBus.bindHandler("sheet.arrange.bringToFront", () => this.grid.bringObjectToFront ? this.grid.bringObjectToFront() : false);
+    globalCommandBus.bindHandler("sheet.arrange.bringForward", () => this.grid.bringObjectForward ? this.grid.bringObjectForward() : false);
+    globalCommandBus.bindHandler("sheet.arrange.sendBackward", () => this.grid.sendObjectBackward ? this.grid.sendObjectBackward() : false);
+    globalCommandBus.bindHandler("sheet.arrange.sendToBack", () => this.grid.sendObjectToBack ? this.grid.sendObjectToBack() : false);
+    globalCommandBus.bindHandler("sheet.arrange.alignLeft", () => this.grid.alignObjects ? this.grid.alignObjects("left") : false);
+    globalCommandBus.bindHandler("sheet.arrange.alignCenter", () => this.grid.alignObjects ? this.grid.alignObjects("center") : false);
+    globalCommandBus.bindHandler("sheet.arrange.alignRight", () => this.grid.alignObjects ? this.grid.alignObjects("right") : false);
+    globalCommandBus.bindHandler("sheet.arrange.alignTop", () => this.grid.alignObjects ? this.grid.alignObjects("top") : false);
+    globalCommandBus.bindHandler("sheet.arrange.alignMiddle", () => this.grid.alignObjects ? this.grid.alignObjects("middle") : false);
+    globalCommandBus.bindHandler("sheet.arrange.alignBottom", () => this.grid.alignObjects ? this.grid.alignObjects("bottom") : false);
+    globalCommandBus.bindHandler("sheet.arrange.distributeHorizontal", () => this.grid.distributeObjects ? this.grid.distributeObjects("horizontal") : false);
+    globalCommandBus.bindHandler("sheet.arrange.distributeVertical", () => this.grid.distributeObjects ? this.grid.distributeObjects("vertical") : false);
+    globalCommandBus.bindHandler("sheet.arrange.group", () => this.grid.groupObjects ? this.grid.groupObjects() : false);
+    globalCommandBus.bindHandler("sheet.arrange.ungroup", () => this.grid.ungroupObjects ? this.grid.ungroupObjects() : false);
+    globalCommandBus.bindHandler("sheet.arrange.rotateRight90", () => this.grid.rotateObject ? this.grid.rotateObject(90) : false);
+    globalCommandBus.bindHandler("sheet.arrange.rotateLeft90", () => this.grid.rotateObject ? this.grid.rotateObject(-90) : false);
+    globalCommandBus.bindHandler("sheet.arrange.flipHorizontal", () => this.grid.flipObject ? this.grid.flipObject("horizontal") : false);
+    globalCommandBus.bindHandler("sheet.arrange.flipVertical", () => this.grid.flipObject ? this.grid.flipObject("vertical") : false);
+    globalCommandBus.bindHandler("sheet.arrange.bringForwardMenu", () => false);
+    globalCommandBus.bindHandler("sheet.arrange.sendBackwardMenu", () => false);
+    globalCommandBus.bindHandler("sheet.arrange.alignMenu", () => false);
+    globalCommandBus.bindHandler("sheet.arrange.groupMenu", () => false);
+    globalCommandBus.bindHandler("sheet.arrange.rotateMenu", () => false);
+    globalCommandBus.bindHandler("sheet.view.selectionPane", () => this.grid.toggleSelectionPane ? this.grid.toggleSelectionPane() : false);
     globalCommandBus.bindHandler("sheet.edit.clearAll", (options) => {
       options = options || {};
       return this.grid.clearAll ? this.grid.clearAll(options.range) : false;
@@ -1101,6 +1125,13 @@ export class SheetAdapter {
     const offsetXCm = this._odfLengthToCm(xRaw);
     const offsetYCm = this._odfLengthToCm(yRaw);
 
+    const rotRaw = frameAttrs.match(/vno:rotation=["']([^"']*)["']/i)?.[1];
+    const flipHRaw = frameAttrs.match(/vno:flip-h=["']([^"']*)["']/i)?.[1];
+    const flipVRaw = frameAttrs.match(/vno:flip-v=["']([^"']*)["']/i)?.[1];
+    const visRaw = frameAttrs.match(/vno:visible=["']([^"']*)["']/i)?.[1];
+    const nameRaw = frameAttrs.match(/vno:name=["']([^"']*)["']/i)?.[1];
+    const groupRaw = frameAttrs.match(/vno:group-id=["']([^"']*)["']/i)?.[1];
+
     return {
       id: this._unescapeXml(frameAttrs.match(/draw:name=["']([^"']*)["']/i)?.[1] || fallbackId),
       ...this._imageSourceIdFromAttrs(frameAttrs),
@@ -1108,7 +1139,13 @@ export class SheetAdapter {
       ...(Number.isFinite(widthCm) && widthCm >= 0 ? { widthCm } : {}),
       ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
       ...(Number.isFinite(offsetXCm) ? { offsetXCm } : {}),
-      ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {})
+      ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {}),
+      ...(rotRaw && Number.isFinite(Number(rotRaw)) ? { rotation: Number(rotRaw) } : {}),
+      ...(flipHRaw === "1" ? { flipH: true } : {}),
+      ...(flipVRaw === "1" ? { flipV: true } : {}),
+      ...(visRaw === "0" ? { visible: false } : {}),
+      ...(nameRaw ? { name: this._unescapeXml(nameRaw) } : {}),
+      ...(groupRaw ? { groupId: this._unescapeXml(groupRaw) } : {})
     };
   }
 
@@ -1135,6 +1172,13 @@ export class SheetAdapter {
     const offsetXCm = this._odfLengthToCm(xRaw);
     const offsetYCm = this._odfLengthToCm(yRaw);
 
+    const rotRaw = frame.getAttribute("vno:rotation");
+    const flipHRaw = frame.getAttribute("vno:flip-h");
+    const flipVRaw = frame.getAttribute("vno:flip-v");
+    const visRaw = frame.getAttribute("vno:visible");
+    const nameRaw = frame.getAttribute("vno:name");
+    const groupRaw = frame.getAttribute("vno:group-id");
+
     return {
       id: frame.getAttribute("draw:name") || fallbackId,
       ...this._imageSourceIdFromNode(frame),
@@ -1142,7 +1186,13 @@ export class SheetAdapter {
       ...(Number.isFinite(widthCm) && widthCm >= 0 ? { widthCm } : {}),
       ...(Number.isFinite(heightCm) && heightCm >= 0 ? { heightCm } : {}),
       ...(Number.isFinite(offsetXCm) ? { offsetXCm } : {}),
-      ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {})
+      ...(Number.isFinite(offsetYCm) ? { offsetYCm } : {}),
+      ...(rotRaw && Number.isFinite(Number(rotRaw)) ? { rotation: Number(rotRaw) } : {}),
+      ...(flipHRaw === "1" ? { flipH: true } : {}),
+      ...(flipVRaw === "1" ? { flipV: true } : {}),
+      ...(visRaw === "0" ? { visible: false } : {}),
+      ...(nameRaw ? { name: nameRaw } : {}),
+      ...(groupRaw ? { groupId: groupRaw } : {})
     };
   }
 
@@ -2768,7 +2818,13 @@ export class SheetAdapter {
     const xCm = Number.isFinite(Number(image.offsetXCm)) ? Number(Number(image.offsetXCm).toFixed(4)) : 0;
     const yCm = Number.isFinite(Number(image.offsetYCm)) ? Number(Number(image.offsetYCm).toFixed(4)) : 0;
     const name = this._escapeXml(image.id || "Image");
-    return `<draw:frame draw:name="${name}"${this._imageSourceIdAttr(image)} svg:x="${xCm}cm" svg:y="${yCm}cm" svg:width="${widthCm}cm" svg:height="${heightCm}cm"><draw:image draw:mime-type="${this._escapeXml(mime)}"><office:binary-data>${base64}</office:binary-data></draw:image></draw:frame>`;
+    const rotAttr = image.rotation ? ` vno:rotation="${Number(image.rotation)}"` : "";
+    const flipHAttr = image.flipH ? ` vno:flip-h="1"` : "";
+    const flipVAttr = image.flipV ? ` vno:flip-v="1"` : "";
+    const visAttr = image.visible === false ? ` vno:visible="0"` : "";
+    const nameAttr = image.name ? ` vno:name="${this._escapeXml(image.name)}"` : "";
+    const groupAttr = image.groupId ? ` vno:group-id="${this._escapeXml(image.groupId)}"` : "";
+    return `<draw:frame draw:name="${name}"${this._imageSourceIdAttr(image)}${rotAttr}${flipHAttr}${flipVAttr}${visAttr}${nameAttr}${groupAttr} svg:x="${xCm}cm" svg:y="${yCm}cm" svg:width="${widthCm}cm" svg:height="${heightCm}cm"><draw:image draw:mime-type="${this._escapeXml(mime)}"><office:binary-data>${base64}</office:binary-data></draw:image></draw:frame>`;
   }
 
   /**
@@ -2789,7 +2845,13 @@ export class SheetAdapter {
       const yCm = Number.isFinite(Number(image.offsetYCm)) ? Number(Number(image.offsetYCm).toFixed(4)) : 0;
       const name = this._escapeXml(image.id || "ShapeImage");
       const endCellAttr = image.endCellAddress ? ` table:end-cell-address="${this._escapeXml(image.endCellAddress)}"` : "";
-      return `<draw:frame draw:name="${name}"${this._imageSourceIdAttr(image)} svg:x="${xCm}cm" svg:y="${yCm}cm" svg:width="${widthCm}cm" svg:height="${heightCm}cm"${endCellAttr}><draw:image draw:mime-type="${this._escapeXml(mime)}"><office:binary-data>${base64}</office:binary-data></draw:image></draw:frame>`;
+      const rotAttr = image.rotation ? ` vno:rotation="${Number(image.rotation)}"` : "";
+      const flipHAttr = image.flipH ? ` vno:flip-h="1"` : "";
+      const flipVAttr = image.flipV ? ` vno:flip-v="1"` : "";
+      const visAttr = image.visible === false ? ` vno:visible="0"` : "";
+      const nameAttr = image.name ? ` vno:name="${this._escapeXml(image.name)}"` : "";
+      const groupAttr = image.groupId ? ` vno:group-id="${this._escapeXml(image.groupId)}"` : "";
+      return `<draw:frame draw:name="${name}"${this._imageSourceIdAttr(image)}${rotAttr}${flipHAttr}${flipVAttr}${visAttr}${nameAttr}${groupAttr} svg:x="${xCm}cm" svg:y="${yCm}cm" svg:width="${widthCm}cm" svg:height="${heightCm}cm"${endCellAttr}><draw:image draw:mime-type="${this._escapeXml(mime)}"><office:binary-data>${base64}</office:binary-data></draw:image></draw:frame>`;
     }).filter(Boolean);
     return frames.length ? `<table:shapes>${frames.join("")}</table:shapes>` : "";
   }
@@ -2948,17 +3010,55 @@ export class SheetAdapter {
         if (!Array.isArray(boxes)) return "";
         importedTextBoxes[sheetName] = boxes.filter(box => box && typeof box.text === "string" && box.anchor?.c && Number.isFinite(Number(box.anchor?.r)))
           .map((box, index) => ({
-            id: `textbox-import-${sheetName}-${index}`,
+            id: box.id || `textbox-import-${sheetName}-${index}`,
             text: box.text,
             anchor: { c: String(box.anchor.c), r: Number(box.anchor.r) },
             widthPx: Math.max(180, Number(box.widthPx) || 180),
-            heightPx: Math.max(54, Number(box.heightPx) || 54)
+            heightPx: Math.max(54, Number(box.heightPx) || 54),
+            ...(box.offsetX !== undefined ? { offsetX: Number(box.offsetX) } : {}),
+            ...(box.offsetY !== undefined ? { offsetY: Number(box.offsetY) } : {}),
+            ...(box.name ? { name: String(box.name) } : {}),
+            ...(box.rotation ? { rotation: Number(box.rotation) } : {}),
+            ...(box.flipH ? { flipH: true } : {}),
+            ...(box.flipV ? { flipV: true } : {}),
+            ...(box.visible === false ? { visible: false } : {}),
+            ...(box.groupId ? { groupId: String(box.groupId) } : {})
           }));
       } catch (_) {}
       return "";
     });
     // Chỉ gắn khi tệp có hộp văn bản: giữ nguyên dấu băm snapshot của các sổ tính không có hộp văn bản.
     if (Object.keys(importedTextBoxes).length) workbook.textBoxesBySheet = importedTextBoxes;
+  }
+
+  _attachImportedDrawingOrder(workbook, xmlText) {
+    const drawingOrderBySheet = {};
+    String(xmlText || "").replace(/<table:table(?=[\s>/])([^>]*)>/gi, (_, attrs) => {
+      const sheetName = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
+      const raw = attrs.match(/vno:drawing-order=["']([^"']*)["']/i)?.[1];
+      if (!sheetName || !raw) return "";
+      try {
+        const order = JSON.parse(this._unescapeXml(raw));
+        if (Array.isArray(order) && order.length) drawingOrderBySheet[sheetName] = order;
+      } catch (_) {}
+      return "";
+    });
+    if (Object.keys(drawingOrderBySheet).length) workbook.drawingOrderBySheet = drawingOrderBySheet;
+  }
+
+  _attachImportedGroups(workbook, xmlText) {
+    const groupsBySheet = {};
+    String(xmlText || "").replace(/<table:table(?=[\s>/])([^>]*)>/gi, (_, attrs) => {
+      const sheetName = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
+      const raw = attrs.match(/vno:groups=["']([^"']*)["']/i)?.[1];
+      if (!sheetName || !raw) return "";
+      try {
+        const groups = JSON.parse(this._unescapeXml(raw));
+        if (Array.isArray(groups) && groups.length) groupsBySheet[sheetName] = groups;
+      } catch (_) {}
+      return "";
+    });
+    if (Object.keys(groupsBySheet).length) workbook.groupsBySheet = groupsBySheet;
   }
 
   _attachImportedResolvedComments(workbook, xmlText) {
@@ -4010,8 +4110,26 @@ export class SheetAdapter {
       // is an explicit edit and the XLSX postprocessor removes stale source CF.
       const conditionalRulesAttr = ` vno:conditional-formatting="${this._escapeXml(JSON.stringify(conditionalRules))}"`;
       const textBoxes = this.grid.textBoxesBySheet?.[sheetName] || [];
-      const textBoxesAttr = textBoxes.length ? ` vno:text-boxes="${this._escapeXml(JSON.stringify(textBoxes.map(box => ({ text: String(box.text || ""), anchor: box.anchor, widthPx: Math.max(180, Number(box.widthPx) || 180), heightPx: Math.max(54, Number(box.heightPx) || 54) }))))}"` : "";
-      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-settings="${this._escapeXml(JSON.stringify(pageStyle.pageSettings))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${splitAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${conditionalRulesAttr}${textBoxesAttr}${resolvedCommentsAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
+      const textBoxesAttr = textBoxes.length ? ` vno:text-boxes="${this._escapeXml(JSON.stringify(textBoxes.map(box => ({
+        id: box.id,
+        text: String(box.text || ""),
+        anchor: box.anchor,
+        widthPx: Math.max(180, Number(box.widthPx) || 180),
+        heightPx: Math.max(54, Number(box.heightPx) || 54),
+        ...(box.offsetX !== undefined ? { offsetX: Number(box.offsetX) } : {}),
+        ...(box.offsetY !== undefined ? { offsetY: Number(box.offsetY) } : {}),
+        ...(box.name ? { name: box.name } : {}),
+        ...(box.rotation ? { rotation: Number(box.rotation) } : {}),
+        ...(box.flipH ? { flipH: true } : {}),
+        ...(box.flipV ? { flipV: true } : {}),
+        ...(box.visible === false ? { visible: false } : {}),
+        ...(box.groupId ? { groupId: box.groupId } : {})
+      }))))}"` : "";
+      const drawingOrder = this.grid.drawingOrderBySheet?.[sheetName] || [];
+      const drawingOrderAttr = drawingOrder.length ? ` vno:drawing-order="${this._escapeXml(JSON.stringify(drawingOrder))}"` : "";
+      const groups = this.grid.groupsBySheet?.[sheetName] || [];
+      const groupsAttr = groups.length ? ` vno:groups="${this._escapeXml(JSON.stringify(groups))}"` : "";
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-settings="${this._escapeXml(JSON.stringify(pageStyle.pageSettings))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${splitAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${conditionalRulesAttr}${textBoxesAttr}${drawingOrderAttr}${groupsAttr}${resolvedCommentsAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
@@ -5457,8 +5575,9 @@ ${pristineXlsxMarker}${docPropsMarker}
     this._attachImportedSparklines(workbook, xmlText);
     perfReport("attach sparklines", phaseStart); phaseStart = perfNow();
     this._attachImportedOutline(workbook, tableXml);
-    perfReport("attach outline", phaseStart);
     this._attachImportedTextBoxes(workbook, tableXml);
+    this._attachImportedDrawingOrder(workbook, tableXml);
+    this._attachImportedGroups(workbook, tableXml);
     this._attachImportedResolvedComments(workbook, tableXml);
     return workbook;
   }
@@ -5643,6 +5762,8 @@ ${pristineXlsxMarker}${docPropsMarker}
     this.grid.scenariosBySheet = workbook.scenariosBySheet || {};
     this.grid.tablesBySheet = workbook.tablesBySheet || {};
     this.grid.textBoxesBySheet = {};
+    this.grid.drawingOrderBySheet = {};
+    this.grid.groupsBySheet = {};
     const equivalentSheetValue = (mapping, sheetName) => {
       if (!mapping) return undefined;
       if (Object.prototype.hasOwnProperty.call(mapping, sheetName)) return mapping[sheetName];
@@ -5659,6 +5780,8 @@ ${pristineXlsxMarker}${docPropsMarker}
       this.grid.chartsBySheet[sheetName] = workbook.chartsBySheet?.[sheetName] || [];
       this.grid.imagesBySheet[sheetName] = workbook.imagesBySheet?.[sheetName] || [];
       this.grid.textBoxesBySheet[sheetName] = workbook.textBoxesBySheet?.[sheetName] || [];
+      this.grid.drawingOrderBySheet[sheetName] = workbook.drawingOrderBySheet?.[sheetName] || [];
+      this.grid.groupsBySheet[sheetName] = workbook.groupsBySheet?.[sheetName] || [];
       this.grid.imagesAtOpenBySheet[sheetName] = workbook.imagesAtOpenBySheet?.[sheetName] || 0;
       this.grid.rowHeightsBySheet[sheetName] = this._asLayoutMap(equivalentSheetValue(workbook.rowHeightsBySheet, sheetName), true);
       this.grid.colWidthsBySheet[sheetName] = this._asLayoutMap(workbook.colWidthsBySheet?.[sheetName], false);

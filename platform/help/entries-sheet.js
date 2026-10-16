@@ -1595,6 +1595,44 @@ export const SHEET_HELP_ENTRIES = [
       "Khi đã đánh dấu là cuối cùng, ứng dụng hiển thị thanh thông báo màu vàng và đặt toàn bộ ô cùng thanh công thức ở chế độ chỉ đọc mềm để ngăn chặn chỉnh sửa ngoài ý muốn.",
       "Nếu cần tiếp tục chỉnh sửa, người dùng chỉ cần bấm nút Vẫn chỉnh sửa trên thanh thông báo màu vàng hoặc bấm lại Đánh dấu là cuối cùng trong mục Thông tin."
     ]
+  },
+  {
+    id: "sheet.arrange.help",
+    app: "sheet",
+    commandIds: [
+      "sheet.arrange.bringToFront",
+      "sheet.arrange.bringForward",
+      "sheet.arrange.sendBackward",
+      "sheet.arrange.sendToBack",
+      "sheet.arrange.alignLeft",
+      "sheet.arrange.alignCenter",
+      "sheet.arrange.alignRight",
+      "sheet.arrange.alignTop",
+      "sheet.arrange.alignMiddle",
+      "sheet.arrange.alignBottom",
+      "sheet.arrange.distributeHorizontal",
+      "sheet.arrange.distributeVertical",
+      "sheet.arrange.group",
+      "sheet.arrange.ungroup",
+      "sheet.arrange.rotateRight90",
+      "sheet.arrange.rotateLeft90",
+      "sheet.arrange.flipHorizontal",
+      "sheet.arrange.flipVertical",
+      "sheet.view.selectionPane"
+    ],
+    title: "Sắp xếp đối tượng: Thứ tự lớp, Căn lề, Phân bố đều, Nhóm, Xoay lật và Ngăn chọn",
+    summary: "Quản lý và bố trí các đối tượng hình vẽ, ảnh, hộp văn bản trên trang tính: thay đổi thứ tự lớp xếp chồng (Đưa lên trên/xuống dưới), căn chỉnh và phân bố đều nhiều hình, nhóm/bỏ nhóm đối tượng, xoay lật góc 90 độ, cùng thanh Ngăn chọn trực quan giúp liệt kê, ẩn hiện và đổi tên đối tượng.",
+    ribbon: { tab: "Bố trí trang", tabId: "pageLayout", group: "Sắp xếp" },
+    keywords: ["sắp xếp", "thứ tự lớp", "đưa lên trên", "đưa xuống dưới", "bring to front", "send to back", "căn lề", "căn trái", "căn giữa", "căn phải", "căn trên", "căn dưới", "phân bố đều", "nhóm", "bỏ nhóm", "group", "ungroup", "xoay", "lật", "rotate", "flip", "ngăn chọn", "selection pane", "ẩn hiện", "đối tượng"],
+    steps: [
+      "Truy cập công cụ: Chọn tab Bố trí trang trên thanh công cụ, tìm nhóm Sắp xếp ở góc phải của thanh ruy-băng.",
+      "Thứ tự lớp hiển thị: Khi các hình hoặc ảnh nằm đè lên nhau, chọn đối tượng cần điều chỉnh, mở menu Đưa lên trên (Đưa lên một lớp hoặc Đưa lên trên cùng) hoặc Đưa xuống dưới (Lùi một lớp hoặc Xuống dưới cùng) để sắp đặt thứ tự hiển thị.",
+      "Căn chỉnh nhiều đối tượng: Giữ phím Ctrl hoặc Shift và nhấp chuột vào từ hai đối tượng trở lên để chọn cùng lúc; mở menu Căn chỉnh và chọn kiểu căn mong muốn (Căn trái, Căn giữa ngang, Căn phải, Căn trên, Căn giữa dọc, Căn dưới) theo khung bao quanh của các đối tượng đang chọn.",
+      "Phân bố đều khoảng cách: Chọn từ ba đối tượng trở lên, mở menu Căn chỉnh > chọn Phân bố đều ngang hoặc Phân bố đều dọc để khoảng cách trống giữa các hình được chia đều nhau một cách tự động và chuẩn xác.",
+      "Nhóm và Bỏ nhóm đối tượng: Chọn nhiều đối tượng, mở menu Nhóm > chọn Nhóm để kết hợp các hình thành một khối duy nhất giúp di chuyển, đổi cỡ hoặc xóa thuận tiện. Khi cần tách riêng, mở menu Nhóm > chọn Bỏ nhóm.",
+      "Xoay và Lật hình: Chọn đối tượng, mở menu Xoay để xoay góc 90 độ sang phải, xoay 90 độ sang trái, hoặc chọn Lật ngang, Lật dọc để tạo hình phản chiếu đối xứng.",
+      "Sử dụng Ngăn chọn (Selection Pane): Bấm nút Ngăn chọn trong nhóm Sắp xếp để mở thanh danh sách bên phải màn hình. Danh sách liệt kê mọi đối tượng theo đúng thứ tự lớp từ trên xuống dưới. Nhấp vào biểu tượng con mắt để ẩn hoặc hiện nhanh đối tượng; nhấp đúp vào tên để sửa tên trực tiếp; dùng nút Đưa lên / Hạ xuống ở đầu ngăn để đổi thứ tự lớp."
+    ]
   }
 ];
 

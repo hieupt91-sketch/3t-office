@@ -364,10 +364,11 @@ export const enStrings = {
   sheetRibbon: {
     whatIfAnalysis: "What-If Analysis",
     tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant", tableDesign: "Table Design" },
-    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", tables: "Tables", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", pageSetup: "Page Setup", scaleToFit: "Scale to Fit", sheetOptions: "Sheet Options", proofing: "Proofing", comments: "Comments", protection: "Protect", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiAnalysis: "AI Data Analysis", properties: "Table Properties", tableStyleOptions: "Table Style Options", tools: "Tools" },
+    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", tables: "Tables", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", pageSetup: "Page Setup", scaleToFit: "Scale to Fit", sheetOptions: "Sheet Options", proofing: "Proofing", comments: "Comments", protection: "Protect", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiAnalysis: "AI Data Analysis", properties: "Table Properties", tableStyleOptions: "Table Style Options", tools: "Tools", arrange: "Arrange" },
     editing: { fill: "Fill", clear: "Clear" },
     alignment: { orientation: "Orientation" },
     cells: { format: "Format" },
+    arrange: { bringForward: "Bring Forward", sendBackward: "Send Backward", align: "Align", group: "Group", rotate: "Rotate" },
     window: { freezePanes: "Freeze Panes", split: "Split" }
   },
   sheetFormulaEntry: {
@@ -744,6 +745,30 @@ export const enStrings = {
     ,"sheet.page.clearPrintArea": { label: "Clear Print Area", tooltip: "Clear the current worksheet's print area" }
     ,"sheet.page.insertPageBreak": { label: "Insert Page Break", tooltip: "Insert row and column page breaks at the active cell" }
     ,"sheet.page.removePageBreak": { label: "Remove Page Break", tooltip: "Remove row and column page breaks at the active cell" }
+    ,"sheet.arrange.bringToFront": { label: "Bring to Front", tooltip: "Bring the selected object in front of all other objects" }
+    ,"sheet.arrange.bringForward": { label: "Bring Forward", tooltip: "Bring the selected object forward one level" }
+    ,"sheet.arrange.sendBackward": { label: "Send Backward", tooltip: "Send the selected object backward one level" }
+    ,"sheet.arrange.sendToBack": { label: "Send to Back", tooltip: "Send the selected object behind all other objects" }
+    ,"sheet.arrange.alignLeft": { label: "Align Left", tooltip: "Align selected objects to the left" }
+    ,"sheet.arrange.alignCenter": { label: "Align Center", tooltip: "Align selected objects horizontally to the center" }
+    ,"sheet.arrange.alignRight": { label: "Align Right", tooltip: "Align selected objects to the right" }
+    ,"sheet.arrange.alignTop": { label: "Align Top", tooltip: "Align selected objects to the top" }
+    ,"sheet.arrange.alignMiddle": { label: "Align Middle", tooltip: "Align selected objects vertically to the middle" }
+    ,"sheet.arrange.alignBottom": { label: "Align Bottom", tooltip: "Align selected objects to the bottom" }
+    ,"sheet.arrange.distributeHorizontal": { label: "Distribute Horizontally", tooltip: "Distribute selected objects evenly horizontally" }
+    ,"sheet.arrange.distributeVertical": { label: "Distribute Vertically", tooltip: "Distribute selected objects evenly vertically" }
+    ,"sheet.arrange.bringForwardMenu": { label: "Bring Forward", tooltip: "Options to bring the selected object forward" }
+    ,"sheet.arrange.sendBackwardMenu": { label: "Send Backward", tooltip: "Options to send the selected object backward" }
+    ,"sheet.arrange.alignMenu": { label: "Align", tooltip: "Align selected objects" }
+    ,"sheet.arrange.groupMenu": { label: "Group", tooltip: "Group or ungroup selected objects" }
+    ,"sheet.arrange.rotateMenu": { label: "Rotate", tooltip: "Rotate or flip the selected object" }
+    ,"sheet.arrange.group": { label: "Group", tooltip: "Group selected objects together" }
+    ,"sheet.arrange.ungroup": { label: "Ungroup", tooltip: "Ungroup the selected group of objects" }
+    ,"sheet.arrange.rotateRight90": { label: "Rotate Right 90°", tooltip: "Rotate the selected object 90 degrees to the right" }
+    ,"sheet.arrange.rotateLeft90": { label: "Rotate Left 90°", tooltip: "Rotate the selected object 90 degrees to the left" }
+    ,"sheet.arrange.flipHorizontal": { label: "Flip Horizontal", tooltip: "Flip the selected object horizontally" }
+    ,"sheet.arrange.flipVertical": { label: "Flip Vertical", tooltip: "Flip the selected object vertically" }
+    ,"sheet.view.selectionPane": { label: "Selection Pane", tooltip: "Show or hide the selection pane to manage objects on the sheet" }
     ,"sheet.insert.cells": { label: "Insert Cells...", tooltip: "Insert cells, rows, or columns (Ctrl+Shift++)" }
     ,"sheet.sheet.insertBefore": { label: "Insert Sheet", tooltip: "Insert a new sheet before current sheet (Shift+F11)" }
     ,"sheet.row.insert": { label: "Insert Row", tooltip: "Insert a new row (Ctrl+Shift+=)" }
