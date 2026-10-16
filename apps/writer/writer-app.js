@@ -308,7 +308,8 @@ export class WriterApp {
     this._editableRoots = [header, body, footer];
     this._normalizers = this._editableRoots.map(root => new InputNormalizer({
       target: root,
-      onWordCommit: () => this.adapter?.recordSnapshot?.("Gõ chữ")
+      onWordCommit: () => this.adapter?.recordSnapshot?.("Gõ chữ"),
+      onUndo: () => this.adapter?.undo?.()
     }).attach(root));
     this.autoCorrectController = new WriterAutoCorrectController({
       getSettings: () => this.autoCorrectPreferences.getSettings(),
