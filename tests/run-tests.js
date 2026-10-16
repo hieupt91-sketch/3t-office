@@ -12,6 +12,7 @@ import { runFormulaEngineTests } from "./unit/formula-engine.test.js";
 import { runStructuredReferenceTests } from "./unit/structured-references.test.js";
 import { runSheetTableTests } from "./unit/sheet-table.test.js";
 import { runSheetTemplateSaveTests } from "./unit/sheet-template-save.test.js";
+import { runSheetCfGoldenTests } from "./unit/sheet-cf-golden.test.js";
 import { runSheetSeriesTests } from "./unit/sheet-series.test.js";
 import { runFunctionGoldenTests } from "./unit/function-golden.test.js";
 import { runSheetExternalLinksTests } from "./unit/sheet-external-links.test.js";
@@ -316,6 +317,7 @@ async function runAll() {
     { title: "3b. Unit Tests — Tham chiếu có cấu trúc Table[Cột]", runner: runStructuredReferenceTests },
     { title: "3b2. Unit Tests — Thao tác Bảng Table/ListObject (AGY-TABLE)", runner: runSheetTableTests },
     { title: "3b3. Unit Tests — Lưu thành mẫu .xltx (Sheet)", runner: runSheetTemplateSaveTests },
+    { title: "3b4. Unit Tests — Định dạng có điều kiện đối chiếu Excel 2016 + ROW()/COLUMN()", runner: runSheetCfGoldenTests },
     { title: "3c. Unit Tests — Điền > Chuỗi (Series)", runner: runSheetSeriesTests },
     { title: "3d. Unit Tests — Hàm đối chiếu Excel 2016 (bộ giá trị vàng)", runner: runFunctionGoldenTests },
     { title: "4. Unit Tests — Sheet external workbook links", runner: runSheetExternalLinksTests },

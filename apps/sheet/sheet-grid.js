@@ -16344,7 +16344,7 @@ _bindGridKeyboardNavigation() {
         const baseCol = this._columnNumber(rule.range.start.c);
         const targetCol = this._columnNumber(col);
         const formula = this._offsetFormula(rule.formula, targetCol - baseCol, row - rule.range.start.r);
-        const result = this.formulaEngine.evaluate(formula);
+        const result = this.formulaEngine.evaluate(formula, { sheet: this.activeSheet, coord: `${col}${row}` });
         return result === true || result === 1 || String(result).toUpperCase() === "TRUE";
       }
     };

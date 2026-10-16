@@ -1,0 +1,659 @@
+{
+    "cases":  [
+                  {
+                      "name":  "gt15 hon hop",
+                      "values":  [
+                                     3,
+                                     15,
+                                     16,
+                                     -2,
+                                     "abc",
+                                     "",
+                                     20.5
+                                 ],
+                      "rule":  {
+                                   "type":  "greaterThan",
+                                   "value":  15
+                               },
+                      "excelHit":  [
+                                       false,
+                                       false,
+                                       true,
+                                       false,
+                                       true,
+                                       false,
+                                       true
+                                   ]
+                  },
+                  {
+                      "name":  "lt0 so am",
+                      "values":  [
+                                     -5,
+                                     0,
+                                     5,
+                                     "x",
+                                     -0.1,
+                                     "",
+                                     2
+                                 ],
+                      "rule":  {
+                                   "type":  "lessThan",
+                                   "value":  0
+                               },
+                      "excelHit":  [
+                                       true,
+                                       false,
+                                       false,
+                                       false,
+                                       true,
+                                       false,
+                                       false
+                                   ]
+                  },
+                  {
+                      "name":  "between 5..20 bien",
+                      "values":  [
+                                     5,
+                                     20,
+                                     4.99,
+                                     20.01,
+                                     10,
+                                     "",
+                                     12,
+                                     "abc"
+                                 ],
+                      "rule":  {
+                                   "type":  "between",
+                                   "value":  5,
+                                   "value2":  20
+                               },
+                      "excelHit":  [
+                                       true,
+                                       true,
+                                       false,
+                                       false,
+                                       true,
+                                       false,
+                                       true,
+                                       false
+                                   ]
+                  },
+                  {
+                      "name":  "equal 9",
+                      "values":  [
+                                     9,
+                                     9.0,
+                                     10,
+                                     "",
+                                     8.99,
+                                     "x"
+                                 ],
+                      "rule":  {
+                                   "type":  "equal",
+                                   "value":  9
+                               },
+                      "excelHit":  [
+                                       true,
+                                       true,
+                                       false,
+                                       false,
+                                       false,
+                                       false
+                                   ]
+                  },
+                  {
+                      "name":  "equal chu",
+                      "values":  [
+                                     "Ha Noi",
+                                     "ha noi",
+                                     "HA NOI ",
+                                     "Hue",
+                                     ""
+                                 ],
+                      "rule":  {
+                                   "type":  "equal",
+                                   "value":  "Ha Noi"
+                               },
+                      "excelHit":  [
+                                       true,
+                                       true,
+                                       false,
+                                       false,
+                                       false
+                                   ]
+                  },
+                  {
+                      "name":  "contains an",
+                      "values":  [
+                                     "Banana",
+                                     "Orange",
+                                     "anh",
+                                     "AN",
+                                     "",
+                                     5,
+                                     "xAn"
+                                 ],
+                      "rule":  {
+                                   "type":  "textContains",
+                                   "text":  "an"
+                               },
+                      "excelHit":  [
+                                       true,
+                                       true,
+                                       true,
+                                       true,
+                                       false,
+                                       false,
+                                       true
+                                   ]
+                  },
+                  {
+                      "name":  "duplicate",
+                      "values":  [
+                                     1,
+                                     2,
+                                     2,
+                                     3,
+                                     "a",
+                                     "A",
+                                     "a",
+                                     "",
+                                     " ",
+                                     1
+                                 ],
+                      "rule":  {
+                                   "type":  "duplicate"
+                               },
+                      "excelHit":  [
+                                       true,
+                                       true,
+                                       true,
+                                       false,
+                                       true,
+                                       true,
+                                       true,
+                                       false,
+                                       false,
+                                       true
+                                   ]
+                  },
+                  {
+                      "name":  "top3 dong hang",
+                      "values":  [
+                                     5,
+                                     9,
+                                     9,
+                                     9,
+                                     1,
+                                     7,
+                                     7
+                                 ],
+                      "rule":  {
+                                   "type":  "top",
+                                   "rank":  3
+                               },
+                      "excelHit":  [
+                                       false,
+                                       true,
+                                       true,
+                                       true,
+                                       false,
+                                       false,
+                                       false
+                                   ]
+                  },
+                  {
+                      "name":  "bottom2 dong hang",
+                      "values":  [
+                                     4,
+                                     4,
+                                     1,
+                                     8,
+                                     1,
+                                     3
+                                 ],
+                      "rule":  {
+                                   "type":  "bottom",
+                                   "rank":  2
+                               },
+                      "excelHit":  [
+                                       false,
+                                       false,
+                                       true,
+                                       false,
+                                       true,
+                                       false
+                                   ]
+                  },
+                  {
+                      "name":  "top3 co chu",
+                      "values":  [
+                                     5,
+                                     "x",
+                                     8,
+                                     "",
+                                     2,
+                                     9,
+                                     1
+                                 ],
+                      "rule":  {
+                                   "type":  "top",
+                                   "rank":  3
+                               },
+                      "excelHit":  [
+                                       true,
+                                       false,
+                                       true,
+                                       false,
+                                       false,
+                                       true,
+                                       false
+                                   ]
+                  },
+                  {
+                      "name":  "top10pct 25 so",
+                      "values":  [
+                                     1,
+                                     2,
+                                     3,
+                                     4,
+                                     5,
+                                     6,
+                                     7,
+                                     8,
+                                     9,
+                                     10,
+                                     11,
+                                     12,
+                                     13,
+                                     14,
+                                     15,
+                                     16,
+                                     17,
+                                     18,
+                                     19,
+                                     20,
+                                     21,
+                                     22,
+                                     23,
+                                     24,
+                                     25
+                                 ],
+                      "rule":  {
+                                   "type":  "topPercent",
+                                   "rank":  10
+                               },
+                      "excelHit":  [
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       true,
+                                       true
+                                   ]
+                  },
+                  {
+                      "name":  "bottom20pct 9 so",
+                      "values":  [
+                                     10,
+                                     20,
+                                     30,
+                                     40,
+                                     50,
+                                     60,
+                                     70,
+                                     80,
+                                     90
+                                 ],
+                      "rule":  {
+                                   "type":  "bottomPercent",
+                                   "rank":  20
+                               },
+                      "excelHit":  [
+                                       true,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       false
+                                   ]
+                  },
+                  {
+                      "name":  "above avg",
+                      "values":  [
+                                     1,
+                                     2,
+                                     3,
+                                     4,
+                                     100,
+                                     "x",
+                                     ""
+                                 ],
+                      "rule":  {
+                                   "type":  "aboveAverage"
+                               },
+                      "excelHit":  [
+                                       false,
+                                       false,
+                                       false,
+                                       false,
+                                       true,
+                                       false,
+                                       false
+                                   ]
+                  },
+                  {
+                      "name":  "below avg",
+                      "values":  [
+                                     1,
+                                     2,
+                                     3,
+                                     4,
+                                     100,
+                                     "x",
+                                     ""
+                                 ],
+                      "rule":  {
+                                   "type":  "belowAverage"
+                               },
+                      "excelHit":  [
+                                       true,
+                                       true,
+                                       true,
+                                       true,
+                                       false,
+                                       false,
+                                       false
+                                   ]
+                  },
+                  {
+                      "name":  "above avg bang TB",
+                      "values":  [
+                                     2,
+                                     4,
+                                     6,
+                                     6,
+                                     6
+                                 ],
+                      "rule":  {
+                                   "type":  "aboveAverage"
+                               },
+                      "excelHit":  [
+                                       false,
+                                       false,
+                                       true,
+                                       true,
+                                       true
+                                   ]
+                  },
+                  {
+                      "name":  "blank",
+                      "values":  [
+                                     1,
+                                     "",
+                                     3,
+                                     "",
+                                     5
+                                 ],
+                      "rule":  {
+                                   "type":  "blank"
+                               },
+                      "excelHit":  [
+                                       false,
+                                       true,
+                                       false,
+                                       true,
+                                       false
+                                   ]
+                  },
+                  {
+                      "name":  "formula chan",
+                      "values":  [
+                                     1,
+                                     2,
+                                     3,
+                                     4,
+                                     5,
+                                     6
+                                 ],
+                      "rule":  {
+                                   "type":  "formula",
+                                   "formula":  "=MOD(ROW(),2)=0"
+                               },
+                      "excelHit":  [
+                                       false,
+                                       true,
+                                       false,
+                                       true,
+                                       false,
+                                       true
+                                   ]
+                  },
+                  {
+                      "name":  "formula so sanh dong",
+                      "values":  [
+                                     3,
+                                     8,
+                                     1,
+                                     9,
+                                     4
+                                 ],
+                      "rule":  {
+                                   "type":  "formula",
+                                   "formula":  "=A1\u003eAVERAGE($A$1:$A$5)"
+                               },
+                      "excelHit":  [
+                                       false,
+                                       true,
+                                       false,
+                                       true,
+                                       false
+                                   ]
+                  },
+                  {
+                      "name":  "lt5 co o trong va chu",
+                      "values":  [
+                                     1,
+                                     "",
+                                     7,
+                                     "abc",
+                                     5,
+                                     -3
+                                 ],
+                      "rule":  {
+                                   "type":  "lessThan",
+                                   "value":  5
+                               },
+                      "excelHit":  [
+                                       true,
+                                       true,
+                                       false,
+                                       false,
+                                       false,
+                                       true
+                                   ]
+                  },
+                  {
+                      "name":  "equal 0 o trong",
+                      "values":  [
+                                     0,
+                                     "",
+                                     1,
+                                     "a",
+                                     0
+                                 ],
+                      "rule":  {
+                                   "type":  "equal",
+                                   "value":  0
+                               },
+                      "excelHit":  [
+                                       true,
+                                       true,
+                                       false,
+                                       false,
+                                       true
+                                   ]
+                  },
+                  {
+                      "name":  "gt0 o trong chu",
+                      "values":  [
+                                     "",
+                                     2,
+                                     "zzz",
+                                     -1,
+                                     0
+                                 ],
+                      "rule":  {
+                                   "type":  "greaterThan",
+                                   "value":  0
+                               },
+                      "excelHit":  [
+                                       false,
+                                       true,
+                                       true,
+                                       false,
+                                       false
+                                   ]
+                  },
+                  {
+                      "name":  "between -1..1 gom trong",
+                      "values":  [
+                                     "",
+                                     0,
+                                     -1,
+                                     1,
+                                     "t",
+                                     1.5
+                                 ],
+                      "rule":  {
+                                   "type":  "between",
+                                   "value":  -1,
+                                   "value2":  1
+                               },
+                      "excelHit":  [
+                                       true,
+                                       true,
+                                       true,
+                                       true,
+                                       false,
+                                       false
+                                   ]
+                  },
+                  {
+                      "name":  "top1 co am",
+                      "values":  [
+                                     -5,
+                                     -2,
+                                     -9,
+                                     -2
+                                 ],
+                      "rule":  {
+                                   "type":  "top",
+                                   "rank":  1
+                               },
+                      "excelHit":  [
+                                       false,
+                                       true,
+                                       false,
+                                       true
+                                   ]
+                  },
+                  {
+                      "name":  "top50pct 5 so",
+                      "values":  [
+                                     1,
+                                     2,
+                                     3,
+                                     4,
+                                     5
+                                 ],
+                      "rule":  {
+                                   "type":  "topPercent",
+                                   "rank":  50
+                               },
+                      "excelHit":  [
+                                       false,
+                                       false,
+                                       false,
+                                       true,
+                                       true
+                                   ]
+                  },
+                  {
+                      "name":  "top1pct 3 so",
+                      "values":  [
+                                     1,
+                                     2,
+                                     3
+                                 ],
+                      "rule":  {
+                                   "type":  "topPercent",
+                                   "rank":  1
+                               },
+                      "excelHit":  [
+                                       false,
+                                       false,
+                                       true
+                                   ]
+                  },
+                  {
+                      "name":  "formula cot",
+                      "values":  [
+                                     1,
+                                     2,
+                                     3
+                                 ],
+                      "rule":  {
+                                   "type":  "formula",
+                                   "formula":  "=COLUMN()=1"
+                               },
+                      "excelHit":  [
+                                       true,
+                                       true,
+                                       true
+                                   ]
+                  },
+                  {
+                      "name":  "contains khong phan biet hoa thuong",
+                      "values":  [
+                                     "HA NOI",
+                                     "ha noi",
+                                     "Hue",
+                                     "H"
+                                 ],
+                      "rule":  {
+                                   "type":  "textContains",
+                                   "text":  "ha n"
+                               },
+                      "excelHit":  [
+                                       true,
+                                       true,
+                                       false,
+                                       false
+                                   ]
+                  }
+              ],
+    "source":  "Excel 2016 (16.0.4266) DisplayFormat.Interior.Color, 16/10/2026, scripts/audit-0610/cf_diff.mjs + cf_excel_oracle.ps1"
+}
