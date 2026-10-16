@@ -129,7 +129,19 @@ for (const scenario of spec.scenarios) {
         case "autoFill": {
           const s = parseRange(op.src); const d = parseRange(op.dest);
           const down = d.end.r > s.end.r; const right = colNumber(d.end.c) > colNumber(s.end.c);
-          grid._executeAutofill(s, down ? { direction: "down", startCol: s.start.c, endCol: s.end.c, startRow: s.end.r + 1, endRow: d.end.r } : right ? { direction: "right", startColNum: colNumber(s.end.c) + 1, endColNum: colNumber(d.end.c), startRow: s.start.r, endRow: s.end.r } : (() => { throw new Error("autoFill chi ho tro xuong/phai"); })());
+          grid._executeAutofill(s, down ? { direction: "down", startCol: s.start.c, endCol: s.end.c, startRow: s.end.r + 1, endRow: d.end.r, fillType: op.fillType } : right ? { direction: "right", startColNum: colNumber(s.end.c) + 1, endColNum: colNumber(d.end.c), startRow: s.start.r, endRow: s.end.r, fillType: op.fillType } : (() => { throw new Error("autoFill chi ho tro xuong/phai"); })());
+          break;
+        }
+        case "moveCells": {
+          const s = parseRange(op.from);
+          const [dc, dr] = split(op.to.split(":")[0]);
+          grid._executeCellMove(s, { c: dc, r: dr }, false);
+          break;
+        }
+        case "copyCells": {
+          const s = parseRange(op.from);
+          const [dc, dr] = split(op.to.split(":")[0]);
+          grid._executeCellMove(s, { c: dc, r: dr }, true);
           break;
         }
         case "advancedFilter": grid.advancedFilter({ listRange: op.list, criteriaRange: op.criteria, action: op.copyTo ? "copy" : "inplace", copyTo: op.copyTo, unique: Boolean(op.unique) }); break;

@@ -1018,6 +1018,137 @@ tr.is-filtered-out {
   background-color: rgba(2, 132, 199, 0.15) !important;
 }
 
+.vno-grid-cell.is-insert-preview-top {
+  box-shadow: inset 0 3px 0 0 #0284c7 !important;
+}
+
+.vno-grid-cell.is-insert-preview-left {
+  box-shadow: inset 3px 0 0 0 #0284c7 !important;
+}
+
+.vno-cell-autofill-handle.is-ctrl-copy {
+  cursor: copy !important;
+}
+
+.vno-cell-move-handle.is-ctrl-copy {
+  cursor: copy !important;
+}
+
+.vno-cell-move-handle.is-shift-insert {
+  cursor: grab !important;
+}
+
+/* Nút & Menu Tùy chọn Tự điền (Auto Fill Options) */
+.vno-autofill-options-btn {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: #ffffff;
+  border: 1px solid #c8c8c8;
+  border-radius: 2px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 28;
+  box-sizing: border-box;
+}
+.vno-autofill-options-btn:hover {
+  background: #f3f3f3;
+  border-color: #0078d4;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.vno-autofill-options-menu {
+  position: absolute;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+  padding: 4px 0;
+  z-index: 100;
+  min-width: 210px;
+  font-family: inherit;
+  font-size: 13px;
+  user-select: none;
+}
+
+.vno-autofill-option-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  gap: 10px;
+  color: #1f2937;
+  font-size: 13px;
+  line-height: 1.4;
+  box-sizing: border-box;
+}
+.vno-autofill-option-item:hover,
+.vno-autofill-option-item:focus {
+  background-color: #e5f3ff;
+  outline: none;
+}
+
+.vno-autofill-option-radio {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid #6b7280;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+.vno-autofill-option-radio.is-checked {
+  border-color: #0078d4;
+}
+.vno-autofill-option-radio.is-checked::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #0078d4;
+}
+
+[data-theme="dark"] .vno-autofill-options-btn {
+  background: #252526;
+  border-color: #454545;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+[data-theme="dark"] .vno-autofill-options-btn:hover {
+  background: #2d2d2d;
+  border-color: #4ade80;
+}
+[data-theme="dark"] .vno-autofill-options-menu {
+  background: #252526;
+  border-color: #454545;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+[data-theme="dark"] .vno-autofill-option-item {
+  color: #e5e7eb;
+}
+[data-theme="dark"] .vno-autofill-option-item:hover,
+[data-theme="dark"] .vno-autofill-option-item:focus {
+  background-color: #374151;
+}
+[data-theme="dark"] .vno-autofill-option-radio {
+  border-color: #9ca3af;
+}
+[data-theme="dark"] .vno-autofill-option-radio.is-checked {
+  border-color: #4ade80;
+}
+[data-theme="dark"] .vno-autofill-option-radio.is-checked::after {
+  background: #4ade80;
+}
+
 /* Bộ điều chỉnh kích thước cột và hàng (Resizers) */
 .vno-col-resizer {
   position: absolute;

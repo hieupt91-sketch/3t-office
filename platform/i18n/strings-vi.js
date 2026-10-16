@@ -1698,5 +1698,17 @@ export const viStrings = {
     savedNotice: "Đã lưu Macro",
     noActionsNotice: "Không có thao tác nào được ghi lại — Macro không được lưu.",
     emptyCancelled: "Đã hủy — Macro không được lưu."
+  },
+  sheetAutofill: {
+    optionsButtonTitle: "Tùy chọn Tự điền (Ctrl)",
+    copyCells: "Sao chép ô",
+    fillSeries: "Điền chuỗi",
+    fillFormattingOnly: "Chỉ điền định dạng",
+    fillWithoutFormatting: "Điền không định dạng",
+    fillDays: "Điền ngày",
+    fillWeekdays: "Điền ngày làm việc",
+    fillMonths: "Điền tháng",
+    fillYears: "Điền năm",
+    flashFill: "Điền nhanh"
   }
 };

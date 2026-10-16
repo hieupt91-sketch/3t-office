@@ -1714,5 +1714,17 @@ export const enStrings = {
     savedNotice: "Macro saved",
     noActionsNotice: "No actions were recorded — Macro was not saved.",
     emptyCancelled: "Cancelled — Macro was not saved."
+  },
+  sheetAutofill: {
+    optionsButtonTitle: "Auto Fill Options (Ctrl)",
+    copyCells: "Copy Cells",
+    fillSeries: "Fill Series",
+    fillFormattingOnly: "Fill Formatting Only",
+    fillWithoutFormatting: "Fill Without Formatting",
+    fillDays: "Fill Days",
+    fillWeekdays: "Fill Weekdays",
+    fillMonths: "Fill Months",
+    fillYears: "Fill Years",
+    flashFill: "Flash Fill"
   }
 };

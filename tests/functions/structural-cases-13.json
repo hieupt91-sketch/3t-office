@@ -1,0 +1,125 @@
+{
+  "scenarios": [
+    {
+      "name": "autofill_copy_numbers",
+      "cells": {
+        "A1": 10
+      },
+      "ops": [
+        { "type": "autoFill", "src": "A1", "dest": "A1:A4", "fillType": "copy" }
+      ]
+    },
+    {
+      "name": "autofill_without_formats_single_num",
+      "cells": {
+        "A1": 10,
+        "A2": "existing"
+      },
+      "ops": [
+        { "type": "autoFill", "src": "A1", "dest": "A1:A3", "fillType": "withoutFormats" }
+      ]
+    },
+    {
+      "name": "autofill_without_formats_series",
+      "cells": {
+        "A1": 1,
+        "A2": 2
+      },
+      "ops": [
+        { "type": "autoFill", "src": "A1:A2", "dest": "A1:A4", "fillType": "withoutFormats" }
+      ]
+    },
+    {
+      "name": "autofill_series_step",
+      "cells": {
+        "A1": 2,
+        "A2": 5
+      },
+      "ops": [
+        { "type": "autoFill", "src": "A1:A2", "dest": "A1:A5", "fillType": "series" }
+      ]
+    },
+    {
+      "name": "autofill_series_single",
+      "cells": {
+        "A1": 10
+      },
+      "ops": [
+        { "type": "autoFill", "src": "A1", "dest": "A1:A4", "fillType": "series" }
+      ]
+    },
+    {
+      "name": "autofill_copy_text_numbered",
+      "cells": {
+        "A1": "Item 1"
+      },
+      "ops": [
+        { "type": "autoFill", "src": "A1", "dest": "A1:A4", "fillType": "copy" }
+      ]
+    },
+    {
+      "name": "autofill_series_text_numbered",
+      "cells": {
+        "A1": "Item 1"
+      },
+      "ops": [
+        { "type": "autoFill", "src": "A1", "dest": "A1:A4", "fillType": "series" }
+      ]
+    },
+    {
+      "name": "autofill_right_series",
+      "cells": {
+        "A1": 1,
+        "B1": 2
+      },
+      "ops": [
+        { "type": "autoFill", "src": "A1:B1", "dest": "A1:E1", "fillType": "series" }
+      ]
+    },
+    {
+      "name": "autofill_right_copy",
+      "cells": {
+        "A1": 1,
+        "B1": 2
+      },
+      "ops": [
+        { "type": "autoFill", "src": "A1:B1", "dest": "A1:D1", "fillType": "copy" }
+      ]
+    },
+    {
+      "name": "autofill_move_cells_with_formula",
+      "cells": {
+        "A1": 10,
+        "A2": 20,
+        "B1": "=A1+A2"
+      },
+      "ops": [
+        { "type": "moveCells", "from": "A1:A2", "to": "D1" }
+      ]
+    },
+    {
+      "name": "autofill_move_2d_block",
+      "cells": {
+        "A1": 10,
+        "B1": 20,
+        "A2": 30,
+        "B2": 40,
+        "C1": "=A1+B1"
+      },
+      "ops": [
+        { "type": "moveCells", "from": "A1:B2", "to": "D3" }
+      ]
+    },
+    {
+      "name": "autofill_copy_cells_with_formula",
+      "cells": {
+        "A1": 10,
+        "A2": 20,
+        "B1": "=A1*2"
+      },
+      "ops": [
+        { "type": "copyCells", "from": "B1", "to": "B2" }
+      ]
+    }
+  ]
+}
