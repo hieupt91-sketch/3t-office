@@ -51,6 +51,15 @@ export function convertWithSoffice(sourcePath, targetExt, outDir, { profileDir, 
   const convertTo = filterName ? `${targetExt}:${filterName}` : targetExt;
   const profile = profileDir || path.join(outDir, "lo-profile");
   fs.mkdirSync(profile, { recursive: true });
+  // Profile mới tinh mất ~80 giây để LibreOffice tự dựng; chép hồ sơ mồi (seed) đã khởi tạo sẵn như app thật để khởi động nhanh.
+  if (!fs.existsSync(path.join(profile, "user"))) {
+    const seedName = appKind === "writer" ? "lo-profile-writer" : appKind === "slides" ? "lo-profile-slides" : "lo-profile-sheet";
+    const seed = path.resolve(path.dirname(new URL(import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, "$1")), "..", "..", "seed", seedName);
+    const seeds = [seed, path.join(process.env.LOCALAPPDATA || "", "VNOffice", "app-install", "app", "seed", seedName)];
+    for (const candidate of seeds) {
+      try { if (fs.existsSync(path.join(candidate, "user"))) { fs.cpSync(candidate, profile, { recursive: true }); break; } } catch { /* thử hồ sơ mồi kế tiếp; không có thì LibreOffice tự dựng như cũ */ }
+    }
+  }
   const result = spawnSync(soffice, [
     "--headless",
     "--invisible",
