@@ -14,15 +14,25 @@ const RULES = [
   ["H", { type: "top", rank: 2 }], ["I", { type: "bottom", rank: 2 }], ["J", { type: "aboveAverage" }], ["K", { type: "belowAverage" }],
   ["L", { type: "dataBar", color: "#638ec6" }], ["M", { type: "colorScale2", colors: ["#f8696b", "#63be7b"] }],
   ["N", { type: "colorScale3", colors: ["#f8696b", "#ffeb84", "#63be7b"] }], ["O", { type: "iconSet", iconSet: "3Arrows" }],
-  ["P", { type: "formula", formula: "=$B2>10" }], ["Q", { type: "blank" }], ["R", { type: "dateOccurs", timePeriod: "thisMonth" }]
+  ["P", { type: "formula", formula: "=$B2>10" }], ["Q", { type: "blank" }], ["R", { type: "dateOccurs", timePeriod: "thisMonth" }],
+  ["S", { type: "topPercent", rank: 40 }], ["T", { type: "bottomPercent", rank: 40 }]
 ];
 let session = await launchApp("sheet", { localAppData: profile, filePath: file, startTimeoutMilliseconds: 180000, readyTimeoutMilliseconds: 180000 });
 try {
   const cdp = session.cdp;
   await cdp.waitFor("window.__vnoAppInstance?.grid?.cellsData?.size > 0", { timeoutMilliseconds: 120000 });
+  const percentUi = JSON.parse(await cdp.evaluate(`JSON.stringify((() => {
+    const g=window.__vnoAppInstance.grid;g.showConditionalFormattingDialog();
+    const select=document.querySelector("#vno-cf-type");
+    const options=[...select.options].map(option=>option.value);
+    select.value="topPercent";select.dispatchEvent(new Event("change",{bubbles:true}));
+    const result={options,max:document.querySelector("#vno-cf-rank").max,label:document.querySelector("#vno-cf-rank-label").textContent};
+    document.querySelector(".vno-rule-cancel").click();return result;
+  })())`));
+  check(percentUi.options.includes("topPercent") && percentUi.options.includes("bottomPercent") && percentUi.max === "100", "UI có Top/Bottom theo phần trăm", JSON.stringify(percentUi));
   const result = JSON.parse(await cdp.evaluate(`JSON.stringify((() => {
     const g = window.__vnoAppInstance.grid;
-    const cols = "BCDEFGHIJKLMNOPQR".split("");
+    const cols = "BCDEFGHIJKLMNOPQRST".split("");
     const vals = [0, 5, 12, 20, 8, 30];
     cols.forEach(c => vals.forEach((v, i) => g.setCellValue(c, i + 1, c === "F" ? ["An", "Bình", "Anh", "Chi", "An", "Lan"][i] : v)));
     const out = [];
@@ -33,9 +43,9 @@ try {
     window.__vnoAppInstance.adapter.isDirty = true;
     return out;
   })())`));
-  check(result.length === RULES.length && result.every((t, i) => t === RULES[i][1].type), "Tạo đủ 17 loại luật qua app", result.join(","));
+  check(result.length === RULES.length && result.every((t, i) => t === RULES[i][1].type), "Tạo đủ 19 loại luật qua app", result.join(","));
   const saved = await cdp.evaluate("window.__vnoAppInstance.adapter.save()", { awaitPromise: true, timeoutMilliseconds: 180000 });
-  check(saved !== false && saved?.status !== "error", "Lưu XLSX qua app desktop");
+  check(saved !== false && saved?.status !== "error", "Lưu XLSX qua app desktop", JSON.stringify(saved));
   await new Promise((r) => setTimeout(r, 800));
 } finally { await session.close(); }
 console.log(`FILE ${file}`);

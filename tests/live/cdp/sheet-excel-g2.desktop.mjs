@@ -73,6 +73,10 @@ try {
     add("H",{type:"textLength",operator:"lessThanOrEqual",formula1:12});
     add("I",{type:"custom",formula1:"=MOD(I2,2)=0"});
     add("J",{type:"list",values:"Mới,Đóng"});
+    add("K",{type:"decimal",operator:"notBetween",formula1:1,formula2:2});
+    add("L",{type:"decimal",operator:"equal",formula1:2});
+    add("M",{type:"decimal",operator:"notEqual",formula1:2});
+    add("N",{type:"decimal",operator:"greaterThanOrEqual",formula1:2});
     g.applyAdvancedFilter("A",{type:"text",operator:"startsWith",value:"An"});
     window.__vnoAppInstance.adapter.isDirty=true;return true;})()`);
   const saved = await cdp.evaluate("window.__vnoAppInstance.adapter.save()", { awaitPromise: true, timeoutMilliseconds: 180000 });
@@ -83,16 +87,17 @@ try {
 }
 
 const sheetXml = readZipEntry(readFileSync(file), "xl/worksheets/sheet1.xml").toString("utf8");
-check(/<dataValidations count="7">/.test(sheetXml), "XLSX có đủ 7 quy tắc validation");
+check(/<dataValidations count="11">/.test(sheetXml), "XLSX có đủ 7 kiểu và 8 toán tử validation");
 for (const type of ["whole", "decimal", "date", "time", "textLength", "custom", "list"]) check(sheetXml.includes(`type="${type}"`), `XLSX ghi Validation.Type ${type}`);
-check(sheetXml.includes('operator="between"') && sheetXml.includes('errorStyle="warning"') && sheetXml.includes('promptTitle="Gợi ý"') && sheetXml.includes('errorTitle="Chưa đúng"'), "XLSX giữ Operator và nội dung cảnh báo");
+for (const operator of ["between", "notBetween", "equal", "notEqual", "greaterThan", "lessThan", "greaterThanOrEqual", "lessThanOrEqual"]) check(sheetXml.includes(`operator="${operator}"`), `XLSX ghi Validation.Operator ${operator}`);
+check(sheetXml.includes('errorStyle="warning"') && sheetXml.includes('promptTitle="Gợi ý"') && sheetXml.includes('errorTitle="Chưa đúng"'), "XLSX giữ nội dung cảnh báo");
 check(sheetXml.includes('<customFilter operator="equal" val="An*"/>'), "XLSX ghi bộ lọc văn bản chuẩn");
 
 session = await launchApp("sheet", { localAppData: profile, filePath: file, startTimeoutMilliseconds: 180000, readyTimeoutMilliseconds: 180000 });
 try {
   await session.cdp.waitFor("window.__vnoAppInstance?.grid?.cellsData?.size > 0 && !document.querySelector('.vno-sheet-quick-view')", { timeoutMilliseconds: 180000 });
   const reopened = JSON.parse(await session.cdp.evaluate(`JSON.stringify((() => {const g=window.__vnoAppInstance.grid;const rules=g.getDataValidations();return {count:rules.length,types:rules.map(r=>r.type),filter:g.isFilterActive,hidden:[...g.hiddenRows]}})())`));
-  check(reopened.count === 7, "Mở lại trong app giữ đủ validation", JSON.stringify(reopened));
+  check(reopened.count === 11, "Mở lại trong app giữ đủ validation", JSON.stringify(reopened));
   check(reopened.filter === true, "Mở lại trong app giữ trạng thái bộ lọc", JSON.stringify(reopened));
 } finally {
   await session.close();

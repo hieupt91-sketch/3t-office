@@ -16334,6 +16334,12 @@ _bindGridKeyboardNavigation() {
       numeric: value => this._numericCellValue(value),
       stats: rule => this._conditionalStats(rule),
       now: () => new Date(),
+      thresholdFormula: value => {
+        const raw = String(value ?? "").trim();
+        if (!raw) return NaN;
+        const result = this.formulaEngine.evaluate(raw.startsWith("=") ? raw : `=${raw}`);
+        return this._numericCellValue(result);
+      },
       formula: (rule, col, row) => {
         const baseCol = this._columnNumber(rule.range.start.c);
         const targetCol = this._columnNumber(col);
@@ -18562,6 +18568,7 @@ _bindGridKeyboardNavigation() {
         </optgroup>
         <optgroup label="${t("sheetDialogs.cfTopBottom")}">
           <option value="top">${t("sheetDialogs.topN")}</option><option value="bottom">${t("sheetDialogs.bottomN")}</option>
+          <option value="topPercent">${t("sheetDialogs.topPercent")}</option><option value="bottomPercent">${t("sheetDialogs.bottomPercent")}</option>
           <option value="aboveAverage">${t("sheetDialogs.aboveAverage")}</option><option value="belowAverage">${t("sheetDialogs.belowAverage")}</option>
         </optgroup>
         <optgroup label="${t("sheetDialogs.cfVisual")}">
@@ -18574,7 +18581,7 @@ _bindGridKeyboardNavigation() {
       <label id="vno-cf-value2-row">${t("sheetDialogs.maximum")}<input id="vno-cf-value2" type="number" value="100"></label>
       <label id="vno-cf-text-row">${t("sheetDialogs.textValue")}<input id="vno-cf-text" type="text"></label>
       <label id="vno-cf-date-row">${t("sheetDialogs.datePeriod")}<select id="vno-cf-date"><option value="yesterday">${t("sheetDialogs.yesterday")}</option><option value="today">${t("sheetDialogs.today")}</option><option value="tomorrow">${t("sheetDialogs.tomorrow")}</option><option value="last7Days">${t("sheetDialogs.last7Days")}</option><option value="lastWeek">${t("sheetDialogs.lastWeek")}</option><option value="thisWeek">${t("sheetDialogs.thisWeek")}</option><option value="nextWeek">${t("sheetDialogs.nextWeek")}</option><option value="lastMonth">${t("sheetDialogs.lastMonth")}</option><option value="thisMonth">${t("sheetDialogs.thisMonth")}</option><option value="nextMonth">${t("sheetDialogs.nextMonth")}</option></select></label>
-      <label id="vno-cf-rank-row">${t("sheetDialogs.rankCount")}<input id="vno-cf-rank" type="number" min="1" max="1000" value="10"></label>
+      <label id="vno-cf-rank-row"><span id="vno-cf-rank-label">${t("sheetDialogs.rankCount")}</span><input id="vno-cf-rank" type="number" min="1" max="1000" value="10"></label>
       <label id="vno-cf-formula-row">${t("sheetDialogs.formula")}<input id="vno-cf-formula" type="text" value="=" placeholder="=$A1&gt;100"></label>
       <label id="vno-cf-color-row">${t("sheetDialogs.fillColor")}<input id="vno-cf-color" type="color" value="#fff2cc"></label>
       <div id="vno-cf-scale-row" class="vno-cf-colors"><label>${t("sheetDialogs.minimumColor")}<input id="vno-cf-color1" type="color" value="#f8696b"></label><label id="vno-cf-mid-color">${t("sheetDialogs.midpointColor")}<input id="vno-cf-color2" type="color" value="#ffeb84"></label><label>${t("sheetDialogs.maximumColor")}<input id="vno-cf-color3" type="color" value="#63be7b"></label></div>
@@ -18590,6 +18597,7 @@ _bindGridKeyboardNavigation() {
       const labels = {
         greaterThan: "greaterThan", lessThan: "lessThan", between: "between", equal: "equalTo", blank: "blankCell",
         textContains: "textContains", dateOccurs: "dateOccurs", duplicate: "duplicateValues", top: "topN", bottom: "bottomN",
+        topPercent: "topPercent", bottomPercent: "bottomPercent",
         aboveAverage: "aboveAverage", belowAverage: "belowAverage", dataBar: "dataBar", colorScale2: "colorScale2",
         colorScale3: "colorScale3", iconSet: "iconSet", formula: "formulaRule"
       };
@@ -18599,6 +18607,7 @@ _bindGridKeyboardNavigation() {
       else if (rule.type === "textContains") detail = `: ${rule.text}`;
       else if (rule.type === "dateOccurs") detail = `: ${t(`sheetDialogs.${rule.timePeriod}`)}`;
       else if (["top", "bottom"].includes(rule.type)) detail = `: ${rule.rank}`;
+      else if (["topPercent", "bottomPercent"].includes(rule.type)) detail = `: ${rule.rank}%`;
       else if (rule.type === "formula") detail = `: ${rule.formula}`;
       return `${t(`sheetDialogs.${labels[rule.type] || "rule"}`)}${detail}`;
     };
@@ -18622,7 +18631,11 @@ _bindGridKeyboardNavigation() {
       overlay.querySelector("#vno-cf-value2-row").hidden = current !== "between";
       overlay.querySelector("#vno-cf-text-row").hidden = current !== "textContains";
       overlay.querySelector("#vno-cf-date-row").hidden = current !== "dateOccurs";
-      overlay.querySelector("#vno-cf-rank-row").hidden = !["top", "bottom"].includes(current);
+      const rankTypes = ["top", "bottom", "topPercent", "bottomPercent"];
+      overlay.querySelector("#vno-cf-rank-row").hidden = !rankTypes.includes(current);
+      const percentRank = current === "topPercent" || current === "bottomPercent";
+      overlay.querySelector("#vno-cf-rank-label").textContent = t(percentRank ? "sheetDialogs.rankPercent" : "sheetDialogs.rankCount");
+      overlay.querySelector("#vno-cf-rank").max = percentRank ? "100" : "1000";
       overlay.querySelector("#vno-cf-formula-row").hidden = current !== "formula";
       overlay.querySelector("#vno-cf-color-row").hidden = ["colorScale2", "colorScale3", "iconSet"].includes(current);
       overlay.querySelector("#vno-cf-scale-row").hidden = !["colorScale2", "colorScale3"].includes(current);

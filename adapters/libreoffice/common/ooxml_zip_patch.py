@@ -2019,10 +2019,12 @@ def _cf_rule_xml(rule: dict, priority: int, dxf_id: int | None) -> str:
     elif kind == "dateOccurs":
         period = str(rule.get("timePeriod") or "today")
         body = f'<cfRule type="timePeriod"{dxf}{p} timePeriod="{html.escape(period, quote=True)}"><formula>{_cf_date_formula(period, first)}</formula></cfRule>'
-    elif kind in ("top", "bottom"):
-        rank = max(1, min(1000, int(rule.get("rank") or 10)))
-        bottom = ' bottom="1"' if kind == "bottom" else ""
-        body = f'<cfRule type="top10"{dxf}{p} rank="{rank}"{bottom}/>'
+    elif kind in ("top", "bottom", "topPercent", "bottomPercent"):
+        is_percent = kind in ("topPercent", "bottomPercent")
+        rank = max(1, min(100 if is_percent else 1000, int(rule.get("rank") or 10)))
+        bottom = ' bottom="1"' if kind in ("bottom", "bottomPercent") else ""
+        percent = ' percent="1"' if is_percent else ""
+        body = f'<cfRule type="top10"{dxf}{p} rank="{rank}"{bottom}{percent}/>'
     elif kind in ("aboveAverage", "belowAverage"):
         below = ' aboveAverage="0"' if kind == "belowAverage" else ""
         body = f'<cfRule type="aboveAverage"{dxf}{p}{below}/>'
@@ -2095,7 +2097,7 @@ def apply_conditional_formatting_from_fods(
     if style_source is None:
         entry = read_zip_entry(xlsx_bytes, XLSX_STYLES_ENTRY)
         style_source = entry.decode("utf-8", errors="replace") if entry else ""
-    highlight_types = {"greaterThan", "lessThan", "between", "equal", "blank", "textContains", "dateOccurs", "duplicate", "top", "bottom", "aboveAverage", "belowAverage", "formula"}
+    highlight_types = {"greaterThan", "lessThan", "between", "equal", "blank", "textContains", "dateOccurs", "duplicate", "top", "bottom", "topPercent", "bottomPercent", "aboveAverage", "belowAverage", "formula"}
     colors = [rule.get("color") or "#fff2cc" for rules in rules_by_sheet.values() for rule in rules if rule.get("type") in highlight_types]
     dxf_ids: dict[str, int] = {}
     if style_source and colors:
@@ -2210,7 +2212,13 @@ def parse_conditional_formatting_from_xlsx(xlsx_bytes: bytes) -> dict[str, list[
                 elif native_type in ("containsText", "notContainsText", "beginsWith", "endsWith"):
                     rule.update(type="textContains", text=attrs.get("text", ""))
                 elif native_type == "timePeriod": rule.update(type="dateOccurs", timePeriod=attrs.get("timePeriod", "today"))
-                elif native_type == "top10": rule.update(type="bottom" if attrs.get("bottom") in ("1", "true") else "top", rank=int(attrs.get("rank") or 10))
+                elif native_type == "top10":
+                    bottom = attrs.get("bottom") in ("1", "true")
+                    percent = attrs.get("percent") in ("1", "true")
+                    rule.update(
+                        type=("bottomPercent" if bottom else "topPercent") if percent else ("bottom" if bottom else "top"),
+                        rank=int(attrs.get("rank") or 10),
+                    )
                 elif native_type == "aboveAverage": rule["type"] = "belowAverage" if attrs.get("aboveAverage") in ("0", "false") else "aboveAverage"
                 elif native_type == "expression": rule.update(type="formula", formula="=" + (formulas[0] if formulas else "TRUE"))
                 elif native_type == "dataBar":
