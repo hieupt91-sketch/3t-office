@@ -171,8 +171,14 @@ export function conditionalRuleMatches(rule, value, col, row, context) {
     return (stats.counts?.get(text.toLocaleLowerCase()) || 0) > 1;
   }
   if (rule.type === "formula") return !!context.formula(rule, col, row);
-  if (rule.type === "equal" && typeof rule.value !== "number") return text === String(rule.value);
-  const numeric = context.numeric(value);
+  // Excel so sánh chữ không phân biệt hoa/thường và không cắt khoảng trắng cuối.
+  if (rule.type === "equal" && typeof rule.value !== "number") return String(value ?? "").toLocaleLowerCase() === String(rule.value).toLocaleLowerCase();
+  let numeric = context.numeric(value);
+  if (!Number.isFinite(numeric) && ["greaterThan", "lessThan", "between", "equal"].includes(rule.type)) {
+    // Excel: ô trống tính như 0; chữ luôn lớn hơn mọi số (nên "abc" > 15 đúng, "abc" < 15 sai).
+    if (text === "") numeric = 0;
+    else return rule.type === "greaterThan" && typeof value !== "boolean";
+  }
   if (!Number.isFinite(numeric)) return false;
   if (rule.type === "greaterThan") return numeric > rule.value;
   if (rule.type === "lessThan") return numeric < rule.value;
@@ -186,7 +192,7 @@ export function conditionalRuleMatches(rule, value, col, row, context) {
   if (["top", "bottom", "topPercent", "bottomPercent"].includes(rule.type)) {
     const top = rule.type === "top" || rule.type === "topPercent";
     const count = rule.type.endsWith("Percent")
-      ? Math.max(1, Math.ceil(stats.count * rule.rank / 100))
+      ? Math.max(1, Math.floor(stats.count * rule.rank / 100))
       : rule.rank;
     const threshold = rankThreshold(stats, top, count);
     return top ? numeric >= threshold : numeric <= threshold;

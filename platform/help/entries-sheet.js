@@ -42,6 +42,25 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.contextMenu.objects",
+    app: "sheet",
+    commandIds: [],
+    title: "Menu chuột phải cho hình, ảnh, hộp văn bản",
+    summary: "Nhấp chuột phải hoặc nhấn phím Menu ngữ cảnh trên hình dạng, hình ảnh hoặc hộp văn bản để thao tác nhanh các lệnh sao chép, thứ tự lớp, căn chỉnh, xoay lật, thay ảnh, chữ thay thế, định dạng và bảo vệ trang tính.",
+    ribbon: { tab: "Bố trí trang", tabId: "pageLayout", group: "Sắp xếp" },
+    keywords: ["menu chuột phải cho hình, ảnh, hộp văn bản", "chuột phải hình dạng", "chuột phải hình ảnh", "chuột phải hộp văn bản", "thay ảnh", "chữ thay thế", "nhóm", "thứ tự lớp", "căn chỉnh", "xoay", "định dạng đối tượng", "bảo vệ trang tính", "phím menu", "ngữ cảnh"],
+    steps: [
+      "Nhấp chuột phải trực tiếp vào một hình dạng (Shape), hình ảnh (Picture) hoặc hộp văn bản (TextBox) trên trang tính. Hoặc dùng chuột để chọn đối tượng rồi nhấn phím Menu (ngữ cảnh) trên bàn phím để mở menu. Nhấn phím Esc để đóng menu bất cứ lúc nào.",
+      "Nhóm lệnh Chỉnh sửa cơ bản: Cắt (Ctrl+X), Sao chép (Ctrl+C) và Dán (Ctrl+V). Thao tác dán đối tượng giữ nguyên kích thước và định dạng, bám sát ô neo hiện hành trên trang tính.",
+      "Lệnh chuyên biệt theo loại đối tượng: Đối với hình ảnh, chọn Thay đổi hình ảnh... để chọn tệp ảnh mới thay thế ảnh hiện tại mà vẫn giữ nguyên kích thước và vị trí neo. Đối với hình dạng và hộp văn bản, chọn Chỉnh sửa văn bản để kích hoạt con trỏ nhập văn bản bên trong đối tượng.",
+      "Nhóm lệnh Sắp xếp và Thứ tự lớp: Menu Nhóm (Nhóm, Bỏ nhóm, Nhóm lại); Đưa lên trên (Đưa lên trên cùng, Đưa lên trên một lớp); Đưa xuống dưới (Đưa xuống dưới cùng, Đưa xuống dưới một lớp); Căn chỉnh (Căn trái, Căn giữa, Căn phải, Căn trên, Căn giữa dọc, Căn dưới, Phân bố đều ngang, Phân bố đều dọc); và Xoay (Xoay phải 90°, Xoay trái 90°, Lật ngang, Lật dọc).",
+      "Thông tin bổ sung và Thiết lập: Chọn Chữ thay thế... để nhập nội dung mô tả cho người khiếm thị sử dụng trình đọc màn hình; Gán macro... hiển thị thông báo tiến trình tích hợp tự động hóa; Đặt làm hình dạng mặc định / Đặt làm hộp văn bản mặc định lưu lại kiểu dáng cho các đối tượng mới tiếp theo; Liên kết... (Ctrl+K) gắn siêu liên kết cho đối tượng.",
+      "Quản lý và Xóa: Mục Xóa (phím Delete) xóa đối tượng khỏi trang tính kèm đầy đủ khả năng Hoàn tác (Ctrl+Z) và Làm lại (Ctrl+Y); Chọn tất cả đối tượng chọn toàn bộ hình ảnh và hộp văn bản đang có trên trang tính; Ngăn chọn... mở pa-nen quản lý thứ tự lớp và ẩn/hiện từng đối tượng.",
+      "Định dạng chuyên sâu: Mục Định dạng hình dạng... / Định dạng ảnh... / Định dạng hộp văn bản... mở hộp thoại tinh chỉnh chi tiết kích thước (cm/px), tọa độ ô neo, khoảng cách lệch ngang/dọc và nội dung chữ.",
+      "Trạng thái khi trang tính được bảo vệ: Khi bật tính năng Bảo vệ trang tính hoặc Sổ làm việc đã đánh dấu là cuối cùng, các lệnh chỉnh sửa làm thay đổi đối tượng (Cắt, Dán, Xóa, Nhóm, Thứ tự lớp, Căn chỉnh, Xoay, Định dạng...) tự động bị khóa mờ; lệnh Sao chép (Ctrl+C) và Xem chữ thay thế vẫn cho phép sử dụng bình thường."
+    ]
+  },
+  {
     id: "sheet.input.nativeValues",
     app: "sheet",
     commandIds: [],
@@ -1651,6 +1670,39 @@ export const SHEET_HELP_ENTRIES = [
       "Kiểu tham chiếu R1C1: Đánh dấu chọn Kiểu tham chiếu R1C1 để chuyển cả tiêu đề hàng và cột sang dạng số (R1C1). Các công thức và hộp Tên ô sẽ hiển thị theo tọa độ hàng-cột số tương đối hoặc tuyệt đối.",
       "Độ chính xác như hiển thị (Precision as displayed): Đánh dấu chọn tùy chọn này để làm tròn vĩnh viễn giá trị số và kết quả công thức theo định dạng hiển thị của ô (ví dụ ô hiển thị 2 chữ số thập phân sẽ làm tròn số thực tế về 2 chữ số). Cần cân nhắc kỹ trước khi bật vì độ chính xác nguyên bản sẽ không khôi phục lại được.",
       "Hệ thống ngày 1904: Đánh dấu chọn Sử dụng hệ thống ngày 1904 để tính ngày bắt đầu từ mốc 01/01/1904 thay vì 01/01/1900, phù hợp khi trao đổi tệp với một số hệ thống bảng tính đặc thù."
+    ]
+  },
+  {
+    id: "sheet.data.refreshAllHelp",
+    app: "sheet",
+    commandIds: ["sheet.data.refreshAll"],
+    title: "Làm mới tất cả: cập nhật liên kết và bảng tổng hợp",
+    summary: "Nhấn Ctrl+Alt+F5 hoặc bấm Làm mới tất cả trên thanh ruy-băng để đồng bộ lại dữ liệu từ tất cả sổ làm việc liên kết bên ngoài và tính toán lại các bảng tổng hợp trong toàn bộ sổ làm việc.",
+    ribbon: { tab: "Dữ liệu", tabId: "data", group: "Kết nối" },
+    keywords: ["làm mới tất cả", "refresh all", "cập nhật liên kết", "liên kết ngoài", "bảng tổng hợp", "pivot table", "Ctrl+Alt+F5", "đồng bộ dữ liệu", "kết nối"],
+    steps: [
+      "Mở thẻ Dữ liệu trên thanh ruy-băng, tìm tới nhóm Kết nối ở phía bên trái thanh công cụ.",
+      "Bấm nút Làm mới tất cả (hoặc nhấn tổ hợp phím tắt Ctrl+Alt+F5 trên bàn phím của bạn).",
+      "Ứng dụng sẽ duyệt qua toàn bộ các liên kết ngoài trong các trang tính để cập nhật lại giá trị mới nhất từ tệp nguồn nếu tệp khả dụng trên hệ thống.",
+      "Đồng thời, mọi bảng tổng hợp dữ liệu hiện diện trong toàn bộ sổ làm việc cũng sẽ được tính toán và làm mới lại cấu trúc dữ liệu tương ứng.",
+      "Thanh trạng thái ở góc dưới cửa sổ sẽ hiển thị thông báo kết quả làm mới dữ liệu."
+    ]
+  },
+  {
+    id: "sheet.data.editLinksHelp",
+    app: "sheet",
+    commandIds: ["sheet.data.editLinks"],
+    title: "Chỉnh sửa liên kết: quản lý, đổi nguồn và ngắt liên kết ngoài",
+    summary: "Mở hộp thoại Chỉnh sửa liên kết trong nhóm Kết nối của thẻ Dữ liệu để xem danh sách các sổ làm việc bên ngoài được tham chiếu, cập nhật giá trị hiển thị, chuyển đổi đường dẫn nguồn hoặc ngắt liên kết vĩnh viễn thành giá trị tĩnh.",
+    ribbon: { tab: "Dữ liệu", tabId: "data", group: "Kết nối" },
+    keywords: ["chỉnh sửa liên kết", "edit links", "ngắt liên kết", "break link", "đổi nguồn", "change source", "mở nguồn", "open source", "cập nhật giá trị", "kiểm tra trạng thái", "liên kết ngoài", "sổ làm việc ngoài"],
+    steps: [
+      "Chuyển sang thẻ Dữ liệu trên thanh ruy-băng, bấm nút Chỉnh sửa liên kết trong nhóm Kết nối để mở hộp thoại quản lý liên kết.",
+      "Xem danh sách các nguồn liên kết trong bảng: cột Nguồn hiển thị tên tệp, cột Loại hiển thị Bảng tính, cột Cập nhật và cột Trạng thái hiển thị tính khả dụng của tệp nguồn.",
+      "Bấm Cập nhật giá trị để nạp lại dữ liệu mới nhất từ tệp nguồn được chọn; bấm Đổi nguồn... khi tệp nguồn đã chuyển sang thư mục khác hoặc đổi tên tệp mới.",
+      "Bấm Mở nguồn để trực tiếp mở tệp nguồn bên ngoài; bấm Kiểm tra trạng thái để xác định tệp nguồn có tồn tại và truy cập được hay không.",
+      "Bấm Ngắt liên kết khi bạn muốn chuyển toàn bộ công thức tham chiếu nguồn đó thành các giá trị tĩnh hiện tại, đồng thời loại bỏ hoàn toàn liên kết ngoài khỏi sổ làm việc.",
+      "Ứng dụng chạy hoàn toàn ngoại tuyến và mặc định không tự động đọc tệp bên ngoài khi mở để đảm bảo an toàn bảo mật dữ liệu của bạn."
     ]
   }
 ];

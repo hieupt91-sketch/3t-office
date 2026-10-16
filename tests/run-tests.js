@@ -12,6 +12,7 @@ import { runFormulaEngineTests } from "./unit/formula-engine.test.js";
 import { runStructuredReferenceTests } from "./unit/structured-references.test.js";
 import { runSheetTableTests } from "./unit/sheet-table.test.js";
 import { runSheetTemplateSaveTests } from "./unit/sheet-template-save.test.js";
+import { runSheetCfGoldenTests } from "./unit/sheet-cf-golden.test.js";
 import { runSheetSeriesTests } from "./unit/sheet-series.test.js";
 import { runFunctionGoldenTests } from "./unit/function-golden.test.js";
 import { runSheetExternalLinksTests } from "./unit/sheet-external-links.test.js";
@@ -194,6 +195,8 @@ import { runSheetRangeSelectionTests } from "./unit/sheet-range-selection.test.j
 import { runSheetAutoFillTests } from "./unit/sheet-autofill.test.js";
 import { runSheetFillJustifyTests } from "./unit/sheet-fill-justify.test.js";
 import { runSheetCalcOptionsTests } from "./unit/sheet-calc-options.test.js";
+import { runSheetContextMenuObjectsTests } from "./unit/sheet-context-menu-objects.test.js";
+import { runSheetExternalLinksDialogTests } from "./unit/sheet-external-links-dialog.test.js";
 import { runSlidesPptxSetupShowOpenOverlayTests } from "./unit/slides-pptx-setup-show-open-overlay.test.js";
 import { runWriterParagraphSpacingTests } from "./unit/writer-paragraph-spacing.test.js";
 import { runWriterFindReplaceDomTests } from "./unit/writer-find-replace-dom.test.js";
@@ -316,6 +319,7 @@ async function runAll() {
     { title: "3b. Unit Tests — Tham chiếu có cấu trúc Table[Cột]", runner: runStructuredReferenceTests },
     { title: "3b2. Unit Tests — Thao tác Bảng Table/ListObject (AGY-TABLE)", runner: runSheetTableTests },
     { title: "3b3. Unit Tests — Lưu thành mẫu .xltx (Sheet)", runner: runSheetTemplateSaveTests },
+    { title: "3b4. Unit Tests — Định dạng có điều kiện đối chiếu Excel 2016 + ROW()/COLUMN()", runner: runSheetCfGoldenTests },
     { title: "3c. Unit Tests — Điền > Chuỗi (Series)", runner: runSheetSeriesTests },
     { title: "3d. Unit Tests — Hàm đối chiếu Excel 2016 (bộ giá trị vàng)", runner: runFunctionGoldenTests },
     { title: "4. Unit Tests — Sheet external workbook links", runner: runSheetExternalLinksTests },
@@ -603,7 +607,9 @@ async function runAll() {
     { title: "264. Unit Tests — Sheet Paste Special (values, formulas, formats, transpose, operations, skipBlanks)", runner: runSheetPasteSpecialTests },
     { title: "265. Unit Tests — Sheet Fill Justify & Alignment Styles (AGY-JUSTIFY)", runner: runSheetFillJustifyTests },
     { title: "266. Unit Tests — Sheet Arrange Z-Order, Align, Distribute, Group, Rotate/Flip, Selection Pane (AGY-ARRANGE)", runner: runSheetArrangeTests },
-    { title: "267. Unit Tests — Sheet Calculation Options & Formula Parity (AGY-CALC)", runner: runSheetCalcOptionsTests }
+    { title: "267. Unit Tests — Sheet Calculation Options & Formula Parity (AGY-CALC)", runner: runSheetCalcOptionsTests },
+    { title: "268. Unit Tests — Sheet Right-Click Context Menu for Shape, Picture, TextBox, Chart (AGY-CTXMENU)", runner: runSheetContextMenuObjectsTests },
+    { title: "269. Unit Tests — Sheet External Links & Edit Links Dialog (AGY-LINKS)", runner: runSheetExternalLinksDialogTests }
   ];
 
   for (const suite of suites) {

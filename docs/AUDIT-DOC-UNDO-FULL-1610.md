@@ -1,6 +1,6 @@
 # BÁO CÁO TOÀN DIỆN MA TRẬN HOÀN TÁC / LÀM LẠI (CTRL+Z / CTRL+Y) VN WRITER (16/10)
 
-**Thời gian thực thi:** 2026-10-16T11:45:30.229Z
+**Thời gian thực thi:** 2026-10-16T13:21:04.147Z
 **Môi trường:** Ứng dụng Desktop VN Writer (WebView2 / remote-debugging port CDP)
 **Phương thức kiểm thử:** Chrome DevTools Protocol (`tests/live/cdp/session.mjs`, `actions.mjs`, phím thật `Ctrl+Z`, `Ctrl+Y` qua CDP Input)
 **Phạm vi:** Toàn bộ **229 lệnh** của VN Writer (`WRITER_COMMANDS` trong `platform/commands/command-definitions.js`)
