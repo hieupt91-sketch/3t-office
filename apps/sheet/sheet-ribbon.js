@@ -749,5 +749,37 @@ export const SHEET_RIBBON_TABS = [
         ]
       }
     ]
+  },
+  {
+    id: "tableDesign",
+    label: "Thiết kế Bảng",
+    labelKey: "sheetRibbon.tab.tableDesign",
+    contextual: true,
+    groups: [
+      {
+        id: "properties",
+        label: "Thuộc tính bảng",
+        labelKey: "sheetRibbon.group.properties",
+        items: [
+          { type: "button", commandId: "sheet.table.resize", isLarge: true }
+        ]
+      },
+      {
+        id: "tableStyleOptions",
+        label: "Tùy chọn kiểu bảng",
+        labelKey: "sheetRibbon.group.tableStyleOptions",
+        items: [
+          { type: "button", commandId: "sheet.table.toggleTotalRow" }
+        ]
+      },
+      {
+        id: "tools",
+        label: "Công cụ",
+        labelKey: "sheetRibbon.group.tools",
+        items: [
+          { type: "button", commandId: "sheet.table.convertToRange", isLarge: true }
+        ]
+      }
+    ]
   }
 ];

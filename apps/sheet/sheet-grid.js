@@ -4,7 +4,7 @@
 
 import { buildSeries } from "./sheet-series.js";
 import { shiftFormulaRefs, translateFormulaRefs, moveFormulaRefs, transposeFormulaRefs } from "./formula-ref-shift.js";
-import { expandStructuredReferences, hasStructuredReference } from "./structured-references.js";
+import { expandStructuredReferences, hasStructuredReference, renameTableInStructuredReferences, renameColumnInStructuredReferences } from "./structured-references.js";
 import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { showGoToDialog, showGoToSpecialDialog } from "./sheet-goto.js";
 import { createEvaluateFormulaSessionFromGrid, formatFormulaValue, renderFormulaHtml } from "./evaluate-formula.js";
@@ -527,6 +527,18 @@ export class SheetGridController {
     globalCommandBus.bindHandler("sheet.edit.cut", () => this.copySelection(true));
     globalCommandBus.bindHandler("sheet.edit.paste", () => this.pasteClipboard(false));
     globalCommandBus.bindHandler("sheet.edit.pastePlain", () => this.pasteClipboard(true));
+    globalCommandBus.bindHandler("sheet.style.formatAsTable", () => this.showFormatAsTableDialog());
+    globalCommandBus.bindHandler("sheet.table.resize", () => this.showResizeTableDialog());
+    globalCommandBus.bindHandler("sheet.table.toggleTotalRow", () => {
+      const t = this.getTableAtSelection();
+      if (t) return this.toggleTableTotalRow(t.name);
+      return false;
+    });
+    globalCommandBus.bindHandler("sheet.table.convertToRange", () => {
+      const t = this.getTableAtSelection();
+      if (t) return this.convertTableToRange(t.name);
+      return false;
+    });
 
     this.autocomplete.mount();
 
@@ -3148,8 +3160,20 @@ export class SheetGridController {
     this.shiftCellsRight({ start: { c: insertCol, r: bounds.start.r }, end: { c: insertCol, r: bounds.end.r } }, false);
     table.ref = this._rangeLabel({ start: bounds.start, end: { c: this._columnLabel(this._columnNumber(bounds.end.c) + 1), r: bounds.end.r } });
     if (table.hasHeaders !== false) {
+      const existingHeaders = new Set();
+      const startCol = this._columnNumber(bounds.start.c);
+      const newEndCol = this._columnNumber(bounds.end.c) + 1;
+      for (let c = startCol; c <= newEndCol; c++) {
+        if (c === insertAt) continue;
+        const val = this.cellsData.get(`${this._columnLabel(c)}${bounds.start.r}`)?.val;
+        if (val) existingHeaders.add(String(val).trim().toLowerCase());
+      }
+      let idx = 1;
+      while (existingHeaders.has(`column${idx}`)) {
+        idx++;
+      }
       const header = this.cellsData.get(`${insertCol}${bounds.start.r}`) || { val: "", formula: "", style: {} };
-      header.val = `Column${insertAt - this._columnNumber(bounds.start.c) + 1}`;
+      header.val = `Column${idx}`;
       header.formula = "";
       this.cellsData.set(`${insertCol}${bounds.start.r}`, header);
     }
@@ -3181,6 +3205,28 @@ export class SheetGridController {
     let insertAt = this.selectedCoord.r + (side === "below" ? 1 : 0);
     insertAt = Math.max(dataStart, Math.min(insertAt, dataEnd + 1));
     this.shiftCellsDown({ start: { c: bounds.start.c, r: insertAt }, end: { c: bounds.end.c, r: insertAt } }, false);
+
+    // Propagate calculated column formulas from adjacent data row
+    const sourceRow = insertAt > dataStart ? insertAt - 1 : (insertAt + 1 <= bounds.end.r + 1 ? insertAt + 1 : null);
+    if (sourceRow) {
+      const startColNum = this._columnNumber(bounds.start.c);
+      const endColNum = this._columnNumber(bounds.end.c);
+      for (let c = startColNum; c <= endColNum; c++) {
+        const colLabel = this._columnLabel(c);
+        const sourceCell = this.cellsData.get(`${colLabel}${sourceRow}`);
+        if (sourceCell?.formula) {
+          const deltaRow = insertAt - sourceRow;
+          const formula = hasStructuredReference(sourceCell.formula)
+            ? sourceCell.formula
+            : translateFormulaRefs(sourceCell.formula, deltaRow, 0);
+          const newCell = this.cellsData.get(`${colLabel}${insertAt}`) || { val: "", formula: "", style: {} };
+          newCell.formula = formula;
+          newCell.val = "";
+          this.cellsData.set(`${colLabel}${insertAt}`, newCell);
+        }
+      }
+    }
+
     table.ref = this._rangeLabel({ start: bounds.start, end: { c: bounds.end.c, r: bounds.end.r + 1 } });
     return this._finishTableStructureChange(before, table, { c: this.selectedCoord.c, r: insertAt });
   }
@@ -3215,15 +3261,33 @@ export class SheetGridController {
       this.shiftCellsDown({ start: { c: bounds.start.c, r: totalsRow }, end: { c: bounds.end.c, r: totalsRow } }, false);
       table.showTotals = true;
       table.ref = this._rangeLabel({ start: bounds.start, end: { c: bounds.end.c, r: totalsRow } });
-      const firstCoord = `${bounds.start.c}${totalsRow}`;
-      const first = this.cellsData.get(firstCoord) || { val: "", formula: "", style: {} };
-      first.val = t("sheetContextMenu.totalLabel"); first.formula = "";
-      this.cellsData.set(firstCoord, first);
+      const lastHeaderCoord = `${bounds.end.c}${bounds.start.r}`;
+      const lastColName = (table.hasHeaders !== false ? this.cellsData.get(lastHeaderCoord)?.val : "") || `Column${this._columnNumber(bounds.end.c) - this._columnNumber(bounds.start.c) + 1}`;
+      let hasNumeric = false;
+      const dataStartRow = bounds.start.r + (table.hasHeaders !== false ? 1 : 0);
+      for (let r = dataStartRow; r <= bounds.end.r; r++) {
+        const val = this.cellsData.get(`${bounds.end.c}${r}`)?.val;
+        if (typeof val === "number" || (val !== "" && val !== null && !isNaN(Number(val)))) {
+          hasNumeric = true;
+          break;
+        }
+      }
+      const fnCode = hasNumeric ? 109 : 103;
       if (bounds.end.c !== bounds.start.c) {
+        const firstCoord = `${bounds.start.c}${totalsRow}`;
+        const first = this.cellsData.get(firstCoord) || { val: "", formula: "", style: {} };
+        first.val = "Total"; first.formula = "";
+        this.cellsData.set(firstCoord, first);
+
         const valueCoord = `${bounds.end.c}${totalsRow}`;
         const value = this.cellsData.get(valueCoord) || { val: "", formula: "", style: {} };
-        const dataStart = bounds.start.r + (table.hasHeaders === false ? 0 : 1);
-        value.formula = `=SUBTOTAL(109,${bounds.end.c}${dataStart}:${bounds.end.c}${bounds.end.r})`;
+        value.formula = `=SUBTOTAL(${fnCode},[${lastColName}])`;
+        value.val = "";
+        this.cellsData.set(valueCoord, value);
+      } else {
+        const valueCoord = `${bounds.end.c}${totalsRow}`;
+        const value = this.cellsData.get(valueCoord) || { val: "", formula: "", style: {} };
+        value.formula = `=SUBTOTAL(${fnCode},[${lastColName}])`;
         value.val = "";
         this.cellsData.set(valueCoord, value);
       }
@@ -5731,6 +5795,10 @@ _bindGridKeyboardNavigation() {
   }
 
   setCellValue(col, row, val, recordUndo = true, historyOptions = {}) {
+    if (typeof recordUndo === "object" && recordUndo !== null) {
+      historyOptions = recordUndo;
+      recordUndo = false;
+    }
     this._cfEpoch = (this._cfEpoch || 0) + 1;
     if (typeof val === "string") val = val.normalize("NFC");
     if (recordUndo && this._guardProtectedMutation()) return false;
@@ -5742,7 +5810,7 @@ _bindGridKeyboardNavigation() {
     const previousStyle = structuredClone(item.style || {});
     const previousRowHeight = this.getRowHeight(row);
     let nextStyle = structuredClone(item.style || {});
-    const tableStateBeforeEdit = historyOptions.userInput && historyOptions.commit
+    const tableStateBeforeEdit = (historyOptions.userInput || historyOptions.commit)
       ? structuredClone(this.tablesBySheet?.[this.activeSheet] || [])
       : null;
     const tableFilterRangeBeforeEdit = tableStateBeforeEdit ? (this.sheetStates?.[this.activeSheet]?.filterRange || "") : "";
@@ -9413,6 +9481,22 @@ _bindGridKeyboardNavigation() {
     options = options || {};
     const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
     const tableName = this._uniqueTableName(options.name || this._nextTableName());
+
+    if (options.hasHeaders === false) {
+      // Excel behavior when table has no headers: shift cells down by 1 row within table columns to insert header row
+      this.shiftCellsDown({ start: targetRange.start, end: { c: targetRange.end.c, r: targetRange.start.r } }, false);
+      const startCol = this._columnNumber(targetRange.start.c);
+      const endCol = this._columnNumber(targetRange.end.c);
+      for (let c = startCol; c <= endCol; c++) {
+        const colLabel = this._columnLabel(c);
+        const coord = `${colLabel}${targetRange.start.r}`;
+        const hCell = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+        hCell.val = `Column${c - startCol + 1}`;
+        hCell.formula = "";
+        this.cellsData.set(coord, hCell);
+      }
+      targetRange.end.r = targetRange.end.r + 1;
+    }
     const headers = options.hasHeaders !== false;
     const table = {
       name: tableName,
@@ -9565,6 +9649,25 @@ _bindGridKeyboardNavigation() {
           this.cellsData.set(coord, cell);
         }
       }
+      if (next.end.r > bounds.end.r) {
+        const sourceRow = bounds.end.r;
+        for (let currentCol = minCol; currentCol <= maxCol; currentCol++) {
+          const currentName = this._columnLabel(currentCol);
+          const targetCoord = `${currentName}${row}`;
+          if (targetCoord === `${col}${row}`) continue;
+          const sourceCell = this.cellsData.get(`${currentName}${sourceRow}`);
+          if (sourceCell?.formula) {
+            const targetCell = this.cellsData.get(targetCoord) || { val: "", formula: "", style: {} };
+            if (!targetCell.formula && (targetCell.val === "" || targetCell.val === null || targetCell.val === undefined)) {
+              targetCell.formula = hasStructuredReference(sourceCell.formula)
+                ? sourceCell.formula
+                : translateFormulaRefs(sourceCell.formula, 1, 0);
+              targetCell.val = "";
+              this.cellsData.set(targetCoord, targetCell);
+            }
+          }
+        }
+      }
       for (const coord of Object.keys(beforeCells)) {
         const cell = this.cellsData.get(coord);
         afterCells[coord] = cell ? structuredClone(cell) : null;
@@ -9572,6 +9675,7 @@ _bindGridKeyboardNavigation() {
       const state = this.sheetStates?.[this.activeSheet];
       if (state) state.filterRange = nextRef;
       this._updateFilterButtons();
+      this._recalculateAllFormulas();
       for (const [coord, cell] of Object.entries(afterCells)) {
         if (!cell) continue;
         const [cellCol, cellRow] = this._splitCoord(coord);
@@ -9620,18 +9724,221 @@ _bindGridKeyboardNavigation() {
     if (!table || !name) return false;
     const before = structuredClone(tables);
     table.name = name;
+
+    // Update all formulas referencing oldName
+    for (const sheetName of this.sheets || [this.activeSheet]) {
+      const map = sheetName === this.activeSheet ? this.cellsData : this.sheetsData?.[sheetName];
+      if (!map) continue;
+      for (const [, cell] of map.entries()) {
+        if (cell?.formula && hasStructuredReference(cell.formula)) {
+          const updated = renameTableInStructuredReferences(cell.formula, oldName, name);
+          if (updated !== cell.formula) {
+            cell.formula = updated;
+          }
+        }
+      }
+    }
+
     if (recordUndo) this._recordHistory({ type: "sheet-tables", sheet: this.activeSheet, before, after: structuredClone(tables) });
+    this._recalculateAllFormulas();
     return true;
+  }
+
+  renameTableColumn(tableName, colIndexOrOldName, newName, recordUndo = true) {
+    if (this._guardProtectedMutation()) return false;
+    const table = this._tableByName(tableName);
+    const bounds = table && this._normalizeRange(this._parseRange(table.ref));
+    if (!table || !bounds) return false;
+    const cleanNewName = String(newName || "").trim();
+    if (!cleanNewName) return false;
+
+    const startColNum = this._columnNumber(bounds.start.c);
+    const endColNum = this._columnNumber(bounds.end.c);
+    let targetColNum = -1;
+    let oldColName = "";
+
+    if (typeof colIndexOrOldName === "number") {
+      targetColNum = startColNum + colIndexOrOldName - 1;
+      if (targetColNum < startColNum || targetColNum > endColNum) return false;
+      const hCoord = `${this._columnLabel(targetColNum)}${bounds.start.r}`;
+      oldColName = String(this.cellsData.get(hCoord)?.val || `Column${colIndexOrOldName}`);
+    } else {
+      const search = String(colIndexOrOldName || "").trim().toLowerCase();
+      for (let c = startColNum; c <= endColNum; c++) {
+        const colLabel = this._columnLabel(c);
+        const hCoord = `${colLabel}${bounds.start.r}`;
+        const val = String(this.cellsData.get(hCoord)?.val || `Column${c - startColNum + 1}`);
+        if (val.toLowerCase() === search) {
+          targetColNum = c;
+          oldColName = val;
+          break;
+        }
+      }
+      if (targetColNum < 0) return false;
+    }
+
+    if (oldColName === cleanNewName) return true;
+
+    for (let c = startColNum; c <= endColNum; c++) {
+      if (c === targetColNum) continue;
+      const val = String(this.cellsData.get(`${this._columnLabel(c)}${bounds.start.r}`)?.val || `Column${c - startColNum + 1}`);
+      if (val.toLowerCase() === cleanNewName.toLowerCase()) return false;
+    }
+
+    const before = this._snapshotGridStructure();
+    const targetColLabel = this._columnLabel(targetColNum);
+    const hCoord = `${targetColLabel}${bounds.start.r}`;
+    const headerCell = this.cellsData.get(hCoord) || { val: "", formula: "", style: {} };
+    headerCell.val = cleanNewName;
+    headerCell.formula = "";
+    this.cellsData.set(hCoord, headerCell);
+
+    for (const sheetName of this.sheets || [this.activeSheet]) {
+      const map = sheetName === this.activeSheet ? this.cellsData : this.sheetsData?.[sheetName];
+      if (!map) continue;
+      for (const [coord, cell] of map.entries()) {
+        if (cell?.formula && hasStructuredReference(cell.formula)) {
+          const [c, r] = this._splitCoord(coord);
+          const rowNum = Number(r);
+          const colNum = this._columnNumber(c);
+          const isInsideThisTable = sheetName === this.activeSheet &&
+            rowNum >= bounds.start.r && rowNum <= bounds.end.r &&
+            colNum >= startColNum && colNum <= endColNum;
+          const updated = renameColumnInStructuredReferences(cell.formula, table.name, oldColName, cleanNewName, isInsideThisTable);
+          if (updated !== cell.formula) {
+            cell.formula = updated;
+          }
+        }
+      }
+    }
+
+    return this._finishTableStructureChange(before, table, { c: targetColLabel, r: bounds.start.r });
+  }
+
+  resizeTable(name, newRange, recordUndo = true) {
+    if (this._guardProtectedMutation()) return false;
+    const table = this._tableByName(name);
+    const oldBounds = table && this._normalizeRange(this._parseRange(table.ref));
+    if (!table || !oldBounds) return false;
+
+    const parsed = typeof newRange === "string" ? this._parseRange(newRange) : newRange;
+    const newBounds = parsed && this._normalizeRange(parsed);
+    if (!newBounds) return false;
+
+    // Excel Rule 1: Header row must remain the same
+    if (newBounds.start.r !== oldBounds.start.r) return false;
+
+    // Excel Rule 2: Must include header + at least 1 data row (+ totals row if active)
+    const minRows = (table.hasHeaders !== false ? 1 : 0) + 1 + (table.showTotals ? 1 : 0);
+    if (newBounds.end.r - newBounds.start.r + 1 < minRows) return false;
+
+    // Excel Rule 3: Must overlap existing table
+    if (!this._rangesOverlap(table.ref, this._rangeLabel(newBounds))) return false;
+
+    // Excel Rule 4: Must not overlap other tables
+    const currentTables = this.tablesBySheet?.[this.activeSheet] || [];
+    if (currentTables.some(o => o !== table && this._rangesOverlap(o.ref, this._rangeLabel(newBounds)))) return false;
+
+    const before = this._snapshotGridStructure();
+    const oldEndCol = this._columnNumber(oldBounds.end.c);
+    const newStartCol = this._columnNumber(newBounds.start.c);
+    const newEndCol = this._columnNumber(newBounds.end.c);
+
+    // If new columns added to the right, ensure headers exist
+    if (newEndCol > oldEndCol && table.hasHeaders !== false) {
+      const existingHeaders = new Set();
+      for (let c = newStartCol; c <= oldEndCol; c++) {
+        const val = this.cellsData.get(`${this._columnLabel(c)}${newBounds.start.r}`)?.val;
+        if (val) existingHeaders.add(String(val).toLowerCase());
+      }
+      for (let c = oldEndCol + 1; c <= newEndCol; c++) {
+        const colLabel = this._columnLabel(c);
+        const hCoord = `${colLabel}${newBounds.start.r}`;
+        const headerCell = this.cellsData.get(hCoord) || { val: "", formula: "", style: {} };
+        let hName = String(headerCell.val ?? "").trim();
+        if (!hName || existingHeaders.has(hName.toLowerCase())) {
+          let colIdx = 1;
+          while (existingHeaders.has(`column${colIdx}`)) {
+            colIdx++;
+          }
+          hName = `Column${colIdx}`;
+          headerCell.val = hName;
+          headerCell.formula = "";
+        }
+        existingHeaders.add(hName.toLowerCase());
+        this.cellsData.set(hCoord, headerCell);
+      }
+    }
+
+    // If expanded downwards, propagate calculated column formulas
+    if (newBounds.end.r > oldBounds.end.r) {
+      const sourceRow = oldBounds.end.r - (table.showTotals ? 1 : 0);
+      const dataStart = oldBounds.start.r + (table.hasHeaders !== false ? 1 : 0);
+      if (sourceRow >= dataStart) {
+        for (let c = newStartCol; c <= Math.min(oldEndCol, newEndCol); c++) {
+          const colLabel = this._columnLabel(c);
+          const sourceCell = this.cellsData.get(`${colLabel}${sourceRow}`);
+          if (sourceCell?.formula) {
+            for (let r = oldBounds.end.r + 1; r <= newBounds.end.r - (table.showTotals ? 1 : 0); r++) {
+              const targetCell = this.cellsData.get(`${colLabel}${r}`) || { val: "", formula: "", style: {} };
+              if (!targetCell.formula && (targetCell.val === "" || targetCell.val === null || targetCell.val === undefined)) {
+                const deltaRow = r - sourceRow;
+                targetCell.formula = hasStructuredReference(sourceCell.formula)
+                  ? sourceCell.formula
+                  : translateFormulaRefs(sourceCell.formula, deltaRow, 0);
+                this.cellsData.set(`${colLabel}${r}`, targetCell);
+              }
+            }
+          }
+        }
+      }
+    }
+
+    table.ref = this._rangeLabel(newBounds);
+
+    if (table.showTotals) {
+      const totalsRow = newBounds.end.r;
+      const firstCoord = `${newBounds.start.c}${totalsRow}`;
+      const first = this.cellsData.get(firstCoord) || { val: "", formula: "", style: {} };
+      if (!first.val) first.val = "Total";
+      this.cellsData.set(firstCoord, first);
+      if (newBounds.end.c !== newBounds.start.c) {
+        const valueCoord = `${newBounds.end.c}${totalsRow}`;
+        const value = this.cellsData.get(valueCoord) || { val: "", formula: "", style: {} };
+        const lastHeaderCoord = `${newBounds.end.c}${newBounds.start.r}`;
+        const lastColName = (table.hasHeaders !== false ? this.cellsData.get(lastHeaderCoord)?.val : "") || `Column${newEndCol - newStartCol + 1}`;
+        value.formula = `=SUBTOTAL(109,[${lastColName}])`;
+        this.cellsData.set(valueCoord, value);
+      }
+    }
+
+    return this._finishTableStructureChange(before, table, this.selectedCoord);
   }
 
   convertTableToRange(name, recordUndo = true) {
     const tables = this.tablesBySheet?.[this.activeSheet] || [];
     const index = tables.findIndex(item => item.name === name);
     if (index < 0) return false;
+    const table = tables[index];
     const before = structuredClone(tables);
     const filterBefore = this._snapshotFilterState();
     const filterRangeBefore = this.sheetStates?.[this.activeSheet]?.filterRange || "";
-    const convertedRange = tables[index].ref;
+    const convertedRange = table.ref;
+
+    // Convert structured references in all formulas referencing this table to A1 references
+    for (const sheetName of this.sheets || [this.activeSheet]) {
+      const map = sheetName === this.activeSheet ? this.cellsData : this.sheetsData?.[sheetName];
+      if (!map) continue;
+      for (const [coord, cell] of map.entries()) {
+        if (cell?.formula && hasStructuredReference(cell.formula)) {
+          const expanded = this.expandStructuredFormula(cell.formula, sheetName, coord, { mode: "unlist" });
+          if (expanded && expanded !== cell.formula) {
+            cell.formula = expanded;
+          }
+        }
+      }
+    }
+
     tables.splice(index, 1);
     const otherTable = tables.find(item => item.ref === convertedRange);
     if (!otherTable && this.sheetStates?.[this.activeSheet]?.filterRange === convertedRange) {
@@ -9649,6 +9956,7 @@ _bindGridKeyboardNavigation() {
       filterBefore, filterAfter: this._snapshotFilterState(), filterRangeBefore,
       filterRangeAfter: this.sheetStates?.[this.activeSheet]?.filterRange || ""
     });
+    this._recalculateAllFormulas();
     return true;
   }
 
@@ -9657,15 +9965,20 @@ _bindGridKeyboardNavigation() {
     return showFormatAsTableDialog(this);
   }
 
+  async showResizeTableDialog() {
+    const { showResizeTableDialog } = await this._loadCellStylesDialogs();
+    return showResizeTableDialog(this);
+  }
+
   /** Công thức có tham chiếu cấu trúc Table[Cột]/[@Cột] không. */
   hasStructuredReference(formula) { return hasStructuredReference(formula); }
 
   /** Đổi Table[Cột] thành địa chỉ A1 thật (để LibreOffice hiểu khi lưu). */
-  expandStructuredFormula(formula, sheetName, coord) {
+  expandStructuredFormula(formula, sheetName, coord, options = {}) {
     if (!hasStructuredReference(formula)) return formula;
     const resolver = this.formulaEngine?.tableResolver;
     if (!resolver) return formula;
-    return "=" + expandStructuredReferences(String(formula).replace(/^=/, ""), { sheet: sheetName, coord }, resolver);
+    return "=" + expandStructuredReferences(String(formula).replace(/^=/, ""), { sheet: sheetName, coord }, resolver, options);
   }
 
   /** Dạng ghi vào tệp XLSX: [@Cột] thành Table[[#This Row],[Cột]]; các dạng khác giữ nguyên. */
@@ -9698,7 +10011,7 @@ _bindGridKeyboardNavigation() {
         }
         return null;
       },
-      headerValue: (sheet, coord) => this.sheetsData?.[sheet]?.get?.(String(coord).toUpperCase())?.val
+      headerValue: (sheet, coord) => (sheet ? this.sheetsData?.[sheet] : this.cellsData)?.get?.(String(coord).toUpperCase())?.val || this.cellsData?.get?.(String(coord).toUpperCase())?.val
     };
   }
 
@@ -10967,6 +11280,18 @@ _bindGridKeyboardNavigation() {
     for (const [commandId, active] of Object.entries(wanted)) {
       const current = globalCommandBus.getState(commandId);
       if (current && Boolean(current.checked) !== active) globalCommandBus.updateState(commandId, { checked: active });
+    }
+    const table = this.getTableAtSelection();
+    const hasTable = Boolean(table);
+    if (typeof document !== "undefined" && typeof document.querySelector === "function") {
+      const designTab = document.querySelector("#vno-ribbon-tab-tableDesign");
+      if (designTab) {
+        designTab.hidden = !hasTable;
+        designTab.setAttribute("aria-hidden", hasTable ? "false" : "true");
+      }
+    }
+    if (table) {
+      globalCommandBus.updateState("sheet.table.toggleTotalRow", { checked: Boolean(table.showTotals) });
     }
   }
 

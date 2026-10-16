@@ -100,8 +100,72 @@ try {
             $ws.Range($dest).PasteSpecial($paste, $operation, $skipBlanks, $transpose) | Out-Null
           }
         }
+        "createTable" {
+            $xlHeaders = if ($op.hasHeaders -eq $false) { 2 } else { 1 }
+            $tbl = Retry { $ws.ListObjects.Add(1, $ws.Range($op.range), $missing, $xlHeaders) }
+            if ($op.name) { Retry { $tbl.Name = [string]$op.name } }
+          }
+          "enterCell" {
+            $targetCell = $ws.Range($op.coord)
+            if ($op.formula) { Retry { $targetCell.Formula = [string]$op.formula } }
+            elseif ($op.val -is [string] -and $op.val.StartsWith("=")) { Retry { $targetCell.Formula = [string]$op.val } }
+            elseif ($op.val -is [string]) { Retry { $targetCell.Value2 = [string]$op.val } }
+            elseif ($op.val -ne $null) { Retry { $targetCell.Value2 = [double]$op.val } }
+            else { Retry { $targetCell.ClearContents() } }
+          }
+          "insertTableRow" {
+            $tbl = if ($op.table) { $ws.ListObjects.Item($op.table) } else { $ws.ListObjects.Item(1) }
+            if ($op.at) { Retry { [void]$tbl.ListRows.Add([int]$op.at) } }
+            else { Retry { [void]$tbl.ListRows.Add() } }
+          }
+          "deleteTableRow" {
+            $tbl = if ($op.table) { $ws.ListObjects.Item($op.table) } else { $ws.ListObjects.Item(1) }
+            $idx = if ($op.at) { [int]$op.at } else { 1 }
+            Retry { [void]$tbl.ListRows.Item($idx).Delete() }
+          }
+          "insertTableCol" {
+            $tbl = if ($op.table) { $ws.ListObjects.Item($op.table) } else { $ws.ListObjects.Item(1) }
+            if ($op.at) { Retry { [void]$tbl.ListColumns.Add([int]$op.at) } }
+            else { Retry { [void]$tbl.ListColumns.Add() } }
+          }
+          "deleteTableCol" {
+            $tbl = if ($op.table) { $ws.ListObjects.Item($op.table) } else { $ws.ListObjects.Item(1) }
+            $idx = if ($op.at) { [int]$op.at } else { 1 }
+            Retry { [void]$tbl.ListColumns.Item($idx).Delete() }
+          }
+          "resizeTable" {
+            $tbl = if ($op.table) { $ws.ListObjects.Item($op.table) } else { $ws.ListObjects.Item(1) }
+            Retry { [void]$tbl.Resize($ws.Range($op.range)) }
+          }
+          "toggleTableTotalRow" {
+            $tbl = if ($op.table) { $ws.ListObjects.Item($op.table) } else { $ws.ListObjects.Item(1) }
+            $show = if ($op.show -ne $null) { [bool]$op.show } else { -not $tbl.ShowTotals }
+            Retry { $tbl.ShowTotals = $show }
+          }
+          "renameTable" {
+            $tbl = if ($op.table) { $ws.ListObjects.Item($op.table) } else { $ws.ListObjects.Item(1) }
+            Retry { $tbl.Name = [string]$op.newName }
+          }
+          "renameTableCol" {
+            $tbl = if ($op.table) { $ws.ListObjects.Item($op.table) } else { $ws.ListObjects.Item(1) }
+            $col = if ($op.col -is [int]) { $tbl.ListColumns.Item([int]$op.col) } else { $tbl.ListColumns.Item([string]$op.col) }
+            Retry { $col.Name = [string]$op.newName }
+          }
+          "sortTable" {
+            $tbl = if ($op.table) { $ws.ListObjects.Item($op.table) } else { $ws.ListObjects.Item(1) }
+            $order = if ($op.order -eq 2) { 2 } else { 1 }
+            Retry { [void]$tbl.Range.Sort($ws.Range($op.key), $order, $missing, $missing, 1, $missing, 1, 1) }
+          }
+          "filterTable" {
+            $tbl = if ($op.table) { $ws.ListObjects.Item($op.table) } else { $ws.ListObjects.Item(1) }
+            Retry { [void]$tbl.Range.AutoFilter([int]$op.field, [string]$op.value) }
+          }
+          "unlistTable" {
+            $tbl = if ($op.table) { $ws.ListObjects.Item($op.table) } else { $ws.ListObjects.Item(1) }
+            Retry { [void]$tbl.Unlist() }
+          }
+        }
       }
-    }
     Retry { $x.Calculate() }
     $out = [ordered]@{}
     $used = $ws.UsedRange
@@ -140,7 +204,31 @@ try {
         $out[$address] = $cellData
       }
     }
-    $results[$scenario.name] = $out
+    $tableData = @()
+    foreach ($tbl in $ws.ListObjects) {
+      $headers = @()
+      foreach ($col in $tbl.ListColumns) {
+        $headers += [string]$col.Name
+      }
+      $tableData += [ordered]@{
+        name = [string]$tbl.Name
+        range = [string]$tbl.Range.Address($false, $false)
+        headers = $headers
+        showTotals = [bool]$tbl.ShowTotals
+      }
+    }
+    $hasTableOps = $false
+    foreach ($op in $scenario.ops) {
+      if ($op.type -like "*Table*" -or $op.type -eq "enterCell") { $hasTableOps = $true; break }
+    }
+    if ($tableData.Count -gt 0 -or $scenario.compareTables -or $hasTableOps) {
+      $results[$scenario.name] = [ordered]@{
+        cells = $out
+        tables = $tableData
+      }
+    } else {
+      $results[$scenario.name] = $out
+    }
     Retry { $ws.Delete() } | Out-Null
   }
   ($results | ConvertTo-Json -Depth 6 -Compress) | Set-Content -LiteralPath $OutputJson -Encoding UTF8
