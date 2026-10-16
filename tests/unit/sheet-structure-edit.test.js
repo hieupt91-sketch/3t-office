@@ -104,5 +104,31 @@ export async function runSheetStructureEditTests() {
     assert(grid.advancedFilter({ listRange: "ZZ", criteriaRange: "F1:F2" }) === false, "Vùng sai phải trả false");
   });
 
+  await test("Nhóm trang tính: nhập ô áp dụng cho cả nhóm, Ctrl+Z một lần hoàn tác cả nhóm, Điền trên các trang, bỏ nhóm khi sang trang ngoài nhóm", () => {
+    const grid = new SheetGridController(mockContainer());
+    grid.sheets = ["Sheet1", "Sheet2", "Sheet3"];
+    grid.sheetsData.Sheet2 = new Map(); grid.sheetsData.Sheet3 = new Map();
+    assert(grid.toggleSheetInGroup("Sheet2") && grid.toggleSheetInGroup("Sheet3"), "Ctrl+nhấp thẻ phải nhóm được");
+    assert(grid.getGroupedSheets().join() === "Sheet1,Sheet2,Sheet3", `Nhóm: ${grid.getGroupedSheets()}`);
+    grid.setCellValue("B", 2, 42);
+    assert(grid.sheetsData.Sheet2.get("B2")?.val === 42 && grid.sheetsData.Sheet3.get("B2")?.val === 42, "Giá trị phải sang cả hai trang còn lại");
+    grid.setCellValue("C", 3, "=B2*2");
+    assert(grid.sheetsData.Sheet3.get("C3")?.formula === "=B2*2", "Công thức cũng sang các trang khác");
+    assert(grid.undo(), "undo phải chạy");
+    assert(!grid.sheetsData.Sheet2.get("C3")?.formula && !grid.cellsData.get("C3")?.formula, "Một lần hoàn tác phải gỡ ở mọi trang");
+    assert(grid.redo(), "redo phải chạy");
+    assert(grid.sheetsData.Sheet2.get("C3")?.formula === "=B2*2" && grid.cellsData.get("C3")?.formula === "=B2*2", "Làm lại phải áp lại cho cả nhóm");
+    grid.selectionRange = { start: { c: "B", r: 2 }, end: { c: "C", r: 3 } };
+    grid.sheetsData.Sheet2.get("B2").val = 0;
+    assert(grid.fillAcrossSheets("all").sheets === 2, "Điền trên các trang phải chạy cho 2 trang");
+    assert(grid.sheetsData.Sheet2.get("B2").val === 42, "Điền trên các trang chép giá trị sang");
+    assert(grid.undo() && grid.sheetsData.Sheet2.get("B2").val === 0, "Hoàn tác điền trên các trang");
+    grid.switchSheet("Sheet2");
+    grid.groupedSheets = new Set(["Sheet1", "Sheet2"]);
+    grid.switchSheet("Sheet3");
+    assert(grid.getGroupedSheets().length === 0, "Sang trang ngoài nhóm thì bỏ nhóm");
+    assert(grid.fillAcrossSheets("all") === false, "Chưa nhóm thì Điền trên các trang trả false");
+  });
+
   return results;
 }

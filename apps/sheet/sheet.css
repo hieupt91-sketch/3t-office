@@ -2063,3 +2063,6 @@ tr.is-filtered-out {
 }
 
 
+
+.vno-sheet-tab-item.is-grouped { background: #e6f0fb; box-shadow: inset 0 -3px 0 #217346; }
+.vno-sheet-tab-item.is-grouped.is-active { background: #ffffff; }

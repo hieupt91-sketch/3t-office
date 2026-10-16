@@ -561,6 +561,7 @@ export class SheetAdapter {
       return this._hintIfFalse(() => this.grid.fillLeft(options.range), "Chọn từ hai ô trở lên (cột phải nhất là nguồn), hoặc một ô có dữ liệu ngay bên phải, rồi nhấn Điền trái.");
     });
     globalCommandBus.bindHandler("sheet.edit.fillSeries", () => this.grid.showFillSeriesDialog());
+    globalCommandBus.bindHandler("sheet.edit.fillAcrossSheets", () => this.grid.showFillAcrossSheetsDialog());
     globalCommandBus.bindHandler("sheet.edit.clearAll", (options) => {
       options = options || {};
       return this.grid.clearAll ? this.grid.clearAll(options.range) : false;

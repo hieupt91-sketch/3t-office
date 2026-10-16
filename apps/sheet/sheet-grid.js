@@ -361,6 +361,7 @@ export class SheetGridController {
     this.rowHeightsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
     this.colWidthsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
     this.userHiddenRowsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Set()]));
+    this.groupedSheets = new Set();
     this.userHiddenColsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Set()]));
     this.protectionBySheet = Object.fromEntries(this.sheets.map(name => [name, { enabled: false, password: "" }]));
     this.workbookProtection = { enabled: false, password: "" };
@@ -3408,6 +3409,8 @@ export class SheetGridController {
   switchSheet(sheetName, options = {}) {
     const skipSave = options.skipSave === true;
     if (!sheetName) return false;
+    // Nhấp vào thẻ trang ngoài nhóm thì bỏ nhóm (như Excel); trang trong nhóm giữ nguyên nhóm.
+    if (this.groupedSheets?.size && !this.groupedSheets.has(sheetName)) this.groupedSheets.clear();
     const preservedFormulaEntry = this.formulaEntry && (options.pointMode || options.formulaReturn)
       ? this.formulaEntry
       : null;
@@ -3791,7 +3794,14 @@ export class SheetGridController {
       label.className = "vno-sheet-tab-label";
       label.textContent = sheetName;
       tab.appendChild(label);
-      tab.addEventListener("click", () => {
+      if (this.groupedSheets?.has(sheetName) && this.groupedSheets.size > 1) {
+        tab.classList.add("is-grouped");
+        tab.setAttribute("aria-selected", "true");
+        tab.title = `${tab.title} — ${t("sheetDialogs.sheetGroup.tabHint", "đang trong nhóm trang tính")}`;
+      }
+      tab.addEventListener("click", event => {
+        if (event.ctrlKey || event.metaKey) { this.toggleSheetInGroup(sheetName); return; }
+        if (event.shiftKey) { this.selectSheetRange(sheetName); return; }
         const pointMode = this.formulaEntry && this._canInsertPointReference();
         this.switchSheet(sheetName, pointMode ? { pointMode: true } : {});
       });
@@ -3808,6 +3818,149 @@ export class SheetGridController {
       });
       tabsListEl.appendChild(tab);
     });
+  }
+
+  getGroupedSheets() {
+    return this.groupedSheets?.size > 1 && this.groupedSheets.has(this.activeSheet)
+      ? this.sheets.filter(name => this.groupedSheets.has(name))
+      : [];
+  }
+
+  /** Nhóm trang tính (Ctrl+nhấp thẻ): thao tác trên trang hiện tại áp dụng cho mọi trang trong nhóm. */
+  toggleSheetInGroup(sheetName) {
+    if (!this.sheets.includes(sheetName)) return false;
+    const group = new Set(this.groupedSheets?.size ? this.groupedSheets : [this.activeSheet]);
+    if (sheetName === this.activeSheet && group.size > 1) return false;
+    if (group.has(sheetName)) group.delete(sheetName); else group.add(sheetName);
+    group.add(this.activeSheet);
+    this.groupedSheets = group.size > 1 ? group : new Set();
+    this._renderSheetTabs();
+    this._syncCommandStates?.();
+    this._showDataNotice?.(this.groupedSheets.size > 1
+      ? t("sheetDialogs.sheetGroup.grouped", `Đã nhóm ${this.groupedSheets.size} trang tính: thao tác nhập/xóa/định dạng áp dụng cho cả nhóm. Nhấp một thẻ ngoài nhóm để bỏ nhóm.`, { count: this.groupedSheets.size })
+      : t("sheetDialogs.sheetGroup.ungrouped", "Đã bỏ nhóm trang tính."));
+    return true;
+  }
+
+  /** Shift+nhấp thẻ: chọn dải trang từ trang hiện tại đến trang vừa nhấp. */
+  selectSheetRange(sheetName) {
+    const from = this.sheets.indexOf(this.activeSheet);
+    const to = this.sheets.indexOf(sheetName);
+    if (from < 0 || to < 0) return false;
+    this.groupedSheets = new Set(this.sheets.slice(Math.min(from, to), Math.max(from, to) + 1).filter(name => (this.sheetVisibilityBySheet?.[name] || "visible") === "visible" || name === this.activeSheet));
+    if (this.groupedSheets.size < 2) this.groupedSheets = new Set();
+    this._renderSheetTabs();
+    return true;
+  }
+
+  selectAllSheets() {
+    const visible = this.sheets.filter(name => !["hidden", "veryhidden"].includes(String(this.sheetVisibilityBySheet?.[name] || "").toLowerCase()));
+    if (visible.length < 2) return false;
+    this.groupedSheets = new Set(visible);
+    this._renderSheetTabs();
+    return true;
+  }
+
+  ungroupSheets() {
+    if (!this.groupedSheets?.size) return false;
+    this.groupedSheets = new Set();
+    this._renderSheetTabs();
+    return true;
+  }
+
+  /**
+   * Sau khi một thao tác ô được ghi vào lịch sử ở trang hiện tại, áp dụng cùng kết quả cho các trang còn lại trong nhóm.
+   * Tạo một mục lịch sử "nối" để Ctrl+Z hoàn tác cả hai.
+   */
+  _propagateActionToGroup(action) {
+    const targets = this.getGroupedSheets().filter(name => name !== this.activeSheet);
+    if (!targets.length || this._groupPropagating || !action) return;
+    let afterCells = null;
+    if (action.type === "cell") {
+      const asSnapshot = (value, style) => {
+        const text = typeof value === "string" ? value : "";
+        return text.startsWith("=") ? { val: "", formula: text, style: structuredClone(style || {}) } : { val: value ?? "", formula: "", style: structuredClone(style || {}) };
+      };
+      afterCells = { [`${action.col}${action.row}`]: asSnapshot(action.nextVal, action.nextStyle) };
+    } else if (["cell-style", "fill", "clear", "batch-cells"].includes(action.type) && action.after && typeof action.after === "object" && !Array.isArray(action.after) && action.sheet === this.activeSheet) {
+      afterCells = action.after;
+    }
+    if (!afterCells) return;
+    const beforeBySheet = {};
+    const afterBySheet = {};
+    for (const sheet of targets) {
+      const map = this.sheetsData[sheet];
+      if (!map) continue;
+      beforeBySheet[sheet] = {};
+      afterBySheet[sheet] = {};
+      for (const [coord, snap] of Object.entries(afterCells)) {
+        const existing = map.get(coord);
+        beforeBySheet[sheet][coord] = existing ? { val: existing.val, formula: existing.formula, style: structuredClone(existing.style || {}) } : null;
+        if (!snap) { map.delete(coord); afterBySheet[sheet][coord] = null; continue; }
+        const next = { val: snap.val ?? "", formula: snap.formula ?? "", style: structuredClone(snap.style || {}) };
+        map.set(coord, next);
+        afterBySheet[sheet][coord] = structuredClone(next);
+      }
+    }
+    this._groupPropagating = true;
+    try {
+      this.undoStack.push({ type: "batch-workbook", beforeBySheet, afterBySheet, chainedToPrevious: true });
+      this._recalculateAllFormulas();
+    } finally { this._groupPropagating = false; }
+  }
+
+  /** Điền > Trên các trang: chép vùng đang chọn của trang hiện tại sang cùng vùng ở các trang trong nhóm. mode: all | contents | formats */
+  fillAcrossSheets(mode = "all") {
+    if (this._guardProtectedMutation()) return false;
+    const targets = this.getGroupedSheets().filter(name => name !== this.activeSheet);
+    if (!targets.length) { this._lastFillAcrossError = "noGroup"; return false; }
+    const range = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const coords = this.formulaEngine.expandRange(this._rangeLabel(range));
+    const beforeBySheet = {};
+    const afterBySheet = {};
+    for (const sheet of targets) {
+      const map = this.sheetsData[sheet];
+      if (!map) continue;
+      beforeBySheet[sheet] = {};
+      afterBySheet[sheet] = {};
+      for (const coord of coords) {
+        const source = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+        const existing = map.get(coord) || { val: "", formula: "", style: {} };
+        beforeBySheet[sheet][coord] = { val: existing.val, formula: existing.formula, style: structuredClone(existing.style || {}) };
+        const next = {
+          val: mode === "formats" ? existing.val : source.val,
+          formula: mode === "formats" ? existing.formula : source.formula,
+          style: mode === "contents" ? structuredClone(existing.style || {}) : structuredClone(source.style || {})
+        };
+        map.set(coord, next);
+        afterBySheet[sheet][coord] = structuredClone(next);
+      }
+    }
+    this._recordHistory({ type: "batch-workbook", beforeBySheet, afterBySheet });
+    this._recalculateAllFormulas();
+    return { sheets: targets.length, cells: coords.length };
+  }
+
+  showFillAcrossSheetsDialog() {
+    if (typeof document === "undefined") return false;
+    if (this.getGroupedSheets().length < 2) {
+      this._showDataNotice?.(t("sheetDialogs.sheetGroup.needGroup", "Hãy chọn nhiều trang tính trước: giữ Ctrl và nhấp vào các thẻ trang tính cần điền, rồi chọn vùng ô và mở lại Điền > Trên các trang."));
+      return false;
+    }
+    const overlay = this._createSheetDialog(t("sheetDialogs.sheetGroup.fillTitle", "Điền trên các trang"), `<div class="vno-fill-across">
+      <p>${t("sheetDialogs.sheetGroup.fillIntro", "Chép vùng ô đang chọn sang cùng vị trí ở các trang tính đã nhóm.")}</p>
+      <label><input type="radio" name="vno-fill-across" value="all" checked> ${t("sheetDialogs.sheetGroup.fillAll", "Tất cả (nội dung và định dạng)")}</label>
+      <label><input type="radio" name="vno-fill-across" value="contents"> ${t("sheetDialogs.sheetGroup.fillContents", "Nội dung")}</label>
+      <label><input type="radio" name="vno-fill-across" value="formats"> ${t("sheetDialogs.sheetGroup.fillFormats", "Định dạng")}</label>
+      <div class="vno-rule-error" role="alert"></div></div>`);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const mode = overlay.querySelector('[name="vno-fill-across"]:checked')?.value || "all";
+      const result = this.fillAcrossSheets(mode);
+      if (!result) { overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.sheetGroup.needGroup", "Hãy chọn nhiều trang tính trước."); return; }
+      overlay.closeDialog();
+    });
+    return true;
   }
 
   _showSheetTabContextMenu(event, sheetName) {
@@ -3831,6 +3984,8 @@ export class SheetGridController {
       { label: this.isSheetProtected(sheetName)
         ? t("sheetDialogs.unprotectSheet", "Bỏ bảo vệ trang tính...")
         : t("sheetDialogs.protectSheet", "Bảo vệ trang tính..."), action: () => this.showProtectSheetDialog(sheetName) },
+      { label: t("sheetDialogs.sheetGroup.selectAll", "Chọn tất cả các trang tính"), action: () => this.selectAllSheets() },
+      ...(this.groupedSheets?.size > 1 ? [{ label: t("sheetDialogs.sheetGroup.ungroup", "Bỏ nhóm trang tính"), action: () => this.ungroupSheets() }] : []),
       { label: "Màu tab", action: () => this._showTabColorMenu(event, sheetName) },
       { label: t("sheetDialogs.hideSheetMenu", "Ẩn trang tính"), action: () => this.hideSheet(sheetName) },
       ...(Object.values(this.sheetVisibilityBySheet || {}).some(state => state === "hidden" || state === "veryHidden")
@@ -11273,6 +11428,8 @@ _bindGridKeyboardNavigation() {
       action.prevRowHeight === action.nextRowHeight) {
       return null;
     }
+    const grouped = this.getGroupedSheets().length > 1 && !this._groupPropagating;
+    if (grouped) coalesce = false;
     const previous = this.undoStack[this.undoStack.length - 1];
     const mergeCellEdit = coalesce && previous?.type === "cell" && action.type === "cell" &&
       previous.sheet === action.sheet && previous.col === action.col && previous.row === action.row &&
@@ -11288,6 +11445,7 @@ _bindGridKeyboardNavigation() {
       if (this.undoStack.length > this.maxHistorySteps) this.undoStack.shift();
     }
     this.redoStack = [];
+    if (grouped) this._propagateActionToGroup(action);
     this.options.onDocumentChange?.();
     this._syncCommandStates();
     return mergeCellEdit ? previous : action;
@@ -11950,6 +12108,10 @@ _bindGridKeyboardNavigation() {
     const applied = this._applyHistoryAction(action, "undo");
     if (applied) this.redoStack.push(action);
     else this.undoStack.push(action);
+    if (applied && action.chainedToPrevious) {
+      const leader = this.undoStack.pop();
+      if (leader) { this._applyHistoryAction(leader, "undo"); this.redoStack.push(leader); }
+    }
     if (applied) this.options.onDocumentChange?.();
     this._syncCommandStates();
     return applied;
@@ -11962,6 +12124,12 @@ _bindGridKeyboardNavigation() {
     if (applied) {
       this.undoStack.push(action);
       if (this.undoStack.length > this.maxHistorySteps) this.undoStack.shift();
+      const follower = this.redoStack[this.redoStack.length - 1];
+      if (follower?.chainedToPrevious) {
+        this.redoStack.pop();
+        this._applyHistoryAction(follower, "redo");
+        this.undoStack.push(follower);
+      }
     } else this.redoStack.push(action);
     if (applied) this.options.onDocumentChange?.();
     this._syncCommandStates();
