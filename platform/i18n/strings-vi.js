@@ -363,7 +363,8 @@ export const viStrings = {
   sheetRibbon: {
     whatIfAnalysis: "Phân tích What-If",
     tab: { home: "Trang đầu", formulas: "Công thức", data: "Dữ liệu", insert: "Chèn", pageLayout: "Bố trí trang", review: "Xem xét", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI", tableDesign: "Thiết kế Bảng" },
-    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", tables: "Bảng", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", pageSetup: "Thiết lập trang", scaleToFit: "Vừa trang", sheetOptions: "Tùy chọn trang tính", proofing: "Kiểm lỗi", comments: "Ghi chú", protection: "Bảo vệ", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiAnalysis: "Phân tích dữ liệu AI", properties: "Thuộc tính bảng", tableStyleOptions: "Tùy chọn kiểu bảng", tools: "Công cụ" },
+    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", connections: "Kết nối", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", tables: "Bảng", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", pageSetup: "Thiết lập trang", scaleToFit: "Vừa trang", sheetOptions: "Tùy chọn trang tính", proofing: "Kiểm lỗi", comments: "Ghi chú", protection: "Bảo vệ", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiAnalysis: "Phân tích dữ liệu AI", properties: "Thuộc tính bảng", tableStyleOptions: "Tùy chọn kiểu bảng", tools: "Công cụ" },
+    refreshAllSuccess: "Đã làm mới tất cả các liên kết và dữ liệu ngoài.",
     editing: { fill: "Điền", clear: "Xóa" },
     cells: { format: "Định dạng" },
     alignment: { orientation: "Hướng chữ" },
@@ -382,6 +383,36 @@ export const viStrings = {
     section: "Phần"
   },
   sheetDialogs: {
+    editLinks: {
+      title: "Chỉnh sửa liên kết",
+      colSource: "Nguồn",
+      colType: "Loại",
+      colUpdate: "Cập nhật",
+      colStatus: "Trạng thái",
+      updateValues: "Cập nhật giá trị",
+      changeSource: "Đổi nguồn...",
+      openSource: "Mở nguồn",
+      breakLink: "Ngắt liên kết",
+      checkStatus: "Kiểm tra trạng thái",
+      startupPrompt: "Lời nhắc khởi động...",
+      location: "Vị trí:",
+      updateLabel: "Cập nhật:",
+      modeAuto: "Tự động",
+      modeManual: "Thủ công",
+      empty: "Sổ làm việc này không chứa liên kết nào tới các sổ làm việc khác.",
+      noSelection: "Không có liên kết",
+      typeWorksheet: "Bảng tính",
+      statusUnknown: "Chưa xác định",
+      statusOk: "Khả dụng",
+      statusOpen: "Nguồn đang mở",
+      statusNotFound: "Lỗi: Không tìm thấy nguồn",
+      updatedMsg: "Đã cập nhật giá trị cho liên kết: {source}",
+      promptNewSource: "Nhập đường dẫn hoặc tên tệp nguồn mới:",
+      openNotice: "Đang mở tệp nguồn: {source}",
+      breakConfirm: "Ngắt liên kết sẽ chuyển đổi vĩnh viễn các công thức tham chiếu nguồn này thành giá trị hiện tại của chúng. Bạn có muốn tiếp tục ngắt liên kết không?",
+      startupNotice: "Tùy chọn lời nhắc khi mở sổ làm việc: Mặc định ứng dụng không tự động cập nhật liên kết ngoài để đảm bảo an toàn bảo mật ngoại tuyến.",
+      openingSource: "Đang mở tệp nguồn: {source}"
+    },
     fillSeriesTitle: "Chuỗi", fillSeriesIn: "Chuỗi theo", fillSeriesRows: "Hàng", fillSeriesColumns: "Cột", fillSeriesType: "Loại", fillSeriesLinear: "Tuyến tính", fillSeriesGrowth: "Tăng trưởng", fillSeriesDate: "Ngày", fillSeriesDateUnit: "Đơn vị ngày", fillSeriesUnitDay: "Ngày", fillSeriesUnitWeekday: "Ngày làm việc", fillSeriesUnitMonth: "Tháng", fillSeriesUnitYear: "Năm", fillSeriesStep: "Bước nhảy", fillSeriesStop: "Giá trị dừng", fillSeriesBadStep: "Bước nhảy phải là một số.", fillSeriesBadStart: "Ô đầu của vùng chọn phải chứa số (hoặc ngày dạng dd/mm/yyyy khi chọn loại Ngày).", fillSeriesNothing: "Không có ô nào để điền. Hãy chọn vùng gồm ô bắt đầu và các ô cần điền, hoặc nhập Giá trị dừng khi chỉ chọn một ô.", fillSeriesFailed: "Không điền được chuỗi.", fillSeriesDone: "Đã điền {{count}} ô.",
     fillJustifyTitle: "Căn đều", fillJustifyOverflow: "Chữ sẽ tràn xuống dưới vùng chọn.", fillJustifyNoNumbers: "Không thể căn đều ô chứa số hoặc công thức.",
     calcOptions: {
@@ -739,6 +770,8 @@ export const viStrings = {
     ,"sheet.data.scenarioManager": { label: "Trình quản lý kịch bản", tooltip: "Lưu và chuyển đổi nhiều bộ giá trị giả định có tên" }
     ,"sheet.data.pivotTable": { label: "Bảng tổng hợp", tooltip: "Tạo Pivot Table từ vùng dữ liệu đang chọn" }
     ,"sheet.data.pivotRefresh": { label: "Làm mới Pivot", tooltip: "Tính lại Pivot Table từ dữ liệu nguồn" }
+    ,"sheet.data.refreshAll": { label: "Làm mới tất cả", tooltip: "Cập nhật tất cả các liên kết và nguồn dữ liệu ngoài (Ctrl+Alt+F5)" }
+    ,"sheet.data.editLinks": { label: "Chỉnh sửa liên kết", tooltip: "Xem và quản lý tất cả các liên kết tới sổ làm việc hoặc tệp ngoài" }
     ,"sheet.view.normal": { label: "Bình thường", tooltip: "Xem bảng tính ở chế độ bình thường" }
     ,"sheet.view.pageBreakPreview": { label: "Xem ngắt trang", tooltip: "Hiển thị vị trí các ngắt trang và vùng in" }
     ,"sheet.view.pageLayout": { label: "Bố trí trang", tooltip: "Xem bảng tính như khi in ra giấy kèm đầu/chân trang" }

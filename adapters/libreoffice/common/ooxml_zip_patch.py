@@ -4809,6 +4809,35 @@ def _preserve_external_links(
         if not extlink_names:
             return
 
+        # 0. Preserve formulas first to detect whether all external links were broken
+        source_ext_count, preserved_count = _preserve_external_formulas(xlsx_bytes, source_xlsx_bytes, replacements)
+        if source_ext_count > 0 and preserved_count == 0:
+            # All external links were broken into static values by the user:
+            # clean up externalReferences from workbook.xml and relationships from workbook.xml.rels
+            out_wb_xml = replacements.get(XLSX_WORKBOOK_ENTRY)
+            if out_wb_xml is None:
+                out_wb_bytes = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+                if out_wb_bytes:
+                    out_wb_xml = out_wb_bytes.decode("utf-8", errors="replace")
+            if out_wb_xml and "<externalReferences" in out_wb_xml:
+                out_wb_xml = re.sub(r"<externalReferences\b[^>]*>[\s\S]*?</externalReferences>", "", out_wb_xml, flags=re.IGNORECASE)
+                replacements[XLSX_WORKBOOK_ENTRY] = out_wb_xml
+
+            out_rels_xml = replacements.get(XLSX_WORKBOOK_RELS_ENTRY)
+            if out_rels_xml is None:
+                out_rels_bytes = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_RELS_ENTRY)
+                if out_rels_bytes:
+                    out_rels_xml = out_rels_bytes.decode("utf-8", errors="replace")
+            if out_rels_xml:
+                out_rels_xml = re.sub(
+                    r'<Relationship\b(?=[^>]*\bType="[^"]*externalLink")[^>]*/>\s*',
+                    "",
+                    out_rels_xml,
+                    flags=re.IGNORECASE,
+                )
+                replacements[XLSX_WORKBOOK_RELS_ENTRY] = out_rels_xml
+            return
+
         # 1. Copy all externalLink XML files and their .rels
         for name in extlink_names:
             data = zin.read(name)
@@ -4913,8 +4942,6 @@ def _preserve_external_links(
             out_ct_xml = _add_content_type_overrides(out_ct_xml, extlink_overrides)
             replacements["[Content_Types].xml"] = out_ct_xml
 
-        # 6. Preserve original formulas and cached values for cells with [N] references
-        _preserve_external_formulas(xlsx_bytes, source_xlsx_bytes, replacements)
 
 
 def _insert_external_references(workbook_xml: str, external_references_xml: str) -> str:
@@ -4983,11 +5010,14 @@ def _preserve_external_formulas(
     xlsx_bytes: bytes,
     source_xlsx_bytes: bytes,
     replacements: dict[str, str],
-) -> None:
-    """Preserve original formulas, types, and cached values for cells with [N] references."""
-    # Map sheet name -> entry path for source and output
+) -> tuple[int, int]:
+    """Preserve original formulas, types, and cached values for cells with [N] references.
+    Returns (source_ext_count, total_preserved).
+    """
     src_sheet_entries = _resolve_xlsx_sheet_entries(source_xlsx_bytes)
     out_sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    source_ext_count = 0
+    total_preserved = 0
 
     with zipfile.ZipFile(io.BytesIO(source_xlsx_bytes), "r") as zin:
         for sheet_name, src_entry in src_sheet_entries.items():
@@ -5014,6 +5044,8 @@ def _preserve_external_formulas(
             if not ext_cells:
                 continue
 
+            source_ext_count += len(ext_cells)
+
             # Read output sheet XML
             out_sheet_xml = replacements.get(out_entry)
             if out_sheet_xml is None:
@@ -5025,8 +5057,6 @@ def _preserve_external_formulas(
             # Replace formula/type/cached value of the output cell with the source
             # cell's, but keep the output's style index: xf numbering differs
             # between the source styles.xml and the one LibreOffice wrote.
-            # One pass over the sheet: a per-cell re.sub was O(cells x sheet)
-            # and never finished on a 1.5 M-cell sheet (Danh sach thi online).
             prepared: dict[str, tuple[str | None, str]] = {}
             for coord, src_cell in ext_cells.items():
                 src_open = re.match(r"<c\b([^>]*?)(/?)>", src_cell)
@@ -5035,11 +5065,19 @@ def _preserve_external_formulas(
                 src_body = re.search(r"<c\b[^>]*>([\s\S]*?)</c>", src_cell)
                 prepared[coord] = (src_type.group(1) if src_type else None, src_body.group(1) if src_body else "")
 
+            sheet_preserved = [0]
+
             def rebuild(match: re.Match[str]) -> str:
+                out_cell = match.group(0)
                 out_attrs = match.group(1) or ""
                 coord_match = re.search(r'\br="([^"]*)"', out_attrs)
                 if not coord_match or coord_match.group(1) not in prepared:
-                    return match.group(0)
+                    return out_cell
+                # Nếu ô output hiện tại không còn thẻ <f> (nghĩa là công thức đã bị ngắt thành giá trị tĩnh),
+                # thì giữ nguyên ô output hiện tại, không khôi phục công thức liên kết cũ.
+                if not re.search(r'<f\b[^>]*>', out_cell, re.IGNORECASE):
+                    return out_cell
+                sheet_preserved[0] += 1
                 src_type, src_body = prepared[coord_match.group(1)]
                 style = re.search(r'\bs="([^"]*)"', out_attrs)
                 attrs = f' r="{coord_match.group(1)}"'
@@ -5050,8 +5088,11 @@ def _preserve_external_formulas(
                 return f"<c{attrs}>{src_body}</c>" if src_body else f"<c{attrs}/>"
 
             out_sheet_xml = re.sub(r"<c\b([^>]*?)(?:/>|>[\s\S]*?</c>)", rebuild, out_sheet_xml)
+            total_preserved += sheet_preserved[0]
 
             replacements[out_entry] = out_sheet_xml
+
+    return source_ext_count, total_preserved
 
 
 def _apply_accounting_number_formats_from_fods(

@@ -61,8 +61,14 @@ for (const scenario of spec.scenarios) {
       const fmt = rawValue.format || rawValue.numberFormat;
       if (fmt) item.style.numberFormat = typeof fmt === "string" ? { code: fmt, formatCode: fmt } : fmt;
       grid.cellsData.set(coord, item);
-      const v = rawValue.f || rawValue.formula || (rawValue.v !== undefined ? rawValue.v : (rawValue.val !== undefined ? rawValue.val : ""));
-      grid.setCellValue(c, r, v);
+      if (rawValue.externalLink) {
+        item.externalLink = structuredClone(rawValue.externalLink);
+        item.formula = rawValue.f || rawValue.formula || "";
+        item.val = rawValue.v !== undefined ? rawValue.v : (rawValue.val !== undefined ? rawValue.val : "");
+      } else {
+        const v = rawValue.f || rawValue.formula || (rawValue.v !== undefined ? rawValue.v : (rawValue.val !== undefined ? rawValue.val : ""));
+        grid.setCellValue(c, r, v);
+      }
     } else {
       grid.setCellValue(c, r, rawValue);
     }
@@ -297,6 +303,14 @@ for (const scenario of spec.scenarios) {
         case "enterR1C1Formula": {
           const [c, r] = split(op.coord);
           grid.setCellValue(c, r, op.formula, false, { userInput: true, commit: true });
+          break;
+        }
+        case "breakLink": {
+          grid.breakLink(op.source);
+          break;
+        }
+        case "changeLink": {
+          grid.changeLink(op.oldSource, op.newSource, op.newValues);
           break;
         }
         default: throw new Error(`op chua ho tro: ${op.type}`);

@@ -364,7 +364,8 @@ export const enStrings = {
   sheetRibbon: {
     whatIfAnalysis: "What-If Analysis",
     tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant", tableDesign: "Table Design" },
-    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", tables: "Tables", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", pageSetup: "Page Setup", scaleToFit: "Scale to Fit", sheetOptions: "Sheet Options", proofing: "Proofing", comments: "Comments", protection: "Protect", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiAnalysis: "AI Data Analysis", properties: "Table Properties", tableStyleOptions: "Table Style Options", tools: "Tools" },
+    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", connections: "Connections", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", tables: "Tables", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", pageSetup: "Page Setup", scaleToFit: "Scale to Fit", sheetOptions: "Sheet Options", proofing: "Proofing", comments: "Comments", protection: "Protect", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiAnalysis: "AI Data Analysis", properties: "Table Properties", tableStyleOptions: "Table Style Options", tools: "Tools" },
+    refreshAllSuccess: "Refreshed all links and external data.",
     editing: { fill: "Fill", clear: "Clear" },
     alignment: { orientation: "Orientation" },
     cells: { format: "Format" },
@@ -383,6 +384,36 @@ export const enStrings = {
     section: "Section"
   },
   sheetDialogs: {
+    editLinks: {
+      title: "Edit Links",
+      colSource: "Source",
+      colType: "Type",
+      colUpdate: "Update",
+      colStatus: "Status",
+      updateValues: "Update Values",
+      changeSource: "Change Source...",
+      openSource: "Open Source",
+      breakLink: "Break Link",
+      checkStatus: "Check Status",
+      startupPrompt: "Startup Prompt...",
+      location: "Location:",
+      updateLabel: "Update:",
+      modeAuto: "Automatic",
+      modeManual: "Manual",
+      empty: "This workbook does not contain any links to other workbooks.",
+      noSelection: "No links",
+      typeWorksheet: "Worksheet",
+      statusUnknown: "Unknown",
+      statusOk: "OK",
+      statusOpen: "Source open",
+      statusNotFound: "Error: Source not found",
+      updatedMsg: "Updated values for link: {source}",
+      promptNewSource: "Enter the new source file path or name:",
+      openNotice: "Opening source file: {source}",
+      breakConfirm: "Breaking links permanently converts existing formulas to their current values. Do you want to continue?",
+      startupNotice: "Startup prompt: By default external links are not automatically refreshed to ensure offline security.",
+      openingSource: "Opening source file: {source}"
+    },
     deleteSheetMenu: "Delete sheet", deleteSheetConfirm: "Delete this sheet?", cannotDeleteLastSheet: "The last sheet cannot be deleted.",
     tabColorMenu: "Tab color", noTabColor: "No color", pasteSpecialKeepSource: "Keep source formatting", pasteSpecialText: "Keep text only",
     fillSeriesTitle: "Series", fillSeriesIn: "Series in", fillSeriesRows: "Rows", fillSeriesColumns: "Columns", fillSeriesType: "Type", fillSeriesLinear: "Linear", fillSeriesGrowth: "Growth", fillSeriesDate: "Date", fillSeriesDateUnit: "Date unit", fillSeriesUnitDay: "Day", fillSeriesUnitWeekday: "Weekday", fillSeriesUnitMonth: "Month", fillSeriesUnitYear: "Year", fillSeriesStep: "Step value", fillSeriesStop: "Stop value", fillSeriesBadStep: "Step value must be a number.", fillSeriesBadStart: "The first cell of the selection must contain a number (or a dd/mm/yyyy date for the Date type).", fillSeriesNothing: "Nothing to fill. Select the start cell plus the cells to fill, or enter a Stop value when only one cell is selected.", fillSeriesFailed: "Could not fill the series.", fillSeriesDone: "Filled {{count}} cells.",
@@ -740,6 +771,8 @@ export const enStrings = {
     ,"sheet.data.scenarioManager": { label: "Scenario Manager", tooltip: "Save and switch between named sets of assumption values" }
     ,"sheet.data.pivotTable": { label: "PivotTable", tooltip: "Create a PivotTable from the selected data range" }
     ,"sheet.data.pivotRefresh": { label: "Refresh PivotTable", tooltip: "Refresh the PivotTable from its source data" }
+    ,"sheet.data.refreshAll": { label: "Refresh All", tooltip: "Update all links and external data sources (Ctrl+Alt+F5)" }
+    ,"sheet.data.editLinks": { label: "Edit Links", tooltip: "View and manage all links to other workbooks or external files" }
     ,"sheet.view.normal": { label: "Normal", tooltip: "View worksheet in normal view" }
     ,"sheet.view.pageBreakPreview": { label: "Page Break Preview", tooltip: "Show where page breaks will occur in worksheet" }
     ,"sheet.view.pageLayout": { label: "Page Layout", tooltip: "View sheet as printed on paper with headers and footers" }

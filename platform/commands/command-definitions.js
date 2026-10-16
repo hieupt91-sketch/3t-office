@@ -392,6 +392,8 @@ export const SHEET_COMMANDS = [
   { id: "sheet.calc.toggleDate1904", category: "formula", label: "Hệ thống ngày 1904", icon: "calculationOptions", tooltip: "Chuyển đổi sang hệ thống ngày bắt đầu từ năm 1904", isToggle: true },
   { id: "sheet.formula.arrayEnter", category: "formula", label: "Nhập công thức mảng", shortcut: "Ctrl+Shift+Enter", icon: "autoSum", tooltip: "Nhập công thức mảng cho vùng đã chọn (Ctrl+Shift+Enter)" },
   { id: "sheet.formula.recalculate", category: "formula", label: "Tính lại toàn bộ", shortcut: "F9", icon: "refreshTable", tooltip: "Tính lại toàn bộ công thức bảng tính (F9)" },
+  { id: "sheet.data.refreshAll", category: "data", label: "Làm mới tất cả", shortcut: "Ctrl+Alt+F5", icon: "refreshTable", tooltip: "Cập nhật dữ liệu từ tất cả các nguồn và liên kết ngoài (Ctrl+Alt+F5)" },
+  { id: "sheet.data.editLinks", category: "data", label: "Chỉnh sửa liên kết", icon: "hyperlink", tooltip: "Xem và quản lý các liên kết tới sổ làm việc bên ngoài" },
   { id: "sheet.data.sortAsc", category: "data", label: "Sắp xếp A-Z", icon: "sortAsc", tooltip: "Sắp xếp dữ liệu tăng dần" },
   { id: "sheet.data.sortDesc", category: "data", label: "Sắp xếp Z-A", icon: "sortDesc", tooltip: "Sắp xếp dữ liệu giảm dần" },
   { id: "sheet.data.filter", category: "data", label: "Bộ lọc", shortcut: "Ctrl+Shift+L", icon: "filter", tooltip: "Bật/tắt chế độ lọc AutoFilter (Ctrl+Shift+L)", isToggle: true },

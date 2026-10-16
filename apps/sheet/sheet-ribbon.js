@@ -554,6 +554,17 @@ export const SHEET_RIBBON_TABS = [
     labelKey: "sheetRibbon.tab.data",
     groups: [
       {
+        id: "connections",
+        label: "Kết nối",
+        labelKey: "sheetRibbon.group.connections",
+        launcherCommandId: "sheet.data.editLinks",
+        launcherTooltip: "Chỉnh sửa liên kết...",
+        items: [
+          { type: "button", commandId: "sheet.data.refreshAll", isLarge: true },
+          { type: "button", commandId: "sheet.data.editLinks", isLarge: true }
+        ]
+      },
+      {
         id: "sortFilter",
         label: "Sắp xếp & Lọc",
         labelKey: "sheetRibbon.group.sortFilter",

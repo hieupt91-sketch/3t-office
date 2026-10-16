@@ -1614,6 +1614,39 @@ export const SHEET_HELP_ENTRIES = [
       "Độ chính xác như hiển thị (Precision as displayed): Đánh dấu chọn tùy chọn này để làm tròn vĩnh viễn giá trị số và kết quả công thức theo định dạng hiển thị của ô (ví dụ ô hiển thị 2 chữ số thập phân sẽ làm tròn số thực tế về 2 chữ số). Cần cân nhắc kỹ trước khi bật vì độ chính xác nguyên bản sẽ không khôi phục lại được.",
       "Hệ thống ngày 1904: Đánh dấu chọn Sử dụng hệ thống ngày 1904 để tính ngày bắt đầu từ mốc 01/01/1904 thay vì 01/01/1900, phù hợp khi trao đổi tệp với một số hệ thống bảng tính đặc thù."
     ]
+  },
+  {
+    id: "sheet.data.refreshAllHelp",
+    app: "sheet",
+    commandIds: ["sheet.data.refreshAll"],
+    title: "Làm mới tất cả: cập nhật liên kết và bảng tổng hợp",
+    summary: "Nhấn Ctrl+Alt+F5 hoặc bấm Làm mới tất cả trên thanh ruy-băng để đồng bộ lại dữ liệu từ tất cả sổ làm việc liên kết bên ngoài và tính toán lại các bảng tổng hợp trong toàn bộ sổ làm việc.",
+    ribbon: { tab: "Dữ liệu", tabId: "data", group: "Kết nối" },
+    keywords: ["làm mới tất cả", "refresh all", "cập nhật liên kết", "liên kết ngoài", "bảng tổng hợp", "pivot table", "Ctrl+Alt+F5", "đồng bộ dữ liệu", "kết nối"],
+    steps: [
+      "Mở thẻ Dữ liệu trên thanh ruy-băng, tìm tới nhóm Kết nối ở phía bên trái thanh công cụ.",
+      "Bấm nút Làm mới tất cả (hoặc nhấn tổ hợp phím tắt Ctrl+Alt+F5 trên bàn phím của bạn).",
+      "Ứng dụng sẽ duyệt qua toàn bộ các liên kết ngoài trong các trang tính để cập nhật lại giá trị mới nhất từ tệp nguồn nếu tệp khả dụng trên hệ thống.",
+      "Đồng thời, mọi bảng tổng hợp dữ liệu hiện diện trong toàn bộ sổ làm việc cũng sẽ được tính toán và làm mới lại cấu trúc dữ liệu tương ứng.",
+      "Thanh trạng thái ở góc dưới cửa sổ sẽ hiển thị thông báo kết quả làm mới dữ liệu."
+    ]
+  },
+  {
+    id: "sheet.data.editLinksHelp",
+    app: "sheet",
+    commandIds: ["sheet.data.editLinks"],
+    title: "Chỉnh sửa liên kết: quản lý, đổi nguồn và ngắt liên kết ngoài",
+    summary: "Mở hộp thoại Chỉnh sửa liên kết trong nhóm Kết nối của thẻ Dữ liệu để xem danh sách các sổ làm việc bên ngoài được tham chiếu, cập nhật giá trị hiển thị, chuyển đổi đường dẫn nguồn hoặc ngắt liên kết vĩnh viễn thành giá trị tĩnh.",
+    ribbon: { tab: "Dữ liệu", tabId: "data", group: "Kết nối" },
+    keywords: ["chỉnh sửa liên kết", "edit links", "ngắt liên kết", "break link", "đổi nguồn", "change source", "mở nguồn", "open source", "cập nhật giá trị", "kiểm tra trạng thái", "liên kết ngoài", "sổ làm việc ngoài"],
+    steps: [
+      "Chuyển sang thẻ Dữ liệu trên thanh ruy-băng, bấm nút Chỉnh sửa liên kết trong nhóm Kết nối để mở hộp thoại quản lý liên kết.",
+      "Xem danh sách các nguồn liên kết trong bảng: cột Nguồn hiển thị tên tệp, cột Loại hiển thị Bảng tính, cột Cập nhật và cột Trạng thái hiển thị tính khả dụng của tệp nguồn.",
+      "Bấm Cập nhật giá trị để nạp lại dữ liệu mới nhất từ tệp nguồn được chọn; bấm Đổi nguồn... khi tệp nguồn đã chuyển sang thư mục khác hoặc đổi tên tệp mới.",
+      "Bấm Mở nguồn để trực tiếp mở tệp nguồn bên ngoài; bấm Kiểm tra trạng thái để xác định tệp nguồn có tồn tại và truy cập được hay không.",
+      "Bấm Ngắt liên kết khi bạn muốn chuyển toàn bộ công thức tham chiếu nguồn đó thành các giá trị tĩnh hiện tại, đồng thời loại bỏ hoàn toàn liên kết ngoài khỏi sổ làm việc.",
+      "Ứng dụng chạy hoàn toàn ngoại tuyến và mặc định không tự động đọc tệp bên ngoài khi mở để đảm bảo an toàn bảo mật dữ liệu của bạn."
+    ]
   }
 ];
 
