@@ -64,6 +64,7 @@ try {
         "sort" { Retry { [void]$ws.Range($op.range).Sort($ws.Range($op.key), [int]$op.order, $missing, $missing, 1, $missing, 1, 0) } }
         "filterEq" { Retry { [void]$ws.Range($op.range).AutoFilter([int]$op.field, [string]$op.value) } }
         "hideRow" { Retry { $ws.Rows($op.at).Hidden = $true } }
+        "autoFill" { Retry { [void]$ws.Range($op.src).AutoFill($ws.Range($op.dest), 0) } }
         "deleteRows" { Retry { [void]$ws.Rows("$($op.from):$($op.to)").Delete() } }
         "insertRows" { Retry { [void]$ws.Rows("$($op.at):$($op.at + $op.count - 1)").Insert() } }
         "copyPaste" { Retry { $ws.Range($op.from).Copy($ws.Range($op.to)) | Out-Null } }

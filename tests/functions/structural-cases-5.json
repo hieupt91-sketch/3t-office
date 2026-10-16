@@ -1,0 +1,17 @@
+{ "scenarios": [
+ { "name": "autofill so 1,2 -> chuoi", "cells": {"A1":1,"A2":2}, "ops": [{"type":"autoFill","src":"A1:A2","dest":"A1:A6"}] },
+ { "name": "autofill mot so -> sao chep", "cells": {"A1":5}, "ops": [{"type":"autoFill","src":"A1","dest":"A1:A4"}] },
+ { "name": "autofill buoc 10", "cells": {"A1":10,"A2":20,"A3":30}, "ops": [{"type":"autoFill","src":"A1:A3","dest":"A1:A6"}] },
+ { "name": "autofill giam dan", "cells": {"A1":9,"A2":7}, "ops": [{"type":"autoFill","src":"A1:A2","dest":"A1:A5"}] },
+ { "name": "autofill so thap phan", "cells": {"A1":0.5,"A2":1}, "ops": [{"type":"autoFill","src":"A1:A2","dest":"A1:A5"}] },
+ { "name": "autofill chu + so", "cells": {"A1":"Item 1"}, "ops": [{"type":"autoFill","src":"A1","dest":"A1:A4"}] },
+ { "name": "autofill chu + so hai o", "cells": {"A1":"SP01","A2":"SP02"}, "ops": [{"type":"autoFill","src":"A1:A2","dest":"A1:A5"}] },
+ { "name": "autofill chi chu lap", "cells": {"A1":"Dong","A2":"Tay"}, "ops": [{"type":"autoFill","src":"A1:A2","dest":"A1:A5"}] },
+ { "name": "autofill cong thuc tuong doi", "cells": {"A1":1,"A2":2,"A3":3,"A4":4,"B1":"=A1*2"}, "ops": [{"type":"autoFill","src":"B1","dest":"B1:B4"}] },
+ { "name": "autofill cong thuc hon hop tuyet doi", "cells": {"A1":1,"A2":2,"A3":3,"D1":10,"B1":"=A1*$D$1+A$1"}, "ops": [{"type":"autoFill","src":"B1","dest":"B1:B3"}] },
+ { "name": "autofill sang phai so", "cells": {"A1":1,"B1":3}, "ops": [{"type":"autoFill","src":"A1:B1","dest":"A1:F1"}] },
+ { "name": "autofill sang phai cong thuc", "cells": {"A1":1,"A2":2,"B1":"=A1+A2"}, "ops": [{"type":"autoFill","src":"B1","dest":"B1:E1"}] },
+ { "name": "autofill hai cot so", "cells": {"A1":1,"A2":2,"B1":10,"B2":20}, "ops": [{"type":"autoFill","src":"A1:B2","dest":"A1:B5"}] },
+ { "name": "autofill so am", "cells": {"A1":-3,"A2":-1}, "ops": [{"type":"autoFill","src":"A1:A2","dest":"A1:A5"}] },
+ { "name": "autofill ba so khong deu (xu huong tuyen tinh)", "cells": {"A1":1,"A2":2,"A3":4}, "ops": [{"type":"autoFill","src":"A1:A3","dest":"A1:A6"}] }
+]}
