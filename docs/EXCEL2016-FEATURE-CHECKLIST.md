@@ -16,15 +16,15 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu Excel 2016 | 68 | 32% |
+| ✅ Đã đối chiếu Excel 2016 | 73 | 34% |
 | 🟢 Có, chưa đối chiếu | 61 | 29% |
-| 🟡 Có một phần | 31 | 15% |
-| 🔴 Chưa có | 53 | 25% |
+| 🟡 Có một phần | 30 | 14% |
+| 🔴 Chưa có | 49 | 23% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
 
-- **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 68%**
-- **Đã xác minh bằng đối chiếu Excel 2016 thật: 32%** các mục áp dụng
+- **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 70%**
+- **Đã xác minh bằng đối chiếu Excel 2016 thật: 34%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ 462 hàm) chỉ tính một mục; mức phủ hàm nằm ở dòng riêng và ở `EXCEL2016-FUNCTIONS-MATRIX.md`.
 
@@ -36,19 +36,19 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Trang đầu | 53 | 22 | 17 | 9 | 5 | 0 | 82% |
 | Chèn | 29 | 9 | 5 | 2 | 11 | 2 | 56% |
 | Bố trí trang | 10 | 5 | 0 | 3 | 2 | 0 | 65% |
-| Công thức | 13 | 2 | 6 | 2 | 3 | 0 | 69% |
-| Dữ liệu | 19 | 5 | 7 | 3 | 4 | 0 | 71% |
+| Công thức | 13 | 3 | 6 | 2 | 2 | 0 | 77% |
+| Dữ liệu | 19 | 5 | 7 | 4 | 3 | 0 | 74% |
 | Xem xét | 12 | 1 | 3 | 2 | 5 | 1 | 45% |
 | Chế độ xem | 12 | 2 | 6 | 1 | 3 | 0 | 71% |
 | Nhà phát triển | 3 | 0 | 0 | 0 | 3 | 0 | 0% |
 | Trợ giúp | 2 | 0 | 2 | 0 | 0 | 0 | 100% |
 | Công cụ Bảng | 8 | 3 | 3 | 1 | 1 | 0 | 81% |
 | Công cụ Biểu đồ | 7 | 3 | 1 | 0 | 3 | 0 | 57% |
-| Công cụ PivotTable | 3 | 0 | 2 | 0 | 1 | 0 | 67% |
+| Công cụ PivotTable | 3 | 1 | 0 | 1 | 1 | 0 | 50% |
 | Công cụ Hình ảnh | 1 | 0 | 0 | 0 | 1 | 0 | 0% |
 | Công cụ Vẽ | 1 | 0 | 0 | 0 | 1 | 0 | 0% |
 | Công cụ Sparkline | 1 | 0 | 0 | 0 | 1 | 0 | 0% |
-| Không thuộc ribbon | 26 | 13 | 5 | 4 | 4 | 0 | 77% |
+| Không thuộc ribbon | 26 | 16 | 5 | 2 | 3 | 0 | 85% |
 
 ## Việc cần làm (mục chưa có hoặc một phần, ưu tiên 1)
 
@@ -60,11 +60,8 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Bố trí trang | Vừa trang | Chiều rộng / Chiều cao (Fit to pages) / Tỷ lệ % | 🟡 | Có Tỷ lệ; chưa có Fit to W x H tách riêng |
 | Công thức | Thư viện hàm | Độ phủ hàm Excel 2016 (462 hàm) | 🟡 | 16/10: engine hỗ trợ 436 hàm, 387 hàm có ca đối chiếu Excel 2016 (14 tệp golden, chạy trong npm test); còn thiếu hàm trả mảng (MMULT, MINVERSE, LINEST…), cần kế hoạch riêng |
 | Công thức | Thư viện hàm | Công thức mảng (CSE, Ctrl+Shift+Enter) | 🟡 | Có hỗ trợ mảng; chưa đối chiếu đủ |
-| Công thức | Thư viện hàm | Tham chiếu có cấu trúc (Table1[Cột]) | 🔴 | Chưa có |
-| Không thuộc ribbon | Chuột phải | Menu hình / ảnh / hộp văn bản | 🔴 | Chưa có |
-| Không thuộc ribbon | Chuột | Kéo chốt điền (Fill Handle), nhấp đúp điền xuống, tùy chọn tự điền | 🟡 | Điền chuỗi có; nhấp đúp và Auto Fill Options cần kiểm |
 
-Tổng: 9 mục ưu tiên 1.
+Tổng: 6 mục ưu tiên 1.
 
 ## Chi tiết từng tab
 
@@ -205,7 +202,7 @@ Tổng: 9 mục ưu tiên 1.
 | Thư viện hàm | Tổng tự động; Dùng gần đây; Tài chính / Logic / Văn bản / Ngày giờ / Tra cứu / Toán | 🟢 | - | Các nhóm hàm trong ribbon |
 | Thư viện hàm | Độ phủ hàm Excel 2016 (462 hàm) | 🟡 | 1 | 16/10: engine hỗ trợ 436 hàm, 387 hàm có ca đối chiếu Excel 2016 (14 tệp golden, chạy trong npm test); còn thiếu hàm trả mảng (MMULT, MINVERSE, LINEST…), cần kế hoạch riêng |
 | Thư viện hàm | Công thức mảng (CSE, Ctrl+Shift+Enter) | 🟡 | 1 | Có hỗ trợ mảng; chưa đối chiếu đủ |
-| Thư viện hàm | Tham chiếu có cấu trúc (Table1[Cột]) | 🔴 | 1 | Chưa có |
+| Thư viện hàm | Tham chiếu có cấu trúc (Table1[Cột]) | ✅ | - | 17/10: [Cột], [@Cột], Bảng[Cột], hàng tổng; structural-cases-8 26 kịch bản, 189/189 ô khớp Excel 2016 |
 | Thư viện hàm | Tham chiếu 3-D giữa các trang (Sheet1:Sheet3!A1) | 🔴 | 2 |  |
 | Tên đã xác định | Trình quản lý tên / Xác định tên / Tạo từ vùng chọn / Dùng trong công thức | ✅ | - | Tên SampleNames đã đối chiếu |
 | Kiểm tra công thức | Tìm ô tiền lệ / phụ thuộc / Xóa mũi tên | 🟢 | - |  |
@@ -220,7 +217,7 @@ Tổng: 9 mục ưu tiên 1.
 | Nhóm | Tính năng Excel 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Sheet |
 |---|---|---|---|---|
 | Lấy dữ liệu | Từ văn bản/CSV, Web, Access, Cơ sở dữ liệu, Power Query | 🟡 | 2 | Mở CSV có; chưa có Power Query/kết nối ngoài |
-| Kết nối | Làm mới tất cả / Kết nối / Thuộc tính / Liên kết ngoài (Edit Links) | 🔴 | 2 |  |
+| Kết nối | Làm mới tất cả / Kết nối / Thuộc tính / Liên kết ngoài (Edit Links) | 🟡 | 2 | 17/10 (AGY-LINKS): Chỉnh sửa liên kết, cập nhật/đổi nguồn/ngắt liên kết khớp Excel (cases-11 6/6 ô, LAN 10/10); chưa có kết nối dữ liệu ngoài (Power Query/ODBC) |
 | Sắp xếp & Lọc | Sắp xếp A-Z, Z-A, Sắp xếp tùy chỉnh | ✅ | - |  |
 | Sắp xếp & Lọc | Bộ lọc nâng cao (Advanced Filter, vùng tiêu chí) | ✅ | - | F1 (cases-6 13/13 kịch bản, 156/156 ô khớp Excel 2016) |
 | Công cụ dữ liệu | Tách văn bản thành cột | 🟢 | - | sheet.data.textToColumns |
@@ -317,8 +314,8 @@ Tổng: 9 mục ưu tiên 1.
 
 | Nhóm | Tính năng Excel 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Sheet |
 |---|---|---|---|---|
-| Phân tích | Làm mới / Đổi nguồn / Danh sách trường | 🟢 | - | sheet.data.pivotRefresh, sheet.data.pivotChangeDataSource |
-| Phân tích | Nhóm (ngày/số) / Trường tính toán / Slicer | 🟢 | - | sheet.data.pivotGroup, sheet.data.pivotUngroup, sheet.data.pivotCalculatedField (Slicer: Codex) |
+| Phân tích | Làm mới / Đổi nguồn / Danh sách trường | ✅ | - | 17/10 (AGY-PIVOT): đổi nguồn dữ liệu khớp Excel 2016 (cases-15 88/88 ô) |
+| Phân tích | Nhóm (ngày/số) / Trường tính toán / Slicer | 🟡 | 2 | 17/10: nhóm số/ngày và trường tính toán khớp Excel (cases-15); Slicer cho PivotTable chưa làm (giữ cho phiếu riêng) |
 | Thiết kế | Bố cục báo cáo / Tổng phụ / Kiểu PivotTable | 🔴 | 2 |  |
 
 ### Công cụ Hình ảnh
@@ -354,11 +351,11 @@ Tổng: 9 mục ưu tiên 1.
 | Chuột phải | Menu tiêu đề hàng/cột | ✅ | - |  |
 | Chuột phải | Menu trong bảng (Chèn/Xóa/Chọn/Bảng) | ✅ | - |  |
 | Chuột phải | Menu biểu đồ | 🟢 | - | Chưa đối chiếu từng mục với Excel |
-| Chuột phải | Menu hình / ảnh / hộp văn bản | 🔴 | 1 | Chưa có |
+| Chuột phải | Menu hình / ảnh / hộp văn bản | ✅ | - | 17/10 (AGY-CTXMENU): đo menu thật bằng CommandBars, CDP desktop 18/18, Shift+F10/phím Menu, khóa khi bảo vệ trang tính |
 | Chuột phải | Phân tích nhanh (Quick Analysis) / Chọn từ danh sách thả xuống | 🔴 | 2 |  |
-| Chuột | Kéo chốt điền (Fill Handle), nhấp đúp điền xuống, tùy chọn tự điền | 🟡 | 1 | Điền chuỗi có; nhấp đúp và Auto Fill Options cần kiểm |
+| Chuột | Kéo chốt điền (Fill Handle), nhấp đúp điền xuống, tùy chọn tự điền | ✅ | - | 17/10 (AGY-AUTOFILL): nhấp đúp, nút Tùy chọn Tự điền, Ctrl+kéo; structural-cases-13 49/49 ô khớp Excel 2016 |
 | Chuột | Kéo đổi độ rộng cột/chiều cao hàng, nhấp đúp tự vừa | 🟢 | - |  |
-| Chuột | Kéo-thả di chuyển ô, Ctrl+kéo sao chép, Shift+kéo chèn | 🟡 | 2 | Cần kiểm đủ |
+| Chuột | Kéo-thả di chuyển ô, Ctrl+kéo sao chép, Shift+kéo chèn | ✅ | - | 17/10 (AGY-AUTOFILL): kéo-thả viền di chuyển/sao chép/chèn, hoàn tác một bước, cases-13 khớp Excel 2016 |
 | Chuột | Chọn: ô, hàng, cột, vùng, Ctrl+nhiều vùng, góc chọn tất cả | ✅ | - | Bộ phím/chuột E3: 62/62 |
 | Chuột | Cuộn bánh xe, Ctrl+cuộn thu phóng | 🟢 | - |  |
 | Bàn phím | Điều hướng (mũi tên, Ctrl+mũi tên, Home/End, Ctrl+Home/End, PgUp/PgDn, Tab/Enter) | ✅ | - | E3 đã đối chiếu |
