@@ -1105,6 +1105,26 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.table.tools",
+    app: "sheet",
+    commandIds: [
+      "sheet.table.resize",
+      "sheet.table.toggleTotalRow",
+      "sheet.table.convertToRange"
+    ],
+    title: "Công cụ Bảng: Đổi kích cỡ, Dòng tổng cộng và Chuyển thành vùng",
+    summary: "Quản lý bảng tính nâng cao: thay đổi kích thước vùng dữ liệu bảng, bật tắt dòng tổng cộng tự động tính theo hàm SUBTOTAL, và chuyển đổi bảng về vùng ô bình thường.",
+    ribbon: { tab: "Thiết kế Bảng", tabId: "tableDesign", group: "Công cụ" },
+    keywords: ["đổi kích cỡ bảng", "resize table", "dòng tổng cộng", "total row", "chuyển thành vùng", "convert to range", "thiết kế bảng", "công cụ bảng", "subtotal", "thuộc tính bảng"],
+    steps: [
+      "Kích hoạt tab Thiết kế Bảng: nhấp chuột vào bất kỳ ô nào thuộc bảng, tab theo ngữ cảnh «Thiết kế Bảng» sẽ tự động xuất hiện trên thanh ruy-băng.",
+      "Đổi kích cỡ bảng: trên tab Thiết kế Bảng > nhóm Thuộc tính bảng, bấm «Đổi kích cỡ bảng». Hộp thoại mở ra cho phép chọn hoặc nhập vùng tọa độ mới (ví dụ A1:E20). Vùng mới phải giữ nguyên hàng tiêu đề ban đầu và chồng lấp với bảng hiện tại. Bấm «Đồng ý» để áp dụng.",
+      "Bật/tắt dòng tổng cộng: trên tab Thiết kế Bảng > nhóm Tùy chọn kiểu bảng, nhấp nút «Dòng tổng cộng» (hoặc nhấp chuột phải trong bảng > chọn Bảng > Dòng tổng cộng). Dòng tổng sẽ tự động chèn ở cuối bảng với nhãn 'Total' ở cột đầu và công thức =SUBTOTAL(...) ở cột số cuối cùng; bấm lại nút để xóa dòng tổng và đưa dữ liệu bên dưới về vị trí cũ.",
+      "Chuyển bảng thành vùng ô thường: trên tab Thiết kế Bảng > nhóm Công cụ, bấm «Chuyển thành vùng» (hoặc chuột phải trong bảng > chọn Bảng > Chuyển thành vùng). Bảng sẽ được gỡ bỏ nhưng vẫn giữ nguyên toàn bộ giá trị, định dạng màu sắc và tự động chuyển các công thức tham chiếu bảng Table1[Cột] thành địa chỉ ô chuẩn A1.",
+      "Thao tác chuột phải: nhấp chuột phải vào ô trong bảng > menu Bảng cung cấp nhanh các lệnh Chèn cột/hàng, Xóa cột/hàng của bảng, bật tắt Dòng tổng cộng và Chuyển thành vùng."
+    ]
+  },
+  {
     id: "sheet.edit.fillAndClear",
     app: "sheet",
     commandIds: [

@@ -98,7 +98,7 @@ function tableGeometry(table, resolver, sheet) {
  * Đổi một tham chiếu cấu trúc thành địa chỉ A1; trả null nếu không nhận ra (để giữ nguyên văn bản).
  * `error` được trả khi nhận ra bảng nhưng cột/khu vực sai (#REF!).
  */
-export function resolveStructuredReference(tableName, content, context, resolver) {
+export function resolveStructuredReference(tableName, content, context, resolver, options = {}) {
   const formulaSheet = context?.sheet || "";
   const coord = String(context?.coord || "").toUpperCase();
   const spec = parseSpec(content);
@@ -166,9 +166,19 @@ export function resolveStructuredReference(tableName, content, context, resolver
   if (!Number.isFinite(rowMin) || rowMax < rowMin) return { error: "#REF!" };
 
   const quoted = /^[A-Za-z_][A-Za-z0-9_.]*$/.test(String(sheet)) ? String(sheet) : `'${String(sheet).replace(/'/g, "''")}'`;
-  const prefix = sheet && sheet !== formulaSheet ? `${quoted}!` : "";
-  const from = `${columnName(firstCol)}${rowMin}`;
-  const to = `${columnName(lastCol)}${rowMax}`;
+  let prefix = sheet && sheet !== formulaSheet ? `${quoted}!` : "";
+  let from = `${columnName(firstCol)}${rowMin}`;
+  let to = `${columnName(lastCol)}${rowMax}`;
+  if (options.mode === "unlist") {
+    prefix = sheet ? `${quoted}!` : "";
+    if (areas.has("thisRow")) {
+      from = `$${columnName(firstCol)}${rowMin}`;
+      to = `$${columnName(lastCol)}${rowMax}`;
+    } else {
+      from = `$${columnName(firstCol)}$${rowMin}`;
+      to = `$${columnName(lastCol)}$${rowMax}`;
+    }
+  }
   return {
     ref: `${prefix}${from === to ? from : `${from}:${to}`}`,
     table,
@@ -233,7 +243,7 @@ export function expandStructuredReferences(expression, context, resolver, option
       const tableName = nameMatch ? nameMatch[1] : "";
       const end = matchingBracket(text, index);
       if (end < 0) { output += text.slice(index); break; }
-      const resolved = resolveStructuredReference(tableName, text.slice(index + 1, end), context, resolver);
+      const resolved = resolveStructuredReference(tableName, text.slice(index + 1, end), context, resolver, options);
       if (options.mode === "file") {
         // Chỉ chuẩn hóa dạng có @ về dạng tệp; mọi dạng khác giữ nguyên văn bản người dùng nhập.
         const canonical = fileForm(resolved);
@@ -268,5 +278,86 @@ export function expandStructuredReferences(expression, context, resolver, option
  */
 export function hasStructuredReference(formula) {
   const text = String(formula || "").replace(/"(?:""|[^"])*"/g, '""').replace(/'(?:''|[^'])*'/g, "''");
-  return /(?:^|[^A-Za-z0-9_.\]'])[A-Za-z_\\][A-Za-z0-9_.\\]*\[(?!\d+\])/.test(text) || /(?:^|[^A-Za-z0-9_.\]'])\[(?:@|#|\[)/.test(text);
+  return /(?:^|[^A-Za-z0-9_.\]'])[A-Za-z_\\][A-Za-z0-9_.\\]*\[(?!\d+\])/.test(text) || /(?:^|[^A-Za-z0-9_.\]'])\[(?!\d+\])[^\]]+\]/.test(text);
+}
+
+/**
+ * Đổi tên bảng trong các tham chiếu cấu trúc của công thức: OldTable[...] -> NewTable[...]
+ */
+export function renameTableInStructuredReferences(formula, oldTableName, newTableName) {
+  if (!formula || typeof formula !== "string" || !oldTableName || !newTableName) return formula;
+  const oldEscaped = String(oldTableName).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const regex = new RegExp(`(^|[^A-Za-z0-9_.\\\\])${oldEscaped}(\\s*\\[)`, "gi");
+  return formula.replace(regex, `$1${newTableName}$2`);
+}
+
+/**
+ * Đổi tên cột trong các tham chiếu cấu trúc của công thức:
+ * TableName[OldCol] -> TableName[NewCol]
+ * Nếu isSameTable: [@OldCol] -> [@NewCol], [OldCol] -> [NewCol]
+ */
+export function renameColumnInStructuredReferences(formula, tableName, oldColName, newColName, isSameTable = false) {
+  const text = String(formula || "");
+  if (!text.includes("[") || !oldColName || !newColName) return text;
+  const tableLower = (tableName || "").toLowerCase();
+
+  const replaceCol = content => {
+    const oldEscaped = String(oldColName).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const regex = new RegExp(`(^|[@#\\s,:\\[])(${oldEscaped})([\\s,:\\]]|$)`, "gi");
+    return content.replace(regex, `$1${newColName}$3`);
+  };
+
+  let output = "";
+  let index = 0;
+  while (index < text.length) {
+    const char = text[index];
+    if (char === '"') {
+      let end = index + 1;
+      while (end < text.length) {
+        if (text[end] === '"') {
+          if (text[end + 1] === '"') { end += 2; continue; }
+          break;
+        }
+        end++;
+      }
+      output += text.slice(index, end + 1);
+      index = end + 1;
+      continue;
+    }
+    if (char === "'") {
+      let end = index + 1;
+      while (end < text.length) {
+        if (text[end] === "'") {
+          if (text[end + 1] === "'") { end += 2; continue; }
+          break;
+        }
+        end++;
+      }
+      output += text.slice(index, end + 1);
+      index = end + 1;
+      continue;
+    }
+    if (char === "[") {
+      const nameMatch = output.match(/([A-Za-z_\\][A-Za-z0-9_.\\]*)$/);
+      const matchedTableName = nameMatch ? nameMatch[1] : "";
+      const end = matchingBracket(text, index);
+      if (end < 0) { output += text.slice(index); break; }
+
+      const rawInner = text.slice(index + 1, end);
+      const isTargetTable = matchedTableName && matchedTableName.toLowerCase() === tableLower;
+      const isContextTable = !matchedTableName && isSameTable;
+
+      if (isTargetTable || isContextTable) {
+        const updatedInner = replaceCol(rawInner);
+        output += `[${updatedInner}]`;
+      } else {
+        output += text.slice(index, end + 1);
+      }
+      index = end + 1;
+      continue;
+    }
+    output += char;
+    index++;
+  }
+  return output;
 }

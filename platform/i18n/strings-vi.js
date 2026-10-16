@@ -362,8 +362,8 @@ export const viStrings = {
   },
   sheetRibbon: {
     whatIfAnalysis: "Phân tích What-If",
-    tab: { home: "Trang đầu", formulas: "Công thức", data: "Dữ liệu", insert: "Chèn", pageLayout: "Bố trí trang", review: "Xem xét", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI" },
-    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", tables: "Bảng", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", pageSetup: "Thiết lập trang", scaleToFit: "Vừa trang", sheetOptions: "Tùy chọn trang tính", proofing: "Kiểm lỗi", comments: "Ghi chú", protection: "Bảo vệ", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiAnalysis: "Phân tích dữ liệu AI" },
+    tab: { home: "Trang đầu", formulas: "Công thức", data: "Dữ liệu", insert: "Chèn", pageLayout: "Bố trí trang", review: "Xem xét", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI", tableDesign: "Thiết kế Bảng" },
+    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", tables: "Bảng", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", pageSetup: "Thiết lập trang", scaleToFit: "Vừa trang", sheetOptions: "Tùy chọn trang tính", proofing: "Kiểm lỗi", comments: "Ghi chú", protection: "Bảo vệ", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiAnalysis: "Phân tích dữ liệu AI", properties: "Thuộc tính bảng", tableStyleOptions: "Tùy chọn kiểu bảng", tools: "Công cụ" },
     editing: { fill: "Điền", clear: "Xóa" },
     cells: { format: "Định dạng" },
     alignment: { orientation: "Hướng chữ" },
@@ -432,6 +432,7 @@ export const viStrings = {
     cellStylesTitle: "Thư viện kiểu ô (Cell Styles)", cellStylesHint: "Chọn một kiểu để áp dụng ngay lập tức cho các ô đang chọn:",
     formatAsTableTitle: "Định dạng theo bảng (Format as Table)", formatAsTableHint: "Tạo bảng có tên, tiêu đề, nút lọc và hàng màu xen kẽ; các hàng nhập kề sẽ tự mở rộng.",
     formatTableRange: "Vùng dữ liệu", formatTableHeaders: "Bảng có tiêu đề", formatTableNameLabel: "Tên bảng", formatTableCreate: "Tạo bảng", formatTableRenameLabel: "Tên mới", formatTableRename: "Đổi tên bảng", formatTableConvert: "Chuyển thành vùng", formatTableInvalid: "Vùng hoặc tên bảng không hợp lệ, hoặc vùng đang chồng lấp với bảng khác.",
+    resizeTableTitle: "Đổi kích cỡ bảng", resizeTableHint: "Chọn vùng dữ liệu mới cho bảng của bạn (phải chứa cùng hàng tiêu đề):", resizeTableInvalid: "Vùng dữ liệu mới không hợp lệ hoặc không khớp với tiêu đề bảng hiện tại.",
     rowHeightTitle: "Chiều cao hàng", rowHeightMessage: "Chiều cao hàng (pixel):",
     colWidthTitle: "Độ rộng cột", colWidthMessage: "Độ rộng cột (pixel):",
     invalidRowColSize: "Vui lòng nhập một số hợp lệ trong khoảng cho phép.",
@@ -765,6 +766,9 @@ export const viStrings = {
     ,"sheet.chart.pivotChart": { label: "Biểu đồ Pivot", tooltip: "Chèn biểu đồ Cột hoặc Tròn liên kết với dữ liệu Pivot đã tổng hợp" }
     ,"sheet.insert.image": { label: "Chèn ảnh", tooltip: "Chèn ảnh vào ô đang chọn" }
     ,"sheet.style.formatAsTable": { label: "Định dạng bảng", tooltip: "Định dạng vùng chọn theo kiểu bảng có màu xen kẽ" }
+    ,"sheet.table.resize": { label: "Đổi kích cỡ bảng", tooltip: "Thay đổi vùng dữ liệu của bảng" }
+    ,"sheet.table.toggleTotalRow": { label: "Dòng tổng cộng", tooltip: "Bật hoặc tắt dòng tính tổng ở cuối bảng" }
+    ,"sheet.table.convertToRange": { label: "Chuyển thành vùng", tooltip: "Chuyển bảng thành vùng ô thông thường giữ nguyên định dạng" }
     ,"sheet.style.cellStyles": { label: "Kiểu ô", tooltip: "Mở thư viện kiểu ô định sẵn (Normal, Good, Bad, Neutral...)" }
     ,"sheet.edit.goTo": { label: "Đến...", tooltip: "Chuyển nhanh tới ô, vùng hoặc tên đã xác định (F5 hoặc Ctrl+G)" }
     ,"sheet.edit.goToSpecial": { label: "Đến đặc biệt...", tooltip: "Chọn nhanh các ô theo loại: ghi chú, công thức, ô trống, vùng hiện tại..." }

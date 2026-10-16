@@ -273,3 +273,102 @@ export function showFormatAsTableDialog(gridController) {
     firstCard?.focus();
   });
 }
+
+export function showResizeTableDialog(gridController) {
+  if (typeof document === "undefined" || !document.createElement) return Promise.resolve(false);
+  const selectedTable = gridController?.getTableAtSelection?.();
+  if (!selectedTable) return Promise.resolve(false);
+
+  return new Promise(resolve => {
+    const previousActive = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay vno-resize-table-dialog";
+
+    const titleText = (typeof t === "function" && t("sheetDialogs.resizeTableTitle") !== "sheetDialogs.resizeTableTitle")
+      ? t("sheetDialogs.resizeTableTitle")
+      : "Đổi kích cỡ bảng";
+    const hintText = (typeof t === "function" && t("sheetDialogs.resizeTableHint") !== "sheetDialogs.resizeTableHint")
+      ? t("sheetDialogs.resizeTableHint")
+      : "Chọn vùng dữ liệu mới cho bảng của bạn (phải chứa cùng hàng tiêu đề):";
+    const invalidText = (typeof t === "function" && t("sheetDialogs.resizeTableInvalid") !== "sheetDialogs.resizeTableInvalid")
+      ? t("sheetDialogs.resizeTableInvalid")
+      : "Vùng dữ liệu mới không hợp lệ hoặc không khớp với tiêu đề bảng hiện tại.";
+
+    overlay.innerHTML = `
+      <div class="vno-dialog-box" style="width: 440px; max-width: calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-resize-table-title">
+        <div class="vno-dialog-header">
+          <span id="vno-resize-table-title" style="font-weight: 600; font-size: 15px; color: #0f172a;">${titleText}</span>
+          <button type="button" class="vno-btn vno-dialog-close-btn" aria-label="Đóng">&times;</button>
+        </div>
+        <div class="vno-dialog-body" style="padding: 16px;">
+          <p style="font-size: 13px; color: #475569; margin: 0 0 12px;">${hintText}</p>
+          <div style="display:flex;align-items:center;gap:8px;margin-bottom:12px;">
+            <label style="font-size:12px;font-weight:600;color:#334155;">Vùng:</label>
+            <input class="vno-resize-table-input" value="${selectedTable.ref}" style="flex:1;padding:6px 10px;border:1px solid #cbd5e1;border-radius:4px;font-size:13px;" />
+          </div>
+          <div class="vno-resize-table-error" role="alert" aria-live="polite" style="color:#b91c1c;font-size:12px;min-height:18px;margin-bottom:12px;"></div>
+          <div style="display:flex;justify-content:flex-end;gap:8px;">
+            <button type="button" class="vno-btn vno-resize-cancel-btn">Hủy</button>
+            <button type="button" class="vno-btn vno-btn-primary vno-resize-confirm-btn">Đồng ý</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    document.body.appendChild(overlay);
+
+    let closed = false;
+    const close = (result = false) => {
+      if (closed) return;
+      closed = true;
+      document.removeEventListener("keydown", onKey);
+      overlay.remove();
+      if (previousActive && typeof previousActive.focus === "function") {
+        previousActive.focus();
+      } else if (gridController?.container?.focus) {
+        gridController.container.focus();
+      }
+      resolve(result);
+    };
+
+    const onKey = event => {
+      if (event.key === "Escape") close(false);
+      trapFocus(overlay, event);
+    };
+    document.addEventListener("keydown", onKey);
+
+    overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => close(false));
+    overlay.querySelector(".vno-resize-cancel-btn")?.addEventListener("click", () => close(false));
+    overlay.addEventListener("click", event => {
+      if (event.target === overlay) close(false);
+    });
+
+    const errorNode = overlay.querySelector(".vno-resize-table-error");
+    const inputNode = overlay.querySelector(".vno-resize-table-input");
+
+    const doConfirm = () => {
+      const nextRef = inputNode?.value.trim();
+      if (!nextRef) {
+        if (errorNode) errorNode.textContent = invalidText;
+        return;
+      }
+      const ok = gridController?.resizeTable?.(selectedTable.name, nextRef);
+      if (!ok) {
+        if (errorNode) errorNode.textContent = invalidText;
+        return;
+      }
+      close(true);
+    };
+
+    overlay.querySelector(".vno-resize-confirm-btn")?.addEventListener("click", doConfirm);
+    inputNode?.addEventListener("keydown", e => {
+      if (e.key === "Enter") {
+        e.preventDefault();
+        doConfirm();
+      }
+    });
+
+    inputNode?.focus();
+    inputNode?.select();
+  });
+}

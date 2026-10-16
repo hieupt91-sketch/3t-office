@@ -33,7 +33,7 @@ const colNumber = name => [...name].reduce((v, ch) => v * 26 + ch.charCodeAt(0) 
 const colLetter = n => { let s = ""; while (n > 0) { n--; s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26); } return s; };
 const parseRange = text => { const [a, b] = text.split(":"); const s = split(a); const e = split(b || a); return { start: { c: s[0], r: s[1] }, end: { c: e[0], r: e[1] } }; };
 const near = (a, b) => Math.abs(a - b) <= 1e-9 * Math.max(1, Math.abs(a), Math.abs(b));
-const normFormula = f => String(f ?? "").replace(/\s+/g, "").toUpperCase();
+const normFormula = f => String(f ?? "").replace(/\s+/g, "").replace(/SHEET\d+!/gi, "SHEET1!").toUpperCase();
 
 let pass = 0; let total = 0; const failures = [];
 for (const scenario of spec.scenarios) {
@@ -119,12 +119,136 @@ for (const scenario of spec.scenarios) {
           grid.applyPasteSpecial(model, mode, { c: dc, r: dr }, options);
           break;
         }
+        case "createTable": {
+          const r = parseRange(op.range);
+          grid.formatAsTable("tableBlue", r, false, {
+            hasHeaders: op.hasHeaders !== false,
+            name: op.name
+          });
+          break;
+        }
+        case "enterCell": {
+          const [c, r] = split(op.coord);
+          const val = op.formula || op.val;
+          grid.setCellValue(c, r, val, false, { userInput: true, commit: true });
+          break;
+        }
+        case "insertTableRow": {
+          const tbl = op.table ? grid._tableByName(op.table) : (grid.tablesBySheet[grid.activeSheet] || [])[0];
+          if (!tbl) throw new Error(`Table not found: ${op.table}`);
+          const bounds = grid._normalizeRange(grid._parseRange(tbl.ref));
+          const dataStart = bounds.start.r + (tbl.hasHeaders === false ? 0 : 1);
+          const dataEnd = bounds.end.r - (tbl.showTotals ? 1 : 0);
+          if (op.at) {
+            const targetRow = dataStart + Number(op.at) - 1;
+            grid.selectedCoord = { c: bounds.start.c, r: targetRow };
+            grid.insertTableRow(tbl.name, "above");
+          } else {
+            grid.selectedCoord = { c: bounds.start.c, r: dataEnd };
+            grid.insertTableRow(tbl.name, "below");
+          }
+          break;
+        }
+        case "deleteTableRow": {
+          const tbl = op.table ? grid._tableByName(op.table) : (grid.tablesBySheet[grid.activeSheet] || [])[0];
+          if (!tbl) throw new Error(`Table not found: ${op.table}`);
+          const bounds = grid._normalizeRange(grid._parseRange(tbl.ref));
+          const dataStart = bounds.start.r + (tbl.hasHeaders === false ? 0 : 1);
+          const targetRow = dataStart + Number(op.at || 1) - 1;
+          grid.selectedCoord = { c: bounds.start.c, r: targetRow };
+          grid.deleteTableRow(tbl.name);
+          break;
+        }
+        case "insertTableCol": {
+          const tbl = op.table ? grid._tableByName(op.table) : (grid.tablesBySheet[grid.activeSheet] || [])[0];
+          if (!tbl) throw new Error(`Table not found: ${op.table}`);
+          const bounds = grid._normalizeRange(grid._parseRange(tbl.ref));
+          const startColNum = colNumber(bounds.start.c);
+          if (op.at) {
+            const targetCol = colLetter(startColNum + Number(op.at) - 1);
+            grid.selectedCoord = { c: targetCol, r: bounds.start.r };
+            grid.insertTableColumn(tbl.name, "left");
+          } else {
+            grid.selectedCoord = { c: bounds.end.c, r: bounds.start.r };
+            grid.insertTableColumn(tbl.name, "right");
+          }
+          break;
+        }
+        case "deleteTableCol": {
+          const tbl = op.table ? grid._tableByName(op.table) : (grid.tablesBySheet[grid.activeSheet] || [])[0];
+          if (!tbl) throw new Error(`Table not found: ${op.table}`);
+          const bounds = grid._normalizeRange(grid._parseRange(tbl.ref));
+          const startColNum = colNumber(bounds.start.c);
+          const targetCol = colLetter(startColNum + Number(op.at || 1) - 1);
+          grid.selectedCoord = { c: targetCol, r: bounds.start.r };
+          grid.deleteTableColumn(tbl.name);
+          break;
+        }
+        case "resizeTable": {
+          const tbl = op.table ? grid._tableByName(op.table) : (grid.tablesBySheet[grid.activeSheet] || [])[0];
+          if (!tbl) throw new Error(`Table not found: ${op.table}`);
+          grid.resizeTable(tbl.name, op.range, false);
+          break;
+        }
+        case "toggleTableTotalRow": {
+          const tbl = op.table ? grid._tableByName(op.table) : (grid.tablesBySheet[grid.activeSheet] || [])[0];
+          if (!tbl) throw new Error(`Table not found: ${op.table}`);
+          if (op.show === undefined || op.show === null) {
+            grid.toggleTableTotalRow(tbl.name);
+          } else if ((!!tbl.showTotals) !== (!!op.show)) {
+            grid.toggleTableTotalRow(tbl.name);
+          }
+          break;
+        }
+        case "renameTable": {
+          const tbl = op.table ? grid._tableByName(op.table) : (grid.tablesBySheet[grid.activeSheet] || [])[0];
+          if (!tbl) throw new Error(`Table not found: ${op.table}`);
+          grid.renameTable(tbl.name, op.newName, false);
+          break;
+        }
+        case "renameTableCol": {
+          const tbl = op.table ? grid._tableByName(op.table) : (grid.tablesBySheet[grid.activeSheet] || [])[0];
+          if (!tbl) throw new Error(`Table not found: ${op.table}`);
+          grid.renameTableColumn(tbl.name, op.col, op.newName, false);
+          break;
+        }
+        case "sortTable": {
+          const tbl = op.table ? grid._tableByName(op.table) : (grid.tablesBySheet[grid.activeSheet] || [])[0];
+          const [kc] = split(op.key);
+          if (tbl) {
+            grid.selectionRange = grid._normalizeRange(grid._parseRange(tbl.ref));
+            grid.selectedCoord = { c: kc, r: grid.selectionRange.start.r };
+          }
+          grid.sort(kc, Number(op.order) === 1);
+          break;
+        }
+        case "filterTable": {
+          const tbl = op.table ? grid._tableByName(op.table) : (grid.tablesBySheet[grid.activeSheet] || [])[0];
+          if (tbl) {
+            grid.isFilterActive = true;
+            grid.sheetStates[grid.activeSheet].filterRange = tbl.ref;
+            const bounds = grid._normalizeRange(grid._parseRange(tbl.ref));
+            const startColNum = grid._columnNumber(bounds.start.c);
+            const targetColNum = startColNum + Number(op.field) - 1;
+            const targetCol = grid._columnLabel(targetColNum);
+            grid.applyFilter(targetCol, new Set([String(op.value)]));
+          }
+          break;
+        }
+        case "unlistTable": {
+          const tbl = op.table ? grid._tableByName(op.table) : (grid.tablesBySheet[grid.activeSheet] || [])[0];
+          if (!tbl) throw new Error(`Table not found: ${op.table}`);
+          grid.convertTableToRange(tbl.name, false);
+          break;
+        }
         default: throw new Error(`op chua ho tro: ${op.type}`);
       }
     }
     grid._recalculateAllFormulas();
   } catch (error) { opError = String(error.message || error); }
-  const want = excel[scenario.name] || {};
+  const wantRaw = excel[scenario.name] || {};
+  const want = wantRaw.cells !== undefined ? wantRaw.cells : wantRaw;
+  const wantTables = wantRaw.tables !== undefined ? wantRaw.tables : null;
   const got = {};
   for (const [coord, item] of grid.cellsData.entries()) {
     const text = item.formula || (item.val !== "" && item.val !== undefined && item.val !== null ? String(item.val) : "");
@@ -178,6 +302,55 @@ for (const scenario of spec.scenarios) {
       if (!ok && !bad.some(b => b.startsWith(coord))) bad.push(`${coord}: Excel ${w.f} = ${JSON.stringify(w.v)} | VN ${g.f} = ${JSON.stringify(g.v)}`);
     } else bad.push(`${coord}: Excel ${w ? `${w.f} = ${JSON.stringify(w.v)}` : "(trong)"} | VN ${g ? `${g.f} = ${JSON.stringify(g.v)}` : "(trong)"}`);
     if (ok) pass++;
+  }
+  if (wantTables !== null) {
+    const gotTables = (grid.tablesBySheet?.[grid.activeSheet] || []).map(t => {
+      const bounds = grid._normalizeRange(grid._parseRange(t.ref));
+      const headers = [];
+      const startCol = grid._columnNumber(bounds.start.c);
+      const endCol = grid._columnNumber(bounds.end.c);
+      for (let c = startCol; c <= endCol; c++) {
+        const coord = `${grid._columnLabel(c)}${bounds.start.r}`;
+        const cell = grid.cellsData.get(coord);
+        headers.push(String(cell?.val ?? ""));
+      }
+      return {
+        name: t.name,
+        range: t.ref,
+        headers,
+        showTotals: !!t.showTotals
+      };
+    });
+    if (wantTables.length !== gotTables.length) {
+      total++;
+      bad.push(`Tables count: Excel ${wantTables.length} | VN ${gotTables.length}`);
+    } else {
+      for (let i = 0; i < wantTables.length; i++) {
+        total++;
+        const wT = wantTables[i];
+        const gT = gotTables.find(t => t.name.toLowerCase() === wT.name.toLowerCase()) || gotTables[i];
+        if (!gT) {
+          bad.push(`Table missing: Excel ${wT.name}`);
+          continue;
+        }
+        let tblOk = true;
+        if (wT.range !== gT.range) {
+          tblOk = false;
+          bad.push(`Table ${wT.name} range: Excel ${wT.range} | VN ${gT.range}`);
+        }
+        if ((!!wT.showTotals) !== (!!gT.showTotals)) {
+          tblOk = false;
+          bad.push(`Table ${wT.name} showTotals: Excel ${wT.showTotals} | VN ${gT.showTotals}`);
+        }
+        const wHeaders = JSON.stringify(wT.headers || []);
+        const gHeaders = JSON.stringify(gT.headers || []);
+        if (wHeaders !== gHeaders) {
+          tblOk = false;
+          bad.push(`Table ${wT.name} headers: Excel ${wHeaders} | VN ${gHeaders}`);
+        }
+        if (tblOk) pass++;
+      }
+    }
   }
   if (opError) bad.push(`LOI THAO TAC: ${opError}`);
   if (bad.length) { failures.push({ name: scenario.name, bad }); console.log(`FAIL | ${scenario.name}`); bad.slice(0, 8).forEach(line => console.log("   " + line)); } else console.log(`PASS | ${scenario.name}`);
