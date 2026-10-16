@@ -1134,6 +1134,22 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.data.advancedFilter",
+    app: "sheet",
+    commandIds: ["sheet.data.advancedFilter", "sheet.data.clearFilter", "sheet.data.reapplyFilter"],
+    title: "Bộ lọc nâng cao: lọc bằng vùng điều kiện, Xóa và Áp dụng lại",
+    summary: "Tab Dữ liệu, nhóm Sắp xếp & Lọc có thêm ba nút: Xóa (bỏ mọi bộ lọc), Áp dụng lại (lọc lại khi dữ liệu đã đổi) và Nâng cao (lọc bằng một vùng điều kiện riêng, nhiều điều kiện VÀ/HOẶC, có thể sao chép kết quả sang nơi khác).",
+    ribbon: { tab: "Dữ liệu", tabId: "data", group: "Sắp xếp & Lọc" },
+    keywords: ["lọc nâng cao", "advanced filter", "vùng điều kiện", "criteria", "bản ghi duy nhất", "xóa bộ lọc", "áp dụng lại", "reapply", "lọc hoặc", "lọc và"],
+    steps: [
+      "Chuẩn bị vùng điều kiện ở chỗ trống (ví dụ F1:G3): dòng đầu ghi ĐÚNG tiêu đề cột cần lọc (giống tiêu đề của danh sách), các dòng dưới ghi điều kiện. Điều kiện nằm cùng một dòng là VÀ; điều kiện ở các dòng khác nhau là HOẶC. Ô để trống nghĩa là không lọc theo cột đó.",
+      "Cách ghi điều kiện: chữ trần như Cam khớp mọi ô bắt đầu bằng 'cam' (không phân biệt hoa thường); >15, <=20, <>x so sánh; * và ? là ký tự đại diện; một số như 10 khớp đúng bằng 10.",
+      "Chọn một ô trong danh sách rồi mở Dữ liệu > Sắp xếp & Lọc > Nâng cao. Ô Vùng danh sách tự điền vùng dữ liệu hiện tại (gồm dòng tiêu đề); nhập Vùng điều kiện (ví dụ F1:G3).",
+      "Chọn Lọc danh sách tại chỗ (các dòng không khớp bị ẩn) hoặc Sao chép sang vị trí khác rồi nhập ô đích (ví dụ J1): tiêu đề và các dòng khớp được chép sang, danh sách gốc giữ nguyên. Tích Chỉ lấy các bản ghi duy nhất để bỏ dòng trùng hoàn toàn.",
+      "Nhấn Đồng ý. Nếu vùng nhập sai, hộp thoại báo rõ vùng nào sai và không thay đổi gì. Hàm SUBTOTAL trong sổ tự tính lại theo các dòng còn hiện.",
+      "Xóa: bỏ mọi bộ lọc của trang tính và hiện lại tất cả các dòng. Áp dụng lại: lọc lại theo điều kiện hiện có sau khi bạn sửa dữ liệu hoặc điều kiện. Ctrl+Z hoàn tác bộ lọc."
+    ]
+  },  {
     id: "sheet.edit.findReplace",
     app: "sheet",
     commandIds: ["common.edit.find", "common.edit.replace"],

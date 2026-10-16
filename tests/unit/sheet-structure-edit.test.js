@@ -90,5 +90,19 @@ export async function runSheetStructureEditTests() {
     assert(read() === "100,100,100,4,4,100", `Sau khi bỏ lọc: ${read()}`);
   });
 
+  await test("Bộ lọc nâng cao: lọc tại chỗ theo vùng điều kiện, sao chép kết quả, Áp dụng lại và Xóa", () => {
+    const grid = new SheetGridController(mockContainer());
+    [["A", 1, "Ten"], ["B", 1, "Gia"], ["A", 2, "Camera"], ["B", 2, 10], ["A", 3, "Cap"], ["B", 3, 20], ["A", 4, "Camera IP"], ["B", 4, 30], ["A", 5, "HDD"], ["B", 5, 40], ["F", 1, "Ten"], ["F", 2, "Cam"], ["G", 1, "Gia"], ["G", 2, ">15"]].forEach(([c, r, v]) => grid.setCellValue(c, r, v));
+    assert(grid.advancedFilter({ listRange: "A1:B5", criteriaRange: "F1:F2" }), "lọc tại chỗ phải chạy");
+    assert([...grid.hiddenRows].sort().join() === "3,5", `Chỉ Camera/Camera IP còn hiện: ẩn ${[...grid.hiddenRows]}`);
+    grid.setCellValue("A", 3, "Camcorder");
+    assert(grid.reapplyFilters(), "Áp dụng lại phải chạy");
+    assert([...grid.hiddenRows].sort().join() === "5", `Sau khi đổi dữ liệu và áp dụng lại: ẩn ${[...grid.hiddenRows]}`);
+    assert(grid.clearAllFilters() && grid.hiddenRows.size === 0, "Xóa bộ lọc phải hiện lại mọi dòng");
+    assert(grid.advancedFilter({ listRange: "A1:B5", criteriaRange: "F1:G2", action: "copy", copyTo: "J1" }), "sao chép phải chạy");
+    assert(grid.cellsData.get("J1").val === "Ten" && grid.cellsData.get("J2").val === "Camera" || grid.cellsData.get("J2").val === "Camcorder", "Tiêu đề và dòng khớp được chép sang");
+    assert(grid.advancedFilter({ listRange: "ZZ", criteriaRange: "F1:F2" }) === false, "Vùng sai phải trả false");
+  });
+
   return results;
 }

@@ -1,4 +1,4 @@
-param(
+﻿param(
   [Parameter(Mandatory = $true)][string]$InputJson,
   [Parameter(Mandatory = $true)][string]$OutputJson
 )
@@ -65,6 +65,7 @@ try {
         "filterEq" { Retry { [void]$ws.Range($op.range).AutoFilter([int]$op.field, [string]$op.value) } }
         "hideRow" { Retry { $ws.Rows($op.at).Hidden = $true } }
         "autoFill" { Retry { [void]$ws.Range($op.src).AutoFill($ws.Range($op.dest), 0) } }
+        "advancedFilter" { Retry { if ($op.copyTo) { [void]$ws.Range($op.list).AdvancedFilter(2, $ws.Range($op.criteria), $ws.Range($op.copyTo), [bool]$op.unique) } else { [void]$ws.Range($op.list).AdvancedFilter(1, $ws.Range($op.criteria), $missing, [bool]$op.unique) } } }
         "deleteRows" { Retry { [void]$ws.Rows("$($op.from):$($op.to)").Delete() } }
         "insertRows" { Retry { [void]$ws.Rows("$($op.at):$($op.at + $op.count - 1)").Insert() } }
         "copyPaste" { Retry { $ws.Range($op.from).Copy($ws.Range($op.to)) | Out-Null } }
@@ -140,6 +141,7 @@ try {
         $out[$address] = $cellData
       }
     }
+    for ($r = 1; $r -le [Math]::Max($rows, 1); $r++) { if ($ws.Rows($r).Hidden) { $out["_H$r"] = [ordered]@{ f = "hidden"; v = $true } } }
     $results[$scenario.name] = $out
     Retry { $ws.Delete() } | Out-Null
   }

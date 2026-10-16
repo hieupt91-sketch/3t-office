@@ -1,0 +1,15 @@
+{ "scenarios": [
+ { "name": "adv loc chu khop phan dau", "cells": {"A1":"Ten","B1":"Gia","A2":"Camera","B2":10,"A3":"Cap","B3":20,"A4":"Camera IP","B4":30,"A5":"HDD","B5":40,"F1":"Ten","F2":"Cam"}, "ops": [{"type":"advancedFilter","list":"A1:B5","criteria":"F1:F2"}] },
+ { "name": "adv so lon hon", "cells": {"A1":"Ten","B1":"Gia","A2":"a","B2":10,"A3":"b","B3":20,"A4":"c","B4":30,"A5":"d","B5":40,"G1":"Gia","G2":">15"}, "ops": [{"type":"advancedFilter","list":"A1:B5","criteria":"G1:G2"}] },
+ { "name": "adv HOAC hai dong", "cells": {"A1":"Ten","B1":"Gia","A2":"a","B2":10,"A3":"b","B3":20,"A4":"c","B4":30,"A5":"d","B5":40,"F1":"Ten","F2":"a","F3":"d"}, "ops": [{"type":"advancedFilter","list":"A1:B5","criteria":"F1:F3"}] },
+ { "name": "adv VA hai cot", "cells": {"A1":"Ten","B1":"Gia","A2":"x","B2":10,"A3":"x","B3":20,"A4":"y","B4":30,"A5":"x","B5":40,"F1":"Ten","G1":"Gia","F2":"x","G2":">15"}, "ops": [{"type":"advancedFilter","list":"A1:B5","criteria":"F1:G2"}] },
+ { "name": "adv dong dieu kien trong khop tat ca", "cells": {"A1":"Ten","A2":"a","A3":"b","A4":"c","F1":"Ten"}, "ops": [{"type":"advancedFilter","list":"A1:A4","criteria":"F1:F2"}] },
+ { "name": "adv ky tu dai dien", "cells": {"A1":"Ten","A2":"cap mang","A3":"camera","A4":"cap dien","A5":"hdd","F1":"Ten","F2":"ca*n"}, "ops": [{"type":"advancedFilter","list":"A1:A5","criteria":"F1:F2"}] },
+ { "name": "adv khac (<>)", "cells": {"A1":"Ten","B1":"Gia","A2":"x","B2":1,"A3":"y","B3":2,"A4":"x","B4":3,"F1":"Ten","F2":"<>x"}, "ops": [{"type":"advancedFilter","list":"A1:B4","criteria":"F1:F2"}] },
+ { "name": "adv khong phan biet hoa thuong", "cells": {"A1":"Ten","A2":"ABC","A3":"abd","A4":"xyz","F1":"Ten","F2":"ab"}, "ops": [{"type":"advancedFilter","list":"A1:A4","criteria":"F1:F2"}] },
+ { "name": "adv chi ban ghi duy nhat", "cells": {"A1":"Ten","B1":"Gia","A2":"x","B2":1,"A3":"x","B3":1,"A4":"y","B4":2,"A5":"X","B5":1,"F1":"Ten","F2":"x"}, "ops": [{"type":"advancedFilter","list":"A1:B5","criteria":"F1:F2","unique":true}] },
+ { "name": "adv sao chep ket qua", "cells": {"A1":"Ten","B1":"Gia","A2":"a","B2":10,"A3":"b","B3":20,"A4":"c","B4":30,"F1":"Gia","F2":">=20"}, "ops": [{"type":"advancedFilter","list":"A1:B4","criteria":"F1:F2","copyTo":"J1"}] },
+ { "name": "adv sao chep + duy nhat", "cells": {"A1":"Ten","A2":"p","A3":"q","A4":"p","A5":"q","F1":"Ten","F2":"p","F3":"q"}, "ops": [{"type":"advancedFilter","list":"A1:A5","criteria":"F1:F3","copyTo":"H1","unique":true}] },
+ { "name": "adv hai cot dieu kien so bang", "cells": {"A1":"Ten","B1":"Gia","A2":"a","B2":10,"A3":"b","B3":20,"A4":"c","B4":10,"G1":"Gia","G2":10}, "ops": [{"type":"advancedFilter","list":"A1:B4","criteria":"G1:G2"}] },
+ { "name": "adv loc roi SUBTOTAL", "cells": {"A1":"Ten","B1":"Gia","A2":"a","B2":10,"A3":"b","B3":20,"A4":"a","B4":30,"F1":"Ten","F2":"a","D1":"=SUBTOTAL(9,B2:B4)"}, "ops": [{"type":"advancedFilter","list":"A1:B4","criteria":"F1:F2"}] }
+]}

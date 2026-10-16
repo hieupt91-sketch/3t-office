@@ -599,6 +599,9 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.data.filter", () => {
       return this.grid.toggleFilter ? this.grid.toggleFilter() : false;
     });
+    globalCommandBus.bindHandler("sheet.data.clearFilter", () => this.grid.clearAllFilters());
+    globalCommandBus.bindHandler("sheet.data.reapplyFilter", () => this.grid.reapplyFilters());
+    globalCommandBus.bindHandler("sheet.data.advancedFilter", () => this.grid.showAdvancedFilterDialog());
     globalCommandBus.bindHandler("sheet.data.customSort", () => {
       return this.grid.showCustomSortDialog ? this.grid.showCustomSortDialog() : false;
     });

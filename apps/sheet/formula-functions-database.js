@@ -5,7 +5,7 @@ import { isErr, scalar } from "./formula-function-helpers.js";
 
 const blank = v => v === null || v === undefined || v === "";
 
-function matchCell(engine, value, criterion) {
+export function matchCell(engine, value, criterion) {
   if (blank(criterion)) return true;
   if (typeof criterion === "number" || typeof criterion === "boolean") return engine._equals(value, criterion);
   const text = String(criterion);

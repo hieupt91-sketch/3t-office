@@ -4,6 +4,7 @@
 
 import { buildSeries } from "./sheet-series.js";
 import { shiftFormulaRefs, translateFormulaRefs, moveFormulaRefs, transposeFormulaRefs } from "./formula-ref-shift.js";
+import { advancedFilterRows } from "./advanced-filter.js";
 import { expandStructuredReferences, hasStructuredReference } from "./structured-references.js";
 import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { showGoToDialog, showGoToSpecialDialog } from "./sheet-goto.js";
@@ -8967,10 +8968,11 @@ _bindGridKeyboardNavigation() {
   }
 
   clearAllFilters() {
-    if (!this.activeFilters?.size) return false;
+    if (!this.activeFilters?.size && !this._advancedFilterConfig()) return false;
     const previous = this._snapshotFilterState();
     this.activeFilters.clear();
     this.hiddenRows.clear();
+    if (this.advancedFilterBySheet) delete this.advancedFilterBySheet[this.activeSheet];
     this._updateFilterButtons();
     this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
     this._recalcIfVisibilityDependent();
@@ -8978,7 +8980,126 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
+  _advancedFilterConfig() {
+    return this.advancedFilterBySheet?.[this.activeSheet] || null;
+  }
+
+  /**
+   * Bộ lọc nâng cao: danh sách + vùng điều kiện (lọc tại chỗ hoặc chép kết quả sang chỗ khác, tùy chọn chỉ bản ghi duy nhất).
+   * options = { listRange, criteriaRange, action: "inplace"|"copy", copyTo, unique }
+   */
+  advancedFilter(options = {}) {
+    if (this._guardProtectedMutation()) return false;
+    const list = this._parseRange(String(options.listRange || "").replace(/\$/g, ""));
+    if (!list) { this._lastAdvancedFilterError = "invalidList"; return false; }
+    const listNorm = this._normalizeRange(list);
+    if (listNorm.end.r - listNorm.start.r < 1) { this._lastAdvancedFilterError = "invalidList"; return false; }
+    const criteria = options.criteriaRange ? this._parseRange(String(options.criteriaRange).replace(/\$/g, "")) : null;
+    if (options.criteriaRange && !criteria) { this._lastAdvancedFilterError = "invalidCriteria"; return false; }
+    const matrixOf = range => {
+      const norm = this._normalizeRange(range);
+      const rows = [];
+      for (let r = norm.start.r; r <= norm.end.r; r++) {
+        const row = [];
+        for (let c = this._columnNumber(norm.start.c); c <= this._columnNumber(norm.end.c); c++) {
+          const item = this.cellsData.get(`${this._columnLabel(c)}${r}`);
+          row.push(item ? item.val : "");
+        }
+        rows.push(row);
+      }
+      return rows;
+    };
+    const listMatrix = matrixOf(listNorm);
+    const criteriaMatrix = criteria ? matrixOf(criteria) : [];
+    const matched = advancedFilterRows(this.formulaEngine, listMatrix, criteriaMatrix, { unique: Boolean(options.unique) });
+    const firstRow = listNorm.start.r;
+    if (options.action === "copy") {
+      const target = this._parseRange(String(options.copyTo || "").replace(/\$/g, ""));
+      if (!target) { this._lastAdvancedFilterError = "invalidCopyTo"; return false; }
+      const startCol = this._columnNumber(target.start.c);
+      const startRow = target.start.r;
+      const srcCol = this._columnNumber(listNorm.start.c);
+      const width = this._columnNumber(listNorm.end.c) - srcCol + 1;
+      const before = {};
+      const after = {};
+      const rowsToCopy = [firstRow, ...matched.map(index => firstRow + 1 + index)];
+      rowsToCopy.forEach((sourceRow, offset) => {
+        for (let c = 0; c < width; c++) {
+          const destCoord = `${this._columnLabel(startCol + c)}${startRow + offset}`;
+          const source = this.cellsData.get(`${this._columnLabel(srcCol + c)}${sourceRow}`);
+          const existing = this.cellsData.get(destCoord);
+          before[destCoord] = existing ? structuredClone(existing) : { val: "", formula: "", style: {} };
+          const next = source ? { val: source.val, formula: "", style: structuredClone(source.style || {}) } : { val: "", formula: "", style: {} };
+          this.cellsData.set(destCoord, next);
+          after[destCoord] = structuredClone(next);
+        }
+      });
+      this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after });
+      this._recalculateAllFormulas();
+      this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+      return { copied: matched.length };
+    }
+    const previous = this._snapshotFilterState();
+    const visible = new Set(matched.map(index => firstRow + 1 + index));
+    this.activeFilters.clear();
+    this.hiddenRows.clear();
+    for (let r = firstRow + 1; r <= listNorm.end.r; r++) if (!visible.has(r)) this.hiddenRows.add(r);
+    this.advancedFilterBySheet ||= {};
+    this.advancedFilterBySheet[this.activeSheet] = { listRange: this._rangeLabel(listNorm), criteriaRange: criteria ? this._rangeLabel(this._normalizeRange(criteria)) : "", unique: Boolean(options.unique) };
+    this._updateFilterButtons?.();
+    this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+    this._recalcIfVisibilityDependent();
+    this._recordHistory({ type: "filter", sheet: this.activeSheet, prevVal: previous, nextVal: this._snapshotFilterState() });
+    return { visible: matched.length };
+  }
+
+  showAdvancedFilterDialog() {
+    if (typeof document === "undefined") return false;
+    const region = this._currentRegionFromSelection();
+    const suggested = region ? this._rangeLabel(region) : this._rangeLabel(this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord }));
+    const saved = this._advancedFilterConfig();
+    const overlay = this._createSheetDialog(t("sheetDialogs.advancedFilter.title", "Bộ lọc nâng cao"), `<div class="vno-adv-filter">
+      <fieldset><legend>${t("sheetDialogs.advancedFilter.action", "Hành động")}</legend>
+        <label><input type="radio" name="vno-adv-action" id="vno-adv-inplace" value="inplace" checked> ${t("sheetDialogs.advancedFilter.inPlace", "Lọc danh sách tại chỗ")}</label>
+        <label><input type="radio" name="vno-adv-action" id="vno-adv-copy" value="copy"> ${t("sheetDialogs.advancedFilter.copyTo", "Sao chép sang vị trí khác")}</label>
+      </fieldset>
+      <label>${t("sheetDialogs.advancedFilter.listRange", "Vùng danh sách (gồm dòng tiêu đề)")}<input id="vno-adv-list" class="vno-dialog-input" value="${this._escapeHtml(saved?.listRange || suggested)}"></label>
+      <label>${t("sheetDialogs.advancedFilter.criteriaRange", "Vùng điều kiện (dòng tiêu đề + các dòng điều kiện)")}<input id="vno-adv-criteria" class="vno-dialog-input" value="${this._escapeHtml(saved?.criteriaRange || "")}"></label>
+      <label>${t("sheetDialogs.advancedFilter.copyToRange", "Sao chép tới (ô đầu tiên)")}<input id="vno-adv-copyto" class="vno-dialog-input" value="" disabled></label>
+      <label><input type="checkbox" id="vno-adv-unique"> ${t("sheetDialogs.advancedFilter.unique", "Chỉ lấy các bản ghi duy nhất")}</label>
+      <div class="vno-rule-error" role="alert"></div></div>`);
+    if (!overlay) return false;
+    const copyInput = overlay.querySelector("#vno-adv-copyto");
+    overlay.querySelectorAll('[name="vno-adv-action"]').forEach(input => input.addEventListener("change", () => {
+      copyInput.disabled = overlay.querySelector("#vno-adv-copy").checked !== true;
+    }));
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const result = this.advancedFilter({
+        listRange: overlay.querySelector("#vno-adv-list").value,
+        criteriaRange: overlay.querySelector("#vno-adv-criteria").value,
+        action: overlay.querySelector("#vno-adv-copy").checked ? "copy" : "inplace",
+        copyTo: copyInput.value,
+        unique: overlay.querySelector("#vno-adv-unique").checked
+      });
+      if (!result) {
+        const key = this._lastAdvancedFilterError || "invalidList";
+        const messages = {
+          invalidList: t("sheetDialogs.advancedFilter.errorList", "Vùng danh sách không hợp lệ: nhập dạng A1:D20, gồm ít nhất một dòng tiêu đề và một dòng dữ liệu."),
+          invalidCriteria: t("sheetDialogs.advancedFilter.errorCriteria", "Vùng điều kiện không hợp lệ: nhập dạng F1:G3 (dòng đầu là tiêu đề cột)."),
+          invalidCopyTo: t("sheetDialogs.advancedFilter.errorCopyTo", "Hãy nhập ô đích để sao chép kết quả, ví dụ J1.")
+        };
+        overlay.querySelector(".vno-rule-error").textContent = messages[key] || messages.invalidList;
+        return;
+      }
+      overlay.closeDialog();
+    });
+    overlay.querySelector("#vno-adv-list")?.focus();
+    return true;
+  }
+
   reapplyFilters() {
+    const advanced = this._advancedFilterConfig();
+    if (advanced && !this.activeFilters?.size) return Boolean(this.advancedFilter({ ...advanced, action: "inplace" }));
     if (!this.activeFilters?.size) return false;
     const [firstCol, allowed] = this.activeFilters.entries().next().value;
     this.applyFilter(firstCol, allowed, false);
