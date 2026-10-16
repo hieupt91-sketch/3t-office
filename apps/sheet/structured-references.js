@@ -274,10 +274,14 @@ export function expandStructuredReferences(expression, context, resolver, option
 
 /**
  * Công thức có chứa tham chiếu cấu trúc Tên[...] / [@...] / [#...] / [[...]] (bỏ qua chuỗi "..." và tên trang '...').
- * Liên kết sổ khác dạng [1]Sheet!A1 KHÔNG phải tham chiếu cấu trúc.
+ * Liên kết sổ khác dạng [1]Sheet!A1, [Book.xlsx]Sheet!A1 KHÔNG phải tham chiếu cấu trúc.
  */
 export function hasStructuredReference(formula) {
-  const text = String(formula || "").replace(/"(?:""|[^"])*"/g, '""').replace(/'(?:''|[^'])*'/g, "''");
+  let text = String(formula || "")
+    .replace(/"(?:""|[^"])*"/g, '""')
+    .replace(/'(?:(?:[A-Za-z]:\\[^'\[\]]*\\|\\\\\w+\\[^'\[\]]+\\|[A-Za-z0-9_/.-]+[\\/]))?\[[^\]]+\][^'\[\]]*'\s*!/g, "''!")
+    .replace(/'(?:''|[^'])*'/g, "''")
+    .replace(/(?:^|[^'A-Za-z0-9_.\\])\[[^\]]+\][A-Za-z0-9_.\u0080-\uFFFF]*\s*!/g, " !");
   return /(?:^|[^A-Za-z0-9_.\]'])[A-Za-z_\\][A-Za-z0-9_.\\]*\[(?!\d+\])/.test(text) || /(?:^|[^A-Za-z0-9_.\]'])\[(?!\d+\])[^\]]+\]/.test(text);
 }
 

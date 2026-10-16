@@ -1,0 +1,80 @@
+{
+  "scenarios": [
+    {
+      "name": "arrange zorder bring send objects",
+      "cells": { "A1": "ZOrder Objects Test", "B1": 100, "C1": "=B1*2" },
+      "shapes": [
+        { "name": "Obj1", "left": 30, "top": 30, "width": 60, "height": 45 },
+        { "name": "Obj2", "left": 60, "top": 60, "width": 60, "height": 45 },
+        { "name": "Obj3", "left": 90, "top": 90, "width": 60, "height": 45 }
+      ],
+      "ops": [
+        { "type": "bringToFront", "target": "Obj1" },
+        { "type": "sendToBack", "target": "Obj3" }
+      ]
+    },
+    {
+      "name": "arrange align objects center and middle",
+      "cells": { "A1": "Align Objects Test" },
+      "shapes": [
+        { "name": "S1", "left": 20, "top": 20, "width": 50, "height": 40 },
+        { "name": "S2", "left": 80, "top": 70, "width": 50, "height": 40 },
+        { "name": "S3", "left": 140, "top": 120, "width": 50, "height": 40 }
+      ],
+      "ops": [
+        { "type": "align", "alignment": "center", "targets": ["S1", "S2", "S3"] },
+        { "type": "align", "alignment": "middle", "targets": ["S1", "S2", "S3"] }
+      ]
+    },
+    {
+      "name": "arrange distribute objects horizontal and vertical",
+      "cells": { "A1": "Distribute Objects Test" },
+      "shapes": [
+        { "name": "D1", "left": 30, "top": 30, "width": 30, "height": 30 },
+        { "name": "D2", "left": 75, "top": 60, "width": 30, "height": 30 },
+        { "name": "D3", "left": 150, "top": 120, "width": 30, "height": 30 }
+      ],
+      "ops": [
+        { "type": "distribute", "direction": "horizontal", "targets": ["D1", "D2", "D3"] },
+        { "type": "distribute", "direction": "vertical", "targets": ["D1", "D2", "D3"] }
+      ]
+    },
+    {
+      "name": "arrange group and ungroup objects",
+      "cells": { "A1": "Group Ungroup Objects Test" },
+      "shapes": [
+        { "name": "G1", "left": 30, "top": 30, "width": 60, "height": 45 },
+        { "name": "G2", "left": 120, "top": 60, "width": 60, "height": 45 }
+      ],
+      "ops": [
+        { "type": "group", "targets": ["G1", "G2"], "name": "GroupObj" },
+        { "type": "ungroup", "target": "GroupObj" }
+      ]
+    },
+    {
+      "name": "arrange rotate and flip objects",
+      "cells": { "A1": "Rotate Flip Objects Test" },
+      "shapes": [
+        { "name": "R1", "left": 30, "top": 30, "width": 60, "height": 45 },
+        { "name": "R2", "left": 120, "top": 30, "width": 60, "height": 45 }
+      ],
+      "ops": [
+        { "type": "rotate", "target": "R1", "angle": 90 },
+        { "type": "flip", "target": "R2", "direction": "horizontal" },
+        { "type": "flip", "target": "R2", "direction": "vertical" }
+      ]
+    },
+    {
+      "name": "arrange visibility and rename objects",
+      "cells": { "A1": "Visibility Rename Objects Test" },
+      "shapes": [
+        { "name": "V1", "left": 30, "top": 30, "width": 60, "height": 45 },
+        { "name": "V2", "left": 120, "top": 30, "width": 60, "height": 45 }
+      ],
+      "ops": [
+        { "type": "setShapeVisible", "target": "V1", "visible": false },
+        { "type": "renameShape", "target": "V2", "newName": "RenamedObj2" }
+      ]
+    }
+  ]
+}

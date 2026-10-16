@@ -2062,6 +2062,22 @@ tr.is-filtered-out {
   outline-color: #4ade80 !important;
 }
 
+.vno-sheet-shape {
+  box-sizing: border-box;
+  outline: none;
+  cursor: pointer;
+  user-select: none;
+  transition: outline 0.1s ease;
+}
+.vno-sheet-shape:focus,
+.vno-sheet-shape.is-selected {
+  outline: 2px dashed var(--vno-sheet-primary, #0f6d38) !important;
+  outline-offset: 2px;
+}
+[data-theme="dark"] .vno-sheet-shape.is-selected {
+  outline-color: #4ade80 !important;
+}
+
 
 
 .vno-sheet-tab-item.is-grouped { background: #e6f0fb; box-shadow: inset 0 -3px 0 #217346; }

@@ -291,4 +291,21 @@ export const RETRO_PLATFORM_HELP_ENTRIES = [
       "Hoàn tất và mở thư mục: Nhấn nút 'Xuất tệp...' hoặc nhấn Enter/Space tại thẻ định dạng đã chọn để chỉ định nơi lưu. Sau khi hoàn tất, hệ thống hiển thị thông báo kèm đường dẫn tệp và nút 'Mở thư mục chứa tệp' để bạn truy cập nhanh."
     ]
   }
+,
+  {
+    id: "common.platform.quickAccessToolbarHelp",
+    app: "common",
+    commandIds: [],
+    title: "Thanh công cụ truy nhanh (tùy biến)",
+    summary: "Dãy nút nhỏ ở thanh tiêu đề trên cùng của Doc, Sheet và Slide, luôn thấy dù bạn đang ở tab nào. Mặc định có Lưu, Hoàn tác, Làm lại, In; bạn thêm bớt nút theo thói quen của mình.",
+    ribbon: { tab: "Thanh tiêu đề", tabId: "titlebar", group: "Thanh công cụ truy nhanh" },
+    keywords: ["thanh công cụ truy nhanh", "truy cập nhanh", "thêm vào thanh công cụ truy nhanh", "tùy biến", "nút lưu", "hoàn tác", "đặt lại mặc định", "chuột phải ribbon"],
+    steps: [
+      "Thêm một lệnh: bấm chuột phải vào bất kỳ nút nào trên ribbon (hoặc chọn nút bằng bàn phím rồi nhấn phím Menu / Shift+F10) và chọn “Thêm vào Thanh công cụ truy nhanh”. Nút xuất hiện ngay ở cuối thanh, kèm biểu tượng và phím tắt trong chú giải.",
+      "Bật/tắt nhanh các lệnh phổ biến: bấm mũi tên nhỏ ở cuối thanh truy nhanh để mở danh sách (Tạo mới, Mở tệp, Lưu, Lưu bản sao, In, Xuất PDF, Hoàn tác, Làm lại, Cắt, Sao chép). Lệnh đang có trên thanh được đánh dấu ✓; bấm vào một dòng để thêm hoặc bỏ lệnh đó.",
+      "Xóa một lệnh: bấm chuột phải vào nút đó trên thanh truy nhanh và chọn “Xóa khỏi Thanh công cụ truy nhanh”. Cũng có thể bấm chuột phải vào nút tương ứng trên ribbon: khi lệnh đã nằm trên thanh, mục trong menu sẽ đổi thành “Xóa khỏi…”.",
+      "Quay về ban đầu: chọn “Đặt lại mặc định” trong menu mũi tên hoặc menu chuột phải của thanh truy nhanh để trở về Lưu, Hoàn tác, Làm lại, In.",
+      "Mỗi ứng dụng (Doc, Sheet, Slide) nhớ danh sách riêng trên máy của bạn, giữ nguyên sau khi đóng và mở lại. Thanh tối đa 20 lệnh; thông tin này chỉ nằm trên máy, không gửi đi đâu."
+    ]
+  }
 ];

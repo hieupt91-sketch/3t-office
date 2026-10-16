@@ -2331,3 +2331,14 @@ body {
 .vno-license-chip-dot { width: 8px; height: 8px; border-radius: 50%; background: #d97706; }
 .vno-license-chip.is-active .vno-license-chip-dot { background: #16a34a; }
 .vno-license-chip.is-trial { border-color: #d97706; }
+
+.vno-quick-more {
+  width: 16px;
+  min-width: 16px;
+  opacity: 0.75;
+}
+.vno-quick-more:hover,
+.vno-quick-more:focus-visible {
+  opacity: 1;
+}
+

@@ -35,7 +35,8 @@ export async function runSheetRulesValidationTests() {
     assert(grid._matchingConditionalRule("A", 10)?.color === "#ff0000", "12 phải khớp quy tắc > 10");
     grid.setCellValue("A", 10, 8);
     assert(grid._matchingConditionalRule("A", 10) === null, "8 không được tiếp tục giữ định dạng > 10");
-    grid.addConditionalFormattingRule(range, { type: "lessThan", value: 5, color: "#00ff00" });
+    // Excel coi ô trống là 0 nên "nhỏ hơn 5" cũng khớp ô trống (đo 16/10); giới hạn quy tắc này ở A11 để ý định test (ô trống khớp quy tắc ô trống) không bị che bởi quy tắc thêm trước.
+    grid.addConditionalFormattingRule({ start: { c: "A", r: 11 }, end: { c: "A", r: 11 } }, { type: "lessThan", value: 5, color: "#00ff00" });
     grid.setCellValue("A", 11, 4);
     assert(grid._matchingConditionalRule("A", 11)?.color === "#00ff00", "4 phải khớp quy tắc < 5");
     grid.addConditionalFormattingRule(range, { type: "blank", color: "#ffff00" });

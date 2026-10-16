@@ -2885,13 +2885,20 @@ export class FormulaEngine {
       }
 
       case "ROW": {
-        if (!args.length) return 1;
+        if (!args.length) {
+          // Không đối số: dòng của ô đang tính (Excel); ngoài ngữ cảnh ô giữ 1.
+          const own = String(this._evalContext?.coord || "").match(/(\d+)$/);
+          return own ? Number(own[1]) : 1;
+        }
         const match = String(args[0] || "").match(/\d+/);
         return match ? Number(match[0]) : 1;
       }
 
       case "COLUMN": {
-        if (!args.length) return 1;
+        if (!args.length) {
+          const own = String(this._evalContext?.coord || "").match(/^([A-Z]+)\d+$/i);
+          return own ? own[1].toUpperCase().split("").reduce((acc, ch) => acc * 26 + ch.charCodeAt(0) - 64, 0) : 1;
+        }
         const match = String(args[0] || "").match(/[A-Z]+/i);
         if (match) {
           return match[0].toUpperCase().split("").reduce((acc, ch) => acc * 26 + ch.charCodeAt(0) - 64, 0);

@@ -1,0 +1,429 @@
+{
+    "cases":  [
+                  {
+                      "name":  "whole 1..10",
+                      "values":  [
+                                     0,
+                                     1,
+                                     5,
+                                     10,
+                                     11,
+                                     5.5,
+                                     "abc",
+                                     -3,
+                                     5.0,
+                                     10.000001
+                                 ],
+                      "rule":  {
+                                   "type":  "whole",
+                                   "operator":  "between",
+                                   "formula1":  1,
+                                   "formula2":  10
+                               },
+                      "excelValid":  [
+                                         false,
+                                         true,
+                                         true,
+                                         true,
+                                         false,
+                                         false,
+                                         false,
+                                         false,
+                                         true,
+                                         false
+                                     ]
+                  },
+                  {
+                      "name":  "whole notBetween 3..6",
+                      "values":  [
+                                     2,
+                                     3,
+                                     4,
+                                     6,
+                                     7,
+                                     4.5,
+                                     "x"
+                                 ],
+                      "rule":  {
+                                   "type":  "whole",
+                                   "operator":  "notBetween",
+                                   "formula1":  3,
+                                   "formula2":  6
+                               },
+                      "excelValid":  [
+                                         true,
+                                         false,
+                                         false,
+                                         false,
+                                         true,
+                                         false,
+                                         false
+                                     ]
+                  },
+                  {
+                      "name":  "whole equal 7",
+                      "values":  [
+                                     7,
+                                     7.0,
+                                     8,
+                                     "7x",
+                                     0
+                                 ],
+                      "rule":  {
+                                   "type":  "whole",
+                                   "operator":  "equal",
+                                   "formula1":  7
+                               },
+                      "excelValid":  [
+                                         true,
+                                         true,
+                                         false,
+                                         false,
+                                         false
+                                     ]
+                  },
+                  {
+                      "name":  "whole notEqual 7",
+                      "values":  [
+                                     7,
+                                     8,
+                                     7.5,
+                                     "a"
+                                 ],
+                      "rule":  {
+                                   "type":  "whole",
+                                   "operator":  "notEqual",
+                                   "formula1":  7
+                               },
+                      "excelValid":  [
+                                         false,
+                                         true,
+                                         false,
+                                         false
+                                     ]
+                  },
+                  {
+                      "name":  "whole gt 0",
+                      "values":  [
+                                     0,
+                                     1,
+                                     -1,
+                                     2.2,
+                                     "z"
+                                 ],
+                      "rule":  {
+                                   "type":  "whole",
+                                   "operator":  "greaterThan",
+                                   "formula1":  0
+                               },
+                      "excelValid":  [
+                                         false,
+                                         true,
+                                         false,
+                                         false,
+                                         false
+                                     ]
+                  },
+                  {
+                      "name":  "whole lte 100",
+                      "values":  [
+                                     100,
+                                     101,
+                                     99,
+                                     -5,
+                                     "q"
+                                 ],
+                      "rule":  {
+                                   "type":  "whole",
+                                   "operator":  "lessThanOrEqual",
+                                   "formula1":  100
+                               },
+                      "excelValid":  [
+                                         true,
+                                         false,
+                                         true,
+                                         true,
+                                         false
+                                     ]
+                  },
+                  {
+                      "name":  "decimal gt 2.5",
+                      "values":  [
+                                     2.5,
+                                     2.51,
+                                     3,
+                                     -1,
+                                     "x",
+                                     0
+                                 ],
+                      "rule":  {
+                                   "type":  "decimal",
+                                   "operator":  "greaterThan",
+                                   "formula1":  2.5
+                               },
+                      "excelValid":  [
+                                         false,
+                                         true,
+                                         true,
+                                         false,
+                                         false,
+                                         false
+                                     ]
+                  },
+                  {
+                      "name":  "decimal between 0.5..1.5",
+                      "values":  [
+                                     0.5,
+                                     1.5,
+                                     0.49,
+                                     1.51,
+                                     1,
+                                     "t"
+                                 ],
+                      "rule":  {
+                                   "type":  "decimal",
+                                   "operator":  "between",
+                                   "formula1":  0.5,
+                                   "formula2":  1.5
+                               },
+                      "excelValid":  [
+                                         true,
+                                         true,
+                                         false,
+                                         false,
+                                         true,
+                                         false
+                                     ]
+                  },
+                  {
+                      "name":  "decimal lt 0",
+                      "values":  [
+                                     -0.1,
+                                     0,
+                                     0.1,
+                                     -100,
+                                     "n"
+                                 ],
+                      "rule":  {
+                                   "type":  "decimal",
+                                   "operator":  "lessThan",
+                                   "formula1":  0
+                               },
+                      "excelValid":  [
+                                         true,
+                                         false,
+                                         false,
+                                         true,
+                                         false
+                                     ]
+                  },
+                  {
+                      "name":  "list HN Hue DN",
+                      "values":  [
+                                     "Ha Noi",
+                                     "ha noi",
+                                     "Hue",
+                                     "Hue ",
+                                     "Da Nang",
+                                     "HUE",
+                                     "Sai Gon",
+                                     5
+                                 ],
+                      "rule":  {
+                                   "type":  "list",
+                                   "values":  [
+                                                  "Ha Noi",
+                                                  "Hue",
+                                                  "Da Nang"
+                                              ]
+                               },
+                      "excelValid":  [
+                                         true,
+                                         false,
+                                         true,
+                                         true,
+                                         true,
+                                         false,
+                                         false,
+                                         false
+                                     ]
+                  },
+                  {
+                      "name":  "list so",
+                      "values":  [
+                                     1,
+                                     2,
+                                     3,
+                                     4,
+                                     "1"
+                                 ],
+                      "rule":  {
+                                   "type":  "list",
+                                   "values":  [
+                                                  "1",
+                                                  "2",
+                                                  "3"
+                                              ]
+                               },
+                      "excelValid":  [
+                                         true,
+                                         true,
+                                         true,
+                                         false,
+                                         true
+                                     ]
+                  },
+                  {
+                      "name":  "date 2026",
+                      "values":  [
+                                     46023,
+                                     46387,
+                                     46022,
+                                     46388,
+                                     46100.5,
+                                     "abc"
+                                 ],
+                      "rule":  {
+                                   "type":  "date",
+                                   "operator":  "between",
+                                   "formula1":  46023,
+                                   "formula2":  46387
+                               },
+                      "excelValid":  [
+                                         true,
+                                         true,
+                                         false,
+                                         false,
+                                         true,
+                                         false
+                                     ]
+                  },
+                  {
+                      "name":  "date gt",
+                      "values":  [
+                                     46023,
+                                     46024,
+                                     46022,
+                                     0,
+                                     "x"
+                                 ],
+                      "rule":  {
+                                   "type":  "date",
+                                   "operator":  "greaterThan",
+                                   "formula1":  46023
+                               },
+                      "excelValid":  [
+                                         false,
+                                         true,
+                                         false,
+                                         false,
+                                         false
+                                     ]
+                  },
+                  {
+                      "name":  "time 9..17",
+                      "values":  [
+                                     0.375,
+                                     0.7083333333333334,
+                                     0.7084,
+                                     0.374,
+                                     0.5,
+                                     0,
+                                     0.99
+                                 ],
+                      "rule":  {
+                                   "type":  "time",
+                                   "operator":  "between",
+                                   "formula1":  0.375,
+                                   "formula2":  0.7083333333333334
+                               },
+                      "excelValid":  [
+                                         true,
+                                         true,
+                                         false,
+                                         false,
+                                         true,
+                                         false,
+                                         false
+                                     ]
+                  },
+                  {
+                      "name":  "len lte 5",
+                      "values":  [
+                                     "abcde",
+                                     "abcdef",
+                                     "",
+                                     12345,
+                                     123456,
+                                     1.5,
+                                     "  a",
+                                     "abcd e"
+                                 ],
+                      "rule":  {
+                                   "type":  "textLength",
+                                   "operator":  "lessThanOrEqual",
+                                   "formula1":  5
+                               },
+                      "excelValid":  [
+                                         true,
+                                         false,
+                                         true,
+                                         true,
+                                         false,
+                                         true,
+                                         true,
+                                         false
+                                     ]
+                  },
+                  {
+                      "name":  "len between 2..4",
+                      "values":  [
+                                     "a",
+                                     "ab",
+                                     "abcd",
+                                     "abcde",
+                                     12,
+                                     12345,
+                                     "é"
+                                 ],
+                      "rule":  {
+                                   "type":  "textLength",
+                                   "operator":  "between",
+                                   "formula1":  2,
+                                   "formula2":  4
+                               },
+                      "excelValid":  [
+                                         false,
+                                         true,
+                                         true,
+                                         false,
+                                         true,
+                                         false,
+                                         false
+                                     ]
+                  },
+                  {
+                      "name":  "len equal 3",
+                      "values":  [
+                                     "abc",
+                                     "ab",
+                                     "abcd",
+                                     123,
+                                     12
+                                 ],
+                      "rule":  {
+                                   "type":  "textLength",
+                                   "operator":  "equal",
+                                   "formula1":  3
+                               },
+                      "excelValid":  [
+                                         true,
+                                         false,
+                                         false,
+                                         true,
+                                         false
+                                     ]
+                  }
+              ],
+    "source":  "Excel 2016 (16.0.4266) Range.Validation.Value, 16/10/2026, scripts/audit-0610/dv_diff.mjs + dv_excel_oracle.ps1"
+}
