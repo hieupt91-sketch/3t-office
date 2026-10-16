@@ -255,6 +255,31 @@ for (const scenario of spec.scenarios) {
           }
           break;
         }
+        case "setTableStyle": {
+          const tbl = op.table ? grid._tableByName(op.table) : (grid.tablesBySheet[grid.activeSheet] || [])[0];
+          if (!tbl) throw new Error(`Table not found: ${op.table}`);
+          grid.setTableStyle(tbl.name, op.style, false);
+          break;
+        }
+        case "setTableStyleOptions": {
+          const tbl = op.table ? grid._tableByName(op.table) : (grid.tablesBySheet[grid.activeSheet] || [])[0];
+          if (!tbl) throw new Error(`Table not found: ${op.table}`);
+          if (op.showHeaders !== undefined && op.showHeaders !== null) tbl.hasHeaders = Boolean(op.showHeaders);
+          if (op.showTotals !== undefined && op.showTotals !== null) {
+            if ((!!tbl.showTotals) !== Boolean(op.showTotals)) grid.toggleTableTotalRow(tbl.name);
+          }
+          if (op.showRowStripes !== undefined && op.showRowStripes !== null) tbl.showRowStripes = Boolean(op.showRowStripes);
+          if (op.showFirstColumn !== undefined && op.showFirstColumn !== null) tbl.showFirstColumn = Boolean(op.showFirstColumn);
+          if (op.showLastColumn !== undefined && op.showLastColumn !== null) tbl.showLastColumn = Boolean(op.showLastColumn);
+          if (op.showColumnStripes !== undefined && op.showColumnStripes !== null) tbl.showColumnStripes = Boolean(op.showColumnStripes);
+          if (op.showAutoFilter !== undefined && op.showAutoFilter !== null) {
+            tbl.showAutoFilter = Boolean(op.showAutoFilter);
+            grid._updateFilterButtons();
+          }
+          grid._styleTableRange(tbl);
+          grid._renderRangeCells(tbl.ref);
+          break;
+        }
         case "renameTable": {
           const tbl = op.table ? grid._tableByName(op.table) : (grid.tablesBySheet[grid.activeSheet] || [])[0];
           if (!tbl) throw new Error(`Table not found: ${op.table}`);

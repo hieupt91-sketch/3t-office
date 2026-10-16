@@ -371,7 +371,7 @@ export const enStrings = {
   sheetRibbon: {
     whatIfAnalysis: "What-If Analysis",
     tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant", tableDesign: "Table Design" },
-    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", connections: "Connections", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", tables: "Tables", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", pageSetup: "Page Setup", scaleToFit: "Scale to Fit", sheetOptions: "Sheet Options", proofing: "Proofing", comments: "Comments", protection: "Protect", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiAnalysis: "AI Data Analysis", properties: "Table Properties", tableStyleOptions: "Table Style Options", tools: "Tools", arrange: "Arrange" },
+    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", connections: "Connections", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", tables: "Tables", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", pageSetup: "Page Setup", scaleToFit: "Scale to Fit", sheetOptions: "Sheet Options", proofing: "Proofing", comments: "Comments", protection: "Protect", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiAnalysis: "AI Data Analysis", properties: "Table Properties", tableStyleOptions: "Table Style Options", tableStyles: "Table Styles", tools: "Tools", arrange: "Arrange" },
     refreshAllSuccess: "Refreshed all links and external data.",
     editing: { fill: "Fill", clear: "Clear" },
     alignment: { orientation: "Orientation" },
@@ -383,6 +383,37 @@ export const enStrings = {
     status: { enter: "Enter", edit: "Edit", point: "Point" },
     referenceHint: "Click or drag across cells to insert references; press F2 to switch between Edit and Point.",
     formulaBarLabel: "Sheet Formula Bar"
+  },
+  sheetTableStyles: {
+    catLight: "Light",
+    catMedium: "Medium",
+    catDark: "Dark",
+    blue: "Blue Table",
+    green: "Green Table",
+    dark: "Dark Slate Table",
+    orange: "Warm Orange Table",
+    purple: "Modern Purple Table",
+    tablestylelight1: "Light 1 (Gray)",
+    tablestylelight2: "Light 2 (Blue)",
+    tablestylelight3: "Light 3 (Teal)",
+    tablestylelight4: "Light 4 (Olive Green)",
+    tablestylelight5: "Light 5 (Purple)",
+    tablestylelight6: "Light 6 (Light Blue)",
+    tablestylelight7: "Light 7 (Orange)",
+    tablestylemedium1: "Medium 1 (Gray)",
+    tablestylemedium2: "Medium 2 (Blue)",
+    tablestylemedium3: "Medium 3 (Orange)",
+    tablestylemedium4: "Medium 4 (Green)",
+    tablestylemedium5: "Medium 5 (Teal)",
+    tablestylemedium6: "Medium 6 (Dark Blue)",
+    tablestylemedium7: "Medium 7 (Lime Green)",
+    tablestyledark1: "Dark 1 (Black)",
+    tablestyledark2: "Dark 2 (Blue)",
+    tablestyledark3: "Dark 3 (Orange)",
+    tablestyledark4: "Dark 4 (Green)",
+    tablestyledark5: "Dark 5 (Teal)",
+    tablestyledark6: "Dark 6 (Purple)",
+    tablestyledark7: "Dark 7 (Gray)"
   },
   slidesRibbon: {
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant" },
@@ -860,7 +891,14 @@ export const enStrings = {
     ,"sheet.insert.image": { label: "Pictures", tooltip: "Insert a picture at the selected cell" }
     ,"sheet.style.formatAsTable": { label: "Format as Table", tooltip: "Create a named table with filters and automatic expansion" }
     ,"sheet.table.resize": { label: "Resize Table", tooltip: "Change the data range of the table" }
-    ,"sheet.table.toggleTotalRow": { label: "Total Row", tooltip: "Toggle the total row at the bottom of the table" }
+    ,"sheet.table.toggleHeaderRow": { label: "Header Row", tooltip: "Turn on or off the table header row" }
+    ,"sheet.table.toggleTotalRow": { label: "Total Row", tooltip: "Turn on or off the table total row" }
+    ,"sheet.table.toggleBandedRows": { label: "Banded Rows", tooltip: "Display alternating row shading in the table" }
+    ,"sheet.table.toggleFirstColumn": { label: "First Column", tooltip: "Apply special formatting to the first column of the table" }
+    ,"sheet.table.toggleLastColumn": { label: "Last Column", tooltip: "Apply special formatting to the last column of the table" }
+    ,"sheet.table.toggleBandedColumns": { label: "Banded Columns", tooltip: "Display alternating column shading in the table" }
+    ,"sheet.table.toggleFilterButton": { label: "Filter Button", tooltip: "Toggle filter drop-down buttons in the header row" }
+    ,"sheet.table.styles": { label: "Table Styles", tooltip: "Choose a pre-designed table style with colors and borders" }
     ,"sheet.table.convertToRange": { label: "Convert to Range", tooltip: "Convert the table into a regular cell range while keeping formats" }
     ,"sheet.style.cellStyles": { label: "Cell Styles", tooltip: "Open cell styles gallery (Normal, Good, Bad, Neutral...)" }
     ,"sheet.edit.goTo": { label: "Go To...", tooltip: "Jump to a cell, range or defined name (F5 or Ctrl+G)" }

@@ -5,8 +5,8 @@
 
 import { t } from "../../platform/i18n/i18n.js";
 
-import { CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS } from "./cell-style-presets.js";
-export { CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS } from "./cell-style-presets.js";
+import { CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS, TABLE_STYLE_CATEGORIES, findTableStylePreset } from "./cell-style-presets.js";
+export { CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS, TABLE_STYLE_CATEGORIES, findTableStylePreset } from "./cell-style-presets.js";
 function trapFocus(element, event) {
   if (event.key !== "Tab" || !element) return;
   const focusables = Array.from(element.querySelectorAll(
@@ -226,12 +226,16 @@ export function showFormatAsTableDialog(gridController) {
       if (event.target === overlay) close(false);
     });
 
-    let selectedStyleId = TABLE_STYLE_PRESETS[0]?.id;
+    let selectedStyleId = selectedTable?.style || TABLE_STYLE_PRESETS[0]?.id;
     overlay.querySelectorAll("[data-table-id]").forEach(card => {
       card.setAttribute("aria-pressed", String(card.dataset.tableId === selectedStyleId));
       card.addEventListener("click", () => {
         selectedStyleId = card.dataset.tableId;
         overlay.querySelectorAll("[data-table-id]").forEach(item => item.setAttribute("aria-pressed", String(item === card)));
+        if (selectedTable && gridController?.setTableStyle) {
+          gridController.setTableStyle(selectedTable.name, selectedStyleId);
+          close(true);
+        }
       });
     });
 
