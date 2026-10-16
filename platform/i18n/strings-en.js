@@ -778,6 +778,10 @@ export const enStrings = {
   ,"sheet.edit.fillSeries": { label: "Series...", tooltip: "Fill a number or date series: linear, growth, day/month/year" }
     ,"sheet.edit.clearAll": { label: "Clear All", tooltip: "Clear all contents, formulas, and formatting from selected cells" }
     ,"sheet.edit.clearFormats": { label: "Clear Formats", tooltip: "Clear cell formatting back to default while keeping contents" }
+  ,"sheet.data.clearFilter": { label: "Clear Filter", tooltip: "Remove every filter on the sheet and show all rows again" }
+  ,"sheet.data.reapplyFilter": { label: "Reapply", tooltip: "Filter the list again with the current conditions (use after the data changed)" }
+  ,"sheet.data.advancedFilter": { label: "Advanced", tooltip: "Filter with a criteria range (several AND/OR conditions), in place or copy the result elsewhere" }
+  ,"sheet.edit.fillAcrossSheets": { label: "Across Worksheets...", tooltip: "Copy the selected range to the grouped worksheets (hold Ctrl and click the sheet tabs to group them)" }
   ,"sheet.edit.clearComments": { label: "Clear Notes", tooltip: "Remove the notes (comments) from the selected cells and keep the cell contents" }
   ,"sheet.edit.clearHyperlinks": { label: "Clear Hyperlinks", tooltip: "Remove hyperlinks from the selected cells and keep the text" }
     ,"sheet.edit.clearContents": { label: "Clear Contents", tooltip: "Clear cell contents and formulas while keeping formatting" }

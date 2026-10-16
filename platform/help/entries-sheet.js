@@ -1154,6 +1154,36 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.data.advancedFilter",
+    app: "sheet",
+    commandIds: ["sheet.data.advancedFilter", "sheet.data.clearFilter", "sheet.data.reapplyFilter"],
+    title: "Bộ lọc nâng cao: lọc bằng vùng điều kiện, Xóa và Áp dụng lại",
+    summary: "Tab Dữ liệu, nhóm Sắp xếp & Lọc có thêm ba nút: Xóa (bỏ mọi bộ lọc), Áp dụng lại (lọc lại khi dữ liệu đã đổi) và Nâng cao (lọc bằng một vùng điều kiện riêng, nhiều điều kiện VÀ/HOẶC, có thể sao chép kết quả sang nơi khác).",
+    ribbon: { tab: "Dữ liệu", tabId: "data", group: "Sắp xếp & Lọc" },
+    keywords: ["lọc nâng cao", "advanced filter", "vùng điều kiện", "criteria", "bản ghi duy nhất", "xóa bộ lọc", "áp dụng lại", "reapply", "lọc hoặc", "lọc và"],
+    steps: [
+      "Chuẩn bị vùng điều kiện ở chỗ trống (ví dụ F1:G3): dòng đầu ghi ĐÚNG tiêu đề cột cần lọc (giống tiêu đề của danh sách), các dòng dưới ghi điều kiện. Điều kiện nằm cùng một dòng là VÀ; điều kiện ở các dòng khác nhau là HOẶC. Ô để trống nghĩa là không lọc theo cột đó.",
+      "Cách ghi điều kiện: chữ trần như Cam khớp mọi ô bắt đầu bằng 'cam' (không phân biệt hoa thường); >15, <=20, <>x so sánh; * và ? là ký tự đại diện; một số như 10 khớp đúng bằng 10.",
+      "Chọn một ô trong danh sách rồi mở Dữ liệu > Sắp xếp & Lọc > Nâng cao. Ô Vùng danh sách tự điền vùng dữ liệu hiện tại (gồm dòng tiêu đề); nhập Vùng điều kiện (ví dụ F1:G3).",
+      "Chọn Lọc danh sách tại chỗ (các dòng không khớp bị ẩn) hoặc Sao chép sang vị trí khác rồi nhập ô đích (ví dụ J1): tiêu đề và các dòng khớp được chép sang, danh sách gốc giữ nguyên. Tích Chỉ lấy các bản ghi duy nhất để bỏ dòng trùng hoàn toàn.",
+      "Nhấn Đồng ý. Nếu vùng nhập sai, hộp thoại báo rõ vùng nào sai và không thay đổi gì. Hàm SUBTOTAL trong sổ tự tính lại theo các dòng còn hiện.",
+      "Xóa: bỏ mọi bộ lọc của trang tính và hiện lại tất cả các dòng. Áp dụng lại: lọc lại theo điều kiện hiện có sau khi bạn sửa dữ liệu hoặc điều kiện. Ctrl+Z hoàn tác bộ lọc."
+    ]
+  },  {
+    id: "sheet.sheets.group",
+    app: "sheet",
+    commandIds: ["sheet.edit.fillAcrossSheets"],
+    title: "Nhóm nhiều trang tính và Điền trên các trang",
+    summary: "Giữ Ctrl và nhấp vào các thẻ trang tính để gom thành một nhóm: mọi thao tác nhập, xóa, định dạng ở trang hiện tại áp dụng luôn cho cả nhóm. Lệnh Điền > Trên các trang chép vùng đang chọn sang cùng vị trí ở các trang trong nhóm.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["nhóm trang tính", "group sheets", "chọn nhiều trang", "điền trên các trang", "across worksheets", "ctrl nhấp thẻ trang", "shift nhấp thẻ", "bỏ nhóm"],
+    steps: [
+      "Nhóm trang: giữ Ctrl và nhấp từng thẻ trang tính cần nhóm (thẻ đổi màu nền và có vạch xanh bên dưới). Giữ Shift và nhấp để chọn cả dải thẻ liền nhau. Chuột phải một thẻ rồi chọn Chọn tất cả các trang tính để nhóm mọi trang.",
+      "Khi đang nhóm, nhập hoặc xóa giá trị/công thức hay đổi định dạng ô ở trang hiện tại sẽ được áp dụng cùng lúc cho mọi trang trong nhóm (cùng địa chỉ ô). Một lần Ctrl+Z hoàn tác cho cả nhóm.",
+      "Điền trên các trang: giữ nhóm, chọn vùng ô ở trang hiện tại, mở Trang đầu > Chỉnh sửa > Điền > Trên các trang... rồi chọn Tất cả, Nội dung hoặc Định dạng và nhấn Đồng ý. Vùng được chép sang cùng vị trí ở các trang khác trong nhóm; nếu chưa nhóm thì chương trình nhắc bạn nhóm trang trước.",
+      "Bỏ nhóm: nhấp vào một thẻ trang tính nằm ngoài nhóm, hoặc chuột phải một thẻ rồi chọn Bỏ nhóm trang tính. Thao tác chèn/xóa hàng cột và dán hiện chỉ áp dụng cho trang đang xem — hãy bỏ nhóm trước khi sửa cấu trúc để tránh nhầm."
+    ]
+  },  {
     id: "sheet.edit.findReplace",
     app: "sheet",
     commandIds: ["common.edit.find", "common.edit.replace"],

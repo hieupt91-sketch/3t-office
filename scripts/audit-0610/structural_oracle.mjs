@@ -28,7 +28,7 @@ const mockContainer = () => ({
   querySelector() { return null; }, querySelectorAll() { return []; }, addEventListener() {}, dispatchEvent() {},
   classList: { add() {}, remove() {}, toggle() {} }, focus() {}
 });
-const split = ref => { const m = ref.match(/^([A-Z]+)(\d+)$/); return [m[1], Number(m[2])]; };
+const split = ref => { const m = ref.match(/^_?([A-Z]+)(\d+)$/); return [m[1], Number(m[2])]; };
 const colNumber = name => [...name].reduce((v, ch) => v * 26 + ch.charCodeAt(0) - 64, 0);
 const colLetter = n => { let s = ""; while (n > 0) { n--; s = String.fromCharCode(65 + (n % 26)) + s; n = Math.floor(n / 26); } return s; };
 const parseRange = text => { const [a, b] = text.split(":"); const s = split(a); const e = split(b || a); return { start: { c: s[0], r: s[1] }, end: { c: e[0], r: e[1] } }; };
@@ -77,6 +77,7 @@ for (const scenario of spec.scenarios) {
           grid._executeAutofill(s, down ? { direction: "down", startCol: s.start.c, endCol: s.end.c, startRow: s.end.r + 1, endRow: d.end.r } : right ? { direction: "right", startColNum: colNumber(s.end.c) + 1, endColNum: colNumber(d.end.c), startRow: s.start.r, endRow: s.end.r } : (() => { throw new Error("autoFill chi ho tro xuong/phai"); })());
           break;
         }
+        case "advancedFilter": grid.advancedFilter({ listRange: op.list, criteriaRange: op.criteria, action: op.copyTo ? "copy" : "inplace", copyTo: op.copyTo, unique: Boolean(op.unique) }); break;
         case "deleteRows": for (let i = op.from; i <= op.to; i++) grid.deleteRow(op.from); break;
         case "insertRows": for (let i = 0; i < op.count; i++) grid.insertRow(op.at); break;
         case "copyPaste": case "cutPaste": {
@@ -273,6 +274,7 @@ for (const scenario of spec.scenarios) {
     }
     got[coord] = cellGot;
   }
+  for (const r of [...(grid.hiddenRows || []), ...(grid._userHiddenRows?.() || [])]) got[`_H${r}`] = { f: "hidden", v: true };
   const coords = new Set([...Object.keys(want), ...Object.keys(got)]);
   const bad = [];
   for (const coord of [...coords].sort((a, b) => split(a)[1] - split(b)[1] || colNumber(split(a)[0]) - colNumber(split(b)[0]))) {

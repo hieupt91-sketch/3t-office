@@ -2,7 +2,7 @@
 
 - **Ngày thực hiện:** 16/10/2026
 - **Công cụ kiểm toán:** `scripts/audit-0610/structural_oracle.mjs` + `scripts/audit-0610/structural_oracle.ps1`
-- **Bộ dữ liệu kiểm toán:** `tests/functions/structural-cases-6.json` (26 kịch bản kiểm tra hành vi độc lập)
+- **Bộ dữ liệu kiểm toán:** `tests/functions/structural-cases-8.json` (26 kịch bản kiểm tra hành vi độc lập)
 - **Chuẩn so sánh (Oracle):** Microsoft Excel 2016 thật qua giao tiếp COM trực tiếp
 - **Kết quả tổng thể:** 26/26 kịch bản PASS, 189/189 ô dữ liệu & siêu dữ liệu bảng khớp 100% với Excel 2016.
 

@@ -779,6 +779,10 @@ export const viStrings = {
   ,"sheet.edit.fillSeries": { label: "Chuỗi...", tooltip: "Điền chuỗi số hoặc ngày: tuyến tính, tăng trưởng, ngày/tháng/năm" }
     ,"sheet.edit.clearAll": { label: "Xóa tất cả", tooltip: "Xóa toàn bộ nội dung, công thức và định dạng của các ô đã chọn" }
     ,"sheet.edit.clearFormats": { label: "Xóa định dạng", tooltip: "Xóa định dạng ô và đưa về mặc định nhưng giữ nguyên nội dung" }
+  ,"sheet.data.clearFilter": { label: "Xóa bộ lọc", tooltip: "Xóa mọi bộ lọc của trang tính để hiện lại tất cả các dòng" }
+  ,"sheet.data.reapplyFilter": { label: "Áp dụng lại", tooltip: "Lọc lại danh sách theo các điều kiện hiện có (dùng khi dữ liệu đã thay đổi)" }
+  ,"sheet.data.advancedFilter": { label: "Nâng cao", tooltip: "Lọc bằng vùng điều kiện (nhiều điều kiện VÀ/HOẶC), lọc tại chỗ hoặc sao chép kết quả sang nơi khác" }
+  ,"sheet.edit.fillAcrossSheets": { label: "Trên các trang...", tooltip: "Chép vùng ô đang chọn sang các trang tính đã nhóm (giữ Ctrl và nhấp các thẻ trang tính để nhóm)" }
   ,"sheet.edit.clearComments": { label: "Xóa ghi chú", tooltip: "Xóa ghi chú (comment) trong các ô đang chọn, giữ nguyên nội dung ô" }
   ,"sheet.edit.clearHyperlinks": { label: "Xóa siêu liên kết", tooltip: "Gỡ siêu liên kết trong các ô đang chọn nhưng giữ nguyên văn bản" }
     ,"sheet.edit.clearContents": { label: "Xóa nội dung", tooltip: "Xóa nội dung và công thức của ô nhưng giữ nguyên định dạng" }

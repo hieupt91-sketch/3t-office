@@ -4,6 +4,7 @@
 
 import { buildSeries } from "./sheet-series.js";
 import { shiftFormulaRefs, translateFormulaRefs, moveFormulaRefs, transposeFormulaRefs } from "./formula-ref-shift.js";
+import { advancedFilterRows } from "./advanced-filter.js";
 import { expandStructuredReferences, hasStructuredReference, renameTableInStructuredReferences, renameColumnInStructuredReferences } from "./structured-references.js";
 import { FormulaEngine, FUNCTION_CATALOG } from "./formula-engine.js";
 import { showGoToDialog, showGoToSpecialDialog } from "./sheet-goto.js";
@@ -360,6 +361,7 @@ export class SheetGridController {
     this.rowHeightsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
     this.colWidthsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Map()]));
     this.userHiddenRowsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Set()]));
+    this.groupedSheets = new Set();
     this.userHiddenColsBySheet = Object.fromEntries(this.sheets.map(name => [name, new Set()]));
     this.protectionBySheet = Object.fromEntries(this.sheets.map(name => [name, { enabled: false, password: "" }]));
     this.workbookProtection = { enabled: false, password: "" };
@@ -3471,6 +3473,8 @@ export class SheetGridController {
   switchSheet(sheetName, options = {}) {
     const skipSave = options.skipSave === true;
     if (!sheetName) return false;
+    // Nhấp vào thẻ trang ngoài nhóm thì bỏ nhóm (như Excel); trang trong nhóm giữ nguyên nhóm.
+    if (this.groupedSheets?.size && !this.groupedSheets.has(sheetName)) this.groupedSheets.clear();
     const preservedFormulaEntry = this.formulaEntry && (options.pointMode || options.formulaReturn)
       ? this.formulaEntry
       : null;
@@ -3854,7 +3858,14 @@ export class SheetGridController {
       label.className = "vno-sheet-tab-label";
       label.textContent = sheetName;
       tab.appendChild(label);
-      tab.addEventListener("click", () => {
+      if (this.groupedSheets?.has(sheetName) && this.groupedSheets.size > 1) {
+        tab.classList.add("is-grouped");
+        tab.setAttribute("aria-selected", "true");
+        tab.title = `${tab.title} — ${t("sheetDialogs.sheetGroup.tabHint", "đang trong nhóm trang tính")}`;
+      }
+      tab.addEventListener("click", event => {
+        if (event.ctrlKey || event.metaKey) { this.toggleSheetInGroup(sheetName); return; }
+        if (event.shiftKey) { this.selectSheetRange(sheetName); return; }
         const pointMode = this.formulaEntry && this._canInsertPointReference();
         this.switchSheet(sheetName, pointMode ? { pointMode: true } : {});
       });
@@ -3871,6 +3882,149 @@ export class SheetGridController {
       });
       tabsListEl.appendChild(tab);
     });
+  }
+
+  getGroupedSheets() {
+    return this.groupedSheets?.size > 1 && this.groupedSheets.has(this.activeSheet)
+      ? this.sheets.filter(name => this.groupedSheets.has(name))
+      : [];
+  }
+
+  /** Nhóm trang tính (Ctrl+nhấp thẻ): thao tác trên trang hiện tại áp dụng cho mọi trang trong nhóm. */
+  toggleSheetInGroup(sheetName) {
+    if (!this.sheets.includes(sheetName)) return false;
+    const group = new Set(this.groupedSheets?.size ? this.groupedSheets : [this.activeSheet]);
+    if (sheetName === this.activeSheet && group.size > 1) return false;
+    if (group.has(sheetName)) group.delete(sheetName); else group.add(sheetName);
+    group.add(this.activeSheet);
+    this.groupedSheets = group.size > 1 ? group : new Set();
+    this._renderSheetTabs();
+    this._syncCommandStates?.();
+    this._showDataNotice?.(this.groupedSheets.size > 1
+      ? t("sheetDialogs.sheetGroup.grouped", `Đã nhóm ${this.groupedSheets.size} trang tính: thao tác nhập/xóa/định dạng áp dụng cho cả nhóm. Nhấp một thẻ ngoài nhóm để bỏ nhóm.`, { count: this.groupedSheets.size })
+      : t("sheetDialogs.sheetGroup.ungrouped", "Đã bỏ nhóm trang tính."));
+    return true;
+  }
+
+  /** Shift+nhấp thẻ: chọn dải trang từ trang hiện tại đến trang vừa nhấp. */
+  selectSheetRange(sheetName) {
+    const from = this.sheets.indexOf(this.activeSheet);
+    const to = this.sheets.indexOf(sheetName);
+    if (from < 0 || to < 0) return false;
+    this.groupedSheets = new Set(this.sheets.slice(Math.min(from, to), Math.max(from, to) + 1).filter(name => (this.sheetVisibilityBySheet?.[name] || "visible") === "visible" || name === this.activeSheet));
+    if (this.groupedSheets.size < 2) this.groupedSheets = new Set();
+    this._renderSheetTabs();
+    return true;
+  }
+
+  selectAllSheets() {
+    const visible = this.sheets.filter(name => !["hidden", "veryhidden"].includes(String(this.sheetVisibilityBySheet?.[name] || "").toLowerCase()));
+    if (visible.length < 2) return false;
+    this.groupedSheets = new Set(visible);
+    this._renderSheetTabs();
+    return true;
+  }
+
+  ungroupSheets() {
+    if (!this.groupedSheets?.size) return false;
+    this.groupedSheets = new Set();
+    this._renderSheetTabs();
+    return true;
+  }
+
+  /**
+   * Sau khi một thao tác ô được ghi vào lịch sử ở trang hiện tại, áp dụng cùng kết quả cho các trang còn lại trong nhóm.
+   * Tạo một mục lịch sử "nối" để Ctrl+Z hoàn tác cả hai.
+   */
+  _propagateActionToGroup(action) {
+    const targets = this.getGroupedSheets().filter(name => name !== this.activeSheet);
+    if (!targets.length || this._groupPropagating || !action) return;
+    let afterCells = null;
+    if (action.type === "cell") {
+      const asSnapshot = (value, style) => {
+        const text = typeof value === "string" ? value : "";
+        return text.startsWith("=") ? { val: "", formula: text, style: structuredClone(style || {}) } : { val: value ?? "", formula: "", style: structuredClone(style || {}) };
+      };
+      afterCells = { [`${action.col}${action.row}`]: asSnapshot(action.nextVal, action.nextStyle) };
+    } else if (["cell-style", "fill", "clear", "batch-cells"].includes(action.type) && action.after && typeof action.after === "object" && !Array.isArray(action.after) && action.sheet === this.activeSheet) {
+      afterCells = action.after;
+    }
+    if (!afterCells) return;
+    const beforeBySheet = {};
+    const afterBySheet = {};
+    for (const sheet of targets) {
+      const map = this.sheetsData[sheet];
+      if (!map) continue;
+      beforeBySheet[sheet] = {};
+      afterBySheet[sheet] = {};
+      for (const [coord, snap] of Object.entries(afterCells)) {
+        const existing = map.get(coord);
+        beforeBySheet[sheet][coord] = existing ? { val: existing.val, formula: existing.formula, style: structuredClone(existing.style || {}) } : null;
+        if (!snap) { map.delete(coord); afterBySheet[sheet][coord] = null; continue; }
+        const next = { val: snap.val ?? "", formula: snap.formula ?? "", style: structuredClone(snap.style || {}) };
+        map.set(coord, next);
+        afterBySheet[sheet][coord] = structuredClone(next);
+      }
+    }
+    this._groupPropagating = true;
+    try {
+      this.undoStack.push({ type: "batch-workbook", beforeBySheet, afterBySheet, chainedToPrevious: true });
+      this._recalculateAllFormulas();
+    } finally { this._groupPropagating = false; }
+  }
+
+  /** Điền > Trên các trang: chép vùng đang chọn của trang hiện tại sang cùng vùng ở các trang trong nhóm. mode: all | contents | formats */
+  fillAcrossSheets(mode = "all") {
+    if (this._guardProtectedMutation()) return false;
+    const targets = this.getGroupedSheets().filter(name => name !== this.activeSheet);
+    if (!targets.length) { this._lastFillAcrossError = "noGroup"; return false; }
+    const range = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const coords = this.formulaEngine.expandRange(this._rangeLabel(range));
+    const beforeBySheet = {};
+    const afterBySheet = {};
+    for (const sheet of targets) {
+      const map = this.sheetsData[sheet];
+      if (!map) continue;
+      beforeBySheet[sheet] = {};
+      afterBySheet[sheet] = {};
+      for (const coord of coords) {
+        const source = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+        const existing = map.get(coord) || { val: "", formula: "", style: {} };
+        beforeBySheet[sheet][coord] = { val: existing.val, formula: existing.formula, style: structuredClone(existing.style || {}) };
+        const next = {
+          val: mode === "formats" ? existing.val : source.val,
+          formula: mode === "formats" ? existing.formula : source.formula,
+          style: mode === "contents" ? structuredClone(existing.style || {}) : structuredClone(source.style || {})
+        };
+        map.set(coord, next);
+        afterBySheet[sheet][coord] = structuredClone(next);
+      }
+    }
+    this._recordHistory({ type: "batch-workbook", beforeBySheet, afterBySheet });
+    this._recalculateAllFormulas();
+    return { sheets: targets.length, cells: coords.length };
+  }
+
+  showFillAcrossSheetsDialog() {
+    if (typeof document === "undefined") return false;
+    if (this.getGroupedSheets().length < 2) {
+      this._showDataNotice?.(t("sheetDialogs.sheetGroup.needGroup", "Hãy chọn nhiều trang tính trước: giữ Ctrl và nhấp vào các thẻ trang tính cần điền, rồi chọn vùng ô và mở lại Điền > Trên các trang."));
+      return false;
+    }
+    const overlay = this._createSheetDialog(t("sheetDialogs.sheetGroup.fillTitle", "Điền trên các trang"), `<div class="vno-fill-across">
+      <p>${t("sheetDialogs.sheetGroup.fillIntro", "Chép vùng ô đang chọn sang cùng vị trí ở các trang tính đã nhóm.")}</p>
+      <label><input type="radio" name="vno-fill-across" value="all" checked> ${t("sheetDialogs.sheetGroup.fillAll", "Tất cả (nội dung và định dạng)")}</label>
+      <label><input type="radio" name="vno-fill-across" value="contents"> ${t("sheetDialogs.sheetGroup.fillContents", "Nội dung")}</label>
+      <label><input type="radio" name="vno-fill-across" value="formats"> ${t("sheetDialogs.sheetGroup.fillFormats", "Định dạng")}</label>
+      <div class="vno-rule-error" role="alert"></div></div>`);
+    if (!overlay) return false;
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const mode = overlay.querySelector('[name="vno-fill-across"]:checked')?.value || "all";
+      const result = this.fillAcrossSheets(mode);
+      if (!result) { overlay.querySelector(".vno-rule-error").textContent = t("sheetDialogs.sheetGroup.needGroup", "Hãy chọn nhiều trang tính trước."); return; }
+      overlay.closeDialog();
+    });
+    return true;
   }
 
   _showSheetTabContextMenu(event, sheetName) {
@@ -3894,6 +4048,8 @@ export class SheetGridController {
       { label: this.isSheetProtected(sheetName)
         ? t("sheetDialogs.unprotectSheet", "Bỏ bảo vệ trang tính...")
         : t("sheetDialogs.protectSheet", "Bảo vệ trang tính..."), action: () => this.showProtectSheetDialog(sheetName) },
+      { label: t("sheetDialogs.sheetGroup.selectAll", "Chọn tất cả các trang tính"), action: () => this.selectAllSheets() },
+      ...(this.groupedSheets?.size > 1 ? [{ label: t("sheetDialogs.sheetGroup.ungroup", "Bỏ nhóm trang tính"), action: () => this.ungroupSheets() }] : []),
       { label: "Màu tab", action: () => this._showTabColorMenu(event, sheetName) },
       { label: t("sheetDialogs.hideSheetMenu", "Ẩn trang tính"), action: () => this.hideSheet(sheetName) },
       ...(Object.values(this.sheetVisibilityBySheet || {}).some(state => state === "hidden" || state === "veryHidden")
@@ -9035,10 +9191,11 @@ _bindGridKeyboardNavigation() {
   }
 
   clearAllFilters() {
-    if (!this.activeFilters?.size) return false;
+    if (!this.activeFilters?.size && !this._advancedFilterConfig()) return false;
     const previous = this._snapshotFilterState();
     this.activeFilters.clear();
     this.hiddenRows.clear();
+    if (this.advancedFilterBySheet) delete this.advancedFilterBySheet[this.activeSheet];
     this._updateFilterButtons();
     this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
     this._recalcIfVisibilityDependent();
@@ -9046,7 +9203,126 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
+  _advancedFilterConfig() {
+    return this.advancedFilterBySheet?.[this.activeSheet] || null;
+  }
+
+  /**
+   * Bộ lọc nâng cao: danh sách + vùng điều kiện (lọc tại chỗ hoặc chép kết quả sang chỗ khác, tùy chọn chỉ bản ghi duy nhất).
+   * options = { listRange, criteriaRange, action: "inplace"|"copy", copyTo, unique }
+   */
+  advancedFilter(options = {}) {
+    if (this._guardProtectedMutation()) return false;
+    const list = this._parseRange(String(options.listRange || "").replace(/\$/g, ""));
+    if (!list) { this._lastAdvancedFilterError = "invalidList"; return false; }
+    const listNorm = this._normalizeRange(list);
+    if (listNorm.end.r - listNorm.start.r < 1) { this._lastAdvancedFilterError = "invalidList"; return false; }
+    const criteria = options.criteriaRange ? this._parseRange(String(options.criteriaRange).replace(/\$/g, "")) : null;
+    if (options.criteriaRange && !criteria) { this._lastAdvancedFilterError = "invalidCriteria"; return false; }
+    const matrixOf = range => {
+      const norm = this._normalizeRange(range);
+      const rows = [];
+      for (let r = norm.start.r; r <= norm.end.r; r++) {
+        const row = [];
+        for (let c = this._columnNumber(norm.start.c); c <= this._columnNumber(norm.end.c); c++) {
+          const item = this.cellsData.get(`${this._columnLabel(c)}${r}`);
+          row.push(item ? item.val : "");
+        }
+        rows.push(row);
+      }
+      return rows;
+    };
+    const listMatrix = matrixOf(listNorm);
+    const criteriaMatrix = criteria ? matrixOf(criteria) : [];
+    const matched = advancedFilterRows(this.formulaEngine, listMatrix, criteriaMatrix, { unique: Boolean(options.unique) });
+    const firstRow = listNorm.start.r;
+    if (options.action === "copy") {
+      const target = this._parseRange(String(options.copyTo || "").replace(/\$/g, ""));
+      if (!target) { this._lastAdvancedFilterError = "invalidCopyTo"; return false; }
+      const startCol = this._columnNumber(target.start.c);
+      const startRow = target.start.r;
+      const srcCol = this._columnNumber(listNorm.start.c);
+      const width = this._columnNumber(listNorm.end.c) - srcCol + 1;
+      const before = {};
+      const after = {};
+      const rowsToCopy = [firstRow, ...matched.map(index => firstRow + 1 + index)];
+      rowsToCopy.forEach((sourceRow, offset) => {
+        for (let c = 0; c < width; c++) {
+          const destCoord = `${this._columnLabel(startCol + c)}${startRow + offset}`;
+          const source = this.cellsData.get(`${this._columnLabel(srcCol + c)}${sourceRow}`);
+          const existing = this.cellsData.get(destCoord);
+          before[destCoord] = existing ? structuredClone(existing) : { val: "", formula: "", style: {} };
+          const next = source ? { val: source.val, formula: "", style: structuredClone(source.style || {}) } : { val: "", formula: "", style: {} };
+          this.cellsData.set(destCoord, next);
+          after[destCoord] = structuredClone(next);
+        }
+      });
+      this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after });
+      this._recalculateAllFormulas();
+      this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+      return { copied: matched.length };
+    }
+    const previous = this._snapshotFilterState();
+    const visible = new Set(matched.map(index => firstRow + 1 + index));
+    this.activeFilters.clear();
+    this.hiddenRows.clear();
+    for (let r = firstRow + 1; r <= listNorm.end.r; r++) if (!visible.has(r)) this.hiddenRows.add(r);
+    this.advancedFilterBySheet ||= {};
+    this.advancedFilterBySheet[this.activeSheet] = { listRange: this._rangeLabel(listNorm), criteriaRange: criteria ? this._rangeLabel(this._normalizeRange(criteria)) : "", unique: Boolean(options.unique) };
+    this._updateFilterButtons?.();
+    this._renderVirtualRows(this.currentStartRow, this.currentEndRow);
+    this._recalcIfVisibilityDependent();
+    this._recordHistory({ type: "filter", sheet: this.activeSheet, prevVal: previous, nextVal: this._snapshotFilterState() });
+    return { visible: matched.length };
+  }
+
+  showAdvancedFilterDialog() {
+    if (typeof document === "undefined") return false;
+    const region = this._currentRegionFromSelection();
+    const suggested = region ? this._rangeLabel(region) : this._rangeLabel(this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord }));
+    const saved = this._advancedFilterConfig();
+    const overlay = this._createSheetDialog(t("sheetDialogs.advancedFilter.title", "Bộ lọc nâng cao"), `<div class="vno-adv-filter">
+      <fieldset><legend>${t("sheetDialogs.advancedFilter.action", "Hành động")}</legend>
+        <label><input type="radio" name="vno-adv-action" id="vno-adv-inplace" value="inplace" checked> ${t("sheetDialogs.advancedFilter.inPlace", "Lọc danh sách tại chỗ")}</label>
+        <label><input type="radio" name="vno-adv-action" id="vno-adv-copy" value="copy"> ${t("sheetDialogs.advancedFilter.copyTo", "Sao chép sang vị trí khác")}</label>
+      </fieldset>
+      <label>${t("sheetDialogs.advancedFilter.listRange", "Vùng danh sách (gồm dòng tiêu đề)")}<input id="vno-adv-list" class="vno-dialog-input" value="${this._escapeHtml(saved?.listRange || suggested)}"></label>
+      <label>${t("sheetDialogs.advancedFilter.criteriaRange", "Vùng điều kiện (dòng tiêu đề + các dòng điều kiện)")}<input id="vno-adv-criteria" class="vno-dialog-input" value="${this._escapeHtml(saved?.criteriaRange || "")}"></label>
+      <label>${t("sheetDialogs.advancedFilter.copyToRange", "Sao chép tới (ô đầu tiên)")}<input id="vno-adv-copyto" class="vno-dialog-input" value="" disabled></label>
+      <label><input type="checkbox" id="vno-adv-unique"> ${t("sheetDialogs.advancedFilter.unique", "Chỉ lấy các bản ghi duy nhất")}</label>
+      <div class="vno-rule-error" role="alert"></div></div>`);
+    if (!overlay) return false;
+    const copyInput = overlay.querySelector("#vno-adv-copyto");
+    overlay.querySelectorAll('[name="vno-adv-action"]').forEach(input => input.addEventListener("change", () => {
+      copyInput.disabled = overlay.querySelector("#vno-adv-copy").checked !== true;
+    }));
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      const result = this.advancedFilter({
+        listRange: overlay.querySelector("#vno-adv-list").value,
+        criteriaRange: overlay.querySelector("#vno-adv-criteria").value,
+        action: overlay.querySelector("#vno-adv-copy").checked ? "copy" : "inplace",
+        copyTo: copyInput.value,
+        unique: overlay.querySelector("#vno-adv-unique").checked
+      });
+      if (!result) {
+        const key = this._lastAdvancedFilterError || "invalidList";
+        const messages = {
+          invalidList: t("sheetDialogs.advancedFilter.errorList", "Vùng danh sách không hợp lệ: nhập dạng A1:D20, gồm ít nhất một dòng tiêu đề và một dòng dữ liệu."),
+          invalidCriteria: t("sheetDialogs.advancedFilter.errorCriteria", "Vùng điều kiện không hợp lệ: nhập dạng F1:G3 (dòng đầu là tiêu đề cột)."),
+          invalidCopyTo: t("sheetDialogs.advancedFilter.errorCopyTo", "Hãy nhập ô đích để sao chép kết quả, ví dụ J1.")
+        };
+        overlay.querySelector(".vno-rule-error").textContent = messages[key] || messages.invalidList;
+        return;
+      }
+      overlay.closeDialog();
+    });
+    overlay.querySelector("#vno-adv-list")?.focus();
+    return true;
+  }
+
   reapplyFilters() {
+    const advanced = this._advancedFilterConfig();
+    if (advanced && !this.activeFilters?.size) return Boolean(this.advancedFilter({ ...advanced, action: "inplace" }));
     if (!this.activeFilters?.size) return false;
     const [firstCol, allowed] = this.activeFilters.entries().next().value;
     this.applyFilter(firstCol, allowed, false);
@@ -11477,6 +11753,8 @@ _bindGridKeyboardNavigation() {
       action.prevRowHeight === action.nextRowHeight) {
       return null;
     }
+    const grouped = this.getGroupedSheets().length > 1 && !this._groupPropagating;
+    if (grouped) coalesce = false;
     const previous = this.undoStack[this.undoStack.length - 1];
     const mergeCellEdit = coalesce && previous?.type === "cell" && action.type === "cell" &&
       previous.sheet === action.sheet && previous.col === action.col && previous.row === action.row &&
@@ -11492,6 +11770,7 @@ _bindGridKeyboardNavigation() {
       if (this.undoStack.length > this.maxHistorySteps) this.undoStack.shift();
     }
     this.redoStack = [];
+    if (grouped) this._propagateActionToGroup(action);
     this.options.onDocumentChange?.();
     this._syncCommandStates();
     return mergeCellEdit ? previous : action;
@@ -12154,6 +12433,10 @@ _bindGridKeyboardNavigation() {
     const applied = this._applyHistoryAction(action, "undo");
     if (applied) this.redoStack.push(action);
     else this.undoStack.push(action);
+    if (applied && action.chainedToPrevious) {
+      const leader = this.undoStack.pop();
+      if (leader) { this._applyHistoryAction(leader, "undo"); this.redoStack.push(leader); }
+    }
     if (applied) this.options.onDocumentChange?.();
     this._syncCommandStates();
     return applied;
@@ -12166,6 +12449,12 @@ _bindGridKeyboardNavigation() {
     if (applied) {
       this.undoStack.push(action);
       if (this.undoStack.length > this.maxHistorySteps) this.undoStack.shift();
+      const follower = this.redoStack[this.redoStack.length - 1];
+      if (follower?.chainedToPrevious) {
+        this.redoStack.pop();
+        this._applyHistoryAction(follower, "redo");
+        this.undoStack.push(follower);
+      }
     } else this.redoStack.push(action);
     if (applied) this.options.onDocumentChange?.();
     this._syncCommandStates();

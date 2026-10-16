@@ -90,5 +90,45 @@ export async function runSheetStructureEditTests() {
     assert(read() === "100,100,100,4,4,100", `Sau khi bỏ lọc: ${read()}`);
   });
 
+  await test("Bộ lọc nâng cao: lọc tại chỗ theo vùng điều kiện, sao chép kết quả, Áp dụng lại và Xóa", () => {
+    const grid = new SheetGridController(mockContainer());
+    [["A", 1, "Ten"], ["B", 1, "Gia"], ["A", 2, "Camera"], ["B", 2, 10], ["A", 3, "Cap"], ["B", 3, 20], ["A", 4, "Camera IP"], ["B", 4, 30], ["A", 5, "HDD"], ["B", 5, 40], ["F", 1, "Ten"], ["F", 2, "Cam"], ["G", 1, "Gia"], ["G", 2, ">15"]].forEach(([c, r, v]) => grid.setCellValue(c, r, v));
+    assert(grid.advancedFilter({ listRange: "A1:B5", criteriaRange: "F1:F2" }), "lọc tại chỗ phải chạy");
+    assert([...grid.hiddenRows].sort().join() === "3,5", `Chỉ Camera/Camera IP còn hiện: ẩn ${[...grid.hiddenRows]}`);
+    grid.setCellValue("A", 3, "Camcorder");
+    assert(grid.reapplyFilters(), "Áp dụng lại phải chạy");
+    assert([...grid.hiddenRows].sort().join() === "5", `Sau khi đổi dữ liệu và áp dụng lại: ẩn ${[...grid.hiddenRows]}`);
+    assert(grid.clearAllFilters() && grid.hiddenRows.size === 0, "Xóa bộ lọc phải hiện lại mọi dòng");
+    assert(grid.advancedFilter({ listRange: "A1:B5", criteriaRange: "F1:G2", action: "copy", copyTo: "J1" }), "sao chép phải chạy");
+    assert(grid.cellsData.get("J1").val === "Ten" && grid.cellsData.get("J2").val === "Camera" || grid.cellsData.get("J2").val === "Camcorder", "Tiêu đề và dòng khớp được chép sang");
+    assert(grid.advancedFilter({ listRange: "ZZ", criteriaRange: "F1:F2" }) === false, "Vùng sai phải trả false");
+  });
+
+  await test("Nhóm trang tính: nhập ô áp dụng cho cả nhóm, Ctrl+Z một lần hoàn tác cả nhóm, Điền trên các trang, bỏ nhóm khi sang trang ngoài nhóm", () => {
+    const grid = new SheetGridController(mockContainer());
+    grid.sheets = ["Sheet1", "Sheet2", "Sheet3"];
+    grid.sheetsData.Sheet2 = new Map(); grid.sheetsData.Sheet3 = new Map();
+    assert(grid.toggleSheetInGroup("Sheet2") && grid.toggleSheetInGroup("Sheet3"), "Ctrl+nhấp thẻ phải nhóm được");
+    assert(grid.getGroupedSheets().join() === "Sheet1,Sheet2,Sheet3", `Nhóm: ${grid.getGroupedSheets()}`);
+    grid.setCellValue("B", 2, 42);
+    assert(grid.sheetsData.Sheet2.get("B2")?.val === 42 && grid.sheetsData.Sheet3.get("B2")?.val === 42, "Giá trị phải sang cả hai trang còn lại");
+    grid.setCellValue("C", 3, "=B2*2");
+    assert(grid.sheetsData.Sheet3.get("C3")?.formula === "=B2*2", "Công thức cũng sang các trang khác");
+    assert(grid.undo(), "undo phải chạy");
+    assert(!grid.sheetsData.Sheet2.get("C3")?.formula && !grid.cellsData.get("C3")?.formula, "Một lần hoàn tác phải gỡ ở mọi trang");
+    assert(grid.redo(), "redo phải chạy");
+    assert(grid.sheetsData.Sheet2.get("C3")?.formula === "=B2*2" && grid.cellsData.get("C3")?.formula === "=B2*2", "Làm lại phải áp lại cho cả nhóm");
+    grid.selectionRange = { start: { c: "B", r: 2 }, end: { c: "C", r: 3 } };
+    grid.sheetsData.Sheet2.get("B2").val = 0;
+    assert(grid.fillAcrossSheets("all").sheets === 2, "Điền trên các trang phải chạy cho 2 trang");
+    assert(grid.sheetsData.Sheet2.get("B2").val === 42, "Điền trên các trang chép giá trị sang");
+    assert(grid.undo() && grid.sheetsData.Sheet2.get("B2").val === 0, "Hoàn tác điền trên các trang");
+    grid.switchSheet("Sheet2");
+    grid.groupedSheets = new Set(["Sheet1", "Sheet2"]);
+    grid.switchSheet("Sheet3");
+    assert(grid.getGroupedSheets().length === 0, "Sang trang ngoài nhóm thì bỏ nhóm");
+    assert(grid.fillAcrossSheets("all") === false, "Chưa nhóm thì Điền trên các trang trả false");
+  });
+
   return results;
 }

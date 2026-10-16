@@ -278,7 +278,8 @@ export const SHEET_RIBBON_TABS = [
                   { commandId: "sheet.edit.fillRight" },
                   { commandId: "sheet.edit.fillUp" },
                   { commandId: "sheet.edit.fillLeft" },
-                  { commandId: "sheet.edit.fillSeries" }
+                  { commandId: "sheet.edit.fillSeries" },
+            { commandId: "sheet.edit.fillAcrossSheets" }
                 ]
               },
               {
@@ -558,7 +559,12 @@ export const SHEET_RIBBON_TABS = [
           { type: "button", commandId: "sheet.data.sortAsc", isLarge: true },
           { type: "button", commandId: "sheet.data.sortDesc", isLarge: true },
           { type: "button", commandId: "sheet.data.filter", isLarge: true },
-          { type: "button", commandId: "sheet.data.customSort" }
+          { type: "column", items: [
+            { type: "button", commandId: "sheet.data.customSort" },
+            { type: "button", commandId: "sheet.data.clearFilter" },
+            { type: "button", commandId: "sheet.data.reapplyFilter" },
+            { type: "button", commandId: "sheet.data.advancedFilter" }
+          ] }
         ]
       },
       {
