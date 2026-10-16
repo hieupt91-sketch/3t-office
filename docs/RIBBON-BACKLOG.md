@@ -109,3 +109,4 @@ Toàn bộ phím tắt trong bảng tồn đọng trước đây đã được h
 | Chú thích trang/cuối tài liệu | Footnote/endnote có số lượng/nội dung khớp Word COM ở FIX-T9; phép T10 mới chưa chạy | Đã có năng lực; T10 recheck NOT RUN | Writer |
 
 - Sheet: mở tệp mẫu .xltx/.xlt đang đi đường mở chung của LibreOffice (chưa có đường mở xlsx riêng, mất một phần giữ độ chính xác); lưu .xltx đã đủ (16/10).
+- VN Sheet · Dữ liệu · Kết nối · Chỉnh sửa liên kết · Lời nhắc khởi động (`sheetDialogs.editLinks.startupPrompt`): Nút "Lời nhắc khởi động..." trong hộp thoại Chỉnh sửa liên kết hiển thị thông báo giải thích chính sách khởi động ngoại tuyến của VN Office và hướng dẫn 3 chế độ (Hỏi người dùng, Tự động cập nhật không hiển thị cảnh báo, Không cập nhật và không hiển thị cảnh báo). Tính năng lưu tùy chọn cấu hình này vào cấu trúc workbook XLSX sẽ được hoàn thiện trong bản cập nhật tới.

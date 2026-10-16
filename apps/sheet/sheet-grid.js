@@ -21,6 +21,7 @@ import { WhatIfAnalysisEngine } from "./what-if-analysis.js";
 import { NumberFormatter } from "./number-formatter.js";
 import { a1ToR1C1, r1c1ToA1, isR1C1Formula, formatAddressAsR1C1, parseR1C1Address } from "./r1c1-converter.js";
 import { CalcOptionsDialog } from "./calc-options-dialog.js";
+import { EditLinksDialog } from "./edit-links-dialog.js";
 import { CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS } from "./cell-style-presets.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
@@ -950,6 +951,362 @@ export class SheetGridController {
 
   showCalculationOptionsDialog() {
     return CalcOptionsDialog.show(this);
+  }
+
+  showEditLinksDialog() {
+    return EditLinksDialog.show(this);
+  }
+
+  _extractLinkSources(item) {
+    if (!item) return [];
+    const results = [];
+    const byFileName = new Map();
+
+    // 1. ODF external link
+    if (item.externalLink?.odf) {
+      const odfStr = String(item.externalLink.odf);
+      const matches = odfStr.matchAll(/\['([^']*)'#\$/g);
+      for (const m of matches) {
+        let uri = m[1];
+        try {
+          if (uri.startsWith("file:///")) {
+            uri = decodeURIComponent(uri.slice(8));
+            if (/^[A-Za-z]:\//.test(uri)) {
+              uri = uri.replace(/\//g, "\\");
+            }
+          }
+        } catch (_) {}
+        const fileName = uri.split(/[\\/]/).pop() || uri;
+        const fnKey = fileName.toLowerCase();
+        if (!byFileName.has(fnKey)) {
+          const entry = { source: uri, fileName };
+          byFileName.set(fnKey, entry);
+          results.push(entry);
+        } else if (uri && uri.length > byFileName.get(fnKey).source.length) {
+          byFileName.get(fnKey).source = uri;
+        }
+      }
+    }
+
+    // 2. Formula string
+    const formula = item.formula || item.externalLink?.formula;
+    if (formula && typeof formula === "string" && formula.includes("[")) {
+      const clean = formula.replace(/"(?:""|[^"])*"/g, '""');
+
+      // Dạng 1 (Quoted): 'C:\dir\[Nguon.xlsx]Sheet Name'!A1 hoặc '[Nguon.xlsx]Sheet'!A1 hoặc 'C:\dir\[Nguon.xlsx]'!Name
+      const quotedMatches = clean.matchAll(/'(?:((?:[A-Za-z]:\\[^'\[\]]*\\|\\\\\w+\\[^'\[\]]+\\|[A-Za-z0-9_/.-]+[\\/]))?\[([^\]]+)\]([^'\[\]]*))'\s*!/g);
+      for (const m of quotedMatches) {
+        const dir = m[1] || "";
+        const fileName = m[2];
+        const source = dir ? `${dir}${fileName}` : fileName;
+        const fnKey = fileName.toLowerCase();
+        if (!byFileName.has(fnKey)) {
+          const entry = { source, fileName };
+          byFileName.set(fnKey, entry);
+          results.push(entry);
+        } else if (source.length > byFileName.get(fnKey).source.length) {
+          byFileName.get(fnKey).source = source;
+        }
+      }
+
+      // Dạng 2 (Unquoted): [Nguon.xlsx]Sheet1!A1 hoặc [1]Sheet1!A1 hoặc [Nguon.xlsx]!Name
+      const unquotedMatches = clean.matchAll(/(?:^|[^'A-Za-z0-9_.\\])\[([^\]]+)\]([A-Za-z0-9_.\u0080-\uFFFF]*)\s*!/g);
+      for (const m of unquotedMatches) {
+        const fileName = m[1];
+        const fnKey = fileName.toLowerCase();
+        if (!byFileName.has(fnKey)) {
+          const entry = { source: fileName, fileName };
+          byFileName.set(fnKey, entry);
+          results.push(entry);
+        }
+      }
+    }
+    return results;
+  }
+
+  _isExternalLink(item) {
+    if (!item) return false;
+    const formula = item.formula || "";
+    if (!formula || typeof formula !== "string") return false;
+    if (item.externalLink) {
+      if (item.externalLink.formula === formula) return true;
+      if (this._isExternalLinkFormula(formula)) return true;
+    }
+    return this._isExternalLinkFormula(formula);
+  }
+
+  _isExternalLinkFormula(formula) {
+    if (!formula || typeof formula !== "string" || !formula.includes("[")) return false;
+    const clean = formula.replace(/"(?:""|[^"])*"/g, '""');
+    // 1. Quoted: 'C:\dir\[File.xlsx]Sheet Name'!A1 or '[File.xlsx]Sheet'!A1 or 'C:\dir\[File.xlsx]'!Name
+    if (/'(?:(?:[A-Za-z]:\\[^'\[\]]*\\|\\\\\w+\\[^'\[\]]+\\|[A-Za-z0-9_/.-]+[\\/]))?\[[^\]]+\][^'\[\]]*'\s*!/.test(clean)) {
+      return true;
+    }
+    // 2. Unquoted: [File.xlsx]Sheet1!A1 or [1]Sheet1!A1 or [File.xlsx]!Name
+    if (/(?:^|[^'A-Za-z0-9_.\\])\[[^\]]+\][A-Za-z0-9_.\u0080-\uFFFF]*\s*!/.test(clean)) {
+      return true;
+    }
+    return false;
+  }
+
+  _cellMatchesSource(item, targetKey, targetFileName) {
+    const links = this._extractLinkSources(item);
+    return links.some(l => {
+      const srcKey = l.source.toLowerCase();
+      const fnKey = (l.fileName || "").toLowerCase();
+      return srcKey === targetKey || fnKey === targetKey || (targetFileName && (srcKey === targetFileName || fnKey === targetFileName));
+    });
+  }
+
+  getLinkSources() {
+    const sourcesMap = new Map();
+
+    for (const sheet of this.sheets) {
+      const sheetData = this.sheetsData[sheet];
+      if (!sheetData) continue;
+      for (const [coord, item] of sheetData.entries()) {
+        const links = this._extractLinkSources(item);
+        for (const link of links) {
+          const key = link.source.toLowerCase();
+          if (!sourcesMap.has(key)) {
+            sourcesMap.set(key, {
+              source: link.source,
+              fileName: link.fileName,
+              displayName: link.fileName || link.source,
+              type: t("sheetDialogs.editLinks.typeWorksheet", "Bảng tính"),
+              update: "A",
+              status: this._linkStatuses?.get(key) || "Unknown",
+              cells: []
+            });
+          }
+          sourcesMap.get(key).cells.push({ sheet, coord });
+        }
+      }
+    }
+
+    return Array.from(sourcesMap.values());
+  }
+
+  breakLink(source) {
+    const targetKey = String(source || "").toLowerCase().trim();
+    const targetFileName = targetKey.split(/[\\/]/).pop();
+    const before = [];
+    const after = [];
+
+    for (const sheet of this.sheets) {
+      const sheetData = this.sheetsData[sheet];
+      if (!sheetData) continue;
+      for (const [coord, item] of sheetData.entries()) {
+        if (!this._cellMatchesSource(item, targetKey, targetFileName)) continue;
+
+        before.push({
+          sheet,
+          coord,
+          formula: item.formula || "",
+          val: item.val,
+          externalLink: item.externalLink ? structuredClone(item.externalLink) : null
+        });
+
+        const currentVal = item.val !== undefined ? item.val : "";
+        after.push({
+          sheet,
+          coord,
+          formula: "",
+          val: currentVal,
+          externalLink: null
+        });
+
+        item.formula = "";
+        item.val = currentVal;
+        delete item.externalLink;
+      }
+    }
+
+    if (before.length === 0) return false;
+
+    this._recordHistory({
+      type: "break-link",
+      source,
+      before,
+      after,
+      timestamp: Date.now()
+    });
+
+    let count = 0;
+    for (const sheetData of Object.values(this.sheetsData || {})) {
+      for (const item of sheetData?.values?.() || []) {
+        if (this._isExternalLink(item)) count++;
+      }
+    }
+    this.externalLinkCells = count;
+
+    this.isDirty = true;
+    this._recalculateAllFormulas();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._syncCommandStates();
+    return true;
+  }
+
+  changeLink(oldSource, newSource, newValues) {
+    if (!oldSource || !newSource) return false;
+    const oldSourceStr = String(oldSource).trim();
+    const oldFileName = oldSourceStr.split(/[\\/]/).pop() || oldSourceStr;
+    const oldKey = oldSourceStr.toLowerCase();
+    const oldFileKey = oldFileName.toLowerCase();
+
+    const newSourceStr = String(newSource).trim();
+    const newFileName = newSourceStr.split(/[\\/]/).pop() || newSourceStr;
+    const newDir = newSourceStr.slice(0, newSourceStr.length - newFileName.length);
+
+    const before = [];
+    const after = [];
+
+    for (const sheet of this.sheets) {
+      const sheetData = this.sheetsData[sheet];
+      if (!sheetData) continue;
+      for (const [coord, item] of sheetData.entries()) {
+        if (!this._cellMatchesSource(item, oldKey, oldFileKey)) continue;
+
+        before.push({
+          sheet,
+          coord,
+          formula: item.formula || "",
+          val: item.val,
+          externalLink: item.externalLink ? structuredClone(item.externalLink) : null
+        });
+
+        let updatedFormula = item.formula || "";
+        const oldFileEscaped = oldFileName.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        const dirPattern = new RegExp(`(['"]?)(?:[^'"\\[\\]]*[\\\\/])?\\[${oldFileEscaped}\\]`, "i");
+        if (dirPattern.test(updatedFormula)) {
+          const replacement = newDir ? `$1${newDir}[${newFileName}]` : `$1[${newFileName}]`;
+          updatedFormula = updatedFormula.replace(dirPattern, replacement);
+        } else if (updatedFormula.toLowerCase().includes(oldSourceStr.toLowerCase())) {
+          const escOldSrc = oldSourceStr.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+          updatedFormula = updatedFormula.replace(new RegExp(escOldSrc, "gi"), newSourceStr);
+        } else if (updatedFormula.includes(`[${oldFileName}]`)) {
+          updatedFormula = updatedFormula.split(`[${oldFileName}]`).join(`[${newFileName}]`);
+        } else if (updatedFormula.toLowerCase().includes(oldFileName.toLowerCase())) {
+          updatedFormula = updatedFormula.replace(new RegExp(oldFileEscaped, "gi"), newFileName);
+        }
+
+        item.formula = updatedFormula;
+
+        if (item.externalLink) {
+          item.externalLink.formula = updatedFormula;
+          if (item.externalLink.odf) {
+            let updatedOdf = item.externalLink.odf;
+            const oldFilePat = new RegExp(oldFileEscaped, "gi");
+            updatedOdf = updatedOdf.replace(oldFilePat, newFileName);
+            item.externalLink.odf = updatedOdf;
+          }
+        }
+
+        if (newValues && (coord in newValues || (newValues[sheet] && coord in newValues[sheet]))) {
+          const v = newValues[coord] !== undefined ? newValues[coord] : newValues[sheet][coord];
+          item.val = v;
+        }
+
+        after.push({
+          sheet,
+          coord,
+          formula: item.formula,
+          val: item.val,
+          externalLink: item.externalLink ? structuredClone(item.externalLink) : null
+        });
+      }
+    }
+
+    if (before.length === 0) return false;
+
+    this._recordHistory({
+      type: "change-link",
+      oldSource,
+      newSource,
+      before,
+      after,
+      timestamp: Date.now()
+    });
+
+    this.isDirty = true;
+    this._recalculateAllFormulas();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._syncCommandStates();
+    return true;
+  }
+
+  updateLinkValues(source, newValues) {
+    const targetKey = String(source || "").toLowerCase().trim();
+    const targetFileName = targetKey.split(/[\\/]/).pop();
+    let updatedCount = 0;
+
+    for (const sheet of this.sheets) {
+      const sheetData = this.sheetsData[sheet];
+      if (!sheetData) continue;
+      for (const [coord, item] of sheetData.entries()) {
+        if (!this._cellMatchesSource(item, targetKey, targetFileName)) continue;
+
+        if (newValues && (coord in newValues || (newValues[sheet] && coord in newValues[sheet]))) {
+          const v = newValues[coord] !== undefined ? newValues[coord] : newValues[sheet][coord];
+          item.val = v;
+          if (!item.externalLink && item.formula) {
+            item.externalLink = { formula: item.formula };
+          }
+          updatedCount++;
+        }
+      }
+    }
+
+    if (!this._linkStatuses) this._linkStatuses = new Map();
+    this._linkStatuses.set(targetKey, "OK");
+
+    if (updatedCount > 0) {
+      this.isDirty = true;
+      this._recalculateAllFormulas();
+      this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    }
+    return updatedCount;
+  }
+
+  checkLinkStatus(source) {
+    const targetKey = String(source || "").toLowerCase().trim();
+    if (!this._linkStatuses) this._linkStatuses = new Map();
+    let status = "OK";
+    if (typeof process !== "undefined" && process?.versions?.node && typeof require === "function") {
+      try {
+        const fs = require("fs");
+        if (!fs.existsSync(source)) {
+          status = "Error: Source not found";
+        }
+      } catch (_) {}
+    }
+    this._linkStatuses.set(targetKey, status);
+    return status;
+  }
+
+  openLinkSource(source) {
+    if (!source) return false;
+    if (typeof window !== "undefined" && window.__vnoDesktopBridge?.openFile) {
+      return window.__vnoDesktopBridge.openFile(source);
+    }
+    if (this.options?.shell?.setStatus) {
+      this.options.shell.setStatus(t("sheetDialogs.editLinks.openingSource", "Đang mở tệp nguồn: {source}", { source }));
+    }
+    return true;
+  }
+
+  refreshAllLinks() {
+    const links = this.getLinkSources();
+    for (const link of links) {
+      this.updateLinkValues(link.source);
+    }
+    if (typeof this.refreshPivotTables === "function") {
+      this.refreshPivotTables();
+    }
+    if (this.options?.shell?.setStatus) {
+      this.options.shell.setStatus(t("sheetRibbon.refreshAllSuccess", "Đã làm mới tất cả các liên kết và dữ liệu ngoài."));
+    }
+    return true;
   }
 
   calculateSheet(sheetName = this.activeSheet) {
@@ -6480,7 +6837,7 @@ export class SheetGridController {
       if (!map) continue;
       this.activeSheet = sheet;
       for (const [coord, item] of map) {
-        if (!item?.formula || (item.externalLink && item.externalLink.formula === item.formula)) continue;
+        if (!item?.formula || this._isExternalLink(item)) continue;
         const extracted = this.formulaEngine?.getStaticFormulaReferences?.(item.formula, sheet);
         if (!extracted || !extracted.safe) continue;
         const id = formulaId(sheet, coord);
@@ -6714,7 +7071,7 @@ export class SheetGridController {
         if (included && (sheetName !== activeSheet || k !== excludeKey) && itm.formula) {
           // A link to another (closed) workbook keeps its cached value, as in
           // Excel; evaluating it here would overwrite the value with an error.
-          if (itm.externalLink && itm.externalLink.formula === itm.formula) continue;
+          if (this._isExternalLink(itm)) continue;
           let res;
           if (itm.isArrayFormula && itm.arrayRange) {
             const results = this.formulaEngine.evaluateArray(itm.formula);
@@ -14859,6 +15216,28 @@ export class SheetGridController {
     }
     if (action.sheet && action.sheet !== this.activeSheet) this.switchSheet(action.sheet);
     const value = direction === "undo" ? "prevVal" : "nextVal";
+    if (action.type === "break-link" || action.type === "change-link") {
+      const entries = direction === "undo" ? action.before : action.after;
+      for (const entry of entries) {
+        const sheetMap = this.sheetsData[entry.sheet];
+        if (!sheetMap) continue;
+        const cell = sheetMap.get(entry.coord);
+        if (!cell) continue;
+        cell.formula = entry.formula;
+        cell.val = entry.val;
+        if (entry.externalLink) {
+          cell.externalLink = structuredClone(entry.externalLink);
+        } else {
+          delete cell.externalLink;
+        }
+        const [c, r] = this._splitCoord(entry.coord);
+        const dom = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${entry.coord}"]`);
+        if (dom) this._renderCellVisual(dom, cell, c, r);
+      }
+      this._recalculateAllFormulas();
+      this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+      return true;
+    }
     if (action.type === "merge-cells") {
       const useBefore = direction === "undo";
       this.sheetsData[action.sheet] = new Map((useBefore ? action.beforeCells : action.afterCells).map(([key, item]) => [key, structuredClone(item)]));
@@ -17065,7 +17444,7 @@ export class SheetGridController {
         const baseCol = this._columnNumber(rule.range.start.c);
         const targetCol = this._columnNumber(col);
         const formula = this._offsetFormula(rule.formula, targetCol - baseCol, row - rule.range.start.r);
-        const result = this.formulaEngine.evaluate(formula);
+        const result = this.formulaEngine.evaluate(formula, { sheet: this.activeSheet, coord: `${col}${row}` });
         return result === true || result === 1 || String(result).toUpperCase() === "TRUE";
       }
     };

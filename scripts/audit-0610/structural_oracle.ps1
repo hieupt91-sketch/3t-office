@@ -302,6 +302,17 @@ try {
           "enterR1C1Formula" {
             Retry { $ws.Range($op.coord).FormulaR1C1 = [string]$op.formula }
           }
+          "breakLink" {
+            $src = [string]$op.source
+            $type = if ($op.typeParam) { [int]$op.typeParam } else { 1 }
+            Retry { [void]$wb.BreakLink($src, $type) }
+          }
+          "changeLink" {
+            $oldSrc = [string]$op.oldSource
+            $newSrc = [string]$op.newSource
+            $type = if ($op.typeParam) { [int]$op.typeParam } else { 1 }
+            Retry { [void]$wb.ChangeLink($oldSrc, $newSrc, $type) }
+          }
         }
       }
     if (-not $scenario.skipFinalCalculate -and $x.Calculation -ne -4135) {
