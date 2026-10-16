@@ -31,7 +31,7 @@ Tệp (Backstage)|Thông tin|Kiểm tra tài liệu (Inspect) / Đánh dấu là
 Tệp (Backstage)|Thông tin|Quản lý phiên bản / khôi phục tự động (AutoRecover)|A|-|Có cơ chế autorecover
 Tệp (Backstage)|Thông tin|Thuộc tính tệp (tác giả, tiêu đề...)|N|3|
 Tệp (Backstage)|Tùy chọn|Hộp thoại Tùy chọn Excel (chung, công thức, lưu, nâng cao...)|P|2|Có một số tùy chọn rời; chưa có hộp thoại gộp
-Tệp (Backstage)|Tùy chọn|Tùy biến ribbon / Thanh công cụ truy nhanh|N|2|
+Tệp (Backstage)|Tùy chọn|Tùy biến ribbon / Thanh công cụ truy nhanh|P|2|16/10: Thanh công cụ truy nhanh tùy biến xong (chuột phải ribbon, mũi tên, đặt lại; CDP 15/15 trên Doc/Sheet/Slide); chưa tùy biến ribbon (thêm tab/nhóm)
 Tệp (Backstage)|Chia sẻ|Chia sẻ/OneDrive/Email đính kèm|X|-|Cần dịch vụ đám mây
 Trang đầu|Bảng nhớ tạm|Dán (Ctrl+V)|A|-|common.edit.paste
 Trang đầu|Bảng nhớ tạm|Tùy chọn dán: giá trị / công thức / định dạng / chuyển vị|V|-|Dán đặc biệt đã đọc lại bằng Excel 2016

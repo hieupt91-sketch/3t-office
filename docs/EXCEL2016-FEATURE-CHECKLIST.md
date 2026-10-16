@@ -18,8 +18,8 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 |---|---|---|
 | ✅ Đã đối chiếu Excel 2016 | 66 | 31% |
 | 🟢 Có, chưa đối chiếu | 61 | 29% |
-| 🟡 Có một phần | 30 | 14% |
-| 🔴 Chưa có | 55 | 26% |
+| 🟡 Có một phần | 31 | 15% |
+| 🔴 Chưa có | 54 | 25% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **216** (áp dụng: 212) | |
 
@@ -32,7 +32,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
-| Tệp (Backstage) | 17 | 3 | 6 | 2 | 5 | 1 | 62% |
+| Tệp (Backstage) | 17 | 3 | 6 | 3 | 4 | 1 | 66% |
 | Trang đầu | 53 | 22 | 17 | 9 | 5 | 0 | 82% |
 | Chèn | 29 | 8 | 5 | 2 | 12 | 2 | 52% |
 | Bố trí trang | 10 | 5 | 0 | 3 | 2 | 0 | 65% |
@@ -88,7 +88,7 @@ Tổng: 10 mục ưu tiên 1.
 | Thông tin | Quản lý phiên bản / khôi phục tự động (AutoRecover) | 🟢 | - | Có cơ chế autorecover |
 | Thông tin | Thuộc tính tệp (tác giả, tiêu đề...) | 🔴 | 3 |  |
 | Tùy chọn | Hộp thoại Tùy chọn Excel (chung, công thức, lưu, nâng cao...) | 🟡 | 2 | Có một số tùy chọn rời; chưa có hộp thoại gộp |
-| Tùy chọn | Tùy biến ribbon / Thanh công cụ truy nhanh | 🔴 | 2 |  |
+| Tùy chọn | Tùy biến ribbon / Thanh công cụ truy nhanh | 🟡 | 2 | 16/10: Thanh công cụ truy nhanh tùy biến xong (chuột phải ribbon, mũi tên, đặt lại; CDP 15/15 trên Doc/Sheet/Slide); chưa tùy biến ribbon (thêm tab/nhóm) |
 | Chia sẻ | Chia sẻ/OneDrive/Email đính kèm | ⚪ | - | Cần dịch vụ đám mây |
 
 ### Trang đầu
