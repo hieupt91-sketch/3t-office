@@ -28,8 +28,13 @@ try {
   [void][VnoSlicerReadOnlyPid]::GetWindowThreadProcessId([IntPtr][int]$excel.Hwnd, [ref]$pidValue)
   $ownedPid = [int]$pidValue
   $workbook = $excel.Workbooks.Open($resolved, 0, $true)
+  $workbookName = [string]$workbook.Name
+  $workbookFullName = [string]$workbook.FullName
+  $workbooksCount = [int]$excel.Workbooks.Count
+  $readOnly = [bool]$workbook.ReadOnly
+  $slicerCacheCount = [int]$workbook.SlicerCaches.Count
   $caches = @()
-  for ($cacheIndex = 1; $cacheIndex -le [int]$workbook.SlicerCaches.Count; $cacheIndex++) {
+  for ($cacheIndex = 1; $cacheIndex -le $slicerCacheCount; $cacheIndex++) {
     $cache = $workbook.SlicerCaches.Item($cacheIndex)
     $slicers = @()
     for ($slicerIndex = 1; $slicerIndex -le [int]$cache.Slicers.Count; $slicerIndex++) {
@@ -43,13 +48,11 @@ try {
         height = [double]$slicer.Height
         numberOfColumns = [int]$slicer.NumberOfColumns
       }
-      [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($slicer)
     }
     $items = @()
     for ($itemIndex = 1; $itemIndex -le [int]$cache.SlicerItems.Count; $itemIndex++) {
       $item = $cache.SlicerItems.Item($itemIndex)
       $items += [ordered]@{ name = [string]$item.Name; selected = [bool]$item.Selected; hasData = [bool]$item.HasData }
-      [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($item)
     }
     $caches += [ordered]@{
       name = [string]$cache.Name
@@ -57,13 +60,19 @@ try {
       slicers = $slicers
       items = $items
     }
-    [void][Runtime.InteropServices.Marshal]::FinalReleaseComObject($cache)
   }
+  if ([IO.Path]::GetFullPath($workbookFullName) -ne $resolved) { throw "Excel opened an unexpected workbook: $workbookFullName" }
+  if (-not $readOnly) { throw "Excel did not open the workbook read-only" }
+  if ($slicerCacheCount -lt 1) { throw "Excel did not recognize any SlicerCache" }
   [ordered]@{
     file = $resolved
+    ownedPid = $ownedPid
     excelVersion = [string]$excel.Version
-    readOnly = [bool]$workbook.ReadOnly
-    slicerCacheCount = [int]$workbook.SlicerCaches.Count
+    workbookName = $workbookName
+    workbookFullName = $workbookFullName
+    workbooksCount = $workbooksCount
+    readOnly = $readOnly
+    slicerCacheCount = $slicerCacheCount
     slicerCount = [int](($caches | ForEach-Object { $_.slicers.Count } | Measure-Object -Sum).Sum)
     caches = $caches
   } | ConvertTo-Json -Depth 10 -Compress

@@ -16,15 +16,15 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu Excel 2016 | 66 | 31% |
+| ✅ Đã đối chiếu Excel 2016 | 68 | 32% |
 | 🟢 Có, chưa đối chiếu | 61 | 29% |
 | 🟡 Có một phần | 31 | 15% |
-| 🔴 Chưa có | 54 | 25% |
+| 🔴 Chưa có | 53 | 25% |
 | ⚪ Ngoài phạm vi | 4 | - |
-| **Tổng** | **216** (áp dụng: 212) | |
+| **Tổng** | **217** (áp dụng: 213) | |
 
-- **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 67%**
-- **Đã xác minh bằng đối chiếu Excel 2016 thật: 31%** các mục áp dụng
+- **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 68%**
+- **Đã xác minh bằng đối chiếu Excel 2016 thật: 32%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ 462 hàm) chỉ tính một mục; mức phủ hàm nằm ở dòng riêng và ở `EXCEL2016-FUNCTIONS-MATRIX.md`.
 
@@ -34,7 +34,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 3 | 6 | 3 | 4 | 1 | 66% |
 | Trang đầu | 53 | 22 | 17 | 9 | 5 | 0 | 82% |
-| Chèn | 29 | 8 | 5 | 2 | 12 | 2 | 52% |
+| Chèn | 29 | 9 | 5 | 2 | 11 | 2 | 56% |
 | Bố trí trang | 10 | 5 | 0 | 3 | 2 | 0 | 65% |
 | Công thức | 13 | 2 | 6 | 2 | 3 | 0 | 69% |
 | Dữ liệu | 19 | 5 | 7 | 3 | 4 | 0 | 71% |
@@ -42,7 +42,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Chế độ xem | 12 | 2 | 6 | 1 | 3 | 0 | 71% |
 | Nhà phát triển | 3 | 0 | 0 | 0 | 3 | 0 | 0% |
 | Trợ giúp | 2 | 0 | 2 | 0 | 0 | 0 | 100% |
-| Công cụ Bảng | 7 | 2 | 3 | 1 | 1 | 0 | 79% |
+| Công cụ Bảng | 8 | 3 | 3 | 1 | 1 | 0 | 81% |
 | Công cụ Biểu đồ | 7 | 3 | 1 | 0 | 3 | 0 | 57% |
 | Công cụ PivotTable | 3 | 0 | 0 | 1 | 2 | 0 | 17% |
 | Công cụ Hình ảnh | 1 | 0 | 0 | 0 | 1 | 0 | 0% |
@@ -56,7 +56,6 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 |---|---|---|---|---|
 | Tệp (Backstage) | Tệp | Xuất / Chuyển đổi định dạng (mục riêng, giữ bố cục) | 🔴 | Đang giao agy (feat/export-convert-agy) |
 | Tệp (Backstage) | Thông tin | Bảo vệ sổ làm việc bằng mật khẩu mở file (mã hóa) | 🔴 | Chưa có mã hóa file; chỉ có bảo vệ cấu trúc |
-| Chèn | Bộ lọc | Slicer | 🔴 | Chưa có |
 | Bố trí trang | Thiết lập trang | Hộp thoại Page Setup đủ tab Trang/Lề/Đầu-Chân/Trang tính | 🟡 | Thiếu một số tùy chọn tab Trang tính (in lưới, tiêu đề, thứ tự trang) |
 | Bố trí trang | Vừa trang | Chiều rộng / Chiều cao (Fit to pages) / Tỷ lệ % | 🟡 | Có Tỷ lệ; chưa có Fit to W x H tách riêng |
 | Công thức | Thư viện hàm | Độ phủ hàm Excel 2016 (462 hàm) | 🟡 | 16/10: engine hỗ trợ 436 hàm, 387 hàm có ca đối chiếu Excel 2016 (14 tệp golden, chạy trong npm test); còn thiếu hàm trả mảng (MMULT, MINVERSE, LINEST…), cần kế hoạch riêng |
@@ -65,7 +64,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Không thuộc ribbon | Chuột phải | Menu hình / ảnh / hộp văn bản | 🔴 | Chưa có |
 | Không thuộc ribbon | Chuột | Kéo chốt điền (Fill Handle), nhấp đúp điền xuống, tùy chọn tự điền | 🟡 | Điền chuỗi có; nhấp đúp và Auto Fill Options cần kiểm |
 
-Tổng: 10 mục ưu tiên 1.
+Tổng: 9 mục ưu tiên 1.
 
 ## Chi tiết từng tab
 
@@ -173,7 +172,7 @@ Tổng: 10 mục ưu tiên 1.
 | Biểu đồ | Bản đồ 3-D (3D Map) | 🔴 | 3 |  |
 | Sparkline | Đường / Cột | ✅ | - | SparklineGroups đã đối chiếu |
 | Sparkline | Thắng-thua (Win/Loss) | 🔴 | 3 |  |
-| Bộ lọc | Slicer | 🔴 | 1 | Chưa có |
+| Bộ lọc | Slicer cho Bảng | ✅ | - | Thiết kế Bảng > Chèn Slicer; Excel 2016 đọc lại cache, panel và lựa chọn |
 | Bộ lọc | Timeline | 🔴 | 2 |  |
 | Liên kết | Siêu liên kết (Ctrl+K), Mở, Xóa, Sửa | 🟢 | - | Thêm Mở/Xóa trong menu chuột phải 13/10 |
 | Liên kết | Liên kết tới ô khác / trang khác / email trong cùng sổ | 🟡 | 2 | Chỉ http(s) và mailto |
@@ -299,7 +298,8 @@ Tổng: 10 mục ưu tiên 1.
 | Thiết kế | Chèn/Xóa cột-hàng bảng | 🟢 | - | Menu chuột phải bảng 13/10; mở lại giữ vùng bảng |
 | Thiết kế | Đổi kích thước bảng (Resize Table) | ✅ | - | 16/10 (AGY-TABLE): cases-8 26/26 kịch bản, 189/189 ô khớp Excel 2016 |
 | Thiết kế | Tùy chọn kiểu: Hàng tiêu đề, Cột đầu/cuối, Hàng/Cột sọc, Nút lọc | 🟡 | 2 | Có sọc hàng và nút lọc; thiếu cột đầu/cuối, sọc cột |
-| Thiết kế | Chèn Slicer / Xuất bảng | 🔴 | 2 |  |
+| Thiết kế | Chèn Slicer | ✅ | - | Giai đoạn 1 hoàn thành 16/10: panel nổi, đa chọn, lọc kết hợp, XLSX native |
+| Thiết kế | Xuất bảng | 🔴 | 2 |  |
 
 ### Công cụ Biểu đồ
 
