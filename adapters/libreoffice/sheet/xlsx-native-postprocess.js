@@ -460,6 +460,16 @@ export function postProcessSheetXlsx(xlsxPathOrBuffer, options = {}) {
     }
   }
 
+  // Calculation options: read vno:calculation-mode, etc. from FODS and write to workbook.xml
+  const calcOptions = parseCalculationOptionsFromFods(options.sourceFods);
+  if (Object.keys(calcOptions).length > 0) {
+    const current = replacements[XLSX_WORKBOOK_ENTRY] || readZipEntry(source, XLSX_WORKBOOK_ENTRY)?.toString("utf8");
+    if (current) {
+      const nextWbXml = applyCalculationOptionsToWorkbook(current, calcOptions);
+      if (nextWbXml !== current) replacements[XLSX_WORKBOOK_ENTRY] = nextWbXml;
+    }
+  }
+
   if (Object.keys(replacements).length === 0) return source;
   return patchOoxmlZip(source, replacements);
 }
@@ -480,6 +490,11 @@ export function overlaySheetXlsxFods(xlsxPathOrBuffer, fodsXml) {
   if (current) {
     const workbookXml = current.toString("utf8");
     xml = overlayFodsStructureProtection(xml, workbookXml);
+    // Calculation options: read calcPr / workbookPr and inject into FODS
+    const calcOpts = parseCalculationOptionsFromWorkbook(workbookXml);
+    if (Object.keys(calcOpts).length > 0) {
+      xml = applyCalculationOptionsToFods(xml, calcOpts);
+    }
     // Sheet visibility: inject vno:sheet-state for veryHidden/hidden sheets
     const visibility = parseSheetVisibilityFromWorkbook(workbookXml);
     if (Object.keys(visibility).length > 0) {
@@ -564,4 +579,196 @@ export function overlaySheetXlsxSplitPanes(xlsxPathOrBuffer, fodsXml) {
     if (split) splitBySheet[sheetName] = split;
   }
   return applySplitPanesToFods(xml, splitBySheet);
+}
+
+export function parseCalculationOptionsFromWorkbook(workbookXml) {
+  const result = {};
+  const xml = String(workbookXml || "");
+  const calcMatch = xml.match(/<(?:[\w.-]+:)?calcPr\b([^>]*)\/?>/i);
+  if (calcMatch) {
+    const attrs = calcMatch[1];
+    const mode = attrs.match(/\bcalcMode\s*=\s*(["'])(.*?)\1/i)?.[2]?.trim()?.toLowerCase();
+    if (mode === "manual" || mode === "auto" || mode === "autonotable") {
+      result.calcMode = mode === "autonotable" ? "autoNoTable" : mode;
+    }
+    const save = attrs.match(/\bcalcOnSave\s*=\s*(["'])(.*?)\1/i)?.[2]?.trim()?.toLowerCase();
+    if (save === "0" || save === "false") result.calcOnSave = false;
+    else if (save === "1" || save === "true") result.calcOnSave = true;
+
+    const iter = attrs.match(/\biterate\s*=\s*(["'])(.*?)\1/i)?.[2]?.trim()?.toLowerCase();
+    if (iter === "1" || iter === "true") result.iteration = true;
+    else if (iter === "0" || iter === "false") result.iteration = false;
+
+    const count = attrs.match(/\biterateCount\s*=\s*(["'])(.*?)\1/i)?.[2]?.trim();
+    if (count) {
+      const parsed = parseInt(count, 10);
+      if (!Number.isNaN(parsed)) result.maxIterations = parsed;
+    }
+    const delta = attrs.match(/\biterateDelta\s*=\s*(["'])(.*?)\1/i)?.[2]?.trim();
+    if (delta) {
+      const parsed = parseFloat(delta);
+      if (!Number.isNaN(parsed)) result.maxChange = parsed;
+    }
+    const fullPrec = attrs.match(/\bfullPrecision\s*=\s*(["'])(.*?)\1/i)?.[2]?.trim()?.toLowerCase();
+    if (fullPrec === "0" || fullPrec === "false") result.precisionAsDisplayed = true;
+    else if (fullPrec === "1" || fullPrec === "true") result.precisionAsDisplayed = false;
+  }
+  const wbMatch = xml.match(/<(?:[\w.-]+:)?workbookPr\b([^>]*)\/?>/i);
+  if (wbMatch) {
+    const d1904 = wbMatch[1].match(/\bdate1904\s*=\s*(["'])(.*?)\1/i)?.[2]?.trim()?.toLowerCase();
+    if (d1904 === "1" || d1904 === "true") result.date1904 = true;
+    else if (d1904 === "0" || d1904 === "false") result.date1904 = false;
+  }
+  return result;
+}
+
+export function applyCalculationOptionsToFods(fodsXml, options) {
+  if (!options || typeof options !== "object") return fodsXml || "";
+  let xml = String(fodsXml || "");
+  const pattern = /<office:spreadsheet\b([^>]*)>/i;
+  const match = xml.match(pattern);
+  if (!match) return xml;
+
+  let attrs = match[1]
+    .replace(/\s+vno:calculation-mode=(["'][^"']*["'])/gi, "")
+    .replace(/\s+vno:calculate-on-save=(["'][^"']*["'])/gi, "")
+    .replace(/\s+vno:iteration=(["'][^"']*["'])/gi, "")
+    .replace(/\s+vno:max-iterations=(["'][^"']*["'])/gi, "")
+    .replace(/\s+vno:max-change=(["'][^"']*["'])/gi, "")
+    .replace(/\s+vno:precision-as-displayed=(["'][^"']*["'])/gi, "")
+    .replace(/\s+vno:date1904=(["'][^"']*["'])/gi, "");
+
+  const additions = [];
+  if (options.calcMode) additions.push(`vno:calculation-mode="${options.calcMode}"`);
+  if (options.calcOnSave !== undefined) additions.push(`vno:calculate-on-save="${options.calcOnSave ? "1" : "0"}"`);
+  if (options.iteration) {
+    additions.push('vno:iteration="1"');
+    if (options.maxIterations) additions.push(`vno:max-iterations="${options.maxIterations}"`);
+    if (options.maxChange !== undefined) additions.push(`vno:max-change="${options.maxChange}"`);
+  }
+  if (options.precisionAsDisplayed) additions.push('vno:precision-as-displayed="1"');
+  if (options.date1904) additions.push('vno:date1904="1"');
+
+  const extra = additions.length > 0 ? " " + additions.join(" ") : "";
+  return xml.replace(pattern, `<office:spreadsheet${attrs}${extra}>`);
+}
+
+export function parseCalculationOptionsFromFods(fodsXml) {
+  const result = {};
+  const xml = String(fodsXml || "");
+  const match = xml.match(/<office:spreadsheet\b([^>]*)>/i);
+  if (!match) return result;
+  const attrs = match[1];
+
+  const mode = attrs.match(/\bvno:calculation-mode\s*=\s*(["'])(.*?)\1/i)?.[2]?.trim();
+  if (mode && ["auto", "manual", "autoNoTable"].includes(mode)) result.calcMode = mode;
+
+  const save = attrs.match(/\bvno:calculate-on-save\s*=\s*(["'])(.*?)\1/i)?.[2]?.trim();
+  if (save === "0") result.calcOnSave = false;
+  else if (save === "1") result.calcOnSave = true;
+
+  const iter = attrs.match(/\bvno:iteration\s*=\s*(["'])(.*?)\1/i)?.[2]?.trim();
+  if (iter === "1") result.iteration = true;
+
+  const count = attrs.match(/\bvno:max-iterations\s*=\s*(["'])(.*?)\1/i)?.[2]?.trim();
+  if (count) {
+    const parsed = parseInt(count, 10);
+    if (!Number.isNaN(parsed)) result.maxIterations = parsed;
+  }
+  const delta = attrs.match(/\bvno:max-change\s*=\s*(["'])(.*?)\1/i)?.[2]?.trim();
+  if (delta) {
+    const parsed = parseFloat(delta);
+    if (!Number.isNaN(parsed)) result.maxChange = parsed;
+  }
+  const prec = attrs.match(/\bvno:precision-as-displayed\s*=\s*(["'])(.*?)\1/i)?.[2]?.trim();
+  if (prec === "1") result.precisionAsDisplayed = true;
+
+  const d1904 = attrs.match(/\bvno:date1904\s*=\s*(["'])(.*?)\1/i)?.[2]?.trim();
+  if (d1904 === "1") result.date1904 = true;
+
+  const refStyle = attrs.match(/\bvno:reference-style\s*=\s*(["'])(.*?)\1/i)?.[2]?.trim()?.toUpperCase();
+  if (refStyle === "R1C1" || refStyle === "A1") result.referenceStyle = refStyle;
+
+  return result;
+}
+
+export function applyCalculationOptionsToWorkbook(workbookXml, options) {
+  if (!options || typeof options !== "object") return workbookXml || "";
+  let xml = String(workbookXml || "");
+
+  // 1. workbookPr (date1904)
+  if ("date1904" in options) {
+    const wbMatch = xml.match(/<((?:[\w.-]+:)?workbookPr)\b([^>]*)\/?>/i);
+    if (wbMatch) {
+      const tagName = wbMatch[1];
+      let attrs = wbMatch[2].replace(/\/$/, "").replace(/\s+date1904\s*=\s*(["']).*?\1/gi, "");
+      if (options.date1904) attrs += ' date1904="1"';
+      xml = xml.slice(0, wbMatch.index) + `<${tagName}${attrs}/>` + xml.slice(wbMatch.index + wbMatch[0].length);
+    } else if (options.date1904) {
+      const sibling = xml.match(/<(?:[\w.-]+:)?(?:workbookProtection|bookViews|sheets)\b/i);
+      if (sibling) {
+        xml = xml.slice(0, sibling.index) + '<workbookPr date1904="1"/>' + xml.slice(sibling.index);
+      } else {
+        const openTag = xml.match(/<((?:[\w.-]+:)?workbook)\b([^>]*)>/i);
+        if (openTag) {
+          const insertIdx = openTag.index + openTag[0].length;
+          xml = xml.slice(0, insertIdx) + '<workbookPr date1904="1"/>' + xml.slice(insertIdx);
+        }
+      }
+    }
+  }
+
+  // 2. calcPr
+  const calcKeys = ["calcMode", "calcOnSave", "iteration", "maxIterations", "maxChange", "precisionAsDisplayed"];
+  if (calcKeys.some(k => k in options)) {
+    const calcMatch = xml.match(/<((?:[\w.-]+:)?calcPr)\b([^>]*)\/?>/i);
+    if (calcMatch) {
+      const tagName = calcMatch[1];
+      let attrs = calcMatch[2].replace(/\/$/, "");
+      if ("calcMode" in options) {
+        attrs = attrs.replace(/\s+calcMode\s*=\s*(["']).*?\1/gi, "");
+        const modeNorm = { automatic: "auto", auto: "auto", manual: "manual", autoNoTable: "autoNoTable" }[options.calcMode] || "auto";
+        attrs += ` calcMode="${modeNorm}"`;
+      }
+      if ("calcOnSave" in options) {
+        attrs = attrs.replace(/\s+calcOnSave\s*=\s*(["']).*?\1/gi, "");
+        if (!options.calcOnSave) attrs += ' calcOnSave="0"';
+      }
+      if ("iteration" in options) {
+        attrs = attrs.replace(/\s+iterate\s*=\s*(["']).*?\1/gi, "")
+                     .replace(/\s+iterateCount\s*=\s*(["']).*?\1/gi, "")
+                     .replace(/\s+iterateDelta\s*=\s*(["']).*?\1/gi, "");
+        if (options.iteration) {
+          attrs += ' iterate="1"';
+          attrs += ` iterateCount="${options.maxIterations ?? 100}" iterateDelta="${options.maxChange ?? 0.001}"`;
+        }
+      }
+      if ("precisionAsDisplayed" in options) {
+        attrs = attrs.replace(/\s+fullPrecision\s*=\s*(["']).*?\1/gi, "");
+        if (options.precisionAsDisplayed) attrs += ' fullPrecision="0"';
+      }
+      xml = xml.slice(0, calcMatch.index) + `<${tagName}${attrs}/>` + xml.slice(calcMatch.index + calcMatch[0].length);
+    } else {
+      const calcAttrs = [];
+      if ("calcMode" in options) {
+        const modeNorm = { automatic: "auto", auto: "auto", manual: "manual", autoNoTable: "autoNoTable" }[options.calcMode] || "auto";
+        calcAttrs.push(`calcMode="${modeNorm}"`);
+      }
+      if ("calcOnSave" in options && !options.calcOnSave) calcAttrs.push('calcOnSave="0"');
+      if (options.iteration) {
+        calcAttrs.push('iterate="1"');
+        calcAttrs.push(`iterateCount="${options.maxIterations ?? 100}"`);
+        calcAttrs.push(`iterateDelta="${options.maxChange ?? 0.001}"`);
+      }
+      if (options.precisionAsDisplayed) calcAttrs.push('fullPrecision="0"');
+      if (calcAttrs.length > 0) {
+        const insertion = xml.match(/<\/(?:[\w.-]+:)?workbook\s*>/i);
+        if (insertion) {
+          xml = xml.slice(0, insertion.index) + `<calcPr ${calcAttrs.join(" ")}/>` + xml.slice(insertion.index);
+        }
+      }
+    }
+  }
+
+  return xml;
 }
