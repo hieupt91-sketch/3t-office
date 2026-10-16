@@ -195,6 +195,7 @@ import { runSheetRangeSelectionTests } from "./unit/sheet-range-selection.test.j
 import { runSheetAutoFillTests } from "./unit/sheet-autofill.test.js";
 import { runSheetFillJustifyTests } from "./unit/sheet-fill-justify.test.js";
 import { runSheetCalcOptionsTests } from "./unit/sheet-calc-options.test.js";
+import { runSheetExternalLinksDialogTests } from "./unit/sheet-external-links-dialog.test.js";
 import { runSlidesPptxSetupShowOpenOverlayTests } from "./unit/slides-pptx-setup-show-open-overlay.test.js";
 import { runWriterParagraphSpacingTests } from "./unit/writer-paragraph-spacing.test.js";
 import { runWriterFindReplaceDomTests } from "./unit/writer-find-replace-dom.test.js";
@@ -605,7 +606,8 @@ async function runAll() {
     { title: "264. Unit Tests — Sheet Paste Special (values, formulas, formats, transpose, operations, skipBlanks)", runner: runSheetPasteSpecialTests },
     { title: "265. Unit Tests — Sheet Fill Justify & Alignment Styles (AGY-JUSTIFY)", runner: runSheetFillJustifyTests },
     { title: "266. Unit Tests — Sheet Arrange Z-Order, Align, Distribute, Group, Rotate/Flip, Selection Pane (AGY-ARRANGE)", runner: runSheetArrangeTests },
-    { title: "267. Unit Tests — Sheet Calculation Options & Formula Parity (AGY-CALC)", runner: runSheetCalcOptionsTests }
+    { title: "267. Unit Tests — Sheet Calculation Options & Formula Parity (AGY-CALC)", runner: runSheetCalcOptionsTests },
+    { title: "268. Unit Tests — Sheet External Links & Edit Links Dialog (AGY-LINKS)", runner: runSheetExternalLinksDialogTests }
   ];
 
   for (const suite of suites) {

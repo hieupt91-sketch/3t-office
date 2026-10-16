@@ -334,6 +334,8 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.format.increaseDecimal", () => this.grid.adjustDecimalPlaces(1));
     globalCommandBus.bindHandler("sheet.format.decreaseDecimal", () => this.grid.adjustDecimalPlaces(-1));
     globalCommandBus.bindHandler("sheet.format.conditional", () => this.grid.showConditionalFormattingDialog());
+    globalCommandBus.bindHandler("sheet.data.refreshAll", () => this.grid.refreshAllLinks ? this.grid.refreshAllLinks() : false);
+    globalCommandBus.bindHandler("sheet.data.editLinks", () => this.grid.showEditLinksDialog ? this.grid.showEditLinksDialog() : false);
     globalCommandBus.bindHandler("sheet.data.validation", () => this.grid.showDataValidationDialog());
     globalCommandBus.bindHandler("sheet.data.textToColumns", () => this.grid.showTextToColumnsDialog());
     globalCommandBus.bindHandler("sheet.data.flashFill", () => this.grid.runFlashFill());
@@ -5940,9 +5942,18 @@ ${pristineXlsxMarker}${docPropsMarker}
           label: "Tìm hiểu thêm",
           ariaLabel: "Tìm hiểu thêm về liên kết ngoài",
           onClick: () => {
-            globalCommandBus.execute("sheet.help.open", { entryId: "sheet.formula.externalLinks" });
+            globalCommandBus.execute("sheet.help.open", { entryId: "sheet.data.editLinksHelp" });
           }
         },
+        actions: [
+          {
+            label: "Chỉnh sửa liên kết...",
+            ariaLabel: "Mở hộp thoại chỉnh sửa liên kết ngoài",
+            onClick: () => {
+              this.grid?.showEditLinksDialog?.();
+            }
+          }
+        ],
         dismissible: true
       });
     } else {

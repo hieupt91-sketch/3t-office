@@ -1,0 +1,60 @@
+{
+  "scenarios": [
+    {
+      "name": "breakLink chuyen cong thuc lien ket ngoai thanh gia tri tinh",
+      "cells": {
+        "A1": {
+          "formula": "='C:\\vno_test_links\\[Nguon.xlsx]Sheet1'!A1",
+          "v": 100,
+          "externalLink": {
+            "odf": "of:=['file:///C:/vno_test_links/Nguon.xlsx'#$Sheet1.A1]",
+            "formula": "=[Nguon.xlsx]Sheet1!A1"
+          }
+        },
+        "B1": "=A1*2"
+      },
+      "ops": [
+        { "type": "breakLink", "source": "C:\\vno_test_links\\Nguon.xlsx" }
+      ]
+    },
+    {
+      "name": "breakLink nhieu o va giu nguyen cac o binh thuong",
+      "cells": {
+        "A1": 50,
+        "A2": "=A1+10",
+        "A3": {
+          "formula": "='C:\\vno_test_links\\[Nguon.xlsx]Sheet1'!A1",
+          "v": 100,
+          "externalLink": {
+            "odf": "of:=['file:///C:/vno_test_links/Nguon.xlsx'#$Sheet1.A1]",
+            "formula": "=[Nguon.xlsx]Sheet1!A1"
+          }
+        }
+      },
+      "ops": [
+        { "type": "breakLink", "source": "C:\\vno_test_links\\Nguon.xlsx" }
+      ]
+    },
+    {
+      "name": "changeLink doi sang tep nguon moi",
+      "cells": {
+        "A1": {
+          "formula": "='C:\\vno_test_links\\[Nguon.xlsx]Sheet1'!A1",
+          "v": 100,
+          "externalLink": {
+            "odf": "of:=['file:///C:/vno_test_links/Nguon.xlsx'#$Sheet1.A1]",
+            "formula": "=[Nguon.xlsx]Sheet1!A1"
+          }
+        }
+      },
+      "ops": [
+        {
+          "type": "changeLink",
+          "oldSource": "C:\\vno_test_links\\Nguon.xlsx",
+          "newSource": "C:\\vno_test_links\\Nguon2.xlsx",
+          "newValues": { "A1": 555 }
+        }
+      ]
+    }
+  ]
+}
