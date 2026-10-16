@@ -1101,9 +1101,22 @@ export class WriterAdapter {
   }
 
   _selectionAtElementStart(element, selection) {
-    if (!selection || selection.rangeCount === 0) return false;
+    if (!selection || selection.rangeCount === 0 || !element) return false;
     const range = selection.getRangeAt(0);
-    return range.startContainer === element && range.startOffset === 0;
+    if (!range.collapsed) return false;
+    if (range.startContainer === element && range.startOffset === 0) return true;
+    if (!element.contains(range.startContainer)) return false;
+    try {
+      const doc = element.ownerDocument || (typeof document !== "undefined" ? document : null);
+      if (!doc || !doc.createRange) return false;
+      const probe = doc.createRange();
+      probe.selectNodeContents(element);
+      probe.setEnd(range.startContainer, range.startOffset);
+      const leadingText = probe.toString().replace(/[\r\n\t\s\u200B-\u200D\uFEFF]+/g, "");
+      return leadingText.length === 0;
+    } catch {
+      return false;
+    }
   }
 
   _bindMouseAndKeyboardParity() {
@@ -8130,6 +8143,8 @@ export class WriterAdapter {
 
     return new Promise((resolve) => {
       const previousFocused = document.activeElement;
+      const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+      const savedRange = (sel && sel.rangeCount > 0) ? sel.getRangeAt(0).cloneRange() : null;
       const overlay = document.createElement("div");
       overlay.className = "vno-dialog-overlay";
       let sizeOptions = Object.entries(PAGE_SIZES_MM)
@@ -8255,6 +8270,12 @@ export class WriterAdapter {
       const finish = (result) => {
         document.removeEventListener("keydown", onKeyDown);
         if (overlay.parentNode) overlay.parentNode.removeChild(overlay);
+        if (savedRange && sel) {
+          try {
+            sel.removeAllRanges();
+            sel.addRange(savedRange);
+          } catch {}
+        }
         if (previousFocused && typeof previousFocused.focus === "function") {
           previousFocused.focus();
         }
@@ -8317,7 +8338,7 @@ export class WriterAdapter {
   setPageSetup(newSetup, scope) {
     if (!newSetup) return false;
     this.flushTyping();
-    const currentActive = this.getActiveSectionId ? this.getActiveSectionId() : (this.activeSectionId || "section-1");
+    const currentActive = newSetup.targetSectionId || (this.getActiveSectionId ? this.getActiveSectionId() : (this.activeSectionId || "section-1"));
     this.activeSectionId = currentActive;
     const baseSetup = this.sectionPageSetups[this.activeSectionId] || this.pageSetup;
     const resolvedSetup = {
@@ -8348,9 +8369,13 @@ export class WriterAdapter {
   }
 
   async _openPageSetup(focusField) {
+    const activeId = this.getActiveSectionId ? this.getActiveSectionId() : (this.activeSectionId || "section-1");
+    if (this.sectionPageSetups?.[activeId]) {
+      this.pageSetup = JSON.parse(JSON.stringify(this.sectionPageSetups[activeId]));
+    }
     const result = await this._showPageSetupDialog(focusField);
     if (!result) return false;
-    return this.setPageSetup(result);
+    return this.setPageSetup({ ...result, targetSectionId: activeId });
   }
 
   /**
@@ -10787,7 +10812,11 @@ export class WriterAdapter {
       : range?.startContainer?.parentElement;
     const block = anchor?.closest?.("p,h1,h2,h3,h4,h5,h6,blockquote,li");
 
-    if (typeof document !== "undefined" && target?.contains?.(anchor) && block?.parentElement === target && range) {
+    if (typeof document !== "undefined" && target && range && target.contains(anchor) && block) {
+      let topBlock = block;
+      while (topBlock.parentElement && topBlock.parentElement !== target && !topBlock.parentElement.classList?.contains("vno-section-content")) {
+        topBlock = topBlock.parentElement;
+      }
       if (!range.collapsed) range.deleteContents();
       const caret = selection.getRangeAt(0);
       const tail = caret.cloneRange();
@@ -10799,12 +10828,31 @@ export class WriterAdapter {
       const holder = document.createElement("div");
       holder.innerHTML = markerHtml;
       const marker = holder.firstElementChild;
-      block.after(marker, trailingBlock);
+      topBlock.after(marker, trailingBlock);
       const nextCaret = document.createRange();
       nextCaret.selectNodeContents(trailingBlock);
       nextCaret.collapse(true);
       selection.removeAllRanges();
       selection.addRange(nextCaret);
+      this.bodyDom?.focus?.();
+      return true;
+    }
+
+    if (typeof document !== "undefined" && target) {
+      const holder = document.createElement("div");
+      holder.innerHTML = `${markerHtml}<p><br></p>`;
+      const marker = holder.firstElementChild;
+      const trailingBlock = holder.lastElementChild;
+      target.appendChild(marker);
+      target.appendChild(trailingBlock);
+      if (selection) {
+        const nextCaret = document.createRange();
+        nextCaret.selectNodeContents(trailingBlock);
+        nextCaret.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(nextCaret);
+      }
+      this.bodyDom?.focus?.();
       return true;
     }
 
@@ -10910,6 +10958,11 @@ export class WriterAdapter {
         const sel = window.getSelection();
         if (sel && sel.anchorNode && this.bodyDom.contains(sel.anchorNode)) {
           let node = sel.anchorNode.nodeType === 3 ? sel.anchorNode.parentElement : sel.anchorNode;
+          if (node === this.bodyDom) {
+            if (this.activeSectionId && this.sectionPageSetups?.[this.activeSectionId]) {
+              return this.activeSectionId;
+            }
+          }
           const secContent = node.closest ? node.closest(".vno-section-content") : null;
           if (secContent && secContent.getAttribute?.("data-vno-section-id")) {
             const id = secContent.getAttribute("data-vno-section-id");
@@ -16754,16 +16807,15 @@ export class WriterAdapter {
       // tạo marker không có spacer và vẫn phải tách mục.
       /<div\b[^>]*data-vno-section-break=["'](nextPage|continuous|evenPage|oddPage)["'][^>]*data-vno-section-id=["']([^"']+)["'][^>]*>[\s\S]*?<\/div>(?:\s*<p\b[^>]*>\s*<br\s*\/?\s*>\s*<\/p>)?/gi,
       (_match, type, id) => {
-        // LibreOffice's HTML→Writer import filter only honors page-break-before on a
-        // real <p>, not a wrapping <div> — so a dedicated zero-height marker paragraph
-        // carries the break instead of relying on the section <div>'s own style.
-        // The following named-page section already makes LibreOffice start a
-        // new page. Adding a separate page-break paragraph here creates two
-        // consecutive breaks (a blank page) for nextPage sections.
         const pageBreak = "";
         return `</div>${pageBreak}<div class="vno-export-section vno-export-${id}" data-vno-export-section="${id}" data-vno-section-type="${type}"${sectionColStyle(id)}>`;
       }
     ) + `</div>`;
+
+    bodyHtml = bodyHtml.replace(
+      /(<div\b[^>]*data-vno-export-section=["'][^"']+["'][^>]*>)\s*(?=<\/div>)/gi,
+      '$1<p><br></p>'
+    );
 
     if (this.footerDom && this.footerDom.innerText?.trim()) {
       footerHtml = `\n<div title="footer">\n${this.footerDom.innerHTML}\n</div>`;

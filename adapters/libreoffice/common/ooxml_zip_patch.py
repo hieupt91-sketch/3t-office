@@ -19810,6 +19810,22 @@ def _writer_list_level_format(preset: str, level: int) -> tuple[str, str] | None
     return levels[level] if 0 <= level < len(levels) else None
 
 
+def _writer_ensure_level_suffix(numbering_xml: str) -> str:
+    """Ensure every numbering level explicitly specifies <w:suff w:val="tab"/> if missing.
+
+    OOXML standard §17.9.29 defines tab as the default suffix when <w:suff> is omitted,
+    and schema requires <w:suff> immediately preceding <w:lvlText>.
+    """
+    def patch_lvl(match: re.Match) -> str:
+        lvl = match.group(0)
+        if "<w:suff" in lvl:
+            return lvl
+        if "<w:lvlText" in lvl:
+            return re.sub(r"(<w:lvlText\b)", r'<w:suff w:val="tab"/>\1', lvl, count=1, flags=re.IGNORECASE)
+        return lvl
+    return re.sub(r"<w:lvl\b[^>]*>[\s\S]*?</w:lvl\s*>", patch_lvl, numbering_xml, flags=re.IGNORECASE)
+
+
 def _writer_clone_lower_alpha_suffix(document_xml: str, numbering_xml: str, source_html: str) -> tuple[str, str]:
     """Restore semantic multilevel numbering lost by LibreOffice's HTML filter.
 
@@ -19905,6 +19921,8 @@ def _writer_clone_lower_alpha_suffix(document_xml: str, numbering_xml: str, sour
                 r"<w:lvlText\b[^>]*/>", f'<w:lvlText w:val="{html.escape(level_text, quote=True)}"/>',
                 level_xml, count=1, flags=re.IGNORECASE,
             )
+            if "<w:suff" not in level_xml:
+                level_xml = re.sub(r"(<w:lvlText\b)", r'<w:suff w:val="tab"/>\1', level_xml, count=1, flags=re.IGNORECASE)
             return level_xml
 
         cloned = re.sub(
@@ -21870,37 +21888,48 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
         )
         if not div_open:
             continue
+        div_tail = source_html[div_open.end():]
+        sec_bm_m = re.match(r'<a\b[^>]*name=["\'](vno-section-[^"\']+)["\'][^>]*>\s*</a>\s*', div_tail, re.IGNORECASE)
+        direct_bookmark = sec_bm_m.group(1) if sec_bm_m else ""
+        if sec_bm_m:
+            div_tail = div_tail[sec_bm_m.end():]
         # Khối đầu của phần có thể là đoạn, tiêu đề, danh sách hoặc bảng (đo bằng Word thật 06/10: phần mở đầu bằng
         # danh sách/tiêu đề trước đây không tìm được đoạn đầu → ngắt mục biến mất và các phần dồn thành một).
-        first_block = re.match(r'<(p|h[1-6]|li|td|th)\b([^>]*)>([\s\S]*?)</\1\s*>', source_html[div_open.end():], re.IGNORECASE)
+        first_block = re.match(r'<(p|h[1-6]|li|td|th)\b([^>]*)>([\s\S]*?)</\1\s*>', div_tail, re.IGNORECASE)
         if not first_block:
-            first_block = re.match(r'<(?:ol|ul|table|tbody|tr|thead|blockquote)\b[^>]*>\s*(?:<(?:tbody|tr|thead)\b[^>]*>\s*)*<(p|h[1-6]|li|td|th)\b([^>]*)>([\s\S]*?)</\1\s*>', source_html[div_open.end():], re.IGNORECASE)
-        if first_block:
-            bookmark = re.search(r"\bid=[\"'](vno-(?:untouched|edited)-\d+)[\"']", first_block.group(0), re.IGNORECASE)
-            sec_type = "nextPage"
-            type_m = re.search(rf'<div\b[^>]*data-vno-export-section=["\']{re.escape(section_id)}["\'][^>]*data-vno-section-type=["\']([^"\']+)["\']', source_html, re.IGNORECASE)
-            if type_m:
-                sec_type = type_m.group(1)
-            else:
-                for sm in section_meta:
-                    if str(sm.get("id")) == section_id:
-                        sec_type = sm.get("type") or "nextPage"
-                        break
-            section_starts.append((_writer_html_plain(first_block.group(3)), bookmark.group(1) if bookmark else "", sec_type))
+            first_block = re.match(r'<(?:ol|ul|table|tbody|tr|thead|blockquote)\b[^>]*>\s*(?:<(?:tbody|tr|thead)\b[^>]*>\s*)*<(p|h[1-6]|li|td|th)\b([^>]*)>([\s\S]*?)</\1\s*>', div_tail, re.IGNORECASE)
+        bookmark_name = direct_bookmark
+        if first_block and not bookmark_name:
+            bm = re.search(r'(?:id|name)=["\'](vno-(?:untouched|edited|section)-\S+?)["\']', first_block.group(0), re.IGNORECASE)
+            if bm:
+                bookmark_name = bm.group(1)
+        sec_type = "nextPage"
+        type_m = re.search(rf'<div\b[^>]*data-vno-export-section=["\']{re.escape(section_id)}["\'][^>]*data-vno-section-type=["\']([^"\']+)["\']', source_html, re.IGNORECASE)
+        if type_m:
+            sec_type = type_m.group(1)
+        else:
+            for sm in section_meta:
+                if str(sm.get("id")) == section_id:
+                    sec_type = sm.get("type") or "nextPage"
+                    break
+        plain_text = _writer_html_plain(first_block.group(3)) if first_block else ""
+        section_starts.append((plain_text, bookmark_name, sec_type))
     for section_text, section_bookmark, section_type in section_starts:
-        if not section_text and not section_bookmark:
-            continue
         paragraphs = list(re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", document_xml, re.IGNORECASE))
         # Equation markers have already become OMML, so the HTML text is no
         # longer equal to the OOXML text. Use the paragraph's conversion
         # bookmark first to keep its section boundary and header/footer edits.
-        target_index = next((index for index, match in enumerate(paragraphs)
-                             if section_bookmark and re.search(
-                                 rf'<w:bookmarkStart\b[^>]*\bw:name=["\']{re.escape(section_bookmark)}["\']',
-                                 match.group(0), re.IGNORECASE)), None)
-        if target_index is None:
+        target_index = None
+        if section_bookmark:
+            target_index = next((index for index, match in enumerate(paragraphs)
+                                 if re.search(
+                                     rf'<w:bookmarkStart\b[^>]*\bw:name=["\']{re.escape(section_bookmark)}["\']',
+                                     match.group(0), re.IGNORECASE)), None)
+        if target_index is None and section_text:
             target_index = next((index for index, match in enumerate(paragraphs)
                                  if _paragraph_plain_text(match.group(0)).strip() == section_text), None)
+        if target_index is None and len(paragraphs) >= 2:
+            target_index = len(paragraphs) - 1
         final_sect = re.search(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", document_xml, re.IGNORECASE)
         if target_index is not None and target_index > 0 and final_sect:
             carrier_match = paragraphs[target_index - 1]
@@ -21932,6 +21961,13 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
                     section_orientations[sid] = "landscape"
                 else:
                     section_orientations[sid] = "portrait"
+            else:
+                sm = next((s for s in section_meta if str(s.get("id")) == sid), None)
+                if sm:
+                    orient = sm.get("pageSetup", {}).get("orientation") or sm.get("orientation")
+                    section_orientations[sid] = "landscape" if orient == "landscape" else "portrait"
+                else:
+                    section_orientations[sid] = "portrait"
 
         sections = list(re.finditer(r'<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>', document_xml, re.IGNORECASE))
         if len(sections) == len(section_ids):
@@ -21953,6 +21989,22 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
                             elif 16800 <= land_w <= 16900 and 11850 <= land_h <= 12000:
                                 land_w, land_h = 16838, 11906
                             new_pgsz = f'<w:pgSz w:w="{land_w}" w:h="{land_h}" w:orient="landscape"/>'
+                            sect_content = sect_content[:pgsz_m.start()] + new_pgsz + sect_content[pgsz_m.end():]
+                            sect_updated = True
+                elif section_orientations.get(sid) == "portrait":
+                    pgsz_m = re.search(r'<w:pgSz\b([^>]*)/?>', sect_content, re.IGNORECASE)
+                    if pgsz_m:
+                        w_m = re.search(r'\bw:w="(\d+)"', pgsz_m.group(1))
+                        h_m = re.search(r'\bw:h="(\d+)"', pgsz_m.group(1))
+                        if w_m and h_m:
+                            w_val, h_val = int(w_m.group(1)), int(h_m.group(1))
+                            port_w = min(w_val, h_val)
+                            port_h = max(w_val, h_val)
+                            if 12200 <= port_w <= 12300 and 15750 <= port_h <= 15900:
+                                port_w, port_h = 12240, 15840
+                            elif 11850 <= port_w <= 12000 and 16800 <= port_h <= 16900:
+                                port_w, port_h = 11906, 16838
+                            new_pgsz = f'<w:pgSz w:w="{port_w}" w:h="{port_h}"/>'
                             sect_content = sect_content[:pgsz_m.start()] + new_pgsz + sect_content[pgsz_m.end():]
                             sect_updated = True
 
@@ -22307,8 +22359,10 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
     numbering_bytes = read_zip_entry(docx_bytes, "word/numbering.xml")
     numbering = numbering_bytes.decode("utf-8", errors="replace") if numbering_bytes else ""
     if numbering:
+        numbering = _writer_ensure_level_suffix(numbering)
         document_xml, numbering = _writer_clone_lower_alpha_suffix(document_xml, numbering, source_html)
         document_xml, numbering = _writer_normalize_simple_list_numbering(document_xml, numbering, source_html)
+        numbering = _writer_ensure_level_suffix(numbering)
         replacements["word/document.xml"] = document_xml.encode("utf-8")
         replacements["word/numbering.xml"] = numbering.encode("utf-8")
     bullet_texts = {
@@ -22348,6 +22402,7 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
                     return paragraph
                 return re.sub(r"(<w:numId\b[^>]*w:val=)([\"'])\d+\2", rf'\1"{new_num_id}"', paragraph, count=1, flags=re.IGNORECASE)
             document_xml = re.sub(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", assign_bullet, document_xml, flags=re.IGNORECASE)
+            numbering = _writer_ensure_level_suffix(numbering)
             replacements["word/document.xml"] = document_xml.encode("utf-8")
             replacements["word/numbering.xml"] = numbering.encode("utf-8")
 
