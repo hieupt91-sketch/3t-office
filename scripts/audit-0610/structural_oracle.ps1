@@ -313,6 +313,69 @@ try {
             $type = if ($op.typeParam) { [int]$op.typeParam } else { 1 }
             Retry { [void]$wb.ChangeLink($oldSrc, $newSrc, $type) }
           }
+          "createPivot" {
+            $sourceRng = $ws.Range($op.source)
+            $destRng = $ws.Range($op.dest)
+            $ptName = if ($op.name) { [string]$op.name } else { "PivotTable1" }
+            $cache = Retry { $wb.PivotCaches().Create(1, $sourceRng) }
+            $pt = Retry { $cache.CreatePivotTable($destRng, $ptName) }
+            if ($op.rows) {
+              foreach ($rf in $op.rows) {
+                Retry { $pt.PivotFields($rf).Orientation = 1 }
+              }
+            }
+            if ($op.cols) {
+              foreach ($cf in $op.cols) {
+                Retry { $pt.PivotFields($cf).Orientation = 2 }
+              }
+            }
+            if ($op.values) {
+              foreach ($vf in $op.values) {
+                $fieldName = if ($vf.field) { $vf.field } else { [string]$vf }
+                $func = if ($vf.function -eq "COUNT") { -4112 } elseif ($vf.function -eq "AVERAGE") { -4106 } elseif ($vf.function -eq "MIN") { -4139 } elseif ($vf.function -eq "MAX") { -4136 } else { -4157 }
+                $valName = if ($vf.name) { $vf.name } else { "Sum of $fieldName" }
+                Retry { [void]$pt.AddDataField($pt.PivotFields($fieldName), $valName, $func) }
+              }
+            }
+          }
+          "pivotChangeSource" {
+            $pt = if ($op.table) { $ws.PivotTables($op.table) } else { $ws.PivotTables(1) }
+            $newSourceRng = $ws.Range($op.newSource)
+            $newCache = Retry { $wb.PivotCaches().Create(1, $newSourceRng) }
+            Retry { $pt.ChangePivotCache($newCache) }
+            Retry { $pt.RefreshTable() }
+          }
+          "pivotGroup" {
+            $pt = if ($op.table) { $ws.PivotTables($op.table) } else { $ws.PivotTables(1) }
+            $cellRef = $op.cell
+            if (-not $cellRef -and $op.field) {
+              $fld = $pt.PivotFields($op.field)
+              $cellRef = $fld.DataRange.Item(1).Address($false, $false)
+            }
+            $targetCell = $ws.Range($cellRef)
+            if ($op.by -ne $null) {
+              $startVal = if ($op.start -ne $null) { $op.start } else { $true }
+              $endVal = if ($op.end -ne $null) { $op.end } else { $true }
+              Retry { $targetCell.Group($startVal, $endVal, [double]$op.by) }
+            } elseif ($op.periods -ne $null) {
+              $periods = [bool[]]$op.periods
+              Retry { $targetCell.Group($true, $true, $missing, $periods) }
+            }
+          }
+          "pivotUngroup" {
+            $pt = if ($op.table) { $ws.PivotTables($op.table) } else { $ws.PivotTables(1) }
+            $cellRef = $op.cell
+            if (-not $cellRef -and $op.field) {
+              $fld = $pt.PivotFields($op.field)
+              $cellRef = $fld.DataRange.Item(1).Address($false, $false)
+            }
+            Retry { $ws.Range($cellRef).Ungroup() }
+          }
+          "pivotAddCalculatedField" {
+            $pt = if ($op.table) { $ws.PivotTables($op.table) } else { $ws.PivotTables(1) }
+            Retry { [void]$pt.CalculatedFields().Add($op.name, $op.formula) }
+            Retry { [void]$pt.AddDataField($pt.PivotFields($op.name), "Sum of $($op.name)", -4157) }
+          }
         }
       }
     if (-not $scenario.skipFinalCalculate -and $x.Calculation -ne -4135) {

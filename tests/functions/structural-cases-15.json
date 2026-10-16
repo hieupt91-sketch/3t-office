@@ -1,0 +1,63 @@
+{
+  "scenarios": [
+    {
+      "name": "pivot change data source",
+      "cells": {
+        "A1": "Category", "B1": "Amount",
+        "A2": "Fruit",    "B2": 100,
+        "A3": "Vegetable","B3": 200,
+        "A4": "Fruit",    "B4": 150
+      },
+      "ops": [
+        { "type": "createPivot", "source": "A1:B4", "dest": "E1", "rows": ["Category"], "values": ["Amount"] },
+        { "type": "enterCell", "coord": "A5", "val": "Dairy" },
+        { "type": "enterCell", "coord": "B5", "val": 50 },
+        { "type": "pivotChangeSource", "newSource": "A1:B5" }
+      ]
+    },
+    {
+      "name": "pivot number grouping",
+      "cells": {
+        "A1": "Age", "B1": "Score",
+        "A2": 5,     "B2": 10,
+        "A3": 15,    "B3": 20,
+        "A4": 25,    "B4": 30,
+        "A5": 35,    "B5": 40,
+        "A6": 45,    "B6": 50
+      },
+      "ops": [
+        { "type": "createPivot", "source": "A1:B6", "dest": "E1", "rows": ["Age"], "values": ["Score"] },
+        { "type": "pivotGroup", "field": "Age", "cell": "E2", "start": 10, "end": 40, "by": 10 }
+      ]
+    },
+    {
+      "name": "pivot ungroup",
+      "cells": {
+        "A1": "Age", "B1": "Score",
+        "A2": 5,     "B2": 10,
+        "A3": 15,    "B3": 20,
+        "A4": 25,    "B4": 30,
+        "A5": 35,    "B5": 40,
+        "A6": 45,    "B6": 50
+      },
+      "ops": [
+        { "type": "createPivot", "source": "A1:B6", "dest": "E1", "rows": ["Age"], "values": ["Score"] },
+        { "type": "pivotGroup", "field": "Age", "cell": "E2", "start": 10, "end": 40, "by": 10 },
+        { "type": "pivotUngroup", "field": "Age", "cell": "E2" }
+      ]
+    },
+    {
+      "name": "pivot calculated field",
+      "cells": {
+        "A1": "Category", "B1": "Amount",
+        "A2": "Fruit",    "B2": 100,
+        "A3": "Vegetable","B3": 200,
+        "A4": "Fruit",    "B4": 300
+      },
+      "ops": [
+        { "type": "createPivot", "source": "A1:B4", "dest": "E1", "rows": ["Category"], "values": [] },
+        { "type": "pivotAddCalculatedField", "name": "Tax", "formula": "=Amount*0.1" }
+      ]
+    }
+  ]
+}
