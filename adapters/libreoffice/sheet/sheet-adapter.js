@@ -350,6 +350,10 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.data.scenarioManager", () => this.grid.showScenarioManagerDialog());
     globalCommandBus.bindHandler("sheet.data.pivotTable", () => this.grid.showPivotTableDialog());
     globalCommandBus.bindHandler("sheet.data.pivotRefresh", () => this._hintIfFalse(() => this._refreshPivotTable(), "Trang hiện tại không phải PivotTable. Hãy chọn trang Pivot (hoặc tạo bằng Chèn > PivotTable) rồi nhấn Làm mới."));
+    globalCommandBus.bindHandler("sheet.data.pivotChangeDataSource", () => this._hintIfFalse(() => this.grid.showChangePivotDataSourceDialog(), "Trang tính hiện tại không phải Bảng tổng hợp. Hãy chọn trang Bảng tổng hợp rồi đổi nguồn."));
+    globalCommandBus.bindHandler("sheet.data.pivotGroup", () => this._hintIfFalse(() => this.grid.showPivotGroupDialog(), "Trang tính hiện tại không phải Bảng tổng hợp. Hãy chọn trang Bảng tổng hợp rồi nhóm."));
+    globalCommandBus.bindHandler("sheet.data.pivotUngroup", () => this._hintIfFalse(() => this.grid.ungroupPivotField(), "Trang tính hiện tại không phải Bảng tổng hợp. Hãy chọn trang Bảng tổng hợp rồi bỏ nhóm."));
+    globalCommandBus.bindHandler("sheet.data.pivotCalculatedField", () => this._hintIfFalse(() => this.grid.showPivotCalculatedFieldDialog(), "Trang tính hiện tại không phải Bảng tổng hợp. Hãy chọn trang Bảng tổng hợp rồi thêm trường tính toán."));
     globalCommandBus.bindHandler("sheet.chart.pivotChart", () => this.grid.openPivotChartBuilder());
     globalCommandBus.bindHandler("sheet.formula.nameManager", (args) => {
       args = args || {};
@@ -4183,7 +4187,9 @@ export class SheetAdapter {
           end: { c: source[3], r: Number(source[4]) }
         };
         const pivotIdAttr = pivot.id ? ` vno:pivot-id="${this._escapeXml(pivot.id)}"` : "";
-        dataPilotTables.push(`<table:data-pilot-table table:name="${this._escapeXml(pivot.name || pivot.id || `Pivot ${dataPilotTables.length + 1}`)}"${pivotIdAttr} table:target-range-address="${this._escapeXml(rangeAddress(targetSheet, usedRange(targetSheet)))}"${resultLocation}><table:source-cell-range table:cell-range-address="${this._escapeXml(rangeAddress(sourceSheet, sourceRange))}"/>${fields.join("")}</table:data-pilot-table>`);
+        const groupingAttr = pivot.grouping && Object.keys(pivot.grouping).length ? ` vno:grouping="${this._escapeXml(JSON.stringify(pivot.grouping))}"` : "";
+        const calcFieldsAttr = pivot.calculatedFields && pivot.calculatedFields.length ? ` vno:calculated-fields="${this._escapeXml(JSON.stringify(pivot.calculatedFields))}"` : "";
+        dataPilotTables.push(`<table:data-pilot-table table:name="${this._escapeXml(pivot.name || pivot.id || `Pivot ${dataPilotTables.length + 1}`)}"${pivotIdAttr}${groupingAttr}${calcFieldsAttr} table:target-range-address="${this._escapeXml(rangeAddress(targetSheet, usedRange(targetSheet)))}"${resultLocation}><table:source-cell-range table:cell-range-address="${this._escapeXml(rangeAddress(sourceSheet, sourceRange))}"/>${fields.join("")}</table:data-pilot-table>`);
       }
     }
     const dataPilotXml = dataPilotTables.length ? `<table:data-pilot-tables>${dataPilotTables.join("")}</table:data-pilot-tables>` : "";
@@ -4958,7 +4964,9 @@ ${pristineXlsxMarker}${docPropsMarker}
 
       if (!workbook.pivotTablesBySheet[targetSheet]) workbook.pivotTablesBySheet[targetSheet] = [];
       const pivotId = this._unescapeXml(attrs.match(/vno:pivot-id=["']([^"']*)["']/i)?.[1] || "");
-      workbook.pivotTablesBySheet[targetSheet].push({
+      const groupingAttr = this._unescapeXml(attrs.match(/vno:grouping=["']([^"']*)["']/i)?.[1] || "");
+      const calcFieldsAttr = this._unescapeXml(attrs.match(/vno:calculated-fields=["']([^"']*)["']/i)?.[1] || "");
+      const importedPivot = {
         id: pivotId || `pivot-import-${++index}`,
         name: name || `pivot-import-${index}`,
         sourceSheet: source.sheet,
@@ -4968,7 +4976,14 @@ ${pristineXlsxMarker}${docPropsMarker}
         values,
         targetSheet,
         imported: true
-      });
+      };
+      if (groupingAttr) {
+        try { importedPivot.grouping = JSON.parse(groupingAttr); } catch {}
+      }
+      if (calcFieldsAttr) {
+        try { importedPivot.calculatedFields = JSON.parse(calcFieldsAttr); } catch {}
+      }
+      workbook.pivotTablesBySheet[targetSheet].push(importedPivot);
       return "";
     });
   }
@@ -7009,6 +7024,18 @@ ${pristineXlsxMarker}${docPropsMarker}
 
       case "sheet.data.pivotRefresh":
         return this._refreshPivotTable();
+
+      case "sheet.data.pivotChangeDataSource":
+        return this.grid.showChangePivotDataSourceDialog ? this.grid.showChangePivotDataSourceDialog() : false;
+
+      case "sheet.data.pivotGroup":
+        return this.grid.showPivotGroupDialog ? this.grid.showPivotGroupDialog() : false;
+
+      case "sheet.data.pivotUngroup":
+        return this.grid.ungroupPivotField ? this.grid.ungroupPivotField() : false;
+
+      case "sheet.data.pivotCalculatedField":
+        return this.grid.showPivotCalculatedFieldDialog ? this.grid.showPivotCalculatedFieldDialog() : false;
 
       case "sheet.style.formatAsTable":
         return this.grid.showFormatAsTableDialog ? this.grid.showFormatAsTableDialog() : false;

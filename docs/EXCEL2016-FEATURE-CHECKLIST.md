@@ -44,7 +44,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Trợ giúp | 2 | 0 | 2 | 0 | 0 | 0 | 100% |
 | Công cụ Bảng | 7 | 2 | 3 | 1 | 1 | 0 | 79% |
 | Công cụ Biểu đồ | 7 | 3 | 1 | 0 | 3 | 0 | 57% |
-| Công cụ PivotTable | 3 | 0 | 0 | 1 | 2 | 0 | 17% |
+| Công cụ PivotTable | 3 | 0 | 2 | 0 | 1 | 0 | 67% |
 | Công cụ Hình ảnh | 1 | 0 | 0 | 0 | 1 | 0 | 0% |
 | Công cụ Vẽ | 1 | 0 | 0 | 0 | 1 | 0 | 0% |
 | Công cụ Sparkline | 1 | 0 | 0 | 0 | 1 | 0 | 0% |
@@ -317,8 +317,8 @@ Tổng: 10 mục ưu tiên 1.
 
 | Nhóm | Tính năng Excel 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Sheet |
 |---|---|---|---|---|
-| Phân tích | Làm mới / Đổi nguồn / Danh sách trường | 🟡 | 2 | Có làm mới; thiếu đổi nguồn |
-| Phân tích | Nhóm (ngày/số) / Trường tính toán / Slicer | 🔴 | 2 |  |
+| Phân tích | Làm mới / Đổi nguồn / Danh sách trường | 🟢 | - | sheet.data.pivotRefresh, sheet.data.pivotChangeDataSource |
+| Phân tích | Nhóm (ngày/số) / Trường tính toán / Slicer | 🟢 | - | sheet.data.pivotGroup, sheet.data.pivotUngroup, sheet.data.pivotCalculatedField (Slicer: Codex) |
 | Thiết kế | Bố cục báo cáo / Tổng phụ / Kiểu PivotTable | 🔴 | 2 |  |
 
 ### Công cụ Hình ảnh

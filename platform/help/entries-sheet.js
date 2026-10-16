@@ -320,6 +320,54 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.data.pivotChangeDataSource",
+    app: "sheet",
+    commandIds: ["sheet.data.pivotChangeDataSource"],
+    title: "Đổi nguồn dữ liệu Bảng tổng hợp (Change Data Source)",
+    summary: "Thay đổi vùng ô nguồn hoặc bảng dữ liệu cho Bảng tổng hợp hiện có, tự động loại bỏ các trường bị xóa khỏi bố cục và cập nhật lại kết quả tính toán.",
+    ribbon: { tab: "Dữ liệu", tabId: "data", group: "Bảng tổng hợp" },
+    keywords: ["đổi nguồn", "change data source", "nguồn dữ liệu", "bảng tổng hợp", "pivot", "vùng nguồn", "cập nhật nguồn"],
+    steps: [
+      "Chọn trang tính chứa Bảng tổng hợp cần đổi vùng dữ liệu nguồn.",
+      "Mở tab Dữ liệu trên thanh dải lệnh, tìm đến nhóm Bảng tổng hợp và nhấn nút Đổi nguồn.",
+      "Hộp thoại Đổi nguồn dữ liệu hiển thị vùng nguồn hiện tại. Nhập tham chiếu vùng mới (ví dụ Sheet1!A1:E30) hoặc chỉnh sửa tọa độ vùng ô.",
+      "Nhấn nút Đồng ý. Ứng dụng đọc lại dữ liệu từ nguồn mới và tính toán lại bảng tổng hợp; nếu vùng mới bị bớt cột, các trường không còn tồn tại sẽ tự động bị loại khỏi hàng, cột và giá trị.",
+      "Mọi thay đổi nguồn dữ liệu đều có thể hoàn tác ngay bằng tổ hợp phím Ctrl+Z."
+    ]
+  },
+  {
+    id: "sheet.data.pivotGroup",
+    app: "sheet",
+    commandIds: ["sheet.data.pivotGroup", "sheet.data.pivotUngroup"],
+    title: "Nhóm và Bỏ nhóm trong Bảng tổng hợp (Group & Ungroup)",
+    summary: "Gom nhóm các giá trị số thành từng khoảng (bắt đầu, kết thúc, bước nhảy) hoặc nhóm ngày tháng theo Ngày, Tháng, Quý, Năm trong Bảng tổng hợp; nhấn Bỏ nhóm để phục hồi dữ liệu gốc.",
+    ribbon: { tab: "Dữ liệu", tabId: "data", group: "Bảng tổng hợp" },
+    keywords: ["nhóm", "group", "bỏ nhóm", "ungroup", "nhóm số", "nhóm ngày", "tháng", "quý", "năm", "bảng tổng hợp"],
+    steps: [
+      "Chọn một ô nhãn hàng hoặc cột cần nhóm trong Bảng tổng hợp trên trang tính.",
+      "Mở tab Dữ liệu, nhóm Bảng tổng hợp, nhấn nút Nhóm để mở hộp thoại cấu hình nhóm.",
+      "Chọn trường cần nhóm và thiết lập kiểu nhóm: với dữ liệu số, nhập Bắt đầu, Kết thúc và Bước nhảy (ví dụ bắt đầu 10, kết thúc 40, bước 10 sinh các nhãn <10, 10-19, 20-29, 30-40, >40); với ngày tháng, đánh dấu các ô Ngày, Tháng, Quý, Năm hoặc kết hợp.",
+      "Nhấn nút Áp dụng: Bảng tổng hợp gom các bản ghi theo nhóm và tính lại tổng số liệu tương ứng.",
+      "Khi muốn trở về danh sách chi tiết ban đầu, chọn trường đã nhóm rồi nhấn nút Bỏ nhóm trên nhóm Bảng tổng hợp hoặc trong hộp thoại."
+    ]
+  },
+  {
+    id: "sheet.data.pivotCalculatedField",
+    app: "sheet",
+    commandIds: ["sheet.data.pivotCalculatedField"],
+    title: "Trường tính toán trong Bảng tổng hợp (Calculated Field)",
+    summary: "Thêm, sửa hoặc xóa trường tính toán tùy biến trong Bảng tổng hợp bằng công thức toán học tham chiếu tới các trường dữ liệu khác theo đúng chuẩn tính tổng.",
+    ribbon: { tab: "Dữ liệu", tabId: "data", group: "Bảng tổng hợp" },
+    keywords: ["trường tính toán", "calculated field", "công thức bảng tổng hợp", "thêm trường", "tính toán", "bảng tổng hợp"],
+    steps: [
+      "Chọn trang tính có Bảng tổng hợp cần tạo trường tính toán mới.",
+      "Mở tab Dữ liệu, nhóm Bảng tổng hợp, nhấn nút Trường tính toán để mở hộp thoại thiết lập.",
+      "Nhập Tên trường (ví dụ Thue_VAT) và Công thức bắt đầu bằng dấu bằng (ví dụ =Doanh_so*0.1 hoặc ='Đơn giá'*'Số lượng'). Nhấp đúp vào tên trường trong danh mục để chèn nhanh vào công thức.",
+      "Nhấn Thêm / Sửa: trường mới được thêm vào danh sách và tự động tính toán giá trị dựa trên tổng của các trường thành phần.",
+      "Để sửa công thức hoặc xóa trường tính toán đã tạo, chọn trường đó trong danh mục bên phải rồi bấm Sửa hoặc Xóa; nhấn Đóng khi hoàn tất. Cấu hình được lưu và bảo toàn khi xuất tệp."
+    ]
+  },
+  {
     id: "sheet.format.conditional",
     app: "sheet",
     commandIds: ["sheet.format.conditional"],

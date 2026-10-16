@@ -698,7 +698,21 @@ export const SHEET_RIBBON_TABS = [
         labelKey: "sheetRibbon.group.pivotTable",
         items: [
           { type: "button", commandId: "sheet.data.pivotTable", isLarge: true },
-          { type: "button", commandId: "sheet.data.pivotRefresh", isLarge: true }
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.data.pivotRefresh" },
+              { type: "button", commandId: "sheet.data.pivotChangeDataSource" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.data.pivotGroup" },
+              { type: "button", commandId: "sheet.data.pivotUngroup" }
+            ]
+          },
+          { type: "button", commandId: "sheet.data.pivotCalculatedField", isLarge: true }
         ]
       }
     ]

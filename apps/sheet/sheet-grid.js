@@ -16142,8 +16142,16 @@ export class SheetGridController {
       this._recalculateAllFormulas();
     } else if (action.type === "sort") {
       this._restoreCells(direction === "undo" ? action.before : action.after);
-    } else if (action.type === "pivot-refresh") {
-      this._restoreCells(direction === "undo" ? action.before : action.after);
+    } else if (action.type === "pivot-refresh" || action.type.startsWith("pivot-")) {
+      const target = direction === "undo" ? action.before : action.after;
+      if (target?.cells) {
+        this._restoreCells(target.cells);
+        if (target.config && this.pivotTablesBySheet[action.sheet]) {
+          this.pivotTablesBySheet[action.sheet][0] = structuredClone(target.config);
+        }
+      } else {
+        this._restoreCells(target);
+      }
     } else if (action.type === "what-if-cells") {
       this._restoreCells(direction === "undo" ? action.before : action.after);
     } else if (action.type === "scenario-state") {
@@ -20640,6 +20648,20 @@ export class SheetGridController {
     const sourceCells = this.sheetsData[sourceSheet];
     if (!sourceCells) throw new Error(t("sheetDialogs.sourceSheetNotFound"));
     const table = this.pivotTableEngine.aggregate(sourceCells, config);
+    if (config.targetSheet && this.sheets.includes(config.targetSheet) && (config.targetCoord || config.targetSheet === this.activeSheet)) {
+      const targetSheet = config.targetSheet;
+      const originCoord = config.targetCoord || "A1";
+      const cells = this.pivotTableEngine.toCells(table, originCoord);
+      const targetMap = this.sheetsData[targetSheet];
+      if (targetMap) {
+        for (const [k, v] of cells.entries()) targetMap.set(k, v);
+      }
+      const pivot = { ...structuredClone(config), id: config.id || `pivot-${Date.now()}`, sourceSheet, targetSheet, targetCoord: originCoord, resultRange: this.pivotTableEngine.resultRange(table, originCoord) };
+      if (!this.pivotTablesBySheet[targetSheet]) this.pivotTablesBySheet[targetSheet] = [];
+      this.pivotTablesBySheet[targetSheet].push(pivot);
+      this._renderVirtualRows(1, Math.min(40, this.rowCount));
+      return pivot;
+    }
     const baseName = `${sourceSheet} (2)`;
     let targetSheet = config.targetSheet || baseName;
     let suffix = 3;
@@ -20661,10 +20683,16 @@ export class SheetGridController {
     if (!pivot) return false;
     const sourceCells = this.sheetsData[pivot.sourceSheet];
     if (!sourceCells) return false;
-    const before = this._snapshotCells(sheetName);
+    const before = { config: structuredClone(pivot), cells: this._snapshotCells(sheetName) };
     const table = this.pivotTableEngine.aggregate(sourceCells, pivot);
-    this.sheetsData[sheetName] = this.pivotTableEngine.toCells(table);
-    pivot.resultRange = this.pivotTableEngine.resultRange(table);
+    const originCoord = pivot.targetCoord || "A1";
+    if (pivot.targetCoord) {
+      const cells = this.pivotTableEngine.toCells(table, originCoord);
+      for (const [k, v] of cells.entries()) this.sheetsData[sheetName].set(k, v);
+    } else {
+      this.sheetsData[sheetName] = this.pivotTableEngine.toCells(table, originCoord);
+    }
+    pivot.resultRange = this.pivotTableEngine.resultRange(table, originCoord);
     this.pivotRefreshTouchedBySheet?.add(sheetName);
     for (const chart of this.chartsBySheet[sheetName] || []) if (chart.kind === "pivot" && chart.pivotId === pivot.id) chart.range = structuredClone(pivot.resultRange);
     this.refreshCharts(sheetName);
@@ -20672,7 +20700,376 @@ export class SheetGridController {
       this._renderVirtualRows(1, Math.min(40, this.rowCount));
       this.selectCell("A", 1);
     }
-    if (recordUndo) this._recordHistory({ type: "pivot-refresh", sheet: sheetName, before, after: this._snapshotCells(sheetName) });
+    if (recordUndo) this._recordHistory({ type: "pivot-refresh", sheet: sheetName, before, after: { config: structuredClone(pivot), cells: this._snapshotCells(sheetName) } });
+    return true;
+  }
+
+  changePivotDataSource(sheetName = this.activeSheet, newRange, newSourceSheet, recordUndo = true) {
+    if (!this.pivotTableEngine) return false;
+    const pivot = this.pivotTablesBySheet[sheetName]?.[0];
+    if (!pivot) return false;
+    const sourceSheet = newSourceSheet || pivot.sourceSheet;
+    const sourceCells = this.sheetsData[sourceSheet];
+    if (!sourceCells) return false;
+    const { headers } = this.pivotTableEngine.readSource(sourceCells, newRange);
+    const filtered = this.pivotTableEngine.changeSource(pivot, headers);
+    const before = { config: structuredClone(pivot), cells: this._snapshotCells(sheetName) };
+
+    pivot.sourceSheet = sourceSheet;
+    pivot.sourceRange = newRange;
+    pivot.rows = filtered.rows;
+    pivot.columns = filtered.columns;
+    pivot.values = filtered.values;
+    if (pivot.grouping) {
+      for (const f of Object.keys(pivot.grouping)) {
+        if (!headers.includes(f)) delete pivot.grouping[f];
+      }
+    }
+
+    const table = this.pivotTableEngine.aggregate(sourceCells, pivot);
+    const originCoord = pivot.targetCoord || "A1";
+    if (pivot.targetCoord) {
+      const cells = this.pivotTableEngine.toCells(table, originCoord);
+      for (const [k, v] of cells.entries()) this.sheetsData[sheetName].set(k, v);
+    } else {
+      this.sheetsData[sheetName] = this.pivotTableEngine.toCells(table, originCoord);
+    }
+    pivot.resultRange = this.pivotTableEngine.resultRange(table, originCoord);
+    this.pivotRefreshTouchedBySheet?.add(sheetName);
+    for (const chart of this.chartsBySheet[sheetName] || []) if (chart.kind === "pivot" && chart.pivotId === pivot.id) chart.range = structuredClone(pivot.resultRange);
+    this.refreshCharts(sheetName);
+    if (sheetName === this.activeSheet) {
+      this._renderVirtualRows(1, Math.min(40, this.rowCount));
+      this.selectCell("A", 1);
+    }
+    if (recordUndo) this._recordHistory({ type: "pivot-change-source", sheet: sheetName, before, after: { config: structuredClone(pivot), cells: this._snapshotCells(sheetName) } });
+    return true;
+  }
+
+  groupPivotField(sheetName = this.activeSheet, fieldName, groupConfig, recordUndo = true) {
+    if (!this.pivotTableEngine) return false;
+    const pivot = this.pivotTablesBySheet[sheetName]?.[0];
+    if (!pivot) return false;
+    const targetField = fieldName || pivot.rows?.[0] || pivot.columns?.[0];
+    if (!targetField) return false;
+    const before = { config: structuredClone(pivot), cells: this._snapshotCells(sheetName) };
+    if (!pivot.grouping) pivot.grouping = {};
+    pivot.grouping[targetField] = structuredClone(groupConfig);
+
+    const sourceCells = this.sheetsData[pivot.sourceSheet];
+    if (!sourceCells) return false;
+    const table = this.pivotTableEngine.aggregate(sourceCells, pivot);
+    const originCoord = pivot.targetCoord || "A1";
+    if (pivot.targetCoord) {
+      const cells = this.pivotTableEngine.toCells(table, originCoord);
+      for (const [k, v] of cells.entries()) this.sheetsData[sheetName].set(k, v);
+    } else {
+      this.sheetsData[sheetName] = this.pivotTableEngine.toCells(table, originCoord);
+    }
+    pivot.resultRange = this.pivotTableEngine.resultRange(table, originCoord);
+    this.pivotRefreshTouchedBySheet?.add(sheetName);
+    if (sheetName === this.activeSheet) {
+      this._renderVirtualRows(1, Math.min(40, this.rowCount));
+    }
+    if (recordUndo) this._recordHistory({ type: "pivot-group", sheet: sheetName, before, after: { config: structuredClone(pivot), cells: this._snapshotCells(sheetName) } });
+    return true;
+  }
+
+  ungroupPivotField(sheetName = this.activeSheet, fieldName, recordUndo = true) {
+    if (!this.pivotTableEngine) return false;
+    const pivot = this.pivotTablesBySheet[sheetName]?.[0];
+    if (!pivot) return false;
+    const before = { config: structuredClone(pivot), cells: this._snapshotCells(sheetName) };
+    if (fieldName) {
+      if (pivot.grouping) delete pivot.grouping[fieldName];
+    } else {
+      pivot.grouping = {};
+    }
+
+    const sourceCells = this.sheetsData[pivot.sourceSheet];
+    if (!sourceCells) return false;
+    const table = this.pivotTableEngine.aggregate(sourceCells, pivot);
+    const originCoord = pivot.targetCoord || "A1";
+    if (pivot.targetCoord) {
+      const cells = this.pivotTableEngine.toCells(table, originCoord);
+      for (const [k, v] of cells.entries()) this.sheetsData[sheetName].set(k, v);
+    } else {
+      this.sheetsData[sheetName] = this.pivotTableEngine.toCells(table, originCoord);
+    }
+    pivot.resultRange = this.pivotTableEngine.resultRange(table, originCoord);
+    this.pivotRefreshTouchedBySheet?.add(sheetName);
+    if (sheetName === this.activeSheet) {
+      this._renderVirtualRows(1, Math.min(40, this.rowCount));
+    }
+    if (recordUndo) this._recordHistory({ type: "pivot-ungroup", sheet: sheetName, before, after: { config: structuredClone(pivot), cells: this._snapshotCells(sheetName) } });
+    return true;
+  }
+
+  addPivotCalculatedField(sheetName = this.activeSheet, name, formula, recordUndo = true) {
+    if (!this.pivotTableEngine) return false;
+    const pivot = this.pivotTablesBySheet[sheetName]?.[0];
+    if (!pivot) return false;
+    const before = { config: structuredClone(pivot), cells: this._snapshotCells(sheetName) };
+    if (!pivot.calculatedFields) pivot.calculatedFields = [];
+    const existing = pivot.calculatedFields.find(c => c.name === name);
+    if (existing) {
+      existing.formula = formula;
+    } else {
+      pivot.calculatedFields.push({ name, formula });
+    }
+    if (!pivot.values.some(v => v.field === name)) {
+      pivot.values.push({ field: name, aggregate: "SUM", isCalculated: true });
+    }
+
+    const sourceCells = this.sheetsData[pivot.sourceSheet];
+    if (!sourceCells) return false;
+    const table = this.pivotTableEngine.aggregate(sourceCells, pivot);
+    const originCoord = pivot.targetCoord || "A1";
+    if (pivot.targetCoord) {
+      const cells = this.pivotTableEngine.toCells(table, originCoord);
+      for (const [k, v] of cells.entries()) this.sheetsData[sheetName].set(k, v);
+    } else {
+      this.sheetsData[sheetName] = this.pivotTableEngine.toCells(table, originCoord);
+    }
+    pivot.resultRange = this.pivotTableEngine.resultRange(table, originCoord);
+    this.pivotRefreshTouchedBySheet?.add(sheetName);
+    if (sheetName === this.activeSheet) {
+      this._renderVirtualRows(1, Math.min(40, this.rowCount));
+    }
+    if (recordUndo) this._recordHistory({ type: "pivot-calc-field", sheet: sheetName, before, after: { config: structuredClone(pivot), cells: this._snapshotCells(sheetName) } });
+    return true;
+  }
+
+  deletePivotCalculatedField(sheetName = this.activeSheet, name, recordUndo = true) {
+    if (!this.pivotTableEngine) return false;
+    const pivot = this.pivotTablesBySheet[sheetName]?.[0];
+    if (!pivot) return false;
+    const before = { config: structuredClone(pivot), cells: this._snapshotCells(sheetName) };
+    pivot.calculatedFields = (pivot.calculatedFields || []).filter(c => c.name !== name);
+    pivot.values = (pivot.values || []).filter(v => v.field !== name);
+
+    const sourceCells = this.sheetsData[pivot.sourceSheet];
+    if (!sourceCells) return false;
+    const table = this.pivotTableEngine.aggregate(sourceCells, pivot);
+    const originCoord = pivot.targetCoord || "A1";
+    if (pivot.targetCoord) {
+      const cells = this.pivotTableEngine.toCells(table, originCoord);
+      for (const [k, v] of cells.entries()) this.sheetsData[sheetName].set(k, v);
+    } else {
+      this.sheetsData[sheetName] = this.pivotTableEngine.toCells(table, originCoord);
+    }
+    pivot.resultRange = this.pivotTableEngine.resultRange(table, originCoord);
+    this.pivotRefreshTouchedBySheet?.add(sheetName);
+    if (sheetName === this.activeSheet) {
+      this._renderVirtualRows(1, Math.min(40, this.rowCount));
+    }
+    if (recordUndo) this._recordHistory({ type: "pivot-calc-field-delete", sheet: sheetName, before, after: { config: structuredClone(pivot), cells: this._snapshotCells(sheetName) } });
+    return true;
+  }
+
+  async showChangePivotDataSourceDialog() {
+    await this._loadPivotEngine();
+    const pivot = this.pivotTablesBySheet[this.activeSheet]?.[0];
+    if (!pivot) {
+      if (this.options?.shell?.setStatus) {
+        this.options.shell.setStatus(t("sheetDialogs.pivotNotActive", "Trang tính hiện tại không phải Bảng tổng hợp."));
+      }
+      return false;
+    }
+    const currentSource = `${pivot.sourceSheet}!${pivot.sourceRange}`;
+    const overlay = this._createSheetDialog(t("sheetDialogs.changeDataSourceTitle", "Đổi nguồn dữ liệu Bảng tổng hợp"), `
+      <div class="vno-pivot-dialog">
+        <label>${t("sheetDialogs.changeDataSourceRange", "Bảng/Vùng dữ liệu nguồn:")}
+          <input id="vno-pivot-change-source-range" value="${this._escapeHtml(currentSource)}" aria-label="${t("sheetDialogs.changeDataSourceRange", "Bảng/Vùng dữ liệu nguồn:")}">
+        </label>
+        <div class="vno-rule-error" role="alert" style="color: #dc2626; margin-top: 8px;"></div>
+      </div>`);
+    if (!overlay) return false;
+    const error = overlay.querySelector(".vno-rule-error");
+    overlay.querySelector(".vno-rule-apply").textContent = t("common.ok", "Đồng ý");
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      try {
+        const val = overlay.querySelector("#vno-pivot-change-source-range").value.trim();
+        let targetRange = val;
+        let targetSourceSheet = pivot.sourceSheet;
+        if (val.includes("!")) {
+          const parts = val.split("!");
+          targetSourceSheet = parts[0].trim().replace(/^['"]|['"]$/g, "");
+          targetRange = parts[1].trim();
+        }
+        this.changePivotDataSource(this.activeSheet, targetRange, targetSourceSheet);
+        overlay.closeDialog();
+      } catch (err) {
+        error.textContent = err.message;
+      }
+    });
+    return true;
+  }
+
+  async showPivotGroupDialog() {
+    await this._loadPivotEngine();
+    const pivot = this.pivotTablesBySheet[this.activeSheet]?.[0];
+    if (!pivot) {
+      if (this.options?.shell?.setStatus) {
+        this.options.shell.setStatus(t("sheetDialogs.pivotNotActive", "Trang tính hiện tại không phải Bảng tổng hợp."));
+      }
+      return false;
+    }
+    const candidateFields = [...(pivot.rows || []), ...(pivot.columns || [])];
+    const overlay = this._createSheetDialog(t("sheetDialogs.pivotGroupTitle", "Nhóm dữ liệu Bảng tổng hợp"), `
+      <div class="vno-pivot-group-dialog" style="display:flex; flex-direction:column; gap:10px;">
+        <label>${t("sheetDialogs.pivotGroupField", "Trường cần nhóm:")}
+          <select id="vno-pivot-group-field" class="vno-select" style="width:100%; margin-top:4px;">
+            ${candidateFields.map(f => `<option value="${this._escapeHtml(f)}">${this._escapeHtml(f)}</option>`).join("")}
+          </select>
+        </label>
+        <div style="border:1px solid #e2e8f0; border-radius:6px; padding:10px;">
+          <strong>${t("sheetDialogs.pivotGroupNumber", "Nhóm theo số")}</strong>
+          <div style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-top:6px;">
+            <label>${t("sheetDialogs.pivotGroupStart", "Bắt đầu:")}<input id="vno-group-start" type="number" value="10" style="width:100%"></label>
+            <label>${t("sheetDialogs.pivotGroupEnd", "Kết thúc:")}<input id="vno-group-end" type="number" value="40" style="width:100%"></label>
+            <label>${t("sheetDialogs.pivotGroupBy", "Bước nhảy:")}<input id="vno-group-by" type="number" value="10" style="width:100%"></label>
+          </div>
+        </div>
+        <div style="border:1px solid #e2e8f0; border-radius:6px; padding:10px;">
+          <strong>${t("sheetDialogs.pivotGroupDate", "Nhóm theo ngày")}</strong>
+          <div style="display:flex; gap:12px; margin-top:6px; flex-wrap:wrap;">
+            <label><input type="checkbox" id="vno-date-days" value="days"> ${t("sheetDialogs.pivotGroupDays", "Ngày")}</label>
+            <label><input type="checkbox" id="vno-date-months" value="months" checked> ${t("sheetDialogs.pivotGroupMonths", "Tháng")}</label>
+            <label><input type="checkbox" id="vno-date-quarters" value="quarters"> ${t("sheetDialogs.pivotGroupQuarters", "Quý")}</label>
+            <label><input type="checkbox" id="vno-date-years" value="years"> ${t("sheetDialogs.pivotGroupYears", "Năm")}</label>
+          </div>
+        </div>
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <button type="button" class="vno-btn" id="vno-btn-ungroup" style="color:#dc2626;">${t("sheetDialogs.pivotUngroupBtn", "Bỏ nhóm")}</button>
+          <div class="vno-rule-error" role="alert" style="color:#dc2626;"></div>
+        </div>
+      </div>`);
+    if (!overlay) return false;
+    const error = overlay.querySelector(".vno-rule-error");
+    overlay.querySelector("#vno-btn-ungroup").addEventListener("click", () => {
+      const field = overlay.querySelector("#vno-pivot-group-field").value;
+      this.ungroupPivotField(this.activeSheet, field);
+      overlay.closeDialog();
+    });
+    overlay.querySelector(".vno-rule-apply").textContent = t("common.apply", "Áp dụng");
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+      try {
+        const field = overlay.querySelector("#vno-pivot-group-field").value;
+        const checkedDate = ["days", "months", "quarters", "years"].filter(p => overlay.querySelector(`#vno-date-${p}`)?.checked);
+        const start = overlay.querySelector("#vno-group-start").value;
+        const end = overlay.querySelector("#vno-group-end").value;
+        const by = overlay.querySelector("#vno-group-by").value;
+
+        const sourceCells = this.sheetsData[pivot.sourceSheet];
+        const parsed = this.pivotTableEngine.readSource(sourceCells, pivot.sourceRange);
+        const sampleVal = parsed.records[0]?.[field];
+        const isDateSample = this.pivotTableEngine.parseDateValue(sampleVal);
+
+        if (isDateSample && checkedDate.length) {
+          this.groupPivotField(this.activeSheet, field, { type: "date", periods: checkedDate });
+        } else {
+          this.groupPivotField(this.activeSheet, field, { type: "number", start: +start, end: +end, by: +by });
+        }
+        overlay.closeDialog();
+      } catch (err) {
+        error.textContent = err.message;
+      }
+    });
+    return true;
+  }
+
+  async showPivotCalculatedFieldDialog() {
+    await this._loadPivotEngine();
+    const pivot = this.pivotTablesBySheet[this.activeSheet]?.[0];
+    if (!pivot) {
+      if (this.options?.shell?.setStatus) {
+        this.options.shell.setStatus(t("sheetDialogs.pivotNotActive", "Trang tính hiện tại không phải Bảng tổng hợp."));
+      }
+      return false;
+    }
+    const sourceCells = this.sheetsData[pivot.sourceSheet];
+    const { headers } = this.pivotTableEngine.readSource(sourceCells, pivot.sourceRange);
+    const calcFields = pivot.calculatedFields || [];
+
+    const overlay = this._createSheetDialog(t("sheetDialogs.pivotCalcFieldTitle", "Chèn trường tính toán"), `
+      <div class="vno-pivot-calc-dialog" style="display:flex; flex-direction:column; gap:10px;">
+        <div>
+          <label>${t("sheetDialogs.pivotCalcFieldName", "Tên trường:")}
+            <input id="vno-calc-name" style="width:100%; margin-top:4px;" placeholder="Ví dụ: Thue_VAT">
+          </label>
+        </div>
+        <div>
+          <label>${t("sheetDialogs.pivotCalcFieldFormula", "Công thức:")}
+            <input id="vno-calc-formula" style="width:100%; margin-top:4px;" value="=" placeholder="Ví dụ: =Doanh_so*0.1">
+          </label>
+        </div>
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:10px;">
+          <div>
+            <label><strong>${t("sheetDialogs.pivotCalcFieldFields", "Các trường khả dụng:")}</strong></label>
+            <div id="vno-calc-fields-list" style="border:1px solid #e2e8f0; height:100px; overflow-y:auto; padding:4px; border-radius:4px; margin-top:4px;">
+              ${headers.map(h => `<div class="vno-calc-field-item" data-field="${this._escapeHtml(h)}" style="padding:2px 4px; cursor:pointer;">${this._escapeHtml(h)}</div>`).join("")}
+            </div>
+          </div>
+          <div>
+            <label><strong>${t("sheetDialogs.pivotCalcExisting", "Trường tính toán hiện có:")}</strong></label>
+            <div id="vno-calc-existing-list" style="border:1px solid #e2e8f0; height:100px; overflow-y:auto; padding:4px; border-radius:4px; margin-top:4px;">
+              ${calcFields.map(c => `<div class="vno-calc-existing-item" data-name="${this._escapeHtml(c.name)}" data-formula="${this._escapeHtml(c.formula)}" style="padding:2px 4px; cursor:pointer;">${this._escapeHtml(c.name)} (${this._escapeHtml(c.formula)})</div>`).join("")}
+            </div>
+          </div>
+        </div>
+        <div style="display:flex; gap:8px; justify-content:flex-end; align-items:center;">
+          <button type="button" class="vno-btn" id="vno-btn-calc-delete" style="color:#dc2626;">${t("sheetDialogs.pivotCalcFieldDelete", "Xóa")}</button>
+          <button type="button" class="vno-btn" id="vno-btn-calc-add" style="background:#0F6D38; color:#fff;">${t("sheetDialogs.pivotCalcFieldAdd", "Thêm / Sửa")}</button>
+        </div>
+        <div class="vno-rule-error" role="alert" style="color:#dc2626;"></div>
+      </div>`);
+    if (!overlay) return false;
+    const error = overlay.querySelector(".vno-rule-error");
+    const nameInput = overlay.querySelector("#vno-calc-name");
+    const formulaInput = overlay.querySelector("#vno-calc-formula");
+
+    overlay.querySelectorAll(".vno-calc-field-item").forEach(item => {
+      item.addEventListener("dblclick", () => {
+        const f = item.dataset.field;
+        const token = f.includes(" ") ? `'${f}'` : f;
+        formulaInput.value += token;
+      });
+    });
+
+    overlay.querySelectorAll(".vno-calc-existing-item").forEach(item => {
+      item.addEventListener("click", () => {
+        nameInput.value = item.dataset.name;
+        formulaInput.value = item.dataset.formula;
+      });
+    });
+
+    overlay.querySelector("#vno-btn-calc-add").addEventListener("click", () => {
+      const name = nameInput.value.trim();
+      const formula = formulaInput.value.trim();
+      if (!name) { error.textContent = "Vui lòng nhập tên trường."; return; }
+      if (!formula || formula === "=") { error.textContent = "Vui lòng nhập công thức."; return; }
+      try {
+        this.addPivotCalculatedField(this.activeSheet, name, formula);
+        overlay.closeDialog();
+      } catch (err) {
+        error.textContent = err.message;
+      }
+    });
+
+    overlay.querySelector("#vno-btn-calc-delete").addEventListener("click", () => {
+      const name = nameInput.value.trim();
+      if (!name) { error.textContent = "Vui lòng chọn trường cần xóa."; return; }
+      try {
+        this.deletePivotCalculatedField(this.activeSheet, name);
+        overlay.closeDialog();
+      } catch (err) {
+        error.textContent = err.message;
+      }
+    });
+
+    overlay.querySelector(".vno-rule-apply").textContent = t("common.close", "Đóng");
+    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => overlay.closeDialog());
     return true;
   }
 
