@@ -361,6 +361,88 @@ export async function runSheetExternalLinksDialogTests() {
     if (banned.test(enText)) throw new Error("enStrings.sheetDialogs.editLinks chứa tên bị cấm");
   });
 
+  test("9. Phân biệt chính xác liên kết ngoài ([1]Sheet!A1, [Book.xlsx]Sheet!A1) và tham chiếu cấu trúc Bảng ([Cột], [@Cột])", () => {
+    const grid = new SheetGridController(mockContainer());
+    grid.sheets = ["Sheet1"];
+    grid.activeSheet = "Sheet1";
+    const map = new Map();
+    grid.sheetsData["Sheet1"] = map;
+
+    // 1. Kiểm tra _isExternalLink
+    const extCell1 = { formula: "=[1]Sheet1!A1", val: 50 };
+    const extCell2 = { formula: "=[Book.xlsx]Sheet1!A1", val: 100 };
+    const extCell3 = { formula: "='C:\\data\\[Book.xlsx]Sheet1'!A1", val: 150 };
+    const extCell4 = { formula: "=[Book.xlsx]!Tong", val: 200 };
+    const extCell5 = { formula: "=[Nguon.xlsx]Sheet1!A1", val: 250, externalLink: { formula: "=[Nguon.xlsx]Sheet1!A1" } };
+
+    const tableCell1 = { formula: "=SUBTOTAL(109,[Salary])", val: "" };
+    const tableCell2 = { formula: "=[@Qty]*[@Price]", val: "" };
+    const tableCell3 = { formula: "=Table1[Salary]", val: "" };
+    const tableCell4 = { formula: "=[#Totals]", val: "" };
+    const normalCell = { formula: "=A1+B1", val: "" };
+
+    for (const c of [extCell1, extCell2, extCell3, extCell4, extCell5]) {
+      if (!grid._isExternalLink(c)) {
+        throw new Error(`Ô liên kết ngoài ${c.formula} không được nhận diện đúng bởi _isExternalLink`);
+      }
+    }
+
+    for (const c of [tableCell1, tableCell2, tableCell3, tableCell4, normalCell]) {
+      if (grid._isExternalLink(c)) {
+        throw new Error(`Ô tham chiếu bảng hoặc nội bộ ${c.formula} bị nhận nhầm là liên kết ngoài!`);
+      }
+    }
+
+    // 2. getLinkSources không được trích xuất nhầm cột bảng
+    map.set("A1", extCell2);
+    map.set("B4", tableCell1);
+    map.set("C4", tableCell2);
+
+    const sources = grid.getLinkSources();
+    if (sources.length !== 1) {
+      throw new Error(`getLinkSources phải chỉ có 1 nguồn Book.xlsx, thực tế có ${sources.length}: ${sources.map(s => s.source).join(", ")}`);
+    }
+    if (sources[0].fileName.toLowerCase() !== "book.xlsx") {
+      throw new Error(`Nguồn phải là Book.xlsx, thực tế: ${sources[0].fileName}`);
+    }
+
+    // 3. Khởi tạo bảng mẫu và kiểm tra _recalculateAllFormulas tính toán đúng tham chiếu cấu trúc
+    map.set("A1", { val: "Dept", formula: "", style: {} });
+    map.set("B1", { val: "Salary", formula: "", style: {} });
+    map.set("A2", { val: "IT", formula: "", style: {} });
+    map.set("B2", { val: 1000, formula: "", style: {} });
+    map.set("A3", { val: "HR", formula: "", style: {} });
+    map.set("B3", { val: 1500, formula: "", style: {} });
+    map.set("A4", { val: "Total", formula: "", style: {} });
+    map.set("B4", { val: "", formula: "=SUBTOTAL(109,[Salary])", style: {} });
+
+    grid.tablesBySheet = {
+      Sheet1: [
+        {
+          name: "TblTest",
+          ref: "A1:B4",
+          hasHeaders: true,
+          showTotals: true
+        }
+      ]
+    };
+
+    grid._recalculateAllFormulas();
+
+    const totalCell = map.get("B4");
+    if (totalCell.val !== 2500) {
+      throw new Error(`Công thức bảng B4 =SUBTOTAL(109,[Salary]) phải tính ra 2500, thực tế: ${totalCell.val}`);
+    }
+
+    // Ô liên kết ngoài phải giữ nguyên giá trị cache
+    map.set("D1", { val: 999, formula: "=[Book.xlsx]Sheet1!A1", style: {} });
+    grid._recalculateAllFormulas();
+    const d1Cell = map.get("D1");
+    if (d1Cell.val !== 999) {
+      throw new Error(`Ô liên kết ngoài D1 phải giữ nguyên giá trị cache 999, thực tế: ${d1Cell.val}`);
+    }
+  });
+
   return results;
 }
 

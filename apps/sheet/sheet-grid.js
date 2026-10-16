@@ -982,13 +982,15 @@ export class SheetGridController {
 
     // 2. Formula string
     const formula = item.formula || item.externalLink?.formula;
-    if (formula && typeof formula === "string") {
-      // Dạng đầy đủ: 'C:\dir\[Nguon.xlsx]... hoặc "C:\dir\[Nguon.xlsx]...
-      const fullMatches = formula.matchAll(/'?((?:[A-Za-z]:\\[^'\[\]]*\\|\\\\\w+\\[^'\[\]]+\\))\[([^\]]+)\]/g);
-      for (const m of fullMatches) {
-        const dir = m[1];
+    if (formula && typeof formula === "string" && formula.includes("[")) {
+      const clean = formula.replace(/"(?:""|[^"])*"/g, '""');
+
+      // Dạng 1 (Quoted): 'C:\dir\[Nguon.xlsx]Sheet Name'!A1 hoặc '[Nguon.xlsx]Sheet'!A1 hoặc 'C:\dir\[Nguon.xlsx]'!Name
+      const quotedMatches = clean.matchAll(/'(?:((?:[A-Za-z]:\\[^'\[\]]*\\|\\\\\w+\\[^'\[\]]+\\|[A-Za-z0-9_/.-]+[\\/]))?\[([^\]]+)\]([^'\[\]]*))'\s*!/g);
+      for (const m of quotedMatches) {
+        const dir = m[1] || "";
         const fileName = m[2];
-        const source = `${dir}${fileName}`;
+        const source = dir ? `${dir}${fileName}` : fileName;
         const fnKey = fileName.toLowerCase();
         if (!byFileName.has(fnKey)) {
           const entry = { source, fileName };
@@ -998,11 +1000,11 @@ export class SheetGridController {
           byFileName.get(fnKey).source = source;
         }
       }
-      // Dạng chỉ có tên file: [Nguon.xlsx]...
-      const fileMatches = formula.matchAll(/\[([^\]]+)\]/g);
-      for (const m of fileMatches) {
+
+      // Dạng 2 (Unquoted): [Nguon.xlsx]Sheet1!A1 hoặc [1]Sheet1!A1 hoặc [Nguon.xlsx]!Name
+      const unquotedMatches = clean.matchAll(/(?:^|[^'A-Za-z0-9_.\\])\[([^\]]+)\]([A-Za-z0-9_.\u0080-\uFFFF]*)\s*!/g);
+      for (const m of unquotedMatches) {
         const fileName = m[1];
-        if (/^\d+$/.test(fileName)) continue;
         const fnKey = fileName.toLowerCase();
         if (!byFileName.has(fnKey)) {
           const entry = { source: fileName, fileName };
@@ -1012,6 +1014,31 @@ export class SheetGridController {
       }
     }
     return results;
+  }
+
+  _isExternalLink(item) {
+    if (!item) return false;
+    const formula = item.formula || "";
+    if (!formula || typeof formula !== "string") return false;
+    if (item.externalLink) {
+      if (item.externalLink.formula === formula) return true;
+      if (this._isExternalLinkFormula(formula)) return true;
+    }
+    return this._isExternalLinkFormula(formula);
+  }
+
+  _isExternalLinkFormula(formula) {
+    if (!formula || typeof formula !== "string" || !formula.includes("[")) return false;
+    const clean = formula.replace(/"(?:""|[^"])*"/g, '""');
+    // 1. Quoted: 'C:\dir\[File.xlsx]Sheet Name'!A1 or '[File.xlsx]Sheet'!A1 or 'C:\dir\[File.xlsx]'!Name
+    if (/'(?:(?:[A-Za-z]:\\[^'\[\]]*\\|\\\\\w+\\[^'\[\]]+\\|[A-Za-z0-9_/.-]+[\\/]))?\[[^\]]+\][^'\[\]]*'\s*!/.test(clean)) {
+      return true;
+    }
+    // 2. Unquoted: [File.xlsx]Sheet1!A1 or [1]Sheet1!A1 or [File.xlsx]!Name
+    if (/(?:^|[^'A-Za-z0-9_.\\])\[[^\]]+\][A-Za-z0-9_.\u0080-\uFFFF]*\s*!/.test(clean)) {
+      return true;
+    }
+    return false;
   }
 
   _cellMatchesSource(item, targetKey, targetFileName) {
@@ -1100,7 +1127,7 @@ export class SheetGridController {
     let count = 0;
     for (const sheetData of Object.values(this.sheetsData || {})) {
       for (const item of sheetData?.values?.() || []) {
-        if (item?.externalLink || (item?.formula && /\[[^\]]+\]/.test(item.formula))) count++;
+        if (this._isExternalLink(item)) count++;
       }
     }
     this.externalLinkCells = count;
@@ -6760,7 +6787,7 @@ _bindGridKeyboardNavigation() {
       if (!map) continue;
       this.activeSheet = sheet;
       for (const [coord, item] of map) {
-        if (!item?.formula || (item.externalLink && item.externalLink.formula === item.formula) || /\[[^\]]+\]/.test(item.formula)) continue;
+        if (!item?.formula || this._isExternalLink(item)) continue;
         const extracted = this.formulaEngine?.getStaticFormulaReferences?.(item.formula, sheet);
         if (!extracted || !extracted.safe) continue;
         const id = formulaId(sheet, coord);
@@ -6994,7 +7021,7 @@ _bindGridKeyboardNavigation() {
         if (included && (sheetName !== activeSheet || k !== excludeKey) && itm.formula) {
           // A link to another (closed) workbook keeps its cached value, as in
           // Excel; evaluating it here would overwrite the value with an error.
-          if ((itm.externalLink && itm.externalLink.formula === itm.formula) || /\[[^\]]+\]/.test(itm.formula)) continue;
+          if (this._isExternalLink(itm)) continue;
           let res;
           if (itm.isArrayFormula && itm.arrayRange) {
             const results = this.formulaEngine.evaluateArray(itm.formula);
