@@ -116,7 +116,29 @@ try {
         "sort" { Retry { [void]$ws.Range($op.range).Sort($ws.Range($op.key), [int]$op.order, $missing, $missing, 1, $missing, 1, 0) } }
         "filterEq" { Retry { [void]$ws.Range($op.range).AutoFilter([int]$op.field, [string]$op.value) } }
         "hideRow" { Retry { $ws.Rows($op.at).Hidden = $true } }
-        "autoFill" { Retry { [void]$ws.Range($op.src).AutoFill($ws.Range($op.dest), 0) } }
+        "autoFill" {
+          $ft = 0
+          if ($op.fillType) {
+            switch ($op.fillType) {
+              "default" { $ft = 0 }
+              "copy" { $ft = 1 }
+              "series" { $ft = 2 }
+              "formats" { $ft = 3 }
+              "withoutFormats" { $ft = 4 }
+              "days" { $ft = 5 }
+              "weekdays" { $ft = 6 }
+              "months" { $ft = 7 }
+              "years" { $ft = 8 }
+              "linearTrend" { $ft = 9 }
+              "growthTrend" { $ft = 10 }
+              "flash" { $ft = 11 }
+              default { if ($op.fillType -is [int]) { $ft = [int]$op.fillType } }
+            }
+          }
+          Retry { [void]$ws.Range($op.src).AutoFill($ws.Range($op.dest), $ft) }
+        }
+        "moveCells" { Retry { $ws.Range($op.from).Cut($ws.Range($op.to)) | Out-Null } }
+        "copyCells" { Retry { $ws.Range($op.from).Copy($ws.Range($op.to)) | Out-Null } }
         "advancedFilter" { Retry { if ($op.copyTo) { [void]$ws.Range($op.list).AdvancedFilter(2, $ws.Range($op.criteria), $ws.Range($op.copyTo), [bool]$op.unique) } else { [void]$ws.Range($op.list).AdvancedFilter(1, $ws.Range($op.criteria), $missing, [bool]$op.unique) } } }
         "deleteRows" { Retry { [void]$ws.Rows("$($op.from):$($op.to)").Delete() } }
         "insertRows" { Retry { [void]$ws.Rows("$($op.at):$($op.at + $op.count - 1)").Insert() } }

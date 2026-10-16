@@ -2206,6 +2206,9 @@ export class SheetGridController {
     const handle = document.createElement("div");
     handle.className = "vno-cell-autofill-handle";
     handle.title = "Kéo để tự động điền (AutoFill)";
+    handle.addEventListener("mouseenter", (e) => {
+      handle.classList.toggle("is-ctrl-copy", Boolean(e.ctrlKey || e.metaKey));
+    });
     handle.addEventListener("mousedown", (e) => {
       e.preventDefault();
       e.stopPropagation();
@@ -2219,18 +2222,27 @@ export class SheetGridController {
     td.appendChild(handle);
   }
 
+  _attachMoveHandleSide(td, side) {
+    if (!td || typeof document === "undefined" || typeof document.createElement !== "function" || td.querySelector?.(`.vno-cell-move-handle.${side}`)) return;
+    const mh = document.createElement("div");
+    mh.className = `vno-cell-move-handle ${side}`;
+    mh.title = "Kéo viền để di chuyển ô (Drag border to move)";
+    mh.addEventListener("mouseenter", (e) => {
+      mh.classList.toggle("is-ctrl-copy", Boolean(e.ctrlKey || e.metaKey));
+      mh.classList.toggle("is-shift-insert", Boolean(e.shiftKey));
+    });
+    mh.addEventListener("mousedown", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this._startCellMove(e);
+    });
+    td.appendChild(mh);
+  }
+
   _attachMoveHandles(td) {
-    if (!td || typeof document === "undefined" || typeof document.createElement !== "function" || td.querySelector?.(".vno-cell-move-handle")) return;
+    if (!td) return;
     for (const side of ["top", "bottom", "left", "right"]) {
-      const mh = document.createElement("div");
-      mh.className = `vno-cell-move-handle ${side}`;
-      mh.title = "Kéo viền để di chuyển ô (Drag border to move)";
-      mh.addEventListener("mousedown", (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        this._startCellMove(e);
-      });
-      td.appendChild(mh);
+      this._attachMoveHandleSide(td, side);
     }
   }
 
@@ -2945,15 +2957,32 @@ export class SheetGridController {
       cell.classList.toggle("is-selected", isActive);
       cell.classList.toggle("is-range-selected", selected && isMulti);
       this._applyClipboardVisual(cell, cell.dataset.col, row);
+      cell.querySelectorAll?.(".vno-cell-move-handle, .vno-cell-autofill-handle").forEach(el => el.remove());
       if (!isActive) {
-        cell.querySelectorAll?.(".vno-cell-move-handle, .vno-cell-validation-select").forEach(el => el.remove());
+        cell.querySelectorAll?.(".vno-cell-validation-select").forEach(el => el.remove());
       }
     });
 
-    const activeCell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${activeCoordKey}"]`);
-    if (activeCell) this._attachMoveHandles(activeCell);
-    this.container?.querySelectorAll?.(".vno-cell-autofill-handle").forEach(handle => handle.remove());
-    const norm = this._normalizeRange(this.selectionRange);
+    this.container?.querySelectorAll?.(".vno-cell-move-handle, .vno-cell-autofill-handle").forEach(el => el.remove());
+    const norm = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const startColNum = this._columnNumber(norm.start.c);
+    const endColNum = this._columnNumber(norm.end.c);
+
+    // Gắn tay cầm di chuyển cho các cạnh của vùng chọn (hoặc ô đơn)
+    for (let cNum = startColNum; cNum <= endColNum; cNum++) {
+      const col = this._columnLabel(cNum);
+      const topCell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${col}${norm.start.r}"]`);
+      if (topCell) this._attachMoveHandleSide(topCell, "top");
+      const bottomCell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${col}${norm.end.r}"]`);
+      if (bottomCell) this._attachMoveHandleSide(bottomCell, "bottom");
+    }
+    for (let r = norm.start.r; r <= norm.end.r; r++) {
+      const leftCell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${norm.start.c}${r}"]`);
+      if (leftCell) this._attachMoveHandleSide(leftCell, "left");
+      const rightCell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${norm.end.c}${r}"]`);
+      if (rightCell) this._attachMoveHandleSide(rightCell, "right");
+    }
+
     const endCell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${norm.end.c}${norm.end.r}"]`);
     if (endCell) this._attachAutofillHandle(endCell);
 
@@ -2970,6 +2999,7 @@ export class SheetGridController {
       this._syncFormulaBarHeight();
       this._resizeFormulaInput();
     }
+    const activeCell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${activeCoordKey}"]`);
     this._showValidationDropdown(activeCell, this.selectedCoord.c, this.selectedCoord.r);
     this.options.onSelect?.(activeCoordKey, data, this._calculateStats());
     this.container?.focus?.({ preventScroll: true });
@@ -3057,23 +3087,45 @@ export class SheetGridController {
 
   _startAutofill(e) {
     if (this._isAutofilling) return;
+    this._dismissAutofillOptions();
     this._isAutofilling = true;
     const norm = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
     this._autofillSource = norm;
     this._autofillTarget = null;
+    this._autofillCtrl = Boolean(e && (e.ctrlKey || e.metaKey));
 
-    const onMove = (moveEvt) => this._onAutofillMouseMove(moveEvt);
+    const onKeyDown = (ke) => {
+      if (ke.key === "Control" || ke.key === "Meta") {
+        this._autofillCtrl = true;
+        this.container?.querySelector?.(".vno-cell-autofill-handle")?.classList.add("is-ctrl-copy");
+      }
+    };
+    const onKeyUp = (ke) => {
+      if (ke.key === "Control" || ke.key === "Meta") {
+        this._autofillCtrl = false;
+        this.container?.querySelector?.(".vno-cell-autofill-handle")?.classList.remove("is-ctrl-copy");
+      }
+    };
+    const onMove = (moveEvt) => {
+      this._autofillCtrl = Boolean(moveEvt.ctrlKey || moveEvt.metaKey);
+      this._onAutofillMouseMove(moveEvt);
+    };
     const onUp = (upEvt) => {
       if (typeof window !== "undefined") {
         window.removeEventListener("mousemove", onMove);
         window.removeEventListener("mouseup", onUp);
+        window.removeEventListener("keydown", onKeyDown);
+        window.removeEventListener("keyup", onKeyUp);
       }
+      this.container?.querySelector?.(".vno-cell-autofill-handle")?.classList.remove("is-ctrl-copy");
       this._onAutofillMouseUp(upEvt);
     };
 
     if (typeof window !== "undefined") {
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
+      window.addEventListener("keydown", onKeyDown);
+      window.addEventListener("keyup", onKeyUp);
     }
   }
 
@@ -3092,7 +3144,7 @@ export class SheetGridController {
       const targetColNum = this._columnNumber(targetCol);
 
       if (targetRow > srcMaxRow) {
-        // Vertical Fill Down
+        // Điền dọc xuống dưới
         this._autofillTarget = {
           direction: "down",
           startCol: src.start.c,
@@ -3107,7 +3159,7 @@ export class SheetGridController {
           }
         }
       } else if (targetColNum > srcMaxColNum) {
-        // Horizontal Fill Right
+        // Điền ngang sang phải
         this._autofillTarget = {
           direction: "right",
           startColNum: srcMaxColNum + 1,
@@ -3138,34 +3190,74 @@ export class SheetGridController {
   _onAutofillMouseUp(upEvent) {
     this.container?.querySelectorAll?.(".is-autofill-preview").forEach(c => c.classList.remove("is-autofill-preview"));
     this._isAutofilling = false;
+    const ctrlKey = Boolean(this._autofillCtrl || (upEvent && (upEvent.ctrlKey || upEvent.metaKey)));
     if (this._autofillSource && this._autofillTarget) {
-      this._executeAutofill(this._autofillSource, { ...this._autofillTarget, series: Boolean(upEvent && (upEvent.ctrlKey || upEvent.metaKey)) });
+      this._executeAutofill(this._autofillSource, { ...this._autofillTarget, ctrlKey });
     }
     this._autofillSource = null;
     this._autofillTarget = null;
+    this._autofillCtrl = false;
+  }
+
+  _getAdjacentFillEndRow(src) {
+    // 1. Kiểm tra nếu vùng chọn nằm trong Bảng (Excel Table)
+    const table = (this.tablesBySheet?.[this.activeSheet] || []).find(tbl => {
+      const bounds = this._normalizeRange(this._parseRange(tbl.ref));
+      if (!bounds) return false;
+      const colStart = this._columnNumber(bounds.start.c);
+      const colEnd = this._columnNumber(bounds.end.c);
+      const srcColStart = this._columnNumber(src.start.c);
+      const srcColEnd = this._columnNumber(src.end.c);
+      return srcColStart >= colStart && srcColEnd <= colEnd &&
+             src.start.r >= bounds.start.r && src.end.r <= bounds.end.r;
+    });
+    if (table) {
+      const bounds = this._normalizeRange(this._parseRange(table.ref));
+      const dataEnd = bounds.end.r - (table.showTotals ? 1 : 0);
+      if (dataEnd > src.end.r) {
+        return dataEnd;
+      }
+    }
+
+    // 2. Quy tắc cột liền kề Excel: Ưu tiên cột bên trái trước, nếu không có mới xét cột bên phải
+    const startColNum = this._columnNumber(src.start.c);
+    const endColNum = this._columnNumber(src.end.c);
+
+    const hasData = (col, row) => {
+      const item = this.cellsData.get(`${col}${row}`);
+      return Boolean(item && (item.formula || (item.val !== null && item.val !== undefined && String(item.val) !== "")));
+    };
+
+    const scanContiguous = (colNum) => {
+      if (colNum < 1 || colNum > this.cols.length) return null;
+      const col = this._columnLabel(colNum);
+      // Ô lân cận ngay dòng tiếp theo (src.end.r + 1) PHẢI có dữ liệu
+      if (!hasData(col, src.end.r + 1)) return null;
+
+      let endRow = src.end.r + 1;
+      for (let r = src.end.r + 2; r <= this.rowCount; r++) {
+        if (!hasData(col, r)) break;
+        endRow = r;
+      }
+      return endRow;
+    };
+
+    // Kiểm tra cột trái trước
+    const leftEnd = scanContiguous(startColNum - 1);
+    if (leftEnd !== null) return leftEnd;
+
+    // Nếu cột trái không có dữ liệu nối tiếp, kiểm tra cột phải
+    const rightEnd = scanContiguous(endColNum + 1);
+    if (rightEnd !== null) return rightEnd;
+
+    return null;
   }
 
   _autofillDownToAdjacentData() {
     const src = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
-    const startCol = this._columnNumber(src.start.c);
-    const endCol = this._columnNumber(src.end.c);
-    const adjacentCols = [startCol - 1, endCol + 1]
-      .filter(col => col >= 1 && col <= this.cols.length);
-    let endRow = src.end.r;
+    const endRow = this._getAdjacentFillEndRow(src);
+    if (!endRow || endRow <= src.end.r) return false;
 
-    for (const colNum of adjacentCols) {
-      let contiguousEnd = src.end.r;
-      const col = this._columnLabel(colNum);
-      for (let row = src.end.r + 1; row <= this.rowCount; row++) {
-        const item = this.cellsData.get(`${col}${row}`);
-        const hasValue = item && (item.formula || (item.val !== null && item.val !== undefined && String(item.val) !== ""));
-        if (!hasValue) break;
-        contiguousEnd = row;
-      }
-      endRow = Math.max(endRow, contiguousEnd);
-    }
-
-    if (endRow <= src.end.r) return false;
     this._executeAutofill(src, {
       direction: "down",
       startCol: src.start.c,
@@ -3180,7 +3272,8 @@ export class SheetGridController {
    * Giá trị ô điền tự động (kéo chốt điền) theo Excel: một số → sao chép (giữ Ctrl để tạo chuỗi); từ hai số trở lên → chuỗi tuyến tính
    * (hồi quy bình phương tối thiểu như Excel); chữ có số ở cuối (Item 1, SP01) → tăng số; tên tháng/thứ → xoay vòng; còn lại → lặp.
    */
-  _autofillSeriesValue(sourceCells, stepOffset, forceSeries, cycleCell) {
+  _autofillSeriesValue(sourceCells, stepOffset, forceSeries, cycleCell, isCopy = false) {
+    if (isCopy) return cycleCell.val;
     const monthsVi = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
     const monthsEn = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const daysVi = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
@@ -3199,6 +3292,7 @@ export class SheetGridController {
     };
     const nums = raws.map(raw => (raw !== "" ? Number(raw) : NaN));
     if (nums.every(Number.isFinite)) {
+      if (nums.length > 1 && !forceSeries) return cycleCell.val;
       const result = fit(nums);
       return Number(result.toPrecision(15));
     }
@@ -3206,7 +3300,9 @@ export class SheetGridController {
     if (tails.every(Boolean) && tails.every(m => m[1] === tails[0][1])) {
       const values = tails.map(m => parseInt(m[2], 10));
       const width = tails[tails.length - 1][2].length;
-      const next = values.length === 1 ? values[0] + stepOffset : Math.round(fit(values));
+      const next = values.length === 1
+        ? (forceSeries ? values[0] + stepOffset : values[0])
+        : (forceSeries ? Math.round(fit(values)) : values[(stepOffset - 1) % values.length]);
       return `${tails[0][1]}${String(Math.max(0, next)).padStart(width, "0")}`;
     }
     if (count === 1) {
@@ -3220,14 +3316,15 @@ export class SheetGridController {
     return cycleCell.val;
   }
 
-  _executeAutofill(src, target) {
-    const before = {};
+  _executeAutofill(src, target, options = {}) {
+    const before = options.initialBefore ? structuredClone(options.initialBefore) : {};
     const after = {};
 
     const monthsVi = ["Tháng 1", "Tháng 2", "Tháng 3", "Tháng 4", "Tháng 5", "Tháng 6", "Tháng 7", "Tháng 8", "Tháng 9", "Tháng 10", "Tháng 11", "Tháng 12"];
     const monthsEn = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
     const daysVi = ["Thứ 2", "Thứ 3", "Thứ 4", "Thứ 5", "Thứ 6", "Thứ 7", "Chủ nhật"];
     const dayMs = 24 * 60 * 60 * 1000;
+
     const parseDate = value => {
       const raw = String(value ?? "").trim();
       const ymd = raw.match(/^(\d{4})([/-])(\d{1,2})\2(\d{1,2})$/);
@@ -3241,17 +3338,74 @@ export class SheetGridController {
       if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) return null;
       return {
         utc,
+        year,
+        month,
+        day,
         yearFirst: !!ymd,
         separator: (ymd || dmy)[2],
         dayWidth: ymd ? ymd[4].length : dmy[1].length,
         monthWidth: ymd ? ymd[3].length : dmy[3].length
       };
     };
-    const dateSequenceValue = (sourceCells, offset) => {
+
+    const dateSequenceValue = (sourceCells, offset, dateMode = "days", isCopy = false) => {
+      if (isCopy) return null;
       const dates = sourceCells.map(cell => parseDate(cell.val));
       if (!dates.length || dates.some(date => !date)) return null;
       const first = dates[0];
       const last = dates[dates.length - 1];
+      const base = new Date(last.utc);
+      const D = base.getUTCDate();
+      const M = base.getUTCMonth();
+      const Y = base.getUTCFullYear();
+      const isLastDay = new Date(Date.UTC(Y, M + 1, 0)).getUTCDate() === D;
+
+      if (dateMode === "weekdays") {
+        const curr = new Date(last.utc);
+        const step = dates.length === 1 ? 1 : Math.max(1, Math.round((last.utc - first.utc) / dayMs / (dates.length - 1)));
+        for (let i = 0; i < offset * step; i++) {
+          curr.setUTCDate(curr.getUTCDate() + 1);
+          while (curr.getUTCDay() === 0 || curr.getUTCDay() === 6) {
+            curr.setUTCDate(curr.getUTCDate() + 1);
+          }
+        }
+        const day = String(curr.getUTCDate()).padStart(last.dayWidth, "0");
+        const month = String(curr.getUTCMonth() + 1).padStart(last.monthWidth, "0");
+        const year = String(curr.getUTCFullYear()).padStart(4, "0");
+        return last.yearFirst
+          ? `${year}${last.separator}${month}${last.separator}${day}`
+          : `${day}${last.separator}${month}${last.separator}${year}`;
+      }
+
+      if (dateMode === "months") {
+        const stepMonths = dates.length === 1 ? 1 : Math.max(1, (last.year - first.year) * 12 + (last.month - first.month));
+        const targetMonthTotal = M + offset * stepMonths;
+        const targetYear = Y + Math.floor(targetMonthTotal / 12);
+        const targetMonth = ((targetMonthTotal % 12) + 12) % 12;
+        const maxDays = new Date(Date.UTC(targetYear, targetMonth + 1, 0)).getUTCDate();
+        const targetDay = isLastDay ? maxDays : Math.min(D, maxDays);
+        const day = String(targetDay).padStart(last.dayWidth, "0");
+        const month = String(targetMonth + 1).padStart(last.monthWidth, "0");
+        const year = String(targetYear).padStart(4, "0");
+        return last.yearFirst
+          ? `${year}${last.separator}${month}${last.separator}${day}`
+          : `${day}${last.separator}${month}${last.separator}${year}`;
+      }
+
+      if (dateMode === "years") {
+        const stepYears = dates.length === 1 ? 1 : Math.max(1, last.year - first.year);
+        const targetYear = Y + offset * stepYears;
+        const maxDays = new Date(Date.UTC(targetYear, M + 1, 0)).getUTCDate();
+        const targetDay = Math.min(D, maxDays);
+        const day = String(targetDay).padStart(last.dayWidth, "0");
+        const month = String(M + 1).padStart(last.monthWidth, "0");
+        const year = String(targetYear).padStart(4, "0");
+        return last.yearFirst
+          ? `${year}${last.separator}${month}${last.separator}${day}`
+          : `${day}${last.separator}${month}${last.separator}${year}`;
+      }
+
+      // Mặc định: ngày (days)
       const stepDays = dates.length === 1
         ? 1
         : Math.round((last.utc - first.utc) / dayMs / (dates.length - 1));
@@ -3263,6 +3417,47 @@ export class SheetGridController {
         ? `${year}${last.separator}${month}${last.separator}${day}`
         : `${day}${last.separator}${month}${last.separator}${year}`;
     };
+
+    // Kiểm tra dữ liệu nguồn
+    const allSourceCells = [];
+    if (target.direction === "down") {
+      for (let cNum = this._columnNumber(src.start.c); cNum <= this._columnNumber(src.end.c); cNum++) {
+        const colLetter = this._columnLabel(cNum);
+        for (let r = src.start.r; r <= src.end.r; r++) {
+          allSourceCells.push(this.cellsData.get(`${colLetter}${r}`) || { val: "", formula: "", style: {} });
+        }
+      }
+    } else {
+      for (let r = src.start.r; r <= src.end.r; r++) {
+        for (let cNum = this._columnNumber(src.start.c); cNum <= this._columnNumber(src.end.c); cNum++) {
+          allSourceCells.push(this.cellsData.get(`${this._columnLabel(cNum)}${r}`) || { val: "", formula: "", style: {} });
+        }
+      }
+    }
+    const hasDates = allSourceCells.some(cell => parseDate(cell.val) !== null);
+
+    // Xác định fillType hiệu lực (xử lý phím Ctrl đảo chiều Sao chép <-> Chuỗi chuẩn Excel)
+    let fillType = target.fillType;
+    const ctrlKey = Boolean(target.ctrlKey || target.isCtrlPressed);
+
+    const srcCount = target.direction === "down"
+      ? (src.end.r - src.start.r + 1)
+      : (this._columnNumber(src.end.c) - this._columnNumber(src.start.c) + 1);
+    const firstCell = this.cellsData.get(`${src.start.c}${src.start.r}`);
+    const isFirstNum = firstCell && firstCell.val !== "" && Number.isFinite(Number(firstCell.val)) && !firstCell.formula;
+    const baseFillIsCopy = (srcCount === 1 && isFirstNum && !ctrlKey) || (ctrlKey && (srcCount > 1 || !isFirstNum));
+
+    if (!fillType) {
+      if (srcCount === 1 && isFirstNum) {
+        fillType = ctrlKey ? "series" : "copy";
+      } else if (ctrlKey) {
+        fillType = "copy";
+      } else if (hasDates) {
+        fillType = "days";
+      } else {
+        fillType = "series";
+      }
+    }
 
     if (target.direction === "down") {
       const srcStartRow = src.start.r;
@@ -3281,7 +3476,9 @@ export class SheetGridController {
         for (let r = target.startRow; r <= target.endRow; r++) {
           const destKey = `${colLetter}${r}`;
           const existing = this.cellsData.get(destKey) || { val: "", formula: "", style: {} };
-          before[destKey] = structuredClone(existing);
+          if (!Object.prototype.hasOwnProperty.call(before, destKey)) {
+            before[destKey] = structuredClone(existing);
+          }
 
           const stepOffset = r - srcEndRow;
           const cycleIdx = (stepOffset - 1) % srcCount;
@@ -3289,17 +3486,57 @@ export class SheetGridController {
 
           let newVal = sourceCell.val;
           let newFormula = "";
-          const newStyle = structuredClone(sourceCell.style || {});
-          const dateValue = dateSequenceValue(sourceCells, stepOffset);
+          let newStyle = structuredClone(sourceCell.style || {});
+          const isCopy = fillType === "copy";
 
-          if (sourceCell.formula && String(sourceCell.formula).startsWith("=")) {
-            const deltaR = r - (srcStartRow + cycleIdx);
-            newFormula = this._offsetFormula(sourceCell.formula, 0, deltaR);
-            newVal = this.formulaEngine.evaluate(newFormula);
-          } else if (dateValue !== null) {
-            newVal = dateValue;
+          if (fillType === "formats") {
+            newVal = existing.val;
+            newFormula = existing.formula;
+            newStyle = structuredClone(sourceCell.style || {});
+          } else if (fillType === "withoutFormats") {
+            newStyle = structuredClone(existing.style || {});
+            if (sourceCell.formula && String(sourceCell.formula).startsWith("=")) {
+              const deltaR = r - (srcStartRow + cycleIdx);
+              newFormula = this._offsetFormula(sourceCell.formula, 0, deltaR);
+              newVal = this.formulaEngine.evaluate(newFormula);
+            } else if (hasDates) {
+              const dVal = dateSequenceValue(sourceCells, stepOffset, "days", false);
+              newVal = dVal !== null ? dVal : sourceCell.val;
+            } else if (baseFillIsCopy) {
+              newVal = sourceCell.val;
+            } else {
+              newVal = this._autofillSeriesValue(sourceCells, stepOffset, true, sourceCell, false);
+            }
+          } else if (isCopy) {
+            newStyle = structuredClone(sourceCell.style || {});
+            if (sourceCell.formula && String(sourceCell.formula).startsWith("=")) {
+              const deltaR = r - (srcStartRow + cycleIdx);
+              newFormula = this._offsetFormula(sourceCell.formula, 0, deltaR);
+              newVal = this.formulaEngine.evaluate(newFormula);
+            } else {
+              newVal = sourceCell.val;
+            }
+          } else if (fillType === "days" || fillType === "weekdays" || fillType === "months" || fillType === "years") {
+            newStyle = structuredClone(sourceCell.style || {});
+            const dVal = dateSequenceValue(sourceCells, stepOffset, fillType, false);
+            if (dVal !== null) {
+              newVal = dVal;
+            } else {
+              newVal = this._autofillSeriesValue(sourceCells, stepOffset, true, sourceCell, false);
+            }
           } else {
-            newVal = this._autofillSeriesValue(sourceCells, stepOffset, target.series, sourceCell);
+            // "series"
+            newStyle = structuredClone(sourceCell.style || {});
+            const dVal = dateSequenceValue(sourceCells, stepOffset, "days", false);
+            if (sourceCell.formula && String(sourceCell.formula).startsWith("=")) {
+              const deltaR = r - (srcStartRow + cycleIdx);
+              newFormula = this._offsetFormula(sourceCell.formula, 0, deltaR);
+              newVal = this.formulaEngine.evaluate(newFormula);
+            } else if (dVal !== null) {
+              newVal = dVal;
+            } else {
+              newVal = this._autofillSeriesValue(sourceCells, stepOffset, true, sourceCell, false);
+            }
           }
 
           const newItem = { val: newVal, formula: newFormula, style: newStyle };
@@ -3324,7 +3561,9 @@ export class SheetGridController {
           const colLetter = this._columnLabel(cNum);
           const destKey = `${colLetter}${r}`;
           const existing = this.cellsData.get(destKey) || { val: "", formula: "", style: {} };
-          before[destKey] = structuredClone(existing);
+          if (!Object.prototype.hasOwnProperty.call(before, destKey)) {
+            before[destKey] = structuredClone(existing);
+          }
 
           const stepOffset = cNum - srcEndColNum;
           const cycleIdx = (stepOffset - 1) % srcCount;
@@ -3332,17 +3571,57 @@ export class SheetGridController {
 
           let newVal = sourceCell.val;
           let newFormula = "";
-          const newStyle = structuredClone(sourceCell.style || {});
-          const dateValue = dateSequenceValue(sourceCells, stepOffset);
+          let newStyle = structuredClone(sourceCell.style || {});
+          const isCopy = fillType === "copy";
 
-          if (sourceCell.formula && String(sourceCell.formula).startsWith("=")) {
-            const deltaC = cNum - (srcStartColNum + cycleIdx);
-            newFormula = this._offsetFormula(sourceCell.formula, deltaC, 0);
-            newVal = this.formulaEngine.evaluate(newFormula);
-          } else if (dateValue !== null) {
-            newVal = dateValue;
+          if (fillType === "formats") {
+            newVal = existing.val;
+            newFormula = existing.formula;
+            newStyle = structuredClone(sourceCell.style || {});
+          } else if (fillType === "withoutFormats") {
+            newStyle = structuredClone(existing.style || {});
+            if (sourceCell.formula && String(sourceCell.formula).startsWith("=")) {
+              const deltaC = cNum - (srcStartColNum + cycleIdx);
+              newFormula = this._offsetFormula(sourceCell.formula, deltaC, 0);
+              newVal = this.formulaEngine.evaluate(newFormula);
+            } else if (hasDates) {
+              const dVal = dateSequenceValue(sourceCells, stepOffset, "days", false);
+              newVal = dVal !== null ? dVal : sourceCell.val;
+            } else if (baseFillIsCopy) {
+              newVal = sourceCell.val;
+            } else {
+              newVal = this._autofillSeriesValue(sourceCells, stepOffset, true, sourceCell, false);
+            }
+          } else if (isCopy) {
+            newStyle = structuredClone(sourceCell.style || {});
+            if (sourceCell.formula && String(sourceCell.formula).startsWith("=")) {
+              const deltaC = cNum - (srcStartColNum + cycleIdx);
+              newFormula = this._offsetFormula(sourceCell.formula, deltaC, 0);
+              newVal = this.formulaEngine.evaluate(newFormula);
+            } else {
+              newVal = sourceCell.val;
+            }
+          } else if (fillType === "days" || fillType === "weekdays" || fillType === "months" || fillType === "years") {
+            newStyle = structuredClone(sourceCell.style || {});
+            const dVal = dateSequenceValue(sourceCells, stepOffset, fillType, false);
+            if (dVal !== null) {
+              newVal = dVal;
+            } else {
+              newVal = this._autofillSeriesValue(sourceCells, stepOffset, true, sourceCell, false);
+            }
           } else {
-            newVal = this._autofillSeriesValue(sourceCells, stepOffset, target.series, sourceCell);
+            // "series"
+            newStyle = structuredClone(sourceCell.style || {});
+            const dVal = dateSequenceValue(sourceCells, stepOffset, "days", false);
+            if (sourceCell.formula && String(sourceCell.formula).startsWith("=")) {
+              const deltaC = cNum - (srcStartColNum + cycleIdx);
+              newFormula = this._offsetFormula(sourceCell.formula, deltaC, 0);
+              newVal = this.formulaEngine.evaluate(newFormula);
+            } else if (dVal !== null) {
+              newVal = dVal;
+            } else {
+              newVal = this._autofillSeriesValue(sourceCells, stepOffset, true, sourceCell, false);
+            }
           }
 
           const newItem = { val: newVal, formula: newFormula, style: newStyle };
@@ -3354,33 +3633,291 @@ export class SheetGridController {
       this.selectionRange = { start: src.start, end: { c: this._columnLabel(target.endColNum), r: src.end.r } };
     }
 
-    this._recordHistory({
-      type: "fill",
-      sheet: this.activeSheet,
-      before,
-      after
-    });
+    if (options.isReapply && this.history?.length > 0 && this.history[this.history.length - 1].type === "fill") {
+      this.history[this.history.length - 1].after = structuredClone(after);
+    } else {
+      this._recordHistory({
+        type: "fill",
+        sheet: this.activeSheet,
+        before,
+        after
+      });
+    }
+
+    this._lastAutofill = {
+      src: structuredClone(src),
+      target: structuredClone(target),
+      initialBefore: options.initialBefore || structuredClone(before),
+      currentFillType: fillType,
+      hasDates
+    };
 
     this._recalculateAllFormulas();
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
     this._updateRangeSelectionVisuals();
+    this._showAutofillOptionsButton(target, hasDates, fillType);
+  }
+
+  _showAutofillOptionsButton(target, hasDates, currentFillType) {
+    if (typeof document === "undefined" || !this.container) return;
+    this._dismissAutofillOptions();
+
+    const lastCol = target.direction === "right" ? this._columnLabel(target.endColNum) : target.endCol;
+    const lastRow = target.endRow;
+    const cellEl = this.container.querySelector(`.vno-grid-cell[data-coord="${lastCol}${lastRow}"]`);
+    if (!cellEl) return;
+
+    const btn = document.createElement("button");
+    btn.className = "vno-autofill-options-btn";
+    btn.title = t("sheetAutofill.optionsButtonTitle", "Tùy chọn Tự điền (Ctrl)");
+    btn.setAttribute("aria-label", t("sheetAutofill.optionsButtonTitle", "Tùy chọn Tự điền (Ctrl)"));
+    btn.setAttribute("aria-haspopup", "menu");
+    btn.setAttribute("aria-expanded", "false");
+    btn.innerHTML = `<svg width="14" height="14" viewBox="0 0 16 16" fill="none">
+      <rect x="1.5" y="1.5" width="13" height="13" rx="1.5" fill="#fff" stroke="#666" stroke-width="1.2"/>
+      <path d="M4 4h8M4 7h8M4 10h5" stroke="#0078d4" stroke-width="1.2" stroke-linecap="round"/>
+      <path d="M10.5 9l2.5 3 2.5-3z" fill="#333"/>
+    </svg>`;
+
+    btn.addEventListener("click", (e) => {
+      e.preventDefault();
+      e.stopPropagation();
+      this._toggleAutofillOptionsMenu(btn);
+    });
+
+    cellEl.appendChild(btn);
+    this._autofillOptionsButton = btn;
+
+    if (!this._autofillKeyDownAttached && typeof window !== "undefined") {
+      this._autofillKeyDownAttached = true;
+      this._autofillKeyHandler = (e) => this._handleAutofillKeyDown(e);
+      window.addEventListener("keydown", this._autofillKeyHandler);
+    }
+  }
+
+  _handleAutofillKeyDown(e) {
+    if (!this._lastAutofill || !this._autofillOptionsButton) return;
+    const active = typeof document !== "undefined" ? document.activeElement : null;
+    const isEditing = active && (active.tagName === "INPUT" || active.tagName === "TEXTAREA" || active.isContentEditable);
+    if (isEditing && active !== this.formulaInput) return;
+
+    if (e.key === "Control" && !this._autofillMenu) {
+      e.preventDefault();
+      this._toggleAutofillOptionsMenu(this._autofillOptionsButton);
+      return;
+    }
+
+    if (this._autofillMenu) {
+      const items = Array.from(this._autofillMenu.querySelectorAll(".vno-autofill-option-item"));
+      const currentIdx = items.indexOf(document.activeElement);
+
+      if (e.key === "ArrowDown") {
+        e.preventDefault();
+        const next = currentIdx < items.length - 1 ? currentIdx + 1 : 0;
+        items[next]?.focus();
+      } else if (e.key === "ArrowUp") {
+        e.preventDefault();
+        const prev = currentIdx > 0 ? currentIdx - 1 : items.length - 1;
+        items[prev]?.focus();
+      } else if (e.key === "Escape") {
+        e.preventDefault();
+        this._closeAutofillOptionsMenu();
+      }
+    }
+  }
+
+  _toggleAutofillOptionsMenu(btn) {
+    if (this._autofillMenu) {
+      this._closeAutofillOptionsMenu();
+      return;
+    }
+    if (typeof document === "undefined") return;
+
+    const menu = document.createElement("div");
+    menu.className = "vno-autofill-options-menu";
+    menu.setAttribute("role", "menu");
+
+    const currentType = this._lastAutofill?.currentFillType || "series";
+    const hasDates = this._lastAutofill?.hasDates;
+
+    const options = [
+      { id: "copy", label: t("sheetAutofill.copyCells", "Sao chép ô") },
+      { id: "series", label: t("sheetAutofill.fillSeries", "Điền chuỗi") },
+      { id: "formats", label: t("sheetAutofill.fillFormattingOnly", "Chỉ điền định dạng") },
+      { id: "withoutFormats", label: t("sheetAutofill.fillWithoutFormatting", "Điền không định dạng") }
+    ];
+
+    if (hasDates) {
+      options.push(
+        { id: "days", label: t("sheetAutofill.fillDays", "Điền ngày") },
+        { id: "weekdays", label: t("sheetAutofill.fillWeekdays", "Điền ngày làm việc") },
+        { id: "months", label: t("sheetAutofill.fillMonths", "Điền tháng") },
+        { id: "years", label: t("sheetAutofill.fillYears", "Điền năm") }
+      );
+    }
+    options.push({ id: "flash", label: t("sheetAutofill.flashFill", "Điền nhanh") });
+
+    options.forEach(opt => {
+      const item = document.createElement("button");
+      item.className = "vno-autofill-option-item";
+      item.setAttribute("role", "menuitemradio");
+      const isChecked = currentType === opt.id;
+      item.setAttribute("aria-checked", isChecked ? "true" : "false");
+      item.dataset.fillType = opt.id;
+
+      const radio = document.createElement("span");
+      radio.className = `vno-autofill-option-radio${isChecked ? " is-checked" : ""}`;
+
+      const text = document.createElement("span");
+      text.textContent = opt.label;
+
+      item.appendChild(radio);
+      item.appendChild(text);
+
+      item.addEventListener("click", (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        this._applyAutofillOption(opt.id);
+      });
+
+      menu.appendChild(item);
+    });
+
+    const rect = btn.getBoundingClientRect();
+    menu.style.position = "fixed";
+    menu.style.left = `${rect.right + 2}px`;
+    menu.style.top = `${rect.top}px`;
+
+    document.body.appendChild(menu);
+    this._autofillMenu = menu;
+    btn.setAttribute("aria-expanded", "true");
+
+    const firstItem = menu.querySelector(".vno-autofill-option-item");
+    firstItem?.focus();
+  }
+
+  _closeAutofillOptionsMenu() {
+    if (this._autofillMenu) {
+      this._autofillMenu.remove();
+      this._autofillMenu = null;
+    }
+    if (this._autofillOptionsButton) {
+      this._autofillOptionsButton.setAttribute("aria-expanded", "false");
+    }
+  }
+
+  _dismissAutofillOptions() {
+    this._closeAutofillOptionsMenu();
+    if (this._autofillOptionsButton) {
+      this._autofillOptionsButton.remove();
+      this._autofillOptionsButton = null;
+    }
+    if (this._autofillKeyDownAttached && typeof window !== "undefined") {
+      window.removeEventListener("keydown", this._autofillKeyHandler);
+      this._autofillKeyDownAttached = false;
+      this._autofillKeyHandler = null;
+    }
+    this._lastAutofill = null;
+  }
+
+  _applyAutofillOption(fillType) {
+    this._closeAutofillOptionsMenu();
+    if (!this._lastAutofill) return;
+
+    if (fillType === "flash") {
+      this._dismissAutofillOptions();
+      this.runFlashFill();
+      return;
+    }
+
+    const { src, target, initialBefore } = this._lastAutofill;
+
+    // Khôi phục các ô đích về trạng thái trước autofill
+    for (const [coord, oldItem] of Object.entries(initialBefore)) {
+      if (oldItem.val === "" && !oldItem.formula && (!oldItem.style || Object.keys(oldItem.style).length === 0)) {
+        this.cellsData.delete(coord);
+      } else {
+        this.cellsData.set(coord, structuredClone(oldItem));
+      }
+    }
+
+    // Thực hiện lại autofill với fillType mới
+    this._executeAutofill(src, { ...target, fillType }, { isReapply: true, initialBefore });
   }
 
   _startCellMove(e) {
     if (this._isMovingCell) return;
+    this._dismissAutofillOptions();
     this._isMovingCell = true;
-    this._moveSource = { ...this.selectedCoord };
+    const norm = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    this._moveSource = norm;
     this._moveTarget = null;
+    this._moveShiftInsert = Boolean(e && e.shiftKey);
+    this._moveShiftDir = "down";
     this._isCopyMove = Boolean(e && (e.ctrlKey || e.metaKey));
+
+    const onKeyDown = (ke) => {
+      if (ke.key === "Control" || ke.key === "Meta") this._isCopyMove = true;
+      if (ke.key === "Shift") this._moveShiftInsert = true;
+    };
+    const onKeyUp = (ke) => {
+      if (ke.key === "Control" || ke.key === "Meta") this._isCopyMove = false;
+      if (ke.key === "Shift") this._moveShiftInsert = false;
+    };
 
     const onMove = (moveEvt) => {
       this._isCopyMove = Boolean(moveEvt.ctrlKey || moveEvt.metaKey);
+      this._moveShiftInsert = Boolean(moveEvt.shiftKey);
+
+      // Alt + kéo sang tab trang tính khác
+      if (moveEvt.altKey) {
+        const elTab = typeof document !== "undefined" ? document.elementFromPoint(moveEvt.clientX, moveEvt.clientY) : null;
+        const tabItem = elTab?.closest?.(".vno-sheet-tab-item");
+        const targetSheet = tabItem?.dataset?.sheet;
+        if (targetSheet && targetSheet !== this.activeSheet) {
+          this.switchSheet(targetSheet);
+        }
+      }
+
       const el = typeof document !== "undefined" ? document.elementFromPoint(moveEvt.clientX, moveEvt.clientY) : null;
       const cell = el?.closest?.(".vno-grid-cell");
-      this.container?.querySelectorAll?.(".is-move-target-preview").forEach(c => c.classList.remove("is-move-target-preview"));
-      if (cell && (cell.dataset.col !== this._moveSource.c || Number(cell.dataset.row) !== this._moveSource.r)) {
-        this._moveTarget = { c: cell.dataset.col, r: Number(cell.dataset.row) };
-        cell.classList.add("is-move-target-preview");
+      this.container?.querySelectorAll?.(".is-move-target-preview, .is-insert-preview-top, .is-insert-preview-left").forEach(c => {
+        c.classList.remove("is-move-target-preview", "is-insert-preview-top", "is-insert-preview-left");
+      });
+
+      if (cell && cell.dataset.col && cell.dataset.row) {
+        const destCoord = { c: cell.dataset.col, r: Number(cell.dataset.row) };
+        this._moveTarget = destCoord;
+
+        const src = this._moveSource;
+        const srcW = this._columnNumber(src.end.c) - this._columnNumber(src.start.c) + 1;
+        const srcH = src.end.r - src.start.r + 1;
+        const destCNum = this._columnNumber(destCoord.c);
+
+        if (this._moveShiftInsert) {
+          const rect = cell.getBoundingClientRect();
+          const relY = moveEvt.clientY - rect.top;
+          if (relY / rect.height < 0.5) {
+            this._moveShiftDir = "down";
+            for (let c = 0; c < srcW; c++) {
+              const td = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${this._columnLabel(destCNum + c)}${destCoord.r}"]`);
+              if (td) td.classList.add("is-insert-preview-top");
+            }
+          } else {
+            this._moveShiftDir = "right";
+            for (let r = 0; r < srcH; r++) {
+              const td = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${destCoord.c}${destCoord.r + r}"]`);
+              if (td) td.classList.add("is-insert-preview-left");
+            }
+          }
+        } else {
+          for (let r = 0; r < srcH; r++) {
+            for (let c = 0; c < srcW; c++) {
+              const td = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${this._columnLabel(destCNum + c)}${destCoord.r + r}"]`);
+              if (td) td.classList.add("is-move-target-preview");
+            }
+          }
+        }
       } else {
         this._moveTarget = null;
       }
@@ -3390,53 +3927,252 @@ export class SheetGridController {
       if (typeof window !== "undefined") {
         window.removeEventListener("mousemove", onMove);
         window.removeEventListener("mouseup", onUp);
+        window.removeEventListener("keydown", onKeyDown);
+        window.removeEventListener("keyup", onKeyUp);
       }
-      this.container?.querySelectorAll?.(".is-move-target-preview").forEach(c => c.classList.remove("is-move-target-preview"));
+      this.container?.querySelectorAll?.(".is-move-target-preview, .is-insert-preview-top, .is-insert-preview-left").forEach(c => {
+        c.classList.remove("is-move-target-preview", "is-insert-preview-top", "is-insert-preview-left");
+      });
       this._isMovingCell = false;
       const isCopy = this._isCopyMove || Boolean(upEvt && (upEvt.ctrlKey || upEvt.metaKey));
-      if (this._moveTarget && (this._moveTarget.c !== this._moveSource.c || this._moveTarget.r !== this._moveSource.r)) {
-        this._executeCellMove(this._moveSource, this._moveTarget, isCopy);
+      const isInsert = this._moveShiftInsert || Boolean(upEvt && upEvt.shiftKey);
+      if (this._moveTarget) {
+        if (isInsert) {
+          this._executeCellInsert(this._moveSource, this._moveTarget, isCopy, this._moveShiftDir);
+        } else {
+          this._executeCellMove(this._moveSource, this._moveTarget, isCopy);
+        }
       }
     };
 
     if (typeof window !== "undefined") {
       window.addEventListener("mousemove", onMove);
       window.addEventListener("mouseup", onUp);
+      window.addEventListener("keydown", onKeyDown);
+      window.addEventListener("keyup", onKeyUp);
     }
   }
 
   _executeCellMove(src, dest, isCopy = false) {
-    const srcKey = `${src.c}${src.r}`;
-    const destKey = `${dest.c}${dest.r}`;
-    const srcData = this.cellsData.get(srcKey) || { val: "", formula: "", style: {} };
-    const destData = this.cellsData.get(destKey) || { val: "", formula: "", style: {} };
+    const norm = src.start && src.end ? this._normalizeRange(src) : { start: { c: src.c, r: src.r }, end: { c: src.c, r: src.r } };
+    const srcStartCol = this._columnNumber(norm.start.c);
+    const srcEndCol = this._columnNumber(norm.end.c);
+    const srcStartRow = norm.start.r;
+    const srcEndRow = norm.end.r;
+    const width = srcEndCol - srcStartCol + 1;
+    const height = srcEndRow - srcStartRow + 1;
 
-    const before = {
-      [destKey]: structuredClone(destData)
-    };
+    const destCoord = dest.start ? dest.start : dest;
+    const destStartCol = this._columnNumber(destCoord.c);
+    const destStartRow = Number(destCoord.r);
+    const deltaCol = destStartCol - srcStartCol;
+    const deltaRow = destStartRow - srcStartRow;
 
-    const after = {
-      [destKey]: structuredClone(srcData)
-    };
+    if (deltaCol === 0 && deltaRow === 0) return false;
 
-    if (!isCopy) {
-      before[srcKey] = structuredClone(srcData);
-      after[srcKey] = { val: "", formula: "", style: {} };
-      this.cellsData.delete(srcKey);
+    const before = {};
+    const after = {};
+
+    // 1. Lưu snapshot các ô đích trước khi ghi đè
+    for (let r = 0; r < height; r++) {
+      for (let c = 0; c < width; c++) {
+        const dCoord = `${this._columnLabel(destStartCol + c)}${destStartRow + r}`;
+        const existing = this.cellsData.get(dCoord);
+        before[dCoord] = structuredClone(existing || { val: "", formula: "", style: {} });
+      }
     }
 
-    this.cellsData.set(destKey, structuredClone(srcData));
+    // 2. Đọc ô nguồn và lưu snapshot ô nguồn (nếu di chuyển)
+    const movedCells = [];
+    for (let r = 0; r < height; r++) {
+      const rowList = [];
+      for (let c = 0; c < width; c++) {
+        const sCoord = `${this._columnLabel(srcStartCol + c)}${srcStartRow + r}`;
+        const sourceCell = structuredClone(this.cellsData.get(sCoord) || { val: "", formula: "", style: {} });
+        rowList.push(sourceCell);
+        if (!isCopy) {
+          if (!Object.prototype.hasOwnProperty.call(before, sCoord)) {
+            before[sCoord] = structuredClone(sourceCell);
+          }
+          after[sCoord] = { val: "", formula: "", style: {} };
+          this.cellsData.delete(sCoord);
+        }
+      }
+      movedCells.push(rowList);
+    }
+
+    // 3. Ghi dữ liệu vào các ô đích
+    for (let r = 0; r < height; r++) {
+      for (let c = 0; c < width; c++) {
+        const dCoord = `${this._columnLabel(destStartCol + c)}${destStartRow + r}`;
+        const source = movedCells[r][c];
+        let formula = "";
+        let val = source.val;
+        const style = structuredClone(source.style || {});
+
+        if (source.formula) {
+          if (!isCopy) {
+            formula = source.formula;
+            val = this.formulaEngine.evaluate(formula);
+          } else {
+            formula = this._offsetFormula(source.formula, deltaCol, deltaRow);
+            val = this.formulaEngine.evaluate(formula);
+          }
+        }
+
+        const next = { val, formula, style };
+        this.cellsData.set(dCoord, next);
+        after[dCoord] = structuredClone(next);
+      }
+    }
+
+    // 4. Cập nhật các tham chiếu trỏ vào vùng bị di chuyển
+    let crossSheet = null;
+    if (!isCopy) {
+      crossSheet = this._updateReferencesForMove(norm, deltaCol, deltaRow, before, after);
+    }
+
+    // 5. Ghi lịch sử Undo đúng 1 bước
+    this._recordHistory({
+      type: "batch-cells",
+      sheet: this.activeSheet,
+      before,
+      after,
+      ...(crossSheet?.length ? { crossSheet } : {})
+    });
+
+    const newEndCol = this._columnLabel(destStartCol + width - 1);
+    const newEndRow = destStartRow + height - 1;
+    this.selectionRange = { start: { c: destCoord.c, r: destStartRow }, end: { c: newEndCol, r: newEndRow } };
+    this.selectedCoord = { c: destCoord.c, r: destStartRow };
+
+    this._recalculateAllFormulas();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._updateRangeSelectionVisuals();
+    return true;
+  }
+
+  _executeCellInsert(src, dest, isCopy = false, direction = "down") {
+    const norm = src.start && src.end ? this._normalizeRange(src) : { start: { c: src.c, r: src.r }, end: { c: src.c, r: src.r } };
+    const srcStartCol = this._columnNumber(norm.start.c);
+    const srcEndCol = this._columnNumber(norm.end.c);
+    const srcStartRow = norm.start.r;
+    const srcEndRow = norm.end.r;
+    const width = srcEndCol - srcStartCol + 1;
+    const height = srcEndRow - srcStartRow + 1;
+
+    const destCoord = dest.start ? dest.start : dest;
+    const destStartCol = this._columnNumber(destCoord.c);
+    const destStartRow = Number(destCoord.r);
+
+    const before = {};
+    const after = {};
+
+    const movedCells = [];
+    for (let r = 0; r < height; r++) {
+      const rowList = [];
+      for (let c = 0; c < width; c++) {
+        const sCoord = `${this._columnLabel(srcStartCol + c)}${srcStartRow + r}`;
+        const sourceCell = structuredClone(this.cellsData.get(sCoord) || { val: "", formula: "", style: {} });
+        rowList.push(sourceCell);
+      }
+      movedCells.push(rowList);
+    }
+
+    if (direction === "down") {
+      for (let c = 0; c < width; c++) {
+        const colLabel = this._columnLabel(destStartCol + c);
+        for (let r = this.rowCount; r >= destStartRow; r--) {
+          const fromCoord = `${colLabel}${r}`;
+          const toCoord = `${colLabel}${r + height}`;
+          const current = this.cellsData.get(fromCoord);
+          if (current) {
+            if (!Object.prototype.hasOwnProperty.call(before, toCoord)) {
+              before[toCoord] = structuredClone(this.cellsData.get(toCoord) || { val: "", formula: "", style: {} });
+            }
+            if (!Object.prototype.hasOwnProperty.call(before, fromCoord)) {
+              before[fromCoord] = structuredClone(current);
+            }
+            this.cellsData.set(toCoord, structuredClone(current));
+            after[toCoord] = structuredClone(current);
+            this.cellsData.delete(fromCoord);
+            after[fromCoord] = { val: "", formula: "", style: {} };
+          }
+        }
+      }
+    } else {
+      for (let r = 0; r < height; r++) {
+        const rowNum = destStartRow + r;
+        for (let c = this.cols.length; c >= destStartCol; c--) {
+          const fromCoord = `${this._columnLabel(c)}${rowNum}`;
+          const toCoord = `${this._columnLabel(c + width)}${rowNum}`;
+          const current = this.cellsData.get(fromCoord);
+          if (current) {
+            if (!Object.prototype.hasOwnProperty.call(before, toCoord)) {
+              before[toCoord] = structuredClone(this.cellsData.get(toCoord) || { val: "", formula: "", style: {} });
+            }
+            if (!Object.prototype.hasOwnProperty.call(before, fromCoord)) {
+              before[fromCoord] = structuredClone(current);
+            }
+            this.cellsData.set(toCoord, structuredClone(current));
+            after[toCoord] = structuredClone(current);
+            this.cellsData.delete(fromCoord);
+            after[fromCoord] = { val: "", formula: "", style: {} };
+          }
+        }
+      }
+    }
+
+    const deltaCol = destStartCol - srcStartCol;
+    const deltaRow = destStartRow - srcStartRow;
+    for (let r = 0; r < height; r++) {
+      for (let c = 0; c < width; c++) {
+        const dCoord = `${this._columnLabel(destStartCol + c)}${destStartRow + r}`;
+        const source = movedCells[r][c];
+        let formula = "";
+        let val = source.val;
+        const style = structuredClone(source.style || {});
+        if (source.formula) {
+          formula = isCopy ? this._offsetFormula(source.formula, deltaCol, deltaRow) : source.formula;
+          val = this.formulaEngine.evaluate(formula);
+        }
+        const next = { val, formula, style };
+        this.cellsData.set(dCoord, next);
+        after[dCoord] = structuredClone(next);
+      }
+    }
+
+    if (!isCopy) {
+      for (let r = 0; r < height; r++) {
+        for (let c = 0; c < width; c++) {
+          const sCoord = `${this._columnLabel(srcStartCol + c)}${srcStartRow + r}`;
+          if (!after[sCoord] || after[sCoord].val === "") {
+            if (!Object.prototype.hasOwnProperty.call(before, sCoord)) {
+              before[sCoord] = structuredClone(movedCells[r][c]);
+            }
+            this.cellsData.delete(sCoord);
+            after[sCoord] = { val: "", formula: "", style: {} };
+          }
+        }
+      }
+    }
 
     this._recordHistory({
-      type: "fill",
+      type: "batch-cells",
       sheet: this.activeSheet,
       before,
       after
     });
 
-    this.selectCell(dest.c, dest.r);
+    const newEndCol = this._columnLabel(destStartCol + width - 1);
+    const newEndRow = destStartRow + height - 1;
+    this.selectionRange = { start: { c: destCoord.c, r: destStartRow }, end: { c: newEndCol, r: newEndRow } };
+    this.selectedCoord = { c: destCoord.c, r: destStartRow };
+
     this._recalculateAllFormulas();
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._updateRangeSelectionVisuals();
+    return true;
   }
 
 
@@ -4013,6 +4749,7 @@ export class SheetGridController {
   switchSheet(sheetName, options = {}) {
     const skipSave = options.skipSave === true;
     if (!sheetName) return false;
+    this._dismissAutofillOptions();
     // Nhấp vào thẻ trang ngoài nhóm thì bỏ nhóm (như Excel); trang trong nhóm giữ nguyên nhóm.
     if (this.groupedSheets?.size && !this.groupedSheets.has(sheetName)) this.groupedSheets.clear();
     const preservedFormulaEntry = this.formulaEntry && (options.pointMode || options.formulaReturn)
@@ -6302,6 +7039,9 @@ export class SheetGridController {
     if (row < 1 || row > this.rowCount) return;
     this._ctrlASelectAllPending = false;
     this._endModeActive = false;
+    if (!this._isAutofilling) {
+      this._dismissAutofillOptions();
+    }
     if (this.formulaInput && typeof document !== "undefined" && document.activeElement === this.formulaInput) {
       this._commitEditBeforeRangeSelection();
     }

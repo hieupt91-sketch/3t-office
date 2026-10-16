@@ -1673,6 +1673,38 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.edit.autofill",
+    app: "sheet",
+    commandIds: [],
+    title: "Chốt điền và Tùy chọn Tự điền: điền chuỗi, sao chép ô và nhấp đúp",
+    summary: "Sử dụng chốt điền hình vuông nhỏ ở góc dưới bên phải ô đang chọn để sao chép dữ liệu, điền chuỗi số, ngày tháng, công thức hoặc nhấp đúp để tự động điền xuống theo cột dữ liệu liền kề.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["chốt điền", "tự điền", "autofill", "nhấp đúp chốt điền", "tùy chọn tự điền", "auto fill options", "sao chép ô", "điền chuỗi", "chỉ điền định dạng", "điền không định dạng", "điền ngày", "điền ngày làm việc", "điền tháng", "điền năm", "flash fill", "điền nhanh", "Ctrl kéo"],
+    steps: [
+      "Chọn một hoặc nhiều ô chứa dữ liệu mẫu hoặc công thức. Đưa con trỏ chuột vào góc dưới bên phải vùng chọn, con trỏ sẽ đổi thành hình dấu cộng mảnh màu đen (chốt điền).",
+      "Kéo chốt điền theo hướng cần điền: kéo bình thường sẽ tiếp nối chuỗi số hoặc ngày tháng; nếu giữ phím Ctrl trong khi kéo, con trỏ hiện thêm dấu cộng nhỏ để chuyển đổi giữa Sao chép ô và Điền chuỗi.",
+      "Nhấp đúp chuột trái vào chốt điền để điền nhanh xuống phía dưới cho đến hết vùng dữ liệu của cột bên cạnh (ưu tiên cột bên trái rồi tới cột bên phải; nếu nằm trong bảng dữ liệu, sẽ điền đến hết hàng cuối của bảng).",
+      "Sau khi kéo hoặc nhấp đúp chốt điền, nút nổi Tùy chọn Tự điền xuất hiện ở góc dưới bên phải vùng điền. Bấm vào nút (hoặc nhấn phím Ctrl) để mở bảng menu lựa chọn.",
+      "Dùng phím mũi tên Lên/Xuống và Enter (hoặc nhấp chuột) để chọn chế độ mong muốn: Sao chép ô, Điền chuỗi, Chỉ điền định dạng, Điền không định dạng, Điền ngày, Điền ngày làm việc (bỏ qua Thứ Bảy và Chủ Nhật), Điền tháng, Điền năm, hoặc Điền nhanh. Nhấn phím Esc để đóng menu; thao tác tự điền có thể hoàn tác ngay bằng tổ hợp phím Ctrl+Z."
+    ]
+  },
+  {
+    id: "sheet.edit.dragDrop",
+    app: "sheet",
+    commandIds: [],
+    title: "Kéo-thả ô: di chuyển, sao chép và chèn ô bằng chuột",
+    summary: "Đưa con trỏ chuột vào đường viền của ô hoặc vùng chọn để di chuyển ô đến vị trí mới, giữ Ctrl để sao chép, giữ Shift để chèn đẩy ô, hoặc giữ Alt để di chuyển sang trang tính khác.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
+    keywords: ["kéo thả ô", "di chuyển ô", "drag drop", "sao chép ô bằng chuột", "Ctrl kéo viền", "Shift chèn ô", "Alt chuyển trang tính", "viền ô", "chuột kéo ô", "cập nhật công thức"],
+    steps: [
+      "Chọn ô hoặc vùng ô cần thao tác. Rà con trỏ chuột lên bất kỳ cạnh viền nào của vùng chọn (trên, dưới, trái hoặc phải, tránh góc dưới bên phải của chốt điền). Con trỏ chuột sẽ đổi thành biểu tượng di chuyển bốn hướng.",
+      "Di chuyển ô: Nhấn giữ chuột trái và kéo đến vị trí đích, đường viền nét đứt sẽ chạy theo vị trí con trỏ; khi thả chuột, ô sẽ được chuyển tới vùng mới, toàn bộ công thức tham chiếu đến các ô này trong sổ làm việc sẽ tự động cập nhật chính xác.",
+      "Sao chép ô: Trong khi kéo viền, nhấn và giữ phím Ctrl (con trỏ chuột sẽ hiện biểu tượng sao chép kèm dấu cộng). Khi thả chuột, dữ liệu và công thức được sao chép đến vị trí mới và các tham chiếu tương đối sẽ tịnh tiến tương ứng.",
+      "Chèn ô: Trong khi kéo viền, nhấn và giữ phím Shift. Một thanh chỉ thị vị trí chèn nằm ngang hoặc nằm dọc sẽ xuất hiện; khi thả chuột, các ô lân cận sẽ được tự động đẩy xuống dưới hoặc đẩy sang phải để chèn vùng ô vào mà không ghi đè dữ liệu cũ.",
+      "Chuyển sang trang tính khác: Trong khi kéo viền, giữ phím Alt và rê chuột qua tên tab trang tính ở cạnh dưới cửa sổ để chuyển trang tính đích, sau đó thả chuột vào vị trí ô mong muốn. Mọi thao tác kéo-thả đều có thể hoàn tác bằng một lần nhấn phím Ctrl+Z."
+    ]
+  },
+  {
     id: "sheet.data.refreshAllHelp",
     app: "sheet",
     commandIds: ["sheet.data.refreshAll"],
