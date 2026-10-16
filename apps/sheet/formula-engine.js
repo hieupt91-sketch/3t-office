@@ -172,6 +172,12 @@ const THREE_D_UNSUPPORTED = Object.fromEntries([
   ["N", "#VALUE!"], ["ISEVEN", "#VALUE!"], ["ISODD", "#VALUE!"], ["ISNUMBER", false], ["ISTEXT", false], ["ISBLANK", false], ["ISLOGICAL", false], ["ISERROR", true], ["TYPE", 16]
 ]);
 
+/** Chỉ số đối số phải là tham chiếu ô thật (không nhận hằng mảng). */
+const ARRAY_CONSTANT_REF_ONLY = Object.freeze({
+  COUNTIF: [0], SUMIF: [0, 2], AVERAGEIF: [0, 2], COUNTIFS: [0, 2, 4, 6], SUMIFS: [0, 1, 3, 5], AVERAGEIFS: [0, 1, 3, 5],
+  MAXIFS: [0, 1, 3, 5], MINIFS: [0, 1, 3, 5], RANK: [1], "RANK.EQ": [1], "RANK.AVG": [1]
+});
+
 export class FormulaEngine {
   /**
    * @param {Map<string, {val: string, formula: string, style: Object}> | (() => Map<string, any>)} cellsData
@@ -181,7 +187,12 @@ export class FormulaEngine {
     this.tableResolver = tableResolver;
     this._evalContext = null;
     this.namedRangeResolver = namedRangeResolver;
-    this.sheetResolver = sheetResolver;
+    // Hằng mảng {1,2;3,4} được dựng thành vùng ô trên "trang tính ảo" nội bộ để mọi hàm dùng chung cơ chế tham chiếu vùng.
+    this._arrayConstantSheets = new Map();
+    this._arrayConstantNames = new Map();
+    this.sheetResolver = typeof sheetResolver === "function"
+      ? name => this._arrayConstantSheets.get(name) || sheetResolver(name)
+      : sheetResolver;
     this.currentSheetResolver = currentSheetResolver;
     this.sheetNamesResolver = sheetNamesResolver;
     this._sheetVersions = new Map();
@@ -1283,9 +1294,96 @@ export class FormulaEngine {
     }
   }
 
+  /**
+   * Hằng mảng Excel: {1,2,3} (một hàng), {1;2;3} (một cột), {1,2;3,4} (ma trận); phần tử là số, "chuỗi", TRUE/FALSE hoặc mã lỗi.
+   * Thay mỗi hằng bằng tham chiếu vùng '__VNO_ARR_n'!A1:C1 (chuỗi gốc người dùng thấy không đổi).
+   */
+  _materializeArrayConstants(expr) {
+    if (!expr.includes("{") || typeof this.sheetResolver !== "function") return expr;
+    let out = "";
+    let inQuotes = false;
+    for (let i = 0; i < expr.length; i++) {
+      const ch = expr[i];
+      if (ch === '"') { inQuotes = !inQuotes; out += ch; continue; }
+      if (ch !== "{" || inQuotes) { out += ch; continue; }
+      let j = i + 1;
+      let quoted = false;
+      while (j < expr.length && (quoted || expr[j] !== "}")) { if (expr[j] === '"') quoted = !quoted; j++; }
+      if (j >= expr.length) return expr;
+      const reference = this._arrayConstantReference(expr.slice(i + 1, j));
+      if (!reference) return expr;
+      out += reference;
+      i = j;
+    }
+    return out;
+  }
+
+  /** Đối số hàm có phép toán trên hằng mảng ({1,2,3}*2): tính theo phần tử rồi lưu thành vùng ảo để hàm nhận như một vùng. */
+  _materializeArrayArgument(arg) {
+    if (typeof arg !== "string" || !arg.includes("'__VNO_ARR_")) return arg;
+    const withoutRefs = arg.replace(/'__VNO_ARR_[^']*'!\$?[A-Z]+\$?\d+(?::\$?[A-Z]+\$?\d+)?/g, "R");
+    if (!/[+\-*/^&<>=]/.test(withoutRefs.replace(/"(?:[^"]|"")*"/g, '""'))) return arg;
+    const evaluated = evaluateArrayExpression(this, arg);
+    if (!evaluated.ok) return arg;
+    const value = evaluated.value;
+    if (!(value instanceof MatrixValue)) return arg;
+    const cells = new Map();
+    value.rows.forEach((row, r) => row.forEach((item, c) => {
+      cells.set(`${this._columnName(c)}${r + 1}`, { val: item instanceof String ? String(item) : item, formula: "", style: {} });
+    }));
+    if (this._arrayConstantSheets.size >= 2000) { this._arrayConstantNames.clear(); this._arrayConstantSheets.clear(); }
+    this._arrayComputedCounter = (this._arrayComputedCounter || 0) + 1;
+    const name = `__VNO_ARR_C${this._arrayComputedCounter}_${value.height}x${value.width}`;
+    this._arrayConstantSheets.set(name, cells);
+    return `'${name}'!A1:${this._columnName(value.width - 1)}${value.height}`;
+  }
+
+  _arrayConstantReference(body) {
+    const cached = this._arrayConstantNames.get(body);
+    if (cached) return cached;
+    const rows = [];
+    let row = [];
+    let cur = "";
+    let quoted = false;
+    const pushCell = () => { row.push(cur.trim()); cur = ""; };
+    for (let i = 0; i < body.length; i++) {
+      const ch = body[i];
+      if (ch === '"') { quoted = !quoted; cur += ch; continue; }
+      if (!quoted && ch === ",") { pushCell(); continue; }
+      if (!quoted && ch === ";") { pushCell(); rows.push(row); row = []; continue; }
+      cur += ch;
+    }
+    pushCell();
+    rows.push(row);
+    const width = Math.max(...rows.map(r => r.length));
+    if (!rows.length || !width || rows.some(r => r.length !== width) || rows.length * width > 4096) return null;
+    const cells = new Map();
+    for (let r = 0; r < rows.length; r++) {
+      for (let c = 0; c < width; c++) {
+        const text = rows[r][c];
+        let value;
+        if (/^"(?:[^"]|"")*"$/.test(text)) value = text.slice(1, -1).replace(/""/g, '"');
+        else if (/^TRUE$/i.test(text)) value = true;
+        else if (/^FALSE$/i.test(text)) value = false;
+        else if (/^#(?:N\/A|VALUE!|REF!|DIV\/0!|NUM!|NAME\?|NULL!)$/i.test(text)) value = text.toUpperCase();
+        else if (/^[+-]?(?:\d+\.?\d*|\.\d+)(?:[eE][+-]?\d+)?$/.test(text)) value = Number(text);
+        else if (text === "") value = "";
+        else return null;
+        cells.set(`${this._columnName(c)}${r + 1}`, { val: value, formula: "", style: {} });
+      }
+    }
+    if (this._arrayConstantNames.size >= 500) { this._arrayConstantNames.clear(); this._arrayConstantSheets.clear(); }
+    const name = `__VNO_ARR_${this._arrayConstantNames.size + 1}_${rows.length}x${width}`;
+    this._arrayConstantSheets.set(name, cells);
+    const reference = `'${name}'!A1:${this._columnName(width - 1)}${rows.length}`;
+    this._arrayConstantNames.set(body, reference);
+    return reference;
+  }
+
   _evaluateCore(formula) {
     if (!formula || !formula.startsWith("=")) return formula;
     let expr = formula.substring(1).trim();
+    expr = this._materializeArrayConstants(expr);
     if (this.tableResolver && expr.includes("[")) {
       const sheet = typeof this.currentSheetResolver === "function" ? this.currentSheetResolver() : "";
       expr = expandStructuredReferences(expr, { sheet, ...(this._evalContext || {}) }, this.tableResolver);
@@ -1468,6 +1566,12 @@ export class FormulaEngine {
   }
 
   _executeFunction(funcName, args) {
+    if (this._arrayConstantSheets.size) {
+      // Hàm bắt buộc tham chiếu ô thật: hằng mảng cho #VALUE! như Excel (đối chiếu Excel 2016).
+      const refOnly = ARRAY_CONSTANT_REF_ONLY[funcName];
+      if (refOnly && refOnly.some(index => typeof args[index] === "string" && args[index].includes("'__VNO_ARR_"))) return "#VALUE!";
+      if (funcName !== "SUMPRODUCT") args = args.map(arg => this._materializeArrayArgument(arg));
+    }
     const threeDError = this._threeDArgumentError(funcName, args);
     if (threeDError !== null) return threeDError;
     switch (funcName) {

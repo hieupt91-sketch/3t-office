@@ -1705,6 +1705,23 @@ export const SHEET_HELP_ENTRIES = [
       "Ứng dụng chạy hoàn toàn ngoại tuyến và mặc định không tự động đọc tệp bên ngoài khi mở để đảm bảo an toàn bảo mật dữ liệu của bạn."
     ]
   }
+,
+  {
+    id: "sheet.formula.arrayConstants",
+    app: "sheet",
+    commandIds: ["sheet.formula.insertFunction"],
+    title: "Hằng mảng trong công thức ({1,2,3})",
+    summary: "Gõ trực tiếp một dãy giá trị trong công thức bằng dấu ngoặc nhọn, ví dụ =SUM({1,2,3}*2) hoặc =VLOOKUP(2,{1,\"a\";2,\"b\"},2,FALSE), không cần ghi các số vào ô.",
+    ribbon: { tab: "Công thức", tabId: "formulas", group: "Hàm tính toán" },
+    keywords: ["hằng mảng", "mảng", "dấu ngoặc nhọn", "array constant", "{1,2,3}", "tra cứu", "danh sách cố định"],
+    steps: [
+      "Cú pháp: đặt các giá trị trong dấu { }. Dấu phẩy ngăn cách các cột trong cùng một hàng, dấu chấm phẩy ngăn cách các hàng. Ví dụ {1,2,3} là một hàng ba ô, {1;2;3} là một cột ba ô, {1,2;3,4} là ma trận 2 hàng 2 cột.",
+      "Phần tử có thể là số, chữ trong ngoặc kép (\"Hà Nội\"), TRUE/FALSE hoặc mã lỗi như #N/A. Mọi hàng phải có cùng số phần tử.",
+      "Dùng trong hàm: =SUM({1,2,3}) cho 6; =SUMPRODUCT({1,2,3},{4,5,6}) cho 32; =INDEX({10,20,30},2) cho 20; =MATCH(\"b\",{\"a\",\"b\",\"c\"},0) cho 2; =LARGE({5,9,1},2) cho 5; =VLOOKUP(2,{1,\"a\";2,\"b\"},2,FALSE) cho b.",
+      "Phép tính theo từng phần tử: =SUM({1,2,3}*2) cho 12; =SUMPRODUCT(({1,2,3}>1)*1) cho 2 (đếm các phần tử lớn hơn 1).",
+      "Lưu ý: các hàm đòi hỏi vùng ô thật (COUNTIF, SUMIF, SUMIFS, AVERAGEIF, MAXIFS, MINIFS, RANK) sẽ báo #VALUE! khi truyền hằng mảng vào đối số vùng, giống hành vi chuẩn của bảng tính; hãy ghi các giá trị ra ô rồi tham chiếu vùng ô đó."
+    ]
+  }
 ];
 
 registerHelpEntries(SHEET_HELP_ENTRIES);
