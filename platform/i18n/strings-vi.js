@@ -149,6 +149,13 @@ export const viStrings = {
     replacementRequired: "Hãy giữ ít nhất một dòng thay thế hoặc bỏ chọn Thay văn bản khi gõ.",
     storageFailed: "Không lưu được tùy chọn Tự sửa lỗi gõ. Hãy kiểm tra quyền lưu dữ liệu ứng dụng."
   },
+  quickAccess: {
+    menuLabel: "Thanh công cụ truy nhanh",
+    customize: "Tùy biến Thanh công cụ truy nhanh",
+    addTo: "Thêm vào Thanh công cụ truy nhanh",
+    removeFrom: "Xóa khỏi Thanh công cụ truy nhanh",
+    reset: "Đặt lại mặc định"
+  },
   common: {
     save: "Lưu tài liệu",
     undo: "Hoàn tác",

@@ -19,6 +19,7 @@ import { themeManager } from "../theme/theme-manager.js";
 import { headerTheme, loadHeaderImage, HEADER_PRESET_COLORS } from "../theme/header-theme.js";
 import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
 import { NotificationBar } from "../ui-kit/notification-bar.js";
+import { installQuickAccess } from "./quick-access.js";
 import { installGlobalFocusGuard, captureEditorFocus, restoreEditorFocus, isEditorElement } from "./focus-manager.js";
 
 const { showAlertDialog, showConfirmDialog, showPromptDialog, showMacroManagerDialog, showUnsavedChangesDialog } = createLazyDialogs("common");
@@ -167,12 +168,7 @@ export class AppShell {
         ${appIdentity}
 
         <!-- Quick Access Toolbar -->
-        <div class="vno-quick-tools" role="toolbar" aria-label="Thanh công cụ truy cập nhanh">
-          <button class="vno-quick-btn" data-cmd="common.file.save" aria-label="Lưu tài liệu (Ctrl+S)" title="Lưu tài liệu (Ctrl+S)">${ICONS.fileSave}</button>
-          <button class="vno-quick-btn" data-cmd="common.edit.undo" aria-label="Hoàn tác (Ctrl+Z)" title="Hoàn tác (Ctrl+Z)">${ICONS.undo}</button>
-          <button class="vno-quick-btn" data-cmd="common.edit.redo" aria-label="Làm lại (Ctrl+Y)" title="Làm lại (Ctrl+Y)">${ICONS.redo}</button>
-          <button class="vno-quick-btn" data-cmd="common.file.print" aria-label="In tài liệu (Ctrl+P)" title="In tài liệu (Ctrl+P)">${ICONS.filePrint}</button>
-        </div>
+        <div class="vno-quick-tools" role="toolbar" aria-label="Thanh công cụ truy cập nhanh"></div>
 
         <!-- Document Tabs Bar (MDI / Multi-Document) -->
         <div class="vno-doc-tabs" role="tablist" aria-label="Danh sách tài liệu đang mở">
@@ -285,11 +281,12 @@ export class AppShell {
       });
     });
 
-    // Quick tools execution
-    bar.querySelectorAll("[data-cmd]").forEach(btn => {
-      btn.addEventListener("click", () => {
-        globalCommandBus.execute(btn.getAttribute("data-cmd"));
-      });
+    // Thanh truy nhanh tùy biến (nút lệnh, menu chuột phải trên ribbon, mũi tên tùy biến)
+    this.quickAccess?.destroy?.();
+    this.quickAccess = installQuickAccess({
+      appName: this.appName,
+      host: bar.querySelector(".vno-quick-tools"),
+      rootEl: this.rootEl || document
     });
 
     bar.querySelector(".vno-tab-close")?.addEventListener("click", () => {

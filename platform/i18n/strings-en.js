@@ -150,6 +150,13 @@ export const enStrings = {
     replacementRequired: "Keep at least one replacement row or turn off Replace text as you type.",
     storageFailed: "Typing correction settings could not be saved. Check the application's data-storage permission."
   },
+  quickAccess: {
+    menuLabel: "Quick access toolbar",
+    customize: "Customize Quick Access Toolbar",
+    addTo: "Add to Quick Access Toolbar",
+    removeFrom: "Remove from Quick Access Toolbar",
+    reset: "Reset to default"
+  },
   common: {
     save: "Save document",
     undo: "Undo",
