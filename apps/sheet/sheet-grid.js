@@ -11030,6 +11030,301 @@ _bindGridKeyboardNavigation() {
     return true;
   }
 
+  _measureTextWidth(text, font = "11pt Calibri") {
+    if (!text) return 0;
+    const str = String(text);
+    let width = 0;
+    for (let i = 0; i < str.length; i++) {
+      const ch = str[i];
+      const code = ch.charCodeAt(0);
+      if (code === 32) width += 3;
+      else if ("ijl|!.',:;".includes(ch)) width += 3;
+      else if ("frtI[]()".includes(ch)) width += 4.5;
+      else if ("abcdeghknopquvxyz0123456789$?".includes(ch)) width += 6.5;
+      else if ("ABCDEFGHJKLMNOPQRSTUVWXYZ~#%^&*+<_=>/\\{}".includes(ch)) width += 8;
+      else if ("mwMW@".includes(ch)) width += 10.5;
+      else if (code >= 0x00c0 && code <= 0x1ef9) width += 6.5;
+      else width += 7;
+    }
+    return width;
+  }
+
+  _wrapTextToWidth(text, maxTextWidthPx) {
+    if (!text || !text.trim()) return [];
+    const tokens = text.match(/\S+[ ]*/g) || [];
+    if (!tokens.length) return [];
+
+    const lines = [];
+    let currentLine = "";
+
+    for (let i = 0; i < tokens.length; i++) {
+      const token = tokens[i];
+      const trimmedToken = token.trimEnd();
+
+      const candidate = currentLine ? currentLine + token : token;
+      const candidateWidth = this._measureTextWidth(candidate.trimEnd());
+
+      if (candidateWidth <= maxTextWidthPx) {
+        currentLine = candidate;
+      } else {
+        if (!currentLine) {
+          lines.push(trimmedToken);
+          currentLine = "";
+        } else {
+          // 1 space is consumed as the word-break separator; remaining trailing spaces kept if they fit
+          let brokenLine = currentLine.endsWith(" ") ? currentLine.slice(0, -1) : currentLine;
+          while (brokenLine.endsWith(" ") && this._measureTextWidth(brokenLine) > maxTextWidthPx) {
+            brokenLine = brokenLine.slice(0, -1);
+          }
+          lines.push(brokenLine);
+          currentLine = token;
+        }
+      }
+    }
+
+    if (currentLine && currentLine.trim()) {
+      lines.push(currentLine.trimEnd());
+    }
+
+    return lines;
+  }
+
+  _isCellTextOnly(item) {
+    if (!item) return true;
+    if (item.formula) return false;
+    const val = item.val;
+    if (val === "" || val === null || val === undefined) return true;
+    if (typeof val === "boolean") return false;
+    if (typeof val === "number") {
+      const fmt = item.style?.numberFormat;
+      const code = typeof fmt === "string" ? fmt : fmt?.code || fmt?.formatCode || "";
+      if (code === "@") return true;
+      return false;
+    }
+    return true;
+  }
+
+  _planFillJustify(targetRange) {
+    const norm = this._normalizeRange(targetRange);
+    const startCol = norm.start.c;
+    const endCol = norm.end.c;
+    const startRow = Math.min(norm.start.r, norm.end.r);
+    const endRow = Math.max(norm.start.r, norm.end.r);
+    const startColNum = typeof this._columnNumber === "function" ? this._columnNumber(startCol) : 1;
+    const endColNum = typeof this._columnNumber === "function" ? this._columnNumber(endCol) : 1;
+
+    for (let r = startRow; r <= endRow; r++) {
+      const item = this.cellsData.get(`${startCol}${r}`);
+      if (item && !this._isCellTextOnly(item)) {
+        return { ok: false, reason: "numbers_or_formulas" };
+      }
+    }
+
+    let totalCw = 0;
+    const numCols = Math.max(1, endColNum - startColNum + 1);
+    for (let c = startColNum; c <= endColNum; c++) {
+      const cLabel = typeof this._columnLabel === "function" ? this._columnLabel(c) : startCol;
+      const colPx = this.getColumnWidth(cLabel);
+      const cw = Math.abs(colPx - 64) < 1e-4 ? 8.43 : (colPx <= 60 ? colPx : (colPx - 5) / 7);
+      totalCw += cw;
+    }
+    const maxTextWidthPx = totalCw * 6.42 + (numCols - 1) * 8;
+
+    const groups = [];
+    let currentPara = null;
+
+    for (let r = startRow; r <= endRow; r++) {
+      const coord = `${startCol}${r}`;
+      const item = this.cellsData.get(coord);
+      let text = "";
+      if (item) {
+        if (item.val !== "" && item.val !== undefined && item.val !== null) {
+          text = String(item.val);
+        }
+      }
+      if (text.trim() !== "") {
+        if (!currentPara) {
+          currentPara = { type: "para", texts: [text] };
+          groups.push(currentPara);
+        } else {
+          currentPara.texts.push(text);
+        }
+      } else {
+        currentPara = null;
+        groups.push({ type: "blank" });
+      }
+    }
+
+    while (groups.length > 0 && groups[groups.length - 1].type === "blank") {
+      groups.pop();
+    }
+
+    let writeRow = startRow;
+    const outputMap = new Map();
+
+    for (const group of groups) {
+      if (group.type === "blank") {
+        writeRow++;
+      } else {
+        let paraCombined = "";
+        for (const t of group.texts) {
+          if (!paraCombined) {
+            paraCombined = t;
+          } else {
+            if (/[ \t\r\n]$/.test(paraCombined) || /^[ \t\r\n]/.test(t)) {
+              paraCombined += t;
+            } else {
+              paraCombined += " " + t;
+            }
+          }
+        }
+        const lines = this._wrapTextToWidth(paraCombined, maxTextWidthPx);
+        if (lines.length === 0) {
+          writeRow++;
+        } else {
+          for (const line of lines) {
+            outputMap.set(writeRow, line);
+            writeRow++;
+          }
+        }
+      }
+    }
+
+    const finalRow = Math.max(startRow, writeRow - 1);
+    const overflow = finalRow > endRow;
+
+    return {
+      ok: true,
+      startCol,
+      startRow,
+      endRow,
+      finalRow,
+      overflow,
+      outputMap
+    };
+  }
+
+  _applyFillJustifyPlan(plan, recordUndo = true) {
+    if (this._guardProtectedMutation()) return false;
+    const { startCol, startRow, endRow, finalRow, outputMap } = plan;
+    const maxRow = Math.max(endRow, finalRow);
+
+    const before = {};
+    const after = {};
+
+    let changedCount = 0;
+    for (let r = startRow; r <= maxRow; r++) {
+      const coord = `${startCol}${r}`;
+      const existing = this.cellsData.get(coord);
+      before[coord] = existing ? {
+        val: existing.val ?? "",
+        formula: existing.formula ?? "",
+        style: structuredClone(existing.style || {})
+      } : null;
+
+      const newText = outputMap.get(r) ?? "";
+      const currentVal = existing ? (existing.val ?? "") : "";
+      const currentFormula = existing ? (existing.formula ?? "") : "";
+
+      if (newText !== currentVal || currentFormula !== "") {
+        changedCount++;
+      }
+
+      if (newText === "") {
+        if (existing) {
+          existing.val = "";
+          existing.formula = "";
+          this.cellsData.set(coord, existing);
+          after[coord] = {
+            val: "",
+            formula: "",
+            style: structuredClone(existing.style || {})
+          };
+        } else {
+          after[coord] = null;
+        }
+      } else {
+        const item = existing || { style: {} };
+        item.val = newText;
+        item.formula = "";
+        this.cellsData.set(coord, item);
+        after[coord] = {
+          val: newText,
+          formula: "",
+          style: structuredClone(item.style || {})
+        };
+      }
+
+      const dom = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (dom) {
+        const itm = this.cellsData.get(coord);
+        if (itm) this._renderCellVisual(dom, itm, startCol, r);
+        else { dom.textContent = ""; dom.style.cssText = ""; }
+      }
+    }
+
+    if (recordUndo && changedCount > 0) {
+      this._recordHistory({
+        type: "fill",
+        sheet: this.activeSheet,
+        before,
+        after
+      });
+    }
+
+    this._recalculateAllFormulas();
+    this._renderVirtualRows?.(this.currentStartRow || 1, this.currentEndRow || 40);
+    return { ok: true, lineCount: outputMap.size };
+  }
+
+  _fillJustifySync(range = null, recordUndo = true) {
+    if (this._guardProtectedMutation()) return false;
+    const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const plan = this._planFillJustify(targetRange);
+    if (!plan.ok) {
+      if (plan.reason === "numbers_or_formulas") {
+        throw new Error(t("sheetDialogs.fillJustifyNoNumbers", "Không thể căn đều ô chứa số hoặc công thức."));
+      }
+      return plan;
+    }
+    return this._applyFillJustifyPlan(plan, recordUndo);
+  }
+
+  async _fillJustifyInteractive(range = null, recordUndo = true) {
+    if (this._guardProtectedMutation()) return false;
+    const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const plan = this._planFillJustify(targetRange);
+    if (!plan.ok) {
+      if (plan.reason === "numbers_or_formulas") {
+        await showAlertDialog({
+          title: t("sheetDialogs.fillJustifyTitle", "Căn đều"),
+          message: t("sheetDialogs.fillJustifyNoNumbers", "Không thể căn đều ô chứa số hoặc công thức."),
+          confirmText: t("sheetDialogs.apply", "Đồng ý")
+        });
+      }
+      return plan;
+    }
+
+    if (plan.overflow) {
+      const confirmed = await showConfirmDialog({
+        title: t("sheetDialogs.fillJustifyTitle", "Căn đều"),
+        message: t("sheetDialogs.fillJustifyOverflow", "Chữ sẽ tràn xuống dưới vùng chọn."),
+        confirmText: t("sheetDialogs.apply", "Đồng ý"),
+        cancelText: t("sheetDialogs.cancel", "Hủy")
+      });
+      if (!confirmed) return { ok: false, reason: "canceled" };
+    }
+
+    return this._applyFillJustifyPlan(plan, recordUndo);
+  }
+
+  fillJustify(range = null, recordUndo = true, interactive = false) {
+    if (interactive) {
+      return this._fillJustifyInteractive(range, recordUndo);
+    }
+    return this._fillJustifySync(range, recordUndo);
+  }
+
   clearAll(range = null, recordUndo = true) {
     if (recordUndo && this._guardProtectedMutation()) return false;
     const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });

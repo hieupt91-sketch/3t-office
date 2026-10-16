@@ -38,6 +38,12 @@ const normFormula = f => String(f ?? "").replace(/\s+/g, "").replace(/SHEET\d+!/
 let pass = 0; let total = 0; const failures = [];
 for (const scenario of spec.scenarios) {
   const grid = new SheetGridController(mockContainer());
+  if (scenario.colWidths) {
+    for (const [col, width] of Object.entries(scenario.colWidths)) {
+      const widthPx = typeof width === "number" && width <= 60 ? Math.round(width * 7 + 5) : width;
+      grid.setColumnWidths(widthPx, [col], false);
+    }
+  }
   for (const [ref, rawValue] of Object.entries(scenario.cells)) {
     const [c, r] = split(ref);
     if (rawValue && typeof rawValue === "object" && !Array.isArray(rawValue)) {
@@ -60,6 +66,20 @@ for (const scenario of spec.scenarios) {
   try {
     for (const op of scenario.ops) {
       switch (op.type) {
+        case "setColWidth": {
+          const widthPx = typeof op.width === "number" && op.width <= 60 ? Math.round(op.width * 7 + 5) : op.width;
+          grid.setColumnWidths(widthPx, [op.col], false);
+          break;
+        }
+        case "justify": {
+          if (op.colWidth) {
+            const col = op.col || op.range.match(/^[A-Z]+/)[0];
+            const widthPx = typeof op.colWidth === "number" && op.colWidth <= 60 ? Math.round(op.colWidth * 7 + 5) : op.colWidth;
+            grid.setColumnWidths(widthPx, [col], false);
+          }
+          grid.fillJustify(parseRange(op.range), false);
+          break;
+        }
         case "deleteRow": grid.deleteRow(op.at); break;
         case "insertRow": grid.insertRow(op.at); break;
         case "deleteCol": grid.deleteColumn(op.at); break;

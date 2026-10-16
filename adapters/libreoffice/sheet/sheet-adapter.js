@@ -562,6 +562,10 @@ export class SheetAdapter {
     });
     globalCommandBus.bindHandler("sheet.edit.fillSeries", () => this.grid.showFillSeriesDialog());
     globalCommandBus.bindHandler("sheet.edit.fillAcrossSheets", () => this.grid.showFillAcrossSheetsDialog());
+    globalCommandBus.bindHandler("sheet.edit.fillJustify", (options) => {
+      options = options || {};
+      return this.grid.fillJustify ? this.grid.fillJustify(options.range, true, true) : false;
+    });
     globalCommandBus.bindHandler("sheet.edit.clearAll", (options) => {
       options = options || {};
       return this.grid.clearAll ? this.grid.clearAll(options.range) : false;

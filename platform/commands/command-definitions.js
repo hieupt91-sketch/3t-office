@@ -494,6 +494,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.edit.fillLeft", category: "edit", label: "Điền trái", icon: "fillLeft", tooltip: "Sao chép cột phải nhất của vùng chọn sang các cột bên trái" },
   { id: "sheet.edit.fillSeries", category: "edit", label: "Chuỗi...", icon: "fillSeries", tooltip: "Điền chuỗi số hoặc ngày: tuyến tính, tăng trưởng, ngày/tháng/năm" },
   { id: "sheet.edit.fillAcrossSheets", category: "edit", label: "Trên các trang...", icon: "fillDown", tooltip: "Chép vùng ô đang chọn sang các trang tính đã nhóm (giữ Ctrl và nhấp các thẻ trang tính để nhóm)" },
+  { id: "sheet.edit.fillJustify", category: "edit", label: "Căn đều", icon: "alignJustify", tooltip: "Xếp lại các dòng văn bản trong vùng chọn vừa khít độ rộng cột" },
   { id: "sheet.edit.clear", category: "edit", label: "Xóa", icon: "clearAll", tooltip: "Xóa toàn bộ, xóa định dạng hoặc xóa nội dung ô" },
   { id: "sheet.edit.clearAll", category: "edit", label: "Xóa tất cả", icon: "clearAll", tooltip: "Xóa toàn bộ nội dung, công thức và định dạng của các ô đã chọn" },
   { id: "sheet.edit.clearFormats", category: "edit", label: "Xóa định dạng", icon: "clearFormat", tooltip: "Xóa định dạng ô và đưa về mặc định nhưng giữ nguyên nội dung" },

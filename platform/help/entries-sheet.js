@@ -1184,6 +1184,22 @@ export const SHEET_HELP_ENTRIES = [
       "Bỏ nhóm: nhấp vào một thẻ trang tính nằm ngoài nhóm, hoặc chuột phải một thẻ rồi chọn Bỏ nhóm trang tính. Thao tác chèn/xóa hàng cột và dán hiện chỉ áp dụng cho trang đang xem — hãy bỏ nhóm trước khi sửa cấu trúc để tránh nhầm."
     ]
   },  {
+    id: "sheet.edit.fillJustify",
+    app: "sheet",
+    commandIds: ["sheet.edit.fillJustify"],
+    title: "Điền và Căn đều văn bản trong ô (Justify)",
+    summary: "Xếp lại và phân bổ lại các dòng văn bản trong vùng ô đã chọn để vừa khít với độ rộng cột hiện tại. Các dòng chữ dài được ngắt tự nhiên xuống các ô phía dưới, hoặc gom các đoạn ngắn liền kề thành dòng dài hơn.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["căn đều", "điền căn đều", "fill justify", "ngắt dòng văn bản", "xếp chữ vừa cột", "reflow text", "tràn chữ xuống dưới"],
+    steps: [
+      "Vị trí lệnh: Trên thanh ribbon, chọn tab Trang đầu > nhóm Chỉnh sửa > nút Điền > chọn Căn đều.",
+      "Cách sử dụng cơ bản: Chọn một hoặc nhiều ô chứa văn bản theo chiều dọc trong cùng một cột (hoặc chọn vùng nhiều cột để tính tổng độ rộng). Nhấn Điền > Căn đều. Văn bản sẽ được đo theo phông chữ hiện tại và ngắt thành các dòng vừa vặn với độ rộng cột.",
+      "Vùng chọn nhiều cột: Khi chọn dải ô gồm nhiều cột (ví dụ A1:C5), độ rộng để ngắt dòng được tính bằng tổng độ rộng của các cột đã chọn cộng khoảng đệm giữa các cột. Nội dung kết quả sẽ được ghi vào cột bên trái nhất (cột A).",
+      "Xử lý ô trống và đoạn văn: Các ô trống nằm xen giữa đóng vai trò phân tách đoạn. Các đoạn văn bản liên tục được căn đều riêng biệt và khoảng cách ô trống giữa các đoạn được giữ nguyên.",
+      "Cảnh báo tràn vùng chọn: Nếu số dòng chữ sau khi căn đều vượt quá số hàng của vùng đã chọn, hệ thống sẽ hiển thị hộp thoại cảnh báo: «Chữ sẽ tràn xuống dưới vùng chọn». Nhấn Đồng ý để cho phép ghi đè nội dung xuống các hàng bên dưới, hoặc nhấn Hủy bỏ để giữ nguyên.",
+      "Quy tắc ô hợp lệ và Hoàn tác: Lệnh chỉ áp dụng cho văn bản thuần túy hoặc số được định dạng văn bản (@). Nếu vùng chọn chứa công thức, số thông thường hoặc giá trị logic, hệ thống sẽ thông báo không thể căn đều. Thao tác căn đều có thể hoàn tác ngay bằng một bước nhấn phím tắt Ctrl+Z."
+    ]
+  },  {
     id: "sheet.edit.findReplace",
     app: "sheet",
     commandIds: ["common.edit.find", "common.edit.replace"],

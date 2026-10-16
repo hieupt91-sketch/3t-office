@@ -1,0 +1,16 @@
+{ "scenarios": [
+  { "name": "justify gom nhieu dong thanh mot dong", "colWidths": {"A": 50}, "cells": {"A1": "The quick brown", "A2": "fox jumps over", "A3": "the lazy dog"}, "ops": [{"type": "justify", "range": "A1:A5"}] },
+  { "name": "justify cat thanh nhieu dong theo do rong 10", "colWidths": {"A": 10}, "cells": {"A1": "The quick brown fox jumps over the lazy dog"}, "ops": [{"type": "justify", "range": "A1:A10"}] },
+  { "name": "justify do rong 15", "colWidths": {"A": 15}, "cells": {"A1": "The quick brown fox jumps over the lazy dog"}, "ops": [{"type": "justify", "range": "A1:A10"}] },
+  { "name": "justify do rong 20", "colWidths": {"A": 20}, "cells": {"A1": "The quick brown fox jumps over the lazy dog"}, "ops": [{"type": "justify", "range": "A1:A10"}] },
+  { "name": "justify do rong mac dinh", "cells": {"A1": "The quick brown fox jumps over the lazy dog"}, "ops": [{"type": "justify", "range": "A1:A10"}] },
+  { "name": "justify tran xuong duoi vung chon", "colWidths": {"A": 15}, "cells": {"A1": "The quick brown fox jumps over the lazy dog and runs into the forest"}, "ops": [{"type": "justify", "range": "A1:A2"}] },
+  { "name": "justify ghi de du lieu co san phia duoi khi tran", "colWidths": {"A": 10}, "cells": {"A1": "The quick brown fox jumps over the lazy dog", "A3": "Du lieu cu bi ghi de"}, "ops": [{"type": "justify", "range": "A1:A2"}] },
+  { "name": "justify co o trong o giua giu nguyen khoang cach doan", "colWidths": {"A": 15}, "cells": {"A1": "First paragraph text here", "A2": "", "A3": "Second paragraph text here"}, "ops": [{"type": "justify", "range": "A1:A10"}] },
+  { "name": "justify tu dai hon do rong cot", "colWidths": {"A": 10}, "cells": {"A1": "Supercalifragilisticexpialidocious is a long word"}, "ops": [{"type": "justify", "range": "A1:A5"}] },
+  { "name": "justify giu nguyen khoang trang giua cac tu", "colWidths": {"A": 10}, "cells": {"A1": "Alpha  Beta   Gamma    Delta"}, "ops": [{"type": "justify", "range": "A1:A5"}] },
+  { "name": "justify chuoi so duoc dinh dang van ban", "colWidths": {"A": 20}, "cells": {"A1": {"v": "12345", "format": "@"}, "A2": {"v": "67890", "format": "@"}}, "ops": [{"type": "justify", "range": "A1:A5"}] },
+  { "name": "justify vung chon nhieu cot tinh tong do rong", "colWidths": {"A": 10, "B": 10}, "cells": {"A1": "The quick brown fox jumps over the lazy dog and runs away"}, "ops": [{"type": "justify", "range": "A1:B10"}] },
+  { "name": "justify van ban tieng Viet co dau", "colWidths": {"A": 15}, "cells": {"A1": "Cộng hòa Xã hội Chủ nghĩa Việt Nam Độc lập Tự do Hạnh phúc"}, "ops": [{"type": "justify", "range": "A1:A10"}] },
+  { "name": "justify hai dong noi thanh mot dong co xuong dong trong o", "colWidths": {"A": 35}, "cells": {"A1": "Line one", "A2": "Line two is longer than col"}, "ops": [{"type": "justify", "range": "A1:A5"}] }
+]}
