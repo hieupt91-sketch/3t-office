@@ -226,6 +226,37 @@ class RunEffectsExportTests(unittest.TestCase):
         self.assertEqual(patcher.postprocess_writer_run_effects(docx, source_html="<p>A</p>"), docx)
 
 
+class TablePropertiesPreservationTests(unittest.TestCase):
+    def test_restores_cell_shading_borders_and_gridspan_on_unmodified_table(self):
+        src_table = (
+            '<w:tbl><w:tblPr><w:tblW w:w="5000" w:type="dxa"/></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="2500"/><w:gridCol w:w="2500"/></w:tblGrid>'
+            '<w:tr><w:tc><w:tcPr><w:gridSpan w:val="2"/><w:shd w:val="clear" w:color="auto" w:fill="FFFF00"/></w:tcPr>'
+            '<w:p><w:r><w:t>R1C1 Merged</w:t></w:r></w:p></w:tc></w:tr>'
+            '<w:tr><w:tc><w:tcPr><w:tcBorders><w:bottom w:val="single" w:sz="18" w:space="0" w:color="FF0000"/></w:tcBorders></w:tcPr>'
+            '<w:p><w:r><w:t>R2C1</w:t></w:r></w:p></w:tc>'
+            '<w:tc><w:tcPr><w:shd w:val="clear" w:color="auto" w:fill="0000FF"/></w:tcPr>'
+            '<w:p><w:r><w:t>R2C2</w:t></w:r></w:p></w:tc></w:tr></w:tbl>'
+        )
+        # Bản chuyển đổi LibreOffice có thể đổi tblCellMar, bỏ gridSpan/shading nếu chuyển đổi bị mất
+        conv_table = (
+            '<w:tbl><w:tblPr><w:tblW w:w="4990" w:type="dxa"/><w:tblCellMar><w:top w:w="28" w:type="dxa"/></w:tblCellMar></w:tblPr>'
+            '<w:tblGrid><w:gridCol w:w="2495"/><w:gridCol w:w="2495"/></w:tblGrid>'
+            '<w:tr><w:tc><w:p><w:r><w:t>R1C1 Merged</w:t></w:r></w:p></w:tc></w:tr>'
+            '<w:tr><w:tc><w:p><w:r><w:t>R2C1</w:t></w:r></w:p></w:tc>'
+            '<w:tc><w:p><w:r><w:t>R2C2</w:t></w:r></w:p></w:tc></w:tr></w:tbl>'
+        )
+        src_docx_xml = f'<w:body>{src_table}</w:body>'
+        conv_docx_xml = f'<w:body>{conv_table}</w:body>'
+        restored = patcher._restore_writer_table_properties(conv_docx_xml, src_docx_xml)
+        self.assertIn('<w:gridSpan w:val="2"/>', restored)
+        self.assertIn('w:fill="FFFF00"', restored)
+        self.assertIn('w:fill="0000FF"', restored)
+        self.assertIn('w:color="FF0000"', restored)
+        self.assertIn('<w:tblW w:w="5000" w:type="dxa"/>', restored)
+
+
 if __name__ == "__main__":
     unittest.main()
+
 
