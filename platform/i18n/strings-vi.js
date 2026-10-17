@@ -3,6 +3,13 @@
  */
 
 export const viStrings = {
+  writerTableProperties: {
+    table: "Bảng", row: "Hàng", column: "Cột", cell: "Ô", columnWidth: "Chiều rộng cột đang chọn",
+    setColumnWidth: "Đặt chiều rộng cột:", cm: "cm", verticalAlign: "Căn dọc nội dung ô",
+    top: "Trên", center: "Giữa", bottom: "Dưới", marginScope: "Áp dụng lề cho:", wholeTable: "Toàn bộ bảng",
+    selectedCells: "Ô đang chọn", marginTop: "Trên (cm):", marginBottom: "Dưới (cm):",
+    marginLeft: "Trái (cm):", marginRight: "Phải (cm):"
+  },
   app: {
     suiteName: "3T Office",
     writer: "Doc (Soạn thảo)",

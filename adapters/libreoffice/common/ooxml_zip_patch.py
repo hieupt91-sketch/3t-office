@@ -22403,6 +22403,39 @@ def _writer_upsert_tcpr(cell_xml: str, tag: str, replacement: str) -> str:
     return re.sub(r"(<w:tc\b[^>]*>)", rf"\1<w:tcPr>{replacement}</w:tcPr>", cell_xml, count=1, flags=re.IGNORECASE)
 
 
+def _writer_upsert_trpr(row_xml: str, tag: str, replacement: str) -> str:
+    """Replace/insert a row property without disturbing other source w:trPr children."""
+    tr_pr = re.search(r"<w:trPr\b[^>]*>[\s\S]*?</w:trPr\s*>", row_xml, re.IGNORECASE)
+    if tr_pr:
+        block = re.sub(
+            rf"<(?:w|w15):{tag}\b[^>]*?(?:/>|>[\s\S]*?</(?:w|w15):{tag}\s*>)",
+            lambda _m: replacement, tr_pr.group(0), count=1, flags=re.IGNORECASE,
+        )
+        if block == tr_pr.group(0):
+            block = block.replace("</w:trPr>", replacement + "</w:trPr>")
+        return row_xml[:tr_pr.start()] + block + row_xml[tr_pr.end():]
+    return re.sub(r"(<w:tr\b[^>]*>)", rf"\1<w:trPr>{replacement}</w:trPr>", row_xml, count=1, flags=re.IGNORECASE)
+
+
+def _writer_preferred_table_width_xml(value: float, unit: str) -> str:
+    """Convert a preferred width in cm or percent to the OOXML table width value."""
+    normalized = "pct" if str(unit).lower() == "pct" else "dxa"
+    width = int(round(float(value) * (50 if normalized == "pct" else 20)))
+    return f'<w:tblW w:w="{width}" w:type="{normalized}"/>'
+
+
+def _writer_cm_to_twips(value_cm: float) -> int:
+    return int(round(float(value_cm) * 1440 / 2.54))
+
+
+def _writer_cell_margin_xml(margins_twips: dict[str, int]) -> str:
+    """Create a schema-ordered tcMar element, filling unspecified sides with Word defaults."""
+    values = {"top": 113, "left": 170, "bottom": 113, "right": 170}
+    values.update({key: int(value) for key, value in margins_twips.items() if key in values})
+    children = "".join(f'<w:{side} w:w="{values[side]}" w:type="dxa"/>' for side in ("top", "left", "bottom", "right"))
+    return f"<w:tcMar>{children}</w:tcMar>"
+
+
 def _writer_html_plain(inner: str) -> str:
     return html.unescape(re.sub(r"<[^>]+>", "", inner)).strip()
 
@@ -25321,6 +25354,15 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
                 align_val = align_match.group(1).lower()
                 table = _writer_upsert_tblpr(table, "jc", f'<w:jc w:val="{align_val}"/>')
 
+            preferred_width = re.search(r'data-vno-table-width=["\']([\d.]+)["\']', opening, re.IGNORECASE)
+            preferred_unit = re.search(r'data-vno-table-width-unit=["\'](pct|dxa)["\']', opening, re.IGNORECASE)
+            if preferred_width and preferred_unit:
+                table = _writer_upsert_tblpr(
+                    table,
+                    "tblW",
+                    _writer_preferred_table_width_xml(float(preferred_width.group(1)), preferred_unit.group(1)),
+                )
+
             # Left Indent (w:tblInd)
             indent_match = re.search(r'data-vno-table-indent=["\']([\d.]+)["\']', opening, re.IGNORECASE)
             if indent_match:
@@ -25360,6 +25402,44 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             # Cell Text Direction (w:tcPr/w:textDirection) & Formula Fields (w:fldSimple)
             html_rows = list(re.finditer(r"<tr\b[^>]*>([\s\S]*?)</tr\s*>", table_body, re.IGNORECASE))
             xml_rows = list(re.finditer(r"<w:tr\b[\s\S]*?</w:tr\s*>", table, re.IGNORECASE))
+            row_openings = list(re.finditer(r"<tr\b([^>]*)>", table_body, re.IGNORECASE))
+            if len(row_openings) == len(xml_rows):
+                for row_index in range(len(row_openings) - 1, -1, -1):
+                    height_match = re.search(r'data-vno-row-height=["\']([\d.]+)["\']', row_openings[row_index].group(1), re.IGNORECASE)
+                    if not height_match:
+                        continue
+                    height_twips = int(round(float(height_match.group(1)) * 20))
+                    xml_row = xml_rows[row_index]
+                    row_xml = _writer_upsert_trpr(xml_row.group(0), "trHeight", f'<w:trHeight w:val="{height_twips}" w:hRule="atLeast"/>')
+                    table = table[:xml_row.start()] + row_xml + table[xml_row.end():]
+                xml_rows = list(re.finditer(r"<w:tr\b[\s\S]*?</w:tr\s*>", table, re.IGNORECASE))
+            if html_rows:
+                html_first_cells = list(re.finditer(r"<t[dh]\b([^>]*)>([\s\S]*?)</t[dh\s*>]?", html_rows[0].group(1), re.IGNORECASE))
+                grid_match = re.search(r"<w:tblGrid\b[^>]*>([\s\S]*?)</w:tblGrid\s*>", table, re.IGNORECASE)
+                custom_column_widths = False
+                if grid_match:
+                    grid_cols = list(re.finditer(r"<w:gridCol\b[^>]*/?>", grid_match.group(1), re.IGNORECASE))
+                    grid_body = grid_match.group(1)
+                    for column_index in range(min(len(html_first_cells), len(grid_cols)) - 1, -1, -1):
+                        width_match = re.search(r'data-vno-preferred-col-width=["\']([\d.]+)["\']', html_first_cells[column_index].group(1), re.IGNORECASE)
+                        if not width_match:
+                            continue
+                        custom_column_widths = True
+                        twips = _writer_cm_to_twips(float(width_match.group(1)))
+                        col = grid_cols[column_index]
+                        replacement = re.sub(r'\bw:w=["\']\d+["\']', f'w:w="{twips}"', col.group(0), count=1, flags=re.IGNORECASE)
+                        if replacement == col.group(0):
+                            replacement = col.group(0)[:-2] + f' w:w="{twips}"/>'
+                        grid_body = grid_body[:col.start()] + replacement + grid_body[col.end():]
+                    table = table[:grid_match.start(1)] + grid_body + table[grid_match.end(1):]
+                    # When no preferred table width was requested, make tblW agree with the explicit grid widths.
+                    # Otherwise Word scales every grid column to LibreOffice's stale table width.
+                    if custom_column_widths and not re.search(r'data-vno-table-width=["\']', opening, re.IGNORECASE):
+                        final_grid = re.search(r"<w:tblGrid\b[^>]*>([\s\S]*?)</w:tblGrid\s*>", table, re.IGNORECASE)
+                        widths = [int(value) for value in re.findall(r'<w:gridCol\b[^>]*\bw:w=["\'](\d+)["\']', final_grid.group(1), re.IGNORECASE)] if final_grid else []
+                        if widths:
+                            table = _writer_upsert_tblpr(table, "tblW", f'<w:tblW w:w="{sum(widths)}" w:type="dxa"/>')
+                    xml_rows = list(re.finditer(r"<w:tr\b[\s\S]*?</w:tr\s*>", table, re.IGNORECASE))
             if len(html_rows) == len(xml_rows):
                 for r_idx in range(len(html_rows) - 1, -1, -1):
                     h_row = html_rows[r_idx].group(1)
@@ -25373,11 +25453,32 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
                             cell_inner = h_cells[c_idx].group(2) if len(h_cells[c_idx].groups()) > 1 else ""
                             c_xml = x_cells[c_idx].group(0)
 
+                            column_width_match = re.search(
+                                r'data-vno-preferred-col-width=["\']([\d.]+)["\']', cell_open, re.IGNORECASE,
+                            )
+                            if column_width_match:
+                                twips = _writer_cm_to_twips(float(column_width_match.group(1)))
+                                c_xml = _writer_upsert_tcpr(c_xml, "tcW", f'<w:tcW w:w="{twips}" w:type="dxa"/>')
+
                             # Direction
                             dir_match = re.search(r'data-vno-text-direction=["\'](tbRl|btLr)["\']', cell_open, re.IGNORECASE)
                             if dir_match:
                                 direction_val = dir_match.group(1)
                                 c_xml = _writer_upsert_tcpr(c_xml, "textDirection", f'<w:textDirection w:val="{direction_val}"/>')
+
+                            valign_match = re.search(r'data-vno-vertical-align=["\'](top|center|bottom)["\']', cell_open, re.IGNORECASE)
+                            if valign_match:
+                                c_xml = _writer_upsert_tcpr(c_xml, "vAlign", f'<w:vAlign w:val="{valign_match.group(1).lower()}"/>')
+
+                            cell_margins = {}
+                            for side in ("top", "left", "bottom", "right"):
+                                margin_match = re.search(
+                                    rf'data-vno-cell-mar-{side}=["\']([\d.]+)["\']', cell_open, re.IGNORECASE,
+                                )
+                                if margin_match:
+                                    cell_margins[side] = int(round(float(margin_match.group(1)) * 20))
+                            if cell_margins:
+                                c_xml = _writer_upsert_tcpr(c_xml, "tcMar", _writer_cell_margin_xml(cell_margins))
 
                             # Formula field
                             if 'data-vno-field="formula"' in cell_inner or 'data-vno-field="formula"' in cell_open:

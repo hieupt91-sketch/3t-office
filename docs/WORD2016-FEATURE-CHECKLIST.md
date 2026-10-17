@@ -56,10 +56,10 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | 3 | Trang đầu | Đoạn văn | Hộp thoại Điểm dừng Tab (Tabs Dialog: căn lề, ký tự dẫn leader) | 🟡 | Hỗ trợ phím Tab cơ bản; chưa có hộp thoại Tabs dialog tùy biến vị trí và ký tự dẫn leader dots (docs/WORD2016-FINDINGS-1710.md:55-58, FIX-W1-TABS) |
 | 4 | Trang đầu | Chỉnh sửa | Đi đến (Go To, Ctrl+G) | 🟡 | Có điều hướng đầu/cuối tài liệu Ctrl+Home/End; chưa có hộp thoại Go To tới trang/dòng/bookmark (FIX-W7-GOTO) |
 | 5 | Công cụ Bảng | Thiết kế | Độ dày và kiểu đường viền bảng | 🟡 | Hỗ trợ độ dày chuẩn; kiểu nét đứt/đôi cần hoàn thiện trong giao diện viền |
-| 6 | Công cụ Bảng | Bố trí | Thuộc tính bảng (Table Properties Dialog) | 🟡 | Cấu hình qua thanh công cụ; chưa có hộp thoại Table Properties gộp căn lề bảng/ô/văn bản bao quanh |
-| 7 | Công cụ Bảng | Bố trí | Tách bảng (Split Table) | 🔴 | Chưa có lệnh tách bảng thành 2 bảng riêng tại hàng được chọn |
-| 8 | Công cụ Bảng | Bố trí | Xoay hướng chữ trong ô (Text Direction) | 🔴 | Chưa có xoay hướng chữ 90/270 độ trong ô bảng Doc |
-| 9 | Công cụ Bảng | Bố trí | Khoảng cách lề ô bảng (Cell Margins) | 🟡 | Hỗ trợ qua padding; chưa có hộp thoại Cell Margins riêng cho bảng |
+| 6 | Công cụ Bảng | Bố trí | Thuộc tính bảng (Table Properties Dialog) | 🟢 | Hộp thoại Bảng/Hàng/Cột/Ô cấu hình căn, thụt lề, độ rộng %, cm, chiều cao hàng, căn dọc và lề ô; lưu DOCX qua OOXML |
+| 7 | Công cụ Bảng | Bố trí | Tách bảng (Split Table) | 🟢 | Tách tại hàng con trỏ thành hai w:tbl, chèn đoạn trống, giữ nguyên hàng đầu bảng mới và Undo một bước |
+| 8 | Công cụ Bảng | Bố trí | Xoay hướng chữ trong ô (Text Direction) | 🟢 | Xoay Ngang/90°/270° với CSS writing-mode và w:textDirection; Word COM đọc Orientation đúng |
+| 9 | Công cụ Bảng | Bố trí | Khoảng cách lề ô bảng (Cell Margins) | 🟢 | Hộp thoại nhập lề Trên/Dưới/Trái/Phải theo cm; lưu mặc định bằng w:tblCellMar hoặc riêng ô bằng w:tcMar |
 | 10 | Không thuộc ribbon | Chuột | Đặt điểm dừng tab tùy chỉnh trên thước | 🔴 | Chưa có thao tác nhấp chuột lên thước để đặt tab dừng căn phải/giữa/thập phân |
 
 Tổng: 10 mục ưu tiên 1 cần bổ sung/hoàn thiện.
@@ -344,19 +344,19 @@ Tổng: 10 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Thiết kế | Vẽ bảng (Draw Table) & Tẩy viền (Eraser) | 🔴 | 2 | Chưa có công cụ vẽ viền tự do bằng chuột |
 | Bố trí | Chọn ô, hàng, cột, bảng (Table Select) | ✅ | - | writer.table.selectCell, selectRow, selectCol, selectTable: chọn ô, hàng, cột, toàn bộ bảng; đã đo kiểm đối chiếu Word 2016 COM Selection (apps/writer/writer-table.js:410-454, docs/word-oracle-tables-1710.json:48-65, tests/live/cdp/writer-table-parity.desktop.mjs:141-164) |
 | Bố trí | Xem đường lưới bảng (View Gridlines) | ✅ | - | writer.table.viewGridlines: bật/tắt đường viền lưới chấm mờ của bảng không viền; đã đo kiểm đối chiếu Word 2016 COM TableGridlines (adapters/libreoffice/writer/writer-adapter.js:10017-10026, docs/word-oracle-tables-1710.json:97-103, tests/live/cdp/writer-table-parity.desktop.mjs:181-197) |
-| Bố trí | Thuộc tính bảng (Table Properties Dialog) | 🟡 | 1 | Cấu hình qua thanh công cụ; chưa có hộp thoại Table Properties gộp căn lề bảng/ô/văn bản bao quanh |
+| Bố trí | Thuộc tính bảng (Table Properties Dialog) | 🟢 | 1 | Hộp thoại gộp Bảng/Hàng/Cột/Ô; kiểm tra DOCX và Word COM trong `tests/live/cdp/writer-table-properties.desktop.mjs` |
 | Bố trí | Chèn hàng trên / Chèn hàng dưới | ✅ | - | Chèn hàng trên và dưới đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:54,79) |
 | Bố trí | Chèn cột trái / Chèn cột phải | ✅ | - | Chèn cột trái và phải đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:54,79) |
 | Bố trí | Xóa hàng, xóa cột, xóa bảng | ✅ | - | Xóa hàng, xóa cột, xóa bảng đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:54,83) |
 | Bố trí | Gộp ô (Merge Cells) | ✅ | - | Gộp ô ngang và dọc đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:55,83) |
 | Bố trí | Tách ô (Split Cells) | ✅ | - | Tách ô ngang và dọc đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:55,83) |
-| Bố trí | Tách bảng (Split Table) | 🔴 | 1 | Chưa có lệnh tách bảng thành 2 bảng riêng tại hàng được chọn |
+| Bố trí | Tách bảng (Split Table) | 🟢 | 1 | Hai w:tbl sau lưu, phân hàng đúng và Undo một bước trong kiểm tra desktop CDP/Word COM |
 | Bố trí | Tự khớp kích thước (AutoFit to Contents / Window) | ✅ | - | Tự khớp kích thước AutoFit nội dung và cửa sổ đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:57,83) |
 | Bố trí | Chiều cao hàng & Chiều rộng cột chính xác | ✅ | - | Chiều cao hàng w:trHeight exact 840 và kéo cột đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:57,83) |
 | Bố trí | Phân bố đều hàng & cột (Distribute Rows / Columns) | ✅ | - | writer.table.distributeRows, distributeCols: căn đều chiều cao các hàng theo chiều cao trung bình và chia đều bề rộng cột %; đã đo kiểm đối chiếu Word 2016 COM DistributeHeight/DistributeWidth (adapters/libreoffice/writer/writer-adapter.js:10004-10034, docs/word-oracle-tables-1710.json:2-16, tests/live/cdp/writer-table-parity.desktop.mjs:47-70) |
 | Bố trí | Căn lề ô theo chiều dọc (Top, Center, Bottom) | ✅ | - | Căn giữa dọc ô bảng VerticalAlignment=1 đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:56,79, docs/word-oracle-1710.json:30-36) |
-| Bố trí | Xoay hướng chữ trong ô (Text Direction) | 🔴 | 1 | Chưa có xoay hướng chữ 90/270 độ trong ô bảng Doc |
-| Bố trí | Khoảng cách lề ô bảng (Cell Margins) | 🟡 | 1 | Hỗ trợ qua padding; chưa có hộp thoại Cell Margins riêng cho bảng |
+| Bố trí | Xoay hướng chữ trong ô (Text Direction) | 🟢 | 1 | Word COM đọc hướng 90° là Orientation=3; lưu w:textDirection |
+| Bố trí | Khoảng cách lề ô bảng (Cell Margins) | 🟢 | 1 | Lề nhập cm, căn dọc, w:tblCellMar và w:tcMar được kiểm tra qua DOCX |
 | Bố trí | Lặp lại hàng tiêu đề qua các trang (Repeat Header Rows) | ✅ | - | Lặp lại hàng tiêu đề HeadingFormat=-1 đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:56) |
 | Bố trí | Sắp xếp dữ liệu trong bảng (Sort Table) | ✅ | - | writer.table.sort: sắp xếp các hàng dữ liệu A-Z theo cột đang chọn, giữ nguyên hàng tiêu đề; đã đo kiểm đối chiếu Word 2016 COM Table.Sort(ExcludeHeader) (adapters/libreoffice/writer/writer-adapter.js:1816-1851, docs/word-oracle-tables-1710.json:28-42, tests/live/cdp/writer-table-parity.desktop.mjs:95-121) |
 | Bố trí | Công thức tính toán trong bảng (=SUM(ABOVE)...) | ✅ | - | writer.table.formula: tính toán =SUM(ABOVE), =SUM(LEFT), AVERAGE, COUNT, MAX, MIN, PRODUCT, xuất w:fldSimple, đã đo kiểm đối chiếu Word COM (apps/writer/writer-table-formula-dialog.js:1-25, docs/word-oracle-writer2-1710.json:49-60) |

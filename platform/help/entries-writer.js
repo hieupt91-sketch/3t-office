@@ -2218,11 +2218,11 @@ export const WRITER_HELP_ENTRIES = [
   ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Bảng" },
   keywords: ["thuộc tính bảng", "table properties", "căn lề bảng", "thụt lề", "lề ô", "padding", "khoảng cách ô", "cell spacing", "chiều cao hàng"],
   steps: [
-    "Đặt con trỏ vào một ô trong bảng, mở tab ngữ cảnh Bố cục Bảng, trong nhóm Bảng bấm nút 'Thuộc tính bảng' (hoặc nhấn chuột phải vào bảng chọn Thuộc tính bảng).",
-    "Trong tab 'Bảng', thiết lập Căn lề bảng (Trái, Giữa, Phải), nhập khoảng cách Thụt lề trái (pt) nếu căn trái, và chọn Chiều rộng chỉ định theo đơn vị % hoặc pt nếu cần cố định độ rộng bảng.",
-    "Chuyển sang tab 'Hàng' để tích chọn và đặt Chiều cao hàng cụ thể tính theo pt cho các hàng trong bảng.",
-    "Chuyển sang tab 'Ô & Lề' để điều chỉnh khoảng cách đệm (Padding) Trên, Dưới, Trái, Phải của ô và tích chọn cho phép dãn cách giữa các ô (Cell Spacing) nếu muốn bảng có khoảng hở giữa các ô.",
-    "Bấm 'Đồng ý' để áp dụng toàn bộ thuộc tính vào bảng. Mọi thiết lập được lưu chuẩn xác vào thẻ thuộc tính bảng trong tệp DOCX."
+    "Đặt con trỏ vào một ô trong bảng, mở tab ngữ cảnh Bố cục Bảng, rồi trong nhóm Bảng bấm nút 'Thuộc tính bảng'.",
+    "Trong tab 'Bảng', chọn căn Trái/Giữa/Phải, nhập thụt lề trái theo cm và bật Chiều rộng chỉ định để nhập % hoặc cm.",
+    "Chuyển sang tab 'Hàng' để bật Chiều cao hàng, nhập giá trị cm; tab 'Cột' cho phép đặt chiều rộng cm của cột chứa con trỏ.",
+    "Chuyển sang tab 'Ô' để chọn căn dọc Trên/Giữa/Dưới. Trong mục lề, chọn áp dụng cho Toàn bộ bảng hoặc Ô đang chọn rồi nhập lề Trên/Dưới/Trái/Phải theo cm; có thể bật khoảng cách giữa các ô theo pt.",
+    "Bấm 'Đồng ý' để áp dụng. Khi cần sửa riêng một ô, hãy chọn ô trước khi mở hộp thoại; nhấn 'Hủy' hoặc Esc để đóng mà không áp dụng. Các thuộc tính được ghi vào DOCX và có thể hoàn tác bằng Ctrl+Z."
   ]
 },
 {

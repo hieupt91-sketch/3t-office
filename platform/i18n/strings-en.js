@@ -4,6 +4,13 @@
  */
 
 export const enStrings = {
+  writerTableProperties: {
+    table: "Table", row: "Row", column: "Column", cell: "Cell", columnWidth: "Selected column width",
+    setColumnWidth: "Set column width:", cm: "cm", verticalAlign: "Cell vertical alignment",
+    top: "Top", center: "Center", bottom: "Bottom", marginScope: "Apply margins to:", wholeTable: "Whole table",
+    selectedCells: "Selected cells", marginTop: "Top (cm):", marginBottom: "Bottom (cm):",
+    marginLeft: "Left (cm):", marginRight: "Right (cm):"
+  },
   app: {
     suiteName: "3T Office",
     writer: "Doc (Text Documents)",

@@ -44,8 +44,13 @@ export async function showTablePropertiesDialog(current = {}) {
       marginRightPt: 8.5,
       cellSpacingPt: 0,
       hasSpacing: false,
+      columnWidthCm: "",
+      hasColumnWidth: false,
+      verticalAlign: "top",
+      marginScope: "table",
       ...current
     };
+    const ptToCm = value => (Number(value || 0) / 28.3464567).toFixed(2);
 
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
@@ -63,9 +68,10 @@ export async function showTablePropertiesDialog(current = {}) {
         </div>
         <div class="vno-dialog-body" style="display:flex; flex-direction:column; gap:12px;">
           <div role="tablist" aria-label="Các phần thuộc tính bảng" style="display:flex; gap:4px; border-bottom:1px solid #cbd5e1;">
-            <button type="button" role="tab" id="vno-tblprops-tab-table" aria-selected="true" aria-controls="vno-tblprops-panel-table" style="${activeTabStyle}">Bảng</button>
-            <button type="button" role="tab" id="vno-tblprops-tab-row" aria-selected="false" aria-controls="vno-tblprops-panel-row" tabindex="-1" style="${tabStyle}">Hàng</button>
-            <button type="button" role="tab" id="vno-tblprops-tab-cell" aria-selected="false" aria-controls="vno-tblprops-panel-cell" tabindex="-1" style="${tabStyle}">Ô &amp; Lề</button>
+            <button type="button" role="tab" id="vno-tblprops-tab-table" aria-selected="true" aria-controls="vno-tblprops-panel-table" style="${activeTabStyle}">${t("writerTableProperties.table")}</button>
+            <button type="button" role="tab" id="vno-tblprops-tab-row" aria-selected="false" aria-controls="vno-tblprops-panel-row" tabindex="-1" style="${tabStyle}">${t("writerTableProperties.row")}</button>
+            <button type="button" role="tab" id="vno-tblprops-tab-column" aria-selected="false" aria-controls="vno-tblprops-panel-column" tabindex="-1" style="${tabStyle}">${t("writerTableProperties.column")}</button>
+            <button type="button" role="tab" id="vno-tblprops-tab-cell" aria-selected="false" aria-controls="vno-tblprops-panel-cell" tabindex="-1" style="${tabStyle}">${t("writerTableProperties.cell")}</button>
           </div>
 
           <!-- TAB BẢNG -->
@@ -87,8 +93,8 @@ export async function showTablePropertiesDialog(current = {}) {
 
             <div style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
               <div>
-                <label for="vno-tbl-indent" style="${fieldStyle}">Thụt lề trái (pt):</label>
-                <input type="number" id="vno-tbl-indent" class="vno-dialog-input" min="0" max="720" step="1" value="${cur.indentPt || 0}" style="${inputStyle}">
+                <label for="vno-tbl-indent" style="${fieldStyle}">Thụt lề trái (cm):</label>
+                <input type="number" id="vno-tbl-indent" class="vno-dialog-input" min="0" max="25.4" step="0.01" value="${ptToCm(cur.indentPt)}" style="${inputStyle}">
               </div>
               <div>
                 <label for="vno-tbl-width" style="${fieldStyle}">
@@ -98,7 +104,7 @@ export async function showTablePropertiesDialog(current = {}) {
                   <input type="number" id="vno-tbl-width" class="vno-dialog-input" min="1" max="1000" step="1" value="${cur.width || ""}" style="${inputStyle}" ${cur.hasWidth ? "" : "disabled"}>
                   <select id="vno-tbl-width-unit" class="vno-dialog-input" style="width:75px; padding:6px; font-size:13px; border:1px solid #cbd5e1; border-radius:4px;" ${cur.hasWidth ? "" : "disabled"}>
                     <option value="%" ${cur.widthUnit === "%" ? "selected" : ""}>%</option>
-                    <option value="pt" ${cur.widthUnit === "pt" ? "selected" : ""}>pt</option>
+                    <option value="cm" ${cur.widthUnit === "cm" ? "selected" : ""}>cm</option>
                   </select>
                 </div>
               </div>
@@ -114,33 +120,61 @@ export async function showTablePropertiesDialog(current = {}) {
                   <input type="checkbox" id="vno-tbl-rowheight-enable" ${cur.hasRowHeight ? "checked" : ""}> Chỉ định chiều cao:
                 </label>
                 <div style="display:flex; gap:8px; align-items:center;">
-                  <input type="number" id="vno-tbl-rowheight" class="vno-dialog-input" min="1" max="1000" step="1" value="${cur.rowHeightPt || ""}" style="${inputStyle}; width:160px;" ${cur.hasRowHeight ? "" : "disabled"}>
-                  <span style="font-size:13px; color:#475569;">pt</span>
+                  <input type="number" id="vno-tbl-rowheight" class="vno-dialog-input" min="0.01" max="55.8" step="0.01" value="${cur.rowHeightPt ? ptToCm(cur.rowHeightPt) : ""}" style="${inputStyle}; width:160px;" ${cur.hasRowHeight ? "" : "disabled"}>
+                  <span style="font-size:13px; color:#475569;">cm</span>
                 </div>
               </div>
             </fieldset>
           </div>
 
-          <!-- TAB Ô & LỀ -->
+          <div id="vno-tblprops-panel-column" role="tabpanel" aria-labelledby="vno-tblprops-tab-column" hidden style="display:none; flex-direction:column; gap:14px;">
+            <fieldset style="border:1px solid #e2e8f0; border-radius:6px; padding:10px 14px; margin:0;">
+              <legend style="font-size:12px; font-weight:600; color:#334155; padding:0 6px;">${t("writerTableProperties.columnWidth")}</legend>
+              <label style="font-size:13px; display:inline-flex; align-items:center; gap:8px; cursor:pointer;">
+                <input type="checkbox" id="vno-tbl-colwidth-enable" ${cur.hasColumnWidth ? "checked" : ""}> ${t("writerTableProperties.setColumnWidth")}
+              </label>
+              <div style="display:flex; gap:8px; align-items:center; margin-top:8px;">
+                <input type="number" id="vno-tbl-colwidth" class="vno-dialog-input" min="0.1" max="55.8" step="0.01" value="${cur.columnWidthCm || ""}" style="${inputStyle}; width:180px;" ${cur.hasColumnWidth ? "" : "disabled"}>
+                <span style="font-size:13px; color:#475569;">${t("writerTableProperties.cm")}</span>
+              </div>
+            </fieldset>
+          </div>
+
+          <!-- TAB Ô -->
           <div id="vno-tblprops-panel-cell" role="tabpanel" aria-labelledby="vno-tblprops-tab-cell" hidden style="display:none; flex-direction:column; gap:14px;">
+            <fieldset style="border:1px solid #e2e8f0; border-radius:6px; padding:10px 14px; margin:0;">
+              <legend style="font-size:12px; font-weight:600; color:#334155; padding:0 6px;">${t("writerTableProperties.verticalAlign")}</legend>
+              <select id="vno-tbl-valign" class="vno-dialog-input" style="${inputStyle}">
+                <option value="top" ${cur.verticalAlign === "top" ? "selected" : ""}>${t("writerTableProperties.top")}</option>
+                <option value="center" ${cur.verticalAlign === "center" ? "selected" : ""}>${t("writerTableProperties.center")}</option>
+                <option value="bottom" ${cur.verticalAlign === "bottom" ? "selected" : ""}>${t("writerTableProperties.bottom")}</option>
+              </select>
+            </fieldset>
+            <label style="font-size:13px; display:flex; align-items:center; gap:8px;">
+              <span>${t("writerTableProperties.marginScope")}</span>
+              <select id="vno-tbl-margin-scope" class="vno-dialog-input" style="${inputStyle}; width:auto;">
+                <option value="table" ${cur.marginScope === "table" ? "selected" : ""}>${t("writerTableProperties.wholeTable")}</option>
+                <option value="selection" ${cur.marginScope === "selection" ? "selected" : ""}>${t("writerTableProperties.selectedCells")}</option>
+              </select>
+            </label>
             <fieldset style="border:1px solid #e2e8f0; border-radius:6px; padding:10px 14px; margin:0;">
               <legend style="font-size:12px; font-weight:600; color:#334155; padding:0 6px;">Lề mặc định của ô (Padding)</legend>
               <div style="display:grid; grid-template-columns: 1fr 1fr; gap:10px; margin-top:4px;">
                 <div>
-                  <label for="vno-tbl-mar-top" style="${fieldStyle}">Trên (pt):</label>
-                  <input type="number" id="vno-tbl-mar-top" class="vno-dialog-input" min="0" max="144" step="0.5" value="${cur.marginTopPt}" style="${inputStyle}">
+                  <label for="vno-tbl-mar-top" style="${fieldStyle}">${t("writerTableProperties.marginTop")}</label>
+                  <input type="number" id="vno-tbl-mar-top" class="vno-dialog-input" min="0" max="5.08" step="0.01" value="${ptToCm(cur.marginTopPt)}" style="${inputStyle}">
                 </div>
                 <div>
-                  <label for="vno-tbl-mar-bottom" style="${fieldStyle}">Dưới (pt):</label>
-                  <input type="number" id="vno-tbl-mar-bottom" class="vno-dialog-input" min="0" max="144" step="0.5" value="${cur.marginBottomPt}" style="${inputStyle}">
+                  <label for="vno-tbl-mar-bottom" style="${fieldStyle}">${t("writerTableProperties.marginBottom")}</label>
+                  <input type="number" id="vno-tbl-mar-bottom" class="vno-dialog-input" min="0" max="5.08" step="0.01" value="${ptToCm(cur.marginBottomPt)}" style="${inputStyle}">
                 </div>
                 <div>
-                  <label for="vno-tbl-mar-left" style="${fieldStyle}">Trái (pt):</label>
-                  <input type="number" id="vno-tbl-mar-left" class="vno-dialog-input" min="0" max="144" step="0.5" value="${cur.marginLeftPt}" style="${inputStyle}">
+                  <label for="vno-tbl-mar-left" style="${fieldStyle}">${t("writerTableProperties.marginLeft")}</label>
+                  <input type="number" id="vno-tbl-mar-left" class="vno-dialog-input" min="0" max="5.08" step="0.01" value="${ptToCm(cur.marginLeftPt)}" style="${inputStyle}">
                 </div>
                 <div>
-                  <label for="vno-tbl-mar-right" style="${fieldStyle}">Phải (pt):</label>
-                  <input type="number" id="vno-tbl-mar-right" class="vno-dialog-input" min="0" max="144" step="0.5" value="${cur.marginRightPt}" style="${inputStyle}">
+                  <label for="vno-tbl-mar-right" style="${fieldStyle}">${t("writerTableProperties.marginRight")}</label>
+                  <input type="number" id="vno-tbl-mar-right" class="vno-dialog-input" min="0" max="5.08" step="0.01" value="${ptToCm(cur.marginRightPt)}" style="${inputStyle}">
                 </div>
               </div>
             </fieldset>
@@ -178,13 +212,15 @@ export async function showTablePropertiesDialog(current = {}) {
     const tabTable = overlay.querySelector("#vno-tblprops-tab-table");
     const tabRow = overlay.querySelector("#vno-tblprops-tab-row");
     const tabCell = overlay.querySelector("#vno-tblprops-tab-cell");
+    const tabColumn = overlay.querySelector("#vno-tblprops-tab-column");
     const panelTable = overlay.querySelector("#vno-tblprops-panel-table");
     const panelRow = overlay.querySelector("#vno-tblprops-panel-row");
     const panelCell = overlay.querySelector("#vno-tblprops-panel-cell");
+    const panelColumn = overlay.querySelector("#vno-tblprops-panel-column");
 
     function switchTab(target) {
-      const tabs = [tabTable, tabRow, tabCell];
-      const panels = [panelTable, panelRow, panelCell];
+      const tabs = [tabTable, tabRow, tabColumn, tabCell];
+      const panels = [panelTable, panelRow, panelColumn, panelCell];
       tabs.forEach((t, i) => {
         const isMatch = (t === target);
         t.setAttribute("aria-selected", isMatch ? "true" : "false");
@@ -198,6 +234,14 @@ export async function showTablePropertiesDialog(current = {}) {
     tabTable.addEventListener("click", () => switchTab(tabTable));
     tabRow.addEventListener("click", () => switchTab(tabRow));
     tabCell.addEventListener("click", () => switchTab(tabCell));
+    tabColumn.addEventListener("click", () => switchTab(tabColumn));
+
+    const columnWidthEnable = overlay.querySelector("#vno-tbl-colwidth-enable");
+    const columnWidthInput = overlay.querySelector("#vno-tbl-colwidth");
+    columnWidthEnable.addEventListener("change", () => {
+      columnWidthInput.disabled = !columnWidthEnable.checked;
+      if (columnWidthEnable.checked && !columnWidthInput.value) columnWidthInput.value = "2.5";
+    });
 
     // Width checkbox toggle
     const widthEnable = overlay.querySelector("#vno-tbl-width-enable");
@@ -233,26 +277,26 @@ export async function showTablePropertiesDialog(current = {}) {
 
     function submit() {
       const selectedAlign = overlay.querySelector('input[name="vno-tbl-align"]:checked')?.value || "left";
-      const indentPt = Math.max(0, parseFloat(overlay.querySelector("#vno-tbl-indent")?.value || 0) || 0);
+      const indentPt = Math.max(0, parseFloat(overlay.querySelector("#vno-tbl-indent")?.value || 0) * 28.3464567 || 0);
 
       let width = null;
       if (widthEnable.checked) {
         const wVal = parseFloat(widthInput.value) || 0;
         if (wVal > 0) {
-          width = `${wVal}${widthUnit.value}`;
+          width = `${widthUnit.value === "cm" ? wVal * 28.3464567 : wVal}${widthUnit.value === "cm" ? "pt" : widthUnit.value}`;
         }
       }
 
       let rowHeightPt = null;
       if (rowHeightEnable.checked) {
         const hVal = parseFloat(rowHeightInput.value) || 0;
-        if (hVal > 0) rowHeightPt = hVal;
+        if (hVal > 0) rowHeightPt = hVal * 28.3464567;
       }
 
-      const marginTopPt = Math.max(0, parseFloat(overlay.querySelector("#vno-tbl-mar-top")?.value || 0) || 0);
-      const marginBottomPt = Math.max(0, parseFloat(overlay.querySelector("#vno-tbl-mar-bottom")?.value || 0) || 0);
-      const marginLeftPt = Math.max(0, parseFloat(overlay.querySelector("#vno-tbl-mar-left")?.value || 0) || 0);
-      const marginRightPt = Math.max(0, parseFloat(overlay.querySelector("#vno-tbl-mar-right")?.value || 0) || 0);
+      const marginTopPt = Math.max(0, parseFloat(overlay.querySelector("#vno-tbl-mar-top")?.value || 0) * 28.3464567 || 0);
+      const marginBottomPt = Math.max(0, parseFloat(overlay.querySelector("#vno-tbl-mar-bottom")?.value || 0) * 28.3464567 || 0);
+      const marginLeftPt = Math.max(0, parseFloat(overlay.querySelector("#vno-tbl-mar-left")?.value || 0) * 28.3464567 || 0);
+      const marginRightPt = Math.max(0, parseFloat(overlay.querySelector("#vno-tbl-mar-right")?.value || 0) * 28.3464567 || 0);
 
       let cellSpacingPt = 0;
       if (spacingEnable.checked) {
@@ -268,7 +312,10 @@ export async function showTablePropertiesDialog(current = {}) {
         marginBottomPt,
         marginLeftPt,
         marginRightPt,
-        cellSpacingPt
+        cellSpacingPt,
+        columnWidthCm: overlay.querySelector("#vno-tbl-colwidth-enable")?.checked ? parseFloat(overlay.querySelector("#vno-tbl-colwidth")?.value || "0") : null,
+        verticalAlign: overlay.querySelector("#vno-tbl-valign")?.value || "top",
+        marginScope: overlay.querySelector("#vno-tbl-margin-scope")?.value || "table"
       });
     }
 
