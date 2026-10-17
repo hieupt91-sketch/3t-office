@@ -104,6 +104,10 @@ import {
   SHADOW_PRESETS,
   GLOW_PRESETS
 } from "../../../apps/writer/text-effects-dialog.js";
+import { WriterArrangeController } from "../../../apps/writer/writer-arrange-controller.js";
+import { WriterSplitView } from "../../../apps/writer/writer-split-view.js";
+import { showTableStylesGallery, TABLE_STYLES, applyTableStyle } from "../../../apps/writer/writer-table-styles.js";
+import { showTableFormulaDialog, evaluateTableFormula } from "../../../apps/writer/writer-table-formula-dialog.js";
 
 let writerInsertDialogsPromise;
 let writerMailMergeDialogsPromise;
@@ -475,6 +479,9 @@ export class WriterAdapter {
     this.documentTheme = "office";
     this.showFormattingMarks = false;
     this._styleSelectionHandler = null;
+
+    this.arrangeController = new WriterArrangeController(this);
+    this.splitView = new WriterSplitView(this);
 
     this._initZones();
     if (this.editorDom) {
@@ -9417,6 +9424,26 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.table.splitTable", () => this._hintIfFalse(() => this.splitTable(), "Hãy đặt con trỏ vào một ô trong bảng để tách bảng."));
     globalCommandBus.bindHandler("writer.table.textDirection", (args) => this._hintIfFalse(() => this.setTableTextDirection(args), "Hãy đặt con trỏ vào một ô trong bảng để đổi hướng chữ."));
     globalCommandBus.bindHandler("writer.table.properties", (args) => this._hintIfFalse(() => this.openTablePropertiesDialog(args), "Hãy đặt con trỏ vào một bảng để mở thuộc tính bảng."));
+    globalCommandBus.bindHandler("writer.table.stylesGallery", (args) => {
+      const table = this._getActiveTable();
+      if (!table) {
+        return this._hintIfFalse(() => false, "Hãy đặt con trỏ vào bảng để chọn kiểu bảng.");
+      }
+      const targetEl = args?.targetEl || (typeof document !== "undefined" ? document.querySelector('[data-command-id="writer.table.stylesGallery"]') : null) || table;
+      return showTableStylesGallery(targetEl, table, this);
+    });
+    globalCommandBus.bindHandler("writer.table.formula", () => {
+      const table = this._getActiveTable();
+      const cell = this._getActiveTableCell();
+      if (!table || !cell) {
+        return this._hintIfFalse(() => false, "Hãy đặt con trỏ vào một ô trong bảng để chèn công thức.");
+      }
+      return showTableFormulaDialog(table, cell, this);
+    });
+    globalCommandBus.bindHandler("writer.view.selectionPane", (args) => this.arrangeController?.toggleSelectionPane(args));
+    globalCommandBus.bindHandler("writer.arrange.group", () => this.arrangeController?.groupSelectedObjects());
+    globalCommandBus.bindHandler("writer.arrange.ungroup", () => this.arrangeController?.ungroupSelectedObjects());
+    globalCommandBus.bindHandler("writer.view.split", (args) => this.splitView?.toggleSplit(args));
   }
 
   _getActiveTable() {
@@ -17268,6 +17295,10 @@ export class WriterAdapter {
             : renderShapeSvg(s);
           const isNewTextBox = (s.type === "textbox" || s.shapeType === "textbox") && !s.imported;
           const shapeMetadata = {
+            id: s.id,
+            name: s.name || (s.type ? `${s.type} ${s.id || 1}` : undefined),
+            visible: s.visible !== false,
+            groupId: s.groupId || undefined,
             type: s.type || s.shapeType || "rectangle",
             isNew: !s.imported,
             x: Number(s.x) || 0,

@@ -21614,6 +21614,16 @@ def _writer_restore_native_writer_shapes(document_xml: str, source_html: str) ->
         else:
             sp_xml = re.sub(r"</wps:spPr\s*>", line_xml + "</wps:spPr>", sp_xml, count=1, flags=re.IGNORECASE)
         block = block[:sp_pr.start()] + sp_xml + block[sp_pr.end():]
+        if "name" in spec and spec.get("name"):
+            shape_name = str(spec.get("name") or "")
+            block = re.sub(r'(<wp:docPr\b[^>]*\bname=)["\'][^"\']*["\']', rf'\1"{shape_name}"', block, count=1, flags=re.IGNORECASE)
+        if spec.get("visible") is False:
+            if not re.search(r'<wp:docPr\b[^>]*\bhidden=', block, re.IGNORECASE):
+                block = re.sub(r'(<wp:docPr\b[^>]*)', r'\1 hidden="1"', block, count=1, flags=re.IGNORECASE)
+            else:
+                block = re.sub(r'(<wp:docPr\b[^>]*\bhidden=)["\'][^"\']*["\']', r'\1"1"', block, count=1, flags=re.IGNORECASE)
+        elif spec.get("visible") is True:
+            block = re.sub(r'\s+hidden=["\'][^"\']*["\']', '', block, flags=re.IGNORECASE)
         updates[target_index] = block
         used.add(target_index)
 
@@ -22940,6 +22950,16 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             table_body = html_table.group(2)
             table = xml_tables[index].group(0)
 
+            # Table Style (w:tblStyle) & Table Look (w:tblLook)
+            style_match = re.search(r'data-vno-table-style=["\']([^"\']+)["\']', opening, re.IGNORECASE)
+            if style_match:
+                style_val = style_match.group(1)
+                table = _writer_upsert_tblpr(table, "tblStyle", f'<w:tblStyle w:val="{style_val}"/>')
+                first_row = "1" if ('data-vno-header-row="false"' not in opening.lower()) else "0"
+                band_row = "1" if ('data-vno-banded-rows="false"' not in opening.lower()) else "0"
+                no_h_band = "0" if band_row == "1" else "1"
+                table = _writer_upsert_tblpr(table, "tblLook", f'<w:tblLook w:val="04A0" w:firstRow="{first_row}" w:lastRow="0" w:firstColumn="0" w:lastColumn="0" w:noHBand="{no_h_band}" w:noVBand="1"/>')
+
             # Table Alignment (w:jc)
             align_match = re.search(r'data-vno-table-align=["\'](left|center|right)["\']', opening, re.IGNORECASE)
             if align_match:
@@ -22982,25 +23002,52 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
                 )
                 table = _writer_upsert_tblpr(table, "tblCellMar", tbl_cell_mar_xml)
 
-            # Cell Text Direction (w:tcPr/w:textDirection)
+            # Cell Text Direction (w:tcPr/w:textDirection) & Formula Fields (w:fldSimple)
             html_rows = list(re.finditer(r"<tr\b[^>]*>([\s\S]*?)</tr\s*>", table_body, re.IGNORECASE))
             xml_rows = list(re.finditer(r"<w:tr\b[\s\S]*?</w:tr\s*>", table, re.IGNORECASE))
             if len(html_rows) == len(xml_rows):
                 for r_idx in range(len(html_rows) - 1, -1, -1):
                     h_row = html_rows[r_idx].group(1)
                     x_row = xml_rows[r_idx].group(0)
-                    h_cells = list(re.finditer(r"<t[dh]\b([^>]*)>", h_row, re.IGNORECASE))
+                    h_cells = list(re.finditer(r"<t[dh]\b([^>]*)>([\s\S]*?)</t[dh\s*>]?", h_row, re.IGNORECASE))
                     x_cells = list(re.finditer(r"<w:tc\b[\s\S]*?</w:tc\s*>", x_row, re.IGNORECASE))
                     if len(h_cells) == len(x_cells):
                         row_str = x_row
                         for c_idx in range(len(h_cells) - 1, -1, -1):
                             cell_open = h_cells[c_idx].group(1)
+                            cell_inner = h_cells[c_idx].group(2) if len(h_cells[c_idx].groups()) > 1 else ""
+                            c_xml = x_cells[c_idx].group(0)
+
+                            # Direction
                             dir_match = re.search(r'data-vno-text-direction=["\'](tbRl|btLr)["\']', cell_open, re.IGNORECASE)
                             if dir_match:
                                 direction_val = dir_match.group(1)
-                                c_xml = x_cells[c_idx].group(0)
-                                new_c_xml = _writer_upsert_tcpr(c_xml, "textDirection", f'<w:textDirection w:val="{direction_val}"/>')
-                                row_str = row_str[:x_cells[c_idx].start()] + new_c_xml + row_str[x_cells[c_idx].end():]
+                                c_xml = _writer_upsert_tcpr(c_xml, "textDirection", f'<w:textDirection w:val="{direction_val}"/>')
+
+                            # Formula field
+                            if 'data-vno-field="formula"' in cell_inner or 'data-vno-field="formula"' in cell_open:
+                                formula_m = re.search(r'data-vno-formula=["\']([^"\']+)["\']', cell_inner + cell_open, re.IGNORECASE)
+                                if formula_m:
+                                    formula_val = formula_m.group(1)
+                                    numfmt_m = re.search(r'data-vno-numfmt=["\']([^"\']+)["\']', cell_inner + cell_open, re.IGNORECASE)
+                                    numfmt_val = numfmt_m.group(1) if numfmt_m else ""
+                                    text_m = re.search(r'<span\b[^>]*data-vno-field=["\']formula["\'][^>]*>([\s\S]*?)</span\s*>', cell_inner, re.IGNORECASE)
+                                    display_val = _writer_html_plain(text_m.group(1)).strip() if text_m else "0"
+                                    if not display_val:
+                                        display_val = _writer_html_plain(cell_inner).strip() or "0"
+                                    instr = f'{formula_val} \\# "{numfmt_val}"' if numfmt_val else formula_val
+                                    instr_esc = instr.replace("&", "&amp;").replace('"', "&quot;").replace("<", "&lt;").replace(">", "&gt;")
+                                    fld_xml = f'<w:fldSimple w:instr="{instr_esc}"><w:r><w:t>{display_val}</w:t></w:r></w:fldSimple>'
+                                    p_match = re.search(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", c_xml, re.IGNORECASE)
+                                    if p_match:
+                                        p_orig = p_match.group(0)
+                                        p_pr_m = re.search(r"<w:pPr\b[^>]*>[\s\S]*?</w:pPr\s*>", p_orig, re.IGNORECASE)
+                                        p_pr_xml = p_pr_m.group(0) if p_pr_m else ""
+                                        new_p = f"<w:p>{p_pr_xml}{fld_xml}</w:p>"
+                                        c_xml = c_xml[:p_match.start()] + new_p + c_xml[p_match.end():]
+
+                            if c_xml != x_cells[c_idx].group(0):
+                                row_str = row_str[:x_cells[c_idx].start()] + c_xml + row_str[x_cells[c_idx].end():]
                                 x_cells = list(re.finditer(r"<w:tc\b[\s\S]*?</w:tc\s*>", row_str, re.IGNORECASE))
                         table = table[:xml_rows[r_idx].start()] + row_str + table[xml_rows[r_idx].end():]
                         xml_rows = list(re.finditer(r"<w:tr\b[\s\S]*?</w:tr\s*>", table, re.IGNORECASE))

@@ -1156,6 +1156,10 @@ export const enStrings = {
     "writer.table.splitTable": { label: "Split Table", tooltip: "Split table into two tables at the selected row" },
     "writer.table.textDirection": { label: "Text Direction", tooltip: "Rotate text direction in table cells (horizontal, 90°, 270°)" },
     "writer.table.properties": { label: "Table Properties", tooltip: "Open table properties dialog to configure alignment, indent, row height and cell margins" },
+    "writer.table.stylesGallery": { label: "Table Styles", tooltip: "Open table styles gallery to apply professional color schemes" },
+    "writer.table.formula": { label: "Formula", tooltip: "Insert a calculation formula into the table cell (=SUM(ABOVE), =SUM(LEFT)...)" },
+    "writer.arrange.group": { label: "Group", tooltip: "Group selected shapes into a single object (Ctrl+G)" },
+    "writer.arrange.ungroup": { label: "Ungroup", tooltip: "Ungroup the selected group of shapes (Ctrl+Shift+G)" },
     "writer.image.insert": { label: "Pictures", tooltip: "Insert pictures from your computer" },
     "writer.image.resize": { label: "Resize Picture", tooltip: "Resize picture and adjust aspect ratio" },
     "writer.image.wrap": { label: "Wrap Text", tooltip: "Configure text wrapping around picture" },
@@ -1286,6 +1290,8 @@ export const enStrings = {
     "writer.view.zoom100": { label: "100%", tooltip: "Show the document at 100%" },
     "writer.view.pageWidth": { label: "Page Width", tooltip: "Fit the page width to the workspace" },
     "writer.view.newWindow": { label: "New Window", tooltip: "Open the document in a new browser window" },
+    "writer.view.split": { label: "Split", tooltip: "Split the editor window into two independent panes" },
+    "writer.view.selectionPane": { label: "Selection Pane", tooltip: "Show or hide the selection pane to manage document objects" },
     "writer.reference.tocInsert": { label: "Table of Contents", tooltip: "Insert a table of contents" },
     "writer.reference.tocUpdate": { label: "Update Table", tooltip: "Update the table of contents" },
     "writer.reference.footnoteInsert": { label: "Insert Footnote", tooltip: "Add a note at the bottom of the page (Ctrl+Alt+F)" },
@@ -1336,8 +1342,10 @@ export const enStrings = {
       pages: "Pages",
       tables: "Tables",
       tableStyleOptions: "Table Style Options",
+      tableStyles: "Table Styles",
       tableBordersShading: "Borders & Shading",
       tableBordersButton: "Table Borders",
+      arrange: "Arrange",
       tableSelectGroup: "Table",
       tableRowsColsGroup: "Rows & Columns",
       tableMergeGroup: "Merge",
@@ -1680,6 +1688,32 @@ export const enStrings = {
       jumpToNote: "Click to jump to footnote",
       jumpToEndnote: "Click to jump to endnote",
       jumpToRef: "Jump to reference"
+    },
+    splitHorizontalSeparator: "Horizontal split bar",
+    selectionPane: {
+      title: "Selection",
+      showAll: "Show All",
+      hideAll: "Hide All",
+      bringForward: "Bring Forward",
+      sendBackward: "Send Backward",
+      group: "Group",
+      ungroup: "Ungroup",
+      close: "Close Selection Pane"
+    },
+    tableStyles: {
+      title: "Table Styles Gallery",
+      plainTables: "Plain Tables",
+      gridTables: "Grid Tables",
+      listTables: "List Tables"
+    },
+    tableFormula: {
+      title: "Formula",
+      formulaLabel: "Formula:",
+      numberFormatLabel: "Number format:",
+      pasteFunctionLabel: "Paste function:",
+      ok: "OK",
+      cancel: "Cancel",
+      invalidFormula: "Formula must begin with an equal sign (=)."
     }
   },
   sheetContextMenu: {

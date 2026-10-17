@@ -1155,6 +1155,10 @@ export const viStrings = {
     "writer.table.splitTable": { label: "Tách bảng", tooltip: "Tách bảng hiện tại thành hai bảng tại hàng đang chọn" },
     "writer.table.textDirection": { label: "Hướng văn bản", tooltip: "Xoay hướng văn bản trong ô bảng (ngang, xoay 90°, xoay 270°)" },
     "writer.table.properties": { label: "Thuộc tính bảng", tooltip: "Mở hộp thoại thiết lập căn lề, thụt lề, độ cao hàng và lề ô của bảng" },
+    "writer.table.stylesGallery": { label: "Kiểu bảng", tooltip: "Mở thư viện kiểu dáng bảng để áp dụng định dạng phối màu chuyên nghiệp" },
+    "writer.table.formula": { label: "Công thức", tooltip: "Chèn công thức tính toán vào ô bảng (=SUM(ABOVE), =SUM(LEFT)...)" },
+    "writer.arrange.group": { label: "Nhóm", tooltip: "Nhóm các hình khối đang chọn thành một khối (Ctrl+G)" },
+    "writer.arrange.ungroup": { label: "Bỏ nhóm", tooltip: "Tách nhóm hình khối đang chọn (Ctrl+Shift+G)" },
     "writer.image.insert": { label: "Hình ảnh", tooltip: "Chèn hình ảnh từ máy tính" },
     "writer.image.resize": { label: "Đổi kích thước ảnh", tooltip: "Thay đổi kích thước và tỷ lệ ảnh" },
     "writer.image.wrap": { label: "Ngắt dòng văn bản", tooltip: "Tùy chọn ngắt dòng chữ quanh ảnh" },
@@ -1285,6 +1289,8 @@ export const viStrings = {
     "writer.view.zoom100": { label: "100%", tooltip: "Hiển thị tài liệu ở tỉ lệ 100%" },
     "writer.view.pageWidth": { label: "Chiều rộng trang", tooltip: "Thu phóng để trang vừa chiều rộng vùng làm việc" },
     "writer.view.newWindow": { label: "Cửa sổ mới", tooltip: "Mở tài liệu trong một cửa sổ trình duyệt mới" },
+    "writer.view.split": { label: "Chia", tooltip: "Chia cửa sổ soạn thảo thành hai phần độc lập để đối chiếu tài liệu" },
+    "writer.view.selectionPane": { label: "Ngăn chọn", tooltip: "Bật hoặc tắt ngăn chọn đối tượng trên tài liệu" },
     "writer.reference.tocInsert": { label: "Mục lục tự động", tooltip: "Chèn mục lục tự động từ các tiêu đề Heading" },
     "writer.reference.tocUpdate": { label: "Cập nhật mục lục", tooltip: "Cập nhật lại mục lục tài liệu" },
     "writer.reference.footnoteInsert": { label: "Chú thích trang", tooltip: "Chèn chú thích cuối trang (Footnote) (Ctrl+Alt+F)" },
@@ -1335,8 +1341,10 @@ export const viStrings = {
       pages: "Trang văn bản",
       tables: "Bảng biểu",
       tableStyleOptions: "Tùy chọn kiểu bảng",
+      tableStyles: "Kiểu bảng",
       tableBordersShading: "Màu & Viền",
       tableBordersButton: "Đường viền bảng",
+      arrange: "Sắp xếp",
       tableSelectGroup: "Bảng",
       tableRowsColsGroup: "Hàng & Cột",
       tableMergeGroup: "Hợp nhất",
@@ -1679,6 +1687,32 @@ export const viStrings = {
       jumpToNote: "Nhấp để chuyển đến chú thích",
       jumpToEndnote: "Nhấp để chuyển đến chú thích cuối",
       jumpToRef: "Chuyển tới vị trí tham chiếu"
+    },
+    splitHorizontalSeparator: "Vạch chia ngang cửa sổ",
+    selectionPane: {
+      title: "Lựa chọn",
+      showAll: "Hiện tất cả",
+      hideAll: "Ẩn tất cả",
+      bringForward: "Đưa lên một lớp",
+      sendBackward: "Đưa về một lớp",
+      group: "Nhóm",
+      ungroup: "Bỏ nhóm",
+      close: "Đóng ngăn chọn"
+    },
+    tableStyles: {
+      title: "Thư viện kiểu bảng",
+      plainTables: "Bảng thường",
+      gridTables: "Bảng dạng lưới",
+      listTables: "Bảng danh sách"
+    },
+    tableFormula: {
+      title: "Công thức",
+      formulaLabel: "Công thức:",
+      numberFormatLabel: "Định dạng số:",
+      pasteFunctionLabel: "Dán hàm:",
+      ok: "Đồng ý",
+      cancel: "Hủy",
+      invalidFormula: "Công thức phải bắt đầu bằng dấu bằng (=)."
     }
   },
   sheetContextMenu: {

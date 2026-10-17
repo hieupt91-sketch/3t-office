@@ -2187,5 +2187,99 @@ export const WRITER_HELP_ENTRIES = [
     "Chuyển sang tab 'Ô & Lề' để điều chỉnh khoảng cách đệm (Padding) Trên, Dưới, Trái, Phải của ô và tích chọn cho phép dãn cách giữa các ô (Cell Spacing) nếu muốn bảng có khoảng hở giữa các ô.",
     "Bấm 'Đồng ý' để áp dụng toàn bộ thuộc tính vào bảng. Mọi thiết lập được lưu chuẩn xác vào thẻ thuộc tính bảng trong tệp DOCX."
   ]
+},
+{
+  id: "writer.view.selectionPane.help",
+  app: "writer",
+  commandIds: ["writer.view.selectionPane"],
+  title: "Ngăn lựa chọn đối tượng (Selection Pane)",
+  summary: "Ngăn lựa chọn hiển thị danh sách tất cả hình vẽ, khung chữ, ảnh và đối tượng đồ họa trong văn bản. Cho phép chọn nhanh đối tượng bị che khuất, đổi tên đối tượng, ẩn/hiện tạm thời từng đối tượng hoặc tất cả đối tượng, và thay đổi thứ tự lớp xếp chồng (Z-Order) lên trên hoặc xuống dưới.",
+  ribbon: { tab: "Bố cục", tabId: "layout", group: "Sắp xếp" },
+  keywords: ["ngăn lựa chọn", "selection pane", "chọn hình", "ẩn hiện đối tượng", "đổi tên hình", "lớp xếp chồng", "z-order", "sắp xếp đối tượng"],
+  steps: [
+    "Mở tab Bố cục (hoặc tab Chế độ xem), tìm đến nhóm Sắp xếp (hoặc nhóm Hiển thị) và bấm nút 'Ngăn lựa chọn'. Ngăn lựa chọn sẽ mở ra ở cạnh phải màn hình soạn thảo.",
+    "Danh sách liệt kê tất cả các đối tượng (hình chữ nhật, elip, khung chữ, nhóm hình...). Bấm vào một dòng để chọn đối tượng tương ứng trên trang văn bản; giữ phím Ctrl để chọn đồng thời nhiều đối tượng.",
+    "Bấm vào biểu tượng Con mắt ở bên phải từng đối tượng để chuyển đổi nhanh giữa trạng thái Ẩn và Hiện. Bấm nút 'Hiện tất cả' hoặc 'Ẩn tất cả' ở đầu ngăn để thay đổi trạng thái đồng loạt.",
+    "Bấm các nút mũi tên Lên hoặc Xuống trên thanh công cụ của ngăn để điều chỉnh thứ tự lớp vẽ (Z-Order), đưa đối tượng lên lớp trên hoặc hạ xuống lớp dưới.",
+    "Nhấp đúp chuột vào tên của đối tượng trong danh sách để chỉnh sửa và đặt tên gợi nhớ mới, giúp dễ dàng nhận biết và quản lý các thành phần minh họa phức tạp."
+  ]
+},
+{
+  id: "writer.arrange.group.help",
+  app: "writer",
+  commandIds: ["writer.arrange.group"],
+  title: "Nhóm các đối tượng hình vẽ và khung chữ (Group)",
+  summary: "Tính năng Nhóm đối tượng (Group) cho phép liên kết hai hoặc nhiều hình vẽ, khung chữ hoặc ảnh thành một khối thống nhất, giúp di chuyển, thay đổi kích thước, định dạng và sắp xếp hàng loạt đối tượng một cách dễ dàng và đồng bộ.",
+  ribbon: { tab: "Bố cục", tabId: "layout", group: "Sắp xếp" },
+  keywords: ["nhóm", "group", "nhóm đối tượng", "gộp hình", "liên kết hình", "sắp xếp"],
+  steps: [
+    "Giữ phím Shift hoặc Ctrl và bấm chọn ít nhất hai đối tượng hình vẽ hoặc khung chữ cần nhóm trên trang tài liệu (hoặc chọn các mục tương ứng trong Ngăn lựa chọn).",
+    "Mở tab Bố cục trên thanh công cụ Ribbon, tìm đến nhóm Sắp xếp và bấm nút 'Nhóm' (hoặc bấm nút Nhóm trong Ngăn lựa chọn).",
+    "Các đối tượng được chọn sẽ gộp chung vào một khung nhóm duy nhất. Giờ đây bạn có thể kéo di chuyển toàn bộ khối hình hoặc xoay/đổi kích thước chung mà không làm lệch vị trí tương đối giữa chúng.",
+    "Mọi thuộc tính nhóm được bảo toàn nguyên vẹn khi lưu tài liệu sang định dạng DOCX tiêu chuẩn."
+  ]
+},
+{
+  id: "writer.arrange.ungroup.help",
+  app: "writer",
+  commandIds: ["writer.arrange.ungroup"],
+  title: "Bỏ nhóm đối tượng (Ungroup)",
+  summary: "Tính năng Bỏ nhóm (Ungroup) tách một khối đối tượng đã nhóm trở lại thành các hình vẽ, khung chữ và ảnh riêng lẻ ban đầu, cho phép chỉnh sửa độc lập từng thành phần chi tiết.",
+  ribbon: { tab: "Bố cục", tabId: "layout", group: "Sắp xếp" },
+  keywords: ["bỏ nhóm", "ungroup", "tách nhóm", "rã nhóm", "ctrl shift g", "sắp xếp đối tượng"],
+  steps: [
+    "Bấm chọn khối đối tượng đã nhóm cần tách trên trang tài liệu hoặc chọn dòng nhóm trong Ngăn lựa chọn.",
+    "Mở tab Bố cục trên thanh công cụ Ribbon, trong nhóm Sắp xếp bấm nút 'Bỏ nhóm' (hoặc nhấn tổ hợp phím tắt Ctrl+Shift+G).",
+    "Khối nhóm sẽ giải phóng thành từng đối tượng thành phần độc lập; các hình thành phần vẫn giữ nguyên kích thước, màu sắc và vị trí hiện tại trên trang.",
+    "Sau khi tinh chỉnh từng đối tượng đơn lẻ, bạn có thể dễ dàng chọn lại chúng và bấm Nhóm để liên kết lại thành một khối."
+  ]
+},
+{
+  id: "writer.view.split.help",
+  app: "writer",
+  commandIds: ["writer.view.split"],
+  title: "Chia đôi cửa sổ soạn thảo (Split Window)",
+  summary: "Tính năng Chia cửa sổ cho phép chia khung nhìn tài liệu hiện tại thành hai phân vùng trên và dưới độc lập. Mỗi phân vùng có thanh cuộn riêng, giúp người dùng vừa xem và chỉnh sửa phần đầu tài liệu, vừa đối chiếu nội dung ở phần cuối hoặc bảng biểu phụ lục mà không phải cuộn lên cuộn xuống liên tục.",
+  ribbon: { tab: "Chế độ xem", tabId: "view", group: "Cửa sổ" },
+  keywords: ["chia cửa sổ", "split window", "phân vùng cửa sổ", "đối chiếu tài liệu", "hai phân vùng", "cửa sổ"],
+  steps: [
+    "Mở tab Chế độ xem trên thanh công cụ Ribbon, tìm tới nhóm Cửa sổ và bấm nút 'Chia cửa sổ'.",
+    "Cửa sổ soạn thảo sẽ được chia thành hai phân vùng trên và dưới bởi một thanh phân cách ngang màu xanh nhạt.",
+    "Mỗi phân vùng có thanh cuộn riêng: bạn có thể cuộn phân vùng trên đến trang giới thiệu và cuộn phân vùng dưới đến trang kết luận để so sánh nội dung trực tiếp.",
+    "Kéo thanh phân cách lên hoặc xuống để thay đổi tỷ lệ chiều cao giữa hai phân vùng theo ý muốn.",
+    "Để hủy chia cửa sổ và quay về khung nhìn đơn bình thường, bấm lại nút 'Chia cửa sổ' trên thanh ribbon hoặc nhấp đúp chuột trực tiếp vào thanh phân cách ngang."
+  ]
+},
+{
+  id: "writer.table.stylesGallery.help",
+  app: "writer",
+  commandIds: ["writer.table.stylesGallery"],
+  title: "Thư viện kiểu bảng (Table Styles Gallery)",
+  summary: "Thư viện kiểu bảng cung cấp hơn 30 mẫu định dạng bảng chuẩn đẹp mắt phân theo các chủ đề: Bảng đơn giản (Plain Tables), Bảng lưới kẻ sáng (Grid Tables Light), Bảng lưới kẻ vừa (Grid Tables Medium), Bảng lưới kẻ đậm (Grid Tables Dark) và Kiểu danh sách (List Tables). Cho phép đổi toàn bộ màu sắc, đường kẻ viền và quy cách hàng tiêu đề / hàng so le của bảng biểu chỉ bằng một lần nhấp chuột.",
+  ribbon: { tab: "Thiết kế Bảng", tabId: "tableDesign", group: "Kiểu bảng" },
+  keywords: ["kiểu bảng", "table style", "mẫu bảng", "thư viện bảng", "định dạng bảng", "table gallery", "hàng tiêu đề", "hàng so le"],
+  steps: [
+    "Đặt con trỏ soạn thảo vào một ô bất kỳ trong bảng biểu cần định dạng. Thanh công cụ sẽ hiển thị thêm tab ngữ cảnh Thiết kế Bảng.",
+    "Mở tab Thiết kế Bảng, trong nhóm Kiểu bảng, bấm vào nút 'Kiểu bảng' để mở Thư viện kiểu bảng trực quan dạng lưới xem trước.",
+    "Rê chuột qua các mẫu kiểu bảng để xem trước phong cách thiết kế: Plain Tables, Grid Tables Light/Medium/Dark, List Tables với nhiều gam màu đa dạng (Xanh dương, Xám, Lục, Cam, Tím, Đỏ...).",
+    "Bấm chọn mẫu ưng ý để áp dụng ngay vào bảng biểu. Mọi đường viền, màu nền ô, màu hàng tiêu đề và hàng so le (banded rows) được tự động thiết lập chuẩn xác.",
+    "Có thể kết hợp với các tùy chọn trong nhóm 'Tùy chọn kiểu bảng' (Bật/tắt Hàng tiêu đề, Hàng so le) để điều chỉnh phong cách hiển thị theo nhu cầu."
+  ]
+},
+{
+  id: "writer.table.formula.help",
+  app: "writer",
+  commandIds: ["writer.table.formula"],
+  title: "Chèn công thức tính toán trong bảng (Table Formula)",
+  summary: "Tính năng Công thức trong bảng cho phép thực hiện các phép tính tự động ngay trong bảng biểu như =SUM(ABOVE) (tính tổng các ô phía trên), =SUM(LEFT) (tính tổng các ô bên trái), AVERAGE, COUNT, MAX, MIN, PRODUCT kèm theo các định dạng số chuyên nghiệp như phân cách hàng nghìn (#,##0), số thập phân và phần trăm (%).",
+  ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Dữ liệu" },
+  keywords: ["công thức", "formula", "sum above", "sum left", "tính tổng", "hàm trong bảng", "bảng biểu", "định dạng số", "table formula"],
+  steps: [
+    "Đặt con trỏ soạn thảo vào ô bảng cần hiển thị kết quả tính toán (ví dụ: ô cuối cùng của một cột để tính tổng cột, hoặc ô cuối cùng của một hàng để tính tổng hàng).",
+    "Mở tab ngữ cảnh Bố cục Bảng trên thanh công cụ Ribbon, tìm đến nhóm Dữ liệu và bấm nút 'Công thức'.",
+    "Hộp thoại Công thức sẽ xuất hiện và tự động gợi ý công thức thông minh phù hợp theo vị trí ô: ví dụ tự điền =SUM(ABOVE) nếu các ô phía trên chứa số, hoặc =SUM(LEFT) nếu các ô bên trái chứa số.",
+    "Chọn Định dạng số mong muốn từ danh sách (ví dụ: '#,##0' để có dấu phẩy phân cách hàng nghìn, hoặc '#,##0.00' để hiển thị 2 chữ số thập phân). Bạn cũng có thể chọn dán các hàm khác như AVERAGE, COUNT, MAX, MIN, PRODUCT từ menu Dán hàm.",
+    "Bấm nút 'Đồng ý' (hoặc nhấn phím Enter). Kết quả tính toán sẽ được chèn vào ô dưới dạng trường dữ liệu (Field). Khi xuất tệp DOCX, công thức được lưu dưới dạng thẻ w:fldSimple chuẩn tệp văn bản DOCX."
+  ]
 }
 ];

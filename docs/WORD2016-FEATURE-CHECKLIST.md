@@ -16,15 +16,15 @@ Chuẩn: Microsoft Word 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qu
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu Word 2016 | 133 | 49% |
+| ✅ Đã đối chiếu Word 2016 | 138 | 51% |
 | 🟢 Có, chưa đối chiếu | 74 | 27% |
-| 🟡 Có một phần | 34 | 12% |
-| 🔴 Chưa có | 32 | 12% |
+| 🟡 Có một phần | 32 | 12% |
+| 🔴 Chưa có | 29 | 11% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **279** (áp dụng: 273) | |
 
-- **Độ phủ so với Word 2016 (có hoặc có một phần, một phần tính 0,5): 82%**
-- **Đã xác minh bằng đối chiếu Word 2016 thật: 49%** các mục áp dụng
+- **Độ phủ so với Word 2016 (có hoặc có một phần, một phần tính 0,5): 84%**
+- **Đã xác minh bằng đối chiếu Word 2016 thật: 51%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn phòng; độ trung thực đối chiếu được xác nhận bằng Word COM thật.
 
@@ -36,12 +36,12 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | Trang đầu | 47 | 29 | 9 | 6 | 3 | 0 | 87% |
 | Chèn | 34 | 21 | 5 | 0 | 5 | 3 | 84% |
 | Thiết kế | 10 | 4 | 0 | 4 | 2 | 0 | 60% |
-| Bố trí | 18 | 10 | 5 | 2 | 1 | 0 | 89% |
+| Bố trí | 18 | 12 | 5 | 1 | 0 | 0 | 97% |
 | Tham chiếu | 19 | 11 | 2 | 3 | 1 | 2 | 85% |
 | Thư | 16 | 9 | 0 | 6 | 1 | 0 | 75% |
 | Xem lại | 22 | 10 | 7 | 2 | 3 | 0 | 82% |
-| Chế độ xem | 21 | 9 | 6 | 2 | 4 | 0 | 76% |
-| Công cụ Bảng | 26 | 12 | 5 | 5 | 4 | 0 | 75% |
+| Chế độ xem | 21 | 10 | 6 | 2 | 3 | 0 | 81% |
+| Công cụ Bảng | 26 | 14 | 5 | 4 | 3 | 0 | 81% |
 | Công cụ Hình ảnh | 12 | 2 | 6 | 2 | 2 | 0 | 75% |
 | Công cụ Vẽ | 10 | 4 | 2 | 2 | 2 | 0 | 70% |
 | Công cụ Đầu & Chân trang | 7 | 4 | 3 | 0 | 0 | 0 | 100% |
@@ -55,19 +55,14 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | 2 | Trang đầu | Đoạn văn | Định nghĩa danh sách đa cấp mới (Define New Multilevel List) | 🟡 | Hỗ trợ các cấp lồng cơ bản; chưa có hộp thoại tùy biến tiền tố cha-con 1.1, Điều/Khoản (FIX-W3-MULTILEVEL) |
 | 3 | Trang đầu | Đoạn văn | Hộp thoại Điểm dừng Tab (Tabs Dialog: căn lề, ký tự dẫn leader) | 🟡 | Hỗ trợ phím Tab cơ bản; chưa có hộp thoại Tabs dialog tùy biến vị trí và ký tự dẫn leader dots (docs/WORD2016-FINDINGS-1710.md:55-58, FIX-W1-TABS) |
 | 4 | Trang đầu | Chỉnh sửa | Đi đến (Go To, Ctrl+G) | 🟡 | Có điều hướng đầu/cuối tài liệu Ctrl+Home/End; chưa có hộp thoại Go To tới trang/dòng/bookmark (FIX-W7-GOTO) |
-| 5 | Bố trí | Sắp xếp | Ngăn lựa chọn đối tượng (Selection Pane) | 🟡 | Đã có trên Sheet; trên Writer chưa có panel riêng quản lý layer đối tượng hình vẽ/ảnh/bảng (FIX-W5-SELECTIONPANE) |
-| 6 | Bố trí | Sắp xếp | Nhóm / Bỏ nhóm đối tượng (Group / Ungroup) | 🔴 | Chưa có nhóm nhiều hình vẽ tự do trong Doc |
-| 7 | Chế độ xem | Cửa sổ | Chia cửa sổ soạn thảo (Split Window) | 🔴 | Đã có trên Sheet, trên Writer chưa hỗ trợ split view (FIX-W4-SPLITVIEW) |
-| 8 | Công cụ Bảng | Thiết kế | Thư viện kiểu bảng (Table Styles Gallery) | 🟡 | Có tô màu ô và viền bảng; thư viện kiểu gộp sẵn ít hơn Word (FIX-W6-TABLESTYLES) |
-| 9 | Công cụ Bảng | Thiết kế | Độ dày và kiểu đường viền bảng | 🟡 | Hỗ trợ độ dày chuẩn; kiểu nét đứt/đôi cần hoàn thiện trong giao diện viền |
-| 10 | Công cụ Bảng | Bố trí | Thuộc tính bảng (Table Properties Dialog) | 🟡 | Cấu hình qua thanh công cụ; chưa có hộp thoại Table Properties gộp căn lề bảng/ô/văn bản bao quanh |
-| 11 | Công cụ Bảng | Bố trí | Tách bảng (Split Table) | 🔴 | Chưa có lệnh tách bảng thành 2 bảng riêng tại hàng được chọn |
-| 12 | Công cụ Bảng | Bố trí | Xoay hướng chữ trong ô (Text Direction) | 🔴 | Chưa có xoay hướng chữ 90/270 độ trong ô bảng Doc |
-| 13 | Công cụ Bảng | Bố trí | Khoảng cách lề ô bảng (Cell Margins) | 🟡 | Hỗ trợ qua padding; chưa có hộp thoại Cell Margins riêng cho bảng |
-| 14 | Công cụ Bảng | Bố trí | Công thức tính toán trong bảng (=SUM(ABOVE)...) | 🔴 | Chưa có công thức tính toán nhúng trong bảng Doc |
-| 15 | Không thuộc ribbon | Chuột | Đặt điểm dừng tab tùy chỉnh trên thước | 🔴 | Chưa có thao tác nhấp chuột lên thước để đặt tab dừng căn phải/giữa/thập phân |
+| 5 | Công cụ Bảng | Thiết kế | Độ dày và kiểu đường viền bảng | 🟡 | Hỗ trợ độ dày chuẩn; kiểu nét đứt/đôi cần hoàn thiện trong giao diện viền |
+| 6 | Công cụ Bảng | Bố trí | Thuộc tính bảng (Table Properties Dialog) | 🟡 | Cấu hình qua thanh công cụ; chưa có hộp thoại Table Properties gộp căn lề bảng/ô/văn bản bao quanh |
+| 7 | Công cụ Bảng | Bố trí | Tách bảng (Split Table) | 🔴 | Chưa có lệnh tách bảng thành 2 bảng riêng tại hàng được chọn |
+| 8 | Công cụ Bảng | Bố trí | Xoay hướng chữ trong ô (Text Direction) | 🔴 | Chưa có xoay hướng chữ 90/270 độ trong ô bảng Doc |
+| 9 | Công cụ Bảng | Bố trí | Khoảng cách lề ô bảng (Cell Margins) | 🟡 | Hỗ trợ qua padding; chưa có hộp thoại Cell Margins riêng cho bảng |
+| 10 | Không thuộc ribbon | Chuột | Đặt điểm dừng tab tùy chỉnh trên thước | 🔴 | Chưa có thao tác nhấp chuột lên thước để đặt tab dừng căn phải/giữa/thập phân |
 
-Tổng: 15 mục ưu tiên 1 cần bổ sung/hoàn thiện.
+Tổng: 10 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 
 ## Đề xuất 10 phiếu việc kế tiếp
 
@@ -232,9 +227,9 @@ Tổng: 15 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Sắp xếp | Vị trí đối tượng trên trang (Position) | ✅ | - | Vị trí đối tượng tọa độ Left/Top đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:73-74) |
 | Sắp xếp | Bao dòng chữ quanh hình (Wrap Text: Square, Tight, In Line) | ✅ | - | Bao dòng chữ quanh hình Wrap Square đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:74) |
 | Sắp xếp | Đưa lên trước / Đưa về sau (Bring Forward / Send Backward) | 🟢 | - | writer.image.wrap/resize và điều khiển lớp z-index |
-| Sắp xếp | Ngăn lựa chọn đối tượng (Selection Pane) | 🟡 | 1 | Đã có trên Sheet; trên Writer chưa có panel riêng quản lý layer đối tượng hình vẽ/ảnh/bảng (FIX-W5-SELECTIONPANE) |
+| Sắp xếp | Ngăn lựa chọn đối tượng (Selection Pane) | ✅ | - | writer.view.selectionPane: quản lý layer, ẩn/hiện, Z-Order, đổi tên đối tượng, đã đo kiểm đối chiếu Word COM (docs/word-oracle-writer2-1710.json) |
 | Sắp xếp | Căn lề đối tượng đồ họa (Align Objects) | 🟢 | - | Căn lề ảnh và hình khối |
-| Sắp xếp | Nhóm / Bỏ nhóm đối tượng (Group / Ungroup) | 🔴 | 1 | Chưa có nhóm nhiều hình vẽ tự do trong Doc |
+| Sắp xếp | Nhóm / Bỏ nhóm đối tượng (Group / Ungroup) | ✅ | - | writer.arrange.group (Ctrl+G) & writer.arrange.ungroup (Ctrl+Shift+G): tạo msoGroup và rã nhóm đối tượng, đã đo kiểm đối chiếu Word COM (docs/word-oracle-writer2-1710.json) |
 | Sắp xếp | Xoay / Lật đối tượng (Rotate / Flip) | 🟡 | 2 | Hỗ trợ xoay hình cơ bản; lật đối xứng chưa có |
 
 ### Tham chiếu
@@ -330,7 +325,7 @@ Tổng: 15 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Thu phóng | Phóng to / Thu nhỏ (Zoom In / Zoom Out) | ✅ | - | Phóng to và thu nhỏ writer.view.zoomIn/zoomOut đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:123,125) |
 | Cửa sổ | Cửa sổ mới (New Window) | 🟢 | - | writer.view.newWindow; mở WebView thứ hai độc lập, khác Word clone cửa sổ có chủ ý (docs/DOC-BUTTON-MATRIX-1011.md:128) |
 | Cửa sổ | Sắp xếp tất cả cửa sổ (Arrange All) | 🔴 | 3 | Chưa có sắp xếp tile các cửa sổ app |
-| Cửa sổ | Chia cửa sổ soạn thảo (Split Window) | 🔴 | 1 | Đã có trên Sheet, trên Writer chưa hỗ trợ split view (FIX-W4-SPLITVIEW) |
+| Cửa sổ | Chia cửa sổ soạn thảo (Split Window) | ✅ | - | writer.view.split: chia 2 phân vùng cuộn độc lập, thanh kéo tỉ lệ, đã đo kiểm đối chiếu Word COM (docs/word-oracle-writer2-1710.json) |
 | Cửa sổ | Xem song song (View Side by Side) & Cuộn đồng bộ | 🔴 | 3 | Chưa có xem 2 tài liệu song song có cuộn đồng bộ |
 | Cửa sổ | Chuyển cửa sổ (Switch Windows) | 🟡 | 3 | Hệ điều hành quản lý cửa sổ; chưa có menu trong app |
 | Macro | Quản lý Macro & Ghi Macro (Alt+F8, Ctrl+Shift+R) | 🟢 | - | common.macro.recordToggle/manager; Command Bus macro engine cục bộ, khác VBA Word có chủ ý (docs/DOC-BUTTON-MATRIX-1011.md:129-130) |
@@ -342,7 +337,7 @@ Tổng: 15 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Thiết kế | Tùy chọn kiểu bảng: Hàng tiêu đề (Header Row) | ✅ | - | Hàng tiêu đề HeadingFormat=-1 đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:56,79) |
 | Thiết kế | Tùy chọn kiểu bảng: Hàng xen kẽ (Banded Rows) | 🟢 | - | writer.table.toggleBandedRows (platform/commands/command-definitions.js:183) |
 | Thiết kế | Tùy chọn kiểu bảng: Cột đầu, Cột cuối, Cột sọc | 🟡 | 2 | Đã có hàng tiêu đề và xen kẽ hàng; các tùy chọn cột cần bổ sung |
-| Thiết kế | Thư viện kiểu bảng (Table Styles Gallery) | 🟡 | 1 | Có tô màu ô và viền bảng; thư viện kiểu gộp sẵn ít hơn Word (FIX-W6-TABLESTYLES) |
+| Thiết kế | Thư viện kiểu bảng (Table Styles Gallery) | ✅ | - | writer.table.stylesGallery: 32 mẫu bảng Plain, Grid, List; xuất w:tblStyle và w:tblLook chuẩn DOCX, đã đo kiểm đối chiếu Word COM (docs/word-oracle-writer2-1710.json) |
 | Thiết kế | Màu nền ô bảng (Shading) | ✅ | - | Bảng màu nền ô đối chiếu Word COM mã màu 15788258 (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:57,83) |
 | Thiết kế | Viền bảng (Borders dropdown: Tất cả, Viền ngoài, Viền trong, Không viền) | ✅ | - | Viền bảng 4 kiểu viền đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:57,84) |
 | Thiết kế | Độ dày và kiểu đường viền bảng | 🟡 | 1 | Hỗ trợ độ dày chuẩn; kiểu nét đứt/đôi cần hoàn thiện trong giao diện viền |
@@ -364,7 +359,7 @@ Tổng: 15 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Bố trí | Khoảng cách lề ô bảng (Cell Margins) | 🟡 | 1 | Hỗ trợ qua padding; chưa có hộp thoại Cell Margins riêng cho bảng |
 | Bố trí | Lặp lại hàng tiêu đề qua các trang (Repeat Header Rows) | ✅ | - | Lặp lại hàng tiêu đề HeadingFormat=-1 đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:56) |
 | Bố trí | Sắp xếp dữ liệu trong bảng (Sort Table) | 🟢 | - | Áp dụng writer.para.sort trên các hàng bảng |
-| Bố trí | Công thức tính toán trong bảng (=SUM(ABOVE)...) | 🔴 | 1 | Chưa có công thức tính toán nhúng trong bảng Doc |
+| Bố trí | Công thức tính toán trong bảng (=SUM(ABOVE)...) | ✅ | - | writer.table.formula: tính toán =SUM(ABOVE), =SUM(LEFT), AVERAGE, COUNT, MAX, MIN, PRODUCT, xuất w:fldSimple, đã đo kiểm đối chiếu Word COM (docs/word-oracle-writer2-1710.json) |
 
 ### Công cụ Hình ảnh
 
