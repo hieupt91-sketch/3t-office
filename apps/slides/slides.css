@@ -577,8 +577,8 @@
 }
 
 @keyframes vnoTransitionSlide {
-  from { transform: translateX(100%); opacity: 0.6; }
-  to { transform: translateX(0); opacity: 1; }
+  from { transform: translate(var(--vno-transition-x, 100%), var(--vno-transition-y, 0)); opacity: 0.6; }
+  to { transform: translate(0, 0); opacity: 1; }
 }
 
 @keyframes vnoTransitionZoom {
@@ -643,8 +643,8 @@
 }
 
 @keyframes vnoAnimFlyIn {
-  from { opacity: 0; transform: translateY(40px); }
-  to { opacity: 1; transform: translateY(0); }
+  from { opacity: 0; transform: translate(var(--vno-anim-x, 0), var(--vno-anim-y, 40px)); }
+  to { opacity: 1; transform: translate(0, 0); }
 }
 
 @keyframes vnoAnimZoomIn {
@@ -660,7 +660,7 @@
 }
 
 @keyframes vnoAnimSlideLeft {
-  from { opacity: 0; transform: translateX(-50px); }
+  from { opacity: 0; transform: translate(var(--vno-anim-x, -50px), var(--vno-anim-y, 0)); }
   to { opacity: 1; transform: translateX(0); }
 }
 
@@ -682,8 +682,8 @@
 }
 
 @keyframes vnoAnimFlyOut {
-  from { opacity: 1; transform: translateY(0); }
-  to { opacity: 0; transform: translateY(40px); }
+  from { opacity: 1; transform: translate(0, 0); }
+  to { opacity: 0; transform: translate(var(--vno-anim-x, 0), var(--vno-anim-y, 40px)); }
 }
 
 @keyframes vnoAnimZoomOut {

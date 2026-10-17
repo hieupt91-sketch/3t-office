@@ -29,6 +29,15 @@ try {
   await sleep(1500);
   await ev(`window.__vnoCommandBus ? 0 : 0`);
   await click(cdp, "#vno-ribbon-tab-home");
+  await ev(`${canvas}.insertShape("rect")`);
+  await sleep(250);
+  await click(cdp, "#vno-ribbon-tab-insert");
+  await click(cdp, '[data-command-id="slides.insert.action"]');
+  await ev(`(() => { const select = document.querySelector("#vno-action-type"); select.value = "next"; select.dispatchEvent(new Event("change", { bubbles: true })); })()`);
+  await click(cdp, "#vno-action-apply");
+  const action = await ev(`JSON.stringify(${canvas}.slides[0].shapes.find(s => String(s.id) === String(${canvas}.selectedTarget))?.action || null)`);
+  check("Gán tác vụ sang trang kế tiếp cho hình đang chọn", action === '"next-page"', action);
+  await click(cdp, "#vno-ribbon-tab-home");
   await sleep(300);
   await click(cdp, '[data-command-id="slides.slide.new"]');
   await sleep(400);
@@ -77,6 +86,13 @@ try {
   await openDropdown("slides.transition.gallery");
   await menuItem("Không");
   check("Chọn Không bỏ hiệu ứng", (await trans(0)) === "null");
+  await click(cdp, '[data-command-id="slides.transition.apply"]');
+  await ev(`(() => { const type = document.querySelector("#vno-trans-type-select"); type.value = "push"; type.dispatchEvent(new Event("change", { bubbles: true })); const direction = document.querySelector("#vno-trans-direction-select"); direction.value = "left"; direction.dispatchEvent(new Event("change", { bubbles: true })); })()`);
+  await click(cdp, "#vno-trans-apply-current");
+  t = JSON.parse(await trans(0));
+  check("Tùy chọn chuyển tiếp Đẩy đặt hướng từ trái", t?.type === "push" && t?.direction === "left", JSON.stringify(t));
+  const savedPush = await ev(`(async () => { const a = window.__vnoAppInstance.adapter || window.__vnoAppInstance; return JSON.stringify(await window.pywebview.api.save_document_in_place(a.serializeToFodp(), 'slides', ${JSON.stringify(OUT)}, null)).slice(0, 80); })()`);
+  check("Lưu PPTX sau khi đặt hướng chuyển tiếp", /"status":\s*"ok"/.test(savedPush), savedPush);
 } catch (error) {
   check("Tab Chuyển tiếp không phát sinh ngoại lệ", false, error.stack || error.message);
 } finally {

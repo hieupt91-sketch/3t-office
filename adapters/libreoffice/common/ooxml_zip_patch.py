@@ -11773,6 +11773,12 @@ def _normalize_slides_animation_timing(pptx_bytes: bytes) -> dict[str, str]:
 # Hoạt ảnh Slides nhóm NHẤN MẠNH / THOÁT: dựng lại p:timing đúng cấu trúc PowerPoint 2016
 # ----------------------------------------------------------------------------------------------
 _ANIM_WIPE_FILTER = {"1": "wipe(up)", "2": "wipe(right)", "4": "wipe(down)", "8": "wipe(left)"}
+_ANIM_FLY_OFFSET = {
+    "1": (None, "-1-#ppt_h/2", None, "-1-ppt_h/2"),
+    "2": ("1+#ppt_w/2", None, "1+ppt_w/2", None),
+    "4": (None, "1+#ppt_h/2", None, "1+ppt_h/2"),
+    "8": ("-1-#ppt_w/2", None, "-1-ppt_w/2", None),
+}
 
 
 def _anim_effect_xml(cls: str, preset_id: str, subtype: str, spid: str, dur: int, new_id, has_bld: bool) -> str | None:
@@ -11797,7 +11803,13 @@ def _anim_effect_xml(cls: str, preset_id: str, subtype: str, spid: str, dur: int
         if preset_id == "10":
             return visible("visible", 0) + effect("in", "fade")
         if preset_id == "2":
-            return visible("visible", 0) + anim("ppt_x", sv("#ppt_x"), sv("#ppt_x"), ' additive="base"') + anim("ppt_y", sv("1+#ppt_h/2"), sv("#ppt_y"), ' additive="base"')
+            start_x, start_y, _end_x, _end_y = _ANIM_FLY_OFFSET.get(subtype, _ANIM_FLY_OFFSET["4"])
+            body = ""
+            if start_x:
+                body += anim("ppt_x", sv(start_x), sv("#ppt_x"), ' additive="base"')
+            if start_y:
+                body += anim("ppt_y", sv(start_y), sv("#ppt_y"), ' additive="base"')
+            return visible("visible", 0) + body
         if preset_id == "23":
             return visible("visible", 0) + anim("ppt_w", fv(0), sv("#ppt_w")) + anim("ppt_h", fv(0), sv("#ppt_h"))
         if preset_id == "22":
@@ -11815,8 +11827,13 @@ def _anim_effect_xml(cls: str, preset_id: str, subtype: str, spid: str, dur: int
         if preset_id == "10":
             return effect("out", "fade") + hide_at_end
         if preset_id == "2":
-            return (anim("ppt_x", sv("ppt_x"), sv("ppt_x"), ' additive="base"') + anim("ppt_y", sv("ppt_y"), sv("1+ppt_h/2"), ' additive="base"')
-                    + hide_at_end)
+            _start_x, _start_y, end_x, end_y = _ANIM_FLY_OFFSET.get(subtype, _ANIM_FLY_OFFSET["4"])
+            body = ""
+            if end_x:
+                body += anim("ppt_x", sv("ppt_x"), sv(end_x), ' additive="base"')
+            if end_y:
+                body += anim("ppt_y", sv("ppt_y"), sv(end_y), ' additive="base"')
+            return body + hide_at_end
         if preset_id == "23":
             return anim("ppt_w", sv("ppt_w"), fv(0)) + anim("ppt_h", sv("ppt_h"), fv(0)) + hide_at_end
         if preset_id == "1":
@@ -12375,10 +12392,15 @@ def _postprocess_slides_header_footer(pptx_bytes: bytes, source_fodp: str | None
 _PPTX_SLIDE_TRANSITION_EFFECTS = {
     "fade": '<p:fade/>',
     "pushwipe": '<p:push dir="l"/>',
+    "slidewipe": '<p:push dir="l"/>',
+    "barwipe": '<p:wipe dir="l"/>',
+    "fanwipe": '<p:wheel spokes="1"/>',
     "zoom": '<p:zoom dir="out"/>',
     "iriswipe": '<p:zoom dir="out"/>',
     "fadeovercolor": '<p:flip dir="l"/>',
 }
+
+_PPTX_TRANSITION_DIR = {"fromleft": "l", "fromright": "r", "fromtop": "u", "frombottom": "d"}
 
 
 def _slides_transition_types_from_fodp(fodp_xml: str | None) -> list[str | None]:
@@ -12402,6 +12424,26 @@ def _slides_transition_types_from_fodp(fodp_xml: str | None) -> list[str | None]
     return result
 
 
+def _slides_transition_subtypes_from_fodp(fodp_xml: str | None) -> list[str | None]:
+    """Read per-page ODF transition directions in document order."""
+    xml = str(fodp_xml or "")
+    styles: dict[str, str] = {}
+    for match in re.finditer(r"<style:style\b([^>]*)>([\s\S]*?)</style:style\s*>", xml, re.IGNORECASE):
+        attrs = match.group(1)
+        name = re.search(r"\bstyle:name=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
+        family = re.search(r"\bstyle:family=[\"']drawing-page[\"']", attrs, re.IGNORECASE)
+        if not name or not family:
+            continue
+        props = re.search(r"<style:drawing-page-properties\b([^>]*)/?>", match.group(2), re.IGNORECASE)
+        subtype = re.search(r"\bsmil:subtype=[\"']([^\"']+)[\"']", props.group(1) if props else "", re.IGNORECASE)
+        styles[name.group(1)] = subtype.group(1).lower() if subtype else "fromleft"
+    result: list[str | None] = []
+    for page in re.finditer(r"<draw:page\b(?![-\w])([^>]*)>", xml, re.IGNORECASE):
+        style = re.search(r"\bdraw:style-name=[\"']([^\"']+)[\"']", page.group(1), re.IGNORECASE)
+        result.append(styles.get(style.group(1), "fromleft") if style else "fromleft")
+    return result
+
+
 def _apply_slides_transition_effects(
     pptx_bytes: bytes, source_fodp: str | None, base_replacements: dict[str, str] | None = None
 ) -> dict[str, str]:
@@ -12420,6 +12462,12 @@ def _apply_slides_transition_effects(
             effect = _PPTX_SLIDE_TRANSITION_EFFECTS.get(transitions[index])
             if not effect:
                 continue
+            if transitions[index] in {"pushwipe", "slidewipe", "barwipe"}:
+                subtype = _slides_transition_subtypes_from_fodp(source_fodp)
+                direction = subtype[index] if index < len(subtype) else "fromleft"
+                pptx_dir = _PPTX_TRANSITION_DIR.get(str(direction).lower(), "l")
+                tag = "wipe" if transitions[index] == "barwipe" else "push"
+                effect = f'<p:{tag} dir="{pptx_dir}"/>'
             original = (base_replacements or {}).get(name) or package.read(name).decode("utf-8", errors="replace")
             match = re.search(r"<p:transition\b([^>]*?)(?:/\s*>|>([\s\S]*?)</p:transition\s*>)", original, re.IGNORECASE)
             if match:

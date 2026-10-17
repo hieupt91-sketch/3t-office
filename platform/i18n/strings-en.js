@@ -477,6 +477,8 @@ export const enStrings = {
   },
   sheetSlicer: { selectTable: "Select a cell in a table before inserting a visual filter.", layer: "Visual filters", aria: "Filter", multi: "Multi-select", clear: "Clear filter", close: "Remove visual filter" },
   slidesRibbon: {
+    animationOptions: "Effect Options",
+    pasteSpecial: "Paste Special", action: "Action",
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant", tableLayout: "Table Layout", shapeFormat: "Shape Format", pictureFormat: "Picture Format" },
     group: { pictureSize: "Size", pictureArrange: "Arrange", designVariants: "Variants", animPreview: "Preview", animEffects: "Animation", animTiming: "Timing", transitionGallery: "Transition to This Slide", transitionTiming: "Timing", shapeStyles: "Shape Styles", shapeArrange: "Arrange", shapeSize: "Size", tableRowsCols: "Rows & Columns", tableMerge: "Merge", slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
     editing: { select: "Select" },
@@ -672,6 +674,9 @@ export const enStrings = {
     consolidateFailed: "Could not consolidate the data."
   },
   slidesDialogs: {
+    animationDirection: "Effect direction", transitionDirection: "Transition direction", directionBottom: "From bottom", directionLeft: "From left", directionRight: "From right", directionTop: "From top", transPush: "Push", transFan: "Fan",
+    pasteSpecialTitle: "Paste Special", pasteSource: "Keep source formatting", pasteTheme: "Use destination theme", pasteImage: "Picture (PNG)", pasteText: "Text only",
+    actionTitle: "Action on click", actionType: "When this object is clicked", actionNone: "None", actionNext: "Next slide", actionPrevious: "Previous slide", actionFirst: "First slide", actionLast: "Last slide", actionSpecific: "Specific slide", actionWeb: "Open a web address", actionSlide: "Choose a slide", actionUrl: "Web address",
     close: "Close", cancel: "Cancel", apply: "Apply", preview: "Preview", delete: "Delete",
     canvasRegion: "Slide canvas region",
     removeSectionKeepSlides: "Remove Section (keep slides)",
@@ -1050,7 +1055,10 @@ export const enStrings = {
     ,"slides.insert.dateTime": { label: "Date & Time", tooltip: "Insert an auto-updating date and time placeholder" }
     ,"slides.insert.slideNumber": { label: "Slide Number", tooltip: "Insert an auto-updating slide number placeholder" }
     ,"slides.insert.symbol": { label: "Symbol", tooltip: "Insert a special character into the selected text box" }
-    ,"slides.insert.hyperlink": { label: "Link", tooltip: "Insert a hyperlink (Ctrl+K)" }
+  ,"slides.insert.hyperlink": { label: "Link", tooltip: "Insert a hyperlink (Ctrl+K)" }
+  ,"slides.edit.pasteSpecial": { label: "Paste Special", tooltip: "Choose how to paste clipboard content (Ctrl+Alt+V)" }
+  ,"slides.insert.action": { label: "Action", tooltip: "Set what happens when an object is clicked during a show" }
+  ,"slides.animation.effectOptions": { label: "Effect Options", tooltip: "Choose the direction of the selected effect" }
     ,"slides.insert.wordart": { label: "WordArt", tooltip: "Insert stylized title text with outline, shadow, or gradient fill" }
     ,"slides.master.apply": { label: "Slide Master", tooltip: "Apply a Slide Master theme across the presentation" }
     ,"slides.design.themeGallery": { label: "Themes", tooltip: "Choose a design theme for the whole presentation" }

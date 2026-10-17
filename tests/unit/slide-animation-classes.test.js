@@ -41,6 +41,13 @@ export async function runSlideAnimationClassesTests() {
     if (!/forwards;$/.test(animationInlineCss("fadeOut", 500, 0))) throw new Error("Thoát phải giữ trạng thái ẩn cuối (forwards)");
   });
 
+  test("CSS xem trước bay vào theo đủ bốn hướng", () => {
+    for (const [direction, x, y] of [["left", "-50px", "0"], ["right", "50px", "0"], ["top", "0", "-40px"], ["bottom", "0", "40px"]]) {
+      const style = animationInlineCss("flyIn", 500, 0, direction);
+      if (!style.includes(`--vno-anim-x:${x}`) || !style.includes(`--vno-anim-y:${y}`)) throw new Error(`${direction}: ${style}`);
+    }
+  });
+
   test("Ghi FODP: preset-class và preset-id đúng nhóm cho cả 11 kiểu", () => {
     const expected = { fadeIn: ["entrance", "ooo-entrance-fade-in"], flyIn: ["entrance", "ooo-entrance-fly-in"], spin: ["emphasis", "ooo-emphasis-spin"], growShrink: ["emphasis", "ooo-emphasis-grow-and-shrink"], fadeOut: ["exit", "ooo-exit-fade-out"], flyOut: ["exit", "ooo-exit-fly-out"], zoomOut: ["exit", "ooo-exit-zoom"], disappear: ["exit", "ooo-exit-disappear"] };
     for (const [type, [cls, id]] of Object.entries(expected)) {
@@ -66,6 +73,33 @@ export async function runSlideAnimationClassesTests() {
       eq(found?.animation?.type, type, `kiểu #${i}`);
       if (type !== "disappear") eq(found.animation.duration, 800, `thời lượng ${type}`); // Biến mất là tức thì
     });
+  });
+
+  test("FODP round-trip giữ hướng Bay vào/Bay ra/Trượt", () => {
+    for (const [type, prefix, direction] of [["flyIn", "from", "left"], ["flyOut", "to", "top"], ["slideLeft", "from", "right"]]) {
+      const source = makeAdapter([shape(type, { direction })]).serializeToFodp();
+      if (!source.includes(`presentation:preset-sub-type="${prefix}-${direction}"`)) throw new Error(`${type} không ghi subtype hướng ${direction}`);
+      const parsed = new SlidesAdapter(null).parseFodp(source);
+      eq(parsed[0].shapes[0].animation.direction, direction, `${type} đọc lại hướng`);
+    }
+  });
+
+  test("Chuyển tiếp giữ hướng SMIL và custom vẫn không ánh xạ thành hiệu ứng mới", () => {
+    const adapter = makeAdapter([]);
+    for (const direction of ["left", "right", "top", "bottom"]) {
+      const smil = adapter._mapVnTransitionToSmil({ type: "slide", direction, duration: 500 });
+      eq(smil.subtype, `from${direction[0].toUpperCase()}${direction.slice(1)}`, direction);
+    }
+    eq(adapter._mapVnTransitionToSmil({ type: "custom", sourceXml: "<p:transition/>" }), null, "custom");
+  });
+
+  test("Shape action is written to ODF event listener and restored on open", () => {
+    const target = shape("fadeIn");
+    target.action = "next-page";
+    const source = makeAdapter([target]).serializeToFodp();
+    if (!source.includes('presentation:action="next-page"')) throw new Error("Thiếu action nội bộ trong FODP");
+    const parsed = new SlidesAdapter(null).parseFodp(source);
+    eq(parsed[0].shapes[0].action, "next-page", "action round-trip");
   });
 
   test("animationTypeFromPreset: đọc preset của LibreOffice/PowerPoint sang kiểu VN theo nhóm", () => {

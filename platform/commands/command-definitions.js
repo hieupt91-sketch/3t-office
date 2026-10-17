@@ -626,6 +626,8 @@ export const SLIDES_COMMANDS = [
   { id: "slides.insert.slideNumber", category: "insert", label: "Số trang chiếu", icon: "slideNumber", tooltip: "Chèn placeholder số trang chiếu tự cập nhật" },
   { id: "slides.insert.symbol", category: "insert", label: "Ký hiệu", icon: "symbol", tooltip: "Chèn ký tự đặc biệt vào khung văn bản đang chọn" },
   { id: "slides.insert.hyperlink", category: "insert", label: "Liên kết", icon: "hyperlink", tooltip: "Chèn siêu liên kết (Ctrl+K)" },
+  { id: "slides.edit.pasteSpecial", category: "edit", label: "Dán đặc biệt", shortcut: "Ctrl+Alt+V", icon: "paste", tooltip: "Chọn cách dán nội dung từ bộ nhớ tạm (Ctrl+Alt+V)" },
+  { id: "slides.insert.action", category: "insert", label: "Tác vụ", icon: "hyperlink", tooltip: "Đặt hành động chạy khi nhấp đối tượng trong trình chiếu" },
   { id: "slides.insert.wordart", category: "insert", label: "Chữ nghệ thuật", icon: "wordArt", tooltip: "Chèn chữ nghệ thuật với viền, đổ bóng hoặc gradient" },
 
   // Trình chiếu & Thiết kế
@@ -654,6 +656,7 @@ export const SLIDES_COMMANDS = [
   { id: "slides.animation.delayMenu", category: "animation", label: "Trễ", icon: "slideTransition", tooltip: "Đặt thời gian chờ trước khi hiệu ứng bắt đầu" },
   { id: "slides.animation.setDelay", category: "animation", label: "Thời gian trễ", icon: "slideTransition", tooltip: "Chọn thời gian chờ trước khi hiệu ứng chạy" },
   { id: "slides.animation.apply", category: "animation", label: "Hiệu ứng đối tượng", icon: "objectAnimation", tooltip: "Thiết lập hiệu ứng xuất hiện (Fade In, Fly In, Zoom In) cho đối tượng" },
+  { id: "slides.animation.effectOptions", category: "animation", label: "Tùy chọn hiệu ứng", icon: "objectAnimation", tooltip: "Chọn hướng chạy cho hiệu ứng đang chọn" },
   { id: "slides.animation.pane", category: "animation", label: "Ngăn hoạt hình", icon: "animationPane", tooltip: "Hiện danh sách mọi hiệu ứng trên trang đang chọn, đổi thứ tự, cách bắt đầu hoặc xóa hiệu ứng", isToggle: true },
   { id: "slides.file.printPreview", category: "file", label: "Xem trước khi in", shortcut: "Ctrl+F2", icon: "printPreview", tooltip: "Xem trước khi in (Ctrl+F2)" },
   { id: "slides.view.normal", category: "view", label: "Bình thường", icon: "slidesNormalView", tooltip: "Dạng xem bình thường để chỉnh sửa từng trang chiếu", isToggle: true },

@@ -476,6 +476,8 @@ export const viStrings = {
   },
   sheetSlicer: { selectTable: "Hãy chọn một ô trong bảng trước khi chèn bộ lọc trực quan.", layer: "Bộ lọc trực quan", aria: "Bộ lọc", multi: "Chọn nhiều", clear: "Xóa bộ lọc", close: "Xóa bộ lọc trực quan" },
   slidesRibbon: {
+    animationOptions: "Tùy chọn hiệu ứng",
+    pasteSpecial: "Dán đặc biệt", action: "Tác vụ",
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI", tableLayout: "Bố cục bảng", shapeFormat: "Định dạng hình", pictureFormat: "Định dạng ảnh" },
     group: { pictureSize: "Kích thước", pictureArrange: "Sắp xếp", designVariants: "Biến thể", animPreview: "Xem trước", animEffects: "Hoạt hình", animTiming: "Thời gian", transitionGallery: "Chuyển đến trang này", transitionTiming: "Thời gian", shapeStyles: "Kiểu hình", shapeArrange: "Sắp xếp", shapeSize: "Kích thước", tableRowsCols: "Hàng và cột", tableMerge: "Gộp", slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Hiệu đính", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
     editing: { select: "Chọn" },
@@ -671,6 +673,9 @@ export const viStrings = {
     consolidateFailed: "Không hợp nhất được dữ liệu."
   },
   slidesDialogs: {
+    animationDirection: "Hướng hiệu ứng", transitionDirection: "Hướng chuyển tiếp", directionBottom: "Từ dưới", directionLeft: "Từ trái", directionRight: "Từ phải", directionTop: "Từ trên", transPush: "Đẩy", transFan: "Quạt",
+    pasteSpecialTitle: "Dán đặc biệt", pasteSource: "Giữ định dạng nguồn", pasteTheme: "Dùng chủ đề đích", pasteImage: "Hình ảnh (PNG)", pasteText: "Chỉ văn bản",
+    actionTitle: "Tác vụ khi nhấp", actionType: "Khi nhấp đối tượng này", actionNone: "Không", actionNext: "Trang kế tiếp", actionPrevious: "Trang trước", actionFirst: "Trang đầu", actionLast: "Trang cuối", actionSpecific: "Trang cụ thể", actionWeb: "Mở địa chỉ web", actionSlide: "Chọn trang chiếu", actionUrl: "Địa chỉ web",
     close: "Đóng", cancel: "Hủy bỏ", apply: "Áp dụng", preview: "Xem thử", delete: "Xóa",
     canvasRegion: "Vùng trình chiếu",
     removeSectionKeepSlides: "Xóa Phần (giữ trang chiếu)",
@@ -1050,6 +1055,9 @@ export const viStrings = {
     ,"slides.insert.slideNumber": { label: "Số trang chiếu", tooltip: "Chèn placeholder số trang chiếu tự cập nhật" }
     ,"slides.insert.symbol": { label: "Ký hiệu", tooltip: "Chèn ký tự đặc biệt vào khung văn bản đang chọn" }
     ,"slides.insert.hyperlink": { label: "Liên kết", tooltip: "Chèn siêu liên kết (Ctrl+K)" }
+    ,"slides.edit.pasteSpecial": { label: "Dán đặc biệt", tooltip: "Chọn cách dán nội dung từ bộ nhớ tạm (Ctrl+Alt+V)" }
+    ,"slides.insert.action": { label: "Tác vụ", tooltip: "Đặt hành động chạy khi nhấp đối tượng trong trình chiếu" }
+    ,"slides.animation.effectOptions": { label: "Tùy chọn hiệu ứng", tooltip: "Chọn hướng chạy cho hiệu ứng đang chọn" }
     ,"slides.insert.wordart": { label: "Chữ nghệ thuật", tooltip: "Chèn chữ nghệ thuật với viền, đổ bóng hoặc gradient" }
     ,"slides.master.apply": { label: "Mẫu Slide Master", tooltip: "Áp dụng mẫu Slide Master đồng bộ font, màu, logo cho toàn bộ trang chiếu" }
     ,"slides.design.themeGallery": { label: "Chủ đề", tooltip: "Chọn chủ đề thiết kế cho toàn bộ bản trình chiếu" }

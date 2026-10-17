@@ -181,7 +181,7 @@ export const SLIDES_HELP_ENTRIES = [
   {
     id: "slides.animation.apply",
     app: "slides",
-    commandIds: ["slides.animation.apply"],
+    commandIds: ["slides.animation.apply", "slides.animation.effectOptions"],
     title: "Hiệu ứng đối tượng (Animations)",
     summary: "Gắn hiệu ứng cho tiêu đề, nội dung, hình hoặc đối tượng đang chọn theo 3 nhóm: Vào (mờ dần, bay vào, thu phóng, nảy, trượt), Nhấn mạnh (xoay tròn, phóng to/thu nhỏ) và Thoát (mờ dần ra, bay ra, thu nhỏ ra, biến mất). Chọn thời gian và độ trễ, xem thử rồi áp dụng.",
     ribbon: { tab: "Hoạt hình", tabId: "animations", group: "Hiệu ứng đối tượng" },
@@ -380,6 +380,7 @@ export const SLIDES_HELP_ENTRIES = [
     ribbon: { tab: "Chuyển tiếp", tabId: "transitions", group: "Chuyển đến trang này" },
     keywords: ["chuyển tiếp", "transition", "hiệu ứng chuyển trang", "thời lượng", "tự động sau", "áp dụng cho tất cả", "xem trước"],
     steps: [
+      "Trong hộp thoại Chuyển tiếp, chọn Hướng chuyển tiếp để đặt chiều chạy từ phải, trái, trên hoặc dưới cho kiểu Trượt, Đẩy hoặc Quạt; xem trước rồi áp dụng cho trang đang chọn hoặc toàn bộ trang.",
       "Nhấp một trang ở thanh bên trái, vào tab Chuyển tiếp > nhóm Chuyển đến trang này > Hiệu ứng, rồi chọn Không, Mờ dần, Trượt ngang, Thu phóng, Lật 3D hoặc Morph. Chỉ trang đang chọn được đổi.",
       "Nhấn Xem trước để chạy thử hiệu ứng ngay trên trang đang soạn.",
       "Nhóm Thời gian: Thời lượng chọn 0,3 đến 2 giây; Chuyển trang cho bật/tắt chuyển khi nhấp chuột; Tự động sau chọn 3, 5, 10, 30 giây hoặc Không tự chuyển. Các mục này cần trang đã có hiệu ứng.",
@@ -781,6 +782,34 @@ export const SLIDES_HELP_ENTRIES = [
       "Hộp «Ký hiệu»: Thường dùng (© ® ™ ° ± § ¶ • … – — € £ ¥ ₫), Toán học (× ÷ ≈ ≠ ≤ ≥ ∞ √ ∑ ∏ ∫ ∂ ∆ π µ), Mũi tên (← → ↑ ↓ ↔ ⇒ ⇐ ⇔). Nhấp một ký tự để chèn và đóng. Hủy bỏ đóng không chèn.",
       "Nếu đang chọn hình có thuộc tính chữ: ký tự nối cuối chữ hình. Đang chọn tiêu đề: nối vào tiêu đề. Còn lại: nối vào nội dung trang. Không chèn giữa từ dù gợi ý nói «tại vị trí con trỏ».",
       "Ctrl+Z xóa ký tự vừa thêm."
+    ]
+  },
+  {
+    id: "slides.edit.pasteSpecial",
+    app: "slides",
+    commandIds: ["slides.edit.pasteSpecial"],
+    title: "Dán đặc biệt trong bản trình chiếu",
+    summary: "Chọn cách chuyển nội dung clipboard vào trang chiếu: giữ định dạng nguồn, dùng kiểu chủ đề của bản trình bày, chuyển thành ảnh PNG hoặc chỉ lấy văn bản. Xử lý clipboard diễn ra cục bộ trong ứng dụng.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
+    keywords: ["dán đặc biệt", "paste special", "ctrl+alt+v", "clipboard", "png", "định dạng nguồn", "chủ đề đích"],
+    steps: [
+      "Sao chép nội dung vào bộ nhớ tạm. Trong tab Trang đầu, nhóm Bảng nhớ tạm, chọn Dán đặc biệt; có thể nhấn Ctrl+Alt+V.",
+      "Chọn Giữ định dạng nguồn để giữ HTML/định dạng của nguồn; chọn Dùng chủ đề đích để bỏ định dạng màu và phông nguồn; chọn Hình ảnh (PNG) để chụp nội dung thành một hình; hoặc chọn Chỉ văn bản để bỏ toàn bộ định dạng.",
+      "Nhấn Dán. Nếu con trỏ đang trong khung chữ, nội dung được chèn vào vị trí con trỏ; nếu đang chọn vùng trang chiếu, ứng dụng tạo đối tượng mới. Nếu clipboard không có dữ liệu phù hợp, hãy sao chép lại nội dung rồi thử lại."
+    ]
+  },
+  {
+    id: "slides.insert.action",
+    app: "slides",
+    commandIds: ["slides.insert.action"],
+    title: "Tác vụ khi nhấp đối tượng",
+    summary: "Gán cho hình hoặc khung chữ một hành động khi nhấp trong lúc trình chiếu: chuyển đến trang khác, mở địa chỉ web hoặc không làm gì.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Văn bản" },
+    keywords: ["tác vụ", "action", "nhấp", "next slide", "hyperlink", "địa chỉ web", "trang cụ thể"],
+    steps: [
+      "Chọn hình hoặc khung chữ trên trang chiếu. Vào tab Chèn, nhóm Văn bản, chọn Tác vụ.",
+      "Trong danh sách Khi nhấp đối tượng này, chọn Không, Trang kế tiếp, Trang trước, Trang đầu, Trang cuối, Trang cụ thể hoặc Mở địa chỉ web. Với Trang cụ thể, chọn trang trong danh sách; với địa chỉ web, nhập địa chỉ bắt đầu bằng http:// hoặc https://.",
+      "Nhấn Áp dụng rồi lưu PPTX. Nhấn F5 hoặc Shift+F5 để trình chiếu, sau đó nhấp đối tượng để chạy hành động. Ctrl+Z hoàn tác việc gán tác vụ."
     ]
   },
   {

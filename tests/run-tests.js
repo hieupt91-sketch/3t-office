@@ -20,6 +20,7 @@ import { runSlideTableOpsTests } from "./unit/slide-table-ops.test.js";
 import { runSlideSizeTests } from "./unit/slide-size.test.js";
 import { runSlideTextColumnsTests } from "./unit/slide-text-columns.test.js";
 import { runSlideAnimationClassesTests } from "./unit/slide-animation-classes.test.js";
+import { runSlidesPasteSpecialTests } from "./unit/slides-paste-special.test.js";
 import { runSlidesTextShadowPptxTests } from "./unit/slides-text-shadow-pptx.test.js";
 import { runSlidesNativeAnimationTimingTests } from "./unit/slides-native-animation-timing.test.js";
 import { runSheetDvGoldenTests } from "./unit/sheet-dv-golden.test.js";
@@ -343,6 +344,7 @@ async function runAll() {
     { title: "3b5c. Unit Tests — Kích thước trang chiếu tùy chỉnh (Slides)", runner: runSlideSizeTests },
     { title: "3b5e. Unit Tests — Chia cột văn bản trong khung chữ Slides", runner: runSlideTextColumnsTests },
   { title: "3b5f. Unit Tests — Hoạt ảnh Slides: nhóm Vào / Nhấn mạnh / Thoát", runner: runSlideAnimationClassesTests },
+  { title: "3b5f1. Unit Tests — Slides Paste Special", runner: runSlidesPasteSpecialTests },
     { title: "3b5d. Unit Tests — Bóng chữ Slides khi xuất PPTX (Python)", runner: runSlidesTextShadowPptxTests },
   { title: "3b5g. Unit Tests — Hoạt ảnh Slides: p:timing Nhấn mạnh/Thoát (PPTX)", runner: runSlidesNativeAnimationTimingTests },
     { title: "3b6. Unit Tests — Xác thực dữ liệu đối chiếu Excel 2016", runner: runSheetDvGoldenTests },

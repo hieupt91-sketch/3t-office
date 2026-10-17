@@ -15,6 +15,7 @@ export const SLIDES_RIBBON_TABS = [
         labelKey: "slidesRibbon.group.clipboard",
         items: [
           { type: "button", commandId: "common.edit.paste", isLarge: true },
+          { type: "button", commandId: "slides.edit.pasteSpecial" },
           {
             type: "column",
             items: [
@@ -337,6 +338,7 @@ export const SLIDES_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "slides.text.insert", isLarge: true },
           { type: "button", commandId: "slides.insert.wordart", isLarge: true },
+          { type: "button", commandId: "slides.insert.action", label: "Tác vụ", labelKey: "slidesRibbon.action" },
           {
             type: "column",
             items: [
@@ -551,6 +553,7 @@ export const SLIDES_RIBBON_TABS = [
             ]
           },
           { type: "button", commandId: "slides.animation.apply", isLarge: true },
+          { type: "button", commandId: "slides.animation.effectOptions", label: "Tùy chọn hiệu ứng", labelKey: "slidesRibbon.animationOptions" },
           { type: "button", commandId: "slides.animation.pane", isLarge: true }
         ]
       },
