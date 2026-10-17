@@ -911,6 +911,50 @@ export const SLIDES_RIBBON_TABS = [
     ]
   },
   {
+    id: "pictureFormat",
+    label: "Định dạng ảnh",
+    labelKey: "slidesRibbon.tab.pictureFormat",
+    contextual: true,
+    groups: [
+      {
+        id: "pictureSize",
+        label: "Kích thước",
+        labelKey: "slidesRibbon.group.pictureSize",
+        items: [
+          {
+            type: "dropdown",
+            id: "slides.picture.crop",
+            label: "Cắt",
+            icon: "selectObjects",
+            isLarge: true,
+            items: [
+              { commandId: "slides.picture.cropRatio", args: "1:1", label: "Vuông 1:1" },
+              { commandId: "slides.picture.cropRatio", args: "4:3", label: "Ngang 4:3" },
+              { commandId: "slides.picture.cropRatio", args: "16:9", label: "Ngang 16:9" },
+              { commandId: "slides.picture.cropRatio", args: "3:2", label: "Ngang 3:2" },
+              { commandId: "slides.picture.cropRatio", args: "3:4", label: "Dọc 3:4" },
+              { commandId: "slides.picture.cropRatio", args: "9:16", label: "Dọc 9:16" },
+              { commandId: "slides.picture.cropRatio", args: "reset", label: "Đặt lại cắt xén" },
+              { commandId: "slides.picture.cropDialog" }
+            ]
+          }
+        ]
+      },
+      {
+        id: "pictureArrange",
+        label: "Sắp xếp",
+        labelKey: "slidesRibbon.group.pictureArrange",
+        items: [
+          { type: "button", commandId: "slides.arrange.rotateRight90" },
+          { type: "button", commandId: "slides.arrange.rotateLeft90" },
+          { type: "button", commandId: "slides.arrange.flipHorizontal" },
+          { type: "button", commandId: "slides.arrange.bringForward" },
+          { type: "button", commandId: "slides.arrange.sendBackward" }
+        ]
+      }
+    ]
+  },
+  {
     id: "ai",
     label: "Trợ lý 3T AI",
     labelKey: "slidesRibbon.tab.ai",

@@ -225,6 +225,10 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.design.setThemeColors", (arg) => this._hintIfFalse(() => this.canvas.applyThemeVariant("colors", String(arg || "")), "Không áp dụng được bảng màu này."));
     globalCommandBus.bindHandler("slides.design.setThemeFonts", (arg) => this._hintIfFalse(() => this.canvas.applyThemeVariant("fonts", String(arg || "")), "Không áp dụng được bộ phông này."));
     globalCommandBus.bindHandler("slides.view.outline", () => (this.canvas.outlineOverlay ? this.canvas.closeOutlineView() : this.canvas.openOutlineView()));
+    // Tab Định dạng ảnh: cắt ảnh theo tỉ lệ / theo số đo từng cạnh.
+    globalCommandBus.bindHandler("slides.picture.crop", () => this._hintIfFalse(() => this.canvas.openCropDialog(), "Hãy chọn một ảnh trước khi cắt."));
+    globalCommandBus.bindHandler("slides.picture.cropDialog", () => this._hintIfFalse(() => this.canvas.openCropDialog(), "Hãy chọn một ảnh trước khi cắt."));
+    globalCommandBus.bindHandler("slides.picture.cropRatio", (arg) => this._hintIfFalse(() => this.canvas.cropImageToRatio(String(arg || "")), "Hãy chọn một ảnh trước khi cắt."));
     globalCommandBus.bindHandler("slides.transition.apply", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
     // Tab Chuyển tiếp: thư viện hiệu ứng, thời gian, áp dụng tất cả, xem trước (cùng mô hình dữ liệu với hộp thoại).
     globalCommandBus.bindHandler("slides.transition.gallery", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);

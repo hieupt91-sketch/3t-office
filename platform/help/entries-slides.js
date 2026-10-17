@@ -265,6 +265,20 @@ export const SLIDES_HELP_ENTRIES = [
       "Nhấn Esc hoặc dấu × để đóng ngăn. Mở ngăn hoạt hình sẽ tự đóng ngăn chọn và ngược lại."
     ]
   },  {
+    id: "slides.picture.crop",
+    app: "slides",
+    commandIds: ["slides.picture.crop", "slides.picture.cropRatio", "slides.picture.cropDialog"],
+    title: "Tab Định dạng ảnh: cắt ảnh theo tỉ lệ hoặc theo số đo",
+    summary: "Chọn một ảnh để hiện tab Định dạng ảnh, rồi cắt ảnh về tỉ lệ khung (vuông, 4:3, 16:9...) hoặc nhập phần trăm cắt ở từng cạnh. Phần cắt được lưu trong tệp và có thể đặt lại.",
+    ribbon: { tab: "Định dạng ảnh", tabId: "pictureFormat", group: "Kích thước" },
+    keywords: ["cắt ảnh", "crop", "cắt xén", "tỉ lệ ảnh", "16:9", "ảnh vuông", "định dạng ảnh", "picture format"],
+    steps: [
+      "Nhấp vào một ảnh trên trang chiếu. Tab Định dạng ảnh xuất hiện bên phải ribbon.",
+      "Nhóm Kích thước > Cắt: chọn Vuông 1:1, Ngang 4:3, 16:9, 3:2, Dọc 3:4 hoặc 9:16 để cắt cân đối hai bên (hoặc trên/dưới) về đúng tỉ lệ; khung ảnh co lại theo phần bị cắt, tâm ảnh giữ nguyên.",
+      "Cắt xén… mở hộp thoại nhập phần trăm cắt bỏ ở cạnh trái, phải, trên, dưới (0–95). Nhấn Enter hoặc Áp dụng.",
+      "Đặt lại cắt xén trả ảnh về nguyên vẹn. Ctrl+Z hoàn tác một bước. Nhóm Sắp xếp có xoay, lật và đưa lên/xuống lớp cho ảnh."
+    ]
+  },  {
     id: "slides.view.outline",
     app: "slides",
     commandIds: ["slides.view.outline"],
