@@ -392,6 +392,10 @@ export const enStrings = {
     drawing: { arrange: "Arrange" },
     section: "Section"
   },
+  sheetArrayFormula: {
+    editTitle: "Array formula",
+    editPartError: "You cannot change part of an array. Select the entire array range, then enter it again with Ctrl+Shift+Enter."
+  },
   sheetDialogs: {
     slicer: { title: "Insert visual filter", hint: "Choose one or more table columns to create floating filters.", columns: "Table columns", chooseColumn: "Choose at least one column." },
     editLinks: {

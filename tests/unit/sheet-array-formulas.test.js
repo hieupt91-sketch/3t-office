@@ -95,14 +95,34 @@ export async function runSheetArrayFormulaTests() {
     assert(grid.formulaEngine.evaluateArray("=SUM(A1:A5*B1:B5)") === 30, "SUMPRODUCT-style phải bằng 30");
   });
 
-  await test("Xóa một ô thuộc array formula xóa cả vùng trong một bước undo", () => {
+  await test("Không sửa một phần mảng; chọn cả khối mới xóa được trong một bước undo", () => {
     const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
     for (let row = 1; row <= 3; row++) grid.setCellValue("A", row, row, false);
     grid.selectionRange = { start: { c: "C", r: 1 }, end: { c: "C", r: 3 } }; grid.selectedCoord = { c: "C", r: 1 };
     grid.enterArrayFormula({ formula: "=A1:A3+10" }); grid.undoStack = [];
-    grid.setCellValue("C", 2, "");
-    assert([1,2,3].every(row => !grid.cellsData.has(`C${row}`)) && grid.undoStack.length === 1, "Xóa lẻ phải xóa nguyên vùng bằng một action");
+    grid.selectionRange = { start: { c: "C", r: 2 }, end: { c: "C", r: 2 } }; grid.selectedCoord = { c: "C", r: 2 };
+    assert(grid.setCellValue("C", 2, "") === false, "Xóa một ô thành viên phải bị chặn");
+    assert([11,12,13].every((v, i) => numberAt(grid, grid.activeSheet, `C${i + 1}`) === v), "Chặn sửa phải giữ nguyên cả mảng");
+    grid.selectionRange = { start: { c: "C", r: 1 }, end: { c: "C", r: 3 } }; grid.selectedCoord = { c: "C", r: 1 };
+    grid.setCellValue("C", 1, "");
+    assert([1,2,3].every(row => !grid.cellsData.has(`C${row}`)) && grid.undoStack.length === 1, "Xóa cả khối phải là một action");
     grid.undo(); assert([11,12,13].every((v, i) => numberAt(grid, grid.activeSheet, `C${i + 1}`) === v), "Undo phải phục hồi nguyên vùng array");
+  });
+
+  await test("Hàm ma trận/thống kê điền đúng hình dạng và CSE SUM(IF) một ô", () => {
+    const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
+    [[1, 2], [3, 4]].forEach((values, r) => values.forEach((value, c) => grid.setCellValue(grid.cols[c], r + 1, value, false)));
+    [[5, 6], [7, 8]].forEach((values, r) => values.forEach((value, c) => grid.setCellValue(grid.cols[c + 2], r + 1, value, false)));
+    grid.selectionRange = { start: { c: "F", r: 1 }, end: { c: "G", r: 2 } }; grid.selectedCoord = { c: "F", r: 1 };
+    assert(grid.enterArrayFormula({ formula: "=MMULT(A1:B2,C1:D2)" }), "MMULT phải nhận vùng 2×2");
+    assert([19, 22, 43, 50].every((value, index) => numberAt(grid, grid.activeSheet, `${index % 2 ? "G" : "F"}${Math.floor(index / 2) + 1}`) === value), "MMULT sai phần tử");
+    grid.selectionRange = { start: { c: "J", r: 1 }, end: { c: "J", r: 1 } }; grid.selectedCoord = { c: "J", r: 1 };
+    assert(grid.formulaEngine.evaluate("=SUM(IF(A1:B2>1,1,0))") === "#VALUE!", "Nhập thường không được tự chuyển thành CSE");
+    assert(grid.enterArrayFormula({ formula: "=SUM(IF(A1:B2>1,1,0))" }), "CSE một ô SUM(IF) phải được nhận");
+    assert(numberAt(grid, grid.activeSheet, "J1") === 3, "SUM(IF) CSE phải bằng 3");
+    assert(grid._formulaBarTextFor("F1") === "{=MMULT(A1:B2,C1:D2)}", "Thanh công thức phải hiện ngoặc mảng");
+    grid.selectionRange = { start: { c: "L", r: 1 }, end: { c: "M", r: 1 } }; grid.selectedCoord = { c: "L", r: 1 };
+    assert(!grid.enterArrayFormula({ formula: "=MUNIT(2)" }), "Vùng cùng số ô nhưng sai hình dạng phải bị từ chối");
   });
 
   await test("Command, dispatch và i18n VI/EN của arrayEnter đầy đủ", async () => {

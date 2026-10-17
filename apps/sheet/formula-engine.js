@@ -5,6 +5,7 @@ import { NumberFormatter } from "./number-formatter.js";
 import { vndInWords } from "./vnd-words.js";
 import { VI_FORMULA_CATALOG, VI_FORMULA_MAP } from "./formula-definitions-vi.js";
 import { evaluateExpression, evaluateArrayExpression, MatrixValue, generalNumberText } from "./formula-expression.js";
+import { ARRAY_FUNCTION_NAMES, evaluateArrayFunction } from "./formula-array-functions.js";
 
 /**
  * 3T Sheet — Enterprise Spreadsheet Formula Calculation Engine
@@ -521,9 +522,17 @@ export class FormulaEngine {
       if (typeof arg === "string" && arg.startsWith('"') && arg.endsWith('"')) {
         values.push(arg.slice(1, -1));
       } else if (typeof arg === "string" && /^[A-Z0-9_.]+\s*\(.*\)$/i.test(arg)) {
-        const resolved = this._resolveSingleValue(arg);
-        if (Array.isArray(resolved)) values.push(...resolved);
-        else values.push(resolved);
+        const nestedName = arg.match(/^([A-Z0-9_.]+)\s*\(/i)?.[1]?.replace(/^_xlfn\./i, "").toUpperCase();
+        if (ARRAY_FUNCTION_NAMES.has(nestedName)) {
+          const arrayValue = this._evaluateArrayValue(arg);
+          if (arrayValue instanceof MatrixValue) values.push(...arrayValue.rows.flat());
+          else if (Array.isArray(arrayValue)) values.push(...arrayValue);
+          else values.push(arrayValue);
+        } else {
+          const resolved = this._resolveSingleValue(arg);
+          if (Array.isArray(resolved)) values.push(...resolved);
+          else values.push(resolved);
+        }
       } else if (typeof arg === "string" && (arg.includes(":") || arg.includes("!") || this._resolveNamedRange(arg))) {
         values.push(...this._referenceValues(arg));
       } else if (typeof arg === "string" && /^[A-Z]+\d+$/i.test(arg.trim())) {
@@ -1470,21 +1479,75 @@ export class FormulaEngine {
 
   evaluateArray(formula) {
     if (!formula || !formula.startsWith("=")) return [formula];
-    const expr = formula.slice(1).trim();
-    const transposeMatch = expr.match(/^TRANSPOSE\s*\((.*)\)$/i);
-    if (transposeMatch) {
-      const args = this._splitArgs(transposeMatch[1]);
-      if (args.length !== 1 || !args[0]) return "#VALUE!";
-      const matrix = this._rangeMatrix(args[0]);
-      if (!matrix.length || !matrix[0]?.length) return "#VALUE!";
-      return matrix[0].map((_, columnIndex) => matrix.map(row => row[columnIndex] ?? "")).flat();
+    const value = this.evaluateArrayMatrix(formula);
+    return value instanceof MatrixValue ? value.rows.flat() : value;
+  }
+
+  evaluateArrayMatrix(formula) {
+    if (!formula || !formula.startsWith("=")) return new MatrixValue([[formula]]);
+    const expr = this._materializeArrayConstants(formula.slice(1).trim());
+    return this._evaluateArrayValue(expr);
+  }
+
+  _evaluateArrayValue(expr) {
+    const text = String(expr ?? "").trim().replace(/^=/, "");
+    const funcMatch = text.match(/^([A-Z0-9_.]+)\s*\(([\s\S]*)\)$/i);
+    if (funcMatch && this._isSingleFunctionCall(text)) {
+      const funcName = funcMatch[1].replace(/^_xlfn\./i, "").toUpperCase();
+      const args = this._splitArgs(funcMatch[2]);
+      if (ARRAY_FUNCTION_NAMES.has(funcName)) {
+        const result = evaluateArrayFunction(this, funcName, args);
+        return result.error || new MatrixValue(result.rows);
+      }
+      if (funcName === "IF" && args.length >= 2 && args.length <= 3) {
+        const condition = this._evaluateArrayValue(args[0]);
+        if (this._isError(condition)) return condition;
+        const yes = this._evaluateArrayValue(args[1]);
+        const no = args[2] === undefined ? false : this._evaluateArrayValue(args[2]);
+        const matrices = [condition, yes, no].filter(value => value instanceof MatrixValue);
+        if (matrices.length) {
+          const height = Math.max(...matrices.map(value => value.height));
+          const width = Math.max(...matrices.map(value => value.width));
+          const pick = (value, row, col) => value instanceof MatrixValue
+            ? value.rows[value.height === 1 ? 0 : row]?.[value.width === 1 ? 0 : col]
+            : value;
+          const rows = Array.from({ length: height }, (_, row) => Array.from({ length: width }, (_, col) => {
+            const test = pick(condition, row, col);
+            if (test === undefined) return "#N/A";
+            const branch = test ? yes : no;
+            const selected = pick(branch, row, col);
+            return selected === undefined ? "#N/A" : selected;
+          }));
+          return new MatrixValue(rows);
+        }
+        return condition ? yes : no;
+      }
+      if (funcName === "INDEX" && args.length >= 2) {
+        const source = this._evaluateArrayValue(args[0]);
+        const matrix = source instanceof MatrixValue ? source.rows : this._rangeMatrix(args[0]);
+        const row = Number(this._resolveSingleValue(args[1]));
+        const col = args[2] === undefined ? (matrix.length === 1 ? row : 1) : Number(this._resolveSingleValue(args[2]));
+        if (!Number.isFinite(row) || !Number.isFinite(col) || row < 0 || col < 0) return "#VALUE!";
+        if (row === 0 && col === 0) return new MatrixValue(matrix);
+        if (row === 0) return new MatrixValue(matrix.map(values => [values[col - 1]]));
+        if (col === 0) return new MatrixValue([matrix[row - 1] || []]);
+        return matrix[row - 1]?.[col - 1] ?? "#REF!";
+      }
+      if (funcName === "SUM" || funcName === "SUMPRODUCT") {
+        const arrays = args.map(arg => {
+          const value = this._evaluateArrayValue(arg);
+          return value instanceof MatrixValue ? value.rows.flat() : [value];
+        });
+        const error = arrays.flat().find(value => this._isError(value));
+        if (error) return error;
+        if (funcName === "SUM") return arrays.flat().reduce((sum, value) => sum + (typeof value === "number" ? value : 0), 0);
+        if (arrays.some(values => values.length !== arrays[0].length)) return "#VALUE!";
+        return arrays[0].reduce((sum, _, index) => sum + arrays.reduce((product, values) => product * (typeof values[index] === "number" ? values[index] : 0), 1), 0);
+      }
     }
-    const funcMatch = expr.match(/^SUM\s*\((.*)\)$/i);
-    if (funcMatch) {
-      const value = this._evaluateArrayArithmetic(funcMatch[1]);
-      return Array.isArray(value) ? value.reduce((sum, item) => sum + (Number(item) || 0), 0) : value;
-    }
-    return this._evaluateArrayArithmetic(expr);
+    const evaluated = evaluateArrayExpression(this, text);
+    if (evaluated.ok) return evaluated.value;
+    return this.evaluate(`=${text}`);
   }
 
   _evaluateArrayArithmetic(expr) {
@@ -1574,6 +1637,9 @@ export class FormulaEngine {
     }
     const threeDError = this._threeDArgumentError(funcName, args);
     if (threeDError !== null) return threeDError;
+    // Các hàm này trả ma trận. Công thức thường không được làm tràn tự động;
+    // evaluateArray() hoặc hàm bao INDEX/SUM/SUMPRODUCT mới nhận ma trận đầy đủ.
+    if (ARRAY_FUNCTION_NAMES.has(funcName)) return "#VALUE!";
     switch (funcName) {
       // Toán học
       case "SUM": {
@@ -1613,10 +1679,8 @@ export class FormulaEngine {
           if (isPlainRange) {
             flat = this._rangeValues(arg);
           } else {
-            const evaluated = evaluateArrayExpression(this, text);
-            if (!evaluated.ok) flat = this._rangeValues(arg);
-            else if (evaluated.value instanceof MatrixValue) flat = evaluated.value.rows.flat();
-            else flat = [evaluated.value];
+            const value = this._evaluateArrayValue(text);
+            flat = value instanceof MatrixValue ? value.rows.flat() : [value];
           }
           arrays.push(flat);
         }
@@ -1852,7 +1916,8 @@ export class FormulaEngine {
 
       case "INDEX": {
         if (args.length < 2) return "#VALUE!";
-        const matrix = this._rangeMatrix(args[0]);
+        const arrayValue = this._evaluateArrayValue(args[0]);
+        const matrix = arrayValue instanceof MatrixValue ? arrayValue.rows : this._rangeMatrix(args[0]);
         if (!matrix || !matrix.length || !matrix[0]) return "#REF!";
 
         const rowArg = this._resolveSingleValue(args[1]);

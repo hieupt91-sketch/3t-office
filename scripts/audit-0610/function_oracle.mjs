@@ -65,10 +65,12 @@ const near = (a, b) => Math.abs(a - b) <= currentTol * Math.max(1, Math.abs(a), 
 const rows = [];
 const mineFormulas = (spec.formulas || []).map(formulaText);
 const tolerances = (spec.formulas || []).map(item => (typeof item === "string" ? null : item.tol ?? null));
+const arrayModes = (spec.formulas || []).map(item => typeof item === "object" && item.array === true);
 for (const [index, item] of excelList.entries()) {
   let mine;
   currentTol = tolerances[index] ?? 1e-9;
-  try { mine = engine.evaluate(mineFormulas[index]); } catch (error) { mine = `#THROW ${error.message}`; }
+  const arrayFormula = arrayModes[index] || item.type === "array" || /^\s*=\s*(?:MMULT|MINVERSE|MUNIT|TRANSPOSE|FREQUENCY|LINEST|TREND|GROWTH|LOGEST)\s*\(/i.test(mineFormulas[index]);
+  try { mine = arrayFormula ? engine.evaluateArray(mineFormulas[index]) : engine.evaluate(mineFormulas[index]); } catch (error) { mine = `#THROW ${error.message}`; }
   if (mine instanceof String) mine = String(mine);
   let pass = false;
   if (item.type === "number") pass = typeof mine === "number" && near(mine, item.value);
@@ -76,7 +78,7 @@ for (const [index, item] of excelList.entries()) {
   else if (item.type === "boolean") pass = mine === item.value;
   else if (item.type === "error") pass = String(mine).split(" ")[0] === item.value;
   else if (item.type === "array") pass = Array.isArray(mine) && mine.length === item.value.length && item.value.every((v, i) => (typeof v === "number" ? near(Number(mine[i]), v) : String(mine[i]) === String(v)));
-  rows.push({ formula: mineFormulas[index], excel: item.value, excelType: item.type, mine, pass, tol: tolerances[index] ?? undefined });
+  rows.push({ formula: mineFormulas[index], excel: item.value, excelType: item.type, mine, pass, tol: tolerances[index] ?? undefined, array: arrayModes[index] || undefined });
 }
 const failed = rows.filter(row => !row.pass);
 for (const row of failed) console.log(`FAIL | ${row.formula} | Excel=${JSON.stringify(row.excel)} (${row.excelType}) | VN=${JSON.stringify(row.mine)}`);
@@ -85,7 +87,7 @@ if (outIndex >= 0) writeFileSync(path.resolve(argv[outIndex + 1]), JSON.stringif
 // --golden <file>: lưu giá trị Excel làm bộ kiểm thử vàng cho npm test (không cần Excel khi chạy lại).
 const goldenIndex = argv.indexOf("--golden");
 if (goldenIndex >= 0 && !failed.length) {
-  const golden = { generatedFrom: "Excel 2016 (16.0.4266) Application.Evaluate", cells: spec.cells || {}, ...(spec.sheets ? { sheets: spec.sheets } : {}), cases: rows.map(row => ({ formula: row.formula, excel: row.excel, type: row.excelType, ...(row.tol ? { tol: row.tol } : {}) })) };
+  const golden = { generatedFrom: "Excel 2016 (16.0.4266) Application.Evaluate", cells: spec.cells || {}, ...(spec.sheets ? { sheets: spec.sheets } : {}), cases: rows.map(row => ({ formula: row.formula, excel: row.excel, type: row.excelType, ...(row.tol ? { tol: row.tol } : {}), ...(row.array ? { array: true } : {}) })) };
   writeFileSync(path.resolve(argv[goldenIndex + 1]), JSON.stringify(golden, null, 1));
   console.log(`Đã lưu bộ giá trị vàng: ${argv[goldenIndex + 1]}`);
 }

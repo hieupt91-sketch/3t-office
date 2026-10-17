@@ -24,7 +24,8 @@ export async function runFunctionGoldenTests() {
     for (const item of golden.cases) {
       let mine;
       tol = item.tol ?? 1e-9;
-      try { mine = engine.evaluate(item.formula); } catch (error) { mine = `#THROW ${error.message}`; }
+      const arrayFormula = item.array === true || item.type === "array" || /^\s*=\s*(?:MMULT|MINVERSE|MUNIT|TRANSPOSE|FREQUENCY|LINEST|TREND|GROWTH|LOGEST)\s*\(/i.test(item.formula);
+      try { mine = arrayFormula ? engine.evaluateArray(item.formula) : engine.evaluate(item.formula); } catch (error) { mine = `#THROW ${error.message}`; }
       if (mine instanceof String) mine = String(mine);
       let pass = false;
       if (item.type === "number") pass = typeof mine === "number" && near(mine, item.excel);

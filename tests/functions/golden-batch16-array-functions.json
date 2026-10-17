@@ -1,0 +1,270 @@
+{
+ "generatedFrom": "Excel 2016 (16.0.4266) Application.Evaluate",
+ "cells": {
+  "A1": 1,
+  "B1": 2,
+  "A2": 3,
+  "B2": 4,
+  "C1": 5,
+  "D1": 6,
+  "C2": 7,
+  "D2": 8,
+  "F1": 3,
+  "F2": 5,
+  "F3": 7,
+  "F4": 9.1,
+  "G1": 1,
+  "G2": 2,
+  "G3": 3,
+  "G4": 4,
+  "H1": 1,
+  "I1": 2,
+  "E1": 8,
+  "H2": 2,
+  "I2": 1,
+  "E2": 9,
+  "H3": 3,
+  "I3": 4,
+  "E3": 18,
+  "H4": 4,
+  "I4": 3,
+  "E4": 19,
+  "J1": 1,
+  "J2": 2,
+  "J3": 2,
+  "J4": 3,
+  "J5": 5,
+  "K1": 2,
+  "K2": 4,
+  "L1": 2,
+  "L2": 4,
+  "L3": 8,
+  "L4": 16.2
+ },
+ "cases": [
+  {
+   "formula": "=MMULT(A1:B2,C1:D2)",
+   "excel": [
+    19,
+    22,
+    43,
+    50
+   ],
+   "type": "array"
+  },
+  {
+   "formula": "=INDEX(MMULT(A1:B2,C1:D2),1,2)",
+   "excel": 22,
+   "type": "number"
+  },
+  {
+   "formula": "=SUM(MMULT(A1:B2,C1:D2))",
+   "excel": 134,
+   "type": "number"
+  },
+  {
+   "formula": "=SUMPRODUCT(MMULT(A1:B2,C1:D2))",
+   "excel": 134,
+   "type": "number"
+  },
+  {
+   "formula": "=MMULT(A1:B2,C1:C1)",
+   "excel": "#VALUE!",
+   "type": "error"
+  },
+  {
+   "formula": "=MINVERSE(A1:B2)",
+   "excel": [
+    -1.9999999999999998,
+    0.9999999999999999,
+    1.4999999999999998,
+    -0.4999999999999999
+   ],
+   "type": "array"
+  },
+  {
+   "formula": "=INDEX(MINVERSE(A1:B2),2,1)",
+   "excel": 1.4999999999999998,
+   "type": "number"
+  },
+  {
+   "formula": "=MINVERSE({1,2;2,4})",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=MUNIT(3)",
+   "excel": [
+    1,
+    0,
+    0,
+    0,
+    1,
+    0,
+    0,
+    0,
+    1
+   ],
+   "type": "array"
+  },
+  {
+   "formula": "=MUNIT(0)",
+   "excel": "#VALUE!",
+   "type": "error"
+  },
+  {
+   "formula": "=TRANSPOSE(A1:B2)",
+   "excel": [
+    1,
+    3,
+    2,
+    4
+   ],
+   "type": "array"
+  },
+  {
+   "formula": "=INDEX(TRANSPOSE(A1:B2),1,2)",
+   "excel": 3,
+   "type": "number"
+  },
+  {
+   "formula": "=FREQUENCY(J1:J5,K1:K2)",
+   "excel": [
+    3,
+    1,
+    1
+   ],
+   "type": "array"
+  },
+  {
+   "formula": "=INDEX(FREQUENCY(J1:J5,K1:K2),3,1)",
+   "excel": 1,
+   "type": "number"
+  },
+  {
+   "formula": "=FREQUENCY(J1:J5,A1:B2)",
+   "excel": [
+    1,
+    2,
+    1,
+    0,
+    1
+   ],
+   "type": "array"
+  },
+  {
+   "formula": "=LINEST(F1:F4,G1:G4)",
+   "excel": [
+    2.03,
+    0.9500000000000011
+   ],
+   "type": "array"
+  },
+  {
+   "formula": "=LINEST(F1:F4,G1:G4,TRUE,TRUE)",
+   "excel": [
+    2.03,
+    0.9500000000000011,
+    0.017320508075688672,
+    0.047434164902525416,
+    0.999854421933762,
+    0.03872983346207395,
+    13736.333333333487,
+    2,
+    20.604499999999994,
+    0.002999999999999966
+   ],
+   "type": "array"
+  },
+  {
+   "formula": "=INDEX(LINEST(F1:F4,G1:G4),1,1)",
+   "excel": 2.03,
+   "type": "number"
+  },
+  {
+   "formula": "=LINEST(E1:E4,H1:I4,TRUE,FALSE)",
+   "excel": [
+    1.9999999999999991,
+    2.9999999999999996,
+    1.0000000000000027
+   ],
+   "type": "array"
+  },
+  {
+   "formula": "=LINEST(F1:F3,G1:G4)",
+   "excel": "#REF!",
+   "type": "error"
+  },
+  {
+   "formula": "=TREND(F1:F4,G1:G4,{5;6})",
+   "excel": [
+    11.1,
+    13.13
+   ],
+   "type": "array"
+  },
+  {
+   "formula": "=INDEX(TREND(F1:F4,G1:G4,{5;6}),2,1)",
+   "excel": 13.13,
+   "type": "number"
+  },
+  {
+   "formula": "=TREND(F1:F4,G1:G3)",
+   "excel": "#REF!",
+   "type": "error"
+  },
+  {
+   "formula": "=GROWTH(L1:L4,G1:G4,{5;6})",
+   "excel": [
+    32.39999999999998,
+    65.0419443425124
+   ],
+   "type": "array"
+  },
+  {
+   "formula": "=INDEX(GROWTH(L1:L4,G1:G4,{5;6}),2,1)",
+   "excel": 65.0419443425124,
+   "type": "number"
+  },
+  {
+   "formula": "=GROWTH({1;0;4},{1;2;3},{4})",
+   "excel": "#NUM!",
+   "type": "error"
+  },
+  {
+   "formula": "=LOGEST(L1:L4,G1:G4)",
+   "excel": [
+    2.007467417978779,
+    0.9938079899999068
+   ],
+   "type": "array"
+  },
+  {
+   "formula": "=LOGEST(L1:L4,G1:G4,TRUE,TRUE)",
+   "excel": [
+    2.007467417978779,
+    0.9938079899999068,
+    0.0021516435795541763,
+    0.005892518621164919,
+    0.9999809342481872,
+    0.004811221307234115,
+    104898.13819741672,
+    2,
+    2.4281664172797566,
+    0.00004629570093436709
+   ],
+   "type": "array"
+  },
+  {
+   "formula": "=INDEX(LOGEST(L1:L4,G1:G4),1,1)",
+   "excel": 2.007467417978779,
+   "type": "number"
+  },
+  {
+   "formula": "=SUM(IF(A1:B2>1,1,0))",
+   "excel": 3,
+   "type": "number",
+   "array": true
+  }
+ ]
+}
