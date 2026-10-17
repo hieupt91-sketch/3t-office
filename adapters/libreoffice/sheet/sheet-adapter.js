@@ -4348,7 +4348,7 @@ export class SheetAdapter {
       this.grid.date1904 ? ` vno:date1904="1"` : "",
       this.grid.referenceStyle === "R1C1" ? ` vno:reference-style="R1C1"` : ""
     ].join("") : "";
-    const themeAttr = this.grid?.getWorkbookTheme
+    const themeAttr = this.grid?.getWorkbookTheme && this.grid.isWorkbookThemeExplicit?.() !== false
       ? ` vno:workbook-theme="${this._escapeXml(JSON.stringify(this.grid.getWorkbookTheme()))}"`
       : "";
     const docPropsMarker = documentPropertiesMarker({

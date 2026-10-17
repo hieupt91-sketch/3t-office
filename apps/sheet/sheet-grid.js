@@ -291,6 +291,8 @@ export class SheetGridController {
     this.pageSetupBySheet = Object.fromEntries(this.sheets.map(name => [name, newSheetPageSetup()]));
     this.mergedRangesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
     this.workbookTheme = resolveTheme(options.workbookTheme || "office");
+    // Chỉ ghi chủ đề vào tệp khi người dùng đã chọn (hoặc tệp đã có); chủ đề gốc của tệp XLSX được giữ nguyên.
+    this.workbookThemeExplicit = Boolean(options.workbookTheme);
     this.formulaEngine = new FormulaEngine(
       () => this.cellsData,
       name => this.resolveNamedRange(name),
@@ -19604,12 +19606,17 @@ export class SheetGridController {
     return true;
   }
 
+  isWorkbookThemeExplicit() {
+    return Boolean(this.workbookThemeExplicit);
+  }
+
   getWorkbookTheme() {
     return { ...this.workbookTheme };
   }
 
   setWorkbookTheme(themeOrId) {
     this.workbookTheme = resolveTheme(themeOrId);
+    this.workbookThemeExplicit = true;
     this.isDirty = true;
     if (this.adapter) this.adapter.isDirty = true;
     this._renderHeadersAndContent?.();
@@ -19623,6 +19630,7 @@ export class SheetGridController {
       colorSchemeId,
       themeId: "custom"
     });
+    this.workbookThemeExplicit = true;
     this.isDirty = true;
     if (this.adapter) this.adapter.isDirty = true;
     this._renderHeadersAndContent?.();
@@ -19636,6 +19644,7 @@ export class SheetGridController {
       fontSchemeId,
       themeId: "custom"
     });
+    this.workbookThemeExplicit = true;
     this.isDirty = true;
     if (this.adapter) this.adapter.isDirty = true;
     this._renderHeadersAndContent?.();
