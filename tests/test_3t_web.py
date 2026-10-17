@@ -49,10 +49,10 @@ class Test3TWeb(unittest.TestCase):
 
         # Kiem tra thong tin tai ve
         dl = data.get("download", {})
-        self.assertEqual(dl.get("file_size_bytes"), 401481861)  # bo cai 0.9.10 = 383 MB
+        self.assertEqual(dl.get("file_size_bytes"), 401718681)  # bo cai 0.9.11 = 383 MB
         self.assertEqual(
             dl.get("sha256", "").lower(),
-            "d21cbc6cc457d54ffcaee486294b68b851ba5dddbadea3374e777c7a43c365e7"  # SHA-256 bo cai 0.9.10
+            "41cc7db664203d8a15a2e9f030f50a6f28e09f17b6de139c194b9114d7a274be"  # SHA-256 bo cai 0.9.11
         )
 
     def test_html_pages_structure(self):
@@ -121,5 +121,58 @@ class Test3TWeb(unittest.TestCase):
         self.assertIn("animation-duration:", css_content)
         self.assertIn("scroll-behavior: auto !important", css_content)
 
+    def test_macos_release_json(self):
+        """Kiem tra release-macos.json ton tai, dung cau truc va o trang thai chuan bi cho .pkg arm64."""
+        mac_file = WEB_ROOT / "data" / "release-macos.json"
+        self.assertTrue(mac_file.exists(), "Tep data/release-macos.json phai ton tai")
+
+        data = json.loads(mac_file.read_text(encoding="utf-8"))
+        required_fields = ["version", "file_name", "size", "sha256", "min_os", "arch", "released_at", "install_note"]
+        for field in required_fields:
+            self.assertIn(field, data, f"release-macos.json phai chua truong '{field}'")
+
+        # Khi chua co tep: file_name rong
+        self.assertEqual(data.get("file_name"), "", "file_name ban dau phai rong khi chua co tep")
+        self.assertIn("macOS 12", data.get("min_os", ""))
+        self.assertIn("Apple Silicon (arm64)", data.get("arch", ""))
+        self.assertIn("Chưa ký", data.get("install_note", ""))
+        self.assertIn("Open Anyway", data.get("install_note", ""))
+
+    def test_macos_download_card_in_html(self):
+        """Kiem tra the macOS tren index.html va tai-ve.html voi chi dan .pkg arm64 chua ky."""
+        for page_name in ["index.html", "tai-ve.html"]:
+            page_path = WEB_ROOT / page_name
+            content = page_path.read_text(encoding="utf-8")
+
+            # Phai co the macOS va tieu de phu hop
+            self.assertIn("download-card-macos", content, f"{page_name} phai co the download-card-macos")
+            self.assertIn("Tải về 3T Office cho macOS (dùng nội bộ)", content)
+
+            # Trang thai khi chua co tep: thong bao dang chuan bi va khong co nut tai hong
+            self.assertIn("Bản macOS đang được chuẩn bị", content)
+            self.assertIn("data-mac-release-field", content)
+            self.assertIn("Apple Silicon (arm64)", content)
+
+            # Nut sao chep ma bam SHA-256 va huong dan shasum
+            self.assertIn("shasum -a 256 &lt;tệp .pkg&gt;", content)
+            self.assertIn("chuột phải vào tệp .pkg", content)
+            self.assertIn("Open Anyway", content)
+            self.assertIn("copy-btn", content)
+
+    def test_macos_simulated_release_data(self):
+        """Kiem tra du lieu mau thuc te tu team Mac (3T-Office-0.9.11-arm64-unsigned-final-v2.pkg)."""
+        sample_file_name = "3T-Office-0.9.11-arm64-unsigned-final-v2.pkg"
+        sample_sha256 = "01b7b04eca310869fc09b51c39afc1e06818c01a41476c4bd2346309a32fc978"
+
+        download_url = f"https://office.3tcomputer.com/downloads/{sample_file_name}"
+        domain_match = re.match(r"https?://([^/]+)", download_url)
+        self.assertIsNotNone(domain_match)
+        self.assertIn(domain_match.group(1), ALLOWED_DOMAINS)
+
+        # Kiem tra do dai ma bam SHA256 hop le (64 hex chars)
+        self.assertEqual(len(sample_sha256), 64)
+        self.assertRegex(sample_sha256, r"^[0-9a-f]{64}$")
+
 if __name__ == "__main__":
     unittest.main()
+

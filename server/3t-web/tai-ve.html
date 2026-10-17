@@ -135,6 +135,85 @@
           </div>
         </div>
 
+        <!-- Khối thông tin bộ cài macOS (dùng nội bộ) -->
+        <div class="download-card" id="download-card-macos-page" style="max-width: 860px; margin: 0 auto var(--space-12) auto;">
+          <div class="download-card-header">
+            <div>
+              <span class="badge badge-blue">Kênh phát hành nội bộ</span>
+              <h2 style="font-size: 1.6rem; font-weight: 800; margin-top: 6px;">
+                Tải về 3T Office cho macOS (dùng nội bộ)
+              </h2>
+            </div>
+            <div>
+              <span class="tag tag-pending">Bản dùng thử nội bộ</span>
+            </div>
+          </div>
+
+          <div class="download-specs-grid">
+            <div class="spec-item">
+              <span class="spec-label">Tên tệp cài đặt</span>
+              <span class="spec-val" data-mac-release-field="file_name">Chưa có tệp</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Dung lượng thực tế</span>
+              <span class="spec-val" data-mac-release-field="size">Đang cập nhật</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Hệ điều hành</span>
+              <span class="spec-val" data-mac-release-field="min_os">macOS 12 Monterey trở lên</span>
+            </div>
+            <div class="spec-item">
+              <span class="spec-label">Kiến trúc hỗ trợ</span>
+              <span class="spec-val" data-mac-release-field="arch">Apple Silicon (arm64)</span>
+            </div>
+          </div>
+
+          <!-- Khối SHA256 kèm nút sao chép (ẩn khi chưa có tệp) -->
+          <div class="hash-card" id="mac-hash-card-page" style="display: none;">
+            <div class="hash-card-header">
+              <span style="font-size: 0.813rem; font-weight: 700; color: var(--text-main);">Mã kiểm tra toàn vẹn tệp (SHA-256)</span>
+              <button type="button" class="copy-btn" data-copy-target="#sha256-mac-code-page" aria-label="Sao chép mã băm SHA256 macOS">
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><rect x="9" y="9" width="13" height="13" rx="2" ry="2"></rect><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"></path></svg>
+                Sao chép mã
+              </button>
+            </div>
+            <code id="sha256-mac-code-page" class="hash-code" data-mac-release-field="sha256"></code>
+          </div>
+
+          <!-- Trạng thái khi chưa có tệp: Bản macOS đang được chuẩn bị và KHÔNG có nút tải hỏng -->
+          <div id="mac-pending-box-page" class="todo-confirm-box" style="width: 100%; max-width: 600px; margin: 0 auto; text-align: center;">
+            <span class="todo-confirm-badge" style="background: var(--color-warning, #d97706); color: #fff;">ĐANG XỬ LÝ</span>
+            <strong>Bản macOS đang được chuẩn bị</strong>
+          </div>
+
+          <!-- Nút tải về (chỉ xuất hiện khi file_name không rỗng) -->
+          <div id="mac-download-action-wrap-page" style="display: none; flex-direction: column; gap: 12px; align-items: center;">
+            <a href="#" class="btn btn-primary btn-lg" id="btn-download-macos-page" data-mac-release-download-link style="width: 100%; max-width: 440px; text-decoration: none;">
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                <path d="M19 9h-4V3H9v6H5l7 7 7-7zM5 18v2h14v-2H5z"/>
+              </svg>
+              <span id="mac-download-btn-text-page">Tải bản cài đặt macOS</span>
+            </a>
+            <div class="todo-confirm-box" style="width: 100%; max-width: 600px; text-align: center;">
+              <span class="todo-confirm-badge" style="background: var(--color-primary); color: #fff;">NỘI BỘ</span>
+              Bộ cài đặt macOS (.pkg) phân phối từ máy chủ 3T Cloud.
+            </div>
+          </div>
+
+          <!-- Hướng dẫn kiểm tra băm và cài đặt -->
+          <div style="margin-top: var(--space-6); padding: var(--space-4) var(--space-6); background: var(--bg-surface); border: 1px solid var(--border-color); border-radius: var(--radius-md);">
+            <div style="font-size: 0.938rem; font-weight: 700; color: var(--text-main); margin-bottom: 6px;">
+              Hướng dẫn kiểm tra mã băm và cài đặt trên macOS
+            </div>
+            <p style="font-size: 0.875rem; color: var(--text-muted); margin-bottom: 6px; line-height: 1.5;">
+              Kiểm tra mã băm SHA-256 bằng Terminal: <code>shasum -a 256 &lt;tệp .pkg&gt;</code>
+            </p>
+            <p style="font-size: 0.875rem; color: var(--text-muted); margin: 0; line-height: 1.5;">
+              Ghi chú cài đặt: Chưa ký: tải về, chuột phải vào tệp .pkg &gt; Mở &gt; Mở; hoặc System Settings &gt; Privacy &amp; Security &gt; Open Anyway.
+            </p>
+          </div>
+        </div>
+
         <!-- Hướng dẫn cài đặt 3 bước -->
         <div class="stepper-wrap" style="max-width: 860px; margin: 0 auto var(--space-12) auto;">
           <h2 style="font-size: 1.35rem; font-weight: 800; text-align: center; margin-bottom: var(--space-8);">
