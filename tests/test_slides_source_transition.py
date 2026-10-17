@@ -218,6 +218,23 @@ class SourceMasterTests(unittest.TestCase):
             self.assertIn('r:id="rIdVnoM1"', package.read("ppt/presentation.xml").decode())
             self.assertTrue(any(re.fullmatch(r"ppt/theme/theme1\d\d\.xml", n) for n in names))
 
+    def test_content_types_with_contenttype_before_partname_are_still_copied(self):
+        # Google Slides ghi ContentType trước PartName: nếu không đọc được, master/layout/theme rơi về application/xml và PowerPoint từ chối mở.
+        source = _master_package("SRC", True, 3)
+        with zipfile.ZipFile(io.BytesIO(source)) as package:
+            original_ct = package.read("[Content_Types].xml").decode()
+        swapped = re.sub(r'<Override PartName="([^"]+)" ContentType="([^"]+)"/>', r'<Override ContentType="\2" PartName="\1"/>', original_ct)
+        self.assertNotEqual(swapped, original_ct)
+        source = patcher.patch_ooxml_zip(source, {"[Content_Types].xml": swapped.encode()})
+        converted = _master_package("SOFFICE", False, 1)
+        fodp = _fodp(2, [' vno:src-layout="ppt/slideLayouts/slideLayout2.xml"'] * 2)
+        out = patcher._restore_source_masters(converted, source, fodp, None)
+        self.assertNotEqual(out, converted)
+        with zipfile.ZipFile(io.BytesIO(out)) as package:
+            content_types = package.read("[Content_Types].xml").decode()
+        for part in ("ppt/slideMasters/slideMaster1.xml", "ppt/slideLayouts/slideLayout3.xml"):
+            self.assertIn(f'PartName="/{part}"', content_types)
+
     def test_a_vn_theme_choice_or_missing_source_keeps_the_converted_package(self):
         source = _master_package("SRC", True, 3)
         converted = _master_package("SOFFICE", False, 1)

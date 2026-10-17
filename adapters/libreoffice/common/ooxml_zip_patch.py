@@ -10447,8 +10447,17 @@ def _restore_source_masters_unsafe(pptx_bytes: bytes, source_pptx: bytes, page_l
         return pptx_bytes
     for name in removed:
         ct = re.sub(rf'<Override\b[^>]*PartName="/{re.escape(name)}"[^>]*/>', "", ct)
-    src_overrides = {m.group(1): m.group(2) for m in re.finditer(r'<Override\b[^>]*PartName="([^"]+)"[^>]*ContentType="([^"]+)"[^>]*/>', src_ct)}
-    src_defaults = {m.group(1).lower(): m.group(2) for m in re.finditer(r'<Default\b[^>]*Extension="([^"]+)"[^>]*ContentType="([^"]+)"[^>]*/>', src_ct)}
+    # Thứ tự thuộc tính khác nhau giữa các trình ghi (Google Slides ghi ContentType trước PartName).
+    src_overrides: dict[str, str] = {}
+    for m in re.finditer(r"<Override\b([^>]*?)/?>", src_ct):
+        attrs = dict(re.findall(r'([\w:]+)="([^"]*)"', m.group(1)))
+        if "PartName" in attrs and "ContentType" in attrs:
+            src_overrides[attrs["PartName"]] = attrs["ContentType"]
+    src_defaults: dict[str, str] = {}
+    for m in re.finditer(r"<Default\b([^>]*?)/?>", src_ct):
+        attrs = dict(re.findall(r'([\w:]+)="([^"]*)"', m.group(1)))
+        if "Extension" in attrs and "ContentType" in attrs:
+            src_defaults[attrs["Extension"].lower()] = attrs["ContentType"]
     additions: list[str] = []
     for part in order:
         target_name = renamed(part)
@@ -10462,6 +10471,11 @@ def _restore_source_masters_unsafe(pptx_bytes: bytes, source_pptx: bytes, page_l
     ct = re.sub(r"</Types\s*>", "".join(additions) + "</Types>", ct)
     new_parts["[Content_Types].xml"] = ct.encode("utf-8")
 
+    # --- 8a. mọi phần xml chép sang phải có kiểu nội dung riêng (Override), không rơi về application/xml mặc định
+    for part in order:
+        if part.endswith(".xml") and re.match(r"^ppt/(slideMasters|slideLayouts|theme)/", part):
+            if f'PartName="/{renamed(part)}"' not in ct:
+                return pptx_bytes
     # --- 8. kiểm tra đích rels của các phần đã chép đều tồn tại
     for name, data in new_parts.items():
         if not name.endswith(".rels") or not (name.startswith("ppt/slideMasters/") or name.startswith("ppt/slideLayouts/") or name.startswith("ppt/theme/") or name == "ppt/_rels/presentation.xml.rels" or name.startswith("ppt/slides/_rels/")):
