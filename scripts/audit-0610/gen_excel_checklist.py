@@ -22,14 +22,14 @@ Tệp (Backstage)|Tệp|Mở gần đây (danh sách tệp)|A|-|Danh sách tệp
 Tệp (Backstage)|Tệp|Lưu (Ctrl+S)|V|-|Lưu XLSX rồi Excel 2016 mở lại đúng (bộ 8 tệp bắt buộc 0 chênh lệch)
 Tệp (Backstage)|Tệp|Lưu thành (F12): XLSX, XLS 97-2003, ODS, CSV|A|-|common.file.saveAs; XLS 97-2003 đã sửa lỗi 0.9.10
 Tệp (Backstage)|Tệp|Xuất PDF|A|-|common.file.exportPdf
-Tệp (Backstage)|Tệp|Xuất / Chuyển đổi định dạng (mục riêng, giữ bố cục)|N|1|Đang giao agy (feat/export-convert-agy)
+Tệp (Backstage)|Tệp|Xuất / Chuyển đổi định dạng (mục riêng, giữ bố cục)|A|-|Đã có trong main (Backstage > Xuất và Chuyển đổi, common.file.exportConvert, CDP 21/21 do agy báo); chưa đối chiếu với Excel vì đây là tính năng của VN Office, không có trong Excel 2016
 Tệp (Backstage)|Tệp|Lưu bản sao / Lưu thành mẫu (XLTX)|P|3|16/10: lưu .xltx qua đường lưu xlsx đầy đủ, Excel mở đúng là mẫu, LAN 10/10; mở .xltx đi đường mở chung (chưa có đường mở xlsx riêng)
 Tệp (Backstage)|Tệp|In (Ctrl+P) + xem trước|V|-|Thiết lập trang/in đã đọc lại bằng Excel 2016
 Tệp (Backstage)|Tệp|Đóng (Ctrl+W)|A|-|common.file.close
 Tệp (Backstage)|Thông tin|Bảo vệ sổ làm việc bằng mật khẩu mở file (mã hóa)|N|1|Chưa có mã hóa file; chỉ có bảo vệ cấu trúc
-Tệp (Backstage)|Thông tin|Kiểm tra tài liệu (Inspect) / Đánh dấu là cuối cùng|N|3|
+Tệp (Backstage)|Thông tin|Kiểm tra tài liệu (Inspect) / Đánh dấu là cuối cùng|P|3|15/10 (agy): Đánh dấu là cuối cùng (Mark as Final) xong, CDP 40/40; chưa có Kiểm tra tài liệu (Inspect)
 Tệp (Backstage)|Thông tin|Quản lý phiên bản / khôi phục tự động (AutoRecover)|A|-|Có cơ chế autorecover
-Tệp (Backstage)|Thông tin|Thuộc tính tệp (tác giả, tiêu đề...)|N|3|
+Tệp (Backstage)|Thông tin|Thuộc tính tệp (tác giả, tiêu đề...)|A|3|15/10 (agy): Thông tin tệp (apps/sheet/document-properties.js), CDP 40/40; chưa đối chiếu Excel
 Tệp (Backstage)|Tùy chọn|Hộp thoại Tùy chọn Excel (chung, công thức, lưu, nâng cao...)|P|2|Có một số tùy chọn rời; chưa có hộp thoại gộp
 Tệp (Backstage)|Tùy chọn|Tùy biến ribbon / Thanh công cụ truy nhanh|P|2|16/10: Thanh công cụ truy nhanh tùy biến xong (chuột phải ribbon, mũi tên, đặt lại; CDP 15/15 trên Doc/Sheet/Slide); chưa tùy biến ribbon (thêm tab/nhóm)
 Tệp (Backstage)|Chia sẻ|Chia sẻ/OneDrive/Email đính kèm|X|-|Cần dịch vụ đám mây
@@ -65,7 +65,7 @@ Trang đầu|Kiểu|Bộ biểu tượng (Icon Sets)|V|-|G1: Excel 2016 đọc I
 Trang đầu|Kiểu|Quy tắc mới theo công thức|V|-|G1: Excel 2016 đọc Type=Expression
 Trang đầu|Kiểu|Quản lý quy tắc (xem, xóa, sửa, thứ tự ưu tiên, Stop If True)|P|2|G1: có xem, sửa, đổi thứ tự, xóa; thiếu Stop If True
 Trang đầu|Kiểu|Xóa quy tắc (vùng chọn / cả trang)|P|2|Xóa từng quy tắc trong quản lý
-Trang đầu|Kiểu|Định dạng dưới dạng Bảng (gallery kiểu)|P|2|Có hộp thoại; chỉ vài kiểu bảng, Excel có 60
+Trang đầu|Kiểu|Định dạng dưới dạng Bảng (gallery kiểu)|P|2|17/10 (AGY-TABLESTYLE): 21 kiểu Light/Medium/Dark đo màu từ Excel (cases-14 49/49 ô); Excel có 60 kiểu, chưa có Tùy chỉnh kiểu bảng
 Trang đầu|Kiểu|Kiểu ô (Cell Styles) có sẵn + tạo kiểu mới|A|-|sheet.style.cellStyles
 Trang đầu|Ô|Chèn ô/hàng/cột/trang tính|V|-|Hộp thoại Chèn ô, chèn trang tính (menu chuột phải đã kiểm)
 Trang đầu|Ô|Xóa ô/hàng/cột/trang tính|V|-|
@@ -77,7 +77,7 @@ Trang đầu|Chỉnh sửa|Tổng tự động (Sum, Average, Count, Max, Min) v
 Trang đầu|Chỉnh sửa|Điền: xuống / sang phải / Flash Fill|A|-|sheet.edit.fillDown/Right; Flash Fill có
 Trang đầu|Chỉnh sửa|Điền: lên / sang trái / Chuỗi (Series) / Căn đều / Trên các trang|V|-|16/10: Căn đều (sheet.edit.fillJustify, cases-7 47/47 ô) và Điền trên các trang (F2, Excel COM FillAcrossSheets) đã đối chiếu
 Trang đầu|Chỉnh sửa|Xóa: tất cả / định dạng / nội dung|A|-|
-Trang đầu|Chỉnh sửa|Xóa ghi chú / Xóa siêu liên kết (trong menu Xóa)|N|2|
+Trang đầu|Chỉnh sửa|Xóa ghi chú / Xóa siêu liên kết (trong menu Xóa)|A|2|15/10: sheet.edit.clearComments, sheet.edit.clearHyperlinks; chưa đối chiếu Excel
 Trang đầu|Chỉnh sửa|Sắp xếp A-Z / Z-A / Tùy chỉnh nhiều cấp|V|-|Sắp xếp hai cấp đã đọc lại bằng Excel 2016
 Trang đầu|Chỉnh sửa|Sắp xếp theo màu ô/màu chữ/biểu tượng|P|3|G2: có sắp xếp theo màu ô/chữ; chưa có theo biểu tượng
 Trang đầu|Chỉnh sửa|Bộ lọc (AutoFilter) bật/tắt|V|-|AutoFilterMode đã đối chiếu
@@ -85,7 +85,7 @@ Trang đầu|Chỉnh sửa|Lọc theo màu / theo văn bản-số-ngày (text/nu
 Trang đầu|Chỉnh sửa|Xóa bộ lọc / Áp dụng lại|A|-|Thêm vào menu chuột phải 13/10
 Trang đầu|Chỉnh sửa|Tìm (Ctrl+F) / Thay thế (Ctrl+H), tùy chọn phân biệt hoa-thường, trong công thức|V|-|Thay thế trên hai trang đã đối chiếu
 Trang đầu|Chỉnh sửa|Đến (Go To, F5/Ctrl+G) / Đến đặc biệt (Go To Special)|A|-|Mới 13/10: sheet-goto.js, test desktop 11/11; chưa đối chiếu với Excel
-Trang đầu|Chỉnh sửa|Chọn khung chọn / Chọn đối tượng|N|3|
+Trang đầu|Chỉnh sửa|Chọn khung chọn / Chọn đối tượng|P|3|17/10: có Ngăn chọn (AGY-ARRANGE) và chọn nhiều đối tượng; chưa có nút Chọn đối tượng riêng
 Chèn|Bảng|PivotTable (tạo, kéo thả trường, làm mới)|V|-|PivotTables.Count đã đối chiếu
 Chèn|Bảng|PivotTable được đề xuất|N|3|
 Chèn|Bảng|Bảng (Table, Ctrl+T)|V|-|ListObject, kiểu TableStyleMedium2 đã đối chiếu
@@ -116,28 +116,28 @@ Chèn|Văn bản|WordArt / Dòng chữ ký / Đối tượng nhúng|N|3|
 Chèn|Ký hiệu|Công thức (Equation)|N|3|
 Chèn|Ký hiệu|Ký hiệu (Symbol)|A|-|insertSymbol
 Bố trí trang|Giao diện|Chủ đề (Themes) / Màu / Phông / Hiệu ứng|N|2|
-Bố trí trang|Thiết lập trang|Lề (Margins) / Hướng giấy / Khổ giấy|V|-|Landscape, Legal đã đọc lại bằng Excel 2016
+Bố trí trang|Thiết lập trang|Lề (Margins) / Hướng giấy / Khổ giấy|V|-|sheet.page.margins sheet.page.orientation sheet.page.size: Landscape, Legal đã đọc lại bằng Excel 2016; danh sách chọn nhanh Thường/Rộng/Hẹp, Dọc/Ngang, A3/A4... Excel 2016 đọc đúng lề, Landscape, A3 (docs/AUDIT-SHEET-PAGE-GALLERY-1710.md:6)
 Bố trí trang|Thiết lập trang|Vùng in / Xóa vùng in|V|-|Print area đã đối chiếu
 Bố trí trang|Thiết lập trang|Ngắt trang (chèn, xóa, đặt lại)|V|-|HBreaks/VBreaks đã đối chiếu
 Bố trí trang|Thiết lập trang|Hình nền (Background)|N|3|
 Bố trí trang|Thiết lập trang|In tiêu đề (Print Titles)|V|-|TitlesRows đã đối chiếu
 Bố trí trang|Thiết lập trang|Hộp thoại Page Setup đủ tab Trang/Lề/Đầu-Chân/Trang tính|P|1|Thiếu một số tùy chọn tab Trang tính (in lưới, tiêu đề, thứ tự trang)
-Bố trí trang|Vừa trang|Chiều rộng / Chiều cao (Fit to pages) / Tỷ lệ %|P|1|Có Tỷ lệ; chưa có Fit to W x H tách riêng
+Bố trí trang|Vừa trang|Chiều rộng / Chiều cao (Fit to pages) / Tỷ lệ %|V|-|sheet.page.fitWidth sheet.page.fitHeight sheet.page.scale: danh sách Chiều rộng/Chiều cao (Tự động, 1-5 trang) lưu rồi Excel 2016 đọc FitToPagesWide=1, FitToPagesTall=Tự động, Zoom=False (docs/AUDIT-SHEET-PAGE-GALLERY-1710.md:18)
 Bố trí trang|Tùy chọn trang tính|Hiện/In đường lưới và tiêu đề|P|2|Hiện có; hộp xem trước in có tùy chọn in đường lưới; in tiêu đề hàng/cột cần kiểm
 Bố trí trang|Sắp xếp|Đưa lên trên / Xuống dưới / Ngăn chọn / Căn / Nhóm / Xoay đối tượng|V|-|16/10 (AGY-ARRANGE): lớp, căn, phân bố, nhóm, xoay/lật, Ngăn chọn; cases-10 21/21 điểm khớp Excel, LAN 10/10
 Công thức|Thư viện hàm|Chèn hàm (Shift+F3) + hộp thoại đối số|A|-|sheet.formula.insertFunction
 Công thức|Thư viện hàm|Tổng tự động; Dùng gần đây; Tài chính / Logic / Văn bản / Ngày giờ / Tra cứu / Toán|A|-|Các nhóm hàm trong ribbon
 Công thức|Thư viện hàm|Độ phủ hàm Excel 2016 (462 hàm)|P|1|16/10: engine hỗ trợ 436 hàm, 387 hàm có ca đối chiếu Excel 2016 (14 tệp golden, chạy trong npm test); còn thiếu hàm trả mảng (MMULT, MINVERSE, LINEST…), cần kế hoạch riêng
-Công thức|Thư viện hàm|Công thức mảng (CSE, Ctrl+Shift+Enter)|P|1|Có hỗ trợ mảng; chưa đối chiếu đủ
+Công thức|Thư viện hàm|Công thức mảng (CSE, Ctrl+Shift+Enter)|V|-|17/10 (CODEX-ARRAYS): CSE một/nhiều ô, hằng mảng {..}, MMULT/MINVERSE/MUNIT/TRANSPOSE/FREQUENCY/LINEST/TREND/GROWTH/LOGEST: golden 30/30 + 65/65 khớp Excel, Excel ReadOnly nhận đúng vùng mảng, LAN 10/10
 Công thức|Thư viện hàm|Tham chiếu có cấu trúc (Table1[Cột])|V|-|17/10: [Cột], [@Cột], Bảng[Cột], hàng tổng; structural-cases-8 26 kịch bản, 189/189 ô khớp Excel 2016
-Công thức|Thư viện hàm|Tham chiếu 3-D giữa các trang (Sheet1:Sheet3!A1)|N|2|
+Công thức|Thư viện hàm|Tham chiếu 3-D giữa các trang (Sheet1:Sheet3!A1)|V|-|E1d3: tham chiếu 3-D, bảng THREE_D_UNSUPPORTED; golden-batch10-3d.json khớp Excel 2016
 Công thức|Tên đã xác định|Trình quản lý tên / Xác định tên / Tạo từ vùng chọn / Dùng trong công thức|V|-|Tên SampleNames đã đối chiếu
 Công thức|Kiểm tra công thức|Tìm ô tiền lệ / phụ thuộc / Xóa mũi tên|A|-|
 Công thức|Kiểm tra công thức|Hiện công thức (Ctrl+`) / Kiểm tra lỗi / Ước lượng công thức|A|-|
 Công thức|Kiểm tra công thức|Cửa sổ theo dõi (Watch Window)|A|-|
 Công thức|Tính toán|Tự động / Thủ công; Tính lại (F9); Tính trang (Shift+F9)|A|-|
 Công thức|Tính toán|Tính lặp (Iterative) / Độ chính xác như hiển thị / Hệ ngày 1904|V|-|16/10 (AGY-CALC): tính lặp, độ chính xác như hiển thị, 1904, R1C1, chế độ tính; cases-9 16/16 ô khớp Excel, lưu/mở lại đúng
-Công thức|Tính toán|Kiểu tham chiếu R1C1|N|3|
+Công thức|Tính toán|Kiểu tham chiếu R1C1|V|-|17/10 (AGY-CALC): hiển thị và nhập R1C1; structural-cases-9 khớp Excel 2016, lưu/mở lại đúng
 Dữ liệu|Lấy dữ liệu|Từ văn bản/CSV, Web, Access, Cơ sở dữ liệu, Power Query|P|2|Mở CSV có; chưa có Power Query/kết nối ngoài
 Dữ liệu|Kết nối|Làm mới tất cả / Kết nối / Thuộc tính / Liên kết ngoài (Edit Links)|P|2|17/10 (AGY-LINKS): Chỉnh sửa liên kết, cập nhật/đổi nguồn/ngắt liên kết khớp Excel (cases-11 6/6 ô, LAN 10/10); chưa có kết nối dữ liệu ngoài (Power Query/ODBC)
 Dữ liệu|Sắp xếp & Lọc|Sắp xếp A-Z, Z-A, Sắp xếp tùy chỉnh|V|-|
@@ -191,7 +191,7 @@ Công cụ Bảng|Thiết kế|Dòng tổng (Total Row)|V|-|Mới 13/10, Excel 2
 Công cụ Bảng|Thiết kế|Chuyển thành phạm vi|A|-|Menu chuột phải bảng 13/10
 Công cụ Bảng|Thiết kế|Chèn/Xóa cột-hàng bảng|A|-|Menu chuột phải bảng 13/10; mở lại giữ vùng bảng
 Công cụ Bảng|Thiết kế|Đổi kích thước bảng (Resize Table)|V|-|16/10 (AGY-TABLE): cases-8 26/26 kịch bản, 189/189 ô khớp Excel 2016
-Công cụ Bảng|Thiết kế|Tùy chọn kiểu: Hàng tiêu đề, Cột đầu/cuối, Hàng/Cột sọc, Nút lọc|P|2|Có sọc hàng và nút lọc; thiếu cột đầu/cuối, sọc cột
+Công cụ Bảng|Thiết kế|Tùy chọn kiểu: Hàng tiêu đề, Cột đầu/cuối, Hàng/Cột sọc, Nút lọc|V|-|17/10 (AGY-TABLESTYLE): đủ 7 hộp kiểm, kiểu bảng sống; cases-14 5 kịch bản 49/49 ô khớp Excel; lưu/mở lại tableStyleInfo đúng, LAN 10/10
 Công cụ Bảng|Thiết kế|Chèn Slicer|V|-|Giai đoạn 1 hoàn thành 16/10: panel nổi, đa chọn, lọc kết hợp, XLSX native
 Công cụ Bảng|Thiết kế|Xuất bảng|N|2|
 Công cụ Biểu đồ|Thiết kế|Thêm thành phần: tiêu đề trục|V|-|Mới 13/10, Excel 2016 đọc đúng
@@ -228,7 +228,7 @@ Không thuộc ribbon|Chuột|Cuộn bánh xe, Ctrl+cuộn thu phóng|A|-|
 Không thuộc ribbon|Bàn phím|Điều hướng (mũi tên, Ctrl+mũi tên, Home/End, Ctrl+Home/End, PgUp/PgDn, Tab/Enter)|V|-|E3 đã đối chiếu
 Không thuộc ribbon|Bàn phím|Nhập liệu (F2, Enter, Alt+Enter, Ctrl+Enter, Ctrl+;, Ctrl+Shift+;, F4)|V|-|E3, E3b đã đối chiếu
 Không thuộc ribbon|Bàn phím|Phím tắt định dạng và lệnh (Ctrl+1, Ctrl+Shift+4/5/1, Ctrl+B/I/U, Ctrl+K, Ctrl+D/R, Ctrl+Z/Y)|V|-|E3
-Không thuộc ribbon|Bàn phím|Phím tắt Alt (KeyTips: Alt rồi H, N, ...)|N|2|Chưa có chế độ KeyTips đầy đủ như Excel
+Không thuộc ribbon|Bàn phím|Phím tắt Alt (KeyTips: Alt rồi chữ của tab, rồi chữ của nút)|A|2|Đã có (platform/ribbon/keytips.js, dùng chung ba ứng dụng): Alt hiện huy hiệu, chữ cái theo tên tab tiếng Việt (Tệp=T, Trang đầu=D, Chèn=C, Công thức=M, Dữ liệu=L...), Esc lùi từng cấp; chưa đối chiếu với bản Excel tiếng Việt thật
 Không thuộc ribbon|Hộp thoại|Đủ hộp thoại: Định dạng ô, Dán đặc biệt, Tìm/Thay, Sắp xếp, Tên, Chèn/Xóa ô, Chiều cao/Độ rộng|V|-|
 Không thuộc ribbon|Tính tương thích|Mở/Lưu XLS, XLSX, ODS, CSV đúng bố cục|V|-|Bộ 8 tệp 0 chênh lệch; còn sai khác kiểu bảng ở lan25
 Không thuộc ribbon|Tính tương thích|Giữ ảnh, hộp văn bản, bảng, định dạng số, ghi chú, split khi lưu|V|-|Đã sửa hồi quy ảnh 13/10

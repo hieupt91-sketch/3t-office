@@ -158,6 +158,21 @@ export const RETRO_RIBBON_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.text.columnsHelp",
+    app: "slides",
+    commandIds: ["slides.text.columns", "slides.text.columnsOne", "slides.text.columnsTwo", "slides.text.columnsThree"],
+    title: "Chia văn bản trong hộp chữ thành nhiều cột",
+    summary: "Chia chữ trong một hộp văn bản thành một, hai hoặc ba cột, như cột báo. Chữ tự chảy từ cột này sang cột kế khi hết chiều cao hộp.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Đoạn văn" },
+    keywords: ["cột", "chia cột", "hai cột", "ba cột", "cột báo", "columns", "hộp chữ", "numCol"],
+    steps: [
+      "Chọn một hộp văn bản trên trang chiếu (nhấp vào khung viền của hộp). Chia cột áp dụng cho hộp văn bản; khung tiêu đề và nội dung mặc định của bố cục không đổi cột.",
+      "Trên tab Trang đầu, nhóm Đoạn văn, bấm nút Cột để mở danh sách rồi chọn Một cột, Hai cột hoặc Ba cột.",
+      "Chữ được cân đều giữa các cột; khoảng cách giữa hai cột là 18 px (khoảng 0,5 cm). Muốn các cột dài hơn, kéo cao hộp văn bản.",
+      "Chọn Một cột để trả hộp về dạng thông thường. Ctrl+Z hoàn tác mỗi lần đổi số cột trong một bước, Ctrl+Y làm lại.",
+      "Số cột được lưu cùng bản trình chiếu và giữ nguyên khi lưu thành tệp PPTX rồi mở lại; các phần mềm trình chiếu khác cũng nhận ra hộp chữ nhiều cột."
+    ]
+  },  {
     id: "slides.text.directionHelp",
     app: "slides",
     commandIds: ["slides.text.direction", "slides.text.directionHorizontal", "slides.text.directionVertical", "slides.text.directionVertical270", "slides.text.directionStacked"],

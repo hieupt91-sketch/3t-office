@@ -541,14 +541,14 @@ export const SHEET_HELP_ENTRIES = [
   },
   {
     id: "sheet.page.setupRound2", app: "sheet",
-    commandIds: ["sheet.page.scale", "sheet.page.headerFooter", "sheet.page.margins", "sheet.page.printTitles"],
+    commandIds: ["sheet.page.scale", "sheet.page.fitWidth", "sheet.page.fitHeight", "sheet.page.headerFooter", "sheet.page.margins", "sheet.page.printTitles"],
     title: "Thiết lập trang in nâng cao",
     summary: "Thu bảng tính vừa số trang mong muốn, thêm đầu/cuối trang động, căn giữa nội dung, chọn in đường kẻ hoặc tiêu đề hàng/cột, thiết lập in ghi chú, lỗi ô, thứ tự trang và đặt hàng/cột lặp lại trên mỗi trang in (Print Titles).",
     ribbon: { tab: "Bố trí trang", tabId: "pageLayout", group: "Thiết lập trang" },
     keywords: ["tỷ lệ", "vừa trang", "scale", "đầu trang", "cuối trang", "đường kẻ", "tiêu đề hàng cột", "in", "print titles", "hàng lặp lại", "cột lặp lại", "in đường lưới", "in ghi chú", "lỗi ô", "thứ tự trang", "trang tính"],
     steps: [
       "Mở tab Bố trí trang, nhóm Thiết lập trang.",
-      "Nhấn Tỷ lệ vừa trang. Chọn Vừa theo tỷ lệ và nhập 10–400%, hoặc chọn Vừa trong rồi nhập số trang ngang và dọc; nhập 0 cho chiều muốn để tự động.",
+      "Cách nhanh: nhóm Vừa trang có hai danh sách Chiều rộng và Chiều cao — chọn Tự động, 1 đến 5 trang hoặc Thêm trang… để thu bản in vừa số trang mong muốn (đặt cả hai về Tự động thì trở lại thu phóng theo phần trăm). Cách chi tiết: nhấn Tỷ lệ vừa trang. Chọn Vừa theo tỷ lệ và nhập 10–400%, hoặc chọn Vừa trong rồi nhập số trang ngang và dọc; nhập 0 cho chiều muốn để tự động.",
       "Trong cùng hộp thoại, đánh dấu Theo chiều ngang hoặc Theo chiều dọc ở mục Căn giữa trang khi in.",
       "Đánh dấu In đường kẻ ô hoặc In tiêu đề hàng và cột nếu cần chúng xuất hiện trên giấy/PDF, rồi nhấn Áp dụng.",
       "Tab Trang tính trong hộp thoại Thiết lập trang: Tùy chỉnh chi tiết các lựa chọn in gồm In đường lưới, In tiêu đề hàng và cột; In ghi chú (Không, Ở cuối trang tính, Như hiển thị trên trang tính); Lỗi ô hiển thị (Như hiển thị, <trống>, --, hoặc #N/A); và Thứ tự trang khi bảng tính chia nhiều trang in (Xuống dưới, rồi sang hoặc Sang ngang, rồi xuống). Mọi thiết lập được lưu theo trang tính hiện tại.",
@@ -569,7 +569,7 @@ export const SHEET_HELP_ENTRIES = [
     ribbon: { tab: "Bố trí trang", tabId: "pageLayout", group: "Thiết lập trang" },
     keywords: ["lưu thiết lập in", "mở lại", "hướng giấy", "khổ giấy", "lề", "vùng in", "tiêu đề in", "page setup", "xlsx"],
     steps: [
-      "Mở tab Bố trí trang, nhóm Thiết lập trang. Dùng Lề, Hướng và Khổ để chọn lề trang, giấy Dọc/Ngang và A4/Letter/Legal cho trang tính hiện tại.",
+      "Mở tab Bố trí trang, nhóm Thiết lập trang. Nhấn mũi tên của Căn lề để chọn nhanh Thường, Rộng, Hẹp (hoặc Căn lề tùy chỉnh… để nhập số), Hướng giấy để chọn Dọc/Ngang và Khổ giấy để chọn Letter/Legal/A3/A4/A5 cho trang tính hiện tại.",
       "Muốn chỉ in một khối, bôi vùng ô rồi chọn Đặt vùng in. Muốn lặp hàng/cột tiêu đề trên mỗi trang, chọn Tiêu đề in và nhập 1:2 hoặc A:B.",
       "Trong Tỷ lệ vừa trang, chọn Vừa trong rồi đặt số trang ngang/dọc; trong Tiêu đề Đầu/Cuối trang, nhập nội dung hoặc các mã &P, &N, &A.",
       "Nhấn Ctrl+S để lưu XLSX. Khi mở lại trong Sheet, vào lại các hộp trên để kiểm tra; các giá trị được khôi phục riêng cho từng tab. Phần mềm bảng tính khác cũng đọc đúng thiết lập trang, vùng in và tiêu đề in.",
@@ -1555,10 +1555,10 @@ export const SHEET_HELP_ENTRIES = [
     keywords: ["hướng giấy", "khổ giấy", "orientation", "page size", "portrait", "landscape", "khổ a4", "trang in", "bố trí trang"],
     steps: [
       "Mở tab Bố trí trang trên thanh ribbon của Sheet.",
-      "Trong nhóm Thiết lập trang, nhấn Hướng giấy để mở hộp thoại và chọn Giấy đứng (phù hợp bảng ít cột) hoặc Giấy ngang (phù hợp bảng nhiều cột).",
-      "Nhấn nút Khổ giấy để chọn kích thước trang chuẩn như A4 (210 × 297 mm, chuẩn văn bản Việt Nam theo Nghị định 30) hoặc Letter, A3.",
+      "Trong nhóm Thiết lập trang, nhấn Hướng giấy rồi chọn Dọc (phù hợp bảng ít cột) hoặc Ngang (phù hợp bảng nhiều cột); áp dụng ngay, không cần mở hộp thoại.",
+      "Nhấn Khổ giấy rồi chọn kích thước trang chuẩn như A4 (210 × 297 mm, chuẩn văn bản Việt Nam theo Nghị định 30), Letter, Legal, A3 hoặc A5; chọn Thêm khổ giấy… để mở hộp thoại Thiết lập trang.",
       "Các đường ngắt trang ảo sẽ tự động điều chỉnh hiển thị ranh giới in theo khổ giấy và hướng giấy vừa chọn.",
-      "Nhấn Áp dụng để lưu thiết lập cho sheet hiện tại. Có thể dùng Ctrl+Z để hoàn tác thay đổi."
+      "Thiết lập áp dụng cho trang tính hiện tại và có thể hoàn tác bằng Ctrl+Z. Nếu mở hộp thoại Thiết lập trang, nhấn Áp dụng để lưu."
     ]
   },
   {

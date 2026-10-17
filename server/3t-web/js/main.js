@@ -16,6 +16,7 @@ document.addEventListener("DOMContentLoaded", () => {
   initGuideSearchAndFilter();
   initHealthChecker();
   initReleaseData();
+  initMacosReleaseData();
 });
 
 /**
@@ -603,4 +604,89 @@ async function initReleaseData() {
     }
   });
 }
+
+/**
+ * 12. Nạp và đồng bộ dữ liệu phiên bản macOS từ data/release-macos.json
+ */
+async function initMacosReleaseData() {
+  const dynamicElems = document.querySelectorAll("[data-mac-release-field], [data-mac-release-download-link], #mac-pending-box, #mac-pending-box-page");
+  if (!dynamicElems.length) return;
+
+  let macData = null;
+
+  try {
+    const res = await fetch("data/release-macos.json?v=" + Date.now(), { cache: "no-store" });
+    if (res.ok) {
+      macData = await res.json();
+    }
+  } catch (_) {}
+
+  if (!macData && window.__FALLBACK_MACOS_RELEASE__) {
+    macData = window.__FALLBACK_MACOS_RELEASE__;
+  }
+
+  if (!macData) return;
+
+  const fileName = (macData.file_name || "").trim();
+  const hasFile = Boolean(fileName);
+  const size = macData.size || macData.file_size_formatted || "";
+  const sha256 = macData.sha256 || "";
+  const minOs = macData.min_os || "Đang xác nhận";
+  const arch = macData.arch || "Apple Silicon (arm64)";
+  const version = macData.version || "";
+
+  document.querySelectorAll("[data-mac-release-field='file_name']").forEach((el) => {
+    el.textContent = hasFile ? fileName : "Chưa có tệp";
+  });
+  document.querySelectorAll("[data-mac-release-field='size']").forEach((el) => {
+    el.textContent = hasFile ? size : "Đang cập nhật";
+  });
+  document.querySelectorAll("[data-mac-release-field='min_os']").forEach((el) => {
+    el.textContent = minOs;
+  });
+  document.querySelectorAll("[data-mac-release-field='arch']").forEach((el) => {
+    el.textContent = arch;
+  });
+  document.querySelectorAll("[data-mac-release-field='sha256']").forEach((el) => {
+    el.textContent = sha256;
+  });
+  if (version) {
+    document.querySelectorAll("[data-mac-release-field='version']").forEach((el) => {
+      el.textContent = version;
+    });
+  }
+
+  const pendingBoxes = document.querySelectorAll("#mac-pending-box, #mac-pending-box-page");
+  const actionWraps = document.querySelectorAll("#mac-download-action-wrap, #mac-download-action-wrap-page");
+  const hashCards = document.querySelectorAll("#mac-hash-card, #mac-hash-card-page");
+
+  if (!hasFile) {
+    // Khi chưa có tệp: hiển thị "Bản macOS đang được chuẩn bị" và KHÔNG có nút tải hỏng
+    pendingBoxes.forEach((el) => { el.style.display = "block"; });
+    actionWraps.forEach((el) => { el.style.display = "none"; });
+    if (!sha256) {
+      hashCards.forEach((el) => { el.style.display = "none"; });
+    }
+  } else {
+    // Khi có tệp: ẩn thông báo chờ, hiện nút tải và khối SHA-256
+    pendingBoxes.forEach((el) => { el.style.display = "none"; });
+    actionWraps.forEach((el) => { el.style.display = "flex"; });
+    if (sha256) {
+      hashCards.forEach((el) => { el.style.display = "block"; });
+    }
+
+    const downloadUrl = macData.url || ("https://office.3tcomputer.com/downloads/" + fileName);
+    document.querySelectorAll("[data-mac-release-download-link]").forEach((el) => {
+      if (el.tagName === "A") {
+        el.href = downloadUrl;
+        el.setAttribute("download", fileName);
+      }
+    });
+    const btnTexts = document.querySelectorAll("#mac-download-btn-text, #mac-download-btn-text-page");
+    btnTexts.forEach((el) => {
+      el.textContent = `Tải bản cài đặt macOS ${version ? version + " " : ""}${size ? "(" + size + ")" : ""}`.trim();
+    });
+  }
+}
+
 

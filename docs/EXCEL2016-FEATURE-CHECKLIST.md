@@ -16,15 +16,15 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu Excel 2016 | 73 | 34% |
-| 🟢 Có, chưa đối chiếu | 61 | 29% |
-| 🟡 Có một phần | 30 | 14% |
-| 🔴 Chưa có | 49 | 23% |
+| ✅ Đã đối chiếu Excel 2016 | 78 | 37% |
+| 🟢 Có, chưa đối chiếu | 65 | 31% |
+| 🟡 Có một phần | 29 | 14% |
+| 🔴 Chưa có | 41 | 19% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
 
-- **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 70%**
-- **Đã xác minh bằng đối chiếu Excel 2016 thật: 34%** các mục áp dụng
+- **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 74%**
+- **Đã xác minh bằng đối chiếu Excel 2016 thật: 37%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ 462 hàm) chỉ tính một mục; mức phủ hàm nằm ở dòng riêng và ở `EXCEL2016-FUNCTIONS-MATRIX.md`.
 
@@ -32,36 +32,33 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
-| Tệp (Backstage) | 17 | 3 | 6 | 3 | 4 | 1 | 66% |
-| Trang đầu | 53 | 22 | 17 | 9 | 5 | 0 | 82% |
+| Tệp (Backstage) | 17 | 3 | 8 | 4 | 1 | 1 | 81% |
+| Trang đầu | 53 | 22 | 18 | 10 | 3 | 0 | 85% |
 | Chèn | 29 | 9 | 5 | 2 | 11 | 2 | 56% |
-| Bố trí trang | 10 | 5 | 0 | 3 | 2 | 0 | 65% |
-| Công thức | 13 | 3 | 6 | 2 | 2 | 0 | 77% |
+| Bố trí trang | 10 | 6 | 0 | 2 | 2 | 0 | 70% |
+| Công thức | 13 | 6 | 6 | 1 | 0 | 0 | 96% |
 | Dữ liệu | 19 | 5 | 7 | 4 | 3 | 0 | 74% |
 | Xem xét | 12 | 1 | 3 | 2 | 5 | 1 | 45% |
 | Chế độ xem | 12 | 2 | 6 | 1 | 3 | 0 | 71% |
 | Nhà phát triển | 3 | 0 | 0 | 0 | 3 | 0 | 0% |
 | Trợ giúp | 2 | 0 | 2 | 0 | 0 | 0 | 100% |
-| Công cụ Bảng | 8 | 3 | 3 | 1 | 1 | 0 | 81% |
+| Công cụ Bảng | 8 | 4 | 3 | 0 | 1 | 0 | 88% |
 | Công cụ Biểu đồ | 7 | 3 | 1 | 0 | 3 | 0 | 57% |
 | Công cụ PivotTable | 3 | 1 | 0 | 1 | 1 | 0 | 50% |
 | Công cụ Hình ảnh | 1 | 0 | 0 | 0 | 1 | 0 | 0% |
 | Công cụ Vẽ | 1 | 0 | 0 | 0 | 1 | 0 | 0% |
 | Công cụ Sparkline | 1 | 0 | 0 | 0 | 1 | 0 | 0% |
-| Không thuộc ribbon | 26 | 16 | 5 | 2 | 3 | 0 | 85% |
+| Không thuộc ribbon | 26 | 16 | 6 | 2 | 2 | 0 | 88% |
 
 ## Việc cần làm (mục chưa có hoặc một phần, ưu tiên 1)
 
 | Tab | Nhóm | Tính năng | Trạng thái | Ghi chú |
 |---|---|---|---|---|
-| Tệp (Backstage) | Tệp | Xuất / Chuyển đổi định dạng (mục riêng, giữ bố cục) | 🔴 | Đang giao agy (feat/export-convert-agy) |
 | Tệp (Backstage) | Thông tin | Bảo vệ sổ làm việc bằng mật khẩu mở file (mã hóa) | 🔴 | Chưa có mã hóa file; chỉ có bảo vệ cấu trúc |
 | Bố trí trang | Thiết lập trang | Hộp thoại Page Setup đủ tab Trang/Lề/Đầu-Chân/Trang tính | 🟡 | Thiếu một số tùy chọn tab Trang tính (in lưới, tiêu đề, thứ tự trang) |
-| Bố trí trang | Vừa trang | Chiều rộng / Chiều cao (Fit to pages) / Tỷ lệ % | 🟡 | Có Tỷ lệ; chưa có Fit to W x H tách riêng |
 | Công thức | Thư viện hàm | Độ phủ hàm Excel 2016 (462 hàm) | 🟡 | 16/10: engine hỗ trợ 436 hàm, 387 hàm có ca đối chiếu Excel 2016 (14 tệp golden, chạy trong npm test); còn thiếu hàm trả mảng (MMULT, MINVERSE, LINEST…), cần kế hoạch riêng |
-| Công thức | Thư viện hàm | Công thức mảng (CSE, Ctrl+Shift+Enter) | 🟡 | Có hỗ trợ mảng; chưa đối chiếu đủ |
 
-Tổng: 6 mục ưu tiên 1.
+Tổng: 3 mục ưu tiên 1.
 
 ## Chi tiết từng tab
 
@@ -75,14 +72,14 @@ Tổng: 6 mục ưu tiên 1.
 | Tệp | Lưu (Ctrl+S) | ✅ | - | Lưu XLSX rồi Excel 2016 mở lại đúng (bộ 8 tệp bắt buộc 0 chênh lệch) |
 | Tệp | Lưu thành (F12): XLSX, XLS 97-2003, ODS, CSV | 🟢 | - | common.file.saveAs; XLS 97-2003 đã sửa lỗi 0.9.10 |
 | Tệp | Xuất PDF | 🟢 | - | common.file.exportPdf |
-| Tệp | Xuất / Chuyển đổi định dạng (mục riêng, giữ bố cục) | 🔴 | 1 | Đang giao agy (feat/export-convert-agy) |
+| Tệp | Xuất / Chuyển đổi định dạng (mục riêng, giữ bố cục) | 🟢 | - | Đã có trong main (Backstage > Xuất và Chuyển đổi, common.file.exportConvert, CDP 21/21 do agy báo); chưa đối chiếu với Excel vì đây là tính năng của VN Office, không có trong Excel 2016 |
 | Tệp | Lưu bản sao / Lưu thành mẫu (XLTX) | 🟡 | 3 | 16/10: lưu .xltx qua đường lưu xlsx đầy đủ, Excel mở đúng là mẫu, LAN 10/10; mở .xltx đi đường mở chung (chưa có đường mở xlsx riêng) |
 | Tệp | In (Ctrl+P) + xem trước | ✅ | - | Thiết lập trang/in đã đọc lại bằng Excel 2016 |
 | Tệp | Đóng (Ctrl+W) | 🟢 | - | common.file.close |
 | Thông tin | Bảo vệ sổ làm việc bằng mật khẩu mở file (mã hóa) | 🔴 | 1 | Chưa có mã hóa file; chỉ có bảo vệ cấu trúc |
-| Thông tin | Kiểm tra tài liệu (Inspect) / Đánh dấu là cuối cùng | 🔴 | 3 |  |
+| Thông tin | Kiểm tra tài liệu (Inspect) / Đánh dấu là cuối cùng | 🟡 | 3 | 15/10 (agy): Đánh dấu là cuối cùng (Mark as Final) xong, CDP 40/40; chưa có Kiểm tra tài liệu (Inspect) |
 | Thông tin | Quản lý phiên bản / khôi phục tự động (AutoRecover) | 🟢 | - | Có cơ chế autorecover |
-| Thông tin | Thuộc tính tệp (tác giả, tiêu đề...) | 🔴 | 3 |  |
+| Thông tin | Thuộc tính tệp (tác giả, tiêu đề...) | 🟢 | 3 | 15/10 (agy): Thông tin tệp (apps/sheet/document-properties.js), CDP 40/40; chưa đối chiếu Excel |
 | Tùy chọn | Hộp thoại Tùy chọn Excel (chung, công thức, lưu, nâng cao...) | 🟡 | 2 | Có một số tùy chọn rời; chưa có hộp thoại gộp |
 | Tùy chọn | Tùy biến ribbon / Thanh công cụ truy nhanh | 🟡 | 2 | 16/10: Thanh công cụ truy nhanh tùy biến xong (chuột phải ribbon, mũi tên, đặt lại; CDP 15/15 trên Doc/Sheet/Slide); chưa tùy biến ribbon (thêm tab/nhóm) |
 | Chia sẻ | Chia sẻ/OneDrive/Email đính kèm | ⚪ | - | Cần dịch vụ đám mây |
@@ -123,7 +120,7 @@ Tổng: 6 mục ưu tiên 1.
 | Kiểu | Quy tắc mới theo công thức | ✅ | - | G1: Excel 2016 đọc Type=Expression |
 | Kiểu | Quản lý quy tắc (xem, xóa, sửa, thứ tự ưu tiên, Stop If True) | 🟡 | 2 | G1: có xem, sửa, đổi thứ tự, xóa; thiếu Stop If True |
 | Kiểu | Xóa quy tắc (vùng chọn / cả trang) | 🟡 | 2 | Xóa từng quy tắc trong quản lý |
-| Kiểu | Định dạng dưới dạng Bảng (gallery kiểu) | 🟡 | 2 | Có hộp thoại; chỉ vài kiểu bảng, Excel có 60 |
+| Kiểu | Định dạng dưới dạng Bảng (gallery kiểu) | 🟡 | 2 | 17/10 (AGY-TABLESTYLE): 21 kiểu Light/Medium/Dark đo màu từ Excel (cases-14 49/49 ô); Excel có 60 kiểu, chưa có Tùy chỉnh kiểu bảng |
 | Kiểu | Kiểu ô (Cell Styles) có sẵn + tạo kiểu mới | 🟢 | - | sheet.style.cellStyles |
 | Ô | Chèn ô/hàng/cột/trang tính | ✅ | - | Hộp thoại Chèn ô, chèn trang tính (menu chuột phải đã kiểm) |
 | Ô | Xóa ô/hàng/cột/trang tính | ✅ | - |  |
@@ -135,7 +132,7 @@ Tổng: 6 mục ưu tiên 1.
 | Chỉnh sửa | Điền: xuống / sang phải / Flash Fill | 🟢 | - | sheet.edit.fillDown/Right; Flash Fill có |
 | Chỉnh sửa | Điền: lên / sang trái / Chuỗi (Series) / Căn đều / Trên các trang | ✅ | - | 16/10: Căn đều (sheet.edit.fillJustify, cases-7 47/47 ô) và Điền trên các trang (F2, Excel COM FillAcrossSheets) đã đối chiếu |
 | Chỉnh sửa | Xóa: tất cả / định dạng / nội dung | 🟢 | - |  |
-| Chỉnh sửa | Xóa ghi chú / Xóa siêu liên kết (trong menu Xóa) | 🔴 | 2 |  |
+| Chỉnh sửa | Xóa ghi chú / Xóa siêu liên kết (trong menu Xóa) | 🟢 | 2 | 15/10: sheet.edit.clearComments, sheet.edit.clearHyperlinks; chưa đối chiếu Excel |
 | Chỉnh sửa | Sắp xếp A-Z / Z-A / Tùy chỉnh nhiều cấp | ✅ | - | Sắp xếp hai cấp đã đọc lại bằng Excel 2016 |
 | Chỉnh sửa | Sắp xếp theo màu ô/màu chữ/biểu tượng | 🟡 | 3 | G2: có sắp xếp theo màu ô/chữ; chưa có theo biểu tượng |
 | Chỉnh sửa | Bộ lọc (AutoFilter) bật/tắt | ✅ | - | AutoFilterMode đã đối chiếu |
@@ -143,7 +140,7 @@ Tổng: 6 mục ưu tiên 1.
 | Chỉnh sửa | Xóa bộ lọc / Áp dụng lại | 🟢 | - | Thêm vào menu chuột phải 13/10 |
 | Chỉnh sửa | Tìm (Ctrl+F) / Thay thế (Ctrl+H), tùy chọn phân biệt hoa-thường, trong công thức | ✅ | - | Thay thế trên hai trang đã đối chiếu |
 | Chỉnh sửa | Đến (Go To, F5/Ctrl+G) / Đến đặc biệt (Go To Special) | 🟢 | - | Mới 13/10: sheet-goto.js, test desktop 11/11; chưa đối chiếu với Excel |
-| Chỉnh sửa | Chọn khung chọn / Chọn đối tượng | 🔴 | 3 |  |
+| Chỉnh sửa | Chọn khung chọn / Chọn đối tượng | 🟡 | 3 | 17/10: có Ngăn chọn (AGY-ARRANGE) và chọn nhiều đối tượng; chưa có nút Chọn đối tượng riêng |
 
 ### Chèn
 
@@ -184,13 +181,13 @@ Tổng: 6 mục ưu tiên 1.
 | Nhóm | Tính năng Excel 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Sheet |
 |---|---|---|---|---|
 | Giao diện | Chủ đề (Themes) / Màu / Phông / Hiệu ứng | 🔴 | 2 |  |
-| Thiết lập trang | Lề (Margins) / Hướng giấy / Khổ giấy | ✅ | - | Landscape, Legal đã đọc lại bằng Excel 2016 |
+| Thiết lập trang | Lề (Margins) / Hướng giấy / Khổ giấy | ✅ | - | sheet.page.margins sheet.page.orientation sheet.page.size: Landscape, Legal đã đọc lại bằng Excel 2016; danh sách chọn nhanh Thường/Rộng/Hẹp, Dọc/Ngang, A3/A4... Excel 2016 đọc đúng lề, Landscape, A3 (docs/AUDIT-SHEET-PAGE-GALLERY-1710.md:6) |
 | Thiết lập trang | Vùng in / Xóa vùng in | ✅ | - | Print area đã đối chiếu |
 | Thiết lập trang | Ngắt trang (chèn, xóa, đặt lại) | ✅ | - | HBreaks/VBreaks đã đối chiếu |
 | Thiết lập trang | Hình nền (Background) | 🔴 | 3 |  |
 | Thiết lập trang | In tiêu đề (Print Titles) | ✅ | - | TitlesRows đã đối chiếu |
 | Thiết lập trang | Hộp thoại Page Setup đủ tab Trang/Lề/Đầu-Chân/Trang tính | 🟡 | 1 | Thiếu một số tùy chọn tab Trang tính (in lưới, tiêu đề, thứ tự trang) |
-| Vừa trang | Chiều rộng / Chiều cao (Fit to pages) / Tỷ lệ % | 🟡 | 1 | Có Tỷ lệ; chưa có Fit to W x H tách riêng |
+| Vừa trang | Chiều rộng / Chiều cao (Fit to pages) / Tỷ lệ % | ✅ | - | sheet.page.fitWidth sheet.page.fitHeight sheet.page.scale: danh sách Chiều rộng/Chiều cao (Tự động, 1-5 trang) lưu rồi Excel 2016 đọc FitToPagesWide=1, FitToPagesTall=Tự động, Zoom=False (docs/AUDIT-SHEET-PAGE-GALLERY-1710.md:18) |
 | Tùy chọn trang tính | Hiện/In đường lưới và tiêu đề | 🟡 | 2 | Hiện có; hộp xem trước in có tùy chọn in đường lưới; in tiêu đề hàng/cột cần kiểm |
 | Sắp xếp | Đưa lên trên / Xuống dưới / Ngăn chọn / Căn / Nhóm / Xoay đối tượng | ✅ | - | 16/10 (AGY-ARRANGE): lớp, căn, phân bố, nhóm, xoay/lật, Ngăn chọn; cases-10 21/21 điểm khớp Excel, LAN 10/10 |
 
@@ -201,16 +198,16 @@ Tổng: 6 mục ưu tiên 1.
 | Thư viện hàm | Chèn hàm (Shift+F3) + hộp thoại đối số | 🟢 | - | sheet.formula.insertFunction |
 | Thư viện hàm | Tổng tự động; Dùng gần đây; Tài chính / Logic / Văn bản / Ngày giờ / Tra cứu / Toán | 🟢 | - | Các nhóm hàm trong ribbon |
 | Thư viện hàm | Độ phủ hàm Excel 2016 (462 hàm) | 🟡 | 1 | 16/10: engine hỗ trợ 436 hàm, 387 hàm có ca đối chiếu Excel 2016 (14 tệp golden, chạy trong npm test); còn thiếu hàm trả mảng (MMULT, MINVERSE, LINEST…), cần kế hoạch riêng |
-| Thư viện hàm | Công thức mảng (CSE, Ctrl+Shift+Enter) | 🟡 | 1 | Có hỗ trợ mảng; chưa đối chiếu đủ |
+| Thư viện hàm | Công thức mảng (CSE, Ctrl+Shift+Enter) | ✅ | - | 17/10 (CODEX-ARRAYS): CSE một/nhiều ô, hằng mảng {..}, MMULT/MINVERSE/MUNIT/TRANSPOSE/FREQUENCY/LINEST/TREND/GROWTH/LOGEST: golden 30/30 + 65/65 khớp Excel, Excel ReadOnly nhận đúng vùng mảng, LAN 10/10 |
 | Thư viện hàm | Tham chiếu có cấu trúc (Table1[Cột]) | ✅ | - | 17/10: [Cột], [@Cột], Bảng[Cột], hàng tổng; structural-cases-8 26 kịch bản, 189/189 ô khớp Excel 2016 |
-| Thư viện hàm | Tham chiếu 3-D giữa các trang (Sheet1:Sheet3!A1) | 🔴 | 2 |  |
+| Thư viện hàm | Tham chiếu 3-D giữa các trang (Sheet1:Sheet3!A1) | ✅ | - | E1d3: tham chiếu 3-D, bảng THREE_D_UNSUPPORTED; golden-batch10-3d.json khớp Excel 2016 |
 | Tên đã xác định | Trình quản lý tên / Xác định tên / Tạo từ vùng chọn / Dùng trong công thức | ✅ | - | Tên SampleNames đã đối chiếu |
 | Kiểm tra công thức | Tìm ô tiền lệ / phụ thuộc / Xóa mũi tên | 🟢 | - |  |
 | Kiểm tra công thức | Hiện công thức (Ctrl+`) / Kiểm tra lỗi / Ước lượng công thức | 🟢 | - |  |
 | Kiểm tra công thức | Cửa sổ theo dõi (Watch Window) | 🟢 | - |  |
 | Tính toán | Tự động / Thủ công; Tính lại (F9); Tính trang (Shift+F9) | 🟢 | - |  |
 | Tính toán | Tính lặp (Iterative) / Độ chính xác như hiển thị / Hệ ngày 1904 | ✅ | - | 16/10 (AGY-CALC): tính lặp, độ chính xác như hiển thị, 1904, R1C1, chế độ tính; cases-9 16/16 ô khớp Excel, lưu/mở lại đúng |
-| Tính toán | Kiểu tham chiếu R1C1 | 🔴 | 3 |  |
+| Tính toán | Kiểu tham chiếu R1C1 | ✅ | - | 17/10 (AGY-CALC): hiển thị và nhập R1C1; structural-cases-9 khớp Excel 2016, lưu/mở lại đúng |
 
 ### Dữ liệu
 
@@ -294,7 +291,7 @@ Tổng: 6 mục ưu tiên 1.
 | Thiết kế | Chuyển thành phạm vi | 🟢 | - | Menu chuột phải bảng 13/10 |
 | Thiết kế | Chèn/Xóa cột-hàng bảng | 🟢 | - | Menu chuột phải bảng 13/10; mở lại giữ vùng bảng |
 | Thiết kế | Đổi kích thước bảng (Resize Table) | ✅ | - | 16/10 (AGY-TABLE): cases-8 26/26 kịch bản, 189/189 ô khớp Excel 2016 |
-| Thiết kế | Tùy chọn kiểu: Hàng tiêu đề, Cột đầu/cuối, Hàng/Cột sọc, Nút lọc | 🟡 | 2 | Có sọc hàng và nút lọc; thiếu cột đầu/cuối, sọc cột |
+| Thiết kế | Tùy chọn kiểu: Hàng tiêu đề, Cột đầu/cuối, Hàng/Cột sọc, Nút lọc | ✅ | - | 17/10 (AGY-TABLESTYLE): đủ 7 hộp kiểm, kiểu bảng sống; cases-14 5 kịch bản 49/49 ô khớp Excel; lưu/mở lại tableStyleInfo đúng, LAN 10/10 |
 | Thiết kế | Chèn Slicer | ✅ | - | Giai đoạn 1 hoàn thành 16/10: panel nổi, đa chọn, lọc kết hợp, XLSX native |
 | Thiết kế | Xuất bảng | 🔴 | 2 |  |
 
@@ -361,7 +358,7 @@ Tổng: 6 mục ưu tiên 1.
 | Bàn phím | Điều hướng (mũi tên, Ctrl+mũi tên, Home/End, Ctrl+Home/End, PgUp/PgDn, Tab/Enter) | ✅ | - | E3 đã đối chiếu |
 | Bàn phím | Nhập liệu (F2, Enter, Alt+Enter, Ctrl+Enter, Ctrl+;, Ctrl+Shift+;, F4) | ✅ | - | E3, E3b đã đối chiếu |
 | Bàn phím | Phím tắt định dạng và lệnh (Ctrl+1, Ctrl+Shift+4/5/1, Ctrl+B/I/U, Ctrl+K, Ctrl+D/R, Ctrl+Z/Y) | ✅ | - | E3 |
-| Bàn phím | Phím tắt Alt (KeyTips: Alt rồi H, N, ...) | 🔴 | 2 | Chưa có chế độ KeyTips đầy đủ như Excel |
+| Bàn phím | Phím tắt Alt (KeyTips: Alt rồi chữ của tab, rồi chữ của nút) | 🟢 | 2 | Đã có (platform/ribbon/keytips.js, dùng chung ba ứng dụng): Alt hiện huy hiệu, chữ cái theo tên tab tiếng Việt (Tệp=T, Trang đầu=D, Chèn=C, Công thức=M, Dữ liệu=L...), Esc lùi từng cấp; chưa đối chiếu với bản Excel tiếng Việt thật |
 | Hộp thoại | Đủ hộp thoại: Định dạng ô, Dán đặc biệt, Tìm/Thay, Sắp xếp, Tên, Chèn/Xóa ô, Chiều cao/Độ rộng | ✅ | - |  |
 | Tính tương thích | Mở/Lưu XLS, XLSX, ODS, CSV đúng bố cục | ✅ | - | Bộ 8 tệp 0 chênh lệch; còn sai khác kiểu bảng ở lan25 |
 | Tính tương thích | Giữ ảnh, hộp văn bản, bảng, định dạng số, ghi chú, split khi lưu | ✅ | - | Đã sửa hồi quy ảnh 13/10 |
