@@ -81,10 +81,10 @@ Trang đầu|Vẽ|Sắp xếp: Nhóm đối tượng (Group, Ctrl+G)|V|-|FIX-L12
 Trang đầu|Vẽ|Sắp xếp: Rã nhóm (Ungroup, Ctrl+Shift+G)|A|-|slides.shape.ungroup; tách các đối tượng trong nhóm
 Trang đầu|Vẽ|Sắp xếp: Căn lề đối tượng (Align Objects)|V|-|Đo thực tế PowerPoint COM ShapeRange.Align đối chiếu hệ thống lệnh slides.arrange.alignLeft, slides.arrange.alignCenter (docs/ppt-oracle-1710.json:86-92, docs/POWERPOINT2016-FINDINGS-1710.md:24)
 Trang đầu|Vẽ|Sắp xếp: Phân phối đều ngang/dọc (Distribute)|A|-|slides.arrange.distributeHorizontal, slides.arrange.distributeVertical; phân phối đều khoảng cách
-Trang đầu|Vẽ|Sắp xếp: Xoay và lật hình (Rotate & Flip)|V|-|slides.arrange.rotate (tab Định dạng hình); PowerPoint COM đọc lại rotation=90 (scripts/audit-0610/ppt_shape_format_readback.ps1)
+Trang đầu|Vẽ|Sắp xếp: Xoay và lật hình (Rotate & Flip)|V|-|slides.arrange.rotate (tab Định dạng hình); PowerPoint COM đọc lại rotation=90 (scripts/audit-0610/ppt_shape_format_readback.ps1) (adapters/libreoffice/slides/slides-adapter.js:1550; scripts/audit-0610/ppt_shape_format_readback.ps1:1)
 Trang đầu|Vẽ|Kiểu nhanh hình dạng (Quick Styles Gallery)|P|2|Có thư viện kiểu màu cơ bản; chưa có gallery đầy đủ hiệu ứng 3D như PowerPoint
 Trang đầu|Vẽ|Tô nền hình (Shape Fill: Màu đơn, Chuyển sắc, Ảnh)|P|2|slides.shape.fill: bảng 15 màu, không tô, màu khác (PowerPoint COM đọc lại đúng màu); chưa có chuyển sắc / ảnh trên nút này
-Trang đầu|Vẽ|Viền hình (Shape Outline: Màu, Độ dày nét, Nét đứt)|V|-|slides.shape.outline: màu, độ dày ½–6 pt, nét liền/gạch/chấm/gạch chấm; PowerPoint COM đọc lại line đỏ 3 pt nét gạch
+Trang đầu|Vẽ|Viền hình (Shape Outline: Màu, Độ dày nét, Nét đứt)|V|-|slides.shape.outline: màu, độ dày ½–6 pt, nét liền/gạch/chấm/gạch chấm; PowerPoint COM đọc lại line đỏ 3 pt nét gạch (adapters/libreoffice/slides/slides-adapter.js:1517; scripts/audit-0610/ppt_shape_format_readback.ps1:1)
 Trang đầu|Vẽ|Hiệu ứng hình (Shape Effects: Bóng, Phát sáng, Mềm cạnh)|P|2|slides.shape.effects: đổ bóng 4 hướng (PowerPoint COM đọc lại Shadow.Visible); chưa có phát sáng / mềm cạnh / tùy chỉnh
 Trang đầu|Chỉnh sửa|Tìm kiếm (Ctrl+F / Find)|V|-|FIX-L8: common.edit.find tìm chuỗi ROAD TRIP đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:48)
 Trang đầu|Chỉnh sửa|Thay thế (Ctrl+H / Replace)|V|-|FIX-L8: common.edit.replace thay thế văn bản đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:49)
@@ -133,7 +133,7 @@ Thiết kế|Tùy chỉnh|Định dạng nền: Màu đơn sắc (Solid Fill)|V|
 Thiết kế|Tùy chỉnh|Định dạng nền: Chuyển sắc (Gradient Fill)|V|-|FIX-L8: slides.design.formatBackground nền gradient ngang Fill.Type=3 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:67)
 Thiết kế|Tùy chỉnh|Định dạng nền: Hình ảnh hoặc họa tiết (Picture or Texture Fill)|N|2|Chưa hỗ trợ chèn ảnh hoặc họa tiết làm hình nền slide
 Thiết kế|Tùy chỉnh|Định dạng nền: Hoa văn (Pattern Fill)|N|3|Chưa có thư viện mẫu hoa văn pattern cho nền
-Thiết kế|Tùy chỉnh|Ẩn đồ họa nền (Hide Background Graphics)|V|-|slides.design.hideBackground; PowerPoint COM đọc lại DisplayMasterShapes (ppt_hide_bg_readback.ps1)
+Thiết kế|Tùy chỉnh|Ẩn đồ họa nền (Hide Background Graphics)|V|-|slides.design.hideBackground; PowerPoint COM đọc lại DisplayMasterShapes (ppt_hide_bg_readback.ps1) (apps/slides/slides-canvas.js:6837; scripts/audit-0610/ppt_hide_bg_readback.ps1:1)
 Chuyển tiếp|Xem trước|Xem trước hiệu ứng chuyển tiếp (Preview)|A|-|slides.transition.preview chạy hiệu ứng trên khung soạn (CDP slides-transition-tab 9/9)
 Chuyển tiếp|Chuyển tiếp sang slide|Hiệu ứng chuyển tiếp (Transitions Gallery)|V|-|FIX-L4/L7: slides.transition.apply áp Push Right (3854) và Fade (3849) đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:68, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:20)
 Chuyển tiếp|Chuyển tiếp sang slide|Hiệu ứng Morph (Biến đổi hình thái)|P|1|Đã có xử lý chuyển đổi Morph sơ bộ; chưa hoàn thiện mapping đối tượng khớp định danh như PowerPoint 2016 Office 365
@@ -143,8 +143,8 @@ Chuyển tiếp|Chuyển tiếp sang slide|Tùy chọn hiệu ứng (Effect Opti
 Chuyển tiếp|Thời gian|Âm thanh chuyển tiếp (Sound)|N|3|Chưa hỗ trợ gán âm thanh khi chuyển tiếp trang chiếu
 Chuyển tiếp|Thời gian|Thời lượng chuyển tiếp (Duration)|V|-|FIX-L4/L7: PowerPoint COM đọc Duration=0.8 s khớp thời lượng chuyển tiếp (docs/SLIDES-BUTTON-MATRIX-1011.md:68, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:20)
 Chuyển tiếp|Thời gian|Áp dụng cho tất cả trang chiếu (Apply to All)|A|-|slides.transition.applyAll, hoàn tác một bước (CDP 9/9)
-Chuyển tiếp|Thời gian|Chuyển khi nhấp chuột (On Mouse Click)|V|-|slides.transition.advanceClick; PowerPoint COM đọc lại AdvanceOnClick (ppt_transition_readback.ps1)
-Chuyển tiếp|Thời gian|Chuyển tự động sau thời gian (After X seconds)|V|-|slides.transition.advanceAfter (3/5/10/30 s); PowerPoint COM đọc lại AdvanceOnTime/AdvanceTime
+Chuyển tiếp|Thời gian|Chuyển khi nhấp chuột (On Mouse Click)|V|-|slides.transition.advanceClick; PowerPoint COM đọc lại AdvanceOnClick (ppt_transition_readback.ps1) (apps/slides/slides-canvas.js:10235; scripts/audit-0610/ppt_transition_readback.ps1:1)
+Chuyển tiếp|Thời gian|Chuyển tự động sau thời gian (After X seconds)|V|-|slides.transition.advanceAfter (3/5/10/30 s); PowerPoint COM đọc lại AdvanceOnTime/AdvanceTime (apps/slides/slides-canvas.js:10235; scripts/audit-0610/ppt_transition_readback.ps1:1)
 Hoạt ảnh|Xem trước|Xem trước hoạt ảnh (Preview)|A|-|slides.animation.preview chạy theo timeline (CDP slides-animation-tab 9/9)
 Hoạt ảnh|Hoạt ảnh|Hiệu ứng đối tượng (Animations Gallery)|V|-|FIX-L6: slides.animation.apply hiệu ứng Fade, Fly EffectType 10, 2 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:69)
 Hoạt ảnh|Hoạt ảnh|Nhóm Xuất hiện (Entrance Effects: Appear, Fade, Fly In, Float In, Zoom)|V|-|FIX-L6: slides.animation.apply hiệu ứng Fade, Fly EffectType 10, 2 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:69)
@@ -156,7 +156,7 @@ Hoạt ảnh|Hoạt ảnh nâng cao|Thêm hoạt ảnh (Add Animation)|N|2|Chưa
 Hoạt ảnh|Hoạt ảnh nâng cao|Ngăn hoạt ảnh (Animation Pane)|V|-|FIX-L7: slides.animation.pane đổi thứ tự hiệu ứng đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:70)
 Hoạt ảnh|Hoạt ảnh nâng cao|Kích hoạt (Trigger: On Click of Object)|N|2|Chưa có hộp thoại gán trigger kích hoạt hiệu ứng khi click shape khác
 Hoạt ảnh|Hoạt ảnh nâng cao|Sao chép hoạt ảnh (Animation Painter)|N|2|Chưa có công cụ sao chép chuỗi hiệu ứng hoạt ảnh giữa các hình
-Hoạt ảnh|Thời gian|Bắt đầu (Start: On Click, With Previous, After Previous)|V|-|slides.animation.startMenu; PowerPoint COM đọc lại TriggerType=AfterPrevious, Duration, Delay (ppt_anim_readback.ps1)
+Hoạt ảnh|Thời gian|Bắt đầu (Start: On Click, With Previous, After Previous)|V|-|slides.animation.startMenu; PowerPoint COM đọc lại TriggerType=AfterPrevious, Duration, Delay (ppt_anim_readback.ps1) (apps/slides/slides-canvas.js:2117; scripts/audit-0610/ppt_anim_readback.ps1:2)
 Hoạt ảnh|Thời gian|Thời lượng hoạt ảnh (Duration)|V|-|FIX-L6: PowerPoint COM đọc duration 0.8/0.8/0.5 s khớp timeline (docs/SLIDES-BUTTON-MATRIX-1011.md:69)
 Hoạt ảnh|Thời gian|Độ trễ hoạt ảnh (Delay)|A|-|slides.animation.apply; cấu hình độ trễ (delay) trong hộp thoại Hiệu ứng đối tượng
 Hoạt ảnh|Thời gian|Đổi thứ tự: Lên trước (Move Earlier)|V|-|FIX-L7: slides.animation.pane đổi thứ tự hiệu ứng đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:70)
@@ -229,7 +229,7 @@ Công cụ vẽ > Định dạng|Sắp xếp|Căn lề đối tượng (Align Le
 Công cụ vẽ > Định dạng|Sắp xếp|Phân phối đều khoảng cách (Distribute Horizontally / Vertically)|A|-|slides.arrange.distributeHorizontal, slides.arrange.distributeVertical; phân phối đều khoảng cách
 Công cụ vẽ > Định dạng|Sắp xếp|Nhóm đối tượng (Group, Ctrl+G)|V|-|FIX-L12: sơ đồ nhóm 7 đối tượng Shape.Type=6 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:53, docs/POWERPOINT2016-FINDINGS-1710.md:23)
 Công cụ vẽ > Định dạng|Sắp xếp|Rã nhóm đối tượng (Ungroup, Ctrl+Shift+G)|A|-|slides.shape.ungroup; giải phóng nhóm thành các hình riêng
-Công cụ vẽ > Định dạng|Sắp xếp|Xoay và lật đối tượng (Rotate 90°, Flip)|V|-|Tab Định dạng hình > Xoay (4 lệnh); PowerPoint COM đọc lại rotation=90
+Công cụ vẽ > Định dạng|Sắp xếp|Xoay và lật đối tượng (Rotate 90°, Flip)|V|-|Tab Định dạng hình > Xoay (4 lệnh); PowerPoint COM đọc lại rotation=90 (adapters/libreoffice/slides/slides-adapter.js:1554; scripts/audit-0610/ppt_shape_format_readback.ps1:1)
 Công cụ vẽ > Định dạng|Kích thước|Chiều cao đối tượng (Shape Height)|N|2|Chưa có ô nhập chiều cao chính xác (cm/pt) cho hình trên ribbon
 Công cụ vẽ > Định dạng|Kích thước|Chiều rộng đối tượng (Shape Width)|N|2|Chưa có ô nhập chiều rộng chính xác (cm/pt) cho hình trên ribbon
 Công cụ vẽ > Định dạng|Kích thước|Khóa tỷ lệ khung hình (Lock Aspect Ratio)|N|2|Chưa có tùy chọn khóa tỷ lệ khung hình (Lock Aspect Ratio)
