@@ -69,9 +69,7 @@ try {
   a = JSON.parse(await anim());
   check("Ctrl+Z hoàn tác một bước (bỏ trễ)", a?.delay === 0, JSON.stringify(a));
 
-  const selAfterUndo = await ev(`${canvas}.selectedTarget`);
-  console.log("selectedTarget sau Ctrl+Z:", selAfterUndo);
-  await ev(`${canvas}.setSelectedTarget(${canvas}.slides[0].shapes[0].id)`);
+  check("Ctrl+Z giữ nguyên đối tượng đang chọn", (await ev(`String(${canvas}.selectedTarget) === String(${canvas}.slides[0].shapes[0].id)`)) === true);
   await openDropdown("slides.animation.gallery");
   await menuItem("Không có");
   check("Chọn Không có bỏ hiệu ứng", (JSON.parse(await anim())?.type ?? "none") === "none", await anim());

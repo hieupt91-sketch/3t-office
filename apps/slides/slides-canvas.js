@@ -6685,6 +6685,20 @@ const startEditing = (initialText) => {
     });
   }
 
+  /** Vẽ lại trang sau khi hoàn tác/làm lại mà vẫn giữ đối tượng đang chọn (như PowerPoint). */
+  _selectSlideKeepingSelection(index) {
+    const target = this.selectedTarget;
+    const ids = [...(this.selectedShapeIds || [])];
+    this.selectSlide(index);
+    if (target == null || this.currentSlideIndex !== index) return;
+    const slide = this.slides[index];
+    const exists = (id) => ['title', 'body', 'body2'].includes(String(id)) || (slide?.shapes || []).some((shape) => String(shape.id) === String(id));
+    if (!exists(target)) return;
+    this.setSelectedTarget(target, ids.filter((id) => String(id) !== String(target) && exists(id)));
+    this._renderShapesLayer();
+    this._updateSelectionUi();
+  }
+
   /** Ẩn đồ họa nền: bỏ các hình/logo của bản cái trên trang đang chọn (PowerPoint: Thiết kế > Ẩn đồ họa nền). */
   _applyBackgroundGraphicsVisibility() {
     const slide = this.slides[this.currentSlideIndex];
@@ -8319,7 +8333,7 @@ const startEditing = (initialText) => {
       if (!slide) return false;
       if (action.before === undefined) delete slide[action.key]; else slide[action.key] = action.before;
       this.redoStack.push(action);
-      this.selectSlide(action.slideIndex);
+      this._selectSlideKeepingSelection(action.slideIndex);
       return true;
     } else if (action.type === "shapes-style") {
       const slide = this.slides[action.slideIndex];
@@ -8337,7 +8351,7 @@ const startEditing = (initialText) => {
       if (!slide) return false;
       this._restoreSlideAnimations(slide, action.before);
       this.redoStack.push(action);
-      this.selectSlide(action.slideIndex);
+      this._selectSlideKeepingSelection(action.slideIndex);
       this._renderShapesLayer();
       this._renderAnimationPane();
       return true;
@@ -8698,7 +8712,7 @@ const startEditing = (initialText) => {
       if (!slide) return false;
       if (action.after === undefined) delete slide[action.key]; else slide[action.key] = action.after;
       this.undoStack.push(action);
-      this.selectSlide(action.slideIndex);
+      this._selectSlideKeepingSelection(action.slideIndex);
       return true;
     } else if (action.type === "shapes-style") {
       const slide = this.slides[action.slideIndex];
@@ -8716,7 +8730,7 @@ const startEditing = (initialText) => {
       if (!slide) return false;
       this._restoreSlideAnimations(slide, action.after);
       this.undoStack.push(action);
-      this.selectSlide(action.slideIndex);
+      this._selectSlideKeepingSelection(action.slideIndex);
       this._renderShapesLayer();
       this._renderAnimationPane();
       return true;
