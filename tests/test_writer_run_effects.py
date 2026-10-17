@@ -66,6 +66,13 @@ class RunEffectsExportTests(unittest.TestCase):
         self.assertNotIn("vertAlign", out)
         self.assertNotIn("<w:sz ", out)
 
+    def test_posx_from_font_dialog_needs_no_base_property(self):
+        docx = _docx('<w:p><w:r><w:rPr><w:sz w:val="24"/></w:rPr><w:t>Nang</w:t></w:r></w:p>')
+        html = '<p><span data-vno-fx="posx=8">Nang</span></p>'
+        out = _document(patcher.postprocess_writer_run_effects(docx, source_html=html))
+        self.assertIn('<w:position w:val="8"/>', out)
+        self.assertIn('<w:sz w:val="24"/>', out)
+
     def test_underline_style_and_color(self):
         docx = _docx('<w:p><w:r><w:rPr><w:u w:val="single"/></w:rPr><w:t>Song</w:t></w:r></w:p>')
         html = '<p><u><span data-vno-fx="ul=wave;ulc=FF0000">Song</span></u></p>'

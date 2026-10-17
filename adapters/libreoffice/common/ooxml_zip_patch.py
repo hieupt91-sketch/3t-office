@@ -25680,6 +25680,9 @@ def _run_fx_apply_to_rpr(rpr_inner: str, fx: str) -> str:
             drop("w:sz", "w:szCs")
         else:
             put("w:sz", f'<w:sz w:val="{original}"/>')
+    if "posx" in kv:
+        # Nâng/hạ vị trí đặt từ hộp Phông chữ (không có chỉ số trên/dưới làm nền), nửa điểm.
+        put("w:position", f'<w:position w:val="{kv["posx"]}"/>')
     if "ul" in kv:
         color = f' w:color="{kv["ulc"]}"' if kv.get("ulc") else ""
         put("w:u", f'<w:u w:val="{kv["ul"]}"{color}/>')
