@@ -16,10 +16,10 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu Excel 2016 | 91 | 43% |
+| ✅ Đã đối chiếu Excel 2016 | 92 | 43% |
 | 🟢 Có, chưa đối chiếu | 54 | 25% |
 | 🟡 Có một phần | 28 | 13% |
-| 🔴 Chưa có | 40 | 19% |
+| 🔴 Chưa có | 39 | 18% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
 
@@ -35,7 +35,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Tệp (Backstage) | 17 | 3 | 8 | 4 | 1 | 1 | 81% |
 | Trang đầu | 53 | 27 | 14 | 10 | 2 | 0 | 87% |
 | Chèn | 29 | 9 | 5 | 2 | 11 | 2 | 56% |
-| Bố trí trang | 10 | 6 | 0 | 2 | 2 | 0 | 70% |
+| Bố trí trang | 10 | 7 | 0 | 2 | 1 | 0 | 80% |
 | Công thức | 13 | 6 | 6 | 1 | 0 | 0 | 96% |
 | Dữ liệu | 19 | 13 | 0 | 3 | 3 | 0 | 76% |
 | Xem xét | 12 | 1 | 3 | 2 | 5 | 1 | 45% |
@@ -180,7 +180,7 @@ Tổng: 3 mục ưu tiên 1.
 
 | Nhóm | Tính năng Excel 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Sheet |
 |---|---|---|---|---|
-| Giao diện | Chủ đề (Themes) / Màu / Phông / Hiệu ứng | 🔴 | 2 |  |
+| Giao diện | Chủ đề (Themes) / Màu / Phông / Hiệu ứng | ✅ | - | Chủ đề Themes, Màu Colors, Phông Fonts đã đối chiếu Excel 2016 COM thật 19/19 trường hợp (tests/functions/structural-cases-19.json:1-35; tests/unit/sheet-themes.test.js:1-40; tests/live/cdp/sheet-themes.desktop.mjs:1-45; sheet.page.themes sheet.page.themeColors sheet.page.themeFonts) |
 | Thiết lập trang | Lề (Margins) / Hướng giấy / Khổ giấy | ✅ | - | sheet.page.margins sheet.page.orientation sheet.page.size: Landscape, Legal đã đọc lại bằng Excel 2016; danh sách chọn nhanh Thường/Rộng/Hẹp, Dọc/Ngang, A3/A4... Excel 2016 đọc đúng lề, Landscape, A3 (docs/AUDIT-SHEET-PAGE-GALLERY-1710.md:6) |
 | Thiết lập trang | Vùng in / Xóa vùng in | ✅ | - | Print area đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:74-75; tests/unit/sheet-comments-printarea.test.js:1-25; sheet.page.setPrintArea, sheet.page.clearPrintArea) |
 | Thiết lập trang | Ngắt trang (chèn, xóa, đặt lại) | ✅ | - | HBreaks/VBreaks đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:76-77; sheet.page.insertPageBreak, sheet.page.removePageBreak) |

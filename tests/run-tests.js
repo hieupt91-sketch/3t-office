@@ -313,6 +313,7 @@ import { runSheetStyleExportWrapBorderAlignTests } from "./unit/sheet-style-expo
 import { runWriterWordW7Tests } from "./unit/writer-word-w7.test.js";
 import { runSheetNotesFidelityTests } from "./unit/sheet-notes-fidelity.test.js";
 import { runWriterTabsTablesAgyTests } from "./unit/writer-tabs-tables-agy.test.js";
+import { runSheetThemesTests } from "./unit/sheet-themes.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -635,7 +636,8 @@ async function runAll() {
     { title: "269. Unit Tests — Sheet External Links & Edit Links Dialog (AGY-LINKS)", runner: runSheetExternalLinksDialogTests },
     { title: "270. Unit Tests — Sheet AutoFill Handle Double-Click, Options Button & Border Drag-Drop (AGY-AUTOFILL)", runner: runSheetAutofillDragTests },
     { title: "271. Unit Tests — Sheet Notes Parity, Show/Hide, Resize, Drag, Formats & VML Drawing (AGY-NOTES)", runner: runSheetNotesFidelityTests },
-    { title: "272. Unit Tests — Writer Tabs Dialog, Ruler Tab Stops, Go To, Split Table, Text Direction, Table Properties (AGY-WRITER1)", runner: runWriterTabsTablesAgyTests }
+    { title: "272. Unit Tests — Writer Tabs Dialog, Ruler Tab Stops, Go To, Split Table, Text Direction, Table Properties (AGY-WRITER1)", runner: runWriterTabsTablesAgyTests },
+    { title: "273. Unit Tests — Sheet Workbook Themes, Colors, Fonts Parity (AGY-THEMES)", runner: runSheetThemesTests }
   ];
 
   for (const suite of suites) {

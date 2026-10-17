@@ -115,7 +115,7 @@ Chèn|Văn bản|Đầu trang & Chân trang|V|-|Header phải đã đối chiế
 Chèn|Văn bản|WordArt / Dòng chữ ký / Đối tượng nhúng|N|3|
 Chèn|Ký hiệu|Công thức (Equation)|N|3|
 Chèn|Ký hiệu|Ký hiệu (Symbol)|A|-|Chèn ký hiệu đặc biệt Symbol (apps/sheet/sheet-grid.js:12779-12785; sheet.insert.symbol)
-Bố trí trang|Giao diện|Chủ đề (Themes) / Màu / Phông / Hiệu ứng|N|2|
+Bố trí trang|Giao diện|Chủ đề (Themes) / Màu / Phông / Hiệu ứng|V|-|Chủ đề Themes, Màu Colors, Phông Fonts đã đối chiếu Excel 2016 COM thật 19/19 trường hợp (tests/functions/structural-cases-19.json:1-35; tests/unit/sheet-themes.test.js:1-40; tests/live/cdp/sheet-themes.desktop.mjs:1-45; sheet.page.themes sheet.page.themeColors sheet.page.themeFonts)
 Bố trí trang|Thiết lập trang|Lề (Margins) / Hướng giấy / Khổ giấy|V|-|sheet.page.margins sheet.page.orientation sheet.page.size: Landscape, Legal đã đọc lại bằng Excel 2016; danh sách chọn nhanh Thường/Rộng/Hẹp, Dọc/Ngang, A3/A4... Excel 2016 đọc đúng lề, Landscape, A3 (docs/AUDIT-SHEET-PAGE-GALLERY-1710.md:6)
 Bố trí trang|Thiết lập trang|Vùng in / Xóa vùng in|V|-|Print area đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:74-75; tests/unit/sheet-comments-printarea.test.js:1-25; sheet.page.setPrintArea, sheet.page.clearPrintArea)
 Bố trí trang|Thiết lập trang|Ngắt trang (chèn, xóa, đặt lại)|V|-|HBreaks/VBreaks đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:76-77; sheet.page.insertPageBreak, sheet.page.removePageBreak)

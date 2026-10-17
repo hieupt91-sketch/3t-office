@@ -371,14 +371,56 @@ export const enStrings = {
   sheetRibbon: {
     whatIfAnalysis: "What-If Analysis",
     tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant", tableDesign: "Table Design" },
-    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", connections: "Connections", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", tables: "Tables", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", pageSetup: "Page Setup", scaleToFit: "Scale to Fit", sheetOptions: "Sheet Options", proofing: "Proofing", comments: "Comments", protection: "Protect", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiAnalysis: "AI Data Analysis", properties: "Table Properties", tableStyleOptions: "Table Style Options", tableStyles: "Table Styles", filters: "Filters", tools: "Tools", arrange: "Arrange" },
+    group: { themes: "Themes", clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", connections: "Connections", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", tables: "Tables", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", pageSetup: "Page Setup", scaleToFit: "Scale to Fit", sheetOptions: "Sheet Options", proofing: "Proofing", comments: "Comments", protection: "Protect", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiAnalysis: "AI Data Analysis", properties: "Table Properties", tableStyleOptions: "Table Style Options", tableStyles: "Table Styles", filters: "Filters", tools: "Tools", arrange: "Arrange" },
     refreshAllSuccess: "Refreshed all links and external data.",
     editing: { fill: "Fill", clear: "Clear" },
     alignment: { orientation: "Orientation" },
-    page: { margins: "Margins", orientation: "Orientation", size: "Size", fitWidth: "Width", fitHeight: "Height", marginNormal: "Normal", marginWide: "Wide", marginNarrow: "Narrow", marginCustom: "Custom Margins…", portrait: "Portrait", landscape: "Landscape", moreSizes: "More Paper Sizes…", fitAuto: "Automatic", fitPages1: "1 page", fitPages2: "2 pages", fitPages3: "3 pages", fitPages4: "4 pages", fitPages5: "5 pages", fitMore: "More Pages…" },
+    page: { themes: "Themes", themeColors: "Colors", themeFonts: "Fonts", margins: "Margins", orientation: "Orientation", size: "Size", fitWidth: "Width", fitHeight: "Height", marginNormal: "Normal", marginWide: "Wide", marginNarrow: "Narrow", marginCustom: "Custom Margins…", portrait: "Portrait", landscape: "Landscape", moreSizes: "More Paper Sizes…", fitAuto: "Automatic", fitPages1: "1 page", fitPages2: "2 pages", fitPages3: "3 pages", fitPages4: "4 pages", fitPages5: "5 pages", fitMore: "More Pages…" },
     cells: { format: "Format" },
     arrange: { bringForward: "Bring Forward", sendBackward: "Send Backward", align: "Align", group: "Group", rotate: "Rotate" },
     window: { freezePanes: "Freeze Panes", split: "Split" }
+  },
+  sheetThemes: {
+    theme: {
+      office: "Office",
+      facet: "Facet",
+      integral: "Integral",
+      ion: "Ion",
+      organic: "Organic",
+      retrospect: "Retrospect",
+      slice: "Slice",
+      wisp: "Wisp"
+    },
+    palette: {
+      office: "Office",
+      office2007: "Office 2007 - 2010",
+      grayscale: "Grayscale",
+      facet: "Facet",
+      integral: "Integral",
+      ion: "Ion",
+      organic: "Organic",
+      retrospect: "Retrospect",
+      slice: "Slice",
+      wisp: "Wisp",
+      blue: "Blue",
+      green: "Green",
+      red: "Red",
+      violet: "Violet",
+      orange: "Orange"
+    },
+    font: {
+      office: "Office (Calibri Light / Calibri)",
+      calibri: "Calibri",
+      centuryGothic: "Century Gothic",
+      garamond: "Garamond",
+      bookman: "Bookman Old Style",
+      arial: "Arial",
+      timesNewRoman: "Times New Roman",
+      georgia: "Georgia",
+      trebuchet: "Trebuchet MS",
+      corbel: "Corbel",
+      candara: "Candara"
+    }
   },
   sheetFormulaEntry: {
     status: { enter: "Enter", edit: "Edit", point: "Point" },
@@ -678,6 +720,9 @@ export const enStrings = {
     "slides.drawing.arrange": { label: "Arrange", tooltip: "Change the placement and order of shapes and objects" },
     "slides.text.vAlign": { label: "Align Text", tooltip: "Change how text is aligned within the text box vertically" },
     "slides.text.direction": { label: "Text Direction", tooltip: "Change orientation of text to vertical, stacked, or rotated" },
+    "sheet.page.themes": { label: "Themes", tooltip: "Change the overall design of the entire workbook including colors and fonts" },
+    "sheet.page.themeColors": { label: "Colors", tooltip: "Change the color palette used for cell styles and charts in the workbook" },
+    "sheet.page.themeFonts": { label: "Fonts", tooltip: "Change the heading and body font scheme for the entire workbook" },
     "sheet.page.margins": { label: "Margins", tooltip: "Set page margins for printed worksheets" },
     "sheet.page.orientation": { label: "Orientation", tooltip: "Switch between portrait and landscape layouts" },
     "sheet.page.size": { label: "Size", tooltip: "Choose paper size for printing" }

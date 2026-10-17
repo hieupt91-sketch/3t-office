@@ -383,6 +383,80 @@ export const SHEET_RIBBON_TABS = [
     labelKey: "sheetRibbon.tab.pageLayout",
     groups: [
       {
+        id: "themes",
+        label: "Chủ đề",
+        labelKey: "sheetRibbon.group.themes",
+        items: [
+          {
+            type: "dropdown",
+            id: "sheet.page.themes",
+            label: "Chủ đề",
+            labelKey: "sheetRibbon.page.themes",
+            icon: "themeGallery",
+            isLarge: true,
+            items: [
+              { commandId: "sheet.page.themes", label: "Office", labelKey: "sheetThemes.theme.office", args: "office" },
+              { commandId: "sheet.page.themes", label: "Góc cạnh (Facet)", labelKey: "sheetThemes.theme.facet", args: "facet" },
+              { commandId: "sheet.page.themes", label: "Tích phân (Integral)", labelKey: "sheetThemes.theme.integral", args: "integral" },
+              { commandId: "sheet.page.themes", label: "Ion", labelKey: "sheetThemes.theme.ion", args: "ion" },
+              { commandId: "sheet.page.themes", label: "Hữu cơ (Organic)", labelKey: "sheetThemes.theme.organic", args: "organic" },
+              { commandId: "sheet.page.themes", label: "Hồi tưởng (Retrospect)", labelKey: "sheetThemes.theme.retrospect", args: "retrospect" },
+              { commandId: "sheet.page.themes", label: "Lát cắt (Slice)", labelKey: "sheetThemes.theme.slice", args: "slice" },
+              { commandId: "sheet.page.themes", label: "Thoang thoảng (Wisp)", labelKey: "sheetThemes.theme.wisp", args: "wisp" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              {
+                type: "dropdown",
+                id: "sheet.page.themeColors",
+                label: "Màu",
+                labelKey: "sheetRibbon.page.themeColors",
+                icon: "pageColor",
+                items: [
+                  { commandId: "sheet.page.themeColors", label: "Office", labelKey: "sheetThemes.palette.office", args: "office" },
+                  { commandId: "sheet.page.themeColors", label: "Office 2007 - 2010", labelKey: "sheetThemes.palette.office2007", args: "office2007" },
+                  { commandId: "sheet.page.themeColors", label: "Thang xám (Grayscale)", labelKey: "sheetThemes.palette.grayscale", args: "grayscale" },
+                  { commandId: "sheet.page.themeColors", label: "Góc cạnh (Facet)", labelKey: "sheetThemes.palette.facet", args: "facet" },
+                  { commandId: "sheet.page.themeColors", label: "Tích phân (Integral)", labelKey: "sheetThemes.palette.integral", args: "integral" },
+                  { commandId: "sheet.page.themeColors", label: "Ion", labelKey: "sheetThemes.palette.ion", args: "ion" },
+                  { commandId: "sheet.page.themeColors", label: "Hữu cơ (Organic)", labelKey: "sheetThemes.palette.organic", args: "organic" },
+                  { commandId: "sheet.page.themeColors", label: "Hồi tưởng (Retrospect)", labelKey: "sheetThemes.palette.retrospect", args: "retrospect" },
+                  { commandId: "sheet.page.themeColors", label: "Lát cắt (Slice)", labelKey: "sheetThemes.palette.slice", args: "slice" },
+                  { commandId: "sheet.page.themeColors", label: "Thoang thoảng (Wisp)", labelKey: "sheetThemes.palette.wisp", args: "wisp" },
+                  { commandId: "sheet.page.themeColors", label: "Xanh dương (Blue)", labelKey: "sheetThemes.palette.blue", args: "blue" },
+                  { commandId: "sheet.page.themeColors", label: "Xanh lá (Green)", labelKey: "sheetThemes.palette.green", args: "green" },
+                  { commandId: "sheet.page.themeColors", label: "Đỏ (Red)", labelKey: "sheetThemes.palette.red", args: "red" },
+                  { commandId: "sheet.page.themeColors", label: "Tím (Violet)", labelKey: "sheetThemes.palette.violet", args: "violet" },
+                  { commandId: "sheet.page.themeColors", label: "Cam (Orange)", labelKey: "sheetThemes.palette.orange", args: "orange" }
+                ]
+              },
+              {
+                type: "dropdown",
+                id: "sheet.page.themeFonts",
+                label: "Phông chữ",
+                labelKey: "sheetRibbon.page.themeFonts",
+                icon: "fontGrow",
+                items: [
+                  { commandId: "sheet.page.themeFonts", label: "Office (Calibri Light / Calibri)", labelKey: "sheetThemes.font.office", args: "office" },
+                  { commandId: "sheet.page.themeFonts", label: "Calibri", labelKey: "sheetThemes.font.calibri", args: "calibri" },
+                  { commandId: "sheet.page.themeFonts", label: "Century Gothic", labelKey: "sheetThemes.font.centuryGothic", args: "centuryGothic" },
+                  { commandId: "sheet.page.themeFonts", label: "Garamond", labelKey: "sheetThemes.font.garamond", args: "garamond" },
+                  { commandId: "sheet.page.themeFonts", label: "Bookman Old Style", labelKey: "sheetThemes.font.bookman", args: "bookman" },
+                  { commandId: "sheet.page.themeFonts", label: "Arial", labelKey: "sheetThemes.font.arial", args: "arial" },
+                  { commandId: "sheet.page.themeFonts", label: "Times New Roman", labelKey: "sheetThemes.font.timesNewRoman", args: "timesNewRoman" },
+                  { commandId: "sheet.page.themeFonts", label: "Georgia", labelKey: "sheetThemes.font.georgia", args: "georgia" },
+                  { commandId: "sheet.page.themeFonts", label: "Trebuchet MS", labelKey: "sheetThemes.font.trebuchet", args: "trebuchet" },
+                  { commandId: "sheet.page.themeFonts", label: "Corbel", labelKey: "sheetThemes.font.corbel", args: "corbel" },
+                  { commandId: "sheet.page.themeFonts", label: "Candara", labelKey: "sheetThemes.font.candara", args: "candara" }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
         id: "pageSetup",
         label: "Thiết lập trang",
         labelKey: "sheetRibbon.group.pageSetup",

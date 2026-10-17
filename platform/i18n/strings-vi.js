@@ -370,14 +370,56 @@ export const viStrings = {
   sheetRibbon: {
     whatIfAnalysis: "Phân tích What-If",
     tab: { home: "Trang đầu", formulas: "Công thức", data: "Dữ liệu", insert: "Chèn", pageLayout: "Bố trí trang", review: "Xem xét", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI", tableDesign: "Thiết kế Bảng" },
-    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", connections: "Kết nối", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", tables: "Bảng", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", pageSetup: "Thiết lập trang", scaleToFit: "Vừa trang", sheetOptions: "Tùy chọn trang tính", proofing: "Kiểm lỗi", comments: "Ghi chú", protection: "Bảo vệ", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiAnalysis: "Phân tích dữ liệu AI", properties: "Thuộc tính bảng", tableStyleOptions: "Tùy chọn kiểu bảng", tableStyles: "Kiểu Bảng", filters: "Bộ lọc", tools: "Công cụ", arrange: "Sắp xếp" },
+    group: { themes: "Chủ đề", clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", connections: "Kết nối", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", tables: "Bảng", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", pageSetup: "Thiết lập trang", scaleToFit: "Vừa trang", sheetOptions: "Tùy chọn trang tính", proofing: "Kiểm lỗi", comments: "Ghi chú", protection: "Bảo vệ", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiAnalysis: "Phân tích dữ liệu AI", properties: "Thuộc tính bảng", tableStyleOptions: "Tùy chọn kiểu bảng", tableStyles: "Kiểu Bảng", filters: "Bộ lọc", tools: "Công cụ", arrange: "Sắp xếp" },
     refreshAllSuccess: "Đã làm mới tất cả các liên kết và dữ liệu ngoài.",
     editing: { fill: "Điền", clear: "Xóa" },
     cells: { format: "Định dạng" },
     alignment: { orientation: "Hướng chữ" },
-    page: { margins: "Căn lề", orientation: "Hướng giấy", size: "Khổ giấy", fitWidth: "Chiều rộng", fitHeight: "Chiều cao", marginNormal: "Thường (Normal)", marginWide: "Rộng (Wide)", marginNarrow: "Hẹp (Narrow)", marginCustom: "Căn lề tùy chỉnh…", portrait: "Dọc (Portrait)", landscape: "Ngang (Landscape)", moreSizes: "Thêm khổ giấy…", fitAuto: "Tự động", fitPages1: "1 trang", fitPages2: "2 trang", fitPages3: "3 trang", fitPages4: "4 trang", fitPages5: "5 trang", fitMore: "Thêm trang…" },
+    page: { themes: "Chủ đề", themeColors: "Màu", themeFonts: "Phông chữ", margins: "Căn lề", orientation: "Hướng giấy", size: "Khổ giấy", fitWidth: "Chiều rộng", fitHeight: "Chiều cao", marginNormal: "Thường (Normal)", marginWide: "Rộng (Wide)", marginNarrow: "Hẹp (Narrow)", marginCustom: "Căn lề tùy chỉnh…", portrait: "Dọc (Portrait)", landscape: "Ngang (Landscape)", moreSizes: "Thêm khổ giấy…", fitAuto: "Tự động", fitPages1: "1 trang", fitPages2: "2 trang", fitPages3: "3 trang", fitPages4: "4 trang", fitPages5: "5 trang", fitMore: "Thêm trang…" },
     arrange: { bringForward: "Đưa lên trên", sendBackward: "Đưa xuống dưới", align: "Căn chỉnh", group: "Nhóm", rotate: "Xoay" },
     window: { freezePanes: "Cố định ô", split: "Chia" }
+  },
+  sheetThemes: {
+    theme: {
+      office: "Office",
+      facet: "Góc cạnh (Facet)",
+      integral: "Tích phân (Integral)",
+      ion: "Ion",
+      organic: "Hữu cơ (Organic)",
+      retrospect: "Hồi tưởng (Retrospect)",
+      slice: "Lát cắt (Slice)",
+      wisp: "Thoang thoảng (Wisp)"
+    },
+    palette: {
+      office: "Office",
+      office2007: "Office 2007 - 2010",
+      grayscale: "Thang xám (Grayscale)",
+      facet: "Góc cạnh (Facet)",
+      integral: "Tích phân (Integral)",
+      ion: "Ion",
+      organic: "Hữu cơ (Organic)",
+      retrospect: "Hồi tưởng (Retrospect)",
+      slice: "Lát cắt (Slice)",
+      wisp: "Thoang thoảng (Wisp)",
+      blue: "Xanh dương (Blue)",
+      green: "Xanh lá (Green)",
+      red: "Đỏ (Red)",
+      violet: "Tím (Violet)",
+      orange: "Cam (Orange)"
+    },
+    font: {
+      office: "Office (Calibri Light / Calibri)",
+      calibri: "Calibri",
+      centuryGothic: "Century Gothic",
+      garamond: "Garamond",
+      bookman: "Bookman Old Style",
+      arial: "Arial",
+      timesNewRoman: "Times New Roman",
+      georgia: "Georgia",
+      trebuchet: "Trebuchet MS",
+      corbel: "Corbel",
+      candara: "Candara"
+    }
   },
   sheetFormulaEntry: {
     status: { enter: "Nhập", edit: "Sửa", point: "Trỏ" },
@@ -677,6 +719,9 @@ export const viStrings = {
     "slides.drawing.arrange": { label: "Sắp xếp", tooltip: "Sắp xếp thứ tự hiển thị và căn lề các đối tượng vẽ" },
     "slides.text.vAlign": { label: "Căn lề dọc", tooltip: "Căn văn bản lên trên, ở giữa hoặc xuống dưới khung chữ" },
     "slides.text.direction": { label: "Hướng chữ", tooltip: "Đổi hướng văn bản trong khung chữ" },
+    "sheet.page.themes": { label: "Chủ đề", tooltip: "Thay đổi giao diện tổng thể của toàn bộ sổ làm việc bao gồm màu sắc và phông chữ" },
+    "sheet.page.themeColors": { label: "Màu", tooltip: "Thay đổi bảng màu sắc dùng cho các kiểu ô và biểu đồ trong sổ làm việc" },
+    "sheet.page.themeFonts": { label: "Phông chữ", tooltip: "Thay đổi bộ phông chữ tiêu đề và nội dung cho toàn bộ sổ làm việc" },
     "sheet.page.margins": { label: "Căn lề", tooltip: "Thiết lập khoảng cách lề trang tính" },
     "sheet.page.orientation": { label: "Hướng giấy", tooltip: "Chọn hướng trang tính dọc hoặc ngang" },
     "sheet.page.size": { label: "Khổ giấy", tooltip: "Chọn kích thước trang in (A4, Letter, Legal)" }

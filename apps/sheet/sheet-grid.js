@@ -23,6 +23,7 @@ import { a1ToR1C1, r1c1ToA1, isR1C1Formula, formatAddressAsR1C1, parseR1C1Addres
 import { CalcOptionsDialog } from "./calc-options-dialog.js";
 import { EditLinksDialog } from "./edit-links-dialog.js";
 import { CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS, findTableStylePreset } from "./cell-style-presets.js";
+import { SHEET_THEMES, SHEET_COLOR_PALETTES, SHEET_FONT_SCHEMES, DEFAULT_SHEET_THEME, resolveTheme, getThemeColorPickerMatrix } from "./sheet-themes.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
 import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
@@ -289,6 +290,7 @@ export class SheetGridController {
     this.pageBreaksBySheet = Object.fromEntries(this.sheets.map(name => [name, { rows: [], cols: [] }]));
     this.pageSetupBySheet = Object.fromEntries(this.sheets.map(name => [name, newSheetPageSetup()]));
     this.mergedRangesBySheet = Object.fromEntries(this.sheets.map(name => [name, []]));
+    this.workbookTheme = resolveTheme(options.workbookTheme || "office");
     this.formulaEngine = new FormulaEngine(
       () => this.cellsData,
       name => this.resolveNamedRange(name),
@@ -19597,6 +19599,47 @@ export class SheetGridController {
     });
     overlay.querySelector("#vno-comment-text")?.focus();
     return true;
+  }
+
+  getWorkbookTheme() {
+    return { ...this.workbookTheme };
+  }
+
+  setWorkbookTheme(themeOrId) {
+    this.workbookTheme = resolveTheme(themeOrId);
+    this._renderHeadersAndContent?.();
+    return true;
+  }
+
+  setWorkbookThemeColorScheme(colorSchemeId) {
+    const current = this.workbookTheme || { ...DEFAULT_SHEET_THEME };
+    this.workbookTheme = resolveTheme({
+      ...current,
+      colorSchemeId,
+      themeId: "custom"
+    });
+    this._renderHeadersAndContent?.();
+    return true;
+  }
+
+  setWorkbookThemeFontScheme(fontSchemeId) {
+    const current = this.workbookTheme || { ...DEFAULT_SHEET_THEME };
+    this.workbookTheme = resolveTheme({
+      ...current,
+      fontSchemeId,
+      themeId: "custom"
+    });
+    this._renderHeadersAndContent?.();
+    return true;
+  }
+
+  getThemeColors() {
+    const pal = SHEET_COLOR_PALETTES[this.workbookTheme?.colorSchemeId] || SHEET_COLOR_PALETTES.office;
+    return pal.colors;
+  }
+
+  getThemeColorPickerMatrix() {
+    return getThemeColorPickerMatrix(this.getThemeColors());
   }
 
   getPageSetup(sheetName = this.activeSheet) {

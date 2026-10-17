@@ -62,6 +62,10 @@ export class FormatCellsDialog {
       customFormats: [...new Set([...(grid?.customNumberFormats || []), "General", "0", "0.00", "#,##0", "#,##0.00", "0%", "0.00%", "dd/mm/yyyy", "hh:mm:ss", "@", currentConfig?.customPattern].filter(Boolean))]
     };
     const mark = tab => state.dirty.add(tab);
+    const activeColors = (grid && typeof grid.getThemeColors === "function")
+      ? Object.values(grid.getThemeColors()).map(c => c.startsWith("#") ? c.toUpperCase() : "#" + c.toUpperCase())
+      : COLORS;
+    const color = (id, label, value) => field(label, `<span class="vno-fc-color-wrap"><input id="${id}" type="color" value="${value}"><span>${activeColors.map(c => `<button type="button" class="vno-fc-color-swatch" data-for="${id}" data-color="${c}" aria-label="${c}" title="${c}" style="background:${c}"></button>`).join("")}</span></span>`);
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay vno-format-cells-overlay";
     overlay.innerHTML = `<div class="vno-dialog-box vno-format-cells-box" role="dialog" aria-modal="true" aria-labelledby="vno-fc-dialog-title" style="width:760px;max-width:96vw;display:flex;flex-direction:column;overflow:hidden"><div class="vno-dialog-header"><span style="display:flex;gap:8px"><span aria-hidden="true">${ICONS.formatCells || ""}</span><strong id="vno-fc-dialog-title">${t("sheetFormatCells.dialogTitle")}</strong></span><button type="button" class="vno-btn vno-btn-icon-only vno-fc-close-btn" aria-label="${t("common.close", "Đóng")}">&times;</button></div><div class="vno-fc-tabs" role="tablist">${TABS.map(id => `<button type="button" role="tab" id="vno-fc-tab-${id}" class="vno-fc-tab" data-tab="${id}">${t(`sheetFormatCells.tab${id[0].toUpperCase()}${id.slice(1)}`)}</button>`).join("")}</div><div id="vno-fc-body-container" class="vno-dialog-body" style="min-height:410px;max-height:65vh;overflow:auto;padding:16px"></div><div class="vno-dialog-footer"><button type="button" class="vno-btn vno-fc-cancel-btn">${t("common.cancel")}</button><button type="button" class="vno-btn vno-btn-primary vno-fc-ok-btn">${t("common.ok")}</button></div></div>`;

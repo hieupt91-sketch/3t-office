@@ -1879,6 +1879,22 @@ export const SHEET_HELP_ENTRIES = [
       "Phép tính theo từng phần tử: =SUM({1,2,3}*2) cho 12; =SUMPRODUCT(({1,2,3}>1)*1) cho 2 (đếm các phần tử lớn hơn 1).",
       "Lưu ý: các hàm đòi hỏi vùng ô thật (COUNTIF, SUMIF, SUMIFS, AVERAGEIF, MAXIFS, MINIFS, RANK) sẽ báo #VALUE! khi truyền hằng mảng vào đối số vùng, giống hành vi chuẩn của bảng tính; hãy ghi các giá trị ra ô rồi tham chiếu vùng ô đó."
     ]
+  },
+  {
+    id: "sheet.page.themesHelp",
+    app: "sheet",
+    commandIds: ["sheet.page.themes", "sheet.page.themeColors", "sheet.page.themeFonts"],
+    title: "Chủ đề (Themes), Bảng màu (Colors) và Bộ phông chữ (Fonts)",
+    summary: "Thay đổi giao diện tổng thể của toàn bộ sổ làm việc bằng các chủ đề, bảng màu và bộ phông chữ dựng sẵn theo chuẩn OpenXML quốc tế.",
+    ribbon: { tab: "Bố trí trang", tabId: "pageLayout", group: "Chủ đề" },
+    keywords: ["chủ đề", "themes", "bảng màu", "colors", "phông chữ", "fonts", "theme1.xml", "office", "facet", "integral", "ion", "organic", "retrospect", "slice", "wisp"],
+    steps: [
+      "Chuyển sang tab Bố trí trang (Page Layout) trên thanh ruy-băng để tìm nhóm Chủ đề (Themes) nằm ở vị trí đầu tiên.",
+      "Bấm nút Chủ đề (Themes) để mở danh sách các chủ đề hoàn chỉnh: Office (mặc định), Góc cạnh (Facet), Tích phân (Integral), Ion, Hữu cơ (Organic), Hồi tưởng (Retrospect), Lát cắt (Slice), Thoang thoảng (Wisp). Chọn một chủ đề sẽ áp dụng đồng thời cả bảng màu và bộ phông tương ứng vào toàn bộ sổ làm việc.",
+      "Bấm nút Màu (Colors) để tùy biến riêng bảng màu với hơn 15 bảng màu phối sẵn (Office, Office 2007-2010, Thang xám, Facet, Integral, Ion, Organic, Retrospect, Slice, Wisp, Xanh dương, Xanh lá, Đỏ, Tím, Cam). Khi đổi bảng màu, các ô chọn màu trong Định dạng ô (Format Cells) và biểu đồ sẽ tự động chuyển sang các dải màu theo chủ đề đã chọn.",
+      "Bấm nút Phông chữ (Fonts) để tùy biến bộ phông tiêu đề và nội dung (Office Calibri Light/Calibri, Calibri, Century Gothic, Garamond, Bookman Old Style, Arial, Times New Roman, Georgia, Trebuchet MS, Corbel, Candara).",
+      "Khi lưu tệp sang định dạng XLSX, các thiết lập chủ đề được đóng gói nguyên bản vào tệp OpenXML xl/theme/theme1.xml chuẩn, đảm bảo khi trao đổi tệp sang các ứng dụng bảng tính khác, hệ thống sẽ nhận diện chính xác ThemeColorScheme và ThemeFontScheme."
+    ]
   }
 ];
 

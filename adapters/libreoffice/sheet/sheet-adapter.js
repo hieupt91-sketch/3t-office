@@ -525,6 +525,9 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.page.scale", () => this.grid.showPageSetupDialog?.("scale") || false);
     globalCommandBus.bindHandler("sheet.page.headerFooter", () => this.grid.showHeaderFooterDialog?.() || false);
     globalCommandBus.bindHandler("sheet.page.printTitles", () => this.grid.showPageSetupDialog?.("printTitles") || false);
+    globalCommandBus.bindHandler("sheet.page.themes", (themeId) => this.grid.setWorkbookTheme ? this.grid.setWorkbookTheme(themeId) !== false : false);
+    globalCommandBus.bindHandler("sheet.page.themeColors", (paletteId) => this.grid.setWorkbookThemeColorScheme ? this.grid.setWorkbookThemeColorScheme(paletteId) !== false : false);
+    globalCommandBus.bindHandler("sheet.page.themeFonts", (fontId) => this.grid.setWorkbookThemeFontScheme ? this.grid.setWorkbookThemeFontScheme(fontId) !== false : false);
     globalCommandBus.bindHandler("sheet.insert.cells", () => {
       return this.grid?.handleInsertShortcut ? this.grid.handleInsertShortcut() : false;
     });
@@ -4345,6 +4348,9 @@ export class SheetAdapter {
       this.grid.date1904 ? ` vno:date1904="1"` : "",
       this.grid.referenceStyle === "R1C1" ? ` vno:reference-style="R1C1"` : ""
     ].join("") : "";
+    const themeAttr = this.grid?.getWorkbookTheme
+      ? ` vno:workbook-theme="${this._escapeXml(JSON.stringify(this.grid.getWorkbookTheme()))}"`
+      : "";
     const docPropsMarker = documentPropertiesMarker({
       ...(this.documentProperties || {}),
       contentStatus: this.isFinal ? "Final" : (this.documentProperties?.contentStatus === "Final" ? "" : (this.documentProperties?.contentStatus || ""))
@@ -4382,7 +4388,7 @@ ${pristineXlsxMarker}${docPropsMarker}
       </config:config-item-map-entry></config:config-item-map-indexed>
     </config:config-item-set>
   </office:settings>
-  <office:body><office:spreadsheet${structureAttr}${calcAttrs}>${validationDefinitions.length ? `<table:content-validations>${validationDefinitions.join("")}</table:content-validations>` : ""}${tablesXml}${this.grid.namedRangesWorkbook?.length ? `<table:named-expressions>${this.grid.namedRangesWorkbook.map(range => this._namedRangeXml(range, range.sheet || activeSheet)).join("")}</table:named-expressions>` : ""}${dataPilotXml}${this._serializeDatabaseRanges(sheetNames)}</office:spreadsheet></office:body>
+  <office:body><office:spreadsheet${structureAttr}${calcAttrs}${themeAttr}>${validationDefinitions.length ? `<table:content-validations>${validationDefinitions.join("")}</table:content-validations>` : ""}${tablesXml}${this.grid.namedRangesWorkbook?.length ? `<table:named-expressions>${this.grid.namedRangesWorkbook.map(range => this._namedRangeXml(range, range.sheet || activeSheet)).join("")}</table:named-expressions>` : ""}${dataPilotXml}${this._serializeDatabaseRanges(sheetNames)}</office:spreadsheet></office:body>
 </office:document>`;
   }
 
@@ -5133,6 +5139,12 @@ ${pristineXlsxMarker}${docPropsMarker}
     if (d1904Attr !== undefined) workbook.date1904 = d1904Attr === "1";
     const refStyleAttr = ssAttrs.match(/\bvno:reference-style=["'](A1|R1C1)["']/i)?.[1];
     if (refStyleAttr) workbook.referenceStyle = refStyleAttr.toUpperCase();
+    const themeAttr = ssAttrs.match(/\bvno:workbook-theme=["']([^"']*)["']/i)?.[1];
+    if (themeAttr) {
+      try {
+        workbook.workbookTheme = JSON.parse(this._unescapeXml(themeAttr));
+      } catch (_) {}
+    }
     const perfEnabled = typeof window !== "undefined" && window.__vnoPerfDebug === true;
     const perfNow = () => perfEnabled ? performance.now() : 0;
     const perfReport = (name, started) => { if (perfEnabled) window.__vnoPerfReport?.(`parseFods:${name}`, performance.now() - started); };
@@ -5981,6 +5993,9 @@ ${pristineXlsxMarker}${docPropsMarker}
     }
     if (workbook.referenceStyle !== undefined) {
       this.grid.setReferenceStyle?.(workbook.referenceStyle);
+    }
+    if (workbook.workbookTheme) {
+      this.grid.setWorkbookTheme?.(workbook.workbookTheme);
     }
     this.grid.sheets = [firstSheet];
     this.grid.sheetsData = { [firstSheet]: workbook.sheetsData[firstSheet] };
@@ -7359,6 +7374,15 @@ ${pristineXlsxMarker}${docPropsMarker}
 
       case "sheet.review.commentShowAll":
         return this.grid.toggleShowAllComments ? this.grid.toggleShowAllComments(args?.enabled) : false;
+
+      case "sheet.page.themes":
+        return this.grid.setWorkbookTheme ? this.grid.setWorkbookTheme(args) !== false : false;
+
+      case "sheet.page.themeColors":
+        return this.grid.setWorkbookThemeColorScheme ? this.grid.setWorkbookThemeColorScheme(args) !== false : false;
+
+      case "sheet.page.themeFonts":
+        return this.grid.setWorkbookThemeFontScheme ? this.grid.setWorkbookThemeFontScheme(args) !== false : false;
 
       case "sheet.page.setPrintArea":
         return this.grid.setPrintArea ? this.grid.setPrintArea(args || {}) : false;

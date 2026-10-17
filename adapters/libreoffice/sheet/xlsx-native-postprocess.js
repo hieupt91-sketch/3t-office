@@ -24,6 +24,11 @@ import {
   resolveSheetRidMap,
   columnLabelFromIndex
 } from "./xlsx-freeze-panes.js";
+import {
+  generateThemeXml,
+  parseThemeXml,
+  resolveTheme
+} from "../../../apps/sheet/sheet-themes.js";
 
 export const XLSX_WORKBOOK_ENTRY = "xl/workbook.xml";
 export const XLSX_WORKBOOK_RELS_ENTRY = "xl/_rels/workbook.xml.rels";
@@ -693,6 +698,14 @@ export function postProcessSheetXlsx(xlsxPathOrBuffer, options = {}) {
     }
   }
 
+  // Workbook Theme: read vno:workbook-theme from FODS and write xl/theme/theme1.xml
+  const theme = options.workbookTheme || parseWorkbookThemeFromFods(options.sourceFods);
+  if (theme) {
+    const themeXml = generateThemeXml(theme);
+    replacements["xl/theme/theme1.xml"] = themeXml;
+    ensureThemeRelationship(source, replacements);
+  }
+
   applySheetCommentsVmlToXlsx(source, options.sourceFods, replacements);
 
   if (Object.keys(replacements).length === 0) return source;
@@ -738,7 +751,60 @@ export function overlaySheetXlsxFods(xlsxPathOrBuffer, fodsXml) {
   // Scenarios: read <scenarios> from worksheet XMLs and inject vno:scenarios into FODS.
   xml = overlayScenariosFromXlsx(source, xml);
   xml = overlaySheetCommentsFromXlsx(source, xml);
+
+  // Workbook Theme: read xl/theme/theme1.xml from XLSX and inject vno:workbook-theme into FODS
+  const themeEntry = readZipEntry(source, "xl/theme/theme1.xml");
+  if (themeEntry) {
+    const parsedTheme = parseThemeXml(themeEntry.toString("utf8"));
+    if (parsedTheme) {
+      xml = applyWorkbookThemeToFods(xml, parsedTheme);
+    }
+  }
   return xml;
+}
+
+export function parseWorkbookThemeFromFods(fodsXml) {
+  if (!fodsXml) return null;
+  const match = String(fodsXml).match(/\bvno:workbook-theme=["']([^"']*)["']/i);
+  if (!match) return null;
+  try {
+    return JSON.parse(unescapeXml(match[1]));
+  } catch (_) {
+    return null;
+  }
+}
+
+export function applyWorkbookThemeToFods(fodsXml, theme) {
+  if (!theme || typeof theme !== "object") return fodsXml || "";
+  let xml = String(fodsXml || "");
+  const pattern = /<office:spreadsheet\b([^>]*)>/i;
+  const match = xml.match(pattern);
+  if (!match) return xml;
+
+  let attrs = match[1].replace(/\s+vno:workbook-theme=(["'][^"']*["'])/gi, "");
+  attrs += ` vno:workbook-theme="${escapeXmlAttr(JSON.stringify(theme))}"`;
+  xml = xml.replace(pattern, `<office:spreadsheet${attrs}>`);
+
+  if (!/xmlns:vno\s*=/.test(xml)) {
+    xml = xml.replace(/<office:document\b([^>]*)>/i, `<office:document$1 xmlns:vno="${SHEET_VNO_NS}">`);
+  }
+  return xml;
+}
+
+function ensureThemeRelationship(source, replacements) {
+  const relsPath = XLSX_WORKBOOK_RELS_ENTRY;
+  const currentRels = (replacements[relsPath] || readZipEntry(source, relsPath)?.toString("utf8")) || "";
+  if (currentRels && !currentRels.includes("relationships/theme")) {
+    const relTag = '<Relationship Id="rIdTheme" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>';
+    replacements[relsPath] = currentRels.replace(/<\/Relationships>/i, `  ${relTag}\n</Relationships>`);
+  }
+
+  const contentTypesPath = "[Content_Types].xml";
+  const currentCT = (replacements[contentTypesPath] || readZipEntry(source, contentTypesPath)?.toString("utf8")) || "";
+  if (currentCT && !currentCT.includes("/xl/theme/theme1.xml")) {
+    const ctTag = '<Override PartName="/xl/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>';
+    replacements[contentTypesPath] = currentCT.replace(/<\/Types>/i, `  ${ctTag}\n</Types>`);
+  }
 }
 
 /** Read <autoFilter ref> from each worksheet and inject database-ranges into FODS. */
