@@ -11,10 +11,10 @@ for (const file of files) {
   const cdp = session.cdp; const ev = e => cdp.evaluate(e, { awaitPromise: true, timeoutMilliseconds: 180000 });
   try {
     let loaded = false;
-    for (let i = 0; i < 120 && !loaded; i++) { loaded = await ev(`Boolean(window.__vnoAppInstance && window.__vnoAppInstance.canvas && window.__vnoAppInstance.canvas.slides && window.__vnoAppInstance.canvas.slides.length && window.__vnoAppInstance.canvas.imported)`); if (!loaded) await sleep(500); }
+    for (let i = 0; i < 600 && !loaded; i++) { loaded = await ev(`Boolean(window.__vnoAppInstance && window.__vnoAppInstance.canvas && window.__vnoAppInstance.canvas.slides && window.__vnoAppInstance.canvas.slides.length && window.__vnoAppInstance.canvas.imported)`); if (!loaded) await sleep(500); }
     const target = path.join(outDir, "saved-" + path.basename(file));
-    const content = await ev(`(async () => { const a = window.__vnoAppInstance.adapter || window.__vnoAppInstance; return a.serializeToFodp(); })()`);
-    const res = await ev(`window.pywebview.api.save_document_in_place(${JSON.stringify(content)}, 'slides', ${JSON.stringify(target)}, ${JSON.stringify(file)})`);
+    // Tuần tự hóa và lưu NGAY TRONG trang: bộ tệp lớn (hàng chục MB FODP) không đi qua kênh CDP.
+    const res = await ev(`(async () => { const a = window.__vnoAppInstance.adapter || window.__vnoAppInstance; const content = a.serializeToFodp(); return await window.pywebview.api.save_document_in_place(content, 'slides', ${JSON.stringify(target)}, ${JSON.stringify(file)}); })()`);
     console.log(`${loaded ? "OPEN" : "NOT-LOADED"} | ${path.basename(file)} | save=${res && res.status}`);
     if (res && res.status === "ok") ok++;
   } catch (error) { console.log(`ERROR | ${path.basename(file)} | ${error.message}`); }

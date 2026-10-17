@@ -2302,5 +2302,35 @@ export const WRITER_HELP_ENTRIES = [
     "Chọn Định dạng số mong muốn từ danh sách (ví dụ: '#,##0' để có dấu phẩy phân cách hàng nghìn, hoặc '#,##0.00' để hiển thị 2 chữ số thập phân). Bạn cũng có thể chọn dán các hàm khác như AVERAGE, COUNT, MAX, MIN, PRODUCT từ menu Dán hàm.",
     "Bấm nút 'Đồng ý' (hoặc nhấn phím Enter). Kết quả tính toán sẽ được chèn vào ô dưới dạng trường dữ liệu (Field). Khi xuất tệp DOCX, công thức được lưu dưới dạng thẻ w:fldSimple chuẩn tệp văn bản DOCX."
   ]
+},
+{
+  id: "writer.table.viewGridlines.help",
+  app: "writer",
+  commandIds: ["writer.table.viewGridlines"],
+  title: "Xem đường lưới bảng (View Gridlines)",
+  summary: "Tính năng Xem đường lưới bảng cho phép hiển thị các đường viền nét chấm mờ xung quanh các ô bảng không có đường viền thật, giúp người dùng dễ dàng căn chỉnh và soạn thảo nội dung trong bảng mà không ảnh hưởng đến hình thức khi in hoặc xuất tệp.",
+  ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Bảng" },
+  keywords: ["xem đường lưới", "đường lưới bảng", "table gridlines", "view gridlines", "lưới mờ", "bảng không viền"],
+  steps: [
+    "Đặt con trỏ vào bên trong một bảng biểu bất kỳ trong tài liệu. Thanh công cụ sẽ hiển thị thêm tab ngữ cảnh Bố cục Bảng.",
+    "Mở tab Bố cục Bảng, tìm đến nhóm Bảng ở phía bên trái của thanh công cụ ribbon.",
+    "Bấm vào nút 'Xem đường lưới' để bật hoặc tắt hiển thị đường lưới nét đứt mờ xung quanh các ô bảng không viền.",
+    "Khi bật, bạn sẽ thấy các đường viền chấm màu xám nhạt chỉ dẫn ranh giới giữa các ô, giúp thao tác chọn ô và nhập liệu chuẩn xác mà không bị in ra trang giấy."
+  ]
+},
+{
+  id: "writer.table.sort.help",
+  app: "writer",
+  commandIds: ["writer.table.sort"],
+  title: "Sắp xếp dữ liệu trong bảng (Sort Table)",
+  summary: "Tính năng Sắp xếp bảng cho phép sắp xếp lại toàn bộ các hàng dữ liệu trong bảng theo thứ tự bảng chữ cái A–Z hoặc từ bé đến lớn dựa trên cột được chọn, đồng thời tự động giữ nguyên hàng tiêu đề ở đầu bảng.",
+  ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Dữ liệu" },
+  keywords: ["sắp xếp bảng", "sort table", "sắp xếp dữ liệu", "a-z", "thứ tự", "bảng biểu", "dữ liệu"],
+  steps: [
+    "Đặt con trỏ soạn thảo vào ô thuộc cột mà bạn muốn sử dụng làm tiêu chí sắp xếp trong bảng.",
+    "Mở tab ngữ cảnh Bố cục Bảng trên thanh công cụ Ribbon, tìm đến nhóm Dữ liệu.",
+    "Bấm vào nút 'Sắp xếp bảng'. Toàn bộ các hàng dữ liệu sẽ được sắp xếp lại theo thứ tự chữ cái A–Z dựa trên nội dung cột đang đặt con trỏ.",
+    "Hàng tiêu đề đầu tiên của bảng được giữ nguyên vị trí, chỉ các hàng dữ liệu bên dưới được hoán đổi thứ tự. Nhấn Ctrl+Z nếu muốn hoàn tác lại thứ tự ban đầu."
+  ]
 }
 ];

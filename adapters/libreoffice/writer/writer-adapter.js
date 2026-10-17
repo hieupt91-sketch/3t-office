@@ -1779,6 +1779,10 @@ export class WriterAdapter {
   }
 
   sortParagraphs() {
+    const table = this._getActiveTable();
+    if (table && table.rows.length >= 2) {
+      return this.sortTableRows(table);
+    }
     const blocks = this._getSelectedParagraphBlocks();
     if (blocks.length < 2) {
       this.shell?.showNotification?.({
@@ -1806,6 +1810,43 @@ export class WriterAdapter {
     marker.remove();
     this.isDirty = true;
     this.recordSnapshot("writer.para.sort");
+    return true;
+  }
+
+  sortTableRows(table = null) {
+    table = table || this._getActiveTable();
+    if (!table || table.rows.length < 2) return false;
+    this.flushTyping();
+
+    const activeCell = this._getActiveTableCell();
+    const sortColIdx = activeCell?.cellIndex ?? 0;
+
+    const hasHeader = (table.tHead?.rows?.length > 0) ||
+                      (table.rows[0].querySelector("th") !== null) ||
+                      table.rows[0].classList.contains("vno-table-header-row") ||
+                      table.rows[0].classList.contains("vno-table-header");
+    const startIndex = hasHeader ? 1 : 0;
+    if (table.rows.length <= startIndex + 1) return false;
+
+    const dataRows = [];
+    for (let i = startIndex; i < table.rows.length; i++) {
+      dataRows.push(table.rows[i]);
+    }
+
+    const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
+    dataRows.sort((a, b) => {
+      const textA = (a.cells[sortColIdx]?.textContent || "").trim();
+      const textB = (b.cells[sortColIdx]?.textContent || "").trim();
+      return collator.compare(textA, textB);
+    });
+
+    const tbody = table.tBodies?.[0] || table;
+    for (const row of dataRows) {
+      tbody.appendChild(row);
+    }
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.sort");
     return true;
   }
 
@@ -9640,6 +9681,8 @@ export class WriterAdapter {
       }
       return showTableFormulaDialog(table, cell, this);
     });
+    globalCommandBus.bindHandler("writer.table.viewGridlines", () => this.toggleTableGridlines());
+    globalCommandBus.bindHandler("writer.table.sort", () => this._hintIfFalse(() => this.sortTableRows(), "Hãy đặt con trỏ vào bảng cần sắp xếp."));
     globalCommandBus.bindHandler("writer.view.selectionPane", (args) => this.arrangeController?.toggleSelectionPane(args));
     globalCommandBus.bindHandler("writer.arrange.group", () => this.arrangeController?.groupSelectedObjects());
     globalCommandBus.bindHandler("writer.arrange.ungroup", () => this.arrangeController?.ungroupSelectedObjects());
@@ -9962,15 +10005,28 @@ export class WriterAdapter {
     this.flushTyping();
     const table = this._getActiveTable();
     if (!table || table.rows.length === 0) return false;
-    for (const r of table.rows) {
-      r.style.height = "";
+    const rows = Array.from(table.rows);
+    const totalHeight = rows.reduce((acc, r) => acc + (r.offsetHeight || r.getBoundingClientRect?.().height || 24), 0);
+    const avgHeight = Math.max(18, Math.round(totalHeight / rows.length));
+    for (const r of rows) {
+      r.style.height = `${avgHeight}px`;
       for (const c of r.cells) {
-        c.style.height = "";
+        c.style.height = `${avgHeight}px`;
       }
     }
     this.isDirty = true;
     this.recordSnapshot("writer.table.distributeRows");
     return true;
+  }
+
+  toggleTableGridlines() {
+    this.tableGridlines = !this.tableGridlines;
+    const body = this.bodyDom || this.editorDom;
+    if (body) {
+      body.classList.toggle("vno-table-gridlines", this.tableGridlines);
+    }
+    globalCommandBus?.updateState?.("writer.table.viewGridlines", { checked: this.tableGridlines });
+    return this.tableGridlines;
   }
 
   distributeTableCols() {

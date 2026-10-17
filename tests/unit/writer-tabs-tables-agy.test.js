@@ -503,6 +503,17 @@ export async function runWriterTabsTablesAgyTests() {
     assert.equal(table.style.borderSpacing, "2.8pt");
   });
 
+  await test("List Preservation: _applyOoxmlListIndents và _applyOoxmlListBullets bảo toàn list-style-type và margin cho mục danh sách", async () => {
+    const adapter = new WriterAdapter();
+    const docXml = '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body><w:p><w:pPr><w:pStyle w:val="ListParagraph"/><w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr><w:r><w:t>Item 1</w:t></w:r></w:p></w:body></w:document>';
+    const numXml = '<w:numbering xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:abstractNum w:abstractNumId="1"><w:lvl w:ilvl="0"><w:start w:val="1"/><w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/><w:pPr><w:ind w:left="720" w:hanging="360"/></w:pPr></w:lvl></w:abstractNum><w:num w:numId="1"><w:abstractNumId w:val="1"/></w:num></w:numbering>';
+    const html = '<ol><li><p>Item 1</p></li></ol>';
+    let res = adapter._applyOoxmlListBullets(html, docXml, "", numXml);
+    res = adapter._applyOoxmlListIndents(res, docXml, "", numXml);
+    assert.ok(res.includes('list-style-type: decimal'), "Phải gán list-style-type: decimal");
+    assert.ok(res.includes('margin-left: 1.27cm'), "Phải gán margin-left: 1.27cm");
+  });
+
   global.document = origDoc;
   global.window = origWin;
 
