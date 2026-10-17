@@ -633,7 +633,8 @@ export const SLIDES_HELP_ENTRIES = [
       "Lưu bằng Ctrl+S hoặc Tệp > Lưu bản sao rồi chọn PPTX. Nếu đang dùng Mẫu Slide Master, nội dung logo chữ được đặt trên trang mẫu.",
       "Mở lại bản trình chiếu đã lưu. Chủ đề đang dùng được khôi phục cùng tên, màu, phông và nền; vào Thiết kế > Chủ đề để chọn chủ đề khác nếu cần.",
       "Cỡ trang chiếu nằm ở tab Thiết kế > nhóm Tùy chỉnh > Cỡ trang chiếu. Chọn Màn hình rộng 16:9 hoặc Tiêu chuẩn 4:3; hình hiện có được co theo khung mới.",
-      "Lưu rồi mở lại để kiểm tra cỡ trang. Ctrl+Z hoàn tác thay đổi cỡ; ứng dụng hiện cung cấp hai cỡ chọn sẵn."
+      "Kích thước tùy chỉnh: trong cùng hộp thoại, mục Tùy chỉnh, nhập Chiều rộng và Chiều cao theo cm (gõ 25,4 hoặc 25.4 đều được) rồi nhấn Áp dụng hoặc Enter. Mỗi cạnh từ 2,54 cm đến 142,24 cm; nhập sai, hộp thoại báo ngay và không đổi gì. Ví dụ khổ A4 ngang: 29,7 × 21 cm.",
+      "Lưu rồi mở lại để kiểm tra cỡ trang (kể cả kích thước tùy chỉnh). Ctrl+Z hoàn tác thay đổi cỡ trong một bước."
     ]
   },
   {

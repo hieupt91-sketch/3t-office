@@ -198,6 +198,7 @@ export function cursorForHandle(dir, rotationDeg) {
   return CURSOR_CYCLE[idx];
 }
 
+import { customSlideSize, pxToCm } from "./slide-size.js";
 import { tableState, mergeMap, expandSelection, insertRow as tblInsertRow, insertCol as tblInsertCol, deleteRow as tblDeleteRow, deleteCol as tblDeleteCol, mergeCells as tblMergeCells, splitCell as tblSplitCell } from "./slide-table-ops.js";
 
 export class SlidesCanvasController {
@@ -8926,8 +8927,13 @@ const startEditing = (initialText) => {
     // Có width/height tường minh (khổ thật của file mở) thì ưu tiên hơn preset.
     let next = (options && options.width && options.height) ? null : (presets[options.preset || options] || null);
     if (!next && options && options.width && options.height) {
-      const isStd = Math.abs((options.width / options.height) - (4 / 3)) < 0.15;
-      next = { preset: isStd ? "standard" : "wide", width: options.width, height: options.height };
+      if (options.preset === "custom") {
+        // Kích thước người dùng đặt riêng (cm đã đổi ra px): giữ nhãn "custom", không đoán 4:3 / 16:9.
+        next = { preset: "custom", width: Math.round(options.width), height: Math.round(options.height) };
+      } else {
+        const isStd = Math.abs((options.width / options.height) - (4 / 3)) < 0.15;
+        next = { preset: isStd ? "standard" : "wide", width: options.width, height: options.height };
+      }
     }
     // So cả kích thước thật, không chỉ preset: file 28×15.75cm (1058×595px) cũng là "wide"
     // nhưng khác 960×540 — nếu bỏ qua, canvas giữ 960×540 trong khi toạ độ hình theo
@@ -8964,7 +8970,16 @@ const startEditing = (initialText) => {
         <div class="vno-dialog-body"><p style="font-size:12px;color:#475569">${t("slidesDialogs.slideSizeHint")}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" role="radiogroup" aria-labelledby="vno-slide-size-title">
           <button type="button" role="radio" class="vno-theme-card" data-slide-size="wide" aria-checked="${this.slideSize.preset === "wide"}" aria-pressed="${this.slideSize.preset === "wide"}"><span style="display:block;aspect-ratio:16/9;background:#dbeafe;border:2px solid #2563eb" aria-hidden="true"></span><strong>${t("slidesDialogs.slideSizeWide")}</strong><small>16:9 · 33,867 × 19,05 cm</small></button>
           <button type="button" role="radio" class="vno-theme-card" data-slide-size="standard" aria-checked="${this.slideSize.preset === "standard"}" aria-pressed="${this.slideSize.preset === "standard"}"><span style="display:block;aspect-ratio:4/3;background:#ffedd5;border:2px solid #f97316" aria-hidden="true"></span><strong>${t("slidesDialogs.slideSizeStandard")}</strong><small>4:3 · 25,4 × 19,05 cm</small></button>
-        </div></div></div>`;
+        </div>
+        <fieldset class="vno-slide-size-custom" style="border:1px solid #cbd5e1;border-radius:6px;margin:14px 0 0;padding:10px 12px">
+          <legend style="font-weight:600;padding:0 6px">${t("slidesDialogs.slideSizeCustom")}</legend>
+          <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end">
+            <label style="display:grid;gap:4px;font-weight:600">${t("slidesDialogs.slideSizeWidthCm")}<input class="vno-input" type="text" inputmode="decimal" id="vno-slide-size-w" value="${String(pxToCm(this.slideSize.width, this.ptPerPx)).replace(".", ",")}" autocomplete="off"></label>
+            <label style="display:grid;gap:4px;font-weight:600">${t("slidesDialogs.slideSizeHeightCm")}<input class="vno-input" type="text" inputmode="decimal" id="vno-slide-size-h" value="${String(pxToCm(this.slideSize.height, this.ptPerPx)).replace(".", ",")}" autocomplete="off"></label>
+            <button type="button" class="vno-btn vno-btn-primary" id="vno-slide-size-apply">${t("slidesDialogs.slideSizeApply")}</button>
+          </div>
+          <p id="vno-slide-size-error" role="alert" style="margin:8px 0 0;font-size:12px;color:#b91c1c;min-height:16px"></p>
+        </fieldset></div></div>`;
       document.body.appendChild(overlay);
       const dialogBox = overlay.querySelector(".vno-dialog-box");
       let closed = false;
@@ -8990,6 +9005,19 @@ const startEditing = (initialText) => {
       overlay.addEventListener("click", e => { if (e.target === overlay) close(false); });
       overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => close(false));
       overlay.querySelectorAll("[data-slide-size]").forEach(button => button.addEventListener("click", () => close(this.setSlideSize({ preset: button.dataset.slideSize }))));
+      const applyCustom = () => {
+        const result = customSlideSize(overlay.querySelector("#vno-slide-size-w")?.value, overlay.querySelector("#vno-slide-size-h")?.value, this.ptPerPx);
+        const errorEl = overlay.querySelector("#vno-slide-size-error");
+        if (!result.ok) {
+          if (errorEl) errorEl.textContent = result.error === "range" ? t("slidesDialogs.slideSizeRangeError") : t("slidesDialogs.slideSizeFormatError");
+          return;
+        }
+        close(this.setSlideSize({ preset: "custom", width: result.width, height: result.height }));
+      };
+      overlay.querySelector("#vno-slide-size-apply")?.addEventListener("click", applyCustom);
+      overlay.querySelectorAll("#vno-slide-size-w, #vno-slide-size-h").forEach(input => input.addEventListener("keydown", event => {
+        if (event.key === "Enter") { event.preventDefault(); applyCustom(); }
+      }));
       const activeBtn = overlay.querySelector('[data-slide-size][aria-checked="true"]') || overlay.querySelector("[data-slide-size]");
       activeBtn?.focus?.();
     });

@@ -626,7 +626,7 @@ export const enStrings = {
       slideUnit: "slides",
       slideCount: "{count} slides"
     },
-    masterTitle: "Slide Master", themeGalleryTitle: "Theme Gallery", themeGalleryHint: "Choose a theme to apply it immediately to the whole presentation.", themePreviewTitle: "Presentation title", themeCorporateBlue: "Corporate Blue", themeWarmTerracotta: "Warm Terracotta", themeMinimalMonochrome: "Minimal Monochrome", themeNaturalGreen: "Natural Green", themeModernCharcoal: "Modern Charcoal", themeEnergeticOrange: "Energetic Orange", slideSizeTitle: "Slide Size", slideSizeHint: "Choose a new aspect ratio. Existing shapes and objects will be scaled to fit.", slideSizeWide: "Widescreen", slideSizeStandard: "Standard", layoutTitle: "Choose a Slide Layout", transitionTitle: "Transitions", animationTitle: "Object Animations",
+    masterTitle: "Slide Master", themeGalleryTitle: "Theme Gallery", themeGalleryHint: "Choose a theme to apply it immediately to the whole presentation.", themePreviewTitle: "Presentation title", themeCorporateBlue: "Corporate Blue", themeWarmTerracotta: "Warm Terracotta", themeMinimalMonochrome: "Minimal Monochrome", themeNaturalGreen: "Natural Green", themeModernCharcoal: "Modern Charcoal", themeEnergeticOrange: "Energetic Orange", slideSizeTitle: "Slide Size", slideSizeHint: "Choose a new aspect ratio. Existing shapes and objects will be scaled to fit.", slideSizeWide: "Widescreen", slideSizeStandard: "Standard", slideSizeCustom: "Custom", slideSizeWidthCm: "Width (cm)", slideSizeHeightCm: "Height (cm)", slideSizeApply: "Apply", slideSizeRangeError: "Each side must be between 2.54 cm and 142.24 cm.", slideSizeFormatError: "Enter a number, for example 25.4 or 19.05.", layoutTitle: "Choose a Slide Layout", transitionTitle: "Transitions", animationTitle: "Object Animations",
     applyMaster: "Apply Theme", applyLayout: "Apply Layout", applyTransition: "Apply Transition", applyAnimation: "Apply Animation", removeTransition: "Remove Transition", removeAnimation: "Remove Animation", previewTransition: "▶ Preview Transition", previewAnimation: "▶ Preview Animation", previewObject: "Preview Object",
     layoutHint: "Choose a layout to reshape the current slide's content structure:", applyLayoutAll: "Apply to All", applyLayoutCurrent: "Apply",
     masterHint: "Choose a style master to unify colors, fonts, and corner logo across all slides:", masterLogoLabel: "Organization / Corner Logo text:", masterLogoAria: "Organization name or corner logo text",
@@ -987,7 +987,7 @@ export const enStrings = {
     ,"slides.insert.wordart": { label: "WordArt", tooltip: "Insert stylized title text with outline, shadow, or gradient fill" }
     ,"slides.master.apply": { label: "Slide Master", tooltip: "Apply a Slide Master theme across the presentation" }
     ,"slides.design.themeGallery": { label: "Themes", tooltip: "Choose a design theme for the whole presentation" }
-    ,"slides.design.slideSize": { label: "Slide Size", tooltip: "Choose a 16:9 or 4:3 slide ratio" }
+    ,"slides.design.slideSize": { label: "Slide Size", tooltip: "Choose 16:9, 4:3 or enter a custom size (cm)" }
     ,"slides.design.formatBackground": { label: "Format Background", tooltip: "Change the current slide or all slides to a solid color, two-color gradient, or picture" }
     ,"slides.transition.apply": { label: "Transitions", tooltip: "Apply a slide transition (Fade, Push, Zoom, Flip)" }
     ,"slides.animation.apply": { label: "Animations", tooltip: "Apply an entrance animation to an object" }

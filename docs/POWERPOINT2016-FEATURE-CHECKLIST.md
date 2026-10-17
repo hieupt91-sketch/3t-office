@@ -16,10 +16,10 @@ Chuẩn: Microsoft PowerPoint 2016 (16.0.4266) cài trên máy, đọc chỉ-đ�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu PowerPoint 2016 | 89 | 34% |
+| ✅ Đã đối chiếu PowerPoint 2016 | 90 | 34% |
 | 🟢 Có, chưa đối chiếu | 49 | 19% |
 | 🟡 Có một phần | 22 | 8% |
-| 🔴 Chưa có | 103 | 39% |
+| 🔴 Chưa có | 102 | 39% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **269** (áp dụng: 263) | |
 
@@ -35,7 +35,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Tệp (Backstage) | 17 | 2 | 9 | 0 | 5 | 1 | 69% |
 | Trang đầu | 57 | 35 | 8 | 5 | 9 | 0 | 80% |
 | Chèn | 29 | 14 | 1 | 1 | 11 | 2 | 57% |
-| Thiết kế | 15 | 5 | 0 | 1 | 9 | 0 | 37% |
+| Thiết kế | 15 | 6 | 0 | 1 | 8 | 0 | 43% |
 | Chuyển tiếp | 11 | 3 | 0 | 1 | 7 | 0 | 32% |
 | Hoạt ảnh | 16 | 6 | 1 | 0 | 9 | 0 | 44% |
 | Trình chiếu | 16 | 4 | 4 | 1 | 6 | 1 | 57% |
@@ -58,14 +58,13 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Trang đầu | Đoạn văn | Cột văn bản trong khung (Columns: 1, 2, 3 cột) | 🔴 | Chưa hỗ trợ chia cột văn bản bên trong textbox |
 | Chèn | Minh họa | SmartArt (Danh sách, Quy trình, Chu trình, Phân cấp) | 🔴 | Chưa hỗ trợ tạo mới SmartArt native chuẩn DrawingML diagram; hiện dùng sơ đồ nhóm shape (docs/SLIDES-BUTTON-MATRIX-1011.md:53) |
 | Chèn | Văn bản | Chữ nghệ thuật (WordArt) | 🟡 | FIX-L14: có lệnh slides.insert.wordart nhưng PowerPoint COM nhận dạng Type=17 PresetTextEffect=-2 chưa chuẩn native Type=15 (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
-| Thiết kế | Tùy chỉnh | Kích thước trang chiếu tùy chỉnh (Custom Slide Size) | 🔴 | Chưa có hộp thoại đặt kích thước slide tùy chỉnh (Custom Slide Size) |
 | Chuyển tiếp | Chuyển tiếp sang slide | Hiệu ứng Morph (Biến đổi hình thái) | 🟡 | Đã có xử lý chuyển đổi Morph sơ bộ; chưa hoàn thiện mapping đối tượng khớp định danh như PowerPoint 2016 Office 365 |
 | Hoạt ảnh | Hoạt ảnh | Nhóm Nhấn mạnh (Emphasis Effects: Pulse, Spin, Grow/Shrink) | 🔴 | Chưa hỗ trợ nhóm hiệu ứng Nhấn mạnh (Emphasis: Spin, Grow/Shrink) |
 | Hoạt ảnh | Hoạt ảnh | Nhóm Thoát (Exit Effects: Disappear, Fade, Fly Out) | 🔴 | Chưa hỗ trợ nhóm hiệu ứng Biến mất/Thoát (Exit: Disappear, Fly Out) |
 | Công cụ vẽ > Định dạng | Kiểu chữ WordArt | Hiệu ứng chữ nghệ thuật (Text Effects: Warp, Shadow, 3D) | 🟡 | FIX-L14: có textFadeRight nhưng PowerPoint COM nhận dạng PresetTextEffect=-2 chưa chuẩn native (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
 | Công cụ hình ảnh > Định dạng | Kích thước | Cắt xén ảnh (Crop to Shape / Aspect Ratio) | 🟡 | Đọc và hiển thị ảnh cắt xén (apps/slides/slides-canvas.js:3406); chưa có công cụ kéo cắt xén ảnh trực tiếp trên UI |
 
-Tổng: 11 mục ưu tiên 1.
+Tổng: 10 mục ưu tiên 1.
 
 ## Danh sách 15 mục ưu tiên 1 thiếu nhất & Đề xuất 10 phiếu việc kế tiếp
 
@@ -231,7 +230,7 @@ Tổng: 11 mục ưu tiên 1.
 | Biến thể | Hiệu ứng biến thể (Theme Effects) | 🟡 | 3 | Có áp dụng hiệu ứng chung; chưa có bộ sưu tập hiệu ứng biến thể rời |
 | Biến thể | Kiểu nền trang chiếu (Background Styles) | 🔴 | 2 | Chưa có thư viện kiểu nền mẫu (Background Styles gallery) |
 | Tùy chỉnh | Cỡ trang chiếu (Slide Size 4:3 / 16:9) | ✅ | - | FIX-L8: slides.design.slideSize đổi tỷ lệ đối chiếu PageSetup 720x540 pt (docs/SLIDES-BUTTON-MATRIX-1011.md:66, docs/ppt-oracle-1710.json:37-43) |
-| Tùy chỉnh | Kích thước trang chiếu tùy chỉnh (Custom Slide Size) | 🔴 | 1 | Chưa có hộp thoại đặt kích thước slide tùy chỉnh (Custom Slide Size) |
+| Tùy chỉnh | Kích thước trang chiếu tùy chỉnh (Custom Slide Size) | ✅ | - | 17/10: slides.design.slideSize có mục Tùy chỉnh (cm, 2,54-142,24); CDP 10/10; PowerPoint 2016 COM đọc SlideWidth/Height 842x595 pt, ppSlideSizeCustom; mở lại đúng (docs/AUDIT-SLIDES-SIZE-1710.md:7) |
 | Tùy chỉnh | Định dạng nền: Màu đơn sắc (Solid Fill) | ✅ | - | FIX-L8: slides.design.formatBackground nền gradient ngang Fill.Type=3 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:67) |
 | Tùy chỉnh | Định dạng nền: Chuyển sắc (Gradient Fill) | ✅ | - | FIX-L8: slides.design.formatBackground nền gradient ngang Fill.Type=3 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:67) |
 | Tùy chỉnh | Định dạng nền: Hình ảnh hoặc họa tiết (Picture or Texture Fill) | 🔴 | 2 | Chưa hỗ trợ chèn ảnh hoặc họa tiết làm hình nền slide |

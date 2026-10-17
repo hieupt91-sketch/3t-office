@@ -128,7 +128,7 @@ Thiết kế|Biến thể|Bộ phông chữ biến thể (Theme Fonts)|N|2|Chưa
 Thiết kế|Biến thể|Hiệu ứng biến thể (Theme Effects)|P|3|Có áp dụng hiệu ứng chung; chưa có bộ sưu tập hiệu ứng biến thể rời
 Thiết kế|Biến thể|Kiểu nền trang chiếu (Background Styles)|N|2|Chưa có thư viện kiểu nền mẫu (Background Styles gallery)
 Thiết kế|Tùy chỉnh|Cỡ trang chiếu (Slide Size 4:3 / 16:9)|V|-|FIX-L8: slides.design.slideSize đổi tỷ lệ đối chiếu PageSetup 720x540 pt (docs/SLIDES-BUTTON-MATRIX-1011.md:66, docs/ppt-oracle-1710.json:37-43)
-Thiết kế|Tùy chỉnh|Kích thước trang chiếu tùy chỉnh (Custom Slide Size)|N|1|Chưa có hộp thoại đặt kích thước slide tùy chỉnh (Custom Slide Size)
+Thiết kế|Tùy chỉnh|Kích thước trang chiếu tùy chỉnh (Custom Slide Size)|V|-|17/10: slides.design.slideSize có mục Tùy chỉnh (cm, 2,54-142,24); CDP 10/10; PowerPoint 2016 COM đọc SlideWidth/Height 842x595 pt, ppSlideSizeCustom; mở lại đúng (docs/AUDIT-SLIDES-SIZE-1710.md:7)
 Thiết kế|Tùy chỉnh|Định dạng nền: Màu đơn sắc (Solid Fill)|V|-|FIX-L8: slides.design.formatBackground nền gradient ngang Fill.Type=3 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:67)
 Thiết kế|Tùy chỉnh|Định dạng nền: Chuyển sắc (Gradient Fill)|V|-|FIX-L8: slides.design.formatBackground nền gradient ngang Fill.Type=3 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:67)
 Thiết kế|Tùy chỉnh|Định dạng nền: Hình ảnh hoặc họa tiết (Picture or Texture Fill)|N|2|Chưa hỗ trợ chèn ảnh hoặc họa tiết làm hình nền slide
