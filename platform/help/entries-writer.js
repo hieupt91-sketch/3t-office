@@ -650,7 +650,7 @@ export const WRITER_HELP_ENTRIES = [
   {
     id: "writer.para.multilevelList",
     app: "writer",
-    commandIds: ["writer.para.multilevelList", "writer.para.indentInc", "writer.para.indentDec"],
+    commandIds: ["writer.para.multilevelList", "writer.para.defineMultilevelList", "writer.para.indentInc", "writer.para.indentDec"],
     title: "Danh sách đa cấp",
     summary: "Đánh số nhiều cấp giống các phần mềm soạn thảo văn bản khác: 1. / 1.1. / 1.1.1., 1. / a. / i., hoặc Điều / Khoản / Điểm theo văn bản hành chính (NĐ 30/2020/NĐ-CP). Khác nút Đánh số — Đánh số chỉ ra 1. 2. 3. một cấp.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Đoạn văn" },
@@ -658,8 +658,23 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Đặt con trỏ trong đoạn (hoặc bôi vài đoạn). Tab Trang đầu, nhóm Đoạn văn, hàng trên: sau Dấu đầu dòng và Đánh số là nút Danh sách đa cấp (biểu tượng 1. / 1.1 / a.). Nhấn mũi tên để mở gallery.",
       "Chọn một kiểu: 1. / 1.1. / 1.1.1. (đề mục pháp lý, mục lục); 1. / a. / i. (kiểu soạn thảo cổ điển); Điều 1. / 1. / a) (Điều — Khoản — Điểm, văn bản hành chính Việt Nam). Các đoạn đang chọn thành một danh sách cùng kiểu.",
-      "Tăng cấp: đặt con trỏ ở đầu mục danh sách rồi nhấn phím Tab (hoặc nhấn nút Thụt lề Ctrl+M trên ribbon). Mục đó sẽ lùi vào thành cấp con của mục ngay trên — ví dụ Điều 1. thành 1. hoặc a). Giảm cấp: nhấn nút Giảm thụt lề (Ctrl+Shift+M). Ở cấp 1, thao tác giảm cấp đưa mục về đoạn văn thường. Lưu ý: giảm cấp không phải phím Shift+Tab.",
-      "Phiên bản này hỗ trợ tối đa 3 cấp (Điều / Khoản / Điểm). Nhấn phím Tab khi đang ở cấp 3 sẽ không lồng thêm. Nút Đánh số / Dấu đầu dòng vẫn tạo danh sách một cấp như trước; có thể chọn lại một kiểu trong gallery để đổi toàn bộ cây danh sách đang chọn."
+      "Tăng cấp: đặt con trỏ ở đầu mục rồi nhấn Tab để đưa mục thành cấp con. Tại đầu một mục, giữ Shift khi nhấn Tab để giảm cấp; ở cấp đầu, thao tác này đưa mục về đoạn thường. Các nút Thụt lề và Giảm thụt lề lần lượt dùng Ctrl+M và Ctrl+Shift+M.",
+      "Danh sách đa cấp hỗ trợ tới 9 cấp. Mỗi cấp giữ định dạng riêng khi lưu DOCX và mở lại; các nút Dấu đầu dòng và Đánh số vẫn tạo danh sách một cấp.",
+    ]
+  },
+  {
+    id: "writer.para.defineMultilevelList",
+    app: "writer",
+    commandIds: ["writer.para.defineMultilevelList"],
+    title: "Định nghĩa danh sách đa cấp mới",
+    summary: "Tùy chỉnh tối đa chín cấp đánh số, định dạng số, nhãn trước/sau, giá trị bắt đầu và thụt lề; lưu thành danh sách trong DOCX có thể sửa tiếp.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Đoạn văn" },
+    keywords: ["định nghĩa danh sách đa cấp", "custom multilevel list", "Điều Khoản Điểm", "đánh số nhiều cấp"],
+    steps: [
+      "Tab Trang đầu > nhóm Đoạn văn > mũi tên Danh sách đa cấp > Định nghĩa danh sách đa cấp mới.",
+      "Chọn Cấp 1–9. Với từng cấp, chọn kiểu số 1/a/A/i/I hoặc dấu đầu dòng; nhập văn bản trước/sau, số bắt đầu, vị trí số/chữ bằng cm và cách ngăn bằng Tab, dấu cách hoặc không có.",
+      "Bật Gồm số của các cấp trước nếu muốn nhãn như 1.1 hoặc 1.1.1. Xem trước các cấp đầu, rồi chọn Áp dụng cho đoạn đang chọn.",
+      "Trong danh sách, đặt con trỏ ở đầu mục rồi nhấn Tab để tăng cấp hoặc giữ Shift khi nhấn Tab để giảm cấp. Lưu tệp để giữ định dạng danh sách khi mở lại.",
     ]
   },
   {
@@ -811,15 +826,15 @@ export const WRITER_HELP_ENTRIES = [
   {
     id: "writer.view.zoom",
     app: "writer",
-    commandIds: ["writer.view.zoomIn", "writer.view.zoomOut", "writer.view.zoomReset", "writer.view.zoom100"],
+    commandIds: ["writer.view.zoomIn", "writer.view.zoomOut", "writer.view.zoomReset", "writer.view.zoom100", "writer.view.pageWidth", "writer.view.zoomDialog", "writer.view.fitPage", "writer.view.multiplePages"],
     title: "Thu phóng tài liệu",
-    summary: "Phóng to / thu nhỏ trang soạn thảo theo bước 10%, trong khoảng 50%–200%. Đặt lại và 100% đều đưa về tỉ lệ gốc. Chỉ đổi hiển thị, không đổi cỡ chữ khi in.",
+    summary: "Phóng to / thu nhỏ trang soạn thảo theo bước 10%, hoặc đặt tỉ lệ tùy ý từ 10% đến 500%. Có thể vừa chiều rộng, vừa chiều cao trang hoặc xem nhiều trang. Chỉ đổi hiển thị, không đổi cỡ chữ khi in.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Thu phóng" },
     keywords: ["thu phóng", "phóng to", "thu nhỏ", "zoom", "100%", "đặt lại", "tỉ lệ"],
     steps: [
-      "Tab Chế độ xem, nhóm Thu phóng. Phóng to (nút lớn) tăng 10%; Thu nhỏ giảm 10%. Giới hạn 50%–200%.",
-      "Đặt lại và 100% đều đưa về tỉ lệ 1:1 (100%). Khác nhau chỉ là nhãn nút; cả hai không đổi nội dung.",
-      "Cùng nhóm còn Vừa khổ trang (tính theo chiều rộng cửa sổ). Thanh trạng thái có thể hiện tỉ lệ đang dùng.",
+      "Tab Chế độ xem, nhóm Thu phóng. Phóng to tăng 10%; Thu nhỏ giảm 10%. Chọn Thu phóng tùy chỉnh để nhập 10–500% hoặc bấm nhanh 200%, 100%, 75%.",
+      "Trong hộp thoại, chọn Vừa chiều rộng trang, Vừa cả trang hoặc Nhiều trang để thay đổi cách nhìn. Thanh trạng thái phía dưới luôn hiện phần trăm; bấm phần trăm để mở hộp thoại.",
+      "Có thể giữ Ctrl và lăn con lăn chuột trên vùng soạn thảo để tăng hoặc giảm tỉ lệ. Đặt lại đưa về 100%.",
       "Zoom dùng phóng CSS trên trang, không đổi cỡ chữ khi in hay khi xuất file."
     ]
   },

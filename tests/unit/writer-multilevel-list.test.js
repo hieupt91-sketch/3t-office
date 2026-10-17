@@ -1,5 +1,5 @@
 /**
- * VN Writer — Multilevel list (3 presets × 3 levels)
+ * VN Writer — multilevel list presets and custom nine-level definitions
  * Command, Home gallery, Tab/Shift+Tab, FODT serialize/parse idempotence.
  */
 import assert from "node:assert/strict";
@@ -67,11 +67,13 @@ export async function runWriterMultilevelListTests() {
     const gallery = row.find((item) => item.id === "writer.para.multilevelList");
     assert.equal(gallery.type, "dropdown");
     assert.equal(gallery.iconOnly, true);
-    const args = gallery.items.map((item) => item.args).join(",");
+    const presets = gallery.items.filter((item) => item.commandId === "writer.para.multilevelList");
+    assert.ok(gallery.items.some((item) => item.commandId === "writer.para.defineMultilevelList"));
+    const args = presets.map((item) => item.args).join(",");
     assert.equal(args, "decimal,letter,nd30");
-    assert.match(gallery.items[0].label, /1\.1\.1/);
-    assert.match(gallery.items[1].label, /a\./);
-    assert.match(gallery.items[2].label, /Điều/);
+    assert.match(presets[0].label, /1\.1\.1/);
+    assert.match(presets[1].label, /a\./);
+    assert.match(presets[2].label, /Điều/);
   });
 
   await test("Writer multilevel: bài hướng dẫn tiếng Việt khớp UI Home", () => {
@@ -83,11 +85,38 @@ export async function runWriterMultilevelListTests() {
     assert.ok(entry.steps.length >= 3);
     const blob = [entry.title, entry.summary, ...entry.steps].join(" ");
     assert.match(blob, /Tab/);
-    assert.match(blob, /Shift\+Tab/);
+    assert.match(blob, /giữ Shift.*Tab/);
     assert.match(blob, /1\.1\.1/);
     assert.match(blob, /NĐ 30|Nghị định 30|Điều/);
-    assert.match(blob, /3 cấp/);
+    assert.match(blob, /9 cấp/);
     assert.doesNotMatch(blob, /lorem|todo|placeholder/i);
+  });
+
+  await test("Writer multilevel: dialog command is exposed in i18n and help", () => {
+    const id = "writer.para.defineMultilevelList";
+    assert.ok(WRITER_COMMANDS.some(item => item.id === id));
+    assert.ok(viStrings.commands[id]?.label);
+    assert.ok(enStrings.commands[id]?.label);
+    assert.ok(WRITER_HELP_ENTRIES.some(item => item.commandIds?.includes(id)));
+  });
+
+  await test("Writer multilevel: apply custom formats stamps editable list metadata", () => {
+    const { adapter, body } = adapterWithBody("<p>Điều một</p>");
+    const levels = Array.from({ length: 9 }, (_, index) => ({ format: index === 2 ? "lowerLetter" : "decimal", prefix: index === 0 ? "Điều " : "", suffix: index === 2 ? ")" : ".", includeParents: index === 1, start: 1, numberCm: index * 0.6, textCm: (index + 1) * 0.6, suffixType: "tab" }));
+    assert.equal(adapter.applyMultilevelList({ levels }), true);
+    assert.match(body.innerHTML, /vno-ml-custom/);
+    assert.match(body.innerHTML, /data-vno-multilevel-config=/);
+  });
+
+  await test("Writer FODT: custom nine-level list writes ODF list-level definitions", () => {
+    const levels = Array.from({ length: 9 }, (_, index) => ({ format: index === 2 ? "lowerLetter" : "decimal", prefix: index === 0 ? "Điều " : "", suffix: index === 2 ? ")" : ".", start: index + 1, numberCm: index * 0.63, textCm: (index + 1) * 0.63, suffixType: "tab", includeParents: index === 1 }));
+    const encoded = encodeURIComponent(JSON.stringify(levels));
+    const { adapter } = adapterWithBody(`<ol class="vno-ml-custom" data-vno-multilevel-config="${encoded}"><li>Điều một<ol class="vno-ml-custom" data-vno-multilevel-config="${encoded}"><li>Khoản một</li></ol></li></ol>`);
+    const fodt = adapter.serializeToFodt();
+    assert.match(fodt, /<text:list-style style:name="LMultiCustom">/);
+    assert.equal((fodt.match(/<text:list-level-style-number text:level=/g) || []).length >= 9, true);
+    assert.match(fodt, /style:num-prefix="Điều "/);
+    assert.match(fodt, /text:display-levels="2"/);
   });
 
   await test("Writer multilevel: apply decimal bọc đoạn thành ol class vno-ml-decimal", () => {
@@ -153,7 +182,7 @@ export async function runWriterMultilevelListTests() {
     }
   });
 
-  await test("Writer multilevel: Tab tăng cấp, Shift+Tab giảm cấp, trần 3 cấp", () => {
+  await test("Writer multilevel: Tab tăng cấp, Shift+Tab giảm cấp, trần 9 cấp", () => {
     const { adapter, body } = adapterWithBody('<ol class="vno-ml-decimal"><li>A</li><li>B</li></ol>');
     assert.equal(adapter.changeListLevel(1, "B"), true);
     const afterInc = adapter.serializeToFodt();
@@ -163,9 +192,16 @@ export async function runWriterMultilevelListTests() {
     const afterDec = adapter.serializeToFodt();
     assert.match(afterDec, /<text:p>A<\/text:p><\/text:list-item><text:list-item><text:p>B<\/text:p>/);
 
-    const deep = adapterWithBody(threeLevelHtml("vno-ml-decimal"));
-    assert.equal(deep.adapter.changeListLevel(1, "L3_ONE"), false, "cấp 3 không lồng thêm");
-    assert.equal(deep.body.innerHTML, threeLevelHtml("vno-ml-decimal"));
+    const targetAtDepth = depth => {
+      let html = '<ol><li>Before</li><li>Target</li></ol>';
+      for (let index = 1; index < depth; index++) html = `<ol><li>Parent ${index}${html}</li></ol>`;
+      return html;
+    };
+    const levelEight = adapterWithBody(targetAtDepth(8));
+    assert.equal(levelEight.adapter.changeListLevel(1, "Target"), true, "cấp 8 tăng được tới cấp 9");
+    const levelNine = adapterWithBody(targetAtDepth(9));
+    assert.equal(levelNine.adapter.changeListLevel(1, "Target"), false, "cấp 9 không tăng quá giới hạn");
+    assert.equal(levelNine.body.innerHTML, targetAtDepth(9));
   });
 
   await test("Writer FODT: list style lạ vẫn render được (fallback ol/ul)", () => {

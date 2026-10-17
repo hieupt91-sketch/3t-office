@@ -28645,9 +28645,151 @@ def _run_fx_split_run(run_xml: str, local_cuts: list[tuple[int, str]]) -> list[s
     return pieces
 
 
+class _WriterCustomMultilevelHtml(HTMLParser):
+    """Collect custom list-item text and level from Writer's source HTML."""
+    def __init__(self):
+        super().__init__(convert_charrefs=True)
+        self.lists: list[list[dict[str, object]] | None] = []
+        self.items: list[dict[str, object]] = []
+        self.entries: list[tuple[str, int, list[dict[str, object]]]] = []
+
+    def handle_starttag(self, tag, attrs):
+        attrs = dict(attrs)
+        if tag in {"ol", "ul"}:
+            config = None
+            raw = attrs.get("data-vno-multilevel-config")
+            if raw:
+                try:
+                    config = json.loads(url_unquote(raw))
+                    if not isinstance(config, list) or len(config) != 9:
+                        config = None
+                except (ValueError, TypeError):
+                    config = None
+            self.lists.append(config or (self.lists[-1] if self.lists else None))
+        elif tag == "li":
+            config = self.lists[-1] if self.lists else None
+            if config:
+                self.items.append({"depth": sum(1 for _ in self.lists) - 1, "config": config, "text": []})
+            else:
+                self.items.append({"depth": -1, "config": None, "text": []})
+
+    def handle_endtag(self, tag):
+        if tag == "li" and self.items:
+            item = self.items.pop()
+            if item["config"] and item["depth"] >= 0:
+                key = _run_fx_nws("".join(item["text"]))
+                if key:
+                    self.entries.append((key, int(item["depth"]), item["config"]))
+        elif tag in {"ol", "ul"} and self.lists:
+            self.lists.pop()
+
+    def handle_data(self, data):
+        if self.items:
+            self.items[-1]["text"].append(data)
+
+
+def _writer_custom_multilevel_numfmt(value: str) -> str:
+    return {"decimal": "decimal", "lowerLetter": "lowerLetter", "upperLetter": "upperLetter",
+            "lowerRoman": "lowerRoman", "upperRoman": "upperRoman", "bullet": "bullet"}.get(value, "decimal")
+
+
+def _writer_apply_custom_multilevel(docx_bytes: bytes, source_html: str) -> bytes:
+    if "data-vno-multilevel-config" not in source_html:
+        return docx_bytes
+    parser = _WriterCustomMultilevelHtml()
+    parser.feed(source_html)
+    if not parser.entries:
+        return docx_bytes
+    doc_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    numbering_bytes = read_zip_entry(docx_bytes, "word/numbering.xml")
+    if not doc_bytes or not numbering_bytes:
+        return docx_bytes
+    document = doc_bytes.decode("utf-8", errors="replace")
+    numbering = numbering_bytes.decode("utf-8", errors="replace")
+    abstract_ids = [int(x) for x in re.findall(r'<w:abstractNum\b[^>]*\bw:abstractNumId="(\d+)"', numbering)]
+    num_ids = [int(x) for x in re.findall(r'<w:num\b[^>]*\bw:numId="(\d+)"', numbering)]
+    configs: dict[str, list[dict[str, object]]] = {}
+    for _key, _depth, config in parser.entries:
+        configs.setdefault(json.dumps(config, ensure_ascii=False, sort_keys=True), config)
+    list_ids: dict[str, int] = {}
+    abstracts: list[str] = []
+    number_instances: list[str] = []
+    for offset, (config_key, levels) in enumerate(configs.items()):
+        abstract_id = max(abstract_ids, default=-1) + 1 + offset
+        num_id = max(num_ids, default=0) + 1 + offset
+        list_ids[config_key] = num_id
+        lvls = []
+        for index, level in enumerate(levels[:9]):
+            fmt = _writer_custom_multilevel_numfmt(str(level.get("format", "decimal")))
+            prefix = str(level.get("prefix", ""))
+            suffix = str(level.get("suffix", ""))
+            if fmt == "bullet":
+                label = prefix or "•"
+            else:
+                counters = [f"%{n + 1}" for n in range(index + 1)] if level.get("includeParents") else [f"%{index + 1}"]
+                label = prefix + ".".join(counters) + suffix
+            text_cm = max(0.0, min(20.0, float(level.get("textCm", 0.635 * (index + 1)))))
+            number_cm = max(0.0, min(text_cm, float(level.get("numberCm", 0.635 * index))))
+            left = round(text_cm * 567)
+            hanging = round((text_cm - number_cm) * 567)
+            start = max(1, min(32767, int(level.get("start", 1))))
+            suff = {"tab": "tab", "space": "space", "nothing": "nothing"}.get(str(level.get("suffixType", "tab")), "tab")
+            lvls.append(
+                f'<w:lvl w:ilvl="{index}"><w:start w:val="{start}"/><w:numFmt w:val="{fmt}"/>'
+                f'<w:lvlText w:val="{html.escape(label, quote=True)}"/><w:lvlJc w:val="left"/><w:suff w:val="{suff}"/>'
+                f'<w:pPr><w:tabs><w:tab w:val="num" w:pos="{left}"/></w:tabs><w:ind w:left="{left}" w:hanging="{hanging}"/></w:pPr></w:lvl>'
+            )
+        abstracts.append(f'<w:abstractNum w:abstractNumId="{abstract_id}"><w:multiLevelType w:val="multilevel"/>{"".join(lvls)}</w:abstractNum>')
+        number_instances.append(f'<w:num w:numId="{num_id}"><w:abstractNumId w:val="{abstract_id}"/></w:num>')
+    first_num = re.search(r"<w:num\b", numbering)
+    insert_at = first_num.start() if first_num else numbering.rfind("</w:numbering>")
+    numbering = numbering[:insert_at] + "".join(abstracts) + numbering[insert_at:]
+    numbering = numbering.replace("</w:numbering>", "".join(number_instances) + "</w:numbering>", 1)
+    by_text: dict[str, list[tuple[int, str]]] = {}
+    for key, depth, config in parser.entries:
+        by_text.setdefault(key, []).append((depth, json.dumps(config, ensure_ascii=False, sort_keys=True)))
+    changed = False
+    output = []
+    last = 0
+    for match in _run_fx_xml_paragraphs(document):
+        para = match.group(0)
+        key = _run_fx_nws("".join(_run_fx_run_text(run.group(0)) for run in _RUN_FX_RUN_RE.finditer(para)))
+        queue = by_text.get(key)
+        if not queue:
+            continue
+        depth, config_key = queue.pop(0)
+        depth = max(0, min(8, depth))
+        ppr = re.search(r"<w:pPr>([\s\S]*?)</w:pPr>", para)
+        numpr = f'<w:numPr><w:ilvl w:val="{depth}"/><w:numId w:val="{list_ids[config_key]}"/></w:numPr>'
+        if ppr:
+            inner = re.sub(r"<w:numPr\b[^>]*>[\s\S]*?</w:numPr>", "", ppr.group(1))
+            style = re.search(r"<w:pStyle\b[^>]*/>|<w:pStyle\b[^>]*>[\s\S]*?</w:pStyle>", inner)
+            insert = style.end() if style else 0
+            patched = para[:ppr.start()] + f"<w:pPr>{inner[:insert]}{numpr}{inner[insert:]}</w:pPr>" + para[ppr.end():]
+        else:
+            opening = re.match(r"<w:p\b[^>]*>", para)
+            if not opening:
+                continue
+            patched = para[:opening.end()] + f"<w:pPr>{numpr}</w:pPr>" + para[opening.end():]
+        output.extend((document[last:match.start()], patched))
+        last = match.end()
+        changed = True
+    if not changed:
+        return docx_bytes
+    output.append(document[last:])
+    return patch_ooxml_zip(docx_bytes, {
+        "word/document.xml": "".join(output).encode("utf-8"),
+        "word/numbering.xml": numbering.encode("utf-8")
+    })
+
+
 def postprocess_writer_run_effects(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
     """Lưu DOCX: ghi lại hiệu ứng run từ <span data-vno-fx> vào word/document.xml."""
-    if not docx_bytes or not source_html or ("data-vno-fx" not in source_html and "data-vno-pfx" not in source_html):
+    if not docx_bytes or not source_html:
+        return docx_bytes
+    if "data-vno-multilevel-config" in source_html:
+        docx_bytes = _writer_apply_custom_multilevel(docx_bytes, source_html)
+    if "data-vno-fx" not in source_html and "data-vno-pfx" not in source_html:
         return docx_bytes
     document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
     if not document_bytes:

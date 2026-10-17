@@ -305,6 +305,7 @@ export class WriterApp {
     this.shell.onZoomChange = (percent) => {
       this.viewController.setZoom(percent / 100);
     };
+    this.shell.onZoomDialog = () => this.viewController.openZoomDialog();
     this._setupContentObserver();
     this._editableRoots = [header, body, footer];
     this._normalizers = this._editableRoots.map(root => new InputNormalizer({

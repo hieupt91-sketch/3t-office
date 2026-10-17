@@ -6,6 +6,7 @@ export async function runWriterZoomWheelTests() {
   try {
     const viewport = {
       clientWidth: 900,
+      clientHeight: 800,
       style: { setProperty() {} },
       addEventListener(name, handler, options) {
         if (name === "wheel") {
@@ -21,7 +22,9 @@ export async function runWriterZoomWheelTests() {
     const container = {
       classList: {
         contains: name => classes.has(name),
-        toggle(name, enabled) { if (enabled) classes.add(name); else classes.delete(name); }
+        toggle(name, enabled) { if (enabled) classes.add(name); else classes.delete(name); },
+        add(...names) { names.forEach(name => classes.add(name)); },
+        remove(...names) { names.forEach(name => classes.delete(name)); }
       }
     };
     const zoomListeners = new Set();
@@ -33,7 +36,7 @@ export async function runWriterZoomWheelTests() {
     const controller = new WriterViewController({
       container,
       viewport,
-      page: { style: {}, dataset: {}, offsetWidth: 794, scrollHeight: 1123 },
+      page: { style: {}, dataset: {}, offsetWidth: 794, offsetHeight: 1123, scrollHeight: 1123 },
       ruler: {},
       shell
     });
@@ -73,6 +76,12 @@ export async function runWriterZoomWheelTests() {
       viewport.wheelHandler({ ctrlKey: true, deltaY: 100, preventDefault() {} });
       assert.equal(controller.zoomLevel, 1.15, "Ctrl+wheel down must zoom out from the shared zoom value");
       assert.equal(shell.zoomLevel, 115, "Ctrl+wheel down must keep the zoom slider synchronized");
+      assert.equal(controller.setZoom(5.25), 5, "Writer zoom must clamp to 500%");
+      assert.equal(shell.zoomLevel, 500, "500% zoom must stay synchronized with the status control");
+      controller.fitPage();
+      assert.ok(controller.zoomLevel >= 0.1 && controller.zoomLevel <= 5, "Fit Page must use the supported zoom range");
+      controller.multiplePages();
+      assert.equal(classes.has("vno-writer-multiple-pages"), true, "Multiple Pages must set its view state");
       controller.destroy();
       assert.equal(viewport.removedWheelHandler, viewport.wheelHandler, "wheel listener must be removed on destroy");
       assert.equal(zoomListeners.size, 0, "zoom subscription must be removed on destroy");

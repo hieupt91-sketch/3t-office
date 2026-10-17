@@ -44,6 +44,8 @@ export class AppShell {
     this._onApplyTemplate = typeof options.onApplyTemplate === "function" ? options.onApplyTemplate : null;
     this._optionsProvider = options.optionsProvider || null;
     this.zoomLevel = 100;
+    this.zoomMin = 50;
+    this.zoomMax = 200;
     this._zoomListeners = new Set();
     this._setZoomControl = null;
     this.isAiOpen = false;
@@ -105,6 +107,14 @@ export class AppShell {
         restoreEditorFocus();
       }, 0);
     }
+  }
+
+  setZoomLimits(minimum = 50, maximum = 200) {
+    this.zoomMin = Math.max(10, Math.round(Number(minimum) || 50));
+    this.zoomMax = Math.min(500, Math.max(this.zoomMin, Math.round(Number(maximum) || 200)));
+    const range = this.rootEl?.querySelector("#vno-zoom-range");
+    if (range) { range.min = String(this.zoomMin); range.max = String(this.zoomMax); range.setAttribute("aria-valuemin", String(this.zoomMin)); range.setAttribute("aria-valuemax", String(this.zoomMax)); }
+    this.setZoom(this.zoomLevel);
   }
 
   requestAppSwitch(appType, options) {
@@ -637,8 +647,8 @@ export class AppShell {
         ${this._renderViewModesHtml()}
         <div class="vno-zoom-slider" role="group" aria-label="Điều chỉnh thu phóng">
           <button type="button" id="vno-zoom-out" aria-label="Thu nhỏ" title="Thu nhỏ">-</button>
-          <input type="range" id="vno-zoom-range" min="50" max="200" value="${this.zoomLevel}"
-                 aria-label="Tỷ lệ thu phóng" aria-valuemin="50" aria-valuemax="200" aria-valuenow="${this.zoomLevel}" />
+          <input type="range" id="vno-zoom-range" min="${this.zoomMin}" max="${this.zoomMax}" value="${this.zoomLevel}"
+                 aria-label="Tỷ lệ thu phóng" aria-valuemin="${this.zoomMin}" aria-valuemax="${this.zoomMax}" aria-valuenow="${this.zoomLevel}" />
           <button type="button" id="vno-zoom-in" aria-label="Phóng to" title="Phóng to">+</button>
           <button type="button" id="vno-zoom-text" class="vno-zoom-percent-btn" aria-label="Tỷ lệ thu phóng ${this.zoomLevel}% (Bấm để đặt lại 100%)" title="Tỷ lệ thu phóng (Bấm để đặt lại 100%)" aria-live="polite">${this.zoomLevel}%</button>
         </div>
@@ -650,7 +660,10 @@ export class AppShell {
     zoomRange.addEventListener("input", (e) => this.setZoom(Number(e.target.value)));
     sb.querySelector("#vno-zoom-out").addEventListener("click", () => this.setZoom(this.zoomLevel - 10));
     sb.querySelector("#vno-zoom-in").addEventListener("click", () => this.setZoom(this.zoomLevel + 10));
-    sb.querySelector("#vno-zoom-text")?.addEventListener("click", () => this.setZoom(100));
+    sb.querySelector("#vno-zoom-text")?.addEventListener("click", () => {
+      if (typeof this.onZoomDialog === "function") this.onZoomDialog();
+      else this.setZoom(100);
+    });
 
     sb.querySelectorAll(".vno-statusbar-btn").forEach(btn => {
       btn.addEventListener("click", () => {
@@ -694,7 +707,7 @@ export class AppShell {
   }
 
   setZoom(val) {
-    this.zoomLevel = Math.max(50, Math.min(200, Math.round(Number(val) || 100)));
+    this.zoomLevel = Math.max(this.zoomMin, Math.min(this.zoomMax, Math.round(Number(val) || 100)));
     const zoomRange = this.rootEl?.querySelector("#vno-zoom-range");
     const zoomText = this.rootEl?.querySelector("#vno-zoom-text");
     if (zoomRange) {
@@ -722,7 +735,7 @@ export class AppShell {
   }
 
   setZoomDisplay(val) {
-    this.zoomLevel = Math.max(50, Math.min(200, Math.round(Number(val) || 100)));
+    this.zoomLevel = Math.max(this.zoomMin, Math.min(this.zoomMax, Math.round(Number(val) || 100)));
     const zoomRange = this.rootEl?.querySelector("#vno-zoom-range");
     const zoomText = this.rootEl?.querySelector("#vno-zoom-text");
     if (zoomRange) {

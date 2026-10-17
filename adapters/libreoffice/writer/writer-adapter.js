@@ -244,7 +244,8 @@ function trapFocus(dialogBox, event) {
 const WRITER_MULTILEVEL_PRESETS = {
   decimal: { className: "vno-ml-decimal", styleName: "LMultiDecimal" },
   letter: { className: "vno-ml-letter", styleName: "LMultiLetter" },
-  nd30: { className: "vno-ml-nd30", styleName: "LMultiNd30" }
+  nd30: { className: "vno-ml-nd30", styleName: "LMultiNd30" },
+  custom: { className: "vno-ml-custom", styleName: "LMultiCustom" }
 };
 const WRITER_MULTILEVEL_BY_CLASS = Object.fromEntries(
   Object.values(WRITER_MULTILEVEL_PRESETS).map((preset) => [preset.className, preset.styleName])
@@ -253,7 +254,7 @@ const WRITER_MULTILEVEL_BY_STYLE = Object.fromEntries(
   Object.values(WRITER_MULTILEVEL_PRESETS).map((preset) => [preset.styleName, preset.className])
 );
 const WRITER_LIST_STYLE_NAMES = new Set(["LBullet", "LNumber", ...Object.keys(WRITER_MULTILEVEL_BY_STYLE)]);
-const WRITER_MULTILEVEL_MAX_DEPTH = 3;
+const WRITER_MULTILEVEL_MAX_DEPTH = 9;
 
 function fodtListLevelNumberXml({ level, format, suffix = ".", prefix = "", displayLevels, spaceBeforeCm }) {
   const attrs = [`text:level="${level}"`, `style:num-format="${format}"`];
@@ -275,6 +276,23 @@ function fodtMultilevelListStyleXml(styleName) {
     return `<text:list-style style:name="LMultiNd30">${fodtListLevelNumberXml({ level: 1, format: "1", prefix: "Điều ", suffix: ".", spaceBeforeCm: space[0] })}${fodtListLevelNumberXml({ level: 2, format: "1", suffix: ".", spaceBeforeCm: space[1] })}${fodtListLevelNumberXml({ level: 3, format: "a", suffix: ")", spaceBeforeCm: space[2] })}</text:list-style>`;
   }
   return "";
+}
+
+function fodtCustomMultilevelListStyleXml(levels, escapeXml) {
+  const styles = (levels || []).slice(0, 9).map((level, index) => {
+    const levelNumber = index + 1;
+    const fmt = ({ decimal: "1", lowerLetter: "a", upperLetter: "A", lowerRoman: "i", upperRoman: "I", bullet: "bullet" })[level.format] || "1";
+    const before = escapeXml(level.prefix || "");
+    const after = escapeXml(level.suffixType === "nothing" ? "" : level.suffixType === "space" ? `${level.suffix || ""} ` : level.suffix || "");
+    const numberCm = Math.max(0, Number(level.numberCm) || 0);
+    const textCm = Math.max(numberCm, Number(level.textCm) || 0.635 * levelNumber);
+    const props = `<style:list-level-properties text:space-before="${textCm}cm" text:min-label-width="${Math.max(0.05, textCm - numberCm)}cm"/>`;
+    if (fmt === "bullet") return `<text:list-level-style-bullet text:level="${levelNumber}" text:bullet-char="${before || "•"}">${props}</text:list-level-style-bullet>`;
+    const display = level.includeParents && levelNumber > 1 ? ` text:display-levels="${levelNumber}"` : "";
+    const start = Math.min(32767, Math.max(1, Number(level.start) || 1));
+    return `<text:list-level-style-number text:level="${levelNumber}" text:start-value="${start}" style:num-format="${fmt}" style:num-prefix="${before}" style:num-suffix="${after}"${display}><style:list-level-properties text:space-before="${textCm}cm" text:min-label-width="${Math.max(0.05, textCm - numberCm)}cm"/></text:list-level-style-number>`;
+  }).join("");
+  return `<text:list-style style:name="LMultiCustom">${styles}</text:list-style>`;
 }
 
 function multilevelStyleFromClass(className) {
@@ -830,6 +848,8 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.format.textGlow", (args) => this._hintIfFalse(() => this.setTextGlow(args), "Hãy chọn đoạn văn bản cần đặt hiệu ứng phát sáng."));
     globalCommandBus.bindHandler("writer.format.clearTextEffects", () => this._hintIfFalse(() => this.clearTextEffects(), "Hãy chọn đoạn văn bản cần xóa hiệu ứng chữ."));
     globalCommandBus.bindHandler("writer.para.sort", () => this.sortParagraphs());
+    globalCommandBus.bindHandler("writer.para.multilevelList", (args) => this.applyMultilevelList(args));
+    globalCommandBus.bindHandler("writer.para.defineMultilevelList", () => this.openDefineMultilevelList());
     globalCommandBus.bindHandler("writer.para.showFormattingMarks", () => this.toggleFormattingMarks());
     globalCommandBus.bindHandler("writer.para.shading", (args) => this.applyParagraphShading(args));
     globalCommandBus.bindHandler("writer.para.borders", (args) => this.applyParagraphBorders(args));
@@ -1932,27 +1952,94 @@ export class WriterAdapter {
     return this.setPageSetup({ ...setup, margins }, "section");
   }
 
-  applyMultilevelList(preset) {
+  applyMultilevelList(preset, selectedBlocks = null) {
     const chosen = preset || "decimal";
-    const spec = WRITER_MULTILEVEL_PRESETS[String(chosen)];
+    const spec = typeof chosen === "object" && Array.isArray(chosen.levels)
+      ? { className: "vno-ml-custom", styleName: "LMultiCustom", levels: chosen.levels }
+      : WRITER_MULTILEVEL_PRESETS[String(chosen)];
     if (!spec) return false;
     this.flushTyping();
     if (typeof document !== "undefined" && typeof document.createElement === "function" && this.bodyDom?.querySelectorAll) {
-      let blocks = this._getSelectedParagraphBlocks();
+      let blocks = Array.isArray(selectedBlocks) ? selectedBlocks.filter(block => block && this.bodyDom.contains(block)) : this._getSelectedParagraphBlocks();
       if (!blocks.length) {
+        if (spec.levels) return false;
         blocks = Array.from(this.bodyDom.children || []).filter((node) => node.tagName && !node.hasAttribute?.("data-vno-auto-page-gap"));
       }
+      const selectedText = new Set(blocks.map(block => String(block.textContent || "").replace(/\s+/g, " ").trim()).filter(Boolean));
       if (blocks.length) this._convertBlocksToMultilevel(blocks, spec.className);
       else document.execCommand?.("insertOrderedList", false, null);
-      this._stampMultilevelOnLists(spec.className);
+      if (spec.levels) {
+        const lists = new Set();
+        this.bodyDom.querySelectorAll("li").forEach(item => {
+          const text = String(item.textContent || "").replace(/\s+/g, " ").trim();
+          if (!selectedText.has(text)) return;
+          let list = item.closest("ol,ul");
+          while (list && this.bodyDom.contains(list)) { lists.add(list); list = list.parentElement?.closest?.("ol,ul"); }
+        });
+        this._stampMultilevelOnLists(spec.className, spec.levels, [...lists]);
+      } else {
+        this._stampMultilevelOnLists(spec.className);
+      }
     } else if (this.bodyDom && typeof this.bodyDom.innerHTML === "string") {
-      this.bodyDom.innerHTML = this._applyMultilevelListToHtml(this.bodyDom.innerHTML, spec.className);
+      this.bodyDom.innerHTML = this._applyMultilevelListToHtml(this.bodyDom.innerHTML, spec.className, spec.levels);
     } else {
       return false;
     }
     this.isDirty = true;
     this.recordSnapshot("writer.para.multilevelList");
     return true;
+  }
+
+  async openDefineMultilevelList() {
+    const { showWriterMultilevelDialog } = await import("../../../apps/writer/writer-multilevel-dialog.js");
+    const selected = this._getSelectedParagraphBlocks?.() || [];
+    let selectedList = selected[0]?.closest?.("ol,ul");
+    while (selectedList?.parentElement?.closest?.("ol,ul")) selectedList = selectedList.parentElement.closest("ol,ul");
+    const current = selectedList?.getAttribute?.("data-vno-multilevel-config");
+    let initial = null;
+    if (current) { try { initial = JSON.parse(decodeURIComponent(current)); } catch {} }
+    if (!initial && this._activeOoxmlNumberingXml && selected.length) {
+      const sourceBlock = selected[0].cloneNode?.(true);
+      sourceBlock?.querySelectorAll?.("ol,ul")?.forEach(list => list.remove());
+      initial = this._readMultilevelConfigForText(sourceBlock?.textContent || selected[0].textContent || "");
+    }
+    const result = await showWriterMultilevelDialog(initial);
+    return result ? this.applyMultilevelList(result, selected) : false;
+  }
+
+  _readMultilevelConfigForText(text) {
+    const key = this._textKeyFromMarkup(String(text || ""));
+    const item = this._wordCountSourceListItems?.find(entry => this._textKeyFromMarkup(entry.text) === key);
+    if (!item) return null;
+    const xml = this._activeOoxmlNumberingXml;
+    const num = [...xml.matchAll(/<w:num\b[^>]*w:numId="([^"]+)"[^>]*>([\s\S]*?)<\/w:num>/g)].find(match => match[1] === item.numId);
+    const abstractId = num?.[2].match(/<w:abstractNumId\b[^>]*w:val="([^"]+)"/)?.[1];
+    const abstract = abstractId && [...xml.matchAll(/<w:abstractNum\b[^>]*w:abstractNumId="([^"]+)"[^>]*>([\s\S]*?)<\/w:abstractNum>/g)].find(match => match[1] === abstractId);
+    if (!abstract) return null;
+    return Array.from({ length: 9 }, (_, index) => {
+      const lvl = [...abstract[2].matchAll(/<w:lvl\b[^>]*w:ilvl="(\d+)"[^>]*>([\s\S]*?)<\/w:lvl>/g)].find(match => Number(match[1]) === index);
+      if (!lvl) return { format: index === 2 ? "lowerLetter" : "decimal", prefix: "", suffix: ".", start: 1, numberCm: 0.63 * index, textCm: 0.63 * (index + 1), suffixType: "tab", includeParents: index > 0 };
+      const body = lvl[2];
+      const format = ({ decimal: "decimal", lowerLetter: "lowerLetter", upperLetter: "upperLetter", lowerRoman: "lowerRoman", upperRoman: "upperRoman", bullet: "bullet" })[body.match(/<w:numFmt\b[^>]*w:val="([^"]+)"/)?.[1]] || "decimal";
+      const label = (body.match(/<w:lvlText\b[^>]*w:val="([^"]+)"/)?.[1] || `%${index + 1}`)
+        .replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&amp;/g, "&");
+      const tokens = [...label.matchAll(/%(\d+)/g)].map(match => Number(match[1]));
+      const first = label.search(/%\d+/);
+      const last = label.lastIndexOf(`%${tokens.at(-1) || index + 1}`);
+      const ind = body.match(/<w:ind\b([^>]*)\/?\s*>/)?.[1] || "";
+      const left = Number(ind.match(/\bw:left="(\d+)"/)?.[1] || 0);
+      const hanging = Number(ind.match(/\bw:hanging="(\d+)"/)?.[1] || 0);
+      return {
+        format,
+        prefix: first >= 0 ? label.slice(0, first) : "",
+        suffix: last >= 0 ? label.slice(last + String(`%${tokens.at(-1) || index + 1}`).length) : "",
+        start: Number(body.match(/<w:start\b[^>]*w:val="(\d+)"/)?.[1] || 1),
+        numberCm: Math.max(0, left - hanging) / 567,
+        textCm: left / 567,
+        suffixType: body.match(/<w:suff\b[^>]*w:val="(tab|space|nothing)"/)?.[1] || "tab",
+        includeParents: tokens.length > 1
+      };
+    });
   }
 
   changeListLevel(delta, itemText, root = this.bodyDom) {
@@ -2111,16 +2198,50 @@ export class WriterAdapter {
     if (!className || !toList) return;
     if (toList.classList?.add) toList.classList.add(className);
     else toList.className = `${String(toList.className || "").replace(/vno-ml-(?:decimal|letter|nd30)/g, "").trim()} ${className}`.trim();
+    const config = fromList.getAttribute?.("data-vno-multilevel-config");
+    if (config) toList.setAttribute?.("data-vno-multilevel-config", config);
   }
 
-  _stampMultilevelOnLists(className) {
+  _stampMultilevelOnLists(className, levels = null, targetLists = null) {
     if (!this.bodyDom?.querySelectorAll) return;
-    this.bodyDom.querySelectorAll("ol,ul").forEach((list) => {
+    (targetLists || [...this.bodyDom.querySelectorAll("ol,ul")]).forEach((list) => {
       const current = this._multilevelClassOf(list);
       if (current && list.classList?.remove) list.classList.remove(current);
       if (list.classList?.add) list.classList.add(className);
       else list.className = `${String(list.className || "").replace(/vno-ml-(?:decimal|letter|nd30)/g, "").trim()} ${className}`.trim();
+      if (levels) {
+        const encoded = encodeURIComponent(JSON.stringify(levels));
+        list.setAttribute("data-vno-multilevel-config", encoded);
+        this._installCustomMultilevelPreview(encoded, levels);
+      }
     });
+  }
+
+  _installCustomMultilevelPreview(encoded, levels) {
+    if (typeof document === "undefined" || !document.head) return;
+    let style = document.getElementById("vno-writer-custom-multilevel-style");
+    if (!style) {
+      style = document.createElement("style");
+      style.id = "vno-writer-custom-multilevel-style";
+      document.head.appendChild(style);
+    }
+    const selector = `ol[data-vno-multilevel-config="${encoded}"]`;
+    const counterName = index => `vno-custom-level-${index}`;
+    const cssString = value => `"${Array.from(String(value || "")).map(char => /[\\\"\n\r]/.test(char) ? `\\${char.codePointAt(0).toString(16)} ` : char).join("")}"`;
+    const rules = [];
+    for (let index = 0; index < Math.min(9, levels.length); index++) {
+      const listSelector = [selector, ...Array(index).fill("ol").map(() => " ol")].join("");
+      rules.push(`${listSelector}{list-style:none;counter-reset:${counterName(index)};padding-left:0}`);
+      const itemSelector = `${listSelector}>li`;
+      rules.push(`${itemSelector}{list-style:none;counter-increment:${counterName(index)}}`);
+      const level = levels[index];
+      const format = ({ lowerLetter: "lower-alpha", upperLetter: "upper-alpha", lowerRoman: "lower-roman", upperRoman: "upper-roman" })[level.format];
+      const own = format ? `counter(${counterName(index)},${format})` : `counter(${counterName(index)})`;
+      const counters = level.includeParents && index > 0 ? Array.from({ length: index }, (_, n) => `counter(${counterName(n)})`).concat(own) : [own];
+      const content = level.format === "bullet" ? `${level.prefix || "•"}` : `${level.prefix || ""}${counters.join(".")}${level.suffix || ""}`;
+      rules.push(`${itemSelector}::before{content:${cssString(content)};font-weight:600;margin-right:.35em}`);
+    }
+    style.textContent += `\n${rules.join("\n")}`;
   }
 
   _propagateMultilevelClasses(root = this.bodyDom) {
@@ -2167,12 +2288,13 @@ export class WriterAdapter {
     return ` class="${className}"${attrs || ""}`;
   }
 
-  _applyMultilevelListToHtml(html, className) {
+  _applyMultilevelListToHtml(html, className, levels = null) {
+    const config = levels ? ` data-vno-multilevel-config="${encodeURIComponent(JSON.stringify(levels))}"` : "";
     let out = String(html || "");
     if (/<[ou]l\b/i.test(out)) {
-      out = out.replace(/<ul\b([^>]*)>/gi, (_, attrs) => `<ol${this._mergeMultilevelClassAttr(attrs, className)}>`);
+      out = out.replace(/<ul\b([^>]*)>/gi, (_, attrs) => `<ol${this._mergeMultilevelClassAttr(attrs, className)}${config}>`);
       out = out.replace(/<\/ul>/gi, "</ol>");
-      out = out.replace(/<ol\b([^>]*)>/gi, (_, attrs) => `<ol${this._mergeMultilevelClassAttr(attrs, className)}>`);
+      out = out.replace(/<ol\b([^>]*)>/gi, (_, attrs) => `<ol${this._mergeMultilevelClassAttr(attrs, className)}${config}>`);
       return out;
     }
     const items = [];
@@ -2181,7 +2303,7 @@ export class WriterAdapter {
       return "";
     });
     if (!items.length) return html;
-    return `<ol class="${className}">${items.map((inner) => `<li>${inner}</li>`).join("")}</ol>`;
+    return `<ol class="${className}"${config}>${items.map((inner) => `<li>${inner}</li>`).join("")}</ol>`;
   }
 
   _changeListItemLevelDom(listItem, delta, root = this.bodyDom) {
@@ -8858,6 +8980,9 @@ export class WriterAdapter {
 
       case "writer.para.multilevelList":
         return this.applyMultilevelList(args);
+
+      case "writer.para.defineMultilevelList":
+        return this.openDefineMultilevelList();
 
       case "writer.para.indentInc":
         if (!this.adjustParagraphIndent(1)) {
@@ -16159,7 +16284,7 @@ export class WriterAdapter {
   serializeToFodt() {
     this._initZones();
     const html = this._restoreLibreOfficeTableWidthsForExport(this.bodyDom?.innerHTML ?? this.editorDom?.innerHTML ?? "");
-    if (/\bdata-vno-(?!wrap=["']inline["']|section-break=|section-id=|footnote-ref=|endnote-ref=|footnotes=|endnotes=|footnote-id=|endnote-id=|toc=|comment-author=|change=|author=|date=|wordart=|wordart-preset=|wordart-text=|wordart-style=|chart=)[\w-]+\s*=/i.test(html)) {
+    if (/\bdata-vno-(?!wrap=["']inline["']|multilevel-config=|section-break=|section-id=|footnote-ref=|endnote-ref=|footnotes=|endnotes=|footnote-id=|endnote-id=|toc=|comment-author=|change=|author=|date=|wordart=|wordart-preset=|wordart-text=|wordart-style=|chart=)[\w-]+\s*=/i.test(html)) {
       throw this._fodtError("marker data-vno-* chưa có ánh xạ Phase A/B/C/D/E.1/E.3/E.4");
     }
     const tree = this._fodtParseMarkup(html, "HTML");
@@ -16301,14 +16426,19 @@ export class WriterAdapter {
       return `<${tag}${pStyle}>${inlineXml(node.children, this._fodtInlineStyle(node))}</${headingMatch ? "text:h" : "text:p"}>`;
     };
     const usedListStyles = new Set();
+    let customListLevels = null;
     const listXml = (node, inheritedStyle) => {
       const ordered = node.name === "ol";
-      const unexpected = Object.keys(node.attrs).filter(name => !["style", "class", "type", "start"].includes(name));
+      const unexpected = Object.keys(node.attrs).filter(name => !["style", "class", "type", "start", "data-vno-multilevel-config"].includes(name));
       if (unexpected.length || node.attrs.start || (node.attrs.type && !["1", "a", "A", "i", "I"].includes(node.attrs.type))) {
         throw this._fodtError("thuộc tính danh sách nâng cao");
       }
       this._fodtCssMap(node.attrs.style);
       const styleNameForList = multilevelStyleFromClass(node.attrs.class) || inheritedStyle || (ordered ? "LNumber" : "LBullet");
+      if (styleNameForList === "LMultiCustom" && node.attrs["data-vno-multilevel-config"]) {
+        try { customListLevels = JSON.parse(decodeURIComponent(node.attrs["data-vno-multilevel-config"])); }
+        catch { throw this._fodtError("cấu hình danh sách đa cấp tùy chỉnh không hợp lệ"); }
+      }
       usedListStyles.add(styleNameForList);
       const items = node.children.filter(child => !(child.name === "#text" && !child.text.trim()));
       if (items.some(child => child.name !== "li")) throw this._fodtError(`nội dung trực tiếp trong <${node.name}>`);
@@ -16708,7 +16838,10 @@ export class WriterAdapter {
       .filter((name) => usedListStyles.has(name))
       .map((name) => fodtMultilevelListStyleXml(name))
       .join("");
-    const listStyles = '<text:list-style style:name="LBullet"><text:list-level-style-bullet text:level="1" text:bullet-char="•"><style:list-level-properties text:space-before="0.635cm" text:min-label-width="0.635cm"/></text:list-level-style-bullet></text:list-style><text:list-style style:name="LNumber"><text:list-level-style-number text:level="1" style:num-format="1" style:num-suffix="."><style:list-level-properties text:space-before="0.635cm" text:min-label-width="0.635cm"/></text:list-level-style-number></text:list-style>' + multilevelStyleXml;
+    const customMultilevelStyleXml = usedListStyles.has("LMultiCustom") && customListLevels
+      ? fodtCustomMultilevelListStyleXml(customListLevels, value => this._fodtEscapeXml(value))
+      : "";
+    const listStyles = '<text:list-style style:name="LBullet"><text:list-level-style-bullet text:level="1" text:bullet-char="•"><style:list-level-properties text:space-before="0.635cm" text:min-label-width="0.635cm"/></text:list-level-style-bullet></text:list-style><text:list-style style:name="LNumber"><text:list-level-style-number text:level="1" style:num-format="1" style:num-suffix="."><style:list-level-properties text:space-before="0.635cm" text:min-label-width="0.635cm"/></text:list-level-style-number></text:list-style>' + multilevelStyleXml + customMultilevelStyleXml;
     const pageLayoutXml = [...layoutNames.entries()].map(([signature, name]) => this._fodtPageLayoutXml(name, JSON.parse(signature))).join("");
     const headerWithWatermark = `${watermarkHeaderXml}${headerXml}`;
     const masterPageXml = masters.map(master => this._fodtMasterPageXml(master.name, master.layoutName, headerWithWatermark, footerXml)).join("");
@@ -18120,6 +18253,7 @@ export class WriterAdapter {
   async _openDocumentFromDisk() {
     const result = await globalUnoBridge.openRealFile("writer");
     if (result.status === "ok") {
+      this._activeOoxmlNumberingXml = String(result.ooxmlNumberingXml || "");
       let imported;
       const previousImportSourceExtension = this._importSourceExtension;
       this._importSourceExtension = String(result.sourcePath || result.fileName || "").match(/\.([^.\\/]+)$/)?.[1]?.toLowerCase() || "";

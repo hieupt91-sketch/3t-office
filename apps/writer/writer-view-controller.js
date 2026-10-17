@@ -1,8 +1,9 @@
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { WriterNavigationPane } from "./writer-nav-pane.js";
+import { showWriterZoomDialog } from "./writer-zoom-dialog.js";
 
-const MIN_ZOOM = 0.5;
-const MAX_ZOOM = 2;
+const MIN_ZOOM = 0.1;
+const MAX_ZOOM = 5;
 
 export class WriterViewController {
   constructor({ container, viewport, page, ruler, verticalRuler = null, shell }) {
@@ -50,6 +51,7 @@ export class WriterViewController {
   }
 
   attach() {
+    this.shell?.setZoomLimits?.(10, 500);
     globalCommandBus.bindHandler("writer.view.printLayout", () => this.setMode("printLayout"));
     globalCommandBus.bindHandler("writer.view.webLayout", () => this.setMode("webLayout"));
     globalCommandBus.bindHandler("writer.view.readMode", () => this.setMode("readMode"));
@@ -72,6 +74,9 @@ export class WriterViewController {
     globalCommandBus.bindHandler("writer.view.zoomReset", () => this.zoomReset());
     globalCommandBus.bindHandler("writer.view.zoom100", () => this.zoomReset());
     globalCommandBus.bindHandler("writer.view.pageWidth", () => this.pageWidth());
+    globalCommandBus.bindHandler("writer.view.zoomDialog", () => this.openZoomDialog());
+    globalCommandBus.bindHandler("writer.view.fitPage", () => this.fitPage());
+    globalCommandBus.bindHandler("writer.view.multiplePages", () => this.multiplePages());
     globalCommandBus.bindHandler("writer.view.newWindow", () => {
       const run = () => this.newWindow();
       const result = run();
@@ -555,6 +560,32 @@ export class WriterViewController {
     const available = Math.max(1, (this.viewport?.clientWidth || 0) - 40);
     const pageWidth = this.page?.offsetWidth || parseFloat(getComputedStyle(this.page).width) || 794;
     return this.setZoom(available / pageWidth, { pageWidth: true });
+  }
+
+  fitPage() {
+    const availableHeight = Math.max(1, (this.viewport?.clientHeight || 0) - 32);
+    const pageHeight = this.page?.offsetHeight || 1123;
+    this.container?.classList.remove("vno-writer-page-width", "vno-writer-multiple-pages");
+    return this.setZoom(availableHeight / pageHeight);
+  }
+
+  multiplePages() {
+    const pageWidth = this.page?.offsetWidth || 794;
+    const available = Math.max(1, (this.viewport?.clientWidth || 0) - 56);
+    const columns = Math.max(2, Math.min(4, Math.floor(available / (pageWidth * 0.5))));
+    this.container?.classList.add("vno-writer-multiple-pages");
+    this.container?.classList.remove("vno-writer-page-width");
+    return this.setZoom(available / (pageWidth * columns));
+  }
+
+  async openZoomDialog() {
+    const choice = await showWriterZoomDialog(Math.round(this.zoomLevel * 100));
+    if (!choice) return false;
+    if (choice.fit === "width") return this.pageWidth();
+    if (choice.fit === "page") return this.fitPage();
+    if (choice.fit === "multiple") return this.multiplePages();
+    this.container?.classList.remove("vno-writer-page-width", "vno-writer-multiple-pages");
+    return this.setZoom(choice.zoom / 100);
   }
 
   async newWindow() {

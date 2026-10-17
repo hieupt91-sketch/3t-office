@@ -60,7 +60,7 @@ Trang đầu|Đoạn văn|Dấu đầu dòng (Bullets, Ctrl+Shift+L)|V|-|Dấu �
 Trang đầu|Đoạn văn|Đánh số thứ tự (Numbering)|V|-|Đánh số thứ tự writer.list.numbered đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:33, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:39)
 Trang đầu|Đoạn văn|Khởi động lại số (Restart numbering at 1) / Tiếp tục đánh số|A|-|writer.list.restartNumbering / continueNumbering
 Trang đầu|Đoạn văn|Danh sách đa cấp (Multilevel List)|V|-|Danh sách đa cấp lồng qua w:numPr/w:ilvl đối chiếu Word COM (docs/word-oracle-1710.json:23-29, docs/WORD2016-FINDINGS-1710.md:44-48)
-Trang đầu|Đoạn văn|Định nghĩa danh sách đa cấp mới (Define New Multilevel List)|P|1|Hỗ trợ các cấp lồng cơ bản; chưa có hộp thoại tùy biến tiền tố cha-con 1.1, Điều/Khoản (FIX-W3-MULTILEVEL)
+Trang đầu|Đoạn văn|Định nghĩa danh sách đa cấp mới (Define New Multilevel List)|A|-|writer.para.defineMultilevelList (apps/writer/writer-multilevel-dialog.js; adapters/libreoffice/writer/writer-adapter.js; adapters/libreoffice/common/ooxml_zip_patch.py)
 Trang đầu|Đoạn văn|Giảm thụt lề (Ctrl+Shift+M) / Tăng thụt lề (Ctrl+M)|V|-|Thụt lề writer.para.indentDec/Inc đối chiếu Word COM LeftIndent 36 pt (docs/DOC-BUTTON-MATRIX-1011.md:34-35, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:40,48)
 Trang đầu|Đoạn văn|Thụt đầu dòng (First Line Indent 14.15 pt / 0.5 cm)|V|-|Thụt đầu dòng writer.para.firstLineIndent đối chiếu Word COM 14.15 pt (docs/DOC-BUTTON-MATRIX-1011.md:79, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:48,55)
 Trang đầu|Đoạn văn|Sắp xếp đoạn văn / danh sách A-Z (Sort)|V|-|Sắp xếp đoạn văn writer.para.sort đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:36)
@@ -209,7 +209,7 @@ Chế độ xem|Chuyển trang|Cuộn trang song song cạnh nhau (Side to Side)
 Chế độ xem|Hiển thị|Thước ngang và dọc (Ruler)|V|-|Thước writer.view.ruler đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:121)
 Chế độ xem|Hiển thị|Đường lưới căn chỉnh (Gridlines)|V|-|Đường lưới writer.view.gridlines đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:122)
 Chế độ xem|Hiển thị|Ngăn dẫn hướng (Navigation Pane, Ctrl+Alt+N)|V|-|Ngăn dẫn hướng writer.view.navigationPane đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:120)
-Chế độ xem|Thu phóng|Hộp thoại Thu phóng (Zoom Dialog)|N|2|Chưa có hộp thoại Thu phóng (Zoom Dialog) nhập tỉ lệ phần trăm tùy ý; hiện dùng thanh trượt zoom và nút 100%
+Chế độ xem|Thu phóng|Hộp thoại Thu phóng (Zoom Dialog)|A|-|writer.view.zoomDialog (apps/writer/writer-zoom-dialog.js; apps/writer/writer-view-controller.js; platform/shell/app-shell.js)
 Chế độ xem|Thu phóng|Thu phóng 100%|V|-|Thu phóng 100% writer.view.zoom100 đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:124)
 Chế độ xem|Thu phóng|Vừa chiều rộng trang (Page Width)|V|-|Chiều rộng trang writer.view.pageWidth đối chiếu Word COM PageFit=3 (docs/DOC-BUTTON-MATRIX-1011.md:126)
 Chế độ xem|Thu phóng|Xem một trang (One Page) / Nhiều trang (Multiple Pages)|P|2|Tự co giãn theo kích thước màn hình; chưa có nút cố định 2-trang
@@ -287,7 +287,7 @@ Không thuộc ribbon|Chuột|Thanh công cụ nổi mini khi bôi đen (Mini To
 Không thuộc ribbon|Chuột|Menu ngữ cảnh chuột phải trên văn bản|A|-|Menu ngữ cảnh văn bản chuột phải (apps/writer/writer-app.js:863-876)
 Không thuộc ribbon|Chuột|Menu ngữ cảnh chuột phải trong bảng|V|-|Menu chuột phải trong bảng đối chiếu Word COM thêm/xóa hàng cột (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:54-57)
 Không thuộc ribbon|Chuột|Menu ngữ cảnh chuột phải hình ảnh & hình khối|V|-|Menu chuột phải hình ảnh/hình khối đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:73-74)
-Không thuộc ribbon|Thanh trạng thái|Thanh trạng thái: Số trang & Tổng số trang (Trang X trên Y)|A|-|Số trang trên thanh trạng thái (platform/help/entries-writer.js:806-810)
+Không thuộc ribbon|Thanh trạng thái|Thanh trạng thái: Số trang & Tổng số trang (Trang X trên Y)|N|3|Writer chưa hiển thị số trang hiện tại trên thanh trạng thái
 Không thuộc ribbon|Thanh trạng thái|Thanh trạng thái: Đếm từ & số ký tự|V|-|Đếm từ trên thanh trạng thái đối chiếu Word COM trong FIX-T15 (docs/DOC-BUTTON-MATRIX-1011.md:105)
 Không thuộc ribbon|Thanh trạng thái|Thanh trạng thái: Ngôn ngữ tài liệu & Kiểm tra chính tả|A|-|writer.review.toggleSpellCheck (apps/writer/writer-app.js:234, 570-577)
 Không thuộc ribbon|Thanh trạng thái|Thanh trạng thái: Nút chuyển chế độ xem (Bố trí in, Đọc, Web)|V|-|Nút chuyển chế độ xem đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:117-119)
@@ -311,7 +311,6 @@ ICON = {"V": "✅", "A": "🟢", "P": "🟡", "N": "🔴", "X": "⚪"}
 NEXT_TICKETS = [
     ("FIX-W1-TABS", "Bổ sung hộp thoại Điểm dừng Tab (Tabs Dialog) và tương tác đặt tab stops trên thước (căn trái, giữa, phải, thập phân kèm ký tự dẫn ...)", "Ưu tiên 1"),
     ("FIX-W2-PASSWORD", "Bổ sung mã hóa bảo vệ tài liệu DOCX bằng mật khẩu mở tệp chuẩn ECMA-376 / Standard Encryption", "Ưu tiên 1"),
-    ("FIX-W3-MULTILEVEL", "Hoàn thiện hộp thoại Định nghĩa danh sách đa cấp mới (Define New Multilevel List) với tiền tố cha con (1.1, 1.1.1, Điều/Khoản)", "Ưu tiên 1"),
     ("FIX-W4-SPLITVIEW", "Hỗ trợ chia cửa sổ soạn thảo (Split Window) cho tài liệu Writer dài (kế thừa cơ chế Split đã có của Sheet)", "Ưu tiên 2"),
     ("FIX-W5-SELECTIONPANE", "Tích hợp Ngăn lựa chọn đối tượng (Selection Pane) đầy đủ cho Writer để quản lý layer ảnh, hình khối, bảng và hộp văn bản", "Ưu tiên 2"),
     ("FIX-W6-TABLESTYLES", "Mở rộng thư viện kiểu dáng bảng biểu (Table Styles Gallery) với 30+ mẫu bảng phối màu chuẩn văn phòng", "Ưu tiên 2"),

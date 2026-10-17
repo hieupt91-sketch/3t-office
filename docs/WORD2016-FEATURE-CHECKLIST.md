@@ -17,13 +17,13 @@ Chuẩn: Microsoft Word 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qu
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Word 2016 | 149 | 55% |
-| 🟢 Có, chưa đối chiếu | 63 | 23% |
-| 🟡 Có một phần | 31 | 11% |
+| 🟢 Có, chưa đối chiếu | 64 | 23% |
+| 🟡 Có một phần | 30 | 11% |
 | 🔴 Chưa có | 30 | 11% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **279** (áp dụng: 273) | |
 
-- **Độ phủ so với Word 2016 (có hoặc có một phần, một phần tính 0,5): 83%**
+- **Độ phủ so với Word 2016 (có hoặc có một phần, một phần tính 0,5): 84%**
 - **Đã xác minh bằng đối chiếu Word 2016 thật: 55%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn phòng; độ trung thực đối chiếu được xác nhận bằng Word COM thật.
@@ -33,32 +33,31 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 1 | 14 | 0 | 1 | 1 | 94% |
-| Trang đầu | 47 | 29 | 9 | 6 | 3 | 0 | 87% |
+| Trang đầu | 47 | 29 | 10 | 5 | 3 | 0 | 88% |
 | Chèn | 34 | 23 | 3 | 0 | 5 | 3 | 84% |
 | Thiết kế | 10 | 4 | 0 | 4 | 2 | 0 | 60% |
 | Bố trí | 18 | 12 | 4 | 1 | 1 | 0 | 92% |
 | Tham chiếu | 19 | 11 | 2 | 3 | 1 | 2 | 85% |
 | Thư | 16 | 9 | 0 | 6 | 1 | 0 | 75% |
 | Xem lại | 22 | 10 | 7 | 2 | 3 | 0 | 82% |
-| Chế độ xem | 21 | 10 | 5 | 2 | 4 | 0 | 76% |
+| Chế độ xem | 21 | 10 | 6 | 2 | 3 | 0 | 81% |
 | Công cụ Bảng | 26 | 23 | 0 | 2 | 1 | 0 | 92% |
 | Công cụ Hình ảnh | 12 | 2 | 5 | 2 | 3 | 0 | 67% |
 | Công cụ Vẽ | 10 | 4 | 2 | 2 | 2 | 0 | 70% |
 | Công cụ Đầu & Chân trang | 7 | 4 | 2 | 1 | 0 | 0 | 93% |
-| Không thuộc ribbon | 20 | 7 | 10 | 0 | 3 | 0 | 85% |
+| Không thuộc ribbon | 20 | 7 | 9 | 0 | 4 | 0 | 80% |
 
 ## Việc cần làm (mục chưa có hoặc một phần, ưu tiên 1: danh sách 15 mục thiếu nhất)
 
 | STT | Tab | Nhóm | Tính năng | Trạng thái | Ghi chú / Phần thiếu |
 |---|---|---|---|---|---|
 | 1 | Tệp (Backstage) | Thông tin | Bảo vệ tài liệu: Mật khẩu mở file (mã hóa DOCX) | 🔴 | Chưa có cơ chế mã hóa mật khẩu mở file DOCX |
-| 2 | Trang đầu | Đoạn văn | Định nghĩa danh sách đa cấp mới (Define New Multilevel List) | 🟡 | Hỗ trợ các cấp lồng cơ bản; chưa có hộp thoại tùy biến tiền tố cha-con 1.1, Điều/Khoản (FIX-W3-MULTILEVEL) |
-| 3 | Trang đầu | Đoạn văn | Hộp thoại Điểm dừng Tab (Tabs Dialog: căn lề, ký tự dẫn leader) | 🟡 | Hỗ trợ phím Tab cơ bản; chưa có hộp thoại Tabs dialog tùy biến vị trí và ký tự dẫn leader dots (docs/WORD2016-FINDINGS-1710.md:55-58, FIX-W1-TABS) |
-| 4 | Trang đầu | Chỉnh sửa | Đi đến (Go To, Ctrl+G) | 🟡 | Có điều hướng đầu/cuối tài liệu Ctrl+Home/End; chưa có hộp thoại Go To tới trang/dòng/bookmark (FIX-W7-GOTO) |
-| 5 | Công cụ Bảng | Thiết kế | Độ dày và kiểu đường viền bảng | 🟡 | Hỗ trợ độ dày chuẩn; kiểu nét đứt/đôi cần hoàn thiện trong giao diện viền |
-| 6 | Không thuộc ribbon | Chuột | Đặt điểm dừng tab tùy chỉnh trên thước | 🔴 | Chưa có thao tác nhấp chuột lên thước để đặt tab dừng căn phải/giữa/thập phân |
+| 2 | Trang đầu | Đoạn văn | Hộp thoại Điểm dừng Tab (Tabs Dialog: căn lề, ký tự dẫn leader) | 🟡 | Hỗ trợ phím Tab cơ bản; chưa có hộp thoại Tabs dialog tùy biến vị trí và ký tự dẫn leader dots (docs/WORD2016-FINDINGS-1710.md:55-58, FIX-W1-TABS) |
+| 3 | Trang đầu | Chỉnh sửa | Đi đến (Go To, Ctrl+G) | 🟡 | Có điều hướng đầu/cuối tài liệu Ctrl+Home/End; chưa có hộp thoại Go To tới trang/dòng/bookmark (FIX-W7-GOTO) |
+| 4 | Công cụ Bảng | Thiết kế | Độ dày và kiểu đường viền bảng | 🟡 | Hỗ trợ độ dày chuẩn; kiểu nét đứt/đôi cần hoàn thiện trong giao diện viền |
+| 5 | Không thuộc ribbon | Chuột | Đặt điểm dừng tab tùy chỉnh trên thước | 🔴 | Chưa có thao tác nhấp chuột lên thước để đặt tab dừng căn phải/giữa/thập phân |
 
-Tổng: 6 mục ưu tiên 1 cần bổ sung/hoàn thiện.
+Tổng: 5 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 
 ## Đề xuất 10 phiếu việc kế tiếp
 
@@ -66,7 +65,6 @@ Tổng: 6 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 |---|---|---|
 | **FIX-W1-TABS** | Bổ sung hộp thoại Điểm dừng Tab (Tabs Dialog) và tương tác đặt tab stops trên thước (căn trái, giữa, phải, thập phân kèm ký tự dẫn ...) | Ưu tiên 1 |
 | **FIX-W2-PASSWORD** | Bổ sung mã hóa bảo vệ tài liệu DOCX bằng mật khẩu mở tệp chuẩn ECMA-376 / Standard Encryption | Ưu tiên 1 |
-| **FIX-W3-MULTILEVEL** | Hoàn thiện hộp thoại Định nghĩa danh sách đa cấp mới (Define New Multilevel List) với tiền tố cha con (1.1, 1.1.1, Điều/Khoản) | Ưu tiên 1 |
 | **FIX-W4-SPLITVIEW** | Hỗ trợ chia cửa sổ soạn thảo (Split Window) cho tài liệu Writer dài (kế thừa cơ chế Split đã có của Sheet) | Ưu tiên 2 |
 | **FIX-W5-SELECTIONPANE** | Tích hợp Ngăn lựa chọn đối tượng (Selection Pane) đầy đủ cho Writer để quản lý layer ảnh, hình khối, bảng và hộp văn bản | Ưu tiên 2 |
 | **FIX-W6-TABLESTYLES** | Mở rộng thư viện kiểu dáng bảng biểu (Table Styles Gallery) với 30+ mẫu bảng phối màu chuẩn văn phòng | Ưu tiên 2 |
@@ -130,7 +128,7 @@ Tổng: 6 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Đoạn văn | Đánh số thứ tự (Numbering) | ✅ | - | Đánh số thứ tự writer.list.numbered đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:33, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:39) |
 | Đoạn văn | Khởi động lại số (Restart numbering at 1) / Tiếp tục đánh số | 🟢 | - | writer.list.restartNumbering / continueNumbering |
 | Đoạn văn | Danh sách đa cấp (Multilevel List) | ✅ | - | Danh sách đa cấp lồng qua w:numPr/w:ilvl đối chiếu Word COM (docs/word-oracle-1710.json:23-29, docs/WORD2016-FINDINGS-1710.md:44-48) |
-| Đoạn văn | Định nghĩa danh sách đa cấp mới (Define New Multilevel List) | 🟡 | 1 | Hỗ trợ các cấp lồng cơ bản; chưa có hộp thoại tùy biến tiền tố cha-con 1.1, Điều/Khoản (FIX-W3-MULTILEVEL) |
+| Đoạn văn | Định nghĩa danh sách đa cấp mới (Define New Multilevel List) | 🟢 | - | writer.para.defineMultilevelList (apps/writer/writer-multilevel-dialog.js; adapters/libreoffice/writer/writer-adapter.js; adapters/libreoffice/common/ooxml_zip_patch.py) |
 | Đoạn văn | Giảm thụt lề (Ctrl+Shift+M) / Tăng thụt lề (Ctrl+M) | ✅ | - | Thụt lề writer.para.indentDec/Inc đối chiếu Word COM LeftIndent 36 pt (docs/DOC-BUTTON-MATRIX-1011.md:34-35, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:40,48) |
 | Đoạn văn | Thụt đầu dòng (First Line Indent 14.15 pt / 0.5 cm) | ✅ | - | Thụt đầu dòng writer.para.firstLineIndent đối chiếu Word COM 14.15 pt (docs/DOC-BUTTON-MATRIX-1011.md:79, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:48,55) |
 | Đoạn văn | Sắp xếp đoạn văn / danh sách A-Z (Sort) | ✅ | - | Sắp xếp đoạn văn writer.para.sort đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:36) |
@@ -314,7 +312,7 @@ Tổng: 6 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Hiển thị | Thước ngang và dọc (Ruler) | ✅ | - | Thước writer.view.ruler đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:121) |
 | Hiển thị | Đường lưới căn chỉnh (Gridlines) | ✅ | - | Đường lưới writer.view.gridlines đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:122) |
 | Hiển thị | Ngăn dẫn hướng (Navigation Pane, Ctrl+Alt+N) | ✅ | - | Ngăn dẫn hướng writer.view.navigationPane đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:120) |
-| Thu phóng | Hộp thoại Thu phóng (Zoom Dialog) | 🔴 | 2 | Chưa có hộp thoại Thu phóng (Zoom Dialog) nhập tỉ lệ phần trăm tùy ý; hiện dùng thanh trượt zoom và nút 100% |
+| Thu phóng | Hộp thoại Thu phóng (Zoom Dialog) | 🟢 | - | writer.view.zoomDialog (apps/writer/writer-zoom-dialog.js; apps/writer/writer-view-controller.js; platform/shell/app-shell.js) |
 | Thu phóng | Thu phóng 100% | ✅ | - | Thu phóng 100% writer.view.zoom100 đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:124) |
 | Thu phóng | Vừa chiều rộng trang (Page Width) | ✅ | - | Chiều rộng trang writer.view.pageWidth đối chiếu Word COM PageFit=3 (docs/DOC-BUTTON-MATRIX-1011.md:126) |
 | Thu phóng | Xem một trang (One Page) / Nhiều trang (Multiple Pages) | 🟡 | 2 | Tự co giãn theo kích thước màn hình; chưa có nút cố định 2-trang |
@@ -417,7 +415,7 @@ Tổng: 6 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Chuột | Menu ngữ cảnh chuột phải trên văn bản | 🟢 | - | Menu ngữ cảnh văn bản chuột phải (apps/writer/writer-app.js:863-876) |
 | Chuột | Menu ngữ cảnh chuột phải trong bảng | ✅ | - | Menu chuột phải trong bảng đối chiếu Word COM thêm/xóa hàng cột (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:54-57) |
 | Chuột | Menu ngữ cảnh chuột phải hình ảnh & hình khối | ✅ | - | Menu chuột phải hình ảnh/hình khối đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:73-74) |
-| Thanh trạng thái | Thanh trạng thái: Số trang & Tổng số trang (Trang X trên Y) | 🟢 | - | Số trang trên thanh trạng thái (platform/help/entries-writer.js:806-810) |
+| Thanh trạng thái | Thanh trạng thái: Số trang & Tổng số trang (Trang X trên Y) | 🔴 | 3 | Writer chưa hiển thị số trang hiện tại trên thanh trạng thái |
 | Thanh trạng thái | Thanh trạng thái: Đếm từ & số ký tự | ✅ | - | Đếm từ trên thanh trạng thái đối chiếu Word COM trong FIX-T15 (docs/DOC-BUTTON-MATRIX-1011.md:105) |
 | Thanh trạng thái | Thanh trạng thái: Ngôn ngữ tài liệu & Kiểm tra chính tả | 🟢 | - | writer.review.toggleSpellCheck (apps/writer/writer-app.js:234, 570-577) |
 | Thanh trạng thái | Thanh trạng thái: Nút chuyển chế độ xem (Bố trí in, Đọc, Web) | ✅ | - | Nút chuyển chế độ xem đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:117-119) |

@@ -151,6 +151,7 @@ export const WRITER_RIBBON_TABS = [
                     iconOnly: true,
                     ariaLabel: "Danh sách đa cấp",
                     items: [
+                      { commandId: "writer.para.defineMultilevelList", label: "Định nghĩa danh sách đa cấp mới…" },
                       { commandId: "writer.para.multilevelList", args: "decimal", label: "1. / 1.1. / 1.1.1." },
                       { commandId: "writer.para.multilevelList", args: "letter", label: "1. / a. / i." },
                       { commandId: "writer.para.multilevelList", args: "nd30", label: "Điều 1. / 1. / a)" }
@@ -1056,6 +1057,9 @@ export const WRITER_RIBBON_TABS = [
             items: [
               { type: "button", commandId: "writer.view.zoomOut" },
               { type: "button", commandId: "writer.view.pageWidth" },
+              { type: "button", commandId: "writer.view.fitPage" },
+              { type: "button", commandId: "writer.view.multiplePages" },
+              { type: "button", commandId: "writer.view.zoomDialog" },
               { type: "button", commandId: "writer.view.zoomReset" }
             ]
           }
