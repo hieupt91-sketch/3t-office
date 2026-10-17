@@ -1434,7 +1434,11 @@ export class SlidesAdapter {
     const strokeSuffix = stroke && strokeWidth > 0
       ? `_stroke${this._styleKey(stroke)}_${String(strokeWidth).replace(/\./g, "_")}`
       : "";
-    return `${base}${strokeSuffix}${suffix}`;
+    const dashSuffix = (shape.strokeDash || shape.strokeKind === "dash")
+      ? `_dash${this._styleKey(shape.strokeDash || "dash")}`
+      : "";
+    const shadowSuffix = shape.shadow ? "_shdw" : "";
+    return `${base}${strokeSuffix}${dashSuffix}${shadowSuffix}${suffix}`;
   }
 
   /**
@@ -1488,7 +1492,7 @@ export class SlidesAdapter {
     if (shape.paddingRight != null) attrs += ` fo:padding-right="${this._pxToOdf(shape.paddingRight)}"`;
     if (shape.wrap) attrs += ` fo:wrap-option="${this._escapeXml(shape.wrap)}"`;
     // autofit: noAutofit → auto-grow-height/width=false; shrinkToFit → shrink-to-fit=true; fitToSize → fit-to-size=true
-    if (shape.autofit === false || shape.noAutofit) {
+    if (shape.autofit === false || shape.noAutofit || (shape.type !== "textbox" && !shape.shrinkToFit && !shape.fitToSize)) {
       attrs += ` draw:auto-grow-height="false" draw:auto-grow-width="false"`;
     } else if (shape.shrinkToFit) {
       attrs += ` style:shrink-to-fit="true"`;
@@ -1696,6 +1700,13 @@ export class SlidesAdapter {
       }
     });
     return xml;
+  }
+
+  _serializeStrokeDashStyles(slides) {
+    const hasDash = (slides || []).some(s => (s.shapes || []).some(sh => sh.strokeDash || sh.strokeKind === "dash"));
+    if (!hasDash) return "";
+    return `
+    <draw:stroke-dash draw:name="Long_20_Dash" draw:display-name="Long Dash" draw:style="rect" draw:dots1="1" draw:dots1-length="400%" draw:distance="300%"/>`;
   }
 
   _pageDrawingStyleName(slide, idx) {
@@ -2157,7 +2168,7 @@ export class SlidesAdapter {
           continue;
         }
         const suffix = this._shapeTextStyleSuffix(shape);
-        if (suffix || ((shape.stroke || shape.strokeColor) && Number(shape.strokeWidth) > 0)) {
+        if (suffix || ((shape.stroke || shape.strokeColor) && Number(shape.strokeWidth) > 0) || shape.strokeDash || shape.shadow) {
           namedStyles.set(this._shapeStyleName(shape), shape);
           continue;
         }
@@ -2285,13 +2296,26 @@ export class SlidesAdapter {
       if (shape.stroke || shape.strokeColor) {
         const sc = shape.stroke || shape.strokeColor;
         const sw = shape.strokeWidth ? this._pxToOdf(shape.strokeWidth) : "0.02cm";
-        strokeAttrs = ` draw:stroke="solid" svg:stroke-color="${this._escapeXml(sc)}" svg:stroke-width="${sw}"`;
+        if (shape.strokeDash || shape.strokeKind === "dash") {
+          const dashName = shape.strokeDash || "Long_20_Dash";
+          strokeAttrs = ` draw:stroke="dash" draw:stroke-dash="${this._escapeXml(dashName)}" svg:stroke-color="${this._escapeXml(sc)}" svg:stroke-width="${sw}"`;
+        } else {
+          strokeAttrs = ` draw:stroke="solid" svg:stroke-color="${this._escapeXml(sc)}" svg:stroke-width="${sw}"`;
+        }
       } else {
         strokeAttrs = ` draw:stroke="none"`;
       }
+      let shadowAttrs = "";
+      if (shape.shadow) {
+        const sh = typeof shape.shadow === "object" ? shape.shadow : {};
+        const ox = sh.offsetX || "0.211cm";
+        const oy = sh.offsetY || "0.073cm";
+        const sc = sh.color || "#000000";
+        shadowAttrs = ` draw:shadow="visible" draw:shadow-offset-x="${ox}" draw:shadow-offset-y="${oy}" draw:shadow-color="${sc}"`;
+      }
       xml += `
     <style:style style:name="${styleName}" style:family="graphic">
-      ${this._graphicPropertiesWithColumns(`${strokeAttrs}${fillAttrs}${this._textStyleGraphicAttrs(shape)}`, shape)}
+      ${this._graphicPropertiesWithColumns(`${strokeAttrs}${shadowAttrs}${fillAttrs}${this._textStyleGraphicAttrs(shape)}`, shape)}
     </style:style>`;
     }
     if (needsConnector) {
@@ -2464,6 +2488,22 @@ export class SlidesAdapter {
         </draw:custom-shape>`;
     }
 
+    if (shape.flipH || shape.flipV || shape.geomType === "ooxml-rect") {
+      const mirrorH = shape.flipH ? "true" : "false";
+      const mirrorV = shape.flipV ? "true" : "false";
+      const geomType = shape.geomType || "ooxml-rect";
+      return `
+        <draw:custom-shape ${geom}>
+          ${textXml}
+          <draw:enhanced-geometry draw:mirror-horizontal="${mirrorH}" draw:mirror-vertical="${mirrorV}" draw:glue-points="?f0 0 0 ?f1 ?f0 ?f2 ?f3 ?f1" draw:text-areas="0 0 ?f3 ?f2" svg:viewBox="0 0 0 0" draw:type="${geomType}" draw:enhanced-path="M 0 0 L ?f3 0 ?f3 ?f2 0 ?f2 Z N">
+            <draw:equation draw:name="f0" draw:formula="logwidth/2"/>
+            <draw:equation draw:name="f1" draw:formula="logheight/2"/>
+            <draw:equation draw:name="f2" draw:formula="logheight"/>
+            <draw:equation draw:name="f3" draw:formula="logwidth"/>
+          </draw:enhanced-geometry>
+        </draw:custom-shape>`;
+    }
+
     return `
         <draw:rect ${geom}>
           ${textXml}
@@ -2548,7 +2588,20 @@ export class SlidesAdapter {
       const fillKind = match[2].match(/draw:fill=["']([^"']+)["']/i)?.[1];
       const stroke = match[2].match(/svg:stroke-color=["']([^"']+)["']/i)?.[1];
       const strokeKind = match[2].match(/draw:stroke=["']([^"']+)["']/i)?.[1];
+      const strokeDash = match[2].match(/draw:stroke-dash=["']([^"']+)["']/i)?.[1];
       const strokeWidthRaw = match[2].match(/svg:stroke-width=["']([^"']+)["']/i)?.[1];
+      const shadowVisible = /draw:shadow=["']visible["']/i.test(match[2]);
+      const shadowOffsetX = match[2].match(/draw:shadow-offset-x=["']([^"']+)["']/i)?.[1];
+      const shadowOffsetY = match[2].match(/draw:shadow-offset-y=["']([^"']+)["']/i)?.[1];
+      const shadowColor = match[2].match(/draw:shadow-color=["']([^"']+)["']/i)?.[1];
+      const shadowBlur = match[2].match(/loext:shadow-blur=["']([^"']+)["']/i)?.[1];
+      const shadow = shadowVisible ? {
+        visible: true,
+        offsetX: shadowOffsetX || "0.211cm",
+        offsetY: shadowOffsetY || "0.073cm",
+        color: shadowColor || "#000000",
+        blur: shadowBlur || null
+      } : null;
       const hAlignRaw = match[2].match(/draw:textarea-horizontal-align=["']([^"']+)["']/i)?.[1];
       const fontSize = match[2].match(/fo:font-size=["']([^"']+)["']/i)?.[1];
       const fontWeight = match[2].match(/fo:font-weight=["']([^"']+)["']/i)?.[1];
@@ -2611,7 +2664,9 @@ export class SlidesAdapter {
         fitToSize,
         autoGrowHeight,
         crop: crop || null,
-        autofit: shrinkToFit || fitToSize
+        autofit: shrinkToFit || fitToSize,
+        strokeDash: strokeDash || null,
+        shadow: shadow || null
       });
     }
     for (const [, s] of styles) {
@@ -2622,6 +2677,8 @@ export class SlidesAdapter {
         if (!s.stroke && p.stroke) s.stroke = p.stroke;
         if (s.strokeWidth == null && p.strokeWidth != null) s.strokeWidth = p.strokeWidth;
         if (!s.strokeKind && p.strokeKind) s.strokeKind = p.strokeKind;
+        if (!s.strokeDash && p.strokeDash) s.strokeDash = p.strokeDash;
+        if (!s.shadow && p.shadow) s.shadow = p.shadow;
         if (!s.textVAlign && p.textVAlign) s.textVAlign = p.textVAlign;
         if (!s.textAlign && p.textAlign) s.textAlign = p.textAlign;
         if (!s.fontSize && p.fontSize) s.fontSize = p.fontSize;
@@ -2636,6 +2693,7 @@ export class SlidesAdapter {
         if (!s.shrinkToFit && p.shrinkToFit) s.shrinkToFit = true;
         if (!s.fitToSize && p.fitToSize) s.fitToSize = true;
         if (!s.autofit && p.autofit) s.autofit = true;
+        if (!s.autoGrowHeight && p.autoGrowHeight) s.autoGrowHeight = p.autoGrowHeight;
         if (!s.crop && p.crop) s.crop = p.crop;
         p = p.parentStyleName ? styles.get(p.parentStyleName) : null;
         depth++;
@@ -2759,6 +2817,17 @@ export class SlidesAdapter {
     if (stroke && (strokeWidth == null || strokeWidth <= 0)) {
       strokeWidth = 1;
     }
+    const strokeDash = get("draw:stroke-dash") || style.strokeDash || (strokeKind === "dash" ? "Long_20_Dash" : null);
+    const shadowVisible = (get("draw:shadow") === "visible") || Boolean(style.shadow?.visible);
+    const shadow = shadowVisible ? {
+      visible: true,
+      offsetX: get("draw:shadow-offset-x") || style.shadow?.offsetX || "0.211cm",
+      offsetY: get("draw:shadow-offset-y") || style.shadow?.offsetY || "0.073cm",
+      color: get("draw:shadow-color") || style.shadow?.color || "#000000",
+      blur: style.shadow?.blur || null
+    } : null;
+    const flipH = /draw:mirror-horizontal=["']true["']/i.test(inner) || /vno:flip-h=["']true["']/i.test(attrs);
+    const flipV = /draw:mirror-vertical=["']true["']/i.test(inner) || /vno:flip-v=["']true["']/i.test(attrs);
 
     // Font properties resolution (weight, size, color)
     let resolvedFontWeight = null;
@@ -2829,6 +2898,11 @@ export class SlidesAdapter {
       color,
       fill: color,
       ...(stroke ? { stroke, strokeColor: stroke, strokeWidth, "svg:stroke-color": stroke, "draw:stroke": strokeKind || "solid" } : {}),
+      ...(flipH ? { flipH: true } : {}),
+      ...(flipV ? { flipV: true } : {}),
+      ...(strokeDash ? { strokeDash, strokeKind: "dash" } : {}),
+      ...(shadow ? { shadow } : {}),
+      geomType,
       ...(resolvedFontWeight ? {
         fontWeight: resolvedFontWeight,
         "fo:font-weight": resolvedFontWeight,
@@ -2860,6 +2934,12 @@ export class SlidesAdapter {
     if (pRight != null) shape.paddingRight = pRight;
     if (pTop != null) shape.paddingTop = pTop;
     if (pBottom != null) shape.paddingBottom = pBottom;
+    if (style.shrinkToFit) shape.shrinkToFit = true;
+    if (style.fitToSize) shape.fitToSize = true;
+    if (style.autoGrowHeight === "false" || get("draw:auto-grow-height") === "false") {
+      shape.noAutofit = true;
+      shape.autofit = false;
+    }
     if (type === "ink" || tagName === "path" || dAttr) {
       shape.type = "ink";
       shape.d = dAttr || enhancedPath || "";
@@ -3712,7 +3792,7 @@ export class SlidesAdapter {
     const automaticStyles = this._serializeGraphicStyles(slides) + this._serializeRichTextStyles(richCtx);
     const backgroundResources = this._serializeBackgroundResources(slides);
     const officeStyles = `
-  <office:styles>${backgroundResources}${this._serializeSlidePageLayouts()}
+  <office:styles>${this._serializeStrokeDashStyles(slides)}${backgroundResources}${this._serializeSlidePageLayouts()}
   </office:styles>`;
 
     return `<?xml version="1.0" encoding="UTF-8"?>

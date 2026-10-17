@@ -1451,5 +1451,45 @@ export async function runSlidesFileIoTests() {
     }
   });
 
+  test("SlidesAdapter: preserves shape HorizontalFlip, Line.DashStyle, Shadow, and auto-grow dimensions", () => {
+    const fodp = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+ xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+ xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0">
+  <office:styles>
+    <draw:stroke-dash draw:name="Long_20_Dash" draw:style="rect" draw:dots1="1" draw:dots1-length="0.508cm" draw:distance="0.254cm"/>
+  </office:styles>
+  <office:automatic-styles>
+    <style:style style:name="grRect" style:family="graphic">
+      <style:graphic-properties draw:stroke="dash" draw:stroke-dash="Long_20_Dash" svg:stroke-color="#00ff00" svg:stroke-width="0.141cm" draw:fill="solid" draw:fill-color="#ff0000" draw:shadow="visible" draw:shadow-offset-x="0.211cm" draw:shadow-offset-y="0.073cm" draw:shadow-color="#000000" draw:auto-grow-height="false" draw:auto-grow-width="false"/>
+    </style:style>
+  </office:automatic-styles>
+  <office:body><office:presentation>
+    <draw:page draw:name="page1">
+      <draw:custom-shape draw:name="Rect1" draw:style-name="grRect" svg:width="7.055cm" svg:height="3.528cm" draw:transform="rotate (-0.436332312998582) translate (2.838cm 0.438cm)">
+        <text:p><text:span>Hinh xoay</text:span></text:p>
+        <draw:enhanced-geometry draw:mirror-horizontal="true" draw:mirror-vertical="false" draw:type="ooxml-rect"/>
+      </draw:custom-shape>
+    </draw:page>
+  </office:presentation></office:body>
+</office:document>`;
+    const adapter = new SlidesAdapter(null);
+    const parsed = adapter.parseFodp(fodp);
+    const shape = parsed[0].shapes[0];
+    if (!shape.flipH) throw new Error("flipH was not parsed");
+    if (!shape.shadow || !shape.shadow.visible) throw new Error("shadow was not parsed");
+    if (shape.strokeDash !== "Long_20_Dash" || shape.strokeKind !== "dash") throw new Error("strokeDash was not parsed");
+    if (Math.round(shape.rotation) !== 25) throw new Error(`rotation expected 25, got ${shape.rotation}`);
+
+    const serialized = new SlidesAdapter({ slides: parsed, slideSize: { width: 960, height: 540 } }).serializeToFodp();
+    if (!serialized.includes('draw:mirror-horizontal="true"')) throw new Error("serialized missing mirror-horizontal");
+    if (!serialized.includes('draw:shadow="visible"')) throw new Error("serialized missing shadow visible");
+    if (!serialized.includes('draw:stroke="dash"')) throw new Error("serialized missing stroke dash");
+    if (!serialized.includes('draw:auto-grow-height="false"')) throw new Error("serialized missing auto-grow-height=false");
+  });
+
   return results;
 }

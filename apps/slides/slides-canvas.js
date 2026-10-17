@@ -3686,7 +3686,11 @@ export class SlidesCanvasController {
       const viewBox = shape.viewBox || `0 0 ${shape.w} ${shape.h}`;
       return `<svg class="vno-show-shape vno-show-ink"${morphAttrs} style="position:absolute;left:${shape.x}px;top:${shape.y}px;width:${shape.w}px;height:${shape.h}px;overflow:visible;pointer-events:none;" viewBox="${this._escapeShapeText(viewBox)}"><path d="${this._escapeShapeText(shape.d || "")}" stroke="${this._escapeShapeText(stroke)}" stroke-width="${strokeWidth}" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     }
-    const rotateStyle = shape.rotation ? `transform:rotate(${shape.rotation}deg);transform-origin:center center;` : "";
+    const transformParts = [];
+    if (shape.rotation) transformParts.push(`rotate(${shape.rotation}deg)`);
+    if (shape.flipH) transformParts.push("scaleX(-1)");
+    if (shape.flipV) transformParts.push("scaleY(-1)");
+    const rotateStyle = transformParts.length ? `transform:${transformParts.join(" ")};transform-origin:center center;` : "";
     const pos = `position:absolute;left:${shape.x}px;top:${shape.y}px;width:${shape.w}px;height:${shape.h}px;${rotateStyle}`;
     let animStyle = "";
     let animAttrs = "";
@@ -4413,7 +4417,11 @@ export class SlidesCanvasController {
       // Hiển thị góc xoay đọc được từ file thật (draw:transform rotate()).
       // Đây là hiển thị CHỈ ĐỌC — chưa có tay cầm/thao tác xoay tương tác
       // trên canvas (xem HANDOFF-SLIDES-SHAPE-ROTATION-DISPLAY.md).
-      const rotateStyle = shape.rotation ? ` transform:rotate(${shape.rotation}deg); transform-origin:center center;` : "";
+      const transformParts = [];
+      if (shape.rotation) transformParts.push(`rotate(${shape.rotation}deg)`);
+      if (shape.flipH) transformParts.push("scaleX(-1)");
+      if (shape.flipV) transformParts.push("scaleY(-1)");
+      const rotateStyle = transformParts.length ? ` transform:${transformParts.join(" ")}; transform-origin:center center;` : "";
       el.style.cssText = `position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; pointer-events:${isConnector ? "none" : "auto"}; cursor:${isConnector ? "default" : "move"};z-index:${isConnector ? 0 : 1};overflow:visible;${rotateStyle}`;
       if (!isConnector && this._textStyleEligible(shape) && shape.type !== "textbox") {
         const vAlign = shape.textVAlign || "middle";
@@ -4757,10 +4765,14 @@ const startEditing = (initialText) => {
         if (shape.stroke || shape.strokeColor) {
           const sw = shape.strokeWidth || 1;
           const sc = shape.stroke || shape.strokeColor;
-          el.style.border = `${sw}px solid ${sc}`;
+          const borderStyle = (shape.strokeDash || shape.strokeKind === "dash") ? "dashed" : "solid";
+          el.style.border = `${sw}px ${borderStyle} ${sc}`;
           el.style.boxSizing = "border-box";
         } else {
           el.style.border = "none";
+        }
+        if (shape.shadow) {
+          el.style.boxShadow = "4px 4px 8px rgba(0,0,0,0.35)";
         }
         const isDiagramNode = !!(shape.diagramGroupId || shape.diagramRole === "node");
         el.style.opacity = isDiagramNode ? "0.85" : (shape.opacity != null ? String(shape.opacity) : "1");
