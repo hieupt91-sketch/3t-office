@@ -16711,14 +16711,21 @@ def overlay_slides_pptx_fodp(pptx_bytes: bytes, fodp_xml: str | None) -> str:
     xml = overlay_fodp_master_logo(xml, masters)
     xml = overlay_fodp_master_theme_id(xml, masters)
     xml = overlay_fodp_native_slides_theme(xml, pptx_bytes)
-    xml = overlay_fodp_source_theme(xml, pptx_bytes)
-    xml = overlay_fodp_source_layouts(xml, pptx_bytes)
-    xml = overlay_fodp_source_slides(xml, pptx_bytes)
     props = read_zip_entry(pptx_bytes, PPTX_PRESPROPS_ENTRY)
     if props:
         xml = overlay_fodp_show_properties(xml, props.decode("utf-8", errors="replace"))
     xml = overlay_fodp_image_crops(xml, pptx_bytes)
+    return xml
+
+
+def overlay_slides_pptx_fodp_source_carriers(pptx_bytes: bytes, fodp_xml: str | None) -> str:
+    """Mở PPTX (chỉ đường dẫn thật của ứng dụng, Python): gắn các dấu vết NGUỒN để bước Lưu trả lại đúng nội dung gốc của tệp
+    (chuyển tiếp, chủ đề, bản cái/bố cục, slide chưa sửa). Tách khỏi overlay_slides_pptx_fodp để bản đối ứng JS vẫn giống hệt."""
+    xml = fodp_xml or ""
     xml = overlay_fodp_source_transitions(xml, pptx_bytes)
+    xml = overlay_fodp_source_theme(xml, pptx_bytes)
+    xml = overlay_fodp_source_layouts(xml, pptx_bytes)
+    xml = overlay_fodp_source_slides(xml, pptx_bytes)
     return xml
 
 
