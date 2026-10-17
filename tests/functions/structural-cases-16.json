@@ -1,0 +1,113 @@
+{
+  "scenarios": [
+    {
+      "name": "them ghi chu va toggle hien thi ghi chu B2",
+      "cells": {
+        "A1": "Ma", "B1": "Ten",
+        "B2": "San pham A"
+      },
+      "ops": [
+        { "type": "addComment", "coord": "B2", "text": "Ghi chu kiem tra", "visible": false },
+        { "type": "toggleCommentVisible", "coord": "B2" }
+      ]
+    },
+    {
+      "name": "hien tat ca ghi chu",
+      "cells": {
+        "A1": 10,
+        "B2": 20
+      },
+      "ops": [
+        { "type": "addComment", "coord": "A1", "text": "Ghi chu A1" },
+        { "type": "addComment", "coord": "B2", "text": "Ghi chu B2" },
+        { "type": "showAllComments", "enabled": true }
+      ]
+    },
+    {
+      "name": "an hoan toan chi bao va ghi chu voi indicator 0",
+      "cells": {
+        "C3": 100
+      },
+      "ops": [
+        { "type": "addComment", "coord": "C3", "text": "Ghi chu C3" },
+        { "type": "setDisplayCommentIndicator", "indicator": 0 }
+      ]
+    },
+    {
+      "name": "xoa ghi chu o dang chon",
+      "cells": {
+        "A1": "Header",
+        "A2": "Data"
+      },
+      "ops": [
+        { "type": "addComment", "coord": "A2", "text": "Can xoa" },
+        { "type": "deleteComment", "coord": "A2" }
+      ]
+    },
+    {
+      "name": "dan dac biet ghi chu sang o khac giu nguyen gia tri o dich",
+      "cells": {
+        "A1": "Nguon",
+        "B1": "Dich goc"
+      },
+      "ops": [
+        { "type": "addComment", "coord": "A1", "text": "Ghi chu nguon" },
+        { "type": "pasteSpecial", "from": "A1", "to": "B1", "mode": "comments" }
+      ]
+    },
+    {
+      "name": "chen hang lam dich chuyen ghi chu xuong duoi",
+      "cells": {
+        "B2": "Dong 2"
+      },
+      "ops": [
+        { "type": "addComment", "coord": "B2", "text": "Ghi chu hang 2" },
+        { "type": "insertRow", "at": 2 }
+      ]
+    },
+    {
+      "name": "xoa hang chua ghi chu lam xoa ghi chu do",
+      "cells": {
+        "A1": "Row1",
+        "A2": "Row2",
+        "A3": "Row3"
+      },
+      "ops": [
+        { "type": "addComment", "coord": "A2", "text": "Ghi chu hang 2 bi xoa" },
+        { "type": "deleteRow", "at": 2 }
+      ]
+    },
+    {
+      "name": "chen cot lam dich chuyen ghi chu sang phai",
+      "cells": {
+        "B2": "Cot B"
+      },
+      "ops": [
+        { "type": "addComment", "coord": "B2", "text": "Ghi chu cot B" },
+        { "type": "insertCol", "at": "B" }
+      ]
+    },
+    {
+      "name": "xoa cot chua ghi chu lam xoa ghi chu do",
+      "cells": {
+        "A1": "A",
+        "B1": "B",
+        "C1": "C"
+      },
+      "ops": [
+        { "type": "addComment", "coord": "B1", "text": "Ghi chu cot B bi xoa" },
+        { "type": "deleteCol", "at": "B" }
+      ]
+    },
+    {
+      "name": "doi kich thuoc khung ghi chu",
+      "cells": {
+        "A1": "Test Resize"
+      },
+      "ops": [
+        { "type": "addComment", "coord": "A1", "text": "Kich thuoc moi", "visible": true },
+        { "type": "resizeComment", "coord": "A1", "width": 150, "height": 80 }
+      ]
+    }
+  ]
+}

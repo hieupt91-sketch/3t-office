@@ -21,7 +21,8 @@ import {
   parseSplitPaneFromSheetXml,
   parseSplitPanesFromFods,
   resolveRidTargetMap,
-  resolveSheetRidMap
+  resolveSheetRidMap,
+  columnLabelFromIndex
 } from "./xlsx-freeze-panes.js";
 
 export const XLSX_WORKBOOK_ENTRY = "xl/workbook.xml";
@@ -364,6 +365,228 @@ function resolveXlsxSheetEntries(source) {
   return result;
 }
 
+function findVmlDrawingForSheet(source, sheetPath) {
+  if (!sheetPath.includes("/")) return null;
+  const lastSlash = sheetPath.lastIndexOf("/");
+  const dirPath = sheetPath.slice(0, lastSlash);
+  const filename = sheetPath.slice(lastSlash + 1);
+  const relsPath = `${dirPath}/_rels/${filename}.rels`;
+  const relsRaw = readZipEntry(source, relsPath);
+  if (relsRaw) {
+    const relsStr = relsRaw.toString("utf8");
+    const m = relsStr.match(/<Relationship\b[^>]*Type=["'][^"']*vmlDrawing["'][^>]*Target=["']([^"']+)["']/i);
+    if (m) {
+      let target = m[1].replace(/\\/g, "/");
+      if (target.startsWith("../")) return "xl/" + target.slice(3);
+      if (target.startsWith("xl/")) return target;
+      return `${dirPath}/${target}`;
+    }
+  }
+  return null;
+}
+
+export function patchVmlDrawingComments(vmlStr, commentsDict = {}, indicator = -1) {
+  if (!vmlStr) return "";
+  const patchShape = (full, shapeOpen, shapeBody) => {
+    if (!shapeBody.includes('ObjectType="Note"')) return full;
+
+    const rowM = shapeBody.match(/<x:Row>(\d+)<\/x:Row>/i);
+    const colM = shapeBody.match(/<x:Column>(\d+)<\/x:Column>/i);
+    if (!rowM || !colM) return full;
+
+    const rIdx = parseInt(rowM[1], 10);
+    const cIdx = parseInt(colM[1], 10);
+    const coord = `${columnLabelFromIndex(cIdx + 1)}${rIdx + 1}`;
+    const cmt = commentsDict[coord] || {};
+
+    let isVisible;
+    if (indicator === 1) isVisible = true;
+    else if (indicator === 0) isVisible = false;
+    else if ("visible" in cmt) isVisible = !!cmt.visible;
+    else isVisible = shapeBody.includes("<x:Visible") || shapeOpen.includes("visibility:visible");
+
+    const wPx = Math.max(80, Number(cmt.width) || 144);
+    const hPx = Math.max(40, Number(cmt.height) || 79);
+    const offX = Number.isFinite(cmt.offsetX) ? Number(cmt.offsetX) : 15;
+    const offY = Number.isFinite(cmt.offsetY) ? Number(cmt.offsetY) : -10;
+    const wPt = wPx * 0.75;
+    const hPt = hPx * 0.75;
+
+    let nextOpen = shapeOpen;
+    if (/width:\s*[\d.]+pt/i.test(nextOpen)) {
+      nextOpen = nextOpen.replace(/width:\s*[\d.]+pt/i, `width:${wPt.toFixed(2)}pt`);
+    }
+    if (/height:\s*[\d.]+pt/i.test(nextOpen)) {
+      nextOpen = nextOpen.replace(/height:\s*[\d.]+pt/i, `height:${hPt.toFixed(2)}pt`);
+    }
+
+    if (isVisible) {
+      if (/visibility:\s*hidden/i.test(nextOpen)) {
+        nextOpen = nextOpen.replace(/visibility:\s*hidden/i, "visibility:visible");
+      } else if (!/visibility:\s*visible/i.test(nextOpen)) {
+        nextOpen = nextOpen.replace(/style="([^"]*)"/i, 'style="$1;visibility:visible"');
+      }
+    } else {
+      if (/visibility:\s*visible/i.test(nextOpen)) {
+        nextOpen = nextOpen.replace(/visibility:\s*visible/i, "visibility:hidden");
+      } else if (!/visibility:\s*hidden/i.test(nextOpen)) {
+        nextOpen = nextOpen.replace(/style="([^"]*)"/i, 'style="$1;visibility:hidden"');
+      }
+    }
+
+    if (!/fillcolor="[^"]*"/i.test(nextOpen)) {
+      nextOpen = nextOpen.replace("<v:shape", '<v:shape fillcolor="#ffffe1"');
+    }
+
+    let nextBody = shapeBody;
+    if (isVisible) {
+      if (!/<x:Visible\b[^>]*\/?>/i.test(nextBody)) {
+        nextBody = nextBody.replace(/(<\/x:ClientData\s*>)/i, " <x:Visible/>\n  $1");
+      }
+    } else {
+      nextBody = nextBody.replace(/<x:Visible\b[^>]*\/?>\s*/gi, "");
+    }
+
+    const col1 = cIdx + 1;
+    const col1Off = Math.max(0, Math.round(offX));
+    const row1 = Math.max(0, rIdx - 1);
+    const row1Off = Math.max(0, Math.round(20 + offY));
+    const totalW = col1Off + wPx;
+    const col2 = col1 + Math.floor(totalW / 64);
+    const col2Off = Math.floor(totalW % 64);
+    const totalH = row1Off + hPx;
+    const row2 = row1 + Math.floor(totalH / 20);
+    const row2Off = Math.floor(totalH % 20);
+    const anchorXml = `<x:Anchor>\n    ${col1}, ${col1Off}, ${row1}, ${row1Off}, ${col2}, ${col2Off}, ${row2}, ${row2Off}</x:Anchor>`;
+    if (/<x:Anchor>[\s\S]*?<\/x:Anchor>/i.test(nextBody)) {
+      nextBody = nextBody.replace(/<x:Anchor>[\s\S]*?<\/x:Anchor>/i, anchorXml);
+    }
+
+    return `${nextOpen}>${nextBody}</v:shape>`;
+  };
+
+  return vmlStr.replace(/(<v:shape\b[^>]*>)([\s\S]*?)<\/v:shape>/gi, patchShape);
+}
+
+export function parseVmlDrawingComments(vmlStr) {
+  if (!vmlStr) return {};
+  const sheetMeta = {};
+  const shapeRe = /(<v:shape\b[^>]*>)([\s\S]*?)<\/v:shape>/gi;
+  let m;
+  while ((m = shapeRe.exec(vmlStr)) !== null) {
+    const shapeOpen = m[1];
+    const shapeBody = m[2];
+    if (!shapeBody.includes('ObjectType="Note"')) continue;
+    const rowM = shapeBody.match(/<x:Row>(\d+)<\/x:Row>/i);
+    const colM = shapeBody.match(/<x:Column>(\d+)<\/x:Column>/i);
+    if (!rowM || !colM) continue;
+    const rIdx = parseInt(rowM[1], 10);
+    const cIdx = parseInt(colM[1], 10);
+    const coord = `${columnLabelFromIndex(cIdx + 1)}${rIdx + 1}`;
+    const isVisible = shapeBody.includes("<x:Visible") || shapeOpen.includes("visibility:visible");
+
+    const wM = shapeOpen.match(/width:\s*([\d.]+)pt/i);
+    const hM = shapeOpen.match(/height:\s*([\d.]+)pt/i);
+    let wPx = wM ? parseFloat(wM[1]) / 0.75 : 144;
+    let hPx = hM ? parseFloat(hM[1]) / 0.75 : 79;
+
+    const anchorM = shapeBody.match(/<x:Anchor>\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*<\/x:Anchor>/i);
+    let offX = 15;
+    let offY = -10;
+    if (anchorM) {
+      const col1 = parseInt(anchorM[1], 10);
+      const col1Off = parseInt(anchorM[2], 10);
+      const row1 = parseInt(anchorM[3], 10);
+      const row1Off = parseInt(anchorM[4], 10);
+      const col2 = parseInt(anchorM[5], 10);
+      const col2Off = parseInt(anchorM[6], 10);
+      const row2 = parseInt(anchorM[7], 10);
+      const row2Off = parseInt(anchorM[8], 10);
+      offX = col1Off;
+      offY = row1Off - 20;
+      if (!wM) wPx = (col2 - col1) * 64 + (col2Off - col1Off);
+      if (!hM) hPx = (row2 - row1) * 20 + (row2Off - row1Off);
+    }
+    sheetMeta[coord] = {
+      visible: isVisible,
+      width: Math.round(wPx),
+      height: Math.round(hPx),
+      offsetX: Math.round(offX),
+      offsetY: Math.round(offY)
+    };
+  }
+  return sheetMeta;
+}
+
+export function applySheetCommentsVmlToXlsx(source, sourceFods, replacements = {}) {
+  if (!sourceFods) return;
+  const metaBySheet = {};
+  const tableRe = /<table:table\b([^>]*)>/gi;
+  let match;
+  while ((match = tableRe.exec(sourceFods)) !== null) {
+    const attrsStr = match[1] || "";
+    const nameMatch = attrsStr.match(/table:name=["']([^"']*)["']/i);
+    const sheetName = nameMatch ? unescapeXml(nameMatch[1]) : "";
+    const metaMatch = attrsStr.match(/vno:comments-meta=["']([^"']*)["']/i);
+    const commentsMeta = metaMatch ? JSON.parse(unescapeXml(metaMatch[1])) : {};
+    const indMatch = attrsStr.match(/vno:display-comment-indicator=["']([^"']*)["']/i);
+    const indicator = indMatch ? Number(indMatch[1]) : -1;
+    metaBySheet[sheetName] = { comments: commentsMeta, indicator };
+  }
+
+  const sheetEntries = resolveXlsxSheetEntries(source);
+  for (const [sheetName, info] of Object.entries(metaBySheet)) {
+    const sheetPath = sheetEntries[sheetName];
+    if (!sheetPath) continue;
+    let vmlPath = findVmlDrawingForSheet(source, sheetPath);
+    if (!vmlPath) {
+      vmlPath = "xl/drawings/vmlDrawing1.vml";
+      if (!readZipEntry(source, vmlPath)) continue;
+    }
+    const rawVml = replacements[vmlPath] || readZipEntry(source, vmlPath);
+    if (!rawVml) continue;
+    const vmlStr = typeof rawVml === "string" ? rawVml : rawVml.toString("utf8");
+
+    const commentsDict = info.comments || {};
+    const indicator = info.indicator;
+
+    const newVml = patchVmlDrawingComments(vmlStr, commentsDict, indicator);
+    if (newVml !== vmlStr) {
+      replacements[vmlPath] = newVml;
+    }
+  }
+}
+
+export function overlaySheetCommentsFromXlsx(source, fodsXml) {
+  if (!fodsXml) return "";
+  const sheetEntries = resolveXlsxSheetEntries(source);
+  if (!Object.keys(sheetEntries).length) return fodsXml;
+
+  const commentsMetaBySheet = {};
+  for (const [sheetName, sheetPath] of Object.entries(sheetEntries)) {
+    const vmlPath = findVmlDrawingForSheet(source, sheetPath) || "xl/drawings/vmlDrawing1.vml";
+    const rawVml = readZipEntry(source, vmlPath);
+    if (!rawVml) continue;
+    const vmlStr = rawVml.toString("utf8");
+    const sheetMeta = parseVmlDrawingComments(vmlStr);
+    if (Object.keys(sheetMeta).length) {
+      commentsMetaBySheet[sheetName] = sheetMeta;
+    }
+  }
+
+  if (!Object.keys(commentsMetaBySheet).length) return fodsXml;
+
+  return fodsXml.replace(/<table:table\b([^>]*)>/gi, (full, attrs) => {
+    const nameMatch = attrs.match(/table:name=["']([^"']*)["']/i);
+    if (!nameMatch) return full;
+    const name = unescapeXml(nameMatch[1]);
+    const meta = commentsMetaBySheet[name];
+    if (!meta) return full;
+    const clean = attrs.replace(/\s*vno:comments-meta=["'][^"']*["']/gi, "");
+    return `<table:table${clean} vno:comments-meta="${escapeXmlAttr(JSON.stringify(meta))}">`;
+  });
+}
+
 /**
  * @param {string|Buffer} xlsxPathOrBuffer
  * @param {{
@@ -470,6 +693,8 @@ export function postProcessSheetXlsx(xlsxPathOrBuffer, options = {}) {
     }
   }
 
+  applySheetCommentsVmlToXlsx(source, options.sourceFods, replacements);
+
   if (Object.keys(replacements).length === 0) return source;
   return patchOoxmlZip(source, replacements);
 }
@@ -512,6 +737,7 @@ export function overlaySheetXlsxFods(xlsxPathOrBuffer, fodsXml) {
   xml = overlayAutofilterFromXlsx(source, xml);
   // Scenarios: read <scenarios> from worksheet XMLs and inject vno:scenarios into FODS.
   xml = overlayScenariosFromXlsx(source, xml);
+  xml = overlaySheetCommentsFromXlsx(source, xml);
   return xml;
 }
 

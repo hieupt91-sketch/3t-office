@@ -1105,6 +1105,23 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.review.commentVisibility",
+    app: "sheet",
+    commandIds: ["sheet.review.commentToggleVisible", "sheet.review.commentShowAll"],
+    title: "Hiện hoặc ẩn ghi chú trên trang tính",
+    summary: "Hiển thị cố định khung ghi chú của ô đang chọn hoặc bật/tắt hiển thị toàn bộ ghi chú trên trang tính kèm đường nối mũi tên neo vào ô.",
+    ribbon: { tab: "Xem xét", tabId: "review", group: "Ghi chú" },
+    keywords: ["hiện ghi chú", "ẩn ghi chú", "hiện tất cả", "show comment", "hide comment", "show all comments", "khung ghi chú"],
+    steps: [
+      "Mở tab Xem xét, nhóm Ghi chú.",
+      "Hiện/Ẩn ghi chú ô chọn: Chọn ô có ghi chú và nhấn nút Hiện/Ẩn ghi chú. Khung ghi chú sẽ cố định trên lưới kèm mũi tên nối về ô neo thay vì chỉ hiện khi rê chuột. Nhấn lại nút để ẩn khung.",
+      "Hiện tất cả ghi chú: Nhấn nút Hiện tất cả ghi chú để hiển thị đồng thời mọi khung ghi chú trên trang tính hiện tại. Nhấn lại nút để quay về chế độ chỉ hiển thị dấu góc tam giác đỏ.",
+      "Tương tác với khung: Nhấp vào khung ghi chú đang hiện để sửa nhanh văn bản. Kéo viền để di chuyển vị trí khung hoặc kéo nút góc dưới bên phải để đổi kích thước.",
+      "Lưu và tương thích: Trạng thái hiện/ẩn và vị trí khung được lưu đầy đủ vào tệp bảng tính và giữ nguyên khi mở lại trên các ứng dụng bảng tính tương thích.",
+      "Hoàn tác bằng phím tắt Ctrl+Z hoặc làm lại bằng Ctrl+Y."
+    ]
+  },
+  {
     id: "sheet.page.printAreaBreaks",
     app: "sheet",
     commandIds: [
