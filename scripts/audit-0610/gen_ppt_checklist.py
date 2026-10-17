@@ -25,11 +25,11 @@ Tệp (Backstage)|Tệp|Xuất PDF|A|-|common.file.exportPdf; xuất toàn bộ 
 Tệp (Backstage)|Tệp|Xuất và chuyển đổi định dạng (giữ bố cục)|A|-|common.file.exportConvert; chuyển đổi giữ nguyên bố cục
 Tệp (Backstage)|Tệp|In (Ctrl+P) & Xem trước khi in (Ctrl+F2)|V|-|slides.file.printPreview xem trước bản in (docs/SLIDES-BUTTON-MATRIX-1011.md:89)
 Tệp (Backstage)|Tệp|Đóng (Ctrl+W)|A|-|common.file.close; đóng bản trình bày hiện tại
-Tệp (Backstage)|Thông tin|Bảo vệ bản trình bày: Đánh dấu là cuối cùng (Mark as Final / Read-only)|N|2|Chưa hỗ trợ đánh dấu bản trình bày là cuối cùng (Mark as Final) trong VN Slides
+Tệp (Backstage)|Thông tin|Bảo vệ bản trình bày: Đánh dấu là cuối cùng (Mark as Final / Read-only)|V|-|Backstage > Thông tin > Đánh dấu là cuối cùng ghi contentStatus=Final; PowerPoint COM đọc lại Content status = Final (adapters/libreoffice/slides/slides-adapter.js:177, scripts/audit-0610/ppt_docprops_readback.ps1:2)
 Tệp (Backstage)|Thông tin|Bảo vệ bản trình bày: Mật khẩu mở file (mã hóa PPTX)|N|1|Chưa có cơ chế mã hóa mật khẩu mở file PPTX
-Tệp (Backstage)|Thông tin|Kiểm tra bản trình bày (Inspect Document - loại bỏ metadata ẩn)|N|2|Chưa hỗ trợ kiểm tra và xóa thông tin ẩn (Inspect Document) trong VN Slides
+Tệp (Backstage)|Thông tin|Kiểm tra bản trình bày (Inspect Document - loại bỏ metadata ẩn)|A|-|Backstage > Thông tin > Kiểm tra bản trình bày: 5 nhóm (thuộc tính, nhận xét, ghi chú, slide ẩn, ngoài vùng slide), xóa từng nhóm (adapters/libreoffice/slides/slides-adapter.js:242 openDocumentInspectorDialog; apps/slides/document-inspector-dialog.js:1; tests/live/cdp/slides-file-info.desktop.mjs:1); chưa đối chiếu Inspect Document của PowerPoint
 Tệp (Backstage)|Thông tin|Quản lý bản trình bày: Tự động khôi phục (AutoRecover)|A|-|Tự động khôi phục bản trình bày (platform/help/entries-autorecover.js:28-34)
-Tệp (Backstage)|Thông tin|Thuộc tính bản trình bày (Title, Author, Subject, Tags...)|N|2|Chưa có hộp thoại xem và chỉnh sửa thuộc tính tệp (Properties) riêng cho VN Slides
+Tệp (Backstage)|Thông tin|Thuộc tính bản trình bày (Title, Author, Subject, Tags...)|V|-|Backstage > Thông tin > Thuộc tính (Title/Author/Subject/Keywords/Comments) lưu docProps/core.xml; PowerPoint COM BuiltInDocumentProperties khớp (adapters/libreoffice/slides/slides-adapter.js:169, scripts/audit-0610/ppt_docprops_readback.ps1:2)
 Tệp (Backstage)|Tùy chọn|Tùy chọn PowerPoint (Hộp thoại Options)|N|2|Chưa có hộp thoại Tùy chọn (Options) riêng cho VN Slides
 Tệp (Backstage)|Tùy chọn|Tùy biến Thanh công cụ truy nhanh (Quick Access Toolbar)|A|-|Thanh truy nhanh tùy biến (platform/shell/quick-access.js:46-60)
 Tệp (Backstage)|Chia sẻ|Chia sẻ / OneDrive / Gửi Email đính kèm|X|-|Cần dịch vụ đám mây Microsoft
@@ -123,8 +123,8 @@ Thiết kế|Chủ đề|Chủ đề (Themes Gallery)|V|-|FIX-L12: slides.design
 Thiết kế|Chủ đề|Mẫu Slide Master|V|-|FIX-L12: slides.master.apply chọn theme palette và font scheme đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:65)
 Thiết kế|Chủ đề|Duyệt tìm chủ đề (Browse for Themes: .thmx)|N|2|Chưa hỗ trợ nạp tệp chủ đề bên ngoài (.thmx)
 Thiết kế|Chủ đề|Lưu chủ đề hiện tại (Save Current Theme)|N|3|Chưa có chức năng lưu chủ đề tùy chỉnh thành tệp .thmx
-Thiết kế|Biến thể|Bảng màu biến thể (Theme Colors)|N|2|Chưa có menu chọn riêng bảng màu biến thể (Theme Colors)
-Thiết kế|Biến thể|Bộ phông chữ biến thể (Theme Fonts)|N|2|Chưa có menu chọn riêng bộ phông biến thể (Theme Fonts)
+Thiết kế|Biến thể|Bảng màu biến thể (Theme Colors)|V|-|slides.design.themeColors: 7 bảng màu; PowerPoint COM ThemeColorScheme accent1/nền/tiêu đề khớp (apps/slides/slides-canvas.js:9382, scripts/audit-0610/ppt_theme_readback.ps1:2)
+Thiết kế|Biến thể|Bộ phông chữ biến thể (Theme Fonts)|V|-|slides.design.themeFonts: 6 bộ phông; PowerPoint COM MajorFont/MinorFont = Georgia (apps/slides/slides-canvas.js:9382, scripts/audit-0610/ppt_theme_readback.ps1:2)
 Thiết kế|Biến thể|Hiệu ứng biến thể (Theme Effects)|P|3|Có áp dụng hiệu ứng chung; chưa có bộ sưu tập hiệu ứng biến thể rời
 Thiết kế|Biến thể|Kiểu nền trang chiếu (Background Styles)|N|2|Chưa có thư viện kiểu nền mẫu (Background Styles gallery)
 Thiết kế|Tùy chỉnh|Cỡ trang chiếu (Slide Size 4:3 / 16:9)|V|-|FIX-L8: slides.design.slideSize đổi tỷ lệ đối chiếu PageSetup 720x540 pt (docs/SLIDES-BUTTON-MATRIX-1011.md:66, docs/ppt-oracle-1710.json:37-43)
@@ -193,8 +193,8 @@ Xem lại|So sánh|So sánh bản trình bày (Compare Presentations)|N|3|Chưa 
 Xem lại|So sánh|Chấp nhận / Từ chối thay đổi (Accept / Reject Revision)|N|3|Chưa có quy trình duyệt thay đổi revision trong slide
 Chế độ xem|Chế độ xem bản trình bày|Bình thường (Normal View)|V|-|FIX-L14: slides.view.normal chuyển chế độ ppViewNormal ViewType=9 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:85)
 Chế độ xem|Chế độ xem bản trình bày|Bộ sắp xếp trang (Slide Sorter View)|V|-|FIX-L14: slides.view.slideSorter bộ sắp xếp trang ppViewSlideSorter ViewType=7 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:86)
-Chế độ xem|Chế độ xem bản trình bày|Chế độ dàn bài (Outline View)|N|2|Chưa có chế độ xem dàn bài (Outline View) cho slide
-Chế độ xem|Chế độ xem bản trình bày|Trang ghi chú (Notes Page View)|N|2|Chưa có chế độ xem trang ghi chú in ấn (Notes Page View)
+Chế độ xem|Chế độ xem bản trình bày|Chế độ dàn bài (Outline View)|A|-|slides.view.outline: sửa tiêu đề/nội dung mọi trang, Ctrl+Enter thêm trang, hoàn tác (apps/slides/slides-canvas.js:8063; CDP 7/8 mục tests/live/cdp/slides-outline-view.desktop.mjs:1); chưa đối chiếu PowerPoint
+Chế độ xem|Chế độ xem bản trình bày|Trang ghi chú (Notes Page View)|A|-|slides.view.notesPage: trang thu nhỏ kèm ô ghi chú, ghi chú lưu notesSlide1.xml (apps/slides/slides-canvas.js:7964; CDP 7/7 tests/live/cdp/slides-notes-page.desktop.mjs:1); chưa đối chiếu PowerPoint
 Chế độ xem|Chế độ xem bản trình bày|Chế độ đọc (Reading View)|A|-|slides.view.reading; hiển thị trình chiếu trong cửa sổ ứng dụng (docs/SLIDES-BUTTON-MATRIX-1011.md:88)
 Chế độ xem|Chế độ xem bản cái|Slide Master (Trang chiếu cái)|N|2|Chưa có giao diện thiết kế và chỉnh sửa Slide Master (chỉ có áp dụng qua slides.master.apply)
 Chế độ xem|Chế độ xem bản cái|Handout Master (Bản phát tài liệu cái)|N|3|Chưa có giao diện thiết kế bố cục in bản phát tài liệu

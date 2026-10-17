@@ -16,15 +16,15 @@ Chuẩn: Microsoft PowerPoint 2016 (16.0.4266) cài trên máy, đọc chỉ-đ�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu PowerPoint 2016 | 101 | 38% |
-| 🟢 Có, chưa đối chiếu | 58 | 22% |
+| ✅ Đã đối chiếu PowerPoint 2016 | 105 | 40% |
+| 🟢 Có, chưa đối chiếu | 61 | 23% |
 | 🟡 Có một phần | 22 | 8% |
-| 🔴 Chưa có | 82 | 31% |
+| 🔴 Chưa có | 75 | 29% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **269** (áp dụng: 263) | |
 
-- **Độ phủ so với PowerPoint 2016 (có hoặc có một phần, một phần tính 0,5): 65%**
-- **Đã xác minh bằng đối chiếu PowerPoint 2016 thật: 38%** các mục áp dụng
+- **Độ phủ so với PowerPoint 2016 (có hoặc có một phần, một phần tính 0,5): 67%**
+- **Đã xác minh bằng đối chiếu PowerPoint 2016 thật: 40%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tính một mục; đo kiểu ghi-rồi-đọc-lại trên PowerPoint COM chỉ xác nhận ngữ nghĩa thuộc tính của PowerPoint, KHÔNG tự nhận là parity hoàn chỉnh nếu chưa có kiểm chứng khứ hồi.
 
@@ -32,15 +32,15 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
-| Tệp (Backstage) | 17 | 2 | 9 | 0 | 5 | 1 | 69% |
+| Tệp (Backstage) | 17 | 4 | 10 | 0 | 2 | 1 | 88% |
 | Trang đầu | 57 | 40 | 11 | 4 | 2 | 0 | 93% |
 | Chèn | 29 | 14 | 2 | 1 | 10 | 2 | 61% |
-| Thiết kế | 15 | 7 | 0 | 1 | 7 | 0 | 50% |
+| Thiết kế | 15 | 9 | 0 | 1 | 5 | 0 | 63% |
 | Chuyển tiếp | 11 | 5 | 3 | 1 | 2 | 0 | 77% |
 | Hoạt ảnh | 16 | 8 | 3 | 1 | 4 | 0 | 72% |
 | Trình chiếu | 16 | 4 | 4 | 1 | 6 | 1 | 57% |
 | Xem lại | 14 | 2 | 5 | 0 | 5 | 2 | 58% |
-| Chế độ xem | 25 | 7 | 8 | 2 | 8 | 0 | 64% |
+| Chế độ xem | 25 | 7 | 10 | 2 | 6 | 0 | 72% |
 | Công cụ vẽ > Định dạng | 17 | 3 | 6 | 2 | 6 | 0 | 59% |
 | Công cụ hình ảnh > Định dạng | 12 | 0 | 0 | 5 | 7 | 0 | 21% |
 | Công cụ bảng > Thiết kế | 8 | 0 | 0 | 0 | 8 | 0 | 0% |
@@ -109,11 +109,11 @@ Tổng: 7 mục ưu tiên 1.
 | Tệp | Xuất và chuyển đổi định dạng (giữ bố cục) | 🟢 | - | common.file.exportConvert; chuyển đổi giữ nguyên bố cục |
 | Tệp | In (Ctrl+P) & Xem trước khi in (Ctrl+F2) | ✅ | - | slides.file.printPreview xem trước bản in (docs/SLIDES-BUTTON-MATRIX-1011.md:89) |
 | Tệp | Đóng (Ctrl+W) | 🟢 | - | common.file.close; đóng bản trình bày hiện tại |
-| Thông tin | Bảo vệ bản trình bày: Đánh dấu là cuối cùng (Mark as Final / Read-only) | 🔴 | 2 | Chưa hỗ trợ đánh dấu bản trình bày là cuối cùng (Mark as Final) trong VN Slides |
+| Thông tin | Bảo vệ bản trình bày: Đánh dấu là cuối cùng (Mark as Final / Read-only) | ✅ | - | Backstage > Thông tin > Đánh dấu là cuối cùng ghi contentStatus=Final; PowerPoint COM đọc lại Content status = Final (adapters/libreoffice/slides/slides-adapter.js:177, scripts/audit-0610/ppt_docprops_readback.ps1:2) |
 | Thông tin | Bảo vệ bản trình bày: Mật khẩu mở file (mã hóa PPTX) | 🔴 | 1 | Chưa có cơ chế mã hóa mật khẩu mở file PPTX |
-| Thông tin | Kiểm tra bản trình bày (Inspect Document - loại bỏ metadata ẩn) | 🔴 | 2 | Chưa hỗ trợ kiểm tra và xóa thông tin ẩn (Inspect Document) trong VN Slides |
+| Thông tin | Kiểm tra bản trình bày (Inspect Document - loại bỏ metadata ẩn) | 🟢 | - | Backstage > Thông tin > Kiểm tra bản trình bày: 5 nhóm (thuộc tính, nhận xét, ghi chú, slide ẩn, ngoài vùng slide), xóa từng nhóm (adapters/libreoffice/slides/slides-adapter.js:242 openDocumentInspectorDialog; apps/slides/document-inspector-dialog.js:1; tests/live/cdp/slides-file-info.desktop.mjs:1); chưa đối chiếu Inspect Document của PowerPoint |
 | Thông tin | Quản lý bản trình bày: Tự động khôi phục (AutoRecover) | 🟢 | - | Tự động khôi phục bản trình bày (platform/help/entries-autorecover.js:28-34) |
-| Thông tin | Thuộc tính bản trình bày (Title, Author, Subject, Tags...) | 🔴 | 2 | Chưa có hộp thoại xem và chỉnh sửa thuộc tính tệp (Properties) riêng cho VN Slides |
+| Thông tin | Thuộc tính bản trình bày (Title, Author, Subject, Tags...) | ✅ | - | Backstage > Thông tin > Thuộc tính (Title/Author/Subject/Keywords/Comments) lưu docProps/core.xml; PowerPoint COM BuiltInDocumentProperties khớp (adapters/libreoffice/slides/slides-adapter.js:169, scripts/audit-0610/ppt_docprops_readback.ps1:2) |
 | Tùy chọn | Tùy chọn PowerPoint (Hộp thoại Options) | 🔴 | 2 | Chưa có hộp thoại Tùy chọn (Options) riêng cho VN Slides |
 | Tùy chọn | Tùy biến Thanh công cụ truy nhanh (Quick Access Toolbar) | 🟢 | - | Thanh truy nhanh tùy biến (platform/shell/quick-access.js:46-60) |
 | Chia sẻ | Chia sẻ / OneDrive / Gửi Email đính kèm | ⚪ | - | Cần dịch vụ đám mây Microsoft |
@@ -222,8 +222,8 @@ Tổng: 7 mục ưu tiên 1.
 | Chủ đề | Mẫu Slide Master | ✅ | - | FIX-L12: slides.master.apply chọn theme palette và font scheme đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:65) |
 | Chủ đề | Duyệt tìm chủ đề (Browse for Themes: .thmx) | 🔴 | 2 | Chưa hỗ trợ nạp tệp chủ đề bên ngoài (.thmx) |
 | Chủ đề | Lưu chủ đề hiện tại (Save Current Theme) | 🔴 | 3 | Chưa có chức năng lưu chủ đề tùy chỉnh thành tệp .thmx |
-| Biến thể | Bảng màu biến thể (Theme Colors) | 🔴 | 2 | Chưa có menu chọn riêng bảng màu biến thể (Theme Colors) |
-| Biến thể | Bộ phông chữ biến thể (Theme Fonts) | 🔴 | 2 | Chưa có menu chọn riêng bộ phông biến thể (Theme Fonts) |
+| Biến thể | Bảng màu biến thể (Theme Colors) | ✅ | - | slides.design.themeColors: 7 bảng màu; PowerPoint COM ThemeColorScheme accent1/nền/tiêu đề khớp (apps/slides/slides-canvas.js:9382, scripts/audit-0610/ppt_theme_readback.ps1:2) |
+| Biến thể | Bộ phông chữ biến thể (Theme Fonts) | ✅ | - | slides.design.themeFonts: 6 bộ phông; PowerPoint COM MajorFont/MinorFont = Georgia (apps/slides/slides-canvas.js:9382, scripts/audit-0610/ppt_theme_readback.ps1:2) |
 | Biến thể | Hiệu ứng biến thể (Theme Effects) | 🟡 | 3 | Có áp dụng hiệu ứng chung; chưa có bộ sưu tập hiệu ứng biến thể rời |
 | Biến thể | Kiểu nền trang chiếu (Background Styles) | 🔴 | 2 | Chưa có thư viện kiểu nền mẫu (Background Styles gallery) |
 | Tùy chỉnh | Cỡ trang chiếu (Slide Size 4:3 / 16:9) | ✅ | - | FIX-L8: slides.design.slideSize đổi tỷ lệ đối chiếu PageSetup 720x540 pt (docs/SLIDES-BUTTON-MATRIX-1011.md:66, docs/ppt-oracle-1710.json:37-43) |
@@ -317,8 +317,8 @@ Tổng: 7 mục ưu tiên 1.
 |---|---|---|---|---|
 | Chế độ xem bản trình bày | Bình thường (Normal View) | ✅ | - | FIX-L14: slides.view.normal chuyển chế độ ppViewNormal ViewType=9 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:85) |
 | Chế độ xem bản trình bày | Bộ sắp xếp trang (Slide Sorter View) | ✅ | - | FIX-L14: slides.view.slideSorter bộ sắp xếp trang ppViewSlideSorter ViewType=7 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:86) |
-| Chế độ xem bản trình bày | Chế độ dàn bài (Outline View) | 🔴 | 2 | Chưa có chế độ xem dàn bài (Outline View) cho slide |
-| Chế độ xem bản trình bày | Trang ghi chú (Notes Page View) | 🔴 | 2 | Chưa có chế độ xem trang ghi chú in ấn (Notes Page View) |
+| Chế độ xem bản trình bày | Chế độ dàn bài (Outline View) | 🟢 | - | slides.view.outline: sửa tiêu đề/nội dung mọi trang, Ctrl+Enter thêm trang, hoàn tác (apps/slides/slides-canvas.js:8063; CDP 7/8 mục tests/live/cdp/slides-outline-view.desktop.mjs:1); chưa đối chiếu PowerPoint |
+| Chế độ xem bản trình bày | Trang ghi chú (Notes Page View) | 🟢 | - | slides.view.notesPage: trang thu nhỏ kèm ô ghi chú, ghi chú lưu notesSlide1.xml (apps/slides/slides-canvas.js:7964; CDP 7/7 tests/live/cdp/slides-notes-page.desktop.mjs:1); chưa đối chiếu PowerPoint |
 | Chế độ xem bản trình bày | Chế độ đọc (Reading View) | 🟢 | - | slides.view.reading; hiển thị trình chiếu trong cửa sổ ứng dụng (docs/SLIDES-BUTTON-MATRIX-1011.md:88) |
 | Chế độ xem bản cái | Slide Master (Trang chiếu cái) | 🔴 | 2 | Chưa có giao diện thiết kế và chỉnh sửa Slide Master (chỉ có áp dụng qua slides.master.apply) |
 | Chế độ xem bản cái | Handout Master (Bản phát tài liệu cái) | 🔴 | 3 | Chưa có giao diện thiết kế bố cục in bản phát tài liệu |
