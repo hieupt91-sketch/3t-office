@@ -11232,6 +11232,190 @@ def _apply_slides_transition_effects(
     return replacements
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# Chuyển tiếp trang chiếu của PowerPoint (Cut, Wipe, Cover, Split, Dissolve, ... + thời gian tự chuyển trang).
+# LibreOffice chỉ hiểu vài kiểu và bỏ advClick/advTm, nên khi mở: đọc nguyên khối <p:transition> của từng slide gắn vào
+# draw:page (vno:src-transition, base64) cùng vno:src-advance; khi lưu: nếu người dùng chưa đổi chuyển tiếp thì ghi lại
+# đúng khối gốc, nếu đã đổi thì chỉ áp dụng cách chuyển trang (nhấp chuột / sau N giây) họ đặt (vno:advance-*).
+# ---------------------------------------------------------------------------------------------------------------------
+_PPTX_TRANSITION_RE = re.compile(
+    r"<mc:AlternateContent\b[^>]*>(?:(?!</mc:AlternateContent>)[\s\S])*?<p:transition\b[\s\S]*?</mc:AlternateContent\s*>"
+    r"|<p:transition\b[^>]*?/\s*>"
+    r"|<p:transition\b[^>]*>[\s\S]*?</p:transition\s*>",
+    re.IGNORECASE,
+)
+
+
+def _pptx_transition_advance(transition_xml: str) -> tuple[bool, int | None]:
+    """(advClick, advTm ms|None) của khối <p:transition> (ưu tiên khối Fallback/Choice đầu tiên có thuộc tính)."""
+    tag = re.search(r"<p:transition\b([^>]*)>", transition_xml, re.IGNORECASE)
+    attrs = tag.group(1) if tag else ""
+    click = re.search(r'\badvClick="([^"]*)"', attrs)
+    after = re.search(r'\badvTm="(\d+)"', attrs)
+    return (click.group(1) not in ("0", "false") if click else True), (int(after.group(1)) if after else None)
+
+
+def _pptx_transition_namespaces(slide_xml: str, transition_xml: str) -> dict[str, str]:
+    """Các xmlns (mc, p14, p15...) khối chuyển tiếp dùng, lấy từ gốc <p:sld> của slide nguồn."""
+    root = re.search(r"<p:sld\b([^>]*)>", slide_xml)
+    declared = dict(re.findall(r'xmlns:(\w+)="([^"]+)"', root.group(1))) if root else {}
+    used = set(re.findall(r"[<\s/](\w+):\w+", transition_xml))
+    used |= set(re.findall(r'mc:(?:Ignorable|Requires)="([^"]+)"', transition_xml))
+    needed: dict[str, str] = {}
+    for prefix in used:
+        if prefix in declared and prefix not in ("p", "a", "r"):
+            needed[prefix] = declared[prefix]
+    return needed
+
+
+def overlay_fodp_source_transitions(fodp_xml: str | None, pptx_bytes: bytes) -> str:
+    """Mở PPTX: gắn khối p:transition gốc của từng slide vào draw:page tương ứng của FODP."""
+    xml = fodp_xml or ""
+    entries = _resolve_pptx_slide_entries(pptx_bytes)
+    if not entries or "<draw:page" not in xml:
+        return xml
+    sources: list[tuple[str, bool, int | None] | None] = []
+    for entry in entries:
+        raw = read_zip_entry(pptx_bytes, entry)
+        slide_xml = raw.decode("utf-8", errors="replace") if raw else ""
+        match = _PPTX_TRANSITION_RE.search(slide_xml)
+        if not match:
+            sources.append(None)
+            continue
+        block = match.group(0)
+        namespaces = _pptx_transition_namespaces(slide_xml, block)
+        payload = json.dumps({"xml": block, "ns": namespaces}, ensure_ascii=False)
+        click, after = _pptx_transition_advance(block)
+        import base64 as _b64
+        sources.append((_b64.b64encode(payload.encode("utf-8")).decode("ascii"), click, after))
+    if not any(sources):
+        return xml
+    pieces: list[str] = []
+    cursor = 0
+    index = 0
+    for start, end in _flat_xml_blocks(xml, ("draw:page",)):
+        pieces.append(xml[cursor:start])
+        block = xml[start:end]
+        source = sources[index] if index < len(sources) else None
+        index += 1
+        if source:
+            payload, click, after = source
+            open_tag = re.match(r"<draw:page\b[^>]*>", block)
+            if open_tag:
+                tag = re.sub(r'\s+vno:src-(?:transition|advance)="[^"]*"', "", open_tag.group(0))
+                advance = f"click:{1 if click else 0};after:{after if after is not None else ''}"
+                tag = tag[:-1].rstrip("/ ") + f' vno:src-transition="{payload}" vno:src-advance="{advance}">'
+                block = tag + block[open_tag.end():]
+        pieces.append(block)
+        cursor = end
+    pieces.append(xml[cursor:])
+    return ensure_vno_xmlns("".join(pieces))
+
+
+def _set_transition_advance(block: str, click: str | None, after: str | None) -> str:
+    """Đặt advClick / advTm trên mọi thẻ mở <p:transition> của khối (kể cả nhánh Choice/Fallback của PowerPoint).
+
+    click: "0" tắt nhấp chuột, "1" bật (None = giữ nguyên). after: số ms (None = giữ nguyên, "" = bỏ tự chuyển trang)."""
+    if click is None and after is None:
+        return block
+
+    def patch_tag(match: re.Match[str]) -> str:
+        attrs = match.group(1)
+        if click is not None:
+            attrs = re.sub(r'\s*\badvClick="[^"]*"', "", attrs)
+            if click == "0":
+                attrs += ' advClick="0"'
+        if after is not None:
+            attrs = re.sub(r'\s*\badvTm="[^"]*"', "", attrs)
+            if after != "":
+                attrs += f' advTm="{int(float(after))}"'
+        return f"<p:transition{attrs}{match.group(2)}>"
+
+    return re.sub(r"<p:transition\b([^>]*?)(/?)>", patch_tag, block)
+
+
+def _slides_page_attr_list(fodp_xml: str | None, attr: str) -> list[str | None]:
+    values: list[str | None] = []
+    for page in re.finditer(r"<draw:page\b(?![-\w])([^>]*)>", str(fodp_xml or ""), re.IGNORECASE):
+        match = re.search(rf'\b{re.escape(attr)}="([^"]*)"', page.group(1))
+        values.append(html.unescape(match.group(1)) if match else None)
+    return values
+
+
+def _apply_slides_source_transitions(
+    pptx_bytes: bytes, source_fodp: str | None, base_replacements: dict[str, str] | None = None
+) -> dict[str, str]:
+    """Lưu PPTX: ghi lại chuyển tiếp gốc (nếu giữ nguyên) hoặc cách chuyển trang người dùng đặt."""
+    if not source_fodp:
+        return {}
+    import base64 as _b64
+    sources = _slides_page_attr_list(source_fodp, "vno:src-transition")
+    advance_click = _slides_page_attr_list(source_fodp, "vno:advance-click")
+    advance_after = _slides_page_attr_list(source_fodp, "vno:advance-after")
+    if not any(sources) and not any(advance_click) and not any(advance_after):
+        return {}
+    with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+        slide_names = sorted(
+            (name for name in package.namelist() if re.match(r"^ppt/slides/slide\d+\.xml$", name, re.IGNORECASE)),
+            key=lambda name: int(re.search(r"slide(\d+)", name, re.IGNORECASE).group(1)),
+        )
+        replacements: dict[str, str] = {}
+        for index, name in enumerate(slide_names):
+            payload = sources[index] if index < len(sources) else None
+            click = advance_click[index] if index < len(advance_click) else None
+            after = advance_after[index] if index < len(advance_after) else None
+            if not payload and click is None and after is None:
+                continue
+            original = (base_replacements or {}).get(name) or package.read(name).decode("utf-8", errors="replace")
+            updated = original
+            if payload:
+                try:
+                    data = json.loads(_b64.b64decode(payload).decode("utf-8"))
+                except Exception:
+                    continue
+                block = str(data.get("xml") or "")
+                if not block:
+                    continue
+                block = _set_transition_advance(block, click, after)
+                updated = _PPTX_TRANSITION_RE.sub("", updated)
+                root = re.search(r"<p:sld\b([^>]*)>", updated)
+                if root:
+                    attrs = root.group(1)
+                    for prefix, uri in (data.get("ns") or {}).items():
+                        if f"xmlns:{prefix}=" not in attrs:
+                            attrs += f' xmlns:{prefix}="{uri}"'
+                    updated = updated[:root.start()] + f"<p:sld{attrs}>" + updated[root.end():]
+                insertion = re.search(r"<p:timing\b|<p:extLst\b|</p:sld\s*>", updated)
+                if not insertion:
+                    continue
+                updated = updated[:insertion.start()] + block + updated[insertion.start():]
+            else:
+                match = _PPTX_TRANSITION_RE.search(updated)
+                set_attrs = {}
+                if click is not None:
+                    set_attrs["advClick"] = "0" if click == "0" else "1"
+                if after not in (None, ""):
+                    set_attrs["advTm"] = str(int(float(after)))
+                if match and match.group(0).lstrip().startswith("<mc:"):
+                    continue  # khối đã bọc mc:AlternateContent do PowerPoint ghi: không đoán cấu trúc
+                if match:
+                    tag = re.match(r"<p:transition\b([^>]*?)(/?)>", match.group(0))
+                    attrs = tag.group(1)
+                    for key, value in set_attrs.items():
+                        attrs = re.sub(rf'\s*\b{key}="[^"]*"', "", attrs)
+                        attrs += f' {key}="{value}"'
+                    updated = updated[:match.start()] + f"<p:transition{attrs}{tag.group(2)}>" + match.group(0)[tag.end():] + updated[match.end():]
+                else:
+                    insertion = re.search(r"<p:timing\b|<p:extLst\b|</p:sld\s*>", updated)
+                    if not insertion or not set_attrs:
+                        continue
+                    attr_text = "".join(f' {k}="{v}"' for k, v in set_attrs.items())
+                    updated = updated[:insertion.start()] + f"<p:transition{attr_text}/>" + updated[insertion.start():]
+            if updated != original:
+                replacements[name] = updated
+    return replacements
+
+
 def _slides_wordart_ids_from_fodp(fodp_xml: str | None) -> list[set[str]]:
     pages: list[set[str]] = []
     for page in re.finditer(r"<draw:page\b(?![-\w])[^>]*>([\s\S]*?)</draw:page\s*>", str(fodp_xml or ""), re.IGNORECASE):
@@ -11457,7 +11641,13 @@ def postprocess_slides_pptx(
         {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,
          **transition_replacements, **wordart_replacements, **layout_replacements, **native_timing_replacements},
     )
-    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements and not native_timing_replacements and not shadow_replacements:
+    source_transition_replacements = _apply_slides_source_transitions(
+        pptx_bytes, source_fodp,
+        {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,
+         **transition_replacements, **wordart_replacements, **layout_replacements, **native_timing_replacements,
+         **shadow_replacements},
+    )
+    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements and not native_timing_replacements and not shadow_replacements and not source_transition_replacements:
         return pptx_bytes
     replacements.update(animation_replacements)
     replacements.update(paragraph_level_replacements)
@@ -11468,6 +11658,7 @@ def postprocess_slides_pptx(
     replacements.update(layout_replacements)
     replacements.update(native_timing_replacements)
     replacements.update(shadow_replacements)
+    replacements.update(source_transition_replacements)
 
     if apply_slide_size and presentation_xml:
         presentation_xml = apply_intended_slide_size(presentation_xml, intended_size)
@@ -15912,6 +16103,7 @@ def overlay_slides_pptx_fodp(pptx_bytes: bytes, fodp_xml: str | None) -> str:
     if props:
         xml = overlay_fodp_show_properties(xml, props.decode("utf-8", errors="replace"))
     xml = overlay_fodp_image_crops(xml, pptx_bytes)
+    xml = overlay_fodp_source_transitions(xml, pptx_bytes)
     return xml
 
 
