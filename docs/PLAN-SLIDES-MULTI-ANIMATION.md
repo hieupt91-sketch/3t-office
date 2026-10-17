@@ -13,6 +13,12 @@ Trạng thái: **kế hoạch, chưa code** (cổng kế hoạch AGENTS.md mục
 - Mọi chỗ dựng danh sách đều khóa theo `target` (một mục/đối tượng): `collectSlideAnimations`, `getAnimationTimeline`, `_timelineByTarget`, ngăn Hoạt ảnh, kéo đổi thứ tự (`_assignAnimationOrders`), vẽ huy hiệu ★ (`~5332`), chạy xem trước, snapshot hoàn tác (`_snapshotSlideAnimations`).
 - Lưu: `adapters/libreoffice/slides/slides-adapter.js` `_serializeEntranceAnimation` (~2497–2526) ghi một nút cho mỗi slot; mở: ~2713/2750 gán một hiệu ứng cho mỗi đối tượng.
 
+## 2b. Kết quả bước 0 (18/10/2026, đã chạy)
+PPTX dựng bằng PowerPoint thật: hình A có Mờ dần (vào) + Mờ dần (thoát), hình B có Mờ dần (vào). Mở bằng ứng dụng (`tests/live/cdp/slides-multi-anim-probe.desktop.mjs`):
+- Mô hình chỉ giữ MỘT hiệu ứng cho hình A: `fadeOut` (hiệu ứng thoát ghi đè hiệu ứng vào); ngăn Hoạt ảnh hiện 2 dòng thay vì 3.
+- Lưu lại không sửa gì: PowerPoint COM đọc lại vẫn đủ 3 hiệu ứng (phần hiệu ứng nguyên bản được giữ từ tệp gốc). Rủi ro nằm ở lúc người dùng SỬA hiệu ứng: bộ ghi chỉ sinh một hiệu ứng cho mỗi đối tượng nên sẽ làm mất hiệu ứng còn lại. Đây là lý do cần `extraAnimations`.
+- Chưa kiểm: trigger tương tác (bấm hình khác) và việc soffice ghi hai hiệu ứng trên cùng đối tượng từ mô hình mới; làm ở bước cài đặt đầu tiên.
+
 ## 3. Thiết kế
 1. **Mô hình**: giữ `shape.animation` (hiệu ứng đầu, tương thích tài liệu cũ) và thêm `shape.extraAnimations: []` (cùng cấu trúc, thêm `trigger?: {shapeId}`). Tiêu đề/nội dung tương tự (`titleExtra...` hoặc gom về hàm `_animationSlotsOf(slide,target)` để chỉ một chỗ biết cách lưu).
 2. **Slot có khóa riêng**: `collectSlideAnimations` trả mục với `slotId = "<target>#<n>"`; mọi chỗ khóa theo `target` đổi sang `slotId` (pane, timeline, reorder, huy hiệu, xem trước). `target` giữ để biết đối tượng.
