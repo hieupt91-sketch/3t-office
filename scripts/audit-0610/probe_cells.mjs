@@ -9,6 +9,6 @@ try {
   const norm = file.replace(/\\/g, "/").toLowerCase();
   await session.cdp.waitFor(`(() => { const a = window.__vnoAppInstance?.adapter; const p = String(a?._sourcePath || a?.sourceFilePath || '').replace(/\\\\/g, '/').toLowerCase(); return p === ${JSON.stringify(norm)}; })()`, { timeoutMilliseconds: 600000, intervalMilliseconds: 250 });
   await sleep(12000);
-  const r = await ev(`JSON.stringify((() => { const g = window.__vnoAppInstance.grid; const d = (g.sheetsData || {})[${JSON.stringify(sheet)}]; if (!d) return { error: 'no sheet', sheets: Object.keys(g.sheetsData || {}) }; const out = {}; for (const c of ${JSON.stringify(cellList)}.split(',')) { const v = d.get(c); out[c] = v ? { val: v.val, f: String(v.formula || '').slice(0, 80), t: typeof v.val } : null; } return out; })())`);
+  const r = await ev(`JSON.stringify((() => { const g = window.__vnoAppInstance.grid; const d = (g.sheetsData || {})[${JSON.stringify(sheet)}]; if (!d) return { error: 'no sheet', sheets: Object.keys(g.sheetsData || {}) }; const out = {}; for (const c of ${JSON.stringify(cellList)}.split(',')) { const v = d.get(c); out[c] = v ? { val: v.val, f: String(v.formula || '').slice(0, 80), t: typeof v.val, nf: v.style && v.style.numberFormat } : null; } return out; })())`);
   console.log(r);
 } finally { try { await session.close(); } catch {} }

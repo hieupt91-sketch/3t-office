@@ -634,8 +634,8 @@ async function runAll() {
     { title: "268. Unit Tests — Sheet Right-Click Context Menu for Shape, Picture, TextBox, Chart (AGY-CTXMENU)", runner: runSheetContextMenuObjectsTests },
     { title: "269. Unit Tests — Sheet External Links & Edit Links Dialog (AGY-LINKS)", runner: runSheetExternalLinksDialogTests },
     { title: "270. Unit Tests — Sheet AutoFill Handle Double-Click, Options Button & Border Drag-Drop (AGY-AUTOFILL)", runner: runSheetAutofillDragTests },
-    { title: "271. Unit Tests — Sheet Notes Parity, Show/Hide, Resize, Drag, Formats & VML Drawing (AGY-NOTES)", runner: runSheetNotesFidelityTests }
-    { title: "271. Unit Tests — Writer Tabs Dialog, Ruler Tab Stops, Go To, Split Table, Text Direction, Table Properties (AGY-WRITER1)", runner: runWriterTabsTablesAgyTests }
+    { title: "271. Unit Tests — Sheet Notes Parity, Show/Hide, Resize, Drag, Formats & VML Drawing (AGY-NOTES)", runner: runSheetNotesFidelityTests },
+    { title: "272. Unit Tests — Writer Tabs Dialog, Ruler Tab Stops, Go To, Split Table, Text Direction, Table Properties (AGY-WRITER1)", runner: runWriterTabsTablesAgyTests }
   ];
 
   for (const suite of suites) {
