@@ -372,15 +372,15 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.insert.chart", (options) => this.canvas.insertChart ? this.canvas.insertChart(options) : false);
     globalCommandBus.bindHandler("slides.insert.hyperlink", (options) => this.canvas.insertHyperlink ? this.canvas.insertHyperlink(options) : false);
     globalCommandBus.bindHandler("slides.text.shadow", () => this._toggleTextShadow());
-    globalCommandBus.bindHandler("slides.table.insertRowAbove", () => this.canvas.tableInsertRow ? this.canvas.tableInsertRow("above") : false);
-    globalCommandBus.bindHandler("slides.table.insertRowBelow", () => this.canvas.tableInsertRow ? this.canvas.tableInsertRow("below") : false);
-    globalCommandBus.bindHandler("slides.table.insertColLeft", () => this.canvas.tableInsertCol ? this.canvas.tableInsertCol("left") : false);
-    globalCommandBus.bindHandler("slides.table.insertColRight", () => this.canvas.tableInsertCol ? this.canvas.tableInsertCol("right") : false);
-    globalCommandBus.bindHandler("slides.table.deleteRow", () => this.canvas.tableDeleteRow ? this.canvas.tableDeleteRow() : false);
-    globalCommandBus.bindHandler("slides.table.deleteCol", () => this.canvas.tableDeleteCol ? this.canvas.tableDeleteCol() : false);
-    globalCommandBus.bindHandler("slides.table.deleteTable", () => this.canvas.tableDelete ? this.canvas.tableDelete() : false);
-    globalCommandBus.bindHandler("slides.table.mergeCells", () => this.canvas.tableMergeCells ? this.canvas.tableMergeCells() : false);
-    globalCommandBus.bindHandler("slides.table.splitCell", () => this.canvas.tableSplitCell ? this.canvas.tableSplitCell() : false);
+    globalCommandBus.bindHandler("slides.table.insertRowAbove", () => this._hintIfFalse(() => this.canvas.tableInsertRow ? this.canvas.tableInsertRow("above") : false, "Hãy nhấp vào một ô của bảng trước (bảng phải đang được chọn)."));
+    globalCommandBus.bindHandler("slides.table.insertRowBelow", () => this._hintIfFalse(() => this.canvas.tableInsertRow ? this.canvas.tableInsertRow("below") : false, "Hãy nhấp vào một ô của bảng trước (bảng phải đang được chọn)."));
+    globalCommandBus.bindHandler("slides.table.insertColLeft", () => this._hintIfFalse(() => this.canvas.tableInsertCol ? this.canvas.tableInsertCol("left") : false, "Hãy nhấp vào một ô của bảng trước (bảng phải đang được chọn)."));
+    globalCommandBus.bindHandler("slides.table.insertColRight", () => this._hintIfFalse(() => this.canvas.tableInsertCol ? this.canvas.tableInsertCol("right") : false, "Hãy nhấp vào một ô của bảng trước (bảng phải đang được chọn)."));
+    globalCommandBus.bindHandler("slides.table.deleteRow", () => this._hintIfFalse(() => this.canvas.tableDeleteRow ? this.canvas.tableDeleteRow() : false, "Hãy nhấp vào một ô của bảng trước (bảng phải đang được chọn)."));
+    globalCommandBus.bindHandler("slides.table.deleteCol", () => this._hintIfFalse(() => this.canvas.tableDeleteCol ? this.canvas.tableDeleteCol() : false, "Hãy nhấp vào một ô của bảng trước (bảng phải đang được chọn)."));
+    globalCommandBus.bindHandler("slides.table.deleteTable", () => this._hintIfFalse(() => this.canvas.tableDelete ? this.canvas.tableDelete() : false, "Hãy nhấp vào một ô của bảng trước (bảng phải đang được chọn)."));
+    globalCommandBus.bindHandler("slides.table.mergeCells", () => this._hintIfFalse(() => this.canvas.tableMergeCells ? this.canvas.tableMergeCells() : false, "Hãy nhấp vào một ô của bảng trước (bảng phải đang được chọn)."));
+    globalCommandBus.bindHandler("slides.table.splitCell", () => this._hintIfFalse(() => this.canvas.tableSplitCell ? this.canvas.tableSplitCell() : false, "Hãy nhấp vào một ô của bảng trước (bảng phải đang được chọn)."));
     globalCommandBus.bindHandler("common.edit.hyperlink", (options) => this.canvas.insertHyperlink ? this.canvas.insertHyperlink(options) : false);
     globalCommandBus.bindHandler("slides.file.printPreview", () => this.print());
     globalCommandBus.bindHandler("slides.view.normal", () => this.canvas.setNormalView ? this.canvas.setNormalView() : false);
@@ -598,6 +598,7 @@ export class SlidesAdapter {
     this._restoreTextSelection();
     if (typeof document === "undefined" || typeof document.execCommand !== "function") return false;
     const ok = document.execCommand(command, false, value === undefined ? null : value);
+    if (!ok) this.shell?.setStatus?.("Hãy nhấp vào khung chữ và chọn đoạn chữ cần định dạng.");
     this.canvas?._syncEditableFieldsFromDom?.();
     this._syncTextFormatState();
     return ok;
@@ -633,7 +634,10 @@ export class SlidesAdapter {
     const holder = document.createElement("div");
     holder.appendChild(range.cloneContents());
     const inner = holder.innerHTML;
-    if (!inner) return false;
+    if (!inner) {
+      this.shell?.setStatus?.("Hãy chọn đoạn chữ cần đổ bóng.");
+      return false;
+    }
     const shadowed = this._selectionHasTextShadow();
     let html;
     if (shadowed) {
@@ -1847,6 +1851,7 @@ export class SlidesAdapter {
   }
 
   _shapeFillColor(arg) {
+    if (arg === undefined || arg === null || arg === "") { this._shapeStyle(() => null); if (!this.canvas?._selectedFormattableShapes?.().length) return false; this.shell?.setStatus?.("Hãy chọn một màu tô."); return false; }
     const value = String(arg || "");
     if (value === "custom") {
       const current = this.canvas?._selectedFormattableShapes?.()[0];
@@ -1859,6 +1864,7 @@ export class SlidesAdapter {
   }
 
   _shapeOutlineColor(arg) {
+    if (arg === undefined || arg === null || arg === "") { this._shapeStyle(() => null); if (!this.canvas?._selectedFormattableShapes?.().length) return false; this.shell?.setStatus?.("Hãy chọn một màu viền."); return false; }
     const value = String(arg || "");
     if (value === "custom") {
       const current = this.canvas?._selectedFormattableShapes?.()[0];
@@ -1874,6 +1880,7 @@ export class SlidesAdapter {
   }
 
   _shapeOutlineWeight(arg) {
+    if (arg === undefined || arg === null || arg === "") { this._shapeStyle(() => null); if (!this.canvas?._selectedFormattableShapes?.().length) return false; this.shell?.setStatus?.("Hãy chọn độ dày viền."); return false; }
     const pt = Number(arg);
     if (!(pt > 0)) return false;
     const px = Math.round((pt / this._ptPerPx()) * 10) / 10;
@@ -5812,7 +5819,10 @@ export class SlidesAdapter {
   async _showPasteSpecialDialog() {
     this._restoreTextSelection();
     const clip = await this._readClipboardData();
-    if (!clip || (!clip.text && !clip.html)) return false;
+    if (!clip || (!clip.text && !clip.html)) {
+      this.shell?.setStatus?.("Bảng nhớ tạm đang trống: hãy sao chép nội dung trước khi dán đặc biệt.");
+      return false;
+    }
     if (typeof document === "undefined" || !document.createElement) return false;
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
