@@ -10159,6 +10159,344 @@ def _patch_slides_theme_parts(pptx_bytes: bytes, payload: dict | None) -> dict[s
     return replacements
 
 
+_SRC_THEME_MAX_BYTES = 262144
+
+
+def overlay_fodp_source_theme(fodp_xml: str | None, pptx_bytes: bytes) -> str:
+    """Mở PPTX: gắn nguyên ppt/theme/themeN.xml gốc (base64) vào master-page để lúc lưu trả lại, vì soffice thay bằng chủ đề «LibreOffice»."""
+    xml = fodp_xml or ""
+    paths = _related_theme_part_paths(pptx_bytes)
+    if len(paths) != 1:
+        return xml
+    raw = read_zip_entry(pptx_bytes, next(iter(paths)))
+    if not raw or len(raw) > _SRC_THEME_MAX_BYTES:
+        return xml
+    match = re.search(r"<style:master-page\b([^>]*?)(/?)>", xml, re.IGNORECASE)
+    if not match:
+        return xml
+    import base64 as _b64
+    attrs = re.sub(r'\s+vno:src-theme="[^"]*"', "", match.group(1))
+    replacement = f'<style:master-page{attrs} vno:src-theme="{_b64.b64encode(raw).decode("ascii")}"{match.group(2)}>'
+    return ensure_vno_xmlns(xml[:match.start()] + replacement + xml[match.end():])
+
+
+def _restore_slides_source_theme(pptx_bytes: bytes, source_fodp: str | None, theme_payload: dict | None) -> dict[str, str]:
+    """Lưu PPTX: trả lại chủ đề gốc của tệp khi người dùng không chọn chủ đề mới của VN."""
+    if not source_fodp or (isinstance(theme_payload, dict) and theme_payload.get("id")):
+        return {}
+    match = re.search(r'<style:master-page\b[^>]*\bvno:src-theme="([^"]+)"', source_fodp, re.IGNORECASE)
+    if not match:
+        return {}
+    paths = _related_theme_part_paths(pptx_bytes)
+    if len(paths) != 1:
+        return {}
+    import base64 as _b64
+    try:
+        original = _b64.b64decode(match.group(1)).decode("utf-8")
+    except Exception:
+        return {}
+    if "<a:theme" not in original:
+        return {}
+    return {next(iter(paths)): original}
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Bản cái (Slide Master), bố cục (Layouts) và chủ đề gốc của tệp PowerPoint. soffice thay toàn bộ bằng một master "Standard"
+# riêng nên logo công ty, nền, phông tiêu đề, các bố cục tùy biến đều mất khi mở rồi lưu. Khi mở: ghi mỗi trang dùng bố cục
+# nào (vno:src-layout). Khi lưu (người dùng chưa chọn chủ đề VN): thay master/layout/theme của soffice bằng bản gốc của tệp
+# và trỏ lại từng slide về đúng bố cục gốc.
+# ---------------------------------------------------------------------------------------------------------------------
+_REL_TYPE_SUFFIX_RE = re.compile(r"/([A-Za-z]+)$")
+
+
+def _pkg_resolve(base_part: str, target: str) -> str:
+    target = html.unescape(target)
+    if target.startswith("/"):
+        return target.lstrip("/")
+    return posixpath.normpath(posixpath.join(posixpath.dirname(base_part), target))
+
+
+def _pkg_rels_name(part: str) -> str:
+    return posixpath.join(posixpath.dirname(part), "_rels", posixpath.basename(part) + ".rels")
+
+
+def _pkg_rels(data: bytes | None) -> list[dict[str, str]]:
+    rels: list[dict[str, str]] = []
+    if not data:
+        return rels
+    for match in re.finditer(r"<Relationship\b([^>]*?)/?>", data.decode("utf-8", errors="replace"), re.IGNORECASE):
+        attrs = dict(re.findall(r'([\w:]+)="([^"]*)"', match.group(1)))
+        if "Id" in attrs and "Target" in attrs:
+            rels.append(attrs)
+    return rels
+
+
+def _pkg_rel_kind(rel: dict[str, str]) -> str:
+    kind = _REL_TYPE_SUFFIX_RE.search(rel.get("Type", ""))
+    return kind.group(1) if kind else ""
+
+
+def overlay_fodp_source_layouts(fodp_xml: str | None, pptx_bytes: bytes) -> str:
+    """Mở PPTX: gắn bố cục gốc (đường dẫn slideLayoutN.xml) của từng slide vào draw:page tương ứng."""
+    xml = fodp_xml or ""
+    entries = _resolve_pptx_slide_entries(pptx_bytes)
+    if not entries or "<draw:page" not in xml:
+        return xml
+    layouts: list[str | None] = []
+    for entry in entries:
+        found = None
+        for rel in _pkg_rels(read_zip_entry(pptx_bytes, _pkg_rels_name(entry))):
+            if _pkg_rel_kind(rel) == "slideLayout":
+                found = _pkg_resolve(entry, rel["Target"])
+                break
+        layouts.append(found)
+    if not any(layouts):
+        return xml
+    pieces: list[str] = []
+    cursor = 0
+    index = 0
+    for start, end in _flat_xml_blocks(xml, ("draw:page",)):
+        pieces.append(xml[cursor:start])
+        block = xml[start:end]
+        layout = layouts[index] if index < len(layouts) else None
+        index += 1
+        open_tag = re.match(r"<draw:page\b[^>]*>", block)
+        if layout and open_tag:
+            tag = re.sub(r'\s+vno:src-layout="[^"]*"', "", open_tag.group(0))
+            tag = tag[:-1].rstrip("/ ") + f' vno:src-layout="{layout}">'
+            block = tag + block[open_tag.end():]
+        pieces.append(block)
+        cursor = end
+    pieces.append(xml[cursor:])
+    return ensure_vno_xmlns("".join(pieces))
+
+
+def _restore_source_masters(
+    pptx_bytes: bytes, source_pptx: bytes | None, source_fodp: str | None, theme_payload: dict | None
+) -> bytes:
+    """Lưu PPTX: thay master/layout/theme của soffice bằng bản gốc và trỏ lại từng slide. Mọi sai lệch -> giữ nguyên gói."""
+    if not source_pptx or not source_fodp:
+        return pptx_bytes
+    if isinstance(theme_payload, dict) and theme_payload.get("id"):
+        return pptx_bytes  # người dùng đã chọn chủ đề VN: dùng master của soffice như trước
+    page_layouts = _slides_page_attr_list(source_fodp, "vno:src-layout")
+    if not any(page_layouts):
+        return pptx_bytes
+    try:
+        return _restore_source_masters_unsafe(pptx_bytes, source_pptx, page_layouts)
+    except Exception:
+        return pptx_bytes
+
+
+def _restore_source_masters_unsafe(pptx_bytes: bytes, source_pptx: bytes, page_layouts: list[str | None]) -> bytes:
+    with zipfile.ZipFile(io.BytesIO(source_pptx), "r") as src_zip, zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as conv_zip:
+        src = {name: src_zip.read(name) for name in src_zip.namelist() if not name.endswith("/")}
+        conv_infos = [item for item in conv_zip.infolist() if not item.filename.endswith("/")]
+        conv = {item.filename: conv_zip.read(item.filename) for item in conv_infos}
+
+    # --- 1. gói nguồn: master -> (layout, theme) -> tài nguyên
+    src_pres_rels = _pkg_rels(src.get("ppt/_rels/presentation.xml.rels"))
+    src_masters = [_pkg_resolve("ppt/presentation.xml", r["Target"]) for r in src_pres_rels if _pkg_rel_kind(r) == "slideMaster"]
+    src_pres_theme = next((_pkg_resolve("ppt/presentation.xml", r["Target"]) for r in src_pres_rels if _pkg_rel_kind(r) == "theme"), None)
+    if not src_masters or any(m not in src for m in src_masters):
+        return pptx_bytes
+    copied: dict[str, bytes] = {}
+    order: list[str] = []
+
+    def collect(part: str) -> None:
+        if part in copied or part not in src:
+            return
+        copied[part] = src[part]
+        order.append(part)
+        rels_name = _pkg_rels_name(part)
+        if rels_name in src:
+            copied[rels_name] = src[rels_name]
+            for rel in _pkg_rels(src[rels_name]):
+                if rel.get("TargetMode", "").lower() == "external":
+                    continue
+                collect(_pkg_resolve(part, rel["Target"]))
+
+    for master in src_masters:
+        collect(master)
+    if src_pres_theme:
+        collect(src_pres_theme)
+    # chỉ giữ phần master/layout/theme/tài nguyên (không kéo slide hay notes qua)
+    for part in list(copied):
+        if re.match(r"^ppt/(slides|notesSlides|notesMasters|handoutMasters)/", part):
+            return pptx_bytes
+    layout_parts = [p for p in order if p.startswith("ppt/slideLayouts/") and p.endswith(".xml")]
+    if not layout_parts:
+        return pptx_bytes
+
+    # --- 2. đặt lại tên chủ đề / tài nguyên để không đụng gói chuyển đổi (notes master giữ theme riêng)
+    rename: dict[str, str] = {}
+    theme_counter = 100
+    for part in order:
+        if re.match(r"^ppt/theme/theme\d+\.xml$", part):
+            theme_counter += 1
+            rename[part] = f"ppt/theme/theme{theme_counter}.xml"
+        elif part.startswith("ppt/media/") or part.startswith("ppt/embeddings/") or part.startswith("ppt/diagrams/"):
+            if part in conv:
+                rename[part] = posixpath.join(posixpath.dirname(part), "vnosrc_" + posixpath.basename(part))
+
+    def renamed(part: str) -> str:
+        return rename.get(part, part)
+
+    # --- 3. loại bỏ master/layout/theme (của master) trong gói chuyển đổi
+    conv_theme_parts = _related_theme_part_paths(pptx_bytes)
+    removed = {n for n in conv if n.startswith("ppt/slideMasters/") or n.startswith("ppt/slideLayouts/")} | conv_theme_parts
+    removed |= {_pkg_rels_name(n) for n in conv_theme_parts if _pkg_rels_name(n) in conv}
+    new_parts: dict[str, bytes] = {n: d for n, d in conv.items() if n not in removed}
+
+    # --- 4. chép phần gốc (đổi tên + sửa đích rels)
+    for part in list(copied):
+        if part.endswith(".rels"):
+            owner = posixpath.join(posixpath.dirname(posixpath.dirname(part)), posixpath.basename(part)[:-5])
+            text = copied[part].decode("utf-8", errors="replace")
+
+            def fix(match: re.Match[str], owner=owner) -> str:
+                attrs = match.group(0)
+                target = re.search(r'Target="([^"]*)"', attrs)
+                if not target or 'TargetMode="External"' in attrs:
+                    return attrs
+                absolute = _pkg_resolve(owner, target.group(1))
+                if absolute in rename:
+                    relative = posixpath.relpath(rename[absolute], posixpath.dirname(owner))
+                    return attrs.replace(target.group(0), f'Target="{relative}"')
+                return attrs
+
+            text = re.sub(r"<Relationship\b[^>]*>", fix, text)
+            new_parts[_pkg_rels_name(renamed(owner))] = text.encode("utf-8")
+        else:
+            new_parts[renamed(part)] = copied[part]
+
+    # --- 5. presentation.xml + rels: danh sách master, theme của bản trình bày
+    pres = conv.get("ppt/presentation.xml", b"").decode("utf-8", errors="replace")
+    src_pres = src.get("ppt/presentation.xml", b"").decode("utf-8", errors="replace")
+    src_list = re.search(r"<p:sldMasterIdLst\b[^>]*>[\s\S]*?</p:sldMasterIdLst\s*>", src_pres)
+    if not pres or not src_list:
+        return pptx_bytes
+    src_rid_by_master = {}
+    for rel in src_pres_rels:
+        if _pkg_rel_kind(rel) == "slideMaster":
+            src_rid_by_master[rel["Id"]] = _pkg_resolve("ppt/presentation.xml", rel["Target"])
+    conv_rels_text = conv.get("ppt/_rels/presentation.xml.rels", b"").decode("utf-8", errors="replace")
+    kept_rels = [m.group(0) for m in re.finditer(r"<Relationship\b[^>]*>", conv_rels_text)
+                 if _pkg_rel_kind(dict(re.findall(r'([\w:]+)="([^"]*)"', m.group(0)))) not in ("slideMaster", "theme")]
+    used_ids = {dict(re.findall(r'([\w:]+)="([^"]*)"', r)).get("Id") for r in kept_rels}
+    new_rel_xml: list[str] = []
+    rid_map: dict[str, str] = {}
+    for index, (old_rid, master_part) in enumerate(src_rid_by_master.items(), start=1):
+        new_rid = f"rIdVnoM{index}"
+        while new_rid in used_ids:
+            new_rid += "x"
+        used_ids.add(new_rid)
+        rid_map[old_rid] = new_rid
+        new_rel_xml.append(f'<Relationship Id="{new_rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideMaster" Target="{posixpath.relpath(master_part, "ppt")}"/>')
+    if src_pres_theme:
+        theme_rid = "rIdVnoTheme"
+        while theme_rid in used_ids:
+            theme_rid += "x"
+        new_rel_xml.append(f'<Relationship Id="{theme_rid}" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="{posixpath.relpath(renamed(src_pres_theme), "ppt")}"/>')
+    rels_root = re.search(r"<Relationships\b[^>]*>", conv_rels_text)
+    if not rels_root:
+        return pptx_bytes
+    new_parts["ppt/_rels/presentation.xml.rels"] = (conv_rels_text[:rels_root.end()] + "".join(kept_rels) + "".join(new_rel_xml) + "</Relationships>").encode("utf-8")
+    new_list = src_list.group(0)
+    for old_rid, new_rid in rid_map.items():
+        new_list = re.sub(rf'r:id="{re.escape(old_rid)}"', f'r:id="{new_rid}"', new_list)
+    conv_list = re.search(r"<p:sldMasterIdLst\b[^>]*>[\s\S]*?</p:sldMasterIdLst\s*>", pres)
+    if conv_list:
+        pres = pres[:conv_list.start()] + new_list + pres[conv_list.end():]
+    else:
+        return pptx_bytes
+    new_parts["ppt/presentation.xml"] = pres.encode("utf-8")
+
+    # --- 6. trỏ lại bố cục từng slide
+    slide_names = sorted(
+        (n for n in conv if re.fullmatch(r"ppt/slides/slide\d+\.xml", n)),
+        key=lambda n: int(re.search(r"slide(\d+)\.xml$", n).group(1)),
+    )
+    layout_types: dict[str, str] = {}
+    for part in layout_parts:
+        match = re.search(r'<p:sldLayout\b[^>]*\btype="([^"]*)"', src[part].decode("utf-8", errors="replace"))
+        layout_types[part] = match.group(1) if match else ""
+    default_layout = next((p for p in layout_parts if layout_types.get(p) == "obj"), layout_parts[0])
+    previous = default_layout
+    for index, slide in enumerate(slide_names):
+        wanted = page_layouts[index] if index < len(page_layouts) else None
+        layout = wanted if wanted in copied else previous
+        previous = layout
+        rels_name = _pkg_rels_name(slide)
+        rels_text = conv.get(rels_name, b"").decode("utf-8", errors="replace")
+        if not rels_text:
+            continue
+
+        def retarget(match: re.Match[str]) -> str:
+            attrs = match.group(0)
+            if _pkg_rel_kind(dict(re.findall(r'([\w:]+)="([^"]*)"', attrs))) != "slideLayout":
+                return attrs
+            return re.sub(r'Target="[^"]*"', f'Target="{posixpath.relpath(layout, posixpath.dirname(slide))}"', attrs)
+
+        new_parts[rels_name] = re.sub(r"<Relationship\b[^>]*>", retarget, rels_text).encode("utf-8")
+
+    # --- 7. [Content_Types].xml
+    ct = conv.get("[Content_Types].xml", b"").decode("utf-8", errors="replace")
+    src_ct = src.get("[Content_Types].xml", b"").decode("utf-8", errors="replace")
+    if not ct or not src_ct:
+        return pptx_bytes
+    for name in removed:
+        ct = re.sub(rf'<Override\b[^>]*PartName="/{re.escape(name)}"[^>]*/>', "", ct)
+    # Thứ tự thuộc tính khác nhau giữa các trình ghi (Google Slides ghi ContentType trước PartName).
+    src_overrides: dict[str, str] = {}
+    for m in re.finditer(r"<Override\b([^>]*?)/?>", src_ct):
+        attrs = dict(re.findall(r'([\w:]+)="([^"]*)"', m.group(1)))
+        if "PartName" in attrs and "ContentType" in attrs:
+            src_overrides[attrs["PartName"]] = attrs["ContentType"]
+    src_defaults: dict[str, str] = {}
+    for m in re.finditer(r"<Default\b([^>]*?)/?>", src_ct):
+        attrs = dict(re.findall(r'([\w:]+)="([^"]*)"', m.group(1)))
+        if "Extension" in attrs and "ContentType" in attrs:
+            src_defaults[attrs["Extension"].lower()] = attrs["ContentType"]
+    additions: list[str] = []
+    for part in order:
+        target_name = renamed(part)
+        override = src_overrides.get("/" + part)
+        if override:
+            additions.append(f'<Override PartName="/{target_name}" ContentType="{override}"/>')
+        else:
+            extension = posixpath.splitext(part)[1].lstrip(".").lower()
+            if extension and extension != "rels" and f'Extension="{extension}"' not in ct.lower() and extension in src_defaults:
+                additions.append(f'<Default Extension="{extension}" ContentType="{src_defaults[extension]}"/>')
+    ct = re.sub(r"</Types\s*>", "".join(additions) + "</Types>", ct)
+    new_parts["[Content_Types].xml"] = ct.encode("utf-8")
+
+    # --- 8a. mọi phần xml chép sang phải có kiểu nội dung riêng (Override), không rơi về application/xml mặc định
+    for part in order:
+        if part.endswith(".xml") and re.match(r"^ppt/(slideMasters|slideLayouts|theme)/", part):
+            if f'PartName="/{renamed(part)}"' not in ct:
+                return pptx_bytes
+    # --- 8. kiểm tra đích rels của các phần đã chép đều tồn tại
+    for name, data in new_parts.items():
+        if not name.endswith(".rels") or not (name.startswith("ppt/slideMasters/") or name.startswith("ppt/slideLayouts/") or name.startswith("ppt/theme/") or name == "ppt/_rels/presentation.xml.rels" or name.startswith("ppt/slides/_rels/")):
+            continue
+        owner = posixpath.join(posixpath.dirname(posixpath.dirname(name)), posixpath.basename(name)[:-5]) if name != "ppt/_rels/presentation.xml.rels" else "ppt/presentation.xml"
+        for rel in _pkg_rels(data):
+            if rel.get("TargetMode", "").lower() == "external":
+                continue
+            if _pkg_resolve(owner, rel["Target"]) not in new_parts:
+                return pptx_bytes
+
+    # --- 9. ghi gói mới (giữ thứ tự: [Content_Types].xml trước)
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zout:
+        first = ["[Content_Types].xml"]
+        for name in first + [n for n in new_parts if n not in first]:
+            if name in new_parts:
+                zout.writestr(name, new_parts[name])
+    return out.getvalue()
+
+
 def overlay_fodp_native_slides_theme(fodp_xml: str, pptx_bytes: bytes) -> str:
     paths = _related_theme_part_paths(pptx_bytes)
     if len(paths) != 1:
@@ -11566,6 +11904,7 @@ def postprocess_slides_pptx(
     sections: list[dict] | None = None,
     show_without_narration: bool | None = None,
     pointer_color: str | None = None,
+    source_pptx: bytes | None = None,
 ) -> bytes:
     """Return patched PPTX bytes, or the original buffer when no patch is needed."""
     if enabled is False:
@@ -11584,6 +11923,8 @@ def postprocess_slides_pptx(
     theme_id = parse_master_theme_id_from_fodp(source_fodp)
     theme_payload = _parse_master_theme_payload_from_fodp(source_fodp)
     theme_replacements = _patch_slides_theme_parts(pptx_bytes, theme_payload)
+    if not theme_replacements:
+        theme_replacements = _restore_slides_source_theme(pptx_bytes, source_fodp, theme_payload)
     apply_sections = bool(sections) if sections is not None else fodp_has_sections(source_fodp)
     apply_show = bool(show_without_narration or pointer_color) or fodp_has_show_setup_patch(source_fodp)
 
@@ -11641,13 +11982,14 @@ def postprocess_slides_pptx(
         {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,
          **transition_replacements, **wordart_replacements, **layout_replacements, **native_timing_replacements},
     )
+    restore_masters = bool(source_pptx and source_fodp and "vno:src-layout=" in source_fodp and not (isinstance(theme_payload, dict) and theme_payload.get("id")))
     source_transition_replacements = _apply_slides_source_transitions(
         pptx_bytes, source_fodp,
         {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,
          **transition_replacements, **wordart_replacements, **layout_replacements, **native_timing_replacements,
          **shadow_replacements},
     )
-    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements and not native_timing_replacements and not shadow_replacements and not source_transition_replacements:
+    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements and not native_timing_replacements and not shadow_replacements and not source_transition_replacements and not restore_masters:
         return pptx_bytes
     replacements.update(animation_replacements)
     replacements.update(paragraph_level_replacements)
@@ -11716,6 +12058,8 @@ def postprocess_slides_pptx(
     # Khôi phục ghi chú diễn giả (notesSlideN.xml) nếu bị mất
     if notes_by_slide:
         patched = restore_notes_to_pptx(patched, notes_by_slide)
+    if restore_masters:
+        patched = _restore_source_masters(patched, source_pptx, source_fodp, theme_payload)
     return patched
 
 
@@ -16099,6 +16443,8 @@ def overlay_slides_pptx_fodp(pptx_bytes: bytes, fodp_xml: str | None) -> str:
     xml = overlay_fodp_master_logo(xml, masters)
     xml = overlay_fodp_master_theme_id(xml, masters)
     xml = overlay_fodp_native_slides_theme(xml, pptx_bytes)
+    xml = overlay_fodp_source_theme(xml, pptx_bytes)
+    xml = overlay_fodp_source_layouts(xml, pptx_bytes)
     props = read_zip_entry(pptx_bytes, PPTX_PRESPROPS_ENTRY)
     if props:
         xml = overlay_fodp_show_properties(xml, props.decode("utf-8", errors="replace"))

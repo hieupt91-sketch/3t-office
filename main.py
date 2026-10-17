@@ -1783,7 +1783,11 @@ def _apply_native_export_postprocess(
             # trả về nguyên bytes gốc nếu thực sự không cần sửa gì.
             with open(out_path, "rb") as handle:
                 original = handle.read()
-            patched = patcher.postprocess_slides_pptx(original, source_fodp=fodp)
+            source_pptx_bytes = None
+            if source_path and os.path.isfile(source_path) and str(source_path).lower().endswith(".pptx"):
+                with open(source_path, "rb") as handle:
+                    source_pptx_bytes = handle.read()
+            patched = patcher.postprocess_slides_pptx(original, source_fodp=fodp, source_pptx=source_pptx_bytes)
             if patched != original:
                 with open(out_path, "wb") as handle:
                     handle.write(patched)
