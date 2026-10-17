@@ -17946,7 +17946,10 @@ _W37_UNSAFE_RE = re.compile(
 )
 
 
-def _writer_restore_untouched_runs(target_paragraph: str, source_paragraph: str) -> str | None:
+_W37_UNSAFE_NO_SDT_RE = re.compile(_W37_UNSAFE_RE.pattern.replace("|sdt|", "|"), re.IGNORECASE)
+
+
+def _writer_restore_untouched_runs(target_paragraph: str, source_paragraph: str, allow_inline_sdt: bool = False) -> str | None:
     """W37: trả lại toàn bộ nội dung sau <w:pPr> của đoạn nguồn (run, trường, tab, ký hiệu) cho đoạn chưa sửa.
     Chỉ khi nguồn có phần tử HTML làm mất và không có hình/hộp văn bản/comment/track change; giữ pPr đã ghép và
     bookmark dấu chưa sửa của bản chuyển đổi để các bước sau còn nhận ra."""
@@ -17955,7 +17958,9 @@ def _writer_restore_untouched_runs(target_paragraph: str, source_paragraph: str)
         r'<w:r\b[^>]*>\s*<w:rPr>(?:(?!</w:rPr>)[\s\S])*?<w:shd\b(?![^>]*w:val=["\']nil["\'])(?![^>]*w:fill=["\']auto["\'])',
         source_paragraph,
     ))
-    if not (_W37_LOSSY_RE.search(source_paragraph) or has_run_shading) or _W37_UNSAFE_RE.search(source_paragraph):
+    has_inline_sdt = allow_inline_sdt and "<w:sdt>" in source_paragraph
+    unsafe_re = _W37_UNSAFE_NO_SDT_RE if allow_inline_sdt else _W37_UNSAFE_RE
+    if not (_W37_LOSSY_RE.search(source_paragraph) or has_run_shading or has_inline_sdt) or unsafe_re.search(source_paragraph):
         return None
     if _W37_UNSAFE_RE.search(target_paragraph):
         return None
@@ -18134,7 +18139,7 @@ def _writer_patch_edited_paragraphs(converted_xml: str, original_xml: str) -> st
             new_text = converted_keys[target_index]
             if not new_text or not original_keys[source_index]:
                 continue
-            if not _W37_LOSSY_RE.search(source_p) or _W37_UNSAFE_RE.search(source_p) or _W37_UNSAFE_RE.search(target_p):
+            if not (_W37_LOSSY_RE.search(source_p) or "<w:sdt>" in source_p) or _W37_UNSAFE_NO_SDT_RE.search(source_p) or _W37_UNSAFE_RE.search(target_p):
                 continue
             ratio = difflib.SequenceMatcher(None, original_keys[source_index], new_text, autojunk=False).ratio()
             if ratio < 0.5:
@@ -18144,7 +18149,7 @@ def _writer_patch_edited_paragraphs(converted_xml: str, original_xml: str) -> st
             patched_source = _writer_apply_text_edit(source_p, new_text)
             if patched_source is None:
                 continue
-            restored = _writer_restore_untouched_runs(target_p, patched_source)
+            restored = _writer_restore_untouched_runs(target_p, patched_source, allow_inline_sdt=True)
             if restored is not None:
                 replacements[target_index] = restored
     if not replacements:

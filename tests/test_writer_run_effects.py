@@ -329,3 +329,18 @@ class TextEditPatchTests(unittest.TestCase):
         self.assertIn("REF _Ref1", out)
         self.assertIn("ZZ", out)
         self.assertIn("BodyText", out)  # pPr của bản chuyển đổi được giữ
+
+    def test_inline_content_control_survives_a_text_edit(self):
+        sdt = (
+            '<w:p><w:r><w:t xml:space="preserve">Ho ten: </w:t></w:r>'
+            '<w:sdt><w:sdtPr><w:alias w:val="Ho ten"/><w:id w:val="123"/><w:text/></w:sdtPr>'
+            '<w:sdtContent><w:r><w:t>Nguyen Van A</w:t></w:r></w:sdtContent></w:sdt>'
+            '<w:r><w:t xml:space="preserve"> xin gui don.</w:t></w:r></w:p>'
+        )
+        src = _document(_docx(sdt))
+        converted = _document(_docx(
+            '<w:p><w:pPr><w:pStyle w:val="BodyText"/></w:pPr><w:r><w:t>Ho ten: Nguyen Van A xin gui don. ZZ</w:t></w:r></w:p>'
+        ))
+        out = patcher._writer_patch_edited_paragraphs(converted, src)
+        self.assertIn("<w:sdt>", out)
+        self.assertIn("ZZ", out)
