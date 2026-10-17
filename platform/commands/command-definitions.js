@@ -730,6 +730,7 @@ export const SLIDES_COMMANDS = [
   { id: "slides.picture.crop", category: "format", label: "Cắt ảnh", icon: "selectObjects", tooltip: "Cắt ảnh đang chọn theo tỉ lệ khung hoặc nhập số đo cắt từng cạnh" },
   { id: "slides.picture.cropRatio", category: "format", label: "Cắt theo tỉ lệ", icon: "selectObjects", tooltip: "Cắt ảnh đang chọn về tỉ lệ khung đã chọn (giữa ảnh), hoặc đặt lại cắt xén" },
   { id: "slides.picture.cropDialog", category: "format", label: "Cắt xén…", icon: "selectObjects", tooltip: "Nhập phần trăm cắt ở cạnh trái, phải, trên, dưới của ảnh" },
+  { id: "slides.view.notesPage", category: "view", label: "Trang ghi chú", icon: "slideSorter", tooltip: "Xem từng trang chiếu kèm phần ghi chú của người thuyết trình ở dạng trang in", isToggle: true },
   { id: "slides.view.outline", category: "view", label: "Dàn bài", icon: "slideSorter", tooltip: "Xem và sửa tiêu đề, nội dung của mọi trang chiếu dưới dạng dàn bài", isToggle: true },
   { id: "slides.design.hideBackground", category: "design", label: "Ẩn đồ họa nền", icon: "formatBackground", tooltip: "Ẩn các hình/logo của bản cái trên trang đang chọn (bật/tắt)", isToggle: true },
   { id: "slides.edit.selectionPane", category: "edit", label: "Ngăn chọn", shortcut: "Alt+F10", icon: "selectionPane", tooltip: "Mở ngăn liệt kê mọi đối tượng trên trang để chọn nhanh và đổi thứ tự lớp (Alt+F10)", isToggle: true },

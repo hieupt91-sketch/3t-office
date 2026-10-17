@@ -229,6 +229,7 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.picture.crop", () => this._hintIfFalse(() => this.canvas.openCropDialog(), "Hãy chọn một ảnh trước khi cắt."));
     globalCommandBus.bindHandler("slides.picture.cropDialog", () => this._hintIfFalse(() => this.canvas.openCropDialog(), "Hãy chọn một ảnh trước khi cắt."));
     globalCommandBus.bindHandler("slides.picture.cropRatio", (arg) => this._hintIfFalse(() => this.canvas.cropImageToRatio(String(arg || "")), "Hãy chọn một ảnh trước khi cắt."));
+    globalCommandBus.bindHandler("slides.view.notesPage", () => (this.canvas.notesPageOverlay ? this.canvas.closeNotesPage() : this.canvas.openNotesPage()));
     globalCommandBus.bindHandler("slides.transition.apply", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
     // Tab Chuyển tiếp: thư viện hiệu ứng, thời gian, áp dụng tất cả, xem trước (cùng mô hình dữ liệu với hộp thoại).
     globalCommandBus.bindHandler("slides.transition.gallery", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);

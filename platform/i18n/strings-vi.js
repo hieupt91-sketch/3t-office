@@ -1061,6 +1061,7 @@ export const viStrings = {
     ,"slides.picture.crop": { label: "Cắt ảnh", tooltip: "Cắt ảnh đang chọn theo tỉ lệ khung hoặc nhập số đo cắt từng cạnh" }
     ,"slides.picture.cropRatio": { label: "Cắt theo tỉ lệ", tooltip: "Cắt ảnh đang chọn về tỉ lệ khung đã chọn (giữa ảnh), hoặc đặt lại cắt xén" }
     ,"slides.picture.cropDialog": { label: "Cắt xén…", tooltip: "Nhập phần trăm cắt ở cạnh trái, phải, trên, dưới của ảnh" }
+    ,"slides.view.notesPage": { label: "Trang ghi chú", tooltip: "Xem từng trang chiếu kèm phần ghi chú của người thuyết trình ở dạng trang in" }
     ,"slides.view.outline": { label: "Dàn bài", tooltip: "Xem và sửa tiêu đề, nội dung của mọi trang chiếu dưới dạng dàn bài" }
     ,"slides.design.hideBackground": { label: "Ẩn đồ họa nền", tooltip: "Ẩn các hình/logo của bản cái trên trang đang chọn (bật/tắt)" }
     ,"slides.edit.selectionPane": { label: "Ngăn chọn", tooltip: "Mở ngăn liệt kê mọi đối tượng trên trang để chọn nhanh và đổi thứ tự lớp (Alt+F10)" }

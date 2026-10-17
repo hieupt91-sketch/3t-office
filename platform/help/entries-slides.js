@@ -279,6 +279,19 @@ export const SLIDES_HELP_ENTRIES = [
       "Đặt lại cắt xén trả ảnh về nguyên vẹn. Ctrl+Z hoàn tác một bước. Nhóm Sắp xếp có xoay, lật và đưa lên/xuống lớp cho ảnh."
     ]
   },  {
+    id: "slides.view.notesPage",
+    app: "slides",
+    commandIds: ["slides.view.notesPage"],
+    title: "Trang ghi chú: xem trang chiếu kèm ghi chú của người thuyết trình",
+    summary: "Hiện từng trang chiếu thu nhỏ ở trên và ô ghi chú của người thuyết trình ở dưới như một trang in, để soạn ghi chú dài dễ hơn.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dạng xem bản trình chiếu" },
+    keywords: ["trang ghi chú", "notes page", "ghi chú người thuyết trình", "speaker notes", "ghi chú"],
+    steps: [
+      "Tab Chế độ xem > nhóm Dạng xem bản trình chiếu > Trang ghi chú. Trang chiếu đang chọn hiện thu nhỏ ở trên, ô ghi chú ở dưới.",
+      "Gõ hoặc sửa ghi chú trong ô. Nút ◀ ▶ (hoặc số trang) chuyển sang trang chiếu trước/sau; ghi chú được lưu khi rời ô hoặc chuyển trang.",
+      "Nhấn Esc hoặc dấu × để quay lại dạng xem thường. Ctrl+Z hoàn tác từng lần sửa ghi chú. Ghi chú được lưu trong tệp PPTX."
+    ]
+  },  {
     id: "slides.view.outline",
     app: "slides",
     commandIds: ["slides.view.outline"],
