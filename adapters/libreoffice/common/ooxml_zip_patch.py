@@ -13297,6 +13297,54 @@ def _apply_slides_native_layout_types(
     return replacements
 
 
+def _slides_document_properties_from_fodp(fodp_xml: str | None) -> dict | None:
+    match = re.search(r"<!--vno-document-properties-hex:([0-9a-fA-F]+)-->", str(fodp_xml or ""))
+    if not match:
+        return None
+    try:
+        raw = bytes.fromhex(match.group(1)).decode("utf-8")
+        payload = json.loads(raw)
+    except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+        return None
+    if not isinstance(payload, dict):
+        return None
+    limits = {"title": 255, "creator": 255, "subject": 255, "manager": 255,
+              "company": 255, "keywords": 1024, "description": 4096, "contentStatus": 255}
+    return {key: str(payload.get(key) or "").replace("\r\n", "\n").replace("\r", "\n")[:limit]
+            for key, limit in limits.items()}
+
+
+def _replace_ooxml_text_property(xml: str, tag: str, value: str) -> str:
+    escaped = html.escape(value, quote=False)
+    pattern = re.compile(rf"<{re.escape(tag)}\b[^>]*>[\s\S]*?</{re.escape(tag)}\s*>|<{re.escape(tag)}\b[^>]*/\s*>", re.I)
+    if value:
+        element = f"<{tag}>{escaped}</{tag}>"
+        if pattern.search(xml):
+            return pattern.sub(lambda _match: element, xml, count=1)
+        close = re.search(r"</(?:cp:coreProperties|Properties)\s*>", xml, re.I)
+        return xml[:close.start()] + element + xml[close.start():] if close else xml
+    return pattern.sub("", xml)
+
+
+def _slides_document_properties_replacements(pptx_bytes: bytes, fodp_xml: str | None) -> dict[str, bytes]:
+    properties = _slides_document_properties_from_fodp(fodp_xml)
+    if properties is None:
+        return {}
+    core_bytes = read_zip_entry(pptx_bytes, "docProps/core.xml")
+    core = (core_bytes or b"<?xml version=\"1.0\" encoding=\"UTF-8\"?><cp:coreProperties xmlns:cp=\"http://schemas.openxmlformats.org/package/2006/metadata/core-properties\" xmlns:dc=\"http://purl.org/dc/elements/1.1/\"></cp:coreProperties>").decode("utf-8", errors="strict")
+    for key, tag in (("title", "dc:title"), ("creator", "dc:creator"), ("subject", "dc:subject"),
+                     ("keywords", "cp:keywords"), ("description", "dc:description"), ("contentStatus", "cp:contentStatus")):
+        core = _replace_ooxml_text_property(core, tag, properties[key])
+    replacements = {"docProps/core.xml": core.encode("utf-8")}
+    app_bytes = read_zip_entry(pptx_bytes, "docProps/app.xml")
+    if app_bytes:
+        app = app_bytes.decode("utf-8", errors="strict")
+        app = _replace_ooxml_text_property(app, "Manager", properties["manager"])
+        app = _replace_ooxml_text_property(app, "Company", properties["company"])
+        replacements["docProps/app.xml"] = app.encode("utf-8")
+    return {name: value for name, value in replacements.items() if read_zip_entry(pptx_bytes, name) != value}
+
+
 def postprocess_slides_pptx(
     pptx_bytes: bytes,
     *,
@@ -13331,6 +13379,7 @@ def postprocess_slides_pptx(
         theme_replacements = _restore_slides_source_theme(pptx_bytes, source_fodp, theme_payload)
     apply_sections = bool(sections) if sections is not None else fodp_has_sections(source_fodp)
     apply_show = bool(show_without_narration or pointer_color) or fodp_has_show_setup_patch(source_fodp)
+    properties_replacements = _slides_document_properties_replacements(pptx_bytes, source_fodp)
 
     presentation = read_zip_entry(pptx_bytes, PPTX_PRESENTATION_ENTRY)
     original_presentation_xml = presentation.decode("utf-8", errors="replace") if presentation else ""
@@ -13433,7 +13482,7 @@ def postprocess_slides_pptx(
          **shadow_replacements, **source_transition_replacements, **textbox_replacements,
          **shape_line_replacements, **picture_replacements, **group_replacements, **connector_replacements},
     )
-    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements and not native_timing_replacements and not shadow_replacements and not source_transition_replacements and not textbox_replacements and not shape_line_replacements and not picture_replacements and not group_replacements and not connector_replacements and not text_fmt_replacements and not restore_masters:
+    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements and not native_timing_replacements and not shadow_replacements and not source_transition_replacements and not textbox_replacements and not shape_line_replacements and not picture_replacements and not group_replacements and not connector_replacements and not text_fmt_replacements and not restore_masters and not properties_replacements:
         return pptx_bytes
     replacements.update(animation_replacements)
     replacements.update(paragraph_level_replacements)
@@ -13451,6 +13500,7 @@ def postprocess_slides_pptx(
     replacements.update(group_replacements)
     replacements.update(connector_replacements)
     replacements.update(text_fmt_replacements)
+    replacements.update(properties_replacements)
 
     if apply_slide_size and presentation_xml:
         presentation_xml = apply_intended_slide_size(presentation_xml, intended_size)
@@ -17899,6 +17949,27 @@ def overlay_slides_pptx_fodp(pptx_bytes: bytes, fodp_xml: str | None) -> str:
         raise ValueError("PPTX thiếu ppt/presentation.xml — không thể khôi phục Phần (Sections)")
     presentation_xml = current.decode("utf-8", errors="replace")
     xml = overlay_fodp_sections(xml, presentation_xml)
+    core = read_zip_entry(pptx_bytes, "docProps/core.xml")
+    app = read_zip_entry(pptx_bytes, "docProps/app.xml")
+    def _property_text(source: bytes | None, tag: str) -> str:
+        if not source:
+            return ""
+        text = source.decode("utf-8", errors="replace")
+        match = re.search(rf"<(?:[\w.-]+:)?{tag}\b[^>]*>([\s\S]*?)</(?:[\w.-]+:)?{tag}\s*>", text, re.I)
+        return html.unescape(re.sub(r"<[^>]*>", "", match.group(1))).strip() if match else ""
+    if core or app:
+        properties = {"title": _property_text(core, "title"), "creator": _property_text(core, "creator"),
+                      "subject": _property_text(core, "subject"), "keywords": _property_text(core, "keywords"),
+                      "description": _property_text(core, "description"), "contentStatus": _property_text(core, "contentStatus"),
+                      "manager": _property_text(app, "Manager"), "company": _property_text(app, "Company")}
+        is_final = bool(re.search(r'<property\b[^>]*name="_MarkAsFinal"[^>]*>[\s\S]*?<vt:bool>\s*(?:true|1)\s*</vt:bool>',
+                                  (read_zip_entry(pptx_bytes, "docProps/custom.xml") or b"").decode("utf-8", errors="replace"), re.I))
+        if is_final and not properties["contentStatus"]:
+            properties["contentStatus"] = "Final"
+        encoded = json.dumps(properties, ensure_ascii=False, separators=(",", ":")).encode("utf-8").hex()
+        marker = f"<!--vno-document-properties-hex:{encoded}-->"
+        xml = re.sub(r"<!--vno-document-properties-hex:[0-9a-fA-F]+-->", "", xml)
+        xml = re.sub(r"(<\?xml[^>]*\?>)", r"\1" + marker, xml, count=1, flags=re.I) if re.match(r"\s*<\?xml", xml) else marker + xml
     with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
         master_names = [name for name in package.namelist() if SLIDE_MASTER_ENTRY_RE.match(name)]
     masters: list[str] = []

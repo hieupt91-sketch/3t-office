@@ -1011,6 +1011,21 @@ export const SLIDES_HELP_ENTRIES = [
       "Nhấn Áp dụng định dạng. Dùng Ctrl+Z để hoàn tác; nhấn Ctrl+S để lưu bản trình chiếu."
     ]
   },
+  {
+    id: "slides.file.documentInfo",
+    app: "slides",
+    commandIds: [],
+    title: "Thuộc tính và kiểm tra bản trình bày",
+    summary: "Xem hoặc sửa tiêu đề, tác giả, chủ đề, thẻ và ghi chú; đánh dấu bản trình bày là cuối cùng; rà soát ghi chú, nhận xét, trang ẩn và nội dung có liên kết ngoài.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Thông tin" },
+    keywords: ["thông tin", "thuộc tính", "tác giả", "thẻ", "ghi chú", "đánh dấu cuối cùng", "kiểm tra bản trình bày", "trang chiếu ẩn", "nội dung ngoài"],
+    steps: [
+      "Mở Tệp > Thông tin để xem trạng thái và thuộc tính của bản trình bày.",
+      "Chọn Chỉnh sửa thuộc tính để nhập Tiêu đề, Chủ đề, Tác giả, Quản lý, Công ty, Thẻ và Ghi chú; chọn Đồng ý rồi lưu tệp để ghi metadata vào PPTX.",
+      "Chọn Đánh dấu là cuối cùng để đặt trạng thái hoàn tất. Có thể quay lại Thông tin và gỡ đánh dấu khi cần sửa tiếp.",
+      "Chọn Kiểm tra bản trình bày để đếm thông tin cá nhân, nhận xét, ghi chú người thuyết trình, trang chiếu ẩn và nội dung ngoài; dùng nút Xóa mục ở từng dòng để xử lý riêng loại đó."
+    ]
+  },
 ];
 
 registerHelpEntries(SLIDES_HELP_ENTRIES);

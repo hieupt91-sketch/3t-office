@@ -962,7 +962,7 @@ export class AppShell {
         <button type="button" class="vno-backstage-nav-btn" data-backstage-tab="export" id="vno-backstage-nav-export">${t("backstage.exportConvert")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-cmd="common.file.exportPdf" id="vno-backstage-nav-exportpdf">${t("backstage.exportPdf")}</button>
         <button type="button" class="vno-backstage-nav-btn" data-backstage-tab="recent" id="vno-backstage-nav-recent">${t("backstage.recent")}</button>
-        ${this.appName === "writer" ? `<button type="button" class="vno-backstage-nav-btn" data-backstage-tab="info" id="vno-backstage-writer-info">${t("writerDocumentProperties.backstage")}</button>` : ""}
+        ${["writer", "sheet", "slides"].includes(this.appName) ? `<button type="button" class="vno-backstage-nav-btn" data-backstage-tab="info" id="vno-backstage-writer-info">${t(this.appName === "sheet" ? "sheetDocumentProperties.backstage" : (this.appName === "slides" ? "slidesDocumentProperties.backstage" : "writerDocumentProperties.backstage"))}</button>` : ""}
         <button type="button" class="vno-backstage-nav-btn" data-backstage-action="closeDocument" id="vno-backstage-close">${t("backstage.close")}</button>
         <div style="flex:1;"></div>
         <button type="button" class="vno-backstage-nav-btn" id="vno-backstage-account">${t("backstage.account")}</button>
@@ -2194,6 +2194,7 @@ export class AppShell {
   _renderBackstageInfoPanel(container, closeModal) {
     const adapter = this.adapter || globalUnoBridge?.activeDocument;
     const isSheet = this.appName === "sheet";
+    const isSlides = this.appName === "slides";
     const props = adapter?.documentProperties || {};
     const wordStats = adapter?.getWordCountStats ? adapter.getWordCountStats() : (adapter?.getWordCount ? adapter.getWordCount() : { words: 0, characters: 0 });
     const pageCount = adapter?.getPageCount ? adapter.getPageCount() : (isSheet ? (adapter?.grid?.sheets?.length || 1) : 1);
@@ -2219,7 +2220,7 @@ export class AppShell {
     container.innerHTML = `
       <div class="vno-backstage-info-panel" role="region" aria-label="Thông tin tài liệu">
         <h1 style="font-size:24px;font-weight:700;margin-bottom:8px;color:var(--vno-text-primary);">${isSheet ? t("sheetDocumentProperties.backstage", "Thông tin") : t("writerDocumentProperties.backstage", "Thông tin tài liệu")}</h1>
-        <p style="color:var(--vno-text-muted);font-size:13px;margin-bottom:24px;">${isSheet ? "Xem thuộc tính, số trang tính và thiết lập trạng thái bảo vệ cho sổ làm việc đang mở." : "Xem thuộc tính, thống kê và thiết lập trạng thái bảo vệ cho tài liệu đang mở."}</p>
+        <p style="color:var(--vno-text-muted);font-size:13px;margin-bottom:24px;">${isSheet ? "Xem thuộc tính, số trang tính và thiết lập trạng thái bảo vệ cho sổ làm việc đang mở." : (isSlides ? "Xem thuộc tính, đánh dấu hoàn tất và kiểm tra nội dung bản trình bày đang mở." : "Xem thuộc tính, thống kê và thiết lập trạng thái bảo vệ cho tài liệu đang mở.")}</p>
 
         <div class="vno-backstage-info-grid" style="display:grid;grid-template-columns:1fr 320px;gap:32px;">
           <!-- Cột trái: Quản lý & Bảo vệ -->
