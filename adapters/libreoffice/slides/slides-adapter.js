@@ -210,6 +210,16 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.text.changeCaseMode", (arg) => this._changeTextCase(String(arg || "")));
     globalCommandBus.bindHandler("slides.design.hideBackground", () => this.canvas.toggleHideBackgroundGraphics());
     globalCommandBus.bindHandler("slides.edit.selectionPane", () => this.canvas.toggleSelectionPane());
+    // Tab Hoạt hình: gán hiệu ứng nhanh, thời điểm bắt đầu, thời lượng, trễ và xem trước cho đối tượng đang chọn.
+    globalCommandBus.bindHandler("slides.animation.gallery", () => this.canvas.showAnimationDialog ? this.canvas.showAnimationDialog() : false);
+    globalCommandBus.bindHandler("slides.animation.startMenu", () => this.canvas.showAnimationDialog ? this.canvas.showAnimationDialog() : false);
+    globalCommandBus.bindHandler("slides.animation.durationMenu", () => this.canvas.showAnimationDialog ? this.canvas.showAnimationDialog() : false);
+    globalCommandBus.bindHandler("slides.animation.delayMenu", () => this.canvas.showAnimationDialog ? this.canvas.showAnimationDialog() : false);
+    globalCommandBus.bindHandler("slides.animation.setType", (arg) => this._hintIfFalse(() => this.canvas.updateSelectedAnimation({ type: String(arg || "none") }, true), "Hãy chọn một đối tượng (hình, ảnh, khung chữ) trước, rồi đặt hiệu ứng hoặc thời gian cho nó. Thời gian chỉ đặt được khi đối tượng đã có hiệu ứng."));
+    globalCommandBus.bindHandler("slides.animation.setStart", (arg) => this._hintIfFalse(() => this.canvas.updateSelectedAnimation({ start: String(arg) }), "Hãy chọn một đối tượng (hình, ảnh, khung chữ) trước, rồi đặt hiệu ứng hoặc thời gian cho nó. Thời gian chỉ đặt được khi đối tượng đã có hiệu ứng."));
+    globalCommandBus.bindHandler("slides.animation.setDuration", (arg) => this._hintIfFalse(() => this.canvas.updateSelectedAnimation({ duration: parseInt(arg, 10) || 500 }), "Hãy chọn một đối tượng (hình, ảnh, khung chữ) trước, rồi đặt hiệu ứng hoặc thời gian cho nó. Thời gian chỉ đặt được khi đối tượng đã có hiệu ứng."));
+    globalCommandBus.bindHandler("slides.animation.setDelay", (arg) => this._hintIfFalse(() => this.canvas.updateSelectedAnimation({ delay: parseInt(arg, 10) || 0 }), "Hãy chọn một đối tượng (hình, ảnh, khung chữ) trước, rồi đặt hiệu ứng hoặc thời gian cho nó. Thời gian chỉ đặt được khi đối tượng đã có hiệu ứng."));
+    globalCommandBus.bindHandler("slides.animation.preview", () => this._hintIfFalse(() => this.canvas.previewSlideAnimations(), "Trang này chưa có hiệu ứng nào để xem trước. Chọn một đối tượng rồi gán hiệu ứng ở tab Hoạt hình."));
     globalCommandBus.bindHandler("slides.transition.apply", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
     // Tab Chuyển tiếp: thư viện hiệu ứng, thời gian, áp dụng tất cả, xem trước (cùng mô hình dữ liệu với hộp thoại).
     globalCommandBus.bindHandler("slides.transition.gallery", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);

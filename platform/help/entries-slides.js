@@ -209,6 +209,48 @@ export const SLIDES_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.animation.effects",
+    app: "slides",
+    commandIds: ["slides.animation.gallery", "slides.animation.setType"],
+    title: "Tab Hoạt hình: gán hiệu ứng nhanh cho đối tượng",
+    summary: "Chọn một đối tượng rồi gán hiệu ứng vào, nhấn mạnh hoặc thoát chỉ bằng một lần nhấp ở nút Hiệu ứng.",
+    ribbon: { tab: "Hoạt hình", tabId: "animations", group: "Hiệu ứng đối tượng" },
+    keywords: ["hoạt hình", "hiệu ứng", "animation", "mờ dần", "bay vào", "thu phóng", "xoay tròn", "biến mất"],
+    steps: [
+      "Nhấp vào hình, ảnh hoặc khung chữ cần tạo hiệu ứng.",
+      "Vào tab Hoạt hình > nhóm Hiệu ứng đối tượng > Hiệu ứng và chọn một kiểu: Mờ dần, Bay vào, Thu phóng vào, Nảy vào, Trượt từ trái (hiệu ứng vào); Xoay tròn, Phóng to / thu nhỏ (nhấn mạnh); Mờ dần ra, Bay ra, Thu nhỏ ra, Biến mất (thoát). Chọn Không có để bỏ hiệu ứng.",
+      "Nút Hiệu ứng đối tượng bên cạnh mở hộp thoại đầy đủ; Ngăn hoạt hình liệt kê thứ tự để đổi hoặc xóa. Ctrl+Z hoàn tác; hiệu ứng được lưu vào tệp PPTX."
+    ]
+  },
+  {
+    id: "slides.animation.timing",
+    app: "slides",
+    commandIds: ["slides.animation.startMenu", "slides.animation.setStart", "slides.animation.durationMenu", "slides.animation.setDuration", "slides.animation.delayMenu", "slides.animation.setDelay"],
+    title: "Tab Hoạt hình: thời điểm bắt đầu, thời lượng và độ trễ",
+    summary: "Đặt khi nào hiệu ứng của đối tượng chạy (khi nhấp chuột, cùng lúc hoặc sau hiệu ứng trước), chạy bao lâu và chờ bao lâu.",
+    ribbon: { tab: "Hoạt hình", tabId: "animations", group: "Thời gian" },
+    keywords: ["bắt đầu", "thời lượng", "trễ", "cùng lúc với hiệu ứng trước", "sau hiệu ứng trước", "khi nhấp chuột", "animation timing"],
+    steps: [
+      "Chọn đối tượng đã có hiệu ứng. Đối tượng chưa có hiệu ứng sẽ được nhắc gán hiệu ứng trước.",
+      "Tab Hoạt hình > nhóm Thời gian > Bắt đầu: Khi nhấp chuột, Cùng lúc với hiệu ứng trước hoặc Sau hiệu ứng trước.",
+      "Thời lượng chọn từ 0,3 đến 3 giây; Trễ chọn từ không trễ đến 2 giây. Ctrl+Z hoàn tác từng thay đổi."
+    ]
+  },
+  {
+    id: "slides.animation.preview",
+    app: "slides",
+    commandIds: ["slides.animation.preview"],
+    title: "Xem trước hiệu ứng hoạt hình của trang",
+    summary: "Chạy lần lượt mọi hiệu ứng của trang đang chọn ngay trên trang soạn thảo, theo đúng thứ tự và thời điểm đã đặt.",
+    ribbon: { tab: "Hoạt hình", tabId: "animations", group: "Xem trước" },
+    keywords: ["xem trước", "chạy thử", "preview", "hoạt hình"],
+    steps: [
+      "Chọn trang có hiệu ứng ở thanh bên trái.",
+      "Tab Hoạt hình > nhóm Xem trước > Xem trước. Các đối tượng lần lượt xuất hiện, nhấn mạnh hoặc biến mất theo thứ tự và thời gian đã đặt rồi trang trở về nguyên trạng.",
+      "Trang chưa có hiệu ứng nào sẽ có thông báo hướng dẫn gán hiệu ứng trước."
+    ]
+  },
+  {
     id: "slides.edit.selectionPane",
     app: "slides",
     commandIds: ["slides.edit.selectionPane"],

@@ -2400,6 +2400,59 @@ export class SlidesCanvasController {
     return true;
   }
 
+  _selectedAnimationTarget() {
+    const target = this.selectedTarget;
+    if (target == null) return null;
+    return target;
+  }
+
+  /**
+   * Tab Hoạt hình: đổi kiểu / bắt đầu / thời lượng / trễ cho đối tượng đang chọn.
+   * `allowCreate` = true (chọn kiểu hiệu ứng) được tạo hiệu ứng mới; các thuộc tính thời gian cần hiệu ứng có sẵn.
+   */
+  updateSelectedAnimation(patch, allowCreate = false) {
+    const target = this._selectedAnimationTarget();
+    if (target == null) return false;
+    const slide = this.slides[this.currentSlideIndex];
+    const existing = this._getAnimationConfig(slide, target);
+    if (!allowCreate && !this._isActiveAnimation(existing)) return false;
+    const base = existing && this._isActiveAnimation(existing) ? { ...existing } : { type: "none", duration: 500, delay: 0 };
+    return this.setObjectAnimation(target, { ...base, ...patch });
+  }
+
+  /** Xem trước: chạy lần lượt các hiệu ứng của trang theo timeline (bắt đầu/trễ) rồi trả đối tượng về nguyên trạng. */
+  previewSlideAnimations() {
+    const slide = this.slides[this.currentSlideIndex];
+    const timeline = this.getAnimationTimeline(slide);
+    if (!timeline.length) return false;
+    const elementOf = (target) => {
+      if (target === "title") return this.titleEl;
+      if (target === "body") return this.bodyEl;
+      if (target === "body2") return this.body2El;
+      const index = (slide.shapes || []).findIndex((shape) => String(shape.id) === String(target));
+      return index >= 0 ? this.shapesLayer?.querySelectorAll?.(".vno-slide-shape-item")?.[index] : null;
+    };
+    const touched = [];
+    let total = 0;
+    for (const item of timeline) {
+      const el = elementOf(item.target);
+      if (!el) continue;
+      const original = el.getAttribute("style");
+      touched.push({ el, original });
+      el.style.animation = "none";
+      void el.offsetWidth;
+      el.style.cssText += `;${animationInlineCss(item.type, item.duration, item.playDelay)}`;
+      total = Math.max(total, item.playDelay + item.duration);
+    }
+    clearTimeout(this._animPreviewTimer);
+    this._animPreviewTimer = setTimeout(() => {
+      for (const { el, original } of touched) {
+        if (original == null) el.removeAttribute("style"); else el.setAttribute("style", original);
+      }
+    }, total + 150);
+    return touched.length > 0;
+  }
+
   /** Tên hiển thị của đối tượng trong Ngăn chọn: loại + số thứ tự theo loại trên trang. */
   _selectionPaneLabels(slide) {
     const names = { rect: "Hình chữ nhật", ellipse: "Hình elip", arrow: "Mũi tên", textbox: "Hộp văn bản", image: "Hình ảnh", table: "Bảng", chart: "Biểu đồ", line: "Đường thẳng", triangle: "Hình tam giác", diamond: "Hình thoi", video: "Video", audio: "Âm thanh" };
