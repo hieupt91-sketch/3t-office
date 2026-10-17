@@ -104,6 +104,10 @@ import {
   SHADOW_PRESETS,
   GLOW_PRESETS
 } from "../../../apps/writer/text-effects-dialog.js";
+import { WriterArrangeController } from "../../../apps/writer/writer-arrange-controller.js";
+import { WriterSplitView } from "../../../apps/writer/writer-split-view.js";
+import { showTableStylesGallery, TABLE_STYLES, applyTableStyle } from "../../../apps/writer/writer-table-styles.js";
+import { showTableFormulaDialog, evaluateTableFormula } from "../../../apps/writer/writer-table-formula-dialog.js";
 
 let writerInsertDialogsPromise;
 let writerMailMergeDialogsPromise;
@@ -475,6 +479,9 @@ export class WriterAdapter {
     this.documentTheme = "office";
     this.showFormattingMarks = false;
     this._styleSelectionHandler = null;
+
+    this.arrangeController = new WriterArrangeController(this);
+    this.splitView = new WriterSplitView(this);
 
     this._initZones();
     if (this.editorDom) {
@@ -1772,6 +1779,10 @@ export class WriterAdapter {
   }
 
   sortParagraphs() {
+    const table = this._getActiveTable();
+    if (table && table.rows.length >= 2) {
+      return this.sortTableRows(table);
+    }
     const blocks = this._getSelectedParagraphBlocks();
     if (blocks.length < 2) {
       this.shell?.showNotification?.({
@@ -1799,6 +1810,43 @@ export class WriterAdapter {
     marker.remove();
     this.isDirty = true;
     this.recordSnapshot("writer.para.sort");
+    return true;
+  }
+
+  sortTableRows(table = null) {
+    table = table || this._getActiveTable();
+    if (!table || table.rows.length < 2) return false;
+    this.flushTyping();
+
+    const activeCell = this._getActiveTableCell();
+    const sortColIdx = activeCell?.cellIndex ?? 0;
+
+    const hasHeader = (table.tHead?.rows?.length > 0) ||
+                      (table.rows[0].querySelector("th") !== null) ||
+                      table.rows[0].classList.contains("vno-table-header-row") ||
+                      table.rows[0].classList.contains("vno-table-header");
+    const startIndex = hasHeader ? 1 : 0;
+    if (table.rows.length <= startIndex + 1) return false;
+
+    const dataRows = [];
+    for (let i = startIndex; i < table.rows.length; i++) {
+      dataRows.push(table.rows[i]);
+    }
+
+    const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
+    dataRows.sort((a, b) => {
+      const textA = (a.cells[sortColIdx]?.textContent || "").trim();
+      const textB = (b.cells[sortColIdx]?.textContent || "").trim();
+      return collator.compare(textA, textB);
+    });
+
+    const tbody = table.tBodies?.[0] || table;
+    for (const row of dataRows) {
+      tbody.appendChild(row);
+    }
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.sort");
     return true;
   }
 
@@ -9617,6 +9665,28 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.table.splitTable", () => this._hintIfFalse(() => this.splitTable(), "Hãy đặt con trỏ vào một ô trong bảng để tách bảng."));
     globalCommandBus.bindHandler("writer.table.textDirection", (args) => this._hintIfFalse(() => this.setTableTextDirection(args), "Hãy đặt con trỏ vào một ô trong bảng để đổi hướng chữ."));
     globalCommandBus.bindHandler("writer.table.properties", (args) => this._hintIfFalse(() => this.openTablePropertiesDialog(args), "Hãy đặt con trỏ vào một bảng để mở thuộc tính bảng."));
+    globalCommandBus.bindHandler("writer.table.stylesGallery", (args) => {
+      const table = this._getActiveTable();
+      if (!table) {
+        return this._hintIfFalse(() => false, "Hãy đặt con trỏ vào bảng để chọn kiểu bảng.");
+      }
+      const targetEl = args?.targetEl || (typeof document !== "undefined" ? document.querySelector('[data-command-id="writer.table.stylesGallery"]') : null) || table;
+      return showTableStylesGallery(targetEl, table, this);
+    });
+    globalCommandBus.bindHandler("writer.table.formula", () => {
+      const table = this._getActiveTable();
+      const cell = this._getActiveTableCell();
+      if (!table || !cell) {
+        return this._hintIfFalse(() => false, "Hãy đặt con trỏ vào một ô trong bảng để chèn công thức.");
+      }
+      return showTableFormulaDialog(table, cell, this);
+    });
+    globalCommandBus.bindHandler("writer.table.viewGridlines", () => this.toggleTableGridlines());
+    globalCommandBus.bindHandler("writer.table.sort", () => this._hintIfFalse(() => this.sortTableRows(), "Hãy đặt con trỏ vào bảng cần sắp xếp."));
+    globalCommandBus.bindHandler("writer.view.selectionPane", (args) => this.arrangeController?.toggleSelectionPane(args));
+    globalCommandBus.bindHandler("writer.arrange.group", () => this.arrangeController?.groupSelectedObjects());
+    globalCommandBus.bindHandler("writer.arrange.ungroup", () => this.arrangeController?.ungroupSelectedObjects());
+    globalCommandBus.bindHandler("writer.view.split", (args) => this.splitView?.toggleSplit(args));
   }
 
   _getActiveTable() {
@@ -9935,15 +10005,28 @@ export class WriterAdapter {
     this.flushTyping();
     const table = this._getActiveTable();
     if (!table || table.rows.length === 0) return false;
-    for (const r of table.rows) {
-      r.style.height = "";
+    const rows = Array.from(table.rows);
+    const totalHeight = rows.reduce((acc, r) => acc + (r.offsetHeight || r.getBoundingClientRect?.().height || 24), 0);
+    const avgHeight = Math.max(18, Math.round(totalHeight / rows.length));
+    for (const r of rows) {
+      r.style.height = `${avgHeight}px`;
       for (const c of r.cells) {
-        c.style.height = "";
+        c.style.height = `${avgHeight}px`;
       }
     }
     this.isDirty = true;
     this.recordSnapshot("writer.table.distributeRows");
     return true;
+  }
+
+  toggleTableGridlines() {
+    this.tableGridlines = !this.tableGridlines;
+    const body = this.bodyDom || this.editorDom;
+    if (body) {
+      body.classList.toggle("vno-table-gridlines", this.tableGridlines);
+    }
+    globalCommandBus?.updateState?.("writer.table.viewGridlines", { checked: this.tableGridlines });
+    return this.tableGridlines;
   }
 
   distributeTableCols() {
@@ -17468,6 +17551,10 @@ export class WriterAdapter {
             : renderShapeSvg(s);
           const isNewTextBox = (s.type === "textbox" || s.shapeType === "textbox") && !s.imported;
           const shapeMetadata = {
+            id: s.id,
+            name: s.name || (s.type ? `${s.type} ${s.id || 1}` : undefined),
+            visible: s.visible !== false,
+            groupId: s.groupId || undefined,
             type: s.type || s.shapeType || "rectangle",
             isNew: !s.imported,
             x: Number(s.x) || 0,

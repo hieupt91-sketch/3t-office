@@ -858,7 +858,8 @@ export class SlidesAdapter {
 
     this._walkHtml(html, {
       text: (text) => {
-        if (text) current.texts.push({ text, fmt: currentFmt() });
+        // Khoảng trắng chỉ có xuống dòng giữa các thẻ là định dạng đẹp của HTML, không phải chữ của người dùng.
+        if (text && !/^[ \t]*[\r\n]\s*$/.test(text)) current.texts.push({ text, fmt: currentFmt() });
       },
       open: (tag, attrs) => {
         const css = this._styleFromHtmlAttrs(tag, attrs);
@@ -1619,7 +1620,8 @@ export class SlidesAdapter {
 
   _mapVnTransitionToSmil(transition) {
     const type = String(transition?.type || "").toLowerCase();
-    if (!type || type === "none") return null;
+    // "custom" = chuyển tiếp gốc của PowerPoint mà VN chưa dựng lại: không sinh SMIL, bước lưu ghi lại nguyên khối p:transition gốc.
+    if (!type || type === "none" || type === "custom") return null;
     const dur = this._msToSmilDur(transition.duration > 0 ? transition.duration : 500) || "0.5s";
     if (type === "fade") return { type: "fade", subtype: "crossfade", dur };
     if (type === "slide") return { type: "pushWipe", subtype: "fromLeft", dur };
@@ -2000,16 +2002,32 @@ export class SlidesAdapter {
       filterType || fromStyle.smilType,
       filterSubtype || fromStyle.smilSubtype
     );
+    // Khối p:transition gốc của PowerPoint (Cut, Wipe, Cover, Split...) và cách chuyển trang (nhấp chuột / sau N giây).
+    const sourceXml = this._attr(pageAttrs, "vno:src-transition");
+    const sourceAdvance = this._attr(pageAttrs, "vno:src-advance");
+    const extra = {};
+    if (sourceXml) {
+      extra.sourceXml = sourceXml;
+      const advance = String(sourceAdvance || "").match(/click:(\d);after:(\d*)/);
+      if (advance) {
+        extra.advanceOnClick = advance[1] !== "0";
+        if (advance[2] !== "") extra.advanceAfter = Number(advance[2]);
+      }
+    }
     if (vnCustomType === "morph") {
       return {
         type: "morph",
-        duration: this._parseSmilTimeToMs(filterDur) || fromStyle.duration || 500
+        duration: this._parseSmilTimeToMs(filterDur) || fromStyle.duration || 500,
+        ...extra
       };
     }
-    if (!vnType) return undefined;
+    if (!vnType) {
+      return sourceXml ? { type: "custom", duration: fromStyle.duration || 500, ...extra } : undefined;
+    }
     return {
       type: vnType,
-      duration: this._parseSmilTimeToMs(filterDur) || fromStyle.duration || 500
+      duration: this._parseSmilTimeToMs(filterDur) || fromStyle.duration || 500,
+      ...extra
     };
   }
 
@@ -2667,8 +2685,10 @@ export class SlidesAdapter {
   }
 
   _parseSlideHeaderFooter(pageXml) {
+    // Ghi chú diễn giả (<presentation:notes>) có khung ngày/chân trang/số trang của trang ghi chú: không phải của slide.
+    const slideXml = String(pageXml || "").replace(/<presentation:notes\b[\s\S]*?<\/presentation:notes>/gi, "");
     const readFrame = (className) => {
-      const match = String(pageXml || "").match(new RegExp(`<draw:frame\\b(?=[^>]*presentation:class=["']${className}["'])[^>]*>([\\s\\S]*?)<\\/draw:frame>`, "i"));
+      const match = slideXml.match(new RegExp(`<draw:frame\\b(?=[^>]*presentation:class=["']${className}["'])[^>]*>([\\s\\S]*?)<\\/draw:frame>`, "i"));
       if (!match) return null;
       const text = (match[1].match(/<text:p\b[^>]*>([\s\S]*?)<\/text:p>/i)?.[1] || "")
         .replace(/<[^>]+>/g, "");
@@ -3463,8 +3483,11 @@ export class SlidesAdapter {
   _serializeMasterPageXml() {
     const isImported = Boolean(this.canvas?.imported);
     const theme = this._masterTheme();
-    if (!theme) {
-      return `<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1"/>`;
+    // Tệp mở từ PowerPoint/LibreOffice mà người dùng chưa chọn chủ đề nào: KHÔNG ghi chủ đề mặc định của VN đè lên
+    // màu nền / phông chữ của chủ đề gốc trong tệp (đã đo: theme1.xml bị đổi sang modern-blue).
+    if (!theme || (isImported && !this.canvas?._masterThemeTouched)) {
+      const sourceTheme = isImported && this._sourceThemeB64 ? ` vno:src-theme="${this._sourceThemeB64}"` : "";
+      return `<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1"${sourceTheme}/>`;
     }
     const isVnDefaultLogo = !theme.logoText || [
       "VN OFFICE • THUYẾT TRÌNH", "VN OFFICE",
@@ -3528,6 +3551,7 @@ export class SlidesAdapter {
 
   _parseMasterTheme(xmlText) {
     const master = String(xmlText || "").match(/<style:master-page\b([^>]*)>/i)?.[1] || "";
+    this._sourceThemeB64 = this._attr(master, "vno:src-theme") || "";
     const raw = this._unescapeXml(this._attr(master, "vno:master-theme"));
     if (raw) {
       try {
@@ -3664,7 +3688,20 @@ export class SlidesAdapter {
       const commentsXml = this._serializePageCommentsXml(slide.comments);
       const headerFooterXml = this._serializeSlideHeaderFooter(slide, pageWidthCm, pageHeightCm);
 
-      const vnTransitionAttr = slide.transition?.type === "morph" ? ' vno:transition="morph"' : "";
+      let vnTransitionAttr = slide.transition?.type === "morph" ? ' vno:transition="morph"' : "";
+      // Bố cục gốc của slide trong tệp PowerPoint: bước lưu dùng để trỏ lại về đúng bố cục của bản cái gốc.
+      if (slide.srcLayout) vnTransitionAttr += ` vno:src-layout="${this._escapeXml(slide.srcLayout)}"`;
+      if (slide.transition?.sourceXml) {
+        // Chưa đổi chuyển tiếp: mang khối gốc đi tiếp để bước lưu ghi lại nguyên vẹn.
+        const advanceClick = slide.transition.advanceOnClick === false ? 0 : 1;
+        const advanceAfter = Number.isFinite(slide.transition.advanceAfter) ? slide.transition.advanceAfter : "";
+        vnTransitionAttr += ` vno:src-transition="${this._escapeXml(slide.transition.sourceXml)}" vno:src-advance="click:${advanceClick};after:${advanceAfter}"`;
+        // Cách chuyển trang hiện tại (người dùng có thể vừa đổi) áp lên khối gốc lúc lưu.
+        vnTransitionAttr += ` vno:advance-click="${advanceClick}" vno:advance-after="${advanceAfter === "" ? "" : Math.round(advanceAfter)}"`;
+      } else if (slide.transition && (slide.transition.advanceOnClick === false || Number.isFinite(slide.transition.advanceAfter))) {
+        vnTransitionAttr += ` vno:advance-click="${slide.transition.advanceOnClick === false ? 0 : 1}"`;
+        if (Number.isFinite(slide.transition.advanceAfter)) vnTransitionAttr += ` vno:advance-after="${Math.round(slide.transition.advanceAfter)}"`;
+      }
       const section = sections.find(item => item.id === slide.sectionId);
       // FODP keeps the group on draw:page. LibreOffice FODP→PPTX drops
       // vno:section-* (probe: no p:extLst). File → Lưu PPTX post-process
@@ -3781,6 +3818,7 @@ export class SlidesAdapter {
       let pageLayout = layoutMatch ? (layoutNames[layoutMatch[1]] || layoutMatch[1]) : "";
       const originalPageXml = pageMatch[2];
       const pageTransition = this._parsePageTransition(fullPageTag, originalPageXml, drawingPageStyles);
+      const pageSourceLayout = this._attr(fullPageTag, "vno:src-layout");
       const animByTarget = this._parsePageAnimations(originalPageXml);
       let pageContent = originalPageXml;
 
@@ -3842,7 +3880,10 @@ export class SlidesAdapter {
       const isImportedSlide = !layoutMatch || masterPageName === "BLANK" || hasTextBoxShapes || shapes.length > 0;
 
       // PPTX hop drops presentation:layout; restore two-content / title-only from remaining placeholders.
-      if (isImportedSlide && (hasTextBoxShapes || masterPageName === "BLANK" || shapes.length > 0)) {
+      // Trang nhập từ tệp mà không có khung chỗ giữ (tiêu đề/nội dung), không hộp chữ, không hình: là trang trống (không thêm 2 khung chữ rỗng).
+      const pageBodyXml = String(originalPageXml || "").replace(/<presentation:notes\b[\s\S]*?<\/presentation:notes>/gi, "");
+      const pageHasNoObjects = !hasPlaceholderClasses && !/<draw:(?:frame|custom-shape|rect|ellipse|circle|line|path|g|polygon|polyline|connector|control)\b/i.test(pageBodyXml);
+      if (isImportedSlide && (hasTextBoxShapes || masterPageName === "BLANK" || shapes.length > 0 || pageHasNoObjects)) {
         pageLayout = "blank";
       } else if (pageLayout !== "blank") {
         if (outlineBlocks.length > 1) pageLayout = "two-content";
@@ -3957,6 +3998,7 @@ export class SlidesAdapter {
         hidden,
         ...(sectionId ? { sectionId } : {}),
         ...(pageTransition ? { transition: pageTransition } : {}),
+        ...(pageSourceLayout ? { srcLayout: pageSourceLayout } : {}),
         ...(isImportedSlide ? { imported: true } : {})
       };
       this._applyPlaceholderAnimations(
@@ -4073,6 +4115,8 @@ export class SlidesAdapter {
       } else if (newSlides.slideShowSettings) {
         this.canvas.slideShowSettings = { ...newSlides.slideShowSettings };
       }
+      // Chủ đề mặc định của VN chưa phải do người dùng chọn: chỉ chủ đề có trong tệp (hoặc người dùng chọn sau này) mới được ghi lại khi lưu.
+      this.canvas._masterThemeTouched = false;
       if (newSlides.masterTheme && this.canvas.applySlideMaster) {
         this.canvas.applySlideMaster(newSlides.masterTheme);
       } else if (newSlides.masterTheme) {

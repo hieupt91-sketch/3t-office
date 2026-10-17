@@ -551,6 +551,21 @@ export const WRITER_RIBBON_TABS = [
         ]
       },
       {
+        id: "arrange",
+        label: "Sắp xếp",
+        labelKey: "writerRibbon.group.arrange",
+        items: [
+          { type: "button", commandId: "writer.view.selectionPane", isLarge: true },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "writer.arrange.group" },
+              { type: "button", commandId: "writer.arrange.ungroup" }
+            ]
+          }
+        ]
+      },
+      {
         id: "print",
         label: "In ấn",
         labelKey: "writerRibbon.group.print",
@@ -580,6 +595,14 @@ export const WRITER_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "writer.table.toggleHeaderRow" },
           { type: "button", commandId: "writer.table.toggleBandedRows" }
+        ]
+      },
+      {
+        id: "tableStyles",
+        label: "Kiểu bảng",
+        labelKey: "writerRibbon.group.tableStyles",
+        items: [
+          { type: "button", commandId: "writer.table.stylesGallery", isLarge: true }
         ]
       },
       {
@@ -626,6 +649,7 @@ export const WRITER_RIBBON_TABS = [
               { type: "button", commandId: "writer.table.selectTable" }
             ]
           },
+          { type: "button", commandId: "writer.table.viewGridlines", isLarge: true },
           { type: "button", commandId: "writer.table.properties", isLarge: true },
           { type: "button", commandId: "writer.table.deleteTable", isLarge: true }
         ]
@@ -690,6 +714,8 @@ export const WRITER_RIBBON_TABS = [
         label: "Dữ liệu",
         labelKey: "writerRibbon.group.tableDataGroup",
         items: [
+          { type: "button", commandId: "writer.table.sort", isLarge: true },
+          { type: "button", commandId: "writer.table.formula", isLarge: true },
           { type: "button", commandId: "writer.table.toText", isLarge: true }
         ]
       }
@@ -1013,7 +1039,8 @@ export const WRITER_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "writer.view.navigationPane" },
           { type: "button", commandId: "writer.view.ruler" },
-          { type: "button", commandId: "writer.view.gridlines" }
+          { type: "button", commandId: "writer.view.gridlines" },
+          { type: "button", commandId: "writer.view.selectionPane" }
         ]
       },
       {
@@ -1037,7 +1064,10 @@ export const WRITER_RIBBON_TABS = [
         id: "window",
         label: "Cửa sổ",
         labelKey: "writerRibbon.group.window",
-        items: [{ type: "button", commandId: "writer.view.newWindow", isLarge: true }]
+        items: [
+          { type: "button", commandId: "writer.view.newWindow", isLarge: true },
+          { type: "button", commandId: "writer.view.split", isLarge: true }
+        ]
       },
       {
         id: "macro",

@@ -8084,6 +8084,10 @@ const startEditing = (initialText) => {
       this._restoreSlideBackgrounds(action.before);
       this.redoStack.push(action);
       return true;
+    } else if (action.type === "slide-transition") {
+      this._restoreSlideTransitions(action.before);
+      this.redoStack.push(action);
+      return true;
     } else if (action.type === "animations") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
@@ -8441,6 +8445,10 @@ const startEditing = (initialText) => {
       this._restoreSlideBackgrounds(action.after);
       this.undoStack.push(action);
       return true;
+    } else if (action.type === "slide-transition") {
+      this._restoreSlideTransitions(action.after);
+      this.undoStack.push(action);
+      return true;
     } else if (action.type === "animations") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
@@ -8656,6 +8664,8 @@ const startEditing = (initialText) => {
       themeConfig = { ...themeConfig, themeId: themeConfig.id };
     }
 
+    // Có chủ đề được nạp từ tệp hoặc do người dùng chọn: từ giờ chủ đề này mới được ghi vào tệp khi lưu.
+    this._masterThemeTouched = true;
     const previousTheme = { ...this.masterTheme };
     this.masterTheme = { ...this.masterTheme, ...themeConfig };
     if (recordHistory && JSON.stringify(previousTheme) !== JSON.stringify(this.masterTheme)) {
@@ -9501,17 +9511,47 @@ const startEditing = (initialText) => {
     });
   }
 
-  setTransition(type = "fade", duration = 500, applyToAll = true) {
-    this.transitionConfig = { type, duration: parseInt(duration, 10) || 500 };
+  _captureSlideTransitions() {
+    return this.slides.map(slide => (slide.transition ? { ...slide.transition } : null));
+  }
+
+  _restoreSlideTransitions(list) {
+    (list || []).forEach((transition, index) => {
+      const slide = this.slides[index];
+      if (!slide) return;
+      if (transition) slide.transition = { ...transition };
+      else delete slide.transition;
+    });
+    this._renderThumbnails?.();
+    this._syncUndoRedoState?.();
+  }
+
+  /**
+   * Đặt chuyển tiếp. `timing` = { advanceOnClick, advanceAfter (ms) } (Chuyển tiếp > Thời gian); bỏ trống thì giữ cách
+   * chuyển trang hiện có của trang. type "custom" = giữ nguyên hiệu ứng gốc của PowerPoint (khối p:transition đã nạp).
+   */
+  setTransition(type = "fade", duration = 500, applyToAll = true, timing = null) {
+    const current = this.slides[this.currentSlideIndex]?.transition || {};
+    const keepSource = type === "custom" && !!current.sourceXml;
+    const before = this._captureSlideTransitions();
+    const config = { type: keepSource ? "custom" : (type === "custom" ? "fade" : type), duration: parseInt(duration, 10) || 500 };
+    const resolved = timing || { advanceOnClick: current.advanceOnClick !== false, advanceAfter: current.advanceAfter };
+    if (resolved.advanceOnClick === false) config.advanceOnClick = false;
+    if (Number.isFinite(resolved.advanceAfter) && resolved.advanceAfter > 0) config.advanceAfter = Math.round(resolved.advanceAfter);
+    if (keepSource) config.sourceXml = current.sourceXml;
+    this.transitionConfig = { type: keepSource ? "fade" : config.type, duration: config.duration };
     if (applyToAll) {
       this.slides.forEach(s => {
-        s.transition = { ...this.transitionConfig };
+        s.transition = { ...config };
       });
-    } else {
-      if (this.slides[this.currentSlideIndex]) {
-        this.slides[this.currentSlideIndex].transition = { ...this.transitionConfig };
-      }
+    } else if (this.slides[this.currentSlideIndex]) {
+      this.slides[this.currentSlideIndex].transition = { ...config };
     }
+    const after = this._captureSlideTransitions();
+    this.undoStack.push({ type: "slide-transition", before, after });
+    this.redoStack = [];
+    this._syncUndoRedoState?.();
+    this._renderThumbnails?.();
     return true;
   }
 
@@ -9522,8 +9562,12 @@ const startEditing = (initialText) => {
       const overlay = document.createElement("div");
       overlay.className = "vno-dialog-overlay";
 
-      const currentType = this.transitionConfig.type || "fade";
-      const currentDuration = this.transitionConfig.duration || 500;
+      const slideTransition = this.slides[this.currentSlideIndex]?.transition || null;
+      // Slide mang hiệu ứng gốc của tệp (Wipe, Cover, Cut...): mặc định giữ nguyên, tránh đổi nhầm sang kiểu gần giống của VN.
+      const currentType = slideTransition?.sourceXml ? "custom" : (slideTransition?.type || this.transitionConfig.type || "fade");
+      const currentDuration = slideTransition?.duration || this.transitionConfig.duration || 500;
+      const currentAdvanceClick = slideTransition?.advanceOnClick !== false;
+      const currentAdvanceAfter = Number.isFinite(slideTransition?.advanceAfter) && slideTransition.advanceAfter > 0 ? slideTransition.advanceAfter / 1000 : null;
 
       overlay.innerHTML = `
         <div class="vno-dialog-box" style="width: 460px; max-width: calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-trans-dialog-title">
@@ -9540,6 +9584,7 @@ const startEditing = (initialText) => {
                 <option value="zoom" ${currentType === "zoom" ? "selected" : ""}>${t("slidesDialogs.transZoom", "Thu phóng (Zoom)")}</option>
                 <option value="flip" ${currentType === "flip" ? "selected" : ""}>${t("slidesDialogs.transFlip", "Lật trang 3D (Flip)")}</option>
                 <option value="morph" ${currentType === "morph" ? "selected" : ""}>Morph</option>
+                ${currentType === "custom" ? `<option value="custom" selected>${t("slidesDialogs.transCustomKeep", "Giữ nguyên hiệu ứng gốc của tệp")}</option>` : ""}
               </select>
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;">
@@ -9551,6 +9596,12 @@ const startEditing = (initialText) => {
                 <option value="1000" ${currentDuration === 1000 ? "selected" : ""}>${t("slidesDialogs.durationVerySlow", "Rất chậm (1.0 giây)")}</option>
               </select>
             </div>
+            <fieldset style="border:1px solid var(--vno-border-default, #cbd5e1);border-radius:6px;padding:8px 12px;margin:0;display:flex;flex-direction:column;gap:8px;">
+              <legend style="font-size:12px;font-weight:600;color:var(--vno-text-secondary, #475569);">${t("slidesDialogs.transAdvanceLegend", "Chuyển trang")}</legend>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="checkbox" id="vno-trans-advance-click" ${currentAdvanceClick ? "checked" : ""}> ${t("slidesDialogs.transAdvanceClick", "Khi nhấp chuột")}</label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="checkbox" id="vno-trans-advance-after-on" ${currentAdvanceAfter ? "checked" : ""}> ${t("slidesDialogs.transAdvanceAfter", "Tự động sau")}
+                <input type="number" id="vno-trans-advance-after" class="vno-dialog-input" min="0" max="3600" step="0.5" value="${currentAdvanceAfter ?? 5}" style="width:80px;" aria-label="${t("slidesDialogs.transAdvanceAfterSeconds", "Số giây tự chuyển trang")}"> ${t("slidesDialogs.transSecondsUnit", "giây")}</label>
+            </fieldset>
             <div style="padding:16px;background:var(--vno-bg-muted, #f8fafc);border:1px dashed var(--vno-border-default, #cbd5e1);border-radius:4px;text-align:center;overflow:hidden;">
               <div id="vno-trans-preview-box" style="font-size:16px;font-weight:bold;color:var(--vno-slides-primary, #b53818);padding:12px;background:var(--vno-bg-surface, #ffffff);border:1px solid var(--vno-border-default, #cbd5e1);border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                 ${t("slidesDialogs.sampleSlide", "Trang Chiếu Mẫu")}
@@ -9574,13 +9625,21 @@ const startEditing = (initialText) => {
       const previewBox = overlay.querySelector("#vno-trans-preview-box");
       const typeSelect = overlay.querySelector("#vno-trans-type-select");
       const durationSelect = overlay.querySelector("#vno-trans-duration-select");
+      const readTiming = () => {
+        const afterOn = overlay.querySelector("#vno-trans-advance-after-on")?.checked;
+        const seconds = Number(overlay.querySelector("#vno-trans-advance-after")?.value);
+        return {
+          advanceOnClick: overlay.querySelector("#vno-trans-advance-click")?.checked !== false,
+          advanceAfter: afterOn && Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds * 1000) : undefined
+        };
+      };
 
       const runPreview = () => {
         if (!previewBox || !typeSelect || !durationSelect) return;
         const type = typeSelect.value;
         const dur = durationSelect.value;
         // Dialog preview has no adjacent-slide shape pair, so Morph previews its documented crossfade fallback.
-        const previewType = type === "morph" ? "fade" : type;
+        const previewType = (type === "morph" || type === "custom") ? "fade" : type;
         const animName = `vnoTransition${previewType.charAt(0).toUpperCase() + previewType.slice(1)}`;
         previewBox.style.animation = "none";
         void previewBox.offsetWidth;
@@ -9609,7 +9668,7 @@ const startEditing = (initialText) => {
           resolve(false);
         } else if (e.key === "Enter" && e.target?.id !== "vno-trans-cancel") {
           e.preventDefault();
-          this.setTransition(typeSelect.value, durationSelect.value, true);
+          this.setTransition(typeSelect.value, durationSelect.value, true, readTiming());
           close();
           resolve(true);
         } else if (e.key === "Tab") {
@@ -9622,13 +9681,13 @@ const startEditing = (initialText) => {
       overlay.querySelector("#vno-trans-cancel")?.addEventListener("click", () => { close(); resolve(false); });
 
       overlay.querySelector("#vno-trans-apply-current")?.addEventListener("click", () => {
-        this.setTransition(typeSelect.value, durationSelect.value, false);
+        this.setTransition(typeSelect.value, durationSelect.value, false, readTiming());
         close();
         resolve(true);
       });
 
       overlay.querySelector("#vno-trans-apply-all")?.addEventListener("click", () => {
-        this.setTransition(typeSelect.value, durationSelect.value, true);
+        this.setTransition(typeSelect.value, durationSelect.value, true, readTiming());
         close();
         resolve(true);
       });
@@ -9925,6 +9984,7 @@ const startEditing = (initialText) => {
     const rehearsing = !!options.rehearsal;
     const idx = startIndex !== undefined ? startIndex : this.currentSlideIndex;
     let currentShowIdx = this._resolveShowStartIndex(idx);
+    let autoAdvanceTimer = null;
 
     const overlay = document.createElement("div");
     overlay.className = "vno-slideshow-overlay";
@@ -10127,12 +10187,18 @@ const startEditing = (initialText) => {
         else content.setAttribute?.("data-vno-transition", "morph");
       } else {
         // Safe Morph fallback: without a clear same-id shape match, crossfade instead of freezing or failing.
-        const fallbackType = transition.type === "morph" ? "fade" : transition.type;
+        const fallbackType = (transition.type === "morph" || transition.type === "custom") ? "fade" : transition.type;
         const animName = `vnoTransition${fallbackType.charAt(0).toUpperCase() + fallbackType.slice(1)}`;
         const transitionState = transition.type === "morph" ? "morph-fallback-fade" : fallbackType;
         if (content.dataset) content.dataset.vnoTransition = transitionState;
         else content.setAttribute?.("data-vno-transition", transitionState);
         content.style.animation = `${animName} ${transition.duration}ms ease-out forwards`;
+      }
+      // Tự chuyển trang sau N giây (Chuyển tiếp > Thời gian > Sau).
+      if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
+      const afterMs = Number(s.transition?.advanceAfter);
+      if (Number.isFinite(afterMs) && afterMs > 0) {
+        autoAdvanceTimer = setTimeout(() => { autoAdvanceTimer = null; advanceShow(); }, afterMs);
       }
     };
 
@@ -10424,6 +10490,7 @@ const startEditing = (initialText) => {
       const totalInkCount = Object.values(slideInks).reduce((sum, list) => sum + (list ? list.length : 0), 0);
 
       const finishClose = () => {
+        if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
         if (rehearsing && discardRehearsal) {
           if (rehearseInterval) clearInterval(rehearseInterval);
         } else {
@@ -10600,6 +10667,8 @@ const startEditing = (initialText) => {
     overlay.addEventListener?.("click", (e) => {
       if (e.target && e.target.closest && e.target.closest("video, audio, .vno-rehearse-timer-box, .vno-slideshow-context-menu, .vno-ink-dialog")) return;
       if (pointerMode !== "arrow") return;
+      // «Khi nhấp chuột» tắt trong Chuyển tiếp > Thời gian: nhấp chuột không chuyển trang (phím vẫn chuyển được).
+      if (this.slides[currentShowIdx]?.transition?.advanceOnClick === false) return;
       advanceShow();
     });
 

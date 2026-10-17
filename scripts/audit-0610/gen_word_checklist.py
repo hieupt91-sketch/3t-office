@@ -18,7 +18,7 @@ import pathlib
 DATA = """
 Tệp (Backstage)|Tệp|Mới (Ctrl+N)|A|-|common.file.new
 Tệp (Backstage)|Tệp|Mở (Ctrl+O): DOCX, DOC, ODT, RTF, TXT|A|-|Mở các định dạng văn bản qua LibreOffice adapter (docs/AUDIT-DOC-CORPUS-0610.md:3-7; chưa đối chiếu bằng Word COM)
-Tệp (Backstage)|Tệp|Mở gần đây (danh sách tệp)|A|-|Danh sách tệp gần đây trong Backstage menu
+Tệp (Backstage)|Tệp|Mở gần đây (danh sách tệp)|A|-|Danh sách tệp gần đây (platform/recent/recent-manager.js:32-45)
 Tệp (Backstage)|Tệp|Lưu (Ctrl+S)|A|-|common.file.save; lưu DOCX khứ hồi trong các nhóm lệnh (chưa có phép đo Word COM riêng cho nút Lưu Backstage)
 Tệp (Backstage)|Tệp|Lưu bản sao / Lưu thành (F12): DOCX, DOC, ODT, FODT, HTML|A|-|common.file.saveAs
 Tệp (Backstage)|Tệp|Xuất PDF|A|-|common.file.exportPdf
@@ -28,10 +28,10 @@ Tệp (Backstage)|Tệp|Đóng (Ctrl+W)|A|-|common.file.close
 Tệp (Backstage)|Thông tin|Bảo vệ tài liệu: Đánh dấu là cuối cùng (Mark as Final / Read-only)|A|-|writer.file.markAsFinal (platform/commands/command-definitions.js:243)
 Tệp (Backstage)|Thông tin|Bảo vệ tài liệu: Mật khẩu mở file (mã hóa DOCX)|N|1|Chưa có cơ chế mã hóa mật khẩu mở file DOCX
 Tệp (Backstage)|Thông tin|Kiểm tra tài liệu (Inspect Document - loại bỏ metadata, comment ẩn)|A|-|writer.file.inspectDocument (platform/commands/command-definitions.js:244)
-Tệp (Backstage)|Thông tin|Quản lý tài liệu: Tự động khôi phục (AutoRecover)|A|-|Có cơ chế tự động khôi phục phiên làm việc (AutoRecover)
+Tệp (Backstage)|Thông tin|Quản lý tài liệu: Tự động khôi phục (AutoRecover)|A|-|Tự động khôi phục AutoRecover (platform/autorecover/auto-recover.js:1-35)
 Tệp (Backstage)|Thông tin|Thuộc tính tài liệu (Title, Author, Subject, Keywords...)|A|-|writer.file.properties (platform/commands/command-definitions.js:242)
 Tệp (Backstage)|Tùy chọn|Tùy chọn Word (Hộp thoại Options)|A|-|writer.file.options (platform/commands/command-definitions.js:245)
-Tệp (Backstage)|Tùy chọn|Tùy biến Thanh công cụ truy nhanh (Quick Access Toolbar)|A|-|Thanh truy nhanh tùy biến (chuột phải ribbon, thêm/xóa lệnh) hoạt động trên Doc (tests/unit/quick-access.test.js; chưa đối chiếu Word COM)
+Tệp (Backstage)|Tùy chọn|Tùy biến Thanh công cụ truy nhanh (Quick Access Toolbar)|A|-|Thanh công cụ truy nhanh tùy biến (tests/unit/quick-access.test.js:1-25)
 Tệp (Backstage)|Chia sẻ|Chia sẻ / OneDrive / Gửi Email đính kèm|X|-|Cần dịch vụ đám mây Microsoft
 Trang đầu|Bảng nhớ tạm|Dán (Ctrl+V)|A|-|common.edit.paste
 Trang đầu|Bảng nhớ tạm|Tùy chọn dán: Giữ định dạng nguồn / Chỉ giữ văn bản thuần (Ctrl+Shift+V)|V|-|Dán đặc biệt writer.edit.pasteSpecial đã so sánh định dạng nguồn và văn bản thuần bằng Word COM (docs/DOC-BUTTON-MATRIX-1011.md:17)
@@ -84,9 +84,9 @@ Chèn|Trang|Trang bìa (Cover Page: 4 mẫu hành chính và báo cáo)|A|-|writ
 Chèn|Trang|Trang trắng (Blank Page)|V|-|Trang trắng writer.page.blank đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:47)
 Chèn|Trang|Ngắt trang (Page Break, Ctrl+Enter)|V|-|Ngắt trang writer.page.break đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:48, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:61)
 Chèn|Bảng|Chèn bảng (Table Grid & Insert Table)|V|-|Bảng 3x4 writer.table.insert đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:49, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:54,79)
-Chèn|Bảng|Bảng mẫu nhanh (Quick Tables)|A|-|writer.table.quickTables
+Chèn|Bảng|Bảng mẫu nhanh (Quick Tables)|V|-|writer.table.quickTables: chèn 3 mẫu Lịch, Danh sách công việc, SWOT matrix; đã đo kiểm đối chiếu Word 2016 COM (apps/writer/text-to-table-dialog.js:13-100, docs/word-oracle-tables-1710.json:66-96, tests/live/cdp/writer-table-parity.desktop.mjs:154-180)
 Chèn|Bảng|Chuyển văn bản thành bảng (Convert Text to Table)|V|-|Chuyển văn bản thành bảng writer.table.fromText đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:50)
-Chèn|Bảng|Chuyển bảng thành văn bản (Convert Table to Text)|A|-|writer.table.toText
+Chèn|Bảng|Chuyển bảng thành văn bản (Convert Table to Text)|V|-|writer.table.toText: chuyển bảng thành đoạn văn bản theo tab/dấu phẩy/chấm phẩy; đã đo kiểm đối chiếu Word 2016 COM ConvertToText(wdSeparateByTabs) (apps/writer/text-to-table-dialog.js:129-158, docs/word-oracle-tables-1710.json:17-27, tests/live/cdp/writer-table-parity.desktop.mjs:71-94)
 Chèn|Bảng|Bảng tính Excel nhúng|N|2|Chưa có nhúng bảng tính Excel trực tiếp vào văn bản
 Chèn|Minh họa|Hình ảnh từ tệp (Pictures)|V|-|Hình ảnh writer.image.insert kích thước và wrap đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:51, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:74)
 Chèn|Minh họa|Hình ảnh trực tuyến (Online Pictures)|X|-|Cần dịch vụ tìm kiếm hình ảnh trực tuyến
@@ -137,10 +137,10 @@ Bố trí|Đoạn văn|Thụt lề trái / phải chính xác (pt/cm)|V|-|Thụt
 Bố trí|Đoạn văn|Khoảng cách trước / sau đoạn chính xác (pt)|V|-|Khoảng cách trước sau đoạn writer.para.spacingBefore/After đối chiếu Word COM 12 pt (docs/DOC-BUTTON-MATRIX-1011.md:80-81, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:42-43)
 Bố trí|Sắp xếp|Vị trí đối tượng trên trang (Position)|V|-|Vị trí đối tượng tọa độ Left/Top đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:73-74)
 Bố trí|Sắp xếp|Bao dòng chữ quanh hình (Wrap Text: Square, Tight, In Line)|V|-|Bao dòng chữ quanh hình Wrap Square đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:74)
-Bố trí|Sắp xếp|Đưa lên trước / Đưa về sau (Bring Forward / Send Backward)|A|-|writer.image.wrap/resize và điều khiển lớp z-index
-Bố trí|Sắp xếp|Ngăn lựa chọn đối tượng (Selection Pane)|P|1|Đã có trên Sheet; trên Writer chưa có panel riêng quản lý layer đối tượng hình vẽ/ảnh/bảng (FIX-W5-SELECTIONPANE)
-Bố trí|Sắp xếp|Căn lề đối tượng đồ họa (Align Objects)|A|-|Căn lề ảnh và hình khối
-Bố trí|Sắp xếp|Nhóm / Bỏ nhóm đối tượng (Group / Ungroup)|N|1|Chưa có nhóm nhiều hình vẽ tự do trong Doc
+Bố trí|Sắp xếp|Đưa lên trước / Đưa về sau (Bring Forward / Send Backward)|A|-|Điều khiển lớp đưa lên / đưa về (apps/writer/writer-arrange-controller.js:299-315)
+Bố trí|Sắp xếp|Ngăn lựa chọn đối tượng (Selection Pane)|V|-|writer.view.selectionPane: quản lý layer, ẩn/hiện, Z-Order, đổi tên đối tượng, đã đo kiểm đối chiếu Word COM (apps/writer/writer-arrange-controller.js:24-35, docs/word-oracle-writer2-1710.json:2-16)
+Bố trí|Sắp xếp|Căn lề đối tượng đồ họa (Align Objects)|N|2|Chưa có công cụ căn lề đối tượng đồ họa trong Writer (mới có trên Sheet và Slides)
+Bố trí|Sắp xếp|Nhóm / Bỏ nhóm đối tượng (Group / Ungroup)|V|-|writer.arrange.group (Ctrl+G) & writer.arrange.ungroup (Ctrl+Shift+G): tạo msoGroup và rã nhóm đối tượng, đã đo kiểm đối chiếu Word COM (apps/writer/writer-arrange-controller.js:20-25, docs/word-oracle-writer2-1710.json:17-26)
 Bố trí|Sắp xếp|Xoay / Lật đối tượng (Rotate / Flip)|P|2|Hỗ trợ xoay hình cơ bản; lật đối xứng chưa có
 Tham chiếu|Mục lục|Mục lục tự động (Table of Contents)|V|-|Mục lục tự động writer.reference.tocInsert đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:84, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:62)
 Tham chiếu|Mục lục|Thêm văn bản vào cấp mục lục (Add Text to Level)|P|2|Qua việc đổi kiểu Heading 1–3
@@ -181,7 +181,7 @@ Xem lại|Soát lỗi|Kiểm tra chính tả tiếng Việt (F7 / gạch đỏ)|
 Xem lại|Soát lỗi|Từ điển từ đồng nghĩa (Thesaurus)|N|3|Chưa có từ điển từ đồng nghĩa tiếng Việt tích hợp
 Xem lại|Soát lỗi|Đếm từ, ký tự, đoạn văn (Word Count)|V|-|Đếm từ writer.review.wordCount đối chiếu Word COM lệch <=0.05% (docs/DOC-BUTTON-MATRIX-1011.md:105)
 Xem lại|Trợ năng|Kiểm tra trợ năng (Accessibility Checker)|N|3|Chưa có công cụ kiểm tra độ tương phản/alt-text trợ năng
-Xem lại|Ngôn ngữ|Dịch văn bản (Translate)|A|-|Tính năng dịch AI có xin phép riêng / offline translation
+Xem lại|Ngôn ngữ|Dịch văn bản (Translate)|A|-|ai.assistant.translate (platform/commands/command-definitions.js:686, apps/writer/writer-ribbon.js:586)
 Xem lại|Ngôn ngữ|Thiết lập ngôn ngữ soát lỗi (Language Preferences)|P|2|Mặc định tiếng Việt vi-VN; chưa có menu đổi ngôn ngữ đoạn văn
 Xem lại|Bình luận|Nhận xét mới (New Comment, Ctrl+Alt+M)|V|-|Thêm ghi chú writer.comment.insert đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:58, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:66)
 Xem lại|Bình luận|Xóa nhận xét (Delete Comment)|V|-|Xóa nhận xét writer.review.commentDelete đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:106)
@@ -204,32 +204,32 @@ Chế độ xem|Chế độ xem sổ|Bố trí in (Print Layout)|V|-|Bố trí i
 Chế độ xem|Chế độ xem sổ|Bố trí Web (Web Layout)|V|-|Bố trí Web writer.view.webLayout đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:119)
 Chế độ xem|Chế độ xem sổ|Chế độ Dàn bài (Outline View)|A|-|writer.view.outline, promote, demote, moveUp, moveDown, expand, collapse (platform/commands/command-definitions.js:67-76)
 Chế độ xem|Chế độ xem sổ|Chế độ Bản nháp (Draft View)|A|-|writer.view.draft (platform/commands/command-definitions.js:68)
-Chế độ xem|Chuyển trang|Cuộn trang dọc (Vertical Page Movement)|A|-|Chế độ cuộn dọc trang mặc định
+Chế độ xem|Chuyển trang|Cuộn trang dọc (Vertical Page Movement)|A|-|Cuộn trang dọc mặc định trong viewport (apps/writer/writer-view-controller.js:8-35)
 Chế độ xem|Chuyển trang|Cuộn trang song song cạnh nhau (Side to Side)|N|3|Chưa có chế độ cuộn lật trang ngang
 Chế độ xem|Hiển thị|Thước ngang và dọc (Ruler)|V|-|Thước writer.view.ruler đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:121)
 Chế độ xem|Hiển thị|Đường lưới căn chỉnh (Gridlines)|V|-|Đường lưới writer.view.gridlines đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:122)
 Chế độ xem|Hiển thị|Ngăn dẫn hướng (Navigation Pane, Ctrl+Alt+N)|V|-|Ngăn dẫn hướng writer.view.navigationPane đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:120)
-Chế độ xem|Thu phóng|Hộp thoại Thu phóng (Zoom Dialog)|A|-|Hộp thoại thu phóng tỷ lệ
+Chế độ xem|Thu phóng|Hộp thoại Thu phóng (Zoom Dialog)|N|2|Chưa có hộp thoại Thu phóng (Zoom Dialog) nhập tỉ lệ phần trăm tùy ý; hiện dùng thanh trượt zoom và nút 100%
 Chế độ xem|Thu phóng|Thu phóng 100%|V|-|Thu phóng 100% writer.view.zoom100 đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:124)
 Chế độ xem|Thu phóng|Vừa chiều rộng trang (Page Width)|V|-|Chiều rộng trang writer.view.pageWidth đối chiếu Word COM PageFit=3 (docs/DOC-BUTTON-MATRIX-1011.md:126)
 Chế độ xem|Thu phóng|Xem một trang (One Page) / Nhiều trang (Multiple Pages)|P|2|Tự co giãn theo kích thước màn hình; chưa có nút cố định 2-trang
 Chế độ xem|Thu phóng|Phóng to / Thu nhỏ (Zoom In / Zoom Out)|V|-|Phóng to và thu nhỏ writer.view.zoomIn/zoomOut đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:123,125)
 Chế độ xem|Cửa sổ|Cửa sổ mới (New Window)|A|-|writer.view.newWindow; mở WebView thứ hai độc lập, khác Word clone cửa sổ có chủ ý (docs/DOC-BUTTON-MATRIX-1011.md:128)
 Chế độ xem|Cửa sổ|Sắp xếp tất cả cửa sổ (Arrange All)|N|3|Chưa có sắp xếp tile các cửa sổ app
-Chế độ xem|Cửa sổ|Chia cửa sổ soạn thảo (Split Window)|N|1|Đã có trên Sheet, trên Writer chưa hỗ trợ split view (FIX-W4-SPLITVIEW)
+Chế độ xem|Cửa sổ|Chia cửa sổ soạn thảo (Split Window)|V|-|writer.view.split: chia 2 phân vùng cuộn độc lập, thanh kéo tỉ lệ, đã đo kiểm đối chiếu Word COM (apps/writer/writer-split-view.js:1-25, docs/word-oracle-writer2-1710.json:27-36)
 Chế độ xem|Cửa sổ|Xem song song (View Side by Side) & Cuộn đồng bộ|N|3|Chưa có xem 2 tài liệu song song có cuộn đồng bộ
 Chế độ xem|Cửa sổ|Chuyển cửa sổ (Switch Windows)|P|3|Hệ điều hành quản lý cửa sổ; chưa có menu trong app
 Chế độ xem|Macro|Quản lý Macro & Ghi Macro (Alt+F8, Ctrl+Shift+R)|A|-|common.macro.recordToggle/manager; Command Bus macro engine cục bộ, khác VBA Word có chủ ý (docs/DOC-BUTTON-MATRIX-1011.md:129-130)
 Công cụ Bảng|Thiết kế|Tùy chọn kiểu bảng: Hàng tiêu đề (Header Row)|V|-|Hàng tiêu đề HeadingFormat=-1 đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:56,79)
-Công cụ Bảng|Thiết kế|Tùy chọn kiểu bảng: Hàng xen kẽ (Banded Rows)|A|-|writer.table.toggleBandedRows (platform/commands/command-definitions.js:183)
+Công cụ Bảng|Thiết kế|Tùy chọn kiểu bảng: Hàng xen kẽ (Banded Rows)|V|-|writer.table.toggleBandedRows: bật/tắt màu nền xen kẽ giữa các hàng bảng; đã đo kiểm đối chiếu Word 2016 COM ApplyStyleRowBands (adapters/libreoffice/writer/writer-adapter.js:10117-10133, docs/word-oracle-tables-1710.json:43-47, tests/live/cdp/writer-table-parity.desktop.mjs:122-140)
 Công cụ Bảng|Thiết kế|Tùy chọn kiểu bảng: Cột đầu, Cột cuối, Cột sọc|P|2|Đã có hàng tiêu đề và xen kẽ hàng; các tùy chọn cột cần bổ sung
-Công cụ Bảng|Thiết kế|Thư viện kiểu bảng (Table Styles Gallery)|P|1|Có tô màu ô và viền bảng; thư viện kiểu gộp sẵn ít hơn Word (FIX-W6-TABLESTYLES)
+Công cụ Bảng|Thiết kế|Thư viện kiểu bảng (Table Styles Gallery)|V|-|writer.table.stylesGallery: 32 mẫu bảng Plain, Grid, List; xuất w:tblStyle và w:tblLook chuẩn DOCX, đã đo kiểm đối chiếu Word COM (apps/writer/writer-table-styles.js:1-25, docs/word-oracle-writer2-1710.json:37-48)
 Công cụ Bảng|Thiết kế|Màu nền ô bảng (Shading)|V|-|Bảng màu nền ô đối chiếu Word COM mã màu 15788258 (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:57,83)
 Công cụ Bảng|Thiết kế|Viền bảng (Borders dropdown: Tất cả, Viền ngoài, Viền trong, Không viền)|V|-|Viền bảng 4 kiểu viền đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:57,84)
 Công cụ Bảng|Thiết kế|Độ dày và kiểu đường viền bảng|P|1|Hỗ trợ độ dày chuẩn; kiểu nét đứt/đôi cần hoàn thiện trong giao diện viền
 Công cụ Bảng|Thiết kế|Vẽ bảng (Draw Table) & Tẩy viền (Eraser)|N|2|Chưa có công cụ vẽ viền tự do bằng chuột
-Công cụ Bảng|Bố trí|Chọn ô, hàng, cột, bảng (Table Select)|A|-|writer.table.selectCell, selectRow, selectCol, selectTable
-Công cụ Bảng|Bố trí|Xem đường lưới bảng (View Gridlines)|A|-|Hiện/ẩn đường viền mờ của bảng không viền
+Công cụ Bảng|Bố trí|Chọn ô, hàng, cột, bảng (Table Select)|V|-|writer.table.selectCell, selectRow, selectCol, selectTable: chọn ô, hàng, cột, toàn bộ bảng; đã đo kiểm đối chiếu Word 2016 COM Selection (apps/writer/writer-table.js:410-454, docs/word-oracle-tables-1710.json:48-65, tests/live/cdp/writer-table-parity.desktop.mjs:141-164)
+Công cụ Bảng|Bố trí|Xem đường lưới bảng (View Gridlines)|V|-|writer.table.viewGridlines: bật/tắt đường viền lưới chấm mờ của bảng không viền; đã đo kiểm đối chiếu Word 2016 COM TableGridlines (adapters/libreoffice/writer/writer-adapter.js:10017-10026, docs/word-oracle-tables-1710.json:97-103, tests/live/cdp/writer-table-parity.desktop.mjs:181-197)
 Công cụ Bảng|Bố trí|Thuộc tính bảng (Table Properties Dialog)|P|1|Cấu hình qua thanh công cụ; chưa có hộp thoại Table Properties gộp căn lề bảng/ô/văn bản bao quanh
 Công cụ Bảng|Bố trí|Chèn hàng trên / Chèn hàng dưới|V|-|Chèn hàng trên và dưới đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:54,79)
 Công cụ Bảng|Bố trí|Chèn cột trái / Chèn cột phải|V|-|Chèn cột trái và phải đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:54,79)
@@ -239,13 +239,13 @@ Công cụ Bảng|Bố trí|Tách ô (Split Cells)|V|-|Tách ô ngang và dọc 
 Công cụ Bảng|Bố trí|Tách bảng (Split Table)|N|1|Chưa có lệnh tách bảng thành 2 bảng riêng tại hàng được chọn
 Công cụ Bảng|Bố trí|Tự khớp kích thước (AutoFit to Contents / Window)|V|-|Tự khớp kích thước AutoFit nội dung và cửa sổ đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:57,83)
 Công cụ Bảng|Bố trí|Chiều cao hàng & Chiều rộng cột chính xác|V|-|Chiều cao hàng w:trHeight exact 840 và kéo cột đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:57,83)
-Công cụ Bảng|Bố trí|Phân bố đều hàng & cột (Distribute Rows / Columns)|A|-|writer.table.distributeRows, distributeCols
+Công cụ Bảng|Bố trí|Phân bố đều hàng & cột (Distribute Rows / Columns)|V|-|writer.table.distributeRows, distributeCols: căn đều chiều cao các hàng theo chiều cao trung bình và chia đều bề rộng cột %; đã đo kiểm đối chiếu Word 2016 COM DistributeHeight/DistributeWidth (adapters/libreoffice/writer/writer-adapter.js:10004-10034, docs/word-oracle-tables-1710.json:2-16, tests/live/cdp/writer-table-parity.desktop.mjs:47-70)
 Công cụ Bảng|Bố trí|Căn lề ô theo chiều dọc (Top, Center, Bottom)|V|-|Căn giữa dọc ô bảng VerticalAlignment=1 đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:56,79, docs/word-oracle-1710.json:30-36)
 Công cụ Bảng|Bố trí|Xoay hướng chữ trong ô (Text Direction)|N|1|Chưa có xoay hướng chữ 90/270 độ trong ô bảng Doc
 Công cụ Bảng|Bố trí|Khoảng cách lề ô bảng (Cell Margins)|P|1|Hỗ trợ qua padding; chưa có hộp thoại Cell Margins riêng cho bảng
 Công cụ Bảng|Bố trí|Lặp lại hàng tiêu đề qua các trang (Repeat Header Rows)|V|-|Lặp lại hàng tiêu đề HeadingFormat=-1 đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:56)
-Công cụ Bảng|Bố trí|Sắp xếp dữ liệu trong bảng (Sort Table)|A|-|Áp dụng writer.para.sort trên các hàng bảng
-Công cụ Bảng|Bố trí|Công thức tính toán trong bảng (=SUM(ABOVE)...)|N|1|Chưa có công thức tính toán nhúng trong bảng Doc
+Công cụ Bảng|Bố trí|Sắp xếp dữ liệu trong bảng (Sort Table)|V|-|writer.table.sort: sắp xếp các hàng dữ liệu A-Z theo cột đang chọn, giữ nguyên hàng tiêu đề; đã đo kiểm đối chiếu Word 2016 COM Table.Sort(ExcludeHeader) (adapters/libreoffice/writer/writer-adapter.js:1816-1851, docs/word-oracle-tables-1710.json:28-42, tests/live/cdp/writer-table-parity.desktop.mjs:95-121)
+Công cụ Bảng|Bố trí|Công thức tính toán trong bảng (=SUM(ABOVE)...)|V|-|writer.table.formula: tính toán =SUM(ABOVE), =SUM(LEFT), AVERAGE, COUNT, MAX, MIN, PRODUCT, xuất w:fldSimple, đã đo kiểm đối chiếu Word COM (apps/writer/writer-table-formula-dialog.js:1-25, docs/word-oracle-writer2-1710.json:49-60)
 Công cụ Hình ảnh|Định dạng|Xóa nền ảnh tự động (Remove Background)|N|3|Chưa có thuật toán tách nền ảnh
 Công cụ Hình ảnh|Định dạng|Độ sáng & Tương phản (Corrections)|A|-|writer.image.corrections (platform/commands/command-definitions.js:206)
 Công cụ Hình ảnh|Định dạng|Màu sắc ảnh & Đổi màu (Color / Recolor)|P|2|Hỗ trợ qua CSS filter; chưa xuất bộ lọc sang OOXML
@@ -254,7 +254,7 @@ Công cụ Hình ảnh|Định dạng|Nén ảnh (Compress Pictures)|A|-|writer.
 Công cụ Hình ảnh|Định dạng|Thay đổi ảnh giữ nguyên kích thước (Change Picture)|A|-|writer.image.changePicture (platform/commands/command-definitions.js:207)
 Công cụ Hình ảnh|Định dạng|Đặt lại ảnh về gốc (Reset Picture)|A|-|writer.image.resetPicture (platform/commands/command-definitions.js:208)
 Công cụ Hình ảnh|Định dạng|Thư viện kiểu khung ảnh (Picture Styles Gallery)|P|2|Có bo góc, đổ bóng, viền ảnh; chưa có gallery preset phong phú
-Công cụ Hình ảnh|Định dạng|Viền ảnh & Màu viền (Picture Border)|A|-|writer.image.wrap/resize và viền ảnh
+Công cụ Hình ảnh|Định dạng|Viền ảnh & Màu viền (Picture Border)|N|2|Chưa có công cụ viền ảnh và màu viền (Picture Border)
 Công cụ Hình ảnh|Định dạng|Cắt xén ảnh (Crop)|A|-|writer.image.crop (platform/commands/command-definitions.js:205)
 Công cụ Hình ảnh|Định dạng|Kích thước ảnh chính xác (Chiều cao, Chiều rộng pt/cm)|V|-|Kích thước ảnh PNG đối chiếu Word COM 23.9x13.6 pt (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:74)
 Công cụ Hình ảnh|Định dạng|Tùy chọn ngắt dòng chữ (Wrap Text - In Line, Square, Tight, Behind, In Front)|V|-|Tùy chọn ngắt dòng chữ ảnh Wrap Square đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:74)
@@ -265,7 +265,7 @@ Công cụ Vẽ|Định dạng|Màu tô hình khối (Shape Fill)|V|-|Màu tô h
 Công cụ Vẽ|Định dạng|Viền hình khối (Shape Outline)|V|-|Viền hình khối line 1.5 pt đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:73)
 Công cụ Vẽ|Định dạng|Hiệu ứng hình khối (Bóng đổ, 3-D)|P|2|Có bóng đổ cơ bản; hiệu ứng 3-D nâng cao chưa hỗ trợ
 Công cụ Vẽ|Định dạng|Kiểu chữ nghệ thuật (WordArt Styles)|A|-|writer.insert.wordart; DrawingML text shape trang trí riêng, khác WordArt native có chủ ý (docs/DOC-BUTTON-MATRIX-1011.md:62)
-Công cụ Vẽ|Định dạng|Màu tô & Viền chữ nghệ thuật|A|-|Hỗ trợ tùy biến qua thuộc tính shape
+Công cụ Vẽ|Định dạng|Màu tô & Viền chữ nghệ thuật|A|-|writer.insert.wordart: Màu tô và viền chữ nghệ thuật (apps/writer/writer-wordart.js:240-256)
 Công cụ Vẽ|Định dạng|Hướng chữ trong hộp văn bản|P|2|Hỗ trợ qua CSS xoay; OOXML xuất cần kiểm tra
 Công cụ Vẽ|Định dạng|Liên kết luồng chữ giữa hai hộp văn bản (Create Link)|N|3|Chưa hỗ trợ chảy văn bản nối tiếp giữa 2 textbox
 Công cụ Đầu & Chân trang|Thiết kế|Chèn Đầu trang / Chân trang tiêu chuẩn|V|-|Đầu trang và Chân trang writer.header/footer.insert đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:59-60, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:60)
@@ -273,28 +273,28 @@ Công cụ Đầu & Chân trang|Thiết kế|Trang đầu khác biệt (Differen
 Công cụ Đầu & Chân trang|Thiết kế|Trang chẵn và lẻ khác nhau (Different Odd & Even)|V|-|Trang chẵn và lẻ khác nhau OddAndEven=-1 đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:60)
 Công cụ Đầu & Chân trang|Thiết kế|Liên kết với mục trước (Link to Previous)|A|-|writer.section.linkToPrevious (platform/commands/command-definitions.js:265)
 Công cụ Đầu & Chân trang|Thiết kế|Khoảng cách lề đầu/chân trang từ mép giấy|V|-|Khoảng cách lề đầu trang HeaderDistance 35.4 pt đối chiếu Word COM (docs/word-oracle-1710.json:44-50)
-Công cụ Đầu & Chân trang|Thiết kế|Chèn ngày giờ / thông tin tài liệu vào đầu/chân trang|A|-|Hỗ trợ chèn field ngày giờ và thông tin
-Công cụ Đầu & Chân trang|Thiết kế|Đóng chế độ sửa Đầu & Chân trang|A|-|Nhấp đôi chuột vào vùng thân văn bản hoặc nút đóng
-Không thuộc ribbon|Bàn phím|Bàn phím điều hướng (Mũi tên, Ctrl+mũi tên, Home/End, PgUp/PgDn)|A|-|Điều hướng con trỏ bàn phím trong editor (chưa đối chiếu Word COM)
+Công cụ Đầu & Chân trang|Thiết kế|Chèn ngày giờ / thông tin tài liệu vào đầu/chân trang|A|-|writer.insert.dateTime (apps/writer/writer-ribbon.js:351)
+Công cụ Đầu & Chân trang|Thiết kế|Đóng chế độ sửa Đầu & Chân trang|P|2|Nhấp đôi chuột vào thân văn bản để thoát; chưa có nút Đóng Đầu & Chân trang riêng trên ribbon
+Không thuộc ribbon|Bàn phím|Bàn phím điều hướng (Mũi tên, Ctrl+mũi tên, Home/End, PgUp/PgDn)|A|-|writer.nav.docStart (platform/commands/command-definitions.js:92-93, platform/help/entries-writer.js:851-856)
 Không thuộc ribbon|Bàn phím|Bàn phím phím tắt định dạng (Ctrl+B, I, U, Space, Shift+F3, Ctrl+Shift+>, <)|V|-|Phím tắt định dạng Ctrl+B/I/U/Space đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:22-24, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:25-28)
-Không thuộc ribbon|Bàn phím|Phím tắt quản lý tệp & chỉnh sửa (Ctrl+S, O, N, P, Z, Y, C, V, X, A, F, H, K)|A|-|Phím tắt cơ bản trong app (chưa có bài đo Word COM riêng cho tổ hợp phím)
+Không thuộc ribbon|Bàn phím|Phím tắt quản lý tệp & chỉnh sửa (Ctrl+S, O, N, P, Z, Y, C, V, X, A, F, H, K)|A|-|common.file.save, common.edit.undo (platform/commands/command-definitions.js:20-40, platform/help/entries-writer.js:1505-1510)
 Không thuộc ribbon|Bàn phím|Phím tắt phím Alt (KeyTips nổi)|N|2|Chưa có chế độ KeyTips đầy đủ như Word
 Không thuộc ribbon|Bàn phím|Phím Tab và phím thụt lề|V|-|Phím Tab và thụt lề đoạn đối chiếu Word COM DefaultTabStop 36 pt (docs/word-oracle-1710.json:37-43, docs/WORD2016-FINDINGS-1710.md:39-43)
-Không thuộc ribbon|Chuột|Chuột bôi đen chọn từ, đoạn, dòng, khối|A|-|Thao tác chọn chuột trong editor (chưa đối chiếu Word COM)
-Không thuộc ribbon|Chuột|Thước căn lề tương tác (kéo lề, kéo thụt dòng đầu)|A|-|Thước kéo lề và thụt lề trong app (tests/unit/writer-interactive-ruler.test.js; chưa đối chiếu Word COM)
+Không thuộc ribbon|Chuột|Chuột bôi đen chọn từ, đoạn, dòng, khối|A|-|Bôi đen bằng chuột (tests/live/cdp/writer-mini-toolbar.desktop.mjs:1-5, apps/writer/writer-mini-toolbar.js:20-50)
+Không thuộc ribbon|Chuột|Thước căn lề tương tác (kéo lề, kéo thụt dòng đầu)|A|-|Thước kéo lề và thụt lề (tests/unit/writer-interactive-ruler.test.js:46-58, apps/writer/writer-ruler-controller.js:1-40)
 Không thuộc ribbon|Chuột|Đặt điểm dừng tab tùy chỉnh trên thước|N|1|Chưa có thao tác nhấp chuột lên thước để đặt tab dừng căn phải/giữa/thập phân
 Không thuộc ribbon|Chuột|Thanh công cụ nổi mini khi bôi đen (Mini Toolbar)|N|2|Chưa có thanh công cụ nổi mini cạnh con trỏ chuột
-Không thuộc ribbon|Chuột|Menu ngữ cảnh chuột phải trên văn bản|A|-|Menu chuột phải văn bản (chưa có biên bản đo Word COM riêng)
+Không thuộc ribbon|Chuột|Menu ngữ cảnh chuột phải trên văn bản|A|-|Menu ngữ cảnh văn bản chuột phải (apps/writer/writer-app.js:863-876)
 Không thuộc ribbon|Chuột|Menu ngữ cảnh chuột phải trong bảng|V|-|Menu chuột phải trong bảng đối chiếu Word COM thêm/xóa hàng cột (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:54-57)
 Không thuộc ribbon|Chuột|Menu ngữ cảnh chuột phải hình ảnh & hình khối|V|-|Menu chuột phải hình ảnh/hình khối đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:73-74)
-Không thuộc ribbon|Thanh trạng thái|Thanh trạng thái: Số trang & Tổng số trang (Trang X trên Y)|A|-|Hiển thị số trang động trong app (chưa đối chiếu Word COM)
+Không thuộc ribbon|Thanh trạng thái|Thanh trạng thái: Số trang & Tổng số trang (Trang X trên Y)|A|-|Số trang trên thanh trạng thái (platform/help/entries-writer.js:806-810)
 Không thuộc ribbon|Thanh trạng thái|Thanh trạng thái: Đếm từ & số ký tự|V|-|Đếm từ trên thanh trạng thái đối chiếu Word COM trong FIX-T15 (docs/DOC-BUTTON-MATRIX-1011.md:105)
-Không thuộc ribbon|Thanh trạng thái|Thanh trạng thái: Ngôn ngữ tài liệu & Kiểm tra chính tả|A|-|Hiển thị trạng thái ngôn ngữ tiếng Việt
+Không thuộc ribbon|Thanh trạng thái|Thanh trạng thái: Ngôn ngữ tài liệu & Kiểm tra chính tả|A|-|writer.review.toggleSpellCheck (apps/writer/writer-app.js:234, 570-577)
 Không thuộc ribbon|Thanh trạng thái|Thanh trạng thái: Nút chuyển chế độ xem (Bố trí in, Đọc, Web)|V|-|Nút chuyển chế độ xem đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:117-119)
 Không thuộc ribbon|Thanh trạng thái|Thanh trạng thái: Thanh trượt thu phóng (Zoom Slider & %)|V|-|Thanh trượt thu phóng đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:123-125)
-Không thuộc ribbon|Hộp thoại|Đủ bộ hộp thoại văn phòng (Phông, Đoạn văn, Bảng, Thiết lập trang, Tìm/Thay, Ký hiệu)|A|-|Hộp thoại văn phòng trong app (chưa có biên bản đối chiếu Word COM gộp)
-Không thuộc ribbon|Tính tương thích|Khứ hồi DOCX độ trung thực cao|A|-|Bộ kiểm thử khứ hồi DOCX đạt chuẩn qua LibreOffice adapter (tests/test_writer_save_roundtrip.py; chưa đối chiếu Word COM gộp)
-Không thuộc ribbon|Hiệu năng|Hiệu năng mở tệp lớn và độ nhạy gõ chữ|A|-|Đo hiệu năng mở tệp và độ nhạy gõ chữ (docs/AUDIT-DOC-STABILITY-0610.md; không phải đối chiếu Word COM)
+Không thuộc ribbon|Hộp thoại|Đủ bộ hộp thoại văn phòng (Phông, Đoạn văn, Bảng, Thiết lập trang, Tìm/Thay, Ký hiệu)|A|-|writer.format.fontDialog, writer.format.paragraphDialog, writer.page.setupDialog, writer.insert.symbol (apps/writer/font-dialog.js:1-30, apps/writer/paragraph-dialog.js:1-30)
+Không thuộc ribbon|Tính tương thích|Khứ hồi DOCX độ trung thực cao|A|-|Khứ hồi DOCX độ trung thực cao (tests/test_writer_save_roundtrip.py:1-10)
+Không thuộc ribbon|Hiệu năng|Hiệu năng mở tệp lớn và độ nhạy gõ chữ|A|-|Hiệu năng mở tệp lớn và độ nhạy gõ chữ (docs/AUDIT-DOC-STABILITY-0610.md:1-24)
 """
 
 ORDER = ["V", "A", "P", "N", "X"]
