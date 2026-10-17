@@ -26693,7 +26693,7 @@ def _run_fx_para_tokens(para_xml: str) -> list[str]:
     return tokens
 
 
-_RUN_FX_LO_DEFAULT_STYLES = {"bodytext", "textbody"}
+_RUN_FX_LO_DEFAULT_STYLES = {"bodytext", "textbody", "tablecontents"}
 
 
 def _run_fx_apply_para(para_xml: str, tokens: dict[str, str], current_lh: str | None,
