@@ -208,6 +208,7 @@ export class SlidesAdapter {
     // Đổi chữ hoa/thường: logic dùng chung với Writer (platform/text/change-case.js). Nút gốc/Shift+F3 xoay vòng.
     globalCommandBus.bindHandler("slides.text.changeCase", () => this._changeTextCase(""));
     globalCommandBus.bindHandler("slides.text.changeCaseMode", (arg) => this._changeTextCase(String(arg || "")));
+    globalCommandBus.bindHandler("slides.design.hideBackground", () => this.canvas.toggleHideBackgroundGraphics());
     globalCommandBus.bindHandler("slides.transition.apply", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
     // Tab Chuyển tiếp: thư viện hiệu ứng, thời gian, áp dụng tất cả, xem trước (cùng mô hình dữ liệu với hộp thoại).
     globalCommandBus.bindHandler("slides.transition.gallery", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
@@ -1840,7 +1841,7 @@ export class SlidesAdapter {
   }
 
   _slideNeedsOwnDrawingStyle(slide) {
-    return !!this._mapVnTransitionToSmil(slide?.transition) || !!slide?.hidden || this._hasPageBackground(slide);
+    return !!this._mapVnTransitionToSmil(slide?.transition) || !!slide?.hidden || !!slide?.hideBackgroundGraphics || this._hasPageBackground(slide);
   }
 
   _pageBackgroundFillAttrs(slide, idx) {
@@ -2160,6 +2161,7 @@ export class SlidesAdapter {
         duration: this._parseSmilTimeToMs(smilDur),
         vnType: this._mapSmilTransitionToVn(smilType, smilSubtype),
         hidden: /^hidden$/i.test(visibility),
+        bgObjectsHidden: /presentation:background-objects-visible=["']false["']/i.test(match[2]),
         fill,
         fillColor,
         gradientName,
@@ -2458,7 +2460,7 @@ export class SlidesAdapter {
       const fillAttrs = this._pageBackgroundFillAttrs(slide, idx);
       xml += `
     <style:style style:name="${name}" style:family="drawing-page">
-      <style:drawing-page-properties presentation:background-visible="true" presentation:background-objects-visible="true"${smilAttrs}${visibilityAttr}${fillAttrs}/>
+      <style:drawing-page-properties presentation:background-visible="true" presentation:background-objects-visible="${slide?.hideBackgroundGraphics ? "false" : "true"}"${smilAttrs}${visibilityAttr}${fillAttrs}/>
     </style:style>`;
     });
 
@@ -4498,6 +4500,7 @@ export class SlidesAdapter {
         ...(bodyHtml && this._htmlHasFormat(bodyHtml) ? { bodyHtml } : {}),
         ...(body2Html && this._htmlHasFormat(body2Html) ? { body2Html } : {}),
         layoutType: pageLayout,
+        ...(fromPageStyle.bgObjectsHidden ? { hideBackgroundGraphics: true } : {}),
         shapes,
         groups: shapes.groups || [],
         notes: notesText,

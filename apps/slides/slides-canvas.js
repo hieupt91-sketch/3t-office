@@ -6573,6 +6573,30 @@ const startEditing = (initialText) => {
     });
   }
 
+  /** Ẩn đồ họa nền: bỏ các hình/logo của bản cái trên trang đang chọn (PowerPoint: Thiết kế > Ẩn đồ họa nền). */
+  _applyBackgroundGraphicsVisibility() {
+    const slide = this.slides[this.currentSlideIndex];
+    const hide = !!slide?.hideBackgroundGraphics;
+    if (hide) {
+      if (this.masterAccentEl) this.masterAccentEl.style.display = "none";
+      if (this.masterLogoEl) this.masterLogoEl.style.display = "none";
+    }
+    try { globalCommandBus.updateState("slides.design.hideBackground", { checked: hide }); } catch (_) { /* chưa có bus */ }
+  }
+
+  toggleHideBackgroundGraphics() {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    const before = !!slide.hideBackgroundGraphics;
+    if (before) delete slide.hideBackgroundGraphics; else slide.hideBackgroundGraphics = true;
+    this.undoStack.push({ type: "slide-prop", slideIndex: this.currentSlideIndex, key: "hideBackgroundGraphics", before: before ? true : undefined, after: before ? undefined : true });
+    this.redoStack = [];
+    this._syncUndoRedoState?.();
+    this.selectSlide(this.currentSlideIndex);
+    this.options.onDocumentChange?.();
+    return true;
+  }
+
   selectSlide(index) {
     if (index < 0 || index >= this.slides.length) return;
     this.selectedShapeIds = new Set();
@@ -6592,6 +6616,7 @@ const startEditing = (initialText) => {
       this.masterFooterEl.style.display = "";
     }
 
+    this._applyBackgroundGraphicsVisibility();
     if (this.titleEl) this._setEditableContent(this.titleEl, s.titleHtml, s.title || "");
     if (this.bodyEl) this._setEditableContent(this.bodyEl, s.bodyHtml, s.body || "");
     if (this.body2El) this._setEditableContent(this.body2El, s.body2Html, s.body2 || "");
@@ -8177,6 +8202,13 @@ const startEditing = (initialText) => {
       this._restoreSlideTransitions(action.before);
       this.redoStack.push(action);
       return true;
+    } else if (action.type === "slide-prop") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      if (action.before === undefined) delete slide[action.key]; else slide[action.key] = action.before;
+      this.redoStack.push(action);
+      this.selectSlide(action.slideIndex);
+      return true;
     } else if (action.type === "shapes-style") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
@@ -8548,6 +8580,13 @@ const startEditing = (initialText) => {
     } else if (action.type === "slide-transition") {
       this._restoreSlideTransitions(action.after);
       this.undoStack.push(action);
+      return true;
+    } else if (action.type === "slide-prop") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      if (action.after === undefined) delete slide[action.key]; else slide[action.key] = action.after;
+      this.undoStack.push(action);
+      this.selectSlide(action.slideIndex);
       return true;
     } else if (action.type === "shapes-style") {
       const slide = this.slides[action.slideIndex];

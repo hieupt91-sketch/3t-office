@@ -392,7 +392,8 @@ export const SLIDES_RIBBON_TABS = [
         labelKey: "slidesRibbon.group.customize",
         items: [
           { type: "button", commandId: "slides.design.slideSize", isLarge: true },
-          { type: "button", commandId: "slides.design.formatBackground", isLarge: true }
+          { type: "button", commandId: "slides.design.formatBackground", isLarge: true },
+          { type: "button", commandId: "slides.design.hideBackground" }
         ]
       }
     ]

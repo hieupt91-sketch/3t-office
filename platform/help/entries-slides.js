@@ -209,6 +209,20 @@ export const SLIDES_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.design.hideBackground",
+    app: "slides",
+    commandIds: ["slides.design.hideBackground"],
+    title: "Ẩn đồ họa nền của trang chiếu",
+    summary: "Ẩn các hình trang trí và logo của bản cái trên riêng trang đang chọn (nền màu vẫn giữ), hữu ích cho trang bìa hoặc trang chỉ có ảnh.",
+    ribbon: { tab: "Thiết kế", tabId: "design", group: "Tùy chỉnh" },
+    keywords: ["ẩn đồ họa nền", "hide background graphics", "ẩn logo", "bản cái", "master", "trang bìa"],
+    steps: [
+      "Chọn trang chiếu cần ẩn ở thanh bên trái.",
+      "Tab Thiết kế > nhóm Tùy chỉnh > nhấn Ẩn đồ họa nền. Nút sáng lên khi đang bật và các hình/logo của bản cái biến mất khỏi trang này.",
+      "Nhấn lại nút để hiện trở lại. Chỉ trang đang chọn bị ảnh hưởng; các trang khác giữ nguyên. Ctrl+Z hoàn tác.",
+      "Lựa chọn được lưu vào tệp PPTX và giữ lại khi mở lại."
+    ]
+  },  {
     id: "slides.text.changeCase",
     app: "slides",
     commandIds: ["slides.text.changeCase", "slides.text.changeCaseMode"],
