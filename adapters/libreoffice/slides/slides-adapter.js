@@ -919,14 +919,17 @@ export class SlidesAdapter {
     this._walkHtml(html, {
       text: (text) => {
         // Khoảng trắng chỉ có xuống dòng giữa các thẻ là định dạng đẹp của HTML, không phải chữ của người dùng.
-        if (text && !/^[ \t]*[\r\n]\s*$/.test(text)) current.texts.push({ text, fmt: currentFmt() });
+        // Lề đoạn (indent) thuộc về đoạn, không được rò vào kiểu chữ của span.
+        if (text && !/^[ \t]*[\r\n]\s*$/.test(text)) { const fmt = currentFmt(); delete fmt.indent; current.texts.push({ text, fmt }); }
       },
       open: (tag, attrs) => {
         const css = this._styleFromHtmlAttrs(tag, attrs);
         if (css.align) current.align = css.align;
         if (css.lineHeight) current.lineHeight = css.lineHeight;
         if (css.indent) {
-          current.indent = !/^0(?:\.0+)?(?:[a-z%]+)?$/i.test(css.indent) ? css.indent : null;
+          // Lề 0 tường minh xóa lề của đoạn trước, nhưng không xóa lề cấp của khối trích dẫn (blockquote) bao ngoài.
+          if (!/^0(?:\.0+)?(?:[a-z%]+)?$/i.test(css.indent)) current.indent = css.indent;
+          else if (!blockquoteDepth) current.indent = null;
         }
         if (css.spaceBefore && !/^0(?:\.0+)?(?:[a-z%]+)?$/i.test(css.spaceBefore)) current.spaceBefore = css.spaceBefore;
         if (tag === "blockquote") {
