@@ -200,7 +200,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.arrange.group", category: "arrange", label: "Nhóm", icon: "shapeGroup", tooltip: "Nhóm các hình khối đang chọn thành một khối" },
   { id: "writer.arrange.ungroup", category: "arrange", label: "Bỏ nhóm", icon: "shapeUngroup", shortcut: "Ctrl+Shift+G", tooltip: "Tách nhóm hình khối đang chọn (Ctrl+Shift+G)" },
   { id: "writer.image.insert", category: "insert", label: "Hình ảnh", icon: "image", tooltip: "Chèn hình ảnh từ máy tính" },
-  { id: "writer.shape.insert", category: "insert", label: "Hình khối", icon: "shape", tooltip: "Chèn hình khối cơ bản (chữ nhật, hình tròn, mũi tên, đường thẳng)" },
+  { id: "writer.shape.insert", category: "insert", label: "Hình khối", icon: "shape", tooltip: "Chèn hình khối (chữ nhật, hình tròn, mũi tên, sao, trái tim, đường thẳng...)" },
   { id: "writer.diagram.insert", category: "insert", label: "Sơ đồ", icon: "diagram", tooltip: "Chèn sơ đồ quy trình, chu trình hoặc phân cấp" },
   { id: "writer.chart.insert", category: "insert", label: "Biểu đồ", icon: "chart", tooltip: "Chèn biểu đồ minh họa dữ liệu" },
   { id: "writer.insert.coverPage", category: "insert", label: "Trang bìa", icon: "coverPage", tooltip: "Mở thư viện 4 mẫu trang bìa hành chính và báo cáo để chèn vào đầu tài liệu" },

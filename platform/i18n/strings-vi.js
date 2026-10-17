@@ -1297,7 +1297,7 @@ export const viStrings = {
     "writer.image.changePicture": { label: "Đổi ảnh khác", tooltip: "Thay thế ảnh hiện tại bằng một tệp ảnh khác nhưng giữ nguyên bố cục" },
     "writer.image.resetPicture": { label: "Đặt lại ảnh", tooltip: "Khôi phục ảnh về trạng thái kích thước và màu sắc ban đầu" },
     "writer.image.compress": { label: "Nén ảnh", tooltip: "Giảm dung lượng tệp ảnh để tối ưu kích thước tài liệu" },
-    "writer.shape.insert": { label: "Hình khối", tooltip: "Chèn hình khối cơ bản (chữ nhật, hình tròn, mũi tên, đường thẳng)" },
+    "writer.shape.insert": { label: "Hình khối", tooltip: "Chèn hình khối (chữ nhật, hình tròn, mũi tên, sao, trái tim, đường thẳng...)" },
     "writer.diagram.insert": { label: "Sơ đồ", tooltip: "Chèn sơ đồ quy trình, chu trình hoặc phân cấp" },
     "writer.chart.insert": { label: "Biểu đồ", tooltip: "Chèn biểu đồ minh họa dữ liệu" },
     "writer.insert.coverPage": { label: "Trang bìa", tooltip: "Mở thư viện 4 mẫu trang bìa hành chính và báo cáo để chèn vào đầu tài liệu" },

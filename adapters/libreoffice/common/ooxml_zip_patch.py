@@ -23982,6 +23982,10 @@ def _writer_restore_native_writer_shapes(document_xml: str, source_html: str) ->
         "rectangle": "rect", "round-rect": "roundRect", "roundrect": "roundRect",
         "circle": "ellipse", "triangle": "triangle", "diamond": "diamond",
         "arrow": "rightArrow", "line": "line",
+        # Hình dựng sẵn dùng chung (platform/shapes/shape-presets.js): id trùng tên prstGeom OOXML.
+        **{name.lower(): name for name in (
+            "rtTriangle", "parallelogram", "trapezoid", "pentagon", "hexagon", "star5", "plus",
+            "leftArrow", "upArrow", "downArrow", "heart", "wedgeRectCallout")},
     }
 
     def emu(value: object) -> int | None:

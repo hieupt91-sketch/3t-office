@@ -1298,7 +1298,7 @@ export const enStrings = {
     "writer.image.changePicture": { label: "Change Picture", tooltip: "Replace the current picture while keeping formatting" },
     "writer.image.resetPicture": { label: "Reset Picture", tooltip: "Reset picture back to its original size and formatting" },
     "writer.image.compress": { label: "Compress Picture", tooltip: "Compress picture data to optimize document file size" },
-    "writer.shape.insert": { label: "Shapes", tooltip: "Insert basic shapes (rectangle, circle, arrow, line)" },
+    "writer.shape.insert": { label: "Shapes", tooltip: "Insert shapes (rectangle, circle, arrow, star, heart, line...)" },
     "writer.diagram.insert": { label: "SmartArt", tooltip: "Insert a SmartArt diagram (process, cycle, hierarchy, list)" },
     "writer.chart.insert": { label: "Chart", tooltip: "Insert an illustration chart" },
     "writer.insert.coverPage": { label: "Cover Page", tooltip: "Open cover page gallery with 4 administrative and report templates" },

@@ -4,6 +4,7 @@
  */
 
 import { t, getLocale } from "../../platform/i18n/i18n.js";
+import { SHAPE_PRESETS, presetOf } from "../../platform/shapes/shape-presets.js";
 
 // =============================================================================
 // PHẦN 1: HÌNH KHỐI CƠ BẢN (SHAPES)
@@ -16,7 +17,11 @@ export const SHAPE_TYPES = [
   { id: "triangle", nameVi: "Hình tam giác", nameEn: "Triangle", defaultW: 120, defaultH: 100 },
   { id: "diamond", nameVi: "Hình thoi", nameEn: "Diamond", defaultW: 120, defaultH: 100 },
   { id: "arrow", nameVi: "Mũi tên sang phải", nameEn: "Right Arrow", defaultW: 140, defaultH: 70 },
-  { id: "line", nameVi: "Đường thẳng ngang", nameEn: "Horizontal Line", defaultW: 160, defaultH: 30 }
+  { id: "line", nameVi: "Đường thẳng ngang", nameEn: "Horizontal Line", defaultW: 160, defaultH: 30 },
+  // Hình dựng sẵn dùng chung với Slides; lưu ra DOCX thành hình tự động chuẩn (prstGeom cùng tên).
+  ...SHAPE_PRESETS
+    .filter((p) => !["roundRect", "triangle", "diamond", "rightArrow"].includes(p.id))
+    .map((p) => ({ id: p.id, nameVi: p.label, nameEn: p.id, defaultW: 120, defaultH: 100 }))
 ];
 
 /**
@@ -72,6 +77,13 @@ export function renderShapeSvg(shape) {
     }
     return `<svg viewBox="0 0 100 20" width="100%" height="100%" preserveAspectRatio="none">
       <line x1="4" y1="10" x2="96" y2="10" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linecap="round"/>
+    </svg>`;
+  }
+
+  const preset = presetOf(type);
+  if (preset?.path) {
+    return `<svg viewBox="0 0 100 100" width="100%" height="100%" preserveAspectRatio="none">
+      <path d="${preset.path}" fill="${fill}" stroke="${stroke}" stroke-width="${strokeWidth}" stroke-linejoin="round" vector-effect="non-scaling-stroke"/>
     </svg>`;
   }
 
@@ -136,7 +148,7 @@ export async function showShapeDialog(currentOptions = null) {
           <span id="vno-shape-dialog-title">${isEn ? "Insert Shape" : "Chèn hình khối"}</span>
           <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="${t("common.close")}" aria-label="${t("common.close")}">&times;</button>
         </div>
-        <div class="vno-dialog-body" style="display:flex; flex-direction:column; gap:14px;">
+        <div class="vno-dialog-body" style="display:flex; flex-direction:column; gap:14px; max-height:min(70vh, 520px); overflow-y:auto;">
           <p style="margin:0; font-size:13px; color:var(--vno-text-secondary);">
             ${isEn ? "Select a basic geometric shape to insert onto the page layer:" : "Chọn hình khối cơ bản cần chèn vào trang văn bản:"}
           </p>
