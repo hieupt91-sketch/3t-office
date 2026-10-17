@@ -9815,8 +9815,8 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.table.viewGridlines", () => this.toggleTableGridlines());
     globalCommandBus.bindHandler("writer.table.sort", () => this._hintIfFalse(() => this.sortTableRows(), "Hãy đặt con trỏ vào bảng cần sắp xếp."));
     globalCommandBus.bindHandler("writer.view.selectionPane", (args) => this.arrangeController?.toggleSelectionPane(args));
-    globalCommandBus.bindHandler("writer.arrange.group", () => this.arrangeController?.groupSelectedObjects());
-    globalCommandBus.bindHandler("writer.arrange.ungroup", () => this.arrangeController?.ungroupSelectedObjects());
+    globalCommandBus.bindHandler("writer.arrange.group", () => this._hintIfFalse(() => Boolean(this.arrangeController?.groupSelectedObjects()), "Hãy chọn ít nhất hai hình hoặc ảnh (giữ Ctrl khi nhấp) để nhóm."));
+    globalCommandBus.bindHandler("writer.arrange.ungroup", () => this._hintIfFalse(() => Boolean(this.arrangeController?.ungroupSelectedObjects()), "Hãy chọn một nhóm hình để bỏ nhóm."));
     globalCommandBus.bindHandler("writer.view.split", (args) => this.splitView?.toggleSplit(args));
   }
 
