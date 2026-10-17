@@ -27,6 +27,7 @@ import difflib
 import multiprocessing
 from concurrent.futures import ProcessPoolExecutor
 import html
+import base64
 import bisect
 import io
 import json
@@ -22138,6 +22139,104 @@ def _merge_writer_styles(source_styles_xml: str, converted_styles_xml: str) -> s
     return source_styles_xml[:close] + "".join(extra) + source_styles_xml[close:]
 
 
+def _writer_custom_style_xml(style: dict) -> str | None:
+    """Build a constrained paragraph style from the local Writer style dialog metadata."""
+    style_id = str(style.get("id") or "")
+    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,39}", style_id):
+        return None
+    name = html.escape(str(style.get("name") or style_id), quote=True)
+    based_on = str(style.get("basedOn") or "Normal")
+    next_style = str(style.get("next") or "Normal")
+    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,39}", based_on):
+        based_on = "Normal"
+    if not re.fullmatch(r"[A-Za-z][A-Za-z0-9_]{0,39}", next_style):
+        next_style = "Normal"
+    size = max(1, min(200, float(style.get("size") or 11)))
+    after = max(0, min(200, float(style.get("spaceAfter") or 0)))
+    line = max(0.5, min(3, float(style.get("lineSpacing") or 1)))
+    left = max(0, min(500, float(style.get("leftIndent") or 0)))
+    first = max(-500, min(500, float(style.get("firstLineIndent") or 0)))
+    color = str(style.get("color") or "#000000").lstrip("#")
+    if not re.fullmatch(r"[0-9a-fA-F]{6}", color):
+        color = "000000"
+    font = html.escape(str(style.get("font") or "Arial"), quote=True)
+    alignment = {"left": "left", "center": "center", "right": "right", "justify": "both"}.get(str(style.get("alignment") or "left"), "left")
+    after_twips, left_twips, first_twips = round(after * 20), round(left * 20), round(first * 20)
+    line_twips = round(line * 240)
+    ind = f'<w:ind w:left="{left_twips}"' + (f' w:firstLine="{first_twips}"' if first_twips >= 0 else f' w:hanging="{-first_twips}"') + '/>'
+    rpr = f'<w:rFonts w:ascii="{font}" w:hAnsi="{font}" w:eastAsia="{font}" w:cs="{font}"/>'
+    if style.get("bold"):
+        rpr += '<w:b/><w:bCs/>'
+    if style.get("italic"):
+        rpr += '<w:i/><w:iCs/>'
+    rpr += f'<w:color w:val="{color.upper()}"/><w:sz w:val="{round(size * 2)}"/><w:szCs w:val="{round(size * 2)}"/>'
+    return (f'<w:style w:type="paragraph" w:customStyle="1" w:styleId="{style_id}"><w:name w:val="{name}"/>'
+            f'<w:basedOn w:val="{based_on}"/><w:next w:val="{next_style}"/><w:qFormat/>'
+            f'<w:pPr><w:spacing w:after="{after_twips}" w:line="{line_twips}" w:lineRule="auto"/><w:ind w:left="{left_twips}"' +
+            (f' w:firstLine="{first_twips}"' if first_twips >= 0 else f' w:hanging="{-first_twips}"') +
+            f'/><w:jc w:val="{alignment}"/></w:pPr><w:rPr>{rpr}</w:rPr></w:style>')
+
+
+def _writer_restore_custom_paragraph_styles(docx_bytes: bytes, source_html: str) -> bytes:
+    """Persist custom paragraph styles and paragraph references from Writer's local HTML payload."""
+    entries = []
+    for match in re.finditer(r'<(p|div|h[1-6]|blockquote)\b(?=[^>]*\bdata-vno-style-id=)([^>]*)>([\s\S]*?)</\1\s*>', source_html or "", re.IGNORECASE):
+        attrs = match.group(2)
+        style_id = re.search(r'\bdata-vno-style-id=["\']([A-Za-z][A-Za-z0-9_]{0,39})["\']', attrs, re.IGNORECASE)
+        encoded = re.search(r'\bdata-vno-style-definition=["\']([A-Za-z0-9+/=_-]+)["\']', attrs, re.IGNORECASE)
+        if not style_id or not encoded:
+            continue
+        try:
+            style = json.loads(base64.b64decode(encoded.group(1)).decode("utf-8"))
+        except (ValueError, UnicodeDecodeError, json.JSONDecodeError):
+            continue
+        if style.get("id") != style_id.group(1):
+            continue
+        plain = re.sub(r"\s+", " ", _writer_html_plain(match.group(3))).strip()
+        entries.append((style_id.group(1), plain, style))
+    if not entries:
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    styles_bytes = read_zip_entry(docx_bytes, "word/styles.xml")
+    if not document_bytes or not styles_bytes:
+        return docx_bytes
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    styles_xml = styles_bytes.decode("utf-8", errors="replace")
+    style_re = re.compile(r'<w:style\b[^>]*\bw:styleId=["\']([^"\']+)["\'][^>]*>[\s\S]*?</w:style\s*>|<w:style\b[^>]*\bw:styleId=["\']([^"\']+)["\'][^>]*/>', re.IGNORECASE)
+    existing = {m.group(1) or m.group(2) for m in style_re.finditer(styles_xml)}
+    for style_id, _plain, style in entries:
+        if style_id not in existing:
+            definition = _writer_custom_style_xml(style)
+            close = styles_xml.rfind("</w:styles>")
+            if definition and close >= 0:
+                styles_xml = styles_xml[:close] + definition + styles_xml[close:]
+                existing.add(style_id)
+    paragraphs = list(re.finditer(r'<w:p\b[^>]*>[\s\S]*?</w:p\s*>', document_xml, re.IGNORECASE))
+    cursor = 0
+    updates = {}
+    for style_id, expected_text, _style in entries:
+        if not expected_text:
+            continue
+        for index in range(cursor, len(paragraphs)):
+            paragraph = paragraphs[index].group(0)
+            if re.sub(r"\s+", " ", _paragraph_plain_text(paragraph)).strip() != expected_text:
+                continue
+            updates[index] = _writer_upsert_ppr_empty(paragraph, "pStyle", f'<w:pStyle w:val="{style_id}"/>')
+            cursor = index + 1
+            break
+    if updates:
+        output = []
+        previous = 0
+        for index, paragraph in enumerate(paragraphs):
+            output.extend((document_xml[previous:paragraph.start()], updates.get(index, paragraph.group(0))))
+            previous = paragraph.end()
+        output.append(document_xml[previous:])
+        document_xml = "".join(output)
+    if document_xml == document_bytes.decode("utf-8", errors="replace") and styles_xml == styles_bytes.decode("utf-8", errors="replace"):
+        return docx_bytes
+    return patch_ooxml_zip(docx_bytes, {"word/document.xml": document_xml.encode("utf-8"), "word/styles.xml": styles_xml.encode("utf-8")})
+
+
 # Thứ tự phần tử con của w:pPr theo lược đồ OOXML (CT_PPrBase + rPr, sectPr, pPrChange): Word từ chối/sửa tệp sai thứ tự.
 _PPR_CHILD_ORDER = (
     "pStyle", "keepNext", "keepLines", "pageBreakBefore", "framePr", "widowControl", "numPr", "suppressLineNumbers",
@@ -25848,7 +25947,8 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             replacements["word/settings.xml"] = minimal_settings.encode("utf-8")
     document_xml = _writer_restore_native_writer_shapes(document_xml, source_html)
     replacements["word/document.xml"] = document_xml.encode("utf-8")
-    return patch_ooxml_zip(docx_bytes, replacements)
+    result = patch_ooxml_zip(docx_bytes, replacements)
+    return _writer_restore_custom_paragraph_styles(result, source_html)
 
 
 def _writer_review_metadata(source_html: str) -> dict | None:
