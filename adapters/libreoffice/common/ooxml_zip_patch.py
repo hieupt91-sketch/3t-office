@@ -12182,6 +12182,174 @@ def _apply_slides_native_connectors(
     return replacements
 
 
+def _apply_slides_native_text_formatting(
+    pptx_bytes: bytes,
+    source_pptx: bytes | None = None,
+    base_replacements: dict[str, str] | None = None,
+) -> dict[str, str]:
+    if not source_pptx:
+        return {}
+    target_entries = _resolve_pptx_slide_entries(pptx_bytes)
+    src_entries = _resolve_pptx_slide_entries(source_pptx)
+    if not target_entries or not src_entries:
+        return {}
+
+    replacements: dict[str, str] = {}
+    for idx, entry in enumerate(target_entries):
+        if idx >= len(src_entries):
+            continue
+        src_bytes = read_zip_entry(source_pptx, src_entries[idx])
+        if not src_bytes:
+            continue
+        src_xml = src_bytes.decode("utf-8", errors="replace")
+
+        # Map slide rels
+        parts = entry.split("/")
+        rels_entry = f"{'/'.join(parts[:-1])}/_rels/{parts[-1]}.rels"
+        src_rels_bytes = read_zip_entry(source_pptx, rels_entry)
+        src_rels_xml = src_rels_bytes.decode("utf-8", errors="replace") if src_rels_bytes else ""
+        target_rels_bytes = read_zip_entry(pptx_bytes, rels_entry)
+        target_rels_xml = (base_replacements or {}).get(rels_entry) or (target_rels_bytes.decode("utf-8", errors="replace") if target_rels_bytes else "")
+
+        # Parse src relationships
+        src_rels: dict[str, dict[str, str]] = {}
+        if src_rels_xml:
+            for m in re.finditer(r'<Relationship\b([^>]*)/?>', src_rels_xml, re.IGNORECASE):
+                r_attrs = m.group(1)
+                r_id = re.search(r'\bId=["\']([^"\']*)["\']', r_attrs, re.IGNORECASE)
+                r_target = re.search(r'\bTarget=["\']([^"\']*)["\']', r_attrs, re.IGNORECASE)
+                r_type = re.search(r'\bType=["\']([^"\']*)["\']', r_attrs, re.IGNORECASE)
+                if r_id and r_target and r_type:
+                    src_rels[r_id.group(1)] = {
+                        "id": r_id.group(1),
+                        "target": r_target.group(1),
+                        "type": r_type.group(1),
+                    }
+
+        # Parse shapes from src_xml
+        src_shapes: dict[str, str] = {}
+        for m in re.finditer(r'<p:sp\b[\s\S]*?</p:sp>', src_xml, re.IGNORECASE):
+            sp = m.group(0)
+            nm = re.search(r'<p:cNvPr\b[^>]*\bname=["\']([^"\']*)["\']', sp, re.IGNORECASE)
+            if nm:
+                src_shapes[_unescape_xml(nm.group(1))] = sp
+
+        if not src_shapes:
+            continue
+
+        original = (base_replacements or {}).get(entry) or read_zip_entry(pptx_bytes, entry).decode("utf-8", errors="replace")
+        xml = original
+        changed_slide = False
+        changed_rels = False
+
+        existing_rids = set(re.findall(r'\bId=["\']([^"\']*)["\']', target_rels_xml, re.IGNORECASE))
+        rel_target_to_id: dict[str, str] = {}
+        for m in re.finditer(r'<Relationship\b([^>]*)/?>', target_rels_xml, re.IGNORECASE):
+            r_attrs = m.group(1)
+            r_id = re.search(r'\bId=["\']([^"\']*)["\']', r_attrs, re.IGNORECASE)
+            r_target = re.search(r'\bTarget=["\']([^"\']*)["\']', r_attrs, re.IGNORECASE)
+            if r_id and r_target:
+                rel_target_to_id[r_target.group(1)] = r_id.group(1)
+
+        def alloc_rid(preferred_id: str) -> str:
+            if preferred_id not in existing_rids:
+                existing_rids.add(preferred_id)
+                return preferred_id
+            i = 10
+            while f"rId{i}" in existing_rids:
+                i += 1
+            nid = f"rId{i}"
+            existing_rids.add(nid)
+            return nid
+
+        def patch_sp(m: re.Match) -> str:
+            nonlocal changed_slide, changed_rels, target_rels_xml
+            sp = m.group(0)
+            nm = re.search(r'<p:cNvPr\b[^>]*\bname=["\']([^"\']*)["\']', sp, re.IGNORECASE)
+            if not nm:
+                return sp
+            name = _unescape_xml(nm.group(1))
+            if name not in src_shapes:
+                return sp
+            src_sp = src_shapes[name]
+
+            src_paras = list(re.finditer(r'<a:p\b[\s\S]*?</a:p>', src_sp, re.IGNORECASE))
+            p_idx = 0
+
+            def patch_p(pm: re.Match) -> str:
+                nonlocal p_idx, changed_slide, changed_rels, target_rels_xml
+                p_xml = pm.group(0)
+                src_p_xml = src_paras[p_idx].group(0) if p_idx < len(src_paras) else None
+                p_idx += 1
+
+                # 1. Match font typeface on endParaRPr to run typeface
+                run_font_m = re.search(r'<a:rPr\b[\s\S]*?<a:latin\b[^>]*\btypeface=["\']([^"\']*)["\']', p_xml, re.IGNORECASE)
+                if run_font_m:
+                    run_tf = run_font_m.group(1)
+                    end_font_m = re.search(r'(<a:endParaRPr\b[\s\S]*?<a:latin\b[^>]*\btypeface=["\'])([^"\']*)(["\'])', p_xml, re.IGNORECASE)
+                    if end_font_m and end_font_m.group(2).lower() != run_tf.lower():
+                        p_xml = p_xml[:end_font_m.start(2)] + run_tf + p_xml[end_font_m.end(2):]
+                        changed_slide = True
+
+                # 2. Level 0 reset if source paragraph had no lvl
+                if src_p_xml:
+                    src_lvl_m = re.search(r'<a:pPr\b[^>]*\blvl=["\'](\d+)["\']', src_p_xml, re.IGNORECASE)
+                    if not src_lvl_m or src_lvl_m.group(1) == "0":
+                        target_lvl_m = re.search(r'<a:pPr\b[^>]*\blvl=["\']([1-9]\d*)["\']', p_xml, re.IGNORECASE)
+                        if target_lvl_m:
+                            p_xml = re.sub(r'\s*\blvl=["\'][1-9]\d*["\']', '', p_xml, count=1, flags=re.IGNORECASE)
+                            changed_slide = True
+
+                # 3. Hyperlinks in runs
+                if src_p_xml and "<a:hlinkClick" in src_p_xml:
+                    for src_r in re.finditer(r'<a:r\b[\s\S]*?</a:r>', src_p_xml, re.IGNORECASE):
+                        hlink_m = re.search(r'<a:hlinkClick\b([^>]*)/?>', src_r.group(0), re.IGNORECASE)
+                        t_m = re.search(r'<a:t\b[^>]*>([\s\S]*?)</a:t>', src_r.group(0), re.IGNORECASE)
+                        if hlink_m and t_m:
+                            src_t = t_m.group(1)
+                            h_attrs = hlink_m.group(1)
+                            old_rid_m = re.search(r'\br:id=["\']([^"\']*)["\']', h_attrs, re.IGNORECASE)
+                            act_m = re.search(r'\baction=["\']([^"\']*)["\']', h_attrs, re.IGNORECASE)
+                            if old_rid_m and old_rid_m.group(1) in src_rels:
+                                s_rel = src_rels[old_rid_m.group(1)]
+                                if s_rel["target"] in rel_target_to_id:
+                                    t_rid = rel_target_to_id[s_rel["target"]]
+                                else:
+                                    t_rid = alloc_rid(old_rid_m.group(1))
+                                    rel_target_to_id[s_rel["target"]] = t_rid
+                                    new_rel_tag = f'<Relationship Id="{t_rid}" Type="{s_rel["type"]}" Target="{s_rel["target"]}"/>'
+                                    if "</Relationships>" in target_rels_xml:
+                                        target_rels_xml = target_rels_xml.replace("</Relationships>", f"{new_rel_tag}</Relationships>")
+                                        changed_rels = True
+
+                                act_attr = f' action="{act_m.group(1)}"' if act_m else ""
+                                hlink_tag = f'<a:hlinkClick r:id="{t_rid}"{act_attr}/>'
+
+                                def patch_run(rm: re.Match) -> str:
+                                    nonlocal changed_slide
+                                    r_str = rm.group(0)
+                                    if src_t in r_str and "<a:hlinkClick" not in r_str:
+                                        r_str = re.sub(r'(<a:rPr\b[^>]*?>)', rf'\g<1>{hlink_tag}', r_str, count=1, flags=re.IGNORECASE)
+                                        changed_slide = True
+                                    return r_str
+
+                                p_xml = re.sub(r'<a:r\b[\s\S]*?</a:r>', patch_run, p_xml, flags=re.IGNORECASE)
+
+                return p_xml
+
+            new_sp = re.sub(r'<a:p\b[\s\S]*?</a:p>', patch_p, sp, flags=re.IGNORECASE)
+            return new_sp
+
+        next_xml = re.sub(r'<p:sp\b[\s\S]*?</p:sp>', patch_sp, xml, flags=re.IGNORECASE)
+        if changed_slide and next_xml != original:
+            replacements[entry] = next_xml
+        if changed_rels and target_rels_xml:
+            replacements[rels_entry] = target_rels_xml
+
+    return replacements
+
+
+
 
 
 
@@ -12454,7 +12622,14 @@ def postprocess_slides_pptx(
          **shadow_replacements, **source_transition_replacements, **textbox_replacements,
          **shape_line_replacements, **picture_replacements, **group_replacements},
     )
-    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements and not native_timing_replacements and not shadow_replacements and not source_transition_replacements and not textbox_replacements and not shape_line_replacements and not picture_replacements and not group_replacements and not connector_replacements and not restore_masters:
+    text_fmt_replacements = _apply_slides_native_text_formatting(
+        pptx_bytes, source_pptx,
+        {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,
+         **transition_replacements, **wordart_replacements, **layout_replacements, **native_timing_replacements,
+         **shadow_replacements, **source_transition_replacements, **textbox_replacements,
+         **shape_line_replacements, **picture_replacements, **group_replacements, **connector_replacements},
+    )
+    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements and not native_timing_replacements and not shadow_replacements and not source_transition_replacements and not textbox_replacements and not shape_line_replacements and not picture_replacements and not group_replacements and not connector_replacements and not text_fmt_replacements and not restore_masters:
         return pptx_bytes
     replacements.update(animation_replacements)
     replacements.update(paragraph_level_replacements)
@@ -12471,6 +12646,7 @@ def postprocess_slides_pptx(
     replacements.update(picture_replacements)
     replacements.update(group_replacements)
     replacements.update(connector_replacements)
+    replacements.update(text_fmt_replacements)
 
     if apply_slide_size and presentation_xml:
         presentation_xml = apply_intended_slide_size(presentation_xml, intended_size)

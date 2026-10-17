@@ -867,7 +867,9 @@ export class SlidesAdapter {
         const css = this._styleFromHtmlAttrs(tag, attrs);
         if (css.align) current.align = css.align;
         if (css.lineHeight) current.lineHeight = css.lineHeight;
-        if (css.indent && !/^0(?:\.0+)?(?:[a-z%]+)?$/i.test(css.indent)) current.indent = css.indent;
+        if (css.indent) {
+          current.indent = !/^0(?:\.0+)?(?:[a-z%]+)?$/i.test(css.indent) ? css.indent : null;
+        }
         if (css.spaceBefore && !/^0(?:\.0+)?(?:[a-z%]+)?$/i.test(css.spaceBefore)) current.spaceBefore = css.spaceBefore;
         if (tag === "blockquote") {
           blockquoteDepth += 1;
@@ -888,6 +890,7 @@ export class SlidesAdapter {
         if (tag === "li" || tag === "p" || tag === "div") {
           if (current.texts.length || tag === "li") flush();
           current.spaceBefore = null;
+          current.indent = blockquoteDepth ? `${blockquoteDepth * 36}pt` : (base?.indent || null);
         }
         if (tag === "blockquote") {
           if (current.texts.length) flush();

@@ -1703,6 +1703,19 @@ export async function runSlidesFileIoTests() {
     }
   });
 
+  test("SlidesAdapter: preserve paragraph indent levels without leaking to zero-indent paragraphs (Item j)", () => {
+    const adapter = new SlidesAdapter(null);
+    const html = '<div style="margin-left:0cm"><span>P1</span></div><div style="margin-left:1.27cm"><span>P2</span></div><div style="margin-left:2.54cm"><span>P3</span></div><div style="margin-left:0cm"><span>P4</span></div>';
+    const ctx = { textStyles: [], paraStyles: [], listStyles: [] };
+    const xml = adapter._htmlToOdfXml(html, ctx);
+    const paras = xml.match(/<text:p\b[^>]*>[\s\S]*?<\/text:p>/g) || [];
+    if (paras.length !== 4) throw new Error(`Expected 4 paragraphs, got ${paras.length}`);
+    if (paras[0].includes("text:style-name=")) throw new Error("P1 should have no indent style");
+    if (!paras[1].includes("text:style-name=")) throw new Error("P2 should have indent style");
+    if (!paras[2].includes("text:style-name=")) throw new Error("P3 should have indent style");
+    if (paras[3].includes("text:style-name=")) throw new Error("P4 should not inherit indent from P3");
+  });
+
   return results;
 }
 
