@@ -116,13 +116,13 @@ Chèn|Văn bản|WordArt / Dòng chữ ký / Đối tượng nhúng|N|3|
 Chèn|Ký hiệu|Công thức (Equation)|N|3|
 Chèn|Ký hiệu|Ký hiệu (Symbol)|A|-|insertSymbol
 Bố trí trang|Giao diện|Chủ đề (Themes) / Màu / Phông / Hiệu ứng|N|2|
-Bố trí trang|Thiết lập trang|Lề (Margins) / Hướng giấy / Khổ giấy|V|-|Landscape, Legal đã đọc lại bằng Excel 2016
+Bố trí trang|Thiết lập trang|Lề (Margins) / Hướng giấy / Khổ giấy|V|-|sheet.page.margins sheet.page.orientation sheet.page.size: Landscape, Legal đã đọc lại bằng Excel 2016; danh sách chọn nhanh Thường/Rộng/Hẹp, Dọc/Ngang, A3/A4... Excel 2016 đọc đúng lề, Landscape, A3 (docs/AUDIT-SHEET-PAGE-GALLERY-1710.md:6)
 Bố trí trang|Thiết lập trang|Vùng in / Xóa vùng in|V|-|Print area đã đối chiếu
 Bố trí trang|Thiết lập trang|Ngắt trang (chèn, xóa, đặt lại)|V|-|HBreaks/VBreaks đã đối chiếu
 Bố trí trang|Thiết lập trang|Hình nền (Background)|N|3|
 Bố trí trang|Thiết lập trang|In tiêu đề (Print Titles)|V|-|TitlesRows đã đối chiếu
 Bố trí trang|Thiết lập trang|Hộp thoại Page Setup đủ tab Trang/Lề/Đầu-Chân/Trang tính|P|1|Thiếu một số tùy chọn tab Trang tính (in lưới, tiêu đề, thứ tự trang)
-Bố trí trang|Vừa trang|Chiều rộng / Chiều cao (Fit to pages) / Tỷ lệ %|P|1|Có Tỷ lệ; chưa có Fit to W x H tách riêng
+Bố trí trang|Vừa trang|Chiều rộng / Chiều cao (Fit to pages) / Tỷ lệ %|V|-|sheet.page.fitWidth sheet.page.fitHeight sheet.page.scale: danh sách Chiều rộng/Chiều cao (Tự động, 1-5 trang) lưu rồi Excel 2016 đọc FitToPagesWide=1, FitToPagesTall=Tự động, Zoom=False (docs/AUDIT-SHEET-PAGE-GALLERY-1710.md:18)
 Bố trí trang|Tùy chọn trang tính|Hiện/In đường lưới và tiêu đề|P|2|Hiện có; hộp xem trước in có tùy chọn in đường lưới; in tiêu đề hàng/cột cần kiểm
 Bố trí trang|Sắp xếp|Đưa lên trên / Xuống dưới / Ngăn chọn / Căn / Nhóm / Xoay đối tượng|V|-|16/10 (AGY-ARRANGE): lớp, căn, phân bố, nhóm, xoay/lật, Ngăn chọn; cases-10 21/21 điểm khớp Excel, LAN 10/10
 Công thức|Thư viện hàm|Chèn hàm (Shift+F3) + hộp thoại đối số|A|-|sheet.formula.insertFunction

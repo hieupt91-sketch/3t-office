@@ -16,15 +16,15 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu Excel 2016 | 88 | 41% |
+| ✅ Đã đối chiếu Excel 2016 | 89 | 42% |
 | 🟢 Có, chưa đối chiếu | 55 | 26% |
-| 🟡 Có một phần | 29 | 14% |
+| 🟡 Có một phần | 28 | 13% |
 | 🔴 Chưa có | 41 | 19% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
 
 - **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 74%**
-- **Đã xác minh bằng đối chiếu Excel 2016 thật: 41%** các mục áp dụng
+- **Đã xác minh bằng đối chiếu Excel 2016 thật: 42%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ 462 hàm) chỉ tính một mục; mức phủ hàm nằm ở dòng riêng và ở `EXCEL2016-FUNCTIONS-MATRIX.md`.
 
@@ -35,7 +35,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Tệp (Backstage) | 17 | 3 | 8 | 4 | 1 | 1 | 81% |
 | Trang đầu | 53 | 25 | 15 | 10 | 3 | 0 | 85% |
 | Chèn | 29 | 9 | 5 | 2 | 11 | 2 | 56% |
-| Bố trí trang | 10 | 5 | 0 | 3 | 2 | 0 | 65% |
+| Bố trí trang | 10 | 6 | 0 | 2 | 2 | 0 | 70% |
 | Công thức | 13 | 6 | 6 | 1 | 0 | 0 | 96% |
 | Dữ liệu | 19 | 13 | 0 | 3 | 3 | 0 | 76% |
 | Xem xét | 12 | 1 | 3 | 2 | 5 | 1 | 45% |
@@ -56,10 +56,9 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 |---|---|---|---|---|
 | Tệp (Backstage) | Thông tin | Bảo vệ sổ làm việc bằng mật khẩu mở file (mã hóa) | 🔴 | Chưa có mã hóa file; chỉ có bảo vệ cấu trúc |
 | Bố trí trang | Thiết lập trang | Hộp thoại Page Setup đủ tab Trang/Lề/Đầu-Chân/Trang tính | 🟡 | Thiếu một số tùy chọn tab Trang tính (in lưới, tiêu đề, thứ tự trang) |
-| Bố trí trang | Vừa trang | Chiều rộng / Chiều cao (Fit to pages) / Tỷ lệ % | 🟡 | Có Tỷ lệ; chưa có Fit to W x H tách riêng |
 | Công thức | Thư viện hàm | Độ phủ hàm Excel 2016 (462 hàm) | 🟡 | 16/10: engine hỗ trợ 436 hàm, 387 hàm có ca đối chiếu Excel 2016 (14 tệp golden, chạy trong npm test); còn thiếu hàm trả mảng (MMULT, MINVERSE, LINEST…), cần kế hoạch riêng |
 
-Tổng: 4 mục ưu tiên 1.
+Tổng: 3 mục ưu tiên 1.
 
 ## Chi tiết từng tab
 
@@ -182,13 +181,13 @@ Tổng: 4 mục ưu tiên 1.
 | Nhóm | Tính năng Excel 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Sheet |
 |---|---|---|---|---|
 | Giao diện | Chủ đề (Themes) / Màu / Phông / Hiệu ứng | 🔴 | 2 |  |
-| Thiết lập trang | Lề (Margins) / Hướng giấy / Khổ giấy | ✅ | - | Landscape, Legal đã đọc lại bằng Excel 2016 |
+| Thiết lập trang | Lề (Margins) / Hướng giấy / Khổ giấy | ✅ | - | sheet.page.margins sheet.page.orientation sheet.page.size: Landscape, Legal đã đọc lại bằng Excel 2016; danh sách chọn nhanh Thường/Rộng/Hẹp, Dọc/Ngang, A3/A4... Excel 2016 đọc đúng lề, Landscape, A3 (docs/AUDIT-SHEET-PAGE-GALLERY-1710.md:6) |
 | Thiết lập trang | Vùng in / Xóa vùng in | ✅ | - | Print area đã đối chiếu |
 | Thiết lập trang | Ngắt trang (chèn, xóa, đặt lại) | ✅ | - | HBreaks/VBreaks đã đối chiếu |
 | Thiết lập trang | Hình nền (Background) | 🔴 | 3 |  |
 | Thiết lập trang | In tiêu đề (Print Titles) | ✅ | - | TitlesRows đã đối chiếu |
 | Thiết lập trang | Hộp thoại Page Setup đủ tab Trang/Lề/Đầu-Chân/Trang tính | 🟡 | 1 | Thiếu một số tùy chọn tab Trang tính (in lưới, tiêu đề, thứ tự trang) |
-| Vừa trang | Chiều rộng / Chiều cao (Fit to pages) / Tỷ lệ % | 🟡 | 1 | Có Tỷ lệ; chưa có Fit to W x H tách riêng |
+| Vừa trang | Chiều rộng / Chiều cao (Fit to pages) / Tỷ lệ % | ✅ | - | sheet.page.fitWidth sheet.page.fitHeight sheet.page.scale: danh sách Chiều rộng/Chiều cao (Tự động, 1-5 trang) lưu rồi Excel 2016 đọc FitToPagesWide=1, FitToPagesTall=Tự động, Zoom=False (docs/AUDIT-SHEET-PAGE-GALLERY-1710.md:18) |
 | Tùy chọn trang tính | Hiện/In đường lưới và tiêu đề | 🟡 | 2 | Hiện có; hộp xem trước in có tùy chọn in đường lưới; in tiêu đề hàng/cột cần kiểm |
 | Sắp xếp | Đưa lên trên / Xuống dưới / Ngăn chọn / Căn / Nhóm / Xoay đối tượng | ✅ | - | 16/10 (AGY-ARRANGE): lớp, căn, phân bố, nhóm, xoay/lật, Ngăn chọn; cases-10 21/21 điểm khớp Excel, LAN 10/10 |
 

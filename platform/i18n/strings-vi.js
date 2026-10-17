@@ -375,6 +375,7 @@ export const viStrings = {
     editing: { fill: "Điền", clear: "Xóa" },
     cells: { format: "Định dạng" },
     alignment: { orientation: "Hướng chữ" },
+    page: { margins: "Căn lề", orientation: "Hướng giấy", size: "Khổ giấy", fitWidth: "Chiều rộng", fitHeight: "Chiều cao", marginNormal: "Thường (Normal)", marginWide: "Rộng (Wide)", marginNarrow: "Hẹp (Narrow)", marginCustom: "Căn lề tùy chỉnh…", portrait: "Dọc (Portrait)", landscape: "Ngang (Landscape)", moreSizes: "Thêm khổ giấy…", fitAuto: "Tự động", fitPages1: "1 trang", fitPages2: "2 trang", fitPages3: "3 trang", fitPages4: "4 trang", fitPages5: "5 trang", fitMore: "Thêm trang…" },
     arrange: { bringForward: "Đưa lên trên", sendBackward: "Đưa xuống dưới", align: "Căn chỉnh", group: "Nhóm", rotate: "Xoay" },
     window: { freezePanes: "Cố định ô", split: "Chia" }
   },
@@ -416,8 +417,8 @@ export const viStrings = {
   },
   sheetSlicer: { selectTable: "Hãy chọn một ô trong bảng trước khi chèn bộ lọc trực quan.", layer: "Bộ lọc trực quan", aria: "Bộ lọc", multi: "Chọn nhiều", clear: "Xóa bộ lọc", close: "Xóa bộ lọc trực quan" },
   slidesRibbon: {
-    tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI" },
-    group: { slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Hiệu đính", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
+    tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI", tableLayout: "Bố cục bảng" },
+    group: { tableRowsCols: "Hàng và cột", tableMerge: "Gộp", slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Hiệu đính", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
     editing: { select: "Chọn" },
     drawing: { arrange: "Sắp xếp" },
     section: "Phần"
@@ -625,14 +626,14 @@ export const viStrings = {
       slideUnit: "trang chiếu",
       slideCount: "{count} trang chiếu"
     },
-    masterTitle: "Mẫu Slide Master", themeGalleryTitle: "Thư viện Chủ đề", themeGalleryHint: "Chọn một chủ đề để áp dụng ngay cho toàn bộ bản trình chiếu.", themePreviewTitle: "Tiêu đề bản trình chiếu", themeCorporateBlue: "Xanh Doanh Nghiệp", themeWarmTerracotta: "Terracotta Ấm Áp", themeMinimalMonochrome: "Đơn Sắc Tối Giản", themeNaturalGreen: "Xanh Lá Thiên Nhiên", themeModernCharcoal: "Than Chì Hiện Đại", themeEnergeticOrange: "Cam Năng Động", slideSizeTitle: "Kích thước trang chiếu", slideSizeHint: "Chọn tỷ lệ mới. Mọi hình và đối tượng hiện có sẽ được co giãn theo khung.", slideSizeWide: "Màn hình rộng", slideSizeStandard: "Tiêu chuẩn", layoutTitle: "Chọn Bố Cục Trang Chiếu", transitionTitle: "Hiệu Ứng Chuyển Trang", animationTitle: "Hiệu Ứng Đối Tượng (Object Animations)",
+    masterTitle: "Mẫu Slide Master", themeGalleryTitle: "Thư viện Chủ đề", themeGalleryHint: "Chọn một chủ đề để áp dụng ngay cho toàn bộ bản trình chiếu.", themePreviewTitle: "Tiêu đề bản trình chiếu", themeCorporateBlue: "Xanh Doanh Nghiệp", themeWarmTerracotta: "Terracotta Ấm Áp", themeMinimalMonochrome: "Đơn Sắc Tối Giản", themeNaturalGreen: "Xanh Lá Thiên Nhiên", themeModernCharcoal: "Than Chì Hiện Đại", themeEnergeticOrange: "Cam Năng Động", slideSizeTitle: "Kích thước trang chiếu", slideSizeHint: "Chọn tỷ lệ mới. Mọi hình và đối tượng hiện có sẽ được co giãn theo khung.", slideSizeWide: "Màn hình rộng", slideSizeStandard: "Tiêu chuẩn", slideSizeCustom: "Tùy chỉnh", slideSizeWidthCm: "Chiều rộng (cm)", slideSizeHeightCm: "Chiều cao (cm)", slideSizeApply: "Áp dụng", slideSizeRangeError: "Mỗi cạnh phải từ 2,54 cm đến 142,24 cm.", slideSizeFormatError: "Hãy nhập số, ví dụ 25,4 hoặc 19.05.", layoutTitle: "Chọn Bố Cục Trang Chiếu", transitionTitle: "Hiệu Ứng Chuyển Trang", animationTitle: "Hiệu Ứng Đối Tượng (Object Animations)",
     applyMaster: "Áp dụng mẫu", applyLayout: "Áp dụng bố cục", applyTransition: "Áp dụng chuyển tiếp", applyAnimation: "Áp dụng hiệu ứng", removeTransition: "Xóa chuyển tiếp", removeAnimation: "Xóa hiệu ứng", previewTransition: "▶ Xem thử chuyển tiếp", previewAnimation: "▶ Xem thử hiệu ứng", previewObject: "Đối tượng xem thử",
     layoutHint: "Chọn một bố cục chuẩn để định hình lại cấu trúc nội dung trang chiếu hiện tại:", applyLayoutAll: "Áp dụng cho tất cả", applyLayoutCurrent: "Áp dụng",
     masterHint: "Chọn một mẫu phong cách để đồng bộ màu sắc, phông chữ và logo cho tất cả các trang chiếu:", masterLogoLabel: "Tên đơn vị / Logo chữ góc trang:", masterLogoAria: "Tên đơn vị hoặc logo chữ góc trang",
     transitionTypeLabel: "Kiểu chuyển trang:", transFade: "Mờ dần (Fade)", transSlide: "Trượt ngang (Slide)", transZoom: "Thu phóng (Zoom)", transFlip: "Lật trang 3D (Flip)", durationFast: "Nhanh (0.3 giây)", durationNormal: "Tiêu chuẩn (0.5 giây)", durationSlow: "Chậm (0.8 giây)", durationVerySlow: "Rất chậm (1.0 giây)", sampleSlide: "Trang Chiếu Mẫu", applyTransitionCurrent: "Áp dụng", applyTransitionAll: "Áp dụng cho tất cả",
     animationTarget: "Đối tượng áp dụng:", animationType: "Kiểu hiệu ứng xuất hiện (Entrance):", animationDuration: "Thời gian hiệu ứng:", animationDelay: "Độ trễ xuất hiện:", noAnimation: "Không có hiệu ứng", immediate: "Ngay lập tức (0s)",
     targetTitle: "Tiêu đề", targetCol1: "Nội dung cột 1", targetCol2: "Nội dung cột 2", targetBody: "Nội dung",     shapeFormatTitle: "Định dạng hình", shapeFormatMenu: "Định dạng hình…", shapeFill: "Màu nền", shapeFillColor: "Màu nền {color}", shapeOutline: "Viền", shapeOutlineColor: "Màu viền {color}", shapeNoOutline: "Không viền", shapeLineWidth: "Viền {width} px", shapeWidth: "Chiều rộng (px)", shapeHeight: "Chiều cao (px)", shapeRotation: "Góc xoay (độ)", applyShapeFormat: "Áp dụng định dạng", shapeFormatInvalid: "Nhập kích thước trong phạm vi 24 px đến khổ trang chiếu và góc xoay từ -360° đến 360°.",
-    shapeImage: "Hình ảnh", shapeEllipse: "Hình elip", shapeRectangle: "Hình chữ nhật", animFadeIn: "Mờ dần xuất hiện (Fade In)", animFlyIn: "Bay từ dưới lên (Fly In)", animZoomIn: "Thu phóng xuất hiện (Zoom In)", animBounceIn: "Nảy nhẹ xuất hiện (Bounce In)", animSlideLeft: "Trượt từ trái sang (Slide Left)", durationVeryFast: "Rất nhanh (0.3s)", duration1s: "1.0 giây", delay200: "Sau 0.2s", delay500: "Sau 0.5s", delay1000: "Sau 1.0s",
+    shapeImage: "Hình ảnh", shapeEllipse: "Hình elip", shapeRectangle: "Hình chữ nhật", animFadeIn: "Mờ dần xuất hiện (Fade In)", animFlyIn: "Bay từ dưới lên (Fly In)", animZoomIn: "Thu phóng xuất hiện (Zoom In)", animBounceIn: "Nảy nhẹ xuất hiện (Bounce In)", animSlideLeft: "Trượt từ trái sang (Slide Left)", animSpin: "Xoay tròn (nhấn mạnh)", animGrowShrink: "Phóng to / thu nhỏ (nhấn mạnh)", animFadeOut: "Mờ dần ra (thoát)", animFlyOut: "Bay ra (thoát)", animZoomOut: "Thu nhỏ ra (thoát)", animDisappear: "Biến mất (thoát)", animGroupEntrance: "Vào", animGroupEmphasis: "Nhấn mạnh", animGroupExit: "Thoát", durationVeryFast: "Rất nhanh (0.3s)", duration1s: "1.0 giây", delay200: "Sau 0.2s", delay500: "Sau 0.5s", delay1000: "Sau 1.0s",
     presenterTitle: "Chế độ người thuyết trình", presenterHeader: "CHẾ ĐỘ NGƯỜI THUYẾT TRÌNH (PRESENTER VIEW)", elapsedTime: "Thời gian thuyết trình", elapsedLabel: "ĐÃ THUYẾT TRÌNH:", actualClock: "Đồng hồ thực tế", clockLabel: "ĐỒNG HỒ:", presenterExit: "✕ Thoát (Esc)", prevSlide: "◄ Trang trước", nextSlide: "Trang tiếp ►", slideCounter: "Trang {current} / {total}", speakerNotesTitle: "📝 Ghi chú người thuyết trình", notesFontDec: "Thu nhỏ cỡ chữ ghi chú", notesFontInc: "Phóng to cỡ chữ ghi chú", nextSlideTitle: "⏭ Trang tiếp theo", noNotes: "(Chưa có ghi chú cho trang chiếu này. Bạn có thể nhập ghi chú ở bảng Ghi chú dưới canvas khi biên tập).", endOfShow: "Đây là trang chiếu cuối cùng.",
     readingViewTitle: "Dạng xem Đọc (Reading View)", readingToolbar: "Thanh điều hướng Đọc", prevSlideShort: "Trang trước", nextSlideShort: "Trang tiếp", readingClose: "Thoát chế độ đọc",
     rehearseTitle: "Tập dượt thời gian trình chiếu", slideshowTitle: "Trình chiếu trang chiếu", rehearseClockAria: "Đồng hồ tập dượt thời gian", slideshowHint: "Phím Space hoặc Click để tiếp tục | Esc để thoát",
@@ -677,7 +678,8 @@ export const viStrings = {
     "slides.text.direction": { label: "Hướng chữ", tooltip: "Đổi hướng văn bản trong khung chữ" },
     "sheet.page.margins": { label: "Căn lề", tooltip: "Thiết lập khoảng cách lề trang tính" },
     "sheet.page.orientation": { label: "Hướng giấy", tooltip: "Chọn hướng trang tính dọc hoặc ngang" },
-    "sheet.page.size": { label: "Khổ giấy", tooltip: "Chọn kích thước trang in (A4, Letter, Legal)" },
+    "sheet.page.size": { label: "Khổ giấy", tooltip: "Chọn kích thước trang in (A4, Letter, Legal)" }
+, "sheet.page.fitWidth": { label: "Chiều rộng", tooltip: "Thu nhỏ bản in cho vừa số trang theo chiều ngang (Tự động, 1–5 trang)" }, "sheet.page.fitHeight": { label: "Chiều cao", tooltip: "Thu nhỏ bản in cho vừa số trang theo chiều dọc (Tự động, 1–5 trang)" },
     "sheet.page.printTitles": { label: "Tiêu đề in", tooltip: "Chọn hàng và cột lặp lại trên mỗi trang in" },
     "sheet.page.scale": { label: "Tỷ lệ vừa trang", tooltip: "Thu phóng nội dung in theo phần trăm hoặc số trang" },
     "sheet.page.headerFooter": { label: "Tiêu đề Đầu/Cuối trang", tooltip: "Đặt đầu trang và cuối trang khi in" },
@@ -968,6 +970,15 @@ export const viStrings = {
     ,"slides.media.insertVideo": { label: "Video", tooltip: "Chèn video từ máy tính" }
     ,"slides.media.insertAudio": { label: "Âm thanh", tooltip: "Chèn âm thanh từ máy tính" }
     ,"slides.insert.table": { label: "Bảng", tooltip: "Chèn bảng vào trang chiếu, kéo-thả và đổi kích thước được" }
+  ,"slides.table.insertRowAbove": { label: "Chèn hàng phía trên", tooltip: "Chèn một hàng trống phía trên hàng chứa con trỏ" }
+  ,"slides.table.insertRowBelow": { label: "Chèn hàng phía dưới", tooltip: "Chèn một hàng trống phía dưới hàng chứa con trỏ" }
+  ,"slides.table.insertColLeft": { label: "Chèn cột bên trái", tooltip: "Chèn một cột trống bên trái cột chứa con trỏ" }
+  ,"slides.table.insertColRight": { label: "Chèn cột bên phải", tooltip: "Chèn một cột trống bên phải cột chứa con trỏ" }
+  ,"slides.table.deleteRow": { label: "Xóa hàng", tooltip: "Xóa hàng chứa con trỏ" }
+  ,"slides.table.deleteCol": { label: "Xóa cột", tooltip: "Xóa cột chứa con trỏ" }
+  ,"slides.table.deleteTable": { label: "Xóa bảng", tooltip: "Xóa toàn bộ bảng đang chọn" }
+  ,"slides.table.mergeCells": { label: "Gộp ô", tooltip: "Gộp các ô đang chọn (nhấp ô đầu, giữ Shift và nhấp ô cuối) thành một ô" }
+  ,"slides.table.splitCell": { label: "Tách ô", tooltip: "Tách ô đã gộp trở lại các ô ban đầu" }
     ,"slides.insert.chart": { label: "Biểu đồ", tooltip: "Chèn biểu đồ vào trang chiếu" }
     ,"slides.insert.headerFooter": { label: "Đầu trang & Chân trang", tooltip: "Bật/tắt ngày tháng, số trang và chân trang" }
     ,"slides.insert.dateTime": { label: "Ngày & Giờ", tooltip: "Chèn placeholder ngày giờ tự cập nhật" }
@@ -977,7 +988,7 @@ export const viStrings = {
     ,"slides.insert.wordart": { label: "Chữ nghệ thuật", tooltip: "Chèn chữ nghệ thuật với viền, đổ bóng hoặc gradient" }
     ,"slides.master.apply": { label: "Mẫu Slide Master", tooltip: "Áp dụng mẫu Slide Master đồng bộ font, màu, logo cho toàn bộ trang chiếu" }
     ,"slides.design.themeGallery": { label: "Chủ đề", tooltip: "Chọn chủ đề thiết kế cho toàn bộ bản trình chiếu" }
-    ,"slides.design.slideSize": { label: "Cỡ trang chiếu", tooltip: "Chọn tỷ lệ trang chiếu 16:9 hoặc 4:3" }
+    ,"slides.design.slideSize": { label: "Cỡ trang chiếu", tooltip: "Chọn tỷ lệ 16:9, 4:3 hoặc nhập kích thước tùy chỉnh (cm)" }
     ,"slides.design.formatBackground": { label: "Định dạng nền", tooltip: "Đổi nền trang chiếu hiện tại hoặc tất cả trang: màu đơn, gradient 2 màu, hoặc ảnh" }
     ,"slides.transition.apply": { label: "Chuyển tiếp", tooltip: "Hiệu ứng chuyển trang chiếu (Fade, Slide, Zoom, Flip)" }
     ,"slides.animation.apply": { label: "Hiệu ứng đối tượng", tooltip: "Thiết lập hiệu ứng xuất hiện (Fade In, Fly In, Zoom In) cho đối tượng" }
@@ -1030,6 +1041,11 @@ export const viStrings = {
     ,"slides.text.italic": { label: "Nghiêng", tooltip: "Chữ nghiêng (Ctrl+I)" }
     ,"slides.text.underline": { label: "Gạch chân", tooltip: "Gạch chân chữ (Ctrl+U)" }
     ,"slides.text.strike": { label: "Gạch ngang", tooltip: "Gạch ngang chữ" }
+  ,"slides.text.shadow": { label: "Đổ bóng chữ", tooltip: "Đổ bóng cho chữ đang chọn (bật/tắt)" }
+  ,"slides.text.columns": { label: "Cột", tooltip: "Chia văn bản trong khung chữ thành 1, 2 hoặc 3 cột" }
+  ,"slides.text.columnsOne": { label: "Một cột", tooltip: "Văn bản chạy một cột (mặc định)" }
+  ,"slides.text.columnsTwo": { label: "Hai cột", tooltip: "Chia văn bản trong khung chữ thành hai cột" }
+  ,"slides.text.columnsThree": { label: "Ba cột", tooltip: "Chia văn bản trong khung chữ thành ba cột" }
     ,"slides.text.clearFormat": { label: "Xóa định dạng", tooltip: "Xóa định dạng chữ, giữ nguyên nội dung" }
     ,"slides.font.family": { label: "Phông chữ", tooltip: "Chọn phông chữ" }
     ,"slides.font.size": { label: "Cỡ chữ", tooltip: "Chọn cỡ chữ" }

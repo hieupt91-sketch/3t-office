@@ -385,9 +385,48 @@ export const SHEET_RIBBON_TABS = [
         label: "Thiết lập trang",
         labelKey: "sheetRibbon.group.pageSetup",
         items: [
-          { type: "button", commandId: "sheet.page.margins", isLarge: true },
-          { type: "button", commandId: "sheet.page.orientation", isLarge: true },
-          { type: "button", commandId: "sheet.page.size", isLarge: true },
+          {
+            type: "dropdown",
+            id: "sheet.page.margins",
+            label: "Căn lề",
+            labelKey: "sheetRibbon.page.margins",
+            icon: "margins",
+            isLarge: true,
+            items: [
+              { commandId: "sheet.page.margins", label: "Thường (Normal)", labelKey: "sheetRibbon.page.marginNormal", args: "normal" },
+              { commandId: "sheet.page.margins", label: "Rộng (Wide)", labelKey: "sheetRibbon.page.marginWide", args: "wide" },
+              { commandId: "sheet.page.margins", label: "Hẹp (Narrow)", labelKey: "sheetRibbon.page.marginNarrow", args: "narrow" },
+              { commandId: "sheet.page.margins", label: "Căn lề tùy chỉnh…", labelKey: "sheetRibbon.page.marginCustom", args: "custom" }
+            ]
+          },
+          {
+            type: "dropdown",
+            id: "sheet.page.orientation",
+            label: "Hướng giấy",
+            labelKey: "sheetRibbon.page.orientation",
+            icon: "orientation",
+            isLarge: true,
+            items: [
+              { commandId: "sheet.page.orientation", label: "Dọc (Portrait)", labelKey: "sheetRibbon.page.portrait", args: "portrait" },
+              { commandId: "sheet.page.orientation", label: "Ngang (Landscape)", labelKey: "sheetRibbon.page.landscape", args: "landscape" }
+            ]
+          },
+          {
+            type: "dropdown",
+            id: "sheet.page.size",
+            label: "Khổ giấy",
+            labelKey: "sheetRibbon.page.size",
+            icon: "pageSize",
+            isLarge: true,
+            items: [
+              { commandId: "sheet.page.size", label: "Letter", args: "letter" },
+              { commandId: "sheet.page.size", label: "Legal", args: "legal" },
+              { commandId: "sheet.page.size", label: "A3", args: "a3" },
+              { commandId: "sheet.page.size", label: "A4", args: "a4" },
+              { commandId: "sheet.page.size", label: "A5", args: "a5" },
+              { commandId: "sheet.page.size", label: "Thêm khổ giấy…", labelKey: "sheetRibbon.page.moreSizes", args: "more" }
+            ]
+          },
           {
             type: "column",
             items: [
@@ -410,7 +449,44 @@ export const SHEET_RIBBON_TABS = [
         label: "Vừa trang",
         labelKey: "sheetRibbon.group.scaleToFit",
         items: [
-          { type: "button", commandId: "sheet.page.scale", isLarge: true }
+          {
+            type: "column",
+            items: [
+              {
+                type: "dropdown",
+                id: "sheet.page.fitWidth",
+                label: "Chiều rộng",
+                labelKey: "sheetRibbon.page.fitWidth",
+                icon: "pageScale",
+                items: [
+                  { commandId: "sheet.page.fitWidth", label: "Tự động", labelKey: "sheetRibbon.page.fitAuto", args: "auto" },
+                  { commandId: "sheet.page.fitWidth", label: "1 trang", labelKey: "sheetRibbon.page.fitPages1", args: 1 },
+                  { commandId: "sheet.page.fitWidth", label: "2 trang", labelKey: "sheetRibbon.page.fitPages2", args: 2 },
+                  { commandId: "sheet.page.fitWidth", label: "3 trang", labelKey: "sheetRibbon.page.fitPages3", args: 3 },
+                  { commandId: "sheet.page.fitWidth", label: "4 trang", labelKey: "sheetRibbon.page.fitPages4", args: 4 },
+                  { commandId: "sheet.page.fitWidth", label: "5 trang", labelKey: "sheetRibbon.page.fitPages5", args: 5 },
+                  { commandId: "sheet.page.fitWidth", label: "Thêm trang…", labelKey: "sheetRibbon.page.fitMore", args: "more" }
+                ]
+              },
+              {
+                type: "dropdown",
+                id: "sheet.page.fitHeight",
+                label: "Chiều cao",
+                labelKey: "sheetRibbon.page.fitHeight",
+                icon: "pageScale",
+                items: [
+                  { commandId: "sheet.page.fitHeight", label: "Tự động", labelKey: "sheetRibbon.page.fitAuto", args: "auto" },
+                  { commandId: "sheet.page.fitHeight", label: "1 trang", labelKey: "sheetRibbon.page.fitPages1", args: 1 },
+                  { commandId: "sheet.page.fitHeight", label: "2 trang", labelKey: "sheetRibbon.page.fitPages2", args: 2 },
+                  { commandId: "sheet.page.fitHeight", label: "3 trang", labelKey: "sheetRibbon.page.fitPages3", args: 3 },
+                  { commandId: "sheet.page.fitHeight", label: "4 trang", labelKey: "sheetRibbon.page.fitPages4", args: 4 },
+                  { commandId: "sheet.page.fitHeight", label: "5 trang", labelKey: "sheetRibbon.page.fitPages5", args: 5 },
+                  { commandId: "sheet.page.fitHeight", label: "Thêm trang…", labelKey: "sheetRibbon.page.fitMore", args: "more" }
+                ]
+              },
+              { type: "button", commandId: "sheet.page.scale" }
+            ]
+          }
         ]
       },
       {

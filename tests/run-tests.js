@@ -16,6 +16,12 @@ import { runSheetSlicerTests } from "./unit/sheet-slicer.test.js";
 import { runSheetTemplateSaveTests } from "./unit/sheet-template-save.test.js";
 import { runSheetCfGoldenTests } from "./unit/sheet-cf-golden.test.js";
 import { runQuickAccessTests } from "./unit/quick-access.test.js";
+import { runSlideTableOpsTests } from "./unit/slide-table-ops.test.js";
+import { runSlideSizeTests } from "./unit/slide-size.test.js";
+import { runSlideTextColumnsTests } from "./unit/slide-text-columns.test.js";
+import { runSlideAnimationClassesTests } from "./unit/slide-animation-classes.test.js";
+import { runSlidesTextShadowPptxTests } from "./unit/slides-text-shadow-pptx.test.js";
+import { runSlidesNativeAnimationTimingTests } from "./unit/slides-native-animation-timing.test.js";
 import { runSheetDvGoldenTests } from "./unit/sheet-dv-golden.test.js";
 import { runSheetSeriesTests } from "./unit/sheet-series.test.js";
 import { runFunctionGoldenTests } from "./unit/function-golden.test.js";
@@ -328,6 +334,12 @@ async function runAll() {
     { title: "3b3. Unit Tests — Lưu thành mẫu .xltx (Sheet)", runner: runSheetTemplateSaveTests },
     { title: "3b4. Unit Tests — Định dạng có điều kiện đối chiếu Excel 2016 + ROW()/COLUMN()", runner: runSheetCfGoldenTests },
     { title: "3b5. Unit Tests — Thanh công cụ truy nhanh tùy biến (dùng chung)", runner: runQuickAccessTests },
+    { title: "3b5b. Unit Tests — Thao tác bảng trên trang chiếu (Slides)", runner: runSlideTableOpsTests },
+    { title: "3b5c. Unit Tests — Kích thước trang chiếu tùy chỉnh (Slides)", runner: runSlideSizeTests },
+    { title: "3b5e. Unit Tests — Chia cột văn bản trong khung chữ Slides", runner: runSlideTextColumnsTests },
+  { title: "3b5f. Unit Tests — Hoạt ảnh Slides: nhóm Vào / Nhấn mạnh / Thoát", runner: runSlideAnimationClassesTests },
+    { title: "3b5d. Unit Tests — Bóng chữ Slides khi xuất PPTX (Python)", runner: runSlidesTextShadowPptxTests },
+  { title: "3b5g. Unit Tests — Hoạt ảnh Slides: p:timing Nhấn mạnh/Thoát (PPTX)", runner: runSlidesNativeAnimationTimingTests },
     { title: "3b6. Unit Tests — Xác thực dữ liệu đối chiếu Excel 2016", runner: runSheetDvGoldenTests },
     { title: "3c. Unit Tests — Điền > Chuỗi (Series)", runner: runSheetSeriesTests },
     { title: "3d. Unit Tests — Hàm đối chiếu Excel 2016 (bộ giá trị vàng)", runner: runFunctionGoldenTests },
