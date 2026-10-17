@@ -1,0 +1,32 @@
+﻿[
+    {
+        "ten_phep_do":  "1_xoa_ghi_chu",
+        "tinh_nang":  "XÃ³a ghi chÃº (Clear Comments)",
+        "thuoc_tinh":  "Range.ClearComments / Range.Comment",
+        "gia_tri_doc":  {
+                            "A1_Comment":  "null",
+                            "B1_Comment":  "null",
+                            "C1_Comment":  "present",
+                            "A1_Value2":  "Ná»™i dung A1",
+                            "B1_Value2":  12345,
+                            "C1_Comment_Text":  "Ghi chÃº C1 kiá»ƒm thá»­"
+                        },
+        "y_nghia":  "ClearComments gá»¡ toÃ n bá»™ ghi chÃº trong vÃ¹ng chá»n (A1:B1 null), giá»¯ nguyÃªn ná»™i dung Ã´ vÃ  giá»¯ nguyÃªn ghi chÃº ngoÃ i vÃ¹ng (C1 present)",
+        "thoi_diem":  "2026-10-17T15:29:07.5665826+07:00"
+    },
+    {
+        "ten_phep_do":  "2_xoa_sieu_lien_ket",
+        "tinh_nang":  "XÃ³a siÃªu liÃªn káº¿t (Clear Hyperlinks)",
+        "thuoc_tinh":  "Range.ClearHyperlinks / Hyperlinks.Count",
+        "gia_tri_doc":  {
+                            "A3_Hyperlinks_Count":  0,
+                            "B3_Hyperlinks_Count":  0,
+                            "C3_Hyperlinks_Count":  1,
+                            "A3_Value2":  "Trang chá»§ VN Office",
+                            "B3_Value2":  "Há»— trá»£ ká»¹ thuáº­t",
+                            "C3_Value2":  "LiÃªn káº¿t ngoÃ i vÃ¹ng"
+                        },
+        "y_nghia":  "ClearHyperlinks gá»¡ bá» liÃªn káº¿t trong vÃ¹ng chá»n (A3/B3 count=0), giá»¯ nguyÃªn vÄƒn báº£n hiá»ƒn thá»‹ vÃ  giá»¯ nguyÃªn liÃªn káº¿t ngoÃ i vÃ¹ng (C3 count=1)",
+        "thoi_diem":  "2026-10-17T15:29:07.5665826+07:00"
+    }
+]
