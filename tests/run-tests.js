@@ -312,6 +312,7 @@ import { runSpellcheckPendingStyleTests } from "./unit/spellcheck-pending-style.
 import { runSheetStyleExportWrapBorderAlignTests } from "./unit/sheet-style-export-wrap-border-align.test.js";
 import { runWriterWordW7Tests } from "./unit/writer-word-w7.test.js";
 import { runSheetNotesFidelityTests } from "./unit/sheet-notes-fidelity.test.js";
+import { runWriterTabsTablesAgyTests } from "./unit/writer-tabs-tables-agy.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -634,6 +635,7 @@ async function runAll() {
     { title: "269. Unit Tests — Sheet External Links & Edit Links Dialog (AGY-LINKS)", runner: runSheetExternalLinksDialogTests },
     { title: "270. Unit Tests — Sheet AutoFill Handle Double-Click, Options Button & Border Drag-Drop (AGY-AUTOFILL)", runner: runSheetAutofillDragTests },
     { title: "271. Unit Tests — Sheet Notes Parity, Show/Hide, Resize, Drag, Formats & VML Drawing (AGY-NOTES)", runner: runSheetNotesFidelityTests }
+    { title: "271. Unit Tests — Writer Tabs Dialog, Ruler Tab Stops, Go To, Split Table, Text Direction, Table Properties (AGY-WRITER1)", runner: runWriterTabsTablesAgyTests }
   ];
 
   for (const suite of suites) {

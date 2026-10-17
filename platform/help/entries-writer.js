@@ -2111,5 +2111,81 @@ export const WRITER_HELP_ENTRIES = [
     "Khung «Xem trước» ở đầu hộp thoại sẽ phản ánh ngay lập tức kiểu chữ kết hợp. Nhấn «Áp dụng» để gắn hiệu ứng vào văn bản, hoặc nhấn «Xóa hiệu ứng» để đưa chữ về dạng chuẩn thông thường.",
     "Khi lưu tài liệu sang định dạng DOCX, toàn bộ hiệu ứng viền, bóng và phát sáng được bảo toàn nguyên vẹn bằng các thẻ WordML 2010 tiêu chuẩn."
   ]
+},
+{
+  id: "writer.format.tabStops.help",
+  app: "writer",
+  commandIds: ["writer.format.tabStops", "writer.paragraph.tabStops"],
+  title: "Thiết lập điểm dừng Tab và thước đo căn dòng",
+  summary: "Thiết lập các điểm dừng tab tùy chỉnh với căn lề trái, giữa, phải, thập phân hoặc thanh dọc, kèm các kiểu ký tự dẫn chấm, gạch ngang hoặc gạch dưới để trình bày văn bản thẳng hàng chuẩn xác.",
+  ribbon: { tab: "Trang đầu", tabId: "home", group: "Đoạn văn" },
+  keywords: ["tab", "điểm dừng tab", "tab stops", "thước đo", "ruler", "ký tự dẫn", "leader", "thập phân", "căn tab"],
+  steps: [
+    "Bấm trực tiếp lên thanh thước đo ngang ở đầu vùng soạn thảo để đặt nhanh một điểm dừng tab tại vị trí mong muốn. Kéo biểu tượng tab dọc theo thước để điều chỉnh vị trí, hoặc kéo ra khỏi thước để xóa.",
+    "Để mở hộp thoại chi tiết, mở tab Trang đầu, nhấp vào biểu tượng mở rộng của nhóm Đoạn văn rồi bấm nút 'Dừng tab…' ở góc dưới hộp thoại Đoạn văn.",
+    "Trong hộp thoại Dừng tab, nhập vị trí điểm dừng mới, chọn kiểu căn lề (Trái, Giữa, Phải, Thập phân, Thanh) và kiểu ký tự dẫn (Không có, Chấm chấm, Gạch nối, Gạch dưới), sau đó bấm 'Thiết lập'.",
+    "Có thể chọn 'Xóa' để gỡ từng điểm dừng tab hoặc 'Xóa tất cả' để khôi phục về điểm dừng tab mặc định (1,27 cm / 36 pt). Bấm 'Đồng ý' để áp dụng các thiết lập cho đoạn văn đang chọn."
+  ]
+},
+{
+  id: "writer.edit.goTo.help",
+  app: "writer",
+  commandIds: ["writer.edit.goTo"],
+  title: "Chức năng Đi đến (Go To, Ctrl+G) chuyển nhanh con trỏ",
+  summary: "Hộp thoại Đi đến cho phép di chuyển ngay lập tức con trỏ soạn thảo tới một trang, dòng, đề mục, dấu trang, chú thích hoặc bảng cụ thể trong tài liệu, hỗ trợ chuyển tới vị trí tuyệt đối hoặc tiến lùi tương đối.",
+  ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+  keywords: ["đi đến", "go to", "ctrl+g", "chuyển trang", "nhảy trang", "tìm kiếm", "dấu trang", "đề mục", "chú thích"],
+  steps: [
+    "Nhấn tổ hợp phím tắt Ctrl+G (hoặc vào tab Trang đầu, nhóm Chỉnh sửa, bấm nút 'Đi đến') để mở hộp thoại Tìm và Thay thế ở tab Đi đến.",
+    "Trong danh sách 'Đi đến mục nào', chọn loại đối tượng cần điều hướng: Trang, Dòng, Đề mục, Dấu trang, Chú thích cuối trang, hoặc Bảng.",
+    "Nhập số thứ tự (hoặc chọn tên đề mục/dấu trang từ danh sách hiển thị), sau đó bấm nút 'Đi đến' để chuyển con trỏ ngay lập tức tới mục đó.",
+    "Sử dụng các nút 'Tiếp' (Next) và 'Trước' (Previous) để duyệt lần lượt qua các phần tử cùng loại trong tài liệu một cách thuận tiện."
+  ]
+},
+{
+  id: "writer.table.splitTable.help",
+  app: "writer",
+  commandIds: ["writer.table.splitTable"],
+  title: "Tách bảng thành hai bảng độc lập",
+  summary: "Lệnh Tách bảng chia bảng hiện tại tại hàng đang đứng thành hai bảng riêng biệt, xen giữa bởi một đoạn văn bản trống để người dùng dễ dàng chèn nội dung diễn giải hoặc phân chia bảng biểu dài.",
+  ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Hợp nhất" },
+  keywords: ["tách bảng", "split table", "chia bảng", "bảng biểu", "ngắt bảng", "hợp nhất"],
+  steps: [
+    "Đặt con trỏ soạn thảo vào một ô bất kỳ thuộc hàng mà bạn muốn bắt đầu bảng thứ hai mới.",
+    "Trên thanh công cụ, mở tab ngữ cảnh Bố cục Bảng (hiển thị khi con trỏ đang ở trong bảng), tìm đến nhóm Hợp nhất và bấm nút 'Tách bảng'.",
+    "Bảng sẽ được tách thành hai bảng độc lập: các hàng phía trên giữ lại ở bảng thứ nhất, còn từ hàng hiện tại trở xuống chuyển sang bảng thứ hai, ở giữa là một dòng văn bản trống.",
+    "Nếu cần khôi phục lại bảng nguyên vẹn như trước khi tách, chỉ cần nhấn tổ hợp phím Ctrl+Z để hoàn tác ngay lập tức trong một bước."
+  ]
+},
+{
+  id: "writer.table.textDirection.help",
+  app: "writer",
+  commandIds: ["writer.table.textDirection"],
+  title: "Đổi hướng văn bản trong ô bảng",
+  summary: "Xoay hướng hiển thị của chữ trong ô bảng theo chu trình Ngang, Xoay 90° xuống dưới và Xoay 270° lên trên, giúp tối ưu diện tích các cột hẹp hoặc làm tiêu đề dọc cho bảng biểu kỹ thuật.",
+  ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Căn lề ô" },
+  keywords: ["hướng văn bản", "hướng chữ", "text direction", "xoay chữ", "chữ dọc", "ô bảng", "căn lề ô"],
+  steps: [
+    "Bôi đen một hoặc nhiều ô trong bảng cần thay đổi chiều đọc của văn bản.",
+    "Mở tab ngữ cảnh Bố cục Bảng, tìm tới nhóm Căn lề ô và bấm vào nút 'Hướng văn bản'.",
+    "Mỗi lần bấm nút, chữ trong ô sẽ lần lượt xoay: từ nằm Ngang sang Xoay 90° (đọc từ trên xuống dưới), rồi sang Xoay 270° (đọc từ dưới lên trên), và quay lại nằm Ngang.",
+    "Khi lưu tệp DOCX, hướng văn bản trong ô được lưu chuẩn xác theo quy cách định dạng bảng để các bộ ứng dụng văn phòng khác hiển thị đúng hoàn toàn."
+  ]
+},
+{
+  id: "writer.table.properties.help",
+  app: "writer",
+  commandIds: ["writer.table.properties"],
+  title: "Hộp thoại Thuộc tính bảng: Căn lề, Độ rộng, Chiều cao hàng và Lề ô",
+  summary: "Hộp thoại Thuộc tính bảng cung cấp trung tâm thiết lập toàn diện cho bảng biểu: căn lề Trái/Giữa/Phải, khoảng cách thụt lề trái, độ rộng mong muốn, chiều cao hàng chỉ định, lề mặc định của ô (padding) và khoảng cách dãn cách giữa các ô.",
+  ribbon: { tab: "Bố cục Bảng", tabId: "tableLayout", group: "Bảng" },
+  keywords: ["thuộc tính bảng", "table properties", "căn lề bảng", "thụt lề", "lề ô", "padding", "khoảng cách ô", "cell spacing", "chiều cao hàng"],
+  steps: [
+    "Đặt con trỏ vào một ô trong bảng, mở tab ngữ cảnh Bố cục Bảng, trong nhóm Bảng bấm nút 'Thuộc tính bảng' (hoặc nhấn chuột phải vào bảng chọn Thuộc tính bảng).",
+    "Trong tab 'Bảng', thiết lập Căn lề bảng (Trái, Giữa, Phải), nhập khoảng cách Thụt lề trái (pt) nếu căn trái, và chọn Chiều rộng chỉ định theo đơn vị % hoặc pt nếu cần cố định độ rộng bảng.",
+    "Chuyển sang tab 'Hàng' để tích chọn và đặt Chiều cao hàng cụ thể tính theo pt cho các hàng trong bảng.",
+    "Chuyển sang tab 'Ô & Lề' để điều chỉnh khoảng cách đệm (Padding) Trên, Dưới, Trái, Phải của ô và tích chọn cho phép dãn cách giữa các ô (Cell Spacing) nếu muốn bảng có khoảng hở giữa các ô.",
+    "Bấm 'Đồng ý' để áp dụng toàn bộ thuộc tính vào bảng. Mọi thiết lập được lưu chuẩn xác vào thẻ thuộc tính bảng trong tệp DOCX."
+  ]
 }
 ];

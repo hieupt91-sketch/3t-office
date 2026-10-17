@@ -7,14 +7,16 @@
 export const TAB_ALIGNMENTS = [
   { id: "l", label: "Trái" },
   { id: "c", label: "Giữa" },
-  { id: "r", label: "Phải" }
+  { id: "r", label: "Phải" },
+  { id: "dec", label: "Thập phân" },
+  { id: "bar", label: "Thanh" }
 ];
 
 export const TAB_LEADERS = [
-  { id: "n", label: "Không có" },
-  { id: "d", label: "Dấu chấm ……" },
-  { id: "h", label: "Gạch ngang ----" },
-  { id: "u", label: "Gạch dưới ____" }
+  { id: "n", label: "1 Không có" },
+  { id: "d", label: "2 Dấu chấm ……" },
+  { id: "h", label: "3 Gạch ngang ----" },
+  { id: "u", label: "4 Gạch dưới ____" }
 ];
 
 const MAX_STOPS = 32;
@@ -61,11 +63,18 @@ export function resolveTab(x, nextWidth, stops, defaultStepPx) {
   const stop = stops.find(item => item.px > x + 0.5);
   if (!stop) {
     const step = defaultStepPx > 0 ? defaultStepPx : 48;
-    return { width: (Math.floor(x / step) + 1) * step - x, leader: "n" };
+    return { width: (Math.floor(x / step) + 1) * step - x, leader: "n", align: "l" };
   }
   const full = stop.px - x;
-  const width = stop.align === "c" ? Math.max(0, full - nextWidth / 2) : stop.align === "r" ? Math.max(0, full - nextWidth) : Math.max(0, full);
-  return { width, leader: stop.leader };
+  let width = Math.max(0, full);
+  if (stop.align === "c") {
+    width = Math.max(0, full - nextWidth / 2);
+  } else if (stop.align === "r" || stop.align === "dec") {
+    width = Math.max(0, full - nextWidth);
+  } else if (stop.align === "bar") {
+    width = Math.max(0, full);
+  }
+  return { width, leader: stop.leader, align: stop.align };
 }
 
 export function tabWidthPx(x, nextWidth, stops, defaultStepPx) {
@@ -79,7 +88,7 @@ const LEADER_BACKGROUND = {
 const LEADER_SIZE = { d: "5px 100%", h: "7px 1px", u: "100% 1px" };
 
 /** Đặt kiểu hiển thị cho một ký tự Tab: bề rộng và ký tự dẫn. */
-export function styleTabElement(tab, widthPx, leader) {
+export function styleTabElement(tab, widthPx, leader, align = "l") {
   tab.style.display = "inline-block";
   tab.style.width = `${Math.max(0, Math.round(widthPx * 100) / 100)}px`;
   tab.style.whiteSpace = "pre";
@@ -88,6 +97,11 @@ export function styleTabElement(tab, widthPx, leader) {
   tab.style.textAlign = "left";
   tab.style.height = "1em";
   tab.style.color = "inherit";
+  if (align === "bar") {
+    tab.style.borderRight = "1px solid currentColor";
+  } else {
+    tab.style.borderRight = "";
+  }
   if (leader && leader !== "n") {
     tab.style.backgroundImage = LEADER_BACKGROUND[leader];
     tab.style.backgroundSize = LEADER_SIZE[leader];
@@ -117,26 +131,31 @@ export async function showTabStopsDialog(current = [], { contentWidthCm = 16, de
   return new Promise(resolve => {
     const previous = document.activeElement;
     let stops = parseTabStops(serializeTabStops(current));
+    let defaultStep = defaultStepCm;
     const overlay = document.createElement("div");
     overlay.className = "vno-dialog-overlay";
     const options = list => list.map(item => `<option value="${item.id}">${item.label}</option>`).join("");
     const field = "font-size:12px; font-weight:600; display:block; margin-bottom:4px;";
     const input = "width:100%; box-sizing:border-box; font-size:13px; padding:5px 8px;";
     overlay.innerHTML = `
-      <div class="vno-dialog-box vno-tab-stops-dialog" style="width: 480px;" role="dialog" aria-modal="true" aria-labelledby="vno-tabs-title">
+      <div class="vno-dialog-box vno-tab-stops-dialog" style="width: 500px;" role="dialog" aria-modal="true" aria-labelledby="vno-tabs-title">
         <div class="vno-dialog-header">
-          <span id="vno-tabs-title">Dừng tab</span>
+          <span id="vno-tabs-title">Điểm dừng Tab</span>
           <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="Đóng" aria-label="Đóng">&times;</button>
         </div>
         <div class="vno-dialog-body" style="display:grid; grid-template-columns: 1fr 1fr; gap:12px;">
           <div>
             <label for="vno-tabs-pos" style="${field}">Vị trí dừng tab (cm)</label>
             <input id="vno-tabs-pos" class="vno-dialog-input" type="number" min="0.1" max="${MAX_CM}" step="0.1" style="${input}" />
-            <div style="font-size:12px; color:#64748b; margin-top:4px;">Mặc định mỗi ${String(defaultStepCm).replace(".", ",")} cm; vùng chữ rộng ${String(Math.round(contentWidthCm * 10) / 10).replace(".", ",")} cm.</div>
+            <div style="font-size:12px; color:#64748b; margin-top:4px;">Vùng chữ rộng ${String(Math.round(contentWidthCm * 10) / 10).replace(".", ",")} cm.</div>
           </div>
           <div>
+            <label for="vno-tabs-default" style="${field}">Điểm dừng mặc định (cm)</label>
+            <input id="vno-tabs-default" class="vno-dialog-input" type="text" value="${String(defaultStepCm).replace(".", ",")} cm" style="${input}" />
+          </div>
+          <div style="grid-column: 1 / -1;">
             <label for="vno-tabs-list" style="${field}">Các dừng tab hiện có</label>
-            <select id="vno-tabs-list" class="vno-dialog-input" size="5" style="${input}" aria-label="Các dừng tab hiện có"></select>
+            <select id="vno-tabs-list" class="vno-dialog-input" size="5" style="${input}; min-height:90px;" aria-label="Các dừng tab hiện có"></select>
           </div>
           <div>
             <label for="vno-tabs-align" style="${field}">Căn chữ tại dừng tab</label>
@@ -163,7 +182,13 @@ export async function showTabStopsDialog(current = [], { contentWidthCm = 16, de
     const el = id => overlay.querySelector(id);
     const errorBox = el("#vno-tabs-error");
     const list = el("#vno-tabs-list");
-    const describe = stop => `${String(stop.cm).replace(".", ",")} cm — ${TAB_ALIGNMENTS.find(i => i.id === stop.align).label}${stop.leader !== "n" ? ` — dẫn ${TAB_LEADERS.find(i => i.id === stop.leader).label.split(" ")[0].toLowerCase()}` : ""}`;
+    const describe = stop => {
+      const alignItem = TAB_ALIGNMENTS.find(i => i.id === stop.align);
+      const alignLabel = alignItem ? alignItem.label : "Trái";
+      const leaderItem = TAB_LEADERS.find(i => i.id === stop.leader);
+      const leaderLabel = leaderItem && stop.leader !== "n" ? ` — dẫn ${leaderItem.label.replace(/^\d+\s*/, "").split(" ")[0].toLowerCase()}` : "";
+      return `${String(stop.cm).replace(".", ",")} cm — ${alignLabel}${leaderLabel}`;
+    };
     const refresh = () => {
       list.innerHTML = stops.map((stop, index) => `<option value="${index}">${describe(stop)}</option>`).join("");
     };

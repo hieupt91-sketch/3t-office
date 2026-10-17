@@ -8,13 +8,15 @@ from adapters.libreoffice.common import ooxml_zip_patch as patcher
 
 class WriterTabsXmlTests(unittest.TestCase):
     def test_tabs_xml_converts_cm_align_and_leader(self):
-        xml = patcher._writer_tabs_xml("15.5:r:d;8:l:n;4:c:h;3:l:u")
+        xml = patcher._writer_tabs_xml("15.5:r:d;8:l:n;4:c:h;3:l:u;10:dec:d;12:bar:n")
         positions = [int(p) for p in re.findall(r'w:pos="(\d+)"', xml)]
         self.assertEqual(positions, sorted(positions), "dừng tab phải sắp theo vị trí")
         self.assertIn('<w:tab w:val="right" w:leader="dot" w:pos="8787"/>', xml)
         self.assertIn('<w:tab w:val="left" w:pos="4535"/>', xml)
         self.assertIn('w:val="center" w:leader="hyphen"', xml)
         self.assertIn('w:leader="underscore"', xml)
+        self.assertIn('<w:tab w:val="decimal" w:leader="dot" w:pos="5669"/>', xml)
+        self.assertIn('<w:tab w:val="bar" w:pos="6803"/>', xml)
 
     def test_bad_values_are_ignored(self):
         self.assertEqual(patcher._writer_tabs_xml(""), "")

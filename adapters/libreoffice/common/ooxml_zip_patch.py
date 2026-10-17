@@ -19987,6 +19987,67 @@ def _writer_upsert_ppr_empty(paragraph: str, tag: str, replacement: str) -> str:
     return re.sub(r"(<w:p\b[^>]*>)", rf"\1<w:pPr>{replacement}</w:pPr>", paragraph, count=1, flags=re.IGNORECASE)
 
 
+# Thứ tự phần tử con của w:tblPr theo lược đồ OOXML (CT_TblPrBase): Word từ chối/sửa tệp sai thứ tự.
+_TBLPR_CHILD_ORDER = (
+    "tblStyle", "tblpPr", "tblOverlap", "bidiVisual", "tblStyleRowBandSize",
+    "tblStyleColBandSize", "tblW", "jc", "tblCellSpacing", "tblInd",
+    "tblBorders", "shd", "tblLayout", "tblCellMar", "tblLook",
+)
+
+
+def _writer_upsert_tblpr(table_xml: str, tag: str, replacement: str) -> str:
+    """Replace the w:<tag> child of w:tblPr, or insert it where the OOXML schema order puts it."""
+    tbl_pr = re.search(r"<w:tblPr\b[^>]*>[\s\S]*?</w:tblPr\s*>", table_xml, re.IGNORECASE)
+    if tbl_pr:
+        block = tbl_pr.group(0)
+        pattern = rf"<(?:w|w15):{tag}\b[^>]*?(?:/>|>[\s\S]*?</(?:w|w15):{tag}\s*>)"
+        updated, replaced = re.subn(pattern, lambda _m: replacement, block, count=1, flags=re.IGNORECASE)
+        if replaced == 0:
+            wanted = _TBLPR_CHILD_ORDER.index(tag) if tag in _TBLPR_CHILD_ORDER else len(_TBLPR_CHILD_ORDER)
+            insert_at = None
+            inner_start = re.match(r"<w:tblPr\b[^>]*>", block, re.IGNORECASE).end()
+            for child in re.finditer(r"<(?:w|w15):([A-Za-z]+)\b[^>]*?(?:/>|>[\s\S]*?</(?:w|w15):\1\s*>)", block[inner_start:], re.IGNORECASE):
+                name = child.group(1)
+                if name in _TBLPR_CHILD_ORDER and _TBLPR_CHILD_ORDER.index(name) > wanted:
+                    insert_at = inner_start + child.start()
+                    break
+            if insert_at is None:
+                insert_at = block.lower().rfind("</w:tblpr")
+            updated = block[:insert_at] + replacement + block[insert_at:]
+        return table_xml[:tbl_pr.start()] + updated + table_xml[tbl_pr.end():]
+    return re.sub(r"(<w:tbl\b[^>]*>)", rf"\1<w:tblPr>{replacement}</w:tblPr>", table_xml, count=1, flags=re.IGNORECASE)
+
+
+# Thứ tự phần tử con của w:tcPr theo lược đồ OOXML (CT_TcPrBase): Word từ chối/sửa tệp sai thứ tự.
+_TCPR_CHILD_ORDER = (
+    "cnfStyle", "tcW", "gridSpan", "hMerge", "vMerge", "tcBorders", "shd",
+    "noWrap", "tcMar", "textDirection", "tcFitText", "vAlign", "hideMark",
+)
+
+
+def _writer_upsert_tcpr(cell_xml: str, tag: str, replacement: str) -> str:
+    """Replace the w:<tag> child of w:tcPr, or insert it where the OOXML schema order puts it."""
+    tc_pr = re.search(r"<w:tcPr\b[^>]*>[\s\S]*?</w:tcPr\s*>", cell_xml, re.IGNORECASE)
+    if tc_pr:
+        block = tc_pr.group(0)
+        pattern = rf"<(?:w|w15):{tag}\b[^>]*?(?:/>|>[\s\S]*?</(?:w|w15):{tag}\s*>)"
+        updated, replaced = re.subn(pattern, lambda _m: replacement, block, count=1, flags=re.IGNORECASE)
+        if replaced == 0:
+            wanted = _TCPR_CHILD_ORDER.index(tag) if tag in _TCPR_CHILD_ORDER else len(_TCPR_CHILD_ORDER)
+            insert_at = None
+            inner_start = re.match(r"<w:tcPr\b[^>]*>", block, re.IGNORECASE).end()
+            for child in re.finditer(r"<(?:w|w15):([A-Za-z]+)\b[^>]*?(?:/>|>[\s\S]*?</(?:w|w15):\1\s*>)", block[inner_start:], re.IGNORECASE):
+                name = child.group(1)
+                if name in _TCPR_CHILD_ORDER and _TCPR_CHILD_ORDER.index(name) > wanted:
+                    insert_at = inner_start + child.start()
+                    break
+            if insert_at is None:
+                insert_at = block.lower().rfind("</w:tcpr")
+            updated = block[:insert_at] + replacement + block[insert_at:]
+        return cell_xml[:tc_pr.start()] + updated + cell_xml[tc_pr.end():]
+    return re.sub(r"(<w:tc\b[^>]*>)", rf"\1<w:tcPr>{replacement}</w:tcPr>", cell_xml, count=1, flags=re.IGNORECASE)
+
+
 def _writer_html_plain(inner: str) -> str:
     return html.unescape(re.sub(r"<[^>]+>", "", inner)).strip()
 
@@ -20357,7 +20418,13 @@ def _writer_apply_section_header_footer_metadata(
     return result, converted_rels_xml, duplicate_entries
 
 
-_TAB_ALIGN_OOXML = {"l": "left", "c": "center", "r": "right"}
+_TAB_ALIGN_OOXML = {
+    "l": "left",
+    "c": "center",
+    "r": "right",
+    "dec": "decimal",
+    "bar": "bar",
+}
 _TAB_LEADER_OOXML = {"d": "dot", "h": "hyphen", "u": "underscore"}
 
 
@@ -22861,6 +22928,83 @@ def postprocess_created_writer_docx(docx_bytes: bytes, *, source_html: str | Non
             column_count = len(re.findall(r"<w:gridCol\b", grid.group(1), re.IGNORECASE)) if grid else 1
             cell_width = '<w:tcW w:w="0" w:type="auto"/>' if mode == "contents" else f'<w:tcW w:w="{max(1, round(5000 / column_count))}" w:type="pct"/>'
             table = re.sub(r"<w:tc\b[\s\S]*?</w:tc\s*>", lambda cell: re.sub(r"<w:tcW\b[^>]*/>", cell_width, cell.group(0), count=1, flags=re.IGNORECASE), table, flags=re.IGNORECASE)
+            document_xml = document_xml[:xml_tables[index].start()] + table + document_xml[xml_tables[index].end():]
+            xml_tables = list(re.finditer(r"<w:tbl\b[\s\S]*?</w:tbl\s*>", document_xml, re.IGNORECASE))
+
+    # Table properties (alignment, indent, cell padding/margins, cell spacing) & cell text direction
+    xml_tables = list(re.finditer(r"<w:tbl\b[\s\S]*?</w:tbl\s*>", document_xml, re.IGNORECASE))
+    if len(html_tables) == len(xml_tables):
+        for index in range(len(html_tables) - 1, -1, -1):
+            html_table = html_tables[index]
+            opening = html_table.group(1)
+            table_body = html_table.group(2)
+            table = xml_tables[index].group(0)
+
+            # Table Alignment (w:jc)
+            align_match = re.search(r'data-vno-table-align=["\'](left|center|right)["\']', opening, re.IGNORECASE)
+            if align_match:
+                align_val = align_match.group(1).lower()
+                table = _writer_upsert_tblpr(table, "jc", f'<w:jc w:val="{align_val}"/>')
+
+            # Left Indent (w:tblInd)
+            indent_match = re.search(r'data-vno-table-indent=["\']([\d.]+)["\']', opening, re.IGNORECASE)
+            if indent_match:
+                indent_pt = float(indent_match.group(1))
+                if indent_pt > 0:
+                    twips = int(round(indent_pt * 20))
+                    table = _writer_upsert_tblpr(table, "tblInd", f'<w:tblInd w:w="{twips}" w:type="dxa"/>')
+
+            # Cell Spacing (w:tblCellSpacing)
+            spacing_match = re.search(r'data-vno-cell-spacing=["\']([\d.]+)["\']', opening, re.IGNORECASE)
+            if spacing_match:
+                spacing_pt = float(spacing_match.group(1))
+                if spacing_pt > 0:
+                    twips = int(round(spacing_pt * 20))
+                    table = _writer_upsert_tblpr(table, "tblCellSpacing", f'<w:tblCellSpacing w:w="{twips}" w:type="dxa"/>')
+
+            # Cell Margins / Padding (w:tblCellMar)
+            mar_top = re.search(r'data-vno-cell-mar-top=["\']([\d.]+)["\']', opening, re.IGNORECASE)
+            mar_bot = re.search(r'data-vno-cell-mar-bottom=["\']([\d.]+)["\']', opening, re.IGNORECASE)
+            mar_left = re.search(r'data-vno-cell-mar-left=["\']([\d.]+)["\']', opening, re.IGNORECASE)
+            mar_right = re.search(r'data-vno-cell-mar-right=["\']([\d.]+)["\']', opening, re.IGNORECASE)
+            if mar_top or mar_bot or mar_left or mar_right:
+                top_tw = int(round(float(mar_top.group(1)) * 20)) if mar_top else 113
+                bot_tw = int(round(float(mar_bot.group(1)) * 20)) if mar_bot else 113
+                left_tw = int(round(float(mar_left.group(1)) * 20)) if mar_left else 170
+                right_tw = int(round(float(mar_right.group(1)) * 20)) if mar_right else 170
+                tbl_cell_mar_xml = (
+                    f'<w:tblCellMar>'
+                    f'<w:top w:w="{top_tw}" w:type="dxa"/>'
+                    f'<w:left w:w="{left_tw}" w:type="dxa"/>'
+                    f'<w:bottom w:w="{bot_tw}" w:type="dxa"/>'
+                    f'<w:right w:w="{right_tw}" w:type="dxa"/>'
+                    f'</w:tblCellMar>'
+                )
+                table = _writer_upsert_tblpr(table, "tblCellMar", tbl_cell_mar_xml)
+
+            # Cell Text Direction (w:tcPr/w:textDirection)
+            html_rows = list(re.finditer(r"<tr\b[^>]*>([\s\S]*?)</tr\s*>", table_body, re.IGNORECASE))
+            xml_rows = list(re.finditer(r"<w:tr\b[\s\S]*?</w:tr\s*>", table, re.IGNORECASE))
+            if len(html_rows) == len(xml_rows):
+                for r_idx in range(len(html_rows) - 1, -1, -1):
+                    h_row = html_rows[r_idx].group(1)
+                    x_row = xml_rows[r_idx].group(0)
+                    h_cells = list(re.finditer(r"<t[dh]\b([^>]*)>", h_row, re.IGNORECASE))
+                    x_cells = list(re.finditer(r"<w:tc\b[\s\S]*?</w:tc\s*>", x_row, re.IGNORECASE))
+                    if len(h_cells) == len(x_cells):
+                        row_str = x_row
+                        for c_idx in range(len(h_cells) - 1, -1, -1):
+                            cell_open = h_cells[c_idx].group(1)
+                            dir_match = re.search(r'data-vno-text-direction=["\'](tbRl|btLr)["\']', cell_open, re.IGNORECASE)
+                            if dir_match:
+                                direction_val = dir_match.group(1)
+                                c_xml = x_cells[c_idx].group(0)
+                                new_c_xml = _writer_upsert_tcpr(c_xml, "textDirection", f'<w:textDirection w:val="{direction_val}"/>')
+                                row_str = row_str[:x_cells[c_idx].start()] + new_c_xml + row_str[x_cells[c_idx].end():]
+                                x_cells = list(re.finditer(r"<w:tc\b[\s\S]*?</w:tc\s*>", row_str, re.IGNORECASE))
+                        table = table[:xml_rows[r_idx].start()] + row_str + table[xml_rows[r_idx].end():]
+                        xml_rows = list(re.finditer(r"<w:tr\b[\s\S]*?</w:tr\s*>", table, re.IGNORECASE))
+
             document_xml = document_xml[:xml_tables[index].start()] + table + document_xml[xml_tables[index].end():]
             xml_tables = list(re.finditer(r"<w:tbl\b[\s\S]*?</w:tbl\s*>", document_xml, re.IGNORECASE))
     indent_by_text: dict[str, int] = {}

@@ -240,6 +240,7 @@ export const WRITER_RIBBON_TABS = [
             items: [
               { type: "button", commandId: "common.edit.find" },
               { type: "button", commandId: "common.edit.replace" },
+              { type: "button", commandId: "writer.edit.goTo" },
               {
                 type: "dropdown",
                 id: "writer.edit.select",
@@ -625,6 +626,7 @@ export const WRITER_RIBBON_TABS = [
               { type: "button", commandId: "writer.table.selectTable" }
             ]
           },
+          { type: "button", commandId: "writer.table.properties", isLarge: true },
           { type: "button", commandId: "writer.table.deleteTable", isLarge: true }
         ]
       },
@@ -657,7 +659,8 @@ export const WRITER_RIBBON_TABS = [
         labelKey: "writerRibbon.group.tableMergeGroup",
         items: [
           { type: "button", commandId: "writer.table.mergeCells", isLarge: true },
-          { type: "button", commandId: "writer.table.splitCells", isLarge: true }
+          { type: "button", commandId: "writer.table.splitCells", isLarge: true },
+          { type: "button", commandId: "writer.table.splitTable", isLarge: true }
         ]
       },
       {
@@ -678,7 +681,8 @@ export const WRITER_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "writer.table.alignTop" },
           { type: "button", commandId: "writer.table.alignMiddle" },
-          { type: "button", commandId: "writer.table.alignBottom" }
+          { type: "button", commandId: "writer.table.alignBottom" },
+          { type: "button", commandId: "writer.table.textDirection", isLarge: true }
         ]
       },
       {
