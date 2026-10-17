@@ -205,6 +205,20 @@ export class SlidesAdapter {
     // Những lệnh này có triển khai trong Canvas/adapter; bind tại đây để ribbon
     // và phím tắt dùng cùng một đường thực thi thay vì chỉ hoạt động qua UNO.
     globalCommandBus.bindHandler("slides.transition.apply", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
+    // Tab Chuyển tiếp: thư viện hiệu ứng, thời gian, áp dụng tất cả, xem trước (cùng mô hình dữ liệu với hộp thoại).
+    globalCommandBus.bindHandler("slides.transition.gallery", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
+    globalCommandBus.bindHandler("slides.transition.durationMenu", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
+    globalCommandBus.bindHandler("slides.transition.advanceMenu", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
+    globalCommandBus.bindHandler("slides.transition.afterMenu", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
+    globalCommandBus.bindHandler("slides.transition.set", (arg) => this.canvas.setCurrentTransitionType(String(arg || "fade")));
+    globalCommandBus.bindHandler("slides.transition.duration", (arg) => this._hintIfFalse(() => this.canvas.updateCurrentTransition({ duration: parseInt(arg, 10) || 500 }), "Hãy chọn một hiệu ứng chuyển trang cho trang này trước (Chuyển tiếp > Hiệu ứng)."));
+    globalCommandBus.bindHandler("slides.transition.advanceClick", (arg) => this._hintIfFalse(() => this.canvas.updateCurrentTransition({ advanceOnClick: String(arg) !== "off" }), "Hãy chọn một hiệu ứng chuyển trang cho trang này trước (Chuyển tiếp > Hiệu ứng)."));
+    globalCommandBus.bindHandler("slides.transition.advanceAfter", (arg) => {
+      const seconds = Number(arg);
+      return this._hintIfFalse(() => this.canvas.updateCurrentTransition({ advanceAfter: Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds * 1000) : null }), "Hãy chọn một hiệu ứng chuyển trang cho trang này trước (Chuyển tiếp > Hiệu ứng).");
+    });
+    globalCommandBus.bindHandler("slides.transition.applyAll", () => this._hintIfFalse(() => this.canvas.applyTransitionToAll(), "Hãy chọn một hiệu ứng chuyển trang cho trang này trước (Chuyển tiếp > Hiệu ứng)."));
+    globalCommandBus.bindHandler("slides.transition.preview", () => this._hintIfFalse(() => this.canvas.previewTransition(), "Hãy chọn một hiệu ứng chuyển trang cho trang này trước (Chuyển tiếp > Hiệu ứng)."));
     globalCommandBus.bindHandler("common.edit.paste", () => this._paste());
     globalCommandBus.bindHandler("common.edit.pastePlain", () => this._pastePlainText());
     globalCommandBus.bindHandler("slides.review.commentInsert", (options) => {

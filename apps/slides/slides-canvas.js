@@ -9666,6 +9666,72 @@ const startEditing = (initialText) => {
     return true;
   }
 
+  _pushTransitionUndo(before) {
+    this.undoStack.push({ type: "slide-transition", before, after: this._captureSlideTransitions() });
+    this.redoStack = [];
+    this._syncUndoRedoState?.();
+    this._renderThumbnails?.();
+  }
+
+  /** Tab Chuyển tiếp > Hiệu ứng: đặt kiểu chuyển trang cho trang đang chọn ("none" = bỏ hiệu ứng). */
+  setCurrentTransitionType(type) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    if (type === "none") {
+      if (!slide.transition) return true;
+      const before = this._captureSlideTransitions();
+      delete slide.transition;
+      this._pushTransitionUndo(before);
+      return true;
+    }
+    const current = slide.transition || {};
+    return this.setTransition(type, current.duration || 500, false, null);
+  }
+
+  /** Sửa riêng thời lượng / cách chuyển trang của trang đang chọn; cần có hiệu ứng trước. */
+  updateCurrentTransition(patch) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    if (!slide.transition) {
+      return false;
+    }
+    const before = this._captureSlideTransitions();
+    const next = { ...slide.transition };
+    if (patch.duration !== undefined) next.duration = patch.duration;
+    if (patch.advanceOnClick !== undefined) {
+      if (patch.advanceOnClick) delete next.advanceOnClick; else next.advanceOnClick = false;
+    }
+    if (patch.advanceAfter !== undefined) {
+      if (patch.advanceAfter) next.advanceAfter = patch.advanceAfter; else delete next.advanceAfter;
+    }
+    slide.transition = next;
+    this._pushTransitionUndo(before);
+    return true;
+  }
+
+  /** Tab Chuyển tiếp > Áp dụng cho tất cả. */
+  applyTransitionToAll() {
+    const source = this.slides[this.currentSlideIndex]?.transition;
+    if (!source) return false;
+    const before = this._captureSlideTransitions();
+    this.slides.forEach((slide) => { slide.transition = { ...source }; });
+    this._pushTransitionUndo(before);
+    return true;
+  }
+
+  /** Tab Chuyển tiếp > Xem trước: chạy hiệu ứng của trang hiện tại trên khung soạn thảo. */
+  previewTransition() {
+    const transition = this.slides[this.currentSlideIndex]?.transition;
+    const el = this.stageEl;
+    if (!transition || !el) return false;
+    const type = (transition.type === "morph" || transition.type === "custom") ? "fade" : transition.type;
+    const name = `vnoTransition${String(type).charAt(0).toUpperCase()}${String(type).slice(1)}`;
+    el.style.animation = "none";
+    void el.offsetWidth;
+    el.style.animation = `${name} ${Math.max(Number(transition.duration) || 500, 100)}ms ease-out`;
+    return true;
+  }
+
   showTransitionDialog() {
     if (typeof document === "undefined" || !document.createElement) return Promise.resolve(false);
     return new Promise((resolve) => {

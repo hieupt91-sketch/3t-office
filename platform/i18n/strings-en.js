@@ -419,7 +419,7 @@ export const enStrings = {
   sheetSlicer: { selectTable: "Select a cell in a table before inserting a visual filter.", layer: "Visual filters", aria: "Filter", multi: "Multi-select", clear: "Clear filter", close: "Remove visual filter" },
   slidesRibbon: {
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant", tableLayout: "Table Layout", shapeFormat: "Shape Format" },
-    group: { shapeStyles: "Shape Styles", shapeArrange: "Arrange", shapeSize: "Size", tableRowsCols: "Rows & Columns", tableMerge: "Merge", slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
+    group: { transitionGallery: "Transition to This Slide", transitionTiming: "Timing", shapeStyles: "Shape Styles", shapeArrange: "Arrange", shapeSize: "Size", tableRowsCols: "Rows & Columns", tableMerge: "Merge", slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
     editing: { select: "Select" },
     drawing: { arrange: "Arrange" },
     section: "Section"
@@ -994,7 +994,17 @@ export const enStrings = {
     ,"slides.design.themeGallery": { label: "Themes", tooltip: "Choose a design theme for the whole presentation" }
     ,"slides.design.slideSize": { label: "Slide Size", tooltip: "Choose 16:9, 4:3 or enter a custom size (cm)" }
     ,"slides.design.formatBackground": { label: "Format Background", tooltip: "Change the current slide or all slides to a solid color, two-color gradient, or picture" }
-    ,"slides.transition.apply": { label: "Transitions", tooltip: "Apply a slide transition (Fade, Push, Zoom, Flip)" }
+    ,"slides.transition.gallery": { label: "Transition Effects", tooltip: "Choose how this slide appears (None, Fade, Push, Zoom, Flip, Morph)" }
+  ,"slides.transition.set": { label: "Effect", tooltip: "Set the transition of the current slide" }
+  ,"slides.transition.durationMenu": { label: "Duration", tooltip: "Set how long the transition runs" }
+  ,"slides.transition.duration": { label: "Transition Duration", tooltip: "Pick 0.3 / 0.5 / 0.8 / 1 / 2 seconds for the transition" }
+  ,"slides.transition.advanceMenu": { label: "Advance Slide", tooltip: "Allow or disallow advancing by mouse click" }
+  ,"slides.transition.advanceClick": { label: "On Mouse Click", tooltip: "Turn advancing on mouse click on or off during the show" }
+  ,"slides.transition.afterMenu": { label: "After", tooltip: "Automatically advance after a number of seconds" }
+  ,"slides.transition.advanceAfter": { label: "Advance After", tooltip: "Set the seconds before the slide advances (or turn it off)" }
+  ,"slides.transition.applyAll": { label: "Apply To All", tooltip: "Use this slide's transition settings on every slide" }
+  ,"slides.transition.preview": { label: "Preview", tooltip: "Play the current slide's transition" }
+  ,"slides.transition.apply": { label: "Transitions", tooltip: "Apply a slide transition (Fade, Push, Zoom, Flip)" }
     ,"slides.animation.apply": { label: "Animations", tooltip: "Apply an entrance animation to an object" }
     ,"slides.animation.pane": { label: "Animation Pane", tooltip: "List every animation on the current slide, reorder, change start, or remove an animation" }
     ,"slides.view.normal": { label: "Normal", tooltip: "Normal view for editing slides" }

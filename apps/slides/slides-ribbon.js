@@ -395,6 +395,73 @@ export const SLIDES_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "slides.transition.apply", isLarge: true }
         ]
+      },
+      {
+        id: "transitionGallery",
+        label: "Chuyển đến trang này",
+        labelKey: "slidesRibbon.group.transitionGallery",
+        items: [
+          {
+            type: "dropdown",
+            id: "slides.transition.gallery",
+            label: "Hiệu ứng",
+            icon: "slideTransition",
+            isLarge: true,
+            items: [
+              { commandId: "slides.transition.set", args: "none", label: "Không" },
+              { commandId: "slides.transition.set", args: "fade", label: "Mờ dần" },
+              { commandId: "slides.transition.set", args: "slide", label: "Trượt ngang" },
+              { commandId: "slides.transition.set", args: "zoom", label: "Thu phóng" },
+              { commandId: "slides.transition.set", args: "flip", label: "Lật 3D" },
+              { commandId: "slides.transition.set", args: "morph", label: "Morph" }
+            ]
+          },
+          { type: "button", commandId: "slides.transition.preview", isLarge: true }
+        ]
+      },
+      {
+        id: "transitionTiming",
+        label: "Thời gian",
+        labelKey: "slidesRibbon.group.transitionTiming",
+        items: [
+          {
+            type: "dropdown",
+            id: "slides.transition.durationMenu",
+            label: "Thời lượng",
+            icon: "slideTransition",
+            items: [
+              { commandId: "slides.transition.duration", args: "300", label: "0,3 giây" },
+              { commandId: "slides.transition.duration", args: "500", label: "0,5 giây" },
+              { commandId: "slides.transition.duration", args: "800", label: "0,8 giây" },
+              { commandId: "slides.transition.duration", args: "1000", label: "1 giây" },
+              { commandId: "slides.transition.duration", args: "2000", label: "2 giây" }
+            ]
+          },
+          {
+            type: "dropdown",
+            id: "slides.transition.advanceMenu",
+            label: "Chuyển trang",
+            icon: "slideTransition",
+            items: [
+              { commandId: "slides.transition.advanceClick", args: "on", label: "Khi nhấp chuột: bật" },
+              { commandId: "slides.transition.advanceClick", args: "off", label: "Khi nhấp chuột: tắt" }
+            ]
+          },
+          {
+            type: "dropdown",
+            id: "slides.transition.afterMenu",
+            label: "Tự động sau",
+            icon: "slideTransition",
+            items: [
+              { commandId: "slides.transition.advanceAfter", args: "off", label: "Không tự chuyển" },
+              { commandId: "slides.transition.advanceAfter", args: "3", label: "3 giây" },
+              { commandId: "slides.transition.advanceAfter", args: "5", label: "5 giây" },
+              { commandId: "slides.transition.advanceAfter", args: "10", label: "10 giây" },
+              { commandId: "slides.transition.advanceAfter", args: "30", label: "30 giây" }
+            ]
+          },
+          { type: "button", commandId: "slides.transition.applyAll" }
+        ]
       }
     ]
   },

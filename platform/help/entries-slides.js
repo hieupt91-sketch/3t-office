@@ -229,6 +229,25 @@ export const SLIDES_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.transition.tab",
+    app: "slides",
+    commandIds: [
+      "slides.transition.gallery", "slides.transition.set", "slides.transition.durationMenu", "slides.transition.duration",
+      "slides.transition.advanceMenu", "slides.transition.advanceClick", "slides.transition.afterMenu", "slides.transition.advanceAfter",
+      "slides.transition.applyAll", "slides.transition.preview"
+    ],
+    title: "Tab Chuyển tiếp: chọn hiệu ứng, thời gian và xem trước",
+    summary: "Chọn trang ở thanh bên rồi dùng nhóm Chuyển đến trang này để chọn hiệu ứng và xem trước; nhóm Thời gian đặt thời lượng, chuyển trang khi nhấp chuột, tự chuyển sau N giây và áp dụng cho tất cả trang.",
+    ribbon: { tab: "Chuyển tiếp", tabId: "transitions", group: "Chuyển đến trang này" },
+    keywords: ["chuyển tiếp", "transition", "hiệu ứng chuyển trang", "thời lượng", "tự động sau", "áp dụng cho tất cả", "xem trước"],
+    steps: [
+      "Nhấp một trang ở thanh bên trái, vào tab Chuyển tiếp > nhóm Chuyển đến trang này > Hiệu ứng, rồi chọn Không, Mờ dần, Trượt ngang, Thu phóng, Lật 3D hoặc Morph. Chỉ trang đang chọn được đổi.",
+      "Nhấn Xem trước để chạy thử hiệu ứng ngay trên trang đang soạn.",
+      "Nhóm Thời gian: Thời lượng chọn 0,3 đến 2 giây; Chuyển trang cho bật/tắt chuyển khi nhấp chuột; Tự động sau chọn 3, 5, 10, 30 giây hoặc Không tự chuyển. Các mục này cần trang đã có hiệu ứng.",
+      "Áp dụng cho tất cả sao chép hiệu ứng, thời lượng và cách chuyển trang của trang này sang mọi trang. Ctrl+Z hoàn tác cả nhóm trang trong một bước. Nút Chuyển tiếp lớn bên trái vẫn mở hộp thoại đầy đủ."
+    ]
+  },
+  {
     id: "slides.transition.apply",
     app: "slides",
     commandIds: ["slides.transition.apply"],
