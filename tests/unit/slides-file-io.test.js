@@ -1673,6 +1673,36 @@ export async function runSlidesFileIoTests() {
     }
   });
 
+  test("SlidesAdapter: preserve image altText (Item g)", () => {
+    const fodp = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+ xmlns:vno="urn:vn-office:slides:1.0">
+  <office:body><office:presentation>
+    <draw:page draw:name="page1">
+      <draw:frame draw:name="Pic1" vno:alt="mo ta anh" svg:width="5cm" svg:height="3cm" svg:x="2cm" svg:y="2cm">
+        <svg:desc>mo ta anh</svg:desc>
+        <draw:image xlink:href="" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad" draw:mime-type="image/png"/>
+      </draw:frame>
+    </draw:page>
+  </office:presentation></office:body>
+</office:document>`;
+    const adapter = new SlidesAdapter(null);
+    const parsed = adapter.parseFodp(fodp);
+    const shape = parsed[0].shapes[0];
+    if (shape.type !== "image") throw new Error(`Expected shape type image, got ${shape.type}`);
+    if (shape.altText !== "mo ta anh") throw new Error(`Expected altText "mo ta anh", got "${shape.altText}"`);
+
+    const serialized = new SlidesAdapter({ slides: parsed, slideSize: { width: 960, height: 540 } }).serializeToFodp();
+    if (!serialized.includes('vno:alt="mo ta anh"')) {
+      throw new Error("Serialized image missing vno:alt");
+    }
+    if (!serialized.includes('<svg:desc>mo ta anh</svg:desc>')) {
+      throw new Error("Serialized image missing <svg:desc>");
+    }
+  });
+
   return results;
 }
 

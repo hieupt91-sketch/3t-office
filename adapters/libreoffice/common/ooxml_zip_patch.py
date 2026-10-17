@@ -11979,6 +11979,105 @@ def _apply_slides_native_shape_lines(
     return replacements
 
 
+def _apply_slides_native_pictures(
+    pptx_bytes: bytes,
+    source_fodp: str | None = None,
+    source_pptx: bytes | None = None,
+    base_replacements: dict[str, str] | None = None,
+) -> dict[str, str]:
+    if not source_pptx and not source_fodp:
+        return {}
+    target_entries = _resolve_pptx_slide_entries(pptx_bytes)
+    if not target_entries:
+        return {}
+
+    src_entries = _resolve_pptx_slide_entries(source_pptx) if source_pptx else []
+
+    fodp_alts_by_slide: list[dict[str, str]] = []
+    if source_fodp:
+        fodp_pages = _flat_xml_blocks(source_fodp, ("draw:page",))
+        for p_start, p_end in fodp_pages:
+            p_xml = source_fodp[p_start:p_end]
+            p_alts: dict[str, str] = {}
+            for m in re.finditer(r'<draw:frame\b([^>]*)>([\s\S]*?)</draw:frame>', p_xml, re.IGNORECASE):
+                attrs = m.group(1)
+                inner = m.group(2)
+                nm = re.search(r'\bdraw:name=["\']([^"\']*)["\']', attrs, re.IGNORECASE)
+                alt = re.search(r'\bvno:alt=["\']([^"\']*)["\']', attrs, re.IGNORECASE) or re.search(r'<svg:desc\b[^>]*>([\s\S]*?)</svg:desc>', inner, re.IGNORECASE)
+                if nm and alt:
+                    p_alts[_unescape_xml(nm.group(1))] = _unescape_xml(alt.group(1))
+            fodp_alts_by_slide.append(p_alts)
+
+    replacements: dict[str, str] = {}
+    for idx, entry in enumerate(target_entries):
+        src_pics: dict[str, str] = {}
+        if idx < len(src_entries) and source_pptx:
+            src_bytes = read_zip_entry(source_pptx, src_entries[idx])
+            if src_bytes:
+                src_xml = src_bytes.decode("utf-8", errors="replace")
+                for m in re.finditer(r'<p:pic\b[\s\S]*?</p:pic>', src_xml, re.IGNORECASE):
+                    pic = m.group(0)
+                    nm = re.search(r'<p:cNvPr\b[^>]*\bname=["\']([^"\']*)["\']', pic, re.IGNORECASE)
+                    if nm:
+                        src_pics[_unescape_xml(nm.group(1))] = pic
+
+        fodp_alts = fodp_alts_by_slide[idx] if idx < len(fodp_alts_by_slide) else {}
+        if not src_pics and not fodp_alts:
+            continue
+
+        original = (base_replacements or {}).get(entry) or read_zip_entry(pptx_bytes, entry).decode("utf-8", errors="replace")
+        xml = original
+        changed = False
+
+        def patch_pic(m: re.Match) -> str:
+            nonlocal changed
+            pic = m.group(0)
+            nm = re.search(r'<p:cNvPr\b[^>]*\bname=["\']([^"\']*)["\']', pic, re.IGNORECASE)
+            if not nm:
+                return pic
+            name = _unescape_xml(nm.group(1))
+            src_pic = src_pics.get(name)
+
+            # 1. descr (AlternativeText)
+            alt_val = None
+            if src_pic:
+                cnv_m = re.search(r'<p:cNvPr\b([^>]*)/?>', src_pic, re.IGNORECASE)
+                if cnv_m:
+                    descr_m = re.search(r'\bdescr=["\']([^"\']*)["\']', cnv_m.group(1), re.IGNORECASE)
+                    if descr_m:
+                        alt_val = descr_m.group(1)
+            if alt_val is None and name in fodp_alts:
+                alt_val = html.escape(fodp_alts[name], quote=True)
+
+            if alt_val is not None and not re.search(r'\bdescr=', pic, re.IGNORECASE):
+                pic = re.sub(r'(<p:cNvPr\b[^>]*?)(\s*/?>)', rf'\g<1> descr="{alt_val}"\2', pic, count=1, flags=re.IGNORECASE)
+                changed = True
+
+            # 2. Border line
+            if src_pic:
+                src_ln_m = re.search(r'<a:ln\b[\s\S]*?</a:ln>', src_pic, re.IGNORECASE)
+                if src_ln_m:
+                    src_ln = src_ln_m.group(0)
+                    if re.search(r'<a:ln\b[\s\S]*?</a:ln>', pic, re.IGNORECASE):
+                        pic = re.sub(r'<a:ln\b[\s\S]*?</a:ln>', src_ln, pic, count=1, flags=re.IGNORECASE)
+                        changed = True
+                    else:
+                        sp_pr_m = re.search(r'<p:spPr\b[\s\S]*?</p:spPr>', pic, re.IGNORECASE)
+                        if sp_pr_m:
+                            new_sp_pr = sp_pr_m.group(0).replace('</p:spPr>', f'{src_ln}</p:spPr>')
+                            pic = pic[:sp_pr_m.start()] + new_sp_pr + pic[sp_pr_m.end():]
+                            changed = True
+
+            return pic
+
+        next_xml = re.sub(r'<p:pic\b[\s\S]*?</p:pic>', patch_pic, xml, flags=re.IGNORECASE)
+        if changed and next_xml != original:
+            replacements[entry] = next_xml
+
+    return replacements
+
+
+
 
 def _slides_wordart_ids_from_fodp(fodp_xml: str | None) -> list[set[str]]:
     pages: list[set[str]] = []
@@ -12227,7 +12326,14 @@ def postprocess_slides_pptx(
          **transition_replacements, **wordart_replacements, **layout_replacements, **native_timing_replacements,
          **shadow_replacements, **source_transition_replacements, **textbox_replacements},
     )
-    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements and not native_timing_replacements and not shadow_replacements and not source_transition_replacements and not textbox_replacements and not shape_line_replacements and not restore_masters:
+    picture_replacements = _apply_slides_native_pictures(
+        pptx_bytes, source_fodp, source_pptx,
+        {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,
+         **transition_replacements, **wordart_replacements, **layout_replacements, **native_timing_replacements,
+         **shadow_replacements, **source_transition_replacements, **textbox_replacements,
+         **shape_line_replacements},
+    )
+    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements and not native_timing_replacements and not shadow_replacements and not source_transition_replacements and not textbox_replacements and not shape_line_replacements and not picture_replacements and not restore_masters:
         return pptx_bytes
     replacements.update(animation_replacements)
     replacements.update(paragraph_level_replacements)
@@ -12241,6 +12347,7 @@ def postprocess_slides_pptx(
     replacements.update(source_transition_replacements)
     replacements.update(textbox_replacements)
     replacements.update(shape_line_replacements)
+    replacements.update(picture_replacements)
 
     if apply_slide_size and presentation_xml:
         presentation_xml = apply_intended_slide_size(presentation_xml, intended_size)

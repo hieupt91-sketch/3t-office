@@ -2517,8 +2517,15 @@ export class SlidesAdapter {
       const srcRectAttr = shape.cropPct
         ? ` vno:src-rect="${this._escapeXml(this._formatSrcRectPct(shape.cropPct))}"`
         : "";
+      const altAttr = shape.altText
+        ? ` vno:alt="${this._escapeXml(shape.altText)}"`
+        : "";
+      const descTag = shape.altText
+        ? `<svg:desc>${this._escapeXml(shape.altText)}</svg:desc>`
+        : "";
       return `
-        <draw:frame ${geom}${srcRectAttr}>
+        <draw:frame ${geom}${srcRectAttr}${altAttr}>
+          ${descTag}
           <draw:image xlink:href="${href}" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad" draw:mime-type="${mime}">
             ${this._binaryDataXml(shape.src)}
           </draw:image>
@@ -3385,13 +3392,15 @@ export class SlidesAdapter {
     if (/<draw:image\b/i.test(inner)) {
       const crop = style.crop || this._parseClipRect(this._attr(attrs, "fo:clip")) || this._parseClipRect(inner.match(/fo:clip=["']([^"']+)["']/i)?.[1]);
       const cropPct = this._parseSrcRectPct(this._attr(attrs, "vno:src-rect")) || this._parseSrcRectPct(inner.match(/vno:src-rect=["']([^"']+)["']/i)?.[1]);
+      const altText = this._attr(attrs, "vno:alt") || inner.match(/<svg:desc\b[^>]*>([\s\S]*?)<\/svg:desc>/i)?.[1]?.trim() || "";
       return {
         ...base,
         type: "image",
         src: this._parseEmbeddedSrc(inner, "image/png"),
         color: "transparent",
         ...(crop ? { crop } : {}),
-        ...(cropPct ? { cropPct } : {})
+        ...(cropPct ? { cropPct } : {}),
+        ...(altText ? { altText } : {})
       };
     }
 
