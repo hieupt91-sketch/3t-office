@@ -1089,6 +1089,7 @@ export const enStrings = {
   ,"slides.design.themeFonts": { label: "Theme Fonts", tooltip: "Change the theme font for the whole deck" }
   ,"slides.design.setThemeFonts": { label: "Font Set", tooltip: "Apply the chosen font to the whole deck" }
   ,"slides.picture.crop": { label: "Crop", tooltip: "Crop the selected picture to an aspect ratio or enter crop amounts per edge" }
+  ,"slides.picture.cropDrag": { label: "Crop by Dragging Edges", tooltip: "Turn on crop mode: drag a handle on an edge or corner of the picture to cut away the outside (Esc or Enter to finish)" }
   ,"slides.picture.cropRatio": { label: "Crop to Ratio", tooltip: "Crop the selected picture to the chosen aspect ratio (centered), or reset the crop" }
   ,"slides.picture.cropDialog": { label: "Crop Amounts…", tooltip: "Enter the crop percentage for the left, right, top and bottom edges" }
   ,"slides.view.notesPage": { label: "Notes Page", tooltip: "View each slide with the speaker notes as a printed page" }

@@ -245,7 +245,7 @@ Công cụ hình ảnh > Định dạng|Kiểu ảnh|Kiểu khung viền ảnh (
 Công cụ hình ảnh > Định dạng|Kiểu ảnh|Viền ảnh (Picture Border)|N|2|Chưa có công cụ viền ảnh trên ribbon
 Công cụ hình ảnh > Định dạng|Kiểu ảnh|Hiệu ứng ảnh (Picture Effects: Shadow, Glow, Soft Edges)|P|2|Hỗ trợ đổ bóng và phát sáng; chưa có 3D rotation
 Công cụ hình ảnh > Định dạng|Kiểu ảnh|Bố cục ảnh sang SmartArt (Picture Layout)|N|3|Chưa hỗ trợ chuyển đổi ảnh vào sơ đồ SmartArt
-Công cụ hình ảnh > Định dạng|Kích thước|Cắt xén ảnh (Crop to Shape / Aspect Ratio)|P|1|Đọc và hiển thị ảnh cắt xén (apps/slides/slides-canvas.js:3406); chưa có công cụ kéo cắt xén ảnh trực tiếp trên UI
+Công cụ hình ảnh > Định dạng|Kích thước|Cắt xén ảnh (Crop to Shape / Aspect Ratio)|V|-|slides.picture.cropDrag kéo tay cầm cắt trực tiếp, slides.picture.cropRatio theo tỉ lệ, slides.picture.cropDialog theo số đo; lưu PPTX rồi PowerPoint 2016 COM đọc CropRight 37.5 pt, CropTop 22.5 pt, khung 300×180 (tests/live/cdp/slides-crop-drag.desktop.mjs; {{L:apps/slides/slides-canvas.js|  toggleCropMode(force) {}} toggleCropMode)
 Công cụ bảng > Thiết kế|Tùy chọn kiểu|Hàng tiêu đề (Header Row)|N|2|Chưa hỗ trợ tùy chọn hàng tiêu đề bảng
 Công cụ bảng > Thiết kế|Tùy chọn kiểu|Hàng tổng cộng (Total Row)|N|2|Chưa hỗ trợ tùy chọn hàng tổng cộng bảng
 Công cụ bảng > Thiết kế|Tùy chọn kiểu|Hàng sọc xen kẽ (Banded Rows)|N|2|Chưa hỗ trợ tô màu xen kẽ hàng bảng

@@ -313,6 +313,7 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.view.outline", () => (this.canvas.outlineOverlay ? this.canvas.closeOutlineView() : this.canvas.openOutlineView()));
     // Tab Định dạng ảnh: cắt ảnh theo tỉ lệ / theo số đo từng cạnh.
     globalCommandBus.bindHandler("slides.picture.crop", () => this._hintIfFalse(() => this.canvas.openCropDialog(), "Hãy chọn một ảnh trước khi cắt."));
+    globalCommandBus.bindHandler("slides.picture.cropDrag", () => this._hintIfFalse(() => this.canvas.toggleCropMode(), "Hãy chọn một ảnh (không xoay) trước, rồi bật cắt bằng cách kéo cạnh."));
     globalCommandBus.bindHandler("slides.picture.cropDialog", () => this._hintIfFalse(() => this.canvas.openCropDialog(), "Hãy chọn một ảnh trước khi cắt."));
     globalCommandBus.bindHandler("slides.picture.cropRatio", (arg) => this._hintIfFalse(() => this.canvas.cropImageToRatio(String(arg || "")), "Hãy chọn một ảnh trước khi cắt."));
     globalCommandBus.bindHandler("slides.view.notesPage", () => (this.canvas.notesPageOverlay ? this.canvas.closeNotesPage() : this.canvas.openNotesPage()));

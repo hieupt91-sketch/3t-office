@@ -3330,6 +3330,97 @@ export class SlidesCanvasController {
     })) !== false;
   }
 
+  /**
+   * Chế độ cắt bằng tay (như nút Cắt của PowerPoint): kéo tay cầm ở cạnh/góc ảnh để cắt bỏ phần ngoài, cạnh đối diện đứng yên,
+   * phần ảnh còn lại không bị co giãn. Bật/tắt bằng cùng lệnh; Esc hoặc Enter hoặc chọn đối tượng khác để thoát.
+   */
+  toggleCropMode(force) {
+    const shape = this._selectedImage();
+    const on = force === undefined ? !this._cropMode : !!force;
+    if (on) {
+      if (!shape || typeof document === "undefined") return false;
+      if (shape.rotation) {
+        this.options?.shell?.setStatus?.("Ảnh đang xoay nên chưa kéo cắt được. Dùng Cắt xén… để nhập số đo, hoặc đưa góc xoay về 0.");
+        return false;
+      }
+      this._cropMode = true;
+      this._cropModeShapeId = shape.id;
+      this._cropModeKeyHandler = (event) => {
+        if (event.key === "Escape" || event.key === "Enter") { event.preventDefault?.(); this.toggleCropMode(false); }
+      };
+      document.addEventListener("keydown", this._cropModeKeyHandler, true);
+      this.shapesLayer?.querySelector?.(`[data-shape-id="${shape.id}"]`)?.classList?.add("is-cropping");
+      this.options?.shell?.setStatus?.("Đang cắt ảnh: kéo các tay cầm ở cạnh hoặc góc ảnh. Nhấn Esc hoặc Enter để xong.");
+      return true;
+    }
+    if (!this._cropMode) return false;
+    this._cropMode = false;
+    if (this._cropModeKeyHandler && typeof document !== "undefined") document.removeEventListener("keydown", this._cropModeKeyHandler, true);
+    this._cropModeKeyHandler = null;
+    this.shapesLayer?.querySelectorAll?.(".is-cropping")?.forEach?.((el) => el.classList.remove("is-cropping"));
+    this._cropModeShapeId = null;
+    this.options?.shell?.setStatus?.("Đã thoát chế độ cắt ảnh.");
+    return true;
+  }
+
+  /** Kéo một tay cầm trong chế độ cắt: đổi cropPct theo cạnh bị kéo, cạnh đối diện giữ nguyên vị trí. */
+  _beginCropDrag(shapeEl, shape, dir, event) {
+    const old = this._normalizedCropPct(shape);
+    const orig = { x: Number(shape.x), y: Number(shape.y), w: Number(shape.w), h: Number(shape.h) };
+    const oldVisW = 100 - old.l - old.r;
+    const oldVisH = 100 - old.t - old.b;
+    const fullW = orig.w / (oldVisW / 100);
+    const fullH = orig.h / (oldVisH / 100);
+    const scale = this._pointerScale();
+    const startX = event.clientX;
+    const startY = event.clientY;
+    const clamp = (value, max) => Math.max(0, Math.min(max, value));
+    const compute = (dx, dy) => {
+      const next = { ...old };
+      if (dir.includes("w")) next.l = clamp(old.l + (dx / fullW) * 100, 95 - old.r);
+      if (dir.includes("e")) next.r = clamp(old.r - (dx / fullW) * 100, 95 - old.l);
+      if (dir.includes("n")) next.t = clamp(old.t + (dy / fullH) * 100, 95 - old.b);
+      if (dir.includes("s")) next.b = clamp(old.b - (dy / fullH) * 100, 95 - old.t);
+      return {
+        next,
+        x: orig.x + (fullW * (next.l - old.l)) / 100,
+        y: orig.y + (fullH * (next.t - old.t)) / 100,
+        w: (fullW * (100 - next.l - next.r)) / 100,
+        h: (fullH * (100 - next.t - next.b)) / 100
+      };
+    };
+    let last = null;
+    const move = (moveEvent) => {
+      last = compute((moveEvent.clientX - startX) / scale, (moveEvent.clientY - startY) / scale);
+      shapeEl.style.left = `${last.x}px`;
+      shapeEl.style.top = `${last.y}px`;
+      shapeEl.style.width = `${last.w}px`;
+      shapeEl.style.height = `${last.h}px`;
+      const imgEl = shapeEl.querySelector?.("img");
+      const info = this._computeImageCropStyles({ cropPct: last.next });
+      if (imgEl && info) imgEl.style.cssText = info.cssText;
+    };
+    const up = () => {
+      document.removeEventListener("pointermove", move);
+      document.removeEventListener("pointerup", up);
+      if (!last) return;
+      const { next } = last;
+      const probed = this._probeImageDimensionsAndDpi(shape.src);
+      const origWCm = probed && probed.width > 0 ? (probed.width / (probed.dpiX || 96)) * 2.54 : (fullW * 2.54 / 96);
+      const origHCm = probed && probed.height > 0 ? (probed.height / (probed.dpiY || 96)) * 2.54 : (fullH * 2.54 / 96);
+      const cm = (value, total) => `${((value / 100) * total).toFixed(3)}cm`;
+      const isNone = next.l + next.r + next.t + next.b === 0;
+      this.applyShapeStyle(() => ({
+        cropPct: isNone ? undefined : next,
+        crop: isNone ? undefined : { left: cm(next.l, origWCm), right: cm(next.r, origWCm), top: cm(next.t, origHCm), bottom: cm(next.b, origHCm) },
+        x: last.x, y: last.y, w: last.w, h: last.h
+      }));
+      if (this._cropMode) this.shapesLayer?.querySelector?.(`[data-shape-id="${shape.id}"]`)?.classList?.add("is-cropping");
+    };
+    document.addEventListener("pointermove", move);
+    document.addEventListener("pointerup", up);
+  }
+
   /** Cắt ảnh về tỉ lệ khung "a:b" (giữa ảnh) hoặc "reset" để bỏ cắt xén. */
   cropImageToRatio(ratio) {
     const shape = this._selectedImage();
@@ -5782,6 +5873,10 @@ const startEditing = (initialText) => {
       event.stopPropagation();
       event.preventDefault();
       if (shape.groupId && this._attachGroupResize(handleEl, shape, dir, event)) return;
+      if (this._cropMode && shape.type === "image" && String(this._cropModeShapeId) === String(shape.id) && !shape.rotation) {
+        this._beginCropDrag(shapeEl, shape, dir, event);
+        return;
+      }
 
       const startClientX = event.clientX;
       const startClientY = event.clientY;

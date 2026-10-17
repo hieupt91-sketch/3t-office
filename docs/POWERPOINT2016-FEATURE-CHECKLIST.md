@@ -16,9 +16,9 @@ Chuẩn: Microsoft PowerPoint 2016 (16.0.4266) cài trên máy, đọc chỉ-đ�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu PowerPoint 2016 | 110 | 42% |
+| ✅ Đã đối chiếu PowerPoint 2016 | 111 | 42% |
 | 🟢 Có, chưa đối chiếu | 61 | 23% |
-| 🟡 Có một phần | 22 | 8% |
+| 🟡 Có một phần | 21 | 8% |
 | 🔴 Chưa có | 70 | 27% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **269** (áp dụng: 263) | |
@@ -42,7 +42,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Xem lại | 14 | 2 | 5 | 0 | 5 | 2 | 58% |
 | Chế độ xem | 25 | 7 | 10 | 2 | 6 | 0 | 72% |
 | Công cụ vẽ > Định dạng | 17 | 4 | 6 | 2 | 5 | 0 | 65% |
-| Công cụ hình ảnh > Định dạng | 12 | 0 | 0 | 5 | 7 | 0 | 21% |
+| Công cụ hình ảnh > Định dạng | 12 | 1 | 0 | 4 | 7 | 0 | 25% |
 | Công cụ bảng > Thiết kế | 8 | 0 | 0 | 0 | 8 | 0 | 0% |
 | Công cụ bảng > Bố trí | 8 | 5 | 0 | 0 | 3 | 0 | 62% |
 | Công cụ biểu đồ > Thiết kế | 8 | 0 | 0 | 2 | 6 | 0 | 12% |
@@ -58,9 +58,8 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Chèn | Văn bản | Chữ nghệ thuật (WordArt) | 🟡 | FIX-L14: có lệnh slides.insert.wordart nhưng PowerPoint COM nhận dạng Type=17 PresetTextEffect=-2 chưa chuẩn native Type=15 (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
 | Chuyển tiếp | Chuyển tiếp sang slide | Hiệu ứng Morph (Biến đổi hình thái) | 🟡 | Đã có xử lý chuyển đổi Morph sơ bộ; chưa hoàn thiện mapping đối tượng khớp định danh như PowerPoint 2016 Office 365 |
 | Công cụ vẽ > Định dạng | Kiểu chữ WordArt | Hiệu ứng chữ nghệ thuật (Text Effects: Warp, Shadow, 3D) | 🟡 | FIX-L14: có textFadeRight nhưng PowerPoint COM nhận dạng PresetTextEffect=-2 chưa chuẩn native (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
-| Công cụ hình ảnh > Định dạng | Kích thước | Cắt xén ảnh (Crop to Shape / Aspect Ratio) | 🟡 | Đọc và hiển thị ảnh cắt xén (apps/slides/slides-canvas.js:3406); chưa có công cụ kéo cắt xén ảnh trực tiếp trên UI |
 
-Tổng: 6 mục ưu tiên 1.
+Tổng: 5 mục ưu tiên 1.
 
 ## Danh sách 15 mục ưu tiên 1 thiếu nhất & Đề xuất 10 phiếu việc kế tiếp
 
@@ -377,7 +376,7 @@ Tổng: 6 mục ưu tiên 1.
 | Kiểu ảnh | Viền ảnh (Picture Border) | 🔴 | 2 | Chưa có công cụ viền ảnh trên ribbon |
 | Kiểu ảnh | Hiệu ứng ảnh (Picture Effects: Shadow, Glow, Soft Edges) | 🟡 | 2 | Hỗ trợ đổ bóng và phát sáng; chưa có 3D rotation |
 | Kiểu ảnh | Bố cục ảnh sang SmartArt (Picture Layout) | 🔴 | 3 | Chưa hỗ trợ chuyển đổi ảnh vào sơ đồ SmartArt |
-| Kích thước | Cắt xén ảnh (Crop to Shape / Aspect Ratio) | 🟡 | 1 | Đọc và hiển thị ảnh cắt xén (apps/slides/slides-canvas.js:3406); chưa có công cụ kéo cắt xén ảnh trực tiếp trên UI |
+| Kích thước | Cắt xén ảnh (Crop to Shape / Aspect Ratio) | ✅ | - | slides.picture.cropDrag kéo tay cầm cắt trực tiếp, slides.picture.cropRatio theo tỉ lệ, slides.picture.cropDialog theo số đo; lưu PPTX rồi PowerPoint 2016 COM đọc CropRight 37.5 pt, CropTop 22.5 pt, khung 300×180 (tests/live/cdp/slides-crop-drag.desktop.mjs; apps/slides/slides-canvas.js:3337 toggleCropMode) |
 
 ### Công cụ bảng > Thiết kế
 
@@ -436,7 +435,7 @@ Tổng: 6 mục ưu tiên 1.
 | Bàn phím | Phím tắt định dạng chữ (Ctrl+B/I/U, Ctrl+Shift+>/<, Ctrl+Space) | ✅ | - | FIX-L4: Ctrl+B/I/U và thang tăng giảm cỡ chữ đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:27-31) |
 | Bàn phím | Phím tắt trình chiếu (F5 Từ đầu, Shift+F5 Từ trang hiện tại, Esc Thoát) | 🟢 | - | slides.show.startFromBegin, startFromCurrent; phím tắt điều khiển trình diễn |
 | Bàn phím | Phím tắt chỉnh sửa slide (Ctrl+M Thêm, Ctrl+D Nhân đôi, Delete Xóa) | ✅ | - | FIX-L8: slides.slide.new, duplicate, delete đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:20,22,23) |
-| Chuột | Kéo thả thay đổi thứ tự trang trong danh sách thumbnail | 🟢 | - | Kéo thả trực tiếp slide thumbnail để sắp xếp thứ tự (apps/slides/slides-canvas.js:6915, apps/slides/slides-canvas.js:6992) |
+| Chuột | Kéo thả thay đổi thứ tự trang trong danh sách thumbnail | 🟢 | - | Kéo thả trực tiếp slide thumbnail để sắp xếp thứ tự (apps/slides/slides-canvas.js:7010, apps/slides/slides-canvas.js:7087) |
 | Chuột | Kéo các góc/chốt đối tượng để đổi kích thước và xoay | 🟢 | - | Chốt điều khiển 8 hướng và xoay đối tượng (apps/slides/slides-canvas.js:190-200) |
 | Chuột | Menu ngữ cảnh chuột phải trên slide, hình vẽ, ảnh, bảng | 🟢 | - | Menu chuột phải trên slide và hình vẽ (apps/slides/slides-canvas.js:7131-7150) |
 | Tính tương thích | Mở và Lưu PPTX giữ nguyên bố cục đối tượng | ✅ | - | Lưu PPTX và mở lại đối chiếu PowerPoint COM không mất đối tượng (docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:9-10) |

@@ -1051,6 +1051,7 @@ export const SLIDES_RIBBON_TABS = [
             icon: "selectObjects",
             isLarge: true,
             items: [
+              { commandId: "slides.picture.cropDrag" },
               { commandId: "slides.picture.cropRatio", args: "1:1", label: "Vuông 1:1" },
               { commandId: "slides.picture.cropRatio", args: "4:3", label: "Ngang 4:3" },
               { commandId: "slides.picture.cropRatio", args: "16:9", label: "Ngang 16:9" },

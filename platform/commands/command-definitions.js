@@ -747,6 +747,7 @@ export const SLIDES_COMMANDS = [
   { id: "slides.design.themeFonts", category: "design", label: "Phông chủ đề", icon: "formatBackground", tooltip: "Đổi phông chữ của chủ đề cho toàn bài" },
   { id: "slides.design.setThemeFonts", category: "design", label: "Bộ phông", icon: "formatBackground", tooltip: "Áp dụng phông đã chọn cho toàn bài" },
   { id: "slides.picture.crop", category: "format", label: "Cắt ảnh", icon: "selectObjects", tooltip: "Cắt ảnh đang chọn theo tỉ lệ khung hoặc nhập số đo cắt từng cạnh" },
+  { id: "slides.picture.cropDrag", category: "format", label: "Cắt bằng cách kéo cạnh", icon: "selectObjects", tooltip: "Bật chế độ cắt: kéo tay cầm ở cạnh hoặc góc ảnh để cắt bỏ phần ngoài (Esc hoặc Enter để xong)" },
   { id: "slides.picture.cropRatio", category: "format", label: "Cắt theo tỉ lệ", icon: "selectObjects", tooltip: "Cắt ảnh đang chọn về tỉ lệ khung đã chọn (giữa ảnh), hoặc đặt lại cắt xén" },
   { id: "slides.picture.cropDialog", category: "format", label: "Cắt xén…", icon: "selectObjects", tooltip: "Nhập phần trăm cắt ở cạnh trái, phải, trên, dưới của ảnh" },
   { id: "slides.view.notesPage", category: "view", label: "Trang ghi chú", icon: "slideSorter", tooltip: "Xem từng trang chiếu kèm phần ghi chú của người thuyết trình ở dạng trang in", isToggle: true },

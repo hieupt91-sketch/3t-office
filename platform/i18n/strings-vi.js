@@ -1088,6 +1088,7 @@ export const viStrings = {
     ,"slides.design.themeFonts": { label: "Phông chủ đề", tooltip: "Đổi phông chữ của chủ đề cho toàn bài" }
     ,"slides.design.setThemeFonts": { label: "Bộ phông", tooltip: "Áp dụng phông đã chọn cho toàn bài" }
     ,"slides.picture.crop": { label: "Cắt ảnh", tooltip: "Cắt ảnh đang chọn theo tỉ lệ khung hoặc nhập số đo cắt từng cạnh" }
+    ,"slides.picture.cropDrag": { label: "Cắt bằng cách kéo cạnh", tooltip: "Bật chế độ cắt: kéo tay cầm ở cạnh hoặc góc ảnh để cắt bỏ phần ngoài (Esc hoặc Enter để xong)" }
     ,"slides.picture.cropRatio": { label: "Cắt theo tỉ lệ", tooltip: "Cắt ảnh đang chọn về tỉ lệ khung đã chọn (giữa ảnh), hoặc đặt lại cắt xén" }
     ,"slides.picture.cropDialog": { label: "Cắt xén…", tooltip: "Nhập phần trăm cắt ở cạnh trái, phải, trên, dưới của ảnh" }
     ,"slides.view.notesPage": { label: "Trang ghi chú", tooltip: "Xem từng trang chiếu kèm phần ghi chú của người thuyết trình ở dạng trang in" }
