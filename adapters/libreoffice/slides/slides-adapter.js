@@ -719,7 +719,7 @@ export class SlidesAdapter {
     if (/<(b|strong|i|em|u|s|strike|sub|sup|font|ul|ol|li|blockquote)\b/i.test(value)) return true;
     const styleMatch = value.match(/style\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
     const styleVal = styleMatch ? (styleMatch[1] !== undefined ? styleMatch[1] : (styleMatch[2] || "")) : "";
-    if (/(?:font-weight|font-style|text-decoration|text-shadow|color|background|font-family|font-size|text-align|line-height)/i.test(styleVal)) return true;
+    if (/(?:font-weight|font-style|text-decoration|text-shadow|color|background|font-family|font-size|text-align|line-height|margin-top|margin-left)/i.test(styleVal)) return true;
     return /<(span|div|p)\b[^>]*(align|face|color|size)=/i.test(value);
   }
 
@@ -855,7 +855,7 @@ export class SlidesAdapter {
     const currentFmt = () => Object.assign({}, ...formatStack);
     const flush = () => {
       if (current.texts.some((item) => item.text) || current.list) blocks.push(current);
-      current = { texts: [], align: current.align, lineHeight: current.lineHeight, indent: current.indent, spaceBefore: current.spaceBefore, list: current.list };
+      current = { texts: [], align: current.align, lineHeight: current.lineHeight, indent: current.indent, spaceBefore: null, list: current.list };
     };
 
     this._walkHtml(html, {
@@ -887,6 +887,7 @@ export class SlidesAdapter {
       close: (tag) => {
         if (tag === "li" || tag === "p" || tag === "div") {
           if (current.texts.length || tag === "li") flush();
+          current.spaceBefore = null;
         }
         if (tag === "blockquote") {
           if (current.texts.length) flush();
@@ -2614,7 +2615,7 @@ export class SlidesAdapter {
         ? ` presentation:class="${pClass}" presentation:style-name="${pClass === "title" ? "prTitle" : "prBody"}" presentation:user-transformed="true"`
         : "";
       return `
-        <draw:frame ${geom}${pAttrs}>
+        <draw:frame ${geom}${pAttrs} vno:textbox="true">
           <draw:text-box>
             ${textXml}
           </draw:text-box>
@@ -3012,7 +3013,8 @@ export class SlidesAdapter {
     const dAttr = get("svg:d");
     const enhancedPath = inner.match(/draw:enhanced-path=["']([^"']+)["']/i)?.[1];
     let type = "rect";
-    if (/ellipse|circle/i.test(geomType) || tagName === "ellipse" || tagName === "circle") type = "ellipse";
+    if (this._attr(attrs, "vno:textbox") === "true" || /vno:textbox=["']true["']/i.test(attrs)) type = "textbox";
+    else if (/ellipse|circle/i.test(geomType) || tagName === "ellipse" || tagName === "circle") type = "ellipse";
     else if (/arrow/i.test(geomType)) type = "arrow";
     else if (/path|ink/i.test(geomType) || tagName === "path" || (dAttr && !/arrow/i.test(geomType))) type = "ink";
     const styleName = get("draw:style-name");

@@ -9649,6 +9649,77 @@ def overlay_fodp_image_crops(fodp_xml: str, pptx_bytes: bytes) -> str:
     return apply_fodp_image_crops(fodp_xml, crops_by_slide)
 
 
+def parse_slide_textboxes(slide_xml: str | None) -> set[str]:
+    """Return set of shape names that have txBox="1" in slide XML."""
+    if not slide_xml:
+        return set()
+    names = set()
+    for match in re.finditer(r"<p:sp\b[\s\S]*?</p:sp>", slide_xml, re.IGNORECASE):
+        sp = match.group(0)
+        if re.search(r"""<p:cNvSpPr\b[^>]*\btxBox=['"]1['"]""", sp, re.IGNORECASE):
+            name_m = re.search(r"""<p:cNvPr\b[^>]*\bname=['"]([^'"]*)['"]""", sp, re.IGNORECASE)
+            if name_m:
+                names.add(_unescape_xml(name_m.group(1)))
+    return names
+
+
+def apply_fodp_textboxes(
+    fodp_xml: str | None, textboxes_by_slide: list[set[str]] | None
+) -> str:
+    """Stamp vno:textbox="true" onto matching draw:custom-shape, draw:rect, or draw:frame in each draw:page."""
+    xml = fodp_xml or ""
+    if not textboxes_by_slide or not any(textboxes_by_slide):
+        return xml
+
+    pieces = []
+    cursor = 0
+    page_idx = 0
+
+    for start, end in _flat_xml_blocks(xml, ("draw:page",)):
+        pieces.append(xml[cursor:start])
+        page_xml = xml[start:end]
+        tbs = textboxes_by_slide[page_idx] if page_idx < len(textboxes_by_slide) else None
+        page_idx += 1
+        if tbs:
+            def replace_shape(sm: re.Match) -> str:
+                tag = sm.group(1)
+                raw_attrs = sm.group(2) or ""
+                name_m = re.search(r"""\bdraw:name=['"]([^'"]*)['"]""", raw_attrs, re.IGNORECASE)
+                if not name_m:
+                    return sm.group(0)
+                name = _unescape_xml(name_m.group(1))
+                if name not in tbs:
+                    return sm.group(0)
+                self_close = bool(re.search(r"/\s*$", raw_attrs))
+                if self_close:
+                    raw_attrs = re.sub(r"/\s*$", "", raw_attrs)
+                if not re.search(r'\bvno:textbox\s*=', raw_attrs, re.IGNORECASE):
+                    raw_attrs = f'{raw_attrs.rstrip()} vno:textbox="true"'
+                if raw_attrs and not raw_attrs.startswith(" "):
+                    raw_attrs = f" {raw_attrs}"
+                return f"<{tag}{raw_attrs}/>" if self_close else f"<{tag}{raw_attrs}>"
+
+            page_xml = re.sub(r"<(draw:(?:custom-shape|rect|frame))\b([^>]*)>", replace_shape, page_xml, flags=re.IGNORECASE)
+        pieces.append(page_xml)
+        cursor = end
+
+    pieces.append(xml[cursor:])
+    return "".join(pieces)
+
+
+def overlay_fodp_textboxes(fodp_xml: str, pptx_bytes: bytes) -> str:
+    """Extract txBox shapes from each slide in PPTX and overlay onto FODP shapes."""
+    slide_entries = _resolve_pptx_slide_entries(pptx_bytes)
+    if not slide_entries:
+        return fodp_xml or ""
+    textboxes_by_slide = []
+    for entry_path in slide_entries:
+        slide_bytes = read_zip_entry(pptx_bytes, entry_path)
+        slide_xml = slide_bytes.decode("utf-8", errors="replace") if slide_bytes else ""
+        textboxes_by_slide.append(parse_slide_textboxes(slide_xml))
+    return apply_fodp_textboxes(fodp_xml, textboxes_by_slide)
+
+
 def parse_sections_from_fodp(fodp_xml: str | None) -> list[dict]:
     pages = parse_fodp_pages(fodp_xml)
     if not any(page["sectionId"] for page in pages):
@@ -11754,6 +11825,79 @@ def _apply_slides_source_transitions(
     return replacements
 
 
+def _apply_slides_native_textboxes(
+    pptx_bytes: bytes,
+    source_fodp: str | None = None,
+    source_pptx: bytes | None = None,
+    base_replacements: dict[str, str] | None = None,
+) -> dict[str, str]:
+    target_entries = _resolve_pptx_slide_entries(pptx_bytes)
+    if not target_entries:
+        return {}
+
+    textbox_names_by_slide: list[set[str]] = []
+    if source_pptx:
+        src_entries = _resolve_pptx_slide_entries(source_pptx)
+        for entry in src_entries:
+            s_bytes = read_zip_entry(source_pptx, entry)
+            s_xml = s_bytes.decode("utf-8", errors="replace") if s_bytes else ""
+            textbox_names_by_slide.append(parse_slide_textboxes(s_xml))
+
+    if source_fodp:
+        fodp_pages = _flat_xml_blocks(source_fodp, ("draw:page",))
+        for page_idx, (p_start, p_end) in enumerate(fodp_pages):
+            p_xml = source_fodp[p_start:p_end]
+            fodp_tbs = set()
+            for m in re.finditer(r'<draw:(?:frame|custom-shape|rect)\b([^>]*)>', p_xml, re.IGNORECASE):
+                attrs = m.group(1)
+                if re.search(r'\bvno:textbox=["\']true["\']', attrs, re.IGNORECASE):
+                    name_m = re.search(r'\bdraw:name=["\']([^"\']*)["\']', attrs, re.IGNORECASE)
+                    if name_m:
+                        fodp_tbs.add(_unescape_xml(name_m.group(1)))
+            if page_idx < len(textbox_names_by_slide):
+                textbox_names_by_slide[page_idx].update(fodp_tbs)
+            else:
+                textbox_names_by_slide.append(fodp_tbs)
+
+    if not any(textbox_names_by_slide):
+        return {}
+
+    replacements: dict[str, str] = {}
+    for idx, entry in enumerate(target_entries):
+        tbs = textbox_names_by_slide[idx] if idx < len(textbox_names_by_slide) else None
+        if not tbs:
+            continue
+        original = (base_replacements or {}).get(entry) or read_zip_entry(pptx_bytes, entry).decode("utf-8", errors="replace")
+        xml = original
+        changed = False
+
+        def patch_sp(m: re.Match) -> str:
+            nonlocal changed
+            sp = m.group(0)
+            name_m = re.search(r'<p:cNvPr\b[^>]*\bname=["\']([^"\']*)["\']', sp, re.IGNORECASE)
+            if not name_m or _unescape_xml(name_m.group(1)) not in tbs:
+                return sp
+            if re.search(r'<p:cNvSpPr\b[^>]*\btxBox=', sp, re.IGNORECASE):
+                return sp
+            new_sp = re.sub(
+                r'<p:cNvSpPr\b([^>]*?)(/?)>',
+                lambda c: f'<p:cNvSpPr{c.group(1)} txBox="1"{c.group(2)}>',
+                sp,
+                count=1,
+                flags=re.IGNORECASE
+            )
+            if new_sp != sp:
+                changed = True
+                return new_sp
+            return sp
+
+        next_xml = re.sub(r'<p:sp\b[\s\S]*?</p:sp>', patch_sp, xml, flags=re.IGNORECASE)
+        if changed and next_xml != original:
+            replacements[entry] = next_xml
+
+    return replacements
+
+
 def _slides_wordart_ids_from_fodp(fodp_xml: str | None) -> list[set[str]]:
     pages: list[set[str]] = []
     for page in re.finditer(r"<draw:page\b(?![-\w])[^>]*>([\s\S]*?)</draw:page\s*>", str(fodp_xml or ""), re.IGNORECASE):
@@ -11989,7 +12133,13 @@ def postprocess_slides_pptx(
          **transition_replacements, **wordart_replacements, **layout_replacements, **native_timing_replacements,
          **shadow_replacements},
     )
-    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements and not native_timing_replacements and not shadow_replacements and not source_transition_replacements and not restore_masters:
+    textbox_replacements = _apply_slides_native_textboxes(
+        pptx_bytes, source_fodp, source_pptx,
+        {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,
+         **transition_replacements, **wordart_replacements, **layout_replacements, **native_timing_replacements,
+         **shadow_replacements, **source_transition_replacements},
+    )
+    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements and not native_timing_replacements and not shadow_replacements and not source_transition_replacements and not textbox_replacements and not restore_masters:
         return pptx_bytes
     replacements.update(animation_replacements)
     replacements.update(paragraph_level_replacements)
@@ -12001,6 +12151,7 @@ def postprocess_slides_pptx(
     replacements.update(native_timing_replacements)
     replacements.update(shadow_replacements)
     replacements.update(source_transition_replacements)
+    replacements.update(textbox_replacements)
 
     if apply_slide_size and presentation_xml:
         presentation_xml = apply_intended_slide_size(presentation_xml, intended_size)
@@ -16449,6 +16600,7 @@ def overlay_slides_pptx_fodp(pptx_bytes: bytes, fodp_xml: str | None) -> str:
     if props:
         xml = overlay_fodp_show_properties(xml, props.decode("utf-8", errors="replace"))
     xml = overlay_fodp_image_crops(xml, pptx_bytes)
+    xml = overlay_fodp_textboxes(xml, pptx_bytes)
     xml = overlay_fodp_source_transitions(xml, pptx_bytes)
     return xml
 
