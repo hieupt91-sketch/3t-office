@@ -1,0 +1,842 @@
+﻿{
+    "TableStyleLight1":  {
+                             "id":  "TableStyleLight1",
+                             "category":  "light",
+                             "header":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#000000",
+                                            "borderBottom":  "#000000"
+                                        },
+                             "band1":  {
+                                           "bg":  "#d9d9d9",
+                                           "fg":  "#000000",
+                                           "borderBottom":  "#000000"
+                                       },
+                             "band2":  {
+                                           "bg":  "#ffffff",
+                                           "fg":  "#000000"
+                                       },
+                             "firstCol":  {
+                                              "bg":  "#d9d9d9",
+                                              "fg":  "#000000",
+                                              "bold":  true
+                                          },
+                             "lastCol":  {
+                                             "bg":  "#d9d9d9",
+                                             "fg":  "#000000",
+                                             "bold":  true
+                                         },
+                             "colBand1":  {
+                                              "bg":  "#ffffff"
+                                          },
+                             "colBand2":  {
+                                              "bg":  "#d9d9d9"
+                                          },
+                             "total":  {
+                                           "bg":  "#ffffff",
+                                           "fg":  "#000000",
+                                           "borderTop":  "#000000",
+                                           "borderBottom":  "#000000"
+                                       }
+                         },
+    "TableStyleLight2":  {
+                             "id":  "TableStyleLight2",
+                             "category":  "light",
+                             "header":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#2f75b5",
+                                            "borderBottom":  "#5b9bd5"
+                                        },
+                             "band1":  {
+                                           "bg":  "#ddebf7",
+                                           "fg":  "#2f75b5",
+                                           "borderBottom":  "#000000"
+                                       },
+                             "band2":  {
+                                           "bg":  "#ffffff",
+                                           "fg":  "#2f75b5"
+                                       },
+                             "firstCol":  {
+                                              "bg":  "#ddebf7",
+                                              "fg":  "#2f75b5",
+                                              "bold":  true
+                                          },
+                             "lastCol":  {
+                                             "bg":  "#ddebf7",
+                                             "fg":  "#2f75b5",
+                                             "bold":  true
+                                         },
+                             "colBand1":  {
+                                              "bg":  "#ffffff"
+                                          },
+                             "colBand2":  {
+                                              "bg":  "#ddebf7"
+                                          },
+                             "total":  {
+                                           "bg":  "#ffffff",
+                                           "fg":  "#2f75b5",
+                                           "borderTop":  "#5b9bd5",
+                                           "borderBottom":  "#5b9bd5"
+                                       }
+                         },
+    "TableStyleLight3":  {
+                             "id":  "TableStyleLight3",
+                             "category":  "light",
+                             "header":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#c65911",
+                                            "borderBottom":  "#ed7d31"
+                                        },
+                             "band1":  {
+                                           "bg":  "#fce4d6",
+                                           "fg":  "#c65911",
+                                           "borderBottom":  "#000000"
+                                       },
+                             "band2":  {
+                                           "bg":  "#ffffff",
+                                           "fg":  "#c65911"
+                                       },
+                             "firstCol":  {
+                                              "bg":  "#fce4d6",
+                                              "fg":  "#c65911",
+                                              "bold":  true
+                                          },
+                             "lastCol":  {
+                                             "bg":  "#fce4d6",
+                                             "fg":  "#c65911",
+                                             "bold":  true
+                                         },
+                             "colBand1":  {
+                                              "bg":  "#ffffff"
+                                          },
+                             "colBand2":  {
+                                              "bg":  "#fce4d6"
+                                          },
+                             "total":  {
+                                           "bg":  "#ffffff",
+                                           "fg":  "#c65911",
+                                           "borderTop":  "#ed7d31",
+                                           "borderBottom":  "#ed7d31"
+                                       }
+                         },
+    "TableStyleLight4":  {
+                             "id":  "TableStyleLight4",
+                             "category":  "light",
+                             "header":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#7b7b7b",
+                                            "borderBottom":  "#a5a5a5"
+                                        },
+                             "band1":  {
+                                           "bg":  "#ededed",
+                                           "fg":  "#7b7b7b",
+                                           "borderBottom":  "#000000"
+                                       },
+                             "band2":  {
+                                           "bg":  "#ffffff",
+                                           "fg":  "#7b7b7b"
+                                       },
+                             "firstCol":  {
+                                              "bg":  "#ededed",
+                                              "fg":  "#7b7b7b",
+                                              "bold":  true
+                                          },
+                             "lastCol":  {
+                                             "bg":  "#ededed",
+                                             "fg":  "#7b7b7b",
+                                             "bold":  true
+                                         },
+                             "colBand1":  {
+                                              "bg":  "#ffffff"
+                                          },
+                             "colBand2":  {
+                                              "bg":  "#ededed"
+                                          },
+                             "total":  {
+                                           "bg":  "#ffffff",
+                                           "fg":  "#7b7b7b",
+                                           "borderTop":  "#a5a5a5",
+                                           "borderBottom":  "#a5a5a5"
+                                       }
+                         },
+    "TableStyleLight5":  {
+                             "id":  "TableStyleLight5",
+                             "category":  "light",
+                             "header":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#bf8f00",
+                                            "borderBottom":  "#ffc000"
+                                        },
+                             "band1":  {
+                                           "bg":  "#fff2cc",
+                                           "fg":  "#bf8f00",
+                                           "borderBottom":  "#000000"
+                                       },
+                             "band2":  {
+                                           "bg":  "#ffffff",
+                                           "fg":  "#bf8f00"
+                                       },
+                             "firstCol":  {
+                                              "bg":  "#fff2cc",
+                                              "fg":  "#bf8f00",
+                                              "bold":  true
+                                          },
+                             "lastCol":  {
+                                             "bg":  "#fff2cc",
+                                             "fg":  "#bf8f00",
+                                             "bold":  true
+                                         },
+                             "colBand1":  {
+                                              "bg":  "#ffffff"
+                                          },
+                             "colBand2":  {
+                                              "bg":  "#fff2cc"
+                                          },
+                             "total":  {
+                                           "bg":  "#ffffff",
+                                           "fg":  "#bf8f00",
+                                           "borderTop":  "#ffc000",
+                                           "borderBottom":  "#ffc000"
+                                       }
+                         },
+    "TableStyleLight6":  {
+                             "id":  "TableStyleLight6",
+                             "category":  "light",
+                             "header":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#305496",
+                                            "borderBottom":  "#4472c4"
+                                        },
+                             "band1":  {
+                                           "bg":  "#d9e1f2",
+                                           "fg":  "#305496",
+                                           "borderBottom":  "#000000"
+                                       },
+                             "band2":  {
+                                           "bg":  "#ffffff",
+                                           "fg":  "#305496"
+                                       },
+                             "firstCol":  {
+                                              "bg":  "#d9e1f2",
+                                              "fg":  "#305496",
+                                              "bold":  true
+                                          },
+                             "lastCol":  {
+                                             "bg":  "#d9e1f2",
+                                             "fg":  "#305496",
+                                             "bold":  true
+                                         },
+                             "colBand1":  {
+                                              "bg":  "#ffffff"
+                                          },
+                             "colBand2":  {
+                                              "bg":  "#d9e1f2"
+                                          },
+                             "total":  {
+                                           "bg":  "#ffffff",
+                                           "fg":  "#305496",
+                                           "borderTop":  "#4472c4",
+                                           "borderBottom":  "#4472c4"
+                                       }
+                         },
+    "TableStyleLight7":  {
+                             "id":  "TableStyleLight7",
+                             "category":  "light",
+                             "header":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#548235",
+                                            "borderBottom":  "#70ad47"
+                                        },
+                             "band1":  {
+                                           "bg":  "#e2efda",
+                                           "fg":  "#548235",
+                                           "borderBottom":  "#000000"
+                                       },
+                             "band2":  {
+                                           "bg":  "#ffffff",
+                                           "fg":  "#548235"
+                                       },
+                             "firstCol":  {
+                                              "bg":  "#e2efda",
+                                              "fg":  "#548235",
+                                              "bold":  true
+                                          },
+                             "lastCol":  {
+                                             "bg":  "#e2efda",
+                                             "fg":  "#548235",
+                                             "bold":  true
+                                         },
+                             "colBand1":  {
+                                              "bg":  "#ffffff"
+                                          },
+                             "colBand2":  {
+                                              "bg":  "#e2efda"
+                                          },
+                             "total":  {
+                                           "bg":  "#ffffff",
+                                           "fg":  "#548235",
+                                           "borderTop":  "#70ad47",
+                                           "borderBottom":  "#70ad47"
+                                       }
+                         },
+    "TableStyleMedium1":  {
+                              "id":  "TableStyleMedium1",
+                              "category":  "medium",
+                              "header":  {
+                                             "bg":  "#000000",
+                                             "fg":  "#ffffff",
+                                             "borderBottom":  "#000000"
+                                         },
+                              "band1":  {
+                                            "bg":  "#d9d9d9",
+                                            "fg":  "#000000",
+                                            "borderBottom":  "#000000"
+                                        },
+                              "band2":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#000000"
+                                        },
+                              "firstCol":  {
+                                               "bg":  "#d9d9d9",
+                                               "fg":  "#000000",
+                                               "bold":  true
+                                           },
+                              "lastCol":  {
+                                              "bg":  "#d9d9d9",
+                                              "fg":  "#000000",
+                                              "bold":  true
+                                          },
+                              "colBand1":  {
+                                               "bg":  "#ffffff"
+                                           },
+                              "colBand2":  {
+                                               "bg":  "#d9d9d9"
+                                           },
+                              "total":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#000000",
+                                            "borderTop":  "#000000",
+                                            "borderBottom":  "#000000"
+                                        }
+                          },
+    "TableStyleMedium2":  {
+                              "id":  "TableStyleMedium2",
+                              "category":  "medium",
+                              "header":  {
+                                             "bg":  "#5b9bd5",
+                                             "fg":  "#ffffff",
+                                             "borderBottom":  "#9bc2e6"
+                                         },
+                              "band1":  {
+                                            "bg":  "#ddebf7",
+                                            "fg":  "#000000",
+                                            "borderBottom":  "#9bc2e6"
+                                        },
+                              "band2":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#000000"
+                                        },
+                              "firstCol":  {
+                                               "bg":  "#ddebf7",
+                                               "fg":  "#000000",
+                                               "bold":  true
+                                           },
+                              "lastCol":  {
+                                              "bg":  "#ddebf7",
+                                              "fg":  "#000000",
+                                              "bold":  true
+                                          },
+                              "colBand1":  {
+                                               "bg":  "#ffffff"
+                                           },
+                              "colBand2":  {
+                                               "bg":  "#ddebf7"
+                                           },
+                              "total":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#000000",
+                                            "borderTop":  "#5b9bd5",
+                                            "borderBottom":  "#9bc2e6"
+                                        }
+                          },
+    "TableStyleMedium3":  {
+                              "id":  "TableStyleMedium3",
+                              "category":  "medium",
+                              "header":  {
+                                             "bg":  "#ed7d31",
+                                             "fg":  "#ffffff",
+                                             "borderBottom":  "#f4b084"
+                                         },
+                              "band1":  {
+                                            "bg":  "#fce4d6",
+                                            "fg":  "#000000",
+                                            "borderBottom":  "#f4b084"
+                                        },
+                              "band2":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#000000"
+                                        },
+                              "firstCol":  {
+                                               "bg":  "#fce4d6",
+                                               "fg":  "#000000",
+                                               "bold":  true
+                                           },
+                              "lastCol":  {
+                                              "bg":  "#fce4d6",
+                                              "fg":  "#000000",
+                                              "bold":  true
+                                          },
+                              "colBand1":  {
+                                               "bg":  "#ffffff"
+                                           },
+                              "colBand2":  {
+                                               "bg":  "#fce4d6"
+                                           },
+                              "total":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#000000",
+                                            "borderTop":  "#ed7d31",
+                                            "borderBottom":  "#f4b084"
+                                        }
+                          },
+    "TableStyleMedium4":  {
+                              "id":  "TableStyleMedium4",
+                              "category":  "medium",
+                              "header":  {
+                                             "bg":  "#a5a5a5",
+                                             "fg":  "#ffffff",
+                                             "borderBottom":  "#c9c9c9"
+                                         },
+                              "band1":  {
+                                            "bg":  "#ededed",
+                                            "fg":  "#000000",
+                                            "borderBottom":  "#c9c9c9"
+                                        },
+                              "band2":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#000000"
+                                        },
+                              "firstCol":  {
+                                               "bg":  "#ededed",
+                                               "fg":  "#000000",
+                                               "bold":  true
+                                           },
+                              "lastCol":  {
+                                              "bg":  "#ededed",
+                                              "fg":  "#000000",
+                                              "bold":  true
+                                          },
+                              "colBand1":  {
+                                               "bg":  "#ffffff"
+                                           },
+                              "colBand2":  {
+                                               "bg":  "#ededed"
+                                           },
+                              "total":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#000000",
+                                            "borderTop":  "#a5a5a5",
+                                            "borderBottom":  "#c9c9c9"
+                                        }
+                          },
+    "TableStyleMedium5":  {
+                              "id":  "TableStyleMedium5",
+                              "category":  "medium",
+                              "header":  {
+                                             "bg":  "#ffc000",
+                                             "fg":  "#ffffff",
+                                             "borderBottom":  "#ffd966"
+                                         },
+                              "band1":  {
+                                            "bg":  "#fff2cc",
+                                            "fg":  "#000000",
+                                            "borderBottom":  "#ffd966"
+                                        },
+                              "band2":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#000000"
+                                        },
+                              "firstCol":  {
+                                               "bg":  "#fff2cc",
+                                               "fg":  "#000000",
+                                               "bold":  true
+                                           },
+                              "lastCol":  {
+                                              "bg":  "#fff2cc",
+                                              "fg":  "#000000",
+                                              "bold":  true
+                                          },
+                              "colBand1":  {
+                                               "bg":  "#ffffff"
+                                           },
+                              "colBand2":  {
+                                               "bg":  "#fff2cc"
+                                           },
+                              "total":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#000000",
+                                            "borderTop":  "#ffc000",
+                                            "borderBottom":  "#ffd966"
+                                        }
+                          },
+    "TableStyleMedium6":  {
+                              "id":  "TableStyleMedium6",
+                              "category":  "medium",
+                              "header":  {
+                                             "bg":  "#4472c4",
+                                             "fg":  "#ffffff",
+                                             "borderBottom":  "#8ea9db"
+                                         },
+                              "band1":  {
+                                            "bg":  "#d9e1f2",
+                                            "fg":  "#000000",
+                                            "borderBottom":  "#8ea9db"
+                                        },
+                              "band2":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#000000"
+                                        },
+                              "firstCol":  {
+                                               "bg":  "#d9e1f2",
+                                               "fg":  "#000000",
+                                               "bold":  true
+                                           },
+                              "lastCol":  {
+                                              "bg":  "#d9e1f2",
+                                              "fg":  "#000000",
+                                              "bold":  true
+                                          },
+                              "colBand1":  {
+                                               "bg":  "#ffffff"
+                                           },
+                              "colBand2":  {
+                                               "bg":  "#d9e1f2"
+                                           },
+                              "total":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#000000",
+                                            "borderTop":  "#4472c4",
+                                            "borderBottom":  "#8ea9db"
+                                        }
+                          },
+    "TableStyleMedium7":  {
+                              "id":  "TableStyleMedium7",
+                              "category":  "medium",
+                              "header":  {
+                                             "bg":  "#70ad47",
+                                             "fg":  "#ffffff",
+                                             "borderBottom":  "#a9d08e"
+                                         },
+                              "band1":  {
+                                            "bg":  "#e2efda",
+                                            "fg":  "#000000",
+                                            "borderBottom":  "#a9d08e"
+                                        },
+                              "band2":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#000000"
+                                        },
+                              "firstCol":  {
+                                               "bg":  "#e2efda",
+                                               "fg":  "#000000",
+                                               "bold":  true
+                                           },
+                              "lastCol":  {
+                                              "bg":  "#e2efda",
+                                              "fg":  "#000000",
+                                              "bold":  true
+                                          },
+                              "colBand1":  {
+                                               "bg":  "#ffffff"
+                                           },
+                              "colBand2":  {
+                                               "bg":  "#e2efda"
+                                           },
+                              "total":  {
+                                            "bg":  "#ffffff",
+                                            "fg":  "#000000",
+                                            "borderTop":  "#70ad47",
+                                            "borderBottom":  "#a9d08e"
+                                        }
+                          },
+    "TableStyleDark1":  {
+                            "id":  "TableStyleDark1",
+                            "category":  "dark",
+                            "header":  {
+                                           "bg":  "#000000",
+                                           "fg":  "#ffffff",
+                                           "borderBottom":  "#ffffff"
+                                       },
+                            "band1":  {
+                                          "bg":  "#404040",
+                                          "fg":  "#ffffff",
+                                          "borderBottom":  "#000000"
+                                      },
+                            "band2":  {
+                                          "bg":  "#737373",
+                                          "fg":  "#ffffff"
+                                      },
+                            "firstCol":  {
+                                             "bg":  "#404040",
+                                             "fg":  "#ffffff",
+                                             "bold":  true
+                                         },
+                            "lastCol":  {
+                                            "bg":  "#404040",
+                                            "fg":  "#ffffff",
+                                            "bold":  true
+                                        },
+                            "colBand1":  {
+                                             "bg":  "#737373"
+                                         },
+                            "colBand2":  {
+                                             "bg":  "#404040"
+                                         },
+                            "total":  {
+                                          "bg":  "#262626",
+                                          "fg":  "#ffffff",
+                                          "borderTop":  "#ffffff",
+                                          "borderBottom":  "#000000"
+                                      }
+                        },
+    "TableStyleDark2":  {
+                            "id":  "TableStyleDark2",
+                            "category":  "dark",
+                            "header":  {
+                                           "bg":  "#000000",
+                                           "fg":  "#ffffff",
+                                           "borderBottom":  "#ffffff"
+                                       },
+                            "band1":  {
+                                          "bg":  "#2f75b5",
+                                          "fg":  "#ffffff",
+                                          "borderBottom":  "#000000"
+                                      },
+                            "band2":  {
+                                          "bg":  "#5b9bd5",
+                                          "fg":  "#ffffff"
+                                      },
+                            "firstCol":  {
+                                             "bg":  "#2f75b5",
+                                             "fg":  "#ffffff",
+                                             "bold":  true
+                                         },
+                            "lastCol":  {
+                                            "bg":  "#2f75b5",
+                                            "fg":  "#ffffff",
+                                            "bold":  true
+                                        },
+                            "colBand1":  {
+                                             "bg":  "#5b9bd5"
+                                         },
+                            "colBand2":  {
+                                             "bg":  "#2f75b5"
+                                         },
+                            "total":  {
+                                          "bg":  "#1f4e78",
+                                          "fg":  "#ffffff",
+                                          "borderTop":  "#ffffff",
+                                          "borderBottom":  "#000000"
+                                      }
+                        },
+    "TableStyleDark3":  {
+                            "id":  "TableStyleDark3",
+                            "category":  "dark",
+                            "header":  {
+                                           "bg":  "#000000",
+                                           "fg":  "#ffffff",
+                                           "borderBottom":  "#ffffff"
+                                       },
+                            "band1":  {
+                                          "bg":  "#c65911",
+                                          "fg":  "#ffffff",
+                                          "borderBottom":  "#000000"
+                                      },
+                            "band2":  {
+                                          "bg":  "#ed7d31",
+                                          "fg":  "#ffffff"
+                                      },
+                            "firstCol":  {
+                                             "bg":  "#c65911",
+                                             "fg":  "#ffffff",
+                                             "bold":  true
+                                         },
+                            "lastCol":  {
+                                            "bg":  "#c65911",
+                                            "fg":  "#ffffff",
+                                            "bold":  true
+                                        },
+                            "colBand1":  {
+                                             "bg":  "#ed7d31"
+                                         },
+                            "colBand2":  {
+                                             "bg":  "#c65911"
+                                         },
+                            "total":  {
+                                          "bg":  "#833c0c",
+                                          "fg":  "#ffffff",
+                                          "borderTop":  "#ffffff",
+                                          "borderBottom":  "#000000"
+                                      }
+                        },
+    "TableStyleDark4":  {
+                            "id":  "TableStyleDark4",
+                            "category":  "dark",
+                            "header":  {
+                                           "bg":  "#000000",
+                                           "fg":  "#ffffff",
+                                           "borderBottom":  "#ffffff"
+                                       },
+                            "band1":  {
+                                          "bg":  "#7b7b7b",
+                                          "fg":  "#ffffff",
+                                          "borderBottom":  "#000000"
+                                      },
+                            "band2":  {
+                                          "bg":  "#a5a5a5",
+                                          "fg":  "#ffffff"
+                                      },
+                            "firstCol":  {
+                                             "bg":  "#7b7b7b",
+                                             "fg":  "#ffffff",
+                                             "bold":  true
+                                         },
+                            "lastCol":  {
+                                            "bg":  "#7b7b7b",
+                                            "fg":  "#ffffff",
+                                            "bold":  true
+                                        },
+                            "colBand1":  {
+                                             "bg":  "#a5a5a5"
+                                         },
+                            "colBand2":  {
+                                             "bg":  "#7b7b7b"
+                                         },
+                            "total":  {
+                                          "bg":  "#525252",
+                                          "fg":  "#ffffff",
+                                          "borderTop":  "#ffffff",
+                                          "borderBottom":  "#000000"
+                                      }
+                        },
+    "TableStyleDark5":  {
+                            "id":  "TableStyleDark5",
+                            "category":  "dark",
+                            "header":  {
+                                           "bg":  "#000000",
+                                           "fg":  "#ffffff",
+                                           "borderBottom":  "#ffffff"
+                                       },
+                            "band1":  {
+                                          "bg":  "#bf8f00",
+                                          "fg":  "#ffffff",
+                                          "borderBottom":  "#000000"
+                                      },
+                            "band2":  {
+                                          "bg":  "#ffc000",
+                                          "fg":  "#ffffff"
+                                      },
+                            "firstCol":  {
+                                             "bg":  "#bf8f00",
+                                             "fg":  "#ffffff",
+                                             "bold":  true
+                                         },
+                            "lastCol":  {
+                                            "bg":  "#bf8f00",
+                                            "fg":  "#ffffff",
+                                            "bold":  true
+                                        },
+                            "colBand1":  {
+                                             "bg":  "#ffc000"
+                                         },
+                            "colBand2":  {
+                                             "bg":  "#bf8f00"
+                                         },
+                            "total":  {
+                                          "bg":  "#806000",
+                                          "fg":  "#ffffff",
+                                          "borderTop":  "#ffffff",
+                                          "borderBottom":  "#000000"
+                                      }
+                        },
+    "TableStyleDark6":  {
+                            "id":  "TableStyleDark6",
+                            "category":  "dark",
+                            "header":  {
+                                           "bg":  "#000000",
+                                           "fg":  "#ffffff",
+                                           "borderBottom":  "#ffffff"
+                                       },
+                            "band1":  {
+                                          "bg":  "#305496",
+                                          "fg":  "#ffffff",
+                                          "borderBottom":  "#000000"
+                                      },
+                            "band2":  {
+                                          "bg":  "#4472c4",
+                                          "fg":  "#ffffff"
+                                      },
+                            "firstCol":  {
+                                             "bg":  "#305496",
+                                             "fg":  "#ffffff",
+                                             "bold":  true
+                                         },
+                            "lastCol":  {
+                                            "bg":  "#305496",
+                                            "fg":  "#ffffff",
+                                            "bold":  true
+                                        },
+                            "colBand1":  {
+                                             "bg":  "#4472c4"
+                                         },
+                            "colBand2":  {
+                                             "bg":  "#305496"
+                                         },
+                            "total":  {
+                                          "bg":  "#203764",
+                                          "fg":  "#ffffff",
+                                          "borderTop":  "#ffffff",
+                                          "borderBottom":  "#000000"
+                                      }
+                        },
+    "TableStyleDark7":  {
+                            "id":  "TableStyleDark7",
+                            "category":  "dark",
+                            "header":  {
+                                           "bg":  "#000000",
+                                           "fg":  "#ffffff",
+                                           "borderBottom":  "#ffffff"
+                                       },
+                            "band1":  {
+                                          "bg":  "#548235",
+                                          "fg":  "#ffffff",
+                                          "borderBottom":  "#000000"
+                                      },
+                            "band2":  {
+                                          "bg":  "#70ad47",
+                                          "fg":  "#ffffff"
+                                      },
+                            "firstCol":  {
+                                             "bg":  "#548235",
+                                             "fg":  "#ffffff",
+                                             "bold":  true
+                                         },
+                            "lastCol":  {
+                                            "bg":  "#548235",
+                                            "fg":  "#ffffff",
+                                            "bold":  true
+                                        },
+                            "colBand1":  {
+                                             "bg":  "#70ad47"
+                                         },
+                            "colBand2":  {
+                                             "bg":  "#548235"
+                                         },
+                            "total":  {
+                                          "bg":  "#375623",
+                                          "fg":  "#ffffff",
+                                          "borderTop":  "#ffffff",
+                                          "borderBottom":  "#000000"
+                                      }
+                        }
+}

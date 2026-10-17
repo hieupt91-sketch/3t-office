@@ -885,7 +885,36 @@ export const SHEET_RIBBON_TABS = [
         label: "Tùy chọn kiểu bảng",
         labelKey: "sheetRibbon.group.tableStyleOptions",
         items: [
-          { type: "button", commandId: "sheet.table.toggleTotalRow" }
+          {
+            type: "column",
+            items: [
+              { type: "checkbox", commandId: "sheet.table.toggleHeaderRow" },
+              { type: "checkbox", commandId: "sheet.table.toggleTotalRow" },
+              { type: "checkbox", commandId: "sheet.table.toggleBandedRows" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "checkbox", commandId: "sheet.table.toggleFirstColumn" },
+              { type: "checkbox", commandId: "sheet.table.toggleLastColumn" },
+              { type: "checkbox", commandId: "sheet.table.toggleBandedColumns" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "checkbox", commandId: "sheet.table.toggleFilterButton" }
+            ]
+          }
+        ]
+      },
+      {
+        id: "tableStyles",
+        label: "Kiểu Bảng",
+        labelKey: "sheetRibbon.group.tableStyles",
+        items: [
+          { type: "button", commandId: "sheet.table.styles", isLarge: true }
         ]
       },
       {

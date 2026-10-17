@@ -217,6 +217,20 @@ try {
             $show = if ($op.show -ne $null) { [bool]$op.show } else { -not $tbl.ShowTotals }
             Retry { $tbl.ShowTotals = $show }
           }
+          "setTableStyle" {
+            $tbl = if ($op.table) { $ws.ListObjects.Item($op.table) } else { $ws.ListObjects.Item(1) }
+            Retry { $tbl.TableStyle = [string]$op.style }
+          }
+          "setTableStyleOptions" {
+            $tbl = if ($op.table) { $ws.ListObjects.Item($op.table) } else { $ws.ListObjects.Item(1) }
+            if ($op.showHeaders -ne $null) { Retry { $tbl.ShowHeaders = [bool]$op.showHeaders } }
+            if ($op.showTotals -ne $null) { Retry { $tbl.ShowTotals = [bool]$op.showTotals } }
+            if ($op.showRowStripes -ne $null) { Retry { $tbl.ShowTableStyleRowStripes = [bool]$op.showRowStripes } }
+            if ($op.showFirstColumn -ne $null) { Retry { $tbl.ShowTableStyleFirstColumn = [bool]$op.showFirstColumn } }
+            if ($op.showLastColumn -ne $null) { Retry { $tbl.ShowTableStyleLastColumn = [bool]$op.showLastColumn } }
+            if ($op.showColumnStripes -ne $null) { Retry { $tbl.ShowTableStyleColumnStripes = [bool]$op.showColumnStripes } }
+            if ($op.showAutoFilter -ne $null) { Retry { $tbl.ShowAutoFilter = [bool]$op.showAutoFilter } }
+          }
           "renameTable" {
             $tbl = if ($op.table) { $ws.ListObjects.Item($op.table) } else { $ws.ListObjects.Item(1) }
             Retry { $tbl.Name = [string]$op.newName }

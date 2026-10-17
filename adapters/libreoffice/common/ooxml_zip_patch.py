@@ -2631,6 +2631,9 @@ def parse_tables_from_fods(fods_xml: str | None) -> dict[str, dict]:
             "has_headers": attr_value("table-headers", "true") != "false",
             "show_autofilter": attr_value("table-show-autofilter", "true") != "false",
             "row_stripes": attr_value("table-row-stripes", "true") != "false",
+            "column_stripes": attr_value("table-column-stripes", "false") == "true",
+            "first_column": attr_value("table-first-column", "false") == "true",
+            "last_column": attr_value("table-last-column", "false") == "true",
             "totals": attr_value("table-totals", "false") == "true",
             "totals_label": attr_value("table-totals-label", ""),
         }
@@ -2715,8 +2718,12 @@ def _apply_table_metadata_from_fods(xlsx_bytes: bytes, source_fods: str | None, 
                     continue
                 xml = xml[:column.start()] + f"<tableColumn{attrs_text}{column.group(2)}>" + xml[column.end():]
         style = metadata["style"] or "TableStyleMedium2"
-        style_xml = (f'<tableStyleInfo name="{_escape_xml(style)}" showFirstColumn="0" showLastColumn="0" '
-                     f'showRowStripes="{1 if metadata["row_stripes"] else 0}" showColumnStripes="0"/>')
+        first_col = 1 if metadata.get("first_column") else 0
+        last_col = 1 if metadata.get("last_column") else 0
+        row_stripes = 1 if metadata.get("row_stripes", True) else 0
+        col_stripes = 1 if metadata.get("column_stripes") else 0
+        style_xml = (f'<tableStyleInfo name="{_escape_xml(style)}" showFirstColumn="{first_col}" showLastColumn="{last_col}" '
+                     f'showRowStripes="{row_stripes}" showColumnStripes="{col_stripes}"/>')
         style_match = re.search(r'<tableStyleInfo\b[^>]*/>', xml)
         if style_match:
             xml = xml[:style_match.start()] + style_xml + xml[style_match.end():]
@@ -15205,7 +15212,10 @@ def _overlay_autofilter_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
                 f' vno:table-style="{_escape_xml(table["style"])}"'
                 f' vno:table-headers="{"true" if table["has_headers"] else "false"}"'
                 f' vno:table-show-autofilter="{"true" if table["show_autofilter"] else "false"}"'
-                f' vno:table-row-stripes="{"true" if table["row_stripes"] else "false"}"'
+                f' vno:table-row-stripes="{"true" if table.get("row_stripes", True) else "false"}"'
+                f' vno:table-column-stripes="{"true" if table.get("column_stripes") else "false"}"'
+                f' vno:table-first-column="{"true" if table.get("first_column") else "false"}"'
+                f' vno:table-last-column="{"true" if table.get("last_column") else "false"}"'
                 f' vno:table-totals="{"true" if table.get("totals") else "false"}"/>'
             )
     db_block = f'<table:database-ranges>{"".join(ranges_xml)}</table:database-ranges>'
@@ -15263,6 +15273,9 @@ def _parse_xlsx_tables(xlsx_bytes: bytes, sheet_entries: dict[str, str] | None =
                 "has_headers": get_attr(attrs, "headerRowCount") != "0",
                 "show_autofilter": bool(re.search(r'<autoFilter\b', table_xml)),
                 "row_stripes": get_attr(style_attrs, "showRowStripes") not in {"0", "false"},
+                "column_stripes": get_attr(style_attrs, "showColumnStripes") in {"1", "true"},
+                "first_column": get_attr(style_attrs, "showFirstColumn") in {"1", "true"},
+                "last_column": get_attr(style_attrs, "showLastColumn") in {"1", "true"},
                 "totals": get_attr(attrs, "totalsRowCount") not in {"", "0"},
                 "totals_label": "",
             })

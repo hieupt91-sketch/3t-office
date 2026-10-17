@@ -370,7 +370,7 @@ export const viStrings = {
   sheetRibbon: {
     whatIfAnalysis: "Phân tích What-If",
     tab: { home: "Trang đầu", formulas: "Công thức", data: "Dữ liệu", insert: "Chèn", pageLayout: "Bố trí trang", review: "Xem xét", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI", tableDesign: "Thiết kế Bảng" },
-    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", connections: "Kết nối", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", tables: "Bảng", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", pageSetup: "Thiết lập trang", scaleToFit: "Vừa trang", sheetOptions: "Tùy chọn trang tính", proofing: "Kiểm lỗi", comments: "Ghi chú", protection: "Bảo vệ", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiAnalysis: "Phân tích dữ liệu AI", properties: "Thuộc tính bảng", tableStyleOptions: "Tùy chọn kiểu bảng", filters: "Bộ lọc", tools: "Công cụ", arrange: "Sắp xếp" },
+    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", connections: "Kết nối", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", tables: "Bảng", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", pageSetup: "Thiết lập trang", scaleToFit: "Vừa trang", sheetOptions: "Tùy chọn trang tính", proofing: "Kiểm lỗi", comments: "Ghi chú", protection: "Bảo vệ", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiAnalysis: "Phân tích dữ liệu AI", properties: "Thuộc tính bảng", tableStyleOptions: "Tùy chọn kiểu bảng", tableStyles: "Kiểu Bảng", filters: "Bộ lọc", tools: "Công cụ", arrange: "Sắp xếp" },
     refreshAllSuccess: "Đã làm mới tất cả các liên kết và dữ liệu ngoài.",
     editing: { fill: "Điền", clear: "Xóa" },
     cells: { format: "Định dạng" },
@@ -382,6 +382,37 @@ export const viStrings = {
     status: { enter: "Nhập", edit: "Sửa", point: "Trỏ" },
     referenceHint: "Chọn hoặc kéo qua ô để chèn tham chiếu; F2 chuyển giữa Sửa và Trỏ.",
     formulaBarLabel: "Thanh công thức Sheet"
+  },
+  sheetTableStyles: {
+    catLight: "Sáng",
+    catMedium: "Trung bình",
+    catDark: "Tối",
+    blue: "Bảng Xanh Lam (Blue)",
+    green: "Bảng Xanh Lá (Green)",
+    dark: "Bảng Xám Đậm (Dark Slate)",
+    orange: "Bảng Cam Ấm (Warm Orange)",
+    purple: "Bảng Tím Hiện Đại (Purple)",
+    tablestylelight1: "Sáng 1 (Xám)",
+    tablestylelight2: "Sáng 2 (Xanh lam)",
+    tablestylelight3: "Sáng 3 (Xanh ngọc)",
+    tablestylelight4: "Sáng 4 (Xanh ô-liu)",
+    tablestylelight5: "Sáng 5 (Tím)",
+    tablestylelight6: "Sáng 6 (Lam nhạt)",
+    tablestylelight7: "Sáng 7 (Cam)",
+    tablestylemedium1: "Trung bình 1 (Xám)",
+    tablestylemedium2: "Trung bình 2 (Xanh lam)",
+    tablestylemedium3: "Trung bình 3 (Cam)",
+    tablestylemedium4: "Trung bình 4 (Xanh lá)",
+    tablestylemedium5: "Trung bình 5 (Xanh ngọc)",
+    tablestylemedium6: "Trung bình 6 (Lam đậm)",
+    tablestylemedium7: "Trung bình 7 (Xanh mạ)",
+    tablestyledark1: "Tối 1 (Đen)",
+    tablestyledark2: "Tối 2 (Xanh lam)",
+    tablestyledark3: "Tối 3 (Cam)",
+    tablestyledark4: "Tối 4 (Xanh lá)",
+    tablestyledark5: "Tối 5 (Xanh ngọc)",
+    tablestyledark6: "Tối 6 (Tím)",
+    tablestyledark7: "Tối 7 (Xám)"
   },
   sheetSlicer: { selectTable: "Hãy chọn một ô trong bảng trước khi chèn bộ lọc trực quan.", layer: "Bộ lọc trực quan", aria: "Bộ lọc", multi: "Chọn nhiều", clear: "Xóa bộ lọc", close: "Xóa bộ lọc trực quan" },
   slidesRibbon: {
@@ -868,7 +899,14 @@ export const viStrings = {
     ,"sheet.insert.image": { label: "Chèn ảnh", tooltip: "Chèn ảnh vào ô đang chọn" }
     ,"sheet.style.formatAsTable": { label: "Định dạng bảng", tooltip: "Định dạng vùng chọn theo kiểu bảng có màu xen kẽ" }
     ,"sheet.table.resize": { label: "Đổi kích cỡ bảng", tooltip: "Thay đổi vùng dữ liệu của bảng" }
-    ,"sheet.table.toggleTotalRow": { label: "Dòng tổng cộng", tooltip: "Bật hoặc tắt dòng tính tổng ở cuối bảng" }
+    ,"sheet.table.toggleHeaderRow": { label: "Hàng tiêu đề", tooltip: "Bật hoặc tắt hàng tiêu đề của bảng" }
+    ,"sheet.table.toggleTotalRow": { label: "Hàng tổng", tooltip: "Bật hoặc tắt hàng tính tổng ở cuối bảng" }
+    ,"sheet.table.toggleBandedRows": { label: "Hàng sọc", tooltip: "Hiển thị màu nền xen kẽ cho các hàng trong bảng" }
+    ,"sheet.table.toggleFirstColumn": { label: "Cột đầu", tooltip: "Áp dụng định dạng đặc biệt cho cột đầu tiên của bảng" }
+    ,"sheet.table.toggleLastColumn": { label: "Cột cuối", tooltip: "Áp dụng định dạng đặc biệt cho cột cuối cùng của bảng" }
+    ,"sheet.table.toggleBandedColumns": { label: "Cột sọc", tooltip: "Hiển thị màu nền xen kẽ cho các cột trong bảng" }
+    ,"sheet.table.toggleFilterButton": { label: "Nút lọc", tooltip: "Bật hoặc tắt nút lọc mũi tên trong hàng tiêu đề" }
+    ,"sheet.table.styles": { label: "Kiểu Bảng", tooltip: "Chọn kiểu định dạng bảng với màu sắc và viền định sẵn" }
     ,"sheet.table.insertSlicer": { label: "Chèn bộ lọc trực quan", tooltip: "Lọc nhanh bảng bằng các nút giá trị nổi" }
     ,"sheet.table.convertToRange": { label: "Chuyển thành vùng", tooltip: "Chuyển bảng thành vùng ô thông thường giữ nguyên định dạng" }
     ,"sheet.style.cellStyles": { label: "Kiểu ô", tooltip: "Mở thư viện kiểu ô định sẵn (Normal, Good, Bad, Neutral...)" }

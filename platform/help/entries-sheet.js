@@ -1210,6 +1210,48 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.table.styleOptions",
+    app: "sheet",
+    commandIds: [
+      "sheet.table.toggleHeaderRow",
+      "sheet.table.toggleBandedRows",
+      "sheet.table.toggleFirstColumn",
+      "sheet.table.toggleLastColumn",
+      "sheet.table.toggleBandedColumns",
+      "sheet.table.toggleFilterButton"
+    ],
+    title: "Tùy chọn kiểu bảng: Hàng tiêu đề, Hàng sọc, Cột đầu, Cột cuối, Cột sọc và Nút lọc",
+    summary: "Tùy chỉnh linh hoạt hiển thị các thành phần trực quan của bảng tính: hàng tiêu đề, hàng sọc xen kẽ, định dạng nổi bật cột đầu hoặc cột cuối, cột sọc xen kẽ và ẩn/hiện nút lọc tự động.",
+    ribbon: { tab: "Thiết kế Bảng", tabId: "tableDesign", group: "Tùy chọn kiểu bảng" },
+    keywords: ["tùy chọn kiểu bảng", "table style options", "hàng tiêu đề", "header row", "hàng sọc", "banded rows", "cột đầu", "first column", "cột cuối", "last column", "cột sọc", "banded columns", "nút lọc", "filter button"],
+    steps: [
+      "Kích hoạt tab Thiết kế Bảng: chọn một ô bất kỳ bên trong bảng, tab ngữ cảnh «Thiết kế Bảng» sẽ hiển thị trên thanh ruy-băng.",
+      "Hàng tiêu đề: tích chọn ô «Hàng tiêu đề» trong nhóm Tùy chọn kiểu bảng để hiển thị hàng đầu tiên với tên cột phân biệt. Bỏ tích để ẩn hàng tiêu đề mà không làm mất dữ liệu.",
+      "Hàng sọc (Banded Rows): tích chọn ô «Hàng sọc» để tô màu nền xen kẽ giữa các hàng, giúp việc đối chiếu dữ liệu theo chiều ngang dễ nhìn hơn.",
+      "Cột đầu (First Column): tích chọn ô «Cột đầu» để áp dụng định dạng nổi bật (chữ đậm và màu nền nhấn) cho cột đầu tiên của bảng tính.",
+      "Cột cuối (Last Column): tích chọn ô «Cột cuối» để tạo điểm nhấn trực quan cho cột số liệu hoặc kết quả cuối cùng bên phải.",
+      "Cột sọc (Banded Columns): tích chọn ô «Cột sọc» để tô màu nền xen kẽ cho các cột theo chiều dọc.",
+      "Nút lọc: tích hoặc bỏ tích ô «Nút lọc» để hiển thị hoặc ẩn các nút mũi tên lọc tự động ở hàng tiêu đề của bảng."
+    ]
+  },
+  {
+    id: "sheet.table.stylesGallery",
+    app: "sheet",
+    commandIds: [
+      "sheet.table.styles"
+    ],
+    title: "Kiểu Bảng: Thư viện định dạng bảng mẫu phong phú",
+    summary: "Áp dụng và thay đổi kiểu dáng bảng trực tiếp với thư viện 21 mẫu màu sắc theo ba cấp độ Sáng, Trung bình và Tối, kết hợp hài hòa màu nền, màu chữ và đường viền chuẩn mực.",
+    ribbon: { tab: "Thiết kế Bảng", tabId: "tableDesign", group: "Kiểu Bảng" },
+    keywords: ["kiểu bảng", "table styles", "thư viện kiểu bảng", "style gallery", "thiết kế bảng", "màu bảng"],
+    steps: [
+      "Kích hoạt tab Thiết kế Bảng: bấm chuột vào bảng cần đổi kiểu dáng.",
+      "Mở thư viện kiểu bảng: trên tab Thiết kế Bảng > nhóm Kiểu Bảng, bấm nút «Kiểu Bảng».",
+      "Chọn kiểu yêu thích: hộp thoại mở ra danh sách 21 kiểu bảng được phân loại theo ba nhóm Sáng, Trung bình và Tối.",
+      "Áp dụng kiểu: nhấp chuột vào mẫu kiểu mong muốn để bảng lập tức chuyển sang màu sắc, đường viền và phông chữ mới theo thời gian thực mà không làm mất dữ liệu đã nhập."
+    ]
+  },
+  {
     id: "sheet.edit.fillAndClear",
     app: "sheet",
     commandIds: [

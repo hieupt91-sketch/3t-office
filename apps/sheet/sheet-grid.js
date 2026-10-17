@@ -22,7 +22,7 @@ import { NumberFormatter } from "./number-formatter.js";
 import { a1ToR1C1, r1c1ToA1, isR1C1Formula, formatAddressAsR1C1, parseR1C1Address } from "./r1c1-converter.js";
 import { CalcOptionsDialog } from "./calc-options-dialog.js";
 import { EditLinksDialog } from "./edit-links-dialog.js";
-import { CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS } from "./cell-style-presets.js";
+import { CELL_STYLE_PRESETS, TABLE_STYLE_PRESETS, findTableStylePreset } from "./cell-style-presets.js";
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { t } from "../../platform/i18n/i18n.js";
 import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
@@ -551,11 +551,42 @@ export class SheetGridController {
     globalCommandBus.bindHandler("sheet.edit.pastePlain", () => this.pasteClipboard(true));
     globalCommandBus.bindHandler("sheet.style.formatAsTable", () => this.showFormatAsTableDialog());
     globalCommandBus.bindHandler("sheet.table.resize", () => this.showResizeTableDialog());
+    globalCommandBus.bindHandler("sheet.table.toggleHeaderRow", () => {
+      const t = this.getTableAtSelection();
+      if (t) return this.toggleTableHeaderRow(t.name);
+      return false;
+    });
     globalCommandBus.bindHandler("sheet.table.toggleTotalRow", () => {
       const t = this.getTableAtSelection();
       if (t) return this.toggleTableTotalRow(t.name);
       return false;
     });
+    globalCommandBus.bindHandler("sheet.table.toggleBandedRows", () => {
+      const t = this.getTableAtSelection();
+      if (t) return this.toggleTableBandedRows(t.name);
+      return false;
+    });
+    globalCommandBus.bindHandler("sheet.table.toggleFirstColumn", () => {
+      const t = this.getTableAtSelection();
+      if (t) return this.toggleTableFirstColumn(t.name);
+      return false;
+    });
+    globalCommandBus.bindHandler("sheet.table.toggleLastColumn", () => {
+      const t = this.getTableAtSelection();
+      if (t) return this.toggleTableLastColumn(t.name);
+      return false;
+    });
+    globalCommandBus.bindHandler("sheet.table.toggleBandedColumns", () => {
+      const t = this.getTableAtSelection();
+      if (t) return this.toggleTableBandedColumns(t.name);
+      return false;
+    });
+    globalCommandBus.bindHandler("sheet.table.toggleFilterButton", () => {
+      const t = this.getTableAtSelection();
+      if (t) return this.toggleTableFilterButton(t.name);
+      return false;
+    });
+    globalCommandBus.bindHandler("sheet.table.styles", () => this.showFormatAsTableDialog());
     globalCommandBus.bindHandler("sheet.table.convertToRange", () => {
       const t = this.getTableAtSelection();
       if (t) return this.convertTableToRange(t.name);
@@ -4395,19 +4426,16 @@ export class SheetGridController {
 
   _styleTableRange(table) {
     const bounds = this._normalizeRange(this._parseRange(table.ref));
-    const preset = TABLE_STYLE_PRESETS.find(item => item.id === table.style) || TABLE_STYLE_PRESETS[0];
+    if (!bounds) return;
     const startCol = this._columnNumber(bounds.start.c);
     const endCol = this._columnNumber(bounds.end.c);
     for (let row = bounds.start.r; row <= bounds.end.r; row++) {
-      const isHeader = table.hasHeaders !== false && row === bounds.start.r;
-      const isTotals = table.showTotals && row === bounds.end.r;
-      const rowStyle = isHeader || isTotals
-        ? preset.headerStyle
-        : ((row - bounds.start.r) % 2 === 1 ? preset.evenRowStyle : preset.oddRowStyle);
       for (let column = startCol; column <= endCol; column++) {
-        const coord = `${this._columnLabel(column)}${row}`;
+        const colLabel = this._columnLabel(column);
+        const coord = `${colLabel}${row}`;
+        const computed = this._computeTableCellStyle(table, colLabel, row);
         const cell = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
-        cell.style = { ...(cell.style || {}), ...rowStyle };
+        cell.style = { ...(cell.style || {}), ...computed, _fromTable: true };
         this.cellsData.set(coord, cell);
       }
     }
@@ -4571,6 +4599,235 @@ export class SheetGridController {
     }
     const nextBounds = this._normalizeRange(this._parseRange(table.ref));
     return this._finishTableStructureChange(before, table, { c: bounds.start.c, r: nextBounds.end.r });
+  }
+
+  markDirty() {
+    this.isDirty = true;
+  }
+
+  _tableAt(col, row, sheet = this.activeSheet) {
+    const tables = this.tablesBySheet?.[sheet] || [];
+    if (!tables.length || !col || !row) return null;
+    const colNum = typeof col === "number" ? col : this._columnNumber(col);
+    const rowNum = Number(row);
+    for (const table of tables) {
+      const bounds = this._normalizeRange(this._parseRange(table.ref));
+      if (!bounds) continue;
+      const startCol = this._columnNumber(bounds.start.c);
+      const endCol = this._columnNumber(bounds.end.c);
+      if (colNum >= startCol && colNum <= endCol && rowNum >= bounds.start.r && rowNum <= bounds.end.r) {
+        return table;
+      }
+    }
+    return null;
+  }
+
+  _computeTableCellStyle(table, col, row) {
+    if (!table || !col || !row) return null;
+    const bounds = this._normalizeRange(this._parseRange(table.ref));
+    if (!bounds) return null;
+    const colNum = typeof col === "number" ? col : this._columnNumber(col);
+    const startCol = this._columnNumber(bounds.start.c);
+    const endCol = this._columnNumber(bounds.end.c);
+    const rowNum = Number(row);
+    const startRow = bounds.start.r;
+    const endRow = bounds.end.r;
+
+    if (colNum < startCol || colNum > endCol || rowNum < startRow || rowNum > endRow) return null;
+
+    const preset = findTableStylePreset(table.style || table.excelStyle) || TABLE_STYLE_PRESETS[0];
+    const hasHeaders = table.hasHeaders !== false;
+    const showTotals = Boolean(table.showTotals);
+
+    // 1. Header row
+    if (hasHeaders && rowNum === startRow) {
+      return { ...(preset.headerStyle || {}) };
+    }
+
+    // 2. Total row
+    if (showTotals && rowNum === endRow) {
+      return { ...(preset.totalStyle || preset.totalRowStyle || {}) };
+    }
+
+    // 3. Data body
+    const dataStartRow = hasHeaders ? startRow + 1 : startRow;
+    const dataEndRow = showTotals ? endRow - 1 : endRow;
+    if (rowNum < dataStartRow || rowNum > dataEndRow) return null;
+
+    const showRowStripes = table.showRowStripes !== false;
+    const showColumnStripes = Boolean(table.showColumnStripes);
+    const showFirstColumn = Boolean(table.showFirstColumn);
+    const showLastColumn = Boolean(table.showLastColumn);
+
+    const dataRowIdx = rowNum - dataStartRow;
+    const dataColIdx = colNum - startCol;
+
+    let style = {};
+    let rowShaded = false;
+
+    if (showRowStripes) {
+      if (dataRowIdx % 2 === 1) {
+        style = { ...(preset.oddRowStyle || {}) };
+        rowShaded = true;
+      } else {
+        style = { ...(preset.evenRowStyle || {}) };
+      }
+    } else {
+      style = { ...(preset.evenRowStyle || {}) };
+    }
+
+    if (showColumnStripes) {
+      if (dataColIdx % 2 === 1) {
+        if (preset.colBand2Style) Object.assign(style, preset.colBand2Style);
+      } else if (preset.colBand1Style && !rowShaded) {
+        Object.assign(style, preset.colBand1Style);
+      }
+    }
+
+    if (showFirstColumn && colNum === startCol) {
+      if (preset.firstColStyle) Object.assign(style, preset.firstColStyle);
+    }
+
+    if (showLastColumn && colNum === endCol) {
+      if (preset.lastColStyle) Object.assign(style, preset.lastColStyle);
+    }
+
+    return style;
+  }
+
+  _renderRangeCells(rangeRef) {
+    if (!rangeRef) return;
+    const bounds = this._normalizeRange(this._parseRange(rangeRef));
+    if (!bounds) return;
+    const startCol = this._columnNumber(bounds.start.c);
+    const endCol = this._columnNumber(bounds.end.c);
+    for (let r = bounds.start.r; r <= bounds.end.r; r++) {
+      for (let c = startCol; c <= endCol; c++) {
+        const colLabel = this._columnLabel(c);
+        const coord = `${colLabel}${r}`;
+        const dom = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord}"]`);
+        if (dom) {
+          const itm = this.cellsData.get(coord);
+          this._renderCellVisual(dom, itm, colLabel, r);
+        }
+      }
+    }
+  }
+
+  toggleTableHeaderRow(name, recordUndo = true) {
+    if (this._guardProtectedMutation()) return false;
+    const table = this._tableByName(name);
+    if (!table) return false;
+    const before = structuredClone(this.tablesBySheet?.[this.activeSheet] || []);
+    table.hasHeaders = table.hasHeaders === false ? true : false;
+    if (recordUndo) this._recordHistory({ type: "sheet-tables", sheet: this.activeSheet, before, after: structuredClone(this.tablesBySheet[this.activeSheet]) });
+    this._styleTableRange(table);
+    this._renderRangeCells(table.ref);
+    this._updateFilterButtons();
+    this._updateRibbonState();
+    this.markDirty();
+    return true;
+  }
+
+  toggleTableBandedRows(name, recordUndo = true) {
+    if (this._guardProtectedMutation()) return false;
+    const table = this._tableByName(name);
+    if (!table) return false;
+    const before = structuredClone(this.tablesBySheet?.[this.activeSheet] || []);
+    table.showRowStripes = table.showRowStripes === false ? true : false;
+    if (recordUndo) this._recordHistory({ type: "sheet-tables", sheet: this.activeSheet, before, after: structuredClone(this.tablesBySheet[this.activeSheet]) });
+    this._styleTableRange(table);
+    this._renderRangeCells(table.ref);
+    this._updateRibbonState();
+    this.markDirty();
+    return true;
+  }
+
+  toggleTableFirstColumn(name, recordUndo = true) {
+    if (this._guardProtectedMutation()) return false;
+    const table = this._tableByName(name);
+    if (!table) return false;
+    const before = structuredClone(this.tablesBySheet?.[this.activeSheet] || []);
+    table.showFirstColumn = !table.showFirstColumn;
+    if (recordUndo) this._recordHistory({ type: "sheet-tables", sheet: this.activeSheet, before, after: structuredClone(this.tablesBySheet[this.activeSheet]) });
+    this._styleTableRange(table);
+    this._renderRangeCells(table.ref);
+    this._updateRibbonState();
+    this.markDirty();
+    return true;
+  }
+
+  toggleTableLastColumn(name, recordUndo = true) {
+    if (this._guardProtectedMutation()) return false;
+    const table = this._tableByName(name);
+    if (!table) return false;
+    const before = structuredClone(this.tablesBySheet?.[this.activeSheet] || []);
+    table.showLastColumn = !table.showLastColumn;
+    if (recordUndo) this._recordHistory({ type: "sheet-tables", sheet: this.activeSheet, before, after: structuredClone(this.tablesBySheet[this.activeSheet]) });
+    this._styleTableRange(table);
+    this._renderRangeCells(table.ref);
+    this._updateRibbonState();
+    this.markDirty();
+    return true;
+  }
+
+  toggleTableBandedColumns(name, recordUndo = true) {
+    if (this._guardProtectedMutation()) return false;
+    const table = this._tableByName(name);
+    if (!table) return false;
+    const before = structuredClone(this.tablesBySheet?.[this.activeSheet] || []);
+    table.showColumnStripes = !table.showColumnStripes;
+    if (recordUndo) this._recordHistory({ type: "sheet-tables", sheet: this.activeSheet, before, after: structuredClone(this.tablesBySheet[this.activeSheet]) });
+    this._styleTableRange(table);
+    this._renderRangeCells(table.ref);
+    this._updateRibbonState();
+    this.markDirty();
+    return true;
+  }
+
+  toggleTableFilterButton(name, recordUndo = true) {
+    if (this._guardProtectedMutation()) return false;
+    const table = this._tableByName(name);
+    if (!table) return false;
+    const before = structuredClone(this.tablesBySheet?.[this.activeSheet] || []);
+    table.showAutoFilter = table.showAutoFilter === false ? true : false;
+    if (recordUndo) this._recordHistory({ type: "sheet-tables", sheet: this.activeSheet, before, after: structuredClone(this.tablesBySheet[this.activeSheet]) });
+    this._updateFilterButtons();
+    this._updateRibbonState();
+    this.markDirty();
+    return true;
+  }
+
+  setTableStyle(name, styleId, recordUndo = true) {
+    if (this._guardProtectedMutation()) return false;
+    const table = this._tableByName(name);
+    if (!table) return false;
+    const preset = findTableStylePreset(styleId);
+    if (!preset) return false;
+    const before = structuredClone(this.tablesBySheet?.[this.activeSheet] || []);
+    table.style = preset.id;
+    table.excelStyle = preset.excelStyle || preset.id;
+    if (recordUndo) this._recordHistory({ type: "sheet-tables", sheet: this.activeSheet, before, after: structuredClone(this.tablesBySheet[this.activeSheet]) });
+    this._styleTableRange(table);
+    this._renderRangeCells(table.ref);
+    this._updateRibbonState();
+    this.markDirty();
+    return true;
+  }
+
+  setTableOption(name, optionKey, value, recordUndo = true) {
+    if (this._guardProtectedMutation()) return false;
+    const table = this._tableByName(name);
+    if (!table) return false;
+    const before = structuredClone(this.tablesBySheet?.[this.activeSheet] || []);
+    table[optionKey] = value;
+    if (recordUndo) this._recordHistory({ type: "sheet-tables", sheet: this.activeSheet, before, after: structuredClone(this.tablesBySheet[this.activeSheet]) });
+    this._styleTableRange(table);
+    this._renderRangeCells(table.ref);
+    this._updateFilterButtons();
+    this._updateRibbonState();
+    this.markDirty();
+    return true;
   }
 
   _showTabColorMenu(event, sheetName) {
@@ -12941,10 +13198,14 @@ export class SheetGridController {
       name: tableName,
       ref: this._rangeLabel(targetRange),
       hasHeaders: headers,
-      style: preset.id,
-      excelStyle: ({ tableBlue: "TableStyleMedium2", tableGreen: "TableStyleMedium4", tableDark: "TableStyleDark1" })[preset.id] || "TableStyleMedium2",
+      showTotals: false,
+      showRowStripes: true,
+      showColumnStripes: false,
+      showFirstColumn: false,
+      showLastColumn: false,
       showAutoFilter: true,
-      showRowStripes: true
+      style: preset.id,
+      excelStyle: preset.excelStyle || ({ tableBlue: "TableStyleMedium2", tableGreen: "TableStyleMedium4", tableDark: "TableStyleDark1", tableOrange: "TableStyleMedium3", tablePurple: "TableStyleMedium6" })[preset.id] || "TableStyleMedium2"
     };
     const currentTables = this.tablesBySheet[this.activeSheet] || [];
     if (!tableName || currentTables.some(item => this._rangesOverlap(item.ref, table.ref))) return false;
@@ -12991,11 +13252,11 @@ export class SheetGridController {
       if (headers && rowNum === minRow) {
         existing.val = normalizedHeaders.get(coord) || existing.val;
         existing.formula = "";
-        Object.assign(existing.style, preset.headerStyle);
+        Object.assign(existing.style, preset.headerStyle, { _fromTable: true });
       } else {
         const isEvenBanded = (rowNum - minRow) % 2 === 1;
         const rowStyle = isEvenBanded ? preset.evenRowStyle : preset.oddRowStyle;
-        Object.assign(existing.style, rowStyle);
+        Object.assign(existing.style, rowStyle, { _fromTable: true });
       }
 
       after[coord] = {
@@ -13152,7 +13413,9 @@ export class SheetGridController {
   }
 
   getTableAtSelection() {
-    return (this.tablesBySheet?.[this.activeSheet] || []).find(table => this._rangesOverlap(table.ref, this._rangeLabel(this.selectionRange))) || null;
+    const range = this.selectionRange || (this.selectedCoord ? { start: this.selectedCoord, end: this.selectedCoord } : null);
+    if (!range) return null;
+    return (this.tablesBySheet?.[this.activeSheet] || []).find(table => this._rangesOverlap(table.ref, this._rangeLabel(range))) || null;
   }
 
   renameTable(oldName, requestedName, recordUndo = true) {
@@ -13383,6 +13646,25 @@ export class SheetGridController {
           if (expanded && expanded !== cell.formula) {
             cell.formula = expanded;
           }
+        }
+      }
+    }
+    // Bake table visual styles into cell.style matching Excel DisplayFormat
+    const bounds = this._normalizeRange(this._parseRange(table.ref));
+    if (bounds) {
+      const startCol = this._columnNumber(bounds.start.c);
+      const endCol = this._columnNumber(bounds.end.c);
+      for (let r = bounds.start.r; r <= bounds.end.r; r++) {
+        for (let c = startCol; c <= endCol; c++) {
+          const colLabel = this._columnLabel(c);
+          const coord = `${colLabel}${r}`;
+          const computed = this._computeTableCellStyle(table, colLabel, r);
+          const cell = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
+          cell.style = Object.assign({}, computed, cell.style || {});
+          delete cell.style._fromTable;
+          this.cellsData.set(coord, cell);
+          const dom = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${coord}"]`);
+          if (dom) this._renderCellVisual(dom, cell, colLabel, r);
         }
       }
     }
@@ -15037,8 +15319,18 @@ export class SheetGridController {
       }
     }
     if (table) {
+      globalCommandBus.updateState("sheet.table.toggleHeaderRow", { checked: table.hasHeaders !== false });
       globalCommandBus.updateState("sheet.table.toggleTotalRow", { checked: Boolean(table.showTotals) });
+      globalCommandBus.updateState("sheet.table.toggleBandedRows", { checked: table.showRowStripes !== false });
+      globalCommandBus.updateState("sheet.table.toggleFirstColumn", { checked: Boolean(table.showFirstColumn) });
+      globalCommandBus.updateState("sheet.table.toggleLastColumn", { checked: Boolean(table.showLastColumn) });
+      globalCommandBus.updateState("sheet.table.toggleBandedColumns", { checked: Boolean(table.showColumnStripes) });
+      globalCommandBus.updateState("sheet.table.toggleFilterButton", { checked: table.showAutoFilter !== false });
     }
+  }
+
+  _updateRibbonState() {
+    this._syncFormatToggleUI();
   }
 
   toggleStyle(prop, valOn, valOff) {
@@ -16633,7 +16925,12 @@ export class SheetGridController {
     btns.forEach(btn => {
       const col = btn.dataset.col;
       const colNumber = this._columnNumber(col);
-      btn.style.display = this.isFilterActive && colNumber >= firstCol && colNumber <= lastCol ? "inline-flex" : "none";
+      let show = this.isFilterActive && colNumber >= firstCol && colNumber <= lastCol;
+      if (show && configuredRange) {
+        const table = (this.tablesBySheet?.[this.activeSheet] || []).find(t => t.ref === configuredRange);
+        if (table && table.showAutoFilter === false) show = false;
+      }
+      btn.style.display = show ? "inline-flex" : "none";
       if (this.activeFilters.has(col)) {
         btn.classList.add("is-active");
       } else {
@@ -21311,6 +21608,14 @@ export class SheetGridController {
     td.style.cssText = "";
     const isWrap = itm?.style?.whiteSpace === "normal" || itm?.style?.whiteSpace === "pre-wrap";
     td.classList?.toggle?.("is-wrap-text", isWrap);
+
+    // Apply live table styling layer if cell belongs to a table
+    const table = (col && row && this._tableAt) ? this._tableAt(col, row) : null;
+    const tableStyle = table ? this._computeTableCellStyle(table, col, row) : null;
+    if (tableStyle) {
+      this._applyStylesToDom(td, tableStyle);
+    }
+
     if (!itm) {
       td.textContent = "";
       td.classList?.remove?.("can-overflow", "has-content");
@@ -21321,7 +21626,19 @@ export class SheetGridController {
     }
 
     if (itm.style) {
-      this._applyStylesToDom(td, itm.style);
+      if (!itm.style._fromTable) {
+        this._applyStylesToDom(td, itm.style);
+      } else {
+        const userStyles = {};
+        for (const [k, v] of Object.entries(itm.style)) {
+          if (k !== "_fromTable" && k !== "backgroundColor" && k !== "color" && k !== "fontWeight" && k !== "border" && k !== "borderTop" && k !== "borderBottom") {
+            userStyles[k] = v;
+          }
+        }
+        if (Object.keys(userStyles).length > 0) {
+          this._applyStylesToDom(td, userStyles);
+        }
+      }
     }
 
     if (itm.sparkline) {

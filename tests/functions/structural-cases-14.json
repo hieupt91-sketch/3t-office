@@ -1,0 +1,67 @@
+{
+  "scenarios": [
+    {
+      "name": "tao bang voi TableStyleMedium2 va cong thuc tham chieu cot",
+      "cells": {
+        "A1": "Product", "B1": "Qty", "C1": "Price", "D1": "Total",
+        "A2": "Apples", "B2": 10, "C2": 15,
+        "A3": "Oranges", "B3": 5, "C3": 20
+      },
+      "ops": [
+        { "type": "createTable", "range": "A1:D3", "hasHeaders": true, "name": "SalesTable" },
+        { "type": "enterCell", "coord": "D2", "formula": "=[@Qty]*[@Price]" },
+        { "type": "enterCell", "coord": "D3", "formula": "=[@Qty]*[@Price]" }
+      ]
+    },
+    {
+      "name": "doi kieu bang sang TableStyleDark1",
+      "cells": {
+        "A1": "ID", "B1": "Score",
+        "A2": 1, "B2": 85,
+        "A3": 2, "B3": 90
+      },
+      "ops": [
+        { "type": "createTable", "range": "A1:B3", "hasHeaders": true, "name": "GradeTable" },
+        { "type": "setTableStyle", "table": "GradeTable", "style": "TableStyleDark1" }
+      ]
+    },
+    {
+      "name": "bat tat tuy chon kieu bang cot dau cot cuoi cot soc",
+      "cells": {
+        "A1": "Region", "B1": "Q1", "C1": "Q2", "D1": "Target",
+        "A2": "North", "B2": 100, "C2": 120, "D2": 250,
+        "A3": "South", "B3": 110, "C3": 130, "D3": 260
+      },
+      "ops": [
+        { "type": "createTable", "range": "A1:D3", "hasHeaders": true, "name": "RegionTable" },
+        { "type": "setTableStyleOptions", "table": "RegionTable", "showFirstColumn": true, "showLastColumn": true, "showColumnStripes": true }
+      ]
+    },
+    {
+      "name": "bang co hang tong subtotal va tat hang soc",
+      "cells": {
+        "A1": "Item", "B1": "Cost",
+        "A2": "Desk", "B2": 150,
+        "A3": "Chair", "B3": 75
+      },
+      "ops": [
+        { "type": "createTable", "range": "A1:B3", "hasHeaders": true, "name": "ExpenseTable" },
+        { "type": "setTableStyleOptions", "table": "ExpenseTable", "showTotals": true, "showRowStripes": false }
+      ]
+    },
+    {
+      "name": "chuyen bang sang vung unlist giu nguyen cong thuc A1",
+      "cells": {
+        "A1": "Dept", "B1": "Budget",
+        "A2": "IT", "B2": 500,
+        "A3": "HR", "B3": 300
+      },
+      "ops": [
+        { "type": "createTable", "range": "A1:B3", "hasHeaders": true, "name": "UnlistTable" },
+        { "type": "setTableStyle", "table": "UnlistTable", "style": "TableStyleLight2" },
+        { "type": "enterCell", "coord": "B4", "formula": "=SUM(B2:B3)" },
+        { "type": "unlistTable", "table": "UnlistTable" }
+      ]
+    }
+  ]
+}

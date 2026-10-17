@@ -18,7 +18,7 @@ import {
   serializeSheetRangeToClipboard
 } from "../../../platform/clipboard/office-clipboard.js";
 import { extractSheetRangeData, extractSheetChartData } from "../../../apps/sheet/sheet-chart-data.js";
-import { TABLE_STYLE_PRESETS } from "../../../apps/sheet/cell-style-presets.js";
+import { TABLE_STYLE_PRESETS, findTableStylePreset } from "../../../apps/sheet/cell-style-presets.js";
 import { t } from "../../../platform/i18n/i18n.js";
 import {
   normalizeDocumentProperties,
@@ -3164,14 +3164,19 @@ export class SheetAdapter {
       const match = target.match(/^(?:'((?:[^']|'')*)'|([^.'!]+))\.\$?([A-Z]+)\$?(\d+):(?:'(?:[^']|'')*'|[^.'!]+)\.\$?([A-Z]+)\$?(\d+)$/i);
       if (!name || !match) return "";
       const sheet = match[1] !== undefined ? match[1].replace(/''/g, "'") : match[2];
+      const rawStyle = get("table-style") || "TableStyleMedium2";
+      const preset = findTableStylePreset(rawStyle);
       const table = {
         name,
         ref: `${match[3]}${match[4]}:${match[5]}${match[6]}`,
         hasHeaders: get("table-headers") !== "false",
-        style: ({ TableStyleMedium2: "tableBlue", TableStyleMedium4: "tableGreen", TableStyleDark1: "tableDark" })[get("table-style")] || "tableBlue",
-        excelStyle: get("table-style") || "TableStyleMedium2",
+        style: preset.id,
+        excelStyle: preset.excelStyle || preset.id,
         showAutoFilter: get("table-show-autofilter") !== "false",
         showRowStripes: get("table-row-stripes") !== "false",
+        showColumnStripes: get("table-column-stripes") === "true",
+        showFirstColumn: get("table-first-column") === "true",
+        showLastColumn: get("table-last-column") === "true",
         showTotals: get("table-totals") === "true"
       };
       (importedTablesBySheet[sheet] ||= []).push(table);
@@ -3184,7 +3189,7 @@ export class SheetAdapter {
       for (const table of tables) {
         const bounds = /^\$?([A-Z]+)\$?(\d+):\$?([A-Z]+)\$?(\d+)$/i.exec(table.ref);
         if (!bounds) continue;
-        const preset = TABLE_STYLE_PRESETS.find(item => item.id === table.style) || TABLE_STYLE_PRESETS[0];
+        const preset = findTableStylePreset(table.excelStyle || table.style);
         const startCol = this._columnNumber(bounds[1]), endCol = this._columnNumber(bounds[3]);
         const startRow = Number(bounds[2]), endRow = Number(bounds[4]);
         for (let row = startRow; row <= endRow; row++) {
@@ -3194,7 +3199,7 @@ export class SheetAdapter {
             const rowStyle = table.hasHeaders !== false && row === startRow
               ? preset.headerStyle
               : ((row - startRow) % 2 === 1 ? preset.evenRowStyle : preset.oddRowStyle);
-            cell.style = { ...(cell.style || {}), ...rowStyle };
+            cell.style = { ...(cell.style || {}), ...rowStyle, _fromTable: true };
             cells.set(coord, cell);
           }
         }
@@ -3235,7 +3240,8 @@ export class SheetAdapter {
         if (!match) continue;
         const quotedSheet = /^[A-Za-z0-9_]+$/.test(sheetName) ? sheetName : `'${sheetName.replace(/'/g, "''")}'`;
         const address = `${quotedSheet}.${match[1]}${match[2]}:${quotedSheet}.${match[3]}${match[4]}`;
-        const style = table.excelStyle || ({ tableBlue: "TableStyleMedium2", tableGreen: "TableStyleMedium4", tableDark: "TableStyleDark1" })[table.style] || "TableStyleMedium2";
+        const preset = findTableStylePreset(table.style || table.excelStyle);
+        const style = preset.excelStyle || table.excelStyle || table.style || "TableStyleMedium2";
         ranges.push(
           `<table:database-range table:name="${this._escapeXml(table.name)}"`
           + ` table:target-range-address="${this._escapeXml(address)}" table:display-filter-buttons="${table.showAutoFilter === false ? "false" : "true"}"`
@@ -3244,6 +3250,9 @@ export class SheetAdapter {
           + ` vno:table-headers="${table.hasHeaders === false ? "false" : "true"}"`
           + ` vno:table-show-autofilter="${table.showAutoFilter === false ? "false" : "true"}"`
           + ` vno:table-row-stripes="${table.showRowStripes === false ? "false" : "true"}"`
+          + ` vno:table-column-stripes="${table.showColumnStripes ? "true" : "false"}"`
+          + ` vno:table-first-column="${table.showFirstColumn ? "true" : "false"}"`
+          + ` vno:table-last-column="${table.showLastColumn ? "true" : "false"}"`
           + ` vno:table-totals="${table.showTotals ? "true" : "false"}"`
           + ` vno:table-totals-label="${this._escapeXml(this._tableTotalsLabel(sheetName, table))}"/>`
         );

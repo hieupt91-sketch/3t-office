@@ -11,6 +11,7 @@ import { runSuiteSmokeTests } from "./smoke/suite-smoke.test.js";
 import { runFormulaEngineTests } from "./unit/formula-engine.test.js";
 import { runStructuredReferenceTests } from "./unit/structured-references.test.js";
 import { runSheetTableTests } from "./unit/sheet-table.test.js";
+import { runSheetTableStyleTests } from "./unit/sheet-tablestyle.test.js";
 import { runSheetSlicerTests } from "./unit/sheet-slicer.test.js";
 import { runSheetTemplateSaveTests } from "./unit/sheet-template-save.test.js";
 import { runSheetCfGoldenTests } from "./unit/sheet-cf-golden.test.js";
@@ -323,6 +324,7 @@ async function runAll() {
     { title: "3b. Unit Tests — Tham chiếu có cấu trúc Table[Cột]", runner: runStructuredReferenceTests },
     { title: "3b2. Unit Tests — Thao tác Bảng Table/ListObject (AGY-TABLE)", runner: runSheetTableTests },
     { title: "3b2a. Unit Tests — Bộ lọc trực quan cho Bảng", runner: runSheetSlicerTests },
+    { title: "3b2b. Unit Tests — Live Table Styles & 7 Style Options (AGY-TABLESTYLE)", runner: runSheetTableStyleTests },
     { title: "3b3. Unit Tests — Lưu thành mẫu .xltx (Sheet)", runner: runSheetTemplateSaveTests },
     { title: "3b4. Unit Tests — Định dạng có điều kiện đối chiếu Excel 2016 + ROW()/COLUMN()", runner: runSheetCfGoldenTests },
     { title: "3b5. Unit Tests — Thanh công cụ truy nhanh tùy biến (dùng chung)", runner: runQuickAccessTests },
