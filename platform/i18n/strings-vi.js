@@ -1006,6 +1006,7 @@ export const viStrings = {
     ,"slides.text.changeCase": { label: "Đổi chữ hoa/thường", tooltip: "Đổi chữ hoa / thường cho chữ đang chọn (Shift+F3 xoay vòng)" }
     ,"slides.text.changeCaseMode": { label: "Kiểu chữ hoa/thường", tooltip: "Chọn kiểu: đầu câu, chữ thường, CHỮ HOA, Viết Hoa Mỗi Từ, đảo hoa thường" }
     ,"slides.design.hideBackground": { label: "Ẩn đồ họa nền", tooltip: "Ẩn các hình/logo của bản cái trên trang đang chọn (bật/tắt)" }
+    ,"slides.edit.selectionPane": { label: "Ngăn chọn", tooltip: "Mở ngăn liệt kê mọi đối tượng trên trang để chọn nhanh và đổi thứ tự lớp (Alt+F10)" }
     ,"slides.transition.apply": { label: "Chuyển tiếp", tooltip: "Hiệu ứng chuyển trang chiếu (Fade, Slide, Zoom, Flip)" }
     ,"slides.animation.apply": { label: "Hiệu ứng đối tượng", tooltip: "Thiết lập hiệu ứng xuất hiện (Fade In, Fly In, Zoom In) cho đối tượng" }
     ,"slides.animation.pane": { label: "Ngăn hoạt hình", tooltip: "Hiện danh sách mọi hiệu ứng trên trang đang chọn, đổi thứ tự, cách bắt đầu hoặc xóa hiệu ứng" }

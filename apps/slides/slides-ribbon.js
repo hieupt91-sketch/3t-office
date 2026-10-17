@@ -281,7 +281,8 @@ export const SLIDES_RIBBON_TABS = [
                 icon: "selectAll",
                 items: [
                   { commandId: "slides.edit.selectAll" },
-                  { commandId: "slides.edit.selectObjects" }
+                  { commandId: "slides.edit.selectObjects" },
+                  { commandId: "slides.edit.selectionPane" }
                 ]
               }
             ]

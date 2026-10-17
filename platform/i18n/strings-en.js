@@ -1007,6 +1007,7 @@ export const enStrings = {
   ,"slides.text.changeCase": { label: "Change Case", tooltip: "Change the case of the selected text (Shift+F3 cycles)" }
   ,"slides.text.changeCaseMode": { label: "Case Style", tooltip: "Pick a style: sentence case, lowercase, UPPERCASE, capitalize each initial, or toggle case" }
   ,"slides.design.hideBackground": { label: "Hide Background Graphics", tooltip: "Hide the master graphics and logo on the current slide (toggle)" }
+  ,"slides.edit.selectionPane": { label: "Selection Pane", tooltip: "Open a list of every object on the slide to select it quickly and change layer order (Alt+F10)" }
   ,"slides.transition.apply": { label: "Transitions", tooltip: "Apply a slide transition (Fade, Push, Zoom, Flip)" }
     ,"slides.animation.apply": { label: "Animations", tooltip: "Apply an entrance animation to an object" }
     ,"slides.animation.pane": { label: "Animation Pane", tooltip: "List every animation on the current slide, reorder, change start, or remove an animation" }

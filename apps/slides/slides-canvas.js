@@ -3,6 +3,7 @@
  */
 
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
+import { createSelectionPane } from "../../platform/ui-kit/selection-pane.js";
 import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
 import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
 import { t, getLocale } from "../../platform/i18n/i18n.js";
@@ -2006,6 +2007,7 @@ export class SlidesCanvasController {
 
   _updateSelectionUi() {
     this._syncShapeFormatContext?.();
+    this._renderSelectionPane?.();
     if (this.titleEl?.classList) {
       if (this.selectedTarget === "title") this.titleEl.classList.add("is-selected");
       else this.titleEl.classList.remove("is-selected");
@@ -2398,7 +2400,64 @@ export class SlidesCanvasController {
     return true;
   }
 
+  /** Tên hiển thị của đối tượng trong Ngăn chọn: loại + số thứ tự theo loại trên trang. */
+  _selectionPaneLabels(slide) {
+    const names = { rect: "Hình chữ nhật", ellipse: "Hình elip", arrow: "Mũi tên", textbox: "Hộp văn bản", image: "Hình ảnh", table: "Bảng", chart: "Biểu đồ", line: "Đường thẳng", triangle: "Hình tam giác", diamond: "Hình thoi", video: "Video", audio: "Âm thanh" };
+    const counters = {};
+    return (slide.shapes || []).map((shape) => {
+      const base = shape.name && !/^\d{6,}$/.test(String(shape.name)) ? String(shape.name) : (names[shape.type] || "Đối tượng");
+      counters[base] = (counters[base] || 0) + 1;
+      return { id: String(shape.id), label: shape.name && !/^\d{6,}$/.test(String(shape.name)) ? base : `${base} ${counters[base]}` };
+    });
+  }
+
+  _renderSelectionPane() {
+    if (!this.selectionPane || !this.isSelectionPaneVisible) return;
+    const slide = this.slides[this.currentSlideIndex];
+    const labels = slide ? this._selectionPaneLabels(slide) : [];
+    const selected = new Set([...(this.selectedShapeIds || [])].map(String));
+    if (this.selectedTarget != null) selected.add(String(this.selectedTarget));
+    // Trên cùng trước: đối tượng cuối mảng được vẽ phía trên.
+    this.selectionPane.setItems(labels.slice().reverse().map((item) => ({ ...item, selected: selected.has(item.id) })));
+  }
+
+  toggleSelectionPane(forceState) {
+    const next = forceState === undefined ? !this.isSelectionPaneVisible : !!forceState;
+    if (typeof document === "undefined") return false;
+    if (next && this.isAnimationPaneVisible) this.toggleAnimationPane(false);
+    if (!this.selectionPane && next && this.stageEl) {
+      this.selectionPane = createSelectionPane({
+        title: t("slidesDialogs.selectionPaneTitle", "Ngăn chọn"),
+        hint: t("slidesDialogs.selectionPaneHint", "Danh sách đối tượng trên trang, trên cùng ở đầu. Nhấp để chọn; dùng nút ▲▼ hoặc Ctrl+Shift+mũi tên để đổi thứ tự lớp."),
+        emptyText: t("slidesDialogs.selectionPaneEmpty", "Trang này chưa có hình, ảnh hay bảng nào."),
+        closeLabel: t("slidesDialogs.close", "Đóng"),
+        upLabel: t("slidesDialogs.selectionPaneUp", "Đưa lên một lớp"),
+        downLabel: t("slidesDialogs.selectionPaneDown", "Đưa xuống một lớp"),
+        onSelect: (id) => { this.setSelectedTarget(id); this._renderShapesLayer(); this._updateSelectionUi(); },
+        onMove: (id, direction) => {
+          this.setSelectedTarget(id);
+          this.reorderSelectedShapes(direction);
+          this._updateSelectionUi();
+        },
+        onClose: () => this.toggleSelectionPane(false)
+      });
+      this.stageEl.appendChild(this.selectionPane.el);
+    }
+    this.isSelectionPaneVisible = next;
+    if (this.selectionPane) this.selectionPane.el.hidden = !next;
+    if (next) {
+      this._renderSelectionPane();
+      this.selectionPane?.focus();
+    } else {
+      this.canvasEl?.focus?.();
+    }
+    try { globalCommandBus.updateState("slides.edit.selectionPane", { checked: next }); } catch (_) { /* chưa có bus */ }
+    this.options?.shell?.setStatus?.(next ? "Đã mở ngăn chọn." : "Đã đóng ngăn chọn.");
+    return true;
+  }
+
   toggleAnimationPane(forceState) {
+    if (forceState !== false && forceState !== undefined && this.isSelectionPaneVisible) this.toggleSelectionPane(false);
     const next = forceState === undefined ? !this.isAnimationPaneVisible : !!forceState;
     this.isAnimationPaneVisible = next;
     if (!this.animationPaneEl && next && this.stageEl) this._createAnimationPane(this.stageEl);

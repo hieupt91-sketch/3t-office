@@ -209,6 +209,7 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.text.changeCase", () => this._changeTextCase(""));
     globalCommandBus.bindHandler("slides.text.changeCaseMode", (arg) => this._changeTextCase(String(arg || "")));
     globalCommandBus.bindHandler("slides.design.hideBackground", () => this.canvas.toggleHideBackgroundGraphics());
+    globalCommandBus.bindHandler("slides.edit.selectionPane", () => this.canvas.toggleSelectionPane());
     globalCommandBus.bindHandler("slides.transition.apply", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
     // Tab Chuyển tiếp: thư viện hiệu ứng, thời gian, áp dụng tất cả, xem trước (cùng mô hình dữ liệu với hộp thoại).
     globalCommandBus.bindHandler("slides.transition.gallery", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);

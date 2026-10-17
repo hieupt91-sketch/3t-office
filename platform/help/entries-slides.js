@@ -209,6 +209,20 @@ export const SLIDES_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.edit.selectionPane",
+    app: "slides",
+    commandIds: ["slides.edit.selectionPane"],
+    title: "Ngăn chọn: chọn nhanh đối tượng và đổi thứ tự lớp (Alt+F10)",
+    summary: "Mở ngăn liệt kê mọi hình, ảnh, bảng trên trang chiếu (đối tượng trên cùng ở đầu danh sách) để chọn đúng đối tượng bị che và đổi thứ tự lớp.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["ngăn chọn", "selection pane", "alt+f10", "thứ tự lớp", "đối tượng bị che", "chọn đối tượng"],
+    steps: [
+      "Tab Trang đầu > nhóm Chỉnh sửa > Chọn > Ngăn chọn, hoặc nhấn Alt+F10. Ngăn hiện bên phải trang chiếu.",
+      "Nhấp một dòng để chọn đối tượng đó trên trang, kể cả đối tượng bị che bởi đối tượng khác. Phím mũi tên lên/xuống chuyển sang dòng kế.",
+      "Nút ▲ đưa đối tượng lên một lớp, nút ▼ đưa xuống một lớp; hoặc giữ phím Ctrl và Shift rồi nhấn mũi tên lên/xuống khi đang ở trong danh sách. Ctrl+Z hoàn tác.",
+      "Nhấn Esc hoặc dấu × để đóng ngăn. Mở ngăn hoạt hình sẽ tự đóng ngăn chọn và ngược lại."
+    ]
+  },  {
     id: "slides.design.hideBackground",
     app: "slides",
     commandIds: ["slides.design.hideBackground"],
