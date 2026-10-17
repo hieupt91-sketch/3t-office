@@ -620,6 +620,26 @@ export const SLIDES_RIBBON_TABS = [
               { commandId: "slides.animation.setType", args: "disappear", label: "Biến mất (thoát)" }
             ]
           },
+          {
+            type: "dropdown",
+            id: "slides.animation.add",
+            label: "Thêm hoạt ảnh",
+            icon: "slideTransition",
+            isLarge: true,
+            items: [
+              { commandId: "slides.animation.addEffect", args: "fadeIn", label: "Mờ dần (vào)" },
+              { commandId: "slides.animation.addEffect", args: "flyIn", label: "Bay vào" },
+              { commandId: "slides.animation.addEffect", args: "zoomIn", label: "Thu phóng vào" },
+              { commandId: "slides.animation.addEffect", args: "bounceIn", label: "Nảy vào" },
+              { commandId: "slides.animation.addEffect", args: "slideLeft", label: "Trượt từ trái" },
+              { commandId: "slides.animation.addEffect", args: "spin", label: "Xoay tròn (nhấn mạnh)" },
+              { commandId: "slides.animation.addEffect", args: "growShrink", label: "Phóng to / thu nhỏ (nhấn mạnh)" },
+              { commandId: "slides.animation.addEffect", args: "fadeOut", label: "Mờ dần ra (thoát)" },
+              { commandId: "slides.animation.addEffect", args: "flyOut", label: "Bay ra (thoát)" },
+              { commandId: "slides.animation.addEffect", args: "zoomOut", label: "Thu nhỏ ra (thoát)" },
+              { commandId: "slides.animation.addEffect", args: "disappear", label: "Biến mất (thoát)" }
+            ]
+          },
           { type: "button", commandId: "slides.animation.apply", isLarge: true },
           { type: "button", commandId: "slides.animation.effectOptions", label: "Tùy chọn hiệu ứng", labelKey: "slidesRibbon.animationOptions" },
           { type: "button", commandId: "slides.animation.pane", isLarge: true },

@@ -320,6 +320,8 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.font.dialog", () => this._hintIfFalse(() => this.openFontDialog(), "Hãy nhấp vào khung chữ và chọn đoạn chữ cần định dạng."));
     globalCommandBus.bindHandler("slides.font.spacing", () => this._hintIfFalse(() => this.openFontDialog(), "Hãy nhấp vào khung chữ và chọn đoạn chữ cần định dạng."));
     globalCommandBus.bindHandler("slides.font.setSpacing", (arg) => this._hintIfFalse(() => this.setCharacterSpacing(Number(arg)), "Hãy nhấp vào khung chữ và chọn đoạn chữ cần giãn hoặc nén ký tự."));
+    globalCommandBus.bindHandler("slides.animation.add", () => this.canvas.showAnimationDialog ? this.canvas.showAnimationDialog() : false);
+    globalCommandBus.bindHandler("slides.animation.addEffect", (arg) => this._hintIfFalse(() => this.canvas.addObjectAnimation({ type: String(arg || "") }), "Hãy chọn một đối tượng (hình, ảnh, khung chữ) trước, rồi chọn hiệu ứng cần thêm."));
     globalCommandBus.bindHandler("slides.animation.painter", () => this._hintIfFalse(() => this.canvas.animationPainter(), "Hãy chọn một đối tượng đã có hiệu ứng để lấy, rồi chọn đối tượng đích và nhấn lại Sao chép hoạt ảnh."));
     // Thư viện hình dựng sẵn và Đổi hình dạng (apps/slides/shape-presets.js).
     globalCommandBus.bindHandler("slides.shape.galleryInsert", () => this.canvas.insertShape ? this.canvas.insertShape("rect") : false);
@@ -2509,10 +2511,14 @@ export class SlidesAdapter {
       });
     };
     push(slide?.titleAnimation, placeholderIds?.title, 0);
+    (slide?.extraAnimations?.title || []).forEach((extra, i) => push(extra, placeholderIds?.title, 0.001 * (i + 1)));
     push(slide?.bodyAnimation, placeholderIds?.body, 1);
+    (slide?.extraAnimations?.body || []).forEach((extra, i) => push(extra, placeholderIds?.body, 1 + 0.001 * (i + 1)));
     push(slide?.body2Animation, placeholderIds?.body2, 2);
+    (slide?.extraAnimations?.body2 || []).forEach((extra, i) => push(extra, placeholderIds?.body2, 2 + 0.001 * (i + 1)));
     (slide?.shapes || []).forEach((shape, index) => {
       push(shape.animation, shapeIds?.get?.(String(shape.id)), 100 + index);
+      (shape.extraAnimations || []).forEach((extra, i) => push(extra, shapeIds?.get?.(String(shape.id)), 100 + index + 0.001 * (i + 1)));
     });
     slots.sort((a, b) => a.order - b.order || a.defaultIndex - b.defaultIndex);
     return slots;
@@ -2671,6 +2677,8 @@ export class SlidesAdapter {
 
   _parsePageAnimations(pageXml) {
     const byTarget = new Map();
+    byTarget.extras = new Map(); // hiệu ứng thứ 2 trở đi trên cùng đối tượng
+    let orderCounter = 0;
     const regex = /<anim:par\b([^>]*presentation:preset-id=["'][^"']+["'][^>]*)>/gi;
     let match;
     while ((match = regex.exec(pageXml || "")) !== null) {
@@ -2700,7 +2708,13 @@ export class SlidesAdapter {
         : nodeType === "after-previous"
           ? "afterPrevious"
           : "onClick";
-      byTarget.set(target, { type: vnType, duration, delay, direction, order: byTarget.size, start });
+      const parsed = { type: vnType, duration, delay, direction, order: orderCounter++, start };
+      if (byTarget.has(target)) {
+        if (!byTarget.extras.has(target)) byTarget.extras.set(target, []);
+        byTarget.extras.get(target).push(parsed);
+      } else {
+        byTarget.set(target, parsed);
+      }
     }
     return byTarget;
   }
@@ -2710,7 +2724,11 @@ export class SlidesAdapter {
     for (const [target, animation] of animByTarget) {
       const restored = idMap.has(target) ? idMap.get(target) : target;
       const shape = (shapes || []).find((item) => String(item.id) === String(restored) || String(item.id) === String(target));
-      if (shape) shape.animation = { ...animation };
+      if (shape) {
+        shape.animation = { ...animation };
+        const extras = animByTarget.extras?.get(target);
+        if (extras?.length) shape.extraAnimations = extras.map((item) => ({ ...item }));
+      }
     }
   }
 
@@ -2748,6 +2766,11 @@ export class SlidesAdapter {
       const role = placeholderTargets.get(target);
       if (!role || !fields[role]) continue;
       slide[fields[role]] = { ...animation };
+      const extras = animByTarget.extras?.get(target);
+      if (extras?.length) {
+        slide.extraAnimations = slide.extraAnimations || {};
+        slide.extraAnimations[role] = extras.map((item) => ({ ...item }));
+      }
     }
   }
 

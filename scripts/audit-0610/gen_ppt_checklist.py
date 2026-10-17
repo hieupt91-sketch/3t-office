@@ -153,7 +153,7 @@ Hoạt ảnh|Hoạt ảnh|Nhóm Nhấn mạnh (Emphasis Effects: Pulse, Spin, Gr
 Hoạt ảnh|Hoạt ảnh|Nhóm Thoát (Exit Effects: Disappear, Fade, Fly Out)|V|-|slides.animation.apply; Mờ dần ra, Bay ra, Thu nhỏ ra, Biến mất lưu PPTX rồi PowerPoint 2016 COM đọc đúng EffectType và Exit=-1 (docs/AUDIT-SLIDES-ANIM-1710.md:15)
 Hoạt ảnh|Hoạt ảnh|Đường chuyển động (Motion Paths: Line, Arc, Custom Path)|N|2|Chưa hỗ trợ vẽ và chạy hoạt ảnh theo đường cong tự do Motion Path
 Hoạt ảnh|Hoạt ảnh|Tùy chọn hiệu ứng (Effect Options: Hướng, Theo đoạn/khung)|A|-|slides.animation.effectOptions; direction được lưu qua preset-sub-type/presetSubtype (apps/slides/slides-canvas.js; adapters/libreoffice/slides/slides-adapter.js; adapters/libreoffice/common/ooxml_zip_patch.py)
-Hoạt ảnh|Hoạt ảnh nâng cao|Thêm hoạt ảnh (Add Animation)|N|2|Chưa hỗ trợ gán nhiều hoạt ảnh đồng thời vào cùng một đối tượng
+Hoạt ảnh|Hoạt ảnh nâng cao|Thêm hoạt ảnh (Add Animation)|V|-|slides.animation.add / slides.animation.addEffect: vào + thoát trên cùng một hình, lưu PPTX rồi PowerPoint 2016 COM đọc đủ cả hai (Exit=0 và -1; tests/live/cdp/slides-add-animation.desktop.mjs; {{L:apps/slides/slides-canvas.js|  addObjectAnimation(patch) {}} addObjectAnimation)
 Hoạt ảnh|Hoạt ảnh nâng cao|Ngăn hoạt ảnh (Animation Pane)|V|-|FIX-L7: slides.animation.pane đổi thứ tự hiệu ứng đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:70)
 Hoạt ảnh|Hoạt ảnh nâng cao|Kích hoạt (Trigger: On Click of Object)|N|2|Chưa có hộp thoại gán trigger kích hoạt hiệu ứng khi click shape khác
 Hoạt ảnh|Hoạt ảnh nâng cao|Sao chép hoạt ảnh (Animation Painter)|V|-|slides.animation.painter: lấy hiệu ứng ở lần nhấn 1, dán ở lần 2; PowerPoint COM đọc lại hai hiệu ứng Bay vào cùng hướng trái, sau hiệu ứng trước, 1,5 giây, trễ 0,5 giây ({{L:apps/slides/slides-canvas.js|  animationPainter() {}} animationPainter, scripts/audit-0610/ppt_animation_all_readback.ps1:2)
@@ -218,7 +218,7 @@ Chế độ xem|Macro|Xem và chạy Macro (Alt+F8)|A|-|common.macro.manager; qu
 Chế độ xem|Trợ giúp|Trợ giúp (Help, F1)|A|-|slides.help.open; hướng dẫn sử dụng tiếng Việt trong ứng dụng (docs/SLIDES-BUTTON-MATRIX-1011.md:100)
 Chế độ xem|Trợ giúp|Giới thiệu bản quyền (About)|A|-|common.help.about; thông tin phiên bản VN Slides (docs/SLIDES-BUTTON-MATRIX-1011.md:101)
 Công cụ vẽ > Định dạng|Chèn hình|Sửa điểm vẽ tự do (Edit Points)|P|2|Có vẽ hình tự do Bezier; chưa có giao diện kéo điểm nút trực quan
-Công cụ vẽ > Định dạng|Chèn hình|Đổi hình dạng (Change Shape)|V|-|slides.shape.changeType: đổi giữa chữ nhật, elip và 16 hình dựng sẵn, giữ vị trí/kích thước/màu; PowerPoint COM AutoShapeType elip=9, sao=92, mũi tên phải=33, tim=21 (apps/slides/slides-canvas.js:2873 changeShapeType, scripts/audit-0610/ppt_autoshape_readback.ps1:2)
+Công cụ vẽ > Định dạng|Chèn hình|Đổi hình dạng (Change Shape)|V|-|slides.shape.changeType: đổi giữa chữ nhật, elip và 16 hình dựng sẵn, giữ vị trí/kích thước/màu; PowerPoint COM AutoShapeType elip=9, sao=92, mũi tên phải=33, tim=21 ({{L:apps/slides/slides-canvas.js|  changeShapeType(presetId) {}} changeShapeType, scripts/audit-0610/ppt_autoshape_readback.ps1:2)
 Công cụ vẽ > Định dạng|Kiểu chữ WordArt|Tô màu chữ nghệ thuật (Text Fill)|N|2|Chưa có công cụ đổi màu tô chữ nghệ thuật độc lập trên ribbon
 Công cụ vẽ > Định dạng|Kiểu chữ WordArt|Viền chữ nghệ thuật (Text Outline)|N|2|Chưa có công cụ đổi màu viền chữ nghệ thuật trên ribbon
 Công cụ vẽ > Định dạng|Kiểu chữ WordArt|Hiệu ứng chữ nghệ thuật (Text Effects: Warp, Shadow, 3D)|P|1|FIX-L14: có textFadeRight nhưng PowerPoint COM nhận dạng PresetTextEffect=-2 chưa chuẩn native (docs/SLIDES-BUTTON-MATRIX-1011.md:57)
@@ -279,7 +279,7 @@ Không thuộc ribbon|Bàn phím|Điều hướng slide (PageUp, PageDown, Home,
 Không thuộc ribbon|Bàn phím|Phím tắt định dạng chữ (Ctrl+B/I/U, Ctrl+Shift+>/<, Ctrl+Space)|V|-|FIX-L4: Ctrl+B/I/U và thang tăng giảm cỡ chữ đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:27-31)
 Không thuộc ribbon|Bàn phím|Phím tắt trình chiếu (F5 Từ đầu, Shift+F5 Từ trang hiện tại, Esc Thoát)|A|-|slides.show.startFromBegin, startFromCurrent; phím tắt điều khiển trình diễn
 Không thuộc ribbon|Bàn phím|Phím tắt chỉnh sửa slide (Ctrl+M Thêm, Ctrl+D Nhân đôi, Delete Xóa)|V|-|FIX-L8: slides.slide.new, duplicate, delete đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:20,22,23)
-Không thuộc ribbon|Chuột|Kéo thả thay đổi thứ tự trang trong danh sách thumbnail|A|-|Kéo thả trực tiếp slide thumbnail để sắp xếp thứ tự (apps/slides/slides-canvas.js:6038-6136)
+Không thuộc ribbon|Chuột|Kéo thả thay đổi thứ tự trang trong danh sách thumbnail|A|-|Kéo thả trực tiếp slide thumbnail để sắp xếp thứ tự ({{L:apps/slides/slides-canvas.js|      item.className = `vno-slide-thumb-item}}, {{L:apps/slides/slides-canvas.js|      item.addEventListener("drop", (event) => {}})
 Không thuộc ribbon|Chuột|Kéo các góc/chốt đối tượng để đổi kích thước và xoay|A|-|Chốt điều khiển 8 hướng và xoay đối tượng (apps/slides/slides-canvas.js:190-200)
 Không thuộc ribbon|Chuột|Menu ngữ cảnh chuột phải trên slide, hình vẽ, ảnh, bảng|A|-|Menu chuột phải trên slide và hình vẽ (apps/slides/slides-canvas.js:7131-7150)
 Không thuộc ribbon|Tính tương thích|Mở và Lưu PPTX giữ nguyên bố cục đối tượng|V|-|Lưu PPTX và mở lại đối chiếu PowerPoint COM không mất đối tượng (docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:9-10)

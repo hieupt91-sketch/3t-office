@@ -205,6 +205,37 @@ export async function runSlidesAnimationPaneSetupShowTests() {
     assert(/Hop van ban zoom/i.test(list[2].label), `label shape ${list[2].label}`);
   });
 
+  await test("Thêm hoạt ảnh: hai hiệu ứng trên một đối tượng, slot riêng, xóa/promote/hoàn tác đúng", () => {
+    const canvas = threeAnimSlide(new SlidesCanvasController(container()));
+    canvas.selectedTarget = 77;
+    assert(canvas.addObjectAnimation({ type: "fadeOut" }), "add");
+    let list = canvas.collectSlideAnimations();
+    assert(list.length === 4, `4 slot, có ${list.length}`);
+    const mine = list.filter((item) => String(item.target) === "77");
+    assert(mine.length === 2 && mine[0].type === "zoomIn" && mine[1].type === "fadeOut", `slot ${JSON.stringify(mine.map((i) => i.slotId + ":" + i.type))}`);
+    assert(mine[0].slotId === "77" && mine[1].slotId === "77#1", "slotId");
+    const timeline = canvas._timelineByTarget(canvas.slides[0]);
+    const head = timeline.get("77");
+    assert(head.extras.length === 1 && head.extras[0].type === "fadeOut", "extras trong timeline");
+    const css = canvas._timelineItemStyle(head);
+    assert(/animation:[^;]*vnoAnimZoomIn[^;]*,\s*[^;]*vnoAnimFadeOut/.test(css), `CSS gộp: ${css}`);
+    // Đổi Bắt đầu của hiệu ứng thêm không đụng hiệu ứng đầu.
+    const extraIndex = list.findIndex((item) => item.slotId === "77#1");
+    canvas.setSlideAnimationStart(extraIndex, "withPrevious");
+    assert(canvas.slides[0].shapes[0].extraAnimations[0].start === "withPrevious", "start extra");
+    assert(canvas.slides[0].shapes[0].animation.start !== "withPrevious", "hiệu ứng đầu giữ nguyên cách bắt đầu");
+    // Xóa hiệu ứng đầu: hiệu ứng thêm lên làm chính.
+    const primaryIndex = list.findIndex((item) => item.slotId === "77");
+    canvas.removeSlideAnimation(primaryIndex);
+    const shape = canvas.slides[0].shapes[0];
+    assert(shape.animation.type === "fadeOut" && !(shape.extraAnimations || []).length, `promote: ${JSON.stringify(shape.animation)}`);
+    assert(canvas.collectSlideAnimations().length === 3, "còn 3 slot");
+    // Hoàn tác xóa -> trở lại 4 slot.
+    assert(canvas.undo(), "undo");
+    assert(canvas.collectSlideAnimations().length === 4, "undo trả lại hiệu ứng thêm");
+    assert(canvas.slides[0].shapes[0].extraAnimations?.length === 1, "extraAnimations phục hồi");
+  });
+
   await test("Đổi thứ tự lên/xuống đổi timeline chạy thật, không chỉ list pane", () => {
     const canvas = threeAnimSlide(new SlidesCanvasController(container()));
     const before = canvas.getAnimationTimeline();

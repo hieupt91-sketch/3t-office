@@ -110,6 +110,19 @@ class NativeAnimationTimingTests(unittest.TestCase):
         self.assertIn('evt="onPrev"', xml)
         self.assertIn('evt="onNext"', xml)
 
+    def test_two_effects_on_one_shape_get_distinct_grpid_and_bld_entries(self):
+        # PowerPoint đánh grpId 0, 1... cho các hiệu ứng trên cùng một hình và liệt kê từng cặp trong bldLst;
+        # dùng grpId 0 cho cả hai làm PowerPoint bỏ hiệu ứng thứ hai (đo bằng COM 18/10).
+        result = run([
+            soffice_effect(10, "clickEffect", "entr", "10", 4),
+            soffice_effect(20, "clickEffect", "exit", "10", 4),
+        ])
+        xml = result["ppt/slides/slide1.xml"]
+        root = ET.fromstring(xml)
+        effects = [n for n in root.iter(PFX + "cTn") if n.get("presetClass")]
+        self.assertEqual([n.get("grpId") for n in effects], ["0", "1"])
+        self.assertEqual(re.findall(r'<p:bldP spid="4" grpId="(\d+)"', xml), ["0", "1"])
+
     def test_with_previous_joins_the_same_time_slot(self):
         result = run([
             soffice_effect(10, "clickEffect", "emph", "6", 4, 1000),

@@ -223,6 +223,20 @@ export const SLIDES_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.animation.addEffect",
+    app: "slides",
+    commandIds: ["slides.animation.add", "slides.animation.addEffect"],
+    title: "Thêm hoạt ảnh: nhiều hiệu ứng trên một đối tượng",
+    summary: "Cho một hình, ảnh hay khung chữ chạy nhiều hiệu ứng nối tiếp, ví dụ Bay vào rồi Mờ dần ra. Hiệu ứng thêm xếp cuối chuỗi và hiện thành dòng riêng trong Ngăn hoạt hình.",
+    ribbon: { tab: "Hoạt hình", tabId: "animations", group: "Hiệu ứng đối tượng" },
+    keywords: ["thêm hoạt ảnh", "add animation", "nhiều hiệu ứng", "vào rồi thoát", "hiệu ứng thứ hai"],
+    steps: [
+      "Chọn đối tượng đã có một hiệu ứng (gán ở nút Hiệu ứng).",
+      "Tab Hoạt hình > nhóm Hiệu ứng đối tượng > Thêm hoạt ảnh, rồi chọn kiểu: vào, nhấn mạnh hoặc thoát. Hiệu ứng mới xuất hiện ở cuối Ngăn hoạt hình, cùng đối tượng với dòng trước.",
+      "Trong Ngăn hoạt hình dùng nút lên/xuống để đổi thứ tự, cột Bắt đầu để chọn Khi click / Cùng với trước đó / Sau trước đó, nút Xóa để bỏ riêng hiệu ứng đó. Ctrl+Z hoàn tác. Lưu PPTX thì mọi hiệu ứng đều được lưu."
+    ]
+  },
+  {
     id: "slides.animation.painter",
     app: "slides",
     commandIds: ["slides.animation.painter"],

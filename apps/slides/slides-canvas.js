@@ -2124,8 +2124,30 @@ export class SlidesCanvasController {
     return "onClick";
   }
 
-  _getAnimationConfig(slide, target) {
+  /** slotId = "<đối tượng>" (hiệu ứng đầu) hoặc "<đối tượng>#k" (hiệu ứng thêm thứ k, k >= 1). */
+  _splitAnimationSlot(slotId) {
+    const match = String(slotId).match(/^(.*)#(\d+)$/);
+    return match ? { target: match[1], k: Number(match[2]) } : { target: String(slotId), k: 0 };
+  }
+
+  /** Mảng hiệu ứng thêm của một đối tượng (tạo mới khi create = true); null nếu chưa có. */
+  _extraAnimationsOf(slide, target, create = false) {
     if (!slide) return null;
+    if (target === "title" || target === "body" || target === "body2") {
+      if (create) { slide.extraAnimations = slide.extraAnimations || {}; slide.extraAnimations[target] = slide.extraAnimations[target] || []; }
+      return slide.extraAnimations?.[target] || null;
+    }
+    const shape = (slide.shapes || []).find((item) => String(item.id) === String(target));
+    if (!shape) return null;
+    if (create) shape.extraAnimations = shape.extraAnimations || [];
+    return shape.extraAnimations || null;
+  }
+
+  _getAnimationConfig(slide, slotId) {
+    if (!slide) return null;
+    const { target: slotTarget, k } = this._splitAnimationSlot(slotId);
+    if (k > 0) return this._extraAnimationsOf(slide, slotTarget)?.[k - 1] || null;
+    const target = slotTarget;
     if (target === "title") return slide.titleAnimation || null;
     if (target === "body") return slide.bodyAnimation || null;
     if (target === "body2") return slide.body2Animation || null;
@@ -2232,18 +2254,24 @@ export class SlidesCanvasController {
     if (!current) return [];
     const layout = current.layoutType || "title-content";
     const slots = [];
+    const pushWithExtras = (target, animation, defaultIndex) => {
+      slots.push({ target, slotId: String(target), animation, defaultIndex });
+      (this._extraAnimationsOf(current, target) || []).forEach((extra, i) => {
+        if (this._isActiveAnimation(extra)) slots.push({ target, slotId: `${target}#${i + 1}`, animation: extra, defaultIndex: defaultIndex + 0.001 * (i + 1) });
+      });
+    };
     if (layout !== "blank" && this._isActiveAnimation(current.titleAnimation)) {
-      slots.push({ target: "title", animation: current.titleAnimation, defaultIndex: 0 });
+      pushWithExtras("title", current.titleAnimation, 0);
     }
     if (layout !== "blank" && layout !== "title-only" && this._isActiveAnimation(current.bodyAnimation)) {
-      slots.push({ target: "body", animation: current.bodyAnimation, defaultIndex: 1 });
+      pushWithExtras("body", current.bodyAnimation, 1);
     }
     if (layout === "two-content" && this._isActiveAnimation(current.body2Animation)) {
-      slots.push({ target: "body2", animation: current.body2Animation, defaultIndex: 2 });
+      pushWithExtras("body2", current.body2Animation, 2);
     }
     (current.shapes || []).forEach((shape, idx) => {
       if (!this._isActiveAnimation(shape.animation) || shape.type === "connector") return;
-      slots.push({ target: shape.id, animation: shape.animation, defaultIndex: 100 + idx });
+      pushWithExtras(shape.id, shape.animation, 100 + idx);
     });
     slots.sort((a, b) => {
       const orderA = Number.isFinite(a.animation.order) ? a.animation.order : a.defaultIndex;
@@ -2254,6 +2282,7 @@ export class SlidesCanvasController {
     return slots.map((slot, index) => ({
       index,
       target: slot.target,
+      slotId: slot.slotId,
       type: slot.animation.type,
       duration: parseInt(slot.animation.duration, 10) || 500,
       delay: parseInt(slot.animation.delay, 10) || 0,
@@ -2288,12 +2317,42 @@ export class SlidesCanvasController {
     });
   }
 
+  /** Mục timeline ĐẦU của mỗi đối tượng; các hiệu ứng thêm của cùng đối tượng nằm trong `extras`. */
   _timelineByTarget(slide) {
     const map = new Map();
     for (const item of this.getAnimationTimeline(slide)) {
-      map.set(String(item.target), item);
+      const key = String(item.target);
+      if (map.has(key)) map.get(key).extras.push(item);
+      else map.set(key, { ...item, extras: [] });
     }
     return map;
+  }
+
+  /** CSS inline gộp mọi hiệu ứng của một đối tượng (animation: a, b) khi trình chiếu/xem trước. */
+  _timelineItemStyle(item) {
+    if (!item) return "";
+    const css = [item, ...(item.extras || [])]
+      .map((entry) => animationInlineCss(entry.type, entry.duration, entry.playDelay, entry.direction))
+      .filter(Boolean);
+    return css.length > 1 ? this._combineAnimationCss(css) : (css[0] || "");
+  }
+
+  _combineAnimationCss(list) {
+    const props = new Map();
+    const animations = [];
+    list.forEach((css, index) => {
+      for (const declaration of css.split(";")) {
+        const at = declaration.indexOf(":");
+        if (at < 0) continue;
+        const name = declaration.slice(0, at).trim();
+        const value = declaration.slice(at + 1).trim();
+        if (!name) continue;
+        if (name === "animation") animations.push(value);
+        else if (name === "opacity") { if (index === 0) props.set(name, value); } // chỉ ẩn sẵn khi hiệu ứng đầu là hiệu ứng vào
+        else if (!props.has(name)) props.set(name, value);
+      }
+    });
+    return `${[...props].map(([name, value]) => `${name}:${value};`).join("")}animation:${animations.join(", ")};`;
   }
 
   _animationInlineStyle(animation, playDelay) {
@@ -2308,9 +2367,11 @@ export class SlidesCanvasController {
       titleAnimation: slide?.titleAnimation ? { ...slide.titleAnimation } : undefined,
       bodyAnimation: slide?.bodyAnimation ? { ...slide.bodyAnimation } : undefined,
       body2Animation: slide?.body2Animation ? { ...slide.body2Animation } : undefined,
+      extraAnimations: slide?.extraAnimations ? JSON.parse(JSON.stringify(slide.extraAnimations)) : undefined,
       shapes: (slide?.shapes || []).map((shape) => ({
         id: shape.id,
-        animation: shape.animation ? { ...shape.animation } : undefined
+        animation: shape.animation ? { ...shape.animation } : undefined,
+        extraAnimations: shape.extraAnimations ? shape.extraAnimations.map((item) => ({ ...item })) : undefined
       }))
     };
   }
@@ -2320,10 +2381,12 @@ export class SlidesCanvasController {
     slide.titleAnimation = snapshot.titleAnimation ? { ...snapshot.titleAnimation } : undefined;
     slide.bodyAnimation = snapshot.bodyAnimation ? { ...snapshot.bodyAnimation } : undefined;
     slide.body2Animation = snapshot.body2Animation ? { ...snapshot.body2Animation } : undefined;
-    const byId = new Map((snapshot.shapes || []).map((item) => [String(item.id), item.animation]));
+    slide.extraAnimations = snapshot.extraAnimations ? JSON.parse(JSON.stringify(snapshot.extraAnimations)) : undefined;
+    const byId = new Map((snapshot.shapes || []).map((item) => [String(item.id), item]));
     (slide.shapes || []).forEach((shape) => {
       const saved = byId.get(String(shape.id));
-      shape.animation = saved ? { ...saved } : undefined;
+      shape.animation = saved?.animation ? { ...saved.animation } : undefined;
+      shape.extraAnimations = saved?.extraAnimations ? saved.extraAnimations.map((item) => ({ ...item })) : undefined;
     });
   }
 
@@ -2354,7 +2417,7 @@ export class SlidesCanvasController {
     const next = index + direction;
     if (next < 0 || next >= list.length) return false;
     const before = this._snapshotSlideAnimations(slide);
-    const reordered = list.map((item) => item.target);
+    const reordered = list.map((item) => item.slotId);
     const swapped = reordered[index];
     reordered[index] = reordered[next];
     reordered[next] = swapped;
@@ -2372,17 +2435,24 @@ export class SlidesCanvasController {
     const item = list[index];
     if (!item) return false;
     const before = this._snapshotSlideAnimations(slide);
-    const cleared = { type: "none", duration: 500, delay: 0 };
-    if (item.target === "title") slide.titleAnimation = cleared;
-    else if (item.target === "body") slide.bodyAnimation = cleared;
-    else if (item.target === "body2") slide.body2Animation = cleared;
-    else {
-      const shape = (slide.shapes || []).find((entry) => String(entry.id) === String(item.target));
-      if (shape) shape.animation = cleared;
+    const { k } = this._splitAnimationSlot(item.slotId);
+    const extras = this._extraAnimationsOf(slide, item.target);
+    if (k > 0 && extras) {
+      extras.splice(k - 1, 1);
+    } else {
+      // Xóa hiệu ứng đầu: hiệu ứng thêm đầu tiên (nếu có) lên làm hiệu ứng chính.
+      const promoted = extras && extras.length ? extras.shift() : { type: "none", duration: 500, delay: 0 };
+      if (item.target === "title") slide.titleAnimation = promoted;
+      else if (item.target === "body") slide.bodyAnimation = promoted;
+      else if (item.target === "body2") slide.body2Animation = promoted;
+      else {
+        const shape = (slide.shapes || []).find((entry) => String(entry.id) === String(item.target));
+        if (shape) shape.animation = promoted;
+      }
     }
     const remainingCount = list.length - 1;
     const nextFocus = remainingCount > 0 ? Math.min(index, remainingCount - 1) : "close";
-    this._assignAnimationOrders(slide, this.collectSlideAnimations(slide).map((entry) => entry.target));
+    this._assignAnimationOrders(slide, this.collectSlideAnimations(slide).map((entry) => entry.slotId));
     this._pushAnimationUndo(before);
     this._renderAnimationPane(nextFocus);
     this._renderShapesLayer();
@@ -2394,7 +2464,7 @@ export class SlidesCanvasController {
     if (!slide) return false;
     const list = this.collectSlideAnimations(slide);
     const item = list[index];
-    const cfg = item ? this._getAnimationConfig(slide, item.target) : null;
+    const cfg = item ? this._getAnimationConfig(slide, item.slotId) : null;
     if (!cfg) return false;
     const normalized = this._normalizeAnimationStart(start);
     if (cfg.start === normalized) return true;
@@ -2423,6 +2493,33 @@ export class SlidesCanvasController {
     if (!allowCreate && !this._isActiveAnimation(existing)) return false;
     const base = existing && this._isActiveAnimation(existing) ? { ...existing } : { type: "none", duration: 500, delay: 0 };
     return this.setObjectAnimation(target, { ...base, ...patch });
+  }
+
+  /**
+   * Thêm hoạt ảnh: thêm MỘT hiệu ứng nữa cho đối tượng đang chọn (ví dụ Vào rồi Thoát), xếp cuối chuỗi.
+   * Đối tượng chưa có hiệu ứng thì hiệu ứng này thành hiệu ứng đầu.
+   */
+  addObjectAnimation(patch) {
+    const target = this._selectedAnimationTarget();
+    if (target == null) return false;
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide || !patch?.type || patch.type === "none") return false;
+    const primary = this._getAnimationConfig(slide, target);
+    if (!this._isActiveAnimation(primary)) return this.setObjectAnimation(target, { duration: 500, delay: 0, ...patch });
+    const before = this._snapshotSlideAnimations(slide);
+    const extras = this._extraAnimationsOf(slide, target, true);
+    extras.push({
+      type: patch.type,
+      duration: parseInt(patch.duration, 10) || 500,
+      delay: parseInt(patch.delay, 10) || 0,
+      direction: ["left", "right", "top", "bottom"].includes(patch.direction) ? patch.direction : "bottom",
+      start: this._normalizeAnimationStart(patch.start),
+      order: this._nextAnimationOrder(slide, null)
+    });
+    this._pushAnimationUndo(before);
+    this._renderShapesLayer();
+    this._renderAnimationPane();
+    return true;
   }
 
   /**
@@ -2462,15 +2559,15 @@ export class SlidesCanvasController {
     };
     const touched = [];
     let total = 0;
-    for (const item of timeline) {
+    for (const item of this._timelineByTarget(slide).values()) {
       const el = elementOf(item.target);
       if (!el) continue;
       const original = el.getAttribute("style");
       touched.push({ el, original });
       el.style.animation = "none";
       void el.offsetWidth;
-      el.style.cssText += `;${animationInlineCss(item.type, item.duration, item.playDelay, item.direction)}`;
-      total = Math.max(total, item.playDelay + item.duration);
+      el.style.cssText += `;${this._timelineItemStyle(item)}`;
+      for (const entry of [item, ...item.extras]) total = Math.max(total, entry.playDelay + entry.duration);
     }
     clearTimeout(this._animPreviewTimer);
     this._animPreviewTimer = setTimeout(() => {
@@ -4105,7 +4202,7 @@ export class SlidesCanvasController {
     if (!options.suppressAnimation && shape.animation?.type && shape.animation.type !== "none") {
       const timelineItem = options.timeline?.get?.(String(shape.id));
       const playDelay = timelineItem ? timelineItem.playDelay : (shape.animation.delay || 0);
-      animStyle = this._animationInlineStyle(shape.animation, playDelay);
+      animStyle = timelineItem ? this._timelineItemStyle(timelineItem) : this._animationInlineStyle(shape.animation, playDelay);
       animAttrs = ` data-vno-anim-target="${shapeId}" data-vno-anim-order="${timelineItem ? timelineItem.index : ""}" data-vno-anim-delay="${playDelay}" data-vno-anim-type="${this._escapeShapeText(shape.animation.type)}"`;
     }
     if (shape.type === "image" && shape.src) {
@@ -7163,7 +7260,7 @@ const startEditing = (initialText) => {
       body2: cur.body2,
       body2Html: cur.body2Html,
       layoutType: cur.layoutType || "title-content",
-      shapes: (cur.shapes || []).map(s => ({ ...s, animation: s.animation ? { ...s.animation } : undefined })),
+      shapes: (cur.shapes || []).map(s => ({ ...s, animation: s.animation ? { ...s.animation } : undefined, extraAnimations: s.extraAnimations ? s.extraAnimations.map((a) => ({ ...a })) : undefined })),
       notes: cur.notes || "",
       titleAnimation: cur.titleAnimation ? { ...cur.titleAnimation } : undefined,
       bodyAnimation: cur.bodyAnimation ? { ...cur.bodyAnimation } : undefined,
@@ -10999,9 +11096,9 @@ const startEditing = (initialText) => {
       const titleItem = timelineMap.get("title");
       const bodyItem = timelineMap.get("body");
       const body2Item = timelineMap.get("body2");
-      const titleAnimStyle = titleItem ? this._animationInlineStyle(s.titleAnimation, titleItem.playDelay) : "";
-      const bodyAnimStyle = bodyItem ? this._animationInlineStyle(s.bodyAnimation, bodyItem.playDelay) : "";
-      const body2AnimStyle = body2Item ? this._animationInlineStyle(s.body2Animation, body2Item.playDelay) : "";
+      const titleAnimStyle = titleItem ? this._timelineItemStyle(titleItem) : "";
+      const bodyAnimStyle = bodyItem ? this._timelineItemStyle(bodyItem) : "";
+      const body2AnimStyle = body2Item ? this._timelineItemStyle(body2Item) : "";
       const titleAnimAttrs = animAttr("title");
       const bodyAnimAttrs = animAttr("body");
       const body2AnimAttrs = animAttr("body2");

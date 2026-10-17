@@ -11,6 +11,16 @@ try {
   await sleep(1500);
   console.log(await ev(`JSON.stringify(window.__vnoAppInstance.canvas.slides[0].shapes.map(s => ({ id: s.id, name: s.name, animation: s.animation, extra: s.extraAnimations })))`));
   console.log(await ev(`JSON.stringify(window.__vnoAppInstance.canvas.collectSlideAnimations(window.__vnoAppInstance.canvas.slides[0]).map(x => x.target + ':' + x.type))`));
+  if (process.env.VNO_PROBE_TOUCH) {
+    // Sửa thời lượng hiệu ứng của một hình để buộc ghi lại hoạt ảnh (không chỉ chép từ tệp gốc).
+    await ev(`(() => { const c = window.__vnoAppInstance.canvas; c.setSelectedTarget(${JSON.stringify(process.env.VNO_PROBE_TOUCH)}); return c.updateSelectedAnimation({ duration: 600 }); })()`);
+  }
+  if (process.env.VNO_PROBE_ADD) {
+    // Chọn hình và thêm một hiệu ứng nữa, rồi lưu (đường lưu thật).
+    const [target, type] = process.env.VNO_PROBE_ADD.split(":");
+    await ev(`(() => { const c = window.__vnoAppInstance.canvas; c.setSelectedTarget(${JSON.stringify(target)}); return c.addObjectAnimation({ type: ${JSON.stringify(type)} }); })()`);
+    console.log(await ev(`JSON.stringify(window.__vnoAppInstance.canvas.collectSlideAnimations(window.__vnoAppInstance.canvas.slides[0]).map(x => x.slotId + ':' + x.type))`));
+  }
   if (out) {
     const saved = await ev(`(async () => { const x = window.__vnoAppInstance.adapter || window.__vnoAppInstance; return JSON.stringify(await window.pywebview.api.save_document_in_place(x.serializeToFodp(), 'slides', ${JSON.stringify(out)}, ${JSON.stringify(src)})).slice(0, 100); })()`);
     console.log("save:", saved);

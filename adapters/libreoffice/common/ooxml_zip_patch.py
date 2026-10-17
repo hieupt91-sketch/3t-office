@@ -11920,7 +11920,8 @@ def _apply_slides_native_animation_timing(pptx_bytes: bytes, source_fodp: str | 
         group_starts: list[list[int]] = []
         slot_ends: list[int] = []  # thời điểm kết thúc của khe hiện tại trong nhóm hiện tại
         ok = True
-        bld: list[str] = []
+        bld: list[tuple[str, int]] = []  # (spid, grpId): PowerPoint đánh grpId riêng cho mỗi hiệu ứng trên cùng một hình
+        group_counts: dict[str, int] = {}
         for effect, delay in zip(effects, begins):
             dur = int(effect["dur"])
             node = effect["node"]
@@ -11946,14 +11947,16 @@ def _apply_slides_native_animation_timing(pptx_bytes: bytes, source_fodp: str | 
             if body is None:
                 ok = False
                 break
-            grp = ' grpId="0"' if on_sp else ""
+            group_id = group_counts.get(effect["spid"], 0) if on_sp else 0
+            grp = f' grpId="{group_id}"' if on_sp else ""
             groups[-1][-1].append(
                 f'<p:par><p:cTn id="{effect_id}" presetID="{effect["pid"]}" presetClass="{effect["cls"]}" presetSubtype="{effect["sub"]}" fill="hold"{grp} nodeType="{node_type}">'
                 f'<p:stCondLst><p:cond delay="{delay}"/></p:stCondLst><p:childTnLst>{body}</p:childTnLst></p:cTn></p:par>'
             )
             slot_ends[-1] = max(slot_ends[-1], slot_start + delay + dur)
-            if on_sp and effect["spid"] not in bld:
-                bld.append(effect["spid"])
+            if on_sp:
+                bld.append((effect["spid"], group_id))
+                group_counts[effect["spid"]] = group_id + 1
         if not ok:
             continue
         group_xml = []
@@ -11970,7 +11973,7 @@ def _apply_slides_native_animation_timing(pptx_bytes: bytes, source_fodp: str | 
                 f'<p:par><p:cTn id="{new_id()}" fill="hold"><p:stCondLst><p:cond delay="indefinite"/>{begin_cond}</p:stCondLst>'
                 f'<p:childTnLst>{"".join(slots)}</p:childTnLst></p:cTn></p:par>'
             )
-        bld_items = "".join('<p:bldP spid="' + s + '" grpId="0" animBg="1"/>' for s in bld)
+        bld_items = "".join(f'<p:bldP spid="{s}" grpId="{g}" animBg="1"/>' for s, g in bld)
         bld_xml = "<p:bldLst>" + bld_items + "</p:bldLst>" if bld else ""
         timing = (
             '<p:timing><p:tnLst><p:par><p:cTn id="1" dur="indefinite" restart="never" nodeType="tmRoot"><p:childTnLst>'
