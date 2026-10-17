@@ -12102,6 +12102,87 @@ def _strip_slides_internal_group_prefix(
     return replacements
 
 
+def _apply_slides_native_connectors(
+    pptx_bytes: bytes,
+    source_pptx: bytes | None = None,
+    base_replacements: dict[str, str] | None = None,
+) -> dict[str, str]:
+    if not source_pptx:
+        return {}
+    target_entries = _resolve_pptx_slide_entries(pptx_bytes)
+    src_entries = _resolve_pptx_slide_entries(source_pptx)
+    if not target_entries or not src_entries:
+        return {}
+
+    replacements: dict[str, str] = {}
+    for idx, entry in enumerate(target_entries):
+        if idx >= len(src_entries):
+            continue
+        src_bytes = read_zip_entry(source_pptx, src_entries[idx])
+        if not src_bytes:
+            continue
+        src_xml = src_bytes.decode("utf-8", errors="replace")
+
+        src_cxns: dict[str, str] = {}
+        for m in re.finditer(r'<p:cxnSp\b[\s\S]*?</p:cxnSp>', src_xml, re.IGNORECASE):
+            cxn = m.group(0)
+            nm = re.search(r'<p:cNvPr\b[^>]*\bname=["\']([^"\']*)["\']', cxn, re.IGNORECASE)
+            if nm:
+                src_cxns[_unescape_xml(nm.group(1))] = cxn
+
+        if not src_cxns:
+            continue
+
+        original = (base_replacements or {}).get(entry) or read_zip_entry(pptx_bytes, entry).decode("utf-8", errors="replace")
+        xml = original
+        changed = False
+
+        def patch_cxn(m: re.Match) -> str:
+            nonlocal changed
+            cxn = m.group(0)
+            nm = re.search(r'<p:cNvPr\b[^>]*\bname=["\']([^"\']*)["\']', cxn, re.IGNORECASE)
+            if not nm:
+                return cxn
+            name = _unescape_xml(nm.group(1))
+            if name not in src_cxns:
+                return cxn
+            src_cxn = src_cxns[name]
+
+            # 1. Restore <a:ln> from src_cxn (line width, color, head/tail arrowheads)
+            src_ln_m = re.search(r'<a:ln\b[\s\S]*?</a:ln>', src_cxn, re.IGNORECASE)
+            if src_ln_m:
+                src_ln = src_ln_m.group(0)
+                if re.search(r'<a:ln\b[\s\S]*?</a:ln>', cxn, re.IGNORECASE):
+                    cxn = re.sub(r'<a:ln\b[\s\S]*?</a:ln>', src_ln, cxn, count=1, flags=re.IGNORECASE)
+                    changed = True
+                else:
+                    sp_pr_m = re.search(r'<p:spPr\b[\s\S]*?</p:spPr>', cxn, re.IGNORECASE)
+                    if sp_pr_m:
+                        new_sp_pr = sp_pr_m.group(0).replace('</p:spPr>', f'{src_ln}</p:spPr>')
+                        cxn = cxn[:sp_pr_m.start()] + new_sp_pr + cxn[sp_pr_m.end():]
+                        changed = True
+
+            # 2. Restore <p:style> if present
+            src_style_m = re.search(r'<p:style>[\s\S]*?</p:style>', src_cxn, re.IGNORECASE)
+            if src_style_m:
+                src_style = src_style_m.group(0)
+                if re.search(r'<p:style>[\s\S]*?</p:style>', cxn, re.IGNORECASE):
+                    cxn = re.sub(r'<p:style>[\s\S]*?</p:style>', src_style, cxn, count=1, flags=re.IGNORECASE)
+                    changed = True
+                else:
+                    cxn = cxn.replace('</p:spPr>', f'</p:spPr>{src_style}')
+                    changed = True
+
+            return cxn
+
+        next_xml = re.sub(r'<p:cxnSp\b[\s\S]*?</p:cxnSp>', patch_cxn, xml, flags=re.IGNORECASE)
+        if changed and next_xml != original:
+            replacements[entry] = next_xml
+
+    return replacements
+
+
+
 
 
 
@@ -12366,7 +12447,14 @@ def postprocess_slides_pptx(
          **shadow_replacements, **source_transition_replacements, **textbox_replacements,
          **shape_line_replacements, **picture_replacements},
     )
-    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements and not native_timing_replacements and not shadow_replacements and not source_transition_replacements and not textbox_replacements and not shape_line_replacements and not picture_replacements and not group_replacements and not restore_masters:
+    connector_replacements = _apply_slides_native_connectors(
+        pptx_bytes, source_pptx,
+        {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,
+         **transition_replacements, **wordart_replacements, **layout_replacements, **native_timing_replacements,
+         **shadow_replacements, **source_transition_replacements, **textbox_replacements,
+         **shape_line_replacements, **picture_replacements, **group_replacements},
+    )
+    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements and not native_timing_replacements and not shadow_replacements and not source_transition_replacements and not textbox_replacements and not shape_line_replacements and not picture_replacements and not group_replacements and not connector_replacements and not restore_masters:
         return pptx_bytes
     replacements.update(animation_replacements)
     replacements.update(paragraph_level_replacements)
@@ -12382,6 +12470,7 @@ def postprocess_slides_pptx(
     replacements.update(shape_line_replacements)
     replacements.update(picture_replacements)
     replacements.update(group_replacements)
+    replacements.update(connector_replacements)
 
     if apply_slide_size and presentation_xml:
         presentation_xml = apply_intended_slide_size(presentation_xml, intended_size)
