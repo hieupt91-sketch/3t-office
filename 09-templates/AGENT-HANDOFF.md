@@ -154,3 +154,22 @@ RISKS: Đếm TabStops của Word COM gồm một stop mặc định trùng gầ
 DEPENDENCIES/BLOCKERS: Bộ tệp `test/lan/*.docx` vắng mặt; Go To page/line COM parity chưa chạy.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Review hai commit; cung cấp test LAN và chạy đối chiếu Word COM trang/dòng trước khi gộp.
+
+# Agent Handoff
+TASK: BRIEF-CODEX-DOCPROPS — VN Slides Backstage properties, Mark as Final, Inspect Presentation
+AGENT/ROLE: Codex / VN Slides + Shared Platform
+BRANCH: feat/slides-docprops-codex
+WORKTREE: E:\VNOffice-codex-docprops
+OBJECTIVE: Add Slides Tệp > Thông tin properties, soft final mode, presentation inspector, and PPTX metadata preservation; move the shared document properties dialog to Platform without changing Writer/Sheet behavior.
+FINDINGS: Shared dialog was duplicated in Writer/Sheet. Slides Backstage had no Info entry or metadata adapter API. Python PPTX conversion already provides the correct postprocess/open-overlay seam for core/app properties.
+IMPLEMENTATION SUMMARY: Extracted the shared dialog to `platform/dialogs/document-properties.js` and retained Writer/Sheet compatibility modules. Added Slides Backstage information, properties and final status, a Slides inspector for document properties/comments/notes/hidden slides/external URLs, and soft text/notes edit lock with an explicit edit override. Added `docProps/core.xml` properties round-trip and app Manager/Company updates, help entry, VI/EN strings and regression tests. Plan commit: `1312276e`; feature commit: `bac390ac`.
+FILES CHANGED: `platform/dialogs/document-properties.js`; `apps/sheet/document-properties.js`; `apps/writer/document-properties.js`; `apps/slides/document-inspector-dialog.js`; `adapters/libreoffice/slides/slides-adapter.js`; `adapters/libreoffice/common/ooxml_zip_patch.py`; `platform/shell/app-shell.js`; `platform/help/entries-slides.js`; `platform/i18n/strings-vi.js`; `platform/i18n/strings-en.js`; `tests/unit/slides-document-properties.test.js`; `tests/test_slides_document_properties.py`; `tests/live/cdp/slides-file-info.desktop.mjs`; `tests/run-tests.js`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `node tests/run-tests.js`; `python -m pytest -q tests/test_slides_source_transition.py tests/test_writer_run_effects.py tests/test_slides_document_properties.py`; `node --experimental-websocket tests/live/cdp/slides-file-info.desktop.mjs`; `node scripts/audit-0610/i18n_parity.mjs`; `node scripts/help-coverage.mjs`; `python -m py_compile adapters/libreoffice/common/ooxml_zip_patch.py`; `git diff --check`.
+BUILD RESULT: NOT RUN — no build/package validation requested; no build system changed.
+TEST RESULTS: PASS — Node suite 3699/3699; pytest 57/57; desktop CDP 6/6; i18n missing keys 0 (VI/EN 2944 each); Slides help coverage 154/154 (100%); Python compile and diff check passed. PPTX `docProps/core.xml` was directly inspected after desktop save: Title, Author, Subject, Keywords, Comments, Content status all matched.
+KNOWN FAILURES: PowerPoint COM verification BLOCKED before opening a presentation: setting `PowerPoint.Application.Visible = false` returned “Hiding the application window is not allowed.” The app was quit; Office was not opened with a presentation and was not made visible. A second-process desktop launch with `filePath` did not load the file in this harness, so live no-change open/save is NOT RUN; metadata marker read and unchanged-property reapply are covered by unit tests.
+RISKS: Inspector external-content scan identifies HTTP(S) URLs on shape `src`/`href`; it does not inspect all possible embedded/linked OOXML relationships. No Core patch or dependency added.
+DEPENDENCIES/BLOCKERS: Hidden PowerPoint COM environment required to finish COM oracle. No code blocker for the passing tests.
+CORE PATCH ID (if any): None.
+NEXT ACTION: In an environment where PowerPoint COM can remain hidden, verify the six built-in properties and final content status, then open an existing attributed PPTX in desktop and save unchanged to confirm round-trip retention.
+---

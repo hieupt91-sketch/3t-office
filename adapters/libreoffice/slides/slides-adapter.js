@@ -14,6 +14,8 @@ import { overlayFodpSections } from "./pptx-section-list.js";
 import { overlayFodpShowProperties } from "./pptx-show-properties.js";
 import { parseOfficeHtmlTable, parseOfficeTsv, isCellBold } from "../../../platform/clipboard/office-clipboard.js";
 import { formatDateTime } from "../../../platform/ui-kit/datetime-format.js";
+import { normalizeDocumentProperties, documentPropertiesMarker, showDocumentPropertiesDialog } from "../../../platform/dialogs/document-properties.js";
+import { showSlidesDocumentInspectorDialog } from "../../../apps/slides/document-inspector-dialog.js";
 
 export function stripClipboardFragmentMarkers(html) {
   return String(html || "").replace(/<!--\s*(?:Start|End)Fragment\s*-->/gi, "");
@@ -118,6 +120,8 @@ export class SlidesAdapter {
     this.sourceFileName = "TrinhChieu";
     this.sourceFilePath = "";
     this.shell = null;
+    this.documentProperties = normalizeDocumentProperties();
+    this.isFinal = false;
   }
 
   /** Gắn tham chiếu AppShell — xem chú thích trong WriterAdapter.setShell(). */
@@ -148,6 +152,9 @@ export class SlidesAdapter {
   }
 
   newDocument() {
+    this.documentProperties = normalizeDocumentProperties();
+    this.isFinal = false;
+    this._applyFinalReadOnly(false);
     this.sourceFileName = "TrinhChieu";
     this.sourceFilePath = "";
     this.isDirty = false;
@@ -156,6 +163,83 @@ export class SlidesAdapter {
     }
     this.shell?.resetDocumentChrome?.("Bản trình bày 1.pptx", "home", false);
     return true;
+  }
+
+  async openDocumentPropertiesDialog() {
+    const updated = await showDocumentPropertiesDialog(this.documentProperties, "slidesDocumentProperties");
+    if (!updated) return false;
+    this.documentProperties = normalizeDocumentProperties(updated);
+    this.isDirty = true;
+    return true;
+  }
+
+  markAsFinal(enable = true) {
+    this.documentProperties = normalizeDocumentProperties({
+      ...this.documentProperties,
+      contentStatus: enable ? "Final" : ""
+    });
+    this.isFinal = Boolean(enable);
+    this._applyFinalReadOnly(this.isFinal);
+    this.isDirty = true;
+    if (enable) this._showFinalNotification();
+    else this.shell?.clearNotification?.();
+    return this.isFinal;
+  }
+
+  _applyFinalReadOnly(enable) {
+    const root = this.canvas?.container;
+    if (!root?.querySelectorAll) return;
+    if (!this._finalEditableState) this._finalEditableState = new Map();
+    const lockElement = (element) => {
+      if (element.isContentEditable && !this._finalEditableState.has(element)) {
+        this._finalEditableState.set(element, { type: "contenteditable", value: element.getAttribute("contenteditable") });
+        element.setAttribute("contenteditable", "false");
+      }
+      if (element.matches?.(".vno-slide-notes-input") && !this._finalEditableState.has(element)) {
+        this._finalEditableState.set(element, { type: "readonly", value: Boolean(element.readOnly) });
+        element.readOnly = true;
+      }
+    };
+    if (enable) {
+      root.dataset.vnoFinal = "true";
+      root.querySelectorAll('[contenteditable="true"], [contenteditable=true], .vno-slide-notes-input').forEach(lockElement);
+      if (!this._finalObserver && typeof MutationObserver !== "undefined") {
+        this._finalObserver = new MutationObserver((records) => {
+          for (const record of records) {
+            if (record.type === "attributes") lockElement(record.target);
+            for (const node of record.addedNodes || []) {
+              if (node.nodeType !== 1) continue;
+              lockElement(node);
+              node.querySelectorAll?.('[contenteditable="true"], [contenteditable=true], .vno-slide-notes-input').forEach(lockElement);
+            }
+          }
+        });
+        this._finalObserver.observe(root, { subtree: true, childList: true, attributes: true, attributeFilter: ["contenteditable"] });
+      }
+      return;
+    }
+    this._finalObserver?.disconnect();
+    this._finalObserver = null;
+    delete root.dataset.vnoFinal;
+    for (const [element, state] of this._finalEditableState) {
+      if (state.type === "readonly") element.readOnly = state.value;
+      else if (state.value === null) element.removeAttribute("contenteditable");
+      else element.setAttribute("contenteditable", state.value);
+    }
+    this._finalEditableState.clear();
+  }
+
+  _showFinalNotification() {
+    this.shell?.showNotification?.({
+      type: "warning",
+      message: "Bản trình bày đã được đánh dấu là cuối cùng để hạn chế chỉnh sửa vô ý.",
+      action: { label: "Vẫn chỉnh sửa", onClick: () => this.markAsFinal(false) },
+      dismissible: false
+    });
+  }
+
+  async openDocumentInspectorDialog() {
+    return showSlidesDocumentInspectorDialog({ adapter: this });
   }
 
   closeDocument() {
@@ -4268,7 +4352,7 @@ export class SlidesAdapter {
   <office:styles>${this._serializeStrokeDashStyles(slides)}${this._serializeShapeGradients(slides)}${backgroundResources}${this._serializeSlidePageLayouts()}
   </office:styles>`;
 
-    return `<?xml version="1.0" encoding="UTF-8"?>
+    return `<?xml version="1.0" encoding="UTF-8"?>${documentPropertiesMarker(this.documentProperties)}
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
                  xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
                  xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
@@ -4634,6 +4718,14 @@ export class SlidesAdapter {
 
   loadFromFodp(fodpText, ooxmlPresentationXml, ooxmlSlideMasterXml, ooxmlPresPropsXml) {
     if (!this.canvas) return;
+    const propsMatch = String(fodpText || "").match(/<!--vno-document-properties-hex:([0-9a-fA-F]+)-->/);
+    if (propsMatch) {
+      try {
+        const bytes = new Uint8Array(propsMatch[1].match(/.{2}/g).map((pair) => parseInt(pair, 16)));
+        this.documentProperties = normalizeDocumentProperties(JSON.parse(new TextDecoder().decode(bytes)));
+        this.isFinal = this.documentProperties.contentStatus.toLowerCase() === "final";
+      } catch (_) { /* malformed optional properties do not block opening */ }
+    }
     let xml = fodpText;
     if (ooxmlPresentationXml) xml = overlayFodpSections(xml, ooxmlPresentationXml);
     if (ooxmlSlideMasterXml) xml = overlayFodpMasterLogo(xml, ooxmlSlideMasterXml);
@@ -4661,6 +4753,10 @@ export class SlidesAdapter {
       }
       this.canvas.slides = newSlides;
       this.canvas.sections = [...(newSlides.sections || [])];
+      if (this.isFinal) {
+        this._applyFinalReadOnly(true);
+        this._showFinalNotification();
+      }
       if (newSlides.slideShowSettings && this.canvas.applySlideShowSettings) {
         this.canvas.applySlideShowSettings(newSlides.slideShowSettings);
       } else if (newSlides.slideShowSettings) {

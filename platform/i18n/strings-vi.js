@@ -78,6 +78,12 @@ export const viStrings = {
     editPropertiesBtn: "Chỉnh sửa…",
     editProperties: "Chỉnh sửa thuộc tính chi tiết…"
   },
+  slidesDocumentProperties: {
+    backstage: "Thông tin", dialogTitle: "Thuộc tính bản trình bày", title: "Tiêu đề", subject: "Chủ đề", author: "Tác giả", creator: "Tác giả", manager: "Quản lý", company: "Công ty", keywords: "Thẻ", keywordsHint: "Các từ khóa cách nhau bằng dấu phẩy", comments: "Ghi chú", description: "Ghi chú"
+  },
+  slidesInspector: {
+    title: "Kiểm tra bản trình bày", description: "Tìm thông tin cần xem lại trước khi chia sẻ. Chọn mục rồi xóa riêng từng loại.", items: "mục", remove: "Xóa mục", personalInfo: "Thông tin cá nhân", comments: "Nhận xét", speakerNotes: "Ghi chú người thuyết trình", hiddenSlides: "Trang chiếu ẩn", externalContent: "Nội dung có liên kết ngoài"
+  },
   sheetDocumentProperties: {
     backstage: "Thông tin",
     dialogTitle: "Thuộc tính sổ làm việc",

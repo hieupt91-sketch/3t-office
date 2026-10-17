@@ -79,6 +79,12 @@ export const enStrings = {
     editPropertiesBtn: "Edit…",
     editProperties: "Edit Detailed Properties…"
   },
+  slidesDocumentProperties: {
+    backstage: "Info", dialogTitle: "Presentation Properties", title: "Title", subject: "Subject", author: "Author", creator: "Author", manager: "Manager", company: "Company", keywords: "Tags", keywordsHint: "Separate keywords with commas", comments: "Comments", description: "Comments"
+  },
+  slidesInspector: {
+    title: "Inspect Presentation", description: "Review information before sharing. Choose a category to remove it individually.", items: "items", remove: "Remove", personalInfo: "Document properties", comments: "Comments", speakerNotes: "Speaker notes", hiddenSlides: "Hidden slides", externalContent: "External content"
+  },
   sheetDocumentProperties: {
     backstage: "Info",
     dialogTitle: "Workbook Properties",
