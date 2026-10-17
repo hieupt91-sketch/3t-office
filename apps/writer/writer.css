@@ -196,6 +196,43 @@
   pointer-events: none;
   box-shadow: 0 0 0 1px rgba(255,255,255,.65);
 }
+.vno-ruler-tabs-layer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+.vno-ruler-tab-stop {
+  position: absolute;
+  bottom: 0px;
+  width: 12px;
+  height: 14px;
+  margin-left: -6px;
+  cursor: ew-resize;
+  z-index: 10;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1;
+  color: #1e293b;
+  user-select: none;
+  pointer-events: auto;
+  transition: opacity 0.15s ease;
+}
+.vno-ruler-tab-stop:hover {
+  color: #0369a1;
+}
+.vno-ruler-tab-stop.is-dragging {
+  color: #dc2626;
+}
+.vno-ruler-tab-stop.is-removing {
+  opacity: 0.3 !important;
+  cursor: not-allowed;
+}
 
 /* Thước đo dọc (Vertical Ruler) */
 .vno-writer-ruler-vertical {
@@ -1321,6 +1358,25 @@ li.vno-page-auto-gap {
   outline: 1.5px solid #3b82f6;
   outline-offset: -1px;
 }
+
+/* Table Cell Text Direction (Hướng văn bản trong ô) */
+.vno-writer-page td.vno-cell-vertical-tbrl,
+.vno-writer-page th.vno-cell-vertical-tbrl,
+td[data-vno-text-direction="tbRl"],
+th[data-vno-text-direction="tbRl"] {
+  writing-mode: vertical-rl !important;
+  text-orientation: mixed;
+}
+
+.vno-writer-page td.vno-cell-vertical-btlr,
+.vno-writer-page th.vno-cell-vertical-btlr,
+td[data-vno-text-direction="btLr"],
+th[data-vno-text-direction="btLr"] {
+  writing-mode: vertical-lr !important;
+  transform: rotate(180deg) !important;
+  text-orientation: mixed;
+}
+
 .vno-writer-body img.is-vno-image-selected {
   outline: 3px solid #2563eb;
   outline-offset: 3px;

@@ -849,6 +849,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("common.edit.repeat", () => this.repeatLastAction());
     globalCommandBus.bindHandler("common.edit.find", () => this._showFindReplaceDialog(false));
     globalCommandBus.bindHandler("common.edit.replace", () => this._showFindReplaceDialog(true));
+    globalCommandBus.bindHandler("writer.edit.goTo", (args) => this.openGoToDialog(args));
     globalCommandBus.bindHandler("writer.list.restartNumbering", (args) => this._hintIfFalse(() => this.restartNumbering(args), "Hãy đặt con trỏ vào một mục trong danh sách có thứ tự (1, 2, 3...) để đánh số lại."));
     globalCommandBus.bindHandler("writer.list.continueNumbering", (args) => this._hintIfFalse(() => this.continueNumbering(args), "Hãy đặt con trỏ vào một mục trong danh sách có thứ tự để tiếp tục đánh số."));
     globalCommandBus.bindHandler("writer.insert.coverPage", (args) => this.openCoverPageDialog(args));
@@ -1728,11 +1729,13 @@ export class WriterAdapter {
       rightMm = pxToMm(computed.marginRight);
       firstLineMm = pxToMm(computed.textIndent);
     }
+    const tabStops = parseTabStops(block?.dataset?.vnoTabs || "");
     return {
       pageWidthMm,
       pageHeightMm,
       margins: { ...setup.margins },
       paragraph: { leftMm, rightMm, firstLineMm },
+      tabStops,
       selectionCount: blocks.length
     };
   }
@@ -9411,6 +9414,9 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.table.bordersNone", () => this._hintIfFalse(() => this.setTableBorders("none"), "Hãy đặt con trỏ vào bảng để thiết lập đường viền."));
     globalCommandBus.bindHandler("writer.table.toggleHeaderRow", () => this._hintIfFalse(() => this.toggleTableHeaderRow(), "Hãy đặt con trỏ vào bảng để bật/tắt hàng tiêu đề."));
     globalCommandBus.bindHandler("writer.table.toggleBandedRows", () => this._hintIfFalse(() => this.toggleTableBandedRows(), "Hãy đặt con trỏ vào bảng để bật/tắt hàng so le màu."));
+    globalCommandBus.bindHandler("writer.table.splitTable", () => this._hintIfFalse(() => this.splitTable(), "Hãy đặt con trỏ vào một ô trong bảng để tách bảng."));
+    globalCommandBus.bindHandler("writer.table.textDirection", (args) => this._hintIfFalse(() => this.setTableTextDirection(args), "Hãy đặt con trỏ vào một ô trong bảng để đổi hướng chữ."));
+    globalCommandBus.bindHandler("writer.table.properties", (args) => this._hintIfFalse(() => this.openTablePropertiesDialog(args), "Hãy đặt con trỏ vào một bảng để mở thuộc tính bảng."));
   }
 
   _getActiveTable() {
@@ -9872,6 +9878,261 @@ export class WriterAdapter {
         this.tableController.selectTable(this._getActiveTable());
         break;
     }
+    return true;
+  }
+
+  /**
+   * Tách bảng (Split Table): Tách bảng hiện tại tại hàng đang chọn thành 2 bảng riêng rẽ.
+   * Xen giữa hai bảng là một đoạn văn bản trống (<p><br></p>). Hỗ trợ 1-step undo.
+   */
+  splitTable() {
+    this.flushTyping();
+    const cell = this._getActiveTableCell();
+    if (!cell) return false;
+
+    const row = cell.closest?.("tr") || cell.parentElement;
+    if (!row) return false;
+
+    const table = row.closest?.("table") || cell.closest?.("table");
+    if (!table || !table.parentNode) return false;
+
+    const rowIndex = row.rowIndex ?? Array.from(table.rows || []).indexOf(row);
+    if (rowIndex <= 0) {
+      const p = document.createElement("p");
+      p.innerHTML = "<br>";
+      table.parentNode.insertBefore(p, table);
+      this._placeCaretAt(p);
+      this.isDirty = true;
+      this.recordSnapshot("writer.table.splitTable");
+      return true;
+    }
+
+    const table2 = document.createElement("table");
+    table2.className = table.className;
+    const inlineStyle = table.getAttribute("style");
+    if (inlineStyle) table2.setAttribute("style", inlineStyle);
+    if (table.dataset) {
+      Object.assign(table2.dataset, table.dataset);
+    }
+
+    const colgroup = table.querySelector("colgroup");
+    if (colgroup) {
+      table2.appendChild(colgroup.cloneNode(true));
+    }
+
+    const tbody2 = document.createElement("tbody");
+    table2.appendChild(tbody2);
+
+    const allRows = Array.from(table.rows || []);
+    for (let i = rowIndex; i < allRows.length; i++) {
+      tbody2.appendChild(allRows[i]);
+    }
+
+    const sep = document.createElement("p");
+    sep.innerHTML = "<br>";
+
+    const nextNode = table.nextSibling;
+    if (nextNode) {
+      table.parentNode.insertBefore(sep, nextNode);
+      table.parentNode.insertBefore(table2, sep.nextSibling);
+    } else {
+      table.parentNode.appendChild(sep);
+      table.parentNode.appendChild(table2);
+    }
+
+    const firstCell2 = table2.rows?.[0]?.cells?.[0];
+    if (firstCell2) {
+      this.tableController?.clearCellSelection?.();
+      this.tableController?.selectCell?.(firstCell2);
+      this._placeCaretAt(firstCell2);
+    }
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.splitTable");
+    return true;
+  }
+
+  /**
+   * Đổi hướng văn bản trong ô bảng: xoay vòng Ngang -> 90° (tbRl) -> 270° (btLr) -> Ngang.
+   * Gắn data-vno-text-direction để OOXML export xuất đúng <w:textDirection>.
+   */
+  setTableTextDirection(direction = null) {
+    this.flushTyping();
+    const cells = this.tableController?.selectedCells?.size
+      ? Array.from(this.tableController.selectedCells)
+      : [this._getActiveTableCell()].filter(Boolean);
+    if (cells.length === 0) return false;
+
+    let targetDirection = direction;
+    if (!targetDirection) {
+      const current = cells[0].getAttribute?.("data-vno-text-direction") || "horizontal";
+      if (current === "horizontal") {
+        targetDirection = "tbRl";
+      } else if (current === "tbRl") {
+        targetDirection = "btLr";
+      } else {
+        targetDirection = "horizontal";
+      }
+    }
+
+    for (const cell of cells) {
+      if (targetDirection === "tbRl") {
+        cell.setAttribute("data-vno-text-direction", "tbRl");
+        if (cell.style) {
+          cell.style.writingMode = "vertical-rl";
+          cell.style.transform = "";
+        }
+        cell.classList?.add?.("vno-cell-vertical-tbrl");
+        cell.classList?.remove?.("vno-cell-vertical-btlr");
+      } else if (targetDirection === "btLr") {
+        cell.setAttribute("data-vno-text-direction", "btLr");
+        if (cell.style) {
+          cell.style.writingMode = "vertical-lr";
+          cell.style.transform = "rotate(180deg)";
+        }
+        cell.classList?.add?.("vno-cell-vertical-btlr");
+        cell.classList?.remove?.("vno-cell-vertical-tbrl");
+      } else {
+        cell.removeAttribute("data-vno-text-direction");
+        if (cell.style) {
+          cell.style.writingMode = "";
+          cell.style.transform = "";
+        }
+        cell.classList?.remove?.("vno-cell-vertical-tbrl", "vno-cell-vertical-btlr");
+      }
+    }
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.textDirection");
+    return true;
+  }
+
+  /**
+   * Mở hộp thoại Thuộc tính bảng (Table Properties): căn lề bảng, thụt lề, độ rộng, độ cao hàng, lề ô, dãn cách ô.
+   */
+  async openTablePropertiesDialog(options = null) {
+    this.flushTyping();
+    const table = this._getActiveTable();
+    if (!table) return false;
+
+    let config = options;
+    if (!config || typeof config !== "object" || Object.keys(config).length === 0) {
+      if (typeof window === "undefined" || typeof document === "undefined") return true;
+      const { showTablePropertiesDialog } = await import("../../../apps/writer/writer-table-properties-dialog.js");
+      
+      const align = table.getAttribute("data-vno-table-align") || 
+        (table.style?.marginLeft === "auto" && table.style?.marginRight === "auto" ? "center" :
+         table.style?.marginLeft === "auto" ? "right" : "left");
+      const indentPt = parseFloat(table.getAttribute("data-vno-table-indent") || "0") || 0;
+      const width = table.style?.width || "";
+      const hasWidth = !!width;
+      const widthVal = parseFloat(width) || "";
+      const widthUnit = width.endsWith("pt") ? "pt" : "%";
+      
+      const firstRow = table.rows?.[0];
+      const rowHeight = firstRow?.style?.height || "";
+      const hasRowHeight = !!rowHeight;
+      const rowHeightPt = parseFloat(rowHeight) || 0;
+
+      const marginTopPt = parseFloat(table.getAttribute("data-vno-cell-mar-top") || "5.65") || 5.65;
+      const marginBottomPt = parseFloat(table.getAttribute("data-vno-cell-mar-bottom") || "5.65") || 5.65;
+      const marginLeftPt = parseFloat(table.getAttribute("data-vno-cell-mar-left") || "8.5") || 8.5;
+      const marginRightPt = parseFloat(table.getAttribute("data-vno-cell-mar-right") || "8.5") || 8.5;
+
+      const cellSpacingPt = parseFloat(table.getAttribute("data-vno-cell-spacing") || "0") || 0;
+      const hasSpacing = cellSpacingPt > 0;
+
+      config = await showTablePropertiesDialog({
+        align,
+        indentPt,
+        width: widthVal,
+        widthUnit,
+        hasWidth,
+        rowHeightPt,
+        hasRowHeight,
+        marginTopPt,
+        marginBottomPt,
+        marginLeftPt,
+        marginRightPt,
+        cellSpacingPt,
+        hasSpacing
+      });
+    }
+
+    if (!config) return null;
+
+    table.setAttribute("data-vno-table-align", config.align || "left");
+    if (table.style) {
+      if (config.align === "center") {
+        table.style.marginLeft = "auto";
+        table.style.marginRight = "auto";
+      } else if (config.align === "right") {
+        table.style.marginLeft = "auto";
+        table.style.marginRight = "0";
+      } else {
+        if (config.indentPt > 0) {
+          table.style.marginLeft = `${config.indentPt}pt`;
+          table.style.marginRight = "auto";
+        } else {
+          table.style.marginLeft = "0";
+          table.style.marginRight = "auto";
+        }
+      }
+    }
+
+    if (config.indentPt > 0) {
+      table.setAttribute("data-vno-table-indent", String(config.indentPt));
+    } else {
+      table.removeAttribute("data-vno-table-indent");
+    }
+
+    if (config.width && table.style) {
+      table.style.width = config.width;
+    }
+
+    if (config.rowHeightPt && table.rows) {
+      for (const r of table.rows) {
+        if (r.style) r.style.height = `${config.rowHeightPt}pt`;
+      }
+    }
+
+    const topPt = config.marginTopPt ?? 5.65;
+    const botPt = config.marginBottomPt ?? 5.65;
+    const leftPt = config.marginLeftPt ?? 8.5;
+    const rightPt = config.marginRightPt ?? 8.5;
+
+    table.setAttribute("data-vno-cell-mar-top", String(topPt));
+    table.setAttribute("data-vno-cell-mar-bottom", String(botPt));
+    table.setAttribute("data-vno-cell-mar-left", String(leftPt));
+    table.setAttribute("data-vno-cell-mar-right", String(rightPt));
+
+    const paddingCss = `${topPt}pt ${rightPt}pt ${botPt}pt ${leftPt}pt`;
+    if (table.rows) {
+      for (const r of table.rows) {
+        if (r.cells) {
+          for (const c of r.cells) {
+            if (c.style) c.style.padding = paddingCss;
+          }
+        }
+      }
+    }
+
+    if (config.cellSpacingPt > 0) {
+      table.setAttribute("data-vno-cell-spacing", String(config.cellSpacingPt));
+      if (table.style) {
+        table.style.borderCollapse = "separate";
+        table.style.borderSpacing = `${config.cellSpacingPt}pt`;
+      }
+    } else {
+      table.removeAttribute("data-vno-cell-spacing");
+      if (table.style) {
+        table.style.borderCollapse = "";
+        table.style.borderSpacing = "";
+      }
+    }
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.properties");
     return true;
   }
 
@@ -13183,8 +13444,8 @@ export class WriterAdapter {
         range.setStartAfter(tab);
         if (tabs[index + 1]) range.setEndBefore(tabs[index + 1]); else range.setEndAfter(paragraph.lastChild || tab);
         const nextWidth = range.getBoundingClientRect().width || 0;
-        const { width, leader } = resolveTab(x, nextWidth, stops, 1.27 * 96 / 2.54);
-        styleTabElement(tab, width, leader);
+        const { width, leader, align } = resolveTab(x, nextWidth, stops, 1.27 * 96 / 2.54);
+        styleTabElement(tab, width, leader, align);
       });
     }
   }
@@ -13945,6 +14206,124 @@ export class WriterAdapter {
       }
     });
     return true;
+  }
+
+  /**
+   * Đặt con trỏ soạn thảo vào một phần tử DOM và cuộn nó vào vùng hiển thị.
+   */
+  _placeCaretAt(node) {
+    if (!node || typeof window === "undefined" || !window.getSelection) return false;
+    try {
+      if (typeof node.scrollIntoView === "function") {
+        node.scrollIntoView({ block: "center", behavior: "smooth" });
+      }
+      const sel = window.getSelection();
+      if (!sel) return false;
+      const range = document.createRange ? document.createRange() : null;
+      if (!range) return false;
+      range.selectNodeContents(node);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /**
+   * Điều hướng con trỏ soạn thảo tới vị trí mục tiêu trong hộp thoại Đi đến (Go To).
+   * Hỗ trợ: page (trang), line (dòng), heading (đề mục), bookmark (dấu trang), footnote (chú thích), table (bảng).
+   */
+  navigateToGoToTarget({ type, target, direction = null } = {}) {
+    if (typeof document === "undefined") return false;
+    const root = this.editorDom || document.body;
+    let targetNode = null;
+
+    if (type === "page") {
+      const pages = Array.from(root.querySelectorAll(".vno-page, [data-page-index]"));
+      if (pages.length > 0) {
+        let pageIdx = 0;
+        if (typeof target === "number" || /^\d+$/.test(String(target))) {
+          pageIdx = Math.max(0, Math.min(pages.length - 1, parseInt(target, 10) - 1));
+        } else if (direction === "next") {
+          pageIdx = Math.min(pages.length - 1, (this.currentPageIndex || 0) + 1);
+        } else if (direction === "prev") {
+          pageIdx = Math.max(0, (this.currentPageIndex || 0) - 1);
+        }
+        targetNode = pages[pageIdx]?.querySelector("p, h1, h2, h3, h4, h5, h6, table") || pages[pageIdx];
+      }
+    } else if (type === "line") {
+      const blocks = Array.from(root.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li, tr, blockquote"));
+      if (blocks.length > 0) {
+        let lineIdx = 0;
+        if (typeof target === "number" || /^\d+$/.test(String(target))) {
+          lineIdx = Math.max(0, Math.min(blocks.length - 1, parseInt(target, 10) - 1));
+        }
+        targetNode = blocks[lineIdx];
+      }
+    } else if (type === "heading") {
+      const headings = Array.from(root.querySelectorAll("h1, h2, h3, h4, h5, h6"));
+      if (headings.length > 0) {
+        if (typeof target === "number" || /^\d+$/.test(String(target))) {
+          const idx = Math.max(0, Math.min(headings.length - 1, parseInt(target, 10) - 1));
+          targetNode = headings[idx];
+        } else if (typeof target === "string" && target.trim()) {
+          const term = target.trim().toLowerCase();
+          targetNode = headings.find(h => (h.textContent || "").toLowerCase().includes(term)) || headings[0];
+        } else {
+          targetNode = headings[0];
+        }
+      }
+    } else if (type === "bookmark") {
+      if (typeof target === "string" && target.trim()) {
+        const name = target.trim();
+        targetNode = root.querySelector(`a[name="${name}"], [data-bookmark-name="${name}"], #${name}`);
+      }
+    } else if (type === "footnote") {
+      const notes = Array.from(root.querySelectorAll(".vno-footnote-ref, [data-footnote-id], .vno-footnote-item"));
+      if (notes.length > 0) {
+        const idx = Math.max(0, Math.min(notes.length - 1, (parseInt(target, 10) || 1) - 1));
+        targetNode = notes[idx];
+      }
+    } else if (type === "table") {
+      const tables = Array.from(root.querySelectorAll("table"));
+      if (tables.length > 0) {
+        const idx = Math.max(0, Math.min(tables.length - 1, (parseInt(target, 10) || 1) - 1));
+        targetNode = tables[idx]?.querySelector("td, th") || tables[idx];
+      }
+    }
+
+    if (targetNode) {
+      this._placeCaretAt(targetNode);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Mở hộp thoại Đi đến (Go To, Ctrl+G) cho phép di chuyển nhanh tới trang, dòng, đề mục, dấu trang, bảng.
+   */
+  async openGoToDialog(options = {}) {
+    if (typeof window === "undefined" || typeof document === "undefined") return true;
+    const { showGoToDialog } = await import("../../../apps/writer/writer-goto-dialog.js");
+    const root = this.editorDom || document.body;
+    const headings = Array.from(root.querySelectorAll("h1, h2, h3, h4, h5, h6")).map(el => (el.textContent || "").trim()).filter(Boolean);
+    const bookmarks = Array.from(root.querySelectorAll("a[name], [data-bookmark-name]")).map(el => el.getAttribute("name") || el.getAttribute("data-bookmark-name")).filter(Boolean);
+    const pages = Array.from(root.querySelectorAll(".vno-page, [data-page-index]"));
+    const tables = Array.from(root.querySelectorAll("table"));
+    const footnotes = Array.from(root.querySelectorAll(".vno-footnote-ref, [data-footnote-id], .vno-footnote-item"));
+
+    return showGoToDialog({
+      data: {
+        headings,
+        bookmarks,
+        totalPages: Math.max(1, pages.length || (this.pageCount || 1)),
+        totalTables: tables.length,
+        totalFootnotes: footnotes.length
+      },
+      onNavigate: (args) => this.navigateToGoToTarget(args)
+    });
   }
 
   _replaceDocumentTextNodes(findText, replacementText, replaceAll, options = {}) {

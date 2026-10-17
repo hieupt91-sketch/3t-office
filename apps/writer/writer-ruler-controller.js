@@ -103,11 +103,18 @@ export class WriterRulerController {
       this._resizeObserver = new ResizeObserver(this._onGeometry);
       this._resizeObserver.observe(this.page);
     }
+    this._onScaleClickBound = event => this._onScaleClick(event);
+    const scale = this.track?.querySelector?.(".vno-ruler-scale");
+    scale?.addEventListener?.("click", this._onScaleClickBound);
     this.scheduleSync();
     return this;
   }
 
   destroy() {
+    const scale = this.track?.querySelector?.(".vno-ruler-scale");
+    scale?.removeEventListener?.("click", this._onScaleClickBound);
+    if (this._onTabMoveBound) document.removeEventListener("mousemove", this._onTabMoveBound);
+    if (this._onTabUpBound) document.removeEventListener("mouseup", this._onTabUpBound);
     document.removeEventListener("selectionchange", this._onSelection);
     this.body?.removeEventListener?.("click", this._onSelection);
     this.body?.removeEventListener?.("keyup", this._onSelection);
@@ -170,6 +177,34 @@ export class WriterRulerController {
       marker.setAttribute("aria-valuemax", String(Math.round(state.pageWidthMm / 10) / 10));
       marker.setAttribute("aria-valuenow", String(Math.round(value * 10) / 10));
       marker.setAttribute("aria-valuetext", title);
+    });
+
+    // Render Tab Stops
+    let tabsLayer = this.track.querySelector(".vno-ruler-tabs-layer");
+    if (!tabsLayer) {
+      tabsLayer = document.createElement("div");
+      tabsLayer.className = "vno-ruler-tabs-layer";
+      this.track.appendChild(tabsLayer);
+    }
+    tabsLayer.innerHTML = "";
+    const tabStops = Array.isArray(state.tabStops) ? state.tabStops : [];
+    const TAB_ICONS = {
+      l: "└",
+      c: "┴",
+      r: "┘",
+      dec: "┴·",
+      bar: "│"
+    };
+    tabStops.forEach((stop, index) => {
+      const stopMm = state.margins.left + stop.cm * 10;
+      const el = document.createElement("div");
+      el.className = "vno-ruler-tab-stop";
+      el.style.left = `${px(stopMm)}px`;
+      el.textContent = TAB_ICONS[stop.align] || "└";
+      el.title = `Dừng tab: ${stop.cm} cm (${stop.align})`;
+      el.setAttribute("data-tab-index", String(index));
+      el.addEventListener("mousedown", e => this._startTabDrag(e, index));
+      tabsLayer.appendChild(el);
     });
   }
 
@@ -249,5 +284,92 @@ export class WriterRulerController {
     this._guide.style.left = `${clientX}px`;
     this._guide.style.top = `${rect.top}px`;
     this._guide.style.height = `${rect.height}px`;
+  }
+
+  _onScaleClick(event) {
+    if (this.drag || this.tabDrag || !this.state) return;
+    if (event.target.closest(".vno-ruler-tab-stop, [data-ruler-kind]")) return;
+    const geometry = this._geometry();
+    const scale = this.track.querySelector(".vno-ruler-scale");
+    if (!scale) return;
+    const scaleRect = scale.getBoundingClientRect();
+    const clickPx = event.clientX - scaleRect.left;
+    const textWidthMm = this.state.pageWidthMm - this.state.margins.left - this.state.margins.right;
+    if (clickPx < 0 || clickPx > scaleRect.width) return;
+    const clickMm = (clickPx / scaleRect.width) * textWidthMm;
+    const clickCm = Math.round(clickMm / 10 * 4) / 4; // làm tròn đến 0.25 cm
+    if (clickCm <= 0 || clickCm >= textWidthMm / 10) return;
+    const currentStops = Array.isArray(this.state.tabStops) ? [...this.state.tabStops] : [];
+    if (!currentStops.some(s => Math.abs(s.cm - clickCm) < 0.15)) {
+      currentStops.push({ cm: clickCm, align: "l", leader: "n" });
+      currentStops.sort((a, b) => a.cm - b.cm);
+      globalCommandBus.execute("writer.format.tabStops", { stops: currentStops });
+      this.state.tabStops = currentStops;
+      this._render(this.state);
+    }
+  }
+
+  _startTabDrag(event, tabIndex) {
+    if (event.button !== 0 || !this.state) return;
+    event.preventDefault();
+    event.stopPropagation();
+    const geometry = this._geometry();
+    const stops = [...(this.state.tabStops || [])];
+    const initialStop = stops[tabIndex];
+    if (!initialStop) return;
+    this.tabDrag = {
+      tabIndex,
+      stops,
+      initialStop: { ...initialStop },
+      geometry,
+      isRemoving: false
+    };
+    event.currentTarget.classList.add("is-dragging");
+    this._onTabMoveBound = e => this._moveTabDrag(e);
+    this._onTabUpBound = e => this._endTabDrag(e);
+    document.addEventListener("mousemove", this._onTabMoveBound);
+    document.addEventListener("mouseup", this._onTabUpBound);
+    this._showGuide(event.clientX);
+  }
+
+  _moveTabDrag(event) {
+    if (!this.tabDrag) return;
+    const { geometry, stops, tabIndex, initialStop } = this.tabDrag;
+    const rulerRect = this.ruler.getBoundingClientRect();
+    const isOutside = event.clientY < rulerRect.top - 20 || event.clientY > rulerRect.bottom + 25;
+    this.tabDrag.isRemoving = isOutside;
+    const targetMarker = this.track.querySelector(`.vno-ruler-tab-stop[data-tab-index="${tabIndex}"]`);
+    if (targetMarker) {
+      if (isOutside) {
+        targetMarker.classList.add("is-removing");
+      } else {
+        targetMarker.classList.remove("is-removing");
+      }
+    }
+    const pageMm = screenPxToMm(event.clientX - geometry.pageRect.left, geometry.width, this.state.pageWidthMm);
+    const contentMm = Math.max(0, pageMm - this.state.margins.left);
+    const newCm = Math.round(contentMm / 10 * 10) / 10;
+    stops[tabIndex] = { ...initialStop, cm: newCm };
+    this._render({ ...this.state, tabStops: stops });
+    this._showGuide(event.clientX);
+  }
+
+  async _endTabDrag(event) {
+    if (!this.tabDrag) return;
+    document.removeEventListener("mousemove", this._onTabMoveBound);
+    document.removeEventListener("mouseup", this._onTabUpBound);
+    this._guide?.remove?.();
+    this._guide = null;
+    const { tabIndex, isRemoving, stops } = this.tabDrag;
+    this.tabDrag = null;
+    let nextStops = [...stops];
+    if (isRemoving) {
+      nextStops.splice(tabIndex, 1);
+    } else {
+      nextStops.sort((a, b) => a.cm - b.cm);
+    }
+    await globalCommandBus.execute("writer.format.tabStops", { stops: nextStops });
+    this.state.tabStops = nextStops;
+    this.scheduleSync();
   }
 }

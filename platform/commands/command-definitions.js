@@ -90,6 +90,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.nav.docStart", category: "nav", label: "Đầu tài liệu", shortcut: "Ctrl+Home", icon: "pageBreak", tooltip: "Đến đầu tài liệu (Ctrl+Home)" },
   { id: "writer.nav.docEnd", category: "nav", label: "Cuối tài liệu", shortcut: "Ctrl+End", icon: "pageBreak", tooltip: "Đến cuối tài liệu (Ctrl+End)" },
   { id: "writer.edit.select", category: "edit", label: "Chọn", icon: "selectAll", tooltip: "Chọn văn bản hoặc đối tượng" },
+  { id: "writer.edit.goTo", category: "edit", label: "Đi đến", shortcut: "Ctrl+G", icon: "findReplace", tooltip: "Chuyển nhanh con trỏ tới trang, dòng, đề mục hoặc bảng (Ctrl+G)" },
   { id: "writer.edit.pasteSpecial", category: "edit", label: "Dán đặc biệt", shortcut: "Ctrl+Alt+V", icon: "pasteSpecial", tooltip: "Dán kèm tùy chọn nâng cao (giữ định dạng nguồn, chỉ giữ văn bản)" },
   // Định dạng ký tự (Font / Character)
   { id: "writer.text.bold", category: "format", label: "Đậm", shortcut: "Ctrl+B", icon: "bold", tooltip: "Chữ đậm (Ctrl+B)", isToggle: true },
@@ -181,6 +182,9 @@ export const WRITER_COMMANDS = [
   { id: "writer.table.bordersNone", category: "table", label: "Không viền", icon: "paragraphBorders", tooltip: "Ẩn đường viền của vùng ô" },
   { id: "writer.table.toggleHeaderRow", category: "table", label: "Hàng tiêu đề", icon: "table", tooltip: "Bật hoặc tắt định dạng hàng tiêu đề bảng" },
   { id: "writer.table.toggleBandedRows", category: "table", label: "Hàng xen kẽ", icon: "table", tooltip: "Bật hoặc tắt màu xen kẽ giữa các hàng trong bảng" },
+  { id: "writer.table.splitTable", category: "table", label: "Tách bảng", icon: "unmergeCells", tooltip: "Tách bảng hiện tại thành hai bảng tại hàng đang chọn" },
+  { id: "writer.table.textDirection", category: "table", label: "Hướng văn bản", icon: "textDirectionVertical", tooltip: "Xoay hướng văn bản trong ô bảng (ngang, xoay 90°, xoay 270°)" },
+  { id: "writer.table.properties", category: "table", label: "Thuộc tính bảng", icon: "table", tooltip: "Mở hộp thoại thiết lập căn lề, thụt lề, độ cao hàng và lề ô của bảng" },
   { id: "writer.image.insert", category: "insert", label: "Hình ảnh", icon: "image", tooltip: "Chèn hình ảnh từ máy tính" },
   { id: "writer.shape.insert", category: "insert", label: "Hình khối", icon: "shape", tooltip: "Chèn hình khối cơ bản (chữ nhật, hình tròn, mũi tên, đường thẳng)" },
   { id: "writer.diagram.insert", category: "insert", label: "Sơ đồ", icon: "diagram", tooltip: "Chèn sơ đồ quy trình, chu trình hoặc phân cấp" },

@@ -22,8 +22,8 @@ const UI_SKIP_COMMANDS = new Set([
   "writer.view.zoomOut", "writer.view.zoomReset", "writer.view.zoom100",
   "writer.view.pageWidth", "writer.view.newWindow", "writer.ruler.getState",
   "writer.nav.docStart", "writer.nav.docEnd",
-  // Selection
-  "writer.edit.select",
+  // Selection & Nav
+  "writer.edit.select", "writer.edit.goTo",
   "writer.table.selectCell", "writer.table.selectRow", "writer.table.selectCol", "writer.table.selectTable",
   // Dialogs & Menu UI
   "writer.text.changeCaseDialog", "writer.format.fontDialog", "writer.style.gallery",
@@ -158,6 +158,9 @@ const SPECIAL_SETUP = {
   "writer.table.bordersNone": { initialHtml: '<table><tr><td>O</td></tr></table>', select: 'td' },
   "writer.table.toggleHeaderRow": { initialHtml: '<table><tr><td>Tieu de</td></tr><tr><td>Gia tri</td></tr></table>', select: 'td' },
   "writer.table.toggleBandedRows": { initialHtml: '<table><tr><td>1</td></tr><tr><td>2</td></tr></table>', select: 'td' },
+  "writer.table.splitTable": { initialHtml: '<table><tr><td>Row1</td></tr><tr><td>Row2</td></tr></table>', select: 'table tr:nth-child(2) td' },
+  "writer.table.textDirection": { initialHtml: '<table><tr><td>Text</td></tr></table>', select: 'td', args: 'tbRl' },
+  "writer.table.properties": { initialHtml: '<table><tr><td>Text</td></tr></table>', select: 'td', args: { align: 'center', indentPt: 18, marginTopPt: 5.65, marginBottomPt: 5.65, marginLeftPt: 8.5, marginRightPt: 8.5, cellSpacingPt: 2.8 } },
 
   // Layout & Sections
   "writer.section.differentFirstPage": { args: true },
