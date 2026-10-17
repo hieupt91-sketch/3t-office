@@ -1,4 +1,24 @@
 # Agent Handoff
+TASK: iOS/iPadOS offline architecture analysis
+AGENT/ROLE: Codex / Mobile Architecture
+BRANCH: mobile/ios-offline-analysis
+WORKTREE: /Users/hieupc/.codex/worktrees/ios-offline-analysis/3t-office
+OBJECTIVE: Determine an offline-first universal iPhone/iPad architecture while macOS work continues.
+FINDINGS: Shared JS and flat-document models are reusable; pywebview/Python/LibreOffice are not available on iOS, so native bridge and guarded OOXML support are required.
+IMPLEMENTATION SUMMARY: Added plan, reuse matrix, offline architecture, safe-format strategy and phased roadmap. No production framework/dependency was added.
+FILES CHANGED: See docs/mobile/HANDOFF-IOS-OFFLINE-ANALYSIS-0.9.11.md.
+COMMANDS RUN: Spec/source bridge inventory; Xcode/Simulator capability inspection.
+BUILD RESULT: NOT RUN — analysis only, no iOS target yet.
+TEST RESULTS: NOT RUN — documentation-only checkpoint.
+KNOWN FAILURES: iOS shell, round-trip and real-device tests are not implemented yet.
+RISKS: WebKit editing differences and OOXML data loss unless unsupported features are read-only/Save a Copy.
+DEPENDENCIES/BLOCKERS: Approval for Swift + WKWebView, ZIP/XML dependency audit, real devices and later signing.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Build an isolated offline WKWebView shell for iPhone/iPad Simulator after framework approval.
+
+---
+
+# Agent Handoff
 TASK: FIX-P1b (Sheet formula regression audit and P1 edit latency)
 AGENT/ROLE: Codex / Sheet QA
 BRANCH: fix/sheet-p1b-codex
