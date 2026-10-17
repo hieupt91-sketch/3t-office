@@ -801,6 +801,7 @@ export class SlidesAdapter {
       if (key === "text-align") out.align = value;
       if (key === "line-height") out.lineHeight = value;
       if (key === "margin-left") out.indent = value;
+      if (key === "margin-top") out.spaceBefore = value;
     }
     const align = this._attr(` ${attrs} `, "align") || attrs.match(/\balign\s*=\s*(?:"([^"]+)"|'([^']+)')/i)?.[1];
     if (align) out.align = align;
@@ -831,7 +832,8 @@ export class SlidesAdapter {
     const paraName = this._ensureNamedStyle(ctx.paraStyles, "vnoP", {
       align: block.align,
       lineHeight: block.lineHeight,
-      indent: block.indent
+      indent: block.indent,
+      spaceBefore: block.spaceBefore
     });
     const styleAttr = paraName ? ` text:style-name="${paraName}"` : "";
     const inner = (texts || []).map(({ text, fmt }) => {
@@ -847,13 +849,13 @@ export class SlidesAdapter {
       return base ? this._plainParagraphsWithBase(this._plainFromHtml(html), ctx, base) : this._textParagraphsXml(this._plainFromHtml(html));
     }
     const blocks = [];
-    let current = { texts: [], align: base?.align || null, lineHeight: null, indent: null, list: null };
+    let current = { texts: [], align: base?.align || null, lineHeight: null, indent: null, spaceBefore: null, list: null };
     let blockquoteDepth = 0;
     const formatStack = [base?.fmt ? { ...base.fmt } : {}];
     const currentFmt = () => Object.assign({}, ...formatStack);
     const flush = () => {
       if (current.texts.some((item) => item.text) || current.list) blocks.push(current);
-      current = { texts: [], align: current.align, lineHeight: current.lineHeight, indent: current.indent, list: current.list };
+      current = { texts: [], align: current.align, lineHeight: current.lineHeight, indent: current.indent, spaceBefore: current.spaceBefore, list: current.list };
     };
 
     this._walkHtml(html, {
@@ -865,6 +867,7 @@ export class SlidesAdapter {
         if (css.align) current.align = css.align;
         if (css.lineHeight) current.lineHeight = css.lineHeight;
         if (css.indent && !/^0(?:\.0+)?(?:[a-z%]+)?$/i.test(css.indent)) current.indent = css.indent;
+        if (css.spaceBefore && !/^0(?:\.0+)?(?:[a-z%]+)?$/i.test(css.spaceBefore)) current.spaceBefore = css.spaceBefore;
         if (tag === "blockquote") {
           blockquoteDepth += 1;
           // PowerPoint increases a paragraph's indent by 0.5 in (36 pt) per level.
@@ -1022,6 +1025,7 @@ export class SlidesAdapter {
         if (odfLh) attrs.push(`fo:line-height="${this._escapeXml(odfLh)}"`);
       }
       if (props.indent) attrs.push(`fo:margin-left="${this._escapeXml(props.indent)}"`);
+      if (props.spaceBefore) attrs.push(`fo:margin-top="${this._escapeXml(props.spaceBefore)}"`);
       xml += `
     <style:style style:name="${style.name}" style:family="paragraph">
       <style:paragraph-properties ${attrs.join(" ")}/>
@@ -1115,7 +1119,8 @@ export class SlidesAdapter {
           fontWeight: weightMatch || (isBold ? "bold" : null),
           color: inner.match(/fo:color=["']([^"']+)["']/i)?.[1],
           lineHeight: rawLh,
-          indent: inner.match(/fo:margin-left=["']([^"']+)["']/i)?.[1]
+          indent: inner.match(/fo:margin-left=["']([^"']+)["']/i)?.[1],
+          spaceBefore: inner.match(/fo:margin-top=["']([^"']+)["']/i)?.[1]
         });
       }
     }
@@ -1198,7 +1203,28 @@ export class SlidesAdapter {
         const itemRe = /<text:list-item\b[^>]*>([\s\S]*?)<\/text:list-item>/gi;
         let itemMatch;
         while ((itemMatch = itemRe.exec(match[2] || "")) !== null) {
-          items.push(`<li>${this._odfInlineToHtml(itemMatch[1], maps)}</li>`);
+          const itemContent = itemMatch[1] || "";
+          const pMatch = itemContent.match(/<text:p\b([^>]*)>([\s\S]*?)<\/text:p>/i);
+          let itemStyleAttr = "";
+          let innerText = itemContent;
+          if (pMatch) {
+            const pName = (pMatch[1] || "").match(/text:style-name=["']([^"']+)["']/i)?.[1];
+            const pStyle = maps?.para?.get(pName) || {};
+            const liStyles = [];
+            if (pStyle.align) liStyles.push(`text-align:${pStyle.align}`);
+            if (pStyle.fontSize) liStyles.push(`font-size:${pStyle.fontSize}`);
+            if (pStyle.fontFamily) liStyles.push(`font-family:'${pStyle.fontFamily.replace(/["']/g, "").trim()}'`);
+            if (pStyle.lineHeight) {
+              const lh = String(pStyle.lineHeight);
+              const css = lh.endsWith("%") ? (this._odfProportionalToCssLineHeight(lh) || lh) : lh;
+              liStyles.push(`line-height:${css}`);
+            }
+            if (pStyle.indent) liStyles.push(`margin-left:${pStyle.indent}`);
+            if (pStyle.spaceBefore) liStyles.push(`margin-top:${pStyle.spaceBefore}`);
+            if (liStyles.length) itemStyleAttr = ` style="${liStyles.join(";")}"`;
+            innerText = pMatch[2];
+          }
+          items.push(`<li${itemStyleAttr}>${this._odfInlineToHtml(innerText, maps)}</li>`);
         }
         out += `<${tag}>${items.join("")}</${tag}>`;
       } else {
@@ -1217,6 +1243,7 @@ export class SlidesAdapter {
           styles.push(`line-height:${css}`);
         }
         if (para.indent) styles.push(`margin-left:${para.indent}`);
+        if (para.spaceBefore) styles.push(`margin-top:${para.spaceBefore}`);
         const styleAttr = styles.length ? ` style="${styles.join(";")}"` : "";
         out += `<div${styleAttr}>${inner}</div>`;
       }
