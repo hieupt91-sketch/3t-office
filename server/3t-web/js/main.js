@@ -631,7 +631,7 @@ async function initMacosReleaseData() {
   const hasFile = Boolean(fileName);
   const size = macData.size || macData.file_size_formatted || "";
   const sha256 = macData.sha256 || "";
-  const minOs = macData.min_os || "macOS 12 Monterey trở lên";
+  const minOs = macData.min_os || "Đang xác nhận";
   const arch = macData.arch || "Apple Silicon (arm64)";
   const version = macData.version || "";
 

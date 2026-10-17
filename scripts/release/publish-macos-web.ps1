@@ -1,4 +1,4 @@
-# Phat hanh bo cai macOS cho web noi bo: tinh SHA-256, goi upload va cap nhat server/3t-web/data/release-macos.json
+﻿# Phat hanh bo cai macOS cho web noi bo: tinh SHA-256, goi upload va cap nhat server/3t-web/data/release-macos.json
 # Quy uoc dat ten tep bo cai: 3T-Office-<ver>-<arch>[-unsigned][-final][-vN].pkg (hoac VNOffice-macOS-... .dmg)
 # Vi du mau: 3T-Office-0.9.11-arm64-unsigned-final-v2.pkg
 # Dung:
@@ -9,6 +9,8 @@ param(
     [string]$WebDataDir = "",
     [string]$RemoteDir = "/srv/3t-office-cloud/app/downloads",
     [string]$ConfigPath = "C:\Users\3T Computer\.vnoffice-release\deploy-ssh.json",
+    # He dieu hanh toi thieu CHI ghi khi team build xac nhan; de trong thi web hien "Dang xac nhan".
+    [string]$MinOs = "",
     [switch]$WhatIf
 )
 
@@ -82,7 +84,7 @@ $releaseData = [ordered]@{
     size            = $sizeFormatted
     file_size_bytes = $fileSizeBytes
     sha256          = $sha256
-    min_os          = "macOS 12 Monterey trở lên"
+    min_os          = $MinOs
     arch            = $arch
     released_at     = (Get-Date -Format "yyyy-MM-dd")
     install_note    = "Chưa ký: tải về, chuột phải vào tệp .pkg > Mở > Mở; hoặc System Settings > Privacy & Security > Open Anyway"

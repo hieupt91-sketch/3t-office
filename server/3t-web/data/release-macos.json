@@ -5,7 +5,7 @@
   "file_name": "",
   "size": "",
   "sha256": "",
-  "min_os": "macOS 12 Monterey trở lên",
+  "min_os": "",
   "arch": "Apple Silicon (arm64)",
   "released_at": "",
   "install_note": "Chưa ký: tải về, chuột phải vào tệp .pkg > Mở > Mở; hoặc System Settings > Privacy & Security > Open Anyway",

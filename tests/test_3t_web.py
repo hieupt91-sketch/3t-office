@@ -133,7 +133,8 @@ class Test3TWeb(unittest.TestCase):
 
         # Khi chua co tep: file_name rong
         self.assertEqual(data.get("file_name"), "", "file_name ban dau phai rong khi chua co tep")
-        self.assertIn("macOS 12", data.get("min_os", ""))
+        # Yeu cau he dieu hanh toi thieu chi duoc ghi khi team build xac nhan; mac dinh de trong (web hien "Dang xac nhan").
+        self.assertEqual(data.get("min_os", ""), "")
         self.assertIn("Apple Silicon (arm64)", data.get("arch", ""))
         self.assertIn("Chưa ký", data.get("install_note", ""))
         self.assertIn("Open Anyway", data.get("install_note", ""))
