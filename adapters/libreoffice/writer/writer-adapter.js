@@ -3918,6 +3918,7 @@ export class WriterAdapter {
       html = this._propagateEmptyParagraphFontSizeToListItem(html);
       // W46: tỉ lệ chữ w:w (style/run) → --vno-char-scale trên đoạn (thân + ô bảng)
       html = this._applyOoxmlCharacterScale(html, ooxmlDocumentXml, ooxmlStylesXml);
+      html = this._applyOoxmlTabStopsToHtml(html, ooxmlDocumentXml);
       // W24c: hàng w:cantSplit không được tràn trang
       html = this._applyOoxmlRowCantSplit(html, ooxmlDocumentXml);
       if (ooxmlNumberingXml) {
@@ -5791,6 +5792,37 @@ export class WriterAdapter {
       out = out.slice(0, start) + tableHtml + out.slice(end);
     }
     return out;
+  }
+
+  /** Khôi phục các điểm dừng Tab trong w:pPr thành metadata đoạn để dialog và editor dùng chung. */
+  _applyOoxmlTabStopsToHtml(html, ooxmlDocumentXml) {
+    const alignments = { left: "l", center: "c", right: "r", decimal: "dec", bar: "bar" };
+    const leaders = { dot: "d", hyphen: "h", underscore: "u" };
+    let mapped = this._mapOoxmlParagraphs(html, ooxmlDocumentXml, pXml => {
+      const pPr = pXml.match(/<w:pPr\b[^>]*>([\s\S]*?)<\/w:pPr>/i)?.[1] || "";
+      const tabs = pPr.match(/<w:tabs\b[^>]*>([\s\S]*?)<\/w:tabs>/i)?.[1] || "";
+      const stops = [...tabs.matchAll(/<w:tab\b([^>]*)\/?\s*>/gi)].map(match => {
+        const attrs = match[1];
+        const pos = Number(attrs.match(/\bw:pos=["'](\d+)["']/i)?.[1]);
+        if (!Number.isFinite(pos) || pos <= 0) return null;
+        const align = alignments[attrs.match(/\bw:val=["']([^"']+)["']/i)?.[1]?.toLowerCase()] || "l";
+        const leader = leaders[attrs.match(/\bw:leader=["']([^"']+)["']/i)?.[1]?.toLowerCase()] || "n";
+        return `${Number((pos * 2.54 / 1440).toFixed(4))}:${align}:${leader}`;
+      }).filter(Boolean);
+      return stops.length ? [`--vno-imported-tabs: ${encodeURIComponent(stops.join(";"))}`] : null;
+    });
+    return mapped.replace(/<(p|h[1-6])\b([^>]*)>/gi, (openTag, tag, attrs) => {
+      const styleMatch = attrs.match(/\bstyle=(["'])([^"']*)\1/i);
+      if (!styleMatch) return openTag;
+      const marker = styleMatch[2].match(/(?:^|;)\s*--vno-imported-tabs\s*:\s*([^;\s]+)\s*(?:;|$)/i);
+      if (!marker) return openTag;
+      let value = "";
+      try { value = decodeURIComponent(marker[1]); } catch (_) { return openTag; }
+      const css = styleMatch[2].replace(/(?:^|;)\s*--vno-imported-tabs\s*:\s*[^;]+;?/i, "").replace(/^\s*;|;\s*$/g, "").trim();
+      let nextAttrs = attrs.replace(styleMatch[0], css ? `style=${styleMatch[1]}${css}${styleMatch[1]}` : "");
+      if (!/\bdata-vno-tabs=/i.test(nextAttrs)) nextAttrs += ` data-vno-tabs="${value}"`;
+      return `<${tag}${nextAttrs}>`;
+    });
   }
 
   /**
@@ -13779,8 +13811,8 @@ export class WriterAdapter {
   }
 
   /** Đặt danh sách dừng tab cho các đoạn đang chọn (một bước hoàn tác). stops rỗng = xóa hết. */
-  applyTabStops(stops) {
-    const blocks = this._getRulerParagraphBlocks();
+  applyTabStops(stops, targetBlocks = null) {
+    const blocks = Array.isArray(targetBlocks) ? targetBlocks : this._getRulerParagraphBlocks();
     if (!blocks.length || !Array.isArray(stops)) return false;
     this.flushTyping();
     const serialized = serializeTabStops(parseTabStops(serializeTabStops(stops)));
@@ -13798,12 +13830,14 @@ export class WriterAdapter {
 
   async openTabStopsDialog(args = null) {
     if (args && Array.isArray(args.stops)) return this.applyTabStops(args.stops);
-    if (!this._getRulerParagraphBlocks().length) return false;
+    const targetBlocks = this._getRulerParagraphBlocks();
+    if (!targetBlocks.length) return false;
     const state = this.getRulerState();
     const contentWidthCm = Math.max(1, (state.pageWidthMm - state.margins.left - state.margins.right) / 10);
-    const stops = await showTabStopsDialog(this._getTabStopsState().stops, { contentWidthCm });
+    const current = parseTabStops(targetBlocks[0]?.dataset?.vnoTabs || "");
+    const stops = await showTabStopsDialog(current, { contentWidthCm });
     if (stops === null) return null;
-    return this.applyTabStops(stops);
+    return this.applyTabStops(stops, targetBlocks);
   }
 
   /** Thẻ Tab chỉ được chứa đúng ký tự Tab: chữ lỡ nằm trong cùng <span> (tài liệu cũ) được chuyển ra sau thẻ, trừ thẻ đang giữ con trỏ. */

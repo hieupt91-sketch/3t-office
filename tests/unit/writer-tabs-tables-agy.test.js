@@ -327,6 +327,13 @@ export async function runWriterTabsTablesAgyTests() {
     assert.equal(el.style.display, "inline-block");
   });
 
+  await test("Tabs: mở DOCX khôi phục w:tabs thành data-vno-tabs cho dialog và leader trong editor", () => {
+    const adapter = new WriterAdapter();
+    const xml = '<w:document><w:body><w:p><w:pPr><w:tabs><w:tab w:val="center" w:pos="3969"/><w:tab w:val="right" w:leader="dot" w:pos="7937"/></w:tabs></w:pPr><w:r><w:t>Danh sách</w:t></w:r></w:p></w:body></w:document>';
+    const html = adapter._applyOoxmlTabStopsToHtml("<p>Danh sách</p>", xml);
+    assert.match(html, /data-vno-tabs="7\.0009:c:n;14:r:d"/);
+  });
+
   // 2. GO TO DIALOG (Ctrl+G)
   await test("Go To: GOTO_TYPES chứa đủ 6 loại điều hướng chuẩn Word 2016", () => {
     const ids = GOTO_TYPES.map(g => g.id);
