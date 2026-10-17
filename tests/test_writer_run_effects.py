@@ -184,6 +184,43 @@ class RunEffectsExportTests(unittest.TestCase):
         self.assertIn('<w:outlineLvl w:val="1"/>', out)
         self.assertLess(out.index("<w:outlineLvl"), out.index("<w:rPr>"))
 
+    def test_import_marks_list_paragraphs_with_num_tokens(self):
+        docx = _docx(
+            '<w:p><w:pPr><w:pStyle w:val="ListParagraph"/>'
+            '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1"/></w:numPr></w:pPr>'
+            '<w:r><w:t>Danh sach 1</w:t></w:r></w:p>'
+        )
+        html = '<ol><li><p>Danh sach 1</p></li></ol>'
+        out = patcher.inject_docx_run_effects(docx, html)
+        self.assertIn('data-vno-pfx="nid=1;ilvl=0;ps=ListParagraph;dind=0;dtabs=0;dsp=0"', out)
+
+    def test_export_restores_original_list_num_id_and_removes_injected_indent(self):
+        saved = _docx(
+            '<w:p><w:pPr><w:pStyle w:val="BodyText"/>'
+            '<w:numPr><w:ilvl w:val="0"/><w:numId w:val="1004"/></w:numPr>'
+            '<w:tabs><w:tab w:val="clear" w:pos="1134"/><w:tab w:val="left" w:pos="1429"/></w:tabs>'
+            '<w:spacing w:lineRule="auto" w:line="259"/>'
+            '<w:ind w:hanging="283" w:left="1429" w:right="0"/></w:pPr>'
+            '<w:r><w:t>Danh sach 1 sua</w:t></w:r></w:p>'
+        )
+        html = '<ol><li><p data-vno-pfx="nid=1;ilvl=0;ps=ListParagraph;dind=0;dtabs=0;dsp=0">Danh sach 1 sua</p></li></ol>'
+        out = _document(patcher.postprocess_writer_run_effects(saved, source_html=html))
+        self.assertIn('<w:numId w:val="1"/>', out)
+        self.assertIn('<w:pStyle w:val="ListParagraph"/>', out)
+        self.assertNotIn('<w:ind', out)
+        self.assertNotIn('<w:tabs', out)
+        self.assertNotIn('<w:spacing', out)
+
+    def test_export_does_not_resurrect_list_if_user_removed_it(self):
+        saved = _docx(
+            '<w:p><w:pPr><w:pStyle w:val="Normal"/></w:pPr>'
+            '<w:r><w:t>Doan thuong</w:t></w:r></w:p>'
+        )
+        html = '<p data-vno-pfx="nid=1;ilvl=0;ps=ListParagraph;dind=0;dtabs=0;dsp=0">Doan thuong</p>'
+        out = _document(patcher.postprocess_writer_run_effects(saved, source_html=html))
+        self.assertNotIn('<w:numPr', out)
+        self.assertNotIn('<w:numId', out)
+
     def test_no_marker_is_a_noop(self):
         docx = _docx("<w:p><w:r><w:t>A</w:t></w:r></w:p>")
         self.assertEqual(patcher.postprocess_writer_run_effects(docx, source_html="<p>A</p>"), docx)
@@ -191,3 +228,4 @@ class RunEffectsExportTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+

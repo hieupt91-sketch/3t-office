@@ -25797,7 +25797,7 @@ def postprocess_writer_text_effects(docx_bytes: bytes, *, source_html: str | Non
 # Toạ độ tính theo số ký tự KHÔNG phải khoảng trắng (LibreOffice đổi khoảng trắng thành xuống dòng trong HTML).
 # ---------------------------------------------------------------------------------------------------------------------
 _RUN_FX_DETECT_RE = re.compile(
-    r'<w:(?:dstrike|vanish|position|emboss|imprint|outline|shadow|em|highlight|kern|outlineLvl)\b'
+    r'<w:(?:dstrike|vanish|position|emboss|imprint|outline|shadow|em|highlight|kern|outlineLvl|numPr)\b'
     r'|<w:w\s'
     r'|lineRule="exact"'
     r'|<w:u\b[^>]*w:val="(?!single"|none")'
@@ -25970,9 +25970,18 @@ def _run_fx_html_paragraphs(html_text: str):
 
 
 def _run_fx_html_paragraphs_with_tag(html_text: str):
-    """Yield (open_start, open_end, tag, open_attrs, inner_start, inner_end, inner) cho từng <p>/<h1-6>."""
-    for match in re.finditer(r"<(p|h[1-6])\b([^>]*)>([\s\S]*?)</\1\s*>", html_text, re.IGNORECASE):
-        yield match.start(), match.start(3) - 0, match.group(1).lower(), match.group(2), match.start(3), match.end(3), match.group(3)
+    """Yield (open_start, open_end, tag, open_attrs, inner_start, inner_end, inner) cho từng <p>/<h1-6> (hoặc <li> không chứa p)."""
+    p_matches = [
+        (m.start(), m.start(3), m.group(1).lower(), m.group(2), m.start(3), m.end(3), m.group(3))
+        for m in re.finditer(r"<(p|h[1-6])\b([^>]*)>([\s\S]*?)</\1\s*>", html_text, re.IGNORECASE)
+    ]
+    li_matches = [
+        (m.start(), m.start(2), "li", m.group(1), m.start(2), m.end(2), m.group(2))
+        for m in re.finditer(r"<li\b([^>]*)>([\s\S]*?)</li>", html_text, re.IGNORECASE)
+        if not re.search(r"<(?:p|h[1-6])\b", m.group(2), re.IGNORECASE)
+    ]
+    for item in sorted(p_matches + li_matches, key=lambda x: x[0]):
+        yield item
 
 
 def _run_fx_html_ranges(inner: str) -> tuple[str, list[tuple[int, int, str]]]:
@@ -26026,7 +26035,7 @@ def _run_fx_run_text(run_xml: str) -> str:
 
 
 def _run_fx_para_tokens(para_xml: str) -> list[str]:
-    """Dấu hiệu mức đoạn cần giữ: giãn dòng «Exactly» (soffice đổi thành «At least») và cấp đề cương."""
+    """Dấu hiệu mức đoạn cần giữ: giãn dòng «Exactly» (soffice đổi thành «At least»), cấp đề cương và danh sách."""
     ppr = re.search(r"<w:pPr>([\s\S]*?)</w:pPr>", para_xml)
     inner = ppr.group(1) if ppr else ""
     tokens: list[str] = []
@@ -26036,11 +26045,29 @@ def _run_fx_para_tokens(para_xml: str) -> list[str]:
     outline = re.search(r'<w:outlineLvl\b[^>]*w:val="(\d)"', inner)
     if outline and not re.search(r'<w:pStyle\b[^>]*w:val="(?:Heading|heading|Title|Subtitle)', inner):
         tokens.append(f"ol={outline.group(1)}")
+    num_pr = re.search(r"<w:numPr\b[^>]*>([\s\S]*?)</w:numPr>", inner)
+    if num_pr:
+        num_id = re.search(r'<w:numId\b[^>]*\bw:val="(\d+)"', num_pr.group(1))
+        ilvl = re.search(r'<w:ilvl\b[^>]*\bw:val="(\d+)"', num_pr.group(1))
+        if num_id:
+            tokens.append(f"nid={num_id.group(1)}")
+            tokens.append(f"ilvl={ilvl.group(1) if ilvl else '0'}")
+            pstyle = re.search(r'<w:pStyle\b[^>]*\bw:val="([^"]+)"', inner)
+            if pstyle:
+                tokens.append(f"ps={pstyle.group(1)}")
+            direct_ind = re.search(r'<w:ind\b[^>]*>', inner)
+            tokens.append(f"dind={url_quote(direct_ind.group(0))}" if direct_ind else "dind=0")
+            direct_tabs = re.search(r'<w:tabs\b[^>]*>[\s\S]*?</w:tabs>', inner)
+            tokens.append(f"dtabs={url_quote(direct_tabs.group(0))}" if direct_tabs else "dtabs=0")
+            direct_sp = re.search(r'<w:spacing\b[^>]*>', inner)
+            tokens.append(f"dsp={url_quote(direct_sp.group(0))}" if direct_sp else "dsp=0")
+            if "<w:contextualSpacing" in inner:
+                tokens.append("ctxsp=1")
     return tokens
 
 
 def _run_fx_apply_para(para_xml: str, tokens: dict[str, str], current_lh: str | None) -> str:
-    """Ghi lại giãn dòng Exactly và cấp đề cương vào <w:pPr> của đoạn."""
+    """Ghi lại giãn dòng Exactly, cấp đề cương và danh sách vào <w:pPr> của đoạn."""
     if not tokens:
         return para_xml
     ppr = re.search(r"<w:pPr>([\s\S]*?)</w:pPr>", para_xml)
@@ -26069,6 +26096,103 @@ def _run_fx_apply_para(para_xml: str, tokens: dict[str, str], current_lh: str | 
         if position < 0:
             position = len(new_inner)
         new_inner = new_inner[:position] + f'<w:outlineLvl w:val="{tokens["ol"]}"/>' + new_inner[position:]
+    if "nid" in tokens and "<w:numPr" in new_inner:
+        new_inner = re.sub(
+            r'(<w:numId\b[^>]*\bw:val=")\d+(")',
+            rf'\g<1>{tokens["nid"]}\g<2>',
+            new_inner,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+        if "ilvl" in tokens:
+            new_inner = re.sub(
+                r'(<w:ilvl\b[^>]*\bw:val=")\d+(")',
+                rf'\g<1>{tokens["ilvl"]}\g<2>',
+                new_inner,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+        if "ps" in tokens:
+            if "<w:pStyle" in new_inner:
+                new_inner = re.sub(
+                    r'<w:pStyle\b[^>]*/>|<w:pStyle\b[^>]*>[\s\S]*?</w:pStyle>',
+                    f'<w:pStyle w:val="{tokens["ps"]}"/>',
+                    new_inner,
+                    count=1,
+                    flags=re.IGNORECASE,
+                )
+            else:
+                new_inner = f'<w:pStyle w:val="{tokens["ps"]}"/>' + new_inner
+        dind = tokens.get("dind")
+        if dind == "0":
+            new_inner = re.sub(
+                r'<w:ind\b[^>]*/>|<w:ind\b[^>]*>[\s\S]*?</w:ind>',
+                "",
+                new_inner,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+        elif dind:
+            orig_ind = url_unquote(dind)
+            if "<w:ind" in new_inner:
+                new_inner = re.sub(
+                    r'<w:ind\b[^>]*/>|<w:ind\b[^>]*>[\s\S]*?</w:ind>',
+                    lambda _m: orig_ind,
+                    new_inner,
+                    count=1,
+                    flags=re.IGNORECASE,
+                )
+            else:
+                new_inner = orig_ind + new_inner
+        dtabs = tokens.get("dtabs")
+        if dtabs == "0":
+            new_inner = re.sub(
+                r'<w:tabs\b[^>]*>[\s\S]*?</w:tabs>',
+                "",
+                new_inner,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+        elif dtabs:
+            orig_tabs = url_unquote(dtabs)
+            if "<w:tabs" in new_inner:
+                new_inner = re.sub(
+                    r'<w:tabs\b[^>]*>[\s\S]*?</w:tabs>',
+                    lambda _m: orig_tabs,
+                    new_inner,
+                    count=1,
+                    flags=re.IGNORECASE,
+                )
+            else:
+                new_inner = orig_tabs + new_inner
+        dsp = tokens.get("dsp")
+        if dsp == "0":
+            if tokens.get("lr") != "exact":
+                new_inner = re.sub(
+                    r'<w:spacing\b[^>]*/>|<w:spacing\b[^>]*>[\s\S]*?</w:spacing>',
+                    "",
+                    new_inner,
+                    count=1,
+                    flags=re.IGNORECASE,
+                )
+        elif dsp:
+            orig_sp = url_unquote(dsp)
+            if "<w:spacing" in new_inner:
+                new_inner = re.sub(
+                    r'<w:spacing\b[^>]*/>|<w:spacing\b[^>]*>[\s\S]*?</w:spacing>',
+                    lambda _m: orig_sp,
+                    new_inner,
+                    count=1,
+                    flags=re.IGNORECASE,
+                )
+            else:
+                new_inner = orig_sp + new_inner
+        if tokens.get("ctxsp") == "1" and "<w:contextualSpacing" not in new_inner:
+            new_inner = "<w:contextualSpacing/>" + new_inner
+        reordered = _writer_reorder_ppr_children(f"<w:pPr>{new_inner}</w:pPr>")
+        m_reordered = re.match(r"<w:pPr\b[^>]*>([\s\S]*)</w:pPr\s*>", reordered, re.IGNORECASE)
+        if m_reordered:
+            new_inner = m_reordered.group(1)
     if new_inner == inner:
         return para_xml
     return para_xml[:ppr.start(1)] + new_inner + para_xml[ppr.end(1):]
