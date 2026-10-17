@@ -4184,7 +4184,8 @@ export class WriterAdapter {
 
   _restoreCustomParagraphStyleMarkers(html, documentXml, styles) {
     if (!html || !documentXml || !styles.length || typeof document === "undefined") return html;
-    const byId = new Map(styles.map((style) => [style.id, style]));
+    // Chỉ khôi phục dấu cho kiểu do chính ứng dụng tạo (id bắt đầu bằng Vno); kiểu có sẵn của tài liệu giữ cách hiển thị nguyên bản để không đổi bố cục.
+    const byId = new Map(styles.filter((style) => style.custom && /^Vno/.test(style.id)).map((style) => [style.id, style]));
     const records = [];
     for (const paragraph of String(documentXml).matchAll(/<w:p\b[^>]*>[\s\S]*?<\/w:p\s*>/gi)) {
       const styleId = paragraph[0].match(/<w:pStyle\b[^>]*\bw:val=["']([^"']+)/i)?.[1];
@@ -11123,6 +11124,7 @@ export class WriterAdapter {
     }
     if (!node) return "normal";
     if (node.nodeType === 3) node = node.parentNode;
+    if (!node) return "normal";
     const styledBlock = node.closest?.("[data-vno-style-id]");
     if (styledBlock && this.bodyDom?.contains?.(styledBlock)) {
       const id = styledBlock.dataset.vnoStyleId;
