@@ -37,6 +37,26 @@ SHADED_TCPR = '<w:tcPr><w:tcW w:w="990" w:type="dxa"/><w:shd w:val="clear" w:fil
 
 
 class WriterTableEditPersistenceTests(unittest.TestCase):
+    def test_preferred_table_width_uses_percent_hundredths_and_cm_twips(self):
+        self.assertEqual(patcher._writer_preferred_table_width_xml(80, "pct"), '<w:tblW w:w="4000" w:type="pct"/>')
+        self.assertEqual(patcher._writer_preferred_table_width_xml(1, "dxa"), '<w:tblW w:w="20" w:type="dxa"/>')
+
+    def test_row_minimum_height_replaces_existing_height_rule(self):
+        row = '<w:tr><w:trPr><w:cantSplit/><w:trHeight w:val="300" w:hRule="exact"/></w:trPr><w:tc/></w:tr>'
+        updated = patcher._writer_upsert_trpr(row, "trHeight", '<w:trHeight w:val="454" w:hRule="atLeast"/>')
+        self.assertIn('<w:cantSplit/>', updated)
+        self.assertIn('<w:trHeight w:val="454" w:hRule="atLeast"/>', updated)
+        self.assertEqual(updated.count("<w:trHeight"), 1)
+
+    def test_cell_margin_xml_is_complete_ordered_and_uses_twips(self):
+        xml = patcher._writer_cell_margin_xml({"top": 567, "left": 283})
+        self.assertEqual(
+            xml,
+            '<w:tcMar><w:top w:w="567" w:type="dxa"/><w:left w:w="283" w:type="dxa"/>'
+            '<w:bottom w:w="113" w:type="dxa"/><w:right w:w="170" w:type="dxa"/></w:tcMar>',
+        )
+        self.assertEqual(patcher._writer_cm_to_twips(2), 1134)
+
     def test_unedited_table_still_gets_source_properties_back(self):
         source = _table([[("a", SRC_TCPR), ("b", SRC_TCPR)]], "<w:tblPr><w:tblW w:w=\"2000\"/></w:tblPr>", 2)
         converted = _table([[("a", LO_TCPR), ("b", LO_TCPR)]], "<w:tblPr><w:tblW w:w=\"1999\"/></w:tblPr>", 2)

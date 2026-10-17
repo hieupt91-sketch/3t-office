@@ -498,6 +498,7 @@ export async function runWriterTabsTablesAgyTests() {
     docRoot.appendChild(table);
 
     adapter._getActiveTable = () => table;
+    adapter._getActiveTableCell = () => table.rows[0].cells[0];
 
     const config = {
       align: "center",
@@ -508,7 +509,9 @@ export async function runWriterTabsTablesAgyTests() {
       marginBottomPt: 6,
       marginLeftPt: 9,
       marginRightPt: 9,
-      cellSpacingPt: 2.8
+      cellSpacingPt: 2.8,
+      verticalAlign: "center",
+      columnWidthCm: 4
     };
 
     const ok = await adapter.openTablePropertiesDialog(config);
@@ -523,12 +526,40 @@ export async function runWriterTabsTablesAgyTests() {
 
     // Kiểm tra độ cao hàng và lề ô
     assert.equal(table.rows[0].style.height, "24pt");
+    assert.equal(table.rows[0].getAttribute("data-vno-row-height"), "24");
     assert.equal(table.rows[0].cells[0].style.padding, "6pt 9pt 6pt 9pt");
+    assert.equal(table.rows[0].cells[0].getAttribute("data-vno-vertical-align"), "center");
+    assert.equal(table.rows[0].cells[0].style.verticalAlign, "center");
+    assert.equal(table.rows[0].cells[0].style.width, `${4 * 96 / 2.54}px`);
 
     // Kiểm tra khoảng cách ô (cell spacing)
     assert.equal(table.getAttribute("data-vno-cell-spacing"), "2.8");
     assert.equal(table.style.borderCollapse, "separate");
     assert.equal(table.style.borderSpacing, "2.8pt");
+  });
+
+  await test("Table Properties: Lề riêng tcMar, căn dọc và độ rộng cột áp dụng cho ô chọn", async () => {
+    const adapter = new WriterAdapter();
+    const docRoot = new MockElement("div");
+    adapter.editorDom = docRoot;
+    adapter.bodyDom = docRoot;
+    const table = createMockTable(2, 2);
+    docRoot.appendChild(table);
+    const cell = table.rows[0].cells[1];
+    adapter._getActiveTable = () => table;
+    adapter._getActiveTableCell = () => cell;
+    adapter.tableController = { selectedCells: new Set([cell]) };
+    const ok = await adapter.openTablePropertiesDialog({
+      align: "left", indentPt: 0, width: null, rowHeightPt: null,
+      marginTopPt: 5.67, marginBottomPt: 2.83, marginLeftPt: 8.5, marginRightPt: 4.25,
+      cellSpacingPt: 0, marginScope: "selection", verticalAlign: "bottom", columnWidthCm: 2
+    });
+    assert.equal(ok, true);
+    assert.equal(cell.getAttribute("data-vno-cell-mar-top"), "5.67");
+    assert.equal(cell.getAttribute("data-vno-cell-mar-bottom"), "2.83");
+    assert.equal(cell.getAttribute("data-vno-vertical-align"), "bottom");
+    assert.equal(cell.getAttribute("data-vno-preferred-col-width"), "2");
+    assert.equal(table.getAttribute("data-vno-cell-mar-top"), null, "lề riêng không ghi đè tblCellMar cấp bảng");
   });
 
   await test("List Preservation: _applyOoxmlListIndents và _applyOoxmlListBullets bảo toàn list-style-type và margin cho mục danh sách", async () => {

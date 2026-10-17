@@ -177,6 +177,13 @@ export const PAGE_MARGIN_PRESETS = Object.freeze({
 // Lề mặc định theo Nghị định 30/2020/NĐ-CP: Trên 20mm, Dưới 20mm, Trái 30mm, Phải 15mm
 const DEFAULT_MARGINS_MM = { top: 20, bottom: 20, left: 30, right: 15 };
 const MM_TO_PX = 3.7795275591; // 96dpi
+function writerCssLengthToPt(raw) {
+  const value = String(raw || "").trim().toLowerCase().match(/^(-?[\d.]+)\s*(px|pt|cm|mm|in)?$/);
+  if (!value) return null;
+  const n = Number(value[1]);
+  const unit = value[2] || "px";
+  return n * (unit === "pt" ? 1 : unit === "cm" ? 72 / 2.54 : unit === "mm" ? 72 / 25.4 : unit === "in" ? 72 : 0.75);
+}
 
 function pageSizeMm(setup) {
   if (setup?.size === "custom" && Number.isFinite(setup.widthMm) && Number.isFinite(setup.heightMm)) {
@@ -10240,9 +10247,10 @@ export class WriterAdapter {
    */
   setTableTextDirection(direction = null) {
     this.flushTyping();
-    const cells = this.tableController?.selectedCells?.size
-      ? Array.from(this.tableController.selectedCells)
-      : [this._getActiveTableCell()].filter(Boolean);
+    const activeCell = this._getActiveTableCell();
+    const activeTable = activeCell?.closest?.("table") || this._getActiveTable();
+    const selectedCells = Array.from(this.tableController?.selectedCells || []).filter(cell => cell?.closest?.("table") === activeTable);
+    const cells = selectedCells.length ? selectedCells : [activeCell].filter(Boolean);
     if (cells.length === 0) return false;
 
     let targetDirection = direction;
@@ -10305,24 +10313,49 @@ export class WriterAdapter {
       const align = table.getAttribute("data-vno-table-align") || 
         (table.style?.marginLeft === "auto" && table.style?.marginRight === "auto" ? "center" :
          table.style?.marginLeft === "auto" ? "right" : "left");
-      const indentPt = parseFloat(table.getAttribute("data-vno-table-indent") || "0") || 0;
+      const activeCell = this._getActiveTableCell();
+      const currentSelection = Array.from(this.tableController?.selectedCells || []).filter(cell => cell?.closest?.("table") === table);
+      const selectedCells = currentSelection.length ? currentSelection : [activeCell].filter(cell => cell?.closest?.("table") === table);
+      const getComputed = (element) => {
+        try { return typeof getComputedStyle === "function" ? getComputedStyle(element) : element?.style || {}; }
+        catch { return element?.style || {}; }
+      };
+      const cellStyle = getComputed(activeCell);
+      const indentMarker = table.getAttribute("data-vno-table-indent");
+      const indentPt = indentMarker !== null && indentMarker !== ""
+        ? Number(indentMarker) || 0
+        : Math.max(0, writerCssLengthToPt(table.style?.marginLeft) || 0);
       const width = table.style?.width || "";
       const hasWidth = !!width;
-      const widthVal = parseFloat(width) || "";
-      const widthUnit = width.endsWith("pt") ? "pt" : "%";
+      const widthIsPercent = width.trim().endsWith("%");
+      const widthVal = widthIsPercent ? (parseFloat(width) || "") : (writerCssLengthToPt(width) || 0) / 28.3464567;
+      const widthUnit = widthIsPercent ? "%" : "cm";
       
       const firstRow = table.rows?.[0];
       const rowHeight = firstRow?.style?.height || "";
       const hasRowHeight = !!rowHeight;
-      const rowHeightPt = parseFloat(rowHeight) || 0;
-
-      const marginTopPt = parseFloat(table.getAttribute("data-vno-cell-mar-top") || "5.65") || 5.65;
-      const marginBottomPt = parseFloat(table.getAttribute("data-vno-cell-mar-bottom") || "5.65") || 5.65;
-      const marginLeftPt = parseFloat(table.getAttribute("data-vno-cell-mar-left") || "8.5") || 8.5;
-      const marginRightPt = parseFloat(table.getAttribute("data-vno-cell-mar-right") || "8.5") || 8.5;
+      const rowHeightPt = writerCssLengthToPt(rowHeight) || 0;
+      const cellMarginPt = (side, fallback) => {
+        const tableValue = table.getAttribute(`data-vno-cell-mar-${side}`);
+        const cellValue = activeCell?.getAttribute?.(`data-vno-cell-mar-${side}`);
+        if (tableValue !== null && tableValue !== undefined) return Number(tableValue) || 0;
+        if (cellValue !== null && cellValue !== undefined) return Number(cellValue) || 0;
+        const css = writerCssLengthToPt(cellStyle?.[`padding${side[0].toUpperCase()}${side.slice(1)}`]);
+        if (css !== null && css !== undefined) return Math.max(0, css);
+        const shorthand = String(cellStyle?.padding || "").trim().split(/\s+/);
+        const index = side === "top" ? 0 : side === "right" ? 1 : side === "bottom" ? (shorthand.length === 2 ? 0 : 2) : (shorthand.length === 2 ? 1 : 3);
+        const shorthandPt = writerCssLengthToPt(shorthand[index]);
+        return shorthandPt !== null ? Math.max(0, shorthandPt) : fallback;
+      };
+      const marginTopPt = cellMarginPt("top", 5.65);
+      const marginBottomPt = cellMarginPt("bottom", 5.65);
+      const marginLeftPt = cellMarginPt("left", 8.5);
+      const marginRightPt = cellMarginPt("right", 8.5);
 
       const cellSpacingPt = parseFloat(table.getAttribute("data-vno-cell-spacing") || "0") || 0;
       const hasSpacing = cellSpacingPt > 0;
+      const verticalAlign = activeCell?.getAttribute("data-vno-vertical-align") || cellStyle?.verticalAlign || "top";
+      const colWidthPx = activeCell?.style?.width || table.rows?.[0]?.cells?.[activeCell?.cellIndex]?.style?.width || "";
 
       config = await showTablePropertiesDialog({
         align,
@@ -10337,7 +10370,11 @@ export class WriterAdapter {
         marginLeftPt,
         marginRightPt,
         cellSpacingPt,
-        hasSpacing
+        hasSpacing,
+        verticalAlign,
+        marginScope: selectedCells.length === 1 ? "selection" : "table",
+        hasColumnWidth: !!colWidthPx,
+        columnWidthCm: colWidthPx ? Number(((writerCssLengthToPt(colWidthPx) || 0) / 72 * 2.54).toFixed(2)) : ""
       });
     }
 
@@ -10370,11 +10407,25 @@ export class WriterAdapter {
 
     if (config.width && table.style) {
       table.style.width = config.width;
+      const widthValue = parseFloat(config.width);
+      const widthUnit = config.width.trim().endsWith("%") ? "pct" : "dxa";
+      table.setAttribute("data-vno-table-width", String(widthValue));
+      table.setAttribute("data-vno-table-width-unit", widthUnit);
+    } else if (config.width === null) {
+      table.style.width = "";
+      table.removeAttribute("data-vno-table-width");
+      table.removeAttribute("data-vno-table-width-unit");
     }
 
-    if (config.rowHeightPt && table.rows) {
+    if (table.rows) {
       for (const r of table.rows) {
-        if (r.style) r.style.height = `${config.rowHeightPt}pt`;
+        if (config.rowHeightPt && config.rowHeightPt > 0) {
+          r.setAttribute("data-vno-row-height", String(config.rowHeightPt));
+          if (r.style) r.style.height = `${config.rowHeightPt}pt`;
+        } else if (config.rowHeightPt === null) {
+          r.removeAttribute("data-vno-row-height");
+          if (r.style) r.style.height = "";
+        }
       }
     }
 
@@ -10383,17 +10434,46 @@ export class WriterAdapter {
     const leftPt = config.marginLeftPt ?? 8.5;
     const rightPt = config.marginRightPt ?? 8.5;
 
-    table.setAttribute("data-vno-cell-mar-top", String(topPt));
-    table.setAttribute("data-vno-cell-mar-bottom", String(botPt));
-    table.setAttribute("data-vno-cell-mar-left", String(leftPt));
-    table.setAttribute("data-vno-cell-mar-right", String(rightPt));
-
     const paddingCss = `${topPt}pt ${rightPt}pt ${botPt}pt ${leftPt}pt`;
-    if (table.rows) {
-      for (const r of table.rows) {
-        if (r.cells) {
-          for (const c of r.cells) {
-            if (c.style) c.style.padding = paddingCss;
+    const activeCell = this._getActiveTableCell();
+    const currentSelection = Array.from(this.tableController?.selectedCells || []).filter(cell => cell?.closest?.("table") === table);
+    const selectedCells = currentSelection.length ? currentSelection : [activeCell].filter(cell => cell?.closest?.("table") === table);
+    const marginCells = config.marginScope === "selection" ? selectedCells : Array.from(table.querySelectorAll("td,th"));
+    if (config.marginScope === "selection") {
+      for (const cell of marginCells) {
+        cell.setAttribute("data-vno-cell-mar-top", String(topPt));
+        cell.setAttribute("data-vno-cell-mar-bottom", String(botPt));
+        cell.setAttribute("data-vno-cell-mar-left", String(leftPt));
+        cell.setAttribute("data-vno-cell-mar-right", String(rightPt));
+        if (cell.style) cell.style.padding = paddingCss;
+      }
+    } else {
+      table.setAttribute("data-vno-cell-mar-top", String(topPt));
+      table.setAttribute("data-vno-cell-mar-bottom", String(botPt));
+      table.setAttribute("data-vno-cell-mar-left", String(leftPt));
+      table.setAttribute("data-vno-cell-mar-right", String(rightPt));
+      for (const cell of marginCells) {
+        ["top", "bottom", "left", "right"].forEach(side => cell.removeAttribute(`data-vno-cell-mar-${side}`));
+        if (cell.style) cell.style.padding = paddingCss;
+      }
+    }
+
+    const valign = ["top", "center", "bottom"].includes(config.verticalAlign) ? config.verticalAlign : "top";
+    for (const cell of selectedCells) {
+      cell.setAttribute("data-vno-vertical-align", valign);
+      if (cell.style) cell.style.verticalAlign = valign;
+    }
+
+    if (Number(config.columnWidthCm) > 0) {
+      const cell = this._getActiveTableCell();
+      const columnIndex = cell?.cellIndex;
+      if (Number.isInteger(columnIndex)) {
+        const width = `${Number(config.columnWidthCm) * 96 / 2.54}px`;
+        for (const row of Array.from(table.rows || [])) {
+          const columnCell = row.cells?.[columnIndex];
+          if (columnCell?.style) {
+            columnCell.style.width = width;
+            columnCell.setAttribute("data-vno-preferred-col-width", String(Number(config.columnWidthCm)));
           }
         }
       }
