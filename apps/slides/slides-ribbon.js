@@ -682,6 +682,7 @@ export const SLIDES_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "slides.view.normal", isLarge: true },
           { type: "button", commandId: "slides.view.outline", isLarge: true },
+          { type: "button", commandId: "slides.view.notesPage", isLarge: true },
           { type: "button", commandId: "slides.view.slideSorter", isLarge: true },
           { type: "button", commandId: "slides.notes.toggle", isLarge: true },
           { type: "button", commandId: "slides.view.reading", isLarge: true },

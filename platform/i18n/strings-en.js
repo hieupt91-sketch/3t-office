@@ -1062,6 +1062,7 @@ export const enStrings = {
   ,"slides.picture.crop": { label: "Crop", tooltip: "Crop the selected picture to an aspect ratio or enter crop amounts per edge" }
   ,"slides.picture.cropRatio": { label: "Crop to Ratio", tooltip: "Crop the selected picture to the chosen aspect ratio (centered), or reset the crop" }
   ,"slides.picture.cropDialog": { label: "Crop Amounts…", tooltip: "Enter the crop percentage for the left, right, top and bottom edges" }
+  ,"slides.view.notesPage": { label: "Notes Page", tooltip: "View each slide with the speaker notes as a printed page" }
   ,"slides.view.outline": { label: "Outline View", tooltip: "View and edit the titles and text of every slide as an outline" }
   ,"slides.design.hideBackground": { label: "Hide Background Graphics", tooltip: "Hide the master graphics and logo on the current slide (toggle)" }
   ,"slides.edit.selectionPane": { label: "Selection Pane", tooltip: "Open a list of every object on the slide to select it quickly and change layer order (Alt+F10)" }
