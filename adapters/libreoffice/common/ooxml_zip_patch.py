@@ -11898,6 +11898,88 @@ def _apply_slides_native_textboxes(
     return replacements
 
 
+def _apply_slides_native_shape_lines(
+    pptx_bytes: bytes,
+    source_pptx: bytes | None = None,
+    base_replacements: dict[str, str] | None = None,
+) -> dict[str, str]:
+    if not source_pptx:
+        return {}
+    target_entries = _resolve_pptx_slide_entries(pptx_bytes)
+    src_entries = _resolve_pptx_slide_entries(source_pptx)
+    if not target_entries or not src_entries:
+        return {}
+
+    replacements: dict[str, str] = {}
+    for idx, entry in enumerate(target_entries):
+        if idx >= len(src_entries):
+            continue
+        src_bytes = read_zip_entry(source_pptx, src_entries[idx])
+        if not src_bytes:
+            continue
+        src_xml = src_bytes.decode("utf-8", errors="replace")
+
+        # Extract shapes from src_xml
+        src_shapes: dict[str, str] = {}
+        for m in re.finditer(r'<p:sp\b[\s\S]*?</p:sp>', src_xml, re.IGNORECASE):
+            sp = m.group(0)
+            nm = re.search(r'<p:cNvPr\b[^>]*\bname=["\']([^"\']*)["\']', sp, re.IGNORECASE)
+            if nm:
+                src_shapes[_unescape_xml(nm.group(1))] = sp
+
+        if not src_shapes:
+            continue
+
+        original = (base_replacements or {}).get(entry) or read_zip_entry(pptx_bytes, entry).decode("utf-8", errors="replace")
+        xml = original
+        changed = False
+
+        def patch_sp(m: re.Match) -> str:
+            nonlocal changed
+            sp = m.group(0)
+            nm = re.search(r'<p:cNvPr\b[^>]*\bname=["\']([^"\']*)["\']', sp, re.IGNORECASE)
+            if not nm:
+                return sp
+            name = _unescape_xml(nm.group(1))
+            if name not in src_shapes:
+                return sp
+            src_sp = src_shapes[name]
+
+            orig_has_ln = bool(re.search(r'<a:ln\b', src_sp, re.IGNORECASE))
+            orig_ln_m = re.search(r'<a:ln\b[^>]*\bw=["\'](\d+)["\']', src_sp, re.IGNORECASE)
+            orig_style_m = re.search(r'<p:style>[\s\S]*?</p:style>', src_sp, re.IGNORECASE)
+
+            if not orig_has_ln and orig_style_m and re.search(r'<a:lnRef\b[^>]*\bidx=["\'](?!0\b)\d+["\']', orig_style_m.group(0), re.IGNORECASE):
+                # Shape in source relied on theme style for line (no explicit <a:ln>)
+                # Remove explicit <a:ln> injected by soffice inside <p:spPr>
+                sp_pr_m = re.search(r'<p:spPr\b[\s\S]*?</p:spPr>', sp, re.IGNORECASE)
+                if sp_pr_m and re.search(r'<a:ln\b', sp_pr_m.group(0), re.IGNORECASE):
+                    new_sp_pr = re.sub(r'<a:ln\b[\s\S]*?</a:ln>', '', sp_pr_m.group(0), flags=re.IGNORECASE)
+                    sp = sp[:sp_pr_m.start()] + new_sp_pr + sp[sp_pr_m.end():]
+                # Restore original <p:style>
+                if re.search(r'<p:style>[\s\S]*?</p:style>', sp, re.IGNORECASE):
+                    sp = re.sub(r'<p:style>[\s\S]*?</p:style>', orig_style_m.group(0), sp, flags=re.IGNORECASE)
+                else:
+                    sp = sp.replace('</p:spPr>', '</p:spPr>' + orig_style_m.group(0))
+                changed = True
+            elif orig_ln_m:
+                # Shape in source had explicit line width (EMU)
+                orig_w = orig_ln_m.group(1)
+                new_sp = re.sub(r'(<a:ln\b[^>]*\bw=["\'])\d+(["\'])', rf'\g<1>{orig_w}\2', sp, flags=re.IGNORECASE)
+                if new_sp != sp:
+                    sp = new_sp
+                    changed = True
+
+            return sp
+
+        next_xml = re.sub(r'<p:sp\b[\s\S]*?</p:sp>', patch_sp, xml, flags=re.IGNORECASE)
+        if changed and next_xml != original:
+            replacements[entry] = next_xml
+
+    return replacements
+
+
+
 def _slides_wordart_ids_from_fodp(fodp_xml: str | None) -> list[set[str]]:
     pages: list[set[str]] = []
     for page in re.finditer(r"<draw:page\b(?![-\w])[^>]*>([\s\S]*?)</draw:page\s*>", str(fodp_xml or ""), re.IGNORECASE):
@@ -12139,7 +12221,13 @@ def postprocess_slides_pptx(
          **transition_replacements, **wordart_replacements, **layout_replacements, **native_timing_replacements,
          **shadow_replacements, **source_transition_replacements},
     )
-    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements and not native_timing_replacements and not shadow_replacements and not source_transition_replacements and not textbox_replacements and not restore_masters:
+    shape_line_replacements = _apply_slides_native_shape_lines(
+        pptx_bytes, source_pptx,
+        {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,
+         **transition_replacements, **wordart_replacements, **layout_replacements, **native_timing_replacements,
+         **shadow_replacements, **source_transition_replacements, **textbox_replacements},
+    )
+    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements and not native_timing_replacements and not shadow_replacements and not source_transition_replacements and not textbox_replacements and not shape_line_replacements and not restore_masters:
         return pptx_bytes
     replacements.update(animation_replacements)
     replacements.update(paragraph_level_replacements)
@@ -12152,6 +12240,7 @@ def postprocess_slides_pptx(
     replacements.update(shadow_replacements)
     replacements.update(source_transition_replacements)
     replacements.update(textbox_replacements)
+    replacements.update(shape_line_replacements)
 
     if apply_slide_size and presentation_xml:
         presentation_xml = apply_intended_slide_size(presentation_xml, intended_size)
