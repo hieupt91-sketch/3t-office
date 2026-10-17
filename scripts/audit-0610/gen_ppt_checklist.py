@@ -81,10 +81,10 @@ Trang đầu|Vẽ|Sắp xếp: Nhóm đối tượng (Group, Ctrl+G)|V|-|FIX-L12
 Trang đầu|Vẽ|Sắp xếp: Rã nhóm (Ungroup, Ctrl+Shift+G)|A|-|slides.shape.ungroup; tách các đối tượng trong nhóm
 Trang đầu|Vẽ|Sắp xếp: Căn lề đối tượng (Align Objects)|V|-|Đo thực tế PowerPoint COM ShapeRange.Align đối chiếu hệ thống lệnh slides.arrange.alignLeft, slides.arrange.alignCenter (docs/ppt-oracle-1710.json:86-92, docs/POWERPOINT2016-FINDINGS-1710.md:24)
 Trang đầu|Vẽ|Sắp xếp: Phân phối đều ngang/dọc (Distribute)|A|-|slides.arrange.distributeHorizontal, slides.arrange.distributeVertical; phân phối đều khoảng cách
-Trang đầu|Vẽ|Sắp xếp: Xoay và lật hình (Rotate & Flip)|V|-|slides.arrange.rotate (tab Định dạng hình); PowerPoint COM đọc lại rotation=90 (scripts/audit-0610/ppt_shape_format_readback.ps1) (adapters/libreoffice/slides/slides-adapter.js:1550; scripts/audit-0610/ppt_shape_format_readback.ps1:1)
+Trang đầu|Vẽ|Sắp xếp: Xoay và lật hình (Rotate & Flip)|V|-|slides.arrange.rotate (tab Định dạng hình); PowerPoint COM đọc lại rotation=90 (scripts/audit-0610/ppt_shape_format_readback.ps1) (adapters/libreoffice/slides/slides-adapter.js:1634; scripts/audit-0610/ppt_shape_format_readback.ps1:1)
 Trang đầu|Vẽ|Kiểu nhanh hình dạng (Quick Styles Gallery)|P|2|Có thư viện kiểu màu cơ bản; chưa có gallery đầy đủ hiệu ứng 3D như PowerPoint
 Trang đầu|Vẽ|Tô nền hình (Shape Fill: Màu đơn, Chuyển sắc, Ảnh)|P|2|slides.shape.fill: bảng 15 màu, không tô, màu khác (PowerPoint COM đọc lại đúng màu); chưa có chuyển sắc / ảnh trên nút này
-Trang đầu|Vẽ|Viền hình (Shape Outline: Màu, Độ dày nét, Nét đứt)|V|-|slides.shape.outline: màu, độ dày ½–6 pt, nét liền/gạch/chấm/gạch chấm; PowerPoint COM đọc lại line đỏ 3 pt nét gạch (adapters/libreoffice/slides/slides-adapter.js:1517; scripts/audit-0610/ppt_shape_format_readback.ps1:1)
+Trang đầu|Vẽ|Viền hình (Shape Outline: Màu, Độ dày nét, Nét đứt)|V|-|slides.shape.outline: màu, độ dày ½–6 pt, nét liền/gạch/chấm/gạch chấm; PowerPoint COM đọc lại line đỏ 3 pt nét gạch (adapters/libreoffice/slides/slides-adapter.js:1601; scripts/audit-0610/ppt_shape_format_readback.ps1:1)
 Trang đầu|Vẽ|Hiệu ứng hình (Shape Effects: Bóng, Phát sáng, Mềm cạnh)|P|2|slides.shape.effects: đổ bóng 4 hướng (PowerPoint COM đọc lại Shadow.Visible); chưa có phát sáng / mềm cạnh / tùy chỉnh
 Trang đầu|Chỉnh sửa|Tìm kiếm (Ctrl+F / Find)|V|-|FIX-L8: common.edit.find tìm chuỗi ROAD TRIP đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:48)
 Trang đầu|Chỉnh sửa|Thay thế (Ctrl+H / Replace)|V|-|FIX-L8: common.edit.replace thay thế văn bản đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:49)
@@ -229,7 +229,7 @@ Công cụ vẽ > Định dạng|Sắp xếp|Căn lề đối tượng (Align Le
 Công cụ vẽ > Định dạng|Sắp xếp|Phân phối đều khoảng cách (Distribute Horizontally / Vertically)|A|-|slides.arrange.distributeHorizontal, slides.arrange.distributeVertical; phân phối đều khoảng cách
 Công cụ vẽ > Định dạng|Sắp xếp|Nhóm đối tượng (Group, Ctrl+G)|V|-|FIX-L12: sơ đồ nhóm 7 đối tượng Shape.Type=6 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:53, docs/POWERPOINT2016-FINDINGS-1710.md:23)
 Công cụ vẽ > Định dạng|Sắp xếp|Rã nhóm đối tượng (Ungroup, Ctrl+Shift+G)|A|-|slides.shape.ungroup; giải phóng nhóm thành các hình riêng
-Công cụ vẽ > Định dạng|Sắp xếp|Xoay và lật đối tượng (Rotate 90°, Flip)|V|-|Tab Định dạng hình > Xoay (4 lệnh); PowerPoint COM đọc lại rotation=90 (adapters/libreoffice/slides/slides-adapter.js:1554; scripts/audit-0610/ppt_shape_format_readback.ps1:1)
+Công cụ vẽ > Định dạng|Sắp xếp|Xoay và lật đối tượng (Rotate 90°, Flip)|V|-|Tab Định dạng hình > Xoay (4 lệnh); PowerPoint COM đọc lại rotation=90 (adapters/libreoffice/slides/slides-adapter.js:1638; scripts/audit-0610/ppt_shape_format_readback.ps1:1)
 Công cụ vẽ > Định dạng|Kích thước|Chiều cao đối tượng (Shape Height)|N|2|Chưa có ô nhập chiều cao chính xác (cm/pt) cho hình trên ribbon
 Công cụ vẽ > Định dạng|Kích thước|Chiều rộng đối tượng (Shape Width)|N|2|Chưa có ô nhập chiều rộng chính xác (cm/pt) cho hình trên ribbon
 Công cụ vẽ > Định dạng|Kích thước|Khóa tỷ lệ khung hình (Lock Aspect Ratio)|N|2|Chưa có tùy chọn khóa tỷ lệ khung hình (Lock Aspect Ratio)

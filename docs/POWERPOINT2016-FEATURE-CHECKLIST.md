@@ -170,10 +170,10 @@ Tổng: 7 mục ưu tiên 1.
 | Vẽ | Sắp xếp: Rã nhóm (Ungroup, Ctrl+Shift+G) | 🟢 | - | slides.shape.ungroup; tách các đối tượng trong nhóm |
 | Vẽ | Sắp xếp: Căn lề đối tượng (Align Objects) | ✅ | - | Đo thực tế PowerPoint COM ShapeRange.Align đối chiếu hệ thống lệnh slides.arrange.alignLeft, slides.arrange.alignCenter (docs/ppt-oracle-1710.json:86-92, docs/POWERPOINT2016-FINDINGS-1710.md:24) |
 | Vẽ | Sắp xếp: Phân phối đều ngang/dọc (Distribute) | 🟢 | - | slides.arrange.distributeHorizontal, slides.arrange.distributeVertical; phân phối đều khoảng cách |
-| Vẽ | Sắp xếp: Xoay và lật hình (Rotate & Flip) | ✅ | - | slides.arrange.rotate (tab Định dạng hình); PowerPoint COM đọc lại rotation=90 (scripts/audit-0610/ppt_shape_format_readback.ps1) (adapters/libreoffice/slides/slides-adapter.js:1550; scripts/audit-0610/ppt_shape_format_readback.ps1:1) |
+| Vẽ | Sắp xếp: Xoay và lật hình (Rotate & Flip) | ✅ | - | slides.arrange.rotate (tab Định dạng hình); PowerPoint COM đọc lại rotation=90 (scripts/audit-0610/ppt_shape_format_readback.ps1) (adapters/libreoffice/slides/slides-adapter.js:1634; scripts/audit-0610/ppt_shape_format_readback.ps1:1) |
 | Vẽ | Kiểu nhanh hình dạng (Quick Styles Gallery) | 🟡 | 2 | Có thư viện kiểu màu cơ bản; chưa có gallery đầy đủ hiệu ứng 3D như PowerPoint |
 | Vẽ | Tô nền hình (Shape Fill: Màu đơn, Chuyển sắc, Ảnh) | 🟡 | 2 | slides.shape.fill: bảng 15 màu, không tô, màu khác (PowerPoint COM đọc lại đúng màu); chưa có chuyển sắc / ảnh trên nút này |
-| Vẽ | Viền hình (Shape Outline: Màu, Độ dày nét, Nét đứt) | ✅ | - | slides.shape.outline: màu, độ dày ½–6 pt, nét liền/gạch/chấm/gạch chấm; PowerPoint COM đọc lại line đỏ 3 pt nét gạch (adapters/libreoffice/slides/slides-adapter.js:1517; scripts/audit-0610/ppt_shape_format_readback.ps1:1) |
+| Vẽ | Viền hình (Shape Outline: Màu, Độ dày nét, Nét đứt) | ✅ | - | slides.shape.outline: màu, độ dày ½–6 pt, nét liền/gạch/chấm/gạch chấm; PowerPoint COM đọc lại line đỏ 3 pt nét gạch (adapters/libreoffice/slides/slides-adapter.js:1601; scripts/audit-0610/ppt_shape_format_readback.ps1:1) |
 | Vẽ | Hiệu ứng hình (Shape Effects: Bóng, Phát sáng, Mềm cạnh) | 🟡 | 2 | slides.shape.effects: đổ bóng 4 hướng (PowerPoint COM đọc lại Shadow.Visible); chưa có phát sáng / mềm cạnh / tùy chỉnh |
 | Chỉnh sửa | Tìm kiếm (Ctrl+F / Find) | ✅ | - | FIX-L8: common.edit.find tìm chuỗi ROAD TRIP đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:48) |
 | Chỉnh sửa | Thay thế (Ctrl+H / Replace) | ✅ | - | FIX-L8: common.edit.replace thay thế văn bản đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:49) |
@@ -358,7 +358,7 @@ Tổng: 7 mục ưu tiên 1.
 | Sắp xếp | Phân phối đều khoảng cách (Distribute Horizontally / Vertically) | 🟢 | - | slides.arrange.distributeHorizontal, slides.arrange.distributeVertical; phân phối đều khoảng cách |
 | Sắp xếp | Nhóm đối tượng (Group, Ctrl+G) | ✅ | - | FIX-L12: sơ đồ nhóm 7 đối tượng Shape.Type=6 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:53, docs/POWERPOINT2016-FINDINGS-1710.md:23) |
 | Sắp xếp | Rã nhóm đối tượng (Ungroup, Ctrl+Shift+G) | 🟢 | - | slides.shape.ungroup; giải phóng nhóm thành các hình riêng |
-| Sắp xếp | Xoay và lật đối tượng (Rotate 90°, Flip) | ✅ | - | Tab Định dạng hình > Xoay (4 lệnh); PowerPoint COM đọc lại rotation=90 (adapters/libreoffice/slides/slides-adapter.js:1554; scripts/audit-0610/ppt_shape_format_readback.ps1:1) |
+| Sắp xếp | Xoay và lật đối tượng (Rotate 90°, Flip) | ✅ | - | Tab Định dạng hình > Xoay (4 lệnh); PowerPoint COM đọc lại rotation=90 (adapters/libreoffice/slides/slides-adapter.js:1638; scripts/audit-0610/ppt_shape_format_readback.ps1:1) |
 | Kích thước | Chiều cao đối tượng (Shape Height) | 🔴 | 2 | Chưa có ô nhập chiều cao chính xác (cm/pt) cho hình trên ribbon |
 | Kích thước | Chiều rộng đối tượng (Shape Width) | 🔴 | 2 | Chưa có ô nhập chiều rộng chính xác (cm/pt) cho hình trên ribbon |
 | Kích thước | Khóa tỷ lệ khung hình (Lock Aspect Ratio) | 🔴 | 2 | Chưa có tùy chọn khóa tỷ lệ khung hình (Lock Aspect Ratio) |

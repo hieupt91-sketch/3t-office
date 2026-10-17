@@ -16,15 +16,15 @@ Chuẩn: Microsoft Word 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qu
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu Word 2016 | 145 | 53% |
+| ✅ Đã đối chiếu Word 2016 | 149 | 55% |
 | 🟢 Có, chưa đối chiếu | 63 | 23% |
-| 🟡 Có một phần | 33 | 12% |
-| 🔴 Chưa có | 32 | 12% |
+| 🟡 Có một phần | 31 | 11% |
+| 🔴 Chưa có | 30 | 11% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **279** (áp dụng: 273) | |
 
-- **Độ phủ so với Word 2016 (có hoặc có một phần, một phần tính 0,5): 82%**
-- **Đã xác minh bằng đối chiếu Word 2016 thật: 53%** các mục áp dụng
+- **Độ phủ so với Word 2016 (có hoặc có một phần, một phần tính 0,5): 83%**
+- **Đã xác minh bằng đối chiếu Word 2016 thật: 55%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn phòng; độ trung thực đối chiếu được xác nhận bằng Word COM thật.
 
@@ -41,7 +41,7 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | Thư | 16 | 9 | 0 | 6 | 1 | 0 | 75% |
 | Xem lại | 22 | 10 | 7 | 2 | 3 | 0 | 82% |
 | Chế độ xem | 21 | 10 | 5 | 2 | 4 | 0 | 76% |
-| Công cụ Bảng | 26 | 19 | 0 | 4 | 3 | 0 | 81% |
+| Công cụ Bảng | 26 | 23 | 0 | 2 | 1 | 0 | 92% |
 | Công cụ Hình ảnh | 12 | 2 | 5 | 2 | 3 | 0 | 67% |
 | Công cụ Vẽ | 10 | 4 | 2 | 2 | 2 | 0 | 70% |
 | Công cụ Đầu & Chân trang | 7 | 4 | 2 | 1 | 0 | 0 | 93% |
@@ -56,13 +56,9 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | 3 | Trang đầu | Đoạn văn | Hộp thoại Điểm dừng Tab (Tabs Dialog: căn lề, ký tự dẫn leader) | 🟡 | Hỗ trợ phím Tab cơ bản; chưa có hộp thoại Tabs dialog tùy biến vị trí và ký tự dẫn leader dots (docs/WORD2016-FINDINGS-1710.md:55-58, FIX-W1-TABS) |
 | 4 | Trang đầu | Chỉnh sửa | Đi đến (Go To, Ctrl+G) | 🟡 | Có điều hướng đầu/cuối tài liệu Ctrl+Home/End; chưa có hộp thoại Go To tới trang/dòng/bookmark (FIX-W7-GOTO) |
 | 5 | Công cụ Bảng | Thiết kế | Độ dày và kiểu đường viền bảng | 🟡 | Hỗ trợ độ dày chuẩn; kiểu nét đứt/đôi cần hoàn thiện trong giao diện viền |
-| 6 | Công cụ Bảng | Bố trí | Thuộc tính bảng (Table Properties Dialog) | 🟢 | Hộp thoại Bảng/Hàng/Cột/Ô cấu hình căn, thụt lề, độ rộng %, cm, chiều cao hàng, căn dọc và lề ô; lưu DOCX qua OOXML |
-| 7 | Công cụ Bảng | Bố trí | Tách bảng (Split Table) | 🟢 | Tách tại hàng con trỏ thành hai w:tbl, chèn đoạn trống, giữ nguyên hàng đầu bảng mới và Undo một bước |
-| 8 | Công cụ Bảng | Bố trí | Xoay hướng chữ trong ô (Text Direction) | 🟢 | Xoay Ngang/90°/270° với CSS writing-mode và w:textDirection; Word COM đọc Orientation đúng |
-| 9 | Công cụ Bảng | Bố trí | Khoảng cách lề ô bảng (Cell Margins) | 🟢 | Hộp thoại nhập lề Trên/Dưới/Trái/Phải theo cm; lưu mặc định bằng w:tblCellMar hoặc riêng ô bằng w:tcMar |
-| 10 | Không thuộc ribbon | Chuột | Đặt điểm dừng tab tùy chỉnh trên thước | 🔴 | Chưa có thao tác nhấp chuột lên thước để đặt tab dừng căn phải/giữa/thập phân |
+| 6 | Không thuộc ribbon | Chuột | Đặt điểm dừng tab tùy chỉnh trên thước | 🔴 | Chưa có thao tác nhấp chuột lên thước để đặt tab dừng căn phải/giữa/thập phân |
 
-Tổng: 10 mục ưu tiên 1 cần bổ sung/hoàn thiện.
+Tổng: 6 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 
 ## Đề xuất 10 phiếu việc kế tiếp
 
@@ -344,19 +340,19 @@ Tổng: 10 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Thiết kế | Vẽ bảng (Draw Table) & Tẩy viền (Eraser) | 🔴 | 2 | Chưa có công cụ vẽ viền tự do bằng chuột |
 | Bố trí | Chọn ô, hàng, cột, bảng (Table Select) | ✅ | - | writer.table.selectCell, selectRow, selectCol, selectTable: chọn ô, hàng, cột, toàn bộ bảng; đã đo kiểm đối chiếu Word 2016 COM Selection (apps/writer/writer-table.js:410-454, docs/word-oracle-tables-1710.json:48-65, tests/live/cdp/writer-table-parity.desktop.mjs:141-164) |
 | Bố trí | Xem đường lưới bảng (View Gridlines) | ✅ | - | writer.table.viewGridlines: bật/tắt đường viền lưới chấm mờ của bảng không viền; đã đo kiểm đối chiếu Word 2016 COM TableGridlines (adapters/libreoffice/writer/writer-adapter.js:10017-10026, docs/word-oracle-tables-1710.json:97-103, tests/live/cdp/writer-table-parity.desktop.mjs:181-197) |
-| Bố trí | Thuộc tính bảng (Table Properties Dialog) | 🟢 | 1 | Hộp thoại gộp Bảng/Hàng/Cột/Ô; kiểm tra DOCX và Word COM trong `tests/live/cdp/writer-table-properties.desktop.mjs` |
+| Bố trí | Thuộc tính bảng (Table Properties Dialog) | ✅ | - | writer.table.properties: hộp thoại Bảng/Hàng/Cột/Ô (căn, thụt lề, độ rộng %, cm, chiều cao hàng, căn dọc, lề ô); lưu DOCX và Word COM đọc lại đúng (platform/commands/command-definitions.js:192, tests/live/cdp/writer-table-properties.desktop.mjs:162) |
 | Bố trí | Chèn hàng trên / Chèn hàng dưới | ✅ | - | Chèn hàng trên và dưới đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:54,79) |
 | Bố trí | Chèn cột trái / Chèn cột phải | ✅ | - | Chèn cột trái và phải đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:54,79) |
 | Bố trí | Xóa hàng, xóa cột, xóa bảng | ✅ | - | Xóa hàng, xóa cột, xóa bảng đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:54,83) |
 | Bố trí | Gộp ô (Merge Cells) | ✅ | - | Gộp ô ngang và dọc đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:55,83) |
 | Bố trí | Tách ô (Split Cells) | ✅ | - | Tách ô ngang và dọc đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:55,83) |
-| Bố trí | Tách bảng (Split Table) | 🟢 | 1 | Hai w:tbl sau lưu, phân hàng đúng và Undo một bước trong kiểm tra desktop CDP/Word COM |
+| Bố trí | Tách bảng (Split Table) | ✅ | - | writer.table.splitTable: tách tại hàng chọn thành hai w:tbl, Undo một bước, Word COM đọc Tables.Count=2 (platform/commands/command-definitions.js:190, tests/live/cdp/writer-table-properties.desktop.mjs:53) |
 | Bố trí | Tự khớp kích thước (AutoFit to Contents / Window) | ✅ | - | Tự khớp kích thước AutoFit nội dung và cửa sổ đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:57,83) |
 | Bố trí | Chiều cao hàng & Chiều rộng cột chính xác | ✅ | - | Chiều cao hàng w:trHeight exact 840 và kéo cột đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:57,83) |
 | Bố trí | Phân bố đều hàng & cột (Distribute Rows / Columns) | ✅ | - | writer.table.distributeRows, distributeCols: căn đều chiều cao các hàng theo chiều cao trung bình và chia đều bề rộng cột %; đã đo kiểm đối chiếu Word 2016 COM DistributeHeight/DistributeWidth (adapters/libreoffice/writer/writer-adapter.js:10004-10034, docs/word-oracle-tables-1710.json:2-16, tests/live/cdp/writer-table-parity.desktop.mjs:47-70) |
 | Bố trí | Căn lề ô theo chiều dọc (Top, Center, Bottom) | ✅ | - | Căn giữa dọc ô bảng VerticalAlignment=1 đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:56,79, docs/word-oracle-1710.json:30-36) |
-| Bố trí | Xoay hướng chữ trong ô (Text Direction) | 🟢 | 1 | Word COM đọc hướng 90° là Orientation=3; lưu w:textDirection |
-| Bố trí | Khoảng cách lề ô bảng (Cell Margins) | 🟢 | 1 | Lề nhập cm, căn dọc, w:tblCellMar và w:tcMar được kiểm tra qua DOCX |
+| Bố trí | Xoay hướng chữ trong ô (Text Direction) | ✅ | - | writer.table.textDirection: Ngang/90°/270° lưu w:textDirection, Word COM đọc Orientation=3 (platform/commands/command-definitions.js:191, tests/live/cdp/writer-table-properties.desktop.mjs:134) |
+| Bố trí | Khoảng cách lề ô bảng (Cell Margins) | ✅ | - | writer.table.properties tab Ô/Bảng: lề cm lưu w:tblCellMar/w:tcMar, Word COM đọc padding đúng (platform/commands/command-definitions.js:192, tests/live/cdp/writer-table-properties.desktop.mjs:134) |
 | Bố trí | Lặp lại hàng tiêu đề qua các trang (Repeat Header Rows) | ✅ | - | Lặp lại hàng tiêu đề HeadingFormat=-1 đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:56) |
 | Bố trí | Sắp xếp dữ liệu trong bảng (Sort Table) | ✅ | - | writer.table.sort: sắp xếp các hàng dữ liệu A-Z theo cột đang chọn, giữ nguyên hàng tiêu đề; đã đo kiểm đối chiếu Word 2016 COM Table.Sort(ExcludeHeader) (adapters/libreoffice/writer/writer-adapter.js:1816-1851, docs/word-oracle-tables-1710.json:28-42, tests/live/cdp/writer-table-parity.desktop.mjs:95-121) |
 | Bố trí | Công thức tính toán trong bảng (=SUM(ABOVE)...) | ✅ | - | writer.table.formula: tính toán =SUM(ABOVE), =SUM(LEFT), AVERAGE, COUNT, MAX, MIN, PRODUCT, xuất w:fldSimple, đã đo kiểm đối chiếu Word COM (apps/writer/writer-table-formula-dialog.js:1-25, docs/word-oracle-writer2-1710.json:49-60) |
