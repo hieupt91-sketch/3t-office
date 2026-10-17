@@ -251,7 +251,33 @@ export const SLIDES_RIBBON_TABS = [
         labelKey: "slidesRibbon.group.drawing",
         items: [
           { type: "button", commandId: "slides.text.insert", isLarge: true },
-          { type: "button", commandId: "slides.shape.insert", isLarge: true },
+          {
+            type: "dropdown",
+            id: "slides.shape.gallery",
+            label: "Hình",
+            icon: "shape",
+            isLarge: true,
+            items: [
+                { commandId: "slides.shape.insert", label: "Hình chữ nhật" },
+                { commandId: "slides.shape.insertPreset", args: "ellipse", label: "Hình elip" },
+                { commandId: "slides.shape.insertPreset", args: "roundRect", label: "Hình chữ nhật bo góc" },
+                { commandId: "slides.shape.insertPreset", args: "triangle", label: "Tam giác cân" },
+                { commandId: "slides.shape.insertPreset", args: "rtTriangle", label: "Tam giác vuông" },
+                { commandId: "slides.shape.insertPreset", args: "diamond", label: "Hình thoi" },
+                { commandId: "slides.shape.insertPreset", args: "parallelogram", label: "Hình bình hành" },
+                { commandId: "slides.shape.insertPreset", args: "trapezoid", label: "Hình thang" },
+                { commandId: "slides.shape.insertPreset", args: "pentagon", label: "Ngũ giác" },
+                { commandId: "slides.shape.insertPreset", args: "hexagon", label: "Lục giác" },
+                { commandId: "slides.shape.insertPreset", args: "star5", label: "Sao 5 cánh" },
+                { commandId: "slides.shape.insertPreset", args: "plus", label: "Dấu cộng" },
+                { commandId: "slides.shape.insertPreset", args: "rightArrow", label: "Mũi tên phải" },
+                { commandId: "slides.shape.insertPreset", args: "leftArrow", label: "Mũi tên trái" },
+                { commandId: "slides.shape.insertPreset", args: "upArrow", label: "Mũi tên lên" },
+                { commandId: "slides.shape.insertPreset", args: "downArrow", label: "Mũi tên xuống" },
+                { commandId: "slides.shape.insertPreset", args: "heart", label: "Hình trái tim" },
+                { commandId: "slides.shape.insertPreset", args: "wedgeRectCallout", label: "Chú thích chữ nhật" }
+            ]
+          },
           { type: "button", commandId: "slides.image.insert", isLarge: true },
           {
             type: "dropdown",
@@ -334,7 +360,33 @@ export const SLIDES_RIBBON_TABS = [
         label: "Minh họa",
         labelKey: "slidesRibbon.group.illustrations",
         items: [
-          { type: "button", commandId: "slides.shape.insert", isLarge: true },
+          {
+            type: "dropdown",
+            id: "slides.shape.galleryInsert",
+            label: "Hình",
+            icon: "shape",
+            isLarge: true,
+            items: [
+              { commandId: "slides.shape.insert", label: "Hình chữ nhật" },
+              { commandId: "slides.shape.insertPreset", args: "ellipse", label: "Hình elip" },
+              { commandId: "slides.shape.insertPreset", args: "roundRect", label: "Hình chữ nhật bo góc" },
+              { commandId: "slides.shape.insertPreset", args: "triangle", label: "Tam giác cân" },
+              { commandId: "slides.shape.insertPreset", args: "rtTriangle", label: "Tam giác vuông" },
+              { commandId: "slides.shape.insertPreset", args: "diamond", label: "Hình thoi" },
+              { commandId: "slides.shape.insertPreset", args: "parallelogram", label: "Hình bình hành" },
+              { commandId: "slides.shape.insertPreset", args: "trapezoid", label: "Hình thang" },
+              { commandId: "slides.shape.insertPreset", args: "pentagon", label: "Ngũ giác" },
+              { commandId: "slides.shape.insertPreset", args: "hexagon", label: "Lục giác" },
+              { commandId: "slides.shape.insertPreset", args: "star5", label: "Sao 5 cánh" },
+              { commandId: "slides.shape.insertPreset", args: "plus", label: "Dấu cộng" },
+              { commandId: "slides.shape.insertPreset", args: "rightArrow", label: "Mũi tên phải" },
+              { commandId: "slides.shape.insertPreset", args: "leftArrow", label: "Mũi tên trái" },
+              { commandId: "slides.shape.insertPreset", args: "upArrow", label: "Mũi tên lên" },
+              { commandId: "slides.shape.insertPreset", args: "downArrow", label: "Mũi tên xuống" },
+              { commandId: "slides.shape.insertPreset", args: "heart", label: "Hình trái tim" },
+              { commandId: "slides.shape.insertPreset", args: "wedgeRectCallout", label: "Chú thích chữ nhật" }
+            ]
+          },
           { type: "button", commandId: "slides.diagram.insert", isLarge: true },
           { type: "button", commandId: "slides.insert.chart", label: "Biểu đồ", icon: "chart", isLarge: true }
         ]
@@ -904,6 +956,33 @@ export const SLIDES_RIBBON_TABS = [
         label: "Sắp xếp",
         labelKey: "slidesRibbon.group.shapeArrange",
         items: [
+          {
+            type: "dropdown",
+            id: "slides.shape.changeType",
+            label: "Đổi hình dạng",
+            icon: "shape",
+            isLarge: true,
+            items: [
+              { commandId: "slides.shape.setType", args: "rect", label: "Hình chữ nhật" },
+              { commandId: "slides.shape.setType", args: "ellipse", label: "Hình elip" },
+              { commandId: "slides.shape.setType", args: "roundRect", label: "Hình chữ nhật bo góc" },
+              { commandId: "slides.shape.setType", args: "triangle", label: "Tam giác cân" },
+              { commandId: "slides.shape.setType", args: "rtTriangle", label: "Tam giác vuông" },
+              { commandId: "slides.shape.setType", args: "diamond", label: "Hình thoi" },
+              { commandId: "slides.shape.setType", args: "parallelogram", label: "Hình bình hành" },
+              { commandId: "slides.shape.setType", args: "trapezoid", label: "Hình thang" },
+              { commandId: "slides.shape.setType", args: "pentagon", label: "Ngũ giác" },
+              { commandId: "slides.shape.setType", args: "hexagon", label: "Lục giác" },
+              { commandId: "slides.shape.setType", args: "star5", label: "Sao 5 cánh" },
+              { commandId: "slides.shape.setType", args: "plus", label: "Dấu cộng" },
+              { commandId: "slides.shape.setType", args: "rightArrow", label: "Mũi tên phải" },
+              { commandId: "slides.shape.setType", args: "leftArrow", label: "Mũi tên trái" },
+              { commandId: "slides.shape.setType", args: "upArrow", label: "Mũi tên lên" },
+              { commandId: "slides.shape.setType", args: "downArrow", label: "Mũi tên xuống" },
+              { commandId: "slides.shape.setType", args: "heart", label: "Hình trái tim" },
+              { commandId: "slides.shape.setType", args: "wedgeRectCallout", label: "Chú thích chữ nhật" }
+            ]
+          },
           {
             type: "dropdown",
             id: "slides.arrange.rotate",

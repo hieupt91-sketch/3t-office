@@ -389,6 +389,34 @@ export const SLIDES_HELP_ENTRIES = [
       "Ctrl+Z hoàn tác về chữ cũ."
     ]
   },  {
+    id: "slides.shape.presets",
+    app: "slides",
+    commandIds: ["slides.shape.gallery", "slides.shape.insertPreset"],
+    title: "Thư viện hình dựng sẵn: chèn tam giác, hình thoi, sao, mũi tên, tim...",
+    summary: "Nút Hình mở thư viện 18 hình: chữ nhật, chữ nhật bo góc, elip, tam giác, hình thoi, hình bình hành, hình thang, ngũ giác, lục giác, sao 5 cánh, dấu cộng, bốn mũi tên, trái tim và chú thích. Lưu ra tệp là hình tự động chuẩn nên mở lại sửa được.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Đối tượng vẽ" },
+    keywords: ["hình", "shapes", "tam giác", "hình thoi", "ngôi sao", "mũi tên", "trái tim", "chèn hình", "hình dựng sẵn"],
+    steps: [
+      "Tab Trang đầu > nhóm Đối tượng vẽ > nút Hình (hoặc tab Chèn > Minh họa > Hình), rồi chọn một hình trong danh sách.",
+      "Hình hiện giữa trang chiếu với màu xanh mặc định; kéo để di chuyển, kéo tay cầm để đổi kích thước, nhấp đúp hoặc gõ phím để nhập chữ vào hình.",
+      "Tô màu, viền, đổ bóng, xoay, lật ở tab Định dạng hình (hiện khi chọn hình). Ctrl+Z hoàn tác việc chèn."
+    ]
+  },
+  {
+    id: "slides.shape.changeType",
+    app: "slides",
+    commandIds: ["slides.shape.changeType", "slides.shape.setType"],
+    title: "Đổi hình dạng mà giữ nguyên kích thước và màu",
+    summary: "Đổi hình đang chọn sang hình khác (từ thư viện 18 hình) nhưng vẫn giữ vị trí, kích thước, màu tô, viền và chữ bên trong.",
+    ribbon: { tab: "Định dạng hình", tabId: "shapeFormat", group: "Sắp xếp" },
+    keywords: ["đổi hình dạng", "change shape", "đổi hình", "thay hình"],
+    steps: [
+      "Chọn một hình (chữ nhật, elip hoặc hình dựng sẵn) trên trang chiếu để hiện tab Định dạng hình.",
+      "Tab Định dạng hình > nhóm Sắp xếp > Đổi hình dạng, chọn hình mới trong danh sách.",
+      "Chọn nhiều hình cùng lúc thì đổi tất cả; mũi tên đường thẳng và ảnh không đổi được. Ctrl+Z hoàn tác."
+    ]
+  },
+  {
     id: "slides.shape.formatTab",
     app: "slides",
     commandIds: [

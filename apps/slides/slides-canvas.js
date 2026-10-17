@@ -11,6 +11,7 @@ import { formatDateTime } from "../../platform/ui-kit/datetime-format.js";
 import { createLazyDialogs } from "../../platform/ui-kit/lazy-dialogs.js";
 import { resolveWordArtStyle, buildWordArtCss, applyWordArtCss } from "./slides-wordart.js";
 import { normalizeSlidesChart } from "./slides-chart-data.js";
+import { SHAPE_PRESETS, presetOf, presetGeomType, renderPresetGeometry } from "./shape-presets.js";
 import { createMatcher } from "../../platform/find/find-engine.js";
 import { InputNormalizer } from "../../platform/keyboard/input-normalizer.js";
 
@@ -2857,7 +2858,28 @@ export class SlidesCanvasController {
    * để lưu file thật.
    * @param {"rect"|"ellipse"} shapeType
    */
-  insertShape(shapeType = "rect") {
+  /** Chèn hình dựng sẵn (tam giác, hình thoi, sao, mũi tên...) từ thư viện hình; lưu ra PPTX là hình tự động chuẩn. */
+  insertPresetShape(presetId) {
+    if (presetId === "rect" || presetId === "ellipse") return this.insertShape(presetId);
+    const geomType = presetGeomType(presetId);
+    if (!geomType) return false;
+    const extra = { geomType };
+    const preset = presetOf(geomType);
+    if (preset?.css?.borderRadius) extra.cornerRadius = preset.css.borderRadius;
+    return this.insertShape("rect", extra);
+  }
+
+  /** Đổi hình dạng của các hình đang chọn (giữ vị trí, kích thước, màu, viền). */
+  changeShapeType(presetId) {
+    const geomType = presetId === "rect" || presetId === "ellipse" ? undefined : presetGeomType(presetId);
+    if (presetId !== "rect" && presetId !== "ellipse" && !geomType) return false;
+    const type = presetId === "ellipse" ? "ellipse" : "rect";
+    const targets = this._selectedFormattableShapes().filter((shape) => shape.type === "rect" || shape.type === "ellipse");
+    if (!targets.length) return false;
+    return this.applyShapeStyle((shape) => ((shape.type === "rect" || shape.type === "ellipse") ? { type, geomType } : null)) !== false;
+  }
+
+  insertShape(shapeType = "rect", extra = null) {
     const slide = this.slides[this.currentSlideIndex];
     if (!slide) return false;
     if (!Array.isArray(slide.shapes)) slide.shapes = [];
@@ -2877,7 +2899,8 @@ export class SlidesCanvasController {
       h: isTextbox ? 60 : isArrow ? 80 : isEllipse ? 160 : 120,
       color: isTextbox ? "transparent" : "#3b82f6",
       text: "",
-      animation: { type: "none", duration: 500, delay: 0 }
+      animation: { type: "none", duration: 500, delay: 0 },
+      ...(extra && typeof extra === "object" ? extra : {})
     };
     slide.shapes.push(newShape);
 
@@ -5149,16 +5172,24 @@ const startEditing = (initialText) => {
         });
         el.appendChild(textEl);
       } else {
-        el.style.backgroundColor = shape.fill || shape.color || "#3b82f6";
-        if (shape.stroke || shape.strokeColor) {
-          const sw = shape.strokeWidth || 1;
-          const sc = shape.stroke || shape.strokeColor;
-          const dashName = String(shape.strokeDash || "");
-          const borderStyle = (shape.strokeDash || shape.strokeKind === "dash") ? (/^Dot$/i.test(dashName) ? "dotted" : "dashed") : "solid";
-          el.style.border = `${sw}px ${borderStyle} ${sc}`;
-          el.style.boxSizing = "border-box";
-        } else {
+        const preset = shape.type === "rect" ? presetOf(shape.geomType) : null;
+        if (preset?.path) {
+          // Hình dựng sẵn: vẽ bằng SVG, phần tử không có nền/viền CSS (tránh khung chữ nhật bao quanh).
+          el.style.backgroundColor = "transparent";
           el.style.border = "none";
+          renderPresetGeometry(el, shape, preset);
+        } else {
+          el.style.backgroundColor = shape.fill || shape.color || "#3b82f6";
+          if (shape.stroke || shape.strokeColor) {
+            const sw = shape.strokeWidth || 1;
+            const sc = shape.stroke || shape.strokeColor;
+            const dashName = String(shape.strokeDash || "");
+            const borderStyle = (shape.strokeDash || shape.strokeKind === "dash") ? (/^Dot$/i.test(dashName) ? "dotted" : "dashed") : "solid";
+            el.style.border = `${sw}px ${borderStyle} ${sc}`;
+            el.style.boxSizing = "border-box";
+          } else {
+            el.style.border = "none";
+          }
         }
         if (shape.shadow) {
           const shadow = typeof shape.shadow === "object" ? shape.shadow : {};
@@ -5170,11 +5201,12 @@ const startEditing = (initialText) => {
           };
           const ox = Math.round(toPx(shadow.offsetX, 4));
           const oy = Math.round(toPx(shadow.offsetY, 4));
-          el.style.boxShadow = `${ox}px ${oy}px 8px rgba(0,0,0,0.35)`;
+          if (preset?.path) el.style.filter = `drop-shadow(${ox}px ${oy}px 4px rgba(0,0,0,0.35))`;
+          else el.style.boxShadow = `${ox}px ${oy}px 8px rgba(0,0,0,0.35)`;
         }
         const isDiagramNode = !!(shape.diagramGroupId || shape.diagramRole === "node");
         el.style.opacity = isDiagramNode ? "0.85" : (shape.opacity != null ? String(shape.opacity) : "1");
-        el.style.borderRadius = shape.type === "ellipse" ? "50%" : (isDiagramNode ? "6px" : "0");
+        el.style.borderRadius = shape.type === "ellipse" ? "50%" : (isDiagramNode ? "6px" : (preset?.css?.borderRadius || "0"));
         if (shape.paddingLeft != null || shape.paddingTop != null || shape.paddingRight != null || shape.paddingBottom != null) {
           const pt = shape.paddingTop ?? 0;
           const pr = shape.paddingRight ?? 0;

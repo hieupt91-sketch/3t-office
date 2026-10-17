@@ -1077,6 +1077,11 @@ export const enStrings = {
   ,"slides.font.dialog": { label: "Font…", tooltip: "Open the Font dialog: font, style, size, color, underline, effects, character spacing (Ctrl+T)" }
   ,"slides.font.spacing": { label: "Character Spacing", tooltip: "Expand or condense the spacing between characters of the selected text" }
   ,"slides.font.setSpacing": { label: "Spacing Level", tooltip: "Pick a spacing level: very tight, tight, normal, loose, very loose" }
+  ,"slides.shape.galleryInsert": { label: "Shapes", tooltip: "Pick a ready-made shape to insert (Insert tab)" }
+  ,"slides.shape.gallery": { label: "Shapes", tooltip: "Pick a ready-made shape (rectangle, triangle, star, arrow, heart...) to insert" }
+  ,"slides.shape.insertPreset": { label: "Insert Shape", tooltip: "Insert the chosen ready-made shape" }
+  ,"slides.shape.changeType": { label: "Change Shape", tooltip: "Switch the selected shape to another shape, keeping position, size and colors" }
+  ,"slides.shape.setType": { label: "New Shape", tooltip: "Apply the chosen shape to the selected shape" }
   ,"slides.text.changeCase": { label: "Change Case", tooltip: "Change the case of the selected text (Shift+F3 cycles)" }
   ,"slides.text.changeCaseMode": { label: "Case Style", tooltip: "Pick a style: sentence case, lowercase, UPPERCASE, capitalize each initial, or toggle case" }
   ,"slides.design.themeColors": { label: "Theme Colors", tooltip: "Change the theme color set for the whole deck (title, body, accent, background)" }

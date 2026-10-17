@@ -1076,6 +1076,11 @@ export const viStrings = {
     ,"slides.font.dialog": { label: "Phông chữ…", tooltip: "Mở hộp thoại Phông chữ: phông, kiểu, cỡ, màu, gạch chân, hiệu ứng, khoảng cách ký tự (Ctrl+T)" }
     ,"slides.font.spacing": { label: "Khoảng cách ký tự", tooltip: "Giãn hoặc nén khoảng cách giữa các ký tự của chữ đang chọn" }
     ,"slides.font.setSpacing": { label: "Mức khoảng cách", tooltip: "Chọn mức khoảng cách ký tự: rất sát, sát, bình thường, thưa, rất thưa" }
+    ,"slides.shape.galleryInsert": { label: "Hình", tooltip: "Chọn một hình dựng sẵn để chèn vào trang chiếu (tab Chèn)" }
+    ,"slides.shape.gallery": { label: "Hình", tooltip: "Chọn một hình dựng sẵn (chữ nhật, tam giác, sao, mũi tên, tim...) để chèn vào trang chiếu" }
+    ,"slides.shape.insertPreset": { label: "Chèn hình", tooltip: "Chèn hình dựng sẵn đã chọn vào trang chiếu" }
+    ,"slides.shape.changeType": { label: "Đổi hình dạng", tooltip: "Đổi hình đang chọn sang hình dạng khác nhưng giữ vị trí, kích thước và màu" }
+    ,"slides.shape.setType": { label: "Hình dạng mới", tooltip: "Áp hình dạng đã chọn cho hình đang chọn" }
     ,"slides.text.changeCase": { label: "Đổi chữ hoa/thường", tooltip: "Đổi chữ hoa / thường cho chữ đang chọn (Shift+F3 xoay vòng)" }
     ,"slides.text.changeCaseMode": { label: "Kiểu chữ hoa/thường", tooltip: "Chọn kiểu: đầu câu, chữ thường, CHỮ HOA, Viết Hoa Mỗi Từ, đảo hoa thường" }
     ,"slides.design.themeColors": { label: "Màu chủ đề", tooltip: "Đổi bảng màu của chủ đề cho toàn bài (tiêu đề, nội dung, màu nhấn, nền)" }

@@ -13,6 +13,7 @@ Mỗi dòng: Tab|Nhóm|Lệnh PowerPoint 2016|Trạng thái|Ưu tiên|Ghi chú (
 Nguồn trạng thái: quét ribbon PowerPoint COM (docs/ribbon-scan-ppt-1710.json), ma trận nút ribbon (docs/SLIDES-BUTTON-MATRIX-1011.md), kết quả đo 15 tính năng ưu tiên 1 (docs/POWERPOINT2016-FINDINGS-1710.md, docs/ppt-oracle-1710.json), đối chiếu FIX-L4/L6/L7/L8/L10/L12/L14, đọc mã (grep) và kiểm thực tế 17/10/2026.
 """
 import collections
+import re
 import pathlib
 
 DATA = """
@@ -60,7 +61,7 @@ Trang đầu|Phông chữ|Khoảng cách ký tự (Character Spacing: Very Tight
 Trang đầu|Phông chữ|Đổi chữ hoa/thường (Change Case, Shift+F3)|A|-|slides.text.changeCase (5 kiểu + Shift+F3 xoay vòng); test CDP tests/live/cdp/slides-change-case.desktop.mjs 9/9; logic dùng chung platform/text/change-case.js; chưa đối chiếu PowerPoint COM
 Trang đầu|Phông chữ|Màu chữ (Font Color)|V|-|FIX-L7/FIX-L5: slides.color.text đối chiếu RGB=255 (docs/SLIDES-BUTTON-MATRIX-1011.md:34)
 Trang đầu|Phông chữ|Màu nền chữ (Highlight Color)|V|-|FIX-L8: slides.color.highlight đối chiếu Highlight.RGB=52735 (docs/SLIDES-BUTTON-MATRIX-1011.md:35)
-Trang đầu|Phông chữ|Hộp thoại Phông chữ (Font Dialog)|V|-|slides.font.dialog (Ctrl+T): phông, cỡ, màu, gạch chân đôi, chỉ số trên, giãn ký tự; PowerPoint COM đọc lại Georgia 28 pt đậm đỏ gạch chân baseline 0.33 (platform/commands/command-definitions.js:731, scripts/audit-0610/ppt_font_runs_readback.ps1:2)
+Trang đầu|Phông chữ|Hộp thoại Phông chữ (Font Dialog)|V|-|slides.font.dialog (Ctrl+T): phông, cỡ, màu, gạch chân đôi, chỉ số trên, giãn ký tự; PowerPoint COM đọc lại Georgia 28 pt đậm đỏ gạch chân baseline 0.33 ({{L:platform/commands/command-definitions.js|id: "slides.font.dialog"}}, scripts/audit-0610/ppt_font_runs_readback.ps1:2)
 Trang đầu|Đoạn văn|Dấu đầu dòng (Bullets)|V|-|FIX-L7: slides.list.bullet bật Bullet.Visible=-1, Type=1 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:36)
 Trang đầu|Đoạn văn|Đánh số thứ tự (Numbering)|V|-|FIX-L7: slides.list.numbered bật đánh số Type=2 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:37)
 Trang đầu|Đoạn văn|Giảm thụt lề (Decrease Indent)|V|-|FIX-L8: slides.para.indentDec giảm thụt lề về 0 pt đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:38)
@@ -75,7 +76,7 @@ Trang đầu|Đoạn văn|Hướng chữ (Text Direction: Ngang, Xoay 90°, Xoay
 Trang đầu|Đoạn văn|Căn lề dọc (Align Text: Top, Middle, Bottom)|A|-|slides.text.vAlignTop, slides.text.vAlignMiddle, slides.text.vAlignBottom; căn văn bản theo chiều dọc khung chữ
 Trang đầu|Đoạn văn|Chuyển sang SmartArt (Convert to SmartArt Graphic)|N|2|Chưa hỗ trợ chuyển đổi trực tiếp văn bản thành sơ đồ SmartArt
 Trang đầu|Vẽ|Hộp văn bản (Text Box)|V|-|FIX-L6: slides.text.insert chèn textbox đối chiếu msoTextBox (docs/SLIDES-BUTTON-MATRIX-1011.md:45)
-Trang đầu|Vẽ|Hình khối (Shapes Gallery)|V|-|FIX-L6: slides.shape.insert chèn shape đối chiếu fill/line RGB và rotation (docs/SLIDES-BUTTON-MATRIX-1011.md:46)
+Trang đầu|Vẽ|Hình khối (Shapes Gallery)|V|-|FIX-L6: slides.shape.insert chèn shape đối chiếu fill/line RGB và rotation; thư viện 18 hình slides.shape.gallery (tam giác, thoi, sao, mũi tên, tim...) PowerPoint COM AutoShapeType khớp (apps/slides/slides-canvas.js:2862 insertPresetShape, docs/SLIDES-BUTTON-MATRIX-1011.md:46)
 Trang đầu|Vẽ|Sắp xếp: Thứ tự lớp (Bring to Front, Send to Back)|A|-|slides.arrange.bringToFront, slides.arrange.sendToBack, slides.arrange.bringForward, slides.arrange.sendBackward; sắp xếp thứ tự lớp
 Trang đầu|Vẽ|Sắp xếp: Nhóm đối tượng (Group, Ctrl+G)|V|-|FIX-L12: sơ đồ nhóm 7 đối tượng Shape.Type=6 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:53, docs/POWERPOINT2016-FINDINGS-1710.md:23)
 Trang đầu|Vẽ|Sắp xếp: Rã nhóm (Ungroup, Ctrl+Shift+G)|A|-|slides.shape.ungroup; tách các đối tượng trong nhóm
@@ -155,7 +156,7 @@ Hoạt ảnh|Hoạt ảnh|Tùy chọn hiệu ứng (Effect Options: Hướng, Th
 Hoạt ảnh|Hoạt ảnh nâng cao|Thêm hoạt ảnh (Add Animation)|N|2|Chưa hỗ trợ gán nhiều hoạt ảnh đồng thời vào cùng một đối tượng
 Hoạt ảnh|Hoạt ảnh nâng cao|Ngăn hoạt ảnh (Animation Pane)|V|-|FIX-L7: slides.animation.pane đổi thứ tự hiệu ứng đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:70)
 Hoạt ảnh|Hoạt ảnh nâng cao|Kích hoạt (Trigger: On Click of Object)|N|2|Chưa có hộp thoại gán trigger kích hoạt hiệu ứng khi click shape khác
-Hoạt ảnh|Hoạt ảnh nâng cao|Sao chép hoạt ảnh (Animation Painter)|V|-|slides.animation.painter: lấy hiệu ứng ở lần nhấn 1, dán ở lần 2; PowerPoint COM đọc lại hai hiệu ứng Bay vào cùng hướng trái, sau hiệu ứng trước, 1,5 giây, trễ 0,5 giây (apps/slides/slides-canvas.js:2431 animationPainter, scripts/audit-0610/ppt_animation_all_readback.ps1:2)
+Hoạt ảnh|Hoạt ảnh nâng cao|Sao chép hoạt ảnh (Animation Painter)|V|-|slides.animation.painter: lấy hiệu ứng ở lần nhấn 1, dán ở lần 2; PowerPoint COM đọc lại hai hiệu ứng Bay vào cùng hướng trái, sau hiệu ứng trước, 1,5 giây, trễ 0,5 giây ({{L:apps/slides/slides-canvas.js|  animationPainter() {}} animationPainter, scripts/audit-0610/ppt_animation_all_readback.ps1:2)
 Hoạt ảnh|Thời gian|Bắt đầu (Start: On Click, With Previous, After Previous)|V|-|slides.animation.startMenu; PowerPoint COM đọc lại TriggerType=AfterPrevious, Duration, Delay (ppt_anim_readback.ps1) (apps/slides/slides-canvas.js:2117; scripts/audit-0610/ppt_anim_readback.ps1:2)
 Hoạt ảnh|Thời gian|Thời lượng hoạt ảnh (Duration)|V|-|FIX-L6: PowerPoint COM đọc duration 0.8/0.8/0.5 s khớp timeline (docs/SLIDES-BUTTON-MATRIX-1011.md:69)
 Hoạt ảnh|Thời gian|Độ trễ hoạt ảnh (Delay)|A|-|slides.animation.apply; cấu hình độ trễ (delay) trong hộp thoại Hiệu ứng đối tượng
@@ -217,7 +218,7 @@ Chế độ xem|Macro|Xem và chạy Macro (Alt+F8)|A|-|common.macro.manager; qu
 Chế độ xem|Trợ giúp|Trợ giúp (Help, F1)|A|-|slides.help.open; hướng dẫn sử dụng tiếng Việt trong ứng dụng (docs/SLIDES-BUTTON-MATRIX-1011.md:100)
 Chế độ xem|Trợ giúp|Giới thiệu bản quyền (About)|A|-|common.help.about; thông tin phiên bản VN Slides (docs/SLIDES-BUTTON-MATRIX-1011.md:101)
 Công cụ vẽ > Định dạng|Chèn hình|Sửa điểm vẽ tự do (Edit Points)|P|2|Có vẽ hình tự do Bezier; chưa có giao diện kéo điểm nút trực quan
-Công cụ vẽ > Định dạng|Chèn hình|Đổi hình dạng (Change Shape)|N|2|Chưa hỗ trợ chuyển đổi một hình khối sang hình khác (Change Shape)
+Công cụ vẽ > Định dạng|Chèn hình|Đổi hình dạng (Change Shape)|V|-|slides.shape.changeType: đổi giữa chữ nhật, elip và 16 hình dựng sẵn, giữ vị trí/kích thước/màu; PowerPoint COM AutoShapeType elip=9, sao=92, mũi tên phải=33, tim=21 (apps/slides/slides-canvas.js:2873 changeShapeType, scripts/audit-0610/ppt_autoshape_readback.ps1:2)
 Công cụ vẽ > Định dạng|Kiểu chữ WordArt|Tô màu chữ nghệ thuật (Text Fill)|N|2|Chưa có công cụ đổi màu tô chữ nghệ thuật độc lập trên ribbon
 Công cụ vẽ > Định dạng|Kiểu chữ WordArt|Viền chữ nghệ thuật (Text Outline)|N|2|Chưa có công cụ đổi màu viền chữ nghệ thuật trên ribbon
 Công cụ vẽ > Định dạng|Kiểu chữ WordArt|Hiệu ứng chữ nghệ thuật (Text Effects: Warp, Shadow, 3D)|P|1|FIX-L14: có textFadeRight nhưng PowerPoint COM nhận dạng PresetTextEffect=-2 chưa chuẩn native (docs/SLIDES-BUTTON-MATRIX-1011.md:57)
@@ -300,7 +301,18 @@ LABEL = {
 
 def parse():
     rows = []
-    for line in DATA.strip().splitlines():
+    def _resolve_refs(text):
+        root = pathlib.Path(__file__).resolve().parents[2]
+
+        def one(match):
+            rel, needle = match.group(1), match.group(2)
+            for number, content in enumerate((root / rel).read_text(encoding="utf-8").splitlines(), 1):
+                if needle in content:
+                    return f"{rel}:{number}"
+            raise SystemExit(f"Không thấy '{needle}' trong {rel} (trích dẫn {{{{L:...}}}})")
+        return re.sub(r"\{\{L:([^|}]+)\|([^}]+)\}\}", one, text)
+
+    for line in _resolve_refs(DATA).strip().splitlines():
         line = line.strip()
         if not line or line.startswith("#"):
             continue

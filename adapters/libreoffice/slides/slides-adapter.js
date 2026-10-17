@@ -321,6 +321,12 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.font.spacing", () => this._hintIfFalse(() => this.openFontDialog(), "Hãy nhấp vào khung chữ và chọn đoạn chữ cần định dạng."));
     globalCommandBus.bindHandler("slides.font.setSpacing", (arg) => this._hintIfFalse(() => this.setCharacterSpacing(Number(arg)), "Hãy nhấp vào khung chữ và chọn đoạn chữ cần giãn hoặc nén ký tự."));
     globalCommandBus.bindHandler("slides.animation.painter", () => this._hintIfFalse(() => this.canvas.animationPainter(), "Hãy chọn một đối tượng đã có hiệu ứng để lấy, rồi chọn đối tượng đích và nhấn lại Sao chép hoạt ảnh."));
+    // Thư viện hình dựng sẵn và Đổi hình dạng (apps/slides/shape-presets.js).
+    globalCommandBus.bindHandler("slides.shape.galleryInsert", () => this.canvas.insertShape ? this.canvas.insertShape("rect") : false);
+    globalCommandBus.bindHandler("slides.shape.gallery", () => this.canvas.insertShape ? this.canvas.insertShape("rect") : false);
+    globalCommandBus.bindHandler("slides.shape.insertPreset", (arg) => this.canvas.insertPresetShape ? this.canvas.insertPresetShape(String(arg || "rect")) : false);
+    globalCommandBus.bindHandler("slides.shape.changeType", () => this._hintIfFalse(() => this.canvas.changeShapeType("rect"), "Hãy chọn một hình (chữ nhật, elip, hình dựng sẵn) để đổi hình dạng."));
+    globalCommandBus.bindHandler("slides.shape.setType", (arg) => this._hintIfFalse(() => this.canvas.changeShapeType(String(arg || "rect")), "Hãy chọn một hình (chữ nhật, elip, hình dựng sẵn) để đổi hình dạng."));
     globalCommandBus.bindHandler("slides.transition.apply", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
     // Tab Chuyển tiếp: thư viện hiệu ứng, thời gian, áp dụng tất cả, xem trước (cùng mô hình dữ liệu với hộp thoại).
     globalCommandBus.bindHandler("slides.transition.gallery", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
