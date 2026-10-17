@@ -183,6 +183,19 @@ export const SLIDES_RIBBON_TABS = [
                   },
                   {
                     type: "dropdown",
+                    id: "slides.text.columns",
+                    label: "Cột",
+                    labelKey: "slidesRibbon.paragraph.columns",
+                    icon: "pageColumns",
+                    iconOnly: true,
+                    items: [
+                      { commandId: "slides.text.columnsOne" },
+                      { commandId: "slides.text.columnsTwo" },
+                      { commandId: "slides.text.columnsThree" }
+                    ]
+                  },
+                  {
+                    type: "dropdown",
                     id: "slides.text.direction",
                     label: "Hướng văn bản",
                     labelKey: "slidesRibbon.paragraph.direction",

@@ -259,6 +259,10 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.edit.select", () => this.canvas.selectAllShapes ? this.canvas.selectAllShapes() : false);
     globalCommandBus.bindHandler("slides.text.vAlign", () => this._hintIfFalse(() => this.canvas.setTextVerticalAlign ? this.canvas.setTextVerticalAlign("middle") : false, "Hãy chọn khung chữ hoặc hình khối có văn bản cần căn lề dọc."));
     globalCommandBus.bindHandler("slides.text.direction", () => this._hintIfFalse(() => this.canvas.setTextDirection ? this.canvas.setTextDirection("horizontal") : false, "Hãy chọn khung chữ hoặc hình khối có văn bản cần xoay hướng chữ."));
+    globalCommandBus.bindHandler("slides.text.columns", () => this._hintIfFalse(() => this.canvas.setTextColumns ? this.canvas.setTextColumns(2) : false, "Hãy chọn hộp văn bản cần chia cột."));
+    globalCommandBus.bindHandler("slides.text.columnsOne", () => this._hintIfFalse(() => this.canvas.setTextColumns ? this.canvas.setTextColumns(1) : false, "Hãy chọn hộp văn bản cần chia cột."));
+    globalCommandBus.bindHandler("slides.text.columnsTwo", () => this._hintIfFalse(() => this.canvas.setTextColumns ? this.canvas.setTextColumns(2) : false, "Hãy chọn hộp văn bản cần chia cột."));
+    globalCommandBus.bindHandler("slides.text.columnsThree", () => this._hintIfFalse(() => this.canvas.setTextColumns ? this.canvas.setTextColumns(3) : false, "Hãy chọn hộp văn bản cần chia cột."));
     this._bindTextFormatTracking();
   }
 
@@ -1455,10 +1459,19 @@ export class SlidesAdapter {
     const vAlign = shape.textVAlign && shape.textVAlign !== "middle" ? shape.textVAlign : "";
     const dir = shape.textDirection && shape.textDirection !== "horizontal" ? shape.textDirection : "";
     const pad = this._padKey(shape);
-    if (!vAlign && !dir && !pad) return "";
-    return `_${vAlign || "m"}${dir ? `_${dir}` : ""}${pad}`;
+    const columns = Math.max(1, Math.min(8, Math.trunc(Number(shape.textColumns)) || 1));
+    const columnKey = columns > 1 ? `_c${columns}_${String(Number.isFinite(Number(shape.columnSpacing)) ? Number(shape.columnSpacing) : 18).replace(/\./g, "_")}` : "";
+    if (!vAlign && !dir && !pad && !columnKey) return "";
+    return `_${vAlign || "m"}${dir ? `_${dir}` : ""}${pad}${columnKey}`;
   }
 
+  /** Khung chữ nhiều cột: thêm <style:columns> làm phần tử con của style:graphic-properties (ODF 1.2). */
+  _graphicPropertiesWithColumns(attrs, shape) {
+    const count = Math.max(1, Math.min(8, Math.trunc(Number(shape?.textColumns)) || 1));
+    if (count < 2) return `<style:graphic-properties${attrs}/>`;
+    const gap = this._pxToOdf(Number.isFinite(Number(shape?.columnSpacing)) ? Number(shape.columnSpacing) : 18);
+    return `<style:graphic-properties${attrs}><style:columns fo:column-count="${count}" fo:column-gap="${gap}"/></style:graphic-properties>`;
+  }
   /** Thuộc tính ODF chuẩn cho căn lề dọc + hướng chữ + padding hộp chữ + autofit/wrap. */
   _textStyleGraphicAttrs(shape) {
     let attrs = "";
@@ -2213,7 +2226,7 @@ export class SlidesAdapter {
       }
       xml += `
     <style:style style:name="${styleName}" style:family="graphic">
-      <style:graphic-properties${strokeAttrs}${fillAttrs}${this._textStyleGraphicAttrs(shape)}/>
+      ${this._graphicPropertiesWithColumns(`${strokeAttrs}${fillAttrs}${this._textStyleGraphicAttrs(shape)}`, shape)}
     </style:style>`;
     }
     if (needsConnector) {
@@ -2485,6 +2498,9 @@ export class SlidesAdapter {
       }
       const markerEnd = match[2].match(/draw:marker-end=["']([^"']+)["']/i)?.[1];
       const vAlignRaw = match[2].match(/draw:textarea-vertical-align=["']([^"']+)["']/i)?.[1];
+      const columnsMatch = match[2].match(/<style:columns\b[^>]*>/i)?.[0] || "";
+      const columnCount = Number(columnsMatch.match(/fo:column-count=["'](\d+)["']/i)?.[1]) || 0;
+      const columnGapRaw = columnsMatch.match(/fo:column-gap=["']([^"']+)["']/i)?.[1] || "";
       const vnoDirection = match[2].match(/vno:text-direction=["']([^"']+)["']/i)?.[1];
       const writingMode = match[2].match(/style:writing-mode=["']([^"']+)["']/i)?.[1];
       let textDirection = null;
@@ -2514,6 +2530,8 @@ export class SlidesAdapter {
         strokeKind: strokeKind || null,
         markerEnd: markerEnd || null,
         textVAlign: vAlignRaw || null,
+        textColumns: columnCount > 1 ? columnCount : null,
+        columnSpacingRaw: columnCount > 1 ? columnGapRaw : null,
         textAlign: hAlignRaw || null,
         fontSize: fontSize || null,
         fontWeight: fontWeight || null,
@@ -2759,6 +2777,11 @@ export class SlidesAdapter {
       animation: this._noneAnimation()
     };
     if (style.textVAlign) shape.textVAlign = style.textVAlign;
+    if (style.textColumns > 1) {
+      shape.textColumns = style.textColumns;
+      const gap = style.columnSpacingRaw ? this._odfLengthToPx(style.columnSpacingRaw, false) : null;
+      if (Number.isFinite(gap) && gap > 0) shape.columnSpacing = Math.round(gap * 100) / 100;
+    }
     if (style.textDirection) shape.textDirection = style.textDirection;
     const inlinePadTop = get("fo:padding-top") || get("fo:padding") || inner.match(/fo:padding(?:-top)?=["']([^"']+)["']/i)?.[1];
     const inlinePadBottom = get("fo:padding-bottom") || get("fo:padding") || inner.match(/fo:padding(?:-bottom)?=["']([^"']+)["']/i)?.[1];
@@ -2999,6 +3022,11 @@ export class SlidesAdapter {
         wrap: frameWrap || style.wrap || null
       };
       if (vAlign) textbox.textVAlign = vAlign;
+      if (style.textColumns > 1) {
+        textbox.textColumns = style.textColumns;
+        const columnGap = style.columnSpacingRaw ? this._odfLengthToPx(style.columnSpacingRaw, false) : null;
+        if (Number.isFinite(columnGap) && columnGap > 0) textbox.columnSpacing = Math.round(columnGap * 100) / 100;
+      }
       if (style.textDirection) textbox.textDirection = style.textDirection;
       const inlinePadTop = this._attr(attrs, "fo:padding-top") || this._attr(attrs, "fo:padding") || inner.match(/fo:padding(?:-top)?=["']([^"']+)["']/i)?.[1];
       const inlinePadBottom = this._attr(attrs, "fo:padding-bottom") || this._attr(attrs, "fo:padding") || inner.match(/fo:padding(?:-bottom)?=["']([^"']+)["']/i)?.[1];
@@ -4350,6 +4378,15 @@ export class SlidesAdapter {
       case "slides.text.vAlignBottom":
       case ".uno:TextVertAnchorBottom":
         return this._hintIfFalse(() => this.canvas.setTextVerticalAlign ? this.canvas.setTextVerticalAlign("bottom") : false, "Hãy chọn khung chữ hoặc hình khối có văn bản cần căn lề dọc.");
+
+      case "slides.text.columnsOne":
+        return this._hintIfFalse(() => this.canvas.setTextColumns ? this.canvas.setTextColumns(1) : false, "Hãy chọn khung chữ cần chia cột.");
+
+      case "slides.text.columnsTwo":
+        return this._hintIfFalse(() => this.canvas.setTextColumns ? this.canvas.setTextColumns(2) : false, "Hãy chọn khung chữ cần chia cột.");
+
+      case "slides.text.columnsThree":
+        return this._hintIfFalse(() => this.canvas.setTextColumns ? this.canvas.setTextColumns(3) : false, "Hãy chọn khung chữ cần chia cột.");
 
       case "slides.text.directionHorizontal":
       case ".uno:TextdirectionLeftToRight":

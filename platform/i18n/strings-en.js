@@ -1041,6 +1041,10 @@ export const enStrings = {
     ,"slides.text.underline": { label: "Underline", tooltip: "Underline (Ctrl+U)" }
     ,"slides.text.strike": { label: "Strikethrough", tooltip: "Strikethrough" }
   ,"slides.text.shadow": { label: "Text Shadow", tooltip: "Add a shadow to the selected text (toggle)" }
+  ,"slides.text.columns": { label: "Columns", tooltip: "Split the text in a text box into 1, 2 or 3 columns" }
+  ,"slides.text.columnsOne": { label: "One Column", tooltip: "Text runs in one column (default)" }
+  ,"slides.text.columnsTwo": { label: "Two Columns", tooltip: "Split the text in a text box into two columns" }
+  ,"slides.text.columnsThree": { label: "Three Columns", tooltip: "Split the text in a text box into three columns" }
     ,"slides.text.clearFormat": { label: "Clear Formatting", tooltip: "Clear text formatting, keep the content" }
     ,"slides.font.family": { label: "Font", tooltip: "Choose a font" }
     ,"slides.font.size": { label: "Font Size", tooltip: "Choose a font size" }

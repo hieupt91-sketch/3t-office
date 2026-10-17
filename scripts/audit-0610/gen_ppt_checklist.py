@@ -70,7 +70,7 @@ Trang đầu|Đoạn văn|Căn trái (Ctrl+L / Align Left)|V|-|FIX-L8: slides.pa
 Trang đầu|Đoạn văn|Căn giữa (Ctrl+E / Center)|V|-|FIX-L4: slides.para.alignCenter đối chiếu Alignment=2 (docs/SLIDES-BUTTON-MATRIX-1011.md:42, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:17)
 Trang đầu|Đoạn văn|Căn phải (Ctrl+R / Align Right)|V|-|FIX-L7: slides.para.alignRight đối chiếu Paragraph.Alignment=3 (docs/SLIDES-BUTTON-MATRIX-1011.md:43)
 Trang đầu|Đoạn văn|Căn đều (Ctrl+J / Justify)|V|-|FIX-L7: slides.para.justify đối chiếu Paragraph.Alignment=4 (docs/SLIDES-BUTTON-MATRIX-1011.md:44)
-Trang đầu|Đoạn văn|Cột văn bản trong khung (Columns: 1, 2, 3 cột)|N|1|Chưa hỗ trợ chia cột văn bản bên trong textbox
+Trang đầu|Đoạn văn|Cột văn bản trong khung (Columns: 1, 2, 3 cột)|V|-|17/10: slides.text.columns, slides.text.columnsOne, slides.text.columnsTwo, slides.text.columnsThree (nút Cột, Trang đầu > Đoạn văn); CDP 9/9; PowerPoint 2016 COM đọc TextFrame2.Column = 2 cột, 18 pt; mở lại đúng (docs/AUDIT-SLIDES-COLUMNS-1710.md:9)
 Trang đầu|Đoạn văn|Hướng chữ (Text Direction: Ngang, Xoay 90°, Xoay 270°, Xếp chồng)|A|-|slides.text.directionHorizontal, slides.text.directionVertical, slides.text.directionVertical270, slides.text.directionStacked; đổi hướng hiển thị chữ trong shape
 Trang đầu|Đoạn văn|Căn lề dọc (Align Text: Top, Middle, Bottom)|A|-|slides.text.vAlignTop, slides.text.vAlignMiddle, slides.text.vAlignBottom; căn văn bản theo chiều dọc khung chữ
 Trang đầu|Đoạn văn|Chuyển sang SmartArt (Convert to SmartArt Graphic)|N|2|Chưa hỗ trợ chuyển đổi trực tiếp văn bản thành sơ đồ SmartArt

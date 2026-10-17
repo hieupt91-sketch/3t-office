@@ -16,14 +16,14 @@ Chuẩn: Microsoft PowerPoint 2016 (16.0.4266) cài trên máy, đọc chỉ-đ�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu PowerPoint 2016 | 91 | 35% |
+| ✅ Đã đối chiếu PowerPoint 2016 | 92 | 35% |
 | 🟢 Có, chưa đối chiếu | 49 | 19% |
 | 🟡 Có một phần | 21 | 8% |
-| 🔴 Chưa có | 102 | 39% |
+| 🔴 Chưa có | 101 | 38% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **269** (áp dụng: 263) | |
 
-- **Độ phủ so với PowerPoint 2016 (có hoặc có một phần, một phần tính 0,5): 57%**
+- **Độ phủ so với PowerPoint 2016 (có hoặc có một phần, một phần tính 0,5): 58%**
 - **Đã xác minh bằng đối chiếu PowerPoint 2016 thật: 35%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tính một mục; đo kiểu ghi-rồi-đọc-lại trên PowerPoint COM chỉ xác nhận ngữ nghĩa thuộc tính của PowerPoint, KHÔNG tự nhận là parity hoàn chỉnh nếu chưa có kiểm chứng khứ hồi.
@@ -33,7 +33,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 2 | 9 | 0 | 5 | 1 | 69% |
-| Trang đầu | 57 | 36 | 8 | 4 | 9 | 0 | 81% |
+| Trang đầu | 57 | 37 | 8 | 4 | 8 | 0 | 82% |
 | Chèn | 29 | 14 | 1 | 1 | 11 | 2 | 57% |
 | Thiết kế | 15 | 6 | 0 | 1 | 8 | 0 | 43% |
 | Chuyển tiếp | 11 | 3 | 0 | 1 | 7 | 0 | 32% |
@@ -54,7 +54,6 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Tab | Nhóm | Tính năng | Trạng thái | Ghi chú |
 |---|---|---|---|---|
 | Tệp (Backstage) | Thông tin | Bảo vệ bản trình bày: Mật khẩu mở file (mã hóa PPTX) | 🔴 | Chưa có cơ chế mã hóa mật khẩu mở file PPTX |
-| Trang đầu | Đoạn văn | Cột văn bản trong khung (Columns: 1, 2, 3 cột) | 🔴 | Chưa hỗ trợ chia cột văn bản bên trong textbox |
 | Chèn | Minh họa | SmartArt (Danh sách, Quy trình, Chu trình, Phân cấp) | 🔴 | Chưa hỗ trợ tạo mới SmartArt native chuẩn DrawingML diagram; hiện dùng sơ đồ nhóm shape (docs/SLIDES-BUTTON-MATRIX-1011.md:53) |
 | Chèn | Văn bản | Chữ nghệ thuật (WordArt) | 🟡 | FIX-L14: có lệnh slides.insert.wordart nhưng PowerPoint COM nhận dạng Type=17 PresetTextEffect=-2 chưa chuẩn native Type=15 (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
 | Chuyển tiếp | Chuyển tiếp sang slide | Hiệu ứng Morph (Biến đổi hình thái) | 🟡 | Đã có xử lý chuyển đổi Morph sơ bộ; chưa hoàn thiện mapping đối tượng khớp định danh như PowerPoint 2016 Office 365 |
@@ -63,7 +62,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Công cụ vẽ > Định dạng | Kiểu chữ WordArt | Hiệu ứng chữ nghệ thuật (Text Effects: Warp, Shadow, 3D) | 🟡 | FIX-L14: có textFadeRight nhưng PowerPoint COM nhận dạng PresetTextEffect=-2 chưa chuẩn native (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
 | Công cụ hình ảnh > Định dạng | Kích thước | Cắt xén ảnh (Crop to Shape / Aspect Ratio) | 🟡 | Đọc và hiển thị ảnh cắt xén (apps/slides/slides-canvas.js:3406); chưa có công cụ kéo cắt xén ảnh trực tiếp trên UI |
 
-Tổng: 9 mục ưu tiên 1.
+Tổng: 8 mục ưu tiên 1.
 
 ## Danh sách 15 mục ưu tiên 1 thiếu nhất & Đề xuất 10 phiếu việc kế tiếp
 
@@ -161,7 +160,7 @@ Tổng: 9 mục ưu tiên 1.
 | Đoạn văn | Căn giữa (Ctrl+E / Center) | ✅ | - | FIX-L4: slides.para.alignCenter đối chiếu Alignment=2 (docs/SLIDES-BUTTON-MATRIX-1011.md:42, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:17) |
 | Đoạn văn | Căn phải (Ctrl+R / Align Right) | ✅ | - | FIX-L7: slides.para.alignRight đối chiếu Paragraph.Alignment=3 (docs/SLIDES-BUTTON-MATRIX-1011.md:43) |
 | Đoạn văn | Căn đều (Ctrl+J / Justify) | ✅ | - | FIX-L7: slides.para.justify đối chiếu Paragraph.Alignment=4 (docs/SLIDES-BUTTON-MATRIX-1011.md:44) |
-| Đoạn văn | Cột văn bản trong khung (Columns: 1, 2, 3 cột) | 🔴 | 1 | Chưa hỗ trợ chia cột văn bản bên trong textbox |
+| Đoạn văn | Cột văn bản trong khung (Columns: 1, 2, 3 cột) | ✅ | - | 17/10: slides.text.columns, slides.text.columnsOne, slides.text.columnsTwo, slides.text.columnsThree (nút Cột, Trang đầu > Đoạn văn); CDP 9/9; PowerPoint 2016 COM đọc TextFrame2.Column = 2 cột, 18 pt; mở lại đúng (docs/AUDIT-SLIDES-COLUMNS-1710.md:9) |
 | Đoạn văn | Hướng chữ (Text Direction: Ngang, Xoay 90°, Xoay 270°, Xếp chồng) | 🟢 | - | slides.text.directionHorizontal, slides.text.directionVertical, slides.text.directionVertical270, slides.text.directionStacked; đổi hướng hiển thị chữ trong shape |
 | Đoạn văn | Căn lề dọc (Align Text: Top, Middle, Bottom) | 🟢 | - | slides.text.vAlignTop, slides.text.vAlignMiddle, slides.text.vAlignBottom; căn văn bản theo chiều dọc khung chữ |
 | Đoạn văn | Chuyển sang SmartArt (Convert to SmartArt Graphic) | 🔴 | 2 | Chưa hỗ trợ chuyển đổi trực tiếp văn bản thành sơ đồ SmartArt |

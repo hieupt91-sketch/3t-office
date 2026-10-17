@@ -4640,6 +4640,11 @@ const startEditing = (initialText) => {
         textEl.style.flexShrink = shape.autofit ? "1" : "0";
         textEl.style.overflow = "visible";
         if (shape.textDirection) textEl.style.cssText += ";" + this._textDirectionCss(shape.textDirection);
+        if (Number(shape.textColumns) > 1) {
+          textEl.style.columnCount = String(Math.min(8, Math.trunc(Number(shape.textColumns))));
+          textEl.style.columnGap = `${Number.isFinite(Number(shape.columnSpacing)) ? Number(shape.columnSpacing) : 18}px`;
+          textEl.style.columnFill = "balance";
+        }
         if (shape.textHtml && this._htmlLooksFormatted(shape.textHtml)) textEl.innerHTML = shape.textHtml;
         else textEl.textContent = shape.text || "";
         textEl.contentEditable = "false";
@@ -4745,6 +4750,10 @@ const startEditing = (initialText) => {
           textEl.className = isDiagramNode ? "vno-diagram-node-text" : "vno-shape-text";
           textEl.dataset.shapeTextId = String(shape.id);
           textEl.style.cssText = this._textDirectionCss(shape.textDirection);
+          if (!isDiagramNode && Number(shape.textColumns) > 1) {
+            textEl.style.columnCount = String(Math.min(8, Math.trunc(Number(shape.textColumns))));
+            textEl.style.columnGap = `${Number.isFinite(Number(shape.columnSpacing)) ? Number(shape.columnSpacing) : 18}px`;
+          }
           if (shape.paddingLeft != null || shape.paddingTop != null || shape.paddingRight != null || shape.paddingBottom != null) {
             textEl.style.padding = "0";
           }
@@ -5983,6 +5992,31 @@ const startEditing = (initialText) => {
       const before = { textVAlign: s.textVAlign };
       s.textVAlign = align;
       changes.push({ shapeId: s.id, before, after: { textVAlign: align } });
+    });
+    if (changes.length === 0) return { changed: 0 };
+    this.undoStack.push({ type: "shapes-text-style", slideIndex: this.currentSlideIndex, changes });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderShapesLayer();
+    this._renderThumbnails();
+    this._syncCommandStates();
+    return { changed: changes.length };
+  }
+
+  /** Chia cột văn bản trong khung chữ (1-3 cột) - a:bodyPr numCol thật của PowerPoint. */
+  setTextColumns(count, explicitIds = null) {
+    const columns = Math.max(1, Math.min(8, Math.trunc(Number(count)) || 1));
+    const targets = this._targetShapesForTextStyle(explicitIds).filter(s => !s.diagramGroupId);
+    if (targets.length === 0) return false;
+    const changes = [];
+    targets.forEach(s => {
+      const current = Number(s.textColumns) > 1 ? Number(s.textColumns) : 1;
+      if (current === columns) return;
+      const before = { textColumns: s.textColumns, columnSpacing: s.columnSpacing };
+      const after = { textColumns: columns > 1 ? columns : undefined, columnSpacing: columns > 1 ? (s.columnSpacing ?? 18) : undefined };
+      if (after.textColumns === undefined) delete s.textColumns; else s.textColumns = after.textColumns;
+      if (after.columnSpacing === undefined) delete s.columnSpacing; else s.columnSpacing = after.columnSpacing;
+      changes.push({ shapeId: s.id, before, after });
     });
     if (changes.length === 0) return { changed: 0 };
     this.undoStack.push({ type: "shapes-text-style", slideIndex: this.currentSlideIndex, changes });

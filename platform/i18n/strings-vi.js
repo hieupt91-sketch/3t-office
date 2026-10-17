@@ -1040,6 +1040,10 @@ export const viStrings = {
     ,"slides.text.underline": { label: "Gạch chân", tooltip: "Gạch chân chữ (Ctrl+U)" }
     ,"slides.text.strike": { label: "Gạch ngang", tooltip: "Gạch ngang chữ" }
   ,"slides.text.shadow": { label: "Đổ bóng chữ", tooltip: "Đổ bóng cho chữ đang chọn (bật/tắt)" }
+  ,"slides.text.columns": { label: "Cột", tooltip: "Chia văn bản trong khung chữ thành 1, 2 hoặc 3 cột" }
+  ,"slides.text.columnsOne": { label: "Một cột", tooltip: "Văn bản chạy một cột (mặc định)" }
+  ,"slides.text.columnsTwo": { label: "Hai cột", tooltip: "Chia văn bản trong khung chữ thành hai cột" }
+  ,"slides.text.columnsThree": { label: "Ba cột", tooltip: "Chia văn bản trong khung chữ thành ba cột" }
     ,"slides.text.clearFormat": { label: "Xóa định dạng", tooltip: "Xóa định dạng chữ, giữ nguyên nội dung" }
     ,"slides.font.family": { label: "Phông chữ", tooltip: "Chọn phông chữ" }
     ,"slides.font.size": { label: "Cỡ chữ", tooltip: "Chọn cỡ chữ" }
