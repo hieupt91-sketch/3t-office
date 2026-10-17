@@ -861,7 +861,7 @@ export const WRITER_HELP_ENTRIES = [
   {
     id: "writer.style.galleryAndNormal",
     app: "writer",
-    commandIds: ["writer.style.gallery", "writer.style.normal", "writer.style.apply", "writer.style.heading1", "writer.style.heading2", "writer.style.heading3"],
+    commandIds: ["writer.style.gallery", "writer.style.normal", "writer.style.apply", "writer.style.heading1", "writer.style.heading2", "writer.style.heading3", "writer.styles.pane", "writer.styles.create"],
     title: "Thư viện kiểu và kiểu Thường",
     summary: "Tab Trang đầu > Kiểu dáng > Thư viện kiểu cung cấp Normal, Title, Subtitle, Heading 1–3, Quote, List Paragraph và Emphasis. Đoạn văn mới dùng các kiểu tiêu đề theo chuẩn kiểu dáng tài liệu; các kiểu dựng sẵn được lưu thành tên style tương ứng trong DOCX. Tài liệu DOCX mở sẵn giữ nguyên định dạng nguồn. Hỗ trợ Ctrl+Alt+1/2/3 cho Heading 1/2/3 và Ctrl+Shift+N để về Normal.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Kiểu dáng" },
@@ -873,6 +873,22 @@ export const WRITER_HELP_ENTRIES = [
       "Phím tắt nhanh quen thuộc: nhấn Ctrl+Alt+1 để chuyển đoạn văn thành Tiêu đề 1 (Heading 1 / thẻ H1); nhấn Ctrl+Alt+2 cho Tiêu đề 2 (Heading 2 / thẻ H2); nhấn Ctrl+Alt+3 cho Tiêu đề 3 (Heading 3 / thẻ H3).",
       "Nhấn Ctrl+Shift+N (Kiểu Thường) để đưa đoạn văn bản đang đứng về kiểu Normal, gỡ bỏ nhanh lớp tiêu đề, trích dẫn hoặc nhấn mạnh mà không cần bôi đen toàn bộ đoạn.",
       "Bấm Ctrl+Z bất kỳ lúc nào để hoàn tác thao tác áp dụng kiểu dáng vừa thực hiện."
+    ]
+  },
+  {
+    id: "writer.styles.paneAndCreate",
+    app: "writer",
+    commandIds: ["writer.styles.pane", "writer.styles.create"],
+    title: "Ngăn Kiểu và tạo kiểu đoạn văn",
+    summary: "Ngăn Kiểu liệt kê kiểu dựng sẵn, kiểu đoạn và kiểu ký tự của tài liệu; hiển thị kiểu tại vị trí con trỏ và áp dụng kiểu đoạn cho các đoạn được chọn. Hộp Tạo kiểu mới lưu tên, kiểu kế thừa, kiểu đoạn kế tiếp và định dạng đoạn vào DOCX.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Kiểu dáng" },
+    keywords: ["ngăn kiểu", "styles pane", "tạo kiểu mới", "create style", "ctrl+alt+shift+s", "kiểu đoạn văn"],
+    steps: [
+      "Mở tab Trang đầu, nhóm Kiểu dáng, bấm nút Ngăn Kiểu; có thể dùng Ctrl+Alt+Shift+S để mở hoặc đóng ngăn. Nhấn Esc khi ngăn đang mở để đóng và trả thao tác về vùng soạn thảo.",
+      "Danh sách hiển thị các kiểu dựng sẵn và kiểu đoạn riêng có trong tài liệu. Kiểu của đoạn tại con trỏ được đánh dấu; bấm một tên kiểu để áp dụng cho đoạn hoặc các đoạn đang chọn.",
+      "Các kiểu ký tự được ghi nhãn trong danh sách. Chọn phần văn bản cần định dạng trước khi mở Ngăn Kiểu, sau đó bấm kiểu ký tự để áp dụng định dạng cho phần đã chọn.",
+      "Để tạo kiểu từ định dạng đang chọn, bấm Tạo kiểu mới… rồi nhập tên, chọn Dựa trên và Kiểu đoạn kế tiếp. Đặt phông, cỡ, đậm/nghiêng, màu, căn lề, khoảng cách sau đoạn, giãn dòng và thụt lề.",
+      "Bấm Tạo và áp dụng. Kiểu mới xuất hiện trong danh sách Ngăn Kiểu; lưu tài liệu thành DOCX để ghi định nghĩa kiểu và liên kết kiểu của đoạn vào gói tài liệu. Khi mở lại tài liệu, chọn lại kiểu trong Ngăn Kiểu."
     ]
   },
   {

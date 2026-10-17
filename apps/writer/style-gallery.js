@@ -108,6 +108,10 @@ function getPresetStrings(preset) {
   return { label, sublabel, desc };
 }
 
+function escapeStyleText(value) {
+  return String(value ?? "").replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[char]);
+}
+
 /**
  * Hiển thị dropdown panel danh mục Thư viện Kiểu dáng
  * @param {Object} [options]
@@ -125,6 +129,7 @@ export function showStyleGalleryDropdown(options = {}) {
   const targetEl = options.targetEl;
   const activeStyle = (options.activeStyle || "normal").toLowerCase();
   const onSelectStyle = options.onSelectStyle || (() => {});
+  const customStyles = Array.isArray(options.customStyles) ? options.customStyles : [];
   const onClose = options.onClose || (() => {});
 
   const ariaLabel = (typeof t === "function" && t("writerDialogs.styleGallery.title") !== "writerDialogs.styleGallery.title")
@@ -166,6 +171,15 @@ export function showStyleGalleryDropdown(options = {}) {
             ${isActive ? `<span class="vno-style-card-check" title="${activeTooltip}">✓</span>` : ""}
           </button>
         `;
+      }).join("")}
+      ${customStyles.map((style) => {
+        const isActive = style.id === activeStyle;
+        const color = /^#[0-9a-f]{6}$/i.test(style.color || "") ? style.color : "#334155";
+        const size = Math.max(8, Math.min(48, Number(style.size) || 13));
+        const font = String(style.font || "Arial").replace(/[^A-Za-z0-9 _,-]/g, "").slice(0, 80) || "Arial";
+        const css = `font-family:${JSON.stringify(font)};font-size:${size}pt;font-weight:${style.bold ? 700 : 400};font-style:${style.italic ? "italic" : "normal"};color:${color};text-align:${["left", "center", "right", "justify"].includes(style.alignment) ? style.alignment : "left"};`;
+        const label = escapeStyleText(style.name);
+        return `<button type="button" class="vno-style-card ${isActive ? "is-active" : ""}" data-style-id="${escapeStyleText(style.id)}" title="${label}" aria-label="${label}" aria-pressed="${String(isActive)}"><div class="vno-style-card-preview"><span style="${escapeStyleText(css)}">AaBbCc</span></div><div class="vno-style-card-meta"><span class="vno-style-card-name">${label}</span><span class="vno-style-card-tag">${escapeStyleText(style.basedOn || "Kiểu riêng")}</span></div>${isActive ? `<span class="vno-style-card-check">✓</span>` : ""}</button>`;
       }).join("")}
     </div>
   `;

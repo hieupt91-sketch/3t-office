@@ -38,8 +38,8 @@ export async function runHelpCoverageTests() {
     }
     // Section options from main, paragraph-formatting, table controls and numbered list restart/continue commands, pasteSpecial and spellcheck toggle are covered.
     // NAV1 adds writer.view.navigationPane with its own complete Help entry.
-    // Commands evolve with feature work; complete help coverage is the invariant.
-    if (writer.coveredCount !== writer.liveCount) {
+    // Includes the Styles Pane and Create Style commands added with WRITER-STYLES.
+    if (writer.coveredCount !== writer.liveCount || writer.liveCount !== 217) {
       throw new Error(`Số lượng lệnh Writer không khớp: covered=${writer.coveredCount}, live=${writer.liveCount}`);
     }
   });

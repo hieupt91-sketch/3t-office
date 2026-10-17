@@ -34,6 +34,10 @@ export const enStrings = {
     balloonsInline: "Show All Revisions Inline",
     balloonsCommentsOnly: "Show Only Comments and Formatting in Balloons"
   },
+  writerStyles: {
+    paneTitle: "Styles", paneHint: "Choose a style to apply to the current paragraph.", empty: "No paragraph styles in this document.", create: "Create a new style…", createTitle: "Create a new style from selection", createApply: "Create and apply", duplicate: "A style with this name already exists. Choose another name.",
+    name: "Name", basedOn: "Based on", next: "Style for following paragraph", font: "Font", size: "Size (pt)", bold: "Bold", italic: "Italic", color: "Font color", alignment: "Alignment", left: "Left", center: "Center", right: "Right", justify: "Justified", spaceAfter: "After paragraph (pt)", lineSpacing: "Line spacing", leftIndent: "Left indent (pt)", firstLineIndent: "First line indent (pt)", normal: "Normal", characterStyle: "Character style"
+  },
   writerDocumentProperties: {
     backstage: "Info",
     dialogTitle: "Document properties",
@@ -1167,6 +1171,8 @@ export const enStrings = {
     "writer.font.size": { label: "Font Size", tooltip: "Select font size (Ctrl+Shift+P)" },
     "writer.style.apply": { label: "Styles", tooltip: "Apply paragraph style (Normal, Heading 1, 2, 3, Quote, Emphasis)" },
     "writer.style.gallery": { label: "Styles Gallery", tooltip: "Open visual styles gallery" },
+    "writer.styles.pane": { label: "Styles Pane", tooltip: "Open or close the Styles Pane (Ctrl+Alt+Shift+S)" },
+    "writer.styles.create": { label: "Create New Style", tooltip: "Create a paragraph style from the current selection" },
     "writer.design.themeGallery": { label: "Document Themes", tooltip: "Open document themes and formatting gallery" },
     "writer.color.text": { label: "Font Color", tooltip: "Change font color" },
     "writer.color.highlight": { label: "Text Highlight Color", tooltip: "Highlight text (Ctrl+Alt+H)" },

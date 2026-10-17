@@ -33,6 +33,10 @@ export const viStrings = {
     balloonsInline: "Hiện tất cả bản sửa trong dòng",
     balloonsCommentsOnly: "Chỉ hiện chú thích và định dạng trong bong bóng"
   },
+  writerStyles: {
+    paneTitle: "Kiểu", paneHint: "Chọn một kiểu để áp dụng cho đoạn hiện tại.", empty: "Tài liệu chưa có kiểu đoạn văn.", create: "Tạo kiểu mới…", createTitle: "Tạo kiểu mới từ vùng chọn", createApply: "Tạo và áp dụng", duplicate: "Đã có kiểu cùng tên. Hãy chọn tên khác.",
+    name: "Tên", basedOn: "Dựa trên", next: "Kiểu đoạn kế tiếp", font: "Phông", size: "Cỡ (pt)", bold: "Đậm", italic: "Nghiêng", color: "Màu chữ", alignment: "Căn lề", left: "Trái", center: "Giữa", right: "Phải", justify: "Đều hai bên", spaceAfter: "Sau đoạn (pt)", lineSpacing: "Giãn dòng", leftIndent: "Thụt lề trái (pt)", firstLineIndent: "Thụt dòng đầu (pt)", normal: "Thường", characterStyle: "Kiểu ký tự"
+  },
   writerDocumentProperties: {
     backstage: "Thông tin",
     dialogTitle: "Thuộc tính tài liệu",
@@ -1166,6 +1170,8 @@ export const viStrings = {
     "writer.font.size": { label: "Cỡ chữ", tooltip: "Chọn cỡ chữ (Ctrl+Shift+P)" },
     "writer.style.apply": { label: "Kiểu dáng", tooltip: "Áp dụng kiểu đoạn văn (Normal, Heading 1, 2, 3, Quote, Emphasis)" },
     "writer.style.gallery": { label: "Thư viện kiểu", tooltip: "Mở thư viện kiểu định dạng trực quan (Styles Gallery)" },
+    "writer.styles.pane": { label: "Ngăn Kiểu", tooltip: "Mở hoặc đóng ngăn Kiểu (Ctrl+Alt+Shift+S)" },
+    "writer.styles.create": { label: "Tạo kiểu mới", tooltip: "Tạo kiểu đoạn văn từ vùng chọn hiện tại" },
     "writer.design.themeGallery": { label: "Chủ đề văn bản", tooltip: "Mở thư viện chủ đề định dạng tài liệu (Document Themes)" },
     "writer.color.text": { label: "Màu chữ", tooltip: "Đổi màu phông chữ" },
     "writer.color.highlight": { label: "Màu nền chữ", tooltip: "Tô màu nền văn bản (Ctrl+Alt+H)" },
