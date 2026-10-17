@@ -1539,7 +1539,7 @@ export class SlidesCanvasController {
   _htmlLooksFormatted(html) {
     const value = String(html || "");
     return /<(b|strong|i|em|u|s|strike|font|ul|ol|li)\b/i.test(value)
-      || /style\s*=\s*["'][^"']*(font-weight|font-style|text-decoration|color|background|font-family|font-size|text-align|line-height)/i.test(value);
+      || /style\s*=\s*["'][^"']*(font-weight|font-style|text-decoration|text-shadow|color|background|font-family|font-size|text-align|line-height)/i.test(value);
   }
 
   _setEditableContent(el, html, plain) {

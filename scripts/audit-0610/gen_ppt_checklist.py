@@ -54,7 +54,7 @@ Trang đầu|Phông chữ|Xóa định dạng (Clear All Formatting, Ctrl+Space)
 Trang đầu|Phông chữ|Đậm (Ctrl+B / Bold)|V|-|FIX-L4: slides.text.bold đối chiếu PowerPoint COM Bold=true (docs/SLIDES-BUTTON-MATRIX-1011.md:29, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:17)
 Trang đầu|Phông chữ|Nghiêng (Ctrl+I / Italic)|V|-|FIX-L7: slides.text.italic đối chiếu TextRange2.Font.Italic=-1 (docs/SLIDES-BUTTON-MATRIX-1011.md:30)
 Trang đầu|Phông chữ|Gạch chân (Ctrl+U / Underline)|V|-|FIX-L7: slides.text.underline đối chiếu Font.Underline=-1 (docs/SLIDES-BUTTON-MATRIX-1011.md:31)
-Trang đầu|Phông chữ|Đổ bóng chữ (Text Shadow)|P|1|Có hiệu ứng bóng trong DrawingML; chưa có nút Shadow riêng trên ribbon Trang đầu
+Trang đầu|Phông chữ|Đổ bóng chữ (Text Shadow)|V|-|17/10: slides.text.shadow (nút trên ribbon Trang đầu, bật/tắt); CDP 7/7; lưu PPTX khôi phục outerShdw, PowerPoint 2016 COM đọc Shadow.Visible=-1 cho đúng đoạn chữ (docs/AUDIT-SLIDES-SHADOW-1710.md:11)
 Trang đầu|Phông chữ|Gạch ngang (Strikethrough)|V|-|FIX-L7: slides.text.strike đối chiếu TextFrame2.Font.Strike=1 (docs/SLIDES-BUTTON-MATRIX-1011.md:32)
 Trang đầu|Phông chữ|Khoảng cách ký tự (Character Spacing: Very Tight, Tight, Normal, Loose, Very Loose)|P|2|Có thuộc tính giãn cách font cơ bản; chưa có dropdown mức giãn ký tự trực quan
 Trang đầu|Phông chữ|Đổi chữ hoa/thường (Change Case, Shift+F3)|N|2|Chưa có lệnh đổi kiểu chữ hoa/thường (Change Case) cho VN Slides

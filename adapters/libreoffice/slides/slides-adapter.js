@@ -224,6 +224,7 @@ export class SlidesAdapter {
     // bind explicitly instead of requiring a Platform registry change.
     globalCommandBus.bindHandler("slides.insert.chart", (options) => this.canvas.insertChart ? this.canvas.insertChart(options) : false);
     globalCommandBus.bindHandler("slides.insert.hyperlink", (options) => this.canvas.insertHyperlink ? this.canvas.insertHyperlink(options) : false);
+    globalCommandBus.bindHandler("slides.text.shadow", () => this._toggleTextShadow());
     globalCommandBus.bindHandler("slides.table.insertRowAbove", () => this.canvas.tableInsertRow ? this.canvas.tableInsertRow("above") : false);
     globalCommandBus.bindHandler("slides.table.insertRowBelow", () => this.canvas.tableInsertRow ? this.canvas.tableInsertRow("below") : false);
     globalCommandBus.bindHandler("slides.table.insertColLeft", () => this.canvas.tableInsertCol ? this.canvas.tableInsertCol("left") : false);
@@ -418,6 +419,7 @@ export class SlidesAdapter {
     globalCommandBus.updateState("slides.text.italic", { checked: this._queryCommandState("italic") });
     globalCommandBus.updateState("slides.text.underline", { checked: this._queryCommandState("underline") });
     globalCommandBus.updateState("slides.text.strike", { checked: this._queryCommandState("strikeThrough") });
+    globalCommandBus.updateState("slides.text.shadow", { checked: this._selectionHasTextShadow() });
     globalCommandBus.updateState("slides.list.bullet", { checked: this._queryCommandState("insertUnorderedList") });
     globalCommandBus.updateState("slides.list.numbered", { checked: this._queryCommandState("insertOrderedList") });
     globalCommandBus.updateState("slides.para.alignLeft", { checked: this._queryCommandState("justifyLeft") });
@@ -445,6 +447,52 @@ export class SlidesAdapter {
     this._restoreTextSelection();
     if (typeof document === "undefined" || typeof document.execCommand !== "function") return false;
     const ok = document.execCommand(command, false, value === undefined ? null : value);
+    this.canvas?._syncEditableFieldsFromDom?.();
+    this._syncTextFormatState();
+    return ok;
+  }
+
+  /** Vùng chọn có đang nằm trong chữ đổ bóng (span có text-shadow) không. */
+  _selectionHasTextShadow() {
+    try {
+      const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+      let node = selection?.anchorNode;
+      if (!node) return false;
+      if (node.nodeType === 3) node = node.parentNode;
+      const root = this._savedEditable || this.canvas?.canvasEl;
+      while (node && node !== root && node.nodeType === 1) {
+        const value = node.style?.textShadow;
+        if (value && !/^none$/i.test(value)) return true;
+        node = node.parentNode;
+      }
+    } catch { /* không có vùng chọn */ }
+    return false;
+  }
+
+  /** Bật/tắt đổ bóng cho chữ đang chọn: bọc vùng chọn trong span text-shadow, hoặc gỡ span đó. */
+  _toggleTextShadow() {
+    this._restoreTextSelection();
+    if (typeof document === "undefined" || typeof document.execCommand !== "function") return false;
+    const selection = window.getSelection?.();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      this.shell?.setStatus?.("Hãy chọn đoạn chữ cần đổ bóng.");
+      return false;
+    }
+    const range = selection.getRangeAt(0);
+    const holder = document.createElement("div");
+    holder.appendChild(range.cloneContents());
+    const inner = holder.innerHTML;
+    if (!inner) return false;
+    const shadowed = this._selectionHasTextShadow();
+    let html;
+    if (shadowed) {
+      // Gỡ đổ bóng: xóa text-shadow khỏi mọi span trong vùng chọn (và span bao quanh nếu nó chỉ chứa đúng vùng chọn).
+      holder.querySelectorAll("[style]").forEach(el => { el.style.textShadow = ""; if (!el.getAttribute("style")) el.removeAttribute("style"); });
+      html = `<span style="text-shadow:none">${holder.innerHTML}</span>`;
+    } else {
+      html = `<span style="text-shadow:1pt 1pt 2px rgba(0,0,0,0.45)">${inner}</span>`;
+    }
+    const ok = document.execCommand("insertHTML", false, html);
     this.canvas?._syncEditableFieldsFromDom?.();
     this._syncTextFormatState();
     return ok;
@@ -667,7 +715,7 @@ export class SlidesAdapter {
     if (/<(b|strong|i|em|u|s|strike|sub|sup|font|ul|ol|li|blockquote)\b/i.test(value)) return true;
     const styleMatch = value.match(/style\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
     const styleVal = styleMatch ? (styleMatch[1] !== undefined ? styleMatch[1] : (styleMatch[2] || "")) : "";
-    if (/(?:font-weight|font-style|text-decoration|color|background|font-family|font-size|text-align|line-height)/i.test(styleVal)) return true;
+    if (/(?:font-weight|font-style|text-decoration|text-shadow|color|background|font-family|font-size|text-align|line-height)/i.test(styleVal)) return true;
     return /<(span|div|p)\b[^>]*(align|face|color|size)=/i.test(value);
   }
 
@@ -733,6 +781,7 @@ export class SlidesAdapter {
       if (key === "font-style" && /^normal$/i.test(value)) out.italic = false;
       if (key === "text-decoration" && /underline/i.test(value)) out.underline = true;
       if (key === "text-decoration" && /line-through/i.test(value)) out.strike = true;
+      if (key === "text-shadow" && !/^none$/i.test(value)) out.shadow = true;
       if (key === "color") out.color = this._cssColorToHex(value);
       if (key === "background-color" || key === "background") {
         // Nền bán trong suốt (rgba alpha < 1) là màu tô khung đang chọn của giao diện mà
@@ -985,6 +1034,7 @@ export class SlidesAdapter {
         attrs.push('style:text-underline-color="font-color"');
       }
       if (props.strike) attrs.push('style:text-line-through-style="solid"');
+      if (props.shadow) attrs.push('fo:text-shadow="1pt 1pt"');
       if (props.color) attrs.push(`fo:color="${this._escapeXml(props.color)}"`);
       if (props.bg) attrs.push(`fo:background-color="${this._escapeXml(props.bg)}"`);
       if (props.family) {
@@ -1038,6 +1088,7 @@ export class SlidesAdapter {
           italic: /fo:font-style=["']italic["']/i.test(inner),
           underline: /style:text-underline-style=["'](?!none)[^"']+["']/i.test(inner),
           strike: /style:text-line-through-style=["'](?!none)[^"']+["']/i.test(inner),
+          shadow: /fo:text-shadow=["'](?!none)[^"']+["']/i.test(inner),
           color: inner.match(/fo:color=["']([^"']+)["']/i)?.[1],
           bg: inner.match(/fo:background-color=["']([^"']+)["']/i)?.[1],
           family: this._resolveFodpFontName(inner.match(/fo:font-family=["']([^"']+)["']/i)?.[1] || inner.match(/style:font-name=["']([^"']+)["']/i)?.[1]),
@@ -1113,6 +1164,7 @@ export class SlidesAdapter {
       if (fmt.strike) wrapped = `<s>${wrapped}</s>`;
       const spanStyles = [];
       if (fmt.color) spanStyles.push(`color:${fmt.color}`);
+      if (fmt.shadow) spanStyles.push("text-shadow:1pt 1pt 2px rgba(0,0,0,0.45)");
       if (fmt.bg && fmt.bg !== "transparent") spanStyles.push(`background-color:${fmt.bg}`);
       if (fmt.family) {
         const cleanFamily = fmt.family.replace(/['"]/g, "").trim();

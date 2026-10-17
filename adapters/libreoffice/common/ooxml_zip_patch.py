@@ -10467,6 +10467,152 @@ def _apply_slides_paragraph_levels(pptx_bytes: bytes, source_fodp: str | None) -
     return replacements
 
 
+def _slides_text_shadow_ranges_from_fodp(source_fodp: str | None) -> list[dict[str, list[list[tuple[int, int]]]]]:
+    """Per FODP page: {paragraph text: [[(start, end), ...], ...]} for runs styled with fo:text-shadow.
+
+    soffice writes <a:effectLst></a:effectLst> (empty) for shadowed characters when exporting PPTX, so the
+    shadow is rebuilt from the FODP. Offsets are character offsets inside the paragraph's plain text.
+    """
+    if not source_fodp or "text-shadow" not in source_fodp:
+        return []
+    shadow_styles = set()
+    for match in re.finditer(r"<style:style\b([^>]*)>([\s\S]*?)</style:style>", source_fodp, re.IGNORECASE):
+        attrs, body = match.group(1), match.group(2)
+        if not re.search(r"style:family=[\"']text[\"']", attrs, re.IGNORECASE):
+            continue
+        if re.search(r"fo:text-shadow=[\"'](?!none)[^\"']+[\"']", body, re.IGNORECASE):
+            name = re.search(r"style:name=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
+            if name:
+                shadow_styles.add(name.group(1))
+    if not shadow_styles:
+        return []
+
+    def plain(fragment: str) -> str:
+        fragment = re.sub(r"<text:s\b[^>]*text:c=[\"'](\d+)[\"'][^>]*/?>", lambda m: " " * int(m.group(1)), fragment, flags=re.IGNORECASE)
+        fragment = re.sub(r"<text:s\b[^>]*/?>", " ", fragment, flags=re.IGNORECASE)
+        fragment = re.sub(r"<text:tab\b[^>]*/?>", "\t", fragment, flags=re.IGNORECASE)
+        fragment = re.sub(r"<text:line-break\b[^>]*/?>", "", fragment, flags=re.IGNORECASE)
+        return html.unescape(re.sub(r"<[^>]+>", "", fragment))
+
+    pages = re.findall(r"<draw:page\b[^>]*?/>|<draw:page\b[^>]*>[\s\S]*?</draw:page>", source_fodp, re.IGNORECASE)
+    result: list[dict[str, list[list[tuple[int, int]]]]] = []
+    token_re = re.compile(r"<text:span\b([^>]*)>([\s\S]*?)</text:span>|([^<]+)|<text:(?:s|tab|line-break)\b[^>]*/?>", re.IGNORECASE)
+    for page in pages:
+        per_text: dict[str, list[list[tuple[int, int]]]] = {}
+        for paragraph in re.finditer(r"<text:p(?=[\s>])[^>]*?(?<!/)>([\s\S]*?)</text:p>", page, re.IGNORECASE):
+            inner = paragraph.group(1)
+            text = ""
+            ranges: list[tuple[int, int]] = []
+            for token in token_re.finditer(inner):
+                if token.group(1) is not None:
+                    style = re.search(r"text:style-name=[\"']([^\"']+)[\"']", token.group(1), re.IGNORECASE)
+                    piece = plain(token.group(2))
+                    if style and style.group(1) in shadow_styles and piece:
+                        ranges.append((len(text), len(text) + len(piece)))
+                    text += piece
+                elif token.group(3) is not None:
+                    text += html.unescape(token.group(3))
+                else:
+                    text += plain(token.group(0))
+            if ranges and text:
+                per_text.setdefault(text, []).append(ranges)
+        result.append(per_text)
+    return result if any(result) else []
+
+
+_DRAWINGML_TEXT_SHADOW = (
+    '<a:effectLst><a:outerShdw blurRad="38100" dist="38100" dir="2700000" algn="tl" rotWithShape="0">'
+    '<a:srgbClr val="000000"><a:alpha val="43137"/></a:srgbClr></a:outerShdw></a:effectLst>'
+)
+
+
+def _set_run_text_shadow(run_xml: str) -> str:
+    """Give one <a:r> a PowerPoint-style text shadow (replaces soffice's empty <a:effectLst>)."""
+    if "<a:outerShdw" in run_xml:
+        return run_xml
+    if re.search(r"<a:effectLst\s*/>|<a:effectLst>\s*</a:effectLst>", run_xml):
+        return re.sub(r"<a:effectLst\s*/>|<a:effectLst>\s*</a:effectLst>", _DRAWINGML_TEXT_SHADOW, run_xml, count=1)
+    rpr = re.search(r"<a:rPr\b[^>]*?(/?)>", run_xml)
+    if not rpr:
+        return run_xml
+    if rpr.group(1) == "/":  # <a:rPr .../> tự đóng: mở rộng thành thẻ có nội dung
+        opened = rpr.group(0)[:-2] + ">"
+        return run_xml.replace(rpr.group(0), opened + _DRAWINGML_TEXT_SHADOW + "</a:rPr>", 1)
+    # effectLst đứng sau điền màu/viền và trước phông (latin/ea/cs/sym/hlinkClick...).
+    after_fill = re.search(r"</a:(?:solidFill|gradFill|noFill|pattFill|blipFill|ln)>", run_xml[rpr.end():])
+    anchor_font = re.search(r"<a:(?:uLnTx|uLn|uFillTx|uFill|latin|ea|cs|sym|hlinkClick|hlinkMouseOver|rtl|extLst)\b", run_xml[rpr.end():])
+    insert_at = rpr.end()
+    if anchor_font:
+        insert_at = rpr.end() + anchor_font.start()
+    elif after_fill:
+        insert_at = rpr.end() + after_fill.end()
+    else:
+        close = run_xml.find("</a:rPr>", rpr.end())
+        insert_at = close if close >= 0 else rpr.end()
+    return run_xml[:insert_at] + _DRAWINGML_TEXT_SHADOW + run_xml[insert_at:]
+
+
+def _apply_slides_text_shadow(pptx_bytes: bytes, source_fodp: str | None, prior: dict[str, str] | None = None) -> dict[str, str]:
+    """Restore character shadows (fo:text-shadow) that soffice drops when writing PPTX."""
+    page_ranges = _slides_text_shadow_ranges_from_fodp(source_fodp)
+    if not page_ranges:
+        return {}
+    try:
+        with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+            entries = sorted(
+                (name for name in package.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", name)),
+                key=lambda name: int(re.search(r"slide(\d+)\.xml$", name).group(1)),
+            )
+    except Exception:
+        return {}
+    prior = prior or {}
+    replacements: dict[str, str] = {}
+    paragraph_re = re.compile(r"<a:p\b[^>]*>[\s\S]*?</a:p\s*>", re.IGNORECASE)
+    run_re = re.compile(r"<a:r\b[^>]*>[\s\S]*?</a:r\s*>", re.IGNORECASE)
+    text_re = re.compile(r"<a:t\b[^>]*>([\s\S]*?)</a:t\s*>", re.IGNORECASE)
+    for page_index, entry in enumerate(entries):
+        if page_index >= len(page_ranges) or not page_ranges[page_index]:
+            continue
+        if entry in prior:
+            xml = prior[entry]
+        else:
+            original = read_zip_entry(pptx_bytes, entry)
+            if not original:
+                continue
+            xml = original.decode("utf-8", errors="replace")
+        pending = {text: [list(ranges) for ranges in occurrences] for text, occurrences in page_ranges[page_index].items()}
+        changed = False
+
+        def patch_paragraph(match: re.Match[str]) -> str:
+            nonlocal changed
+            block = match.group(0)
+            runs = run_re.findall(block)
+            if not runs:
+                return block
+            run_texts = [html.unescape("".join(text_re.findall(run))) for run in runs]
+            text = "".join(run_texts)
+            occurrences = pending.get(text)
+            if not text or not occurrences:
+                return block
+            ranges = occurrences.pop(0)
+            offset = 0
+            out = block
+            for run, run_text in zip(runs, run_texts):
+                start, end = offset, offset + len(run_text)
+                offset = end
+                if run_text and any(s <= start and end <= e for s, e in ranges):
+                    patched = _set_run_text_shadow(run)
+                    if patched != run:
+                        out = out.replace(run, patched, 1)
+                        changed = True
+            return out
+
+        next_xml = paragraph_re.sub(patch_paragraph, xml)
+        if changed and next_xml != xml:
+            replacements[entry] = next_xml
+    return replacements
+
+
 def _slide_header_footer_fields_from_fodp(source_fodp: str | None) -> list[dict[str, dict[str, str]]]:
     """Read only VNOffice header/footer frames emitted on each FODP page."""
     if not source_fodp:
@@ -10895,7 +11041,12 @@ def postprocess_slides_pptx(
     layout_replacements = _apply_slides_native_layout_types(
         pptx_bytes, source_fodp, {**animation_replacements, **transition_replacements, **wordart_replacements}
     )
-    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements:
+    shadow_replacements = _apply_slides_text_shadow(
+        pptx_bytes, source_fodp,
+        {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,
+         **transition_replacements, **wordart_replacements, **layout_replacements},
+    )
+    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements and not shadow_replacements:
         return pptx_bytes
     replacements.update(animation_replacements)
     replacements.update(paragraph_level_replacements)
@@ -10904,6 +11055,7 @@ def postprocess_slides_pptx(
     replacements.update(transition_replacements)
     replacements.update(wordart_replacements)
     replacements.update(layout_replacements)
+    replacements.update(shadow_replacements)
 
     if apply_slide_size and presentation_xml:
         presentation_xml = apply_intended_slide_size(presentation_xml, intended_size)

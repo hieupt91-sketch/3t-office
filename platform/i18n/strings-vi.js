@@ -1039,6 +1039,7 @@ export const viStrings = {
     ,"slides.text.italic": { label: "Nghiêng", tooltip: "Chữ nghiêng (Ctrl+I)" }
     ,"slides.text.underline": { label: "Gạch chân", tooltip: "Gạch chân chữ (Ctrl+U)" }
     ,"slides.text.strike": { label: "Gạch ngang", tooltip: "Gạch ngang chữ" }
+  ,"slides.text.shadow": { label: "Đổ bóng chữ", tooltip: "Đổ bóng cho chữ đang chọn (bật/tắt)" }
     ,"slides.text.clearFormat": { label: "Xóa định dạng", tooltip: "Xóa định dạng chữ, giữ nguyên nội dung" }
     ,"slides.font.family": { label: "Phông chữ", tooltip: "Chọn phông chữ" }
     ,"slides.font.size": { label: "Cỡ chữ", tooltip: "Chọn cỡ chữ" }

@@ -16,15 +16,15 @@ Chuẩn: Microsoft PowerPoint 2016 (16.0.4266) cài trên máy, đọc chỉ-đ�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu PowerPoint 2016 | 90 | 34% |
+| ✅ Đã đối chiếu PowerPoint 2016 | 91 | 35% |
 | 🟢 Có, chưa đối chiếu | 49 | 19% |
-| 🟡 Có một phần | 22 | 8% |
+| 🟡 Có một phần | 21 | 8% |
 | 🔴 Chưa có | 102 | 39% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **269** (áp dụng: 263) | |
 
 - **Độ phủ so với PowerPoint 2016 (có hoặc có một phần, một phần tính 0,5): 57%**
-- **Đã xác minh bằng đối chiếu PowerPoint 2016 thật: 34%** các mục áp dụng
+- **Đã xác minh bằng đối chiếu PowerPoint 2016 thật: 35%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tính một mục; đo kiểu ghi-rồi-đọc-lại trên PowerPoint COM chỉ xác nhận ngữ nghĩa thuộc tính của PowerPoint, KHÔNG tự nhận là parity hoàn chỉnh nếu chưa có kiểm chứng khứ hồi.
 
@@ -33,7 +33,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 2 | 9 | 0 | 5 | 1 | 69% |
-| Trang đầu | 57 | 35 | 8 | 5 | 9 | 0 | 80% |
+| Trang đầu | 57 | 36 | 8 | 4 | 9 | 0 | 81% |
 | Chèn | 29 | 14 | 1 | 1 | 11 | 2 | 57% |
 | Thiết kế | 15 | 6 | 0 | 1 | 8 | 0 | 43% |
 | Chuyển tiếp | 11 | 3 | 0 | 1 | 7 | 0 | 32% |
@@ -54,7 +54,6 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Tab | Nhóm | Tính năng | Trạng thái | Ghi chú |
 |---|---|---|---|---|
 | Tệp (Backstage) | Thông tin | Bảo vệ bản trình bày: Mật khẩu mở file (mã hóa PPTX) | 🔴 | Chưa có cơ chế mã hóa mật khẩu mở file PPTX |
-| Trang đầu | Phông chữ | Đổ bóng chữ (Text Shadow) | 🟡 | Có hiệu ứng bóng trong DrawingML; chưa có nút Shadow riêng trên ribbon Trang đầu |
 | Trang đầu | Đoạn văn | Cột văn bản trong khung (Columns: 1, 2, 3 cột) | 🔴 | Chưa hỗ trợ chia cột văn bản bên trong textbox |
 | Chèn | Minh họa | SmartArt (Danh sách, Quy trình, Chu trình, Phân cấp) | 🔴 | Chưa hỗ trợ tạo mới SmartArt native chuẩn DrawingML diagram; hiện dùng sơ đồ nhóm shape (docs/SLIDES-BUTTON-MATRIX-1011.md:53) |
 | Chèn | Văn bản | Chữ nghệ thuật (WordArt) | 🟡 | FIX-L14: có lệnh slides.insert.wordart nhưng PowerPoint COM nhận dạng Type=17 PresetTextEffect=-2 chưa chuẩn native Type=15 (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
@@ -64,7 +63,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Công cụ vẽ > Định dạng | Kiểu chữ WordArt | Hiệu ứng chữ nghệ thuật (Text Effects: Warp, Shadow, 3D) | 🟡 | FIX-L14: có textFadeRight nhưng PowerPoint COM nhận dạng PresetTextEffect=-2 chưa chuẩn native (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
 | Công cụ hình ảnh > Định dạng | Kích thước | Cắt xén ảnh (Crop to Shape / Aspect Ratio) | 🟡 | Đọc và hiển thị ảnh cắt xén (apps/slides/slides-canvas.js:3406); chưa có công cụ kéo cắt xén ảnh trực tiếp trên UI |
 
-Tổng: 10 mục ưu tiên 1.
+Tổng: 9 mục ưu tiên 1.
 
 ## Danh sách 15 mục ưu tiên 1 thiếu nhất & Đề xuất 10 phiếu việc kế tiếp
 
@@ -146,7 +145,7 @@ Tổng: 10 mục ưu tiên 1.
 | Phông chữ | Đậm (Ctrl+B / Bold) | ✅ | - | FIX-L4: slides.text.bold đối chiếu PowerPoint COM Bold=true (docs/SLIDES-BUTTON-MATRIX-1011.md:29, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:17) |
 | Phông chữ | Nghiêng (Ctrl+I / Italic) | ✅ | - | FIX-L7: slides.text.italic đối chiếu TextRange2.Font.Italic=-1 (docs/SLIDES-BUTTON-MATRIX-1011.md:30) |
 | Phông chữ | Gạch chân (Ctrl+U / Underline) | ✅ | - | FIX-L7: slides.text.underline đối chiếu Font.Underline=-1 (docs/SLIDES-BUTTON-MATRIX-1011.md:31) |
-| Phông chữ | Đổ bóng chữ (Text Shadow) | 🟡 | 1 | Có hiệu ứng bóng trong DrawingML; chưa có nút Shadow riêng trên ribbon Trang đầu |
+| Phông chữ | Đổ bóng chữ (Text Shadow) | ✅ | - | 17/10: slides.text.shadow (nút trên ribbon Trang đầu, bật/tắt); CDP 7/7; lưu PPTX khôi phục outerShdw, PowerPoint 2016 COM đọc Shadow.Visible=-1 cho đúng đoạn chữ (docs/AUDIT-SLIDES-SHADOW-1710.md:11) |
 | Phông chữ | Gạch ngang (Strikethrough) | ✅ | - | FIX-L7: slides.text.strike đối chiếu TextFrame2.Font.Strike=1 (docs/SLIDES-BUTTON-MATRIX-1011.md:32) |
 | Phông chữ | Khoảng cách ký tự (Character Spacing: Very Tight, Tight, Normal, Loose, Very Loose) | 🟡 | 2 | Có thuộc tính giãn cách font cơ bản; chưa có dropdown mức giãn ký tự trực quan |
 | Phông chữ | Đổi chữ hoa/thường (Change Case, Shift+F3) | 🔴 | 2 | Chưa có lệnh đổi kiểu chữ hoa/thường (Change Case) cho VN Slides |

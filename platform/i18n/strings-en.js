@@ -1040,6 +1040,7 @@ export const enStrings = {
     ,"slides.text.italic": { label: "Italic", tooltip: "Italic (Ctrl+I)" }
     ,"slides.text.underline": { label: "Underline", tooltip: "Underline (Ctrl+U)" }
     ,"slides.text.strike": { label: "Strikethrough", tooltip: "Strikethrough" }
+  ,"slides.text.shadow": { label: "Text Shadow", tooltip: "Add a shadow to the selected text (toggle)" }
     ,"slides.text.clearFormat": { label: "Clear Formatting", tooltip: "Clear text formatting, keep the content" }
     ,"slides.font.family": { label: "Font", tooltip: "Choose a font" }
     ,"slides.font.size": { label: "Font Size", tooltip: "Choose a font size" }

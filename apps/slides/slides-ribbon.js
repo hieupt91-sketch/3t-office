@@ -123,6 +123,7 @@ export const SLIDES_RIBBON_TABS = [
                   { type: "button", commandId: "slides.text.italic", iconOnly: true },
                   { type: "button", commandId: "slides.text.underline", iconOnly: true },
                   { type: "button", commandId: "slides.text.strike", iconOnly: true },
+                  { type: "button", commandId: "slides.text.shadow", iconOnly: true },
                   { type: "button", commandId: "slides.text.clearFormat", iconOnly: true },
                   { type: "button", commandId: "slides.color.text", iconOnly: true },
                   { type: "button", commandId: "slides.color.highlight", iconOnly: true }
