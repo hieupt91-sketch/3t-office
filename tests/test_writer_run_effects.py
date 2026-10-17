@@ -281,3 +281,51 @@ class ParagraphStyleTests(unittest.TestCase):
         saved = _docx('<w:p><w:pPr><w:pStyle w:val="BodyText"/></w:pPr><w:r><w:t>Chao</w:t></w:r></w:p>')
         out = _document(patcher.postprocess_writer_run_effects(saved, source_html=marked))
         self.assertIn("BodyText", out)  # kiểu Quote không có trong styles.xml của bản lưu → giữ nguyên, không ghi kiểu mồ côi
+
+class TextEditPatchTests(unittest.TestCase):
+    FIELD_PARA = (
+        '<w:p><w:r><w:t xml:space="preserve">Xem muc </w:t></w:r>'
+        '<w:r><w:fldChar w:fldCharType="begin"/></w:r><w:r><w:instrText> REF _Ref1 \\h </w:instrText></w:r>'
+        '<w:r><w:fldChar w:fldCharType="separate"/></w:r><w:r><w:t>2.1</w:t></w:r><w:r><w:fldChar w:fldCharType="end"/></w:r>'
+        '<w:r><w:t xml:space="preserve"> de biet them.</w:t></w:r></w:p>'
+    )
+
+    def test_insertion_after_field_keeps_the_field(self):
+        out = patcher._writer_apply_text_edit(self.FIELD_PARA, "Xem muc 2.1 de biet them. ZZ")
+        self.assertIn("REF _Ref1", out)
+        self.assertIn("de biet them. ZZ", out)
+
+    def test_insertion_before_field_keeps_the_field(self):
+        out = patcher._writer_apply_text_edit(self.FIELD_PARA, "Moi Xem muc 2.1 de biet them.")
+        self.assertIn("REF _Ref1", out)
+        self.assertIn("Moi Xem muc", out)
+
+    def test_editing_the_field_result_is_refused(self):
+        self.assertIsNone(patcher._writer_apply_text_edit(self.FIELD_PARA, "Xem muc 9.9 de biet them."))
+
+    def test_unchanged_text_returns_none(self):
+        self.assertIsNone(patcher._writer_apply_text_edit(self.FIELD_PARA, "Xem muc 2.1 de biet them."))
+
+    def test_deletion_across_runs(self):
+        src = '<w:p><w:r><w:t>Hello </w:t></w:r><w:r><w:rPr><w:b/></w:rPr><w:t>brave new</w:t></w:r><w:r><w:t xml:space="preserve"> world</w:t></w:r></w:p>'
+        out = patcher._writer_apply_text_edit(src, "Hello world")
+        self.assertEqual(patcher._paragraph_plain_text(out), "Hello world")
+
+    def test_paragraph_with_tab_is_kept_when_editing_elsewhere(self):
+        src = '<w:p><w:r><w:t>Ten</w:t></w:r><w:r><w:tab/></w:r><w:r><w:t>Gia tri</w:t></w:r></w:p>'
+        out = patcher._writer_apply_text_edit(src, "Ten Gia tri moi")
+        self.assertIn("<w:tab/>", out)
+        self.assertEqual(patcher._paragraph_plain_text(out), "Ten Gia tri moi")
+
+    def test_pipeline_pass_patches_edited_paragraph_with_field(self):
+        src = _docx("<w:p><w:r><w:t>Dau</w:t></w:r></w:p>" + self.FIELD_PARA.replace("<w:p>", "<w:p>", 1))
+        converted = _docx(
+            "<w:p><w:r><w:t>Dau</w:t></w:r></w:p>"
+            '<w:p><w:pPr><w:pStyle w:val="BodyText"/></w:pPr><w:r><w:t>Xem muc 2.1 de biet them. ZZ</w:t></w:r></w:p>'
+        )
+        original_xml = _document(src)
+        converted_xml = _document(converted)
+        out = patcher._writer_patch_edited_paragraphs(converted_xml, original_xml)
+        self.assertIn("REF _Ref1", out)
+        self.assertIn("ZZ", out)
+        self.assertIn("BodyText", out)  # pPr của bản chuyển đổi được giữ

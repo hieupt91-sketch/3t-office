@@ -17996,6 +17996,172 @@ def _writer_restore_untouched_runs(target_paragraph: str, source_paragraph: str)
     return open_match.group(0) + target_ppr + "".join(kept) + source_body + "</w:p>"
 
 
+_TEXTEDIT_TOKEN_RE = re.compile(
+    r'<w:t\b[^>]*>([\s\S]*?)</w:t\s*>|<w:tab\b[^>]*/>|<w:br\b[^>]*/>'
+    r'|<w:fldChar\b[^>]*w:fldCharType="(begin|separate|end)"[^>]*/>|<w:fldSimple\b[^>]*>|</w:fldSimple>',
+    re.IGNORECASE,
+)
+
+
+def _writer_style_flags(paragraph: str) -> frozenset[str]:
+    """Cờ định dạng ký tự chính (đậm, nghiêng, gạch chân, gạch ngang) còn bật trong đoạn."""
+    flags = set()
+    for rpr in re.findall(r"<w:rPr>([\s\S]*?)</w:rPr>", paragraph):
+        for name in ("b", "i", "u", "strike"):
+            match = re.search(rf'<w:{name}\b([^>]*)/?>', rpr)
+            if match and not re.search(r'w:val="(?:0|false|none)"', match.group(1)):
+                flags.add(name)
+    return frozenset(flags)
+
+
+def _writer_apply_text_edit(source_paragraph: str, new_text: str) -> str | None:
+    """Áp một chỉnh sửa chữ liền mạch (chèn/xóa/thay một khoảng) lên đoạn NGUỒN, giữ nguyên trường, tab, ngắt dòng,
+    run và định dạng. Không áp được (chạm vào kết quả trường, tab, ngắt dòng...) thì trả None."""
+    segments: list[tuple[int, int, str, bool]] = []  # (bắt đầu nội dung, kết thúc, kiểu, được sửa)
+    chars: list[tuple[int, int, str]] = []  # (chỉ số segment, vị trí trong segment, ký tự)
+    stack: list[str] = []
+    simple = 0
+    for token in _TEXTEDIT_TOKEN_RE.finditer(source_paragraph):
+        text = token.group(0)
+        low = text.lower()
+        if token.group(2):
+            state = token.group(2).lower()
+            if state == "begin":
+                stack.append("instr")
+            elif state == "separate" and stack:
+                stack[-1] = "result"
+            elif state == "end" and stack:
+                stack.pop()
+            continue
+        if low.startswith("<w:fldsimple"):
+            simple += 1
+            continue
+        if low.startswith("</w:fldsimple"):
+            simple = max(0, simple - 1)
+            continue
+        protected = bool(stack) or simple > 0
+        if token.group(1) is not None:
+            raw = _unescape_xml(token.group(1))
+            segments.append((token.start(1), token.end(1), "t", not protected))
+            index = len(segments) - 1
+            for offset, ch in enumerate(raw):
+                chars.append((index, offset, ch))
+        else:
+            segments.append((token.start(), token.end(), "special", False))
+            chars.append((len(segments) - 1, 0, " "))
+    source_text = "".join(ch for _i, _o, ch in chars)
+    source_idx = [i for i, ch in enumerate(source_text) if not ch.isspace()]
+    new_idx = [i for i, ch in enumerate(new_text) if not ch.isspace()]
+    source_nws = "".join(source_text[i] for i in source_idx)
+    new_nws = "".join(new_text[i] for i in new_idx)
+    if source_nws == new_nws:
+        return None
+    limit = min(len(source_nws), len(new_nws))
+    prefix = 0
+    while prefix < limit and source_nws[prefix] == new_nws[prefix]:
+        prefix += 1
+    suffix = 0
+    while suffix < limit - prefix and source_nws[len(source_nws) - 1 - suffix] == new_nws[len(new_nws) - 1 - suffix]:
+        suffix += 1
+    start_s = source_idx[prefix - 1] + 1 if prefix else 0
+    end_s = source_idx[len(source_nws) - suffix] if suffix else len(source_text)
+    start_n = new_idx[prefix - 1] + 1 if prefix else 0
+    end_n = new_idx[len(new_nws) - suffix] if suffix else len(new_text)
+    inserted = new_text[start_n:end_n]
+    editable = [segments[i][3] and segments[i][2] == "t" for i in range(len(segments))]
+    if start_s < end_s:
+        if not all(editable[chars[k][0]] for k in range(start_s, end_s)):
+            return None
+        anchor_index = start_s
+    else:
+        if start_s > 0 and editable[chars[start_s - 1][0]]:
+            anchor_index = start_s - 1
+            anchor_after = True
+        elif start_s < len(chars) and editable[chars[start_s][0]]:
+            anchor_index = start_s
+            anchor_after = False
+        else:
+            return None
+    edits: dict[int, tuple[int, int, str]] = {}  # segment -> (từ, đến, chữ thay) theo vị trí trong segment
+    if start_s < end_s:
+        for k in range(start_s, end_s):
+            seg, offset, _ch = chars[k]
+            lo, hi, rep = edits.get(seg, (offset, offset, ""))
+            edits[seg] = (min(lo, offset), max(hi, offset + 1), rep)
+        first_seg = chars[start_s][0]
+        lo, hi, _rep = edits[first_seg]
+        edits[first_seg] = (lo, hi, inserted)
+    else:
+        seg, offset, _ch = chars[anchor_index]
+        at = offset + 1 if anchor_after else offset
+        edits[seg] = (at, at, inserted)
+    result = source_paragraph
+    for seg in sorted(edits, reverse=True):
+        begin, finish, _kind, _ok = segments[seg]
+        old = _unescape_xml(result[begin:finish])
+        lo, hi, rep = edits[seg]
+        updated = _escape_xml(old[:lo] + rep + old[hi:]).replace("&quot;", '"')
+        result = result[:begin] + updated + result[finish:]
+        open_tag = result.rfind("<w:t", 0, begin)
+        tag_end = result.find(">", open_tag)
+        tag = result[open_tag:tag_end + 1]
+        if "xml:space" not in tag and not tag.endswith("/>"):
+            result = result[:tag_end] + ' xml:space="preserve"' + result[tag_end:]
+    return result if _paragraph_plain_text(result) == new_text else None
+
+
+def _writer_patch_edited_paragraphs(converted_xml: str, original_xml: str) -> str:
+    """Đoạn có trường/tab/ngắt dòng bị người dùng sửa chữ: HTML làm phẳng những thứ đó. Ghép từng đoạn đã sửa với
+    đoạn nguồn (cùng vị trí trong khoảng thay thế giữa hai điểm neo giống hệt) rồi áp đúng phần chữ đã đổi lên
+    đoạn nguồn, giữ trường REF/DATE/PAGE, tab, ngắt dòng và run gốc. Bỏ qua khi định dạng ký tự có vẻ đã bị đổi."""
+    import difflib
+
+    converted_ranges = _document_paragraph_ranges(converted_xml)
+    original_ranges = _document_paragraph_ranges(original_xml)
+    converted = [converted_xml[start:end] for start, end in converted_ranges]
+    original = [original_xml[start:end] for start, end in original_ranges]
+    original_keys = [_paragraph_plain_text(p) for p in original]
+    converted_keys = [_paragraph_plain_text(p) for p in converted]
+    if original_keys == converted_keys:
+        return converted_xml
+    replacements: dict[int, str] = {}
+    matcher = difflib.SequenceMatcher(None, original_keys, converted_keys, autojunk=False)
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag != "replace" or (i2 - i1) != (j2 - j1):
+            continue
+        for source_index, target_index in zip(range(i1, i2), range(j1, j2)):
+            source_p, target_p = original[source_index], converted[target_index]
+            new_text = converted_keys[target_index]
+            if not new_text or not original_keys[source_index]:
+                continue
+            if not _W37_LOSSY_RE.search(source_p) or _W37_UNSAFE_RE.search(source_p) or _W37_UNSAFE_RE.search(target_p):
+                continue
+            ratio = difflib.SequenceMatcher(None, original_keys[source_index], new_text, autojunk=False).ratio()
+            if ratio < 0.5:
+                continue
+            if _writer_style_flags(source_p) != _writer_style_flags(target_p):
+                continue
+            patched_source = _writer_apply_text_edit(source_p, new_text)
+            if patched_source is None:
+                continue
+            restored = _writer_restore_untouched_runs(target_p, patched_source)
+            if restored is not None:
+                replacements[target_index] = restored
+    if not replacements:
+        return converted_xml
+    pieces: list[str] = []
+    cursor = 0
+    for index in sorted(replacements):
+        start, end = converted_ranges[index]
+        if start < cursor:
+            continue
+        pieces.append(converted_xml[cursor:start])
+        pieces.append(replacements[index])
+        cursor = end
+    pieces.append(converted_xml[cursor:])
+    return "".join(pieces)
+
+
 def _remove_writer_untouched_bookmarks(xml: str) -> str:
     marker_ids = set(re.findall(
         r'<w:bookmarkStart\b(?=[^>]*\bw:id=["\']([^"\']+)["\'])(?=[^>]*\bw:name=["\'](?:vno-(?:untouched|edited)-\d+|vno-pristine-document)["\'])[^>]*/?>',
@@ -20402,6 +20568,7 @@ def postprocess_writer_docx(
             new_xml, original_xml, trusted_untouched_texts=untouched_texts,
             table_paragraphs_only=True,
         )
+    new_xml = _writer_patch_edited_paragraphs(new_xml, original_xml)
     new_xml = _restore_untouched_writer_equations(new_xml, original_xml)
     new_xml = _remove_writer_untouched_bookmarks(new_xml)
     new_xml = _writer_collapse_consecutive_page_breaks(new_xml)
