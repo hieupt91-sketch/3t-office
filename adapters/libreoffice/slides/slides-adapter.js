@@ -3689,6 +3689,8 @@ export class SlidesAdapter {
       const headerFooterXml = this._serializeSlideHeaderFooter(slide, pageWidthCm, pageHeightCm);
 
       let vnTransitionAttr = slide.transition?.type === "morph" ? ' vno:transition="morph"' : "";
+      // Bố cục gốc của slide trong tệp PowerPoint: bước lưu dùng để trỏ lại về đúng bố cục của bản cái gốc.
+      if (slide.srcLayout) vnTransitionAttr += ` vno:src-layout="${this._escapeXml(slide.srcLayout)}"`;
       if (slide.transition?.sourceXml) {
         // Chưa đổi chuyển tiếp: mang khối gốc đi tiếp để bước lưu ghi lại nguyên vẹn.
         const advanceClick = slide.transition.advanceOnClick === false ? 0 : 1;
@@ -3816,6 +3818,7 @@ export class SlidesAdapter {
       let pageLayout = layoutMatch ? (layoutNames[layoutMatch[1]] || layoutMatch[1]) : "";
       const originalPageXml = pageMatch[2];
       const pageTransition = this._parsePageTransition(fullPageTag, originalPageXml, drawingPageStyles);
+      const pageSourceLayout = this._attr(fullPageTag, "vno:src-layout");
       const animByTarget = this._parsePageAnimations(originalPageXml);
       let pageContent = originalPageXml;
 
@@ -3877,7 +3880,10 @@ export class SlidesAdapter {
       const isImportedSlide = !layoutMatch || masterPageName === "BLANK" || hasTextBoxShapes || shapes.length > 0;
 
       // PPTX hop drops presentation:layout; restore two-content / title-only from remaining placeholders.
-      if (isImportedSlide && (hasTextBoxShapes || masterPageName === "BLANK" || shapes.length > 0)) {
+      // Trang nhập từ tệp mà không có khung chỗ giữ (tiêu đề/nội dung), không hộp chữ, không hình: là trang trống (không thêm 2 khung chữ rỗng).
+      const pageBodyXml = String(originalPageXml || "").replace(/<presentation:notes\b[\s\S]*?<\/presentation:notes>/gi, "");
+      const pageHasNoObjects = !hasPlaceholderClasses && !/<draw:(?:frame|custom-shape|rect|ellipse|circle|line|path|g|polygon|polyline|connector|control)\b/i.test(pageBodyXml);
+      if (isImportedSlide && (hasTextBoxShapes || masterPageName === "BLANK" || shapes.length > 0 || pageHasNoObjects)) {
         pageLayout = "blank";
       } else if (pageLayout !== "blank") {
         if (outlineBlocks.length > 1) pageLayout = "two-content";
@@ -3992,6 +3998,7 @@ export class SlidesAdapter {
         hidden,
         ...(sectionId ? { sectionId } : {}),
         ...(pageTransition ? { transition: pageTransition } : {}),
+        ...(pageSourceLayout ? { srcLayout: pageSourceLayout } : {}),
         ...(isImportedSlide ? { imported: true } : {})
       };
       this._applyPlaceholderAnimations(
