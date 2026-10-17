@@ -1861,6 +1861,9 @@ def _apply_native_export_postprocess(
                     patched = patcher.postprocess_writer_text_effects(
                         patched, source_html=source_html,
                     )
+                    patched = patcher.postprocess_writer_run_effects(
+                        patched, source_html=source_html,
+                    )
                     patched = patcher.postprocess_writer_strip_markers(patched)
                     patched = patcher.postprocess_writer_schema_fixes(patched)
                 patched = patcher.postprocess_writer_document_properties(
@@ -4817,6 +4820,8 @@ class VnOfficeApi:
                             # W32: font/cỡ/đậm/nghiêng của heading 1..6 theo chuỗi style Word (LibreOffice bỏ trống)
                             content = patcher.inject_docx_heading_styles_css(docx_bytes, content)
                             content = patcher.restore_docx_html_half_points_and_empty_paras(docx_bytes, content)
+                            # Hiệu ứng chữ cấp run của Word (gạch ngang đôi, ẩn, nâng/hạ, kiểu gạch chân...) để giữ khi sửa đoạn
+                            content = patcher.inject_docx_run_effects(docx_bytes, content)
                         except OSError:
                             pass
                     content = _inline_html_images(content, out_path)
