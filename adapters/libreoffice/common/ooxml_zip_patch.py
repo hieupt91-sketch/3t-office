@@ -12077,6 +12077,32 @@ def _apply_slides_native_pictures(
     return replacements
 
 
+def _strip_slides_internal_group_prefix(
+    pptx_bytes: bytes,
+    base_replacements: dict[str, str] | None = None,
+) -> dict[str, str]:
+    target_entries = _resolve_pptx_slide_entries(pptx_bytes)
+    if not target_entries:
+        return {}
+
+    replacements: dict[str, str] = {}
+    for entry in target_entries:
+        original = (base_replacements or {}).get(entry) or read_zip_entry(pptx_bytes, entry).decode("utf-8", errors="replace")
+        if "VNOfficeGroup:" not in original:
+            continue
+        next_xml = re.sub(
+            r'(<p:cNvPr\b[^>]*\bname=["\'])VNOfficeGroup:([^"\']*)',
+            r'\1\2',
+            original,
+            flags=re.IGNORECASE,
+        )
+        if next_xml != original:
+            replacements[entry] = next_xml
+
+    return replacements
+
+
+
 
 
 def _slides_wordart_ids_from_fodp(fodp_xml: str | None) -> list[set[str]]:
@@ -12333,7 +12359,14 @@ def postprocess_slides_pptx(
          **shadow_replacements, **source_transition_replacements, **textbox_replacements,
          **shape_line_replacements},
     )
-    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements and not native_timing_replacements and not shadow_replacements and not source_transition_replacements and not textbox_replacements and not shape_line_replacements and not picture_replacements and not restore_masters:
+    group_replacements = _strip_slides_internal_group_prefix(
+        pptx_bytes,
+        {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,
+         **transition_replacements, **wordart_replacements, **layout_replacements, **native_timing_replacements,
+         **shadow_replacements, **source_transition_replacements, **textbox_replacements,
+         **shape_line_replacements, **picture_replacements},
+    )
+    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements and not native_timing_replacements and not shadow_replacements and not source_transition_replacements and not textbox_replacements and not shape_line_replacements and not picture_replacements and not group_replacements and not restore_masters:
         return pptx_bytes
     replacements.update(animation_replacements)
     replacements.update(paragraph_level_replacements)
@@ -12348,6 +12381,7 @@ def postprocess_slides_pptx(
     replacements.update(textbox_replacements)
     replacements.update(shape_line_replacements)
     replacements.update(picture_replacements)
+    replacements.update(group_replacements)
 
     if apply_slide_size and presentation_xml:
         presentation_xml = apply_intended_slide_size(presentation_xml, intended_size)
