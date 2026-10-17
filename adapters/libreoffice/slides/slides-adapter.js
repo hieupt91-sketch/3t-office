@@ -1708,6 +1708,18 @@ export class SlidesAdapter {
     const delayMs = Number(animation.delay) || 0;
     const begin = delayMs > 0 ? (this._msToSmilDur(delayMs) || "0s") : "0s";
     switch (type) {
+      case "spin":
+        return { presetId: "ooo-emphasis-spin", subType: null, dur, begin, kind: "spin", cls: "emphasis" };
+      case "growShrink":
+        return { presetId: "ooo-emphasis-grow-and-shrink", subType: null, dur, begin, kind: "growShrink", cls: "emphasis" };
+      case "fadeOut":
+        return { presetId: "ooo-exit-fade-out", subType: null, dur, begin, kind: "fadeOut", cls: "exit" };
+      case "flyOut":
+        return { presetId: "ooo-exit-fly-out", subType: "to-bottom", dur, begin, kind: "flyOut", cls: "exit" };
+      case "zoomOut":
+        return { presetId: "ooo-exit-zoom", subType: null, dur, begin, kind: "zoomOut", cls: "exit" };
+      case "disappear":
+        return { presetId: "ooo-exit-disappear", subType: null, dur, begin, kind: "disappear", cls: "exit" };
       case "fadeIn":
       case "fade":
         return { presetId: "ooo-entrance-fade-in", subType: null, dur, begin, kind: "fade" };
@@ -1728,9 +1740,22 @@ export class SlidesAdapter {
     }
   }
 
-  _mapPresetToVnAnimation(presetId) {
+  _mapPresetToVnAnimation(presetId, presetClass = "") {
     const id = String(presetId || "").toLowerCase();
     if (!id) return null;
+    const cls = String(presetClass || "").toLowerCase() || (id.includes("-exit-") ? "exit" : id.includes("-emphasis-") ? "emphasis" : "");
+    if (cls === "exit") {
+      if (id.includes("fly")) return "flyOut";
+      if (id.includes("zoom") || id.includes("shrink")) return "zoomOut";
+      if (id.includes("fade")) return "fadeOut";
+      if (id.includes("disappear") || id.includes("appear")) return "disappear";
+      return null;
+    }
+    if (cls === "emphasis") {
+      if (id.includes("spin")) return "spin";
+      if (id.includes("grow")) return "growShrink";
+      return null;
+    }
     if (id.includes("fly-in")) return "flyIn";
     if (id.includes("zoom")) return "zoomIn";
     if (id.includes("bounce")) return "bounceIn";
@@ -1781,9 +1806,32 @@ export class SlidesAdapter {
     if (!preset || !drawId) return "";
     const target = this._escapeXml(drawId);
     const sub = preset.subType ? ` presentation:preset-sub-type="${this._escapeXml(preset.subType)}"` : "";
-    let animates = `
-                <anim:set smil:begin="0s" smil:dur="0.001s" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="visibility" smil:to="visible"/>`;
-    if (preset.kind === "fly") {
+    const presetClass = preset.cls || "entrance";
+    let animates = presetClass === "entrance" ? `
+                <anim:set smil:begin="0s" smil:dur="0.001s" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="visibility" smil:to="visible"/>` : "";
+    const hideAtEnd = `
+                <anim:set smil:begin="${preset.dur}" smil:dur="0.001s" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="visibility" smil:to="hidden"/>`;
+    if (preset.kind === "spin") {
+      animates += `
+                <anim:animateTransform smil:dur="${preset.dur}" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="rotate" svg:type="rotate" smil:by="360"/>`;
+    } else if (preset.kind === "growShrink") {
+      const factor = "1.5,1.5";
+      animates += `
+                <anim:animateTransform smil:dur="${preset.dur}" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="scale" svg:type="scale" smil:by="${factor}" smil:autoReverse="true"/>`;
+    } else if (preset.kind === "fadeOut") {
+      animates += `
+                <anim:animate smil:dur="${preset.dur}" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="opacity" smil:from="1" smil:to="0"/>${hideAtEnd}`;
+    } else if (preset.kind === "flyOut") {
+      animates += `
+                <anim:animate smil:dur="${preset.dur}" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="y" smil:values="y;height" smil:keyTimes="0;1"/>${hideAtEnd}`;
+    } else if (preset.kind === "zoomOut") {
+      animates += `
+                <anim:animate smil:dur="${preset.dur}" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="width" smil:values="width;0" smil:keyTimes="0;1"/>
+                <anim:animate smil:dur="${preset.dur}" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="height" smil:values="height;0" smil:keyTimes="0;1"/>${hideAtEnd}`;
+    } else if (preset.kind === "disappear") {
+      animates += `
+                <anim:set smil:begin="0s" smil:dur="0.001s" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="visibility" smil:to="hidden"/>`;
+    } else if (preset.kind === "fly") {
       animates += `
                 <anim:animate smil:dur="${preset.dur}" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="x" smil:values="x;x" smil:keyTimes="0;1"/>
                 <anim:animate smil:dur="${preset.dur}" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="y" smil:values="height;y" smil:keyTimes="0;1"/>`;
@@ -1802,7 +1850,7 @@ export class SlidesAdapter {
         : "on-click";
     return `
             <anim:par smil:begin="indefinite">
-              <anim:par smil:begin="${preset.begin}" smil:fill="hold" presentation:node-type="${nodeType}" presentation:preset-class="entrance" presentation:preset-id="${this._escapeXml(preset.presetId)}"${sub}>${animates}
+              <anim:par smil:begin="${preset.begin}" smil:fill="hold" presentation:node-type="${nodeType}" presentation:preset-class="${presetClass}" presentation:preset-id="${this._escapeXml(preset.presetId)}"${sub}>${animates}
               </anim:par>
             </anim:par>`;
   }
@@ -1971,7 +2019,7 @@ export class SlidesAdapter {
     let match;
     while ((match = regex.exec(pageXml || "")) !== null) {
       const attrs = match[1];
-      const vnType = this._mapPresetToVnAnimation(this._attr(attrs, "presentation:preset-id"));
+      const vnType = this._mapPresetToVnAnimation(this._attr(attrs, "presentation:preset-id"), this._attr(attrs, "presentation:preset-class"));
       if (!vnType) continue;
       const afterOpen = pageXml.indexOf(">", match.index);
       const close = afterOpen >= 0 ? pageXml.indexOf("</anim:par>", afterOpen) : -1;
@@ -1980,7 +2028,7 @@ export class SlidesAdapter {
         : pageXml.slice(match.index, match.index + 2500);
       const target = chunk.match(/smil:targetElement=["']([^"']+)["']/i)?.[1];
       if (!target) continue;
-      const animateDurs = [...chunk.matchAll(/<anim:animate\b([^>]*?)(?:\/>|>)/gi)]
+      const animateDurs = [...chunk.matchAll(/<anim:animate(?:Transform)?\b([^>]*?)(?:\/>|>)/gi)]
         .map((item) => this._parseSmilTimeToMs(this._attr(item[1], "smil:dur")))
         .filter((ms) => Number.isFinite(ms) && ms >= 20);
       const duration = animateDurs.length

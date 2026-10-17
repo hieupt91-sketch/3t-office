@@ -664,6 +664,38 @@
   to { opacity: 1; transform: translateX(0); }
 }
 
+/* Object Emphasis Animations (nhan manh: doi tuong hien san, chay xong tro lai nguyen trang) */
+@keyframes vnoAnimSpin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+@keyframes vnoAnimGrowShrink {
+  0%, 100% { transform: scale(1); }
+  50% { transform: scale(1.5); }
+}
+
+/* Object Exit Animations (thoat: doi tuong hien san, chay xong thi an) */
+@keyframes vnoAnimFadeOut {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+@keyframes vnoAnimFlyOut {
+  from { opacity: 1; transform: translateY(0); }
+  to { opacity: 0; transform: translateY(40px); }
+}
+
+@keyframes vnoAnimZoomOut {
+  from { opacity: 1; transform: scale(1); }
+  to { opacity: 0; transform: scale(0.4); }
+}
+
+@keyframes vnoAnimDisappear {
+  0%, 99% { opacity: 1; }
+  100% { opacity: 0; }
+}
+
 /* Object Selection & Badges in Canvas */
 .vno-slide-shape-item {
   display: flex;

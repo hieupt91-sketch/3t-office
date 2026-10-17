@@ -183,12 +183,12 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.animation.apply"],
     title: "Hiệu ứng đối tượng (Animations)",
-    summary: "Gắn hiệu ứng xuất hiện cho tiêu đề, nội dung, hình hoặc đối tượng đang chọn: Fade In, Fly In, Zoom In, Bounce In, Slide Left. Chọn thời gian và độ trễ, xem thử rồi áp dụng.",
+    summary: "Gắn hiệu ứng cho tiêu đề, nội dung, hình hoặc đối tượng đang chọn theo 3 nhóm: Vào (mờ dần, bay vào, thu phóng, nảy, trượt), Nhấn mạnh (xoay tròn, phóng to/thu nhỏ) và Thoát (mờ dần ra, bay ra, thu nhỏ ra, biến mất). Chọn thời gian và độ trễ, xem thử rồi áp dụng.",
     ribbon: { tab: "Hoạt hình", tabId: "animations", group: "Hiệu ứng đối tượng" },
-    keywords: ["hoạt hình", "animation", "fade in", "fly in", "hiệu ứng xuất hiện", "độ trễ"],
+    keywords: ["hoạt hình", "animation", "fade in", "fly in", "hiệu ứng xuất hiện", "độ trễ", "nhấn mạnh", "thoát", "xoay tròn", "biến mất", "emphasis", "exit"],
     steps: [
       "Chọn đối tượng trên slide (tiêu đề, nội dung, hình) hoặc để trống — hộp thoại vẫn cho chọn đối tượng. Tab Hoạt hình, nhóm Hiệu ứng đối tượng, nhấn Hiệu ứng đối tượng.",
-      "Đối tượng áp dụng: Tiêu đề, Nội dung (hoặc cột 1/cột 2 nếu bố cục hai cột), hoặc từng hình. Kiểu: Không có hiệu ứng, Mờ dần xuất hiện, Bay từ dưới lên, Thu phóng xuất hiện, Nảy nhẹ, Trượt từ trái sang.",
+      "Đối tượng áp dụng: Tiêu đề, Nội dung (hoặc cột 1/cột 2 nếu bố cục hai cột), hoặc từng hình. Danh sách Kiểu chia 3 nhóm. Vào: Mờ dần xuất hiện, Bay từ dưới lên, Thu phóng xuất hiện, Nảy nhẹ, Trượt từ trái sang (đối tượng ẩn rồi hiện ra). Nhấn mạnh: Xoay tròn, Phóng to / thu nhỏ (đối tượng hiện sẵn, chạy xong trở về như cũ). Thoát: Mờ dần ra, Bay ra, Thu nhỏ ra, Biến mất (đối tượng hiện sẵn rồi ẩn đi). Mỗi đối tượng có một hiệu ứng; muốn vừa Vào vừa Thoát thì dùng hai đối tượng chồng nhau.",
       "Chọn Thời gian hiệu ứng (0.3s–1.0s) và Độ trễ xuất hiện (ngay, 0.2s, 0.5s, 1.0s). Nhấn ▶ Xem thử hiệu ứng nếu muốn, rồi Áp dụng hiệu ứng.",
       "Xóa hiệu ứng: mở lại hộp thoại, chọn Không có hiệu ứng hoặc nút Xóa hiệu ứng. Khi trình chiếu, hiệu ứng chạy theo thứ tự đối tượng trên trang. Để xem và sắp xếp nhiều hiệu ứng cùng lúc, dùng Ngăn hoạt hình cạnh nút này."
     ]

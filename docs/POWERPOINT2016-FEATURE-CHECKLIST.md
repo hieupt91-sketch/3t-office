@@ -16,10 +16,10 @@ Chuẩn: Microsoft PowerPoint 2016 (16.0.4266) cài trên máy, đọc chỉ-đ�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu PowerPoint 2016 | 92 | 35% |
+| ✅ Đã đối chiếu PowerPoint 2016 | 93 | 35% |
 | 🟢 Có, chưa đối chiếu | 49 | 19% |
-| 🟡 Có một phần | 21 | 8% |
-| 🔴 Chưa có | 101 | 38% |
+| 🟡 Có một phần | 22 | 8% |
+| 🔴 Chưa có | 99 | 38% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **269** (áp dụng: 263) | |
 
@@ -37,7 +37,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Chèn | 29 | 14 | 1 | 1 | 11 | 2 | 57% |
 | Thiết kế | 15 | 6 | 0 | 1 | 8 | 0 | 43% |
 | Chuyển tiếp | 11 | 3 | 0 | 1 | 7 | 0 | 32% |
-| Hoạt ảnh | 16 | 6 | 1 | 0 | 9 | 0 | 44% |
+| Hoạt ảnh | 16 | 7 | 1 | 1 | 7 | 0 | 53% |
 | Trình chiếu | 16 | 4 | 4 | 1 | 6 | 1 | 57% |
 | Xem lại | 14 | 2 | 5 | 0 | 5 | 2 | 58% |
 | Chế độ xem | 25 | 7 | 8 | 2 | 8 | 0 | 64% |
@@ -57,12 +57,11 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Chèn | Minh họa | SmartArt (Danh sách, Quy trình, Chu trình, Phân cấp) | 🔴 | Chưa hỗ trợ tạo mới SmartArt native chuẩn DrawingML diagram; hiện dùng sơ đồ nhóm shape (docs/SLIDES-BUTTON-MATRIX-1011.md:53) |
 | Chèn | Văn bản | Chữ nghệ thuật (WordArt) | 🟡 | FIX-L14: có lệnh slides.insert.wordart nhưng PowerPoint COM nhận dạng Type=17 PresetTextEffect=-2 chưa chuẩn native Type=15 (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
 | Chuyển tiếp | Chuyển tiếp sang slide | Hiệu ứng Morph (Biến đổi hình thái) | 🟡 | Đã có xử lý chuyển đổi Morph sơ bộ; chưa hoàn thiện mapping đối tượng khớp định danh như PowerPoint 2016 Office 365 |
-| Hoạt ảnh | Hoạt ảnh | Nhóm Nhấn mạnh (Emphasis Effects: Pulse, Spin, Grow/Shrink) | 🔴 | Chưa hỗ trợ nhóm hiệu ứng Nhấn mạnh (Emphasis: Spin, Grow/Shrink) |
-| Hoạt ảnh | Hoạt ảnh | Nhóm Thoát (Exit Effects: Disappear, Fade, Fly Out) | 🔴 | Chưa hỗ trợ nhóm hiệu ứng Biến mất/Thoát (Exit: Disappear, Fly Out) |
+| Hoạt ảnh | Hoạt ảnh | Nhóm Nhấn mạnh (Emphasis Effects: Pulse, Spin, Grow/Shrink) | 🟡 | slides.animation.apply; Xoay tròn (EffectType 61) và Phóng to/thu nhỏ (59) lưu PPTX rồi PowerPoint 2016 COM đọc đúng (docs/AUDIT-SLIDES-ANIM-1710.md:12); chưa có Nhịp đập (Pulse) |
 | Công cụ vẽ > Định dạng | Kiểu chữ WordArt | Hiệu ứng chữ nghệ thuật (Text Effects: Warp, Shadow, 3D) | 🟡 | FIX-L14: có textFadeRight nhưng PowerPoint COM nhận dạng PresetTextEffect=-2 chưa chuẩn native (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
 | Công cụ hình ảnh > Định dạng | Kích thước | Cắt xén ảnh (Crop to Shape / Aspect Ratio) | 🟡 | Đọc và hiển thị ảnh cắt xén (apps/slides/slides-canvas.js:3406); chưa có công cụ kéo cắt xén ảnh trực tiếp trên UI |
 
-Tổng: 8 mục ưu tiên 1.
+Tổng: 7 mục ưu tiên 1.
 
 ## Danh sách 15 mục ưu tiên 1 thiếu nhất & Đề xuất 10 phiếu việc kế tiếp
 
@@ -258,8 +257,8 @@ Tổng: 8 mục ưu tiên 1.
 | Xem trước | Xem trước hoạt ảnh (Preview) | 🔴 | 2 | Chưa có nút Xem trước (Preview) hoạt ảnh trên ribbon |
 | Hoạt ảnh | Hiệu ứng đối tượng (Animations Gallery) | ✅ | - | FIX-L6: slides.animation.apply hiệu ứng Fade, Fly EffectType 10, 2 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:69) |
 | Hoạt ảnh | Nhóm Xuất hiện (Entrance Effects: Appear, Fade, Fly In, Float In, Zoom) | ✅ | - | FIX-L6: slides.animation.apply hiệu ứng Fade, Fly EffectType 10, 2 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:69) |
-| Hoạt ảnh | Nhóm Nhấn mạnh (Emphasis Effects: Pulse, Spin, Grow/Shrink) | 🔴 | 1 | Chưa hỗ trợ nhóm hiệu ứng Nhấn mạnh (Emphasis: Spin, Grow/Shrink) |
-| Hoạt ảnh | Nhóm Thoát (Exit Effects: Disappear, Fade, Fly Out) | 🔴 | 1 | Chưa hỗ trợ nhóm hiệu ứng Biến mất/Thoát (Exit: Disappear, Fly Out) |
+| Hoạt ảnh | Nhóm Nhấn mạnh (Emphasis Effects: Pulse, Spin, Grow/Shrink) | 🟡 | 1 | slides.animation.apply; Xoay tròn (EffectType 61) và Phóng to/thu nhỏ (59) lưu PPTX rồi PowerPoint 2016 COM đọc đúng (docs/AUDIT-SLIDES-ANIM-1710.md:12); chưa có Nhịp đập (Pulse) |
+| Hoạt ảnh | Nhóm Thoát (Exit Effects: Disappear, Fade, Fly Out) | ✅ | - | slides.animation.apply; Mờ dần ra, Bay ra, Thu nhỏ ra, Biến mất lưu PPTX rồi PowerPoint 2016 COM đọc đúng EffectType và Exit=-1 (docs/AUDIT-SLIDES-ANIM-1710.md:15) |
 | Hoạt ảnh | Đường chuyển động (Motion Paths: Line, Arc, Custom Path) | 🔴 | 2 | Chưa hỗ trợ vẽ và chạy hoạt ảnh theo đường cong tự do Motion Path |
 | Hoạt ảnh | Tùy chọn hiệu ứng (Effect Options: Hướng, Theo đoạn/khung) | 🔴 | 2 | Chưa có menu Tùy chọn hiệu ứng (Effect Options) đổi hướng hoạt ảnh |
 | Hoạt ảnh nâng cao | Thêm hoạt ảnh (Add Animation) | 🔴 | 2 | Chưa hỗ trợ gán nhiều hoạt ảnh đồng thời vào cùng một đối tượng |

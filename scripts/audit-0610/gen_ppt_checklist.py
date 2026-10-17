@@ -148,8 +148,8 @@ Chuyển tiếp|Thời gian|Chuyển tự động sau thời gian (After X secon
 Hoạt ảnh|Xem trước|Xem trước hoạt ảnh (Preview)|N|2|Chưa có nút Xem trước (Preview) hoạt ảnh trên ribbon
 Hoạt ảnh|Hoạt ảnh|Hiệu ứng đối tượng (Animations Gallery)|V|-|FIX-L6: slides.animation.apply hiệu ứng Fade, Fly EffectType 10, 2 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:69)
 Hoạt ảnh|Hoạt ảnh|Nhóm Xuất hiện (Entrance Effects: Appear, Fade, Fly In, Float In, Zoom)|V|-|FIX-L6: slides.animation.apply hiệu ứng Fade, Fly EffectType 10, 2 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:69)
-Hoạt ảnh|Hoạt ảnh|Nhóm Nhấn mạnh (Emphasis Effects: Pulse, Spin, Grow/Shrink)|N|1|Chưa hỗ trợ nhóm hiệu ứng Nhấn mạnh (Emphasis: Spin, Grow/Shrink)
-Hoạt ảnh|Hoạt ảnh|Nhóm Thoát (Exit Effects: Disappear, Fade, Fly Out)|N|1|Chưa hỗ trợ nhóm hiệu ứng Biến mất/Thoát (Exit: Disappear, Fly Out)
+Hoạt ảnh|Hoạt ảnh|Nhóm Nhấn mạnh (Emphasis Effects: Pulse, Spin, Grow/Shrink)|P|1|slides.animation.apply; Xoay tròn (EffectType 61) và Phóng to/thu nhỏ (59) lưu PPTX rồi PowerPoint 2016 COM đọc đúng (docs/AUDIT-SLIDES-ANIM-1710.md:12); chưa có Nhịp đập (Pulse)
+Hoạt ảnh|Hoạt ảnh|Nhóm Thoát (Exit Effects: Disappear, Fade, Fly Out)|V|-|slides.animation.apply; Mờ dần ra, Bay ra, Thu nhỏ ra, Biến mất lưu PPTX rồi PowerPoint 2016 COM đọc đúng EffectType và Exit=-1 (docs/AUDIT-SLIDES-ANIM-1710.md:15)
 Hoạt ảnh|Hoạt ảnh|Đường chuyển động (Motion Paths: Line, Arc, Custom Path)|N|2|Chưa hỗ trợ vẽ và chạy hoạt ảnh theo đường cong tự do Motion Path
 Hoạt ảnh|Hoạt ảnh|Tùy chọn hiệu ứng (Effect Options: Hướng, Theo đoạn/khung)|N|2|Chưa có menu Tùy chọn hiệu ứng (Effect Options) đổi hướng hoạt ảnh
 Hoạt ảnh|Hoạt ảnh nâng cao|Thêm hoạt ảnh (Add Animation)|N|2|Chưa hỗ trợ gán nhiều hoạt ảnh đồng thời vào cùng một đối tượng

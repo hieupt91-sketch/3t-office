@@ -199,6 +199,7 @@ export function cursorForHandle(dir, rotationDeg) {
 }
 
 import { customSlideSize, pxToCm } from "./slide-size.js";
+import { ANIMATION_EFFECTS, animationEffectsOfClass, animationEffect, animationClassOf, animationKeyframeName, animationInlineCss } from "./slide-animation-classes.js";
 import { tableState, mergeMap, expandSelection, insertRow as tblInsertRow, insertCol as tblInsertCol, deleteRow as tblDeleteRow, deleteCol as tblDeleteCol, mergeCells as tblMergeCells, splitCell as tblSplitCell } from "./slide-table-ops.js";
 
 export class SlidesCanvasController {
@@ -2053,6 +2054,7 @@ export class SlidesCanvasController {
     const slide = this.slides[this.currentSlideIndex];
     if (!slide) return false;
     const previous = this._getAnimationConfig(slide, target) || {};
+    const undoBefore = this._snapshotSlideAnimations(slide);
     const cfg = {
       type: animationConfig?.type || "none",
       duration: parseInt(animationConfig?.duration, 10) || 500,
@@ -2080,6 +2082,7 @@ export class SlidesCanvasController {
         slide.titleAnimation = cfg;
       }
     }
+    if (JSON.stringify(undoBefore) !== JSON.stringify(this._snapshotSlideAnimations(slide))) this._pushAnimationUndo(undoBefore);
     this._renderShapesLayer();
     this._renderAnimationPane();
     return true;
@@ -2130,8 +2133,33 @@ export class SlidesCanvasController {
     return max + 1;
   }
 
+  /** <optgroup> Vào / Nhấn mạnh / Thoát cho danh sách chọn hiệu ứng. */
+  _animationTypeOptionsHtml(currentType) {
+    const groups = [
+      ["entrance", t("slidesDialogs.animGroupEntrance", "Vào")],
+      ["emphasis", t("slidesDialogs.animGroupEmphasis", "Nhấn mạnh")],
+      ["exit", t("slidesDialogs.animGroupExit", "Thoát")]
+    ];
+    const current = animationEffect(currentType)?.id;
+    return groups.map(([cls, label]) => `<optgroup label="${label}">${animationEffectsOfClass(cls)
+      .map((effect) => `<option value="${effect.id}" ${current === effect.id ? "selected" : ""}>${this._animationTypeLabel(effect.id)}</option>`)
+      .join("")}</optgroup>`).join("");
+  }
+
   _animationTypeLabel(type) {
     switch (type) {
+      case "spin":
+        return t("slidesDialogs.animSpin", "Xoay tròn (nhấn mạnh)");
+      case "growShrink":
+        return t("slidesDialogs.animGrowShrink", "Phóng to / thu nhỏ (nhấn mạnh)");
+      case "fadeOut":
+        return t("slidesDialogs.animFadeOut", "Mờ dần ra (thoát)");
+      case "flyOut":
+        return t("slidesDialogs.animFlyOut", "Bay ra (thoát)");
+      case "zoomOut":
+        return t("slidesDialogs.animZoomOut", "Thu nhỏ ra (thoát)");
+      case "disappear":
+        return t("slidesDialogs.animDisappear", "Biến mất (thoát)");
       case "fadeIn":
       case "fade":
         return t("slidesDialogs.animFadeIn", "Mờ dần xuất hiện (Fade In)");
@@ -2262,10 +2290,9 @@ export class SlidesCanvasController {
 
   _animationInlineStyle(animation, playDelay) {
     if (!this._isActiveAnimation(animation)) return "";
-    const kf = this._getKeyframeName(animation.type);
     const dur = animation.duration || 500;
     const del = playDelay != null ? playDelay : (animation.delay || 0);
-    return `opacity:0;animation:${kf} ${dur}ms ease-out ${del}ms forwards;`;
+    return animationInlineCss(animation.type, dur, del);
   }
 
   _snapshotSlideAnimations(slide) {
@@ -2662,6 +2689,7 @@ export class SlidesCanvasController {
   }
 
   _getKeyframeName(type) {
+    if (animationClassOf(type) && animationClassOf(type) !== "entrance") return animationKeyframeName(type);
     switch (type) {
       case "fadeIn":
       case "fade":
@@ -9663,11 +9691,7 @@ const startEditing = (initialText) => {
               <label for="vno-anim-type-select" style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationType")}</label>
               <select class="vno-select" id="vno-anim-type-select" aria-label="${t("slidesDialogs.animationType")}">
                 <option value="none" ${currentAnim.type === "none" ? "selected" : ""}>${t("slidesDialogs.noAnimation")}</option>
-                <option value="fadeIn" ${currentAnim.type === "fadeIn" || currentAnim.type === "fade" ? "selected" : ""}>${t("slidesDialogs.animFadeIn", "Mờ dần xuất hiện (Fade In)")}</option>
-                <option value="flyIn" ${currentAnim.type === "flyIn" || currentAnim.type === "fly" ? "selected" : ""}>${t("slidesDialogs.animFlyIn", "Bay từ dưới lên (Fly In)")}</option>
-                <option value="zoomIn" ${currentAnim.type === "zoomIn" || currentAnim.type === "zoom" ? "selected" : ""}>${t("slidesDialogs.animZoomIn", "Thu phóng xuất hiện (Zoom In)")}</option>
-                <option value="bounceIn" ${currentAnim.type === "bounceIn" || currentAnim.type === "bounce" ? "selected" : ""}>${t("slidesDialogs.animBounceIn", "Nảy nhẹ xuất hiện (Bounce In)")}</option>
-                <option value="slideLeft" ${currentAnim.type === "slideLeft" || currentAnim.type === "slide" ? "selected" : ""}>${t("slidesDialogs.animSlideLeft", "Trượt từ trái sang (Slide Left)")}</option>
+                ${this._animationTypeOptionsHtml(currentAnim.type)}
               </select>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -9729,11 +9753,10 @@ const startEditing = (initialText) => {
           previewBox.style.transform = "none";
           return;
         }
-        const kf = this._getKeyframeName(type);
         previewBox.style.animation = "none";
-        previewBox.style.opacity = "0";
+        previewBox.style.opacity = animationClassOf(type) === "entrance" ? "0" : "1";
         void previewBox.offsetWidth;
-        previewBox.style.animation = `${kf} ${dur}ms ease-out ${del}ms forwards`;
+        previewBox.style.cssText += ";" + animationInlineCss(type, dur, del);
       };
 
       targetSelect?.addEventListener("change", () => {
