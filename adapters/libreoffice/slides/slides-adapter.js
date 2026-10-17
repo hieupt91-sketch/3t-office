@@ -3483,7 +3483,9 @@ export class SlidesAdapter {
   _serializeMasterPageXml() {
     const isImported = Boolean(this.canvas?.imported);
     const theme = this._masterTheme();
-    if (!theme) {
+    // Tệp mở từ PowerPoint/LibreOffice mà người dùng chưa chọn chủ đề nào: KHÔNG ghi chủ đề mặc định của VN đè lên
+    // màu nền / phông chữ của chủ đề gốc trong tệp (đã đo: theme1.xml bị đổi sang modern-blue).
+    if (!theme || (isImported && !this.canvas?._masterThemeTouched)) {
       return `<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1"/>`;
     }
     const isVnDefaultLogo = !theme.logoText || [
@@ -4104,6 +4106,8 @@ export class SlidesAdapter {
       } else if (newSlides.slideShowSettings) {
         this.canvas.slideShowSettings = { ...newSlides.slideShowSettings };
       }
+      // Chủ đề mặc định của VN chưa phải do người dùng chọn: chỉ chủ đề có trong tệp (hoặc người dùng chọn sau này) mới được ghi lại khi lưu.
+      this.canvas._masterThemeTouched = false;
       if (newSlides.masterTheme && this.canvas.applySlideMaster) {
         this.canvas.applySlideMaster(newSlides.masterTheme);
       } else if (newSlides.masterTheme) {

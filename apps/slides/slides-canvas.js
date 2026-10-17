@@ -8664,6 +8664,8 @@ const startEditing = (initialText) => {
       themeConfig = { ...themeConfig, themeId: themeConfig.id };
     }
 
+    // Có chủ đề được nạp từ tệp hoặc do người dùng chọn: từ giờ chủ đề này mới được ghi vào tệp khi lưu.
+    this._masterThemeTouched = true;
     const previousTheme = { ...this.masterTheme };
     this.masterTheme = { ...this.masterTheme, ...themeConfig };
     if (recordHistory && JSON.stringify(previousTheme) !== JSON.stringify(this.masterTheme)) {
