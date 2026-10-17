@@ -16,14 +16,14 @@ Chuẩn: Microsoft PowerPoint 2016 (16.0.4266) cài trên máy, đọc chỉ-đ�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu PowerPoint 2016 | 100 | 38% |
-| 🟢 Có, chưa đối chiếu | 57 | 22% |
-| 🟡 Có một phần | 23 | 9% |
-| 🔴 Chưa có | 83 | 32% |
+| ✅ Đã đối chiếu PowerPoint 2016 | 101 | 38% |
+| 🟢 Có, chưa đối chiếu | 58 | 22% |
+| 🟡 Có một phần | 22 | 8% |
+| 🔴 Chưa có | 82 | 31% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **269** (áp dụng: 263) | |
 
-- **Độ phủ so với PowerPoint 2016 (có hoặc có một phần, một phần tính 0,5): 64%**
+- **Độ phủ so với PowerPoint 2016 (có hoặc có một phần, một phần tính 0,5): 65%**
 - **Đã xác minh bằng đối chiếu PowerPoint 2016 thật: 38%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tính một mục; đo kiểu ghi-rồi-đọc-lại trên PowerPoint COM chỉ xác nhận ngữ nghĩa thuộc tính của PowerPoint, KHÔNG tự nhận là parity hoàn chỉnh nếu chưa có kiểm chứng khứ hồi.
@@ -33,7 +33,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 2 | 9 | 0 | 5 | 1 | 69% |
-| Trang đầu | 57 | 39 | 10 | 5 | 3 | 0 | 90% |
+| Trang đầu | 57 | 40 | 11 | 4 | 2 | 0 | 93% |
 | Chèn | 29 | 14 | 2 | 1 | 10 | 2 | 61% |
 | Thiết kế | 15 | 7 | 0 | 1 | 7 | 0 | 50% |
 | Chuyển tiếp | 11 | 5 | 3 | 1 | 2 | 0 | 77% |
@@ -145,11 +145,11 @@ Tổng: 7 mục ưu tiên 1.
 | Phông chữ | Gạch chân (Ctrl+U / Underline) | ✅ | - | FIX-L7: slides.text.underline đối chiếu Font.Underline=-1 (docs/SLIDES-BUTTON-MATRIX-1011.md:31) |
 | Phông chữ | Đổ bóng chữ (Text Shadow) | ✅ | - | 17/10: slides.text.shadow (nút trên ribbon Trang đầu, bật/tắt); CDP 7/7; lưu PPTX khôi phục outerShdw, PowerPoint 2016 COM đọc Shadow.Visible=-1 cho đúng đoạn chữ (docs/AUDIT-SLIDES-SHADOW-1710.md:11) |
 | Phông chữ | Gạch ngang (Strikethrough) | ✅ | - | FIX-L7: slides.text.strike đối chiếu TextFrame2.Font.Strike=1 (docs/SLIDES-BUTTON-MATRIX-1011.md:32) |
-| Phông chữ | Khoảng cách ký tự (Character Spacing: Very Tight, Tight, Normal, Loose, Very Loose) | 🟡 | 2 | Có thuộc tính giãn cách font cơ bản; chưa có dropdown mức giãn ký tự trực quan |
+| Phông chữ | Khoảng cách ký tự (Character Spacing: Very Tight, Tight, Normal, Loose, Very Loose) | 🟢 | - | slides.font.spacing: 5 mức -3/-1,5/0/3/6 pt qua nút Khoảng cách ký tự và hộp thoại Phông chữ; CDP 8/8; lưu PPTX spc=300 đúng (platform/commands/command-definitions.js:732, adapters/libreoffice/slides/slides-adapter.js:982); chưa đối chiếu giá trị mức dựng sẵn với PowerPoint |
 | Phông chữ | Đổi chữ hoa/thường (Change Case, Shift+F3) | 🟢 | - | slides.text.changeCase (5 kiểu + Shift+F3 xoay vòng); test CDP tests/live/cdp/slides-change-case.desktop.mjs 9/9; logic dùng chung platform/text/change-case.js; chưa đối chiếu PowerPoint COM |
 | Phông chữ | Màu chữ (Font Color) | ✅ | - | FIX-L7/FIX-L5: slides.color.text đối chiếu RGB=255 (docs/SLIDES-BUTTON-MATRIX-1011.md:34) |
 | Phông chữ | Màu nền chữ (Highlight Color) | ✅ | - | FIX-L8: slides.color.highlight đối chiếu Highlight.RGB=52735 (docs/SLIDES-BUTTON-MATRIX-1011.md:35) |
-| Phông chữ | Hộp thoại Phông chữ (Font Dialog) | 🔴 | 2 | Chưa có hộp thoại Phông chữ đầy đủ (Font Dialog) cho slide |
+| Phông chữ | Hộp thoại Phông chữ (Font Dialog) | ✅ | - | slides.font.dialog (Ctrl+T): phông, cỡ, màu, gạch chân đôi, chỉ số trên, giãn ký tự; PowerPoint COM đọc lại Georgia 28 pt đậm đỏ gạch chân baseline 0.33 (platform/commands/command-definitions.js:731, scripts/audit-0610/ppt_font_runs_readback.ps1:2) |
 | Đoạn văn | Dấu đầu dòng (Bullets) | ✅ | - | FIX-L7: slides.list.bullet bật Bullet.Visible=-1, Type=1 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:36) |
 | Đoạn văn | Đánh số thứ tự (Numbering) | ✅ | - | FIX-L7: slides.list.numbered bật đánh số Type=2 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:37) |
 | Đoạn văn | Giảm thụt lề (Decrease Indent) | ✅ | - | FIX-L8: slides.para.indentDec giảm thụt lề về 0 pt đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:38) |

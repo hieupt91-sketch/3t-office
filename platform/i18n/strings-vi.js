@@ -1073,6 +1073,9 @@ export const viStrings = {
     ,"slides.transition.advanceAfter": { label: "Tự chuyển trang sau", tooltip: "Đặt số giây trang tự chuyển (hoặc tắt)" }
     ,"slides.transition.applyAll": { label: "Áp dụng cho tất cả", tooltip: "Dùng cùng hiệu ứng, thời lượng và cách chuyển trang của trang này cho mọi trang" }
     ,"slides.transition.preview": { label: "Xem trước", tooltip: "Chạy thử hiệu ứng chuyển trang của trang đang chọn" }
+    ,"slides.font.dialog": { label: "Phông chữ…", tooltip: "Mở hộp thoại Phông chữ: phông, kiểu, cỡ, màu, gạch chân, hiệu ứng, khoảng cách ký tự (Ctrl+T)" }
+    ,"slides.font.spacing": { label: "Khoảng cách ký tự", tooltip: "Giãn hoặc nén khoảng cách giữa các ký tự của chữ đang chọn" }
+    ,"slides.font.setSpacing": { label: "Mức khoảng cách", tooltip: "Chọn mức khoảng cách ký tự: rất sát, sát, bình thường, thưa, rất thưa" }
     ,"slides.text.changeCase": { label: "Đổi chữ hoa/thường", tooltip: "Đổi chữ hoa / thường cho chữ đang chọn (Shift+F3 xoay vòng)" }
     ,"slides.text.changeCaseMode": { label: "Kiểu chữ hoa/thường", tooltip: "Chọn kiểu: đầu câu, chữ thường, CHỮ HOA, Viết Hoa Mỗi Từ, đảo hoa thường" }
     ,"slides.design.themeColors": { label: "Màu chủ đề", tooltip: "Đổi bảng màu của chủ đề cho toàn bài (tiêu đề, nội dung, màu nhấn, nền)" }

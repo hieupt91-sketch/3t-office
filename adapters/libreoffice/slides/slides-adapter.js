@@ -9,6 +9,7 @@ import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
 import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
 import { applyChangeCaseToSelection } from "../../../platform/text/change-case.js";
+import { showFontDialog } from "../../../platform/dialogs/font-dialog.js";
 import { overlayFodpMasterLogo } from "./pptx-master-logo.js";
 import { overlayFodpSections } from "./pptx-section-list.js";
 import { overlayFodpShowProperties } from "./pptx-show-properties.js";
@@ -315,6 +316,10 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.picture.cropDialog", () => this._hintIfFalse(() => this.canvas.openCropDialog(), "Hãy chọn một ảnh trước khi cắt."));
     globalCommandBus.bindHandler("slides.picture.cropRatio", (arg) => this._hintIfFalse(() => this.canvas.cropImageToRatio(String(arg || "")), "Hãy chọn một ảnh trước khi cắt."));
     globalCommandBus.bindHandler("slides.view.notesPage", () => (this.canvas.notesPageOverlay ? this.canvas.closeNotesPage() : this.canvas.openNotesPage()));
+    // Hộp thoại Phông chữ (Ctrl+T) và khoảng cách ký tự — dùng chung hộp thoại với Writer (platform/dialogs/font-dialog.js).
+    globalCommandBus.bindHandler("slides.font.dialog", () => this._hintIfFalse(() => this.openFontDialog(), "Hãy nhấp vào khung chữ và chọn đoạn chữ cần định dạng."));
+    globalCommandBus.bindHandler("slides.font.spacing", () => this._hintIfFalse(() => this.openFontDialog(), "Hãy nhấp vào khung chữ và chọn đoạn chữ cần định dạng."));
+    globalCommandBus.bindHandler("slides.font.setSpacing", (arg) => this._hintIfFalse(() => this.setCharacterSpacing(Number(arg)), "Hãy nhấp vào khung chữ và chọn đoạn chữ cần giãn hoặc nén ký tự."));
     globalCommandBus.bindHandler("slides.transition.apply", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
     // Tab Chuyển tiếp: thư viện hiệu ứng, thời gian, áp dụng tất cả, xem trước (cùng mô hình dữ liệu với hộp thoại).
     globalCommandBus.bindHandler("slides.transition.gallery", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
@@ -761,6 +766,231 @@ export class SlidesAdapter {
     return Number.isFinite(value) && value > 0 ? value : 0.75;
   }
 
+  _cssLengthToPx(value) {
+    const raw = String(value || "").trim().toLowerCase();
+    const m = raw.match(/^(-?[\d.]+)(px|pt|cm|mm|in)?$/);
+    if (!m) return null;
+    const n = parseFloat(m[1]);
+    if (!Number.isFinite(n)) return null;
+    const unit = m[2] || "px";
+    return unit === "px" ? n : unit === "pt" ? n * 96 / 72 : unit === "cm" ? n * 96 / 2.54 : unit === "mm" ? n * 96 / 25.4 : n * 96;
+  }
+
+  _odfUnderlineToCss(inner) {
+    if (/style:text-underline-type=["']double["']/i.test(inner)) return "double";
+    const style = inner.match(/style:text-underline-style=["']([^"']+)["']/i)?.[1];
+    return { dotted: "dotted", dash: "dashed", "long-dash": "dashed", "dot-dash": "dashed", wave: "wavy" }[style] || "";
+  }
+
+  /** style:text-position ("super 58%", "sub 58%", "33% 58%", "-33% 58%") → "super" | "sub" | null. */
+  _odfTextPosition(raw) {
+    if (!raw) return null;
+    const first = String(raw).trim().split(/\s+/)[0];
+    if (first === "super") return "super";
+    if (first === "sub") return "sub";
+    const pct = parseFloat(first);
+    if (Number.isFinite(pct) && pct > 0) return "super";
+    if (Number.isFinite(pct) && pct < 0) return "sub";
+    return null;
+  }
+
+  /** fo:letter-spacing (pt/cm/mm/in) → CSS px của canvas (1 px canvas = ptPerPx pt tài liệu). */
+  _odfLetterSpacingToCss(raw) {
+    if (!raw) return null;
+    const m = String(raw).trim().match(/^(-?[\d.]+)(pt|cm|mm|in|px)?$/i);
+    if (!m) return null;
+    const n = parseFloat(m[1]);
+    if (!Number.isFinite(n) || n === 0) return null;
+    const unit = (m[2] || "pt").toLowerCase();
+    const pt = unit === "pt" ? n : unit === "cm" ? n * 72 / 2.54 : unit === "mm" ? n * 72 / 25.4 : unit === "in" ? n * 72 : n * 0.75;
+    return `${Math.round((pt / this._ptPerPx()) * 100) / 100}px`;
+  }
+
+  /** Hộp thoại Phông chữ (Ctrl+T): áp dụng cho chữ đang chọn, hoặc cả khung chữ nếu chưa chọn gì. */
+  openFontDialog() {
+    this._restoreTextSelection();
+    const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+    if (!selection || !selection.rangeCount) return false;
+    let range = selection.getRangeAt(0);
+    const editable = this._containingEditable(range.commonAncestorContainer) || this._savedEditable;
+    if (!editable || !editable.contains?.(range.commonAncestorContainer)) return false;
+    if (range.collapsed) {
+      range = document.createRange();
+      range.selectNodeContents(editable);
+      selection.removeAllRanges();
+      selection.addRange(range);
+    }
+    const saved = range.cloneRange();
+    const state = this._readFontDialogState(saved);
+    return showFontDialog({
+      state,
+      hideEffects: ["hidden"],
+      hidePosition: true,
+      onApply: (changes) => this.applyFontDialogChanges(changes, saved, editable)
+    });
+  }
+
+  _fontDialogTextNodes(range) {
+    const root = range.commonAncestorContainer.nodeType === 3 ? range.commonAncestorContainer.parentNode : range.commonAncestorContainer;
+    const nodes = [];
+    const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      if (node.nodeValue.length && range.intersectsNode(node)) nodes.push(node);
+    }
+    if (!nodes.length && range.commonAncestorContainer.nodeType === 3) nodes.push(range.commonAncestorContainer);
+    return nodes;
+  }
+
+  _readFontDialogState(range) {
+    const ptPerPx = this._ptPerPx();
+    const rgbToHex = (rgb) => {
+      const m = String(rgb || "").match(/rgba?\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)/i);
+      return m ? `#${[m[1], m[2], m[3]].map((v) => Number(v).toString(16).padStart(2, "0")).join("")}` : "#000000";
+    };
+    const samples = this._fontDialogTextNodes(range).map((node) => {
+      const element = node.parentElement;
+      const cs = element ? getComputedStyle(element) : null;
+      const line = String(cs?.textDecorationLine || "");
+      const kind = cs?.textDecorationStyle;
+      const underline = line.includes("underline");
+      const strike = line.includes("line-through");
+      const letter = Number.parseFloat(cs?.letterSpacing || "");
+      let position = "";
+      for (let el = element; el && el !== this._savedEditable; el = el.parentElement) {
+        if (el.tagName === "SUP" || getComputedStyle(el).verticalAlign === "super") position = "sup";
+        if (el.tagName === "SUB" || getComputedStyle(el).verticalAlign === "sub") position = "sub";
+      }
+      return {
+        family: cs?.fontFamily?.split(",")[0]?.replace(/["']/g, "").trim() || "Arial",
+        size: Math.round(Number.parseFloat(cs?.fontSize || "") * ptPerPx * 2) / 2 || 18,
+        color: rgbToHex(cs?.color),
+        bold: Number.parseInt(cs?.fontWeight || "400", 10) >= 600,
+        italic: cs?.fontStyle === "italic",
+        underlineStyle: !underline ? "none" : (kind === "double" ? "double" : kind === "dotted" ? "dotted" : kind === "dashed" ? "dash" : kind === "wavy" ? "wave" : "single"),
+        underlineColor: "auto",
+        strike: strike && kind !== "double",
+        dstrike: strike && kind === "double" && !underline,
+        sup: position === "sup",
+        sub: position === "sub",
+        smallCaps: /small-caps/.test(cs?.fontVariantCaps || cs?.fontVariant || ""),
+        allCaps: cs?.textTransform === "uppercase",
+        hidden: false,
+        spacing: Number.isFinite(letter) ? Math.round(letter * ptPerPx * 10) / 10 : 0,
+        position: 0
+      };
+    });
+    const base = { family: "Arial", size: 18, color: "#000000", bold: false, italic: false, underlineStyle: "none", underlineColor: "auto",
+      strike: false, dstrike: false, sup: false, sub: false, smallCaps: false, allCaps: false, hidden: false, spacing: 0, position: 0 };
+    if (!samples.length) return base;
+    const state = {};
+    for (const key of Object.keys(base)) {
+      const first = samples[0][key];
+      state[key] = samples.every((item) => item[key] === first) ? first : null;
+    }
+    return state;
+  }
+
+  /**
+   * Gắn thêm CSS cho vùng chọn mà vẫn giữ các định dạng bao quanh và nằm trong lịch sử hoàn tác của trình duyệt:
+   * đánh dấu vùng chọn bằng execCommand("fontSize", 7) (có thể hoàn tác) rồi thay dấu đó bằng CSS thật.
+   */
+  _wrapSelectionInSpan(range, css) {
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(range);
+    if (range.collapsed) return false;
+    // Ghi lại cỡ chữ nội tuyến của mọi phần tử hiện có: dấu (cỡ 7) có thể ghi đè lên phần tử được dùng lại, ta trả nguyên cỡ cũ.
+    const scope = this._containingEditable(range.commonAncestorContainer) || this._savedEditable || this.canvas?.canvasEl || document.body;
+    const inlineSizes = new Map();
+    scope.querySelectorAll?.("font, span, sup, sub, b, i, u, s")?.forEach((el) => inlineSizes.set(el, el.style?.fontSize || ""));
+    document.execCommand("fontSize", false, "7");
+    // Chrome có thể gỡ cỡ chữ nội tuyến của phần tử bao ngoài khi gộp: trả lại đúng cỡ cũ cho mọi phần tử đã có.
+    for (const [el, size] of inlineSizes) if (el.isConnected && (el.style?.fontSize || "") !== size) el.style.fontSize = size;
+    const root = scope;
+    const marked = [
+      ...(root.querySelectorAll?.('font[size="7"]') || []),
+      ...[...(root.querySelectorAll?.("span[style]") || [])].filter((el) => /xxx-large/i.test(el.style?.fontSize || ""))
+    ];
+    for (const el of marked) {
+      el.removeAttribute("size");
+      if (/xxx-large/i.test(el.style.fontSize || "") || inlineSizes.has(el)) el.style.fontSize = inlineSizes.get(el) || "";
+      for (const declaration of css.split(";")) {
+        const colon = declaration.indexOf(":");
+        if (colon > 0) el.style.setProperty(declaration.slice(0, colon).trim(), declaration.slice(colon + 1).trim());
+      }
+    }
+    return marked.length > 0;
+  }
+
+  applyFontDialogChanges(changes, savedRange, editable) {
+    if (!changes || typeof changes !== "object" || !savedRange || typeof document === "undefined") return false;
+    const keys = Object.keys(changes);
+    if (!keys.length) return true;
+    const selection = window.getSelection();
+    selection.removeAllRanges();
+    selection.addRange(savedRange);
+    (editable || this._savedEditable)?.focus?.();
+    this._savedEditable = editable || this._savedEditable;
+    const toggleTo = (command, desired) => {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        if (document.queryCommandState(command) === desired) return;
+        document.execCommand(command, false, null);
+      }
+    };
+    const reselect = () => {
+      const live = window.getSelection();
+      return live.rangeCount ? live.getRangeAt(0).cloneRange() : savedRange;
+    };
+    if (changes.family) document.execCommand("fontName", false, changes.family);
+    if (changes.size) this._applyFontSizePt(changes.size);
+    if (changes.color) document.execCommand("foreColor", false, changes.color);
+    if ("bold" in changes) toggleTo("bold", changes.bold);
+    if ("italic" in changes) toggleTo("italic", changes.italic);
+    if ("strike" in changes) toggleTo("strikeThrough", changes.strike);
+    if (changes.dstrike) toggleTo("strikeThrough", false);
+    if ("sup" in changes) {
+      if (changes.sup) toggleTo("subscript", false);
+      toggleTo("superscript", changes.sup);
+    }
+    if ("sub" in changes) {
+      if (changes.sub) toggleTo("superscript", false);
+      toggleTo("subscript", changes.sub);
+    }
+    if ("underlineStyle" in changes) {
+      const style = changes.underlineStyle;
+      if (style === "none") toggleTo("underline", false);
+      else if (style === "single") toggleTo("underline", true);
+      else {
+        toggleTo("underline", false);
+        const cssKind = { double: "double", dotted: "dotted", dash: "dashed", wave: "wavy", thick: "solid" }[style] || "solid";
+        this._wrapSelectionInSpan(reselect(), `text-decoration:underline ${cssKind}`);
+      }
+    }
+    if (changes.dstrike) this._wrapSelectionInSpan(reselect(), "text-decoration:line-through double");
+    const css = [];
+    if ("smallCaps" in changes) css.push(`font-variant:${changes.smallCaps ? "small-caps" : "normal"}`);
+    if ("allCaps" in changes) css.push(`text-transform:${changes.allCaps ? "uppercase" : "none"}`);
+    if ("spacing" in changes) css.push(`letter-spacing:${Math.round((Number(changes.spacing) || 0) / this._ptPerPx() * 100) / 100}px`);
+    if (css.length) this._wrapSelectionInSpan(reselect(), css.join(";"));
+    this.canvas?._syncEditableFieldsFromDom?.();
+    this.canvas?._syncVisibleSpellcheckText?.();
+    this._syncTextFormatState();
+    return true;
+  }
+
+  /** Nút Khoảng cách ký tự: đặt khoảng cách (pt) cho chữ đang chọn (âm = nén, dương = giãn). */
+  setCharacterSpacing(points) {
+    if (!Number.isFinite(points)) return false;
+    this._restoreTextSelection();
+    const selection = window.getSelection();
+    if (!selection?.rangeCount || selection.getRangeAt(0).collapsed) return false;
+    const px = Math.round((points / this._ptPerPx()) * 100) / 100;
+    const ok = this._wrapSelectionInSpan(selection.getRangeAt(0).cloneRange(), `letter-spacing:${px}px`);
+    this.canvas?._syncEditableFieldsFromDom?.();
+    this._syncTextFormatState();
+    return ok;
+  }
+
   /** Cỡ chữ CSS (đang hiển thị trên canvas) → pt cho ODF theo đơn vị của tài liệu. */
   _cssFontSizeToOdf(value) {
     const raw = String(value || "").trim().toLowerCase();
@@ -874,7 +1104,7 @@ export class SlidesAdapter {
     if (/<(b|strong|i|em|u|s|strike|sub|sup|font|ul|ol|li|blockquote)\b/i.test(value)) return true;
     const styleMatch = value.match(/style\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
     const styleVal = styleMatch ? (styleMatch[1] !== undefined ? styleMatch[1] : (styleMatch[2] || "")) : "";
-    if (/(?:font-weight|font-style|text-decoration|text-shadow|color|background|font-family|font-size|text-align|line-height|margin-top|margin-left)/i.test(styleVal)) return true;
+    if (/(?:font-weight|font-style|text-decoration|text-shadow|color|background|font-family|font-size|text-align|line-height|margin-top|margin-left|letter-spacing|text-transform|font-variant|vertical-align)/i.test(styleVal)) return true;
     return /<(span|div|p)\b[^>]*(align|face|color|size)=/i.test(value);
   }
 
@@ -917,6 +1147,8 @@ export class SlidesAdapter {
     if (lower === "i" || lower === "em") out.italic = true;
     if (lower === "u") out.underline = true;
     if (lower === "s" || lower === "strike") out.strike = true;
+    if (lower === "sup") out.position = "super";
+    if (lower === "sub") out.position = "sub";
     if (lower === "font") {
       const face = this._attr(` ${attrs} `, "face") || attrs.match(/face\s*=\s*(?:"([^"]+)"|'([^']+)')/i)?.[1];
       const color = this._attr(` ${attrs} `, "color") || attrs.match(/color\s*=\s*(?:"([^"]+)"|'([^']+)')/i)?.[1];
@@ -938,8 +1170,22 @@ export class SlidesAdapter {
       if (key === "font-weight" && /^(normal|lighter|[1-5]00)$/i.test(value)) out.bold = false;
       if (key === "font-style" && /italic/i.test(value)) out.italic = true;
       if (key === "font-style" && /^normal$/i.test(value)) out.italic = false;
-      if (key === "text-decoration" && /underline/i.test(value)) out.underline = true;
-      if (key === "text-decoration" && /line-through/i.test(value)) out.strike = true;
+      if (key === "text-decoration" || key === "text-decoration-line") {
+        if (/underline/i.test(value)) out.underline = true;
+        if (/line-through/i.test(value)) out.strike = true;
+        const decoStyle = value.match(/\b(double|dotted|dashed|wavy)\b/i)?.[1]?.toLowerCase();
+        if (decoStyle) {
+          if (/underline/i.test(value)) out.underlineStyle = decoStyle;
+          if (decoStyle === "double" && /line-through/i.test(value)) out.strikeStyle = "double";
+        }
+      }
+      if (key === "vertical-align" && /^(super|sub)$/i.test(value)) out.position = value.toLowerCase();
+      if (key === "letter-spacing") {
+        const spacingPx = this._cssLengthToPx(value);
+        if (spacingPx !== null) out.spacing = `${Math.round(spacingPx * this._ptPerPx() * 100) / 100}pt`;
+      }
+      if (key === "text-transform" && /uppercase/i.test(value)) out.caps = "uppercase";
+      if ((key === "font-variant" || key === "font-variant-caps") && /small-caps/i.test(value)) out.smallCaps = true;
       if (key === "text-shadow" && !/^none$/i.test(value)) out.shadow = true;
       if (key === "color") out.color = this._cssColorToHex(value);
       if (key === "background-color" || key === "background") {
@@ -1200,11 +1446,21 @@ export class SlidesAdapter {
       if (props.bold) attrs.push('fo:font-weight="bold"');
       if (props.italic) attrs.push('fo:font-style="italic"');
       if (props.underline) {
-        attrs.push('style:text-underline-style="solid"');
+        const underlineStyle = { dotted: "dotted", dashed: "dash", wavy: "wave" }[props.underlineStyle] || "solid";
+        attrs.push(`style:text-underline-style="${underlineStyle}"`);
+        if (props.underlineStyle === "double") attrs.push('style:text-underline-type="double"');
         attrs.push('style:text-underline-width="auto"');
         attrs.push('style:text-underline-color="font-color"');
       }
-      if (props.strike) attrs.push('style:text-line-through-style="solid"');
+      if (props.strike) {
+        attrs.push('style:text-line-through-style="solid"');
+        if (props.strikeStyle === "double") attrs.push('style:text-line-through-type="double"');
+      }
+      if (props.position === "super") attrs.push('style:text-position="super 58%"');
+      if (props.position === "sub") attrs.push('style:text-position="sub 58%"');
+      if (props.spacing) attrs.push(`fo:letter-spacing="${this._escapeXml(props.spacing)}"`);
+      if (props.caps) attrs.push('fo:text-transform="uppercase"');
+      if (props.smallCaps) attrs.push('fo:font-variant="small-caps"');
       if (props.shadow) attrs.push('fo:text-shadow="1pt 1pt"');
       if (props.color) attrs.push(`fo:color="${this._escapeXml(props.color)}"`);
       if (props.bg) attrs.push(`fo:background-color="${this._escapeXml(props.bg)}"`);
@@ -1257,8 +1513,14 @@ export class SlidesAdapter {
           weight: weightMatch || (isBold ? "bold" : null),
           fontWeight: weightMatch || (isBold ? "bold" : null),
           italic: /fo:font-style=["']italic["']/i.test(inner),
-          underline: /style:text-underline-style=["'](?!none)[^"']+["']/i.test(inner),
-          strike: /style:text-line-through-style=["'](?!none)[^"']+["']/i.test(inner),
+          underline: /style:text-underline-style=["'](?!none)[^"']+["']/i.test(inner) || /style:text-underline-type=["'](?!none)[^"']+["']/i.test(inner),
+          underlineStyle: this._odfUnderlineToCss(inner),
+          strike: /style:text-line-through-style=["'](?!none)[^"']+["']/i.test(inner) || /style:text-line-through-type=["'](?!none)[^"']+["']/i.test(inner),
+          strikeDouble: /style:text-line-through-type=["']double["']/i.test(inner),
+          position: this._odfTextPosition(inner.match(/style:text-position=["']([^"']+)["']/i)?.[1]),
+          spacing: this._odfLetterSpacingToCss(inner.match(/fo:letter-spacing=["']([^"']+)["']/i)?.[1]),
+          caps: /fo:text-transform=["']uppercase["']/i.test(inner),
+          smallCaps: /fo:font-variant=["']small-caps["']/i.test(inner),
           shadow: /fo:text-shadow=["'](?!none)[^"']+["']/i.test(inner),
           color: inner.match(/fo:color=["']([^"']+)["']/i)?.[1],
           bg: inner.match(/fo:background-color=["']([^"']+)["']/i)?.[1],
@@ -1332,9 +1594,19 @@ export class SlidesAdapter {
       let wrapped = parts.map(p => this._escapeXml(this._unescapeXml(p.replace(/<[^>]+>/g, "")))).join("<br>");
       if (fmt.bold) wrapped = `<b>${wrapped}</b>`;
       if (fmt.italic) wrapped = `<i>${wrapped}</i>`;
-      if (fmt.underline) wrapped = `<u>${wrapped}</u>`;
-      if (fmt.strike) wrapped = `<s>${wrapped}</s>`;
+      const decoStyled = (fmt.underline && fmt.underlineStyle) || (fmt.strike && fmt.strikeDouble);
+      if (fmt.underline && !decoStyled) wrapped = `<u>${wrapped}</u>`;
+      if (fmt.strike && !decoStyled) wrapped = `<s>${wrapped}</s>`;
+      if (fmt.position === "super") wrapped = `<sup>${wrapped}</sup>`;
+      if (fmt.position === "sub") wrapped = `<sub>${wrapped}</sub>`;
       const spanStyles = [];
+      if (decoStyled) {
+        const lines = [fmt.underline ? "underline" : "", fmt.strike ? "line-through" : ""].filter(Boolean).join(" ");
+        spanStyles.push(`text-decoration:${lines} ${fmt.underlineStyle || "double"}`);
+      }
+      if (fmt.spacing) spanStyles.push(`letter-spacing:${fmt.spacing}`);
+      if (fmt.caps) spanStyles.push("text-transform:uppercase");
+      if (fmt.smallCaps) spanStyles.push("font-variant:small-caps");
       if (fmt.color) spanStyles.push(`color:${fmt.color}`);
       if (fmt.shadow) spanStyles.push("text-shadow:1pt 1pt 2px rgba(0,0,0,0.45)");
       if (fmt.bg && fmt.bg !== "transparent") spanStyles.push(`background-color:${fmt.bg}`);

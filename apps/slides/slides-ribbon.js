@@ -61,6 +61,8 @@ export const SLIDES_RIBBON_TABS = [
         id: "font",
         label: "Phông chữ",
         labelKey: "slidesRibbon.group.font",
+        launcherCommandId: "slides.font.dialog",
+        launcherTooltip: "Phông chữ…",
         items: [
           {
             type: "column",
@@ -126,6 +128,20 @@ export const SLIDES_RIBBON_TABS = [
                   { type: "button", commandId: "slides.text.strike", iconOnly: true },
                   { type: "button", commandId: "slides.text.shadow", iconOnly: true },
                   { type: "button", commandId: "slides.text.clearFormat", iconOnly: true },
+                  {
+                    type: "dropdown",
+                    id: "slides.font.spacing",
+                    label: "Khoảng cách ký tự",
+                    icon: "charSpacing",
+                    iconOnly: true,
+                    items: [
+                      { commandId: "slides.font.setSpacing", args: "-3", label: "Rất sát" },
+                      { commandId: "slides.font.setSpacing", args: "-1.5", label: "Sát" },
+                      { commandId: "slides.font.setSpacing", args: "0", label: "Bình thường" },
+                      { commandId: "slides.font.setSpacing", args: "3", label: "Thưa" },
+                      { commandId: "slides.font.setSpacing", args: "6", label: "Rất thưa" }
+                    ]
+                  },
                   {
                     type: "dropdown",
                     id: "slides.text.changeCase",

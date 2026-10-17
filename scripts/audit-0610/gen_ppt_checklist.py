@@ -56,11 +56,11 @@ Trang đầu|Phông chữ|Nghiêng (Ctrl+I / Italic)|V|-|FIX-L7: slides.text.ita
 Trang đầu|Phông chữ|Gạch chân (Ctrl+U / Underline)|V|-|FIX-L7: slides.text.underline đối chiếu Font.Underline=-1 (docs/SLIDES-BUTTON-MATRIX-1011.md:31)
 Trang đầu|Phông chữ|Đổ bóng chữ (Text Shadow)|V|-|17/10: slides.text.shadow (nút trên ribbon Trang đầu, bật/tắt); CDP 7/7; lưu PPTX khôi phục outerShdw, PowerPoint 2016 COM đọc Shadow.Visible=-1 cho đúng đoạn chữ (docs/AUDIT-SLIDES-SHADOW-1710.md:11)
 Trang đầu|Phông chữ|Gạch ngang (Strikethrough)|V|-|FIX-L7: slides.text.strike đối chiếu TextFrame2.Font.Strike=1 (docs/SLIDES-BUTTON-MATRIX-1011.md:32)
-Trang đầu|Phông chữ|Khoảng cách ký tự (Character Spacing: Very Tight, Tight, Normal, Loose, Very Loose)|P|2|Có thuộc tính giãn cách font cơ bản; chưa có dropdown mức giãn ký tự trực quan
+Trang đầu|Phông chữ|Khoảng cách ký tự (Character Spacing: Very Tight, Tight, Normal, Loose, Very Loose)|A|-|slides.font.spacing: 5 mức -3/-1,5/0/3/6 pt qua nút Khoảng cách ký tự và hộp thoại Phông chữ; CDP 8/8; lưu PPTX spc=300 đúng (platform/commands/command-definitions.js:732, adapters/libreoffice/slides/slides-adapter.js:982); chưa đối chiếu giá trị mức dựng sẵn với PowerPoint
 Trang đầu|Phông chữ|Đổi chữ hoa/thường (Change Case, Shift+F3)|A|-|slides.text.changeCase (5 kiểu + Shift+F3 xoay vòng); test CDP tests/live/cdp/slides-change-case.desktop.mjs 9/9; logic dùng chung platform/text/change-case.js; chưa đối chiếu PowerPoint COM
 Trang đầu|Phông chữ|Màu chữ (Font Color)|V|-|FIX-L7/FIX-L5: slides.color.text đối chiếu RGB=255 (docs/SLIDES-BUTTON-MATRIX-1011.md:34)
 Trang đầu|Phông chữ|Màu nền chữ (Highlight Color)|V|-|FIX-L8: slides.color.highlight đối chiếu Highlight.RGB=52735 (docs/SLIDES-BUTTON-MATRIX-1011.md:35)
-Trang đầu|Phông chữ|Hộp thoại Phông chữ (Font Dialog)|N|2|Chưa có hộp thoại Phông chữ đầy đủ (Font Dialog) cho slide
+Trang đầu|Phông chữ|Hộp thoại Phông chữ (Font Dialog)|V|-|slides.font.dialog (Ctrl+T): phông, cỡ, màu, gạch chân đôi, chỉ số trên, giãn ký tự; PowerPoint COM đọc lại Georgia 28 pt đậm đỏ gạch chân baseline 0.33 (platform/commands/command-definitions.js:731, scripts/audit-0610/ppt_font_runs_readback.ps1:2)
 Trang đầu|Đoạn văn|Dấu đầu dòng (Bullets)|V|-|FIX-L7: slides.list.bullet bật Bullet.Visible=-1, Type=1 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:36)
 Trang đầu|Đoạn văn|Đánh số thứ tự (Numbering)|V|-|FIX-L7: slides.list.numbered bật đánh số Type=2 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:37)
 Trang đầu|Đoạn văn|Giảm thụt lề (Decrease Indent)|V|-|FIX-L8: slides.para.indentDec giảm thụt lề về 0 pt đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:38)

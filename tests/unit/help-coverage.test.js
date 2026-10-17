@@ -67,7 +67,7 @@ export async function runHelpCoverageTests() {
         .join("; ");
       throw new Error(`Còn ${uncovered.length} lệnh Slides chưa có bài Help: ${details}`);
     }
-    if (slides.coveredCount !== slides.liveCount || slides.liveCount !== 157) {
+    if (slides.coveredCount !== slides.liveCount || slides.liveCount !== 159) {
       throw new Error(`Số lượng lệnh Slides không khớp: covered=${slides.coveredCount}, live=${slides.liveCount}`);
     }
   });

@@ -334,6 +334,34 @@ export const SLIDES_HELP_ENTRIES = [
       "Lựa chọn được lưu vào tệp PPTX và giữ lại khi mở lại."
     ]
   },  {
+    id: "slides.font.dialog",
+    app: "slides",
+    commandIds: ["slides.font.dialog"],
+    title: "Hộp thoại Phông chữ (Ctrl+T)",
+    summary: "Đặt cùng lúc phông, kiểu, cỡ, màu chữ, kiểu gạch chân, hiệu ứng (gạch ngang, chỉ số trên/dưới, chữ hoa, chữ hoa nhỏ) và khoảng cách ký tự cho chữ đang chọn.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
+    keywords: ["hộp thoại phông chữ", "font dialog", "ctrl+t", "gạch chân đôi", "chỉ số trên", "chỉ số dưới", "chữ hoa nhỏ", "khoảng cách ký tự"],
+    steps: [
+      "Nhấp đúp vào khung chữ, bôi đen đoạn chữ cần định dạng (không bôi đen thì áp dụng cho cả khung). Nhấn Ctrl+T hoặc nút mũi tên nhỏ ở góc dưới bên phải nhóm Phông chữ.",
+      "Thẻ Phông chữ: chọn phông, kiểu (thường, nghiêng, đậm, đậm nghiêng), cỡ chữ, màu chữ, kiểu gạch chân (một nét, hai nét, chấm, gạch ngang, lượn sóng) và các hiệu ứng: gạch ngang, gạch ngang đôi, chỉ số trên, chỉ số dưới, chữ hoa nhỏ, tất cả chữ hoa. Khung Xem trước cho thấy kết quả.",
+      "Thẻ Nâng cao: Khoảng cách ký tự Bình thường, Giãn ra hoặc Nén lại và số pt.",
+      "Mục nào để trống hoặc ở trạng thái lưng chừng nghĩa là vùng chọn đang trộn nhiều giá trị và sẽ được giữ nguyên nếu bạn không đổi. Nhấn Enter hoặc Áp dụng; Esc để hủy. Ctrl+Z hoàn tác."
+    ]
+  },
+  {
+    id: "slides.font.spacing",
+    app: "slides",
+    commandIds: ["slides.font.spacing", "slides.font.setSpacing"],
+    title: "Khoảng cách ký tự: rất sát đến rất thưa",
+    summary: "Giãn hoặc nén nhanh khoảng cách giữa các ký tự của chữ đang chọn bằng năm mức dựng sẵn.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
+    keywords: ["khoảng cách ký tự", "character spacing", "giãn chữ", "nén chữ", "rất sát", "rất thưa", "kerning"],
+    steps: [
+      "Bôi đen đoạn chữ trong khung chữ.",
+      "Tab Trang đầu > nhóm Phông chữ > nút Khoảng cách ký tự (biểu tượng AV có mũi tên), chọn Rất sát (-3 pt), Sát (-1,5 pt), Bình thường, Thưa (+3 pt) hoặc Rất thưa (+6 pt).",
+      "Cần số đo khác thì mở hộp thoại Phông chữ (Ctrl+T) > thẻ Nâng cao. Ctrl+Z hoàn tác."
+    ]
+  },  {
     id: "slides.text.changeCase",
     app: "slides",
     commandIds: ["slides.text.changeCase", "slides.text.changeCaseMode"],

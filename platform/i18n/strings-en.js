@@ -1074,6 +1074,9 @@ export const enStrings = {
   ,"slides.transition.advanceAfter": { label: "Advance After", tooltip: "Set the seconds before the slide advances (or turn it off)" }
   ,"slides.transition.applyAll": { label: "Apply To All", tooltip: "Use this slide's transition settings on every slide" }
   ,"slides.transition.preview": { label: "Preview", tooltip: "Play the current slide's transition" }
+  ,"slides.font.dialog": { label: "Font…", tooltip: "Open the Font dialog: font, style, size, color, underline, effects, character spacing (Ctrl+T)" }
+  ,"slides.font.spacing": { label: "Character Spacing", tooltip: "Expand or condense the spacing between characters of the selected text" }
+  ,"slides.font.setSpacing": { label: "Spacing Level", tooltip: "Pick a spacing level: very tight, tight, normal, loose, very loose" }
   ,"slides.text.changeCase": { label: "Change Case", tooltip: "Change the case of the selected text (Shift+F3 cycles)" }
   ,"slides.text.changeCaseMode": { label: "Case Style", tooltip: "Pick a style: sentence case, lowercase, UPPERCASE, capitalize each initial, or toggle case" }
   ,"slides.design.themeColors": { label: "Theme Colors", tooltip: "Change the theme color set for the whole deck (title, body, accent, background)" }
