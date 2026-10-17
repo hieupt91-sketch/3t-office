@@ -117,6 +117,8 @@ export const WRITER_COMMANDS = [
   { id: "writer.font.size", category: "format", label: "Cỡ chữ", shortcut: "Ctrl+Shift+P", tooltip: "Chọn cỡ chữ (Ctrl+Shift+P)" },
   { id: "writer.style.apply", category: "format", label: "Kiểu dáng", tooltip: "Áp dụng kiểu đoạn văn (Normal, Heading 1, 2, 3, Quote, Emphasis)" },
   { id: "writer.style.gallery", category: "format", label: "Thư viện kiểu", icon: "styleGallery", tooltip: "Mở thư viện kiểu định dạng trực quan (Styles Gallery)" },
+  { id: "writer.styles.pane", category: "format", label: "Ngăn Kiểu", shortcut: "Ctrl+Alt+Shift+S", icon: "styleGallery", tooltip: "Mở hoặc đóng ngăn Kiểu (Ctrl+Alt+Shift+S)" },
+  { id: "writer.styles.create", category: "format", label: "Tạo kiểu mới", tooltip: "Tạo kiểu đoạn văn từ vùng chọn hiện tại" },
   { id: "writer.design.themeGallery", category: "format", label: "Chủ đề văn bản", icon: "themeGallery", tooltip: "Mở thư viện chủ đề định dạng tài liệu (Document Themes)" },
   { id: "writer.color.text", category: "format", label: "Màu chữ", icon: "colorText", tooltip: "Đổi màu phông chữ" },
   { id: "writer.color.highlight", category: "format", label: "Màu nền chữ", shortcut: "Ctrl+Alt+H", icon: "colorHighlight", tooltip: "Tô màu nền văn bản (Ctrl+Alt+H)" },

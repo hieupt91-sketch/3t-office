@@ -228,7 +228,8 @@ export const WRITER_RIBBON_TABS = [
         // phát hiện 04/09/2026). `writer.style.apply` vẫn còn là command thật (dùng nội
         // bộ/lệnh gọi trực tiếp), chỉ không còn render dropdown thừa trên ribbon nữa.
         items: [
-          { type: "button", commandId: "writer.style.gallery", isLarge: true }
+          { type: "button", commandId: "writer.style.gallery", isLarge: true },
+          { type: "button", commandId: "writer.styles.pane", isLarge: false }
         ]
       },
       {

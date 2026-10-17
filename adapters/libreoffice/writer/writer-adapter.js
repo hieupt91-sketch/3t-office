@@ -812,6 +812,8 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.style.heading1", () => this._applyParagraphStyle("h1"));
     globalCommandBus.bindHandler("writer.style.heading2", () => this._applyParagraphStyle("h2"));
     globalCommandBus.bindHandler("writer.style.heading3", () => this._applyParagraphStyle("h3"));
+    globalCommandBus.bindHandler("writer.styles.pane", () => this.toggleStylesPane());
+    globalCommandBus.bindHandler("writer.styles.create", () => this.openCreateParagraphStyleDialog());
     globalCommandBus.bindHandler("writer.text.changeCase", (args) => this._hintIfFalse(() => this.changeCase(args), "Hãy chọn đoạn văn bản cần đổi chữ hoa / chữ thường."));
     globalCommandBus.bindHandler("writer.text.changeCaseDialog", () => this._hintIfFalse(() => this.openChangeCaseDialog(), "Hãy chọn đoạn văn bản cần đổi chữ hoa / chữ thường."));
     globalCommandBus.bindHandler("writer.format.fontDialog", () => this.openFontDialog());
@@ -3894,6 +3896,9 @@ export class WriterAdapter {
 
   _normalizeImportedHtml(raw, ooxmlDocumentXml, ooxmlCommentsXml, ooxmlStylesXml = "", ooxmlNumberingXml = "", ooxmlHeaderXml = "", ooxmlFooterXml = "", ooxmlHeaders = {}, ooxmlFooters = {}, ooxmlRels = {}, ooxmlSettingsXml = "", ooxmlCommentsExtendedXml = "") {
     let html = String(raw || "");
+    this._customParagraphStyles = this._readCustomParagraphStyles(ooxmlStylesXml);
+    this._documentCharacterStyles = this._readDocumentCharacterStyles(ooxmlStylesXml);
+    html = this._restoreCustomParagraphStyleMarkers(html, ooxmlDocumentXml, this._customParagraphStyles);
     let comments = [];
     html = this._unwrapOutlineHeadingLists(html, ooxmlDocumentXml, ooxmlStylesXml, ooxmlNumberingXml);
     // W42 (d16): LibreOffice bọc bảng canh giữa trong `<p align><center><table>…</table></center></p>`; trình duyệt tự
@@ -4135,6 +4140,75 @@ export class WriterAdapter {
     }
     const documentProtection = parseDocumentProtection(ooxmlSettingsXml);
     return { body: html.trim(), header, footer, page, comments, docStyles, shapes, sectionPageSetups, sectionHeadersFooters, trackingEnabled, hyphenationEnabled, documentProtection };
+  }
+
+  _readCustomParagraphStyles(stylesXml = "") {
+    const result = [];
+    const styleRe = /<w:style\b([^>]*\bw:type=["']paragraph["'][^>]*)>([\s\S]*?)<\/w:style\s*>/gi;
+    for (const match of String(stylesXml || "").matchAll(styleRe)) {
+      const attrs = match[1], body = match[2];
+      const id = attrs.match(/\bw:styleId=["']([^"']+)/i)?.[1];
+      const name = body.match(/<w:name\b[^>]*\bw:val=["']([^"']+)/i)?.[1];
+      if (!id || !name) continue;
+      const getVal = (tag) => body.match(new RegExp(`<w:${tag}\\b[^>]*\\bw:val=["']([^"']+)`, "i"))?.[1];
+      const font = body.match(/<w:rFonts\b[^>]*\bw:ascii=["']([^"']+)/i)?.[1] || "Arial";
+      const size = Number(getVal("sz") || 22) / 2;
+      const after = Number(body.match(/<w:spacing\b[^>]*\bw:after=["'](\d+)/i)?.[1] || 0) / 20;
+      const line = Number(body.match(/<w:spacing\b[^>]*\bw:line=["'](\d+)/i)?.[1] || 240) / 240;
+      const left = Number(body.match(/<w:ind\b[^>]*\bw:left=["'](\d+)/i)?.[1] || 0) / 20;
+      const first = Number(body.match(/<w:ind\b[^>]*\bw:firstLine=["'](\d+)/i)?.[1] || 0) / 20;
+      const hanging = Number(body.match(/<w:ind\b[^>]*\bw:hanging=["'](\d+)/i)?.[1] || 0) / 20;
+      const alignment = ({ left: "left", center: "center", right: "right", both: "justify" })[getVal("jc")] || "left";
+      result.push({ id, name, custom: /\bw:customStyle=["'](?:1|true)["']/i.test(attrs), basedOn: body.match(/<w:basedOn\b[^>]*\bw:val=["']([^"']+)/i)?.[1] || "Normal", next: body.match(/<w:next\b[^>]*\bw:val=["']([^"']+)/i)?.[1] || "Normal", font, size, bold: /<w:b\s*\/>/i.test(body), italic: /<w:i\s*\/>/i.test(body), color: `#${body.match(/<w:color\b[^>]*\bw:val=["']([0-9a-f]{6})/i)?.[1] || "000000"}`, alignment, spaceAfter: after, lineSpacing: line, leftIndent: left, firstLineIndent: first || -hanging });
+    }
+    return result;
+  }
+
+  _readDocumentCharacterStyles(stylesXml = "") {
+    const result = [];
+    const styleRe = /<w:style\b([^>]*\bw:type=["']character["'][^>]*)>([\s\S]*?)<\/w:style\s*>/gi;
+    for (const match of String(stylesXml || "").matchAll(styleRe)) {
+      const id = match[1].match(/\bw:styleId=["']([^"']+)/i)?.[1];
+      const name = match[2].match(/<w:name\b[^>]*\bw:val=["']([^"']+)/i)?.[1];
+      if (!id || !name) continue;
+      const body = match[2];
+      const val = (tag) => body.match(new RegExp(`<w:${tag}\\b[^>]*\\bw:val=["']([^"']+)`, "i"))?.[1];
+      result.push({
+        id, name, font: body.match(/<w:rFonts\b[^>]*\bw:ascii=["']([^"']+)/i)?.[1] || "",
+        size: Number(val("sz") || 22) / 2, bold: /<w:b\s*\/>/i.test(body), italic: /<w:i\s*\/>/i.test(body),
+        color: `#${body.match(/<w:color\b[^>]*\bw:val=["']([0-9a-f]{6})/i)?.[1] || "000000"}`
+      });
+    }
+    return result;
+  }
+
+  _restoreCustomParagraphStyleMarkers(html, documentXml, styles) {
+    if (!html || !documentXml || !styles.length || typeof document === "undefined") return html;
+    const byId = new Map(styles.map((style) => [style.id, style]));
+    const records = [];
+    for (const paragraph of String(documentXml).matchAll(/<w:p\b[^>]*>[\s\S]*?<\/w:p\s*>/gi)) {
+      const styleId = paragraph[0].match(/<w:pStyle\b[^>]*\bw:val=["']([^"']+)/i)?.[1];
+      if (!byId.has(styleId)) continue;
+      const text = [...paragraph[0].matchAll(/<w:t\b[^>]*>([\s\S]*?)<\/w:t>/gi)].map((part) => part[1]).join("").replace(/&amp;/g, "&").replace(/&lt;/g, "<").replace(/&gt;/g, ">").replace(/&quot;/g, '"').replace(/&apos;/g, "'").replace(/\s+/g, " ").trim();
+      records.push({ style: byId.get(styleId), text });
+    }
+    if (!records.length) return html;
+    const container = document.createElement("div");
+    container.innerHTML = html;
+    const blocks = [...container.querySelectorAll("p,h1,h2,h3,h4,h5,h6,blockquote")];
+    let cursor = 0;
+    for (const record of records) {
+      if (!record.text) continue;
+      const target = blocks.slice(cursor).find((block) => block.textContent.replace(/\s+/g, " ").trim() === record.text);
+      if (!target) continue;
+      const style = record.style;
+      target.dataset.vnoStyleId = style.id;
+      target.dataset.vnoStyleName = style.name;
+      target.dataset.vnoStyleDefinition = btoa(unescape(encodeURIComponent(JSON.stringify(style))));
+      Object.assign(target.style, { fontFamily: style.font, fontSize: `${style.size}pt`, fontWeight: style.bold ? "700" : "400", fontStyle: style.italic ? "italic" : "normal", color: style.color, textAlign: style.alignment, marginBottom: `${style.spaceAfter}pt`, lineHeight: String(style.lineSpacing), marginLeft: `${style.leftIndent}pt`, textIndent: `${style.firstLineIndent}pt` });
+      cursor = blocks.indexOf(target) + 1;
+    }
+    return container.innerHTML;
   }
 
   /**
@@ -10831,6 +10905,8 @@ export class WriterAdapter {
   _applyParagraphStyle(tag = "p") {
     this.flushTyping();
     const styleKey = String(tag || "p").toLowerCase().trim();
+    const customStyle = (this._customParagraphStyles || []).find((style) => style.id.toLowerCase() === styleKey);
+    if (customStyle) return this._applyCustomParagraphStyle(customStyle);
 
     let targetTag = "p";
     let addClass = "";
@@ -10883,6 +10959,37 @@ export class WriterAdapter {
 
     this.isDirty = true;
     this.recordSnapshot("writer.style.apply");
+    this._syncActiveStyleUI();
+    return true;
+  }
+
+  _applyCustomParagraphStyle(style) {
+    const blocks = this._getSelectedParagraphBlocks();
+    if (!blocks.length) {
+      let node = window.getSelection?.()?.anchorNode;
+      if (node?.nodeType === 3) node = node.parentElement;
+      const block = node?.closest?.("p,h1,h2,h3,h4,h5,h6,blockquote,div,li");
+      if (block && this.bodyDom?.contains?.(block)) blocks.push(block);
+    }
+    if (!blocks.length) return false;
+    this.recordSnapshot("writer.style.apply");
+    const definition = btoa(unescape(encodeURIComponent(JSON.stringify(style))));
+    for (const block of blocks) {
+      block.dataset.vnoStyleId = style.id;
+      block.dataset.vnoStyleName = style.name;
+      block.dataset.vnoStyleDefinition = definition;
+      block.style.fontFamily = style.font;
+      block.style.fontSize = `${style.size}pt`;
+      block.style.fontWeight = style.bold ? "700" : "400";
+      block.style.fontStyle = style.italic ? "italic" : "normal";
+      block.style.color = style.color;
+      block.style.textAlign = style.alignment;
+      block.style.marginBottom = `${style.spaceAfter}pt`;
+      block.style.lineHeight = String(style.lineSpacing);
+      block.style.marginLeft = `${style.leftIndent}pt`;
+      block.style.textIndent = `${style.firstLineIndent}pt`;
+    }
+    this.isDirty = true;
     this._syncActiveStyleUI();
     return true;
   }
@@ -11016,6 +11123,11 @@ export class WriterAdapter {
     }
     if (!node) return "normal";
     if (node.nodeType === 3) node = node.parentNode;
+    const styledBlock = node.closest?.("[data-vno-style-id]");
+    if (styledBlock && this.bodyDom?.contains?.(styledBlock)) {
+      const id = styledBlock.dataset.vnoStyleId;
+      return ({ Normal: "normal", Title: "title", Subtitle: "subtitle", Heading1: "h1", Heading2: "h2", Heading3: "h3", Quote: "quote", ListParagraph: "listparagraph", Emphasis: "emphasis" })[id] || id;
+    }
 
     while (node && node !== this.bodyDom && node !== this.editorDom) {
       const tag = (node.tagName || "").toLowerCase();
@@ -11047,8 +11159,125 @@ export class WriterAdapter {
     return showStyleGalleryDropdown({
       targetEl,
       activeStyle: currentStyle,
+      customStyles: (this._customParagraphStyles || []).filter((style) => style.custom),
       onSelectStyle: (styleId) => this._applyParagraphStyle(styleId)
     });
+  }
+
+  toggleStylesPane() {
+    if (this._stylesPane?.isConnected) {
+      this._stylesPane.remove();
+      this._stylesPane = null;
+      return false;
+    }
+    import("../../../apps/writer/styles-pane.js").then(({ toggleWriterStylesPane }) => {
+      if (this._stylesPane?.isConnected) return;
+      const selection = window.getSelection?.();
+      this._stylesPaneSelectionRange = selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
+      this._stylesPane = toggleWriterStylesPane({
+        currentId: this.getCurrentParagraphStyle(),
+        items: [...this._availableParagraphStyles(), ...(this._documentCharacterStyles || []).map((style) => ({ id: `character:${style.id}`, name: `${style.name} · ${t("writerStyles.characterStyle", "Kiểu ký tự")}` }))],
+        onApply: (styleId) => styleId.startsWith("character:") ? this._applyDocumentCharacterStyle(styleId.slice("character:".length)) : this._applyParagraphStyle(styleId),
+        onCreate: () => this.openCreateParagraphStyleDialog(),
+        onClose: () => { this._stylesPane = null; }
+      });
+    });
+    return true;
+  }
+
+  _applyDocumentCharacterStyle(styleId) {
+    const style = (this._documentCharacterStyles || []).find((item) => item.id === styleId);
+    const range = this._stylesPaneSelectionRange;
+    if (!style || !range || range.collapsed || !this.bodyDom?.contains?.(range.commonAncestorContainer)) return false;
+    this.recordSnapshot("writer.characterStyle.apply");
+    try {
+      const selection = window.getSelection();
+      selection.removeAllRanges();
+      selection.addRange(range);
+      const fragment = range.extractContents();
+      const span = document.createElement("span");
+      span.dataset.vnoCharacterStyleId = style.id;
+      span.style.fontFamily = style.font || "";
+      span.style.fontSize = `${style.size}pt`;
+      span.style.fontWeight = style.bold ? "700" : "400";
+      span.style.fontStyle = style.italic ? "italic" : "normal";
+      span.style.color = style.color;
+      span.appendChild(fragment);
+      range.insertNode(span);
+      this._stylesPaneSelectionRange = null;
+      this.isDirty = true;
+      return true;
+    } catch {
+      this._stylesPaneSelectionRange = null;
+      return false;
+    }
+  }
+
+  _availableParagraphStyles() {
+    const ids = ["normal", "title", "subtitle", "h1", "h2", "h3", "quote", "listparagraph", "emphasis"];
+    const labels = { normal: "Thường", title: "Tiêu đề", subtitle: "Phụ đề", h1: "Tiêu đề 1", h2: "Tiêu đề 2", h3: "Tiêu đề 3", quote: "Trích dẫn", listparagraph: "Đoạn danh sách", emphasis: "Nhấn mạnh" };
+    const presets = ids.map((id) => ({ id, name: labels[id] }));
+    const presetOoxmlIds = new Set(["normal", "title", "subtitle", "heading1", "heading2", "heading3", "quote", "listparagraph", "emphasis"]);
+    return [...presets, ...(this._customParagraphStyles || []).filter((style) => !presetOoxmlIds.has(style.id.toLowerCase())).map((style) => ({ id: style.id, name: style.name }))];
+  }
+
+  async openCreateParagraphStyleDialog() {
+    const [{ showCreateParagraphStyleDialog }] = await Promise.all([import("../../../apps/writer/create-style-dialog.js")]);
+    this._pendingCustomStyleBlocks = this._getSelectedParagraphBlocks();
+    let node = window.getSelection?.()?.anchorNode;
+    if (node?.nodeType === 3) node = node.parentElement;
+    const block = node?.closest?.("p,h1,h2,h3,h4,h5,h6,blockquote,div,li");
+    const computed = block && window.getComputedStyle ? window.getComputedStyle(block) : null;
+    const initial = computed ? {
+      font: computed.fontFamily.split(",")[0].replace(/["']/g, "").trim(), size: Math.round(parseFloat(computed.fontSize) * 0.75 * 2) / 2,
+      bold: Number(computed.fontWeight) >= 600, italic: computed.fontStyle === "italic", alignment: computed.textAlign,
+      spaceAfter: Math.round((parseFloat(computed.marginBottom) || 0) * 0.75 * 2) / 2,
+      leftIndent: Math.round((parseFloat(computed.marginLeft) || 0) * 0.75 * 2) / 2,
+      firstLineIndent: Math.round((parseFloat(computed.textIndent) || 0) * 0.75 * 2) / 2
+    } : {};
+    showCreateParagraphStyleDialog({
+      existingStyles: this._availableParagraphStyles().map((style) => ({
+        ...style,
+        id: ({ normal: "Normal", title: "Title", subtitle: "Subtitle", h1: "Heading1", h2: "Heading2", h3: "Heading3", quote: "Quote", listparagraph: "ListParagraph", emphasis: "Emphasis" })[style.id] || style.id
+      })),
+      initial,
+      onCreate: (values) => this._createParagraphStyle(values)
+    });
+  }
+
+  _createParagraphStyle(values) {
+    const slug = String(values.name || "Style").normalize("NFKD").replace(/[\u0300-\u036f]/g, "").replace(/[^A-Za-z0-9]+/g, "").slice(0, 24) || "Style";
+    const style = { ...values, id: `Vno${slug}`, name: String(values.name).trim(), custom: true };
+    if ((this._customParagraphStyles || []).some((item) => item.id === style.id)) style.id = `${style.id}${Date.now().toString(36)}`;
+    this._customParagraphStyles = [...(this._customParagraphStyles || []), style];
+    const blocks = this._pendingCustomStyleBlocks || this._getSelectedParagraphBlocks();
+    this._pendingCustomStyleBlocks = null;
+    if (!blocks.length) {
+      const selection = window.getSelection?.();
+      let node = selection?.anchorNode;
+      if (node?.nodeType === 3) node = node.parentElement;
+      const block = node?.closest?.("p,h1,h2,h3,h4,h5,h6,blockquote,div,li");
+      if (block && this.bodyDom?.contains?.(block)) blocks.push(block);
+    }
+    this.recordSnapshot("writer.styles.create");
+    for (const block of blocks) {
+      block.dataset.vnoStyleId = style.id;
+      block.dataset.vnoStyleName = style.name;
+      block.dataset.vnoStyleDefinition = btoa(unescape(encodeURIComponent(JSON.stringify(style))));
+      block.style.fontFamily = style.font;
+      block.style.fontSize = `${style.size}pt`;
+      block.style.fontWeight = style.bold ? "700" : "400";
+      block.style.fontStyle = style.italic ? "italic" : "normal";
+      block.style.color = style.color;
+      block.style.textAlign = style.alignment;
+      block.style.marginBottom = `${style.spaceAfter}pt`;
+      block.style.lineHeight = String(style.lineSpacing);
+      block.style.marginLeft = `${style.leftIndent}pt`;
+      block.style.textIndent = `${style.firstLineIndent}pt`;
+    }
+    this.isDirty = true;
+    this._syncActiveStyleUI();
+    return style;
   }
 
   _bindStyleTracking() {
@@ -11173,6 +11402,7 @@ export class WriterAdapter {
 
   _syncActiveStyleUI() {
     const currentStyle = this.getCurrentParagraphStyle();
+    if (this._stylesPane?.refresh) this._stylesPane.refresh(this._availableParagraphStyles(), currentStyle);
     if (typeof document !== "undefined") {
       const selects = document.querySelectorAll ? document.querySelectorAll('select[data-command-id="writer.style.apply"]') : [];
       selects.forEach?.((sel) => {
