@@ -12002,8 +12002,17 @@ def _apply_slides_source_transitions(
                 if after not in (None, ""):
                     set_attrs["advTm"] = str(int(float(after)))
                 if match and match.group(0).lstrip().startswith("<mc:"):
-                    continue  # khối đã bọc mc:AlternateContent do PowerPoint ghi: không đoán cấu trúc
-                if match:
+                    # Khối bọc mc:AlternateContent (soffice và PowerPoint đều ghi như vậy): đặt cùng thuộc tính chuyển
+                    # trang lên cả nhánh Choice lẫn Fallback, không đụng phần còn lại của khối.
+                    def with_advance(tag_match: re.Match[str]) -> str:
+                        attrs = tag_match.group(1)
+                        for key, value in set_attrs.items():
+                            attrs = re.sub(rf'\s*\b{key}="[^"]*"', "", attrs)
+                            attrs += f' {key}="{value}"'
+                        return f"<p:transition{attrs}{tag_match.group(2)}>"
+                    patched_block = re.sub(r"<p:transition\b([^>]*?)(/?)>", with_advance, match.group(0)) if set_attrs else match.group(0)
+                    updated = updated[:match.start()] + patched_block + updated[match.end():]
+                elif match:
                     tag = re.match(r"<p:transition\b([^>]*?)(/?)>", match.group(0))
                     attrs = tag.group(1)
                     for key, value in set_attrs.items():

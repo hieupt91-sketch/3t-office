@@ -103,6 +103,18 @@ class SourceTransitionSaveTests(unittest.TestCase):
         self.assertIn('advTm="3000"', tag)
         self.assertIn("<p:fade/>", result)
 
+    def test_user_advance_is_set_on_both_branches_of_a_wrapped_transition(self):
+        wrapped = (
+            '<mc:AlternateContent><mc:Choice Requires="p14"><p:transition spd="slow" p14:dur="2000"><p:fade/></p:transition></mc:Choice>'
+            '<mc:Fallback><p:transition spd="slow"><p:fade/></p:transition></mc:Fallback></mc:AlternateContent>'
+        )
+        result = self._run(_slide(wrapped, MC_NS), ' vno:advance-click="0" vno:advance-after="5000"')
+        tags = re.findall(r"<p:transition\b[^>]*>", result)
+        self.assertEqual(len(tags), 2)
+        for tag in tags:
+            self.assertIn('advClick="0"', tag)
+            self.assertIn('advTm="5000"', tag)
+        self.assertIn('p14:dur="2000"', result)
     def test_user_advance_without_any_transition_creates_one(self):
         result = self._run(_slide(""), ' vno:advance-after="4000"')
         self.assertIn('<p:transition advTm="4000"/>', result)
