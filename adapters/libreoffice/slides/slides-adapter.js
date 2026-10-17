@@ -1428,6 +1428,16 @@ export class SlidesAdapter {
     if (shape.type === "ink" || shape.type === "path") return `grInk_${this._styleKey(shape.stroke || shape.color || "DC2626")}_${shape.strokeWidth || 3}`;
     if (shape.type === "image" && shape.crop) return `grImage_crop_${this._styleKey(shape.id || "img")}`;
     if (shape.type === "image" || shape.type === "video" || shape.type === "audio") return "grImage";
+    if (shape.gradient || shape.fillKind === "gradient") {
+      const grad = shape.gradient || {};
+      const startColor = this._cssColorToHex(grad.startColor || shape.fillColor || shape.color || "#ff0000") || "#ff0000";
+      const endColor = this._cssColorToHex(grad.endColor || grad.to || "#0000ff") || "#0000ff";
+      const name = grad.name || `Gradient_${this._styleKey(startColor)}_${this._styleKey(endColor)}`;
+      const stroke = shape.stroke || shape.strokeColor;
+      const strokeWidth = Number(shape.strokeWidth) || 0;
+      const strokeSuffix = stroke && strokeWidth > 0 ? `_stroke${this._styleKey(stroke)}_${String(strokeWidth).replace(/\./g, "_")}` : "";
+      return `grGrad_${this._styleKey(name)}${strokeSuffix}`;
+    }
     const suffix = this._shapeTextStyleSuffix(shape);
     const base = this._isTransparentFill(shape) ? "grNone" : `gr${this._styleKey(shape.fill || shape.color)}`;
     const stroke = shape.stroke || shape.strokeColor;
@@ -1708,6 +1718,33 @@ export class SlidesAdapter {
     if (!hasDash) return "";
     return `
     <draw:stroke-dash draw:name="Long_20_Dash" draw:display-name="Long Dash" draw:style="rect" draw:dots1="1" draw:dots1-length="400%" draw:distance="300%"/>`;
+  }
+
+  _serializeShapeGradients(slides) {
+    const seen = new Map();
+    for (const slide of slides || []) {
+      for (const shape of slide.shapes || []) {
+        if (shape.gradient || shape.fillKind === "gradient") {
+          const grad = shape.gradient || {};
+          const startColor = this._cssColorToHex(grad.startColor || shape.fillColor || shape.color || "#ff0000") || "#ff0000";
+          const endColor = this._cssColorToHex(grad.endColor || grad.to || "#0000ff") || "#0000ff";
+          const angle = grad.angle != null ? grad.angle : (grad.direction === "vertical" ? "90deg" : "0deg");
+          const name = grad.name || `Gradient_${this._styleKey(startColor)}_${this._styleKey(endColor)}`;
+          if (!seen.has(name)) {
+            seen.set(name, { name, startColor, endColor, angle });
+          }
+        }
+      }
+    }
+    let xml = "";
+    for (const [, g] of seen) {
+      xml += `
+    <draw:gradient draw:name="${this._escapeXml(g.name)}" draw:style="linear" draw:start-color="${this._escapeXml(g.startColor)}" draw:end-color="${this._escapeXml(g.endColor)}" draw:start-intensity="100%" draw:end-intensity="100%" draw:angle="${this._escapeXml(g.angle)}" draw:border="0%">
+      <loext:gradient-stop svg:offset="0" loext:color-type="rgb" loext:color-value="${this._escapeXml(g.startColor)}"/>
+      <loext:gradient-stop svg:offset="1" loext:color-type="rgb" loext:color-value="${this._escapeXml(g.endColor)}"/>
+    </draw:gradient>`;
+    }
+    return xml;
   }
 
   _pageDrawingStyleName(slide, idx) {
@@ -2124,7 +2161,8 @@ export class SlidesAdapter {
   _shapeGeomAttrs(shape, drawId) {
     const name = this._escapeXml(String(shape.id ?? drawId));
     const styleName = this._shapeStyleName(shape);
-    const fill = this._isTransparentFill(shape) ? "" : ` draw:fill-color="${this._escapeXml(shape.color)}"`;
+    const isGrad = Boolean(shape.gradient || shape.fillKind === "gradient");
+    const fill = (this._isTransparentFill(shape) || isGrad) ? "" : ` draw:fill-color="${this._escapeXml(shape.color)}"`;
     if (shape.rotation) {
       const radianOdf = -(shape.rotation * Math.PI / 180);
       // ODF «rotate(a) translate(x y)» xoay hình quanh GÓC TRÊN-TRÁI rồi dời tới (x, y), nên
@@ -2166,6 +2204,10 @@ export class SlidesAdapter {
           } else {
             needsMedia = true;
           }
+          continue;
+        }
+        if (shape.gradient || shape.fillKind === "gradient") {
+          namedStyles.set(this._shapeStyleName(shape), shape);
           continue;
         }
         const suffix = this._shapeTextStyleSuffix(shape);
@@ -2282,6 +2324,25 @@ export class SlidesAdapter {
         xml += `
     <style:style style:name="${styleName}" style:family="graphic">
       <style:graphic-properties draw:stroke="solid" svg:stroke-color="${this._escapeXml(sc)}" svg:stroke-width="${sw}" draw:fill="none"/>
+    </style:style>`;
+        continue;
+      }
+      if (shape.gradient || shape.fillKind === "gradient") {
+        const grad = shape.gradient || {};
+        const startColor = this._cssColorToHex(grad.startColor || shape.fillColor || shape.color || "#ff0000") || "#ff0000";
+        const endColor = this._cssColorToHex(grad.endColor || grad.to || "#0000ff") || "#0000ff";
+        const gradName = grad.name || `Gradient_${this._styleKey(startColor)}_${this._styleKey(endColor)}`;
+        let strokeAttrs = "";
+        if (shape.stroke || shape.strokeColor) {
+          const sc = shape.stroke || shape.strokeColor;
+          const sw = shape.strokeWidth ? this._pxToOdf(shape.strokeWidth) : "0.035cm";
+          strokeAttrs = ` draw:stroke="solid" svg:stroke-color="${this._escapeXml(sc)}" svg:stroke-width="${sw}"`;
+        } else {
+          strokeAttrs = ` draw:stroke="none"`;
+        }
+        xml += `
+    <style:style style:name="${styleName}" style:family="graphic">
+      <style:graphic-properties${strokeAttrs} draw:fill="gradient" draw:fill-gradient-name="${this._escapeXml(gradName)}"${this._textStyleGraphicAttrs(shape)}/>
     </style:style>`;
         continue;
       }
@@ -2638,6 +2699,27 @@ export class SlidesAdapter {
   }
 
   _parseGraphicFillStyles(xmlText) {
+    const gradients = new Map();
+    const gradRegex = /<draw:gradient\b([^>]*)\/?>/gi;
+    let gm;
+    while ((gm = gradRegex.exec(xmlText)) !== null) {
+      const gAttrs = gm[1] || "";
+      const gName = this._attr(gAttrs, "draw:name");
+      if (!gName) continue;
+      const gStart = this._attr(gAttrs, "draw:start-color");
+      const gEnd = this._attr(gAttrs, "draw:end-color");
+      const gAngle = this._attr(gAttrs, "draw:angle") || "0deg";
+      const gStyle = this._attr(gAttrs, "draw:style") || "linear";
+      if (gStart && gEnd) {
+        gradients.set(gName, {
+          name: gName,
+          startColor: gStart,
+          endColor: gEnd,
+          angle: gAngle,
+          style: gStyle
+        });
+      }
+    }
     const styles = new Map();
     const regex = /<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi;
     let match;
@@ -2648,6 +2730,8 @@ export class SlidesAdapter {
       const parentStyleName = match[1].match(/style:parent-style-name=["']([^"']+)["']/i)?.[1] || null;
       const fill = match[2].match(/draw:fill-color=["']([^"']+)["']/i)?.[1];
       const fillKind = match[2].match(/draw:fill=["']([^"']+)["']/i)?.[1];
+      const fillGradientName = match[2].match(/draw:fill-gradient-name=["']([^"']+)["']/i)?.[1];
+      const gradient = (fillKind === "gradient" && fillGradientName) ? (gradients.get(fillGradientName) || { name: fillGradientName, startColor: "#ff0000", endColor: "#0000ff", angle: "0deg", style: "linear" }) : null;
       const stroke = match[2].match(/svg:stroke-color=["']([^"']+)["']/i)?.[1];
       const strokeKind = match[2].match(/draw:stroke=["']([^"']+)["']/i)?.[1];
       const strokeDash = match[2].match(/draw:stroke-dash=["']([^"']+)["']/i)?.[1];
@@ -2703,7 +2787,10 @@ export class SlidesAdapter {
       const crop = this._parseClipRect(clipRaw);
       styles.set(name, {
         parentStyleName,
-        fill: fillKind === "none" ? "transparent" : (fill || null),
+        fillKind: fillKind || null,
+        fillGradientName: fillGradientName || null,
+        gradient: gradient || null,
+        fill: fillKind === "none" ? "transparent" : (gradient ? gradient.startColor : (fill || null)),
         stroke: strokeKind === "none" ? null : (stroke || (strokeKind === "solid" ? "#000000" : null)),
         strokeWidth,
         strokeWidthRaw,
@@ -2735,6 +2822,11 @@ export class SlidesAdapter {
       let p = s.parentStyleName ? styles.get(s.parentStyleName) : null;
       let depth = 0;
       while (p && depth < 10) {
+        if (!s.gradient && p.gradient) {
+          s.gradient = p.gradient;
+          s.fillKind = "gradient";
+          if (!s.fill) s.fill = p.gradient.startColor;
+        }
         if (!s.fill && p.fill) s.fill = p.fill;
         if (!s.stroke && p.stroke) s.stroke = p.stroke;
         if (s.strokeWidth == null && p.strokeWidth != null) s.strokeWidth = p.strokeWidth;
@@ -2895,7 +2987,8 @@ export class SlidesAdapter {
     else if (/path|ink/i.test(geomType) || tagName === "path" || (dAttr && !/arrow/i.test(geomType))) type = "ink";
     const styleName = get("draw:style-name");
     const style = graphicStyles.get(styleName) || {};
-    const color = get("draw:fill-color") || style.fill || "#3b82f6";
+    const gradient = style.gradient || null;
+    const color = gradient ? gradient.startColor : (get("draw:fill-color") || style.fill || "#3b82f6");
 
     // Stroke / border resolution
     const strokeKind = get("draw:stroke") || style.strokeKind;
@@ -3003,6 +3096,7 @@ export class SlidesAdapter {
       ...(origin.rotationDeg ? { rotation: origin.rotationDeg } : {}),
       color,
       fill: color,
+      ...(gradient ? { gradient, fillKind: "gradient" } : {}),
       ...(stroke ? { stroke, strokeColor: stroke, strokeWidth, "svg:stroke-color": stroke, "draw:stroke": strokeKind || "solid" } : {}),
       ...(flipH ? { flipH: true } : {}),
       ...(flipV ? { flipV: true } : {}),
@@ -3935,7 +4029,7 @@ export class SlidesAdapter {
     const automaticStyles = this._serializeGraphicStyles(slides) + this._serializeRichTextStyles(richCtx);
     const backgroundResources = this._serializeBackgroundResources(slides);
     const officeStyles = `
-  <office:styles>${this._serializeStrokeDashStyles(slides)}${backgroundResources}${this._serializeSlidePageLayouts()}
+  <office:styles>${this._serializeStrokeDashStyles(slides)}${this._serializeShapeGradients(slides)}${backgroundResources}${this._serializeSlidePageLayouts()}
   </office:styles>`;
 
     return `<?xml version="1.0" encoding="UTF-8"?>

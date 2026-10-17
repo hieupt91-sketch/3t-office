@@ -1593,5 +1593,48 @@ export async function runSlidesFileIoTests() {
     }
   });
 
+  test("SlidesAdapter: preserve shape two-color gradient fill (Item d)", () => {
+    const fodp = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0">
+  <office:styles>
+    <draw:gradient draw:name="Gradient_Test" draw:style="linear" draw:start-color="#ff0000" draw:end-color="#0000ff" draw:angle="0deg"/>
+  </office:styles>
+  <office:automatic-styles>
+    <style:style style:name="grGradTest" style:family="graphic">
+      <style:graphic-properties draw:fill="gradient" draw:fill-gradient-name="Gradient_Test"/>
+    </style:style>
+  </office:automatic-styles>
+  <office:body><office:presentation>
+    <draw:page draw:name="page1">
+      <draw:custom-shape draw:name="Oval1" draw:style-name="grGradTest" svg:width="4cm" svg:height="4cm" svg:x="2cm" svg:y="2cm">
+        <text:p/>
+      </draw:custom-shape>
+    </draw:page>
+  </office:presentation></office:body>
+</office:document>`;
+    const adapter = new SlidesAdapter(null);
+    const parsed = adapter.parseFodp(fodp);
+    const shape = parsed[0].shapes[0];
+    if (!shape.gradient) throw new Error("Gradient not parsed on shape");
+    if (shape.gradient.startColor !== "#ff0000") throw new Error(`Expected startColor #ff0000, got ${shape.gradient.startColor}`);
+    if (shape.gradient.endColor !== "#0000ff") throw new Error(`Expected endColor #0000ff, got ${shape.gradient.endColor}`);
+    if (shape.fillKind !== "gradient") throw new Error(`Expected fillKind gradient, got ${shape.fillKind}`);
+    if (shape.color !== "#ff0000") throw new Error(`Expected primary color #ff0000, got ${shape.color}`);
+
+    const serialized = new SlidesAdapter({ slides: parsed, slideSize: { width: 960, height: 540 } }).serializeToFodp();
+    if (!serialized.includes('<draw:gradient draw:name="Gradient_Test"')) {
+      throw new Error("Serialized missing <draw:gradient>");
+    }
+    if (!serialized.includes('draw:fill="gradient"')) {
+      throw new Error("Serialized missing draw:fill=\"gradient\"");
+    }
+    if (!serialized.includes('draw:fill-gradient-name="Gradient_Test"')) {
+      throw new Error("Serialized missing draw:fill-gradient-name");
+    }
+  });
+
   return results;
 }
