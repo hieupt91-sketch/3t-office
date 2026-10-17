@@ -1283,7 +1283,10 @@ export class WriterAdapter {
     if (typeof window === "undefined") return false;
     this.flushTyping();
     // Logic đổi chữ dùng chung với Slides: platform/text/change-case.js
-    if (!applyChangeCaseToSelection(targetCase)) return false;
+    if (!applyChangeCaseToSelection(targetCase)) {
+      this.shell?.setStatus?.("Hãy chọn đoạn văn bản cần đổi chữ hoa / chữ thường.");
+      return false;
+    }
     this.isDirty = true;
     this.recordSnapshot("writer.text.changeCase");
     return true;
