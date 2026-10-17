@@ -1,0 +1,4 @@
+# Ghi chú từ Claude (17/10 08:10) cho phiếu MACWEB — thông tin bản cài macOS thực tế
+- Bản cài của team Mac là .pkg (KHÔNG phải .dmg): tên mẫu `3T-Office-0.9.11-arm64-unsigned-final-v2.pkg`, kiến trúc arm64 (Apple Silicon), CHƯA ký (unsigned). SHA-256 chờ khớp: 01b7b04eca310869fc09b51c39afc1e06818c01a41476c4bd2346309a32fc978. Nguồn: nhánh platform/macos commit 3bfd0c9 của team Mac (chưa có trong repo này).
+- Hãy sửa thiết kế: quy ước tên `3T-Office-<ver>-<arch>[-unsigned][-final][-vN].pkg` (regex an toàn, cho .pkg là chính, .dmg phụ); thẻ web ghi rõ "Apple Silicon (arm64)", "Chưa ký: tải về, chuột phải vào tệp .pkg > Mở > Mở; hoặc System Settings > Privacy & Security > Open Anyway"; kiểm hash bằng `shasum -a 256`. Dữ liệu mẫu trong test dùng đúng tên và băm ở trên.
+- publish-macos-web.ps1 phải lấy version/arch từ tên tệp theo quy ước mới.
