@@ -1,8 +1,74 @@
 // CDP Desktop test for Sheet Fraction & Special number formatting
+import { mkdirSync } from "node:fs";
+import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { launchApp } from "./session.mjs";
 import { sleep } from "./actions.mjs";
 
-const profile = process.env.VNO_CDP_LOCALAPPDATA;
+const profile = process.env.VNO_CDP_LOCALAPPDATA || "E:\\VNOffice-profiles\\claude-fraction-real";
+mkdirSync(profile, { recursive: true });
+
+function readExcelCells(filePath, coords) {
+  const target = path.resolve(filePath).replace(/'/g, "''");
+  const coordsJson = JSON.stringify(coords);
+  const psScript = `
+    $ErrorActionPreference = 'Stop'
+    $resolved = '${target}'
+    $coords = ConvertFrom-Json '${coordsJson.replace(/'/g, "''")}'
+    $procBefore = @(Get-Process -Name EXCEL -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)
+    $x = $null
+    $ourPid = $null
+    $wb = $null
+    try {
+      for ($attempt = 0; $attempt -lt 15 -and -not $x; $attempt++) {
+        try { $x = New-Object -ComObject Excel.Application } catch { Start-Sleep -Milliseconds 500 }
+      }
+      $procAfter = @(Get-Process -Name EXCEL -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)
+      $ourPid = ($procAfter | Where-Object { $procBefore -notcontains $_ } | Select-Object -First 1)
+
+      if (-not $x) { throw "Excel.Application unavailable" }
+      $x.Visible = $false
+      $x.DisplayAlerts = $false
+      for ($attempt = 0; $attempt -lt 15 -and -not $wb; $attempt++) {
+        try { $wb = $x.Workbooks.Open($resolved, 0, $true) } catch { Start-Sleep -Milliseconds 600 }
+      }
+      if (-not $wb) { throw "Workbooks.Open returned null" }
+      Start-Sleep -Milliseconds 300
+
+      $ws = $wb.Sheets.Item(1)
+      $cells = [ordered]@{}
+      foreach($coord in $coords) {
+        $r = $ws.Range($coord)
+        $cells[$coord] = [ordered]@{
+          text = [string]$r.Text
+          numberFormat = [string]$r.NumberFormat
+          value = [string]$r.Value2
+        }
+      }
+      $wb.Close($false)
+      $wb = $null
+      [ordered]@{ ok = $true; cells = $cells } | ConvertTo-Json -Depth 5 -Compress
+    } catch {
+      [PSCustomObject]@{ ok = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress
+    } finally {
+      if ($wb -ne $null) { try { $wb.Close($false) } catch {} }
+      if ($x -ne $null) { try { $x.Quit() } catch {} }
+      if ($x -ne $null) { [Runtime.InteropServices.Marshal]::ReleaseComObject($x) | Out-Null }
+      [GC]::Collect()
+      [GC]::WaitForPendingFinalizers()
+      if ($ourPid) {
+        Stop-Process -Id $ourPid -Force -ErrorAction SilentlyContinue
+      }
+    }
+  `;
+  try {
+    const raw = execFileSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", psScript], { encoding: "utf8", timeout: 60000 });
+    return JSON.parse(raw.trim());
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
 const session = await launchApp("sheet", { localAppData: profile });
 const cdp = session.cdp;
 const ev = (e) => cdp.evaluate(e, { awaitPromise: true, timeoutMilliseconds: 60000 });
@@ -161,6 +227,30 @@ try {
   })()`);
 
   check("Lưu FODS và nạp lại giữ toàn vẹn định dạng Fraction và Special", roundtripOk === true);
+
+  // 6. Kiểm tra lưu thật qua saveRealFileInPlace và đọc lại bằng Excel 2016 COM thật
+  const savedXlsx = path.join(profile, "fraction-special-real-saved.xlsx");
+  const saveResult = await ev(`(() => {
+    const adapter = window.__vnoAppInstance.adapter;
+    adapter.isDirty = true;
+    const fods = adapter.serializeToFods();
+    return globalThis.globalUnoBridge.saveRealFileInPlace("sheet", fods, ${JSON.stringify(savedXlsx)}, "");
+  })()`);
+
+  check("Lưu XLSX thật qua saveRealFileInPlace", saveResult && saveResult.status === "ok");
+
+  await sleep(1000);
+  const comResult = readExcelCells(savedXlsx, ["A1", "B1", "C1"]);
+  check("Excel 2016 COM mở tệp đã lưu thành công", comResult.ok, comResult.error);
+
+  if (comResult.ok) {
+    check("Excel COM: Ô A1 hiển thị '3/4'", comResult.cells.A1.text.trim() === "3/4", `actual='${comResult.cells.A1.text}'`);
+    check("Excel COM: Ô B1 hiển thị '00123'", comResult.cells.B1.text.trim() === "00123", `actual='${comResult.cells.B1.text}'`);
+    check("Excel COM: Ô C1 hiển thị '5/8'", comResult.cells.C1.text.trim() === "5/8", `actual='${comResult.cells.C1.text}'`);
+    check("Excel COM: Ô A1 có NumberFormat '# ?/?'", comResult.cells.A1.numberFormat === "# ?/?", comResult.cells.A1.numberFormat);
+    check("Excel COM: Ô B1 có NumberFormat '00000'", comResult.cells.B1.numberFormat === "00000", comResult.cells.B1.numberFormat);
+    check("Excel COM: Ô C1 có NumberFormat '# ?/8'", comResult.cells.C1.numberFormat === "# ?/8", comResult.cells.C1.numberFormat);
+  }
 
 } catch (err) {
   check("Lỗi ngoại lệ trong kịch bản kiểm thử", false, err.message);

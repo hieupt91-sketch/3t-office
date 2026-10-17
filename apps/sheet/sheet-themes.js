@@ -510,13 +510,19 @@ export function resolveTheme(themeOrId) {
   const found = SHEET_THEMES.find(t => t.id === themeId);
   const colorId = themeOrId.colorSchemeId || found?.colorSchemeId || "office";
   const fontId = themeOrId.fontSchemeId || found?.fontSchemeId || "office";
+  const colorScheme = (themeOrId.colorScheme && themeOrId.colorScheme.id === colorId)
+    ? themeOrId.colorScheme
+    : (SHEET_COLOR_PALETTES[colorId] || SHEET_COLOR_PALETTES.office);
+  const fontScheme = (themeOrId.fontScheme && themeOrId.fontScheme.id === fontId)
+    ? themeOrId.fontScheme
+    : (SHEET_FONT_SCHEMES[fontId] || SHEET_FONT_SCHEMES.office);
   return {
     themeId,
     themeName: themeOrId.themeName || found?.nameEn || "Custom Theme",
     colorSchemeId: colorId,
     fontSchemeId: fontId,
-    colorScheme: themeOrId.colorScheme || SHEET_COLOR_PALETTES[colorId] || SHEET_COLOR_PALETTES.office,
-    fontScheme: themeOrId.fontScheme || SHEET_FONT_SCHEMES[fontId] || SHEET_FONT_SCHEMES.office
+    colorScheme,
+    fontScheme
   };
 }
 
@@ -672,11 +678,24 @@ export function parseThemeXml(xmlText) {
 
   // Nhận diện theme ID khớp nếu có
   let matchedThemeId = "custom";
-  for (const t of SHEET_THEMES) {
-    const pal = SHEET_COLOR_PALETTES[t.colorSchemeId];
-    if (pal && pal.colors.accent1.toUpperCase() === colors.accent1) {
-      matchedThemeId = t.id;
-      break;
+  const lowerName = (themeName || "").toLowerCase();
+  if (lowerName.startsWith("office")) {
+    matchedThemeId = "office";
+  } else {
+    for (const t of SHEET_THEMES) {
+      if ((t.nameEn && t.nameEn.toLowerCase() === lowerName) || (t.nameVi && t.nameVi.toLowerCase() === lowerName) || t.id.toLowerCase() === lowerName) {
+        matchedThemeId = t.id;
+        break;
+      }
+    }
+    if (matchedThemeId === "custom") {
+      for (const t of SHEET_THEMES) {
+        const pal = SHEET_COLOR_PALETTES[t.colorSchemeId];
+        if (pal && pal.colors.accent1.toUpperCase() === colors.accent1 && pal.colors.accent2.toUpperCase() === colors.accent2) {
+          matchedThemeId = t.id;
+          break;
+        }
+      }
     }
   }
 

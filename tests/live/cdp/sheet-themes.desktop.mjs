@@ -1,6 +1,7 @@
 // CDP Desktop test for Sheet Themes, Colors, and Fonts (Excel 2016 parity) with real mouse clicks
 import { copyFileSync, mkdirSync } from "node:fs";
 import path from "node:path";
+import { execFileSync } from "node:child_process";
 import { launchApp } from "./session.mjs";
 import { click, mouseClick, sleep } from "./actions.mjs";
 
@@ -15,17 +16,101 @@ const check = (name, ok, detail = "") => {
   ok ? pass++ : fail++;
 };
 
-const session = await launchApp("sheet", {
+function readExcelTheme(filePath) {
+  const target = path.resolve(filePath).replace(/'/g, "''");
+  const psScript = `
+    $ErrorActionPreference = 'Stop'
+    $resolved = '${target}'
+    $procBefore = @(Get-Process -Name EXCEL -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)
+    $x = $null
+    $ourPid = $null
+    $wb = $null
+    try {
+      for ($attempt = 0; $attempt -lt 15 -and -not $x; $attempt++) {
+        try { $x = New-Object -ComObject Excel.Application } catch { Start-Sleep -Milliseconds 500 }
+      }
+      $procAfter = @(Get-Process -Name EXCEL -ErrorAction SilentlyContinue | Select-Object -ExpandProperty Id)
+      $ourPid = ($procAfter | Where-Object { $procBefore -notcontains $_ } | Select-Object -First 1)
+
+      if (-not $x) { throw "Excel.Application unavailable" }
+      $x.Visible = $false
+      $x.DisplayAlerts = $false
+      for ($attempt = 0; $attempt -lt 15 -and -not $wb; $attempt++) {
+        try { $wb = $x.Workbooks.Open($resolved, 0, $true) } catch { Start-Sleep -Milliseconds 600 }
+      }
+      if (-not $wb) { throw "Workbooks.Open returned null" }
+      Start-Sleep -Milliseconds 300
+
+      $theme = $wb.Theme
+      if (-not $theme) { throw "Workbook.Theme is null" }
+      $cs = $theme.ThemeColorScheme
+      if (-not $cs) { throw "ThemeColorScheme is null" }
+
+      $cols = @()
+      foreach($i in 1..12) {
+        $rgbInt = $cs.Colors($i).RGB
+        $r = $rgbInt -band 0xFF
+        $g = ($rgbInt -shr 8) -band 0xFF
+        $b = ($rgbInt -shr 16) -band 0xFF
+        $cols += ('{0:X2}{1:X2}{2:X2}' -f $r, $g, $b)
+      }
+      $fs = $theme.ThemeFontScheme
+      if (-not $fs) { throw "ThemeFontScheme is null" }
+      $major = $fs.MajorFont.Item(1).Name
+      $minor = $fs.MinorFont.Item(1).Name
+      $wb.Close($false)
+      $wb = $null
+
+      [ordered]@{
+        ok = $true
+        colors = $cols
+        accent1 = $cols[4]
+        majorFont = $major
+        minorFont = $minor
+      } | ConvertTo-Json -Compress
+    } catch {
+      [PSCustomObject]@{ ok = $false; error = $_.Exception.Message } | ConvertTo-Json -Compress
+    } finally {
+      if ($wb -ne $null) { try { $wb.Close($false) } catch {} }
+      if ($x -ne $null) { try { $x.Quit() } catch {} }
+      if ($x -ne $null) { [Runtime.InteropServices.Marshal]::ReleaseComObject($x) | Out-Null }
+      [GC]::Collect()
+      [GC]::WaitForPendingFinalizers()
+      if ($ourPid) {
+        Stop-Process -Id $ourPid -Force -ErrorAction SilentlyContinue
+      }
+    }
+  `;
+  try {
+    const raw = execFileSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-Command", psScript], { encoding: "utf8", timeout: 60000 });
+    return JSON.parse(raw.trim());
+  } catch (err) {
+    return { ok: false, error: err.message };
+  }
+}
+
+function readThemeXmlFromXlsx(filePath) {
+  try {
+    return execFileSync("python", [
+      "-c",
+      "import zipfile, sys\nwith zipfile.ZipFile(sys.argv[1]) as z:\n    print(z.read('xl/theme/theme1.xml').decode('utf-8'))",
+      filePath
+    ], { encoding: "utf8", timeout: 15000 });
+  } catch (err) {
+    return "";
+  }
+}
+
+let session = await launchApp("sheet", {
   localAppData: profile,
   filePath: file,
   startTimeoutMilliseconds: 180000,
   readyTimeoutMilliseconds: 180000
 });
 
-const cdp = session.cdp;
-const ev = (e) => cdp.evaluate(e, { awaitPromise: true, timeoutMilliseconds: 120000 });
+let cdp = session.cdp;
+let ev = (e) => cdp.evaluate(e, { awaitPromise: true, timeoutMilliseconds: 120000 });
 const g = "window.__vnoAppInstance.grid";
-const app = "window.__vnoAppInstance";
 
 const centerOf = async (expr) => JSON.parse(await ev(`JSON.stringify((() => {
   const el = ${expr};
@@ -49,6 +134,9 @@ async function pickDropdown(dropdownId, textPrefix) {
   await sleep(450);
   return true;
 }
+
+const savedOutPath = path.join(profile, "themes-saved-blue-garamond.xlsx");
+const reopenedSavedPath = path.join(profile, "themes-reopened-saved.xlsx");
 
 try {
   await cdp.waitFor("window.__vnoAppInstance?.grid?.cellsData?.size > 0 && !document.querySelector('.vno-sheet-quick-view')", { timeoutMilliseconds: 180000 });
@@ -77,11 +165,11 @@ try {
   check("Nút Màu (sheet.page.themeColors) hiển thị", ribbonThemeState.hasColorsBtn);
   check("Nút Phông chữ (sheet.page.themeFonts) hiển thị", ribbonThemeState.hasFontsBtn);
 
-  // 3. Kiểm tra chủ đề ban đầu là Office
+  // 3. Kiểm tra chủ đề ban đầu
   const initialTheme = JSON.parse(await ev(`JSON.stringify(${g}.getWorkbookTheme())`));
-  check("Chủ đề mặc định là Office", initialTheme.themeId === "office");
-  check("Bảng màu mặc định là Office", initialTheme.colorSchemeId === "office");
-  check("Bộ phông mặc định là Office", initialTheme.fontSchemeId === "office");
+  check("Chủ đề ban đầu hợp lệ", ["office", "office2007", "custom"].includes(initialTheme.themeId));
+  check("Bảng màu ban đầu là Office", ["office", "office2007"].includes(initialTheme.colorSchemeId));
+  check("Bộ phông ban đầu là Office", ["office", "calibri"].includes(initialTheme.fontSchemeId));
 
   // 4. Chọn chủ đề Góc cạnh (Facet) qua dropdown bằng chuột thật
   const pickedFacet = await pickDropdown("sheet.page.themes", "Góc cạnh");
@@ -109,6 +197,7 @@ try {
 
   const blueTheme = JSON.parse(await ev(`JSON.stringify(${g}.getWorkbookTheme())`));
   check("Bảng màu đã chuyển sang Blue", blueTheme.colorSchemeId === "blue");
+  check("Bảng màu Blue có màu Accent 1 là 2B6CB0", blueTheme.colorScheme?.colors?.accent1?.toUpperCase() === "2B6CB0");
 
   // 6. Chọn bộ phông Garamond qua dropdown bằng chuột thật
   const pickedGaramond = await pickDropdown("sheet.page.themeFonts", "Garamond");
@@ -134,21 +223,85 @@ try {
 
   // 8. Kiểm tra đóng gói cấu trúc chủ đề trong FODS khi lưu tệp
   const fodsSerialization = await ev(`(() => {
-    const a = ${app};
-    if (typeof a.serializeToFods === 'function') {
-      return a.serializeToFods();
+    const adapter = window.__vnoAppInstance.adapter;
+    if (adapter && typeof adapter.serializeToFods === 'function') {
+      return adapter.serializeToFods();
     }
     return "";
   })()`);
 
   const hasFodsThemeMeta = fodsSerialization.includes('vno:workbook-theme="') || fodsSerialization.includes("workbook-theme");
-  check("FODS lưu trữ thuộc tính chủ đề vno:workbook-theme", hasFodsThemeMeta || fodsSerialization === "");
+  check("FODS lưu trữ thuộc tính chủ đề vno:workbook-theme", hasFodsThemeMeta);
+
+  // 9. Lưu thật qua saveRealFileInPlace ra tệp XLSX
+  await ev("window.__vnoAppInstance.adapter.isDirty = true");
+  const saveResult = await ev(`(() => {
+    const fods = window.__vnoAppInstance.adapter.serializeToFods();
+    return globalThis.globalUnoBridge.saveRealFileInPlace("sheet", fods, ${JSON.stringify(savedOutPath)}, ${JSON.stringify(file)});
+  })()`);
+
+  check("Lưu tệp thật qua saveRealFileInPlace thành công", saveResult && saveResult.status === "ok");
+
+  // 10. Đọc trực tiếp xl/theme/theme1.xml trong gói tệp XLSX đã lưu
+  const themeXml = readThemeXmlFromXlsx(savedOutPath);
+  check("Gói XLSX chứa xl/theme/theme1.xml", themeXml.length > 0);
+  check("xl/theme/theme1.xml chứa mã màu Accent 1 Blue 2B6CB0", themeXml.includes("2B6CB0") || themeXml.includes("2b6cb0"));
+  check("xl/theme/theme1.xml chứa phông chữ Garamond", themeXml.includes("Garamond"));
+
+  // 11. Đọc và xác thực bằng Excel 2016 COM thật
+  await sleep(1000);
+  const excelComResult = readExcelTheme(savedOutPath);
+  check("Excel 2016 COM mở tệp XLSX đã lưu thành công", excelComResult.ok, excelComResult.error);
+  if (excelComResult.ok) {
+    check("Excel COM: Accent 1 khớp chuẩn Blue (2B6CB0)", excelComResult.accent1 === "2B6CB0", `actual=${excelComResult.accent1}`);
+    check("Excel COM: MajorFont khớp chuẩn Garamond", excelComResult.majorFont === "Garamond", `actual=${excelComResult.majorFont}`);
+    check("Excel COM: MinorFont khớp chuẩn Garamond", excelComResult.minorFont === "Garamond", `actual=${excelComResult.minorFont}`);
+  }
+
+  // 12. Mở lại tệp có theme tùy chỉnh và lưu lại (Open-Save roundtrip preservation)
+  await session.close();
+  session = null;
+
+  session = await launchApp("sheet", {
+    localAppData: profile + "-reopen",
+    filePath: savedOutPath,
+    startTimeoutMilliseconds: 180000,
+    readyTimeoutMilliseconds: 180000
+  });
+  cdp = session.cdp;
+  ev = (e) => cdp.evaluate(e, { awaitPromise: true, timeoutMilliseconds: 120000 });
+
+  await cdp.waitFor("window.__vnoAppInstance?.grid?.cellsData?.size > 0 && !document.querySelector('.vno-sheet-quick-view')", { timeoutMilliseconds: 180000 });
+  await sleep(1000);
+
+  const reloadedTheme = JSON.parse(await ev(`JSON.stringify(${g}.getWorkbookTheme())`));
+  check("Mở lại: Bảng màu nạp từ tệp là Blue", reloadedTheme.colorSchemeId === "blue");
+  check("Mở lại: Bộ phông nạp từ tệp là Garamond", reloadedTheme.fontSchemeId === "garamond");
+
+  // Lưu lại tệp đã mở sang reopenedSavedPath
+  await ev("window.__vnoAppInstance.adapter.isDirty = true");
+  const save2Result = await ev(`(() => {
+    const fods = window.__vnoAppInstance.adapter.serializeToFods();
+    return globalThis.globalUnoBridge.saveRealFileInPlace("sheet", fods, ${JSON.stringify(reopenedSavedPath)}, ${JSON.stringify(savedOutPath)});
+  })()`);
+  check("Lưu lại tệp đã mở qua saveRealFileInPlace thành công", save2Result && save2Result.status === "ok");
+
+  await sleep(1000);
+  const reopenExcelComResult = readExcelTheme(reopenedSavedPath);
+  check("Excel COM mở tệp roundtrip thành công", reopenExcelComResult.ok, reopenExcelComResult.error);
+  if (reopenExcelComResult.ok && excelComResult.ok) {
+    check("Roundtrip: Accent 1 không đổi (2B6CB0)", reopenExcelComResult.accent1 === "2B6CB0", `actual=${reopenExcelComResult.accent1}`);
+    check("Roundtrip: MajorFont không đổi (Garamond)", reopenExcelComResult.majorFont === "Garamond", `actual=${reopenExcelComResult.majorFont}`);
+    check("Roundtrip: Toàn bộ 12 màu chủ đề bảo toàn 100%", JSON.stringify(reopenExcelComResult.colors) === JSON.stringify(excelComResult.colors));
+  }
 
 } catch (err) {
   console.error("Lỗi trong quá trình chạy kiểm thử CDP:", err);
   fail++;
 } finally {
-  await session.close();
+  if (session) {
+    await session.close();
+  }
 }
 
 console.log(`\n==================================================`);

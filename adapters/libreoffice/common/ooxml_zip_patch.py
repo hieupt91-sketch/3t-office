@@ -6529,6 +6529,8 @@ def parse_page_setup_metadata_from_sheet_xml(sheet_xml: str | None) -> dict:
     print_attrs = _xml_attrs(print_match.group(1)) if print_match else {}
     header_attrs = _xml_attrs(header_match.group(1)) if header_match else {}
     fit_enabled = bool(re.search(r'<pageSetUpPr\b[^>]*\bfitToPage=["\'](?:1|true)["\']', xml, re.IGNORECASE))
+    if not (setup_match or print_match or header_match or fit_enabled):
+        return {}
     has_fit = fit_enabled or "fitToWidth" in setup_attrs or "fitToHeight" in setup_attrs
     if has_fit:
         scale = {
@@ -6601,7 +6603,9 @@ def overlay_sheet_xlsx_page_setup(xlsx_bytes: bytes, fods_xml: str | None) -> st
     for sheet_name, entry_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
         raw = read_zip_entry(xlsx_bytes, entry_path)
         if raw:
-            metadata[sheet_name] = parse_page_setup_metadata_from_sheet_xml(raw.decode("utf-8", errors="replace"))
+            parsed = parse_page_setup_metadata_from_sheet_xml(raw.decode("utf-8", errors="replace"))
+            if parsed:
+                metadata[sheet_name] = parsed
     return apply_page_setup_metadata_to_fods(fods_xml or "", metadata)
 
 
@@ -7663,6 +7667,527 @@ def _apply_sheet_slicers_to_xlsx(xlsx_bytes: bytes, source_fods: str | None, rep
     replacements["[Content_Types].xml"] = content_types
 
 
+# ==============================================================================
+# VN Sheet — Themes, Colors, and Fonts parity with Excel 2016 OpenXML DrawingML
+# ==============================================================================
+
+SHEET_THEMES_PRESETS = [
+    {"id": "office", "name": "Office", "colorSchemeId": "office", "fontSchemeId": "office"},
+    {"id": "facet", "name": "Facet", "colorSchemeId": "facet", "fontSchemeId": "centuryGothic"},
+    {"id": "integral", "name": "Integral", "colorSchemeId": "integral", "fontSchemeId": "centuryGothic"},
+    {"id": "ion", "name": "Ion", "colorSchemeId": "ion", "fontSchemeId": "centuryGothic"},
+    {"id": "organic", "name": "Organic", "colorSchemeId": "organic", "fontSchemeId": "garamond"},
+    {"id": "retrospect", "name": "Retrospect", "colorSchemeId": "retrospect", "fontSchemeId": "bookman"},
+    {"id": "slice", "name": "Slice", "colorSchemeId": "slice", "fontSchemeId": "centuryGothic"},
+    {"id": "wisp", "name": "Wisp", "colorSchemeId": "wisp", "fontSchemeId": "calibri"},
+]
+
+SHEET_COLOR_PALETTES = {
+    "office": {
+        "id": "office", "name": "Office",
+        "colors": {
+            "dk1": "000000", "lt1": "FFFFFF", "dk2": "44546A", "lt2": "E7E6E6",
+            "accent1": "4472C4", "accent2": "ED7D31", "accent3": "A5A5A5",
+            "accent4": "FFC000", "accent5": "5B9BD5", "accent6": "70AD47",
+            "hlink": "0563C1", "folHlink": "954F72"
+        }
+    },
+    "office2007": {
+        "id": "office2007", "name": "Office 2007 - 2010",
+        "colors": {
+            "dk1": "000000", "lt1": "FFFFFF", "dk2": "1F497D", "lt2": "EEECE1",
+            "accent1": "4F81BD", "accent2": "C0504D", "accent3": "9BBB59",
+            "accent4": "8064A2", "accent5": "4BACC6", "accent6": "F79646",
+            "hlink": "0000FF", "folHlink": "800080"
+        }
+    },
+    "grayscale": {
+        "id": "grayscale", "name": "Grayscale",
+        "colors": {
+            "dk1": "000000", "lt1": "FFFFFF", "dk2": "333333", "lt2": "E0E0E0",
+            "accent1": "595959", "accent2": "737373", "accent3": "8C8C8C",
+            "accent4": "A6A6A6", "accent5": "BFBFBF", "accent6": "D9D9D9",
+            "hlink": "404040", "folHlink": "666666"
+        }
+    },
+    "facet": {
+        "id": "facet", "name": "Facet",
+        "colors": {
+            "dk1": "000000", "lt1": "FFFFFF", "dk2": "0D2228", "lt2": "EBEDE9",
+            "accent1": "94C600", "accent2": "71685A", "accent3": "459BA8",
+            "accent4": "B98A00", "accent5": "83A090", "accent6": "7D6574",
+            "hlink": "B15600", "folHlink": "703800"
+        }
+    },
+    "integral": {
+        "id": "integral", "name": "Integral",
+        "colors": {
+            "dk1": "000000", "lt1": "FFFFFF", "dk2": "1B2631", "lt2": "E5E7E9",
+            "accent1": "1B4F72", "accent2": "78281F", "accent3": "145A32",
+            "accent4": "6E2C00", "accent5": "4A235A", "accent6": "515A5A",
+            "hlink": "2874A6", "folHlink": "6C3483"
+        }
+    },
+    "ion": {
+        "id": "ion", "name": "Ion",
+        "colors": {
+            "dk1": "000000", "lt1": "FFFFFF", "dk2": "2E3033", "lt2": "E8EAED",
+            "accent1": "E84C3D", "accent2": "E67E22", "accent3": "F1C40F",
+            "accent4": "2ECC71", "accent5": "3498DB", "accent6": "9B59B6",
+            "hlink": "C0392B", "folHlink": "8E44AD"
+        }
+    },
+    "organic": {
+        "id": "organic", "name": "Organic",
+        "colors": {
+            "dk1": "000000", "lt1": "FFFFFF", "dk2": "3C3836", "lt2": "EFE9E1",
+            "accent1": "688A28", "accent2": "A94442", "accent3": "3C763D",
+            "accent4": "8A6D3B", "accent5": "31708F", "accent6": "775253",
+            "hlink": "4E6A1E", "folHlink": "6B2A29"
+        }
+    },
+    "retrospect": {
+        "id": "retrospect", "name": "Retrospect",
+        "colors": {
+            "dk1": "000000", "lt1": "FFFFFF", "dk2": "2F3A40", "lt2": "E3E8EC",
+            "accent1": "697A8D", "accent2": "8E6B88", "accent3": "5B8C85",
+            "accent4": "B28867", "accent5": "4C7280", "accent6": "7C7866",
+            "hlink": "506070", "folHlink": "6A4A65"
+        }
+    },
+    "slice": {
+        "id": "slice", "name": "Slice",
+        "colors": {
+            "dk1": "000000", "lt1": "FFFFFF", "dk2": "262626", "lt2": "E0E0E0",
+            "accent1": "0078D7", "accent2": "107C41", "accent3": "D83B01",
+            "accent4": "FFB900", "accent5": "B4009E", "accent6": "008272",
+            "hlink": "0063B1", "folHlink": "8661C5"
+        }
+    },
+    "wisp": {
+        "id": "wisp", "name": "Wisp",
+        "colors": {
+            "dk1": "000000", "lt1": "FFFFFF", "dk2": "2B333E", "lt2": "E7EDF3",
+            "accent1": "4F81BD", "accent2": "C0504D", "accent3": "9BBB59",
+            "accent4": "8064A2", "accent5": "4BACC6", "accent6": "F79646",
+            "hlink": "0000FF", "folHlink": "800080"
+        }
+    },
+    "blue": {
+        "id": "blue", "name": "Blue",
+        "colors": {
+            "dk1": "000000", "lt1": "FFFFFF", "dk2": "1A365D", "lt2": "EBF8FF",
+            "accent1": "2B6CB0", "accent2": "3182CE", "accent3": "4299E1",
+            "accent4": "63B3ED", "accent5": "90CDF4", "accent6": "BEE3F8",
+            "hlink": "2C5282", "folHlink": "1A365D"
+        }
+    },
+    "green": {
+        "id": "green", "name": "Green",
+        "colors": {
+            "dk1": "000000", "lt1": "FFFFFF", "dk2": "1C4532", "lt2": "F0FFF4",
+            "accent1": "276749", "accent2": "2F855A", "accent3": "38A169",
+            "accent4": "48BB78", "accent5": "68D391", "accent6": "9AE6B4",
+            "hlink": "22543D", "folHlink": "1C4532"
+        }
+    },
+    "red": {
+        "id": "red", "name": "Red",
+        "colors": {
+            "dk1": "000000", "lt1": "FFFFFF", "dk2": "63171B", "lt2": "FFF5F5",
+            "accent1": "9B2C2C", "accent2": "C53030", "accent3": "E53E3E",
+            "accent4": "F56565", "accent5": "FEB2B2", "accent6": "FED7D7",
+            "hlink": "742A2A", "folHlink": "63171B"
+        }
+    },
+    "violet": {
+        "id": "violet", "name": "Violet",
+        "colors": {
+            "dk1": "000000", "lt1": "FFFFFF", "dk2": "322659", "lt2": "FAF5FF",
+            "accent1": "553C9A", "accent2": "6B46C1", "accent3": "805AD5",
+            "accent4": "9F7AEA", "accent5": "B794F4", "accent6": "D6BCFA",
+            "hlink": "44337A", "folHlink": "322659"
+        }
+    },
+    "orange": {
+        "id": "orange", "name": "Orange",
+        "colors": {
+            "dk1": "000000", "lt1": "FFFFFF", "dk2": "652B19", "lt2": "FFFAF0",
+            "accent1": "9C4221", "accent2": "C05621", "accent3": "DD6B20",
+            "accent4": "ED8936", "accent5": "F6AD55", "accent6": "FBD38D",
+            "hlink": "7B341E", "folHlink": "652B19"
+        }
+    }
+}
+
+SHEET_FONT_SCHEMES = {
+    "office": {"id": "office", "name": "Office", "majorFont": "Calibri Light", "minorFont": "Calibri"},
+    "office2007": {"id": "office2007", "name": "Office 2007 - 2010", "majorFont": "Cambria", "minorFont": "Calibri"},
+    "arial": {"id": "arial", "name": "Arial", "majorFont": "Arial", "minorFont": "Arial"},
+    "times": {"id": "times", "name": "Times New Roman", "majorFont": "Times New Roman", "minorFont": "Times New Roman"},
+    "georgia": {"id": "georgia", "name": "Georgia", "majorFont": "Georgia", "minorFont": "Georgia"},
+    "trebuchet": {"id": "trebuchet", "name": "Trebuchet MS", "majorFont": "Trebuchet MS", "minorFont": "Trebuchet MS"},
+    "centuryGothic": {"id": "centuryGothic", "name": "Century Gothic", "majorFont": "Century Gothic", "minorFont": "Century Gothic"},
+    "garamond": {"id": "garamond", "name": "Garamond", "majorFont": "Garamond", "minorFont": "Garamond"},
+    "bookman": {"id": "bookman", "name": "Bookman Old Style", "majorFont": "Bookman Old Style", "minorFont": "Bookman Old Style"},
+    "calibri": {"id": "calibri", "name": "Calibri", "majorFont": "Calibri", "minorFont": "Calibri"},
+    "beVietnamPro": {"id": "beVietnamPro", "name": "Be Vietnam Pro", "majorFont": "Be Vietnam Pro", "minorFont": "Be Vietnam Pro"},
+}
+
+DEFAULT_SHEET_THEME = {
+    "themeId": "office",
+    "themeName": "Office Theme",
+    "colorSchemeId": "office",
+    "fontSchemeId": "office",
+    "colorScheme": SHEET_COLOR_PALETTES["office"],
+    "fontScheme": SHEET_FONT_SCHEMES["office"]
+}
+
+
+def resolve_sheet_theme(theme_or_id):
+    if not theme_or_id:
+        return dict(DEFAULT_SHEET_THEME)
+    if isinstance(theme_or_id, str):
+        for t in SHEET_THEMES_PRESETS:
+            if t["id"] == theme_or_id:
+                return {
+                    "themeId": t["id"],
+                    "themeName": t["name"],
+                    "colorSchemeId": t["colorSchemeId"],
+                    "fontSchemeId": t["fontSchemeId"],
+                    "colorScheme": SHEET_COLOR_PALETTES.get(t["colorSchemeId"], SHEET_COLOR_PALETTES["office"]),
+                    "fontScheme": SHEET_FONT_SCHEMES.get(t["fontSchemeId"], SHEET_FONT_SCHEMES["office"])
+                }
+        if theme_or_id in SHEET_COLOR_PALETTES:
+            return {
+                "themeId": "custom",
+                "themeName": "Custom Theme",
+                "colorSchemeId": theme_or_id,
+                "fontSchemeId": "office",
+                "colorScheme": SHEET_COLOR_PALETTES[theme_or_id],
+                "fontScheme": SHEET_FONT_SCHEMES["office"]
+            }
+    if isinstance(theme_or_id, dict):
+        theme_id = theme_or_id.get("themeId") or "custom"
+        matched = next((t for t in SHEET_THEMES_PRESETS if t["id"] == theme_id), None)
+        color_id = theme_or_id.get("colorSchemeId") or (matched["colorSchemeId"] if matched else "office")
+        font_id = theme_or_id.get("fontSchemeId") or (matched["fontSchemeId"] if matched else "office")
+        color_scheme = theme_or_id.get("colorScheme")
+        if not (isinstance(color_scheme, dict) and color_scheme.get("id") == color_id):
+            color_scheme = SHEET_COLOR_PALETTES.get(color_id, SHEET_COLOR_PALETTES["office"])
+        font_scheme = theme_or_id.get("fontScheme")
+        if not (isinstance(font_scheme, dict) and font_scheme.get("id") == font_id):
+            font_scheme = SHEET_FONT_SCHEMES.get(font_id, SHEET_FONT_SCHEMES["office"])
+        return {
+            "themeId": theme_id,
+            "themeName": theme_or_id.get("themeName") or (matched["name"] if matched else "Custom Theme"),
+            "colorSchemeId": color_id,
+            "fontSchemeId": font_id,
+            "colorScheme": color_scheme,
+            "fontScheme": font_scheme
+        }
+    return dict(DEFAULT_SHEET_THEME)
+
+
+def parse_sheet_theme_xml(xml_text: str) -> dict | None:
+    if not xml_text or not isinstance(xml_text, str):
+        return None
+    theme_name_match = re.search(r'<a:theme\b[^>]*\bname=["\']([^"\']+)["\']', xml_text, re.IGNORECASE)
+    theme_name = theme_name_match.group(1) if theme_name_match else "Office Theme"
+
+    clr_match = re.search(r'<a:clrScheme\b[^>]*\bname=["\']([^"\']+)["\']', xml_text, re.IGNORECASE)
+    color_scheme_name = clr_match.group(1) if clr_match else "Office"
+
+    def extract_clr(tag: str) -> str:
+        block_match = re.search(rf'<a:{tag}\b[^>]*>([\s\S]*?)</a:{tag}>', xml_text, re.IGNORECASE)
+        block = block_match.group(1) if block_match else ""
+        srgb = re.search(r'<a:srgbClr\b[^>]*\bval=["\']([0-9a-fA-F]{6})["\']', block, re.IGNORECASE)
+        if srgb:
+            return srgb.group(1).upper()
+        last_clr = re.search(r'<a:sysClr\b[^>]*\blastClr=["\']([0-9a-fA-F]{6})["\']', block, re.IGNORECASE)
+        if last_clr:
+            return last_clr.group(1).upper()
+        sys_val = re.search(r'<a:sysClr\b[^>]*\bval=["\']([^"\']+)["\']', block, re.IGNORECASE)
+        if sys_val:
+            val = sys_val.group(1)
+            if val == "windowText":
+                return "000000"
+            if val == "window":
+                return "FFFFFF"
+        return "000000"
+
+    colors = {
+        "dk1": extract_clr("dk1"),
+        "lt1": extract_clr("lt1"),
+        "dk2": extract_clr("dk2"),
+        "lt2": extract_clr("lt2"),
+        "accent1": extract_clr("accent1"),
+        "accent2": extract_clr("accent2"),
+        "accent3": extract_clr("accent3"),
+        "accent4": extract_clr("accent4"),
+        "accent5": extract_clr("accent5"),
+        "accent6": extract_clr("accent6"),
+        "hlink": extract_clr("hlink"),
+        "folHlink": extract_clr("folHlink"),
+    }
+
+    font_scheme_match = re.search(r'<a:fontScheme\b[^>]*\bname=["\']([^"\']+)["\']', xml_text, re.IGNORECASE)
+    font_scheme_name = font_scheme_match.group(1) if font_scheme_match else "Office"
+
+    major_font_match = re.search(r'<a:majorFont\b[^>]*>[\s\S]*?<a:latin\b[^>]*\btypeface=["\']([^"\']+)["\']', xml_text, re.IGNORECASE)
+    minor_font_match = re.search(r'<a:minorFont\b[^>]*>[\s\S]*?<a:latin\b[^>]*\btypeface=["\']([^"\']+)["\']', xml_text, re.IGNORECASE)
+
+    major_font = major_font_match.group(1) if major_font_match else "Calibri Light"
+    minor_font = minor_font_match.group(1) if minor_font_match else "Calibri"
+
+    matched_theme_id = "custom"
+    lower_name = (theme_name or "").lower()
+    if lower_name.startswith("office"):
+        matched_theme_id = "office"
+    else:
+        for t in SHEET_THEMES_PRESETS:
+            if t["name"].lower() == lower_name or t["id"].lower() == lower_name:
+                matched_theme_id = t["id"]
+                break
+        if matched_theme_id == "custom":
+            for t in SHEET_THEMES_PRESETS:
+                pal = SHEET_COLOR_PALETTES.get(t["colorSchemeId"])
+                if pal and pal["colors"]["accent1"].upper() == colors["accent1"] and pal["colors"]["accent2"].upper() == colors["accent2"]:
+                    matched_theme_id = t["id"]
+                    break
+
+    matched_color_id = "custom"
+    for cid, pal in SHEET_COLOR_PALETTES.items():
+        if pal["colors"]["accent1"].upper() == colors["accent1"] and pal["colors"]["accent2"].upper() == colors["accent2"]:
+            matched_color_id = cid
+            break
+
+    matched_font_id = "custom"
+    for fid, fnt in SHEET_FONT_SCHEMES.items():
+        if fnt["minorFont"].lower() == minor_font.lower():
+            matched_font_id = fid
+            break
+
+    return {
+        "themeId": matched_theme_id,
+        "themeName": theme_name,
+        "colorSchemeId": matched_color_id,
+        "fontSchemeId": matched_font_id,
+        "colorScheme": {
+            "id": matched_color_id,
+            "name": color_scheme_name,
+            "colors": colors
+        },
+        "fontScheme": {
+            "id": matched_font_id,
+            "name": font_scheme_name,
+            "majorFont": major_font,
+            "minorFont": minor_font
+        }
+    }
+
+
+def generate_sheet_theme_xml(theme_config=None) -> str:
+    resolved = resolve_sheet_theme(theme_config)
+    theme_name = _escape_xml(resolved.get("themeName") or "Office Theme")
+    clr = resolved.get("colorScheme") or SHEET_COLOR_PALETTES["office"]
+    fnt = resolved.get("fontScheme") or SHEET_FONT_SCHEMES["office"]
+    c = clr.get("colors") or SHEET_COLOR_PALETTES["office"]["colors"]
+    color_name = _escape_xml(clr.get("name") or clr.get("id") or "Office")
+    font_name = _escape_xml(fnt.get("name") or fnt.get("id") or "Office")
+    major_font = _escape_xml(fnt.get("majorFont") or "Calibri Light")
+    minor_font = _escape_xml(fnt.get("minorFont") or "Calibri")
+
+    return f"""<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<a:theme xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main" xmlns:r="http://schemas.openxmlformats.org/officeDocument/2006/relationships" name="{theme_name}">
+  <a:themeElements>
+    <a:clrScheme name="{color_name}">
+      <a:dk1>
+        <a:sysClr val="windowText" lastClr="{c['dk1']}"/>
+      </a:dk1>
+      <a:lt1>
+        <a:sysClr val="window" lastClr="{c['lt1']}"/>
+      </a:lt1>
+      <a:dk2>
+        <a:srgbClr val="{c['dk2']}"/>
+      </a:dk2>
+      <a:lt2>
+        <a:srgbClr val="{c['lt2']}"/>
+      </a:lt2>
+      <a:accent1>
+        <a:srgbClr val="{c['accent1']}"/>
+      </a:accent1>
+      <a:accent2>
+        <a:srgbClr val="{c['accent2']}"/>
+      </a:accent2>
+      <a:accent3>
+        <a:srgbClr val="{c['accent3']}"/>
+      </a:accent3>
+      <a:accent4>
+        <a:srgbClr val="{c['accent4']}"/>
+      </a:accent4>
+      <a:accent5>
+        <a:srgbClr val="{c['accent5']}"/>
+      </a:accent5>
+      <a:accent6>
+        <a:srgbClr val="{c['accent6']}"/>
+      </a:accent6>
+      <a:hlink>
+        <a:srgbClr val="{c['hlink']}"/>
+      </a:hlink>
+      <a:folHlink>
+        <a:srgbClr val="{c['folHlink']}"/>
+      </a:folHlink>
+    </a:clrScheme>
+    <a:fontScheme name="{font_name}">
+      <a:majorFont>
+        <a:latin typeface="{major_font}"/>
+        <a:ea typeface=""/>
+        <a:cs typeface=""/>
+      </a:majorFont>
+      <a:minorFont>
+        <a:latin typeface="{minor_font}"/>
+        <a:ea typeface=""/>
+        <a:cs typeface=""/>
+      </a:minorFont>
+    </a:fontScheme>
+    <a:fmtScheme name="{theme_name}">
+      <a:fillStyleLst>
+        <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+        <a:gradFill rotWithShape="1">
+          <a:gsLst>
+            <a:gs pos="0"><a:schemeClr val="phClr"><a:tint val="50000"/><a:satMod val="300000"/></a:schemeClr></a:gs>
+            <a:gs pos="35000"><a:schemeClr val="phClr"><a:tint val="37000"/><a:satMod val="220000"/></a:schemeClr></a:gs>
+            <a:gs pos="100000"><a:schemeClr val="phClr"><a:tint val="15000"/><a:satMod val="131000"/></a:schemeClr></a:gs>
+          </a:gsLst>
+          <a:lin ang="16200000" scaled="1"/>
+        </a:gradFill>
+        <a:gradFill rotWithShape="1">
+          <a:gsLst>
+            <a:gs pos="0"><a:schemeClr val="phClr"><a:shade val="100000"/><a:satMod val="130000"/></a:schemeClr></a:gs>
+            <a:gs pos="100000"><a:schemeClr val="phClr"><a:tint val="50000"/><a:satMod val="350000"/></a:schemeClr></a:gs>
+          </a:gsLst>
+          <a:lin ang="16200000" scaled="0"/>
+        </a:gradFill>
+      </a:fillStyleLst>
+      <a:lnStyleLst>
+        <a:ln w="9525" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"><a:shade val="95000"/><a:satMod val="105000"/></a:schemeClr></a:solidFill><a:prstDash val="solid"/></a:ln>
+        <a:ln w="25400" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln>
+        <a:ln w="38100" cap="flat" cmpd="sng" algn="ctr"><a:solidFill><a:schemeClr val="phClr"/></a:solidFill><a:prstDash val="solid"/></a:ln>
+      </a:lnStyleLst>
+      <a:effectStyleLst>
+        <a:effectStyle><a:effectLst/></a:effectStyle>
+        <a:effectStyle><a:effectLst/></a:effectStyle>
+        <a:effectStyle><a:effectLst><a:outerShdw blurRad="40000" dist="20000" dir="5400000" rotWithShape="0"><a:srgbClr val="000000"><a:alpha val="38000"/></a:srgbClr></a:outerShdw></a:effectLst></a:effectStyle>
+      </a:effectStyleLst>
+      <a:bgFillStyleLst>
+        <a:solidFill><a:schemeClr val="phClr"/></a:solidFill>
+        <a:gradFill rotWithShape="1"><a:gsLst><a:gs pos="0"><a:schemeClr val="phClr"><a:tint val="40000"/><a:satMod val="350000"/></a:schemeClr></a:gs><a:gs pos="40000"><a:schemeClr val="phClr"><a:tint val="45000"/><a:shade val="99000"/><a:satMod val="350000"/></a:schemeClr></a:gs><a:gs pos="100000"><a:schemeClr val="phClr"><a:shade val="20000"/><a:satMod val="255000"/></a:schemeClr></a:gs></a:gsLst><a:path path="circle"><a:fillToRect l="50000" t="-80000" r="50000" b="180000"/></a:path></a:gradFill>
+        <a:gradFill rotWithShape="1"><a:gsLst><a:gs pos="0"><a:schemeClr val="phClr"><a:tint val="80000"/><a:satMod val="300000"/></a:schemeClr></a:gs><a:gs pos="100000"><a:schemeClr val="phClr"><a:shade val="30000"/><a:satMod val="200000"/></a:schemeClr></a:gs></a:gsLst><a:path path="circle"><a:fillToRect l="50000" t="50000" r="50000" b="50000"/></a:path></a:gradFill>
+      </a:bgFillStyleLst>
+    </a:fmtScheme>
+  </a:themeElements>
+</a:theme>"""
+
+
+def parse_workbook_theme_from_fods(fods_xml: str | None) -> dict | None:
+    if not fods_xml:
+        return None
+    match = re.search(r'\bvno:workbook-theme=["\']([^"\']*)["\']', str(fods_xml), re.IGNORECASE)
+    if not match:
+        return None
+    try:
+        raw = _unescape_xml(match.group(1))
+        data = json.loads(raw)
+        return resolve_sheet_theme(data)
+    except Exception:
+        return None
+
+
+def apply_workbook_theme_to_fods(fods_xml: str | None, theme: dict) -> str:
+    if not theme or not isinstance(theme, dict):
+        return fods_xml or ""
+    xml = str(fods_xml or "")
+    match = re.search(r"<office:spreadsheet\b([^>]*)>", xml, re.IGNORECASE)
+    if not match:
+        return xml
+    attrs = re.sub(r'\s+vno:workbook-theme=(["\'][^"\']*["\'])', '', match.group(1), flags=re.IGNORECASE)
+    theme_json = json.dumps(theme, ensure_ascii=False)
+    attrs += f' vno:workbook-theme="{_escape_xml(theme_json)}"'
+    xml = xml[:match.start()] + f"<office:spreadsheet{attrs}>" + xml[match.end():]
+    if "xmlns:vno=" not in xml:
+        xml = re.sub(
+            r"<office:document\b([^>]*)>",
+            rf'<office:document\1 xmlns:vno="{SHEET_VNO_NS}">',
+            xml,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+    return xml
+
+
+def _ensure_sheet_theme_relationship(xlsx_bytes: bytes, replacements: dict[str, str]) -> None:
+    rels_path = XLSX_WORKBOOK_RELS_ENTRY
+    rels_source = replacements.get(rels_path)
+    if rels_source is None:
+        rels_raw = read_zip_entry(xlsx_bytes, rels_path)
+        rels_source = rels_raw.decode("utf-8", errors="replace") if rels_raw else ""
+    if rels_source and "relationships/theme" not in rels_source:
+        rel_tag = '  <Relationship Id="rIdTheme" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="theme/theme1.xml"/>'
+        replacements[rels_path] = re.sub(r'</Relationships>', f'{rel_tag}\n</Relationships>', rels_source, count=1, flags=re.IGNORECASE)
+
+    ct_path = "[Content_Types].xml"
+    ct_source = replacements.get(ct_path)
+    if ct_source is None:
+        ct_raw = read_zip_entry(xlsx_bytes, ct_path)
+        ct_source = ct_raw.decode("utf-8", errors="replace") if ct_raw else ""
+    if ct_source and "/xl/theme/theme1.xml" not in ct_source:
+        ct_tag = '  <Override PartName="/xl/theme/theme1.xml" ContentType="application/vnd.openxmlformats-officedocument.theme+xml"/>'
+        replacements[ct_path] = re.sub(r'</Types>', f'{ct_tag}\n</Types>', ct_source, count=1, flags=re.IGNORECASE)
+
+
+def _sheet_themes_equal(t1: dict | None, t2: dict | None) -> bool:
+    if not t1 or not t2:
+        return False
+    c1 = t1.get("colorScheme", {}).get("colors", {})
+    c2 = t2.get("colorScheme", {}).get("colors", {})
+    if c1 and c2:
+        for k in ("dk1", "lt1", "dk2", "lt2", "accent1", "accent2", "accent3", "accent4", "accent5", "accent6", "hlink", "folHlink"):
+            if str(c1.get(k, "")).upper() != str(c2.get(k, "")).upper():
+                return False
+    f1 = t1.get("fontScheme", {})
+    f2 = t2.get("fontScheme", {})
+    if f1 and f2:
+        if str(f1.get("majorFont", "")).lower() != str(f2.get("majorFont", "")).lower():
+            return False
+        if str(f1.get("minorFont", "")).lower() != str(f2.get("minorFont", "")).lower():
+            return False
+    return True
+
+
+def _apply_sheet_theme_to_xlsx(
+    xlsx_bytes: bytes,
+    source_fods: str | None,
+    replacements: dict[str, str],
+    *,
+    source_xlsx_bytes: bytes | None = None,
+) -> None:
+    theme = parse_workbook_theme_from_fods(source_fods)
+    orig_theme_bytes = read_zip_entry(source_xlsx_bytes, "xl/theme/theme1.xml") if source_xlsx_bytes else None
+
+    if orig_theme_bytes:
+        orig_theme = parse_sheet_theme_xml(orig_theme_bytes.decode("utf-8", errors="replace"))
+        # If theme was not explicitly set in FODS or matches source XLSX, keep source XLSX bytes
+        if theme is None or _sheet_themes_equal(theme, orig_theme):
+            replacements["xl/theme/theme1.xml"] = orig_theme_bytes.decode("utf-8", errors="replace")
+            _ensure_sheet_theme_relationship(xlsx_bytes, replacements)
+            return
+
+    if theme:
+        replacements["xl/theme/theme1.xml"] = generate_sheet_theme_xml(theme)
+        _ensure_sheet_theme_relationship(xlsx_bytes, replacements)
+
+
 def postprocess_sheet_xlsx(
     xlsx_bytes: bytes,
     *,
@@ -8023,6 +8548,8 @@ def postprocess_sheet_xlsx(
         apply_conditional_formatting_from_fods(xlsx_bytes, source_fods, replacements)
         _apply_sheet_document_properties_to_xlsx(xlsx_bytes, source_fods, replacements)
         _apply_sheet_slicers_to_xlsx(xlsx_bytes, source_fods, replacements)
+
+    _apply_sheet_theme_to_xlsx(xlsx_bytes, source_fods, replacements, source_xlsx_bytes=source_xlsx_bytes)
 
     calc_options = parse_calculation_options_from_fods(source_fods)
     if calc_options:
@@ -13184,6 +13711,14 @@ def overlay_sheet_xlsx_fods(
     xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
     xml = _overlay_sheet_slicers_from_xlsx(xlsx_bytes, xml)
     xml = apply_conditional_formatting_to_fods(xml, parse_conditional_formatting_from_xlsx(xlsx_bytes))
+    theme_entry = read_zip_entry(xlsx_bytes, "xl/theme/theme1.xml")
+    if theme_entry:
+        try:
+            parsed_theme = parse_sheet_theme_xml(theme_entry.decode("utf-8", errors="replace"))
+            if parsed_theme:
+                xml = apply_workbook_theme_to_fods(xml, parsed_theme)
+        except Exception:
+            pass
     return xml
 
 
@@ -13257,6 +13792,14 @@ def overlay_sheet_xlsx_fods_p1(
         xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
         xml = _overlay_sheet_slicers_from_xlsx(xlsx_bytes, xml)
     xml = apply_conditional_formatting_to_fods(xml, parse_conditional_formatting_from_xlsx(xlsx_bytes))
+    theme_entry = read_zip_entry(xlsx_bytes, "xl/theme/theme1.xml")
+    if theme_entry:
+        try:
+            parsed_theme = parse_sheet_theme_xml(theme_entry.decode("utf-8", errors="replace"))
+            if parsed_theme:
+                xml = apply_workbook_theme_to_fods(xml, parsed_theme)
+        except Exception:
+            pass
     return xml
 
 

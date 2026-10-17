@@ -597,6 +597,9 @@ export class SheetGridController {
       return false;
     });
     globalCommandBus.bindHandler("sheet.table.insertSlicer", () => this.tableSlicer.showInsertDialog());
+    globalCommandBus.bindHandler("sheet.page.themes", (arg) => this.setWorkbookTheme(arg));
+    globalCommandBus.bindHandler("sheet.page.themeColors", (arg) => this.setWorkbookThemeColorScheme(arg));
+    globalCommandBus.bindHandler("sheet.page.themeFonts", (arg) => this.setWorkbookThemeFontScheme(arg));
 
     this.autocomplete.mount();
 
@@ -19607,6 +19610,8 @@ export class SheetGridController {
 
   setWorkbookTheme(themeOrId) {
     this.workbookTheme = resolveTheme(themeOrId);
+    this.isDirty = true;
+    if (this.adapter) this.adapter.isDirty = true;
     this._renderHeadersAndContent?.();
     return true;
   }
@@ -19618,6 +19623,8 @@ export class SheetGridController {
       colorSchemeId,
       themeId: "custom"
     });
+    this.isDirty = true;
+    if (this.adapter) this.adapter.isDirty = true;
     this._renderHeadersAndContent?.();
     return true;
   }
@@ -19629,6 +19636,8 @@ export class SheetGridController {
       fontSchemeId,
       themeId: "custom"
     });
+    this.isDirty = true;
+    if (this.adapter) this.adapter.isDirty = true;
     this._renderHeadersAndContent?.();
     return true;
   }
