@@ -138,9 +138,9 @@ Bố trí|Đoạn văn|Khoảng cách trước / sau đoạn chính xác (pt)|V|
 Bố trí|Sắp xếp|Vị trí đối tượng trên trang (Position)|V|-|Vị trí đối tượng tọa độ Left/Top đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:73-74)
 Bố trí|Sắp xếp|Bao dòng chữ quanh hình (Wrap Text: Square, Tight, In Line)|V|-|Bao dòng chữ quanh hình Wrap Square đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:74)
 Bố trí|Sắp xếp|Đưa lên trước / Đưa về sau (Bring Forward / Send Backward)|A|-|writer.image.wrap/resize và điều khiển lớp z-index
-Bố trí|Sắp xếp|Ngăn lựa chọn đối tượng (Selection Pane)|V|-|writer.view.selectionPane: quản lý layer, ẩn/hiện, Z-Order, đổi tên đối tượng, đã đo kiểm đối chiếu Word COM (docs/word-oracle-writer2-1710.json)
+Bố trí|Sắp xếp|Ngăn lựa chọn đối tượng (Selection Pane)|V|-|writer.view.selectionPane: quản lý layer, ẩn/hiện, Z-Order, đổi tên đối tượng, đã đo kiểm đối chiếu Word COM (apps/writer/writer-arrange-controller.js:24-35, docs/word-oracle-writer2-1710.json:2-16)
 Bố trí|Sắp xếp|Căn lề đối tượng đồ họa (Align Objects)|A|-|Căn lề ảnh và hình khối
-Bố trí|Sắp xếp|Nhóm / Bỏ nhóm đối tượng (Group / Ungroup)|V|-|writer.arrange.group (Ctrl+G) & writer.arrange.ungroup (Ctrl+Shift+G): tạo msoGroup và rã nhóm đối tượng, đã đo kiểm đối chiếu Word COM (docs/word-oracle-writer2-1710.json)
+Bố trí|Sắp xếp|Nhóm / Bỏ nhóm đối tượng (Group / Ungroup)|V|-|writer.arrange.group (Ctrl+G) & writer.arrange.ungroup (Ctrl+Shift+G): tạo msoGroup và rã nhóm đối tượng, đã đo kiểm đối chiếu Word COM (apps/writer/writer-arrange-controller.js:20-25, docs/word-oracle-writer2-1710.json:17-26)
 Bố trí|Sắp xếp|Xoay / Lật đối tượng (Rotate / Flip)|P|2|Hỗ trợ xoay hình cơ bản; lật đối xứng chưa có
 Tham chiếu|Mục lục|Mục lục tự động (Table of Contents)|V|-|Mục lục tự động writer.reference.tocInsert đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:84, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:62)
 Tham chiếu|Mục lục|Thêm văn bản vào cấp mục lục (Add Text to Level)|P|2|Qua việc đổi kiểu Heading 1–3
@@ -216,14 +216,14 @@ Chế độ xem|Thu phóng|Xem một trang (One Page) / Nhiều trang (Multiple 
 Chế độ xem|Thu phóng|Phóng to / Thu nhỏ (Zoom In / Zoom Out)|V|-|Phóng to và thu nhỏ writer.view.zoomIn/zoomOut đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:123,125)
 Chế độ xem|Cửa sổ|Cửa sổ mới (New Window)|A|-|writer.view.newWindow; mở WebView thứ hai độc lập, khác Word clone cửa sổ có chủ ý (docs/DOC-BUTTON-MATRIX-1011.md:128)
 Chế độ xem|Cửa sổ|Sắp xếp tất cả cửa sổ (Arrange All)|N|3|Chưa có sắp xếp tile các cửa sổ app
-Chế độ xem|Cửa sổ|Chia cửa sổ soạn thảo (Split Window)|V|-|writer.view.split: chia 2 phân vùng cuộn độc lập, thanh kéo tỉ lệ, đã đo kiểm đối chiếu Word COM (docs/word-oracle-writer2-1710.json)
+Chế độ xem|Cửa sổ|Chia cửa sổ soạn thảo (Split Window)|V|-|writer.view.split: chia 2 phân vùng cuộn độc lập, thanh kéo tỉ lệ, đã đo kiểm đối chiếu Word COM (apps/writer/writer-split-view.js:1-25, docs/word-oracle-writer2-1710.json:27-36)
 Chế độ xem|Cửa sổ|Xem song song (View Side by Side) & Cuộn đồng bộ|N|3|Chưa có xem 2 tài liệu song song có cuộn đồng bộ
 Chế độ xem|Cửa sổ|Chuyển cửa sổ (Switch Windows)|P|3|Hệ điều hành quản lý cửa sổ; chưa có menu trong app
 Chế độ xem|Macro|Quản lý Macro & Ghi Macro (Alt+F8, Ctrl+Shift+R)|A|-|common.macro.recordToggle/manager; Command Bus macro engine cục bộ, khác VBA Word có chủ ý (docs/DOC-BUTTON-MATRIX-1011.md:129-130)
 Công cụ Bảng|Thiết kế|Tùy chọn kiểu bảng: Hàng tiêu đề (Header Row)|V|-|Hàng tiêu đề HeadingFormat=-1 đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:56,79)
 Công cụ Bảng|Thiết kế|Tùy chọn kiểu bảng: Hàng xen kẽ (Banded Rows)|A|-|writer.table.toggleBandedRows (platform/commands/command-definitions.js:183)
 Công cụ Bảng|Thiết kế|Tùy chọn kiểu bảng: Cột đầu, Cột cuối, Cột sọc|P|2|Đã có hàng tiêu đề và xen kẽ hàng; các tùy chọn cột cần bổ sung
-Công cụ Bảng|Thiết kế|Thư viện kiểu bảng (Table Styles Gallery)|V|-|writer.table.stylesGallery: 32 mẫu bảng Plain, Grid, List; xuất w:tblStyle và w:tblLook chuẩn DOCX, đã đo kiểm đối chiếu Word COM (docs/word-oracle-writer2-1710.json)
+Công cụ Bảng|Thiết kế|Thư viện kiểu bảng (Table Styles Gallery)|V|-|writer.table.stylesGallery: 32 mẫu bảng Plain, Grid, List; xuất w:tblStyle và w:tblLook chuẩn DOCX, đã đo kiểm đối chiếu Word COM (apps/writer/writer-table-styles.js:1-25, docs/word-oracle-writer2-1710.json:37-48)
 Công cụ Bảng|Thiết kế|Màu nền ô bảng (Shading)|V|-|Bảng màu nền ô đối chiếu Word COM mã màu 15788258 (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:57,83)
 Công cụ Bảng|Thiết kế|Viền bảng (Borders dropdown: Tất cả, Viền ngoài, Viền trong, Không viền)|V|-|Viền bảng 4 kiểu viền đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:57,84)
 Công cụ Bảng|Thiết kế|Độ dày và kiểu đường viền bảng|P|1|Hỗ trợ độ dày chuẩn; kiểu nét đứt/đôi cần hoàn thiện trong giao diện viền
@@ -245,7 +245,7 @@ Công cụ Bảng|Bố trí|Xoay hướng chữ trong ô (Text Direction)|N|1|Ch
 Công cụ Bảng|Bố trí|Khoảng cách lề ô bảng (Cell Margins)|P|1|Hỗ trợ qua padding; chưa có hộp thoại Cell Margins riêng cho bảng
 Công cụ Bảng|Bố trí|Lặp lại hàng tiêu đề qua các trang (Repeat Header Rows)|V|-|Lặp lại hàng tiêu đề HeadingFormat=-1 đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:56)
 Công cụ Bảng|Bố trí|Sắp xếp dữ liệu trong bảng (Sort Table)|A|-|Áp dụng writer.para.sort trên các hàng bảng
-Công cụ Bảng|Bố trí|Công thức tính toán trong bảng (=SUM(ABOVE)...)|V|-|writer.table.formula: tính toán =SUM(ABOVE), =SUM(LEFT), AVERAGE, COUNT, MAX, MIN, PRODUCT, xuất w:fldSimple, đã đo kiểm đối chiếu Word COM (docs/word-oracle-writer2-1710.json)
+Công cụ Bảng|Bố trí|Công thức tính toán trong bảng (=SUM(ABOVE)...)|V|-|writer.table.formula: tính toán =SUM(ABOVE), =SUM(LEFT), AVERAGE, COUNT, MAX, MIN, PRODUCT, xuất w:fldSimple, đã đo kiểm đối chiếu Word COM (apps/writer/writer-table-formula-dialog.js:1-25, docs/word-oracle-writer2-1710.json:49-60)
 Công cụ Hình ảnh|Định dạng|Xóa nền ảnh tự động (Remove Background)|N|3|Chưa có thuật toán tách nền ảnh
 Công cụ Hình ảnh|Định dạng|Độ sáng & Tương phản (Corrections)|A|-|writer.image.corrections (platform/commands/command-definitions.js:206)
 Công cụ Hình ảnh|Định dạng|Màu sắc ảnh & Đổi màu (Color / Recolor)|P|2|Hỗ trợ qua CSS filter; chưa xuất bộ lọc sang OOXML

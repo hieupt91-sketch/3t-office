@@ -227,9 +227,9 @@ Tổng: 10 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Sắp xếp | Vị trí đối tượng trên trang (Position) | ✅ | - | Vị trí đối tượng tọa độ Left/Top đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:73-74) |
 | Sắp xếp | Bao dòng chữ quanh hình (Wrap Text: Square, Tight, In Line) | ✅ | - | Bao dòng chữ quanh hình Wrap Square đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:74) |
 | Sắp xếp | Đưa lên trước / Đưa về sau (Bring Forward / Send Backward) | 🟢 | - | writer.image.wrap/resize và điều khiển lớp z-index |
-| Sắp xếp | Ngăn lựa chọn đối tượng (Selection Pane) | ✅ | - | writer.view.selectionPane: quản lý layer, ẩn/hiện, Z-Order, đổi tên đối tượng, đã đo kiểm đối chiếu Word COM (docs/word-oracle-writer2-1710.json) |
+| Sắp xếp | Ngăn lựa chọn đối tượng (Selection Pane) | ✅ | - | writer.view.selectionPane: quản lý layer, ẩn/hiện, Z-Order, đổi tên đối tượng, đã đo kiểm đối chiếu Word COM (apps/writer/writer-arrange-controller.js:24-35, docs/word-oracle-writer2-1710.json:2-16) |
 | Sắp xếp | Căn lề đối tượng đồ họa (Align Objects) | 🟢 | - | Căn lề ảnh và hình khối |
-| Sắp xếp | Nhóm / Bỏ nhóm đối tượng (Group / Ungroup) | ✅ | - | writer.arrange.group (Ctrl+G) & writer.arrange.ungroup (Ctrl+Shift+G): tạo msoGroup và rã nhóm đối tượng, đã đo kiểm đối chiếu Word COM (docs/word-oracle-writer2-1710.json) |
+| Sắp xếp | Nhóm / Bỏ nhóm đối tượng (Group / Ungroup) | ✅ | - | writer.arrange.group (Ctrl+G) & writer.arrange.ungroup (Ctrl+Shift+G): tạo msoGroup và rã nhóm đối tượng, đã đo kiểm đối chiếu Word COM (apps/writer/writer-arrange-controller.js:20-25, docs/word-oracle-writer2-1710.json:17-26) |
 | Sắp xếp | Xoay / Lật đối tượng (Rotate / Flip) | 🟡 | 2 | Hỗ trợ xoay hình cơ bản; lật đối xứng chưa có |
 
 ### Tham chiếu
@@ -325,7 +325,7 @@ Tổng: 10 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Thu phóng | Phóng to / Thu nhỏ (Zoom In / Zoom Out) | ✅ | - | Phóng to và thu nhỏ writer.view.zoomIn/zoomOut đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:123,125) |
 | Cửa sổ | Cửa sổ mới (New Window) | 🟢 | - | writer.view.newWindow; mở WebView thứ hai độc lập, khác Word clone cửa sổ có chủ ý (docs/DOC-BUTTON-MATRIX-1011.md:128) |
 | Cửa sổ | Sắp xếp tất cả cửa sổ (Arrange All) | 🔴 | 3 | Chưa có sắp xếp tile các cửa sổ app |
-| Cửa sổ | Chia cửa sổ soạn thảo (Split Window) | ✅ | - | writer.view.split: chia 2 phân vùng cuộn độc lập, thanh kéo tỉ lệ, đã đo kiểm đối chiếu Word COM (docs/word-oracle-writer2-1710.json) |
+| Cửa sổ | Chia cửa sổ soạn thảo (Split Window) | ✅ | - | writer.view.split: chia 2 phân vùng cuộn độc lập, thanh kéo tỉ lệ, đã đo kiểm đối chiếu Word COM (apps/writer/writer-split-view.js:1-25, docs/word-oracle-writer2-1710.json:27-36) |
 | Cửa sổ | Xem song song (View Side by Side) & Cuộn đồng bộ | 🔴 | 3 | Chưa có xem 2 tài liệu song song có cuộn đồng bộ |
 | Cửa sổ | Chuyển cửa sổ (Switch Windows) | 🟡 | 3 | Hệ điều hành quản lý cửa sổ; chưa có menu trong app |
 | Macro | Quản lý Macro & Ghi Macro (Alt+F8, Ctrl+Shift+R) | 🟢 | - | common.macro.recordToggle/manager; Command Bus macro engine cục bộ, khác VBA Word có chủ ý (docs/DOC-BUTTON-MATRIX-1011.md:129-130) |
@@ -337,7 +337,7 @@ Tổng: 10 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Thiết kế | Tùy chọn kiểu bảng: Hàng tiêu đề (Header Row) | ✅ | - | Hàng tiêu đề HeadingFormat=-1 đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:56,79) |
 | Thiết kế | Tùy chọn kiểu bảng: Hàng xen kẽ (Banded Rows) | 🟢 | - | writer.table.toggleBandedRows (platform/commands/command-definitions.js:183) |
 | Thiết kế | Tùy chọn kiểu bảng: Cột đầu, Cột cuối, Cột sọc | 🟡 | 2 | Đã có hàng tiêu đề và xen kẽ hàng; các tùy chọn cột cần bổ sung |
-| Thiết kế | Thư viện kiểu bảng (Table Styles Gallery) | ✅ | - | writer.table.stylesGallery: 32 mẫu bảng Plain, Grid, List; xuất w:tblStyle và w:tblLook chuẩn DOCX, đã đo kiểm đối chiếu Word COM (docs/word-oracle-writer2-1710.json) |
+| Thiết kế | Thư viện kiểu bảng (Table Styles Gallery) | ✅ | - | writer.table.stylesGallery: 32 mẫu bảng Plain, Grid, List; xuất w:tblStyle và w:tblLook chuẩn DOCX, đã đo kiểm đối chiếu Word COM (apps/writer/writer-table-styles.js:1-25, docs/word-oracle-writer2-1710.json:37-48) |
 | Thiết kế | Màu nền ô bảng (Shading) | ✅ | - | Bảng màu nền ô đối chiếu Word COM mã màu 15788258 (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:57,83) |
 | Thiết kế | Viền bảng (Borders dropdown: Tất cả, Viền ngoài, Viền trong, Không viền) | ✅ | - | Viền bảng 4 kiểu viền đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:57,84) |
 | Thiết kế | Độ dày và kiểu đường viền bảng | 🟡 | 1 | Hỗ trợ độ dày chuẩn; kiểu nét đứt/đôi cần hoàn thiện trong giao diện viền |
@@ -359,7 +359,7 @@ Tổng: 10 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Bố trí | Khoảng cách lề ô bảng (Cell Margins) | 🟡 | 1 | Hỗ trợ qua padding; chưa có hộp thoại Cell Margins riêng cho bảng |
 | Bố trí | Lặp lại hàng tiêu đề qua các trang (Repeat Header Rows) | ✅ | - | Lặp lại hàng tiêu đề HeadingFormat=-1 đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:56) |
 | Bố trí | Sắp xếp dữ liệu trong bảng (Sort Table) | 🟢 | - | Áp dụng writer.para.sort trên các hàng bảng |
-| Bố trí | Công thức tính toán trong bảng (=SUM(ABOVE)...) | ✅ | - | writer.table.formula: tính toán =SUM(ABOVE), =SUM(LEFT), AVERAGE, COUNT, MAX, MIN, PRODUCT, xuất w:fldSimple, đã đo kiểm đối chiếu Word COM (docs/word-oracle-writer2-1710.json) |
+| Bố trí | Công thức tính toán trong bảng (=SUM(ABOVE)...) | ✅ | - | writer.table.formula: tính toán =SUM(ABOVE), =SUM(LEFT), AVERAGE, COUNT, MAX, MIN, PRODUCT, xuất w:fldSimple, đã đo kiểm đối chiếu Word COM (apps/writer/writer-table-formula-dialog.js:1-25, docs/word-oracle-writer2-1710.json:49-60) |
 
 ### Công cụ Hình ảnh
 
