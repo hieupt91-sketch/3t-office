@@ -424,6 +424,13 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.review.commentPrevious", () => this._hintIfFalse(() => this.grid.previousComment?.(), "Bảng tính chưa có ghi chú nào."));
     globalCommandBus.bindHandler("sheet.review.commentNext", () => this._hintIfFalse(() => this.grid.nextComment?.(), "Bảng tính chưa có ghi chú nào."));
     globalCommandBus.bindHandler("sheet.review.commentDelete", () => this._hintIfFalse(() => this.grid.deleteCurrentComment?.(), "Ô đang chọn không có ghi chú để xóa."));
+    globalCommandBus.bindHandler("sheet.review.commentToggleVisible", (args) => {
+      args = args || {};
+      return this._hintIfFalse(() => this.grid.toggleCommentVisible?.(args.coord), "Ô đang chọn không có ghi chú để hiện hoặc ẩn.");
+    });
+    globalCommandBus.bindHandler("sheet.review.commentShowAll", (args) => {
+      return this.grid.toggleShowAllComments?.(args?.enabled);
+    });
     globalCommandBus.bindHandler("sheet.review.commentResolve", () => this._hintIfFalse(() => this.grid.toggleCurrentCommentResolved?.(), "Ô đang chọn không có ghi chú để đánh dấu đã giải quyết."));
     globalCommandBus.bindHandler("sheet.file.printPreview", () => this.print());
     globalCommandBus.bindHandler("sheet.file.markAsFinal", (args) => {
@@ -3994,7 +4001,7 @@ export class SheetAdapter {
           const nativeFormatAttr = (!xfAttr && Object.keys(nativeFormat).length) ? ` vno:cell-format="${this._escapeXml(JSON.stringify(nativeFormat))}"` : "";
           const cellAttrs = `${formulaAttrs}${matrixAttrs}${mergeAttrs}${numFmtAttr}${nativeFormatAttr}${cellStyleName ? ` table:style-name="${cellStyleName}"` : ""}${validationAttr}${xfAttr}`;
           const comment = comments[coordinate];
-          const annotationXml = comment ? `<office:annotation><dc:creator>${this._escapeXml(comment.author || "")}</dc:creator>${comment.timestamp ? `<dc:date>${this._escapeXml(comment.timestamp)}</dc:date>` : ""}<text:p>${this._escapeXml(comment.text || "")}</text:p></office:annotation>` : "";
+          const annotationXml = comment ? `<office:annotation${comment.visible ? ' office:display="true"' : ""}><dc:creator>${this._escapeXml(comment.author || "")}</dc:creator>${comment.timestamp ? `<dc:date>${this._escapeXml(comment.timestamp)}</dc:date>` : ""}<text:p>${this._escapeXml(comment.text || "")}</text:p></office:annotation>` : "";
           const hyperlink = /^(https?:|mailto:)/i.test(String(item.hyperlink || "")) ? String(item.hyperlink) : "";
           const linkText = content => hyperlink
             ? `<text:a xlink:href="${this._escapeXml(hyperlink)}" xlink:type="simple">${content}</text:a>`
@@ -4188,7 +4195,23 @@ export class SheetAdapter {
       const drawingOrderAttr = drawingOrder.length ? ` vno:drawing-order="${this._escapeXml(JSON.stringify(drawingOrder))}"` : "";
       const groups = this.grid.groupsBySheet?.[sheetName] || [];
       const groupsAttr = groups.length ? ` vno:groups="${this._escapeXml(JSON.stringify(groups))}"` : "";
-      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-settings="${this._escapeXml(JSON.stringify(pageStyle.pageSettings))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${splitAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${slicersAttr}${conditionalRulesAttr}${textBoxesAttr}${drawingOrderAttr}${groupsAttr}${resolvedCommentsAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
+      const sheetCommentsMeta = {};
+      for (const [coord, cmt] of Object.entries(comments)) {
+        if (!cmt) continue;
+        sheetCommentsMeta[coord] = {
+          visible: !!cmt.visible,
+          width: cmt.width !== undefined ? Number(cmt.width) : 144,
+          height: cmt.height !== undefined ? Number(cmt.height) : 79,
+          offsetX: cmt.offsetX !== undefined ? Number(cmt.offsetX) : 15,
+          offsetY: cmt.offsetY !== undefined ? Number(cmt.offsetY) : -10
+        };
+      }
+      const commentsMetaAttr = Object.keys(sheetCommentsMeta).length
+        ? ` vno:comments-meta="${this._escapeXml(JSON.stringify(sheetCommentsMeta))}"`
+        : "";
+      const currentIndicator = this.grid?.getDisplayCommentIndicator?.() ?? -1;
+      const indicatorAttr = ` vno:display-comment-indicator="${currentIndicator}"`;
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-settings="${this._escapeXml(JSON.stringify(pageStyle.pageSettings))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${splitAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${slicersAttr}${conditionalRulesAttr}${textBoxesAttr}${drawingOrderAttr}${groupsAttr}${resolvedCommentsAttr}${commentsMetaAttr}${indicatorAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
@@ -5306,12 +5329,16 @@ ${pristineXlsxMarker}${docPropsMarker}
                     if (attributes["table:content-validation-name"]) {
                       workbook.validationHits.push({ sheet: name, coord, name: attributes["table:content-validation-name"] });
                     }
-                    if (annotation) comments[coord] = {
-                      coord,
-                      text: Array.from(annotation.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:text:1.0", "p")).map(p => p.textContent || "").join("\n"),
-                      author: annotation.getElementsByTagNameNS("http://purl.org/dc/elements/1.1/", "creator")[0]?.textContent || annotation.getAttribute("office:author") || "",
-                      timestamp: annotation.getElementsByTagNameNS("http://purl.org/dc/elements/1.1/", "date")[0]?.textContent || annotation.getAttribute("office:create-date") || ""
-                    };
+                    if (annotation) {
+                      const isVisible = annotation.getAttribute("office:display") === "true";
+                      comments[coord] = {
+                        coord,
+                        text: Array.from(annotation.getElementsByTagNameNS("urn:oasis:names:tc:opendocument:xmlns:text:1.0", "p")).map(p => p.textContent || "").join("\n"),
+                        author: annotation.getElementsByTagNameNS("http://purl.org/dc/elements/1.1/", "creator")[0]?.textContent || annotation.getAttribute("office:author") || "",
+                        timestamp: annotation.getElementsByTagNameNS("http://purl.org/dc/elements/1.1/", "date")[0]?.textContent || annotation.getAttribute("office:create-date") || "",
+                        visible: isVisible
+                      };
+                    }
                   }
                 }
                 const embeddedImages = this._parseCellEmbeddedImagesDom(cell, `Image${images.length + 1}`);
@@ -5343,6 +5370,26 @@ ${pristineXlsxMarker}${docPropsMarker}
             repeatedScanStart = perfNow();
             tabColor = this._parseStandardOdfTabColor(tableXml, table.getAttribute("table:style-name"));
             if (perfEnabled) repeatedXmlScanMs.tabColor += performance.now() - repeatedScanStart;
+          }
+
+          const commentsMetaRaw = table.getAttribute("vno:comments-meta");
+          if (commentsMetaRaw) {
+            try {
+              const meta = JSON.parse(commentsMetaRaw);
+              for (const [coord, m] of Object.entries(meta)) {
+                if (comments[coord]) {
+                  if (m.visible !== undefined) comments[coord].visible = !!m.visible;
+                  if (m.width !== undefined) comments[coord].width = m.width;
+                  if (m.height !== undefined) comments[coord].height = m.height;
+                  if (m.offsetX !== undefined) comments[coord].offsetX = m.offsetX;
+                  if (m.offsetY !== undefined) comments[coord].offsetY = m.offsetY;
+                }
+              }
+            } catch (_) {}
+          }
+          const indRaw = table.getAttribute("vno:display-comment-indicator");
+          if (indRaw !== null && indRaw !== undefined && indRaw !== "") {
+            workbook.displayCommentIndicator = Number(indRaw);
           }
           workbook.sheets.push(name);
           workbook.sheetsData[name] = data;
@@ -5593,12 +5640,15 @@ ${pristineXlsxMarker}${docPropsMarker}
                     workbook.validationHits.push({ sheet: name, coord, name: attributes["table:content-validation-name"] });
                   }
                   if (annotationMatch) {
+                    const annotationAttrs = annotationMatch[1] || "";
                     const annotationBody = annotationMatch[2];
+                    const isVisible = /office:display=["']true["']/i.test(annotationAttrs);
                     comments[coord] = {
                       coord,
                       text: this._unescapeXml(annotationBody.match(/<text:p\b[^>]*>([\s\S]*?)<\/text:p>/i)?.[1]?.replace(/<[^>]+>/g, "") || ""),
-                      author: this._unescapeXml(annotationBody.match(/<dc:creator\b[^>]*>([\s\S]*?)<\/dc:creator>/i)?.[1]?.replace(/<[^>]+>/g, "") || annotationMatch[1].match(/office:author=["']([^"']*)["']/i)?.[1] || ""),
-                      timestamp: this._unescapeXml(annotationBody.match(/<dc:date\b[^>]*>([\s\S]*?)<\/dc:date>/i)?.[1]?.replace(/<[^>]+>/g, "") || annotationMatch[1].match(/office:create-date=["']([^"']*)["']/i)?.[1] || "")
+                      author: this._unescapeXml(annotationBody.match(/<dc:creator\b[^>]*>([\s\S]*?)<\/dc:creator>/i)?.[1]?.replace(/<[^>]+>/g, "") || annotationAttrs.match(/office:author=["']([^"']*)["']/i)?.[1] || ""),
+                      timestamp: this._unescapeXml(annotationBody.match(/<dc:date\b[^>]*>([\s\S]*?)<\/dc:date>/i)?.[1]?.replace(/<[^>]+>/g, "") || annotationAttrs.match(/office:create-date=["']([^"']*)["']/i)?.[1] || ""),
+                      visible: isVisible
                     };
                   }
                 }
@@ -5625,6 +5675,26 @@ ${pristineXlsxMarker}${docPropsMarker}
         if (!tabColor) {
           const tableStyleMatch = tableMatch[1].match(/table:style-name=["']([^"']*)["']/i);
           tabColor = this._parseStandardOdfTabColor(tableXml, tableStyleMatch ? this._unescapeXml(tableStyleMatch[1]) : "");
+        }
+
+        const commentsMetaMatch = tableMatch[1].match(/vno:comments-meta=["']([^"']*)["']/i);
+        if (commentsMetaMatch) {
+          try {
+            const meta = JSON.parse(this._unescapeXml(commentsMetaMatch[1]));
+            for (const [coord, m] of Object.entries(meta)) {
+              if (comments[coord]) {
+                if (m.visible !== undefined) comments[coord].visible = !!m.visible;
+                if (m.width !== undefined) comments[coord].width = m.width;
+                if (m.height !== undefined) comments[coord].height = m.height;
+                if (m.offsetX !== undefined) comments[coord].offsetX = m.offsetX;
+                if (m.offsetY !== undefined) comments[coord].offsetY = m.offsetY;
+              }
+            }
+          } catch (_) {}
+        }
+        const indMatch = tableMatch[1].match(/vno:display-comment-indicator=["']([^"']*)["']/i);
+        if (indMatch) {
+          workbook.displayCommentIndicator = Number(indMatch[1]);
         }
         workbook.sheets.push(name);
         workbook.sheetsData[name] = data;
@@ -5954,7 +6024,11 @@ ${pristineXlsxMarker}${docPropsMarker}
     this.grid.activeSheet = null;
     if (typeof this.grid.switchSheet === "function") this.grid.switchSheet(workbook.activeSheet, { skipSave: true });
     else this.grid.activeSheet = workbook.activeSheet;
+    if (workbook.displayCommentIndicator !== undefined) {
+      this.grid.setDisplayCommentIndicator?.(workbook.displayCommentIndicator);
+    }
     this.grid.renderTextBoxes?.();
+    this.grid.renderPinnedNotes?.();
     const activeFreezeState = this.grid.sheetStates[this.grid.activeSheet];
     this.grid.frozenRows = activeFreezeState?.frozenRows || 0;
     this.grid.frozenCols = activeFreezeState?.frozenCols || 0;
@@ -7219,6 +7293,12 @@ ${pristineXlsxMarker}${docPropsMarker}
 
       case "sheet.review.commentInsert":
         return this.grid.showCommentDialog ? this.grid.showCommentDialog(args || {}) : false;
+
+      case "sheet.review.commentToggleVisible":
+        return this.grid.toggleCommentVisible ? this.grid.toggleCommentVisible(args?.coord) : false;
+
+      case "sheet.review.commentShowAll":
+        return this.grid.toggleShowAllComments ? this.grid.toggleShowAllComments(args?.enabled) : false;
 
       case "sheet.page.setPrintArea":
         return this.grid.setPrintArea ? this.grid.setPrintArea(args || {}) : false;

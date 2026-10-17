@@ -1061,6 +1061,211 @@ def _apply_sheet_resolved_comments_to_xlsx(xlsx_bytes: bytes, states_by_sheet: d
         replacements[sheet_path] = worksheet
 
 
+def _find_vml_drawing_for_sheet(xlsx_bytes: bytes, sheet_path: str) -> str | None:
+    if "/" not in sheet_path:
+        return None
+    dir_path, filename = sheet_path.rsplit("/", 1)
+    rels_path = f"{dir_path}/_rels/{filename}.rels"
+    rels_raw = read_zip_entry(xlsx_bytes, rels_path)
+    if rels_raw:
+        rels_str = rels_raw.decode("utf-8", errors="replace")
+        m = re.search(r'<Relationship\b[^>]*Type=["\'][^"\']*vmlDrawing["\'][^>]*Target=["\']([^"\']+)["\']', rels_str, re.IGNORECASE)
+        if m:
+            target = m.group(1).replace("\\", "/")
+            if target.startswith("../"):
+                return "xl/" + target[3:]
+            elif target.startswith("xl/"):
+                return target
+            else:
+                return f"{dir_path}/{target}"
+    return None
+
+
+def _apply_sheet_comments_vml_to_xlsx(xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str | bytes | None]) -> None:
+    if not source_fods:
+        return
+    meta_by_sheet: dict[str, dict] = {}
+    table_re = re.compile(r'<table:table\b([^>]*)>', re.IGNORECASE)
+    for m in table_re.finditer(source_fods):
+        attrs = _xml_attrs(m.group(1))
+        sheet_name = _unescape_xml(attrs.get("table:name", ""))
+        comments_meta_str = attrs.get("vno:comments-meta", "")
+        comments_meta = json.loads(_unescape_xml(comments_meta_str)) if comments_meta_str else {}
+        indicator_str = attrs.get("vno:display-comment-indicator", "")
+        indicator = int(indicator_str) if indicator_str else -1
+        meta_by_sheet[sheet_name] = {"comments": comments_meta, "indicator": indicator}
+
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    for sheet_name, info in meta_by_sheet.items():
+        sheet_path = _sheet_name_equivalent_value(sheet_entries, sheet_name)
+        if not sheet_path:
+            continue
+        vml_path = _find_vml_drawing_for_sheet(xlsx_bytes, sheet_path)
+        if not vml_path:
+            vml_path = "xl/drawings/vmlDrawing1.vml"
+            if not read_zip_entry(xlsx_bytes, vml_path):
+                continue
+        raw_vml = replacements.get(vml_path) or read_zip_entry(xlsx_bytes, vml_path)
+        if not raw_vml:
+            continue
+        vml_str = raw_vml.decode("utf-8", errors="replace") if isinstance(raw_vml, bytes) else str(raw_vml)
+
+        comments_dict = info["comments"]
+        indicator = info["indicator"]
+
+        def patch_shape(match: re.Match[str]) -> str:
+            shape_open = match.group(1)
+            shape_body = match.group(2)
+            if 'ObjectType="Note"' not in shape_body:
+                return match.group(0)
+
+            row_m = re.search(r'<x:Row>(\d+)</x:Row>', shape_body, re.IGNORECASE)
+            col_m = re.search(r'<x:Column>(\d+)</x:Column>', shape_body, re.IGNORECASE)
+            if not row_m or not col_m:
+                return match.group(0)
+
+            r_idx = int(row_m.group(1))
+            c_idx = int(col_m.group(1))
+            coord = f"{column_label_from_index(c_idx + 1)}{r_idx + 1}"
+            cmt = comments_dict.get(coord, {})
+
+            if indicator == 1:
+                is_visible = True
+            elif indicator == 0:
+                is_visible = False
+            elif "visible" in cmt:
+                is_visible = bool(cmt["visible"])
+            else:
+                is_visible = "<x:Visible" in shape_body or "visibility:visible" in shape_open
+
+            w_px = float(cmt.get("width", 144) or 144)
+            h_px = float(cmt.get("height", 79) or 79)
+            off_x = float(cmt.get("offsetX", 15) if cmt.get("offsetX") is not None else 15)
+            off_y = float(cmt.get("offsetY", -10) if cmt.get("offsetY") is not None else -10)
+            w_pt = w_px * 0.75
+            h_pt = h_px * 0.75
+
+            next_open = shape_open
+            if re.search(r'width:\s*[\d.]+pt', next_open, re.IGNORECASE):
+                next_open = re.sub(r'width:\s*[\d.]+pt', f'width:{w_pt:.2f}pt', next_open, flags=re.IGNORECASE)
+            if re.search(r'height:\s*[\d.]+pt', next_open, re.IGNORECASE):
+                next_open = re.sub(r'height:\s*[\d.]+pt', f'height:{h_pt:.2f}pt', next_open, flags=re.IGNORECASE)
+
+            if is_visible:
+                if re.search(r'visibility:\s*hidden', next_open, re.IGNORECASE):
+                    next_open = re.sub(r'visibility:\s*hidden', 'visibility:visible', next_open, flags=re.IGNORECASE)
+                elif not re.search(r'visibility:\s*visible', next_open, re.IGNORECASE):
+                    next_open = re.sub(r'style="([^"]*)"', r'style="\1;visibility:visible"', next_open, flags=re.IGNORECASE)
+            else:
+                if re.search(r'visibility:\s*visible', next_open, re.IGNORECASE):
+                    next_open = re.sub(r'visibility:\s*visible', 'visibility:hidden', next_open, flags=re.IGNORECASE)
+                elif not re.search(r'visibility:\s*hidden', next_open, re.IGNORECASE):
+                    next_open = re.sub(r'style="([^"]*)"', r'style="\1;visibility:hidden"', next_open, flags=re.IGNORECASE)
+
+            if not re.search(r'fillcolor="[^"]*"', next_open, re.IGNORECASE):
+                next_open = next_open.replace("<v:shape", '<v:shape fillcolor="#ffffe1"')
+
+            next_body = shape_body
+            if is_visible:
+                if not re.search(r'<x:Visible\b[^>]*\/?>', next_body, re.IGNORECASE):
+                    next_body = re.sub(r'(</x:ClientData\s*>)', r' <x:Visible/>\n  \1', next_body, flags=re.IGNORECASE)
+            else:
+                next_body = re.sub(r'<x:Visible\b[^>]*\/?>\s*', '', next_body, flags=re.IGNORECASE)
+
+            col1 = c_idx + 1
+            col1_off = max(0, int(round(off_x)))
+            row1 = max(0, r_idx - 1)
+            row1_off = max(0, int(round(20 + off_y)))
+            total_w = col1_off + w_px
+            col2 = col1 + int(total_w // 64)
+            col2_off = int(total_w % 64)
+            total_h = row1_off + h_px
+            row2 = row1 + int(total_h // 20)
+            row2_off = int(total_h % 20)
+            anchor_xml = f"<x:Anchor>\n    {col1}, {col1_off}, {row1}, {row1_off}, {col2}, {col2_off}, {row2}, {row2_off}</x:Anchor>"
+            if re.search(r'<x:Anchor>[\s\S]*?</x:Anchor>', next_body, re.IGNORECASE):
+                next_body = re.sub(r'<x:Anchor>[\s\S]*?</x:Anchor>', anchor_xml, next_body, flags=re.IGNORECASE)
+
+            return f"{next_open}>{next_body}</v:shape>"
+
+        new_vml = re.sub(r'(<v:shape\b[^>]*>)([\s\S]*?)</v:shape>', patch_shape, vml_str, flags=re.IGNORECASE)
+        if new_vml != vml_str:
+            replacements[vml_path] = new_vml
+
+
+def _overlay_sheet_comments_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
+    if not fods_xml:
+        return ""
+    sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    if not sheet_entries:
+        return fods_xml
+
+    comments_meta_by_sheet: dict[str, dict] = {}
+    for sheet_name, sheet_path in sheet_entries.items():
+        vml_path = _find_vml_drawing_for_sheet(xlsx_bytes, sheet_path) or "xl/drawings/vmlDrawing1.vml"
+        raw_vml = read_zip_entry(xlsx_bytes, vml_path)
+        if not raw_vml:
+            continue
+        vml_str = raw_vml.decode("utf-8", errors="replace")
+        sheet_meta = {}
+        for m in re.finditer(r'(<v:shape\b[^>]*>)([\s\S]*?)</v:shape>', vml_str, re.IGNORECASE):
+            shape_open = m.group(1)
+            shape_body = m.group(2)
+            if 'ObjectType="Note"' not in shape_body:
+                continue
+            row_m = re.search(r'<x:Row>(\d+)</x:Row>', shape_body, re.IGNORECASE)
+            col_m = re.search(r'<x:Column>(\d+)</x:Column>', shape_body, re.IGNORECASE)
+            if not row_m or not col_m:
+                continue
+            r_idx = int(row_m.group(1))
+            c_idx = int(col_m.group(1))
+            coord = f"{column_label_from_index(c_idx + 1)}{r_idx + 1}"
+            is_visible = "<x:Visible" in shape_body or "visibility:visible" in shape_open
+
+            w_m = re.search(r'width:\s*([\d.]+)pt', shape_open, re.IGNORECASE)
+            h_m = re.search(r'height:\s*([\d.]+)pt', shape_open, re.IGNORECASE)
+            w_px = float(w_m.group(1)) / 0.75 if w_m else 144
+            h_px = float(h_m.group(1)) / 0.75 if h_m else 79
+
+            anchor_m = re.search(r'<x:Anchor>\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*</x:Anchor>', shape_body, re.IGNORECASE)
+            if anchor_m:
+                col1, col1_off, row1, row1_off, col2, col2_off, row2, row2_off = [int(anchor_m.group(i)) for i in range(1, 9)]
+                off_x = col1_off
+                off_y = row1_off - 20
+                if not w_m:
+                    w_px = (col2 - col1) * 64 + (col2_off - col1_off)
+                if not h_m:
+                    h_px = (row2 - row1) * 20 + (row2_off - row1_off)
+            else:
+                off_x = 15
+                off_y = -10
+            sheet_meta[coord] = {
+                "visible": is_visible,
+                "width": round(w_px),
+                "height": round(h_px),
+                "offsetX": round(off_x),
+                "offsetY": round(off_y)
+            }
+        if sheet_meta:
+            comments_meta_by_sheet[sheet_name] = sheet_meta
+
+    if not comments_meta_by_sheet:
+        return fods_xml
+
+    def process_table(match) -> str:
+        opening, body, closing = match.group(1), match.group(2), match.group(3)
+        attrs = _xml_attrs(opening)
+        sheet_name = _unescape_xml(attrs.get("table:name", ""))
+        meta = comments_meta_by_sheet.get(sheet_name)
+        if not meta:
+            return match.group(0)
+        serialized = _escape_xml(json.dumps(meta, separators=(",", ":")))
+        opening = re.sub(r'\s+vno:comments-meta=("[^"]*"|\'[^\']*\')', "", opening, flags=re.IGNORECASE)
+        return f'{opening[:-1]} vno:comments-meta="{serialized}">{body}{closing}'
+
+    return _sub_fods_tables(fods_xml, process_table)
+
+
 def apply_calculation_options_to_workbook(workbook_xml: str, options: dict) -> str:
     """Apply calcPr and workbookPr options to xl/workbook.xml."""
     if not options or not isinstance(options, dict):
@@ -7812,6 +8017,7 @@ def postprocess_sheet_xlsx(
     if source_fods:
         _apply_sheet_text_boxes_to_xlsx(xlsx_bytes, _parse_fods_text_boxes(source_fods), replacements)
         _apply_sheet_resolved_comments_to_xlsx(xlsx_bytes, _parse_fods_resolved_comments(source_fods), replacements)
+        _apply_sheet_comments_vml_to_xlsx(xlsx_bytes, source_fods, replacements)
         # Run last so broad style/layout fidelity repairs cannot overwrite the
         # dxfs or worksheet conditionalFormatting blocks authored by the app.
         apply_conditional_formatting_from_fods(xlsx_bytes, source_fods, replacements)
@@ -12159,6 +12365,7 @@ def overlay_sheet_xlsx_fods(
     xml = _overlay_sheet_drawing_image_ids(xlsx_bytes, xml)
     xml = _overlay_sheet_drawing_text_boxes(xlsx_bytes, xml)
     xml = _overlay_sheet_resolved_comments(xlsx_bytes, xml)
+    xml = _overlay_sheet_comments_from_xlsx(xlsx_bytes, xml)
     xml = overlay_pivot_chart_metadata_to_fods(xlsx_bytes, xml)
     xml = overlay_sheet_chart_metadata_to_fods(xlsx_bytes, xml)
     # Scenarios: overlay vno:scenarios from XLSX worksheet XMLs

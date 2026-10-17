@@ -100,6 +100,8 @@ export function resolveIcon(commandId, iconName) {
   if (idLower.includes("commentresolve")) return ICONS.commentResolve;
   if (idLower.includes("commentprevious") || idLower.includes("commentprev")) return ICONS.commentPrevious;
   if (idLower.includes("commentnext")) return ICONS.commentNext;
+  if (idLower.includes("commenttogglevisible") || idLower.includes("commentvisible")) return ICONS.commentToggleVisible || ICONS.cellComment;
+  if (idLower.includes("commentshowall") || idLower.includes("showallcomments")) return ICONS.commentShowAll || ICONS.cellComment;
   if (idLower.includes("comment")) return ICONS.comment;
   if (idLower.includes("wordcount")) return ICONS.wordCount;
   if (idLower.includes("spellcheck")) return ICONS.sheetSpellCheck || ICONS.aiGrammar;

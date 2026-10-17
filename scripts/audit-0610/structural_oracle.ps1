@@ -62,6 +62,25 @@ try {
         if ($s.visible -eq $false) { Retry { $sh.Visible = 0 } }
       }
     }
+    if ($scenario.comments) {
+      foreach ($c in $scenario.comments) {
+        $cRef = [string]$c.coord
+        $cText = [string]$c.text
+        $cVis = if ($c.visible -ne $null) { [bool]$c.visible } else { $false }
+        $cWidth = if ($c.width -ne $null) { [double]$c.width } else { $null }
+        $cHeight = if ($c.height -ne $null) { [double]$c.height } else { $null }
+        Retry {
+          $cell = $ws.Range($cRef)
+          $cmt = $cell.AddComment($cText)
+          if ($cVis) { $cmt.Visible = $true }
+          if ($cWidth -ne $null) { $cmt.Shape.Width = $cWidth }
+          if ($cHeight -ne $null) { $cmt.Shape.Height = $cHeight }
+        }
+      }
+    }
+    if ($scenario.displayCommentIndicator -ne $null) {
+      Retry { $x.DisplayCommentIndicator = [int]$scenario.displayCommentIndicator }
+    }
     foreach ($prop in $scenario.cells.PSObject.Properties) {
       $valObj = $prop.Value
       if ($valObj -is [System.Management.Automation.PSCustomObject]) {
@@ -155,6 +174,7 @@ try {
             "all" { $paste = -4104 }
             "source" { $paste = -4104 }
             "transpose" { $paste = -4104 }
+            "comments" { $paste = -4144 }
             default { if ($op.paste -is [int]) { $paste = [int]$op.paste } }
           }
           $operation = -4142
@@ -545,6 +565,50 @@ try {
             $colLvl = if ($op.colLevel) { [int]$op.colLevel } else { $missing }
             Retry { [void]$ws.Outline.ShowLevels($rowLvl, $colLvl) }
           }
+          "addComment" {
+            $cRef = [string]$op.coord
+            $cText = [string]$op.text
+            $cVis = if ($op.visible -ne $null) { [bool]$op.visible } else { $false }
+            $cWidth = if ($op.width -ne $null) { [double]$op.width } else { $null }
+            $cHeight = if ($op.height -ne $null) { [double]$op.height } else { $null }
+            Retry {
+              $cell = $ws.Range($cRef)
+              $cmt = $cell.AddComment($cText)
+              if ($cVis) { $cmt.Visible = $true }
+              if ($cWidth -ne $null) { $cmt.Shape.Width = $cWidth }
+              if ($cHeight -ne $null) { $cmt.Shape.Height = $cHeight }
+            }
+          }
+          "toggleCommentVisible" {
+            $cRef = [string]$op.coord
+            Retry {
+              $cmt = $ws.Range($cRef).Comment
+              if ($cmt -ne $null) { $cmt.Visible = -not $cmt.Visible }
+            }
+          }
+          "showAllComments" {
+            $enabled = if ($op.enabled -ne $null) { [bool]$op.enabled } else { $true }
+            $val = if ($enabled) { 1 } else { -1 }
+            Retry { $x.DisplayCommentIndicator = $val }
+          }
+          "setDisplayCommentIndicator" {
+            $val = [int]$op.indicator
+            Retry { $x.DisplayCommentIndicator = $val }
+          }
+          "deleteComment" {
+            $cRef = [string]$op.coord
+            Retry { [void]$ws.Range($cRef).ClearComments() }
+          }
+          "resizeComment" {
+            $cRef = [string]$op.coord
+            Retry {
+              $cmt = $ws.Range($cRef).Comment
+              if ($cmt -ne $null) {
+                if ($op.width -ne $null) { $cmt.Shape.Width = [double]$op.width }
+                if ($op.height -ne $null) { $cmt.Shape.Height = [double]$op.height }
+              }
+            }
+          }
         }
       }
     if (-not $scenario.skipFinalCalculate -and $x.Calculation -ne -4135) {
@@ -626,13 +690,46 @@ try {
       }
     }
     $shouldCompareShapes = ($scenario.shapes -ne $null -or $hasShapeOps)
-    if ($tableData.Count -gt 0 -or $scenario.compareTables -or $hasTableOps -or $shouldCompareShapes) {
+
+    $commentData = @()
+    if ($ws.Comments.Count -gt 0) {
+      foreach ($cmt in $ws.Comments) {
+        $parentAddr = [string]$cmt.Parent.Address($false, $false)
+        $text = [string]$cmt.Text()
+        $visible = [bool]$cmt.Visible
+        $shape = $cmt.Shape
+        $commentData += [ordered]@{
+          coord = $parentAddr
+          text = $text
+          visible = $visible
+          width = [Math]::Round([double]$shape.Width, 2)
+          height = [Math]::Round([double]$shape.Height, 2)
+        }
+      }
+      $commentData = @($commentData | Sort-Object {
+        $m = [regex]::Match($_.coord, "^([A-Z]+)(\d+)$")
+        [int]$m.Groups[2].Value * 1000 + $m.Groups[1].Value.Length * 100 + [int][char]$m.Groups[1].Value[0]
+      })
+    }
+    $hasCommentOps = $false
+    foreach ($op in $scenario.ops) {
+      if ($op.type -in @("addComment", "toggleCommentVisible", "showAllComments", "setDisplayCommentIndicator", "deleteComment", "resizeComment") -or ($op.type -eq "pasteSpecial" -and ($op.mode -eq "comments" -or $op.paste -eq "comments"))) {
+        $hasCommentOps = $true; break
+      }
+    }
+    $shouldCompareComments = ($scenario.comments -ne $null -or $hasCommentOps -or $scenario.compareComments)
+
+    if ($tableData.Count -gt 0 -or $scenario.compareTables -or $hasTableOps -or $shouldCompareShapes -or $shouldCompareComments) {
       $itemRes = [ordered]@{ cells = $out }
       if ($tableData.Count -gt 0 -or $scenario.compareTables -or $hasTableOps) {
         $itemRes["tables"] = $tableData
       }
       if ($shouldCompareShapes) {
         $itemRes["shapes"] = $shapeData
+      }
+      if ($shouldCompareComments) {
+        $itemRes["comments"] = $commentData
+        $itemRes["displayCommentIndicator"] = [int]$x.DisplayCommentIndicator
       }
       $results[$scenario.name] = $itemRes
     } else {
@@ -647,6 +744,7 @@ try {
       $x.ReferenceStyle = 1
       $wb.PrecisionAsDisplayed = $false
       $wb.Date1904 = $false
+      $x.DisplayCommentIndicator = -1
     }
   }
   [System.IO.File]::WriteAllText($OutputJson, ($results | ConvertTo-Json -Depth 6 -Compress), (New-Object System.Text.UTF8Encoding($false)))

@@ -107,6 +107,21 @@ for (const scenario of spec.scenarios) {
     }
     grid._ensureDrawingOrder(grid.activeSheet);
   }
+  if (scenario.comments) {
+    for (const c of scenario.comments) {
+      grid.saveComment({
+        coord: c.coord,
+        text: c.text,
+        author: c.author || "",
+        visible: !!c.visible,
+        width: c.width !== undefined ? (c.width <= 150 ? c.width * 4 / 3 : c.width) : 144,
+        height: c.height !== undefined ? (c.height <= 100 ? c.height * 4 / 3 : c.height) : 79
+      });
+    }
+  }
+  if (scenario.displayCommentIndicator !== undefined) {
+    grid.setDisplayCommentIndicator(scenario.displayCommentIndicator);
+  }
   let opError = "";
   try {
     for (const op of scenario.ops) {
@@ -592,6 +607,44 @@ for (const scenario of spec.scenarios) {
         case "groupCols": grid.groupCols(op.from, op.to); break;
         case "ungroupCols": grid.ungroupCols(op.from, op.to); break;
         case "showOutlineLevels": grid.showOutlineLevels(op.rowLevel, op.colLevel); break;
+        case "addComment": {
+          const widthPx = op.width !== undefined ? (op.width <= 150 ? op.width * 4 / 3 : op.width) : 144;
+          const heightPx = op.height !== undefined ? (op.height <= 100 ? op.height * 4 / 3 : op.height) : 79;
+          grid.saveComment({
+            coord: op.coord,
+            text: op.text,
+            author: op.author || "",
+            visible: !!op.visible,
+            width: widthPx,
+            height: heightPx
+          });
+          break;
+        }
+        case "toggleCommentVisible": {
+          grid.toggleCommentVisible(op.coord);
+          break;
+        }
+        case "showAllComments": {
+          grid.toggleShowAllComments(op.enabled !== undefined ? !!op.enabled : true);
+          break;
+        }
+        case "setDisplayCommentIndicator": {
+          grid.setDisplayCommentIndicator(op.indicator);
+          break;
+        }
+        case "deleteComment": {
+          grid.deleteComment({ coord: op.coord });
+          break;
+        }
+        case "resizeComment": {
+          const coord = op.coord.toUpperCase();
+          const comments = grid.commentsBySheet[grid.activeSheet] || {};
+          if (comments[coord]) {
+            if (op.width !== undefined) comments[coord].width = (op.width <= 150 ? op.width * 4 / 3 : op.width);
+            if (op.height !== undefined) comments[coord].height = (op.height <= 100 ? op.height * 4 / 3 : op.height);
+          }
+          break;
+        }
         default: throw new Error(`op chua ho tro: ${op.type}`);
       }
     }
@@ -841,6 +894,62 @@ for (const scenario of spec.scenarios) {
           bad.push(`Shape ${wS.name} visible: Excel ${wS.visible} | VN ${gS.visible}`);
         }
         if (shapeOk) pass++;
+      }
+    }
+  }
+  const hasCommentOps = scenario.ops?.some(op => ["addComment", "toggleCommentVisible", "showAllComments", "setDisplayCommentIndicator", "deleteComment", "resizeComment"].includes(op.type) || (op.type === "pasteSpecial" && (op.mode === "comments" || op.paste === "comments")));
+  const wantComments = (scenario.comments || hasCommentOps || scenario.compareComments) && wantRaw.comments !== undefined ? wantRaw.comments : null;
+
+  if (wantComments !== null) {
+    const sheetComments = grid.commentsBySheet?.[grid.activeSheet] || {};
+    const indicator = grid.getDisplayCommentIndicator();
+    const gotComments = Object.entries(sheetComments).map(([coord, c]) => ({
+      coord,
+      text: c.text,
+      visible: indicator === 1 ? true : (indicator === 0 ? false : !!c.visible),
+      width: Math.round((c.width ?? 144) * 0.75 * 100) / 100,
+      height: Math.round((c.height ?? 79) * 0.75 * 100) / 100
+    })).sort((a, b) => split(a.coord)[1] - split(b.coord)[1] || colNumber(split(a.coord)[0]) - colNumber(split(b.coord)[0]));
+
+    if (wantComments.length !== gotComments.length) {
+      total++;
+      bad.push(`Comments count: Excel ${wantComments.length} | VN ${gotComments.length}`);
+    } else {
+      for (const wC of wantComments) {
+        total++;
+        const gC = gotComments.find(c => c.coord === wC.coord);
+        if (!gC) {
+          bad.push(`Comment missing at ${wC.coord} in VN`);
+          continue;
+        }
+        let cmtOk = true;
+        if (wC.text !== gC.text) {
+          cmtOk = false;
+          bad.push(`Comment ${wC.coord} text: Excel "${wC.text}" | VN "${gC.text}"`);
+        }
+        if (wC.visible !== gC.visible) {
+          cmtOk = false;
+          bad.push(`Comment ${wC.coord} visible: Excel ${wC.visible} | VN ${gC.visible}`);
+        }
+        if (Math.abs(wC.width - gC.width) > 4) {
+          cmtOk = false;
+          bad.push(`Comment ${wC.coord} width: Excel ${wC.width} pt | VN ${gC.width} pt`);
+        }
+        if (Math.abs(wC.height - gC.height) > 4) {
+          cmtOk = false;
+          bad.push(`Comment ${wC.coord} height: Excel ${wC.height} pt | VN ${gC.height} pt`);
+        }
+        if (cmtOk) pass++;
+      }
+    }
+
+    if (wantRaw.displayCommentIndicator !== undefined) {
+      total++;
+      const gotIndicator = grid.getDisplayCommentIndicator();
+      if (wantRaw.displayCommentIndicator !== gotIndicator) {
+        bad.push(`DisplayCommentIndicator: Excel ${wantRaw.displayCommentIndicator} | VN ${gotIndicator}`);
+      } else {
+        pass++;
       }
     }
   }

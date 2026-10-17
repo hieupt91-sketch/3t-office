@@ -826,6 +826,13 @@ export const SHEET_RIBBON_TABS = [
               { type: "button", commandId: "sheet.review.commentPrevious" },
               { type: "button", commandId: "sheet.review.commentNext" }
             ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.review.commentToggleVisible" },
+              { type: "button", commandId: "sheet.review.commentShowAll" }
+            ]
           }
         ]
       },
