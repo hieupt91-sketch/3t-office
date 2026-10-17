@@ -79,6 +79,26 @@ NEXT ACTION: Review the committed audit/handoff changes, then merge FIX-P1b. P2 
 ---
 
 # Agent Handoff
+TASK: AGY packaged macOS visual QA plus Writer/Sheet/Slides command-surface audit
+AGENT/ROLE: AGY / macOS QA
+BRANCH: codex/agy-packaged-visual-qa
+WORKTREE: /Volumes/Data/Worktrees/agy-packaged-visual-qa
+OBJECTIVE: Exercise the existing offline arm64 artifact through its real native launchers, isolated bootstrap, keyboard/mouse editing, OOXML save/close/reopen, model readback, visual screenshots, ZIP validation, and broad repository command/UI regression coverage.
+FINDINGS: Doc and Slide passed native Vietnamese edit/save/reopen. Sheet failed: intended A1 Vietnamese text + B1 2468 + B2 formula reopened as A1 2468, B1 empty, B2 formula/value 0. The failure reproduced twice with visible-cell filtering. Node suite passed 3167/3168; the remaining test hard-codes `python` at `tests/unit/sheet-import-audit.test.js:118`, so it ignores the packaged Python supplied by `PYTHON`.
+IMPLEMENTATION SUMMARY: Added a reusable packaged-launcher QA harness and committed only test/report/small evidence files. No product source was changed.
+FILES CHANGED: tests/macos/packaged_visual_qa.mjs; docs/macos/AUDIT-AGY-PACKAGED-VISUAL-QA-2026-10-17.md; docs/macos/evidence/agy-packaged-visual-qa/*; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: packaged `validate-offline-pilot.py`; `node --experimental-websocket tests/macos/packaged_visual_qa.mjs <artifact> <isolated-evidence-root>`; `unzip -t` on DOCX/XLSX/PPTX; SHA-256; `node tests/run-tests.js`; same Node suite with `PYTHON=<packaged-python>` and `VNOFFICE_SOFFICE_PATH=<embedded-soffice>`.
+BUILD RESULT: PASS — existing artifact validator passed layout/runtime/imports/arm64. No rebuild was needed or performed.
+TEST RESULTS: PASS — Doc and Slide round-trip, isolated bootstrap, all three ZIP checks, visual rendering for all three apps. FAIL — Sheet mouse/key edit targeting and Node aggregate 3167/3168 due the hard-coded `python` test. NOT RUN — signing, notarization, DMG, Intel and clean-account/machine test.
+KNOWN FAILURES: Sheet packaged Qt path lost A1 Vietnamese input and placed 2468 into A1 instead of B1; B2 consequently calculated 0. `tests/unit/sheet-import-audit.test.js:118` is macOS-environment-dependent.
+RISKS: Artifact is unsigned/unnotarized and arm64-only. Slide screenshot contains a transient opening toast although model/content was already ready. This focused audit does not prove every ribbon button in live desktop UI; unit command/handler coverage passed as part of the 3167 tests.
+DEPENDENCIES/BLOCKERS: Product-owner Sheet task should instrument `apps/sheet/sheet-grid.js:4459-4468` and `:2237-2265`. Test-owner task should make the one Python invocation honor `process.env.PYTHON`.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Reproduce and fix the Sheet packaged mouse-selection/direct-typing failure in a separate owned task, rerun this harness, then repair the portable test launcher and require 3168/3168.
+
+---
+
+# Agent Handoff
 TASK: E0 — Restore VLOOKUP for numeric lookup values and text identifier keys
 AGENT/ROLE: Codex / Sheet Formula Engine
 BRANCH: fix/excel-e0-codex

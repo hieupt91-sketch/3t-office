@@ -1,0 +1,29 @@
+{
+  "writer": {
+    "output": "/tmp/vno-agy-packaged-visual-qa.zaAD2I/agy-writer.docx",
+    "saved": {
+      "status": "ok",
+      "message": "Đã lưu tại /tmp/vno-agy-packaged-visual-qa.zaAD2I/agy-writer.docx",
+      "path": "/tmp/vno-agy-packaged-visual-qa.zaAD2I/agy-writer.docx"
+    },
+    "model": "{\"text\":\"VN Office kiểm thử đóng gói ngoại tuyến.\\n\\nNội dung tiếng Việt được lưu và mở lại thành công.\",\"paragraphs\":2,\"title\":\"agy-writer.docx — Doc\"}"
+  },
+  "sheet": {
+    "output": "/tmp/vno-agy-packaged-visual-qa.zaAD2I/agy-sheet.xlsx",
+    "saved": {
+      "status": "ok",
+      "message": "Đã lưu tại /tmp/vno-agy-packaged-visual-qa.zaAD2I/agy-sheet.xlsx",
+      "path": "/tmp/vno-agy-packaged-visual-qa.zaAD2I/agy-sheet.xlsx"
+    },
+    "model": "{\"sheets\":[\"Sheet1\"],\"active\":\"Sheet1\",\"A1\":{\"val\":2468,\"formula\":\"\",\"style\":{\"numberFormat\":{\"category\":\"number\",\"decimals\":0,\"useThousands\":false,\"odf\":{\"name\":\"N0\",\"xml\":\"<number:number-style style:name=\\\"N0\\\">\\n   <number:number number:min-integer-digits=\\\"1\\\"/>\\n  </number:number-style>\",\"deps\":[]},\"excelCode\":\"0;0;0;@\",\"excelCodeInferred\":true},\"verticalAlign\":\"bottom\",\"fontSize\":\"14.67px\",\"color\":\"#000000\",\"fontFamily\":\"Calibri\",\"whiteSpace\":\"nowrap\",\"origXf\":0,\"styleHashAtImport\":\"{\\\"numberFormat\\\":\\\"0;0;0;@\\\",\\\"fontFamily\\\":\\\"Calibri\\\",\\\"fontSize\\\":\\\"14.67px\\\",\\\"fontWeight\\\":\\\"\\\",\\\"fontStyle\\\":\\\"\\\",\\\"textDecoration\\\":\\\"\\\",\\\"color\\\":\\\"#000000\\\",\\\"backgroundColor\\\":\\\"\\\",\\\"borderLeft\\\":\\\"\\\",\\\"borderRight\\\":\\\"\\\",\\\"borderTop\\\":\\\"\\\",\\\"borderBottom\\\":\\\"\\\",\\\"textAlign\\\":\\\"\\\",\\\"verticalAlign\\\":\\\"bottom\\\",\\\"whiteSpace\\\":\\\"nowrap\\\",\\\"textRotation\\\":\\\"\\\",\\\"indentLevel\\\":0}\"}},\"B1\":{},\"B2\":{\"val\":0,\"formula\":\"=B1*2\",\"style\":{\"numberFormat\":{\"category\":\"number\",\"decimals\":0,\"useThousands\":false,\"odf\":{\"name\":\"N0\",\"xml\":\"<number:number-style style:name=\\\"N0\\\">\\n   <number:number number:min-integer-digits=\\\"1\\\"/>\\n  </number:number-style>\",\"deps\":[]},\"excelCode\":\"0;0;0;@\",\"excelCodeInferred\":true},\"verticalAlign\":\"bottom\",\"fontSize\":\"14.67px\",\"color\":\"#000000\",\"fontFamily\":\"Calibri\",\"whiteSpace\":\"nowrap\",\"origXf\":0,\"styleHashAtImport\":\"{\\\"numberFormat\\\":\\\"0;0;0;@\\\",\\\"fontFamily\\\":\\\"Calibri\\\",\\\"fontSize\\\":\\\"14.67px\\\",\\\"fontWeight\\\":\\\"\\\",\\\"fontStyle\\\":\\\"\\\",\\\"textDecoration\\\":\\\"\\\",\\\"color\\\":\\\"#000000\\\",\\\"backgroundColor\\\":\\\"\\\",\\\"borderLeft\\\":\\\"\\\",\\\"borderRight\\\":\\\"\\\",\\\"borderTop\\\":\\\"\\\",\\\"borderBottom\\\":\\\"\\\",\\\"textAlign\\\":\\\"\\\",\\\"verticalAlign\\\":\\\"bottom\\\",\\\"whiteSpace\\\":\\\"nowrap\\\",\\\"textRotation\\\":\\\"\\\",\\\"indentLevel\\\":0}\"}},\"title\":\"agy-sheet.xlsx — Sheet\"}"
+  },
+  "slides": {
+    "output": "/tmp/vno-agy-packaged-visual-qa.zaAD2I/agy-slides.pptx",
+    "saved": {
+      "status": "ok",
+      "message": "Đã lưu tại /tmp/vno-agy-packaged-visual-qa.zaAD2I/agy-slides.pptx",
+      "path": "/tmp/vno-agy-packaged-visual-qa.zaAD2I/agy-slides.pptx"
+    },
+    "model": "{\"count\":1,\"title\":\"VN Office ngoại tuyến\",\"body\":\"Nội dung tiếng Việt đã được chỉnh sửa và lưu.\",\"shapes\":[\"VN Office ngoại tuyến\",\"Nội dung tiếng Việt đã được chỉnh sửa và lưu.\"],\"documentTitle\":\"agy-slides.pptx — Slide\"}"
+  }
+}
