@@ -464,8 +464,8 @@ export const enStrings = {
   },
   sheetSlicer: { selectTable: "Select a cell in a table before inserting a visual filter.", layer: "Visual filters", aria: "Filter", multi: "Multi-select", clear: "Clear filter", close: "Remove visual filter" },
   slidesRibbon: {
-    tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant", tableLayout: "Table Layout", shapeFormat: "Shape Format" },
-    group: { animPreview: "Preview", animEffects: "Animation", animTiming: "Timing", transitionGallery: "Transition to This Slide", transitionTiming: "Timing", shapeStyles: "Shape Styles", shapeArrange: "Arrange", shapeSize: "Size", tableRowsCols: "Rows & Columns", tableMerge: "Merge", slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
+    tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant", tableLayout: "Table Layout", shapeFormat: "Shape Format", pictureFormat: "Picture Format" },
+    group: { pictureSize: "Size", pictureArrange: "Arrange", designVariants: "Variants", animPreview: "Preview", animEffects: "Animation", animTiming: "Timing", transitionGallery: "Transition to This Slide", transitionTiming: "Timing", shapeStyles: "Shape Styles", shapeArrange: "Arrange", shapeSize: "Size", tableRowsCols: "Rows & Columns", tableMerge: "Merge", slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
     editing: { select: "Select" },
     drawing: { arrange: "Arrange" },
     section: "Section"
@@ -1055,6 +1055,14 @@ export const enStrings = {
   ,"slides.transition.preview": { label: "Preview", tooltip: "Play the current slide's transition" }
   ,"slides.text.changeCase": { label: "Change Case", tooltip: "Change the case of the selected text (Shift+F3 cycles)" }
   ,"slides.text.changeCaseMode": { label: "Case Style", tooltip: "Pick a style: sentence case, lowercase, UPPERCASE, capitalize each initial, or toggle case" }
+  ,"slides.design.themeColors": { label: "Theme Colors", tooltip: "Change the theme color set for the whole deck (title, body, accent, background)" }
+  ,"slides.design.setThemeColors": { label: "Color Set", tooltip: "Apply the chosen color set to the whole deck" }
+  ,"slides.design.themeFonts": { label: "Theme Fonts", tooltip: "Change the theme font for the whole deck" }
+  ,"slides.design.setThemeFonts": { label: "Font Set", tooltip: "Apply the chosen font to the whole deck" }
+  ,"slides.picture.crop": { label: "Crop", tooltip: "Crop the selected picture to an aspect ratio or enter crop amounts per edge" }
+  ,"slides.picture.cropRatio": { label: "Crop to Ratio", tooltip: "Crop the selected picture to the chosen aspect ratio (centered), or reset the crop" }
+  ,"slides.picture.cropDialog": { label: "Crop Amounts…", tooltip: "Enter the crop percentage for the left, right, top and bottom edges" }
+  ,"slides.view.outline": { label: "Outline View", tooltip: "View and edit the titles and text of every slide as an outline" }
   ,"slides.design.hideBackground": { label: "Hide Background Graphics", tooltip: "Hide the master graphics and logo on the current slide (toggle)" }
   ,"slides.edit.selectionPane": { label: "Selection Pane", tooltip: "Open a list of every object on the slide to select it quickly and change layer order (Alt+F10)" }
   ,"slides.transition.apply": { label: "Transitions", tooltip: "Apply a slide transition (Fade, Push, Zoom, Flip)" }

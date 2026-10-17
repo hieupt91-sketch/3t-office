@@ -380,6 +380,44 @@ export const SLIDES_RIBBON_TABS = [
         ]
       },
       {
+        id: "designVariants",
+        label: "Biến thể",
+        labelKey: "slidesRibbon.group.designVariants",
+        items: [
+          {
+            type: "dropdown",
+            id: "slides.design.themeColors",
+            label: "Màu chủ đề",
+            icon: "formatBackground",
+            isLarge: true,
+            items: [
+              { commandId: "slides.design.setThemeColors", args: "blue", label: "Xanh dương" },
+              { commandId: "slides.design.setThemeColors", args: "green", label: "Xanh lá" },
+              { commandId: "slides.design.setThemeColors", args: "orange", label: "Cam" },
+              { commandId: "slides.design.setThemeColors", args: "purple", label: "Tím" },
+              { commandId: "slides.design.setThemeColors", args: "red", label: "Đỏ" },
+              { commandId: "slides.design.setThemeColors", args: "slate", label: "Xám xanh" },
+              { commandId: "slides.design.setThemeColors", args: "dark", label: "Nền tối" }
+            ]
+          },
+          {
+            type: "dropdown",
+            id: "slides.design.themeFonts",
+            label: "Phông chủ đề",
+            icon: "formatBackground",
+            isLarge: true,
+            items: [
+              { commandId: "slides.design.setThemeFonts", args: "segoe", label: "Segoe UI" },
+              { commandId: "slides.design.setThemeFonts", args: "arial", label: "Arial" },
+              { commandId: "slides.design.setThemeFonts", args: "times", label: "Times New Roman" },
+              { commandId: "slides.design.setThemeFonts", args: "georgia", label: "Georgia" },
+              { commandId: "slides.design.setThemeFonts", args: "verdana", label: "Verdana" },
+              { commandId: "slides.design.setThemeFonts", args: "tahoma", label: "Tahoma" }
+            ]
+          }
+        ]
+      },
+      {
         id: "master",
         label: "Mẫu chủ đạo",
         labelKey: "slidesRibbon.group.master",
@@ -643,6 +681,7 @@ export const SLIDES_RIBBON_TABS = [
         labelKey: "slidesRibbon.group.presentationViews",
         items: [
           { type: "button", commandId: "slides.view.normal", isLarge: true },
+          { type: "button", commandId: "slides.view.outline", isLarge: true },
           { type: "button", commandId: "slides.view.slideSorter", isLarge: true },
           { type: "button", commandId: "slides.notes.toggle", isLarge: true },
           { type: "button", commandId: "slides.view.reading", isLarge: true },
@@ -867,6 +906,50 @@ export const SLIDES_RIBBON_TABS = [
         labelKey: "slidesRibbon.group.shapeSize",
         items: [
           { type: "button", commandId: "slides.shape.sizeDialog", isLarge: true }
+        ]
+      }
+    ]
+  },
+  {
+    id: "pictureFormat",
+    label: "Định dạng ảnh",
+    labelKey: "slidesRibbon.tab.pictureFormat",
+    contextual: true,
+    groups: [
+      {
+        id: "pictureSize",
+        label: "Kích thước",
+        labelKey: "slidesRibbon.group.pictureSize",
+        items: [
+          {
+            type: "dropdown",
+            id: "slides.picture.crop",
+            label: "Cắt",
+            icon: "selectObjects",
+            isLarge: true,
+            items: [
+              { commandId: "slides.picture.cropRatio", args: "1:1", label: "Vuông 1:1" },
+              { commandId: "slides.picture.cropRatio", args: "4:3", label: "Ngang 4:3" },
+              { commandId: "slides.picture.cropRatio", args: "16:9", label: "Ngang 16:9" },
+              { commandId: "slides.picture.cropRatio", args: "3:2", label: "Ngang 3:2" },
+              { commandId: "slides.picture.cropRatio", args: "3:4", label: "Dọc 3:4" },
+              { commandId: "slides.picture.cropRatio", args: "9:16", label: "Dọc 9:16" },
+              { commandId: "slides.picture.cropRatio", args: "reset", label: "Đặt lại cắt xén" },
+              { commandId: "slides.picture.cropDialog" }
+            ]
+          }
+        ]
+      },
+      {
+        id: "pictureArrange",
+        label: "Sắp xếp",
+        labelKey: "slidesRibbon.group.pictureArrange",
+        items: [
+          { type: "button", commandId: "slides.arrange.rotateRight90" },
+          { type: "button", commandId: "slides.arrange.rotateLeft90" },
+          { type: "button", commandId: "slides.arrange.flipHorizontal" },
+          { type: "button", commandId: "slides.arrange.bringForward" },
+          { type: "button", commandId: "slides.arrange.sendBackward" }
         ]
       }
     ]

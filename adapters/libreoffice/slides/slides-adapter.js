@@ -220,6 +220,15 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.animation.setDuration", (arg) => this._hintIfFalse(() => this.canvas.updateSelectedAnimation({ duration: parseInt(arg, 10) || 500 }), "Hãy chọn một đối tượng (hình, ảnh, khung chữ) trước, rồi đặt hiệu ứng hoặc thời gian cho nó. Thời gian chỉ đặt được khi đối tượng đã có hiệu ứng."));
     globalCommandBus.bindHandler("slides.animation.setDelay", (arg) => this._hintIfFalse(() => this.canvas.updateSelectedAnimation({ delay: parseInt(arg, 10) || 0 }), "Hãy chọn một đối tượng (hình, ảnh, khung chữ) trước, rồi đặt hiệu ứng hoặc thời gian cho nó. Thời gian chỉ đặt được khi đối tượng đã có hiệu ứng."));
     globalCommandBus.bindHandler("slides.animation.preview", () => this._hintIfFalse(() => this.canvas.previewSlideAnimations(), "Trang này chưa có hiệu ứng nào để xem trước. Chọn một đối tượng rồi gán hiệu ứng ở tab Hoạt hình."));
+    globalCommandBus.bindHandler("slides.design.themeColors", () => this.canvas.showSlideMasterDialog ? this.canvas.showSlideMasterDialog() : false);
+    globalCommandBus.bindHandler("slides.design.themeFonts", () => this.canvas.showSlideMasterDialog ? this.canvas.showSlideMasterDialog() : false);
+    globalCommandBus.bindHandler("slides.design.setThemeColors", (arg) => this._hintIfFalse(() => this.canvas.applyThemeVariant("colors", String(arg || "")), "Không áp dụng được bảng màu này."));
+    globalCommandBus.bindHandler("slides.design.setThemeFonts", (arg) => this._hintIfFalse(() => this.canvas.applyThemeVariant("fonts", String(arg || "")), "Không áp dụng được bộ phông này."));
+    globalCommandBus.bindHandler("slides.view.outline", () => (this.canvas.outlineOverlay ? this.canvas.closeOutlineView() : this.canvas.openOutlineView()));
+    // Tab Định dạng ảnh: cắt ảnh theo tỉ lệ / theo số đo từng cạnh.
+    globalCommandBus.bindHandler("slides.picture.crop", () => this._hintIfFalse(() => this.canvas.openCropDialog(), "Hãy chọn một ảnh trước khi cắt."));
+    globalCommandBus.bindHandler("slides.picture.cropDialog", () => this._hintIfFalse(() => this.canvas.openCropDialog(), "Hãy chọn một ảnh trước khi cắt."));
+    globalCommandBus.bindHandler("slides.picture.cropRatio", (arg) => this._hintIfFalse(() => this.canvas.cropImageToRatio(String(arg || "")), "Hãy chọn một ảnh trước khi cắt."));
     globalCommandBus.bindHandler("slides.transition.apply", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
     // Tab Chuyển tiếp: thư viện hiệu ứng, thời gian, áp dụng tất cả, xem trước (cùng mô hình dữ liệu với hộp thoại).
     globalCommandBus.bindHandler("slides.transition.gallery", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);

@@ -3023,12 +3023,136 @@ export class SlidesCanvasController {
     return (slide.shapes || []).filter(shape => ids.has(String(shape.id)) && !["table", "chart"].includes(shape.type));
   }
 
-  /** Hiện tab ngữ cảnh "Định dạng hình" khi có hình được chọn. */
+  /** Hiện tab ngữ cảnh "Định dạng hình" (hình khối) và "Định dạng ảnh" (ảnh) theo đối tượng đang chọn. */
   _syncShapeFormatContext() {
     if (typeof document === "undefined" || typeof document.querySelector !== "function") return;
-    const has = this._selectedFormattableShapes().length > 0;
-    const tab = document.querySelector("#vno-ribbon-tab-shapeFormat");
-    if (tab) { tab.hidden = !has; tab.setAttribute("aria-hidden", has ? "false" : "true"); }
+    const selected = this._selectedFormattableShapes();
+    const show = (id, has) => {
+      const tab = document.querySelector(`#vno-ribbon-tab-${id}`);
+      if (tab) { tab.hidden = !has; tab.setAttribute("aria-hidden", has ? "false" : "true"); }
+    };
+    show("shapeFormat", selected.some((shape) => shape.type !== "image"));
+    show("pictureFormat", selected.some((shape) => shape.type === "image"));
+  }
+
+  _selectedImage() {
+    const selected = this._selectedFormattableShapes();
+    return selected.length === 1 && selected[0].type === "image" ? selected[0] : null;
+  }
+
+  /** Cắt xén hiện tại của ảnh, theo phần trăm ảnh gốc: { l, t, r, b }. */
+  _normalizedCropPct(shape) {
+    let raw = shape.cropPct;
+    if (typeof raw === "string") {
+      try { raw = JSON.parse(raw); } catch (_) {
+        const parts = raw.split(",").map((s) => parseFloat(s.trim()));
+        raw = parts.length === 4 && parts.every((n) => !isNaN(n)) ? { l: parts[0], t: parts[1], r: parts[2], b: parts[3] } : null;
+      }
+    }
+    if (raw && typeof raw === "object") {
+      return { l: Number(raw.l ?? raw.left) || 0, t: Number(raw.t ?? raw.top) || 0, r: Number(raw.r ?? raw.right) || 0, b: Number(raw.b ?? raw.bottom) || 0 };
+    }
+    return { l: 0, t: 0, r: 0, b: 0 };
+  }
+
+  /**
+   * Đặt cắt xén ảnh đang chọn (phần trăm ảnh gốc). Giữ nguyên tỉ lệ phóng của ảnh: khung co lại đúng phần bị cắt,
+   * tâm khung đứng yên. Ghi cả cropPct (hiển thị) lẫn crop theo cm (lưu PPTX qua LibreOffice).
+   */
+  setImageCrop(pct) {
+    const shape = this._selectedImage();
+    if (!shape) return false;
+    const clamp = (v) => Math.max(0, Math.min(95, Number(v) || 0));
+    let next = { l: clamp(pct.l), t: clamp(pct.t), r: clamp(pct.r), b: clamp(pct.b) };
+    if (next.l + next.r > 95) { next.r = Math.max(0, 95 - next.l); }
+    if (next.t + next.b > 95) { next.b = Math.max(0, 95 - next.t); }
+    const old = this._normalizedCropPct(shape);
+    const oldVisW = 100 - old.l - old.r;
+    const oldVisH = 100 - old.t - old.b;
+    const newVisW = 100 - next.l - next.r;
+    const newVisH = 100 - next.t - next.b;
+    const w = Number(shape.w) * newVisW / oldVisW;
+    const h = Number(shape.h) * newVisH / oldVisH;
+    const x = Number(shape.x) + (Number(shape.w) - w) / 2;
+    const y = Number(shape.y) + (Number(shape.h) - h) / 2;
+    const probed = this._probeImageDimensionsAndDpi(shape.src);
+    const origWCm = probed && probed.width > 0 ? (probed.width / (probed.dpiX || 96)) * 2.54 : (Number(shape.w) * 2.54 / 96) / (oldVisW / 100);
+    const origHCm = probed && probed.height > 0 ? (probed.height / (probed.dpiY || 96)) * 2.54 : (Number(shape.h) * 2.54 / 96) / (oldVisH / 100);
+    const isNone = next.l + next.r + next.t + next.b === 0;
+    const cm = (value, total) => `${((value / 100) * total).toFixed(3)}cm`;
+    return this.applyShapeStyle(() => ({
+      cropPct: isNone ? undefined : next,
+      crop: isNone ? undefined : { left: cm(next.l, origWCm), right: cm(next.r, origWCm), top: cm(next.t, origHCm), bottom: cm(next.b, origHCm) },
+      x, y, w, h
+    })) !== false;
+  }
+
+  /** Cắt ảnh về tỉ lệ khung "a:b" (giữa ảnh) hoặc "reset" để bỏ cắt xén. */
+  cropImageToRatio(ratio) {
+    const shape = this._selectedImage();
+    if (!shape) return false;
+    if (ratio === "reset") return this.setImageCrop({ l: 0, t: 0, r: 0, b: 0 });
+    const match = /^(\d+):(\d+)$/.exec(String(ratio));
+    if (!match) return false;
+    const target = Number(match[1]) / Number(match[2]);
+    const old = this._normalizedCropPct(shape);
+    const w = Number(shape.w);
+    const h = Number(shape.h);
+    const next = { ...old };
+    if (w / h > target) {
+      // Ảnh rộng hơn tỉ lệ đích: cắt hai bên trái/phải cho đủ hẹp.
+      const removed = (w - h * target) / w;
+      const share = (removed / 2) * (100 - old.l - old.r);
+      next.l = old.l + share;
+      next.r = old.r + share;
+    } else {
+      // Ảnh cao hơn tỉ lệ đích: cắt trên/dưới.
+      const removed = (h - w / target) / h;
+      const share = (removed / 2) * (100 - old.t - old.b);
+      next.t = old.t + share;
+      next.b = old.b + share;
+    }
+    return this.setImageCrop(next);
+  }
+
+  openCropDialog() {
+    const shape = this._selectedImage();
+    if (!shape || typeof document === "undefined") return false;
+    const crop = this._normalizedCropPct(shape);
+    const previousFocused = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay";
+    const field = (id, label, value) => `<label style="display:grid;gap:4px;font-weight:600;">${label}<input class="vno-input" type="number" min="0" max="95" step="0.5" id="vno-crop-${id}" value="${Math.round(value * 10) / 10}"></label>`;
+    overlay.innerHTML = `
+      <div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="vno-crop-title" style="width:min(460px,calc(100vw - 32px));">
+        <div class="vno-dialog-header"><span id="vno-crop-title">${t("slidesDialogs.cropTitle", "Cắt xén ảnh")}</span><button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close", "Đóng")}">&times;</button></div>
+        <div class="vno-dialog-body" style="display:grid;gap:12px;">
+          <p style="margin:0;font-size:12px;color:var(--vno-text-secondary,#475569);">${t("slidesDialogs.cropHint", "Nhập phần trăm cần cắt bỏ ở mỗi cạnh (0–95). Phần còn lại giữ nguyên tỉ lệ phóng của ảnh.")}</p>
+          <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;">
+            ${field("left", t("slidesDialogs.cropLeft", "Trái (%)"), crop.l)}${field("right", t("slidesDialogs.cropRight", "Phải (%)"), crop.r)}
+            ${field("top", t("slidesDialogs.cropTop", "Trên (%)"), crop.t)}${field("bottom", t("slidesDialogs.cropBottom", "Dưới (%)"), crop.b)}
+          </div>
+        </div>
+        <div class="vno-dialog-footer"><button type="button" class="vno-btn" id="vno-crop-cancel">${t("slidesDialogs.cancel", "Hủy")}</button><button type="button" class="vno-btn vno-btn-primary" id="vno-crop-apply">${t("slidesDialogs.cropApply", "Áp dụng")}</button></div>
+      </div>`;
+    const close = () => { overlay.remove(); document.removeEventListener("keydown", onKey); previousFocused?.focus?.(); };
+    const onKey = (event) => {
+      if (event.key === "Escape") { event.preventDefault(); close(); }
+      else if (event.key === "Enter" && event.target?.tagName === "INPUT") { event.preventDefault(); apply(); }
+    };
+    const apply = () => {
+      const read = (id) => Number(overlay.querySelector(`#vno-crop-${id}`)?.value);
+      this.setImageCrop({ l: read("left"), r: read("right"), t: read("top"), b: read("bottom") });
+      close();
+    };
+    document.addEventListener("keydown", onKey);
+    overlay.addEventListener("click", (event) => { if (event.target === overlay) close(); });
+    overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", close);
+    overlay.querySelector("#vno-crop-cancel")?.addEventListener("click", close);
+    overlay.querySelector("#vno-crop-apply")?.addEventListener("click", apply);
+    document.body.appendChild(overlay);
+    overlay.querySelector("#vno-crop-left")?.focus();
+    return true;
   }
 
   /**
@@ -7765,6 +7889,123 @@ const startEditing = (initialText) => {
     return true;
   }
 
+  /** Dạng dàn bài: danh sách mọi trang với tiêu đề và nội dung sửa trực tiếp (PowerPoint: Chế độ xem > Dạng dàn bài). */
+  openOutlineView() {
+    if (this.outlineOverlay || typeof document === "undefined") return false;
+    this._outlinePreviousFocused = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-outline-overlay";
+    overlay.style.zIndex = "900";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", t("slidesDialogs.outlineTitle", "Dạng dàn bài"));
+    overlay.innerHTML = `
+      <header class="vno-outline-header">
+        <div><strong>${t("slidesDialogs.outlineTitle", "Dạng dàn bài")}</strong><span>${t("slidesDialogs.outlineHint", "Sửa tiêu đề và nội dung từng trang; Enter ở tiêu đề chuyển xuống nội dung, Ctrl+Enter thêm trang mới.")}</span></div>
+        <button type="button" class="vno-outline-close" aria-label="${t("slidesDialogs.close", "Đóng")}" title="${t("slidesDialogs.close", "Đóng")} (Esc)">×</button>
+      </header>
+      <main class="vno-outline-list" aria-live="polite"></main>`;
+    overlay.querySelector(".vno-outline-close").addEventListener("click", () => this.closeOutlineView());
+    this._outlineKeyHandler = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        this.closeOutlineView();
+      } else if (event.key === "Tab") {
+        trapFocus(overlay, event);
+      }
+    };
+    document.addEventListener("keydown", this._outlineKeyHandler);
+    document.body.appendChild(overlay);
+    this.outlineOverlay = overlay;
+    this.presentationView = "outline";
+    this._renderOutlineList();
+    try { globalCommandBus.updateState("slides.view.outline", { checked: true }); } catch (_) { /* chưa có bus */ }
+    overlay.querySelector(`[data-outline-field="title"][data-slide-index="${this.currentSlideIndex}"]`)?.focus?.();
+    return true;
+  }
+
+  closeOutlineView() {
+    if (!this.outlineOverlay) return false;
+    document.removeEventListener("keydown", this._outlineKeyHandler);
+    this.outlineOverlay.remove();
+    this.outlineOverlay = null;
+    this._outlineKeyHandler = null;
+    this.presentationView = "normal";
+    try { globalCommandBus.updateState("slides.view.outline", { checked: false }); } catch (_) { /* chưa có bus */ }
+    this.selectSlide(this.currentSlideIndex);
+    this._renderThumbnails();
+    const previous = this._outlinePreviousFocused;
+    this._outlinePreviousFocused = null;
+    if (previous && typeof previous.focus === "function" && previous.isConnected) { try { previous.focus(); } catch (_) { /* bỏ qua */ } }
+    return true;
+  }
+
+  _renderOutlineList() {
+    const list = this.outlineOverlay?.querySelector(".vno-outline-list");
+    if (!list) return;
+    list.innerHTML = "";
+    this.slides.forEach((slide, index) => {
+      const hasBody = (slide.layoutType || "title-content") !== "blank" && slide.layoutType !== "title-only";
+      const row = document.createElement("section");
+      row.className = `vno-outline-row${index === this.currentSlideIndex ? " is-current" : ""}`;
+      row.innerHTML = `
+        <button type="button" class="vno-outline-number" data-slide-index="${index}" aria-label="Trang chiếu ${index + 1}">${index + 1}</button>
+        <div class="vno-outline-fields">
+          <input type="text" class="vno-outline-title" data-outline-field="title" data-slide-index="${index}" aria-label="Tiêu đề trang chiếu ${index + 1}">
+          ${hasBody ? `<textarea class="vno-outline-body" rows="3" data-outline-field="body" data-slide-index="${index}" aria-label="Nội dung trang chiếu ${index + 1}"></textarea>` : ""}
+        </div>`;
+      // Gán bằng thuộc tính value để chữ của người dùng không bao giờ bị hiểu là HTML.
+      row.querySelector('[data-outline-field="title"]').value = slide.title || "";
+      const bodyEl = row.querySelector('[data-outline-field="body"]');
+      if (bodyEl) bodyEl.value = slide.body || "";
+      list.appendChild(row);
+    });
+    list.onclick = (event) => {
+      const number = event.target.closest?.(".vno-outline-number");
+      if (!number) return;
+      this.currentSlideIndex = Number(number.dataset.slideIndex);
+      this._renderOutlineList();
+      list.querySelector(`[data-outline-field="title"][data-slide-index="${this.currentSlideIndex}"]`)?.focus?.();
+    };
+    list.onchange = (event) => {
+      const field = event.target.closest?.("[data-outline-field]");
+      if (field) this._commitOutlineField(Number(field.dataset.slideIndex), field.dataset.outlineField, field.value);
+    };
+    list.onkeydown = (event) => {
+      const field = event.target.closest?.("[data-outline-field]");
+      if (!field) return;
+      const index = Number(field.dataset.slideIndex);
+      if (event.key === "Enter" && event.ctrlKey) {
+        event.preventDefault();
+        this._commitOutlineField(index, field.dataset.outlineField, field.value);
+        this.addNewSlide();
+        this._renderOutlineList();
+        list.querySelector(`[data-outline-field="title"][data-slide-index="${index + 1}"]`)?.focus?.();
+      } else if (event.key === "Enter" && field.dataset.outlineField === "title") {
+        const body = list.querySelector(`[data-outline-field="body"][data-slide-index="${index}"]`);
+        if (body) { event.preventDefault(); body.focus(); }
+      }
+    };
+  }
+
+  _commitOutlineField(index, key, value) {
+    const slide = this.slides[index];
+    if (!slide) return false;
+    const next = String(value ?? "").normalize("NFC");
+    if ((slide[key] || "") === next) return false;
+    const htmlKey = key === "title" ? "titleHtml" : "bodyHtml";
+    const before = { [key]: slide[key], [htmlKey]: slide[htmlKey] };
+    slide[key] = next;
+    delete slide[htmlKey]; // chữ đã đổi: bỏ bản HTML cũ để không hiện lại nội dung cũ
+    const after = { [key]: slide[key], [htmlKey]: undefined };
+    this.undoStack.push({ type: "slide-props", slideIndex: index, before, after });
+    this.redoStack = [];
+    this._syncUndoRedoState?.();
+    this._renderThumbnails?.();
+    this.options.onDocumentChange?.();
+    return true;
+  }
+
   openSlideSorter() {
     if (this.slideSorterOverlay || typeof document === "undefined") return false;
     this._slideSorterPreviousFocused = document.activeElement;
@@ -8328,6 +8569,13 @@ const startEditing = (initialText) => {
       this._restoreSlideTransitions(action.before);
       this.redoStack.push(action);
       return true;
+    } else if (action.type === "slide-props") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      for (const [key, value] of Object.entries(action.before)) { if (value === undefined) delete slide[key]; else slide[key] = value; }
+      this.redoStack.push(action);
+      if (this.outlineOverlay) { this._renderOutlineList(); this._renderThumbnails?.(); } else this._selectSlideKeepingSelection(action.slideIndex);
+      return true;
     } else if (action.type === "slide-prop") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
@@ -8707,6 +8955,13 @@ const startEditing = (initialText) => {
       this._restoreSlideTransitions(action.after);
       this.undoStack.push(action);
       return true;
+    } else if (action.type === "slide-props") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      for (const [key, value] of Object.entries(action.after)) { if (value === undefined) delete slide[key]; else slide[key] = value; }
+      this.undoStack.push(action);
+      if (this.outlineOverlay) { this._renderOutlineList(); this._renderThumbnails?.(); } else this._selectSlideKeepingSelection(action.slideIndex);
+      return true;
     } else if (action.type === "slide-prop") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
@@ -8927,6 +9182,26 @@ const startEditing = (initialText) => {
     this._renderThumbnails();
     this._renderSlideSorterGrid();
     this._syncCommandStates();
+  }
+
+  /** Biến thể chủ đề (Thiết kế > Biến thể): đổi riêng bảng màu hoặc phông của chủ đề hiện tại, hoàn tác được. */
+  applyThemeVariant(kind, id) {
+    const colors = {
+      blue: { titleColor: "#1e3a8a", bodyColor: "#334155", accentColor: "#2563eb", bgColor: "#f8fafc" },
+      green: { titleColor: "#14532d", bodyColor: "#1f2937", accentColor: "#16a34a", bgColor: "#f0fdf4" },
+      orange: { titleColor: "#9a3412", bodyColor: "#431407", accentColor: "#f97316", bgColor: "#fff7ed" },
+      purple: { titleColor: "#581c87", bodyColor: "#3b0764", accentColor: "#9333ea", bgColor: "#faf5ff" },
+      red: { titleColor: "#7f1d1d", bodyColor: "#450a0a", accentColor: "#dc2626", bgColor: "#fef2f2" },
+      slate: { titleColor: "#0f172a", bodyColor: "#334155", accentColor: "#64748b", bgColor: "#f1f5f9" },
+      dark: { titleColor: "#f8fafc", bodyColor: "#e2e8f0", accentColor: "#38bdf8", bgColor: "#0f172a" }
+    };
+    const fonts = {
+      segoe: "'Segoe UI', sans-serif", arial: "Arial, sans-serif", times: "'Times New Roman', serif",
+      georgia: "Georgia, serif", verdana: "Verdana, sans-serif", tahoma: "Tahoma, sans-serif"
+    };
+    const patch = kind === "colors" ? colors[id] : (kind === "fonts" && fonts[id] ? { fontFamily: fonts[id] } : null);
+    if (!patch) return false;
+    return this.applySlideMaster(patch, true);
   }
 
   applySlideMaster(themeConfig, recordHistory = false) {

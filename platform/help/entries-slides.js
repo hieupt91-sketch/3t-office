@@ -265,6 +265,48 @@ export const SLIDES_HELP_ENTRIES = [
       "Nhấn Esc hoặc dấu × để đóng ngăn. Mở ngăn hoạt hình sẽ tự đóng ngăn chọn và ngược lại."
     ]
   },  {
+    id: "slides.picture.crop",
+    app: "slides",
+    commandIds: ["slides.picture.crop", "slides.picture.cropRatio", "slides.picture.cropDialog"],
+    title: "Tab Định dạng ảnh: cắt ảnh theo tỉ lệ hoặc theo số đo",
+    summary: "Chọn một ảnh để hiện tab Định dạng ảnh, rồi cắt ảnh về tỉ lệ khung (vuông, 4:3, 16:9...) hoặc nhập phần trăm cắt ở từng cạnh. Phần cắt được lưu trong tệp và có thể đặt lại.",
+    ribbon: { tab: "Định dạng ảnh", tabId: "pictureFormat", group: "Kích thước" },
+    keywords: ["cắt ảnh", "crop", "cắt xén", "tỉ lệ ảnh", "16:9", "ảnh vuông", "định dạng ảnh", "picture format"],
+    steps: [
+      "Nhấp vào một ảnh trên trang chiếu. Tab Định dạng ảnh xuất hiện bên phải ribbon.",
+      "Nhóm Kích thước > Cắt: chọn Vuông 1:1, Ngang 4:3, 16:9, 3:2, Dọc 3:4 hoặc 9:16 để cắt cân đối hai bên (hoặc trên/dưới) về đúng tỉ lệ; khung ảnh co lại theo phần bị cắt, tâm ảnh giữ nguyên.",
+      "Cắt xén… mở hộp thoại nhập phần trăm cắt bỏ ở cạnh trái, phải, trên, dưới (0–95). Nhấn Enter hoặc Áp dụng.",
+      "Đặt lại cắt xén trả ảnh về nguyên vẹn. Ctrl+Z hoàn tác một bước. Nhóm Sắp xếp có xoay, lật và đưa lên/xuống lớp cho ảnh."
+    ]
+  },  {
+    id: "slides.view.outline",
+    app: "slides",
+    commandIds: ["slides.view.outline"],
+    title: "Dạng dàn bài: xem và sửa chữ của mọi trang chiếu",
+    summary: "Hiện tiêu đề và nội dung của tất cả trang chiếu thành một danh sách để đọc lướt và sửa nhanh, không phải mở từng trang.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dạng xem bản trình chiếu" },
+    keywords: ["dàn bài", "outline", "xem dàn bài", "sửa tiêu đề", "danh sách trang"],
+    steps: [
+      "Tab Chế độ xem > nhóm Dạng xem bản trình chiếu > Dàn bài. Toàn bộ trang hiện thành danh sách, mỗi trang có số thứ tự, ô tiêu đề và ô nội dung.",
+      "Nhấp vào ô để sửa chữ. Nhấn Enter ở ô tiêu đề để xuống ô nội dung; nhấn Ctrl+Enter để thêm một trang mới ngay sau trang đang sửa. Nhấp số thứ tự để chọn trang đó.",
+      "Chỉ chữ được sửa ở đây; trang có định dạng riêng (đậm, màu, danh sách) sẽ mất định dạng của đoạn bạn vừa sửa chữ. Ctrl+Z hoàn tác từng lần sửa.",
+      "Nhấn Esc hoặc dấu × để quay lại dạng xem thường; các thay đổi đã áp dụng cho trang."
+    ]
+  },  {
+    id: "slides.design.variants",
+    app: "slides",
+    commandIds: ["slides.design.themeColors", "slides.design.setThemeColors", "slides.design.themeFonts", "slides.design.setThemeFonts"],
+    title: "Biến thể chủ đề: đổi bảng màu và phông chữ cho cả bài",
+    summary: "Giữ nguyên bố cục của chủ đề nhưng đổi nhanh bảng màu (tiêu đề, nội dung, màu nhấn, nền) hoặc phông chữ cho toàn bộ bài trình chiếu.",
+    ribbon: { tab: "Thiết kế", tabId: "design", group: "Biến thể" },
+    keywords: ["màu chủ đề", "phông chủ đề", "theme colors", "theme fonts", "biến thể", "bảng màu", "nền tối", "đổi phông"],
+    steps: [
+      "Vào tab Thiết kế > nhóm Biến thể. Không cần chọn trang; thay đổi áp dụng cho cả bài.",
+      "Màu chủ đề: chọn Xanh dương, Xanh lá, Cam, Tím, Đỏ, Xám xanh hoặc Nền tối. Màu của tiêu đề, nội dung, màu nhấn và nền đổi theo; màu bạn đã tô riêng cho từng chữ hay hình được giữ nguyên.",
+      "Phông chủ đề: chọn Segoe UI, Arial, Times New Roman, Georgia, Verdana hoặc Tahoma cho phần chữ lấy theo chủ đề.",
+      "Ctrl+Z hoàn tác một bước. Lựa chọn được lưu cùng tệp PPTX."
+    ]
+  },  {
     id: "slides.design.hideBackground",
     app: "slides",
     commandIds: ["slides.design.hideBackground"],
