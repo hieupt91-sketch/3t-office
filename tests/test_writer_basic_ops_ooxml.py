@@ -78,8 +78,8 @@ class WriterBasicOpsOoxmlTests(unittest.TestCase):
         updated_doc, updated_nums = _writer_clone_lower_alpha_suffix(document, numbering, source)
         self.assertEqual(updated_doc.count('<w:numId w:val="2"/>'), 3)
         self.assertIn('<w:numFmt w:val="decimal"/><w:lvlText w:val="%1."/>', updated_nums)
-        self.assertIn('<w:numFmt w:val="lowerLetter"/><w:lvlText w:val="%2."/>', updated_nums)
-        self.assertIn('<w:numFmt w:val="lowerRoman"/><w:lvlText w:val="%3."/>', updated_nums)
+        self.assertIn('<w:numFmt w:val="lowerLetter"/><w:suff w:val="tab"/><w:lvlText w:val="%2."/>', updated_nums)
+        self.assertIn('<w:numFmt w:val="lowerRoman"/><w:suff w:val="tab"/><w:lvlText w:val="%3."/>', updated_nums)
 
     def test_heading_styles_are_word_builtin_and_toc_fallback_becomes_live_field(self):
         source = (
