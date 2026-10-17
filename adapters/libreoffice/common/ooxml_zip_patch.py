@@ -26661,6 +26661,11 @@ def _run_fx_para_tokens(para_xml: str) -> list[str]:
     ppr = re.search(r"<w:pPr>([\s\S]*?)</w:pPr>", para_xml)
     inner = ppr.group(1) if ppr else ""
     tokens: list[str] = []
+    # Kiểu đoạn: soffice (cầu HTML) gán «Body Text» cho đoạn đã sửa; ghi lại kiểu gốc để lưu trả đúng (đoạn không có
+    # pStyle = «Normal», ký hiệu "-"). Đoạn có danh sách đã có token "ps" riêng.
+    if not re.search(r"<w:numPr\b", inner):
+        source_style = re.search(r'<w:pStyle\b[^>]*\bw:val="([^"]+)"', inner)
+        tokens.append(f"pst={source_style.group(1) if source_style else '-'}")
     spacing = re.search(r'<w:spacing\b(?=[^>]*\bw:lineRule="exact")(?=[^>]*\bw:line="(\d+)")[^>]*>', inner)
     if spacing:
         tokens += ["lr=exact", f"ln={spacing.group(1)}"]
@@ -26688,8 +26693,12 @@ def _run_fx_para_tokens(para_xml: str) -> list[str]:
     return tokens
 
 
-def _run_fx_apply_para(para_xml: str, tokens: dict[str, str], current_lh: str | None) -> str:
-    """Ghi lại giãn dòng Exactly, cấp đề cương và danh sách vào <w:pPr> của đoạn."""
+_RUN_FX_LO_DEFAULT_STYLES = {"bodytext", "textbody"}
+
+
+def _run_fx_apply_para(para_xml: str, tokens: dict[str, str], current_lh: str | None,
+                       known_styles: set[str] | None = None) -> str:
+    """Ghi lại giãn dòng Exactly, cấp đề cương, danh sách và kiểu đoạn gốc vào <w:pPr> của đoạn."""
     if not tokens:
         return para_xml
     ppr = re.search(r"<w:pPr>([\s\S]*?)</w:pPr>", para_xml)
@@ -26701,6 +26710,16 @@ def _run_fx_apply_para(para_xml: str, tokens: dict[str, str], current_lh: str | 
         ppr = re.search(r"<w:pPr>([\s\S]*?)</w:pPr>", para_xml)
     inner = ppr.group(1)
     new_inner = inner
+    source_style = tokens.get("pst")
+    if source_style:
+        current_style = re.search(r'<w:pStyle\b[^>]*\bw:val="([^"]+)"', new_inner)
+        # Chỉ thay khi soffice tự gán «Body Text» (người dùng chọn kiểu khác thì để nguyên).
+        if current_style and current_style.group(1).replace(" ", "").lower() in _RUN_FX_LO_DEFAULT_STYLES:
+            style_tag = r'<w:pStyle\b[^>]*/>|<w:pStyle\b[^>]*>[\s\S]*?</w:pStyle>'
+            if source_style == "-":
+                new_inner = re.sub(style_tag, "", new_inner, count=1, flags=re.IGNORECASE)
+            elif known_styles is None or source_style in known_styles:
+                new_inner = re.sub(style_tag, f'<w:pStyle w:val="{source_style}"/>', new_inner, count=1, flags=re.IGNORECASE)
     # Chỉ khôi phục «Exactly» nếu người dùng chưa đổi giãn dòng (chiều cao dòng trong HTML vẫn như lúc mở).
     if tokens.get("lr") == "exact" and tokens.get("lh") and current_lh and current_lh.strip() == tokens["lh"].strip():
         def fix_spacing(match: re.Match[str]) -> str:
@@ -26828,7 +26847,7 @@ def inject_docx_run_effects(docx_bytes: bytes, html_text: str) -> str:
         document_xml = (read_zip_entry(docx_bytes, "word/document.xml") or b"").decode("utf-8", errors="replace")
     except Exception:
         return html_text
-    if not document_xml or not _RUN_FX_DETECT_RE.search(document_xml):
+    if not document_xml:
         return html_text
 
     queues: dict[str, list[tuple[list[tuple[int, int, str]], list[str]]]] = {}
@@ -26991,6 +27010,8 @@ def postprocess_writer_run_effects(docx_bytes: bytes, *, source_html: str | None
     if not document_bytes:
         return docx_bytes
     document_xml = document_bytes.decode("utf-8", errors="replace")
+    styles_bytes = read_zip_entry(docx_bytes, "word/styles.xml") or b""
+    known_styles = set(re.findall(r'<w:style\b[^>]*\bw:styleId="([^"]+)"', styles_bytes.decode("utf-8", errors="replace")))
 
     queues: dict[str, list[tuple[list[tuple[int, int, str]], dict[str, str], str | None]]] = {}
     for _o, _x, _tag, attrs, _s, _e, inner in _run_fx_html_paragraphs_with_tag(source_html):
@@ -27016,7 +27037,7 @@ def postprocess_writer_run_effects(docx_bytes: bytes, *, source_html: str | None
             continue
         ranges, ptokens, current_lh = queue.pop(0)
         if ptokens:
-            patched_para = _run_fx_apply_para(para_xml, ptokens, current_lh)
+            patched_para = _run_fx_apply_para(para_xml, ptokens, current_lh, known_styles)
             if patched_para != para_xml:
                 para_xml = patched_para
                 runs = list(_RUN_FX_RUN_RE.finditer(para_xml))
