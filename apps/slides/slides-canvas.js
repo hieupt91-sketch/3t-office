@@ -3725,7 +3725,9 @@ export class SlidesCanvasController {
     const textAlign = shape.textAlign ? `text-align:${shape.textAlign};` : "";
     const textStyle = [textWeight, textSize, textColor, textAlign].filter(Boolean).join("");
     const text = shape.text !== undefined ? `<span class="vno-show-shape-text"${textStyle ? ` style="${textStyle}"` : ""}>${this._escapeShapeText(shape.text)}</span>` : "";
-    return `<div class="vno-show-shape"${morphAttrs}${animAttrs} style="${pos}${animStyle}background:${shape.fill || shape.color || "#3b82f6"};opacity:${opacity};border-radius:${radius};${border}">${text}</div>`;
+    const actionAttr = (shape.action || shape.href) ? ` data-vno-action="${this._escapeShapeText(typeof shape.action === "object" ? JSON.stringify(shape.action) : String(shape.action || shape.href))}"` : "";
+    const actionCursor = (shape.action || shape.href) ? "cursor:pointer;pointer-events:auto;" : "";
+    return `<div class="vno-show-shape"${morphAttrs}${animAttrs}${actionAttr} style="${pos}${animStyle}background:${shape.fill || shape.color || "#3b82f6"};opacity:${opacity};border-radius:${radius};${border}${actionCursor}">${text}</div>`;
   }
 
   _getMorphMatches(fromSlide, toSlide) {
@@ -4426,6 +4428,9 @@ export class SlidesCanvasController {
       if (!isConnector && this._textStyleEligible(shape) && shape.type !== "textbox") {
         const vAlign = shape.textVAlign || "middle";
         el.style.alignItems = vAlign === "top" ? "flex-start" : vAlign === "bottom" ? "flex-end" : "center";
+      }
+      if (shape.action || shape.href) {
+        el.dataset.vnoAction = typeof shape.action === "object" ? JSON.stringify(shape.action) : String(shape.action || shape.href);
       }
 
       if (!isConnector) {

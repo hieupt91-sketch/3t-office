@@ -2334,10 +2334,43 @@ export class SlidesAdapter {
     return xml;
   }
 
+  _shapeEventListenersXml(shape) {
+    if (Array.isArray(shape.eventListeners) && shape.eventListeners.length > 0) {
+      const list = shape.eventListeners.map(l => {
+        const ev = l.eventName || "dom:click";
+        const act = l.action ? ` presentation:action="${this._escapeXml(l.action)}"` : "";
+        const href = l.href ? ` xlink:href="${this._escapeXml(l.href)}" xlink:type="simple"` : "";
+        return `<presentation:event-listener script:event-name="${this._escapeXml(ev)}"${act}${href}/>`;
+      }).join("");
+      return `<office:event-listeners>${list}</office:event-listeners>`;
+    }
+    if (shape.action != null || shape.href) {
+      let actionStr = null;
+      let hrefStr = null;
+      if (typeof shape.action === "string") {
+        actionStr = shape.action;
+      } else if (typeof shape.action === "number") {
+        const numMap = { 1: "next-page", 2: "previous-page", 3: "first-page", 4: "last-page", 6: "stop" };
+        actionStr = numMap[shape.action] || null;
+      } else if (typeof shape.action === "object" && shape.action !== null) {
+        actionStr = shape.action.action || null;
+        hrefStr = shape.action.href || null;
+      }
+      if (shape.href) hrefStr = shape.href;
+      if (actionStr || hrefStr) {
+        const act = actionStr ? ` presentation:action="${this._escapeXml(actionStr)}"` : "";
+        const hr = hrefStr ? ` xlink:href="${this._escapeXml(hrefStr)}" xlink:type="simple"` : "";
+        return `<office:event-listeners><presentation:event-listener script:event-name="dom:click"${act}${hr}/></office:event-listeners>`;
+      }
+    }
+    return "";
+  }
+
   _serializeShape(shape, drawId, idMap, richCtx) {
     const type = shape?.type || "rect";
     const geom = this._shapeGeomAttrs(shape, drawId);
     const textXml = this._richOrPlainXml(shape.text, shape.textHtml, richCtx);
+    const eventsXml = this._shapeEventListenersXml(shape);
 
     if (type === "connector") {
       const start = this._escapeXml(String(idMap.get(String(shape.sourceId)) || shape.sourceId || ""));
@@ -2488,12 +2521,13 @@ export class SlidesAdapter {
         </draw:custom-shape>`;
     }
 
-    if (shape.flipH || shape.flipV || shape.geomType === "ooxml-rect") {
+    if (shape.flipH || shape.flipV || shape.geomType || eventsXml) {
       const mirrorH = shape.flipH ? "true" : "false";
       const mirrorV = shape.flipV ? "true" : "false";
-      const geomType = shape.geomType || "ooxml-rect";
+      const geomType = shape.geomType || (type === "ellipse" ? "ooxml-ellipse" : "ooxml-rect");
       return `
         <draw:custom-shape ${geom}>
+          ${eventsXml}
           ${textXml}
           <draw:enhanced-geometry draw:mirror-horizontal="${mirrorH}" draw:mirror-vertical="${mirrorV}" draw:glue-points="?f0 0 0 ?f1 ?f0 ?f2 ?f3 ?f1" draw:text-areas="0 0 ?f3 ?f2" svg:viewBox="0 0 0 0" draw:type="${geomType}" draw:enhanced-path="M 0 0 L ?f3 0 ?f3 ?f2 0 ?f2 Z N">
             <draw:equation draw:name="f0" draw:formula="logwidth/2"/>
@@ -2829,6 +2863,18 @@ export class SlidesAdapter {
     const flipH = /draw:mirror-horizontal=["']true["']/i.test(inner) || /vno:flip-h=["']true["']/i.test(attrs);
     const flipV = /draw:mirror-vertical=["']true["']/i.test(inner) || /vno:flip-v=["']true["']/i.test(attrs);
 
+    const eventListenerMatches = inner.matchAll(/<presentation:event-listener\b([^>]*)>/gi);
+    const eventListeners = [];
+    for (const em of eventListenerMatches) {
+      const evAttrs = em[1];
+      const eventName = evAttrs.match(/script:event-name=["']([^"']+)["']/i)?.[1] || "dom:click";
+      const action = evAttrs.match(/presentation:action=["']([^"']+)["']/i)?.[1] || null;
+      const href = evAttrs.match(/xlink:href=["']([^"']+)["']/i)?.[1] || null;
+      if (action || href) {
+        eventListeners.push({ eventName, action, href });
+      }
+    }
+
     // Font properties resolution (weight, size, color)
     let resolvedFontWeight = null;
     let resolvedFontSize = null;
@@ -2911,6 +2957,11 @@ export class SlidesAdapter {
       ...(resolvedFontSize ? { fontSize: resolvedFontSize, "fo:font-size": resolvedFontSize } : {}),
       ...(resolvedFontColor ? { fontColor: resolvedFontColor, color: color } : {}),
       ...(textAlign ? { textAlign: textAlign === "justify" ? "left" : textAlign } : {}),
+      ...(eventListeners.length > 0 ? {
+        eventListeners,
+        action: eventListeners[0].action || (eventListeners[0].href ? { action: "hyperlink", href: eventListeners[0].href } : null),
+        ...(eventListeners[0].href ? { href: eventListeners[0].href } : {})
+      } : {}),
       text: this._paragraphsFromXml(inner).join("\n"),
       textHtml: this._shapeHtmlFromXml(inner),
       animation: this._noneAnimation()
@@ -3063,6 +3114,17 @@ export class SlidesAdapter {
     // (0,0) — dùng _parseDrawTranslate() (đã có sẵn, đang dùng cho
     // <draw:g> ở _extractDrawGroups()) để xử lý đúng cả 2 trường hợp.
     const origin = this._parseDrawTranslate(attrs);
+    const eventListenerMatches = inner.matchAll(/<presentation:event-listener\b([^>]*)>/gi);
+    const eventListeners = [];
+    for (const em of eventListenerMatches) {
+      const evAttrs = em[1];
+      const eventName = evAttrs.match(/script:event-name=["']([^"']+)["']/i)?.[1] || "dom:click";
+      const action = evAttrs.match(/presentation:action=["']([^"']+)["']/i)?.[1] || null;
+      const href = evAttrs.match(/xlink:href=["']([^"']+)["']/i)?.[1] || null;
+      if (action || href) {
+        eventListeners.push({ eventName, action, href });
+      }
+    }
     const base = {
       id: this._restoreShapeId(attrs),
       x: origin.x,
@@ -3070,6 +3132,11 @@ export class SlidesAdapter {
       w: this._odfLengthToPx(get("svg:width")) || 200,
       h: this._odfLengthToPx(get("svg:height")) || 120,
       ...(origin.rotationDeg ? { rotation: origin.rotationDeg } : {}),
+      ...(eventListeners.length > 0 ? {
+        eventListeners,
+        action: eventListeners[0].action || (eventListeners[0].href ? { action: "hyperlink", href: eventListeners[0].href } : null),
+        ...(eventListeners[0].href ? { href: eventListeners[0].href } : {})
+      } : {}),
       animation: this._noneAnimation()
     };
 
@@ -3808,6 +3875,8 @@ export class SlidesAdapter {
                  xmlns:dc="http://purl.org/dc/elements/1.1/"
                  xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0"
                  xmlns:anim="urn:oasis:names:tc:opendocument:xmlns:animation:1.0"
+                 xmlns:script="urn:oasis:names:tc:opendocument:xmlns:script:1.0"
+                 xmlns:dom="http://www.w3.org/2001/xml-events"
                  xmlns:vno="urn:vn-office:slides:1.0"
                  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.presentation">${officeStyles}
   <office:automatic-styles>${automaticStyles}

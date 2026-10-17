@@ -1491,5 +1491,52 @@ export async function runSlidesFileIoTests() {
     if (!serialized.includes('draw:auto-grow-height="false"')) throw new Error("serialized missing auto-grow-height=false");
   });
 
+  test("SlidesAdapter: preserves shape action settings and presentation event-listeners", () => {
+    const fodp = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+ xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
+ xmlns:script="urn:oasis:names:tc:opendocument:xmlns:script:1.0"
+ xmlns:dom="http://www.w3.org/2001/xml-events">
+  <office:body><office:presentation>
+    <draw:page draw:name="page1">
+      <draw:custom-shape draw:name="Btn" svg:width="5.291cm" svg:height="2.116cm" svg:x="1.764cm" svg:y="8.819cm">
+        <office:event-listeners>
+          <presentation:event-listener script:event-name="dom:click" presentation:action="previous-page"/>
+        </office:event-listeners>
+        <text:p><text:span>Nut</text:span></text:p>
+      </draw:custom-shape>
+    </draw:page>
+  </office:presentation></office:body>
+</office:document>`;
+    const adapter = new SlidesAdapter(null);
+    const parsed = adapter.parseFodp(fodp);
+    const shape = parsed[0].shapes[0];
+    if (shape.action !== "previous-page") throw new Error(`action expected previous-page, got ${shape.action}`);
+    if (!shape.eventListeners?.length || shape.eventListeners[0].action !== "previous-page") {
+      throw new Error("eventListeners not parsed");
+    }
+
+    const serialized = new SlidesAdapter({ slides: parsed, slideSize: { width: 960, height: 540 } }).serializeToFodp();
+    if (!serialized.includes('xmlns:script="urn:oasis:names:tc:opendocument:xmlns:script:1.0"')) {
+      throw new Error("serialized missing xmlns:script");
+    }
+    if (!serialized.includes('xmlns:dom="http://www.w3.org/2001/xml-events"')) {
+      throw new Error("serialized missing xmlns:dom");
+    }
+    if (!serialized.includes('<presentation:event-listener script:event-name="dom:click" presentation:action="previous-page"/>')) {
+      throw new Error("serialized missing presentation:event-listener");
+    }
+
+    // Also test numeric PowerPoint COM action (2 = previous-page)
+    const numericShape = { id: "btn2", type: "rect", action: 2, text: "Click" };
+    const serializedNum = new SlidesAdapter({ slides: [{ shapes: [numericShape] }], slideSize: { width: 960, height: 540 } }).serializeToFodp();
+    if (!serializedNum.includes('presentation:action="previous-page"')) {
+      throw new Error("numeric action 2 did not map to previous-page");
+    }
+  });
+
   return results;
 }
