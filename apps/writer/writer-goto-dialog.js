@@ -13,6 +13,10 @@ export const GOTO_TYPES = [
   { id: "table", label: "Bảng", inputLabel: "Nhập số thứ tự bảng:", hint: "Nhập số thứ tự bảng, hoặc dùng + và - để di chuyển." }
 ];
 
+function escapeHtml(value) {
+  return String(value ?? "").replace(/[&<>"']/g, char => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
+}
+
 function trapFocus(box, event) {
   if (event.key !== "Tab") return;
   const items = Array.from(box.querySelectorAll("button:not([disabled]), input:not([disabled]), select:not([disabled])"));
@@ -96,8 +100,8 @@ export async function showGoToDialog({ onNavigate, data = {} } = {}) {
     const hintBox = el("#vno-goto-hint");
     const feedbackBox = el("#vno-goto-feedback");
     const actionBtn = el("#vno-goto-action-btn");
-    const nextBtn = el("#vno-goto-prev-btn");
-    const prevBtn = el("#vno-goto-next-btn");
+    const prevBtn = el("#vno-goto-prev-btn");
+    const nextBtn = el("#vno-goto-next-btn");
 
     function updateUiForType(typeId) {
       selectedType = typeId;
@@ -109,7 +113,7 @@ export async function showGoToDialog({ onNavigate, data = {} } = {}) {
       if (typeId === "heading") {
         const headings = data.headings || [];
         if (headings.length > 0) {
-          itemsSelect.innerHTML = headings.map((h, i) => `<option value="${i}">${h}</option>`).join("");
+          itemsSelect.innerHTML = headings.map((h, i) => `<option value="${i + 1}">${escapeHtml(h)}</option>`).join("");
           itemsSelect.style.display = "block";
           mainInput.style.display = "none";
         } else {
@@ -120,7 +124,7 @@ export async function showGoToDialog({ onNavigate, data = {} } = {}) {
       } else if (typeId === "bookmark") {
         const bookmarks = data.bookmarks || [];
         if (bookmarks.length > 0) {
-          itemsSelect.innerHTML = bookmarks.map(b => `<option value="${b}">${b}</option>`).join("");
+          itemsSelect.innerHTML = bookmarks.map(b => `<option value="${escapeHtml(b)}">${escapeHtml(b)}</option>`).join("");
           itemsSelect.style.display = "block";
           mainInput.style.display = "none";
         } else {
@@ -148,7 +152,9 @@ export async function showGoToDialog({ onNavigate, data = {} } = {}) {
 
     function executeNavigation(direction = null) {
       let targetValue = "";
-      if (itemsSelect.style.display !== "none") {
+      if (direction !== null) {
+        targetValue = "";
+      } else if (itemsSelect.style.display !== "none") {
         targetValue = itemsSelect.value;
       } else {
         targetValue = mainInput.value.trim();
@@ -170,8 +176,8 @@ export async function showGoToDialog({ onNavigate, data = {} } = {}) {
     }
 
     actionBtn.addEventListener("click", () => executeNavigation(null));
-    nextBtn.addEventListener("click", () => executeNavigation(-1));
-    prevBtn.addEventListener("click", () => executeNavigation(1));
+    prevBtn.addEventListener("click", () => executeNavigation(-1));
+    nextBtn.addEventListener("click", () => executeNavigation(1));
 
     const onKeyDown = event => {
       if (event.key === "Escape") {

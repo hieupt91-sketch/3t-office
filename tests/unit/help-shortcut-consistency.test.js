@@ -49,7 +49,7 @@ const ALL_COMMANDS = [...COMMON_COMMANDS, ...WRITER_COMMANDS, ...SHEET_COMMANDS,
 
 /** commandId -> shortcut thật (chuẩn hóa), chỉ lệnh có shortcut trong command-definitions.js */
 const COMMAND_SHORTCUTS = new Map(
-  ALL_COMMANDS.filter((cmd) => cmd.shortcut).map((cmd) => [cmd.id, normalizeShortcut(cmd.shortcut)])
+  ALL_COMMANDS.filter((cmd) => cmd.shortcut).map((cmd) => [cmd.id, [cmd.shortcut, ...(cmd.shortcutAliases || [])].map(normalizeShortcut)])
 );
 
 /** Shortcut cấp app bind trong app code (không phải command shortcut) — xem mô tả trên */
@@ -148,7 +148,10 @@ function buildDefinedShortcutSet(app) {
   const set = new Set();
   for (const cmd of ALL_COMMANDS) {
     const isAppCmd = cmd.id.startsWith(`${app}.`) || !/^(writer|sheet|slides)\./.test(cmd.id);
-    if (isAppCmd && cmd.shortcut) set.add(normalizeShortcut(cmd.shortcut));
+    if (isAppCmd) {
+      if (cmd.shortcut) set.add(normalizeShortcut(cmd.shortcut));
+      for (const alias of cmd.shortcutAliases || []) set.add(normalizeShortcut(alias));
+    }
   }
   for (const [token, cmdId] of Object.entries(APP_LEVEL_BINDINGS[app] || {})) {
     if (cmdId.startsWith(`${app}.`)) set.add(normalizeShortcut(token));
@@ -173,7 +176,7 @@ function collectEntryProblems(entry, definedShortcuts) {
 
   // --- Phần 1: shortcut nhắc cạnh nhãn lệnh phải là shortcut thật của lệnh đó ---
   const entryCommands = commandIds.filter((id) => COMMAND_SHORTCUTS.has(id));
-  const realShortcutsOfEntry = new Set(entryCommands.map((id) => COMMAND_SHORTCUTS.get(id)));
+  const realShortcutsOfEntry = new Set(entryCommands.flatMap((id) => COMMAND_SHORTCUTS.get(id)));
   const labelById = new Map(ALL_COMMANDS.map((cmd) => [cmd.id, cmd.label || ""]));
 
   for (const cmdId of entryCommands) {
@@ -182,7 +185,7 @@ function collectEntryProblems(entry, definedShortcuts) {
     cleanedSegments.forEach((segment, segIdx) => {
       const tokens = tokenize(segment);
       for (const token of tokens) {
-        if (token.norm === real) continue;
+        if (real.includes(token.norm)) continue;
         if (token.kind === "page") continue; // Page Up/Down không thuộc pattern bắt buộc của task
         const labelIndex = indexOfLabel(segment, label);
         if (labelIndex < 0) continue;
@@ -193,7 +196,7 @@ function collectEntryProblems(entry, definedShortcuts) {
         if (realShortcutsOfEntry.has(token.norm)) continue;
         const where = segIdx === 0 ? "summary" : `step ${segIdx}`;
         problems.push(
-          `[${entry.id}] ${where}: nhắc "${token.norm}" gắn cạnh nhãn "${label}" (${cmdId}) nhưng shortcut thật của lệnh là "${real}"`
+          `[${entry.id}] ${where}: nhắc "${token.norm}" gắn cạnh nhãn "${label}" (${cmdId}) nhưng shortcut thật của lệnh là "${real.join(" / ")}"`
         );
       }
     });

@@ -92,7 +92,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.nav.docStart", category: "nav", label: "Đầu tài liệu", shortcut: "Ctrl+Home", icon: "pageBreak", tooltip: "Đến đầu tài liệu (Ctrl+Home)" },
   { id: "writer.nav.docEnd", category: "nav", label: "Cuối tài liệu", shortcut: "Ctrl+End", icon: "pageBreak", tooltip: "Đến cuối tài liệu (Ctrl+End)" },
   { id: "writer.edit.select", category: "edit", label: "Chọn", icon: "selectAll", tooltip: "Chọn văn bản hoặc đối tượng" },
-  { id: "writer.edit.goTo", category: "edit", label: "Đi đến", shortcut: "Ctrl+G", icon: "findReplace", tooltip: "Chuyển nhanh con trỏ tới trang, dòng, đề mục hoặc bảng (Ctrl+G)" },
+  { id: "writer.edit.goTo", category: "edit", label: "Đi đến", shortcut: "Ctrl+G", shortcutAliases: ["F5"], icon: "findReplace", tooltip: "Chuyển nhanh con trỏ tới trang, dòng, đề mục, dấu trang hoặc chú thích (Ctrl+G, F5)" },
   { id: "writer.edit.pasteSpecial", category: "edit", label: "Dán đặc biệt", shortcut: "Ctrl+Alt+V", icon: "pasteSpecial", tooltip: "Dán kèm tùy chọn nâng cao (giữ định dạng nguồn, chỉ giữ văn bản)" },
   // Định dạng ký tự (Font / Character)
   { id: "writer.text.bold", category: "format", label: "Đậm", shortcut: "Ctrl+B", icon: "bold", tooltip: "Chữ đậm (Ctrl+B)", isToggle: true },
@@ -765,6 +765,7 @@ export function registerAllStandardCommands(bus) {
           : cmd.id.startsWith("slides.") ? "slides"
             : "common";
       globalShortcutManager.bind(cmd.shortcut, cmd.id, scope);
+      for (const alias of cmd.shortcutAliases || []) globalShortcutManager.bind(alias, cmd.id, scope);
     }
   }
   // Word/Excel/PowerPoint also use Ctrl+Shift+S for Save As; keep F12 as the primary label.

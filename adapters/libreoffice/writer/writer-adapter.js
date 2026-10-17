@@ -14681,57 +14681,106 @@ export class WriterAdapter {
     const root = this.editorDom || document.body;
     let targetNode = null;
 
+    const resolveIndex = (value, count, currentIndex = 0) => {
+      if (!count) return -1;
+      const text = String(value ?? "").trim();
+      if (/^[+-]\d+$/.test(text)) return currentIndex + Number(text);
+      if (direction === 1 || direction === "next") return currentIndex + 1;
+      if (direction === -1 || direction === "prev") return currentIndex - 1;
+      if (!/^\d+$/.test(text)) return -1;
+      return Number(text) - 1;
+    };
+
     if (type === "page") {
-      const pages = Array.from(root.querySelectorAll(".vno-page, [data-page-index]"));
-      if (pages.length > 0) {
-        let pageIdx = 0;
-        if (typeof target === "number" || /^\d+$/.test(String(target))) {
-          pageIdx = Math.max(0, Math.min(pages.length - 1, parseInt(target, 10) - 1));
-        } else if (direction === "next") {
-          pageIdx = Math.min(pages.length - 1, (this.currentPageIndex || 0) + 1);
-        } else if (direction === "prev") {
-          pageIdx = Math.max(0, (this.currentPageIndex || 0) - 1);
+      let pages = Array.from(root.querySelectorAll(".vno-page, [data-page-index]"));
+      if (!pages.length && this.bodyDom?.children) {
+        this._recomputeLivePagination?.();
+        const segments = [[]];
+        for (const child of Array.from(this.bodyDom.children)) {
+          if (child.getAttribute?.("data-vno-auto-page-gap") === "true") {
+            if (segments.at(-1).length) segments.push([]);
+            continue;
+          }
+          if (child.getAttribute?.("data-vno-page-break") === "true" || child.classList?.contains("vno-section-break")) {
+            if (segments.at(-1).length) segments.push([]);
+            continue;
+          }
+          segments.at(-1).push(child);
         }
-        targetNode = pages[pageIdx]?.querySelector("p, h1, h2, h3, h4, h5, h6, table") || pages[pageIdx];
+        pages = segments.filter(segment => segment.length).map(segment => ({
+          querySelector: selector => segment.map(node => node.matches?.(selector) ? node : node.querySelector?.(selector)).find(Boolean) || null,
+          firstElementChild: segment[0]
+        }));
+      }
+      if (pages.length > 0) {
+        const pageIdx = resolveIndex(target, pages.length, this.currentPageIndex || 0);
+        if (pageIdx >= 0 && pageIdx < pages.length) {
+          this.currentPageIndex = pageIdx;
+          targetNode = pages[pageIdx]?.querySelector("p, h1, h2, h3, h4, h5, h6, table") || pages[pageIdx];
+        }
       }
     } else if (type === "line") {
       const blocks = Array.from(root.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li, tr, blockquote"));
       if (blocks.length > 0) {
-        let lineIdx = 0;
-        if (typeof target === "number" || /^\d+$/.test(String(target))) {
-          lineIdx = Math.max(0, Math.min(blocks.length - 1, parseInt(target, 10) - 1));
+        const lineIdx = resolveIndex(target, blocks.length, this._currentGoToLineIndex || 0);
+        if (lineIdx >= 0 && lineIdx < blocks.length) {
+          targetNode = blocks[lineIdx];
+          this._currentGoToLineIndex = lineIdx;
         }
-        targetNode = blocks[lineIdx];
       }
     } else if (type === "heading") {
       const headings = Array.from(root.querySelectorAll("h1, h2, h3, h4, h5, h6"));
       if (headings.length > 0) {
-        if (typeof target === "number" || /^\d+$/.test(String(target))) {
-          const idx = Math.max(0, Math.min(headings.length - 1, parseInt(target, 10) - 1));
+        if (direction !== null) {
+          const idx = resolveIndex(target, headings.length, this._currentGoToHeadingIndex || 0);
+          if (idx >= 0 && idx < headings.length) {
+            this._currentGoToHeadingIndex = idx;
+            targetNode = headings[idx];
+          }
+        } else if (typeof target === "number" || /^\d+$/.test(String(target))) {
+          const idx = resolveIndex(target, headings.length);
+          if (idx >= 0 && idx < headings.length) this._currentGoToHeadingIndex = idx;
           targetNode = headings[idx];
         } else if (typeof target === "string" && target.trim()) {
           const term = target.trim().toLowerCase();
-          targetNode = headings.find(h => (h.textContent || "").toLowerCase().includes(term)) || headings[0];
-        } else {
-          targetNode = headings[0];
+          targetNode = headings.find(h => (h.textContent || "").toLowerCase().includes(term));
+          if (targetNode) this._currentGoToHeadingIndex = headings.indexOf(targetNode);
         }
       }
     } else if (type === "bookmark") {
-      if (typeof target === "string" && target.trim()) {
+      const bookmarks = Array.from(root.querySelectorAll("a[name], [data-bookmark-name]")).filter(node =>
+        !/^vno-(?:untouched|edited|pristine|shape-mutation)\b/i.test(node.getAttribute("name") || node.getAttribute("data-bookmark-name") || "")
+      );
+      if (direction !== null) {
+        const idx = resolveIndex(target, bookmarks.length, this._currentGoToBookmarkIndex || 0);
+        if (idx >= 0 && idx < bookmarks.length) {
+          this._currentGoToBookmarkIndex = idx;
+          targetNode = bookmarks[idx];
+        }
+      } else if (typeof target === "string" && target.trim()) {
         const name = target.trim();
-        targetNode = root.querySelector(`a[name="${name}"], [data-bookmark-name="${name}"], #${name}`);
+        targetNode = Array.from(root.querySelectorAll("a[name], [data-bookmark-name], [id]")).find(node =>
+          node.getAttribute("name") === name || node.getAttribute("data-bookmark-name") === name || node.id === name
+        ) || null;
+        if (targetNode) this._currentGoToBookmarkIndex = bookmarks.indexOf(targetNode);
       }
     } else if (type === "footnote") {
       const notes = Array.from(root.querySelectorAll(".vno-footnote-ref, [data-footnote-id], .vno-footnote-item"));
       if (notes.length > 0) {
-        const idx = Math.max(0, Math.min(notes.length - 1, (parseInt(target, 10) || 1) - 1));
-        targetNode = notes[idx];
+        const idx = resolveIndex(target, notes.length, this._currentGoToFootnoteIndex || 0);
+        if (idx >= 0 && idx < notes.length) {
+          targetNode = notes[idx];
+          this._currentGoToFootnoteIndex = idx;
+        }
       }
     } else if (type === "table") {
       const tables = Array.from(root.querySelectorAll("table"));
       if (tables.length > 0) {
-        const idx = Math.max(0, Math.min(tables.length - 1, (parseInt(target, 10) || 1) - 1));
-        targetNode = tables[idx]?.querySelector("td, th") || tables[idx];
+        const idx = resolveIndex(target, tables.length, this._currentGoToTableIndex || 0);
+        if (idx >= 0 && idx < tables.length) {
+          this._currentGoToTableIndex = idx;
+          targetNode = tables[idx]?.querySelector("td, th") || tables[idx];
+        }
       }
     }
 
@@ -14750,7 +14799,9 @@ export class WriterAdapter {
     const { showGoToDialog } = await import("../../../apps/writer/writer-goto-dialog.js");
     const root = this.editorDom || document.body;
     const headings = Array.from(root.querySelectorAll("h1, h2, h3, h4, h5, h6")).map(el => (el.textContent || "").trim()).filter(Boolean);
-    const bookmarks = Array.from(root.querySelectorAll("a[name], [data-bookmark-name]")).map(el => el.getAttribute("name") || el.getAttribute("data-bookmark-name")).filter(Boolean);
+    const bookmarks = Array.from(root.querySelectorAll("a[name], [data-bookmark-name]"))
+      .map(el => el.getAttribute("name") || el.getAttribute("data-bookmark-name"))
+      .filter(name => name && !/^vno-(?:untouched|edited|pristine|shape-mutation)\b/i.test(name));
     const pages = Array.from(root.querySelectorAll(".vno-page, [data-page-index]"));
     const tables = Array.from(root.querySelectorAll("table"));
     const footnotes = Array.from(root.querySelectorAll(".vno-footnote-ref, [data-footnote-id], .vno-footnote-item"));
@@ -14759,7 +14810,7 @@ export class WriterAdapter {
       data: {
         headings,
         bookmarks,
-        totalPages: Math.max(1, pages.length || (this.pageCount || 1)),
+        totalPages: Math.max(1, pages.length || this._livePageCount || this.pageCount || 1),
         totalTables: tables.length,
         totalFootnotes: footnotes.length
       },

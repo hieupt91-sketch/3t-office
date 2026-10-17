@@ -18,6 +18,9 @@ export async function runShortcutScopeTests() {
         }
       }
     }
+    globalShortcutManager.setActiveScope("writer");
+    const writerF5 = globalShortcutManager._shortcuts.get(globalShortcutManager._normalizeCombo("F5"));
+    if (writerF5 !== "writer.edit.goTo") throw new Error(`writer: F5 không trỏ tới writer.edit.goTo (${writerF5 || "none"})`);
     results.push({ name: "Shortcut runtime giữ đúng command common + app sau đăng ký toàn suite", pass: true });
   } catch (error) {
     results.push({ name: "Shortcut runtime giữ đúng command common + app sau đăng ký toàn suite", pass: false, error: error.message });

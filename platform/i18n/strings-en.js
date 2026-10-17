@@ -708,7 +708,7 @@ export const enStrings = {
     "writer.file.inspectDocument": { label: "Inspect Document", tooltip: "Inspect and remove comments, revisions, hidden text, and personal properties" },
     "writer.file.options": { label: "Options", tooltip: "Open Options: appearance, AutoCorrect and smart characters" },
     "writer.edit.select": { label: "Select", tooltip: "Select text or objects in the document" },
-    "writer.edit.goTo": { label: "Go To", tooltip: "Jump to page, line, heading, bookmark or table (Ctrl+G)" },
+    "writer.edit.goTo": { label: "Go To", tooltip: "Jump to a page, line, heading, bookmark or footnote (Ctrl+G, F5)" },
     "writer.edit.pasteSpecial": { label: "Paste Special", tooltip: "Paste with advanced options (keep source formatting, plain text) (Ctrl+Alt+V)" },
     "writer.para.lineSpacing": { label: "Line Spacing", tooltip: "Adjust spacing between lines of text" },
     "writer.layout.breaks": { label: "Breaks", tooltip: "Insert page or section breaks" },

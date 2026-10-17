@@ -2168,15 +2168,15 @@ export const WRITER_HELP_ENTRIES = [
   id: "writer.edit.goTo.help",
   app: "writer",
   commandIds: ["writer.edit.goTo"],
-  title: "Chức năng Đi đến (Go To, Ctrl+G) chuyển nhanh con trỏ",
-  summary: "Hộp thoại Đi đến cho phép di chuyển ngay lập tức con trỏ soạn thảo tới một trang, dòng, đề mục, dấu trang, chú thích hoặc bảng cụ thể trong tài liệu, hỗ trợ chuyển tới vị trí tuyệt đối hoặc tiến lùi tương đối.",
+  title: "Đi đến (Ctrl+G hoặc F5): chuyển con trỏ trong tài liệu",
+  summary: "Hộp thoại Đi đến chuyển con trỏ tới trang, dòng, đề mục, dấu trang, chú thích cuối trang hoặc bảng. Các nút Trước và Tiếp duyệt lần lượt các mục cùng loại; vị trí không tồn tại được báo ngay trong hộp thoại.",
   ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
   keywords: ["đi đến", "go to", "ctrl+g", "chuyển trang", "nhảy trang", "tìm kiếm", "dấu trang", "đề mục", "chú thích"],
   steps: [
-    "Nhấn tổ hợp phím tắt Ctrl+G (hoặc vào tab Trang đầu, nhóm Chỉnh sửa, bấm nút 'Đi đến') để mở hộp thoại Tìm và Thay thế ở tab Đi đến.",
-    "Trong danh sách 'Đi đến mục nào', chọn loại đối tượng cần điều hướng: Trang, Dòng, Đề mục, Dấu trang, Chú thích cuối trang, hoặc Bảng.",
-    "Nhập số thứ tự (hoặc chọn tên đề mục/dấu trang từ danh sách hiển thị), sau đó bấm nút 'Đi đến' để chuyển con trỏ ngay lập tức tới mục đó.",
-    "Sử dụng các nút 'Tiếp' (Next) và 'Trước' (Previous) để duyệt lần lượt qua các phần tử cùng loại trong tài liệu một cách thuận tiện."
+    "Nhấn Ctrl+G hoặc F5, hoặc mở tab Trang đầu > nhóm Chỉnh sửa > nút Đi đến. Hộp thoại Đi đến hiện danh sách loại đích ở bên trái.",
+    "Chọn Trang, Dòng, Đề mục, Dấu trang, Chú thích cuối trang hoặc Bảng. Với Trang, Dòng, Chú thích và Bảng, nhập số thứ tự; với Đề mục hoặc Dấu trang, chọn mục trong danh sách hoặc nhập tên để tìm.",
+    "Bấm Đi đến để đặt con trỏ tại đích. Nếu số hoặc tên không tồn tại, hộp thoại báo không tìm thấy và giữ nguyên vị trí con trỏ.",
+    "Bấm Tiếp hoặc Trước để chuyển tới mục kế tiếp hoặc trước đó cùng loại. Nhấn Enter trong ô nhập cũng thực hiện lệnh Đi đến; Esc đóng hộp thoại."
   ]
 },
 {

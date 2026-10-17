@@ -707,7 +707,7 @@ export const viStrings = {
     "writer.file.inspectDocument": { label: "Kiểm tra tài liệu", tooltip: "Kiểm tra và loại bỏ nhận xét, thay đổi theo dõi, văn bản ẩn và thông tin cá nhân" },
     "writer.file.options": { label: "Tùy chọn", tooltip: "Mở Tùy chọn: giao diện, tự sửa lỗi gõ và ký tự thông minh" },
     "writer.edit.select": { label: "Chọn", tooltip: "Chọn văn bản hoặc đối tượng" },
-    "writer.edit.goTo": { label: "Đi đến", tooltip: "Chuyển nhanh con trỏ tới trang, dòng, đề mục hoặc bảng (Ctrl+G)" },
+    "writer.edit.goTo": { label: "Đi đến", tooltip: "Chuyển nhanh con trỏ tới trang, dòng, đề mục, dấu trang hoặc chú thích (Ctrl+G, F5)" },
     "writer.edit.pasteSpecial": { label: "Dán đặc biệt", tooltip: "Dán kèm tùy chọn nâng cao (giữ định dạng nguồn, chỉ giữ văn bản) (Ctrl+Alt+V)" },
     "writer.para.lineSpacing": { label: "Giãn dòng", tooltip: "Khoảng cách giữa các dòng trong đoạn văn" },
     "writer.layout.breaks": { label: "Ngắt", tooltip: "Chèn ngắt trang hoặc ngắt mục" },

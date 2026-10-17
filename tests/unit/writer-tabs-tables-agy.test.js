@@ -153,9 +153,11 @@ class MockElement {
             matches = true;
             break;
           }
-          if (sel.includes("[name=") && child.getAttribute("name")) {
-            const val = sel.match(/\[name=["']?([^"'\]]+)["']?\]/)?.[1];
-            if (val && child.getAttribute("name") === val) {
+          if (/\[(?:name|data-bookmark-name|id)(?:=[^\]]+)?\]/.test(sel)) {
+            const attribute = sel.match(/\[(name|data-bookmark-name|id)(?:=(["']?)([^"'\]]+)\2)?\]/)?.[1];
+            const value = sel.match(/\[(?:name|data-bookmark-name|id)=(["']?)([^"'\]]+)\1\]/)?.[2];
+            const actual = attribute === "id" ? child.id : child.getAttribute(attribute);
+            if (actual && (value === undefined || actual === value)) {
               matches = true;
               break;
             }
@@ -373,11 +375,30 @@ export async function runWriterTabsTablesAgyTests() {
     const okBookmark = adapter.navigateToGoToTarget({ type: "bookmark", target: "muc_luc_chinh" });
     assert.equal(okBookmark, true);
     assert.equal(placedNode, bmk);
+    assert.equal(adapter.navigateToGoToTarget({ type: "bookmark", target: "missing" }), false, "Dáº¥u trang khÃ´ng tá»“n táº¡i pháº£i bÃ¡o khÃ´ng tÃ¬m tháº¥y");
+    assert.equal(adapter.navigateToGoToTarget({ type: "heading", target: "khÃ´ng cÃ³ má»¥c nÃ y" }), false, "Äá» má»¥c khÃ´ng khá»›p khÃ´ng Ä‘Æ°á»£c nháº£y vá» Ä‘á» má»¥c Ä‘áº§u");
 
     // Điều hướng tới Table
     const okTable = adapter.navigateToGoToTarget({ type: "table", target: 1 });
     assert.equal(okTable, true);
     assert(placedNode.tagName === "TD" || placedNode.tagName === "TABLE");
+  });
+
+  await test("Go To: Trang 2 dùng vùng trang thứ hai và số trang vượt phạm vi trả về không tìm thấy", () => {
+    const adapter = new WriterAdapter();
+    const docRoot = new MockElement("div");
+    adapter.editorDom = docRoot;
+    const page1 = new MockElement("div"); page1.className = "vno-page";
+    const page2 = new MockElement("div"); page2.className = "vno-page";
+    const first = new MockElement("p"); first.textContent = "Trang một";
+    const second = new MockElement("p"); second.textContent = "Trang hai";
+    page1.appendChild(first); page2.appendChild(second);
+    docRoot.appendChild(page1); docRoot.appendChild(page2);
+    let placed = null;
+    adapter._placeCaretAt = node => { placed = node; return true; };
+    assert.equal(adapter.navigateToGoToTarget({ type: "page", target: "2" }), true);
+    assert.equal(placed, second);
+    assert.equal(adapter.navigateToGoToTarget({ type: "page", target: "3" }), false);
   });
 
   // 3. SPLIT TABLE
