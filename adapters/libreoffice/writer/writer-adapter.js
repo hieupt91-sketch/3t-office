@@ -1398,54 +1398,254 @@ export class WriterAdapter {
   openFontDialog() {
     const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
     const range = selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
-    const anchor = range?.startContainer?.nodeType === 1
-      ? range.startContainer
-      : range?.startContainer?.parentElement;
-    const computed = anchor && typeof getComputedStyle === "function" ? getComputedStyle(anchor) : null;
-    const sizePx = Number.parseFloat(computed?.fontSize || "");
-    const colorMatch = String(computed?.color || "").match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
-    const initialColor = colorMatch
-      ? `#${colorMatch.slice(1, 4).map(value => Number(value).toString(16).padStart(2, "0")).join("")}`
-      : "#000000";
     return showFontDialog({
-      initialSize: sizePx > 0 ? Math.round(sizePx * 0.75 * 2) / 2 : 14,
-      initialFamily: computed?.fontFamily?.split(",")[0]?.replace(/["']/g, "").trim(),
-      initialColor,
-      initialBold: Number.parseInt(computed?.fontWeight || "400", 10) >= 600,
-      initialItalic: computed?.fontStyle === "italic",
-      initialUnderline: String(computed?.textDecorationLine || "").includes("underline"),
-      onApply: (settings) => this.applyFontDialogSettings(settings, range)
+      state: this._readFontDialogState(range),
+      onApply: (changes) => this.applyFontDialogChanges(changes, range)
     });
   }
 
-  applyFontDialogSettings(settings, savedRange) {
-    if (!savedRange || savedRange.collapsed || typeof document === "undefined") return false;
+  /** Các nút văn bản (không rỗng) mà vùng chọn chạm tới. */
+  _fontDialogTextNodes(range) {
+    if (!range || typeof document === "undefined") return [];
+    const root = range.commonAncestorContainer?.nodeType === 3 ? range.commonAncestorContainer.parentNode : range.commonAncestorContainer;
+    if (range.commonAncestorContainer?.nodeType === 3) return range.collapsed ? [] : [range.commonAncestorContainer];
+    if (!root || typeof document.createTreeWalker !== "function") return [];
+    const nodes = [];
+    const walker = document.createTreeWalker(root, 4 /* NodeFilter.SHOW_TEXT */);
+    let node = walker.nextNode();
+    while (node) {
+      if (node.nodeValue && node.nodeValue.length && range.intersectsNode(node)) {
+        const isStart = node === range.startContainer;
+        const isEnd = node === range.endContainer;
+        const from = isStart ? range.startOffset : 0;
+        const to = isEnd ? range.endOffset : node.nodeValue.length;
+        if (to > from) nodes.push(node);
+      }
+      node = walker.nextNode();
+    }
+    return nodes;
+  }
+
+  static _fxTokens(element) {
+    const map = new Map();
+    for (const token of String(element?.getAttribute?.("data-vno-fx") || "").split(";")) {
+      if (!token) continue;
+      const [key, ...rest] = token.split("=");
+      map.set(key, rest.length ? rest.join("=") : true);
+    }
+    return map;
+  }
+
+  static _fxWrite(element, map) {
+    const parts = [];
+    for (const [key, value] of map) parts.push(value === true ? key : `${key}=${value}`);
+    if (parts.length) element.setAttribute("data-vno-fx", parts.join(";"));
+    else element.removeAttribute("data-vno-fx");
+  }
+
+  /** Trạng thái hiện tại của vùng chọn cho hộp Phông chữ; giá trị trộn lẫn = null (giống Word). */
+  _readFontDialogState(range) {
+    const nodes = this._fontDialogTextNodes(range);
+    const targets = nodes.length ? nodes : (range?.startContainer ? [range.startContainer] : []);
+    const rgbToHex = (value) => {
+      const m = String(value || "").match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+      return m ? `#${m.slice(1, 4).map(v => Number(v).toString(16).padStart(2, "0")).join("")}` : "#000000";
+    };
+    const samples = targets.map((node) => {
+      const element = node.nodeType === 1 ? node : node.parentElement;
+      const cs = element && typeof getComputedStyle === "function" ? getComputedStyle(element) : null;
+      const sample = {
+        family: cs?.fontFamily?.split(",")[0]?.replace(/["']/g, "").trim() || "Times New Roman",
+        size: Math.round(Number.parseFloat(cs?.fontSize || "") * 0.75 * 2) / 2 || 14,
+        color: rgbToHex(cs?.color),
+        bold: Number.parseInt(cs?.fontWeight || "400", 10) >= 600,
+        italic: cs?.fontStyle === "italic",
+        underlineStyle: "none", underlineColor: "auto", strike: false, dstrike: false, sup: false, sub: false,
+        smallCaps: cs?.fontVariantCaps === "small-caps" || /small-caps/.test(cs?.fontVariant || ""),
+        allCaps: cs?.textTransform === "uppercase", hidden: false, spacing: 0, position: 0
+      };
+      const letter = Number.parseFloat(cs?.letterSpacing || "");
+      sample.spacing = Number.isFinite(letter) ? Math.round(letter * 0.75 * 10) / 10 : 0;
+      for (let el = element; el && el !== this.bodyDom && el !== this.editorDom; el = el.parentElement) {
+        const tokens = WriterAdapter._fxTokens(el);
+        const ecs = typeof getComputedStyle === "function" ? getComputedStyle(el) : null;
+        const line = String(ecs?.textDecorationLine || "");
+        if (line.includes("underline") && sample.underlineStyle === "none") {
+          const kind = ecs.textDecorationStyle;
+          sample.underlineStyle = tokens.get("ul") || (kind === "double" ? "double" : kind === "dotted" ? "dotted" : kind === "dashed" ? "dash" : kind === "wavy" ? "wave" : "single");
+          sample.underlineColor = tokens.get("ulc") ? `#${String(tokens.get("ulc")).toLowerCase()}` : "auto";
+        } else if (tokens.get("ul") && sample.underlineStyle === "none") {
+          sample.underlineStyle = tokens.get("ul");
+        }
+        if (line.includes("line-through") && !sample.strike && !sample.dstrike) {
+          if (tokens.has("dstrike") || ecs.textDecorationStyle === "double") sample.dstrike = true; else sample.strike = true;
+        }
+        if (el.tagName === "SUP" || ecs?.verticalAlign === "super") sample.sup = true;
+        if (el.tagName === "SUB" || ecs?.verticalAlign === "sub") sample.sub = true;
+        if (tokens.has("vanish") || ecs?.display === "none") sample.hidden = true;
+        if (tokens.has("posx")) sample.position = Number(tokens.get("posx")) / 2;
+      }
+      return sample;
+    });
+    const base = { family: "Times New Roman", size: 14, color: "#000000", bold: false, italic: false, underlineStyle: "none",
+      underlineColor: "auto", strike: false, dstrike: false, sup: false, sub: false, smallCaps: false, allCaps: false,
+      hidden: false, spacing: 0, position: 0 };
+    if (!samples.length) return base;
+    const state = {};
+    for (const key of Object.keys(base)) {
+      const first = samples[0][key];
+      state[key] = samples.every(item => item[key] === first) ? first : null;
+    }
+    return state;
+  }
+
+  /** Bọc từng đoạn chữ trong vùng chọn bằng <span class="vno-fx-run"> để đặt kiểu/dấu hiệu ứng, rồi chọn lại vùng đó. */
+  _wrapFontDialogRuns(range, mutate) {
+    const nodes = this._fontDialogTextNodes(range);
+    if (!nodes.length) return [];
+    const start = range.startContainer;
+    const startOffset = range.startOffset;
+    const end = range.endContainer;
+    const endOffset = range.endOffset;
+    let list = nodes.slice();
+    if (end.nodeType === 3 && endOffset < end.nodeValue.length) end.splitText(endOffset);
+    if (start.nodeType === 3 && startOffset > 0 && startOffset < start.nodeValue.length) {
+      const right = start.splitText(startOffset);
+      list = list.map(node => (node === start ? right : node));
+    }
+    const spans = [];
+    for (const node of list) {
+      const parent = node.parentElement;
+      if (!parent) continue;
+      let span = parent;
+      if (parent.classList?.contains("vno-fx-strike") && parent.parentElement?.classList?.contains("vno-fx-run") && parent.parentElement.childNodes.length === 1) {
+        span = parent.parentElement;
+      } else if (!(parent.classList?.contains("vno-fx-run") && parent.childNodes.length === 1)) {
+        span = document.createElement("span");
+        span.className = "vno-fx-run";
+        parent.insertBefore(span, node);
+        span.appendChild(node);
+      }
+      mutate(span);
+      spans.push(span);
+    }
+    const isBare = (el) => !el.getAttribute("data-vno-fx") && !(el.getAttribute("style") || "").trim();
+    const unwrap = (el) => {
+      const parent = el.parentNode;
+      if (!parent) return;
+      while (el.firstChild) parent.insertBefore(el.firstChild, el);
+      parent.removeChild(el);
+    };
+    for (const span of spans) {
+      const inner = span.querySelector?.(":scope > .vno-fx-strike");
+      if (inner && isBare(inner)) unwrap(inner);
+      if (isBare(span)) unwrap(span);
+    }
+    const first = list[0];
+    const last = list[list.length - 1];
+    if (first?.isConnected && last?.isConnected) {
+      const next = document.createRange();
+      next.setStart(first, 0);
+      next.setEnd(last, last.nodeValue.length);
+      const selection = window.getSelection?.();
+      selection?.removeAllRanges();
+      selection?.addRange(next);
+    }
+    return spans;
+  }
+
+  applyFontDialogChanges(changes, savedRange) {
+    if (!changes || typeof changes !== "object" || !savedRange || savedRange.collapsed || typeof document === "undefined") return false;
+    const keys = Object.keys(changes);
+    if (!keys.length) return true;
     const selection = window.getSelection?.();
     if (!selection) return false;
     selection.removeAllRanges();
     selection.addRange(savedRange);
-    const fragment = savedRange.extractContents();
-    const wrapper = document.createElement("span");
-    wrapper.style.fontFamily = settings.fontFamily;
-    wrapper.style.fontSize = `${settings.fontSize}pt`;
-    wrapper.style.fontWeight = settings.bold ? "bold" : "normal";
-    wrapper.style.fontStyle = settings.italic ? "italic" : "normal";
-    wrapper.style.textDecoration = settings.underline ? "underline" : "none";
-    if (settings.color) wrapper.style.color = settings.color;
-    wrapper.appendChild(fragment);
-    for (const descendant of wrapper.querySelectorAll("*")) {
-      descendant.style.fontFamily = settings.fontFamily;
-      descendant.style.fontSize = `${settings.fontSize}pt`;
-      descendant.style.fontWeight = settings.bold ? "bold" : "normal";
-      descendant.style.fontStyle = settings.italic ? "italic" : "normal";
-      descendant.style.textDecoration = settings.underline ? "underline" : "none";
-      if (settings.color) descendant.style.color = settings.color;
+    this.bodyDom?.focus?.();
+    const toggleTo = (command, desired) => {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        if (document.queryCommandState(command) === desired) return;
+        document.execCommand(command, false, null);
+      }
+    };
+    if (changes.family) document.execCommand("fontName", false, changes.family);
+    if (changes.size) this._applyFontSizePt(changes.size);
+    if (changes.color) document.execCommand("foreColor", false, changes.color);
+    if ("strike" in changes) toggleTo("strikeThrough", changes.strike);
+    if (changes.dstrike) toggleTo("strikeThrough", false);
+    if ("sup" in changes) {
+      if (changes.sup) toggleTo("subscript", false);
+      toggleTo("superscript", changes.sup);
     }
-    savedRange.insertNode(wrapper);
-    const nextRange = document.createRange();
-    nextRange.selectNodeContents(wrapper);
-    selection.removeAllRanges();
-    selection.addRange(nextRange);
+    if ("sub" in changes) {
+      if (changes.sub) toggleTo("superscript", false);
+      toggleTo("subscript", changes.sub);
+    }
+    if (changes.underlineStyle === "none") toggleTo("underline", false);
+
+    const needsRuns = ["bold", "italic", "underlineStyle", "underlineColor", "dstrike", "smallCaps", "allCaps", "hidden", "spacing", "position"]
+      .some(key => key in changes) || changes.strike === true;
+    if (needsRuns) {
+      const current = selection.rangeCount ? selection.getRangeAt(0).cloneRange() : savedRange;
+      this._wrapFontDialogRuns(current, (span) => {
+        const tokens = WriterAdapter._fxTokens(span);
+        if ("bold" in changes) span.style.fontWeight = changes.bold ? "bold" : "normal";
+        if ("italic" in changes) span.style.fontStyle = changes.italic ? "italic" : "normal";
+        if ("smallCaps" in changes) span.style.fontVariant = changes.smallCaps ? "small-caps" : "";
+        if ("allCaps" in changes) span.style.textTransform = changes.allCaps ? "uppercase" : "";
+        if ("spacing" in changes) span.style.letterSpacing = changes.spacing ? `${changes.spacing}pt` : "";
+        if ("hidden" in changes) {
+          if (changes.hidden) { tokens.set("vanish", true); span.style.display = "none"; }
+          else { tokens.delete("vanish"); span.style.display = ""; }
+        }
+        if ("position" in changes) {
+          if (changes.position) {
+            tokens.set("posx", String(Math.round(changes.position * 2)));
+            span.style.position = "relative";
+            span.style.top = `${-changes.position}pt`;
+          } else {
+            tokens.delete("posx");
+            span.style.position = "";
+            span.style.top = "";
+          }
+        }
+        // Gạch ngang đôi nằm trên thẻ con riêng: một phần tử CSS chỉ có một kiểu gạch (không thể vừa đôi vừa sóng).
+        const strikeInner = span.querySelector?.(":scope > .vno-fx-strike") || null;
+        const clearStrikeInner = (el) => { WriterAdapter._fxWrite(el, new Map()); el.style.textDecoration = ""; };
+        if (changes.strike === true && strikeInner) clearStrikeInner(strikeInner);
+        if ("dstrike" in changes) {
+          if (changes.dstrike) {
+            let inner = strikeInner;
+            if (!inner) {
+              inner = document.createElement("span");
+              inner.className = "vno-fx-strike";
+              while (span.firstChild) inner.appendChild(span.firstChild);
+              span.appendChild(inner);
+            }
+            WriterAdapter._fxWrite(inner, new Map([["dstrike", true]]));
+            // LibreOffice HTML chỉ hiểu dạng viết gọn text-decoration (không hiểu text-decoration-line/-style).
+            inner.style.textDecoration = "line-through double";
+          } else if (strikeInner) {
+            clearStrikeInner(strikeInner);
+          }
+        }
+        if ("underlineStyle" in changes || "underlineColor" in changes) {
+          const style = changes.underlineStyle ?? (tokens.get("ul") || "single");
+          if (style === "none") {
+            tokens.delete("ul"); tokens.delete("ulc");
+            if (/underline/.test(span.style.textDecoration)) span.style.textDecoration = "";
+          } else {
+            const cssStyle = { double: "double", dotted: "dotted", dash: "dashed", wave: "wavy" }[style] || "solid";
+            const color = changes.underlineColor ?? (tokens.get("ulc") ? `#${tokens.get("ulc")}` : "auto");
+            span.style.textDecoration = ["underline", cssStyle, style === "thick" ? "2px" : "", color === "auto" ? "" : color].filter(Boolean).join(" ");
+            if (style === "single") tokens.delete("ul"); else tokens.set("ul", style);
+            if (color === "auto") tokens.delete("ulc"); else tokens.set("ulc", color.replace("#", "").toUpperCase());
+          }
+        }
+        WriterAdapter._fxWrite(span, tokens);
+      });
+    }
     this.isDirty = true;
     this.recordSnapshot("writer.format.fontDialog");
     return true;

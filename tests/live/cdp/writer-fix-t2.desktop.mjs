@@ -60,7 +60,7 @@ try {
   if (dialogOpen) {
     await cdp.evaluate(`(() => { document.querySelector('#vno-font-dialog-overlay [data-size]').value='18'; document.querySelector('#vno-font-dialog-overlay [data-family]').value='Arial'; })()`);
     await click(cdp, "#vno-font-dialog-overlay [data-apply]");
-    const applied = await cdp.evaluate(`(() => { const s=document.querySelector('.vno-writer-body span span'); return {open:!!document.querySelector('#vno-font-dialog-overlay'),size:getComputedStyle(s).fontSize,family:getComputedStyle(s).fontFamily,selection:getSelection().toString()}; })()`);
+    const applied = await cdp.evaluate(`(() => { const q=getSelection(); const node=q.anchorNode; const s=node?.nodeType===3?node.parentElement:node; return {open:!!document.querySelector('#vno-font-dialog-overlay'),size:getComputedStyle(s).fontSize,family:getComputedStyle(s).fontFamily,selection:q.toString()}; })()`);
     check("U29: hộp thoại áp dụng phông/cỡ chữ lên vùng chọn", !applied.open && applied.size === "24px" && applied.family.includes("Arial"), JSON.stringify(applied));
   }
 } catch (error) {

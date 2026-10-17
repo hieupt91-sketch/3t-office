@@ -3897,5 +3897,20 @@ p.vno-style-list-paragraph {
   cursor: pointer;
 }
 
-
-
+/* Hộp thoại Phông chữ kiểu Word 2016 (Ctrl+D) */
+.vno-font-dialog .vno-fontdlg-tabs { display: flex; gap: 2px; padding: 0 16px; border-bottom: 1px solid var(--vno-border-default); }
+.vno-font-dialog .vno-fontdlg-tab { border: 1px solid transparent; border-bottom: 0; background: transparent; padding: 7px 14px; cursor: pointer; border-radius: 6px 6px 0 0; color: inherit; font: inherit; }
+.vno-font-dialog .vno-fontdlg-tab.is-active { border-color: var(--vno-border-default); background: var(--vno-surface-default, #fff); font-weight: 600; margin-bottom: -1px; }
+.vno-font-dialog .vno-fontdlg-grid { display: grid; grid-template-columns: 1fr 1fr 110px; gap: 12px 14px; align-items: end; }
+.vno-font-dialog .vno-fontdlg-grid[hidden] { display: none; }
+.vno-font-dialog .vno-fontdlg-grid label { display: block; font-size: 13px; }
+.vno-font-dialog .vno-fontdlg-grid .vno-dialog-input { display: block; width: 100%; margin-top: 5px; }
+.vno-font-dialog .vno-fontdlg-grid input[type=color] { display: block; margin-top: 5px; width: 64px; height: 32px; }
+.vno-font-dialog .vno-fontdlg-row { display: flex; align-items: center; gap: 10px; margin-top: 5px; }
+.vno-font-dialog .vno-fontdlg-effects { grid-column: 1 / -1; border: 1px solid var(--vno-border-default); border-radius: 6px; padding: 8px 12px; display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px 18px; }
+.vno-font-dialog .vno-fontdlg-check { display: inline-flex; align-items: center; gap: 6px; margin: 0; }
+.vno-font-dialog .vno-fontdlg-preview { grid-column: 1 / -1; min-height: 52px; display: flex; align-items: center; justify-content: center; border: 1px solid var(--vno-border-default); border-radius: 6px; background: #fff; color: #000; overflow: hidden; }
+/* Chữ ẩn: ẩn hẳn khi viết, hiện nét chấm khi bật nút Hiện/Ẩn dấu định dạng (¶) giống Word */
+.vno-writer-body.vno-show-formatting-marks [data-vno-fx~="vanish"],
+.vno-writer-body.vno-show-formatting-marks [data-vno-fx*="vanish"],
+.vno-writer-body.vno-show-formatting-marks [style*="display: none"]:has([data-vno-fx*="vanish"]) { display: inline !important; text-decoration: underline dotted; }

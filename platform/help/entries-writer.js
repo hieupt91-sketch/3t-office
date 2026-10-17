@@ -910,14 +910,18 @@ export const WRITER_HELP_ENTRIES = [
     id: "writer.format.fontDialogHelp",
     app: "writer",
     commandIds: ["writer.format.fontDialog"],
-    title: "Hộp thoại Phông chữ",
-    summary: "Ctrl+D mở hộp thoại để đặt phông, cỡ chữ, màu chữ, đậm, nghiêng và gạch chân cho vùng đang chọn.",
+    title: "Hộp thoại Phông chữ (Ctrl+D): hiệu ứng, gạch chân, khoảng cách, vị trí",
+    summary: "Ctrl+D mở hộp thoại đầy đủ: đặt phông, kiểu, cỡ, màu, kiểu và màu gạch chân, hiệu ứng (gạch ngang, gạch ngang đôi, chỉ số trên/dưới, chữ hoa nhỏ, tất cả chữ hoa, ẩn) và thẻ Nâng cao (khoảng cách ký tự, nâng/hạ vị trí).",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
-    keywords: ["phông chữ", "font dialog", "ctrl+d", "cỡ chữ", "đậm", "nghiêng", "gạch chân"],
+    keywords: ["phông chữ", "font dialog", "ctrl+d", "cỡ chữ", "đậm", "nghiêng", "gạch chân", "gạch ngang đôi", "double strikethrough", "chữ hoa nhỏ", "small caps", "chữ ẩn", "hidden", "khoảng cách ký tự", "character spacing", "nâng lên", "hạ xuống", "position", "màu gạch chân", "underline style"],
     steps: [
-      "Bôi đen đoạn cần định dạng trong nội dung tài liệu, rồi nhấn Ctrl+D. Có thể mở tab Trang đầu > nhóm Phông chữ và dùng các nút chọn phông/cỡ chữ riêng.",
-      "Trong hộp thoại Phông chữ, chọn tên phông, nhập cỡ chữ từ 1 đến 400 pt, chọn màu và đánh dấu Đậm, Nghiêng hoặc Gạch chân theo nhu cầu.",
-      "Nhấn Áp dụng để định dạng vùng đã bôi; nhấn Hủy hoặc Esc để đóng mà không áp dụng. Ctrl+Z hoàn tác lần áp dụng gần nhất."
+      "Bôi đen đoạn cần định dạng trong nội dung tài liệu, rồi nhấn Ctrl+D (hoặc nhấp mũi tên nhỏ ở góc dưới bên phải nhóm Phông chữ, tab Trang đầu).",
+      "Thẻ Phông chữ: chọn Phông chữ, Kiểu chữ (Thường, Nghiêng, Đậm, Đậm nghiêng), Cỡ chữ từ 1 đến 400 pt, Màu chữ; chọn Kiểu gạch chân (một nét, hai nét, nét đậm, chấm, gạch ngang, lượn sóng) và Màu gạch chân (hoặc tick Tự động để dùng màu chữ).",
+      "Mục Hiệu ứng: tick Gạch ngang hoặc Gạch ngang đôi, Chỉ số trên hoặc Chỉ số dưới (mỗi cặp chỉ chọn một), Chữ hoa nhỏ, Tất cả chữ hoa, Ẩn. Khung Xem trước ở dưới hiển thị kết quả ngay.",
+      "Thẻ Nâng cao: Khoảng cách ký tự chọn Giãn ra hoặc Nén lại rồi nhập số pt ở ô Bằng; Vị trí chọn Nâng lên hoặc Hạ xuống rồi nhập số pt.",
+      "Khi vùng chọn có định dạng trộn lẫn, ô tick hiện dấu gạch ngang nhỏ và ô chọn để trống; chỉ những mục bạn thật sự đổi mới được áp dụng, phần còn lại giữ nguyên.",
+      "Nhấn Áp dụng để định dạng vùng đã bôi; nhấn Hủy hoặc Esc để đóng mà không áp dụng. Ctrl+Z hoàn tác lần áp dụng gần nhất.",
+      "Chữ Ẩn không hiện trên màn hình và không in; bật nút Hiện/ẩn ký tự định dạng (¶) ở nhóm Đoạn văn để thấy chữ ẩn có gạch chấm. Các hiệu ứng này được lưu vào tệp DOCX và mở lại đúng, kể cả khi bạn sửa tiếp đoạn văn đó."
     ]
   },
   {
