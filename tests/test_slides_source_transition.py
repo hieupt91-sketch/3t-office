@@ -112,5 +112,37 @@ class SourceTransitionSaveTests(unittest.TestCase):
         self.assertEqual(patcher._apply_slides_source_transitions(_pptx([_slide("")]), _fodp(1)), {})
 
 
+class SourceThemeTests(unittest.TestCase):
+    def _package(self) -> bytes:
+        buffer = io.BytesIO()
+        with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as package:
+            package.writestr("ppt/slideMasters/slideMaster1.xml", "<p:sldMaster/>")
+            package.writestr(
+                "ppt/slideMasters/_rels/slideMaster1.xml.rels",
+                '<Relationships><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/theme" Target="../theme/theme1.xml"/></Relationships>',
+            )
+            package.writestr("ppt/theme/theme1.xml", '<a:theme name="Office"><a:fontScheme><a:latin typeface="Calibri"/></a:fontScheme></a:theme>')
+        return buffer.getvalue()
+
+    def test_original_theme_is_carried_and_restored(self):
+        pptx = self._package()
+        marked = patcher.overlay_fodp_source_theme(
+            '<office:document xmlns:office="o" xmlns:draw="d" xmlns:style="s"><style:master-page style:name="Standard"/></office:document>', pptx
+        )
+        self.assertIn("vno:src-theme=", marked)
+        # soffice đã ghi chủ đề mặc định riêng
+        converted = self._package()
+        converted = patcher.patch_ooxml_zip(converted, {"ppt/theme/theme1.xml": '<a:theme name="LibreOffice"/>'.encode("utf-8")})
+        restored = patcher._restore_slides_source_theme(converted, marked, None)
+        self.assertEqual(list(restored), ["ppt/theme/theme1.xml"])
+        self.assertIn('name="Office"', restored["ppt/theme/theme1.xml"])
+
+    def test_a_theme_chosen_in_vn_is_not_overwritten(self):
+        pptx = self._package()
+        marked = patcher.overlay_fodp_source_theme(
+            '<office:document xmlns:office="o" xmlns:draw="d" xmlns:style="s"><style:master-page style:name="Standard"/></office:document>', pptx
+        )
+        self.assertEqual(patcher._restore_slides_source_theme(pptx, marked, {"id": "corporate-red"}), {})
+
 if __name__ == "__main__":
     unittest.main()

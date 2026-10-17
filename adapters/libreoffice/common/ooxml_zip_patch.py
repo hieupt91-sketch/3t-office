@@ -10159,6 +10159,47 @@ def _patch_slides_theme_parts(pptx_bytes: bytes, payload: dict | None) -> dict[s
     return replacements
 
 
+_SRC_THEME_MAX_BYTES = 262144
+
+
+def overlay_fodp_source_theme(fodp_xml: str | None, pptx_bytes: bytes) -> str:
+    """Mở PPTX: gắn nguyên ppt/theme/themeN.xml gốc (base64) vào master-page để lúc lưu trả lại, vì soffice thay bằng chủ đề «LibreOffice»."""
+    xml = fodp_xml or ""
+    paths = _related_theme_part_paths(pptx_bytes)
+    if len(paths) != 1:
+        return xml
+    raw = read_zip_entry(pptx_bytes, next(iter(paths)))
+    if not raw or len(raw) > _SRC_THEME_MAX_BYTES:
+        return xml
+    match = re.search(r"<style:master-page\b([^>]*?)(/?)>", xml, re.IGNORECASE)
+    if not match:
+        return xml
+    import base64 as _b64
+    attrs = re.sub(r'\s+vno:src-theme="[^"]*"', "", match.group(1))
+    replacement = f'<style:master-page{attrs} vno:src-theme="{_b64.b64encode(raw).decode("ascii")}"{match.group(2)}>'
+    return ensure_vno_xmlns(xml[:match.start()] + replacement + xml[match.end():])
+
+
+def _restore_slides_source_theme(pptx_bytes: bytes, source_fodp: str | None, theme_payload: dict | None) -> dict[str, str]:
+    """Lưu PPTX: trả lại chủ đề gốc của tệp khi người dùng không chọn chủ đề mới của VN."""
+    if not source_fodp or (isinstance(theme_payload, dict) and theme_payload.get("id")):
+        return {}
+    match = re.search(r'<style:master-page\b[^>]*\bvno:src-theme="([^"]+)"', source_fodp, re.IGNORECASE)
+    if not match:
+        return {}
+    paths = _related_theme_part_paths(pptx_bytes)
+    if len(paths) != 1:
+        return {}
+    import base64 as _b64
+    try:
+        original = _b64.b64decode(match.group(1)).decode("utf-8")
+    except Exception:
+        return {}
+    if "<a:theme" not in original:
+        return {}
+    return {next(iter(paths)): original}
+
+
 def overlay_fodp_native_slides_theme(fodp_xml: str, pptx_bytes: bytes) -> str:
     paths = _related_theme_part_paths(pptx_bytes)
     if len(paths) != 1:
@@ -11584,6 +11625,8 @@ def postprocess_slides_pptx(
     theme_id = parse_master_theme_id_from_fodp(source_fodp)
     theme_payload = _parse_master_theme_payload_from_fodp(source_fodp)
     theme_replacements = _patch_slides_theme_parts(pptx_bytes, theme_payload)
+    if not theme_replacements:
+        theme_replacements = _restore_slides_source_theme(pptx_bytes, source_fodp, theme_payload)
     apply_sections = bool(sections) if sections is not None else fodp_has_sections(source_fodp)
     apply_show = bool(show_without_narration or pointer_color) or fodp_has_show_setup_patch(source_fodp)
 
@@ -16099,6 +16142,7 @@ def overlay_slides_pptx_fodp(pptx_bytes: bytes, fodp_xml: str | None) -> str:
     xml = overlay_fodp_master_logo(xml, masters)
     xml = overlay_fodp_master_theme_id(xml, masters)
     xml = overlay_fodp_native_slides_theme(xml, pptx_bytes)
+    xml = overlay_fodp_source_theme(xml, pptx_bytes)
     props = read_zip_entry(pptx_bytes, PPTX_PRESPROPS_ENTRY)
     if props:
         xml = overlay_fodp_show_properties(xml, props.decode("utf-8", errors="replace"))

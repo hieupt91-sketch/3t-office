@@ -3486,7 +3486,8 @@ export class SlidesAdapter {
     // Tệp mở từ PowerPoint/LibreOffice mà người dùng chưa chọn chủ đề nào: KHÔNG ghi chủ đề mặc định của VN đè lên
     // màu nền / phông chữ của chủ đề gốc trong tệp (đã đo: theme1.xml bị đổi sang modern-blue).
     if (!theme || (isImported && !this.canvas?._masterThemeTouched)) {
-      return `<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1"/>`;
+      const sourceTheme = isImported && this._sourceThemeB64 ? ` vno:src-theme="${this._sourceThemeB64}"` : "";
+      return `<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1"${sourceTheme}/>`;
     }
     const isVnDefaultLogo = !theme.logoText || [
       "VN OFFICE • THUYẾT TRÌNH", "VN OFFICE",
@@ -3550,6 +3551,7 @@ export class SlidesAdapter {
 
   _parseMasterTheme(xmlText) {
     const master = String(xmlText || "").match(/<style:master-page\b([^>]*)>/i)?.[1] || "";
+    this._sourceThemeB64 = this._attr(master, "vno:src-theme") || "";
     const raw = this._unescapeXml(this._attr(master, "vno:master-theme"));
     if (raw) {
       try {
