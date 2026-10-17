@@ -725,6 +725,7 @@ export const SLIDES_COMMANDS = [
   { id: "slides.design.setThemeColors", category: "design", label: "Bảng màu", icon: "formatBackground", tooltip: "Áp dụng bảng màu đã chọn cho toàn bài" },
   { id: "slides.design.themeFonts", category: "design", label: "Phông chủ đề", icon: "formatBackground", tooltip: "Đổi phông chữ của chủ đề cho toàn bài" },
   { id: "slides.design.setThemeFonts", category: "design", label: "Bộ phông", icon: "formatBackground", tooltip: "Áp dụng phông đã chọn cho toàn bài" },
+  { id: "slides.view.outline", category: "view", label: "Dàn bài", icon: "slideSorter", tooltip: "Xem và sửa tiêu đề, nội dung của mọi trang chiếu dưới dạng dàn bài", isToggle: true },
   { id: "slides.design.hideBackground", category: "design", label: "Ẩn đồ họa nền", icon: "formatBackground", tooltip: "Ẩn các hình/logo của bản cái trên trang đang chọn (bật/tắt)", isToggle: true },
   { id: "slides.edit.selectionPane", category: "edit", label: "Ngăn chọn", shortcut: "Alt+F10", icon: "selectionPane", tooltip: "Mở ngăn liệt kê mọi đối tượng trên trang để chọn nhanh và đổi thứ tự lớp (Alt+F10)", isToggle: true },
   { id: "slides.text.shadow", category: "format", label: "Đổ bóng chữ", icon: "textShadow", tooltip: "Đổ bóng cho chữ đang chọn (bật/tắt)", isToggle: true },

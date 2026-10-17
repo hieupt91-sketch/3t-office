@@ -1054,6 +1054,7 @@ export const viStrings = {
     ,"slides.design.setThemeColors": { label: "Bảng màu", tooltip: "Áp dụng bảng màu đã chọn cho toàn bài" }
     ,"slides.design.themeFonts": { label: "Phông chủ đề", tooltip: "Đổi phông chữ của chủ đề cho toàn bài" }
     ,"slides.design.setThemeFonts": { label: "Bộ phông", tooltip: "Áp dụng phông đã chọn cho toàn bài" }
+    ,"slides.view.outline": { label: "Dàn bài", tooltip: "Xem và sửa tiêu đề, nội dung của mọi trang chiếu dưới dạng dàn bài" }
     ,"slides.design.hideBackground": { label: "Ẩn đồ họa nền", tooltip: "Ẩn các hình/logo của bản cái trên trang đang chọn (bật/tắt)" }
     ,"slides.edit.selectionPane": { label: "Ngăn chọn", tooltip: "Mở ngăn liệt kê mọi đối tượng trên trang để chọn nhanh và đổi thứ tự lớp (Alt+F10)" }
     ,"slides.transition.apply": { label: "Chuyển tiếp", tooltip: "Hiệu ứng chuyển trang chiếu (Fade, Slide, Zoom, Flip)" }

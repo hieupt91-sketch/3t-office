@@ -7765,6 +7765,123 @@ const startEditing = (initialText) => {
     return true;
   }
 
+  /** Dạng dàn bài: danh sách mọi trang với tiêu đề và nội dung sửa trực tiếp (PowerPoint: Chế độ xem > Dạng dàn bài). */
+  openOutlineView() {
+    if (this.outlineOverlay || typeof document === "undefined") return false;
+    this._outlinePreviousFocused = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-outline-overlay";
+    overlay.style.zIndex = "900";
+    overlay.setAttribute("role", "dialog");
+    overlay.setAttribute("aria-modal", "true");
+    overlay.setAttribute("aria-label", t("slidesDialogs.outlineTitle", "Dạng dàn bài"));
+    overlay.innerHTML = `
+      <header class="vno-outline-header">
+        <div><strong>${t("slidesDialogs.outlineTitle", "Dạng dàn bài")}</strong><span>${t("slidesDialogs.outlineHint", "Sửa tiêu đề và nội dung từng trang; Enter ở tiêu đề chuyển xuống nội dung, Ctrl+Enter thêm trang mới.")}</span></div>
+        <button type="button" class="vno-outline-close" aria-label="${t("slidesDialogs.close", "Đóng")}" title="${t("slidesDialogs.close", "Đóng")} (Esc)">×</button>
+      </header>
+      <main class="vno-outline-list" aria-live="polite"></main>`;
+    overlay.querySelector(".vno-outline-close").addEventListener("click", () => this.closeOutlineView());
+    this._outlineKeyHandler = (event) => {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        this.closeOutlineView();
+      } else if (event.key === "Tab") {
+        trapFocus(overlay, event);
+      }
+    };
+    document.addEventListener("keydown", this._outlineKeyHandler);
+    document.body.appendChild(overlay);
+    this.outlineOverlay = overlay;
+    this.presentationView = "outline";
+    this._renderOutlineList();
+    try { globalCommandBus.updateState("slides.view.outline", { checked: true }); } catch (_) { /* chưa có bus */ }
+    overlay.querySelector(`[data-outline-field="title"][data-slide-index="${this.currentSlideIndex}"]`)?.focus?.();
+    return true;
+  }
+
+  closeOutlineView() {
+    if (!this.outlineOverlay) return false;
+    document.removeEventListener("keydown", this._outlineKeyHandler);
+    this.outlineOverlay.remove();
+    this.outlineOverlay = null;
+    this._outlineKeyHandler = null;
+    this.presentationView = "normal";
+    try { globalCommandBus.updateState("slides.view.outline", { checked: false }); } catch (_) { /* chưa có bus */ }
+    this.selectSlide(this.currentSlideIndex);
+    this._renderThumbnails();
+    const previous = this._outlinePreviousFocused;
+    this._outlinePreviousFocused = null;
+    if (previous && typeof previous.focus === "function" && previous.isConnected) { try { previous.focus(); } catch (_) { /* bỏ qua */ } }
+    return true;
+  }
+
+  _renderOutlineList() {
+    const list = this.outlineOverlay?.querySelector(".vno-outline-list");
+    if (!list) return;
+    list.innerHTML = "";
+    this.slides.forEach((slide, index) => {
+      const hasBody = (slide.layoutType || "title-content") !== "blank" && slide.layoutType !== "title-only";
+      const row = document.createElement("section");
+      row.className = `vno-outline-row${index === this.currentSlideIndex ? " is-current" : ""}`;
+      row.innerHTML = `
+        <button type="button" class="vno-outline-number" data-slide-index="${index}" aria-label="Trang chiếu ${index + 1}">${index + 1}</button>
+        <div class="vno-outline-fields">
+          <input type="text" class="vno-outline-title" data-outline-field="title" data-slide-index="${index}" aria-label="Tiêu đề trang chiếu ${index + 1}">
+          ${hasBody ? `<textarea class="vno-outline-body" rows="3" data-outline-field="body" data-slide-index="${index}" aria-label="Nội dung trang chiếu ${index + 1}"></textarea>` : ""}
+        </div>`;
+      // Gán bằng thuộc tính value để chữ của người dùng không bao giờ bị hiểu là HTML.
+      row.querySelector('[data-outline-field="title"]').value = slide.title || "";
+      const bodyEl = row.querySelector('[data-outline-field="body"]');
+      if (bodyEl) bodyEl.value = slide.body || "";
+      list.appendChild(row);
+    });
+    list.onclick = (event) => {
+      const number = event.target.closest?.(".vno-outline-number");
+      if (!number) return;
+      this.currentSlideIndex = Number(number.dataset.slideIndex);
+      this._renderOutlineList();
+      list.querySelector(`[data-outline-field="title"][data-slide-index="${this.currentSlideIndex}"]`)?.focus?.();
+    };
+    list.onchange = (event) => {
+      const field = event.target.closest?.("[data-outline-field]");
+      if (field) this._commitOutlineField(Number(field.dataset.slideIndex), field.dataset.outlineField, field.value);
+    };
+    list.onkeydown = (event) => {
+      const field = event.target.closest?.("[data-outline-field]");
+      if (!field) return;
+      const index = Number(field.dataset.slideIndex);
+      if (event.key === "Enter" && event.ctrlKey) {
+        event.preventDefault();
+        this._commitOutlineField(index, field.dataset.outlineField, field.value);
+        this.addNewSlide();
+        this._renderOutlineList();
+        list.querySelector(`[data-outline-field="title"][data-slide-index="${index + 1}"]`)?.focus?.();
+      } else if (event.key === "Enter" && field.dataset.outlineField === "title") {
+        const body = list.querySelector(`[data-outline-field="body"][data-slide-index="${index}"]`);
+        if (body) { event.preventDefault(); body.focus(); }
+      }
+    };
+  }
+
+  _commitOutlineField(index, key, value) {
+    const slide = this.slides[index];
+    if (!slide) return false;
+    const next = String(value ?? "").normalize("NFC");
+    if ((slide[key] || "") === next) return false;
+    const htmlKey = key === "title" ? "titleHtml" : "bodyHtml";
+    const before = { [key]: slide[key], [htmlKey]: slide[htmlKey] };
+    slide[key] = next;
+    delete slide[htmlKey]; // chữ đã đổi: bỏ bản HTML cũ để không hiện lại nội dung cũ
+    const after = { [key]: slide[key], [htmlKey]: undefined };
+    this.undoStack.push({ type: "slide-props", slideIndex: index, before, after });
+    this.redoStack = [];
+    this._syncUndoRedoState?.();
+    this._renderThumbnails?.();
+    this.options.onDocumentChange?.();
+    return true;
+  }
+
   openSlideSorter() {
     if (this.slideSorterOverlay || typeof document === "undefined") return false;
     this._slideSorterPreviousFocused = document.activeElement;
@@ -8328,6 +8445,13 @@ const startEditing = (initialText) => {
       this._restoreSlideTransitions(action.before);
       this.redoStack.push(action);
       return true;
+    } else if (action.type === "slide-props") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      for (const [key, value] of Object.entries(action.before)) { if (value === undefined) delete slide[key]; else slide[key] = value; }
+      this.redoStack.push(action);
+      if (this.outlineOverlay) { this._renderOutlineList(); this._renderThumbnails?.(); } else this._selectSlideKeepingSelection(action.slideIndex);
+      return true;
     } else if (action.type === "slide-prop") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
@@ -8706,6 +8830,13 @@ const startEditing = (initialText) => {
     } else if (action.type === "slide-transition") {
       this._restoreSlideTransitions(action.after);
       this.undoStack.push(action);
+      return true;
+    } else if (action.type === "slide-props") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      for (const [key, value] of Object.entries(action.after)) { if (value === undefined) delete slide[key]; else slide[key] = value; }
+      this.undoStack.push(action);
+      if (this.outlineOverlay) { this._renderOutlineList(); this._renderThumbnails?.(); } else this._selectSlideKeepingSelection(action.slideIndex);
       return true;
     } else if (action.type === "slide-prop") {
       const slide = this.slides[action.slideIndex];

@@ -265,6 +265,20 @@ export const SLIDES_HELP_ENTRIES = [
       "Nhấn Esc hoặc dấu × để đóng ngăn. Mở ngăn hoạt hình sẽ tự đóng ngăn chọn và ngược lại."
     ]
   },  {
+    id: "slides.view.outline",
+    app: "slides",
+    commandIds: ["slides.view.outline"],
+    title: "Dạng dàn bài: xem và sửa chữ của mọi trang chiếu",
+    summary: "Hiện tiêu đề và nội dung của tất cả trang chiếu thành một danh sách để đọc lướt và sửa nhanh, không phải mở từng trang.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Dạng xem bản trình chiếu" },
+    keywords: ["dàn bài", "outline", "xem dàn bài", "sửa tiêu đề", "danh sách trang"],
+    steps: [
+      "Tab Chế độ xem > nhóm Dạng xem bản trình chiếu > Dàn bài. Toàn bộ trang hiện thành danh sách, mỗi trang có số thứ tự, ô tiêu đề và ô nội dung.",
+      "Nhấp vào ô để sửa chữ. Nhấn Enter ở ô tiêu đề để xuống ô nội dung; nhấn Ctrl+Enter để thêm một trang mới ngay sau trang đang sửa. Nhấp số thứ tự để chọn trang đó.",
+      "Chỉ chữ được sửa ở đây; trang có định dạng riêng (đậm, màu, danh sách) sẽ mất định dạng của đoạn bạn vừa sửa chữ. Ctrl+Z hoàn tác từng lần sửa.",
+      "Nhấn Esc hoặc dấu × để quay lại dạng xem thường; các thay đổi đã áp dụng cho trang."
+    ]
+  },  {
     id: "slides.design.variants",
     app: "slides",
     commandIds: ["slides.design.themeColors", "slides.design.setThemeColors", "slides.design.themeFonts", "slides.design.setThemeFonts"],
