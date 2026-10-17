@@ -380,6 +380,44 @@ export const SLIDES_RIBBON_TABS = [
         ]
       },
       {
+        id: "designVariants",
+        label: "Biến thể",
+        labelKey: "slidesRibbon.group.designVariants",
+        items: [
+          {
+            type: "dropdown",
+            id: "slides.design.themeColors",
+            label: "Màu chủ đề",
+            icon: "formatBackground",
+            isLarge: true,
+            items: [
+              { commandId: "slides.design.setThemeColors", args: "blue", label: "Xanh dương" },
+              { commandId: "slides.design.setThemeColors", args: "green", label: "Xanh lá" },
+              { commandId: "slides.design.setThemeColors", args: "orange", label: "Cam" },
+              { commandId: "slides.design.setThemeColors", args: "purple", label: "Tím" },
+              { commandId: "slides.design.setThemeColors", args: "red", label: "Đỏ" },
+              { commandId: "slides.design.setThemeColors", args: "slate", label: "Xám xanh" },
+              { commandId: "slides.design.setThemeColors", args: "dark", label: "Nền tối" }
+            ]
+          },
+          {
+            type: "dropdown",
+            id: "slides.design.themeFonts",
+            label: "Phông chủ đề",
+            icon: "formatBackground",
+            isLarge: true,
+            items: [
+              { commandId: "slides.design.setThemeFonts", args: "segoe", label: "Segoe UI" },
+              { commandId: "slides.design.setThemeFonts", args: "arial", label: "Arial" },
+              { commandId: "slides.design.setThemeFonts", args: "times", label: "Times New Roman" },
+              { commandId: "slides.design.setThemeFonts", args: "georgia", label: "Georgia" },
+              { commandId: "slides.design.setThemeFonts", args: "verdana", label: "Verdana" },
+              { commandId: "slides.design.setThemeFonts", args: "tahoma", label: "Tahoma" }
+            ]
+          }
+        ]
+      },
+      {
         id: "master",
         label: "Mẫu chủ đạo",
         labelKey: "slidesRibbon.group.master",

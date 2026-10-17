@@ -8929,6 +8929,26 @@ const startEditing = (initialText) => {
     this._syncCommandStates();
   }
 
+  /** Biến thể chủ đề (Thiết kế > Biến thể): đổi riêng bảng màu hoặc phông của chủ đề hiện tại, hoàn tác được. */
+  applyThemeVariant(kind, id) {
+    const colors = {
+      blue: { titleColor: "#1e3a8a", bodyColor: "#334155", accentColor: "#2563eb", bgColor: "#f8fafc" },
+      green: { titleColor: "#14532d", bodyColor: "#1f2937", accentColor: "#16a34a", bgColor: "#f0fdf4" },
+      orange: { titleColor: "#9a3412", bodyColor: "#431407", accentColor: "#f97316", bgColor: "#fff7ed" },
+      purple: { titleColor: "#581c87", bodyColor: "#3b0764", accentColor: "#9333ea", bgColor: "#faf5ff" },
+      red: { titleColor: "#7f1d1d", bodyColor: "#450a0a", accentColor: "#dc2626", bgColor: "#fef2f2" },
+      slate: { titleColor: "#0f172a", bodyColor: "#334155", accentColor: "#64748b", bgColor: "#f1f5f9" },
+      dark: { titleColor: "#f8fafc", bodyColor: "#e2e8f0", accentColor: "#38bdf8", bgColor: "#0f172a" }
+    };
+    const fonts = {
+      segoe: "'Segoe UI', sans-serif", arial: "Arial, sans-serif", times: "'Times New Roman', serif",
+      georgia: "Georgia, serif", verdana: "Verdana, sans-serif", tahoma: "Tahoma, sans-serif"
+    };
+    const patch = kind === "colors" ? colors[id] : (kind === "fonts" && fonts[id] ? { fontFamily: fonts[id] } : null);
+    if (!patch) return false;
+    return this.applySlideMaster(patch, true);
+  }
+
   applySlideMaster(themeConfig, recordHistory = false) {
     if (!themeConfig) return false;
     if (typeof themeConfig === "string") {

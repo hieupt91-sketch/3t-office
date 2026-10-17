@@ -265,6 +265,20 @@ export const SLIDES_HELP_ENTRIES = [
       "Nhấn Esc hoặc dấu × để đóng ngăn. Mở ngăn hoạt hình sẽ tự đóng ngăn chọn và ngược lại."
     ]
   },  {
+    id: "slides.design.variants",
+    app: "slides",
+    commandIds: ["slides.design.themeColors", "slides.design.setThemeColors", "slides.design.themeFonts", "slides.design.setThemeFonts"],
+    title: "Biến thể chủ đề: đổi bảng màu và phông chữ cho cả bài",
+    summary: "Giữ nguyên bố cục của chủ đề nhưng đổi nhanh bảng màu (tiêu đề, nội dung, màu nhấn, nền) hoặc phông chữ cho toàn bộ bài trình chiếu.",
+    ribbon: { tab: "Thiết kế", tabId: "design", group: "Biến thể" },
+    keywords: ["màu chủ đề", "phông chủ đề", "theme colors", "theme fonts", "biến thể", "bảng màu", "nền tối", "đổi phông"],
+    steps: [
+      "Vào tab Thiết kế > nhóm Biến thể. Không cần chọn trang; thay đổi áp dụng cho cả bài.",
+      "Màu chủ đề: chọn Xanh dương, Xanh lá, Cam, Tím, Đỏ, Xám xanh hoặc Nền tối. Màu của tiêu đề, nội dung, màu nhấn và nền đổi theo; màu bạn đã tô riêng cho từng chữ hay hình được giữ nguyên.",
+      "Phông chủ đề: chọn Segoe UI, Arial, Times New Roman, Georgia, Verdana hoặc Tahoma cho phần chữ lấy theo chủ đề.",
+      "Ctrl+Z hoàn tác một bước. Lựa chọn được lưu cùng tệp PPTX."
+    ]
+  },  {
     id: "slides.design.hideBackground",
     app: "slides",
     commandIds: ["slides.design.hideBackground"],
