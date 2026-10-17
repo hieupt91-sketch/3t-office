@@ -213,13 +213,15 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.transition.apply"],
     title: "Hiệu ứng chuyển trang (Transitions)",
-    summary: "Chọn cách trang này xuất hiện từ trang trước: Mờ dần, Trượt ngang, Thu phóng, Lật 3D hoặc Morph. Đặt thời gian, xem thử, áp dụng trang hiện tại hoặc tất cả.",
+    summary: "Chọn cách trang này xuất hiện từ trang trước: Mờ dần, Trượt ngang, Thu phóng, Lật 3D hoặc Morph. Đặt thời gian, chọn cách chuyển trang (khi nhấp chuột hoặc tự động sau N giây), xem thử, áp dụng trang hiện tại hoặc tất cả. Tệp có sẵn các kiểu chuyển tiếp khác (Cắt, Quét, Phủ, Tách, Tan biến...) được giữ nguyên khi lưu.",
     ribbon: { tab: "Chuyển tiếp", tabId: "transitions", group: "Hiệu ứng chuyển trang" },
     keywords: ["chuyển tiếp", "transition", "fade", "slide", "zoom", "flip", "morph", "chuyển trang"],
     steps: [
       "Tab Chuyển tiếp > nhóm Hiệu ứng chuyển trang > Chuyển tiếp. Chọn trang đích trước khi mở hộp thoại.",
       "Chọn Mờ dần, Trượt ngang, Thu phóng, Lật trang 3D hoặc Morph; đặt thời gian và nhấn Xem thử để kiểm tra.",
-      "Chọn Áp dụng cho trang này hoặc Áp dụng cho tất cả. Dùng Xóa chuyển tiếp để bỏ hiệu ứng khỏi phạm vi tương ứng.",
+      "Mục Chuyển trang: bỏ chọn Khi nhấp chuột nếu muốn nhấp chuột không chuyển trang (phím mũi tên, Space vẫn chuyển được); chọn Tự động sau rồi nhập số giây để trang tự chuyển sang trang kế tiếp khi trình chiếu (F5), trang cuối kết thúc buổi chiếu.",
+      "Chọn Áp dụng cho trang này hoặc Áp dụng cho tất cả (áp dụng cả cách chuyển trang). Dùng Xóa chuyển tiếp để bỏ hiệu ứng khỏi phạm vi tương ứng. Ctrl+Z hoàn tác lần đổi gần nhất.",
+      "Khi mở tệp trình chiếu có sẵn kiểu chuyển tiếp mà ứng dụng chưa dựng lại, hộp thoại hiện dòng Giữ nguyên hiệu ứng gốc của tệp; chọn dòng này để chỉ đổi cách chuyển trang mà không mất hiệu ứng.",
       "Lưu bản trình chiếu rồi mở lại để tiếp tục trình chiếu với hiệu ứng đã chọn. Morph làm mượt các đối tượng phù hợp giữa hai trang liên tiếp."
     ]
   },

@@ -137,6 +137,53 @@ class RunEffectsExportTests(unittest.TestCase):
         out = _document(patcher.postprocess_writer_run_effects(docx, source_html=html))
         self.assertRegex(out, r"<w:vanish/></w:rPr><w:t xml:space=\"preserve\">Giua</w:t>")
 
+    def test_highlight_is_marked_with_visible_background_and_restored_when_soffice_lost_it(self):
+        docx = _docx('<w:p><w:r><w:rPr><w:highlight w:val="yellow"/></w:rPr><w:t>Sang</w:t></w:r></w:p>')
+        marked = patcher.inject_docx_run_effects(docx, "<p>Sang</p>")
+        self.assertIn('data-vno-fx="hl=yellow"', marked)
+        self.assertIn("background-color: #FFFF00", marked)
+        saved = _docx("<w:p><w:r><w:t>Sang</w:t></w:r></w:p>")
+        out = _document(patcher.postprocess_writer_run_effects(saved, source_html=marked))
+        self.assertIn('<w:highlight w:val="yellow"/>', out)
+
+    def test_removed_highlight_is_not_resurrected(self):
+        saved = _docx("<w:p><w:r><w:t>Sang</w:t></w:r></w:p>")
+        html = '<p><span data-vno-fx="hl=yellow" style="background-color: transparent">Sang</span></p>'
+        out = _document(patcher.postprocess_writer_run_effects(saved, source_html=html))
+        self.assertNotIn("w:highlight", out)
+
+    def test_users_new_highlight_color_wins_over_the_old_marker(self):
+        saved = _docx('<w:p><w:r><w:rPr><w:shd w:val="clear" w:fill="00FF00"/></w:rPr><w:t>Sang</w:t></w:r></w:p>')
+        html = '<p><span data-vno-fx="hl=yellow" style="background-color: #00FF00">Sang</span></p>'
+        out = _document(patcher.postprocess_writer_run_effects(saved, source_html=html))
+        self.assertNotIn("w:highlight", out)
+
+    def test_exact_line_spacing_survives_when_the_line_height_is_unchanged(self):
+        docx = _docx('<w:p><w:pPr><w:spacing w:line="480" w:lineRule="exact"/></w:pPr><w:r><w:t>Dong</w:t></w:r></w:p>')
+        marked = patcher.inject_docx_run_effects(docx, '<p style="line-height: 0.85cm">Dong</p>')
+        self.assertIn('data-vno-pfx="lr=exact;ln=480;lh=0.85cm"', marked)
+        soffice_saved = _docx('<w:p><w:pPr><w:spacing w:line="482" w:lineRule="atLeast"/></w:pPr><w:r><w:t>Dong ZZ</w:t></w:r></w:p>')
+        out = _document(patcher.postprocess_writer_run_effects(soffice_saved, source_html=marked.replace("Dong", "Dong ZZ")))
+        self.assertIn('w:lineRule="exact"', out)
+        self.assertIn('w:line="480"', out)
+
+    def test_changed_line_spacing_is_not_forced_back_to_exact(self):
+        docx = _docx('<w:p><w:pPr><w:spacing w:line="480" w:lineRule="exact"/></w:pPr><w:r><w:t>Dong</w:t></w:r></w:p>')
+        marked = patcher.inject_docx_run_effects(docx, '<p style="line-height: 0.85cm">Dong</p>')
+        edited = marked.replace("line-height: 0.85cm", "line-height: 1.5")
+        saved = _docx('<w:p><w:pPr><w:spacing w:line="360" w:lineRule="auto"/></w:pPr><w:r><w:t>Dong</w:t></w:r></w:p>')
+        out = _document(patcher.postprocess_writer_run_effects(saved, source_html=edited))
+        self.assertIn('w:lineRule="auto"', out)
+
+    def test_outline_level_is_restored_for_body_paragraphs(self):
+        docx = _docx('<w:p><w:pPr><w:outlineLvl w:val="1"/></w:pPr><w:r><w:t>Muc</w:t></w:r></w:p>')
+        marked = patcher.inject_docx_run_effects(docx, "<p>Muc</p>")
+        self.assertIn('data-vno-pfx="ol=1"', marked)
+        saved = _docx('<w:p><w:pPr><w:pStyle w:val="BodyText"/><w:rPr></w:rPr></w:pPr><w:r><w:t>Muc</w:t></w:r></w:p>')
+        out = _document(patcher.postprocess_writer_run_effects(saved, source_html=marked))
+        self.assertIn('<w:outlineLvl w:val="1"/>', out)
+        self.assertLess(out.index("<w:outlineLvl"), out.index("<w:rPr>"))
+
     def test_no_marker_is_a_noop(self):
         docx = _docx("<w:p><w:r><w:t>A</w:t></w:r></w:p>")
         self.assertEqual(patcher.postprocess_writer_run_effects(docx, source_html="<p>A</p>"), docx)
