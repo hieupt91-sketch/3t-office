@@ -186,6 +186,21 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.arrange.bringToFront", () => this._hintIfFalse(() => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("front") : false, "Hãy chọn ít nhất một hình khối để sắp xếp thứ tự hiển thị."));
     globalCommandBus.bindHandler("slides.arrange.bringForward", () => this._hintIfFalse(() => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("forward") : false, "Hãy chọn ít nhất một hình khối để sắp xếp thứ tự hiển thị."));
     globalCommandBus.bindHandler("slides.arrange.sendBackward", () => this._hintIfFalse(() => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("backward") : false, "Hãy chọn ít nhất một hình khối để sắp xếp thứ tự hiển thị."));
+    // Tab «Định dạng hình»: tô màu, viền, bóng, xoay, lật (một bước hoàn tác cho cả nhóm hình đang chọn).
+    globalCommandBus.bindHandler("slides.shape.fill", () => this._shapeFillColor("custom"));
+    globalCommandBus.bindHandler("slides.shape.outline", () => this._shapeOutlineColor("custom"));
+    globalCommandBus.bindHandler("slides.shape.effects", () => this._shapeShadow("bottomRight"));
+    globalCommandBus.bindHandler("slides.arrange.rotate", () => this._shapeRotate(90));
+    globalCommandBus.bindHandler("slides.shape.fillColor", (args) => this._shapeFillColor(args));
+    globalCommandBus.bindHandler("slides.shape.outlineColor", (args) => this._shapeOutlineColor(args));
+    globalCommandBus.bindHandler("slides.shape.outlineWeight", (args) => this._shapeOutlineWeight(args));
+    globalCommandBus.bindHandler("slides.shape.outlineDash", (args) => this._shapeOutlineDash(args));
+    globalCommandBus.bindHandler("slides.shape.shadow", (args) => this._shapeShadow(args));
+    globalCommandBus.bindHandler("slides.shape.sizeDialog", () => this._hintIfFalse(() => this.canvas.openShapeFormatDialog ? this.canvas.openShapeFormatDialog() : false, "Hãy chọn một hình khối (không phải ảnh hoặc bảng) để đặt kích thước."));
+    globalCommandBus.bindHandler("slides.arrange.rotateRight90", () => this._shapeRotate(90));
+    globalCommandBus.bindHandler("slides.arrange.rotateLeft90", () => this._shapeRotate(-90));
+    globalCommandBus.bindHandler("slides.arrange.flipHorizontal", () => this._shapeFlip("flipH"));
+    globalCommandBus.bindHandler("slides.arrange.flipVertical", () => this._shapeFlip("flipV"));
     globalCommandBus.bindHandler("slides.arrange.sendToBack", () => this._hintIfFalse(() => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("back") : false, "Hãy chọn ít nhất một hình khối để sắp xếp thứ tự hiển thị."));
     // Những lệnh này có triển khai trong Canvas/adapter; bind tại đây để ribbon
     // và phím tắt dùng cùng một đường thực thi thay vì chỉ hoạt động qua UNO.
@@ -1386,6 +1401,100 @@ export class SlidesAdapter {
     return String(color || "3b82f6").replace(/[^A-Za-z0-9]/g, "").toLowerCase() || "3b82f6";
   }
 
+  static NON_FILL_TYPES = new Set(["image", "video", "audio", "ink", "path", "connector", "wordart", "chart", "table", "line"]);
+
+  /** Chạy một chỉnh sửa định dạng cho các hình đang chọn; thông báo nếu chưa chọn hình. */
+  _shapeStyle(build) {
+    const shapes = this.canvas?._selectedFormattableShapes ? this.canvas._selectedFormattableShapes() : [];
+    if (!shapes.length) {
+      this.shell?.setStatus?.("Hãy chọn một hình trước khi định dạng.");
+      return false;
+    }
+    return this.canvas.applyShapeStyle(build) !== false;
+  }
+
+  /** Mở bảng chọn màu hệ thống rồi áp dụng màu đã chọn. */
+  _pickCustomColor(initial, apply) {
+    if (typeof document === "undefined") return false;
+    const input = document.createElement("input");
+    input.type = "color";
+    input.value = /^#[0-9a-f]{6}$/i.test(initial || "") ? initial : "#3b82f6";
+    input.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0";
+    document.body.appendChild(input);
+    input.addEventListener("change", () => { apply(input.value); input.remove(); });
+    input.addEventListener("cancel", () => input.remove());
+    input.click();
+    return true;
+  }
+
+  _shapeFillColor(arg) {
+    const value = String(arg || "");
+    if (value === "custom") {
+      const current = this.canvas?._selectedFormattableShapes?.()[0];
+      return this._pickCustomColor(current?.fill || current?.color, (color) => this._shapeFillColor(color));
+    }
+    const color = value === "none" ? "transparent" : value;
+    if (!color) return false;
+    return this._shapeStyle((shape) => (SlidesAdapter.NON_FILL_TYPES.has(shape.type)
+      ? null : { fill: color, color, gradient: undefined, fillKind: undefined }));
+  }
+
+  _shapeOutlineColor(arg) {
+    const value = String(arg || "");
+    if (value === "custom") {
+      const current = this.canvas?._selectedFormattableShapes?.()[0];
+      return this._pickCustomColor(current?.stroke || current?.strokeColor, (color) => this._shapeOutlineColor(color));
+    }
+    if (value === "none") {
+      return this._shapeStyle((shape) => (shape.type === "image" ? null : { stroke: undefined, strokeColor: undefined, strokeWidth: 0 }));
+    }
+    if (!value) return false;
+    return this._shapeStyle((shape) => (shape.type === "image" ? null : {
+      stroke: value, strokeColor: value, strokeWidth: Number(shape.strokeWidth) > 0 ? shape.strokeWidth : 2
+    }));
+  }
+
+  _shapeOutlineWeight(arg) {
+    const pt = Number(arg);
+    if (!(pt > 0)) return false;
+    const px = Math.round((pt / this._ptPerPx()) * 10) / 10;
+    return this._shapeStyle((shape) => (shape.type === "image" ? null : {
+      strokeWidth: px,
+      stroke: shape.stroke || shape.strokeColor || "#1f2937",
+      strokeColor: shape.stroke || shape.strokeColor || "#1f2937"
+    }));
+  }
+
+  _shapeOutlineDash(arg) {
+    const names = { dash: "Long_20_Dash", dot: "Dot", dashDot: "Dash_20_Dot" };
+    const style = String(arg || "solid");
+    if (style !== "solid" && !names[style]) return false;
+    return this._shapeStyle((shape) => {
+      if (shape.type === "image") return null;
+      const base = { stroke: shape.stroke || shape.strokeColor || "#1f2937", strokeColor: shape.stroke || shape.strokeColor || "#1f2937", strokeWidth: Number(shape.strokeWidth) > 0 ? shape.strokeWidth : 2 };
+      return style === "solid"
+        ? { ...base, strokeDash: undefined, strokeKind: undefined }
+        : { ...base, strokeDash: names[style], strokeKind: "dash" };
+    });
+  }
+
+  _shapeShadow(arg) {
+    const direction = String(arg || "none");
+    const offsets = { bottomRight: ["0.2cm", "0.2cm"], bottomLeft: ["-0.2cm", "0.2cm"], topRight: ["0.2cm", "-0.2cm"], topLeft: ["-0.2cm", "-0.2cm"] };
+    if (direction !== "none" && !offsets[direction]) return false;
+    return this._shapeStyle((shape) => (direction === "none"
+      ? { shadow: undefined }
+      : { shadow: { visible: true, offsetX: offsets[direction][0], offsetY: offsets[direction][1], color: "#000000" } }));
+  }
+
+  _shapeRotate(delta) {
+    return this._shapeStyle((shape) => ({ rotation: (((Number(shape.rotation) || 0) + delta) % 360 + 360) % 360 }));
+  }
+
+  _shapeFlip(axis) {
+    return this._shapeStyle((shape) => ({ [axis]: shape[axis] ? undefined : true }));
+  }
+
   _isTransparentFill(shape) {
     if (shape?.type === "wordart" || shape?.type === "table") return true;
     const color = shape?.color;
@@ -1742,10 +1851,22 @@ export class SlidesAdapter {
   }
 
   _serializeStrokeDashStyles(slides) {
-    const hasDash = (slides || []).some(s => (s.shapes || []).some(sh => sh.strokeDash || sh.strokeKind === "dash"));
-    if (!hasDash) return "";
-    return `
-    <draw:stroke-dash draw:name="Long_20_Dash" draw:display-name="Long Dash" draw:style="rect" draw:dots1="1" draw:dots1-length="400%" draw:distance="300%"/>`;
+    const used = new Set();
+    for (const slide of slides || []) {
+      for (const shape of slide.shapes || []) {
+        if (shape.strokeDash) used.add(shape.strokeDash);
+        else if (shape.strokeKind === "dash") used.add("Long_20_Dash");
+      }
+    }
+    if (!used.size) return "";
+    const definitions = {
+      Long_20_Dash: '<draw:stroke-dash draw:name="Long_20_Dash" draw:display-name="Long Dash" draw:style="rect" draw:dots1="1" draw:dots1-length="400%" draw:distance="300%"/>',
+      Dot: '<draw:stroke-dash draw:name="Dot" draw:display-name="Dot" draw:style="round" draw:dots1="1" draw:dots1-length="100%" draw:distance="200%"/>',
+      Dash_20_Dot: '<draw:stroke-dash draw:name="Dash_20_Dot" draw:display-name="Dash Dot" draw:style="rect" draw:dots1="1" draw:dots1-length="400%" draw:dots2="1" draw:dots2-length="100%" draw:distance="300%"/>'
+    };
+    // Tên nét đứt lạ (đọc từ tệp) vẫn được khai báo như nét gạch dài để tệp không thiếu định nghĩa.
+    return [...used].map(name => `
+    ${definitions[name] || definitions.Long_20_Dash.replace('draw:name="Long_20_Dash"', `draw:name="${this._escapeXml(name)}"`)}`).join("");
   }
 
   _serializeShapeGradients(slides) {
@@ -2401,7 +2522,7 @@ export class SlidesAdapter {
         const ox = sh.offsetX || "0.211cm";
         const oy = sh.offsetY || "0.073cm";
         const sc = sh.color || "#000000";
-        shadowAttrs = ` draw:shadow="visible" draw:shadow-offset-x="${ox}" draw:shadow-offset-y="${oy}" draw:shadow-color="${sc}"`;
+        shadowAttrs = ` draw:shadow="visible" draw:shadow-offset-x="${ox}" draw:shadow-offset-y="${oy}" draw:shadow-color="${sc}" draw:shadow-opacity="${this._escapeXml(sh.opacity || "60%")}"`;
       }
       xml += `
     <style:style style:name="${styleName}" style:family="graphic">
@@ -2621,7 +2742,7 @@ export class SlidesAdapter {
         </draw:frame>`;
     }
 
-    if (type === "ellipse") {
+    if (type === "ellipse" && !shape.shadow) {
       return `
         <draw:ellipse ${geom}>
           ${textXml}
@@ -2638,7 +2759,8 @@ export class SlidesAdapter {
         </draw:custom-shape>`;
     }
 
-    if (shape.flipH || shape.flipV || shape.geomType || eventsXml) {
+    // Hình có bóng đổ đi qua custom-shape: soffice bỏ bóng của draw:rect/draw:ellipse khi xuất PPTX.
+    if (shape.flipH || shape.flipV || shape.geomType || eventsXml || shape.shadow) {
       const mirrorH = shape.flipH ? "true" : "false";
       const mirrorV = shape.flipV ? "true" : "false";
       const geomType = shape.geomType || (type === "ellipse" ? "ooxml-ellipse" : "ooxml-rect");

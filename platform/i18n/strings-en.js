@@ -418,8 +418,8 @@ export const enStrings = {
   },
   sheetSlicer: { selectTable: "Select a cell in a table before inserting a visual filter.", layer: "Visual filters", aria: "Filter", multi: "Multi-select", clear: "Clear filter", close: "Remove visual filter" },
   slidesRibbon: {
-    tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant", tableLayout: "Table Layout" },
-    group: { tableRowsCols: "Rows & Columns", tableMerge: "Merge", slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
+    tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant", tableLayout: "Table Layout", shapeFormat: "Shape Format" },
+    group: { shapeStyles: "Shape Styles", shapeArrange: "Arrange", shapeSize: "Size", tableRowsCols: "Rows & Columns", tableMerge: "Merge", slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
     editing: { select: "Select" },
     drawing: { arrange: "Arrange" },
     section: "Section"
@@ -1022,6 +1022,20 @@ export const enStrings = {
     ,"slides.arrange.sendBackward": { label: "Send Backward", tooltip: "Send the selected object backward one level" }
     ,"slides.arrange.sendToBack": { label: "Send to Back", tooltip: "Send the selected object behind all other objects" }
     ,"slides.arrange.alignLeft": { label: "Align Left", tooltip: "Align the selected objects to the left edge" }
+  ,"slides.shape.fill": { label: "Shape Fill", tooltip: "Fill the selected shape with a colour" }
+  ,"slides.shape.fillColor": { label: "Fill", tooltip: "Fill the selected shape (pick a colour, No Fill or More Colours…)" }
+  ,"slides.shape.outline": { label: "Shape Outline", tooltip: "Change the colour, weight and dash style of the shape outline" }
+  ,"slides.shape.outlineColor": { label: "Outline Colour", tooltip: "Change the outline colour of the selected shape" }
+  ,"slides.shape.outlineWeight": { label: "Outline Weight", tooltip: "Change the outline weight of the selected shape (pt)" }
+  ,"slides.shape.outlineDash": { label: "Outline Dash Style", tooltip: "Choose solid, dash, dot or dash-dot for the outline" }
+  ,"slides.shape.effects": { label: "Shape Effects", tooltip: "Add or remove a shadow on the selected shape" }
+  ,"slides.shape.shadow": { label: "Shadow", tooltip: "Add a shadow to the selected shape in the chosen direction" }
+  ,"slides.shape.sizeDialog": { label: "Size and Position…", tooltip: "Open the dialog to set exact width, height and rotation" }
+  ,"slides.arrange.rotate": { label: "Rotate", tooltip: "Rotate or flip the selected shape" }
+  ,"slides.arrange.rotateRight90": { label: "Rotate Right 90°", tooltip: "Rotate the selected shape 90° clockwise" }
+  ,"slides.arrange.rotateLeft90": { label: "Rotate Left 90°", tooltip: "Rotate the selected shape 90° counter-clockwise" }
+  ,"slides.arrange.flipHorizontal": { label: "Flip Horizontal", tooltip: "Flip the selected shape horizontally" }
+  ,"slides.arrange.flipVertical": { label: "Flip Vertical", tooltip: "Flip the selected shape vertically" }
     ,"slides.arrange.alignCenter": { label: "Align Center", tooltip: "Align the selected objects to the horizontal center" }
     ,"slides.arrange.alignRight": { label: "Align Right", tooltip: "Align the selected objects to the right edge" }
     ,"slides.arrange.alignTop": { label: "Align Top", tooltip: "Align the selected objects to the top edge" }

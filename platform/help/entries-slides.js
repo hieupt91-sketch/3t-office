@@ -209,6 +209,26 @@ export const SLIDES_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.shape.formatTab",
+    app: "slides",
+    commandIds: [
+      "slides.shape.fill", "slides.shape.fillColor", "slides.shape.outline", "slides.shape.outlineColor", "slides.shape.outlineWeight",
+      "slides.shape.outlineDash", "slides.shape.effects", "slides.shape.shadow", "slides.shape.sizeDialog",
+      "slides.arrange.rotate", "slides.arrange.rotateRight90", "slides.arrange.rotateLeft90", "slides.arrange.flipHorizontal", "slides.arrange.flipVertical"
+    ],
+    title: "Tab Định dạng hình: tô màu, viền, đổ bóng, xoay và lật",
+    summary: "Chọn một hình trên trang chiếu, tab Định dạng hình hiện ra bên phải ribbon: tô màu nền, đổi màu/độ dày/kiểu nét viền, đổ bóng theo hướng, xoay 90° hoặc lật ngang/dọc, và mở hộp thoại đặt kích thước chính xác.",
+    ribbon: { tab: "Định dạng hình", tabId: "shapeFormat", group: "Kiểu hình" },
+    keywords: ["định dạng hình", "tô màu hình", "shape fill", "viền hình", "shape outline", "đổ bóng", "xoay", "lật", "rotate", "flip", "độ dày viền", "nét đứt", "kích thước hình"],
+    steps: [
+      "Nhấp vào một hình (hình chữ nhật, elip, mũi tên, hộp văn bản…) trên trang chiếu. Muốn định dạng nhiều hình cùng lúc, giữ Ctrl hoặc Shift khi chọn. Tab Định dạng hình xuất hiện cạnh tab Trợ lý.",
+      "Nhóm Kiểu hình: Tô màu hình mở bảng 15 màu, Không tô màu và Màu khác… (hộp chọn màu hệ thống). Viền hình có bảng màu, Không viền, Màu khác…, Độ dày (½ đến 6 pt) và Nét đứt (liền, gạch, chấm, gạch chấm). Hiệu ứng hình có Không đổ bóng và bốn hướng đổ bóng.",
+      "Nhóm Sắp xếp: Xoay mở Xoay phải 90°, Xoay trái 90°, Lật dọc, Lật ngang; cùng hai nút Đưa lên một lớp, Đưa xuống một lớp.",
+      "Nhóm Kích thước: Kích thước và vị trí… mở hộp thoại nhập chiều rộng, chiều cao và góc xoay chính xác.",
+      "Ảnh chỉ dùng được Xoay, Lật và Kích thước; bảng và biểu đồ có tab riêng. Mọi thao tác hoàn tác được bằng Ctrl+Z (một bước cho cả nhóm hình), và được lưu vào tệp để mở lại đúng."
+    ]
+  },
+  {
     id: "slides.transition.apply",
     app: "slides",
     commandIds: ["slides.transition.apply"],

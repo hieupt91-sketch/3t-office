@@ -581,6 +581,142 @@ export const SLIDES_RIBBON_TABS = [
     ]
   },
   {
+    id: "shapeFormat",
+    label: "Định dạng hình",
+    labelKey: "slidesRibbon.tab.shapeFormat",
+    contextual: true,
+    groups: [
+      {
+        id: "shapeStyles",
+        label: "Kiểu hình",
+        labelKey: "slidesRibbon.group.shapeStyles",
+        items: [
+          {
+            type: "dropdown",
+            id: "slides.shape.fill",
+            label: "Tô màu hình",
+            icon: "shapeFill",
+            isLarge: true,
+            items: [
+                      { commandId: "slides.shape.fillColor", args: "#C00000", swatch: "#C00000", label: "Đỏ sẫm" },
+                      { commandId: "slides.shape.fillColor", args: "#FF0000", swatch: "#FF0000", label: "Đỏ" },
+                      { commandId: "slides.shape.fillColor", args: "#FFC000", swatch: "#FFC000", label: "Cam" },
+                      { commandId: "slides.shape.fillColor", args: "#FFFF00", swatch: "#FFFF00", label: "Vàng" },
+                      { commandId: "slides.shape.fillColor", args: "#92D050", swatch: "#92D050", label: "Xanh lá nhạt" },
+                      { commandId: "slides.shape.fillColor", args: "#00B050", swatch: "#00B050", label: "Xanh lá" },
+                      { commandId: "slides.shape.fillColor", args: "#00B0F0", swatch: "#00B0F0", label: "Xanh da trời" },
+                      { commandId: "slides.shape.fillColor", args: "#0070C0", swatch: "#0070C0", label: "Xanh dương" },
+                      { commandId: "slides.shape.fillColor", args: "#002060", swatch: "#002060", label: "Xanh dương đậm" },
+                      { commandId: "slides.shape.fillColor", args: "#7030A0", swatch: "#7030A0", label: "Tím" },
+                      { commandId: "slides.shape.fillColor", args: "#FFFFFF", swatch: "#FFFFFF", label: "Trắng" },
+                      { commandId: "slides.shape.fillColor", args: "#D9D9D9", swatch: "#D9D9D9", label: "Xám nhạt" },
+                      { commandId: "slides.shape.fillColor", args: "#7F7F7F", swatch: "#7F7F7F", label: "Xám" },
+                      { commandId: "slides.shape.fillColor", args: "#404040", swatch: "#404040", label: "Xám đậm" },
+                      { commandId: "slides.shape.fillColor", args: "#000000", swatch: "#000000", label: "Đen" },
+                      { commandId: "slides.shape.fillColor", args: "none", label: "Không tô màu" },
+                      { commandId: "slides.shape.fillColor", args: "custom", label: "Màu khác…" }
+            ]
+          },
+          {
+            type: "dropdown",
+            id: "slides.shape.outline",
+            label: "Viền hình",
+            icon: "shapeOutline",
+            isLarge: true,
+            items: [
+                      { commandId: "slides.shape.outlineColor", args: "#C00000", swatch: "#C00000", label: "Đỏ sẫm" },
+                      { commandId: "slides.shape.outlineColor", args: "#FF0000", swatch: "#FF0000", label: "Đỏ" },
+                      { commandId: "slides.shape.outlineColor", args: "#FFC000", swatch: "#FFC000", label: "Cam" },
+                      { commandId: "slides.shape.outlineColor", args: "#FFFF00", swatch: "#FFFF00", label: "Vàng" },
+                      { commandId: "slides.shape.outlineColor", args: "#92D050", swatch: "#92D050", label: "Xanh lá nhạt" },
+                      { commandId: "slides.shape.outlineColor", args: "#00B050", swatch: "#00B050", label: "Xanh lá" },
+                      { commandId: "slides.shape.outlineColor", args: "#00B0F0", swatch: "#00B0F0", label: "Xanh da trời" },
+                      { commandId: "slides.shape.outlineColor", args: "#0070C0", swatch: "#0070C0", label: "Xanh dương" },
+                      { commandId: "slides.shape.outlineColor", args: "#002060", swatch: "#002060", label: "Xanh dương đậm" },
+                      { commandId: "slides.shape.outlineColor", args: "#7030A0", swatch: "#7030A0", label: "Tím" },
+                      { commandId: "slides.shape.outlineColor", args: "#FFFFFF", swatch: "#FFFFFF", label: "Trắng" },
+                      { commandId: "slides.shape.outlineColor", args: "#D9D9D9", swatch: "#D9D9D9", label: "Xám nhạt" },
+                      { commandId: "slides.shape.outlineColor", args: "#7F7F7F", swatch: "#7F7F7F", label: "Xám" },
+                      { commandId: "slides.shape.outlineColor", args: "#404040", swatch: "#404040", label: "Xám đậm" },
+                      { commandId: "slides.shape.outlineColor", args: "#000000", swatch: "#000000", label: "Đen" },
+                      { commandId: "slides.shape.outlineColor", args: "none", label: "Không viền" },
+                      { commandId: "slides.shape.outlineColor", args: "custom", label: "Màu khác…" },
+                      {
+                        id: "slides.shape.outlineWeight.menu",
+                        label: "Độ dày",
+                        icon: "shapeOutline",
+                        items: [
+                          { commandId: "slides.shape.outlineWeight", args: "0.5", label: "½ pt" },
+                          { commandId: "slides.shape.outlineWeight", args: "1", label: "1 pt" },
+                          { commandId: "slides.shape.outlineWeight", args: "1.5", label: "1½ pt" },
+                          { commandId: "slides.shape.outlineWeight", args: "2.25", label: "2¼ pt" },
+                          { commandId: "slides.shape.outlineWeight", args: "3", label: "3 pt" },
+                          { commandId: "slides.shape.outlineWeight", args: "4.5", label: "4½ pt" },
+                          { commandId: "slides.shape.outlineWeight", args: "6", label: "6 pt" }
+                        ]
+                      },
+                      {
+                        id: "slides.shape.outlineDash.menu",
+                        label: "Nét đứt",
+                        icon: "shapeOutline",
+                        items: [
+                          { commandId: "slides.shape.outlineDash", args: "solid", label: "Nét liền" },
+                          { commandId: "slides.shape.outlineDash", args: "dash", label: "Gạch" },
+                          { commandId: "slides.shape.outlineDash", args: "dot", label: "Chấm" },
+                          { commandId: "slides.shape.outlineDash", args: "dashDot", label: "Gạch chấm" }
+                        ]
+                      }
+            ]
+          },
+          {
+            type: "dropdown",
+            id: "slides.shape.effects",
+            label: "Hiệu ứng hình",
+            icon: "shapeEffects",
+            isLarge: true,
+            items: [
+              { commandId: "slides.shape.shadow", args: "none", label: "Không đổ bóng" },
+              { commandId: "slides.shape.shadow", args: "bottomRight", label: "Bóng phía dưới bên phải" },
+              { commandId: "slides.shape.shadow", args: "bottomLeft", label: "Bóng phía dưới bên trái" },
+              { commandId: "slides.shape.shadow", args: "topRight", label: "Bóng phía trên bên phải" },
+              { commandId: "slides.shape.shadow", args: "topLeft", label: "Bóng phía trên bên trái" }
+            ]
+          }
+        ]
+      },
+      {
+        id: "shapeArrange",
+        label: "Sắp xếp",
+        labelKey: "slidesRibbon.group.shapeArrange",
+        items: [
+          {
+            type: "dropdown",
+            id: "slides.arrange.rotate",
+            label: "Xoay",
+            icon: "rotateRight90",
+            isLarge: true,
+            items: [
+              { commandId: "slides.arrange.rotateRight90" },
+              { commandId: "slides.arrange.rotateLeft90" },
+              { commandId: "slides.arrange.flipVertical" },
+              { commandId: "slides.arrange.flipHorizontal" }
+            ]
+          },
+          { type: "button", commandId: "slides.arrange.bringForward" },
+          { type: "button", commandId: "slides.arrange.sendBackward" }
+        ]
+      },
+      {
+        id: "shapeSize",
+        label: "Kích thước",
+        labelKey: "slidesRibbon.group.shapeSize",
+        items: [
+          { type: "button", commandId: "slides.shape.sizeDialog", isLarge: true }
+        ]
+      }
+    ]
+  },
+  {
     id: "ai",
     label: "Trợ lý 3T AI",
     labelKey: "slidesRibbon.tab.ai",
