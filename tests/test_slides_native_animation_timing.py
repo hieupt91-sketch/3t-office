@@ -123,6 +123,29 @@ class NativeAnimationTimingTests(unittest.TestCase):
         self.assertEqual([n.get("grpId") for n in effects], ["0", "1"])
         self.assertEqual(re.findall(r'<p:bldP spid="4" grpId="(\d+)"', xml), ["0", "1"])
 
+    def test_interactive_trigger_sequence_is_rebuilt_in_powerpoint_structure(self):
+        # soffice ghi dãy kích hoạt (interactiveSeq) kiểu riêng; PowerPoint chỉ đọc đúng trigger khi có
+        # evtFilter/endSync/nextCondLst như bản PowerPoint ghi (đo COM 18/10: InteractiveSequences=1, TriggerShape đúng).
+        interactive = (
+            '<p:seq><p:cTn id="50" restart="whenNotActive" fill="hold" nodeType="interactiveSeq"><p:stCondLst>'
+            '<p:cond delay="0" evt="onClick"><p:tgtEl><p:spTgt spid="5"></p:spTgt></p:tgtEl></p:cond></p:stCondLst><p:childTnLst>'
+            f'<p:par><p:cTn id="51" fill="hold"><p:stCondLst><p:cond delay="0" evt="onClick"><p:tgtEl><p:spTgt spid="5"></p:spTgt></p:tgtEl></p:cond></p:stCondLst><p:childTnLst>'
+            f'{soffice_effect(60, "clickEffect", "entr", "10", 4, 500)}</p:childTnLst></p:cTn></p:par>'
+            '</p:childTnLst></p:cTn></p:seq>'
+        )
+        slide = make_slide([]).replace("</p:childTnLst></p:cTn></p:seq>", f"</p:childTnLst></p:cTn></p:seq>{interactive}", 1)
+        result = patcher._apply_slides_native_animation_timing(make_pptx(slide), None, None)
+        xml = result["ppt/slides/slide1.xml"]
+        self.assertIn('nodeType="interactiveSeq"', xml)
+        self.assertIn('evtFilter="cancelBubble"', xml)
+        self.assertIn('<p:endSync evt="end" delay="0"><p:rtn val="all"/></p:endSync>', xml)
+        self.assertEqual(xml.count('<p:cond evt="onClick" delay="0"><p:tgtEl><p:spTgt spid="5"/></p:tgtEl></p:cond>'), 2)
+        self.assertNotIn('nodeType="mainSeq"', xml, "chỉ có dãy kích hoạt thì không dựng dãy chính")
+        root = ET.fromstring(xml)
+        effects = [n for n in root.iter(PFX + "cTn") if n.get("presetClass")]
+        self.assertEqual([n.get("nodeType") for n in effects], ["clickEffect"])
+        self.assertEqual(re.findall(r'<p:bldP spid="(\d+)" grpId="(\d+)"', xml), [("4", "0")])
+
     def test_with_previous_joins_the_same_time_slot(self):
         result = run([
             soffice_effect(10, "clickEffect", "emph", "6", 4, 1000),

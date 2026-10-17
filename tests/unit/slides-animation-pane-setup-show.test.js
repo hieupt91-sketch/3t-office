@@ -236,6 +236,29 @@ export async function runSlidesAnimationPaneSetupShowTests() {
     assert(canvas.slides[0].shapes[0].extraAnimations?.length === 1, "extraAnimations phục hồi");
   });
 
+  await test("Kích hoạt: trigger loại khỏi chuỗi tự chạy, giữ khi đổi kiểu, hoàn tác, bỏ qua khi hình kích hoạt bị xóa", () => {
+    const canvas = threeAnimSlide(new SlidesCanvasController(container()));
+    const slide = canvas.slides[0];
+    slide.shapes.push({ id: 88, type: "rect", x: 0, y: 0, w: 50, h: 50, text: "Nut bam", animation: { type: "none", duration: 500, delay: 0 } });
+    assert(canvas.setAnimationTrigger("77", 88), "set trigger");
+    assert(canvas.collectSlideAnimations().find((item) => String(item.target) === "77").trigger === "88", "item.trigger");
+    assert(!canvas.getAnimationTimeline().some((item) => String(item.target) === "77"), "bị loại khỏi timeline");
+    assert(/khi bấm/.test(canvas.collectSlideAnimations().find((item) => String(item.target) === "77").typeLabel), "nhãn ngăn hoạt hình");
+    const groups = canvas._triggeredAnimationsByTarget(slide).get("77");
+    assert(groups?.length === 1 && groups[0].id === "88" && groups[0].entrance === true && /animation:/.test(groups[0].css), JSON.stringify(groups));
+    canvas.selectedTarget = 77;
+    canvas.updateSelectedAnimation({ type: "flyIn" }, true);
+    assert(slide.shapes[0].animation.trigger === "88", "đổi kiểu giữ kích hoạt");
+    assert(!canvas.setAnimationTrigger("77", 77), "không tự kích hoạt chính nó");
+    assert(canvas.undo(), "undo");
+    assert(canvas.undo(), "undo trigger");
+    assert(!slide.shapes[0].animation.trigger, "undo bỏ trigger");
+    canvas.redo(); canvas.redo();
+    slide.shapes = slide.shapes.filter((shape) => shape.id !== 88);
+    assert(canvas.collectSlideAnimations().find((item) => String(item.target) === "77").trigger === null, "trigger của hình đã xóa bị bỏ qua");
+    assert(canvas.getAnimationTimeline().some((item) => String(item.target) === "77"), "hiệu ứng trở lại chuỗi tự chạy");
+  });
+
   await test("Đổi thứ tự lên/xuống đổi timeline chạy thật, không chỉ list pane", () => {
     const canvas = threeAnimSlide(new SlidesCanvasController(container()));
     const before = canvas.getAnimationTimeline();

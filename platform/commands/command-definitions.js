@@ -650,6 +650,7 @@ export const SLIDES_COMMANDS = [
   { id: "slides.animation.gallery", category: "animation", label: "Hiệu ứng", icon: "slideTransition", tooltip: "Chọn hiệu ứng vào, nhấn mạnh hoặc thoát cho đối tượng đang chọn" },
   { id: "slides.animation.add", category: "animation", label: "Thêm hoạt ảnh", icon: "slideTransition", tooltip: "Thêm một hiệu ứng nữa cho đối tượng đang chọn (ví dụ vào rồi thoát)" },
   { id: "slides.animation.addEffect", category: "animation", label: "Thêm hiệu ứng", icon: "slideTransition", tooltip: "Thêm hiệu ứng đã chọn vào cuối chuỗi hoạt ảnh của đối tượng" },
+  { id: "slides.animation.trigger", category: "animation", label: "Kích hoạt", icon: "slideTransition", tooltip: "Chọn hình mà khi bấm vào lúc trình chiếu thì hiệu ứng này mới chạy" },
   { id: "slides.animation.setType", category: "animation", label: "Kiểu hiệu ứng", icon: "slideTransition", tooltip: "Gán kiểu hiệu ứng cho đối tượng đang chọn" },
   { id: "slides.animation.startMenu", category: "animation", label: "Bắt đầu", icon: "slideTransition", tooltip: "Chọn thời điểm bắt đầu: khi nhấp chuột, cùng lúc với hiệu ứng trước hoặc sau hiệu ứng trước" },
   { id: "slides.animation.setStart", category: "animation", label: "Thời điểm bắt đầu", icon: "slideTransition", tooltip: "Đặt thời điểm bắt đầu hiệu ứng của đối tượng đang chọn" },

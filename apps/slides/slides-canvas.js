@@ -2069,6 +2069,8 @@ export class SlidesCanvasController {
     };
     const start = this._normalizeAnimationStart(animationConfig?.start ?? previous.start);
     if (start) cfg.start = start;
+    const keptTrigger = animationConfig?.trigger ?? previous.trigger;
+    if (keptTrigger != null && keptTrigger !== "") cfg.trigger = keptTrigger;
     if (cfg.type !== "none") {
       cfg.order = Number.isFinite(animationConfig?.order)
         ? animationConfig.order
@@ -2283,6 +2285,7 @@ export class SlidesCanvasController {
       index,
       target: slot.target,
       slotId: slot.slotId,
+      trigger: this._validAnimationTrigger(current, slot.animation),
       type: slot.animation.type,
       duration: parseInt(slot.animation.duration, 10) || 500,
       delay: parseInt(slot.animation.delay, 10) || 0,
@@ -2290,8 +2293,40 @@ export class SlidesCanvasController {
       start: this._normalizeAnimationStart(slot.animation.start),
       order: Number.isFinite(slot.animation.order) ? slot.animation.order : index,
       label: this._animationObjectLabel(current, slot.target),
-      typeLabel: this._animationTypeLabel(slot.animation.type)
+      typeLabel: this._animationTypeLabel(slot.animation.type) + (this._validAnimationTrigger(current, slot.animation)
+        ? ` — ${t("slidesDialogs.animTriggerSuffix", "khi bấm")} "${this._animationObjectLabel(current, this._validAnimationTrigger(current, slot.animation))}"`
+        : "")
     }));
+  }
+
+  /** Trigger hợp lệ = hình kích hoạt còn tồn tại trên trang và khác chính đối tượng; ngược lại null. */
+  _validAnimationTrigger(slide, animation) {
+    const trigger = animation?.trigger;
+    if (trigger == null || trigger === "") return null;
+    return (slide?.shapes || []).some((shape) => String(shape.id) === String(trigger)) ? String(trigger) : null;
+  }
+
+  /** Hiệu ứng chạy khi bấm vào một hình khác: Map đối tượng -> [{ id: hình kích hoạt, css, entrance }]. */
+  _triggeredAnimationsByTarget(slide) {
+    const groups = new Map();
+    for (const item of this.collectSlideAnimations(slide)) {
+      if (!item.trigger || item.target === "title" || item.target === "body" || item.target === "body2") continue;
+      const key = String(item.target);
+      const list = groups.get(key) || [];
+      let group = list.find((entry) => entry.id === item.trigger);
+      if (!group) { group = { id: item.trigger, items: [] }; list.push(group); }
+      group.items.push(item);
+      groups.set(key, list);
+    }
+    for (const list of groups.values()) {
+      for (const group of list) {
+        const css = group.items.map((entry) => animationInlineCss(entry.type, entry.duration, entry.delay, entry.direction)).filter(Boolean);
+        group.css = css.length > 1 ? this._combineAnimationCss(css) : (css[0] || "");
+        group.entrance = animationClassOf(group.items[0].type) === "entrance";
+        delete group.items;
+      }
+    }
+    return groups;
   }
 
   /**
@@ -2299,7 +2334,7 @@ export class SlidesCanvasController {
    * không chỉ thứ tự hiển thị trong pane.
    */
   getAnimationTimeline(slide) {
-    const list = this.collectSlideAnimations(slide);
+    const list = this.collectSlideAnimations(slide).filter((item) => !item.trigger);
     let cursor = 0;
     let previousDuration = 0;
     return list.map((item, index) => {
@@ -2519,6 +2554,65 @@ export class SlidesCanvasController {
     this._pushAnimationUndo(before);
     this._renderShapesLayer();
     this._renderAnimationPane();
+    return true;
+  }
+
+  /** Kích hoạt: hiệu ứng (slotId) chạy khi bấm vào hình `triggerId`; triggerId rỗng = bỏ kích hoạt (chạy theo thứ tự). */
+  setAnimationTrigger(slotId, triggerId) {
+    const slide = this.slides[this.currentSlideIndex];
+    const cfg = this._getAnimationConfig(slide, slotId);
+    if (!slide || !this._isActiveAnimation(cfg)) return false;
+    const next = triggerId == null || triggerId === "" ? undefined : String(triggerId);
+    if (next !== undefined && String(this._splitAnimationSlot(slotId).target) === next) return false;
+    if ((cfg.trigger == null ? undefined : String(cfg.trigger)) === next) return true;
+    const before = this._snapshotSlideAnimations(slide);
+    if (next === undefined) delete cfg.trigger; else cfg.trigger = next;
+    this._pushAnimationUndo(before);
+    this._renderShapesLayer();
+    this._renderAnimationPane();
+    return true;
+  }
+
+  /** Hộp thoại Kích hoạt cho hiệu ứng đang chọn trong Ngăn hoạt hình (hoặc hiệu ứng đầu của đối tượng đang chọn). */
+  openAnimationTriggerDialog() {
+    if (typeof document === "undefined") return false;
+    const slide = this.slides[this.currentSlideIndex];
+    const items = this.collectSlideAnimations(slide);
+    let slotId = null;
+    if (this.isAnimationPaneVisible && Number.isInteger(this._activeAnimationIndex) && items[this._activeAnimationIndex]) slotId = items[this._activeAnimationIndex].slotId;
+    else if (this.selectedTarget != null && this._isActiveAnimation(this._getAnimationConfig(slide, this.selectedTarget))) slotId = String(this.selectedTarget);
+    if (slotId == null) return false;
+    const item = items.find((entry) => entry.slotId === slotId);
+    const candidates = (slide.shapes || []).filter((shape) => String(shape.id) !== String(item.target) && shape.type !== "connector");
+    const previousFocused = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay";
+    const options = [`<option value="">${t("slidesDialogs.triggerNone", "Khi bấm chuột (theo thứ tự trang chiếu)")}</option>`]
+      .concat(candidates.map((shape) => `<option value="${this._escapeShapeText(String(shape.id))}" ${String(item.trigger) === String(shape.id) ? "selected" : ""}>${this._escapeShapeText(`${t("slidesDialogs.triggerOnClickOf", "Khi bấm vào")}: ${this._animationObjectLabel(slide, shape.id)}`)}</option>`)).join("");
+    overlay.innerHTML = `
+      <div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="vno-trigger-title" style="width:min(480px,calc(100vw - 32px));">
+        <div class="vno-dialog-header"><span id="vno-trigger-title">${t("slidesDialogs.triggerTitle", "Kích hoạt hiệu ứng")}</span><button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close", "Đóng")}">&times;</button></div>
+        <div class="vno-dialog-body" style="display:grid;gap:12px;">
+          <p style="margin:0;font-size:12px;color:var(--vno-text-secondary,#475569);">${this._escapeShapeText(`${item.label} — ${item.typeLabel}`)}</p>
+          <label for="vno-trigger-select" style="font-weight:600;">${t("slidesDialogs.triggerLabel", "Hiệu ứng này chạy")}</label>
+          <select id="vno-trigger-select" class="vno-select">${options}</select>
+          <p style="margin:0;font-size:12px;color:var(--vno-text-secondary,#475569);">${t("slidesDialogs.triggerHint", "Chọn một hình để hiệu ứng chỉ chạy khi bấm vào hình đó lúc trình chiếu.")}</p>
+        </div>
+        <div class="vno-dialog-footer"><button type="button" class="vno-btn" id="vno-trigger-cancel">${t("slidesDialogs.cancel", "Hủy")}</button><button type="button" class="vno-btn vno-btn-primary" id="vno-trigger-apply">${t("slidesDialogs.apply", "Áp dụng")}</button></div>
+      </div>`;
+    const close = () => { overlay.remove(); document.removeEventListener("keydown", onKey); previousFocused?.focus?.(); };
+    const apply = () => { this.setAnimationTrigger(slotId, overlay.querySelector("#vno-trigger-select")?.value || ""); close(); };
+    const onKey = (event) => {
+      if (event.key === "Escape") { event.preventDefault(); close(); }
+      else if (event.key === "Enter" && event.target?.tagName !== "BUTTON") { event.preventDefault(); apply(); }
+    };
+    document.addEventListener("keydown", onKey);
+    overlay.addEventListener("click", (event) => { if (event.target === overlay) close(); });
+    overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", close);
+    overlay.querySelector("#vno-trigger-cancel")?.addEventListener("click", close);
+    overlay.querySelector("#vno-trigger-apply")?.addEventListener("click", apply);
+    document.body.appendChild(overlay);
+    overlay.querySelector("#vno-trigger-select")?.focus();
     return true;
   }
 
@@ -4201,9 +4295,16 @@ export class SlidesCanvasController {
     let animAttrs = "";
     if (!options.suppressAnimation && shape.animation?.type && shape.animation.type !== "none") {
       const timelineItem = options.timeline?.get?.(String(shape.id));
-      const playDelay = timelineItem ? timelineItem.playDelay : (shape.animation.delay || 0);
-      animStyle = timelineItem ? this._timelineItemStyle(timelineItem) : this._animationInlineStyle(shape.animation, playDelay);
-      animAttrs = ` data-vno-anim-target="${shapeId}" data-vno-anim-order="${timelineItem ? timelineItem.index : ""}" data-vno-anim-delay="${playDelay}" data-vno-anim-type="${this._escapeShapeText(shape.animation.type)}"`;
+      if (!options.timeline || timelineItem) { // hiệu ứng chạy khi bấm hình khác không nằm trong chuỗi tự chạy
+        const playDelay = timelineItem ? timelineItem.playDelay : (shape.animation.delay || 0);
+        animStyle = timelineItem ? this._timelineItemStyle(timelineItem) : this._animationInlineStyle(shape.animation, playDelay);
+        animAttrs = ` data-vno-anim-target="${shapeId}" data-vno-anim-order="${timelineItem ? timelineItem.index : ""}" data-vno-anim-delay="${playDelay}" data-vno-anim-type="${this._escapeShapeText(shape.animation.type)}"`;
+      }
+    }
+    const triggerGroups = options.triggered?.get?.(String(shape.id));
+    if (!options.suppressAnimation && triggerGroups?.length) {
+      if (triggerGroups[0].entrance) animStyle += "opacity:0;";
+      animAttrs += ` data-vno-anim-triggers="${this._escapeShapeText(JSON.stringify(triggerGroups.map((group) => ({ id: group.id, css: group.css }))))}"`;
     }
     if (shape.type === "image" && shape.src) {
       const cropInfo = this._computeImageCropStyles(shape);
@@ -11087,7 +11188,8 @@ const startEditing = (initialText) => {
       const transition = s.transition || this.transitionConfig || { type: "fade", duration: 500 };
       const isMorph = transition.type === "morph";
       const timelineMap = this._timelineByTarget(s);
-      const shapesHtml = (s.shapes || []).map(shape => this._shapePresentationHtml(shape, { suppressAnimation: isMorph, timeline: timelineMap })).join("");
+      const triggeredMap = this._triggeredAnimationsByTarget(s);
+      const shapesHtml = (s.shapes || []).map(shape => this._shapePresentationHtml(shape, { suppressAnimation: isMorph, timeline: timelineMap, triggered: triggeredMap })).join("");
       const animAttr = (target) => {
         const item = timelineMap.get(String(target));
         if (!item) return "";
@@ -11670,6 +11772,27 @@ const startEditing = (initialText) => {
     overlay.addEventListener?.("click", (e) => {
       if (e.target && e.target.closest && e.target.closest("video, audio, .vno-rehearse-timer-box, .vno-slideshow-context-menu, .vno-ink-dialog")) return;
       if (pointerMode !== "arrow") return;
+      // Kích hoạt: bấm vào hình nào thì chạy hiệu ứng gắn với hình đó (và không chuyển trang).
+      const hitIds = new Set();
+      for (let node = e.target; node && node !== overlay; node = node.parentNode) {
+        const sid = node.getAttribute?.("data-vno-shape-id");
+        if (sid != null) hitIds.add(String(sid));
+      }
+      if (hitIds.size) {
+        let fired = false;
+        content.querySelectorAll?.("[data-vno-anim-triggers]")?.forEach?.((el) => {
+          let groups = [];
+          try { groups = JSON.parse(el.getAttribute("data-vno-anim-triggers") || "[]"); } catch (_) { groups = []; }
+          for (const group of groups) {
+            if (!hitIds.has(String(group.id))) continue;
+            el.style.animation = "none";
+            void el.offsetWidth;
+            el.style.cssText += `;${group.css}`;
+            fired = true;
+          }
+        });
+        if (fired) { e.preventDefault?.(); e.stopPropagation?.(); return; }
+      }
       const actionEl = e.target?.closest?.("[data-vno-action]");
       if (actionEl) {
         const shapeId = actionEl.getAttribute?.("data-vno-shape-id");

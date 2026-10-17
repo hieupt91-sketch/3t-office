@@ -1099,6 +1099,7 @@ export const viStrings = {
     ,"slides.animation.gallery": { label: "Hiệu ứng", tooltip: "Chọn hiệu ứng vào, nhấn mạnh hoặc thoát cho đối tượng đang chọn" }
     ,"slides.animation.add": { label: "Thêm hoạt ảnh", tooltip: "Thêm một hiệu ứng nữa cho đối tượng đang chọn (ví dụ vào rồi thoát)" }
     ,"slides.animation.addEffect": { label: "Thêm hiệu ứng", tooltip: "Thêm hiệu ứng đã chọn vào cuối chuỗi hoạt ảnh của đối tượng" }
+    ,"slides.animation.trigger": { label: "Kích hoạt", tooltip: "Chọn hình mà khi bấm vào lúc trình chiếu thì hiệu ứng này mới chạy" }
     ,"slides.animation.setType": { label: "Kiểu hiệu ứng", tooltip: "Gán kiểu hiệu ứng cho đối tượng đang chọn" }
     ,"slides.animation.startMenu": { label: "Bắt đầu", tooltip: "Chọn thời điểm bắt đầu: khi nhấp chuột, cùng lúc với hiệu ứng trước hoặc sau hiệu ứng trước" }
     ,"slides.animation.setStart": { label: "Thời điểm bắt đầu", tooltip: "Đặt thời điểm bắt đầu hiệu ứng của đối tượng đang chọn" }

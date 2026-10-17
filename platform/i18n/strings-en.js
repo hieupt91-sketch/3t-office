@@ -1100,6 +1100,7 @@ export const enStrings = {
   ,"slides.animation.gallery": { label: "Effect", tooltip: "Pick an entrance, emphasis or exit effect for the selected object" }
   ,"slides.animation.add": { label: "Add Animation", tooltip: "Add one more effect to the selected object (for example entrance then exit)" }
   ,"slides.animation.addEffect": { label: "Add Effect", tooltip: "Append the chosen effect to the object's animation sequence" }
+  ,"slides.animation.trigger": { label: "Trigger", tooltip: "Pick the shape that starts this effect when clicked during the slide show" }
   ,"slides.animation.setType": { label: "Effect Type", tooltip: "Apply an effect type to the selected object" }
   ,"slides.animation.startMenu": { label: "Start", tooltip: "Choose when it starts: on click, with previous or after previous" }
   ,"slides.animation.setStart": { label: "Start Timing", tooltip: "Set when the selected object's effect starts" }

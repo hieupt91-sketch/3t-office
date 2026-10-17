@@ -322,6 +322,7 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.font.setSpacing", (arg) => this._hintIfFalse(() => this.setCharacterSpacing(Number(arg)), "Hãy nhấp vào khung chữ và chọn đoạn chữ cần giãn hoặc nén ký tự."));
     globalCommandBus.bindHandler("slides.animation.add", () => this.canvas.showAnimationDialog ? this.canvas.showAnimationDialog() : false);
     globalCommandBus.bindHandler("slides.animation.addEffect", (arg) => this._hintIfFalse(() => this.canvas.addObjectAnimation({ type: String(arg || "") }), "Hãy chọn một đối tượng (hình, ảnh, khung chữ) trước, rồi chọn hiệu ứng cần thêm."));
+    globalCommandBus.bindHandler("slides.animation.trigger", () => this._hintIfFalse(() => this.canvas.openAnimationTriggerDialog(), "Hãy chọn một đối tượng đã có hiệu ứng (hoặc một dòng trong Ngăn hoạt hình), rồi chọn Kích hoạt."));
     globalCommandBus.bindHandler("slides.animation.painter", () => this._hintIfFalse(() => this.canvas.animationPainter(), "Hãy chọn một đối tượng đã có hiệu ứng để lấy, rồi chọn đối tượng đích và nhấn lại Sao chép hoạt ảnh."));
     // Thư viện hình dựng sẵn và Đổi hình dạng (apps/slides/shape-presets.js).
     globalCommandBus.bindHandler("slides.shape.galleryInsert", () => this.canvas.insertShape ? this.canvas.insertShape("rect") : false);
@@ -2528,11 +2529,30 @@ export class SlidesAdapter {
     const smil = this._mapVnTransitionToSmil(slide?.transition);
     const placeholders = placeholderIds || {};
     const shapeIds = idMap || new Map();
-    const effectXml = this._orderedAnimationSlots(slide, placeholders, shapeIds)
+    const orderedSlots = this._orderedAnimationSlots(slide, placeholders, shapeIds);
+    const triggerDrawId = (slot) => {
+      const trigger = slot.animation?.trigger;
+      return trigger == null || trigger === "" ? null : (shapeIds?.get?.(String(trigger)) || null);
+    };
+    const effectXml = orderedSlots
+      .filter((slot) => !triggerDrawId(slot))
       .map((slot) => this._serializeEntranceAnimation(slot.animation, slot.drawId))
       .filter(Boolean)
       .join("");
-    if (!smil && !effectXml) return "";
+    // Hiệu ứng kích hoạt: mỗi hình kích hoạt một dãy tương tác riêng (begin="<id>.click+0s").
+    const interactiveGroups = new Map();
+    for (const slot of orderedSlots) {
+      const triggerId = triggerDrawId(slot);
+      if (!triggerId) continue;
+      const xml = this._serializeEntranceAnimation(slot.animation, slot.drawId);
+      if (!xml) continue;
+      interactiveGroups.set(triggerId, (interactiveGroups.get(triggerId) || "")
+        + xml.replace('<anim:par smil:begin="indefinite">', `<anim:par smil:begin="${this._escapeXml(triggerId)}.click+0s" smil:fill="hold">`));
+    }
+    const interactiveXml = [...interactiveGroups.values()].map((groupXml) => `
+          <anim:seq smil:fill="hold" smil:restart="whenNotActive" smil:endsync="all" presentation:node-type="interactive-sequence">${groupXml}
+          </anim:seq>`).join("");
+    if (!smil && !effectXml && !interactiveXml) return "";
     let transXml = "";
     if (smil) {
       const sub = smil.subtype ? ` smil:subtype="${smil.subtype}"` : "";
@@ -2548,7 +2568,7 @@ export class SlidesAdapter {
           </anim:seq>`
       : "";
     return `
-        <anim:par presentation:node-type="timing-root">${transXml}${seqXml}
+        <anim:par presentation:node-type="timing-root">${transXml}${seqXml}${interactiveXml}
         </anim:par>`;
   }
 
@@ -2679,6 +2699,12 @@ export class SlidesAdapter {
     const byTarget = new Map();
     byTarget.extras = new Map(); // hiệu ứng thứ 2 trở đi trên cùng đối tượng
     let orderCounter = 0;
+    // Dãy tương tác (Kích hoạt): <anim:seq node-type="interactive-sequence"> với begin="<id hình>.click".
+    const interactive = [];
+    for (const block of (pageXml || "").matchAll(/<anim:seq\b[^>]*interactive-sequence[^>]*>([\s\S]*?)<\/anim:seq>/gi)) {
+      const triggerId = block[1].match(/smil:begin=["']([^"'.]+)\.click/i)?.[1];
+      if (triggerId) interactive.push({ start: block.index, end: block.index + block[0].length, trigger: triggerId });
+    }
     const regex = /<anim:par\b([^>]*presentation:preset-id=["'][^"']+["'][^>]*)>/gi;
     let match;
     while ((match = regex.exec(pageXml || "")) !== null) {
@@ -2709,6 +2735,8 @@ export class SlidesAdapter {
           ? "afterPrevious"
           : "onClick";
       const parsed = { type: vnType, duration, delay, direction, order: orderCounter++, start };
+      const inInteractive = interactive.find((range) => match.index >= range.start && match.index < range.end);
+      if (inInteractive) parsed.trigger = inInteractive.trigger;
       if (byTarget.has(target)) {
         if (!byTarget.extras.has(target)) byTarget.extras.set(target, []);
         byTarget.extras.get(target).push(parsed);
@@ -2725,9 +2753,14 @@ export class SlidesAdapter {
       const restored = idMap.has(target) ? idMap.get(target) : target;
       const shape = (shapes || []).find((item) => String(item.id) === String(restored) || String(item.id) === String(target));
       if (shape) {
-        shape.animation = { ...animation };
+        const resolve = (item) => {
+          const copy = { ...item };
+          if (copy.trigger != null) copy.trigger = idMap.has(copy.trigger) ? idMap.get(copy.trigger) : copy.trigger;
+          return copy;
+        };
+        shape.animation = resolve(animation);
         const extras = animByTarget.extras?.get(target);
-        if (extras?.length) shape.extraAnimations = extras.map((item) => ({ ...item }));
+        if (extras?.length) shape.extraAnimations = extras.map(resolve);
       }
     }
   }
@@ -2794,9 +2827,9 @@ export class SlidesAdapter {
       const cy = (Number(shape.y) || 0) + halfH;
       const xCm = this._pxToOdf(cx - (halfW * cos - halfH * sin));
       const yCm = this._pxToOdf(cy - (halfW * sin + halfH * cos));
-      return `draw:id="${this._escapeXml(drawId)}" draw:name="${name}" draw:style-name="${styleName}" svg:width="${this._pxToOdf(shape.w)}" svg:height="${this._pxToOdf(shape.h)}" draw:transform="rotate (${radianOdf}) translate (${xCm} ${yCm})"${fill}`;
+      return `draw:id="${this._escapeXml(drawId)}" xml:id="${this._escapeXml(drawId)}" draw:name="${name}" draw:style-name="${styleName}" svg:width="${this._pxToOdf(shape.w)}" svg:height="${this._pxToOdf(shape.h)}" draw:transform="rotate (${radianOdf}) translate (${xCm} ${yCm})"${fill}`;
     }
-    return `draw:id="${this._escapeXml(drawId)}" draw:name="${name}" draw:style-name="${styleName}" svg:x="${this._pxToOdf(shape.x)}" svg:y="${this._pxToOdf(shape.y)}" svg:width="${this._pxToOdf(shape.w)}" svg:height="${this._pxToOdf(shape.h)}"${fill}`;
+    return `draw:id="${this._escapeXml(drawId)}" xml:id="${this._escapeXml(drawId)}" draw:name="${name}" draw:style-name="${styleName}" svg:x="${this._pxToOdf(shape.x)}" svg:y="${this._pxToOdf(shape.y)}" svg:width="${this._pxToOdf(shape.w)}" svg:height="${this._pxToOdf(shape.h)}"${fill}`;
   }
 
   _serializeGraphicStyles(slides) {

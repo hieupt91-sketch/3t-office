@@ -237,6 +237,20 @@ export const SLIDES_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.animation.trigger",
+    app: "slides",
+    commandIds: ["slides.animation.trigger"],
+    title: "Kích hoạt: hiệu ứng chỉ chạy khi bấm vào một hình",
+    summary: "Gắn hiệu ứng của một đối tượng với một hình khác trên trang: khi trình chiếu, hiệu ứng chỉ chạy lúc người xem bấm vào hình đó, không chạy theo thứ tự thường. Hữu ích cho nút bấm hiện ghi chú, câu hỏi hiện đáp án.",
+    ribbon: { tab: "Hoạt hình", tabId: "animations", group: "Hiệu ứng đối tượng" },
+    keywords: ["kích hoạt", "trigger", "khi bấm vào", "nút bấm", "hiện đáp án", "hiệu ứng khi nhấp hình"],
+    steps: [
+      "Chọn đối tượng đã có hiệu ứng (hoặc một dòng trong Ngăn hoạt hình nếu đối tượng có nhiều hiệu ứng), rồi vào tab Hoạt hình > nhóm Hiệu ứng đối tượng > Kích hoạt.",
+      "Trong hộp thoại, mục «Hiệu ứng này chạy» chọn «Khi bấm vào: <tên hình>». Chọn «Khi bấm chuột (theo thứ tự trang chiếu)» để trả về cách chạy thông thường. Nhấn Áp dụng.",
+      "Dòng hiệu ứng trong Ngăn hoạt hình ghi thêm cụm «khi bấm» kèm tên hình. Khi trình chiếu (F5), hình ẩn sẵn nếu là hiệu ứng vào và chỉ chạy khi bấm đúng hình kích hoạt; bấm hình kích hoạt không làm chuyển trang. Ctrl+Z hoàn tác. Lưu PPTX thì kích hoạt được giữ nguyên."
+    ]
+  },
+  {
     id: "slides.animation.painter",
     app: "slides",
     commandIds: ["slides.animation.painter"],

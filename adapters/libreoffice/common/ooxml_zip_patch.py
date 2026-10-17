@@ -11886,8 +11886,67 @@ def _slides_animation_begins_from_fodp(source_fodp: str | None) -> list[list[int
     return result
 
 
+_SLIDES_INTERACTIVE_SEQ_RE = re.compile(r'<p:seq\b[^>]*>\s*<p:cTn\b[^>]*nodeType="interactiveSeq"[\s\S]*?</p:seq>')
+_SLIDES_INTERACTIVE_TRIGGER_RE = re.compile(r'<p:cond\b[^>]*\bevt="onClick"[^>]*>\s*<p:tgtEl>\s*<p:spTgt\s+spid="(\d+)"')
+
+
+def _slides_native_effect_groups(effects, begins, shape_ids, new_id, group_counts, bld, group_delay, allow_auto_start):
+    """Dựng nhóm nhấp chuột -> khe thời gian -> hiệu ứng (XML PowerPoint); None nếu có hiệu ứng chưa hỗ trợ."""
+    groups: list[list[list[str]]] = []  # nhóm bấm chuột -> khe thời gian -> hiệu ứng (xml)
+    group_starts: list[list[int]] = []
+    slot_ends: list[int] = []  # thời điểm kết thúc của khe hiện tại trong nhóm hiện tại
+    for effect, delay in zip(effects, begins):
+        dur = int(effect["dur"])
+        node = effect["node"]
+        on_sp = effect["spid"] in shape_ids
+        if not groups or node == "clickEffect":
+            groups.append([])
+            group_starts.append([])
+            slot_ends.append(0)
+            slot_start = 0
+            new_slot = True
+        elif node == "afterEffect":
+            slot_start = slot_ends[-1]
+            new_slot = True
+        else:  # withEffect
+            slot_start = group_starts[-1][-1] if group_starts[-1] else 0
+            new_slot = False
+        if new_slot:
+            groups[-1].append([])
+            group_starts[-1].append(slot_start)
+        effect_id = new_id()
+        body = _anim_effect_xml(effect["cls"], effect["pid"], effect["sub"], effect["spid"], dur, new_id, on_sp)
+        if body is None:
+            return None
+        group_id = group_counts.get(effect["spid"], 0) if on_sp else 0
+        grp = f' grpId="{group_id}"' if on_sp else ""
+        groups[-1][-1].append(
+            f'<p:par><p:cTn id="{effect_id}" presetID="{effect["pid"]}" presetClass="{effect["cls"]}" presetSubtype="{effect["sub"]}" fill="hold"{grp} nodeType="{node}">'
+            f'<p:stCondLst><p:cond delay="{delay}"/></p:stCondLst><p:childTnLst>{body}</p:childTnLst></p:cTn></p:par>'
+        )
+        slot_ends[-1] = max(slot_ends[-1], slot_start + delay + dur)
+        if on_sp:
+            bld.append((effect["spid"], group_id))  # PowerPoint đánh grpId riêng cho mỗi hiệu ứng trên cùng một hình
+            group_counts[effect["spid"]] = group_id + 1
+    group_xml = []
+    for g, group in enumerate(groups):
+        slots = []
+        for slot, slot_start in zip(group, group_starts[g]):
+            slots.append(
+                f'<p:par><p:cTn id="{new_id()}" fill="hold"><p:stCondLst><p:cond delay="{slot_start}"/></p:stCondLst>'
+                f'<p:childTnLst>{"".join(slot)}</p:childTnLst></p:cTn></p:par>'
+            )
+        auto_start = allow_auto_start and g == 0 and effects[0]["node"] != "clickEffect"
+        begin_cond = '<p:cond evt="onBegin" delay="0"><p:tn val="2"/></p:cond>' if auto_start else ""
+        group_xml.append(
+            f'<p:par><p:cTn id="{new_id()}" fill="hold"><p:stCondLst><p:cond delay="{group_delay}"/>{begin_cond}</p:stCondLst>'
+            f'<p:childTnLst>{"".join(slots)}</p:childTnLst></p:cTn></p:par>'
+        )
+    return group_xml
+
+
 def _apply_slides_native_animation_timing(pptx_bytes: bytes, source_fodp: str | None, prior: dict[str, str] | None = None) -> dict[str, str]:
-    """Slide có hiệu ứng Nhấn mạnh/Thoát: dựng lại p:timing theo cấu trúc PowerPoint để nó đọc đúng loại hiệu ứng."""
+    """Slide có hiệu ứng Nhấn mạnh/Thoát hoặc Kích hoạt: dựng lại p:timing theo cấu trúc PowerPoint để nó đọc đúng."""
     try:
         with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
             entries = sorted(
@@ -11903,12 +11962,27 @@ def _apply_slides_native_animation_timing(pptx_bytes: bytes, source_fodp: str | 
         xml = prior[entry] if entry in prior else (read_zip_entry(pptx_bytes, entry) or b"").decode("utf-8", errors="replace")
         if not xml or not re.search(r'presetClass="(?:entr|emph|exit)"', xml):
             continue
-        effects = _slides_animation_effects_from_soffice_xml(xml)
-        if not effects:
+        interactive_blocks = _SLIDES_INTERACTIVE_SEQ_RE.findall(xml)
+        main_xml = _SLIDES_INTERACTIVE_SEQ_RE.sub("", xml) if interactive_blocks else xml
+        effects = _slides_animation_effects_from_soffice_xml(main_xml) if re.search(r'presetClass="(?:entr|emph|exit)"', main_xml) else []
+        interactive_effects: list[tuple[str, list[dict[str, str]]]] = []
+        for block in interactive_blocks:
+            trigger = _SLIDES_INTERACTIVE_TRIGGER_RE.search(block)
+            block_effects = _slides_animation_effects_from_soffice_xml(block)
+            if not trigger or not block_effects:
+                interactive_effects = []
+                break
+            interactive_effects.append((trigger.group(1), block_effects))
+        if effects is None or (interactive_blocks and not interactive_effects):
             continue
-        begins = begins_by_page[page_index] if page_index < len(begins_by_page) else []
-        if len(begins) != len(effects):
-            begins = [0] * len(effects)
+        if not effects and not interactive_effects:
+            continue
+        # begins trong FODP: dãy chính trước, rồi lần lượt các dãy kích hoạt (cùng thứ tự serialize)
+        begins_all = begins_by_page[page_index] if page_index < len(begins_by_page) else []
+        total = len(effects) + sum(len(items) for _t, items in interactive_effects)
+        if len(begins_all) != total:
+            begins_all = [0] * total
+        begins = begins_all[:len(effects)]
         shape_ids = set(re.findall(r'<p:sp>\s*<p:nvSpPr>\s*<p:cNvPr\s+id="(\d+)"', xml))
         counter = [2]
 
@@ -11916,72 +11990,47 @@ def _apply_slides_native_animation_timing(pptx_bytes: bytes, source_fodp: str | 
             counter[0] += 1
             return counter[0]
 
-        groups: list[list[list[str]]] = []  # nhóm bấm chuột -> khe thời gian -> hiệu ứng (xml)
-        group_starts: list[list[int]] = []
-        slot_ends: list[int] = []  # thời điểm kết thúc của khe hiện tại trong nhóm hiện tại
-        ok = True
-        bld: list[tuple[str, int]] = []  # (spid, grpId): PowerPoint đánh grpId riêng cho mỗi hiệu ứng trên cùng một hình
+        bld: list[tuple[str, int]] = []
         group_counts: dict[str, int] = {}
-        for effect, delay in zip(effects, begins):
-            dur = int(effect["dur"])
-            node = effect["node"]
-            on_sp = effect["spid"] in shape_ids
-            if not groups or node == "clickEffect":
-                groups.append([])
-                group_starts.append([])
-                slot_ends.append(0)
-                slot_start = 0
-                new_slot = True
-            elif node == "afterEffect":
-                slot_start = slot_ends[-1]
-                new_slot = True
-            else:  # withEffect
-                slot_start = group_starts[-1][-1] if group_starts[-1] else 0
-                new_slot = False
-            if new_slot:
-                groups[-1].append([])
-                group_starts[-1].append(slot_start)
-            node_type = node
-            effect_id = new_id()
-            body = _anim_effect_xml(effect["cls"], effect["pid"], effect["sub"], effect["spid"], dur, new_id, on_sp)
-            if body is None:
-                ok = False
+        group_xml: list[str] = []
+        if effects:
+            built = _slides_native_effect_groups(effects, begins, shape_ids, new_id, group_counts, bld, "indefinite", True)
+            if built is None:
+                continue
+            group_xml = built
+        interactive_xml = ""
+        failed = False
+        offset = len(effects)
+        for trigger_spid, block_effects in interactive_effects:
+            block_begins = begins_all[offset:offset + len(block_effects)]
+            offset += len(block_effects)
+            seq_id = new_id()
+            built = _slides_native_effect_groups(block_effects, block_begins, shape_ids, new_id, group_counts, bld, "0", False)
+            if built is None:
+                failed = True
                 break
-            group_id = group_counts.get(effect["spid"], 0) if on_sp else 0
-            grp = f' grpId="{group_id}"' if on_sp else ""
-            groups[-1][-1].append(
-                f'<p:par><p:cTn id="{effect_id}" presetID="{effect["pid"]}" presetClass="{effect["cls"]}" presetSubtype="{effect["sub"]}" fill="hold"{grp} nodeType="{node_type}">'
-                f'<p:stCondLst><p:cond delay="{delay}"/></p:stCondLst><p:childTnLst>{body}</p:childTnLst></p:cTn></p:par>'
+            cond = f'<p:cond evt="onClick" delay="0"><p:tgtEl><p:spTgt spid="{trigger_spid}"/></p:tgtEl></p:cond>'
+            interactive_xml += (
+                f'<p:seq concurrent="1" nextAc="seek"><p:cTn id="{seq_id}" restart="whenNotActive" fill="hold" evtFilter="cancelBubble" nodeType="interactiveSeq">'
+                f'<p:stCondLst>{cond}</p:stCondLst><p:endSync evt="end" delay="0"><p:rtn val="all"/></p:endSync>'
+                f'<p:childTnLst>{"".join(built)}</p:childTnLst></p:cTn><p:nextCondLst>{cond}</p:nextCondLst></p:seq>'
             )
-            slot_ends[-1] = max(slot_ends[-1], slot_start + delay + dur)
-            if on_sp:
-                bld.append((effect["spid"], group_id))
-                group_counts[effect["spid"]] = group_id + 1
-        if not ok:
+        if failed:
             continue
-        group_xml = []
-        for g, group in enumerate(groups):
-            slots = []
-            for slot, start in zip(group, group_starts[g]):
-                slots.append(
-                    f'<p:par><p:cTn id="{new_id()}" fill="hold"><p:stCondLst><p:cond delay="{start}"/></p:stCondLst>'
-                    f'<p:childTnLst>{"".join(slot)}</p:childTnLst></p:cTn></p:par>'
-                )
-            auto_start = g == 0 and effects[0]["node"] != "clickEffect"
-            begin_cond = '<p:cond evt="onBegin" delay="0"><p:tn val="2"/></p:cond>' if auto_start else ""
-            group_xml.append(
-                f'<p:par><p:cTn id="{new_id()}" fill="hold"><p:stCondLst><p:cond delay="indefinite"/>{begin_cond}</p:stCondLst>'
-                f'<p:childTnLst>{"".join(slots)}</p:childTnLst></p:cTn></p:par>'
-            )
         bld_items = "".join(f'<p:bldP spid="{s}" grpId="{g}" animBg="1"/>' for s, g in bld)
         bld_xml = "<p:bldLst>" + bld_items + "</p:bldLst>" if bld else ""
+        main_seq = ""
+        if group_xml:
+            main_seq = (
+                '<p:seq concurrent="1" nextAc="seek"><p:cTn id="2" dur="indefinite" nodeType="mainSeq"><p:childTnLst>'
+                + "".join(group_xml)
+                + '</p:childTnLst></p:cTn><p:prevCondLst><p:cond evt="onPrev" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst>'
+                '<p:nextCondLst><p:cond evt="onNext" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst></p:seq>'
+            )
         timing = (
             '<p:timing><p:tnLst><p:par><p:cTn id="1" dur="indefinite" restart="never" nodeType="tmRoot"><p:childTnLst>'
-            '<p:seq concurrent="1" nextAc="seek"><p:cTn id="2" dur="indefinite" nodeType="mainSeq"><p:childTnLst>'
-            + "".join(group_xml)
-            + '</p:childTnLst></p:cTn><p:prevCondLst><p:cond evt="onPrev" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst>'
-            '<p:nextCondLst><p:cond evt="onNext" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst></p:seq>'
-            f'</p:childTnLst></p:cTn></p:par></p:tnLst>{bld_xml}</p:timing>'
+            + main_seq + interactive_xml
+            + f'</p:childTnLst></p:cTn></p:par></p:tnLst>{bld_xml}</p:timing>'
         )
         next_xml, count = re.subn(r"<p:timing\b[\s\S]*?</p:timing>", lambda _m: timing, xml, count=1)
         if count:

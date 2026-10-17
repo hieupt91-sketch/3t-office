@@ -640,6 +640,7 @@ export const SLIDES_RIBBON_TABS = [
               { commandId: "slides.animation.addEffect", args: "disappear", label: "Biến mất (thoát)" }
             ]
           },
+          { type: "button", commandId: "slides.animation.trigger" },
           { type: "button", commandId: "slides.animation.apply", isLarge: true },
           { type: "button", commandId: "slides.animation.effectOptions", label: "Tùy chọn hiệu ứng", labelKey: "slidesRibbon.animationOptions" },
           { type: "button", commandId: "slides.animation.pane", isLarge: true },
