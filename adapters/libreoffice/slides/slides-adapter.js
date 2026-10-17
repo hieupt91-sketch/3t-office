@@ -8,6 +8,7 @@ import { showAlertDialog, showFindReplaceDialog } from "../../../platform/ui-kit
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
 import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
+import { applyChangeCaseToSelection } from "../../../platform/text/change-case.js";
 import { overlayFodpMasterLogo } from "./pptx-master-logo.js";
 import { overlayFodpSections } from "./pptx-section-list.js";
 import { overlayFodpShowProperties } from "./pptx-show-properties.js";
@@ -204,6 +205,9 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.arrange.sendToBack", () => this._hintIfFalse(() => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("back") : false, "Hãy chọn ít nhất một hình khối để sắp xếp thứ tự hiển thị."));
     // Những lệnh này có triển khai trong Canvas/adapter; bind tại đây để ribbon
     // và phím tắt dùng cùng một đường thực thi thay vì chỉ hoạt động qua UNO.
+    // Đổi chữ hoa/thường: logic dùng chung với Writer (platform/text/change-case.js). Nút gốc/Shift+F3 xoay vòng.
+    globalCommandBus.bindHandler("slides.text.changeCase", () => this._changeTextCase(""));
+    globalCommandBus.bindHandler("slides.text.changeCaseMode", (arg) => this._changeTextCase(String(arg || "")));
     globalCommandBus.bindHandler("slides.transition.apply", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
     // Tab Chuyển tiếp: thư viện hiệu ứng, thời gian, áp dụng tất cả, xem trước (cùng mô hình dữ liệu với hộp thoại).
     globalCommandBus.bindHandler("slides.transition.gallery", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
@@ -529,6 +533,19 @@ export class SlidesAdapter {
     this.canvas?._syncEditableFieldsFromDom?.();
     this._syncTextFormatState();
     return ok;
+  }
+
+  _changeTextCase(mode) {
+    this._restoreTextSelection();
+    const root = this._savedEditable || this.canvas?.canvasEl || null;
+    const changed = applyChangeCaseToSelection(mode, { root });
+    if (!changed) {
+      this.shell?.setStatus?.("Hãy chọn đoạn chữ cần đổi chữ hoa / chữ thường.");
+      return false;
+    }
+    this.canvas?._syncEditableFieldsFromDom?.();
+    this._syncTextFormatState();
+    return true;
   }
 
   _setLineHeight(value) {

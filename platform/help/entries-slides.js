@@ -209,6 +209,20 @@ export const SLIDES_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.text.changeCase",
+    app: "slides",
+    commandIds: ["slides.text.changeCase", "slides.text.changeCaseMode"],
+    title: "Đổi chữ hoa / thường (Shift+F3)",
+    summary: "Đổi nhanh chữ đang chọn sang chữ hoa đầu câu, chữ thường, CHỮ HOA, Viết Hoa Mỗi Từ hoặc đảo hoa thường; Shift+F3 xoay vòng giữa chữ thường, Viết Hoa Mỗi Từ và CHỮ HOA.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
+    keywords: ["đổi chữ hoa", "chữ thường", "chữ in hoa", "change case", "shift+f3", "viết hoa", "uppercase", "lowercase"],
+    steps: [
+      "Nhấp đúp vào khung chữ để vào chế độ soạn, rồi bôi đen đoạn chữ cần đổi. Nếu chỉ đặt con trỏ trong một từ, từ đó được chọn tự động.",
+      "Tab Trang đầu > nhóm Phông chữ > nhấp nút Aa (Đổi chữ hoa/thường) và chọn một kiểu: Chữ hoa đầu câu, chữ thường, CHỮ HOA, Viết Hoa Mỗi Từ hoặc đảo hoa thường.",
+      "Hoặc nhấn Shift+F3 nhiều lần để xoay vòng: chữ thường, Viết Hoa Mỗi Từ, CHỮ HOA. Chữ có dấu tiếng Việt được xử lý đúng, định dạng đậm/nghiêng/màu của chữ được giữ nguyên.",
+      "Ctrl+Z hoàn tác về chữ cũ."
+    ]
+  },  {
     id: "slides.shape.formatTab",
     app: "slides",
     commandIds: [

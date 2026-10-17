@@ -1004,6 +1004,8 @@ export const enStrings = {
   ,"slides.transition.advanceAfter": { label: "Advance After", tooltip: "Set the seconds before the slide advances (or turn it off)" }
   ,"slides.transition.applyAll": { label: "Apply To All", tooltip: "Use this slide's transition settings on every slide" }
   ,"slides.transition.preview": { label: "Preview", tooltip: "Play the current slide's transition" }
+  ,"slides.text.changeCase": { label: "Change Case", tooltip: "Change the case of the selected text (Shift+F3 cycles)" }
+  ,"slides.text.changeCaseMode": { label: "Case Style", tooltip: "Pick a style: sentence case, lowercase, UPPERCASE, capitalize each initial, or toggle case" }
   ,"slides.transition.apply": { label: "Transitions", tooltip: "Apply a slide transition (Fade, Push, Zoom, Flip)" }
     ,"slides.animation.apply": { label: "Animations", tooltip: "Apply an entrance animation to an object" }
     ,"slides.animation.pane": { label: "Animation Pane", tooltip: "List every animation on the current slide, reorder, change start, or remove an animation" }

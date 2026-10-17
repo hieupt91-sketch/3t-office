@@ -125,6 +125,20 @@ export const SLIDES_RIBBON_TABS = [
                   { type: "button", commandId: "slides.text.strike", iconOnly: true },
                   { type: "button", commandId: "slides.text.shadow", iconOnly: true },
                   { type: "button", commandId: "slides.text.clearFormat", iconOnly: true },
+                  {
+                    type: "dropdown",
+                    id: "slides.text.changeCase",
+                    label: "Đổi chữ hoa/thường",
+                    icon: "changeCase",
+                    iconOnly: true,
+                    items: [
+                      { commandId: "slides.text.changeCaseMode", args: "sentence", label: "Chữ hoa đầu câu" },
+                      { commandId: "slides.text.changeCaseMode", args: "lowercase", label: "chữ thường" },
+                      { commandId: "slides.text.changeCaseMode", args: "uppercase", label: "CHỮ HOA" },
+                      { commandId: "slides.text.changeCaseMode", args: "capitalize", label: "Viết Hoa Mỗi Từ" },
+                      { commandId: "slides.text.changeCaseMode", args: "toggle", label: "đẢO hOA tHƯỜNG" }
+                    ]
+                  },
                   { type: "button", commandId: "slides.color.text", iconOnly: true },
                   { type: "button", commandId: "slides.color.highlight", iconOnly: true }
                 ]

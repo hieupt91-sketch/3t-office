@@ -707,6 +707,8 @@ export const SLIDES_COMMANDS = [
   { id: "slides.text.italic", category: "format", label: "Nghiêng", shortcut: "Ctrl+I", icon: "italic", tooltip: "Chữ nghiêng (Ctrl+I)", isToggle: true },
   { id: "slides.text.underline", category: "format", label: "Gạch chân", shortcut: "Ctrl+U", icon: "underline", tooltip: "Gạch chân chữ (Ctrl+U)", isToggle: true },
   { id: "slides.text.strike", category: "format", label: "Gạch ngang", icon: "strike", tooltip: "Gạch ngang chữ", isToggle: true },
+  { id: "slides.text.changeCase", category: "format", label: "Đổi chữ hoa/thường", shortcut: "Shift+F3", icon: "changeCase", tooltip: "Đổi chữ hoa / thường cho chữ đang chọn (Shift+F3 xoay vòng)" },
+  { id: "slides.text.changeCaseMode", category: "format", label: "Kiểu chữ hoa/thường", icon: "changeCase", tooltip: "Chọn kiểu: đầu câu, chữ thường, CHỮ HOA, Viết Hoa Mỗi Từ, đảo hoa thường" },
   { id: "slides.text.shadow", category: "format", label: "Đổ bóng chữ", icon: "textShadow", tooltip: "Đổ bóng cho chữ đang chọn (bật/tắt)", isToggle: true },
   { id: "slides.text.clearFormat", category: "format", label: "Xóa định dạng", icon: "clearFormat", tooltip: "Xóa định dạng chữ, giữ nguyên nội dung" },
   { id: "slides.font.family", category: "format", label: "Phông chữ", tooltip: "Chọn phông chữ" },
