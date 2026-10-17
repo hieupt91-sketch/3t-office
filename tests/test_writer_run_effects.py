@@ -60,11 +60,41 @@ class RunEffectsExportTests(unittest.TestCase):
 
     def test_position_replaces_vertalign_and_restores_original_size(self):
         docx = _docx('<w:p><w:r><w:rPr><w:sz w:val="18"/><w:vertAlign w:val="superscript"/></w:rPr><w:t>Nang</w:t></w:r></w:p>')
-        html = '<p><span data-vno-fx="pos=8;sz=-"><sup>Nang</sup></span></p>'
+        html = '<p><sup><span data-vno-fx="pos=8;sz=-;vb=1">Nang</span></sup></p>'
         out = _document(patcher.postprocess_writer_run_effects(docx, source_html=html))
         self.assertIn('<w:position w:val="8"/>', out)
         self.assertNotIn("vertAlign", out)
         self.assertNotIn("<w:sz ", out)
+
+    def test_position_restored_even_when_libreoffice_dropped_the_script_base(self):
+        # d05 trong kho tài liệu thật: HTML còn <sup> nhưng DOCX trung gian không còn vertAlign lẫn position.
+        docx = _docx('<w:p><w:r><w:rPr><w:b/><w:sz w:val="24"/></w:rPr><w:t>I.</w:t></w:r></w:p>')
+        html = '<p><sup style="font-size: 16px;"><span data-vno-fx="pos=8;sz=24;vb=1">I.</span></sup></p>'
+        out = _document(patcher.postprocess_writer_run_effects(docx, source_html=html))
+        self.assertIn('<w:position w:val="8"/>', out)
+        self.assertIn('<w:sz w:val="24"/>', out)
+
+    def test_import_marks_position_with_script_base_only_when_sup_exists(self):
+        docx = _docx(
+            '<w:p><w:r><w:rPr><w:position w:val="8"/></w:rPr><w:t>Nang</w:t></w:r>'
+            '<w:r><w:rPr><w:position w:val="8"/><w:sz w:val="24"/></w:rPr><w:t>Khac</w:t></w:r></w:p>'
+        )
+        out = patcher.inject_docx_run_effects(docx, "<p><sup>Nang</sup>Khac</p>")
+        self.assertIn('<sup><span data-vno-fx="pos=8;sz=-;vb=1">Nang</span></sup>', out)
+        self.assertIn('<span data-vno-fx="pos=8;sz=24">Khac</span>', out)
+
+    def test_position_without_script_base_is_kept_and_size_untouched(self):
+        docx = _docx('<w:p><w:r><w:rPr><w:sz w:val="24"/></w:rPr><w:t>Khac</w:t></w:r></w:p>')
+        html = '<p><span data-vno-fx="pos=8;sz=24">Khac</span></p>'
+        out = _document(patcher.postprocess_writer_run_effects(docx, source_html=html))
+        self.assertIn('<w:position w:val="8"/>', out)
+        self.assertIn('<w:sz w:val="24"/>', out)
+
+    def test_removed_superscript_is_not_resurrected_when_script_base_was_present(self):
+        docx = _docx('<w:p><w:r><w:t>Nang</w:t></w:r></w:p>')
+        html = '<p><span data-vno-fx="pos=8;sz=-;vb=1">Nang</span></p>'
+        out = _document(patcher.postprocess_writer_run_effects(docx, source_html=html))
+        self.assertNotIn("w:position", out)
 
     def test_posx_from_font_dialog_needs_no_base_property(self):
         docx = _docx('<w:p><w:r><w:rPr><w:sz w:val="24"/></w:rPr><w:t>Nang</w:t></w:r></w:p>')

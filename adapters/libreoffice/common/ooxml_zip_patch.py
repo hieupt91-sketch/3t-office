@@ -25646,8 +25646,12 @@ def _run_fx_apply_to_rpr(rpr_inner: str, fx: str) -> str:
     kv_all = {token.split("=", 1)[0]: token.split("=", 1)[1] for token in parts_all if "=" in token}
     if "w:strike" not in names:
         parts_all = [token for token in parts_all if token != "dstrike"]
-    if "w:vertAlign" not in names:
-        parts_all = [token for token in parts_all if token.split("=", 1)[0] not in ("pos", "sz")]
+    if "vb" in kv_all:
+        # Lúc mở, chữ nằm trong <sup>/<sub>. Chỉ khôi phục vị trí nếu lúc lưu nó VẪN nằm trong đó (in=1).
+        if "in" not in kv_all:
+            parts_all = [token for token in parts_all if token.split("=", 1)[0] not in ("pos", "sz", "vb")]
+    else:
+        parts_all = [token for token in parts_all if token.split("=", 1)[0] != "sz"]
     if "w:u" not in names:
         parts_all = [token for token in parts_all if token.split("=", 1)[0] not in ("ul", "ulc")]
     del kv_all
@@ -25673,13 +25677,15 @@ def _run_fx_apply_to_rpr(rpr_inner: str, fx: str) -> str:
             tag = _RUN_FX_TOGGLES[token]
             put(tag, f"<{tag}/>")
     if "pos" in kv:
-        drop("w:vertAlign")
         put("w:position", f'<w:position w:val="{kv["pos"]}"/>')
-        original = kv.get("sz", "-")
-        if original == "-":
-            drop("w:sz", "w:szCs")
-        else:
-            put("w:sz", f'<w:sz w:val="{original}"/>')
+        if "vb" in kv:
+            # LibreOffice đã đổi vị trí thành chỉ số trên/dưới và thu nhỏ chữ: trả lại cỡ chữ gốc.
+            drop("w:vertAlign")
+            original = kv.get("sz", "-")
+            if original == "-":
+                drop("w:sz", "w:szCs")
+            else:
+                put("w:sz", f'<w:sz w:val="{original}"/>')
     if "posx" in kv:
         # Nâng/hạ vị trí đặt từ hộp Phông chữ (không có chỉ số trên/dưới làm nền), nửa điểm.
         put("w:position", f'<w:position w:val="{kv["posx"]}"/>')
@@ -25698,9 +25704,10 @@ def _run_fx_html_paragraphs(html_text: str):
 def _run_fx_html_ranges(inner: str) -> tuple[str, list[tuple[int, int, str]]]:
     """Văn bản không khoảng trắng của đoạn HTML + các khoảng [s,e) có data-vno-fx."""
     nws_total = 0
-    stack: list[tuple[str | None, int]] = []
+    stack: list[tuple[str | None, int, bool]] = []
     ranges: list[tuple[int, int, str]] = []
     plain: list[str] = []
+    script_depth = 0
     for token in re.split(r"(<[^>]+>)", inner):
         if not token:
             continue
@@ -25708,14 +25715,17 @@ def _run_fx_html_ranges(inner: str) -> tuple[str, list[tuple[int, int, str]]]:
             low = token.lower()
             if low.startswith("<span"):
                 fx = re.search(r'data-vno-fx="([^"]*)"', token)
-                stack.append((fx.group(1) if fx else None, nws_total))
+                stack.append((fx.group(1) if fx else None, nws_total, script_depth > 0))
             elif low.startswith("</span"):
                 if stack:
-                    fx, begin = stack.pop()
+                    fx, begin, in_script = stack.pop()
                     if fx and nws_total > begin:
-                        ranges.append((begin, nws_total, fx))
-            elif low.startswith("<br"):
-                pass
+                        # "in=1": chữ vẫn nằm trong <sup>/<sub> lúc lưu (người dùng chưa bỏ chỉ số trên/dưới)
+                        ranges.append((begin, nws_total, fx + (";in=1" if in_script and "vb=1" in fx else "")))
+            elif re.match(r"<(?:sup|sub)\b", low):
+                script_depth += 1
+            elif re.match(r"</(?:sup|sub)\b", low):
+                script_depth = max(0, script_depth - 1)
             continue
         text = html.unescape(token)
         count = len(_run_fx_nws(text))
@@ -25805,10 +25815,16 @@ def _run_fx_wrap_inner(inner: str, ranges: list[tuple[int, int, str]]) -> str:
         return None
 
     result: list[str] = []
+    script_depth = 0
     for token in re.split(r"(<[^>]+>)", inner):
         if not token:
             continue
         if token.startswith("<"):
+            low = token.lower()
+            if re.match(r"<(?:sup|sub)\b", low):
+                script_depth += 1
+            elif re.match(r"</(?:sup|sub)\b", low):
+                script_depth = max(0, script_depth - 1)
             result.append(token)
             continue
         pieces = re.split(r"(&[#\w]+;)", token)
@@ -25821,7 +25837,8 @@ def _run_fx_wrap_inner(inner: str, ranges: list[tuple[int, int, str]]) -> str:
                 return
             raw = "".join(buffer)
             if buffer_fx:
-                result.append(f'<span data-vno-fx="{html.escape(buffer_fx, quote=True)}">{raw}</span>')
+                marked = buffer_fx + (";vb=1" if script_depth and "pos=" in buffer_fx and "vb=1" not in buffer_fx else "")
+                result.append(f'<span data-vno-fx="{html.escape(marked, quote=True)}">{raw}</span>')
             else:
                 result.append(raw)
             buffer = []
