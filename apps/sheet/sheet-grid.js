@@ -13135,8 +13135,10 @@ export class SheetGridController {
       accounting: { category: "accounting", currencySymbol: "₫", decimals: 2 },
       date: { category: "date", dateFormat: "dd/mm/yyyy" },
       percentage: { category: "percentage", decimals: 2 },
+      fraction: { category: "fraction", fractionFormat: "# ?/?", excelCode: "# ?/?" },
       scientific: { category: "scientific", decimals: 2 },
-      text: { category: "text" }
+      text: { category: "text" },
+      special: { category: "special", specialFormat: "00000", excelCode: "00000" }
     };
     return defaults[category] ? this.applyNumberFormat(defaults[category]) : false;
   }

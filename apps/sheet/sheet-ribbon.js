@@ -174,14 +174,16 @@ export const SHEET_RIBBON_TABS = [
                 commandId: "sheet.format.quickCategory",
                 defaultValue: "general",
                 options: [
-                  { value: "general", label: "Chung" },
-                  { value: "number", label: "Số" },
-                  { value: "currency", label: "Tiền tệ" },
-                  { value: "accounting", label: "Kế toán" },
-                  { value: "date", label: "Ngày" },
-                  { value: "percentage", label: "Phần trăm" },
-                  { value: "scientific", label: "Khoa học" },
-                  { value: "text", label: "Văn bản" }
+                  { value: "general", label: "Chung", labelKey: "sheetFormatCells.catGeneral" },
+                  { value: "number", label: "Số", labelKey: "sheetFormatCells.catNumber" },
+                  { value: "currency", label: "Tiền tệ", labelKey: "sheetFormatCells.catCurrency" },
+                  { value: "accounting", label: "Kế toán", labelKey: "sheetFormatCells.catAccounting" },
+                  { value: "date", label: "Ngày", labelKey: "sheetFormatCells.catDate" },
+                  { value: "percentage", label: "Phần trăm", labelKey: "sheetFormatCells.catPercentage" },
+                  { value: "fraction", label: "Phân số", labelKey: "sheetFormatCells.catFraction" },
+                  { value: "scientific", label: "Khoa học", labelKey: "sheetFormatCells.catScientific" },
+                  { value: "text", label: "Văn bản", labelKey: "sheetFormatCells.catText" },
+                  { value: "special", label: "Đặc biệt", labelKey: "sheetFormatCells.catSpecial" }
                 ]
               },
               {

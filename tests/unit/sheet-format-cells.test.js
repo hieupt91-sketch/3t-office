@@ -680,5 +680,89 @@ export async function runSheetFormatCellsTests() {
     assert(NumberFormatter.formatValue(restoredA1.val, restoredA1.style.numberFormat).text === "13:45", "Ô đã mở lại vẫn hiển thị 13:45");
   });
 
+  // 13. Unit Test: Category Fraction & Special Parity với Excel 2016 COM thật
+  test("Category Fraction: FormatFraction hiển thị chính xác theo 9 mẫu chuẩn Excel 2016 COM", () => {
+    // 1 digit
+    assert(NumberFormatter.formatFraction(0.5, { fractionFormat: "# ?/?" }).text === "1/2");
+    assert(NumberFormatter.formatFraction(1.25, { fractionFormat: "# ?/?" }).text === "1 1/4");
+    assert(NumberFormatter.formatFraction(0, { fractionFormat: "# ?/?" }).text === "0");
+    assert(NumberFormatter.formatFraction(-1.5, { fractionFormat: "# ?/?" }).text === "-1 1/2");
+    assert(NumberFormatter.formatFraction(0.9999, { fractionFormat: "# ?/?" }).text === "1");
+
+    // 2 digits
+    assert(NumberFormatter.formatFraction(0.1, { fractionFormat: "# ??/??" }).text === "1/10");
+    assert(NumberFormatter.formatFraction(0.05, { fractionFormat: "# ??/??" }).text === "1/20");
+    assert(NumberFormatter.formatFraction(12.3456, { fractionFormat: "# ??/??" }).text === "12 28/81");
+
+    // 3 digits
+    assert(NumberFormatter.formatFraction(0.125, { fractionFormat: "# ???/???" }).text === "1/8");
+    assert(NumberFormatter.formatFraction(2.625, { fractionFormat: "# ???/???" }).text === "2 5/8");
+
+    // Fixed denominators: 2, 4, 8, 16, 10, 100
+    assert(NumberFormatter.formatFraction(0.5, { fractionFormat: "# ?/2" }).text === "1/2");
+    assert(NumberFormatter.formatFraction(0.75, { fractionFormat: "# ?/4" }).text === "3/4");
+    assert(NumberFormatter.formatFraction(0.625, { fractionFormat: "# ?/8" }).text === "5/8");
+    assert(NumberFormatter.formatFraction(0.5625, { fractionFormat: "# ??/16" }).text === "9/16");
+    assert(NumberFormatter.formatFraction(0.75, { fractionFormat: "# ?/10" }).text === "8/10");
+    assert(NumberFormatter.formatFraction(0.125, { fractionFormat: "# ?/10" }).text === "1/10");
+    assert(NumberFormatter.formatFraction(0.5, { fractionFormat: "# ??/100" }).text === "50/100");
+    assert(NumberFormatter.formatFraction(2.625, { fractionFormat: "# ??/100" }).text === "2 63/100");
+  });
+
+  test("Category Special: FormatSpecial hiển thị chính xác theo 4 mẫu chuẩn Excel 2016 COM", () => {
+    // Postal code 5
+    assert(NumberFormatter.formatSpecial(123, { specialFormat: "00000" }).text === "00123");
+    assert(NumberFormatter.formatSpecial(90210, { specialFormat: "00000" }).text === "90210");
+
+    // Postal code + 4
+    assert(NumberFormatter.formatSpecial(123456789, { specialFormat: "00000-0000" }).text === "12345-6789");
+    assert(NumberFormatter.formatSpecial(12345, { specialFormat: "00000-0000" }).text === "00001-2345");
+
+    // Phone number
+    assert(NumberFormatter.formatSpecial(1234567, { specialFormat: "[<=9999999]###-####;(###) ###-####" }).text === "123-4567");
+    assert(NumberFormatter.formatSpecial(8005551212, { specialFormat: "[<=9999999]###-####;(###) ###-####" }).text === "(800) 555-1212");
+
+    // SSN
+    assert(NumberFormatter.formatSpecial(123456789, { specialFormat: "000-00-0000" }).text === "123-45-6789");
+    assert(NumberFormatter.formatSpecial(12345, { specialFormat: "000-00-0000" }).text === "000-01-2345");
+  });
+
+  test("Ribbon & Quick Category: applyQuickNumberCategory hỗ trợ fraction và special", () => {
+    const grid = new SheetGridController(mockContainer());
+    grid.selectCell("A", 1);
+    grid.setCellValue("A", 1, 0.75);
+    assert(grid.applyQuickNumberCategory("fraction") === true);
+    const nf1 = grid.cellsData.get("A1").style.numberFormat;
+    assert(nf1.category === "fraction" && nf1.fractionFormat === "# ?/?");
+    assert(NumberFormatter.formatValue(grid.cellsData.get("A1").val, nf1).text === "3/4");
+
+    grid.selectCell("B", 1);
+    grid.setCellValue("B", 1, 12345);
+    assert(grid.applyQuickNumberCategory("special") === true);
+    const nf2 = grid.cellsData.get("B1").style.numberFormat;
+    assert(nf2.category === "special" && nf2.specialFormat === "00000");
+    assert(NumberFormatter.formatValue(grid.cellsData.get("B1").val, nf2).text === "12345");
+  });
+
+  test("Sheet Adapter: Lưu và mở lại định dạng Fraction và Special qua FODS/XLSX", () => {
+    const grid = new SheetGridController(mockContainer());
+    const adapter = new SheetAdapter(grid);
+    grid.setCellValue("A", 1, 0.5);
+    grid.cellsData.get("A1").style = { numberFormat: { category: "fraction", fractionFormat: "# ?/?", excelCode: "# ?/?" } };
+    grid.setCellValue("B", 1, 123);
+    grid.cellsData.get("B1").style = { numberFormat: { category: "special", specialFormat: "00000", excelCode: "00000" } };
+
+    const fodsXml = adapter.serializeToFods();
+    assert(fodsXml.includes("<number:fraction"), "FODS phải có thẻ number:fraction");
+    assert(fodsXml.includes('number:min-integer-digits="5"'), "FODS phải có number:number min-integer-digits=5 cho 00000");
+
+    const parsed = adapter.parseFods(fodsXml);
+    const sData = parsed.sheetsData[parsed.activeSheet];
+    const restoredA1 = sData.get("A1");
+    const restoredB1 = sData.get("B1");
+    assert(restoredA1?.style?.numberFormat?.category === "fraction", "Khôi phục đúng category fraction");
+    assert(restoredB1?.style?.numberFormat?.category === "special" || restoredB1?.style?.numberFormat?.excelCode === "00000", "Khôi phục đúng format cho B1");
+  });
+
   return results;
 }

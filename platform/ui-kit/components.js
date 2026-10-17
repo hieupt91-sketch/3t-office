@@ -336,7 +336,7 @@ export function createSelect({ commandId, options, defaultValue, onChange, ariaL
   options.forEach(opt => {
     const el = document.createElement("option");
     el.value = opt.value;
-    el.textContent = opt.label;
+    el.textContent = opt.labelKey ? t(opt.labelKey, opt.label) : opt.label;
     if (opt.value === defaultValue) el.selected = true;
     select.appendChild(el);
   });

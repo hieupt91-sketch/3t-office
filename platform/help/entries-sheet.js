@@ -248,14 +248,14 @@ export const SHEET_HELP_ENTRIES = [
       "sheet.format.decreaseDecimal"
     ],
     title: "Định dạng số",
-    summary: "Đổi cách hiển thị số trên ô đang chọn: Chung, Số, Tiền tệ, Kế toán, Ngày, Phần trăm, Khoa học hoặc Văn bản. Có nút tắt VNĐ, phần trăm, phân cách hàng nghìn và tăng/giảm số thập phân.",
+    summary: "Đổi cách hiển thị số trên ô đang chọn: Chung, Số, Tiền tệ, Kế toán, Ngày, Phần trăm, Phân số, Khoa học, Văn bản hoặc Đặc biệt. Có nút tắt VNĐ, phần trăm, phân cách hàng nghìn và tăng/giảm số thập phân.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Định dạng số" },
-    keywords: ["định dạng số", "number format", "vnđ", "phần trăm", "phần trăm", "hàng nghìn", "thập phân", "tiền tệ"],
+    keywords: ["định dạng số", "number format", "vnđ", "phần trăm", "phân số", "đặc biệt", "hàng nghìn", "thập phân", "tiền tệ"],
     steps: [
       "Chọn một hoặc nhiều ô số. Mở tab Trang đầu, nhóm Định dạng số (bên phải nhóm Căn chỉnh).",
-      "Dùng hộp chọn nhanh: Chung, Số, Tiền tệ, Kế toán, Ngày, Phần trăm, Khoa học, Văn bản. Ngày dùng dạng dd/mm/yyyy; Văn bản căn trái và không tính toán.",
+      "Dùng hộp chọn nhanh: Chung, Số, Tiền tệ, Kế toán, Ngày, Phần trăm, Phân số, Khoa học, Văn bản, Đặc biệt. Phân số chuyển số thực thành phân số tối giản (vd: 0.5 thành 1/2); Đặc biệt hỗ trợ mã bưu chính (00000) đệm số 0 ở đầu.",
       "Nút tắt trên hàng dưới: Tiền tệ VNĐ (Ctrl+Shift+4), Phần trăm (Ctrl+Shift+5), Phân cách hàng nghìn (Ctrl+Shift+1), Tăng/Giảm số thập phân.",
-      "Muốn chỉnh số chữ số thập phân, ký hiệu tiền, kiểu số âm hoặc mẫu tùy chỉnh: nhấn nút Định dạng ô... trong cùng nhóm, hoặc Ctrl+1, hoặc mũi tên nhỏ góc nhóm (launcher)."
+      "Muốn chỉnh số chữ số thập phân, ký hiệu tiền, kiểu số âm, các kiểu phân số chi tiết hoặc mẫu tùy chỉnh: nhấn nút Định dạng ô... trong cùng nhóm, hoặc Ctrl+1, hoặc mũi tên nhỏ góc nhóm (launcher)."
     ]
   },
   {
@@ -265,10 +265,10 @@ export const SHEET_HELP_ENTRIES = [
     title: "Định dạng ô",
     summary: "Hộp thoại sáu thẻ để định dạng số, căn chỉnh, phông chữ, đường viền, màu nền và trạng thái bảo vệ cho ô hoặc vùng đang chọn; mọi thay đổi được lưu cùng tệp XLSX.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Định dạng số" },
-    keywords: ["định dạng ô", "ctrl+1", "số thập phân", "tiền tệ", "ngày tháng", "phông chữ", "viền", "tô màu", "bảo vệ", "tùy chỉnh"],
+    keywords: ["định dạng ô", "ctrl+1", "số thập phân", "tiền tệ", "ngày tháng", "phân số", "đặc biệt", "phông chữ", "viền", "tô màu", "bảo vệ", "tùy chỉnh"],
     steps: [
       "Chọn ô hoặc vùng cần đổi. Nhấn Ctrl+1, hoặc tab Trang đầu → nhóm Định dạng số → nút Định dạng ô..., hoặc mũi tên nhỏ góc phải nhóm.",
-      "Thẻ Số: chọn Chung, Số, Tiền tệ, Kế toán, Ngày, Giờ, Phần trăm, Phân số, Khoa học, Văn bản, Đặc biệt hoặc Tùy chỉnh. Từng nhóm có tùy chọn riêng cho phần thập phân, dấu phân cách, kiểu số âm, ký hiệu, vùng và mã định dạng; hộp Mẫu cập nhật trước khi áp dụng.",
+      "Thẻ Số: chọn Chung, Số, Tiền tệ, Kế toán, Ngày, Giờ, Phần trăm, Phân số, Khoa học, Văn bản, Đặc biệt hoặc Tùy chỉnh. Nhóm Phân số hỗ trợ đủ 9 kiểu: Tối đa một chữ số (# ?/?), hai chữ số (# ??/??), ba chữ số (# ???/???), theo phần hai (# ?/2), phần tư (# ?/4), phần tám (# ?/8), phần mười sáu (# ??/16), phần mười (# ?/10) và phần trăm (# ??/100). Nhóm Đặc biệt hỗ trợ Mã bưu chính 5 chữ số (00000), Mã bưu chính mở rộng (00000-0000), Số điện thoại ([<=9999999]###-####;(###) ###-####) và Số an sinh xã hội (000-00-0000). Hộp Mẫu cập nhật trực quan trước khi nhấn Đồng ý.",
       "Với Tùy chỉnh, nhập mã vào ô Mã định dạng rồi nhấn Đồng ý để áp dụng và thêm mã vào danh sách dùng lại trong phiên. Muốn bỏ một mã đã tạo, chọn mã trong danh sách rồi bấm Xóa mã; các mã dựng sẵn không thể xóa và ứng dụng sẽ báo rõ lý do.",
       "Thẻ Căn chỉnh: đặt căn ngang/dọc, thụt lề, ngắt dòng, thu nhỏ vừa ô, hướng đọc, góc xoay hoặc xếp chữ dọc. Chọn một vùng trước khi bật Hợp nhất ô; khi tắt tùy chọn, vùng gộp hiện tại được tách.",
       "Thẻ Phông chữ: chọn họ font, kiểu thường/đậm/nghiêng, cỡ, gạch chân, màu, gạch ngang, chỉ số trên hoặc dưới. Phông mặc định đưa các giá trị này về cấu hình mặc định của bảng tính.",

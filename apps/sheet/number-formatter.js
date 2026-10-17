@@ -388,18 +388,38 @@ export class NumberFormatter {
     if (num === null) return { text: String(val) };
     const sign = num < 0 ? "-" : "";
     const absolute = Math.abs(num);
-    const whole = Math.floor(absolute);
+    let whole = Math.floor(absolute);
     const fraction = absolute - whole;
-    const pattern = String(config.fractionFormat || "# ??/??");
-    const fixed = pattern.match(/\/([248]|10|16)$/)?.[1];
-    const maxDenominator = fixed ? Number(fixed) : pattern.includes("???") ? 999 : pattern.includes("??") ? 99 : 9;
-    let bestNumerator = 0, bestDenominator = 1, bestError = Infinity;
-    for (let denominator = fixed ? maxDenominator : 1; denominator <= maxDenominator; denominator++) {
-      const numerator = Math.round(fraction * denominator);
-      const error = Math.abs(fraction - numerator / denominator);
-      if (error < bestError) { bestError = error; bestNumerator = numerator; bestDenominator = denominator; }
-      if (fixed) break;
+    const pattern = String(config.fractionFormat || config.excelCode || "# ??/??");
+    const fixedMatch = pattern.match(/\/([248]|10|16|100)$/);
+    const fixed = fixedMatch ? Number(fixedMatch[1]) : null;
+    const maxDenominator = fixed ? fixed : pattern.includes("???") ? 999 : pattern.includes("??") ? 99 : 9;
+
+    let bestNumerator = 0, bestDenominator = fixed || 1, bestError = Infinity;
+
+    if (fixed) {
+      bestDenominator = fixed;
+      bestNumerator = Math.round(fraction * fixed);
+      if (bestNumerator === bestDenominator) {
+        whole += 1;
+        bestNumerator = 0;
+      }
+    } else {
+      for (let denominator = 1; denominator <= maxDenominator; denominator++) {
+        const numerator = Math.round(fraction * denominator);
+        const error = Math.abs(fraction - numerator / denominator);
+        if (error < bestError) {
+          bestError = error;
+          bestNumerator = numerator;
+          bestDenominator = denominator;
+        }
+      }
+      if (bestNumerator === bestDenominator) {
+        whole += 1;
+        bestNumerator = 0;
+      }
     }
+
     if (!bestNumerator) return { text: `${sign}${whole}`, align: "right" };
     const prefix = whole ? `${whole} ` : "";
     return { text: `${sign}${prefix}${bestNumerator}/${bestDenominator}`, align: "right" };
@@ -407,11 +427,23 @@ export class NumberFormatter {
 
   static formatSpecial(val, config = {}) {
     const digits = String(val ?? "").replace(/\D/g, "");
-    const pattern = String(config.specialFormat || "00000");
+    const pattern = String(config.specialFormat || config.excelCode || "00000");
     if (pattern === "00000") return { text: digits.padStart(5, "0").slice(-5), align: "right" };
-    if (pattern === "00000-0000") return { text: `${digits.padStart(9, "0").slice(0, 5)}-${digits.padStart(9, "0").slice(5, 9)}`, align: "right" };
-    const padded = digits.padStart(10, "0").slice(-10);
-    return { text: digits.length <= 7 ? `${padded.slice(-7, -4)}-${padded.slice(-4)}` : `(${padded.slice(0, 3)}) ${padded.slice(3, 6)}-${padded.slice(6)}`, align: "right" };
+    if (pattern === "00000-0000") {
+      const padded = digits.padStart(9, "0");
+      return { text: `${padded.slice(-9, -4)}-${padded.slice(-4)}`, align: "right" };
+    }
+    if (pattern === "000-00-0000") {
+      const padded = digits.padStart(9, "0");
+      return { text: `${padded.slice(-9, -6)}-${padded.slice(-6, -4)}-${padded.slice(-4)}`, align: "right" };
+    }
+    const num = Number(digits);
+    if (digits.length <= 7 && num <= 9999999) {
+      const padded7 = digits.padStart(7, "0");
+      return { text: `${padded7.slice(-7, -4)}-${padded7.slice(-4)}`, align: "right" };
+    }
+    const padded10 = digits.padStart(10, "0");
+    return { text: `(${padded10.slice(-10, -7)}) ${padded10.slice(-7, -4)}-${padded10.slice(-4)}`, align: "right" };
   }
 
   /**

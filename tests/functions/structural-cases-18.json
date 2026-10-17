@@ -1,0 +1,773 @@
+﻿{
+    "version":  "16.0",
+    "build":  4266,
+    "measuredAt":  "2026-10-17T16:16:07.1411189+07:00",
+    "fractions":  [
+                      {
+                          "format":  "# ?/?",
+                          "cases":  [
+                                        {
+                                            "value":  0,
+                                            "text":  "0",
+                                            "rawText":  "0    "
+                                        },
+                                        {
+                                            "value":  0.5,
+                                            "text":  "1/2",
+                                            "rawText":  " 1/2"
+                                        },
+                                        {
+                                            "value":  0.25,
+                                            "text":  "1/4",
+                                            "rawText":  " 1/4"
+                                        },
+                                        {
+                                            "value":  0.75,
+                                            "text":  "3/4",
+                                            "rawText":  " 3/4"
+                                        },
+                                        {
+                                            "value":  0.125,
+                                            "text":  "1/8",
+                                            "rawText":  " 1/8"
+                                        },
+                                        {
+                                            "value":  0.3333333,
+                                            "text":  "1/3",
+                                            "rawText":  " 1/3"
+                                        },
+                                        {
+                                            "value":  0.6666667,
+                                            "text":  "2/3",
+                                            "rawText":  " 2/3"
+                                        },
+                                        {
+                                            "value":  1.25,
+                                            "text":  "1 1/4",
+                                            "rawText":  "1 1/4"
+                                        },
+                                        {
+                                            "value":  2.625,
+                                            "text":  "2 5/8",
+                                            "rawText":  "2 5/8"
+                                        },
+                                        {
+                                            "value":  0.1,
+                                            "text":  "0",
+                                            "rawText":  "0    "
+                                        },
+                                        {
+                                            "value":  0.05,
+                                            "text":  "0",
+                                            "rawText":  "0    "
+                                        },
+                                        {
+                                            "value":  12.3456,
+                                            "text":  "12 1/3",
+                                            "rawText":  "12 1/3"
+                                        },
+                                        {
+                                            "value":  -1.5,
+                                            "text":  "-1 1/2",
+                                            "rawText":  "-1 1/2"
+                                        },
+                                        {
+                                            "value":  0.9999,
+                                            "text":  "1",
+                                            "rawText":  "1    "
+                                        }
+                                    ]
+                      },
+                      {
+                          "format":  "# ??/??",
+                          "cases":  [
+                                        {
+                                            "value":  0,
+                                            "text":  "0",
+                                            "rawText":  "0      "
+                                        },
+                                        {
+                                            "value":  0.5,
+                                            "text":  "1/2",
+                                            "rawText":  "  1/2 "
+                                        },
+                                        {
+                                            "value":  0.25,
+                                            "text":  "1/4",
+                                            "rawText":  "  1/4 "
+                                        },
+                                        {
+                                            "value":  0.75,
+                                            "text":  "3/4",
+                                            "rawText":  "  3/4 "
+                                        },
+                                        {
+                                            "value":  0.125,
+                                            "text":  "1/8",
+                                            "rawText":  "  1/8 "
+                                        },
+                                        {
+                                            "value":  0.3333333,
+                                            "text":  "1/3",
+                                            "rawText":  "  1/3 "
+                                        },
+                                        {
+                                            "value":  0.6666667,
+                                            "text":  "2/3",
+                                            "rawText":  "  2/3 "
+                                        },
+                                        {
+                                            "value":  1.25,
+                                            "text":  "1  1/4",
+                                            "rawText":  "1  1/4 "
+                                        },
+                                        {
+                                            "value":  2.625,
+                                            "text":  "2  5/8",
+                                            "rawText":  "2  5/8 "
+                                        },
+                                        {
+                                            "value":  0.1,
+                                            "text":  "1/10",
+                                            "rawText":  "  1/10"
+                                        },
+                                        {
+                                            "value":  0.05,
+                                            "text":  "1/20",
+                                            "rawText":  "  1/20"
+                                        },
+                                        {
+                                            "value":  12.3456,
+                                            "text":  "12 28/81",
+                                            "rawText":  "12 28/81"
+                                        },
+                                        {
+                                            "value":  -1.5,
+                                            "text":  "-1  1/2",
+                                            "rawText":  "-1  1/2 "
+                                        },
+                                        {
+                                            "value":  0.9999,
+                                            "text":  "1",
+                                            "rawText":  "1      "
+                                        }
+                                    ]
+                      },
+                      {
+                          "format":  "# ???/???",
+                          "cases":  [
+                                        {
+                                            "value":  0,
+                                            "text":  "0",
+                                            "rawText":  "0        "
+                                        },
+                                        {
+                                            "value":  0.5,
+                                            "text":  "1/2",
+                                            "rawText":  "   1/2  "
+                                        },
+                                        {
+                                            "value":  0.25,
+                                            "text":  "1/4",
+                                            "rawText":  "   1/4  "
+                                        },
+                                        {
+                                            "value":  0.75,
+                                            "text":  "3/4",
+                                            "rawText":  "   3/4  "
+                                        },
+                                        {
+                                            "value":  0.125,
+                                            "text":  "1/8",
+                                            "rawText":  "   1/8  "
+                                        },
+                                        {
+                                            "value":  0.3333333,
+                                            "text":  "1/3",
+                                            "rawText":  "   1/3  "
+                                        },
+                                        {
+                                            "value":  0.6666667,
+                                            "text":  "2/3",
+                                            "rawText":  "   2/3  "
+                                        },
+                                        {
+                                            "value":  1.25,
+                                            "text":  "1   1/4",
+                                            "rawText":  "1   1/4  "
+                                        },
+                                        {
+                                            "value":  2.625,
+                                            "text":  "2   5/8",
+                                            "rawText":  "2   5/8  "
+                                        },
+                                        {
+                                            "value":  0.1,
+                                            "text":  "1/10",
+                                            "rawText":  "   1/10 "
+                                        },
+                                        {
+                                            "value":  0.05,
+                                            "text":  "1/20",
+                                            "rawText":  "   1/20 "
+                                        },
+                                        {
+                                            "value":  12.3456,
+                                            "text":  "########",
+                                            "rawText":  "########"
+                                        },
+                                        {
+                                            "value":  -1.5,
+                                            "text":  "-1   1/2",
+                                            "rawText":  "-1   1/2  "
+                                        },
+                                        {
+                                            "value":  0.9999,
+                                            "text":  "1",
+                                            "rawText":  "1        "
+                                        }
+                                    ]
+                      },
+                      {
+                          "format":  "# ?/2",
+                          "cases":  [
+                                        {
+                                            "value":  0,
+                                            "text":  "0",
+                                            "rawText":  "0    "
+                                        },
+                                        {
+                                            "value":  0.5,
+                                            "text":  "1/2",
+                                            "rawText":  " 1/2"
+                                        },
+                                        {
+                                            "value":  0.25,
+                                            "text":  "1/2",
+                                            "rawText":  " 1/2"
+                                        },
+                                        {
+                                            "value":  0.75,
+                                            "text":  "1",
+                                            "rawText":  "1    "
+                                        },
+                                        {
+                                            "value":  0.125,
+                                            "text":  "0",
+                                            "rawText":  "0    "
+                                        },
+                                        {
+                                            "value":  0.3333333,
+                                            "text":  "1/2",
+                                            "rawText":  " 1/2"
+                                        },
+                                        {
+                                            "value":  0.6666667,
+                                            "text":  "1/2",
+                                            "rawText":  " 1/2"
+                                        },
+                                        {
+                                            "value":  1.25,
+                                            "text":  "1 1/2",
+                                            "rawText":  "1 1/2"
+                                        },
+                                        {
+                                            "value":  2.625,
+                                            "text":  "2 1/2",
+                                            "rawText":  "2 1/2"
+                                        },
+                                        {
+                                            "value":  0.1,
+                                            "text":  "0",
+                                            "rawText":  "0    "
+                                        },
+                                        {
+                                            "value":  0.05,
+                                            "text":  "0",
+                                            "rawText":  "0    "
+                                        },
+                                        {
+                                            "value":  12.3456,
+                                            "text":  "12 1/2",
+                                            "rawText":  "12 1/2"
+                                        },
+                                        {
+                                            "value":  -1.5,
+                                            "text":  "-1 1/2",
+                                            "rawText":  "-1 1/2"
+                                        },
+                                        {
+                                            "value":  0.9999,
+                                            "text":  "1",
+                                            "rawText":  "1    "
+                                        }
+                                    ]
+                      },
+                      {
+                          "format":  "# ?/4",
+                          "cases":  [
+                                        {
+                                            "value":  0,
+                                            "text":  "0",
+                                            "rawText":  "0    "
+                                        },
+                                        {
+                                            "value":  0.5,
+                                            "text":  "2/4",
+                                            "rawText":  " 2/4"
+                                        },
+                                        {
+                                            "value":  0.25,
+                                            "text":  "1/4",
+                                            "rawText":  " 1/4"
+                                        },
+                                        {
+                                            "value":  0.75,
+                                            "text":  "3/4",
+                                            "rawText":  " 3/4"
+                                        },
+                                        {
+                                            "value":  0.125,
+                                            "text":  "1/4",
+                                            "rawText":  " 1/4"
+                                        },
+                                        {
+                                            "value":  0.3333333,
+                                            "text":  "1/4",
+                                            "rawText":  " 1/4"
+                                        },
+                                        {
+                                            "value":  0.6666667,
+                                            "text":  "3/4",
+                                            "rawText":  " 3/4"
+                                        },
+                                        {
+                                            "value":  1.25,
+                                            "text":  "1 1/4",
+                                            "rawText":  "1 1/4"
+                                        },
+                                        {
+                                            "value":  2.625,
+                                            "text":  "2 3/4",
+                                            "rawText":  "2 3/4"
+                                        },
+                                        {
+                                            "value":  0.1,
+                                            "text":  "0",
+                                            "rawText":  "0    "
+                                        },
+                                        {
+                                            "value":  0.05,
+                                            "text":  "0",
+                                            "rawText":  "0    "
+                                        },
+                                        {
+                                            "value":  12.3456,
+                                            "text":  "12 1/4",
+                                            "rawText":  "12 1/4"
+                                        },
+                                        {
+                                            "value":  -1.5,
+                                            "text":  "-1 2/4",
+                                            "rawText":  "-1 2/4"
+                                        },
+                                        {
+                                            "value":  0.9999,
+                                            "text":  "1",
+                                            "rawText":  "1    "
+                                        }
+                                    ]
+                      },
+                      {
+                          "format":  "# ?/8",
+                          "cases":  [
+                                        {
+                                            "value":  0,
+                                            "text":  "0",
+                                            "rawText":  "0    "
+                                        },
+                                        {
+                                            "value":  0.5,
+                                            "text":  "4/8",
+                                            "rawText":  " 4/8"
+                                        },
+                                        {
+                                            "value":  0.25,
+                                            "text":  "2/8",
+                                            "rawText":  " 2/8"
+                                        },
+                                        {
+                                            "value":  0.75,
+                                            "text":  "6/8",
+                                            "rawText":  " 6/8"
+                                        },
+                                        {
+                                            "value":  0.125,
+                                            "text":  "1/8",
+                                            "rawText":  " 1/8"
+                                        },
+                                        {
+                                            "value":  0.3333333,
+                                            "text":  "3/8",
+                                            "rawText":  " 3/8"
+                                        },
+                                        {
+                                            "value":  0.6666667,
+                                            "text":  "5/8",
+                                            "rawText":  " 5/8"
+                                        },
+                                        {
+                                            "value":  1.25,
+                                            "text":  "1 2/8",
+                                            "rawText":  "1 2/8"
+                                        },
+                                        {
+                                            "value":  2.625,
+                                            "text":  "2 5/8",
+                                            "rawText":  "2 5/8"
+                                        },
+                                        {
+                                            "value":  0.1,
+                                            "text":  "1/8",
+                                            "rawText":  " 1/8"
+                                        },
+                                        {
+                                            "value":  0.05,
+                                            "text":  "0",
+                                            "rawText":  "0    "
+                                        },
+                                        {
+                                            "value":  12.3456,
+                                            "text":  "12 3/8",
+                                            "rawText":  "12 3/8"
+                                        },
+                                        {
+                                            "value":  -1.5,
+                                            "text":  "-1 4/8",
+                                            "rawText":  "-1 4/8"
+                                        },
+                                        {
+                                            "value":  0.9999,
+                                            "text":  "1",
+                                            "rawText":  "1    "
+                                        }
+                                    ]
+                      },
+                      {
+                          "format":  "# ??/16",
+                          "cases":  [
+                                        {
+                                            "value":  0,
+                                            "text":  "0",
+                                            "rawText":  "0      "
+                                        },
+                                        {
+                                            "value":  0.5,
+                                            "text":  "8/16",
+                                            "rawText":  "  8/16"
+                                        },
+                                        {
+                                            "value":  0.25,
+                                            "text":  "4/16",
+                                            "rawText":  "  4/16"
+                                        },
+                                        {
+                                            "value":  0.75,
+                                            "text":  "12/16",
+                                            "rawText":  " 12/16"
+                                        },
+                                        {
+                                            "value":  0.125,
+                                            "text":  "2/16",
+                                            "rawText":  "  2/16"
+                                        },
+                                        {
+                                            "value":  0.3333333,
+                                            "text":  "5/16",
+                                            "rawText":  "  5/16"
+                                        },
+                                        {
+                                            "value":  0.6666667,
+                                            "text":  "11/16",
+                                            "rawText":  " 11/16"
+                                        },
+                                        {
+                                            "value":  1.25,
+                                            "text":  "1  4/16",
+                                            "rawText":  "1  4/16"
+                                        },
+                                        {
+                                            "value":  2.625,
+                                            "text":  "2 10/16",
+                                            "rawText":  "2 10/16"
+                                        },
+                                        {
+                                            "value":  0.1,
+                                            "text":  "2/16",
+                                            "rawText":  "  2/16"
+                                        },
+                                        {
+                                            "value":  0.05,
+                                            "text":  "1/16",
+                                            "rawText":  "  1/16"
+                                        },
+                                        {
+                                            "value":  12.3456,
+                                            "text":  "12  6/16",
+                                            "rawText":  "12  6/16"
+                                        },
+                                        {
+                                            "value":  -1.5,
+                                            "text":  "-1  8/16",
+                                            "rawText":  "-1  8/16"
+                                        },
+                                        {
+                                            "value":  0.9999,
+                                            "text":  "1",
+                                            "rawText":  "1      "
+                                        }
+                                    ]
+                      },
+                      {
+                          "format":  "# ?/10",
+                          "cases":  [
+                                        {
+                                            "value":  0,
+                                            "text":  "0",
+                                            "rawText":  "0     "
+                                        },
+                                        {
+                                            "value":  0.5,
+                                            "text":  "5/10",
+                                            "rawText":  " 5/10"
+                                        },
+                                        {
+                                            "value":  0.25,
+                                            "text":  "3/10",
+                                            "rawText":  " 3/10"
+                                        },
+                                        {
+                                            "value":  0.75,
+                                            "text":  "8/10",
+                                            "rawText":  " 8/10"
+                                        },
+                                        {
+                                            "value":  0.125,
+                                            "text":  "1/10",
+                                            "rawText":  " 1/10"
+                                        },
+                                        {
+                                            "value":  0.3333333,
+                                            "text":  "3/10",
+                                            "rawText":  " 3/10"
+                                        },
+                                        {
+                                            "value":  0.6666667,
+                                            "text":  "7/10",
+                                            "rawText":  " 7/10"
+                                        },
+                                        {
+                                            "value":  1.25,
+                                            "text":  "1 3/10",
+                                            "rawText":  "1 3/10"
+                                        },
+                                        {
+                                            "value":  2.625,
+                                            "text":  "2 6/10",
+                                            "rawText":  "2 6/10"
+                                        },
+                                        {
+                                            "value":  0.1,
+                                            "text":  "1/10",
+                                            "rawText":  " 1/10"
+                                        },
+                                        {
+                                            "value":  0.05,
+                                            "text":  "1/10",
+                                            "rawText":  " 1/10"
+                                        },
+                                        {
+                                            "value":  12.3456,
+                                            "text":  "12 3/10",
+                                            "rawText":  "12 3/10"
+                                        },
+                                        {
+                                            "value":  -1.5,
+                                            "text":  "-1 5/10",
+                                            "rawText":  "-1 5/10"
+                                        },
+                                        {
+                                            "value":  0.9999,
+                                            "text":  "1",
+                                            "rawText":  "1     "
+                                        }
+                                    ]
+                      },
+                      {
+                          "format":  "# ??/100",
+                          "cases":  [
+                                        {
+                                            "value":  0,
+                                            "text":  "0",
+                                            "rawText":  "0       "
+                                        },
+                                        {
+                                            "value":  0.5,
+                                            "text":  "50/100",
+                                            "rawText":  " 50/100"
+                                        },
+                                        {
+                                            "value":  0.25,
+                                            "text":  "25/100",
+                                            "rawText":  " 25/100"
+                                        },
+                                        {
+                                            "value":  0.75,
+                                            "text":  "75/100",
+                                            "rawText":  " 75/100"
+                                        },
+                                        {
+                                            "value":  0.125,
+                                            "text":  "13/100",
+                                            "rawText":  " 13/100"
+                                        },
+                                        {
+                                            "value":  0.3333333,
+                                            "text":  "33/100",
+                                            "rawText":  " 33/100"
+                                        },
+                                        {
+                                            "value":  0.6666667,
+                                            "text":  "67/100",
+                                            "rawText":  " 67/100"
+                                        },
+                                        {
+                                            "value":  1.25,
+                                            "text":  "1 25/100",
+                                            "rawText":  "1 25/100"
+                                        },
+                                        {
+                                            "value":  2.625,
+                                            "text":  "2 63/100",
+                                            "rawText":  "2 63/100"
+                                        },
+                                        {
+                                            "value":  0.1,
+                                            "text":  "10/100",
+                                            "rawText":  " 10/100"
+                                        },
+                                        {
+                                            "value":  0.05,
+                                            "text":  "5/100",
+                                            "rawText":  "  5/100"
+                                        },
+                                        {
+                                            "value":  12.3456,
+                                            "text":  "12 35/100",
+                                            "rawText":  "12 35/100"
+                                        },
+                                        {
+                                            "value":  -1.5,
+                                            "text":  "-1 50/100",
+                                            "rawText":  "-1 50/100"
+                                        },
+                                        {
+                                            "value":  0.9999,
+                                            "text":  "1",
+                                            "rawText":  "1       "
+                                        }
+                                    ]
+                      }
+                  ],
+    "specials":  [
+                     {
+                         "name":  "postal5",
+                         "format":  "00000",
+                         "cases":  [
+                                       {
+                                           "value":  123,
+                                           "text":  "00123",
+                                           "rawText":  "00123"
+                                       },
+                                       {
+                                           "value":  12345,
+                                           "text":  "12345",
+                                           "rawText":  "12345"
+                                       },
+                                       {
+                                           "value":  90210,
+                                           "text":  "90210",
+                                           "rawText":  "90210"
+                                       },
+                                       {
+                                           "value":  70000,
+                                           "text":  "70000",
+                                           "rawText":  "70000"
+                                       }
+                                   ]
+                     },
+                     {
+                         "name":  "postalPlus4",
+                         "format":  "00000-0000",
+                         "cases":  [
+                                       {
+                                           "value":  123456789,
+                                           "text":  "12345-6789",
+                                           "rawText":  "12345-6789"
+                                       },
+                                       {
+                                           "value":  12345,
+                                           "text":  "00001-2345",
+                                           "rawText":  "00001-2345"
+                                       },
+                                       {
+                                           "value":  902101234,
+                                           "text":  "90210-1234",
+                                           "rawText":  "90210-1234"
+                                       }
+                                   ]
+                     },
+                     {
+                         "name":  "phone",
+                         "format":  "[\u003c=9999999]###-####;(###) ###-####",
+                         "cases":  [
+                                       {
+                                           "value":  1234567,
+                                           "text":  "123-4567",
+                                           "rawText":  "123-4567"
+                                       },
+                                       {
+                                           "value":  8005551212,
+                                           "text":  "###########",
+                                           "rawText":  "###########"
+                                       },
+                                       {
+                                           "value":  5551234,
+                                           "text":  "555-1234",
+                                           "rawText":  "555-1234"
+                                       }
+                                   ]
+                     },
+                     {
+                         "name":  "ssn",
+                         "format":  "000-00-0000",
+                         "cases":  [
+                                       {
+                                           "value":  123456789,
+                                           "text":  "123-45-6789",
+                                           "rawText":  "123-45-6789"
+                                       },
+                                       {
+                                           "value":  12345,
+                                           "text":  "000-01-2345",
+                                           "rawText":  "000-01-2345"
+                                       },
+                                       {
+                                           "value":  987654321,
+                                           "text":  "987-65-4321",
+                                           "rawText":  "987-65-4321"
+                                       }
+                                   ]
+                     }
+                 ]
+}

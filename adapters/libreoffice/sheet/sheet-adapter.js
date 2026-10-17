@@ -111,6 +111,16 @@ export function numberFormatFromExcelCode(code) {
     return { category: "date", dateFormat: source.replace(/\[[^\]]*\]/g, "").replace(/"([^"]*)"/g, "$1") };
   }
   if (/e[+-]0/i.test(visible)) return { category: "scientific", decimals };
+  const cleanSource = source.replace(/\[\$-?[0-9A-Fa-f]+\]/g, "").trim();
+  if (/\?+\/(?:\?+|[0-9]+)/.test(cleanSource)) {
+    return { category: "fraction", fractionFormat: cleanSource, excelCode: source };
+  }
+  if (cleanSource === "00000" || cleanSource === "00000-0000" || cleanSource === "000-00-0000") {
+    return { category: "special", specialFormat: cleanSource, excelCode: source };
+  }
+  if (/^\[<=\d+\]###-####;\(###\)\s*###-####$/i.test(cleanSource) || (cleanSource.includes("###-####") && cleanSource.includes("(###)"))) {
+    return { category: "special", specialFormat: "[<=9999999]###-####;(###) ###-####", excelCode: source };
+  }
   if (/[/][?#0]/.test(visible)) return { category: "custom", code: source, customPattern: source };
   if (/[#0?]/.test(visible)) {
     const res = { category: "number", decimals, useThousands, negativeStyle };
@@ -151,6 +161,9 @@ export class SheetAdapter {
     const cat = fmt.category;
     if (cat === "date") return String(fmt.dateFormat || "dd/mm/yyyy");
     if (cat === "time") return String(fmt.timeFormat || "hh:mm");
+    if (cat === "fraction") return String(fmt.fractionFormat || fmt.excelCode || "# ??/??");
+    if (cat === "special") return String(fmt.specialFormat || fmt.excelCode || "00000");
+    if (cat === "custom") return String(fmt.customPattern || fmt.excelCode || fmt.code || "General");
     const decimals = Number(fmt.decimals || 0);
     const useThousands = fmt.useThousands;
     const currencySymbol = fmt.currencySymbol || "";
@@ -1889,6 +1902,14 @@ export class SheetAdapter {
       return this._numberFormatXmlFromExcelCode(config.excelCode, name);
     }
     const category = String(config.category || "number");
+    if (category === "fraction") {
+      const pattern = String(config.fractionFormat || config.excelCode || "# ??/??");
+      return this._numberFormatXmlFromExcelCode(pattern, name);
+    }
+    if (category === "special") {
+      const pattern = String(config.specialFormat || config.excelCode || "00000");
+      return this._numberFormatXmlFromExcelCode(pattern, name);
+    }
     if (category === "currency" || category === "accounting") {
       return this._numberFormatXmlFromExcelCode(this._excelCodeForNewNumberFormat(config), name);
     }
@@ -1948,6 +1969,28 @@ export class SheetAdapter {
     const code = String(excelCode || "General");
     if (/^general$/i.test(code)) return `<number:number-style style:name="${name}"><number:number number:min-integer-digits="1"/></number:number-style>`;
     if (code === "@") return `<number:text-style style:name="${name}"><number:text-content/></number:text-style>`;
+
+    if (/\?+\/(?:\?+|[0-9]+)/.test(code)) {
+      const fixedMatch = code.match(/\/([248]|10|16|100)$/);
+      const fixed = fixedMatch ? fixedMatch[1] : null;
+      const numDigits = code.includes("???") ? 3 : code.includes("??") ? 2 : 1;
+      const denDigits = fixed ? fixed.length : numDigits;
+      const denAttr = fixed ? ` number:denominator-value="${fixed}"` : "";
+      return `<number:number-style style:name="${name}"><number:fraction number:min-integer-digits="0" number:min-numerator-digits="${numDigits}" number:min-denominator-digits="${denDigits}"${denAttr}/></number:number-style>`;
+    }
+
+    if (code === "00000") {
+      return `<number:number-style style:name="${name}"><number:number number:min-integer-digits="5" number:decimal-places="0"/></number:number-style>`;
+    }
+    if (code === "00000-0000") {
+      return `<number:number-style style:name="${name}"><number:number number:min-integer-digits="5" number:decimal-places="0"/><number:text>-</number:text><number:number number:min-integer-digits="4" number:decimal-places="0"/></number:number-style>`;
+    }
+    if (code === "000-00-0000") {
+      return `<number:number-style style:name="${name}"><number:number number:min-integer-digits="3" number:decimal-places="0"/><number:text>-</number:text><number:number number:min-integer-digits="2" number:decimal-places="0"/><number:text>-</number:text><number:number number:min-integer-digits="4" number:decimal-places="0"/></number:number-style>`;
+    }
+    if (code.includes("###-####")) {
+      return `<number:number-style style:name="${name}"><number:number number:min-integer-digits="7" number:decimal-places="0"/></number:number-style>`;
+    }
 
     // Parse Excel format code into 4 sections
     const sections = code.split(";").map(s => s.trim());
@@ -2164,12 +2207,29 @@ export class SheetAdapter {
       if (!name) continue;
       if (match[1] === "boolean-style") { dataStyles.set(name, { category: "general", odf: odfFor(name) }); continue; }
       const body = match[3];
+      const fractionMatch = body.match(/<number:fraction\b([^>]*)\/?\s*>/i);
+      if (fractionMatch) {
+        const fAttrs = fractionMatch[1];
+        const numDigits = Number(fAttrs.match(/number:min-numerator-digits=["'](\d+)["']/i)?.[1] || 1);
+        const denDigits = Number(fAttrs.match(/number:min-denominator-digits=["'](\d+)["']/i)?.[1] || 1);
+        const denVal = fAttrs.match(/number:denominator-value=["'](\d+)["']/i)?.[1];
+        const q = "?".repeat(Math.max(1, Math.min(3, numDigits)));
+        const fracFormat = denVal ? `# ${q}/${denVal}` : `# ${q}/${"?".repeat(Math.max(1, Math.min(3, denDigits)))}`;
+        dataStyles.set(name, { category: "fraction", fractionFormat: fracFormat, excelCode: fracFormat, odf: odfFor(name) });
+        continue;
+      }
       const numberAttrs = body.match(/<number:(?:number|scientific-number)\b([^>]*)\/?\s*>/i)?.[1] || "";
+      const minIntDigits = Number(numberAttrs.match(/number:min-integer-digits=["'](\d+)["']/i)?.[1] || 1);
       const config = {
         category: "number",
         decimals: Number(numberAttrs.match(/number:decimal-places=["'](\d+)["']/i)?.[1] || 0),
         useThousands: /number:grouping=["']true["']/i.test(numberAttrs)
       };
+      if (minIntDigits === 5 && !config.decimals && !config.useThousands) {
+        config.category = "special";
+        config.specialFormat = "00000";
+        config.excelCode = "00000";
+      }
       if (/<style:map\b/i.test(body)) {
         const parentheses = /<number:text>\s*\(<\/number:text>/i.test(body) && /<number:text>\s*\)<\/number:text>/i.test(body);
         const red = /fo:color=["']#(?:ff0000|f00)["']/i.test(body);
