@@ -22,7 +22,7 @@ Tệp (Backstage)|Tệp|Mở gần đây (danh sách tệp)|A|-|Danh sách tệp
 Tệp (Backstage)|Tệp|Lưu (Ctrl+S)|V|-|Lưu XLSX rồi Excel 2016 mở lại đúng (bộ 8 tệp bắt buộc 0 chênh lệch)
 Tệp (Backstage)|Tệp|Lưu thành (F12): XLSX, XLS 97-2003, ODS, CSV|A|-|common.file.saveAs; XLS 97-2003 đã sửa lỗi 0.9.10
 Tệp (Backstage)|Tệp|Xuất PDF|A|-|common.file.exportPdf
-Tệp (Backstage)|Tệp|Xuất / Chuyển đổi định dạng (mục riêng, giữ bố cục)|N|1|Đang giao agy (feat/export-convert-agy)
+Tệp (Backstage)|Tệp|Xuất / Chuyển đổi định dạng (mục riêng, giữ bố cục)|A|-|Đã có trong main (Backstage > Xuất và Chuyển đổi, common.file.exportConvert, CDP 21/21 do agy báo); chưa đối chiếu với Excel vì đây là tính năng của VN Office, không có trong Excel 2016
 Tệp (Backstage)|Tệp|Lưu bản sao / Lưu thành mẫu (XLTX)|P|3|16/10: lưu .xltx qua đường lưu xlsx đầy đủ, Excel mở đúng là mẫu, LAN 10/10; mở .xltx đi đường mở chung (chưa có đường mở xlsx riêng)
 Tệp (Backstage)|Tệp|In (Ctrl+P) + xem trước|V|-|Thiết lập trang/in đã đọc lại bằng Excel 2016
 Tệp (Backstage)|Tệp|Đóng (Ctrl+W)|A|-|common.file.close
@@ -65,7 +65,7 @@ Trang đầu|Kiểu|Bộ biểu tượng (Icon Sets)|V|-|G1: Excel 2016 đọc I
 Trang đầu|Kiểu|Quy tắc mới theo công thức|V|-|G1: Excel 2016 đọc Type=Expression
 Trang đầu|Kiểu|Quản lý quy tắc (xem, xóa, sửa, thứ tự ưu tiên, Stop If True)|P|2|G1: có xem, sửa, đổi thứ tự, xóa; thiếu Stop If True
 Trang đầu|Kiểu|Xóa quy tắc (vùng chọn / cả trang)|P|2|Xóa từng quy tắc trong quản lý
-Trang đầu|Kiểu|Định dạng dưới dạng Bảng (gallery kiểu)|P|2|Có hộp thoại; chỉ vài kiểu bảng, Excel có 60
+Trang đầu|Kiểu|Định dạng dưới dạng Bảng (gallery kiểu)|P|2|17/10 (AGY-TABLESTYLE): 21 kiểu Light/Medium/Dark đo màu từ Excel (cases-14 49/49 ô); Excel có 60 kiểu, chưa có Tùy chỉnh kiểu bảng
 Trang đầu|Kiểu|Kiểu ô (Cell Styles) có sẵn + tạo kiểu mới|A|-|sheet.style.cellStyles
 Trang đầu|Ô|Chèn ô/hàng/cột/trang tính|V|-|Hộp thoại Chèn ô, chèn trang tính (menu chuột phải đã kiểm)
 Trang đầu|Ô|Xóa ô/hàng/cột/trang tính|V|-|
@@ -128,7 +128,7 @@ Bố trí trang|Sắp xếp|Đưa lên trên / Xuống dưới / Ngăn chọn / 
 Công thức|Thư viện hàm|Chèn hàm (Shift+F3) + hộp thoại đối số|A|-|sheet.formula.insertFunction
 Công thức|Thư viện hàm|Tổng tự động; Dùng gần đây; Tài chính / Logic / Văn bản / Ngày giờ / Tra cứu / Toán|A|-|Các nhóm hàm trong ribbon
 Công thức|Thư viện hàm|Độ phủ hàm Excel 2016 (462 hàm)|P|1|16/10: engine hỗ trợ 436 hàm, 387 hàm có ca đối chiếu Excel 2016 (14 tệp golden, chạy trong npm test); còn thiếu hàm trả mảng (MMULT, MINVERSE, LINEST…), cần kế hoạch riêng
-Công thức|Thư viện hàm|Công thức mảng (CSE, Ctrl+Shift+Enter)|P|1|Có hỗ trợ mảng; chưa đối chiếu đủ
+Công thức|Thư viện hàm|Công thức mảng (CSE, Ctrl+Shift+Enter)|V|-|17/10 (CODEX-ARRAYS): CSE một/nhiều ô, hằng mảng {..}, MMULT/MINVERSE/MUNIT/TRANSPOSE/FREQUENCY/LINEST/TREND/GROWTH/LOGEST: golden 30/30 + 65/65 khớp Excel, Excel ReadOnly nhận đúng vùng mảng, LAN 10/10
 Công thức|Thư viện hàm|Tham chiếu có cấu trúc (Table1[Cột])|V|-|17/10: [Cột], [@Cột], Bảng[Cột], hàng tổng; structural-cases-8 26 kịch bản, 189/189 ô khớp Excel 2016
 Công thức|Thư viện hàm|Tham chiếu 3-D giữa các trang (Sheet1:Sheet3!A1)|N|2|
 Công thức|Tên đã xác định|Trình quản lý tên / Xác định tên / Tạo từ vùng chọn / Dùng trong công thức|V|-|Tên SampleNames đã đối chiếu
@@ -191,7 +191,7 @@ Công cụ Bảng|Thiết kế|Dòng tổng (Total Row)|V|-|Mới 13/10, Excel 2
 Công cụ Bảng|Thiết kế|Chuyển thành phạm vi|A|-|Menu chuột phải bảng 13/10
 Công cụ Bảng|Thiết kế|Chèn/Xóa cột-hàng bảng|A|-|Menu chuột phải bảng 13/10; mở lại giữ vùng bảng
 Công cụ Bảng|Thiết kế|Đổi kích thước bảng (Resize Table)|V|-|16/10 (AGY-TABLE): cases-8 26/26 kịch bản, 189/189 ô khớp Excel 2016
-Công cụ Bảng|Thiết kế|Tùy chọn kiểu: Hàng tiêu đề, Cột đầu/cuối, Hàng/Cột sọc, Nút lọc|P|2|Có sọc hàng và nút lọc; thiếu cột đầu/cuối, sọc cột
+Công cụ Bảng|Thiết kế|Tùy chọn kiểu: Hàng tiêu đề, Cột đầu/cuối, Hàng/Cột sọc, Nút lọc|V|-|17/10 (AGY-TABLESTYLE): đủ 7 hộp kiểm, kiểu bảng sống; cases-14 5 kịch bản 49/49 ô khớp Excel; lưu/mở lại tableStyleInfo đúng, LAN 10/10
 Công cụ Bảng|Thiết kế|Chèn Slicer|V|-|Giai đoạn 1 hoàn thành 16/10: panel nổi, đa chọn, lọc kết hợp, XLSX native
 Công cụ Bảng|Thiết kế|Xuất bảng|N|2|
 Công cụ Biểu đồ|Thiết kế|Thêm thành phần: tiêu đề trục|V|-|Mới 13/10, Excel 2016 đọc đúng
