@@ -698,7 +698,21 @@ export const SHEET_RIBBON_TABS = [
         labelKey: "sheetRibbon.group.pivotTable",
         items: [
           { type: "button", commandId: "sheet.data.pivotTable", isLarge: true },
-          { type: "button", commandId: "sheet.data.pivotRefresh", isLarge: true }
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.data.pivotRefresh" },
+              { type: "button", commandId: "sheet.data.pivotChangeDataSource" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
+              { type: "button", commandId: "sheet.data.pivotGroup" },
+              { type: "button", commandId: "sheet.data.pivotUngroup" }
+            ]
+          },
+          { type: "button", commandId: "sheet.data.pivotCalculatedField", isLarge: true }
         ]
       }
     ]
@@ -901,6 +915,14 @@ export const SHEET_RIBBON_TABS = [
         labelKey: "sheetRibbon.group.tableStyles",
         items: [
           { type: "button", commandId: "sheet.table.styles", isLarge: true }
+        ]
+      },
+      {
+        id: "filters",
+        label: "Bộ lọc",
+        labelKey: "sheetRibbon.group.filters",
+        items: [
+          { type: "button", commandId: "sheet.table.insertSlicer", isLarge: true }
         ]
       },
       {

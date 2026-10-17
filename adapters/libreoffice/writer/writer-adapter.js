@@ -8558,11 +8558,13 @@ export class WriterAdapter {
 
       case "writer.list.bullet":
         document.execCommand("insertUnorderedList", false, null);
+        this._normalizeListElements();
         dispatchResult = true;
         break;
 
       case "writer.list.numbered":
         document.execCommand("insertOrderedList", false, null);
+        this._normalizeListElements();
         dispatchResult = true;
         break;
 
@@ -9424,6 +9426,7 @@ export class WriterAdapter {
   }
 
   insertTableRowAbove() {
+    this.flushTyping();
     const cell = this._getActiveTableCell();
     const row = cell?.closest?.("tr");
     if (!row) return false;
@@ -9445,6 +9448,7 @@ export class WriterAdapter {
   }
 
   insertTableRowBelow() {
+    this.flushTyping();
     const cell = this._getActiveTableCell();
     const row = cell?.closest?.("tr");
     if (!row) return false;
@@ -9470,6 +9474,7 @@ export class WriterAdapter {
   }
 
   insertTableColLeft() {
+    this.flushTyping();
     const cell = this._getActiveTableCell();
     const table = cell?.closest?.("table") || this._getActiveTable();
     if (!table) return false;
@@ -9493,6 +9498,7 @@ export class WriterAdapter {
   }
 
   insertTableColRight() {
+    this.flushTyping();
     const cell = this._getActiveTableCell();
     const table = cell?.closest?.("table") || this._getActiveTable();
     if (!table) return false;
@@ -9517,6 +9523,7 @@ export class WriterAdapter {
   }
 
   deleteTableRow() {
+    this.flushTyping();
     const cell = this._getActiveTableCell();
     const row = cell?.closest?.("tr");
     if (!row) return false;
@@ -9532,6 +9539,7 @@ export class WriterAdapter {
   }
 
   deleteTableCol() {
+    this.flushTyping();
     const cell = this._getActiveTableCell();
     const table = cell?.closest?.("table") || this._getActiveTable();
     if (!table || table.rows.length === 0) return false;
@@ -9551,6 +9559,7 @@ export class WriterAdapter {
   }
 
   deleteTable(targetTable = null) {
+    this.flushTyping();
     const table = targetTable || this._getActiveTable();
     if (!table) return false;
     table.remove();
@@ -9567,6 +9576,7 @@ export class WriterAdapter {
   }
 
   mergeTableCells() {
+    this.flushTyping();
     const table = this._getActiveTable();
     if (!table) return false;
     let cells = Array.from(this.tableController?.selectedCells || []);
@@ -9623,6 +9633,7 @@ export class WriterAdapter {
   }
 
   splitTableCells() {
+    this.flushTyping();
     const cell = this._getActiveTableCell();
     if (!cell) return false;
 
@@ -9690,6 +9701,7 @@ export class WriterAdapter {
   }
 
   distributeTableRows() {
+    this.flushTyping();
     const table = this._getActiveTable();
     if (!table || table.rows.length === 0) return false;
     for (const r of table.rows) {
@@ -9704,6 +9716,7 @@ export class WriterAdapter {
   }
 
   distributeTableCols() {
+    this.flushTyping();
     const table = this._getActiveTable();
     if (!table || table.rows.length === 0) return false;
     const numCols = table.rows[0].cells.length;
@@ -9720,6 +9733,7 @@ export class WriterAdapter {
   }
 
   setTableCellAlign(align = "middle") {
+    this.flushTyping();
     const cells = this.tableController?.selectedCells?.size
       ? Array.from(this.tableController.selectedCells)
       : [this._getActiveTableCell()].filter(Boolean);
@@ -9733,6 +9747,7 @@ export class WriterAdapter {
   }
 
   setTableCellBackground(color = "#e2e8f0") {
+    this.flushTyping();
     const cells = this.tableController?.selectedCells?.size
       ? Array.from(this.tableController.selectedCells)
       : [this._getActiveTableCell()].filter(Boolean);
@@ -9747,6 +9762,7 @@ export class WriterAdapter {
   }
 
   setTableBorders(borderType = "all") {
+    this.flushTyping();
     const table = this._getActiveTable();
     if (!table) return false;
     const cells = this.tableController?.selectedCells?.size
@@ -9777,6 +9793,7 @@ export class WriterAdapter {
   }
 
   toggleTableHeaderRow() {
+    this.flushTyping();
     const table = this._getActiveTable();
     if (!table || table.rows.length === 0) return false;
     const firstRow = table.rows[0];
@@ -9796,6 +9813,7 @@ export class WriterAdapter {
   }
 
   toggleTableBandedRows() {
+    this.flushTyping();
     const table = this._getActiveTable();
     if (!table || table.rows.length === 0) return false;
     const isBanded = table.classList.toggle("vno-table-banded-rows");
@@ -10390,7 +10408,8 @@ export class WriterAdapter {
       origId = blk ? (blk.id || "") : "";
     }
 
-    if (typeof document !== "undefined" && typeof document.execCommand === "function") {
+    const updated = this._updateCurrentBlockStyle(targetTag, addClass, origId);
+    if (!updated && typeof document !== "undefined" && typeof document.execCommand === "function") {
       try {
         document.execCommand("formatBlock", false, `<${targetTag}>`);
       } catch {
@@ -10398,9 +10417,9 @@ export class WriterAdapter {
           document.execCommand("formatBlock", false, targetTag);
         } catch {}
       }
+      this._updateCurrentBlockStyle(targetTag, addClass, origId);
     }
 
-    this._updateCurrentBlockStyle(targetTag, addClass, origId);
     this.isDirty = true;
     this.recordSnapshot("writer.style.apply");
     this._syncActiveStyleUI();
@@ -10408,13 +10427,13 @@ export class WriterAdapter {
   }
 
   _updateCurrentBlockStyle(targetTag, addClass, origId = "") {
-    if (typeof window === "undefined") return;
+    if (typeof window === "undefined") return false;
     const sel = window.getSelection ? window.getSelection() : null;
     let node = sel && sel.rangeCount > 0 ? sel.anchorNode : null;
     if (!node && this.bodyDom) {
       node = this.bodyDom.firstElementChild || this.bodyDom.firstChild;
     }
-    if (!node) return;
+    if (!node) return false;
 
     // Kiểm tra xem node có thực sự còn gắn trong bodyDom / editorDom không
     let isConnected = false;
@@ -10429,13 +10448,13 @@ export class WriterAdapter {
     if (!isConnected && this.bodyDom) {
       node = this.bodyDom.firstElementChild || this.bodyDom.children?.[0] || this.bodyDom.firstChild;
     }
-    if (!node) return;
+    if (!node) return false;
     if (node.nodeType === 3) node = node.parentNode;
 
     let block = node;
     while (block && block !== this.bodyDom && block !== this.editorDom) {
       const tag = (block.tagName || "").toLowerCase();
-      if (["p", "h1", "h2", "h3", "blockquote", "div", "li"].includes(tag)) {
+      if (["p", "h1", "h2", "h3", "h4", "h5", "h6", "blockquote", "div", "li"].includes(tag)) {
         break;
       }
       block = block.parentNode;
@@ -10445,9 +10464,34 @@ export class WriterAdapter {
       if (this.bodyDom && this.bodyDom.children && this.bodyDom.children.length > 0) {
         block = this.bodyDom.children[0];
       } else {
-        return;
+        return false;
       }
     }
+
+    // Nếu khối đang nằm trong một heading hoặc blockquote cha (ví dụ formatBlock lồng <p> vào <h1>),
+    // cần chọn khối cha cao nhất để chuyển đổi hoàn toàn thẻ đó
+    let parentBlock = block.parentElement;
+    while (parentBlock && parentBlock !== this.bodyDom && parentBlock !== this.editorDom) {
+      const pTag = (parentBlock.tagName || "").toLowerCase();
+      if (["td", "th", "li"].includes(pTag)) break;
+      if (["h1", "h2", "h3", "h4", "h5", "h6", "blockquote"].includes(pTag)) {
+        block = parentBlock;
+      }
+      parentBlock = parentBlock.parentElement;
+    }
+
+    // Dọn dẹp các nút collapse button thừa nếu đích không phải là heading
+    if (!["h1", "h2", "h3", "h4", "h5", "h6"].includes(targetTag.toLowerCase())) {
+      block.querySelectorAll?.('.vno-heading-collapse-btn').forEach(btn => btn.remove());
+    }
+
+    // Unwrap các thẻ <p> lồng nhau bên trong khối
+    block.querySelectorAll?.('p').forEach(p => {
+      while (p.firstChild) {
+        p.parentNode.insertBefore(p.firstChild, p);
+      }
+      p.remove();
+    });
 
     // Chuyển đổi tag nếu khác targetTag (hoặc formatBlock không đổi element trong test mock)
     if (block.tagName && block.tagName.toLowerCase() !== targetTag.toLowerCase()) {
@@ -10464,6 +10508,18 @@ export class WriterAdapter {
           block.parentNode.replaceChild(newBlock, block);
         }
         block = newBlock;
+        if (typeof window !== "undefined" && window.getSelection && typeof document !== "undefined" && typeof document.createRange === "function") {
+          try {
+            const s = window.getSelection();
+            if (s) {
+              const r = document.createRange();
+              r.selectNodeContents(newBlock);
+              r.collapse(false);
+              s.removeAllRanges();
+              s.addRange(r);
+            }
+          } catch {}
+        }
       }
     }
 
@@ -10485,7 +10541,9 @@ export class WriterAdapter {
           block.style.textAlign = "center";
         }
       }
+      return true;
     }
+    return false;
   }
 
   getCurrentParagraphStyle() {
@@ -10733,7 +10791,7 @@ export class WriterAdapter {
       if (!range.collapsed) range.deleteContents();
       const caret = selection.getRangeAt(0);
       const tail = caret.cloneRange();
-      tail.setEndAfter(block);
+      tail.setEnd(block, block.childNodes.length);
       const trailingContent = tail.extractContents();
       const trailingBlock = block.cloneNode(false);
       trailingBlock.appendChild(trailingContent);
@@ -10773,7 +10831,7 @@ export class WriterAdapter {
       if (!range.collapsed) range.deleteContents();
       const caret = selection.getRangeAt(0);
       const tail = caret.cloneRange();
-      tail.setEndAfter(block);
+      tail.setEnd(block, block.childNodes.length);
       trailingBlock = block.cloneNode(false);
       trailingBlock.appendChild(tail.extractContents());
       if (!trailingBlock.childNodes.length) trailingBlock.appendChild(document.createElement("br"));
@@ -10832,6 +10890,7 @@ export class WriterAdapter {
     this.activeSectionId = id;
     this.pageSetup = JSON.parse(JSON.stringify(previousSetup));
     this._applyPageSetup();
+    this._applyColumns();
     this.isDirty = true;
     this.recordSnapshot(`writer.section.${type}`);
     return id;
@@ -10888,6 +10947,7 @@ export class WriterAdapter {
   }
 
   syncActiveSection() {
+    if (this._isUndoingRedoing) return;
     const currentId = this.getActiveSectionId();
     if (currentId && currentId !== this._lastKnownSectionId) {
       const prevId = this._lastKnownSectionId;
@@ -10971,6 +11031,7 @@ export class WriterAdapter {
     this.activeSectionId = this.getActiveSectionId();
     this.pageSetup = JSON.parse(JSON.stringify(this.sectionPageSetups[this.activeSectionId] || this.pageSetup));
     this._applyPageSetup();
+    this._applyColumns();
     this.isDirty = true;
     this.recordSnapshot("writer.section.delete");
     return true;
@@ -11520,6 +11581,19 @@ export class WriterAdapter {
       this.pageSetup = JSON.parse(JSON.stringify(envelopeSetup));
     }
     this._applyPageSetup();
+    this._applyColumns();
+    const envContent = target.querySelector?.(`.vno-section-content[data-vno-section-id="${this.activeSectionId}"]`) || target;
+    const editable = envContent.querySelector?.("td, p") || envContent;
+    if (editable && typeof window !== "undefined" && window.getSelection && document.createRange) {
+      try {
+        const sel = window.getSelection();
+        const r = document.createRange();
+        r.selectNodeContents(editable);
+        r.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(r);
+      } catch {}
+    }
     this.isDirty = true;
     this.recordSnapshot("writer.mailings.envelopes");
     return true;
@@ -11584,6 +11658,19 @@ export class WriterAdapter {
       this.activeSectionId = labelSectionId;
       this.pageSetup = JSON.parse(JSON.stringify(a4Setup));
       this._applyPageSetup();
+      this._applyColumns();
+      const labelContent = target.querySelector?.(`.vno-section-content[data-vno-section-id="${this.activeSectionId}"]`) || target;
+      const editable = labelContent.querySelector?.(".vno-label-cell, td, p") || labelContent;
+      if (editable && typeof window !== "undefined" && window.getSelection && document.createRange) {
+        try {
+          const sel = window.getSelection();
+          const r = document.createRange();
+          r.selectNodeContents(editable);
+          r.collapse(true);
+          sel.removeAllRanges();
+          sel.addRange(r);
+        } catch {}
+      }
     } else {
       target.innerHTML = (existing ? pageBreak : "") + sheetsHtml;
     }
@@ -13094,6 +13181,13 @@ export class WriterAdapter {
 
     const breaks = Array.from(target.querySelectorAll?.(".vno-section-break") || []);
     if (breaks.length === 0) {
+      const oldWrappers = Array.from(target.querySelectorAll?.(".vno-section-content") || []);
+      for (const wrapper of oldWrappers) {
+        while (wrapper.firstChild) {
+          wrapper.parentNode.insertBefore(wrapper.firstChild, wrapper);
+        }
+        wrapper.remove();
+      }
       const activeId = this.getActiveSectionId ? this.getActiveSectionId() : (this.activeSectionId || "section-1");
       const config = this.sectionPageSetups?.[activeId]?.columns || this.columns || { count: 1 };
       const count = Math.max(1, Math.min(4, Number(config.count) || 1));
@@ -13311,7 +13405,20 @@ export class WriterAdapter {
     this.editorDom?.classList?.remove("vno-format-painter-active");
   }
 
+  _normalizeListElements() {
+    const root = this.bodyDom || this.editorDom;
+    if (!root || typeof root.querySelectorAll !== "function") return;
+    const nested = root.querySelectorAll("p > ul, p > ol");
+    for (const list of nested) {
+      const p = list.parentElement;
+      if (p && p.tagName === "P") {
+        p.replaceWith(list);
+      }
+    }
+  }
+
   _setLineHeight(val) {
+    this.flushTyping();
     const blocks = (typeof this._getSelectedParagraphBlocks === "function" ? this._getSelectedParagraphBlocks() : []) || [];
     if (!blocks.length) {
       const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
@@ -16884,7 +16991,9 @@ export class WriterAdapter {
   _stripAutoPageGaps(html) {
     return String(html || "")
       .replace(/<(div|tr|li)\b[^>]*data-vno-auto-page-gap=["']true["'][^>]*>[\s\S]*?<\/\1>/gi, "")
-      .replace(/<span\b[^>]*data-vno-format-mark=["'][^"']+["'][^>]*>([\s\S]*?)<\/span>/gi, "$1");
+      .replace(/<span\b[^>]*data-vno-format-mark=["'][^"']+["'][^>]*>([\s\S]*?)<\/span>/gi, "$1")
+      .replace(/<button\b[^>]*class=["'][^"']*\bvno-heading-collapse-btn\b[^"']*["'][^>]*>[\s\S]*?<\/button>/gi, "")
+      .replace(/<span\b(?=[^>]*\bclass=["'][^"']*\bvno-spelling-(?:error|uncertain)\b[^"']*["'])[^>]*>([\s\S]*?)<\/span>/gi, "$1");
   }
 
   /**
@@ -18097,7 +18206,12 @@ export class WriterAdapter {
       return;
     }
     const current = this._createSnapshot("Typing Commit");
-    if (!this._isSnapshotEqual(current, this._lastSnapshot)) {
+    const comparable = html => (html == null ? html : String(html)
+      .replace(/<span\b(?=[^>]*\bclass=["'][^"']*\bvno-spelling-(?:error|uncertain)\b[^"']*["'])[^>]*>([\s\S]*?)<\/span>/gi, ""));
+    const htmlChanged = (current.bodyHtml !== this._lastSnapshot.bodyHtml && comparable(current.bodyHtml) !== comparable(this._lastSnapshot.bodyHtml))
+      || (current.headerHtml !== this._lastSnapshot.headerHtml && comparable(current.headerHtml) !== comparable(this._lastSnapshot.headerHtml))
+      || (current.footerHtml !== this._lastSnapshot.footerHtml && comparable(current.footerHtml) !== comparable(this._lastSnapshot.footerHtml));
+    if (htmlChanged) {
       this.recordSnapshot("Typing Commit");
     }
   }
@@ -18318,6 +18432,7 @@ export class WriterAdapter {
       } else if (this.editorDom) {
         this.editorDom.innerHTML = snapshot.bodyHtml;
       }
+      this._normalizeListElements();
     }
     this._restoreSelectionBookmark(snapshot.selection);
     if (snapshot.footerHtml !== null && this.footerDom) {
@@ -20865,9 +20980,25 @@ export class WriterAdapter {
         const holder = document.createElement("div");
         holder.innerHTML = html;
         const node = holder.firstElementChild;
-        range.collapse(false);
-        range.insertNode(node);
-        return true;
+        if (node) {
+          const isBlock = /^(SECTION|DIV|P|TABLE)$/i.test(node.tagName);
+          if (isBlock) {
+            const commonNode = range.commonAncestorContainer;
+            let paragraphBlock = commonNode?.nodeType === 1 ? commonNode : commonNode?.parentElement;
+            while (paragraphBlock && paragraphBlock !== this.bodyDom) {
+              if (/^(P|H[1-6]|DIV|SECTION)$/.test(String(paragraphBlock.tagName || "").toUpperCase())) break;
+              paragraphBlock = paragraphBlock.parentElement;
+            }
+            if (paragraphBlock && paragraphBlock !== this.bodyDom && paragraphBlock.parentNode) {
+              if (paragraphBlock.nextSibling) paragraphBlock.parentNode.insertBefore(node, paragraphBlock.nextSibling);
+              else paragraphBlock.parentNode.appendChild(node);
+              return true;
+            }
+          }
+          range.collapse(false);
+          range.insertNode(node);
+          return true;
+        }
       } catch {}
     }
     const metadata = this.bodyDom.querySelector?.('[data-vno-citation-metadata="true"]');
@@ -20981,6 +21112,7 @@ export class WriterAdapter {
     const html = `<section class="vno-bibliography" data-vno-bibliography="true" contenteditable="false">${this._bibliographyInnerHtml()}</section>`;
     this._insertCitationHtmlAtRange(html, range || this._captureCitationRange());
     this._syncCitationMetadata();
+    this._refreshCitationFields();
     this.isDirty = true;
     this.recordSnapshot("writer.reference.bibliographyInsert");
     return true;
@@ -21841,8 +21973,29 @@ export class WriterAdapter {
     if (!entries.length) return false;
     const html = buildIndexHtml(entries, options?.locale);
     const existing = this.bodyDom.querySelector?.('[data-index-block="true"]');
-    if (existing) existing.outerHTML = html;
-    else this._insertHtmlAtCursor(html);
+    if (existing) {
+      existing.outerHTML = html;
+    } else {
+      const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+      const range = sel?.rangeCount ? sel.getRangeAt(0) : null;
+      const commonNode = range?.commonAncestorContainer;
+      let paragraphBlock = commonNode?.nodeType === 1 ? commonNode : commonNode?.parentElement;
+      while (paragraphBlock && paragraphBlock !== this.bodyDom) {
+        if (/^(P|H[1-6]|DIV|SECTION)$/.test(String(paragraphBlock.tagName || "").toUpperCase())) break;
+        paragraphBlock = paragraphBlock.parentElement;
+      }
+      if (paragraphBlock === this.bodyDom) paragraphBlock = null;
+
+      const temp = document.createElement("div");
+      temp.innerHTML = html;
+      const node = temp.firstElementChild;
+      if (paragraphBlock?.parentNode?.insertBefore && node) {
+        if (paragraphBlock.nextSibling) paragraphBlock.parentNode.insertBefore(node, paragraphBlock.nextSibling);
+        else paragraphBlock.parentNode.appendChild(node);
+      } else {
+        this._insertHtmlAtCursor(html);
+      }
+    }
     this.isDirty = true;
     this.recordSnapshot("writer.reference.indexInsert");
     return true;

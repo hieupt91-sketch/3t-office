@@ -116,7 +116,29 @@ try {
         "sort" { Retry { [void]$ws.Range($op.range).Sort($ws.Range($op.key), [int]$op.order, $missing, $missing, 1, $missing, 1, 0) } }
         "filterEq" { Retry { [void]$ws.Range($op.range).AutoFilter([int]$op.field, [string]$op.value) } }
         "hideRow" { Retry { $ws.Rows($op.at).Hidden = $true } }
-        "autoFill" { Retry { [void]$ws.Range($op.src).AutoFill($ws.Range($op.dest), 0) } }
+        "autoFill" {
+          $ft = 0
+          if ($op.fillType) {
+            switch ($op.fillType) {
+              "default" { $ft = 0 }
+              "copy" { $ft = 1 }
+              "series" { $ft = 2 }
+              "formats" { $ft = 3 }
+              "withoutFormats" { $ft = 4 }
+              "days" { $ft = 5 }
+              "weekdays" { $ft = 6 }
+              "months" { $ft = 7 }
+              "years" { $ft = 8 }
+              "linearTrend" { $ft = 9 }
+              "growthTrend" { $ft = 10 }
+              "flash" { $ft = 11 }
+              default { if ($op.fillType -is [int]) { $ft = [int]$op.fillType } }
+            }
+          }
+          Retry { [void]$ws.Range($op.src).AutoFill($ws.Range($op.dest), $ft) }
+        }
+        "moveCells" { Retry { $ws.Range($op.from).Cut($ws.Range($op.to)) | Out-Null } }
+        "copyCells" { Retry { $ws.Range($op.from).Copy($ws.Range($op.to)) | Out-Null } }
         "advancedFilter" { Retry { if ($op.copyTo) { [void]$ws.Range($op.list).AdvancedFilter(2, $ws.Range($op.criteria), $ws.Range($op.copyTo), [bool]$op.unique) } else { [void]$ws.Range($op.list).AdvancedFilter(1, $ws.Range($op.criteria), $missing, [bool]$op.unique) } } }
         "deleteRows" { Retry { [void]$ws.Rows("$($op.from):$($op.to)").Delete() } }
         "insertRows" { Retry { [void]$ws.Rows("$($op.at):$($op.at + $op.count - 1)").Insert() } }
@@ -326,6 +348,69 @@ try {
             $newSrc = [string]$op.newSource
             $type = if ($op.typeParam) { [int]$op.typeParam } else { 1 }
             Retry { [void]$wb.ChangeLink($oldSrc, $newSrc, $type) }
+          }
+          "createPivot" {
+            $sourceRng = $ws.Range($op.source)
+            $destRng = $ws.Range($op.dest)
+            $ptName = if ($op.name) { [string]$op.name } else { "PivotTable1" }
+            $cache = Retry { $wb.PivotCaches().Create(1, $sourceRng) }
+            $pt = Retry { $cache.CreatePivotTable($destRng, $ptName) }
+            if ($op.rows) {
+              foreach ($rf in $op.rows) {
+                Retry { $pt.PivotFields($rf).Orientation = 1 }
+              }
+            }
+            if ($op.cols) {
+              foreach ($cf in $op.cols) {
+                Retry { $pt.PivotFields($cf).Orientation = 2 }
+              }
+            }
+            if ($op.values) {
+              foreach ($vf in $op.values) {
+                $fieldName = if ($vf.field) { $vf.field } else { [string]$vf }
+                $func = if ($vf.function -eq "COUNT") { -4112 } elseif ($vf.function -eq "AVERAGE") { -4106 } elseif ($vf.function -eq "MIN") { -4139 } elseif ($vf.function -eq "MAX") { -4136 } else { -4157 }
+                $valName = if ($vf.name) { $vf.name } else { "Sum of $fieldName" }
+                Retry { [void]$pt.AddDataField($pt.PivotFields($fieldName), $valName, $func) }
+              }
+            }
+          }
+          "pivotChangeSource" {
+            $pt = if ($op.table) { $ws.PivotTables($op.table) } else { $ws.PivotTables(1) }
+            $newSourceRng = $ws.Range($op.newSource)
+            $newCache = Retry { $wb.PivotCaches().Create(1, $newSourceRng) }
+            Retry { $pt.ChangePivotCache($newCache) }
+            Retry { $pt.RefreshTable() }
+          }
+          "pivotGroup" {
+            $pt = if ($op.table) { $ws.PivotTables($op.table) } else { $ws.PivotTables(1) }
+            $cellRef = $op.cell
+            if (-not $cellRef -and $op.field) {
+              $fld = $pt.PivotFields($op.field)
+              $cellRef = $fld.DataRange.Item(1).Address($false, $false)
+            }
+            $targetCell = $ws.Range($cellRef)
+            if ($op.by -ne $null) {
+              $startVal = if ($op.start -ne $null) { $op.start } else { $true }
+              $endVal = if ($op.end -ne $null) { $op.end } else { $true }
+              Retry { $targetCell.Group($startVal, $endVal, [double]$op.by) }
+            } elseif ($op.periods -ne $null) {
+              $periods = [bool[]]$op.periods
+              Retry { $targetCell.Group($true, $true, $missing, $periods) }
+            }
+          }
+          "pivotUngroup" {
+            $pt = if ($op.table) { $ws.PivotTables($op.table) } else { $ws.PivotTables(1) }
+            $cellRef = $op.cell
+            if (-not $cellRef -and $op.field) {
+              $fld = $pt.PivotFields($op.field)
+              $cellRef = $fld.DataRange.Item(1).Address($false, $false)
+            }
+            Retry { $ws.Range($cellRef).Ungroup() }
+          }
+          "pivotAddCalculatedField" {
+            $pt = if ($op.table) { $ws.PivotTables($op.table) } else { $ws.PivotTables(1) }
+            Retry { [void]$pt.CalculatedFields().Add($op.name, $op.formula) }
+            Retry { [void]$pt.AddDataField($pt.PivotFields($op.name), "Sum of $($op.name)", -4157) }
           }
         }
       }

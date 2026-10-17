@@ -1018,6 +1018,137 @@ tr.is-filtered-out {
   background-color: rgba(2, 132, 199, 0.15) !important;
 }
 
+.vno-grid-cell.is-insert-preview-top {
+  box-shadow: inset 0 3px 0 0 #0284c7 !important;
+}
+
+.vno-grid-cell.is-insert-preview-left {
+  box-shadow: inset 3px 0 0 0 #0284c7 !important;
+}
+
+.vno-cell-autofill-handle.is-ctrl-copy {
+  cursor: copy !important;
+}
+
+.vno-cell-move-handle.is-ctrl-copy {
+  cursor: copy !important;
+}
+
+.vno-cell-move-handle.is-shift-insert {
+  cursor: grab !important;
+}
+
+/* Nút & Menu Tùy chọn Tự điền (Auto Fill Options) */
+.vno-autofill-options-btn {
+  position: absolute;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  background: #ffffff;
+  border: 1px solid #c8c8c8;
+  border-radius: 2px;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.18);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  z-index: 28;
+  box-sizing: border-box;
+}
+.vno-autofill-options-btn:hover {
+  background: #f3f3f3;
+  border-color: #0078d4;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.25);
+}
+
+.vno-autofill-options-menu {
+  position: absolute;
+  background: #ffffff;
+  border: 1px solid #d1d5db;
+  border-radius: 4px;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.16);
+  padding: 4px 0;
+  z-index: 100;
+  min-width: 210px;
+  font-family: inherit;
+  font-size: 13px;
+  user-select: none;
+}
+
+.vno-autofill-option-item {
+  display: flex;
+  align-items: center;
+  width: 100%;
+  padding: 6px 14px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  cursor: pointer;
+  gap: 10px;
+  color: #1f2937;
+  font-size: 13px;
+  line-height: 1.4;
+  box-sizing: border-box;
+}
+.vno-autofill-option-item:hover,
+.vno-autofill-option-item:focus {
+  background-color: #e5f3ff;
+  outline: none;
+}
+
+.vno-autofill-option-radio {
+  width: 14px;
+  height: 14px;
+  border: 1.5px solid #6b7280;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  box-sizing: border-box;
+}
+.vno-autofill-option-radio.is-checked {
+  border-color: #0078d4;
+}
+.vno-autofill-option-radio.is-checked::after {
+  content: "";
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: #0078d4;
+}
+
+[data-theme="dark"] .vno-autofill-options-btn {
+  background: #252526;
+  border-color: #454545;
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.4);
+}
+[data-theme="dark"] .vno-autofill-options-btn:hover {
+  background: #2d2d2d;
+  border-color: #4ade80;
+}
+[data-theme="dark"] .vno-autofill-options-menu {
+  background: #252526;
+  border-color: #454545;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+}
+[data-theme="dark"] .vno-autofill-option-item {
+  color: #e5e7eb;
+}
+[data-theme="dark"] .vno-autofill-option-item:hover,
+[data-theme="dark"] .vno-autofill-option-item:focus {
+  background-color: #374151;
+}
+[data-theme="dark"] .vno-autofill-option-radio {
+  border-color: #9ca3af;
+}
+[data-theme="dark"] .vno-autofill-option-radio.is-checked {
+  border-color: #4ade80;
+}
+[data-theme="dark"] .vno-autofill-option-radio.is-checked::after {
+  background: #4ade80;
+}
+
 /* Bộ điều chỉnh kích thước cột và hàng (Resizers) */
 .vno-col-resizer {
   position: absolute;
@@ -2226,3 +2357,161 @@ tr.is-filtered-out {
   color: #f1f5f9 !important;
 }
 
+/* Table slicers are app-level floating controls; they never call the document engine directly. */
+.vno-sheet-slicer-layer {
+  position: absolute;
+  inset: 0;
+  z-index: 12;
+  pointer-events: none;
+}
+
+.vno-table-slicer {
+  position: absolute;
+  display: flex;
+  flex-direction: column;
+  min-width: 140px;
+  min-height: 140px;
+  overflow: hidden;
+  pointer-events: auto;
+  color: #172033;
+  background: #ffffff;
+  border: 1px solid #8aa5c2;
+  border-radius: 5px;
+  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2);
+}
+
+.vno-table-slicer:focus-visible {
+  outline: 3px solid #185abd;
+  outline-offset: 2px;
+}
+
+.vno-slicer-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  min-height: 32px;
+  padding: 3px 4px 3px 9px;
+  color: #ffffff;
+  background: #185abd;
+  cursor: move;
+  user-select: none;
+}
+
+.vno-slicer-caption {
+  overflow: hidden;
+  font-size: 13px;
+  font-weight: 700;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.vno-slicer-actions {
+  display: inline-flex;
+  gap: 2px;
+}
+
+.vno-slicer-actions button {
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  color: #ffffff;
+  background: #185abd;
+  border: 1px solid transparent;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.vno-slicer-actions button:hover,
+.vno-slicer-actions button:focus-visible,
+.vno-slicer-actions button[aria-pressed="true"] {
+  background: #0b3f8a;
+  border-color: #d7e8ff;
+  outline: none;
+}
+
+.vno-slicer-actions button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+.vno-slicer-items {
+  display: grid;
+  flex: 1 1 auto;
+  gap: 4px;
+  align-content: start;
+  padding: 7px;
+  overflow: auto;
+}
+
+.vno-slicer-item {
+  min-height: 28px;
+  overflow: hidden;
+  padding: 4px 7px;
+  color: #243247;
+  text-align: left;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  background: #f4f7fb;
+  border: 1px solid #aab8c8;
+  border-radius: 3px;
+  cursor: pointer;
+}
+
+.vno-slicer-item:hover,
+.vno-slicer-item:focus-visible {
+  border-color: #185abd;
+  outline: 2px solid #8fc1ff;
+  outline-offset: 1px;
+}
+
+.vno-slicer-item.is-selected {
+  color: #ffffff;
+  background: #185abd;
+  border-color: #0b3f8a;
+}
+
+.vno-slicer-item.is-unavailable {
+  color: #506070;
+  background: #e7ebf0;
+  border-style: dashed;
+}
+
+.vno-slicer-resize {
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  width: 15px;
+  height: 15px;
+  cursor: nwse-resize;
+}
+
+.vno-slicer-resize::after {
+  position: absolute;
+  right: 3px;
+  bottom: 3px;
+  width: 7px;
+  height: 7px;
+  content: "";
+  border-right: 2px solid #52657a;
+  border-bottom: 2px solid #52657a;
+}
+
+.vno-slicer-column-dialog p {
+  margin: 0 0 10px;
+}
+
+.vno-slicer-column-list {
+  display: grid;
+  gap: 6px;
+  max-height: 260px;
+  padding: 8px;
+  overflow: auto;
+  border: 1px solid var(--vno-border-default, #c8d0da);
+  border-radius: 4px;
+}
+
+.vno-slicer-column-choice {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}

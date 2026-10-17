@@ -370,7 +370,7 @@ export const viStrings = {
   sheetRibbon: {
     whatIfAnalysis: "Phân tích What-If",
     tab: { home: "Trang đầu", formulas: "Công thức", data: "Dữ liệu", insert: "Chèn", pageLayout: "Bố trí trang", review: "Xem xét", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI", tableDesign: "Thiết kế Bảng" },
-    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", connections: "Kết nối", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", tables: "Bảng", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", pageSetup: "Thiết lập trang", scaleToFit: "Vừa trang", sheetOptions: "Tùy chọn trang tính", proofing: "Kiểm lỗi", comments: "Ghi chú", protection: "Bảo vệ", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiAnalysis: "Phân tích dữ liệu AI", properties: "Thuộc tính bảng", tableStyleOptions: "Tùy chọn kiểu bảng", tableStyles: "Kiểu Bảng", tools: "Công cụ", arrange: "Sắp xếp" },
+    group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", connections: "Kết nối", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", tables: "Bảng", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", pageSetup: "Thiết lập trang", scaleToFit: "Vừa trang", sheetOptions: "Tùy chọn trang tính", proofing: "Kiểm lỗi", comments: "Ghi chú", protection: "Bảo vệ", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiAnalysis: "Phân tích dữ liệu AI", properties: "Thuộc tính bảng", tableStyleOptions: "Tùy chọn kiểu bảng", tableStyles: "Kiểu Bảng", filters: "Bộ lọc", tools: "Công cụ", arrange: "Sắp xếp" },
     refreshAllSuccess: "Đã làm mới tất cả các liên kết và dữ liệu ngoài.",
     editing: { fill: "Điền", clear: "Xóa" },
     cells: { format: "Định dạng" },
@@ -414,6 +414,7 @@ export const viStrings = {
     tablestyledark6: "Tối 6 (Tím)",
     tablestyledark7: "Tối 7 (Xám)"
   },
+  sheetSlicer: { selectTable: "Hãy chọn một ô trong bảng trước khi chèn bộ lọc trực quan.", layer: "Bộ lọc trực quan", aria: "Bộ lọc", multi: "Chọn nhiều", clear: "Xóa bộ lọc", close: "Xóa bộ lọc trực quan" },
   slidesRibbon: {
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI" },
     group: { slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Hiệu đính", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
@@ -422,6 +423,7 @@ export const viStrings = {
     section: "Phần"
   },
   sheetDialogs: {
+    slicer: { title: "Chèn bộ lọc trực quan", hint: "Chọn một hoặc nhiều cột của bảng để tạo bộ lọc nổi.", columns: "Cột của bảng", chooseColumn: "Hãy chọn ít nhất một cột." },
     editLinks: {
       title: "Chỉnh sửa liên kết",
       colSource: "Nguồn",
@@ -506,6 +508,9 @@ export const viStrings = {
     sparklineColumn: "Biểu đồ mini dạng cột", sparklineLine: "Biểu đồ mini dạng đường",
     hfPresetLabel: "Mẫu dùng sẵn", hfPresetCustom: "Tùy chỉnh", hfPresetPage: "Trang X", hfPresetSheet: "Tên trang tính", hfPresetDate: "Ngày", hfPresetNone: "Không có", hfPresetPageVal: "Trang &P", hfPresetSheetVal: "Tên trang tính: &A", hfPresetDateVal: "Ngày: &D", hfLeft: "Trái", hfCenter: "Giữa", hfRight: "Phải", headerFooterTitle: "Tiêu đề Đầu/Cuối trang", headerTitle: "Đầu trang", footerTitle: "Cuối trang", hfDynamicCodesHint: "Mã động: &P số trang, &N tổng số trang, &D ngày, &T giờ, &F tên tệp, &A tên trang tính.",
     pivotTitle: "Tạo Bảng tổng hợp", pivotSource: "Vùng dữ liệu nguồn (hàng đầu là tiêu đề)", loadFields: "Đọc tên cột", chooseFields: "Chọn trường cho từng vùng:", aggregateFor: "Phép tổng hợp cho {field}", sourceRangeFormat: "Vùng nguồn phải có dạng A1:D20.", sourceNeedsHeaders: "Hàng đầu tiên của vùng nguồn phải có tiêu đề.", uniqueHeaders: "Tiêu đề cột trong vùng nguồn phải là duy nhất.", selectValue: "Hãy chọn ít nhất một trường Values.", columnNotFound: "Không tìm thấy cột {field}.", sourceSheetNotFound: "Không tìm thấy sheet dữ liệu nguồn.", createPivotBtn: "Tạo Pivot Table",
+    changeDataSourceTitle: "Đổi nguồn dữ liệu Bảng tổng hợp", changeDataSourceRange: "Bảng/Vùng dữ liệu nguồn:", pivotNotActive: "Trang tính hiện tại không phải Bảng tổng hợp.",
+    pivotGroupTitle: "Nhóm dữ liệu Bảng tổng hợp", pivotGroupField: "Trường cần nhóm:", pivotGroupType: "Kiểu nhóm:", pivotGroupNumber: "Nhóm theo số", pivotGroupDate: "Nhóm theo ngày", pivotGroupStart: "Bắt đầu:", pivotGroupEnd: "Kết thúc:", pivotGroupBy: "Bước nhảy:", pivotGroupDays: "Ngày", pivotGroupMonths: "Tháng", pivotGroupQuarters: "Quý", pivotGroupYears: "Năm", pivotUngroupBtn: "Bỏ nhóm",
+    pivotCalcFieldTitle: "Chèn trường tính toán", pivotCalcFieldName: "Tên trường:", pivotCalcFieldFormula: "Công thức:", pivotCalcFieldFields: "Các trường khả dụng:", pivotCalcExisting: "Trường tính toán hiện có:", pivotCalcFieldAdd: "Thêm / Sửa", pivotCalcFieldModify: "Sửa", pivotCalcFieldDelete: "Xóa",
     chartDefaultTitle: "Biểu đồ dữ liệu", chartUnsupported: "Kiểu biểu đồ không được hỗ trợ: {type}", chartItem: "Mục {number}", chartSeries: "Chuỗi {number}", chartNoNumericData: "Vùng đã chọn không có dữ liệu số", chartPiePositive: "Biểu đồ tròn cần giá trị dương", chartInsertFrom: "Chèn biểu đồ từ {range}", selectedRange: "vùng đã chọn", chartType: "Kiểu biểu đồ", chartColumn: "Cột", chartBarHorizontal: "Thanh ngang", chartColumnStacked: "Cột chồng", chartColumnStacked100: "Cột chồng 100%", chartLine: "Đường", chartPie: "Tròn", chartArea: "Miền", chartScatter: "Phân tán", chartCombo: "Kết hợp", chartRadar: "Radar", chartBubble: "Bong bóng", insertIntoSheet: "Chèn vào bảng tính", chartAxisTitles: "Tiêu đề trục", chartAxisTitlesEdit: "Sửa tiêu đề trục", chartHorizontalAxis: "Trục ngang (X)", chartVerticalAxis: "Trục dọc (Y)", chartAxisHorizontalPlaceholder: "Ví dụ: Tháng", chartAxisVerticalPlaceholder: "Ví dụ: Doanh thu", chartAxisApply: "Áp dụng", chartDataLabels: "Hiện hoặc ẩn nhãn dữ liệu", chartDataLabelsShort: "Nhãn", chartSwitchRowsColumns: "Chuyển hàng/cột", chartSwitchShort: "Hàng/cột", chartTrendline: "Thêm hoặc bỏ đường xu hướng tuyến tính", chartTrendlineShort: "Xu hướng", chartDelete: "Xóa biểu đồ", splitVerticalSeparator: "Vạch chia dọc cửa sổ", splitHorizontalSeparator: "Vạch chia ngang cửa sổ", insertedImageAlt: "Ảnh được chèn trong trang tính", deleteImage: "Xóa ảnh", imageFormatUnsupported: "Định dạng ảnh không được hỗ trợ",
     sheetTab: "Trang tính", printGridlines: "In đường lưới", printHeadings: "In tiêu đề hàng và cột", printComments: "In ghi chú:", commentsNone: "(Không)", commentsAtEnd: "Ở cuối trang tính", commentsAsDisplayed: "Như hiển thị trên trang tính", cellErrors: "Lỗi ô hiển thị:", errorsDisplayed: "Như hiển thị", errorsBlank: "<trống>", errorsDash: "--", errorsNa: "#N/A", pageOrder: "Thứ tự trang:", orderDownThenOver: "Xuống rồi sang", orderOverThenDown: "Sang rồi xuống",
     pageSetup: {
@@ -809,6 +814,10 @@ export const viStrings = {
     ,"sheet.data.scenarioManager": { label: "Trình quản lý kịch bản", tooltip: "Lưu và chuyển đổi nhiều bộ giá trị giả định có tên" }
     ,"sheet.data.pivotTable": { label: "Bảng tổng hợp", tooltip: "Tạo Pivot Table từ vùng dữ liệu đang chọn" }
     ,"sheet.data.pivotRefresh": { label: "Làm mới Pivot", tooltip: "Tính lại Pivot Table từ dữ liệu nguồn" }
+    ,"sheet.data.pivotChangeDataSource": { label: "Đổi nguồn", tooltip: "Đổi vùng dữ liệu hoặc bảng nguồn cho Bảng tổng hợp" }
+    ,"sheet.data.pivotGroup": { label: "Nhóm", tooltip: "Nhóm các trường số hoặc ngày trong Bảng tổng hợp" }
+    ,"sheet.data.pivotUngroup": { label: "Bỏ nhóm", tooltip: "Bỏ nhóm các trường đã nhóm trong Bảng tổng hợp" }
+    ,"sheet.data.pivotCalculatedField": { label: "Trường tính toán", tooltip: "Thêm, sửa hoặc xóa trường tính toán cho Bảng tổng hợp" }
     ,"sheet.data.refreshAll": { label: "Làm mới tất cả", tooltip: "Cập nhật tất cả các liên kết và nguồn dữ liệu ngoài (Ctrl+Alt+F5)" }
     ,"sheet.data.editLinks": { label: "Chỉnh sửa liên kết", tooltip: "Xem và quản lý tất cả các liên kết tới sổ làm việc hoặc tệp ngoài" }
     ,"sheet.view.normal": { label: "Bình thường", tooltip: "Xem bảng tính ở chế độ bình thường" }
@@ -898,6 +907,7 @@ export const viStrings = {
     ,"sheet.table.toggleBandedColumns": { label: "Cột sọc", tooltip: "Hiển thị màu nền xen kẽ cho các cột trong bảng" }
     ,"sheet.table.toggleFilterButton": { label: "Nút lọc", tooltip: "Bật hoặc tắt nút lọc mũi tên trong hàng tiêu đề" }
     ,"sheet.table.styles": { label: "Kiểu Bảng", tooltip: "Chọn kiểu định dạng bảng với màu sắc và viền định sẵn" }
+    ,"sheet.table.insertSlicer": { label: "Chèn bộ lọc trực quan", tooltip: "Lọc nhanh bảng bằng các nút giá trị nổi" }
     ,"sheet.table.convertToRange": { label: "Chuyển thành vùng", tooltip: "Chuyển bảng thành vùng ô thông thường giữ nguyên định dạng" }
     ,"sheet.style.cellStyles": { label: "Kiểu ô", tooltip: "Mở thư viện kiểu ô định sẵn (Normal, Good, Bad, Neutral...)" }
     ,"sheet.edit.goTo": { label: "Đến...", tooltip: "Chuyển nhanh tới ô, vùng hoặc tên đã xác định (F5 hoặc Ctrl+G)" }
@@ -1752,5 +1762,17 @@ export const viStrings = {
     savedNotice: "Đã lưu Macro",
     noActionsNotice: "Không có thao tác nào được ghi lại — Macro không được lưu.",
     emptyCancelled: "Đã hủy — Macro không được lưu."
+  },
+  sheetAutofill: {
+    optionsButtonTitle: "Tùy chọn Tự điền (Ctrl)",
+    copyCells: "Sao chép ô",
+    fillSeries: "Điền chuỗi",
+    fillFormattingOnly: "Chỉ điền định dạng",
+    fillWithoutFormatting: "Điền không định dạng",
+    fillDays: "Điền ngày",
+    fillWeekdays: "Điền ngày làm việc",
+    fillMonths: "Điền tháng",
+    fillYears: "Điền năm",
+    flashFill: "Điền nhanh"
   }
 };

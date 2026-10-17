@@ -23,6 +23,7 @@ for (let attempt = 0; attempt < 5 && !excel; attempt++) {
 if (!excel) { console.error("BLOCKED: khong lay duoc ket qua Excel"); process.exit(2); }
 
 const { SheetGridController } = await import(pathToFileURL(path.resolve("apps/sheet/sheet-grid.js")).href);
+const { PivotTableEngine } = await import(pathToFileURL(path.resolve("apps/sheet/pivot-table.js")).href);
 const mockContainer = () => ({
   setAttribute() {}, style: {}, innerHTML: "", className: "", appendChild() {}, insertBefore() {},
   querySelector() { return null; }, querySelectorAll() { return []; }, addEventListener() {}, dispatchEvent() {},
@@ -38,6 +39,7 @@ const normFormula = f => String(f ?? "").replace(/\s+/g, "").replace(/SHEET\d+!/
 let pass = 0; let total = 0; const failures = [];
 for (const scenario of spec.scenarios) {
   const grid = new SheetGridController(mockContainer());
+  grid.pivotTableEngine = PivotTableEngine;
   if (scenario.calcMode) grid.setCalculationMode(scenario.calcMode);
   if (scenario.iteration) grid.setIterativeCalculation(Boolean(scenario.iteration.enabled), scenario.iteration.maxIterations, scenario.iteration.maxChange);
   if (scenario.precisionAsDisplayed !== undefined) grid.setPrecisionAsDisplayed(Boolean(scenario.precisionAsDisplayed));
@@ -129,7 +131,19 @@ for (const scenario of spec.scenarios) {
         case "autoFill": {
           const s = parseRange(op.src); const d = parseRange(op.dest);
           const down = d.end.r > s.end.r; const right = colNumber(d.end.c) > colNumber(s.end.c);
-          grid._executeAutofill(s, down ? { direction: "down", startCol: s.start.c, endCol: s.end.c, startRow: s.end.r + 1, endRow: d.end.r } : right ? { direction: "right", startColNum: colNumber(s.end.c) + 1, endColNum: colNumber(d.end.c), startRow: s.start.r, endRow: s.end.r } : (() => { throw new Error("autoFill chi ho tro xuong/phai"); })());
+          grid._executeAutofill(s, down ? { direction: "down", startCol: s.start.c, endCol: s.end.c, startRow: s.end.r + 1, endRow: d.end.r, fillType: op.fillType } : right ? { direction: "right", startColNum: colNumber(s.end.c) + 1, endColNum: colNumber(d.end.c), startRow: s.start.r, endRow: s.end.r, fillType: op.fillType } : (() => { throw new Error("autoFill chi ho tro xuong/phai"); })());
+          break;
+        }
+        case "moveCells": {
+          const s = parseRange(op.from);
+          const [dc, dr] = split(op.to.split(":")[0]);
+          grid._executeCellMove(s, { c: dc, r: dr }, false);
+          break;
+        }
+        case "copyCells": {
+          const s = parseRange(op.from);
+          const [dc, dr] = split(op.to.split(":")[0]);
+          grid._executeCellMove(s, { c: dc, r: dr }, true);
           break;
         }
         case "advancedFilter": grid.advancedFilter({ listRange: op.list, criteriaRange: op.criteria, action: op.copyTo ? "copy" : "inplace", copyTo: op.copyTo, unique: Boolean(op.unique) }); break;
@@ -403,6 +417,48 @@ for (const scenario of spec.scenarios) {
         }
         case "changeLink": {
           grid.changeLink(op.oldSource, op.newSource, op.newValues);
+          break;
+        }
+        case "createPivot": {
+          grid.createPivotTable({
+            name: op.name || "PivotTable1",
+            sourceSheet: grid.activeSheet,
+            sourceRange: op.source,
+            targetSheet: grid.activeSheet,
+            targetCoord: op.dest,
+            rows: op.rows || [],
+            columns: op.cols || [],
+            values: (op.values || []).map(v => typeof v === "string" ? { field: v, aggregate: "SUM" } : { field: v.field, aggregate: v.function || v.aggregate || "SUM" }),
+            rowHeader: op.rowHeader !== undefined ? op.rowHeader : "Row Labels",
+            useSumOfPrefix: op.useSumOfPrefix !== false,
+            showGrandTotal: op.showGrandTotal !== false
+          }, false);
+          break;
+        }
+        case "pivotChangeSource": {
+          grid.changePivotDataSource(grid.activeSheet, op.newSource, op.newSourceSheet, false);
+          break;
+        }
+        case "pivotGroup": {
+          const groupDef = {};
+          if (op.by !== undefined) {
+            groupDef.type = "number";
+            groupDef.start = op.start;
+            groupDef.end = op.end;
+            groupDef.by = op.by;
+          } else if (op.periods || op.dateUnits || op.unit) {
+            groupDef.type = "date";
+            groupDef.periods = op.periods ? (Array.isArray(op.periods) ? op.periods : [op.periods]) : (op.dateUnits || [op.unit]);
+          }
+          grid.groupPivotField(grid.activeSheet, op.field, groupDef, false);
+          break;
+        }
+        case "pivotUngroup": {
+          grid.ungroupPivotField(grid.activeSheet, op.field, false);
+          break;
+        }
+        case "pivotAddCalculatedField": {
+          grid.addPivotCalculatedField(grid.activeSheet, op.name, op.formula, false);
           break;
         }
         default: throw new Error(`op chua ho tro: ${op.type}`);

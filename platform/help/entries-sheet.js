@@ -320,6 +320,54 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.data.pivotChangeDataSource",
+    app: "sheet",
+    commandIds: ["sheet.data.pivotChangeDataSource"],
+    title: "Đổi nguồn dữ liệu Bảng tổng hợp (Change Data Source)",
+    summary: "Thay đổi vùng ô nguồn hoặc bảng dữ liệu cho Bảng tổng hợp hiện có, tự động loại bỏ các trường bị xóa khỏi bố cục và cập nhật lại kết quả tính toán.",
+    ribbon: { tab: "Dữ liệu", tabId: "data", group: "Bảng tổng hợp" },
+    keywords: ["đổi nguồn", "change data source", "nguồn dữ liệu", "bảng tổng hợp", "pivot", "vùng nguồn", "cập nhật nguồn"],
+    steps: [
+      "Chọn trang tính chứa Bảng tổng hợp cần đổi vùng dữ liệu nguồn.",
+      "Mở tab Dữ liệu trên thanh dải lệnh, tìm đến nhóm Bảng tổng hợp và nhấn nút Đổi nguồn.",
+      "Hộp thoại Đổi nguồn dữ liệu hiển thị vùng nguồn hiện tại. Nhập tham chiếu vùng mới (ví dụ Sheet1!A1:E30) hoặc chỉnh sửa tọa độ vùng ô.",
+      "Nhấn nút Đồng ý. Ứng dụng đọc lại dữ liệu từ nguồn mới và tính toán lại bảng tổng hợp; nếu vùng mới bị bớt cột, các trường không còn tồn tại sẽ tự động bị loại khỏi hàng, cột và giá trị.",
+      "Mọi thay đổi nguồn dữ liệu đều có thể hoàn tác ngay bằng tổ hợp phím Ctrl+Z."
+    ]
+  },
+  {
+    id: "sheet.data.pivotGroup",
+    app: "sheet",
+    commandIds: ["sheet.data.pivotGroup", "sheet.data.pivotUngroup"],
+    title: "Nhóm và Bỏ nhóm trong Bảng tổng hợp (Group & Ungroup)",
+    summary: "Gom nhóm các giá trị số thành từng khoảng (bắt đầu, kết thúc, bước nhảy) hoặc nhóm ngày tháng theo Ngày, Tháng, Quý, Năm trong Bảng tổng hợp; nhấn Bỏ nhóm để phục hồi dữ liệu gốc.",
+    ribbon: { tab: "Dữ liệu", tabId: "data", group: "Bảng tổng hợp" },
+    keywords: ["nhóm", "group", "bỏ nhóm", "ungroup", "nhóm số", "nhóm ngày", "tháng", "quý", "năm", "bảng tổng hợp"],
+    steps: [
+      "Chọn một ô nhãn hàng hoặc cột cần nhóm trong Bảng tổng hợp trên trang tính.",
+      "Mở tab Dữ liệu, nhóm Bảng tổng hợp, nhấn nút Nhóm để mở hộp thoại cấu hình nhóm.",
+      "Chọn trường cần nhóm và thiết lập kiểu nhóm: với dữ liệu số, nhập Bắt đầu, Kết thúc và Bước nhảy (ví dụ bắt đầu 10, kết thúc 40, bước 10 sinh các nhãn <10, 10-19, 20-29, 30-40, >40); với ngày tháng, đánh dấu các ô Ngày, Tháng, Quý, Năm hoặc kết hợp.",
+      "Nhấn nút Áp dụng: Bảng tổng hợp gom các bản ghi theo nhóm và tính lại tổng số liệu tương ứng.",
+      "Khi muốn trở về danh sách chi tiết ban đầu, chọn trường đã nhóm rồi nhấn nút Bỏ nhóm trên nhóm Bảng tổng hợp hoặc trong hộp thoại."
+    ]
+  },
+  {
+    id: "sheet.data.pivotCalculatedField",
+    app: "sheet",
+    commandIds: ["sheet.data.pivotCalculatedField"],
+    title: "Trường tính toán trong Bảng tổng hợp (Calculated Field)",
+    summary: "Thêm, sửa hoặc xóa trường tính toán tùy biến trong Bảng tổng hợp bằng công thức toán học tham chiếu tới các trường dữ liệu khác theo đúng chuẩn tính tổng.",
+    ribbon: { tab: "Dữ liệu", tabId: "data", group: "Bảng tổng hợp" },
+    keywords: ["trường tính toán", "calculated field", "công thức bảng tổng hợp", "thêm trường", "tính toán", "bảng tổng hợp"],
+    steps: [
+      "Chọn trang tính có Bảng tổng hợp cần tạo trường tính toán mới.",
+      "Mở tab Dữ liệu, nhóm Bảng tổng hợp, nhấn nút Trường tính toán để mở hộp thoại thiết lập.",
+      "Nhập Tên trường (ví dụ Thue_VAT) và Công thức bắt đầu bằng dấu bằng (ví dụ =Doanh_so*0.1 hoặc ='Đơn giá'*'Số lượng'). Nhấp đúp vào tên trường trong danh mục để chèn nhanh vào công thức.",
+      "Nhấn Thêm / Sửa: trường mới được thêm vào danh sách và tự động tính toán giá trị dựa trên tổng của các trường thành phần.",
+      "Để sửa công thức hoặc xóa trường tính toán đã tạo, chọn trường đó trong danh mục bên phải rồi bấm Sửa hoặc Xóa; nhấn Đóng khi hoàn tất. Cấu hình được lưu và bảo toàn khi xuất tệp."
+    ]
+  },
+  {
     id: "sheet.format.conditional",
     app: "sheet",
     commandIds: ["sheet.format.conditional"],
@@ -1125,6 +1173,23 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.table.slicer",
+    app: "sheet",
+    commandIds: ["sheet.table.insertSlicer"],
+    title: "Lọc Bảng bằng bộ lọc trực quan",
+    summary: "Bộ lọc trực quan tạo một khung nút nổi cho từng giá trị của cột Bảng. Khi chọn mục, Sheet chỉ hiện những dòng thỏa đồng thời mọi khung lọc và bộ lọc tự động đang dùng; các công thức SUBTOTAL cũng cập nhật theo những dòng còn hiện.",
+    ribbon: { tab: "Thiết kế Bảng", tabId: "tableDesign", group: "Bộ lọc" },
+    keywords: ["bộ lọc trực quan", "lọc bảng", "chọn nhiều", "xóa bộ lọc", "khung lọc nổi", "SUBTOTAL", "Thiết kế Bảng"],
+    steps: [
+      "Nhấp một ô trong Bảng để mở tab theo ngữ cảnh Thiết kế Bảng, vào nhóm Bộ lọc và bấm Chèn bộ lọc trực quan. Trong hộp thoại, đánh dấu một hoặc nhiều cột rồi bấm Đồng ý; mỗi cột tạo một khung lọc nổi riêng.",
+      "Bấm một mục để chỉ giữ các dòng có giá trị đó. Giữ Ctrl để thêm hoặc bỏ từng mục, giữ Shift để chọn một dải mục, hoặc bật nút Chọn nhiều trên đầu khung rồi bấm liên tiếp các mục. Nhiều khung trên các cột khác nhau kết hợp theo điều kiện VÀ.",
+      "Mục có chữ và nền nhạt kèm viền đứt là mục hiện không còn dữ liệu do các bộ lọc khác, nhưng vẫn có thể được chọn. Nút Xóa bộ lọc ở đầu khung chọn lại toàn bộ mục mà không xóa khung.",
+      "Kéo phần tiêu đề để di chuyển khung; kéo góc dưới bên phải để đổi kích cỡ. Các thao tác chọn, xóa, di chuyển và đổi cỡ đều có thể Hoàn tác hoặc Làm lại.",
+      "Bấm dấu × để xóa hẳn khung lọc. Khi lưu dạng XLSX, thông tin khung, vị trí và trạng thái chọn được ghi cùng Bảng để mở lại vẫn tiếp tục lọc đúng."
+    ],
+    note: "Bộ lọc chạy hoàn toàn trên máy. Nếu đồng thời lọc bằng mũi tên ở hàng tiêu đề Bảng, một dòng chỉ hiện khi thỏa cả bộ lọc tự động và mọi khung lọc trực quan."
+  },
+  {
     id: "sheet.table.tools",
     app: "sheet",
     commandIds: [
@@ -1715,6 +1780,38 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.edit.autofill",
+    app: "sheet",
+    commandIds: [],
+    title: "Chốt điền và Tùy chọn Tự điền: điền chuỗi, sao chép ô và nhấp đúp",
+    summary: "Sử dụng chốt điền hình vuông nhỏ ở góc dưới bên phải ô đang chọn để sao chép dữ liệu, điền chuỗi số, ngày tháng, công thức hoặc nhấp đúp để tự động điền xuống theo cột dữ liệu liền kề.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["chốt điền", "tự điền", "autofill", "nhấp đúp chốt điền", "tùy chọn tự điền", "auto fill options", "sao chép ô", "điền chuỗi", "chỉ điền định dạng", "điền không định dạng", "điền ngày", "điền ngày làm việc", "điền tháng", "điền năm", "flash fill", "điền nhanh", "Ctrl kéo"],
+    steps: [
+      "Chọn một hoặc nhiều ô chứa dữ liệu mẫu hoặc công thức. Đưa con trỏ chuột vào góc dưới bên phải vùng chọn, con trỏ sẽ đổi thành hình dấu cộng mảnh màu đen (chốt điền).",
+      "Kéo chốt điền theo hướng cần điền: kéo bình thường sẽ tiếp nối chuỗi số hoặc ngày tháng; nếu giữ phím Ctrl trong khi kéo, con trỏ hiện thêm dấu cộng nhỏ để chuyển đổi giữa Sao chép ô và Điền chuỗi.",
+      "Nhấp đúp chuột trái vào chốt điền để điền nhanh xuống phía dưới cho đến hết vùng dữ liệu của cột bên cạnh (ưu tiên cột bên trái rồi tới cột bên phải; nếu nằm trong bảng dữ liệu, sẽ điền đến hết hàng cuối của bảng).",
+      "Sau khi kéo hoặc nhấp đúp chốt điền, nút nổi Tùy chọn Tự điền xuất hiện ở góc dưới bên phải vùng điền. Bấm vào nút (hoặc nhấn phím Ctrl) để mở bảng menu lựa chọn.",
+      "Dùng phím mũi tên Lên/Xuống và Enter (hoặc nhấp chuột) để chọn chế độ mong muốn: Sao chép ô, Điền chuỗi, Chỉ điền định dạng, Điền không định dạng, Điền ngày, Điền ngày làm việc (bỏ qua Thứ Bảy và Chủ Nhật), Điền tháng, Điền năm, hoặc Điền nhanh. Nhấn phím Esc để đóng menu; thao tác tự điền có thể hoàn tác ngay bằng tổ hợp phím Ctrl+Z."
+    ]
+  },
+  {
+    id: "sheet.edit.dragDrop",
+    app: "sheet",
+    commandIds: [],
+    title: "Kéo-thả ô: di chuyển, sao chép và chèn ô bằng chuột",
+    summary: "Đưa con trỏ chuột vào đường viền của ô hoặc vùng chọn để di chuyển ô đến vị trí mới, giữ Ctrl để sao chép, giữ Shift để chèn đẩy ô, hoặc giữ Alt để di chuyển sang trang tính khác.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Bảng nhớ tạm" },
+    keywords: ["kéo thả ô", "di chuyển ô", "drag drop", "sao chép ô bằng chuột", "Ctrl kéo viền", "Shift chèn ô", "Alt chuyển trang tính", "viền ô", "chuột kéo ô", "cập nhật công thức"],
+    steps: [
+      "Chọn ô hoặc vùng ô cần thao tác. Rà con trỏ chuột lên bất kỳ cạnh viền nào của vùng chọn (trên, dưới, trái hoặc phải, tránh góc dưới bên phải của chốt điền). Con trỏ chuột sẽ đổi thành biểu tượng di chuyển bốn hướng.",
+      "Di chuyển ô: Nhấn giữ chuột trái và kéo đến vị trí đích, đường viền nét đứt sẽ chạy theo vị trí con trỏ; khi thả chuột, ô sẽ được chuyển tới vùng mới, toàn bộ công thức tham chiếu đến các ô này trong sổ làm việc sẽ tự động cập nhật chính xác.",
+      "Sao chép ô: Trong khi kéo viền, nhấn và giữ phím Ctrl (con trỏ chuột sẽ hiện biểu tượng sao chép kèm dấu cộng). Khi thả chuột, dữ liệu và công thức được sao chép đến vị trí mới và các tham chiếu tương đối sẽ tịnh tiến tương ứng.",
+      "Chèn ô: Trong khi kéo viền, nhấn và giữ phím Shift. Một thanh chỉ thị vị trí chèn nằm ngang hoặc nằm dọc sẽ xuất hiện; khi thả chuột, các ô lân cận sẽ được tự động đẩy xuống dưới hoặc đẩy sang phải để chèn vùng ô vào mà không ghi đè dữ liệu cũ.",
+      "Chuyển sang trang tính khác: Trong khi kéo viền, giữ phím Alt và rê chuột qua tên tab trang tính ở cạnh dưới cửa sổ để chuyển trang tính đích, sau đó thả chuột vào vị trí ô mong muốn. Mọi thao tác kéo-thả đều có thể hoàn tác bằng một lần nhấn phím Ctrl+Z."
+    ]
+  },
+  {
     id: "sheet.data.refreshAllHelp",
     app: "sheet",
     commandIds: ["sheet.data.refreshAll"],
@@ -1745,6 +1842,23 @@ export const SHEET_HELP_ENTRIES = [
       "Bấm Mở nguồn để trực tiếp mở tệp nguồn bên ngoài; bấm Kiểm tra trạng thái để xác định tệp nguồn có tồn tại và truy cập được hay không.",
       "Bấm Ngắt liên kết khi bạn muốn chuyển toàn bộ công thức tham chiếu nguồn đó thành các giá trị tĩnh hiện tại, đồng thời loại bỏ hoàn toàn liên kết ngoài khỏi sổ làm việc.",
       "Ứng dụng chạy hoàn toàn ngoại tuyến và mặc định không tự động đọc tệp bên ngoài khi mở để đảm bảo an toàn bảo mật dữ liệu của bạn."
+    ]
+  }
+,
+  {
+    id: "sheet.formula.arrayConstants",
+    app: "sheet",
+    commandIds: ["sheet.formula.insertFunction"],
+    title: "Hằng mảng trong công thức ({1,2,3})",
+    summary: "Gõ trực tiếp một dãy giá trị trong công thức bằng dấu ngoặc nhọn, ví dụ =SUM({1,2,3}*2) hoặc =VLOOKUP(2,{1,\"a\";2,\"b\"},2,FALSE), không cần ghi các số vào ô.",
+    ribbon: { tab: "Công thức", tabId: "formulas", group: "Hàm tính toán" },
+    keywords: ["hằng mảng", "mảng", "dấu ngoặc nhọn", "array constant", "{1,2,3}", "tra cứu", "danh sách cố định"],
+    steps: [
+      "Cú pháp: đặt các giá trị trong dấu { }. Dấu phẩy ngăn cách các cột trong cùng một hàng, dấu chấm phẩy ngăn cách các hàng. Ví dụ {1,2,3} là một hàng ba ô, {1;2;3} là một cột ba ô, {1,2;3,4} là ma trận 2 hàng 2 cột.",
+      "Phần tử có thể là số, chữ trong ngoặc kép (\"Hà Nội\"), TRUE/FALSE hoặc mã lỗi như #N/A. Mọi hàng phải có cùng số phần tử.",
+      "Dùng trong hàm: =SUM({1,2,3}) cho 6; =SUMPRODUCT({1,2,3},{4,5,6}) cho 32; =INDEX({10,20,30},2) cho 20; =MATCH(\"b\",{\"a\",\"b\",\"c\"},0) cho 2; =LARGE({5,9,1},2) cho 5; =VLOOKUP(2,{1,\"a\";2,\"b\"},2,FALSE) cho b.",
+      "Phép tính theo từng phần tử: =SUM({1,2,3}*2) cho 12; =SUMPRODUCT(({1,2,3}>1)*1) cho 2 (đếm các phần tử lớn hơn 1).",
+      "Lưu ý: các hàm đòi hỏi vùng ô thật (COUNTIF, SUMIF, SUMIFS, AVERAGEIF, MAXIFS, MINIFS, RANK) sẽ báo #VALUE! khi truyền hằng mảng vào đối số vùng, giống hành vi chuẩn của bảng tính; hãy ghi các giá trị ra ô rồi tham chiếu vùng ô đó."
     ]
   }
 ];

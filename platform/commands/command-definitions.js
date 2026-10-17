@@ -416,6 +416,10 @@ export const SHEET_COMMANDS = [
   { id: "sheet.data.scenarioManager", category: "data", label: "Trình quản lý kịch bản", icon: "scenarioManager", tooltip: "Lưu và chuyển đổi nhiều bộ giá trị giả định có tên" },
   { id: "sheet.data.pivotTable", category: "data", label: "Bảng tổng hợp", icon: "pivotTable", tooltip: "Tạo Pivot Table từ vùng dữ liệu đang chọn" },
   { id: "sheet.data.pivotRefresh", category: "data", label: "Làm mới Pivot", icon: "refreshTable", tooltip: "Tính lại Pivot Table từ dữ liệu nguồn" },
+  { id: "sheet.data.pivotChangeDataSource", category: "data", label: "Đổi nguồn", icon: "pivotTable", tooltip: "Đổi vùng dữ liệu hoặc bảng nguồn cho Bảng tổng hợp" },
+  { id: "sheet.data.pivotGroup", category: "data", label: "Nhóm", icon: "sheetGroup", tooltip: "Nhóm các trường số hoặc ngày trong Bảng tổng hợp" },
+  { id: "sheet.data.pivotUngroup", category: "data", label: "Bỏ nhóm", icon: "sheetUngroup", tooltip: "Bỏ nhóm các trường đã nhóm trong Bảng tổng hợp" },
+  { id: "sheet.data.pivotCalculatedField", category: "data", label: "Trường tính toán", icon: "formula", tooltip: "Thêm, sửa hoặc xóa trường tính toán cho Bảng tổng hợp" },
   { id: "sheet.view.normal", category: "view", label: "Bình thường", icon: "sheetNormalView", tooltip: "Xem bảng tính ở chế độ bình thường", isToggle: true },
   { id: "sheet.view.pageBreakPreview", category: "view", label: "Xem ngắt trang", icon: "sheetPageBreakPreview", tooltip: "Hiển thị vị trí các ngắt trang và vùng in", isToggle: true },
   { id: "sheet.view.pageLayout", category: "view", label: "Bố trí trang", icon: "sheetPageLayout", tooltip: "Xem bảng tính như khi in ra giấy kèm đầu/chân trang", isToggle: true },
@@ -523,6 +527,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.table.toggleBandedColumns", category: "format", label: "Cột sọc", icon: "formatTable", isToggle: true, tooltip: "Tô màu xen kẽ giữa các cột trong bảng" },
   { id: "sheet.table.toggleFilterButton", category: "format", label: "Nút lọc", icon: "formatTable", isToggle: true, tooltip: "Hiển thị hoặc ẩn nút lọc trên hàng tiêu đề của bảng" },
   { id: "sheet.table.styles", category: "format", label: "Kiểu Bảng", icon: "formatTable", tooltip: "Chọn kiểu định dạng màu sắc cho bảng" },
+  { id: "sheet.table.insertSlicer", category: "filter", label: "Chèn bộ lọc trực quan", icon: "filter", tooltip: "Lọc nhanh bảng bằng các nút giá trị nổi" },
   { id: "sheet.table.convertToRange", category: "format", label: "Chuyển thành vùng", icon: "formatTable", tooltip: "Chuyển bảng thành vùng ô thông thường giữ nguyên định dạng" },
 
   // Chỉnh sửa & Điền/Xóa (Editing: Fill & Clear)

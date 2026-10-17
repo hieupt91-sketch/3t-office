@@ -371,7 +371,7 @@ export const enStrings = {
   sheetRibbon: {
     whatIfAnalysis: "What-If Analysis",
     tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant", tableDesign: "Table Design" },
-    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", connections: "Connections", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", tables: "Tables", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", pageSetup: "Page Setup", scaleToFit: "Scale to Fit", sheetOptions: "Sheet Options", proofing: "Proofing", comments: "Comments", protection: "Protect", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiAnalysis: "AI Data Analysis", properties: "Table Properties", tableStyleOptions: "Table Style Options", tableStyles: "Table Styles", tools: "Tools", arrange: "Arrange" },
+    group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", connections: "Connections", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", tables: "Tables", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", pageSetup: "Page Setup", scaleToFit: "Scale to Fit", sheetOptions: "Sheet Options", proofing: "Proofing", comments: "Comments", protection: "Protect", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiAnalysis: "AI Data Analysis", properties: "Table Properties", tableStyleOptions: "Table Style Options", tableStyles: "Table Styles", filters: "Filters", tools: "Tools", arrange: "Arrange" },
     refreshAllSuccess: "Refreshed all links and external data.",
     editing: { fill: "Fill", clear: "Clear" },
     alignment: { orientation: "Orientation" },
@@ -415,6 +415,7 @@ export const enStrings = {
     tablestyledark6: "Dark 6 (Purple)",
     tablestyledark7: "Dark 7 (Gray)"
   },
+  sheetSlicer: { selectTable: "Select a cell in a table before inserting a visual filter.", layer: "Visual filters", aria: "Filter", multi: "Multi-select", clear: "Clear filter", close: "Remove visual filter" },
   slidesRibbon: {
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant" },
     group: { slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
@@ -423,6 +424,7 @@ export const enStrings = {
     section: "Section"
   },
   sheetDialogs: {
+    slicer: { title: "Insert visual filter", hint: "Choose one or more table columns to create floating filters.", columns: "Table columns", chooseColumn: "Choose at least one column." },
     editLinks: {
       title: "Edit Links",
       colSource: "Source",
@@ -509,6 +511,9 @@ export const enStrings = {
     sparklineColumn: "Sparkline column", sparklineLine: "Sparkline line",
     hfPresetLabel: "Preset", hfPresetCustom: "Custom", hfPresetPage: "Page X", hfPresetSheet: "Sheet name", hfPresetDate: "Date", hfPresetNone: "None", hfPresetPageVal: "Page &P", hfPresetSheetVal: "Sheet name: &A", hfPresetDateVal: "Date: &D", hfLeft: "Left", hfCenter: "Center", hfRight: "Right", headerFooterTitle: "Header / Footer", headerTitle: "Header", footerTitle: "Footer", hfDynamicCodesHint: "Dynamic codes: &P page number, &N total pages, &D date, &T time, &F file name, &A sheet name.",
     pivotTitle: "Create PivotTable", pivotSource: "Table/Range (first row contains headers)", loadFields: "Load Fields", chooseFields: "Choose fields for each area:", aggregateFor: "Summarize values by for {field}", sourceRangeFormat: "The source range must use a format such as A1:D20.", sourceNeedsHeaders: "The first row of the source range must contain headers.", uniqueHeaders: "Each source column must have a unique header.", selectValue: "Select at least one Values field.", columnNotFound: "Column {field} was not found.", sourceSheetNotFound: "The source worksheet was not found.", createPivotBtn: "Create PivotTable",
+    changeDataSourceTitle: "Change PivotTable Data Source", changeDataSourceRange: "Table/Range:", pivotNotActive: "The active sheet does not contain a PivotTable.",
+    pivotGroupTitle: "Grouping", pivotGroupField: "Field to group:", pivotGroupType: "Group type:", pivotGroupNumber: "Group by numbers", pivotGroupDate: "Group by dates", pivotGroupStart: "Starting at:", pivotGroupEnd: "Ending at:", pivotGroupBy: "By:", pivotGroupDays: "Days", pivotGroupMonths: "Months", pivotGroupQuarters: "Quarters", pivotGroupYears: "Years", pivotUngroupBtn: "Ungroup",
+    pivotCalcFieldTitle: "Insert Calculated Field", pivotCalcFieldName: "Name:", pivotCalcFieldFormula: "Formula:", pivotCalcFieldFields: "Fields:", pivotCalcExisting: "Existing calculated fields:", pivotCalcFieldAdd: "Add / Modify", pivotCalcFieldModify: "Modify", pivotCalcFieldDelete: "Delete",
     chartDefaultTitle: "Data Chart", chartUnsupported: "Unsupported chart type: {type}", chartItem: "Item {number}", chartSeries: "Series {number}", chartNoNumericData: "The selected range contains no numeric data", chartPiePositive: "A pie chart requires positive values", chartInsertFrom: "Insert Chart from {range}", selectedRange: "selected range", chartType: "Chart Type", chartColumn: "Column", chartBarHorizontal: "Horizontal Bar", chartColumnStacked: "Stacked Column", chartColumnStacked100: "100% Stacked Column", chartLine: "Line", chartPie: "Pie", chartArea: "Area", chartScatter: "Scatter", chartCombo: "Combo", chartRadar: "Radar", chartBubble: "Bubble", insertIntoSheet: "Insert into Worksheet", chartAxisTitles: "Axis Titles", chartAxisTitlesEdit: "Edit Axis Titles", chartHorizontalAxis: "Horizontal (X) axis", chartVerticalAxis: "Vertical (Y) axis", chartAxisHorizontalPlaceholder: "For example: Month", chartAxisVerticalPlaceholder: "For example: Revenue", chartAxisApply: "Apply", chartDataLabels: "Show or hide data labels", chartDataLabelsShort: "Labels", chartSwitchRowsColumns: "Switch rows and columns", chartSwitchShort: "Rows/cols", chartTrendline: "Add or remove a linear trendline", chartTrendlineShort: "Trend", chartDelete: "Delete chart", splitVerticalSeparator: "Vertical window split", splitHorizontalSeparator: "Horizontal window split", insertedImageAlt: "Image inserted in the worksheet", deleteImage: "Delete image", imageFormatUnsupported: "Unsupported image format",
     sheetTab: "Sheet", printGridlines: "Print gridlines", printHeadings: "Print row and column headings", printComments: "Comments:", commentsNone: "(None)", commentsAtEnd: "At end of sheet", commentsAsDisplayed: "As displayed on sheet", cellErrors: "Cell errors as:", errorsDisplayed: "displayed", errorsBlank: "<blank>", errorsDash: "--", errorsNa: "#N/A", pageOrder: "Page order:", orderDownThenOver: "Down, then over", orderOverThenDown: "Over, then down",
     pageSetup: {
@@ -810,6 +815,10 @@ export const enStrings = {
     ,"sheet.data.scenarioManager": { label: "Scenario Manager", tooltip: "Save and switch between named sets of assumption values" }
     ,"sheet.data.pivotTable": { label: "PivotTable", tooltip: "Create a PivotTable from the selected data range" }
     ,"sheet.data.pivotRefresh": { label: "Refresh PivotTable", tooltip: "Refresh the PivotTable from its source data" }
+    ,"sheet.data.pivotChangeDataSource": { label: "Change Data Source", tooltip: "Change the source data range or table for the PivotTable" }
+    ,"sheet.data.pivotGroup": { label: "Group", tooltip: "Group number or date fields in the PivotTable" }
+    ,"sheet.data.pivotUngroup": { label: "Ungroup", tooltip: "Ungroup grouped fields in the PivotTable" }
+    ,"sheet.data.pivotCalculatedField": { label: "Calculated Field", tooltip: "Add, modify, or delete calculated fields for the PivotTable" }
     ,"sheet.data.refreshAll": { label: "Refresh All", tooltip: "Update all links and external data sources (Ctrl+Alt+F5)" }
     ,"sheet.data.editLinks": { label: "Edit Links", tooltip: "View and manage all links to other workbooks or external files" }
     ,"sheet.view.normal": { label: "Normal", tooltip: "View worksheet in normal view" }
@@ -899,6 +908,7 @@ export const enStrings = {
     ,"sheet.table.toggleBandedColumns": { label: "Banded Columns", tooltip: "Display alternating column shading in the table" }
     ,"sheet.table.toggleFilterButton": { label: "Filter Button", tooltip: "Toggle filter drop-down buttons in the header row" }
     ,"sheet.table.styles": { label: "Table Styles", tooltip: "Choose a pre-designed table style with colors and borders" }
+    ,"sheet.table.insertSlicer": { label: "Insert Visual Filter", tooltip: "Filter a table quickly with floating value buttons" }
     ,"sheet.table.convertToRange": { label: "Convert to Range", tooltip: "Convert the table into a regular cell range while keeping formats" }
     ,"sheet.style.cellStyles": { label: "Cell Styles", tooltip: "Open cell styles gallery (Normal, Good, Bad, Neutral...)" }
     ,"sheet.edit.goTo": { label: "Go To...", tooltip: "Jump to a cell, range or defined name (F5 or Ctrl+G)" }
@@ -1768,5 +1778,17 @@ export const enStrings = {
     savedNotice: "Macro saved",
     noActionsNotice: "No actions were recorded — Macro was not saved.",
     emptyCancelled: "Cancelled — Macro was not saved."
+  },
+  sheetAutofill: {
+    optionsButtonTitle: "Auto Fill Options (Ctrl)",
+    copyCells: "Copy Cells",
+    fillSeries: "Fill Series",
+    fillFormattingOnly: "Fill Formatting Only",
+    fillWithoutFormatting: "Fill Without Formatting",
+    fillDays: "Fill Days",
+    fillWeekdays: "Fill Weekdays",
+    fillMonths: "Fill Months",
+    fillYears: "Fill Years",
+    flashFill: "Flash Fill"
   }
 };

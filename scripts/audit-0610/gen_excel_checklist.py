@@ -106,7 +106,7 @@ Chèn|Biểu đồ|PivotChart|A|-|sheet.chart.pivotChart
 Chèn|Biểu đồ|Bản đồ 3-D (3D Map)|N|3|
 Chèn|Sparkline|Đường / Cột|V|-|SparklineGroups đã đối chiếu
 Chèn|Sparkline|Thắng-thua (Win/Loss)|N|3|
-Chèn|Bộ lọc|Slicer|N|1|Chưa có
+Chèn|Bộ lọc|Slicer cho Bảng|V|-|Thiết kế Bảng > Chèn Slicer; Excel 2016 đọc lại cache, panel và lựa chọn
 Chèn|Bộ lọc|Timeline|N|2|
 Chèn|Liên kết|Siêu liên kết (Ctrl+K), Mở, Xóa, Sửa|A|-|Thêm Mở/Xóa trong menu chuột phải 13/10
 Chèn|Liên kết|Liên kết tới ô khác / trang khác / email trong cùng sổ|P|2|Chỉ http(s) và mailto
@@ -129,7 +129,7 @@ Công thức|Thư viện hàm|Chèn hàm (Shift+F3) + hộp thoại đối số|
 Công thức|Thư viện hàm|Tổng tự động; Dùng gần đây; Tài chính / Logic / Văn bản / Ngày giờ / Tra cứu / Toán|A|-|Các nhóm hàm trong ribbon
 Công thức|Thư viện hàm|Độ phủ hàm Excel 2016 (462 hàm)|P|1|16/10: engine hỗ trợ 436 hàm, 387 hàm có ca đối chiếu Excel 2016 (14 tệp golden, chạy trong npm test); còn thiếu hàm trả mảng (MMULT, MINVERSE, LINEST…), cần kế hoạch riêng
 Công thức|Thư viện hàm|Công thức mảng (CSE, Ctrl+Shift+Enter)|P|1|Có hỗ trợ mảng; chưa đối chiếu đủ
-Công thức|Thư viện hàm|Tham chiếu có cấu trúc (Table1[Cột])|N|1|Chưa có
+Công thức|Thư viện hàm|Tham chiếu có cấu trúc (Table1[Cột])|V|-|17/10: [Cột], [@Cột], Bảng[Cột], hàng tổng; structural-cases-8 26 kịch bản, 189/189 ô khớp Excel 2016
 Công thức|Thư viện hàm|Tham chiếu 3-D giữa các trang (Sheet1:Sheet3!A1)|N|2|
 Công thức|Tên đã xác định|Trình quản lý tên / Xác định tên / Tạo từ vùng chọn / Dùng trong công thức|V|-|Tên SampleNames đã đối chiếu
 Công thức|Kiểm tra công thức|Tìm ô tiền lệ / phụ thuộc / Xóa mũi tên|A|-|
@@ -139,7 +139,7 @@ Công thức|Tính toán|Tự động / Thủ công; Tính lại (F9); Tính tra
 Công thức|Tính toán|Tính lặp (Iterative) / Độ chính xác như hiển thị / Hệ ngày 1904|V|-|16/10 (AGY-CALC): tính lặp, độ chính xác như hiển thị, 1904, R1C1, chế độ tính; cases-9 16/16 ô khớp Excel, lưu/mở lại đúng
 Công thức|Tính toán|Kiểu tham chiếu R1C1|N|3|
 Dữ liệu|Lấy dữ liệu|Từ văn bản/CSV, Web, Access, Cơ sở dữ liệu, Power Query|P|2|Mở CSV có; chưa có Power Query/kết nối ngoài
-Dữ liệu|Kết nối|Làm mới tất cả / Kết nối / Thuộc tính / Liên kết ngoài (Edit Links)|N|2|
+Dữ liệu|Kết nối|Làm mới tất cả / Kết nối / Thuộc tính / Liên kết ngoài (Edit Links)|P|2|17/10 (AGY-LINKS): Chỉnh sửa liên kết, cập nhật/đổi nguồn/ngắt liên kết khớp Excel (cases-11 6/6 ô, LAN 10/10); chưa có kết nối dữ liệu ngoài (Power Query/ODBC)
 Dữ liệu|Sắp xếp & Lọc|Sắp xếp A-Z, Z-A, Sắp xếp tùy chỉnh|V|-|
 Dữ liệu|Sắp xếp & Lọc|Bộ lọc nâng cao (Advanced Filter, vùng tiêu chí)|V|-|F1 (cases-6 13/13 kịch bản, 156/156 ô khớp Excel 2016)
 Dữ liệu|Công cụ dữ liệu|Tách văn bản thành cột|A|-|sheet.data.textToColumns
@@ -192,7 +192,8 @@ Công cụ Bảng|Thiết kế|Chuyển thành phạm vi|A|-|Menu chuột phải
 Công cụ Bảng|Thiết kế|Chèn/Xóa cột-hàng bảng|A|-|Menu chuột phải bảng 13/10; mở lại giữ vùng bảng
 Công cụ Bảng|Thiết kế|Đổi kích thước bảng (Resize Table)|V|-|16/10 (AGY-TABLE): cases-8 26/26 kịch bản, 189/189 ô khớp Excel 2016
 Công cụ Bảng|Thiết kế|Tùy chọn kiểu: Hàng tiêu đề, Cột đầu/cuối, Hàng/Cột sọc, Nút lọc|P|2|Có sọc hàng và nút lọc; thiếu cột đầu/cuối, sọc cột
-Công cụ Bảng|Thiết kế|Chèn Slicer / Xuất bảng|N|2|
+Công cụ Bảng|Thiết kế|Chèn Slicer|V|-|Giai đoạn 1 hoàn thành 16/10: panel nổi, đa chọn, lọc kết hợp, XLSX native
+Công cụ Bảng|Thiết kế|Xuất bảng|N|2|
 Công cụ Biểu đồ|Thiết kế|Thêm thành phần: tiêu đề trục|V|-|Mới 13/10, Excel 2016 đọc đúng
 Công cụ Biểu đồ|Thiết kế|Thêm thành phần: tiêu đề biểu đồ, chú giải, nhãn dữ liệu, đường xu hướng|V|-|G3: Excel 2016 đọc HasDataLabels/Trendlines
 Công cụ Biểu đồ|Thiết kế|Thêm thành phần: lưới, thanh sai số|N|3|
@@ -200,8 +201,8 @@ Công cụ Biểu đồ|Thiết kế|Bố cục nhanh / Đổi màu / Kiểu bi�
 Công cụ Biểu đồ|Thiết kế|Chọn dữ liệu / Đổi loại / Di chuyển biểu đồ|A|-|Menu chuột phải biểu đồ 13/10
 Công cụ Biểu đồ|Thiết kế|Chuyển hàng/cột (Switch Row/Column)|V|-|G3: PlotBy đọc đúng
 Công cụ Biểu đồ|Định dạng|Màu/viền/hiệu ứng thành phần, kích thước, vị trí|N|2|
-Công cụ PivotTable|Phân tích|Làm mới / Đổi nguồn / Danh sách trường|P|2|Có làm mới; thiếu đổi nguồn
-Công cụ PivotTable|Phân tích|Nhóm (ngày/số) / Trường tính toán / Slicer|N|2|
+Công cụ PivotTable|Phân tích|Làm mới / Đổi nguồn / Danh sách trường|V|-|17/10 (AGY-PIVOT): đổi nguồn dữ liệu khớp Excel 2016 (cases-15 88/88 ô)
+Công cụ PivotTable|Phân tích|Nhóm (ngày/số) / Trường tính toán / Slicer|P|2|17/10: nhóm số/ngày và trường tính toán khớp Excel (cases-15); Slicer cho PivotTable chưa làm (giữ cho phiếu riêng)
 Công cụ PivotTable|Thiết kế|Bố cục báo cáo / Tổng phụ / Kiểu PivotTable|N|2|
 Công cụ Hình ảnh|Định dạng|Cắt (Crop) / Kích thước / Xoay / Kiểu hình / Viền|N|2|
 Công cụ Vẽ|Định dạng|Màu tô / Viền / Hiệu ứng hình|N|2|
@@ -217,11 +218,11 @@ Không thuộc ribbon|Chuột phải|Menu ô (Cắt/Sao chép/Dán/Chèn/Xóa/L�
 Không thuộc ribbon|Chuột phải|Menu tiêu đề hàng/cột|V|-|
 Không thuộc ribbon|Chuột phải|Menu trong bảng (Chèn/Xóa/Chọn/Bảng)|V|-|
 Không thuộc ribbon|Chuột phải|Menu biểu đồ|A|-|Chưa đối chiếu từng mục với Excel
-Không thuộc ribbon|Chuột phải|Menu hình / ảnh / hộp văn bản|N|1|Chưa có
+Không thuộc ribbon|Chuột phải|Menu hình / ảnh / hộp văn bản|V|-|17/10 (AGY-CTXMENU): đo menu thật bằng CommandBars, CDP desktop 18/18, Shift+F10/phím Menu, khóa khi bảo vệ trang tính
 Không thuộc ribbon|Chuột phải|Phân tích nhanh (Quick Analysis) / Chọn từ danh sách thả xuống|N|2|
-Không thuộc ribbon|Chuột|Kéo chốt điền (Fill Handle), nhấp đúp điền xuống, tùy chọn tự điền|P|1|Điền chuỗi có; nhấp đúp và Auto Fill Options cần kiểm
+Không thuộc ribbon|Chuột|Kéo chốt điền (Fill Handle), nhấp đúp điền xuống, tùy chọn tự điền|V|-|17/10 (AGY-AUTOFILL): nhấp đúp, nút Tùy chọn Tự điền, Ctrl+kéo; structural-cases-13 49/49 ô khớp Excel 2016
 Không thuộc ribbon|Chuột|Kéo đổi độ rộng cột/chiều cao hàng, nhấp đúp tự vừa|A|-|
-Không thuộc ribbon|Chuột|Kéo-thả di chuyển ô, Ctrl+kéo sao chép, Shift+kéo chèn|P|2|Cần kiểm đủ
+Không thuộc ribbon|Chuột|Kéo-thả di chuyển ô, Ctrl+kéo sao chép, Shift+kéo chèn|V|-|17/10 (AGY-AUTOFILL): kéo-thả viền di chuyển/sao chép/chèn, hoàn tác một bước, cases-13 khớp Excel 2016
 Không thuộc ribbon|Chuột|Chọn: ô, hàng, cột, vùng, Ctrl+nhiều vùng, góc chọn tất cả|V|-|Bộ phím/chuột E3: 62/62
 Không thuộc ribbon|Chuột|Cuộn bánh xe, Ctrl+cuộn thu phóng|A|-|
 Không thuộc ribbon|Bàn phím|Điều hướng (mũi tên, Ctrl+mũi tên, Home/End, Ctrl+Home/End, PgUp/PgDn, Tab/Enter)|V|-|E3 đã đối chiếu
