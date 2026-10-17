@@ -223,6 +223,19 @@ export const SLIDES_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.animation.painter",
+    app: "slides",
+    commandIds: ["slides.animation.painter"],
+    title: "Sao chép hoạt ảnh sang đối tượng khác",
+    summary: "Lấy nguyên hiệu ứng (kiểu, thời lượng, độ trễ, hướng, cách bắt đầu) của một đối tượng rồi dán sang đối tượng khác, kể cả ở trang khác.",
+    ribbon: { tab: "Hoạt hình", tabId: "animations", group: "Hiệu ứng đối tượng" },
+    keywords: ["sao chép hoạt ảnh", "animation painter", "dán hiệu ứng", "chép hiệu ứng"],
+    steps: [
+      "Chọn đối tượng đã có hiệu ứng, vào tab Hoạt hình > Sao chép hoạt ảnh (lần 1). Thanh trạng thái báo đã lấy hiệu ứng.",
+      "Chọn đối tượng đích (cùng trang hoặc trang khác) rồi nhấn Sao chép hoạt ảnh lần nữa (lần 2). Hiệu ứng được dán và xếp cuối chuỗi hoạt ảnh của trang đích.",
+      "Ctrl+Z hoàn tác. Nhấn lần 1 khi đối tượng chưa có hiệu ứng sẽ có thông báo nhắc gán hiệu ứng trước."
+    ]
+  },  {
     id: "slides.animation.timing",
     app: "slides",
     commandIds: ["slides.animation.startMenu", "slides.animation.setStart", "slides.animation.durationMenu", "slides.animation.setDuration", "slides.animation.delayMenu", "slides.animation.setDelay"],

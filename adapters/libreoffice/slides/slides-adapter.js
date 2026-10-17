@@ -320,6 +320,7 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.font.dialog", () => this._hintIfFalse(() => this.openFontDialog(), "Hãy nhấp vào khung chữ và chọn đoạn chữ cần định dạng."));
     globalCommandBus.bindHandler("slides.font.spacing", () => this._hintIfFalse(() => this.openFontDialog(), "Hãy nhấp vào khung chữ và chọn đoạn chữ cần định dạng."));
     globalCommandBus.bindHandler("slides.font.setSpacing", (arg) => this._hintIfFalse(() => this.setCharacterSpacing(Number(arg)), "Hãy nhấp vào khung chữ và chọn đoạn chữ cần giãn hoặc nén ký tự."));
+    globalCommandBus.bindHandler("slides.animation.painter", () => this._hintIfFalse(() => this.canvas.animationPainter(), "Hãy chọn một đối tượng đã có hiệu ứng để lấy, rồi chọn đối tượng đích và nhấn lại Sao chép hoạt ảnh."));
     globalCommandBus.bindHandler("slides.transition.apply", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
     // Tab Chuyển tiếp: thư viện hiệu ứng, thời gian, áp dụng tất cả, xem trước (cùng mô hình dữ liệu với hộp thoại).
     globalCommandBus.bindHandler("slides.transition.gallery", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);

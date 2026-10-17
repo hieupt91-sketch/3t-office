@@ -570,7 +570,8 @@ export const SLIDES_RIBBON_TABS = [
           },
           { type: "button", commandId: "slides.animation.apply", isLarge: true },
           { type: "button", commandId: "slides.animation.effectOptions", label: "Tùy chọn hiệu ứng", labelKey: "slidesRibbon.animationOptions" },
-          { type: "button", commandId: "slides.animation.pane", isLarge: true }
+          { type: "button", commandId: "slides.animation.pane", isLarge: true },
+          { type: "button", commandId: "slides.animation.painter" }
         ]
       },
       {

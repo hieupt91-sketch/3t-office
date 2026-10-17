@@ -2424,6 +2424,29 @@ export class SlidesCanvasController {
     return this.setObjectAnimation(target, { ...base, ...patch });
   }
 
+  /**
+   * Sao chép hoạt ảnh (hai lần nhấn): lần 1 lấy hiệu ứng của đối tượng đang chọn, lần 2 áp lên đối tượng đang chọn
+   * (có thể ở trang khác). Hiệu ứng mới xếp cuối chuỗi hoạt ảnh của trang đích; một bước hoàn tác.
+   */
+  animationPainter() {
+    const target = this._selectedAnimationTarget();
+    if (target == null) return false;
+    const slide = this.slides[this.currentSlideIndex];
+    const say = (message) => this.options?.shell?.setStatus?.(message);
+    if (!this._animationPainterSource) {
+      const config = this._getAnimationConfig(slide, target);
+      if (!this._isActiveAnimation(config)) return false;
+      this._animationPainterSource = { ...config };
+      say("Đã lấy hiệu ứng. Chọn đối tượng đích rồi nhấn lại Sao chép hoạt ảnh.");
+      return true;
+    }
+    const { order: _order, ...source } = this._animationPainterSource;
+    this._animationPainterSource = null;
+    const applied = this.setObjectAnimation(target, source);
+    say(applied ? "Đã dán hiệu ứng lên đối tượng đang chọn." : "Không dán được hiệu ứng.");
+    return applied;
+  }
+
   /** Xem trước: chạy lần lượt các hiệu ứng của trang theo timeline (bắt đầu/trễ) rồi trả đối tượng về nguyên trạng. */
   previewSlideAnimations() {
     const slide = this.slides[this.currentSlideIndex];

@@ -1099,6 +1099,7 @@ export const viStrings = {
     ,"slides.animation.setDuration": { label: "Thời lượng hiệu ứng", tooltip: "Chọn thời lượng chạy hiệu ứng" }
     ,"slides.animation.delayMenu": { label: "Trễ", tooltip: "Đặt thời gian chờ trước khi hiệu ứng bắt đầu" }
     ,"slides.animation.setDelay": { label: "Thời gian trễ", tooltip: "Chọn thời gian chờ trước khi hiệu ứng chạy" }
+    ,"slides.animation.painter": { label: "Sao chép hoạt ảnh", tooltip: "Lấy hiệu ứng của đối tượng đang chọn rồi áp cho đối tượng khác (nhấn lần 1 để lấy, chọn đối tượng đích, nhấn lần 2 để dán)" }
     ,"slides.animation.apply": { label: "Hiệu ứng đối tượng", tooltip: "Thiết lập hiệu ứng xuất hiện (Fade In, Fly In, Zoom In) cho đối tượng" }
     ,"slides.animation.pane": { label: "Ngăn hoạt hình", tooltip: "Hiện danh sách mọi hiệu ứng trên trang đang chọn, đổi thứ tự, cách bắt đầu hoặc xóa hiệu ứng" }
     ,"slides.view.normal": { label: "Bình thường", tooltip: "Dạng xem bình thường để chỉnh sửa từng trang chiếu" }

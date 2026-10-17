@@ -655,6 +655,7 @@ export const SLIDES_COMMANDS = [
   { id: "slides.animation.setDuration", category: "animation", label: "Thời lượng hiệu ứng", icon: "slideTransition", tooltip: "Chọn thời lượng chạy hiệu ứng" },
   { id: "slides.animation.delayMenu", category: "animation", label: "Trễ", icon: "slideTransition", tooltip: "Đặt thời gian chờ trước khi hiệu ứng bắt đầu" },
   { id: "slides.animation.setDelay", category: "animation", label: "Thời gian trễ", icon: "slideTransition", tooltip: "Chọn thời gian chờ trước khi hiệu ứng chạy" },
+  { id: "slides.animation.painter", category: "animation", label: "Sao chép hoạt ảnh", icon: "formatPainter", tooltip: "Lấy hiệu ứng của đối tượng đang chọn rồi áp cho đối tượng khác (nhấn lần 1 để lấy, chọn đối tượng đích, nhấn lần 2 để dán)" },
   { id: "slides.animation.apply", category: "animation", label: "Hiệu ứng đối tượng", icon: "objectAnimation", tooltip: "Thiết lập hiệu ứng xuất hiện (Fade In, Fly In, Zoom In) cho đối tượng" },
   { id: "slides.animation.effectOptions", category: "animation", label: "Tùy chọn hiệu ứng", icon: "objectAnimation", tooltip: "Chọn hướng chạy cho hiệu ứng đang chọn" },
   { id: "slides.animation.pane", category: "animation", label: "Ngăn hoạt hình", icon: "animationPane", tooltip: "Hiện danh sách mọi hiệu ứng trên trang đang chọn, đổi thứ tự, cách bắt đầu hoặc xóa hiệu ứng", isToggle: true },

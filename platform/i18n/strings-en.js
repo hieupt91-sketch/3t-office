@@ -1100,6 +1100,7 @@ export const enStrings = {
   ,"slides.animation.setDuration": { label: "Effect Duration", tooltip: "Pick the effect duration" }
   ,"slides.animation.delayMenu": { label: "Delay", tooltip: "Set the wait before the effect starts" }
   ,"slides.animation.setDelay": { label: "Delay Time", tooltip: "Pick the wait before the effect runs" }
+  ,"slides.animation.painter": { label: "Animation Painter", tooltip: "Pick up the selected object's animation and apply it to another (press once to copy, select the target, press again to paste)" }
   ,"slides.animation.apply": { label: "Animations", tooltip: "Apply an entrance animation to an object" }
     ,"slides.animation.pane": { label: "Animation Pane", tooltip: "List every animation on the current slide, reorder, change start, or remove an animation" }
     ,"slides.view.normal": { label: "Normal", tooltip: "Normal view for editing slides" }

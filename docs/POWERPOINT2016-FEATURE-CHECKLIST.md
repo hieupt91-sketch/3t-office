@@ -16,14 +16,14 @@ Chuẩn: Microsoft PowerPoint 2016 (16.0.4266) cài trên máy, đọc chỉ-đ�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu PowerPoint 2016 | 105 | 40% |
+| ✅ Đã đối chiếu PowerPoint 2016 | 106 | 40% |
 | 🟢 Có, chưa đối chiếu | 61 | 23% |
 | 🟡 Có một phần | 23 | 9% |
-| 🔴 Chưa có | 74 | 28% |
+| 🔴 Chưa có | 73 | 28% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **269** (áp dụng: 263) | |
 
-- **Độ phủ so với PowerPoint 2016 (có hoặc có một phần, một phần tính 0,5): 67%**
+- **Độ phủ so với PowerPoint 2016 (có hoặc có một phần, một phần tính 0,5): 68%**
 - **Đã xác minh bằng đối chiếu PowerPoint 2016 thật: 40%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tính một mục; đo kiểu ghi-rồi-đọc-lại trên PowerPoint COM chỉ xác nhận ngữ nghĩa thuộc tính của PowerPoint, KHÔNG tự nhận là parity hoàn chỉnh nếu chưa có kiểm chứng khứ hồi.
@@ -37,7 +37,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Chèn | 29 | 14 | 2 | 1 | 10 | 2 | 61% |
 | Thiết kế | 15 | 9 | 0 | 2 | 4 | 0 | 67% |
 | Chuyển tiếp | 11 | 5 | 3 | 1 | 2 | 0 | 77% |
-| Hoạt ảnh | 16 | 8 | 3 | 1 | 4 | 0 | 72% |
+| Hoạt ảnh | 16 | 9 | 3 | 1 | 3 | 0 | 78% |
 | Trình chiếu | 16 | 4 | 4 | 1 | 6 | 1 | 57% |
 | Xem lại | 14 | 2 | 5 | 0 | 5 | 2 | 58% |
 | Chế độ xem | 25 | 7 | 10 | 2 | 6 | 0 | 72% |
@@ -264,7 +264,7 @@ Tổng: 7 mục ưu tiên 1.
 | Hoạt ảnh nâng cao | Thêm hoạt ảnh (Add Animation) | 🔴 | 2 | Chưa hỗ trợ gán nhiều hoạt ảnh đồng thời vào cùng một đối tượng |
 | Hoạt ảnh nâng cao | Ngăn hoạt ảnh (Animation Pane) | ✅ | - | FIX-L7: slides.animation.pane đổi thứ tự hiệu ứng đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:70) |
 | Hoạt ảnh nâng cao | Kích hoạt (Trigger: On Click of Object) | 🔴 | 2 | Chưa có hộp thoại gán trigger kích hoạt hiệu ứng khi click shape khác |
-| Hoạt ảnh nâng cao | Sao chép hoạt ảnh (Animation Painter) | 🔴 | 2 | Chưa có công cụ sao chép chuỗi hiệu ứng hoạt ảnh giữa các hình |
+| Hoạt ảnh nâng cao | Sao chép hoạt ảnh (Animation Painter) | ✅ | - | slides.animation.painter: lấy hiệu ứng ở lần nhấn 1, dán ở lần 2; PowerPoint COM đọc lại hai hiệu ứng Bay vào cùng hướng trái, sau hiệu ứng trước, 1,5 giây, trễ 0,5 giây (apps/slides/slides-canvas.js:2431 animationPainter, scripts/audit-0610/ppt_animation_all_readback.ps1:2) |
 | Thời gian | Bắt đầu (Start: On Click, With Previous, After Previous) | ✅ | - | slides.animation.startMenu; PowerPoint COM đọc lại TriggerType=AfterPrevious, Duration, Delay (ppt_anim_readback.ps1) (apps/slides/slides-canvas.js:2117; scripts/audit-0610/ppt_anim_readback.ps1:2) |
 | Thời gian | Thời lượng hoạt ảnh (Duration) | ✅ | - | FIX-L6: PowerPoint COM đọc duration 0.8/0.8/0.5 s khớp timeline (docs/SLIDES-BUTTON-MATRIX-1011.md:69) |
 | Thời gian | Độ trễ hoạt ảnh (Delay) | 🟢 | - | slides.animation.apply; cấu hình độ trễ (delay) trong hộp thoại Hiệu ứng đối tượng |
