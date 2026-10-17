@@ -27,7 +27,8 @@ try {
     x.saveComment({ coord: 'A1', text: 'Ghi chú A1' });
     x.saveComment({ coord: 'B1', text: 'Ghi chú B1' });
     x.saveComment({ coord: 'C1', text: 'Ghi chú C1' });
-    x.selectRange({ c: 'A', r: 1 }, { c: 'B', r: 1 });
+    x.selectCell('A', 1);
+    x.selectCell('B', 1, true);
     return true;
   })()`);
 
@@ -68,7 +69,8 @@ try {
     x.cellsData.get('A3').hyperlink = 'https://vnoffice.vn';
     x.cellsData.get('B3').hyperlink = 'mailto:hotro@vnoffice.vn';
     x.cellsData.get('C3').hyperlink = 'https://example.com';
-    x.selectRange({ c: 'A', r: 3 }, { c: 'B', r: 3 });
+    x.selectCell('A', 3);
+    x.selectCell('B', 3, true);
     return true;
   })()`);
 
