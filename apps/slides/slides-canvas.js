@@ -2183,6 +2183,8 @@ export class SlidesCanvasController {
         return t("slidesDialogs.animSpin", "Xoay tròn (nhấn mạnh)");
       case "growShrink":
         return t("slidesDialogs.animGrowShrink", "Phóng to / thu nhỏ (nhấn mạnh)");
+      case "pulse":
+        return t("slidesDialogs.animPulse", "Nhịp đập (nhấn mạnh)");
       case "fadeOut":
         return t("slidesDialogs.animFadeOut", "Mờ dần ra (thoát)");
       case "flyOut":

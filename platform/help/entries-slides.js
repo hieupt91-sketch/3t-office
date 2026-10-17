@@ -218,7 +218,7 @@ export const SLIDES_HELP_ENTRIES = [
     keywords: ["hoạt hình", "hiệu ứng", "animation", "mờ dần", "bay vào", "thu phóng", "xoay tròn", "biến mất"],
     steps: [
       "Nhấp vào hình, ảnh hoặc khung chữ cần tạo hiệu ứng.",
-      "Vào tab Hoạt hình > nhóm Hiệu ứng đối tượng > Hiệu ứng và chọn một kiểu: Mờ dần, Bay vào, Thu phóng vào, Nảy vào, Trượt từ trái (hiệu ứng vào); Xoay tròn, Phóng to / thu nhỏ (nhấn mạnh); Mờ dần ra, Bay ra, Thu nhỏ ra, Biến mất (thoát). Chọn Không có để bỏ hiệu ứng.",
+      "Vào tab Hoạt hình > nhóm Hiệu ứng đối tượng > Hiệu ứng và chọn một kiểu: Mờ dần, Bay vào, Thu phóng vào, Nảy vào, Trượt từ trái (hiệu ứng vào); Xoay tròn, Phóng to / thu nhỏ, Nhịp đập (nhấn mạnh); Mờ dần ra, Bay ra, Thu nhỏ ra, Biến mất (thoát). Chọn Không có để bỏ hiệu ứng.",
       "Nút Hiệu ứng đối tượng bên cạnh mở hộp thoại đầy đủ; Ngăn hoạt hình liệt kê thứ tự để đổi hoặc xóa. Ctrl+Z hoàn tác; hiệu ứng được lưu vào tệp PPTX."
     ]
   },

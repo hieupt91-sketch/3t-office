@@ -11822,6 +11822,10 @@ def _anim_effect_xml(cls: str, preset_id: str, subtype: str, spid: str, dur: int
         if preset_id == "6":
             return (f'<p:animScale><p:cBhvr><p:cTn id="{new_id()}" dur="{dur}" fill="hold"/>{tgt}</p:cBhvr>'
                     '<p:by x="150000" y="150000"/></p:animScale>')
+        if preset_id == "26":  # Nhịp đập (Pulse): mờ nhẹ ra rồi vào + phóng 105% tự quay lại (mẫu PowerPoint đo thật)
+            return (f'<p:animEffect transition="out" filter="fade"><p:cBhvr><p:cTn id="{new_id()}" dur="{dur}" tmFilter="0, 0; .2, .5; .8, .5; 1, 0"/>{tgt}</p:cBhvr></p:animEffect>'
+                    f'<p:animScale><p:cBhvr><p:cTn id="{new_id()}" dur="{max(1, dur // 2)}" autoRev="1" fill="hold"/>{tgt}</p:cBhvr>'
+                    '<p:by x="105000" y="105000"/></p:animScale>')
         return None
     if cls == "exit":
         if preset_id == "10":
@@ -11945,6 +11949,21 @@ def _slides_native_effect_groups(effects, begins, shape_ids, new_id, group_count
     return group_xml
 
 
+def _slides_animation_presets_from_fodp(source_fodp: str | None) -> list[list[str]]:
+    """Mỗi trang: presentation:preset-id của từng hiệu ứng theo thứ tự trong FODP."""
+    if not source_fodp or "preset-class" not in source_fodp:
+        return []
+    pages = re.findall(r"<draw:page\b[^>]*?/>|<draw:page\b[^>]*>[\s\S]*?</draw:page>", source_fodp, re.IGNORECASE)
+    return [
+        [m.group(1) for m in re.finditer(r"<anim:par\b[^>]*presentation:preset-class=[\"'][^\"']+[\"'][^>]*presentation:preset-id=[\"']([^\"']+)[\"']", page, re.IGNORECASE)]
+        for page in pages
+    ]
+
+
+# soffice ghi presetID="0" cho hiệu ứng nó không có trong bảng của nó; nhận lại theo preset-id trong FODP.
+_SLIDES_PRESET_ID_FROM_ODF = {"ooo-emphasis-pulse": ("emph", "26")}
+
+
 def _apply_slides_native_animation_timing(pptx_bytes: bytes, source_fodp: str | None, prior: dict[str, str] | None = None) -> dict[str, str]:
     """Slide có hiệu ứng Nhấn mạnh/Thoát hoặc Kích hoạt: dựng lại p:timing theo cấu trúc PowerPoint để nó đọc đúng."""
     try:
@@ -11957,6 +11976,7 @@ def _apply_slides_native_animation_timing(pptx_bytes: bytes, source_fodp: str | 
         return {}
     prior = prior or {}
     begins_by_page = _slides_animation_begins_from_fodp(source_fodp)
+    presets_by_page = _slides_animation_presets_from_fodp(source_fodp)
     replacements: dict[str, str] = {}
     for page_index, entry in enumerate(entries):
         xml = prior[entry] if entry in prior else (read_zip_entry(pptx_bytes, entry) or b"").decode("utf-8", errors="replace")
@@ -11983,6 +12003,13 @@ def _apply_slides_native_animation_timing(pptx_bytes: bytes, source_fodp: str | 
         if len(begins_all) != total:
             begins_all = [0] * total
         begins = begins_all[:len(effects)]
+        presets_all = presets_by_page[page_index] if page_index < len(presets_by_page) else []
+        if len(presets_all) == total:
+            ordered = list(effects) + [e for _t, items in interactive_effects for e in items]
+            for effect, odf_preset in zip(ordered, presets_all):
+                mapped = _SLIDES_PRESET_ID_FROM_ODF.get(odf_preset)
+                if mapped and effect["pid"] == "0" and effect["cls"] == mapped[0]:
+                    effect["pid"], effect["sub"] = mapped[1], "0"
         shape_ids = set(re.findall(r'<p:sp>\s*<p:nvSpPr>\s*<p:cNvPr\s+id="(\d+)"', xml))
         counter = [2]
 

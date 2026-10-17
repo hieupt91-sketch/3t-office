@@ -12,6 +12,7 @@ export const ANIMATION_EFFECTS = [
   { id: "slideLeft", cls: "entrance", name: "Trượt từ trái", keyframe: "vnoAnimSlideLeft", presetId: "ooo-entrance-wipe", subType: "from-left", aliases: ["slide"] },
   { id: "spin", cls: "emphasis", name: "Xoay tròn", keyframe: "vnoAnimSpin", presetId: "ooo-emphasis-spin" },
   { id: "growShrink", cls: "emphasis", name: "Phóng to / thu nhỏ", keyframe: "vnoAnimGrowShrink", presetId: "ooo-emphasis-grow-and-shrink" },
+  { id: "pulse", cls: "emphasis", name: "Nhịp đập", keyframe: "vnoAnimPulse", presetId: "ooo-emphasis-pulse" },
   { id: "fadeOut", cls: "exit", name: "Mờ dần ra", keyframe: "vnoAnimFadeOut", presetId: "ooo-exit-fade-out" },
   { id: "flyOut", cls: "exit", name: "Bay ra", keyframe: "vnoAnimFlyOut", presetId: "ooo-exit-fly-out", subType: "to-bottom" },
   { id: "zoomOut", cls: "exit", name: "Thu nhỏ ra", keyframe: "vnoAnimZoomOut", presetId: "ooo-exit-zoom" },
@@ -84,6 +85,7 @@ export function animationTypeFromPreset(presetClass, presetId) {
   if (cls === "emphasis") {
     if (id.includes("spin")) return "spin";
     if (id.includes("grow")) return "growShrink";
+    if (id.includes("pulse")) return "pulse";
     return null;
   }
   if (id.includes("fly-in")) return "flyIn";

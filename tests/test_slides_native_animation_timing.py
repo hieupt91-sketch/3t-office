@@ -146,6 +146,17 @@ class NativeAnimationTimingTests(unittest.TestCase):
         self.assertEqual([n.get("nodeType") for n in effects], ["clickEffect"])
         self.assertEqual(re.findall(r'<p:bldP spid="(\d+)" grpId="(\d+)"', xml), [("4", "0")])
 
+    def test_pulse_is_recognised_from_the_odf_preset_id_when_soffice_writes_preset_zero(self):
+        # soffice ghi presetID="0" cho ooo-emphasis-pulse; nhận lại theo preset-id trong FODP và dựng mẫu PowerPoint (presetID 26).
+        fodp = (
+            '<draw:page><anim:par smil:begin="indefinite"><anim:par smil:begin="0s" presentation:preset-class="emphasis" presentation:preset-id="ooo-emphasis-pulse"></anim:par></anim:par></draw:page>'
+        )
+        xml = run([soffice_effect(10, "clickEffect", "emph", "0", 4, 500)], fodp=fodp)["ppt/slides/slide1.xml"]
+        self.assertIn('presetID="26" presetClass="emph"', xml)
+        self.assertIn('tmFilter="0, 0; .2, .5; .8, .5; 1, 0"', xml)
+        self.assertIn('<p:animScale>', xml)
+        self.assertIn('autoRev="1"', xml)
+
     def test_with_previous_joins_the_same_time_slot(self):
         result = run([
             soffice_effect(10, "clickEffect", "emph", "6", 4, 1000),

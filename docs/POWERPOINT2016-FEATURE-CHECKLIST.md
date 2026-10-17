@@ -16,15 +16,15 @@ Chuẩn: Microsoft PowerPoint 2016 (16.0.4266) cài trên máy, đọc chỉ-đ�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu PowerPoint 2016 | 109 | 41% |
+| ✅ Đã đối chiếu PowerPoint 2016 | 110 | 42% |
 | 🟢 Có, chưa đối chiếu | 61 | 23% |
-| 🟡 Có một phần | 23 | 9% |
+| 🟡 Có một phần | 22 | 8% |
 | 🔴 Chưa có | 70 | 27% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **269** (áp dụng: 263) | |
 
 - **Độ phủ so với PowerPoint 2016 (có hoặc có một phần, một phần tính 0,5): 69%**
-- **Đã xác minh bằng đối chiếu PowerPoint 2016 thật: 41%** các mục áp dụng
+- **Đã xác minh bằng đối chiếu PowerPoint 2016 thật: 42%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tính một mục; đo kiểu ghi-rồi-đọc-lại trên PowerPoint COM chỉ xác nhận ngữ nghĩa thuộc tính của PowerPoint, KHÔNG tự nhận là parity hoàn chỉnh nếu chưa có kiểm chứng khứ hồi.
 
@@ -37,7 +37,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Chèn | 29 | 14 | 2 | 1 | 10 | 2 | 61% |
 | Thiết kế | 15 | 9 | 0 | 2 | 4 | 0 | 67% |
 | Chuyển tiếp | 11 | 5 | 3 | 1 | 2 | 0 | 77% |
-| Hoạt ảnh | 16 | 11 | 3 | 1 | 1 | 0 | 91% |
+| Hoạt ảnh | 16 | 12 | 3 | 0 | 1 | 0 | 94% |
 | Trình chiếu | 16 | 4 | 4 | 1 | 6 | 1 | 57% |
 | Xem lại | 14 | 2 | 5 | 0 | 5 | 2 | 58% |
 | Chế độ xem | 25 | 7 | 10 | 2 | 6 | 0 | 72% |
@@ -57,11 +57,10 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Chèn | Minh họa | SmartArt (Danh sách, Quy trình, Chu trình, Phân cấp) | 🔴 | Chưa hỗ trợ tạo mới SmartArt native chuẩn DrawingML diagram; hiện dùng sơ đồ nhóm shape (docs/SLIDES-BUTTON-MATRIX-1011.md:53) |
 | Chèn | Văn bản | Chữ nghệ thuật (WordArt) | 🟡 | FIX-L14: có lệnh slides.insert.wordart nhưng PowerPoint COM nhận dạng Type=17 PresetTextEffect=-2 chưa chuẩn native Type=15 (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
 | Chuyển tiếp | Chuyển tiếp sang slide | Hiệu ứng Morph (Biến đổi hình thái) | 🟡 | Đã có xử lý chuyển đổi Morph sơ bộ; chưa hoàn thiện mapping đối tượng khớp định danh như PowerPoint 2016 Office 365 |
-| Hoạt ảnh | Hoạt ảnh | Nhóm Nhấn mạnh (Emphasis Effects: Pulse, Spin, Grow/Shrink) | 🟡 | slides.animation.apply; Xoay tròn (EffectType 61) và Phóng to/thu nhỏ (59) lưu PPTX rồi PowerPoint 2016 COM đọc đúng (docs/AUDIT-SLIDES-ANIM-1710.md:12); chưa có Nhịp đập (Pulse) |
 | Công cụ vẽ > Định dạng | Kiểu chữ WordArt | Hiệu ứng chữ nghệ thuật (Text Effects: Warp, Shadow, 3D) | 🟡 | FIX-L14: có textFadeRight nhưng PowerPoint COM nhận dạng PresetTextEffect=-2 chưa chuẩn native (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
 | Công cụ hình ảnh > Định dạng | Kích thước | Cắt xén ảnh (Crop to Shape / Aspect Ratio) | 🟡 | Đọc và hiển thị ảnh cắt xén (apps/slides/slides-canvas.js:3406); chưa có công cụ kéo cắt xén ảnh trực tiếp trên UI |
 
-Tổng: 7 mục ưu tiên 1.
+Tổng: 6 mục ưu tiên 1.
 
 ## Danh sách 15 mục ưu tiên 1 thiếu nhất & Đề xuất 10 phiếu việc kế tiếp
 
@@ -257,14 +256,14 @@ Tổng: 7 mục ưu tiên 1.
 | Xem trước | Xem trước hoạt ảnh (Preview) | 🟢 | - | slides.animation.preview chạy theo timeline (CDP slides-animation-tab 9/9) |
 | Hoạt ảnh | Hiệu ứng đối tượng (Animations Gallery) | ✅ | - | FIX-L6: slides.animation.apply hiệu ứng Fade, Fly EffectType 10, 2 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:69) |
 | Hoạt ảnh | Nhóm Xuất hiện (Entrance Effects: Appear, Fade, Fly In, Float In, Zoom) | ✅ | - | FIX-L6: slides.animation.apply hiệu ứng Fade, Fly EffectType 10, 2 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:69) |
-| Hoạt ảnh | Nhóm Nhấn mạnh (Emphasis Effects: Pulse, Spin, Grow/Shrink) | 🟡 | 1 | slides.animation.apply; Xoay tròn (EffectType 61) và Phóng to/thu nhỏ (59) lưu PPTX rồi PowerPoint 2016 COM đọc đúng (docs/AUDIT-SLIDES-ANIM-1710.md:12); chưa có Nhịp đập (Pulse) |
+| Hoạt ảnh | Nhóm Nhấn mạnh (Emphasis Effects: Pulse, Spin, Grow/Shrink) | ✅ | - | slides.animation.apply; Xoay tròn (EffectType 61), Phóng to/thu nhỏ (59) và Nhịp đập (75) lưu PPTX rồi PowerPoint 2016 COM đọc đúng (docs/AUDIT-SLIDES-ANIM-1710.md:12; tests/live/cdp/slides-pulse-effect.desktop.mjs; apps/slides/slide-animation-classes.js:15 pulse) |
 | Hoạt ảnh | Nhóm Thoát (Exit Effects: Disappear, Fade, Fly Out) | ✅ | - | slides.animation.apply; Mờ dần ra, Bay ra, Thu nhỏ ra, Biến mất lưu PPTX rồi PowerPoint 2016 COM đọc đúng EffectType và Exit=-1 (docs/AUDIT-SLIDES-ANIM-1710.md:15) |
 | Hoạt ảnh | Đường chuyển động (Motion Paths: Line, Arc, Custom Path) | 🔴 | 2 | Chưa hỗ trợ vẽ và chạy hoạt ảnh theo đường cong tự do Motion Path |
 | Hoạt ảnh | Tùy chọn hiệu ứng (Effect Options: Hướng, Theo đoạn/khung) | 🟢 | - | slides.animation.effectOptions; direction được lưu qua preset-sub-type/presetSubtype (apps/slides/slides-canvas.js; adapters/libreoffice/slides/slides-adapter.js; adapters/libreoffice/common/ooxml_zip_patch.py) |
-| Hoạt ảnh nâng cao | Thêm hoạt ảnh (Add Animation) | ✅ | - | slides.animation.add / slides.animation.addEffect: vào + thoát trên cùng một hình, lưu PPTX rồi PowerPoint 2016 COM đọc đủ cả hai (Exit=0 và -1; tests/live/cdp/slides-add-animation.desktop.mjs; apps/slides/slides-canvas.js:2537 addObjectAnimation) |
+| Hoạt ảnh nâng cao | Thêm hoạt ảnh (Add Animation) | ✅ | - | slides.animation.add / slides.animation.addEffect: vào + thoát trên cùng một hình, lưu PPTX rồi PowerPoint 2016 COM đọc đủ cả hai (Exit=0 và -1; tests/live/cdp/slides-add-animation.desktop.mjs; apps/slides/slides-canvas.js:2539 addObjectAnimation) |
 | Hoạt ảnh nâng cao | Ngăn hoạt ảnh (Animation Pane) | ✅ | - | FIX-L7: slides.animation.pane đổi thứ tự hiệu ứng đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:70) |
-| Hoạt ảnh nâng cao | Kích hoạt (Trigger: On Click of Object) | ✅ | - | slides.animation.trigger: hộp thoại chọn hình kích hoạt; lưu PPTX rồi PowerPoint 2016 COM đọc InteractiveSequences=1 và TriggerShape đúng (tests/live/cdp/slides-animation-trigger.desktop.mjs; apps/slides/slides-canvas.js:2577 openAnimationTriggerDialog) |
-| Hoạt ảnh nâng cao | Sao chép hoạt ảnh (Animation Painter) | ✅ | - | slides.animation.painter: lấy hiệu ứng ở lần nhấn 1, dán ở lần 2; PowerPoint COM đọc lại hai hiệu ứng Bay vào cùng hướng trái, sau hiệu ứng trước, 1,5 giây, trễ 0,5 giây (apps/slides/slides-canvas.js:2623 animationPainter, scripts/audit-0610/ppt_animation_all_readback.ps1:2) |
+| Hoạt ảnh nâng cao | Kích hoạt (Trigger: On Click of Object) | ✅ | - | slides.animation.trigger: hộp thoại chọn hình kích hoạt; lưu PPTX rồi PowerPoint 2016 COM đọc InteractiveSequences=1 và TriggerShape đúng (tests/live/cdp/slides-animation-trigger.desktop.mjs; apps/slides/slides-canvas.js:2579 openAnimationTriggerDialog) |
+| Hoạt ảnh nâng cao | Sao chép hoạt ảnh (Animation Painter) | ✅ | - | slides.animation.painter: lấy hiệu ứng ở lần nhấn 1, dán ở lần 2; PowerPoint COM đọc lại hai hiệu ứng Bay vào cùng hướng trái, sau hiệu ứng trước, 1,5 giây, trễ 0,5 giây (apps/slides/slides-canvas.js:2625 animationPainter, scripts/audit-0610/ppt_animation_all_readback.ps1:2) |
 | Thời gian | Bắt đầu (Start: On Click, With Previous, After Previous) | ✅ | - | slides.animation.startMenu; PowerPoint COM đọc lại TriggerType=AfterPrevious, Duration, Delay (ppt_anim_readback.ps1) (apps/slides/slides-canvas.js:2117; scripts/audit-0610/ppt_anim_readback.ps1:2) |
 | Thời gian | Thời lượng hoạt ảnh (Duration) | ✅ | - | FIX-L6: PowerPoint COM đọc duration 0.8/0.8/0.5 s khớp timeline (docs/SLIDES-BUTTON-MATRIX-1011.md:69) |
 | Thời gian | Độ trễ hoạt ảnh (Delay) | 🟢 | - | slides.animation.apply; cấu hình độ trễ (delay) trong hộp thoại Hiệu ứng đối tượng |
@@ -346,7 +345,7 @@ Tổng: 7 mục ưu tiên 1.
 | Nhóm | Tính năng PowerPoint 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Slides |
 |---|---|---|---|---|
 | Chèn hình | Sửa điểm vẽ tự do (Edit Points) | 🟡 | 2 | Có vẽ hình tự do Bezier; chưa có giao diện kéo điểm nút trực quan |
-| Chèn hình | Đổi hình dạng (Change Shape) | ✅ | - | slides.shape.changeType: đổi giữa chữ nhật, elip và 16 hình dựng sẵn, giữ vị trí/kích thước/màu; PowerPoint COM AutoShapeType elip=9, sao=92, mũi tên phải=33, tim=21 (apps/slides/slides-canvas.js:3064 changeShapeType, scripts/audit-0610/ppt_autoshape_readback.ps1:2) |
+| Chèn hình | Đổi hình dạng (Change Shape) | ✅ | - | slides.shape.changeType: đổi giữa chữ nhật, elip và 16 hình dựng sẵn, giữ vị trí/kích thước/màu; PowerPoint COM AutoShapeType elip=9, sao=92, mũi tên phải=33, tim=21 (apps/slides/slides-canvas.js:3066 changeShapeType, scripts/audit-0610/ppt_autoshape_readback.ps1:2) |
 | Kiểu chữ WordArt | Tô màu chữ nghệ thuật (Text Fill) | 🔴 | 2 | Chưa có công cụ đổi màu tô chữ nghệ thuật độc lập trên ribbon |
 | Kiểu chữ WordArt | Viền chữ nghệ thuật (Text Outline) | 🔴 | 2 | Chưa có công cụ đổi màu viền chữ nghệ thuật trên ribbon |
 | Kiểu chữ WordArt | Hiệu ứng chữ nghệ thuật (Text Effects: Warp, Shadow, 3D) | 🟡 | 1 | FIX-L14: có textFadeRight nhưng PowerPoint COM nhận dạng PresetTextEffect=-2 chưa chuẩn native (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
@@ -437,7 +436,7 @@ Tổng: 7 mục ưu tiên 1.
 | Bàn phím | Phím tắt định dạng chữ (Ctrl+B/I/U, Ctrl+Shift+>/<, Ctrl+Space) | ✅ | - | FIX-L4: Ctrl+B/I/U và thang tăng giảm cỡ chữ đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:27-31) |
 | Bàn phím | Phím tắt trình chiếu (F5 Từ đầu, Shift+F5 Từ trang hiện tại, Esc Thoát) | 🟢 | - | slides.show.startFromBegin, startFromCurrent; phím tắt điều khiển trình diễn |
 | Bàn phím | Phím tắt chỉnh sửa slide (Ctrl+M Thêm, Ctrl+D Nhân đôi, Delete Xóa) | ✅ | - | FIX-L8: slides.slide.new, duplicate, delete đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:20,22,23) |
-| Chuột | Kéo thả thay đổi thứ tự trang trong danh sách thumbnail | 🟢 | - | Kéo thả trực tiếp slide thumbnail để sắp xếp thứ tự (apps/slides/slides-canvas.js:6913, apps/slides/slides-canvas.js:6990) |
+| Chuột | Kéo thả thay đổi thứ tự trang trong danh sách thumbnail | 🟢 | - | Kéo thả trực tiếp slide thumbnail để sắp xếp thứ tự (apps/slides/slides-canvas.js:6915, apps/slides/slides-canvas.js:6992) |
 | Chuột | Kéo các góc/chốt đối tượng để đổi kích thước và xoay | 🟢 | - | Chốt điều khiển 8 hướng và xoay đối tượng (apps/slides/slides-canvas.js:190-200) |
 | Chuột | Menu ngữ cảnh chuột phải trên slide, hình vẽ, ảnh, bảng | 🟢 | - | Menu chuột phải trên slide và hình vẽ (apps/slides/slides-canvas.js:7131-7150) |
 | Tính tương thích | Mở và Lưu PPTX giữ nguyên bố cục đối tượng | ✅ | - | Lưu PPTX và mở lại đối chiếu PowerPoint COM không mất đối tượng (docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:9-10) |

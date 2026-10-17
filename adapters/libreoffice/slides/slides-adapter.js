@@ -2353,6 +2353,8 @@ export class SlidesAdapter {
         return { presetId: "ooo-emphasis-spin", subType: null, dur, begin, kind: "spin", cls: "emphasis" };
       case "growShrink":
         return { presetId: "ooo-emphasis-grow-and-shrink", subType: null, dur, begin, kind: "growShrink", cls: "emphasis" };
+      case "pulse":
+        return { presetId: "ooo-emphasis-pulse", subType: null, dur, begin, kind: "pulse", cls: "emphasis" };
       case "fadeOut":
         return { presetId: "ooo-exit-fade-out", subType: null, dur, begin, kind: "fadeOut", cls: "exit" };
       case "flyOut":
@@ -2395,6 +2397,7 @@ export class SlidesAdapter {
     if (cls === "emphasis") {
       if (id.includes("spin")) return "spin";
       if (id.includes("grow")) return "growShrink";
+      if (id.includes("pulse")) return "pulse";
       return null;
     }
     if (id.includes("fly-in")) return "flyIn";
@@ -2459,6 +2462,9 @@ export class SlidesAdapter {
       const factor = "1.5,1.5";
       animates += `
                 <anim:animateTransform smil:dur="${preset.dur}" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="scale" svg:type="scale" smil:by="${factor}" smil:autoReverse="true"/>`;
+    } else if (preset.kind === "pulse") {
+      animates += `
+                <anim:animateTransform smil:dur="${preset.dur}" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="scale" svg:type="scale" smil:by="1.05,1.05" smil:autoReverse="true"/>`;
     } else if (preset.kind === "fadeOut") {
       animates += `
                 <anim:animate smil:dur="${preset.dur}" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="opacity" smil:from="1" smil:to="0"/>${hideAtEnd}`;

@@ -15,9 +15,9 @@ export async function runSlideAnimationClassesTests() {
   const shape = (type, extra = {}) => ({ id: `s-${type}`, type: "rect", x: 40, y: 80, w: 100, h: 60, color: "#2563eb", text: type, animation: { type, duration: 800, delay: 100, order: 0, start: "onClick", ...extra } });
   const css = fs.readFileSync(new URL("../../apps/slides/slides.css", import.meta.url), "utf8");
 
-  test("Bảng hiệu ứng: 5 Vào, 2 Nhấn mạnh, 4 Thoát; mỗi kiểu có keyframe CSS", () => {
+  test("Bảng hiệu ứng: 5 Vào, 3 Nhấn mạnh, 4 Thoát; mỗi kiểu có keyframe CSS", () => {
     eq(animationEffectsOfClass("entrance").length, 5, "vào");
-    eq(animationEffectsOfClass("emphasis").length, 2, "nhấn mạnh");
+    eq(animationEffectsOfClass("emphasis").length, 3, "nhấn mạnh");
     eq(animationEffectsOfClass("exit").length, 4, "thoát");
     for (const effect of ANIMATION_EFFECTS) {
       if (!css.includes(`@keyframes ${effect.keyframe}`)) throw new Error(`thiếu @keyframes ${effect.keyframe}`);
