@@ -7274,6 +7274,130 @@ def _slicer_table_filter(table_xml: str, column_index: int, values: list[str]) -
     return table_xml[:root.end()] + f'<autoFilter ref="{_escape_xml(ref)}">{column}</autoFilter>' + table_xml[root.end():]
 
 
+def _slicer_pivot_context(xlsx_bytes: bytes, replacements: dict, source_fods: str | None) -> dict[str, dict]:
+    """Resolve app pivot ids to native PivotTable/cache metadata already in XLSX."""
+    app_ids_by_name = {name: pivot_id for pivot_id, name in _fods_pivot_table_names(source_fods).items()}
+    workbook_xml = _slicer_current_text(xlsx_bytes, replacements, XLSX_WORKBOOK_ENTRY)
+    workbook_rels_xml = _slicer_current_text(xlsx_bytes, replacements, XLSX_WORKBOOK_RELS_ENTRY)
+    workbook_rels = _relationship_records(workbook_rels_xml)
+    cache_paths: dict[int, str] = {}
+    for match in re.finditer(r'<(?:[\w.-]+:)?pivotCache\b([^>]*)/?>', workbook_xml, re.IGNORECASE):
+        attrs = _xml_attrs(match.group(1))
+        rid = attrs.get("r:id") or attrs.get("id")
+        record = workbook_rels.get(rid or "", {})
+        if record and str(attrs.get("cacheId", "")).isdigit():
+            cache_paths[int(attrs["cacheId"])] = _resolve_relationship_target(XLSX_WORKBOOK_ENTRY, record.get("Target", ""))
+
+    sheet_ids: dict[str, int] = {}
+    for match in re.finditer(r'<(?:[\w.-]+:)?sheet\b([^>]*)/?>', workbook_xml, re.IGNORECASE):
+        attrs = _xml_attrs(match.group(1))
+        if attrs.get("name") and str(attrs.get("sheetId", "")).isdigit():
+            sheet_ids[_unescape_xml(attrs["name"])] = int(attrs["sheetId"])
+
+    result: dict[str, dict] = {}
+    for sheet_name, sheet_path in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+        rels_xml = _slicer_current_text(xlsx_bytes, replacements, _relationship_part_name(sheet_path))
+        for record in _relationship_records(rels_xml).values():
+            if not record.get("Type", "").endswith("/pivotTable"):
+                continue
+            pivot_path = _resolve_relationship_target(sheet_path, record.get("Target", ""))
+            pivot_xml = _slicer_current_text(xlsx_bytes, replacements, pivot_path)
+            root = re.search(r'<(?:[\w.-]+:)?pivotTableDefinition\b([^>]*)>', pivot_xml, re.IGNORECASE)
+            if not root:
+                continue
+            attrs = _xml_attrs(root.group(1))
+            native_name = _unescape_xml(attrs.get("name", ""))
+            try:
+                cache_id = int(attrs.get("cacheId", "0") or 0)
+            except ValueError:
+                cache_id = 0
+            cache_path = cache_paths.get(cache_id, "")
+            cache_xml = _slicer_current_text(xlsx_bytes, replacements, cache_path) if cache_path else ""
+            fields: list[dict] = []
+            cache_fields = re.search(r'<(?:[\w.-]+:)?cacheFields\b[^>]*>([\s\S]*?)</(?:[\w.-]+:)?cacheFields\s*>', cache_xml, re.IGNORECASE)
+            if cache_fields:
+                for field in re.finditer(r'<(?:[\w.-]+:)?cacheField\b([^>]*)>([\s\S]*?)</(?:[\w.-]+:)?cacheField\s*>', cache_fields.group(1), re.IGNORECASE):
+                    field_attrs = _xml_attrs(field.group(1))
+                    shared = re.search(r'<(?:[\w.-]+:)?sharedItems\b[^>]*>([\s\S]*?)</(?:[\w.-]+:)?sharedItems\s*>', field.group(2), re.IGNORECASE)
+                    values: list[str] = []
+                    if shared:
+                        for value in re.finditer(r'<(?:[\w.-]+:)?(?:s|n|d|b)\b([^>]*)/?>', shared.group(1), re.IGNORECASE):
+                            raw = _xml_attrs(value.group(1)).get("v", "")
+                            values.append(_unescape_xml(raw)[:10] if "T" in raw else _unescape_xml(raw))
+                    fields.append({"name": _unescape_xml(field_attrs.get("name", "")), "values": values})
+            context = {
+                "id": app_ids_by_name.get(native_name, native_name),
+                "name": native_name,
+                "sheetName": sheet_name,
+                "sheetId": sheet_ids.get(sheet_name, 1),
+                "pivotPath": pivot_path,
+                "pivotXml": pivot_xml,
+                "cacheId": cache_id,
+                "cachePath": cache_path,
+                "cacheXml": cache_xml,
+                "fields": fields,
+            }
+            if context["id"]:
+                result[context["id"]] = context
+            if native_name:
+                result.setdefault(native_name, context)
+    return result
+
+
+def _slicer_patch_pivot_cache(cache_xml: str, cache_id: int, *, timeline: bool = False) -> str:
+    if not cache_xml or cache_id <= 0:
+        return cache_xml
+    slicer_ext = (
+        '<ext uri="{725AE2AE-9491-48BE-B2B4-4EB974FC3084}" '
+        'xmlns:x14="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main">'
+        f'<x14:pivotCacheDefinition pivotCacheId="{cache_id}"/></ext>'
+    )
+    cache_xml = _slicer_replace_extension(cache_xml, "{725AE2AE-9491-48BE-B2B4-4EB974FC3084}", slicer_ext, "pivotCacheDefinition")
+    if timeline:
+        timeline_ext = (
+            '<ext uri="{5DA0FC9A-693D-419c-AD59-312A39285967}" '
+            'xmlns:x15="http://schemas.microsoft.com/office/spreadsheetml/2010/11/main">'
+            '<x15:timelinePivotCacheDefinition timelineData="1"/></ext>'
+        )
+        cache_xml = _slicer_replace_extension(cache_xml, "{5DA0FC9A-693D-419c-AD59-312A39285967}", timeline_ext, "pivotCacheDefinition")
+    return cache_xml
+
+
+def _slicer_patch_pivot_field(pivot_xml: str, field_index: int, selected_indexes: set[int]) -> str:
+    fields = re.search(r'<(?:[\w.-]+:)?pivotFields\b[^>]*>([\s\S]*?)</(?:[\w.-]+:)?pivotFields\s*>', pivot_xml, re.IGNORECASE)
+    if not fields:
+        return pivot_xml
+    matches = list(re.finditer(r'<(?:[\w.-]+:)?pivotField\b([^>]*)>([\s\S]*?)</(?:[\w.-]+:)?pivotField\s*>', fields.group(1), re.IGNORECASE))
+    if field_index < 0 or field_index >= len(matches):
+        return pivot_xml
+    field = matches[field_index]
+    opening = re.match(r'<(?:[\w.-]+:)?pivotField\b([^>]*)>', field.group(0), re.IGNORECASE)
+    if not opening:
+        return pivot_xml
+    attrs = re.sub(r'\s+multipleItemSelectionAllowed=["\'][^"\']*["\']', "", opening.group(1), flags=re.IGNORECASE)
+    patched = f'<pivotField{attrs} multipleItemSelectionAllowed="1">' + field.group(0)[opening.end():]
+
+    def patch_item(match) -> str:
+        item_attrs = match.group(1)
+        attrs_map = _xml_attrs(item_attrs)
+        if not str(attrs_map.get("x", "")).isdigit():
+            return match.group(0)
+        item_attrs = re.sub(r'\s+h=["\'][^"\']*["\']', "", item_attrs, flags=re.IGNORECASE)
+        hidden = int(attrs_map["x"]) not in selected_indexes
+        return f'<item{item_attrs}{" h=\"1\"" if hidden else ""}/>'
+
+    patched = re.sub(r'<(?:[\w.-]+:)?item\b([^>]*)/>', patch_item, patched, flags=re.IGNORECASE)
+    absolute_start = fields.start(1) + field.start()
+    absolute_end = fields.start(1) + field.end()
+    return pivot_xml[:absolute_start] + patched + pivot_xml[absolute_end:]
+
+
+def _slicer_builtin_style(item: dict, *, timeline: bool = False) -> str:
+    prefix = "TimelineStyle" if timeline else "SlicerStyle"
+    suffix = {"green": "Light6", "light": "Light1", "dark": "Dark1"}.get(item.get("style"), "Light6")
+    return prefix + suffix
+
+
 def _slicer_drawing_anchor(item: dict, drawing_id: int) -> str:
     left = max(0.0, float(item.get("left", 24) or 24))
     top = max(0.0, float(item.get("top", 24) or 24))
@@ -7285,13 +7409,25 @@ def _slicer_drawing_anchor(item: dict, drawing_id: int) -> str:
     to_col, to_x = divmod(x + cx, 64 * 9525)
     to_row, to_y = divmod(y + cy, 20 * 9525)
     name = _escape_xml(str(item.get("name", f"Slicer{drawing_id}")))
-    message = "This shape represents a table slicer. Table slicers require a compatible spreadsheet application."
+    is_timeline = item.get("kind") == "timeline"
+    message = "This shape represents a timeline." if is_timeline else "This shape represents a slicer."
+    graphic_uri = "http://schemas.microsoft.com/office/drawing/2012/timeline" if is_timeline else "http://schemas.microsoft.com/office/drawing/2010/slicer"
+    graphic = (
+        f'<tl:timeline xmlns:tl="http://schemas.microsoft.com/office/drawing/2012/timeline" name="{name}"/>'
+        if is_timeline else
+        f'<sle:slicer xmlns:sle="http://schemas.microsoft.com/office/drawing/2010/slicer" name="{name}"/>'
+    )
+    choice_namespace = (
+        'xmlns:tl="http://schemas.microsoft.com/office/drawing/2012/timeline" Requires="tl"'
+        if is_timeline else
+        'xmlns:sle15="http://schemas.microsoft.com/office/drawing/2012/slicer" Requires="sle15"'
+    )
     return (
         '<xdr:twoCellAnchor editAs="absolute">'
         f'<xdr:from><xdr:col>{from_col}</xdr:col><xdr:colOff>{from_x}</xdr:colOff><xdr:row>{from_row}</xdr:row><xdr:rowOff>{from_y}</xdr:rowOff></xdr:from>'
         f'<xdr:to><xdr:col>{to_col}</xdr:col><xdr:colOff>{to_x}</xdr:colOff><xdr:row>{to_row}</xdr:row><xdr:rowOff>{to_y}</xdr:rowOff></xdr:to>'
-        '<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Choice xmlns:sle15="http://schemas.microsoft.com/office/drawing/2012/slicer" Requires="sle15">'
-        f'<xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="{drawing_id}" name="{name}"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm><a:graphic><a:graphicData uri="http://schemas.microsoft.com/office/drawing/2010/slicer"><sle:slicer xmlns:sle="http://schemas.microsoft.com/office/drawing/2010/slicer" name="{name}"/></a:graphicData></a:graphic></xdr:graphicFrame>'
+        f'<mc:AlternateContent xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"><mc:Choice {choice_namespace}>'
+        f'<xdr:graphicFrame macro=""><xdr:nvGraphicFramePr><xdr:cNvPr id="{drawing_id}" name="{name}"/><xdr:cNvGraphicFramePr/></xdr:nvGraphicFramePr><xdr:xfrm><a:off x="0" y="0"/><a:ext cx="0" cy="0"/></xdr:xfrm><a:graphic><a:graphicData uri="{graphic_uri}">{graphic}</a:graphicData></a:graphic></xdr:graphicFrame>'
         '</mc:Choice><mc:Fallback><xdr:sp macro="" textlink=""><xdr:nvSpPr><xdr:cNvPr id="0" name=""/><xdr:cNvSpPr><a:spLocks noTextEdit="1"/></xdr:cNvSpPr></xdr:nvSpPr>'
         f'<xdr:spPr><a:xfrm><a:off x="{x}" y="{y}"/><a:ext cx="{cx}" cy="{cy}"/></a:xfrm><a:prstGeom prst="rect"><a:avLst/></a:prstGeom><a:solidFill><a:prstClr val="white"/></a:solidFill><a:ln w="1"><a:solidFill><a:prstClr val="green"/></a:solidFill></a:ln></xdr:spPr><xdr:txBody><a:bodyPr/><a:lstStyle/><a:p><a:r><a:rPr lang="en-US" sz="1100"/><a:t>{message}</a:t></a:r></a:p></xdr:txBody></xdr:sp></mc:Fallback></mc:AlternateContent><xdr:clientData/></xdr:twoCellAnchor>'
     )
@@ -7304,7 +7440,7 @@ def _strip_slicer_drawing_anchors(drawing_xml: str) -> str:
         re.IGNORECASE,
     )
     return anchor_pattern.sub(
-        lambda match: "" if "drawing/2010/slicer" in match.group(0) else match.group(0),
+        lambda match: "" if ("drawing/2010/slicer" in match.group(0) or "drawing/2012/timeline" in match.group(0)) else match.group(0),
         drawing_xml,
     )
 
@@ -7314,6 +7450,7 @@ def _apply_sheet_slicers_to_xlsx(xlsx_bytes: bytes, source_fods: str | None, rep
     if not slicers_by_sheet:
         return
     sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+    pivot_context = _slicer_pivot_context(xlsx_bytes, replacements, source_fods)
     package_names: set[str] = set()
     try:
         with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
@@ -7321,17 +7458,20 @@ def _apply_sheet_slicers_to_xlsx(xlsx_bytes: bytes, source_fods: str | None, rep
     except zipfile.BadZipFile:
         return
     for name in package_names:
-        if name.startswith("xl/slicers/") or name.startswith("xl/slicerCaches/"):
+        if name.startswith(("xl/slicers/", "xl/slicerCaches/", "xl/timelines/", "xl/timelineCaches/")):
             replacements[name] = None
 
     content_types = _slicer_current_text(xlsx_bytes, replacements, "[Content_Types].xml")
-    content_types = re.sub(r'<Override\b(?=[^>]*\bPartName=["\']/xl/(?:slicers|slicerCaches)/)[^>]*/>', "", content_types, flags=re.IGNORECASE)
+    content_types = re.sub(r'<Override\b(?=[^>]*\bPartName=["\']/xl/(?:slicers|slicerCaches|timelines|timelineCaches)/)[^>]*/>', "", content_types, flags=re.IGNORECASE)
     workbook_xml = _slicer_current_text(xlsx_bytes, replacements, XLSX_WORKBOOK_ENTRY)
     workbook_rels = _slicer_current_text(xlsx_bytes, replacements, XLSX_WORKBOOK_RELS_ENTRY)
     workbook_rels = _slicer_remove_relationship_type(workbook_rels, "slicerCache")
+    workbook_rels = _slicer_remove_relationship_type(workbook_rels, "TimelineCache")
     workbook_xml = re.sub(r'<(?:[\w.-]+:)?definedName\b(?=[^>]*\bname=["\']Slicer_[^"\']*["\'])[^>]*>[\s\S]*?</(?:[\w.-]+:)?definedName\s*>', "", workbook_xml, flags=re.IGNORECASE)
+    workbook_xml = re.sub(r'<(?:[\w.-]+:)?definedName\b(?=[^>]*\bname=["\']Timeline_[^"\']*["\'])[^>]*>[\s\S]*?</(?:[\w.-]+:)?definedName\s*>', "", workbook_xml, flags=re.IGNORECASE)
 
     caches: list[tuple[str, str]] = []
+    timeline_caches: list[tuple[str, str]] = []
     defined_names: list[str] = []
     cache_index = 0
     slicer_part_index = 0
@@ -7340,7 +7480,7 @@ def _apply_sheet_slicers_to_xlsx(xlsx_bytes: bytes, source_fods: str | None, rep
     next_drawing = max(drawing_parts, default=0) + 1
 
     for sheet_name, raw_items in slicers_by_sheet.items():
-        items = [item for item in raw_items if isinstance(item, dict) and item.get("tableName") and item.get("name")]
+        items = [item for item in raw_items if isinstance(item, dict) and item.get("name")]
         sheet_path = _sheet_name_equivalent_value(sheet_entries, sheet_name)
         if sheet_path is None:
             continue
@@ -7350,6 +7490,7 @@ def _apply_sheet_slicers_to_xlsx(xlsx_bytes: bytes, source_fods: str | None, rep
         if not sheet_rels:
             sheet_rels = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"></Relationships>'
         sheet_rels = _slicer_remove_relationship_type(sheet_rels, "slicer")
+        sheet_rels = _slicer_remove_relationship_type(sheet_rels, "Timeline")
 
         table_parts: dict[str, dict] = {}
         drawing_path = ""
@@ -7368,8 +7509,11 @@ def _apply_sheet_slicers_to_xlsx(xlsx_bytes: bytes, source_fods: str | None, rep
             elif record.get("Type", "").endswith("/drawing"):
                 drawing_path = target
 
-        valid: list[tuple[dict, dict, str]] = []
+        valid: list[tuple[dict, str]] = []
+        valid_timelines: list[tuple[dict, str]] = []
         for item in items:
+            if item.get("sourceType") == "pivot" or item.get("pivotId"):
+                continue
             table = table_parts.get(str(item.get("tableName", "")))
             if not table:
                 continue
@@ -7394,29 +7538,141 @@ def _apply_sheet_slicers_to_xlsx(xlsx_bytes: bytes, source_fods: str | None, rep
             defined_names.append(cache_name)
             column_index = max(0, int(item.get("columnIndex", 0) or 0))
             table["xml"] = _slicer_table_filter(table["xml"], column_index, [str(value) for value in item.get("selectedValues", [])])
-            valid.append((item, table, cache_name))
+            valid.append((item, cache_name))
+
+        for item in items:
+            if not (item.get("sourceType") == "pivot" or item.get("pivotId")):
+                continue
+            base_pivot = pivot_context.get(str(item.get("pivotId", "")))
+            if not base_pivot or not base_pivot.get("cachePath") or base_pivot.get("cacheId", 0) <= 0:
+                continue
+            field_name = str(item.get("fieldName") or item.get("columnName") or item.get("caption") or "")
+            field_index = next((index for index, field in enumerate(base_pivot.get("fields", [])) if field.get("name") == field_name), -1)
+            if field_index < 0:
+                continue
+            connections: list[dict] = []
+            for pivot_id in item.get("connectedPivotIds") or [item.get("pivotId")]:
+                context = pivot_context.get(str(pivot_id))
+                if context and context not in connections:
+                    connections.append(context)
+            if base_pivot not in connections:
+                connections.insert(0, base_pivot)
+            pivot_tags = "".join(
+                f'<pivotTable tabId="{context["sheetId"]}" name="{_escape_xml(context["name"])}"/>'
+                for context in connections
+            )
+            cache_index += 1
+            prefix = "Timeline" if item.get("kind") == "timeline" else "Slicer"
+            base = re.sub(r'[^A-Za-z0-9_]', '_', f'{prefix}_{field_name or cache_index}') or f"{prefix}_{cache_index}"
+            cache_name = base
+            suffix = 2
+            while cache_name.lower() in used_cache_names:
+                cache_name = f"{base}_{suffix}"
+                suffix += 1
+            used_cache_names.add(cache_name.lower())
+            defined_names.append(cache_name)
+
+            values = base_pivot["fields"][field_index].get("values", [])
+            if item.get("kind") == "timeline":
+                date_values = [str(value)[:10] for value in values if re.match(r'^\d{4}-\d{2}-\d{2}', str(value))]
+                if not date_values:
+                    continue
+                bounds_start, bounds_end = min(date_values), max(date_values)
+                start = str(item.get("startDate") or "")[:10]
+                end = str(item.get("endDate") or "")[:10]
+                selected_indexes = {
+                    index for index, value in enumerate(values)
+                    if (not start or str(value)[:10] >= start) and (not end or str(value)[:10] <= end)
+                }
+                selection = (
+                    f'<selection startDate="{_escape_xml(start or bounds_start)}T00:00:00" endDate="{_escape_xml(end or bounds_end)}T00:00:00"/>'
+                    if start or end else ""
+                )
+                filter_type = "dateBetween" if selection else "unknown"
+                cache_path = f"xl/timelineCaches/timelineCache{len(timeline_caches) + 1}.xml"
+                cache_xml = (
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                    '<timelineCacheDefinition xmlns="http://schemas.microsoft.com/office/spreadsheetml/2010/11/main" '
+                    f'name="{_escape_xml(cache_name)}" sourceName="{_escape_xml(field_name)}">'
+                    f'<pivotTables>{pivot_tags}</pivotTables><state minimalRefreshVersion="3" lastRefreshVersion="6" pivotCacheId="{base_pivot["cacheId"]}" filterType="{filter_type}">'
+                    f'{selection}<bounds startDate="{bounds_start}T00:00:00" endDate="{bounds_end}T00:00:00"/></state></timelineCacheDefinition>'
+                )
+                replacements[cache_path] = cache_xml
+                content_types = _slicer_content_type_override(content_types, cache_path, "application/vnd.ms-excel.TimelineCache+xml")
+                workbook_rels, cache_rid = _slicer_add_relationship(workbook_rels, "http://schemas.microsoft.com/office/2010/relationships/TimelineCache", f"timelineCaches/{posixpath.basename(cache_path)}")
+                timeline_caches.append((cache_rid, cache_name))
+                valid_timelines.append((item, cache_name))
+                for context in connections:
+                    context["cacheXml"] = _slicer_patch_pivot_cache(context["cacheXml"], context["cacheId"], timeline=True)
+                    context["pivotXml"] = _slicer_patch_pivot_field(context["pivotXml"], field_index, selected_indexes)
+            else:
+                selected = {str(value) for value in item.get("selectedValues", [])}
+                selected_indexes = {index for index, value in enumerate(values) if not selected or str(value) in selected}
+                item_tags = "".join(
+                    f'<i x="{index}" s="{1 if index in selected_indexes else 0}"/>' for index in range(len(values))
+                )
+                cache_path = f"xl/slicerCaches/slicerCache{cache_index}.xml"
+                cache_xml = (
+                    '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                    '<slicerCacheDefinition xmlns="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main" '
+                    f'name="{_escape_xml(cache_name)}" sourceName="{_escape_xml(field_name)}">'
+                    f'<pivotTables>{pivot_tags}</pivotTables><data><tabular pivotCacheId="{base_pivot["cacheId"]}"><items count="{len(values)}">{item_tags}</items></tabular></data>'
+                    '</slicerCacheDefinition>'
+                )
+                replacements[cache_path] = cache_xml
+                content_types = _slicer_content_type_override(content_types, cache_path, "application/vnd.ms-excel.slicerCache+xml")
+                workbook_rels, cache_rid = _slicer_add_relationship(workbook_rels, "http://schemas.microsoft.com/office/2007/relationships/slicerCache", f"slicerCaches/{posixpath.basename(cache_path)}")
+                caches.append((cache_rid, cache_name))
+                valid.append((item, cache_name))
+                for context in connections:
+                    context["cacheXml"] = _slicer_patch_pivot_cache(context["cacheXml"], context["cacheId"])
+                    context["pivotXml"] = _slicer_patch_pivot_field(context["pivotXml"], field_index, selected_indexes)
 
         for table in table_parts.values():
             replacements[table["path"]] = table["xml"]
-        if not valid:
+        for context in {id(value): value for value in pivot_context.values()}.values():
+            if context.get("cachePath") and context.get("cacheXml"):
+                replacements[context["cachePath"]] = context["cacheXml"]
+            if context.get("pivotPath") and context.get("pivotXml"):
+                replacements[context["pivotPath"]] = context["pivotXml"]
+        if not valid and not valid_timelines:
             if drawing_path:
                 drawing_xml = _slicer_current_text(xlsx_bytes, replacements, drawing_path)
                 replacements[drawing_path] = _strip_slicer_drawing_anchors(drawing_xml)
             replacements[sheet_path] = _slicer_replace_extension(sheet_xml, "{3A4CF648-6AED-40f4-86FF-DC5316D8AED3}", "", "worksheet")
+            replacements[sheet_path] = _slicer_replace_extension(str(replacements[sheet_path]), "{7E03D99C-DC04-49d9-9315-930204A7B6E9}", "", "worksheet")
             replacements[rels_path] = sheet_rels
             continue
 
-        slicer_part_index += 1
-        slicer_path = f"xl/slicers/slicer{slicer_part_index}.xml"
-        children = "".join(
-            f'<slicer name="{_escape_xml(str(item.get("name")))}" cache="{_escape_xml(cache_name)}" caption="{_escape_xml(str(item.get("caption") or item.get("columnName") or ""))}" columnCount="{max(1, int(item.get("numberOfColumns", 1) or 1))}" rowHeight="241300"/>'
-            for item, _table, cache_name in valid
-        )
-        replacements[slicer_path] = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><slicers xmlns="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main" xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006" mc:Ignorable="x" xmlns:x="http://schemas.openxmlformats.org/spreadsheetml/2006/main">' + children + '</slicers>'
-        content_types = _slicer_content_type_override(content_types, slicer_path, "application/vnd.ms-excel.slicer+xml")
-        sheet_rels, slicer_rid = _slicer_add_relationship(sheet_rels, "http://schemas.microsoft.com/office/2007/relationships/slicer", f"../slicers/slicer{slicer_part_index}.xml")
-        extension = f'<ext uri="{{3A4CF648-6AED-40f4-86FF-DC5316D8AED3}}" xmlns:x15="http://schemas.microsoft.com/office/spreadsheetml/2010/11/main"><x14:slicerList xmlns:x14="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main"><x14:slicer r:id="{slicer_rid}"/></x14:slicerList></ext>'
-        sheet_xml = _slicer_replace_extension(sheet_xml, "{3A4CF648-6AED-40f4-86FF-DC5316D8AED3}", extension, "worksheet")
+        if valid:
+            slicer_part_index += 1
+            slicer_path = f"xl/slicers/slicer{slicer_part_index}.xml"
+            children = "".join(
+                f'<slicer name="{_escape_xml(str(item.get("name")))}" cache="{_escape_xml(cache_name)}" caption="{_escape_xml(str(item.get("caption") or item.get("fieldName") or item.get("columnName") or ""))}" columnCount="{max(1, int(item.get("numberOfColumns", 1) or 1))}" style="{_slicer_builtin_style(item)}" rowHeight="{max(20, int(item.get("buttonHeight", 28) or 28)) * 9525}"/>'
+                for item, cache_name in valid
+            )
+            replacements[slicer_path] = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><slicers xmlns="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main">' + children + '</slicers>'
+            content_types = _slicer_content_type_override(content_types, slicer_path, "application/vnd.ms-excel.slicer+xml")
+            sheet_rels, slicer_rid = _slicer_add_relationship(sheet_rels, "http://schemas.microsoft.com/office/2007/relationships/slicer", f"../slicers/{posixpath.basename(slicer_path)}")
+            extension = f'<ext uri="{{3A4CF648-6AED-40f4-86FF-DC5316D8AED3}}"><x14:slicerList xmlns:x14="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main"><x14:slicer r:id="{slicer_rid}"/></x14:slicerList></ext>'
+            sheet_xml = _slicer_replace_extension(sheet_xml, "{3A4CF648-6AED-40f4-86FF-DC5316D8AED3}", extension, "worksheet")
+        else:
+            sheet_xml = _slicer_replace_extension(sheet_xml, "{3A4CF648-6AED-40f4-86FF-DC5316D8AED3}", "", "worksheet")
+
+        if valid_timelines:
+            timeline_path = f"xl/timelines/timeline{len(timeline_caches)}.xml"
+            levels = {"years": 0, "quarters": 1, "months": 2, "days": 3}
+            children = "".join(
+                f'<timeline name="{_escape_xml(str(item.get("name")))}" cache="{_escape_xml(cache_name)}" caption="{_escape_xml(str(item.get("caption") or item.get("fieldName") or ""))}" level="{levels.get(item.get("granularity"), 2)}" selectionLevel="{levels.get(item.get("granularity"), 2)}" style="{_slicer_builtin_style(item, timeline=True)}"/>'
+                for item, cache_name in valid_timelines
+            )
+            replacements[timeline_path] = '<?xml version="1.0" encoding="UTF-8" standalone="yes"?><timelines xmlns="http://schemas.microsoft.com/office/spreadsheetml/2010/11/main">' + children + '</timelines>'
+            content_types = _slicer_content_type_override(content_types, timeline_path, "application/vnd.ms-excel.Timeline+xml")
+            sheet_rels, timeline_rid = _slicer_add_relationship(sheet_rels, "http://schemas.microsoft.com/office/2010/relationships/Timeline", f"../timelines/{posixpath.basename(timeline_path)}")
+            extension = f'<ext uri="{{7E03D99C-DC04-49d9-9315-930204A7B6E9}}"><x15:timelineRefs xmlns:x15="http://schemas.microsoft.com/office/spreadsheetml/2010/11/main"><x15:timelineRef r:id="{timeline_rid}"/></x15:timelineRefs></ext>'
+            sheet_xml = _slicer_replace_extension(sheet_xml, "{7E03D99C-DC04-49d9-9315-930204A7B6E9}", extension, "worksheet")
+        else:
+            sheet_xml = _slicer_replace_extension(sheet_xml, "{7E03D99C-DC04-49d9-9315-930204A7B6E9}", "", "worksheet")
 
         if not drawing_path:
             drawing_path = f"xl/drawings/drawing{next_drawing}.xml"
@@ -7432,7 +7688,8 @@ def _apply_sheet_slicers_to_xlsx(xlsx_bytes: bytes, source_fods: str | None, rep
             drawing_xml = _slicer_current_text(xlsx_bytes, replacements, drawing_path)
         drawing_xml = _strip_slicer_drawing_anchors(drawing_xml)
         max_id = max([int(value) for value in re.findall(r'<xdr:cNvPr\b[^>]*\bid=["\'](\d+)["\']', drawing_xml, re.IGNORECASE)] or [1])
-        anchors = "".join(_slicer_drawing_anchor(item, max_id + index + 1) for index, (item, _table, _cache) in enumerate(valid))
+        drawing_items = [item for item, _cache in valid] + [item for item, _cache in valid_timelines]
+        anchors = "".join(_slicer_drawing_anchor(item, max_id + index + 1) for index, item in enumerate(drawing_items))
         close = drawing_xml.rfind("</xdr:wsDr>")
         if close >= 0:
             drawing_xml = drawing_xml[:close] + anchors + drawing_xml[close:]
@@ -7443,6 +7700,9 @@ def _apply_sheet_slicers_to_xlsx(xlsx_bytes: bytes, source_fods: str | None, rep
     cache_refs = "".join(f'<x14:slicerCache r:id="{rid}"/>' for rid, _name in caches)
     workbook_extension = f'<ext uri="{{46BE6895-7355-4a93-B00E-2C351335B9C9}}" xmlns:x15="http://schemas.microsoft.com/office/spreadsheetml/2010/11/main"><x15:slicerCaches xmlns:x14="http://schemas.microsoft.com/office/spreadsheetml/2009/9/main">{cache_refs}</x15:slicerCaches></ext>' if cache_refs else ""
     workbook_xml = _slicer_replace_extension(workbook_xml, "{46BE6895-7355-4a93-B00E-2C351335B9C9}", workbook_extension, "workbook")
+    timeline_refs = "".join(f'<x15:timelineCacheRef r:id="{rid}"/>' for rid, _name in timeline_caches)
+    timeline_extension = f'<ext uri="{{D0CA8CA8-9F24-4464-BF8E-62219DCF47F9}}"><x15:timelineCacheRefs xmlns:x15="http://schemas.microsoft.com/office/spreadsheetml/2010/11/main">{timeline_refs}</x15:timelineCacheRefs></ext>' if timeline_refs else ""
+    workbook_xml = _slicer_replace_extension(workbook_xml, "{D0CA8CA8-9F24-4464-BF8E-62219DCF47F9}", timeline_extension, "workbook")
     if defined_names:
         entries = "".join(f'<definedName name="{_escape_xml(name)}">#N/A</definedName>' for name in defined_names)
         names = re.search(r'<(?:[\w.-]+:)?definedNames\b[^>]*>([\s\S]*?)</(?:[\w.-]+:)?definedNames\s*>', workbook_xml, re.IGNORECASE)
@@ -11594,34 +11854,91 @@ def normalize_source_xlsx(xlsx_bytes: bytes | None) -> bytes | None:
         return xlsx_bytes
 
 
-def _xlsx_table_slicer_metadata(xlsx_bytes: bytes) -> dict[str, list[dict]]:
-    """Read table slicers from an XLSX package into the app's portable model."""
+def _xlsx_table_slicer_metadata(xlsx_bytes: bytes, source_fods: str | None = None) -> dict[str, list[dict]]:
+    """Read table/Pivot slicers and timelines into the app's portable model."""
     result: dict[str, list[dict]] = {}
     try:
         with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
             sheet_entries = _resolve_xlsx_sheet_entries(xlsx_bytes)
+            pivot_context = _slicer_pivot_context(xlsx_bytes, {}, source_fods)
+            pivots_by_name = {value.get("name"): value for value in pivot_context.values() if value.get("name")}
             workbook_rels = _relationship_records((read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_RELS_ENTRY) or b"").decode("utf-8", errors="replace"))
             caches: dict[str, dict] = {}
+            timeline_caches: dict[str, dict] = {}
             for record in workbook_rels.values():
-                if not record.get("Type", "").endswith("/slicerCache"):
+                rel_type = record.get("Type", "")
+                if not (rel_type.endswith("/slicerCache") or rel_type.endswith("/TimelineCache")):
                     continue
                 cache_path = _resolve_relationship_target(XLSX_WORKBOOK_ENTRY, record.get("Target", ""))
                 try:
                     cache_xml = package.read(cache_path).decode("utf-8", errors="replace")
                 except KeyError:
                     continue
+                if rel_type.endswith("/TimelineCache"):
+                    root = re.search(r"<(?:[\w.-]+:)?timelineCacheDefinition\b([^>]*)>", cache_xml, re.IGNORECASE)
+                    state = re.search(r"<(?:[\w.-]+:)?state\b([^>]*)>([\s\S]*?)</(?:[\w.-]+:)?state\s*>", cache_xml, re.IGNORECASE)
+                    if not root or not state:
+                        continue
+                    attrs = _xml_attrs(root.group(1))
+                    state_attrs = _xml_attrs(state.group(1))
+                    selection = re.search(r"<(?:[\w.-]+:)?selection\b([^>]*)/?>", state.group(2), re.IGNORECASE)
+                    connections = []
+                    for pivot in re.finditer(r"<(?:[\w.-]+:)?pivotTable\b([^>]*)/?>", cache_xml, re.IGNORECASE):
+                        native_name = _unescape_xml(_xml_attrs(pivot.group(1)).get("name", ""))
+                        if native_name in pivots_by_name:
+                            connections.append(pivots_by_name[native_name].get("id", native_name))
+                    cache_name = _unescape_xml(attrs.get("name", ""))
+                    if cache_name:
+                        timeline_caches[cache_name] = {
+                            "sourceName": _unescape_xml(attrs.get("sourceName", "")),
+                            "pivotId": connections[0] if connections else "",
+                            "connectedPivotIds": connections,
+                            "startDate": (_xml_attrs(selection.group(1)).get("startDate", "")[:10] if selection else ""),
+                            "endDate": (_xml_attrs(selection.group(1)).get("endDate", "")[:10] if selection else ""),
+                            "pivotCacheId": int(state_attrs.get("pivotCacheId", "0") or 0),
+                        }
+                    continue
                 root = re.search(r"<(?:[\w.-]+:)?slicerCacheDefinition\b([^>]*)>", cache_xml, re.IGNORECASE)
                 table_cache = re.search(r"<(?:[\w.-]+:)?tableSlicerCache\b([^>]*)/?>", cache_xml, re.IGNORECASE)
-                if not root or not table_cache:
+                if not root:
                     continue
                 attrs = _xml_attrs(root.group(1))
-                table_attrs = _xml_attrs(table_cache.group(1))
                 cache_name = _unescape_xml(attrs.get("name", ""))
-                if cache_name:
+                if cache_name and table_cache:
+                    table_attrs = _xml_attrs(table_cache.group(1))
                     caches[cache_name] = {
+                        "sourceType": "table",
                         "sourceName": _unescape_xml(attrs.get("sourceName", "")),
                         "tableId": int(table_attrs.get("tableId", "0") or 0),
                         "column": max(0, int(table_attrs.get("column", "1") or 1) - 1),
+                    }
+                elif cache_name:
+                    tabular = re.search(r"<(?:[\w.-]+:)?tabular\b([^>]*)>([\s\S]*?)</(?:[\w.-]+:)?tabular\s*>", cache_xml, re.IGNORECASE)
+                    connections = []
+                    for pivot in re.finditer(r"<(?:[\w.-]+:)?pivotTable\b([^>]*)/?>", cache_xml, re.IGNORECASE):
+                        native_name = _unescape_xml(_xml_attrs(pivot.group(1)).get("name", ""))
+                        if native_name in pivots_by_name:
+                            connections.append(pivots_by_name[native_name].get("id", native_name))
+                    selected_indexes = []
+                    pivot_cache_id = 0
+                    if tabular:
+                        pivot_cache_id = int(_xml_attrs(tabular.group(1)).get("pivotCacheId", "0") or 0)
+                        for cache_item in re.finditer(r"<(?:[\w.-]+:)?i\b([^>]*)/?>", tabular.group(2), re.IGNORECASE):
+                            item_attrs = _xml_attrs(cache_item.group(1))
+                            if str(item_attrs.get("x", "")).isdigit() and str(item_attrs.get("s", "false")).lower() in {"1", "true"}:
+                                selected_indexes.append(int(item_attrs["x"]))
+                    field_name = _unescape_xml(attrs.get("sourceName", ""))
+                    context = next((value for value in pivot_context.values() if value.get("cacheId") == pivot_cache_id), None)
+                    field = next((value for value in (context or {}).get("fields", []) if value.get("name") == field_name), {})
+                    values = field.get("values", [])
+                    selected_values = [values[index] for index in selected_indexes if index < len(values)]
+                    if values and len(selected_values) == len(values):
+                        selected_values = []
+                    caches[cache_name] = {
+                        "sourceType": "pivot", "sourceName": field_name,
+                        "pivotId": connections[0] if connections else "",
+                        "connectedPivotIds": connections,
+                        "selectedValues": selected_values,
                     }
 
             for sheet_name, sheet_path in sheet_entries.items():
@@ -11663,7 +11980,7 @@ def _xlsx_table_slicer_metadata(xlsx_bytes: bytes) -> dict[str, list[dict]]:
 
                 geometry: dict[str, dict[str, float]] = {}
                 for anchor in re.findall(r"<(?:xdr:)?(?:twoCellAnchor|oneCellAnchor|absoluteAnchor)\b[\s\S]*?</(?:xdr:)?(?:twoCellAnchor|oneCellAnchor|absoluteAnchor)\s*>", drawing_xml, re.IGNORECASE):
-                    if "drawing/2010/slicer" not in anchor:
+                    if "drawing/2010/slicer" not in anchor and "drawing/2012/timeline" not in anchor:
                         continue
                     name = re.search(r'<(?:xdr:)?cNvPr\b[^>]*\bname=["\']([^"\']+)["\']', anchor, re.IGNORECASE)
                     transforms = list(re.finditer(r'<a:xfrm\b[^>]*>[\s\S]*?<a:off\b[^>]*\bx=["\'](\d+)["\'][^>]*\by=["\'](\d+)["\'][^>]*/>[\s\S]*?<a:ext\b[^>]*\bcx=["\'](\d+)["\'][^>]*\bcy=["\'](\d+)["\'][^>]*/>', anchor, re.IGNORECASE))
@@ -11690,26 +12007,63 @@ def _xlsx_table_slicer_metadata(xlsx_bytes: bytes) -> dict[str, list[dict]]:
                         slicer_name = _unescape_xml(attrs.get("name", ""))
                         cache_name = _unescape_xml(attrs.get("cache", ""))
                         cache = caches.get(cache_name)
-                        table = tables_by_id.get(cache.get("tableId", 0)) if cache else None
-                        if not slicer_name or not cache or not table:
+                        table = tables_by_id.get(cache.get("tableId", 0)) if cache and cache.get("sourceType") == "table" else None
+                        if not slicer_name or not cache or (cache.get("sourceType") == "table" and not table):
                             continue
                         item = {
                             "id": f"ooxml:{cache_name}:{slicer_name}",
                             "name": slicer_name,
                             "caption": _unescape_xml(attrs.get("caption") or cache.get("sourceName", "")),
-                            "tableName": table.get("name", ""),
+                            "sourceType": cache.get("sourceType", "table"),
+                            "kind": "slicer",
+                            "tableName": table.get("name", "") if table else "",
                             "columnName": cache.get("sourceName", ""),
+                            "fieldName": cache.get("sourceName", ""),
                             "columnIndex": cache.get("column", 0),
+                            "pivotId": cache.get("pivotId", ""),
+                            "connectedPivotIds": cache.get("connectedPivotIds", []),
                             "left": 24,
                             "top": 24,
                             "width": 180,
                             "height": 220,
                             "numberOfColumns": max(1, int(attrs.get("columnCount", "1") or 1)),
+                            "buttonHeight": max(20, round(int(attrs.get("rowHeight", "266700") or 266700) / 9525)),
+                            "style": "dark" if "Dark" in attrs.get("style", "") else ("light" if attrs.get("style") == "SlicerStyleLight1" else "green"),
                             "multiSelect": False,
-                            "selectedValues": table.get("filters", {}).get(cache.get("column", 0), []),
+                            "selectedValues": (table.get("filters", {}).get(cache.get("column", 0), []) if table else cache.get("selectedValues", [])),
                             "anchorValue": None,
                         }
                         item.update(geometry.get(slicer_name, {}))
+                        sheet_slicers.append(item)
+                for record in rels.values():
+                    if not record.get("Type", "").endswith("/Timeline"):
+                        continue
+                    timeline_path = _resolve_relationship_target(sheet_path, record.get("Target", ""))
+                    try:
+                        timeline_xml = package.read(timeline_path).decode("utf-8", errors="replace")
+                    except KeyError:
+                        continue
+                    for match in re.finditer(r"<(?:[\w.-]+:)?timeline\b([^>]*)/?>", timeline_xml, re.IGNORECASE):
+                        attrs = _xml_attrs(match.group(1))
+                        timeline_name = _unescape_xml(attrs.get("name", ""))
+                        cache_name = _unescape_xml(attrs.get("cache", ""))
+                        cache = timeline_caches.get(cache_name)
+                        if not timeline_name or not cache:
+                            continue
+                        levels = {"0": "years", "1": "quarters", "2": "months", "3": "days"}
+                        item = {
+                            "id": f"ooxml:{cache_name}:{timeline_name}", "name": timeline_name,
+                            "caption": _unescape_xml(attrs.get("caption") or cache.get("sourceName", "")),
+                            "sourceType": "pivot", "kind": "timeline", "tableName": "", "columnName": cache.get("sourceName", ""),
+                            "fieldName": cache.get("sourceName", ""), "columnIndex": 0,
+                            "pivotId": cache.get("pivotId", ""), "connectedPivotIds": cache.get("connectedPivotIds", []),
+                            "left": 24, "top": 24, "width": 320, "height": 150,
+                            "numberOfColumns": 1, "multiSelect": False, "selectedValues": [], "anchorValue": None,
+                            "granularity": levels.get(attrs.get("level", "2"), "months"),
+                            "startDate": cache.get("startDate", ""), "endDate": cache.get("endDate", ""),
+                            "style": "dark" if "Dark" in attrs.get("style", "") else ("light" if attrs.get("style") == "TimelineStyleLight1" else "green"),
+                        }
+                        item.update(geometry.get(timeline_name, {}))
                         sheet_slicers.append(item)
                 if sheet_slicers:
                     result[sheet_name] = sheet_slicers
@@ -11719,7 +12073,20 @@ def _xlsx_table_slicer_metadata(xlsx_bytes: bytes) -> dict[str, list[dict]]:
 
 
 def _overlay_sheet_slicers_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
-    slicers_by_sheet = _xlsx_table_slicer_metadata(xlsx_bytes)
+    pivot_index = 0
+
+    def add_pivot_id(match) -> str:
+        nonlocal pivot_index
+        pivot_index += 1
+        attrs = match.group(1) or ""
+        if re.search(r'\bvno:pivot-id=["\']', attrs, re.IGNORECASE):
+            return match.group(0)
+        self_closing = attrs.rstrip().endswith("/")
+        attrs = re.sub(r'/\s*$', "", attrs)
+        return f'<table:data-pilot-table{attrs} vno:pivot-id="pivot-import-{pivot_index}"{"/" if self_closing else ""}>'
+
+    pivot_fods = re.sub(r'<table:data-pilot-table\b([^>]*)>', add_pivot_id, fods_xml or "", flags=re.IGNORECASE)
+    slicers_by_sheet = _xlsx_table_slicer_metadata(xlsx_bytes, pivot_fods)
     if not slicers_by_sheet:
         return fods_xml
 
@@ -11734,7 +12101,7 @@ def _overlay_sheet_slicers_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
         payload = _escape_xml(json.dumps(slicers, ensure_ascii=False, separators=(",", ":")))
         return f'<table:table{attrs} vno:slicers="{payload}">'
 
-    xml = _sub_table_open_tags(fods_xml or "", replace_table)
+    xml = _sub_table_open_tags(pivot_fods, replace_table)
     if _declares_vno_namespace(xml):
         return xml
     match = _OFFICE_DOCUMENT_OPEN_RE.search(xml)

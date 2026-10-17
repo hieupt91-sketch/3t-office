@@ -370,7 +370,7 @@ export const enStrings = {
   },
   sheetRibbon: {
     whatIfAnalysis: "What-If Analysis",
-    tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant", tableDesign: "Table Design" },
+    tab: { home: "Home", formulas: "Formulas", data: "Data", insert: "Insert", pageLayout: "Page Layout", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant", pivotAnalyze: "PivotTable Analyze", tableDesign: "Table Design" },
     group: { clipboard: "Clipboard", font: "Font", alignment: "Alignment", number: "Number", styles: "Styles", cells: "Cells", quickAnalysis: "Editing & Data", editing: "Editing", functionLibrary: "Function Library", definedNames: "Defined Names", formulaAuditing: "Formula Auditing", calculation: "Calculation", connections: "Connections", sortFilter: "Sort & Filter", dataTools: "Data Tools", outline: "Outline", pivotTable: "PivotTable", tables: "Tables", illustrations: "Illustrations", charts: "Charts", sparklines: "Sparklines", links: "Links", text: "Text", printArea: "Print Area", pageBreaks: "Page Breaks", pageSetup: "Page Setup", scaleToFit: "Scale to Fit", sheetOptions: "Sheet Options", proofing: "Proofing", comments: "Comments", protection: "Protect", workbookViews: "Workbook Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiAnalysis: "AI Data Analysis", properties: "Table Properties", tableStyleOptions: "Table Style Options", tableStyles: "Table Styles", filters: "Filters", tools: "Tools", arrange: "Arrange" },
     refreshAllSuccess: "Refreshed all links and external data.",
     editing: { fill: "Fill", clear: "Clear" },
@@ -415,7 +415,9 @@ export const enStrings = {
     tablestyledark6: "Dark 6 (Purple)",
     tablestyledark7: "Dark 7 (Gray)"
   },
-  sheetSlicer: { selectTable: "Select a cell in a table before inserting a visual filter.", layer: "Visual filters", aria: "Filter", multi: "Multi-select", clear: "Clear filter", close: "Remove visual filter" },
+  sheetSlicer: { selectTable: "Select a cell in a table before inserting a visual filter.", layer: "Visual filters", aria: "Filter", multi: "Multi-select", options: "Options", clear: "Clear filter", close: "Remove visual filter" },
+  sheetPivotSlicer: { selectPivot: "Select a cell in a PivotTable before inserting a filter.", noDateField: "The PivotTable source has no valid date field for a Timeline.", noField: "The PivotTable source has no available field.", selectForConnections: "Select a PivotTable with a filter before opening Report Connections." },
+  sheetTimeline: { unit: "Time level", days: "Days", months: "Months", quarters: "Quarters", years: "Years", from: "From", to: "To", invalidRange: "The start date must be on or before the end date." },
   slidesRibbon: {
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant" },
     group: { slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
@@ -428,7 +430,11 @@ export const enStrings = {
     editPartError: "You cannot change part of an array. Select the entire array range, then enter it again with Ctrl+Shift+Enter."
   },
   sheetDialogs: {
-    slicer: { title: "Insert visual filter", hint: "Choose one or more table columns to create floating filters.", columns: "Table columns", chooseColumn: "Choose at least one column." },
+    slicer: { title: "Insert visual filter", hint: "Choose one or more table columns to create floating filters.", columns: "Table columns", chooseColumn: "Choose at least one field." },
+    pivotSlicer: { title: "Insert PivotTable filter", hint: "Choose one or more fields to create floating PivotTable filters." },
+    pivotTimeline: { title: "Insert Timeline", hint: "Choose a date field to filter the PivotTable by a date range." },
+    pivotConnections: { title: "Report Connections", hint: "Choose PivotTables that share this source and should be controlled by the filter." },
+    slicerOptions: { title: "Filter options", caption: "Caption", columns: "Columns", buttonHeight: "Button height", style: "Style", green: "Green", light: "Light", dark: "Dark" },
     editLinks: {
       title: "Edit Links",
       colSource: "Source",
@@ -823,6 +829,9 @@ export const enStrings = {
     ,"sheet.data.pivotGroup": { label: "Group", tooltip: "Group number or date fields in the PivotTable" }
     ,"sheet.data.pivotUngroup": { label: "Ungroup", tooltip: "Ungroup grouped fields in the PivotTable" }
     ,"sheet.data.pivotCalculatedField": { label: "Calculated Field", tooltip: "Add, modify, or delete calculated fields for the PivotTable" }
+    ,"sheet.data.pivotInsertSlicer": { label: "Insert Filter", tooltip: "Filter a PivotTable with floating value buttons" }
+    ,"sheet.data.pivotInsertTimeline": { label: "Insert Timeline", tooltip: "Filter a PivotTable by a day, month, quarter, or year range" }
+    ,"sheet.data.pivotReportConnections": { label: "Report Connections", tooltip: "Choose PivotTables sharing the source that this filter controls" }
     ,"sheet.data.refreshAll": { label: "Refresh All", tooltip: "Update all links and external data sources (Ctrl+Alt+F5)" }
     ,"sheet.data.editLinks": { label: "Edit Links", tooltip: "View and manage all links to other workbooks or external files" }
     ,"sheet.view.normal": { label: "Normal", tooltip: "View worksheet in normal view" }

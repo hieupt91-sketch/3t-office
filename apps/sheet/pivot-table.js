@@ -127,8 +127,30 @@ export class PivotTableEngine {
     return { rows, columns, values };
   }
 
+  static recordMatchesFilters(record, filters = []) {
+    for (const filter of filters || []) {
+      const field = String(filter?.field || "");
+      if (!field) continue;
+      if (filter.kind === "timeline") {
+        const value = this.parseDateValue(record[field]);
+        if (!value) return false;
+        const day = Date.UTC(value.getUTCFullYear(), value.getUTCMonth(), value.getUTCDate());
+        const start = this.parseDateValue(filter.startDate);
+        const end = this.parseDateValue(filter.endDate);
+        if (start && day < Date.UTC(start.getUTCFullYear(), start.getUTCMonth(), start.getUTCDate())) return false;
+        if (end && day > Date.UTC(end.getUTCFullYear(), end.getUTCMonth(), end.getUTCDate())) return false;
+        continue;
+      }
+      const selected = Array.isArray(filter.selectedValues) ? filter.selectedValues.map(value => String(value ?? "")) : [];
+      if (selected.length && !selected.includes(String(record[field] ?? ""))) return false;
+    }
+    return true;
+  }
+
   static aggregate(cells, config) {
-    const { headers, records } = this.readSource(cells, config.sourceRange);
+    const source = this.readSource(cells, config.sourceRange);
+    const headers = source.headers;
+    const records = source.records.filter(record => this.recordMatchesFilters(record, config.filterConditions));
     let rows = [...(config.rows || [])];
     const columns = [...(config.columns || [])];
     const values = config.values || [];

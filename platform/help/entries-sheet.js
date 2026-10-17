@@ -368,6 +368,37 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.data.pivotSlicer",
+    app: "sheet",
+    commandIds: ["sheet.data.pivotInsertSlicer", "sheet.data.pivotReportConnections"],
+    title: "Lọc Bảng tổng hợp bằng bộ lọc trực quan",
+    summary: "Tạo khung nút nổi theo một trường dữ liệu để lọc và tính lại ngay hàng, cột, giá trị và tổng của Bảng tổng hợp; nhiều khung lọc kết hợp theo điều kiện VÀ.",
+    ribbon: { tab: "Phân tích Bảng tổng hợp", tabId: "pivotAnalyze", group: "Bộ lọc" },
+    keywords: ["bộ lọc bảng tổng hợp", "slicer", "chọn nhiều", "xóa lọc", "kết nối báo cáo", "lọc pivot"],
+    steps: [
+      "Chọn một ô trong Bảng tổng hợp. Mở tab Phân tích Bảng tổng hợp, nhóm Bộ lọc, nhấn Chèn bộ lọc.",
+      "Đánh dấu một hoặc nhiều trường rồi nhấn Đồng ý. Mỗi trường tạo một khung nổi; kéo phần tiêu đề để di chuyển và kéo góc dưới phải để đổi kích thước.",
+      "Bấm một mục để lọc. Giữ Ctrl để thêm hoặc bỏ từng mục, giữ Shift để chọn một dải, hoặc bật nút Chọn nhiều trên tiêu đề. Các khung lọc khác nhau kết hợp theo điều kiện VÀ; nút Xóa bộ lọc khôi phục toàn bộ mục.",
+      "Nhấn nút Tùy chọn trên tiêu đề để đổi tiêu đề, số cột nút, chiều cao nút và kiểu màu. Mọi thay đổi chọn lọc hoặc tùy chọn đều có thể hoàn tác bằng Ctrl+Z.",
+      "Để một bộ lọc điều khiển thêm Bảng tổng hợp dùng chung vùng nguồn, chọn Bảng tổng hợp có bộ lọc rồi vào Phân tích Bảng tổng hợp > Bộ lọc > Kết nối báo cáo, đánh dấu các bảng cần nối và nhấn Đồng ý."
+    ]
+  },
+  {
+    id: "sheet.data.pivotTimeline",
+    app: "sheet",
+    commandIds: ["sheet.data.pivotInsertTimeline"],
+    title: "Lọc Bảng tổng hợp bằng Dòng thời gian",
+    summary: "Chọn khoảng ngày trên một trường ngày của nguồn để Bảng tổng hợp chỉ tính các bản ghi trong khoảng, với mức hiển thị Ngày, Tháng, Quý hoặc Năm.",
+    ribbon: { tab: "Phân tích Bảng tổng hợp", tabId: "pivotAnalyze", group: "Bộ lọc" },
+    keywords: ["dòng thời gian", "timeline", "ngày", "tháng", "quý", "năm", "khoảng ngày", "bảng tổng hợp"],
+    steps: [
+      "Chọn một ô trong Bảng tổng hợp. Mở tab Phân tích Bảng tổng hợp, nhóm Bộ lọc, nhấn Chèn Dòng thời gian.",
+      "Chọn một trường có dữ liệu ngày và nhấn Đồng ý. Nếu nguồn không có trường ngày hợp lệ, ứng dụng báo rõ và không tạo khung rỗng.",
+      "Trong khung Dòng thời gian, chọn mức Ngày, Tháng, Quý hoặc Năm; nhập ngày bắt đầu tại ô Từ và ngày kết thúc tại ô Đến. Bảng tổng hợp tính lại ngay khi khoảng hợp lệ.",
+      "Nhấn Xóa bộ lọc trên tiêu đề để bỏ khoảng và hiện lại toàn bộ dữ liệu. Dùng nút Tùy chọn để đổi tiêu đề hoặc kiểu màu; Ctrl+Z/Ctrl+Y hoàn tác hoặc làm lại thay đổi."
+    ]
+  },
+  {
     id: "sheet.format.conditional",
     app: "sheet",
     commandIds: ["sheet.format.conditional"],

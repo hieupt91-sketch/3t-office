@@ -867,6 +867,33 @@ export const SHEET_RIBBON_TABS = [
     ]
   },
   {
+    id: "pivotAnalyze",
+    label: "Phân tích Bảng tổng hợp",
+    labelKey: "sheetRibbon.tab.pivotAnalyze",
+    contextual: true,
+    groups: [
+      {
+        id: "pivotFilters",
+        label: "Bộ lọc",
+        labelKey: "sheetRibbon.group.filters",
+        items: [
+          { type: "button", commandId: "sheet.data.pivotInsertSlicer", isLarge: true },
+          { type: "button", commandId: "sheet.data.pivotInsertTimeline", isLarge: true },
+          { type: "button", commandId: "sheet.data.pivotReportConnections", isLarge: true }
+        ]
+      },
+      {
+        id: "pivotData",
+        label: "Dữ liệu",
+        labelKey: "sheetRibbon.group.pivotTable",
+        items: [
+          { type: "button", commandId: "sheet.data.pivotRefresh", isLarge: true },
+          { type: "button", commandId: "sheet.data.pivotChangeDataSource", isLarge: true }
+        ]
+      }
+    ]
+  },
+  {
     id: "tableDesign",
     label: "Thiết kế Bảng",
     labelKey: "sheetRibbon.tab.tableDesign",

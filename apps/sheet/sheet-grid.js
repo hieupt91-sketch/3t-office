@@ -593,6 +593,9 @@ export class SheetGridController {
       return false;
     });
     globalCommandBus.bindHandler("sheet.table.insertSlicer", () => this.tableSlicer.showInsertDialog());
+    globalCommandBus.bindHandler("sheet.data.pivotInsertSlicer", async () => { await this._loadPivotEngine(); return this.tableSlicer.showPivotInsertDialog("slicer"); });
+    globalCommandBus.bindHandler("sheet.data.pivotInsertTimeline", async () => { await this._loadPivotEngine(); return this.tableSlicer.showPivotInsertDialog("timeline"); });
+    globalCommandBus.bindHandler("sheet.data.pivotReportConnections", async () => { await this._loadPivotEngine(); return this.showPivotReportConnectionsDialog(); });
 
     this.autocomplete.mount();
 
@@ -15384,6 +15387,12 @@ export class SheetGridController {
         designTab.hidden = !hasTable;
         designTab.setAttribute("aria-hidden", hasTable ? "false" : "true");
       }
+      const pivotTab = document.querySelector("#vno-ribbon-tab-pivotAnalyze");
+      const hasPivot = Boolean(this._activePivot?.());
+      if (pivotTab) {
+        pivotTab.hidden = !hasPivot;
+        pivotTab.setAttribute("aria-hidden", hasPivot ? "false" : "true");
+      }
     }
     if (table) {
       globalCommandBus.updateState("sheet.table.toggleHeaderRow", { checked: table.hasHeaders !== false });
@@ -16508,7 +16517,17 @@ export class SheetGridController {
       this.tableSlicer.render();
     } else if (action.type === "sheet-slicers") {
       this.slicersBySheet[action.sheet] = structuredClone(direction === "undo" ? action.before : action.after).map(normalizeTableSlicer);
-      this._recomputeFilteredRows();
+      const pivotIds = new Set();
+      for (const item of [...(action.before || []), ...(action.after || [])]) {
+        if (item.sourceType === "pivot" || item.pivotId) {
+          for (const id of item.connectedPivotIds || (item.pivotId ? [item.pivotId] : [])) pivotIds.add(id);
+        }
+      }
+      if (pivotIds.size) {
+        for (const id of pivotIds) this._refreshPivotById(id);
+        this.refreshCharts();
+        this.tableSlicer.render();
+      } else this._recomputeFilteredRows();
     } else if (action.type === "batch-workbook") {
       const bySheet = direction === "undo" ? action.beforeBySheet : action.afterBySheet;
       for (const [sheetName, snapshots] of Object.entries(bySheet || {})) {
@@ -17329,6 +17348,7 @@ export class SheetGridController {
   }
 
   _slicerValueHasData(slicer, value) {
+    if (slicer.sourceType === "pivot") return this._pivotSlicerValueHasData(slicer, value);
     const table = this._tableByName(slicer.tableName);
     const bounds = table && this._normalizeRange(this._parseRange(table.ref));
     if (!bounds) return false;
@@ -21095,6 +21115,160 @@ export class SheetGridController {
     return true;
   }
 
+  _activePivot(sheetName = this.activeSheet) {
+    const pivots = this.pivotTablesBySheet?.[sheetName] || [];
+    if (!pivots.length) return null;
+    const selectedColumn = this._columnNumber(this.selectedCoord?.c || "A");
+    const selectedRow = Number(this.selectedCoord?.r || 1);
+    return pivots.find(pivot => {
+      const range = pivot.resultRange;
+      if (!range) return false;
+      return selectedColumn >= this._columnNumber(range.start.c) && selectedColumn <= this._columnNumber(range.end.c)
+        && selectedRow >= range.start.r && selectedRow <= range.end.r;
+    }) || null;
+  }
+
+  _pivotSourceFields(pivot) {
+    if (!pivot || !this.pivotTableEngine) return [];
+    const sourceCells = this.sheetsData?.[pivot.sourceSheet];
+    if (!sourceCells) return [];
+    try { return this.pivotTableEngine.readSource(sourceCells, pivot.sourceRange).headers; }
+    catch { return []; }
+  }
+
+  _pivotSourceRecords(pivot) {
+    if (!pivot || !this.pivotTableEngine) return [];
+    const sourceCells = this.sheetsData?.[pivot.sourceSheet];
+    if (!sourceCells) return [];
+    try { return this.pivotTableEngine.readSource(sourceCells, pivot.sourceRange).records; }
+    catch { return []; }
+  }
+
+  _pivotFieldIsDate(pivot, fieldName) {
+    const values = this._pivotSourceRecords(pivot).map(record => record[fieldName]).filter(value => value !== "" && value != null);
+    return values.length > 0 && values.every(value => Boolean(this.pivotTableEngine?.parseDateValue(value)));
+  }
+
+  _pivotById(pivotId) {
+    for (const [sheetName, pivots] of Object.entries(this.pivotTablesBySheet || {})) {
+      const pivot = (pivots || []).find(item => item.id === pivotId);
+      if (pivot) return { pivot, sheetName };
+    }
+    return null;
+  }
+
+  _pivotSlicerValues(slicer) {
+    const found = this._pivotById(slicer.pivotId || slicer.connectedPivotIds?.[0]);
+    if (!found) return [];
+    const values = [];
+    const seen = new Set();
+    for (const record of this._pivotSourceRecords(found.pivot)) {
+      const value = String(record[slicer.fieldName] ?? "");
+      if (!seen.has(value)) { seen.add(value); values.push(value); }
+    }
+    return values;
+  }
+
+  _pivotTimelineBounds(slicer) {
+    const found = this._pivotById(slicer.pivotId || slicer.connectedPivotIds?.[0]);
+    if (!found) return { min: "", max: "" };
+    const dates = this._pivotSourceRecords(found.pivot)
+      .map(record => this.pivotTableEngine?.parseDateValue(record[slicer.fieldName]))
+      .filter(Boolean)
+      .map(date => date.toISOString().slice(0, 10))
+      .sort();
+    return { min: dates[0] || "", max: dates.at(-1) || "" };
+  }
+
+  _pivotFilterConditions(pivot, excludedSlicerId = null) {
+    const conditions = [];
+    for (const slicers of Object.values(this.slicersBySheet || {})) {
+      for (const slicer of slicers || []) {
+        if (slicer.id === excludedSlicerId || slicer.sourceType !== "pivot" || !slicer.connectedPivotIds?.includes(pivot.id)) continue;
+        if (slicer.kind === "timeline") {
+          if (slicer.startDate || slicer.endDate) conditions.push({ kind: "timeline", field: slicer.fieldName, startDate: slicer.startDate, endDate: slicer.endDate });
+        } else if (slicer.selectedValues?.length) {
+          conditions.push({ kind: "slicer", field: slicer.fieldName, selectedValues: [...slicer.selectedValues] });
+        }
+      }
+    }
+    return conditions;
+  }
+
+  _pivotSlicerValueHasData(slicer, value) {
+    const found = this._pivotById(slicer.pivotId || slicer.connectedPivotIds?.[0]);
+    if (!found) return false;
+    const conditions = this._pivotFilterConditions(found.pivot, slicer.id);
+    return this._pivotSourceRecords(found.pivot).some(record => String(record[slicer.fieldName] ?? "") === String(value)
+      && this.pivotTableEngine.recordMatchesFilters(record, conditions));
+  }
+
+  _refreshPivotById(pivotId) {
+    const found = this._pivotById(pivotId);
+    if (!found || !this.pivotTableEngine) return false;
+    const { pivot, sheetName } = found;
+    const sourceCells = this.sheetsData[pivot.sourceSheet];
+    if (!sourceCells) return false;
+    const table = this.pivotTableEngine.aggregate(sourceCells, { ...pivot, filterConditions: this._pivotFilterConditions(pivot) });
+    const originCoord = pivot.targetCoord || "A1";
+    const nextCells = this.pivotTableEngine.toCells(table, originCoord);
+    if (pivot.targetCoord || (this.pivotTablesBySheet[sheetName]?.length || 0) > 1) {
+      const target = this.sheetsData[sheetName];
+      const old = pivot.resultRange;
+      if (old) {
+        for (let row = old.start.r; row <= old.end.r; row++) {
+          for (let col = this._columnNumber(old.start.c); col <= this._columnNumber(old.end.c); col++) target.delete(`${this._columnLabel(col)}${row}`);
+        }
+      }
+      for (const [coord, cell] of nextCells) target.set(coord, cell);
+    } else {
+      this.sheetsData[sheetName] = nextCells;
+      if (sheetName === this.activeSheet) this.cellsData = this.sheetsData[sheetName];
+    }
+    pivot.resultRange = this.pivotTableEngine.resultRange(table, originCoord);
+    this.pivotRefreshTouchedBySheet?.add(sheetName);
+    for (const chart of this.chartsBySheet[sheetName] || []) if (chart.kind === "pivot" && chart.pivotId === pivot.id) chart.range = structuredClone(pivot.resultRange);
+    if (sheetName === this.activeSheet) this._renderVirtualRows(1, Math.min(40, this.rowCount));
+    return true;
+  }
+
+  _refreshPivotSlicerConnections(slicer = null) {
+    if (!this.pivotTableEngine) return false;
+    const ids = new Set(slicer?.connectedPivotIds || []);
+    if (!ids.size) {
+      for (const slicers of Object.values(this.slicersBySheet || {})) for (const item of slicers || []) {
+        if (item.sourceType === "pivot") for (const id of item.connectedPivotIds || []) ids.add(id);
+      }
+    }
+    let changed = false;
+    for (const id of ids) changed = this._refreshPivotById(id) || changed;
+    this.refreshCharts();
+    this.tableSlicer.render();
+    return changed;
+  }
+
+  showPivotReportConnectionsDialog() {
+    const pivot = this._activePivot();
+    const slicer = (this.slicersBySheet?.[this.activeSheet] || []).find(item => item.sourceType === "pivot" && item.connectedPivotIds?.includes(pivot?.id));
+    if (!pivot || !slicer) {
+      this.options?.onStatus?.(t("sheetPivotSlicer.selectForConnections", "Hãy chọn Bảng tổng hợp có bộ lọc trước khi mở Kết nối báo cáo."));
+      return false;
+    }
+    const candidates = Object.values(this.pivotTablesBySheet || {}).flat().filter(item => item.sourceSheet === pivot.sourceSheet && item.sourceRange === pivot.sourceRange);
+    const rows = candidates.map(item => `<label class="vno-slicer-column-choice"><input type="checkbox" value="${this._escapeHtml(item.id)}" ${slicer.connectedPivotIds.includes(item.id) ? "checked" : ""} ${item.id === pivot.id ? "disabled" : ""}> <span>${this._escapeHtml(item.name || item.targetSheet || item.id)}</span></label>`).join("");
+    const dialog = this._createSheetDialog(t("sheetDialogs.pivotConnections.title", "Kết nối báo cáo"), `<div class="vno-slicer-column-dialog"><p>${t("sheetDialogs.pivotConnections.hint", "Chọn các Bảng tổng hợp dùng chung nguồn mà bộ lọc này sẽ điều khiển.")}</p><div class="vno-slicer-column-list">${rows}</div></div>`);
+    if (!dialog) return false;
+    dialog.querySelector(".vno-rule-apply")?.addEventListener("click", () => {
+      const before = structuredClone(this.slicersBySheet[this.activeSheet]);
+      slicer.connectedPivotIds = [...new Set([pivot.id, ...Array.from(dialog.querySelectorAll("input:checked"), input => input.value)])];
+      this._refreshPivotSlicerConnections(slicer);
+      this._recordHistory({ type: "sheet-slicers", sheet: this.activeSheet, before, after: structuredClone(this.slicersBySheet[this.activeSheet]) });
+      dialog.closeDialog();
+    });
+    dialog.querySelector("input:not(:disabled)")?.focus();
+    return true;
+  }
+
   createPivotTable(config, recordUndo = true) {
     if (!this.pivotTableEngine) return false;
     if (this._guardWorkbookStructure()) return false;
@@ -21138,7 +21312,7 @@ export class SheetGridController {
     const sourceCells = this.sheetsData[pivot.sourceSheet];
     if (!sourceCells) return false;
     const before = { config: structuredClone(pivot), cells: this._snapshotCells(sheetName) };
-    const table = this.pivotTableEngine.aggregate(sourceCells, pivot);
+    const table = this.pivotTableEngine.aggregate(sourceCells, { ...pivot, filterConditions: this._pivotFilterConditions(pivot) });
     const originCoord = pivot.targetCoord || "A1";
     if (pivot.targetCoord) {
       const cells = this.pivotTableEngine.toCells(table, originCoord);
@@ -21180,7 +21354,7 @@ export class SheetGridController {
       }
     }
 
-    const table = this.pivotTableEngine.aggregate(sourceCells, pivot);
+    const table = this.pivotTableEngine.aggregate(sourceCells, { ...pivot, filterConditions: this._pivotFilterConditions(pivot) });
     const originCoord = pivot.targetCoord || "A1";
     if (pivot.targetCoord) {
       const cells = this.pivotTableEngine.toCells(table, originCoord);
@@ -21212,7 +21386,7 @@ export class SheetGridController {
 
     const sourceCells = this.sheetsData[pivot.sourceSheet];
     if (!sourceCells) return false;
-    const table = this.pivotTableEngine.aggregate(sourceCells, pivot);
+    const table = this.pivotTableEngine.aggregate(sourceCells, { ...pivot, filterConditions: this._pivotFilterConditions(pivot) });
     const originCoord = pivot.targetCoord || "A1";
     if (pivot.targetCoord) {
       const cells = this.pivotTableEngine.toCells(table, originCoord);
@@ -21242,7 +21416,7 @@ export class SheetGridController {
 
     const sourceCells = this.sheetsData[pivot.sourceSheet];
     if (!sourceCells) return false;
-    const table = this.pivotTableEngine.aggregate(sourceCells, pivot);
+    const table = this.pivotTableEngine.aggregate(sourceCells, { ...pivot, filterConditions: this._pivotFilterConditions(pivot) });
     const originCoord = pivot.targetCoord || "A1";
     if (pivot.targetCoord) {
       const cells = this.pivotTableEngine.toCells(table, originCoord);
@@ -21277,7 +21451,7 @@ export class SheetGridController {
 
     const sourceCells = this.sheetsData[pivot.sourceSheet];
     if (!sourceCells) return false;
-    const table = this.pivotTableEngine.aggregate(sourceCells, pivot);
+    const table = this.pivotTableEngine.aggregate(sourceCells, { ...pivot, filterConditions: this._pivotFilterConditions(pivot) });
     const originCoord = pivot.targetCoord || "A1";
     if (pivot.targetCoord) {
       const cells = this.pivotTableEngine.toCells(table, originCoord);
@@ -21304,7 +21478,7 @@ export class SheetGridController {
 
     const sourceCells = this.sheetsData[pivot.sourceSheet];
     if (!sourceCells) return false;
-    const table = this.pivotTableEngine.aggregate(sourceCells, pivot);
+    const table = this.pivotTableEngine.aggregate(sourceCells, { ...pivot, filterConditions: this._pivotFilterConditions(pivot) });
     const originCoord = pivot.targetCoord || "A1";
     if (pivot.targetCoord) {
       const cells = this.pivotTableEngine.toCells(table, originCoord);

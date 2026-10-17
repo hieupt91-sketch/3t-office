@@ -2357,7 +2357,7 @@ tr.is-filtered-out {
   color: #f1f5f9 !important;
 }
 
-/* Table slicers are app-level floating controls; they never call the document engine directly. */
+/* Shared Table/Pivot slicers are app-level floating controls; they never call the document engine directly. */
 .vno-sheet-slicer-layer {
   position: absolute;
   inset: 0;
@@ -2444,7 +2444,7 @@ tr.is-filtered-out {
 }
 
 .vno-slicer-item {
-  min-height: 28px;
+  min-height: var(--vno-slicer-button-height, 28px);
   overflow: hidden;
   padding: 4px 7px;
   color: #243247;
@@ -2514,4 +2514,91 @@ tr.is-filtered-out {
   display: flex;
   gap: 8px;
   align-items: center;
+}
+
+.vno-slicer-style-green .vno-slicer-header,
+.vno-slicer-style-green .vno-slicer-actions button,
+.vno-slicer-style-green .vno-slicer-item.is-selected {
+  background: #0f6d38;
+  border-color: #0b512b;
+}
+
+.vno-slicer-style-light .vno-slicer-header,
+.vno-slicer-style-light .vno-slicer-actions button {
+  color: #16324f;
+  background: #e8f2ff;
+}
+
+.vno-slicer-style-light .vno-slicer-item.is-selected {
+  color: #16324f;
+  background: #cfe4ff;
+  border-color: #5688bd;
+}
+
+.vno-slicer-style-dark {
+  color: #f8fafc;
+  background: #253247;
+  border-color: #0f172a;
+}
+
+.vno-slicer-style-dark .vno-slicer-header,
+.vno-slicer-style-dark .vno-slicer-actions button,
+.vno-slicer-style-dark .vno-slicer-item.is-selected {
+  background: #172033;
+  border-color: #080d17;
+}
+
+.vno-slicer-style-dark .vno-slicer-item:not(.is-selected) {
+  color: #e2e8f0;
+  background: #334155;
+  border-color: #64748b;
+}
+
+.vno-pivot-timeline {
+  min-width: 300px;
+  min-height: 120px;
+}
+
+.vno-timeline-body {
+  display: grid;
+  gap: 10px;
+  padding: 10px;
+}
+
+.vno-timeline-units {
+  display: flex;
+  gap: 4px;
+}
+
+.vno-timeline-units button {
+  min-width: 54px;
+  padding: 4px 8px;
+  border: 1px solid #8aa5c2;
+  border-radius: 3px;
+  background: #f4f7fb;
+}
+
+.vno-timeline-units button[aria-pressed="true"] {
+  color: #fff;
+  background: #0f6d38;
+  border-color: #0b512b;
+}
+
+.vno-timeline-range {
+  display: flex;
+  gap: 8px;
+  align-items: end;
+}
+
+.vno-timeline-range label,
+.vno-slicer-options-dialog label {
+  display: grid;
+  gap: 4px;
+  font-size: 12px;
+}
+
+.vno-slicer-options-dialog {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(160px, 1fr));
+  gap: 12px;
 }

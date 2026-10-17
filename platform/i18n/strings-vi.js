@@ -369,7 +369,7 @@ export const viStrings = {
   },
   sheetRibbon: {
     whatIfAnalysis: "Phân tích What-If",
-    tab: { home: "Trang đầu", formulas: "Công thức", data: "Dữ liệu", insert: "Chèn", pageLayout: "Bố trí trang", review: "Xem xét", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI", tableDesign: "Thiết kế Bảng" },
+    tab: { home: "Trang đầu", formulas: "Công thức", data: "Dữ liệu", insert: "Chèn", pageLayout: "Bố trí trang", review: "Xem xét", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI", pivotAnalyze: "Phân tích Bảng tổng hợp", tableDesign: "Thiết kế Bảng" },
     group: { clipboard: "Bảng nhớ tạm", font: "Phông chữ", alignment: "Căn chỉnh", number: "Định dạng số", styles: "Kiểu ô", cells: "Ô", quickAnalysis: "Tính toán & Dữ liệu", editing: "Chỉnh sửa", functionLibrary: "Hàm tính toán", definedNames: "Tên đã xác định", formulaAuditing: "Kiểm tra công thức", calculation: "Tính toán", connections: "Kết nối", sortFilter: "Sắp xếp & Lọc", dataTools: "Công cụ dữ liệu", outline: "Dàn bài", pivotTable: "Bảng tổng hợp", tables: "Bảng", illustrations: "Minh họa", charts: "Biểu đồ", sparklines: "Biểu đồ thu nhỏ", links: "Liên kết", text: "Văn bản", printArea: "Vùng in", pageBreaks: "Ngắt trang", pageSetup: "Thiết lập trang", scaleToFit: "Vừa trang", sheetOptions: "Tùy chọn trang tính", proofing: "Kiểm lỗi", comments: "Ghi chú", protection: "Bảo vệ", workbookViews: "Chế độ xem bảng tính", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiAnalysis: "Phân tích dữ liệu AI", properties: "Thuộc tính bảng", tableStyleOptions: "Tùy chọn kiểu bảng", tableStyles: "Kiểu Bảng", filters: "Bộ lọc", tools: "Công cụ", arrange: "Sắp xếp" },
     refreshAllSuccess: "Đã làm mới tất cả các liên kết và dữ liệu ngoài.",
     editing: { fill: "Điền", clear: "Xóa" },
@@ -414,7 +414,9 @@ export const viStrings = {
     tablestyledark6: "Tối 6 (Tím)",
     tablestyledark7: "Tối 7 (Xám)"
   },
-  sheetSlicer: { selectTable: "Hãy chọn một ô trong bảng trước khi chèn bộ lọc trực quan.", layer: "Bộ lọc trực quan", aria: "Bộ lọc", multi: "Chọn nhiều", clear: "Xóa bộ lọc", close: "Xóa bộ lọc trực quan" },
+  sheetSlicer: { selectTable: "Hãy chọn một ô trong bảng trước khi chèn bộ lọc trực quan.", layer: "Bộ lọc trực quan", aria: "Bộ lọc", multi: "Chọn nhiều", options: "Tùy chọn", clear: "Xóa bộ lọc", close: "Xóa bộ lọc trực quan" },
+  sheetPivotSlicer: { selectPivot: "Hãy chọn một ô trong Bảng tổng hợp trước khi chèn bộ lọc.", noDateField: "Nguồn Bảng tổng hợp không có trường ngày hợp lệ để tạo Dòng thời gian.", noField: "Nguồn Bảng tổng hợp không có trường khả dụng.", selectForConnections: "Hãy chọn Bảng tổng hợp có bộ lọc trước khi mở Kết nối báo cáo." },
+  sheetTimeline: { unit: "Mức thời gian", days: "Ngày", months: "Tháng", quarters: "Quý", years: "Năm", from: "Từ", to: "Đến", invalidRange: "Ngày bắt đầu phải trước hoặc bằng ngày kết thúc." },
   slidesRibbon: {
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI" },
     group: { slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Hiệu đính", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
@@ -427,7 +429,11 @@ export const viStrings = {
     editPartError: "Không thể thay đổi một phần của mảng. Hãy chọn toàn bộ vùng mảng rồi nhập lại bằng Ctrl+Shift+Enter."
   },
   sheetDialogs: {
-    slicer: { title: "Chèn bộ lọc trực quan", hint: "Chọn một hoặc nhiều cột của bảng để tạo bộ lọc nổi.", columns: "Cột của bảng", chooseColumn: "Hãy chọn ít nhất một cột." },
+    slicer: { title: "Chèn bộ lọc trực quan", hint: "Chọn một hoặc nhiều cột của bảng để tạo bộ lọc nổi.", columns: "Cột của bảng", chooseColumn: "Hãy chọn ít nhất một trường." },
+    pivotSlicer: { title: "Chèn bộ lọc Bảng tổng hợp", hint: "Chọn một hoặc nhiều trường để tạo bộ lọc nổi cho Bảng tổng hợp." },
+    pivotTimeline: { title: "Chèn Dòng thời gian", hint: "Chọn trường ngày để lọc Bảng tổng hợp theo khoảng thời gian." },
+    pivotConnections: { title: "Kết nối báo cáo", hint: "Chọn các Bảng tổng hợp dùng chung nguồn mà bộ lọc này sẽ điều khiển." },
+    slicerOptions: { title: "Tùy chọn bộ lọc", caption: "Tiêu đề", columns: "Số cột", buttonHeight: "Chiều cao nút", style: "Kiểu", green: "Xanh", light: "Sáng", dark: "Tối" },
     editLinks: {
       title: "Chỉnh sửa liên kết",
       colSource: "Nguồn",
@@ -822,6 +828,9 @@ export const viStrings = {
     ,"sheet.data.pivotGroup": { label: "Nhóm", tooltip: "Nhóm các trường số hoặc ngày trong Bảng tổng hợp" }
     ,"sheet.data.pivotUngroup": { label: "Bỏ nhóm", tooltip: "Bỏ nhóm các trường đã nhóm trong Bảng tổng hợp" }
     ,"sheet.data.pivotCalculatedField": { label: "Trường tính toán", tooltip: "Thêm, sửa hoặc xóa trường tính toán cho Bảng tổng hợp" }
+    ,"sheet.data.pivotInsertSlicer": { label: "Chèn bộ lọc", tooltip: "Lọc Bảng tổng hợp bằng các nút giá trị nổi" }
+    ,"sheet.data.pivotInsertTimeline": { label: "Chèn Dòng thời gian", tooltip: "Lọc Bảng tổng hợp theo khoảng ngày, tháng, quý hoặc năm" }
+    ,"sheet.data.pivotReportConnections": { label: "Kết nối báo cáo", tooltip: "Chọn các Bảng tổng hợp dùng chung nguồn do bộ lọc điều khiển" }
     ,"sheet.data.refreshAll": { label: "Làm mới tất cả", tooltip: "Cập nhật tất cả các liên kết và nguồn dữ liệu ngoài (Ctrl+Alt+F5)" }
     ,"sheet.data.editLinks": { label: "Chỉnh sửa liên kết", tooltip: "Xem và quản lý tất cả các liên kết tới sổ làm việc hoặc tệp ngoài" }
     ,"sheet.view.normal": { label: "Bình thường", tooltip: "Xem bảng tính ở chế độ bình thường" }
