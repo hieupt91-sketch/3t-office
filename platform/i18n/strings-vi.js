@@ -375,6 +375,7 @@ export const viStrings = {
     editing: { fill: "Điền", clear: "Xóa" },
     cells: { format: "Định dạng" },
     alignment: { orientation: "Hướng chữ" },
+    page: { margins: "Căn lề", orientation: "Hướng giấy", size: "Khổ giấy", fitWidth: "Chiều rộng", fitHeight: "Chiều cao", marginNormal: "Thường (Normal)", marginWide: "Rộng (Wide)", marginNarrow: "Hẹp (Narrow)", marginCustom: "Căn lề tùy chỉnh…", portrait: "Dọc (Portrait)", landscape: "Ngang (Landscape)", moreSizes: "Thêm khổ giấy…", fitAuto: "Tự động", fitPages1: "1 trang", fitPages2: "2 trang", fitPages3: "3 trang", fitPages4: "4 trang", fitPages5: "5 trang", fitMore: "Thêm trang…" },
     arrange: { bringForward: "Đưa lên trên", sendBackward: "Đưa xuống dưới", align: "Căn chỉnh", group: "Nhóm", rotate: "Xoay" },
     window: { freezePanes: "Cố định ô", split: "Chia" }
   },
@@ -418,8 +419,8 @@ export const viStrings = {
   sheetPivotSlicer: { selectPivot: "Hãy chọn một ô trong Bảng tổng hợp trước khi chèn bộ lọc.", noDateField: "Nguồn Bảng tổng hợp không có trường ngày hợp lệ để tạo Dòng thời gian.", noField: "Nguồn Bảng tổng hợp không có trường khả dụng.", selectForConnections: "Hãy chọn Bảng tổng hợp có bộ lọc trước khi mở Kết nối báo cáo." },
   sheetTimeline: { unit: "Mức thời gian", days: "Ngày", months: "Tháng", quarters: "Quý", years: "Năm", from: "Từ", to: "Đến", invalidRange: "Ngày bắt đầu phải trước hoặc bằng ngày kết thúc." },
   slidesRibbon: {
-    tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI" },
-    group: { slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Hiệu đính", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
+    tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI", tableLayout: "Bố cục bảng" },
+    group: { tableRowsCols: "Hàng và cột", tableMerge: "Gộp", slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Hiệu đính", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
     editing: { select: "Chọn" },
     drawing: { arrange: "Sắp xếp" },
     section: "Phần"
@@ -488,7 +489,7 @@ export const viStrings = {
     },
     hideSheetMenu: "Ẩn trang tính", unhideSheetMenu: "Hiện trang tính...", unhideSheetTitle: "Hiện trang tính", unhideSheetChoose: "Chọn trang tính cần hiện:", unhideSheetAction: "Hiện", cannotHideLastSheet: "Không thể ẩn trang tính cuối cùng đang hiển thị.", noHiddenSheets: "Không có trang tính nào đang ẩn.",
     close: "Đóng", cancel: "Hủy", cancelLong: "Hủy bỏ", apply: "Áp dụng", range: "Phạm vi", rangeLabel: "Vùng:", value: "Giá trị", save: "Lưu",
-    pasteSpecialTitle: "Dán đặc biệt", pasteSpecialGroup: "Dán", pasteSpecialSource: "Giữ định dạng nguồn", pasteSpecialKeepSource: "Giữ định dạng nguồn", pasteSpecialText: "Chỉ giữ văn bản", pasteSpecialAll: "Tất cả", pasteSpecialValues: "Chỉ giá trị", pasteSpecialFormulas: "Chỉ công thức", pasteSpecialFormats: "Chỉ định dạng", pasteSpecialAllExceptBorders: "Tất cả trừ đường viền", pasteSpecialTranspose: "Chuyển vị (đổi hàng/cột)", pasteSpecialOperationGroup: "Thao tác", pasteSpecialOpNone: "Không", pasteSpecialOpAdd: "Cộng", pasteSpecialOpSubtract: "Trừ", pasteSpecialOpMultiply: "Nhân", pasteSpecialOpDivide: "Chia", pasteSpecialSkipBlanks: "Bỏ qua ô trống",
+    pasteSpecialTitle: "Dán đặc biệt", pasteSpecialGroup: "Dán", pasteSpecialSource: "Giữ định dạng nguồn", pasteSpecialKeepSource: "Giữ định dạng nguồn", pasteSpecialText: "Chỉ giữ văn bản", pasteSpecialAll: "Tất cả", pasteSpecialValues: "Chỉ giá trị", pasteSpecialFormulas: "Chỉ công thức", pasteSpecialFormats: "Chỉ định dạng", pasteSpecialComments: "Ghi chú", pasteSpecialAllExceptBorders: "Tất cả trừ đường viền", pasteSpecialTranspose: "Chuyển vị (đổi hàng/cột)", pasteSpecialOperationGroup: "Thao tác", pasteSpecialOpNone: "Không", pasteSpecialOpAdd: "Cộng", pasteSpecialOpSubtract: "Trừ", pasteSpecialOpMultiply: "Nhân", pasteSpecialOpDivide: "Chia", pasteSpecialSkipBlanks: "Bỏ qua ô trống",
     mergeConfirmTitle: "Trộn ô", mergeConfirmMessage: "Vùng chọn có nhiều ô chứa dữ liệu. Chỉ dữ liệu ở ô trên cùng bên trái của mỗi vùng gộp được giữ lại.", mergeConfirmOk: "Tiếp tục gộp",
     functionTitle: "Chèn Hàm (Insert Function fx)", functionCategory: "Danh mục hàm:", allCategory: "Tất cả", allFunctions: "Tất cả các hàm", mathFunctions: "Toán học & Lượng giác", statsFunctions: "Thống kê (AVERAGE, COUNT...)", logicFunctions: "Logic (IF, AND, OR...)", textFunctions: "Văn bản (CONCAT, LEN...)", dateFunctions: "Ngày & Giờ (TODAY, NOW...)", financialFunctions: "Tài chính (PMT, FV, PV...)", lookupFunctions: "Tra cứu & Tham chiếu (VLOOKUP, INDEX...)", searchFunction: "Tìm kiếm hàm:", searchPlaceholder: "Gõ tên hàm hoặc mô tả để tìm kiếm...", insertFunction: "Chèn hàm vào ô",
     errorCheckingTitle: "Kiểm tra lỗi công thức (Error Checking)", noErrorsFound: "Kiểm tra hoàn tất. Không tìm thấy ô nào có giá trị lỗi trong trang tính.", errorsFoundPrompt: "Phát hiện <strong>{count}</strong> ô có lỗi công thức trong trang tính hiện tại:", errorColCell: "Ô", errorColCode: "Mã lỗi", errorColFormula: "Công thức", errorColReason: "Nguyên nhân", calcError: "Lỗi tính toán", divZero: "Chia cho số 0 hoặc ô trống", invalidRef: "Tham chiếu ô không hợp lệ", wrongType: "Sai kiểu dữ liệu (số vs chữ)", naError: "Giá trị không tồn tại", nameError: "Tên hàm/vùng không xác định", numError: "Giá trị số ngoài phạm vi",
@@ -631,14 +632,14 @@ export const viStrings = {
       slideUnit: "trang chiếu",
       slideCount: "{count} trang chiếu"
     },
-    masterTitle: "Mẫu Slide Master", themeGalleryTitle: "Thư viện Chủ đề", themeGalleryHint: "Chọn một chủ đề để áp dụng ngay cho toàn bộ bản trình chiếu.", themePreviewTitle: "Tiêu đề bản trình chiếu", themeCorporateBlue: "Xanh Doanh Nghiệp", themeWarmTerracotta: "Terracotta Ấm Áp", themeMinimalMonochrome: "Đơn Sắc Tối Giản", themeNaturalGreen: "Xanh Lá Thiên Nhiên", themeModernCharcoal: "Than Chì Hiện Đại", themeEnergeticOrange: "Cam Năng Động", slideSizeTitle: "Kích thước trang chiếu", slideSizeHint: "Chọn tỷ lệ mới. Mọi hình và đối tượng hiện có sẽ được co giãn theo khung.", slideSizeWide: "Màn hình rộng", slideSizeStandard: "Tiêu chuẩn", layoutTitle: "Chọn Bố Cục Trang Chiếu", transitionTitle: "Hiệu Ứng Chuyển Trang", animationTitle: "Hiệu Ứng Đối Tượng (Object Animations)",
+    masterTitle: "Mẫu Slide Master", themeGalleryTitle: "Thư viện Chủ đề", themeGalleryHint: "Chọn một chủ đề để áp dụng ngay cho toàn bộ bản trình chiếu.", themePreviewTitle: "Tiêu đề bản trình chiếu", themeCorporateBlue: "Xanh Doanh Nghiệp", themeWarmTerracotta: "Terracotta Ấm Áp", themeMinimalMonochrome: "Đơn Sắc Tối Giản", themeNaturalGreen: "Xanh Lá Thiên Nhiên", themeModernCharcoal: "Than Chì Hiện Đại", themeEnergeticOrange: "Cam Năng Động", slideSizeTitle: "Kích thước trang chiếu", slideSizeHint: "Chọn tỷ lệ mới. Mọi hình và đối tượng hiện có sẽ được co giãn theo khung.", slideSizeWide: "Màn hình rộng", slideSizeStandard: "Tiêu chuẩn", slideSizeCustom: "Tùy chỉnh", slideSizeWidthCm: "Chiều rộng (cm)", slideSizeHeightCm: "Chiều cao (cm)", slideSizeApply: "Áp dụng", slideSizeRangeError: "Mỗi cạnh phải từ 2,54 cm đến 142,24 cm.", slideSizeFormatError: "Hãy nhập số, ví dụ 25,4 hoặc 19.05.", layoutTitle: "Chọn Bố Cục Trang Chiếu", transitionTitle: "Hiệu Ứng Chuyển Trang", animationTitle: "Hiệu Ứng Đối Tượng (Object Animations)",
     applyMaster: "Áp dụng mẫu", applyLayout: "Áp dụng bố cục", applyTransition: "Áp dụng chuyển tiếp", applyAnimation: "Áp dụng hiệu ứng", removeTransition: "Xóa chuyển tiếp", removeAnimation: "Xóa hiệu ứng", previewTransition: "▶ Xem thử chuyển tiếp", previewAnimation: "▶ Xem thử hiệu ứng", previewObject: "Đối tượng xem thử",
     layoutHint: "Chọn một bố cục chuẩn để định hình lại cấu trúc nội dung trang chiếu hiện tại:", applyLayoutAll: "Áp dụng cho tất cả", applyLayoutCurrent: "Áp dụng",
     masterHint: "Chọn một mẫu phong cách để đồng bộ màu sắc, phông chữ và logo cho tất cả các trang chiếu:", masterLogoLabel: "Tên đơn vị / Logo chữ góc trang:", masterLogoAria: "Tên đơn vị hoặc logo chữ góc trang",
-    transitionTypeLabel: "Kiểu chuyển trang:", transFade: "Mờ dần (Fade)", transSlide: "Trượt ngang (Slide)", transZoom: "Thu phóng (Zoom)", transFlip: "Lật trang 3D (Flip)", durationFast: "Nhanh (0.3 giây)", durationNormal: "Tiêu chuẩn (0.5 giây)", durationSlow: "Chậm (0.8 giây)", durationVerySlow: "Rất chậm (1.0 giây)", sampleSlide: "Trang Chiếu Mẫu", applyTransitionCurrent: "Áp dụng", applyTransitionAll: "Áp dụng cho tất cả",
+    transitionTypeLabel: "Kiểu chuyển trang:", transFade: "Mờ dần (Fade)", transSlide: "Trượt ngang (Slide)", transZoom: "Thu phóng (Zoom)", transFlip: "Lật trang 3D (Flip)", durationFast: "Nhanh (0.3 giây)", durationNormal: "Tiêu chuẩn (0.5 giây)", durationSlow: "Chậm (0.8 giây)", durationVerySlow: "Rất chậm (1.0 giây)", sampleSlide: "Trang Chiếu Mẫu", applyTransitionCurrent: "Áp dụng", applyTransitionAll: "Áp dụng cho tất cả", transCustomKeep: "Giữ nguyên hiệu ứng gốc của tệp", transAdvanceLegend: "Chuyển trang", transAdvanceClick: "Khi nhấp chuột", transAdvanceAfter: "Tự động sau", transAdvanceAfterSeconds: "Số giây tự chuyển trang", transSecondsUnit: "giây",
     animationTarget: "Đối tượng áp dụng:", animationType: "Kiểu hiệu ứng xuất hiện (Entrance):", animationDuration: "Thời gian hiệu ứng:", animationDelay: "Độ trễ xuất hiện:", noAnimation: "Không có hiệu ứng", immediate: "Ngay lập tức (0s)",
     targetTitle: "Tiêu đề", targetCol1: "Nội dung cột 1", targetCol2: "Nội dung cột 2", targetBody: "Nội dung",     shapeFormatTitle: "Định dạng hình", shapeFormatMenu: "Định dạng hình…", shapeFill: "Màu nền", shapeFillColor: "Màu nền {color}", shapeOutline: "Viền", shapeOutlineColor: "Màu viền {color}", shapeNoOutline: "Không viền", shapeLineWidth: "Viền {width} px", shapeWidth: "Chiều rộng (px)", shapeHeight: "Chiều cao (px)", shapeRotation: "Góc xoay (độ)", applyShapeFormat: "Áp dụng định dạng", shapeFormatInvalid: "Nhập kích thước trong phạm vi 24 px đến khổ trang chiếu và góc xoay từ -360° đến 360°.",
-    shapeImage: "Hình ảnh", shapeEllipse: "Hình elip", shapeRectangle: "Hình chữ nhật", animFadeIn: "Mờ dần xuất hiện (Fade In)", animFlyIn: "Bay từ dưới lên (Fly In)", animZoomIn: "Thu phóng xuất hiện (Zoom In)", animBounceIn: "Nảy nhẹ xuất hiện (Bounce In)", animSlideLeft: "Trượt từ trái sang (Slide Left)", durationVeryFast: "Rất nhanh (0.3s)", duration1s: "1.0 giây", delay200: "Sau 0.2s", delay500: "Sau 0.5s", delay1000: "Sau 1.0s",
+    shapeImage: "Hình ảnh", shapeEllipse: "Hình elip", shapeRectangle: "Hình chữ nhật", animFadeIn: "Mờ dần xuất hiện (Fade In)", animFlyIn: "Bay từ dưới lên (Fly In)", animZoomIn: "Thu phóng xuất hiện (Zoom In)", animBounceIn: "Nảy nhẹ xuất hiện (Bounce In)", animSlideLeft: "Trượt từ trái sang (Slide Left)", animSpin: "Xoay tròn (nhấn mạnh)", animGrowShrink: "Phóng to / thu nhỏ (nhấn mạnh)", animFadeOut: "Mờ dần ra (thoát)", animFlyOut: "Bay ra (thoát)", animZoomOut: "Thu nhỏ ra (thoát)", animDisappear: "Biến mất (thoát)", animGroupEntrance: "Vào", animGroupEmphasis: "Nhấn mạnh", animGroupExit: "Thoát", durationVeryFast: "Rất nhanh (0.3s)", duration1s: "1.0 giây", delay200: "Sau 0.2s", delay500: "Sau 0.5s", delay1000: "Sau 1.0s",
     presenterTitle: "Chế độ người thuyết trình", presenterHeader: "CHẾ ĐỘ NGƯỜI THUYẾT TRÌNH (PRESENTER VIEW)", elapsedTime: "Thời gian thuyết trình", elapsedLabel: "ĐÃ THUYẾT TRÌNH:", actualClock: "Đồng hồ thực tế", clockLabel: "ĐỒNG HỒ:", presenterExit: "✕ Thoát (Esc)", prevSlide: "◄ Trang trước", nextSlide: "Trang tiếp ►", slideCounter: "Trang {current} / {total}", speakerNotesTitle: "📝 Ghi chú người thuyết trình", notesFontDec: "Thu nhỏ cỡ chữ ghi chú", notesFontInc: "Phóng to cỡ chữ ghi chú", nextSlideTitle: "⏭ Trang tiếp theo", noNotes: "(Chưa có ghi chú cho trang chiếu này. Bạn có thể nhập ghi chú ở bảng Ghi chú dưới canvas khi biên tập).", endOfShow: "Đây là trang chiếu cuối cùng.",
     readingViewTitle: "Dạng xem Đọc (Reading View)", readingToolbar: "Thanh điều hướng Đọc", prevSlideShort: "Trang trước", nextSlideShort: "Trang tiếp", readingClose: "Thoát chế độ đọc",
     rehearseTitle: "Tập dượt thời gian trình chiếu", slideshowTitle: "Trình chiếu trang chiếu", rehearseClockAria: "Đồng hồ tập dượt thời gian", slideshowHint: "Phím Space hoặc Click để tiếp tục | Esc để thoát",
@@ -666,6 +667,7 @@ export const viStrings = {
     "writer.file.inspectDocument": { label: "Kiểm tra tài liệu", tooltip: "Kiểm tra và loại bỏ nhận xét, thay đổi theo dõi, văn bản ẩn và thông tin cá nhân" },
     "writer.file.options": { label: "Tùy chọn", tooltip: "Mở Tùy chọn: giao diện, tự sửa lỗi gõ và ký tự thông minh" },
     "writer.edit.select": { label: "Chọn", tooltip: "Chọn văn bản hoặc đối tượng" },
+    "writer.edit.goTo": { label: "Đi đến", tooltip: "Chuyển nhanh con trỏ tới trang, dòng, đề mục hoặc bảng (Ctrl+G)" },
     "writer.edit.pasteSpecial": { label: "Dán đặc biệt", tooltip: "Dán kèm tùy chọn nâng cao (giữ định dạng nguồn, chỉ giữ văn bản) (Ctrl+Alt+V)" },
     "writer.para.lineSpacing": { label: "Giãn dòng", tooltip: "Khoảng cách giữa các dòng trong đoạn văn" },
     "writer.layout.breaks": { label: "Ngắt", tooltip: "Chèn ngắt trang hoặc ngắt mục" },
@@ -683,7 +685,8 @@ export const viStrings = {
     "slides.text.direction": { label: "Hướng chữ", tooltip: "Đổi hướng văn bản trong khung chữ" },
     "sheet.page.margins": { label: "Căn lề", tooltip: "Thiết lập khoảng cách lề trang tính" },
     "sheet.page.orientation": { label: "Hướng giấy", tooltip: "Chọn hướng trang tính dọc hoặc ngang" },
-    "sheet.page.size": { label: "Khổ giấy", tooltip: "Chọn kích thước trang in (A4, Letter, Legal)" },
+    "sheet.page.size": { label: "Khổ giấy", tooltip: "Chọn kích thước trang in (A4, Letter, Legal)" }
+, "sheet.page.fitWidth": { label: "Chiều rộng", tooltip: "Thu nhỏ bản in cho vừa số trang theo chiều ngang (Tự động, 1–5 trang)" }, "sheet.page.fitHeight": { label: "Chiều cao", tooltip: "Thu nhỏ bản in cho vừa số trang theo chiều dọc (Tự động, 1–5 trang)" },
     "sheet.page.printTitles": { label: "Tiêu đề in", tooltip: "Chọn hàng và cột lặp lại trên mỗi trang in" },
     "sheet.page.scale": { label: "Tỷ lệ vừa trang", tooltip: "Thu phóng nội dung in theo phần trăm hoặc số trang" },
     "sheet.page.headerFooter": { label: "Tiêu đề Đầu/Cuối trang", tooltip: "Đặt đầu trang và cuối trang khi in" },
@@ -855,6 +858,8 @@ export const viStrings = {
     ,"sheet.review.commentPrevious": { label: "Nhận xét trước", tooltip: "Nhảy tới nhận xét trước đó" }
     ,"sheet.review.commentNext": { label: "Nhận xét sau", tooltip: "Nhảy tới nhận xét tiếp theo" }
     ,"sheet.review.commentDelete": { label: "Xóa nhận xét", tooltip: "Xóa nhận xét đang chọn" }
+    ,"sheet.review.commentToggleVisible": { label: "Hiện/Ẩn ghi chú", tooltip: "Bật hoặc tắt hiển thị cố định khung ghi chú của ô đang chọn" }
+    ,"sheet.review.commentShowAll": { label: "Hiện tất cả ghi chú", tooltip: "Hiện hoặc ẩn tất cả ghi chú trong toàn bộ trang tính" }
     ,"sheet.review.commentResolve": { label: "Đã xử lý", tooltip: "Đánh dấu hoặc mở lại nhận xét đang chọn" }
     ,"sheet.file.properties": { label: "Thuộc tính sổ làm việc", tooltip: "Xem và sửa tiêu đề, chủ đề, tác giả, quản lý, công ty, thẻ và ghi chú" }
     ,"sheet.file.markAsFinal": { label: "Đánh dấu là cuối cùng", tooltip: "Đánh dấu sổ làm việc là bản cuối cùng và chuyển sang chế độ chỉ đọc để ngăn chỉnh sửa vô ý" }
@@ -977,6 +982,15 @@ export const viStrings = {
     ,"slides.media.insertVideo": { label: "Video", tooltip: "Chèn video từ máy tính" }
     ,"slides.media.insertAudio": { label: "Âm thanh", tooltip: "Chèn âm thanh từ máy tính" }
     ,"slides.insert.table": { label: "Bảng", tooltip: "Chèn bảng vào trang chiếu, kéo-thả và đổi kích thước được" }
+  ,"slides.table.insertRowAbove": { label: "Chèn hàng phía trên", tooltip: "Chèn một hàng trống phía trên hàng chứa con trỏ" }
+  ,"slides.table.insertRowBelow": { label: "Chèn hàng phía dưới", tooltip: "Chèn một hàng trống phía dưới hàng chứa con trỏ" }
+  ,"slides.table.insertColLeft": { label: "Chèn cột bên trái", tooltip: "Chèn một cột trống bên trái cột chứa con trỏ" }
+  ,"slides.table.insertColRight": { label: "Chèn cột bên phải", tooltip: "Chèn một cột trống bên phải cột chứa con trỏ" }
+  ,"slides.table.deleteRow": { label: "Xóa hàng", tooltip: "Xóa hàng chứa con trỏ" }
+  ,"slides.table.deleteCol": { label: "Xóa cột", tooltip: "Xóa cột chứa con trỏ" }
+  ,"slides.table.deleteTable": { label: "Xóa bảng", tooltip: "Xóa toàn bộ bảng đang chọn" }
+  ,"slides.table.mergeCells": { label: "Gộp ô", tooltip: "Gộp các ô đang chọn (nhấp ô đầu, giữ Shift và nhấp ô cuối) thành một ô" }
+  ,"slides.table.splitCell": { label: "Tách ô", tooltip: "Tách ô đã gộp trở lại các ô ban đầu" }
     ,"slides.insert.chart": { label: "Biểu đồ", tooltip: "Chèn biểu đồ vào trang chiếu" }
     ,"slides.insert.headerFooter": { label: "Đầu trang & Chân trang", tooltip: "Bật/tắt ngày tháng, số trang và chân trang" }
     ,"slides.insert.dateTime": { label: "Ngày & Giờ", tooltip: "Chèn placeholder ngày giờ tự cập nhật" }
@@ -986,7 +1000,7 @@ export const viStrings = {
     ,"slides.insert.wordart": { label: "Chữ nghệ thuật", tooltip: "Chèn chữ nghệ thuật với viền, đổ bóng hoặc gradient" }
     ,"slides.master.apply": { label: "Mẫu Slide Master", tooltip: "Áp dụng mẫu Slide Master đồng bộ font, màu, logo cho toàn bộ trang chiếu" }
     ,"slides.design.themeGallery": { label: "Chủ đề", tooltip: "Chọn chủ đề thiết kế cho toàn bộ bản trình chiếu" }
-    ,"slides.design.slideSize": { label: "Cỡ trang chiếu", tooltip: "Chọn tỷ lệ trang chiếu 16:9 hoặc 4:3" }
+    ,"slides.design.slideSize": { label: "Cỡ trang chiếu", tooltip: "Chọn tỷ lệ 16:9, 4:3 hoặc nhập kích thước tùy chỉnh (cm)" }
     ,"slides.design.formatBackground": { label: "Định dạng nền", tooltip: "Đổi nền trang chiếu hiện tại hoặc tất cả trang: màu đơn, gradient 2 màu, hoặc ảnh" }
     ,"slides.transition.apply": { label: "Chuyển tiếp", tooltip: "Hiệu ứng chuyển trang chiếu (Fade, Slide, Zoom, Flip)" }
     ,"slides.animation.apply": { label: "Hiệu ứng đối tượng", tooltip: "Thiết lập hiệu ứng xuất hiện (Fade In, Fly In, Zoom In) cho đối tượng" }
@@ -1039,6 +1053,11 @@ export const viStrings = {
     ,"slides.text.italic": { label: "Nghiêng", tooltip: "Chữ nghiêng (Ctrl+I)" }
     ,"slides.text.underline": { label: "Gạch chân", tooltip: "Gạch chân chữ (Ctrl+U)" }
     ,"slides.text.strike": { label: "Gạch ngang", tooltip: "Gạch ngang chữ" }
+  ,"slides.text.shadow": { label: "Đổ bóng chữ", tooltip: "Đổ bóng cho chữ đang chọn (bật/tắt)" }
+  ,"slides.text.columns": { label: "Cột", tooltip: "Chia văn bản trong khung chữ thành 1, 2 hoặc 3 cột" }
+  ,"slides.text.columnsOne": { label: "Một cột", tooltip: "Văn bản chạy một cột (mặc định)" }
+  ,"slides.text.columnsTwo": { label: "Hai cột", tooltip: "Chia văn bản trong khung chữ thành hai cột" }
+  ,"slides.text.columnsThree": { label: "Ba cột", tooltip: "Chia văn bản trong khung chữ thành ba cột" }
     ,"slides.text.clearFormat": { label: "Xóa định dạng", tooltip: "Xóa định dạng chữ, giữ nguyên nội dung" }
     ,"slides.font.family": { label: "Phông chữ", tooltip: "Chọn phông chữ" }
     ,"slides.font.size": { label: "Cỡ chữ", tooltip: "Chọn cỡ chữ" }
@@ -1140,8 +1159,17 @@ export const viStrings = {
     "writer.table.bordersOutside": { label: "Viền ngoài", tooltip: "Chỉ hiển thị đường viền bao quanh vùng ô" },
     "writer.table.bordersInside": { label: "Viền trong", tooltip: "Chỉ hiển thị đường viền bên trong vùng ô" },
     "writer.table.bordersNone": { label: "Không viền", tooltip: "Ẩn đường viền của vùng ô" },
+    "writer.table.viewGridlines": { label: "Xem đường lưới", tooltip: "Ẩn hoặc hiện đường lưới mờ của các bảng không viền" },
     "writer.table.toggleHeaderRow": { label: "Hàng tiêu đề", tooltip: "Bật hoặc tắt định dạng hàng tiêu đề bảng" },
     "writer.table.toggleBandedRows": { label: "Hàng xen kẽ", tooltip: "Bật hoặc tắt màu xen kẽ giữa các hàng trong bảng" },
+    "writer.table.splitTable": { label: "Tách bảng", tooltip: "Tách bảng hiện tại thành hai bảng tại hàng đang chọn" },
+    "writer.table.textDirection": { label: "Hướng văn bản", tooltip: "Xoay hướng văn bản trong ô bảng (ngang, xoay 90°, xoay 270°)" },
+    "writer.table.properties": { label: "Thuộc tính bảng", tooltip: "Mở hộp thoại thiết lập căn lề, thụt lề, độ cao hàng và lề ô của bảng" },
+    "writer.table.stylesGallery": { label: "Kiểu bảng", tooltip: "Mở thư viện kiểu dáng bảng để áp dụng định dạng phối màu chuyên nghiệp" },
+    "writer.table.formula": { label: "Công thức", tooltip: "Chèn công thức tính toán vào ô bảng (=SUM(ABOVE), =SUM(LEFT)...)" },
+    "writer.table.sort": { label: "Sắp xếp bảng", tooltip: "Sắp xếp dữ liệu các hàng trong bảng theo thứ tự A–Z" },
+    "writer.arrange.group": { label: "Nhóm", tooltip: "Nhóm các hình khối đang chọn thành một khối (Ctrl+G)" },
+    "writer.arrange.ungroup": { label: "Bỏ nhóm", tooltip: "Tách nhóm hình khối đang chọn (Ctrl+Shift+G)" },
     "writer.image.insert": { label: "Hình ảnh", tooltip: "Chèn hình ảnh từ máy tính" },
     "writer.image.resize": { label: "Đổi kích thước ảnh", tooltip: "Thay đổi kích thước và tỷ lệ ảnh" },
     "writer.image.wrap": { label: "Ngắt dòng văn bản", tooltip: "Tùy chọn ngắt dòng chữ quanh ảnh" },
@@ -1272,6 +1300,8 @@ export const viStrings = {
     "writer.view.zoom100": { label: "100%", tooltip: "Hiển thị tài liệu ở tỉ lệ 100%" },
     "writer.view.pageWidth": { label: "Chiều rộng trang", tooltip: "Thu phóng để trang vừa chiều rộng vùng làm việc" },
     "writer.view.newWindow": { label: "Cửa sổ mới", tooltip: "Mở tài liệu trong một cửa sổ trình duyệt mới" },
+    "writer.view.split": { label: "Chia", tooltip: "Chia cửa sổ soạn thảo thành hai phần độc lập để đối chiếu tài liệu" },
+    "writer.view.selectionPane": { label: "Ngăn chọn", tooltip: "Bật hoặc tắt ngăn chọn đối tượng trên tài liệu" },
     "writer.reference.tocInsert": { label: "Mục lục tự động", tooltip: "Chèn mục lục tự động từ các tiêu đề Heading" },
     "writer.reference.tocUpdate": { label: "Cập nhật mục lục", tooltip: "Cập nhật lại mục lục tài liệu" },
     "writer.reference.footnoteInsert": { label: "Chú thích trang", tooltip: "Chèn chú thích cuối trang (Footnote) (Ctrl+Alt+F)" },
@@ -1322,8 +1352,10 @@ export const viStrings = {
       pages: "Trang văn bản",
       tables: "Bảng biểu",
       tableStyleOptions: "Tùy chọn kiểu bảng",
+      tableStyles: "Kiểu bảng",
       tableBordersShading: "Màu & Viền",
       tableBordersButton: "Đường viền bảng",
+      arrange: "Sắp xếp",
       tableSelectGroup: "Bảng",
       tableRowsColsGroup: "Hàng & Cột",
       tableMergeGroup: "Hợp nhất",
@@ -1666,6 +1698,32 @@ export const viStrings = {
       jumpToNote: "Nhấp để chuyển đến chú thích",
       jumpToEndnote: "Nhấp để chuyển đến chú thích cuối",
       jumpToRef: "Chuyển tới vị trí tham chiếu"
+    },
+    splitHorizontalSeparator: "Vạch chia ngang cửa sổ",
+    selectionPane: {
+      title: "Lựa chọn",
+      showAll: "Hiện tất cả",
+      hideAll: "Ẩn tất cả",
+      bringForward: "Đưa lên một lớp",
+      sendBackward: "Đưa về một lớp",
+      group: "Nhóm",
+      ungroup: "Bỏ nhóm",
+      close: "Đóng ngăn chọn"
+    },
+    tableStyles: {
+      title: "Thư viện kiểu bảng",
+      plainTables: "Bảng thường",
+      gridTables: "Bảng dạng lưới",
+      listTables: "Bảng danh sách"
+    },
+    tableFormula: {
+      title: "Công thức",
+      formulaLabel: "Công thức:",
+      numberFormatLabel: "Định dạng số:",
+      pasteFunctionLabel: "Dán hàm:",
+      ok: "Đồng ý",
+      cancel: "Hủy",
+      invalidFormula: "Công thức phải bắt đầu bằng dấu bằng (=)."
     }
   },
   sheetContextMenu: {

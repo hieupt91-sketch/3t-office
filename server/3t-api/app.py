@@ -54,7 +54,7 @@ _DOCUMENT_MARKERS = tuple(re.compile(pattern, re.IGNORECASE) for pattern in (
     r"data:(?:application|image)/", r"(?:^|\n)\s*(?:Content_Types\.xml|word/document\.xml|xl/worksheets/|ppt/slides/)",
 ))
 _UPDATE_PLATFORMS = frozenset({"windows", "macos", "ios", "android", "linux"})
-_SAFE_DOWNLOAD_NAME = re.compile(r"^[A-Za-z0-9_.-]+\.(?:exe|msi|zip|tar\.gz)$")
+_SAFE_DOWNLOAD_NAME = re.compile(r"^[A-Za-z0-9_.-]+\.(?:exe|msi|zip|tar\.gz|dmg|pkg)$")
 
 
 @dataclass(frozen=True, slots=True)

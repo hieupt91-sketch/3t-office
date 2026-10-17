@@ -11,7 +11,7 @@ class SheetPrintOptionsTest(unittest.TestCase):
         )
         self.assertEqual(
             p.parse_print_options_from_sheet_xml(xml),
-            {"gridlines": True, "headings": True, "comments": "sheetEnd", "cellErrors": "na", "pageOrder": "overThenDown"},
+            {"gridlines": True, "headings": True, "blackAndWhite": False, "draft": False, "comments": "sheetEnd", "cellErrors": "na", "pageOrder": "overThenDown"},
         )
 
     def test_apply_to_fods_roundtrip(self):

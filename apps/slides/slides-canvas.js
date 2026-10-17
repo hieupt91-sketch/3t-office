@@ -198,6 +198,10 @@ export function cursorForHandle(dir, rotationDeg) {
   return CURSOR_CYCLE[idx];
 }
 
+import { customSlideSize, pxToCm } from "./slide-size.js";
+import { ANIMATION_EFFECTS, animationEffectsOfClass, animationEffect, animationClassOf, animationKeyframeName, animationInlineCss } from "./slide-animation-classes.js";
+import { tableState, mergeMap, expandSelection, insertRow as tblInsertRow, insertCol as tblInsertCol, deleteRow as tblDeleteRow, deleteCol as tblDeleteCol, mergeCells as tblMergeCells, splitCell as tblSplitCell } from "./slide-table-ops.js";
+
 export class SlidesCanvasController {
   constructor(container, options = {}) {
     this.container = container;
@@ -1536,7 +1540,7 @@ export class SlidesCanvasController {
   _htmlLooksFormatted(html) {
     const value = String(html || "");
     return /<(b|strong|i|em|u|s|strike|font|ul|ol|li)\b/i.test(value)
-      || /style\s*=\s*["'][^"']*(font-weight|font-style|text-decoration|color|background|font-family|font-size|text-align|line-height)/i.test(value);
+      || /style\s*=\s*["'][^"']*(font-weight|font-style|text-decoration|text-shadow|color|background|font-family|font-size|text-align|line-height)/i.test(value);
   }
 
   _setEditableContent(el, html, plain) {
@@ -1628,6 +1632,7 @@ export class SlidesCanvasController {
    */
   setSelectedTarget(target, extraTargets = []) {
     this.selectedTarget = target;
+    if (target == null || target === "title" || target === "body" || target === "body2") this._tableCursor = null;
     if (!this.selectedShapeIds) this.selectedShapeIds = new Set();
     this.diagramGroupSelectionId = null;
     if (target === "title" || target === "body" || target === "body2" || target == null) {
@@ -1636,6 +1641,7 @@ export class SlidesCanvasController {
       this.selectedShapeIds = new Set([String(target), ...(extraTargets || []).map(String)]);
     }
     this._updateSelectionUi();
+    this._syncTableContext();
   }
 
   /**
@@ -2048,6 +2054,7 @@ export class SlidesCanvasController {
     const slide = this.slides[this.currentSlideIndex];
     if (!slide) return false;
     const previous = this._getAnimationConfig(slide, target) || {};
+    const undoBefore = this._snapshotSlideAnimations(slide);
     const cfg = {
       type: animationConfig?.type || "none",
       duration: parseInt(animationConfig?.duration, 10) || 500,
@@ -2075,6 +2082,7 @@ export class SlidesCanvasController {
         slide.titleAnimation = cfg;
       }
     }
+    if (JSON.stringify(undoBefore) !== JSON.stringify(this._snapshotSlideAnimations(slide))) this._pushAnimationUndo(undoBefore);
     this._renderShapesLayer();
     this._renderAnimationPane();
     return true;
@@ -2125,8 +2133,33 @@ export class SlidesCanvasController {
     return max + 1;
   }
 
+  /** <optgroup> Vào / Nhấn mạnh / Thoát cho danh sách chọn hiệu ứng. */
+  _animationTypeOptionsHtml(currentType) {
+    const groups = [
+      ["entrance", t("slidesDialogs.animGroupEntrance", "Vào")],
+      ["emphasis", t("slidesDialogs.animGroupEmphasis", "Nhấn mạnh")],
+      ["exit", t("slidesDialogs.animGroupExit", "Thoát")]
+    ];
+    const current = animationEffect(currentType)?.id;
+    return groups.map(([cls, label]) => `<optgroup label="${label}">${animationEffectsOfClass(cls)
+      .map((effect) => `<option value="${effect.id}" ${current === effect.id ? "selected" : ""}>${this._animationTypeLabel(effect.id)}</option>`)
+      .join("")}</optgroup>`).join("");
+  }
+
   _animationTypeLabel(type) {
     switch (type) {
+      case "spin":
+        return t("slidesDialogs.animSpin", "Xoay tròn (nhấn mạnh)");
+      case "growShrink":
+        return t("slidesDialogs.animGrowShrink", "Phóng to / thu nhỏ (nhấn mạnh)");
+      case "fadeOut":
+        return t("slidesDialogs.animFadeOut", "Mờ dần ra (thoát)");
+      case "flyOut":
+        return t("slidesDialogs.animFlyOut", "Bay ra (thoát)");
+      case "zoomOut":
+        return t("slidesDialogs.animZoomOut", "Thu nhỏ ra (thoát)");
+      case "disappear":
+        return t("slidesDialogs.animDisappear", "Biến mất (thoát)");
       case "fadeIn":
       case "fade":
         return t("slidesDialogs.animFadeIn", "Mờ dần xuất hiện (Fade In)");
@@ -2257,10 +2290,9 @@ export class SlidesCanvasController {
 
   _animationInlineStyle(animation, playDelay) {
     if (!this._isActiveAnimation(animation)) return "";
-    const kf = this._getKeyframeName(animation.type);
     const dur = animation.duration || 500;
     const del = playDelay != null ? playDelay : (animation.delay || 0);
-    return `opacity:0;animation:${kf} ${dur}ms ease-out ${del}ms forwards;`;
+    return animationInlineCss(animation.type, dur, del);
   }
 
   _snapshotSlideAnimations(slide) {
@@ -2657,6 +2689,7 @@ export class SlidesCanvasController {
   }
 
   _getKeyframeName(type) {
+    if (animationClassOf(type) && animationClassOf(type) !== "entrance") return animationKeyframeName(type);
     switch (type) {
       case "fadeIn":
       case "fade":
@@ -2830,6 +2863,148 @@ export class SlidesCanvasController {
     this.setSelectedTarget(newShape.id);
     this._renderShapesLayer();
     return newShape;
+  }
+
+  // ---------------- Thao tác bảng (Bố cục bảng) ----------------
+  _activeTableShape() {
+    const slide = this.slides[this.currentSlideIndex];
+    const id = this._tableCursor?.shapeId ?? (this.selectedTarget != null ? this.selectedTarget : null);
+    const shape = id == null ? null : (slide?.shapes || []).find(item => String(item.id) === String(id));
+    return shape && shape.type === "table" ? shape : null;
+  }
+
+  _onTableCellFocus(shape, r, c, host) {
+    const keepSelection = this._tableSel && String(this._tableSel.shapeId) === String(shape.id) && this._tableShiftDown;
+    this._tableCursor = { shapeId: shape.id, r, c };
+    if (!keepSelection) this._clearTableSelection(host);
+    this._syncTableContext(shape.id);
+  }
+
+  _clearTableSelection(host) {
+    this._tableSel = null;
+    (host || this.shapesLayer)?.querySelectorAll?.(".is-table-cell-selected").forEach(td => td.classList.remove("is-table-cell-selected"));
+  }
+
+  _extendTableSelection(shape, r, c, host) {
+    const cur = this._tableCursor;
+    if (!cur) return;
+    const box = expandSelection(shape, cur.r, cur.c, r, c);
+    this._tableSel = { shapeId: shape.id, ...box };
+    const spans = mergeMap(tableState(shape));
+    host?.querySelectorAll?.("[data-table-row]").forEach(td => {
+      const tr = Number(td.dataset.tableRow), tc = Number(td.dataset.tableCol);
+      const span = spans[tr]?.[tc];
+      const inside = tr >= box.r && tr <= box.r2 && tc >= box.c && tc <= box.c2;
+      td.classList.toggle("is-table-cell-selected", Boolean(inside && span && !span.covered));
+    });
+    this._syncTableContext(shape.id);
+  }
+
+  /** Hiện tab ngữ cảnh "Bố cục bảng" khi đang ở trong bảng. */
+  _syncTableContext(tableShapeId = null) {
+    if (typeof document === "undefined" || typeof document.querySelector !== "function") return;
+    let has = tableShapeId != null;
+    if (!has) {
+      const slide = this.slides?.[this.currentSlideIndex];
+      const sel = this.selectedTarget;
+      has = sel != null && (slide?.shapes || []).some(item => String(item.id) === String(sel) && item.type === "table");
+    }
+    const tab = document.querySelector("#vno-ribbon-tab-tableLayout");
+    if (tab) { tab.hidden = !has; tab.setAttribute("aria-hidden", has ? "false" : "true"); }
+  }
+
+  _commitTableChange(shape, next) {
+    const keys = ["rows", "cols", "cells", "merges", "w", "h"];
+    const before = {};
+    const after = {};
+    for (const key of keys) {
+      before[key] = shape[key] === undefined ? undefined : JSON.parse(JSON.stringify(shape[key]));
+      after[key] = JSON.parse(JSON.stringify(next[key]));
+    }
+    Object.assign(shape, JSON.parse(JSON.stringify(next)));
+    this.undoStack.push({ type: "shape-format", slideIndex: this.currentSlideIndex, shapeId: shape.id, before, after });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._tableSel = null;
+    this._renderShapesLayer();
+    return true;
+  }
+
+  _tableNotice(message) {
+    try { this.onStatus?.(message); } catch { /* không có thanh trạng thái */ }
+    return false;
+  }
+
+  tableInsertRow(where = "below") {
+    const shape = this._activeTableShape();
+    const cur = this._tableCursor;
+    if (!shape) return this._tableNotice("Hãy đặt con trỏ vào một ô của bảng.");
+    const anchor = cur && String(cur.shapeId) === String(shape.id) ? cur : { r: 0, c: 0 };
+    const state = tableState(shape);
+    const spanRow = Math.max(...state.merges.filter(m => anchor.r >= m.r && anchor.r < m.r + m.rs && anchor.c >= m.c && anchor.c < m.c + m.cs).map(m => m.r + m.rs - 1), anchor.r);
+    const index = where === "above" ? anchor.r : spanRow + 1;
+    const next = tblInsertRow(shape, index);
+    return next ? this._commitTableChange(shape, next) : this._tableNotice("Không thể chèn thêm hàng (tối đa 50 hàng).");
+  }
+
+  tableInsertCol(where = "right") {
+    const shape = this._activeTableShape();
+    const cur = this._tableCursor;
+    if (!shape) return this._tableNotice("Hãy đặt con trỏ vào một ô của bảng.");
+    const anchor = cur && String(cur.shapeId) === String(shape.id) ? cur : { r: 0, c: 0 };
+    const state = tableState(shape);
+    const spanCol = Math.max(...state.merges.filter(m => anchor.r >= m.r && anchor.r < m.r + m.rs && anchor.c >= m.c && anchor.c < m.c + m.cs).map(m => m.c + m.cs - 1), anchor.c);
+    const index = where === "left" ? anchor.c : spanCol + 1;
+    const next = tblInsertCol(shape, index);
+    return next ? this._commitTableChange(shape, next) : this._tableNotice("Không thể chèn thêm cột (tối đa 26 cột).");
+  }
+
+  tableDeleteRow() {
+    const shape = this._activeTableShape();
+    const cur = this._tableCursor;
+    if (!shape || !cur) return this._tableNotice("Hãy đặt con trỏ vào một ô của bảng.");
+    const next = tblDeleteRow(shape, cur.r);
+    if (!next) return this._tableNotice("Bảng chỉ còn một hàng. Dùng «Xóa bảng» để xóa cả bảng.");
+    this._tableCursor = { shapeId: shape.id, r: Math.min(cur.r, next.rows - 1), c: Math.min(cur.c, next.cols - 1) };
+    return this._commitTableChange(shape, next);
+  }
+
+  tableDeleteCol() {
+    const shape = this._activeTableShape();
+    const cur = this._tableCursor;
+    if (!shape || !cur) return this._tableNotice("Hãy đặt con trỏ vào một ô của bảng.");
+    const next = tblDeleteCol(shape, cur.c);
+    if (!next) return this._tableNotice("Bảng chỉ còn một cột. Dùng «Xóa bảng» để xóa cả bảng.");
+    this._tableCursor = { shapeId: shape.id, r: Math.min(cur.r, next.rows - 1), c: Math.min(cur.c, next.cols - 1) };
+    return this._commitTableChange(shape, next);
+  }
+
+  tableDelete() {
+    const shape = this._activeTableShape();
+    if (!shape) return this._tableNotice("Hãy chọn một bảng.");
+    this._tableCursor = null;
+    this._tableSel = null;
+    this.deleteShape(shape.id);
+    this._syncTableContext(null);
+    return true;
+  }
+
+  tableMergeCells() {
+    const shape = this._activeTableShape();
+    const sel = this._tableSel;
+    if (!shape || !sel || String(sel.shapeId) !== String(shape.id)) return this._tableNotice("Chọn ít nhất hai ô: nhấp vào ô đầu, giữ Shift và nhấp vào ô cuối.");
+    const next = tblMergeCells(shape, sel.r, sel.c, sel.r2, sel.c2);
+    if (!next) return this._tableNotice("Chọn ít nhất hai ô để gộp.");
+    this._tableCursor = { shapeId: shape.id, r: sel.r, c: sel.c };
+    return this._commitTableChange(shape, next);
+  }
+
+  tableSplitCell() {
+    const shape = this._activeTableShape();
+    const cur = this._tableCursor;
+    if (!shape || !cur) return this._tableNotice("Hãy đặt con trỏ vào ô đã gộp.");
+    const next = tblSplitCell(shape, cur.r, cur.c);
+    return next ? this._commitTableChange(shape, next) : this._tableNotice("Ô này chưa được gộp nên không cần tách.");
   }
 
   /**
@@ -4424,16 +4599,31 @@ const startEditing = (initialText) => {
         const table = document.createElement("table");
         table.className = "vno-slide-table";
         table.style.cssText = "width:100%;height:100%;border-collapse:collapse;background:#fff;table-layout:fixed;";
-        (shape.cells || []).forEach((row, r) => {
+        const tableModel = tableState(shape);
+        const tableMap = mergeMap(tableModel);
+        tableModel.cells.forEach((row, r) => {
           const tr = document.createElement("tr");
           (row || []).forEach((cell, c) => {
+            const spanInfo = tableMap[r][c];
+            if (spanInfo.covered) return; // ô bị gộp vào ô khác: không vẽ
             const td = document.createElement(r === 0 ? "th" : "td");
+            if (spanInfo.rs > 1) td.rowSpan = spanInfo.rs;
+            if (spanInfo.cs > 1) td.colSpan = spanInfo.cs;
+            td.dataset.tableRow = String(r);
+            td.dataset.tableCol = String(c);
             td.contentEditable = "true";
             td.dataset.vnoNativeClipboard = "true";
             if (this._htmlLooksFormatted(cell)) td.innerHTML = cell;
             else td.textContent = cell || "";
             td.style.cssText = "border:1px solid #94a3b8;padding:6px 8px;font-size:13px;background:#fff;font-weight:" + (r === 0 ? "700" : "400") + ";";
-            td.addEventListener("mousedown", (event) => event.stopPropagation());
+            td.addEventListener("mousedown", (event) => {
+              event.stopPropagation();
+              if (event.shiftKey && this._tableCursor && String(this._tableCursor.shapeId) === String(shape.id)) {
+                event.preventDefault(); // Shift+nhấp: chọn dải ô để gộp
+                this._extendTableSelection(shape, r, c, el);
+              }
+            });
+            td.addEventListener("focus", () => this._onTableCellFocus(shape, r, c, el));
             td.addEventListener("input", () => {
               if (!shape.cells[r]) shape.cells[r] = [];
               const html = this._captureEditableHtml(td);
@@ -4478,6 +4668,11 @@ const startEditing = (initialText) => {
         textEl.style.flexShrink = shape.autofit ? "1" : "0";
         textEl.style.overflow = "visible";
         if (shape.textDirection) textEl.style.cssText += ";" + this._textDirectionCss(shape.textDirection);
+        if (Number(shape.textColumns) > 1) {
+          textEl.style.columnCount = String(Math.min(8, Math.trunc(Number(shape.textColumns))));
+          textEl.style.columnGap = `${Number.isFinite(Number(shape.columnSpacing)) ? Number(shape.columnSpacing) : 18}px`;
+          textEl.style.columnFill = "balance";
+        }
         if (shape.textHtml && this._htmlLooksFormatted(shape.textHtml)) textEl.innerHTML = shape.textHtml;
         else textEl.textContent = shape.text || "";
         textEl.contentEditable = "false";
@@ -4583,6 +4778,10 @@ const startEditing = (initialText) => {
           textEl.className = isDiagramNode ? "vno-diagram-node-text" : "vno-shape-text";
           textEl.dataset.shapeTextId = String(shape.id);
           textEl.style.cssText = this._textDirectionCss(shape.textDirection);
+          if (!isDiagramNode && Number(shape.textColumns) > 1) {
+            textEl.style.columnCount = String(Math.min(8, Math.trunc(Number(shape.textColumns))));
+            textEl.style.columnGap = `${Number.isFinite(Number(shape.columnSpacing)) ? Number(shape.columnSpacing) : 18}px`;
+          }
           if (shape.paddingLeft != null || shape.paddingTop != null || shape.paddingRight != null || shape.paddingBottom != null) {
             textEl.style.padding = "0";
           }
@@ -5821,6 +6020,31 @@ const startEditing = (initialText) => {
       const before = { textVAlign: s.textVAlign };
       s.textVAlign = align;
       changes.push({ shapeId: s.id, before, after: { textVAlign: align } });
+    });
+    if (changes.length === 0) return { changed: 0 };
+    this.undoStack.push({ type: "shapes-text-style", slideIndex: this.currentSlideIndex, changes });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderShapesLayer();
+    this._renderThumbnails();
+    this._syncCommandStates();
+    return { changed: changes.length };
+  }
+
+  /** Chia cột văn bản trong khung chữ (1-3 cột) - a:bodyPr numCol thật của PowerPoint. */
+  setTextColumns(count, explicitIds = null) {
+    const columns = Math.max(1, Math.min(8, Math.trunc(Number(count)) || 1));
+    const targets = this._targetShapesForTextStyle(explicitIds).filter(s => !s.diagramGroupId);
+    if (targets.length === 0) return false;
+    const changes = [];
+    targets.forEach(s => {
+      const current = Number(s.textColumns) > 1 ? Number(s.textColumns) : 1;
+      if (current === columns) return;
+      const before = { textColumns: s.textColumns, columnSpacing: s.columnSpacing };
+      const after = { textColumns: columns > 1 ? columns : undefined, columnSpacing: columns > 1 ? (s.columnSpacing ?? 18) : undefined };
+      if (after.textColumns === undefined) delete s.textColumns; else s.textColumns = after.textColumns;
+      if (after.columnSpacing === undefined) delete s.columnSpacing; else s.columnSpacing = after.columnSpacing;
+      changes.push({ shapeId: s.id, before, after });
     });
     if (changes.length === 0) return { changed: 0 };
     this.undoStack.push({ type: "shapes-text-style", slideIndex: this.currentSlideIndex, changes });
@@ -7860,6 +8084,10 @@ const startEditing = (initialText) => {
       this._restoreSlideBackgrounds(action.before);
       this.redoStack.push(action);
       return true;
+    } else if (action.type === "slide-transition") {
+      this._restoreSlideTransitions(action.before);
+      this.redoStack.push(action);
+      return true;
     } else if (action.type === "animations") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
@@ -8217,6 +8445,10 @@ const startEditing = (initialText) => {
       this._restoreSlideBackgrounds(action.after);
       this.undoStack.push(action);
       return true;
+    } else if (action.type === "slide-transition") {
+      this._restoreSlideTransitions(action.after);
+      this.undoStack.push(action);
+      return true;
     } else if (action.type === "animations") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
@@ -8432,6 +8664,8 @@ const startEditing = (initialText) => {
       themeConfig = { ...themeConfig, themeId: themeConfig.id };
     }
 
+    // Có chủ đề được nạp từ tệp hoặc do người dùng chọn: từ giờ chủ đề này mới được ghi vào tệp khi lưu.
+    this._masterThemeTouched = true;
     const previousTheme = { ...this.masterTheme };
     this.masterTheme = { ...this.masterTheme, ...themeConfig };
     if (recordHistory && JSON.stringify(previousTheme) !== JSON.stringify(this.masterTheme)) {
@@ -8765,8 +8999,13 @@ const startEditing = (initialText) => {
     // Có width/height tường minh (khổ thật của file mở) thì ưu tiên hơn preset.
     let next = (options && options.width && options.height) ? null : (presets[options.preset || options] || null);
     if (!next && options && options.width && options.height) {
-      const isStd = Math.abs((options.width / options.height) - (4 / 3)) < 0.15;
-      next = { preset: isStd ? "standard" : "wide", width: options.width, height: options.height };
+      if (options.preset === "custom") {
+        // Kích thước người dùng đặt riêng (cm đã đổi ra px): giữ nhãn "custom", không đoán 4:3 / 16:9.
+        next = { preset: "custom", width: Math.round(options.width), height: Math.round(options.height) };
+      } else {
+        const isStd = Math.abs((options.width / options.height) - (4 / 3)) < 0.15;
+        next = { preset: isStd ? "standard" : "wide", width: options.width, height: options.height };
+      }
     }
     // So cả kích thước thật, không chỉ preset: file 28×15.75cm (1058×595px) cũng là "wide"
     // nhưng khác 960×540 — nếu bỏ qua, canvas giữ 960×540 trong khi toạ độ hình theo
@@ -8803,7 +9042,16 @@ const startEditing = (initialText) => {
         <div class="vno-dialog-body"><p style="font-size:12px;color:#475569">${t("slidesDialogs.slideSizeHint")}</p><div style="display:grid;grid-template-columns:1fr 1fr;gap:14px" role="radiogroup" aria-labelledby="vno-slide-size-title">
           <button type="button" role="radio" class="vno-theme-card" data-slide-size="wide" aria-checked="${this.slideSize.preset === "wide"}" aria-pressed="${this.slideSize.preset === "wide"}"><span style="display:block;aspect-ratio:16/9;background:#dbeafe;border:2px solid #2563eb" aria-hidden="true"></span><strong>${t("slidesDialogs.slideSizeWide")}</strong><small>16:9 · 33,867 × 19,05 cm</small></button>
           <button type="button" role="radio" class="vno-theme-card" data-slide-size="standard" aria-checked="${this.slideSize.preset === "standard"}" aria-pressed="${this.slideSize.preset === "standard"}"><span style="display:block;aspect-ratio:4/3;background:#ffedd5;border:2px solid #f97316" aria-hidden="true"></span><strong>${t("slidesDialogs.slideSizeStandard")}</strong><small>4:3 · 25,4 × 19,05 cm</small></button>
-        </div></div></div>`;
+        </div>
+        <fieldset class="vno-slide-size-custom" style="border:1px solid #cbd5e1;border-radius:6px;margin:14px 0 0;padding:10px 12px">
+          <legend style="font-weight:600;padding:0 6px">${t("slidesDialogs.slideSizeCustom")}</legend>
+          <div style="display:grid;grid-template-columns:1fr 1fr auto;gap:10px;align-items:end">
+            <label style="display:grid;gap:4px;font-weight:600">${t("slidesDialogs.slideSizeWidthCm")}<input class="vno-input" type="text" inputmode="decimal" id="vno-slide-size-w" value="${String(pxToCm(this.slideSize.width, this.ptPerPx)).replace(".", ",")}" autocomplete="off"></label>
+            <label style="display:grid;gap:4px;font-weight:600">${t("slidesDialogs.slideSizeHeightCm")}<input class="vno-input" type="text" inputmode="decimal" id="vno-slide-size-h" value="${String(pxToCm(this.slideSize.height, this.ptPerPx)).replace(".", ",")}" autocomplete="off"></label>
+            <button type="button" class="vno-btn vno-btn-primary" id="vno-slide-size-apply">${t("slidesDialogs.slideSizeApply")}</button>
+          </div>
+          <p id="vno-slide-size-error" role="alert" style="margin:8px 0 0;font-size:12px;color:#b91c1c;min-height:16px"></p>
+        </fieldset></div></div>`;
       document.body.appendChild(overlay);
       const dialogBox = overlay.querySelector(".vno-dialog-box");
       let closed = false;
@@ -8829,6 +9077,19 @@ const startEditing = (initialText) => {
       overlay.addEventListener("click", e => { if (e.target === overlay) close(false); });
       overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => close(false));
       overlay.querySelectorAll("[data-slide-size]").forEach(button => button.addEventListener("click", () => close(this.setSlideSize({ preset: button.dataset.slideSize }))));
+      const applyCustom = () => {
+        const result = customSlideSize(overlay.querySelector("#vno-slide-size-w")?.value, overlay.querySelector("#vno-slide-size-h")?.value, this.ptPerPx);
+        const errorEl = overlay.querySelector("#vno-slide-size-error");
+        if (!result.ok) {
+          if (errorEl) errorEl.textContent = result.error === "range" ? t("slidesDialogs.slideSizeRangeError") : t("slidesDialogs.slideSizeFormatError");
+          return;
+        }
+        close(this.setSlideSize({ preset: "custom", width: result.width, height: result.height }));
+      };
+      overlay.querySelector("#vno-slide-size-apply")?.addEventListener("click", applyCustom);
+      overlay.querySelectorAll("#vno-slide-size-w, #vno-slide-size-h").forEach(input => input.addEventListener("keydown", event => {
+        if (event.key === "Enter") { event.preventDefault(); applyCustom(); }
+      }));
       const activeBtn = overlay.querySelector('[data-slide-size][aria-checked="true"]') || overlay.querySelector("[data-slide-size]");
       activeBtn?.focus?.();
     });
@@ -9250,17 +9511,47 @@ const startEditing = (initialText) => {
     });
   }
 
-  setTransition(type = "fade", duration = 500, applyToAll = true) {
-    this.transitionConfig = { type, duration: parseInt(duration, 10) || 500 };
+  _captureSlideTransitions() {
+    return this.slides.map(slide => (slide.transition ? { ...slide.transition } : null));
+  }
+
+  _restoreSlideTransitions(list) {
+    (list || []).forEach((transition, index) => {
+      const slide = this.slides[index];
+      if (!slide) return;
+      if (transition) slide.transition = { ...transition };
+      else delete slide.transition;
+    });
+    this._renderThumbnails?.();
+    this._syncUndoRedoState?.();
+  }
+
+  /**
+   * Đặt chuyển tiếp. `timing` = { advanceOnClick, advanceAfter (ms) } (Chuyển tiếp > Thời gian); bỏ trống thì giữ cách
+   * chuyển trang hiện có của trang. type "custom" = giữ nguyên hiệu ứng gốc của PowerPoint (khối p:transition đã nạp).
+   */
+  setTransition(type = "fade", duration = 500, applyToAll = true, timing = null) {
+    const current = this.slides[this.currentSlideIndex]?.transition || {};
+    const keepSource = type === "custom" && !!current.sourceXml;
+    const before = this._captureSlideTransitions();
+    const config = { type: keepSource ? "custom" : (type === "custom" ? "fade" : type), duration: parseInt(duration, 10) || 500 };
+    const resolved = timing || { advanceOnClick: current.advanceOnClick !== false, advanceAfter: current.advanceAfter };
+    if (resolved.advanceOnClick === false) config.advanceOnClick = false;
+    if (Number.isFinite(resolved.advanceAfter) && resolved.advanceAfter > 0) config.advanceAfter = Math.round(resolved.advanceAfter);
+    if (keepSource) config.sourceXml = current.sourceXml;
+    this.transitionConfig = { type: keepSource ? "fade" : config.type, duration: config.duration };
     if (applyToAll) {
       this.slides.forEach(s => {
-        s.transition = { ...this.transitionConfig };
+        s.transition = { ...config };
       });
-    } else {
-      if (this.slides[this.currentSlideIndex]) {
-        this.slides[this.currentSlideIndex].transition = { ...this.transitionConfig };
-      }
+    } else if (this.slides[this.currentSlideIndex]) {
+      this.slides[this.currentSlideIndex].transition = { ...config };
     }
+    const after = this._captureSlideTransitions();
+    this.undoStack.push({ type: "slide-transition", before, after });
+    this.redoStack = [];
+    this._syncUndoRedoState?.();
+    this._renderThumbnails?.();
     return true;
   }
 
@@ -9271,8 +9562,12 @@ const startEditing = (initialText) => {
       const overlay = document.createElement("div");
       overlay.className = "vno-dialog-overlay";
 
-      const currentType = this.transitionConfig.type || "fade";
-      const currentDuration = this.transitionConfig.duration || 500;
+      const slideTransition = this.slides[this.currentSlideIndex]?.transition || null;
+      // Slide mang hiệu ứng gốc của tệp (Wipe, Cover, Cut...): mặc định giữ nguyên, tránh đổi nhầm sang kiểu gần giống của VN.
+      const currentType = slideTransition?.sourceXml ? "custom" : (slideTransition?.type || this.transitionConfig.type || "fade");
+      const currentDuration = slideTransition?.duration || this.transitionConfig.duration || 500;
+      const currentAdvanceClick = slideTransition?.advanceOnClick !== false;
+      const currentAdvanceAfter = Number.isFinite(slideTransition?.advanceAfter) && slideTransition.advanceAfter > 0 ? slideTransition.advanceAfter / 1000 : null;
 
       overlay.innerHTML = `
         <div class="vno-dialog-box" style="width: 460px; max-width: calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-trans-dialog-title">
@@ -9289,6 +9584,7 @@ const startEditing = (initialText) => {
                 <option value="zoom" ${currentType === "zoom" ? "selected" : ""}>${t("slidesDialogs.transZoom", "Thu phóng (Zoom)")}</option>
                 <option value="flip" ${currentType === "flip" ? "selected" : ""}>${t("slidesDialogs.transFlip", "Lật trang 3D (Flip)")}</option>
                 <option value="morph" ${currentType === "morph" ? "selected" : ""}>Morph</option>
+                ${currentType === "custom" ? `<option value="custom" selected>${t("slidesDialogs.transCustomKeep", "Giữ nguyên hiệu ứng gốc của tệp")}</option>` : ""}
               </select>
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;">
@@ -9300,6 +9596,12 @@ const startEditing = (initialText) => {
                 <option value="1000" ${currentDuration === 1000 ? "selected" : ""}>${t("slidesDialogs.durationVerySlow", "Rất chậm (1.0 giây)")}</option>
               </select>
             </div>
+            <fieldset style="border:1px solid var(--vno-border-default, #cbd5e1);border-radius:6px;padding:8px 12px;margin:0;display:flex;flex-direction:column;gap:8px;">
+              <legend style="font-size:12px;font-weight:600;color:var(--vno-text-secondary, #475569);">${t("slidesDialogs.transAdvanceLegend", "Chuyển trang")}</legend>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="checkbox" id="vno-trans-advance-click" ${currentAdvanceClick ? "checked" : ""}> ${t("slidesDialogs.transAdvanceClick", "Khi nhấp chuột")}</label>
+              <label style="display:flex;align-items:center;gap:8px;font-size:13px;"><input type="checkbox" id="vno-trans-advance-after-on" ${currentAdvanceAfter ? "checked" : ""}> ${t("slidesDialogs.transAdvanceAfter", "Tự động sau")}
+                <input type="number" id="vno-trans-advance-after" class="vno-dialog-input" min="0" max="3600" step="0.5" value="${currentAdvanceAfter ?? 5}" style="width:80px;" aria-label="${t("slidesDialogs.transAdvanceAfterSeconds", "Số giây tự chuyển trang")}"> ${t("slidesDialogs.transSecondsUnit", "giây")}</label>
+            </fieldset>
             <div style="padding:16px;background:var(--vno-bg-muted, #f8fafc);border:1px dashed var(--vno-border-default, #cbd5e1);border-radius:4px;text-align:center;overflow:hidden;">
               <div id="vno-trans-preview-box" style="font-size:16px;font-weight:bold;color:var(--vno-slides-primary, #b53818);padding:12px;background:var(--vno-bg-surface, #ffffff);border:1px solid var(--vno-border-default, #cbd5e1);border-radius:4px;box-shadow:0 2px 4px rgba(0,0,0,0.1);">
                 ${t("slidesDialogs.sampleSlide", "Trang Chiếu Mẫu")}
@@ -9323,13 +9625,21 @@ const startEditing = (initialText) => {
       const previewBox = overlay.querySelector("#vno-trans-preview-box");
       const typeSelect = overlay.querySelector("#vno-trans-type-select");
       const durationSelect = overlay.querySelector("#vno-trans-duration-select");
+      const readTiming = () => {
+        const afterOn = overlay.querySelector("#vno-trans-advance-after-on")?.checked;
+        const seconds = Number(overlay.querySelector("#vno-trans-advance-after")?.value);
+        return {
+          advanceOnClick: overlay.querySelector("#vno-trans-advance-click")?.checked !== false,
+          advanceAfter: afterOn && Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds * 1000) : undefined
+        };
+      };
 
       const runPreview = () => {
         if (!previewBox || !typeSelect || !durationSelect) return;
         const type = typeSelect.value;
         const dur = durationSelect.value;
         // Dialog preview has no adjacent-slide shape pair, so Morph previews its documented crossfade fallback.
-        const previewType = type === "morph" ? "fade" : type;
+        const previewType = (type === "morph" || type === "custom") ? "fade" : type;
         const animName = `vnoTransition${previewType.charAt(0).toUpperCase() + previewType.slice(1)}`;
         previewBox.style.animation = "none";
         void previewBox.offsetWidth;
@@ -9358,7 +9668,7 @@ const startEditing = (initialText) => {
           resolve(false);
         } else if (e.key === "Enter" && e.target?.id !== "vno-trans-cancel") {
           e.preventDefault();
-          this.setTransition(typeSelect.value, durationSelect.value, true);
+          this.setTransition(typeSelect.value, durationSelect.value, true, readTiming());
           close();
           resolve(true);
         } else if (e.key === "Tab") {
@@ -9371,13 +9681,13 @@ const startEditing = (initialText) => {
       overlay.querySelector("#vno-trans-cancel")?.addEventListener("click", () => { close(); resolve(false); });
 
       overlay.querySelector("#vno-trans-apply-current")?.addEventListener("click", () => {
-        this.setTransition(typeSelect.value, durationSelect.value, false);
+        this.setTransition(typeSelect.value, durationSelect.value, false, readTiming());
         close();
         resolve(true);
       });
 
       overlay.querySelector("#vno-trans-apply-all")?.addEventListener("click", () => {
-        this.setTransition(typeSelect.value, durationSelect.value, true);
+        this.setTransition(typeSelect.value, durationSelect.value, true, readTiming());
         close();
         resolve(true);
       });
@@ -9440,11 +9750,7 @@ const startEditing = (initialText) => {
               <label for="vno-anim-type-select" style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationType")}</label>
               <select class="vno-select" id="vno-anim-type-select" aria-label="${t("slidesDialogs.animationType")}">
                 <option value="none" ${currentAnim.type === "none" ? "selected" : ""}>${t("slidesDialogs.noAnimation")}</option>
-                <option value="fadeIn" ${currentAnim.type === "fadeIn" || currentAnim.type === "fade" ? "selected" : ""}>${t("slidesDialogs.animFadeIn", "Mờ dần xuất hiện (Fade In)")}</option>
-                <option value="flyIn" ${currentAnim.type === "flyIn" || currentAnim.type === "fly" ? "selected" : ""}>${t("slidesDialogs.animFlyIn", "Bay từ dưới lên (Fly In)")}</option>
-                <option value="zoomIn" ${currentAnim.type === "zoomIn" || currentAnim.type === "zoom" ? "selected" : ""}>${t("slidesDialogs.animZoomIn", "Thu phóng xuất hiện (Zoom In)")}</option>
-                <option value="bounceIn" ${currentAnim.type === "bounceIn" || currentAnim.type === "bounce" ? "selected" : ""}>${t("slidesDialogs.animBounceIn", "Nảy nhẹ xuất hiện (Bounce In)")}</option>
-                <option value="slideLeft" ${currentAnim.type === "slideLeft" || currentAnim.type === "slide" ? "selected" : ""}>${t("slidesDialogs.animSlideLeft", "Trượt từ trái sang (Slide Left)")}</option>
+                ${this._animationTypeOptionsHtml(currentAnim.type)}
               </select>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
@@ -9506,11 +9812,10 @@ const startEditing = (initialText) => {
           previewBox.style.transform = "none";
           return;
         }
-        const kf = this._getKeyframeName(type);
         previewBox.style.animation = "none";
-        previewBox.style.opacity = "0";
+        previewBox.style.opacity = animationClassOf(type) === "entrance" ? "0" : "1";
         void previewBox.offsetWidth;
-        previewBox.style.animation = `${kf} ${dur}ms ease-out ${del}ms forwards`;
+        previewBox.style.cssText += ";" + animationInlineCss(type, dur, del);
       };
 
       targetSelect?.addEventListener("change", () => {
@@ -9679,6 +9984,7 @@ const startEditing = (initialText) => {
     const rehearsing = !!options.rehearsal;
     const idx = startIndex !== undefined ? startIndex : this.currentSlideIndex;
     let currentShowIdx = this._resolveShowStartIndex(idx);
+    let autoAdvanceTimer = null;
 
     const overlay = document.createElement("div");
     overlay.className = "vno-slideshow-overlay";
@@ -9881,12 +10187,18 @@ const startEditing = (initialText) => {
         else content.setAttribute?.("data-vno-transition", "morph");
       } else {
         // Safe Morph fallback: without a clear same-id shape match, crossfade instead of freezing or failing.
-        const fallbackType = transition.type === "morph" ? "fade" : transition.type;
+        const fallbackType = (transition.type === "morph" || transition.type === "custom") ? "fade" : transition.type;
         const animName = `vnoTransition${fallbackType.charAt(0).toUpperCase() + fallbackType.slice(1)}`;
         const transitionState = transition.type === "morph" ? "morph-fallback-fade" : fallbackType;
         if (content.dataset) content.dataset.vnoTransition = transitionState;
         else content.setAttribute?.("data-vno-transition", transitionState);
         content.style.animation = `${animName} ${transition.duration}ms ease-out forwards`;
+      }
+      // Tự chuyển trang sau N giây (Chuyển tiếp > Thời gian > Sau).
+      if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
+      const afterMs = Number(s.transition?.advanceAfter);
+      if (Number.isFinite(afterMs) && afterMs > 0) {
+        autoAdvanceTimer = setTimeout(() => { autoAdvanceTimer = null; advanceShow(); }, afterMs);
       }
     };
 
@@ -10178,6 +10490,7 @@ const startEditing = (initialText) => {
       const totalInkCount = Object.values(slideInks).reduce((sum, list) => sum + (list ? list.length : 0), 0);
 
       const finishClose = () => {
+        if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
         if (rehearsing && discardRehearsal) {
           if (rehearseInterval) clearInterval(rehearseInterval);
         } else {
@@ -10354,6 +10667,8 @@ const startEditing = (initialText) => {
     overlay.addEventListener?.("click", (e) => {
       if (e.target && e.target.closest && e.target.closest("video, audio, .vno-rehearse-timer-box, .vno-slideshow-context-menu, .vno-ink-dialog")) return;
       if (pointerMode !== "arrow") return;
+      // «Khi nhấp chuột» tắt trong Chuyển tiếp > Thời gian: nhấp chuột không chuyển trang (phím vẫn chuyển được).
+      if (this.slides[currentShowIdx]?.transition?.advanceOnClick === false) return;
       advanceShow();
     });
 

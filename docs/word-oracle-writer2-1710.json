@@ -1,0 +1,61 @@
+﻿[
+    {
+        "ten_phep_do":  "1_selection_pane",
+        "thuoc_tinh":  "Shapes.Visible_Name_ZOrder",
+        "initial_shapes_count":  2,
+        "shape1_name":  "Rectangle 2",
+        "shape2_name":  "Oval 3",
+        "renamed_shape":  "SoDoKhoi",
+        "visible_initial":  -1,
+        "visible_hidden":  0,
+        "visible_restored":  -1,
+        "zorder_before":  1,
+        "zorder_after":  1,
+        "y_nghia":  "Selection Pane quan ly shapes: Visible (-1=Hien, 0=An), Name (\u0027Rectangle 2\u0027 -\u003e \u0027SoDoKhoi\u0027), ZOrder (1 -\u003e 1)",
+        "thoi_diem":  "2026-10-17T15:09:23.1857610+07:00"
+    },
+    {
+        "ten_phep_do":  "2_group_ungroup",
+        "thuoc_tinh":  "Shapes.Group_Ungroup",
+        "group_type":  6,
+        "group_items_count":  2,
+        "shapes_count_grouped":  1,
+        "shapes_count_ungrouped":  2,
+        "y_nghia":  "Nhom 2 shapes thanh 1 group shape (Type=6, GroupItems.Count=2); Bo nhom tra lai 2 shapes doc lap",
+        "thoi_diem":  "2026-10-17T15:09:23.2601591+07:00"
+    },
+    {
+        "ten_phep_do":  "3_split_window",
+        "thuoc_tinh":  "ActiveWindow.Split",
+        "panes_before":  1,
+        "panes_after_split":  2,
+        "split_vertical_percent":  50,
+        "panes_after_remove":  1,
+        "y_nghia":  "Chia cua so: Panes.Count tu 1 -\u003e 2 (SplitVertical=50%); Bo chia tro ve 1 pane",
+        "thoi_diem":  "2026-10-17T15:09:23.4436192+07:00"
+    },
+    {
+        "ten_phep_do":  "4_table_styles",
+        "thuoc_tinh":  "Table.Style",
+        "default_style":  "Table Normal",
+        "applied_style":  "Table Grid",
+        "heading_rows":  true,
+        "banded_rows":  true,
+        "first_column":  true,
+        "last_column":  false,
+        "y_nghia":  "Table Style \u0027Table Grid\u0027, HeadingRows=True, BandedRows=True, FirstCol=True, LastCol=False",
+        "thoi_diem":  "2026-10-17T15:09:23.7120428+07:00"
+    },
+    {
+        "ten_phep_do":  "5_table_formulas",
+        "thuoc_tinh":  "Table.Cell.Formula",
+        "sum_above_formula":  "=SUM(ABOVE) \\# \"#,##0\"",
+        "sum_above_field_type":  34,
+        "sum_above_result":  " 200",
+        "sum_left_formula":  "=SUM(LEFT) \\# \"#,##0\"",
+        "sum_left_field_type":  34,
+        "sum_left_result":  " 220",
+        "y_nghia":  "=SUM(ABOVE) (120+80) = \u0027 200\u0027; =SUM(LEFT) (30+70) = \u0027 220\u0027 (wdFieldFormula=49)",
+        "thoi_diem":  "2026-10-17T15:09:24.0002937+07:00"
+    }
+]

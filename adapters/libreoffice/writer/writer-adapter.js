@@ -104,6 +104,10 @@ import {
   SHADOW_PRESETS,
   GLOW_PRESETS
 } from "../../../apps/writer/text-effects-dialog.js";
+import { WriterArrangeController } from "../../../apps/writer/writer-arrange-controller.js";
+import { WriterSplitView } from "../../../apps/writer/writer-split-view.js";
+import { showTableStylesGallery, TABLE_STYLES, applyTableStyle } from "../../../apps/writer/writer-table-styles.js";
+import { showTableFormulaDialog, evaluateTableFormula } from "../../../apps/writer/writer-table-formula-dialog.js";
 
 let writerInsertDialogsPromise;
 let writerMailMergeDialogsPromise;
@@ -475,6 +479,9 @@ export class WriterAdapter {
     this.documentTheme = "office";
     this.showFormattingMarks = false;
     this._styleSelectionHandler = null;
+
+    this.arrangeController = new WriterArrangeController(this);
+    this.splitView = new WriterSplitView(this);
 
     this._initZones();
     if (this.editorDom) {
@@ -849,6 +856,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("common.edit.repeat", () => this.repeatLastAction());
     globalCommandBus.bindHandler("common.edit.find", () => this._showFindReplaceDialog(false));
     globalCommandBus.bindHandler("common.edit.replace", () => this._showFindReplaceDialog(true));
+    globalCommandBus.bindHandler("writer.edit.goTo", (args) => this.openGoToDialog(args));
     globalCommandBus.bindHandler("writer.list.restartNumbering", (args) => this._hintIfFalse(() => this.restartNumbering(args), "Hãy đặt con trỏ vào một mục trong danh sách có thứ tự (1, 2, 3...) để đánh số lại."));
     globalCommandBus.bindHandler("writer.list.continueNumbering", (args) => this._hintIfFalse(() => this.continueNumbering(args), "Hãy đặt con trỏ vào một mục trong danh sách có thứ tự để tiếp tục đánh số."));
     globalCommandBus.bindHandler("writer.insert.coverPage", (args) => this.openCoverPageDialog(args));
@@ -1397,54 +1405,254 @@ export class WriterAdapter {
   openFontDialog() {
     const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
     const range = selection?.rangeCount ? selection.getRangeAt(0).cloneRange() : null;
-    const anchor = range?.startContainer?.nodeType === 1
-      ? range.startContainer
-      : range?.startContainer?.parentElement;
-    const computed = anchor && typeof getComputedStyle === "function" ? getComputedStyle(anchor) : null;
-    const sizePx = Number.parseFloat(computed?.fontSize || "");
-    const colorMatch = String(computed?.color || "").match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
-    const initialColor = colorMatch
-      ? `#${colorMatch.slice(1, 4).map(value => Number(value).toString(16).padStart(2, "0")).join("")}`
-      : "#000000";
     return showFontDialog({
-      initialSize: sizePx > 0 ? Math.round(sizePx * 0.75 * 2) / 2 : 14,
-      initialFamily: computed?.fontFamily?.split(",")[0]?.replace(/["']/g, "").trim(),
-      initialColor,
-      initialBold: Number.parseInt(computed?.fontWeight || "400", 10) >= 600,
-      initialItalic: computed?.fontStyle === "italic",
-      initialUnderline: String(computed?.textDecorationLine || "").includes("underline"),
-      onApply: (settings) => this.applyFontDialogSettings(settings, range)
+      state: this._readFontDialogState(range),
+      onApply: (changes) => this.applyFontDialogChanges(changes, range)
     });
   }
 
-  applyFontDialogSettings(settings, savedRange) {
-    if (!savedRange || savedRange.collapsed || typeof document === "undefined") return false;
+  /** Các nút văn bản (không rỗng) mà vùng chọn chạm tới. */
+  _fontDialogTextNodes(range) {
+    if (!range || typeof document === "undefined") return [];
+    const root = range.commonAncestorContainer?.nodeType === 3 ? range.commonAncestorContainer.parentNode : range.commonAncestorContainer;
+    if (range.commonAncestorContainer?.nodeType === 3) return range.collapsed ? [] : [range.commonAncestorContainer];
+    if (!root || typeof document.createTreeWalker !== "function") return [];
+    const nodes = [];
+    const walker = document.createTreeWalker(root, 4 /* NodeFilter.SHOW_TEXT */);
+    let node = walker.nextNode();
+    while (node) {
+      if (node.nodeValue && node.nodeValue.length && range.intersectsNode(node)) {
+        const isStart = node === range.startContainer;
+        const isEnd = node === range.endContainer;
+        const from = isStart ? range.startOffset : 0;
+        const to = isEnd ? range.endOffset : node.nodeValue.length;
+        if (to > from) nodes.push(node);
+      }
+      node = walker.nextNode();
+    }
+    return nodes;
+  }
+
+  static _fxTokens(element) {
+    const map = new Map();
+    for (const token of String(element?.getAttribute?.("data-vno-fx") || "").split(";")) {
+      if (!token) continue;
+      const [key, ...rest] = token.split("=");
+      map.set(key, rest.length ? rest.join("=") : true);
+    }
+    return map;
+  }
+
+  static _fxWrite(element, map) {
+    const parts = [];
+    for (const [key, value] of map) parts.push(value === true ? key : `${key}=${value}`);
+    if (parts.length) element.setAttribute("data-vno-fx", parts.join(";"));
+    else element.removeAttribute("data-vno-fx");
+  }
+
+  /** Trạng thái hiện tại của vùng chọn cho hộp Phông chữ; giá trị trộn lẫn = null (giống Word). */
+  _readFontDialogState(range) {
+    const nodes = this._fontDialogTextNodes(range);
+    const targets = nodes.length ? nodes : (range?.startContainer ? [range.startContainer] : []);
+    const rgbToHex = (value) => {
+      const m = String(value || "").match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/i);
+      return m ? `#${m.slice(1, 4).map(v => Number(v).toString(16).padStart(2, "0")).join("")}` : "#000000";
+    };
+    const samples = targets.map((node) => {
+      const element = node.nodeType === 1 ? node : node.parentElement;
+      const cs = element && typeof getComputedStyle === "function" ? getComputedStyle(element) : null;
+      const sample = {
+        family: cs?.fontFamily?.split(",")[0]?.replace(/["']/g, "").trim() || "Times New Roman",
+        size: Math.round(Number.parseFloat(cs?.fontSize || "") * 0.75 * 2) / 2 || 14,
+        color: rgbToHex(cs?.color),
+        bold: Number.parseInt(cs?.fontWeight || "400", 10) >= 600,
+        italic: cs?.fontStyle === "italic",
+        underlineStyle: "none", underlineColor: "auto", strike: false, dstrike: false, sup: false, sub: false,
+        smallCaps: cs?.fontVariantCaps === "small-caps" || /small-caps/.test(cs?.fontVariant || ""),
+        allCaps: cs?.textTransform === "uppercase", hidden: false, spacing: 0, position: 0
+      };
+      const letter = Number.parseFloat(cs?.letterSpacing || "");
+      sample.spacing = Number.isFinite(letter) ? Math.round(letter * 0.75 * 10) / 10 : 0;
+      for (let el = element; el && el !== this.bodyDom && el !== this.editorDom; el = el.parentElement) {
+        const tokens = WriterAdapter._fxTokens(el);
+        const ecs = typeof getComputedStyle === "function" ? getComputedStyle(el) : null;
+        const line = String(ecs?.textDecorationLine || "");
+        if (line.includes("underline") && sample.underlineStyle === "none") {
+          const kind = ecs.textDecorationStyle;
+          sample.underlineStyle = tokens.get("ul") || (kind === "double" ? "double" : kind === "dotted" ? "dotted" : kind === "dashed" ? "dash" : kind === "wavy" ? "wave" : "single");
+          sample.underlineColor = tokens.get("ulc") ? `#${String(tokens.get("ulc")).toLowerCase()}` : "auto";
+        } else if (tokens.get("ul") && sample.underlineStyle === "none") {
+          sample.underlineStyle = tokens.get("ul");
+        }
+        if (line.includes("line-through") && !sample.strike && !sample.dstrike) {
+          if (tokens.has("dstrike") || ecs.textDecorationStyle === "double") sample.dstrike = true; else sample.strike = true;
+        }
+        if (el.tagName === "SUP" || ecs?.verticalAlign === "super") sample.sup = true;
+        if (el.tagName === "SUB" || ecs?.verticalAlign === "sub") sample.sub = true;
+        if (tokens.has("vanish") || ecs?.display === "none") sample.hidden = true;
+        if (tokens.has("posx")) sample.position = Number(tokens.get("posx")) / 2;
+      }
+      return sample;
+    });
+    const base = { family: "Times New Roman", size: 14, color: "#000000", bold: false, italic: false, underlineStyle: "none",
+      underlineColor: "auto", strike: false, dstrike: false, sup: false, sub: false, smallCaps: false, allCaps: false,
+      hidden: false, spacing: 0, position: 0 };
+    if (!samples.length) return base;
+    const state = {};
+    for (const key of Object.keys(base)) {
+      const first = samples[0][key];
+      state[key] = samples.every(item => item[key] === first) ? first : null;
+    }
+    return state;
+  }
+
+  /** Bọc từng đoạn chữ trong vùng chọn bằng <span class="vno-fx-run"> để đặt kiểu/dấu hiệu ứng, rồi chọn lại vùng đó. */
+  _wrapFontDialogRuns(range, mutate) {
+    const nodes = this._fontDialogTextNodes(range);
+    if (!nodes.length) return [];
+    const start = range.startContainer;
+    const startOffset = range.startOffset;
+    const end = range.endContainer;
+    const endOffset = range.endOffset;
+    let list = nodes.slice();
+    if (end.nodeType === 3 && endOffset < end.nodeValue.length) end.splitText(endOffset);
+    if (start.nodeType === 3 && startOffset > 0 && startOffset < start.nodeValue.length) {
+      const right = start.splitText(startOffset);
+      list = list.map(node => (node === start ? right : node));
+    }
+    const spans = [];
+    for (const node of list) {
+      const parent = node.parentElement;
+      if (!parent) continue;
+      let span = parent;
+      if (parent.classList?.contains("vno-fx-strike") && parent.parentElement?.classList?.contains("vno-fx-run") && parent.parentElement.childNodes.length === 1) {
+        span = parent.parentElement;
+      } else if (!(parent.classList?.contains("vno-fx-run") && parent.childNodes.length === 1)) {
+        span = document.createElement("span");
+        span.className = "vno-fx-run";
+        parent.insertBefore(span, node);
+        span.appendChild(node);
+      }
+      mutate(span);
+      spans.push(span);
+    }
+    const isBare = (el) => !el.getAttribute("data-vno-fx") && !(el.getAttribute("style") || "").trim();
+    const unwrap = (el) => {
+      const parent = el.parentNode;
+      if (!parent) return;
+      while (el.firstChild) parent.insertBefore(el.firstChild, el);
+      parent.removeChild(el);
+    };
+    for (const span of spans) {
+      const inner = span.querySelector?.(":scope > .vno-fx-strike");
+      if (inner && isBare(inner)) unwrap(inner);
+      if (isBare(span)) unwrap(span);
+    }
+    const first = list[0];
+    const last = list[list.length - 1];
+    if (first?.isConnected && last?.isConnected) {
+      const next = document.createRange();
+      next.setStart(first, 0);
+      next.setEnd(last, last.nodeValue.length);
+      const selection = window.getSelection?.();
+      selection?.removeAllRanges();
+      selection?.addRange(next);
+    }
+    return spans;
+  }
+
+  applyFontDialogChanges(changes, savedRange) {
+    if (!changes || typeof changes !== "object" || !savedRange || savedRange.collapsed || typeof document === "undefined") return false;
+    const keys = Object.keys(changes);
+    if (!keys.length) return true;
     const selection = window.getSelection?.();
     if (!selection) return false;
     selection.removeAllRanges();
     selection.addRange(savedRange);
-    const fragment = savedRange.extractContents();
-    const wrapper = document.createElement("span");
-    wrapper.style.fontFamily = settings.fontFamily;
-    wrapper.style.fontSize = `${settings.fontSize}pt`;
-    wrapper.style.fontWeight = settings.bold ? "bold" : "normal";
-    wrapper.style.fontStyle = settings.italic ? "italic" : "normal";
-    wrapper.style.textDecoration = settings.underline ? "underline" : "none";
-    if (settings.color) wrapper.style.color = settings.color;
-    wrapper.appendChild(fragment);
-    for (const descendant of wrapper.querySelectorAll("*")) {
-      descendant.style.fontFamily = settings.fontFamily;
-      descendant.style.fontSize = `${settings.fontSize}pt`;
-      descendant.style.fontWeight = settings.bold ? "bold" : "normal";
-      descendant.style.fontStyle = settings.italic ? "italic" : "normal";
-      descendant.style.textDecoration = settings.underline ? "underline" : "none";
-      if (settings.color) descendant.style.color = settings.color;
+    this.bodyDom?.focus?.();
+    const toggleTo = (command, desired) => {
+      for (let attempt = 0; attempt < 2; attempt += 1) {
+        if (document.queryCommandState(command) === desired) return;
+        document.execCommand(command, false, null);
+      }
+    };
+    if (changes.family) document.execCommand("fontName", false, changes.family);
+    if (changes.size) this._applyFontSizePt(changes.size);
+    if (changes.color) document.execCommand("foreColor", false, changes.color);
+    if ("strike" in changes) toggleTo("strikeThrough", changes.strike);
+    if (changes.dstrike) toggleTo("strikeThrough", false);
+    if ("sup" in changes) {
+      if (changes.sup) toggleTo("subscript", false);
+      toggleTo("superscript", changes.sup);
     }
-    savedRange.insertNode(wrapper);
-    const nextRange = document.createRange();
-    nextRange.selectNodeContents(wrapper);
-    selection.removeAllRanges();
-    selection.addRange(nextRange);
+    if ("sub" in changes) {
+      if (changes.sub) toggleTo("superscript", false);
+      toggleTo("subscript", changes.sub);
+    }
+    if (changes.underlineStyle === "none") toggleTo("underline", false);
+
+    const needsRuns = ["bold", "italic", "underlineStyle", "underlineColor", "dstrike", "smallCaps", "allCaps", "hidden", "spacing", "position"]
+      .some(key => key in changes) || changes.strike === true;
+    if (needsRuns) {
+      const current = selection.rangeCount ? selection.getRangeAt(0).cloneRange() : savedRange;
+      this._wrapFontDialogRuns(current, (span) => {
+        const tokens = WriterAdapter._fxTokens(span);
+        if ("bold" in changes) span.style.fontWeight = changes.bold ? "bold" : "normal";
+        if ("italic" in changes) span.style.fontStyle = changes.italic ? "italic" : "normal";
+        if ("smallCaps" in changes) span.style.fontVariant = changes.smallCaps ? "small-caps" : "";
+        if ("allCaps" in changes) span.style.textTransform = changes.allCaps ? "uppercase" : "";
+        if ("spacing" in changes) span.style.letterSpacing = changes.spacing ? `${changes.spacing}pt` : "";
+        if ("hidden" in changes) {
+          if (changes.hidden) { tokens.set("vanish", true); span.style.display = "none"; }
+          else { tokens.delete("vanish"); span.style.display = ""; }
+        }
+        if ("position" in changes) {
+          if (changes.position) {
+            tokens.set("posx", String(Math.round(changes.position * 2)));
+            span.style.position = "relative";
+            span.style.top = `${-changes.position}pt`;
+          } else {
+            tokens.delete("posx");
+            span.style.position = "";
+            span.style.top = "";
+          }
+        }
+        // Gạch ngang đôi nằm trên thẻ con riêng: một phần tử CSS chỉ có một kiểu gạch (không thể vừa đôi vừa sóng).
+        const strikeInner = span.querySelector?.(":scope > .vno-fx-strike") || null;
+        const clearStrikeInner = (el) => { WriterAdapter._fxWrite(el, new Map()); el.style.textDecoration = ""; };
+        if (changes.strike === true && strikeInner) clearStrikeInner(strikeInner);
+        if ("dstrike" in changes) {
+          if (changes.dstrike) {
+            let inner = strikeInner;
+            if (!inner) {
+              inner = document.createElement("span");
+              inner.className = "vno-fx-strike";
+              while (span.firstChild) inner.appendChild(span.firstChild);
+              span.appendChild(inner);
+            }
+            WriterAdapter._fxWrite(inner, new Map([["dstrike", true]]));
+            // LibreOffice HTML chỉ hiểu dạng viết gọn text-decoration (không hiểu text-decoration-line/-style).
+            inner.style.textDecoration = "line-through double";
+          } else if (strikeInner) {
+            clearStrikeInner(strikeInner);
+          }
+        }
+        if ("underlineStyle" in changes || "underlineColor" in changes) {
+          const style = changes.underlineStyle ?? (tokens.get("ul") || "single");
+          if (style === "none") {
+            tokens.delete("ul"); tokens.delete("ulc");
+            if (/underline/.test(span.style.textDecoration)) span.style.textDecoration = "";
+          } else {
+            const cssStyle = { double: "double", dotted: "dotted", dash: "dashed", wave: "wavy" }[style] || "solid";
+            const color = changes.underlineColor ?? (tokens.get("ulc") ? `#${tokens.get("ulc")}` : "auto");
+            span.style.textDecoration = ["underline", cssStyle, style === "thick" ? "2px" : "", color === "auto" ? "" : color].filter(Boolean).join(" ");
+            if (style === "single") tokens.delete("ul"); else tokens.set("ul", style);
+            if (color === "auto") tokens.delete("ulc"); else tokens.set("ulc", color.replace("#", "").toUpperCase());
+          }
+        }
+        WriterAdapter._fxWrite(span, tokens);
+      });
+    }
     this.isDirty = true;
     this.recordSnapshot("writer.format.fontDialog");
     return true;
@@ -1571,6 +1779,10 @@ export class WriterAdapter {
   }
 
   sortParagraphs() {
+    const table = this._getActiveTable();
+    if (table && table.rows.length >= 2) {
+      return this.sortTableRows(table);
+    }
     const blocks = this._getSelectedParagraphBlocks();
     if (blocks.length < 2) {
       this.shell?.showNotification?.({
@@ -1598,6 +1810,43 @@ export class WriterAdapter {
     marker.remove();
     this.isDirty = true;
     this.recordSnapshot("writer.para.sort");
+    return true;
+  }
+
+  sortTableRows(table = null) {
+    table = table || this._getActiveTable();
+    if (!table || table.rows.length < 2) return false;
+    this.flushTyping();
+
+    const activeCell = this._getActiveTableCell();
+    const sortColIdx = activeCell?.cellIndex ?? 0;
+
+    const hasHeader = (table.tHead?.rows?.length > 0) ||
+                      (table.rows[0].querySelector("th") !== null) ||
+                      table.rows[0].classList.contains("vno-table-header-row") ||
+                      table.rows[0].classList.contains("vno-table-header");
+    const startIndex = hasHeader ? 1 : 0;
+    if (table.rows.length <= startIndex + 1) return false;
+
+    const dataRows = [];
+    for (let i = startIndex; i < table.rows.length; i++) {
+      dataRows.push(table.rows[i]);
+    }
+
+    const collator = new Intl.Collator(undefined, { sensitivity: "base", numeric: true });
+    dataRows.sort((a, b) => {
+      const textA = (a.cells[sortColIdx]?.textContent || "").trim();
+      const textB = (b.cells[sortColIdx]?.textContent || "").trim();
+      return collator.compare(textA, textB);
+    });
+
+    const tbody = table.tBodies?.[0] || table;
+    for (const row of dataRows) {
+      tbody.appendChild(row);
+    }
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.sort");
     return true;
   }
 
@@ -1728,11 +1977,13 @@ export class WriterAdapter {
       rightMm = pxToMm(computed.marginRight);
       firstLineMm = pxToMm(computed.textIndent);
     }
+    const tabStops = parseTabStops(block?.dataset?.vnoTabs || "");
     return {
       pageWidthMm,
       pageHeightMm,
       margins: { ...setup.margins },
       paragraph: { leftMm, rightMm, firstLineMm },
+      tabStops,
       selectionCount: blocks.length
     };
   }
@@ -9411,6 +9662,31 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.table.bordersNone", () => this._hintIfFalse(() => this.setTableBorders("none"), "Hãy đặt con trỏ vào bảng để thiết lập đường viền."));
     globalCommandBus.bindHandler("writer.table.toggleHeaderRow", () => this._hintIfFalse(() => this.toggleTableHeaderRow(), "Hãy đặt con trỏ vào bảng để bật/tắt hàng tiêu đề."));
     globalCommandBus.bindHandler("writer.table.toggleBandedRows", () => this._hintIfFalse(() => this.toggleTableBandedRows(), "Hãy đặt con trỏ vào bảng để bật/tắt hàng so le màu."));
+    globalCommandBus.bindHandler("writer.table.splitTable", () => this._hintIfFalse(() => this.splitTable(), "Hãy đặt con trỏ vào một ô trong bảng để tách bảng."));
+    globalCommandBus.bindHandler("writer.table.textDirection", (args) => this._hintIfFalse(() => this.setTableTextDirection(args), "Hãy đặt con trỏ vào một ô trong bảng để đổi hướng chữ."));
+    globalCommandBus.bindHandler("writer.table.properties", (args) => this._hintIfFalse(() => this.openTablePropertiesDialog(args), "Hãy đặt con trỏ vào một bảng để mở thuộc tính bảng."));
+    globalCommandBus.bindHandler("writer.table.stylesGallery", (args) => {
+      const table = this._getActiveTable();
+      if (!table) {
+        return this._hintIfFalse(() => false, "Hãy đặt con trỏ vào bảng để chọn kiểu bảng.");
+      }
+      const targetEl = args?.targetEl || (typeof document !== "undefined" ? document.querySelector('[data-command-id="writer.table.stylesGallery"]') : null) || table;
+      return showTableStylesGallery(targetEl, table, this);
+    });
+    globalCommandBus.bindHandler("writer.table.formula", () => {
+      const table = this._getActiveTable();
+      const cell = this._getActiveTableCell();
+      if (!table || !cell) {
+        return this._hintIfFalse(() => false, "Hãy đặt con trỏ vào một ô trong bảng để chèn công thức.");
+      }
+      return showTableFormulaDialog(table, cell, this);
+    });
+    globalCommandBus.bindHandler("writer.table.viewGridlines", () => this.toggleTableGridlines());
+    globalCommandBus.bindHandler("writer.table.sort", () => this._hintIfFalse(() => this.sortTableRows(), "Hãy đặt con trỏ vào bảng cần sắp xếp."));
+    globalCommandBus.bindHandler("writer.view.selectionPane", (args) => this.arrangeController?.toggleSelectionPane(args));
+    globalCommandBus.bindHandler("writer.arrange.group", () => this.arrangeController?.groupSelectedObjects());
+    globalCommandBus.bindHandler("writer.arrange.ungroup", () => this.arrangeController?.ungroupSelectedObjects());
+    globalCommandBus.bindHandler("writer.view.split", (args) => this.splitView?.toggleSplit(args));
   }
 
   _getActiveTable() {
@@ -9729,15 +10005,28 @@ export class WriterAdapter {
     this.flushTyping();
     const table = this._getActiveTable();
     if (!table || table.rows.length === 0) return false;
-    for (const r of table.rows) {
-      r.style.height = "";
+    const rows = Array.from(table.rows);
+    const totalHeight = rows.reduce((acc, r) => acc + (r.offsetHeight || r.getBoundingClientRect?.().height || 24), 0);
+    const avgHeight = Math.max(18, Math.round(totalHeight / rows.length));
+    for (const r of rows) {
+      r.style.height = `${avgHeight}px`;
       for (const c of r.cells) {
-        c.style.height = "";
+        c.style.height = `${avgHeight}px`;
       }
     }
     this.isDirty = true;
     this.recordSnapshot("writer.table.distributeRows");
     return true;
+  }
+
+  toggleTableGridlines() {
+    this.tableGridlines = !this.tableGridlines;
+    const body = this.bodyDom || this.editorDom;
+    if (body) {
+      body.classList.toggle("vno-table-gridlines", this.tableGridlines);
+    }
+    globalCommandBus?.updateState?.("writer.table.viewGridlines", { checked: this.tableGridlines });
+    return this.tableGridlines;
   }
 
   distributeTableCols() {
@@ -9872,6 +10161,261 @@ export class WriterAdapter {
         this.tableController.selectTable(this._getActiveTable());
         break;
     }
+    return true;
+  }
+
+  /**
+   * Tách bảng (Split Table): Tách bảng hiện tại tại hàng đang chọn thành 2 bảng riêng rẽ.
+   * Xen giữa hai bảng là một đoạn văn bản trống (<p><br></p>). Hỗ trợ 1-step undo.
+   */
+  splitTable() {
+    this.flushTyping();
+    const cell = this._getActiveTableCell();
+    if (!cell) return false;
+
+    const row = cell.closest?.("tr") || cell.parentElement;
+    if (!row) return false;
+
+    const table = row.closest?.("table") || cell.closest?.("table");
+    if (!table || !table.parentNode) return false;
+
+    const rowIndex = row.rowIndex ?? Array.from(table.rows || []).indexOf(row);
+    if (rowIndex <= 0) {
+      const p = document.createElement("p");
+      p.innerHTML = "<br>";
+      table.parentNode.insertBefore(p, table);
+      this._placeCaretAt(p);
+      this.isDirty = true;
+      this.recordSnapshot("writer.table.splitTable");
+      return true;
+    }
+
+    const table2 = document.createElement("table");
+    table2.className = table.className;
+    const inlineStyle = table.getAttribute("style");
+    if (inlineStyle) table2.setAttribute("style", inlineStyle);
+    if (table.dataset) {
+      Object.assign(table2.dataset, table.dataset);
+    }
+
+    const colgroup = table.querySelector("colgroup");
+    if (colgroup) {
+      table2.appendChild(colgroup.cloneNode(true));
+    }
+
+    const tbody2 = document.createElement("tbody");
+    table2.appendChild(tbody2);
+
+    const allRows = Array.from(table.rows || []);
+    for (let i = rowIndex; i < allRows.length; i++) {
+      tbody2.appendChild(allRows[i]);
+    }
+
+    const sep = document.createElement("p");
+    sep.innerHTML = "<br>";
+
+    const nextNode = table.nextSibling;
+    if (nextNode) {
+      table.parentNode.insertBefore(sep, nextNode);
+      table.parentNode.insertBefore(table2, sep.nextSibling);
+    } else {
+      table.parentNode.appendChild(sep);
+      table.parentNode.appendChild(table2);
+    }
+
+    const firstCell2 = table2.rows?.[0]?.cells?.[0];
+    if (firstCell2) {
+      this.tableController?.clearCellSelection?.();
+      this.tableController?.selectCell?.(firstCell2);
+      this._placeCaretAt(firstCell2);
+    }
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.splitTable");
+    return true;
+  }
+
+  /**
+   * Đổi hướng văn bản trong ô bảng: xoay vòng Ngang -> 90° (tbRl) -> 270° (btLr) -> Ngang.
+   * Gắn data-vno-text-direction để OOXML export xuất đúng <w:textDirection>.
+   */
+  setTableTextDirection(direction = null) {
+    this.flushTyping();
+    const cells = this.tableController?.selectedCells?.size
+      ? Array.from(this.tableController.selectedCells)
+      : [this._getActiveTableCell()].filter(Boolean);
+    if (cells.length === 0) return false;
+
+    let targetDirection = direction;
+    if (!targetDirection) {
+      const current = cells[0].getAttribute?.("data-vno-text-direction") || "horizontal";
+      if (current === "horizontal") {
+        targetDirection = "tbRl";
+      } else if (current === "tbRl") {
+        targetDirection = "btLr";
+      } else {
+        targetDirection = "horizontal";
+      }
+    }
+
+    for (const cell of cells) {
+      if (targetDirection === "tbRl") {
+        cell.setAttribute("data-vno-text-direction", "tbRl");
+        if (cell.style) {
+          cell.style.writingMode = "vertical-rl";
+          cell.style.transform = "";
+        }
+        cell.classList?.add?.("vno-cell-vertical-tbrl");
+        cell.classList?.remove?.("vno-cell-vertical-btlr");
+      } else if (targetDirection === "btLr") {
+        cell.setAttribute("data-vno-text-direction", "btLr");
+        if (cell.style) {
+          cell.style.writingMode = "vertical-lr";
+          cell.style.transform = "rotate(180deg)";
+        }
+        cell.classList?.add?.("vno-cell-vertical-btlr");
+        cell.classList?.remove?.("vno-cell-vertical-tbrl");
+      } else {
+        cell.removeAttribute("data-vno-text-direction");
+        if (cell.style) {
+          cell.style.writingMode = "";
+          cell.style.transform = "";
+        }
+        cell.classList?.remove?.("vno-cell-vertical-tbrl", "vno-cell-vertical-btlr");
+      }
+    }
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.textDirection");
+    return true;
+  }
+
+  /**
+   * Mở hộp thoại Thuộc tính bảng (Table Properties): căn lề bảng, thụt lề, độ rộng, độ cao hàng, lề ô, dãn cách ô.
+   */
+  async openTablePropertiesDialog(options = null) {
+    this.flushTyping();
+    const table = this._getActiveTable();
+    if (!table) return false;
+
+    let config = options;
+    if (!config || typeof config !== "object" || Object.keys(config).length === 0) {
+      if (typeof window === "undefined" || typeof document === "undefined") return true;
+      const { showTablePropertiesDialog } = await import("../../../apps/writer/writer-table-properties-dialog.js");
+      
+      const align = table.getAttribute("data-vno-table-align") || 
+        (table.style?.marginLeft === "auto" && table.style?.marginRight === "auto" ? "center" :
+         table.style?.marginLeft === "auto" ? "right" : "left");
+      const indentPt = parseFloat(table.getAttribute("data-vno-table-indent") || "0") || 0;
+      const width = table.style?.width || "";
+      const hasWidth = !!width;
+      const widthVal = parseFloat(width) || "";
+      const widthUnit = width.endsWith("pt") ? "pt" : "%";
+      
+      const firstRow = table.rows?.[0];
+      const rowHeight = firstRow?.style?.height || "";
+      const hasRowHeight = !!rowHeight;
+      const rowHeightPt = parseFloat(rowHeight) || 0;
+
+      const marginTopPt = parseFloat(table.getAttribute("data-vno-cell-mar-top") || "5.65") || 5.65;
+      const marginBottomPt = parseFloat(table.getAttribute("data-vno-cell-mar-bottom") || "5.65") || 5.65;
+      const marginLeftPt = parseFloat(table.getAttribute("data-vno-cell-mar-left") || "8.5") || 8.5;
+      const marginRightPt = parseFloat(table.getAttribute("data-vno-cell-mar-right") || "8.5") || 8.5;
+
+      const cellSpacingPt = parseFloat(table.getAttribute("data-vno-cell-spacing") || "0") || 0;
+      const hasSpacing = cellSpacingPt > 0;
+
+      config = await showTablePropertiesDialog({
+        align,
+        indentPt,
+        width: widthVal,
+        widthUnit,
+        hasWidth,
+        rowHeightPt,
+        hasRowHeight,
+        marginTopPt,
+        marginBottomPt,
+        marginLeftPt,
+        marginRightPt,
+        cellSpacingPt,
+        hasSpacing
+      });
+    }
+
+    if (!config) return null;
+
+    table.setAttribute("data-vno-table-align", config.align || "left");
+    if (table.style) {
+      if (config.align === "center") {
+        table.style.marginLeft = "auto";
+        table.style.marginRight = "auto";
+      } else if (config.align === "right") {
+        table.style.marginLeft = "auto";
+        table.style.marginRight = "0";
+      } else {
+        if (config.indentPt > 0) {
+          table.style.marginLeft = `${config.indentPt}pt`;
+          table.style.marginRight = "auto";
+        } else {
+          table.style.marginLeft = "0";
+          table.style.marginRight = "auto";
+        }
+      }
+    }
+
+    if (config.indentPt > 0) {
+      table.setAttribute("data-vno-table-indent", String(config.indentPt));
+    } else {
+      table.removeAttribute("data-vno-table-indent");
+    }
+
+    if (config.width && table.style) {
+      table.style.width = config.width;
+    }
+
+    if (config.rowHeightPt && table.rows) {
+      for (const r of table.rows) {
+        if (r.style) r.style.height = `${config.rowHeightPt}pt`;
+      }
+    }
+
+    const topPt = config.marginTopPt ?? 5.65;
+    const botPt = config.marginBottomPt ?? 5.65;
+    const leftPt = config.marginLeftPt ?? 8.5;
+    const rightPt = config.marginRightPt ?? 8.5;
+
+    table.setAttribute("data-vno-cell-mar-top", String(topPt));
+    table.setAttribute("data-vno-cell-mar-bottom", String(botPt));
+    table.setAttribute("data-vno-cell-mar-left", String(leftPt));
+    table.setAttribute("data-vno-cell-mar-right", String(rightPt));
+
+    const paddingCss = `${topPt}pt ${rightPt}pt ${botPt}pt ${leftPt}pt`;
+    if (table.rows) {
+      for (const r of table.rows) {
+        if (r.cells) {
+          for (const c of r.cells) {
+            if (c.style) c.style.padding = paddingCss;
+          }
+        }
+      }
+    }
+
+    if (config.cellSpacingPt > 0) {
+      table.setAttribute("data-vno-cell-spacing", String(config.cellSpacingPt));
+      if (table.style) {
+        table.style.borderCollapse = "separate";
+        table.style.borderSpacing = `${config.cellSpacingPt}pt`;
+      }
+    } else {
+      table.removeAttribute("data-vno-cell-spacing");
+      if (table.style) {
+        table.style.borderCollapse = "";
+        table.style.borderSpacing = "";
+      }
+    }
+
+    this.isDirty = true;
+    this.recordSnapshot("writer.table.properties");
     return true;
   }
 
@@ -13183,8 +13727,8 @@ export class WriterAdapter {
         range.setStartAfter(tab);
         if (tabs[index + 1]) range.setEndBefore(tabs[index + 1]); else range.setEndAfter(paragraph.lastChild || tab);
         const nextWidth = range.getBoundingClientRect().width || 0;
-        const { width, leader } = resolveTab(x, nextWidth, stops, 1.27 * 96 / 2.54);
-        styleTabElement(tab, width, leader);
+        const { width, leader, align } = resolveTab(x, nextWidth, stops, 1.27 * 96 / 2.54);
+        styleTabElement(tab, width, leader, align);
       });
     }
   }
@@ -13945,6 +14489,124 @@ export class WriterAdapter {
       }
     });
     return true;
+  }
+
+  /**
+   * Đặt con trỏ soạn thảo vào một phần tử DOM và cuộn nó vào vùng hiển thị.
+   */
+  _placeCaretAt(node) {
+    if (!node || typeof window === "undefined" || !window.getSelection) return false;
+    try {
+      if (typeof node.scrollIntoView === "function") {
+        node.scrollIntoView({ block: "center", behavior: "smooth" });
+      }
+      const sel = window.getSelection();
+      if (!sel) return false;
+      const range = document.createRange ? document.createRange() : null;
+      if (!range) return false;
+      range.selectNodeContents(node);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+      return true;
+    } catch (_) {
+      return false;
+    }
+  }
+
+  /**
+   * Điều hướng con trỏ soạn thảo tới vị trí mục tiêu trong hộp thoại Đi đến (Go To).
+   * Hỗ trợ: page (trang), line (dòng), heading (đề mục), bookmark (dấu trang), footnote (chú thích), table (bảng).
+   */
+  navigateToGoToTarget({ type, target, direction = null } = {}) {
+    if (typeof document === "undefined") return false;
+    const root = this.editorDom || document.body;
+    let targetNode = null;
+
+    if (type === "page") {
+      const pages = Array.from(root.querySelectorAll(".vno-page, [data-page-index]"));
+      if (pages.length > 0) {
+        let pageIdx = 0;
+        if (typeof target === "number" || /^\d+$/.test(String(target))) {
+          pageIdx = Math.max(0, Math.min(pages.length - 1, parseInt(target, 10) - 1));
+        } else if (direction === "next") {
+          pageIdx = Math.min(pages.length - 1, (this.currentPageIndex || 0) + 1);
+        } else if (direction === "prev") {
+          pageIdx = Math.max(0, (this.currentPageIndex || 0) - 1);
+        }
+        targetNode = pages[pageIdx]?.querySelector("p, h1, h2, h3, h4, h5, h6, table") || pages[pageIdx];
+      }
+    } else if (type === "line") {
+      const blocks = Array.from(root.querySelectorAll("p, h1, h2, h3, h4, h5, h6, li, tr, blockquote"));
+      if (blocks.length > 0) {
+        let lineIdx = 0;
+        if (typeof target === "number" || /^\d+$/.test(String(target))) {
+          lineIdx = Math.max(0, Math.min(blocks.length - 1, parseInt(target, 10) - 1));
+        }
+        targetNode = blocks[lineIdx];
+      }
+    } else if (type === "heading") {
+      const headings = Array.from(root.querySelectorAll("h1, h2, h3, h4, h5, h6"));
+      if (headings.length > 0) {
+        if (typeof target === "number" || /^\d+$/.test(String(target))) {
+          const idx = Math.max(0, Math.min(headings.length - 1, parseInt(target, 10) - 1));
+          targetNode = headings[idx];
+        } else if (typeof target === "string" && target.trim()) {
+          const term = target.trim().toLowerCase();
+          targetNode = headings.find(h => (h.textContent || "").toLowerCase().includes(term)) || headings[0];
+        } else {
+          targetNode = headings[0];
+        }
+      }
+    } else if (type === "bookmark") {
+      if (typeof target === "string" && target.trim()) {
+        const name = target.trim();
+        targetNode = root.querySelector(`a[name="${name}"], [data-bookmark-name="${name}"], #${name}`);
+      }
+    } else if (type === "footnote") {
+      const notes = Array.from(root.querySelectorAll(".vno-footnote-ref, [data-footnote-id], .vno-footnote-item"));
+      if (notes.length > 0) {
+        const idx = Math.max(0, Math.min(notes.length - 1, (parseInt(target, 10) || 1) - 1));
+        targetNode = notes[idx];
+      }
+    } else if (type === "table") {
+      const tables = Array.from(root.querySelectorAll("table"));
+      if (tables.length > 0) {
+        const idx = Math.max(0, Math.min(tables.length - 1, (parseInt(target, 10) || 1) - 1));
+        targetNode = tables[idx]?.querySelector("td, th") || tables[idx];
+      }
+    }
+
+    if (targetNode) {
+      this._placeCaretAt(targetNode);
+      return true;
+    }
+    return false;
+  }
+
+  /**
+   * Mở hộp thoại Đi đến (Go To, Ctrl+G) cho phép di chuyển nhanh tới trang, dòng, đề mục, dấu trang, bảng.
+   */
+  async openGoToDialog(options = {}) {
+    if (typeof window === "undefined" || typeof document === "undefined") return true;
+    const { showGoToDialog } = await import("../../../apps/writer/writer-goto-dialog.js");
+    const root = this.editorDom || document.body;
+    const headings = Array.from(root.querySelectorAll("h1, h2, h3, h4, h5, h6")).map(el => (el.textContent || "").trim()).filter(Boolean);
+    const bookmarks = Array.from(root.querySelectorAll("a[name], [data-bookmark-name]")).map(el => el.getAttribute("name") || el.getAttribute("data-bookmark-name")).filter(Boolean);
+    const pages = Array.from(root.querySelectorAll(".vno-page, [data-page-index]"));
+    const tables = Array.from(root.querySelectorAll("table"));
+    const footnotes = Array.from(root.querySelectorAll(".vno-footnote-ref, [data-footnote-id], .vno-footnote-item"));
+
+    return showGoToDialog({
+      data: {
+        headings,
+        bookmarks,
+        totalPages: Math.max(1, pages.length || (this.pageCount || 1)),
+        totalTables: tables.length,
+        totalFootnotes: footnotes.length
+      },
+      onNavigate: (args) => this.navigateToGoToTarget(args)
+    });
   }
 
   _replaceDocumentTextNodes(findText, replacementText, replaceAll, options = {}) {
@@ -16889,6 +17551,10 @@ export class WriterAdapter {
             : renderShapeSvg(s);
           const isNewTextBox = (s.type === "textbox" || s.shapeType === "textbox") && !s.imported;
           const shapeMetadata = {
+            id: s.id,
+            name: s.name || (s.type ? `${s.type} ${s.id || 1}` : undefined),
+            visible: s.visible !== false,
+            groupId: s.groupId || undefined,
             type: s.type || s.shapeType || "rectangle",
             isNew: !s.imported,
             x: Number(s.x) || 0,

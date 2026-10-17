@@ -17,6 +17,12 @@ import { runSheetPivotSlicerTests } from "./unit/sheet-pivot-slicer.test.js";
 import { runSheetTemplateSaveTests } from "./unit/sheet-template-save.test.js";
 import { runSheetCfGoldenTests } from "./unit/sheet-cf-golden.test.js";
 import { runQuickAccessTests } from "./unit/quick-access.test.js";
+import { runSlideTableOpsTests } from "./unit/slide-table-ops.test.js";
+import { runSlideSizeTests } from "./unit/slide-size.test.js";
+import { runSlideTextColumnsTests } from "./unit/slide-text-columns.test.js";
+import { runSlideAnimationClassesTests } from "./unit/slide-animation-classes.test.js";
+import { runSlidesTextShadowPptxTests } from "./unit/slides-text-shadow-pptx.test.js";
+import { runSlidesNativeAnimationTimingTests } from "./unit/slides-native-animation-timing.test.js";
 import { runSheetDvGoldenTests } from "./unit/sheet-dv-golden.test.js";
 import { runSheetSeriesTests } from "./unit/sheet-series.test.js";
 import { runFunctionGoldenTests } from "./unit/function-golden.test.js";
@@ -306,6 +312,9 @@ import { runPanelOverlayUiP1Tests } from "./unit/panel-overlay-ui-p1.test.js";
 import { runSpellcheckPendingStyleTests } from "./unit/spellcheck-pending-style.test.js";
 import { runSheetStyleExportWrapBorderAlignTests } from "./unit/sheet-style-export-wrap-border-align.test.js";
 import { runWriterWordW7Tests } from "./unit/writer-word-w7.test.js";
+import { runSheetNotesFidelityTests } from "./unit/sheet-notes-fidelity.test.js";
+import { runWriterTabsTablesAgyTests } from "./unit/writer-tabs-tables-agy.test.js";
+import { run as runWriterWord2016Parity2Tests } from "./unit/writer-word2016-parity2.test.js";
 
 async function runAll() {
   console.log("==================================================");
@@ -330,6 +339,12 @@ async function runAll() {
     { title: "3b3. Unit Tests — Lưu thành mẫu .xltx (Sheet)", runner: runSheetTemplateSaveTests },
     { title: "3b4. Unit Tests — Định dạng có điều kiện đối chiếu Excel 2016 + ROW()/COLUMN()", runner: runSheetCfGoldenTests },
     { title: "3b5. Unit Tests — Thanh công cụ truy nhanh tùy biến (dùng chung)", runner: runQuickAccessTests },
+    { title: "3b5b. Unit Tests — Thao tác bảng trên trang chiếu (Slides)", runner: runSlideTableOpsTests },
+    { title: "3b5c. Unit Tests — Kích thước trang chiếu tùy chỉnh (Slides)", runner: runSlideSizeTests },
+    { title: "3b5e. Unit Tests — Chia cột văn bản trong khung chữ Slides", runner: runSlideTextColumnsTests },
+  { title: "3b5f. Unit Tests — Hoạt ảnh Slides: nhóm Vào / Nhấn mạnh / Thoát", runner: runSlideAnimationClassesTests },
+    { title: "3b5d. Unit Tests — Bóng chữ Slides khi xuất PPTX (Python)", runner: runSlidesTextShadowPptxTests },
+  { title: "3b5g. Unit Tests — Hoạt ảnh Slides: p:timing Nhấn mạnh/Thoát (PPTX)", runner: runSlidesNativeAnimationTimingTests },
     { title: "3b6. Unit Tests — Xác thực dữ liệu đối chiếu Excel 2016", runner: runSheetDvGoldenTests },
     { title: "3c. Unit Tests — Điền > Chuỗi (Series)", runner: runSheetSeriesTests },
     { title: "3d. Unit Tests — Hàm đối chiếu Excel 2016 (bộ giá trị vàng)", runner: runFunctionGoldenTests },
@@ -621,7 +636,10 @@ async function runAll() {
     { title: "267. Unit Tests — Sheet Calculation Options & Formula Parity (AGY-CALC)", runner: runSheetCalcOptionsTests },
     { title: "268. Unit Tests — Sheet Right-Click Context Menu for Shape, Picture, TextBox, Chart (AGY-CTXMENU)", runner: runSheetContextMenuObjectsTests },
     { title: "269. Unit Tests — Sheet External Links & Edit Links Dialog (AGY-LINKS)", runner: runSheetExternalLinksDialogTests },
-    { title: "270. Unit Tests — Sheet AutoFill Handle Double-Click, Options Button & Border Drag-Drop (AGY-AUTOFILL)", runner: runSheetAutofillDragTests }
+    { title: "270. Unit Tests — Sheet AutoFill Handle Double-Click, Options Button & Border Drag-Drop (AGY-AUTOFILL)", runner: runSheetAutofillDragTests },
+    { title: "271. Unit Tests — Sheet Notes Parity, Show/Hide, Resize, Drag, Formats & VML Drawing (AGY-NOTES)", runner: runSheetNotesFidelityTests },
+    { title: "272. Unit Tests — Writer Tabs Dialog, Ruler Tab Stops, Go To, Split Table, Text Direction, Table Properties (AGY-WRITER1)", runner: runWriterTabsTablesAgyTests },
+    { title: "273. Unit Tests — Writer Selection Pane, Group/Ungroup, Split Window, Table Styles, Table Formula (Word 2016 Parity Round 2)", runner: runWriterWord2016Parity2Tests }
   ];
 
   for (const suite of suites) {

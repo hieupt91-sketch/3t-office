@@ -197,5 +197,77 @@ export async function runSheetDataToolsTests() {
     assert(usedRangeButtons.map(button => button.style.display).join(",") === "inline-flex,inline-flex,inline-flex,inline-flex,none", "Inferred range arrows must stop at the used last column");
   });
 
+  await test("Consolidate: Hợp nhất theo vị trí và theo nhãn (Top row, Left column)", () => {
+    const grid = new SheetGridController(container());
+    [["A1", 10], ["B1", 20], ["A2", 30], ["B2", 40], ["D1", 1], ["E1", 2], ["D2", 3], ["E2", 4]].forEach(([c, v]) => put(grid, c, v));
+    const posRes = grid.applyConsolidate({ references: ["Sheet1!A1:B2", "Sheet1!D1:E2"], functionName: "SUM", destination: { c: "G", r: 1 } });
+    assert(posRes.ok && grid.cellsData.get("G1").val === 11 && grid.cellsData.get("H2").val === 44, "Consolidate theo vị trí sai");
+
+    [["A4", ""], ["B4", "Q1"], ["A5", "Apples"], ["B5", 10], ["D4", ""], ["E4", "Q1"], ["D5", "Apples"], ["E5", 5]].forEach(([c, v]) => put(grid, c, v));
+    const lblRes = grid.applyConsolidate({ references: ["Sheet1!A4:B5", "Sheet1!D4:E5"], functionName: "SUM", destination: { c: "G", r: 4 }, topRow: true, leftColumn: true });
+    assert(lblRes.ok && grid.cellsData.get("G4")?.val === "" && grid.cellsData.get("H4")?.val === "Q1" && grid.cellsData.get("G5")?.val === "Apples" && grid.cellsData.get("H5")?.val === 15, "Consolidate theo nhãn sai");
+  });
+
+  await test("Goal Seek & Data Table: giải phương trình và tính bảng độ nhạy", () => {
+    const grid = new SheetGridController(container());
+    put(grid, "B1", 10); put(grid, "B2", 2);
+    grid.cellsData.set("B3", { val: 25, formula: "=B1*B2+5", style: {} });
+    const gs = grid.goalSeek({ setCell: "B3", targetValue: 25, changingCell: "B1" });
+    assert(gs.success && Math.abs(grid.cellsData.get("B1").val - 10) < 0.01, "Goal Seek giải sai nghiệm bậc 1");
+
+    grid.cellsData.set("A5", { val: 25, formula: "=B3", style: {} }); put(grid, "B5", 2); put(grid, "C5", 3);
+    put(grid, "A6", 10); put(grid, "A7", 20);
+    grid.calculateDataTable({ range: { start: { c: "A", r: 5 }, end: { c: "C", r: 7 } }, rowInputCell: "B2", columnInputCell: "B1" }, false);
+    assert(grid.cellsData.get("B6").val === 25 && grid.cellsData.get("C7").val === 65, "Data table 2 biến tính sai");
+  });
+
+  await test("Scenario Manager: thêm và hiển thị kịch bản vào bảng tính", () => {
+    const grid = new SheetGridController(container());
+    put(grid, "B1", 10); put(grid, "B2", 20);
+    grid.cellsData.set("B3", { val: 30, formula: "=B1+B2", style: {} });
+    grid.saveScenario({ name: "High", changingCells: ["B1", "B2"], values: [50, 60] });
+    assert(grid.getScenarios().length === 1, "Thêm kịch bản thất bại");
+    grid.applyScenario("High");
+    assert(grid.cellsData.get("B1").val === 50 && grid.cellsData.get("B2").val === 60 && grid.cellsData.get("B3").val === 110, "Hiển thị kịch bản thất bại");
+  });
+
+  await test("Clear: Clear All, Clear Contents, Clear Formats", () => {
+    const grid = new SheetGridController(container());
+    grid.cellsData.set("A1", { val: 100, formula: "", style: { fontWeight: "bold" } });
+    grid.clearFormats({ start: { c: "A", r: 1 }, end: { c: "A", r: 1 } }, false);
+    assert(grid.cellsData.get("A1").val === 100 && !grid.cellsData.get("A1").style.fontWeight, "Clear Formats phải giữ giá trị");
+
+    grid.cellsData.set("A2", { val: 200, formula: "", style: { fontWeight: "bold" } });
+    grid.clearContents({ start: { c: "A", r: 2 }, end: { c: "A", r: 2 } }, false);
+    assert(grid.cellsData.get("A2").val === "" && grid.cellsData.get("A2").style.fontWeight === "bold", "Clear Contents phải giữ định dạng");
+
+    grid.clearAll({ start: { c: "A", r: 2 }, end: { c: "A", r: 2 } }, false);
+    assert(grid.cellsData.get("A2").val === "" && !grid.cellsData.get("A2").style.fontWeight, "Clear All phải xóa cả hai");
+  });
+
+  await test("Merge Cells: Merge Across theo từng hàng ngang và Unmerge", async () => {
+    const grid = new SheetGridController(container());
+    put(grid, "A1", "H1"); put(grid, "B1", "X");
+    put(grid, "A2", "H2"); put(grid, "B2", "Y");
+    await grid.mergeCells("mergeAcross", { start: { c: "A", r: 1 }, end: { c: "B", r: 2 } }, { confirmDataLoss: false });
+    assert(grid.getMergedRanges().length === 2, "Merge Across phải tạo 2 dải ô gộp riêng biệt");
+    assert(grid.cellsData.get("A1").val === "H1" && !grid.cellsData.has("B1"), "Ô B1 phải được dọn sau gộp hàng 1");
+    assert(grid.cellsData.get("A2").val === "H2" && !grid.cellsData.has("B2"), "Ô B2 phải được dọn sau gộp hàng 2");
+
+    grid.unmergeCells({ start: { c: "A", r: 1 }, end: { c: "B", r: 2 } });
+    assert(grid.getMergedRanges().length === 0, "Unmerge phải gỡ bỏ cả 2 vùng gộp");
+  });
+
+  await test("Outline: groupRows, groupCols và showOutlineLevels", () => {
+    const grid = new SheetGridController(container());
+    assert(grid.groupRows(2, 4), "groupRows thất bại");
+    assert(grid.groupCols("B", "D"), "groupCols thất bại");
+    grid.showOutlineLevels(1, null);
+    assert(grid._isOutlineRowHidden(2) && grid._isOutlineRowHidden(3) && grid._isOutlineRowHidden(4), "showOutlineLevels(1) phải ẩn các hàng đã nhóm");
+    grid.showOutlineLevels(2, null);
+    assert(!grid._isOutlineRowHidden(2), "showOutlineLevels(2) phải mở lại các hàng đã nhóm");
+    assert(grid.ungroupRows(2, 4), "ungroupRows thất bại");
+  });
+
   return results;
 }

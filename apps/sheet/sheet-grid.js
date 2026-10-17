@@ -413,6 +413,8 @@ export class SheetGridController {
     this.headingsVisible = true;
     this.xlsxViewStateTouched = new Set();
     this.workbookView = "normal"; // "normal" | "pageBreakPreview" | "pageLayout"
+    this.displayCommentIndicator = -1; // 1 = xlCommentAndIndicator, -1 = xlCommentIndicatorOnly, 0 = xlNoIndicator
+    this.commentLayer = null;
     this.formulaBarVisible = true;
     this.formulaBarEl = null;
     this.spellChecker = null;
@@ -733,6 +735,7 @@ export class SheetGridController {
       this.autocomplete.updatePosition();
       this._onViewportScroll();
       this.renderAuditArrows?.();
+      this.renderPinnedNotes?.();
     });
 
     const table = document.createElement("table");
@@ -799,6 +802,11 @@ export class SheetGridController {
     auditLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:9";
     this.auditLayer = auditLayer;
     vp.appendChild(auditLayer);
+    const commentLayer = document.createElement("div");
+    commentLayer.className = "vno-sheet-comment-layer";
+    commentLayer.style.cssText = "position:absolute;inset:0;pointer-events:none;z-index:8";
+    this.commentLayer = commentLayer;
+    vp.appendChild(commentLayer);
     this.container.appendChild(vp);
 
     // 3. Sheet Tab Bar dưới đáy
@@ -5207,6 +5215,7 @@ export class SheetGridController {
     this.renderImages();
     this.renderTextBoxes();
     this.renderShapes();
+    this.renderPinnedNotes();
 
     // 7. Cập nhật ô chọn và thanh công thức
     if (preservedFormulaEntry) this._isRestoringFormulaEntry = true;
@@ -8129,7 +8138,7 @@ export class SheetGridController {
         if (included && (sheetName !== activeSheet || k !== excludeKey) && itm.formula) {
           // A link to another (closed) workbook keeps its cached value, as in
           // Excel; evaluating it here would overwrite the value with an error.
-          if (this._isExternalLink(itm)) continue;
+          if (this._isExternalLink(itm) || /^=TABLE\(/i.test(itm.formula)) continue;
           let res;
           if (itm.isArrayFormula && itm.arrayRange) {
             const results = this.formulaEngine.evaluateArray(itm.formula);
@@ -13853,6 +13862,57 @@ export class SheetGridController {
     const destStartCol = this._columnNumber(destination.c);
     const destStartRow = Number(destination.r);
 
+    if (mode === "comments") {
+      const srcSheet = clipboard.sourceSheet || this.activeSheet;
+      const srcComments = this.commentsBySheet[srcSheet] || {};
+      const targetComments = this.commentsBySheet[this.activeSheet] ||= {};
+      const beforeComments = {};
+      const afterComments = {};
+
+      for (let rowOffset = 0; rowOffset < height; rowOffset++) {
+        for (let colOffset = 0; colOffset < width; colOffset++) {
+          const curSourceCol = transpose ? (sourceStartCol + rowOffset) : (sourceStartCol + colOffset);
+          const curSourceRow = transpose ? (sourceStartRow + colOffset) : (sourceStartRow + rowOffset);
+          const srcCoord = `${this._columnLabel(curSourceCol)}${curSourceRow}`;
+
+          const destColNumber = destStartCol + colOffset;
+          const destRow = Number(destination.r) + rowOffset;
+          if (destColNumber < 1 || destColNumber > this.cols.length || destRow < 1 || destRow > this.rowCount) continue;
+          const destCoord = `${this._columnLabel(destColNumber)}${destRow}`;
+
+          const srcComment = srcComments[srcCoord];
+          const existingDestComment = targetComments[destCoord];
+
+          if (srcComment) {
+            beforeComments[destCoord] = existingDestComment ? structuredClone(existingDestComment) : null;
+            const newComment = {
+              ...structuredClone(srcComment),
+              coord: destCoord
+            };
+            targetComments[destCoord] = newComment;
+            afterComments[destCoord] = structuredClone(newComment);
+          } else if (!options.skipBlanks) {
+            if (existingDestComment) {
+              beforeComments[destCoord] = structuredClone(existingDestComment);
+              delete targetComments[destCoord];
+              afterComments[destCoord] = null;
+            }
+          }
+        }
+      }
+
+      if (Object.keys(beforeComments).length > 0) {
+        this._recordHistory({
+          type: "batch-comments",
+          sheet: this.activeSheet,
+          before: beforeComments,
+          after: afterComments
+        });
+        this._refreshPageAndCommentVisuals();
+      }
+      return true;
+    }
+
     const moveRange = options.moveRange && options.sourceSheet === this.activeSheet
       ? this._normalizeRange(options.moveRange)
       : null;
@@ -14163,6 +14223,7 @@ export class SheetGridController {
           <label><input type="radio" name="paste-special-mode" value="values"> ${t("sheetDialogs.pasteSpecialValues", "Chỉ giá trị")}</label>
           <label><input type="radio" name="paste-special-mode" value="formulas"> ${t("sheetDialogs.pasteSpecialFormulas", "Chỉ công thức")}</label>
           <label><input type="radio" name="paste-special-mode" value="formats"> ${t("sheetDialogs.pasteSpecialFormats", "Chỉ định dạng")}</label>
+          <label><input type="radio" name="paste-special-mode" value="comments"> ${t("sheetDialogs.pasteSpecialComments", "Ghi chú")}</label>
           <label><input type="radio" name="paste-special-mode" value="allExceptBorders"> ${t("sheetDialogs.pasteSpecialAllExceptBorders", "Tất cả trừ đường viền")}</label>
           <label><input type="radio" name="paste-special-mode" value="transpose"> ${t("sheetDialogs.pasteSpecialTranspose", "Chuyển vị (đổi hàng/cột)")}</label>
         </fieldset>
@@ -17580,6 +17641,13 @@ export class SheetGridController {
 
     const comments = {};
     for (const [coord, comment] of Object.entries(this.commentsBySheet[sheet] || {})) {
+      const [col, row] = this._splitCoord(coord);
+      const rowNum = Number(row);
+      const colNum = this._columnNumber(col);
+      if (direction < 0) {
+        if (axis === "row" && rowNum === insertionPoint) continue;
+        if (axis === "col" && colNum === insertionPoint) continue;
+      }
       const shifted = this._shiftCellReference(coord, axis, insertionPoint, direction);
       comments[shifted] = { ...structuredClone(comment), coord: shifted };
     }
@@ -18841,6 +18909,7 @@ export class SheetGridController {
 
   _refreshPageAndCommentVisuals() {
     this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this.renderPinnedNotes?.();
   }
 
   _applyAnnotationAndPageVisuals(cell, col, row) {
@@ -18849,7 +18918,8 @@ export class SheetGridController {
     }
     const coord = `${col}${row}`;
     const comment = this.commentsBySheet[this.activeSheet]?.[coord];
-    if (comment) {
+    const indicator = this.getDisplayCommentIndicator();
+    if (comment && indicator !== 0) {
       cell.classList.add("has-comment");
       cell.classList.toggle?.("is-comment-resolved", !!comment.resolved);
       const popup = document.createElement("span");
@@ -18892,7 +18962,18 @@ export class SheetGridController {
     if (!parsedCoord || parsedCoord.start.r < 1 || parsedCoord.start.r > this.rowCount || !text) return false;
     const comments = this.commentsBySheet[this.activeSheet] ||= {};
     const before = comments[coord] ? structuredClone(comments[coord]) : null;
-    const after = { coord, text, author: String(options.author || before?.author || "Người dùng 3T Office"), timestamp: options.timestamp || new Date().toISOString() };
+    const after = {
+      coord,
+      text,
+      author: String(options.author || before?.author || "Người dùng 3T Office"),
+      timestamp: options.timestamp || new Date().toISOString(),
+      visible: options.visible !== undefined ? !!options.visible : (before?.visible ?? false),
+      width: options.width !== undefined ? Number(options.width) : (before?.width ?? 144),
+      height: options.height !== undefined ? Number(options.height) : (before?.height ?? 79),
+      offsetX: options.offsetX !== undefined ? Number(options.offsetX) : (before?.offsetX ?? 15),
+      offsetY: options.offsetY !== undefined ? Number(options.offsetY) : (before?.offsetY ?? -10),
+      resolved: options.resolved !== undefined ? !!options.resolved : (before?.resolved ?? false)
+    };
     comments[coord] = after;
     this._recordHistory({ type: "comment", sheet: this.activeSheet, coord, before, after: structuredClone(after) });
     this._refreshPageAndCommentVisuals();
@@ -18909,6 +18990,235 @@ export class SheetGridController {
     this._recordHistory({ type: "comment", sheet: this.activeSheet, coord, before, after: null });
     this._refreshPageAndCommentVisuals();
     return true;
+  }
+
+  getDisplayCommentIndicator() {
+    return this.displayCommentIndicator ?? -1;
+  }
+
+  setDisplayCommentIndicator(val) {
+    const nextVal = Number(val);
+    if (this.displayCommentIndicator === nextVal) return nextVal;
+    this.displayCommentIndicator = nextVal;
+    this._refreshPageAndCommentVisuals();
+    return nextVal;
+  }
+
+  toggleShowAllComments(enabled) {
+    if (enabled !== undefined) {
+      this.setDisplayCommentIndicator(enabled ? 1 : -1);
+    } else {
+      const current = this.getDisplayCommentIndicator();
+      this.setDisplayCommentIndicator(current === 1 ? -1 : 1);
+    }
+    return this.getDisplayCommentIndicator() === 1;
+  }
+
+  toggleCommentVisible(coord = null) {
+    const targetCoord = String(coord || `${this.selectedCoord.c}${this.selectedCoord.r}`).toUpperCase();
+    const comments = this.commentsBySheet[this.activeSheet] ||= {};
+    const comment = comments[targetCoord];
+    if (!comment) return false;
+    const before = structuredClone(comment);
+    comment.visible = !comment.visible;
+    this._recordHistory({ type: "comment", sheet: this.activeSheet, coord: targetCoord, before, after: structuredClone(comment) });
+    this.renderPinnedNotes();
+    return comment.visible;
+  }
+
+  renderPinnedNotes() {
+    if (!this.commentLayer || typeof document === "undefined") return;
+    this.commentLayer.innerHTML = "";
+    const indicator = this.getDisplayCommentIndicator();
+    if (indicator === 0) return;
+
+    const comments = this.commentsBySheet[this.activeSheet] || {};
+    const showAll = indicator === 1;
+    const pinnedCoords = Object.keys(comments).filter(coord => showAll || comments[coord].visible);
+    if (!pinnedCoords.length) return;
+
+    const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+    svg.setAttribute("class", "vno-notes-arrows-svg");
+    svg.style.cssText = "position:absolute;left:0;top:0;width:100%;height:100%;pointer-events:none;overflow:visible;";
+    const defs = document.createElementNS("http://www.w3.org/2000/svg", "defs");
+    defs.innerHTML = `
+      <marker id="vno-note-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+        <path d="M 0 1.5 L 9 5 L 0 8.5 z" fill="#000000"/>
+      </marker>
+    `;
+    svg.appendChild(defs);
+    this.commentLayer.appendChild(svg);
+
+    const getCellAnchor = (coord) => {
+      const [col, row] = this._splitCoord(coord);
+      const colNum = this._columnNumber(col);
+      const rowNum = Number(row);
+      const cellEl = this.container?.querySelector(`.vno-grid-cell[data-coord="${coord}"]`);
+      if (cellEl && this.viewport) {
+        const rect = cellEl.getBoundingClientRect();
+        const vpRect = this.viewport.getBoundingClientRect();
+        return {
+          right: rect.right - vpRect.left + this.viewport.scrollLeft,
+          top: rect.top - vpRect.top + this.viewport.scrollTop
+        };
+      }
+      let left = 44;
+      if (typeof this._colLeft === "function") {
+        left = 44 + this._colLeft(colNum + 1);
+      } else {
+        left = 44 + colNum * 100;
+      }
+      let top = 24;
+      if (typeof this._rowTop === "function") {
+        top = 24 + this._rowTop(rowNum);
+      } else {
+        top = 24 + (rowNum - 1) * (this.rowHeight || 28);
+      }
+      return { right: left, top };
+    };
+
+    for (const coord of pinnedCoords) {
+      const comment = comments[coord];
+      const anchor = getCellAnchor(coord);
+      const defaultW = 144;
+      const defaultH = 79;
+      const defaultOffX = 15;
+      const defaultOffY = -10;
+
+      const width = Math.max(80, Number(comment.width) || defaultW);
+      const height = Math.max(40, Number(comment.height) || defaultH);
+      const offsetX = Number.isFinite(comment.offsetX) ? Number(comment.offsetX) : defaultOffX;
+      const offsetY = Number.isFinite(comment.offsetY) ? Number(comment.offsetY) : defaultOffY;
+
+      let boxLeft = anchor.right + offsetX;
+      let boxTop = anchor.top + offsetY;
+
+      const box = document.createElement("div");
+      box.className = "vno-note-box";
+      box.dataset.coord = coord;
+      box.style.cssText = `position:absolute;left:${boxLeft}px;top:${boxTop}px;width:${width}px;height:${height}px;min-width:80px;min-height:40px;background:#ffffe1;border:1px solid #000000;box-shadow:2px 2px 6px rgba(0,0,0,0.25);z-index:25;display:flex;flex-direction:column;pointer-events:auto;box-sizing:border-box;font-family:Segoe UI, Tahoma, sans-serif;font-size:12px;color:#000000;line-height:1.3;resize:both;overflow:hidden;`;
+
+      const header = document.createElement("div");
+      header.className = "vno-note-header";
+      header.style.cssText = "height:14px;background:#ececb8;cursor:move;border-bottom:1px solid #c8c898;display:flex;align-items:center;justify-content:flex-end;padding:0 3px;user-select:none;flex-shrink:0;";
+      const closeBtn = document.createElement("span");
+      closeBtn.className = "vno-note-close";
+      closeBtn.title = "Ẩn ghi chú";
+      closeBtn.setAttribute("aria-label", "Ẩn ghi chú");
+      closeBtn.textContent = "✕";
+      closeBtn.style.cssText = "cursor:pointer;font-size:10px;line-height:1;color:#555;font-weight:bold;";
+      closeBtn.addEventListener("click", (e) => {
+        e.stopPropagation();
+        this.toggleCommentVisible(coord);
+      });
+      header.appendChild(closeBtn);
+      box.appendChild(header);
+
+      const body = document.createElement("div");
+      body.className = "vno-note-body";
+      body.contentEditable = "true";
+      body.style.cssText = "flex:1;padding:4px 6px;overflow:auto;outline:none;cursor:text;word-break:break-word;";
+      body.textContent = comment.text || "";
+      if (comment.author) {
+        body.innerHTML = `<strong>${this._escapeHtml(comment.author)}:</strong><br>${this._escapeHtml(comment.text || "")}`;
+      }
+      body.addEventListener("input", () => {
+        let content = body.innerText;
+        if (comment.author && content.startsWith(comment.author + ":")) {
+          content = content.slice((comment.author + ":").length).trim();
+        }
+        comment.text = content;
+      });
+      body.addEventListener("blur", () => {
+        let content = body.innerText;
+        if (comment.author && content.startsWith(comment.author + ":")) {
+          content = content.slice((comment.author + ":").length).trim();
+        }
+        if (content !== comment.text) {
+          const before = structuredClone(comment);
+          comment.text = content;
+          this._recordHistory({ type: "comment", sheet: this.activeSheet, coord, before, after: structuredClone(comment) });
+        }
+      });
+      box.appendChild(body);
+
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      line.setAttribute("stroke", "#000000");
+      line.setAttribute("stroke-width", "1.2");
+      line.setAttribute("marker-end", "url(#vno-note-arrow)");
+      svg.appendChild(line);
+
+      const updateArrow = (currentLeft, currentTop, currentW, currentH) => {
+        const fromX = currentLeft <= anchor.right ? currentLeft + currentW : currentLeft;
+        const fromY = Math.min(Math.max(anchor.top, currentTop), currentTop + currentH);
+        line.setAttribute("x1", fromX);
+        line.setAttribute("y1", fromY);
+        line.setAttribute("x2", anchor.right);
+        line.setAttribute("y2", anchor.top);
+      };
+      updateArrow(boxLeft, boxTop, width, height);
+
+      let isDragging = false;
+      let startMouseX = 0, startMouseY = 0;
+      let startBoxLeft = 0, startBoxTop = 0;
+
+      const onPointerDown = (e) => {
+        if (e.target === closeBtn || e.target === body) return;
+        isDragging = true;
+        startMouseX = e.clientX;
+        startMouseY = e.clientY;
+        startBoxLeft = boxLeft;
+        startBoxTop = boxTop;
+        box.setPointerCapture?.(e.pointerId);
+        e.preventDefault();
+        e.stopPropagation();
+      };
+
+      const onPointerMove = (e) => {
+        if (!isDragging) return;
+        const dx = e.clientX - startMouseX;
+        const dy = e.clientY - startMouseY;
+        boxLeft = startBoxLeft + dx;
+        boxTop = startBoxTop + dy;
+        box.style.left = `${boxLeft}px`;
+        box.style.top = `${boxTop}px`;
+        updateArrow(boxLeft, boxTop, box.offsetWidth, box.offsetHeight);
+      };
+
+      const onPointerUp = (e) => {
+        if (!isDragging) return;
+        isDragging = false;
+        box.releasePointerCapture?.(e.pointerId);
+        const newOffX = boxLeft - anchor.right;
+        const newOffY = boxTop - anchor.top;
+        if (newOffX !== comment.offsetX || newOffY !== comment.offsetY) {
+          const before = structuredClone(comment);
+          comment.offsetX = Math.round(newOffX);
+          comment.offsetY = Math.round(newOffY);
+          this._recordHistory({ type: "comment", sheet: this.activeSheet, coord, before, after: structuredClone(comment) });
+        }
+      };
+
+      header.addEventListener("pointerdown", onPointerDown);
+      header.addEventListener("pointermove", onPointerMove);
+      header.addEventListener("pointerup", onPointerUp);
+
+      const onResizeEnd = () => {
+        const newW = Math.round(box.offsetWidth);
+        const newH = Math.round(box.offsetHeight);
+        if (newW !== comment.width || newH !== comment.height) {
+          const before = structuredClone(comment);
+          comment.width = newW;
+          comment.height = newH;
+          this._recordHistory({ type: "comment", sheet: this.activeSheet, coord, before, after: structuredClone(comment) });
+          updateArrow(boxLeft, boxTop, newW, newH);
+        }
+      };
+      box.addEventListener("pointerup", onResizeEnd);
+      box.addEventListener("mouseup", onResizeEnd);
+
+      this.commentLayer.appendChild(box);
+    }
   }
 
   _listComments() {
@@ -19688,18 +19998,88 @@ export class SheetGridController {
   _outlineGroups() { return this.outlineGroupsBySheet[this.activeSheet] ||= []; }
 
   _isOutlineRowHidden(row) {
-    return this._outlineGroups().some(group => group.axis === "row" && group.collapsed && row > group.start && row <= group.end);
+    return this._outlineGroups().some(group => group.axis === "row" && group.collapsed && row >= group.start && row <= group.end);
   }
 
   _isOutlineColumnHidden(col) {
     const number = this._columnNumber(col);
-    return this._outlineGroups().some(group => group.axis === "col" && group.collapsed && number > group.start && number <= group.end);
+    return this._outlineGroups().some(group => group.axis === "col" && group.collapsed && number >= group.start && number <= group.end);
   }
 
   _outlineToggleHtml(axis, value) {
     const numeric = axis === "row" ? Number(value) : this._columnNumber(value);
     const group = this._outlineGroups().find(item => item.axis === axis && item.start === numeric);
     return group ? `<button type="button" class="vno-outline-toggle" data-group-id="${group.id}" aria-label="${group.collapsed ? "Mở rộng" : "Thu gọn"} nhóm">${group.collapsed ? "+" : "−"}</button>` : "";
+  }
+
+  groupRows(from, to) {
+    const start = Math.min(Number(from), Number(to));
+    const end = Math.max(Number(from), Number(to));
+    if (end < start) return false;
+    if (this._outlineGroups().some(group => group.axis === "row" && group.start === start && group.end === end)) return false;
+    const before = this._snapshotGridStructure();
+    this._outlineGroups().push({ id: `outline-${Date.now()}-${this._outlineGroups().length}`, axis: "row", start, end, collapsed: false });
+    this._renderColumnHeaders(); this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  ungroupRows(from, to) {
+    const start = Math.min(Number(from), Number(to));
+    const end = Math.max(Number(from), Number(to));
+    const before = this._snapshotGridStructure();
+    const previous = this._outlineGroups();
+    const remaining = previous.filter(group => !(group.axis === "row" && group.start === start && group.end === end));
+    if (remaining.length === previous.length) return false;
+    this.outlineGroupsBySheet[this.activeSheet] = remaining;
+    this._renderColumnHeaders(); this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  groupCols(from, to) {
+    const start = typeof from === "number" ? from : this._columnNumber(from);
+    const end = typeof to === "number" ? to : this._columnNumber(to);
+    const s = Math.min(start, end);
+    const e = Math.max(start, end);
+    if (this._outlineGroups().some(group => group.axis === "col" && group.start === s && group.end === e)) return false;
+    const before = this._snapshotGridStructure();
+    this._outlineGroups().push({ id: `outline-${Date.now()}-${this._outlineGroups().length}`, axis: "col", start: s, end: e, collapsed: false });
+    this._renderColumnHeaders(); this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  ungroupCols(from, to) {
+    const start = typeof from === "number" ? from : this._columnNumber(from);
+    const end = typeof to === "number" ? to : this._columnNumber(to);
+    const s = Math.min(start, end);
+    const e = Math.max(start, end);
+    const before = this._snapshotGridStructure();
+    const previous = this._outlineGroups();
+    const remaining = previous.filter(group => !(group.axis === "col" && group.start === s && group.end === e));
+    if (remaining.length === previous.length) return false;
+    this.outlineGroupsBySheet[this.activeSheet] = remaining;
+    this._renderColumnHeaders(); this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  showOutlineLevels(rowLevel = null, colLevel = null) {
+    if (rowLevel !== null && rowLevel !== undefined) {
+      const collapse = Number(rowLevel) === 1;
+      this._outlineGroups().forEach(g => {
+        if (g.axis === "row") g.collapsed = collapse;
+      });
+    }
+    if (colLevel !== null && colLevel !== undefined) {
+      const collapse = Number(colLevel) === 1;
+      this._outlineGroups().forEach(g => {
+        if (g.axis === "col") g.collapsed = collapse;
+      });
+    }
+    this._renderColumnHeaders();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
   }
 
   groupSelection() {
@@ -19743,6 +20123,7 @@ export class SheetGridController {
 
   removeDuplicates(options) { return this.dataTools.removeDuplicates(options); }
   createSubtotal(options) { return this.dataTools.subtotal(options); }
+  removeSubtotal(range) { return this.dataTools.removeSubtotal(range); }
   sortMultiLevel(options) { return this.dataTools.sortMultiLevel(options); }
   applyTextToColumns(options) { return this.dataTools.textToColumns(options); }
   applyFlashFill(options) { return this.dataTools.flashFill(options); }
@@ -20023,8 +20404,16 @@ export class SheetGridController {
     const normalizedRange = this._normalizeRange(range);
     const grid = WhatIfAnalysisEngine.rangeCoords(normalizedRange, this.cols);
     if (grid.length < 2 || grid[0].length < 2) throw new Error(t("sheetDialogs.dataTableRangeSize", "Vùng Bảng dữ liệu phải có ít nhất 2 hàng và 2 cột."));
-    const formulaCoord = grid[0][0];
-    if (!this.cellsData.get(formulaCoord)?.formula) throw new Error(t("sheetDialogs.dataTableFormulaCorner", "Ô góc trên bên trái phải chứa công thức gốc."));
+    let formulaCoord = grid[0][0];
+    if (!this.cellsData.get(formulaCoord)?.formula) {
+      if (rowInput && !columnInput && this.cellsData.get(grid[1]?.[0])?.formula) {
+        formulaCoord = grid[1][0];
+      } else if (!rowInput && columnInput && this.cellsData.get(grid[0]?.[1])?.formula) {
+        formulaCoord = grid[0][1];
+      } else {
+        throw new Error(t("sheetDialogs.dataTableFormulaCorner", "Ô góc trên bên trái phải chứa công thức gốc."));
+      }
+    }
     const table = { sheet: this.activeSheet, range: normalizedRange, rowInputCell: rowInput, columnInputCell: columnInput, formulaCell: formulaCoord };
     const before = this._snapshotCells();
     const previousGuard = this._dataTableEvaluating;
@@ -20085,9 +20474,10 @@ export class SheetGridController {
   }
 
   _writeDataTableResults(table, output) {
+    const tableFormula = `=TABLE(${table.rowInputCell || ""},${table.columnInputCell || ""})`;
     for (const [coord, value] of output) {
       const current = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
-      this.cellsData.set(coord, { ...current, val: value, formula: "" });
+      this.cellsData.set(coord, { ...current, val: value, formula: tableFormula });
     }
     this._recalculateAllFormulas(undefined, true);
   }
@@ -20378,7 +20768,7 @@ export class SheetGridController {
   }
 
   applyScenario(id, recordUndo = true) {
-    const scenario = (this.scenariosBySheet[this.activeSheet] || []).find(item => item.id === id);
+    const scenario = (this.scenariosBySheet[this.activeSheet] || []).find(item => item.id === id || String(item.name).toLowerCase() === String(id).toLowerCase());
     if (!scenario) return false;
     const before = this._snapshotCells();
     scenario.changingCells.forEach((coord, index) => {

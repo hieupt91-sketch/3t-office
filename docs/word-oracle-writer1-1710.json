@@ -1,0 +1,46 @@
+﻿[
+    {
+        "ten_phep_do":  "1_tab_stops",
+        "thuoc_tinh":  "Paragraph.TabStops",
+        "count":  7,
+        "defaultTabStop":  36,
+        "tab1_position_pt":  144,
+        "tab1_alignment":  2,
+        "tab1_leader":  1,
+        "y_nghia":  "DefaultTabStop = 36 pt (36 pt = 1.27 cm); Tab1: Pos=144 pt, Align=2 (2=Right), Leader=1 (1=Dots)",
+        "thoi_diem":  "2026-10-17T07:53:51.6227700+07:00"
+    },
+    {
+        "ten_phep_do":  "2_split_table",
+        "thuoc_tinh":  "Tables.Count",
+        "initial_tables":  1,
+        "after_split_tables":  2,
+        "table1_rows":  2,
+        "table2_rows":  2,
+        "y_nghia":  "Tach bang 4 hang tai hang 3 tao ra 2 bang: bang 1 co 2 hang, bang 2 co 2 hang",
+        "thoi_diem":  "2026-10-17T07:53:51.7662473+07:00"
+    },
+    {
+        "ten_phep_do":  "3_cell_text_direction",
+        "thuoc_tinh":  "Cell.Range.Orientation",
+        "initial":  0,
+        "downward_90":  3,
+        "upward_270":  2,
+        "horizontal":  0,
+        "y_nghia":  "0=wdTextOrientationHorizontal, 3=wdTextOrientationDownward (90 deg), 2=wdTextOrientationUpward (270 deg)",
+        "thoi_diem":  "2026-10-17T07:53:51.8764590+07:00"
+    },
+    {
+        "ten_phep_do":  "4_table_properties",
+        "thuoc_tinh":  "Table.Padding_Spacing_Alignment",
+        "alignment":  1,
+        "left_indent_pt":  18,
+        "top_padding_pt":  5.6500000953674316,
+        "bottom_padding_pt":  5.6500000953674316,
+        "left_padding_pt":  8.5,
+        "right_padding_pt":  8.5,
+        "cell_spacing_pt":  2.7999999523162842,
+        "y_nghia":  "Table.Rows.Alignment=1 (Center), LeftIndent=18 pt; Top/BottomPad=5.65 pt, Left/RightPad=8.5 pt, Spacing=2.8 pt",
+        "thoi_diem":  "2026-10-17T07:53:52.1176386+07:00"
+    }
+]

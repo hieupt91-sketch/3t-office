@@ -53,7 +53,7 @@ export async function runHelpCoverageTests() {
         .join("; ");
       throw new Error(`Còn ${uncovered.length} lệnh Sheet chưa có bài Help: ${details}`);
     }
-    if (sheet.coveredCount !== sheet.liveCount || sheet.liveCount !== 207) {
+    if (sheet.coveredCount !== sheet.liveCount || sheet.liveCount !== 211) {
       throw new Error(`Số lượng lệnh Sheet không khớp: covered=${sheet.coveredCount}, live=${sheet.liveCount}`);
     }
   });
@@ -67,7 +67,7 @@ export async function runHelpCoverageTests() {
         .join("; ");
       throw new Error(`Còn ${uncovered.length} lệnh Slides chưa có bài Help: ${details}`);
     }
-    if (slides.coveredCount !== slides.liveCount || slides.liveCount !== 111) {
+    if (slides.coveredCount !== slides.liveCount || slides.liveCount !== 124) {
       throw new Error(`Số lượng lệnh Slides không khớp: covered=${slides.coveredCount}, live=${slides.liveCount}`);
     }
   });

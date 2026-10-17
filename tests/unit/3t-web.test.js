@@ -63,10 +63,27 @@ export async function run3tWebTests() {
     );
 
     assert(
-      "Dung lượng bộ cài 0.9.10 đúng 401481861 byte và mã băm SHA256 chính xác",
-      releasesData.download?.file_size_bytes === 401481861 &&
-      releasesData.download?.sha256?.toLowerCase() === "d21cbc6cc457d54ffcaee486294b68b851ba5dddbadea3374e777c7a43c365e7"
+      "Dung lượng bộ cài 0.9.11 đúng 401718681 byte và mã băm SHA256 chính xác",
+      releasesData.download?.file_size_bytes === 401718681 &&
+      releasesData.download?.sha256?.toLowerCase() === "41cc7db664203d8a15a2e9f030f50a6f28e09f17b6de139c194b9114d7a274be"
     );
+
+    // 1b. Kiểm tra release-macos.json cho bản macOS nội bộ
+    const macReleasesPath = path.join(webRoot, "data/release-macos.json");
+    assert("Tệp data/release-macos.json tồn tại", fs.existsSync(macReleasesPath));
+    if (fs.existsSync(macReleasesPath)) {
+      const macData = JSON.parse(fs.readFileSync(macReleasesPath, "utf-8"));
+      assert("release-macos.json là JSON hợp lệ có thuộc tính version", Boolean(macData.version));
+      assert("release-macos.json có các trường bắt buộc (version, file_name, size, sha256, min_os, arch, released_at, install_note)",
+        "version" in macData && "file_name" in macData && "size" in macData && "sha256" in macData &&
+        "min_os" in macData && "arch" in macData && "released_at" in macData && "install_note" in macData
+      );
+      assert("Trạng thái chuẩn bị: file_name rỗng ban đầu", macData.file_name === "");
+      assert("Kiến trúc macOS là Apple Silicon (arm64)", macData.arch === "Apple Silicon (arm64)");
+      assert("Ghi chú cài đặt macOS có hướng dẫn chuột phải vào tệp .pkg và Open Anyway",
+        macData.install_note?.includes("chuột phải vào tệp .pkg") && macData.install_note?.includes("Open Anyway")
+      );
+    }
 
     // 2. Kiểm tra sự tồn tại của 9 trang HTML
     for (const page of HTML_PAGES) {
@@ -284,6 +301,21 @@ export async function run3tWebTests() {
         }
       }
     }
+
+    // 15. Kiểm tra thẻ tải về macOS trên index.html và tai-ve.html
+    const indexHtml = fs.readFileSync(path.join(webRoot, "index.html"), "utf-8");
+    assert("index.html chứa thẻ tải về macOS (download-card-macos)", indexHtml.includes("download-card-macos"));
+    assert("index.html có tiêu đề tải về macOS nội bộ", indexHtml.includes("Tải về 3T Office cho macOS (dùng nội bộ)"));
+    assert("index.html hiển thị trạng thái 'Bản macOS đang được chuẩn bị' khi chưa có tệp", indexHtml.includes("Bản macOS đang được chuẩn bị"));
+    assert("index.html có kiến trúc Apple Silicon (arm64)", indexHtml.includes("Apple Silicon (arm64)"));
+    assert("index.html có nút sao chép mã băm SHA256 macOS", indexHtml.includes('data-copy-target="#sha256-mac-val"'));
+    assert("index.html có hướng dẫn shasum -a 256", indexHtml.includes("shasum -a 256"));
+    assert("index.html có hướng dẫn chuột phải vào tệp .pkg và Open Anyway", indexHtml.includes("chuột phải vào tệp .pkg") && indexHtml.includes("Open Anyway"));
+
+    const taiVeHtml = fs.readFileSync(path.join(webRoot, "tai-ve.html"), "utf-8");
+    assert("tai-ve.html chứa thẻ tải về macOS", taiVeHtml.includes("Tải về 3T Office cho macOS (dùng nội bộ)"));
+    assert("tai-ve.html hiển thị trạng thái chuẩn bị", taiVeHtml.includes("Bản macOS đang được chuẩn bị"));
+    assert("tai-ve.html có kiến trúc Apple Silicon (arm64)", taiVeHtml.includes("Apple Silicon (arm64)"));
 
 
   } catch (err) {

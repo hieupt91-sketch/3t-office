@@ -224,6 +224,16 @@ export class SlidesAdapter {
     // bind explicitly instead of requiring a Platform registry change.
     globalCommandBus.bindHandler("slides.insert.chart", (options) => this.canvas.insertChart ? this.canvas.insertChart(options) : false);
     globalCommandBus.bindHandler("slides.insert.hyperlink", (options) => this.canvas.insertHyperlink ? this.canvas.insertHyperlink(options) : false);
+    globalCommandBus.bindHandler("slides.text.shadow", () => this._toggleTextShadow());
+    globalCommandBus.bindHandler("slides.table.insertRowAbove", () => this.canvas.tableInsertRow ? this.canvas.tableInsertRow("above") : false);
+    globalCommandBus.bindHandler("slides.table.insertRowBelow", () => this.canvas.tableInsertRow ? this.canvas.tableInsertRow("below") : false);
+    globalCommandBus.bindHandler("slides.table.insertColLeft", () => this.canvas.tableInsertCol ? this.canvas.tableInsertCol("left") : false);
+    globalCommandBus.bindHandler("slides.table.insertColRight", () => this.canvas.tableInsertCol ? this.canvas.tableInsertCol("right") : false);
+    globalCommandBus.bindHandler("slides.table.deleteRow", () => this.canvas.tableDeleteRow ? this.canvas.tableDeleteRow() : false);
+    globalCommandBus.bindHandler("slides.table.deleteCol", () => this.canvas.tableDeleteCol ? this.canvas.tableDeleteCol() : false);
+    globalCommandBus.bindHandler("slides.table.deleteTable", () => this.canvas.tableDelete ? this.canvas.tableDelete() : false);
+    globalCommandBus.bindHandler("slides.table.mergeCells", () => this.canvas.tableMergeCells ? this.canvas.tableMergeCells() : false);
+    globalCommandBus.bindHandler("slides.table.splitCell", () => this.canvas.tableSplitCell ? this.canvas.tableSplitCell() : false);
     globalCommandBus.bindHandler("common.edit.hyperlink", (options) => this.canvas.insertHyperlink ? this.canvas.insertHyperlink(options) : false);
     globalCommandBus.bindHandler("slides.file.printPreview", () => this.print());
     globalCommandBus.bindHandler("slides.view.normal", () => this.canvas.setNormalView ? this.canvas.setNormalView() : false);
@@ -249,6 +259,10 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.edit.select", () => this.canvas.selectAllShapes ? this.canvas.selectAllShapes() : false);
     globalCommandBus.bindHandler("slides.text.vAlign", () => this._hintIfFalse(() => this.canvas.setTextVerticalAlign ? this.canvas.setTextVerticalAlign("middle") : false, "Hãy chọn khung chữ hoặc hình khối có văn bản cần căn lề dọc."));
     globalCommandBus.bindHandler("slides.text.direction", () => this._hintIfFalse(() => this.canvas.setTextDirection ? this.canvas.setTextDirection("horizontal") : false, "Hãy chọn khung chữ hoặc hình khối có văn bản cần xoay hướng chữ."));
+    globalCommandBus.bindHandler("slides.text.columns", () => this._hintIfFalse(() => this.canvas.setTextColumns ? this.canvas.setTextColumns(2) : false, "Hãy chọn hộp văn bản cần chia cột."));
+    globalCommandBus.bindHandler("slides.text.columnsOne", () => this._hintIfFalse(() => this.canvas.setTextColumns ? this.canvas.setTextColumns(1) : false, "Hãy chọn hộp văn bản cần chia cột."));
+    globalCommandBus.bindHandler("slides.text.columnsTwo", () => this._hintIfFalse(() => this.canvas.setTextColumns ? this.canvas.setTextColumns(2) : false, "Hãy chọn hộp văn bản cần chia cột."));
+    globalCommandBus.bindHandler("slides.text.columnsThree", () => this._hintIfFalse(() => this.canvas.setTextColumns ? this.canvas.setTextColumns(3) : false, "Hãy chọn hộp văn bản cần chia cột."));
     this._bindTextFormatTracking();
   }
 
@@ -409,6 +423,7 @@ export class SlidesAdapter {
     globalCommandBus.updateState("slides.text.italic", { checked: this._queryCommandState("italic") });
     globalCommandBus.updateState("slides.text.underline", { checked: this._queryCommandState("underline") });
     globalCommandBus.updateState("slides.text.strike", { checked: this._queryCommandState("strikeThrough") });
+    globalCommandBus.updateState("slides.text.shadow", { checked: this._selectionHasTextShadow() });
     globalCommandBus.updateState("slides.list.bullet", { checked: this._queryCommandState("insertUnorderedList") });
     globalCommandBus.updateState("slides.list.numbered", { checked: this._queryCommandState("insertOrderedList") });
     globalCommandBus.updateState("slides.para.alignLeft", { checked: this._queryCommandState("justifyLeft") });
@@ -436,6 +451,52 @@ export class SlidesAdapter {
     this._restoreTextSelection();
     if (typeof document === "undefined" || typeof document.execCommand !== "function") return false;
     const ok = document.execCommand(command, false, value === undefined ? null : value);
+    this.canvas?._syncEditableFieldsFromDom?.();
+    this._syncTextFormatState();
+    return ok;
+  }
+
+  /** Vùng chọn có đang nằm trong chữ đổ bóng (span có text-shadow) không. */
+  _selectionHasTextShadow() {
+    try {
+      const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
+      let node = selection?.anchorNode;
+      if (!node) return false;
+      if (node.nodeType === 3) node = node.parentNode;
+      const root = this._savedEditable || this.canvas?.canvasEl;
+      while (node && node !== root && node.nodeType === 1) {
+        const value = node.style?.textShadow;
+        if (value && !/^none$/i.test(value)) return true;
+        node = node.parentNode;
+      }
+    } catch { /* không có vùng chọn */ }
+    return false;
+  }
+
+  /** Bật/tắt đổ bóng cho chữ đang chọn: bọc vùng chọn trong span text-shadow, hoặc gỡ span đó. */
+  _toggleTextShadow() {
+    this._restoreTextSelection();
+    if (typeof document === "undefined" || typeof document.execCommand !== "function") return false;
+    const selection = window.getSelection?.();
+    if (!selection || selection.rangeCount === 0 || selection.isCollapsed) {
+      this.shell?.setStatus?.("Hãy chọn đoạn chữ cần đổ bóng.");
+      return false;
+    }
+    const range = selection.getRangeAt(0);
+    const holder = document.createElement("div");
+    holder.appendChild(range.cloneContents());
+    const inner = holder.innerHTML;
+    if (!inner) return false;
+    const shadowed = this._selectionHasTextShadow();
+    let html;
+    if (shadowed) {
+      // Gỡ đổ bóng: xóa text-shadow khỏi mọi span trong vùng chọn (và span bao quanh nếu nó chỉ chứa đúng vùng chọn).
+      holder.querySelectorAll("[style]").forEach(el => { el.style.textShadow = ""; if (!el.getAttribute("style")) el.removeAttribute("style"); });
+      html = `<span style="text-shadow:none">${holder.innerHTML}</span>`;
+    } else {
+      html = `<span style="text-shadow:1pt 1pt 2px rgba(0,0,0,0.45)">${inner}</span>`;
+    }
+    const ok = document.execCommand("insertHTML", false, html);
     this.canvas?._syncEditableFieldsFromDom?.();
     this._syncTextFormatState();
     return ok;
@@ -658,7 +719,7 @@ export class SlidesAdapter {
     if (/<(b|strong|i|em|u|s|strike|sub|sup|font|ul|ol|li|blockquote)\b/i.test(value)) return true;
     const styleMatch = value.match(/style\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
     const styleVal = styleMatch ? (styleMatch[1] !== undefined ? styleMatch[1] : (styleMatch[2] || "")) : "";
-    if (/(?:font-weight|font-style|text-decoration|color|background|font-family|font-size|text-align|line-height)/i.test(styleVal)) return true;
+    if (/(?:font-weight|font-style|text-decoration|text-shadow|color|background|font-family|font-size|text-align|line-height)/i.test(styleVal)) return true;
     return /<(span|div|p)\b[^>]*(align|face|color|size)=/i.test(value);
   }
 
@@ -724,6 +785,7 @@ export class SlidesAdapter {
       if (key === "font-style" && /^normal$/i.test(value)) out.italic = false;
       if (key === "text-decoration" && /underline/i.test(value)) out.underline = true;
       if (key === "text-decoration" && /line-through/i.test(value)) out.strike = true;
+      if (key === "text-shadow" && !/^none$/i.test(value)) out.shadow = true;
       if (key === "color") out.color = this._cssColorToHex(value);
       if (key === "background-color" || key === "background") {
         // Nền bán trong suốt (rgba alpha < 1) là màu tô khung đang chọn của giao diện mà
@@ -796,7 +858,8 @@ export class SlidesAdapter {
 
     this._walkHtml(html, {
       text: (text) => {
-        if (text) current.texts.push({ text, fmt: currentFmt() });
+        // Khoảng trắng chỉ có xuống dòng giữa các thẻ là định dạng đẹp của HTML, không phải chữ của người dùng.
+        if (text && !/^[ \t]*[\r\n]\s*$/.test(text)) current.texts.push({ text, fmt: currentFmt() });
       },
       open: (tag, attrs) => {
         const css = this._styleFromHtmlAttrs(tag, attrs);
@@ -976,6 +1039,7 @@ export class SlidesAdapter {
         attrs.push('style:text-underline-color="font-color"');
       }
       if (props.strike) attrs.push('style:text-line-through-style="solid"');
+      if (props.shadow) attrs.push('fo:text-shadow="1pt 1pt"');
       if (props.color) attrs.push(`fo:color="${this._escapeXml(props.color)}"`);
       if (props.bg) attrs.push(`fo:background-color="${this._escapeXml(props.bg)}"`);
       if (props.family) {
@@ -1029,6 +1093,7 @@ export class SlidesAdapter {
           italic: /fo:font-style=["']italic["']/i.test(inner),
           underline: /style:text-underline-style=["'](?!none)[^"']+["']/i.test(inner),
           strike: /style:text-line-through-style=["'](?!none)[^"']+["']/i.test(inner),
+          shadow: /fo:text-shadow=["'](?!none)[^"']+["']/i.test(inner),
           color: inner.match(/fo:color=["']([^"']+)["']/i)?.[1],
           bg: inner.match(/fo:background-color=["']([^"']+)["']/i)?.[1],
           family: this._resolveFodpFontName(inner.match(/fo:font-family=["']([^"']+)["']/i)?.[1] || inner.match(/style:font-name=["']([^"']+)["']/i)?.[1]),
@@ -1104,6 +1169,7 @@ export class SlidesAdapter {
       if (fmt.strike) wrapped = `<s>${wrapped}</s>`;
       const spanStyles = [];
       if (fmt.color) spanStyles.push(`color:${fmt.color}`);
+      if (fmt.shadow) spanStyles.push("text-shadow:1pt 1pt 2px rgba(0,0,0,0.45)");
       if (fmt.bg && fmt.bg !== "transparent") spanStyles.push(`background-color:${fmt.bg}`);
       if (fmt.family) {
         const cleanFamily = fmt.family.replace(/['"]/g, "").trim();
@@ -1394,10 +1460,19 @@ export class SlidesAdapter {
     const vAlign = shape.textVAlign && shape.textVAlign !== "middle" ? shape.textVAlign : "";
     const dir = shape.textDirection && shape.textDirection !== "horizontal" ? shape.textDirection : "";
     const pad = this._padKey(shape);
-    if (!vAlign && !dir && !pad) return "";
-    return `_${vAlign || "m"}${dir ? `_${dir}` : ""}${pad}`;
+    const columns = Math.max(1, Math.min(8, Math.trunc(Number(shape.textColumns)) || 1));
+    const columnKey = columns > 1 ? `_c${columns}_${String(Number.isFinite(Number(shape.columnSpacing)) ? Number(shape.columnSpacing) : 18).replace(/\./g, "_")}` : "";
+    if (!vAlign && !dir && !pad && !columnKey) return "";
+    return `_${vAlign || "m"}${dir ? `_${dir}` : ""}${pad}${columnKey}`;
   }
 
+  /** Khung chữ nhiều cột: thêm <style:columns> làm phần tử con của style:graphic-properties (ODF 1.2). */
+  _graphicPropertiesWithColumns(attrs, shape) {
+    const count = Math.max(1, Math.min(8, Math.trunc(Number(shape?.textColumns)) || 1));
+    if (count < 2) return `<style:graphic-properties${attrs}/>`;
+    const gap = this._pxToOdf(Number.isFinite(Number(shape?.columnSpacing)) ? Number(shape.columnSpacing) : 18);
+    return `<style:graphic-properties${attrs}><style:columns fo:column-count="${count}" fo:column-gap="${gap}"/></style:graphic-properties>`;
+  }
   /** Thuộc tính ODF chuẩn cho căn lề dọc + hướng chữ + padding hộp chữ + autofit/wrap. */
   _textStyleGraphicAttrs(shape) {
     let attrs = "";
@@ -1545,7 +1620,8 @@ export class SlidesAdapter {
 
   _mapVnTransitionToSmil(transition) {
     const type = String(transition?.type || "").toLowerCase();
-    if (!type || type === "none") return null;
+    // "custom" = chuyển tiếp gốc của PowerPoint mà VN chưa dựng lại: không sinh SMIL, bước lưu ghi lại nguyên khối p:transition gốc.
+    if (!type || type === "none" || type === "custom") return null;
     const dur = this._msToSmilDur(transition.duration > 0 ? transition.duration : 500) || "0.5s";
     if (type === "fade") return { type: "fade", subtype: "crossfade", dur };
     if (type === "slide") return { type: "pushWipe", subtype: "fromLeft", dur };
@@ -1634,6 +1710,18 @@ export class SlidesAdapter {
     const delayMs = Number(animation.delay) || 0;
     const begin = delayMs > 0 ? (this._msToSmilDur(delayMs) || "0s") : "0s";
     switch (type) {
+      case "spin":
+        return { presetId: "ooo-emphasis-spin", subType: null, dur, begin, kind: "spin", cls: "emphasis" };
+      case "growShrink":
+        return { presetId: "ooo-emphasis-grow-and-shrink", subType: null, dur, begin, kind: "growShrink", cls: "emphasis" };
+      case "fadeOut":
+        return { presetId: "ooo-exit-fade-out", subType: null, dur, begin, kind: "fadeOut", cls: "exit" };
+      case "flyOut":
+        return { presetId: "ooo-exit-fly-out", subType: "to-bottom", dur, begin, kind: "flyOut", cls: "exit" };
+      case "zoomOut":
+        return { presetId: "ooo-exit-zoom", subType: null, dur, begin, kind: "zoomOut", cls: "exit" };
+      case "disappear":
+        return { presetId: "ooo-exit-disappear", subType: null, dur, begin, kind: "disappear", cls: "exit" };
       case "fadeIn":
       case "fade":
         return { presetId: "ooo-entrance-fade-in", subType: null, dur, begin, kind: "fade" };
@@ -1654,9 +1742,22 @@ export class SlidesAdapter {
     }
   }
 
-  _mapPresetToVnAnimation(presetId) {
+  _mapPresetToVnAnimation(presetId, presetClass = "") {
     const id = String(presetId || "").toLowerCase();
     if (!id) return null;
+    const cls = String(presetClass || "").toLowerCase() || (id.includes("-exit-") ? "exit" : id.includes("-emphasis-") ? "emphasis" : "");
+    if (cls === "exit") {
+      if (id.includes("fly")) return "flyOut";
+      if (id.includes("zoom") || id.includes("shrink")) return "zoomOut";
+      if (id.includes("fade")) return "fadeOut";
+      if (id.includes("disappear") || id.includes("appear")) return "disappear";
+      return null;
+    }
+    if (cls === "emphasis") {
+      if (id.includes("spin")) return "spin";
+      if (id.includes("grow")) return "growShrink";
+      return null;
+    }
     if (id.includes("fly-in")) return "flyIn";
     if (id.includes("zoom")) return "zoomIn";
     if (id.includes("bounce")) return "bounceIn";
@@ -1707,9 +1808,32 @@ export class SlidesAdapter {
     if (!preset || !drawId) return "";
     const target = this._escapeXml(drawId);
     const sub = preset.subType ? ` presentation:preset-sub-type="${this._escapeXml(preset.subType)}"` : "";
-    let animates = `
-                <anim:set smil:begin="0s" smil:dur="0.001s" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="visibility" smil:to="visible"/>`;
-    if (preset.kind === "fly") {
+    const presetClass = preset.cls || "entrance";
+    let animates = presetClass === "entrance" ? `
+                <anim:set smil:begin="0s" smil:dur="0.001s" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="visibility" smil:to="visible"/>` : "";
+    const hideAtEnd = `
+                <anim:set smil:begin="${preset.dur}" smil:dur="0.001s" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="visibility" smil:to="hidden"/>`;
+    if (preset.kind === "spin") {
+      animates += `
+                <anim:animateTransform smil:dur="${preset.dur}" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="rotate" svg:type="rotate" smil:by="360"/>`;
+    } else if (preset.kind === "growShrink") {
+      const factor = "1.5,1.5";
+      animates += `
+                <anim:animateTransform smil:dur="${preset.dur}" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="scale" svg:type="scale" smil:by="${factor}" smil:autoReverse="true"/>`;
+    } else if (preset.kind === "fadeOut") {
+      animates += `
+                <anim:animate smil:dur="${preset.dur}" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="opacity" smil:from="1" smil:to="0"/>${hideAtEnd}`;
+    } else if (preset.kind === "flyOut") {
+      animates += `
+                <anim:animate smil:dur="${preset.dur}" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="y" smil:values="y;height" smil:keyTimes="0;1"/>${hideAtEnd}`;
+    } else if (preset.kind === "zoomOut") {
+      animates += `
+                <anim:animate smil:dur="${preset.dur}" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="width" smil:values="width;0" smil:keyTimes="0;1"/>
+                <anim:animate smil:dur="${preset.dur}" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="height" smil:values="height;0" smil:keyTimes="0;1"/>${hideAtEnd}`;
+    } else if (preset.kind === "disappear") {
+      animates += `
+                <anim:set smil:begin="0s" smil:dur="0.001s" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="visibility" smil:to="hidden"/>`;
+    } else if (preset.kind === "fly") {
       animates += `
                 <anim:animate smil:dur="${preset.dur}" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="x" smil:values="x;x" smil:keyTimes="0;1"/>
                 <anim:animate smil:dur="${preset.dur}" smil:fill="hold" smil:targetElement="${target}" smil:attributeName="y" smil:values="height;y" smil:keyTimes="0;1"/>`;
@@ -1728,7 +1852,7 @@ export class SlidesAdapter {
         : "on-click";
     return `
             <anim:par smil:begin="indefinite">
-              <anim:par smil:begin="${preset.begin}" smil:fill="hold" presentation:node-type="${nodeType}" presentation:preset-class="entrance" presentation:preset-id="${this._escapeXml(preset.presetId)}"${sub}>${animates}
+              <anim:par smil:begin="${preset.begin}" smil:fill="hold" presentation:node-type="${nodeType}" presentation:preset-class="${presetClass}" presentation:preset-id="${this._escapeXml(preset.presetId)}"${sub}>${animates}
               </anim:par>
             </anim:par>`;
   }
@@ -1878,16 +2002,32 @@ export class SlidesAdapter {
       filterType || fromStyle.smilType,
       filterSubtype || fromStyle.smilSubtype
     );
+    // Khối p:transition gốc của PowerPoint (Cut, Wipe, Cover, Split...) và cách chuyển trang (nhấp chuột / sau N giây).
+    const sourceXml = this._attr(pageAttrs, "vno:src-transition");
+    const sourceAdvance = this._attr(pageAttrs, "vno:src-advance");
+    const extra = {};
+    if (sourceXml) {
+      extra.sourceXml = sourceXml;
+      const advance = String(sourceAdvance || "").match(/click:(\d);after:(\d*)/);
+      if (advance) {
+        extra.advanceOnClick = advance[1] !== "0";
+        if (advance[2] !== "") extra.advanceAfter = Number(advance[2]);
+      }
+    }
     if (vnCustomType === "morph") {
       return {
         type: "morph",
-        duration: this._parseSmilTimeToMs(filterDur) || fromStyle.duration || 500
+        duration: this._parseSmilTimeToMs(filterDur) || fromStyle.duration || 500,
+        ...extra
       };
     }
-    if (!vnType) return undefined;
+    if (!vnType) {
+      return sourceXml ? { type: "custom", duration: fromStyle.duration || 500, ...extra } : undefined;
+    }
     return {
       type: vnType,
-      duration: this._parseSmilTimeToMs(filterDur) || fromStyle.duration || 500
+      duration: this._parseSmilTimeToMs(filterDur) || fromStyle.duration || 500,
+      ...extra
     };
   }
 
@@ -1897,7 +2037,7 @@ export class SlidesAdapter {
     let match;
     while ((match = regex.exec(pageXml || "")) !== null) {
       const attrs = match[1];
-      const vnType = this._mapPresetToVnAnimation(this._attr(attrs, "presentation:preset-id"));
+      const vnType = this._mapPresetToVnAnimation(this._attr(attrs, "presentation:preset-id"), this._attr(attrs, "presentation:preset-class"));
       if (!vnType) continue;
       const afterOpen = pageXml.indexOf(">", match.index);
       const close = afterOpen >= 0 ? pageXml.indexOf("</anim:par>", afterOpen) : -1;
@@ -1906,7 +2046,7 @@ export class SlidesAdapter {
         : pageXml.slice(match.index, match.index + 2500);
       const target = chunk.match(/smil:targetElement=["']([^"']+)["']/i)?.[1];
       if (!target) continue;
-      const animateDurs = [...chunk.matchAll(/<anim:animate\b([^>]*?)(?:\/>|>)/gi)]
+      const animateDurs = [...chunk.matchAll(/<anim:animate(?:Transform)?\b([^>]*?)(?:\/>|>)/gi)]
         .map((item) => this._parseSmilTimeToMs(this._attr(item[1], "smil:dur")))
         .filter((ms) => Number.isFinite(ms) && ms >= 20);
       const duration = animateDurs.length
@@ -2152,7 +2292,7 @@ export class SlidesAdapter {
       }
       xml += `
     <style:style style:name="${styleName}" style:family="graphic">
-      <style:graphic-properties${strokeAttrs}${fillAttrs}${this._textStyleGraphicAttrs(shape)}/>
+      ${this._graphicPropertiesWithColumns(`${strokeAttrs}${fillAttrs}${this._textStyleGraphicAttrs(shape)}`, shape)}
     </style:style>`;
     }
     if (needsConnector) {
@@ -2234,12 +2374,17 @@ export class SlidesAdapter {
     if (type === "table") {
       const rows = Array.isArray(shape.cells) ? shape.cells : [];
       const cols = Math.max(1, Number(shape.cols) || rows.reduce((max, row) => Math.max(max, (row || []).length), 1));
-      const rowsXml = rows.map((row) => {
+      const tableSpans = Array.isArray(shape.merges) ? shape.merges : [];
+      const spanAt = (r, c) => tableSpans.find(m => r >= m.r && r < m.r + m.rs && c >= m.c && c < m.c + m.cs);
+      const rowsXml = rows.map((row, rowIndex) => {
         const cells = Array.from({ length: cols }, (_, index) => row?.[index] ?? "");
-        const cellsXml = cells.map((cell) => {
+        const cellsXml = cells.map((cell, colIndex) => {
+          const merged = spanAt(rowIndex, colIndex);
+          if (merged && (merged.r !== rowIndex || merged.c !== colIndex)) return "<table:covered-table-cell/>";
           const html = this._htmlHasFormat(cell) ? cell : "";
           const plain = html ? this._plainFromHtml(cell) : cell;
-          return `<table:table-cell office:value-type="string">${this._richOrPlainXml(plain, html, richCtx)}</table:table-cell>`;
+          const spanAttr = merged ? ` table:number-columns-spanned="${merged.cs}" table:number-rows-spanned="${merged.rs}"` : "";
+          return `<table:table-cell office:value-type="string"${spanAttr}>${this._richOrPlainXml(plain, html, richCtx)}</table:table-cell>`;
         }).join("");
         return `<table:table-row>${cellsXml}</table:table-row>`;
       }).join("");
@@ -2419,6 +2564,9 @@ export class SlidesAdapter {
       }
       const markerEnd = match[2].match(/draw:marker-end=["']([^"']+)["']/i)?.[1];
       const vAlignRaw = match[2].match(/draw:textarea-vertical-align=["']([^"']+)["']/i)?.[1];
+      const columnsMatch = match[2].match(/<style:columns\b[^>]*>/i)?.[0] || "";
+      const columnCount = Number(columnsMatch.match(/fo:column-count=["'](\d+)["']/i)?.[1]) || 0;
+      const columnGapRaw = columnsMatch.match(/fo:column-gap=["']([^"']+)["']/i)?.[1] || "";
       const vnoDirection = match[2].match(/vno:text-direction=["']([^"']+)["']/i)?.[1];
       const writingMode = match[2].match(/style:writing-mode=["']([^"']+)["']/i)?.[1];
       let textDirection = null;
@@ -2448,6 +2596,8 @@ export class SlidesAdapter {
         strokeKind: strokeKind || null,
         markerEnd: markerEnd || null,
         textVAlign: vAlignRaw || null,
+        textColumns: columnCount > 1 ? columnCount : null,
+        columnSpacingRaw: columnCount > 1 ? columnGapRaw : null,
         textAlign: hAlignRaw || null,
         fontSize: fontSize || null,
         fontWeight: fontWeight || null,
@@ -2535,8 +2685,10 @@ export class SlidesAdapter {
   }
 
   _parseSlideHeaderFooter(pageXml) {
+    // Ghi chú diễn giả (<presentation:notes>) có khung ngày/chân trang/số trang của trang ghi chú: không phải của slide.
+    const slideXml = String(pageXml || "").replace(/<presentation:notes\b[\s\S]*?<\/presentation:notes>/gi, "");
     const readFrame = (className) => {
-      const match = String(pageXml || "").match(new RegExp(`<draw:frame\\b(?=[^>]*presentation:class=["']${className}["'])[^>]*>([\\s\\S]*?)<\\/draw:frame>`, "i"));
+      const match = slideXml.match(new RegExp(`<draw:frame\\b(?=[^>]*presentation:class=["']${className}["'])[^>]*>([\\s\\S]*?)<\\/draw:frame>`, "i"));
       if (!match) return null;
       const text = (match[1].match(/<text:p\b[^>]*>([\s\S]*?)<\/text:p>/i)?.[1] || "")
         .replace(/<[^>]+>/g, "");
@@ -2693,6 +2845,11 @@ export class SlidesAdapter {
       animation: this._noneAnimation()
     };
     if (style.textVAlign) shape.textVAlign = style.textVAlign;
+    if (style.textColumns > 1) {
+      shape.textColumns = style.textColumns;
+      const gap = style.columnSpacingRaw ? this._odfLengthToPx(style.columnSpacingRaw, false) : null;
+      if (Number.isFinite(gap) && gap > 0) shape.columnSpacing = Math.round(gap * 100) / 100;
+    }
     if (style.textDirection) shape.textDirection = style.textDirection;
     const inlinePadTop = get("fo:padding-top") || get("fo:padding") || inner.match(/fo:padding(?:-top)?=["']([^"']+)["']/i)?.[1];
     const inlinePadBottom = get("fo:padding-bottom") || get("fo:padding") || inner.match(/fo:padding(?:-bottom)?=["']([^"']+)["']/i)?.[1];
@@ -2763,6 +2920,30 @@ export class SlidesAdapter {
     const dataMime = href.match(/^data:([^;,]+)/i)?.[1] || "";
     if (/^audio\//i.test(mime) || /^audio\//i.test(dataMime)) return "audio";
     return "video";
+  }
+
+  /** Các vùng ô gộp (table:number-columns-spanned / rows-spanned) của bảng FODP, theo vị trí logic. */
+  _parseTableMerges(inner) {
+    const merges = [];
+    const rowRegex = /<table:table-row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/table:table-row>)/gi;
+    let rowMatch;
+    let rowIndex = 0;
+    while ((rowMatch = rowRegex.exec(inner)) !== null) {
+      const rowRepeat = Math.max(1, Number(this._attr(rowMatch[1], "table:number-rows-repeated")) || 1);
+      const cellRegex = /<(?:table:)?(?:table-cell|covered-table-cell)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:table:)?(?:table-cell|covered-table-cell)>)/gi;
+      let cellMatch;
+      let colIndex = 0;
+      while ((cellMatch = cellRegex.exec(rowMatch[2] || "")) !== null) {
+        const colRepeat = Math.max(1, Number(this._attr(cellMatch[1], "table:number-columns-repeated")) || 1);
+        const cs = Math.max(1, Number(this._attr(cellMatch[1], "table:number-columns-spanned")) || 1);
+        const rs = Math.max(1, Number(this._attr(cellMatch[1], "table:number-rows-spanned")) || 1);
+        const isCovered = /^<(?:table:)?covered-table-cell\b/i.test(cellMatch[0]);
+        if (!isCovered && (cs > 1 || rs > 1)) merges.push({ r: rowIndex, c: colIndex, rs, cs });
+        colIndex += colRepeat;
+      }
+      rowIndex += rowRepeat;
+    }
+    return merges;
   }
 
   _parseTableCells(inner) {
@@ -2836,10 +3017,12 @@ export class SlidesAdapter {
     // (WMF/bitmap). Table must win or the shape is misread as type "image".
     if (/<table:table\b/i.test(inner)) {
       const cells = this._parseTableCells(inner);
+      const tableMerges = this._parseTableMerges(inner);
       return {
         ...base,
         type: "table",
         cells,
+        ...(tableMerges.length ? { merges: tableMerges } : {}),
         rows: cells.length,
         cols: cells.reduce((max, row) => Math.max(max, row.length), 0),
         color: get("draw:fill-color") || style.fill || "transparent",
@@ -2907,6 +3090,11 @@ export class SlidesAdapter {
         wrap: frameWrap || style.wrap || null
       };
       if (vAlign) textbox.textVAlign = vAlign;
+      if (style.textColumns > 1) {
+        textbox.textColumns = style.textColumns;
+        const columnGap = style.columnSpacingRaw ? this._odfLengthToPx(style.columnSpacingRaw, false) : null;
+        if (Number.isFinite(columnGap) && columnGap > 0) textbox.columnSpacing = Math.round(columnGap * 100) / 100;
+      }
       if (style.textDirection) textbox.textDirection = style.textDirection;
       const inlinePadTop = this._attr(attrs, "fo:padding-top") || this._attr(attrs, "fo:padding") || inner.match(/fo:padding(?:-top)?=["']([^"']+)["']/i)?.[1];
       const inlinePadBottom = this._attr(attrs, "fo:padding-bottom") || this._attr(attrs, "fo:padding") || inner.match(/fo:padding(?:-bottom)?=["']([^"']+)["']/i)?.[1];
@@ -3295,8 +3483,11 @@ export class SlidesAdapter {
   _serializeMasterPageXml() {
     const isImported = Boolean(this.canvas?.imported);
     const theme = this._masterTheme();
-    if (!theme) {
-      return `<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1"/>`;
+    // Tệp mở từ PowerPoint/LibreOffice mà người dùng chưa chọn chủ đề nào: KHÔNG ghi chủ đề mặc định của VN đè lên
+    // màu nền / phông chữ của chủ đề gốc trong tệp (đã đo: theme1.xml bị đổi sang modern-blue).
+    if (!theme || (isImported && !this.canvas?._masterThemeTouched)) {
+      const sourceTheme = isImported && this._sourceThemeB64 ? ` vno:src-theme="${this._sourceThemeB64}"` : "";
+      return `<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1"${sourceTheme}/>`;
     }
     const isVnDefaultLogo = !theme.logoText || [
       "VN OFFICE • THUYẾT TRÌNH", "VN OFFICE",
@@ -3360,6 +3551,7 @@ export class SlidesAdapter {
 
   _parseMasterTheme(xmlText) {
     const master = String(xmlText || "").match(/<style:master-page\b([^>]*)>/i)?.[1] || "";
+    this._sourceThemeB64 = this._attr(master, "vno:src-theme") || "";
     const raw = this._unescapeXml(this._attr(master, "vno:master-theme"));
     if (raw) {
       try {
@@ -3496,7 +3688,20 @@ export class SlidesAdapter {
       const commentsXml = this._serializePageCommentsXml(slide.comments);
       const headerFooterXml = this._serializeSlideHeaderFooter(slide, pageWidthCm, pageHeightCm);
 
-      const vnTransitionAttr = slide.transition?.type === "morph" ? ' vno:transition="morph"' : "";
+      let vnTransitionAttr = slide.transition?.type === "morph" ? ' vno:transition="morph"' : "";
+      // Bố cục gốc của slide trong tệp PowerPoint: bước lưu dùng để trỏ lại về đúng bố cục của bản cái gốc.
+      if (slide.srcLayout) vnTransitionAttr += ` vno:src-layout="${this._escapeXml(slide.srcLayout)}"`;
+      if (slide.transition?.sourceXml) {
+        // Chưa đổi chuyển tiếp: mang khối gốc đi tiếp để bước lưu ghi lại nguyên vẹn.
+        const advanceClick = slide.transition.advanceOnClick === false ? 0 : 1;
+        const advanceAfter = Number.isFinite(slide.transition.advanceAfter) ? slide.transition.advanceAfter : "";
+        vnTransitionAttr += ` vno:src-transition="${this._escapeXml(slide.transition.sourceXml)}" vno:src-advance="click:${advanceClick};after:${advanceAfter}"`;
+        // Cách chuyển trang hiện tại (người dùng có thể vừa đổi) áp lên khối gốc lúc lưu.
+        vnTransitionAttr += ` vno:advance-click="${advanceClick}" vno:advance-after="${advanceAfter === "" ? "" : Math.round(advanceAfter)}"`;
+      } else if (slide.transition && (slide.transition.advanceOnClick === false || Number.isFinite(slide.transition.advanceAfter))) {
+        vnTransitionAttr += ` vno:advance-click="${slide.transition.advanceOnClick === false ? 0 : 1}"`;
+        if (Number.isFinite(slide.transition.advanceAfter)) vnTransitionAttr += ` vno:advance-after="${Math.round(slide.transition.advanceAfter)}"`;
+      }
       const section = sections.find(item => item.id === slide.sectionId);
       // FODP keeps the group on draw:page. LibreOffice FODP→PPTX drops
       // vno:section-* (probe: no p:extLst). File → Lưu PPTX post-process
@@ -3613,6 +3818,7 @@ export class SlidesAdapter {
       let pageLayout = layoutMatch ? (layoutNames[layoutMatch[1]] || layoutMatch[1]) : "";
       const originalPageXml = pageMatch[2];
       const pageTransition = this._parsePageTransition(fullPageTag, originalPageXml, drawingPageStyles);
+      const pageSourceLayout = this._attr(fullPageTag, "vno:src-layout");
       const animByTarget = this._parsePageAnimations(originalPageXml);
       let pageContent = originalPageXml;
 
@@ -3674,7 +3880,10 @@ export class SlidesAdapter {
       const isImportedSlide = !layoutMatch || masterPageName === "BLANK" || hasTextBoxShapes || shapes.length > 0;
 
       // PPTX hop drops presentation:layout; restore two-content / title-only from remaining placeholders.
-      if (isImportedSlide && (hasTextBoxShapes || masterPageName === "BLANK" || shapes.length > 0)) {
+      // Trang nhập từ tệp mà không có khung chỗ giữ (tiêu đề/nội dung), không hộp chữ, không hình: là trang trống (không thêm 2 khung chữ rỗng).
+      const pageBodyXml = String(originalPageXml || "").replace(/<presentation:notes\b[\s\S]*?<\/presentation:notes>/gi, "");
+      const pageHasNoObjects = !hasPlaceholderClasses && !/<draw:(?:frame|custom-shape|rect|ellipse|circle|line|path|g|polygon|polyline|connector|control)\b/i.test(pageBodyXml);
+      if (isImportedSlide && (hasTextBoxShapes || masterPageName === "BLANK" || shapes.length > 0 || pageHasNoObjects)) {
         pageLayout = "blank";
       } else if (pageLayout !== "blank") {
         if (outlineBlocks.length > 1) pageLayout = "two-content";
@@ -3789,6 +3998,7 @@ export class SlidesAdapter {
         hidden,
         ...(sectionId ? { sectionId } : {}),
         ...(pageTransition ? { transition: pageTransition } : {}),
+        ...(pageSourceLayout ? { srcLayout: pageSourceLayout } : {}),
         ...(isImportedSlide ? { imported: true } : {})
       };
       this._applyPlaceholderAnimations(
@@ -3905,6 +4115,8 @@ export class SlidesAdapter {
       } else if (newSlides.slideShowSettings) {
         this.canvas.slideShowSettings = { ...newSlides.slideShowSettings };
       }
+      // Chủ đề mặc định của VN chưa phải do người dùng chọn: chỉ chủ đề có trong tệp (hoặc người dùng chọn sau này) mới được ghi lại khi lưu.
+      this.canvas._masterThemeTouched = false;
       if (newSlides.masterTheme && this.canvas.applySlideMaster) {
         this.canvas.applySlideMaster(newSlides.masterTheme);
       } else if (newSlides.masterTheme) {
@@ -4259,6 +4471,15 @@ export class SlidesAdapter {
       case ".uno:TextVertAnchorBottom":
         return this._hintIfFalse(() => this.canvas.setTextVerticalAlign ? this.canvas.setTextVerticalAlign("bottom") : false, "Hãy chọn khung chữ hoặc hình khối có văn bản cần căn lề dọc.");
 
+      case "slides.text.columnsOne":
+        return this._hintIfFalse(() => this.canvas.setTextColumns ? this.canvas.setTextColumns(1) : false, "Hãy chọn khung chữ cần chia cột.");
+
+      case "slides.text.columnsTwo":
+        return this._hintIfFalse(() => this.canvas.setTextColumns ? this.canvas.setTextColumns(2) : false, "Hãy chọn khung chữ cần chia cột.");
+
+      case "slides.text.columnsThree":
+        return this._hintIfFalse(() => this.canvas.setTextColumns ? this.canvas.setTextColumns(3) : false, "Hãy chọn khung chữ cần chia cột.");
+
       case "slides.text.directionHorizontal":
       case ".uno:TextdirectionLeftToRight":
         return this._hintIfFalse(() => this.canvas.setTextDirection ? this.canvas.setTextDirection("horizontal") : false, "Hãy chọn khung chữ hoặc hình khối có văn bản cần xoay hướng chữ.");
@@ -4433,6 +4654,15 @@ export class SlidesAdapter {
 
       case "slides.insert.table":
         return this.canvas.insertTable ? await this.canvas.insertTable(args) : false;
+      case "slides.table.insertRowAbove": return this.canvas.tableInsertRow ? this.canvas.tableInsertRow("above") : false;
+      case "slides.table.insertRowBelow": return this.canvas.tableInsertRow ? this.canvas.tableInsertRow("below") : false;
+      case "slides.table.insertColLeft": return this.canvas.tableInsertCol ? this.canvas.tableInsertCol("left") : false;
+      case "slides.table.insertColRight": return this.canvas.tableInsertCol ? this.canvas.tableInsertCol("right") : false;
+      case "slides.table.deleteRow": return this.canvas.tableDeleteRow ? this.canvas.tableDeleteRow() : false;
+      case "slides.table.deleteCol": return this.canvas.tableDeleteCol ? this.canvas.tableDeleteCol() : false;
+      case "slides.table.deleteTable": return this.canvas.tableDelete ? this.canvas.tableDelete() : false;
+      case "slides.table.mergeCells": return this.canvas.tableMergeCells ? this.canvas.tableMergeCells() : false;
+      case "slides.table.splitCell": return this.canvas.tableSplitCell ? this.canvas.tableSplitCell() : false;
 
       case "slides.insert.headerFooter":
         return this.canvas.openHeaderFooterDialog ? await this.canvas.openHeaderFooterDialog(args) : false;

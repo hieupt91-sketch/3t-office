@@ -2,7 +2,7 @@
 // Dung: node scripts/audit-0610/structural_oracle.mjs <scenarios.json> [--out ket-qua.json]
 // scenarios.json: { "scenarios": [ { "name": "...", "cells": { "A1": 1, "B1": "=SUM(A1:A3)" }, "ops": [ { "type": "deleteRow", "at": 2 } ] } ] }
 import { execFileSync } from "node:child_process";
-import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
@@ -10,15 +10,23 @@ import { pathToFileURL } from "node:url";
 const argv = process.argv.slice(2);
 const specPath = path.resolve(argv[0] || "");
 const spec = JSON.parse(readFileSync(specPath, "utf8"));
+const goldenArg = argv[1] && !argv[1].startsWith("--") ? path.resolve(argv[1]) : null;
 const work = mkdtempSync(path.join(tmpdir(), "vno-struct-"));
 const output = path.join(work, "out.json");
 
 let excel = null;
-for (let attempt = 0; attempt < 5 && !excel; attempt++) {
+if (goldenArg && existsSync(goldenArg)) {
   try {
-    execFileSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path.resolve("scripts/audit-0610/structural_oracle.ps1"), "-InputJson", specPath, "-OutputJson", output], { encoding: "utf8", timeout: 600000 });
-    excel = JSON.parse(readFileSync(output, "utf8").replace(/^﻿/, ""));
-  } catch (error) { console.error("Excel oracle loi lan", attempt + 1, String(error.message).slice(0, 200)); }
+    excel = JSON.parse(readFileSync(goldenArg, "utf8").replace(/^﻿/, ""));
+  } catch (error) { console.error("Loi doc golden", error.message); }
+}
+if (!excel) {
+  for (let attempt = 0; attempt < 5 && !excel; attempt++) {
+    try {
+      execFileSync("powershell.exe", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", path.resolve("scripts/audit-0610/structural_oracle.ps1"), "-InputJson", specPath, "-OutputJson", output], { encoding: "utf8", timeout: 600000 });
+      excel = JSON.parse(readFileSync(output, "utf8").replace(/^﻿/, ""));
+    } catch (error) { console.error("Excel oracle loi lan", attempt + 1, String(error.message).slice(0, 200)); }
+  }
 }
 if (!excel) { console.error("BLOCKED: khong lay duoc ket qua Excel"); process.exit(2); }
 
@@ -98,6 +106,21 @@ for (const scenario of spec.scenarios) {
       grid.textBoxesBySheet[grid.activeSheet].push(tb);
     }
     grid._ensureDrawingOrder(grid.activeSheet);
+  }
+  if (scenario.comments) {
+    for (const c of scenario.comments) {
+      grid.saveComment({
+        coord: c.coord,
+        text: c.text,
+        author: c.author || "",
+        visible: !!c.visible,
+        width: c.width !== undefined ? (c.width <= 150 ? c.width * 4 / 3 : c.width) : 144,
+        height: c.height !== undefined ? (c.height <= 100 ? c.height * 4 / 3 : c.height) : 79
+      });
+    }
+  }
+  if (scenario.displayCommentIndicator !== undefined) {
+    grid.setDisplayCommentIndicator(scenario.displayCommentIndicator);
   }
   let opError = "";
   try {
@@ -461,6 +484,167 @@ for (const scenario of spec.scenarios) {
           grid.addPivotCalculatedField(grid.activeSheet, op.name, op.formula, false);
           break;
         }
+        case "removeDuplicates": {
+          const r = parseRange(op.range);
+          const startCol = colNumber(r.start.c);
+          const cols = (op.columns || [1]).map(c => colLetter(startCol + Number(c) - 1));
+          grid.removeDuplicates({
+            range: r,
+            columns: cols,
+            hasHeader: op.hasHeader !== false && op.header !== false
+          });
+          break;
+        }
+        case "textToColumns": {
+          const r = parseRange(op.range);
+          const delim = op.delimiter || (Array.isArray(op.delimiters) ? op.delimiters[0] : ",");
+          grid.applyTextToColumns({
+            range: r,
+            destination: op.destination || r.start,
+            delimiter: delim,
+            consecutiveDelimiter: !!(op.consecutive || op.consecutiveDelimiter),
+            textQualifier: op.qualifier || op.textQualifier || "doubleQuote",
+            fieldInfo: op.fieldInfo
+          });
+          break;
+        }
+        case "subtotal": {
+          const r = parseRange(op.range);
+          const startCol = colNumber(r.start.c);
+          const groupCol = colLetter(startCol + Number(op.groupBy || 1) - 1);
+          const valCols = (op.totalList || op.cols || [2]).map(c => colLetter(startCol + Number(c) - 1));
+          grid.createSubtotal({
+            range: r,
+            groupColumn: groupCol,
+            valueColumns: valCols,
+            operation: op.function || op.func || "SUM",
+            hasHeader: op.hasHeader !== false && op.header !== false,
+            replace: op.replace !== false,
+            summaryBelow: op.summaryBelow !== false
+          });
+          break;
+        }
+        case "removeSubtotal": {
+          const r = parseRange(op.range);
+          grid.removeSubtotal(r);
+          break;
+        }
+        case "consolidate": {
+          const [dc, dr] = split(op.dest);
+          grid.applyConsolidate({
+            references: op.sources,
+            functionName: op.function || op.func || "SUM",
+            destination: { c: dc, r: dr },
+            topRow: !!op.topRow,
+            leftColumn: !!(op.leftColumn || op.leftCol)
+          });
+          break;
+        }
+        case "goalSeek": {
+          grid.goalSeek({
+            setCell: op.targetCell || op.targetCoord,
+            targetValue: op.targetValue,
+            changingCell: op.changingCell || op.changingCoord
+          });
+          break;
+        }
+        case "dataTable": {
+          grid.calculateDataTable({
+            range: parseRange(op.range),
+            rowInputCell: op.rowInput || "",
+            columnInputCell: op.colInput || ""
+          }, false);
+          break;
+        }
+        case "addScenario": {
+          grid.saveScenario({
+            name: op.name,
+            changingCells: Array.isArray(op.changingCells) ? op.changingCells : String(op.changingCells).split(","),
+            values: op.values,
+            comment: op.comment || ""
+          }, null, false);
+          break;
+        }
+        case "showScenario": {
+          grid.applyScenario(op.name, false);
+          break;
+        }
+        case "clear": {
+          const r = parseRange(op.range);
+          const target = op.mode || op.target || "all";
+          if (target === "all") grid.clearAll(r, false);
+          else if (target === "contents") grid.clearContents(r, false);
+          else if (target === "formats") grid.clearFormats(r, false);
+          else if (target === "comments") {
+            const coords = grid.formulaEngine.expandRange(grid._rangeLabel(grid._normalizeRange(r)));
+            coords.forEach(coord => {
+              const item = grid.cellsData.get(coord);
+              if (item && item.comment) { delete item.comment; }
+            });
+          } else if (target === "hyperlinks") {
+            const coords = grid.formulaEngine.expandRange(grid._rangeLabel(grid._normalizeRange(r)));
+            coords.forEach(coord => {
+              const item = grid.cellsData.get(coord);
+              if (item) { delete item.hyperlink; delete item.link; }
+            });
+          }
+          break;
+        }
+        case "mergeCells": {
+          await grid.mergeCells(op.across ? "mergeAcross" : "mergeCenter", parseRange(op.range), { confirmDataLoss: false });
+          break;
+        }
+        case "unmergeCells": {
+          grid.unmergeCells(parseRange(op.range));
+          break;
+        }
+        case "flashFill": {
+          grid.applyFlashFill({ range: parseRange(op.range) });
+          break;
+        }
+        case "groupRows": grid.groupRows(op.from, op.to); break;
+        case "ungroupRows": grid.ungroupRows(op.from, op.to); break;
+        case "groupCols": grid.groupCols(op.from, op.to); break;
+        case "ungroupCols": grid.ungroupCols(op.from, op.to); break;
+        case "showOutlineLevels": grid.showOutlineLevels(op.rowLevel, op.colLevel); break;
+        case "addComment": {
+          const widthPx = op.width !== undefined ? (op.width <= 150 ? op.width * 4 / 3 : op.width) : 144;
+          const heightPx = op.height !== undefined ? (op.height <= 100 ? op.height * 4 / 3 : op.height) : 79;
+          grid.saveComment({
+            coord: op.coord,
+            text: op.text,
+            author: op.author || "",
+            visible: !!op.visible,
+            width: widthPx,
+            height: heightPx
+          });
+          break;
+        }
+        case "toggleCommentVisible": {
+          grid.toggleCommentVisible(op.coord);
+          break;
+        }
+        case "showAllComments": {
+          grid.toggleShowAllComments(op.enabled !== undefined ? !!op.enabled : true);
+          break;
+        }
+        case "setDisplayCommentIndicator": {
+          grid.setDisplayCommentIndicator(op.indicator);
+          break;
+        }
+        case "deleteComment": {
+          grid.deleteComment({ coord: op.coord });
+          break;
+        }
+        case "resizeComment": {
+          const coord = op.coord.toUpperCase();
+          const comments = grid.commentsBySheet[grid.activeSheet] || {};
+          if (comments[coord]) {
+            if (op.width !== undefined) comments[coord].width = (op.width <= 150 ? op.width * 4 / 3 : op.width);
+            if (op.height !== undefined) comments[coord].height = (op.height <= 100 ? op.height * 4 / 3 : op.height);
+          }
+          break;
+        }
         default: throw new Error(`op chua ho tro: ${op.type}`);
       }
     }
@@ -499,6 +683,17 @@ for (const scenario of spec.scenarios) {
     got[coord] = cellGot;
   }
   for (const r of [...(grid.hiddenRows || []), ...(grid._userHiddenRows?.() || [])]) got[`_H${r}`] = { f: "hidden", v: true };
+  const rowsToCheck = new Set();
+  for (const k of Object.keys(want)) {
+    if (k.startsWith("_H")) rowsToCheck.add(Number(k.slice(2)));
+  }
+  for (const r of rowsToCheck) {
+    if (grid._isRowSkipped?.(r)) got[`_H${r}`] = { f: "hidden", v: true };
+  }
+  const tol = scenario.tolerance !== undefined
+    ? scenario.tolerance
+    : (scenario.ops?.some(op => op.type === "goalSeek") ? 1e-3 : 1e-9);
+  const nearVal = (a, b) => Math.abs(a - b) <= tol * Math.max(1, Math.abs(a), Math.abs(b));
   const coords = new Set([...Object.keys(want), ...Object.keys(got)]);
   const bad = [];
   for (const coord of [...coords].sort((a, b) => split(a)[1] - split(b)[1] || colNumber(split(a)[0]) - colNumber(split(b)[0]))) {
@@ -506,9 +701,10 @@ for (const scenario of spec.scenarios) {
     const w = want[coord]; const g = got[coord];
     let ok = false;
     if (w && g) {
-      const fOk = normFormula(w.f) === normFormula(g.f);
+      const isFormula = (w.f && String(w.f).startsWith("=")) || (g.f && String(g.f).startsWith("="));
+      const fOk = isFormula ? normFormula(w.f) === normFormula(g.f) : true;
       let vOk;
-      if (typeof w.v === "number") vOk = typeof g.v === "number" ? near(w.v, g.v) : (String(g.v) !== "" && near(w.v, Number(g.v)));
+      if (typeof w.v === "number") vOk = typeof g.v === "number" ? nearVal(w.v, g.v) : (String(g.v) !== "" && nearVal(w.v, Number(g.v)));
       else if (w.v === "" || w.v === null || w.v === undefined) vOk = (g.v === "" || g.v === null || g.v === undefined);
       else vOk = String(w.v ?? "") === String(g.v ?? "");
       let fmtOk = true;
@@ -698,6 +894,62 @@ for (const scenario of spec.scenarios) {
           bad.push(`Shape ${wS.name} visible: Excel ${wS.visible} | VN ${gS.visible}`);
         }
         if (shapeOk) pass++;
+      }
+    }
+  }
+  const hasCommentOps = scenario.ops?.some(op => ["addComment", "toggleCommentVisible", "showAllComments", "setDisplayCommentIndicator", "deleteComment", "resizeComment"].includes(op.type) || (op.type === "pasteSpecial" && (op.mode === "comments" || op.paste === "comments")));
+  const wantComments = (scenario.comments || hasCommentOps || scenario.compareComments) && wantRaw.comments !== undefined ? wantRaw.comments : null;
+
+  if (wantComments !== null) {
+    const sheetComments = grid.commentsBySheet?.[grid.activeSheet] || {};
+    const indicator = grid.getDisplayCommentIndicator();
+    const gotComments = Object.entries(sheetComments).map(([coord, c]) => ({
+      coord,
+      text: c.text,
+      visible: indicator === 1 ? true : (indicator === 0 ? false : !!c.visible),
+      width: Math.round((c.width ?? 144) * 0.75 * 100) / 100,
+      height: Math.round((c.height ?? 79) * 0.75 * 100) / 100
+    })).sort((a, b) => split(a.coord)[1] - split(b.coord)[1] || colNumber(split(a.coord)[0]) - colNumber(split(b.coord)[0]));
+
+    if (wantComments.length !== gotComments.length) {
+      total++;
+      bad.push(`Comments count: Excel ${wantComments.length} | VN ${gotComments.length}`);
+    } else {
+      for (const wC of wantComments) {
+        total++;
+        const gC = gotComments.find(c => c.coord === wC.coord);
+        if (!gC) {
+          bad.push(`Comment missing at ${wC.coord} in VN`);
+          continue;
+        }
+        let cmtOk = true;
+        if (wC.text !== gC.text) {
+          cmtOk = false;
+          bad.push(`Comment ${wC.coord} text: Excel "${wC.text}" | VN "${gC.text}"`);
+        }
+        if (wC.visible !== gC.visible) {
+          cmtOk = false;
+          bad.push(`Comment ${wC.coord} visible: Excel ${wC.visible} | VN ${gC.visible}`);
+        }
+        if (Math.abs(wC.width - gC.width) > 4) {
+          cmtOk = false;
+          bad.push(`Comment ${wC.coord} width: Excel ${wC.width} pt | VN ${gC.width} pt`);
+        }
+        if (Math.abs(wC.height - gC.height) > 4) {
+          cmtOk = false;
+          bad.push(`Comment ${wC.coord} height: Excel ${wC.height} pt | VN ${gC.height} pt`);
+        }
+        if (cmtOk) pass++;
+      }
+    }
+
+    if (wantRaw.displayCommentIndicator !== undefined) {
+      total++;
+      const gotIndicator = grid.getDisplayCommentIndicator();
+      if (wantRaw.displayCommentIndicator !== gotIndicator) {
+        bad.push(`DisplayCommentIndicator: Excel ${wantRaw.displayCommentIndicator} | VN ${gotIndicator}`);
+      } else {
+        pass++;
       }
     }
   }
