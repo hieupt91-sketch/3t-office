@@ -2155,3 +2155,21 @@
   outline-offset: -2px;
 }
 
+
+/* Ngăn chọn đối tượng dùng chung */
+.vno-selection-pane { position: absolute; top: 18px; right: 18px; z-index: 82; width: 300px; max-width: calc(100% - 36px); max-height: calc(100% - 36px); overflow: auto; padding: 12px; border: 1px solid var(--vno-border-default); border-radius: 8px; background: var(--vno-bg-window); color: var(--vno-text-primary); box-shadow: 0 12px 32px rgba(15, 23, 42, .25); }
+.vno-selection-pane[hidden] { display: none; }
+.vno-selection-pane header { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.vno-selection-pane header button { border: 0; background: transparent; color: #b53818; cursor: pointer; font-size: 18px; line-height: 1; }
+.vno-selection-pane-hint { margin: 8px 0 10px; font-size: 12px; color: var(--vno-text-secondary, #475569); line-height: 1.45; }
+.vno-selection-pane-list { display: flex; flex-direction: column; gap: 4px; }
+.vno-selection-pane-empty { padding: 12px 8px; font-size: 12px; font-style: italic; color: var(--vno-text-secondary, #475569); }
+.vno-selection-pane-item { display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 6px 8px; border: 1px solid var(--vno-border-default); border-radius: 6px; cursor: pointer; font-size: 13px; }
+.vno-selection-pane-item:hover { background: var(--vno-bg-hover, rgba(181, 56, 24, .08)); }
+.vno-selection-pane-item.is-selected { border-color: #b53818; background: rgba(181, 56, 24, .12); font-weight: 600; }
+.vno-selection-pane-item:focus-visible { outline: 2px solid #b53818; outline-offset: 1px; }
+.vno-selection-pane-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vno-selection-pane-actions { display: flex; gap: 2px; flex: none; }
+.vno-selection-pane-actions button { border: 1px solid var(--vno-border-default); background: transparent; border-radius: 4px; width: 24px; height: 24px; cursor: pointer; font-size: 10px; color: inherit; }
+.vno-selection-pane-actions button:disabled { opacity: .35; cursor: default; }
+

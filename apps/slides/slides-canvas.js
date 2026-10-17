@@ -3,6 +3,7 @@
  */
 
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
+import { createSelectionPane } from "../../platform/ui-kit/selection-pane.js";
 import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
 import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
 import { t, getLocale } from "../../platform/i18n/i18n.js";
@@ -2005,6 +2006,8 @@ export class SlidesCanvasController {
   }
 
   _updateSelectionUi() {
+    this._syncShapeFormatContext?.();
+    this._renderSelectionPane?.();
     if (this.titleEl?.classList) {
       if (this.selectedTarget === "title") this.titleEl.classList.add("is-selected");
       else this.titleEl.classList.remove("is-selected");
@@ -2397,7 +2400,117 @@ export class SlidesCanvasController {
     return true;
   }
 
+  _selectedAnimationTarget() {
+    const target = this.selectedTarget;
+    if (target == null) return null;
+    return target;
+  }
+
+  /**
+   * Tab Hoạt hình: đổi kiểu / bắt đầu / thời lượng / trễ cho đối tượng đang chọn.
+   * `allowCreate` = true (chọn kiểu hiệu ứng) được tạo hiệu ứng mới; các thuộc tính thời gian cần hiệu ứng có sẵn.
+   */
+  updateSelectedAnimation(patch, allowCreate = false) {
+    const target = this._selectedAnimationTarget();
+    if (target == null) return false;
+    const slide = this.slides[this.currentSlideIndex];
+    const existing = this._getAnimationConfig(slide, target);
+    if (!allowCreate && !this._isActiveAnimation(existing)) return false;
+    const base = existing && this._isActiveAnimation(existing) ? { ...existing } : { type: "none", duration: 500, delay: 0 };
+    return this.setObjectAnimation(target, { ...base, ...patch });
+  }
+
+  /** Xem trước: chạy lần lượt các hiệu ứng của trang theo timeline (bắt đầu/trễ) rồi trả đối tượng về nguyên trạng. */
+  previewSlideAnimations() {
+    const slide = this.slides[this.currentSlideIndex];
+    const timeline = this.getAnimationTimeline(slide);
+    if (!timeline.length) return false;
+    const elementOf = (target) => {
+      if (target === "title") return this.titleEl;
+      if (target === "body") return this.bodyEl;
+      if (target === "body2") return this.body2El;
+      const index = (slide.shapes || []).findIndex((shape) => String(shape.id) === String(target));
+      return index >= 0 ? this.shapesLayer?.querySelectorAll?.(".vno-slide-shape-item")?.[index] : null;
+    };
+    const touched = [];
+    let total = 0;
+    for (const item of timeline) {
+      const el = elementOf(item.target);
+      if (!el) continue;
+      const original = el.getAttribute("style");
+      touched.push({ el, original });
+      el.style.animation = "none";
+      void el.offsetWidth;
+      el.style.cssText += `;${animationInlineCss(item.type, item.duration, item.playDelay)}`;
+      total = Math.max(total, item.playDelay + item.duration);
+    }
+    clearTimeout(this._animPreviewTimer);
+    this._animPreviewTimer = setTimeout(() => {
+      for (const { el, original } of touched) {
+        if (original == null) el.removeAttribute("style"); else el.setAttribute("style", original);
+      }
+    }, total + 150);
+    return touched.length > 0;
+  }
+
+  /** Tên hiển thị của đối tượng trong Ngăn chọn: loại + số thứ tự theo loại trên trang. */
+  _selectionPaneLabels(slide) {
+    const names = { rect: "Hình chữ nhật", ellipse: "Hình elip", arrow: "Mũi tên", textbox: "Hộp văn bản", image: "Hình ảnh", table: "Bảng", chart: "Biểu đồ", line: "Đường thẳng", triangle: "Hình tam giác", diamond: "Hình thoi", video: "Video", audio: "Âm thanh" };
+    const counters = {};
+    return (slide.shapes || []).map((shape) => {
+      const base = shape.name && !/^\d{6,}$/.test(String(shape.name)) ? String(shape.name) : (names[shape.type] || "Đối tượng");
+      counters[base] = (counters[base] || 0) + 1;
+      return { id: String(shape.id), label: shape.name && !/^\d{6,}$/.test(String(shape.name)) ? base : `${base} ${counters[base]}` };
+    });
+  }
+
+  _renderSelectionPane() {
+    if (!this.selectionPane || !this.isSelectionPaneVisible) return;
+    const slide = this.slides[this.currentSlideIndex];
+    const labels = slide ? this._selectionPaneLabels(slide) : [];
+    const selected = new Set([...(this.selectedShapeIds || [])].map(String));
+    if (this.selectedTarget != null) selected.add(String(this.selectedTarget));
+    // Trên cùng trước: đối tượng cuối mảng được vẽ phía trên.
+    this.selectionPane.setItems(labels.slice().reverse().map((item) => ({ ...item, selected: selected.has(item.id) })));
+  }
+
+  toggleSelectionPane(forceState) {
+    const next = forceState === undefined ? !this.isSelectionPaneVisible : !!forceState;
+    if (typeof document === "undefined") return false;
+    if (next && this.isAnimationPaneVisible) this.toggleAnimationPane(false);
+    if (!this.selectionPane && next && this.stageEl) {
+      this.selectionPane = createSelectionPane({
+        title: t("slidesDialogs.selectionPaneTitle", "Ngăn chọn"),
+        hint: t("slidesDialogs.selectionPaneHint", "Danh sách đối tượng trên trang, trên cùng ở đầu. Nhấp để chọn; dùng nút ▲▼ hoặc Ctrl+Shift+mũi tên để đổi thứ tự lớp."),
+        emptyText: t("slidesDialogs.selectionPaneEmpty", "Trang này chưa có hình, ảnh hay bảng nào."),
+        closeLabel: t("slidesDialogs.close", "Đóng"),
+        upLabel: t("slidesDialogs.selectionPaneUp", "Đưa lên một lớp"),
+        downLabel: t("slidesDialogs.selectionPaneDown", "Đưa xuống một lớp"),
+        onSelect: (id) => { this.setSelectedTarget(id); this._renderShapesLayer(); this._updateSelectionUi(); },
+        onMove: (id, direction) => {
+          this.setSelectedTarget(id);
+          this.reorderSelectedShapes(direction);
+          this._updateSelectionUi();
+        },
+        onClose: () => this.toggleSelectionPane(false)
+      });
+      this.stageEl.appendChild(this.selectionPane.el);
+    }
+    this.isSelectionPaneVisible = next;
+    if (this.selectionPane) this.selectionPane.el.hidden = !next;
+    if (next) {
+      this._renderSelectionPane();
+      this.selectionPane?.focus();
+    } else {
+      this.canvasEl?.focus?.();
+    }
+    try { globalCommandBus.updateState("slides.edit.selectionPane", { checked: next }); } catch (_) { /* chưa có bus */ }
+    this.options?.shell?.setStatus?.(next ? "Đã mở ngăn chọn." : "Đã đóng ngăn chọn.");
+    return true;
+  }
+
   toggleAnimationPane(forceState) {
+    if (forceState !== false && forceState !== undefined && this.isSelectionPaneVisible) this.toggleSelectionPane(false);
     const next = forceState === undefined ? !this.isAnimationPaneVisible : !!forceState;
     this.isAnimationPaneVisible = next;
     if (!this.animationPaneEl && next && this.stageEl) this._createAnimationPane(this.stageEl);
@@ -2898,6 +3011,58 @@ export class SlidesCanvasController {
       td.classList.toggle("is-table-cell-selected", Boolean(inside && span && !span.covered));
     });
     this._syncTableContext(shape.id);
+  }
+
+  /** Các hình đang chọn mà tab "Định dạng hình" áp dụng được (không gồm bảng/biểu đồ). */
+  _selectedFormattableShapes() {
+    const slide = this.slides?.[this.currentSlideIndex];
+    if (!slide) return [];
+    const ids = new Set(this.selectedShapeIds ? [...this.selectedShapeIds] : []);
+    if (this.selectedTarget != null && !["title", "body", "body2"].includes(String(this.selectedTarget))) ids.add(String(this.selectedTarget));
+    if (!ids.size) return [];
+    return (slide.shapes || []).filter(shape => ids.has(String(shape.id)) && !["table", "chart"].includes(shape.type));
+  }
+
+  /** Hiện tab ngữ cảnh "Định dạng hình" khi có hình được chọn. */
+  _syncShapeFormatContext() {
+    if (typeof document === "undefined" || typeof document.querySelector !== "function") return;
+    const has = this._selectedFormattableShapes().length > 0;
+    const tab = document.querySelector("#vno-ribbon-tab-shapeFormat");
+    if (tab) { tab.hidden = !has; tab.setAttribute("aria-hidden", has ? "false" : "true"); }
+  }
+
+  /**
+   * Định dạng nhanh các hình đang chọn: `build(shape)` trả về phần thay đổi {khóa: giá trị} (undefined = bỏ khóa).
+   * Một bước hoàn tác cho cả nhóm hình.
+   */
+  applyShapeStyle(build) {
+    const shapes = this._selectedFormattableShapes();
+    if (!shapes.length) return false;
+    const entries = [];
+    for (const shape of shapes) {
+      const change = typeof build === "function" ? build(shape) : build;
+      if (!change) continue;
+      const before = {};
+      const after = {};
+      for (const [key, value] of Object.entries(change)) {
+        if (JSON.stringify(shape[key]) === JSON.stringify(value)) continue;
+        before[key] = shape[key];
+        after[key] = value;
+      }
+      if (!Object.keys(after).length) continue;
+      for (const [key, value] of Object.entries(after)) { if (value === undefined) delete shape[key]; else shape[key] = value; }
+      entries.push({ shapeId: shape.id, before, after });
+    }
+    if (!entries.length) return { changed: 0 };
+    this.undoStack.push({ type: "shapes-style", slideIndex: this.currentSlideIndex, entries });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderShapesLayer();
+    this._renderThumbnails();
+    if (this.slideSorterOverlay) this._renderSlideSorterGrid();
+    this._updateSelectionUi();
+    this.options.onDocumentChange?.();
+    return { changed: entries.length };
   }
 
   /** Hiện tab ngữ cảnh "Bố cục bảng" khi đang ở trong bảng. */
@@ -4770,14 +4935,24 @@ const startEditing = (initialText) => {
         if (shape.stroke || shape.strokeColor) {
           const sw = shape.strokeWidth || 1;
           const sc = shape.stroke || shape.strokeColor;
-          const borderStyle = (shape.strokeDash || shape.strokeKind === "dash") ? "dashed" : "solid";
+          const dashName = String(shape.strokeDash || "");
+          const borderStyle = (shape.strokeDash || shape.strokeKind === "dash") ? (/^Dot$/i.test(dashName) ? "dotted" : "dashed") : "solid";
           el.style.border = `${sw}px ${borderStyle} ${sc}`;
           el.style.boxSizing = "border-box";
         } else {
           el.style.border = "none";
         }
         if (shape.shadow) {
-          el.style.boxShadow = "4px 4px 8px rgba(0,0,0,0.35)";
+          const shadow = typeof shape.shadow === "object" ? shape.shadow : {};
+          const toPx = (raw, fallback) => {
+            const m = String(raw ?? "").match(/^(-?[\d.]+)\s*(cm|mm|pt|px)?$/i);
+            if (!m) return fallback;
+            const unit = (m[2] || "cm").toLowerCase();
+            return Number(m[1]) * (unit === "cm" ? 37.8 : unit === "mm" ? 3.78 : unit === "pt" ? 1.333 : 1);
+          };
+          const ox = Math.round(toPx(shadow.offsetX, 4));
+          const oy = Math.round(toPx(shadow.offsetY, 4));
+          el.style.boxShadow = `${ox}px ${oy}px 8px rgba(0,0,0,0.35)`;
         }
         const isDiagramNode = !!(shape.diagramGroupId || shape.diagramRole === "node");
         el.style.opacity = isDiagramNode ? "0.85" : (shape.opacity != null ? String(shape.opacity) : "1");
@@ -5034,7 +5209,7 @@ const startEditing = (initialText) => {
         el.style.top = `${shape.y}px`;
         el.style.width = `${shape.w}px`;
         el.style.height = `${shape.h}px`;
-        el.style.transform = shape.rotation ? `rotate(${shape.rotation}deg)` : "";
+        el.style.transform = this._shapeTransformCss(shape);
       }
     }
   }
@@ -5129,7 +5304,7 @@ const startEditing = (initialText) => {
         const el = this.shapesLayer?.querySelector(`[data-shape-id="${target.id}"]`);
         if (el) {
           el.style.left = `${target.x}px`; el.style.top = `${target.y}px`;
-          el.style.transform = target.rotation ? `rotate(${target.rotation}deg)` : "";
+          el.style.transform = this._shapeTransformCss(target);
         }
       }
     };
@@ -6510,6 +6685,44 @@ const startEditing = (initialText) => {
     });
   }
 
+  /** Vẽ lại trang sau khi hoàn tác/làm lại mà vẫn giữ đối tượng đang chọn (như PowerPoint). */
+  _selectSlideKeepingSelection(index) {
+    const target = this.selectedTarget;
+    const ids = [...(this.selectedShapeIds || [])];
+    this.selectSlide(index);
+    if (target == null || this.currentSlideIndex !== index) return;
+    const slide = this.slides[index];
+    const exists = (id) => ['title', 'body', 'body2'].includes(String(id)) || (slide?.shapes || []).some((shape) => String(shape.id) === String(id));
+    if (!exists(target)) return;
+    this.setSelectedTarget(target, ids.filter((id) => String(id) !== String(target) && exists(id)));
+    this._renderShapesLayer();
+    this._updateSelectionUi();
+  }
+
+  /** Ẩn đồ họa nền: bỏ các hình/logo của bản cái trên trang đang chọn (PowerPoint: Thiết kế > Ẩn đồ họa nền). */
+  _applyBackgroundGraphicsVisibility() {
+    const slide = this.slides[this.currentSlideIndex];
+    const hide = !!slide?.hideBackgroundGraphics;
+    if (hide) {
+      if (this.masterAccentEl) this.masterAccentEl.style.display = "none";
+      if (this.masterLogoEl) this.masterLogoEl.style.display = "none";
+    }
+    try { globalCommandBus.updateState("slides.design.hideBackground", { checked: hide }); } catch (_) { /* chưa có bus */ }
+  }
+
+  toggleHideBackgroundGraphics() {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    const before = !!slide.hideBackgroundGraphics;
+    if (before) delete slide.hideBackgroundGraphics; else slide.hideBackgroundGraphics = true;
+    this.undoStack.push({ type: "slide-prop", slideIndex: this.currentSlideIndex, key: "hideBackgroundGraphics", before: before ? true : undefined, after: before ? undefined : true });
+    this.redoStack = [];
+    this._syncUndoRedoState?.();
+    this.selectSlide(this.currentSlideIndex);
+    this.options.onDocumentChange?.();
+    return true;
+  }
+
   selectSlide(index) {
     if (index < 0 || index >= this.slides.length) return;
     this.selectedShapeIds = new Set();
@@ -6529,6 +6742,7 @@ const startEditing = (initialText) => {
       this.masterFooterEl.style.display = "";
     }
 
+    this._applyBackgroundGraphicsVisibility();
     if (this.titleEl) this._setEditableContent(this.titleEl, s.titleHtml, s.title || "");
     if (this.bodyEl) this._setEditableContent(this.bodyEl, s.bodyHtml, s.body || "");
     if (this.body2El) this._setEditableContent(this.body2El, s.body2Html, s.body2 || "");
@@ -7279,6 +7493,15 @@ const startEditing = (initialText) => {
     return true;
   }
 
+  /** CSS transform của hình: xoay + lật ngang/dọc (dùng chung cho mọi nơi đặt lại transform sau kéo/xoay/đổi cỡ). */
+  _shapeTransformCss(shape) {
+    const parts = [];
+    if (shape?.rotation) parts.push(`rotate(${shape.rotation}deg)`);
+    if (shape?.flipH) parts.push("scaleX(-1)");
+    if (shape?.flipV) parts.push("scaleY(-1)");
+    return parts.join(" ");
+  }
+
   formatShape(shapeId, patch = {}, recordHistory = true) {
     const slide = this.slides[this.currentSlideIndex];
     const shape = slide?.shapes?.find(item => String(item.id) === String(shapeId));
@@ -8008,7 +8231,7 @@ const startEditing = (initialText) => {
         if (el) {
           el.style.left = `${shape.x}px`; el.style.top = `${shape.y}px`;
           el.style.width = `${shape.w}px`; el.style.height = `${shape.h}px`;
-          el.style.transform = shape.rotation ? `rotate(${shape.rotation}deg)` : "";
+          el.style.transform = this._shapeTransformCss(shape);
         }
       }
       this.redoStack.push(action);
@@ -8105,12 +8328,30 @@ const startEditing = (initialText) => {
       this._restoreSlideTransitions(action.before);
       this.redoStack.push(action);
       return true;
+    } else if (action.type === "slide-prop") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      if (action.before === undefined) delete slide[action.key]; else slide[action.key] = action.before;
+      this.redoStack.push(action);
+      this._selectSlideKeepingSelection(action.slideIndex);
+      return true;
+    } else if (action.type === "shapes-style") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      for (const entry of action.entries) {
+        const shape = (slide.shapes || []).find(item => String(item.id) === String(entry.shapeId));
+        if (shape) for (const [key, value] of Object.entries(entry.before)) { if (value === undefined) delete shape[key]; else shape[key] = value; }
+      }
+      this.redoStack.push(action);
+      this._renderShapesLayer();
+      this._renderThumbnails();
+      return true;
     } else if (action.type === "animations") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
       this._restoreSlideAnimations(slide, action.before);
       this.redoStack.push(action);
-      this.selectSlide(action.slideIndex);
+      this._selectSlideKeepingSelection(action.slideIndex);
       this._renderShapesLayer();
       this._renderAnimationPane();
       return true;
@@ -8366,7 +8607,7 @@ const startEditing = (initialText) => {
         if (el) {
           el.style.left = `${shape.x}px`; el.style.top = `${shape.y}px`;
           el.style.width = `${shape.w}px`; el.style.height = `${shape.h}px`;
-          el.style.transform = shape.rotation ? `rotate(${shape.rotation}deg)` : "";
+          el.style.transform = this._shapeTransformCss(shape);
         }
       }
       this.undoStack.push(action);
@@ -8466,12 +8707,30 @@ const startEditing = (initialText) => {
       this._restoreSlideTransitions(action.after);
       this.undoStack.push(action);
       return true;
+    } else if (action.type === "slide-prop") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      if (action.after === undefined) delete slide[action.key]; else slide[action.key] = action.after;
+      this.undoStack.push(action);
+      this._selectSlideKeepingSelection(action.slideIndex);
+      return true;
+    } else if (action.type === "shapes-style") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      for (const entry of action.entries) {
+        const shape = (slide.shapes || []).find(item => String(item.id) === String(entry.shapeId));
+        if (shape) for (const [key, value] of Object.entries(entry.after)) { if (value === undefined) delete shape[key]; else shape[key] = value; }
+      }
+      this.undoStack.push(action);
+      this._renderShapesLayer();
+      this._renderThumbnails();
+      return true;
     } else if (action.type === "animations") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
       this._restoreSlideAnimations(slide, action.after);
       this.undoStack.push(action);
-      this.selectSlide(action.slideIndex);
+      this._selectSlideKeepingSelection(action.slideIndex);
       this._renderShapesLayer();
       this._renderAnimationPane();
       return true;
@@ -9569,6 +9828,72 @@ const startEditing = (initialText) => {
     this.redoStack = [];
     this._syncUndoRedoState?.();
     this._renderThumbnails?.();
+    return true;
+  }
+
+  _pushTransitionUndo(before) {
+    this.undoStack.push({ type: "slide-transition", before, after: this._captureSlideTransitions() });
+    this.redoStack = [];
+    this._syncUndoRedoState?.();
+    this._renderThumbnails?.();
+  }
+
+  /** Tab Chuyển tiếp > Hiệu ứng: đặt kiểu chuyển trang cho trang đang chọn ("none" = bỏ hiệu ứng). */
+  setCurrentTransitionType(type) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    if (type === "none") {
+      if (!slide.transition) return true;
+      const before = this._captureSlideTransitions();
+      delete slide.transition;
+      this._pushTransitionUndo(before);
+      return true;
+    }
+    const current = slide.transition || {};
+    return this.setTransition(type, current.duration || 500, false, null);
+  }
+
+  /** Sửa riêng thời lượng / cách chuyển trang của trang đang chọn; cần có hiệu ứng trước. */
+  updateCurrentTransition(patch) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    if (!slide.transition) {
+      return false;
+    }
+    const before = this._captureSlideTransitions();
+    const next = { ...slide.transition };
+    if (patch.duration !== undefined) next.duration = patch.duration;
+    if (patch.advanceOnClick !== undefined) {
+      if (patch.advanceOnClick) delete next.advanceOnClick; else next.advanceOnClick = false;
+    }
+    if (patch.advanceAfter !== undefined) {
+      if (patch.advanceAfter) next.advanceAfter = patch.advanceAfter; else delete next.advanceAfter;
+    }
+    slide.transition = next;
+    this._pushTransitionUndo(before);
+    return true;
+  }
+
+  /** Tab Chuyển tiếp > Áp dụng cho tất cả. */
+  applyTransitionToAll() {
+    const source = this.slides[this.currentSlideIndex]?.transition;
+    if (!source) return false;
+    const before = this._captureSlideTransitions();
+    this.slides.forEach((slide) => { slide.transition = { ...source }; });
+    this._pushTransitionUndo(before);
+    return true;
+  }
+
+  /** Tab Chuyển tiếp > Xem trước: chạy hiệu ứng của trang hiện tại trên khung soạn thảo. */
+  previewTransition() {
+    const transition = this.slides[this.currentSlideIndex]?.transition;
+    const el = this.stageEl;
+    if (!transition || !el) return false;
+    const type = (transition.type === "morph" || transition.type === "custom") ? "fade" : transition.type;
+    const name = `vnoTransition${String(type).charAt(0).toUpperCase()}${String(type).slice(1)}`;
+    el.style.animation = "none";
+    void el.offsetWidth;
+    el.style.animation = `${name} ${Math.max(Number(transition.duration) || 500, 100)}ms ease-out`;
     return true;
   }
 

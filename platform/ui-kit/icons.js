@@ -507,6 +507,9 @@ export const ICONS = {
     <rect x="3" y="11" width="10" height="10" rx="1" fill="#E2E8F0" stroke="#64748B" stroke-width="1.2"/>
     <rect x="11" y="3" width="10" height="10" rx="1" fill="#E2E8F0" stroke="#64748B" stroke-width="1.2"/>
   </svg>`,
+  shapeFill: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><path d="m5 11 6-7 7 7-6 6a2 2 0 0 1-2.8 0L5 13.8a2 2 0 0 1 0-2.8Z" fill="#DBEAFE" stroke="#1D4ED8" stroke-width="1.5" stroke-linejoin="round"/><path d="M19.5 14c1.2 1.6 1.8 2.7 1.8 3.5a1.8 1.8 0 0 1-3.6 0c0-.8.6-1.9 1.8-3.5Z" fill="#2563EB"/><rect x="3" y="20" width="18" height="2.4" rx=".6" fill="#F59E0B"/></svg>`,
+  shapeOutline: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><rect x="5" y="5" width="12" height="12" rx="1.5" stroke="#1D4ED8" stroke-width="2" stroke-dasharray="3 2"/><path d="m14 16 5-5 2 2-5 5-3 1 1-3Z" fill="#FDE68A" stroke="#B45309" stroke-width="1.2" stroke-linejoin="round"/><rect x="3" y="20" width="18" height="2.4" rx=".6" fill="#16A34A"/></svg>`,
+  shapeEffects: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none" aria-hidden="true"><rect x="7" y="7" width="12" height="12" rx="1.5" fill="#94A3B8" opacity=".55"/><rect x="4" y="4" width="12" height="12" rx="1.5" fill="#DBEAFE" stroke="#1D4ED8" stroke-width="1.5"/></svg>`,
   rotateRight90: `<svg viewBox="0 0 24 24" width="18" height="18" fill="none">
     <path d="M12 4V1L8 5l4 4V6c3.31 0 6 2.69 6 6 0 1.01-.25 1.97-.7 2.8l1.46 1.46A7.93 7.93 0 0 0 20 12c0-4.42-3.58-8-8-8zm-6.2 3.2L4.34 8.66A7.89 7.89 0 0 0 4 12c0 4.42 3.58 8 8 8v3l4-4-4-4v3c-3.31 0-6-2.69-6-6 0-1.01.25-1.97.7-2.8z" fill="#2563EB"/>
   </svg>`,

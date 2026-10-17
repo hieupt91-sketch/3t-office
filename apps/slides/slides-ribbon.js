@@ -125,6 +125,20 @@ export const SLIDES_RIBBON_TABS = [
                   { type: "button", commandId: "slides.text.strike", iconOnly: true },
                   { type: "button", commandId: "slides.text.shadow", iconOnly: true },
                   { type: "button", commandId: "slides.text.clearFormat", iconOnly: true },
+                  {
+                    type: "dropdown",
+                    id: "slides.text.changeCase",
+                    label: "Đổi chữ hoa/thường",
+                    icon: "changeCase",
+                    iconOnly: true,
+                    items: [
+                      { commandId: "slides.text.changeCaseMode", args: "sentence", label: "Chữ hoa đầu câu" },
+                      { commandId: "slides.text.changeCaseMode", args: "lowercase", label: "chữ thường" },
+                      { commandId: "slides.text.changeCaseMode", args: "uppercase", label: "CHỮ HOA" },
+                      { commandId: "slides.text.changeCaseMode", args: "capitalize", label: "Viết Hoa Mỗi Từ" },
+                      { commandId: "slides.text.changeCaseMode", args: "toggle", label: "đẢO hOA tHƯỜNG" }
+                    ]
+                  },
                   { type: "button", commandId: "slides.color.text", iconOnly: true },
                   { type: "button", commandId: "slides.color.highlight", iconOnly: true }
                 ]
@@ -267,7 +281,8 @@ export const SLIDES_RIBBON_TABS = [
                 icon: "selectAll",
                 items: [
                   { commandId: "slides.edit.selectAll" },
-                  { commandId: "slides.edit.selectObjects" }
+                  { commandId: "slides.edit.selectObjects" },
+                  { commandId: "slides.edit.selectionPane" }
                 ]
               }
             ]
@@ -378,7 +393,8 @@ export const SLIDES_RIBBON_TABS = [
         labelKey: "slidesRibbon.group.customize",
         items: [
           { type: "button", commandId: "slides.design.slideSize", isLarge: true },
-          { type: "button", commandId: "slides.design.formatBackground", isLarge: true }
+          { type: "button", commandId: "slides.design.formatBackground", isLarge: true },
+          { type: "button", commandId: "slides.design.hideBackground" }
         ]
       }
     ]
@@ -395,6 +411,73 @@ export const SLIDES_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "slides.transition.apply", isLarge: true }
         ]
+      },
+      {
+        id: "transitionGallery",
+        label: "Chuyển đến trang này",
+        labelKey: "slidesRibbon.group.transitionGallery",
+        items: [
+          {
+            type: "dropdown",
+            id: "slides.transition.gallery",
+            label: "Hiệu ứng",
+            icon: "slideTransition",
+            isLarge: true,
+            items: [
+              { commandId: "slides.transition.set", args: "none", label: "Không" },
+              { commandId: "slides.transition.set", args: "fade", label: "Mờ dần" },
+              { commandId: "slides.transition.set", args: "slide", label: "Trượt ngang" },
+              { commandId: "slides.transition.set", args: "zoom", label: "Thu phóng" },
+              { commandId: "slides.transition.set", args: "flip", label: "Lật 3D" },
+              { commandId: "slides.transition.set", args: "morph", label: "Morph" }
+            ]
+          },
+          { type: "button", commandId: "slides.transition.preview", isLarge: true }
+        ]
+      },
+      {
+        id: "transitionTiming",
+        label: "Thời gian",
+        labelKey: "slidesRibbon.group.transitionTiming",
+        items: [
+          {
+            type: "dropdown",
+            id: "slides.transition.durationMenu",
+            label: "Thời lượng",
+            icon: "slideTransition",
+            items: [
+              { commandId: "slides.transition.duration", args: "300", label: "0,3 giây" },
+              { commandId: "slides.transition.duration", args: "500", label: "0,5 giây" },
+              { commandId: "slides.transition.duration", args: "800", label: "0,8 giây" },
+              { commandId: "slides.transition.duration", args: "1000", label: "1 giây" },
+              { commandId: "slides.transition.duration", args: "2000", label: "2 giây" }
+            ]
+          },
+          {
+            type: "dropdown",
+            id: "slides.transition.advanceMenu",
+            label: "Chuyển trang",
+            icon: "slideTransition",
+            items: [
+              { commandId: "slides.transition.advanceClick", args: "on", label: "Khi nhấp chuột: bật" },
+              { commandId: "slides.transition.advanceClick", args: "off", label: "Khi nhấp chuột: tắt" }
+            ]
+          },
+          {
+            type: "dropdown",
+            id: "slides.transition.afterMenu",
+            label: "Tự động sau",
+            icon: "slideTransition",
+            items: [
+              { commandId: "slides.transition.advanceAfter", args: "off", label: "Không tự chuyển" },
+              { commandId: "slides.transition.advanceAfter", args: "3", label: "3 giây" },
+              { commandId: "slides.transition.advanceAfter", args: "5", label: "5 giây" },
+              { commandId: "slides.transition.advanceAfter", args: "10", label: "10 giây" },
+              { commandId: "slides.transition.advanceAfter", args: "30", label: "30 giây" }
+            ]
+          },
+          { type: "button", commandId: "slides.transition.applyAll" }
+        ]
       }
     ]
   },
@@ -408,8 +491,80 @@ export const SLIDES_RIBBON_TABS = [
         label: "Hiệu ứng đối tượng",
         labelKey: "slidesRibbon.group.animations",
         items: [
+          {
+            type: "dropdown",
+            id: "slides.animation.gallery",
+            label: "Hiệu ứng",
+            icon: "slideTransition",
+            isLarge: true,
+            items: [
+              { commandId: "slides.animation.setType", args: "none", label: "Không có" },
+              { commandId: "slides.animation.setType", args: "fadeIn", label: "Mờ dần (vào)" },
+              { commandId: "slides.animation.setType", args: "flyIn", label: "Bay vào" },
+              { commandId: "slides.animation.setType", args: "zoomIn", label: "Thu phóng vào" },
+              { commandId: "slides.animation.setType", args: "bounceIn", label: "Nảy vào" },
+              { commandId: "slides.animation.setType", args: "slideLeft", label: "Trượt từ trái" },
+              { commandId: "slides.animation.setType", args: "spin", label: "Xoay tròn (nhấn mạnh)" },
+              { commandId: "slides.animation.setType", args: "growShrink", label: "Phóng to / thu nhỏ (nhấn mạnh)" },
+              { commandId: "slides.animation.setType", args: "fadeOut", label: "Mờ dần ra (thoát)" },
+              { commandId: "slides.animation.setType", args: "flyOut", label: "Bay ra (thoát)" },
+              { commandId: "slides.animation.setType", args: "zoomOut", label: "Thu nhỏ ra (thoát)" },
+              { commandId: "slides.animation.setType", args: "disappear", label: "Biến mất (thoát)" }
+            ]
+          },
           { type: "button", commandId: "slides.animation.apply", isLarge: true },
           { type: "button", commandId: "slides.animation.pane", isLarge: true }
+        ]
+      },
+      {
+        id: "animPreview",
+        label: "Xem trước",
+        labelKey: "slidesRibbon.group.animPreview",
+        items: [
+          { type: "button", commandId: "slides.animation.preview", isLarge: true }
+        ]
+      },
+      {
+        id: "animTiming",
+        label: "Thời gian",
+        labelKey: "slidesRibbon.group.animTiming",
+        items: [
+          {
+            type: "dropdown",
+            id: "slides.animation.startMenu",
+            label: "Bắt đầu",
+            icon: "slideTransition",
+            items: [
+              { commandId: "slides.animation.setStart", args: "onClick", label: "Khi nhấp chuột" },
+              { commandId: "slides.animation.setStart", args: "withPrevious", label: "Cùng lúc với hiệu ứng trước" },
+              { commandId: "slides.animation.setStart", args: "afterPrevious", label: "Sau hiệu ứng trước" }
+            ]
+          },
+          {
+            type: "dropdown",
+            id: "slides.animation.durationMenu",
+            label: "Thời lượng",
+            icon: "slideTransition",
+            items: [
+              { commandId: "slides.animation.setDuration", args: "300", label: "0,3 giây" },
+              { commandId: "slides.animation.setDuration", args: "500", label: "0,5 giây" },
+              { commandId: "slides.animation.setDuration", args: "1000", label: "1 giây" },
+              { commandId: "slides.animation.setDuration", args: "2000", label: "2 giây" },
+              { commandId: "slides.animation.setDuration", args: "3000", label: "3 giây" }
+            ]
+          },
+          {
+            type: "dropdown",
+            id: "slides.animation.delayMenu",
+            label: "Trễ",
+            icon: "slideTransition",
+            items: [
+              { commandId: "slides.animation.setDelay", args: "0", label: "Không trễ" },
+              { commandId: "slides.animation.setDelay", args: "500", label: "0,5 giây" },
+              { commandId: "slides.animation.setDelay", args: "1000", label: "1 giây" },
+              { commandId: "slides.animation.setDelay", args: "2000", label: "2 giây" }
+            ]
+          }
         ]
       }
     ]
@@ -576,6 +731,142 @@ export const SLIDES_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "slides.table.mergeCells", isLarge: true },
           { type: "button", commandId: "slides.table.splitCell", isLarge: true }
+        ]
+      }
+    ]
+  },
+  {
+    id: "shapeFormat",
+    label: "Định dạng hình",
+    labelKey: "slidesRibbon.tab.shapeFormat",
+    contextual: true,
+    groups: [
+      {
+        id: "shapeStyles",
+        label: "Kiểu hình",
+        labelKey: "slidesRibbon.group.shapeStyles",
+        items: [
+          {
+            type: "dropdown",
+            id: "slides.shape.fill",
+            label: "Tô màu hình",
+            icon: "shapeFill",
+            isLarge: true,
+            items: [
+                      { commandId: "slides.shape.fillColor", args: "#C00000", swatch: "#C00000", label: "Đỏ sẫm" },
+                      { commandId: "slides.shape.fillColor", args: "#FF0000", swatch: "#FF0000", label: "Đỏ" },
+                      { commandId: "slides.shape.fillColor", args: "#FFC000", swatch: "#FFC000", label: "Cam" },
+                      { commandId: "slides.shape.fillColor", args: "#FFFF00", swatch: "#FFFF00", label: "Vàng" },
+                      { commandId: "slides.shape.fillColor", args: "#92D050", swatch: "#92D050", label: "Xanh lá nhạt" },
+                      { commandId: "slides.shape.fillColor", args: "#00B050", swatch: "#00B050", label: "Xanh lá" },
+                      { commandId: "slides.shape.fillColor", args: "#00B0F0", swatch: "#00B0F0", label: "Xanh da trời" },
+                      { commandId: "slides.shape.fillColor", args: "#0070C0", swatch: "#0070C0", label: "Xanh dương" },
+                      { commandId: "slides.shape.fillColor", args: "#002060", swatch: "#002060", label: "Xanh dương đậm" },
+                      { commandId: "slides.shape.fillColor", args: "#7030A0", swatch: "#7030A0", label: "Tím" },
+                      { commandId: "slides.shape.fillColor", args: "#FFFFFF", swatch: "#FFFFFF", label: "Trắng" },
+                      { commandId: "slides.shape.fillColor", args: "#D9D9D9", swatch: "#D9D9D9", label: "Xám nhạt" },
+                      { commandId: "slides.shape.fillColor", args: "#7F7F7F", swatch: "#7F7F7F", label: "Xám" },
+                      { commandId: "slides.shape.fillColor", args: "#404040", swatch: "#404040", label: "Xám đậm" },
+                      { commandId: "slides.shape.fillColor", args: "#000000", swatch: "#000000", label: "Đen" },
+                      { commandId: "slides.shape.fillColor", args: "none", label: "Không tô màu" },
+                      { commandId: "slides.shape.fillColor", args: "custom", label: "Màu khác…" }
+            ]
+          },
+          {
+            type: "dropdown",
+            id: "slides.shape.outline",
+            label: "Viền hình",
+            icon: "shapeOutline",
+            isLarge: true,
+            items: [
+                      { commandId: "slides.shape.outlineColor", args: "#C00000", swatch: "#C00000", label: "Đỏ sẫm" },
+                      { commandId: "slides.shape.outlineColor", args: "#FF0000", swatch: "#FF0000", label: "Đỏ" },
+                      { commandId: "slides.shape.outlineColor", args: "#FFC000", swatch: "#FFC000", label: "Cam" },
+                      { commandId: "slides.shape.outlineColor", args: "#FFFF00", swatch: "#FFFF00", label: "Vàng" },
+                      { commandId: "slides.shape.outlineColor", args: "#92D050", swatch: "#92D050", label: "Xanh lá nhạt" },
+                      { commandId: "slides.shape.outlineColor", args: "#00B050", swatch: "#00B050", label: "Xanh lá" },
+                      { commandId: "slides.shape.outlineColor", args: "#00B0F0", swatch: "#00B0F0", label: "Xanh da trời" },
+                      { commandId: "slides.shape.outlineColor", args: "#0070C0", swatch: "#0070C0", label: "Xanh dương" },
+                      { commandId: "slides.shape.outlineColor", args: "#002060", swatch: "#002060", label: "Xanh dương đậm" },
+                      { commandId: "slides.shape.outlineColor", args: "#7030A0", swatch: "#7030A0", label: "Tím" },
+                      { commandId: "slides.shape.outlineColor", args: "#FFFFFF", swatch: "#FFFFFF", label: "Trắng" },
+                      { commandId: "slides.shape.outlineColor", args: "#D9D9D9", swatch: "#D9D9D9", label: "Xám nhạt" },
+                      { commandId: "slides.shape.outlineColor", args: "#7F7F7F", swatch: "#7F7F7F", label: "Xám" },
+                      { commandId: "slides.shape.outlineColor", args: "#404040", swatch: "#404040", label: "Xám đậm" },
+                      { commandId: "slides.shape.outlineColor", args: "#000000", swatch: "#000000", label: "Đen" },
+                      { commandId: "slides.shape.outlineColor", args: "none", label: "Không viền" },
+                      { commandId: "slides.shape.outlineColor", args: "custom", label: "Màu khác…" },
+                      {
+                        id: "slides.shape.outlineWeight.menu",
+                        label: "Độ dày",
+                        icon: "shapeOutline",
+                        items: [
+                          { commandId: "slides.shape.outlineWeight", args: "0.5", label: "½ pt" },
+                          { commandId: "slides.shape.outlineWeight", args: "1", label: "1 pt" },
+                          { commandId: "slides.shape.outlineWeight", args: "1.5", label: "1½ pt" },
+                          { commandId: "slides.shape.outlineWeight", args: "2.25", label: "2¼ pt" },
+                          { commandId: "slides.shape.outlineWeight", args: "3", label: "3 pt" },
+                          { commandId: "slides.shape.outlineWeight", args: "4.5", label: "4½ pt" },
+                          { commandId: "slides.shape.outlineWeight", args: "6", label: "6 pt" }
+                        ]
+                      },
+                      {
+                        id: "slides.shape.outlineDash.menu",
+                        label: "Nét đứt",
+                        icon: "shapeOutline",
+                        items: [
+                          { commandId: "slides.shape.outlineDash", args: "solid", label: "Nét liền" },
+                          { commandId: "slides.shape.outlineDash", args: "dash", label: "Gạch" },
+                          { commandId: "slides.shape.outlineDash", args: "dot", label: "Chấm" },
+                          { commandId: "slides.shape.outlineDash", args: "dashDot", label: "Gạch chấm" }
+                        ]
+                      }
+            ]
+          },
+          {
+            type: "dropdown",
+            id: "slides.shape.effects",
+            label: "Hiệu ứng hình",
+            icon: "shapeEffects",
+            isLarge: true,
+            items: [
+              { commandId: "slides.shape.shadow", args: "none", label: "Không đổ bóng" },
+              { commandId: "slides.shape.shadow", args: "bottomRight", label: "Bóng phía dưới bên phải" },
+              { commandId: "slides.shape.shadow", args: "bottomLeft", label: "Bóng phía dưới bên trái" },
+              { commandId: "slides.shape.shadow", args: "topRight", label: "Bóng phía trên bên phải" },
+              { commandId: "slides.shape.shadow", args: "topLeft", label: "Bóng phía trên bên trái" }
+            ]
+          }
+        ]
+      },
+      {
+        id: "shapeArrange",
+        label: "Sắp xếp",
+        labelKey: "slidesRibbon.group.shapeArrange",
+        items: [
+          {
+            type: "dropdown",
+            id: "slides.arrange.rotate",
+            label: "Xoay",
+            icon: "rotateRight90",
+            isLarge: true,
+            items: [
+              { commandId: "slides.arrange.rotateRight90" },
+              { commandId: "slides.arrange.rotateLeft90" },
+              { commandId: "slides.arrange.flipVertical" },
+              { commandId: "slides.arrange.flipHorizontal" }
+            ]
+          },
+          { type: "button", commandId: "slides.arrange.bringForward" },
+          { type: "button", commandId: "slides.arrange.sendBackward" }
+        ]
+      },
+      {
+        id: "shapeSize",
+        label: "Kích thước",
+        labelKey: "slidesRibbon.group.shapeSize",
+        items: [
+          { type: "button", commandId: "slides.shape.sizeDialog", isLarge: true }
         ]
       }
     ]

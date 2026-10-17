@@ -651,6 +651,12 @@ export function closeActiveDropdown() {
  * @param {string} [options.ariaLabel]
  * @returns {HTMLElement}
  */
+/** Ô màu trong mục menu (palette tô màu / viền): thay cho biểu tượng. */
+function swatchHtml(color) {
+  const safe = String(color || "").replace(/[^#0-9a-zA-Z(),.% ]/g, "");
+  return `<span class="vno-menu-swatch" style="background:${safe}"></span>`;
+}
+
 export function createDropdownButton({
   id,
   label,
@@ -764,7 +770,7 @@ export function createDropdownButton({
       const cState = globalCommandBus.getState(childItem.commandId);
       const cLabel = childItem.label || (cState ? cState.label : (cDef ? cDef.label : childItem.commandId));
       const cIconKey = childItem.icon || (cState && cState.icon ? cState.icon : (cDef && cDef.icon ? cDef.icon : ""));
-      const cIconSvg = resolveIcon(childItem.commandId, cIconKey);
+      const cIconSvg = childItem.swatch ? swatchHtml(childItem.swatch) : resolveIcon(childItem.commandId, cIconKey);
       const cShortcut = cState ? cState.shortcut : (cDef ? cDef.shortcut : "");
 
       const childEl = document.createElement("div");
@@ -825,12 +831,13 @@ export function createDropdownButton({
     if (id) menuEl.id = `vno-dropdown-menu-${id.replace(/[^a-zA-Z0-9_-]/g, "-")}`;
     btn.setAttribute("aria-controls", menuEl.id);
 
+    let swatchGrid = null;
     items.forEach((subItem, idx) => {
       const def = globalCommandBus.getDefinition(subItem.commandId);
       const state = globalCommandBus.getState(subItem.commandId);
       const subLabel = subItem.label || (state ? state.label : (def ? def.label : subItem.commandId));
       const subIconKey = subItem.icon || (state && state.icon ? state.icon : (def && def.icon ? def.icon : ""));
-      const subIconSvg = resolveIcon(subItem.commandId, subIconKey);
+      const subIconSvg = subItem.swatch ? swatchHtml(subItem.swatch) : resolveIcon(subItem.commandId, subIconKey);
       const shortcut = state ? state.shortcut : (def ? def.shortcut : "");
       const hasSubmenu = Array.isArray(subItem.items) && subItem.items.length > 0;
 
@@ -849,6 +856,11 @@ export function createDropdownButton({
           <span class="vno-menu-item-label">${subLabel}</span>
           <span class="vno-menu-item-arrow" aria-hidden="true" style="margin-left:auto;padding-left:12px;font-size:10px;">▸</span>
         `;
+      } else if (subItem.swatch) {
+        // Bảng màu: ô vuông nhỏ trong lưới 5 cột, tên màu nằm ở chú giải.
+        itemEl.classList.add("vno-swatch-cell");
+        itemEl.title = subLabel;
+        itemEl.innerHTML = subIconSvg;
       } else {
         itemEl.innerHTML = `
           <span class="vno-menu-item-icon" aria-hidden="true">${subIconSvg}</span>
@@ -877,8 +889,8 @@ export function createDropdownButton({
         e.preventDefault();
         e.stopPropagation();
         if (hasSubmenu) {
-          if (activeSubMenuEl) closeSubMenu();
-          else openSubMenuForItem(subItem, itemEl);
+          // Rê chuột vào mục đã mở menu con; nhấp tiếp phải giữ nó mở (không đóng lại) như menu của Office.
+          openSubMenuForItem(subItem, itemEl);
           return;
         }
         closeMenu();
@@ -894,7 +906,17 @@ export function createDropdownButton({
         }
       });
 
-      menuEl.appendChild(itemEl);
+      if (subItem.swatch) {
+        if (!swatchGrid) {
+          swatchGrid = document.createElement("div");
+          swatchGrid.className = "vno-menu-swatch-grid";
+          menuEl.appendChild(swatchGrid);
+        }
+        swatchGrid.appendChild(itemEl);
+      } else {
+        swatchGrid = null;
+        menuEl.appendChild(itemEl);
+      }
     });
 
     document.body.appendChild(menuEl);

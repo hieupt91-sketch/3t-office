@@ -209,6 +209,129 @@ export const SLIDES_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.animation.effects",
+    app: "slides",
+    commandIds: ["slides.animation.gallery", "slides.animation.setType"],
+    title: "Tab Hoạt hình: gán hiệu ứng nhanh cho đối tượng",
+    summary: "Chọn một đối tượng rồi gán hiệu ứng vào, nhấn mạnh hoặc thoát chỉ bằng một lần nhấp ở nút Hiệu ứng.",
+    ribbon: { tab: "Hoạt hình", tabId: "animations", group: "Hiệu ứng đối tượng" },
+    keywords: ["hoạt hình", "hiệu ứng", "animation", "mờ dần", "bay vào", "thu phóng", "xoay tròn", "biến mất"],
+    steps: [
+      "Nhấp vào hình, ảnh hoặc khung chữ cần tạo hiệu ứng.",
+      "Vào tab Hoạt hình > nhóm Hiệu ứng đối tượng > Hiệu ứng và chọn một kiểu: Mờ dần, Bay vào, Thu phóng vào, Nảy vào, Trượt từ trái (hiệu ứng vào); Xoay tròn, Phóng to / thu nhỏ (nhấn mạnh); Mờ dần ra, Bay ra, Thu nhỏ ra, Biến mất (thoát). Chọn Không có để bỏ hiệu ứng.",
+      "Nút Hiệu ứng đối tượng bên cạnh mở hộp thoại đầy đủ; Ngăn hoạt hình liệt kê thứ tự để đổi hoặc xóa. Ctrl+Z hoàn tác; hiệu ứng được lưu vào tệp PPTX."
+    ]
+  },
+  {
+    id: "slides.animation.timing",
+    app: "slides",
+    commandIds: ["slides.animation.startMenu", "slides.animation.setStart", "slides.animation.durationMenu", "slides.animation.setDuration", "slides.animation.delayMenu", "slides.animation.setDelay"],
+    title: "Tab Hoạt hình: thời điểm bắt đầu, thời lượng và độ trễ",
+    summary: "Đặt khi nào hiệu ứng của đối tượng chạy (khi nhấp chuột, cùng lúc hoặc sau hiệu ứng trước), chạy bao lâu và chờ bao lâu.",
+    ribbon: { tab: "Hoạt hình", tabId: "animations", group: "Thời gian" },
+    keywords: ["bắt đầu", "thời lượng", "trễ", "cùng lúc với hiệu ứng trước", "sau hiệu ứng trước", "khi nhấp chuột", "animation timing"],
+    steps: [
+      "Chọn đối tượng đã có hiệu ứng. Đối tượng chưa có hiệu ứng sẽ được nhắc gán hiệu ứng trước.",
+      "Tab Hoạt hình > nhóm Thời gian > Bắt đầu: Khi nhấp chuột, Cùng lúc với hiệu ứng trước hoặc Sau hiệu ứng trước.",
+      "Thời lượng chọn từ 0,3 đến 3 giây; Trễ chọn từ không trễ đến 2 giây. Ctrl+Z hoàn tác từng thay đổi."
+    ]
+  },
+  {
+    id: "slides.animation.preview",
+    app: "slides",
+    commandIds: ["slides.animation.preview"],
+    title: "Xem trước hiệu ứng hoạt hình của trang",
+    summary: "Chạy lần lượt mọi hiệu ứng của trang đang chọn ngay trên trang soạn thảo, theo đúng thứ tự và thời điểm đã đặt.",
+    ribbon: { tab: "Hoạt hình", tabId: "animations", group: "Xem trước" },
+    keywords: ["xem trước", "chạy thử", "preview", "hoạt hình"],
+    steps: [
+      "Chọn trang có hiệu ứng ở thanh bên trái.",
+      "Tab Hoạt hình > nhóm Xem trước > Xem trước. Các đối tượng lần lượt xuất hiện, nhấn mạnh hoặc biến mất theo thứ tự và thời gian đã đặt rồi trang trở về nguyên trạng.",
+      "Trang chưa có hiệu ứng nào sẽ có thông báo hướng dẫn gán hiệu ứng trước."
+    ]
+  },
+  {
+    id: "slides.edit.selectionPane",
+    app: "slides",
+    commandIds: ["slides.edit.selectionPane"],
+    title: "Ngăn chọn: chọn nhanh đối tượng và đổi thứ tự lớp (Alt+F10)",
+    summary: "Mở ngăn liệt kê mọi hình, ảnh, bảng trên trang chiếu (đối tượng trên cùng ở đầu danh sách) để chọn đúng đối tượng bị che và đổi thứ tự lớp.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
+    keywords: ["ngăn chọn", "selection pane", "alt+f10", "thứ tự lớp", "đối tượng bị che", "chọn đối tượng"],
+    steps: [
+      "Tab Trang đầu > nhóm Chỉnh sửa > Chọn > Ngăn chọn, hoặc nhấn Alt+F10. Ngăn hiện bên phải trang chiếu.",
+      "Nhấp một dòng để chọn đối tượng đó trên trang, kể cả đối tượng bị che bởi đối tượng khác. Phím mũi tên lên/xuống chuyển sang dòng kế.",
+      "Nút ▲ đưa đối tượng lên một lớp, nút ▼ đưa xuống một lớp; hoặc giữ phím Ctrl và Shift rồi nhấn mũi tên lên/xuống khi đang ở trong danh sách. Ctrl+Z hoàn tác.",
+      "Nhấn Esc hoặc dấu × để đóng ngăn. Mở ngăn hoạt hình sẽ tự đóng ngăn chọn và ngược lại."
+    ]
+  },  {
+    id: "slides.design.hideBackground",
+    app: "slides",
+    commandIds: ["slides.design.hideBackground"],
+    title: "Ẩn đồ họa nền của trang chiếu",
+    summary: "Ẩn các hình trang trí và logo của bản cái trên riêng trang đang chọn (nền màu vẫn giữ), hữu ích cho trang bìa hoặc trang chỉ có ảnh.",
+    ribbon: { tab: "Thiết kế", tabId: "design", group: "Tùy chỉnh" },
+    keywords: ["ẩn đồ họa nền", "hide background graphics", "ẩn logo", "bản cái", "master", "trang bìa"],
+    steps: [
+      "Chọn trang chiếu cần ẩn ở thanh bên trái.",
+      "Tab Thiết kế > nhóm Tùy chỉnh > nhấn Ẩn đồ họa nền. Nút sáng lên khi đang bật và các hình/logo của bản cái biến mất khỏi trang này.",
+      "Nhấn lại nút để hiện trở lại. Chỉ trang đang chọn bị ảnh hưởng; các trang khác giữ nguyên. Ctrl+Z hoàn tác.",
+      "Lựa chọn được lưu vào tệp PPTX và giữ lại khi mở lại."
+    ]
+  },  {
+    id: "slides.text.changeCase",
+    app: "slides",
+    commandIds: ["slides.text.changeCase", "slides.text.changeCaseMode"],
+    title: "Đổi chữ hoa / thường (Shift+F3)",
+    summary: "Đổi nhanh chữ đang chọn sang chữ hoa đầu câu, chữ thường, CHỮ HOA, Viết Hoa Mỗi Từ hoặc đảo hoa thường; Shift+F3 xoay vòng giữa chữ thường, Viết Hoa Mỗi Từ và CHỮ HOA.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
+    keywords: ["đổi chữ hoa", "chữ thường", "chữ in hoa", "change case", "shift+f3", "viết hoa", "uppercase", "lowercase"],
+    steps: [
+      "Nhấp đúp vào khung chữ để vào chế độ soạn, rồi bôi đen đoạn chữ cần đổi. Nếu chỉ đặt con trỏ trong một từ, từ đó được chọn tự động.",
+      "Tab Trang đầu > nhóm Phông chữ > nhấp nút Aa (Đổi chữ hoa/thường) và chọn một kiểu: Chữ hoa đầu câu, chữ thường, CHỮ HOA, Viết Hoa Mỗi Từ hoặc đảo hoa thường.",
+      "Hoặc nhấn Shift+F3 nhiều lần để xoay vòng: chữ thường, Viết Hoa Mỗi Từ, CHỮ HOA. Chữ có dấu tiếng Việt được xử lý đúng, định dạng đậm/nghiêng/màu của chữ được giữ nguyên.",
+      "Ctrl+Z hoàn tác về chữ cũ."
+    ]
+  },  {
+    id: "slides.shape.formatTab",
+    app: "slides",
+    commandIds: [
+      "slides.shape.fill", "slides.shape.fillColor", "slides.shape.outline", "slides.shape.outlineColor", "slides.shape.outlineWeight",
+      "slides.shape.outlineDash", "slides.shape.effects", "slides.shape.shadow", "slides.shape.sizeDialog",
+      "slides.arrange.rotate", "slides.arrange.rotateRight90", "slides.arrange.rotateLeft90", "slides.arrange.flipHorizontal", "slides.arrange.flipVertical"
+    ],
+    title: "Tab Định dạng hình: tô màu, viền, đổ bóng, xoay và lật",
+    summary: "Chọn một hình trên trang chiếu, tab Định dạng hình hiện ra bên phải ribbon: tô màu nền, đổi màu/độ dày/kiểu nét viền, đổ bóng theo hướng, xoay 90° hoặc lật ngang/dọc, và mở hộp thoại đặt kích thước chính xác.",
+    ribbon: { tab: "Định dạng hình", tabId: "shapeFormat", group: "Kiểu hình" },
+    keywords: ["định dạng hình", "tô màu hình", "shape fill", "viền hình", "shape outline", "đổ bóng", "xoay", "lật", "rotate", "flip", "độ dày viền", "nét đứt", "kích thước hình"],
+    steps: [
+      "Nhấp vào một hình (hình chữ nhật, elip, mũi tên, hộp văn bản…) trên trang chiếu. Muốn định dạng nhiều hình cùng lúc, giữ Ctrl hoặc Shift khi chọn. Tab Định dạng hình xuất hiện cạnh tab Trợ lý.",
+      "Nhóm Kiểu hình: Tô màu hình mở bảng 15 màu, Không tô màu và Màu khác… (hộp chọn màu hệ thống). Viền hình có bảng màu, Không viền, Màu khác…, Độ dày (½ đến 6 pt) và Nét đứt (liền, gạch, chấm, gạch chấm). Hiệu ứng hình có Không đổ bóng và bốn hướng đổ bóng.",
+      "Nhóm Sắp xếp: Xoay mở Xoay phải 90°, Xoay trái 90°, Lật dọc, Lật ngang; cùng hai nút Đưa lên một lớp, Đưa xuống một lớp.",
+      "Nhóm Kích thước: Kích thước và vị trí… mở hộp thoại nhập chiều rộng, chiều cao và góc xoay chính xác.",
+      "Ảnh chỉ dùng được Xoay, Lật và Kích thước; bảng và biểu đồ có tab riêng. Mọi thao tác hoàn tác được bằng Ctrl+Z (một bước cho cả nhóm hình), và được lưu vào tệp để mở lại đúng."
+    ]
+  },
+  {
+    id: "slides.transition.tab",
+    app: "slides",
+    commandIds: [
+      "slides.transition.gallery", "slides.transition.set", "slides.transition.durationMenu", "slides.transition.duration",
+      "slides.transition.advanceMenu", "slides.transition.advanceClick", "slides.transition.afterMenu", "slides.transition.advanceAfter",
+      "slides.transition.applyAll", "slides.transition.preview"
+    ],
+    title: "Tab Chuyển tiếp: chọn hiệu ứng, thời gian và xem trước",
+    summary: "Chọn trang ở thanh bên rồi dùng nhóm Chuyển đến trang này để chọn hiệu ứng và xem trước; nhóm Thời gian đặt thời lượng, chuyển trang khi nhấp chuột, tự chuyển sau N giây và áp dụng cho tất cả trang.",
+    ribbon: { tab: "Chuyển tiếp", tabId: "transitions", group: "Chuyển đến trang này" },
+    keywords: ["chuyển tiếp", "transition", "hiệu ứng chuyển trang", "thời lượng", "tự động sau", "áp dụng cho tất cả", "xem trước"],
+    steps: [
+      "Nhấp một trang ở thanh bên trái, vào tab Chuyển tiếp > nhóm Chuyển đến trang này > Hiệu ứng, rồi chọn Không, Mờ dần, Trượt ngang, Thu phóng, Lật 3D hoặc Morph. Chỉ trang đang chọn được đổi.",
+      "Nhấn Xem trước để chạy thử hiệu ứng ngay trên trang đang soạn.",
+      "Nhóm Thời gian: Thời lượng chọn 0,3 đến 2 giây; Chuyển trang cho bật/tắt chuyển khi nhấp chuột; Tự động sau chọn 3, 5, 10, 30 giây hoặc Không tự chuyển. Các mục này cần trang đã có hiệu ứng.",
+      "Áp dụng cho tất cả sao chép hiệu ứng, thời lượng và cách chuyển trang của trang này sang mọi trang. Ctrl+Z hoàn tác cả nhóm trang trong một bước. Nút Chuyển tiếp lớn bên trái vẫn mở hộp thoại đầy đủ."
+    ]
+  },
+  {
     id: "slides.transition.apply",
     app: "slides",
     commandIds: ["slides.transition.apply"],
