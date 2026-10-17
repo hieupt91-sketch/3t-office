@@ -1636,5 +1636,86 @@ export async function runSlidesFileIoTests() {
     }
   });
 
+  test("SlidesAdapter: preserve paragraph spaceBefore and shape textbox type (Item e)", () => {
+    const fodp = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0"
+ xmlns:vno="urn:vn-office:slides:1.0">
+  <office:automatic-styles>
+    <style:style style:name="pSpace" style:family="paragraph">
+      <style:paragraph-properties fo:margin-top="12pt"/>
+    </style:style>
+  </office:automatic-styles>
+  <office:body><office:presentation>
+    <draw:page draw:name="page1">
+      <draw:custom-shape draw:name="Text1" vno:textbox="true" svg:width="10cm" svg:height="3cm" svg:x="2cm" svg:y="2cm">
+        <text:p text:style-name="pSpace"><text:span>Dong mot</text:span></text:p>
+        <text:p><text:span>Dong hai</text:span></text:p>
+      </draw:custom-shape>
+    </draw:page>
+  </office:presentation></office:body>
+</office:document>`;
+    const adapter = new SlidesAdapter(null);
+    const parsed = adapter.parseFodp(fodp);
+    const shape = parsed[0].shapes[0];
+    if (shape.type !== "textbox") throw new Error(`Expected shape type textbox, got ${shape.type}`);
+    if (!shape.textHtml.includes("margin-top:12pt")) throw new Error("Paragraph 1 missing margin-top:12pt");
+
+    const serialized = new SlidesAdapter({ slides: parsed, slideSize: { width: 960, height: 540 } }).serializeToFodp();
+    if (!serialized.includes('<draw:frame') || !serialized.includes('<draw:text-box>')) {
+      throw new Error("Serialized textbox must use draw:frame with draw:text-box");
+    }
+    if (!serialized.includes('fo:margin-top="12pt"')) {
+      throw new Error("Serialized missing fo:margin-top=\"12pt\"");
+    }
+  });
+
+  test("SlidesAdapter: preserve image altText (Item g)", () => {
+    const fodp = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+ xmlns:vno="urn:vn-office:slides:1.0">
+  <office:body><office:presentation>
+    <draw:page draw:name="page1">
+      <draw:frame draw:name="Pic1" vno:alt="mo ta anh" svg:width="5cm" svg:height="3cm" svg:x="2cm" svg:y="2cm">
+        <svg:desc>mo ta anh</svg:desc>
+        <draw:image xlink:href="" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad" draw:mime-type="image/png"/>
+      </draw:frame>
+    </draw:page>
+  </office:presentation></office:body>
+</office:document>`;
+    const adapter = new SlidesAdapter(null);
+    const parsed = adapter.parseFodp(fodp);
+    const shape = parsed[0].shapes[0];
+    if (shape.type !== "image") throw new Error(`Expected shape type image, got ${shape.type}`);
+    if (shape.altText !== "mo ta anh") throw new Error(`Expected altText "mo ta anh", got "${shape.altText}"`);
+
+    const serialized = new SlidesAdapter({ slides: parsed, slideSize: { width: 960, height: 540 } }).serializeToFodp();
+    if (!serialized.includes('vno:alt="mo ta anh"')) {
+      throw new Error("Serialized image missing vno:alt");
+    }
+    if (!serialized.includes('<svg:desc>mo ta anh</svg:desc>')) {
+      throw new Error("Serialized image missing <svg:desc>");
+    }
+  });
+
+  test("SlidesAdapter: preserve paragraph indent levels without leaking to zero-indent paragraphs (Item j)", () => {
+    const adapter = new SlidesAdapter(null);
+    const html = '<div style="margin-left:0cm"><span>P1</span></div><div style="margin-left:1.27cm"><span>P2</span></div><div style="margin-left:2.54cm"><span>P3</span></div><div style="margin-left:0cm"><span>P4</span></div>';
+    const ctx = { textStyles: [], paraStyles: [], listStyles: [] };
+    const xml = adapter._htmlToOdfXml(html, ctx);
+    const paras = xml.match(/<text:p\b[^>]*>[\s\S]*?<\/text:p>/g) || [];
+    if (paras.length !== 4) throw new Error(`Expected 4 paragraphs, got ${paras.length}`);
+    if (paras[0].includes("text:style-name=")) throw new Error("P1 should have no indent style");
+    if (!paras[1].includes("text:style-name=")) throw new Error("P2 should have indent style");
+    if (!paras[2].includes("text:style-name=")) throw new Error("P3 should have indent style");
+    if (paras[3].includes("text:style-name=")) throw new Error("P4 should not inherit indent from P3");
+  });
+
   return results;
 }
+

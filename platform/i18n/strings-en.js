@@ -461,7 +461,7 @@ export const enStrings = {
   sheetSlicer: { selectTable: "Select a cell in a table before inserting a visual filter.", layer: "Visual filters", aria: "Filter", multi: "Multi-select", clear: "Clear filter", close: "Remove visual filter" },
   slidesRibbon: {
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant", tableLayout: "Table Layout", shapeFormat: "Shape Format" },
-    group: { transitionGallery: "Transition to This Slide", transitionTiming: "Timing", shapeStyles: "Shape Styles", shapeArrange: "Arrange", shapeSize: "Size", tableRowsCols: "Rows & Columns", tableMerge: "Merge", slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
+    group: { animPreview: "Preview", animEffects: "Animation", animTiming: "Timing", transitionGallery: "Transition to This Slide", transitionTiming: "Timing", shapeStyles: "Shape Styles", shapeArrange: "Arrange", shapeSize: "Size", tableRowsCols: "Rows & Columns", tableMerge: "Merge", slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
     editing: { select: "Select" },
     drawing: { arrange: "Arrange" },
     section: "Section"
@@ -1051,8 +1051,19 @@ export const enStrings = {
   ,"slides.transition.preview": { label: "Preview", tooltip: "Play the current slide's transition" }
   ,"slides.text.changeCase": { label: "Change Case", tooltip: "Change the case of the selected text (Shift+F3 cycles)" }
   ,"slides.text.changeCaseMode": { label: "Case Style", tooltip: "Pick a style: sentence case, lowercase, UPPERCASE, capitalize each initial, or toggle case" }
+  ,"slides.design.hideBackground": { label: "Hide Background Graphics", tooltip: "Hide the master graphics and logo on the current slide (toggle)" }
+  ,"slides.edit.selectionPane": { label: "Selection Pane", tooltip: "Open a list of every object on the slide to select it quickly and change layer order (Alt+F10)" }
   ,"slides.transition.apply": { label: "Transitions", tooltip: "Apply a slide transition (Fade, Push, Zoom, Flip)" }
-    ,"slides.animation.apply": { label: "Animations", tooltip: "Apply an entrance animation to an object" }
+    ,"slides.animation.preview": { label: "Preview", tooltip: "Play the current slide's animations on the slide" }
+  ,"slides.animation.gallery": { label: "Effect", tooltip: "Pick an entrance, emphasis or exit effect for the selected object" }
+  ,"slides.animation.setType": { label: "Effect Type", tooltip: "Apply an effect type to the selected object" }
+  ,"slides.animation.startMenu": { label: "Start", tooltip: "Choose when it starts: on click, with previous or after previous" }
+  ,"slides.animation.setStart": { label: "Start Timing", tooltip: "Set when the selected object's effect starts" }
+  ,"slides.animation.durationMenu": { label: "Duration", tooltip: "Set how long the selected object's effect runs" }
+  ,"slides.animation.setDuration": { label: "Effect Duration", tooltip: "Pick the effect duration" }
+  ,"slides.animation.delayMenu": { label: "Delay", tooltip: "Set the wait before the effect starts" }
+  ,"slides.animation.setDelay": { label: "Delay Time", tooltip: "Pick the wait before the effect runs" }
+  ,"slides.animation.apply": { label: "Animations", tooltip: "Apply an entrance animation to an object" }
     ,"slides.animation.pane": { label: "Animation Pane", tooltip: "List every animation on the current slide, reorder, change start, or remove an animation" }
     ,"slides.view.normal": { label: "Normal", tooltip: "Normal view for editing slides" }
     ,"slides.view.slideSorter": { label: "Slide Sorter", tooltip: "View all slides in a grid and drag to reorder them" }

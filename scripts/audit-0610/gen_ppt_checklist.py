@@ -57,7 +57,7 @@ Trang đầu|Phông chữ|Gạch chân (Ctrl+U / Underline)|V|-|FIX-L7: slides.t
 Trang đầu|Phông chữ|Đổ bóng chữ (Text Shadow)|V|-|17/10: slides.text.shadow (nút trên ribbon Trang đầu, bật/tắt); CDP 7/7; lưu PPTX khôi phục outerShdw, PowerPoint 2016 COM đọc Shadow.Visible=-1 cho đúng đoạn chữ (docs/AUDIT-SLIDES-SHADOW-1710.md:11)
 Trang đầu|Phông chữ|Gạch ngang (Strikethrough)|V|-|FIX-L7: slides.text.strike đối chiếu TextFrame2.Font.Strike=1 (docs/SLIDES-BUTTON-MATRIX-1011.md:32)
 Trang đầu|Phông chữ|Khoảng cách ký tự (Character Spacing: Very Tight, Tight, Normal, Loose, Very Loose)|P|2|Có thuộc tính giãn cách font cơ bản; chưa có dropdown mức giãn ký tự trực quan
-Trang đầu|Phông chữ|Đổi chữ hoa/thường (Change Case, Shift+F3)|N|2|Chưa có lệnh đổi kiểu chữ hoa/thường (Change Case) cho VN Slides
+Trang đầu|Phông chữ|Đổi chữ hoa/thường (Change Case, Shift+F3)|A|-|slides.text.changeCase (5 kiểu + Shift+F3 xoay vòng); test CDP tests/live/cdp/slides-change-case.desktop.mjs 9/9; logic dùng chung platform/text/change-case.js; chưa đối chiếu PowerPoint COM
 Trang đầu|Phông chữ|Màu chữ (Font Color)|V|-|FIX-L7/FIX-L5: slides.color.text đối chiếu RGB=255 (docs/SLIDES-BUTTON-MATRIX-1011.md:34)
 Trang đầu|Phông chữ|Màu nền chữ (Highlight Color)|V|-|FIX-L8: slides.color.highlight đối chiếu Highlight.RGB=52735 (docs/SLIDES-BUTTON-MATRIX-1011.md:35)
 Trang đầu|Phông chữ|Hộp thoại Phông chữ (Font Dialog)|N|2|Chưa có hộp thoại Phông chữ đầy đủ (Font Dialog) cho slide
@@ -81,15 +81,15 @@ Trang đầu|Vẽ|Sắp xếp: Nhóm đối tượng (Group, Ctrl+G)|V|-|FIX-L12
 Trang đầu|Vẽ|Sắp xếp: Rã nhóm (Ungroup, Ctrl+Shift+G)|A|-|slides.shape.ungroup; tách các đối tượng trong nhóm
 Trang đầu|Vẽ|Sắp xếp: Căn lề đối tượng (Align Objects)|V|-|Đo thực tế PowerPoint COM ShapeRange.Align đối chiếu hệ thống lệnh slides.arrange.alignLeft, slides.arrange.alignCenter (docs/ppt-oracle-1710.json:86-92, docs/POWERPOINT2016-FINDINGS-1710.md:24)
 Trang đầu|Vẽ|Sắp xếp: Phân phối đều ngang/dọc (Distribute)|A|-|slides.arrange.distributeHorizontal, slides.arrange.distributeVertical; phân phối đều khoảng cách
-Trang đầu|Vẽ|Sắp xếp: Xoay và lật hình (Rotate & Flip)|N|2|Chưa có lệnh xoay 90° và lật hình (Rotate & Flip) trên ribbon
+Trang đầu|Vẽ|Sắp xếp: Xoay và lật hình (Rotate & Flip)|V|-|slides.arrange.rotate (tab Định dạng hình); PowerPoint COM đọc lại rotation=90 (scripts/audit-0610/ppt_shape_format_readback.ps1)
 Trang đầu|Vẽ|Kiểu nhanh hình dạng (Quick Styles Gallery)|P|2|Có thư viện kiểu màu cơ bản; chưa có gallery đầy đủ hiệu ứng 3D như PowerPoint
-Trang đầu|Vẽ|Tô nền hình (Shape Fill: Màu đơn, Chuyển sắc, Ảnh)|N|2|Chưa có công cụ chọn màu tô nền hình (Shape Fill) riêng trên ribbon
-Trang đầu|Vẽ|Viền hình (Shape Outline: Màu, Độ dày nét, Nét đứt)|N|2|Chưa có công cụ viền hình (Shape Outline) riêng trên ribbon
-Trang đầu|Vẽ|Hiệu ứng hình (Shape Effects: Bóng, Phát sáng, Mềm cạnh)|P|2|Đọc/ghi DrawingML shadow, glow; chưa có hộp thoại tùy chỉnh đầy đủ
+Trang đầu|Vẽ|Tô nền hình (Shape Fill: Màu đơn, Chuyển sắc, Ảnh)|P|2|slides.shape.fill: bảng 15 màu, không tô, màu khác (PowerPoint COM đọc lại đúng màu); chưa có chuyển sắc / ảnh trên nút này
+Trang đầu|Vẽ|Viền hình (Shape Outline: Màu, Độ dày nét, Nét đứt)|V|-|slides.shape.outline: màu, độ dày ½–6 pt, nét liền/gạch/chấm/gạch chấm; PowerPoint COM đọc lại line đỏ 3 pt nét gạch
+Trang đầu|Vẽ|Hiệu ứng hình (Shape Effects: Bóng, Phát sáng, Mềm cạnh)|P|2|slides.shape.effects: đổ bóng 4 hướng (PowerPoint COM đọc lại Shadow.Visible); chưa có phát sáng / mềm cạnh / tùy chỉnh
 Trang đầu|Chỉnh sửa|Tìm kiếm (Ctrl+F / Find)|V|-|FIX-L8: common.edit.find tìm chuỗi ROAD TRIP đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:48)
 Trang đầu|Chỉnh sửa|Thay thế (Ctrl+H / Replace)|V|-|FIX-L8: common.edit.replace thay thế văn bản đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:49)
 Trang đầu|Chỉnh sửa|Chọn: Chọn tất cả (Ctrl+A)|A|-|common.edit.selectAll; chọn toàn bộ đối tượng trên slide
-Trang đầu|Chỉnh sửa|Chọn: Chọn đối tượng / Ngăn chọn (Selection Pane)|P|2|Có lệnh slides.edit.selectObjects chọn đối tượng; chưa có ngăn Selection Pane quản lý danh sách lớp
+Trang đầu|Chỉnh sửa|Chọn: Chọn đối tượng / Ngăn chọn (Selection Pane)|P|2|slides.edit.selectionPane (Alt+F10): danh sách, chọn, đổi thứ tự lớp (CDP 6/6); chưa có đổi tên và ẩn/hiện từng đối tượng
 Chèn|Trang chiếu|Trang chiếu mới (Insert New Slide)|V|-|FIX-L8: slides.slide.new tăng số slide đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:20, docs/ppt-oracle-1710.json:9-15)
 Chèn|Bảng|Bảng (Table Grid)|V|-|FIX-L6: slides.insert.table chèn bảng 3x3 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:50, docs/ppt-oracle-1710.json:65-71)
 Chèn|Bảng|Vẽ bảng tự do (Draw Table)|N|3|Chưa có công cụ vẽ lưới bảng biểu tự do bằng bút
@@ -133,8 +133,8 @@ Thiết kế|Tùy chỉnh|Định dạng nền: Màu đơn sắc (Solid Fill)|V|
 Thiết kế|Tùy chỉnh|Định dạng nền: Chuyển sắc (Gradient Fill)|V|-|FIX-L8: slides.design.formatBackground nền gradient ngang Fill.Type=3 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:67)
 Thiết kế|Tùy chỉnh|Định dạng nền: Hình ảnh hoặc họa tiết (Picture or Texture Fill)|N|2|Chưa hỗ trợ chèn ảnh hoặc họa tiết làm hình nền slide
 Thiết kế|Tùy chỉnh|Định dạng nền: Hoa văn (Pattern Fill)|N|3|Chưa có thư viện mẫu hoa văn pattern cho nền
-Thiết kế|Tùy chỉnh|Ẩn đồ họa nền (Hide Background Graphics)|N|2|Chưa có tùy chọn ẩn đồ họa nền master (Hide Background Graphics)
-Chuyển tiếp|Xem trước|Xem trước hiệu ứng chuyển tiếp (Preview)|N|2|Chưa có nút Xem trước (Preview) hiệu ứng chuyển tiếp trên ribbon
+Thiết kế|Tùy chỉnh|Ẩn đồ họa nền (Hide Background Graphics)|V|-|slides.design.hideBackground; PowerPoint COM đọc lại DisplayMasterShapes (ppt_hide_bg_readback.ps1)
+Chuyển tiếp|Xem trước|Xem trước hiệu ứng chuyển tiếp (Preview)|A|-|slides.transition.preview chạy hiệu ứng trên khung soạn (CDP slides-transition-tab 9/9)
 Chuyển tiếp|Chuyển tiếp sang slide|Hiệu ứng chuyển tiếp (Transitions Gallery)|V|-|FIX-L4/L7: slides.transition.apply áp Push Right (3854) và Fade (3849) đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:68, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:20)
 Chuyển tiếp|Chuyển tiếp sang slide|Hiệu ứng Morph (Biến đổi hình thái)|P|1|Đã có xử lý chuyển đổi Morph sơ bộ; chưa hoàn thiện mapping đối tượng khớp định danh như PowerPoint 2016 Office 365
 Chuyển tiếp|Chuyển tiếp sang slide|Hiệu ứng Fade / Push / Wipe / Split|V|-|FIX-L4/L7: slides.transition.apply áp Push Right (3854) và Fade (3849) đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:68, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:20)
@@ -142,10 +142,10 @@ Chuyển tiếp|Chuyển tiếp sang slide|Hiệu ứng 3D phức tạp (Curtain
 Chuyển tiếp|Chuyển tiếp sang slide|Tùy chọn hiệu ứng (Effect Options: Hướng chuyển động)|N|2|Chưa có menu Tùy chọn hiệu ứng (Effect Options) đổi hướng chuyển tiếp
 Chuyển tiếp|Thời gian|Âm thanh chuyển tiếp (Sound)|N|3|Chưa hỗ trợ gán âm thanh khi chuyển tiếp trang chiếu
 Chuyển tiếp|Thời gian|Thời lượng chuyển tiếp (Duration)|V|-|FIX-L4/L7: PowerPoint COM đọc Duration=0.8 s khớp thời lượng chuyển tiếp (docs/SLIDES-BUTTON-MATRIX-1011.md:68, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:20)
-Chuyển tiếp|Thời gian|Áp dụng cho tất cả trang chiếu (Apply to All)|N|2|Chưa có nút Áp dụng cho tất cả (Apply to All) chuyển tiếp
-Chuyển tiếp|Thời gian|Chuyển khi nhấp chuột (On Mouse Click)|N|2|Chưa có checkbox cấu hình chuyển trang khi bấm chuột
-Chuyển tiếp|Thời gian|Chuyển tự động sau thời gian (After X seconds)|N|2|Chưa có ô nhập thời gian tự động chuyển slide sau X giây
-Hoạt ảnh|Xem trước|Xem trước hoạt ảnh (Preview)|N|2|Chưa có nút Xem trước (Preview) hoạt ảnh trên ribbon
+Chuyển tiếp|Thời gian|Áp dụng cho tất cả trang chiếu (Apply to All)|A|-|slides.transition.applyAll, hoàn tác một bước (CDP 9/9)
+Chuyển tiếp|Thời gian|Chuyển khi nhấp chuột (On Mouse Click)|V|-|slides.transition.advanceClick; PowerPoint COM đọc lại AdvanceOnClick (ppt_transition_readback.ps1)
+Chuyển tiếp|Thời gian|Chuyển tự động sau thời gian (After X seconds)|V|-|slides.transition.advanceAfter (3/5/10/30 s); PowerPoint COM đọc lại AdvanceOnTime/AdvanceTime
+Hoạt ảnh|Xem trước|Xem trước hoạt ảnh (Preview)|A|-|slides.animation.preview chạy theo timeline (CDP slides-animation-tab 9/9)
 Hoạt ảnh|Hoạt ảnh|Hiệu ứng đối tượng (Animations Gallery)|V|-|FIX-L6: slides.animation.apply hiệu ứng Fade, Fly EffectType 10, 2 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:69)
 Hoạt ảnh|Hoạt ảnh|Nhóm Xuất hiện (Entrance Effects: Appear, Fade, Fly In, Float In, Zoom)|V|-|FIX-L6: slides.animation.apply hiệu ứng Fade, Fly EffectType 10, 2 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:69)
 Hoạt ảnh|Hoạt ảnh|Nhóm Nhấn mạnh (Emphasis Effects: Pulse, Spin, Grow/Shrink)|P|1|slides.animation.apply; Xoay tròn (EffectType 61) và Phóng to/thu nhỏ (59) lưu PPTX rồi PowerPoint 2016 COM đọc đúng (docs/AUDIT-SLIDES-ANIM-1710.md:12); chưa có Nhịp đập (Pulse)
@@ -156,7 +156,7 @@ Hoạt ảnh|Hoạt ảnh nâng cao|Thêm hoạt ảnh (Add Animation)|N|2|Chưa
 Hoạt ảnh|Hoạt ảnh nâng cao|Ngăn hoạt ảnh (Animation Pane)|V|-|FIX-L7: slides.animation.pane đổi thứ tự hiệu ứng đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:70)
 Hoạt ảnh|Hoạt ảnh nâng cao|Kích hoạt (Trigger: On Click of Object)|N|2|Chưa có hộp thoại gán trigger kích hoạt hiệu ứng khi click shape khác
 Hoạt ảnh|Hoạt ảnh nâng cao|Sao chép hoạt ảnh (Animation Painter)|N|2|Chưa có công cụ sao chép chuỗi hiệu ứng hoạt ảnh giữa các hình
-Hoạt ảnh|Thời gian|Bắt đầu (Start: On Click, With Previous, After Previous)|N|2|Chưa có menu chọn thời điểm bắt đầu (On Click / With Previous / After Previous)
+Hoạt ảnh|Thời gian|Bắt đầu (Start: On Click, With Previous, After Previous)|V|-|slides.animation.startMenu; PowerPoint COM đọc lại TriggerType=AfterPrevious, Duration, Delay (ppt_anim_readback.ps1)
 Hoạt ảnh|Thời gian|Thời lượng hoạt ảnh (Duration)|V|-|FIX-L6: PowerPoint COM đọc duration 0.8/0.8/0.5 s khớp timeline (docs/SLIDES-BUTTON-MATRIX-1011.md:69)
 Hoạt ảnh|Thời gian|Độ trễ hoạt ảnh (Delay)|A|-|slides.animation.apply; cấu hình độ trễ (delay) trong hộp thoại Hiệu ứng đối tượng
 Hoạt ảnh|Thời gian|Đổi thứ tự: Lên trước (Move Earlier)|V|-|FIX-L7: slides.animation.pane đổi thứ tự hiệu ứng đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:70)
@@ -229,7 +229,7 @@ Công cụ vẽ > Định dạng|Sắp xếp|Căn lề đối tượng (Align Le
 Công cụ vẽ > Định dạng|Sắp xếp|Phân phối đều khoảng cách (Distribute Horizontally / Vertically)|A|-|slides.arrange.distributeHorizontal, slides.arrange.distributeVertical; phân phối đều khoảng cách
 Công cụ vẽ > Định dạng|Sắp xếp|Nhóm đối tượng (Group, Ctrl+G)|V|-|FIX-L12: sơ đồ nhóm 7 đối tượng Shape.Type=6 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:53, docs/POWERPOINT2016-FINDINGS-1710.md:23)
 Công cụ vẽ > Định dạng|Sắp xếp|Rã nhóm đối tượng (Ungroup, Ctrl+Shift+G)|A|-|slides.shape.ungroup; giải phóng nhóm thành các hình riêng
-Công cụ vẽ > Định dạng|Sắp xếp|Xoay và lật đối tượng (Rotate 90°, Flip)|N|2|Chưa có lệnh xoay 90° và lật đối tượng trên ribbon
+Công cụ vẽ > Định dạng|Sắp xếp|Xoay và lật đối tượng (Rotate 90°, Flip)|V|-|Tab Định dạng hình > Xoay (4 lệnh); PowerPoint COM đọc lại rotation=90
 Công cụ vẽ > Định dạng|Kích thước|Chiều cao đối tượng (Shape Height)|N|2|Chưa có ô nhập chiều cao chính xác (cm/pt) cho hình trên ribbon
 Công cụ vẽ > Định dạng|Kích thước|Chiều rộng đối tượng (Shape Width)|N|2|Chưa có ô nhập chiều rộng chính xác (cm/pt) cho hình trên ribbon
 Công cụ vẽ > Định dạng|Kích thước|Khóa tỷ lệ khung hình (Lock Aspect Ratio)|N|2|Chưa có tùy chọn khóa tỷ lệ khung hình (Lock Aspect Ratio)

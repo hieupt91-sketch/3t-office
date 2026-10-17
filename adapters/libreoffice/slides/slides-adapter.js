@@ -208,6 +208,18 @@ export class SlidesAdapter {
     // Đổi chữ hoa/thường: logic dùng chung với Writer (platform/text/change-case.js). Nút gốc/Shift+F3 xoay vòng.
     globalCommandBus.bindHandler("slides.text.changeCase", () => this._changeTextCase(""));
     globalCommandBus.bindHandler("slides.text.changeCaseMode", (arg) => this._changeTextCase(String(arg || "")));
+    globalCommandBus.bindHandler("slides.design.hideBackground", () => this.canvas.toggleHideBackgroundGraphics());
+    globalCommandBus.bindHandler("slides.edit.selectionPane", () => this.canvas.toggleSelectionPane());
+    // Tab Hoạt hình: gán hiệu ứng nhanh, thời điểm bắt đầu, thời lượng, trễ và xem trước cho đối tượng đang chọn.
+    globalCommandBus.bindHandler("slides.animation.gallery", () => this.canvas.showAnimationDialog ? this.canvas.showAnimationDialog() : false);
+    globalCommandBus.bindHandler("slides.animation.startMenu", () => this.canvas.showAnimationDialog ? this.canvas.showAnimationDialog() : false);
+    globalCommandBus.bindHandler("slides.animation.durationMenu", () => this.canvas.showAnimationDialog ? this.canvas.showAnimationDialog() : false);
+    globalCommandBus.bindHandler("slides.animation.delayMenu", () => this.canvas.showAnimationDialog ? this.canvas.showAnimationDialog() : false);
+    globalCommandBus.bindHandler("slides.animation.setType", (arg) => this._hintIfFalse(() => this.canvas.updateSelectedAnimation({ type: String(arg || "none") }, true), "Hãy chọn một đối tượng (hình, ảnh, khung chữ) trước, rồi đặt hiệu ứng hoặc thời gian cho nó. Thời gian chỉ đặt được khi đối tượng đã có hiệu ứng."));
+    globalCommandBus.bindHandler("slides.animation.setStart", (arg) => this._hintIfFalse(() => this.canvas.updateSelectedAnimation({ start: String(arg) }), "Hãy chọn một đối tượng (hình, ảnh, khung chữ) trước, rồi đặt hiệu ứng hoặc thời gian cho nó. Thời gian chỉ đặt được khi đối tượng đã có hiệu ứng."));
+    globalCommandBus.bindHandler("slides.animation.setDuration", (arg) => this._hintIfFalse(() => this.canvas.updateSelectedAnimation({ duration: parseInt(arg, 10) || 500 }), "Hãy chọn một đối tượng (hình, ảnh, khung chữ) trước, rồi đặt hiệu ứng hoặc thời gian cho nó. Thời gian chỉ đặt được khi đối tượng đã có hiệu ứng."));
+    globalCommandBus.bindHandler("slides.animation.setDelay", (arg) => this._hintIfFalse(() => this.canvas.updateSelectedAnimation({ delay: parseInt(arg, 10) || 0 }), "Hãy chọn một đối tượng (hình, ảnh, khung chữ) trước, rồi đặt hiệu ứng hoặc thời gian cho nó. Thời gian chỉ đặt được khi đối tượng đã có hiệu ứng."));
+    globalCommandBus.bindHandler("slides.animation.preview", () => this._hintIfFalse(() => this.canvas.previewSlideAnimations(), "Trang này chưa có hiệu ứng nào để xem trước. Chọn một đối tượng rồi gán hiệu ứng ở tab Hoạt hình."));
     globalCommandBus.bindHandler("slides.transition.apply", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
     // Tab Chuyển tiếp: thư viện hiệu ứng, thời gian, áp dụng tất cả, xem trước (cùng mô hình dữ liệu với hộp thoại).
     globalCommandBus.bindHandler("slides.transition.gallery", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
@@ -765,7 +777,7 @@ export class SlidesAdapter {
     if (/<(b|strong|i|em|u|s|strike|sub|sup|font|ul|ol|li|blockquote)\b/i.test(value)) return true;
     const styleMatch = value.match(/style\s*=\s*(?:"([^"]*)"|'([^']*)')/i);
     const styleVal = styleMatch ? (styleMatch[1] !== undefined ? styleMatch[1] : (styleMatch[2] || "")) : "";
-    if (/(?:font-weight|font-style|text-decoration|text-shadow|color|background|font-family|font-size|text-align|line-height)/i.test(styleVal)) return true;
+    if (/(?:font-weight|font-style|text-decoration|text-shadow|color|background|font-family|font-size|text-align|line-height|margin-top|margin-left)/i.test(styleVal)) return true;
     return /<(span|div|p)\b[^>]*(align|face|color|size)=/i.test(value);
   }
 
@@ -901,19 +913,24 @@ export class SlidesAdapter {
     const currentFmt = () => Object.assign({}, ...formatStack);
     const flush = () => {
       if (current.texts.some((item) => item.text) || current.list) blocks.push(current);
-      current = { texts: [], align: current.align, lineHeight: current.lineHeight, indent: current.indent, spaceBefore: current.spaceBefore, list: current.list };
+      current = { texts: [], align: current.align, lineHeight: current.lineHeight, indent: current.indent, spaceBefore: null, list: current.list };
     };
 
     this._walkHtml(html, {
       text: (text) => {
         // Khoảng trắng chỉ có xuống dòng giữa các thẻ là định dạng đẹp của HTML, không phải chữ của người dùng.
-        if (text && !/^[ \t]*[\r\n]\s*$/.test(text)) current.texts.push({ text, fmt: currentFmt() });
+        // Lề đoạn (indent) thuộc về đoạn, không được rò vào kiểu chữ của span.
+        if (text && !/^[ \t]*[\r\n]\s*$/.test(text)) { const fmt = currentFmt(); delete fmt.indent; current.texts.push({ text, fmt }); }
       },
       open: (tag, attrs) => {
         const css = this._styleFromHtmlAttrs(tag, attrs);
         if (css.align) current.align = css.align;
         if (css.lineHeight) current.lineHeight = css.lineHeight;
-        if (css.indent && !/^0(?:\.0+)?(?:[a-z%]+)?$/i.test(css.indent)) current.indent = css.indent;
+        if (css.indent) {
+          // Lề 0 tường minh xóa lề của đoạn trước, nhưng không xóa lề cấp của khối trích dẫn (blockquote) bao ngoài.
+          if (!/^0(?:\.0+)?(?:[a-z%]+)?$/i.test(css.indent)) current.indent = css.indent;
+          else if (!blockquoteDepth) current.indent = null;
+        }
         if (css.spaceBefore && !/^0(?:\.0+)?(?:[a-z%]+)?$/i.test(css.spaceBefore)) current.spaceBefore = css.spaceBefore;
         if (tag === "blockquote") {
           blockquoteDepth += 1;
@@ -933,6 +950,8 @@ export class SlidesAdapter {
       close: (tag) => {
         if (tag === "li" || tag === "p" || tag === "div") {
           if (current.texts.length || tag === "li") flush();
+          current.spaceBefore = null;
+          current.indent = blockquoteDepth ? `${blockquoteDepth * 36}pt` : (base?.indent || null);
         }
         if (tag === "blockquote") {
           if (current.texts.length) flush();
@@ -1840,7 +1859,7 @@ export class SlidesAdapter {
   }
 
   _slideNeedsOwnDrawingStyle(slide) {
-    return !!this._mapVnTransitionToSmil(slide?.transition) || !!slide?.hidden || this._hasPageBackground(slide);
+    return !!this._mapVnTransitionToSmil(slide?.transition) || !!slide?.hidden || !!slide?.hideBackgroundGraphics || this._hasPageBackground(slide);
   }
 
   _pageBackgroundFillAttrs(slide, idx) {
@@ -2160,6 +2179,7 @@ export class SlidesAdapter {
         duration: this._parseSmilTimeToMs(smilDur),
         vnType: this._mapSmilTransitionToVn(smilType, smilSubtype),
         hidden: /^hidden$/i.test(visibility),
+        bgObjectsHidden: /presentation:background-objects-visible=["']false["']/i.test(match[2]),
         fill,
         fillColor,
         gradientName,
@@ -2458,7 +2478,7 @@ export class SlidesAdapter {
       const fillAttrs = this._pageBackgroundFillAttrs(slide, idx);
       xml += `
     <style:style style:name="${name}" style:family="drawing-page">
-      <style:drawing-page-properties presentation:background-visible="true" presentation:background-objects-visible="true"${smilAttrs}${visibilityAttr}${fillAttrs}/>
+      <style:drawing-page-properties presentation:background-visible="true" presentation:background-objects-visible="${slide?.hideBackgroundGraphics ? "false" : "true"}"${smilAttrs}${visibilityAttr}${fillAttrs}/>
     </style:style>`;
     });
 
@@ -2668,8 +2688,15 @@ export class SlidesAdapter {
       const srcRectAttr = shape.cropPct
         ? ` vno:src-rect="${this._escapeXml(this._formatSrcRectPct(shape.cropPct))}"`
         : "";
+      const altAttr = shape.altText
+        ? ` vno:alt="${this._escapeXml(shape.altText)}"`
+        : "";
+      const descTag = shape.altText
+        ? `<svg:desc>${this._escapeXml(shape.altText)}</svg:desc>`
+        : "";
       return `
-        <draw:frame ${geom}${srcRectAttr}>
+        <draw:frame ${geom}${srcRectAttr}${altAttr}>
+          ${descTag}
           <draw:image xlink:href="${href}" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad" draw:mime-type="${mime}">
             ${this._binaryDataXml(shape.src)}
           </draw:image>
@@ -2766,7 +2793,7 @@ export class SlidesAdapter {
         ? ` presentation:class="${pClass}" presentation:style-name="${pClass === "title" ? "prTitle" : "prBody"}" presentation:user-transformed="true"`
         : "";
       return `
-        <draw:frame ${geom}${pAttrs}>
+        <draw:frame ${geom}${pAttrs} vno:textbox="true">
           <draw:text-box>
             ${textXml}
           </draw:text-box>
@@ -3165,7 +3192,8 @@ export class SlidesAdapter {
     const dAttr = get("svg:d");
     const enhancedPath = inner.match(/draw:enhanced-path=["']([^"']+)["']/i)?.[1];
     let type = "rect";
-    if (/ellipse|circle/i.test(geomType) || tagName === "ellipse" || tagName === "circle") type = "ellipse";
+    if (this._attr(attrs, "vno:textbox") === "true" || /vno:textbox=["']true["']/i.test(attrs)) type = "textbox";
+    else if (/ellipse|circle/i.test(geomType) || tagName === "ellipse" || tagName === "circle") type = "ellipse";
     else if (/arrow/i.test(geomType)) type = "arrow";
     else if (/path|ink/i.test(geomType) || tagName === "path" || (dAttr && !/arrow/i.test(geomType))) type = "ink";
     const styleName = get("draw:style-name");
@@ -3536,13 +3564,15 @@ export class SlidesAdapter {
     if (/<draw:image\b/i.test(inner)) {
       const crop = style.crop || this._parseClipRect(this._attr(attrs, "fo:clip")) || this._parseClipRect(inner.match(/fo:clip=["']([^"']+)["']/i)?.[1]);
       const cropPct = this._parseSrcRectPct(this._attr(attrs, "vno:src-rect")) || this._parseSrcRectPct(inner.match(/vno:src-rect=["']([^"']+)["']/i)?.[1]);
+      const altText = this._attr(attrs, "vno:alt") || inner.match(/<svg:desc\b[^>]*>([\s\S]*?)<\/svg:desc>/i)?.[1]?.trim() || "";
       return {
         ...base,
         type: "image",
         src: this._parseEmbeddedSrc(inner, "image/png"),
         color: "transparent",
         ...(crop ? { crop } : {}),
-        ...(cropPct ? { cropPct } : {})
+        ...(cropPct ? { cropPct } : {}),
+        ...(altText ? { altText } : {})
       };
     }
 
@@ -4498,6 +4528,7 @@ export class SlidesAdapter {
         ...(bodyHtml && this._htmlHasFormat(bodyHtml) ? { bodyHtml } : {}),
         ...(body2Html && this._htmlHasFormat(body2Html) ? { body2Html } : {}),
         layoutType: pageLayout,
+        ...(fromPageStyle.bgObjectsHidden ? { hideBackgroundGraphics: true } : {}),
         shapes,
         groups: shapes.groups || [],
         notes: notesText,

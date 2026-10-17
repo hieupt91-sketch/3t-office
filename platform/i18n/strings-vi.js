@@ -460,7 +460,7 @@ export const viStrings = {
   sheetSlicer: { selectTable: "Hãy chọn một ô trong bảng trước khi chèn bộ lọc trực quan.", layer: "Bộ lọc trực quan", aria: "Bộ lọc", multi: "Chọn nhiều", clear: "Xóa bộ lọc", close: "Xóa bộ lọc trực quan" },
   slidesRibbon: {
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI", tableLayout: "Bố cục bảng", shapeFormat: "Định dạng hình" },
-    group: { transitionGallery: "Chuyển đến trang này", transitionTiming: "Thời gian", shapeStyles: "Kiểu hình", shapeArrange: "Sắp xếp", shapeSize: "Kích thước", tableRowsCols: "Hàng và cột", tableMerge: "Gộp", slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Hiệu đính", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
+    group: { animPreview: "Xem trước", animEffects: "Hoạt hình", animTiming: "Thời gian", transitionGallery: "Chuyển đến trang này", transitionTiming: "Thời gian", shapeStyles: "Kiểu hình", shapeArrange: "Sắp xếp", shapeSize: "Kích thước", tableRowsCols: "Hàng và cột", tableMerge: "Gộp", slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Hiệu đính", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
     editing: { select: "Chọn" },
     drawing: { arrange: "Sắp xếp" },
     section: "Phần"
@@ -1050,7 +1050,18 @@ export const viStrings = {
     ,"slides.transition.preview": { label: "Xem trước", tooltip: "Chạy thử hiệu ứng chuyển trang của trang đang chọn" }
     ,"slides.text.changeCase": { label: "Đổi chữ hoa/thường", tooltip: "Đổi chữ hoa / thường cho chữ đang chọn (Shift+F3 xoay vòng)" }
     ,"slides.text.changeCaseMode": { label: "Kiểu chữ hoa/thường", tooltip: "Chọn kiểu: đầu câu, chữ thường, CHỮ HOA, Viết Hoa Mỗi Từ, đảo hoa thường" }
+    ,"slides.design.hideBackground": { label: "Ẩn đồ họa nền", tooltip: "Ẩn các hình/logo của bản cái trên trang đang chọn (bật/tắt)" }
+    ,"slides.edit.selectionPane": { label: "Ngăn chọn", tooltip: "Mở ngăn liệt kê mọi đối tượng trên trang để chọn nhanh và đổi thứ tự lớp (Alt+F10)" }
     ,"slides.transition.apply": { label: "Chuyển tiếp", tooltip: "Hiệu ứng chuyển trang chiếu (Fade, Slide, Zoom, Flip)" }
+    ,"slides.animation.preview": { label: "Xem trước", tooltip: "Chạy thử các hiệu ứng của trang đang chọn ngay trên trang" }
+    ,"slides.animation.gallery": { label: "Hiệu ứng", tooltip: "Chọn hiệu ứng vào, nhấn mạnh hoặc thoát cho đối tượng đang chọn" }
+    ,"slides.animation.setType": { label: "Kiểu hiệu ứng", tooltip: "Gán kiểu hiệu ứng cho đối tượng đang chọn" }
+    ,"slides.animation.startMenu": { label: "Bắt đầu", tooltip: "Chọn thời điểm bắt đầu: khi nhấp chuột, cùng lúc với hiệu ứng trước hoặc sau hiệu ứng trước" }
+    ,"slides.animation.setStart": { label: "Thời điểm bắt đầu", tooltip: "Đặt thời điểm bắt đầu hiệu ứng của đối tượng đang chọn" }
+    ,"slides.animation.durationMenu": { label: "Thời lượng", tooltip: "Đặt thời gian chạy hiệu ứng của đối tượng đang chọn" }
+    ,"slides.animation.setDuration": { label: "Thời lượng hiệu ứng", tooltip: "Chọn thời lượng chạy hiệu ứng" }
+    ,"slides.animation.delayMenu": { label: "Trễ", tooltip: "Đặt thời gian chờ trước khi hiệu ứng bắt đầu" }
+    ,"slides.animation.setDelay": { label: "Thời gian trễ", tooltip: "Chọn thời gian chờ trước khi hiệu ứng chạy" }
     ,"slides.animation.apply": { label: "Hiệu ứng đối tượng", tooltip: "Thiết lập hiệu ứng xuất hiện (Fade In, Fly In, Zoom In) cho đối tượng" }
     ,"slides.animation.pane": { label: "Ngăn hoạt hình", tooltip: "Hiện danh sách mọi hiệu ứng trên trang đang chọn, đổi thứ tự, cách bắt đầu hoặc xóa hiệu ứng" }
     ,"slides.view.normal": { label: "Bình thường", tooltip: "Dạng xem bình thường để chỉnh sửa từng trang chiếu" }

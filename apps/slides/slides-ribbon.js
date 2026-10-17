@@ -281,7 +281,8 @@ export const SLIDES_RIBBON_TABS = [
                 icon: "selectAll",
                 items: [
                   { commandId: "slides.edit.selectAll" },
-                  { commandId: "slides.edit.selectObjects" }
+                  { commandId: "slides.edit.selectObjects" },
+                  { commandId: "slides.edit.selectionPane" }
                 ]
               }
             ]
@@ -392,7 +393,8 @@ export const SLIDES_RIBBON_TABS = [
         labelKey: "slidesRibbon.group.customize",
         items: [
           { type: "button", commandId: "slides.design.slideSize", isLarge: true },
-          { type: "button", commandId: "slides.design.formatBackground", isLarge: true }
+          { type: "button", commandId: "slides.design.formatBackground", isLarge: true },
+          { type: "button", commandId: "slides.design.hideBackground" }
         ]
       }
     ]
@@ -489,8 +491,80 @@ export const SLIDES_RIBBON_TABS = [
         label: "Hiệu ứng đối tượng",
         labelKey: "slidesRibbon.group.animations",
         items: [
+          {
+            type: "dropdown",
+            id: "slides.animation.gallery",
+            label: "Hiệu ứng",
+            icon: "slideTransition",
+            isLarge: true,
+            items: [
+              { commandId: "slides.animation.setType", args: "none", label: "Không có" },
+              { commandId: "slides.animation.setType", args: "fadeIn", label: "Mờ dần (vào)" },
+              { commandId: "slides.animation.setType", args: "flyIn", label: "Bay vào" },
+              { commandId: "slides.animation.setType", args: "zoomIn", label: "Thu phóng vào" },
+              { commandId: "slides.animation.setType", args: "bounceIn", label: "Nảy vào" },
+              { commandId: "slides.animation.setType", args: "slideLeft", label: "Trượt từ trái" },
+              { commandId: "slides.animation.setType", args: "spin", label: "Xoay tròn (nhấn mạnh)" },
+              { commandId: "slides.animation.setType", args: "growShrink", label: "Phóng to / thu nhỏ (nhấn mạnh)" },
+              { commandId: "slides.animation.setType", args: "fadeOut", label: "Mờ dần ra (thoát)" },
+              { commandId: "slides.animation.setType", args: "flyOut", label: "Bay ra (thoát)" },
+              { commandId: "slides.animation.setType", args: "zoomOut", label: "Thu nhỏ ra (thoát)" },
+              { commandId: "slides.animation.setType", args: "disappear", label: "Biến mất (thoát)" }
+            ]
+          },
           { type: "button", commandId: "slides.animation.apply", isLarge: true },
           { type: "button", commandId: "slides.animation.pane", isLarge: true }
+        ]
+      },
+      {
+        id: "animPreview",
+        label: "Xem trước",
+        labelKey: "slidesRibbon.group.animPreview",
+        items: [
+          { type: "button", commandId: "slides.animation.preview", isLarge: true }
+        ]
+      },
+      {
+        id: "animTiming",
+        label: "Thời gian",
+        labelKey: "slidesRibbon.group.animTiming",
+        items: [
+          {
+            type: "dropdown",
+            id: "slides.animation.startMenu",
+            label: "Bắt đầu",
+            icon: "slideTransition",
+            items: [
+              { commandId: "slides.animation.setStart", args: "onClick", label: "Khi nhấp chuột" },
+              { commandId: "slides.animation.setStart", args: "withPrevious", label: "Cùng lúc với hiệu ứng trước" },
+              { commandId: "slides.animation.setStart", args: "afterPrevious", label: "Sau hiệu ứng trước" }
+            ]
+          },
+          {
+            type: "dropdown",
+            id: "slides.animation.durationMenu",
+            label: "Thời lượng",
+            icon: "slideTransition",
+            items: [
+              { commandId: "slides.animation.setDuration", args: "300", label: "0,3 giây" },
+              { commandId: "slides.animation.setDuration", args: "500", label: "0,5 giây" },
+              { commandId: "slides.animation.setDuration", args: "1000", label: "1 giây" },
+              { commandId: "slides.animation.setDuration", args: "2000", label: "2 giây" },
+              { commandId: "slides.animation.setDuration", args: "3000", label: "3 giây" }
+            ]
+          },
+          {
+            type: "dropdown",
+            id: "slides.animation.delayMenu",
+            label: "Trễ",
+            icon: "slideTransition",
+            items: [
+              { commandId: "slides.animation.setDelay", args: "0", label: "Không trễ" },
+              { commandId: "slides.animation.setDelay", args: "500", label: "0,5 giây" },
+              { commandId: "slides.animation.setDelay", args: "1000", label: "1 giây" },
+              { commandId: "slides.animation.setDelay", args: "2000", label: "2 giây" }
+            ]
+          }
         ]
       }
     ]

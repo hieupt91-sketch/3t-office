@@ -171,7 +171,9 @@ export class ShortcutManager {
     }
     const isInput = target && (target.isContentEditable || target.tagName === "INPUT" || target.tagName === "TEXTAREA");
     // Phím chức năng (F7 soát lỗi...) trong vùng soạn thảo Writer là lệnh, không phải ký tự gõ (như Word).
-    const writerFunctionKey = /^F(?:[3-9]|1[0-2])$/.test(e.key) && !!target?.closest?.(".vno-writer-body");
+    // Trong khung chữ của Slides cũng vậy (Shift+F3 đổi chữ hoa/thường, F7 soát lỗi như PowerPoint).
+    const writerFunctionKey = /^F(?:[3-9]|1[0-2])$/.test(e.key)
+      && (!!target?.closest?.(".vno-writer-body") || (this._activeScope === "slides" && !!target?.isContentEditable));
     if (isInput && !e.ctrlKey && !e.altKey && !e.metaKey && !writerFunctionKey) {
       return;
     }
