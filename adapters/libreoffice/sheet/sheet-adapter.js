@@ -403,6 +403,9 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.calc.toggleDate1904", () => this.grid.setDate1904 ? this.grid.setDate1904(!this.grid.date1904) : false);
     globalCommandBus.bindHandler("sheet.formula.arrayEnter", (options) => {
       options = options || {};
+      if (this.grid.formulaEntry && typeof this.grid._commitArrayFormulaEntry === "function" && options.formula === undefined) {
+        return this.grid._commitArrayFormulaEntry();
+      }
       return this.grid.enterArrayFormula(options);
     });
     globalCommandBus.bindHandler("sheet.review.spellCheck", (args) => {

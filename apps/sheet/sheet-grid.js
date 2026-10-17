@@ -648,8 +648,7 @@ export class SheetGridController {
       if (e.key === "Enter" && e.ctrlKey && e.shiftKey) {
         e.preventDefault();
         this.autocomplete.closeAll();
-        this._commitFormulaEntry({ move: false });
-        globalCommandBus.execute("sheet.formula.arrayEnter");
+        this._commitArrayFormulaEntry();
         return;
       }
 
@@ -2285,7 +2284,21 @@ export class SheetGridController {
   _commitEditBeforeRangeSelection() {
     if (this._isRestoringFormulaEntry) return;
     if (this.formulaEntry) {
-      this._commitFormulaEntry({ move: false });
+      const session = this.formulaEntry;
+      const ownerItem = this.sheetsData?.[session.sheet]?.get?.(`${session.coord.c}${session.coord.r}`);
+      if (ownerItem?.isArrayFormula) {
+        const edited = String(this.formulaInput?.value ?? session.value ?? "").trim().replace(/^\{(=.*)\}$/s, "$1");
+        const changed = edited !== String(ownerItem.formula || "");
+        this.formulaEntry = null;
+        this._cellValueBeforeEdit = undefined;
+        this._formulaPointCoord = null;
+        if (changed) this._notifyArrayPartEdit();
+        if (this.formulaInput) this.formulaInput.value = this._formulaBarTextFor(ownerItem);
+        this._refreshFormulaEntryVisuals();
+        return;
+      } else {
+        this._commitFormulaEntry({ move: false });
+      }
       return;
     }
     if (!this.formulaInput || typeof document === "undefined" || document.activeElement !== this.formulaInput) return;
@@ -2314,10 +2327,11 @@ export class SheetGridController {
     }
     if (!data) return "";
     if (data.formula) {
+      let formulaText = data.formula;
       if (this.referenceStyle === "R1C1") {
-        return a1ToR1C1(data.formula, { row: Number(baseCoord.r), col: this._columnNumber(baseCoord.c) });
+        formulaText = a1ToR1C1(data.formula, { row: Number(baseCoord.r), col: this._columnNumber(baseCoord.c) });
       }
-      return data.formula;
+      return data.isArrayFormula ? `{${formulaText}}` : formulaText;
     }
     const val = data.val;
     const category = data.style?.numberFormat?.category;
@@ -2374,6 +2388,7 @@ export class SheetGridController {
       ? String(initialValue)
       : String(this.formulaInput?.value ?? this._cellEditorValue(item));
     this.formulaEntry = new FormulaEntrySession({ original, value, caret: value.length, mode, sheet: this.activeSheet, coord });
+    this.formulaEntry.arrayTargetRange = this.selectionRange ? structuredClone(this.selectionRange) : null;
     this.formulaEntry.historyBefore = {
       undoLength: this.undoStack.length,
       lastUndo: this.undoStack.length ? structuredClone(this.undoStack[this.undoStack.length - 1]) : null,
@@ -2402,7 +2417,12 @@ export class SheetGridController {
     }
     if (session.sheet === this.activeSheet && session.coord?.c === this.selectedCoord.c && session.coord?.r === this.selectedCoord.r) {
       const hasValidation = !!this.getValidationForCell(session.coord.c, session.coord.r);
-      this.setCellValue(session.coord.c, session.coord.r, session.value, !hasValidation, { coalesce: true, userInput: true, isComposing: true });
+      const current = this.cellsData.get(`${session.coord.c}${session.coord.r}`);
+      // Khi đang sửa một khối CSE, phần xem trước trên thanh công thức không được
+      // ghi riêng vào ô neo/thành viên. Chỉ lần xác nhận Ctrl+Shift+Enter mới thay cả khối.
+      if (!current?.isArrayFormula) {
+        this.setCellValue(session.coord.c, session.coord.r, session.value, !hasValidation, { coalesce: true, userInput: true, isComposing: true });
+      }
     }
     this._refreshFormulaEntryVisuals();
     if (!options.composing && options.source !== "autocomplete") {
@@ -2614,6 +2634,27 @@ export class SheetGridController {
       this.options.onSelect?.(`${coord.c}${coord.r}`, this.cellsData.get(`${coord.c}${coord.r}`), this._calculateStats());
     }
     return true;
+  }
+
+  _commitArrayFormulaEntry() {
+    const session = this.formulaEntry;
+    let formula = this.formulaInput?.value ?? "";
+    if (session?.update) session.update(formula, this.formulaInput.selectionStart ?? String(formula).length);
+    if (session?.commit) formula = session.commit();
+    formula = String(formula).trim().replace(/^\{(=.*)\}$/s, "$1");
+    const targetRange = session?.arrayTargetRange ? structuredClone(session.arrayTargetRange) : (this.selectionRange ? structuredClone(this.selectionRange) : null);
+    const targetCoord = session?.coord ? { ...session.coord } : { ...this.selectedCoord };
+    this.formulaEntry = null;
+    this._cellValueBeforeEdit = undefined;
+    this._formulaPointCoord = null;
+    if (targetRange) this.selectionRange = targetRange;
+    this.selectedCoord = targetCoord;
+    const entered = this.enterArrayFormula({ formula });
+    this.autocomplete?.closeAll?.();
+    this._refreshFormulaEntryVisuals();
+    this.options.onSelect?.(`${targetCoord.c}${targetCoord.r}`, this.cellsData.get(`${targetCoord.c}${targetCoord.r}`), this._calculateStats());
+    if (this.formulaInput) this.formulaInput.value = entered ? `{${formula}}` : formula;
+    return entered;
   }
 
   _cancelFormulaEntry() {
@@ -7083,7 +7124,7 @@ export class SheetGridController {
           this.deleteTextBox(this.selectedTextBoxId);
           return;
         }
-        if (this._isMultiRangeSelection()) {
+        if (this._getSelectionRanges().length > 1) {
           const cells = [...new Set(this._getSelectionRanges().flatMap(range =>
             this.formulaEngine.expandRange(this._rangeLabel(this._normalizeRange(range)))
           ))];
@@ -7631,8 +7672,14 @@ export class SheetGridController {
       : null;
     const tableFilterRangeBeforeEdit = tableStateBeforeEdit ? (this.sheetStates?.[this.activeSheet]?.filterRange || "") : "";
 
-    if (recordUndo && val === "" && item.isArrayFormula && item.arrayRange) {
-      return this._clearArrayFormula(item.arrayRange);
+    if (recordUndo && item.isArrayFormula && item.arrayRange) {
+      if (!this._selectionMatchesArrayRange(item.arrayRange)) {
+        this._notifyArrayPartEdit();
+        return false;
+      }
+      if (val === "") return this._clearArrayFormula(item.arrayRange);
+      this._notifyArrayPartEdit();
+      return false;
     }
 
     const escapedText = typeof val === "string" && val.startsWith("'");
@@ -8166,22 +8213,19 @@ export class SheetGridController {
 
   enterArrayFormula(options = {}) {
     options = options || {};
-    const formula = String(options.formula ?? this.formulaInput?.value ?? "").trim();
+    const formula = String(options.formula ?? this.formulaInput?.value ?? "").trim().replace(/^\{(=.*)\}$/s, "$1");
     if (!formula.startsWith("=")) return false;
     const range = this._normalizeRange();
-    const transposeMatch = formula.match(/^=TRANSPOSE\s*\((.*)\)$/i);
-    if (transposeMatch) {
-      const args = this.formulaEngine._splitArgs(transposeMatch[1]);
-      const source = args.length === 1 ? this.formulaEngine._rangeDimensions(args[0]) : null;
-      const targetRows = range.end.r - range.start.r + 1;
-      const targetCols = this.cols.indexOf(range.end.c) - this.cols.indexOf(range.start.c) + 1;
-      if (!source || targetRows !== source.cols || targetCols !== source.rows) return false;
-    }
+    const targetRows = range.end.r - range.start.r + 1;
+    const targetCols = this.cols.indexOf(range.end.c) - this.cols.indexOf(range.start.c) + 1;
     const coords = [];
     for (let row = range.start.r; row <= range.end.r; row++) {
       for (let col = this.cols.indexOf(range.start.c); col <= this.cols.indexOf(range.end.c); col++) coords.push(`${this.cols[col]}${row}`);
     }
-    const result = this.formulaEngine.evaluateArray(formula);
+    const matrixResult = this.formulaEngine.evaluateArrayMatrix(formula);
+    const isMatrix = matrixResult && Array.isArray(matrixResult.rows);
+    if (isMatrix && (matrixResult.rows.length !== targetRows || matrixResult.rows.some(row => row.length !== targetCols))) return false;
+    const result = isMatrix ? matrixResult.rows.flat() : matrixResult;
     const values = Array.isArray(result) ? result : [result];
     if (values.length !== coords.length) return false;
     const pending = this.undoStack[this.undoStack.length - 1];
@@ -8206,6 +8250,19 @@ export class SheetGridController {
     this._recordHistory({ type: "array-formula", sheet: this.activeSheet, coords, before, after });
     this.refreshCharts();
     return true;
+  }
+
+  _selectionMatchesArrayRange(arrayRange) {
+    return String(this.getSelectedRangeLabel?.() || "").replace(/\$/g, "").toUpperCase() === String(arrayRange || "").replace(/\$/g, "").toUpperCase();
+  }
+
+  _notifyArrayPartEdit() {
+    if (typeof document === "undefined" || !document.body) return;
+    showAlertDialog({
+      title: t("sheetArrayFormula.editTitle", "Công thức mảng"),
+      message: t("sheetArrayFormula.editPartError", "Không thể thay đổi một phần của mảng. Hãy chọn toàn bộ vùng mảng rồi nhập lại bằng Ctrl+Shift+Enter."),
+      type: "warning"
+    });
   }
 
   _clearArrayFormula(arrayRange) {
@@ -14942,6 +14999,16 @@ export class SheetGridController {
     if (recordUndo && this._guardProtectedMutation()) return false;
     const targetRange = this._normalizeRange(range || this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
     const coords = this.formulaEngine.expandRange(this._rangeLabel(targetRange));
+    if (coords.every(coord => {
+      const item = this.cellsData.get(coord);
+      return !item || (!item.formula && (item.val === "" || item.val === null || item.val === undefined) && !item.isArrayFormula);
+    })) return false;
+    const arrayRanges = [...new Set(coords.map(coord => this.cellsData.get(coord)?.arrayRange).filter(Boolean))];
+    if (arrayRanges.length) {
+      if (arrayRanges.length === 1 && this._selectionMatchesArrayRange(arrayRanges[0])) return this._clearArrayFormula(arrayRanges[0]);
+      this._notifyArrayPartEdit();
+      return false;
+    }
 
     const before = {};
     const after = {};

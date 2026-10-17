@@ -422,6 +422,10 @@ export const viStrings = {
     drawing: { arrange: "Sắp xếp" },
     section: "Phần"
   },
+  sheetArrayFormula: {
+    editTitle: "Công thức mảng",
+    editPartError: "Không thể thay đổi một phần của mảng. Hãy chọn toàn bộ vùng mảng rồi nhập lại bằng Ctrl+Shift+Enter."
+  },
   sheetDialogs: {
     slicer: { title: "Chèn bộ lọc trực quan", hint: "Chọn một hoặc nhiều cột của bảng để tạo bộ lọc nổi.", columns: "Cột của bảng", chooseColumn: "Hãy chọn ít nhất một cột." },
     editLinks: {

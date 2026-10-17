@@ -1007,14 +1007,16 @@ export const SHEET_HELP_ENTRIES = [
       "sheet.formula.arrayEnter"
     ],
     title: "Chế độ tính toán, F9 và công thức mảng",
-    summary: "Mặc định Tự động: sửa ô nguồn là tính lại ngay. Thủ công giữ nguyên kết quả cũ cho tới F9 (toàn workbook) hoặc Shift+F9 (trang hiện tại). Ctrl+Shift+Enter nhập công thức mảng cho vùng đã bôi.",
+    summary: "Mặc định Tự động: sửa ô nguồn là tính lại ngay. Thủ công giữ nguyên kết quả cũ cho tới F9 (toàn sổ) hoặc Shift+F9 (trang hiện tại). Ctrl+Shift+Enter nhập công thức mảng cho vùng đã bôi.",
     ribbon: { tab: "Công thức", tabId: "formulas", group: "Tính toán" },
-    keywords: ["tính toán", "tự động", "thủ công", "manual", "f9", "shift+f9", "công thức mảng", "ctrl+shift+enter", "array formula", "TRANSPOSE", "chuyển vị", "tính lại"],
+    keywords: ["tính toán", "tự động", "thủ công", "manual", "f9", "shift+f9", "công thức mảng", "ctrl+shift+enter", "array formula", "TRANSPOSE", "MMULT", "MINVERSE", "MUNIT", "FREQUENCY", "LINEST", "TREND", "GROWTH", "LOGEST", "chuyển vị", "tính lại"],
     steps: [
       "Tab Công thức, nhóm Tính toán: hộp chọn Tự động (Automatic) / Thủ công (Manual), nút Tính lại toàn bộ (F9), Tính trang hiện tại (Shift+F9). Chọn Thủ công rồi nhấn Ctrl+S để lưu; XLSX ghi chế độ manual, các ứng dụng hỗ trợ thiết lập này sẽ mở tệp ở chế độ tính thủ công. Hai lệnh modeAutomatic / modeManual không có nút riêng — chúng là giá trị của hộp Tùy chọn tính toán.",
       "Tự động (mặc định): mỗi lần setCellValue chạy tính lại phụ thuộc. Thủ công: sửa A1 không đổi ô =A1*2 cho tới khi nhấn F9 (mọi sheet) hoặc Shift+F9 (chỉ sheet đang mở). Chuyển từ Thủ công về Tự động sẽ tính lại toàn bộ ngay.",
-      "Công thức mảng không có nút ribbon: bôi vùng kết quả, gõ công thức bắt đầu bằng = trên thanh công thức, nhấn Ctrl+Shift+Enter. Ví dụ, dữ liệu A1:C2 có 2 hàng × 3 cột thì bôi D1:E3 (3 hàng × 2 cột), nhập =TRANSPOSE(A1:C2), rồi nhấn Ctrl+Shift+Enter để chuyển hàng thành cột. Nếu chỉ nhấn Enter, kết quả theo giao mảng tại vị trí ô và có thể là #VALUE!; Ctrl+Shift+Enter điền toàn bộ mảng. Kích thước vùng đích phải khớp kết quả — lệch thì lệnh không ghi.",
-      "F9 / Shift+F9 dùng cả khi đang Tự động (ép tính lại). Ctrl+Z hoàn tác lần nhập mảng. Công thức thường (không mảng) xác nhận bằng Enter."
+      "Công thức mảng không có nút ribbon: bôi đúng vùng kết quả, gõ công thức bắt đầu bằng = trên thanh công thức, rồi nhấn Ctrl+Shift+Enter. Ví dụ, dữ liệu A1:C2 có 2 hàng × 3 cột thì bôi D1:E3, nhập =TRANSPOSE(A1:C2) và nhấn Ctrl+Shift+Enter. Thanh công thức hiện {=TRANSPOSE(A1:C2)} để nhận biết cả vùng là một khối mảng; dấu ngoặc nhọn do ứng dụng quản lý, không cần tự gõ.",
+      "Các hàm trả nhiều ô gồm MMULT (nhân ma trận), MINVERSE (ma trận nghịch đảo), MUNIT (ma trận đơn vị), TRANSPOSE, FREQUENCY, LINEST, TREND, GROWTH và LOGEST. Vùng đích phải có đúng số hàng và cột của kết quả. Có thể lấy một phần tử trong ô thường bằng INDEX(hàm_mảng; hàng; cột), hoặc gom kết quả bằng SUM hay SUMPRODUCT.",
+      "Để dùng điều kiện theo từng ô, bôi một ô kết quả, nhập ví dụ =SUM(IF(A1:B2>1;1;0)) rồi nhấn Ctrl+Shift+Enter. Nếu chỉ nhấn Enter, công thức thường không chạy theo ngữ cảnh mảng và có thể trả #VALUE!.",
+      "Không thể sửa hoặc xóa riêng một ô thuộc khối mảng. Hãy chọn toàn bộ vùng mảng, nhập lại công thức và nhấn Ctrl+Shift+Enter; muốn xóa thì chọn cả vùng rồi nhấn Delete. Ctrl+Z hoàn tác toàn bộ lần nhập hoặc xóa mảng trong một bước. F9 / Shift+F9 vẫn dùng để ép tính lại."
     ]
   },
   {

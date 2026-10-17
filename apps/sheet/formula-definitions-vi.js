@@ -1812,6 +1812,78 @@ export const VI_FORMULA_CATALOG = [
     example: "=DB(100000000; 10000000; 5; 1; 12)"
   },
   {
+    name: "MMULT",
+    category: "Toán học",
+    desc: "Nhân hai ma trận và trả về ma trận tích.",
+    syntax: "MMULT(array1, array2)",
+    syntaxVi: "MMULT(ma_trận_1, ma_trận_2)",
+    params: [{ name: "ma_trận_1", desc: "Ma trận bên trái." }, { name: "ma_trận_2", desc: "Ma trận bên phải; số hàng phải bằng số cột của ma trận bên trái." }],
+    example: "=MMULT(A1:B2; D1:E2)"
+  },
+  {
+    name: "MINVERSE",
+    category: "Toán học",
+    desc: "Trả về ma trận nghịch đảo của một ma trận vuông.",
+    syntax: "MINVERSE(array)",
+    syntaxVi: "MINVERSE(ma_trận_vuông)",
+    params: [{ name: "ma_trận_vuông", desc: "Ma trận số có cùng số hàng và số cột." }],
+    example: "=MINVERSE(A1:B2)"
+  },
+  {
+    name: "MUNIT",
+    category: "Toán học",
+    desc: "Tạo ma trận đơn vị vuông với kích thước đã cho.",
+    syntax: "MUNIT(dimension)",
+    syntaxVi: "MUNIT(kích_thước)",
+    params: [{ name: "kích_thước", desc: "Số hàng và số cột của ma trận đơn vị." }],
+    example: "=MUNIT(3)"
+  },
+  {
+    name: "FREQUENCY",
+    category: "Thống kê",
+    desc: "Đếm tần suất dữ liệu theo từng khoảng giới hạn và trả về một cột kết quả.",
+    syntax: "FREQUENCY(data_array, bins_array)",
+    syntaxVi: "FREQUENCY(vùng_dữ_liệu, vùng_giới_hạn)",
+    params: [{ name: "vùng_dữ_liệu", desc: "Các giá trị cần đếm." }, { name: "vùng_giới_hạn", desc: "Các giới hạn trên của từng khoảng." }],
+    example: "=FREQUENCY(A2:A20; C2:C5)"
+  },
+  {
+    name: "LINEST",
+    category: "Thống kê",
+    desc: "Ước lượng hồi quy tuyến tính; tùy chọn thống kê trả về bảng năm hàng.",
+    syntax: "LINEST(known_y's, [known_x's], [const], [stats])",
+    syntaxVi: "LINEST(y_đã_biết, [x_đã_biết], [có_hệ_số_tự_do], [trả_thống_kê])",
+    params: [{ name: "y_đã_biết", desc: "Các giá trị phụ thuộc." }, { name: "[x_đã_biết]", desc: "Một hoặc nhiều cột biến độc lập.", optional: true }, { name: "[có_hệ_số_tự_do]", desc: "TRUE để ước lượng hệ số tự do.", optional: true }, { name: "[trả_thống_kê]", desc: "TRUE để trả thêm sai số và thống kê hồi quy.", optional: true }],
+    example: "=LINEST(B2:B10; A2:A10; TRUE; TRUE)"
+  },
+  {
+    name: "TREND",
+    category: "Thống kê",
+    desc: "Dự báo các giá trị theo xu hướng tuyến tính.",
+    syntax: "TREND(known_y's, [known_x's], [new_x's], [const])",
+    syntaxVi: "TREND(y_đã_biết, [x_đã_biết], [x_mới], [có_hệ_số_tự_do])",
+    params: [{ name: "y_đã_biết", desc: "Các giá trị kết quả đã biết." }, { name: "[x_đã_biết]", desc: "Các biến độc lập đã biết.", optional: true }, { name: "[x_mới]", desc: "Các điểm cần dự báo.", optional: true }, { name: "[có_hệ_số_tự_do]", desc: "TRUE để ước lượng hệ số tự do.", optional: true }],
+    example: "=TREND(B2:B10; A2:A10; D2:D4)"
+  },
+  {
+    name: "GROWTH",
+    category: "Thống kê",
+    desc: "Dự báo các giá trị theo xu hướng tăng trưởng hàm mũ.",
+    syntax: "GROWTH(known_y's, [known_x's], [new_x's], [const])",
+    syntaxVi: "GROWTH(y_đã_biết, [x_đã_biết], [x_mới], [có_hệ_số_tự_do])",
+    params: [{ name: "y_đã_biết", desc: "Các giá trị dương đã biết." }, { name: "[x_đã_biết]", desc: "Các biến độc lập đã biết.", optional: true }, { name: "[x_mới]", desc: "Các điểm cần dự báo.", optional: true }, { name: "[có_hệ_số_tự_do]", desc: "TRUE để ước lượng hệ số tự do.", optional: true }],
+    example: "=GROWTH(B2:B10; A2:A10; D2:D4)"
+  },
+  {
+    name: "LOGEST",
+    category: "Thống kê",
+    desc: "Ước lượng hồi quy hàm mũ và có thể trả thêm thống kê hồi quy.",
+    syntax: "LOGEST(known_y's, [known_x's], [const], [stats])",
+    syntaxVi: "LOGEST(y_đã_biết, [x_đã_biết], [có_hệ_số_tự_do], [trả_thống_kê])",
+    params: [{ name: "y_đã_biết", desc: "Các giá trị dương phụ thuộc." }, { name: "[x_đã_biết]", desc: "Một hoặc nhiều cột biến độc lập.", optional: true }, { name: "[có_hệ_số_tự_do]", desc: "TRUE để ước lượng hệ số tự do.", optional: true }, { name: "[trả_thống_kê]", desc: "TRUE để trả thêm sai số và thống kê hồi quy.", optional: true }],
+    example: "=LOGEST(B2:B10; A2:A10; TRUE; TRUE)"
+  },
+  {
     name: "VND",
     category: "Tài chính",
     desc: "Chuyển đổi số tiền thành chữ tiếng Việt (ví dụ: 1250000 → Một triệu hai trăm năm mươi ngàn đồng chẵn).",
