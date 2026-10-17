@@ -417,8 +417,8 @@ export const enStrings = {
   },
   sheetSlicer: { selectTable: "Select a cell in a table before inserting a visual filter.", layer: "Visual filters", aria: "Filter", multi: "Multi-select", clear: "Clear filter", close: "Remove visual filter" },
   slidesRibbon: {
-    tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant" },
-    group: { slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
+    tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant", tableLayout: "Table Layout" },
+    group: { tableRowsCols: "Rows & Columns", tableMerge: "Merge", slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
     editing: { select: "Select" },
     drawing: { arrange: "Arrange" },
     section: "Section"
@@ -969,6 +969,15 @@ export const enStrings = {
     ,"slides.media.insertVideo": { label: "Video", tooltip: "Insert a video from this device" }
     ,"slides.media.insertAudio": { label: "Audio", tooltip: "Insert audio from this device" }
     ,"slides.insert.table": { label: "Table", tooltip: "Insert a table you can drag and resize" }
+  ,"slides.table.insertRowAbove": { label: "Insert Row Above", tooltip: "Insert an empty row above the row with the cursor" }
+  ,"slides.table.insertRowBelow": { label: "Insert Row Below", tooltip: "Insert an empty row below the row with the cursor" }
+  ,"slides.table.insertColLeft": { label: "Insert Column Left", tooltip: "Insert an empty column to the left of the column with the cursor" }
+  ,"slides.table.insertColRight": { label: "Insert Column Right", tooltip: "Insert an empty column to the right of the column with the cursor" }
+  ,"slides.table.deleteRow": { label: "Delete Row", tooltip: "Delete the row with the cursor" }
+  ,"slides.table.deleteCol": { label: "Delete Column", tooltip: "Delete the column with the cursor" }
+  ,"slides.table.deleteTable": { label: "Delete Table", tooltip: "Delete the whole selected table" }
+  ,"slides.table.mergeCells": { label: "Merge Cells", tooltip: "Merge the selected cells (click the first cell, hold Shift and click the last) into one" }
+  ,"slides.table.splitCell": { label: "Split Cells", tooltip: "Split a merged cell back into its original cells" }
     ,"slides.insert.chart": { label: "Chart", tooltip: "Insert a chart into the active slide" }
     ,"slides.insert.headerFooter": { label: "Header & Footer", tooltip: "Show or hide date, slide number, and footer" }
     ,"slides.insert.dateTime": { label: "Date & Time", tooltip: "Insert an auto-updating date and time placeholder" }

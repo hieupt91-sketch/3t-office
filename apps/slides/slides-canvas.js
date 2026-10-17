@@ -198,6 +198,8 @@ export function cursorForHandle(dir, rotationDeg) {
   return CURSOR_CYCLE[idx];
 }
 
+import { tableState, mergeMap, expandSelection, insertRow as tblInsertRow, insertCol as tblInsertCol, deleteRow as tblDeleteRow, deleteCol as tblDeleteCol, mergeCells as tblMergeCells, splitCell as tblSplitCell } from "./slide-table-ops.js";
+
 export class SlidesCanvasController {
   constructor(container, options = {}) {
     this.container = container;
@@ -1628,6 +1630,7 @@ export class SlidesCanvasController {
    */
   setSelectedTarget(target, extraTargets = []) {
     this.selectedTarget = target;
+    if (target == null || target === "title" || target === "body" || target === "body2") this._tableCursor = null;
     if (!this.selectedShapeIds) this.selectedShapeIds = new Set();
     this.diagramGroupSelectionId = null;
     if (target === "title" || target === "body" || target === "body2" || target == null) {
@@ -1636,6 +1639,7 @@ export class SlidesCanvasController {
       this.selectedShapeIds = new Set([String(target), ...(extraTargets || []).map(String)]);
     }
     this._updateSelectionUi();
+    this._syncTableContext();
   }
 
   /**
@@ -2830,6 +2834,148 @@ export class SlidesCanvasController {
     this.setSelectedTarget(newShape.id);
     this._renderShapesLayer();
     return newShape;
+  }
+
+  // ---------------- Thao tác bảng (Bố cục bảng) ----------------
+  _activeTableShape() {
+    const slide = this.slides[this.currentSlideIndex];
+    const id = this._tableCursor?.shapeId ?? (this.selectedTarget != null ? this.selectedTarget : null);
+    const shape = id == null ? null : (slide?.shapes || []).find(item => String(item.id) === String(id));
+    return shape && shape.type === "table" ? shape : null;
+  }
+
+  _onTableCellFocus(shape, r, c, host) {
+    const keepSelection = this._tableSel && String(this._tableSel.shapeId) === String(shape.id) && this._tableShiftDown;
+    this._tableCursor = { shapeId: shape.id, r, c };
+    if (!keepSelection) this._clearTableSelection(host);
+    this._syncTableContext(shape.id);
+  }
+
+  _clearTableSelection(host) {
+    this._tableSel = null;
+    (host || this.shapesLayer)?.querySelectorAll?.(".is-table-cell-selected").forEach(td => td.classList.remove("is-table-cell-selected"));
+  }
+
+  _extendTableSelection(shape, r, c, host) {
+    const cur = this._tableCursor;
+    if (!cur) return;
+    const box = expandSelection(shape, cur.r, cur.c, r, c);
+    this._tableSel = { shapeId: shape.id, ...box };
+    const spans = mergeMap(tableState(shape));
+    host?.querySelectorAll?.("[data-table-row]").forEach(td => {
+      const tr = Number(td.dataset.tableRow), tc = Number(td.dataset.tableCol);
+      const span = spans[tr]?.[tc];
+      const inside = tr >= box.r && tr <= box.r2 && tc >= box.c && tc <= box.c2;
+      td.classList.toggle("is-table-cell-selected", Boolean(inside && span && !span.covered));
+    });
+    this._syncTableContext(shape.id);
+  }
+
+  /** Hiện tab ngữ cảnh "Bố cục bảng" khi đang ở trong bảng. */
+  _syncTableContext(tableShapeId = null) {
+    if (typeof document === "undefined" || typeof document.querySelector !== "function") return;
+    let has = tableShapeId != null;
+    if (!has) {
+      const slide = this.slides?.[this.currentSlideIndex];
+      const sel = this.selectedTarget;
+      has = sel != null && (slide?.shapes || []).some(item => String(item.id) === String(sel) && item.type === "table");
+    }
+    const tab = document.querySelector("#vno-ribbon-tab-tableLayout");
+    if (tab) { tab.hidden = !has; tab.setAttribute("aria-hidden", has ? "false" : "true"); }
+  }
+
+  _commitTableChange(shape, next) {
+    const keys = ["rows", "cols", "cells", "merges", "w", "h"];
+    const before = {};
+    const after = {};
+    for (const key of keys) {
+      before[key] = shape[key] === undefined ? undefined : JSON.parse(JSON.stringify(shape[key]));
+      after[key] = JSON.parse(JSON.stringify(next[key]));
+    }
+    Object.assign(shape, JSON.parse(JSON.stringify(next)));
+    this.undoStack.push({ type: "shape-format", slideIndex: this.currentSlideIndex, shapeId: shape.id, before, after });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._tableSel = null;
+    this._renderShapesLayer();
+    return true;
+  }
+
+  _tableNotice(message) {
+    try { this.onStatus?.(message); } catch { /* không có thanh trạng thái */ }
+    return false;
+  }
+
+  tableInsertRow(where = "below") {
+    const shape = this._activeTableShape();
+    const cur = this._tableCursor;
+    if (!shape) return this._tableNotice("Hãy đặt con trỏ vào một ô của bảng.");
+    const anchor = cur && String(cur.shapeId) === String(shape.id) ? cur : { r: 0, c: 0 };
+    const state = tableState(shape);
+    const spanRow = Math.max(...state.merges.filter(m => anchor.r >= m.r && anchor.r < m.r + m.rs && anchor.c >= m.c && anchor.c < m.c + m.cs).map(m => m.r + m.rs - 1), anchor.r);
+    const index = where === "above" ? anchor.r : spanRow + 1;
+    const next = tblInsertRow(shape, index);
+    return next ? this._commitTableChange(shape, next) : this._tableNotice("Không thể chèn thêm hàng (tối đa 50 hàng).");
+  }
+
+  tableInsertCol(where = "right") {
+    const shape = this._activeTableShape();
+    const cur = this._tableCursor;
+    if (!shape) return this._tableNotice("Hãy đặt con trỏ vào một ô của bảng.");
+    const anchor = cur && String(cur.shapeId) === String(shape.id) ? cur : { r: 0, c: 0 };
+    const state = tableState(shape);
+    const spanCol = Math.max(...state.merges.filter(m => anchor.r >= m.r && anchor.r < m.r + m.rs && anchor.c >= m.c && anchor.c < m.c + m.cs).map(m => m.c + m.cs - 1), anchor.c);
+    const index = where === "left" ? anchor.c : spanCol + 1;
+    const next = tblInsertCol(shape, index);
+    return next ? this._commitTableChange(shape, next) : this._tableNotice("Không thể chèn thêm cột (tối đa 26 cột).");
+  }
+
+  tableDeleteRow() {
+    const shape = this._activeTableShape();
+    const cur = this._tableCursor;
+    if (!shape || !cur) return this._tableNotice("Hãy đặt con trỏ vào một ô của bảng.");
+    const next = tblDeleteRow(shape, cur.r);
+    if (!next) return this._tableNotice("Bảng chỉ còn một hàng. Dùng «Xóa bảng» để xóa cả bảng.");
+    this._tableCursor = { shapeId: shape.id, r: Math.min(cur.r, next.rows - 1), c: Math.min(cur.c, next.cols - 1) };
+    return this._commitTableChange(shape, next);
+  }
+
+  tableDeleteCol() {
+    const shape = this._activeTableShape();
+    const cur = this._tableCursor;
+    if (!shape || !cur) return this._tableNotice("Hãy đặt con trỏ vào một ô của bảng.");
+    const next = tblDeleteCol(shape, cur.c);
+    if (!next) return this._tableNotice("Bảng chỉ còn một cột. Dùng «Xóa bảng» để xóa cả bảng.");
+    this._tableCursor = { shapeId: shape.id, r: Math.min(cur.r, next.rows - 1), c: Math.min(cur.c, next.cols - 1) };
+    return this._commitTableChange(shape, next);
+  }
+
+  tableDelete() {
+    const shape = this._activeTableShape();
+    if (!shape) return this._tableNotice("Hãy chọn một bảng.");
+    this._tableCursor = null;
+    this._tableSel = null;
+    this.deleteShape(shape.id);
+    this._syncTableContext(null);
+    return true;
+  }
+
+  tableMergeCells() {
+    const shape = this._activeTableShape();
+    const sel = this._tableSel;
+    if (!shape || !sel || String(sel.shapeId) !== String(shape.id)) return this._tableNotice("Chọn ít nhất hai ô: nhấp vào ô đầu, giữ Shift và nhấp vào ô cuối.");
+    const next = tblMergeCells(shape, sel.r, sel.c, sel.r2, sel.c2);
+    if (!next) return this._tableNotice("Chọn ít nhất hai ô để gộp.");
+    this._tableCursor = { shapeId: shape.id, r: sel.r, c: sel.c };
+    return this._commitTableChange(shape, next);
+  }
+
+  tableSplitCell() {
+    const shape = this._activeTableShape();
+    const cur = this._tableCursor;
+    if (!shape || !cur) return this._tableNotice("Hãy đặt con trỏ vào ô đã gộp.");
+    const next = tblSplitCell(shape, cur.r, cur.c);
+    return next ? this._commitTableChange(shape, next) : this._tableNotice("Ô này chưa được gộp nên không cần tách.");
   }
 
   /**
@@ -4424,16 +4570,31 @@ const startEditing = (initialText) => {
         const table = document.createElement("table");
         table.className = "vno-slide-table";
         table.style.cssText = "width:100%;height:100%;border-collapse:collapse;background:#fff;table-layout:fixed;";
-        (shape.cells || []).forEach((row, r) => {
+        const tableModel = tableState(shape);
+        const tableMap = mergeMap(tableModel);
+        tableModel.cells.forEach((row, r) => {
           const tr = document.createElement("tr");
           (row || []).forEach((cell, c) => {
+            const spanInfo = tableMap[r][c];
+            if (spanInfo.covered) return; // ô bị gộp vào ô khác: không vẽ
             const td = document.createElement(r === 0 ? "th" : "td");
+            if (spanInfo.rs > 1) td.rowSpan = spanInfo.rs;
+            if (spanInfo.cs > 1) td.colSpan = spanInfo.cs;
+            td.dataset.tableRow = String(r);
+            td.dataset.tableCol = String(c);
             td.contentEditable = "true";
             td.dataset.vnoNativeClipboard = "true";
             if (this._htmlLooksFormatted(cell)) td.innerHTML = cell;
             else td.textContent = cell || "";
             td.style.cssText = "border:1px solid #94a3b8;padding:6px 8px;font-size:13px;background:#fff;font-weight:" + (r === 0 ? "700" : "400") + ";";
-            td.addEventListener("mousedown", (event) => event.stopPropagation());
+            td.addEventListener("mousedown", (event) => {
+              event.stopPropagation();
+              if (event.shiftKey && this._tableCursor && String(this._tableCursor.shapeId) === String(shape.id)) {
+                event.preventDefault(); // Shift+nhấp: chọn dải ô để gộp
+                this._extendTableSelection(shape, r, c, el);
+              }
+            });
+            td.addEventListener("focus", () => this._onTableCellFocus(shape, r, c, el));
             td.addEventListener("input", () => {
               if (!shape.cells[r]) shape.cells[r] = [];
               const html = this._captureEditableHtml(td);

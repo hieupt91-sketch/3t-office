@@ -536,6 +536,37 @@ export const SLIDES_RIBBON_TABS = [
     ]
   },
   {
+    id: "tableLayout",
+    label: "Bố cục bảng",
+    labelKey: "slidesRibbon.tab.tableLayout",
+    contextual: true,
+    groups: [
+      {
+        id: "tableRowsCols",
+        label: "Hàng và cột",
+        labelKey: "slidesRibbon.group.tableRowsCols",
+        items: [
+          { type: "button", commandId: "slides.table.insertRowAbove" },
+          { type: "button", commandId: "slides.table.insertRowBelow" },
+          { type: "button", commandId: "slides.table.insertColLeft" },
+          { type: "button", commandId: "slides.table.insertColRight" },
+          { type: "button", commandId: "slides.table.deleteRow" },
+          { type: "button", commandId: "slides.table.deleteCol" },
+          { type: "button", commandId: "slides.table.deleteTable" }
+        ]
+      },
+      {
+        id: "tableMerge",
+        label: "Gộp",
+        labelKey: "slidesRibbon.group.tableMerge",
+        items: [
+          { type: "button", commandId: "slides.table.mergeCells", isLarge: true },
+          { type: "button", commandId: "slides.table.splitCell", isLarge: true }
+        ]
+      }
+    ]
+  },
+  {
     id: "ai",
     label: "Trợ lý 3T AI",
     labelKey: "slidesRibbon.tab.ai",

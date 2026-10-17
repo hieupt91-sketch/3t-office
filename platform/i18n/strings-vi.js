@@ -416,8 +416,8 @@ export const viStrings = {
   },
   sheetSlicer: { selectTable: "Hãy chọn một ô trong bảng trước khi chèn bộ lọc trực quan.", layer: "Bộ lọc trực quan", aria: "Bộ lọc", multi: "Chọn nhiều", clear: "Xóa bộ lọc", close: "Xóa bộ lọc trực quan" },
   slidesRibbon: {
-    tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI" },
-    group: { slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Hiệu đính", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
+    tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI", tableLayout: "Bố cục bảng" },
+    group: { tableRowsCols: "Hàng và cột", tableMerge: "Gộp", slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Hiệu đính", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
     editing: { select: "Chọn" },
     drawing: { arrange: "Sắp xếp" },
     section: "Phần"
@@ -968,6 +968,15 @@ export const viStrings = {
     ,"slides.media.insertVideo": { label: "Video", tooltip: "Chèn video từ máy tính" }
     ,"slides.media.insertAudio": { label: "Âm thanh", tooltip: "Chèn âm thanh từ máy tính" }
     ,"slides.insert.table": { label: "Bảng", tooltip: "Chèn bảng vào trang chiếu, kéo-thả và đổi kích thước được" }
+  ,"slides.table.insertRowAbove": { label: "Chèn hàng phía trên", tooltip: "Chèn một hàng trống phía trên hàng chứa con trỏ" }
+  ,"slides.table.insertRowBelow": { label: "Chèn hàng phía dưới", tooltip: "Chèn một hàng trống phía dưới hàng chứa con trỏ" }
+  ,"slides.table.insertColLeft": { label: "Chèn cột bên trái", tooltip: "Chèn một cột trống bên trái cột chứa con trỏ" }
+  ,"slides.table.insertColRight": { label: "Chèn cột bên phải", tooltip: "Chèn một cột trống bên phải cột chứa con trỏ" }
+  ,"slides.table.deleteRow": { label: "Xóa hàng", tooltip: "Xóa hàng chứa con trỏ" }
+  ,"slides.table.deleteCol": { label: "Xóa cột", tooltip: "Xóa cột chứa con trỏ" }
+  ,"slides.table.deleteTable": { label: "Xóa bảng", tooltip: "Xóa toàn bộ bảng đang chọn" }
+  ,"slides.table.mergeCells": { label: "Gộp ô", tooltip: "Gộp các ô đang chọn (nhấp ô đầu, giữ Shift và nhấp ô cuối) thành một ô" }
+  ,"slides.table.splitCell": { label: "Tách ô", tooltip: "Tách ô đã gộp trở lại các ô ban đầu" }
     ,"slides.insert.chart": { label: "Biểu đồ", tooltip: "Chèn biểu đồ vào trang chiếu" }
     ,"slides.insert.headerFooter": { label: "Đầu trang & Chân trang", tooltip: "Bật/tắt ngày tháng, số trang và chân trang" }
     ,"slides.insert.dateTime": { label: "Ngày & Giờ", tooltip: "Chèn placeholder ngày giờ tự cập nhật" }

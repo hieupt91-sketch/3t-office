@@ -253,11 +253,11 @@ Công cụ bảng > Thiết kế|Tùy chọn kiểu|Cột sọc xen kẽ (Banded
 Công cụ bảng > Thiết kế|Kiểu bảng|Thư viện kiểu dáng bảng (Table Styles Gallery)|N|2|Chưa có thư viện kiểu dáng bảng mẫu (Table Styles Gallery)
 Công cụ bảng > Thiết kế|Kiểu bảng|Tô màu nền ô (Table Shading)|N|2|Chưa có công cụ tô màu nền ô bảng (Table Shading) trên ribbon
 Công cụ bảng > Thiết kế|Kiểu bảng|Đường viền bảng (Table Borders: Tất cả, Viền ngoài, Không viền)|N|2|Chưa có công cụ định dạng viền bảng (Table Borders) trên ribbon
-Công cụ bảng > Bố trí|Hàng & Cột|Chèn hàng trên / dưới (Insert Above / Below)|N|1|Chưa hỗ trợ chèn hàng trên/dưới trong bảng
-Công cụ bảng > Bố trí|Hàng & Cột|Chèn cột trái / phải (Insert Left / Right)|N|1|Chưa hỗ trợ chèn cột trái/phải trong bảng
-Công cụ bảng > Bố trí|Hàng & Cột|Xóa hàng / Xóa cột / Xóa bảng (Delete)|N|1|Chưa hỗ trợ xóa hàng/cột trong bảng
-Công cụ bảng > Bố trí|Gộp ô|Gộp ô (Merge Cells)|N|1|Chưa hỗ trợ gộp ô trong bảng slide
-Công cụ bảng > Bố trí|Gộp ô|Tách ô (Split Cells)|N|2|Chưa hỗ trợ tách ô trong bảng slide
+Công cụ bảng > Bố trí|Hàng & Cột|Chèn hàng trên / dưới (Insert Above / Below)|V|-|17/10: slides.table.insertRowAbove, slides.table.insertRowBelow; CDP 17/17, hoàn tác một bước, vùng gộp dài thêm (docs/AUDIT-SLIDES-TABLE-1710.md:8)
+Công cụ bảng > Bố trí|Hàng & Cột|Chèn cột trái / phải (Insert Left / Right)|V|-|17/10: slides.table.insertColLeft, slides.table.insertColRight; CDP 17/17, hoàn tác một bước (docs/AUDIT-SLIDES-TABLE-1710.md:9)
+Công cụ bảng > Bố trí|Hàng & Cột|Xóa hàng / Xóa cột / Xóa bảng (Delete)|V|-|17/10: slides.table.deleteRow, slides.table.deleteCol, slides.table.deleteTable; CDP 17/17, không mất chữ ô neo (docs/AUDIT-SLIDES-TABLE-1710.md:10)
+Công cụ bảng > Bố trí|Gộp ô|Gộp ô (Merge Cells)|V|-|17/10: slides.table.mergeCells; lưu PPTX rồi PowerPoint 2016 COM đọc đúng 2 vùng gộp, mở lại VN Slides đọc đúng (docs/AUDIT-SLIDES-TABLE-1710.md:11)
+Công cụ bảng > Bố trí|Gộp ô|Tách ô (Split Cells)|V|-|17/10: slides.table.splitCell; CDP 17/17, hoàn tác một bước (docs/AUDIT-SLIDES-TABLE-1710.md:12)
 Công cụ bảng > Bố trí|Kích thước ô|Chiều cao hàng / Chiều rộng cột bảng|N|2|Chưa hỗ trợ chỉnh kích thước hàng/cột bảng chính xác
 Công cụ bảng > Bố trí|Kích thước ô|Phân phối đều hàng / cột (Distribute Rows / Columns)|N|2|Chưa hỗ trợ phân phối đều hàng/cột bảng
 Công cụ bảng > Bố trí|Căn chỉnh ô|Căn lề ô: Trái, Giữa, Phải, Trên, Giữa dọc, Dưới|N|2|Chưa có công cụ căn lề văn bản bên trong ô bảng

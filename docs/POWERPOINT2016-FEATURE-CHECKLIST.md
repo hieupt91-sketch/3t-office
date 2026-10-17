@@ -16,15 +16,15 @@ Chuẩn: Microsoft PowerPoint 2016 (16.0.4266) cài trên máy, đọc chỉ-đ�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu PowerPoint 2016 | 84 | 32% |
+| ✅ Đã đối chiếu PowerPoint 2016 | 89 | 34% |
 | 🟢 Có, chưa đối chiếu | 49 | 19% |
 | 🟡 Có một phần | 22 | 8% |
-| 🔴 Chưa có | 108 | 41% |
+| 🔴 Chưa có | 103 | 39% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **269** (áp dụng: 263) | |
 
-- **Độ phủ so với PowerPoint 2016 (có hoặc có một phần, một phần tính 0,5): 55%**
-- **Đã xác minh bằng đối chiếu PowerPoint 2016 thật: 32%** các mục áp dụng
+- **Độ phủ so với PowerPoint 2016 (có hoặc có một phần, một phần tính 0,5): 57%**
+- **Đã xác minh bằng đối chiếu PowerPoint 2016 thật: 34%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tính một mục; đo kiểu ghi-rồi-đọc-lại trên PowerPoint COM chỉ xác nhận ngữ nghĩa thuộc tính của PowerPoint, KHÔNG tự nhận là parity hoàn chỉnh nếu chưa có kiểm chứng khứ hồi.
 
@@ -44,7 +44,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Công cụ vẽ > Định dạng | 17 | 2 | 6 | 2 | 7 | 0 | 53% |
 | Công cụ hình ảnh > Định dạng | 12 | 0 | 0 | 5 | 7 | 0 | 21% |
 | Công cụ bảng > Thiết kế | 8 | 0 | 0 | 0 | 8 | 0 | 0% |
-| Công cụ bảng > Bố trí | 8 | 0 | 0 | 0 | 8 | 0 | 0% |
+| Công cụ bảng > Bố trí | 8 | 5 | 0 | 0 | 3 | 0 | 62% |
 | Công cụ biểu đồ > Thiết kế | 8 | 0 | 0 | 2 | 6 | 0 | 12% |
 | Công cụ phương tiện > Phát lại | 5 | 0 | 0 | 2 | 3 | 0 | 20% |
 | Không thuộc ribbon | 11 | 4 | 7 | 0 | 0 | 0 | 100% |
@@ -64,12 +64,8 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Hoạt ảnh | Hoạt ảnh | Nhóm Thoát (Exit Effects: Disappear, Fade, Fly Out) | 🔴 | Chưa hỗ trợ nhóm hiệu ứng Biến mất/Thoát (Exit: Disappear, Fly Out) |
 | Công cụ vẽ > Định dạng | Kiểu chữ WordArt | Hiệu ứng chữ nghệ thuật (Text Effects: Warp, Shadow, 3D) | 🟡 | FIX-L14: có textFadeRight nhưng PowerPoint COM nhận dạng PresetTextEffect=-2 chưa chuẩn native (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
 | Công cụ hình ảnh > Định dạng | Kích thước | Cắt xén ảnh (Crop to Shape / Aspect Ratio) | 🟡 | Đọc và hiển thị ảnh cắt xén (apps/slides/slides-canvas.js:3406); chưa có công cụ kéo cắt xén ảnh trực tiếp trên UI |
-| Công cụ bảng > Bố trí | Hàng & Cột | Chèn hàng trên / dưới (Insert Above / Below) | 🔴 | Chưa hỗ trợ chèn hàng trên/dưới trong bảng |
-| Công cụ bảng > Bố trí | Hàng & Cột | Chèn cột trái / phải (Insert Left / Right) | 🔴 | Chưa hỗ trợ chèn cột trái/phải trong bảng |
-| Công cụ bảng > Bố trí | Hàng & Cột | Xóa hàng / Xóa cột / Xóa bảng (Delete) | 🔴 | Chưa hỗ trợ xóa hàng/cột trong bảng |
-| Công cụ bảng > Bố trí | Gộp ô | Gộp ô (Merge Cells) | 🔴 | Chưa hỗ trợ gộp ô trong bảng slide |
 
-Tổng: 15 mục ưu tiên 1.
+Tổng: 11 mục ưu tiên 1.
 
 ## Danh sách 15 mục ưu tiên 1 thiếu nhất & Đề xuất 10 phiếu việc kế tiếp
 
@@ -405,11 +401,11 @@ Tổng: 15 mục ưu tiên 1.
 
 | Nhóm | Tính năng PowerPoint 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Slides |
 |---|---|---|---|---|
-| Hàng & Cột | Chèn hàng trên / dưới (Insert Above / Below) | 🔴 | 1 | Chưa hỗ trợ chèn hàng trên/dưới trong bảng |
-| Hàng & Cột | Chèn cột trái / phải (Insert Left / Right) | 🔴 | 1 | Chưa hỗ trợ chèn cột trái/phải trong bảng |
-| Hàng & Cột | Xóa hàng / Xóa cột / Xóa bảng (Delete) | 🔴 | 1 | Chưa hỗ trợ xóa hàng/cột trong bảng |
-| Gộp ô | Gộp ô (Merge Cells) | 🔴 | 1 | Chưa hỗ trợ gộp ô trong bảng slide |
-| Gộp ô | Tách ô (Split Cells) | 🔴 | 2 | Chưa hỗ trợ tách ô trong bảng slide |
+| Hàng & Cột | Chèn hàng trên / dưới (Insert Above / Below) | ✅ | - | 17/10: slides.table.insertRowAbove, slides.table.insertRowBelow; CDP 17/17, hoàn tác một bước, vùng gộp dài thêm (docs/AUDIT-SLIDES-TABLE-1710.md:8) |
+| Hàng & Cột | Chèn cột trái / phải (Insert Left / Right) | ✅ | - | 17/10: slides.table.insertColLeft, slides.table.insertColRight; CDP 17/17, hoàn tác một bước (docs/AUDIT-SLIDES-TABLE-1710.md:9) |
+| Hàng & Cột | Xóa hàng / Xóa cột / Xóa bảng (Delete) | ✅ | - | 17/10: slides.table.deleteRow, slides.table.deleteCol, slides.table.deleteTable; CDP 17/17, không mất chữ ô neo (docs/AUDIT-SLIDES-TABLE-1710.md:10) |
+| Gộp ô | Gộp ô (Merge Cells) | ✅ | - | 17/10: slides.table.mergeCells; lưu PPTX rồi PowerPoint 2016 COM đọc đúng 2 vùng gộp, mở lại VN Slides đọc đúng (docs/AUDIT-SLIDES-TABLE-1710.md:11) |
+| Gộp ô | Tách ô (Split Cells) | ✅ | - | 17/10: slides.table.splitCell; CDP 17/17, hoàn tác một bước (docs/AUDIT-SLIDES-TABLE-1710.md:12) |
 | Kích thước ô | Chiều cao hàng / Chiều rộng cột bảng | 🔴 | 2 | Chưa hỗ trợ chỉnh kích thước hàng/cột bảng chính xác |
 | Kích thước ô | Phân phối đều hàng / cột (Distribute Rows / Columns) | 🔴 | 2 | Chưa hỗ trợ phân phối đều hàng/cột bảng |
 | Căn chỉnh ô | Căn lề ô: Trái, Giữa, Phải, Trên, Giữa dọc, Dưới | 🔴 | 2 | Chưa có công cụ căn lề văn bản bên trong ô bảng |

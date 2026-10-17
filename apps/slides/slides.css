@@ -2114,3 +2114,12 @@
   .vno-chart-dialog-columns { grid-template-columns: 1fr; }
   .vno-chart-preview { height: 240px; }
 }
+
+/* Dải ô đang chọn trong bảng (Shift+nhấp) để gộp ô */
+.vno-slide-table td.is-table-cell-selected,
+.vno-slide-table th.is-table-cell-selected {
+  background: rgba(59, 130, 246, 0.22) !important;
+  outline: 2px solid #3b82f6;
+  outline-offset: -2px;
+}
+

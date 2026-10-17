@@ -378,6 +378,40 @@ export const SLIDES_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.table.rowsColumns",
+    app: "slides",
+    commandIds: [
+      "slides.table.insertRowAbove", "slides.table.insertRowBelow", "slides.table.insertColLeft", "slides.table.insertColRight",
+      "slides.table.deleteRow", "slides.table.deleteCol", "slides.table.deleteTable"
+    ],
+    title: "Chèn và xóa hàng, cột, bảng trên trang chiếu",
+    summary: "Khi bạn nhấp vào một ô của bảng, tab Bố cục bảng hiện ra. Nhóm Hàng và cột cho chèn hàng trên/dưới, cột trái/phải, xóa hàng, xóa cột và xóa cả bảng.",
+    ribbon: { tab: "Bố cục bảng", tabId: "tableLayout", group: "Hàng và cột" },
+    keywords: ["bảng", "chèn hàng", "chèn cột", "xóa hàng", "xóa cột", "xóa bảng", "bố cục bảng", "thêm hàng", "thêm cột"],
+    steps: [
+      "Nhấp chuột vào một ô bất kỳ của bảng. Tab Bố cục bảng xuất hiện cuối thanh tab (tab chỉ hiện khi bạn đang ở trong bảng).",
+      "Chèn hàng: đặt con trỏ vào ô nằm ở hàng muốn làm mốc, rồi chọn Chèn hàng phía trên hoặc Chèn hàng phía dưới. Hàng mới trống, bảng cao thêm tương ứng (tối đa 50 hàng).",
+      "Chèn cột: chọn Chèn cột bên trái hoặc Chèn cột bên phải của cột chứa con trỏ. Cột mới trống, bảng rộng thêm (tối đa 26 cột, bảng không vượt quá chiều rộng trang chiếu).",
+      "Xóa: Xóa hàng và Xóa cột xóa hàng/cột chứa con trỏ; Xóa bảng xóa toàn bộ bảng. Bảng chỉ còn một hàng hoặc một cột thì dùng Xóa bảng.",
+      "Nếu hàng hoặc cột đi qua các ô đã gộp, vùng gộp tự dài ra hoặc ngắn lại cho khớp. Ctrl+Z hoàn tác từng thao tác, Ctrl+Y làm lại.",
+      "Mọi thay đổi được lưu cùng bản trình bày; các ô đã gộp được ghi và đọc lại đúng khi lưu rồi mở lại tệp."
+    ]
+  },
+  {
+    id: "slides.table.mergeSplit",
+    app: "slides",
+    commandIds: ["slides.table.mergeCells", "slides.table.splitCell"],
+    title: "Gộp ô và tách ô trong bảng trên trang chiếu",
+    summary: "Chọn một dải ô bằng cách nhấp ô đầu rồi giữ Shift và nhấp ô cuối, sau đó chọn Gộp ô ở tab Bố cục bảng. Tách ô đưa ô đã gộp trở lại như ban đầu.",
+    ribbon: { tab: "Bố cục bảng", tabId: "tableLayout", group: "Gộp" },
+    keywords: ["gộp ô", "tách ô", "trộn ô", "merge", "shift", "dải ô", "bảng"],
+    steps: [
+      "Nhấp vào ô đầu của vùng cần gộp. Giữ phím Shift và nhấp vào ô cuối: các ô nằm giữa được tô nền để báo đang chọn. Vùng chọn tự mở rộng để không cắt ngang một ô đã gộp.",
+      "Chọn Gộp ô ở tab Bố cục bảng. Các ô thành một ô lớn; nội dung các ô không trống được nối lại, mỗi ô một dòng, vào ô trên-trái.",
+      "Muốn tách lại: đặt con trỏ vào ô đã gộp rồi chọn Tách ô. Ô trở về các ô riêng; nội dung ở lại ô trên-trái.",
+      "Nếu chọn chưa đủ hai ô, hoặc ô chưa được gộp, ứng dụng báo rõ thay vì không làm gì. Ctrl+Z hoàn tác cả thao tác gộp hoặc tách trong một bước."
+    ]
+  },  {
     id: "slides.shape.groupUngroup",
     app: "slides",
     commandIds: [

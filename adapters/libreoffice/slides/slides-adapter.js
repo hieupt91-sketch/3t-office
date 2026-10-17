@@ -224,6 +224,15 @@ export class SlidesAdapter {
     // bind explicitly instead of requiring a Platform registry change.
     globalCommandBus.bindHandler("slides.insert.chart", (options) => this.canvas.insertChart ? this.canvas.insertChart(options) : false);
     globalCommandBus.bindHandler("slides.insert.hyperlink", (options) => this.canvas.insertHyperlink ? this.canvas.insertHyperlink(options) : false);
+    globalCommandBus.bindHandler("slides.table.insertRowAbove", () => this.canvas.tableInsertRow ? this.canvas.tableInsertRow("above") : false);
+    globalCommandBus.bindHandler("slides.table.insertRowBelow", () => this.canvas.tableInsertRow ? this.canvas.tableInsertRow("below") : false);
+    globalCommandBus.bindHandler("slides.table.insertColLeft", () => this.canvas.tableInsertCol ? this.canvas.tableInsertCol("left") : false);
+    globalCommandBus.bindHandler("slides.table.insertColRight", () => this.canvas.tableInsertCol ? this.canvas.tableInsertCol("right") : false);
+    globalCommandBus.bindHandler("slides.table.deleteRow", () => this.canvas.tableDeleteRow ? this.canvas.tableDeleteRow() : false);
+    globalCommandBus.bindHandler("slides.table.deleteCol", () => this.canvas.tableDeleteCol ? this.canvas.tableDeleteCol() : false);
+    globalCommandBus.bindHandler("slides.table.deleteTable", () => this.canvas.tableDelete ? this.canvas.tableDelete() : false);
+    globalCommandBus.bindHandler("slides.table.mergeCells", () => this.canvas.tableMergeCells ? this.canvas.tableMergeCells() : false);
+    globalCommandBus.bindHandler("slides.table.splitCell", () => this.canvas.tableSplitCell ? this.canvas.tableSplitCell() : false);
     globalCommandBus.bindHandler("common.edit.hyperlink", (options) => this.canvas.insertHyperlink ? this.canvas.insertHyperlink(options) : false);
     globalCommandBus.bindHandler("slides.file.printPreview", () => this.print());
     globalCommandBus.bindHandler("slides.view.normal", () => this.canvas.setNormalView ? this.canvas.setNormalView() : false);
@@ -2234,12 +2243,17 @@ export class SlidesAdapter {
     if (type === "table") {
       const rows = Array.isArray(shape.cells) ? shape.cells : [];
       const cols = Math.max(1, Number(shape.cols) || rows.reduce((max, row) => Math.max(max, (row || []).length), 1));
-      const rowsXml = rows.map((row) => {
+      const tableSpans = Array.isArray(shape.merges) ? shape.merges : [];
+      const spanAt = (r, c) => tableSpans.find(m => r >= m.r && r < m.r + m.rs && c >= m.c && c < m.c + m.cs);
+      const rowsXml = rows.map((row, rowIndex) => {
         const cells = Array.from({ length: cols }, (_, index) => row?.[index] ?? "");
-        const cellsXml = cells.map((cell) => {
+        const cellsXml = cells.map((cell, colIndex) => {
+          const merged = spanAt(rowIndex, colIndex);
+          if (merged && (merged.r !== rowIndex || merged.c !== colIndex)) return "<table:covered-table-cell/>";
           const html = this._htmlHasFormat(cell) ? cell : "";
           const plain = html ? this._plainFromHtml(cell) : cell;
-          return `<table:table-cell office:value-type="string">${this._richOrPlainXml(plain, html, richCtx)}</table:table-cell>`;
+          const spanAttr = merged ? ` table:number-columns-spanned="${merged.cs}" table:number-rows-spanned="${merged.rs}"` : "";
+          return `<table:table-cell office:value-type="string"${spanAttr}>${this._richOrPlainXml(plain, html, richCtx)}</table:table-cell>`;
         }).join("");
         return `<table:table-row>${cellsXml}</table:table-row>`;
       }).join("");
@@ -2765,6 +2779,30 @@ export class SlidesAdapter {
     return "video";
   }
 
+  /** Các vùng ô gộp (table:number-columns-spanned / rows-spanned) của bảng FODP, theo vị trí logic. */
+  _parseTableMerges(inner) {
+    const merges = [];
+    const rowRegex = /<table:table-row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/table:table-row>)/gi;
+    let rowMatch;
+    let rowIndex = 0;
+    while ((rowMatch = rowRegex.exec(inner)) !== null) {
+      const rowRepeat = Math.max(1, Number(this._attr(rowMatch[1], "table:number-rows-repeated")) || 1);
+      const cellRegex = /<(?:table:)?(?:table-cell|covered-table-cell)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:table:)?(?:table-cell|covered-table-cell)>)/gi;
+      let cellMatch;
+      let colIndex = 0;
+      while ((cellMatch = cellRegex.exec(rowMatch[2] || "")) !== null) {
+        const colRepeat = Math.max(1, Number(this._attr(cellMatch[1], "table:number-columns-repeated")) || 1);
+        const cs = Math.max(1, Number(this._attr(cellMatch[1], "table:number-columns-spanned")) || 1);
+        const rs = Math.max(1, Number(this._attr(cellMatch[1], "table:number-rows-spanned")) || 1);
+        const isCovered = /^<(?:table:)?covered-table-cell\b/i.test(cellMatch[0]);
+        if (!isCovered && (cs > 1 || rs > 1)) merges.push({ r: rowIndex, c: colIndex, rs, cs });
+        colIndex += colRepeat;
+      }
+      rowIndex += rowRepeat;
+    }
+    return merges;
+  }
+
   _parseTableCells(inner) {
     const rows = [];
     // soffice FODP may compress identical consecutive cells/rows
@@ -2836,10 +2874,12 @@ export class SlidesAdapter {
     // (WMF/bitmap). Table must win or the shape is misread as type "image".
     if (/<table:table\b/i.test(inner)) {
       const cells = this._parseTableCells(inner);
+      const tableMerges = this._parseTableMerges(inner);
       return {
         ...base,
         type: "table",
         cells,
+        ...(tableMerges.length ? { merges: tableMerges } : {}),
         rows: cells.length,
         cols: cells.reduce((max, row) => Math.max(max, row.length), 0),
         color: get("draw:fill-color") || style.fill || "transparent",
@@ -4433,6 +4473,15 @@ export class SlidesAdapter {
 
       case "slides.insert.table":
         return this.canvas.insertTable ? await this.canvas.insertTable(args) : false;
+      case "slides.table.insertRowAbove": return this.canvas.tableInsertRow ? this.canvas.tableInsertRow("above") : false;
+      case "slides.table.insertRowBelow": return this.canvas.tableInsertRow ? this.canvas.tableInsertRow("below") : false;
+      case "slides.table.insertColLeft": return this.canvas.tableInsertCol ? this.canvas.tableInsertCol("left") : false;
+      case "slides.table.insertColRight": return this.canvas.tableInsertCol ? this.canvas.tableInsertCol("right") : false;
+      case "slides.table.deleteRow": return this.canvas.tableDeleteRow ? this.canvas.tableDeleteRow() : false;
+      case "slides.table.deleteCol": return this.canvas.tableDeleteCol ? this.canvas.tableDeleteCol() : false;
+      case "slides.table.deleteTable": return this.canvas.tableDelete ? this.canvas.tableDelete() : false;
+      case "slides.table.mergeCells": return this.canvas.tableMergeCells ? this.canvas.tableMergeCells() : false;
+      case "slides.table.splitCell": return this.canvas.tableSplitCell ? this.canvas.tableSplitCell() : false;
 
       case "slides.insert.headerFooter":
         return this.canvas.openHeaderFooterDialog ? await this.canvas.openHeaderFooterDialog(args) : false;
