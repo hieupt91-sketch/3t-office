@@ -455,6 +455,8 @@ export const SHEET_COMMANDS = [
   { id: "sheet.page.insertPageBreak", category: "page", label: "Chèn ngắt trang", icon: "sheetPageBreak", tooltip: "Chèn ngắt hàng và cột tại ô đang chọn" },
   { id: "sheet.page.removePageBreak", category: "page", label: "Xóa ngắt trang", icon: "removePageBreak", tooltip: "Xóa ngắt hàng và cột tại ô đang chọn" },
   { id: "sheet.page.printTitles", category: "page", label: "Tiêu đề in", icon: "filePrint", tooltip: "Chọn hàng và cột lặp lại trên mỗi trang in" },
+  { id: "sheet.page.fitWidth", category: "page", label: "Chiều rộng", icon: "pageScale", tooltip: "Thu nhỏ bản in cho vừa số trang theo chiều ngang (Tự động, 1–5 trang)" },
+  { id: "sheet.page.fitHeight", category: "page", label: "Chiều cao", icon: "pageScale", tooltip: "Thu nhỏ bản in cho vừa số trang theo chiều dọc (Tự động, 1–5 trang)" },
   { id: "sheet.page.scale", category: "page", label: "Tỷ lệ vừa trang", icon: "pageScale", tooltip: "Thu phóng nội dung in theo phần trăm hoặc số trang" },
   { id: "sheet.page.headerFooter", category: "page", label: "Tiêu đề Đầu/Cuối trang", icon: "headerFooter", tooltip: "Đặt đầu trang và cuối trang khi in" },
 

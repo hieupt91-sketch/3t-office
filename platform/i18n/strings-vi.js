@@ -375,6 +375,7 @@ export const viStrings = {
     editing: { fill: "Điền", clear: "Xóa" },
     cells: { format: "Định dạng" },
     alignment: { orientation: "Hướng chữ" },
+    page: { margins: "Căn lề", orientation: "Hướng giấy", size: "Khổ giấy", fitWidth: "Chiều rộng", fitHeight: "Chiều cao", marginNormal: "Thường (Normal)", marginWide: "Rộng (Wide)", marginNarrow: "Hẹp (Narrow)", marginCustom: "Căn lề tùy chỉnh…", portrait: "Dọc (Portrait)", landscape: "Ngang (Landscape)", moreSizes: "Thêm khổ giấy…", fitAuto: "Tự động", fitPages1: "1 trang", fitPages2: "2 trang", fitPages3: "3 trang", fitPages4: "4 trang", fitPages5: "5 trang", fitMore: "Thêm trang…" },
     arrange: { bringForward: "Đưa lên trên", sendBackward: "Đưa xuống dưới", align: "Căn chỉnh", group: "Nhóm", rotate: "Xoay" },
     window: { freezePanes: "Cố định ô", split: "Chia" }
   },
@@ -677,7 +678,8 @@ export const viStrings = {
     "slides.text.direction": { label: "Hướng chữ", tooltip: "Đổi hướng văn bản trong khung chữ" },
     "sheet.page.margins": { label: "Căn lề", tooltip: "Thiết lập khoảng cách lề trang tính" },
     "sheet.page.orientation": { label: "Hướng giấy", tooltip: "Chọn hướng trang tính dọc hoặc ngang" },
-    "sheet.page.size": { label: "Khổ giấy", tooltip: "Chọn kích thước trang in (A4, Letter, Legal)" },
+    "sheet.page.size": { label: "Khổ giấy", tooltip: "Chọn kích thước trang in (A4, Letter, Legal)" }
+, "sheet.page.fitWidth": { label: "Chiều rộng", tooltip: "Thu nhỏ bản in cho vừa số trang theo chiều ngang (Tự động, 1–5 trang)" }, "sheet.page.fitHeight": { label: "Chiều cao", tooltip: "Thu nhỏ bản in cho vừa số trang theo chiều dọc (Tự động, 1–5 trang)" },
     "sheet.page.printTitles": { label: "Tiêu đề in", tooltip: "Chọn hàng và cột lặp lại trên mỗi trang in" },
     "sheet.page.scale": { label: "Tỷ lệ vừa trang", tooltip: "Thu phóng nội dung in theo phần trăm hoặc số trang" },
     "sheet.page.headerFooter": { label: "Tiêu đề Đầu/Cuối trang", tooltip: "Đặt đầu trang và cuối trang khi in" },

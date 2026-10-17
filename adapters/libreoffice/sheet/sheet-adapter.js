@@ -475,9 +475,33 @@ export class SheetAdapter {
       args = args || {};
       return this.grid.removePageBreak(args);
     });
-    globalCommandBus.bindHandler("sheet.page.margins", () => this.grid.showPageSetupDialog?.("margins") || false);
-    globalCommandBus.bindHandler("sheet.page.orientation", () => this.grid.showPageSetupDialog?.("orientation") || false);
-    globalCommandBus.bindHandler("sheet.page.size", () => this.grid.showPageSetupDialog?.("size") || false);
+    // Thư viện nhanh trên ribbon (Lề / Hướng / Khổ giấy / Chiều rộng / Chiều cao): args là giá trị chọn nhanh;
+    // không có args (hoặc "custom") thì mở hộp thoại Thiết lập trang đúng thẻ.
+    const PAGE_MARGIN_PRESETS = {
+      normal: { top: 1.91, bottom: 1.91, left: 1.78, right: 1.78, header: 0.76, footer: 0.76 },
+      wide: { top: 2.54, bottom: 2.54, left: 2.54, right: 2.54, header: 1.27, footer: 1.27 },
+      narrow: { top: 1.91, bottom: 1.91, left: 0.64, right: 0.64, header: 0.76, footer: 0.76 }
+    };
+    globalCommandBus.bindHandler("sheet.page.margins", (preset) => PAGE_MARGIN_PRESETS[preset]
+      ? this.grid.setPageSetup({ margins: PAGE_MARGIN_PRESETS[preset] }) !== false
+      : this.grid.showPageSetupDialog?.("margins") || false);
+    globalCommandBus.bindHandler("sheet.page.orientation", (value) => ["portrait", "landscape"].includes(value)
+      ? this.grid.setPageSetup({ orientation: value }) !== false
+      : this.grid.showPageSetupDialog?.("orientation") || false);
+    globalCommandBus.bindHandler("sheet.page.size", (value) => ["a4", "letter", "legal", "a3", "a5"].includes(value)
+      ? this.grid.setPageSetup({ size: value }) !== false
+      : this.grid.showPageSetupDialog?.("size") || false);
+    const fitPages = (axis, value) => {
+      if (value == null || value === "more") return this.grid.showPageSetupDialog?.("scale") || false;
+      const current = this.grid.getPageSetup().scale;
+      const pages = value === "auto" ? 0 : Math.max(0, Math.trunc(Number(value)) || 0);
+      const wide = axis === "wide" ? pages : (current.mode === "pages" ? current.pagesWide : 0);
+      const tall = axis === "tall" ? pages : (current.mode === "pages" ? current.pagesTall : 0);
+      // Excel: cả Chiều rộng và Chiều cao ở "Tự động" thì quay về thu phóng theo phần trăm.
+      return this.grid.setPageSetup({ scale: { mode: wide || tall ? "pages" : "percent", pagesWide: wide, pagesTall: tall } }) !== false;
+    };
+    globalCommandBus.bindHandler("sheet.page.fitWidth", (value) => fitPages("wide", value));
+    globalCommandBus.bindHandler("sheet.page.fitHeight", (value) => fitPages("tall", value));
     globalCommandBus.bindHandler("sheet.page.scale", () => this.grid.showPageSetupDialog?.("scale") || false);
     globalCommandBus.bindHandler("sheet.page.headerFooter", () => this.grid.showHeaderFooterDialog?.() || false);
     globalCommandBus.bindHandler("sheet.page.printTitles", () => this.grid.showPageSetupDialog?.("printTitles") || false);

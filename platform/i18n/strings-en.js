@@ -375,6 +375,7 @@ export const enStrings = {
     refreshAllSuccess: "Refreshed all links and external data.",
     editing: { fill: "Fill", clear: "Clear" },
     alignment: { orientation: "Orientation" },
+    page: { margins: "Margins", orientation: "Orientation", size: "Size", fitWidth: "Width", fitHeight: "Height", marginNormal: "Normal", marginWide: "Wide", marginNarrow: "Narrow", marginCustom: "Custom Margins…", portrait: "Portrait", landscape: "Landscape", moreSizes: "More Paper Sizes…", fitAuto: "Automatic", fitPages1: "1 page", fitPages2: "2 pages", fitPages3: "3 pages", fitPages4: "4 pages", fitPages5: "5 pages", fitMore: "More Pages…" },
     cells: { format: "Format" },
     arrange: { bringForward: "Bring Forward", sendBackward: "Send Backward", align: "Align", group: "Group", rotate: "Rotate" },
     window: { freezePanes: "Freeze Panes", split: "Split" }
@@ -678,7 +679,8 @@ export const enStrings = {
     "slides.text.direction": { label: "Text Direction", tooltip: "Change orientation of text to vertical, stacked, or rotated" },
     "sheet.page.margins": { label: "Margins", tooltip: "Set page margins for printed worksheets" },
     "sheet.page.orientation": { label: "Orientation", tooltip: "Switch between portrait and landscape layouts" },
-    "sheet.page.size": { label: "Size", tooltip: "Choose paper size for printing" },
+    "sheet.page.size": { label: "Size", tooltip: "Choose paper size for printing" }
+  ,"sheet.page.fitWidth": { label: "Width", tooltip: "Fit the printout to a number of pages wide (Automatic, 1-5 pages)" }, "sheet.page.fitHeight": { label: "Height", tooltip: "Fit the printout to a number of pages tall (Automatic, 1-5 pages)" },
     "sheet.page.printTitles": { label: "Print Titles", tooltip: "Specify rows and columns to repeat on each printed page" },
     "sheet.page.scale": { label: "Scale to Fit", tooltip: "Scale printed content by percentage or page count" },
     "sheet.page.headerFooter": { label: "Header & Footer", tooltip: "Set printable page headers and footers" },
