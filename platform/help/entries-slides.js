@@ -93,6 +93,7 @@ export const SLIDES_HELP_ENTRIES = [
       "slides.text.italic",
       "slides.text.underline",
       "slides.text.strike",
+      "slides.text.shadow",
       "slides.text.clearFormat",
       "slides.color.text",
       "slides.color.highlight",
@@ -112,7 +113,7 @@ export const SLIDES_HELP_ENTRIES = [
     keywords: ["phông chữ", "đoạn văn", "đậm", "căn lề", "dấu đầu dòng", "giãn dòng", "font", "paragraph", "bold"],
     steps: [
       "Nhấp vào tiêu đề, nội dung slide hoặc hộp văn bản, rồi bôi chữ cần đổi (hoặc đặt con trỏ trong đoạn).",
-      "Nhóm Phông chữ: chọn Calibri / Arial / Times New Roman / Be Vietnam Pro / Roboto; chọn cỡ (10–48); nút Tăng/Giảm cỡ chữ; Đậm (Ctrl+B), Nghiêng (Ctrl+I), Gạch chân (Ctrl+U), Gạch ngang; Xóa định dạng; Màu chữ (đỏ RGB 255 mặc định) và Màu nền chữ.",
+      "Nhóm Phông chữ: chọn Calibri / Arial / Times New Roman / Be Vietnam Pro / Roboto; chọn cỡ (10–48); nút Tăng/Giảm cỡ chữ; Đậm (Ctrl+B), Nghiêng (Ctrl+I), Gạch chân (Ctrl+U), Gạch ngang; Đổ bóng chữ (bật/tắt: bôi chữ rồi bấm nút, bấm lại để bỏ bóng; nút sáng khi con trỏ nằm trong chữ đang có bóng); Xóa định dạng; Màu chữ (đỏ RGB 255 mặc định) và Màu nền chữ.",
       "Nhóm Đoạn văn (ngay bên phải): Dấu đầu dòng, Đánh số, Giảm/Tăng thụt lề, hộp Giãn dòng 1.0 / 1.5 / 2.0; hàng dưới là Căn trái (Ctrl+L), Căn giữa (Ctrl+E), Căn phải (Ctrl+R), Căn đều (Ctrl+J). Trong khung nội dung slide, có thể dùng phím Tab để tăng thụt lề và nhấn giữ Shift cùng Tab để giảm thụt lề.",
       "Định dạng áp dụng cho vùng chữ đang chọn trên slide, không phải cho cả bài trừ khi bôi hết. Thay đổi nội dung tiêu đề và văn bản tự động ghi nhận vào lịch sử Hoàn tác (Ctrl+Z) và Làm lại (Ctrl+Y)."
     ]
@@ -182,12 +183,12 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.animation.apply"],
     title: "Hiệu ứng đối tượng (Animations)",
-    summary: "Gắn hiệu ứng xuất hiện cho tiêu đề, nội dung, hình hoặc đối tượng đang chọn: Fade In, Fly In, Zoom In, Bounce In, Slide Left. Chọn thời gian và độ trễ, xem thử rồi áp dụng.",
+    summary: "Gắn hiệu ứng cho tiêu đề, nội dung, hình hoặc đối tượng đang chọn theo 3 nhóm: Vào (mờ dần, bay vào, thu phóng, nảy, trượt), Nhấn mạnh (xoay tròn, phóng to/thu nhỏ) và Thoát (mờ dần ra, bay ra, thu nhỏ ra, biến mất). Chọn thời gian và độ trễ, xem thử rồi áp dụng.",
     ribbon: { tab: "Hoạt hình", tabId: "animations", group: "Hiệu ứng đối tượng" },
-    keywords: ["hoạt hình", "animation", "fade in", "fly in", "hiệu ứng xuất hiện", "độ trễ"],
+    keywords: ["hoạt hình", "animation", "fade in", "fly in", "hiệu ứng xuất hiện", "độ trễ", "nhấn mạnh", "thoát", "xoay tròn", "biến mất", "emphasis", "exit"],
     steps: [
       "Chọn đối tượng trên slide (tiêu đề, nội dung, hình) hoặc để trống — hộp thoại vẫn cho chọn đối tượng. Tab Hoạt hình, nhóm Hiệu ứng đối tượng, nhấn Hiệu ứng đối tượng.",
-      "Đối tượng áp dụng: Tiêu đề, Nội dung (hoặc cột 1/cột 2 nếu bố cục hai cột), hoặc từng hình. Kiểu: Không có hiệu ứng, Mờ dần xuất hiện, Bay từ dưới lên, Thu phóng xuất hiện, Nảy nhẹ, Trượt từ trái sang.",
+      "Đối tượng áp dụng: Tiêu đề, Nội dung (hoặc cột 1/cột 2 nếu bố cục hai cột), hoặc từng hình. Danh sách Kiểu chia 3 nhóm. Vào: Mờ dần xuất hiện, Bay từ dưới lên, Thu phóng xuất hiện, Nảy nhẹ, Trượt từ trái sang (đối tượng ẩn rồi hiện ra). Nhấn mạnh: Xoay tròn, Phóng to / thu nhỏ (đối tượng hiện sẵn, chạy xong trở về như cũ). Thoát: Mờ dần ra, Bay ra, Thu nhỏ ra, Biến mất (đối tượng hiện sẵn rồi ẩn đi). Mỗi đối tượng có một hiệu ứng; muốn vừa Vào vừa Thoát thì dùng hai đối tượng chồng nhau.",
       "Chọn Thời gian hiệu ứng (0.3s–1.0s) và Độ trễ xuất hiện (ngay, 0.2s, 0.5s, 1.0s). Nhấn ▶ Xem thử hiệu ứng nếu muốn, rồi Áp dụng hiệu ứng.",
       "Xóa hiệu ứng: mở lại hộp thoại, chọn Không có hiệu ứng hoặc nút Xóa hiệu ứng. Khi trình chiếu, hiệu ứng chạy theo thứ tự đối tượng trên trang. Để xem và sắp xếp nhiều hiệu ứng cùng lúc, dùng Ngăn hoạt hình cạnh nút này."
     ]
@@ -378,6 +379,40 @@ export const SLIDES_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.table.rowsColumns",
+    app: "slides",
+    commandIds: [
+      "slides.table.insertRowAbove", "slides.table.insertRowBelow", "slides.table.insertColLeft", "slides.table.insertColRight",
+      "slides.table.deleteRow", "slides.table.deleteCol", "slides.table.deleteTable"
+    ],
+    title: "Chèn và xóa hàng, cột, bảng trên trang chiếu",
+    summary: "Khi bạn nhấp vào một ô của bảng, tab Bố cục bảng hiện ra. Nhóm Hàng và cột cho chèn hàng trên/dưới, cột trái/phải, xóa hàng, xóa cột và xóa cả bảng.",
+    ribbon: { tab: "Bố cục bảng", tabId: "tableLayout", group: "Hàng và cột" },
+    keywords: ["bảng", "chèn hàng", "chèn cột", "xóa hàng", "xóa cột", "xóa bảng", "bố cục bảng", "thêm hàng", "thêm cột"],
+    steps: [
+      "Nhấp chuột vào một ô bất kỳ của bảng. Tab Bố cục bảng xuất hiện cuối thanh tab (tab chỉ hiện khi bạn đang ở trong bảng).",
+      "Chèn hàng: đặt con trỏ vào ô nằm ở hàng muốn làm mốc, rồi chọn Chèn hàng phía trên hoặc Chèn hàng phía dưới. Hàng mới trống, bảng cao thêm tương ứng (tối đa 50 hàng).",
+      "Chèn cột: chọn Chèn cột bên trái hoặc Chèn cột bên phải của cột chứa con trỏ. Cột mới trống, bảng rộng thêm (tối đa 26 cột, bảng không vượt quá chiều rộng trang chiếu).",
+      "Xóa: Xóa hàng và Xóa cột xóa hàng/cột chứa con trỏ; Xóa bảng xóa toàn bộ bảng. Bảng chỉ còn một hàng hoặc một cột thì dùng Xóa bảng.",
+      "Nếu hàng hoặc cột đi qua các ô đã gộp, vùng gộp tự dài ra hoặc ngắn lại cho khớp. Ctrl+Z hoàn tác từng thao tác, Ctrl+Y làm lại.",
+      "Mọi thay đổi được lưu cùng bản trình bày; các ô đã gộp được ghi và đọc lại đúng khi lưu rồi mở lại tệp."
+    ]
+  },
+  {
+    id: "slides.table.mergeSplit",
+    app: "slides",
+    commandIds: ["slides.table.mergeCells", "slides.table.splitCell"],
+    title: "Gộp ô và tách ô trong bảng trên trang chiếu",
+    summary: "Chọn một dải ô bằng cách nhấp ô đầu rồi giữ Shift và nhấp ô cuối, sau đó chọn Gộp ô ở tab Bố cục bảng. Tách ô đưa ô đã gộp trở lại như ban đầu.",
+    ribbon: { tab: "Bố cục bảng", tabId: "tableLayout", group: "Gộp" },
+    keywords: ["gộp ô", "tách ô", "trộn ô", "merge", "shift", "dải ô", "bảng"],
+    steps: [
+      "Nhấp vào ô đầu của vùng cần gộp. Giữ phím Shift và nhấp vào ô cuối: các ô nằm giữa được tô nền để báo đang chọn. Vùng chọn tự mở rộng để không cắt ngang một ô đã gộp.",
+      "Chọn Gộp ô ở tab Bố cục bảng. Các ô thành một ô lớn; nội dung các ô không trống được nối lại, mỗi ô một dòng, vào ô trên-trái.",
+      "Muốn tách lại: đặt con trỏ vào ô đã gộp rồi chọn Tách ô. Ô trở về các ô riêng; nội dung ở lại ô trên-trái.",
+      "Nếu chọn chưa đủ hai ô, hoặc ô chưa được gộp, ứng dụng báo rõ thay vì không làm gì. Ctrl+Z hoàn tác cả thao tác gộp hoặc tách trong một bước."
+    ]
+  },  {
     id: "slides.shape.groupUngroup",
     app: "slides",
     commandIds: [
@@ -599,7 +634,8 @@ export const SLIDES_HELP_ENTRIES = [
       "Lưu bằng Ctrl+S hoặc Tệp > Lưu bản sao rồi chọn PPTX. Nếu đang dùng Mẫu Slide Master, nội dung logo chữ được đặt trên trang mẫu.",
       "Mở lại bản trình chiếu đã lưu. Chủ đề đang dùng được khôi phục cùng tên, màu, phông và nền; vào Thiết kế > Chủ đề để chọn chủ đề khác nếu cần.",
       "Cỡ trang chiếu nằm ở tab Thiết kế > nhóm Tùy chỉnh > Cỡ trang chiếu. Chọn Màn hình rộng 16:9 hoặc Tiêu chuẩn 4:3; hình hiện có được co theo khung mới.",
-      "Lưu rồi mở lại để kiểm tra cỡ trang. Ctrl+Z hoàn tác thay đổi cỡ; ứng dụng hiện cung cấp hai cỡ chọn sẵn."
+      "Kích thước tùy chỉnh: trong cùng hộp thoại, mục Tùy chỉnh, nhập Chiều rộng và Chiều cao theo cm (gõ 25,4 hoặc 25.4 đều được) rồi nhấn Áp dụng hoặc Enter. Mỗi cạnh từ 2,54 cm đến 142,24 cm; nhập sai, hộp thoại báo ngay và không đổi gì. Ví dụ khổ A4 ngang: 29,7 × 21 cm.",
+      "Lưu rồi mở lại để kiểm tra cỡ trang (kể cả kích thước tùy chỉnh). Ctrl+Z hoàn tác thay đổi cỡ trong một bước."
     ]
   },
   {

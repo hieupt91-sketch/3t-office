@@ -8,7 +8,7 @@ from pathlib import Path
 
 import httpx
 
-from app import MAX_REPORT_BYTES, Settings, create_app
+from app import MAX_REPORT_BYTES, Settings, create_app, _SAFE_DOWNLOAD_NAME
 
 
 def make_client(tmp_path: Path, **overrides):
@@ -260,6 +260,98 @@ def test_download_installer_file_with_range_and_security(tmp_path: Path):
 
             traversal = await client.get("/downloads/..%2Fsecret.txt")
             assert traversal.status_code == 404
+
+    asyncio.run(scenario())
+
+
+def test_download_macos_dmg_and_pkg_with_regex_security(tmp_path: Path):
+    """Kiem tra _SAFE_DOWNLOAD_NAME regex va endpoint /downloads cho file .dmg, .pkg, .zip."""
+    # 1. Kiem tra regex voi cac ten hop le
+    valid_names = [
+        "3T-Office-0.9.11-arm64-unsigned-final-v2.pkg",
+        "VNOffice-macOS-0.9.11-universal.dmg",
+        "VNOffice-macOS-0.9.11-arm64.dmg",
+        "VNOffice-macOS-0.9.11-x64.dmg",
+        "VNOffice-macOS-0.9.11.dmg",
+        "VNOffice-macOS-0.9.11.pkg",
+        "VNOffice-Setup-0.9.11.exe",
+        "VNOffice-0.9.11.msi",
+        "VNOffice-0.9.11.zip",
+        "VNOffice-0.9.11.tar.gz",
+    ]
+    for name in valid_names:
+        assert _SAFE_DOWNLOAD_NAME.fullmatch(name) is not None, f"{name} phai duoc regex chap nhan"
+
+    # 2. Kiem tra regex tu choi cac ten doc hai hoac khong hop le
+    invalid_names = [
+        "../VNOffice-macOS-0.9.11.dmg",
+        "..\\VNOffice-macOS-0.9.11.dmg",
+        "downloads/VNOffice.dmg",
+        "VNOffice macOS 0.9.11.dmg",  # khoang trang
+        "VNOffice.sh",
+        "VNOffice.command",
+        "VNOffice.app",
+        "VNOffice.bat",
+        "VNOffice.py",
+        "VNOffice.dmg.sh",
+        "VNOffice.dmg..",
+        "VNOffice",
+        "",
+    ]
+    for name in invalid_names:
+        assert _SAFE_DOWNLOAD_NAME.fullmatch(name) is None, f"{name} phai bi regex tu choi"
+
+    # 3. Kiem tra tai file .dmg va .pkg qua API
+    downloads = tmp_path / "downloads"
+    downloads.mkdir(parents=True, exist_ok=True)
+
+    dmg_name = "VNOffice-macOS-0.9.11-universal.dmg"
+    dmg_data = b"DMG binary image payload 1234567890"
+    (downloads / dmg_name).write_bytes(dmg_data)
+
+    pkg_name = "3T-Office-0.9.11-arm64-unsigned-final-v2.pkg"
+    pkg_data = b"PKG installer binary payload 0987654321"
+    (downloads / pkg_name).write_bytes(pkg_data)
+
+    async def scenario():
+        client, _ = make_client(tmp_path, downloads_dir=downloads)
+        async with client:
+            # GET .dmg
+            dmg_res = await client.get(f"/downloads/{dmg_name}")
+            assert dmg_res.status_code == 200
+            assert dmg_res.content == dmg_data
+            assert dmg_res.headers["accept-ranges"] == "bytes"
+            assert f'attachment; filename="{dmg_name}"' in dmg_res.headers.get("content-disposition", "")
+            assert dmg_res.headers["content-length"] == str(len(dmg_data))
+
+            # HEAD .dmg
+            dmg_head = await client.head(f"/downloads/{dmg_name}")
+            assert dmg_head.status_code == 200
+            assert dmg_head.headers["accept-ranges"] == "bytes"
+            assert dmg_head.headers["content-length"] == str(len(dmg_data))
+
+            # Range request .dmg
+            dmg_range = await client.get(f"/downloads/{dmg_name}", headers={"Range": "bytes=0-9"})
+            assert dmg_range.status_code == 206
+            assert dmg_range.content == dmg_data[0:10]
+            assert dmg_range.headers["content-range"] == f"bytes 0-9/{len(dmg_data)}"
+            assert dmg_range.headers["content-length"] == "10"
+
+            # GET .pkg
+            pkg_res = await client.get(f"/downloads/{pkg_name}")
+            assert pkg_res.status_code == 200
+            assert pkg_res.content == pkg_data
+            assert f'attachment; filename="{pkg_name}"' in pkg_res.headers.get("content-disposition", "")
+
+            # Tu choi file nguy hiem hoac khong co
+            res_sh = await client.get("/downloads/script.sh")
+            assert res_sh.status_code == 404
+
+            res_app = await client.get("/downloads/VNOffice.app")
+            assert res_app.status_code == 404
+
+            res_space = await client.get("/downloads/VNOffice%20macOS.dmg")
+            assert res_space.status_code == 404
 
     asyncio.run(scenario())
 

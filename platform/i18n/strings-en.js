@@ -375,6 +375,7 @@ export const enStrings = {
     refreshAllSuccess: "Refreshed all links and external data.",
     editing: { fill: "Fill", clear: "Clear" },
     alignment: { orientation: "Orientation" },
+    page: { margins: "Margins", orientation: "Orientation", size: "Size", fitWidth: "Width", fitHeight: "Height", marginNormal: "Normal", marginWide: "Wide", marginNarrow: "Narrow", marginCustom: "Custom Margins…", portrait: "Portrait", landscape: "Landscape", moreSizes: "More Paper Sizes…", fitAuto: "Automatic", fitPages1: "1 page", fitPages2: "2 pages", fitPages3: "3 pages", fitPages4: "4 pages", fitPages5: "5 pages", fitMore: "More Pages…" },
     cells: { format: "Format" },
     arrange: { bringForward: "Bring Forward", sendBackward: "Send Backward", align: "Align", group: "Group", rotate: "Rotate" },
     window: { freezePanes: "Freeze Panes", split: "Split" }
@@ -417,8 +418,8 @@ export const enStrings = {
   },
   sheetSlicer: { selectTable: "Select a cell in a table before inserting a visual filter.", layer: "Visual filters", aria: "Filter", multi: "Multi-select", clear: "Clear filter", close: "Remove visual filter" },
   slidesRibbon: {
-    tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant" },
-    group: { slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
+    tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant", tableLayout: "Table Layout" },
+    group: { tableRowsCols: "Rows & Columns", tableMerge: "Merge", slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
     editing: { select: "Select" },
     drawing: { arrange: "Arrange" },
     section: "Section"
@@ -626,14 +627,14 @@ export const enStrings = {
       slideUnit: "slides",
       slideCount: "{count} slides"
     },
-    masterTitle: "Slide Master", themeGalleryTitle: "Theme Gallery", themeGalleryHint: "Choose a theme to apply it immediately to the whole presentation.", themePreviewTitle: "Presentation title", themeCorporateBlue: "Corporate Blue", themeWarmTerracotta: "Warm Terracotta", themeMinimalMonochrome: "Minimal Monochrome", themeNaturalGreen: "Natural Green", themeModernCharcoal: "Modern Charcoal", themeEnergeticOrange: "Energetic Orange", slideSizeTitle: "Slide Size", slideSizeHint: "Choose a new aspect ratio. Existing shapes and objects will be scaled to fit.", slideSizeWide: "Widescreen", slideSizeStandard: "Standard", layoutTitle: "Choose a Slide Layout", transitionTitle: "Transitions", animationTitle: "Object Animations",
+    masterTitle: "Slide Master", themeGalleryTitle: "Theme Gallery", themeGalleryHint: "Choose a theme to apply it immediately to the whole presentation.", themePreviewTitle: "Presentation title", themeCorporateBlue: "Corporate Blue", themeWarmTerracotta: "Warm Terracotta", themeMinimalMonochrome: "Minimal Monochrome", themeNaturalGreen: "Natural Green", themeModernCharcoal: "Modern Charcoal", themeEnergeticOrange: "Energetic Orange", slideSizeTitle: "Slide Size", slideSizeHint: "Choose a new aspect ratio. Existing shapes and objects will be scaled to fit.", slideSizeWide: "Widescreen", slideSizeStandard: "Standard", slideSizeCustom: "Custom", slideSizeWidthCm: "Width (cm)", slideSizeHeightCm: "Height (cm)", slideSizeApply: "Apply", slideSizeRangeError: "Each side must be between 2.54 cm and 142.24 cm.", slideSizeFormatError: "Enter a number, for example 25.4 or 19.05.", layoutTitle: "Choose a Slide Layout", transitionTitle: "Transitions", animationTitle: "Object Animations",
     applyMaster: "Apply Theme", applyLayout: "Apply Layout", applyTransition: "Apply Transition", applyAnimation: "Apply Animation", removeTransition: "Remove Transition", removeAnimation: "Remove Animation", previewTransition: "▶ Preview Transition", previewAnimation: "▶ Preview Animation", previewObject: "Preview Object",
     layoutHint: "Choose a layout to reshape the current slide's content structure:", applyLayoutAll: "Apply to All", applyLayoutCurrent: "Apply",
     masterHint: "Choose a style master to unify colors, fonts, and corner logo across all slides:", masterLogoLabel: "Organization / Corner Logo text:", masterLogoAria: "Organization name or corner logo text",
     transitionTypeLabel: "Transition effect:", transFade: "Fade", transSlide: "Slide", transZoom: "Zoom", transFlip: "Flip 3D", durationFast: "Fast (0.3s)", durationNormal: "Medium (0.5s)", durationSlow: "Slow (0.8s)", durationVerySlow: "Very Slow (1.0s)", sampleSlide: "Sample Slide", applyTransitionCurrent: "Apply", applyTransitionAll: "Apply to All",
     animationTarget: "Apply to:", animationType: "Entrance animation:", animationDuration: "Duration:", animationDelay: "Delay:", noAnimation: "None", immediate: "Immediately (0s)",
     targetTitle: "Title", targetCol1: "Content Column 1", targetCol2: "Content Column 2", targetBody: "Content Body",     shapeFormatTitle: "Format Shape", shapeFormatMenu: "Format Shape…", shapeFill: "Fill", shapeFillColor: "Fill color {color}", shapeOutline: "Outline", shapeOutlineColor: "Outline color {color}", shapeNoOutline: "No outline", shapeLineWidth: "{width} px outline", shapeWidth: "Width (px)", shapeHeight: "Height (px)", shapeRotation: "Rotation (degrees)", applyShapeFormat: "Apply formatting", shapeFormatInvalid: "Enter dimensions from 24 px up to the slide size and a rotation from -360° to 360°.",
-    shapeImage: "Image", shapeEllipse: "Ellipse", shapeRectangle: "Rectangle", animFadeIn: "Fade In", animFlyIn: "Fly In", animZoomIn: "Zoom In", animBounceIn: "Bounce In", animSlideLeft: "Slide Left", durationVeryFast: "Very Fast (0.3s)", duration1s: "1.0 second", delay200: "After 0.2s", delay500: "After 0.5s", delay1000: "After 1.0s",
+    shapeImage: "Image", shapeEllipse: "Ellipse", shapeRectangle: "Rectangle", animFadeIn: "Fade In", animFlyIn: "Fly In", animZoomIn: "Zoom In", animBounceIn: "Bounce In", animSlideLeft: "Slide Left", animSpin: "Spin (emphasis)", animGrowShrink: "Grow/Shrink (emphasis)", animFadeOut: "Fade Out (exit)", animFlyOut: "Fly Out (exit)", animZoomOut: "Zoom Out (exit)", animDisappear: "Disappear (exit)", animGroupEntrance: "Entrance", animGroupEmphasis: "Emphasis", animGroupExit: "Exit", durationVeryFast: "Very Fast (0.3s)", duration1s: "1.0 second", delay200: "After 0.2s", delay500: "After 0.5s", delay1000: "After 1.0s",
     presenterTitle: "Presenter View", presenterHeader: "PRESENTER VIEW", elapsedTime: "Elapsed presentation time", elapsedLabel: "ELAPSED:", actualClock: "Current clock time", clockLabel: "CLOCK:", presenterExit: "✕ End Show (Esc)", prevSlide: "◄ Previous", nextSlide: "Next ►", slideCounter: "Slide {current} of {total}", speakerNotesTitle: "📝 Speaker Notes", notesFontDec: "Decrease font size", notesFontInc: "Increase font size", nextSlideTitle: "⏭ Next Slide", noNotes: "(No notes for this slide. You can enter notes in the pane below canvas while editing).", endOfShow: "End of slide show.",
     readingViewTitle: "Reading View", readingToolbar: "Reading Navigation Toolbar", prevSlideShort: "Previous", nextSlideShort: "Next", readingClose: "Close Reading View",
     rehearseTitle: "Rehearse Timings", slideshowTitle: "Slide Show", rehearseClockAria: "Rehearsal timer", slideshowHint: "Press Space or Click to advance | Esc to exit",
@@ -679,7 +680,8 @@ export const enStrings = {
     "slides.text.direction": { label: "Text Direction", tooltip: "Change orientation of text to vertical, stacked, or rotated" },
     "sheet.page.margins": { label: "Margins", tooltip: "Set page margins for printed worksheets" },
     "sheet.page.orientation": { label: "Orientation", tooltip: "Switch between portrait and landscape layouts" },
-    "sheet.page.size": { label: "Size", tooltip: "Choose paper size for printing" },
+    "sheet.page.size": { label: "Size", tooltip: "Choose paper size for printing" }
+  ,"sheet.page.fitWidth": { label: "Width", tooltip: "Fit the printout to a number of pages wide (Automatic, 1-5 pages)" }, "sheet.page.fitHeight": { label: "Height", tooltip: "Fit the printout to a number of pages tall (Automatic, 1-5 pages)" },
     "sheet.page.printTitles": { label: "Print Titles", tooltip: "Specify rows and columns to repeat on each printed page" },
     "sheet.page.scale": { label: "Scale to Fit", tooltip: "Scale printed content by percentage or page count" },
     "sheet.page.headerFooter": { label: "Header & Footer", tooltip: "Set printable page headers and footers" },
@@ -970,6 +972,15 @@ export const enStrings = {
     ,"slides.media.insertVideo": { label: "Video", tooltip: "Insert a video from this device" }
     ,"slides.media.insertAudio": { label: "Audio", tooltip: "Insert audio from this device" }
     ,"slides.insert.table": { label: "Table", tooltip: "Insert a table you can drag and resize" }
+  ,"slides.table.insertRowAbove": { label: "Insert Row Above", tooltip: "Insert an empty row above the row with the cursor" }
+  ,"slides.table.insertRowBelow": { label: "Insert Row Below", tooltip: "Insert an empty row below the row with the cursor" }
+  ,"slides.table.insertColLeft": { label: "Insert Column Left", tooltip: "Insert an empty column to the left of the column with the cursor" }
+  ,"slides.table.insertColRight": { label: "Insert Column Right", tooltip: "Insert an empty column to the right of the column with the cursor" }
+  ,"slides.table.deleteRow": { label: "Delete Row", tooltip: "Delete the row with the cursor" }
+  ,"slides.table.deleteCol": { label: "Delete Column", tooltip: "Delete the column with the cursor" }
+  ,"slides.table.deleteTable": { label: "Delete Table", tooltip: "Delete the whole selected table" }
+  ,"slides.table.mergeCells": { label: "Merge Cells", tooltip: "Merge the selected cells (click the first cell, hold Shift and click the last) into one" }
+  ,"slides.table.splitCell": { label: "Split Cells", tooltip: "Split a merged cell back into its original cells" }
     ,"slides.insert.chart": { label: "Chart", tooltip: "Insert a chart into the active slide" }
     ,"slides.insert.headerFooter": { label: "Header & Footer", tooltip: "Show or hide date, slide number, and footer" }
     ,"slides.insert.dateTime": { label: "Date & Time", tooltip: "Insert an auto-updating date and time placeholder" }
@@ -979,7 +990,7 @@ export const enStrings = {
     ,"slides.insert.wordart": { label: "WordArt", tooltip: "Insert stylized title text with outline, shadow, or gradient fill" }
     ,"slides.master.apply": { label: "Slide Master", tooltip: "Apply a Slide Master theme across the presentation" }
     ,"slides.design.themeGallery": { label: "Themes", tooltip: "Choose a design theme for the whole presentation" }
-    ,"slides.design.slideSize": { label: "Slide Size", tooltip: "Choose a 16:9 or 4:3 slide ratio" }
+    ,"slides.design.slideSize": { label: "Slide Size", tooltip: "Choose 16:9, 4:3 or enter a custom size (cm)" }
     ,"slides.design.formatBackground": { label: "Format Background", tooltip: "Change the current slide or all slides to a solid color, two-color gradient, or picture" }
     ,"slides.transition.apply": { label: "Transitions", tooltip: "Apply a slide transition (Fade, Push, Zoom, Flip)" }
     ,"slides.animation.apply": { label: "Animations", tooltip: "Apply an entrance animation to an object" }
@@ -1032,6 +1043,11 @@ export const enStrings = {
     ,"slides.text.italic": { label: "Italic", tooltip: "Italic (Ctrl+I)" }
     ,"slides.text.underline": { label: "Underline", tooltip: "Underline (Ctrl+U)" }
     ,"slides.text.strike": { label: "Strikethrough", tooltip: "Strikethrough" }
+  ,"slides.text.shadow": { label: "Text Shadow", tooltip: "Add a shadow to the selected text (toggle)" }
+  ,"slides.text.columns": { label: "Columns", tooltip: "Split the text in a text box into 1, 2 or 3 columns" }
+  ,"slides.text.columnsOne": { label: "One Column", tooltip: "Text runs in one column (default)" }
+  ,"slides.text.columnsTwo": { label: "Two Columns", tooltip: "Split the text in a text box into two columns" }
+  ,"slides.text.columnsThree": { label: "Three Columns", tooltip: "Split the text in a text box into three columns" }
     ,"slides.text.clearFormat": { label: "Clear Formatting", tooltip: "Clear text formatting, keep the content" }
     ,"slides.font.family": { label: "Font", tooltip: "Choose a font" }
     ,"slides.font.size": { label: "Font Size", tooltip: "Choose a font size" }

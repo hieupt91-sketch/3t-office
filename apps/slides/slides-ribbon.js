@@ -123,6 +123,7 @@ export const SLIDES_RIBBON_TABS = [
                   { type: "button", commandId: "slides.text.italic", iconOnly: true },
                   { type: "button", commandId: "slides.text.underline", iconOnly: true },
                   { type: "button", commandId: "slides.text.strike", iconOnly: true },
+                  { type: "button", commandId: "slides.text.shadow", iconOnly: true },
                   { type: "button", commandId: "slides.text.clearFormat", iconOnly: true },
                   { type: "button", commandId: "slides.color.text", iconOnly: true },
                   { type: "button", commandId: "slides.color.highlight", iconOnly: true }
@@ -178,6 +179,19 @@ export const SLIDES_RIBBON_TABS = [
                       { commandId: "slides.text.vAlignTop" },
                       { commandId: "slides.text.vAlignMiddle" },
                       { commandId: "slides.text.vAlignBottom" }
+                    ]
+                  },
+                  {
+                    type: "dropdown",
+                    id: "slides.text.columns",
+                    label: "Cột",
+                    labelKey: "slidesRibbon.paragraph.columns",
+                    icon: "pageColumns",
+                    iconOnly: true,
+                    items: [
+                      { commandId: "slides.text.columnsOne" },
+                      { commandId: "slides.text.columnsTwo" },
+                      { commandId: "slides.text.columnsThree" }
                     ]
                   },
                   {
@@ -531,6 +545,37 @@ export const SLIDES_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "slides.help.open", isLarge: true },
           { type: "about-button", isLarge: true, label: "Giới thiệu" }
+        ]
+      }
+    ]
+  },
+  {
+    id: "tableLayout",
+    label: "Bố cục bảng",
+    labelKey: "slidesRibbon.tab.tableLayout",
+    contextual: true,
+    groups: [
+      {
+        id: "tableRowsCols",
+        label: "Hàng và cột",
+        labelKey: "slidesRibbon.group.tableRowsCols",
+        items: [
+          { type: "button", commandId: "slides.table.insertRowAbove" },
+          { type: "button", commandId: "slides.table.insertRowBelow" },
+          { type: "button", commandId: "slides.table.insertColLeft" },
+          { type: "button", commandId: "slides.table.insertColRight" },
+          { type: "button", commandId: "slides.table.deleteRow" },
+          { type: "button", commandId: "slides.table.deleteCol" },
+          { type: "button", commandId: "slides.table.deleteTable" }
+        ]
+      },
+      {
+        id: "tableMerge",
+        label: "Gộp",
+        labelKey: "slidesRibbon.group.tableMerge",
+        items: [
+          { type: "button", commandId: "slides.table.mergeCells", isLarge: true },
+          { type: "button", commandId: "slides.table.splitCell", isLarge: true }
         ]
       }
     ]

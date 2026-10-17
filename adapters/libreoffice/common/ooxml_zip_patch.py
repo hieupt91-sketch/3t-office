@@ -10359,6 +10359,206 @@ def _normalize_slides_animation_timing(pptx_bytes: bytes) -> dict[str, str]:
     return replacements
 
 
+# ----------------------------------------------------------------------------------------------
+# Hoạt ảnh Slides nhóm NHẤN MẠNH / THOÁT: dựng lại p:timing đúng cấu trúc PowerPoint 2016
+# ----------------------------------------------------------------------------------------------
+_ANIM_WIPE_FILTER = {"1": "wipe(up)", "2": "wipe(right)", "4": "wipe(down)", "8": "wipe(left)"}
+
+
+def _anim_effect_xml(cls: str, preset_id: str, subtype: str, spid: str, dur: int, new_id, has_bld: bool) -> str | None:
+    """Thân một hiệu ứng theo mẫu PowerPoint đo thật; None nếu chưa hỗ trợ preset này."""
+    tgt = f'<p:tgtEl><p:spTgt spid="{spid}"/></p:tgtEl>'
+    visible = lambda state, delay: (
+        f'<p:set><p:cBhvr><p:cTn id="{new_id()}" dur="1" fill="hold"><p:stCondLst><p:cond delay="{delay}"/></p:stCondLst></p:cTn>'
+        f'{tgt}<p:attrNameLst><p:attrName>style.visibility</p:attrName></p:attrNameLst></p:cBhvr><p:to><p:strVal val="{state}"/></p:to></p:set>'
+    )
+    anim = lambda attr, frm, to, extra="": (
+        f'<p:anim calcmode="lin" valueType="num"><p:cBhvr{extra}><p:cTn id="{new_id()}" dur="{dur}" fill="hold"/>{tgt}'
+        f'<p:attrNameLst><p:attrName>{attr}</p:attrName></p:attrNameLst></p:cBhvr><p:tavLst>'
+        f'<p:tav tm="0"><p:val>{frm}</p:val></p:tav><p:tav tm="100000"><p:val>{to}</p:val></p:tav></p:tavLst></p:anim>'
+    )
+    sv = lambda value: f'<p:strVal val="{value}"/>'
+    fv = lambda value: f'<p:fltVal val="{value}"/>'
+    effect = lambda transition, filt: (
+        f'<p:animEffect transition="{transition}" filter="{filt}"><p:cBhvr><p:cTn id="{new_id()}" dur="{dur}"/>{tgt}</p:cBhvr></p:animEffect>'
+    )
+    hide_at_end = visible("hidden", max(0, dur - 1))
+    if cls == "entr":
+        if preset_id == "10":
+            return visible("visible", 0) + effect("in", "fade")
+        if preset_id == "2":
+            return visible("visible", 0) + anim("ppt_x", sv("#ppt_x"), sv("#ppt_x"), ' additive="base"') + anim("ppt_y", sv("1+#ppt_h/2"), sv("#ppt_y"), ' additive="base"')
+        if preset_id == "23":
+            return visible("visible", 0) + anim("ppt_w", fv(0), sv("#ppt_w")) + anim("ppt_h", fv(0), sv("#ppt_h"))
+        if preset_id == "22":
+            return visible("visible", 0) + effect("in", _ANIM_WIPE_FILTER.get(subtype, "wipe(down)"))
+        return None
+    if cls == "emph":
+        if preset_id == "8":
+            return (f'<p:animRot by="21600000"><p:cBhvr><p:cTn id="{new_id()}" dur="{dur}" fill="hold"/>{tgt}'
+                    '<p:attrNameLst><p:attrName>r</p:attrName></p:attrNameLst></p:cBhvr></p:animRot>')
+        if preset_id == "6":
+            return (f'<p:animScale><p:cBhvr><p:cTn id="{new_id()}" dur="{dur}" fill="hold"/>{tgt}</p:cBhvr>'
+                    '<p:by x="150000" y="150000"/></p:animScale>')
+        return None
+    if cls == "exit":
+        if preset_id == "10":
+            return effect("out", "fade") + hide_at_end
+        if preset_id == "2":
+            return (anim("ppt_x", sv("ppt_x"), sv("ppt_x"), ' additive="base"') + anim("ppt_y", sv("ppt_y"), sv("1+ppt_h/2"), ' additive="base"')
+                    + hide_at_end)
+        if preset_id == "23":
+            return anim("ppt_w", sv("ppt_w"), fv(0)) + anim("ppt_h", sv("ppt_h"), fv(0)) + hide_at_end
+        if preset_id == "1":
+            return visible("hidden", 0)
+        return None
+    return None
+
+
+def _slides_animation_effects_from_soffice_xml(slide_xml: str) -> list[dict[str, str]] | None:
+    """Các hiệu ứng (đúng thứ tự dãy chính) mà soffice đã ghi; None nếu có hiệu ứng không dựng lại được."""
+    effects: list[dict[str, str]] = []
+    for match in re.finditer(r"<p:cTn\b([^>]*\bpresetID=\"\d+\"[^>]*)>", slide_xml):
+        attrs = dict(re.findall(r'([\w:]+)="([^"]*)"', match.group(1)))
+        end = slide_xml.find("</p:par>", match.end())
+        body = slide_xml[match.end():end if end >= 0 else len(slide_xml)]
+        if "<p:txEl" in body:
+            return None  # hiệu ứng theo đoạn chữ: không dựng lại
+        spid = re.search(r'<p:spTgt\s+spid="(\d+)"', body)
+        if not spid:
+            return None
+        durs = [int(d) for d in re.findall(r'<p:cTn\b[^>]*\bdur="(\d+)"', body) if d != "1"]
+        effects.append({
+            "cls": attrs.get("presetClass", ""),
+            "pid": attrs.get("presetID", ""),
+            "sub": attrs.get("presetSubtype", "0"),
+            "node": attrs.get("nodeType", "clickEffect"),
+            "spid": spid.group(1),
+            "dur": str(max(durs) if durs else 500),
+        })
+    return effects
+
+
+def _slides_animation_begins_from_fodp(source_fodp: str | None) -> list[list[int]]:
+    """Mỗi trang: độ trễ (ms) của từng hiệu ứng theo thứ tự trong FODP."""
+    if not source_fodp or "preset-class" not in source_fodp:
+        return []
+    pages = re.findall(r"<draw:page\b[^>]*?/>|<draw:page\b[^>]*>[\s\S]*?</draw:page>", source_fodp, re.IGNORECASE)
+    result: list[list[int]] = []
+    for page in pages:
+        begins: list[int] = []
+        for match in re.finditer(r"<anim:par\b([^>]*presentation:preset-class=[\"'][^\"']+[\"'][^>]*)>", page, re.IGNORECASE):
+            raw = re.search(r"smil:begin=[\"']([^\"']+)[\"']", match.group(1))
+            value = raw.group(1).strip() if raw else "0s"
+            number = re.match(r"([\d.]+)(ms|s)?", value)
+            ms = 0
+            if number:
+                ms = int(round(float(number.group(1)) * (1 if number.group(2) == "ms" else 1000)))
+            begins.append(ms)
+        result.append(begins)
+    return result
+
+
+def _apply_slides_native_animation_timing(pptx_bytes: bytes, source_fodp: str | None, prior: dict[str, str] | None = None) -> dict[str, str]:
+    """Slide có hiệu ứng Nhấn mạnh/Thoát: dựng lại p:timing theo cấu trúc PowerPoint để nó đọc đúng loại hiệu ứng."""
+    try:
+        with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+            entries = sorted(
+                (name for name in package.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", name)),
+                key=lambda name: int(re.search(r"slide(\d+)\.xml$", name).group(1)),
+            )
+    except Exception:
+        return {}
+    prior = prior or {}
+    begins_by_page = _slides_animation_begins_from_fodp(source_fodp)
+    replacements: dict[str, str] = {}
+    for page_index, entry in enumerate(entries):
+        xml = prior[entry] if entry in prior else (read_zip_entry(pptx_bytes, entry) or b"").decode("utf-8", errors="replace")
+        if not xml or not re.search(r'presetClass="(?:emph|exit)"', xml):
+            continue
+        effects = _slides_animation_effects_from_soffice_xml(xml)
+        if not effects:
+            continue
+        begins = begins_by_page[page_index] if page_index < len(begins_by_page) else []
+        if len(begins) != len(effects):
+            begins = [0] * len(effects)
+        shape_ids = set(re.findall(r'<p:sp>\s*<p:nvSpPr>\s*<p:cNvPr\s+id="(\d+)"', xml))
+        counter = [2]
+
+        def new_id() -> int:
+            counter[0] += 1
+            return counter[0]
+
+        groups: list[list[list[str]]] = []  # nhóm bấm chuột -> khe thời gian -> hiệu ứng (xml)
+        group_starts: list[list[int]] = []
+        slot_ends: list[int] = []  # thời điểm kết thúc của khe hiện tại trong nhóm hiện tại
+        ok = True
+        bld: list[str] = []
+        for effect, delay in zip(effects, begins):
+            dur = int(effect["dur"])
+            node = effect["node"]
+            on_sp = effect["spid"] in shape_ids
+            if not groups or node == "clickEffect":
+                groups.append([])
+                group_starts.append([])
+                slot_ends.append(0)
+                slot_start = 0
+                new_slot = True
+            elif node == "afterEffect":
+                slot_start = slot_ends[-1]
+                new_slot = True
+            else:  # withEffect
+                slot_start = group_starts[-1][-1] if group_starts[-1] else 0
+                new_slot = False
+            if new_slot:
+                groups[-1].append([])
+                group_starts[-1].append(slot_start)
+            node_type = node
+            effect_id = new_id()
+            body = _anim_effect_xml(effect["cls"], effect["pid"], effect["sub"], effect["spid"], dur, new_id, on_sp)
+            if body is None:
+                ok = False
+                break
+            grp = ' grpId="0"' if on_sp else ""
+            groups[-1][-1].append(
+                f'<p:par><p:cTn id="{effect_id}" presetID="{effect["pid"]}" presetClass="{effect["cls"]}" presetSubtype="{effect["sub"]}" fill="hold"{grp} nodeType="{node_type}">'
+                f'<p:stCondLst><p:cond delay="{delay}"/></p:stCondLst><p:childTnLst>{body}</p:childTnLst></p:cTn></p:par>'
+            )
+            slot_ends[-1] = max(slot_ends[-1], slot_start + delay + dur)
+            if on_sp and effect["spid"] not in bld:
+                bld.append(effect["spid"])
+        if not ok:
+            continue
+        group_xml = []
+        for g, group in enumerate(groups):
+            slots = []
+            for slot, start in zip(group, group_starts[g]):
+                slots.append(
+                    f'<p:par><p:cTn id="{new_id()}" fill="hold"><p:stCondLst><p:cond delay="{start}"/></p:stCondLst>'
+                    f'<p:childTnLst>{"".join(slot)}</p:childTnLst></p:cTn></p:par>'
+                )
+            auto_start = g == 0 and effects[0]["node"] != "clickEffect"
+            begin_cond = '<p:cond evt="onBegin" delay="0"><p:tn val="2"/></p:cond>' if auto_start else ""
+            group_xml.append(
+                f'<p:par><p:cTn id="{new_id()}" fill="hold"><p:stCondLst><p:cond delay="indefinite"/>{begin_cond}</p:stCondLst>'
+                f'<p:childTnLst>{"".join(slots)}</p:childTnLst></p:cTn></p:par>'
+            )
+        bld_items = "".join('<p:bldP spid="' + s + '" grpId="0" animBg="1"/>' for s in bld)
+        bld_xml = "<p:bldLst>" + bld_items + "</p:bldLst>" if bld else ""
+        timing = (
+            '<p:timing><p:tnLst><p:par><p:cTn id="1" dur="indefinite" restart="never" nodeType="tmRoot"><p:childTnLst>'
+            '<p:seq concurrent="1" nextAc="seek"><p:cTn id="2" dur="indefinite" nodeType="mainSeq"><p:childTnLst>'
+            + "".join(group_xml)
+            + '</p:childTnLst></p:cTn><p:prevCondLst><p:cond evt="onPrev" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:prevCondLst>'
+            '<p:nextCondLst><p:cond evt="onNext" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:nextCondLst></p:seq>'
+            f'</p:childTnLst></p:cTn></p:par></p:tnLst>{bld_xml}</p:timing>'
+        )
+        next_xml, count = re.subn(r"<p:timing\b[\s\S]*?</p:timing>", lambda _m: timing, xml, count=1)
+        if count:
+            replacements[entry] = next_xml
+    return replacements
+
+
 def _odf_length_to_pt(value: str) -> float | None:
     match = re.fullmatch(r"\s*([+-]?[\d.]+)\s*(pt|px|in|cm|mm)?\s*", value or "", re.IGNORECASE)
     if not match:
@@ -10460,6 +10660,152 @@ def _apply_slides_paragraph_levels(pptx_bytes: bytes, source_fodp: str | None) -
             updated = _set_drawingml_paragraph_level(block, level)
             changed = changed or updated != block
             return updated
+
+        next_xml = paragraph_re.sub(patch_paragraph, xml)
+        if changed and next_xml != xml:
+            replacements[entry] = next_xml
+    return replacements
+
+
+def _slides_text_shadow_ranges_from_fodp(source_fodp: str | None) -> list[dict[str, list[list[tuple[int, int]]]]]:
+    """Per FODP page: {paragraph text: [[(start, end), ...], ...]} for runs styled with fo:text-shadow.
+
+    soffice writes <a:effectLst></a:effectLst> (empty) for shadowed characters when exporting PPTX, so the
+    shadow is rebuilt from the FODP. Offsets are character offsets inside the paragraph's plain text.
+    """
+    if not source_fodp or "text-shadow" not in source_fodp:
+        return []
+    shadow_styles = set()
+    for match in re.finditer(r"<style:style\b([^>]*)>([\s\S]*?)</style:style>", source_fodp, re.IGNORECASE):
+        attrs, body = match.group(1), match.group(2)
+        if not re.search(r"style:family=[\"']text[\"']", attrs, re.IGNORECASE):
+            continue
+        if re.search(r"fo:text-shadow=[\"'](?!none)[^\"']+[\"']", body, re.IGNORECASE):
+            name = re.search(r"style:name=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
+            if name:
+                shadow_styles.add(name.group(1))
+    if not shadow_styles:
+        return []
+
+    def plain(fragment: str) -> str:
+        fragment = re.sub(r"<text:s\b[^>]*text:c=[\"'](\d+)[\"'][^>]*/?>", lambda m: " " * int(m.group(1)), fragment, flags=re.IGNORECASE)
+        fragment = re.sub(r"<text:s\b[^>]*/?>", " ", fragment, flags=re.IGNORECASE)
+        fragment = re.sub(r"<text:tab\b[^>]*/?>", "\t", fragment, flags=re.IGNORECASE)
+        fragment = re.sub(r"<text:line-break\b[^>]*/?>", "", fragment, flags=re.IGNORECASE)
+        return html.unescape(re.sub(r"<[^>]+>", "", fragment))
+
+    pages = re.findall(r"<draw:page\b[^>]*?/>|<draw:page\b[^>]*>[\s\S]*?</draw:page>", source_fodp, re.IGNORECASE)
+    result: list[dict[str, list[list[tuple[int, int]]]]] = []
+    token_re = re.compile(r"<text:span\b([^>]*)>([\s\S]*?)</text:span>|([^<]+)|<text:(?:s|tab|line-break)\b[^>]*/?>", re.IGNORECASE)
+    for page in pages:
+        per_text: dict[str, list[list[tuple[int, int]]]] = {}
+        for paragraph in re.finditer(r"<text:p(?=[\s>])[^>]*?(?<!/)>([\s\S]*?)</text:p>", page, re.IGNORECASE):
+            inner = paragraph.group(1)
+            text = ""
+            ranges: list[tuple[int, int]] = []
+            for token in token_re.finditer(inner):
+                if token.group(1) is not None:
+                    style = re.search(r"text:style-name=[\"']([^\"']+)[\"']", token.group(1), re.IGNORECASE)
+                    piece = plain(token.group(2))
+                    if style and style.group(1) in shadow_styles and piece:
+                        ranges.append((len(text), len(text) + len(piece)))
+                    text += piece
+                elif token.group(3) is not None:
+                    text += html.unescape(token.group(3))
+                else:
+                    text += plain(token.group(0))
+            if ranges and text:
+                per_text.setdefault(text, []).append(ranges)
+        result.append(per_text)
+    return result if any(result) else []
+
+
+_DRAWINGML_TEXT_SHADOW = (
+    '<a:effectLst><a:outerShdw blurRad="38100" dist="38100" dir="2700000" algn="tl" rotWithShape="0">'
+    '<a:srgbClr val="000000"><a:alpha val="43137"/></a:srgbClr></a:outerShdw></a:effectLst>'
+)
+
+
+def _set_run_text_shadow(run_xml: str) -> str:
+    """Give one <a:r> a PowerPoint-style text shadow (replaces soffice's empty <a:effectLst>)."""
+    if "<a:outerShdw" in run_xml:
+        return run_xml
+    if re.search(r"<a:effectLst\s*/>|<a:effectLst>\s*</a:effectLst>", run_xml):
+        return re.sub(r"<a:effectLst\s*/>|<a:effectLst>\s*</a:effectLst>", _DRAWINGML_TEXT_SHADOW, run_xml, count=1)
+    rpr = re.search(r"<a:rPr\b[^>]*?(/?)>", run_xml)
+    if not rpr:
+        return run_xml
+    if rpr.group(1) == "/":  # <a:rPr .../> tự đóng: mở rộng thành thẻ có nội dung
+        opened = rpr.group(0)[:-2] + ">"
+        return run_xml.replace(rpr.group(0), opened + _DRAWINGML_TEXT_SHADOW + "</a:rPr>", 1)
+    # effectLst đứng sau điền màu/viền và trước phông (latin/ea/cs/sym/hlinkClick...).
+    after_fill = re.search(r"</a:(?:solidFill|gradFill|noFill|pattFill|blipFill|ln)>", run_xml[rpr.end():])
+    anchor_font = re.search(r"<a:(?:uLnTx|uLn|uFillTx|uFill|latin|ea|cs|sym|hlinkClick|hlinkMouseOver|rtl|extLst)\b", run_xml[rpr.end():])
+    insert_at = rpr.end()
+    if anchor_font:
+        insert_at = rpr.end() + anchor_font.start()
+    elif after_fill:
+        insert_at = rpr.end() + after_fill.end()
+    else:
+        close = run_xml.find("</a:rPr>", rpr.end())
+        insert_at = close if close >= 0 else rpr.end()
+    return run_xml[:insert_at] + _DRAWINGML_TEXT_SHADOW + run_xml[insert_at:]
+
+
+def _apply_slides_text_shadow(pptx_bytes: bytes, source_fodp: str | None, prior: dict[str, str] | None = None) -> dict[str, str]:
+    """Restore character shadows (fo:text-shadow) that soffice drops when writing PPTX."""
+    page_ranges = _slides_text_shadow_ranges_from_fodp(source_fodp)
+    if not page_ranges:
+        return {}
+    try:
+        with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+            entries = sorted(
+                (name for name in package.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", name)),
+                key=lambda name: int(re.search(r"slide(\d+)\.xml$", name).group(1)),
+            )
+    except Exception:
+        return {}
+    prior = prior or {}
+    replacements: dict[str, str] = {}
+    paragraph_re = re.compile(r"<a:p\b[^>]*>[\s\S]*?</a:p\s*>", re.IGNORECASE)
+    run_re = re.compile(r"<a:r\b[^>]*>[\s\S]*?</a:r\s*>", re.IGNORECASE)
+    text_re = re.compile(r"<a:t\b[^>]*>([\s\S]*?)</a:t\s*>", re.IGNORECASE)
+    for page_index, entry in enumerate(entries):
+        if page_index >= len(page_ranges) or not page_ranges[page_index]:
+            continue
+        if entry in prior:
+            xml = prior[entry]
+        else:
+            original = read_zip_entry(pptx_bytes, entry)
+            if not original:
+                continue
+            xml = original.decode("utf-8", errors="replace")
+        pending = {text: [list(ranges) for ranges in occurrences] for text, occurrences in page_ranges[page_index].items()}
+        changed = False
+
+        def patch_paragraph(match: re.Match[str]) -> str:
+            nonlocal changed
+            block = match.group(0)
+            runs = run_re.findall(block)
+            if not runs:
+                return block
+            run_texts = [html.unescape("".join(text_re.findall(run))) for run in runs]
+            text = "".join(run_texts)
+            occurrences = pending.get(text)
+            if not text or not occurrences:
+                return block
+            ranges = occurrences.pop(0)
+            offset = 0
+            out = block
+            for run, run_text in zip(runs, run_texts):
+                start, end = offset, offset + len(run_text)
+                offset = end
+                if run_text and any(s <= start and end <= e for s, e in ranges):
+                    patched = _set_run_text_shadow(run)
+                    if patched != run:
+                        out = out.replace(run, patched, 1)
+                        changed = True
+            return out
 
         next_xml = paragraph_re.sub(patch_paragraph, xml)
         if changed and next_xml != xml:
@@ -10895,7 +11241,17 @@ def postprocess_slides_pptx(
     layout_replacements = _apply_slides_native_layout_types(
         pptx_bytes, source_fodp, {**animation_replacements, **transition_replacements, **wordart_replacements}
     )
-    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements:
+    native_timing_replacements = _apply_slides_native_animation_timing(
+        pptx_bytes, source_fodp,
+        {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,
+         **transition_replacements, **wordart_replacements, **layout_replacements},
+    )
+    shadow_replacements = _apply_slides_text_shadow(
+        pptx_bytes, source_fodp,
+        {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,
+         **transition_replacements, **wordart_replacements, **layout_replacements, **native_timing_replacements},
+    )
+    if not apply_logo and not theme_id and not theme_replacements and not apply_sections and not apply_show and not apply_slide_size and not notes_by_slide and not animation_replacements and not paragraph_level_replacements and not header_footer_replacements and not transition_replacements and not wordart_replacements and not layout_replacements and not native_timing_replacements and not shadow_replacements:
         return pptx_bytes
     replacements.update(animation_replacements)
     replacements.update(paragraph_level_replacements)
@@ -10904,6 +11260,8 @@ def postprocess_slides_pptx(
     replacements.update(transition_replacements)
     replacements.update(wordart_replacements)
     replacements.update(layout_replacements)
+    replacements.update(native_timing_replacements)
+    replacements.update(shadow_replacements)
 
     if apply_slide_size and presentation_xml:
         presentation_xml = apply_intended_slide_size(presentation_xml, intended_size)
