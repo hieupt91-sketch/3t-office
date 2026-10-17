@@ -4170,3 +4170,10 @@ p.vno-style-list-paragraph {
 .vno-writer-body.vno-show-formatting-marks [data-vno-fx~="vanish"],
 .vno-writer-body.vno-show-formatting-marks [data-vno-fx*="vanish"],
 .vno-writer-body.vno-show-formatting-marks [style*="display: none"]:has([data-vno-fx*="vanish"]) { display: inline !important; text-decoration: underline dotted; }
+
+/* Thanh công cụ nổi (Mini Toolbar) khi bôi đen chữ hoặc nhấp chuột phải */
+.vno-mini-toolbar { position: fixed; z-index: 100000; display: flex; flex-direction: column; gap: 2px; padding: 4px; background: var(--vno-bg-surface, #fff); color: var(--vno-text-primary, #1f2937); border: 1px solid var(--vno-border-default, #cbd5e1); border-radius: 6px; box-shadow: 0 4px 14px rgba(15, 23, 42, 0.22); transition: opacity 0.12s ease; user-select: none; }
+.vno-mini-toolbar .vno-mini-row { display: flex; align-items: center; gap: 2px; }
+.vno-mini-toolbar .vno-mini-select { height: 24px; font-size: 12px; max-width: 128px; }
+.vno-mini-toolbar [data-mini-command="writer.font.size"] { max-width: 76px; }
+.vno-mini-toolbar .vno-btn { min-width: 26px; height: 24px; padding: 0 4px; }
