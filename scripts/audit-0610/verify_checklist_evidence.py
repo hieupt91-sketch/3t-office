@@ -2,18 +2,24 @@
 # -*- coding: utf-8 -*-
 """scripts/audit-0610/verify_checklist_evidence.py
 
-Kiểm chứng bằng chứng đối chiếu Word / Excel cho các checklist tính năng.
-Dùng được cho cả docs/WORD2016-FEATURE-CHECKLIST.md và docs/EXCEL2016-FEATURE-CHECKLIST.md.
+Kiểm chứng bằng chứng đối chiếu Word / Excel / PowerPoint cho các checklist tính năng.
+Dùng chung cho:
+  - docs/WORD2016-FEATURE-CHECKLIST.md
+  - docs/EXCEL2016-FEATURE-CHECKLIST.md
+  - docs/POWERPOINT2016-FEATURE-CHECKLIST.md
 
-Quy tắc:
-1. Mọi dòng trạng thái V (✅) PHẢI có ít nhất một trích dẫn file:dòng (hoặc file:dòng-dòng) tồn tại trên đĩa.
-2. Nội dung dòng trích dẫn phải chứa từ khóa đặc trưng của tính năng:
-   - Tên lệnh (writer.*, common.*, sheet.*), HOẶC
-   - Phím tắt (Ctrl+..., Shift+..., F...), HOẶC
-   - Ít nhất một từ khóa không phải từ thông dụng lấy từ tên tính năng (tiếng Việt hoặc tiếng Anh).
-3. Dòng nào không đạt sẽ bị hạ xuống A (🟢 - Có trong app, chưa đối chiếu) và ghi rõ lý do.
-4. In số dòng V trước/sau và danh sách các dòng bị hạ.
-5. Hỗ trợ cập nhật trực tiếp (--fix hoặc mặc định khi phát hiện lỗi).
+Quy tắc mở rộng:
+1. Với MỌI dòng V, A, P: mọi mã lệnh slides.* (hoặc writer.*, sheet.*, common.*, ai.*)
+   được nêu PHẢI tồn tại trong platform/commands/command-definitions.js.
+2. Mọi dòng V/A phải có ít nhất một bằng chứng kiểm được:
+   - Dòng V: PHẢI có trích dẫn file:dòng hợp lệ chứa từ khóa đặc trưng VÀ mọi mã lệnh phải tồn tại.
+     Nếu thiếu đối chiếu nhưng có mã lệnh/mã app hợp lệ: hạ V -> A.
+     Nếu không có mã lệnh và không có mã/bằng chứng nào: hạ V -> N.
+   - Dòng A: PHẢI có ít nhất một bằng chứng kiểm được (mã lệnh tồn tại trong command-definitions.js,
+     HOẶC đường dẫn tệp/test tồn tại và có nội dung liên quan).
+     Nếu mã lệnh sai hoặc không có mã/bằng chứng nào: hạ A -> N.
+   - Dòng P: Giữ nếu có một phần thật và nêu rõ phần có; mọi mã lệnh nêu phải tồn tại.
+3. Hỗ trợ cập nhật trực tiếp (--fix hoặc mặc định) và kiểm tra chế độ chỉ đọc (--no-fix).
 """
 
 import argparse
@@ -43,14 +49,37 @@ def strip_accents(text: str) -> str:
     return ''.join(c for c in nfkd if not unicodedata.combining(c)).replace('đ', 'd').replace('Đ', 'D')
 
 
+def load_valid_commands(repo_root: Path) -> set[str]:
+    """Nạp toàn bộ mã lệnh hợp lệ từ platform/commands/command-definitions.js."""
+    cmd_defs_path = repo_root / "platform" / "commands" / "command-definitions.js"
+    if not cmd_defs_path.exists():
+        return set()
+    content = cmd_defs_path.read_text(encoding='utf-8')
+    return set(re.findall(r'id:\s*[\'"]([^\'"]+)[\'"]', content))
+
+
+def extract_cited_commands(text: str) -> list[str]:
+    """Trích xuất danh sách mã lệnh writer.*, sheet.*, slides.*, common.*, ai.* được nêu trong văn bản.
+    Mỗi mã lệnh chuẩn gồm 3 phần (domain.category.action).
+    Loại trừ các chuỗi phân cách bởi dấu gạch chéo không phải mã lệnh đơn lẻ (như writer.header/footer).
+    """
+    matches = re.findall(r'(?<![/a-zA-Z0-9_])((?:slides|writer|sheet|common|ai)\.[a-zA-Z0-9_]+\.[a-zA-Z0-9_]+)(?![/a-zA-Z0-9_])', text)
+    seen = set()
+    result = []
+    for m in matches:
+        if m not in seen:
+            seen.add(m)
+            result.append(m)
+    return result
+
+
 def extract_keywords(feature_name: str, note_text: str) -> list[str]:
     """Trích xuất danh sách từ khóa đặc trưng từ cột tính năng và ghi chú."""
     keywords = set()
 
     # 1. Tìm các command id: writer.*, common.*, sheet.*, slides.*
-    for cmd in re.findall(r'((?:writer|common|sheet|slides)\.[\w\.]+)', note_text + ' ' + feature_name):
+    for cmd in extract_cited_commands(note_text + ' ' + feature_name):
         keywords.add(cmd.lower())
-        # Thêm phần đuôi của lệnh (vd: clearFormat, pasteSpecial, sort, alignCenter)
         parts = cmd.split('.')
         if len(parts) >= 3:
             keywords.add(parts[-1].lower())
@@ -91,16 +120,19 @@ def resolve_file_path(repo_root: Path, file_str: str) -> Path | None:
     p_scripts = repo_root / "scripts" / clean_path
     if p_scripts.exists() and p_scripts.is_file():
         return p_scripts
+    # Thử tìm trong tests/
+    p_tests = repo_root / "tests" / clean_path
+    if p_tests.exists() and p_tests.is_file():
+        return p_tests
     return None
 
 
 def verify_row_evidence(repo_root: Path, feature: str, note: str) -> tuple[bool, str, list[str]]:
-    """Kiểm tra bằng chứng cho một dòng trạng thái V.
+    """Kiểm tra bằng chứng trích dẫn file:line trong ghi chú.
 
     Trả về:
       (is_valid, reason, valid_citations)
     """
-    # Mẫu trích dẫn file:line hoặc file:s-e hoặc file:s,e
     cite_matches = re.findall(r'([\w\/\.\-]+\.[A-Za-z0-9]+):(\d+)(?:-(\d+)|,(\d+))?', note)
     if not cite_matches:
         return False, "Thiếu trích dẫn file:dòng trong ghi chú", []
@@ -157,7 +189,6 @@ def verify_row_evidence(repo_root: Path, feature: str, note: str) -> tuple[bool,
 def update_summary_tables(content: str, detail_rows: list[dict]) -> str:
     """Cập nhật lại bảng tổng hợp và bảng theo tab trong file checklist Markdown."""
     counts = collections.Counter(r['status'] for r in detail_rows)
-    # status keys: 'V', 'A', 'P', 'N', 'X'
     total_applicable = len(detail_rows) - counts['X']
     cov = (counts['V'] + counts['A'] + 0.5 * counts['P']) / total_applicable * 100 if total_applicable else 0
     ver = counts['V'] / total_applicable * 100 if total_applicable else 0
@@ -185,7 +216,6 @@ def update_summary_tables(content: str, detail_rows: list[dict]) -> str:
     summary_lines.append(f"| **Tổng** | **{len(detail_rows)}** (áp dụng: {total_applicable}) | |")
     summary_table_str = "\n".join(summary_lines)
 
-    # Thay thế bảng tổng hợp
     content = re.sub(
         r'\| Trạng thái \| Số mục \| Tỷ lệ \(trên mục áp dụng\) \|\n\|---\|---\|---\|\n(?:\|[^\n]+\|\n)+\| \*\*Tổng\*\* \|[^\n]+\|',
         summary_table_str,
@@ -233,6 +263,8 @@ def update_summary_tables(content: str, detail_rows: list[dict]) -> str:
 def verify_checklist_file(checklist_path: Path, fix: bool = True) -> dict:
     """Xác minh một tệp checklist Markdown và trả về kết quả thống kê."""
     repo_root = Path(__file__).resolve().parents[2]
+    valid_commands = load_valid_commands(repo_root)
+
     raw_content = checklist_path.read_text(encoding='utf-8')
     lines = raw_content.splitlines()
 
@@ -241,8 +273,8 @@ def verify_checklist_file(checklist_path: Path, fix: bool = True) -> dict:
     detail_rows = []
     modified_lines = list(lines)
 
-    v_before = 0
-    v_after = 0
+    counts_before = collections.Counter()
+    counts_after = collections.Counter()
     downgraded = []
 
     for line_idx, line in enumerate(lines):
@@ -260,7 +292,6 @@ def verify_checklist_file(checklist_path: Path, fix: bool = True) -> dict:
             # Dòng chi tiết có định dạng: | Nhóm | Tính năng | Trạng thái | Ưu tiên | Ghi chú... |
             if line_stripped.startswith('|') and not line_stripped.startswith('|---'):
                 parts = [p.strip() for p in line.split('|')]
-                # Dòng bảng 5 cột có chính xác 7 phần tử khi split('|')
                 if len(parts) == 7 and parts[0] == '' and parts[-1] == '':
                     col_group = parts[1]
                     col_feat = parts[2]
@@ -284,6 +315,8 @@ def verify_checklist_file(checklist_path: Path, fix: bool = True) -> dict:
                 elif col_status_raw in ('⚪', 'X'):
                     status_norm = 'X'
 
+                counts_before[status_norm] += 1
+
                 row_info = {
                     'line_no': line_idx + 1,
                     'tab': current_tab,
@@ -295,28 +328,76 @@ def verify_checklist_file(checklist_path: Path, fix: bool = True) -> dict:
                     'raw_line': line
                 }
 
+                # 1. Trích xuất mã lệnh và kiểm tra sự tồn tại trong command-definitions.js
+                cited_cmds = extract_cited_commands(col_note)
+                invalid_cmds = [c for c in cited_cmds if c not in valid_commands]
+                valid_cmds = [c for c in cited_cmds if c in valid_commands]
+
+                # 2. Kiểm tra bằng chứng file:line
+                is_cite_valid, cite_reason, valid_cites = verify_row_evidence(repo_root, col_feat, col_note)
+
+                target_status = status_norm
+                downgrade_reason = ""
+
                 if status_norm == 'V':
-                    v_before += 1
-                    is_valid, reason, valid_cites = verify_row_evidence(repo_root, col_feat, col_note)
-                    if not is_valid:
-                        # Hạ xuống A
-                        status_norm = 'A'
-                        new_status_icon = '🟢'
-                        new_note = col_note + f" [Hạ từ V xuống A: {reason}]"
-                        new_line = f"| {col_group} | {col_feat} | {new_status_icon} | {col_prio} | {new_note} |"
-                        modified_lines[line_idx] = new_line
+                    if invalid_cmds:
+                        # Có mã lệnh không tồn tại -> hạ xuống A nếu có lệnh khác/code hợp lệ, ngược lại hạ N
+                        downgrade_reason = f"Chứa mã lệnh không tồn tại trong command-definitions.js: {', '.join(invalid_cmds)}"
+                        target_status = 'A' if (valid_cmds or valid_cites) else 'N'
+                    elif not is_cite_valid:
+                        downgrade_reason = cite_reason
+                        target_status = 'A' if (valid_cmds or valid_cites) else 'N'
+                    else:
+                        target_status = 'V'
+
+                elif status_norm == 'A':
+                    if invalid_cmds:
+                        # Nêu mã lệnh không tồn tại -> hạ xuống N
+                        downgrade_reason = f"Chứa mã lệnh không tồn tại trong command-definitions.js: {', '.join(invalid_cmds)}"
+                        target_status = 'N'
+                    elif not valid_cmds and not valid_cites:
+                        # Không có mã lệnh hợp lệ lẫn tệp bằng chứng nào
+                        downgrade_reason = "Không có mã lệnh tồn tại hoặc tệp bằng chứng nào"
+                        target_status = 'N'
+                    else:
+                        target_status = 'A'
+
+                elif status_norm == 'P':
+                    if invalid_cmds:
+                        downgrade_reason = f"Chứa mã lệnh không tồn tại trong command-definitions.js: {', '.join(invalid_cmds)}"
+                        # Ghi nhận lỗi nhưng giữ P nếu có mã thật/phần thật
                         downgraded.append({
                             'line_no': line_idx + 1,
                             'tab': current_tab,
                             'group': col_group,
                             'feature': col_feat,
-                            'reason': reason
+                            'from_status': 'P',
+                            'to_status': 'P',
+                            'reason': downgrade_reason
                         })
-                    else:
-                        v_after += 1
-                else:
-                    pass
+                    target_status = 'P'
 
+                if target_status != status_norm:
+                    icon_map = {'V': '✅', 'A': '🟢', 'P': '🟡', 'N': '🔴', 'X': '⚪'}
+                    new_icon = icon_map[target_status]
+                    new_prio = col_prio
+                    if target_status == 'N' and col_prio not in ('1', '2', '3'):
+                        new_prio = '2'
+                    new_note = col_note + f" [Hạ từ {status_norm} xuống {target_status}: {downgrade_reason}]"
+                    new_line = f"| {col_group} | {col_feat} | {new_icon} | {new_prio} | {new_note} |"
+                    modified_lines[line_idx] = new_line
+                    downgraded.append({
+                        'line_no': line_idx + 1,
+                        'tab': current_tab,
+                        'group': col_group,
+                        'feature': col_feat,
+                        'from_status': status_norm,
+                        'to_status': target_status,
+                        'reason': downgrade_reason
+                    })
+                    status_norm = target_status
+
+                counts_after[status_norm] += 1
                 row_info['status'] = status_norm
                 detail_rows.append(row_info)
 
@@ -328,23 +409,31 @@ def verify_checklist_file(checklist_path: Path, fix: bool = True) -> dict:
     return {
         'file': str(checklist_path),
         'total_rows': len(detail_rows),
-        'v_before': v_before,
-        'v_after': v_after,
-        'downgraded_count': len(downgraded),
+        'counts_before': dict(counts_before),
+        'counts_after': dict(counts_after),
+        'v_before': counts_before['V'],
+        'v_after': counts_after['V'],
+        'a_before': counts_before['A'],
+        'a_after': counts_after['A'],
+        'p_before': counts_before['P'],
+        'p_after': counts_after['P'],
+        'n_before': counts_before['N'],
+        'n_after': counts_after['N'],
+        'downgraded_count': len([d for d in downgraded if d['from_status'] != d['to_status']]),
         'downgraded': downgraded
     }
 
 
 def main():
-    parser = argparse.ArgumentParser(description="Kiểm chứng bằng chứng đối chiếu Word / Excel checklist.")
-    parser.add_argument("checklist", nargs="?", default="docs/WORD2016-FEATURE-CHECKLIST.md",
-                        help="Đường dẫn file checklist cần kiểm chứng (mặc định: docs/WORD2016-FEATURE-CHECKLIST.md)")
+    parser = argparse.ArgumentParser(description="Kiểm chứng bằng chứng đối chiếu Word / Excel / PowerPoint checklist.")
+    parser.add_argument("checklist", nargs="?", default="docs/POWERPOINT2016-FEATURE-CHECKLIST.md",
+                        help="Đường dẫn file checklist cần kiểm chứng (mặc định: docs/POWERPOINT2016-FEATURE-CHECKLIST.md)")
     parser.add_argument("--no-fix", action="store_true",
                         help="Chỉ kiểm tra, không tự động sửa file checklist trên đĩa")
     parser.add_argument("--fix", action="store_true", default=True,
                         help="Tự động cập nhật file checklist khi phát hiện dòng không đạt (mặc định: True)")
     parser.add_argument("--all", action="store_true",
-                        help="Kiểm chứng cả Word và Excel checklist")
+                        help="Kiểm chứng cả Word, Excel và PowerPoint checklist")
 
     args = parser.parse_args()
     repo_root = Path(__file__).resolve().parents[2]
@@ -353,13 +442,14 @@ def main():
     if args.all:
         files_to_check = [
             repo_root / "docs" / "WORD2016-FEATURE-CHECKLIST.md",
-            repo_root / "docs" / "EXCEL2016-FEATURE-CHECKLIST.md"
+            repo_root / "docs" / "EXCEL2016-FEATURE-CHECKLIST.md",
+            repo_root / "docs" / "POWERPOINT2016-FEATURE-CHECKLIST.md"
         ]
     else:
         files_to_check = [repo_root / args.checklist]
 
     print("=" * 80)
-    print("KIỂM CHỨNG BẰNG CHỨNG ĐỐI CHIẾU CHECKLIST")
+    print("KIỂM CHỨNG BẰNG CHỨNG ĐỐI CHIẾU CHECKLIST (WORD / EXCEL / POWERPOINT)")
     print("=" * 80)
 
     for fpath in files_to_check:
@@ -371,17 +461,18 @@ def main():
         res = verify_checklist_file(fpath, fix=do_fix)
         print(f"\nTệp kiểm chứng: {fpath.name}")
         print(f"- Tổng số dòng tính năng: {res['total_rows']}")
-        print(f"- Số dòng V trước kiểm chứng: {res['v_before']}")
-        print(f"- Số dòng V sau kiểm chứng:   {res['v_after']}")
-        print(f"- Số dòng bị hạ xuống A:      {res['downgraded_count']}")
+        print(f"- Trạng thái trước: V={res['v_before']}, A={res['a_before']}, P={res['p_before']}, N={res['n_before']}")
+        print(f"- Trạng thái sau:   V={res['v_after']}, A={res['a_after']}, P={res['p_after']}, N={res['n_after']}")
+        print(f"- Số dòng bị hạ:    {res['downgraded_count']}")
 
-        if res['downgraded']:
-            print("\nChi tiết các dòng bị hạ xuống A:")
-            for item in res['downgraded']:
-                print(f"  * Dòng {item['line_no']}: [{item['tab']}|{item['group']}] {item['feature']}")
+        real_downgrades = [d for d in res['downgraded'] if d['from_status'] != d['to_status']]
+        if real_downgrades:
+            print("\nChi tiết các dòng bị hạ:")
+            for item in real_downgrades:
+                print(f"  * Dòng {item['line_no']}: [{item['tab']}|{item['group']}] {item['feature']} ({item['from_status']} -> {item['to_status']})")
                 print(f"    Lý do: {item['reason']}")
         else:
-            print("  -> 100% dòng V đều có bằng chứng file:dòng hợp lệ và chứa từ khóa đặc trưng!")
+            print("  -> 100% dòng đạt (0 dòng bị hạ): toàn bộ mã lệnh đều tồn tại trong command-definitions.js và có bằng chứng hợp lệ!")
 
     print("\nHoàn tất kiểm chứng.")
 
