@@ -18,8 +18,8 @@ Chuẩn: Microsoft PowerPoint 2016 (16.0.4266) cài trên máy, đọc chỉ-đ�
 |---|---|---|
 | ✅ Đã đối chiếu PowerPoint 2016 | 105 | 40% |
 | 🟢 Có, chưa đối chiếu | 61 | 23% |
-| 🟡 Có một phần | 22 | 8% |
-| 🔴 Chưa có | 75 | 29% |
+| 🟡 Có một phần | 23 | 9% |
+| 🔴 Chưa có | 74 | 28% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **269** (áp dụng: 263) | |
 
@@ -35,7 +35,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Tệp (Backstage) | 17 | 4 | 10 | 0 | 2 | 1 | 88% |
 | Trang đầu | 57 | 40 | 11 | 4 | 2 | 0 | 93% |
 | Chèn | 29 | 14 | 2 | 1 | 10 | 2 | 61% |
-| Thiết kế | 15 | 9 | 0 | 1 | 5 | 0 | 63% |
+| Thiết kế | 15 | 9 | 0 | 2 | 4 | 0 | 67% |
 | Chuyển tiếp | 11 | 5 | 3 | 1 | 2 | 0 | 77% |
 | Hoạt ảnh | 16 | 8 | 3 | 1 | 4 | 0 | 72% |
 | Trình chiếu | 16 | 4 | 4 | 1 | 6 | 1 | 57% |
@@ -230,7 +230,7 @@ Tổng: 7 mục ưu tiên 1.
 | Tùy chỉnh | Kích thước trang chiếu tùy chỉnh (Custom Slide Size) | ✅ | - | 17/10: slides.design.slideSize có mục Tùy chỉnh (cm, 2,54-142,24); CDP 10/10; PowerPoint 2016 COM đọc SlideWidth/Height 842x595 pt, ppSlideSizeCustom; mở lại đúng (docs/AUDIT-SLIDES-SIZE-1710.md:7) |
 | Tùy chỉnh | Định dạng nền: Màu đơn sắc (Solid Fill) | ✅ | - | FIX-L8: slides.design.formatBackground nền gradient ngang Fill.Type=3 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:67) |
 | Tùy chỉnh | Định dạng nền: Chuyển sắc (Gradient Fill) | ✅ | - | FIX-L8: slides.design.formatBackground nền gradient ngang Fill.Type=3 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:67) |
-| Tùy chỉnh | Định dạng nền: Hình ảnh hoặc họa tiết (Picture or Texture Fill) | 🔴 | 2 | Chưa hỗ trợ chèn ảnh hoặc họa tiết làm hình nền slide |
+| Tùy chỉnh | Định dạng nền: Hình ảnh hoặc họa tiết (Picture or Texture Fill) | 🟡 | 2 | slides.design.formatBackground: nền hình ảnh theo từng trang hoặc cả bài, lưu PPTX; PowerPoint COM đọc lại Background.Fill.Type = 6 (picture), nền màu đơn = 1, chuyển sắc = 3 (apps/slides/slides-canvas.js:9522 applySlideBackground, scripts/audit-0610/ppt_bg_fill_readback.ps1:2); chưa có họa tiết lặp (texture) |
 | Tùy chỉnh | Định dạng nền: Hoa văn (Pattern Fill) | 🔴 | 3 | Chưa có thư viện mẫu hoa văn pattern cho nền |
 | Tùy chỉnh | Ẩn đồ họa nền (Hide Background Graphics) | ✅ | - | slides.design.hideBackground; PowerPoint COM đọc lại DisplayMasterShapes (ppt_hide_bg_readback.ps1) (apps/slides/slides-canvas.js:6837; scripts/audit-0610/ppt_hide_bg_readback.ps1:1) |
 
