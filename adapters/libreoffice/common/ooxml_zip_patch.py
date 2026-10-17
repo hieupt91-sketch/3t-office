@@ -25797,10 +25797,18 @@ def postprocess_writer_text_effects(docx_bytes: bytes, *, source_html: str | Non
 # Toạ độ tính theo số ký tự KHÔNG phải khoảng trắng (LibreOffice đổi khoảng trắng thành xuống dòng trong HTML).
 # ---------------------------------------------------------------------------------------------------------------------
 _RUN_FX_DETECT_RE = re.compile(
-    r'<w:(?:dstrike|vanish|position|emboss|imprint|outline|shadow|em)\b'
+    r'<w:(?:dstrike|vanish|position|emboss|imprint|outline|shadow|em|highlight|kern|outlineLvl)\b'
+    r'|<w:w\s'
+    r'|lineRule="exact"'
     r'|<w:u\b[^>]*w:val="(?!single"|none")'
     r'|<w:u\b[^>]*w:color="(?!auto")',
 )
+_RUN_FX_HIGHLIGHT_CSS = {
+    "yellow": "#FFFF00", "green": "#00FF00", "cyan": "#00FFFF", "magenta": "#FF00FF", "blue": "#0000FF",
+    "red": "#FF0000", "darkBlue": "#000080", "darkCyan": "#008080", "darkGreen": "#008000",
+    "darkMagenta": "#800080", "darkRed": "#800000", "darkYellow": "#808000", "darkGray": "#808080",
+    "lightGray": "#C0C0C0", "black": "#000000",
+}
 _RUN_FX_RPR_ORDER = [
     "w:rStyle", "w:rFonts", "w:b", "w:bCs", "w:i", "w:iCs", "w:caps", "w:smallCaps", "w:strike", "w:dstrike",
     "w:outline", "w:shadow", "w:emboss", "w:imprint", "w:noProof", "w:snapToGrid", "w:vanish", "w:webHidden",
@@ -25858,6 +25866,18 @@ def _run_fx_from_rpr(rpr_inner: str) -> str:
         tokens.append("outlineold")
     if on("shadow"):
         tokens.append("shadowold")
+    highlight = re.search(r'<w:highlight\b[^>]*w:val="([A-Za-z]+)"', rpr_inner)
+    if highlight and highlight.group(1) in _RUN_FX_HIGHLIGHT_CSS:
+        tokens.append(f"hl={highlight.group(1)}")
+    emphasis = re.search(r'<w:em\b[^>]*w:val="([A-Za-z]+)"', rpr_inner)
+    if emphasis and emphasis.group(1) != "none":
+        tokens.append(f"emk={emphasis.group(1)}")
+    scale = re.search(r'<w:w\s[^>]*w:val="(\d+)"', rpr_inner)
+    if scale and int(scale.group(1)) != 100:
+        tokens.append(f"wsc={scale.group(1)}")
+    kern = re.search(r'<w:kern\b[^>]*w:val="(\d+)"', rpr_inner)
+    if kern and int(kern.group(1)) > 0:
+        tokens.append(f"krn={kern.group(1)}")
     position = re.search(r'<w:position\b[^>]*w:val="(-?\d+)"', rpr_inner)
     if position and int(position.group(1)) != 0:
         size = re.search(r'<w:sz\b[^>]*w:val="(\d+)"', rpr_inner)
@@ -25925,6 +25945,15 @@ def _run_fx_apply_to_rpr(rpr_inner: str, fx: str) -> str:
                 drop("w:sz", "w:szCs")
             else:
                 put("w:sz", f'<w:sz w:val="{original}"/>')
+    # Thuộc tính soffice làm mất hẳn: chỉ bù khi run chưa có (người dùng đổi màu/kiểu mới thì giữ lựa chọn của họ).
+    if "hl" in kv and "bg" in kv and "w:highlight" not in names and "w:shd" not in names:
+        put("w:highlight", f'<w:highlight w:val="{kv["hl"]}"/>')
+    if "emk" in kv and "w:em" not in names:
+        put("w:em", f'<w:em w:val="{kv["emk"]}"/>')
+    if "wsc" in kv and "w:w" not in names:
+        put("w:w", f'<w:w w:val="{kv["wsc"]}"/>')
+    if "krn" in kv and "w:kern" not in names:
+        put("w:kern", f'<w:kern w:val="{kv["krn"]}"/>')
     if "posx" in kv:
         # Nâng/hạ vị trí đặt từ hộp Phông chữ (không có chỉ số trên/dưới làm nền), nửa điểm.
         put("w:position", f'<w:position w:val="{kv["posx"]}"/>')
@@ -25935,15 +25964,21 @@ def _run_fx_apply_to_rpr(rpr_inner: str, fx: str) -> str:
 
 
 def _run_fx_html_paragraphs(html_text: str):
-    """Yield (start, end, inner_start, inner_end) cho từng <p>/<h1-6> trong HTML."""
+    """Yield (start, end, inner) cho từng <p>/<h1-6> trong HTML (start/end là vị trí của phần bên trong)."""
     for match in re.finditer(r"<(p|h[1-6])\b[^>]*>([\s\S]*?)</\1\s*>", html_text, re.IGNORECASE):
         yield match.start(2), match.end(2), match.group(2)
+
+
+def _run_fx_html_paragraphs_with_tag(html_text: str):
+    """Yield (open_start, open_end, tag, open_attrs, inner_start, inner_end, inner) cho từng <p>/<h1-6>."""
+    for match in re.finditer(r"<(p|h[1-6])\b([^>]*)>([\s\S]*?)</\1\s*>", html_text, re.IGNORECASE):
+        yield match.start(), match.start(3) - 0, match.group(1).lower(), match.group(2), match.start(3), match.end(3), match.group(3)
 
 
 def _run_fx_html_ranges(inner: str) -> tuple[str, list[tuple[int, int, str]]]:
     """Văn bản không khoảng trắng của đoạn HTML + các khoảng [s,e) có data-vno-fx."""
     nws_total = 0
-    stack: list[tuple[str | None, int, bool]] = []
+    stack: list[tuple[str | None, int, bool, bool]] = []
     ranges: list[tuple[int, int, str]] = []
     plain: list[str] = []
     script_depth = 0
@@ -25954,13 +25989,17 @@ def _run_fx_html_ranges(inner: str) -> tuple[str, list[tuple[int, int, str]]]:
             low = token.lower()
             if low.startswith("<span"):
                 fx = re.search(r'data-vno-fx="([^"]*)"', token)
-                stack.append((fx.group(1) if fx else None, nws_total, script_depth > 0))
+                background = re.search(r'background(?:-color)?\s*:\s*([^;"]+)', token)
+                has_bg = bool(background and background.group(1).strip().lower() not in ("transparent", "none", "initial", "inherit"))
+                stack.append((fx.group(1) if fx else None, nws_total, script_depth > 0, has_bg))
             elif low.startswith("</span"):
                 if stack:
-                    fx, begin, in_script = stack.pop()
+                    fx, begin, in_script, has_bg = stack.pop()
                     if fx and nws_total > begin:
-                        # "in=1": chữ vẫn nằm trong <sup>/<sub> lúc lưu (người dùng chưa bỏ chỉ số trên/dưới)
-                        ranges.append((begin, nws_total, fx + (";in=1" if in_script and "vb=1" in fx else "")))
+                        # "in=1": chữ vẫn nằm trong <sup>/<sub> lúc lưu (người dùng chưa bỏ chỉ số trên/dưới);
+                        # "bg=1": span tô sáng vẫn còn nền (người dùng chưa xóa tô sáng).
+                        extra = (";in=1" if in_script and "vb=1" in fx else "") + (";bg=1" if has_bg and "hl=" in fx else "")
+                        ranges.append((begin, nws_total, fx + extra))
             elif re.match(r"<(?:sup|sub)\b", low):
                 script_depth += 1
             elif re.match(r"</(?:sup|sub)\b", low):
@@ -25986,6 +26025,55 @@ def _run_fx_run_text(run_xml: str) -> str:
     return html.unescape("".join(_RUN_FX_T_RE.findall(run_xml)))
 
 
+def _run_fx_para_tokens(para_xml: str) -> list[str]:
+    """Dấu hiệu mức đoạn cần giữ: giãn dòng «Exactly» (soffice đổi thành «At least») và cấp đề cương."""
+    ppr = re.search(r"<w:pPr>([\s\S]*?)</w:pPr>", para_xml)
+    inner = ppr.group(1) if ppr else ""
+    tokens: list[str] = []
+    spacing = re.search(r'<w:spacing\b(?=[^>]*\bw:lineRule="exact")(?=[^>]*\bw:line="(\d+)")[^>]*>', inner)
+    if spacing:
+        tokens += ["lr=exact", f"ln={spacing.group(1)}"]
+    outline = re.search(r'<w:outlineLvl\b[^>]*w:val="(\d)"', inner)
+    if outline and not re.search(r'<w:pStyle\b[^>]*w:val="(?:Heading|heading|Title|Subtitle)', inner):
+        tokens.append(f"ol={outline.group(1)}")
+    return tokens
+
+
+def _run_fx_apply_para(para_xml: str, tokens: dict[str, str], current_lh: str | None) -> str:
+    """Ghi lại giãn dòng Exactly và cấp đề cương vào <w:pPr> của đoạn."""
+    if not tokens:
+        return para_xml
+    ppr = re.search(r"<w:pPr>([\s\S]*?)</w:pPr>", para_xml)
+    if not ppr:
+        open_tag = re.match(r"<w:p\b[^>]*>", para_xml)
+        if not open_tag:
+            return para_xml
+        para_xml = para_xml[:open_tag.end()] + "<w:pPr></w:pPr>" + para_xml[open_tag.end():]
+        ppr = re.search(r"<w:pPr>([\s\S]*?)</w:pPr>", para_xml)
+    inner = ppr.group(1)
+    new_inner = inner
+    # Chỉ khôi phục «Exactly» nếu người dùng chưa đổi giãn dòng (chiều cao dòng trong HTML vẫn như lúc mở).
+    if tokens.get("lr") == "exact" and tokens.get("lh") and current_lh and current_lh.strip() == tokens["lh"].strip():
+        def fix_spacing(match: re.Match[str]) -> str:
+            attrs = match.group(1)
+            if "w:line=" not in attrs:
+                return match.group(0)
+            attrs = re.sub(r'\bw:lineRule="[^"]*"', 'w:lineRule="exact"', attrs)
+            attrs = re.sub(r'\bw:line="[^"]*"', f'w:line="{tokens.get("ln", "240")}"', attrs)
+            return f"<w:spacing{attrs}>"
+        new_inner = re.sub(r"<w:spacing\b([^>]*)>", fix_spacing, new_inner, count=1)
+    if "ol" in tokens and "<w:outlineLvl" not in new_inner:
+        position = new_inner.find("<w:rPr")
+        if position < 0:
+            position = new_inner.find("<w:sectPr")
+        if position < 0:
+            position = len(new_inner)
+        new_inner = new_inner[:position] + f'<w:outlineLvl w:val="{tokens["ol"]}"/>' + new_inner[position:]
+    if new_inner == inner:
+        return para_xml
+    return para_xml[:ppr.start(1)] + new_inner + para_xml[ppr.end(1):]
+
+
 def inject_docx_run_effects(docx_bytes: bytes, html_text: str) -> str:
     """Mở DOCX: đánh dấu chữ có hiệu ứng run (xem khối chú thích phía trên) trong HTML do LibreOffice sinh ra."""
     if not docx_bytes or not html_text:
@@ -25997,7 +26085,7 @@ def inject_docx_run_effects(docx_bytes: bytes, html_text: str) -> str:
     if not document_xml or not _RUN_FX_DETECT_RE.search(document_xml):
         return html_text
 
-    queues: dict[str, list[list[tuple[int, int, str]]]] = {}
+    queues: dict[str, list[tuple[list[tuple[int, int, str]], list[str]]]] = {}
     for para in _run_fx_xml_paragraphs(document_xml):
         runs = _RUN_FX_RUN_RE.findall(para.group(0))
         texts = [_run_fx_run_text(run) for run in runs]
@@ -26016,23 +26104,30 @@ def inject_docx_run_effects(docx_bytes: bytes, html_text: str) -> str:
                 else:
                     ranges.append((offset, offset + count, fx))
             offset += count
-        queues.setdefault(key, []).append(ranges)
-    if not any(ranges for lst in queues.values() for ranges in lst):
+        queues.setdefault(key, []).append((ranges, _run_fx_para_tokens(para.group(0))))
+    if not any(ranges or ptokens for lst in queues.values() for ranges, ptokens in lst):
         return html_text
 
     out: list[str] = []
     last = 0
-    for start, end, inner in _run_fx_html_paragraphs(html_text):
+    for open_start, _unused, tag, attrs, inner_start, inner_end, inner in _run_fx_html_paragraphs_with_tag(html_text):
         key = _run_fx_nws(html.unescape(re.sub(r"<[^>]+>", "", inner)))
         queue = queues.get(key)
         if not queue:
             continue
-        ranges = queue.pop(0)
-        if not ranges:
+        ranges, ptokens = queue.pop(0)
+        if not ranges and not ptokens:
             continue
-        out.append(html_text[last:start])
-        out.append(_run_fx_wrap_inner(inner, ranges))
-        last = end
+        new_open = html_text[open_start:inner_start]
+        if ptokens:
+            clean_attrs = re.sub(r'\s+data-vno-pfx="[^"]*"', "", attrs)
+            line_height = re.search(r"line-height\s*:\s*([^;\"]+)", clean_attrs)
+            all_tokens = ptokens + ([f"lh={line_height.group(1).strip()}"] if "lr=exact" in ptokens and line_height else [])
+            new_open = f'<{tag}{clean_attrs} data-vno-pfx="{html.escape(";".join(all_tokens), quote=True)}">'
+        out.append(html_text[last:open_start])
+        out.append(new_open)
+        out.append(_run_fx_wrap_inner(inner, ranges) if ranges else inner)
+        last = inner_end
     out.append(html_text[last:])
     return "".join(out)
 
@@ -26077,7 +26172,10 @@ def _run_fx_wrap_inner(inner: str, ranges: list[tuple[int, int, str]]) -> str:
             raw = "".join(buffer)
             if buffer_fx:
                 marked = buffer_fx + (";vb=1" if script_depth and "pos=" in buffer_fx and "vb=1" not in buffer_fx else "")
-                result.append(f'<span data-vno-fx="{html.escape(marked, quote=True)}">{raw}</span>')
+                highlight = re.search(r"(?:^|;)hl=([A-Za-z]+)", marked)
+                css = _RUN_FX_HIGHLIGHT_CSS.get(highlight.group(1)) if highlight else None
+                style = f' style="background-color: {css}"' if css else ""
+                result.append(f'<span data-vno-fx="{html.escape(marked, quote=True)}"{style}>{raw}</span>')
             else:
                 result.append(raw)
             buffer = []
@@ -26141,20 +26239,23 @@ def _run_fx_split_run(run_xml: str, local_cuts: list[tuple[int, str]]) -> list[s
 
 def postprocess_writer_run_effects(docx_bytes: bytes, *, source_html: str | None = None) -> bytes:
     """Lưu DOCX: ghi lại hiệu ứng run từ <span data-vno-fx> vào word/document.xml."""
-    if not docx_bytes or not source_html or "data-vno-fx" not in source_html:
+    if not docx_bytes or not source_html or ("data-vno-fx" not in source_html and "data-vno-pfx" not in source_html):
         return docx_bytes
     document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
     if not document_bytes:
         return docx_bytes
     document_xml = document_bytes.decode("utf-8", errors="replace")
 
-    queues: dict[str, list[list[tuple[int, int, str]]]] = {}
-    for _, _, inner in _run_fx_html_paragraphs(source_html):
+    queues: dict[str, list[tuple[list[tuple[int, int, str]], dict[str, str], str | None]]] = {}
+    for _o, _x, _tag, attrs, _s, _e, inner in _run_fx_html_paragraphs_with_tag(source_html):
         plain, ranges = _run_fx_html_ranges(inner)
         if not plain:
             continue
-        queues.setdefault(plain, []).append(ranges)
-    if not any(ranges for lst in queues.values() for ranges in lst):
+        pfx = re.search(r'data-vno-pfx="([^"]*)"', attrs)
+        ptokens = {token.split("=", 1)[0]: token.split("=", 1)[1] for token in html.unescape(pfx.group(1)).split(";") if "=" in token} if pfx else {}
+        current_lh = re.search(r"line-height\s*:\s*([^;\"]+)", attrs)
+        queues.setdefault(plain, []).append((ranges, ptokens, current_lh.group(1) if current_lh else None))
+    if not any(ranges or ptokens for lst in queues.values() for ranges, ptokens, _lh in lst):
         return docx_bytes
 
     pieces: list[str] = []
@@ -26167,8 +26268,17 @@ def postprocess_writer_run_effects(docx_bytes: bytes, *, source_html: str | None
         queue = queues.get(key) if key else None
         if not queue:
             continue
-        ranges = queue.pop(0)
+        ranges, ptokens, current_lh = queue.pop(0)
+        if ptokens:
+            patched_para = _run_fx_apply_para(para_xml, ptokens, current_lh)
+            if patched_para != para_xml:
+                para_xml = patched_para
+                runs = list(_RUN_FX_RUN_RE.finditer(para_xml))
         if not ranges:
+            if para_xml != para.group(0):
+                pieces.append(document_xml[last:para.start()])
+                pieces.append(para_xml)
+                last = para.end()
             continue
         new_para: list[str] = []
         cursor = 0
