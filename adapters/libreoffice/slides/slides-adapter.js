@@ -858,7 +858,8 @@ export class SlidesAdapter {
 
     this._walkHtml(html, {
       text: (text) => {
-        if (text) current.texts.push({ text, fmt: currentFmt() });
+        // Khoảng trắng chỉ có xuống dòng giữa các thẻ là định dạng đẹp của HTML, không phải chữ của người dùng.
+        if (text && !/^[ \t]*[\r\n]\s*$/.test(text)) current.texts.push({ text, fmt: currentFmt() });
       },
       open: (tag, attrs) => {
         const css = this._styleFromHtmlAttrs(tag, attrs);
@@ -2684,8 +2685,10 @@ export class SlidesAdapter {
   }
 
   _parseSlideHeaderFooter(pageXml) {
+    // Ghi chú diễn giả (<presentation:notes>) có khung ngày/chân trang/số trang của trang ghi chú: không phải của slide.
+    const slideXml = String(pageXml || "").replace(/<presentation:notes\b[\s\S]*?<\/presentation:notes>/gi, "");
     const readFrame = (className) => {
-      const match = String(pageXml || "").match(new RegExp(`<draw:frame\\b(?=[^>]*presentation:class=["']${className}["'])[^>]*>([\\s\\S]*?)<\\/draw:frame>`, "i"));
+      const match = slideXml.match(new RegExp(`<draw:frame\\b(?=[^>]*presentation:class=["']${className}["'])[^>]*>([\\s\\S]*?)<\\/draw:frame>`, "i"));
       if (!match) return null;
       const text = (match[1].match(/<text:p\b[^>]*>([\s\S]*?)<\/text:p>/i)?.[1] || "")
         .replace(/<[^>]+>/g, "");

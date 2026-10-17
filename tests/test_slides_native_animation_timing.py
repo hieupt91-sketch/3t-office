@@ -53,8 +53,25 @@ def run(effects, shape_ids=(4, 5, 6), fodp=None):
 
 
 class NativeAnimationTimingTests(unittest.TestCase):
-    def test_entrance_only_slide_is_left_to_the_existing_normalizer(self):
-        self.assertEqual(run([soffice_effect(10, "clickEffect", "entr", "10", 4)]), {})
+    def test_entrance_only_slide_is_rebuilt_and_with_effect_joins_its_click_group(self):
+        # Trước đây slide chỉ có hiệu ứng Vào đi đường cũ: hiệu ứng «cùng lúc» nằm riêng một nhóm nhấp chuột
+        # và hộp chữ thiếu bldP nên PowerPoint đọc thành 3 hiệu ứng rỗng (đo bằng bộ slide thử 17/10).
+        result = run([
+            soffice_effect(10, "clickEffect", "entr", "10", 4),
+            soffice_effect(20, "withEffect", "entr", "10", 5),
+        ])
+        root = ET.fromstring(result["ppt/slides/slide1.xml"])
+        effects = [n for n in root.iter(PFX + "cTn") if n.get("presetClass")]
+        self.assertEqual([n.get("nodeType") for n in effects], ["clickEffect", "withEffect"])
+        click_groups = [
+            n for n in root.iter(PFX + "cTn")
+            if any(c.get("delay") == "indefinite" for c in n.iter(PFX + "cond"))
+            and n.get("nodeType") is None and n.find(PFX + "stCondLst") is not None
+            and n.find(PFX + "stCondLst").find(PFX + "cond") is not None
+            and n.find(PFX + "stCondLst").find(PFX + "cond").get("delay") == "indefinite"
+        ]
+        self.assertEqual(len(click_groups), 1, "chỉ một nhóm nhấp chuột chứa cả hai hiệu ứng")
+        self.assertEqual({b.get("spid") for b in root.iter(PFX + "bldP")}, {"4", "5"})
 
     def test_emphasis_and_exit_are_rebuilt_in_powerpoint_structure(self):
         result = run([

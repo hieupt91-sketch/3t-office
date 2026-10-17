@@ -10680,7 +10680,7 @@ def _apply_slides_native_animation_timing(pptx_bytes: bytes, source_fodp: str | 
     replacements: dict[str, str] = {}
     for page_index, entry in enumerate(entries):
         xml = prior[entry] if entry in prior else (read_zip_entry(pptx_bytes, entry) or b"").decode("utf-8", errors="replace")
-        if not xml or not re.search(r'presetClass="(?:emph|exit)"', xml):
+        if not xml or not re.search(r'presetClass="(?:entr|emph|exit)"', xml):
             continue
         effects = _slides_animation_effects_from_soffice_xml(xml)
         if not effects:
