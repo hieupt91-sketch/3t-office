@@ -10497,6 +10497,273 @@ def _restore_source_masters_unsafe(pptx_bytes: bytes, source_pptx: bytes, page_l
     return out.getvalue()
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# Slide CHƯA SỬA: lưu lại đúng nguyên XML slide gốc (cùng ảnh, biểu đồ, SmartArt, đa phương tiện, liên kết...) thay vì bản
+# dựng lại qua soffice. Điều kiện: bản cái/bố cục gốc đã được khôi phục (xem _restore_source_masters) nên XML gốc tương thích.
+# Mở: gắn vno:src-slide vào từng draw:page. Lưu: JS thêm vno:src-untouched khi dấu vân tay slide không đổi.
+# ---------------------------------------------------------------------------------------------------------------------
+def overlay_fodp_source_slides(fodp_xml: str | None, pptx_bytes: bytes) -> str:
+    """Mở PPTX: gắn đường dẫn slide gốc (ppt/slides/slideN.xml) vào draw:page tương ứng."""
+    xml = fodp_xml or ""
+    entries = _resolve_pptx_slide_entries(pptx_bytes)
+    if not entries or "<draw:page" not in xml:
+        return xml
+    pieces: list[str] = []
+    cursor = 0
+    index = 0
+    for start, end in _flat_xml_blocks(xml, ("draw:page",)):
+        pieces.append(xml[cursor:start])
+        block = xml[start:end]
+        entry = entries[index] if index < len(entries) else None
+        index += 1
+        open_tag = re.match(r"<draw:page\b[^>]*>", block)
+        if entry and open_tag:
+            tag = re.sub(r'\s+vno:src-slide="[^"]*"', "", open_tag.group(0))
+            tag = tag[:-1].rstrip("/ ") + f' vno:src-slide="{entry}">'
+            block = tag + block[open_tag.end():]
+        pieces.append(block)
+        cursor = end
+    pieces.append(xml[cursor:])
+    return ensure_vno_xmlns("".join(pieces))
+
+
+def _restore_untouched_slides(pptx_bytes: bytes, source_pptx: bytes | None, source_fodp: str | None) -> bytes:
+    """Lưu PPTX: thay slide chưa sửa bằng slide gốc. Mọi sai lệch -> giữ nguyên gói."""
+    if not source_pptx or not source_fodp:
+        return pptx_bytes
+    flags = _slides_page_attr_list(source_fodp, "vno:src-untouched")
+    if not any(flags):
+        return pptx_bytes
+    try:
+        return _restore_untouched_slides_unsafe(pptx_bytes, source_pptx, source_fodp)
+    except Exception:
+        return pptx_bytes
+
+
+def _restore_untouched_slides_unsafe(pptx_bytes: bytes, source_pptx: bytes, source_fodp: str) -> bytes:
+    untouched = _slides_page_attr_list(source_fodp, "vno:src-untouched")
+    origins = _slides_page_attr_list(source_fodp, "vno:src-slide")
+    with zipfile.ZipFile(io.BytesIO(source_pptx), "r") as src_zip, zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as conv_zip:
+        src = {name: src_zip.read(name) for name in src_zip.namelist() if not name.endswith("/")}
+        conv = {item.filename: conv_zip.read(item.filename) for item in conv_zip.infolist() if not item.filename.endswith("/")}
+    conv_slides = sorted(
+        (n for n in conv if re.fullmatch(r"ppt/slides/slide\d+\.xml", n)),
+        key=lambda n: int(re.search(r"slide(\d+)\.xml$", n).group(1)),
+    )
+    # Nguồn slide -> slide trong gói mới (để giữ liên kết nhảy tới slide khác)
+    new_by_origin = {origin: conv_slides[i] for i, origin in enumerate(origins) if origin and i < len(conv_slides)}
+    new_parts = dict(conv)
+    copied: dict[str, str] = {}
+    added_types: list[str] = []
+    src_ct = src.get("[Content_Types].xml", b"").decode("utf-8", errors="replace")
+    ct = conv.get("[Content_Types].xml", b"").decode("utf-8", errors="replace")
+    if not src_ct or not ct:
+        return pptx_bytes
+    src_overrides: dict[str, str] = {}
+    for m in re.finditer(r"<Override\b([^>]*?)/?>", src_ct):
+        attrs = dict(re.findall(r'([\w:]+)="([^"]*)"', m.group(1)))
+        if "PartName" in attrs and "ContentType" in attrs:
+            src_overrides[attrs["PartName"]] = attrs["ContentType"]
+    src_defaults: dict[str, str] = {}
+    for m in re.finditer(r"<Default\b([^>]*?)/?>", src_ct):
+        attrs = dict(re.findall(r'([\w:]+)="([^"]*)"', m.group(1)))
+        if "Extension" in attrs and "ContentType" in attrs:
+            src_defaults[attrs["Extension"].lower()] = attrs["ContentType"]
+    skip_kinds = {"notesSlide", "comments", "commentAuthors", "modernComment", "slideLayout"}
+    changed = False
+
+    used_names = set(new_parts)
+
+    def new_name_for(part: str) -> str:
+        if part in copied:
+            return copied[part]
+        name = part
+        counter = 0
+        while name in used_names:
+            counter += 1
+            name = posixpath.join(posixpath.dirname(part), f"vnosrc{counter}_{posixpath.basename(part)}")
+        used_names.add(name)
+        used_names.add(_pkg_rels_name(name))
+        copied[part] = name
+        return name
+
+    def collect(part: str, order: list[str], seen: set[str]) -> bool:
+        if part in seen:
+            return True
+        if part not in src:
+            return False
+        seen.add(part)
+        order.append(part)
+        rels_name = _pkg_rels_name(part)
+        if rels_name in src:
+            for rel in _pkg_rels(src[rels_name]):
+                if rel.get("TargetMode", "").lower() == "external":
+                    continue
+                kind = _pkg_rel_kind(rel)
+                target = _pkg_resolve(part, rel["Target"])
+                if kind in ("slide", "slideLayout", "slideMaster", "notesSlide", "notesMaster"):
+                    return False  # tài nguyên không được tham chiếu ngược về cấu trúc bản trình bày
+                if not collect(target, order, seen):
+                    return False
+        return True
+
+    for index, flag in enumerate(untouched):
+        origin = origins[index] if index < len(origins) else None
+        if not flag or not origin or index >= len(conv_slides) or origin not in src:
+            continue
+        slide_part = conv_slides[index]
+        src_rels = _pkg_rels(src.get(_pkg_rels_name(origin)))
+        conv_rels_text = conv.get(_pkg_rels_name(slide_part), b"").decode("utf-8", errors="replace")
+        conv_rels = _pkg_rels(conv_rels_text.encode("utf-8"))
+        layout_rel = next((r for r in conv_rels if _pkg_rel_kind(r) == "slideLayout"), None)
+        notes_rel = next((r for r in conv_rels if _pkg_rel_kind(r) == "notesSlide"), None)
+        if not layout_rel:
+            continue
+        rel_lines: list[str] = []
+        order: list[str] = []
+        seen: set[str] = set()
+        ok = True
+        used_ids = {r["Id"] for r in src_rels}
+        for rel in src_rels:
+            kind = _pkg_rel_kind(rel)
+            external = rel.get("TargetMode", "").lower() == "external"
+            if kind == "slideLayout":
+                rel_lines.append(f'<Relationship Id="{rel["Id"]}" Type="{rel["Type"]}" Target="{html.escape(layout_rel["Target"], quote=True)}"/>')
+                continue
+            if kind in ("notesSlide", "comments", "commentAuthors", "modernComment"):
+                if kind != "notesSlide":
+                    ok = False  # slide có nhận xét: không khôi phục
+                    break
+                continue
+            if external:
+                rel_lines.append("<Relationship " + " ".join(f'{k}="{html.escape(v, quote=True)}"' for k, v in rel.items()) + "/>")
+                continue
+            target = _pkg_resolve(origin, rel["Target"])
+            if kind == "slide":
+                mapped = new_by_origin.get(target)
+                if not mapped:
+                    ok = False  # liên kết tới slide đã xóa
+                    break
+                relative = posixpath.relpath(mapped, posixpath.dirname(slide_part))
+                rel_lines.append(f'<Relationship Id="{rel["Id"]}" Type="{rel["Type"]}" Target="{html.escape(relative, quote=True)}"/>')
+                continue
+            part_order: list[str] = []
+            if not collect(target, part_order, seen):
+                ok = False
+                break
+            order.extend(part_order)
+            rel_lines.append((rel["Id"], rel["Type"], target))  # type: ignore[arg-type]
+        if not ok:
+            continue
+        # đổi tên + chép phần phụ thuộc
+        staged: dict[str, bytes] = {}
+        for part in order:
+            target_name = new_name_for(part)
+            staged[target_name] = src[part]
+            rels_name = _pkg_rels_name(part)
+            if rels_name in src:
+                text = src[rels_name].decode("utf-8", errors="replace")
+
+                def fix(match: re.Match[str], owner=part) -> str:
+                    attrs = match.group(0)
+                    t = re.search(r'Target="([^"]*)"', attrs)
+                    if not t or 'TargetMode="External"' in attrs:
+                        return attrs
+                    absolute = _pkg_resolve(owner, t.group(1))
+                    if absolute in copied or absolute in src:
+                        mapped_target = new_name_for(absolute)
+                        return attrs.replace(t.group(0), f'Target="{posixpath.relpath(mapped_target, posixpath.dirname(new_name_for(owner)))}"')
+                    return attrs
+
+                text = re.sub(r"<Relationship\b[^>]*>", fix, text)
+                staged[_pkg_rels_name(target_name)] = text.encode("utf-8")
+        final_rels: list[str] = []
+        for line in rel_lines:
+            if isinstance(line, tuple):
+                rid, rtype, target = line
+                relative = posixpath.relpath(new_name_for(target), posixpath.dirname(slide_part))
+                final_rels.append(f'<Relationship Id="{rid}" Type="{rtype}" Target="{html.escape(relative, quote=True)}"/>')
+            else:
+                final_rels.append(line)
+        if notes_rel:
+            new_id = "rIdVnoNotes"
+            while new_id in used_ids:
+                new_id += "x"
+            final_rels.append(f'<Relationship Id="{new_id}" Type="{notes_rel["Type"]}" Target="{html.escape(notes_rel["Target"], quote=True)}"/>')
+        new_parts.update(staged)
+        new_parts[slide_part] = src[origin]
+        new_parts[_pkg_rels_name(slide_part)] = (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + "".join(final_rels) + "</Relationships>"
+        ).encode("utf-8")
+        changed = True
+    if not changed:
+        return pptx_bytes
+    # [Content_Types].xml cho các phần mới chép
+    for original_name, target_name in copied.items():
+        override = src_overrides.get("/" + original_name)
+        if override:
+            if f'PartName="/{target_name}"' not in ct:
+                added_types.append(f'<Override PartName="/{target_name}" ContentType="{override}"/>')
+        else:
+            extension = posixpath.splitext(original_name)[1].lstrip(".").lower()
+            if extension and extension != "rels" and extension in src_defaults and not re.search(rf'<Default\b[^>]*Extension="{re.escape(extension)}"', ct, re.IGNORECASE):
+                default = f'<Default Extension="{extension}" ContentType="{src_defaults[extension]}"/>'
+                if default not in added_types:
+                    added_types.append(default)
+    new_parts["[Content_Types].xml"] = re.sub(r"</Types\s*>", "".join(added_types) + "</Types>", ct).encode("utf-8")
+    # kiểm tra đích rels
+    for name, data in new_parts.items():
+        if not name.endswith(".rels"):
+            continue
+        owner = posixpath.join(posixpath.dirname(posixpath.dirname(name)), posixpath.basename(name)[:-5])
+        if name == "_rels/.rels":
+            continue
+        for rel in _pkg_rels(data):
+            if rel.get("TargetMode", "").lower() == "external":
+                continue
+            if _pkg_resolve(owner, rel["Target"]) not in new_parts:
+                return pptx_bytes
+    _prune_unreferenced_package_parts(new_parts)
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zout:
+        for name in ["[Content_Types].xml"] + [n for n in new_parts if n != "[Content_Types].xml"]:
+            zout.writestr(name, new_parts[name])
+    return out.getvalue()
+
+
+def _prune_unreferenced_package_parts(parts: dict[str, bytes]) -> None:
+    """Bỏ các phần không còn đạt tới được từ _rels/.rels (ảnh/biểu đồ của bản dựng lại đã bị slide gốc thay thế)."""
+    reachable: set[str] = set()
+    stack = ["_rels/.rels"]
+    while stack:
+        rels_name = stack.pop()
+        data = parts.get(rels_name)
+        if data is None:
+            continue
+        owner = "" if rels_name == "_rels/.rels" else posixpath.join(posixpath.dirname(posixpath.dirname(rels_name)), posixpath.basename(rels_name)[:-5])
+        for rel in _pkg_rels(data):
+            if rel.get("TargetMode", "").lower() == "external":
+                continue
+            target = rel["Target"].lstrip("/") if rel["Target"].startswith("/") else posixpath.normpath(posixpath.join(posixpath.dirname(owner), rel["Target"]))
+            if target in reachable:
+                continue
+            reachable.add(target)
+            stack.append(_pkg_rels_name(target))
+    droppable = [
+        name for name in parts
+        if name not in reachable and name != "[Content_Types].xml" and name != "_rels/.rels"
+        and not (name.endswith(".rels") and name[:-5].replace("_rels/", "", 1) in reachable)
+        and not name.endswith(".rels")
+    ]
+    ct = parts.get("[Content_Types].xml", b"").decode("utf-8", errors="replace")
+    for name in droppable:
+        parts.pop(name, None)
+        parts.pop(_pkg_rels_name(name), None)
+        ct = re.sub(rf'<Override\b[^>]*PartName="/{re.escape(name)}"[^>]*/>', "", ct)
+    parts["[Content_Types].xml"] = ct.encode("utf-8")
+
+
 def overlay_fodp_native_slides_theme(fodp_xml: str, pptx_bytes: bytes) -> str:
     paths = _related_theme_part_paths(pptx_bytes)
     if len(paths) != 1:
@@ -12060,6 +12327,7 @@ def postprocess_slides_pptx(
         patched = restore_notes_to_pptx(patched, notes_by_slide)
     if restore_masters:
         patched = _restore_source_masters(patched, source_pptx, source_fodp, theme_payload)
+        patched = _restore_untouched_slides(patched, source_pptx, source_fodp)
     return patched
 
 
@@ -16445,6 +16713,7 @@ def overlay_slides_pptx_fodp(pptx_bytes: bytes, fodp_xml: str | None) -> str:
     xml = overlay_fodp_native_slides_theme(xml, pptx_bytes)
     xml = overlay_fodp_source_theme(xml, pptx_bytes)
     xml = overlay_fodp_source_layouts(xml, pptx_bytes)
+    xml = overlay_fodp_source_slides(xml, pptx_bytes)
     props = read_zip_entry(pptx_bytes, PPTX_PRESPROPS_ENTRY)
     if props:
         xml = overlay_fodp_show_properties(xml, props.decode("utf-8", errors="replace"))

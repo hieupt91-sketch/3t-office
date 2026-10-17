@@ -4035,6 +4035,13 @@ export class SlidesAdapter {
       let vnTransitionAttr = slide.transition?.type === "morph" ? ' vno:transition="morph"' : "";
       // Bố cục gốc của slide trong tệp PowerPoint: bước lưu dùng để trỏ lại về đúng bố cục của bản cái gốc.
       if (slide.srcLayout) vnTransitionAttr += ` vno:src-layout="${this._escapeXml(slide.srcLayout)}"`;
+      if (slide.srcSlide) {
+        vnTransitionAttr += ` vno:src-slide="${this._escapeXml(slide.srcSlide)}"`;
+        // Slide chưa sửa gì (dấu vân tay không đổi, không có nhận xét): bước lưu trả lại nguyên XML slide gốc.
+        if (slide._srcFp && !(slide.comments && slide.comments.length) && this._slideFingerprint(slide) === slide._srcFp) {
+          vnTransitionAttr += ` vno:src-untouched="${this._escapeXml(slide.srcSlide)}"`;
+        }
+      }
       if (slide.transition?.sourceXml) {
         // Chưa đổi chuyển tiếp: mang khối gốc đi tiếp để bước lưu ghi lại nguyên vẹn.
         const advanceClick = slide.transition.advanceOnClick === false ? 0 : 1;
@@ -4167,6 +4174,7 @@ export class SlidesAdapter {
       const originalPageXml = pageMatch[2];
       const pageTransition = this._parsePageTransition(fullPageTag, originalPageXml, drawingPageStyles);
       const pageSourceLayout = this._attr(fullPageTag, "vno:src-layout");
+      const pageSourceSlide = this._attr(fullPageTag, "vno:src-slide");
       const animByTarget = this._parsePageAnimations(originalPageXml);
       let pageContent = originalPageXml;
 
@@ -4347,6 +4355,7 @@ export class SlidesAdapter {
         ...(sectionId ? { sectionId } : {}),
         ...(pageTransition ? { transition: pageTransition } : {}),
         ...(pageSourceLayout ? { srcLayout: pageSourceLayout } : {}),
+        ...(pageSourceSlide ? { srcSlide: pageSourceSlide } : {}),
         ...(isImportedSlide ? { imported: true } : {})
       };
       this._applyPlaceholderAnimations(
@@ -4475,6 +4484,20 @@ export class SlidesAdapter {
       if (typeof this.canvas.selectSlide === "function") {
         this.canvas.selectSlide(0);
       }
+      // Dấu vân tay lúc vừa mở: slide nào còn nguyên đến lúc lưu thì lưu lại đúng XML gốc của PowerPoint.
+      for (const slide of this.canvas.slides) {
+        if (slide?.srcSlide) slide._srcFp = this._slideFingerprint(slide);
+      }
+    }
+  }
+
+  /** Dấu vân tay nội dung một slide (bỏ ghi chú và các trường nội bộ); null nếu không tính được. */
+  _slideFingerprint(slide) {
+    const skip = new Set(["notes", "srcSlide", "srcLayout", "_srcFp", "thumbnail"]);
+    try {
+      return JSON.stringify(slide, (key, value) => (skip.has(key) ? undefined : value));
+    } catch (_) {
+      return null;
     }
   }
 

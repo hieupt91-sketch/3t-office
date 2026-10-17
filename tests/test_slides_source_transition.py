@@ -188,6 +188,80 @@ def _master_package(prefix: str, logo: bool, layouts: int) -> bytes:
     return buffer.getvalue()
 
 
+def _deck_with_picture(label: str, with_image: bool) -> bytes:
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as package:
+        package.writestr("_rels/.rels", '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"><Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="ppt/presentation.xml"/></Relationships>')
+        package.writestr("ppt/presentation.xml", f'<p:presentation {P_NS}><p:sldIdLst><p:sldId id="256" r:id="rId10"/></p:sldIdLst></p:presentation>')
+        package.writestr(
+            "ppt/_rels/presentation.xml.rels",
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            '<Relationship Id="rId10" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slide" Target="slides/slide1.xml"/></Relationships>',
+        )
+        package.writestr("ppt/slides/slide1.xml", _slide(f"<!--{label}-->"))
+        rels = '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>'
+        if with_image:
+            rels += '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image1.png"/>'
+            package.writestr("ppt/media/image1.png", b"IMG-" + label.encode())
+        else:
+            package.writestr("ppt/media/image1.png", b"IMG-CONVERTED-ORPHAN")
+            rels += '<Relationship Id="rId5" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/image" Target="../media/image1.png"/>'
+        rels += '<Relationship Id="rId7" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/notesSlide" Target="../notesSlides/notesSlide1.xml"/>' if not with_image else ""
+        package.writestr("ppt/slides/_rels/slide1.xml.rels", f'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">{rels}</Relationships>')
+        package.writestr("ppt/slideLayouts/slideLayout1.xml", "<p:sldLayout/>")
+        package.writestr("ppt/slideLayouts/_rels/slideLayout1.xml.rels", '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>')
+        if not with_image:
+            package.writestr("ppt/notesSlides/notesSlide1.xml", "<p:notes/>")
+            package.writestr("ppt/notesSlides/_rels/notesSlide1.xml.rels", '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>')
+        ct = ('<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">'
+              '<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/><Default Extension="xml" ContentType="application/xml"/>'
+              + ('<Default ContentType="image/png" Extension="png"/>')
+              + '<Override ContentType="application/vnd.openxmlformats-officedocument.presentationml.slide+xml" PartName="/ppt/slides/slide1.xml"/>'
+              + '<Override PartName="/ppt/slideLayouts/slideLayout1.xml" ContentType="application/vnd.openxmlformats-officedocument.presentationml.slideLayout+xml"/></Types>')
+        package.writestr("[Content_Types].xml", ct)
+    return buffer.getvalue()
+
+
+class UntouchedSlideTests(unittest.TestCase):
+    def test_overlay_stamps_the_source_slide_path(self):
+        marked = patcher.overlay_fodp_source_slides(_fodp(1), _deck_with_picture("SRC", True))
+        self.assertEqual(patcher._slides_page_attr_list(marked, "vno:src-slide"), ["ppt/slides/slide1.xml"])
+
+    def test_untouched_slide_gets_its_original_xml_and_pictures_back(self):
+        source = _deck_with_picture("SRC", True)
+        converted = _deck_with_picture("SOFFICE", False)
+        fodp = _fodp(1, [' vno:src-slide="ppt/slides/slide1.xml" vno:src-untouched="ppt/slides/slide1.xml"'])
+        out = patcher._restore_untouched_slides(converted, source, fodp)
+        with zipfile.ZipFile(io.BytesIO(out)) as package:
+            self.assertIn("<!--SRC-->", package.read("ppt/slides/slide1.xml").decode())
+            rels = package.read("ppt/slides/_rels/slide1.xml.rels").decode()
+            self.assertIn("slideLayout1.xml", rels)
+            self.assertIn("notesSlide1.xml", rels)  # ghi chú của bản chuyển đổi được giữ
+            self.assertEqual(rels.count("relationships/image"), 1)
+            images = {n: package.read(n) for n in package.namelist() if n.startswith("ppt/media/")}
+            self.assertTrue(any(data == b"IMG-SRC" for data in images.values()), "ảnh gốc phải được chép lại")
+            self.assertTrue(all(b"ORPHAN" not in data for data in images.values()), "ảnh mồ côi của bản dựng lại phải bị dọn")
+            content_types = package.read("[Content_Types].xml").decode()
+            self.assertIn("png", content_types)
+
+    def test_only_flagged_slides_are_replaced(self):
+        source = _deck_with_picture("SRC", True)
+        converted = _deck_with_picture("SOFFICE", False)
+        fodp = _fodp(1, [' vno:src-slide="ppt/slides/slide1.xml"'])
+        self.assertEqual(patcher._restore_untouched_slides(converted, source, fodp), converted)
+
+    def test_a_slide_with_comments_in_the_source_is_not_restored(self):
+        source = _deck_with_picture("SRC", True)
+        source = patcher.patch_ooxml_zip(source, {
+            "ppt/slides/_rels/slide1.xml.rels": ('<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+                                                 '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/slideLayout" Target="../slideLayouts/slideLayout1.xml"/>'
+                                                 '<Relationship Id="rId9" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/comments" Target="../comments/comment1.xml"/></Relationships>').encode()
+        })
+        converted = _deck_with_picture("SOFFICE", False)
+        fodp = _fodp(1, [' vno:src-slide="ppt/slides/slide1.xml" vno:src-untouched="ppt/slides/slide1.xml"'])
+        self.assertEqual(patcher._restore_untouched_slides(converted, source, fodp), converted)
+
+
 class SourceMasterTests(unittest.TestCase):
     def test_overlay_records_the_layout_each_slide_used(self):
         source = _master_package("SRC", True, 3)
