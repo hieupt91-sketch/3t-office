@@ -649,6 +649,7 @@ export const WRITER_RIBBON_TABS = [
               { type: "button", commandId: "writer.table.selectTable" }
             ]
           },
+          { type: "button", commandId: "writer.table.viewGridlines", isLarge: true },
           { type: "button", commandId: "writer.table.properties", isLarge: true },
           { type: "button", commandId: "writer.table.deleteTable", isLarge: true }
         ]
@@ -713,6 +714,7 @@ export const WRITER_RIBBON_TABS = [
         label: "Dữ liệu",
         labelKey: "writerRibbon.group.tableDataGroup",
         items: [
+          { type: "button", commandId: "writer.table.sort", isLarge: true },
           { type: "button", commandId: "writer.table.formula", isLarge: true },
           { type: "button", commandId: "writer.table.toText", isLarge: true }
         ]

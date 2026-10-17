@@ -1,0 +1,103 @@
+{
+    "distribute":  {
+                       "feature":  "PhÃ¢n bá»• Ä‘á»u hÃ ng \u0026 cá»™t",
+                       "rowsEqual":  true,
+                       "colsEqual":  true,
+                       "rowHeights":  [
+                                          40,
+                                          40,
+                                          40
+                                      ],
+                       "colWidths":  [
+                                         166.6,
+                                         166.6,
+                                         166.7
+                                     ]
+                   },
+    "convertToText":  {
+                          "feature":  "Chuyá»ƒn báº£ng thÃ nh vÄƒn báº£n",
+                          "tablesCount":  0,
+                          "separator":  "tab",
+                          "lines":  [
+                                        "R1C1\tR1C2\tR1C3",
+                                        "R2C1\tR2C2\tR2C3",
+                                        "R3C1\tR3C2\tR3C3"
+                                    ],
+                          "hasTabs":  true
+                      },
+    "sortTable":  {
+                      "feature":  "Sáº¯p xáº¿p dá»¯ liá»‡u trong báº£ng",
+                      "headerRetained":  "Ma",
+                      "sortedKeys":  [
+                                         "A",
+                                         "B",
+                                         "C"
+                                     ],
+                      "expectedOrder":  [
+                                            "A",
+                                            "B",
+                                            "C"
+                                        ],
+                      "isSorted":  true
+                  },
+    "bandedRows":  {
+                       "feature":  "HÃ ng xen káº½ (Banded Rows)",
+                       "applyStyleRowBands":  true,
+                       "bandedAlternating":  true
+                   },
+    "tableSelect":  {
+                        "feature":  "Chá»n Ã´, hÃ ng, cá»™t, báº£ng",
+                        "selectCell":  {
+                                           "cellsCount":  1
+                                       },
+                        "selectRow":  {
+                                          "rowsCount":  1,
+                                          "cellsCount":  3
+                                      },
+                        "selectCol":  {
+                                          "colsCount":  1,
+                                          "cellsCount":  3
+                                      },
+                        "selectTable":  {
+                                            "tablesCount":  1,
+                                            "cellsCount":  9
+                                        }
+                    },
+    "quickTables":  {
+                        "feature":  "Báº£ng máº«u nhanh (Quick Tables)",
+                        "templates":  [
+                                          {
+                                              "id":  "calendar",
+                                              "name":  "Lá»‹ch thÃ¡ng",
+                                              "rows":  7,
+                                              "cols":  7
+                                          },
+                                          {
+                                              "id":  "list",
+                                              "name":  "Danh sÃ¡ch cÃ´ng viá»‡c",
+                                              "rows":  4,
+                                              "cols":  5,
+                                              "headers":  [
+                                                              "STT",
+                                                              "Háº¡ng má»¥c cÃ´ng viá»‡c",
+                                                              "NgÆ°á»i phá»¥ trÃ¡ch",
+                                                              "Háº¡n chÃ³t",
+                                                              "Tráº¡ng thÃ¡i"
+                                                          ]
+                                          },
+                                          {
+                                              "id":  "matrix",
+                                              "name":  "Ma tráº­n phÃ¢n tÃ­ch (SWOT)",
+                                              "rows":  2,
+                                              "cols":  2
+                                          }
+                                      ],
+                        "supported":  true
+                    },
+    "viewGridlines":  {
+                          "feature":  "Xem Ä‘Æ°á»ng lÆ°á»›i báº£ng (View Gridlines)",
+                          "canToggle":  true,
+                          "defaultState":  false,
+                          "toggledState":  true
+                      }
+}

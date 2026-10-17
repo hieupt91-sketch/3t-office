@@ -1314,6 +1314,17 @@ li.vno-page-auto-gap {
   background-color: #334155 !important;
 }
 
+/* Xem đường lưới bảng (View Gridlines) */
+.vno-table-gridlines table td:not([style*="border"]),
+.vno-table-gridlines table th:not([style*="border"]),
+.vno-table-gridlines td[style*="border: none"],
+.vno-table-gridlines td[style*="border:none"],
+.vno-table-gridlines th[style*="border: none"],
+.vno-table-gridlines th[style*="border:none"] {
+  outline: 1px dashed rgba(59, 130, 246, 0.5) !important;
+  outline-offset: -1px;
+}
+
 #vno-ribbon-tab-pictureFormat[hidden] { display: none; }
 .vno-writer-image-context #vno-ribbon-tab-pictureFormat {
   color: #7c3aed;
