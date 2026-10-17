@@ -1538,5 +1538,60 @@ export async function runSlidesFileIoTests() {
     }
   });
 
+  test("SlidesAdapter: preserve table frame transparency and cell fills (Item c)", () => {
+    const fodp = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+ xmlns:loext="urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0"
+ xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0">
+  <office:automatic-styles>
+    <style:style style:name="ce_yellow" style:family="table-cell">
+      <loext:graphic-properties draw:fill="solid" draw:fill-color="#ffff00"/>
+    </style:style>
+    <style:style style:name="ce_blue" style:family="table-cell">
+      <loext:graphic-properties draw:fill="solid" draw:fill-color="#5b9bd5"/>
+    </style:style>
+  </office:automatic-styles>
+  <office:body><office:presentation>
+    <draw:page draw:name="page1">
+      <draw:frame draw:name="Tbl" draw:style-name="gr1" svg:width="10cm" svg:height="4cm" svg:x="5cm" svg:y="5cm">
+        <table:table>
+          <table:table-column/>
+          <table:table-column/>
+          <table:table-row table:default-cell-style-name="ce_blue">
+            <table:table-cell><text:p>A</text:p></table:table-cell>
+            <table:table-cell table:style-name="ce_yellow"><text:p>B</text:p></table:table-cell>
+          </table:table-row>
+        </table:table>
+      </draw:frame>
+    </draw:page>
+  </office:presentation></office:body>
+</office:document>`;
+    const adapter = new SlidesAdapter(null);
+    const parsed = adapter.parseFodp(fodp);
+    const tableShape = parsed[0].shapes[0];
+    if (tableShape.type !== "table") throw new Error("Shape type should be table");
+    if (tableShape.color !== "transparent") throw new Error(`Table frame should be transparent, got ${tableShape.color}`);
+    if (!Array.isArray(tableShape.cellFills)) throw new Error("cellFills not parsed");
+    if (tableShape.cellFills[0][0] !== "#5b9bd5") throw new Error(`Cell (0,0) fill should be #5b9bd5, got ${tableShape.cellFills[0][0]}`);
+    if (tableShape.cellFills[0][1] !== "#ffff00") throw new Error(`Cell (0,1) fill should be #ffff00, got ${tableShape.cellFills[0][1]}`);
+
+    const serialized = new SlidesAdapter({ slides: parsed, slideSize: { width: 960, height: 540 } }).serializeToFodp();
+    if (!serialized.includes('xmlns:loext="urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0"')) {
+      throw new Error("Serialized missing xmlns:loext");
+    }
+    if (!serialized.includes('table:style-name="ce_fill_ffff00"')) {
+      throw new Error("Serialized table-cell missing table:style-name");
+    }
+    if (!serialized.includes('<style:style style:name="ce_fill_ffff00" style:family="table-cell">')) {
+      throw new Error("Serialized missing style:family=table-cell for ce_fill_ffff00");
+    }
+    if (serialized.includes('draw:style-name="gr5b9bd5"') || serialized.includes('draw:style-name="grffff00"')) {
+      throw new Error("Table frame must not inherit cell fill");
+    }
+  });
+
   return results;
 }

@@ -1359,7 +1359,7 @@ export class SlidesAdapter {
   }
 
   _isTransparentFill(shape) {
-    if (shape?.type === "wordart") return true;
+    if (shape?.type === "wordart" || shape?.type === "table") return true;
     const color = shape?.color;
     return !color || color === "transparent" || color === "none";
   }
@@ -1423,6 +1423,7 @@ export class SlidesAdapter {
   }
 
   _shapeStyleName(shape) {
+    if (shape.type === "table") return "grNone";
     if (shape.type === "connector") return "grConnector";
     if (shape.type === "ink" || shape.type === "path") return `grInk_${this._styleKey(shape.stroke || shape.color || "DC2626")}_${shape.strokeWidth || 3}`;
     if (shape.type === "image" && shape.crop) return `grImage_crop_${this._styleKey(shape.id || "img")}`;
@@ -2331,6 +2332,30 @@ export class SlidesAdapter {
     </style:style>`;
     }
     xml += this._serializeWordArtTextStyles(slides);
+    const tableCellFills = new Set();
+    for (const slide of slides) {
+      for (const shape of slide.shapes || []) {
+        if (shape.type === "table" && Array.isArray(shape.cellFills)) {
+          for (const row of shape.cellFills) {
+            if (Array.isArray(row)) {
+              for (const fill of row) {
+                if (fill && fill !== "transparent" && fill !== "none") {
+                  tableCellFills.add(this._cssColorToHex(fill) || fill);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    for (const fill of tableCellFills) {
+      const styleKey = this._styleKey(fill);
+      xml += `
+    <style:style style:name="ce_fill_${styleKey}" style:family="table-cell">
+      <style:table-cell-properties fo:background-color="${this._escapeXml(fill)}"/>
+      <loext:graphic-properties draw:fill="solid" draw:fill-color="${this._escapeXml(fill)}"/>
+    </style:style>`;
+    }
     return xml;
   }
 
@@ -2440,7 +2465,10 @@ export class SlidesAdapter {
           const html = this._htmlHasFormat(cell) ? cell : "";
           const plain = html ? this._plainFromHtml(cell) : cell;
           const spanAttr = merged ? ` table:number-columns-spanned="${merged.cs}" table:number-rows-spanned="${merged.rs}"` : "";
-          return `<table:table-cell office:value-type="string"${spanAttr}>${this._richOrPlainXml(plain, html, richCtx)}</table:table-cell>`;
+          const fill = shape.cellFills?.[rowIndex]?.[colIndex];
+          const hexFill = fill && fill !== "transparent" && fill !== "none" ? (this._cssColorToHex(fill) || fill) : null;
+          const styleAttr = hexFill ? ` table:style-name="ce_fill_${this._styleKey(hexFill)}"` : "";
+          return `<table:table-cell office:value-type="string"${spanAttr}${styleAttr}>${this._richOrPlainXml(plain, html, richCtx)}</table:table-cell>`;
         }).join("");
         return `<table:table-row>${cellsXml}</table:table-row>`;
       }).join("");
@@ -2734,6 +2762,38 @@ export class SlidesAdapter {
       }
     }
     return styles;
+  }
+
+  _parseTableCellStyles(xmlText) {
+    const map = new Map();
+    const styleRegex = /<style:style\b([^>]*?)>([\s\S]*?)<\/style:style>/gi;
+    let match;
+    while ((match = styleRegex.exec(xmlText)) !== null) {
+      const attrs = match[1];
+      if (this._attr(attrs, "style:family") !== "table-cell") continue;
+      const name = this._attr(attrs, "style:name");
+      if (!name) continue;
+      const inner = match[2];
+      const propMatch = inner.match(/<(?:[a-z0-9_-]+:)?(?:graphic-properties|table-cell-properties)\b([^>]*)/i);
+      if (propMatch) {
+        const propAttrs = propMatch[1];
+        const fillKind = this._attr(propAttrs, "draw:fill");
+        const fillColor = this._attr(propAttrs, "draw:fill-color") || this._attr(propAttrs, "fo:background-color");
+        if (fillKind === "none" || fillColor === "transparent") continue;
+        if (fillColor) {
+          map.set(name, fillColor);
+          continue;
+        }
+      }
+      const tcProps = inner.match(/<style:table-cell-properties\b([^>]*)/i);
+      if (tcProps) {
+        const bg = this._attr(tcProps[1], "fo:background-color");
+        if (bg && bg !== "transparent" && bg !== "none") {
+          map.set(name, bg);
+        }
+      }
+    }
+    return map;
   }
 
   _paragraphsFromXml(xml) {
@@ -3074,16 +3134,21 @@ export class SlidesAdapter {
     return merges;
   }
 
-  _parseTableCells(inner) {
+  _parseTableCells(inner, cellStylesMap = this._cellStyles) {
     const rows = [];
+    const cellFills = [];
+    let hasAnyFill = false;
     // soffice FODP may compress identical consecutive cells/rows
     // (table:number-columns-repeated / table:number-rows-repeated) and may emit
     // empty cells as self-closing. Count each logical cell, not each XML tag.
     const rowRegex = /<table:table-row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/table:table-row>)/gi;
     let rowMatch;
     while ((rowMatch = rowRegex.exec(inner)) !== null) {
-      const rowRepeat = Math.max(1, Number(this._attr(rowMatch[1], "table:number-rows-repeated")) || 1);
+      const rowAttrs = rowMatch[1];
+      const rowDefaultStyle = this._attr(rowAttrs, "table:default-cell-style-name");
+      const rowRepeat = Math.max(1, Number(this._attr(rowAttrs, "table:number-rows-repeated")) || 1);
       const cells = [];
+      const fills = [];
       const cellRegex = /<(?:table:)?(?:table-cell|covered-table-cell)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:table:)?(?:table-cell|covered-table-cell)>)/gi;
       let cellMatch;
       while ((cellMatch = cellRegex.exec(rowMatch[2] || "")) !== null) {
@@ -3095,10 +3160,20 @@ export class SlidesAdapter {
           : this._unescapeXml(this._attr(cellMatch[1], "office:value") || this._attr(cellMatch[1], "office:string-value") || "");
         const cellHtml = isCovered ? "" : this._htmlFromOdfXml(cellMatch[2] || "", this._richMaps);
         const cellText = this._htmlHasFormat(cellHtml) ? cellHtml : (text || fallback);
-        for (let index = 0; index < colRepeat; index++) cells.push(cellText);
+        const cellStyleName = this._attr(cellMatch[1], "table:style-name") || rowDefaultStyle;
+        const fill = (!isCovered && cellStylesMap && cellStyleName) ? (cellStylesMap.get(cellStyleName) || null) : null;
+        if (fill) hasAnyFill = true;
+        for (let index = 0; index < colRepeat; index++) {
+          cells.push(cellText);
+          fills.push(fill);
+        }
       }
-      for (let index = 0; index < rowRepeat; index++) rows.push(cells.slice());
+      for (let index = 0; index < rowRepeat; index++) {
+        rows.push(cells.slice());
+        cellFills.push(fills.slice());
+      }
     }
+    rows.cellFills = hasAnyFill ? cellFills : null;
     return rows;
   }
 
@@ -3166,10 +3241,11 @@ export class SlidesAdapter {
         ...base,
         type: "table",
         cells,
+        ...(cells.cellFills ? { cellFills: cells.cellFills } : {}),
         ...(tableMerges.length ? { merges: tableMerges } : {}),
         rows: cells.length,
         cols: cells.reduce((max, row) => Math.max(max, row.length), 0),
-        color: get("draw:fill-color") || style.fill || "transparent",
+        color: "transparent",
         text: ""
       };
     }
@@ -3877,6 +3953,7 @@ export class SlidesAdapter {
                  xmlns:anim="urn:oasis:names:tc:opendocument:xmlns:animation:1.0"
                  xmlns:script="urn:oasis:names:tc:opendocument:xmlns:script:1.0"
                  xmlns:dom="http://www.w3.org/2001/xml-events"
+                 xmlns:loext="urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0"
                  xmlns:vno="urn:vn-office:slides:1.0"
                  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.presentation">${officeStyles}
   <office:automatic-styles>${automaticStyles}
@@ -3901,6 +3978,7 @@ export class SlidesAdapter {
     const parsedSlides = [];
     this._fontFaceMap = this._parseFontFaceMap(xmlText);
     const graphicStyles = this._parseGraphicFillStyles(xmlText);
+    this._cellStyles = this._parseTableCellStyles(xmlText);
     const drawingPageStyles = this._parseDrawingPageStyles(xmlText);
     const backgroundResources = this._parseBackgroundResources(xmlText);
     this._richMaps = this._parseRichStyleMaps(xmlText);
