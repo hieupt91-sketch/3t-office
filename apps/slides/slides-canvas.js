@@ -2061,7 +2061,10 @@ export class SlidesCanvasController {
     const cfg = {
       type: animationConfig?.type || "none",
       duration: parseInt(animationConfig?.duration, 10) || 500,
-      delay: parseInt(animationConfig?.delay, 10) || 0
+      delay: parseInt(animationConfig?.delay, 10) || 0,
+      direction: ["left", "right", "top", "bottom"].includes(animationConfig?.direction)
+        ? animationConfig.direction
+        : (previous.direction || "bottom")
     };
     const start = this._normalizeAnimationStart(animationConfig?.start ?? previous.start);
     if (start) cfg.start = start;
@@ -2253,6 +2256,7 @@ export class SlidesCanvasController {
       type: slot.animation.type,
       duration: parseInt(slot.animation.duration, 10) || 500,
       delay: parseInt(slot.animation.delay, 10) || 0,
+      direction: slot.animation.direction || "bottom",
       start: this._normalizeAnimationStart(slot.animation.start),
       order: Number.isFinite(slot.animation.order) ? slot.animation.order : index,
       label: this._animationObjectLabel(current, slot.target),
@@ -2295,7 +2299,7 @@ export class SlidesCanvasController {
     if (!this._isActiveAnimation(animation)) return "";
     const dur = animation.duration || 500;
     const del = playDelay != null ? playDelay : (animation.delay || 0);
-    return animationInlineCss(animation.type, dur, del);
+    return animationInlineCss(animation.type, dur, del, animation.direction);
   }
 
   _snapshotSlideAnimations(slide) {
@@ -2441,7 +2445,7 @@ export class SlidesCanvasController {
       touched.push({ el, original });
       el.style.animation = "none";
       void el.offsetWidth;
-      el.style.cssText += `;${animationInlineCss(item.type, item.duration, item.playDelay)}`;
+      el.style.cssText += `;${animationInlineCss(item.type, item.duration, item.playDelay, item.direction)}`;
       total = Math.max(total, item.playDelay + item.duration);
     }
     clearTimeout(this._animPreviewTimer);
@@ -3608,6 +3612,73 @@ export class SlidesCanvasController {
     return true;
   }
 
+  async showShapeActionDialog() {
+    const slide = this.slides[this.currentSlideIndex];
+    const shape = (slide?.shapes || []).find(item => String(item.id) === String(this.selectedTarget));
+    if (!shape || typeof document === "undefined") return false;
+    const current = typeof shape.action === "object" && shape.action ? shape.action : {};
+    const currentKind = current.href ? (String(current.href).startsWith("#") ? "specific" : "web")
+      : ({ "next-page": "next", "previous-page": "previous", "first-page": "first", "last-page": "last" })[current.action || shape.action] || "none";
+    const targetSlide = current.href?.startsWith("#") ? current.href.slice(1) : current.slideId;
+    const options = this.slides.map((item, index) => `<option value="${this._escapeShapeText(String(item.id))}" ${String(item.id) === String(targetSlide) ? "selected" : ""}>${index + 1}. ${this._escapeShapeText(item.title || `Trang chiếu ${index + 1}`)}</option>`).join("");
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay";
+    overlay.innerHTML = `<div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="vno-action-title" style="width:460px;max-width:calc(100vw - 32px)">
+      <div class="vno-dialog-header"><span id="vno-action-title">${t("slidesDialogs.actionTitle", "Tác vụ khi nhấp")}</span><button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close", "Đóng")}">×</button></div>
+      <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px">
+        <label for="vno-action-type">${t("slidesDialogs.actionType", "Khi nhấp đối tượng này")}</label>
+        <select id="vno-action-type" class="vno-select">
+          <option value="none">${t("slidesDialogs.actionNone", "Không")}</option><option value="next">${t("slidesDialogs.actionNext", "Trang kế tiếp")}</option>
+          <option value="previous">${t("slidesDialogs.actionPrevious", "Trang trước")}</option><option value="first">${t("slidesDialogs.actionFirst", "Trang đầu")}</option>
+          <option value="last">${t("slidesDialogs.actionLast", "Trang cuối")}</option><option value="specific">${t("slidesDialogs.actionSpecific", "Trang cụ thể")}</option>
+          <option value="web">${t("slidesDialogs.actionWeb", "Mở địa chỉ web")}</option>
+        </select>
+        <label for="vno-action-slide">${t("slidesDialogs.actionSlide", "Chọn trang chiếu")}</label><select id="vno-action-slide" class="vno-select">${options}</select>
+        <label for="vno-action-url">${t("slidesDialogs.actionUrl", "Địa chỉ web")}</label><input id="vno-action-url" type="url" class="vno-dialog-input" value="${this._escapeShapeText(current.href && !current.href.startsWith("#") ? current.href : "https://")}">
+      </div>
+      <div class="vno-dialog-footer"><button type="button" class="vno-btn" id="vno-action-cancel">${t("slidesDialogs.cancel", "Hủy")}</button><button type="button" class="vno-btn vno-btn-primary" id="vno-action-apply">${t("slidesDialogs.apply", "Áp dụng")}</button></div>
+    </div>`;
+    document.body.appendChild(overlay);
+    const type = overlay.querySelector("#vno-action-type");
+    const target = overlay.querySelector("#vno-action-slide");
+    const url = overlay.querySelector("#vno-action-url");
+    type.value = currentKind;
+    const updateEnabled = () => { target.disabled = type.value !== "specific"; url.disabled = type.value !== "web"; };
+    type.addEventListener("change", updateEnabled);
+    updateEnabled();
+    return await new Promise(resolve => {
+      const close = (apply) => {
+        if (apply) {
+          const kind = type.value;
+          const before = { action: shape.action, href: shape.href };
+          delete shape.action; delete shape.href;
+          if (kind === "next") shape.action = "next-page";
+          else if (kind === "previous") shape.action = "previous-page";
+          else if (kind === "first") shape.action = "first-page";
+          else if (kind === "last") shape.action = "last-page";
+          else if (kind === "specific") shape.action = { action: "show-page", href: `#${target.value}` };
+          else if (kind === "web") {
+            const value = String(url.value || "").trim();
+            if (!/^https?:\/\//i.test(value)) { url.focus(); return; }
+            shape.action = { action: "hyperlink", href: value };
+          }
+          const after = { action: shape.action, href: shape.href };
+          this.undoStack.push({ type: "shape-action", slideIndex: this.currentSlideIndex, shapeId: shape.id, before, after });
+          this.redoStack = [];
+          this._syncUndoRedoState?.();
+          this._renderShapesLayer();
+        }
+        overlay.remove();
+        resolve(!!apply);
+      };
+      overlay.querySelector("#vno-action-apply")?.addEventListener("click", () => close(true));
+      overlay.querySelector("#vno-action-cancel")?.addEventListener("click", () => close(false));
+      overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => close(false));
+      overlay.addEventListener("click", event => { if (event.target === overlay) close(false); });
+      type.focus();
+    });
+  }
+
   /** Chèn một sơ đồ gồm nhiều shape nhưng chỉ tạo một bước Undo/Redo. */
   insertDiagram(diagramType = "process", nodeCount = 4) {
     const slide = this.slides[this.currentSlideIndex];
@@ -3964,7 +4035,9 @@ export class SlidesCanvasController {
 
   _shapePresentationHtml(shape, options = {}) {
     const shapeId = this._escapeShapeText(String(shape.id ?? ""));
-    const morphAttrs = ` data-vno-shape-id="${shapeId}" data-vno-shape-type="${this._escapeShapeText(shape.type || "rect")}"`;
+    const actionValue = shape.action && typeof shape.action === "object" ? JSON.stringify(shape.action) : String(shape.action || shape.href || "");
+    const actionAttr = actionValue ? ` data-vno-action="${this._escapeShapeText(actionValue)}"` : "";
+    const morphAttrs = ` data-vno-shape-id="${shapeId}" data-vno-shape-type="${this._escapeShapeText(shape.type || "rect")}"${actionAttr}`;
     if (shape.type === "connector") {
       const marker = shape.arrowEnd ? "marker-end='url(#vno-show-arrow)'" : "";
       return `<svg class="vno-show-connector"${morphAttrs} style="position:absolute;inset:0;width:${this.slideSize.width}px;height:${this.slideSize.height}px;overflow:visible" viewBox="0 0 ${this.slideSize.width} ${this.slideSize.height}"><defs><marker id="vno-show-arrow" markerWidth="7" markerHeight="7" refX="6" refY="3.5" orient="auto"><path d="M0,0 L7,3.5 L0,7 Z" fill="${shape.color || "#475569"}"/></marker></defs><line x1="${shape.x1}" y1="${shape.y1}" x2="${shape.x2}" y2="${shape.y2}" stroke="${shape.color || "#475569"}" stroke-width="3" ${marker}/></svg>`;
@@ -3980,7 +4053,7 @@ export class SlidesCanvasController {
     if (shape.flipH) transformParts.push("scaleX(-1)");
     if (shape.flipV) transformParts.push("scaleY(-1)");
     const rotateStyle = transformParts.length ? `transform:${transformParts.join(" ")};transform-origin:center center;` : "";
-    const pos = `position:absolute;left:${shape.x}px;top:${shape.y}px;width:${shape.w}px;height:${shape.h}px;${rotateStyle}`;
+    const pos = `position:absolute;left:${shape.x}px;top:${shape.y}px;width:${shape.w}px;height:${shape.h}px;${rotateStyle}${actionValue ? "cursor:pointer;" : ""}`;
     let animStyle = "";
     let animAttrs = "";
     if (!options.suppressAnimation && shape.animation?.type && shape.animation.type !== "none") {
@@ -4014,9 +4087,7 @@ export class SlidesCanvasController {
     const textAlign = shape.textAlign ? `text-align:${shape.textAlign};` : "";
     const textStyle = [textWeight, textSize, textColor, textAlign].filter(Boolean).join("");
     const text = shape.text !== undefined ? `<span class="vno-show-shape-text"${textStyle ? ` style="${textStyle}"` : ""}>${this._escapeShapeText(shape.text)}</span>` : "";
-    const actionAttr = (shape.action || shape.href) ? ` data-vno-action="${this._escapeShapeText(typeof shape.action === "object" ? JSON.stringify(shape.action) : String(shape.action || shape.href))}"` : "";
-    const actionCursor = (shape.action || shape.href) ? "cursor:pointer;pointer-events:auto;" : "";
-    return `<div class="vno-show-shape"${morphAttrs}${animAttrs}${actionAttr} style="${pos}${animStyle}background:${shape.fill || shape.color || "#3b82f6"};opacity:${opacity};border-radius:${radius};${border}${actionCursor}">${text}</div>`;
+    return `<div class="vno-show-shape"${morphAttrs}${animAttrs} style="${pos}${animStyle}background:${shape.fill || shape.color || "#3b82f6"};opacity:${opacity};border-radius:${radius};${border}">${text}</div>`;
   }
 
   _getMorphMatches(fromSlide, toSlide) {
@@ -8339,6 +8410,16 @@ const startEditing = (initialText) => {
   _undoImpl() {
     if (this.undoStack.length === 0) return false;
     const action = this.undoStack.pop();
+    if (action.type === "shape-action") {
+      const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
+      if (!shape) return false;
+      for (const key of ["action", "href"]) {
+        if (Object.prototype.hasOwnProperty.call(action.before, key)) shape[key] = action.before[key]; else delete shape[key];
+      }
+      this.redoStack.push(action);
+      this._renderShapesLayer();
+      return true;
+    }
     if (action.type === "add") {
       const [removed] = this.slides.splice(action.index, 1);
       this.redoStack.push({ type: "delete", index: action.index, slide: removed });
@@ -8725,6 +8806,16 @@ const startEditing = (initialText) => {
   _redoImpl() {
     if (this.redoStack.length === 0) return false;
     const action = this.redoStack.pop();
+    if (action.type === "shape-action") {
+      const shape = this.slides[action.slideIndex]?.shapes?.find(item => String(item.id) === String(action.shapeId));
+      if (!shape) return false;
+      for (const key of ["action", "href"]) {
+        if (Object.prototype.hasOwnProperty.call(action.after, key)) shape[key] = action.after[key]; else delete shape[key];
+      }
+      this.undoStack.push(action);
+      this._renderShapesLayer();
+      return true;
+    }
     if (action.type === "delete") {
       this.slides.splice(action.index, 0, action.slide);
       this.undoStack.push({ type: "add", index: action.index, slide: action.slide });
@@ -10184,17 +10275,18 @@ const startEditing = (initialText) => {
    * Đặt chuyển tiếp. `timing` = { advanceOnClick, advanceAfter (ms) } (Chuyển tiếp > Thời gian); bỏ trống thì giữ cách
    * chuyển trang hiện có của trang. type "custom" = giữ nguyên hiệu ứng gốc của PowerPoint (khối p:transition đã nạp).
    */
-  setTransition(type = "fade", duration = 500, applyToAll = true, timing = null) {
+  setTransition(type = "fade", duration = 500, applyToAll = true, timing = null, direction = null) {
     const current = this.slides[this.currentSlideIndex]?.transition || {};
     const keepSource = type === "custom" && !!current.sourceXml;
     const before = this._captureSlideTransitions();
     const config = { type: keepSource ? "custom" : (type === "custom" ? "fade" : type), duration: parseInt(duration, 10) || 500 };
+    if (config.type !== "custom") config.direction = ["left", "right", "top", "bottom"].includes(direction) ? direction : (current.direction || "left");
     const resolved = timing || { advanceOnClick: current.advanceOnClick !== false, advanceAfter: current.advanceAfter };
     if (resolved.advanceOnClick === false) config.advanceOnClick = false;
     if (Number.isFinite(resolved.advanceAfter) && resolved.advanceAfter > 0) config.advanceAfter = Math.round(resolved.advanceAfter);
     if (keepSource) config.sourceXml = current.sourceXml;
     this.transitionConfig = { type: keepSource ? "fade" : config.type, duration: config.duration };
-    if (applyToAll) {
+    if (applyToAll && !keepSource) {
       this.slides.forEach(s => {
         s.transition = { ...config };
       });
@@ -10228,7 +10320,7 @@ const startEditing = (initialText) => {
       return true;
     }
     const current = slide.transition || {};
-    return this.setTransition(type, current.duration || 500, false, null);
+    return this.setTransition(type, current.duration || 500, false, null, current.direction);
   }
 
   /** Sửa riêng thời lượng / cách chuyển trang của trang đang chọn; cần có hiệu ứng trước. */
@@ -10241,6 +10333,7 @@ const startEditing = (initialText) => {
     const before = this._captureSlideTransitions();
     const next = { ...slide.transition };
     if (patch.duration !== undefined) next.duration = patch.duration;
+    if (patch.direction !== undefined && ["left", "right", "top", "bottom"].includes(patch.direction)) next.direction = patch.direction;
     if (patch.advanceOnClick !== undefined) {
       if (patch.advanceOnClick) delete next.advanceOnClick; else next.advanceOnClick = false;
     }
@@ -10267,9 +10360,13 @@ const startEditing = (initialText) => {
     const transition = this.slides[this.currentSlideIndex]?.transition;
     const el = this.stageEl;
     if (!transition || !el) return false;
-    const type = (transition.type === "morph" || transition.type === "custom") ? "fade" : transition.type;
+    const type = (transition.type === "morph" || transition.type === "custom" || transition.type === "push" || transition.type === "fan") ? "slide" : transition.type;
     const name = `vnoTransition${String(type).charAt(0).toUpperCase()}${String(type).slice(1)}`;
     el.style.animation = "none";
+    const vectors = { left: ["-100%", "0"], right: ["100%", "0"], top: ["0", "-100%"], bottom: ["0", "100%"] };
+    const [x, y] = vectors[transition.direction] || vectors.right;
+    el.style.setProperty?.("--vno-transition-x", x);
+    el.style.setProperty?.("--vno-transition-y", y);
     void el.offsetWidth;
     el.style.animation = `${name} ${Math.max(Number(transition.duration) || 500, 100)}ms ease-out`;
     return true;
@@ -10286,6 +10383,7 @@ const startEditing = (initialText) => {
       // Slide mang hiệu ứng gốc của tệp (Wipe, Cover, Cut...): mặc định giữ nguyên, tránh đổi nhầm sang kiểu gần giống của VN.
       const currentType = slideTransition?.sourceXml ? "custom" : (slideTransition?.type || this.transitionConfig.type || "fade");
       const currentDuration = slideTransition?.duration || this.transitionConfig.duration || 500;
+      const currentDirection = slideTransition?.direction || "left";
       const currentAdvanceClick = slideTransition?.advanceOnClick !== false;
       const currentAdvanceAfter = Number.isFinite(slideTransition?.advanceAfter) && slideTransition.advanceAfter > 0 ? slideTransition.advanceAfter / 1000 : null;
 
@@ -10301,10 +10399,21 @@ const startEditing = (initialText) => {
               <select class="vno-select" id="vno-trans-type-select" aria-label="${t("slidesDialogs.transitionTypeLabel", "Kiểu chuyển trang:")}">
                 <option value="fade" ${currentType === "fade" ? "selected" : ""}>${t("slidesDialogs.transFade", "Mờ dần (Fade)")}</option>
                 <option value="slide" ${currentType === "slide" ? "selected" : ""}>${t("slidesDialogs.transSlide", "Trượt ngang (Slide)")}</option>
+                <option value="push" ${currentType === "push" ? "selected" : ""}>${t("slidesDialogs.transPush", "Đẩy")}</option>
+                <option value="fan" ${currentType === "fan" ? "selected" : ""}>${t("slidesDialogs.transFan", "Quạt")}</option>
                 <option value="zoom" ${currentType === "zoom" ? "selected" : ""}>${t("slidesDialogs.transZoom", "Thu phóng (Zoom)")}</option>
                 <option value="flip" ${currentType === "flip" ? "selected" : ""}>${t("slidesDialogs.transFlip", "Lật trang 3D (Flip)")}</option>
                 <option value="morph" ${currentType === "morph" ? "selected" : ""}>Morph</option>
                 ${currentType === "custom" ? `<option value="custom" selected>${t("slidesDialogs.transCustomKeep", "Giữ nguyên hiệu ứng gốc của tệp")}</option>` : ""}
+              </select>
+            </div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <label for="vno-trans-direction-select" style="font-size:12px;font-weight:600;color:var(--vno-text-secondary, #475569);">${t("slidesDialogs.transitionDirection", "Hướng chuyển tiếp")}</label>
+              <select class="vno-select" id="vno-trans-direction-select" aria-label="${t("slidesDialogs.transitionDirection", "Hướng chuyển tiếp")}">
+                <option value="right" ${currentDirection === "right" ? "selected" : ""}>${t("slidesDialogs.directionRight", "Từ phải")}</option>
+                <option value="left" ${currentDirection === "left" ? "selected" : ""}>${t("slidesDialogs.directionLeft", "Từ trái")}</option>
+                <option value="top" ${currentDirection === "top" ? "selected" : ""}>${t("slidesDialogs.directionTop", "Từ trên")}</option>
+                <option value="bottom" ${currentDirection === "bottom" ? "selected" : ""}>${t("slidesDialogs.directionBottom", "Từ dưới")}</option>
               </select>
             </div>
             <div style="display:flex;flex-direction:column;gap:4px;">
@@ -10345,6 +10454,7 @@ const startEditing = (initialText) => {
       const previewBox = overlay.querySelector("#vno-trans-preview-box");
       const typeSelect = overlay.querySelector("#vno-trans-type-select");
       const durationSelect = overlay.querySelector("#vno-trans-duration-select");
+      const directionSelect = overlay.querySelector("#vno-trans-direction-select");
       const readTiming = () => {
         const afterOn = overlay.querySelector("#vno-trans-advance-after-on")?.checked;
         const seconds = Number(overlay.querySelector("#vno-trans-advance-after")?.value);
@@ -10359,9 +10469,13 @@ const startEditing = (initialText) => {
         const type = typeSelect.value;
         const dur = durationSelect.value;
         // Dialog preview has no adjacent-slide shape pair, so Morph previews its documented crossfade fallback.
-        const previewType = (type === "morph" || type === "custom") ? "fade" : type;
+        const previewType = (type === "morph" || type === "custom") ? "fade" : (["push", "fan"].includes(type) ? "slide" : type);
         const animName = `vnoTransition${previewType.charAt(0).toUpperCase() + previewType.slice(1)}`;
         previewBox.style.animation = "none";
+        const vectors = { left: ["-100%", "0"], right: ["100%", "0"], top: ["0", "-100%"], bottom: ["0", "100%"] };
+        const [x, y] = vectors[directionSelect?.value] || vectors.right;
+        previewBox.style.setProperty?.("--vno-transition-x", x);
+        previewBox.style.setProperty?.("--vno-transition-y", y);
         void previewBox.offsetWidth;
         previewBox.style.animation = `${animName} ${dur}ms ease-out forwards`;
       };
@@ -10388,7 +10502,7 @@ const startEditing = (initialText) => {
           resolve(false);
         } else if (e.key === "Enter" && e.target?.id !== "vno-trans-cancel") {
           e.preventDefault();
-          this.setTransition(typeSelect.value, durationSelect.value, true, readTiming());
+          this.setTransition(typeSelect.value, durationSelect.value, true, readTiming(), directionSelect?.value);
           close();
           resolve(true);
         } else if (e.key === "Tab") {
@@ -10401,13 +10515,13 @@ const startEditing = (initialText) => {
       overlay.querySelector("#vno-trans-cancel")?.addEventListener("click", () => { close(); resolve(false); });
 
       overlay.querySelector("#vno-trans-apply-current")?.addEventListener("click", () => {
-        this.setTransition(typeSelect.value, durationSelect.value, false, readTiming());
+        this.setTransition(typeSelect.value, durationSelect.value, false, readTiming(), directionSelect?.value);
         close();
         resolve(true);
       });
 
       overlay.querySelector("#vno-trans-apply-all")?.addEventListener("click", () => {
-        this.setTransition(typeSelect.value, durationSelect.value, true, readTiming());
+        this.setTransition(typeSelect.value, durationSelect.value, true, readTiming(), directionSelect?.value);
         close();
         resolve(true);
       });
@@ -10473,6 +10587,15 @@ const startEditing = (initialText) => {
                 ${this._animationTypeOptionsHtml(currentAnim.type)}
               </select>
             </div>
+            <div style="display:flex;flex-direction:column;gap:4px;">
+              <label for="vno-anim-direction-select" style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationDirection", "Hướng hiệu ứng")}</label>
+              <select class="vno-select" id="vno-anim-direction-select" aria-label="${t("slidesDialogs.animationDirection", "Hướng hiệu ứng")}">
+                <option value="bottom" ${(currentAnim.direction || "bottom") === "bottom" ? "selected" : ""}>${t("slidesDialogs.directionBottom", "Từ dưới")}</option>
+                <option value="left" ${currentAnim.direction === "left" ? "selected" : ""}>${t("slidesDialogs.directionLeft", "Từ trái")}</option>
+                <option value="right" ${currentAnim.direction === "right" ? "selected" : ""}>${t("slidesDialogs.directionRight", "Từ phải")}</option>
+                <option value="top" ${currentAnim.direction === "top" ? "selected" : ""}>${t("slidesDialogs.directionTop", "Từ trên")}</option>
+              </select>
+            </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;">
               <div style="display:flex;flex-direction:column;gap:4px;">
                 <label for="vno-anim-duration-select" style="font-size:12px;font-weight:600;color:#334155;">${t("slidesDialogs.animationDuration")}</label>
@@ -10519,6 +10642,7 @@ const startEditing = (initialText) => {
       const typeSelect = overlay.querySelector("#vno-anim-type-select");
       const durSelect = overlay.querySelector("#vno-anim-duration-select");
       const delaySelect = overlay.querySelector("#vno-anim-delay-select");
+      const directionSelect = overlay.querySelector("#vno-anim-direction-select");
       const previewBox = overlay.querySelector("#vno-anim-preview-box");
 
       const runPreview = () => {
@@ -10535,7 +10659,7 @@ const startEditing = (initialText) => {
         previewBox.style.animation = "none";
         previewBox.style.opacity = animationClassOf(type) === "entrance" ? "0" : "1";
         void previewBox.offsetWidth;
-        previewBox.style.cssText += ";" + animationInlineCss(type, dur, del);
+        previewBox.style.cssText += ";" + animationInlineCss(type, dur, del, directionSelect?.value);
       };
 
       targetSelect?.addEventListener("change", () => {
@@ -10543,12 +10667,14 @@ const startEditing = (initialText) => {
         typeSelect.value = conf.type || "none";
         durSelect.value = String(conf.duration || 500);
         delaySelect.value = String(conf.delay || 0);
+        directionSelect.value = conf.direction || "bottom";
         runPreview();
       });
 
       typeSelect?.addEventListener("change", runPreview);
       durSelect?.addEventListener("change", runPreview);
       delaySelect?.addEventListener("change", runPreview);
+      directionSelect?.addEventListener("change", runPreview);
       overlay.querySelector("#vno-anim-preview-btn")?.addEventListener("click", runPreview);
 
       let closed = false;
@@ -10585,7 +10711,8 @@ const startEditing = (initialText) => {
         this.setObjectAnimation(targetSelect.value, {
           type: typeSelect.value,
           duration: parseInt(durSelect.value, 10) || 500,
-          delay: parseInt(delaySelect.value, 10) || 0
+          delay: parseInt(delaySelect.value, 10) || 0,
+          direction: directionSelect?.value || "bottom"
         });
         close();
         resolve(true);
@@ -10907,11 +11034,15 @@ const startEditing = (initialText) => {
         else content.setAttribute?.("data-vno-transition", "morph");
       } else {
         // Safe Morph fallback: without a clear same-id shape match, crossfade instead of freezing or failing.
-        const fallbackType = (transition.type === "morph" || transition.type === "custom") ? "fade" : transition.type;
+        const fallbackType = (transition.type === "morph" || transition.type === "custom") ? "fade" : (["push", "fan"].includes(transition.type) ? "slide" : transition.type);
         const animName = `vnoTransition${fallbackType.charAt(0).toUpperCase() + fallbackType.slice(1)}`;
         const transitionState = transition.type === "morph" ? "morph-fallback-fade" : fallbackType;
         if (content.dataset) content.dataset.vnoTransition = transitionState;
         else content.setAttribute?.("data-vno-transition", transitionState);
+        const vectors = { left: ["-100%", "0"], right: ["100%", "0"], top: ["0", "-100%"], bottom: ["0", "100%"] };
+        const [x, y] = vectors[transition.direction] || vectors.right;
+        content.style.setProperty?.("--vno-transition-x", x);
+        content.style.setProperty?.("--vno-transition-y", y);
         content.style.animation = `${animName} ${transition.duration}ms ease-out forwards`;
       }
       // Tự chuyển trang sau N giây (Chuyển tiếp > Thời gian > Sau).
@@ -11387,6 +11518,31 @@ const startEditing = (initialText) => {
     overlay.addEventListener?.("click", (e) => {
       if (e.target && e.target.closest && e.target.closest("video, audio, .vno-rehearse-timer-box, .vno-slideshow-context-menu, .vno-ink-dialog")) return;
       if (pointerMode !== "arrow") return;
+      const actionEl = e.target?.closest?.("[data-vno-action]");
+      if (actionEl) {
+        const shapeId = actionEl.getAttribute?.("data-vno-shape-id");
+        const shape = this.slides[currentShowIdx]?.shapes?.find(item => String(item.id) === String(shapeId));
+        let action = shape?.action;
+        if (typeof action === "string" || typeof action === "number") action = { action: action };
+        action ||= {};
+        const href = action.href || shape?.href || (typeof shape?.action === "string" && /^https?:/i.test(shape.action) ? shape.action : "");
+        if (href && /^https?:\/\//i.test(href)) {
+          e.preventDefault?.(); e.stopPropagation?.();
+          globalThis.window?.open?.(href, "_blank", "noopener");
+          return;
+        }
+        const kind = String(action.action || "").toLowerCase();
+        if (["next-page", "nextslide", "1"].includes(kind)) { e.preventDefault?.(); e.stopPropagation?.(); advanceShow(); return; }
+        if (["previous-page", "previousslide", "2"].includes(kind)) { e.preventDefault?.(); e.stopPropagation?.(); rewindShow(); return; }
+        if (["first-page", "firstslide", "3"].includes(kind)) { e.preventDefault?.(); e.stopPropagation?.(); const first = this._firstVisibleSlideIndex(); if (first >= 0) goToSlide(first); return; }
+        if (["last-page", "lastslide", "4"].includes(kind)) { e.preventDefault?.(); e.stopPropagation?.(); const last = this._findVisibleSlideIndex(this.slides.length - 1, -1); if (last >= 0) goToSlide(last); return; }
+        if (kind === "show-page" || kind === "specific-slide") {
+          const pageId = String(href || "").replace(/^#/, "");
+          const index = this.slides.findIndex(item => String(item.id) === pageId);
+          if (index >= 0) { e.preventDefault?.(); e.stopPropagation?.(); goToSlide(index); return; }
+        }
+        if (["stop", "end-show"].includes(kind)) { e.preventDefault?.(); e.stopPropagation?.(); closeShow(); return; }
+      }
       // «Khi nhấp chuột» tắt trong Chuyển tiếp > Thời gian: nhấp chuột không chuyển trang (phím vẫn chuyển được).
       if (this.slides[currentShowIdx]?.transition?.advanceOnClick === false) return;
       advanceShow();

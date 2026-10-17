@@ -39,9 +39,18 @@ try {
 
   await ev(`${canvas}.setSelectedTarget(${canvas}.slides[0].shapes[0].id)`);
   await openDropdown("slides.animation.gallery");
-  await menuItem("Thu phóng vào");
+  await menuItem("Bay vào");
   let a = JSON.parse(await anim());
-  check("Gán hiệu ứng Thu phóng vào cho hình đang chọn", a?.type === "zoomIn", JSON.stringify(a));
+  check("Gán hiệu ứng Bay vào cho hình đang chọn", a?.type === "flyIn", JSON.stringify(a));
+
+  await click(cdp, '[data-command-id="slides.animation.effectOptions"]');
+  await sleep(250);
+  await click(cdp, "#vno-anim-direction-select");
+  await press(cdp, "ArrowDown", {}, 100);
+  await press(cdp, "Enter", {}, 150);
+  await click(cdp, "#vno-anim-apply");
+  a = JSON.parse(await anim());
+  check("Tùy chọn hiệu ứng đặt hướng từ trái cho đối tượng", a?.direction === "left", JSON.stringify(a));
 
   await openDropdown("slides.animation.startMenu");
   await menuItem("Sau hiệu ứng trước");
@@ -55,9 +64,9 @@ try {
   await click(cdp, '[data-command-id="slides.animation.preview"]');
   await sleep(300);
   const styled = await ev(`(() => { const el = document.querySelector('.vno-slide-shape-item'); return el.getAttribute('style') || ''; })()`);
-  check("Xem trước chạy animation trên hình", /vnoAnimZoomIn/.test(styled), styled.slice(-120));
+  check("Xem trước chạy animation trên hình", /vnoAnimFlyIn/.test(styled), styled.slice(-120));
   await sleep(3600);
-  const restored = await ev(`(() => { const el = document.querySelector('.vno-slide-shape-item'); return !/vnoAnimZoomIn/.test(el.getAttribute('style') || ''); })()`);
+  const restored = await ev(`(() => { const el = document.querySelector('.vno-slide-shape-item'); return !/vnoAnimFlyIn/.test(el.getAttribute('style') || ''); })()`);
   check("Xong xem trước: hình trở về nguyên trạng", restored);
 
   const saved = await ev(`(async () => { const a = window.__vnoAppInstance.adapter || window.__vnoAppInstance; return JSON.stringify(await window.pywebview.api.save_document_in_place(a.serializeToFodp(), 'slides', ${JSON.stringify(OUT)}, null)).slice(0, 80); })()`);

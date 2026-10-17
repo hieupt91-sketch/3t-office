@@ -300,6 +300,7 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.animation.durationMenu", () => this.canvas.showAnimationDialog ? this.canvas.showAnimationDialog() : false);
     globalCommandBus.bindHandler("slides.animation.delayMenu", () => this.canvas.showAnimationDialog ? this.canvas.showAnimationDialog() : false);
     globalCommandBus.bindHandler("slides.animation.setType", (arg) => this._hintIfFalse(() => this.canvas.updateSelectedAnimation({ type: String(arg || "none") }, true), "Hãy chọn một đối tượng (hình, ảnh, khung chữ) trước, rồi đặt hiệu ứng hoặc thời gian cho nó. Thời gian chỉ đặt được khi đối tượng đã có hiệu ứng."));
+    globalCommandBus.bindHandler("slides.animation.effectOptions", () => this.canvas.showAnimationDialog ? this.canvas.showAnimationDialog() : false);
     globalCommandBus.bindHandler("slides.animation.setStart", (arg) => this._hintIfFalse(() => this.canvas.updateSelectedAnimation({ start: String(arg) }), "Hãy chọn một đối tượng (hình, ảnh, khung chữ) trước, rồi đặt hiệu ứng hoặc thời gian cho nó. Thời gian chỉ đặt được khi đối tượng đã có hiệu ứng."));
     globalCommandBus.bindHandler("slides.animation.setDuration", (arg) => this._hintIfFalse(() => this.canvas.updateSelectedAnimation({ duration: parseInt(arg, 10) || 500 }), "Hãy chọn một đối tượng (hình, ảnh, khung chữ) trước, rồi đặt hiệu ứng hoặc thời gian cho nó. Thời gian chỉ đặt được khi đối tượng đã có hiệu ứng."));
     globalCommandBus.bindHandler("slides.animation.setDelay", (arg) => this._hintIfFalse(() => this.canvas.updateSelectedAnimation({ delay: parseInt(arg, 10) || 0 }), "Hãy chọn một đối tượng (hình, ảnh, khung chữ) trước, rồi đặt hiệu ứng hoặc thời gian cho nó. Thời gian chỉ đặt được khi đối tượng đã có hiệu ứng."));
@@ -331,6 +332,8 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.transition.preview", () => this._hintIfFalse(() => this.canvas.previewTransition(), "Hãy chọn một hiệu ứng chuyển trang cho trang này trước (Chuyển tiếp > Hiệu ứng)."));
     globalCommandBus.bindHandler("common.edit.paste", () => this._paste());
     globalCommandBus.bindHandler("common.edit.pastePlain", () => this._pastePlainText());
+    globalCommandBus.bindHandler("slides.edit.pasteSpecial", () => this._showPasteSpecialDialog());
+    globalCommandBus.bindHandler("slides.insert.action", () => this.canvas.showShapeActionDialog ? this.canvas.showShapeActionDialog() : false);
     globalCommandBus.bindHandler("slides.review.commentInsert", (options) => {
       options = options || {};
       return this.canvas.openCommentsPanel ? this.canvas.openCommentsPanel(true) : false;
@@ -1919,7 +1922,9 @@ export class SlidesAdapter {
     if (!type || type === "none" || type === "custom") return null;
     const dur = this._msToSmilDur(transition.duration > 0 ? transition.duration : 500) || "0.5s";
     if (type === "fade") return { type: "fade", subtype: "crossfade", dur };
-    if (type === "slide") return { type: "pushWipe", subtype: "fromLeft", dur };
+    const direction = ({ left: "Left", right: "Right", top: "Top", bottom: "Bottom" })[transition?.direction] || "Left";
+    if (type === "slide" || type === "push") return { type: "pushWipe", subtype: `from${direction}`, dur };
+    if (type === "fan") return { type: "fanWipe", subtype: `from${direction}`, dur };
     // Direct smil:type="zoom" exports to PPTX as an empty <p:transition> (measured).
     // irisWipe/rectangle maps to a real PPTX transition and returns as smil:type="zoom".
     if (type === "zoom") return { type: "irisWipe", subtype: "rectangle", dur };
@@ -1936,7 +1941,9 @@ export class SlidesAdapter {
     if (!type && !subtype) return null;
     if (type === "fadeovercolor") return "flip";
     if (type === "fade") return "fade";
-    if (type === "pushwipe" || type === "barwipe" || type === "slidewipe") return "slide";
+    if (type === "fanwipe") return "fan";
+    if (type === "barwipe") return "wipe";
+    if (type === "pushwipe" || type === "slidewipe") return "slide";
     if (type === "zoom" || type === "iriswipe") return "zoom";
     return null;
   }
@@ -2050,6 +2057,8 @@ export class SlidesAdapter {
     const dur = this._msToSmilDur(animation.duration > 0 ? animation.duration : 500) || "0.5s";
     const delayMs = Number(animation.delay) || 0;
     const begin = delayMs > 0 ? (this._msToSmilDur(delayMs) || "0s") : "0s";
+    const direction = ["left", "right", "top", "bottom"].includes(animation?.direction) ? animation.direction : "bottom";
+    const directionSubType = (prefix) => `${prefix}-${direction}`;
     switch (type) {
       case "spin":
         return { presetId: "ooo-emphasis-spin", subType: null, dur, begin, kind: "spin", cls: "emphasis" };
@@ -2058,7 +2067,7 @@ export class SlidesAdapter {
       case "fadeOut":
         return { presetId: "ooo-exit-fade-out", subType: null, dur, begin, kind: "fadeOut", cls: "exit" };
       case "flyOut":
-        return { presetId: "ooo-exit-fly-out", subType: "to-bottom", dur, begin, kind: "flyOut", cls: "exit" };
+        return { presetId: "ooo-exit-fly-out", subType: directionSubType("to"), dur, begin, kind: "flyOut", cls: "exit" };
       case "zoomOut":
         return { presetId: "ooo-exit-zoom", subType: null, dur, begin, kind: "zoomOut", cls: "exit" };
       case "disappear":
@@ -2068,7 +2077,7 @@ export class SlidesAdapter {
         return { presetId: "ooo-entrance-fade-in", subType: null, dur, begin, kind: "fade" };
       case "flyIn":
       case "fly":
-        return { presetId: "ooo-entrance-fly-in", subType: "from-bottom", dur, begin, kind: "fly" };
+        return { presetId: "ooo-entrance-fly-in", subType: directionSubType("from"), dur, begin, kind: "fly" };
       case "zoomIn":
       case "zoom":
         return { presetId: "ooo-entrance-zoom", subType: null, dur, begin, kind: "zoom" };
@@ -2077,7 +2086,7 @@ export class SlidesAdapter {
         return { presetId: "ooo-entrance-bounce", subType: null, dur, begin, kind: "bounce" };
       case "slideLeft":
       case "slide":
-        return { presetId: "ooo-entrance-wipe", subType: "from-left", dur, begin, kind: "wipe" };
+        return { presetId: "ooo-entrance-wipe", subType: directionSubType("from"), dur, begin, kind: "wipe" };
       default:
         return null;
     }
@@ -2369,6 +2378,7 @@ export class SlidesAdapter {
     return {
       type: vnType,
       duration: this._parseSmilTimeToMs(filterDur) || fromStyle.duration || 500,
+      direction: ({ fromleft: "left", fromright: "right", fromtop: "top", frombottom: "bottom" })[String(filterSubtype || fromStyle.smilSubtype || "").toLowerCase()] || "left",
       ...extra
     };
   }
@@ -2395,13 +2405,16 @@ export class SlidesAdapter {
         ? Math.max(...animateDurs)
         : (this._parseSmilTimeToMs(this._attr(attrs, "smil:dur")) || 500);
       const delay = this._parseSmilTimeToMs(this._attr(attrs, "smil:begin")) || 0;
+      const presetSubType = String(this._attr(attrs, "presentation:preset-sub-type") || "").toLowerCase();
+      const directionToken = presetSubType.match(/(?:from|to)-(left|right|top|bottom)$/)?.[1];
+      const direction = directionToken || "bottom";
       const nodeType = String(this._attr(attrs, "presentation:node-type") || "").toLowerCase();
       const start = nodeType === "with-previous"
         ? "withPrevious"
         : nodeType === "after-previous"
           ? "afterPrevious"
           : "onClick";
-      byTarget.set(target, { type: vnType, duration, delay, order: byTarget.size, start });
+      byTarget.set(target, { type: vnType, duration, delay, direction, order: byTarget.size, start });
     }
     return byTarget;
   }
@@ -5231,6 +5244,8 @@ export class SlidesAdapter {
 
       case "slides.animation.apply":
         return this.canvas.showAnimationDialog ? this.canvas.showAnimationDialog() : false;
+      case "slides.animation.effectOptions":
+        return this.canvas.showAnimationDialog ? this.canvas.showAnimationDialog() : false;
 
       case "slides.animation.pane":
       case ".uno:AnimationPane":
@@ -5341,6 +5356,12 @@ export class SlidesAdapter {
       case "common.edit.hyperlink":
         return this.canvas.insertHyperlink ? await this.canvas.insertHyperlink(args) : false;
 
+      case "slides.edit.pasteSpecial":
+        return await this._showPasteSpecialDialog();
+
+      case "slides.insert.action":
+        return this.canvas.showShapeActionDialog ? await this.canvas.showShapeActionDialog() : false;
+
       case "slides.insert.wordart":
         return this.canvas.insertWordArt ? await this.canvas.insertWordArt(args) : false;
 
@@ -5448,6 +5469,113 @@ export class SlidesAdapter {
       }
     } catch {}
     return null;
+  }
+
+  _sanitizeSpecialPasteHtml(html, destinationTheme = false) {
+    if (typeof DOMParser === "undefined") return "";
+    const doc = new DOMParser().parseFromString(String(html || ""), "text/html");
+    doc.querySelectorAll("script,style,iframe,object,embed,link,meta,form").forEach(node => node.remove());
+    doc.body.querySelectorAll("*").forEach(node => {
+      for (const attr of [...node.attributes]) {
+        const name = attr.name.toLowerCase();
+        if (name.startsWith("on") || name === "srcset") node.removeAttribute(attr.name);
+        if (name === "src" && !/^data:image\/(?:png|jpeg|gif|webp);base64,/i.test(attr.value)) node.removeAttribute(attr.name);
+        if (destinationTheme && ["style", "class", "color", "bgcolor", "face", "size"].includes(name)) node.removeAttribute(attr.name);
+      }
+      if (destinationTheme && ["font", "span"].includes(node.tagName.toLowerCase()) && !node.attributes.length) {
+        node.replaceWith(...node.childNodes);
+      }
+    });
+    return doc.body.innerHTML;
+  }
+
+  async _clipboardHtmlToPng(html, plainText = "") {
+    const safeHtml = this._sanitizeSpecialPasteHtml(html || `<pre>${String(plainText || "").replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;")}</pre>`);
+    if (!safeHtml || typeof Image === "undefined" || typeof document === "undefined") return null;
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="675"><foreignObject width="100%" height="100%"><div xmlns="http://www.w3.org/1999/xhtml" style="box-sizing:border-box;width:1200px;height:675px;padding:42px;overflow:hidden;background:white;color:#1f2937;font:24px Arial,sans-serif">${safeHtml}</div></foreignObject></svg>`;
+    const svgUrl = `data:image/svg+xml;charset=utf-8,${encodeURIComponent(svg)}`;
+    const image = new Image();
+    const loaded = new Promise((resolve) => { image.onload = () => resolve(true); image.onerror = () => resolve(false); });
+    image.src = svgUrl;
+    if (!await loaded) return null;
+    const canvas = document.createElement("canvas");
+    canvas.width = 1200;
+    canvas.height = 675;
+    const context = canvas.getContext("2d");
+    if (!context) return null;
+    context.drawImage(image, 0, 0, canvas.width, canvas.height);
+    return canvas.toDataURL("image/png");
+  }
+
+  async _pasteSpecialAs(mode, clip) {
+    if (!["source", "theme", "image", "text"].includes(mode)) return false;
+    const activeEl = typeof document !== "undefined" ? document.activeElement : null;
+    const isEditable = activeEl && (activeEl.isContentEditable || activeEl.tagName === "TEXTAREA" || activeEl.tagName === "INPUT");
+    const text = String(clip?.text || "");
+    if (mode === "text") {
+      const plain = text || (clip?.html && typeof DOMParser !== "undefined" ? new DOMParser().parseFromString(clip.html, "text/html").body.textContent : "");
+      if (isEditable) return !!document.execCommand?.("insertText", false, plain || "");
+      const shape = this.canvas?.insertShape?.("textbox");
+      if (!shape) return false;
+      this.canvas.updateShapeText?.(shape.id, plain || "");
+      return true;
+    }
+    if (mode === "image") {
+      const png = await this._clipboardHtmlToPng(clip?.html, text);
+      if (!png) return false;
+      if (isEditable) return !!document.execCommand?.("insertHTML", false, `<img alt="" src="${png}">`);
+      return !!this.canvas?.insertImage?.(png);
+    }
+    const html = this._sanitizeSpecialPasteHtml(clip?.html || `<div>${text}</div>`, mode === "theme");
+    if (isEditable) {
+      if (html && document.execCommand?.("insertHTML", false, html)) return true;
+      return !!document.execCommand?.("insertText", false, text);
+    }
+    const shape = this.canvas?.insertShape?.("textbox");
+    if (!shape) return false;
+    this.canvas.updateShapeText?.(shape.id, text || (typeof DOMParser !== "undefined" ? new DOMParser().parseFromString(html, "text/html").body.textContent : ""), html);
+    return true;
+  }
+
+  async _showPasteSpecialDialog() {
+    this._restoreTextSelection();
+    const clip = await this._readClipboardData();
+    if (!clip || (!clip.text && !clip.html)) return false;
+    if (typeof document === "undefined" || !document.createElement) return false;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay";
+    const previousFocused = document.activeElement;
+    const title = t("slidesDialogs.pasteSpecialTitle", "Dán đặc biệt");
+    overlay.innerHTML = `<div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="vno-paste-special-title" style="width:440px;max-width:calc(100vw - 32px)">
+      <div class="vno-dialog-header"><span id="vno-paste-special-title">${title}</span><button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close", "Đóng")}">×</button></div>
+      <div class="vno-dialog-body" role="radiogroup" aria-label="${title}" style="display:flex;flex-direction:column;gap:10px">
+        <label><input type="radio" name="vno-paste-format" value="source" checked> ${t("slidesDialogs.pasteSource", "Giữ định dạng nguồn")}</label>
+        <label><input type="radio" name="vno-paste-format" value="theme"> ${t("slidesDialogs.pasteTheme", "Dùng chủ đề đích")}</label>
+        <label><input type="radio" name="vno-paste-format" value="image"> ${t("slidesDialogs.pasteImage", "Hình ảnh (PNG)")}</label>
+        <label><input type="radio" name="vno-paste-format" value="text"> ${t("slidesDialogs.pasteText", "Chỉ văn bản")}</label>
+      </div>
+      <div class="vno-dialog-footer"><button type="button" class="vno-btn" id="vno-paste-special-cancel">${t("slidesDialogs.cancel", "Hủy")}</button><button type="button" class="vno-btn vno-btn-primary" id="vno-paste-special-apply">${t("slidesDialogs.apply", "Dán")}</button></div>
+    </div>`;
+    document.body.appendChild(overlay);
+    return await new Promise(resolve => {
+      const finish = async (apply) => {
+        const mode = overlay.querySelector('input[name="vno-paste-format"]:checked')?.value || "source";
+        overlay.remove();
+        if (!apply) return resolve(false);
+        if (previousFocused?.isConnected && typeof previousFocused.focus === "function") previousFocused.focus();
+        this._restoreTextSelection();
+        resolve(await this._pasteSpecialAs(mode, clip));
+      };
+      overlay.querySelector("#vno-paste-special-apply")?.addEventListener("click", () => finish(true));
+      overlay.querySelector("#vno-paste-special-cancel")?.addEventListener("click", () => finish(false));
+      overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", () => finish(false));
+      overlay.addEventListener("click", event => { if (event.target === overlay) finish(false); });
+      overlay.addEventListener("keydown", event => {
+        if (event.key === "Escape") { event.preventDefault(); finish(false); }
+        else if (event.key === "Enter" && event.target?.type !== "radio") { event.preventDefault(); finish(true); }
+      });
+      overlay.querySelector('input[name="vno-paste-format"]')?.focus?.();
+    });
   }
 
   async _paste() {

@@ -47,18 +47,26 @@ export function animationKeyframeName(type) {
  * - NHẤN MẠNH: đối tượng hiện sẵn, chạy xong trở lại nguyên trạng (không ẩn/hiện).
  * - THOÁT: đối tượng hiện sẵn từ đầu, sau hiệu ứng thì ẩn hẳn.
  */
-export function animationInlineCss(type, duration, delay) {
+export function animationInlineCss(type, duration, delay, direction = "bottom") {
   const effect = animationEffect(type);
   if (!effect) return "";
   const dur = Number(duration) > 0 ? Number(duration) : 500;
   const del = Number(delay) > 0 ? Number(delay) : 0;
+  const vectors = {
+    left: ["-50px", "0"], right: ["50px", "0"],
+    top: ["0", "-40px"], bottom: ["0", "40px"]
+  };
+  const [x, y] = vectors[direction] || vectors.bottom;
+  const directionVars = effect.id === "flyIn" || effect.id === "flyOut" || effect.id === "slideLeft"
+    ? `--vno-anim-x:${x};--vno-anim-y:${y};`
+    : "";
   if (effect.cls === "emphasis") {
-    return `animation:${effect.keyframe} ${dur}ms ease-in-out ${del}ms both;`;
+    return `${directionVars}animation:${effect.keyframe} ${dur}ms ease-in-out ${del}ms both;`;
   }
   if (effect.cls === "exit") {
-    return `animation:${effect.keyframe} ${dur}ms ease-in ${del}ms forwards;`;
+    return `${directionVars}animation:${effect.keyframe} ${dur}ms ease-in ${del}ms forwards;`;
   }
-  return `opacity:0;animation:${effect.keyframe} ${dur}ms ease-out ${del}ms forwards;`;
+  return `${directionVars}opacity:0;animation:${effect.keyframe} ${dur}ms ease-out ${del}ms forwards;`;
 }
 
 /** Từ presentation:preset-class + preset-id của ODF/FODP sang kiểu hiệu ứng của VN (hoặc null). */

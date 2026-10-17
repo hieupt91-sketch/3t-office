@@ -53,6 +53,18 @@ def run(effects, shape_ids=(4, 5, 6), fodp=None):
 
 
 class NativeAnimationTimingTests(unittest.TestCase):
+    def test_fly_preset_subtype_controls_all_four_directions(self):
+        for subtype, expected_attr, expected_from in (
+            ("1", "ppt_y", "-1-#ppt_h/2"),
+            ("2", "ppt_x", "1+#ppt_w/2"),
+            ("4", "ppt_y", "1+#ppt_h/2"),
+            ("8", "ppt_x", "-1-#ppt_w/2"),
+        ):
+            with self.subTest(subtype=subtype):
+                body = patcher._anim_effect_xml("entr", "2", subtype, "4", 500, iter(range(3, 30)).__next__, True)
+                self.assertIn(f"<p:attrName>{expected_attr}</p:attrName>", body)
+                self.assertIn(f'<p:strVal val="{expected_from}"/>', body)
+
     def test_entrance_only_slide_is_rebuilt_and_with_effect_joins_its_click_group(self):
         # Trước đây slide chỉ có hiệu ứng Vào đi đường cũ: hiệu ứng «cùng lúc» nằm riêng một nhóm nhấp chuột
         # và hộp chữ thiếu bldP nên PowerPoint đọc thành 3 hiệu ứng rỗng (đo bằng bộ slide thử 17/10).

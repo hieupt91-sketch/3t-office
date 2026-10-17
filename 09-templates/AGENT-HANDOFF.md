@@ -173,3 +173,21 @@ DEPENDENCIES/BLOCKERS: Hidden PowerPoint COM environment required to finish COM 
 CORE PATCH ID (if any): None.
 NEXT ACTION: In an environment where PowerPoint COM can remain hidden, verify the six built-in properties and final content status, then open an existing attributed PPTX in desktop and save unchanged to confirm round-trip retention.
 ---
+
+# Agent Handoff
+TASK: CODEX-EFFECTOPTS — Tùy chọn hiệu ứng, Dán đặc biệt, Tác vụ khi nhấp trong VN Slides
+AGENT/ROLE: Codex / Slides
+BRANCH: feat/slides-effectopts-codex
+WORKTREE: E:\VNOffice-codex-effectopts
+OBJECTIVE: Thêm hướng cho hoạt ảnh/chuyển tiếp, Dán đặc biệt Ctrl+Alt+V, tác vụ khi nhấp cho hình/khung chữ, hướng dẫn tiếng Việt và kiểm chứng PPTX.
+FINDINGS: Đường lưu thật đi qua adapter FODP rồi `ooxml_zip_patch.py`. Animation Fly In lưu preset subtype đúng hướng; transition Push lưu hướng bằng `<p:push dir=...>`; hyperlink/tác vụ được phát ra từ event listener ODF. PowerPoint COM có thể mở tệp chỉ đọc khi instance mới khởi động mặc định ẩn; không cần đặt thuộc tính `Visible`.
+IMPLEMENTATION SUMMARY: Thêm direction vào model, preview, UI và round-trip; thêm hướng chuyển tiếp cùng bảo vệ khối custom gốc khi áp dụng; thêm hộp Dán đặc biệt với giữ định dạng nguồn/chủ đề đích/PNG/chỉ văn bản từ clipboard cục bộ; thêm tác vụ trang kế/trước/đầu/cuối/cụ thể/web cho shape; bổ sung Help VI/EN và bằng chứng checklist được sinh từ script.
+FILES CHANGED: `adapters/libreoffice/common/ooxml_zip_patch.py`; `adapters/libreoffice/slides/slides-adapter.js`; `apps/slides/slide-animation-classes.js`; `apps/slides/slides-canvas.js`; `apps/slides/slides-ribbon.js`; `apps/slides/slides.css`; `platform/commands/command-definitions.js`; `platform/help/entries-slides.js`; `platform/i18n/strings-vi.js`; `platform/i18n/strings-en.js`; `scripts/audit-0610/gen_ppt_checklist.py`; `docs/POWERPOINT2016-FEATURE-CHECKLIST.md`; `tests/run-tests.js`; `tests/test_slides_native_animation_timing.py`; `tests/test_slides_source_transition.py`; `tests/unit/slides-paste-special.test.js`; `tests/unit/slide-animation-classes.test.js`; `tests/unit/help-coverage.test.js`; `tests/live/cdp/slides-animation-tab.desktop.mjs`; `tests/live/cdp/slides-transition-tab.desktop.mjs`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `node tests/run-tests.js`; four targeted pytest files; three desktop CDP scripts with `--experimental-websocket`; hidden PowerPoint COM read-only probes; i18n parity; Help coverage; checklist generator/verifier; JS syntax checks; Python compile; `git diff --check`.
+BUILD RESULT: NOT RUN — no build system changes.
+TEST RESULTS: PASS — Node 3707/3707; pytest 31 passed; CDP animation 10/10, transition 12/12, transition timing 8/8; VI/EN 2992 keys each, missing 0; Slides Help coverage 100%; checklist verifier lowered 0 rows. COM read-only/hidden: Fly In from left `Direction=4`; Push from left `EntryEffect=3853`; Next Slide action `Action=1`.
+KNOWN FAILURES: Paste Special unit coverage passes; its CDP modal smoke was NOT RUN to completion because the injected clipboard fixture did not go through the active native clipboard bridge. The regular animation/transition/timing CDP suites pass.
+RISKS: PPTX `p:wheel` has a spoke count and no cardinal `dir` attribute, so the current Fan transition serializes as a one-spoke wheel; directional Fan cannot be asserted in PowerPoint COM. Custom source transitions remain preserved when the user leaves them unchanged.
+DEPENDENCIES/BLOCKERS: None for implementation. Paste Special modal/clipboard needs a desktop smoke with a populated native clipboard.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review the commits; run Paste Special desktop smoke with a native clipboard item and decide whether Fan should keep wheel semantics or use a directional alternative.

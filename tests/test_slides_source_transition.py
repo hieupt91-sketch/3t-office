@@ -74,6 +74,17 @@ class SourceTransitionOverlayTests(unittest.TestCase):
 
 
 class SourceTransitionSaveTests(unittest.TestCase):
+    def test_generated_push_transition_uses_requested_direction(self):
+        for subtype, direction in (("fromleft", "l"), ("fromright", "r"), ("fromtop", "u"), ("frombottom", "d")):
+            fodp = (
+                '<office:document><office:automatic-styles><style:style style:name="dp1" style:family="drawing-page">'
+                f'<style:drawing-page-properties smil:type="pushWipe" smil:subtype="{subtype}"/></style:style></office:automatic-styles>'
+                '<office:body><office:presentation><draw:page draw:name="p1" draw:style-name="dp1"></draw:page></office:presentation></office:body></office:document>'
+            )
+            self.assertEqual(patcher._slides_transition_subtypes_from_fodp(fodp), [subtype])
+            output = patcher._apply_slides_transition_effects(_pptx([_slide("")]), fodp)
+            self.assertIn(f'<p:push dir="{direction}"/>', output["ppt/slides/slide1.xml"])
+
     def _run(self, slide_xml: str, attrs: str) -> str:
         pptx = _pptx([slide_xml])
         fodp = _fodp(1, [attrs])
