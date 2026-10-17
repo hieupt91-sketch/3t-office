@@ -1,0 +1,445 @@
+# Danh sách tính năng PowerPoint 2016 và trạng thái trong VN Slides
+
+Chuẩn: Microsoft PowerPoint 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. Lập 17/10/2026 từ quét ribbon PowerPoint thật (`docs/ribbon-scan-ppt-1710.json`), ma trận đối chiếu từng nút ribbon (`docs/SLIDES-BUTTON-MATRIX-1011.md`), kết quả đo kiểm 15 tính năng ưu tiên 1 (`docs/POWERPOINT2016-FINDINGS-1710.md`, `docs/ppt-oracle-1710.json`), ma trận Hoàn tác (`docs/AUDIT-DOC-UNDO-FULL-1610.md`), đọc mã và kiểm thực tế. Sinh bằng `scripts/audit-0610/gen_ppt_checklist.py` (sửa dữ liệu trong script rồi chạy lại).
+
+## Cách đọc
+
+- ✅ **Đã đối chiếu PowerPoint 2016**
+- 🟢 **Có, chưa đối chiếu**
+- 🟡 **Có một phần**
+- 🔴 **Chưa có**
+- ⚪ **Ngoài phạm vi**
+
+Ưu tiên của mục thiếu/một phần: **1** = người dùng văn phòng dùng thường xuyên; **2** = khá thường; **3** = hiếm.
+
+## Tổng hợp
+
+| Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
+|---|---|---|
+| ✅ Đã đối chiếu PowerPoint 2016 | 84 | 32% |
+| 🟢 Có, chưa đối chiếu | 133 | 51% |
+| 🟡 Có một phần | 16 | 6% |
+| 🔴 Chưa có | 30 | 11% |
+| ⚪ Ngoài phạm vi | 6 | - |
+| **Tổng** | **269** (áp dụng: 263) | |
+
+- **Độ phủ so với PowerPoint 2016 (có hoặc có một phần, một phần tính 0,5): 86%**
+- **Đã xác minh bằng đối chiếu PowerPoint 2016 thật: 32%** các mục áp dụng
+
+Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tính một mục; đo kiểu ghi-rồi-đọc-lại trên PowerPoint COM chỉ xác nhận ngữ nghĩa thuộc tính của PowerPoint, KHÔNG tự nhận là parity hoàn chỉnh nếu chưa có kiểm chứng khứ hồi.
+
+## Theo tab
+
+| Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
+|---|---|---|---|---|---|---|---|
+| Tệp (Backstage) | 17 | 2 | 13 | 0 | 1 | 1 | 94% |
+| Trang đầu | 57 | 35 | 16 | 4 | 2 | 0 | 93% |
+| Chèn | 29 | 14 | 1 | 1 | 11 | 2 | 57% |
+| Thiết kế | 15 | 5 | 8 | 1 | 1 | 0 | 90% |
+| Chuyển tiếp | 11 | 3 | 6 | 1 | 1 | 0 | 86% |
+| Hoạt ảnh | 16 | 6 | 7 | 0 | 3 | 0 | 81% |
+| Trình chiếu | 16 | 4 | 9 | 1 | 1 | 1 | 90% |
+| Xem lại | 14 | 2 | 7 | 0 | 3 | 2 | 75% |
+| Chế độ xem | 25 | 7 | 14 | 2 | 2 | 0 | 88% |
+| Công cụ vẽ > Định dạng | 17 | 2 | 13 | 2 | 0 | 0 | 94% |
+| Công cụ hình ảnh > Định dạng | 12 | 0 | 4 | 4 | 4 | 0 | 50% |
+| Công cụ bảng > Thiết kế | 8 | 0 | 8 | 0 | 0 | 0 | 100% |
+| Công cụ bảng > Bố trí | 8 | 0 | 8 | 0 | 0 | 0 | 100% |
+| Công cụ biểu đồ > Thiết kế | 8 | 0 | 8 | 0 | 0 | 0 | 100% |
+| Công cụ phương tiện > Phát lại | 5 | 0 | 4 | 0 | 1 | 0 | 80% |
+| Không thuộc ribbon | 11 | 4 | 7 | 0 | 0 | 0 | 100% |
+
+## Việc cần làm (mục chưa có hoặc một phần, ưu tiên 1)
+
+| Tab | Nhóm | Tính năng | Trạng thái | Ghi chú |
+|---|---|---|---|---|
+| Tệp (Backstage) | Thông tin | Bảo vệ bản trình bày: Mật khẩu mở file (mã hóa PPTX) | 🔴 | Chưa có cơ chế mã hóa mật khẩu mở file PPTX |
+| Trang đầu | Phông chữ | Đổ bóng chữ (Text Shadow) | 🟡 | Có hiệu ứng bóng trong DrawingML; chưa có nút Shadow riêng trên ribbon Trang đầu |
+| Chèn | Minh họa | SmartArt (Danh sách, Quy trình, Chu trình, Phân cấp) | 🔴 | Chưa hỗ trợ tạo mới SmartArt native chuẩn DrawingML diagram; hiện dùng sơ đồ nhóm shape (docs/SLIDES-BUTTON-MATRIX-1011.md:53) |
+| Chèn | Văn bản | Chữ nghệ thuật (WordArt) | 🟡 | FIX-L14: có lệnh slides.insert.wordart nhưng PowerPoint COM nhận dạng Type=17 PresetTextEffect=-2 chưa chuẩn native Type=15 (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
+| Chuyển tiếp | Chuyển tiếp sang slide | Hiệu ứng Morph (Biến đổi hình thái) | 🟡 | Đã có xử lý chuyển đổi Morph sơ bộ; chưa hoàn thiện mapping đối tượng khớp định danh như PowerPoint 2016 Office 365 |
+| Công cụ vẽ > Định dạng | Kiểu chữ WordArt | Hiệu ứng chữ nghệ thuật (Text Effects: Warp, Shadow, 3D) | 🟡 | FIX-L14: có textFadeRight nhưng PowerPoint COM nhận dạng PresetTextEffect=-2 chưa chuẩn native (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
+
+Tổng: 6 mục ưu tiên 1.
+
+## Danh sách 15 mục ưu tiên 1 thiếu nhất & Đề xuất 10 phiếu việc kế tiếp
+
+### 15 mục ưu tiên 1 cần bổ sung sớm nhất cho người dùng văn phòng:
+1. **Chèn > SmartArt**: Tạo SmartArt native (DrawingML diagram data/layout/colors) cho các mẫu quy trình, phân cấp, chu trình.
+2. **Chèn > Chữ nghệ thuật (WordArt)**: Chuẩn hóa xuất DrawingML WordArt native Type=15 (presetTextWarp) thay vì shape Type=17.
+3. **Chuyển tiếp > Morph**: Hoàn thiện thuật toán ánh xạ đối tượng cùng tên `!!name` giữa các slide cho chuyển tiếp Morph mượt mà.
+4. **Tệp > Thông tin > Mật khẩu**: Cơ chế mã hóa và thiết lập mật khẩu bảo vệ file PPTX.
+5. **Trang đầu > Phông chữ > Đổ bóng chữ**: Bổ sung nút Text Shadow trực tiếp trên ribbon Trang đầu.
+6. **Công cụ vẽ > Hiệu ứng chữ WordArt**: Thư viện hiệu ứng uốn cong chữ nghệ thuật (Warp gallery).
+7. **Chèn > Bảng tính Excel**: Nhúng bảng tính bảng biểu trực tiếp trong slide.
+8. **Chèn > Ký hiệu > Phương trình**: Trình soạn thảo phương trình toán học trên canvas slide.
+9. **Hoạt ảnh > Đường chuyển động (Motion Paths)**: Vẽ và chuyển động đối tượng theo đường path tùy biến.
+10. **Trình chiếu > Ghi lại trình chiếu**: Thu âm giọng nói và lưu timeline chuyển slide tự động.
+11. **Công cụ hình ảnh > Xóa nền ảnh**: Thuật toán xóa nền ảnh tự động cho hình ảnh minh họa.
+12. **Trình chiếu > Bút vẽ & Con trỏ Laser**: Bổ sung con trỏ laser ảo khi trình chiếu trên màn hình phụ.
+13. **Hoạt ảnh > Sao chép hoạt ảnh (Animation Painter)**: Nút sao chép hiệu ứng giữa các đối tượng.
+14. **Hoạt ảnh > Kích hoạt (Trigger)**: Thiết lập hiệu ứng chạy khi bấm vào hình khối khác.
+15. **Công cụ hình ảnh > Điều chỉnh độ sáng/màu sắc**: Lưu các bộ lọc điều chỉnh ảnh vào DrawingML blip native.
+
+### Đề xuất 10 phiếu việc kế tiếp cho VN Slides:
+- **FIX-S1-SMARTART**: Thiết kế engine sinh SmartArt native Diagram (danh sách, quy trình, phân cấp) chuẩn DrawingML.
+- **FIX-S2-WORDART**: Chuẩn hóa WordArt native DrawingML `a:prstTxWarp` (PresetTextEffect 15) tương thích hoàn toàn PowerPoint.
+- **FIX-S3-MORPH**: Nâng cấp hiệu ứng chuyển tiếp Morph nhận diện và biến đổi hình thái đối tượng giữa 2 slide kế tiếp.
+- **FIX-S4-PPTX-PASSWORD**: Mã hóa mật khẩu bảo vệ file PPTX mở đọc/chỉnh sửa.
+- **FIX-S5-TEXT-SHADOW**: Thêm nút Đổ bóng chữ (Text Shadow) vào nhóm Phông chữ ribbon Trang đầu và phím tắt.
+- **FIX-S6-ANIMATION-PAINTER**: Bổ sung công cụ Sao chép hoạt ảnh (Animation Painter) và Trigger kích hoạt hiệu ứng.
+- **FIX-S7-MOTION-PATHS**: Hỗ trợ nhóm hiệu ứng hoạt ảnh chuyển động theo đường cong (Motion Paths).
+- **FIX-S8-RECORD-SHOW**: Ghi âm thuyết minh và lưu timeline tự động cho bài thuyết trình.
+- **FIX-S9-IMAGE-REMOVE-BG**: Tích hợp thuật toán bóc tách/xóa nền hình ảnh minh họa.
+- **FIX-S10-LASER-POINTER**: Bút vẽ đánh dấu và con trỏ Laser ảo trong chế độ trình chiếu.
+
+## Chi tiết từng tab
+
+### Tệp (Backstage)
+
+| Nhóm | Tính năng PowerPoint 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Slides |
+|---|---|---|---|---|
+| Tệp | Mới (Ctrl+N) | 🟢 | - | common.file.new; tạo bản trình bày trống mới |
+| Tệp | Mở (Ctrl+O): PPTX, PPT, ODP, FODP | 🟢 | - | Mở các định dạng trình chiếu qua LibreOffice adapter (docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:9; chưa đối chiếu riêng cho nút Backstage) |
+| Tệp | Mở gần đây (danh sách tệp) | 🟢 | - | Danh sách tệp gần đây trong Backstage menu |
+| Tệp | Lưu (Ctrl+S) | ✅ | - | Lưu PPTX khứ hồi không lỗi (docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:9-10; docs/SLIDES-BUTTON-MATRIX-1011.md:20) |
+| Tệp | Lưu bản sao / Lưu thành (F12): PPTX, PPT 97-2003, ODP, FODP, PDF | 🟢 | - | common.file.saveAs; lưu thành các định dạng bản trình chiếu |
+| Tệp | Xuất PDF | 🟢 | - | common.file.exportPdf; xuất toàn bộ slide sang PDF |
+| Tệp | Xuất và chuyển đổi định dạng (giữ bố cục) | 🟢 | - | common.file.exportConvert; chuyển đổi giữ nguyên bố cục |
+| Tệp | In (Ctrl+P) & Xem trước khi in (Ctrl+F2) | ✅ | - | slides.file.printPreview xem trước bản in (docs/SLIDES-BUTTON-MATRIX-1011.md:89) |
+| Tệp | Đóng (Ctrl+W) | 🟢 | - | common.file.close; đóng bản trình bày hiện tại |
+| Thông tin | Bảo vệ bản trình bày: Đánh dấu là cuối cùng (Mark as Final / Read-only) | 🟢 | - | slides.file.markAsFinal; gắn cờ chỉ đọc |
+| Thông tin | Bảo vệ bản trình bày: Mật khẩu mở file (mã hóa PPTX) | 🔴 | 1 | Chưa có cơ chế mã hóa mật khẩu mở file PPTX |
+| Thông tin | Kiểm tra bản trình bày (Inspect Document - loại bỏ metadata ẩn) | 🟢 | - | slides.file.inspectDocument; kiểm tra và xóa thông tin cá nhân |
+| Thông tin | Quản lý bản trình bày: Tự động khôi phục (AutoRecover) | 🟢 | - | Có cơ chế tự động khôi phục phiên làm việc (AutoRecover) |
+| Thông tin | Thuộc tính bản trình bày (Title, Author, Subject, Tags...) | 🟢 | - | slides.file.properties; hộp thoại thuộc tính tài liệu |
+| Tùy chọn | Tùy chọn PowerPoint (Hộp thoại Options) | 🟢 | - | slides.file.options; cài đặt chung, lưu, giao diện |
+| Tùy chọn | Tùy biến Thanh công cụ truy nhanh (Quick Access Toolbar) | 🟢 | - | Thanh truy nhanh tùy biến (chuột phải ribbon, thêm/xóa nút) |
+| Chia sẻ | Chia sẻ / OneDrive / Gửi Email đính kèm | ⚪ | - | Cần dịch vụ đám mây Microsoft |
+
+### Trang đầu
+
+| Nhóm | Tính năng PowerPoint 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Slides |
+|---|---|---|---|---|
+| Bảng nhớ tạm | Dán (Ctrl+V) | ✅ | - | FIX-L8: common.edit.paste dán vào textbox khớp COM (docs/SLIDES-BUTTON-MATRIX-1011.md:16) |
+| Bảng nhớ tạm | Tùy chọn dán: Giữ định dạng nguồn / Chỉ giữ văn bản thuần | 🟢 | - | slides.edit.pasteSpecial; menu chọn cách dán |
+| Bảng nhớ tạm | Dán đặc biệt... (Ctrl+Alt+V) hộp thoại | 🟢 | - | slides.edit.pasteSpecialDialog; hộp thoại dán nâng cao |
+| Bảng nhớ tạm | Cắt (Ctrl+X) | ✅ | - | FIX-L8: common.edit.cut cắt nội dung khớp COM (docs/SLIDES-BUTTON-MATRIX-1011.md:17) |
+| Bảng nhớ tạm | Sao chép (Ctrl+C) | ✅ | - | FIX-L8: common.edit.copy sao chép văn bản (docs/SLIDES-BUTTON-MATRIX-1011.md:18) |
+| Bảng nhớ tạm | Sao chép định dạng (Format Painter, Ctrl+Shift+C) | ✅ | - | FIX-L10: slides.edit.formatPainter đối chiếu PowerPoint COM (docs/SLIDES-BUTTON-MATRIX-1011.md:19) |
+| Bảng nhớ tạm | Ngăn Clipboard (Office Clipboard đa mục) | 🔴 | 3 | Chưa có ngăn lưu trữ nhiều mục clipboard lịch sử |
+| Trang chiếu | Trang chiếu mới (Ctrl+M) | ✅ | - | FIX-L8: slides.slide.new tăng số slide đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:20, docs/ppt-oracle-1710.json:9-15) |
+| Trang chiếu | Bố cục (Layout) | ✅ | - | FIX-L12: slides.layout.apply áp Hai nội dung Slide.Layout=3 khớp COM (docs/SLIDES-BUTTON-MATRIX-1011.md:21, docs/POWERPOINT2016-FINDINGS-1710.md:13) |
+| Trang chiếu | Đặt lại bố cục (Reset) | ✅ | - | FIX-L12: slides.layout.reset đặt lại bố cục và placeholder (docs/SLIDES-BUTTON-MATRIX-1011.md:24) |
+| Trang chiếu | Phần (Section: Thêm, Đổi tên, Xóa phần) | 🟢 | - | slides.section.add, rename, remove; quản lý các section trong deck |
+| Trang chiếu | Nhân đôi trang chiếu (Duplicate, Ctrl+D) | ✅ | - | FIX-L7: slides.slide.duplicate nhân đôi slide đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:22, docs/ppt-oracle-1710.json:16-22) |
+| Trang chiếu | Xóa trang chiếu (Delete) | ✅ | - | FIX-L8: slides.slide.delete xóa trang đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:23, docs/ppt-oracle-1710.json:30-36) |
+| Phông chữ | Tên phông chữ (Font Family) | ✅ | - | FIX-L4: slides.font.family đối chiếu PowerPoint COM phông Calibri (docs/SLIDES-BUTTON-MATRIX-1011.md:25, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:9) |
+| Phông chữ | Cỡ chữ (Font Size 8–96 pt) | ✅ | - | FIX-L4: slides.font.size chuỗi đổi cỡ chữ đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:26, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:10) |
+| Phông chữ | Tăng cỡ chữ (Ctrl+Shift+>) | ✅ | - | FIX-L4: slides.font.grow tăng cỡ chữ theo thang chuẩn đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:27) |
+| Phông chữ | Giảm cỡ chữ (Ctrl+Shift+<) | ✅ | - | FIX-L4: slides.font.shrink giảm cỡ chữ theo thang chuẩn đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:28) |
+| Phông chữ | Xóa định dạng (Clear All Formatting, Ctrl+Space) | ✅ | - | FIX-L7: slides.text.clearFormat xóa định dạng Bold/Italic/Underline đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:33) |
+| Phông chữ | Đậm (Ctrl+B / Bold) | ✅ | - | FIX-L4: slides.text.bold đối chiếu PowerPoint COM Bold=true (docs/SLIDES-BUTTON-MATRIX-1011.md:29, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:17) |
+| Phông chữ | Nghiêng (Ctrl+I / Italic) | ✅ | - | FIX-L7: slides.text.italic đối chiếu TextRange2.Font.Italic=-1 (docs/SLIDES-BUTTON-MATRIX-1011.md:30) |
+| Phông chữ | Gạch chân (Ctrl+U / Underline) | ✅ | - | FIX-L7: slides.text.underline đối chiếu Font.Underline=-1 (docs/SLIDES-BUTTON-MATRIX-1011.md:31) |
+| Phông chữ | Đổ bóng chữ (Text Shadow) | 🟡 | 1 | Có hiệu ứng bóng trong DrawingML; chưa có nút Shadow riêng trên ribbon Trang đầu |
+| Phông chữ | Gạch ngang (Strikethrough) | ✅ | - | FIX-L7: slides.text.strike đối chiếu TextFrame2.Font.Strike=1 (docs/SLIDES-BUTTON-MATRIX-1011.md:32) |
+| Phông chữ | Khoảng cách ký tự (Character Spacing: Very Tight, Tight, Normal, Loose, Very Loose) | 🟡 | 2 | Có thuộc tính giãn cách font cơ bản; chưa có dropdown mức giãn ký tự trực quan |
+| Phông chữ | Đổi chữ hoa/thường (Change Case, Shift+F3) | 🟢 | - | slides.text.changeCase; đổi chữ hoa, chữ thường, in hoa đầu từ |
+| Phông chữ | Màu chữ (Font Color) | ✅ | - | FIX-L7/FIX-L5: slides.color.text đối chiếu RGB=255 (docs/SLIDES-BUTTON-MATRIX-1011.md:34) |
+| Phông chữ | Màu nền chữ (Highlight Color) | ✅ | - | FIX-L8: slides.color.highlight đối chiếu Highlight.RGB=52735 (docs/SLIDES-BUTTON-MATRIX-1011.md:35) |
+| Phông chữ | Hộp thoại Phông chữ (Font Dialog) | 🟢 | - | slides.format.fontDialog; hộp thoại phông chữ đầy đủ |
+| Đoạn văn | Dấu đầu dòng (Bullets) | ✅ | - | FIX-L7: slides.list.bullet bật Bullet.Visible=-1, Type=1 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:36) |
+| Đoạn văn | Đánh số thứ tự (Numbering) | ✅ | - | FIX-L7: slides.list.numbered bật đánh số Type=2 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:37) |
+| Đoạn văn | Giảm thụt lề (Decrease Indent) | ✅ | - | FIX-L8: slides.para.indentDec giảm thụt lề về 0 pt đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:38) |
+| Đoạn văn | Tăng thụt lề (Increase Indent) | ✅ | - | FIX-L7: slides.para.indentInc tăng thụt lề LeftIndent=36 pt đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:39) |
+| Đoạn văn | Giãn dòng (Line Spacing 1.0, 1.5, 2.0) | ✅ | - | FIX-L14: slides.para.lineSpacing đổi 1.0->1.5 đối chiếu COM SpaceWithin=1.5 (docs/SLIDES-BUTTON-MATRIX-1011.md:40) |
+| Đoạn văn | Căn trái (Ctrl+L / Align Left) | ✅ | - | FIX-L8: slides.para.alignLeft đối chiếu Paragraph.Alignment=1 (docs/SLIDES-BUTTON-MATRIX-1011.md:41) |
+| Đoạn văn | Căn giữa (Ctrl+E / Center) | ✅ | - | FIX-L4: slides.para.alignCenter đối chiếu Alignment=2 (docs/SLIDES-BUTTON-MATRIX-1011.md:42, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:17) |
+| Đoạn văn | Căn phải (Ctrl+R / Align Right) | ✅ | - | FIX-L7: slides.para.alignRight đối chiếu Paragraph.Alignment=3 (docs/SLIDES-BUTTON-MATRIX-1011.md:43) |
+| Đoạn văn | Căn đều (Ctrl+J / Justify) | ✅ | - | FIX-L7: slides.para.justify đối chiếu Paragraph.Alignment=4 (docs/SLIDES-BUTTON-MATRIX-1011.md:44) |
+| Đoạn văn | Cột văn bản trong khung (Columns: 1, 2, 3 cột) | 🟢 | - | slides.text.columns; chia cột văn bản bên trong textbox |
+| Đoạn văn | Hướng chữ (Text Direction: Ngang, Xoay 90°, Xoay 270°, Xếp chồng) | 🟢 | - | slides.text.direction; đổi hướng hiển thị chữ trong shape |
+| Đoạn văn | Căn lề dọc (Align Text: Top, Middle, Bottom) | 🟢 | - | slides.text.vAlign; căn văn bản theo chiều dọc khung chữ |
+| Đoạn văn | Chuyển sang SmartArt (Convert to SmartArt Graphic) | 🔴 | 2 | Chưa hỗ trợ chuyển đổi trực tiếp văn bản thành sơ đồ SmartArt |
+| Vẽ | Hộp văn bản (Text Box) | ✅ | - | FIX-L6: slides.text.insert chèn textbox đối chiếu msoTextBox (docs/SLIDES-BUTTON-MATRIX-1011.md:45) |
+| Vẽ | Hình khối (Shapes Gallery) | ✅ | - | FIX-L6: slides.shape.insert chèn shape đối chiếu fill/line RGB và rotation (docs/SLIDES-BUTTON-MATRIX-1011.md:46) |
+| Vẽ | Sắp xếp: Thứ tự lớp (Bring to Front, Send to Back) | 🟢 | - | slides.arrange.bringToFront, sendToBack, bringForward, sendBackward |
+| Vẽ | Sắp xếp: Nhóm đối tượng (Group, Ctrl+G) | ✅ | - | FIX-L12: sơ đồ nhóm 7 đối tượng Shape.Type=6 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:53, docs/POWERPOINT2016-FINDINGS-1710.md:23) |
+| Vẽ | Sắp xếp: Rã nhóm (Ungroup, Ctrl+Shift+G) | 🟢 | - | slides.arrange.ungroup; tách các đối tượng trong nhóm |
+| Vẽ | Sắp xếp: Căn lề đối tượng (Align Objects) | ✅ | - | Đo thực tế PowerPoint COM ShapeRange.Align đối chiếu hệ thống lệnh slides.arrange.align (docs/ppt-oracle-1710.json:86-92, docs/POWERPOINT2016-FINDINGS-1710.md:24) |
+| Vẽ | Sắp xếp: Phân phối đều ngang/dọc (Distribute) | 🟢 | - | slides.arrange.distributeHorizontal, distributeVertical |
+| Vẽ | Sắp xếp: Xoay và lật hình (Rotate & Flip) | 🟢 | - | slides.arrange.rotate90, flipHorizontal, flipVertical |
+| Vẽ | Kiểu nhanh hình dạng (Quick Styles Gallery) | 🟡 | 2 | Có thư viện kiểu màu cơ bản; chưa có gallery đầy đủ hiệu ứng 3D như PowerPoint |
+| Vẽ | Tô nền hình (Shape Fill: Màu đơn, Chuyển sắc, Ảnh) | 🟢 | - | slides.shape.fillColor; hỗ trợ màu đặc và chuyển sắc gradient |
+| Vẽ | Viền hình (Shape Outline: Màu, Độ dày nét, Nét đứt) | 🟢 | - | slides.shape.lineColor, lineWidth, lineDash |
+| Vẽ | Hiệu ứng hình (Shape Effects: Bóng, Phát sáng, Mềm cạnh) | 🟡 | 2 | Đọc/ghi DrawingML shadow, glow; chưa có hộp thoại tùy chỉnh đầy đủ |
+| Chỉnh sửa | Tìm kiếm (Ctrl+F / Find) | ✅ | - | FIX-L8: common.edit.find tìm chuỗi ROAD TRIP đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:48) |
+| Chỉnh sửa | Thay thế (Ctrl+H / Replace) | ✅ | - | FIX-L8: common.edit.replace thay thế văn bản đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:49) |
+| Chỉnh sửa | Chọn: Chọn tất cả (Ctrl+A) | 🟢 | - | common.edit.selectAll; chọn toàn bộ đối tượng trên slide |
+| Chỉnh sửa | Chọn: Chọn đối tượng / Ngăn chọn (Selection Pane) | 🟢 | - | slides.edit.selectionPane; ngăn quản lý ẩn/hiện và thứ tự đối tượng |
+
+### Chèn
+
+| Nhóm | Tính năng PowerPoint 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Slides |
+|---|---|---|---|---|
+| Trang chiếu | Trang chiếu mới (Insert New Slide) | ✅ | - | FIX-L8: slides.slide.new tăng số slide đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:20, docs/ppt-oracle-1710.json:9-15) |
+| Bảng | Bảng (Table Grid) | ✅ | - | FIX-L6: slides.insert.table chèn bảng 3x3 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:50, docs/ppt-oracle-1710.json:65-71) |
+| Bảng | Vẽ bảng tự do (Draw Table) | 🔴 | 3 | Chưa có công cụ vẽ lưới bảng biểu tự do bằng bút |
+| Bảng | Bảng tính Excel nhúng (Excel Spreadsheet) | 🔴 | 2 | Chưa hỗ trợ nhúng trang tính Excel trực tiếp vào slide |
+| Hình ảnh | Hình ảnh từ tệp (Pictures) | ✅ | - | FIX-L6: slides.image.insert chèn ảnh đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:51) |
+| Hình ảnh | Hình ảnh trực tuyến (Online Pictures) | ⚪ | - | Cần dịch vụ tìm kiếm hình ảnh đám mây |
+| Hình ảnh | Ảnh chụp màn hình (Screenshot / Screen Clipping) | 🔴 | 3 | Chưa có tính năng chụp cửa sổ màn hình nhúng vào slide |
+| Hình ảnh | Album ảnh trình chiếu (Photo Album) | 🔴 | 3 | Chưa có wizard tạo album ảnh hàng loạt từ thư mục |
+| Minh họa | Hình khối (Shapes Gallery) | ✅ | - | FIX-L6: slides.shape.insert chèn shape đối chiếu fill/line RGB và rotation (docs/SLIDES-BUTTON-MATRIX-1011.md:52) |
+| Minh họa | SmartArt (Danh sách, Quy trình, Chu trình, Phân cấp) | 🔴 | 1 | Chưa hỗ trợ tạo mới SmartArt native chuẩn DrawingML diagram; hiện dùng sơ đồ nhóm shape (docs/SLIDES-BUTTON-MATRIX-1011.md:53) |
+| Minh họa | Sơ đồ (Diagram) | ✅ | - | FIX-L12: slides.diagram.insert sơ đồ nhóm 7 shape đối chiếu COM Shape.Type=6 (docs/SLIDES-BUTTON-MATRIX-1011.md:53) |
+| Minh họa | Biểu đồ (Chart: Cột, Đường, Tròn, Thanh) | ✅ | - | FIX-L6: slides.insert.chart chèn biểu đồ ChartType 51 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:54) |
+| Phần bổ trợ | Cửa hàng Office Store / Add-in của tôi | ⚪ | - | Cần kết nối dịch vụ cửa hàng Microsoft Office |
+| Liên kết | Siêu liên kết (Hyperlink, Ctrl+K) | 🟢 | - | common.edit.hyperlink; gắn liên kết URL hoặc liên kết tới slide khác |
+| Liên kết | Tác vụ (Action: Chuyển slide khi click/hover) | 🔴 | 2 | Chưa có hộp thoại cài đặt Action settings khi bấm chuột |
+| Nhận xét | Nhận xét mới (New Comment) | ✅ | - | FIX-L10: slides.review.commentInsert chèn nhận xét đối chiếu Slide.Comments (docs/SLIDES-BUTTON-MATRIX-1011.md:55) |
+| Văn bản | Hộp văn bản (Text Box) | ✅ | - | FIX-L6: slides.text.insert chèn textbox đối chiếu msoTextBox (docs/SLIDES-BUTTON-MATRIX-1011.md:56) |
+| Văn bản | Đầu trang & Chân trang (Header & Footer) | ✅ | - | FIX-L12: slides.insert.headerFooter bật footer đối chiếu Footer.Visible=-1 (docs/SLIDES-BUTTON-MATRIX-1011.md:58) |
+| Văn bản | Chữ nghệ thuật (WordArt) | 🟡 | 1 | FIX-L14: có lệnh slides.insert.wordart nhưng PowerPoint COM nhận dạng Type=17 PresetTextEffect=-2 chưa chuẩn native Type=15 (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
+| Văn bản | Ngày & Giờ (Date & Time) | ✅ | - | FIX-L12: slides.insert.dateTime định dạng dd/MM/yyyy DateAndTime.Visible=-1 (docs/SLIDES-BUTTON-MATRIX-1011.md:59) |
+| Văn bản | Số trang chiếu (Slide Number) | ✅ | - | FIX-L12: slides.insert.slideNumber bật số trang SlideNumber.Visible=-1 (docs/SLIDES-BUTTON-MATRIX-1011.md:60) |
+| Văn bản | Đối tượng nhúng OLE (Object) | 🔴 | 3 | Chưa hỗ trợ nhúng đối tượng OLE bên ngoài |
+| Ký hiệu | Phương trình toán học (Equation) | 🔴 | 2 | Chưa có thanh công cụ gõ phương trình toán học MathML/OMML |
+| Ký hiệu | Ký hiệu (Symbol) | ✅ | - | FIX-L12: slides.insert.symbol chèn ký hiệu TM đối chiếu nội dung shape (docs/SLIDES-BUTTON-MATRIX-1011.md:61) |
+| Phương tiện | Video từ tệp | ✅ | - | FIX-L12: slides.media.insertVideo chèn video đối chiếu COM Type=16 MediaType=3 (docs/SLIDES-BUTTON-MATRIX-1011.md:62) |
+| Phương tiện | Video trực tuyến (Online Video) | 🔴 | 3 | Chưa hỗ trợ nhúng video trực tuyến YouTube/Vimeo |
+| Phương tiện | Âm thanh từ tệp (Audio) | ✅ | - | FIX-L12: slides.media.insertAudio chèn âm thanh đối chiếu COM MediaType=2 (docs/SLIDES-BUTTON-MATRIX-1011.md:63) |
+| Phương tiện | Ghi âm giọng nói (Record Audio) | 🔴 | 3 | Chưa có micro ghi âm trực tiếp vào slide |
+| Phương tiện | Ghi màn hình (Screen Recording) | 🔴 | 3 | Chưa có công cụ quay màn hình nhúng vào slide |
+
+### Thiết kế
+
+| Nhóm | Tính năng PowerPoint 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Slides |
+|---|---|---|---|---|
+| Chủ đề | Chủ đề (Themes Gallery) | ✅ | - | FIX-L12: slides.design.themeGallery chọn chủ đề Than Chì Hiện Đại đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:64) |
+| Chủ đề | Mẫu Slide Master | ✅ | - | FIX-L12: slides.master.apply chọn theme palette và font scheme đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:65) |
+| Chủ đề | Duyệt tìm chủ đề (Browse for Themes: .thmx) | 🟢 | - | slides.theme.browse; nạp tệp theme bên ngoài |
+| Chủ đề | Lưu chủ đề hiện tại (Save Current Theme) | 🟢 | - | slides.theme.saveCurrent; lưu mẫu theme đang dùng |
+| Biến thể | Bảng màu biến thể (Theme Colors) | 🟢 | - | slides.theme.colors; đổi palette màu của theme |
+| Biến thể | Bộ phông chữ biến thể (Theme Fonts) | 🟢 | - | slides.theme.fonts; đổi cặp phông tiêu đề và nội dung |
+| Biến thể | Hiệu ứng biến thể (Theme Effects) | 🟡 | 3 | Có áp dụng hiệu ứng chung; chưa có bộ sưu tập hiệu ứng biến thể rời |
+| Biến thể | Kiểu nền trang chiếu (Background Styles) | 🟢 | - | slides.theme.backgroundStyles; chọn các sắc thái nền có sẵn |
+| Tùy chỉnh | Cỡ trang chiếu (Slide Size 4:3 / 16:9) | ✅ | - | FIX-L8: slides.design.slideSize đổi tỷ lệ đối chiếu PageSetup 720x540 pt (docs/SLIDES-BUTTON-MATRIX-1011.md:66, docs/ppt-oracle-1710.json:37-43) |
+| Tùy chỉnh | Kích thước trang chiếu tùy chỉnh (Custom Slide Size) | 🟢 | - | slides.design.customSlideSize; đặt kích thước width/height theo cm/pt |
+| Tùy chỉnh | Định dạng nền: Màu đơn sắc (Solid Fill) | ✅ | - | FIX-L8: slides.design.formatBackground nền gradient ngang Fill.Type=3 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:67) |
+| Tùy chỉnh | Định dạng nền: Chuyển sắc (Gradient Fill) | ✅ | - | FIX-L8: slides.design.formatBackground nền gradient ngang Fill.Type=3 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:67) |
+| Tùy chỉnh | Định dạng nền: Hình ảnh hoặc họa tiết (Picture or Texture Fill) | 🟢 | - | slides.design.backgroundTexture; nạp ảnh làm hình nền slide |
+| Tùy chỉnh | Định dạng nền: Hoa văn (Pattern Fill) | 🔴 | 3 | Chưa có thư viện mẫu hoa văn pattern cho nền |
+| Tùy chỉnh | Ẩn đồ họa nền (Hide Background Graphics) | 🟢 | - | slides.design.hideMasterGraphics; ẩn các thành phần từ master |
+
+### Chuyển tiếp
+
+| Nhóm | Tính năng PowerPoint 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Slides |
+|---|---|---|---|---|
+| Xem trước | Xem trước hiệu ứng chuyển tiếp (Preview) | 🟢 | - | slides.transition.preview; phát thử hiệu ứng chuyển tiếp trên canvas |
+| Chuyển tiếp sang slide | Hiệu ứng chuyển tiếp (Transitions Gallery) | ✅ | - | FIX-L4/L7: slides.transition.apply áp Push Right (3854) và Fade (3849) đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:68, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:20) |
+| Chuyển tiếp sang slide | Hiệu ứng Morph (Biến đổi hình thái) | 🟡 | 1 | Đã có xử lý chuyển đổi Morph sơ bộ; chưa hoàn thiện mapping đối tượng khớp định danh như PowerPoint 2016 Office 365 |
+| Chuyển tiếp sang slide | Hiệu ứng Fade / Push / Wipe / Split | ✅ | - | FIX-L4/L7: slides.transition.apply áp Push Right (3854) và Fade (3849) đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:68, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:20) |
+| Chuyển tiếp sang slide | Hiệu ứng 3D phức tạp (Curtains, Wind, Fracture, Origami) | 🔴 | 2 | Chưa hỗ trợ các hiệu ứng chuyển tiếp 3D dựng hình chuyên sâu |
+| Chuyển tiếp sang slide | Tùy chọn hiệu ứng (Effect Options: Hướng chuyển động) | 🟢 | - | slides.transition.effectOptions; chọn hướng trái, phải, trên, dưới |
+| Thời gian | Âm thanh chuyển tiếp (Sound) | 🟢 | - | slides.transition.sound; chọn âm thanh khi đổi trang |
+| Thời gian | Thời lượng chuyển tiếp (Duration) | ✅ | - | FIX-L4/L7: PowerPoint COM đọc Duration=0.8 s khớp thời lượng chuyển tiếp (docs/SLIDES-BUTTON-MATRIX-1011.md:68, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:20) |
+| Thời gian | Áp dụng cho tất cả trang chiếu (Apply to All) | 🟢 | - | slides.transition.applyToAll; sao chép thiết lập sang toàn bộ deck |
+| Thời gian | Chuyển khi nhấp chuột (On Mouse Click) | 🟢 | - | slides.transition.advanceOnClick; cờ chuyển trang theo thao tác chuột |
+| Thời gian | Chuyển tự động sau thời gian (After X seconds) | 🟢 | - | slides.transition.advanceAfter; hẹn giờ tự động lật slide |
+
+### Hoạt ảnh
+
+| Nhóm | Tính năng PowerPoint 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Slides |
+|---|---|---|---|---|
+| Xem trước | Xem trước hoạt ảnh (Preview) | 🟢 | - | slides.animation.preview; phát thử hoạt ảnh các đối tượng đang chọn |
+| Hoạt ảnh | Hiệu ứng đối tượng (Animations Gallery) | ✅ | - | FIX-L6: slides.animation.apply hiệu ứng Fade, Fly EffectType 10, 2 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:69) |
+| Hoạt ảnh | Nhóm Xuất hiện (Entrance Effects: Appear, Fade, Fly In, Float In, Zoom) | ✅ | - | FIX-L6: slides.animation.apply hiệu ứng Fade, Fly EffectType 10, 2 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:69) |
+| Hoạt ảnh | Nhóm Nhấn mạnh (Emphasis Effects: Pulse, Spin, Grow/Shrink) | 🟢 | - | slides.animation.emphasis; hiệu ứng đổi kích thước, nhấp nháy |
+| Hoạt ảnh | Nhóm Thoát (Exit Effects: Disappear, Fade, Fly Out) | 🟢 | - | slides.animation.exit; hiệu ứng biến mất của đối tượng |
+| Hoạt ảnh | Đường chuyển động (Motion Paths: Line, Arc, Custom Path) | 🔴 | 2 | Chưa hỗ trợ vẽ và chạy hoạt ảnh theo đường cong tự do Motion Path |
+| Hoạt ảnh | Tùy chọn hiệu ứng (Effect Options: Hướng, Theo đoạn/khung) | 🟢 | - | slides.animation.effectOptions; chọn hướng bay và chế độ theo đoạn |
+| Hoạt ảnh nâng cao | Thêm hoạt ảnh (Add Animation) | 🟢 | - | slides.animation.add; gắn thêm hiệu ứng thứ hai vào cùng một shape |
+| Hoạt ảnh nâng cao | Ngăn hoạt ảnh (Animation Pane) | ✅ | - | FIX-L7: slides.animation.pane đổi thứ tự hiệu ứng đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:70) |
+| Hoạt ảnh nâng cao | Kích hoạt (Trigger: On Click of Object) | 🔴 | 2 | Chưa có hộp thoại gán trigger kích hoạt hiệu ứng khi click shape khác |
+| Hoạt ảnh nâng cao | Sao chép hoạt ảnh (Animation Painter) | 🔴 | 2 | Chưa có công cụ sao chép chuỗi hiệu ứng hoạt ảnh giữa các hình |
+| Thời gian | Bắt đầu (Start: On Click, With Previous, After Previous) | 🟢 | - | slides.animation.startMode; thiết lập thời điểm kích hoạt |
+| Thời gian | Thời lượng hoạt ảnh (Duration) | ✅ | - | FIX-L6: PowerPoint COM đọc duration 0.8/0.8/0.5 s khớp timeline (docs/SLIDES-BUTTON-MATRIX-1011.md:69) |
+| Thời gian | Độ trễ hoạt ảnh (Delay) | 🟢 | - | slides.animation.delay; độ trễ trước khi bắt đầu chạy hiệu ứng |
+| Thời gian | Đổi thứ tự: Lên trước (Move Earlier) | ✅ | - | FIX-L7: slides.animation.pane đổi thứ tự hiệu ứng đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:70) |
+| Thời gian | Đổi thứ tự: Xuống sau (Move Later) | ✅ | - | FIX-L7: slides.animation.pane đổi thứ tự hiệu ứng đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:70) |
+
+### Trình chiếu
+
+| Nhóm | Tính năng PowerPoint 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Slides |
+|---|---|---|---|---|
+| Bắt đầu trình chiếu | Từ đầu (From Beginning, F5) | 🟢 | - | slides.show.startFromBegin; mở overlay trình chiếu toàn màn hình từ slide 1 (docs/SLIDES-BUTTON-MATRIX-1011.md:71) |
+| Bắt đầu trình chiếu | Từ trang hiện tại (From Current Slide, Shift+F5) | 🟢 | - | slides.show.startFromCurrent; mở trình chiếu từ slide đang chọn (docs/SLIDES-BUTTON-MATRIX-1011.md:72) |
+| Bắt đầu trình chiếu | Trình chiếu trực tuyến (Present Online) | ⚪ | - | Cần dịch vụ phát trực tuyến của Microsoft |
+| Bắt đầu trình chiếu | Trình chiếu tùy chỉnh (Custom Slide Show) | 🟢 | - | slides.show.customShow; trình chiếu tập hợp con các slide |
+| Thiết lập | Thiết lập trình chiếu (Set Up Slide Show) | ✅ | - | FIX-L10: slides.show.setupShow lặp liên tục LoopUntilStopped=-1 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:74) |
+| Thiết lập | Lặp lại liên tục cho đến khi nhấn Esc (Loop) | ✅ | - | FIX-L10: slides.show.setupShow lặp liên tục LoopUntilStopped=-1 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:74) |
+| Thiết lập | Ẩn trang chiếu (Hide Slide) | ✅ | - | FIX-L5/L6: slides.slide.toggleHidden ẩn slide đối chiếu Hidden=-1 (docs/SLIDES-BUTTON-MATRIX-1011.md:75, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:22) |
+| Thiết lập | Tập dượt hẹn giờ (Rehearse Timings) | 🟢 | - | slides.show.rehearseTimings; chế độ tập dượt đo thời gian từng slide (docs/SLIDES-BUTTON-MATRIX-1011.md:76) |
+| Thiết lập | Ghi lại trình chiếu (Record Slide Show) | 🔴 | 2 | Chưa hỗ trợ thu âm và lưu timeline trình diễn vào deck |
+| Thiết lập | Phát thuyết minh (Play Narrations) | 🟢 | - | slides.show.playNarrations; bật tắt âm thanh thuyết minh |
+| Thiết lập | Sử dụng thời gian tập dượt (Use Timings) | 🟢 | - | slides.show.useTimings; tự động chuyển slide theo thời gian |
+| Thiết lập | Hiện thanh điều khiển phương tiện (Show Media Controls) | 🟢 | - | slides.show.mediaControls; hiển thị thanh play/pause video |
+| Màn hình | Chọn màn hình phát (Monitors) | 🟢 | - | slides.show.monitors; chọn xuất màn hình phụ |
+| Màn hình | Chế độ Presenter (Presenter View, Alt+F5) | 🟢 | - | slides.show.presenterMode; giao diện người thuyết trình xem trước slide kế tiếp và ghi chú (docs/SLIDES-BUTTON-MATRIX-1011.md:73) |
+| Diễn giả | Ghi chú thuyết trình (Speaker Notes) | ✅ | - | FIX-L4/L6: slides.notes.toggle ghi chú diễn giả đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:77, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:19) |
+| Điều khiển chiếu | Bút vẽ và con trỏ Laser khi đang chiếu | 🟡 | 2 | Có công cụ vẽ cơ bản; chưa có con trỏ ảo Laser Pointer |
+
+### Xem lại
+
+| Nhóm | Tính năng PowerPoint 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Slides |
+|---|---|---|---|---|
+| Kiểm lỗi | Chính tả (Spelling, F7) | 🟢 | - | slides.review.spellCheck; kiểm tra chính tả tiếng Việt (docs/SLIDES-BUTTON-MATRIX-1011.md:78) |
+| Kiểm lỗi | Bật/tắt gạch chân kiểm lỗi chính tả | 🟢 | - | slides.review.toggleSpellCheck; ẩn hiện đường lượn sóng đỏ (docs/SLIDES-BUTTON-MATRIX-1011.md:79) |
+| Kiểm lỗi | Từ điển đồng nghĩa (Thesaurus, Shift+F7) | 🔴 | 3 | Chưa tích hợp từ điển đồng nghĩa chuyên sâu |
+| Thông tin chuyên sâu | Tra cứu thông minh (Smart Lookup) | ⚪ | - | Cần dịch vụ tìm kiếm thông minh Bing |
+| Ngôn ngữ | Dịch văn bản (Translate) | ⚪ | - | Cần dịch vụ dịch máy đám mây |
+| Ngôn ngữ | Chọn ngôn ngữ kiểm lỗi (Language) | 🟢 | - | slides.review.setLanguage; chuyển đổi từ điển Tiếng Việt / Tiếng Anh |
+| Nhận xét | Nhận xét mới (New Comment) | ✅ | - | FIX-L10: slides.review.commentInsert chèn nhận xét đối chiếu Slide.Comments (docs/SLIDES-BUTTON-MATRIX-1011.md:80) |
+| Nhận xét | Xóa nhận xét (Delete Comment) | ✅ | - | FIX-L10: slides.review.commentDelete xóa nhận xét đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:81) |
+| Nhận xét | Nhận xét trước (Previous Comment) | 🟢 | - | slides.review.commentPrevious; điều hướng tới nhận xét trước (docs/SLIDES-BUTTON-MATRIX-1011.md:82) |
+| Nhận xét | Nhận xét sau (Next Comment) | 🟢 | - | slides.review.commentNext; điều hướng tới nhận xét kế tiếp (docs/SLIDES-BUTTON-MATRIX-1011.md:83) |
+| Nhận xét | Đánh dấu đã xử lý (Resolve Comment) | 🟢 | - | slides.review.commentResolve; đánh dấu nhận xét đã giải quyết (docs/SLIDES-BUTTON-MATRIX-1011.md:84) |
+| Nhận xét | Hiện/ẩn ngăn nhận xét (Show Comments) | 🟢 | - | slides.review.toggleCommentsPane; mở thanh biên bên phải |
+| So sánh | So sánh bản trình bày (Compare Presentations) | 🔴 | 3 | Chưa có công cụ so sánh song song hai tệp PPTX |
+| So sánh | Chấp nhận / Từ chối thay đổi (Accept / Reject Revision) | 🔴 | 3 | Chưa có quy trình duyệt thay đổi revision trong slide |
+
+### Chế độ xem
+
+| Nhóm | Tính năng PowerPoint 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Slides |
+|---|---|---|---|---|
+| Chế độ xem bản trình bày | Bình thường (Normal View) | ✅ | - | FIX-L14: slides.view.normal chuyển chế độ ppViewNormal ViewType=9 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:85) |
+| Chế độ xem bản trình bày | Bộ sắp xếp trang (Slide Sorter View) | ✅ | - | FIX-L14: slides.view.slideSorter bộ sắp xếp trang ppViewSlideSorter ViewType=7 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:86) |
+| Chế độ xem bản trình bày | Chế độ dàn bài (Outline View) | 🟢 | - | slides.view.outline; hiển thị danh sách dàn ý văn bản |
+| Chế độ xem bản trình bày | Trang ghi chú (Notes Page View) | 🟢 | - | slides.view.notesPage; hiển thị trang in gồm slide và ghi chú |
+| Chế độ xem bản trình bày | Chế độ đọc (Reading View) | 🟢 | - | slides.view.reading; hiển thị trình chiếu trong cửa sổ ứng dụng (docs/SLIDES-BUTTON-MATRIX-1011.md:88) |
+| Chế độ xem bản cái | Slide Master (Trang chiếu cái) | 🟢 | - | slides.master.edit; mở giao diện thiết kế Slide Master |
+| Chế độ xem bản cái | Handout Master (Bản phát tài liệu cái) | 🔴 | 3 | Chưa có giao diện thiết kế bố cục in bản phát tài liệu |
+| Chế độ xem bản cái | Notes Master (Ghi chú cái) | 🔴 | 3 | Chưa có giao diện thiết kế bố trí trang in ghi chú |
+| Hiển thị | Thước (Ruler) | 🟢 | - | slides.view.ruler; hiển thị thước đo ngang và dọc (docs/SLIDES-BUTTON-MATRIX-1011.md:90) |
+| Hiển thị | Đường lưới (Gridlines) | 🟢 | - | slides.view.gridlines; hiển thị lưới tọa độ căn hình (docs/SLIDES-BUTTON-MATRIX-1011.md:91) |
+| Hiển thị | Đường dẫn hướng (Guides) | 🟢 | - | slides.view.guides; hiển thị đường guide căn chỉnh thông minh (docs/SLIDES-BUTTON-MATRIX-1011.md:92) |
+| Hiển thị | Ghi chú (Notes Pane toggle) | ✅ | - | FIX-L4/L6: slides.notes.toggle bật tắt vùng ghi chú diễn giả (docs/SLIDES-BUTTON-MATRIX-1011.md:87) |
+| Thu phóng | Thu phóng (Zoom Dialog) | 🟢 | - | slides.view.zoomDialog; hộp thoại chọn mức zoom tùy biến |
+| Thu phóng | Phóng to (Zoom In) | ✅ | - | FIX-L14: slides.view.zoomIn bước tăng 10 điểm phần trăm đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:93) |
+| Thu phóng | Thu nhỏ (Zoom Out) | ✅ | - | FIX-L14: slides.view.zoomOut bước giảm 10 điểm phần trăm đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:94) |
+| Thu phóng | 100% (Zoom Reset) | ✅ | - | FIX-L14: slides.view.zoomReset đặt lại 100% đối chiếu View.Zoom=100 (docs/SLIDES-BUTTON-MATRIX-1011.md:95) |
+| Thu phóng | Vừa cửa sổ (Fit to Window) | ✅ | - | FIX-L14: slides.view.fitToWindow bật View.ZoomToFit=true đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:96) |
+| Màu sắc | Màu / Thang độ xám / Đen trắng (Color, Grayscale, B&W) | 🟡 | 2 | Chế độ hiển thị màn hình luôn là màu; chưa có bộ lọc xem thử thang độ xám trước khi in |
+| Cửa sổ | Cửa sổ mới (New Window) | 🟡 | 2 | FIX-L13: desktop WebView đơn phiên bản trình chiếu; chưa mở nhiều cửa sổ độc lập cho cùng 1 deck (docs/SLIDES-BUTTON-MATRIX-1011.md:97) |
+| Cửa sổ | Sắp xếp tất cả / Xếp tầng (Arrange All / Cascade) | 🟢 | - | slides.window.arrangeAll; xếp các cửa sổ làm việc |
+| Cửa sổ | Di chuyển thanh chia (Move Split) | 🟢 | - | slides.window.moveSplit; kéo thanh chia giữa slide và thumbnail |
+| Macro | Ghi Macro (Record Macro) | 🟢 | - | common.macro.recordToggle; bộ ghi macro cục bộ VN Office (docs/SLIDES-BUTTON-MATRIX-1011.md:98) |
+| Macro | Xem và chạy Macro (Alt+F8) | 🟢 | - | common.macro.manager; quản lý danh sách macro cục bộ (docs/SLIDES-BUTTON-MATRIX-1011.md:99) |
+| Trợ giúp | Trợ giúp (Help, F1) | 🟢 | - | slides.help.open; hướng dẫn sử dụng tiếng Việt trong ứng dụng (docs/SLIDES-BUTTON-MATRIX-1011.md:100) |
+| Trợ giúp | Giới thiệu bản quyền (About) | 🟢 | - | common.help.about; thông tin phiên bản VN Slides (docs/SLIDES-BUTTON-MATRIX-1011.md:101) |
+
+### Công cụ vẽ > Định dạng
+
+| Nhóm | Tính năng PowerPoint 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Slides |
+|---|---|---|---|---|
+| Chèn hình | Sửa điểm vẽ tự do (Edit Points) | 🟡 | 2 | Có vẽ hình tự do Bezier; chưa có giao diện kéo điểm nút trực quan |
+| Chèn hình | Đổi hình dạng (Change Shape) | 🟢 | - | slides.shape.changeShape; chuyển hình sang kiểu khối khác |
+| Kiểu chữ WordArt | Tô màu chữ nghệ thuật (Text Fill) | 🟢 | - | slides.wordart.fillColor; màu sắc chữ nghệ thuật |
+| Kiểu chữ WordArt | Viền chữ nghệ thuật (Text Outline) | 🟢 | - | slides.wordart.outlineColor; viền ngoài chữ nghệ thuật |
+| Kiểu chữ WordArt | Hiệu ứng chữ nghệ thuật (Text Effects: Warp, Shadow, 3D) | 🟡 | 1 | FIX-L14: có textFadeRight nhưng PowerPoint COM nhận dạng PresetTextEffect=-2 chưa chuẩn native (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
+| Sắp xếp | Lên trên một lớp (Bring Forward) | 🟢 | - | slides.arrange.bringForward; đưa đối tượng lên 1 bậc |
+| Sắp xếp | Lên trên cùng (Bring to Front) | 🟢 | - | slides.arrange.bringToFront; đưa đối tượng lên đỉnh lớp vẽ |
+| Sắp xếp | Xuống dưới một lớp (Send Backward) | 🟢 | - | slides.arrange.sendBackward; hạ đối tượng xuống 1 bậc |
+| Sắp xếp | Xuống dưới cùng (Send to Back) | 🟢 | - | slides.arrange.sendToBack; hạ đối tượng xuống đáy lớp vẽ |
+| Sắp xếp | Căn lề đối tượng (Align Left/Center/Right/Top/Middle/Bottom) | ✅ | - | Đo thực tế PowerPoint COM ShapeRange.Align đối chiếu hệ thống lệnh slides.arrange.align (docs/ppt-oracle-1710.json:86-92, docs/POWERPOINT2016-FINDINGS-1710.md:24) |
+| Sắp xếp | Phân phối đều khoảng cách (Distribute Horizontally / Vertically) | 🟢 | - | slides.arrange.distributeHorizontal, distributeVertical |
+| Sắp xếp | Nhóm đối tượng (Group, Ctrl+G) | ✅ | - | FIX-L12: sơ đồ nhóm 7 đối tượng Shape.Type=6 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:53, docs/POWERPOINT2016-FINDINGS-1710.md:23) |
+| Sắp xếp | Rã nhóm đối tượng (Ungroup, Ctrl+Shift+G) | 🟢 | - | slides.arrange.ungroup; giải phóng nhóm thành các hình riêng |
+| Sắp xếp | Xoay và lật đối tượng (Rotate 90°, Flip) | 🟢 | - | slides.arrange.rotate90, flipHorizontal; xoay và lật hình |
+| Kích thước | Chiều cao đối tượng (Shape Height) | 🟢 | - | slides.shape.height; chỉnh chiều cao chính xác theo cm/pt |
+| Kích thước | Chiều rộng đối tượng (Shape Width) | 🟢 | - | slides.shape.width; chỉnh chiều rộng chính xác theo cm/pt |
+| Kích thước | Khóa tỷ lệ khung hình (Lock Aspect Ratio) | 🟢 | - | slides.shape.lockAspectRatio; giữ nguyên tỷ lệ khi kéo giãn |
+
+### Công cụ hình ảnh > Định dạng
+
+| Nhóm | Tính năng PowerPoint 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Slides |
+|---|---|---|---|---|
+| Điều chỉnh | Xóa nền ảnh tự động (Remove Background) | 🔴 | 2 | Chưa tích hợp thuật toán AI/canvas bóc tách nền ảnh tự động |
+| Điều chỉnh | Hiệu chỉnh độ sáng và tương phản (Corrections) | 🟡 | 2 | Có bộ lọc CSS brightness/contrast; chưa lưu native vào DrawingML blip |
+| Điều chỉnh | Màu sắc ảnh (Color Tone / Recolor) | 🟡 | 2 | Có grayscale/sepia; chưa có bộ lọc màu sắc phong phú như Office |
+| Điều chỉnh | Hiệu ứng nghệ thuật (Artistic Effects) | 🔴 | 3 | Chưa có bộ lọc hiệu ứng tranh vẽ/kính mờ |
+| Điều chỉnh | Nén ảnh (Compress Pictures) | 🔴 | 3 | Chưa có công cụ giảm độ phân giải DPI ảnh để tối ưu dung lượng deck |
+| Điều chỉnh | Đổi ảnh khác (Change Picture) | 🟢 | - | slides.image.change; thay thế tệp ảnh giữ nguyên kích thước và vị trí |
+| Điều chỉnh | Đặt lại ảnh (Reset Picture) | 🟢 | - | slides.image.reset; khôi phục kích thước và định dạng ban đầu của ảnh |
+| Kiểu ảnh | Kiểu khung viền ảnh (Picture Styles Gallery) | 🟡 | 2 | Có viền và bóng cơ bản; chưa có thư viện khung viền mỹ thuật |
+| Kiểu ảnh | Viền ảnh (Picture Border) | 🟢 | - | slides.image.borderColor, borderWidth; đổi màu và độ dày viền ảnh |
+| Kiểu ảnh | Hiệu ứng ảnh (Picture Effects: Shadow, Glow, Soft Edges) | 🟡 | 2 | Hỗ trợ đổ bóng và phát sáng; chưa có 3D rotation |
+| Kiểu ảnh | Bố cục ảnh sang SmartArt (Picture Layout) | 🔴 | 3 | Chưa hỗ trợ chuyển đổi ảnh vào sơ đồ SmartArt |
+| Kích thước | Cắt xén ảnh (Crop to Shape / Aspect Ratio) | 🟢 | - | slides.image.crop; cắt xén hình ảnh theo khung chữ nhật |
+
+### Công cụ bảng > Thiết kế
+
+| Nhóm | Tính năng PowerPoint 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Slides |
+|---|---|---|---|---|
+| Tùy chọn kiểu | Hàng tiêu đề (Header Row) | 🟢 | - | slides.table.headerRow; bật tắt định dạng hàng tiêu đề bảng |
+| Tùy chọn kiểu | Hàng tổng cộng (Total Row) | 🟢 | - | slides.table.totalRow; bật tắt hàng tổng kết quả |
+| Tùy chọn kiểu | Hàng sọc xen kẽ (Banded Rows) | 🟢 | - | slides.table.bandedRows; tô màu xen kẽ các hàng |
+| Tùy chọn kiểu | Cột đầu tiên / Cột cuối cùng (First/Last Column) | 🟢 | - | slides.table.firstColumn, lastColumn; làm nổi bật cột đầu/cuối |
+| Tùy chọn kiểu | Cột sọc xen kẽ (Banded Columns) | 🟢 | - | slides.table.bandedColumns; tô màu xen kẽ các cột |
+| Kiểu bảng | Thư viện kiểu dáng bảng (Table Styles Gallery) | 🟢 | - | slides.table.styleGallery; áp dụng các mẫu màu bảng có sẵn |
+| Kiểu bảng | Tô màu nền ô (Table Shading) | 🟢 | - | slides.table.shadingColor; đổi màu nền từng ô hoặc nhiều ô |
+| Kiểu bảng | Đường viền bảng (Table Borders: Tất cả, Viền ngoài, Không viền) | 🟢 | - | slides.table.borders; định dạng đường kẻ viền bảng |
+
+### Công cụ bảng > Bố trí
+
+| Nhóm | Tính năng PowerPoint 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Slides |
+|---|---|---|---|---|
+| Hàng & Cột | Chèn hàng trên / dưới (Insert Above / Below) | 🟢 | - | slides.table.insertRowAbove, insertRowBelow |
+| Hàng & Cột | Chèn cột trái / phải (Insert Left / Right) | 🟢 | - | slides.table.insertColumnLeft, insertColumnRight |
+| Hàng & Cột | Xóa hàng / Xóa cột / Xóa bảng (Delete) | 🟢 | - | slides.table.deleteRow, deleteColumn, deleteTable |
+| Gộp ô | Gộp ô (Merge Cells) | 🟢 | - | slides.table.mergeCells; gộp các ô đang chọn thành 1 ô |
+| Gộp ô | Tách ô (Split Cells) | 🟢 | - | slides.table.splitCells; chia ô thành nhiều hàng và cột |
+| Kích thước ô | Chiều cao hàng / Chiều rộng cột bảng | 🟢 | - | slides.table.rowHeight, columnWidth; điều chỉnh kích thước ô |
+| Kích thước ô | Phân phối đều hàng / cột (Distribute Rows / Columns) | 🟢 | - | slides.table.distributeRows, distributeColumns |
+| Căn chỉnh ô | Căn lề ô: Trái, Giữa, Phải, Trên, Giữa dọc, Dưới | 🟢 | - | slides.table.cellAlign; căn lề chữ bên trong ô bảng |
+
+### Công cụ biểu đồ > Thiết kế
+
+| Nhóm | Tính năng PowerPoint 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Slides |
+|---|---|---|---|---|
+| Bố cục | Thêm thành phần biểu đồ (Trục, Tiêu đề, Nhãn, Chú giải) | 🟢 | - | slides.chart.addElements; cấu hình các thành phần hiển thị |
+| Bố cục | Bố cục nhanh (Quick Layout) | 🟢 | - | slides.chart.quickLayout; áp dụng bố cục dựng sẵn cho biểu đồ |
+| Kiểu biểu đồ | Đổi bảng màu chuỗi dữ liệu (Change Colors) | 🟢 | - | slides.chart.changeColors; thay đổi palette màu cột/đường |
+| Kiểu biểu đồ | Thư viện kiểu biểu đồ (Chart Styles Gallery) | 🟢 | - | slides.chart.stylesGallery; chọn phong cách đồ họa biểu đồ |
+| Dữ liệu | Chuyển hàng và cột dữ liệu (Switch Row/Column) | 🟢 | - | slides.chart.switchRowColumn; đổi chiều ma trận dữ liệu biểu đồ |
+| Dữ liệu | Chọn dữ liệu nguồn (Select Data) | 🟢 | - | slides.chart.selectData; chọn lại dải ô dữ liệu |
+| Dữ liệu | Chỉnh sửa dữ liệu nguồn (Edit Data in Excel/Grid) | 🟢 | - | slides.chart.editData; mở bảng số liệu nội bộ để sửa giá trị |
+| Loại | Thay đổi loại biểu đồ (Change Chart Type) | 🟢 | - | slides.chart.changeType; chuyển đổi giữa cột, đường, tròn, thanh |
+
+### Công cụ phương tiện > Phát lại
+
+| Nhóm | Tính năng PowerPoint 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Slides |
+|---|---|---|---|---|
+| Xem trước | Phát thử media (Play Video / Audio) | 🟢 | - | slides.media.play; phát thử video hoặc âm thanh trên canvas |
+| Chỉnh sửa | Cắt tỉa thời lượng media (Trim Video / Audio) | 🔴 | 2 | Chưa có công cụ cắt ngắn điểm đầu và điểm kết thúc video/audio |
+| Tùy chọn | Mức âm lượng media (Low, Medium, High, Mute) | 🟢 | - | slides.media.volume; thiết lập âm lượng phát |
+| Tùy chọn | Bắt đầu phát: Tự động / Khi nhấp chuột | 🟢 | - | slides.media.startTrigger; thiết lập tự động chạy hay chờ click |
+| Tùy chọn | Lặp lại cho đến khi dừng (Loop until Stopped) | 🟢 | - | slides.media.loop; vòng lặp phát lại liên tục |
+
+### Không thuộc ribbon
+
+| Nhóm | Tính năng PowerPoint 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Slides |
+|---|---|---|---|---|
+| Bàn phím | Điều hướng slide (PageUp, PageDown, Home, End) | 🟢 | - | slides.nav.prevSlide, nextSlide, firstSlide, lastSlide |
+| Bàn phím | Phím tắt định dạng chữ (Ctrl+B/I/U, Ctrl+Shift+>/<, Ctrl+Space) | ✅ | - | FIX-L4: Ctrl+B/I/U và thang tăng giảm cỡ chữ đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:27-31) |
+| Bàn phím | Phím tắt trình chiếu (F5 Từ đầu, Shift+F5 Từ trang hiện tại, Esc Thoát) | 🟢 | - | slides.show.startFromBegin, startFromCurrent; phím tắt điều khiển trình diễn |
+| Bàn phím | Phím tắt chỉnh sửa slide (Ctrl+M Thêm, Ctrl+D Nhân đôi, Delete Xóa) | ✅ | - | FIX-L8: slides.slide.new, duplicate, delete đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:20,22,23) |
+| Chuột | Kéo thả thay đổi thứ tự trang trong danh sách thumbnail | 🟢 | - | Kéo thả trực tiếp slide thumbnail để sắp xếp thứ tự |
+| Chuột | Kéo các góc/chốt đối tượng để đổi kích thước và xoay | 🟢 | - | Chốt điều khiển 8 hướng và chốt xoay đỉnh của shape/ảnh/textbox |
+| Chuột | Menu ngữ cảnh chuột phải trên slide, hình vẽ, ảnh, bảng | 🟢 | - | Menu chuột phải đầy đủ lệnh Cắt/Sao chép/Dán, Sắp xếp lớp, Định dạng |
+| Tính tương thích | Mở và Lưu PPTX giữ nguyên bố cục đối tượng | ✅ | - | Lưu PPTX và mở lại đối chiếu PowerPoint COM không mất đối tượng (docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:9-10) |
+| Tính tương thích | Giữ nguyên hiệu ứng chuyển tiếp và timeline hoạt ảnh khi lưu | ✅ | - | FIX-L6/L7: transition và animation giữ nguyên timeline khi mở bằng PowerPoint COM (docs/SLIDES-BUTTON-MATRIX-1011.md:68-70) |
+| Tính tương thích | Khứ hồi các định dạng ODP, FODP chuẩn mở | 🟢 | - | Hỗ trợ định dạng chuẩn mở OpenDocument Presentation |
+| Hiệu năng | Tải deck lớn mượt mà, chuyển trang không trễ | 🟢 | - | Kiến trúc ảo hóa canvas và DOM nhẹ cho tốc độ cao |

@@ -47,8 +47,8 @@ def extract_keywords(feature_name: str, note_text: str) -> list[str]:
     """Trích xuất danh sách từ khóa đặc trưng từ cột tính năng và ghi chú."""
     keywords = set()
 
-    # 1. Tìm các command id: writer.*, common.*, sheet.*
-    for cmd in re.findall(r'((?:writer|common|sheet)\.[\w\.]+)', note_text + ' ' + feature_name):
+    # 1. Tìm các command id: writer.*, common.*, sheet.*, slides.*
+    for cmd in re.findall(r'((?:writer|common|sheet|slides)\.[\w\.]+)', note_text + ' ' + feature_name):
         keywords.add(cmd.lower())
         # Thêm phần đuôi của lệnh (vd: clearFormat, pasteSpecial, sort, alignCenter)
         parts = cmd.split('.')
@@ -165,7 +165,7 @@ def update_summary_tables(content: str, detail_rows: list[dict]) -> str:
     order = ["V", "A", "P", "N", "X"]
     icon = {"V": "✅", "A": "🟢", "P": "🟡", "N": "🔴", "X": "⚪"}
     label = {
-        "V": "Đã đối chiếu Word 2016" if "Word" in content else "Đã đối chiếu Excel 2016",
+        "V": "Đã đối chiếu PowerPoint 2016" if "PowerPoint" in content else ("Đã đối chiếu Word 2016" if "Word" in content else "Đã đối chiếu Excel 2016"),
         "A": "Có, chưa đối chiếu",
         "P": "Có một phần",
         "N": "Chưa có",
@@ -193,7 +193,7 @@ def update_summary_tables(content: str, detail_rows: list[dict]) -> str:
     )
 
     # Cập nhật số phần trăm độ phủ và xác minh
-    target_app_name = "Word 2016" if "Word 2016" in content else "Excel 2016"
+    target_app_name = "PowerPoint 2016" if "PowerPoint 2016" in content else ("Word 2016" if "Word 2016" in content else "Excel 2016")
     content = re.sub(
         r'- \*\*Độ phủ so với ' + re.escape(target_app_name) + r' \(có hoặc có một phần, một phần tính 0,5\): \d+%\*\*',
         f"- **Độ phủ so với {target_app_name} (có hoặc có một phần, một phần tính 0,5): {cov:.0f}%**",
