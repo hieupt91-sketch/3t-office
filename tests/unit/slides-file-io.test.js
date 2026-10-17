@@ -1451,5 +1451,190 @@ export async function runSlidesFileIoTests() {
     }
   });
 
+  test("SlidesAdapter: preserves shape HorizontalFlip, Line.DashStyle, Shadow, and auto-grow dimensions", () => {
+    const fodp = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+ xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+ xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0">
+  <office:styles>
+    <draw:stroke-dash draw:name="Long_20_Dash" draw:style="rect" draw:dots1="1" draw:dots1-length="0.508cm" draw:distance="0.254cm"/>
+  </office:styles>
+  <office:automatic-styles>
+    <style:style style:name="grRect" style:family="graphic">
+      <style:graphic-properties draw:stroke="dash" draw:stroke-dash="Long_20_Dash" svg:stroke-color="#00ff00" svg:stroke-width="0.141cm" draw:fill="solid" draw:fill-color="#ff0000" draw:shadow="visible" draw:shadow-offset-x="0.211cm" draw:shadow-offset-y="0.073cm" draw:shadow-color="#000000" draw:auto-grow-height="false" draw:auto-grow-width="false"/>
+    </style:style>
+  </office:automatic-styles>
+  <office:body><office:presentation>
+    <draw:page draw:name="page1">
+      <draw:custom-shape draw:name="Rect1" draw:style-name="grRect" svg:width="7.055cm" svg:height="3.528cm" draw:transform="rotate (-0.436332312998582) translate (2.838cm 0.438cm)">
+        <text:p><text:span>Hinh xoay</text:span></text:p>
+        <draw:enhanced-geometry draw:mirror-horizontal="true" draw:mirror-vertical="false" draw:type="ooxml-rect"/>
+      </draw:custom-shape>
+    </draw:page>
+  </office:presentation></office:body>
+</office:document>`;
+    const adapter = new SlidesAdapter(null);
+    const parsed = adapter.parseFodp(fodp);
+    const shape = parsed[0].shapes[0];
+    if (!shape.flipH) throw new Error("flipH was not parsed");
+    if (!shape.shadow || !shape.shadow.visible) throw new Error("shadow was not parsed");
+    if (shape.strokeDash !== "Long_20_Dash" || shape.strokeKind !== "dash") throw new Error("strokeDash was not parsed");
+    if (Math.round(shape.rotation) !== 25) throw new Error(`rotation expected 25, got ${shape.rotation}`);
+
+    const serialized = new SlidesAdapter({ slides: parsed, slideSize: { width: 960, height: 540 } }).serializeToFodp();
+    if (!serialized.includes('draw:mirror-horizontal="true"')) throw new Error("serialized missing mirror-horizontal");
+    if (!serialized.includes('draw:shadow="visible"')) throw new Error("serialized missing shadow visible");
+    if (!serialized.includes('draw:stroke="dash"')) throw new Error("serialized missing stroke dash");
+    if (!serialized.includes('draw:auto-grow-height="false"')) throw new Error("serialized missing auto-grow-height=false");
+  });
+
+  test("SlidesAdapter: preserves shape action settings and presentation event-listeners", () => {
+    const fodp = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0"
+ xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0"
+ xmlns:presentation="urn:oasis:names:tc:opendocument:xmlns:presentation:1.0"
+ xmlns:script="urn:oasis:names:tc:opendocument:xmlns:script:1.0"
+ xmlns:dom="http://www.w3.org/2001/xml-events">
+  <office:body><office:presentation>
+    <draw:page draw:name="page1">
+      <draw:custom-shape draw:name="Btn" svg:width="5.291cm" svg:height="2.116cm" svg:x="1.764cm" svg:y="8.819cm">
+        <office:event-listeners>
+          <presentation:event-listener script:event-name="dom:click" presentation:action="previous-page"/>
+        </office:event-listeners>
+        <text:p><text:span>Nut</text:span></text:p>
+      </draw:custom-shape>
+    </draw:page>
+  </office:presentation></office:body>
+</office:document>`;
+    const adapter = new SlidesAdapter(null);
+    const parsed = adapter.parseFodp(fodp);
+    const shape = parsed[0].shapes[0];
+    if (shape.action !== "previous-page") throw new Error(`action expected previous-page, got ${shape.action}`);
+    if (!shape.eventListeners?.length || shape.eventListeners[0].action !== "previous-page") {
+      throw new Error("eventListeners not parsed");
+    }
+
+    const serialized = new SlidesAdapter({ slides: parsed, slideSize: { width: 960, height: 540 } }).serializeToFodp();
+    if (!serialized.includes('xmlns:script="urn:oasis:names:tc:opendocument:xmlns:script:1.0"')) {
+      throw new Error("serialized missing xmlns:script");
+    }
+    if (!serialized.includes('xmlns:dom="http://www.w3.org/2001/xml-events"')) {
+      throw new Error("serialized missing xmlns:dom");
+    }
+    if (!serialized.includes('<presentation:event-listener script:event-name="dom:click" presentation:action="previous-page"/>')) {
+      throw new Error("serialized missing presentation:event-listener");
+    }
+
+    // Also test numeric PowerPoint COM action (2 = previous-page)
+    const numericShape = { id: "btn2", type: "rect", action: 2, text: "Click" };
+    const serializedNum = new SlidesAdapter({ slides: [{ shapes: [numericShape] }], slideSize: { width: 960, height: 540 } }).serializeToFodp();
+    if (!serializedNum.includes('presentation:action="previous-page"')) {
+      throw new Error("numeric action 2 did not map to previous-page");
+    }
+  });
+
+  test("SlidesAdapter: preserve table frame transparency and cell fills (Item c)", () => {
+    const fodp = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0"
+ xmlns:loext="urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0"
+ xmlns:fo="urn:oasis:names:tc:opendocument:xmlns:xsl-fo-compatible:1.0">
+  <office:automatic-styles>
+    <style:style style:name="ce_yellow" style:family="table-cell">
+      <loext:graphic-properties draw:fill="solid" draw:fill-color="#ffff00"/>
+    </style:style>
+    <style:style style:name="ce_blue" style:family="table-cell">
+      <loext:graphic-properties draw:fill="solid" draw:fill-color="#5b9bd5"/>
+    </style:style>
+  </office:automatic-styles>
+  <office:body><office:presentation>
+    <draw:page draw:name="page1">
+      <draw:frame draw:name="Tbl" draw:style-name="gr1" svg:width="10cm" svg:height="4cm" svg:x="5cm" svg:y="5cm">
+        <table:table>
+          <table:table-column/>
+          <table:table-column/>
+          <table:table-row table:default-cell-style-name="ce_blue">
+            <table:table-cell><text:p>A</text:p></table:table-cell>
+            <table:table-cell table:style-name="ce_yellow"><text:p>B</text:p></table:table-cell>
+          </table:table-row>
+        </table:table>
+      </draw:frame>
+    </draw:page>
+  </office:presentation></office:body>
+</office:document>`;
+    const adapter = new SlidesAdapter(null);
+    const parsed = adapter.parseFodp(fodp);
+    const tableShape = parsed[0].shapes[0];
+    if (tableShape.type !== "table") throw new Error("Shape type should be table");
+    if (tableShape.color !== "transparent") throw new Error(`Table frame should be transparent, got ${tableShape.color}`);
+    if (!Array.isArray(tableShape.cellFills)) throw new Error("cellFills not parsed");
+    if (tableShape.cellFills[0][0] !== "#5b9bd5") throw new Error(`Cell (0,0) fill should be #5b9bd5, got ${tableShape.cellFills[0][0]}`);
+    if (tableShape.cellFills[0][1] !== "#ffff00") throw new Error(`Cell (0,1) fill should be #ffff00, got ${tableShape.cellFills[0][1]}`);
+
+    const serialized = new SlidesAdapter({ slides: parsed, slideSize: { width: 960, height: 540 } }).serializeToFodp();
+    if (!serialized.includes('xmlns:loext="urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0"')) {
+      throw new Error("Serialized missing xmlns:loext");
+    }
+    if (!serialized.includes('table:style-name="ce_fill_ffff00"')) {
+      throw new Error("Serialized table-cell missing table:style-name");
+    }
+    if (!serialized.includes('<style:style style:name="ce_fill_ffff00" style:family="table-cell">')) {
+      throw new Error("Serialized missing style:family=table-cell for ce_fill_ffff00");
+    }
+    if (serialized.includes('draw:style-name="gr5b9bd5"') || serialized.includes('draw:style-name="grffff00"')) {
+      throw new Error("Table frame must not inherit cell fill");
+    }
+  });
+
+  test("SlidesAdapter: preserve shape two-color gradient fill (Item d)", () => {
+    const fodp = `<?xml version="1.0" encoding="UTF-8"?>
+<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"
+ xmlns:style="urn:oasis:names:tc:opendocument:xmlns:style:1.0"
+ xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0"
+ xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0">
+  <office:styles>
+    <draw:gradient draw:name="Gradient_Test" draw:style="linear" draw:start-color="#ff0000" draw:end-color="#0000ff" draw:angle="0deg"/>
+  </office:styles>
+  <office:automatic-styles>
+    <style:style style:name="grGradTest" style:family="graphic">
+      <style:graphic-properties draw:fill="gradient" draw:fill-gradient-name="Gradient_Test"/>
+    </style:style>
+  </office:automatic-styles>
+  <office:body><office:presentation>
+    <draw:page draw:name="page1">
+      <draw:custom-shape draw:name="Oval1" draw:style-name="grGradTest" svg:width="4cm" svg:height="4cm" svg:x="2cm" svg:y="2cm">
+        <text:p/>
+      </draw:custom-shape>
+    </draw:page>
+  </office:presentation></office:body>
+</office:document>`;
+    const adapter = new SlidesAdapter(null);
+    const parsed = adapter.parseFodp(fodp);
+    const shape = parsed[0].shapes[0];
+    if (!shape.gradient) throw new Error("Gradient not parsed on shape");
+    if (shape.gradient.startColor !== "#ff0000") throw new Error(`Expected startColor #ff0000, got ${shape.gradient.startColor}`);
+    if (shape.gradient.endColor !== "#0000ff") throw new Error(`Expected endColor #0000ff, got ${shape.gradient.endColor}`);
+    if (shape.fillKind !== "gradient") throw new Error(`Expected fillKind gradient, got ${shape.fillKind}`);
+    if (shape.color !== "#ff0000") throw new Error(`Expected primary color #ff0000, got ${shape.color}`);
+
+    const serialized = new SlidesAdapter({ slides: parsed, slideSize: { width: 960, height: 540 } }).serializeToFodp();
+    if (!serialized.includes('<draw:gradient draw:name="Gradient_Test"')) {
+      throw new Error("Serialized missing <draw:gradient>");
+    }
+    if (!serialized.includes('draw:fill="gradient"')) {
+      throw new Error("Serialized missing draw:fill=\"gradient\"");
+    }
+    if (!serialized.includes('draw:fill-gradient-name="Gradient_Test"')) {
+      throw new Error("Serialized missing draw:fill-gradient-name");
+    }
+  });
+
   return results;
 }

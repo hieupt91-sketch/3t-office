@@ -2005,6 +2005,7 @@ export class SlidesCanvasController {
   }
 
   _updateSelectionUi() {
+    this._syncShapeFormatContext?.();
     if (this.titleEl?.classList) {
       if (this.selectedTarget === "title") this.titleEl.classList.add("is-selected");
       else this.titleEl.classList.remove("is-selected");
@@ -2900,6 +2901,58 @@ export class SlidesCanvasController {
     this._syncTableContext(shape.id);
   }
 
+  /** Các hình đang chọn mà tab "Định dạng hình" áp dụng được (không gồm bảng/biểu đồ). */
+  _selectedFormattableShapes() {
+    const slide = this.slides?.[this.currentSlideIndex];
+    if (!slide) return [];
+    const ids = new Set(this.selectedShapeIds ? [...this.selectedShapeIds] : []);
+    if (this.selectedTarget != null && !["title", "body", "body2"].includes(String(this.selectedTarget))) ids.add(String(this.selectedTarget));
+    if (!ids.size) return [];
+    return (slide.shapes || []).filter(shape => ids.has(String(shape.id)) && !["table", "chart"].includes(shape.type));
+  }
+
+  /** Hiện tab ngữ cảnh "Định dạng hình" khi có hình được chọn. */
+  _syncShapeFormatContext() {
+    if (typeof document === "undefined" || typeof document.querySelector !== "function") return;
+    const has = this._selectedFormattableShapes().length > 0;
+    const tab = document.querySelector("#vno-ribbon-tab-shapeFormat");
+    if (tab) { tab.hidden = !has; tab.setAttribute("aria-hidden", has ? "false" : "true"); }
+  }
+
+  /**
+   * Định dạng nhanh các hình đang chọn: `build(shape)` trả về phần thay đổi {khóa: giá trị} (undefined = bỏ khóa).
+   * Một bước hoàn tác cho cả nhóm hình.
+   */
+  applyShapeStyle(build) {
+    const shapes = this._selectedFormattableShapes();
+    if (!shapes.length) return false;
+    const entries = [];
+    for (const shape of shapes) {
+      const change = typeof build === "function" ? build(shape) : build;
+      if (!change) continue;
+      const before = {};
+      const after = {};
+      for (const [key, value] of Object.entries(change)) {
+        if (JSON.stringify(shape[key]) === JSON.stringify(value)) continue;
+        before[key] = shape[key];
+        after[key] = value;
+      }
+      if (!Object.keys(after).length) continue;
+      for (const [key, value] of Object.entries(after)) { if (value === undefined) delete shape[key]; else shape[key] = value; }
+      entries.push({ shapeId: shape.id, before, after });
+    }
+    if (!entries.length) return { changed: 0 };
+    this.undoStack.push({ type: "shapes-style", slideIndex: this.currentSlideIndex, entries });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderShapesLayer();
+    this._renderThumbnails();
+    if (this.slideSorterOverlay) this._renderSlideSorterGrid();
+    this._updateSelectionUi();
+    this.options.onDocumentChange?.();
+    return { changed: entries.length };
+  }
+
   /** Hiện tab ngữ cảnh "Bố cục bảng" khi đang ở trong bảng. */
   _syncTableContext(tableShapeId = null) {
     if (typeof document === "undefined" || typeof document.querySelector !== "function") return;
@@ -3686,7 +3739,11 @@ export class SlidesCanvasController {
       const viewBox = shape.viewBox || `0 0 ${shape.w} ${shape.h}`;
       return `<svg class="vno-show-shape vno-show-ink"${morphAttrs} style="position:absolute;left:${shape.x}px;top:${shape.y}px;width:${shape.w}px;height:${shape.h}px;overflow:visible;pointer-events:none;" viewBox="${this._escapeShapeText(viewBox)}"><path d="${this._escapeShapeText(shape.d || "")}" stroke="${this._escapeShapeText(stroke)}" stroke-width="${strokeWidth}" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     }
-    const rotateStyle = shape.rotation ? `transform:rotate(${shape.rotation}deg);transform-origin:center center;` : "";
+    const transformParts = [];
+    if (shape.rotation) transformParts.push(`rotate(${shape.rotation}deg)`);
+    if (shape.flipH) transformParts.push("scaleX(-1)");
+    if (shape.flipV) transformParts.push("scaleY(-1)");
+    const rotateStyle = transformParts.length ? `transform:${transformParts.join(" ")};transform-origin:center center;` : "";
     const pos = `position:absolute;left:${shape.x}px;top:${shape.y}px;width:${shape.w}px;height:${shape.h}px;${rotateStyle}`;
     let animStyle = "";
     let animAttrs = "";
@@ -3721,7 +3778,9 @@ export class SlidesCanvasController {
     const textAlign = shape.textAlign ? `text-align:${shape.textAlign};` : "";
     const textStyle = [textWeight, textSize, textColor, textAlign].filter(Boolean).join("");
     const text = shape.text !== undefined ? `<span class="vno-show-shape-text"${textStyle ? ` style="${textStyle}"` : ""}>${this._escapeShapeText(shape.text)}</span>` : "";
-    return `<div class="vno-show-shape"${morphAttrs}${animAttrs} style="${pos}${animStyle}background:${shape.fill || shape.color || "#3b82f6"};opacity:${opacity};border-radius:${radius};${border}">${text}</div>`;
+    const actionAttr = (shape.action || shape.href) ? ` data-vno-action="${this._escapeShapeText(typeof shape.action === "object" ? JSON.stringify(shape.action) : String(shape.action || shape.href))}"` : "";
+    const actionCursor = (shape.action || shape.href) ? "cursor:pointer;pointer-events:auto;" : "";
+    return `<div class="vno-show-shape"${morphAttrs}${animAttrs}${actionAttr} style="${pos}${animStyle}background:${shape.fill || shape.color || "#3b82f6"};opacity:${opacity};border-radius:${radius};${border}${actionCursor}">${text}</div>`;
   }
 
   _getMorphMatches(fromSlide, toSlide) {
@@ -4413,11 +4472,18 @@ export class SlidesCanvasController {
       // Hiển thị góc xoay đọc được từ file thật (draw:transform rotate()).
       // Đây là hiển thị CHỈ ĐỌC — chưa có tay cầm/thao tác xoay tương tác
       // trên canvas (xem HANDOFF-SLIDES-SHAPE-ROTATION-DISPLAY.md).
-      const rotateStyle = shape.rotation ? ` transform:rotate(${shape.rotation}deg); transform-origin:center center;` : "";
+      const transformParts = [];
+      if (shape.rotation) transformParts.push(`rotate(${shape.rotation}deg)`);
+      if (shape.flipH) transformParts.push("scaleX(-1)");
+      if (shape.flipV) transformParts.push("scaleY(-1)");
+      const rotateStyle = transformParts.length ? ` transform:${transformParts.join(" ")}; transform-origin:center center;` : "";
       el.style.cssText = `position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; pointer-events:${isConnector ? "none" : "auto"}; cursor:${isConnector ? "default" : "move"};z-index:${isConnector ? 0 : 1};overflow:visible;${rotateStyle}`;
       if (!isConnector && this._textStyleEligible(shape) && shape.type !== "textbox") {
         const vAlign = shape.textVAlign || "middle";
         el.style.alignItems = vAlign === "top" ? "flex-start" : vAlign === "bottom" ? "flex-end" : "center";
+      }
+      if (shape.action || shape.href) {
+        el.dataset.vnoAction = typeof shape.action === "object" ? JSON.stringify(shape.action) : String(shape.action || shape.href);
       }
 
       if (!isConnector) {
@@ -4757,10 +4823,24 @@ const startEditing = (initialText) => {
         if (shape.stroke || shape.strokeColor) {
           const sw = shape.strokeWidth || 1;
           const sc = shape.stroke || shape.strokeColor;
-          el.style.border = `${sw}px solid ${sc}`;
+          const dashName = String(shape.strokeDash || "");
+          const borderStyle = (shape.strokeDash || shape.strokeKind === "dash") ? (/^Dot$/i.test(dashName) ? "dotted" : "dashed") : "solid";
+          el.style.border = `${sw}px ${borderStyle} ${sc}`;
           el.style.boxSizing = "border-box";
         } else {
           el.style.border = "none";
+        }
+        if (shape.shadow) {
+          const shadow = typeof shape.shadow === "object" ? shape.shadow : {};
+          const toPx = (raw, fallback) => {
+            const m = String(raw ?? "").match(/^(-?[\d.]+)\s*(cm|mm|pt|px)?$/i);
+            if (!m) return fallback;
+            const unit = (m[2] || "cm").toLowerCase();
+            return Number(m[1]) * (unit === "cm" ? 37.8 : unit === "mm" ? 3.78 : unit === "pt" ? 1.333 : 1);
+          };
+          const ox = Math.round(toPx(shadow.offsetX, 4));
+          const oy = Math.round(toPx(shadow.offsetY, 4));
+          el.style.boxShadow = `${ox}px ${oy}px 8px rgba(0,0,0,0.35)`;
         }
         const isDiagramNode = !!(shape.diagramGroupId || shape.diagramRole === "node");
         el.style.opacity = isDiagramNode ? "0.85" : (shape.opacity != null ? String(shape.opacity) : "1");
@@ -5017,7 +5097,7 @@ const startEditing = (initialText) => {
         el.style.top = `${shape.y}px`;
         el.style.width = `${shape.w}px`;
         el.style.height = `${shape.h}px`;
-        el.style.transform = shape.rotation ? `rotate(${shape.rotation}deg)` : "";
+        el.style.transform = this._shapeTransformCss(shape);
       }
     }
   }
@@ -5112,7 +5192,7 @@ const startEditing = (initialText) => {
         const el = this.shapesLayer?.querySelector(`[data-shape-id="${target.id}"]`);
         if (el) {
           el.style.left = `${target.x}px`; el.style.top = `${target.y}px`;
-          el.style.transform = target.rotation ? `rotate(${target.rotation}deg)` : "";
+          el.style.transform = this._shapeTransformCss(target);
         }
       }
     };
@@ -7262,6 +7342,15 @@ const startEditing = (initialText) => {
     return true;
   }
 
+  /** CSS transform của hình: xoay + lật ngang/dọc (dùng chung cho mọi nơi đặt lại transform sau kéo/xoay/đổi cỡ). */
+  _shapeTransformCss(shape) {
+    const parts = [];
+    if (shape?.rotation) parts.push(`rotate(${shape.rotation}deg)`);
+    if (shape?.flipH) parts.push("scaleX(-1)");
+    if (shape?.flipV) parts.push("scaleY(-1)");
+    return parts.join(" ");
+  }
+
   formatShape(shapeId, patch = {}, recordHistory = true) {
     const slide = this.slides[this.currentSlideIndex];
     const shape = slide?.shapes?.find(item => String(item.id) === String(shapeId));
@@ -7991,7 +8080,7 @@ const startEditing = (initialText) => {
         if (el) {
           el.style.left = `${shape.x}px`; el.style.top = `${shape.y}px`;
           el.style.width = `${shape.w}px`; el.style.height = `${shape.h}px`;
-          el.style.transform = shape.rotation ? `rotate(${shape.rotation}deg)` : "";
+          el.style.transform = this._shapeTransformCss(shape);
         }
       }
       this.redoStack.push(action);
@@ -8087,6 +8176,17 @@ const startEditing = (initialText) => {
     } else if (action.type === "slide-transition") {
       this._restoreSlideTransitions(action.before);
       this.redoStack.push(action);
+      return true;
+    } else if (action.type === "shapes-style") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      for (const entry of action.entries) {
+        const shape = (slide.shapes || []).find(item => String(item.id) === String(entry.shapeId));
+        if (shape) for (const [key, value] of Object.entries(entry.before)) { if (value === undefined) delete shape[key]; else shape[key] = value; }
+      }
+      this.redoStack.push(action);
+      this._renderShapesLayer();
+      this._renderThumbnails();
       return true;
     } else if (action.type === "animations") {
       const slide = this.slides[action.slideIndex];
@@ -8349,7 +8449,7 @@ const startEditing = (initialText) => {
         if (el) {
           el.style.left = `${shape.x}px`; el.style.top = `${shape.y}px`;
           el.style.width = `${shape.w}px`; el.style.height = `${shape.h}px`;
-          el.style.transform = shape.rotation ? `rotate(${shape.rotation}deg)` : "";
+          el.style.transform = this._shapeTransformCss(shape);
         }
       }
       this.undoStack.push(action);
@@ -8448,6 +8548,17 @@ const startEditing = (initialText) => {
     } else if (action.type === "slide-transition") {
       this._restoreSlideTransitions(action.after);
       this.undoStack.push(action);
+      return true;
+    } else if (action.type === "shapes-style") {
+      const slide = this.slides[action.slideIndex];
+      if (!slide) return false;
+      for (const entry of action.entries) {
+        const shape = (slide.shapes || []).find(item => String(item.id) === String(entry.shapeId));
+        if (shape) for (const [key, value] of Object.entries(entry.after)) { if (value === undefined) delete shape[key]; else shape[key] = value; }
+      }
+      this.undoStack.push(action);
+      this._renderShapesLayer();
+      this._renderThumbnails();
       return true;
     } else if (action.type === "animations") {
       const slide = this.slides[action.slideIndex];
@@ -9552,6 +9663,72 @@ const startEditing = (initialText) => {
     this.redoStack = [];
     this._syncUndoRedoState?.();
     this._renderThumbnails?.();
+    return true;
+  }
+
+  _pushTransitionUndo(before) {
+    this.undoStack.push({ type: "slide-transition", before, after: this._captureSlideTransitions() });
+    this.redoStack = [];
+    this._syncUndoRedoState?.();
+    this._renderThumbnails?.();
+  }
+
+  /** Tab Chuyển tiếp > Hiệu ứng: đặt kiểu chuyển trang cho trang đang chọn ("none" = bỏ hiệu ứng). */
+  setCurrentTransitionType(type) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    if (type === "none") {
+      if (!slide.transition) return true;
+      const before = this._captureSlideTransitions();
+      delete slide.transition;
+      this._pushTransitionUndo(before);
+      return true;
+    }
+    const current = slide.transition || {};
+    return this.setTransition(type, current.duration || 500, false, null);
+  }
+
+  /** Sửa riêng thời lượng / cách chuyển trang của trang đang chọn; cần có hiệu ứng trước. */
+  updateCurrentTransition(patch) {
+    const slide = this.slides[this.currentSlideIndex];
+    if (!slide) return false;
+    if (!slide.transition) {
+      return false;
+    }
+    const before = this._captureSlideTransitions();
+    const next = { ...slide.transition };
+    if (patch.duration !== undefined) next.duration = patch.duration;
+    if (patch.advanceOnClick !== undefined) {
+      if (patch.advanceOnClick) delete next.advanceOnClick; else next.advanceOnClick = false;
+    }
+    if (patch.advanceAfter !== undefined) {
+      if (patch.advanceAfter) next.advanceAfter = patch.advanceAfter; else delete next.advanceAfter;
+    }
+    slide.transition = next;
+    this._pushTransitionUndo(before);
+    return true;
+  }
+
+  /** Tab Chuyển tiếp > Áp dụng cho tất cả. */
+  applyTransitionToAll() {
+    const source = this.slides[this.currentSlideIndex]?.transition;
+    if (!source) return false;
+    const before = this._captureSlideTransitions();
+    this.slides.forEach((slide) => { slide.transition = { ...source }; });
+    this._pushTransitionUndo(before);
+    return true;
+  }
+
+  /** Tab Chuyển tiếp > Xem trước: chạy hiệu ứng của trang hiện tại trên khung soạn thảo. */
+  previewTransition() {
+    const transition = this.slides[this.currentSlideIndex]?.transition;
+    const el = this.stageEl;
+    if (!transition || !el) return false;
+    const type = (transition.type === "morph" || transition.type === "custom") ? "fade" : transition.type;
+    const name = `vnoTransition${String(type).charAt(0).toUpperCase()}${String(type).slice(1)}`;
+    el.style.animation = "none";
+    void el.offsetWidth;
+    el.style.animation = `${name} ${Math.max(Number(transition.duration) || 500, 100)}ms ease-out`;
     return true;
   }
 

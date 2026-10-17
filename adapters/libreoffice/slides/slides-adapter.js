@@ -8,6 +8,7 @@ import { showAlertDialog, showFindReplaceDialog } from "../../../platform/ui-kit
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
 import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
+import { applyChangeCaseToSelection } from "../../../platform/text/change-case.js";
 import { overlayFodpMasterLogo } from "./pptx-master-logo.js";
 import { overlayFodpSections } from "./pptx-section-list.js";
 import { overlayFodpShowProperties } from "./pptx-show-properties.js";
@@ -186,10 +187,42 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.arrange.bringToFront", () => this._hintIfFalse(() => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("front") : false, "Hãy chọn ít nhất một hình khối để sắp xếp thứ tự hiển thị."));
     globalCommandBus.bindHandler("slides.arrange.bringForward", () => this._hintIfFalse(() => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("forward") : false, "Hãy chọn ít nhất một hình khối để sắp xếp thứ tự hiển thị."));
     globalCommandBus.bindHandler("slides.arrange.sendBackward", () => this._hintIfFalse(() => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("backward") : false, "Hãy chọn ít nhất một hình khối để sắp xếp thứ tự hiển thị."));
+    // Tab «Định dạng hình»: tô màu, viền, bóng, xoay, lật (một bước hoàn tác cho cả nhóm hình đang chọn).
+    globalCommandBus.bindHandler("slides.shape.fill", () => this._shapeFillColor("custom"));
+    globalCommandBus.bindHandler("slides.shape.outline", () => this._shapeOutlineColor("custom"));
+    globalCommandBus.bindHandler("slides.shape.effects", () => this._shapeShadow("bottomRight"));
+    globalCommandBus.bindHandler("slides.arrange.rotate", () => this._shapeRotate(90));
+    globalCommandBus.bindHandler("slides.shape.fillColor", (args) => this._shapeFillColor(args));
+    globalCommandBus.bindHandler("slides.shape.outlineColor", (args) => this._shapeOutlineColor(args));
+    globalCommandBus.bindHandler("slides.shape.outlineWeight", (args) => this._shapeOutlineWeight(args));
+    globalCommandBus.bindHandler("slides.shape.outlineDash", (args) => this._shapeOutlineDash(args));
+    globalCommandBus.bindHandler("slides.shape.shadow", (args) => this._shapeShadow(args));
+    globalCommandBus.bindHandler("slides.shape.sizeDialog", () => this._hintIfFalse(() => this.canvas.openShapeFormatDialog ? this.canvas.openShapeFormatDialog() : false, "Hãy chọn một hình khối (không phải ảnh hoặc bảng) để đặt kích thước."));
+    globalCommandBus.bindHandler("slides.arrange.rotateRight90", () => this._shapeRotate(90));
+    globalCommandBus.bindHandler("slides.arrange.rotateLeft90", () => this._shapeRotate(-90));
+    globalCommandBus.bindHandler("slides.arrange.flipHorizontal", () => this._shapeFlip("flipH"));
+    globalCommandBus.bindHandler("slides.arrange.flipVertical", () => this._shapeFlip("flipV"));
     globalCommandBus.bindHandler("slides.arrange.sendToBack", () => this._hintIfFalse(() => this.canvas.reorderSelectedShapes ? this.canvas.reorderSelectedShapes("back") : false, "Hãy chọn ít nhất một hình khối để sắp xếp thứ tự hiển thị."));
     // Những lệnh này có triển khai trong Canvas/adapter; bind tại đây để ribbon
     // và phím tắt dùng cùng một đường thực thi thay vì chỉ hoạt động qua UNO.
+    // Đổi chữ hoa/thường: logic dùng chung với Writer (platform/text/change-case.js). Nút gốc/Shift+F3 xoay vòng.
+    globalCommandBus.bindHandler("slides.text.changeCase", () => this._changeTextCase(""));
+    globalCommandBus.bindHandler("slides.text.changeCaseMode", (arg) => this._changeTextCase(String(arg || "")));
     globalCommandBus.bindHandler("slides.transition.apply", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
+    // Tab Chuyển tiếp: thư viện hiệu ứng, thời gian, áp dụng tất cả, xem trước (cùng mô hình dữ liệu với hộp thoại).
+    globalCommandBus.bindHandler("slides.transition.gallery", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
+    globalCommandBus.bindHandler("slides.transition.durationMenu", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
+    globalCommandBus.bindHandler("slides.transition.advanceMenu", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
+    globalCommandBus.bindHandler("slides.transition.afterMenu", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
+    globalCommandBus.bindHandler("slides.transition.set", (arg) => this.canvas.setCurrentTransitionType(String(arg || "fade")));
+    globalCommandBus.bindHandler("slides.transition.duration", (arg) => this._hintIfFalse(() => this.canvas.updateCurrentTransition({ duration: parseInt(arg, 10) || 500 }), "Hãy chọn một hiệu ứng chuyển trang cho trang này trước (Chuyển tiếp > Hiệu ứng)."));
+    globalCommandBus.bindHandler("slides.transition.advanceClick", (arg) => this._hintIfFalse(() => this.canvas.updateCurrentTransition({ advanceOnClick: String(arg) !== "off" }), "Hãy chọn một hiệu ứng chuyển trang cho trang này trước (Chuyển tiếp > Hiệu ứng)."));
+    globalCommandBus.bindHandler("slides.transition.advanceAfter", (arg) => {
+      const seconds = Number(arg);
+      return this._hintIfFalse(() => this.canvas.updateCurrentTransition({ advanceAfter: Number.isFinite(seconds) && seconds > 0 ? Math.round(seconds * 1000) : null }), "Hãy chọn một hiệu ứng chuyển trang cho trang này trước (Chuyển tiếp > Hiệu ứng).");
+    });
+    globalCommandBus.bindHandler("slides.transition.applyAll", () => this._hintIfFalse(() => this.canvas.applyTransitionToAll(), "Hãy chọn một hiệu ứng chuyển trang cho trang này trước (Chuyển tiếp > Hiệu ứng)."));
+    globalCommandBus.bindHandler("slides.transition.preview", () => this._hintIfFalse(() => this.canvas.previewTransition(), "Hãy chọn một hiệu ứng chuyển trang cho trang này trước (Chuyển tiếp > Hiệu ứng)."));
     globalCommandBus.bindHandler("common.edit.paste", () => this._paste());
     globalCommandBus.bindHandler("common.edit.pastePlain", () => this._pastePlainText());
     globalCommandBus.bindHandler("slides.review.commentInsert", (options) => {
@@ -502,6 +535,19 @@ export class SlidesAdapter {
     return ok;
   }
 
+  _changeTextCase(mode) {
+    this._restoreTextSelection();
+    const root = this._savedEditable || this.canvas?.canvasEl || null;
+    const changed = applyChangeCaseToSelection(mode, { root });
+    if (!changed) {
+      this.shell?.setStatus?.("Hãy chọn đoạn chữ cần đổi chữ hoa / chữ thường.");
+      return false;
+    }
+    this.canvas?._syncEditableFieldsFromDom?.();
+    this._syncTextFormatState();
+    return true;
+  }
+
   _setLineHeight(value) {
     this._restoreTextSelection();
     const selection = typeof window !== "undefined" ? window.getSelection?.() : null;
@@ -801,6 +847,7 @@ export class SlidesAdapter {
       if (key === "text-align") out.align = value;
       if (key === "line-height") out.lineHeight = value;
       if (key === "margin-left") out.indent = value;
+      if (key === "margin-top") out.spaceBefore = value;
     }
     const align = this._attr(` ${attrs} `, "align") || attrs.match(/\balign\s*=\s*(?:"([^"]+)"|'([^']+)')/i)?.[1];
     if (align) out.align = align;
@@ -831,7 +878,8 @@ export class SlidesAdapter {
     const paraName = this._ensureNamedStyle(ctx.paraStyles, "vnoP", {
       align: block.align,
       lineHeight: block.lineHeight,
-      indent: block.indent
+      indent: block.indent,
+      spaceBefore: block.spaceBefore
     });
     const styleAttr = paraName ? ` text:style-name="${paraName}"` : "";
     const inner = (texts || []).map(({ text, fmt }) => {
@@ -847,13 +895,13 @@ export class SlidesAdapter {
       return base ? this._plainParagraphsWithBase(this._plainFromHtml(html), ctx, base) : this._textParagraphsXml(this._plainFromHtml(html));
     }
     const blocks = [];
-    let current = { texts: [], align: base?.align || null, lineHeight: null, indent: null, list: null };
+    let current = { texts: [], align: base?.align || null, lineHeight: null, indent: null, spaceBefore: null, list: null };
     let blockquoteDepth = 0;
     const formatStack = [base?.fmt ? { ...base.fmt } : {}];
     const currentFmt = () => Object.assign({}, ...formatStack);
     const flush = () => {
       if (current.texts.some((item) => item.text) || current.list) blocks.push(current);
-      current = { texts: [], align: current.align, lineHeight: current.lineHeight, indent: current.indent, list: current.list };
+      current = { texts: [], align: current.align, lineHeight: current.lineHeight, indent: current.indent, spaceBefore: current.spaceBefore, list: current.list };
     };
 
     this._walkHtml(html, {
@@ -866,6 +914,7 @@ export class SlidesAdapter {
         if (css.align) current.align = css.align;
         if (css.lineHeight) current.lineHeight = css.lineHeight;
         if (css.indent && !/^0(?:\.0+)?(?:[a-z%]+)?$/i.test(css.indent)) current.indent = css.indent;
+        if (css.spaceBefore && !/^0(?:\.0+)?(?:[a-z%]+)?$/i.test(css.spaceBefore)) current.spaceBefore = css.spaceBefore;
         if (tag === "blockquote") {
           blockquoteDepth += 1;
           // PowerPoint increases a paragraph's indent by 0.5 in (36 pt) per level.
@@ -1023,6 +1072,7 @@ export class SlidesAdapter {
         if (odfLh) attrs.push(`fo:line-height="${this._escapeXml(odfLh)}"`);
       }
       if (props.indent) attrs.push(`fo:margin-left="${this._escapeXml(props.indent)}"`);
+      if (props.spaceBefore) attrs.push(`fo:margin-top="${this._escapeXml(props.spaceBefore)}"`);
       xml += `
     <style:style style:name="${style.name}" style:family="paragraph">
       <style:paragraph-properties ${attrs.join(" ")}/>
@@ -1116,7 +1166,8 @@ export class SlidesAdapter {
           fontWeight: weightMatch || (isBold ? "bold" : null),
           color: inner.match(/fo:color=["']([^"']+)["']/i)?.[1],
           lineHeight: rawLh,
-          indent: inner.match(/fo:margin-left=["']([^"']+)["']/i)?.[1]
+          indent: inner.match(/fo:margin-left=["']([^"']+)["']/i)?.[1],
+          spaceBefore: inner.match(/fo:margin-top=["']([^"']+)["']/i)?.[1]
         });
       }
     }
@@ -1199,7 +1250,28 @@ export class SlidesAdapter {
         const itemRe = /<text:list-item\b[^>]*>([\s\S]*?)<\/text:list-item>/gi;
         let itemMatch;
         while ((itemMatch = itemRe.exec(match[2] || "")) !== null) {
-          items.push(`<li>${this._odfInlineToHtml(itemMatch[1], maps)}</li>`);
+          const itemContent = itemMatch[1] || "";
+          const pMatch = itemContent.match(/<text:p\b([^>]*)>([\s\S]*?)<\/text:p>/i);
+          let itemStyleAttr = "";
+          let innerText = itemContent;
+          if (pMatch) {
+            const pName = (pMatch[1] || "").match(/text:style-name=["']([^"']+)["']/i)?.[1];
+            const pStyle = maps?.para?.get(pName) || {};
+            const liStyles = [];
+            if (pStyle.align) liStyles.push(`text-align:${pStyle.align}`);
+            if (pStyle.fontSize) liStyles.push(`font-size:${pStyle.fontSize}`);
+            if (pStyle.fontFamily) liStyles.push(`font-family:'${pStyle.fontFamily.replace(/["']/g, "").trim()}'`);
+            if (pStyle.lineHeight) {
+              const lh = String(pStyle.lineHeight);
+              const css = lh.endsWith("%") ? (this._odfProportionalToCssLineHeight(lh) || lh) : lh;
+              liStyles.push(`line-height:${css}`);
+            }
+            if (pStyle.indent) liStyles.push(`margin-left:${pStyle.indent}`);
+            if (pStyle.spaceBefore) liStyles.push(`margin-top:${pStyle.spaceBefore}`);
+            if (liStyles.length) itemStyleAttr = ` style="${liStyles.join(";")}"`;
+            innerText = pMatch[2];
+          }
+          items.push(`<li${itemStyleAttr}>${this._odfInlineToHtml(innerText, maps)}</li>`);
         }
         out += `<${tag}>${items.join("")}</${tag}>`;
       } else {
@@ -1218,6 +1290,7 @@ export class SlidesAdapter {
           styles.push(`line-height:${css}`);
         }
         if (para.indent) styles.push(`margin-left:${para.indent}`);
+        if (para.spaceBefore) styles.push(`margin-top:${para.spaceBefore}`);
         const styleAttr = styles.length ? ` style="${styles.join(";")}"` : "";
         out += `<div${styleAttr}>${inner}</div>`;
       }
@@ -1359,8 +1432,102 @@ export class SlidesAdapter {
     return String(color || "3b82f6").replace(/[^A-Za-z0-9]/g, "").toLowerCase() || "3b82f6";
   }
 
+  static NON_FILL_TYPES = new Set(["image", "video", "audio", "ink", "path", "connector", "wordart", "chart", "table", "line"]);
+
+  /** Chạy một chỉnh sửa định dạng cho các hình đang chọn; thông báo nếu chưa chọn hình. */
+  _shapeStyle(build) {
+    const shapes = this.canvas?._selectedFormattableShapes ? this.canvas._selectedFormattableShapes() : [];
+    if (!shapes.length) {
+      this.shell?.setStatus?.("Hãy chọn một hình trước khi định dạng.");
+      return false;
+    }
+    return this.canvas.applyShapeStyle(build) !== false;
+  }
+
+  /** Mở bảng chọn màu hệ thống rồi áp dụng màu đã chọn. */
+  _pickCustomColor(initial, apply) {
+    if (typeof document === "undefined") return false;
+    const input = document.createElement("input");
+    input.type = "color";
+    input.value = /^#[0-9a-f]{6}$/i.test(initial || "") ? initial : "#3b82f6";
+    input.style.cssText = "position:fixed;left:-9999px;top:0;opacity:0";
+    document.body.appendChild(input);
+    input.addEventListener("change", () => { apply(input.value); input.remove(); });
+    input.addEventListener("cancel", () => input.remove());
+    input.click();
+    return true;
+  }
+
+  _shapeFillColor(arg) {
+    const value = String(arg || "");
+    if (value === "custom") {
+      const current = this.canvas?._selectedFormattableShapes?.()[0];
+      return this._pickCustomColor(current?.fill || current?.color, (color) => this._shapeFillColor(color));
+    }
+    const color = value === "none" ? "transparent" : value;
+    if (!color) return false;
+    return this._shapeStyle((shape) => (SlidesAdapter.NON_FILL_TYPES.has(shape.type)
+      ? null : { fill: color, color, gradient: undefined, fillKind: undefined }));
+  }
+
+  _shapeOutlineColor(arg) {
+    const value = String(arg || "");
+    if (value === "custom") {
+      const current = this.canvas?._selectedFormattableShapes?.()[0];
+      return this._pickCustomColor(current?.stroke || current?.strokeColor, (color) => this._shapeOutlineColor(color));
+    }
+    if (value === "none") {
+      return this._shapeStyle((shape) => (shape.type === "image" ? null : { stroke: undefined, strokeColor: undefined, strokeWidth: 0 }));
+    }
+    if (!value) return false;
+    return this._shapeStyle((shape) => (shape.type === "image" ? null : {
+      stroke: value, strokeColor: value, strokeWidth: Number(shape.strokeWidth) > 0 ? shape.strokeWidth : 2
+    }));
+  }
+
+  _shapeOutlineWeight(arg) {
+    const pt = Number(arg);
+    if (!(pt > 0)) return false;
+    const px = Math.round((pt / this._ptPerPx()) * 10) / 10;
+    return this._shapeStyle((shape) => (shape.type === "image" ? null : {
+      strokeWidth: px,
+      stroke: shape.stroke || shape.strokeColor || "#1f2937",
+      strokeColor: shape.stroke || shape.strokeColor || "#1f2937"
+    }));
+  }
+
+  _shapeOutlineDash(arg) {
+    const names = { dash: "Long_20_Dash", dot: "Dot", dashDot: "Dash_20_Dot" };
+    const style = String(arg || "solid");
+    if (style !== "solid" && !names[style]) return false;
+    return this._shapeStyle((shape) => {
+      if (shape.type === "image") return null;
+      const base = { stroke: shape.stroke || shape.strokeColor || "#1f2937", strokeColor: shape.stroke || shape.strokeColor || "#1f2937", strokeWidth: Number(shape.strokeWidth) > 0 ? shape.strokeWidth : 2 };
+      return style === "solid"
+        ? { ...base, strokeDash: undefined, strokeKind: undefined }
+        : { ...base, strokeDash: names[style], strokeKind: "dash" };
+    });
+  }
+
+  _shapeShadow(arg) {
+    const direction = String(arg || "none");
+    const offsets = { bottomRight: ["0.2cm", "0.2cm"], bottomLeft: ["-0.2cm", "0.2cm"], topRight: ["0.2cm", "-0.2cm"], topLeft: ["-0.2cm", "-0.2cm"] };
+    if (direction !== "none" && !offsets[direction]) return false;
+    return this._shapeStyle((shape) => (direction === "none"
+      ? { shadow: undefined }
+      : { shadow: { visible: true, offsetX: offsets[direction][0], offsetY: offsets[direction][1], color: "#000000" } }));
+  }
+
+  _shapeRotate(delta) {
+    return this._shapeStyle((shape) => ({ rotation: (((Number(shape.rotation) || 0) + delta) % 360 + 360) % 360 }));
+  }
+
+  _shapeFlip(axis) {
+    return this._shapeStyle((shape) => ({ [axis]: shape[axis] ? undefined : true }));
+  }
+
   _isTransparentFill(shape) {
-    if (shape?.type === "wordart") return true;
+    if (shape?.type === "wordart" || shape?.type === "table") return true;
     const color = shape?.color;
     return !color || color === "transparent" || color === "none";
   }
@@ -1424,10 +1591,21 @@ export class SlidesAdapter {
   }
 
   _shapeStyleName(shape) {
+    if (shape.type === "table") return "grNone";
     if (shape.type === "connector") return "grConnector";
     if (shape.type === "ink" || shape.type === "path") return `grInk_${this._styleKey(shape.stroke || shape.color || "DC2626")}_${shape.strokeWidth || 3}`;
     if (shape.type === "image" && shape.crop) return `grImage_crop_${this._styleKey(shape.id || "img")}`;
     if (shape.type === "image" || shape.type === "video" || shape.type === "audio") return "grImage";
+    if (shape.gradient || shape.fillKind === "gradient") {
+      const grad = shape.gradient || {};
+      const startColor = this._cssColorToHex(grad.startColor || shape.fillColor || shape.color || "#ff0000") || "#ff0000";
+      const endColor = this._cssColorToHex(grad.endColor || grad.to || "#0000ff") || "#0000ff";
+      const name = grad.name || `Gradient_${this._styleKey(startColor)}_${this._styleKey(endColor)}`;
+      const stroke = shape.stroke || shape.strokeColor;
+      const strokeWidth = Number(shape.strokeWidth) || 0;
+      const strokeSuffix = stroke && strokeWidth > 0 ? `_stroke${this._styleKey(stroke)}_${String(strokeWidth).replace(/\./g, "_")}` : "";
+      return `grGrad_${this._styleKey(name)}${strokeSuffix}`;
+    }
     const suffix = this._shapeTextStyleSuffix(shape);
     const base = this._isTransparentFill(shape) ? "grNone" : `gr${this._styleKey(shape.fill || shape.color)}`;
     const stroke = shape.stroke || shape.strokeColor;
@@ -1435,7 +1613,11 @@ export class SlidesAdapter {
     const strokeSuffix = stroke && strokeWidth > 0
       ? `_stroke${this._styleKey(stroke)}_${String(strokeWidth).replace(/\./g, "_")}`
       : "";
-    return `${base}${strokeSuffix}${suffix}`;
+    const dashSuffix = (shape.strokeDash || shape.strokeKind === "dash")
+      ? `_dash${this._styleKey(shape.strokeDash || "dash")}`
+      : "";
+    const shadowSuffix = shape.shadow ? "_shdw" : "";
+    return `${base}${strokeSuffix}${dashSuffix}${shadowSuffix}${suffix}`;
   }
 
   /**
@@ -1489,7 +1671,7 @@ export class SlidesAdapter {
     if (shape.paddingRight != null) attrs += ` fo:padding-right="${this._pxToOdf(shape.paddingRight)}"`;
     if (shape.wrap) attrs += ` fo:wrap-option="${this._escapeXml(shape.wrap)}"`;
     // autofit: noAutofit → auto-grow-height/width=false; shrinkToFit → shrink-to-fit=true; fitToSize → fit-to-size=true
-    if (shape.autofit === false || shape.noAutofit) {
+    if (shape.autofit === false || shape.noAutofit || (shape.type !== "textbox" && !shape.shrinkToFit && !shape.fitToSize)) {
       attrs += ` draw:auto-grow-height="false" draw:auto-grow-width="false"`;
     } else if (shape.shrinkToFit) {
       attrs += ` style:shrink-to-fit="true"`;
@@ -1696,6 +1878,52 @@ export class SlidesAdapter {
         }
       }
     });
+    return xml;
+  }
+
+  _serializeStrokeDashStyles(slides) {
+    const used = new Set();
+    for (const slide of slides || []) {
+      for (const shape of slide.shapes || []) {
+        if (shape.strokeDash) used.add(shape.strokeDash);
+        else if (shape.strokeKind === "dash") used.add("Long_20_Dash");
+      }
+    }
+    if (!used.size) return "";
+    const definitions = {
+      Long_20_Dash: '<draw:stroke-dash draw:name="Long_20_Dash" draw:display-name="Long Dash" draw:style="rect" draw:dots1="1" draw:dots1-length="400%" draw:distance="300%"/>',
+      Dot: '<draw:stroke-dash draw:name="Dot" draw:display-name="Dot" draw:style="round" draw:dots1="1" draw:dots1-length="100%" draw:distance="200%"/>',
+      Dash_20_Dot: '<draw:stroke-dash draw:name="Dash_20_Dot" draw:display-name="Dash Dot" draw:style="rect" draw:dots1="1" draw:dots1-length="400%" draw:dots2="1" draw:dots2-length="100%" draw:distance="300%"/>'
+    };
+    // Tên nét đứt lạ (đọc từ tệp) vẫn được khai báo như nét gạch dài để tệp không thiếu định nghĩa.
+    return [...used].map(name => `
+    ${definitions[name] || definitions.Long_20_Dash.replace('draw:name="Long_20_Dash"', `draw:name="${this._escapeXml(name)}"`)}`).join("");
+  }
+
+  _serializeShapeGradients(slides) {
+    const seen = new Map();
+    for (const slide of slides || []) {
+      for (const shape of slide.shapes || []) {
+        if (shape.gradient || shape.fillKind === "gradient") {
+          const grad = shape.gradient || {};
+          const startColor = this._cssColorToHex(grad.startColor || shape.fillColor || shape.color || "#ff0000") || "#ff0000";
+          const endColor = this._cssColorToHex(grad.endColor || grad.to || "#0000ff") || "#0000ff";
+          const angle = grad.angle != null ? grad.angle : (grad.direction === "vertical" ? "90deg" : "0deg");
+          const name = grad.name || `Gradient_${this._styleKey(startColor)}_${this._styleKey(endColor)}`;
+          if (!seen.has(name)) {
+            seen.set(name, { name, startColor, endColor, angle });
+          }
+        }
+      }
+    }
+    let xml = "";
+    for (const [, g] of seen) {
+      xml += `
+    <draw:gradient draw:name="${this._escapeXml(g.name)}" draw:style="linear" draw:start-color="${this._escapeXml(g.startColor)}" draw:end-color="${this._escapeXml(g.endColor)}" draw:start-intensity="100%" draw:end-intensity="100%" draw:angle="${this._escapeXml(g.angle)}" draw:border="0%">
+      <loext:gradient-stop svg:offset="0" loext:color-type="rgb" loext:color-value="${this._escapeXml(g.startColor)}"/>
+      <loext:gradient-stop svg:offset="1" loext:color-type="rgb" loext:color-value="${this._escapeXml(g.endColor)}"/>
+    </draw:gradient>`;
+    }
     return xml;
   }
 
@@ -2113,7 +2341,8 @@ export class SlidesAdapter {
   _shapeGeomAttrs(shape, drawId) {
     const name = this._escapeXml(String(shape.id ?? drawId));
     const styleName = this._shapeStyleName(shape);
-    const fill = this._isTransparentFill(shape) ? "" : ` draw:fill-color="${this._escapeXml(shape.color)}"`;
+    const isGrad = Boolean(shape.gradient || shape.fillKind === "gradient");
+    const fill = (this._isTransparentFill(shape) || isGrad) ? "" : ` draw:fill-color="${this._escapeXml(shape.color)}"`;
     if (shape.rotation) {
       const radianOdf = -(shape.rotation * Math.PI / 180);
       // ODF «rotate(a) translate(x y)» xoay hình quanh GÓC TRÊN-TRÁI rồi dời tới (x, y), nên
@@ -2157,8 +2386,12 @@ export class SlidesAdapter {
           }
           continue;
         }
+        if (shape.gradient || shape.fillKind === "gradient") {
+          namedStyles.set(this._shapeStyleName(shape), shape);
+          continue;
+        }
         const suffix = this._shapeTextStyleSuffix(shape);
-        if (suffix || ((shape.stroke || shape.strokeColor) && Number(shape.strokeWidth) > 0)) {
+        if (suffix || ((shape.stroke || shape.strokeColor) && Number(shape.strokeWidth) > 0) || shape.strokeDash || shape.shadow) {
           namedStyles.set(this._shapeStyleName(shape), shape);
           continue;
         }
@@ -2274,6 +2507,25 @@ export class SlidesAdapter {
     </style:style>`;
         continue;
       }
+      if (shape.gradient || shape.fillKind === "gradient") {
+        const grad = shape.gradient || {};
+        const startColor = this._cssColorToHex(grad.startColor || shape.fillColor || shape.color || "#ff0000") || "#ff0000";
+        const endColor = this._cssColorToHex(grad.endColor || grad.to || "#0000ff") || "#0000ff";
+        const gradName = grad.name || `Gradient_${this._styleKey(startColor)}_${this._styleKey(endColor)}`;
+        let strokeAttrs = "";
+        if (shape.stroke || shape.strokeColor) {
+          const sc = shape.stroke || shape.strokeColor;
+          const sw = shape.strokeWidth ? this._pxToOdf(shape.strokeWidth) : "0.035cm";
+          strokeAttrs = ` draw:stroke="solid" svg:stroke-color="${this._escapeXml(sc)}" svg:stroke-width="${sw}"`;
+        } else {
+          strokeAttrs = ` draw:stroke="none"`;
+        }
+        xml += `
+    <style:style style:name="${styleName}" style:family="graphic">
+      <style:graphic-properties${strokeAttrs} draw:fill="gradient" draw:fill-gradient-name="${this._escapeXml(gradName)}"${this._textStyleGraphicAttrs(shape)}/>
+    </style:style>`;
+        continue;
+      }
       const isTextBox = shape.type === "textbox";
       const isTransparent = this._isTransparentFill(shape);
       let fillAttrs = "";
@@ -2286,13 +2538,26 @@ export class SlidesAdapter {
       if (shape.stroke || shape.strokeColor) {
         const sc = shape.stroke || shape.strokeColor;
         const sw = shape.strokeWidth ? this._pxToOdf(shape.strokeWidth) : "0.02cm";
-        strokeAttrs = ` draw:stroke="solid" svg:stroke-color="${this._escapeXml(sc)}" svg:stroke-width="${sw}"`;
+        if (shape.strokeDash || shape.strokeKind === "dash") {
+          const dashName = shape.strokeDash || "Long_20_Dash";
+          strokeAttrs = ` draw:stroke="dash" draw:stroke-dash="${this._escapeXml(dashName)}" svg:stroke-color="${this._escapeXml(sc)}" svg:stroke-width="${sw}"`;
+        } else {
+          strokeAttrs = ` draw:stroke="solid" svg:stroke-color="${this._escapeXml(sc)}" svg:stroke-width="${sw}"`;
+        }
       } else {
         strokeAttrs = ` draw:stroke="none"`;
       }
+      let shadowAttrs = "";
+      if (shape.shadow) {
+        const sh = typeof shape.shadow === "object" ? shape.shadow : {};
+        const ox = sh.offsetX || "0.211cm";
+        const oy = sh.offsetY || "0.073cm";
+        const sc = sh.color || "#000000";
+        shadowAttrs = ` draw:shadow="visible" draw:shadow-offset-x="${ox}" draw:shadow-offset-y="${oy}" draw:shadow-color="${sc}" draw:shadow-opacity="${this._escapeXml(sh.opacity || "60%")}"`;
+      }
       xml += `
     <style:style style:name="${styleName}" style:family="graphic">
-      ${this._graphicPropertiesWithColumns(`${strokeAttrs}${fillAttrs}${this._textStyleGraphicAttrs(shape)}`, shape)}
+      ${this._graphicPropertiesWithColumns(`${strokeAttrs}${shadowAttrs}${fillAttrs}${this._textStyleGraphicAttrs(shape)}`, shape)}
     </style:style>`;
     }
     if (needsConnector) {
@@ -2308,13 +2573,70 @@ export class SlidesAdapter {
     </style:style>`;
     }
     xml += this._serializeWordArtTextStyles(slides);
+    const tableCellFills = new Set();
+    for (const slide of slides) {
+      for (const shape of slide.shapes || []) {
+        if (shape.type === "table" && Array.isArray(shape.cellFills)) {
+          for (const row of shape.cellFills) {
+            if (Array.isArray(row)) {
+              for (const fill of row) {
+                if (fill && fill !== "transparent" && fill !== "none") {
+                  tableCellFills.add(this._cssColorToHex(fill) || fill);
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+    for (const fill of tableCellFills) {
+      const styleKey = this._styleKey(fill);
+      xml += `
+    <style:style style:name="ce_fill_${styleKey}" style:family="table-cell">
+      <style:table-cell-properties fo:background-color="${this._escapeXml(fill)}"/>
+      <loext:graphic-properties draw:fill="solid" draw:fill-color="${this._escapeXml(fill)}"/>
+    </style:style>`;
+    }
     return xml;
+  }
+
+  _shapeEventListenersXml(shape) {
+    if (Array.isArray(shape.eventListeners) && shape.eventListeners.length > 0) {
+      const list = shape.eventListeners.map(l => {
+        const ev = l.eventName || "dom:click";
+        const act = l.action ? ` presentation:action="${this._escapeXml(l.action)}"` : "";
+        const href = l.href ? ` xlink:href="${this._escapeXml(l.href)}" xlink:type="simple"` : "";
+        return `<presentation:event-listener script:event-name="${this._escapeXml(ev)}"${act}${href}/>`;
+      }).join("");
+      return `<office:event-listeners>${list}</office:event-listeners>`;
+    }
+    if (shape.action != null || shape.href) {
+      let actionStr = null;
+      let hrefStr = null;
+      if (typeof shape.action === "string") {
+        actionStr = shape.action;
+      } else if (typeof shape.action === "number") {
+        const numMap = { 1: "next-page", 2: "previous-page", 3: "first-page", 4: "last-page", 6: "stop" };
+        actionStr = numMap[shape.action] || null;
+      } else if (typeof shape.action === "object" && shape.action !== null) {
+        actionStr = shape.action.action || null;
+        hrefStr = shape.action.href || null;
+      }
+      if (shape.href) hrefStr = shape.href;
+      if (actionStr || hrefStr) {
+        const act = actionStr ? ` presentation:action="${this._escapeXml(actionStr)}"` : "";
+        const hr = hrefStr ? ` xlink:href="${this._escapeXml(hrefStr)}" xlink:type="simple"` : "";
+        return `<office:event-listeners><presentation:event-listener script:event-name="dom:click"${act}${hr}/></office:event-listeners>`;
+      }
+    }
+    return "";
   }
 
   _serializeShape(shape, drawId, idMap, richCtx) {
     const type = shape?.type || "rect";
     const geom = this._shapeGeomAttrs(shape, drawId);
     const textXml = this._richOrPlainXml(shape.text, shape.textHtml, richCtx);
+    const eventsXml = this._shapeEventListenersXml(shape);
 
     if (type === "connector") {
       const start = this._escapeXml(String(idMap.get(String(shape.sourceId)) || shape.sourceId || ""));
@@ -2384,7 +2706,10 @@ export class SlidesAdapter {
           const html = this._htmlHasFormat(cell) ? cell : "";
           const plain = html ? this._plainFromHtml(cell) : cell;
           const spanAttr = merged ? ` table:number-columns-spanned="${merged.cs}" table:number-rows-spanned="${merged.rs}"` : "";
-          return `<table:table-cell office:value-type="string"${spanAttr}>${this._richOrPlainXml(plain, html, richCtx)}</table:table-cell>`;
+          const fill = shape.cellFills?.[rowIndex]?.[colIndex];
+          const hexFill = fill && fill !== "transparent" && fill !== "none" ? (this._cssColorToHex(fill) || fill) : null;
+          const styleAttr = hexFill ? ` table:style-name="ce_fill_${this._styleKey(hexFill)}"` : "";
+          return `<table:table-cell office:value-type="string"${spanAttr}${styleAttr}>${this._richOrPlainXml(plain, html, richCtx)}</table:table-cell>`;
         }).join("");
         return `<table:table-row>${cellsXml}</table:table-row>`;
       }).join("");
@@ -2448,7 +2773,7 @@ export class SlidesAdapter {
         </draw:frame>`;
     }
 
-    if (type === "ellipse") {
+    if (type === "ellipse" && !shape.shadow) {
       return `
         <draw:ellipse ${geom}>
           ${textXml}
@@ -2462,6 +2787,24 @@ export class SlidesAdapter {
         <draw:custom-shape ${geom}>
           ${textXml}
           <draw:enhanced-geometry svg:viewBox="0 0 21600 21600" draw:type="right-arrow" draw:enhanced-path="M 0 7640 L 13955 7640 13955 3890 21600 10800 13955 17710 13955 13960 0 13960 Z"/>
+        </draw:custom-shape>`;
+    }
+
+    // Hình có bóng đổ đi qua custom-shape: soffice bỏ bóng của draw:rect/draw:ellipse khi xuất PPTX.
+    if (shape.flipH || shape.flipV || shape.geomType || eventsXml || shape.shadow) {
+      const mirrorH = shape.flipH ? "true" : "false";
+      const mirrorV = shape.flipV ? "true" : "false";
+      const geomType = shape.geomType || (type === "ellipse" ? "ooxml-ellipse" : "ooxml-rect");
+      return `
+        <draw:custom-shape ${geom}>
+          ${eventsXml}
+          ${textXml}
+          <draw:enhanced-geometry draw:mirror-horizontal="${mirrorH}" draw:mirror-vertical="${mirrorV}" draw:glue-points="?f0 0 0 ?f1 ?f0 ?f2 ?f3 ?f1" draw:text-areas="0 0 ?f3 ?f2" svg:viewBox="0 0 0 0" draw:type="${geomType}" draw:enhanced-path="M 0 0 L ?f3 0 ?f3 ?f2 0 ?f2 Z N">
+            <draw:equation draw:name="f0" draw:formula="logwidth/2"/>
+            <draw:equation draw:name="f1" draw:formula="logheight/2"/>
+            <draw:equation draw:name="f2" draw:formula="logheight"/>
+            <draw:equation draw:name="f3" draw:formula="logwidth"/>
+          </draw:enhanced-geometry>
         </draw:custom-shape>`;
     }
 
@@ -2537,6 +2880,27 @@ export class SlidesAdapter {
   }
 
   _parseGraphicFillStyles(xmlText) {
+    const gradients = new Map();
+    const gradRegex = /<draw:gradient\b([^>]*)\/?>/gi;
+    let gm;
+    while ((gm = gradRegex.exec(xmlText)) !== null) {
+      const gAttrs = gm[1] || "";
+      const gName = this._attr(gAttrs, "draw:name");
+      if (!gName) continue;
+      const gStart = this._attr(gAttrs, "draw:start-color");
+      const gEnd = this._attr(gAttrs, "draw:end-color");
+      const gAngle = this._attr(gAttrs, "draw:angle") || "0deg";
+      const gStyle = this._attr(gAttrs, "draw:style") || "linear";
+      if (gStart && gEnd) {
+        gradients.set(gName, {
+          name: gName,
+          startColor: gStart,
+          endColor: gEnd,
+          angle: gAngle,
+          style: gStyle
+        });
+      }
+    }
     const styles = new Map();
     const regex = /<style:style\b([^>]*)>([\s\S]*?)<\/style:style>/gi;
     let match;
@@ -2547,9 +2911,24 @@ export class SlidesAdapter {
       const parentStyleName = match[1].match(/style:parent-style-name=["']([^"']+)["']/i)?.[1] || null;
       const fill = match[2].match(/draw:fill-color=["']([^"']+)["']/i)?.[1];
       const fillKind = match[2].match(/draw:fill=["']([^"']+)["']/i)?.[1];
+      const fillGradientName = match[2].match(/draw:fill-gradient-name=["']([^"']+)["']/i)?.[1];
+      const gradient = (fillKind === "gradient" && fillGradientName) ? (gradients.get(fillGradientName) || { name: fillGradientName, startColor: "#ff0000", endColor: "#0000ff", angle: "0deg", style: "linear" }) : null;
       const stroke = match[2].match(/svg:stroke-color=["']([^"']+)["']/i)?.[1];
       const strokeKind = match[2].match(/draw:stroke=["']([^"']+)["']/i)?.[1];
+      const strokeDash = match[2].match(/draw:stroke-dash=["']([^"']+)["']/i)?.[1];
       const strokeWidthRaw = match[2].match(/svg:stroke-width=["']([^"']+)["']/i)?.[1];
+      const shadowVisible = /draw:shadow=["']visible["']/i.test(match[2]);
+      const shadowOffsetX = match[2].match(/draw:shadow-offset-x=["']([^"']+)["']/i)?.[1];
+      const shadowOffsetY = match[2].match(/draw:shadow-offset-y=["']([^"']+)["']/i)?.[1];
+      const shadowColor = match[2].match(/draw:shadow-color=["']([^"']+)["']/i)?.[1];
+      const shadowBlur = match[2].match(/loext:shadow-blur=["']([^"']+)["']/i)?.[1];
+      const shadow = shadowVisible ? {
+        visible: true,
+        offsetX: shadowOffsetX || "0.211cm",
+        offsetY: shadowOffsetY || "0.073cm",
+        color: shadowColor || "#000000",
+        blur: shadowBlur || null
+      } : null;
       const hAlignRaw = match[2].match(/draw:textarea-horizontal-align=["']([^"']+)["']/i)?.[1];
       const fontSize = match[2].match(/fo:font-size=["']([^"']+)["']/i)?.[1];
       const fontWeight = match[2].match(/fo:font-weight=["']([^"']+)["']/i)?.[1];
@@ -2589,7 +2968,10 @@ export class SlidesAdapter {
       const crop = this._parseClipRect(clipRaw);
       styles.set(name, {
         parentStyleName,
-        fill: fillKind === "none" ? "transparent" : (fill || null),
+        fillKind: fillKind || null,
+        fillGradientName: fillGradientName || null,
+        gradient: gradient || null,
+        fill: fillKind === "none" ? "transparent" : (gradient ? gradient.startColor : (fill || null)),
         stroke: strokeKind === "none" ? null : (stroke || (strokeKind === "solid" ? "#000000" : null)),
         strokeWidth,
         strokeWidthRaw,
@@ -2612,17 +2994,26 @@ export class SlidesAdapter {
         fitToSize,
         autoGrowHeight,
         crop: crop || null,
-        autofit: shrinkToFit || fitToSize
+        autofit: shrinkToFit || fitToSize,
+        strokeDash: strokeDash || null,
+        shadow: shadow || null
       });
     }
     for (const [, s] of styles) {
       let p = s.parentStyleName ? styles.get(s.parentStyleName) : null;
       let depth = 0;
       while (p && depth < 10) {
+        if (!s.gradient && p.gradient) {
+          s.gradient = p.gradient;
+          s.fillKind = "gradient";
+          if (!s.fill) s.fill = p.gradient.startColor;
+        }
         if (!s.fill && p.fill) s.fill = p.fill;
         if (!s.stroke && p.stroke) s.stroke = p.stroke;
         if (s.strokeWidth == null && p.strokeWidth != null) s.strokeWidth = p.strokeWidth;
         if (!s.strokeKind && p.strokeKind) s.strokeKind = p.strokeKind;
+        if (!s.strokeDash && p.strokeDash) s.strokeDash = p.strokeDash;
+        if (!s.shadow && p.shadow) s.shadow = p.shadow;
         if (!s.textVAlign && p.textVAlign) s.textVAlign = p.textVAlign;
         if (!s.textAlign && p.textAlign) s.textAlign = p.textAlign;
         if (!s.fontSize && p.fontSize) s.fontSize = p.fontSize;
@@ -2637,12 +3028,45 @@ export class SlidesAdapter {
         if (!s.shrinkToFit && p.shrinkToFit) s.shrinkToFit = true;
         if (!s.fitToSize && p.fitToSize) s.fitToSize = true;
         if (!s.autofit && p.autofit) s.autofit = true;
+        if (!s.autoGrowHeight && p.autoGrowHeight) s.autoGrowHeight = p.autoGrowHeight;
         if (!s.crop && p.crop) s.crop = p.crop;
         p = p.parentStyleName ? styles.get(p.parentStyleName) : null;
         depth++;
       }
     }
     return styles;
+  }
+
+  _parseTableCellStyles(xmlText) {
+    const map = new Map();
+    const styleRegex = /<style:style\b([^>]*?)>([\s\S]*?)<\/style:style>/gi;
+    let match;
+    while ((match = styleRegex.exec(xmlText)) !== null) {
+      const attrs = match[1];
+      if (this._attr(attrs, "style:family") !== "table-cell") continue;
+      const name = this._attr(attrs, "style:name");
+      if (!name) continue;
+      const inner = match[2];
+      const propMatch = inner.match(/<(?:[a-z0-9_-]+:)?(?:graphic-properties|table-cell-properties)\b([^>]*)/i);
+      if (propMatch) {
+        const propAttrs = propMatch[1];
+        const fillKind = this._attr(propAttrs, "draw:fill");
+        const fillColor = this._attr(propAttrs, "draw:fill-color") || this._attr(propAttrs, "fo:background-color");
+        if (fillKind === "none" || fillColor === "transparent") continue;
+        if (fillColor) {
+          map.set(name, fillColor);
+          continue;
+        }
+      }
+      const tcProps = inner.match(/<style:table-cell-properties\b([^>]*)/i);
+      if (tcProps) {
+        const bg = this._attr(tcProps[1], "fo:background-color");
+        if (bg && bg !== "transparent" && bg !== "none") {
+          map.set(name, bg);
+        }
+      }
+    }
+    return map;
   }
 
   _paragraphsFromXml(xml) {
@@ -2746,7 +3170,8 @@ export class SlidesAdapter {
     else if (/path|ink/i.test(geomType) || tagName === "path" || (dAttr && !/arrow/i.test(geomType))) type = "ink";
     const styleName = get("draw:style-name");
     const style = graphicStyles.get(styleName) || {};
-    const color = get("draw:fill-color") || style.fill || "#3b82f6";
+    const gradient = style.gradient || null;
+    const color = gradient ? gradient.startColor : (get("draw:fill-color") || style.fill || "#3b82f6");
 
     // Stroke / border resolution
     const strokeKind = get("draw:stroke") || style.strokeKind;
@@ -2761,6 +3186,29 @@ export class SlidesAdapter {
     }
     if (stroke && (strokeWidth == null || strokeWidth <= 0)) {
       strokeWidth = 1;
+    }
+    const strokeDash = get("draw:stroke-dash") || style.strokeDash || (strokeKind === "dash" ? "Long_20_Dash" : null);
+    const shadowVisible = (get("draw:shadow") === "visible") || Boolean(style.shadow?.visible);
+    const shadow = shadowVisible ? {
+      visible: true,
+      offsetX: get("draw:shadow-offset-x") || style.shadow?.offsetX || "0.211cm",
+      offsetY: get("draw:shadow-offset-y") || style.shadow?.offsetY || "0.073cm",
+      color: get("draw:shadow-color") || style.shadow?.color || "#000000",
+      blur: style.shadow?.blur || null
+    } : null;
+    const flipH = /draw:mirror-horizontal=["']true["']/i.test(inner) || /vno:flip-h=["']true["']/i.test(attrs);
+    const flipV = /draw:mirror-vertical=["']true["']/i.test(inner) || /vno:flip-v=["']true["']/i.test(attrs);
+
+    const eventListenerMatches = inner.matchAll(/<presentation:event-listener\b([^>]*)>/gi);
+    const eventListeners = [];
+    for (const em of eventListenerMatches) {
+      const evAttrs = em[1];
+      const eventName = evAttrs.match(/script:event-name=["']([^"']+)["']/i)?.[1] || "dom:click";
+      const action = evAttrs.match(/presentation:action=["']([^"']+)["']/i)?.[1] || null;
+      const href = evAttrs.match(/xlink:href=["']([^"']+)["']/i)?.[1] || null;
+      if (action || href) {
+        eventListeners.push({ eventName, action, href });
+      }
     }
 
     // Font properties resolution (weight, size, color)
@@ -2831,7 +3279,13 @@ export class SlidesAdapter {
       ...(origin.rotationDeg ? { rotation: origin.rotationDeg } : {}),
       color,
       fill: color,
+      ...(gradient ? { gradient, fillKind: "gradient" } : {}),
       ...(stroke ? { stroke, strokeColor: stroke, strokeWidth, "svg:stroke-color": stroke, "draw:stroke": strokeKind || "solid" } : {}),
+      ...(flipH ? { flipH: true } : {}),
+      ...(flipV ? { flipV: true } : {}),
+      ...(strokeDash ? { strokeDash, strokeKind: "dash" } : {}),
+      ...(shadow ? { shadow } : {}),
+      geomType,
       ...(resolvedFontWeight ? {
         fontWeight: resolvedFontWeight,
         "fo:font-weight": resolvedFontWeight,
@@ -2840,6 +3294,11 @@ export class SlidesAdapter {
       ...(resolvedFontSize ? { fontSize: resolvedFontSize, "fo:font-size": resolvedFontSize } : {}),
       ...(resolvedFontColor ? { fontColor: resolvedFontColor, color: color } : {}),
       ...(textAlign ? { textAlign: textAlign === "justify" ? "left" : textAlign } : {}),
+      ...(eventListeners.length > 0 ? {
+        eventListeners,
+        action: eventListeners[0].action || (eventListeners[0].href ? { action: "hyperlink", href: eventListeners[0].href } : null),
+        ...(eventListeners[0].href ? { href: eventListeners[0].href } : {})
+      } : {}),
       text: this._paragraphsFromXml(inner).join("\n"),
       textHtml: this._shapeHtmlFromXml(inner),
       animation: this._noneAnimation()
@@ -2863,6 +3322,12 @@ export class SlidesAdapter {
     if (pRight != null) shape.paddingRight = pRight;
     if (pTop != null) shape.paddingTop = pTop;
     if (pBottom != null) shape.paddingBottom = pBottom;
+    if (style.shrinkToFit) shape.shrinkToFit = true;
+    if (style.fitToSize) shape.fitToSize = true;
+    if (style.autoGrowHeight === "false" || get("draw:auto-grow-height") === "false") {
+      shape.noAutofit = true;
+      shape.autofit = false;
+    }
     if (type === "ink" || tagName === "path" || dAttr) {
       shape.type = "ink";
       shape.d = dAttr || enhancedPath || "";
@@ -2946,16 +3411,21 @@ export class SlidesAdapter {
     return merges;
   }
 
-  _parseTableCells(inner) {
+  _parseTableCells(inner, cellStylesMap = this._cellStyles) {
     const rows = [];
+    const cellFills = [];
+    let hasAnyFill = false;
     // soffice FODP may compress identical consecutive cells/rows
     // (table:number-columns-repeated / table:number-rows-repeated) and may emit
     // empty cells as self-closing. Count each logical cell, not each XML tag.
     const rowRegex = /<table:table-row\b([^>]*?)(?:\/>|>([\s\S]*?)<\/table:table-row>)/gi;
     let rowMatch;
     while ((rowMatch = rowRegex.exec(inner)) !== null) {
-      const rowRepeat = Math.max(1, Number(this._attr(rowMatch[1], "table:number-rows-repeated")) || 1);
+      const rowAttrs = rowMatch[1];
+      const rowDefaultStyle = this._attr(rowAttrs, "table:default-cell-style-name");
+      const rowRepeat = Math.max(1, Number(this._attr(rowAttrs, "table:number-rows-repeated")) || 1);
       const cells = [];
+      const fills = [];
       const cellRegex = /<(?:table:)?(?:table-cell|covered-table-cell)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:table:)?(?:table-cell|covered-table-cell)>)/gi;
       let cellMatch;
       while ((cellMatch = cellRegex.exec(rowMatch[2] || "")) !== null) {
@@ -2967,10 +3437,20 @@ export class SlidesAdapter {
           : this._unescapeXml(this._attr(cellMatch[1], "office:value") || this._attr(cellMatch[1], "office:string-value") || "");
         const cellHtml = isCovered ? "" : this._htmlFromOdfXml(cellMatch[2] || "", this._richMaps);
         const cellText = this._htmlHasFormat(cellHtml) ? cellHtml : (text || fallback);
-        for (let index = 0; index < colRepeat; index++) cells.push(cellText);
+        const cellStyleName = this._attr(cellMatch[1], "table:style-name") || rowDefaultStyle;
+        const fill = (!isCovered && cellStylesMap && cellStyleName) ? (cellStylesMap.get(cellStyleName) || null) : null;
+        if (fill) hasAnyFill = true;
+        for (let index = 0; index < colRepeat; index++) {
+          cells.push(cellText);
+          fills.push(fill);
+        }
       }
-      for (let index = 0; index < rowRepeat; index++) rows.push(cells.slice());
+      for (let index = 0; index < rowRepeat; index++) {
+        rows.push(cells.slice());
+        cellFills.push(fills.slice());
+      }
     }
+    rows.cellFills = hasAnyFill ? cellFills : null;
     return rows;
   }
 
@@ -2986,6 +3466,17 @@ export class SlidesAdapter {
     // (0,0) — dùng _parseDrawTranslate() (đã có sẵn, đang dùng cho
     // <draw:g> ở _extractDrawGroups()) để xử lý đúng cả 2 trường hợp.
     const origin = this._parseDrawTranslate(attrs);
+    const eventListenerMatches = inner.matchAll(/<presentation:event-listener\b([^>]*)>/gi);
+    const eventListeners = [];
+    for (const em of eventListenerMatches) {
+      const evAttrs = em[1];
+      const eventName = evAttrs.match(/script:event-name=["']([^"']+)["']/i)?.[1] || "dom:click";
+      const action = evAttrs.match(/presentation:action=["']([^"']+)["']/i)?.[1] || null;
+      const href = evAttrs.match(/xlink:href=["']([^"']+)["']/i)?.[1] || null;
+      if (action || href) {
+        eventListeners.push({ eventName, action, href });
+      }
+    }
     const base = {
       id: this._restoreShapeId(attrs),
       x: origin.x,
@@ -2993,6 +3484,11 @@ export class SlidesAdapter {
       w: this._odfLengthToPx(get("svg:width")) || 200,
       h: this._odfLengthToPx(get("svg:height")) || 120,
       ...(origin.rotationDeg ? { rotation: origin.rotationDeg } : {}),
+      ...(eventListeners.length > 0 ? {
+        eventListeners,
+        action: eventListeners[0].action || (eventListeners[0].href ? { action: "hyperlink", href: eventListeners[0].href } : null),
+        ...(eventListeners[0].href ? { href: eventListeners[0].href } : {})
+      } : {}),
       animation: this._noneAnimation()
     };
 
@@ -3022,10 +3518,11 @@ export class SlidesAdapter {
         ...base,
         type: "table",
         cells,
+        ...(cells.cellFills ? { cellFills: cells.cellFills } : {}),
         ...(tableMerges.length ? { merges: tableMerges } : {}),
         rows: cells.length,
         cols: cells.reduce((max, row) => Math.max(max, row.length), 0),
-        color: get("draw:fill-color") || style.fill || "transparent",
+        color: "transparent",
         text: ""
       };
     }
@@ -3691,6 +4188,13 @@ export class SlidesAdapter {
       let vnTransitionAttr = slide.transition?.type === "morph" ? ' vno:transition="morph"' : "";
       // Bố cục gốc của slide trong tệp PowerPoint: bước lưu dùng để trỏ lại về đúng bố cục của bản cái gốc.
       if (slide.srcLayout) vnTransitionAttr += ` vno:src-layout="${this._escapeXml(slide.srcLayout)}"`;
+      if (slide.srcSlide) {
+        vnTransitionAttr += ` vno:src-slide="${this._escapeXml(slide.srcSlide)}"`;
+        // Slide chưa sửa gì (dấu vân tay không đổi, không có nhận xét): bước lưu trả lại nguyên XML slide gốc.
+        if (slide._srcFp && !(slide.comments && slide.comments.length) && this._slideFingerprint(slide) === slide._srcFp) {
+          vnTransitionAttr += ` vno:src-untouched="${this._escapeXml(slide.srcSlide)}"`;
+        }
+      }
       if (slide.transition?.sourceXml) {
         // Chưa đổi chuyển tiếp: mang khối gốc đi tiếp để bước lưu ghi lại nguyên vẹn.
         const advanceClick = slide.transition.advanceOnClick === false ? 0 : 1;
@@ -3721,7 +4225,7 @@ export class SlidesAdapter {
     const automaticStyles = this._serializeGraphicStyles(slides) + this._serializeRichTextStyles(richCtx);
     const backgroundResources = this._serializeBackgroundResources(slides);
     const officeStyles = `
-  <office:styles>${backgroundResources}${this._serializeSlidePageLayouts()}
+  <office:styles>${this._serializeStrokeDashStyles(slides)}${this._serializeShapeGradients(slides)}${backgroundResources}${this._serializeSlidePageLayouts()}
   </office:styles>`;
 
     return `<?xml version="1.0" encoding="UTF-8"?>
@@ -3737,6 +4241,9 @@ export class SlidesAdapter {
                  xmlns:dc="http://purl.org/dc/elements/1.1/"
                  xmlns:smil="urn:oasis:names:tc:opendocument:xmlns:smil-compatible:1.0"
                  xmlns:anim="urn:oasis:names:tc:opendocument:xmlns:animation:1.0"
+                 xmlns:script="urn:oasis:names:tc:opendocument:xmlns:script:1.0"
+                 xmlns:dom="http://www.w3.org/2001/xml-events"
+                 xmlns:loext="urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0"
                  xmlns:vno="urn:vn-office:slides:1.0"
                  office:version="1.3" office:mimetype="application/vnd.oasis.opendocument.presentation">${officeStyles}
   <office:automatic-styles>${automaticStyles}
@@ -3761,6 +4268,7 @@ export class SlidesAdapter {
     const parsedSlides = [];
     this._fontFaceMap = this._parseFontFaceMap(xmlText);
     const graphicStyles = this._parseGraphicFillStyles(xmlText);
+    this._cellStyles = this._parseTableCellStyles(xmlText);
     const drawingPageStyles = this._parseDrawingPageStyles(xmlText);
     const backgroundResources = this._parseBackgroundResources(xmlText);
     this._richMaps = this._parseRichStyleMaps(xmlText);
@@ -3819,6 +4327,7 @@ export class SlidesAdapter {
       const originalPageXml = pageMatch[2];
       const pageTransition = this._parsePageTransition(fullPageTag, originalPageXml, drawingPageStyles);
       const pageSourceLayout = this._attr(fullPageTag, "vno:src-layout");
+      const pageSourceSlide = this._attr(fullPageTag, "vno:src-slide");
       const animByTarget = this._parsePageAnimations(originalPageXml);
       let pageContent = originalPageXml;
 
@@ -3999,6 +4508,7 @@ export class SlidesAdapter {
         ...(sectionId ? { sectionId } : {}),
         ...(pageTransition ? { transition: pageTransition } : {}),
         ...(pageSourceLayout ? { srcLayout: pageSourceLayout } : {}),
+        ...(pageSourceSlide ? { srcSlide: pageSourceSlide } : {}),
         ...(isImportedSlide ? { imported: true } : {})
       };
       this._applyPlaceholderAnimations(
@@ -4127,6 +4637,20 @@ export class SlidesAdapter {
       if (typeof this.canvas.selectSlide === "function") {
         this.canvas.selectSlide(0);
       }
+      // Dấu vân tay lúc vừa mở: slide nào còn nguyên đến lúc lưu thì lưu lại đúng XML gốc của PowerPoint.
+      for (const slide of this.canvas.slides) {
+        if (slide?.srcSlide) slide._srcFp = this._slideFingerprint(slide);
+      }
+    }
+  }
+
+  /** Dấu vân tay nội dung một slide (bỏ ghi chú và các trường nội bộ); null nếu không tính được. */
+  _slideFingerprint(slide) {
+    const skip = new Set(["notes", "srcSlide", "srcLayout", "_srcFp", "thumbnail"]);
+    try {
+      return JSON.stringify(slide, (key, value) => (skip.has(key) ? undefined : value));
+    } catch (_) {
+      return null;
     }
   }
 

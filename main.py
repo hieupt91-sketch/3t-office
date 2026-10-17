@@ -2170,7 +2170,8 @@ def _apply_native_import_overlay_legacy(
         try:
             with open(src_path, "rb") as handle:
                 original = handle.read()
-            return _ooxml_zip_patch().overlay_slides_pptx_fodp(original, fods)
+            patcher = _ooxml_zip_patch()
+            return patcher.overlay_slides_pptx_fodp_source_carriers(original, patcher.overlay_slides_pptx_fodp(original, fods))
         except DocumentEngineError:
             raise
         except ValueError as exc:

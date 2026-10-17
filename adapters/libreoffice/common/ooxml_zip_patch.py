@@ -10497,6 +10497,273 @@ def _restore_source_masters_unsafe(pptx_bytes: bytes, source_pptx: bytes, page_l
     return out.getvalue()
 
 
+# ---------------------------------------------------------------------------------------------------------------------
+# Slide CHƯA SỬA: lưu lại đúng nguyên XML slide gốc (cùng ảnh, biểu đồ, SmartArt, đa phương tiện, liên kết...) thay vì bản
+# dựng lại qua soffice. Điều kiện: bản cái/bố cục gốc đã được khôi phục (xem _restore_source_masters) nên XML gốc tương thích.
+# Mở: gắn vno:src-slide vào từng draw:page. Lưu: JS thêm vno:src-untouched khi dấu vân tay slide không đổi.
+# ---------------------------------------------------------------------------------------------------------------------
+def overlay_fodp_source_slides(fodp_xml: str | None, pptx_bytes: bytes) -> str:
+    """Mở PPTX: gắn đường dẫn slide gốc (ppt/slides/slideN.xml) vào draw:page tương ứng."""
+    xml = fodp_xml or ""
+    entries = _resolve_pptx_slide_entries(pptx_bytes)
+    if not entries or "<draw:page" not in xml:
+        return xml
+    pieces: list[str] = []
+    cursor = 0
+    index = 0
+    for start, end in _flat_xml_blocks(xml, ("draw:page",)):
+        pieces.append(xml[cursor:start])
+        block = xml[start:end]
+        entry = entries[index] if index < len(entries) else None
+        index += 1
+        open_tag = re.match(r"<draw:page\b[^>]*>", block)
+        if entry and open_tag:
+            tag = re.sub(r'\s+vno:src-slide="[^"]*"', "", open_tag.group(0))
+            tag = tag[:-1].rstrip("/ ") + f' vno:src-slide="{entry}">'
+            block = tag + block[open_tag.end():]
+        pieces.append(block)
+        cursor = end
+    pieces.append(xml[cursor:])
+    return ensure_vno_xmlns("".join(pieces))
+
+
+def _restore_untouched_slides(pptx_bytes: bytes, source_pptx: bytes | None, source_fodp: str | None) -> bytes:
+    """Lưu PPTX: thay slide chưa sửa bằng slide gốc. Mọi sai lệch -> giữ nguyên gói."""
+    if not source_pptx or not source_fodp:
+        return pptx_bytes
+    flags = _slides_page_attr_list(source_fodp, "vno:src-untouched")
+    if not any(flags):
+        return pptx_bytes
+    try:
+        return _restore_untouched_slides_unsafe(pptx_bytes, source_pptx, source_fodp)
+    except Exception:
+        return pptx_bytes
+
+
+def _restore_untouched_slides_unsafe(pptx_bytes: bytes, source_pptx: bytes, source_fodp: str) -> bytes:
+    untouched = _slides_page_attr_list(source_fodp, "vno:src-untouched")
+    origins = _slides_page_attr_list(source_fodp, "vno:src-slide")
+    with zipfile.ZipFile(io.BytesIO(source_pptx), "r") as src_zip, zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as conv_zip:
+        src = {name: src_zip.read(name) for name in src_zip.namelist() if not name.endswith("/")}
+        conv = {item.filename: conv_zip.read(item.filename) for item in conv_zip.infolist() if not item.filename.endswith("/")}
+    conv_slides = sorted(
+        (n for n in conv if re.fullmatch(r"ppt/slides/slide\d+\.xml", n)),
+        key=lambda n: int(re.search(r"slide(\d+)\.xml$", n).group(1)),
+    )
+    # Nguồn slide -> slide trong gói mới (để giữ liên kết nhảy tới slide khác)
+    new_by_origin = {origin: conv_slides[i] for i, origin in enumerate(origins) if origin and i < len(conv_slides)}
+    new_parts = dict(conv)
+    copied: dict[str, str] = {}
+    added_types: list[str] = []
+    src_ct = src.get("[Content_Types].xml", b"").decode("utf-8", errors="replace")
+    ct = conv.get("[Content_Types].xml", b"").decode("utf-8", errors="replace")
+    if not src_ct or not ct:
+        return pptx_bytes
+    src_overrides: dict[str, str] = {}
+    for m in re.finditer(r"<Override\b([^>]*?)/?>", src_ct):
+        attrs = dict(re.findall(r'([\w:]+)="([^"]*)"', m.group(1)))
+        if "PartName" in attrs and "ContentType" in attrs:
+            src_overrides[attrs["PartName"]] = attrs["ContentType"]
+    src_defaults: dict[str, str] = {}
+    for m in re.finditer(r"<Default\b([^>]*?)/?>", src_ct):
+        attrs = dict(re.findall(r'([\w:]+)="([^"]*)"', m.group(1)))
+        if "Extension" in attrs and "ContentType" in attrs:
+            src_defaults[attrs["Extension"].lower()] = attrs["ContentType"]
+    skip_kinds = {"notesSlide", "comments", "commentAuthors", "modernComment", "slideLayout"}
+    changed = False
+
+    used_names = set(new_parts)
+
+    def new_name_for(part: str) -> str:
+        if part in copied:
+            return copied[part]
+        name = part
+        counter = 0
+        while name in used_names:
+            counter += 1
+            name = posixpath.join(posixpath.dirname(part), f"vnosrc{counter}_{posixpath.basename(part)}")
+        used_names.add(name)
+        used_names.add(_pkg_rels_name(name))
+        copied[part] = name
+        return name
+
+    def collect(part: str, order: list[str], seen: set[str]) -> bool:
+        if part in seen:
+            return True
+        if part not in src:
+            return False
+        seen.add(part)
+        order.append(part)
+        rels_name = _pkg_rels_name(part)
+        if rels_name in src:
+            for rel in _pkg_rels(src[rels_name]):
+                if rel.get("TargetMode", "").lower() == "external":
+                    continue
+                kind = _pkg_rel_kind(rel)
+                target = _pkg_resolve(part, rel["Target"])
+                if kind in ("slide", "slideLayout", "slideMaster", "notesSlide", "notesMaster"):
+                    return False  # tài nguyên không được tham chiếu ngược về cấu trúc bản trình bày
+                if not collect(target, order, seen):
+                    return False
+        return True
+
+    for index, flag in enumerate(untouched):
+        origin = origins[index] if index < len(origins) else None
+        if not flag or not origin or index >= len(conv_slides) or origin not in src:
+            continue
+        slide_part = conv_slides[index]
+        src_rels = _pkg_rels(src.get(_pkg_rels_name(origin)))
+        conv_rels_text = conv.get(_pkg_rels_name(slide_part), b"").decode("utf-8", errors="replace")
+        conv_rels = _pkg_rels(conv_rels_text.encode("utf-8"))
+        layout_rel = next((r for r in conv_rels if _pkg_rel_kind(r) == "slideLayout"), None)
+        notes_rel = next((r for r in conv_rels if _pkg_rel_kind(r) == "notesSlide"), None)
+        if not layout_rel:
+            continue
+        rel_lines: list[str] = []
+        order: list[str] = []
+        seen: set[str] = set()
+        ok = True
+        used_ids = {r["Id"] for r in src_rels}
+        for rel in src_rels:
+            kind = _pkg_rel_kind(rel)
+            external = rel.get("TargetMode", "").lower() == "external"
+            if kind == "slideLayout":
+                rel_lines.append(f'<Relationship Id="{rel["Id"]}" Type="{rel["Type"]}" Target="{html.escape(layout_rel["Target"], quote=True)}"/>')
+                continue
+            if kind in ("notesSlide", "comments", "commentAuthors", "modernComment"):
+                if kind != "notesSlide":
+                    ok = False  # slide có nhận xét: không khôi phục
+                    break
+                continue
+            if external:
+                rel_lines.append("<Relationship " + " ".join(f'{k}="{html.escape(v, quote=True)}"' for k, v in rel.items()) + "/>")
+                continue
+            target = _pkg_resolve(origin, rel["Target"])
+            if kind == "slide":
+                mapped = new_by_origin.get(target)
+                if not mapped:
+                    ok = False  # liên kết tới slide đã xóa
+                    break
+                relative = posixpath.relpath(mapped, posixpath.dirname(slide_part))
+                rel_lines.append(f'<Relationship Id="{rel["Id"]}" Type="{rel["Type"]}" Target="{html.escape(relative, quote=True)}"/>')
+                continue
+            part_order: list[str] = []
+            if not collect(target, part_order, seen):
+                ok = False
+                break
+            order.extend(part_order)
+            rel_lines.append((rel["Id"], rel["Type"], target))  # type: ignore[arg-type]
+        if not ok:
+            continue
+        # đổi tên + chép phần phụ thuộc
+        staged: dict[str, bytes] = {}
+        for part in order:
+            target_name = new_name_for(part)
+            staged[target_name] = src[part]
+            rels_name = _pkg_rels_name(part)
+            if rels_name in src:
+                text = src[rels_name].decode("utf-8", errors="replace")
+
+                def fix(match: re.Match[str], owner=part) -> str:
+                    attrs = match.group(0)
+                    t = re.search(r'Target="([^"]*)"', attrs)
+                    if not t or 'TargetMode="External"' in attrs:
+                        return attrs
+                    absolute = _pkg_resolve(owner, t.group(1))
+                    if absolute in copied or absolute in src:
+                        mapped_target = new_name_for(absolute)
+                        return attrs.replace(t.group(0), f'Target="{posixpath.relpath(mapped_target, posixpath.dirname(new_name_for(owner)))}"')
+                    return attrs
+
+                text = re.sub(r"<Relationship\b[^>]*>", fix, text)
+                staged[_pkg_rels_name(target_name)] = text.encode("utf-8")
+        final_rels: list[str] = []
+        for line in rel_lines:
+            if isinstance(line, tuple):
+                rid, rtype, target = line
+                relative = posixpath.relpath(new_name_for(target), posixpath.dirname(slide_part))
+                final_rels.append(f'<Relationship Id="{rid}" Type="{rtype}" Target="{html.escape(relative, quote=True)}"/>')
+            else:
+                final_rels.append(line)
+        if notes_rel:
+            new_id = "rIdVnoNotes"
+            while new_id in used_ids:
+                new_id += "x"
+            final_rels.append(f'<Relationship Id="{new_id}" Type="{notes_rel["Type"]}" Target="{html.escape(notes_rel["Target"], quote=True)}"/>')
+        new_parts.update(staged)
+        new_parts[slide_part] = src[origin]
+        new_parts[_pkg_rels_name(slide_part)] = (
+            '<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">' + "".join(final_rels) + "</Relationships>"
+        ).encode("utf-8")
+        changed = True
+    if not changed:
+        return pptx_bytes
+    # [Content_Types].xml cho các phần mới chép
+    for original_name, target_name in copied.items():
+        override = src_overrides.get("/" + original_name)
+        if override:
+            if f'PartName="/{target_name}"' not in ct:
+                added_types.append(f'<Override PartName="/{target_name}" ContentType="{override}"/>')
+        else:
+            extension = posixpath.splitext(original_name)[1].lstrip(".").lower()
+            if extension and extension != "rels" and extension in src_defaults and not re.search(rf'<Default\b[^>]*Extension="{re.escape(extension)}"', ct, re.IGNORECASE):
+                default = f'<Default Extension="{extension}" ContentType="{src_defaults[extension]}"/>'
+                if default not in added_types:
+                    added_types.append(default)
+    new_parts["[Content_Types].xml"] = re.sub(r"</Types\s*>", "".join(added_types) + "</Types>", ct).encode("utf-8")
+    # kiểm tra đích rels
+    for name, data in new_parts.items():
+        if not name.endswith(".rels"):
+            continue
+        owner = posixpath.join(posixpath.dirname(posixpath.dirname(name)), posixpath.basename(name)[:-5])
+        if name == "_rels/.rels":
+            continue
+        for rel in _pkg_rels(data):
+            if rel.get("TargetMode", "").lower() == "external":
+                continue
+            if _pkg_resolve(owner, rel["Target"]) not in new_parts:
+                return pptx_bytes
+    _prune_unreferenced_package_parts(new_parts)
+    out = io.BytesIO()
+    with zipfile.ZipFile(out, "w", zipfile.ZIP_DEFLATED) as zout:
+        for name in ["[Content_Types].xml"] + [n for n in new_parts if n != "[Content_Types].xml"]:
+            zout.writestr(name, new_parts[name])
+    return out.getvalue()
+
+
+def _prune_unreferenced_package_parts(parts: dict[str, bytes]) -> None:
+    """Bỏ các phần không còn đạt tới được từ _rels/.rels (ảnh/biểu đồ của bản dựng lại đã bị slide gốc thay thế)."""
+    reachable: set[str] = set()
+    stack = ["_rels/.rels"]
+    while stack:
+        rels_name = stack.pop()
+        data = parts.get(rels_name)
+        if data is None:
+            continue
+        owner = "" if rels_name == "_rels/.rels" else posixpath.join(posixpath.dirname(posixpath.dirname(rels_name)), posixpath.basename(rels_name)[:-5])
+        for rel in _pkg_rels(data):
+            if rel.get("TargetMode", "").lower() == "external":
+                continue
+            target = rel["Target"].lstrip("/") if rel["Target"].startswith("/") else posixpath.normpath(posixpath.join(posixpath.dirname(owner), rel["Target"]))
+            if target in reachable:
+                continue
+            reachable.add(target)
+            stack.append(_pkg_rels_name(target))
+    droppable = [
+        name for name in parts
+        if name not in reachable and name != "[Content_Types].xml" and name != "_rels/.rels"
+        and not (name.endswith(".rels") and name[:-5].replace("_rels/", "", 1) in reachable)
+        and not name.endswith(".rels")
+    ]
+    ct = parts.get("[Content_Types].xml", b"").decode("utf-8", errors="replace")
+    for name in droppable:
+        parts.pop(name, None)
+        parts.pop(_pkg_rels_name(name), None)
+        ct = re.sub(rf'<Override\b[^>]*PartName="/{re.escape(name)}"[^>]*/>', "", ct)
+    parts["[Content_Types].xml"] = ct.encode("utf-8")
+
+
 def overlay_fodp_native_slides_theme(fodp_xml: str, pptx_bytes: bytes) -> str:
     paths = _related_theme_part_paths(pptx_bytes)
     if len(paths) != 1:
@@ -11735,8 +12002,17 @@ def _apply_slides_source_transitions(
                 if after not in (None, ""):
                     set_attrs["advTm"] = str(int(float(after)))
                 if match and match.group(0).lstrip().startswith("<mc:"):
-                    continue  # khối đã bọc mc:AlternateContent do PowerPoint ghi: không đoán cấu trúc
-                if match:
+                    # Khối bọc mc:AlternateContent (soffice và PowerPoint đều ghi như vậy): đặt cùng thuộc tính chuyển
+                    # trang lên cả nhánh Choice lẫn Fallback, không đụng phần còn lại của khối.
+                    def with_advance(tag_match: re.Match[str]) -> str:
+                        attrs = tag_match.group(1)
+                        for key, value in set_attrs.items():
+                            attrs = re.sub(rf'\s*\b{key}="[^"]*"', "", attrs)
+                            attrs += f' {key}="{value}"'
+                        return f"<p:transition{attrs}{tag_match.group(2)}>"
+                    patched_block = re.sub(r"<p:transition\b([^>]*?)(/?)>", with_advance, match.group(0)) if set_attrs else match.group(0)
+                    updated = updated[:match.start()] + patched_block + updated[match.end():]
+                elif match:
                     tag = re.match(r"<p:transition\b([^>]*?)(/?)>", match.group(0))
                     attrs = tag.group(1)
                     for key, value in set_attrs.items():
@@ -12060,6 +12336,7 @@ def postprocess_slides_pptx(
         patched = restore_notes_to_pptx(patched, notes_by_slide)
     if restore_masters:
         patched = _restore_source_masters(patched, source_pptx, source_fodp, theme_payload)
+        patched = _restore_untouched_slides(patched, source_pptx, source_fodp)
     return patched
 
 
@@ -16443,13 +16720,21 @@ def overlay_slides_pptx_fodp(pptx_bytes: bytes, fodp_xml: str | None) -> str:
     xml = overlay_fodp_master_logo(xml, masters)
     xml = overlay_fodp_master_theme_id(xml, masters)
     xml = overlay_fodp_native_slides_theme(xml, pptx_bytes)
-    xml = overlay_fodp_source_theme(xml, pptx_bytes)
-    xml = overlay_fodp_source_layouts(xml, pptx_bytes)
     props = read_zip_entry(pptx_bytes, PPTX_PRESPROPS_ENTRY)
     if props:
         xml = overlay_fodp_show_properties(xml, props.decode("utf-8", errors="replace"))
     xml = overlay_fodp_image_crops(xml, pptx_bytes)
+    return xml
+
+
+def overlay_slides_pptx_fodp_source_carriers(pptx_bytes: bytes, fodp_xml: str | None) -> str:
+    """Mở PPTX (chỉ đường dẫn thật của ứng dụng, Python): gắn các dấu vết NGUỒN để bước Lưu trả lại đúng nội dung gốc của tệp
+    (chuyển tiếp, chủ đề, bản cái/bố cục, slide chưa sửa). Tách khỏi overlay_slides_pptx_fodp để bản đối ứng JS vẫn giống hệt."""
+    xml = fodp_xml or ""
     xml = overlay_fodp_source_transitions(xml, pptx_bytes)
+    xml = overlay_fodp_source_theme(xml, pptx_bytes)
+    xml = overlay_fodp_source_layouts(xml, pptx_bytes)
+    xml = overlay_fodp_source_slides(xml, pptx_bytes)
     return xml
 
 
@@ -17670,7 +17955,10 @@ _W37_UNSAFE_RE = re.compile(
 )
 
 
-def _writer_restore_untouched_runs(target_paragraph: str, source_paragraph: str) -> str | None:
+_W37_UNSAFE_NO_SDT_RE = re.compile(_W37_UNSAFE_RE.pattern.replace("|sdt|", "|"), re.IGNORECASE)
+
+
+def _writer_restore_untouched_runs(target_paragraph: str, source_paragraph: str, allow_inline_sdt: bool = False) -> str | None:
     """W37: trả lại toàn bộ nội dung sau <w:pPr> của đoạn nguồn (run, trường, tab, ký hiệu) cho đoạn chưa sửa.
     Chỉ khi nguồn có phần tử HTML làm mất và không có hình/hộp văn bản/comment/track change; giữ pPr đã ghép và
     bookmark dấu chưa sửa của bản chuyển đổi để các bước sau còn nhận ra."""
@@ -17679,7 +17967,9 @@ def _writer_restore_untouched_runs(target_paragraph: str, source_paragraph: str)
         r'<w:r\b[^>]*>\s*<w:rPr>(?:(?!</w:rPr>)[\s\S])*?<w:shd\b(?![^>]*w:val=["\']nil["\'])(?![^>]*w:fill=["\']auto["\'])',
         source_paragraph,
     ))
-    if not (_W37_LOSSY_RE.search(source_paragraph) or has_run_shading) or _W37_UNSAFE_RE.search(source_paragraph):
+    has_inline_sdt = allow_inline_sdt and "<w:sdt>" in source_paragraph
+    unsafe_re = _W37_UNSAFE_NO_SDT_RE if allow_inline_sdt else _W37_UNSAFE_RE
+    if not (_W37_LOSSY_RE.search(source_paragraph) or has_run_shading or has_inline_sdt) or unsafe_re.search(source_paragraph):
         return None
     if _W37_UNSAFE_RE.search(target_paragraph):
         return None
@@ -17718,6 +18008,172 @@ def _writer_restore_untouched_runs(target_paragraph: str, source_paragraph: str)
     if extra_page_breaks > 0:
         source_body += '<w:r><w:br w:type="page"/></w:r>' * extra_page_breaks
     return open_match.group(0) + target_ppr + "".join(kept) + source_body + "</w:p>"
+
+
+_TEXTEDIT_TOKEN_RE = re.compile(
+    r'<w:t\b[^>]*>([\s\S]*?)</w:t\s*>|<w:tab\b[^>]*/>|<w:br\b[^>]*/>'
+    r'|<w:fldChar\b[^>]*w:fldCharType="(begin|separate|end)"[^>]*/>|<w:fldSimple\b[^>]*>|</w:fldSimple>',
+    re.IGNORECASE,
+)
+
+
+def _writer_style_flags(paragraph: str) -> frozenset[str]:
+    """Cờ định dạng ký tự chính (đậm, nghiêng, gạch chân, gạch ngang) còn bật trong đoạn."""
+    flags = set()
+    for rpr in re.findall(r"<w:rPr>([\s\S]*?)</w:rPr>", paragraph):
+        for name in ("b", "i", "u", "strike"):
+            match = re.search(rf'<w:{name}\b([^>]*)/?>', rpr)
+            if match and not re.search(r'w:val="(?:0|false|none)"', match.group(1)):
+                flags.add(name)
+    return frozenset(flags)
+
+
+def _writer_apply_text_edit(source_paragraph: str, new_text: str) -> str | None:
+    """Áp một chỉnh sửa chữ liền mạch (chèn/xóa/thay một khoảng) lên đoạn NGUỒN, giữ nguyên trường, tab, ngắt dòng,
+    run và định dạng. Không áp được (chạm vào kết quả trường, tab, ngắt dòng...) thì trả None."""
+    segments: list[tuple[int, int, str, bool]] = []  # (bắt đầu nội dung, kết thúc, kiểu, được sửa)
+    chars: list[tuple[int, int, str]] = []  # (chỉ số segment, vị trí trong segment, ký tự)
+    stack: list[str] = []
+    simple = 0
+    for token in _TEXTEDIT_TOKEN_RE.finditer(source_paragraph):
+        text = token.group(0)
+        low = text.lower()
+        if token.group(2):
+            state = token.group(2).lower()
+            if state == "begin":
+                stack.append("instr")
+            elif state == "separate" and stack:
+                stack[-1] = "result"
+            elif state == "end" and stack:
+                stack.pop()
+            continue
+        if low.startswith("<w:fldsimple"):
+            simple += 1
+            continue
+        if low.startswith("</w:fldsimple"):
+            simple = max(0, simple - 1)
+            continue
+        protected = bool(stack) or simple > 0
+        if token.group(1) is not None:
+            raw = _unescape_xml(token.group(1))
+            segments.append((token.start(1), token.end(1), "t", not protected))
+            index = len(segments) - 1
+            for offset, ch in enumerate(raw):
+                chars.append((index, offset, ch))
+        else:
+            segments.append((token.start(), token.end(), "special", False))
+            chars.append((len(segments) - 1, 0, " "))
+    source_text = "".join(ch for _i, _o, ch in chars)
+    source_idx = [i for i, ch in enumerate(source_text) if not ch.isspace()]
+    new_idx = [i for i, ch in enumerate(new_text) if not ch.isspace()]
+    source_nws = "".join(source_text[i] for i in source_idx)
+    new_nws = "".join(new_text[i] for i in new_idx)
+    if source_nws == new_nws:
+        return None
+    limit = min(len(source_nws), len(new_nws))
+    prefix = 0
+    while prefix < limit and source_nws[prefix] == new_nws[prefix]:
+        prefix += 1
+    suffix = 0
+    while suffix < limit - prefix and source_nws[len(source_nws) - 1 - suffix] == new_nws[len(new_nws) - 1 - suffix]:
+        suffix += 1
+    start_s = source_idx[prefix - 1] + 1 if prefix else 0
+    end_s = source_idx[len(source_nws) - suffix] if suffix else len(source_text)
+    start_n = new_idx[prefix - 1] + 1 if prefix else 0
+    end_n = new_idx[len(new_nws) - suffix] if suffix else len(new_text)
+    inserted = new_text[start_n:end_n]
+    editable = [segments[i][3] and segments[i][2] == "t" for i in range(len(segments))]
+    if start_s < end_s:
+        if not all(editable[chars[k][0]] for k in range(start_s, end_s)):
+            return None
+        anchor_index = start_s
+    else:
+        if start_s > 0 and editable[chars[start_s - 1][0]]:
+            anchor_index = start_s - 1
+            anchor_after = True
+        elif start_s < len(chars) and editable[chars[start_s][0]]:
+            anchor_index = start_s
+            anchor_after = False
+        else:
+            return None
+    edits: dict[int, tuple[int, int, str]] = {}  # segment -> (từ, đến, chữ thay) theo vị trí trong segment
+    if start_s < end_s:
+        for k in range(start_s, end_s):
+            seg, offset, _ch = chars[k]
+            lo, hi, rep = edits.get(seg, (offset, offset, ""))
+            edits[seg] = (min(lo, offset), max(hi, offset + 1), rep)
+        first_seg = chars[start_s][0]
+        lo, hi, _rep = edits[first_seg]
+        edits[first_seg] = (lo, hi, inserted)
+    else:
+        seg, offset, _ch = chars[anchor_index]
+        at = offset + 1 if anchor_after else offset
+        edits[seg] = (at, at, inserted)
+    result = source_paragraph
+    for seg in sorted(edits, reverse=True):
+        begin, finish, _kind, _ok = segments[seg]
+        old = _unescape_xml(result[begin:finish])
+        lo, hi, rep = edits[seg]
+        updated = _escape_xml(old[:lo] + rep + old[hi:]).replace("&quot;", '"')
+        result = result[:begin] + updated + result[finish:]
+        open_tag = result.rfind("<w:t", 0, begin)
+        tag_end = result.find(">", open_tag)
+        tag = result[open_tag:tag_end + 1]
+        if "xml:space" not in tag and not tag.endswith("/>"):
+            result = result[:tag_end] + ' xml:space="preserve"' + result[tag_end:]
+    return result if _paragraph_plain_text(result) == new_text else None
+
+
+def _writer_patch_edited_paragraphs(converted_xml: str, original_xml: str) -> str:
+    """Đoạn có trường/tab/ngắt dòng bị người dùng sửa chữ: HTML làm phẳng những thứ đó. Ghép từng đoạn đã sửa với
+    đoạn nguồn (cùng vị trí trong khoảng thay thế giữa hai điểm neo giống hệt) rồi áp đúng phần chữ đã đổi lên
+    đoạn nguồn, giữ trường REF/DATE/PAGE, tab, ngắt dòng và run gốc. Bỏ qua khi định dạng ký tự có vẻ đã bị đổi."""
+    import difflib
+
+    converted_ranges = _document_paragraph_ranges(converted_xml)
+    original_ranges = _document_paragraph_ranges(original_xml)
+    converted = [converted_xml[start:end] for start, end in converted_ranges]
+    original = [original_xml[start:end] for start, end in original_ranges]
+    original_keys = [_paragraph_plain_text(p) for p in original]
+    converted_keys = [_paragraph_plain_text(p) for p in converted]
+    if original_keys == converted_keys:
+        return converted_xml
+    replacements: dict[int, str] = {}
+    matcher = difflib.SequenceMatcher(None, original_keys, converted_keys, autojunk=False)
+    for tag, i1, i2, j1, j2 in matcher.get_opcodes():
+        if tag != "replace" or (i2 - i1) != (j2 - j1):
+            continue
+        for source_index, target_index in zip(range(i1, i2), range(j1, j2)):
+            source_p, target_p = original[source_index], converted[target_index]
+            new_text = converted_keys[target_index]
+            if not new_text or not original_keys[source_index]:
+                continue
+            if not (_W37_LOSSY_RE.search(source_p) or "<w:sdt>" in source_p) or _W37_UNSAFE_NO_SDT_RE.search(source_p) or _W37_UNSAFE_RE.search(target_p):
+                continue
+            ratio = difflib.SequenceMatcher(None, original_keys[source_index], new_text, autojunk=False).ratio()
+            if ratio < 0.5:
+                continue
+            if _writer_style_flags(source_p) != _writer_style_flags(target_p):
+                continue
+            patched_source = _writer_apply_text_edit(source_p, new_text)
+            if patched_source is None:
+                continue
+            restored = _writer_restore_untouched_runs(target_p, patched_source, allow_inline_sdt=True)
+            if restored is not None:
+                replacements[target_index] = restored
+    if not replacements:
+        return converted_xml
+    pieces: list[str] = []
+    cursor = 0
+    for index in sorted(replacements):
+        start, end = converted_ranges[index]
+        if start < cursor:
+            continue
+        pieces.append(converted_xml[cursor:start])
+        pieces.append(replacements[index])
+        cursor = end
+    pieces.append(converted_xml[cursor:])
+    return "".join(pieces)
 
 
 def _remove_writer_untouched_bookmarks(xml: str) -> str:
@@ -20126,6 +20582,7 @@ def postprocess_writer_docx(
             new_xml, original_xml, trusted_untouched_texts=untouched_texts,
             table_paragraphs_only=True,
         )
+    new_xml = _writer_patch_edited_paragraphs(new_xml, original_xml)
     new_xml = _restore_untouched_writer_equations(new_xml, original_xml)
     new_xml = _remove_writer_untouched_bookmarks(new_xml)
     new_xml = _writer_collapse_consecutive_page_breaks(new_xml)
@@ -26143,7 +26600,7 @@ def postprocess_writer_text_effects(docx_bytes: bytes, *, source_html: str | Non
 # Toạ độ tính theo số ký tự KHÔNG phải khoảng trắng (LibreOffice đổi khoảng trắng thành xuống dòng trong HTML).
 # ---------------------------------------------------------------------------------------------------------------------
 _RUN_FX_DETECT_RE = re.compile(
-    r'<w:(?:dstrike|vanish|position|emboss|imprint|outline|shadow|em|highlight|kern|outlineLvl)\b'
+    r'<w:(?:dstrike|vanish|position|emboss|imprint|outline|shadow|em|highlight|kern|outlineLvl|numPr)\b'
     r'|<w:w\s'
     r'|lineRule="exact"'
     r'|<w:u\b[^>]*w:val="(?!single"|none")'
@@ -26316,9 +26773,18 @@ def _run_fx_html_paragraphs(html_text: str):
 
 
 def _run_fx_html_paragraphs_with_tag(html_text: str):
-    """Yield (open_start, open_end, tag, open_attrs, inner_start, inner_end, inner) cho từng <p>/<h1-6>."""
-    for match in re.finditer(r"<(p|h[1-6])\b([^>]*)>([\s\S]*?)</\1\s*>", html_text, re.IGNORECASE):
-        yield match.start(), match.start(3) - 0, match.group(1).lower(), match.group(2), match.start(3), match.end(3), match.group(3)
+    """Yield (open_start, open_end, tag, open_attrs, inner_start, inner_end, inner) cho từng <p>/<h1-6> (hoặc <li> không chứa p)."""
+    p_matches = [
+        (m.start(), m.start(3), m.group(1).lower(), m.group(2), m.start(3), m.end(3), m.group(3))
+        for m in re.finditer(r"<(p|h[1-6])\b([^>]*)>([\s\S]*?)</\1\s*>", html_text, re.IGNORECASE)
+    ]
+    li_matches = [
+        (m.start(), m.start(2), "li", m.group(1), m.start(2), m.end(2), m.group(2))
+        for m in re.finditer(r"<li\b([^>]*)>([\s\S]*?)</li>", html_text, re.IGNORECASE)
+        if not re.search(r"<(?:p|h[1-6])\b", m.group(2), re.IGNORECASE)
+    ]
+    for item in sorted(p_matches + li_matches, key=lambda x: x[0]):
+        yield item
 
 
 def _run_fx_html_ranges(inner: str) -> tuple[str, list[tuple[int, int, str]]]:
@@ -26372,21 +26838,48 @@ def _run_fx_run_text(run_xml: str) -> str:
 
 
 def _run_fx_para_tokens(para_xml: str) -> list[str]:
-    """Dấu hiệu mức đoạn cần giữ: giãn dòng «Exactly» (soffice đổi thành «At least») và cấp đề cương."""
+    """Dấu hiệu mức đoạn cần giữ: giãn dòng «Exactly» (soffice đổi thành «At least»), cấp đề cương và danh sách."""
     ppr = re.search(r"<w:pPr>([\s\S]*?)</w:pPr>", para_xml)
     inner = ppr.group(1) if ppr else ""
     tokens: list[str] = []
+    # Kiểu đoạn: soffice (cầu HTML) gán «Body Text» cho đoạn đã sửa; ghi lại kiểu gốc để lưu trả đúng (đoạn không có
+    # pStyle = «Normal», ký hiệu "-"). Đoạn có danh sách đã có token "ps" riêng.
+    if not re.search(r"<w:numPr\b", inner):
+        source_style = re.search(r'<w:pStyle\b[^>]*\bw:val="([^"]+)"', inner)
+        tokens.append(f"pst={source_style.group(1) if source_style else '-'}")
     spacing = re.search(r'<w:spacing\b(?=[^>]*\bw:lineRule="exact")(?=[^>]*\bw:line="(\d+)")[^>]*>', inner)
     if spacing:
         tokens += ["lr=exact", f"ln={spacing.group(1)}"]
     outline = re.search(r'<w:outlineLvl\b[^>]*w:val="(\d)"', inner)
     if outline and not re.search(r'<w:pStyle\b[^>]*w:val="(?:Heading|heading|Title|Subtitle)', inner):
         tokens.append(f"ol={outline.group(1)}")
+    num_pr = re.search(r"<w:numPr\b[^>]*>([\s\S]*?)</w:numPr>", inner)
+    if num_pr:
+        num_id = re.search(r'<w:numId\b[^>]*\bw:val="(\d+)"', num_pr.group(1))
+        ilvl = re.search(r'<w:ilvl\b[^>]*\bw:val="(\d+)"', num_pr.group(1))
+        if num_id:
+            tokens.append(f"nid={num_id.group(1)}")
+            tokens.append(f"ilvl={ilvl.group(1) if ilvl else '0'}")
+            pstyle = re.search(r'<w:pStyle\b[^>]*\bw:val="([^"]+)"', inner)
+            if pstyle:
+                tokens.append(f"ps={pstyle.group(1)}")
+            direct_ind = re.search(r'<w:ind\b[^>]*>', inner)
+            tokens.append(f"dind={url_quote(direct_ind.group(0))}" if direct_ind else "dind=0")
+            direct_tabs = re.search(r'<w:tabs\b[^>]*>[\s\S]*?</w:tabs>', inner)
+            tokens.append(f"dtabs={url_quote(direct_tabs.group(0))}" if direct_tabs else "dtabs=0")
+            direct_sp = re.search(r'<w:spacing\b[^>]*>', inner)
+            tokens.append(f"dsp={url_quote(direct_sp.group(0))}" if direct_sp else "dsp=0")
+            if "<w:contextualSpacing" in inner:
+                tokens.append("ctxsp=1")
     return tokens
 
 
-def _run_fx_apply_para(para_xml: str, tokens: dict[str, str], current_lh: str | None) -> str:
-    """Ghi lại giãn dòng Exactly và cấp đề cương vào <w:pPr> của đoạn."""
+_RUN_FX_LO_DEFAULT_STYLES = {"bodytext", "textbody", "tablecontents"}
+
+
+def _run_fx_apply_para(para_xml: str, tokens: dict[str, str], current_lh: str | None,
+                       known_styles: set[str] | None = None) -> str:
+    """Ghi lại giãn dòng Exactly, cấp đề cương, danh sách và kiểu đoạn gốc vào <w:pPr> của đoạn."""
     if not tokens:
         return para_xml
     ppr = re.search(r"<w:pPr>([\s\S]*?)</w:pPr>", para_xml)
@@ -26398,6 +26891,16 @@ def _run_fx_apply_para(para_xml: str, tokens: dict[str, str], current_lh: str | 
         ppr = re.search(r"<w:pPr>([\s\S]*?)</w:pPr>", para_xml)
     inner = ppr.group(1)
     new_inner = inner
+    source_style = tokens.get("pst")
+    if source_style:
+        current_style = re.search(r'<w:pStyle\b[^>]*\bw:val="([^"]+)"', new_inner)
+        # Chỉ thay khi soffice tự gán «Body Text» (người dùng chọn kiểu khác thì để nguyên).
+        if current_style and current_style.group(1).replace(" ", "").lower() in _RUN_FX_LO_DEFAULT_STYLES:
+            style_tag = r'<w:pStyle\b[^>]*/>|<w:pStyle\b[^>]*>[\s\S]*?</w:pStyle>'
+            if source_style == "-":
+                new_inner = re.sub(style_tag, "", new_inner, count=1, flags=re.IGNORECASE)
+            elif known_styles is None or source_style in known_styles:
+                new_inner = re.sub(style_tag, f'<w:pStyle w:val="{source_style}"/>', new_inner, count=1, flags=re.IGNORECASE)
     # Chỉ khôi phục «Exactly» nếu người dùng chưa đổi giãn dòng (chiều cao dòng trong HTML vẫn như lúc mở).
     if tokens.get("lr") == "exact" and tokens.get("lh") and current_lh and current_lh.strip() == tokens["lh"].strip():
         def fix_spacing(match: re.Match[str]) -> str:
@@ -26415,6 +26918,103 @@ def _run_fx_apply_para(para_xml: str, tokens: dict[str, str], current_lh: str | 
         if position < 0:
             position = len(new_inner)
         new_inner = new_inner[:position] + f'<w:outlineLvl w:val="{tokens["ol"]}"/>' + new_inner[position:]
+    if "nid" in tokens and "<w:numPr" in new_inner:
+        new_inner = re.sub(
+            r'(<w:numId\b[^>]*\bw:val=")\d+(")',
+            rf'\g<1>{tokens["nid"]}\g<2>',
+            new_inner,
+            count=1,
+            flags=re.IGNORECASE,
+        )
+        if "ilvl" in tokens:
+            new_inner = re.sub(
+                r'(<w:ilvl\b[^>]*\bw:val=")\d+(")',
+                rf'\g<1>{tokens["ilvl"]}\g<2>',
+                new_inner,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+        if "ps" in tokens:
+            if "<w:pStyle" in new_inner:
+                new_inner = re.sub(
+                    r'<w:pStyle\b[^>]*/>|<w:pStyle\b[^>]*>[\s\S]*?</w:pStyle>',
+                    f'<w:pStyle w:val="{tokens["ps"]}"/>',
+                    new_inner,
+                    count=1,
+                    flags=re.IGNORECASE,
+                )
+            else:
+                new_inner = f'<w:pStyle w:val="{tokens["ps"]}"/>' + new_inner
+        dind = tokens.get("dind")
+        if dind == "0":
+            new_inner = re.sub(
+                r'<w:ind\b[^>]*/>|<w:ind\b[^>]*>[\s\S]*?</w:ind>',
+                "",
+                new_inner,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+        elif dind:
+            orig_ind = url_unquote(dind)
+            if "<w:ind" in new_inner:
+                new_inner = re.sub(
+                    r'<w:ind\b[^>]*/>|<w:ind\b[^>]*>[\s\S]*?</w:ind>',
+                    lambda _m: orig_ind,
+                    new_inner,
+                    count=1,
+                    flags=re.IGNORECASE,
+                )
+            else:
+                new_inner = orig_ind + new_inner
+        dtabs = tokens.get("dtabs")
+        if dtabs == "0":
+            new_inner = re.sub(
+                r'<w:tabs\b[^>]*>[\s\S]*?</w:tabs>',
+                "",
+                new_inner,
+                count=1,
+                flags=re.IGNORECASE,
+            )
+        elif dtabs:
+            orig_tabs = url_unquote(dtabs)
+            if "<w:tabs" in new_inner:
+                new_inner = re.sub(
+                    r'<w:tabs\b[^>]*>[\s\S]*?</w:tabs>',
+                    lambda _m: orig_tabs,
+                    new_inner,
+                    count=1,
+                    flags=re.IGNORECASE,
+                )
+            else:
+                new_inner = orig_tabs + new_inner
+        dsp = tokens.get("dsp")
+        if dsp == "0":
+            if tokens.get("lr") != "exact":
+                new_inner = re.sub(
+                    r'<w:spacing\b[^>]*/>|<w:spacing\b[^>]*>[\s\S]*?</w:spacing>',
+                    "",
+                    new_inner,
+                    count=1,
+                    flags=re.IGNORECASE,
+                )
+        elif dsp:
+            orig_sp = url_unquote(dsp)
+            if "<w:spacing" in new_inner:
+                new_inner = re.sub(
+                    r'<w:spacing\b[^>]*/>|<w:spacing\b[^>]*>[\s\S]*?</w:spacing>',
+                    lambda _m: orig_sp,
+                    new_inner,
+                    count=1,
+                    flags=re.IGNORECASE,
+                )
+            else:
+                new_inner = orig_sp + new_inner
+        if tokens.get("ctxsp") == "1" and "<w:contextualSpacing" not in new_inner:
+            new_inner = "<w:contextualSpacing/>" + new_inner
+        reordered = _writer_reorder_ppr_children(f"<w:pPr>{new_inner}</w:pPr>")
+        m_reordered = re.match(r"<w:pPr\b[^>]*>([\s\S]*)</w:pPr\s*>", reordered, re.IGNORECASE)
+        if m_reordered:
+            new_inner = m_reordered.group(1)
     if new_inner == inner:
         return para_xml
     return para_xml[:ppr.start(1)] + new_inner + para_xml[ppr.end(1):]
@@ -26428,7 +27028,7 @@ def inject_docx_run_effects(docx_bytes: bytes, html_text: str) -> str:
         document_xml = (read_zip_entry(docx_bytes, "word/document.xml") or b"").decode("utf-8", errors="replace")
     except Exception:
         return html_text
-    if not document_xml or not _RUN_FX_DETECT_RE.search(document_xml):
+    if not document_xml:
         return html_text
 
     queues: dict[str, list[tuple[list[tuple[int, int, str]], list[str]]]] = {}
@@ -26591,6 +27191,8 @@ def postprocess_writer_run_effects(docx_bytes: bytes, *, source_html: str | None
     if not document_bytes:
         return docx_bytes
     document_xml = document_bytes.decode("utf-8", errors="replace")
+    styles_bytes = read_zip_entry(docx_bytes, "word/styles.xml") or b""
+    known_styles = set(re.findall(r'<w:style\b[^>]*\bw:styleId="([^"]+)"', styles_bytes.decode("utf-8", errors="replace")))
 
     queues: dict[str, list[tuple[list[tuple[int, int, str]], dict[str, str], str | None]]] = {}
     for _o, _x, _tag, attrs, _s, _e, inner in _run_fx_html_paragraphs_with_tag(source_html):
@@ -26616,7 +27218,7 @@ def postprocess_writer_run_effects(docx_bytes: bytes, *, source_html: str | None
             continue
         ranges, ptokens, current_lh = queue.pop(0)
         if ptokens:
-            patched_para = _run_fx_apply_para(para_xml, ptokens, current_lh)
+            patched_para = _run_fx_apply_para(para_xml, ptokens, current_lh, known_styles)
             if patched_para != para_xml:
                 para_xml = patched_para
                 runs = list(_RUN_FX_RUN_RE.finditer(para_xml))

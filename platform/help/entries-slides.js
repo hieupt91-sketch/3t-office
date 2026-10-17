@@ -209,6 +209,59 @@ export const SLIDES_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.text.changeCase",
+    app: "slides",
+    commandIds: ["slides.text.changeCase", "slides.text.changeCaseMode"],
+    title: "Đổi chữ hoa / thường (Shift+F3)",
+    summary: "Đổi nhanh chữ đang chọn sang chữ hoa đầu câu, chữ thường, CHỮ HOA, Viết Hoa Mỗi Từ hoặc đảo hoa thường; Shift+F3 xoay vòng giữa chữ thường, Viết Hoa Mỗi Từ và CHỮ HOA.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
+    keywords: ["đổi chữ hoa", "chữ thường", "chữ in hoa", "change case", "shift+f3", "viết hoa", "uppercase", "lowercase"],
+    steps: [
+      "Nhấp đúp vào khung chữ để vào chế độ soạn, rồi bôi đen đoạn chữ cần đổi. Nếu chỉ đặt con trỏ trong một từ, từ đó được chọn tự động.",
+      "Tab Trang đầu > nhóm Phông chữ > nhấp nút Aa (Đổi chữ hoa/thường) và chọn một kiểu: Chữ hoa đầu câu, chữ thường, CHỮ HOA, Viết Hoa Mỗi Từ hoặc đảo hoa thường.",
+      "Hoặc nhấn Shift+F3 nhiều lần để xoay vòng: chữ thường, Viết Hoa Mỗi Từ, CHỮ HOA. Chữ có dấu tiếng Việt được xử lý đúng, định dạng đậm/nghiêng/màu của chữ được giữ nguyên.",
+      "Ctrl+Z hoàn tác về chữ cũ."
+    ]
+  },  {
+    id: "slides.shape.formatTab",
+    app: "slides",
+    commandIds: [
+      "slides.shape.fill", "slides.shape.fillColor", "slides.shape.outline", "slides.shape.outlineColor", "slides.shape.outlineWeight",
+      "slides.shape.outlineDash", "slides.shape.effects", "slides.shape.shadow", "slides.shape.sizeDialog",
+      "slides.arrange.rotate", "slides.arrange.rotateRight90", "slides.arrange.rotateLeft90", "slides.arrange.flipHorizontal", "slides.arrange.flipVertical"
+    ],
+    title: "Tab Định dạng hình: tô màu, viền, đổ bóng, xoay và lật",
+    summary: "Chọn một hình trên trang chiếu, tab Định dạng hình hiện ra bên phải ribbon: tô màu nền, đổi màu/độ dày/kiểu nét viền, đổ bóng theo hướng, xoay 90° hoặc lật ngang/dọc, và mở hộp thoại đặt kích thước chính xác.",
+    ribbon: { tab: "Định dạng hình", tabId: "shapeFormat", group: "Kiểu hình" },
+    keywords: ["định dạng hình", "tô màu hình", "shape fill", "viền hình", "shape outline", "đổ bóng", "xoay", "lật", "rotate", "flip", "độ dày viền", "nét đứt", "kích thước hình"],
+    steps: [
+      "Nhấp vào một hình (hình chữ nhật, elip, mũi tên, hộp văn bản…) trên trang chiếu. Muốn định dạng nhiều hình cùng lúc, giữ Ctrl hoặc Shift khi chọn. Tab Định dạng hình xuất hiện cạnh tab Trợ lý.",
+      "Nhóm Kiểu hình: Tô màu hình mở bảng 15 màu, Không tô màu và Màu khác… (hộp chọn màu hệ thống). Viền hình có bảng màu, Không viền, Màu khác…, Độ dày (½ đến 6 pt) và Nét đứt (liền, gạch, chấm, gạch chấm). Hiệu ứng hình có Không đổ bóng và bốn hướng đổ bóng.",
+      "Nhóm Sắp xếp: Xoay mở Xoay phải 90°, Xoay trái 90°, Lật dọc, Lật ngang; cùng hai nút Đưa lên một lớp, Đưa xuống một lớp.",
+      "Nhóm Kích thước: Kích thước và vị trí… mở hộp thoại nhập chiều rộng, chiều cao và góc xoay chính xác.",
+      "Ảnh chỉ dùng được Xoay, Lật và Kích thước; bảng và biểu đồ có tab riêng. Mọi thao tác hoàn tác được bằng Ctrl+Z (một bước cho cả nhóm hình), và được lưu vào tệp để mở lại đúng."
+    ]
+  },
+  {
+    id: "slides.transition.tab",
+    app: "slides",
+    commandIds: [
+      "slides.transition.gallery", "slides.transition.set", "slides.transition.durationMenu", "slides.transition.duration",
+      "slides.transition.advanceMenu", "slides.transition.advanceClick", "slides.transition.afterMenu", "slides.transition.advanceAfter",
+      "slides.transition.applyAll", "slides.transition.preview"
+    ],
+    title: "Tab Chuyển tiếp: chọn hiệu ứng, thời gian và xem trước",
+    summary: "Chọn trang ở thanh bên rồi dùng nhóm Chuyển đến trang này để chọn hiệu ứng và xem trước; nhóm Thời gian đặt thời lượng, chuyển trang khi nhấp chuột, tự chuyển sau N giây và áp dụng cho tất cả trang.",
+    ribbon: { tab: "Chuyển tiếp", tabId: "transitions", group: "Chuyển đến trang này" },
+    keywords: ["chuyển tiếp", "transition", "hiệu ứng chuyển trang", "thời lượng", "tự động sau", "áp dụng cho tất cả", "xem trước"],
+    steps: [
+      "Nhấp một trang ở thanh bên trái, vào tab Chuyển tiếp > nhóm Chuyển đến trang này > Hiệu ứng, rồi chọn Không, Mờ dần, Trượt ngang, Thu phóng, Lật 3D hoặc Morph. Chỉ trang đang chọn được đổi.",
+      "Nhấn Xem trước để chạy thử hiệu ứng ngay trên trang đang soạn.",
+      "Nhóm Thời gian: Thời lượng chọn 0,3 đến 2 giây; Chuyển trang cho bật/tắt chuyển khi nhấp chuột; Tự động sau chọn 3, 5, 10, 30 giây hoặc Không tự chuyển. Các mục này cần trang đã có hiệu ứng.",
+      "Áp dụng cho tất cả sao chép hiệu ứng, thời lượng và cách chuyển trang của trang này sang mọi trang. Ctrl+Z hoàn tác cả nhóm trang trong một bước. Nút Chuyển tiếp lớn bên trái vẫn mở hộp thoại đầy đủ."
+    ]
+  },
+  {
     id: "slides.transition.apply",
     app: "slides",
     commandIds: ["slides.transition.apply"],

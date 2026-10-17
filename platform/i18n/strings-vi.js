@@ -459,8 +459,8 @@ export const viStrings = {
   },
   sheetSlicer: { selectTable: "Hãy chọn một ô trong bảng trước khi chèn bộ lọc trực quan.", layer: "Bộ lọc trực quan", aria: "Bộ lọc", multi: "Chọn nhiều", clear: "Xóa bộ lọc", close: "Xóa bộ lọc trực quan" },
   slidesRibbon: {
-    tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI", tableLayout: "Bố cục bảng" },
-    group: { tableRowsCols: "Hàng và cột", tableMerge: "Gộp", slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Hiệu đính", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
+    tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI", tableLayout: "Bố cục bảng", shapeFormat: "Định dạng hình" },
+    group: { transitionGallery: "Chuyển đến trang này", transitionTiming: "Thời gian", shapeStyles: "Kiểu hình", shapeArrange: "Sắp xếp", shapeSize: "Kích thước", tableRowsCols: "Hàng và cột", tableMerge: "Gộp", slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Hiệu đính", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
     editing: { select: "Chọn" },
     drawing: { arrange: "Sắp xếp" },
     section: "Phần"
@@ -1038,6 +1038,18 @@ export const viStrings = {
     ,"slides.design.themeGallery": { label: "Chủ đề", tooltip: "Chọn chủ đề thiết kế cho toàn bộ bản trình chiếu" }
     ,"slides.design.slideSize": { label: "Cỡ trang chiếu", tooltip: "Chọn tỷ lệ 16:9, 4:3 hoặc nhập kích thước tùy chỉnh (cm)" }
     ,"slides.design.formatBackground": { label: "Định dạng nền", tooltip: "Đổi nền trang chiếu hiện tại hoặc tất cả trang: màu đơn, gradient 2 màu, hoặc ảnh" }
+    ,"slides.transition.gallery": { label: "Hiệu ứng chuyển trang", tooltip: "Chọn hiệu ứng chuyển sang trang này (Không, Mờ dần, Trượt ngang, Thu phóng, Lật 3D, Morph)" }
+    ,"slides.transition.set": { label: "Hiệu ứng", tooltip: "Đặt hiệu ứng chuyển trang cho trang đang chọn" }
+    ,"slides.transition.durationMenu": { label: "Thời lượng", tooltip: "Đặt thời gian chạy hiệu ứng chuyển trang" }
+    ,"slides.transition.duration": { label: "Thời lượng hiệu ứng", tooltip: "Chọn 0,3 / 0,5 / 0,8 / 1 / 2 giây cho hiệu ứng chuyển trang" }
+    ,"slides.transition.advanceMenu": { label: "Chuyển trang", tooltip: "Cho phép hoặc tắt chuyển trang khi nhấp chuột" }
+    ,"slides.transition.advanceClick": { label: "Khi nhấp chuột", tooltip: "Bật hoặc tắt chuyển trang khi nhấp chuột lúc trình chiếu" }
+    ,"slides.transition.afterMenu": { label: "Tự động sau", tooltip: "Tự chuyển sang trang kế tiếp sau một số giây" }
+    ,"slides.transition.advanceAfter": { label: "Tự chuyển trang sau", tooltip: "Đặt số giây trang tự chuyển (hoặc tắt)" }
+    ,"slides.transition.applyAll": { label: "Áp dụng cho tất cả", tooltip: "Dùng cùng hiệu ứng, thời lượng và cách chuyển trang của trang này cho mọi trang" }
+    ,"slides.transition.preview": { label: "Xem trước", tooltip: "Chạy thử hiệu ứng chuyển trang của trang đang chọn" }
+    ,"slides.text.changeCase": { label: "Đổi chữ hoa/thường", tooltip: "Đổi chữ hoa / thường cho chữ đang chọn (Shift+F3 xoay vòng)" }
+    ,"slides.text.changeCaseMode": { label: "Kiểu chữ hoa/thường", tooltip: "Chọn kiểu: đầu câu, chữ thường, CHỮ HOA, Viết Hoa Mỗi Từ, đảo hoa thường" }
     ,"slides.transition.apply": { label: "Chuyển tiếp", tooltip: "Hiệu ứng chuyển trang chiếu (Fade, Slide, Zoom, Flip)" }
     ,"slides.animation.apply": { label: "Hiệu ứng đối tượng", tooltip: "Thiết lập hiệu ứng xuất hiện (Fade In, Fly In, Zoom In) cho đối tượng" }
     ,"slides.animation.pane": { label: "Ngăn hoạt hình", tooltip: "Hiện danh sách mọi hiệu ứng trên trang đang chọn, đổi thứ tự, cách bắt đầu hoặc xóa hiệu ứng" }
@@ -1066,6 +1078,20 @@ export const viStrings = {
     ,"slides.arrange.sendBackward": { label: "Đưa xuống dưới một lớp", tooltip: "Đưa đối tượng đang chọn xuống dưới một lớp" }
     ,"slides.arrange.sendToBack": { label: "Đưa xuống dưới cùng", tooltip: "Đưa đối tượng đang chọn xuống dưới tất cả đối tượng khác" }
     ,"slides.arrange.alignLeft": { label: "Căn trái", tooltip: "Căn các đối tượng đang chọn theo mép trái" }
+  ,"slides.shape.fill": { label: "Tô màu hình", tooltip: "Tô màu nền cho hình đang chọn" }
+  ,"slides.shape.fillColor": { label: "Tô màu", tooltip: "Tô màu nền hình đang chọn (chọn một màu, Không tô màu hoặc Màu khác…)" }
+  ,"slides.shape.outline": { label: "Viền hình", tooltip: "Đổi màu, độ dày và kiểu nét viền của hình đang chọn" }
+  ,"slides.shape.outlineColor": { label: "Màu viền", tooltip: "Đổi màu viền hình đang chọn" }
+  ,"slides.shape.outlineWeight": { label: "Độ dày viền", tooltip: "Đổi độ dày nét viền hình đang chọn (pt)" }
+  ,"slides.shape.outlineDash": { label: "Kiểu nét viền", tooltip: "Chọn nét liền, gạch, chấm hoặc gạch chấm cho viền hình" }
+  ,"slides.shape.effects": { label: "Hiệu ứng hình", tooltip: "Thêm hoặc bỏ đổ bóng cho hình đang chọn" }
+  ,"slides.shape.shadow": { label: "Đổ bóng", tooltip: "Đổ bóng cho hình đang chọn theo hướng đã chọn" }
+  ,"slides.shape.sizeDialog": { label: "Kích thước và vị trí…", tooltip: "Mở hộp thoại đặt chiều rộng, chiều cao và góc xoay chính xác của hình" }
+  ,"slides.arrange.rotate": { label: "Xoay", tooltip: "Xoay hoặc lật hình đang chọn" }
+  ,"slides.arrange.rotateRight90": { label: "Xoay phải 90°", tooltip: "Xoay hình đang chọn 90° theo chiều kim đồng hồ" }
+  ,"slides.arrange.rotateLeft90": { label: "Xoay trái 90°", tooltip: "Xoay hình đang chọn 90° ngược chiều kim đồng hồ" }
+  ,"slides.arrange.flipHorizontal": { label: "Lật ngang", tooltip: "Lật hình đang chọn theo chiều ngang" }
+  ,"slides.arrange.flipVertical": { label: "Lật dọc", tooltip: "Lật hình đang chọn theo chiều dọc" }
     ,"slides.arrange.alignCenter": { label: "Căn giữa (ngang)", tooltip: "Căn các đối tượng đang chọn giữa theo chiều ngang" }
     ,"slides.arrange.alignRight": { label: "Căn phải", tooltip: "Căn các đối tượng đang chọn theo mép phải" }
     ,"slides.arrange.alignTop": { label: "Căn trên", tooltip: "Căn các đối tượng đang chọn theo mép trên" }

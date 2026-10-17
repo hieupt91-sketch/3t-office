@@ -74,6 +74,7 @@ import {
 import { countBlockLines, countBlockParagraphs, countDocumentStats, countExplicitLineBreaks, countListMarkerStats, countOoxmlListMarkerStats, extractOoxmlDocumentText, extractWordCountText, showWordCountDialog } from "../../../apps/writer/word-count.js";
 import { showFontDialog } from "../../../apps/writer/font-dialog.js";
 import { showChangeCaseDialog } from "../../../apps/writer/change-case-dialog.js";
+import { applyChangeCaseToSelection } from "../../../platform/text/change-case.js";
 import { showDocumentInspectorDialog, inspectDocument, removeDocumentCategory } from "../../../apps/writer/document-inspector-dialog.js";
 import {
   documentPropertiesMarker,
@@ -1251,118 +1252,9 @@ export class WriterAdapter {
       return this.openChangeCaseDialog();
     }
     if (typeof window === "undefined") return false;
-    const sel = window.getSelection?.();
-    if (!sel || sel.rangeCount === 0) return false;
-
-    let range = sel.getRangeAt(0);
-    if (sel.isCollapsed && range) {
-      const node = sel.anchorNode;
-      if (node && node.nodeType === 3) {
-        const text = node.textContent || "";
-        const offset = sel.anchorOffset;
-        let start = offset;
-        let end = offset;
-        while (start > 0 && /\S/.test(text[start - 1])) start--;
-        while (end < text.length && /\S/.test(text[end])) end++;
-        if (end > start && typeof document !== "undefined") {
-          const newRange = document.createRange?.();
-          if (newRange) {
-            newRange.setStart(node, start);
-            newRange.setEnd(node, end);
-            sel.removeAllRanges();
-            sel.addRange(newRange);
-            range = newRange;
-          }
-        }
-      }
-    }
-
-    const text = sel.toString();
-    if (!text) return false;
-
     this.flushTyping();
-    const isAllUpper = (text === text.toUpperCase() && text !== text.toLowerCase());
-    const isAllLower = (text === text.toLowerCase() && text !== text.toUpperCase());
-
-    if (!range || typeof document === "undefined" || typeof document.createTreeWalker !== "function") return false;
-    // Đổi chữ NGAY TRÊN các nút văn bản trong vùng chọn (không cắt/chèn lại mảnh DOM): an toàn khi vùng chọn trải nhiều
-    // đoạn/ô/danh sách, giữ nguyên cấu trúc, định dạng và vùng chọn.
-    // Range "sống" bị trình duyệt dịch chuyển khi sửa node.data: chụp toạ độ trước khi đổi.
-    const startContainer = range.startContainer;
-    const startOffset = range.startOffset;
-    const endContainer = range.endContainer;
-    const endOffsetOriginal = range.endOffset;
-    const root = range.commonAncestorContainer;
-    const textNodes = [];
-    if (root.nodeType === 3) {
-      textNodes.push(root);
-    } else {
-      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
-      let textNode = walker.nextNode();
-      while (textNode) {
-        if (range.intersectsNode?.(textNode) !== false) textNodes.push(textNode);
-        textNode = walker.nextNode();
-      }
-    }
-    const slices = textNodes.map(node => {
-      const from = node === startContainer ? startOffset : 0;
-      const to = node === endContainer ? endOffsetOriginal : node.data.length;
-      return { node, from, to: Math.max(from, to) };
-    }).filter(slice => slice.to > slice.from);
-    if (!slices.length) return false;
-    const fragmentText = slices.map(slice => slice.node.data.slice(slice.from, slice.to)).join("");
-
-    const mode = typeof targetCase === "string"
-      ? targetCase.toLowerCase()
-      : (typeof targetCase === "object" && targetCase ? (targetCase.type || targetCase.mode || "").toLowerCase() : "");
-    const transformCase = value => {
-      if (mode === "sentence" || mode === "sentencecase") {
-        return value.toLowerCase().replace(/(^|[.!?]\s+)(\p{L})/gu, (m, p, c) => p + c.toUpperCase());
-      }
-      if (mode === "lowercase" || mode === "lower") {
-        return value.toLowerCase();
-      }
-      if (mode === "uppercase" || mode === "upper") {
-        return value.toUpperCase();
-      }
-      if (mode === "capitalize" || mode === "capitalizeeachword" || mode === "title") {
-        return value.toLowerCase().replace(/(^|[\s\p{P}\u2018-\u201D]+)(\p{L})/gu, (m, p, c) => p + c.toUpperCase());
-      }
-      if (mode === "toggle" || mode === "togglecase") {
-        return Array.from(value).map(c => {
-          const u = c.toUpperCase();
-          const l = c.toLowerCase();
-          return c === u && c !== l ? l : (c === l && c !== u ? u : c);
-        }).join("");
-      }
-      // Mặc định Shift+F3 xoay vòng: thường -> Tiêu đề -> HOA -> thường
-      if (isAllLower) {
-        return value.toLowerCase().replace(/(^|[\s\p{P}\u2018-\u201D]+)(\p{L})/gu, (m, p, c) => p + c.toUpperCase());
-      }
-      if (isAllUpper) {
-        return value.toLowerCase();
-      }
-      return value.toUpperCase();
-    };
-
-    const convertedText = transformCase(fragmentText);
-    let sourceOffset = 0;
-    let newEndOffset = endOffsetOriginal;
-    for (const slice of slices) {
-      const sourceEnd = sourceOffset + (slice.to - slice.from);
-      const outputStart = transformCase(fragmentText.slice(0, sourceOffset)).length;
-      const outputEnd = transformCase(fragmentText.slice(0, sourceEnd)).length;
-      const piece = convertedText.slice(outputStart, outputEnd);
-      slice.node.data = slice.node.data.slice(0, slice.from) + piece + slice.node.data.slice(slice.to);
-      if (slice.node === endContainer) newEndOffset = slice.from + piece.length;
-      sourceOffset = sourceEnd;
-    }
-    const restoredRange = document.createRange();
-    restoredRange.setStart(startContainer, startOffset);
-    restoredRange.setEnd(endContainer, Math.min(newEndOffset, endContainer.nodeType === 3 ? endContainer.data.length : endContainer.childNodes.length));
-    sel.removeAllRanges();
-    sel.addRange(restoredRange);
-
+    // Logic đổi chữ dùng chung với Slides: platform/text/change-case.js
+    if (!applyChangeCaseToSelection(targetCase)) return false;
     this.isDirty = true;
     this.recordSnapshot("writer.text.changeCase");
     return true;
