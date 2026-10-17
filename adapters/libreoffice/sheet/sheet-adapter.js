@@ -388,8 +388,16 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.formula.defineName", () => this.grid.showDefineNameDialog ? this.grid.showDefineNameDialog() : false);
     globalCommandBus.bindHandler("sheet.formula.useInFormula", () => this.grid.showUseInFormulaDialog ? this.grid.showUseInFormulaDialog() : false);
     globalCommandBus.bindHandler("sheet.formula.createFromSelection", () => this.grid.createNamesFromSelection ? this.grid.createNamesFromSelection() : false);
-    globalCommandBus.bindHandler("sheet.formula.tracePrecedents", () => this.grid.tracePrecedents ? this.grid.tracePrecedents() : false);
-    globalCommandBus.bindHandler("sheet.formula.traceDependents", () => this.grid.traceDependents ? this.grid.traceDependents() : false);
+    globalCommandBus.bindHandler("sheet.formula.tracePrecedents", () => {
+      const traced = this.grid.tracePrecedents ? this.grid.tracePrecedents() : false;
+      if (traced && !traced.cells?.length) this.grid._showDataNotice?.("Ô đang chọn không có công thức tham chiếu ô khác nên không có ô nguồn để truy vết.");
+      return traced;
+    });
+    globalCommandBus.bindHandler("sheet.formula.traceDependents", () => {
+      const traced = this.grid.traceDependents ? this.grid.traceDependents() : false;
+      if (traced && !traced.cells?.length) this.grid._showDataNotice?.("Chưa có công thức nào dùng ô đang chọn nên không có ô phụ thuộc để truy vết.");
+      return traced;
+    });
     globalCommandBus.bindHandler("sheet.formula.removeArrows", () => this.grid.removeArrows ? this.grid.removeArrows() : false);
     globalCommandBus.bindHandler("sheet.formula.showFormulas", () => this.grid.toggleShowFormulas ? this.grid.toggleShowFormulas() : false);
     globalCommandBus.bindHandler("sheet.formula.errorChecking", () => this.grid.showErrorCheckingDialog ? this.grid.showErrorCheckingDialog() : false);
@@ -675,11 +683,11 @@ export class SheetAdapter {
     });
     globalCommandBus.bindHandler("sheet.edit.clearComments", (options) => {
       options = options || {};
-      return this.grid.clearComments ? this.grid.clearComments(options.range) : false;
+      return this._hintIfFalse(() => this.grid.clearComments ? this.grid.clearComments(options.range) : false, "Vùng chọn không có ghi chú nào để xóa.");
     });
     globalCommandBus.bindHandler("sheet.edit.clearHyperlinks", (options) => {
       options = options || {};
-      return this.grid.clearHyperlinks ? this.grid.clearHyperlinks(options.range) : false;
+      return this._hintIfFalse(() => this.grid.clearHyperlinks ? this.grid.clearHyperlinks(options.range) : false, "Vùng chọn không có siêu liên kết nào để xóa.");
     });
     globalCommandBus.bindHandler("sheet.cells.format", () => this.grid.showFormatCellsDialog());
     globalCommandBus.bindHandler("sheet.edit.fill", (options) => {

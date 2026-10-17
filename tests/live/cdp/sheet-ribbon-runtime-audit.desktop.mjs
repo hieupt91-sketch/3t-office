@@ -33,8 +33,9 @@ try {
       if (!bus.hasHandler(id)) return JSON.stringify({ status: 'NO_HANDLER' });
       if (state && state.enabled === false) return JSON.stringify({ status: 'DISABLED' });
       const g = window.__vnoAppInstance.grid;
-      const snap = () => JSON.stringify([document.body.innerHTML.length, document.querySelectorAll('dialog,[role=dialog],.vno-modal,.vno-menu,.vno-dropdown,.vno-notice,.vno-toast').length, g.cellsData.size, g.selection ? JSON.stringify(g.selection) : '', document.activeElement?.tagName]);
-      g.setCellValue('B', 2, '12'); g.setCellValue('C', 2, 'abc');
+      const snap = () => JSON.stringify([document.body.innerHTML.length, document.querySelectorAll('dialog,[role=dialog],.vno-modal,.vno-menu,.vno-dropdown,.vno-notice,.vno-toast').length, g.cellsData.size, g.selection ? JSON.stringify(g.selection) : '', document.activeElement?.tagName, JSON.stringify([...g.cellsData.entries()]), document.querySelector('.vno-status-message, #vno-status-message, .vno-statusbar')?.textContent || '']);
+      g.setCellValue('B', 2, '12'); g.setCellValue('C', 2, 'abc'); g.setCellValue('B', 3, '0.256'); g.setCellValue('C', 3, '5');
+      try { g.selectCell('B', 2); g.selectCell('C', 3, true); } catch (_) { try { g.selectCell(2, 2); g.selectCell(3, 3, true); } catch (_2) {} }
       const before = snap(); let threw = '';
       try { await Promise.race([bus.execute(id, ${JSON.stringify(r.arg ?? null)}), new Promise(r => setTimeout(r, 4000))]); } catch (e) { threw = String(e && e.message || e); }
       await new Promise(r => setTimeout(r, 150));
