@@ -1,6 +1,7 @@
 # Spec — 3T Transfer: gửi/nhận tệp bằng mã, truyền thẳng giữa hai máy, mọi nền tảng
 
 Ngày: 17/10/2026 · Người phụ trách đã **chốt hướng** (17/10): dùng mã ngắn, ưu tiên truyền thẳng máy-với-máy, tự chuyển đường khi không nối thẳng được, một lõi dùng chung cho Writer / Sheet / Slides và mọi nền tảng.
+**Quy định chuẩn từng byte, hằng số, API, mã lỗi, test vector: `docs/SPEC-FILE-TRANSFER-PROTOCOL.md` (thắng khi mâu thuẫn).**
 Trạng thái: **ĐÃ CHỐT HƯỚNG — sẵn sàng chia việc.** Mục §14 liệt kê các điểm vẫn cần xác minh trong lúc làm. Chưa có dòng code nào.
 
 Phạm vi nền tảng: Windows · macOS · Linux · iOS · iPadOS · Android. Phạm vi ứng dụng: VN Writer, VN Sheet, VN Slides (và mọi app sau này) — **một** chức năng ở Shared Platform, không nhân bản theo app (AGENTS.md §2).
