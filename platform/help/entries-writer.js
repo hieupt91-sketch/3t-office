@@ -925,6 +925,23 @@ export const WRITER_HELP_ENTRIES = [
     ]
   },
   {
+    id: "writer.format.miniToolbarHelp",
+    app: "writer",
+    commandIds: [],
+    title: "Thanh công cụ nổi khi bôi đen chữ (Mini Toolbar)",
+    summary: "Bôi đen chữ bằng chuột hoặc nhấp chuột phải: thanh định dạng nhỏ hiện ngay phía trên để đổi phông, cỡ chữ, đậm, nghiêng, gạch chân, căn giữa, tô sáng, màu chữ, danh sách và thụt lề mà không cần lên ribbon.",
+    ribbon: { tab: "Trang đầu", tabId: "home", group: "Phông chữ" },
+    keywords: ["mini toolbar", "thanh công cụ nổi", "định dạng nhanh", "bôi đen", "chuột phải", "đậm", "nghiêng", "cỡ chữ", "tô sáng", "màu chữ"],
+    steps: [
+      "Bôi đen chữ bằng chuột (kéo chuột hoặc nhấp đúp vào một từ): thanh định dạng nhỏ hiện ngay phía trên vùng chọn, ban đầu hơi mờ.",
+      "Đưa con trỏ chuột lại gần thanh để thanh hiện rõ; đưa ra xa thanh sẽ mờ dần rồi tự biến mất.",
+      "Hàng đầu: hộp Phông chữ, hộp Cỡ chữ, Tăng cỡ chữ, Giảm cỡ chữ, Xóa định dạng. Hàng giữa: Đậm, Nghiêng, Gạch chân, Căn giữa, Tô sáng, Màu chữ. Hàng cuối: Danh sách dấu đầu dòng, Danh sách đánh số, Giảm và Tăng thụt lề.",
+      "Nhấp một nút để áp dụng ngay lên chữ đang chọn; vùng chọn được giữ nguyên nên bạn có thể nhấn tiếp nhiều nút. Các nút Đậm, Nghiêng, Gạch chân sáng lên khi định dạng đang bật.",
+      "Nhấp chuột phải trong văn bản: thanh hiện phía trên menu ngữ cảnh, dùng được cả khi chưa bôi đen chữ.",
+      "Thanh biến mất khi bạn gõ phím, nhấn Esc, cuộn trang hoặc nhấp ra ngoài. Mọi thao tác trên thanh đều hoàn tác được bằng Ctrl+Z."
+    ]
+  },
+  {
     id: "writer.para.advanced",
     app: "writer",
     commandIds: [

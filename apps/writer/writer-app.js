@@ -20,6 +20,7 @@ import { showContextMenu, closeActiveContextMenu } from "../../platform/ui-kit/c
 import { showPageSetupDialog } from "./page-setup-dialog.js";
 import { WriterAutoCorrectPreferences, WriterAutoCorrectController } from "./auto-correct.js";
 import { createWriterAutoCorrectOptionsProvider } from "./auto-correct-options.js";
+import { WriterMiniToolbar } from "./writer-mini-toolbar.js";
 
 export class WriterApp {
   constructor(mountElement) {
@@ -319,6 +320,7 @@ export class WriterApp {
     this._autoRecoverOptions = options;
     this._setupContextMenu(body);
     this._setupTextDragDrop(body);
+    this.miniToolbar = new WriterMiniToolbar({ body, scrollRoots: [this.canvas?.parentElement, this.canvas].filter(Boolean) }).attach();
     console.log("[WriterApp] Đã khởi tạo 3T Doc chuẩn hóa cao cấp.");
   }
 
@@ -477,6 +479,8 @@ export class WriterApp {
     this.autoCorrectController?.destroy();
     this.autoCorrectController = null;
     this._closeContextMenu();
+    this.miniToolbar?.destroy();
+    this.miniToolbar = null;
     if (this._statusSelectionChangeHandler && typeof document !== "undefined") {
       document.removeEventListener?.("selectionchange", this._statusSelectionChangeHandler);
       this._statusSelectionChangeHandler = null;
