@@ -412,6 +412,139 @@ try {
             Retry { [void]$pt.CalculatedFields().Add($op.name, $op.formula) }
             Retry { [void]$pt.AddDataField($pt.PivotFields($op.name), "Sum of $($op.name)", -4157) }
           }
+          "removeDuplicates" {
+            $cols = if ($op.columns) { [int[]]$op.columns } else { @(1) }
+            $hdr = if ($op.hasHeader -eq $false) { 2 } else { 1 }
+            Retry { [void]$ws.Range($op.range).RemoveDuplicates($cols, $hdr) }
+          }
+          "textToColumns" {
+            $dest = if ($op.destination) { $ws.Range($op.destination) } else { $ws.Range($op.range.Split(":")[0]) }
+            $dataType = if ($op.dataType -eq "fixed") { 2 } else { 1 }
+            $textQual = if ($op.textQualifier -eq "singleQuote") { 2 } elseif ($op.textQualifier -eq "none") { -4142 } else { 1 }
+            $consec = if ($op.consecutiveDelimiter) { [bool]$op.consecutiveDelimiter } else { $false }
+            $tab = [bool]($op.delimiter -eq "tab" -or $op.delimiter -eq "`t")
+            $semi = [bool]($op.delimiter -eq ";")
+            $comma = [bool]($op.delimiter -eq ",")
+            $space = [bool]($op.delimiter -eq " " -or $op.delimiter -eq "space")
+            $other = [bool]($op.delimiter -and -not ($tab -or $semi -or $comma -or $space))
+            $otherChar = if ($other) { [string]$op.delimiter } else { $missing }
+            $fieldInfo = $missing
+            if ($op.fieldInfo) {
+              $fieldInfo = $op.fieldInfo
+            }
+            Retry {
+              [void]$ws.Range($op.range).TextToColumns($dest, $dataType, $textQual, $consec, $tab, $semi, $comma, $space, $other, $otherChar, $fieldInfo)
+            }
+          }
+          "subtotal" {
+            $grp = if ($op.groupBy) { [int]$op.groupBy } else { 1 }
+            $fn = switch ($op.function) {
+              "COUNT" { -4112 }
+              "AVERAGE" { -4106 }
+              "MAX" { -4136 }
+              "MIN" { -4139 }
+              default { -4157 }
+            }
+            $tl = if ($op.totalList) { [int[]]$op.totalList } else { @(2) }
+            $rep = if ($op.replace -ne $null) { [bool]$op.replace } else { $true }
+            $pb = if ($op.pageBreaks -ne $null) { [bool]$op.pageBreaks } else { $false }
+            $sb = if ($op.summaryBelow -ne $null -and -not $op.summaryBelow) { 0 } else { 1 }
+            Retry { [void]$ws.Range($op.range).Subtotal($grp, $fn, $tl, $rep, $pb, $sb) }
+          }
+          "removeSubtotal" {
+            Retry { [void]$ws.Range($op.range).RemoveSubtotal() }
+          }
+          "consolidate" {
+            $fn = switch ($op.function) {
+              "COUNT" { -4112 }
+              "AVERAGE" { -4106 }
+              "MAX" { -4136 }
+              "MIN" { -4139 }
+              default { -4157 }
+            }
+            $top = if ($op.topRow -ne $null) { [bool]$op.topRow } else { $false }
+            $left = if ($op.leftColumn -ne $null) { [bool]$op.leftColumn } else { $false }
+            $links = if ($op.createLinks -ne $null) { [bool]$op.createLinks } else { $false }
+            $srcs = [string[]]($op.sources | ForEach-Object {
+              $s = [string]$_
+              if ($s -match "^([^!]+)!([A-Z]+)(\d+):([A-Z]+)(\d+)$") {
+                $sheet = $matches[1].Trim("'")
+                $targetSheet = if ($sheet -eq "Sheet1") { $ws.Name } else { $sheet }
+                $c1 = 0; foreach ($ch in $matches[2].ToCharArray()) { $c1 = $c1 * 26 + [int]$ch - 64 }
+                $r1 = [int]$matches[3]
+                $c2 = 0; foreach ($ch in $matches[4].ToCharArray()) { $c2 = $c2 * 26 + [int]$ch - 64 }
+                $r2 = [int]$matches[5]
+                "'$targetSheet'!R${r1}C${c1}:R${r2}C${c2}"
+              } elseif ($s -match "^([A-Z]+)(\d+):([A-Z]+)(\d+)$") {
+                $targetSheet = $ws.Name
+                $c1 = 0; foreach ($ch in $matches[1].ToCharArray()) { $c1 = $c1 * 26 + [int]$ch - 64 }
+                $r1 = [int]$matches[2]
+                $c2 = 0; foreach ($ch in $matches[3].ToCharArray()) { $c2 = $c2 * 26 + [int]$ch - 64 }
+                $r2 = [int]$matches[4]
+                "'$targetSheet'!R${r1}C${c1}:R${r2}C${c2}"
+              } else {
+                $s
+              }
+            })
+            Retry { [void]$ws.Range($op.dest).Consolidate($srcs, $fn, $top, $left, $links) }
+          }
+          "goalSeek" {
+            $tc = $ws.Range($op.targetCell)
+            $cc = $ws.Range($op.changingCell)
+            Retry { [void]$tc.GoalSeek([double]$op.targetValue, $cc) }
+          }
+          "dataTable" {
+            $rowIn = if ($op.rowInput) { $ws.Range($op.rowInput) } else { $missing }
+            $colIn = if ($op.colInput) { $ws.Range($op.colInput) } else { $missing }
+            Retry { [void]$ws.Range($op.range).Table($rowIn, $colIn) }
+          }
+          "addScenario" {
+            $rangeStr = if ($op.changingCells -is [System.Collections.IEnumerable] -and -not ($op.changingCells -is [string])) { [string]::Join(",", $op.changingCells) } else { [string]$op.changingCells }
+            $cells = $ws.Range($rangeStr)
+            $vals = $op.values
+            $comment = if ($op.comment) { [string]$op.comment } else { "" }
+            Retry { [void]$ws.Scenarios().Add([string]$op.name, $cells, $vals, $comment, $false, $false) }
+          }
+          "showScenario" {
+            Retry { [void]$ws.Scenarios([string]$op.name).Show() }
+          }
+          "clear" {
+            $rng = $ws.Range($op.range)
+            switch ($op.mode) {
+              "contents" { Retry { [void]$rng.ClearContents() } }
+              "formats" { Retry { [void]$rng.ClearFormats() } }
+              "comments" { Retry { [void]$rng.ClearComments() } }
+              "hyperlinks" { Retry { [void]$rng.ClearHyperlinks() } }
+              default { Retry { [void]$rng.Clear() } }
+            }
+          }
+          "mergeCells" {
+            $across = if ($op.across) { [bool]$op.across } else { $false }
+            Retry { [void]$ws.Range($op.range).Merge($across) }
+          }
+          "unmergeCells" {
+            Retry { [void]$ws.Range($op.range).UnMerge() }
+          }
+          "flashFill" {
+            Retry { [void]$ws.Range($op.range).FlashFill() }
+          }
+          "groupRows" {
+            Retry { [void]$ws.Rows("$($op.from):$($op.to)").Group() }
+          }
+          "ungroupRows" {
+            Retry { [void]$ws.Rows("$($op.from):$($op.to)").Ungroup() }
+          }
+          "groupCols" {
+            Retry { [void]$ws.Columns("$($op.from):$($op.to)").Group() }
+          }
+          "ungroupCols" {
+            Retry { [void]$ws.Columns("$($op.from):$($op.to)").Ungroup() }
+          }
+          "showOutlineLevels" {
+            $rowLvl = if ($op.rowLevel) { [int]$op.rowLevel } else { $missing }
+            $colLvl = if ($op.colLevel) { [int]$op.colLevel } else { $missing }
+            Retry { [void]$ws.Outline.ShowLevels($rowLvl, $colLvl) }
+          }
         }
       }
     if (-not $scenario.skipFinalCalculate -and $x.Calculation -ne -4135) {
@@ -516,6 +649,6 @@ try {
       $wb.Date1904 = $false
     }
   }
-  ($results | ConvertTo-Json -Depth 6 -Compress) | Set-Content -LiteralPath $OutputJson -Encoding UTF8
+  [System.IO.File]::WriteAllText($OutputJson, ($results | ConvertTo-Json -Depth 6 -Compress), (New-Object System.Text.UTF8Encoding($false)))
   Retry { $wb.Close($false) }
 } finally { try { $x.Quit() } catch {} }

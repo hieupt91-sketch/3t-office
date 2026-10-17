@@ -16,15 +16,15 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu Excel 2016 | 77 | 36% |
-| 🟢 Có, chưa đối chiếu | 65 | 31% |
-| 🟡 Có một phần | 30 | 14% |
+| ✅ Đã đối chiếu Excel 2016 | 88 | 41% |
+| 🟢 Có, chưa đối chiếu | 55 | 26% |
+| 🟡 Có một phần | 29 | 14% |
 | 🔴 Chưa có | 41 | 19% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
 
 - **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 74%**
-- **Đã xác minh bằng đối chiếu Excel 2016 thật: 36%** các mục áp dụng
+- **Đã xác minh bằng đối chiếu Excel 2016 thật: 41%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ 462 hàm) chỉ tính một mục; mức phủ hàm nằm ở dòng riêng và ở `EXCEL2016-FUNCTIONS-MATRIX.md`.
 
@@ -33,11 +33,11 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 3 | 8 | 4 | 1 | 1 | 81% |
-| Trang đầu | 53 | 22 | 18 | 10 | 3 | 0 | 85% |
+| Trang đầu | 53 | 25 | 15 | 10 | 3 | 0 | 85% |
 | Chèn | 29 | 9 | 5 | 2 | 11 | 2 | 56% |
 | Bố trí trang | 10 | 5 | 0 | 3 | 2 | 0 | 65% |
 | Công thức | 13 | 6 | 6 | 1 | 0 | 0 | 96% |
-| Dữ liệu | 19 | 5 | 7 | 4 | 3 | 0 | 74% |
+| Dữ liệu | 19 | 13 | 0 | 3 | 3 | 0 | 76% |
 | Xem xét | 12 | 1 | 3 | 2 | 5 | 1 | 45% |
 | Chế độ xem | 12 | 2 | 6 | 1 | 3 | 0 | 71% |
 | Nhà phát triển | 3 | 0 | 0 | 0 | 3 | 0 | 0% |
@@ -106,7 +106,7 @@ Tổng: 4 mục ưu tiên 1.
 | Căn chỉnh | Hướng chữ (xoay) | ✅ | - | Xoay 90° đã đọc lại bằng Excel 2016 |
 | Căn chỉnh | Ngắt dòng tự động (Wrap Text) | ✅ | - |  |
 | Căn chỉnh | Giảm/Tăng thụt lề | 🟢 | - |  |
-| Căn chỉnh | Trộn & căn giữa / Trộn theo hàng / Trộn ô / Tách ô | 🟢 | - | sheet.cell.merge* |
+| Căn chỉnh | Trộn & căn giữa / Trộn theo hàng / Trộn ô / Tách ô | ✅ | - | 17/10 (AGY-DATATOOLS): Merge & Center, Merge Across, UnMerge đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.cell.merge; apps/sheet/sheet-grid.js:15503-15565 |
 | Căn chỉnh | Căn đều, Distributed, Fill, Center across selection, Shrink to fit | ✅ | - | 16/10 (AGY-JUSTIFY): Center Across Selection và Shrink to Fit lưu/mở lại đúng, đối chiếu Excel 2016 (cases-7) |
 | Số | Danh sách định dạng số (Chung, Số, Tiền tệ, Kế toán, Ngày, Giờ, %, Khoa học, Văn bản) | ✅ | - | Số/ngày/giờ/% đã đối chiếu (E3) |
 | Số | Định dạng số dạng Phân số (Fraction) và Đặc biệt (Special) | 🔴 | 3 |  |
@@ -130,9 +130,9 @@ Tổng: 4 mục ưu tiên 1.
 | Ô | Đổi tên, Di chuyển/Sao chép, Màu tab, Bảo vệ trang tính | 🟢 | - |  |
 | Ô | Khóa ô (Lock Cell) khi bảo vệ | 🟡 | 2 | Bảo vệ trang tính có; mức khóa từng ô cần kiểm |
 | Chỉnh sửa | Tổng tự động (Sum, Average, Count, Max, Min) và Thêm hàm | 🟢 | - | sheet.formula.sum + dropdown |
-| Chỉnh sửa | Điền: xuống / sang phải / Flash Fill | 🟢 | - | sheet.edit.fillDown/Right; Flash Fill có |
+| Chỉnh sửa | Điền: xuống / sang phải / Flash Fill | ✅ | - | 17/10 (AGY-DATATOOLS): Flash Fill và Điền đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.edit.flashFill; apps/sheet/data-tools.js:339-370 |
 | Chỉnh sửa | Điền: lên / sang trái / Chuỗi (Series) / Căn đều / Trên các trang | ✅ | - | 16/10: Căn đều (sheet.edit.fillJustify, cases-7 47/47 ô) và Điền trên các trang (F2, Excel COM FillAcrossSheets) đã đối chiếu |
-| Chỉnh sửa | Xóa: tất cả / định dạng / nội dung | 🟢 | - |  |
+| Chỉnh sửa | Xóa: tất cả / định dạng / nội dung | ✅ | - | 17/10 (AGY-DATATOOLS): Clear all, formats, contents đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.edit.clearAll; apps/sheet/sheet-grid.js:14842-15010 |
 | Chỉnh sửa | Xóa ghi chú / Xóa siêu liên kết (trong menu Xóa) | 🟢 | 2 | 15/10: sheet.edit.clearComments, sheet.edit.clearHyperlinks; chưa đối chiếu Excel |
 | Chỉnh sửa | Sắp xếp A-Z / Z-A / Tùy chỉnh nhiều cấp | ✅ | - | Sắp xếp hai cấp đã đọc lại bằng Excel 2016 |
 | Chỉnh sửa | Sắp xếp theo màu ô/màu chữ/biểu tượng | 🟡 | 3 | G2: có sắp xếp theo màu ô/chữ; chưa có theo biểu tượng |
@@ -218,20 +218,20 @@ Tổng: 4 mục ưu tiên 1.
 | Kết nối | Làm mới tất cả / Kết nối / Thuộc tính / Liên kết ngoài (Edit Links) | 🟡 | 2 | 17/10 (AGY-LINKS): Chỉnh sửa liên kết, cập nhật/đổi nguồn/ngắt liên kết khớp Excel (cases-11 6/6 ô, LAN 10/10); chưa có kết nối dữ liệu ngoài (Power Query/ODBC) |
 | Sắp xếp & Lọc | Sắp xếp A-Z, Z-A, Sắp xếp tùy chỉnh | ✅ | - |  |
 | Sắp xếp & Lọc | Bộ lọc nâng cao (Advanced Filter, vùng tiêu chí) | ✅ | - | F1 (cases-6 13/13 kịch bản, 156/156 ô khớp Excel 2016) |
-| Công cụ dữ liệu | Tách văn bản thành cột | 🟢 | - | sheet.data.textToColumns |
-| Công cụ dữ liệu | Flash Fill | 🟢 | - |  |
-| Công cụ dữ liệu | Xóa trùng lặp | 🟢 | - |  |
+| Công cụ dữ liệu | Tách văn bản thành cột | ✅ | - | 17/10 (AGY-DATATOOLS): TextToColumns dấu phẩy/tab/khoảng trắng/ngoặc kép/bỏ qua cột đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.data.textToColumns; apps/sheet/data-tools.js:300-335 |
+| Công cụ dữ liệu | Flash Fill | ✅ | - | 17/10 (AGY-DATATOOLS): Flash Fill tách họ-tên/ghép/mã đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.data.flashFill; apps/sheet/data-tools.js:339-370 |
+| Công cụ dữ liệu | Xóa trùng lặp | ✅ | - | 17/10 (AGY-DATATOOLS): RemoveDuplicates 1/nhiều cột, header, không phân biệt hoa thường đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.data.removeDuplicates; apps/sheet/data-tools.js:25-75 |
 | Công cụ dữ liệu | Kiểm tra dữ liệu: Danh sách | ✅ | - | Validation.Type=3 đã đối chiếu |
 | Công cụ dữ liệu | Kiểm tra dữ liệu: Số nguyên / Số thập phân | ✅ | - | G2: Excel 2016 đọc Type 1/2 + toán tử |
 | Công cụ dữ liệu | Kiểm tra dữ liệu: Ngày / Giờ / Độ dài văn bản / Tùy chỉnh (công thức) | ✅ | - | G2: Excel 2016 đọc Type 4/5/6/7 |
 | Công cụ dữ liệu | Kiểm tra dữ liệu: Thông báo nhập, Cảnh báo lỗi (Stop/Warning/Info), Khoanh vòng dữ liệu sai | 🟡 | 3 | G2: thông báo nhập + 3 mức cảnh báo Excel 2016 đọc đúng; khoanh vòng chưa so hình |
-| Công cụ dữ liệu | Hợp nhất dữ liệu (Consolidate) | 🟢 | - |  |
+| Công cụ dữ liệu | Hợp nhất dữ liệu (Consolidate) | ✅ | - | 17/10 (AGY-DATATOOLS): Consolidate SUM/AVG/MAX/MIN/COUNT theo vị trí và nhãn đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.data.consolidate; apps/sheet/sheet-grid.js:19801-19830 |
 | Công cụ dữ liệu | Quan hệ giữa bảng / Mô hình dữ liệu (Power Pivot) | 🔴 | 3 |  |
-| Dự báo | Phân tích What-If: Trình quản lý kịch bản | 🟢 | - | sheet.data.scenarioManager |
-| Dự báo | What-If: Goal Seek / Bảng dữ liệu (Data Table) | 🟢 | - |  |
+| Dự báo | Phân tích What-If: Trình quản lý kịch bản | ✅ | - | 17/10 (AGY-DATATOOLS): Scenario Manager Add/Show đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.data.scenarioManager; apps/sheet/sheet-grid.js:20440-20465 |
+| Dự báo | What-If: Goal Seek / Bảng dữ liệu (Data Table) | ✅ | - | 17/10 (AGY-DATATOOLS): Goal Seek và Table 1/2 biến đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.data.goalSeek; apps/sheet/sheet-grid.js:20056-20090 |
 | Dự báo | Trang dự báo (Forecast Sheet) | 🔴 | 3 |  |
-| Dàn bài | Nhóm / Bỏ nhóm / Tổng phụ | 🟢 | - |  |
-| Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | 🟡 | 2 | Cần kiểm |
+| Dàn bài | Nhóm / Bỏ nhóm / Tổng phụ | ✅ | - | 17/10 (AGY-DATATOOLS): Group/Ungroup hàng-cột và Subtotal/RemoveSubtotal đối chiếu Excel 2016 (cases-17 12/12 kịch bản); sheet.data.subtotal; apps/sheet/data-tools.js:77-185 |
+| Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | ✅ | - | 17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (cases-17); sheet.outline.showOutlineLevels; apps/sheet/sheet-grid.js:19738-19754 |
 | Phân tích | Solver | 🔴 | 3 | Bổ sung của Excel |
 
 ### Xem xét

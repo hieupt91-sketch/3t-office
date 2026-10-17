@@ -50,7 +50,7 @@ Trang đầu|Căn chỉnh|Căn trên/giữa/dưới; trái/giữa/phải|A|-|she
 Trang đầu|Căn chỉnh|Hướng chữ (xoay)|V|-|Xoay 90° đã đọc lại bằng Excel 2016
 Trang đầu|Căn chỉnh|Ngắt dòng tự động (Wrap Text)|V|-|
 Trang đầu|Căn chỉnh|Giảm/Tăng thụt lề|A|-|
-Trang đầu|Căn chỉnh|Trộn & căn giữa / Trộn theo hàng / Trộn ô / Tách ô|A|-|sheet.cell.merge*
+Trang đầu|Căn chỉnh|Trộn & căn giữa / Trộn theo hàng / Trộn ô / Tách ô|V|-|17/10 (AGY-DATATOOLS): Merge & Center, Merge Across, UnMerge đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.cell.merge; apps/sheet/sheet-grid.js:15503-15565
 Trang đầu|Căn chỉnh|Căn đều, Distributed, Fill, Center across selection, Shrink to fit|V|-|16/10 (AGY-JUSTIFY): Center Across Selection và Shrink to Fit lưu/mở lại đúng, đối chiếu Excel 2016 (cases-7)
 Trang đầu|Số|Danh sách định dạng số (Chung, Số, Tiền tệ, Kế toán, Ngày, Giờ, %, Khoa học, Văn bản)|V|-|Số/ngày/giờ/% đã đối chiếu (E3)
 Trang đầu|Số|Định dạng số dạng Phân số (Fraction) và Đặc biệt (Special)|N|3|
@@ -74,9 +74,9 @@ Trang đầu|Ô|Ẩn/Hiện hàng, cột, trang tính|A|-|
 Trang đầu|Ô|Đổi tên, Di chuyển/Sao chép, Màu tab, Bảo vệ trang tính|A|-|
 Trang đầu|Ô|Khóa ô (Lock Cell) khi bảo vệ|P|2|Bảo vệ trang tính có; mức khóa từng ô cần kiểm
 Trang đầu|Chỉnh sửa|Tổng tự động (Sum, Average, Count, Max, Min) và Thêm hàm|A|-|sheet.formula.sum + dropdown
-Trang đầu|Chỉnh sửa|Điền: xuống / sang phải / Flash Fill|A|-|sheet.edit.fillDown/Right; Flash Fill có
+Trang đầu|Chỉnh sửa|Điền: xuống / sang phải / Flash Fill|V|-|17/10 (AGY-DATATOOLS): Flash Fill và Điền đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.edit.flashFill; apps/sheet/data-tools.js:339-370
 Trang đầu|Chỉnh sửa|Điền: lên / sang trái / Chuỗi (Series) / Căn đều / Trên các trang|V|-|16/10: Căn đều (sheet.edit.fillJustify, cases-7 47/47 ô) và Điền trên các trang (F2, Excel COM FillAcrossSheets) đã đối chiếu
-Trang đầu|Chỉnh sửa|Xóa: tất cả / định dạng / nội dung|A|-|
+Trang đầu|Chỉnh sửa|Xóa: tất cả / định dạng / nội dung|V|-|17/10 (AGY-DATATOOLS): Clear all, formats, contents đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.edit.clearAll; apps/sheet/sheet-grid.js:14842-15010
 Trang đầu|Chỉnh sửa|Xóa ghi chú / Xóa siêu liên kết (trong menu Xóa)|A|2|15/10: sheet.edit.clearComments, sheet.edit.clearHyperlinks; chưa đối chiếu Excel
 Trang đầu|Chỉnh sửa|Sắp xếp A-Z / Z-A / Tùy chỉnh nhiều cấp|V|-|Sắp xếp hai cấp đã đọc lại bằng Excel 2016
 Trang đầu|Chỉnh sửa|Sắp xếp theo màu ô/màu chữ/biểu tượng|P|3|G2: có sắp xếp theo màu ô/chữ; chưa có theo biểu tượng
@@ -142,20 +142,20 @@ Dữ liệu|Lấy dữ liệu|Từ văn bản/CSV, Web, Access, Cơ sở dữ li
 Dữ liệu|Kết nối|Làm mới tất cả / Kết nối / Thuộc tính / Liên kết ngoài (Edit Links)|P|2|17/10 (AGY-LINKS): Chỉnh sửa liên kết, cập nhật/đổi nguồn/ngắt liên kết khớp Excel (cases-11 6/6 ô, LAN 10/10); chưa có kết nối dữ liệu ngoài (Power Query/ODBC)
 Dữ liệu|Sắp xếp & Lọc|Sắp xếp A-Z, Z-A, Sắp xếp tùy chỉnh|V|-|
 Dữ liệu|Sắp xếp & Lọc|Bộ lọc nâng cao (Advanced Filter, vùng tiêu chí)|V|-|F1 (cases-6 13/13 kịch bản, 156/156 ô khớp Excel 2016)
-Dữ liệu|Công cụ dữ liệu|Tách văn bản thành cột|A|-|sheet.data.textToColumns
-Dữ liệu|Công cụ dữ liệu|Flash Fill|A|-|
-Dữ liệu|Công cụ dữ liệu|Xóa trùng lặp|A|-|
+Dữ liệu|Công cụ dữ liệu|Tách văn bản thành cột|V|-|17/10 (AGY-DATATOOLS): TextToColumns dấu phẩy/tab/khoảng trắng/ngoặc kép/bỏ qua cột đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.data.textToColumns; apps/sheet/data-tools.js:300-335
+Dữ liệu|Công cụ dữ liệu|Flash Fill|V|-|17/10 (AGY-DATATOOLS): Flash Fill tách họ-tên/ghép/mã đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.data.flashFill; apps/sheet/data-tools.js:339-370
+Dữ liệu|Công cụ dữ liệu|Xóa trùng lặp|V|-|17/10 (AGY-DATATOOLS): RemoveDuplicates 1/nhiều cột, header, không phân biệt hoa thường đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.data.removeDuplicates; apps/sheet/data-tools.js:25-75
 Dữ liệu|Công cụ dữ liệu|Kiểm tra dữ liệu: Danh sách|V|-|Validation.Type=3 đã đối chiếu
 Dữ liệu|Công cụ dữ liệu|Kiểm tra dữ liệu: Số nguyên / Số thập phân|V|-|G2: Excel 2016 đọc Type 1/2 + toán tử
 Dữ liệu|Công cụ dữ liệu|Kiểm tra dữ liệu: Ngày / Giờ / Độ dài văn bản / Tùy chỉnh (công thức)|V|-|G2: Excel 2016 đọc Type 4/5/6/7
 Dữ liệu|Công cụ dữ liệu|Kiểm tra dữ liệu: Thông báo nhập, Cảnh báo lỗi (Stop/Warning/Info), Khoanh vòng dữ liệu sai|P|3|G2: thông báo nhập + 3 mức cảnh báo Excel 2016 đọc đúng; khoanh vòng chưa so hình
-Dữ liệu|Công cụ dữ liệu|Hợp nhất dữ liệu (Consolidate)|A|-|
+Dữ liệu|Công cụ dữ liệu|Hợp nhất dữ liệu (Consolidate)|V|-|17/10 (AGY-DATATOOLS): Consolidate SUM/AVG/MAX/MIN/COUNT theo vị trí và nhãn đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.data.consolidate; apps/sheet/sheet-grid.js:19801-19830
 Dữ liệu|Công cụ dữ liệu|Quan hệ giữa bảng / Mô hình dữ liệu (Power Pivot)|N|3|
-Dữ liệu|Dự báo|Phân tích What-If: Trình quản lý kịch bản|A|-|sheet.data.scenarioManager
-Dữ liệu|Dự báo|What-If: Goal Seek / Bảng dữ liệu (Data Table)|A|-|
+Dữ liệu|Dự báo|Phân tích What-If: Trình quản lý kịch bản|V|-|17/10 (AGY-DATATOOLS): Scenario Manager Add/Show đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.data.scenarioManager; apps/sheet/sheet-grid.js:20440-20465
+Dữ liệu|Dự báo|What-If: Goal Seek / Bảng dữ liệu (Data Table)|V|-|17/10 (AGY-DATATOOLS): Goal Seek và Table 1/2 biến đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.data.goalSeek; apps/sheet/sheet-grid.js:20056-20090
 Dữ liệu|Dự báo|Trang dự báo (Forecast Sheet)|N|3|
-Dữ liệu|Dàn bài|Nhóm / Bỏ nhóm / Tổng phụ|A|-|
-Dữ liệu|Dàn bài|Hiện/Ẩn chi tiết và nút cấp 1-2-3|P|2|Cần kiểm
+Dữ liệu|Dàn bài|Nhóm / Bỏ nhóm / Tổng phụ|V|-|17/10 (AGY-DATATOOLS): Group/Ungroup hàng-cột và Subtotal/RemoveSubtotal đối chiếu Excel 2016 (cases-17 12/12 kịch bản); sheet.data.subtotal; apps/sheet/data-tools.js:77-185
+Dữ liệu|Dàn bài|Hiện/Ẩn chi tiết và nút cấp 1-2-3|V|-|17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (cases-17); sheet.outline.showOutlineLevels; apps/sheet/sheet-grid.js:19738-19754
 Dữ liệu|Phân tích|Solver|N|3|Bổ sung của Excel
 Xem xét|Soát lỗi|Chính tả (F7)|A|-|sheet.review.spellCheck
 Xem xét|Soát lỗi|Từ đồng nghĩa (Thesaurus) / Thống kê sổ làm việc|N|3|

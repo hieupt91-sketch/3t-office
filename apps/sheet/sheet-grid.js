@@ -8126,7 +8126,7 @@ export class SheetGridController {
         if (included && (sheetName !== activeSheet || k !== excludeKey) && itm.formula) {
           // A link to another (closed) workbook keeps its cached value, as in
           // Excel; evaluating it here would overwrite the value with an error.
-          if (this._isExternalLink(itm)) continue;
+          if (this._isExternalLink(itm) || /^=TABLE\(/i.test(itm.formula)) continue;
           let res;
           if (itm.isArrayFormula && itm.arrayRange) {
             const results = this.formulaEngine.evaluateArray(itm.formula);
@@ -19668,18 +19668,88 @@ export class SheetGridController {
   _outlineGroups() { return this.outlineGroupsBySheet[this.activeSheet] ||= []; }
 
   _isOutlineRowHidden(row) {
-    return this._outlineGroups().some(group => group.axis === "row" && group.collapsed && row > group.start && row <= group.end);
+    return this._outlineGroups().some(group => group.axis === "row" && group.collapsed && row >= group.start && row <= group.end);
   }
 
   _isOutlineColumnHidden(col) {
     const number = this._columnNumber(col);
-    return this._outlineGroups().some(group => group.axis === "col" && group.collapsed && number > group.start && number <= group.end);
+    return this._outlineGroups().some(group => group.axis === "col" && group.collapsed && number >= group.start && number <= group.end);
   }
 
   _outlineToggleHtml(axis, value) {
     const numeric = axis === "row" ? Number(value) : this._columnNumber(value);
     const group = this._outlineGroups().find(item => item.axis === axis && item.start === numeric);
     return group ? `<button type="button" class="vno-outline-toggle" data-group-id="${group.id}" aria-label="${group.collapsed ? "Mở rộng" : "Thu gọn"} nhóm">${group.collapsed ? "+" : "−"}</button>` : "";
+  }
+
+  groupRows(from, to) {
+    const start = Math.min(Number(from), Number(to));
+    const end = Math.max(Number(from), Number(to));
+    if (end < start) return false;
+    if (this._outlineGroups().some(group => group.axis === "row" && group.start === start && group.end === end)) return false;
+    const before = this._snapshotGridStructure();
+    this._outlineGroups().push({ id: `outline-${Date.now()}-${this._outlineGroups().length}`, axis: "row", start, end, collapsed: false });
+    this._renderColumnHeaders(); this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  ungroupRows(from, to) {
+    const start = Math.min(Number(from), Number(to));
+    const end = Math.max(Number(from), Number(to));
+    const before = this._snapshotGridStructure();
+    const previous = this._outlineGroups();
+    const remaining = previous.filter(group => !(group.axis === "row" && group.start === start && group.end === end));
+    if (remaining.length === previous.length) return false;
+    this.outlineGroupsBySheet[this.activeSheet] = remaining;
+    this._renderColumnHeaders(); this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  groupCols(from, to) {
+    const start = typeof from === "number" ? from : this._columnNumber(from);
+    const end = typeof to === "number" ? to : this._columnNumber(to);
+    const s = Math.min(start, end);
+    const e = Math.max(start, end);
+    if (this._outlineGroups().some(group => group.axis === "col" && group.start === s && group.end === e)) return false;
+    const before = this._snapshotGridStructure();
+    this._outlineGroups().push({ id: `outline-${Date.now()}-${this._outlineGroups().length}`, axis: "col", start: s, end: e, collapsed: false });
+    this._renderColumnHeaders(); this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  ungroupCols(from, to) {
+    const start = typeof from === "number" ? from : this._columnNumber(from);
+    const end = typeof to === "number" ? to : this._columnNumber(to);
+    const s = Math.min(start, end);
+    const e = Math.max(start, end);
+    const before = this._snapshotGridStructure();
+    const previous = this._outlineGroups();
+    const remaining = previous.filter(group => !(group.axis === "col" && group.start === s && group.end === e));
+    if (remaining.length === previous.length) return false;
+    this.outlineGroupsBySheet[this.activeSheet] = remaining;
+    this._renderColumnHeaders(); this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+    this._recordHistory({ type: "grid-structure", sheet: this.activeSheet, before, after: this._snapshotGridStructure() });
+    return true;
+  }
+
+  showOutlineLevels(rowLevel = null, colLevel = null) {
+    if (rowLevel !== null && rowLevel !== undefined) {
+      const collapse = Number(rowLevel) === 1;
+      this._outlineGroups().forEach(g => {
+        if (g.axis === "row") g.collapsed = collapse;
+      });
+    }
+    if (colLevel !== null && colLevel !== undefined) {
+      const collapse = Number(colLevel) === 1;
+      this._outlineGroups().forEach(g => {
+        if (g.axis === "col") g.collapsed = collapse;
+      });
+    }
+    this._renderColumnHeaders();
+    this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
   }
 
   groupSelection() {
@@ -19723,6 +19793,7 @@ export class SheetGridController {
 
   removeDuplicates(options) { return this.dataTools.removeDuplicates(options); }
   createSubtotal(options) { return this.dataTools.subtotal(options); }
+  removeSubtotal(range) { return this.dataTools.removeSubtotal(range); }
   sortMultiLevel(options) { return this.dataTools.sortMultiLevel(options); }
   applyTextToColumns(options) { return this.dataTools.textToColumns(options); }
   applyFlashFill(options) { return this.dataTools.flashFill(options); }
@@ -20003,8 +20074,16 @@ export class SheetGridController {
     const normalizedRange = this._normalizeRange(range);
     const grid = WhatIfAnalysisEngine.rangeCoords(normalizedRange, this.cols);
     if (grid.length < 2 || grid[0].length < 2) throw new Error(t("sheetDialogs.dataTableRangeSize", "Vùng Bảng dữ liệu phải có ít nhất 2 hàng và 2 cột."));
-    const formulaCoord = grid[0][0];
-    if (!this.cellsData.get(formulaCoord)?.formula) throw new Error(t("sheetDialogs.dataTableFormulaCorner", "Ô góc trên bên trái phải chứa công thức gốc."));
+    let formulaCoord = grid[0][0];
+    if (!this.cellsData.get(formulaCoord)?.formula) {
+      if (rowInput && !columnInput && this.cellsData.get(grid[1]?.[0])?.formula) {
+        formulaCoord = grid[1][0];
+      } else if (!rowInput && columnInput && this.cellsData.get(grid[0]?.[1])?.formula) {
+        formulaCoord = grid[0][1];
+      } else {
+        throw new Error(t("sheetDialogs.dataTableFormulaCorner", "Ô góc trên bên trái phải chứa công thức gốc."));
+      }
+    }
     const table = { sheet: this.activeSheet, range: normalizedRange, rowInputCell: rowInput, columnInputCell: columnInput, formulaCell: formulaCoord };
     const before = this._snapshotCells();
     const previousGuard = this._dataTableEvaluating;
@@ -20065,9 +20144,10 @@ export class SheetGridController {
   }
 
   _writeDataTableResults(table, output) {
+    const tableFormula = `=TABLE(${table.rowInputCell || ""},${table.columnInputCell || ""})`;
     for (const [coord, value] of output) {
       const current = this.cellsData.get(coord) || { val: "", formula: "", style: {} };
-      this.cellsData.set(coord, { ...current, val: value, formula: "" });
+      this.cellsData.set(coord, { ...current, val: value, formula: tableFormula });
     }
     this._recalculateAllFormulas(undefined, true);
   }
@@ -20358,7 +20438,7 @@ export class SheetGridController {
   }
 
   applyScenario(id, recordUndo = true) {
-    const scenario = (this.scenariosBySheet[this.activeSheet] || []).find(item => item.id === id);
+    const scenario = (this.scenariosBySheet[this.activeSheet] || []).find(item => item.id === id || String(item.name).toLowerCase() === String(id).toLowerCase());
     if (!scenario) return false;
     const before = this._snapshotCells();
     scenario.changingCells.forEach((coord, index) => {

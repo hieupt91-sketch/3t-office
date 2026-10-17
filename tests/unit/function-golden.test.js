@@ -15,6 +15,7 @@ export async function runFunctionGoldenTests() {
   const near = (a, b) => Math.abs(a - b) <= tol * Math.max(1, Math.abs(a), Math.abs(b));
   for (const file of readdirSync(dir).filter(name => name.startsWith("golden-") && name.endsWith(".json")).sort()) {
     const golden = JSON.parse(readFileSync(path.join(dir, file), "utf8"));
+    if (!Array.isArray(golden?.cases)) continue;
     const toMap = obj => { const map = new Map(); for (const [key, value] of Object.entries(obj || {})) map.set(key, { val: value, formula: "", style: {} }); return map; };
     const cells = toMap(golden.cells);
     const sheetMaps = { Sheet1: cells, ...Object.fromEntries(Object.entries(golden.sheets || {}).map(([name, obj]) => [name, toMap(obj)])) };
