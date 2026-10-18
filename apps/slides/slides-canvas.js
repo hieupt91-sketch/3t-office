@@ -11550,16 +11550,16 @@ const startEditing = (initialText) => {
       } else if (layout === "title-only") {
         layoutHtml = `
           <div style="position:relative;flex:1;display:flex;align-items:center;justify-content:center;text-align:center;">
-            <h1${titleAnimAttrs} style="font-size:52px;font-weight:800;color:${theme.titleColor || "#0f172a"};margin:0;${titleAnimStyle}">${s.title}</h1>
+            <h1${titleAnimAttrs} style="font-size:52px;font-weight:800;color:${theme.titleColor || "#0f172a"};margin:0;${titleAnimStyle}">${this._escapeShapeText(s.title)}</h1>
             ${shapesHtml}
           </div>
         `;
       } else if (layout === "two-content") {
         layoutHtml = `
           <div style="position:relative;flex:1;display:flex;flex-direction:column;padding-top:20px;">
-            <h1${titleAnimAttrs} style="font-size:44px;font-weight:800;color:${theme.titleColor || "#0f172a"};margin-bottom:28px;${titleAnimStyle}">${s.title}</h1>
+            <h1${titleAnimAttrs} style="font-size:44px;font-weight:800;color:${theme.titleColor || "#0f172a"};margin-bottom:28px;${titleAnimStyle}">${this._escapeShapeText(s.title)}</h1>
             <div style="display:flex;gap:40px;flex:1;">
-              <div${bodyAnimAttrs} style="flex:1;font-size:24px;line-height:1.7;color:${theme.bodyColor || "#334155"};white-space:pre-line;${bodyAnimStyle}">${s.body}</div>
+              <div${bodyAnimAttrs} style="flex:1;font-size:24px;line-height:1.7;color:${theme.bodyColor || "#334155"};white-space:pre-line;${bodyAnimStyle}">${this._escapeShapeText(s.body)}</div>
               <div${body2AnimAttrs} style="flex:1;font-size:24px;line-height:1.7;color:${theme.bodyColor || "#334155"};white-space:pre-line;${body2AnimStyle}">${s.body2 || ""}</div>
             </div>
             ${shapesHtml}
@@ -11569,8 +11569,8 @@ const startEditing = (initialText) => {
         // title-content (default)
         layoutHtml = `
           <div style="position:relative;flex:1;padding-top:20px;">
-            <h1${titleAnimAttrs} style="font-size:44px;font-weight:800;color:${theme.titleColor || "#0f172a"};margin-bottom:36px;${titleAnimStyle}">${s.title}</h1>
-            <div${bodyAnimAttrs} style="font-size:26px;line-height:1.7;color:${theme.bodyColor || "#334155"};white-space:pre-line;${bodyAnimStyle}">${s.body}</div>
+            <h1${titleAnimAttrs} style="font-size:44px;font-weight:800;color:${theme.titleColor || "#0f172a"};margin-bottom:36px;${titleAnimStyle}">${this._escapeShapeText(s.title)}</h1>
+            <div${bodyAnimAttrs} style="font-size:26px;line-height:1.7;color:${theme.bodyColor || "#334155"};white-space:pre-line;${bodyAnimStyle}">${this._escapeShapeText(s.body)}</div>
             ${shapesHtml}
           </div>
         `;
@@ -12329,15 +12329,15 @@ const startEditing = (initialText) => {
       } else if (layout === "title-only") {
         cardBodyHtml = `
           <div style="flex:1;display:flex;align-items:center;justify-content:center;text-align:center;padding:12px;">
-            <h2 style="font-size:26px;font-weight:800;color:${theme.titleColor || "#0f172a"};margin:0;">${s.title}</h2>
+            <h2 style="font-size:26px;font-weight:800;color:${theme.titleColor || "#0f172a"};margin:0;">${this._escapeShapeText(s.title)}</h2>
           </div>
           <div style="position:relative;min-height:40px;">${shapesHtml}</div>
         `;
       } else if (layout === "two-content") {
         cardBodyHtml = `
-          <h2 style="font-size:22px;font-weight:800;color:${theme.titleColor || "#0f172a"};margin-bottom:12px;">${s.title}</h2>
+          <h2 style="font-size:22px;font-weight:800;color:${theme.titleColor || "#0f172a"};margin-bottom:12px;">${this._escapeShapeText(s.title)}</h2>
           <div style="display:flex;gap:14px;flex:1;font-size:12px;line-height:1.5;color:${theme.bodyColor || "#334155"};">
-            <div style="flex:1;white-space:pre-line;">${s.body}</div>
+            <div style="flex:1;white-space:pre-line;">${this._escapeShapeText(s.body)}</div>
             <div style="flex:1;white-space:pre-line;border-left:1px dashed #cbd5e1;padding-left:8px;">${s.body2 || ""}</div>
           </div>
           <div style="position:relative;min-height:40px;">${shapesHtml}</div>
@@ -12345,8 +12345,8 @@ const startEditing = (initialText) => {
       } else {
         // title-content
         cardBodyHtml = `
-          <h2 style="font-size:24px;font-weight:800;color:${theme.titleColor || "#0f172a"};margin-bottom:14px;">${s.title}</h2>
-          <div style="font-size:14px;line-height:1.6;color:${theme.bodyColor || "#334155"};white-space:pre-line;">${s.body}</div>
+          <h2 style="font-size:24px;font-weight:800;color:${theme.titleColor || "#0f172a"};margin-bottom:14px;">${this._escapeShapeText(s.title)}</h2>
+          <div style="font-size:14px;line-height:1.6;color:${theme.bodyColor || "#334155"};white-space:pre-line;">${this._escapeShapeText(s.body)}</div>
           <div style="position:relative;flex:1;min-height:120px;">${shapesHtml}</div>
         `;
       }
@@ -12387,8 +12387,8 @@ const startEditing = (initialText) => {
         if (nextIdx >= 0) {
           const nextSlide = this.slides[nextIdx];
           nextPreviewEl.innerHTML = `
-            <div style="font-weight:700;font-size:13px;color:#38bdf8;margin-bottom:4px;">${t("slidesDialogs.slideElapsed", "Trang")} ${nextIdx + 1}: ${nextSlide.title}</div>
-            <div style="font-size:11px;color:#cbd5e1;line-height:1.4;white-space:pre-line;">${(nextSlide.body || "").substring(0, 120)}...</div>
+            <div style="font-weight:700;font-size:13px;color:#38bdf8;margin-bottom:4px;">${t("slidesDialogs.slideElapsed", "Trang")} ${nextIdx + 1}: ${this._escapeShapeText(nextSlide.title)}</div>
+            <div style="font-size:11px;color:#cbd5e1;line-height:1.4;white-space:pre-line;">${this._escapeShapeText((nextSlide.body || "").substring(0, 120))}...</div>
           `;
         } else {
           nextPreviewEl.innerHTML = `
