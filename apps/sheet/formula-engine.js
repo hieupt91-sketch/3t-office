@@ -3204,6 +3204,72 @@ export class FormulaEngine {
         return typeof val !== "string";
       }
 
+      case "CELL": {
+        if (args.length < 1 || args.length > 2) return "#VALUE!";
+        const typeValue = this._resolveSingleValue(args[0]);
+        if (this._isError(typeValue)) return typeValue;
+        const kind = String(typeValue).trim().toLowerCase();
+        const refText = args.length > 1 ? String(args[1]).trim() : String(this._evalContext?.coord || "A1");
+        const refMatch = refText.replace(/\$/g, "").match(/^(?:(.+)!)?([A-Z]{1,3})(\d+)(?::[A-Z]{1,3}\d+)?$/i);
+        if (!refMatch) return "#VALUE!";
+        const sheetPart = refMatch[1] ? refMatch[1].replace(/^'|'$/g, "") : "";
+        const colLetters = refMatch[2].toUpperCase();
+        const rowNumber = Number(refMatch[3]);
+        const colNumber = colLetters.split("").reduce((acc, ch) => acc * 26 + ch.charCodeAt(0) - 64, 0);
+        const coord = `${colLetters}${rowNumber}`;
+        const cells = typeof this.cellsData === "function" ? this.cellsData() : this.cellsData;
+        const item = sheetPart ? null : cells?.get?.(coord);
+        const value = this._resolveSingleValue(sheetPart ? `${refMatch[1]}!${coord}` : coord);
+        const isBlank = value === "" || value === null || value === undefined;
+        switch (kind) {
+          case "address": return `${sheetPart ? `${sheetPart}!` : ""}$${colLetters}$${rowNumber}`;
+          case "col": return colNumber;
+          case "row": return rowNumber;
+          case "contents": return isBlank ? 0 : value;
+          case "type": return isBlank ? "b" : (typeof value === "string" && !this._isError(value) ? "l" : "v");
+          case "filename": return "";
+          case "width": return 8;
+          case "color": case "parentheses": return 0;
+          case "protect": return item?.style?.locked === false ? 0 : 1;
+          case "prefix": {
+            if (!(typeof value === "string" && !isBlank && !this._isError(value))) return "";
+            const align = item?.style?.textAlign || item?.style?.align || "";
+            return align === "right" ? '"' : align === "center" ? "^" : "'";
+          }
+          case "format": {
+            const format = item?.style?.numberFormat;
+            const decimals = Math.max(0, Math.min(30, Number(format?.decimals ?? 2)));
+            switch (format?.category) {
+              case "number": return `${format.useThousands ? "," : "F"}${decimals}`;
+              case "currency": case "accounting": return `C${decimals}`;
+              case "percent": return `P${decimals}`;
+              case "scientific": return `S${decimals}`;
+              case "date": return "D4";
+              case "time": return "D9";
+              default: return "G";
+            }
+          }
+          default: return "#VALUE!";
+        }
+      }
+
+      case "INFO": {
+        if (args.length !== 1) return "#VALUE!";
+        const typeValue = this._resolveSingleValue(args[0]);
+        if (this._isError(typeValue)) return typeValue;
+        switch (String(typeValue).trim().toLowerCase()) {
+          case "directory": return "";
+          case "numfile": return Math.max(1, this._sheetNames().length);
+          case "origin": return "$A:$A$1";
+          case "osversion": return "Windows (32-bit) NT 10.00";
+          case "recalc": return "Automatic";
+          case "release": return "16.0";
+          case "system": return "pcdos";
+          case "memavail": case "memused": case "totmem": return "#N/A";
+          default: return "#VALUE!";
+        }
+      }
+
       case "ISFORMULA": {
         const ref = String(args[0] || "");
         const cell = typeof this.cellsData === "function" ? this.cellsData().get(ref) : this.cellsData?.get?.(ref);

@@ -59,5 +59,22 @@ export async function runFormulaHypothesisTests() {
     if (bad.length) throw new Error(bad.join(" | "));
   });
 
+  test("CELL và INFO trả đúng loại thông tin cơ bản", () => {
+    const info = new Map([
+      ["A1", { val: "chu" }],
+      ["B2", { val: 42, style: { numberFormat: { category: "percent", decimals: 1 } } }],
+      ["C3", { val: 1234.5, style: { numberFormat: { category: "number", decimals: 2, useThousands: true } } }]
+    ]);
+    const e = new FormulaEngine(info, null, null, () => "S1", () => ["S1", "S2", "S3"]);
+    const cases = [
+      ['=CELL("address",B2)', "$B$2"], ['=CELL("col",C3)', 3], ['=CELL("row",C3)', 3], ['=CELL("contents",B2)', 42],
+      ['=CELL("type",A1)', "l"], ['=CELL("type",B2)', "v"], ['=CELL("type",D9)', "b"],
+      ['=CELL("format",B2)', "P1"], ['=CELL("format",C3)', ",2"], ['=CELL("format",A1)', "G"], ['=CELL("prefix",A1)', "'"],
+      ['=CELL("nope",A1)', "#VALUE!"], ['=INFO("numfile")', 3], ['=INFO("release")', "16.0"], ['=INFO("memavail")', "#N/A"], ['=INFO("x")', "#VALUE!"]
+    ];
+    const bad = cases.filter(([formula, expected]) => e.evaluate(formula) !== expected).map(([formula, expected]) => `${formula}: ${e.evaluate(formula)} (mong ${expected})`);
+    if (bad.length) throw new Error(bad.join(" | "));
+  });
+
   return results;
 }

@@ -966,6 +966,20 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.formula.cellInfo",
+    app: "sheet",
+    commandIds: ["sheet.formula.insertFunction"],
+    title: "Hàm thông tin ô và hệ thống: CELL và INFO",
+    summary: "CELL cho biết địa chỉ, cột, hàng, nội dung, loại dữ liệu, định dạng số và căn lề của một ô; INFO cho biết số trang tính, phiên bản và môi trường. Gõ trực tiếp vào ô hoặc chọn trong hộp Chèn hàm.",
+    ribbon: { tab: "Công thức", tabId: "formulas", group: "Hàm tính toán" },
+    keywords: ["cell", "info", "địa chỉ ô", "định dạng ô", "loại dữ liệu", "numfile", "thông tin ô"],
+    steps: [
+      "=CELL(\"address\",B2) trả $B$2; \"col\" và \"row\" trả số cột, số hàng; \"contents\" trả giá trị; \"type\" trả b (ô trống), l (chữ), v (giá trị khác). Bỏ đối số thứ hai thì lấy chính ô đang tính.",
+      "=CELL(\"format\",B2) trả mã định dạng số: G (chung), F2 (số 2 lẻ), ,2 (số có dấu phân cách nghìn), C2 (tiền tệ), P1 (phần trăm), S2 (khoa học), D4 (ngày), D9 (giờ). \"prefix\" trả ' cho chữ căn trái, \" căn phải, ^ căn giữa. Loại thông tin lạ trả #VALUE!.",
+      "=INFO(\"numfile\") trả số trang tính, =INFO(\"release\") trả 16.0, =INFO(\"system\") trả pcdos, =INFO(\"recalc\") trả Automatic. memavail, memused và totmem trả #N/A. Tên tệp (\"filename\") hiện trả chuỗi rỗng."
+    ]
+  },
+  {
     id: "sheet.formula.namedRanges",
     app: "sheet",
     commandIds: [
