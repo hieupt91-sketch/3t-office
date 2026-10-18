@@ -9936,10 +9936,13 @@ def normalize_pen_rgb(color: str | None) -> str:
     return hex_value
 
 
+_TIMINGS_ATTR_RE = re.compile(r"""\bvno:use-timings\s*=\s*["'][^"']*["']""", re.IGNORECASE)
+
+
 def parse_show_settings_from_fodp(fodp_xml: str | None) -> dict:
     match = _SETTINGS_OPEN_RE.search(fodp_xml or "")
     if not match:
-        return {"loopUntilEsc": False, "showWithoutNarration": False, "pointerColor": ""}
+        return {"loopUntilEsc": False, "showWithoutNarration": False, "useTimings": True, "pointerColor": ""}
     attrs = match.group(1) or ""
     pointer_match = _POINTER_ATTR_RE.search(attrs)
     return {
@@ -9947,13 +9950,14 @@ def parse_show_settings_from_fodp(fodp_xml: str | None) -> dict:
         "showWithoutNarration": bool(
             re.search(r"""vno:without-narration\s*=\s*["']true["']""", attrs, re.I)
         ),
+        "useTimings": not re.search(r"""vno:use-timings\s*=\s*["']false["']""", attrs, re.I),
         "pointerColor": _unescape_xml(pointer_match.group(1)).strip() if pointer_match else "",
     }
 
 
 def fodp_has_show_setup_patch(fodp_xml: str | None) -> bool:
     settings = parse_show_settings_from_fodp(fodp_xml)
-    return bool(settings["showWithoutNarration"] or settings["pointerColor"])
+    return bool(settings["showWithoutNarration"] or settings["pointerColor"] or settings["useTimings"] is False)
 
 
 def parse_show_properties(pres_props_xml: str | None) -> dict:
@@ -10043,7 +10047,8 @@ def apply_show_properties(pres_props_xml: str, settings: dict | None = None) -> 
     pointer_rgb = (
         normalize_pen_rgb(options.get("pointerColor")) if options.get("pointerColor") else ""
     )
-    if not without_narration and not pointer_rgb:
+    without_timings = options.get("useTimings") is False
+    if not without_narration and not pointer_rgb and not without_timings:
         return xml
     xml = _ensure_drawingml_ns(xml, _ns_prefix(xml, DRAWINGML_NS, "a"))
     match = _SHOW_PR_RE.search(xml)
@@ -10053,6 +10058,8 @@ def apply_show_properties(pres_props_xml: str, settings: dict | None = None) -> 
         inner = match.group(3) or ""
     if without_narration:
         attrs = _show_set_attr(attrs, "showNarration", "0")
+    if without_timings:
+        attrs = _show_set_attr(attrs, "useTimings", "0")
     if options.get("loopUntilEsc") and not _show_get_attr(attrs, "loop"):
         attrs = _show_set_attr(attrs, "loop", "1")
     if pointer_rgb:
@@ -10076,24 +10083,27 @@ def overlay_show_settings_from_pres_props(pres_props_xml: str | None) -> dict:
     xml = pres_props_xml or ""
     match = _SHOW_PR_RE.search(xml)
     if not match:
-        return {"showWithoutNarration": False, "pointerColor": ""}
+        return {"showWithoutNarration": False, "useTimings": True, "pointerColor": ""}
     attrs = match.group(1) or ""
     inner = "" if match.group(2) == "/>" else (match.group(3) or "")
     narration_raw = (_show_get_attr(attrs, "showNarration") or "").strip()
     show_without = bool(re.fullmatch(r"(0|false)", narration_raw, re.IGNORECASE))
+    timings_raw = (_show_get_attr(attrs, "useTimings") or "").strip()
+    use_timings = not bool(re.fullmatch(r"(0|false)", timings_raw, re.IGNORECASE))
     pen = _PEN_CLR_RE.search(inner)
     rgb_match = _SHOW_SRGB_RE.search(pen.group(0) if pen else "")
     rgb = (rgb_match.group(1) if rgb_match else "").strip().lstrip("#")
     pointer = f"#{rgb.lower()}" if _HEX6_RE.fullmatch(rgb) else ""
-    return {"showWithoutNarration": show_without, "pointerColor": pointer}
+    return {"showWithoutNarration": show_without, "useTimings": use_timings, "pointerColor": pointer}
 
 
 def apply_fodp_show_settings_attrs(fodp_xml: str, settings: dict | None = None) -> str:
     xml = fodp_xml or ""
     options = settings or {}
     without = bool(options.get("showWithoutNarration"))
+    no_timings = options.get("useTimings") is False
     pointer = str(options.get("pointerColor") or "").strip()
-    if not without and not pointer:
+    if not without and not pointer and not no_timings:
         return xml
     match = _SETTINGS_TAG_RE.search(xml)
     if match:
@@ -10106,6 +10116,11 @@ def apply_fodp_show_settings_attrs(fodp_xml: str, settings: dict | None = None) 
                 raw = _WITHOUT_ATTR_RE.sub('vno:without-narration="true"', raw)
             else:
                 raw = f'{raw.rstrip()} vno:without-narration="true"'
+        if no_timings:
+            if _TIMINGS_ATTR_RE.search(raw):
+                raw = _TIMINGS_ATTR_RE.sub('vno:use-timings="false"', raw)
+            else:
+                raw = f'{raw.rstrip()} vno:use-timings="false"'
         if pointer:
             encoded = _escape_xml(pointer)
             if _POINTER_ATTR_RE.search(raw):
@@ -10126,6 +10141,8 @@ def apply_fodp_show_settings_attrs(fodp_xml: str, settings: dict | None = None) 
     attrs: list[str] = []
     if without:
         attrs.append('vno:without-narration="true"')
+    if no_timings:
+        attrs.append('vno:use-timings="false"')
     if pointer:
         attrs.append(f'vno:pointer-color="{_escape_xml(pointer)}"')
     tag = f'\n      <presentation:settings {" ".join(attrs)}/>'
@@ -10142,7 +10159,7 @@ def overlay_fodp_show_properties(fodp_xml: str, pres_props_xml: str | None) -> s
     """
     xml = fodp_xml or ""
     settings = overlay_show_settings_from_pres_props(pres_props_xml)
-    if not settings["showWithoutNarration"] and not settings["pointerColor"]:
+    if not settings["showWithoutNarration"] and not settings["pointerColor"] and settings["useTimings"]:
         return xml
     return apply_fodp_show_settings_attrs(xml, settings)
 

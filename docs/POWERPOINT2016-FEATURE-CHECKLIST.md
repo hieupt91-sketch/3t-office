@@ -283,7 +283,7 @@ Tổng: 5 mục ưu tiên 1.
 | Thiết lập | Tập dượt hẹn giờ (Rehearse Timings) | 🟢 | - | slides.show.rehearseTimings; chế độ tập dượt đo thời gian từng slide (docs/SLIDES-BUTTON-MATRIX-1011.md:76) |
 | Thiết lập | Ghi lại trình chiếu (Record Slide Show) | 🔴 | 2 | Chưa hỗ trợ thu âm và lưu timeline trình diễn vào deck |
 | Thiết lập | Phát thuyết minh (Play Narrations) | 🔴 | 3 | Chưa có tùy chọn bật/tắt phát thuyết minh |
-| Thiết lập | Sử dụng thời gian tập dượt (Use Timings) | 🟢 | - | slides.show.setupShow: ô tích Dùng thời gian đã đặt để tự chuyển trang (mặc định bật): bật thì trang có «Sau N giây» tự sang trang kế, tắt thì đứng yên (tests/live/cdp/slides-use-timings.desktop.mjs 6/6, platform/commands/command-definitions.js:727); áp dụng cho thời gian đặt ở Chuyển tiếp, chưa tự dùng thời gian đã Tập dượt; không có đối chiếu PowerPoint thật |
+| Thiết lập | Sử dụng thời gian tập dượt (Use Timings) | 🟢 | - | slides.show.setupShow: ô tích Dùng thời gian đã đặt để tự chuyển trang (mặc định bật): bật thì trang có «Sau N giây» tự sang trang kế, tắt thì đứng yên (tests/live/cdp/slides-use-timings.desktop.mjs 6/6, platform/commands/command-definitions.js:727); lưu PPTX thành p:showPr useTimings="0" và PowerPoint 2016 COM đọc SlideShowSettings.AdvanceMode = 1 (thủ công), mở lại giữ (tests/live/cdp/slides-use-timings-save.desktop.mjs, scripts/audit-0610/ppt_show_timings_readback.ps1); áp dụng cho thời gian đặt ở Chuyển tiếp, chưa tự dùng thời gian đã Tập dượt |
 | Thiết lập | Hiện thanh điều khiển phương tiện (Show Media Controls) | 🔴 | 3 | Chưa có tùy chọn ẩn/hiện thanh điều khiển phương tiện khi chiếu |
 | Màn hình | Chọn màn hình phát (Monitors) | 🔴 | 2 | Chưa có menu chọn màn hình hiển thị trình chiếu ngoài Presenter View |
 | Màn hình | Chế độ Presenter (Presenter View, Alt+F5) | 🟢 | - | slides.show.presenterMode; giao diện người thuyết trình xem trước slide kế tiếp và ghi chú (docs/SLIDES-BUTTON-MATRIX-1011.md:73) |
@@ -425,7 +425,7 @@ Tổng: 5 mục ưu tiên 1.
 | Chỉnh sửa | Cắt tỉa thời lượng media (Trim Video / Audio) | 🔴 | 2 | Chưa có công cụ cắt ngắn điểm đầu và điểm kết thúc video/audio |
 | Tùy chọn | Mức âm lượng media (Low, Medium, High, Mute) | 🟡 | 2 | Điều chỉnh âm lượng qua thanh trượt volume native của media trên canvas (apps/slides/slides-canvas.js:4312); chưa có nút âm lượng trên ribbon |
 | Tùy chọn | Bắt đầu phát: Tự động / Khi nhấp chuột | 🟢 | - | slides.media.autoplay bật tắt tự phát; lưu thành lệnh play trong dãy chính như PowerPoint ghi (COM đọc 1 hiệu ứng chính), mở lại nhận đúng; chưa đọc được PlayOnEntry của tệp do LibreOffice ghi (tests/live/cdp/slides-media-playback.desktop.mjs; apps/slides/slides-canvas.js:3658 toggleMediaOption) |
-| Tùy chọn | Lặp lại cho đến khi dừng (Loop until Stopped) | 🟢 | - | slides.media.loop; lưu thêm p:audio cMediaNode repeatCount indefinite đúng cấu trúc PowerPoint (bù phần LibreOffice bỏ), mở lại nhận đúng; COM chưa đọc được LoopUntilStopped của tệp này (tests/test_slides_media_loops.py; adapters/libreoffice/common/ooxml_zip_patch.py:12083 media loops) |
+| Tùy chọn | Lặp lại cho đến khi dừng (Loop until Stopped) | 🟢 | - | slides.media.loop; lưu thêm p:audio cMediaNode repeatCount indefinite đúng cấu trúc PowerPoint (bù phần LibreOffice bỏ), mở lại nhận đúng; COM chưa đọc được LoopUntilStopped của tệp này (tests/test_slides_media_loops.py; adapters/libreoffice/common/ooxml_zip_patch.py:12100 media loops) |
 
 ### Không thuộc ribbon
 

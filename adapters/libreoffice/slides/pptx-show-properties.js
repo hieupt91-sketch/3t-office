@@ -33,6 +33,7 @@ export const DEFAULT_POINTER_COLOR = "#DC2626";
 const SETTINGS_OPEN_RE = /<presentation:settings\b([^>]*)\/?>/i;
 const SETTINGS_TAG_RE = /<presentation:settings\b([^>]*?)(\/?)\s*>/i;
 const WITHOUT_ATTR_RE = /\bvno:without-narration\s*=\s*["'][^"']*["']/i;
+const TIMINGS_ATTR_RE = /\bvno:use-timings\s*=\s*["'][^"']*["']/i;
 const OFFICE_PRESENTATION_CLOSE_RE = /<\/office:presentation\s*>/i;
 const PRESPROPS_CLOSE_RE = /<\/(?:[\w]+:)?presentationPr\s*>/i;
 const PRESPROPS_OPEN_RE = /<((?:[\w]+:)?presentationPr)\b([^>]*)>/i;
@@ -106,20 +107,21 @@ export function normalizePenRgb(color) {
 export function parseShowSettingsFromFodp(fodpXml) {
   const match = String(fodpXml || "").match(SETTINGS_OPEN_RE);
   if (!match) {
-    return { loopUntilEsc: false, showWithoutNarration: false, pointerColor: "" };
+    return { loopUntilEsc: false, showWithoutNarration: false, useTimings: true, pointerColor: "" };
   }
   const attrs = match[1] || "";
   const pointerMatch = attrs.match(POINTER_ATTR_RE);
   return {
     loopUntilEsc: /presentation:endless\s*=\s*["']true["']/i.test(attrs),
     showWithoutNarration: /vno:without-narration\s*=\s*["']true["']/i.test(attrs),
+    useTimings: !/vno:use-timings\s*=\s*["']false["']/i.test(attrs),
     pointerColor: pointerMatch ? unescapeXml(pointerMatch[1]).trim() : ""
   };
 }
 
 export function fodpHasShowSetupPatch(fodpXml) {
   const settings = parseShowSettingsFromFodp(fodpXml);
-  return !!(settings.showWithoutNarration || settings.pointerColor);
+  return !!(settings.showWithoutNarration || settings.pointerColor || settings.useTimings === false);
 }
 
 export function parseShowProperties(presPropsXml) {
@@ -200,7 +202,8 @@ export function applyShowProperties(presPropsXml, settings = {}) {
   if (!xml) return xml;
   const withoutNarration = !!settings.showWithoutNarration;
   const pointerRgb = settings.pointerColor ? normalizePenRgb(settings.pointerColor) : "";
-  if (!withoutNarration && !pointerRgb) return xml;
+  const withoutTimings = settings.useTimings === false;
+  if (!withoutNarration && !pointerRgb && !withoutTimings) return xml;
 
   xml = ensureDrawingMlNs(xml, nsPrefix(xml, DRAWINGML_NS, "a"));
   const match = xml.match(SHOW_PR_RE);
@@ -209,6 +212,9 @@ export function applyShowProperties(presPropsXml, settings = {}) {
 
   if (withoutNarration) {
     attrs = setAttr(attrs, "showNarration", "0");
+  }
+  if (withoutTimings) {
+    attrs = setAttr(attrs, "useTimings", "0");
   }
   if (settings.loopUntilEsc && !getAttr(attrs, "loop")) {
     attrs = setAttr(attrs, "loop", "1");
@@ -238,17 +244,18 @@ export function applyShowPropertiesFromFodp(presPropsXml, fodpXml) {
 export function overlayShowSettingsFromPresProps(presPropsXml) {
   const xml = String(presPropsXml || "");
   const match = xml.match(SHOW_PR_RE);
-  if (!match) return { showWithoutNarration: false, pointerColor: "" };
+  if (!match) return { showWithoutNarration: false, useTimings: true, pointerColor: "" };
   const attrs = match[1] || "";
   const inner = match[2] === "/>" ? "" : (match[3] || "");
   const narrationRaw = String(getAttr(attrs, "showNarration") || "").trim();
   const showWithoutNarration = /^(0|false)$/i.test(narrationRaw);
+  const useTimings = !/^(0|false)$/i.test(String(getAttr(attrs, "useTimings") || "").trim());
   const pen = inner.match(PEN_CLR_RE)?.[0] || "";
   const rgb = String(pen.match(SRGB_RE)?.[1] || "")
     .trim()
     .replace(/^#/, "");
   const pointerColor = HEX6_RE.test(rgb) ? `#${rgb.toLowerCase()}` : "";
-  return { showWithoutNarration, pointerColor };
+  return { showWithoutNarration, useTimings, pointerColor };
 }
 
 /**
@@ -259,8 +266,9 @@ export function overlayShowSettingsFromPresProps(presPropsXml) {
 export function applyFodpShowSettingsAttrs(fodpXml, settings = {}) {
   const xml = String(fodpXml || "");
   const without = !!settings.showWithoutNarration;
+  const noTimings = settings.useTimings === false;
   const pointer = String(settings.pointerColor || "").trim();
-  if (!without && !pointer) return xml;
+  if (!without && !pointer && !noTimings) return xml;
 
   const match = xml.match(SETTINGS_TAG_RE);
   if (match) {
@@ -272,6 +280,13 @@ export function applyFodpShowSettingsAttrs(fodpXml, settings = {}) {
         raw = raw.replace(WITHOUT_ATTR_RE, 'vno:without-narration="true"');
       } else {
         raw = `${raw.trimEnd()} vno:without-narration="true"`;
+      }
+    }
+    if (noTimings) {
+      if (TIMINGS_ATTR_RE.test(raw)) {
+        raw = raw.replace(TIMINGS_ATTR_RE, 'vno:use-timings="false"');
+      } else {
+        raw = `${raw.trimEnd()} vno:use-timings="false"`;
       }
     }
     if (pointer) {
@@ -295,6 +310,7 @@ export function applyFodpShowSettingsAttrs(fodpXml, settings = {}) {
   }
   const attrs = [];
   if (without) attrs.push('vno:without-narration="true"');
+  if (noTimings) attrs.push('vno:use-timings="false"');
   if (pointer) attrs.push(`vno:pointer-color="${escapeXml(pointer)}"`);
   const tag = `\n      <presentation:settings ${attrs.join(" ")}/>`;
   return ensureVnoXmlns(xml.replace(OFFICE_PRESENTATION_CLOSE_RE, (close) => `${tag}${close}`));
@@ -312,6 +328,6 @@ export function applyFodpShowSettingsAttrs(fodpXml, settings = {}) {
 export function overlayFodpShowProperties(fodpXml, presPropsXml) {
   const xml = String(fodpXml || "");
   const settings = overlayShowSettingsFromPresProps(presPropsXml);
-  if (!settings.showWithoutNarration && !settings.pointerColor) return xml;
+  if (!settings.showWithoutNarration && !settings.pointerColor && settings.useTimings !== false) return xml;
   return applyFodpShowSettingsAttrs(xml, settings);
 }

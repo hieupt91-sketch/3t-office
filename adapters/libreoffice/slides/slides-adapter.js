@@ -5263,6 +5263,7 @@ export class SlidesAdapter {
     const attrs = [];
     if (settings.loopUntilEsc) attrs.push('presentation:endless="true"');
     if (settings.showWithoutNarration) attrs.push('vno:without-narration="true"');
+    if (settings.useTimings === false) attrs.push('vno:use-timings="false"');
     if (settings.pointerColor && settings.pointerColor !== "#DC2626") {
       attrs.push(`vno:pointer-color="${this._escapeXml(settings.pointerColor)}"`);
     }
@@ -5274,13 +5275,14 @@ export class SlidesAdapter {
   _parsePresentationSettings(xmlText) {
     const match = String(xmlText || "").match(/<presentation:settings\b([^>]*)\/?>/i);
     if (!match) {
-      return { loopUntilEsc: false, showWithoutNarration: false, pointerColor: "#DC2626" };
+      return { loopUntilEsc: false, showWithoutNarration: false, useTimings: true, pointerColor: "#DC2626" };
     }
     const attrs = match[1] || "";
     const pointer = this._attr(attrs, "vno:pointer-color") || "#DC2626";
     return {
       loopUntilEsc: /presentation:endless=["']true["']/i.test(attrs),
       showWithoutNarration: /vno:without-narration=["']true["']/i.test(attrs),
+      useTimings: !/vno:use-timings=["']false["']/i.test(attrs),
       pointerColor: pointer
     };
   }
