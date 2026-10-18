@@ -177,7 +177,7 @@ Trình chiếu|Thiết lập|Hiện thanh điều khiển phương tiện (Show 
 Trình chiếu|Màn hình|Chọn màn hình phát (Monitors)|N|2|Chưa có menu chọn màn hình hiển thị trình chiếu ngoài Presenter View
 Trình chiếu|Màn hình|Chế độ Presenter (Presenter View, Alt+F5)|A|-|slides.show.presenterMode; giao diện người thuyết trình xem trước slide kế tiếp và ghi chú (docs/SLIDES-BUTTON-MATRIX-1011.md:73)
 Trình chiếu|Diễn giả|Ghi chú thuyết trình (Speaker Notes)|V|-|FIX-L4/L6: slides.notes.toggle ghi chú diễn giả đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:77, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:19)
-Trình chiếu|Điều khiển chiếu|Bút vẽ và con trỏ Laser khi đang chiếu|P|2|Có công cụ vẽ cơ bản; chưa có con trỏ ảo Laser Pointer
+Trình chiếu|Điều khiển chiếu|Bút vẽ và con trỏ Laser khi đang chiếu|A|-|Ctrl+P bút, Ctrl+L laser, Ctrl+A mũi tên, tẩy nét: laser đo đúng vị trí chuột, bút để lại nét nhìn thấy (200x80 px khi kéo 200x80), một lần kéo một nét, tẩy xóa hết; sửa lỗi Ctrl+P mở Xem trước khi in phủ lên bài chiếu và nét vẽ tạo sai namespace SVG nên không hiện (tests/live/cdp/slides-show-pen-laser.desktop.mjs 7/7, {{L:apps/slides/slides-canvas.js|"Ctrl+L", () => setPointerMode("laser")}}); không có đối chiếu PowerPoint thật vì là thao tác khi chiếu
 Xem lại|Kiểm lỗi|Chính tả (Spelling, F7)|A|-|slides.review.spellCheck; kiểm tra chính tả tiếng Việt (docs/SLIDES-BUTTON-MATRIX-1011.md:78)
 Xem lại|Kiểm lỗi|Bật/tắt gạch chân kiểm lỗi chính tả|A|-|slides.review.toggleSpellCheck; ẩn hiện đường lượn sóng đỏ (docs/SLIDES-BUTTON-MATRIX-1011.md:79)
 Xem lại|Kiểm lỗi|Từ điển đồng nghĩa (Thesaurus, Shift+F7)|N|3|Chưa tích hợp từ điển đồng nghĩa chuyên sâu

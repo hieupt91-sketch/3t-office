@@ -17,8 +17,8 @@ Chuẩn: Microsoft PowerPoint 2016 (16.0.4266) cài trên máy, đọc chỉ-đ�
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu PowerPoint 2016 | 115 | 44% |
-| 🟢 Có, chưa đối chiếu | 71 | 27% |
-| 🟡 Có một phần | 21 | 8% |
+| 🟢 Có, chưa đối chiếu | 72 | 27% |
+| 🟡 Có một phần | 20 | 8% |
 | 🔴 Chưa có | 56 | 21% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **269** (áp dụng: 263) | |
@@ -38,7 +38,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Thiết kế | 15 | 9 | 0 | 2 | 4 | 0 | 67% |
 | Chuyển tiếp | 11 | 5 | 3 | 1 | 2 | 0 | 77% |
 | Hoạt ảnh | 16 | 12 | 3 | 0 | 1 | 0 | 94% |
-| Trình chiếu | 16 | 4 | 4 | 1 | 6 | 1 | 57% |
+| Trình chiếu | 16 | 4 | 5 | 0 | 6 | 1 | 60% |
 | Xem lại | 14 | 2 | 5 | 0 | 5 | 2 | 58% |
 | Chế độ xem | 25 | 7 | 10 | 2 | 6 | 0 | 72% |
 | Công cụ vẽ > Định dạng | 17 | 4 | 6 | 2 | 5 | 0 | 65% |
@@ -288,7 +288,7 @@ Tổng: 5 mục ưu tiên 1.
 | Màn hình | Chọn màn hình phát (Monitors) | 🔴 | 2 | Chưa có menu chọn màn hình hiển thị trình chiếu ngoài Presenter View |
 | Màn hình | Chế độ Presenter (Presenter View, Alt+F5) | 🟢 | - | slides.show.presenterMode; giao diện người thuyết trình xem trước slide kế tiếp và ghi chú (docs/SLIDES-BUTTON-MATRIX-1011.md:73) |
 | Diễn giả | Ghi chú thuyết trình (Speaker Notes) | ✅ | - | FIX-L4/L6: slides.notes.toggle ghi chú diễn giả đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:77, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:19) |
-| Điều khiển chiếu | Bút vẽ và con trỏ Laser khi đang chiếu | 🟡 | 2 | Có công cụ vẽ cơ bản; chưa có con trỏ ảo Laser Pointer |
+| Điều khiển chiếu | Bút vẽ và con trỏ Laser khi đang chiếu | 🟢 | - | Ctrl+P bút, Ctrl+L laser, Ctrl+A mũi tên, tẩy nét: laser đo đúng vị trí chuột, bút để lại nét nhìn thấy (200x80 px khi kéo 200x80), một lần kéo một nét, tẩy xóa hết; sửa lỗi Ctrl+P mở Xem trước khi in phủ lên bài chiếu và nét vẽ tạo sai namespace SVG nên không hiện (tests/live/cdp/slides-show-pen-laser.desktop.mjs 7/7, apps/slides/slides-canvas.js:11874); không có đối chiếu PowerPoint thật vì là thao tác khi chiếu |
 
 ### Xem lại
 

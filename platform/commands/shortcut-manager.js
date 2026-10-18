@@ -184,6 +184,12 @@ export class ShortcutManager {
       }
     }
 
+    // Đang trình chiếu: Ctrl+P (bút), Ctrl+L (laser), Ctrl+A (mũi tên) thuộc về chính phiên trình chiếu,
+    // không được chạy lệnh chung của ứng dụng (In, Chọn tất cả) — nếu không, Ctrl+P mở Xem trước khi in phủ lên bài chiếu.
+    if (this._activeScope === "slides-show" && (combo === "CTRL+P" || combo === "CTRL+L" || combo === "CTRL+A")) {
+      return;
+    }
+
     let cmdId = this._shortcuts.get(combo);
     if (!cmdId && (e.shiftKey || keyName === ":")) {
       cmdId = this._shortcuts.get(combo.replace(":", ";"));

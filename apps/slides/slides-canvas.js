@@ -11441,6 +11441,8 @@ const startEditing = (initialText) => {
     let inkOverlayEl = null;
     let contextMenuEl = null;
 
+    // Nét vẽ/lớp mực phải tạo trong namespace SVG, nếu không trình duyệt không vẽ ra gì (kích thước 0).
+    const makeSvgEl = (tag) => (typeof document.createElementNS === "function" ? document.createElementNS("http://www.w3.org/2000/svg", tag) : document.createElement(tag));
     const laserDotEl = document.createElement("div");
     laserDotEl.className = "vno-slideshow-laser-dot";
     laserDotEl.style.cssText = `position:fixed;width:14px;height:14px;border-radius:50%;background:${penColor};box-shadow:0 0 8px 2px ${penColor}, 0 0 16px 4px ${penColor};pointer-events:none;z-index:10000;display:none;transform:translate(-50%,-50%);`;
@@ -11593,14 +11595,14 @@ const startEditing = (initialText) => {
         </div>
       `;
 
-      inkOverlayEl = document.createElement("svg");
-      inkOverlayEl.className = "vno-slideshow-ink-overlay";
+      inkOverlayEl = makeSvgEl("svg");
+      if (typeof inkOverlayEl.setAttribute === "function") inkOverlayEl.setAttribute("class", "vno-slideshow-ink-overlay"); else inkOverlayEl.className = "vno-slideshow-ink-overlay";
       inkOverlayEl.setAttribute?.("viewBox", `0 0 ${this.slideSize.width} ${this.slideSize.height}`);
       inkOverlayEl.style.cssText = "position:absolute;inset:0;width:100%;height:100%;pointer-events:none;z-index:50;overflow:visible;";
       content.appendChild(inkOverlayEl);
       const existingStrokes = slideInks[currentShowIdx] || [];
       for (const st of existingStrokes) {
-        const pEl = document.createElement("path");
+        const pEl = makeSvgEl("path");
         pEl.setAttribute?.("d", st.d);
         pEl.setAttribute?.("stroke", st.color || penColor);
         pEl.setAttribute?.("stroke-width", String(st.width || 3));
@@ -11702,11 +11704,13 @@ const startEditing = (initialText) => {
     const onPointerDown = (e) => {
       if (contextMenuEl) closeContextMenu();
       if (e.button !== undefined && e.button !== 0) return;
+      // pointerdown và mousedown cùng bắn cho một lần bấm: chỉ bắt đầu một nét.
+      if (isDrawing) return;
       if (pointerMode === "pen") {
         isDrawing = true;
         const pt = getSlideCoords(e);
         currentStroke = { color: penColor, width: penWidth, points: [pt], d: `M ${pt.x} ${pt.y}` };
-        activePathEl = document.createElement("path");
+        activePathEl = makeSvgEl("path");
         activePathEl.setAttribute?.("d", currentStroke.d);
         activePathEl.setAttribute?.("stroke", currentStroke.color);
         activePathEl.setAttribute?.("stroke-width", String(currentStroke.width));
@@ -11750,7 +11754,7 @@ const startEditing = (initialText) => {
       if (!slideInks[currentShowIdx]) slideInks[currentShowIdx] = [];
       slideInks[currentShowIdx].push(stroke);
       if (inkOverlayEl) {
-        const pEl = document.createElement("path");
+        const pEl = makeSvgEl("path");
         pEl.setAttribute?.("d", stroke.d);
         pEl.setAttribute?.("stroke", stroke.color);
         pEl.setAttribute?.("stroke-width", String(stroke.width));
