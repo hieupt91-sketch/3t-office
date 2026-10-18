@@ -6191,10 +6191,32 @@ export class SheetGridController {
       return true;
     }
     if (!this.isSheetProtected()) return false;
-    const activeStyle = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.style || {};
-    if (activeStyle.locked === false) return false;
+    if (!this._selectionHasLockedCell()) return false;
     this._notifySheetProtected();
     return true;
+  }
+
+  /** Vùng chọn (kể cả nhiều vùng) có ô nào đang khóa không; ô chưa có dữ liệu coi là khóa (mặc định như Excel). */
+  _selectionHasLockedCell() {
+    const active = this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.style || {};
+    const ranges = this._getSelectionRanges();
+    if (!ranges.length) return active.locked !== false;
+    for (const raw of ranges) {
+      const range = this._normalizeRange(raw);
+      const c1 = this._columnNumber(range.start.c), c2 = this._columnNumber(range.end.c);
+      const r1 = range.start.r, r2 = range.end.r;
+      const area = (c2 - c1 + 1) * (r2 - r1 + 1);
+      let unlocked = 0;
+      for (const [key, item] of this.cellsData) {
+        if (item?.style?.locked !== false) continue;
+        const match = /^([A-Z]+)(\d+)$/.exec(key);
+        if (!match) continue;
+        const col = this._columnNumber(match[1]), row = Number(match[2]);
+        if (col >= c1 && col <= c2 && row >= r1 && row <= r2) unlocked += 1;
+      }
+      if (unlocked < area) return true;
+    }
+    return false;
   }
 
   _applyProtectionUi({ renderTabs = false } = {}) {

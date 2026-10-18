@@ -17,13 +17,13 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Excel 2016 | 92 | 43% |
-| 🟢 Có, chưa đối chiếu | 59 | 28% |
-| 🟡 Có một phần | 23 | 11% |
+| 🟢 Có, chưa đối chiếu | 60 | 28% |
+| 🟡 Có một phần | 22 | 10% |
 | 🔴 Chưa có | 39 | 18% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
 
-- **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 76%**
+- **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 77%**
 - **Đã xác minh bằng đối chiếu Excel 2016 thật: 43%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ 462 hàm) chỉ tính một mục; mức phủ hàm nằm ở dòng riêng và ở `EXCEL2016-FUNCTIONS-MATRIX.md`.
@@ -33,7 +33,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 3 | 8 | 4 | 1 | 1 | 81% |
-| Trang đầu | 53 | 27 | 15 | 9 | 2 | 0 | 88% |
+| Trang đầu | 53 | 27 | 16 | 8 | 2 | 0 | 89% |
 | Chèn | 29 | 9 | 6 | 1 | 11 | 2 | 57% |
 | Bố trí trang | 10 | 7 | 1 | 1 | 1 | 0 | 85% |
 | Công thức | 13 | 6 | 6 | 1 | 0 | 0 | 96% |
@@ -126,7 +126,7 @@ Tổng: 2 mục ưu tiên 1.
 | Ô | Định dạng: chiều cao hàng, độ rộng cột, tự vừa khít | ✅ | - | Mô hình chiều cao hàng và độ rộng cột (tests/unit/sheet-virtual-scroll-row-heights.test.js:1-30; tests/unit/sheet-overlap-autofit-status.test.js:1-25; sheet.row.height, sheet.col.width) |
 | Ô | Ẩn/Hiện hàng, cột, trang tính | 🟢 | - | Ẩn và hiện hàng, cột (apps/sheet/sheet-grid.js:1-30; sheet.row.hide, sheet.row.unhide, sheet.col.hide, sheet.col.unhide) |
 | Ô | Đổi tên, Di chuyển/Sao chép, Màu tab, Bảo vệ trang tính | 🟢 | - | Quản lý trang tính: đổi tên, di chuyển, màu tab, bảo vệ (tests/unit/sheet-rename-move-protect.test.js:1-25; sheet.sheet.protect) |
-| Ô | Khóa ô (Lock Cell) khi bảo vệ | 🟡 | 2 | Bảo vệ trang tính có; mức khóa từng ô cần kiểm |
+| Ô | Khóa ô (Lock Cell) khi bảo vệ | 🟢 | - | sheet.sheet.protect; ô mở khóa sửa được, ô khóa bị chặn, xóa vùng có ô khóa bị chặn toàn bộ; lưu XLSX giữ sheetProtection và protection locked=0 (tests/live/cdp/sheet-lock-cells.desktop.mjs, scripts/audit-0610/sheet_lock_xml.py); chưa đối chiếu Excel thật vì Excel COM chưa dùng được |
 | Chỉnh sửa | Tổng tự động (Sum, Average, Count, Max, Min) và Thêm hàm | 🟢 | - | sheet.formula.sum + dropdown |
 | Chỉnh sửa | Điền: xuống / sang phải / Flash Fill | ✅ | - | 17/10 (AGY-DATATOOLS): Flash Fill và Điền đối chiếu Excel 2016 (cases-17 6/6 kịch bản; tests/functions/structural-cases-17.json:1-30; apps/sheet/data-tools.js:339-370; sheet.data.flashFill) |
 | Chỉnh sửa | Điền: lên / sang trái / Chuỗi (Series) / Căn đều / Trên các trang | ✅ | - | 16/10: Căn đều (sheet.edit.fillJustify, cases-7 47/47 ô, tests/functions/structural-cases-7.json:1-20) và Chuỗi Series (tests/unit/sheet-series.test.js:1-25) |
@@ -229,7 +229,7 @@ Tổng: 2 mục ưu tiên 1.
 | Dự báo | What-If: Goal Seek / Bảng dữ liệu (Data Table) | ✅ | - | 17/10 (AGY-DATATOOLS): Goal Seek và Table đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; tests/unit/sheet-goal-seek.test.js:1-30; apps/sheet/sheet-grid.js:20373-20390; sheet.data.goalSeek) |
 | Dự báo | Trang dự báo (Forecast Sheet) | 🔴 | 3 |  |
 | Dàn bài | Nhóm / Bỏ nhóm / Tổng phụ | ✅ | - | 17/10 (AGY-DATATOOLS): Group/Ungroup hàng-cột và Subtotal/RemoveSubtotal đối chiếu Excel 2016 (cases-17 12/12 kịch bản); sheet.data.subtotal; apps/sheet/data-tools.js:77-185 |
-| Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | ✅ | - | 17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; apps/sheet/sheet-grid.js:20180; sheet.data.group) |
+| Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | ✅ | - | 17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; apps/sheet/sheet-grid.js:20202; sheet.data.group) |
 | Phân tích | Solver | 🔴 | 3 | Bổ sung của Excel |
 
 ### Xem xét

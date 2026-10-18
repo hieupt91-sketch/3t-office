@@ -73,7 +73,7 @@ Trang đầu|Ô|Xóa ô/hàng/cột/trang tính|V|-|Xóa ô, xóa hàng, xóa c�
 Trang đầu|Ô|Định dạng: chiều cao hàng, độ rộng cột, tự vừa khít|V|-|Mô hình chiều cao hàng và độ rộng cột (tests/unit/sheet-virtual-scroll-row-heights.test.js:1-30; tests/unit/sheet-overlap-autofit-status.test.js:1-25; sheet.row.height, sheet.col.width)
 Trang đầu|Ô|Ẩn/Hiện hàng, cột, trang tính|A|-|Ẩn và hiện hàng, cột (apps/sheet/sheet-grid.js:1-30; sheet.row.hide, sheet.row.unhide, sheet.col.hide, sheet.col.unhide)
 Trang đầu|Ô|Đổi tên, Di chuyển/Sao chép, Màu tab, Bảo vệ trang tính|A|-|Quản lý trang tính: đổi tên, di chuyển, màu tab, bảo vệ (tests/unit/sheet-rename-move-protect.test.js:1-25; sheet.sheet.protect)
-Trang đầu|Ô|Khóa ô (Lock Cell) khi bảo vệ|P|2|Bảo vệ trang tính có; mức khóa từng ô cần kiểm
+Trang đầu|Ô|Khóa ô (Lock Cell) khi bảo vệ|A|-|sheet.sheet.protect; ô mở khóa sửa được, ô khóa bị chặn, xóa vùng có ô khóa bị chặn toàn bộ; lưu XLSX giữ sheetProtection và protection locked=0 (tests/live/cdp/sheet-lock-cells.desktop.mjs, scripts/audit-0610/sheet_lock_xml.py); chưa đối chiếu Excel thật vì Excel COM chưa dùng được
 Trang đầu|Chỉnh sửa|Tổng tự động (Sum, Average, Count, Max, Min) và Thêm hàm|A|-|sheet.formula.sum + dropdown
 Trang đầu|Chỉnh sửa|Điền: xuống / sang phải / Flash Fill|V|-|17/10 (AGY-DATATOOLS): Flash Fill và Điền đối chiếu Excel 2016 (cases-17 6/6 kịch bản; tests/functions/structural-cases-17.json:1-30; apps/sheet/data-tools.js:339-370; sheet.data.flashFill)
 Trang đầu|Chỉnh sửa|Điền: lên / sang trái / Chuỗi (Series) / Căn đều / Trên các trang|V|-|16/10: Căn đều (sheet.edit.fillJustify, cases-7 47/47 ô, tests/functions/structural-cases-7.json:1-20) và Chuỗi Series (tests/unit/sheet-series.test.js:1-25)

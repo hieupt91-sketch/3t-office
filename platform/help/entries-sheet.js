@@ -661,6 +661,8 @@ export const SHEET_HELP_ENTRIES = [
       "Mở tab Trang đầu, nhóm Ô, nhấn Định dạng. Mục cuối là Bảo vệ trang tính... — khi trang đã khóa, cùng mục đổi thành Bỏ bảo vệ trang tính...",
       "Hoặc chuột phải tab trang tính. Hộp thoại có ô «Bảo vệ trang tính và nội dung các ô bị khóa». Có thể nhập mật khẩu rồi nhập lại để xác nhận (để trống nếu không cần).",
       "Khi đã bảo vệ: không gõ vào ô, không F2, không xóa nội dung, không đổi định dạng, không chèn/xóa hàng cột. Tab có ký hiệu khóa. Có thể đổi tên, di chuyển tab, sao chép và chọn ô.",
+      "Muốn chừa vài ô cho người khác nhập: TRƯỚC khi bảo vệ, chọn các ô đó, mở Định dạng ô, tab Bảo vệ, bỏ chọn Khóa (Locked) rồi Đồng ý. Sau khi bảo vệ trang, chỉ các ô đã mở khóa mới sửa được; ô chưa mở khóa (mặc định mọi ô đều khóa) bị chặn.",
+      "Nếu vùng chọn có dù chỉ một ô khóa (ví dụ chọn cả ô khóa lẫn ô mở khóa rồi nhấn Delete), thao tác bị chặn toàn bộ và hiện thông báo; hãy chọn riêng các ô đã mở khóa.",
       "Bỏ bảo vệ: chọn lại cùng mục. Nếu đã đặt mật khẩu, nhập đúng mật khẩu. Sai mật khẩu hiện lỗi trong hộp thoại.",
       "Đây là khóa giao diện giống phần mềm bảng tính khác/bộ dựng tích hợp của 3T Office tự làm trên máy, mật khẩu không mã hóa, không chống người cố tình sửa file. Trạng thái khóa không đi vào Undo."
     ]
