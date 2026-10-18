@@ -16,15 +16,15 @@ Chuẩn: Microsoft Word 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qu
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu Word 2016 | 154 | 56% |
+| ✅ Đã đối chiếu Word 2016 | 157 | 58% |
 | 🟢 Có, chưa đối chiếu | 64 | 23% |
-| 🟡 Có một phần | 27 | 10% |
-| 🔴 Chưa có | 28 | 10% |
+| 🟡 Có một phần | 26 | 10% |
+| 🔴 Chưa có | 26 | 10% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **279** (áp dụng: 273) | |
 
-- **Độ phủ so với Word 2016 (có hoặc có một phần, một phần tính 0,5): 85%**
-- **Đã xác minh bằng đối chiếu Word 2016 thật: 56%** các mục áp dụng
+- **Độ phủ so với Word 2016 (có hoặc có một phần, một phần tính 0,5): 86%**
+- **Đã xác minh bằng đối chiếu Word 2016 thật: 58%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn phòng; độ trung thực đối chiếu được xác nhận bằng Word COM thật.
 
@@ -33,7 +33,7 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 1 | 14 | 0 | 1 | 1 | 94% |
-| Trang đầu | 47 | 31 | 10 | 3 | 3 | 0 | 90% |
+| Trang đầu | 47 | 33 | 10 | 2 | 2 | 0 | 94% |
 | Chèn | 34 | 23 | 3 | 0 | 5 | 3 | 84% |
 | Thiết kế | 10 | 4 | 0 | 4 | 2 | 0 | 60% |
 | Bố trí | 18 | 12 | 4 | 1 | 1 | 0 | 92% |
@@ -45,7 +45,7 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | Công cụ Hình ảnh | 12 | 3 | 5 | 2 | 2 | 0 | 75% |
 | Công cụ Vẽ | 10 | 4 | 2 | 2 | 2 | 0 | 70% |
 | Công cụ Đầu & Chân trang | 7 | 4 | 2 | 1 | 0 | 0 | 93% |
-| Không thuộc ribbon | 20 | 8 | 9 | 0 | 3 | 0 | 85% |
+| Không thuộc ribbon | 20 | 9 | 9 | 0 | 2 | 0 | 90% |
 
 ## Việc cần làm (mục chưa có hoặc một phần, ưu tiên 1: danh sách 15 mục thiếu nhất)
 
@@ -138,12 +138,12 @@ Tổng: 1 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Đoạn văn | Hộp thoại Điểm dừng Tab (Tabs Dialog: căn lề, ký tự dẫn leader) | ✅ | - | writer.format.tabStops mở hộp thoại Dừng tab; lưu DOCX rồi Word 2016 COM đọc TabStops 141.8 pt trái và 340.2 pt phải dẫn chấm (tests/live/cdp/writer-tabstops.desktop.mjs; apps/writer/tab-stops.js:26 parseTabStops, platform/commands/command-definitions.js:274) |
 | Kiểu | Thư viện kiểu (Styles Gallery: Normal, Heading 1–3) | ✅ | - | Heading 1–3 đối chiếu thuộc tính Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:68,95) |
 | Kiểu | Kiểu dáng tùy biến / Bộ kiểu mới | 🟡 | 2 | Có Normal, Heading 1-3, Title, Quote; chưa có giao diện New Style dialog đầy đủ |
-| Kiểu | Ngăn kiểu dáng (Styles Pane, Alt+Ctrl+Shift+S) | 🔴 | 2 | Chưa có ngăn nổi Styles Pane riêng |
+| Kiểu | Ngăn kiểu dáng (Styles Pane, Alt+Ctrl+Shift+S) | ✅ | - | writer.styles.pane mở ngăn kiểu dáng hiển thị vno-writer-styles-pane (tests/live/cdp/writer-panes.desktop.mjs; platform/commands/command-definitions.js:123) |
 | Chỉnh sửa | Tìm kiếm (Ctrl+F) & Tìm tiếp/trước | ✅ | - | Tìm kiếm common.edit.find MatchCase/toàn từ đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:45, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:70) |
 | Chỉnh sửa | Thay thế (Ctrl+H) | ✅ | - | Thay thế common.edit.replace đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:46, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:70) |
 | Chỉnh sửa | Đi đến (Go To, Ctrl+G) | ✅ | - | writer.edit.goTo: Ctrl+G mở hộp thoại Đi đến (trang, dòng, đề mục, dấu trang, bảng, chú thích); đi đến đề mục 3 rồi 1 đưa con trỏ đúng đoạn (tests/live/cdp/writer-goto.desktop.mjs; platform/commands/command-definitions.js:98, {{L:adapters/libreoffice/writer/writer-adapter.js |
 | Chỉnh sửa | Chọn: Chọn tất cả (Ctrl+A) | 🟢 | - | common.edit.selectAll |
-| Chỉnh sửa | Chọn: Chọn đối tượng / Ngăn chọn (Selection Pane) | 🟡 | 2 | Đã có trên Sheet; trên Doc đang dùng qua context menu |
+| Chỉnh sửa | Chọn: Chọn đối tượng / Ngăn chọn (Selection Pane) | ✅ | - | writer.view.selectionPane mở ngăn chọn hiển thị danh sách đối tượng (tests/live/cdp/writer-panes.desktop.mjs; platform/commands/command-definitions.js:94) |
 
 ### Chèn
 
@@ -407,7 +407,7 @@ Tổng: 1 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Chuột | Chuột bôi đen chọn từ, đoạn, dòng, khối | 🟢 | - | Bôi đen bằng chuột (tests/live/cdp/writer-mini-toolbar.desktop.mjs:1-5, apps/writer/writer-mini-toolbar.js:20-50) |
 | Chuột | Thước căn lề tương tác (kéo lề, kéo thụt dòng đầu) | 🟢 | - | Thước kéo lề và thụt lề (tests/unit/writer-interactive-ruler.test.js:46-58, apps/writer/writer-ruler-controller.js:1-40) |
 | Chuột | Đặt điểm dừng tab tùy chỉnh trên thước | ✅ | - | nút loại dừng tab ở góc thước (Trái/Giữa/Phải/Thập phân/Thanh) rồi nhấp thước; lưu DOCX rồi Word 2016 COM đọc TabStops 283.5 pt căn phải khi đặt 10 cm (tests/live/cdp/writer-ruler-tabs.desktop.mjs; apps/writer/writer-ruler-controller.js:114 điểm dừng tab) |
-| Chuột | Thanh công cụ nổi mini khi bôi đen (Mini Toolbar) | 🔴 | 2 | Chưa có thanh công cụ nổi mini cạnh con trỏ chuột |
+| Chuột | Thanh công cụ nổi mini khi bôi đen (Mini Toolbar) | ✅ | - | bôi đen chữ bằng chuột thì thanh nổi hiện, nút Đậm làm đậm đúng từ, gõ phím thì ẩn (tests/live/cdp/writer-mini-toolbar.desktop.mjs; apps/writer/writer-mini-toolbar.js:24 Mini Toolbar) |
 | Chuột | Menu ngữ cảnh chuột phải trên văn bản | 🟢 | - | Menu ngữ cảnh văn bản chuột phải (apps/writer/writer-app.js:863-876) |
 | Chuột | Menu ngữ cảnh chuột phải trong bảng | ✅ | - | Menu chuột phải trong bảng đối chiếu Word COM thêm/xóa hàng cột (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:54-57) |
 | Chuột | Menu ngữ cảnh chuột phải hình ảnh & hình khối | ✅ | - | Menu chuột phải hình ảnh/hình khối đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:73-74) |

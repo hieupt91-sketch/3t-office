@@ -75,12 +75,12 @@ Trang đầu|Đoạn văn|Hộp thoại Đoạn văn (Paragraph Dialog)|A|-|writ
 Trang đầu|Đoạn văn|Hộp thoại Điểm dừng Tab (Tabs Dialog: căn lề, ký tự dẫn leader)|V|-|writer.format.tabStops mở hộp thoại Dừng tab; lưu DOCX rồi Word 2016 COM đọc TabStops 141.8 pt trái và 340.2 pt phải dẫn chấm (tests/live/cdp/writer-tabstops.desktop.mjs; {{L:apps/writer/tab-stops.js|export function parseTabStops(value) {}} parseTabStops, {{L:platform/commands/command-definitions.js|id: "writer.format.tabStops"}})
 Trang đầu|Kiểu|Thư viện kiểu (Styles Gallery: Normal, Heading 1–3)|V|-|Heading 1–3 đối chiếu thuộc tính Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:68,95)
 Trang đầu|Kiểu|Kiểu dáng tùy biến / Bộ kiểu mới|P|2|Có Normal, Heading 1-3, Title, Quote; chưa có giao diện New Style dialog đầy đủ
-Trang đầu|Kiểu|Ngăn kiểu dáng (Styles Pane, Alt+Ctrl+Shift+S)|N|2|Chưa có ngăn nổi Styles Pane riêng
+Trang đầu|Kiểu|Ngăn kiểu dáng (Styles Pane, Alt+Ctrl+Shift+S)|V|-|writer.styles.pane mở ngăn kiểu dáng hiển thị vno-writer-styles-pane (tests/live/cdp/writer-panes.desktop.mjs; {{L:platform/commands/command-definitions.js|id: "writer.styles.pane"}})
 Trang đầu|Chỉnh sửa|Tìm kiếm (Ctrl+F) & Tìm tiếp/trước|V|-|Tìm kiếm common.edit.find MatchCase/toàn từ đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:45, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:70)
 Trang đầu|Chỉnh sửa|Thay thế (Ctrl+H)|V|-|Thay thế common.edit.replace đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:46, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:70)
 Trang đầu|Chỉnh sửa|Đi đến (Go To, Ctrl+G)|V|-|writer.edit.goTo: Ctrl+G mở hộp thoại Đi đến (trang, dòng, đề mục, dấu trang, bảng, chú thích); đi đến đề mục 3 rồi 1 đưa con trỏ đúng đoạn (tests/live/cdp/writer-goto.desktop.mjs; {{L:platform/commands/command-definitions.js|id: "writer.edit.goTo"}}, {{L:adapters/libreoffice/writer/writer-adapter.js|  async openGoToDialog(options = {}) {}} openGoToDialog)
 Trang đầu|Chỉnh sửa|Chọn: Chọn tất cả (Ctrl+A)|A|-|common.edit.selectAll
-Trang đầu|Chỉnh sửa|Chọn: Chọn đối tượng / Ngăn chọn (Selection Pane)|P|2|Đã có trên Sheet; trên Doc đang dùng qua context menu
+Trang đầu|Chỉnh sửa|Chọn: Chọn đối tượng / Ngăn chọn (Selection Pane)|V|-|writer.view.selectionPane mở ngăn chọn hiển thị danh sách đối tượng (tests/live/cdp/writer-panes.desktop.mjs; {{L:platform/commands/command-definitions.js|id: "writer.view.selectionPane"}})
 Chèn|Trang|Trang bìa (Cover Page: 4 mẫu hành chính và báo cáo)|A|-|writer.insert.coverPage, removeCoverPage
 Chèn|Trang|Trang trắng (Blank Page)|V|-|Trang trắng writer.page.blank đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:47)
 Chèn|Trang|Ngắt trang (Page Break, Ctrl+Enter)|V|-|Ngắt trang writer.page.break đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:48, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:61)
@@ -284,7 +284,7 @@ Không thuộc ribbon|Bàn phím|Phím Tab và phím thụt lề|V|-|Phím Tab v
 Không thuộc ribbon|Chuột|Chuột bôi đen chọn từ, đoạn, dòng, khối|A|-|Bôi đen bằng chuột (tests/live/cdp/writer-mini-toolbar.desktop.mjs:1-5, apps/writer/writer-mini-toolbar.js:20-50)
 Không thuộc ribbon|Chuột|Thước căn lề tương tác (kéo lề, kéo thụt dòng đầu)|A|-|Thước kéo lề và thụt lề (tests/unit/writer-interactive-ruler.test.js:46-58, apps/writer/writer-ruler-controller.js:1-40)
 Không thuộc ribbon|Chuột|Đặt điểm dừng tab tùy chỉnh trên thước|V|-|nút loại dừng tab ở góc thước (Trái/Giữa/Phải/Thập phân/Thanh) rồi nhấp thước; lưu DOCX rồi Word 2016 COM đọc TabStops 283.5 pt căn phải khi đặt 10 cm (tests/live/cdp/writer-ruler-tabs.desktop.mjs; {{L:apps/writer/writer-ruler-controller.js|/** Nút chọn loại dừng tab ở góc trái thước}} điểm dừng tab)
-Không thuộc ribbon|Chuột|Thanh công cụ nổi mini khi bôi đen (Mini Toolbar)|N|2|Chưa có thanh công cụ nổi mini cạnh con trỏ chuột
+Không thuộc ribbon|Chuột|Thanh công cụ nổi mini khi bôi đen (Mini Toolbar)|V|-|bôi đen chữ bằng chuột thì thanh nổi hiện, nút Đậm làm đậm đúng từ, gõ phím thì ẩn (tests/live/cdp/writer-mini-toolbar.desktop.mjs; {{L:apps/writer/writer-mini-toolbar.js|export class WriterMiniToolbar}} Mini Toolbar)
 Không thuộc ribbon|Chuột|Menu ngữ cảnh chuột phải trên văn bản|A|-|Menu ngữ cảnh văn bản chuột phải (apps/writer/writer-app.js:863-876)
 Không thuộc ribbon|Chuột|Menu ngữ cảnh chuột phải trong bảng|V|-|Menu chuột phải trong bảng đối chiếu Word COM thêm/xóa hàng cột (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:54-57)
 Không thuộc ribbon|Chuột|Menu ngữ cảnh chuột phải hình ảnh & hình khối|V|-|Menu chuột phải hình ảnh/hình khối đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:73-74)
