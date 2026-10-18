@@ -17,8 +17,8 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Excel 2016 | 92 | 43% |
-| 🟢 Có, chưa đối chiếu | 56 | 26% |
-| 🟡 Có một phần | 26 | 12% |
+| 🟢 Có, chưa đối chiếu | 57 | 27% |
+| 🟡 Có một phần | 25 | 12% |
 | 🔴 Chưa có | 39 | 18% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
@@ -33,7 +33,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 3 | 8 | 4 | 1 | 1 | 81% |
-| Trang đầu | 53 | 27 | 14 | 10 | 2 | 0 | 87% |
+| Trang đầu | 53 | 27 | 15 | 9 | 2 | 0 | 88% |
 | Chèn | 29 | 9 | 5 | 2 | 11 | 2 | 56% |
 | Bố trí trang | 10 | 7 | 1 | 1 | 1 | 0 | 85% |
 | Công thức | 13 | 6 | 6 | 1 | 0 | 0 | 96% |
@@ -96,7 +96,7 @@ Tổng: 2 mục ưu tiên 1.
 | Bảng nhớ tạm | Ngăn Clipboard (nhiều mục) | 🔴 | 3 |  |
 | Phông chữ | Tên phông / Cỡ chữ / Tăng-giảm cỡ | 🟢 | - | Chọn phông, cỡ chữ và tăng giảm cỡ (docs/SHEET-BUTTON-MATRIX-1011.md:19-22; sheet.font.family, sheet.font.size, sheet.font.grow, sheet.font.shrink) |
 | Phông chữ | Đậm / Nghiêng / Gạch chân (Ctrl+B/I/U) | ✅ | - | Hộp thoại Định dạng ô đã đọc lại bằng Excel 2016 (docs/SHEET-BUTTON-MATRIX-1011.md:23-25; sheet.cell.bold, sheet.cell.italic, sheet.cell.underline) |
-| Phông chữ | Gạch chân đôi / Gạch ngang / Chỉ số trên-dưới | 🟡 | 2 | Qua Định dạng ô > Phông chữ (cần kiểm đủ) |
+| Phông chữ | Gạch chân đôi / Gạch ngang / Chỉ số trên-dưới | 🟢 | - | sheet.format.cellsDialog tab Phông chữ; lưu XLSX giữ gạch chân đôi u=double, gạch ngang strike, chỉ số trên vertAlign=superscript, chỉ số dưới vertAlign=subscript đọc từ XML; chưa đối chiếu Excel thật vì Excel COM chưa dùng được (tests/live/cdp/sheet-font-effects.desktop.mjs) |
 | Phông chữ | Viền ô (thư viện + vẽ viền, kiểu đường, màu đường) | 🟡 | 2 | Có thư viện viền; chưa có Draw Border/Erase Border |
 | Phông chữ | Màu nền / Màu chữ (bảng màu + màu tùy chỉnh) | 🟢 | - | Màu nền và màu chữ (docs/SHEET-BUTTON-MATRIX-1011.md:27-28; sheet.cell.fillColor, sheet.cell.textColor) |
 | Phông chữ | Hộp thoại Định dạng ô (Ctrl+1) | ✅ | - | Tab Số/Căn lề/Phông/Viền/Tô đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:48; tests/unit/sheet-format-cells.test.js:1-25; sheet.format.cellsDialog) |

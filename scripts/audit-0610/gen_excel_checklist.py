@@ -43,7 +43,7 @@ Trang đầu|Bảng nhớ tạm|Sao chép định dạng (Format Painter, nhấp
 Trang đầu|Bảng nhớ tạm|Ngăn Clipboard (nhiều mục)|N|3|
 Trang đầu|Phông chữ|Tên phông / Cỡ chữ / Tăng-giảm cỡ|A|-|Chọn phông, cỡ chữ và tăng giảm cỡ (docs/SHEET-BUTTON-MATRIX-1011.md:19-22; sheet.font.family, sheet.font.size, sheet.font.grow, sheet.font.shrink)
 Trang đầu|Phông chữ|Đậm / Nghiêng / Gạch chân (Ctrl+B/I/U)|V|-|Hộp thoại Định dạng ô đã đọc lại bằng Excel 2016 (docs/SHEET-BUTTON-MATRIX-1011.md:23-25; sheet.cell.bold, sheet.cell.italic, sheet.cell.underline)
-Trang đầu|Phông chữ|Gạch chân đôi / Gạch ngang / Chỉ số trên-dưới|P|2|Qua Định dạng ô > Phông chữ (cần kiểm đủ)
+Trang đầu|Phông chữ|Gạch chân đôi / Gạch ngang / Chỉ số trên-dưới|A|-|sheet.format.cellsDialog tab Phông chữ; lưu XLSX giữ gạch chân đôi u=double, gạch ngang strike, chỉ số trên vertAlign=superscript, chỉ số dưới vertAlign=subscript đọc từ XML; chưa đối chiếu Excel thật vì Excel COM chưa dùng được (tests/live/cdp/sheet-font-effects.desktop.mjs)
 Trang đầu|Phông chữ|Viền ô (thư viện + vẽ viền, kiểu đường, màu đường)|P|2|Có thư viện viền; chưa có Draw Border/Erase Border
 Trang đầu|Phông chữ|Màu nền / Màu chữ (bảng màu + màu tùy chỉnh)|A|-|Màu nền và màu chữ (docs/SHEET-BUTTON-MATRIX-1011.md:27-28; sheet.cell.fillColor, sheet.cell.textColor)
 Trang đầu|Phông chữ|Hộp thoại Định dạng ô (Ctrl+1)|V|-|Tab Số/Căn lề/Phông/Viền/Tô đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:48; tests/unit/sheet-format-cells.test.js:1-25; sheet.format.cellsDialog)
