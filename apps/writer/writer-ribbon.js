@@ -596,7 +596,10 @@ export const WRITER_RIBBON_TABS = [
         labelKey: "writerRibbon.group.tableStyleOptions",
         items: [
           { type: "button", commandId: "writer.table.toggleHeaderRow" },
-          { type: "button", commandId: "writer.table.toggleBandedRows" }
+          { type: "button", commandId: "writer.table.toggleBandedRows" },
+          { type: "button", commandId: "writer.table.toggleFirstColumn" },
+          { type: "button", commandId: "writer.table.toggleLastColumn" },
+          { type: "button", commandId: "writer.table.toggleBandedColumns" }
         ]
       },
       {

@@ -9799,6 +9799,9 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.table.bordersNone", () => this._hintIfFalse(() => this.setTableBorders("none"), "Hãy đặt con trỏ vào bảng để thiết lập đường viền."));
     globalCommandBus.bindHandler("writer.table.toggleHeaderRow", () => this._hintIfFalse(() => this.toggleTableHeaderRow(), "Hãy đặt con trỏ vào bảng để bật/tắt hàng tiêu đề."));
     globalCommandBus.bindHandler("writer.table.toggleBandedRows", () => this._hintIfFalse(() => this.toggleTableBandedRows(), "Hãy đặt con trỏ vào bảng để bật/tắt hàng so le màu."));
+    globalCommandBus.bindHandler("writer.table.toggleFirstColumn", () => this._hintIfFalse(() => this.toggleTableColumnOption("first"), "Hãy đặt con trỏ vào bảng để bật/tắt cột đầu."));
+    globalCommandBus.bindHandler("writer.table.toggleLastColumn", () => this._hintIfFalse(() => this.toggleTableColumnOption("last"), "Hãy đặt con trỏ vào bảng để bật/tắt cột cuối."));
+    globalCommandBus.bindHandler("writer.table.toggleBandedColumns", () => this._hintIfFalse(() => this.toggleTableColumnOption("banded"), "Hãy đặt con trỏ vào bảng để bật/tắt cột xen kẽ."));
     globalCommandBus.bindHandler("writer.table.splitTable", () => this._hintIfFalse(() => this.splitTable(), "Hãy đặt con trỏ vào một ô trong bảng để tách bảng."));
     globalCommandBus.bindHandler("writer.table.textDirection", (args) => this._hintIfFalse(() => this.setTableTextDirection(args), "Hãy đặt con trỏ vào một ô trong bảng để đổi hướng chữ."));
     globalCommandBus.bindHandler("writer.table.properties", (args) => this._hintIfFalse(() => this.openTablePropertiesDialog(args), "Hãy đặt con trỏ vào một bảng để mở thuộc tính bảng."));
@@ -10289,13 +10292,49 @@ export class WriterAdapter {
     for (let i = 1; i < table.rows.length; i++) {
       const row = table.rows[i];
       const backgroundColor = isBanded && i % 2 === 1 ? "#dbeafe" : "";
-      for (const cell of row.cells) {
-        cell.style.backgroundColor = backgroundColor;
-      }
+      const keepColumnBands = table.classList.contains("vno-table-banded-columns");
+      Array.from(row.cells).forEach((cell, col) => {
+        // Cột xen kẽ đang bật: ô cột chẵn ở hàng không tô vẫn giữ màu cột.
+        cell.style.backgroundColor = backgroundColor || (keepColumnBands && col % 2 === 0 ? "#dbeafe" : "");
+      });
     }
     globalCommandBus.updateState("writer.table.toggleBandedRows", { checked: isBanded });
     this.isDirty = true;
     this.recordSnapshot("writer.table.toggleBandedRows");
+    return true;
+  }
+
+  /** Cột đầu / Cột cuối (chữ đậm) và Cột xen kẽ (nền so le): định dạng trực tiếp lên ô, không đụng hàng tiêu đề và hàng đang tô xen kẽ. */
+  toggleTableColumnOption(kind) {
+    this.flushTyping();
+    const table = this._getActiveTable();
+    if (!table || table.rows.length === 0) return false;
+    const className = { first: "vno-table-first-column", last: "vno-table-last-column", banded: "vno-table-banded-columns" }[kind];
+    if (!className) return false;
+    const on = table.classList.toggle(className);
+    const rowBanded = table.classList.contains("vno-table-banded-rows");
+    const bandColor = "#dbeafe";
+    const toRgb = value => { const probe = document.createElement("span"); probe.style.color = value; return probe.style.color; };
+    for (let i = 0; i < table.rows.length; i++) {
+      const row = table.rows[i];
+      const isHeader = row.classList.contains("vno-table-header-row");
+      const cells = Array.from(row.cells);
+      cells.forEach((cell, col) => {
+        if (kind === "banded") {
+          if (isHeader || (rowBanded && i % 2 === 1)) return;
+          const shaded = on && col % 2 === 0;
+          if (shaded) cell.style.backgroundColor = bandColor;
+          else if (cell.style.backgroundColor && toRgb(cell.style.backgroundColor) === toRgb(bandColor)) cell.style.backgroundColor = "";
+          return;
+        }
+        if (isHeader) return;
+        const target = kind === "first" ? col === 0 : col === cells.length - 1;
+        if (target) cell.style.fontWeight = on ? "bold" : "";
+      });
+    }
+    globalCommandBus.updateState(`writer.table.toggle${{ first: "FirstColumn", last: "LastColumn", banded: "BandedColumns" }[kind]}`, { checked: on });
+    this.isDirty = true;
+    this.recordSnapshot(`writer.table.toggle${{ first: "FirstColumn", last: "LastColumn", banded: "BandedColumns" }[kind]}`);
     return true;
   }
 

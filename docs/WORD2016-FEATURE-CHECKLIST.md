@@ -17,8 +17,8 @@ Chuẩn: Microsoft Word 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qu
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Word 2016 | 157 | 58% |
-| 🟢 Có, chưa đối chiếu | 66 | 24% |
-| 🟡 Có một phần | 23 | 8% |
+| 🟢 Có, chưa đối chiếu | 67 | 25% |
+| 🟡 Có một phần | 22 | 8% |
 | 🔴 Chưa có | 26 | 10% |
 | ⚪ Ngoài phạm vi | 7 | - |
 | **Tổng** | **279** (áp dụng: 272) | |
@@ -41,7 +41,7 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | Thư | 16 | 9 | 0 | 6 | 1 | 0 | 75% |
 | Xem lại | 22 | 10 | 7 | 2 | 3 | 0 | 82% |
 | Chế độ xem | 21 | 10 | 7 | 1 | 3 | 0 | 83% |
-| Công cụ Bảng | 26 | 24 | 0 | 1 | 1 | 0 | 94% |
+| Công cụ Bảng | 26 | 24 | 1 | 0 | 1 | 0 | 96% |
 | Công cụ Hình ảnh | 12 | 3 | 5 | 2 | 2 | 0 | 75% |
 | Công cụ Vẽ | 10 | 4 | 2 | 2 | 2 | 0 | 70% |
 | Công cụ Đầu & Chân trang | 7 | 4 | 2 | 0 | 0 | 1 | 100% |
@@ -135,7 +135,7 @@ Tổng: 1 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Đoạn văn | Tô nền đoạn văn (Shading) | ✅ | - | Tô nền đoạn văn writer.para.shading đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:42) |
 | Đoạn văn | Đường viền đoạn văn (Borders) | ✅ | - | Viền đoạn văn writer.para.borders đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:43) |
 | Đoạn văn | Hộp thoại Đoạn văn (Paragraph Dialog) | 🟢 | - | writer.format.paragraphDialog |
-| Đoạn văn | Hộp thoại Điểm dừng Tab (Tabs Dialog: căn lề, ký tự dẫn leader) | ✅ | - | writer.format.tabStops mở hộp thoại Dừng tab; lưu DOCX rồi Word 2016 COM đọc TabStops 141.8 pt trái và 340.2 pt phải dẫn chấm (tests/live/cdp/writer-tabstops.desktop.mjs; apps/writer/tab-stops.js:26 parseTabStops, platform/commands/command-definitions.js:274) |
+| Đoạn văn | Hộp thoại Điểm dừng Tab (Tabs Dialog: căn lề, ký tự dẫn leader) | ✅ | - | writer.format.tabStops mở hộp thoại Dừng tab; lưu DOCX rồi Word 2016 COM đọc TabStops 141.8 pt trái và 340.2 pt phải dẫn chấm (tests/live/cdp/writer-tabstops.desktop.mjs; apps/writer/tab-stops.js:26 parseTabStops, platform/commands/command-definitions.js:277) |
 | Kiểu | Thư viện kiểu (Styles Gallery: Normal, Heading 1–3) | ✅ | - | Heading 1–3 đối chiếu thuộc tính Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:68,95) |
 | Kiểu | Kiểu dáng tùy biến / Bộ kiểu mới | 🟡 | 2 | Có Normal, Heading 1-3, Title, Quote; chưa có giao diện New Style dialog đầy đủ |
 | Kiểu | Ngăn kiểu dáng (Styles Pane, Alt+Ctrl+Shift+S) | ✅ | - | writer.styles.pane mở ngăn kiểu dáng hiển thị vno-writer-styles-pane (tests/live/cdp/writer-panes.desktop.mjs; platform/commands/command-definitions.js:123) |
@@ -326,7 +326,7 @@ Tổng: 1 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 |---|---|---|---|---|
 | Thiết kế | Tùy chọn kiểu bảng: Hàng tiêu đề (Header Row) | ✅ | - | Hàng tiêu đề HeadingFormat=-1 đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:56,79) |
 | Thiết kế | Tùy chọn kiểu bảng: Hàng xen kẽ (Banded Rows) | ✅ | - | writer.table.toggleBandedRows: bật/tắt màu nền xen kẽ giữa các hàng bảng; đã đo kiểm đối chiếu Word 2016 COM ApplyStyleRowBands (adapters/libreoffice/writer/writer-adapter.js:10117-10133, docs/word-oracle-tables-1710.json:43-47, tests/live/cdp/writer-table-parity.desktop.mjs:122-140) |
-| Thiết kế | Tùy chọn kiểu bảng: Cột đầu, Cột cuối, Cột sọc | 🟡 | 2 | Đã có hàng tiêu đề và xen kẽ hàng; các tùy chọn cột cần bổ sung |
+| Thiết kế | Tùy chọn kiểu bảng: Cột đầu, Cột cuối, Cột sọc | 🟢 | - | writer.table.toggleFirstColumn, writer.table.toggleLastColumn, writer.table.toggleBandedColumns; bật/tắt, cùng hàng xen kẽ không mất màu cột, lưu DOCX rồi Word 2016 thật đọc lại đúng chữ đậm và màu nền từng ô (tests/live/cdp/writer-table-column-options.desktop.mjs, scripts/audit-0610/word_table_cols_readback.ps1); là định dạng trực tiếp lên ô, chưa ghi cờ tblLook (ApplyStyleFirstColumn) của Word |
 | Thiết kế | Thư viện kiểu bảng (Table Styles Gallery) | ✅ | - | writer.table.stylesGallery: 32 mẫu bảng Plain, Grid, List; xuất w:tblStyle và w:tblLook chuẩn DOCX, đã đo kiểm đối chiếu Word COM (apps/writer/writer-table-styles.js:1-25, docs/word-oracle-writer2-1710.json:37-48) |
 | Thiết kế | Màu nền ô bảng (Shading) | ✅ | - | Bảng màu nền ô đối chiếu Word COM mã màu 15788258 (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:57,83) |
 | Thiết kế | Viền bảng (Borders dropdown: Tất cả, Viền ngoài, Viền trong, Không viền) | ✅ | - | Viền bảng 4 kiểu viền đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:57,84) |
@@ -363,7 +363,7 @@ Tổng: 1 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Định dạng | Thay đổi ảnh giữ nguyên kích thước (Change Picture) | 🟢 | - | writer.image.changePicture (platform/commands/command-definitions.js:207) |
 | Định dạng | Đặt lại ảnh về gốc (Reset Picture) | 🟢 | - | writer.image.resetPicture (platform/commands/command-definitions.js:208) |
 | Định dạng | Thư viện kiểu khung ảnh (Picture Styles Gallery) | 🟡 | 2 | Có bo góc, đổ bóng, viền ảnh; chưa có gallery preset phong phú |
-| Định dạng | Viền ảnh & Màu viền (Picture Border) | ✅ | - | writer.image.border: hộp thoại Viền ảnh chọn nét liền, đứt, chấm, đôi, độ dày và màu; lưu DOCX rồi Word 2016 COM đọc Line.Visible, Weight 2,25 pt, DashStyle 4 và màu xanh (tests/live/cdp/writer-picture-border.desktop.mjs; adapters/libreoffice/writer/writer-adapter.js:10790 setPictureBorder, platform/commands/command-definitions.js:225) |
+| Định dạng | Viền ảnh & Màu viền (Picture Border) | ✅ | - | writer.image.border: hộp thoại Viền ảnh chọn nét liền, đứt, chấm, đôi, độ dày và màu; lưu DOCX rồi Word 2016 COM đọc Line.Visible, Weight 2,25 pt, DashStyle 4 và màu xanh (tests/live/cdp/writer-picture-border.desktop.mjs; adapters/libreoffice/writer/writer-adapter.js:10829 setPictureBorder, platform/commands/command-definitions.js:228) |
 | Định dạng | Cắt xén ảnh (Crop) | 🟢 | - | writer.image.crop (platform/commands/command-definitions.js:205) |
 | Định dạng | Kích thước ảnh chính xác (Chiều cao, Chiều rộng pt/cm) | ✅ | - | Kích thước ảnh PNG đối chiếu Word COM 23.9x13.6 pt (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:74) |
 | Định dạng | Tùy chọn ngắt dòng chữ (Wrap Text - In Line, Square, Tight, Behind, In Front) | ✅ | - | Tùy chọn ngắt dòng chữ ảnh Wrap Square đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:74) |

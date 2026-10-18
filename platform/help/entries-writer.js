@@ -1556,6 +1556,9 @@ export const WRITER_HELP_ENTRIES = [
     commandIds: [
       "writer.table.toggleHeaderRow",
       "writer.table.toggleBandedRows",
+      "writer.table.toggleFirstColumn",
+      "writer.table.toggleLastColumn",
+      "writer.table.toggleBandedColumns",
       "writer.table.cellBg",
       "writer.table.borders"
     ],
@@ -1566,6 +1569,7 @@ export const WRITER_HELP_ENTRIES = [
     steps: [
       "Đặt con trỏ soạn thảo vào bên trong bảng bất kỳ để thanh công cụ tự động hiển thị thêm tab ngữ cảnh Thiết kế Bảng.",
       "Trong nhóm Tùy chọn kiểu bảng, nhấp «Hàng tiêu đề» để bật hoặc tắt chữ đậm và nền sáng cho hàng đầu (khi lưu .docx hoặc in, hàng này tự lặp lại ở đầu mỗi trang nếu bảng dài nhiều trang); nhấp «Hàng xen kẽ» để bật dải màu nền so le giúp bảng nhiều dòng dễ đọc hơn.",
+      "Cũng trong nhóm này: «Cột đầu» và «Cột cuối» in đậm toàn bộ chữ ở cột đầu hoặc cột cuối (thường dùng cho cột nhãn hoặc cột tổng); «Cột xen kẽ» tô màu nền so le theo cột. Hàng tiêu đề và các hàng đang tô xen kẽ giữ nguyên màu của chúng; nhấp lại để tắt, màu và chữ đậm trở về như cũ. Các tùy chọn này là định dạng trực tiếp lên ô nên lưu .docx giữ nguyên chữ đậm và màu nền.",
       "Trong nhóm Màu & Viền, nhấp «Tô màu ô» để đổi màu nền cho ô hiện tại hoặc các ô đang chọn; nhấp «Đường viền bảng» để chuyển đổi nhanh giữa có viền đầy đủ hoặc xóa viền bảng.",
       "Mọi thay đổi định dạng bảng đều có thể hoàn tác ngay bằng tổ hợp phím Ctrl+Z hoặc làm lại bằng Ctrl+Y."
     ]
