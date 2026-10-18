@@ -1008,6 +1008,7 @@ export const viStrings = {
   ,"sheet.edit.clearComments": { label: "Xóa ghi chú", tooltip: "Xóa ghi chú (comment) trong các ô đang chọn, giữ nguyên nội dung ô" }
   ,"sheet.edit.clearHyperlinks": { label: "Xóa siêu liên kết", tooltip: "Gỡ siêu liên kết trong các ô đang chọn nhưng giữ nguyên văn bản" }
     ,"sheet.edit.clearContents": { label: "Xóa nội dung", tooltip: "Xóa nội dung và công thức của ô nhưng giữ nguyên định dạng" }
+    ,"slides.review.toggleComments": { label: "Hiện nhận xét", tooltip: "Hiện hoặc ẩn ngăn nhận xét của trang chiếu hiện tại" }
     ,"slides.review.commentInsert": { label: "Nhận xét mới", tooltip: "Thêm nhận xét cho trang chiếu hiện tại" }
     ,"slides.review.commentPrevious": { label: "Nhận xét trước", tooltip: "Nhảy tới nhận xét trước đó" }
     ,"slides.review.commentNext": { label: "Nhận xét sau", tooltip: "Nhảy tới nhận xét tiếp theo" }

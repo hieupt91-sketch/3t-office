@@ -757,6 +757,7 @@ export const SLIDES_RIBBON_TABS = [
         labelKey: "slidesRibbon.group.comments",
         items: [
           { type: "button", commandId: "slides.review.commentInsert", isLarge: true },
+          { type: "button", commandId: "slides.review.toggleComments" },
           { type: "button", commandId: "slides.review.commentDelete" },
           { type: "button", commandId: "slides.review.commentPrevious" },
           { type: "button", commandId: "slides.review.commentNext" },

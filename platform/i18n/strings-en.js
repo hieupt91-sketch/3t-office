@@ -1009,6 +1009,7 @@ export const enStrings = {
   ,"sheet.edit.clearComments": { label: "Clear Notes", tooltip: "Remove the notes (comments) from the selected cells and keep the cell contents" }
   ,"sheet.edit.clearHyperlinks": { label: "Clear Hyperlinks", tooltip: "Remove hyperlinks from the selected cells and keep the text" }
     ,"sheet.edit.clearContents": { label: "Clear Contents", tooltip: "Clear cell contents and formulas while keeping formatting" }
+    ,"slides.review.toggleComments": { label: "Show Comments", tooltip: "Show or hide the comments pane of the current slide" }
     ,"slides.review.commentInsert": { label: "New Comment", tooltip: "Add a comment to the current slide" }
     ,"slides.review.commentPrevious": { label: "Previous Comment", tooltip: "Go to the previous comment" }
     ,"slides.review.commentNext": { label: "Next Comment", tooltip: "Go to the next comment" }

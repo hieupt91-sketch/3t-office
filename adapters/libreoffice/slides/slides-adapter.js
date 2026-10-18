@@ -380,6 +380,14 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("common.edit.pastePlain", () => this._pastePlainText());
     globalCommandBus.bindHandler("slides.edit.pasteSpecial", () => this._showPasteSpecialDialog());
     globalCommandBus.bindHandler("slides.insert.action", () => this.canvas.showShapeActionDialog ? this.canvas.showShapeActionDialog() : false);
+    globalCommandBus.bindHandler("slides.review.toggleComments", () => {
+      const panel = this.canvas?.commentPanelEl;
+      if (!panel) return false;
+      const open = panel.hidden;
+      if (open) this.canvas.openCommentsPanel(false); else this.canvas.closeCommentsPanel();
+      globalCommandBus.updateState("slides.review.toggleComments", { checked: open });
+      return true;
+    });
     globalCommandBus.bindHandler("slides.review.commentInsert", (options) => {
       options = options || {};
       return this.canvas.openCommentsPanel ? this.canvas.openCommentsPanel(true) : false;

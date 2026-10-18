@@ -9810,6 +9810,7 @@ const startEditing = (initialText) => {
     if (!this.commentPanelEl) return false;
     this._commentsPreviousFocused = document.activeElement;
     this.commentPanelEl.hidden = false;
+    try { globalCommandBus.updateState("slides.review.toggleComments", { checked: true }); } catch (_) { /* chưa có bus */ }
     this._renderCommentsUi();
     if (focusInput) this.commentPanelEl.querySelector("textarea")?.focus?.();
     if (!this._commentsEscapeHandler && typeof document !== "undefined") {
@@ -9827,6 +9828,7 @@ const startEditing = (initialText) => {
   closeCommentsPanel() {
     if (!this.commentPanelEl) return false;
     this.commentPanelEl.hidden = true;
+    try { globalCommandBus.updateState("slides.review.toggleComments", { checked: false }); } catch (_) { /* chưa có bus */ }
     if (this._commentsEscapeHandler && typeof document !== "undefined") {
       document.removeEventListener("keydown", this._commentsEscapeHandler);
       this._commentsEscapeHandler = null;

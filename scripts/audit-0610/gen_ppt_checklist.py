@@ -189,7 +189,7 @@ Xem lại|Nhận xét|Xóa nhận xét (Delete Comment)|V|-|FIX-L10: slides.revi
 Xem lại|Nhận xét|Nhận xét trước (Previous Comment)|A|-|slides.review.commentPrevious; điều hướng tới nhận xét trước (docs/SLIDES-BUTTON-MATRIX-1011.md:82)
 Xem lại|Nhận xét|Nhận xét sau (Next Comment)|A|-|slides.review.commentNext; điều hướng tới nhận xét kế tiếp (docs/SLIDES-BUTTON-MATRIX-1011.md:83)
 Xem lại|Nhận xét|Đánh dấu đã xử lý (Resolve Comment)|A|-|slides.review.commentResolve; đánh dấu nhận xét đã giải quyết (docs/SLIDES-BUTTON-MATRIX-1011.md:84)
-Xem lại|Nhận xét|Hiện/ẩn ngăn nhận xét (Show Comments)|N|2|Chưa có nút riêng mở/đóng ngăn nhận xét (Comments Pane)
+Xem lại|Nhận xét|Hiện/ẩn ngăn nhận xét (Show Comments)|A|-|slides.review.toggleComments: nút Hiện nhận xét trên tab Đánh giá bật/tắt ngăn nhận xét, hiện nhận xét đã thêm, Esc ẩn (tests/live/cdp/slides-toggle-comments.desktop.mjs 5/5, {{L:platform/commands/command-definitions.js|id: "slides.review.toggleComments"}}); thao tác giao diện, không có đối chiếu PowerPoint thật
 Xem lại|So sánh|So sánh bản trình bày (Compare Presentations)|N|3|Chưa có công cụ so sánh song song hai tệp PPTX
 Xem lại|So sánh|Chấp nhận / Từ chối thay đổi (Accept / Reject Revision)|N|3|Chưa có quy trình duyệt thay đổi revision trong slide
 Chế độ xem|Chế độ xem bản trình bày|Bình thường (Normal View)|V|-|FIX-L14: slides.view.normal chuyển chế độ ppViewNormal ViewType=9 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:85)

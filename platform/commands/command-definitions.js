@@ -591,6 +591,7 @@ export const SHEET_COMMANDS = [
 ];
 
 export const SLIDES_COMMANDS = [
+  { id: "slides.review.toggleComments", category: "review", label: "Hiện nhận xét", icon: "comment", isToggle: true, tooltip: "Hiện hoặc ẩn ngăn nhận xét của trang chiếu hiện tại" },
   { id: "slides.review.commentInsert", category: "review", label: "Nhận xét mới", icon: "comment", tooltip: "Thêm nhận xét cho trang chiếu hiện tại" },
   { id: "slides.review.commentPrevious", category: "review", label: "Nhận xét trước", icon: "commentPrevious", tooltip: "Nhảy tới nhận xét trước đó" },
   { id: "slides.review.commentNext", category: "review", label: "Nhận xét sau", icon: "commentNext", tooltip: "Nhảy tới nhận xét tiếp theo" },

@@ -900,7 +900,7 @@ export const SLIDES_HELP_ENTRIES = [
   {
     id: "slides.review.commentInsertHelp",
     app: "slides",
-    commandIds: ["slides.review.commentInsert"],
+    commandIds: ["slides.review.commentInsert", "slides.review.toggleComments"],
     title: "Thêm nhận xét cho trang chiếu",
     summary: "Mở panel nhận xét của trang đang mở — lệnh không chèn sẵn một nhận xét. Gõ rồi Thêm nhận xét hoặc Ctrl+Enter. Nhận xét gắn theo trang, không neo vào hình.",
     ribbon: { tab: "Đánh giá", tabId: "review", group: "Nhận xét" },
@@ -909,6 +909,7 @@ export const SLIDES_HELP_ENTRIES = [
       "Tab Đánh giá, nhóm Nhận xét, nút lớn Nhận xét mới — cùng nút trên tab Chèn, nhóm Nhận xét. Không có Ctrl+Alt+M như Writer.",
       "Panel «Nhận xét trang chiếu» mở bên cạnh. Ô «Nhận xét mới», gợi ý «Nhập nội dung nhận xét...», nút Thêm nhận xét. Trang chưa có nhận xét hiện «Trang chiếu này chưa có nhận xét.» Gửi bằng nút hoặc Ctrl+Enter (Cmd+Enter). Tác giả mặc định «Người dùng», kèm giờ vi-VN.",
       "Mỗi mục có nút Xóa. Đã xử lý nằm nút ribbon riêng (bài duyệt nhận xét). Esc đóng panel. Huy hiệu ◰ + số trên vùng soạn thảo; Bộ sắp xếp trang hiện 💬 N.",
+      "Muốn chỉ xem nhận xét mà không soạn: nút «Hiện nhận xét» cạnh nút lớn bật hoặc tắt ngăn nhận xét của trang đang mở; bấm lại hoặc nhấn Esc để ẩn. Nút sáng khi ngăn đang hiện.",
       "Ctrl+Z hoàn tác lần thêm/xóa. Nhận xét theo trang, không theo vùng chữ hay hình như các phần mềm trình chiếu khác."
     ]
   },
