@@ -16,15 +16,15 @@ Chuẩn: Microsoft Word 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qu
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu Word 2016 | 151 | 55% |
+| ✅ Đã đối chiếu Word 2016 | 153 | 56% |
 | 🟢 Có, chưa đối chiếu | 64 | 23% |
-| 🟡 Có một phần | 29 | 11% |
+| 🟡 Có một phần | 27 | 10% |
 | 🔴 Chưa có | 29 | 11% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **279** (áp dụng: 273) | |
 
 - **Độ phủ so với Word 2016 (có hoặc có một phần, một phần tính 0,5): 84%**
-- **Đã xác minh bằng đối chiếu Word 2016 thật: 55%** các mục áp dụng
+- **Đã xác minh bằng đối chiếu Word 2016 thật: 56%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn phòng; độ trung thực đối chiếu được xác nhận bằng Word COM thật.
 
@@ -33,7 +33,7 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 1 | 14 | 0 | 1 | 1 | 94% |
-| Trang đầu | 47 | 30 | 10 | 4 | 3 | 0 | 89% |
+| Trang đầu | 47 | 31 | 10 | 3 | 3 | 0 | 90% |
 | Chèn | 34 | 23 | 3 | 0 | 5 | 3 | 84% |
 | Thiết kế | 10 | 4 | 0 | 4 | 2 | 0 | 60% |
 | Bố trí | 18 | 12 | 4 | 1 | 1 | 0 | 92% |
@@ -41,7 +41,7 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | Thư | 16 | 9 | 0 | 6 | 1 | 0 | 75% |
 | Xem lại | 22 | 10 | 7 | 2 | 3 | 0 | 82% |
 | Chế độ xem | 21 | 10 | 6 | 2 | 3 | 0 | 81% |
-| Công cụ Bảng | 26 | 23 | 0 | 2 | 1 | 0 | 92% |
+| Công cụ Bảng | 26 | 24 | 0 | 1 | 1 | 0 | 94% |
 | Công cụ Hình ảnh | 12 | 2 | 5 | 2 | 3 | 0 | 67% |
 | Công cụ Vẽ | 10 | 4 | 2 | 2 | 2 | 0 | 70% |
 | Công cụ Đầu & Chân trang | 7 | 4 | 2 | 1 | 0 | 0 | 93% |
@@ -52,10 +52,8 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | STT | Tab | Nhóm | Tính năng | Trạng thái | Ghi chú / Phần thiếu |
 |---|---|---|---|---|---|
 | 1 | Tệp (Backstage) | Thông tin | Bảo vệ tài liệu: Mật khẩu mở file (mã hóa DOCX) | 🔴 | Chưa có cơ chế mã hóa mật khẩu mở file DOCX |
-| 2 | Trang đầu | Chỉnh sửa | Đi đến (Go To, Ctrl+G) | 🟡 | Có điều hướng đầu/cuối tài liệu Ctrl+Home/End; chưa có hộp thoại Go To tới trang/dòng/bookmark (FIX-W7-GOTO) |
-| 3 | Công cụ Bảng | Thiết kế | Độ dày và kiểu đường viền bảng | 🟡 | Hỗ trợ độ dày chuẩn; kiểu nét đứt/đôi cần hoàn thiện trong giao diện viền |
 
-Tổng: 3 mục ưu tiên 1 cần bổ sung/hoàn thiện.
+Tổng: 1 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 
 ## Đề xuất 10 phiếu việc kế tiếp
 
@@ -137,13 +135,13 @@ Tổng: 3 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Đoạn văn | Tô nền đoạn văn (Shading) | ✅ | - | Tô nền đoạn văn writer.para.shading đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:42) |
 | Đoạn văn | Đường viền đoạn văn (Borders) | ✅ | - | Viền đoạn văn writer.para.borders đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:43) |
 | Đoạn văn | Hộp thoại Đoạn văn (Paragraph Dialog) | 🟢 | - | writer.format.paragraphDialog |
-| Đoạn văn | Hộp thoại Điểm dừng Tab (Tabs Dialog: căn lề, ký tự dẫn leader) | ✅ | - | writer.format.tabStops mở hộp thoại Dừng tab; lưu DOCX rồi Word 2016 COM đọc TabStops 141.8 pt trái và 340.2 pt phải dẫn chấm (tests/live/cdp/writer-tabstops.desktop.mjs; apps/writer/tab-stops.js:26 parseTabStops, platform/commands/command-definitions.js:272) |
+| Đoạn văn | Hộp thoại Điểm dừng Tab (Tabs Dialog: căn lề, ký tự dẫn leader) | ✅ | - | writer.format.tabStops mở hộp thoại Dừng tab; lưu DOCX rồi Word 2016 COM đọc TabStops 141.8 pt trái và 340.2 pt phải dẫn chấm (tests/live/cdp/writer-tabstops.desktop.mjs; apps/writer/tab-stops.js:26 parseTabStops, platform/commands/command-definitions.js:273) |
 | Kiểu | Thư viện kiểu (Styles Gallery: Normal, Heading 1–3) | ✅ | - | Heading 1–3 đối chiếu thuộc tính Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:68,95) |
 | Kiểu | Kiểu dáng tùy biến / Bộ kiểu mới | 🟡 | 2 | Có Normal, Heading 1-3, Title, Quote; chưa có giao diện New Style dialog đầy đủ |
 | Kiểu | Ngăn kiểu dáng (Styles Pane, Alt+Ctrl+Shift+S) | 🔴 | 2 | Chưa có ngăn nổi Styles Pane riêng |
 | Chỉnh sửa | Tìm kiếm (Ctrl+F) & Tìm tiếp/trước | ✅ | - | Tìm kiếm common.edit.find MatchCase/toàn từ đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:45, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:70) |
 | Chỉnh sửa | Thay thế (Ctrl+H) | ✅ | - | Thay thế common.edit.replace đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:46, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:70) |
-| Chỉnh sửa | Đi đến (Go To, Ctrl+G) | 🟡 | 1 | Có điều hướng đầu/cuối tài liệu Ctrl+Home/End; chưa có hộp thoại Go To tới trang/dòng/bookmark (FIX-W7-GOTO) |
+| Chỉnh sửa | Đi đến (Go To, Ctrl+G) | ✅ | - | writer.edit.goTo: Ctrl+G mở hộp thoại Đi đến (trang, dòng, đề mục, dấu trang, bảng, chú thích); đi đến đề mục 3 rồi 1 đưa con trỏ đúng đoạn (tests/live/cdp/writer-goto.desktop.mjs; platform/commands/command-definitions.js:98, {{L:adapters/libreoffice/writer/writer-adapter.js |
 | Chỉnh sửa | Chọn: Chọn tất cả (Ctrl+A) | 🟢 | - | common.edit.selectAll |
 | Chỉnh sửa | Chọn: Chọn đối tượng / Ngăn chọn (Selection Pane) | 🟡 | 2 | Đã có trên Sheet; trên Doc đang dùng qua context menu |
 
@@ -332,7 +330,7 @@ Tổng: 3 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Thiết kế | Thư viện kiểu bảng (Table Styles Gallery) | ✅ | - | writer.table.stylesGallery: 32 mẫu bảng Plain, Grid, List; xuất w:tblStyle và w:tblLook chuẩn DOCX, đã đo kiểm đối chiếu Word COM (apps/writer/writer-table-styles.js:1-25, docs/word-oracle-writer2-1710.json:37-48) |
 | Thiết kế | Màu nền ô bảng (Shading) | ✅ | - | Bảng màu nền ô đối chiếu Word COM mã màu 15788258 (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:57,83) |
 | Thiết kế | Viền bảng (Borders dropdown: Tất cả, Viền ngoài, Viền trong, Không viền) | ✅ | - | Viền bảng 4 kiểu viền đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:57,84) |
-| Thiết kế | Độ dày và kiểu đường viền bảng | 🟡 | 1 | Hỗ trợ độ dày chuẩn; kiểu nét đứt/đôi cần hoàn thiện trong giao diện viền |
+| Thiết kế | Độ dày và kiểu đường viền bảng | ✅ | - | writer.table.bordersStyle: hộp thoại Kiểu viền… chọn nét liền, đứt, chấm, đôi, độ dày 0,25 đến 6 pt, màu và vùng áp dụng; lưu DOCX rồi Word 2016 COM đọc 4 cạnh ngoài LineStyle=4 LineWidth=18 là 2,25 pt Color=255; đồng thời sửa lỗi mất viền trái cột đầu khi lưu (tests/live/cdp/writer-table-borders-style.desktop.mjs; apps/writer/writer-table-borders-dialog.js:45 showTableBordersDialog, platform/commands/command-definitions.js:187) |
 | Thiết kế | Vẽ bảng (Draw Table) & Tẩy viền (Eraser) | 🔴 | 2 | Chưa có công cụ vẽ viền tự do bằng chuột |
 | Bố trí | Chọn ô, hàng, cột, bảng (Table Select) | ✅ | - | writer.table.selectCell, selectRow, selectCol, selectTable: chọn ô, hàng, cột, toàn bộ bảng; đã đo kiểm đối chiếu Word 2016 COM Selection (apps/writer/writer-table.js:410-454, docs/word-oracle-tables-1710.json:48-65, tests/live/cdp/writer-table-parity.desktop.mjs:141-164) |
 | Bố trí | Xem đường lưới bảng (View Gridlines) | ✅ | - | writer.table.viewGridlines: bật/tắt đường viền lưới chấm mờ của bảng không viền; đã đo kiểm đối chiếu Word 2016 COM TableGridlines (adapters/libreoffice/writer/writer-adapter.js:10017-10026, docs/word-oracle-tables-1710.json:97-103, tests/live/cdp/writer-table-parity.desktop.mjs:181-197) |

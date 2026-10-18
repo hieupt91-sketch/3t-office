@@ -45,6 +45,7 @@ import {
   showPictureCorrectionsDialog
 } from "../../../apps/writer/picture-tools-dialog.js";
 import { parseTabStops, resolveTab, serializeTabStops, showTabStopsDialog, styleTabElement } from "../../../apps/writer/tab-stops.js";
+import { showTableBordersDialog, tableBorderCss } from "../../../apps/writer/writer-table-borders-dialog.js";
 import { SHAPE_TYPES, showShapeDialog, renderShapeSvg, showDiagramDialog, generateDiagramHtml, showChartDialog, generateChartHtml } from "../../../apps/writer/writer-illustrations.js";
 import { DOCUMENT_THEMES, showThemeGalleryDialog } from "../../../apps/writer/theme-gallery.js";
 import { showSymbolPicker } from "../../../platform/ui-kit/symbol-picker.js";
@@ -9790,6 +9791,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.table.selectTable", () => this._hintIfFalse(() => this.selectTableElements("table"), "Hãy đặt con trỏ vào bảng để chọn toàn bộ bảng."));
     globalCommandBus.bindHandler("writer.table.cellBg", (args) => this._hintIfFalse(() => this.setTableCellBackground(args), "Hãy đặt con trỏ vào một ô trong bảng để tô màu nền."));
     globalCommandBus.bindHandler("writer.table.borders", (args) => this._hintIfFalse(() => this.setTableBorders(args), "Hãy đặt con trỏ vào bảng để thiết lập đường viền."));
+    globalCommandBus.bindHandler("writer.table.bordersStyle", () => this._hintIfFalse(() => this.openTableBordersDialog(), "Hãy đặt con trỏ vào bảng để chọn kiểu viền."));
     globalCommandBus.bindHandler("writer.table.bordersAll", () => this._hintIfFalse(() => this.setTableBorders("all"), "Hãy đặt con trỏ vào bảng để thiết lập đường viền."));
     globalCommandBus.bindHandler("writer.table.bordersOutside", () => this._hintIfFalse(() => this.setTableBorders("outside"), "Hãy đặt con trỏ vào bảng để thiết lập đường viền."));
     globalCommandBus.bindHandler("writer.table.bordersInside", () => this._hintIfFalse(() => this.setTableBorders("inside"), "Hãy đặt con trỏ vào bảng để thiết lập đường viền."));
@@ -10209,7 +10211,24 @@ export class WriterAdapter {
     return true;
   }
 
-  setTableBorders(borderType = "all") {
+  /** Hộp thoại Kiểu viền…: kiểu nét, độ dày, màu và vùng áp dụng; nhớ bút viền cho các lệnh viền nhanh. */
+  async openTableBordersDialog() {
+    if (!this._getActiveTable()) return false;
+    const picked = await showTableBordersDialog({ ...(this._tableBorderPen || {}), type: "all" });
+    if (!picked) return null;
+    return this.setTableBorders(picked);
+  }
+
+  setTableBorders(arg = "all") {
+    const options = arg && typeof arg === "object" ? arg : { type: arg };
+    const borderType = ["all", "outside", "inside", "none"].includes(options.type) ? options.type : "all";
+    if (options.style || options.widthPt || options.color) {
+      this._tableBorderPen = {
+        style: options.style || this._tableBorderPen?.style,
+        widthPt: options.widthPt || this._tableBorderPen?.widthPt,
+        color: options.color || this._tableBorderPen?.color
+      };
+    }
     this.flushTyping();
     const table = this._getActiveTable();
     if (!table) return false;
@@ -10224,16 +10243,17 @@ export class WriterAdapter {
       result.minCol = Math.min(result.minCol, col); result.maxCol = Math.max(result.maxCol, col);
       return result;
     }, { minRow: Infinity, maxRow: -1, minCol: Infinity, maxCol: -1 });
-    const borderVal = "1px solid #94a3b8";
+    const borderVal = tableBorderCss(this._tableBorderPen || {});
     for (const cell of cells) {
       const row = cell.parentElement?.rowIndex ?? 0;
       const col = cell.cellIndex ?? 0;
       const all = borderType === "all";
-      cell.style.border = "none";
       cell.style.borderTop = all || (borderType === "outside" && row === bounds.minRow) || (borderType === "inside" && row > bounds.minRow) ? borderVal : "none";
       cell.style.borderBottom = all || (borderType === "outside" && row === bounds.maxRow) || (borderType === "inside" && row < bounds.maxRow) ? borderVal : "none";
       cell.style.borderLeft = all || (borderType === "outside" && col === bounds.minCol) || (borderType === "inside" && col > bounds.minCol) ? borderVal : "none";
       cell.style.borderRight = all || (borderType === "outside" && col === bounds.maxCol) || (borderType === "inside" && col < bounds.maxCol) ? borderVal : "none";
+      // «border-image: none» (Chrome tự thêm khi gom viền) làm bộ nhập HTML của LibreOffice rơi mất viền TRÁI của cột đầu khi lưu DOCX.
+      cell.style.removeProperty?.("border-image");
     }
     this.isDirty = true;
     this.recordSnapshot("writer.table.borders");

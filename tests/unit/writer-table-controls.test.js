@@ -546,7 +546,7 @@ export async function runWriterTableControlsTests() {
 
     // Viền bảng
     adapter.setTableBorders("none");
-    assert.equal(cell.style.border, "none");
+    for (const side of ["borderTop", "borderRight", "borderBottom", "borderLeft"]) assert.equal(cell.style[side], "none", `${side} phải là none khi Không viền`);
     adapter.setTableBorders("all");
     assert.equal(cell.style.borderTop, "1px solid #94a3b8");
     assert.equal(cell.style.borderRight, "1px solid #94a3b8");

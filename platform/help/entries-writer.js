@@ -1727,7 +1727,8 @@ export const WRITER_HELP_ENTRIES = [
     "writer.table.bordersAll",
     "writer.table.bordersOutside",
     "writer.table.bordersInside",
-    "writer.table.bordersNone"
+    "writer.table.bordersNone",
+    "writer.table.bordersStyle"
   ],
   "title": "Tô màu ô và đường viền bảng",
   "summary": "Tô nền ô và chọn viền ngoài, viền trong, tất cả đường viền hoặc ẩn viền trên tab ngữ cảnh Thiết kế Bảng.",
@@ -1748,7 +1749,8 @@ export const WRITER_HELP_ENTRIES = [
     "Đặt con trỏ vào ô hoặc bôi đen khối ô cần tô màu / tạo viền trong bảng.",
     "Chuyển sang tab ngữ cảnh Thiết kế Bảng, nhìn tới nhóm Màu & Viền.",
     "Bấm nút «Tô màu ô» để tô ô đang chọn bằng màu nền hiện tại.",
-    "Mở mũi tên «Đường viền bảng», rồi chọn «Tất cả đường viền», «Viền ngoài», «Viền trong» hoặc «Không viền». Khi đã chọn một vùng ô, các lệnh áp dụng quanh hoặc bên trong vùng đó. Bấm Ctrl+Z để hoàn tác."
+    "Mở mũi tên «Đường viền bảng», rồi chọn «Tất cả đường viền», «Viền ngoài», «Viền trong» hoặc «Không viền». Khi đã chọn một vùng ô, các lệnh áp dụng quanh hoặc bên trong vùng đó. Bấm Ctrl+Z để hoàn tác.",
+    "Muốn đổi kiểu nét: mở mũi tên «Đường viền bảng» > «Kiểu viền…», chọn vùng áp dụng, kiểu nét (liền, đứt, chấm, đôi), độ dày (0,25–6 pt) và màu, xem trước ngay trong hộp thoại rồi bấm «Áp dụng». Kiểu đã chọn được nhớ cho các lệnh viền nhanh phía trên đến khi đổi lại."
   ]
 },
 {

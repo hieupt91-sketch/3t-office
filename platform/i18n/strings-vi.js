@@ -1278,6 +1278,7 @@ export const viStrings = {
     "writer.table.selectTable": { label: "Chọn bảng", tooltip: "Chọn toàn bộ bảng" },
     "writer.table.cellBg": { label: "Tô màu ô", tooltip: "Đổi màu nền cho các ô đang chọn trong bảng" },
     "writer.table.borders": { label: "Đường viền bảng", tooltip: "Tùy chỉnh kiểu và độ dày đường viền bảng" },
+    "writer.table.bordersStyle": { label: "Kiểu viền…", tooltip: "Chọn kiểu nét (liền, đứt, chấm, đôi), độ dày, màu và vùng áp dụng cho viền bảng" },
     "writer.table.bordersAll": { label: "Tất cả đường viền", tooltip: "Hiển thị đường viền quanh mọi ô" },
     "writer.table.bordersOutside": { label: "Viền ngoài", tooltip: "Chỉ hiển thị đường viền bao quanh vùng ô" },
     "writer.table.bordersInside": { label: "Viền trong", tooltip: "Chỉ hiển thị đường viền bên trong vùng ô" },

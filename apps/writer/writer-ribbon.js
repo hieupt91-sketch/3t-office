@@ -624,7 +624,8 @@ export const WRITER_RIBBON_TABS = [
               { commandId: "writer.table.bordersAll" },
               { commandId: "writer.table.bordersOutside" },
               { commandId: "writer.table.bordersInside" },
-              { commandId: "writer.table.bordersNone" }
+              { commandId: "writer.table.bordersNone" },
+              { commandId: "writer.table.bordersStyle" }
             ]
           }
         ]

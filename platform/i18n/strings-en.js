@@ -1279,6 +1279,7 @@ export const enStrings = {
     "writer.table.selectTable": { label: "Select Table", tooltip: "Select entire table" },
     "writer.table.cellBg": { label: "Shading", tooltip: "Change table cell background color" },
     "writer.table.borders": { label: "Borders", tooltip: "Customize table borders" },
+    "writer.table.bordersStyle": { label: "Border Style…", tooltip: "Choose line style (solid, dashed, dotted, double), thickness, color and where to apply it on table borders" },
     "writer.table.bordersAll": { label: "All Borders", tooltip: "Show borders around every cell" },
     "writer.table.bordersOutside": { label: "Outside Borders", tooltip: "Show only the border around the selected area" },
     "writer.table.bordersInside": { label: "Inside Borders", tooltip: "Show only borders inside the selected area" },

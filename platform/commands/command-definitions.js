@@ -184,6 +184,7 @@ export const WRITER_COMMANDS = [
   { id: "writer.table.selectTable", category: "table", label: "Chọn bảng", icon: "table", tooltip: "Chọn toàn bộ bảng" },
   { id: "writer.table.cellBg", category: "table", label: "Tô màu ô", icon: "colorFill", tooltip: "Đổi màu nền cho các ô đang chọn trong bảng" },
   { id: "writer.table.borders", category: "table", label: "Đường viền bảng", icon: "paragraphBorders", tooltip: "Tùy chỉnh kiểu và độ dày đường viền bảng" },
+  { id: "writer.table.bordersStyle", category: "table", label: "Kiểu viền…", icon: "paragraphBorders", tooltip: "Chọn kiểu nét (liền, đứt, chấm, đôi), độ dày, màu và vùng áp dụng cho viền bảng" },
   { id: "writer.table.bordersAll", category: "table", label: "Tất cả đường viền", icon: "paragraphBorders", tooltip: "Hiển thị đường viền quanh mọi ô" },
   { id: "writer.table.bordersOutside", category: "table", label: "Viền ngoài", icon: "paragraphBorders", tooltip: "Chỉ hiển thị đường viền bao quanh vùng ô" },
   { id: "writer.table.bordersInside", category: "table", label: "Viền trong", icon: "paragraphBorders", tooltip: "Chỉ hiển thị đường viền bên trong vùng ô" },
