@@ -546,6 +546,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.cells.format", category: "format", label: "Định dạng ô", icon: "formatCells", tooltip: "Đổi kích thước hàng cột, ẩn hiện và bảo vệ trang tính" },
   { id: "sheet.chart.insert", category: "insert", label: "Biểu đồ", icon: "chart", tooltip: "Chèn biểu đồ phân tích dữ liệu" },
   { id: "sheet.chart.pivotChart", category: "insert", label: "Biểu đồ Pivot", icon: "pivotChart", tooltip: "Chèn biểu đồ Cột hoặc Tròn liên kết với dữ liệu Pivot đã tổng hợp" },
+  { id: "sheet.insert.shapes", category: "insert", label: "Hình dạng", icon: "shape", tooltip: "Chèn hình dựng sẵn (chữ nhật, elip, tam giác, mũi tên, sao…) vào ô đang chọn" },
   { id: "sheet.insert.image", category: "insert", label: "Chèn ảnh", icon: "image", tooltip: "Chèn ảnh vào ô đang chọn" },
   { id: "sheet.insert.sparklineLine", category: "insert", label: "Đường", icon: "sparklineLine", tooltip: "Chèn biểu đồ mini dạng đường từ vùng dữ liệu đã chọn" },
   { id: "sheet.insert.sparklineColumn", category: "insert", label: "Cột", icon: "sparklineColumn", tooltip: "Chèn biểu đồ mini dạng cột từ vùng dữ liệu đã chọn" },

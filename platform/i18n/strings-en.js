@@ -900,6 +900,7 @@ export const enStrings = {
     ,"sheet.view.pageLayout": { label: "Page Layout", tooltip: "View sheet as printed on paper with headers and footers" }
     ,"sheet.format.clearRulesSelection": { label: "Clear Rules from Selected Cells", tooltip: "Remove conditional formatting rules from the selected cells (rules outside the selection are kept)" }
     ,"sheet.format.clearRulesSheet": { label: "Clear Rules from Entire Sheet", tooltip: "Remove every conditional formatting rule from the current sheet" }
+    ,"sheet.insert.shapes": { label: "Shapes", tooltip: "Insert a ready-made shape (rectangle, ellipse, triangle, arrow, star…) at the active cell" }
     ,"sheet.view.expandFormulaBar": { label: "Expand Formula Bar", tooltip: "Expand or collapse the formula bar to read long multi-line formulas (Ctrl+Shift+U)" }
     ,"sheet.view.formulaBar": { label: "Formula Bar", tooltip: "Show or hide the formula bar" }
     ,"sheet.view.toggleFormulas": { label: "Show Formulas", tooltip: "Show formulas in cells instead of calculated values (Ctrl+`)" }

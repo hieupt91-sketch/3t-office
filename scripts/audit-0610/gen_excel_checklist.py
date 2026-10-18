@@ -92,7 +92,7 @@ Chèn|Bảng|PivotTable được đề xuất|N|3|
 Chèn|Bảng|Bảng (Table, Ctrl+T)|V|-|ListObject, kiểu TableStyleMedium2 đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:50; tests/functions/structural-cases-8.json:1-20; tests/unit/sheet-table.test.js:1-30; sheet.style.formatAsTable)
 Chèn|Minh họa|Hình ảnh từ tệp|A|-|sheet.insert.image; ảnh trong ô giữ nguyên khi lưu
 Chèn|Minh họa|Hình ảnh trực tuyến / Ảnh chụp màn hình|X|-|Cần dịch vụ trực tuyến / chụp màn hình
-Chèn|Minh họa|Hình dạng (Shapes)|P|2|Có hình dạng cơ bản; chưa kiểm đủ thư viện
+Chèn|Minh họa|Hình dạng (Shapes)|A|-|sheet.insert.shapes: hộp thư viện 18 hình (chữ nhật, elip + 16 hình dựng sẵn dùng chung với Slides/Writer), chèn tại ô chọn, hoàn tác; lưu XLSX thành xdr:sp prstGeom có màu nền/viền/chữ, mở lại giữ loại, màu, vị trí; LibreOffice độc lập đọc đủ 3 hình đúng loại (tests/live/cdp/sheet-insert-shapes.desktop.mjs 8/8, tests/test_sheet_shapes_drawing.py, scripts/audit-0610/sheet_shapes_xml.py); chỉ nạp lại hình do VN Sheet ghi (có dấu nhận diện), hình do ứng dụng khác vẽ chưa nạp; chưa đối chiếu Excel thật vì Excel COM chưa dùng được
 Chèn|Minh họa|SmartArt|N|3|
 Chèn|Add-in|Cửa hàng / Add-in của tôi|X|-|Cần cửa hàng Microsoft
 Chèn|Biểu đồ|Cột nhóm / Đường / Tròn / Vùng|V|-|4 loại biểu đồ đã đọc lại bằng Excel 2016 loại 51/4/5/1 (docs/SHEET-BUTTON-MATRIX-1011.md:64; tests/unit/sheet-charts.test.js:1-35; sheet.chart.insert)

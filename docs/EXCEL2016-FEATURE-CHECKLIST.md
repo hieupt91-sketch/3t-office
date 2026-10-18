@@ -17,8 +17,8 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Excel 2016 | 94 | 44% |
-| 🟢 Có, chưa đối chiếu | 65 | 31% |
-| 🟡 Có một phần | 15 | 7% |
+| 🟢 Có, chưa đối chiếu | 66 | 31% |
+| 🟡 Có một phần | 14 | 7% |
 | 🔴 Chưa có | 39 | 18% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
@@ -34,7 +34,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 3 | 8 | 4 | 1 | 1 | 81% |
 | Trang đầu | 53 | 28 | 19 | 4 | 2 | 0 | 92% |
-| Chèn | 29 | 9 | 6 | 1 | 11 | 2 | 57% |
+| Chèn | 29 | 9 | 7 | 0 | 11 | 2 | 59% |
 | Bố trí trang | 10 | 8 | 1 | 0 | 1 | 0 | 90% |
 | Công thức | 13 | 6 | 6 | 1 | 0 | 0 | 96% |
 | Dữ liệu | 19 | 13 | 1 | 2 | 3 | 0 | 79% |
@@ -104,7 +104,7 @@ Tổng: 2 mục ưu tiên 1.
 | Căn chỉnh | Hướng chữ (xoay) | ✅ | - | Xoay 90° đã đọc lại bằng Excel 2016 (docs/SHEET-BUTTON-MATRIX-1011.md:72; tests/unit/sheet-cell-orientation.test.js:1-25; sheet.format.alignmentDialog) |
 | Căn chỉnh | Ngắt dòng tự động (Wrap Text) | ✅ | - | Ngắt dòng tự động Wrap Text đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:32; tests/unit/sheet-style-export-wrap-border-align.test.js:1-25; sheet.cell.wrapText) |
 | Căn chỉnh | Giảm/Tăng thụt lề | 🟢 | - | Giảm và tăng thụt lề ô (docs/SHEET-BUTTON-MATRIX-1011.md:36-37; sheet.cell.indentDecrease, sheet.cell.indentIncrease) |
-| Căn chỉnh | Trộn & căn giữa / Trộn theo hàng / Trộn ô / Tách ô | ✅ | - | 17/10 (AGY-DATATOOLS): Merge & Center, Merge Across, UnMerge đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.cell.merge; platform/i18n/strings-vi.js:822, apps/sheet/sheet-grid.js:15736 |
+| Căn chỉnh | Trộn & căn giữa / Trộn theo hàng / Trộn ô / Tách ô | ✅ | - | 17/10 (AGY-DATATOOLS): Merge & Center, Merge Across, UnMerge đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.cell.merge; platform/i18n/strings-vi.js:822, apps/sheet/sheet-grid.js:15753 |
 | Căn chỉnh | Căn đều, Distributed, Fill, Center across selection, Shrink to fit | ✅ | - | 16/10 (AGY-JUSTIFY): Center Across Selection và Shrink to Fit lưu/mở lại đúng, đối chiếu Excel 2016 (cases-7; tests/functions/structural-cases-7.json:1-15; tests/unit/sheet-cell-text-fit.test.js:1-25) |
 | Số | Danh sách định dạng số (Chung, Số, Tiền tệ, Kế toán, Ngày, Giờ, %, Khoa học, Văn bản) | ✅ | - | Số/ngày/giờ/% đã đối chiếu (E3; docs/SHEET-BUTTON-MATRIX-1011.md:42; tests/unit/sheet-format-cells.test.js:1-30; sheet.format.quickCategory) |
 | Số | Định dạng số dạng Phân số (Fraction) và Đặc biệt (Special) | ✅ | - | 17/10 (AGY-NOTES): Phân số 9 mẫu và Đặc biệt 4 mẫu đối chiếu Excel 2016 COM 13/13 mẫu (cases-18; tests/functions/structural-cases-18.json:1-30; tests/unit/sheet-format-cells.test.js:1-40; sheet.format.quickCategory, sheet.format.cellsDialog) |
@@ -150,7 +150,7 @@ Tổng: 2 mục ưu tiên 1.
 | Bảng | Bảng (Table, Ctrl+T) | ✅ | - | ListObject, kiểu TableStyleMedium2 đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:50; tests/functions/structural-cases-8.json:1-20; tests/unit/sheet-table.test.js:1-30; sheet.style.formatAsTable) |
 | Minh họa | Hình ảnh từ tệp | 🟢 | - | sheet.insert.image; ảnh trong ô giữ nguyên khi lưu |
 | Minh họa | Hình ảnh trực tuyến / Ảnh chụp màn hình | ⚪ | - | Cần dịch vụ trực tuyến / chụp màn hình |
-| Minh họa | Hình dạng (Shapes) | 🟡 | 2 | Có hình dạng cơ bản; chưa kiểm đủ thư viện |
+| Minh họa | Hình dạng (Shapes) | 🟢 | - | sheet.insert.shapes: hộp thư viện 18 hình (chữ nhật, elip + 16 hình dựng sẵn dùng chung với Slides/Writer), chèn tại ô chọn, hoàn tác; lưu XLSX thành xdr:sp prstGeom có màu nền/viền/chữ, mở lại giữ loại, màu, vị trí; LibreOffice độc lập đọc đủ 3 hình đúng loại (tests/live/cdp/sheet-insert-shapes.desktop.mjs 8/8, tests/test_sheet_shapes_drawing.py, scripts/audit-0610/sheet_shapes_xml.py); chỉ nạp lại hình do VN Sheet ghi (có dấu nhận diện), hình do ứng dụng khác vẽ chưa nạp; chưa đối chiếu Excel thật vì Excel COM chưa dùng được |
 | Minh họa | SmartArt | 🔴 | 3 |  |
 | Add-in | Cửa hàng / Add-in của tôi | ⚪ | - | Cần cửa hàng Microsoft |
 | Biểu đồ | Cột nhóm / Đường / Tròn / Vùng | ✅ | - | 4 loại biểu đồ đã đọc lại bằng Excel 2016 loại 51/4/5/1 (docs/SHEET-BUTTON-MATRIX-1011.md:64; tests/unit/sheet-charts.test.js:1-35; sheet.chart.insert) |
@@ -229,7 +229,7 @@ Tổng: 2 mục ưu tiên 1.
 | Dự báo | What-If: Goal Seek / Bảng dữ liệu (Data Table) | ✅ | - | 17/10 (AGY-DATATOOLS): Goal Seek và Table đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; tests/unit/sheet-goal-seek.test.js:1-30; apps/sheet/sheet-grid.js:20373-20390; sheet.data.goalSeek) |
 | Dự báo | Trang dự báo (Forecast Sheet) | 🔴 | 3 |  |
 | Dàn bài | Nhóm / Bỏ nhóm / Tổng phụ | ✅ | - | 17/10 (AGY-DATATOOLS): Group/Ungroup hàng-cột và Subtotal/RemoveSubtotal đối chiếu Excel 2016 (cases-17 12/12 kịch bản); sheet.data.subtotal; apps/sheet/data-tools.js:77-185 |
-| Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | ✅ | - | 17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; apps/sheet/sheet-grid.js:20350; sheet.data.group) |
+| Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | ✅ | - | 17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; apps/sheet/sheet-grid.js:20367; sheet.data.group) |
 | Phân tích | Solver | 🔴 | 3 | Bổ sung của Excel |
 
 ### Xem xét
@@ -342,7 +342,7 @@ Tổng: 2 mục ưu tiên 1.
 | Thanh trạng thái | Menu tùy chỉnh thanh trạng thái | 🔴 | 3 |  |
 | Tab trang tính | Cuộn tab, thêm trang, kéo đổi thứ tự | 🟢 | - | sheet.sheet.moveOrCopy; kéo tab bằng chuột thật đổi thứ tự có vạch báo, Esc hủy, Hoàn tác trả lại, lưu XLSX mở lại giữ thứ tự (tests/live/cdp/sheet-tab-drag.desktop.mjs); chưa đối chiếu Excel thật vì Excel COM chưa dùng được |
 | Tab trang tính | Menu chuột phải tab (Chèn, Xóa, Đổi tên, Di chuyển, Bảo vệ, Màu, Ẩn, Hiện) | ✅ | - | Menu chuột phải tab trang tính đúng thứ tự Excel (tests/unit/sheet-rename-move-protect.test.js:1-30; sheet.sheet.protect) |
-| Tab trang tính | Chọn nhiều trang cùng lúc (nhóm trang) / Chọn tất cả trang | ✅ | - | F2: Nhóm nhiều trang tính cùng lúc khớp Excel COM (apps/sheet/sheet-grid.js:5729) |
+| Tab trang tính | Chọn nhiều trang cùng lúc (nhóm trang) / Chọn tất cả trang | ✅ | - | F2: Nhóm nhiều trang tính cùng lúc khớp Excel COM (apps/sheet/sheet-grid.js:5730) |
 | Chuột phải | Menu ô (Cắt/Sao chép/Dán/Chèn/Xóa/Lọc/Sắp xếp/Ghi chú/Định dạng/Tên/Liên kết) | ✅ | - | Menu ngữ cảnh chuột phải trên ô đối chiếu CommandBars Excel 2016 (docs/EXCEL2016-INPUT-MATRIX.md:39; tests/unit/sheet-keyboard-audit.test.js:1-30; common.edit.cut, common.edit.copy, common.edit.paste) |
 | Chuột phải | Menu tiêu đề hàng/cột | ✅ | - | Menu tiêu đề hàng cột chuột phải (docs/EXCEL2016-INPUT-MATRIX.md:34; tests/unit/sheet-row-col-insert.test.js:1-25; sheet.row.insert, sheet.col.insert) |
 | Chuột phải | Menu trong bảng (Chèn/Xóa/Chọn/Bảng) | ✅ | - | Menu chuột phải trong bảng đối chiếu (tests/unit/sheet-table.test.js:1-30; tests/functions/structural-cases-8.json:1-25; sheet.style.formatAsTable) |

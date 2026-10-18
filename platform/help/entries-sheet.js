@@ -902,6 +902,21 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.insert.shapes",
+    app: "sheet",
+    commandIds: ["sheet.insert.shapes"],
+    title: "Chèn hình dạng",
+    summary: "Chèn hình dựng sẵn như hình chữ nhật, elip, tam giác, mũi tên, sao, trái tim vào trang tính; hình được lưu trong tệp .xlsx và mở lại đúng loại.",
+    ribbon: { tab: "Chèn", tabId: "insert", group: "Minh họa" },
+    keywords: ["hình dạng", "shapes", "mũi tên", "tam giác", "sao", "hình chữ nhật", "elip", "chèn hình"],
+    steps: [
+      "Chọn ô sẽ đặt góc trên bên trái của hình. Mở tab Chèn, nhóm Minh họa, nhấn «Hình dạng».",
+      "Trong hộp thoại, bấm một hình (hoặc dùng phím mũi tên) rồi nhấn Chèn; nhấn đúp một hình cũng chèn ngay. Nhấn Esc để hủy.",
+      "Hình xuất hiện với cỡ 120×80 điểm ảnh. Bấm để chọn, kéo để di chuyển; chuột phải để đổi màu nền, viền, văn bản thay thế, xoay, lật hoặc xóa. Ctrl+C và Ctrl+V sao chép hình.",
+      "Khi lưu .xlsx, hình được ghi thành hình tự động chuẩn nên mở lại vẫn đúng loại, màu và vị trí. Ctrl+Z hoàn tác việc chèn."
+    ]
+  },
+  {
     id: "sheet.insert.symbol",
     app: "sheet",
     commandIds: ["sheet.insert.symbol"],

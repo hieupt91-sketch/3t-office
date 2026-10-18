@@ -20,6 +20,7 @@ import {
 import { extractSheetRangeData, extractSheetChartData } from "../../../apps/sheet/sheet-chart-data.js";
 import { TABLE_STYLE_PRESETS, findTableStylePreset } from "../../../apps/sheet/cell-style-presets.js";
 import { parseInternalLink, formatInternalLink, toFodsHref, fromFodsHref } from "../../../apps/sheet/sheet-internal-link.js";
+import { showShapeGalleryDialog } from "../../../apps/sheet/sheet-shape-gallery.js";
 import { t } from "../../../platform/i18n/i18n.js";
 import {
   normalizeDocumentProperties,
@@ -757,6 +758,11 @@ export class SheetAdapter {
         ch = await showSymbolPicker();
       }
       return ch ? this.grid.insertSymbol(ch) : false;
+    });
+    globalCommandBus.bindHandler("sheet.insert.shapes", async (args) => {
+      const choice = args?.shapeType ? { shapeType: args.shapeType } : await showShapeGalleryDialog();
+      if (!choice?.shapeType) return false;
+      return Boolean(this.grid.insertShape({ shapeType: choice.shapeType, widthPx: args?.widthPx || 120, heightPx: args?.heightPx || 80 }));
     });
     globalCommandBus.bindHandler("sheet.insert.textbox", async (args) => {
       const text = args?.text || await showPromptDialog({ title: "Chèn hộp văn bản", message: "Nhập nội dung hộp văn bản:", defaultValue: "", placeholder: "Nội dung" });
@@ -3162,6 +3168,43 @@ export class SheetAdapter {
     if (Object.keys(importedTextBoxes).length) workbook.textBoxesBySheet = importedTextBoxes;
   }
 
+  /** Hình dựng sẵn (Chèn > Hình dạng): đọc lại từ vno:shapes của chính FODS VN Sheet ghi hoặc do bước đọc XLSX bổ sung. */
+  _attachImportedShapes(workbook, xmlText) {
+    const importedShapes = {};
+    String(xmlText || "").replace(/<table:table(?=[\s>/])([^>]*)>/gi, (_, attrs) => {
+      const sheetName = this._unescapeXml(attrs.match(/table:name=["']([^"']*)["']/i)?.[1] || "");
+      const raw = attrs.match(/vno:shapes=["']([^"']*)["']/i)?.[1];
+      if (!sheetName || !raw) return "";
+      try {
+        const shapes = JSON.parse(this._unescapeXml(raw));
+        if (!Array.isArray(shapes)) return "";
+        importedShapes[sheetName] = shapes.filter(shape => shape && shape.anchor?.c && Number.isFinite(Number(shape.anchor?.r)))
+          .map((shape, index) => ({
+            id: shape.id || `shape-import-${sheetName}-${index}`,
+            shapeType: String(shape.shapeType || "rectangle"),
+            text: String(shape.text || ""),
+            anchor: { c: String(shape.anchor.c), r: Number(shape.anchor.r) },
+            widthPx: Math.max(20, Number(shape.widthPx) || 120),
+            heightPx: Math.max(20, Number(shape.heightPx) || 80),
+            fillColor: String(shape.fillColor || "#3b82f6"),
+            strokeColor: String(shape.strokeColor || "#1d4ed8"),
+            strokeWidth: Number(shape.strokeWidth) >= 0 ? Number(shape.strokeWidth) : 1,
+            offsetX: Number(shape.offsetX) || 0,
+            offsetY: Number(shape.offsetY) || 0,
+            altText: String(shape.altText || ""),
+            ...(shape.name ? { name: String(shape.name) } : {}),
+            ...(shape.rotation ? { rotation: Number(shape.rotation) } : {}),
+            ...(shape.flipH ? { flipH: true } : {}),
+            ...(shape.flipV ? { flipV: true } : {}),
+            ...(shape.visible === false ? { visible: false } : {}),
+            ...(shape.groupId ? { groupId: String(shape.groupId) } : {})
+          }));
+      } catch (_) {}
+      return "";
+    });
+    if (Object.keys(importedShapes).length) workbook.shapesBySheet = importedShapes;
+  }
+
   _attachImportedDrawingOrder(workbook, xmlText) {
     const drawingOrderBySheet = {};
     String(xmlText || "").replace(/<table:table(?=[\s>/])([^>]*)>/gi, (_, attrs) => {
@@ -4270,6 +4313,27 @@ export class SheetAdapter {
         ...(box.visible === false ? { visible: false } : {}),
         ...(box.groupId ? { groupId: box.groupId } : {})
       }))))}"` : "";
+      const sheetShapes = this.grid.shapesBySheet?.[sheetName] || [];
+      const shapesAttr = sheetShapes.length ? ` vno:shapes="${this._escapeXml(JSON.stringify(sheetShapes.map(shape => ({
+        id: shape.id,
+        shapeType: shape.shapeType || "rectangle",
+        text: String(shape.text || ""),
+        anchor: shape.anchor,
+        widthPx: Math.max(20, Number(shape.widthPx) || 120),
+        heightPx: Math.max(20, Number(shape.heightPx) || 80),
+        fillColor: shape.fillColor,
+        strokeColor: shape.strokeColor,
+        strokeWidth: shape.strokeWidth,
+        ...(shape.offsetX !== undefined ? { offsetX: Number(shape.offsetX) } : {}),
+        ...(shape.offsetY !== undefined ? { offsetY: Number(shape.offsetY) } : {}),
+        ...(shape.altText ? { altText: String(shape.altText) } : {}),
+        ...(shape.name ? { name: shape.name } : {}),
+        ...(shape.rotation ? { rotation: Number(shape.rotation) } : {}),
+        ...(shape.flipH ? { flipH: true } : {}),
+        ...(shape.flipV ? { flipV: true } : {}),
+        ...(shape.visible === false ? { visible: false } : {}),
+        ...(shape.groupId ? { groupId: shape.groupId } : {})
+      }))))}"` : "";
       const drawingOrder = this.grid.drawingOrderBySheet?.[sheetName] || [];
       const drawingOrderAttr = drawingOrder.length ? ` vno:drawing-order="${this._escapeXml(JSON.stringify(drawingOrder))}"` : "";
       const groups = this.grid.groupsBySheet?.[sheetName] || [];
@@ -4290,7 +4354,7 @@ export class SheetAdapter {
         : "";
       const currentIndicator = this.grid?.getDisplayCommentIndicator?.() ?? -1;
       const indicatorAttr = ` vno:display-comment-indicator="${currentIndicator}"`;
-      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-settings="${this._escapeXml(JSON.stringify(pageStyle.pageSettings))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${splitAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${slicersAttr}${conditionalRulesAttr}${textBoxesAttr}${drawingOrderAttr}${groupsAttr}${resolvedCommentsAttr}${commentsMetaAttr}${indicatorAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
+      const pageAttrs = ` table:style-name="${pageStyle.tableStyle}" vno:page-size="${pageStyle.size}" vno:page-orientation="${pageStyle.orientation}" vno:page-margins="${this._escapeXml(JSON.stringify(pageStyle.margins))}" vno:page-scale="${this._escapeXml(JSON.stringify(pageStyle.scale))}" vno:page-settings="${this._escapeXml(JSON.stringify(pageStyle.pageSettings))}" vno:page-header-footer="${this._escapeXml(JSON.stringify(pageStyle.headerFooter))}" vno:page-centering="${this._escapeXml(JSON.stringify(pageStyle.centerOnPage))}" vno:page-print-options="${this._escapeXml(JSON.stringify(pageStyle.printOptions))}" vno:print-title-rows="${this._escapeXml(printTitles.rows || "")}" vno:print-title-cols="${this._escapeXml(printTitles.cols || "")}" vno:images-at-open="${imagesAtOpen}"${freezeAttr}${splitAttr}${sheetStateAttr}${tabColorAttr}${scenariosAttr}${slicersAttr}${conditionalRulesAttr}${textBoxesAttr}${shapesAttr}${drawingOrderAttr}${groupsAttr}${resolvedCommentsAttr}${commentsMetaAttr}${indicatorAttr}${this._untouchedAutoRowsAttr(sheetName)}`;
       const conditionalXml = conditionalFormatsBySheet[sheetName];
       const chartsXml = this._serializeChartsXml(sheetName);
       const sparklinesXml = this._serializeSparklinesXml(sheetName);
@@ -5852,6 +5916,7 @@ ${pristineXlsxMarker}${docPropsMarker}
     perfReport("attach sparklines", phaseStart); phaseStart = perfNow();
     this._attachImportedOutline(workbook, tableXml);
     this._attachImportedTextBoxes(workbook, tableXml);
+    this._attachImportedShapes(workbook, tableXml);
     this._attachImportedDrawingOrder(workbook, tableXml);
     this._attachImportedGroups(workbook, tableXml);
     this._attachImportedResolvedComments(workbook, tableXml);
@@ -6055,6 +6120,7 @@ ${pristineXlsxMarker}${docPropsMarker}
     this.grid.tablesBySheet = workbook.tablesBySheet || {};
     this.grid.slicersBySheet = workbook.slicersBySheet || {};
     this.grid.textBoxesBySheet = {};
+    this.grid.shapesBySheet = {};
     this.grid.drawingOrderBySheet = {};
     this.grid.groupsBySheet = {};
     const equivalentSheetValue = (mapping, sheetName) => {
@@ -6074,6 +6140,7 @@ ${pristineXlsxMarker}${docPropsMarker}
       this.grid.chartsBySheet[sheetName] = workbook.chartsBySheet?.[sheetName] || [];
       this.grid.imagesBySheet[sheetName] = workbook.imagesBySheet?.[sheetName] || [];
       this.grid.textBoxesBySheet[sheetName] = workbook.textBoxesBySheet?.[sheetName] || [];
+      this.grid.shapesBySheet[sheetName] = workbook.shapesBySheet?.[sheetName] || [];
       this.grid.drawingOrderBySheet[sheetName] = workbook.drawingOrderBySheet?.[sheetName] || [];
       this.grid.groupsBySheet[sheetName] = workbook.groupsBySheet?.[sheetName] || [];
       this.grid.imagesAtOpenBySheet[sheetName] = workbook.imagesAtOpenBySheet?.[sheetName] || 0;

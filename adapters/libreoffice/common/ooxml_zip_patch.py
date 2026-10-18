@@ -759,15 +759,85 @@ def _parse_fods_text_boxes(fods_xml: str | None) -> dict[str, list[dict]]:
         attrs = match.group(1)
         name = re.search(r'table:name\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
         boxes_match = re.search(r'vno:text-boxes\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
-        if not name or not boxes_match:
+        shapes_match = re.search(r'vno:shapes\s*=\s*(["\'])(.*?)\1', attrs, re.IGNORECASE)
+        if not name or not (boxes_match or shapes_match):
             continue
-        try:
-            boxes = json.loads(html.unescape(boxes_match.group(2)))
-        except (TypeError, ValueError):
-            continue
-        if isinstance(boxes, list):
-            result[_unescape_xml(name.group(2))] = [box for box in boxes if isinstance(box, dict)]
+        items: list[dict] = []
+        for found, is_shape in ((boxes_match, False), (shapes_match, True)):
+            if not found:
+                continue
+            try:
+                parsed = json.loads(html.unescape(found.group(2)))
+            except (TypeError, ValueError):
+                continue
+            if isinstance(parsed, list):
+                for entry in parsed:
+                    if isinstance(entry, dict):
+                        items.append({**entry, "_shape": True} if is_shape else entry)
+        if items:
+            result[_unescape_xml(name.group(2))] = items
     return result
+
+
+# Dấu nhận diện hình dựng sẵn do VN Sheet ghi (cNvPr/extLst): chỉ các hình có dấu này mới được nạp lại làm hình của VN Sheet,
+# nên hình do ứng dụng khác vẽ không bị nhân đôi khi lưu.
+_SHEET_SHAPE_EXT_URI = "{6E4F0C21-7B1A-4F3C-9D55-566E4F53484D}"
+_SHEET_SHAPE_PRST = {
+    "rectangle": "rect", "rect": "rect", "rounded_rectangle": "roundRect", "roundrect": "roundRect",
+    "ellipse": "ellipse", "oval": "ellipse", "circle": "ellipse", "line": "line",
+    **{name.lower(): name for name in (
+        "triangle", "rtTriangle", "diamond", "parallelogram", "trapezoid", "pentagon", "hexagon", "star5", "plus",
+        "rightArrow", "leftArrow", "upArrow", "downArrow", "heart", "wedgeRectCallout")},
+}
+_SHEET_SHAPE_TYPE_FROM_PRST = {"rect": "rectangle", "ellipse": "ellipse", "roundRect": "roundRect", "line": "line"}
+
+
+def _drawing_preset_shape(shape: dict, shape_id: int) -> str:
+    anchor = shape.get("anchor") if isinstance(shape.get("anchor"), dict) else {}
+    col_match = re.fullmatch(r"([A-Z]+)", str(anchor.get("c", "A")).upper())
+    col = 0
+    if col_match:
+        for char in col_match.group(1):
+            col = col * 26 + ord(char) - 64
+        col = max(0, col - 1)
+    row = max(0, int(anchor.get("r", 1) or 1) - 1)
+    width = max(20, int(float(shape.get("widthPx", 120) or 120)))
+    height = max(20, int(float(shape.get("heightPx", 80) or 80)))
+    prst = _SHEET_SHAPE_PRST.get(str(shape.get("shapeType") or "rectangle").lower(), "rect")
+
+    def rgb(value: object, fallback: str) -> str:
+        match = re.fullmatch(r"\s*#?([0-9a-fA-F]{6})\s*", str(value or ""))
+        return (match.group(1) if match else fallback).upper()
+
+    fill = rgb(shape.get("fillColor"), "3B82F6")
+    stroke = rgb(shape.get("strokeColor"), "1D4ED8")
+    try:
+        stroke_width = max(0, int(round(float(shape.get("strokeWidth", 1) or 1) * 9525)))
+    except (TypeError, ValueError):
+        stroke_width = 9525
+    text = str(shape.get("text", ""))
+    paragraphs = "".join(
+        f'<a:p><a:pPr algn="ctr"/><a:r><a:rPr lang="vi-VN" dirty="0"><a:solidFill><a:srgbClr val="FFFFFF"/></a:solidFill></a:rPr><a:t>{_escape_xml(line)}</a:t></a:r></a:p>'
+        for line in text.replace("\r\n", "\n").replace("\r", "\n").split("\n")
+    ) if text else '<a:p><a:endParaRPr lang="vi-VN"/></a:p>'
+    shape_name = _escape_xml(str(shape.get("name") or f"Shape {shape_id}"))
+    hidden_attr = ' hidden="1"' if shape.get("visible") is False else ""
+    descr = str(shape.get("altText") or "")
+    descr_attr = f' descr="{_escape_xml(descr)}"' if descr else ""
+    rot = int(round(float(shape.get("rotation", 0) or 0) * 60000))
+    rot_attr = f' rot="{rot}"' if rot != 0 else ""
+    fliph_attr = ' flipH="1"' if shape.get("flipH") else ""
+    flipv_attr = ' flipV="1"' if shape.get("flipV") else ""
+    return (
+        '<xdr:oneCellAnchor><xdr:from>'
+        f'<xdr:col>{col}</xdr:col><xdr:colOff>0</xdr:colOff><xdr:row>{row}</xdr:row><xdr:rowOff>0</xdr:rowOff>'
+        '</xdr:from><xdr:ext cx="' + str(width * 9525) + '" cy="' + str(height * 9525) + '"/>'
+        f'<xdr:sp macro="" textlink=""><xdr:nvSpPr><xdr:cNvPr id="{shape_id}" name="{shape_name}"{descr_attr}{hidden_attr}>'
+        f'<a:extLst><a:ext uri="{_SHEET_SHAPE_EXT_URI}"/></a:extLst></xdr:cNvPr><xdr:cNvSpPr/></xdr:nvSpPr>'
+        f'<xdr:spPr><a:xfrm{rot_attr}{fliph_attr}{flipv_attr}><a:off x="0" y="0"/><a:ext cx="' + str(width * 9525) + '" cy="' + str(height * 9525) + f'"/></a:xfrm><a:prstGeom prst="{prst}"><a:avLst/></a:prstGeom>'
+        f'<a:solidFill><a:srgbClr val="{fill}"/></a:solidFill><a:ln w="{stroke_width}"><a:solidFill><a:srgbClr val="{stroke}"/></a:solidFill></a:ln></xdr:spPr>'
+        '<xdr:txBody><a:bodyPr wrap="square" lIns="45720" tIns="45720" rIns="45720" bIns="45720" anchor="ctr"/><a:lstStyle/>' + paragraphs + '</xdr:txBody></xdr:sp><xdr:clientData/></xdr:oneCellAnchor>'
+    )
 
 
 def _drawing_textbox_shape(box: dict, shape_id: int) -> str:
@@ -864,7 +934,7 @@ def _apply_sheet_text_boxes_to_xlsx(xlsx_bytes: bytes, text_boxes_by_sheet: dict
             drawing = re.sub(r"<([\w.-]+:)?wsDr\b", r'<\g<0> xmlns:a="http://schemas.openxmlformats.org/drawingml/2006/main"', drawing, count=1)
         ids = [int(value) for value in re.findall(r'<(?:[\w.-]+:)?cNvPr\b[^>]*\bid="(\d+)"', drawing, re.IGNORECASE)]
         next_id = max(ids, default=0) + 1
-        body = "".join(_drawing_textbox_shape(box, next_id + index) for index, box in enumerate(boxes))
+        body = "".join((_drawing_preset_shape(box, next_id + index) if box.get("_shape") else _drawing_textbox_shape(box, next_id + index)) for index, box in enumerate(boxes))
         close = re.search(r"</(?:[\w.-]+:)?wsDr\s*>", drawing, re.IGNORECASE)
         if close:
             drawing = drawing[:close.start()] + body + drawing[close.start():]
@@ -882,7 +952,7 @@ def _zip_entry_names(xlsx_bytes: bytes) -> list[str]:
         return []
 
 
-def _parse_xlsx_drawing_text_boxes(xlsx_bytes: bytes) -> dict[str, list[dict]]:
+def _parse_xlsx_drawing_text_boxes(xlsx_bytes: bytes, want_shapes: bool = False) -> dict[str, list[dict]]:
     result: dict[str, list[dict]] = {}
     rel_ns = "http://schemas.openxmlformats.org/package/2006/relationships"
     xdr_ns = "http://schemas.openxmlformats.org/drawingml/2006/spreadsheetDrawing"
@@ -908,7 +978,14 @@ def _parse_xlsx_drawing_text_boxes(xlsx_bytes: bytes) -> dict[str, list[dict]]:
         for anchor in drawing_root.findall(f"{{{xdr_ns}}}oneCellAnchor"):
             shape = anchor.find(f"{{{xdr_ns}}}sp")
             nonvisual = shape.find(f"{{{xdr_ns}}}nvSpPr/{{{xdr_ns}}}cNvSpPr") if shape is not None else None
-            if nonvisual is None or nonvisual.attrib.get("txBox") != "1":
+            if want_shapes:
+                ours = shape is not None and any(
+                    ext.attrib.get("uri") == _SHEET_SHAPE_EXT_URI
+                    for ext in shape.findall(f"{{{xdr_ns}}}nvSpPr/{{{xdr_ns}}}cNvPr/{{{a_ns}}}extLst/{{{a_ns}}}ext")
+                )
+                if not ours:
+                    continue
+            elif nonvisual is None or nonvisual.attrib.get("txBox") != "1":
                 continue
             position = anchor.find(f"{{{xdr_ns}}}from")
             extent = anchor.find(f"{{{xdr_ns}}}ext")
@@ -918,8 +995,8 @@ def _parse_xlsx_drawing_text_boxes(xlsx_bytes: bytes) -> dict[str, list[dict]]:
             try:
                 col = max(0, int(values.get("col", "0")))
                 row = max(0, int(values.get("row", "0")))
-                width = max(180, round(int(extent.attrib.get("cx", "0")) / 9525))
-                height = max(54, round(int(extent.attrib.get("cy", "0")) / 9525))
+                width = max(20 if want_shapes else 180, round(int(extent.attrib.get("cx", "0")) / 9525))
+                height = max(20 if want_shapes else 54, round(int(extent.attrib.get("cy", "0")) / 9525))
             except (TypeError, ValueError):
                 continue
             column = ""
@@ -942,6 +1019,26 @@ def _parse_xlsx_drawing_text_boxes(xlsx_bytes: bytes) -> dict[str, list[dict]]:
             flip_v = xfrm.attrib.get("flipV") == "1" if xfrm is not None else False
 
             box_item = {"text": "\n".join(paragraphs), "anchor": {"c": column, "r": row + 1}, "widthPx": width, "heightPx": height}
+            if want_shapes:
+                sp_pr = shape.find(f"{{{xdr_ns}}}spPr")
+                geom = sp_pr.find(f"{{{a_ns}}}prstGeom") if sp_pr is not None else None
+                prst = geom.attrib.get("prst", "rect") if geom is not None else "rect"
+                box_item["shapeType"] = _SHEET_SHAPE_TYPE_FROM_PRST.get(prst, prst)
+                fill_color = sp_pr.find(f"{{{a_ns}}}solidFill/{{{a_ns}}}srgbClr") if sp_pr is not None else None
+                if fill_color is not None and fill_color.attrib.get("val"):
+                    box_item["fillColor"] = "#" + fill_color.attrib["val"].lower()
+                line = sp_pr.find(f"{{{a_ns}}}ln") if sp_pr is not None else None
+                if line is not None:
+                    line_color = line.find(f"{{{a_ns}}}solidFill/{{{a_ns}}}srgbClr")
+                    if line_color is not None and line_color.attrib.get("val"):
+                        box_item["strokeColor"] = "#" + line_color.attrib["val"].lower()
+                    try:
+                        box_item["strokeWidth"] = round(int(line.attrib.get("w", "9525")) / 9525, 2)
+                    except ValueError:
+                        pass
+                description = cnv_pr.attrib.get("descr") if cnv_pr is not None else None
+                if description:
+                    box_item["altText"] = description
             if shape_name:
                 box_item["name"] = shape_name
             if is_hidden:
@@ -973,6 +1070,25 @@ def _overlay_sheet_drawing_text_boxes(xlsx_bytes: bytes, fods_xml: str) -> str:
         serialized = _escape_xml(json.dumps(boxes, ensure_ascii=False, separators=(",", ":")))
         opening = re.sub(r'\s+vno:text-boxes=("[^"]*"|\'[^\']*\')', "", opening, flags=re.IGNORECASE)
         return f'{opening[:-1]} vno:text-boxes="{serialized}">{body}{closing}'
+
+    return _sub_fods_tables(fods_xml or "", process_table)
+
+
+def _overlay_sheet_drawing_shapes(xlsx_bytes: bytes, fods_xml: str) -> str:
+    shapes_by_sheet = _parse_xlsx_drawing_text_boxes(xlsx_bytes, want_shapes=True)
+    if not shapes_by_sheet:
+        return fods_xml or ""
+
+    def process_table(match) -> str:
+        opening, body, closing = match.group(1), match.group(2), match.group(3)
+        attrs = _xml_attrs(opening)
+        sheet_name = _unescape_xml(attrs.get("table:name", ""))
+        shapes = shapes_by_sheet.get(sheet_name)
+        if not shapes:
+            return match.group(0)
+        serialized = _escape_xml(json.dumps(shapes, ensure_ascii=False, separators=(",", ":")))
+        opening = re.sub(r'\s+vno:shapes=("[^"]*"|\'[^\']*\')', "", opening, flags=re.IGNORECASE)
+        return f'{opening[:-1]} vno:shapes="{serialized}">{body}{closing}'
 
     return _sub_fods_tables(fods_xml or "", process_table)
 
@@ -14592,6 +14708,7 @@ def overlay_sheet_xlsx_fods(
     # Drawing images: overlay vno:image-id on <draw:frame> elements
     xml = _overlay_sheet_drawing_image_ids(xlsx_bytes, xml)
     xml = _overlay_sheet_drawing_text_boxes(xlsx_bytes, xml)
+    xml = _overlay_sheet_drawing_shapes(xlsx_bytes, xml)
     xml = _overlay_sheet_resolved_comments(xlsx_bytes, xml)
     xml = _overlay_sheet_comments_from_xlsx(xlsx_bytes, xml)
     xml = overlay_pivot_chart_metadata_to_fods(xlsx_bytes, xml)
@@ -14674,6 +14791,7 @@ def overlay_sheet_xlsx_fods_p1(
             xml = apply_tab_colors_to_fods(xml, tab_colors)
     xml = _overlay_sheet_drawing_image_ids(xlsx_bytes, xml)
     xml = _overlay_sheet_drawing_text_boxes(xlsx_bytes, xml)
+    xml = _overlay_sheet_drawing_shapes(xlsx_bytes, xml)
     xml = _overlay_sheet_resolved_comments(xlsx_bytes, xml)
     xml = overlay_pivot_chart_metadata_to_fods(xlsx_bytes, xml)
     xml = overlay_sheet_chart_metadata_to_fods(xlsx_bytes, xml)

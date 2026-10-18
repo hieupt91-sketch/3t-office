@@ -4,6 +4,7 @@
 
 import { buildSeries } from "./sheet-series.js";
 import { parseInternalLink } from "./sheet-internal-link.js";
+import { presetOf, renderPresetGeometry } from "../../platform/shapes/shape-presets.js";
 import { shiftFormulaRefs, translateFormulaRefs, moveFormulaRefs, transposeFormulaRefs } from "./formula-ref-shift.js";
 import { advancedFilterRows } from "./advanced-filter.js";
 import { expandStructuredReferences, hasStructuredReference, renameTableInStructuredReferences, renameColumnInStructuredReferences } from "./structured-references.js";
@@ -11905,13 +11906,29 @@ export class SheetGridController {
       if (flipH) transformStr += `scaleX(-1) `;
       if (flipV) transformStr += `scaleY(-1) `;
 
-      let cssText = `position:absolute;left:${leftVal}px;top:${topVal}px;width:${widthPx}px;height:${heightPx}px;background:${shape.fillColor || "#3b82f6"};border:${shape.strokeWidth || 1}px solid ${shape.strokeColor || "#1d4ed8"};border-radius:${shape.shapeType === "ellipse" || shape.shapeType === "oval" ? "50%" : (shape.shapeType === "rounded_rectangle" ? "8px" : "0px")};box-sizing:border-box;pointer-events:auto;z-index:${zIdx};display:flex;align-items:center;justify-content:center;color:#fff;overflow:hidden;`;
+      let cssText = `position:absolute;left:${leftVal}px;top:${topVal}px;width:${widthPx}px;height:${heightPx}px;background:${shape.fillColor || "#3b82f6"};border:${shape.strokeWidth || 1}px solid ${shape.strokeColor || "#1d4ed8"};border-radius:${shape.shapeType === "ellipse" || shape.shapeType === "oval" ? "50%" : ((shape.shapeType === "rounded_rectangle" || shape.shapeType === "roundRect") ? "8px" : "0px")};box-sizing:border-box;pointer-events:auto;z-index:${zIdx};display:flex;align-items:center;justify-content:center;color:#fff;overflow:hidden;`;
       if (transformStr) cssText += `transform:${transformStr.trim()};`;
       if (shape.visible === false) cssText += `display:none;`;
 
       el.style.cssText = cssText;
       if (shape.text) {
         el.textContent = shape.text;
+      }
+      // Hình dựng sẵn (tam giác, sao, mũi tên…): vẽ bằng SVG dùng chung với Slides/Writer; khung CSS bỏ nền và viền.
+      const preset = presetOf(shape.shapeType);
+      if (preset?.path) {
+        el.style.background = "transparent";
+        el.style.border = "none";
+        el.style.overflow = "visible";
+        const textLayer = shape.text ? el.textContent : "";
+        el.textContent = "";
+        renderPresetGeometry(el, { fill: shape.fillColor || "#3b82f6", stroke: shape.strokeColor || "#1d4ed8", strokeWidth: shape.strokeWidth || 1 }, preset);
+        if (textLayer) {
+          const label = document.createElement("span");
+          label.style.cssText = "position:relative;z-index:1;pointer-events:none;";
+          label.textContent = textLayer;
+          el.appendChild(label);
+        }
       }
 
       el.addEventListener("pointerdown", (e) => {

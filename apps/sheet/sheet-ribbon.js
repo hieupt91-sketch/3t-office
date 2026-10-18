@@ -345,7 +345,10 @@ export const SHEET_RIBBON_TABS = [
         id: "illustrations",
         label: "Minh họa",
         labelKey: "sheetRibbon.group.illustrations",
-        items: [{ type: "button", commandId: "sheet.insert.image", isLarge: true }]
+        items: [
+          { type: "button", commandId: "sheet.insert.image", isLarge: true },
+          { type: "button", commandId: "sheet.insert.shapes", isLarge: true }
+        ]
       },
       {
         id: "charts",

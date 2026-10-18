@@ -899,6 +899,7 @@ export const viStrings = {
     ,"sheet.view.pageLayout": { label: "Bố trí trang", tooltip: "Xem bảng tính như khi in ra giấy kèm đầu/chân trang" }
     ,"sheet.format.clearRulesSelection": { label: "Xóa quy tắc ở ô đã chọn", tooltip: "Xóa các quy tắc định dạng có điều kiện khỏi những ô đang chọn (phần ngoài vùng chọn vẫn giữ quy tắc)" }
     ,"sheet.format.clearRulesSheet": { label: "Xóa quy tắc cả trang tính", tooltip: "Xóa mọi quy tắc định dạng có điều kiện của trang tính hiện tại" }
+    ,"sheet.insert.shapes": { label: "Hình dạng", tooltip: "Chèn hình dựng sẵn (chữ nhật, elip, tam giác, mũi tên, sao…) vào ô đang chọn" }
     ,"sheet.view.expandFormulaBar": { label: "Mở rộng thanh công thức", tooltip: "Mở rộng hoặc thu gọn thanh công thức để xem công thức dài nhiều dòng (Ctrl+Shift+U)" }
     ,"sheet.view.formulaBar": { label: "Thanh công thức", tooltip: "Ẩn hoặc hiện thanh công thức" }
     ,"sheet.view.toggleFormulas": { label: "Hiện công thức", tooltip: "Hiển thị công thức thay vì kết quả (Ctrl+`)" }
