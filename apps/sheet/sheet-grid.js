@@ -12644,7 +12644,7 @@ export class SheetGridController {
   }
 
   insertSparkline(type, range = this.selectionRange) {
-    if (!["line", "column"].includes(type)) return false;
+    if (!["line", "column", "winloss"].includes(type)) return false;
     const sourceRange = this._normalizeRange(range || { start: this.selectedCoord, end: this.selectedCoord });
     const values = [];
     for (let row = sourceRange.start.r; row <= sourceRange.end.r; row++) {
@@ -22417,7 +22417,10 @@ export class SheetGridController {
     if (itm.sparkline) {
       const values = itm.sparkline.values;
       const min = Math.min(...values), max = Math.max(...values), span = max - min || 1;
-      if (itm.sparkline.type === "column") {
+      if (itm.sparkline.type === "winloss") {
+        const width = 96 / values.length;
+        td.innerHTML = `<svg data-sparkline="winloss" viewBox="0 0 100 24" width="100%" height="24" aria-label="${t("sheetDialogs.sparklineWinLoss", "Biểu đồ mini thắng-thua")}"><line x1="0" y1="12" x2="100" y2="12" stroke="#94a3b8" stroke-width="0.5"/>${values.map((value, i) => value === 0 ? "" : `<rect data-win="${value > 0 ? "1" : "0"}" x="${i * width + 1}" y="${value > 0 ? 3 : 12}" width="${Math.max(1, width - 2)}" height="9" fill="${value > 0 ? "#0f6d38" : "#dc2626"}"/>`).join("")}</svg>`;
+      } else if (itm.sparkline.type === "column") {
         const width = 96 / values.length;
         td.innerHTML = `<svg data-sparkline="column" viewBox="0 0 100 24" width="100%" height="24" aria-label="${t("sheetDialogs.sparklineColumn", "Biểu đồ mini dạng cột")}">${values.map((value, i) => `<rect x="${i * width + 1}" y="${22 - (value - min) / span * 20}" width="${Math.max(1, width - 2)}" height="${Math.max(1, (value - min) / span * 20)}" fill="#0f6d38"/>`).join("")}</svg>`;
       } else {

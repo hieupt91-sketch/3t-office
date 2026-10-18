@@ -367,7 +367,8 @@ export const SHEET_RIBBON_TABS = [
         labelKey: "sheetRibbon.group.sparklines",
         items: [
           { type: "button", commandId: "sheet.insert.sparklineLine", isLarge: true },
-          { type: "button", commandId: "sheet.insert.sparklineColumn", isLarge: true }
+          { type: "button", commandId: "sheet.insert.sparklineColumn", isLarge: true },
+          { type: "button", commandId: "sheet.insert.sparklineWinLoss", isLarge: true }
         ]
       },
       {

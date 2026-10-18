@@ -1209,7 +1209,7 @@ export const SHEET_HELP_ENTRIES = [
   {
     id: "sheet.insert.sparklines",
     app: "sheet",
-    commandIds: ["sheet.insert.sparklineLine", "sheet.insert.sparklineColumn"],
+    commandIds: ["sheet.insert.sparklineLine", "sheet.insert.sparklineColumn", "sheet.insert.sparklineWinLoss"],
     title: "Biểu đồ thu nhỏ trong ô (sparkline)",
     summary: "Bôi dải số rồi chèn sparkline Đường hoặc Cột vào ô đang active. Mini-chart nằm trong ô, lấy các giá trị số của vùng nguồn; vùng không có số thì không chèn.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Biểu đồ thu nhỏ" },
@@ -1217,6 +1217,7 @@ export const SHEET_HELP_ENTRIES = [
     steps: [
       "Bôi dải số (một hàng hoặc một cột, ví dụ B2:G2). Ô active (ô neo, thường là góc) là nơi vẽ sparkline — muốn sparkline ở H2 thì bôi B2:G2 rồi Shift-nhấp H2, hoặc chọn H2 sau khi copy vùng nguồn. Tab Chèn, nhóm Biểu đồ thu nhỏ: nút lớn Đường hoặc Cột.",
       "Đường vẽ sparkline type line; Cột type column. Chỉ lấy ô có số hữu hạn (bỏ ₫, %, khoảng trắng). Không có số → không chèn.",
+      "Thắng-thua: nút thứ ba trong nhóm. Mỗi giá trị dương là một cột hướng lên (xanh), giá trị âm là cột hướng xuống (đỏ), giá trị 0 để trống; chiều cao các cột bằng nhau, chỉ dấu của số mới quyết định, hợp để xem lãi/lỗ hay đạt/không đạt qua từng kỳ.",
       "Sparkline gắn vào ô neo, không phải đối tượng nổi. Khác Biểu đồ lớn ở nhóm Biểu đồ cùng tab Chèn.",
       "Ctrl+Z gỡ sparkline vừa chèn. Xóa nội dung ô cũng mất sparkline nếu dùng Xóa tất cả."
     ]

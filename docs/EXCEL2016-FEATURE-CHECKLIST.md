@@ -17,13 +17,13 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Excel 2016 | 94 | 44% |
-| 🟢 Có, chưa đối chiếu | 66 | 31% |
+| 🟢 Có, chưa đối chiếu | 67 | 31% |
 | 🟡 Có một phần | 14 | 7% |
-| 🔴 Chưa có | 39 | 18% |
+| 🔴 Chưa có | 38 | 18% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
 
-- **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 78%**
+- **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 79%**
 - **Đã xác minh bằng đối chiếu Excel 2016 thật: 44%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ 462 hàm) chỉ tính một mục; mức phủ hàm nằm ở dòng riêng và ở `EXCEL2016-FUNCTIONS-MATRIX.md`.
@@ -34,7 +34,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 3 | 8 | 4 | 1 | 1 | 81% |
 | Trang đầu | 53 | 28 | 19 | 4 | 2 | 0 | 92% |
-| Chèn | 29 | 9 | 7 | 0 | 11 | 2 | 59% |
+| Chèn | 29 | 9 | 8 | 0 | 10 | 2 | 63% |
 | Bố trí trang | 10 | 8 | 1 | 0 | 1 | 0 | 90% |
 | Công thức | 13 | 6 | 6 | 1 | 0 | 0 | 96% |
 | Dữ liệu | 19 | 13 | 1 | 2 | 3 | 0 | 79% |
@@ -104,7 +104,7 @@ Tổng: 2 mục ưu tiên 1.
 | Căn chỉnh | Hướng chữ (xoay) | ✅ | - | Xoay 90° đã đọc lại bằng Excel 2016 (docs/SHEET-BUTTON-MATRIX-1011.md:72; tests/unit/sheet-cell-orientation.test.js:1-25; sheet.format.alignmentDialog) |
 | Căn chỉnh | Ngắt dòng tự động (Wrap Text) | ✅ | - | Ngắt dòng tự động Wrap Text đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:32; tests/unit/sheet-style-export-wrap-border-align.test.js:1-25; sheet.cell.wrapText) |
 | Căn chỉnh | Giảm/Tăng thụt lề | 🟢 | - | Giảm và tăng thụt lề ô (docs/SHEET-BUTTON-MATRIX-1011.md:36-37; sheet.cell.indentDecrease, sheet.cell.indentIncrease) |
-| Căn chỉnh | Trộn & căn giữa / Trộn theo hàng / Trộn ô / Tách ô | ✅ | - | 17/10 (AGY-DATATOOLS): Merge & Center, Merge Across, UnMerge đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.cell.merge; platform/i18n/strings-vi.js:822, apps/sheet/sheet-grid.js:15753 |
+| Căn chỉnh | Trộn & căn giữa / Trộn theo hàng / Trộn ô / Tách ô | ✅ | - | 17/10 (AGY-DATATOOLS): Merge & Center, Merge Across, UnMerge đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.cell.merge; platform/i18n/strings-vi.js:823, apps/sheet/sheet-grid.js:15753 |
 | Căn chỉnh | Căn đều, Distributed, Fill, Center across selection, Shrink to fit | ✅ | - | 16/10 (AGY-JUSTIFY): Center Across Selection và Shrink to Fit lưu/mở lại đúng, đối chiếu Excel 2016 (cases-7; tests/functions/structural-cases-7.json:1-15; tests/unit/sheet-cell-text-fit.test.js:1-25) |
 | Số | Danh sách định dạng số (Chung, Số, Tiền tệ, Kế toán, Ngày, Giờ, %, Khoa học, Văn bản) | ✅ | - | Số/ngày/giờ/% đã đối chiếu (E3; docs/SHEET-BUTTON-MATRIX-1011.md:42; tests/unit/sheet-format-cells.test.js:1-30; sheet.format.quickCategory) |
 | Số | Định dạng số dạng Phân số (Fraction) và Đặc biệt (Special) | ✅ | - | 17/10 (AGY-NOTES): Phân số 9 mẫu và Đặc biệt 4 mẫu đối chiếu Excel 2016 COM 13/13 mẫu (cases-18; tests/functions/structural-cases-18.json:1-30; tests/unit/sheet-format-cells.test.js:1-40; sheet.format.quickCategory, sheet.format.cellsDialog) |
@@ -164,7 +164,7 @@ Tổng: 2 mục ưu tiên 1.
 | Biểu đồ | PivotChart | 🟢 | - | sheet.chart.pivotChart |
 | Biểu đồ | Bản đồ 3-D (3D Map) | 🔴 | 3 |  |
 | Sparkline | Đường / Cột | ✅ | - | SparklineGroups đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:66-67; sheet.insert.sparklineLine, sheet.insert.sparklineColumn) |
-| Sparkline | Thắng-thua (Win/Loss) | 🔴 | 3 |  |
+| Sparkline | Thắng-thua (Win/Loss) | 🟢 | - | sheet.insert.sparklineWinLoss: cột lên cho số dương, cột xuống cho số âm, bỏ số 0; lưu XLSX thành x14:sparklineGroup type="stacked" (kiểu Thắng-thua của Excel), mở lại giữ đúng loại và dữ liệu (tests/live/cdp/sheet-sparkline-winloss.desktop.mjs 4/4, scripts/audit-0610/sheet_sparkline_xml.py); chưa đối chiếu Excel thật vì Excel COM chưa dùng được |
 | Bộ lọc | Slicer cho Bảng | ✅ | - | Thiết kế Bảng > Chèn Slicer; Excel 2016 đọc lại cache, panel và lựa chọn (tests/unit/sheet-slicer.test.js:1-30; sheet.style.formatAsTable) |
 | Bộ lọc | Timeline | 🔴 | 2 |  |
 | Liên kết | Siêu liên kết (Ctrl+K), Mở, Xóa, Sửa | 🟢 | - | Siêu liên kết chèn, mở, sửa, xóa (docs/SHEET-BUTTON-MATRIX-1011.md:68; sheet.insert.hyperlink) |

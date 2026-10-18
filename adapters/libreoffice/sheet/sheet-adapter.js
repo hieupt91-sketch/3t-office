@@ -730,6 +730,11 @@ export class SheetAdapter {
       if (!range && typeof args === "string") range = this.grid._parseRange?.(args);
       return Boolean(this.grid.insertSparkline("line", range));
     });
+    globalCommandBus.bindHandler("sheet.insert.sparklineWinLoss", (args) => {
+      let range = args?.range;
+      if (!range && typeof args === "string") range = this.grid._parseRange?.(args);
+      return Boolean(this.grid.insertSparkline("winloss", range));
+    });
     globalCommandBus.bindHandler("sheet.insert.sparklineColumn", (args) => {
       let range = args?.range;
       if (!range && typeof args === "string") range = this.grid._parseRange?.(args);
@@ -2997,14 +3002,15 @@ export class SheetAdapter {
     const cells = this.grid.sheetsData?.[sheetName]
       || (sheetName === this.grid.activeSheet ? this.grid.cellsData : null)
       || new Map();
-    const groups = { line: [], column: [] };
+    const groups = { line: [], column: [], stacked: [] };
     for (const [coordinate, item] of cells.entries()) {
       const spark = item?.sparkline;
-      if (!spark || !["line", "column"].includes(spark.type)) continue;
+      if (!spark || !["line", "column", "winloss"].includes(spark.type)) continue;
+      const groupKey = spark.type === "winloss" ? "stacked" : spark.type;
       const source = spark.sourceRange;
       if (!source?.start || !source?.end) continue;
       const dataRange = this._odfRangePair(sheetName, `${source.start.c}${source.start.r}`, `${source.end.c}${source.end.r}`);
-      groups[spark.type].push(`<calcext:sparkline calcext:cell-address="${this._escapeXml(this._odfCellAddress(sheetName, coordinate))}" calcext:data-range="${this._escapeXml(dataRange)}"/>`);
+      groups[groupKey].push(`<calcext:sparkline calcext:cell-address="${this._escapeXml(this._odfCellAddress(sheetName, coordinate))}" calcext:data-range="${this._escapeXml(dataRange)}"/>`);
     }
     const blocks = [];
     for (const [type, sparklines] of Object.entries(groups)) {
@@ -3453,7 +3459,7 @@ export class SheetAdapter {
   _attachImportedSparklines(workbook, xmlText) {
     String(xmlText || "").replace(/<calcext:sparkline-group\b([^>]*)>([\s\S]*?)<\/calcext:sparkline-group>/gi, (_, attrs, body) => {
       const typeRaw = (attrs.match(/calcext:type=["']([^"']+)["']/i)?.[1] || "line").toLowerCase();
-      const type = typeRaw === "column" ? "column" : "line";
+      const type = typeRaw === "column" ? "column" : (typeRaw === "stacked" ? "winloss" : "line");
       body.replace(/<calcext:sparkline\b([^>]*)\/?\s*>/gi, (all, sparkAttrs) => {
         const cell = this._parseOdfTargetRange(sparkAttrs.match(/calcext:cell-address=["']([^"']+)["']/i)?.[1] || "", workbook.sheets[0]);
         const data = this._parseOdfTargetRange(sparkAttrs.match(/calcext:data-range=["']([^"']+)["']/i)?.[1] || "", workbook.sheets[0]);

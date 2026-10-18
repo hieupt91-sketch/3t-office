@@ -106,7 +106,7 @@ Chèn|Biểu đồ|Biểu đồ được đề xuất / hộp thoại Tất cả
 Chèn|Biểu đồ|PivotChart|A|-|sheet.chart.pivotChart
 Chèn|Biểu đồ|Bản đồ 3-D (3D Map)|N|3|
 Chèn|Sparkline|Đường / Cột|V|-|SparklineGroups đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:66-67; sheet.insert.sparklineLine, sheet.insert.sparklineColumn)
-Chèn|Sparkline|Thắng-thua (Win/Loss)|N|3|
+Chèn|Sparkline|Thắng-thua (Win/Loss)|A|-|sheet.insert.sparklineWinLoss: cột lên cho số dương, cột xuống cho số âm, bỏ số 0; lưu XLSX thành x14:sparklineGroup type="stacked" (kiểu Thắng-thua của Excel), mở lại giữ đúng loại và dữ liệu (tests/live/cdp/sheet-sparkline-winloss.desktop.mjs 4/4, scripts/audit-0610/sheet_sparkline_xml.py); chưa đối chiếu Excel thật vì Excel COM chưa dùng được
 Chèn|Bộ lọc|Slicer cho Bảng|V|-|Thiết kế Bảng > Chèn Slicer; Excel 2016 đọc lại cache, panel và lựa chọn (tests/unit/sheet-slicer.test.js:1-30; sheet.style.formatAsTable)
 Chèn|Bộ lọc|Timeline|N|2|
 Chèn|Liên kết|Siêu liên kết (Ctrl+K), Mở, Xóa, Sửa|A|-|Siêu liên kết chèn, mở, sửa, xóa (docs/SHEET-BUTTON-MATRIX-1011.md:68; sheet.insert.hyperlink)

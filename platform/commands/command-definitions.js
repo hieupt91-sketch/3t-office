@@ -549,6 +549,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.insert.shapes", category: "insert", label: "Hình dạng", icon: "shape", tooltip: "Chèn hình dựng sẵn (chữ nhật, elip, tam giác, mũi tên, sao…) vào ô đang chọn" },
   { id: "sheet.insert.image", category: "insert", label: "Chèn ảnh", icon: "image", tooltip: "Chèn ảnh vào ô đang chọn" },
   { id: "sheet.insert.sparklineLine", category: "insert", label: "Đường", icon: "sparklineLine", tooltip: "Chèn biểu đồ mini dạng đường từ vùng dữ liệu đã chọn" },
+  { id: "sheet.insert.sparklineWinLoss", category: "insert", label: "Thắng-thua", icon: "sparklineColumn", tooltip: "Chèn biểu đồ mini thắng-thua: giá trị dương thành cột lên, giá trị âm thành cột xuống" },
   { id: "sheet.insert.sparklineColumn", category: "insert", label: "Cột", icon: "sparklineColumn", tooltip: "Chèn biểu đồ mini dạng cột từ vùng dữ liệu đã chọn" },
   { id: "sheet.insert.hyperlink", category: "insert", label: "Liên kết", icon: "hyperlink", tooltip: "Chèn liên kết vào ô hiện tại (Ctrl+K)" },
   { id: "sheet.insert.textbox", category: "insert", label: "Hộp văn bản", icon: "textBox", tooltip: "Chèn hộp văn bản nổi trên trang tính" },
