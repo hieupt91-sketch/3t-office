@@ -17,8 +17,8 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Excel 2016 | 94 | 44% |
-| 🟢 Có, chưa đối chiếu | 63 | 30% |
-| 🟡 Có một phần | 17 | 8% |
+| 🟢 Có, chưa đối chiếu | 64 | 30% |
+| 🟡 Có một phần | 16 | 8% |
 | 🔴 Chưa có | 39 | 18% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
@@ -37,7 +37,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Chèn | 29 | 9 | 6 | 1 | 11 | 2 | 57% |
 | Bố trí trang | 10 | 8 | 1 | 0 | 1 | 0 | 90% |
 | Công thức | 13 | 6 | 6 | 1 | 0 | 0 | 96% |
-| Dữ liệu | 19 | 13 | 0 | 3 | 3 | 0 | 76% |
+| Dữ liệu | 19 | 13 | 1 | 2 | 3 | 0 | 79% |
 | Xem xét | 12 | 1 | 4 | 1 | 5 | 1 | 50% |
 | Chế độ xem | 12 | 2 | 6 | 1 | 3 | 0 | 71% |
 | Nhà phát triển | 3 | 0 | 0 | 0 | 3 | 0 | 0% |
@@ -222,7 +222,7 @@ Tổng: 2 mục ưu tiên 1.
 | Công cụ dữ liệu | Kiểm tra dữ liệu: Danh sách | ✅ | - | Validation.Type=3 danh sách đã đối chiếu (tests/functions/dv-golden-1.json:1-20; tests/unit/sheet-dv-golden.test.js:1-25; sheet.data.validation) |
 | Công cụ dữ liệu | Kiểm tra dữ liệu: Số nguyên / Số thập phân | ✅ | - | G2: Kiểm tra dữ liệu Số nguyên / Thập phân Excel 2016 đọc Type 1/2 (tests/functions/dv-golden-1.json:1-20; tests/unit/sheet-dv-golden.test.js:1-25; sheet.data.validation) |
 | Công cụ dữ liệu | Kiểm tra dữ liệu: Ngày / Giờ / Độ dài văn bản / Tùy chỉnh (công thức) | ✅ | - | G2: Kiểm tra dữ liệu Ngày/Giờ/Độ dài/Tùy chỉnh Excel 2016 đọc Type 4/5/6/7 (tests/functions/dv-golden-1.json:1-20; tests/unit/sheet-dv-golden.test.js:1-25; sheet.data.validation) |
-| Công cụ dữ liệu | Kiểm tra dữ liệu: Thông báo nhập, Cảnh báo lỗi (Stop/Warning/Info), Khoanh vòng dữ liệu sai | 🟡 | 3 | G2: thông báo nhập + 3 mức cảnh báo Excel 2016 đọc đúng; khoanh vòng chưa so hình |
+| Công cụ dữ liệu | Kiểm tra dữ liệu: Thông báo nhập, Cảnh báo lỗi (Stop/Warning/Info), Khoanh vòng dữ liệu sai | 🟢 | - | sheet.data.validation: thông báo nhập + 3 mức cảnh báo Excel 2016 đọc đúng (G2); nút Khoanh vòng dữ liệu sai đánh dấu đúng các ô vi phạm, bỏ đánh dấu khi sửa đúng hoặc tắt (tests/live/cdp/sheet-circle-invalid.desktop.mjs 6/6); dấu là khung đỏ trong ô, không phải vòng elip như Excel, chưa so hình với Excel thật |
 | Công cụ dữ liệu | Hợp nhất dữ liệu (Consolidate) | ✅ | - | 17/10 (AGY-DATATOOLS): Consolidate hợp nhất dữ liệu đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; tests/unit/sheet-consolidate.test.js:1-30; apps/sheet/consolidate.js:1-30; sheet.data.consolidate) |
 | Công cụ dữ liệu | Quan hệ giữa bảng / Mô hình dữ liệu (Power Pivot) | 🔴 | 3 |  |
 | Dự báo | Phân tích What-If: Trình quản lý kịch bản | ✅ | - | 17/10 (AGY-DATATOOLS): Trình quản lý kịch bản Scenario Manager đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; tests/unit/sheet-what-if-analysis.test.js:1-35; apps/sheet/sheet-grid.js:20784-20800; sheet.data.scenarioManager) |
