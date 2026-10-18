@@ -17,13 +17,13 @@ Chuẩn: Microsoft PowerPoint 2016 (16.0.4266) cài trên máy, đọc chỉ-đ�
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu PowerPoint 2016 | 115 | 44% |
-| 🟢 Có, chưa đối chiếu | 74 | 28% |
+| 🟢 Có, chưa đối chiếu | 76 | 29% |
 | 🟡 Có một phần | 18 | 7% |
-| 🔴 Chưa có | 56 | 21% |
+| 🔴 Chưa có | 54 | 21% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **269** (áp dụng: 263) | |
 
-- **Độ phủ so với PowerPoint 2016 (có hoặc có một phần, một phần tính 0,5): 75%**
+- **Độ phủ so với PowerPoint 2016 (có hoặc có một phần, một phần tính 0,5): 76%**
 - **Đã xác minh bằng đối chiếu PowerPoint 2016 thật: 44%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tính một mục; đo kiểu ghi-rồi-đọc-lại trên PowerPoint COM chỉ xác nhận ngữ nghĩa thuộc tính của PowerPoint, KHÔNG tự nhận là parity hoàn chỉnh nếu chưa có kiểm chứng khứ hồi.
@@ -41,7 +41,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Trình chiếu | 16 | 4 | 5 | 0 | 6 | 1 | 60% |
 | Xem lại | 14 | 2 | 5 | 0 | 5 | 2 | 58% |
 | Chế độ xem | 25 | 7 | 10 | 2 | 6 | 0 | 72% |
-| Công cụ vẽ > Định dạng | 17 | 4 | 6 | 2 | 5 | 0 | 65% |
+| Công cụ vẽ > Định dạng | 17 | 4 | 8 | 2 | 3 | 0 | 76% |
 | Công cụ hình ảnh > Định dạng | 12 | 1 | 0 | 4 | 7 | 0 | 25% |
 | Công cụ bảng > Thiết kế | 8 | 1 | 7 | 0 | 0 | 0 | 100% |
 | Công cụ bảng > Bố trí | 8 | 8 | 0 | 0 | 0 | 0 | 100% |
@@ -357,8 +357,8 @@ Tổng: 5 mục ưu tiên 1.
 | Sắp xếp | Nhóm đối tượng (Group, Ctrl+G) | ✅ | - | FIX-L12: sơ đồ nhóm 7 đối tượng Shape.Type=6 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:53, docs/POWERPOINT2016-FINDINGS-1710.md:23) |
 | Sắp xếp | Rã nhóm đối tượng (Ungroup, Ctrl+Shift+G) | 🟢 | - | slides.shape.ungroup; giải phóng nhóm thành các hình riêng |
 | Sắp xếp | Xoay và lật đối tượng (Rotate 90°, Flip) | ✅ | - | slides.arrange.rotateRight90, slides.arrange.rotateLeft90, slides.arrange.flipHorizontal, slides.arrange.flipVertical; PowerPoint COM đọc lại rotation/hflip/vflip (adapters/libreoffice/slides/slides-adapter.js:285, adapters/libreoffice/slides/slides-adapter.js:286, adapters/libreoffice/slides/slides-adapter.js:287, adapters/libreoffice/slides/slides-adapter.js:288; scripts/audit-0610/ppt_shape_format_readback.ps1:4) |
-| Kích thước | Chiều cao đối tượng (Shape Height) | 🔴 | 2 | Chưa có ô nhập chiều cao chính xác (cm/pt) cho hình trên ribbon |
-| Kích thước | Chiều rộng đối tượng (Shape Width) | 🔴 | 2 | Chưa có ô nhập chiều rộng chính xác (cm/pt) cho hình trên ribbon |
+| Kích thước | Chiều cao đối tượng (Shape Height) | 🟢 | - | slides.shape.sizeDialog (Định dạng hình > Kích thước và vị trí…): đặt rộng, cao, góc xoay chính xác, hoàn tác/làm lại; lưu PPTX rồi PowerPoint 2016 COM đọc Width=320, Height=120, Rotation=30, Left/Top=100 đúng (tests/live/cdp/slides-shape-size-dialog.desktop.mjs, scripts/audit-0610/ppt_shape_size_readback.ps1, platform/commands/command-definitions.js:754); nhập trong hộp thoại chứ chưa có ô nhập ngay trên ruy-băng |
+| Kích thước | Chiều rộng đối tượng (Shape Width) | 🟢 | - | slides.shape.sizeDialog (Định dạng hình > Kích thước và vị trí…): đặt rộng, cao, góc xoay chính xác, hoàn tác/làm lại; lưu PPTX rồi PowerPoint 2016 COM đọc Width=320, Height=120, Rotation=30, Left/Top=100 đúng (tests/live/cdp/slides-shape-size-dialog.desktop.mjs, scripts/audit-0610/ppt_shape_size_readback.ps1, platform/commands/command-definitions.js:754); nhập trong hộp thoại chứ chưa có ô nhập ngay trên ruy-băng |
 | Kích thước | Khóa tỷ lệ khung hình (Lock Aspect Ratio) | 🔴 | 2 | Chưa có tùy chọn khóa tỷ lệ khung hình (Lock Aspect Ratio) |
 
 ### Công cụ hình ảnh > Định dạng
