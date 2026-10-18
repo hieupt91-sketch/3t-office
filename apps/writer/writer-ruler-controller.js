@@ -106,11 +106,44 @@ export class WriterRulerController {
     this._onScaleClickBound = event => this._onScaleClick(event);
     const scale = this.track?.querySelector?.(".vno-ruler-scale");
     scale?.addEventListener?.("click", this._onScaleClickBound);
+    this._createTabKindButton();
     this.scheduleSync();
     return this;
   }
 
+  /** Nút chọn loại dừng tab ở góc trái thước (như Word): nhấp để đổi Trái → Giữa → Phải → Thập phân → Thanh. */
+  _createTabKindButton() {
+    if (!this.ruler || typeof document === "undefined" || this.ruler.querySelector?.(".vno-ruler-tab-kind")) return;
+    this._tabKinds = [
+      { id: "l", icon: "└", label: "Trái" },
+      { id: "c", icon: "┴", label: "Giữa" },
+      { id: "r", icon: "┘", label: "Phải" },
+      { id: "dec", icon: "┴·", label: "Thập phân" },
+      { id: "bar", icon: "│", label: "Thanh" }
+    ];
+    this._tabKindIndex = 0;
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "vno-ruler-tab-kind";
+    button.addEventListener("click", () => {
+      this._tabKindIndex = (this._tabKindIndex + 1) % this._tabKinds.length;
+      this._paintTabKindButton(button);
+      this.shell?.setStatus?.(`Loại dừng tab mới: ${this._tabKinds[this._tabKindIndex].label}. Nhấp lên thước để đặt.`);
+    });
+    this._paintTabKindButton(button);
+    this.ruler.appendChild(button);
+    this._tabKindButton = button;
+  }
+
+  _paintTabKindButton(button) {
+    const kind = this._tabKinds[this._tabKindIndex];
+    button.textContent = kind.icon;
+    button.title = `Loại dừng tab: ${kind.label} (nhấp để đổi, rồi nhấp lên thước để đặt dừng tab)`;
+    button.setAttribute("aria-label", `Loại dừng tab: ${kind.label}. Nhấp để đổi.`);
+  }
+
   destroy() {
+    this._tabKindButton?.remove?.();
     const scale = this.track?.querySelector?.(".vno-ruler-scale");
     scale?.removeEventListener?.("click", this._onScaleClickBound);
     if (this._onTabMoveBound) document.removeEventListener("mousemove", this._onTabMoveBound);
@@ -301,7 +334,7 @@ export class WriterRulerController {
     if (clickCm <= 0 || clickCm >= textWidthMm / 10) return;
     const currentStops = Array.isArray(this.state.tabStops) ? [...this.state.tabStops] : [];
     if (!currentStops.some(s => Math.abs(s.cm - clickCm) < 0.15)) {
-      currentStops.push({ cm: clickCm, align: "l", leader: "n" });
+      currentStops.push({ cm: clickCm, align: this._tabKinds?.[this._tabKindIndex]?.id || "l", leader: "n" });
       currentStops.sort((a, b) => a.cm - b.cm);
       globalCommandBus.execute("writer.format.tabStops", { stops: currentStops });
       this.state.tabStops = currentStops;

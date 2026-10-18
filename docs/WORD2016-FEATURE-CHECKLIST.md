@@ -16,10 +16,10 @@ Chuẩn: Microsoft Word 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qu
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu Word 2016 | 149 | 55% |
+| ✅ Đã đối chiếu Word 2016 | 151 | 55% |
 | 🟢 Có, chưa đối chiếu | 64 | 23% |
-| 🟡 Có một phần | 30 | 11% |
-| 🔴 Chưa có | 30 | 11% |
+| 🟡 Có một phần | 29 | 11% |
+| 🔴 Chưa có | 29 | 11% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **279** (áp dụng: 273) | |
 
@@ -33,7 +33,7 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 1 | 14 | 0 | 1 | 1 | 94% |
-| Trang đầu | 47 | 29 | 10 | 5 | 3 | 0 | 88% |
+| Trang đầu | 47 | 30 | 10 | 4 | 3 | 0 | 89% |
 | Chèn | 34 | 23 | 3 | 0 | 5 | 3 | 84% |
 | Thiết kế | 10 | 4 | 0 | 4 | 2 | 0 | 60% |
 | Bố trí | 18 | 12 | 4 | 1 | 1 | 0 | 92% |
@@ -45,19 +45,17 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | Công cụ Hình ảnh | 12 | 2 | 5 | 2 | 3 | 0 | 67% |
 | Công cụ Vẽ | 10 | 4 | 2 | 2 | 2 | 0 | 70% |
 | Công cụ Đầu & Chân trang | 7 | 4 | 2 | 1 | 0 | 0 | 93% |
-| Không thuộc ribbon | 20 | 7 | 9 | 0 | 4 | 0 | 80% |
+| Không thuộc ribbon | 20 | 8 | 9 | 0 | 3 | 0 | 85% |
 
 ## Việc cần làm (mục chưa có hoặc một phần, ưu tiên 1: danh sách 15 mục thiếu nhất)
 
 | STT | Tab | Nhóm | Tính năng | Trạng thái | Ghi chú / Phần thiếu |
 |---|---|---|---|---|---|
 | 1 | Tệp (Backstage) | Thông tin | Bảo vệ tài liệu: Mật khẩu mở file (mã hóa DOCX) | 🔴 | Chưa có cơ chế mã hóa mật khẩu mở file DOCX |
-| 2 | Trang đầu | Đoạn văn | Hộp thoại Điểm dừng Tab (Tabs Dialog: căn lề, ký tự dẫn leader) | 🟡 | Hỗ trợ phím Tab cơ bản; chưa có hộp thoại Tabs dialog tùy biến vị trí và ký tự dẫn leader dots (docs/WORD2016-FINDINGS-1710.md:55-58, FIX-W1-TABS) |
-| 3 | Trang đầu | Chỉnh sửa | Đi đến (Go To, Ctrl+G) | 🟡 | Có điều hướng đầu/cuối tài liệu Ctrl+Home/End; chưa có hộp thoại Go To tới trang/dòng/bookmark (FIX-W7-GOTO) |
-| 4 | Công cụ Bảng | Thiết kế | Độ dày và kiểu đường viền bảng | 🟡 | Hỗ trợ độ dày chuẩn; kiểu nét đứt/đôi cần hoàn thiện trong giao diện viền |
-| 5 | Không thuộc ribbon | Chuột | Đặt điểm dừng tab tùy chỉnh trên thước | 🔴 | Chưa có thao tác nhấp chuột lên thước để đặt tab dừng căn phải/giữa/thập phân |
+| 2 | Trang đầu | Chỉnh sửa | Đi đến (Go To, Ctrl+G) | 🟡 | Có điều hướng đầu/cuối tài liệu Ctrl+Home/End; chưa có hộp thoại Go To tới trang/dòng/bookmark (FIX-W7-GOTO) |
+| 3 | Công cụ Bảng | Thiết kế | Độ dày và kiểu đường viền bảng | 🟡 | Hỗ trợ độ dày chuẩn; kiểu nét đứt/đôi cần hoàn thiện trong giao diện viền |
 
-Tổng: 5 mục ưu tiên 1 cần bổ sung/hoàn thiện.
+Tổng: 3 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 
 ## Đề xuất 10 phiếu việc kế tiếp
 
@@ -139,7 +137,7 @@ Tổng: 5 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Đoạn văn | Tô nền đoạn văn (Shading) | ✅ | - | Tô nền đoạn văn writer.para.shading đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:42) |
 | Đoạn văn | Đường viền đoạn văn (Borders) | ✅ | - | Viền đoạn văn writer.para.borders đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:43) |
 | Đoạn văn | Hộp thoại Đoạn văn (Paragraph Dialog) | 🟢 | - | writer.format.paragraphDialog |
-| Đoạn văn | Hộp thoại Điểm dừng Tab (Tabs Dialog: căn lề, ký tự dẫn leader) | 🟡 | 1 | Hỗ trợ phím Tab cơ bản; chưa có hộp thoại Tabs dialog tùy biến vị trí và ký tự dẫn leader dots (docs/WORD2016-FINDINGS-1710.md:55-58, FIX-W1-TABS) |
+| Đoạn văn | Hộp thoại Điểm dừng Tab (Tabs Dialog: căn lề, ký tự dẫn leader) | ✅ | - | writer.format.tabStops mở hộp thoại Dừng tab; lưu DOCX rồi Word 2016 COM đọc TabStops 141.8 pt trái và 340.2 pt phải dẫn chấm (tests/live/cdp/writer-tabstops.desktop.mjs; apps/writer/tab-stops.js:26 parseTabStops, platform/commands/command-definitions.js:272) |
 | Kiểu | Thư viện kiểu (Styles Gallery: Normal, Heading 1–3) | ✅ | - | Heading 1–3 đối chiếu thuộc tính Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:68,95) |
 | Kiểu | Kiểu dáng tùy biến / Bộ kiểu mới | 🟡 | 2 | Có Normal, Heading 1-3, Title, Quote; chưa có giao diện New Style dialog đầy đủ |
 | Kiểu | Ngăn kiểu dáng (Styles Pane, Alt+Ctrl+Shift+S) | 🔴 | 2 | Chưa có ngăn nổi Styles Pane riêng |
@@ -410,7 +408,7 @@ Tổng: 5 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Bàn phím | Phím Tab và phím thụt lề | ✅ | - | Phím Tab và thụt lề đoạn đối chiếu Word COM DefaultTabStop 36 pt (docs/word-oracle-1710.json:37-43, docs/WORD2016-FINDINGS-1710.md:39-43) |
 | Chuột | Chuột bôi đen chọn từ, đoạn, dòng, khối | 🟢 | - | Bôi đen bằng chuột (tests/live/cdp/writer-mini-toolbar.desktop.mjs:1-5, apps/writer/writer-mini-toolbar.js:20-50) |
 | Chuột | Thước căn lề tương tác (kéo lề, kéo thụt dòng đầu) | 🟢 | - | Thước kéo lề và thụt lề (tests/unit/writer-interactive-ruler.test.js:46-58, apps/writer/writer-ruler-controller.js:1-40) |
-| Chuột | Đặt điểm dừng tab tùy chỉnh trên thước | 🔴 | 1 | Chưa có thao tác nhấp chuột lên thước để đặt tab dừng căn phải/giữa/thập phân |
+| Chuột | Đặt điểm dừng tab tùy chỉnh trên thước | ✅ | - | nút loại dừng tab ở góc thước (Trái/Giữa/Phải/Thập phân/Thanh) rồi nhấp thước; lưu DOCX rồi Word 2016 COM đọc TabStops 283.5 pt căn phải khi đặt 10 cm (tests/live/cdp/writer-ruler-tabs.desktop.mjs; apps/writer/writer-ruler-controller.js:114 điểm dừng tab) |
 | Chuột | Thanh công cụ nổi mini khi bôi đen (Mini Toolbar) | 🔴 | 2 | Chưa có thanh công cụ nổi mini cạnh con trỏ chuột |
 | Chuột | Menu ngữ cảnh chuột phải trên văn bản | 🟢 | - | Menu ngữ cảnh văn bản chuột phải (apps/writer/writer-app.js:863-876) |
 | Chuột | Menu ngữ cảnh chuột phải trong bảng | ✅ | - | Menu chuột phải trong bảng đối chiếu Word COM thêm/xóa hàng cột (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:54-57) |

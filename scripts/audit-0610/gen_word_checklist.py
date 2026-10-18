@@ -13,6 +13,7 @@ Mỗi dòng: Tab|Nhóm|Lệnh Word 2016|Trạng thái|Ưu tiên|Ghi chú (lệnh
 Nguồn trạng thái: quét ribbon Word COM (docs/ribbon-scan-word-1710.json), đối chiếu song song (docs/AUDIT-DOC-WORD-PARALLEL-1011.md), kết quả đo 15 tính năng ưu tiên 1 (docs/WORD2016-FINDINGS-1710.md), ma trận Hoàn tác (docs/AUDIT-DOC-UNDO-FULL-1610.md), đọc mã (grep) và kiểm thực tế 17/10/2026.
 """
 import collections
+import re
 import pathlib
 
 DATA = """
@@ -71,7 +72,7 @@ Trang đầu|Đoạn văn|Giãn dòng (1.0, 1.15, 1.5, 2.0) & Khoảng cách tr�
 Trang đầu|Đoạn văn|Tô nền đoạn văn (Shading)|V|-|Tô nền đoạn văn writer.para.shading đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:42)
 Trang đầu|Đoạn văn|Đường viền đoạn văn (Borders)|V|-|Viền đoạn văn writer.para.borders đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:43)
 Trang đầu|Đoạn văn|Hộp thoại Đoạn văn (Paragraph Dialog)|A|-|writer.format.paragraphDialog
-Trang đầu|Đoạn văn|Hộp thoại Điểm dừng Tab (Tabs Dialog: căn lề, ký tự dẫn leader)|P|1|Hỗ trợ phím Tab cơ bản; chưa có hộp thoại Tabs dialog tùy biến vị trí và ký tự dẫn leader dots (docs/WORD2016-FINDINGS-1710.md:55-58, FIX-W1-TABS)
+Trang đầu|Đoạn văn|Hộp thoại Điểm dừng Tab (Tabs Dialog: căn lề, ký tự dẫn leader)|V|-|writer.format.tabStops mở hộp thoại Dừng tab; lưu DOCX rồi Word 2016 COM đọc TabStops 141.8 pt trái và 340.2 pt phải dẫn chấm (tests/live/cdp/writer-tabstops.desktop.mjs; {{L:apps/writer/tab-stops.js|export function parseTabStops(value) {}} parseTabStops, {{L:platform/commands/command-definitions.js|id: "writer.format.tabStops"}})
 Trang đầu|Kiểu|Thư viện kiểu (Styles Gallery: Normal, Heading 1–3)|V|-|Heading 1–3 đối chiếu thuộc tính Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:68,95)
 Trang đầu|Kiểu|Kiểu dáng tùy biến / Bộ kiểu mới|P|2|Có Normal, Heading 1-3, Title, Quote; chưa có giao diện New Style dialog đầy đủ
 Trang đầu|Kiểu|Ngăn kiểu dáng (Styles Pane, Alt+Ctrl+Shift+S)|N|2|Chưa có ngăn nổi Styles Pane riêng
@@ -282,7 +283,7 @@ Không thuộc ribbon|Bàn phím|Phím tắt phím Alt (KeyTips nổi)|N|2|Chưa
 Không thuộc ribbon|Bàn phím|Phím Tab và phím thụt lề|V|-|Phím Tab và thụt lề đoạn đối chiếu Word COM DefaultTabStop 36 pt (docs/word-oracle-1710.json:37-43, docs/WORD2016-FINDINGS-1710.md:39-43)
 Không thuộc ribbon|Chuột|Chuột bôi đen chọn từ, đoạn, dòng, khối|A|-|Bôi đen bằng chuột (tests/live/cdp/writer-mini-toolbar.desktop.mjs:1-5, apps/writer/writer-mini-toolbar.js:20-50)
 Không thuộc ribbon|Chuột|Thước căn lề tương tác (kéo lề, kéo thụt dòng đầu)|A|-|Thước kéo lề và thụt lề (tests/unit/writer-interactive-ruler.test.js:46-58, apps/writer/writer-ruler-controller.js:1-40)
-Không thuộc ribbon|Chuột|Đặt điểm dừng tab tùy chỉnh trên thước|N|1|Chưa có thao tác nhấp chuột lên thước để đặt tab dừng căn phải/giữa/thập phân
+Không thuộc ribbon|Chuột|Đặt điểm dừng tab tùy chỉnh trên thước|V|-|nút loại dừng tab ở góc thước (Trái/Giữa/Phải/Thập phân/Thanh) rồi nhấp thước; lưu DOCX rồi Word 2016 COM đọc TabStops 283.5 pt căn phải khi đặt 10 cm (tests/live/cdp/writer-ruler-tabs.desktop.mjs; {{L:apps/writer/writer-ruler-controller.js|/** Nút chọn loại dừng tab ở góc trái thước}} điểm dừng tab)
 Không thuộc ribbon|Chuột|Thanh công cụ nổi mini khi bôi đen (Mini Toolbar)|N|2|Chưa có thanh công cụ nổi mini cạnh con trỏ chuột
 Không thuộc ribbon|Chuột|Menu ngữ cảnh chuột phải trên văn bản|A|-|Menu ngữ cảnh văn bản chuột phải (apps/writer/writer-app.js:863-876)
 Không thuộc ribbon|Chuột|Menu ngữ cảnh chuột phải trong bảng|V|-|Menu chuột phải trong bảng đối chiếu Word COM thêm/xóa hàng cột (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:54-57)
@@ -323,7 +324,18 @@ NEXT_TICKETS = [
 
 def parse():
     rows = []
-    for line in DATA.strip().splitlines():
+    def _resolve_refs(text):
+        root = pathlib.Path(__file__).resolve().parents[2]
+
+        def one(match):
+            rel, needle = match.group(1), match.group(2)
+            for number, content in enumerate((root / rel).read_text(encoding="utf-8").splitlines(), 1):
+                if needle in content:
+                    return f"{rel}:{number}"
+            raise SystemExit(f"Không thấy '{needle}' trong {rel} (trích dẫn {{{{L:...}}}})")
+        return re.sub(r"\{\{L:([^|}]+)\|([^}]+)\}\}", one, text)
+
+    for line in _resolve_refs(DATA).strip().splitlines():
         parts = [p.strip() for p in line.split("|")]
         if len(parts) < 5:
             raise SystemExit(f"Dòng sai định dạng: {line}")

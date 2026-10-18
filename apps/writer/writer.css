@@ -196,6 +196,29 @@
   pointer-events: none;
   box-shadow: 0 0 0 1px rgba(255,255,255,.65);
 }
+.vno-ruler-tab-kind {
+  position: absolute;
+  left: 4px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  line-height: 1;
+  border: 1px solid var(--vno-border-strong);
+  border-radius: 2px;
+  background: var(--vno-bg-window);
+  color: var(--vno-text-primary, #1e293b);
+  cursor: pointer;
+  z-index: 5;
+}
+.vno-ruler-tab-kind:hover { background: var(--vno-bg-hover, #e2e8f0); }
+.vno-ruler-tab-kind:focus-visible { outline: 2px solid var(--vno-border-focus, #2563eb); outline-offset: 1px; }
+
 .vno-ruler-tabs-layer {
   position: absolute;
   top: 0;

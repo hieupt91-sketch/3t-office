@@ -2173,7 +2173,7 @@ export const WRITER_HELP_ENTRIES = [
   ribbon: { tab: "Trang đầu", tabId: "home", group: "Đoạn văn" },
   keywords: ["tab", "điểm dừng tab", "tab stops", "thước đo", "ruler", "ký tự dẫn", "leader", "thập phân", "căn tab"],
   steps: [
-    "Bấm trực tiếp lên thanh thước đo ngang ở đầu vùng soạn thảo để đặt nhanh một điểm dừng tab tại vị trí mong muốn. Kéo biểu tượng tab dọc theo thước để điều chỉnh vị trí, hoặc kéo ra khỏi thước để xóa.",
+    "Chọn loại dừng tab ở nút nhỏ ngoài cùng bên trái thước: mỗi lần nhấp đổi Trái → Giữa → Phải → Thập phân → Thanh (di chuột vào nút để thấy loại hiện tại). Sau đó bấm lên thanh thước đo ngang để đặt nhanh một điểm dừng tab loại đó tại vị trí mong muốn. Kéo biểu tượng tab dọc theo thước để điều chỉnh vị trí, hoặc kéo ra khỏi thước để xóa.",
     "Để mở hộp thoại chi tiết, mở tab Trang đầu, nhấp vào biểu tượng mở rộng của nhóm Đoạn văn rồi bấm nút 'Dừng tab…' ở góc dưới hộp thoại Đoạn văn.",
     "Trong hộp thoại Dừng tab, nhập vị trí điểm dừng mới, chọn kiểu căn lề (Trái, Giữa, Phải, Thập phân, Thanh) và kiểu ký tự dẫn (Không có, Chấm chấm, Gạch nối, Gạch dưới), sau đó bấm 'Thiết lập'.",
     "Có thể chọn 'Xóa' để gỡ từng điểm dừng tab hoặc 'Xóa tất cả' để khôi phục về điểm dừng tab mặc định (1,27 cm / 36 pt). Bấm 'Đồng ý' để áp dụng các thiết lập cho đoạn văn đang chọn."
