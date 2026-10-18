@@ -16,15 +16,15 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu Excel 2016 | 92 | 43% |
+| ✅ Đã đối chiếu Excel 2016 | 93 | 44% |
 | 🟢 Có, chưa đối chiếu | 62 | 29% |
-| 🟡 Có một phần | 20 | 9% |
+| 🟡 Có một phần | 19 | 9% |
 | 🔴 Chưa có | 39 | 18% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
 
 - **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 77%**
-- **Đã xác minh bằng đối chiếu Excel 2016 thật: 43%** các mục áp dụng
+- **Đã xác minh bằng đối chiếu Excel 2016 thật: 44%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ 462 hàm) chỉ tính một mục; mức phủ hàm nằm ở dòng riêng và ở `EXCEL2016-FUNCTIONS-MATRIX.md`.
 
@@ -35,7 +35,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Tệp (Backstage) | 17 | 3 | 8 | 4 | 1 | 1 | 81% |
 | Trang đầu | 53 | 27 | 17 | 7 | 2 | 0 | 90% |
 | Chèn | 29 | 9 | 6 | 1 | 11 | 2 | 57% |
-| Bố trí trang | 10 | 7 | 1 | 1 | 1 | 0 | 85% |
+| Bố trí trang | 10 | 8 | 1 | 0 | 1 | 0 | 90% |
 | Công thức | 13 | 6 | 6 | 1 | 0 | 0 | 96% |
 | Dữ liệu | 19 | 13 | 0 | 3 | 3 | 0 | 76% |
 | Xem xét | 12 | 1 | 4 | 1 | 5 | 1 | 50% |
@@ -187,7 +187,7 @@ Tổng: 2 mục ưu tiên 1.
 | Thiết lập trang | In tiêu đề (Print Titles) | ✅ | - | TitlesRows đã đối chiếu Print Titles (docs/SHEET-BUTTON-MATRIX-1011.md:78; tests/unit/sheet-print-titles-real-file-import.test.js:1-30; sheet.page.printTitles) |
 | Thiết lập trang | Hộp thoại Page Setup đủ tab Trang/Lề/Đầu-Chân/Trang tính | 🟢 | - | tab Trang tính đã có in lưới, tiêu đề hàng cột, đen trắng, bản nháp, ghi chú, thứ tự trang, vùng in và tiêu đề lặp; lưu XLSX ghi đúng printOptions gridLines headings, pageSetup pageOrder overThenDown blackAndWhite cellComments atEnd đọc từ XML; chưa đối chiếu Excel thật vì Excel COM chưa dùng được (apps/sheet/page-setup-dialog.js:53 Page Setup, tests/live/cdp/sheet-page-setup-print-options.desktop.mjs) |
 | Vừa trang | Chiều rộng / Chiều cao (Fit to pages) / Tỷ lệ % | ✅ | - | sheet.page.fitWidth sheet.page.fitHeight sheet.page.scale: danh sách Chiều rộng/Chiều cao (Tự động, 1-5 trang) lưu rồi Excel 2016 đọc FitToPagesWide=1, FitToPagesTall=Tự động, Zoom=False (docs/AUDIT-SHEET-PAGE-GALLERY-1710.md:18) |
-| Tùy chọn trang tính | Hiện/In đường lưới và tiêu đề | 🟡 | 2 | Hiện có; hộp xem trước in có tùy chọn in đường lưới; in tiêu đề hàng/cột cần kiểm |
+| Tùy chọn trang tính | Hiện/In đường lưới và tiêu đề | ✅ | - | sheet.page.printTitles + hộp Thiết lập trang; lưu XLSX rồi Excel 2016 COM đọc PrintTitleRows=1:2, PrintTitleColumns=A:B, PrintGridlines và PrintHeadings đúng (platform/i18n/strings-vi.js:581, tests/live/cdp/sheet-page-setup-controls.desktop.mjs:150) |
 | Sắp xếp | Đưa lên trên / Xuống dưới / Ngăn chọn / Căn / Nhóm / Xoay đối tượng | ✅ | - | 16/10 (AGY-ARRANGE): lớp, căn, phân bố, nhóm, xoay/lật, Ngăn chọn (tests/unit/sheet-arrange.test.js:54-60; sheet.arrange.group) |
 
 ### Công thức
