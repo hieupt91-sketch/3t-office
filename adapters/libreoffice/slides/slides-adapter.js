@@ -351,6 +351,9 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.table.cellSize", () => this._hintIfFalse(() => this.canvas.openTableSizeDialog(), "Hãy đặt con trỏ vào một ô của bảng trước."));
     globalCommandBus.bindHandler("slides.media.autoplay", () => this._hintIfFalse(() => this.canvas.toggleMediaOption("mediaAutoplay"), "Hãy chọn một video hoặc âm thanh trên trang chiếu trước."));
     globalCommandBus.bindHandler("slides.media.loop", () => this._hintIfFalse(() => this.canvas.toggleMediaOption("mediaLoop"), "Hãy chọn một video hoặc âm thanh trên trang chiếu trước."));
+    globalCommandBus.bindHandler("slides.chart.type", () => false);
+    globalCommandBus.bindHandler("slides.chart.setType", (arg) => this._hintIfFalse(() => this.canvas.setChartType(String(arg || "")), "Hãy chọn một biểu đồ trên trang chiếu trước."));
+    globalCommandBus.bindHandler("slides.chart.editData", () => this._hintIfFalse(() => this.canvas.editChart(), "Hãy chọn một biểu đồ trên trang chiếu trước."));
     globalCommandBus.bindHandler("slides.animation.painter", () => this._hintIfFalse(() => this.canvas.animationPainter(), "Hãy chọn một đối tượng đã có hiệu ứng để lấy, rồi chọn đối tượng đích và nhấn lại Sao chép hoạt ảnh."));
     // Thư viện hình dựng sẵn và Đổi hình dạng (apps/slides/shape-presets.js).
     globalCommandBus.bindHandler("slides.shape.galleryInsert", () => this.canvas.insertShape ? this.canvas.insertShape("rect") : false);

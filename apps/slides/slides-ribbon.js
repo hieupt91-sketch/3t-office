@@ -840,6 +840,42 @@ export const SLIDES_RIBBON_TABS = [
     ]
   },
   {
+    id: "chartDesign",
+    label: "Thiết kế biểu đồ",
+    labelKey: "slidesRibbon.tab.chartDesign",
+    contextual: true,
+    groups: [
+      {
+        id: "chartType",
+        label: "Kiểu biểu đồ",
+        labelKey: "slidesRibbon.group.chartType",
+        items: [
+          {
+            type: "dropdown",
+            id: "slides.chart.type",
+            label: "Đổi kiểu biểu đồ",
+            icon: "chart",
+            isLarge: true,
+            items: [
+              { commandId: "slides.chart.setType", args: "bar", label: "Cột" },
+              { commandId: "slides.chart.setType", args: "line", label: "Đường" },
+              { commandId: "slides.chart.setType", args: "pie", label: "Tròn" },
+              { commandId: "slides.chart.setType", args: "area", label: "Miền" }
+            ]
+          }
+        ]
+      },
+      {
+        id: "chartData",
+        label: "Dữ liệu",
+        labelKey: "slidesRibbon.group.chartData",
+        items: [
+          { type: "button", commandId: "slides.chart.editData", isLarge: true }
+        ]
+      }
+    ]
+  },
+  {
     id: "mediaPlayback",
     label: "Phát lại",
     labelKey: "slidesRibbon.tab.mediaPlayback",

@@ -390,6 +390,20 @@ export const SLIDES_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.chart.design",
+    app: "slides",
+    commandIds: ["slides.chart.setType", "slides.chart.editData"],
+    title: "Thiết kế biểu đồ: đổi kiểu và sửa dữ liệu",
+    summary: "Chọn một biểu đồ để hiện tab Thiết kế biểu đồ. Đổi kiểu biểu đồ chuyển giữa cột, đường, tròn và miền mà giữ nguyên dữ liệu; Sửa dữ liệu mở hộp thoại tiêu đề, nhãn và giá trị.",
+    ribbon: { tab: "Thiết kế biểu đồ", tabId: "chartDesign", group: "Kiểu biểu đồ" },
+    keywords: ["đổi kiểu biểu đồ", "change chart type", "sửa dữ liệu biểu đồ", "edit data", "biểu đồ cột", "biểu đồ tròn", "biểu đồ đường"],
+    steps: [
+      "Nhấp vào biểu đồ trên trang chiếu. Tab Thiết kế biểu đồ hiện bên phải ribbon. Chèn biểu đồ mới ở tab Chèn > nhóm Minh họa > Biểu đồ.",
+      "Tab Thiết kế biểu đồ > Đổi kiểu biểu đồ: chọn Cột, Đường, Tròn hoặc Miền. Biểu đồ đổi ngay, dữ liệu và tiêu đề giữ nguyên. Ctrl+Z hoàn tác.",
+      "Sửa dữ liệu… (hoặc nhấp đúp vào biểu đồ, hoặc Enter khi biểu đồ đang chọn) mở hộp thoại để sửa tiêu đề, nhãn và giá trị."
+    ]
+  },
+  {
     id: "slides.picture.crop",
     app: "slides",
     commandIds: ["slides.picture.crop", "slides.picture.cropRatio", "slides.picture.cropDialog", "slides.picture.cropDrag"],

@@ -3275,6 +3275,7 @@ export class SlidesCanvasController {
       if (tab) { tab.hidden = !has; tab.setAttribute("aria-hidden", has ? "false" : "true"); }
     };
     this._syncMediaContext();
+    show("chartDesign", Boolean(this._selectedChartShape()));
     show("shapeFormat", selected.some((shape) => shape.type !== "image"));
     show("pictureFormat", selected.some((shape) => shape.type === "image"));
   }
@@ -3917,6 +3918,23 @@ export class SlidesCanvasController {
     this._renderShapesLayer();
     if (this.slideSorterOverlay) this._renderSlideSorterGrid();
     return shape;
+  }
+
+  /** Thiết kế biểu đồ > Đổi kiểu biểu đồ: cột | đường | tròn | miền cho biểu đồ đang chọn, giữ dữ liệu và tiêu đề. */
+  setChartType(chartType) {
+    const shape = this._selectedChartShape();
+    if (!shape) return false;
+    if (!["bar", "line", "pie", "area"].includes(chartType)) return false;
+    if (shape.chartType === chartType) return true;
+    return Boolean(this.updateChart(shape.id, { ...shape, chartType }, true));
+  }
+
+  _selectedChartShape() {
+    const slide = this.slides?.[this.currentSlideIndex];
+    const id = this.selectedTarget;
+    if (id == null) return null;
+    const shape = (slide?.shapes || []).find(item => String(item.id) === String(id));
+    return shape && shape.type === "chart" ? shape : null;
   }
 
   async editChart(shapeId = this.selectedTarget) {
