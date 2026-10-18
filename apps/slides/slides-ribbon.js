@@ -939,6 +939,16 @@ export const SLIDES_RIBBON_TABS = [
         ]
       },
       {
+        id: "tableCellSize",
+        label: "Kích thước ô",
+        labelKey: "slidesRibbon.group.tableCellSize",
+        items: [
+          { type: "button", commandId: "slides.table.distributeRows" },
+          { type: "button", commandId: "slides.table.distributeCols" },
+          { type: "button", commandId: "slides.table.cellSize" }
+        ]
+      },
+      {
         id: "tableAlignment",
         label: "Căn chỉnh",
         labelKey: "slidesRibbon.group.tableAlignment",

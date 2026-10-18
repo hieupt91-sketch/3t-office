@@ -17,7 +17,7 @@ import { parseOfficeHtmlTable, parseOfficeTsv, isCellBold } from "../../../platf
 import { formatDateTime } from "../../../platform/ui-kit/datetime-format.js";
 import { normalizeDocumentProperties, documentPropertiesMarker, showDocumentPropertiesDialog } from "../../../platform/dialogs/document-properties.js";
 import { showSlidesDocumentInspectorDialog } from "../../../apps/slides/document-inspector-dialog.js";
-import { effectiveCellFills, effectiveEdge } from "../../../apps/slides/slide-table-ops.js";
+import { effectiveCellFills, effectiveEdge, tableState } from "../../../apps/slides/slide-table-ops.js";
 
 export function stripClipboardFragmentMarkers(html) {
   return String(html || "").replace(/<!--\s*(?:Start|End)Fragment\s*-->/gi, "");
@@ -346,6 +346,9 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.table.bordersOutside", () => this._hintIfFalse(() => this.canvas.setTableBorders("outside"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
     globalCommandBus.bindHandler("slides.table.bordersInside", () => this._hintIfFalse(() => this.canvas.setTableBorders("inside"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
     globalCommandBus.bindHandler("slides.table.bordersNone", () => this._hintIfFalse(() => this.canvas.setTableBorders("none"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
+    globalCommandBus.bindHandler("slides.table.distributeRows", () => this._hintIfFalse(() => this.canvas.distributeTable("rows"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
+    globalCommandBus.bindHandler("slides.table.distributeCols", () => this._hintIfFalse(() => this.canvas.distributeTable("cols"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
+    globalCommandBus.bindHandler("slides.table.cellSize", () => this._hintIfFalse(() => this.canvas.openTableSizeDialog(), "Hãy đặt con trỏ vào một ô của bảng trước."));
     globalCommandBus.bindHandler("slides.animation.painter", () => this._hintIfFalse(() => this.canvas.animationPainter(), "Hãy chọn một đối tượng đã có hiệu ứng để lấy, rồi chọn đối tượng đích và nhấn lại Sao chép hoạt ảnh."));
     // Thư viện hình dựng sẵn và Đổi hình dạng (apps/slides/shape-presets.js).
     globalCommandBus.bindHandler("slides.shape.galleryInsert", () => this.canvas.insertShape ? this.canvas.insertShape("rect") : false);
@@ -3086,6 +3089,25 @@ export class SlidesAdapter {
         });
       }
     }
+    for (const slide of slides) {
+      for (const shape of slide.shapes || []) {
+        if (shape.type !== "table") continue;
+        const sizes = tableState(shape);
+        const key = this._styleKey(String(shape.id));
+        sizes.colWidths?.forEach((width, index) => {
+          xml += `
+    <style:style style:name="vnoCo_${key}_${index}" style:family="table-column">
+      <style:table-column-properties style:column-width="${this._pxToOdf(width)}"/>
+    </style:style>`;
+        });
+        sizes.rowHeights?.forEach((height, index) => {
+          xml += `
+    <style:style style:name="vnoRo_${key}_${index}" style:family="table-row">
+      <style:table-row-properties style:row-height="${this._pxToOdf(height)}" style:use-optimal-row-height="false"/>
+    </style:style>`;
+        });
+      }
+    }
     for (const [name, { hex, valign, borders }] of tableCellStyles) {
       const vertical = valign ? ` style:vertical-align="${valign}"` : "";
       const borderAttrs = ["top", "right", "bottom", "left"].map(side => ` fo:border-${side}="${borders[side] ? `${borders[side].widthPt}pt solid ${borders[side].color}` : "none"}"`).join("");
@@ -3203,6 +3225,8 @@ export class SlidesAdapter {
       const cols = Math.max(1, Number(shape.cols) || rows.reduce((max, row) => Math.max(max, (row || []).length), 1));
       const tableSpans = Array.isArray(shape.merges) ? shape.merges : [];
       const effectiveFills = this._tableExportFills(shape);
+      const sizeState = tableState(shape);
+      const sizeKey = this._styleKey(String(shape.id));
       const spanAt = (r, c) => tableSpans.find(m => r >= m.r && r < m.r + m.rs && c >= m.c && c < m.c + m.cs);
       const rowsXml = rows.map((row, rowIndex) => {
         const cells = Array.from({ length: cols }, (_, index) => row?.[index] ?? "");
@@ -3218,12 +3242,16 @@ export class SlidesAdapter {
           const styleAttr = cellStyleName ? ` table:style-name="${cellStyleName}"` : "";
           return `<table:table-cell office:value-type="string"${spanAttr}${styleAttr}>${this._richOrPlainXml(plain, html, richCtx)}</table:table-cell>`;
         }).join("");
-        return `<table:table-row>${cellsXml}</table:table-row>`;
+        const rowStyleAttr = sizeState.rowHeights ? ` table:style-name="vnoRo_${sizeKey}_${rowIndex}"` : "";
+        return `<table:table-row${rowStyleAttr}>${cellsXml}</table:table-row>`;
       }).join("");
+      const columnsXml = sizeState.colWidths
+        ? sizeState.colWidths.map((_, index) => `<table:table-column table:style-name="vnoCo_${sizeKey}_${index}"/>`).join("")
+        : `<table:table-column table:number-columns-repeated="${cols}"/>`;
       return `
         <draw:frame ${geom}>
           <table:table table:name="${this._escapeXml(String(shape.id ?? drawId))}">
-            <table:table-column table:number-columns-repeated="${cols}"/>
+            ${columnsXml}
             ${rowsXml}
           </table:table>
         </draw:frame>`;
@@ -3595,6 +3623,59 @@ export class SlidesAdapter {
       if (edge !== undefined) { result[side] = edge; any = true; }
     }
     return any ? result : null;
+  }
+
+  /** Kích thước cột/hàng bảng từ kiểu ODF: tên kiểu -> px (style:column-width, style:row-height / min-row-height). */
+  _parseTableLineStyles(xmlText) {
+    const map = new Map();
+    const styleRegex = /<style:style\b([^>]*?)>([\s\S]*?)<\/style:style>/gi;
+    let match;
+    while ((match = styleRegex.exec(xmlText)) !== null) {
+      const family = this._attr(match[1], "style:family");
+      if (family !== "table-column" && family !== "table-row") continue;
+      const name = this._attr(match[1], "style:name");
+      const raw = family === "table-column"
+        ? match[2].match(/style:column-width=["']([^"']+)["']/i)?.[1]
+        : (match[2].match(/style:row-height=["']([^"']+)["']/i)?.[1] || match[2].match(/style:min-row-height=["']([^"']+)["']/i)?.[1]);
+      const px = this._odfLengthToPx(raw, false);
+      if (name && px > 0) map.set(name, px);
+    }
+    return map;
+  }
+
+  /** Mảng chiều cao hàng / bề rộng cột của bảng (px) khi chúng khác nhau; null nếu đều nhau hoặc không đọc được. Co về đúng khung bảng. */
+  _parseTableSizes(inner, rowCount, colCount, frameW, frameH) {
+    const styles = this._tableLineStyles;
+    if (!styles || !styles.size) return { rowHeights: null, colWidths: null };
+    const expand = (regex, count) => {
+      const list = [];
+      let m;
+      while ((m = regex.exec(inner)) !== null) {
+        const repeat = Math.max(1, Number(this._attr(m[1], "table:number-columns-repeated")) || 1);
+        const px = styles.get(this._attr(m[1], "table:style-name") || "");
+        for (let i = 0; i < repeat; i++) list.push(px || 0);
+      }
+      return list.length === count && list.every(v => v > 0) ? list : null;
+    };
+    const fit = (list, frame) => {
+      if (!list) return null;
+      const total = list.reduce((a, b) => a + b, 0);
+      if (!(frame > 0) || !(total > 0)) return null;
+      const scaled = list.map(v => (v * frame) / total);
+      const allEqual = scaled.every(v => Math.abs(v - scaled[0]) < 1);
+      return allEqual ? null : scaled;
+    };
+    const rowList = [];
+    const rowRegex = /<table:table-row\b([^>]*?)(?:\/>|>)/gi;
+    let rm;
+    while ((rm = rowRegex.exec(inner)) !== null) {
+      const repeat = Math.max(1, Number(this._attr(rm[1], "table:number-rows-repeated")) || 1);
+      const px = styles.get(this._attr(rm[1], "table:style-name") || "");
+      for (let i = 0; i < repeat; i++) rowList.push(px || 0);
+    }
+    const rows = rowList.length === rowCount && rowList.every(v => v > 0) ? rowList : null;
+    const cols = expand(/<table:table-column\b([^>]*?)\/?>/gi, colCount);
+    return { rowHeights: fit(rows, frameH), colWidths: fit(cols, frameW) };
   }
 
   _parseTableCellStyles(xmlText) {
@@ -4099,10 +4180,13 @@ export class SlidesAdapter {
     if (/<table:table\b/i.test(inner)) {
       const cells = this._parseTableCells(inner);
       const tableMerges = this._parseTableMerges(inner);
+      const tableSizes = this._parseTableSizes(inner, cells.length, cells.reduce((max, row) => Math.max(max, row.length), 0), base.w, base.h);
       return {
         ...base,
         type: "table",
         cells,
+        ...(tableSizes.rowHeights ? { rowHeights: tableSizes.rowHeights } : {}),
+        ...(tableSizes.colWidths ? { colWidths: tableSizes.colWidths } : {}),
         ...(cells.cellFills ? { cellFills: cells.cellFills } : {}),
         ...(cells.cellValign ? { cellValign: cells.cellValign } : {}),
         ...(cells.cellBorders ? { cellBorders: cells.cellBorders } : {}),
@@ -4858,6 +4942,7 @@ export class SlidesAdapter {
     this._fontFaceMap = this._parseFontFaceMap(xmlText);
     const graphicStyles = this._parseGraphicFillStyles(xmlText);
     this._cellStyles = this._parseTableCellStyles(xmlText);
+    this._tableLineStyles = this._parseTableLineStyles(xmlText);
     const drawingPageStyles = this._parseDrawingPageStyles(xmlText);
     const backgroundResources = this._parseBackgroundResources(xmlText);
     this._richMaps = this._parseRichStyleMaps(xmlText);

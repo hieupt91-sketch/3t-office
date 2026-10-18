@@ -4,7 +4,7 @@
 import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
 import {
   tableState, mergeMap, insertRow, insertCol, deleteRow, deleteCol, mergeCells, splitCell, expandSelection, TABLE_MAX_ROWS, TABLE_MAX_COLS,
-  effectiveCellFill, effectiveCellFills, fillCells, tableOptions, TABLE_STYLES, alignCellHtml, cellAlignOf, setCellValign, applyBorderMode, effectiveEdge, parseEdge
+  effectiveCellFill, effectiveCellFills, fillCells, tableOptions, TABLE_STYLES, alignCellHtml, cellAlignOf, setCellValign, applyBorderMode, effectiveEdge, parseEdge, setCellSize, distributeSizes, effectiveRowHeights, effectiveColWidths
 } from "../../apps/slides/slide-table-ops.js";
 
 const base = () => ({ rows: 3, cols: 3, w: 420, h: 108, cells: [["a", "b", "c"], ["d", "e", "f"], ["g", "h", "i"]] });
@@ -182,6 +182,24 @@ export async function runSlideTableOpsTests() {
     eq(insertRow(t, 1).cellBorders[1], [null, null, null], "hàng chèn không viền riêng");
     eq(parseEdge(deleteRow(t, 1).cellBorders[1][0].left).color, "#000000", "xóa hàng giữa: viền trái cột đầu vẫn còn");
     eq(parseEdge("#aabbcc|1.5"), { color: "#AABBCC", widthPt: 1.5 }); eq(parseEdge("none"), { none: true }); eq(parseEdge("x"), null);
+  });
+
+  test("Kích thước hàng/cột: mặc định chia đều khung, đặt riêng, phân phối đều, chèn xóa giữ danh sách và tổng", () => {
+    const t = base();
+    eq(effectiveRowHeights(t), [36, 36, 36]); eq(effectiveColWidths(t), [140, 140, 140]);
+    const sized = setCellSize(t, { row: 1, height: 80, col: 2, width: 200 });
+    eq(sized.rowHeights, [36, 80, 36]); eq(sized.colWidths, [140, 140, 200]); eq(sized.h, 152); eq(sized.w, 480);
+    eq(setCellSize(t, { row: 0, height: 1, col: 0, width: 1 }).rowHeights[0], 18, "hàng tối thiểu 18px");
+    const withSizes = { ...t, ...sized };
+    eq(distributeSizes(withSizes, "rows", 0, 2).rowHeights.map(Math.round), [51, 51, 51], "phân phối đều hàng");
+    eq(distributeSizes(withSizes, "cols", 0, 0), null, "một cột không phân phối");
+    eq(distributeSizes(withSizes, "rows", 1, 2).rowHeights.map(Math.round), [36, 58, 58], "chỉ vùng 2-3 giữ hàng 1");
+    const inserted = insertRow(withSizes, 1);
+    eq(inserted.rowHeights, [36, 80, 80, 36]); eq(inserted.h, 232, "tổng khung theo hàng");
+    eq(deleteRow(withSizes, 1).rowHeights, [36, 36]);
+    eq(insertCol(withSizes, 3).colWidths, [140, 140, 200, 200]);
+    eq(deleteCol(withSizes, 0).colWidths, [140, 200]); eq(deleteCol(withSizes, 0).w, 340);
+    eq(insertRow(base(), 1).rowHeights, null, "bảng chưa có kích thước riêng thì không thêm mảng");
   });
 
   return results;

@@ -22,7 +22,55 @@ export function tableState(shape) {
   const cellFills = Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => shape?.cellFills?.[r]?.[c] || null));
   const cellValign = Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => shape?.cellValign?.[r]?.[c] || null));
   const cellBorders = Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => (shape?.cellBorders?.[r]?.[c] ? { ...shape.cellBorders[r][c] } : null)));
-  return { rows, cols, cells, merges, cellFills, cellValign, cellBorders, w: Number(shape?.w) || 0, h: Number(shape?.h) || 0 };
+  const sizes = (list, count) => (Array.isArray(list) && list.length === count && list.every(v => Number(v) > 0) ? list.map(Number) : null);
+  return { rows, cols, cells, merges, cellFills, cellValign, cellBorders, rowHeights: sizes(shape?.rowHeights, rows), colWidths: sizes(shape?.colWidths, cols), w: Number(shape?.w) || 0, h: Number(shape?.h) || 0 };
+}
+
+// ---------------- Kích thước hàng và cột ----------------
+export const TABLE_MIN_ROW_PX = 18;
+export const TABLE_MIN_COL_PX = 30;
+const sumOf = list => list.reduce((a, b) => a + b, 0);
+
+/** Chiều cao từng hàng / bề rộng từng cột hiệu lực (px): mảng riêng nếu có, không thì chia đều khung. */
+export function effectiveRowHeights(shape) {
+  const s = tableState(shape);
+  return s.rowHeights ? s.rowHeights.slice() : Array.from({ length: s.rows }, () => s.h / s.rows);
+}
+export function effectiveColWidths(shape) {
+  const s = tableState(shape);
+  return s.colWidths ? s.colWidths.slice() : Array.from({ length: s.cols }, () => s.w / s.cols);
+}
+
+/** Đặt chiều cao hàng `row` và/hoặc bề rộng cột `col` (px); trả { rowHeights, colWidths, w, h } mới. */
+export function setCellSize(shape, { row = null, height = null, col = null, width = null }) {
+  const rowHeights = effectiveRowHeights(shape);
+  const colWidths = effectiveColWidths(shape);
+  if (row != null && height != null && row >= 0 && row < rowHeights.length) rowHeights[row] = Math.max(TABLE_MIN_ROW_PX, Number(height));
+  if (col != null && width != null && col >= 0 && col < colWidths.length) colWidths[col] = Math.max(TABLE_MIN_COL_PX, Number(width));
+  return { rowHeights, colWidths, h: Math.round(sumOf(rowHeights)), w: Math.round(sumOf(colWidths)) };
+}
+
+/** Phân phối đều các hàng (kind "rows") hoặc cột ("cols") trong khoảng [from, to]; giữ nguyên tổng kích thước của khoảng đó. */
+export function distributeSizes(shape, kind, from, to) {
+  const rowHeights = effectiveRowHeights(shape);
+  const colWidths = effectiveColWidths(shape);
+  const list = kind === "rows" ? rowHeights : colWidths;
+  const a = Math.max(0, from); const b = Math.min(list.length - 1, to);
+  if (b <= a) return null;
+  const share = sumOf(list.slice(a, b + 1)) / (b - a + 1);
+  for (let i = a; i <= b; i++) list[i] = share;
+  return { rowHeights, colWidths, h: Math.round(sumOf(rowHeights)), w: Math.round(sumOf(colWidths)) };
+}
+
+/** Giữ danh sách kích thước theo phép chèn/xóa (kind: insertRow | insertCol | deleteRow | deleteCol | null) và cập nhật w/h theo tổng. */
+function carrySizes(s, result, kind, index) {
+  let rh = s.rowHeights ? s.rowHeights.slice() : null;
+  let cw = s.colWidths ? s.colWidths.slice() : null;
+  if (kind === "insertRow" && rh) rh.splice(index, 0, rh[Math.min(index, rh.length - 1)]);
+  if (kind === "insertCol" && cw) cw.splice(index, 0, cw[Math.min(index, cw.length - 1)]);
+  if (kind === "deleteRow" && rh) rh.splice(index, 1);
+  if (kind === "deleteCol" && cw) cw.splice(index, 1);
+  return { ...result, rowHeights: rh, colWidths: cw, ...(rh ? { h: Math.round(sumOf(rh)) } : {}), ...(cw ? { w: Math.round(sumOf(cw)) } : {}) };
 }
 
 // ---------------- Viền bảng ----------------
@@ -225,7 +273,7 @@ export function insertRow(shape, index) {
     if (m.r < index && index < m.r + m.rs) return { ...m, rs: m.rs + 1 }; // chèn vào giữa vùng gộp: vùng gộp dài thêm
     return { ...m };
   });
-  return { rows: s.rows + 1, cols: s.cols, cells, merges, cellFills, cellValign, cellBorders, ...scaled(s, s.rows + 1, s.cols) };
+  return carrySizes(s, { rows: s.rows + 1, cols: s.cols, cells, merges, cellFills, cellValign, cellBorders, ...scaled(s, s.rows + 1, s.cols) }, "insertRow", index);
 }
 
 /** Chèn một cột trống TRƯỚC cột `index` (0..cols). */
@@ -241,7 +289,7 @@ export function insertCol(shape, index) {
     if (m.c < index && index < m.c + m.cs) return { ...m, cs: m.cs + 1 };
     return { ...m };
   });
-  return { rows: s.rows, cols: s.cols + 1, cells, merges, cellFills, cellValign, cellBorders, ...scaled(s, s.rows, s.cols + 1) };
+  return carrySizes(s, { rows: s.rows, cols: s.cols + 1, cells, merges, cellFills, cellValign, cellBorders, ...scaled(s, s.rows, s.cols + 1) }, "insertCol", index);
 }
 
 /** Xóa hàng `r`. Không xóa hàng duy nhất (trả null: người dùng dùng "Xóa bảng"). */
@@ -270,7 +318,7 @@ export function deleteRow(shape, r) {
     if (rs === 1 && m.cs === 1) continue;
     merges.push({ ...m, r: row, rs });
   }
-  return { rows: s.rows - 1, cols: s.cols, cells, merges, cellFills, cellValign, cellBorders, ...scaled(s, s.rows - 1, s.cols) };
+  return carrySizes(s, { rows: s.rows - 1, cols: s.cols, cells, merges, cellFills, cellValign, cellBorders, ...scaled(s, s.rows - 1, s.cols) }, "deleteRow", r);
 }
 
 /** Xóa cột `c`. Không xóa cột duy nhất. */
@@ -293,7 +341,7 @@ export function deleteCol(shape, c) {
     if (cs === 1 && m.rs === 1) continue;
     merges.push({ ...m, c: col, cs });
   }
-  return { rows: s.rows, cols: s.cols - 1, cells, merges, cellFills, cellValign, cellBorders, ...scaled(s, s.rows, s.cols - 1) };
+  return carrySizes(s, { rows: s.rows, cols: s.cols - 1, cells, merges, cellFills, cellValign, cellBorders, ...scaled(s, s.rows, s.cols - 1) }, "deleteCol", c);
 }
 
 function rectOf(r1, c1, r2, c2) {
@@ -338,7 +386,7 @@ export function mergeCells(shape, r1, c1, r2, c2) {
   cells[box.r][box.c] = parts.join("\n");
   const merges = s.merges.filter(m => !(m.r >= box.r && m.r + m.rs - 1 <= box.r2 && m.c >= box.c && m.c + m.cs - 1 <= box.c2));
   merges.push({ r: box.r, c: box.c, rs: box.r2 - box.r + 1, cs: box.c2 - box.c + 1 });
-  return { rows: s.rows, cols: s.cols, cells, merges, cellFills: clone(s.cellFills), cellValign: clone(s.cellValign), cellBorders: clone(s.cellBorders), w: s.w, h: s.h };
+  return { rows: s.rows, cols: s.cols, cells, merges, cellFills: clone(s.cellFills), cellValign: clone(s.cellValign), cellBorders: clone(s.cellBorders), rowHeights: s.rowHeights, colWidths: s.colWidths, w: s.w, h: s.h };
 }
 
 /** Tách ô (r, c) đang thuộc vùng gộp: bỏ vùng gộp, nội dung ở lại ô neo. */
@@ -346,5 +394,5 @@ export function splitCell(shape, r, c) {
   const s = tableState(shape);
   const hit = s.merges.find(m => r >= m.r && r < m.r + m.rs && c >= m.c && c < m.c + m.cs);
   if (!hit) return null;
-  return { rows: s.rows, cols: s.cols, cells: clone(s.cells), merges: s.merges.filter(m => m !== hit), cellFills: clone(s.cellFills), cellValign: clone(s.cellValign), cellBorders: clone(s.cellBorders), w: s.w, h: s.h };
+  return { rows: s.rows, cols: s.cols, cells: clone(s.cells), merges: s.merges.filter(m => m !== hit), cellFills: clone(s.cellFills), cellValign: clone(s.cellValign), cellBorders: clone(s.cellBorders), rowHeights: s.rowHeights, colWidths: s.colWidths, w: s.w, h: s.h };
 }

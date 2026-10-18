@@ -362,6 +362,20 @@ export const SLIDES_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.table.cellSize",
+    app: "slides",
+    commandIds: ["slides.table.distributeRows", "slides.table.distributeCols", "slides.table.cellSize"],
+    title: "Bố cục bảng: kích thước hàng, cột và phân phối đều",
+    summary: "Nhóm Kích thước ô của tab Bố cục bảng cho đặt chiều cao hàng và bề rộng cột (cm) của ô đang chọn, hoặc làm các hàng cao bằng nhau, các cột rộng bằng nhau.",
+    ribbon: { tab: "Bố cục bảng", tabId: "tableLayout", group: "Kích thước ô" },
+    keywords: ["chiều cao hàng", "bề rộng cột", "phân phối đều", "distribute rows", "distribute columns", "kích thước ô", "row height", "column width"],
+    steps: [
+      "Đặt con trỏ vào một ô của bảng, vào tab Bố cục bảng > nhóm Kích thước ô > Kích thước ô…. Nhập chiều cao của hàng và bề rộng của cột chứa ô (đơn vị cm; hàng cao tối đa 30 cm, cột rộng tối đa 40 cm), nhấn Enter hoặc Áp dụng. Bảng to lên hoặc nhỏ lại theo tổng kích thước.",
+      "Phân phối đều hàng / Phân phối đều cột: làm mọi hàng cao bằng nhau, mọi cột rộng bằng nhau trong cả bảng. Nếu đã chọn vùng ô (nhấp ô đầu, giữ Shift và nhấp ô cuối) thì chỉ phân phối đều các hàng hoặc cột trong vùng đó.",
+      "Chèn hoặc xóa hàng, cột vẫn giữ kích thước các hàng cột còn lại. Ctrl+Z hoàn tác. Kích thước được lưu vào tệp PPTX và còn nguyên khi mở lại."
+    ]
+  },
+  {
     id: "slides.picture.crop",
     app: "slides",
     commandIds: ["slides.picture.crop", "slides.picture.cropRatio", "slides.picture.cropDialog", "slides.picture.cropDrag"],

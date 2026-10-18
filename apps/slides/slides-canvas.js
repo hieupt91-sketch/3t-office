@@ -200,9 +200,9 @@ export function cursorForHandle(dir, rotationDeg) {
   return CURSOR_CYCLE[idx];
 }
 
-import { customSlideSize, pxToCm } from "./slide-size.js";
+import { customSlideSize, pxToCm, cmToPx, parseCm } from "./slide-size.js";
 import { ANIMATION_EFFECTS, animationEffectsOfClass, animationEffect, animationClassOf, animationKeyframeName, animationInlineCss } from "./slide-animation-classes.js";
-import { TABLE_STYLES, applyBorderMode, effectiveEdge, alignCellHtml, setCellValign, tableOptions, effectiveCellFill, fillCells, tableState, mergeMap, expandSelection, insertRow as tblInsertRow, insertCol as tblInsertCol, deleteRow as tblDeleteRow, deleteCol as tblDeleteCol, mergeCells as tblMergeCells, splitCell as tblSplitCell } from "./slide-table-ops.js";
+import { setCellSize, distributeSizes, effectiveRowHeights, effectiveColWidths, TABLE_STYLES, applyBorderMode, effectiveEdge, alignCellHtml, setCellValign, tableOptions, effectiveCellFill, fillCells, tableState, mergeMap, expandSelection, insertRow as tblInsertRow, insertCol as tblInsertCol, deleteRow as tblDeleteRow, deleteCol as tblDeleteCol, mergeCells as tblMergeCells, splitCell as tblSplitCell } from "./slide-table-ops.js";
 
 export class SlidesCanvasController {
   constructor(container, options = {}) {
@@ -3590,6 +3590,65 @@ export class SlidesCanvasController {
     return done;
   }
 
+  /** Bố cục bảng > Phân phối đều hàng ("rows") hoặc cột ("cols"): vùng ô chọn nếu có từ hai hàng/cột trở lên, không thì cả bảng. */
+  distributeTable(kind) {
+    const shape = this._activeTableShape();
+    if (!shape) return this._tableNotice("Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng.");
+    const state = tableState(shape);
+    const sel = this._tableSel && String(this._tableSel.shapeId) === String(shape.id) ? this._tableSel : null;
+    const [lo, hi, total] = kind === "rows" ? [sel?.r ?? 0, sel?.r2 ?? state.rows - 1, state.rows] : [sel?.c ?? 0, sel?.c2 ?? state.cols - 1, state.cols];
+    const from = hi > lo ? lo : 0;
+    const to = hi > lo ? hi : total - 1;
+    const next = distributeSizes(shape, kind, from, to);
+    if (!next) return this._tableNotice(kind === "rows" ? "Bảng chỉ có một hàng nên không cần phân phối đều." : "Bảng chỉ có một cột nên không cần phân phối đều.");
+    return this._commitTablePatch(shape, next);
+  }
+
+  /** Bố cục bảng > Kích thước ô: hộp thoại đặt chiều cao hàng và bề rộng cột của ô đang đặt con trỏ (cm). */
+  openTableSizeDialog() {
+    const shape = this._activeTableShape();
+    if (!shape || typeof document === "undefined") return this._tableNotice("Hãy đặt con trỏ vào một ô của bảng.");
+    const cur = this._tableCursor && String(this._tableCursor.shapeId) === String(shape.id) ? this._tableCursor : { r: 0, c: 0 };
+    const heights = effectiveRowHeights(shape);
+    const widths = effectiveColWidths(shape);
+    const fmt = (px) => String(pxToCm(px, this.ptPerPx)).replace(".", ",");
+    const previousFocused = document.activeElement;
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay";
+    overlay.innerHTML = `
+      <div class="vno-dialog-box" role="dialog" aria-modal="true" aria-labelledby="vno-tblsize-title" style="width:min(420px,calc(100vw - 32px));">
+        <div class="vno-dialog-header"><span id="vno-tblsize-title">${t("slidesDialogs.tableSizeTitle", "Kích thước ô")}</span><button type="button" class="vno-btn vno-dialog-close-btn" aria-label="${t("slidesDialogs.close", "Đóng")}">&times;</button></div>
+        <div class="vno-dialog-body" style="display:grid;gap:12px;">
+          <label style="display:grid;gap:4px;font-weight:600;">${t("slidesDialogs.tableRowHeightCm", "Chiều cao hàng")} ${cur.r + 1} (cm)<input class="vno-input" type="text" inputmode="decimal" id="vno-tblsize-h" value="${fmt(heights[cur.r])}" autocomplete="off"></label>
+          <label style="display:grid;gap:4px;font-weight:600;">${t("slidesDialogs.tableColWidthCm", "Bề rộng cột")} ${cur.c + 1} (cm)<input class="vno-input" type="text" inputmode="decimal" id="vno-tblsize-w" value="${fmt(widths[cur.c])}" autocomplete="off"></label>
+          <p id="vno-tblsize-error" role="alert" style="margin:0;color:#b91c1c;font-size:12px;min-height:16px;"></p>
+        </div>
+        <div class="vno-dialog-footer"><button type="button" class="vno-btn" id="vno-tblsize-cancel">${t("slidesDialogs.cancel", "Hủy")}</button><button type="button" class="vno-btn vno-btn-primary" id="vno-tblsize-apply">${t("slidesDialogs.apply", "Áp dụng")}</button></div>
+      </div>`;
+    const close = () => { overlay.remove(); document.removeEventListener("keydown", onKey); previousFocused?.focus?.(); };
+    const apply = () => {
+      const hCm = parseCm(overlay.querySelector("#vno-tblsize-h").value);
+      const wCm = parseCm(overlay.querySelector("#vno-tblsize-w").value);
+      const error = overlay.querySelector("#vno-tblsize-error");
+      if (!(hCm > 0) || !(wCm > 0) || hCm > 30 || wCm > 40) { error.textContent = t("slidesDialogs.tableSizeInvalid", "Nhập số lớn hơn 0 (chiều cao tối đa 30 cm, bề rộng tối đa 40 cm)."); return; }
+      const next = setCellSize(shape, { row: cur.r, height: cmToPx(hCm, this.ptPerPx), col: cur.c, width: cmToPx(wCm, this.ptPerPx) });
+      close();
+      this._commitTablePatch(shape, next);
+    };
+    const onKey = (event) => {
+      if (event.key === "Escape") { event.preventDefault(); close(); }
+      else if (event.key === "Enter" && event.target?.tagName === "INPUT") { event.preventDefault(); apply(); }
+    };
+    document.addEventListener("keydown", onKey);
+    overlay.addEventListener("click", (event) => { if (event.target === overlay) close(); });
+    overlay.querySelector(".vno-dialog-close-btn")?.addEventListener("click", close);
+    overlay.querySelector("#vno-tblsize-cancel")?.addEventListener("click", close);
+    overlay.querySelector("#vno-tblsize-apply")?.addEventListener("click", apply);
+    document.body.appendChild(overlay);
+    overlay.querySelector("#vno-tblsize-h")?.focus();
+    return true;
+  }
+
   /** Thiết kế bảng > Viền bảng: mode = all | outside | inside | none cho vùng ô chọn, ô đang đặt con trỏ hoặc cả bảng. */
   setTableBorders(mode) {
     const shape = this._activeTableShape();
@@ -3639,7 +3698,7 @@ export class SlidesCanvasController {
   }
 
   _commitTableChange(shape, next) {
-    const keys = ["rows", "cols", "cells", "merges", "cellFills", "cellValign", "cellBorders", "w", "h"];
+    const keys = ["rows", "cols", "cells", "merges", "cellFills", "cellValign", "cellBorders", "rowHeights", "colWidths", "w", "h"];
     const before = {};
     const after = {};
     for (const key of keys) {
@@ -5413,8 +5472,14 @@ const startEditing = (initialText) => {
         table.style.cssText = "width:100%;height:100%;border-collapse:collapse;background:#fff;table-layout:fixed;";
         const tableModel = tableState(shape);
         const tableMap = mergeMap(tableModel);
+        if (tableModel.colWidths) {
+          const group = document.createElement("colgroup");
+          tableModel.colWidths.forEach((width) => { const col = document.createElement("col"); col.style.width = `${width}px`; group.appendChild(col); });
+          table.appendChild(group);
+        }
         tableModel.cells.forEach((row, r) => {
           const tr = document.createElement("tr");
+          if (tableModel.rowHeights) tr.style.height = `${tableModel.rowHeights[r]}px`;
           (row || []).forEach((cell, c) => {
             const spanInfo = tableMap[r][c];
             if (spanInfo.covered) return; // ô bị gộp vào ô khác: không vẽ
