@@ -172,7 +172,7 @@ Trình chiếu|Thiết lập|Ẩn trang chiếu (Hide Slide)|V|-|FIX-L5/L6: slid
 Trình chiếu|Thiết lập|Tập dượt hẹn giờ (Rehearse Timings)|A|-|slides.show.rehearseTimings; chế độ tập dượt đo thời gian từng slide (docs/SLIDES-BUTTON-MATRIX-1011.md:76)
 Trình chiếu|Thiết lập|Ghi lại trình chiếu (Record Slide Show)|N|2|Chưa hỗ trợ thu âm và lưu timeline trình diễn vào deck
 Trình chiếu|Thiết lập|Phát thuyết minh (Play Narrations)|N|3|Chưa có tùy chọn bật/tắt phát thuyết minh
-Trình chiếu|Thiết lập|Sử dụng thời gian tập dượt (Use Timings)|N|2|Chưa có tùy chọn sử dụng thời gian đã tập dượt khi chiếu
+Trình chiếu|Thiết lập|Sử dụng thời gian tập dượt (Use Timings)|A|-|slides.show.setupShow: ô tích Dùng thời gian đã đặt để tự chuyển trang (mặc định bật): bật thì trang có «Sau N giây» tự sang trang kế, tắt thì đứng yên (tests/live/cdp/slides-use-timings.desktop.mjs 6/6, {{L:platform/commands/command-definitions.js|id: "slides.show.setupShow"}}); áp dụng cho thời gian đặt ở Chuyển tiếp, chưa tự dùng thời gian đã Tập dượt; không có đối chiếu PowerPoint thật
 Trình chiếu|Thiết lập|Hiện thanh điều khiển phương tiện (Show Media Controls)|N|3|Chưa có tùy chọn ẩn/hiện thanh điều khiển phương tiện khi chiếu
 Trình chiếu|Màn hình|Chọn màn hình phát (Monitors)|N|2|Chưa có menu chọn màn hình hiển thị trình chiếu ngoài Presenter View
 Trình chiếu|Màn hình|Chế độ Presenter (Presenter View, Alt+F5)|A|-|slides.show.presenterMode; giao diện người thuyết trình xem trước slide kế tiếp và ghi chú (docs/SLIDES-BUTTON-MATRIX-1011.md:73)

@@ -298,6 +298,7 @@ export class SlidesCanvasController {
     this.slideShowSettings = {
       loopUntilEsc: false,
       showWithoutNarration: false,
+      useTimings: true,
       pointerColor: "#DC2626"
     };
 
@@ -3008,6 +3009,7 @@ export class SlidesCanvasController {
     return {
       loopUntilEsc: !!current.loopUntilEsc,
       showWithoutNarration: !!current.showWithoutNarration,
+      useTimings: current.useTimings !== false,
       pointerColor: current.pointerColor || "#DC2626"
     };
   }
@@ -3016,6 +3018,7 @@ export class SlidesCanvasController {
     const next = {
       loopUntilEsc: !!settings.loopUntilEsc,
       showWithoutNarration: !!settings.showWithoutNarration,
+      useTimings: settings.useTimings !== false,
       pointerColor: String(settings.pointerColor || "#DC2626")
     };
     this.slideShowSettings = next;
@@ -11327,6 +11330,10 @@ const startEditing = (initialText) => {
               <span>${t("slidesDialogs.setupShowLoop", "Lặp lại liên tục cho đến khi nhấn Esc")}</span>
             </label>
             <label class="vno-setup-show-check" style="display:flex;align-items:flex-start;gap:8px;font-size:13px;">
+              <input type="checkbox" id="vno-setup-use-timings" ${current.useTimings !== false ? "checked" : ""}>
+              <span>${t("slidesDialogs.setupShowUseTimings", "Dùng thời gian đã đặt để tự chuyển trang")}</span>
+            </label>
+            <label class="vno-setup-show-check" style="display:flex;align-items:flex-start;gap:8px;font-size:13px;">
               <input type="checkbox" id="vno-setup-narration" ${current.showWithoutNarration ? "checked" : ""}>
               <span>${t("slidesDialogs.setupShowNoNarration", "Trình chiếu không có thuyết minh")}</span>
             </label>
@@ -11356,6 +11363,7 @@ const startEditing = (initialText) => {
       const dialogBox = overlay.querySelector(".vno-dialog-box");
       const loopEl = overlay.querySelector("#vno-setup-loop");
       const narrationEl = overlay.querySelector("#vno-setup-narration");
+      const useTimingsEl = overlay.querySelector("#vno-setup-use-timings");
       const colorEl = overlay.querySelector("#vno-setup-pointer-color");
       const hexEl = overlay.querySelector("#vno-setup-pointer-hex");
       colorEl?.addEventListener("input", () => {
@@ -11401,6 +11409,7 @@ const startEditing = (initialText) => {
         this.applySlideShowSettings({
           loopUntilEsc: !!loopEl?.checked,
           showWithoutNarration: !!narrationEl?.checked,
+          useTimings: useTimingsEl ? !!useTimingsEl.checked : true,
           pointerColor: colorEl?.value || "#DC2626"
         });
         close(true);
@@ -11636,7 +11645,7 @@ const startEditing = (initialText) => {
       // Tự chuyển trang sau N giây (Chuyển tiếp > Thời gian > Sau).
       if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
       const afterMs = Number(s.transition?.advanceAfter);
-      if (Number.isFinite(afterMs) && afterMs > 0) {
+      if (Number.isFinite(afterMs) && afterMs > 0 && this.getSlideShowSettings().useTimings) {
         autoAdvanceTimer = setTimeout(() => { autoAdvanceTimer = null; advanceShow(); }, afterMs);
       }
     };
@@ -12550,6 +12559,7 @@ const startEditing = (initialText) => {
     this.slideShowSettings = {
       loopUntilEsc: false,
       showWithoutNarration: false,
+      useTimings: true,
       pointerColor: "#DC2626"
     };
     this.toggleAnimationPane(false);
