@@ -1,4 +1,5 @@
 import { FormulaEngine } from "../../apps/sheet/formula-engine.js";
+import { parseInternalLink, formatInternalLink, toFodsHref, fromFodsHref } from "../../apps/sheet/sheet-internal-link.js";
 
 /**
  * T.TEST / F.TEST / CHISQ.TEST (và tên cũ TTEST, FTEST, CHITEST) và GAMMA.
@@ -74,6 +75,19 @@ export async function runFormulaHypothesisTests() {
     ];
     const bad = cases.filter(([formula, expected]) => e.evaluate(formula) !== expected).map(([formula, expected]) => `${formula}: ${e.evaluate(formula)} (mong ${expected})`);
     if (bad.length) throw new Error(bad.join(" | "));
+  });
+
+  test("Liên kết nội bộ Sheet: tách, định dạng, đổi qua lại với dạng FODS", () => {
+    const eq = (a, b) => { if (JSON.stringify(a) !== JSON.stringify(b)) throw new Error(`${JSON.stringify(a)} != ${JSON.stringify(b)}`); };
+    eq(parseInternalLink("#Sheet2!b3"), { sheet: "Sheet2", ref: "B3" });
+    eq(parseInternalLink("#'Số liệu'!A1:C3"), { sheet: "Số liệu", ref: "A1:C3" });
+    eq(parseInternalLink("#$'Trang 2'.$D$4"), { sheet: "Trang 2", ref: "D4" });
+    eq(parseInternalLink("https://x.vn"), null);
+    eq(parseInternalLink("#Sheet2!ZZZ"), null);
+    eq(formatInternalLink("Trang 2", "c5"), "#'Trang 2'!C5");
+    eq(toFodsHref("#'Trang 2'!C5"), "#'Trang 2'.C5");
+    eq(fromFodsHref("#Sheet2.B3"), "#Sheet2!B3");
+    eq(fromFodsHref("#'Trang 2'.C5"), "#'Trang 2'!C5");
   });
 
   return results;

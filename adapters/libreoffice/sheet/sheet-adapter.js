@@ -19,6 +19,7 @@ import {
 } from "../../../platform/clipboard/office-clipboard.js";
 import { extractSheetRangeData, extractSheetChartData } from "../../../apps/sheet/sheet-chart-data.js";
 import { TABLE_STYLE_PRESETS, findTableStylePreset } from "../../../apps/sheet/cell-style-presets.js";
+import { parseInternalLink, formatInternalLink, toFodsHref, fromFodsHref } from "../../../apps/sheet/sheet-internal-link.js";
 import { t } from "../../../platform/i18n/i18n.js";
 import {
   normalizeDocumentProperties,
@@ -738,7 +739,8 @@ export class SheetAdapter {
         const existingLink = this.grid?.selectedCoord ? (this.grid.getCellData?.(this.grid.selectedCoord)?.hyperlink || "https://") : "https://";
         const result = await showHyperlinkDialog({
           url: existingLink !== "https://" ? existingLink : "https://",
-          text: text || currentVal
+          text: text || currentVal,
+          sheetNames: this.grid?.sheets, parseInternal: parseInternalLink, formatInternal: formatInternalLink
         });
         if (!result || !result.url) return false;
         url = result.url;
@@ -4073,7 +4075,7 @@ export class SheetAdapter {
           const cellAttrs = `${formulaAttrs}${matrixAttrs}${mergeAttrs}${numFmtAttr}${nativeFormatAttr}${cellStyleName ? ` table:style-name="${cellStyleName}"` : ""}${validationAttr}${xfAttr}`;
           const comment = comments[coordinate];
           const annotationXml = comment ? `<office:annotation${comment.visible ? ' office:display="true"' : ""}><dc:creator>${this._escapeXml(comment.author || "")}</dc:creator>${comment.timestamp ? `<dc:date>${this._escapeXml(comment.timestamp)}</dc:date>` : ""}<text:p>${this._escapeXml(comment.text || "")}</text:p></office:annotation>` : "";
-          const hyperlink = /^(https?:|mailto:)/i.test(String(item.hyperlink || "")) ? String(item.hyperlink) : "";
+          const hyperlink = /^(https?:|mailto:)/i.test(String(item.hyperlink || "")) ? String(item.hyperlink) : toFodsHref(item.hyperlink);
           const linkText = content => hyperlink
             ? `<text:a xlink:href="${this._escapeXml(hyperlink)}" xlink:type="simple">${content}</text:a>`
             : content;
@@ -5381,6 +5383,7 @@ ${pristineXlsxMarker}${docPropsMarker}
                     || hyperlinkNode?.getAttributeNS?.("http://www.w3.org/1999/xlink", "href")
                     || "";
                   if (/^(https?:|mailto:)/i.test(hyperlink)) item.hyperlink = hyperlink;
+                  else if (fromFodsHref(hyperlink)) item.hyperlink = fromFodsHref(hyperlink);
                   // Extract rich text runs from <text:span> elements
                   if (textStyles.size > 0) {
                     const cellVisual = cellVisualStyles.get(attributes["table:style-name"]) || {};
@@ -5697,6 +5700,7 @@ ${pristineXlsxMarker}${docPropsMarker}
                 const hyperlink = valueContent.match(/<(?:text:)?a\b[^>]*\bxlink:href=["']([^"']+)["']/i)?.[1] || "";
                 const safeHyperlink = this._unescapeXml(hyperlink);
                 if (/^(https?:|mailto:)/i.test(safeHyperlink)) item.hyperlink = safeHyperlink;
+                else if (fromFodsHref(safeHyperlink)) item.hyperlink = fromFodsHref(safeHyperlink);
                 // Extract rich text runs from <text:span> elements (regex branch)
                 if (textStyles.size > 0) {
                   const cellVisual = cellVisualStyles.get(attributes["table:style-name"]) || {};
@@ -7315,7 +7319,8 @@ ${pristineXlsxMarker}${docPropsMarker}
           const existingLink = this.grid?.selectedCoord ? (this.grid.getCellData?.(this.grid.selectedCoord)?.hyperlink || "https://") : "https://";
           const result = await showHyperlinkDialog({
             url: existingLink !== "https://" ? existingLink : "https://",
-            text: text || currentVal
+            text: text || currentVal,
+            sheetNames: this.grid?.sheets, parseInternal: parseInternalLink, formatInternal: formatInternalLink
           });
           if (!result || !result.url) return false;
           url = result.url;

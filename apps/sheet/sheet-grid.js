@@ -3,6 +3,7 @@
  */
 
 import { buildSeries } from "./sheet-series.js";
+import { parseInternalLink } from "./sheet-internal-link.js";
 import { shiftFormulaRefs, translateFormulaRefs, moveFormulaRefs, transposeFormulaRefs } from "./formula-ref-shift.js";
 import { advancedFilterRows } from "./advanced-filter.js";
 import { expandStructuredReferences, hasStructuredReference, renameTableInStructuredReferences, renameColumnInStructuredReferences } from "./structured-references.js";
@@ -12555,7 +12556,7 @@ export class SheetGridController {
 
   insertHyperlink(url, text = "") {
     const safeUrl = String(url || "").trim();
-    if (!/^(https?:|mailto:)/i.test(safeUrl)) return false;
+    if (!/^(https?:|mailto:)/i.test(safeUrl) && !parseInternalLink(safeUrl)) return false;
     const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
     const oldItem = this.cellsData.get(key) ? structuredClone(this.cellsData.get(key)) : null;
     const item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
@@ -12631,8 +12632,30 @@ export class SheetGridController {
 
   openHyperlinkAtSelection() {
     const url = String(this.cellsData.get(`${this.selectedCoord.c}${this.selectedCoord.r}`)?.hyperlink || "");
+    if (parseInternalLink(url)) return this.followInternalLink(url);
     if (!/^(https?:|mailto:)/i.test(url)) return false;
     globalThis.open?.(url, "_blank", "noopener,noreferrer");
+    return true;
+  }
+
+  /** Đi tới ô/trang đích của liên kết nội bộ "#Trang!A1". */
+  followInternalLink(url) {
+    const target = parseInternalLink(url);
+    if (!target) return false;
+    const sheetName = (this.sheets || []).find(name => String(name).toLowerCase() === target.sheet.toLowerCase());
+    if (!sheetName) {
+      if (typeof document !== "undefined" && document.body) showAlertDialog({ title: "Siêu liên kết", message: `Không tìm thấy trang tính «${target.sheet}» mà liên kết trỏ tới.`, type: "warning" });
+      return false;
+    }
+    if (sheetName !== this.activeSheet) this.switchSheet(sheetName);
+    const [first] = target.ref.split(":");
+    const [col, row] = this._splitCoord(first);
+    this.selectCell(col, row);
+    if (target.ref.includes(":")) {
+      const [, last] = target.ref.split(":");
+      const [col2, row2] = this._splitCoord(last);
+      this.selectCell(col2, row2, true);
+    }
     return true;
   }
 
@@ -22176,7 +22199,16 @@ export class SheetGridController {
     }
 
     if (itm.hyperlink) {
-      td.innerHTML = `<a href="${this._escapeHtml(itm.hyperlink)}" target="_blank" rel="noopener noreferrer">${this._escapeHtml(itm.val || itm.hyperlink)}</a>`;
+      if (parseInternalLink(itm.hyperlink)) {
+        td.innerHTML = `<a href="#" data-vno-internal-link="${this._escapeHtml(itm.hyperlink)}">${this._escapeHtml(itm.val || itm.hyperlink)}</a>`;
+        td.querySelector("a")?.addEventListener("click", event => {
+          event.preventDefault();
+          event.stopPropagation();
+          this.followInternalLink(itm.hyperlink);
+        });
+      } else {
+        td.innerHTML = `<a href="${this._escapeHtml(itm.hyperlink)}" target="_blank" rel="noopener noreferrer">${this._escapeHtml(itm.val || itm.hyperlink)}</a>`;
+      }
       if (col && row && typeof this._applyRowColSizeToCell === "function") this._applyRowColSizeToCell(td, col, row);
       return;
     }

@@ -58,6 +58,11 @@ export function normalizeHyperlinkUrl(url) {
 export function showHyperlinkDialog(options = {}) {
   const defaultUrl = options.url || options.defaultValue || "https://";
   const defaultText = options.text || options.displayText || "";
+  const sheetNames = Array.isArray(options.sheetNames) ? options.sheetNames : [];
+  const parseInternal = typeof options.parseInternal === "function" ? options.parseInternal : null;
+  const formatInternal = typeof options.formatInternal === "function" ? options.formatInternal : null;
+  const hasInternal = sheetNames.length > 0 && parseInternal && formatInternal;
+  const initialInternal = hasInternal ? parseInternal(defaultUrl) : null;
 
   if (typeof document === "undefined" || !document.body || typeof document.createElement !== "function") {
     return Promise.resolve({
@@ -114,6 +119,26 @@ export function showHyperlinkDialog(options = {}) {
                    placeholder="${urlPlaceholder}"
                    style="width:100%;box-sizing:border-box;padding:8px 12px;border:1px solid var(--vno-border-default,#cbd5e1);border-radius:6px;font-size:13px;outline:none;" />
           </div>
+          ${hasInternal ? `
+          <div style="display:flex;flex-direction:column;gap:6px;">
+            <label style="font-size:12px;font-weight:600;color:var(--vno-text-secondary,#475569);">${isEn ? "Link to:" : "Liên kết tới:"}</label>
+            <select class="vno-dialog-input vno-hyperlink-kind" style="padding:6px 10px;border:1px solid var(--vno-border-default,#cbd5e1);border-radius:6px;font-size:13px;">
+              <option value="web"${initialInternal ? "" : " selected"}>${isEn ? "Web page or email" : "Trang web hoặc email"}</option>
+              <option value="place"${initialInternal ? " selected" : ""}>${isEn ? "Place in this workbook" : "Vị trí trong sổ làm việc này"}</option>
+            </select>
+          </div>
+          <div class="vno-hyperlink-place-row" style="display:${initialInternal ? "flex" : "none"};gap:8px;align-items:flex-end;">
+            <div style="flex:1;display:flex;flex-direction:column;gap:6px;">
+              <label style="font-size:12px;font-weight:600;color:var(--vno-text-secondary,#475569);">${isEn ? "Sheet:" : "Trang tính:"}</label>
+              <select class="vno-dialog-input vno-hyperlink-sheet" style="padding:6px 10px;border:1px solid var(--vno-border-default,#cbd5e1);border-radius:6px;font-size:13px;">
+                ${sheetNames.map(name => `<option value="${String(name).replace(/"/g, "&quot;")}"${initialInternal && initialInternal.sheet === name ? " selected" : ""}>${String(name).replace(/</g, "&lt;")}</option>`).join("")}
+              </select>
+            </div>
+            <div style="width:130px;display:flex;flex-direction:column;gap:6px;">
+              <label style="font-size:12px;font-weight:600;color:var(--vno-text-secondary,#475569);">${isEn ? "Cell reference:" : "Tham chiếu ô:"}</label>
+              <input type="text" class="vno-dialog-input vno-hyperlink-ref" value="${initialInternal ? initialInternal.ref : "A1"}" style="padding:6px 10px;border:1px solid var(--vno-border-default,#cbd5e1);border-radius:6px;font-size:13px;" />
+            </div>
+          </div>` : ""}
           <div class="vno-dialog-error" role="alert" aria-live="assertive" style="min-height:16px;color:#b91c1c;font-size:12px;font-weight:600;"></div>
         </div>
         <div class="vno-dialog-footer" style="display:flex;justify-content:flex-end;gap:8px;padding:12px 20px;border-top:1px solid var(--vno-border-default,#e2e8f0);">
@@ -131,6 +156,19 @@ export function showHyperlinkDialog(options = {}) {
     const cancelBtn = overlay.querySelector(".vno-dialog-cancel-btn");
     const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
     const errorBox = overlay.querySelector(".vno-dialog-error");
+    const kindSelect = overlay.querySelector(".vno-hyperlink-kind");
+    const sheetSelect = overlay.querySelector(".vno-hyperlink-sheet");
+    const refInput = overlay.querySelector(".vno-hyperlink-ref");
+    const placeRow = overlay.querySelector(".vno-hyperlink-place-row");
+    const urlRow = urlInput?.parentElement;
+    const isPlaceMode = () => Boolean(kindSelect && kindSelect.value === "place");
+    const syncKind = () => {
+      if (placeRow) placeRow.style.display = isPlaceMode() ? "flex" : "none";
+      if (urlRow) urlRow.style.display = isPlaceMode() ? "none" : "flex";
+      errorBox.textContent = "";
+    };
+    kindSelect?.addEventListener?.("change", syncKind);
+    if (initialInternal) syncKind();
 
     // Nếu đã có text nhưng chưa có url hoặc url mặc định -> focus vào urlInput
     if (defaultText && defaultText.trim()) {
@@ -151,6 +189,17 @@ export function showHyperlinkDialog(options = {}) {
     };
 
     const commit = () => {
+      if (isPlaceMode()) {
+        const placeUrl = formatInternal(sheetSelect?.value || "", refInput?.value || "");
+        if (!placeUrl) {
+          errorBox.textContent = isEn ? "Enter a valid cell reference, for example B5 or A1:C3." : "Nhập tham chiếu ô hợp lệ, ví dụ B5 hoặc A1:C3.";
+          refInput?.focus?.();
+          return;
+        }
+        const placeText = (textInput?.value || defaultText || "").trim();
+        finish({ url: placeUrl, text: placeText || `${sheetSelect.value}!${refInput.value.trim().toUpperCase()}` });
+        return;
+      }
       const rawUrl = (urlInput?.value || defaultUrl || "").trim();
       const rawText = (textInput?.value || defaultText || "").trim();
       if (!rawUrl || rawUrl === "https://" || rawUrl === "http://") {

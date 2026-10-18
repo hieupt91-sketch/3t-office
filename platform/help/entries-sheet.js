@@ -870,12 +870,14 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.insert.hyperlink"],
     title: "Chèn liên kết vào ô",
-    summary: "Gắn URL http(s) hoặc mailto: vào ô đang chọn. Ô trống sẽ hiện chính địa chỉ; ô đã có chữ giữ nguyên chữ và trở thành liên kết. Phím tắt chung Ctrl+K.",
+    summary: "Gắn địa chỉ web (http/https), email (mailto:) hoặc vị trí trong sổ làm việc (trang tính + ô) vào ô đang chọn. Ô trống sẽ hiện chính địa chỉ; ô đã có chữ giữ nguyên chữ và trở thành liên kết. Phím tắt chung Ctrl+K.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Liên kết" },
     keywords: ["liên kết", "hyperlink", "url", "ctrl+k", "mailto", "chèn link"],
     steps: [
       "Chọn ô. Tab Chèn, nhóm Liên kết, nhấn Liên kết — hoặc Ctrl+K (lệnh dùng chung common.edit.hyperlink, Sheet chuyển vào cùng hộp).",
       "Hộp «Chèn liên kết»: nhập địa chỉ bắt đầu bằng https://, http:// hoặc mailto:. Mặc định gợi ý https://. Xác nhận.",
+      "Muốn nhảy tới một ô trong chính sổ này: trong hộp «Chèn liên kết», ở mục «Liên kết tới» chọn «Vị trí trong sổ làm việc này», chọn Trang tính, gõ Tham chiếu ô (ví dụ B5 hoặc A1:C3) rồi xác nhận.",
+      "Bấm vào chữ liên kết (hoặc chuột phải > Mở siêu liên kết) để đi tới đúng trang và ô đích. Nếu trang tính đích đã bị xóa hoặc đổi tên, hộp báo không tìm thấy.",
       "Địa chỉ không hợp lệ (thiếu http/mailto) bị từ chối, không ghi vào ô. Ô trống nhận luôn URL làm chữ hiển thị.",
       "Ctrl+Z gỡ liên kết vừa gắn."
     ]

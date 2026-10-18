@@ -17,8 +17,8 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Excel 2016 | 92 | 43% |
-| 🟢 Có, chưa đối chiếu | 57 | 27% |
-| 🟡 Có một phần | 25 | 12% |
+| 🟢 Có, chưa đối chiếu | 58 | 27% |
+| 🟡 Có một phần | 24 | 11% |
 | 🔴 Chưa có | 39 | 18% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
@@ -34,7 +34,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 3 | 8 | 4 | 1 | 1 | 81% |
 | Trang đầu | 53 | 27 | 15 | 9 | 2 | 0 | 88% |
-| Chèn | 29 | 9 | 5 | 2 | 11 | 2 | 56% |
+| Chèn | 29 | 9 | 6 | 1 | 11 | 2 | 57% |
 | Bố trí trang | 10 | 7 | 1 | 1 | 1 | 0 | 85% |
 | Công thức | 13 | 6 | 6 | 1 | 0 | 0 | 96% |
 | Dữ liệu | 19 | 13 | 0 | 3 | 3 | 0 | 76% |
@@ -168,7 +168,7 @@ Tổng: 2 mục ưu tiên 1.
 | Bộ lọc | Slicer cho Bảng | ✅ | - | Thiết kế Bảng > Chèn Slicer; Excel 2016 đọc lại cache, panel và lựa chọn (tests/unit/sheet-slicer.test.js:1-30; sheet.style.formatAsTable) |
 | Bộ lọc | Timeline | 🔴 | 2 |  |
 | Liên kết | Siêu liên kết (Ctrl+K), Mở, Xóa, Sửa | 🟢 | - | Siêu liên kết chèn, mở, sửa, xóa (docs/SHEET-BUTTON-MATRIX-1011.md:68; sheet.insert.hyperlink) |
-| Liên kết | Liên kết tới ô khác / trang khác / email trong cùng sổ | 🟡 | 2 | Chỉ http(s) và mailto |
+| Liên kết | Liên kết tới ô khác / trang khác / email trong cùng sổ | 🟢 | - | sheet.insert.hyperlink: hộp Ctrl+K có mục Vị trí trong sổ làm việc này (trang tính + ô); lưu XLSX thành location=Trang!Ô, mở lại giữ, bấm đi tới đúng ô (tests/live/cdp/sheet-internal-link.desktop.mjs); chưa đối chiếu Excel thật vì Excel COM chưa dùng được |
 | Văn bản | Hộp văn bản | 🟢 | - | sheet.insert.textbox; hộp văn bản nhập từ XLSX giữ khi lưu |
 | Văn bản | Đầu trang & Chân trang | ✅ | - | Header phải đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:70; sheet.page.headerFooter) |
 | Văn bản | WordArt / Dòng chữ ký / Đối tượng nhúng | 🔴 | 3 |  |

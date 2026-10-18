@@ -110,7 +110,7 @@ Chèn|Sparkline|Thắng-thua (Win/Loss)|N|3|
 Chèn|Bộ lọc|Slicer cho Bảng|V|-|Thiết kế Bảng > Chèn Slicer; Excel 2016 đọc lại cache, panel và lựa chọn (tests/unit/sheet-slicer.test.js:1-30; sheet.style.formatAsTable)
 Chèn|Bộ lọc|Timeline|N|2|
 Chèn|Liên kết|Siêu liên kết (Ctrl+K), Mở, Xóa, Sửa|A|-|Siêu liên kết chèn, mở, sửa, xóa (docs/SHEET-BUTTON-MATRIX-1011.md:68; sheet.insert.hyperlink)
-Chèn|Liên kết|Liên kết tới ô khác / trang khác / email trong cùng sổ|P|2|Chỉ http(s) và mailto
+Chèn|Liên kết|Liên kết tới ô khác / trang khác / email trong cùng sổ|A|-|sheet.insert.hyperlink: hộp Ctrl+K có mục Vị trí trong sổ làm việc này (trang tính + ô); lưu XLSX thành location=Trang!Ô, mở lại giữ, bấm đi tới đúng ô (tests/live/cdp/sheet-internal-link.desktop.mjs); chưa đối chiếu Excel thật vì Excel COM chưa dùng được
 Chèn|Văn bản|Hộp văn bản|A|-|sheet.insert.textbox; hộp văn bản nhập từ XLSX giữ khi lưu
 Chèn|Văn bản|Đầu trang & Chân trang|V|-|Header phải đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:70; sheet.page.headerFooter)
 Chèn|Văn bản|WordArt / Dòng chữ ký / Đối tượng nhúng|N|3|
