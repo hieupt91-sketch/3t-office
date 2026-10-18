@@ -164,7 +164,7 @@ Xem xét|Trợ năng|Kiểm tra trợ năng|N|3|
 Xem xét|Thông tin chi tiết|Smart Lookup|X|-|Cần dịch vụ Bing
 Xem xét|Ngôn ngữ|Dịch|P|3|Tính năng 3T AI (cần mạng, xin phép riêng)
 Xem xét|Ghi chú|Ghi chú mới / Sửa / Xóa|V|-|Ghi chú mới, sửa, xóa đã kiểm (docs/SHEET-BUTTON-MATRIX-1011.md:125-126; tests/functions/structural-cases-16.json:1-20; tests/unit/sheet-notes-fidelity.test.js:1-25; sheet.review.commentInsert, sheet.review.commentDelete)
-Xem xét|Ghi chú|Trước / Sau / Hiện-Ẩn tất cả ghi chú|P|2|Có Trước/Sau; thiếu Hiện/Ẩn tất cả
+Xem xét|Ghi chú|Trước / Sau / Hiện-Ẩn tất cả ghi chú|A|-|sheet.review.commentShowAll bật tắt hiện tất cả ghi chú ghim trên lưới (2 ghi chú hiện rồi ẩn đúng), lưu XLSX giữ ghi chú đúng ô và nội dung đọc từ XML; chưa đối chiếu Excel thật vì Excel COM chưa dùng được (tests/live/cdp/sheet-notes-show-all.desktop.mjs)
 Xem xét|Ghi chú|Nhận xét có luồng (threaded comments)|N|3|Excel 2016 chỉ có ghi chú cổ điển
 Xem xét|Thay đổi|Bảo vệ trang tính (mật khẩu, tùy chọn cho phép)|A|-|sheet.sheet.protect
 Xem xét|Thay đổi|Bảo vệ sổ làm việc (cấu trúc)|A|-|sheet.workbook.protect

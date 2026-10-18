@@ -17,13 +17,13 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Excel 2016 | 92 | 43% |
-| 🟢 Có, chưa đối chiếu | 55 | 26% |
-| 🟡 Có một phần | 27 | 13% |
+| 🟢 Có, chưa đối chiếu | 56 | 26% |
+| 🟡 Có một phần | 26 | 12% |
 | 🔴 Chưa có | 39 | 18% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
 
-- **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 75%**
+- **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 76%**
 - **Đã xác minh bằng đối chiếu Excel 2016 thật: 43%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ 462 hàm) chỉ tính một mục; mức phủ hàm nằm ở dòng riêng và ở `EXCEL2016-FUNCTIONS-MATRIX.md`.
@@ -38,7 +38,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Bố trí trang | 10 | 7 | 1 | 1 | 1 | 0 | 85% |
 | Công thức | 13 | 6 | 6 | 1 | 0 | 0 | 96% |
 | Dữ liệu | 19 | 13 | 0 | 3 | 3 | 0 | 76% |
-| Xem xét | 12 | 1 | 3 | 2 | 5 | 1 | 45% |
+| Xem xét | 12 | 1 | 4 | 1 | 5 | 1 | 50% |
 | Chế độ xem | 12 | 2 | 6 | 1 | 3 | 0 | 71% |
 | Nhà phát triển | 3 | 0 | 0 | 0 | 3 | 0 | 0% |
 | Trợ giúp | 2 | 0 | 2 | 0 | 0 | 0 | 100% |
@@ -242,7 +242,7 @@ Tổng: 2 mục ưu tiên 1.
 | Thông tin chi tiết | Smart Lookup | ⚪ | - | Cần dịch vụ Bing |
 | Ngôn ngữ | Dịch | 🟡 | 3 | Tính năng 3T AI (cần mạng, xin phép riêng) |
 | Ghi chú | Ghi chú mới / Sửa / Xóa | ✅ | - | Ghi chú mới, sửa, xóa đã kiểm (docs/SHEET-BUTTON-MATRIX-1011.md:125-126; tests/functions/structural-cases-16.json:1-20; tests/unit/sheet-notes-fidelity.test.js:1-25; sheet.review.commentInsert, sheet.review.commentDelete) |
-| Ghi chú | Trước / Sau / Hiện-Ẩn tất cả ghi chú | 🟡 | 2 | Có Trước/Sau; thiếu Hiện/Ẩn tất cả |
+| Ghi chú | Trước / Sau / Hiện-Ẩn tất cả ghi chú | 🟢 | - | sheet.review.commentShowAll bật tắt hiện tất cả ghi chú ghim trên lưới (2 ghi chú hiện rồi ẩn đúng), lưu XLSX giữ ghi chú đúng ô và nội dung đọc từ XML; chưa đối chiếu Excel thật vì Excel COM chưa dùng được (tests/live/cdp/sheet-notes-show-all.desktop.mjs) |
 | Ghi chú | Nhận xét có luồng (threaded comments) | 🔴 | 3 | Excel 2016 chỉ có ghi chú cổ điển |
 | Thay đổi | Bảo vệ trang tính (mật khẩu, tùy chọn cho phép) | 🟢 | - | sheet.sheet.protect |
 | Thay đổi | Bảo vệ sổ làm việc (cấu trúc) | 🟢 | - | sheet.workbook.protect |
