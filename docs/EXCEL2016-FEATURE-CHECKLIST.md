@@ -17,8 +17,8 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Excel 2016 | 92 | 43% |
-| 🟢 Có, chưa đối chiếu | 54 | 25% |
-| 🟡 Có một phần | 28 | 13% |
+| 🟢 Có, chưa đối chiếu | 55 | 26% |
+| 🟡 Có một phần | 27 | 13% |
 | 🔴 Chưa có | 39 | 18% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
@@ -35,7 +35,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Tệp (Backstage) | 17 | 3 | 8 | 4 | 1 | 1 | 81% |
 | Trang đầu | 53 | 27 | 14 | 10 | 2 | 0 | 87% |
 | Chèn | 29 | 9 | 5 | 2 | 11 | 2 | 56% |
-| Bố trí trang | 10 | 7 | 0 | 2 | 1 | 0 | 80% |
+| Bố trí trang | 10 | 7 | 1 | 1 | 1 | 0 | 85% |
 | Công thức | 13 | 6 | 6 | 1 | 0 | 0 | 96% |
 | Dữ liệu | 19 | 13 | 0 | 3 | 3 | 0 | 76% |
 | Xem xét | 12 | 1 | 3 | 2 | 5 | 1 | 45% |
@@ -55,10 +55,9 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Tab | Nhóm | Tính năng | Trạng thái | Ghi chú |
 |---|---|---|---|---|
 | Tệp (Backstage) | Thông tin | Bảo vệ sổ làm việc bằng mật khẩu mở file (mã hóa) | 🔴 | Chưa có mã hóa file; chỉ có bảo vệ cấu trúc |
-| Bố trí trang | Thiết lập trang | Hộp thoại Page Setup đủ tab Trang/Lề/Đầu-Chân/Trang tính | 🟡 | Thiếu một số tùy chọn tab Trang tính (in lưới, tiêu đề, thứ tự trang) |
 | Công thức | Thư viện hàm | Độ phủ hàm Excel 2016 (462 hàm) | 🟡 | 18/10: engine nhận 392 trong 421 hàm đánh dấu Excel 2016 trong danh mục (đo bằng gọi rỗng từng hàm), gồm cả MMULT; vừa thêm T.TEST, F.TEST, CHISQ.TEST, GAMMA và tên cũ TTEST, FTEST, CHITEST đối chiếu LibreOffice tới 1e-9 vì Excel COM chưa dùng được (BLOCKED, chưa vào bộ vàng Excel). Còn thiếu: BAHTTEXT, CELL, INFO, DBCS, PHONETIC, RTD, GETPIVOTDATA, ODDFPRICE, ODDFYIELD, FORECAST.ETS và 3 hàm con, 7 hàm CUBE; danh mục còn đánh dấu nhầm vài hàm sau 2016 như GROUPBY, REGEX*, TRANSLATE (tests/unit/formula-hypothesis-tests.test.js:48) |
 
-Tổng: 3 mục ưu tiên 1.
+Tổng: 2 mục ưu tiên 1.
 
 ## Chi tiết từng tab
 
@@ -186,7 +185,7 @@ Tổng: 3 mục ưu tiên 1.
 | Thiết lập trang | Ngắt trang (chèn, xóa, đặt lại) | ✅ | - | HBreaks/VBreaks đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:76-77; sheet.page.insertPageBreak, sheet.page.removePageBreak) |
 | Thiết lập trang | Hình nền (Background) | 🔴 | 3 |  |
 | Thiết lập trang | In tiêu đề (Print Titles) | ✅ | - | TitlesRows đã đối chiếu Print Titles (docs/SHEET-BUTTON-MATRIX-1011.md:78; tests/unit/sheet-print-titles-real-file-import.test.js:1-30; sheet.page.printTitles) |
-| Thiết lập trang | Hộp thoại Page Setup đủ tab Trang/Lề/Đầu-Chân/Trang tính | 🟡 | 1 | Thiếu một số tùy chọn tab Trang tính (in lưới, tiêu đề, thứ tự trang) |
+| Thiết lập trang | Hộp thoại Page Setup đủ tab Trang/Lề/Đầu-Chân/Trang tính | 🟢 | - | tab Trang tính đã có in lưới, tiêu đề hàng cột, đen trắng, bản nháp, ghi chú, thứ tự trang, vùng in và tiêu đề lặp; lưu XLSX ghi đúng printOptions gridLines headings, pageSetup pageOrder overThenDown blackAndWhite cellComments atEnd đọc từ XML; chưa đối chiếu Excel thật vì Excel COM chưa dùng được (apps/sheet/page-setup-dialog.js:53 Page Setup, tests/live/cdp/sheet-page-setup-print-options.desktop.mjs) |
 | Vừa trang | Chiều rộng / Chiều cao (Fit to pages) / Tỷ lệ % | ✅ | - | sheet.page.fitWidth sheet.page.fitHeight sheet.page.scale: danh sách Chiều rộng/Chiều cao (Tự động, 1-5 trang) lưu rồi Excel 2016 đọc FitToPagesWide=1, FitToPagesTall=Tự động, Zoom=False (docs/AUDIT-SHEET-PAGE-GALLERY-1710.md:18) |
 | Tùy chọn trang tính | Hiện/In đường lưới và tiêu đề | 🟡 | 2 | Hiện có; hộp xem trước in có tùy chọn in đường lưới; in tiêu đề hàng/cột cần kiểm |
 | Sắp xếp | Đưa lên trên / Xuống dưới / Ngăn chọn / Căn / Nhóm / Xoay đối tượng | ✅ | - | 16/10 (AGY-ARRANGE): lớp, căn, phân bố, nhóm, xoay/lật, Ngăn chọn (tests/unit/sheet-arrange.test.js:54-60; sheet.arrange.group) |

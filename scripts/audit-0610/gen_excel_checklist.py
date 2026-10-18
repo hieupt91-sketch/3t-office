@@ -13,6 +13,7 @@ Mỗi dòng: Tab|Nhóm|Lệnh Excel 2016|Trạng thái|Ưu tiên|Ghi chú (lện
 Nguồn trạng thái: quét ribbon Sheet (docs/ribbon-scan-sheet-1011.json), ma trận E1/E3/E4, đọc mã (grep), kiểm thực tế 13/10/2026.
 """
 import collections
+import re
 import pathlib
 
 DATA = """
@@ -121,7 +122,7 @@ Bố trí trang|Thiết lập trang|Vùng in / Xóa vùng in|V|-|Print area đã
 Bố trí trang|Thiết lập trang|Ngắt trang (chèn, xóa, đặt lại)|V|-|HBreaks/VBreaks đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:76-77; sheet.page.insertPageBreak, sheet.page.removePageBreak)
 Bố trí trang|Thiết lập trang|Hình nền (Background)|N|3|
 Bố trí trang|Thiết lập trang|In tiêu đề (Print Titles)|V|-|TitlesRows đã đối chiếu Print Titles (docs/SHEET-BUTTON-MATRIX-1011.md:78; tests/unit/sheet-print-titles-real-file-import.test.js:1-30; sheet.page.printTitles)
-Bố trí trang|Thiết lập trang|Hộp thoại Page Setup đủ tab Trang/Lề/Đầu-Chân/Trang tính|P|1|Thiếu một số tùy chọn tab Trang tính (in lưới, tiêu đề, thứ tự trang)
+Bố trí trang|Thiết lập trang|Hộp thoại Page Setup đủ tab Trang/Lề/Đầu-Chân/Trang tính|A|-|tab Trang tính đã có in lưới, tiêu đề hàng cột, đen trắng, bản nháp, ghi chú, thứ tự trang, vùng in và tiêu đề lặp; lưu XLSX ghi đúng printOptions gridLines headings, pageSetup pageOrder overThenDown blackAndWhite cellComments atEnd đọc từ XML; chưa đối chiếu Excel thật vì Excel COM chưa dùng được ({{L:apps/sheet/page-setup-dialog.js|export class PageSetupDialog}} Page Setup, tests/live/cdp/sheet-page-setup-print-options.desktop.mjs)
 Bố trí trang|Vừa trang|Chiều rộng / Chiều cao (Fit to pages) / Tỷ lệ %|V|-|sheet.page.fitWidth sheet.page.fitHeight sheet.page.scale: danh sách Chiều rộng/Chiều cao (Tự động, 1-5 trang) lưu rồi Excel 2016 đọc FitToPagesWide=1, FitToPagesTall=Tự động, Zoom=False (docs/AUDIT-SHEET-PAGE-GALLERY-1710.md:18)
 Bố trí trang|Tùy chọn trang tính|Hiện/In đường lưới và tiêu đề|P|2|Hiện có; hộp xem trước in có tùy chọn in đường lưới; in tiêu đề hàng/cột cần kiểm
 Bố trí trang|Sắp xếp|Đưa lên trên / Xuống dưới / Ngăn chọn / Căn / Nhóm / Xoay đối tượng|V|-|16/10 (AGY-ARRANGE): lớp, căn, phân bố, nhóm, xoay/lật, Ngăn chọn (tests/unit/sheet-arrange.test.js:54-60; sheet.arrange.group)
@@ -242,7 +243,18 @@ ICON = {"V": "✅", "A": "🟢", "P": "🟡", "N": "🔴", "X": "⚪"}
 
 def parse():
     rows = []
-    for line in DATA.strip().splitlines():
+    def _resolve_refs(text):
+        root = pathlib.Path(__file__).resolve().parents[2]
+
+        def one(match):
+            rel, needle = match.group(1), match.group(2)
+            for number, content in enumerate((root / rel).read_text(encoding="utf-8").splitlines(), 1):
+                if needle in content:
+                    return f"{rel}:{number}"
+            raise SystemExit(f"Không thấy '{needle}' trong {rel} (trích dẫn {{{{L:...}}}})")
+        return re.sub(r"\{\{L:([^|}]+)\|([^}]+)\}\}", one, text)
+
+    for line in _resolve_refs(DATA).strip().splitlines():
         parts = [p.strip() for p in line.split("|")]
         if len(parts) < 5:
             raise SystemExit(f"Dòng sai định dạng: {line}")
