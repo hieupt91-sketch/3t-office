@@ -349,6 +349,8 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.table.distributeRows", () => this._hintIfFalse(() => this.canvas.distributeTable("rows"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
     globalCommandBus.bindHandler("slides.table.distributeCols", () => this._hintIfFalse(() => this.canvas.distributeTable("cols"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
     globalCommandBus.bindHandler("slides.table.cellSize", () => this._hintIfFalse(() => this.canvas.openTableSizeDialog(), "Hãy đặt con trỏ vào một ô của bảng trước."));
+    globalCommandBus.bindHandler("slides.media.autoplay", () => this._hintIfFalse(() => this.canvas.toggleMediaOption("mediaAutoplay"), "Hãy chọn một video hoặc âm thanh trên trang chiếu trước."));
+    globalCommandBus.bindHandler("slides.media.loop", () => this._hintIfFalse(() => this.canvas.toggleMediaOption("mediaLoop"), "Hãy chọn một video hoặc âm thanh trên trang chiếu trước."));
     globalCommandBus.bindHandler("slides.animation.painter", () => this._hintIfFalse(() => this.canvas.animationPainter(), "Hãy chọn một đối tượng đã có hiệu ứng để lấy, rồi chọn đối tượng đích và nhấn lại Sao chép hoạt ảnh."));
     // Thư viện hình dựng sẵn và Đổi hình dạng (apps/slides/shape-presets.js).
     globalCommandBus.bindHandler("slides.shape.galleryInsert", () => this.canvas.insertShape ? this.canvas.insertShape("rect") : false);
@@ -2584,7 +2586,28 @@ export class SlidesAdapter {
     const interactiveXml = [...interactiveGroups.values()].map((groupXml) => `
           <anim:seq smil:fill="hold" smil:restart="whenNotActive" smil:endsync="all" presentation:node-type="interactive-sequence">${groupXml}
           </anim:seq>`).join("");
-    if (!smil && !effectXml && !interactiveXml) return "";
+    // Phương tiện: Tự động phát = lệnh play trong dãy chính; Lặp lại = anim:audio repeatCount indefinite (cách LibreOffice ghi PPTX).
+    let mediaMainXml = "";
+    let mediaAudioXml = "";
+    for (const mediaShape of slide?.shapes || []) {
+      if (mediaShape.type !== "video" && mediaShape.type !== "audio") continue;
+      const mediaId = shapeIds?.get?.(String(mediaShape.id));
+      if (!mediaId) continue;
+      if (mediaShape.mediaAutoplay) {
+        mediaMainXml += `
+            <anim:par smil:begin="next" smil:fill="hold">
+              <anim:par smil:begin="0s" smil:fill="hold">
+                <anim:par smil:begin="0s" smil:fill="hold" presentation:node-type="on-click" presentation:preset-class="media-call" presentation:preset-id="">
+                  <anim:command smil:fill="hold" smil:targetElement="${this._escapeXml(mediaId)}" anim:command="play"/>
+                </anim:par>
+              </anim:par>
+            </anim:par>`;
+      }
+      // Một anim:audio cho MỖI phương tiện (như LibreOffice tự ghi); repeatCount chỉ khi lặp lại. Thứ tự = thứ tự phương tiện trên trang.
+      mediaAudioXml += `
+          <anim:audio smil:begin="indefinite" smil:end="stop-audio+0s" smil:fill="hold"${mediaShape.mediaLoop ? ' smil:repeatCount="indefinite"' : ""}/>`;
+    }
+    if (!smil && !effectXml && !interactiveXml && !mediaMainXml && !/repeatCount/.test(mediaAudioXml)) return "";
     let transXml = "";
     if (smil) {
       const sub = smil.subtype ? ` smil:subtype="${smil.subtype}"` : "";
@@ -2594,13 +2617,13 @@ export class SlidesAdapter {
             <anim:transitionFilter smil:dur="${smil.dur}" smil:type="${smil.type}"${sub}${fade}/>
           </anim:par>`;
     }
-    const seqXml = effectXml
+    const seqXml = (effectXml || mediaMainXml)
       ? `
-          <anim:seq presentation:node-type="main-sequence">${effectXml}
+          <anim:seq presentation:node-type="main-sequence">${effectXml}${mediaMainXml}
           </anim:seq>`
       : "";
     return `
-        <anim:par presentation:node-type="timing-root">${transXml}${seqXml}${interactiveXml}
+        <anim:par presentation:node-type="timing-root">${transXml}${seqXml}${interactiveXml}${mediaAudioXml}
         </anim:par>`;
   }
 
@@ -2777,6 +2800,22 @@ export class SlidesAdapter {
       }
     }
     return byTarget;
+  }
+
+  /** Tùy chọn phát phương tiện từ dòng thời gian: media-call trong dãy chính = tự động phát; anim:audio có repeatCount = lặp lại (ghép theo thứ tự phương tiện của trang). */
+  _applyParsedMedia(shapes, idMap, pageXml) {
+    const mediaShapes = (shapes || []).filter(shape => shape.type === "video" || shape.type === "audio");
+    if (!mediaShapes.length) return;
+    const main = String(pageXml || "").match(/<anim:seq\b[^>]*main-sequence[^>]*>([\s\S]*?)<\/anim:seq>/i)?.[1] || "";
+    for (const command of main.matchAll(/preset-class=["']media-call["'][\s\S]*?<anim:command\b[^>]*smil:targetElement=["']([^"']+)["']/gi)) {
+      const restored = idMap.has(command[1]) ? idMap.get(command[1]) : command[1];
+      const shape = mediaShapes.find(item => String(item.id) === String(restored) || String(item.id) === String(command[1]));
+      if (shape) shape.mediaAutoplay = true;
+    }
+    const audios = [...String(pageXml || "").matchAll(/<anim:audio\b([^>]*)\/?>/gi)];
+    audios.forEach((audio, index) => {
+      if (/smil:repeatCount=["']indefinite["']/i.test(audio[1]) && mediaShapes[index]) mediaShapes[index].mediaLoop = true;
+    });
   }
 
   _applyParsedAnimations(shapes, idMap, animByTarget) {
@@ -3214,7 +3253,7 @@ export class SlidesAdapter {
         <draw:frame ${geom}>
           <draw:plugin xlink:href="${href}" xlink:type="simple" xlink:show="embed" xlink:actuate="onLoad" draw:mime-type="${mime}">
             ${this._binaryDataXml(shape.src)}
-            <draw:param draw:name="Loop" draw:value="false"/>
+            <draw:param draw:name="Loop" draw:value="${shape.mediaLoop ? "true" : "false"}"/>
             <draw:param draw:name="Mute" draw:value="false"/>
           </draw:plugin>
         </draw:frame>`;
@@ -5051,6 +5090,7 @@ export class SlidesAdapter {
         shape.targetId = this._mapConnectorRef(shape.targetId, idMap);
       }
       this._applyParsedAnimations(shapes, idMap, animByTarget);
+      this._applyParsedMedia(shapes, idMap, originalPageXml);
 
       const titleParas = this._frameParagraphsByClass(originalPageXml, "title");
       const subtitleParas = this._frameParagraphsByClass(originalPageXml, "subtitle");

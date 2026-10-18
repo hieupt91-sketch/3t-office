@@ -11964,6 +11964,63 @@ def _slides_animation_presets_from_fodp(source_fodp: str | None) -> list[list[st
 _SLIDES_PRESET_ID_FROM_ODF = {"ooo-emphasis-pulse": ("emph", "26")}
 
 
+def _apply_slides_media_loops(pptx_bytes: bytes, source_fodp: str | None, prior: dict[str, str] | None = None) -> dict[str, str]:
+    """Lặp lại phương tiện: LibreOffice bỏ anim:audio repeatCount khi ghi PPTX; thêm lại <p:audio>/<p:video> cMediaNode repeatCount như PowerPoint."""
+    if not source_fodp or "smil:repeatCount" not in source_fodp or "<anim:audio" not in source_fodp:
+        return {}
+    try:
+        with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+            entries = sorted(
+                (name for name in package.namelist() if re.fullmatch(r"ppt/slides/slide\d+\.xml", name)),
+                key=lambda name: int(re.search(r"slide(\d+)\.xml$", name).group(1)),
+            )
+    except Exception:
+        return {}
+    prior = prior or {}
+    pages = re.findall(r"<draw:page\b[^>]*?/>|<draw:page\b[^>]*>[\s\S]*?</draw:page>", source_fodp, re.IGNORECASE)
+    replacements: dict[str, str] = {}
+    for page_index, entry in enumerate(entries):
+        if page_index >= len(pages):
+            break
+        loops = ["repeatCount" in audio for audio in re.findall(r"<anim:audio\b[^>]*>", pages[page_index])]
+        if not any(loops):
+            continue
+        xml = prior[entry] if entry in prior else (read_zip_entry(pptx_bytes, entry) or b"").decode("utf-8", errors="replace")
+        media = []
+        for pic in re.finditer(r"<p:pic>[\s\S]*?</p:pic>", xml):
+            kind = "audio" if "<a:audioFile" in pic.group(0) else "video" if "<a:videoFile" in pic.group(0) else None
+            spid = re.search(r'<p:cNvPr\b[^>]*\bid="(\d+)"', pic.group(0))
+            if kind and spid:
+                media.append((kind, spid.group(1)))
+        nodes = ""
+        for k, (kind, spid) in enumerate(media):
+            if k < len(loops) and loops[k]:
+                nodes += (
+                    f'<p:{kind}><p:cMediaNode vol="80000"><p:cTn id="{9000 + k}" repeatCount="indefinite" fill="hold" display="0">'
+                    '<p:stCondLst><p:cond delay="indefinite"/></p:stCondLst>'
+                    '<p:endCondLst><p:cond evt="onStopAudio" delay="0"><p:tgtEl><p:sldTgt/></p:tgtEl></p:cond></p:endCondLst></p:cTn>'
+                    f'<p:tgtEl><p:spTgt spid="{spid}"/></p:tgtEl></p:cMediaNode></p:{kind}>'
+                )
+        if not nodes:
+            continue
+        suffix = "</p:childTnLst></p:cTn></p:par></p:tnLst>"
+        if "<p:timing" in xml and suffix in xml:
+            cut = xml.rfind(suffix)
+            xml = xml[:cut] + nodes + xml[cut:]
+        elif "<p:timing" not in xml:
+            timing = (
+                '<p:timing><p:tnLst><p:par><p:cTn id="1" dur="indefinite" restart="never" nodeType="tmRoot"><p:childTnLst>'
+                + nodes + "</p:childTnLst></p:cTn></p:par></p:tnLst></p:timing>"
+            )
+            tail_ext = xml.rfind("<p:extLst>")
+            insert_at = tail_ext if tail_ext > xml.rfind("</p:cSld>") else xml.rfind("</p:sld>")
+            xml = xml[:insert_at] + timing + xml[insert_at:]
+        else:
+            continue
+        replacements[entry] = xml
+    return replacements
+
+
 def _apply_slides_native_animation_timing(pptx_bytes: bytes, source_fodp: str | None, prior: dict[str, str] | None = None) -> dict[str, str]:
     """Slide có hiệu ứng Nhấn mạnh/Thoát hoặc Kích hoạt: dựng lại p:timing theo cấu trúc PowerPoint để nó đọc đúng."""
     try:
@@ -13557,6 +13614,14 @@ def postprocess_slides_pptx(
         {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,
          **transition_replacements, **wordart_replacements, **layout_replacements},
     )
+    native_timing_replacements = {
+        **native_timing_replacements,
+        **_apply_slides_media_loops(
+            pptx_bytes, source_fodp,
+            {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,
+             **transition_replacements, **wordart_replacements, **layout_replacements, **native_timing_replacements},
+        ),
+    }
     shadow_replacements = _apply_slides_text_shadow(
         pptx_bytes, source_fodp,
         {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,

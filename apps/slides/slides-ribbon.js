@@ -840,6 +840,23 @@ export const SLIDES_RIBBON_TABS = [
     ]
   },
   {
+    id: "mediaPlayback",
+    label: "Phát lại",
+    labelKey: "slidesRibbon.tab.mediaPlayback",
+    contextual: true,
+    groups: [
+      {
+        id: "mediaOptions",
+        label: "Tùy chọn phát",
+        labelKey: "slidesRibbon.group.mediaOptions",
+        items: [
+          { type: "button", commandId: "slides.media.autoplay", isLarge: true },
+          { type: "button", commandId: "slides.media.loop", isLarge: true }
+        ]
+      }
+    ]
+  },
+  {
     id: "tableDesign",
     label: "Thiết kế bảng",
     labelKey: "slidesRibbon.tab.tableDesign",

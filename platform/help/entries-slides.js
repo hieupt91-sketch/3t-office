@@ -376,6 +376,20 @@ export const SLIDES_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.media.playback",
+    app: "slides",
+    commandIds: ["slides.media.autoplay", "slides.media.loop"],
+    title: "Phát lại video và âm thanh: tự động phát, lặp lại",
+    summary: "Chọn một video hoặc âm thanh để hiện tab Phát lại. Hai ô bật/tắt: Tự động phát (tự phát khi trang chiếu hiện ra) và Lặp lại cho đến khi dừng. Cả hai được lưu vào tệp PPTX.",
+    ribbon: { tab: "Phát lại", tabId: "mediaPlayback", group: "Tùy chọn phát" },
+    keywords: ["phát lại", "tự động phát", "lặp lại", "loop", "autoplay", "video", "âm thanh", "nhạc nền", "playback"],
+    steps: [
+      "Chèn video hoặc âm thanh bằng tab Chèn > nhóm Phương tiện, rồi nhấp vào đối tượng đó. Tab Phát lại hiện bên phải ribbon.",
+      "Tab Phát lại > Tự động phát: bật để phương tiện tự chạy khi trang chiếu hiện ra lúc trình chiếu (F5); tắt thì chỉ chạy khi bấm. Lặp lại cho đến khi dừng: bật để phát đi phát lại, ví dụ làm nhạc nền.",
+      "Chọn nhiều video, âm thanh cùng lúc thì áp dụng cho tất cả. Ctrl+Z hoàn tác. Hai tùy chọn được lưu vào PPTX và còn nguyên khi mở lại."
+    ]
+  },
+  {
     id: "slides.picture.crop",
     app: "slides",
     commandIds: ["slides.picture.crop", "slides.picture.cropRatio", "slides.picture.cropDialog", "slides.picture.cropDrag"],

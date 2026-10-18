@@ -610,6 +610,8 @@ export const SLIDES_COMMANDS = [
   { id: "slides.shape.insert", category: "insert", label: "Hình khối", icon: "shape", tooltip: "Chèn hình chữ nhật, tròn, mũi tên" },
   { id: "slides.diagram.insert", category: "insert", label: "Sơ đồ", icon: "diagram", tooltip: "Chèn sơ đồ quy trình, chu kỳ hoặc phân cấp" },
   { id: "slides.image.insert", category: "insert", label: "Hình ảnh", icon: "image", tooltip: "Chèn ảnh minh họa từ máy tính" },
+  { id: "slides.media.autoplay", category: "media", label: "Tự động phát", icon: "slideTransition", tooltip: "Video hoặc âm thanh tự phát khi trang chiếu hiện ra, không cần bấm", isToggle: true },
+  { id: "slides.media.loop", category: "media", label: "Lặp lại cho đến khi dừng", icon: "slideTransition", tooltip: "Phát lại video hoặc âm thanh liên tục cho đến khi dừng hoặc chuyển trang", isToggle: true },
   { id: "slides.media.insertVideo", category: "insert", label: "Video", icon: "videoInsert", tooltip: "Chèn video từ máy tính" },
   { id: "slides.media.insertAudio", category: "insert", label: "Âm thanh", icon: "audioInsert", tooltip: "Chèn âm thanh từ máy tính" },
   { id: "slides.insert.table", category: "insert", label: "Bảng", icon: "table", tooltip: "Chèn bảng vào trang chiếu, kéo-thả và đổi kích thước được" },

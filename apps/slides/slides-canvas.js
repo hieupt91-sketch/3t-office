@@ -3274,6 +3274,7 @@ export class SlidesCanvasController {
       const tab = document.querySelector(`#vno-ribbon-tab-${id}`);
       if (tab) { tab.hidden = !has; tab.setAttribute("aria-hidden", has ? "false" : "true"); }
     };
+    this._syncMediaContext();
     show("shapeFormat", selected.some((shape) => shape.type !== "image"));
     show("pictureFormat", selected.some((shape) => shape.type === "image"));
   }
@@ -3647,6 +3648,45 @@ export class SlidesCanvasController {
     document.body.appendChild(overlay);
     overlay.querySelector("#vno-tblsize-h")?.focus();
     return true;
+  }
+
+  /** Phát lại phương tiện: option = "mediaLoop" (lặp lại cho đến khi dừng) | "mediaAutoplay" (tự động phát khi chiếu). Áp dụng cho video/âm thanh đang chọn. */
+  toggleMediaOption(option) {
+    if (option !== "mediaLoop" && option !== "mediaAutoplay") return false;
+    const slide = this.slides?.[this.currentSlideIndex];
+    const ids = new Set(this.selectedShapeIds ? [...this.selectedShapeIds].map(String) : []);
+    if (this.selectedTarget != null) ids.add(String(this.selectedTarget));
+    const media = (slide?.shapes || []).filter(shape => ids.has(String(shape.id)) && (shape.type === "video" || shape.type === "audio"));
+    if (!media.length) return false;
+    const turnOn = !media.every(shape => shape[option]);
+    const entries = media.map(shape => ({ shapeId: shape.id, before: { [option]: shape[option] }, after: { [option]: turnOn ? true : undefined } }));
+    for (const entry of entries) { if (turnOn) media.find(s => s.id === entry.shapeId)[option] = true; else delete media.find(s => s.id === entry.shapeId)[option]; }
+    for (const entry of entries) {
+      this.undoStack.push({ type: "shape-format", slideIndex: this.currentSlideIndex, shapeId: entry.shapeId, before: entry.before, after: entry.after });
+    }
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderShapesLayer();
+    this._syncMediaContext();
+    this.options?.onDocumentChange?.();
+    return true;
+  }
+
+  /** Hiện tab ngữ cảnh «Phát lại» khi đang chọn video/âm thanh; cập nhật trạng thái hai ô tùy chọn. */
+  _syncMediaContext() {
+    if (typeof document === "undefined" || typeof document.querySelector !== "function") return;
+    const slide = this.slides?.[this.currentSlideIndex];
+    const ids = new Set(this.selectedShapeIds ? [...this.selectedShapeIds].map(String) : []);
+    if (this.selectedTarget != null) ids.add(String(this.selectedTarget));
+    const media = (slide?.shapes || []).filter(shape => ids.has(String(shape.id)) && (shape.type === "video" || shape.type === "audio"));
+    const tab = document.querySelector("#vno-ribbon-tab-mediaPlayback");
+    if (tab) { tab.hidden = media.length === 0; tab.setAttribute("aria-hidden", media.length ? "false" : "true"); }
+    if (media.length) {
+      try {
+        globalCommandBus.updateState("slides.media.loop", { checked: media.every(shape => shape.mediaLoop) });
+        globalCommandBus.updateState("slides.media.autoplay", { checked: media.every(shape => shape.mediaAutoplay) });
+      } catch (_) { /* chưa có bus */ }
+    }
   }
 
   /** Thiết kế bảng > Viền bảng: mode = all | outside | inside | none cho vùng ô chọn, ô đang đặt con trỏ hoặc cả bảng. */
@@ -4567,8 +4607,9 @@ export class SlidesCanvasController {
       }
       return `<img src="${shape.src}"${morphAttrs}${animAttrs} style="${pos}${animStyle}object-fit:contain;box-shadow:0 2px 8px rgba(0,0,0,.15)" />`;
     }
-    if (shape.type === "video" && shape.src) return `<video src="${shape.src}"${morphAttrs}${animAttrs} controls style="${pos}${animStyle}box-shadow:0 2px 8px rgba(0,0,0,.15)"></video>`;
-    if (shape.type === "audio" && shape.src) return `<audio src="${shape.src}"${morphAttrs}${animAttrs} controls style="${pos}${animStyle}"></audio>`;
+    const mediaAttrs = `${shape.mediaLoop ? " loop" : ""}${shape.mediaAutoplay ? " autoplay" : ""}`;
+    if (shape.type === "video" && shape.src) return `<video src="${shape.src}"${morphAttrs}${animAttrs}${mediaAttrs} controls style="${pos}${animStyle}box-shadow:0 2px 8px rgba(0,0,0,.15)"></video>`;
+    if (shape.type === "audio" && shape.src) return `<audio src="${shape.src}"${morphAttrs}${animAttrs}${mediaAttrs} controls style="${pos}${animStyle}"></audio>`;
     if (shape.type === "chart") return `<div class="vno-show-shape vno-show-chart"${morphAttrs}${animAttrs} style="${pos}${animStyle}background:#fff;overflow:hidden">${this._renderChartSvg(shape)}</div>`;
     if (shape.type === "wordart") {
       const textCss = buildWordArtCss(shape);
