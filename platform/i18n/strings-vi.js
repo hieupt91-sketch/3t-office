@@ -479,7 +479,7 @@ export const viStrings = {
     animationOptions: "Tùy chọn hiệu ứng",
     pasteSpecial: "Dán đặc biệt", action: "Tác vụ",
     tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI", tableLayout: "Bố cục bảng", tableDesign: "Thiết kế bảng", shapeFormat: "Định dạng hình", pictureFormat: "Định dạng ảnh" },
-    group: { pictureSize: "Kích thước", pictureArrange: "Sắp xếp", designVariants: "Biến thể", animPreview: "Xem trước", animEffects: "Hoạt hình", animTiming: "Thời gian", transitionGallery: "Chuyển đến trang này", transitionTiming: "Thời gian", shapeStyles: "Kiểu hình", shapeArrange: "Sắp xếp", shapeSize: "Kích thước", tableStyleOptions: "Tùy chọn kiểu bảng", tableStyles: "Kiểu bảng", tableRowsCols: "Hàng và cột", tableMerge: "Gộp", slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Hiệu đính", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
+    group: { pictureSize: "Kích thước", pictureArrange: "Sắp xếp", designVariants: "Biến thể", animPreview: "Xem trước", animEffects: "Hoạt hình", animTiming: "Thời gian", transitionGallery: "Chuyển đến trang này", transitionTiming: "Thời gian", shapeStyles: "Kiểu hình", shapeArrange: "Sắp xếp", shapeSize: "Kích thước", tableAlignment: "Căn chỉnh", tableStyleOptions: "Tùy chọn kiểu bảng", tableStyles: "Kiểu bảng", tableRowsCols: "Hàng và cột", tableMerge: "Gộp", slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Hiệu đính", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
     editing: { select: "Chọn" },
     drawing: { arrange: "Sắp xếp" },
     section: "Phần"
@@ -1111,6 +1111,12 @@ export const viStrings = {
     ,"slides.table.optFirstCol": { label: "Cột đầu tiên", tooltip: "Nhấn mạnh cột đầu tiên: chữ đậm và tô màu" }
     ,"slides.table.optLastCol": { label: "Cột cuối cùng", tooltip: "Nhấn mạnh cột cuối cùng: chữ đậm và tô màu" }
     ,"slides.table.optBandedCols": { label: "Cột sọc", tooltip: "Tô xen kẽ màu nhạt cho các cột" }
+    ,"slides.table.alignLeft": { label: "Căn trái", tooltip: "Căn chữ trong ô sang trái" }
+    ,"slides.table.alignCenter": { label: "Căn giữa", tooltip: "Căn chữ trong ô vào giữa theo chiều ngang" }
+    ,"slides.table.alignRight": { label: "Căn phải", tooltip: "Căn chữ trong ô sang phải" }
+    ,"slides.table.alignTop": { label: "Căn trên", tooltip: "Đưa chữ trong ô lên mép trên" }
+    ,"slides.table.alignMiddle": { label: "Căn giữa dọc", tooltip: "Đưa chữ trong ô vào giữa theo chiều dọc" }
+    ,"slides.table.alignBottom": { label: "Căn dưới", tooltip: "Đưa chữ trong ô xuống mép dưới" }
     ,"slides.animation.setType": { label: "Kiểu hiệu ứng", tooltip: "Gán kiểu hiệu ứng cho đối tượng đang chọn" }
     ,"slides.animation.startMenu": { label: "Bắt đầu", tooltip: "Chọn thời điểm bắt đầu: khi nhấp chuột, cùng lúc với hiệu ứng trước hoặc sau hiệu ứng trước" }
     ,"slides.animation.setStart": { label: "Thời điểm bắt đầu", tooltip: "Đặt thời điểm bắt đầu hiệu ứng của đối tượng đang chọn" }

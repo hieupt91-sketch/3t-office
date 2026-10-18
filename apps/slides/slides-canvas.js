@@ -202,7 +202,7 @@ export function cursorForHandle(dir, rotationDeg) {
 
 import { customSlideSize, pxToCm } from "./slide-size.js";
 import { ANIMATION_EFFECTS, animationEffectsOfClass, animationEffect, animationClassOf, animationKeyframeName, animationInlineCss } from "./slide-animation-classes.js";
-import { TABLE_STYLES, tableOptions, effectiveCellFill, fillCells, tableState, mergeMap, expandSelection, insertRow as tblInsertRow, insertCol as tblInsertCol, deleteRow as tblDeleteRow, deleteCol as tblDeleteCol, mergeCells as tblMergeCells, splitCell as tblSplitCell } from "./slide-table-ops.js";
+import { TABLE_STYLES, alignCellHtml, setCellValign, tableOptions, effectiveCellFill, fillCells, tableState, mergeMap, expandSelection, insertRow as tblInsertRow, insertCol as tblInsertCol, deleteRow as tblDeleteRow, deleteCol as tblDeleteCol, mergeCells as tblMergeCells, splitCell as tblSplitCell } from "./slide-table-ops.js";
 
 export class SlidesCanvasController {
   constructor(container, options = {}) {
@@ -3590,6 +3590,29 @@ export class SlidesCanvasController {
     return done;
   }
 
+  /** Bố cục bảng > Căn chỉnh: left | center | right căn ngang chữ trong ô; top | middle | bottom căn dọc. Áp dụng cho vùng ô chọn, ô đang đặt con trỏ hoặc cả bảng. */
+  setTableCellAlign(kind) {
+    const shape = this._activeTableShape();
+    if (!shape) return this._tableNotice("Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng.");
+    const state = tableState(shape);
+    const cur = this._tableCursor && String(this._tableCursor.shapeId) === String(shape.id) ? this._tableCursor : null;
+    const sel = this._tableSel && String(this._tableSel.shapeId) === String(shape.id) ? this._tableSel : null;
+    const box = sel ? { r: sel.r, c: sel.c, r2: sel.r2, c2: sel.c2 } : cur ? { r: cur.r, c: cur.c, r2: cur.r, c2: cur.c } : { r: 0, c: 0, r2: state.rows - 1, c2: state.cols - 1 };
+    if (kind === "top" || kind === "middle" || kind === "bottom") {
+      return this._commitTablePatch(shape, { cellValign: setCellValign(shape, box, kind) });
+    }
+    if (!["left", "center", "right"].includes(kind)) return false;
+    const spans = mergeMap(state);
+    const cells = state.cells.map(row => row.slice());
+    for (let r = box.r; r <= box.r2; r++) {
+      for (let c = box.c; c <= box.c2; c++) {
+        if (spans[r]?.[c]?.covered) continue;
+        cells[r][c] = alignCellHtml(cells[r][c], kind);
+      }
+    }
+    return this._commitTablePatch(shape, { cells });
+  }
+
   /** Thiết kế bảng > Tô màu nền: tô vùng ô đang chọn (hoặc ô đang đặt con trỏ, hoặc cả bảng); color rỗng/none = bỏ tô tay. */
   setTableShading(color) {
     const shape = this._activeTableShape();
@@ -3603,7 +3626,7 @@ export class SlidesCanvasController {
   }
 
   _commitTableChange(shape, next) {
-    const keys = ["rows", "cols", "cells", "merges", "cellFills", "w", "h"];
+    const keys = ["rows", "cols", "cells", "merges", "cellFills", "cellValign", "w", "h"];
     const before = {};
     const after = {};
     for (const key of keys) {
@@ -5394,7 +5417,7 @@ const startEditing = (initialText) => {
             const tOptions = tableOptions(shape);
             const emphasised = (tOptions.headerRow && r === 0) || (tOptions.totalRow && r === tableModel.rows - 1) || (tOptions.firstCol && c === 0) || (tOptions.lastCol && c === tableModel.cols - 1);
             const cellFill = effectiveCellFill(shape, r, c) || "#fff";
-            td.style.cssText = `border:1px solid #94a3b8;padding:6px 8px;font-size:13px;background:${cellFill};font-weight:${emphasised ? "700" : "400"};`;
+            td.style.cssText = `border:1px solid #94a3b8;padding:6px 8px;font-size:13px;background:${cellFill};font-weight:${emphasised ? "700" : "400"};vertical-align:${shape.cellValign?.[r]?.[c] || "top"};`;
             td.addEventListener("mousedown", (event) => {
               event.stopPropagation();
               if (event.shiftKey && this._tableCursor && String(this._tableCursor.shapeId) === String(shape.id)) {

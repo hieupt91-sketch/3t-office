@@ -334,6 +334,20 @@ export const SLIDES_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.table.cellAlign",
+    app: "slides",
+    commandIds: ["slides.table.alignLeft", "slides.table.alignCenter", "slides.table.alignRight", "slides.table.alignTop", "slides.table.alignMiddle", "slides.table.alignBottom"],
+    title: "Bố cục bảng: căn chữ trong ô (trái, giữa, phải, trên, giữa dọc, dưới)",
+    summary: "Nhóm Căn chỉnh của tab Bố cục bảng có sáu nút căn ngang (Căn trái, Căn giữa, Căn phải) và căn dọc (Căn trên, Căn giữa dọc, Căn dưới) cho chữ trong ô, vùng ô chọn hoặc cả bảng.",
+    ribbon: { tab: "Bố cục bảng", tabId: "tableLayout", group: "Căn chỉnh" },
+    keywords: ["căn chữ trong ô", "căn giữa ô", "căn lề ô", "cell alignment", "căn dọc", "căn ngang", "bảng"],
+    steps: [
+      "Nhấp vào một ô của bảng để căn riêng ô đó; nhấp ô đầu, giữ Shift và nhấp ô cuối để căn cả vùng; chọn cả bảng (không đặt con trỏ trong ô) để căn mọi ô. Tab Bố cục bảng hiện bên phải ribbon.",
+      "Tab Bố cục bảng > nhóm Căn chỉnh: Căn trái, Căn giữa, Căn phải để căn ngang; Căn trên, Căn giữa dọc, Căn dưới để căn theo chiều dọc. Căn dọc thấy rõ khi hàng cao hơn một dòng chữ.",
+      "Ô đã gộp được căn như một ô. Ctrl+Z hoàn tác từng lần căn. Căn chỉnh được lưu vào tệp PPTX và còn nguyên khi mở lại."
+    ]
+  },
+  {
     id: "slides.picture.crop",
     app: "slides",
     commandIds: ["slides.picture.crop", "slides.picture.cropRatio", "slides.picture.cropDialog", "slides.picture.cropDrag"],

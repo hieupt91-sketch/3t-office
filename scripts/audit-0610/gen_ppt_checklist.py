@@ -261,7 +261,7 @@ Công cụ bảng > Bố trí|Gộp ô|Gộp ô (Merge Cells)|V|-|17/10: slides.
 Công cụ bảng > Bố trí|Gộp ô|Tách ô (Split Cells)|V|-|17/10: slides.table.splitCell; CDP 17/17, hoàn tác một bước (docs/AUDIT-SLIDES-TABLE-1710.md:12)
 Công cụ bảng > Bố trí|Kích thước ô|Chiều cao hàng / Chiều rộng cột bảng|N|2|Chưa hỗ trợ chỉnh kích thước hàng/cột bảng chính xác
 Công cụ bảng > Bố trí|Kích thước ô|Phân phối đều hàng / cột (Distribute Rows / Columns)|N|2|Chưa hỗ trợ phân phối đều hàng/cột bảng
-Công cụ bảng > Bố trí|Căn chỉnh ô|Căn lề ô: Trái, Giữa, Phải, Trên, Giữa dọc, Dưới|N|2|Chưa có công cụ căn lề văn bản bên trong ô bảng
+Công cụ bảng > Bố trí|Căn chỉnh ô|Căn lề ô: Trái, Giữa, Phải, Trên, Giữa dọc, Dưới|V|-|sáu lệnh slides.table.alignLeft đến slides.table.alignBottom; lưu PPTX rồi PowerPoint 2016 COM đọc halign 2 giữa, 3 phải và valign 3 giữa dọc đúng từng ô (tests/live/cdp/slides-table-align.desktop.mjs; {{L:apps/slides/slides-canvas.js|  setTableCellAlign(kind) {}} setTableCellAlign, {{L:platform/commands/command-definitions.js|id: "slides.table.alignCenter"}})
 Công cụ biểu đồ > Thiết kế|Bố cục|Thêm thành phần biểu đồ (Trục, Tiêu đề, Nhãn, Chú giải)|N|2|Chưa có menu Thêm thành phần biểu đồ (Add Chart Element)
 Công cụ biểu đồ > Thiết kế|Bố cục|Bố cục nhanh (Quick Layout)|N|2|Chưa có thư viện bố cục dựng sẵn Quick Layout cho biểu đồ
 Công cụ biểu đồ > Thiết kế|Kiểu biểu đồ|Đổi bảng màu chuỗi dữ liệu (Change Colors)|N|2|Chưa có menu đổi bảng màu chuỗi dữ liệu biểu đồ trên ribbon

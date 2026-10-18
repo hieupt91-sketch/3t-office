@@ -480,7 +480,7 @@ export const enStrings = {
     animationOptions: "Effect Options",
     pasteSpecial: "Paste Special", action: "Action",
     tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant", tableLayout: "Table Layout", tableDesign: "Table Design", shapeFormat: "Shape Format", pictureFormat: "Picture Format" },
-    group: { pictureSize: "Size", pictureArrange: "Arrange", designVariants: "Variants", animPreview: "Preview", animEffects: "Animation", animTiming: "Timing", transitionGallery: "Transition to This Slide", transitionTiming: "Timing", shapeStyles: "Shape Styles", shapeArrange: "Arrange", shapeSize: "Size", tableStyleOptions: "Table Style Options", tableStyles: "Table Styles", tableRowsCols: "Rows & Columns", tableMerge: "Merge", slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
+    group: { pictureSize: "Size", pictureArrange: "Arrange", designVariants: "Variants", animPreview: "Preview", animEffects: "Animation", animTiming: "Timing", transitionGallery: "Transition to This Slide", transitionTiming: "Timing", shapeStyles: "Shape Styles", shapeArrange: "Arrange", shapeSize: "Size", tableAlignment: "Alignment", tableStyleOptions: "Table Style Options", tableStyles: "Table Styles", tableRowsCols: "Rows & Columns", tableMerge: "Merge", slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
     editing: { select: "Select" },
     drawing: { arrange: "Arrange" },
     section: "Section"
@@ -1112,6 +1112,12 @@ export const enStrings = {
   ,"slides.table.optFirstCol": { label: "First Column", tooltip: "Emphasize the first column: bold text and style color" }
   ,"slides.table.optLastCol": { label: "Last Column", tooltip: "Emphasize the last column: bold text and style color" }
   ,"slides.table.optBandedCols": { label: "Banded Columns", tooltip: "Shade alternate columns lightly" }
+  ,"slides.table.alignLeft": { label: "Align Left", tooltip: "Align text in the cell to the left" }
+  ,"slides.table.alignCenter": { label: "Center", tooltip: "Center text in the cell horizontally" }
+  ,"slides.table.alignRight": { label: "Align Right", tooltip: "Align text in the cell to the right" }
+  ,"slides.table.alignTop": { label: "Align Top", tooltip: "Move text in the cell to the top edge" }
+  ,"slides.table.alignMiddle": { label: "Center Vertically", tooltip: "Center text in the cell vertically" }
+  ,"slides.table.alignBottom": { label: "Align Bottom", tooltip: "Move text in the cell to the bottom edge" }
   ,"slides.animation.setType": { label: "Effect Type", tooltip: "Apply an effect type to the selected object" }
   ,"slides.animation.startMenu": { label: "Start", tooltip: "Choose when it starts: on click, with previous or after previous" }
   ,"slides.animation.setStart": { label: "Start Timing", tooltip: "Set when the selected object's effect starts" }

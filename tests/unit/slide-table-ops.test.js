@@ -4,7 +4,7 @@
 import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
 import {
   tableState, mergeMap, insertRow, insertCol, deleteRow, deleteCol, mergeCells, splitCell, expandSelection, TABLE_MAX_ROWS, TABLE_MAX_COLS,
-  effectiveCellFill, effectiveCellFills, fillCells, tableOptions, TABLE_STYLES
+  effectiveCellFill, effectiveCellFills, fillCells, tableOptions, TABLE_STYLES, alignCellHtml, cellAlignOf, setCellValign
 } from "../../apps/slides/slide-table-ops.js";
 
 const base = () => ({ rows: 3, cols: 3, w: 420, h: 108, cells: [["a", "b", "c"], ["d", "e", "f"], ["g", "h", "i"]] });
@@ -148,6 +148,19 @@ export async function runSlideTableOpsTests() {
     eq(deleteRow(t, 0).cellFills[0][1], "#FF0000", "xóa hàng đầu kéo màu lên");
     eq(deleteCol(t, 0).cellFills[1][0], "#FF0000", "xóa cột đầu kéo màu sang trái");
     eq(mergeCells(t, 0, 0, 0, 1).cellFills[2][2], "#FF0000", "gộp giữ màu");
+  });
+
+  test("Căn lề ô: chữ thường thành đoạn có text-align, HTML có sẵn đổi căn, căn dọc theo vùng và đi theo hàng/cột", () => {
+    eq(alignCellHtml("Xin <chào>", "center"), '<p style="text-align:center">Xin &lt;chào&gt;</p>');
+    eq(alignCellHtml("a\nb", "right"), '<p style="text-align:right">a<br>b</p>');
+    eq(alignCellHtml('<p style="text-align:left;color:red">x</p>', "right"), '<p style="text-align:right;color:red">x</p>');
+    eq(alignCellHtml("<p>x</p><p>y</p>", "center"), '<p style="text-align:center">x</p><p style="text-align:center">y</p>');
+    eq(alignCellHtml("<b>đậm</b>", "center"), '<p style="text-align:center"><b>đậm</b></p>');
+    eq(cellAlignOf('<p style="text-align:center">x</p>'), "center"); eq(cellAlignOf("x"), null);
+    const t = { ...base(), cellValign: setCellValign(base(), { r: 1, c: 1, r2: 1, c2: 2 }, "middle") };
+    eq(t.cellValign[1], [null, "middle", "middle"]);
+    eq(insertRow(t, 0).cellValign[2], [null, "middle", "middle"], "hàng chèn đẩy căn dọc xuống");
+    eq(deleteCol(t, 0).cellValign[1], ["middle", "middle"], "xóa cột kéo căn dọc sang trái");
   });
 
   return results;

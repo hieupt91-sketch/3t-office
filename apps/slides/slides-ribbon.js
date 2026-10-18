@@ -926,6 +926,19 @@ export const SLIDES_RIBBON_TABS = [
         ]
       },
       {
+        id: "tableAlignment",
+        label: "Căn chỉnh",
+        labelKey: "slidesRibbon.group.tableAlignment",
+        items: [
+          { type: "button", commandId: "slides.table.alignLeft" },
+          { type: "button", commandId: "slides.table.alignCenter" },
+          { type: "button", commandId: "slides.table.alignRight" },
+          { type: "button", commandId: "slides.table.alignTop" },
+          { type: "button", commandId: "slides.table.alignMiddle" },
+          { type: "button", commandId: "slides.table.alignBottom" }
+        ]
+      },
+      {
         id: "tableMerge",
         label: "Gộp",
         labelKey: "slidesRibbon.group.tableMerge",

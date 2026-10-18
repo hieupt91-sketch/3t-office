@@ -335,6 +335,12 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.table.optFirstCol", () => this._hintIfFalse(() => this.canvas.toggleTableOption("firstCol"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
     globalCommandBus.bindHandler("slides.table.optLastCol", () => this._hintIfFalse(() => this.canvas.toggleTableOption("lastCol"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
     globalCommandBus.bindHandler("slides.table.optBandedCols", () => this._hintIfFalse(() => this.canvas.toggleTableOption("bandedCols"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
+    globalCommandBus.bindHandler("slides.table.alignLeft", () => this._hintIfFalse(() => this.canvas.setTableCellAlign("left"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
+    globalCommandBus.bindHandler("slides.table.alignCenter", () => this._hintIfFalse(() => this.canvas.setTableCellAlign("center"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
+    globalCommandBus.bindHandler("slides.table.alignRight", () => this._hintIfFalse(() => this.canvas.setTableCellAlign("right"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
+    globalCommandBus.bindHandler("slides.table.alignTop", () => this._hintIfFalse(() => this.canvas.setTableCellAlign("top"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
+    globalCommandBus.bindHandler("slides.table.alignMiddle", () => this._hintIfFalse(() => this.canvas.setTableCellAlign("middle"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
+    globalCommandBus.bindHandler("slides.table.alignBottom", () => this._hintIfFalse(() => this.canvas.setTableCellAlign("bottom"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
     globalCommandBus.bindHandler("slides.animation.painter", () => this._hintIfFalse(() => this.canvas.animationPainter(), "Hãy chọn một đối tượng đã có hiệu ứng để lấy, rồi chọn đối tượng đích và nhấn lại Sao chép hoạt ảnh."));
     // Thư viện hình dựng sẵn và Đổi hình dạng (apps/slides/shape-presets.js).
     globalCommandBus.bindHandler("slides.shape.galleryInsert", () => this.canvas.insertShape ? this.canvas.insertShape("rect") : false);
@@ -3060,28 +3066,26 @@ export class SlidesAdapter {
     </style:style>`;
     }
     xml += this._serializeWordArtTextStyles(slides);
-    const tableCellFills = new Set();
+    const tableCellStyles = new Map();
     for (const slide of slides) {
       for (const shape of slide.shapes || []) {
-        if (shape.type === "table") {
-          for (const row of this._tableExportFills(shape)) {
-            if (Array.isArray(row)) {
-              for (const fill of row) {
-                if (fill && fill !== "transparent" && fill !== "none") {
-                  tableCellFills.add(this._cssColorToHex(fill) || fill);
-                }
-              }
-            }
-          }
-        }
+        if (shape.type !== "table") continue;
+        this._tableExportFills(shape).forEach((row, r) => {
+          row.forEach((fill, c) => {
+            const hex = fill && fill !== "transparent" && fill !== "none" ? (this._cssColorToHex(fill) || fill) : null;
+            const valign = this._tableCellValign(shape, r, c);
+            const name = this._tableCellStyleName(hex, valign);
+            if (name) tableCellStyles.set(name, { hex, valign });
+          });
+        });
       }
     }
-    for (const fill of tableCellFills) {
-      const styleKey = this._styleKey(fill);
+    for (const [name, { hex, valign }] of tableCellStyles) {
+      const vertical = valign ? ` style:vertical-align="${valign}"` : "";
       xml += `
-    <style:style style:name="ce_fill_${styleKey}" style:family="table-cell">
-      <style:table-cell-properties fo:background-color="${this._escapeXml(fill)}"/>
-      <loext:graphic-properties draw:fill="solid" draw:fill-color="${this._escapeXml(fill)}"/>
+    <style:style style:name="${name}" style:family="table-cell">
+      <style:table-cell-properties${hex ? ` fo:background-color="${this._escapeXml(hex)}"` : ""}${vertical}/>${hex ? `
+      <loext:graphic-properties draw:fill="solid" draw:fill-color="${this._escapeXml(hex)}"/>` : ""}
     </style:style>`;
     }
     return xml;
@@ -3203,7 +3207,8 @@ export class SlidesAdapter {
           const spanAttr = merged ? ` table:number-columns-spanned="${merged.cs}" table:number-rows-spanned="${merged.rs}"` : "";
           const fill = effectiveFills[rowIndex]?.[colIndex];
           const hexFill = fill && fill !== "transparent" && fill !== "none" ? (this._cssColorToHex(fill) || fill) : null;
-          const styleAttr = hexFill ? ` table:style-name="ce_fill_${this._styleKey(hexFill)}"` : "";
+          const cellStyleName = this._tableCellStyleName(hexFill, this._tableCellValign(shape, rowIndex, colIndex));
+          const styleAttr = cellStyleName ? ` table:style-name="${cellStyleName}"` : "";
           return `<table:table-cell office:value-type="string"${spanAttr}${styleAttr}>${this._richOrPlainXml(plain, html, richCtx)}</table:table-cell>`;
         }).join("");
         return `<table:table-row>${cellsXml}</table:table-row>`;
@@ -3532,6 +3537,18 @@ export class SlidesAdapter {
     return styles;
   }
 
+  /** Căn dọc hợp lệ của ô (top | middle | bottom) hoặc null. */
+  _tableCellValign(shape, r, c) {
+    const value = shape.cellValign?.[r]?.[c];
+    return value === "top" || value === "middle" || value === "bottom" ? value : null;
+  }
+
+  /** Tên kiểu ô theo (màu nền, căn dọc); null nếu ô không có gì để ghi. */
+  _tableCellStyleName(hex, valign) {
+    if (!hex && !valign) return null;
+    return `ce_fill_${hex ? this._styleKey(hex) : "none"}${valign ? `_va_${valign}` : ""}`;
+  }
+
   /** Màu nền từng ô khi lưu: ô không tô được ghi trắng (đúng như trình soạn thảo vẽ) — nếu để trống, LibreOffice tô màu xanh mặc định 729FCF trong PPTX. */
   _tableExportFills(shape) {
     return effectiveCellFills(shape).map(row => row.map(fill => fill || "#FFFFFF"));
@@ -3539,6 +3556,7 @@ export class SlidesAdapter {
 
   _parseTableCellStyles(xmlText) {
     const map = new Map();
+    this._cellValignStyles = new Map();
     const styleRegex = /<style:style\b([^>]*?)>([\s\S]*?)<\/style:style>/gi;
     let match;
     while ((match = styleRegex.exec(xmlText)) !== null) {
@@ -3547,6 +3565,8 @@ export class SlidesAdapter {
       const name = this._attr(attrs, "style:name");
       if (!name) continue;
       const inner = match[2];
+      const verticalAlign = inner.match(/<style:table-cell-properties\b[^>]*style:vertical-align=["'](top|middle|bottom)["']/i)?.[1] || inner.match(/draw:textarea-vertical-align=["'](top|middle|bottom)["']/i)?.[1];
+      if (verticalAlign) this._cellValignStyles.set(name, verticalAlign);
       const propMatch = inner.match(/<(?:[a-z0-9_-]+:)?(?:graphic-properties|table-cell-properties)\b([^>]*)/i);
       if (propMatch) {
         const propAttrs = propMatch[1];
@@ -3915,7 +3935,9 @@ export class SlidesAdapter {
   _parseTableCells(inner, cellStylesMap = this._cellStyles) {
     const rows = [];
     const cellFills = [];
+    const cellValigns = [];
     let hasAnyFill = false;
+    let hasAnyValign = false;
     // soffice FODP may compress identical consecutive cells/rows
     // (table:number-columns-repeated / table:number-rows-repeated) and may emit
     // empty cells as self-closing. Count each logical cell, not each XML tag.
@@ -3927,6 +3949,7 @@ export class SlidesAdapter {
       const rowRepeat = Math.max(1, Number(this._attr(rowAttrs, "table:number-rows-repeated")) || 1);
       const cells = [];
       const fills = [];
+      const valigns = [];
       const cellRegex = /<(?:table:)?(?:table-cell|covered-table-cell)\b([^>]*?)(?:\/>|>([\s\S]*?)<\/(?:table:)?(?:table-cell|covered-table-cell)>)/gi;
       let cellMatch;
       while ((cellMatch = cellRegex.exec(rowMatch[2] || "")) !== null) {
@@ -3943,17 +3966,22 @@ export class SlidesAdapter {
         // Trắng = ô không tô (lúc lưu, ô không tô được ghi trắng): không coi là màu tô tay để kiểu bảng còn áp dụng được.
         const fill = rawFill && /^#?f{6}$/i.test(String(rawFill).trim()) ? null : rawFill;
         if (fill) hasAnyFill = true;
+        const valign = (!isCovered && cellStyleName && this._cellValignStyles?.get(cellStyleName)) || null;
+        if (valign) hasAnyValign = true;
         for (let index = 0; index < colRepeat; index++) {
           cells.push(cellText);
           fills.push(fill);
+          valigns.push(valign);
         }
       }
       for (let index = 0; index < rowRepeat; index++) {
         rows.push(cells.slice());
         cellFills.push(fills.slice());
+        cellValigns.push(valigns.slice());
       }
     }
     rows.cellFills = hasAnyFill ? cellFills : null;
+    rows.cellValign = hasAnyValign ? cellValigns : null;
     return rows;
   }
 
@@ -4022,6 +4050,7 @@ export class SlidesAdapter {
         type: "table",
         cells,
         ...(cells.cellFills ? { cellFills: cells.cellFills } : {}),
+        ...(cells.cellValign ? { cellValign: cells.cellValign } : {}),
         ...(tableMerges.length ? { merges: tableMerges } : {}),
         rows: cells.length,
         cols: cells.reduce((max, row) => Math.max(max, row.length), 0),
