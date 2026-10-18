@@ -505,6 +505,9 @@ export class WriterArrangeController {
         <button type="button" class="vno-btn" data-pic="compress" style="font-size:11px; padding:3px 6px;">${translate("writerPicture.compress", "Nén ảnh")}</button>
         <button type="button" class="vno-btn" data-pic="corrections" style="font-size:11px; padding:3px 6px;">${translate("writerPicture.corrections", "Độ sáng / Tương phản…")}</button>
       </div>
+      <div style="display:flex; flex-direction:column; gap:4px;">
+        <button type="button" class="vno-btn" data-pic="border" style="font-size:11px; padding:3px 6px;">${translate("writerPicture.border", "Viền ảnh…")}</button>
+      </div>
     </div><div class="vno-ribbon-group-label">${translate("writerPicture.adjustGroup", "Điều chỉnh")}</div>`;
 
     adjustGroup.addEventListener("click", (e) => {
@@ -513,6 +516,7 @@ export class WriterArrangeController {
       if (act === "reset") this.adapter?.resetPicture?.();
       if (act === "compress") this.adapter?.compressPicture?.();
       if (act === "corrections") this.adapter?.setPictureCorrections?.();
+      if (act === "border") this.adapter?.setPictureBorder?.();
     });
 
     // 2. Nhóm Cắt ảnh (Crop)

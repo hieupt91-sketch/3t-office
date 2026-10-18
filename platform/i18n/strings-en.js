@@ -1299,6 +1299,7 @@ export const enStrings = {
     "writer.image.resize": { label: "Resize Picture", tooltip: "Resize picture and adjust aspect ratio" },
     "writer.image.wrap": { label: "Wrap Text", tooltip: "Configure text wrapping around picture" },
     "writer.image.crop": { label: "Crop Picture", tooltip: "Crop the outer edges of the picture" },
+    "writer.image.border": { label: "Picture Border", tooltip: "Set a border for the picture: line style (solid, dashed, dotted, double), thickness and color, or remove the border" },
     "writer.image.corrections": { label: "Brightness & Contrast", tooltip: "Adjust the brightness and contrast of the picture" },
     "writer.image.changePicture": { label: "Change Picture", tooltip: "Replace the current picture while keeping formatting" },
     "writer.image.resetPicture": { label: "Reset Picture", tooltip: "Reset picture back to its original size and formatting" },

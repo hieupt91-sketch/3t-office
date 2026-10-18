@@ -16,14 +16,14 @@ Chuẩn: Microsoft Word 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qu
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu Word 2016 | 153 | 56% |
+| ✅ Đã đối chiếu Word 2016 | 154 | 56% |
 | 🟢 Có, chưa đối chiếu | 64 | 23% |
 | 🟡 Có một phần | 27 | 10% |
-| 🔴 Chưa có | 29 | 11% |
+| 🔴 Chưa có | 28 | 10% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **279** (áp dụng: 273) | |
 
-- **Độ phủ so với Word 2016 (có hoặc có một phần, một phần tính 0,5): 84%**
+- **Độ phủ so với Word 2016 (có hoặc có một phần, một phần tính 0,5): 85%**
 - **Đã xác minh bằng đối chiếu Word 2016 thật: 56%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn phòng; độ trung thực đối chiếu được xác nhận bằng Word COM thật.
@@ -42,7 +42,7 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | Xem lại | 22 | 10 | 7 | 2 | 3 | 0 | 82% |
 | Chế độ xem | 21 | 10 | 6 | 2 | 3 | 0 | 81% |
 | Công cụ Bảng | 26 | 24 | 0 | 1 | 1 | 0 | 94% |
-| Công cụ Hình ảnh | 12 | 2 | 5 | 2 | 3 | 0 | 67% |
+| Công cụ Hình ảnh | 12 | 3 | 5 | 2 | 2 | 0 | 75% |
 | Công cụ Vẽ | 10 | 4 | 2 | 2 | 2 | 0 | 70% |
 | Công cụ Đầu & Chân trang | 7 | 4 | 2 | 1 | 0 | 0 | 93% |
 | Không thuộc ribbon | 20 | 8 | 9 | 0 | 3 | 0 | 85% |
@@ -135,7 +135,7 @@ Tổng: 1 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Đoạn văn | Tô nền đoạn văn (Shading) | ✅ | - | Tô nền đoạn văn writer.para.shading đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:42) |
 | Đoạn văn | Đường viền đoạn văn (Borders) | ✅ | - | Viền đoạn văn writer.para.borders đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:43) |
 | Đoạn văn | Hộp thoại Đoạn văn (Paragraph Dialog) | 🟢 | - | writer.format.paragraphDialog |
-| Đoạn văn | Hộp thoại Điểm dừng Tab (Tabs Dialog: căn lề, ký tự dẫn leader) | ✅ | - | writer.format.tabStops mở hộp thoại Dừng tab; lưu DOCX rồi Word 2016 COM đọc TabStops 141.8 pt trái và 340.2 pt phải dẫn chấm (tests/live/cdp/writer-tabstops.desktop.mjs; apps/writer/tab-stops.js:26 parseTabStops, platform/commands/command-definitions.js:273) |
+| Đoạn văn | Hộp thoại Điểm dừng Tab (Tabs Dialog: căn lề, ký tự dẫn leader) | ✅ | - | writer.format.tabStops mở hộp thoại Dừng tab; lưu DOCX rồi Word 2016 COM đọc TabStops 141.8 pt trái và 340.2 pt phải dẫn chấm (tests/live/cdp/writer-tabstops.desktop.mjs; apps/writer/tab-stops.js:26 parseTabStops, platform/commands/command-definitions.js:274) |
 | Kiểu | Thư viện kiểu (Styles Gallery: Normal, Heading 1–3) | ✅ | - | Heading 1–3 đối chiếu thuộc tính Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:68,95) |
 | Kiểu | Kiểu dáng tùy biến / Bộ kiểu mới | 🟡 | 2 | Có Normal, Heading 1-3, Title, Quote; chưa có giao diện New Style dialog đầy đủ |
 | Kiểu | Ngăn kiểu dáng (Styles Pane, Alt+Ctrl+Shift+S) | 🔴 | 2 | Chưa có ngăn nổi Styles Pane riêng |
@@ -363,7 +363,7 @@ Tổng: 1 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Định dạng | Thay đổi ảnh giữ nguyên kích thước (Change Picture) | 🟢 | - | writer.image.changePicture (platform/commands/command-definitions.js:207) |
 | Định dạng | Đặt lại ảnh về gốc (Reset Picture) | 🟢 | - | writer.image.resetPicture (platform/commands/command-definitions.js:208) |
 | Định dạng | Thư viện kiểu khung ảnh (Picture Styles Gallery) | 🟡 | 2 | Có bo góc, đổ bóng, viền ảnh; chưa có gallery preset phong phú |
-| Định dạng | Viền ảnh & Màu viền (Picture Border) | 🔴 | 2 | Chưa có công cụ viền ảnh và màu viền (Picture Border) |
+| Định dạng | Viền ảnh & Màu viền (Picture Border) | ✅ | - | writer.image.border: hộp thoại Viền ảnh chọn nét liền, đứt, chấm, đôi, độ dày và màu; lưu DOCX rồi Word 2016 COM đọc Line.Visible, Weight 2,25 pt, DashStyle 4 và màu xanh (tests/live/cdp/writer-picture-border.desktop.mjs; adapters/libreoffice/writer/writer-adapter.js:10790 setPictureBorder, platform/commands/command-definitions.js:225) |
 | Định dạng | Cắt xén ảnh (Crop) | 🟢 | - | writer.image.crop (platform/commands/command-definitions.js:205) |
 | Định dạng | Kích thước ảnh chính xác (Chiều cao, Chiều rộng pt/cm) | ✅ | - | Kích thước ảnh PNG đối chiếu Word COM 23.9x13.6 pt (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:74) |
 | Định dạng | Tùy chọn ngắt dòng chữ (Wrap Text - In Line, Square, Tight, Behind, In Front) | ✅ | - | Tùy chọn ngắt dòng chữ ảnh Wrap Square đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:74) |

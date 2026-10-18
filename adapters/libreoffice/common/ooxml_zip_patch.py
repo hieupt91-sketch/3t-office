@@ -27941,6 +27941,42 @@ def _patch_blip_fill(blip_fill_xml: str, crop: tuple[float, float, float, float]
     return result
 
 
+_PIC_BORDER_DASH = {"solid": "solid", "dashed": "dash", "dotted": "sysDot", "double": "solid"}
+
+
+def _writer_picture_border_ln(spec: str) -> str | None:
+    """data-vno-border="2.25:dashed:#0000ff" (pt:kiểu:màu) -> <a:ln> của PowerPoint/Word; None nếu sai định dạng."""
+    parts = str(spec or "").split(":")
+    if len(parts) != 3:
+        return None
+    try:
+        width_pt = float(parts[0])
+    except ValueError:
+        return None
+    style, color = parts[1].lower(), parts[2].lstrip("#")
+    if not (0.1 <= width_pt <= 20) or style not in _PIC_BORDER_DASH or not re.fullmatch(r"[0-9a-fA-F]{6}", color):
+        return None
+    compound = ' cmpd="dbl"' if style == "double" else ""
+    return (
+        f'<a:ln w="{round(width_pt * 12700)}"{compound}><a:solidFill><a:srgbClr val="{color.upper()}"/></a:solidFill>'
+        f'<a:prstDash val="{_PIC_BORDER_DASH[style]}"/></a:ln>'
+    )
+
+
+def _writer_apply_picture_border(document_xml: str, after_index: int, ln_xml: str) -> tuple[int, int, str] | None:
+    """Thay/chèn <a:ln> trong <pic:spPr> của ảnh có blipFill kết thúc tại after_index; trả (bắt đầu, kết thúc, xml mới)."""
+    sp_pr = re.compile(r"<pic:spPr\b[^>]*>([\s\S]*?)</pic:spPr\s*>", re.IGNORECASE).search(document_xml, after_index)
+    pic_end = document_xml.find("</pic:pic>", after_index)
+    if not sp_pr or (pic_end >= 0 and sp_pr.start() > pic_end):
+        return None
+    inner = sp_pr.group(1)
+    inner = re.sub(r"<a:ln\b[^>]*/>|<a:ln\b[^>]*>[\s\S]*?</a:ln\s*>", "", inner, flags=re.IGNORECASE)
+    tail = re.search(r"<a:(?:effectLst|effectDag|scene3d|sp3d|extLst)\b", inner, re.IGNORECASE)
+    inner = inner[:tail.start()] + ln_xml + inner[tail.start():] if tail else inner + ln_xml
+    opening = document_xml[sp_pr.start():document_xml.index(">", sp_pr.start()) + 1]
+    return sp_pr.start(), sp_pr.end(), f"{opening}{inner}</pic:spPr>"
+
+
 def _writer_restore_picture_tools_effects(document_xml: str, source_html: str | None) -> str:
     if not source_html or not document_xml:
         return document_xml
@@ -27949,7 +27985,7 @@ def _writer_restore_picture_tools_effects(document_xml: str, source_html: str | 
         return document_xml
 
     has_any = any(
-        re.search(r"data-vno-(?:crop-[ltrb]|brightness|contrast|pic-reset)|clip-path|filter", tag.group(1), re.IGNORECASE)
+        re.search(r"data-vno-(?:crop-[ltrb]|brightness|contrast|pic-reset|border)|clip-path|filter", tag.group(1), re.IGNORECASE)
         for tag in image_tags
     )
     if not has_any:
@@ -27999,13 +28035,19 @@ def _writer_restore_picture_tools_effects(document_xml: str, source_html: str | 
 
         has_crop = any(v > 0 for v in (l, t, r, b))
         has_lum = abs(bright) > 0.001 or abs(contrast) > 0.001
-        if not has_crop and not has_lum and not reset:
+        border_m = re.search(r'data-vno-border=["\']([^"\']+)["\']', attrs, re.IGNORECASE)
+        border_ln = _writer_picture_border_ln(border_m.group(1)) if border_m else None
+        if not has_crop and not has_lum and not reset and not border_ln:
             continue
 
         bf_match = blip_fills[idx]
         patched_bf = _patch_blip_fill(bf_match.group(0), (l, t, r, b), bright, contrast, reset=reset)
         if patched_bf != bf_match.group(0):
             replacements.append((bf_match.start(), bf_match.end(), patched_bf))
+        if border_ln:
+            border_patch = _writer_apply_picture_border(document_xml, bf_match.end(), border_ln)
+            if border_patch:
+                replacements.append(border_patch)
 
     for start, end, rep in reversed(replacements):
         document_xml = document_xml[:start] + rep + document_xml[end:]
@@ -28016,7 +28058,7 @@ def postprocess_writer_picture_tools(docx_bytes: bytes, *, source_html: str | No
     """Áp dụng thuộc tính cắt ảnh (Crop <a:srcRect>) và độ sáng/tương phản (Corrections <a:lum>) vào DOCX."""
     if not docx_bytes or not source_html:
         return docx_bytes
-    if not any(k in source_html for k in ("data-vno-crop", "data-vno-brightness", "data-vno-contrast", "data-vno-pic-reset", "clip-path", "filter")):
+    if not any(k in source_html for k in ("data-vno-crop", "data-vno-brightness", "data-vno-contrast", "data-vno-pic-reset", "data-vno-border", "clip-path", "filter")):
         return docx_bytes
     document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
     if not document_bytes:

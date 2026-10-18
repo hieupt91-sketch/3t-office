@@ -255,7 +255,7 @@ Công cụ Hình ảnh|Định dạng|Nén ảnh (Compress Pictures)|A|-|writer.
 Công cụ Hình ảnh|Định dạng|Thay đổi ảnh giữ nguyên kích thước (Change Picture)|A|-|writer.image.changePicture (platform/commands/command-definitions.js:207)
 Công cụ Hình ảnh|Định dạng|Đặt lại ảnh về gốc (Reset Picture)|A|-|writer.image.resetPicture (platform/commands/command-definitions.js:208)
 Công cụ Hình ảnh|Định dạng|Thư viện kiểu khung ảnh (Picture Styles Gallery)|P|2|Có bo góc, đổ bóng, viền ảnh; chưa có gallery preset phong phú
-Công cụ Hình ảnh|Định dạng|Viền ảnh & Màu viền (Picture Border)|N|2|Chưa có công cụ viền ảnh và màu viền (Picture Border)
+Công cụ Hình ảnh|Định dạng|Viền ảnh & Màu viền (Picture Border)|V|-|writer.image.border: hộp thoại Viền ảnh chọn nét liền, đứt, chấm, đôi, độ dày và màu; lưu DOCX rồi Word 2016 COM đọc Line.Visible, Weight 2,25 pt, DashStyle 4 và màu xanh (tests/live/cdp/writer-picture-border.desktop.mjs; {{L:adapters/libreoffice/writer/writer-adapter.js|  async setPictureBorder}} setPictureBorder, {{L:platform/commands/command-definitions.js|id: "writer.image.border"}})
 Công cụ Hình ảnh|Định dạng|Cắt xén ảnh (Crop)|A|-|writer.image.crop (platform/commands/command-definitions.js:205)
 Công cụ Hình ảnh|Định dạng|Kích thước ảnh chính xác (Chiều cao, Chiều rộng pt/cm)|V|-|Kích thước ảnh PNG đối chiếu Word COM 23.9x13.6 pt (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:74)
 Công cụ Hình ảnh|Định dạng|Tùy chọn ngắt dòng chữ (Wrap Text - In Line, Square, Tight, Behind, In Front)|V|-|Tùy chọn ngắt dòng chữ ảnh Wrap Square đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:74)

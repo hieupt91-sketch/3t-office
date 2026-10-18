@@ -42,7 +42,7 @@ function trapFocus(box, event) {
   }
 }
 
-export function showTableBordersDialog(current = {}) {
+export function showTableBordersDialog(current = {}, dialogOptions = {}) {
   if (typeof document === "undefined" || !document.body) return Promise.resolve(null);
   return new Promise(resolve => {
     const previous = document.activeElement;
@@ -56,14 +56,14 @@ export function showTableBordersDialog(current = {}) {
     overlay.innerHTML = `
       <div class="vno-dialog-box" style="width:440px;max-width:calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-tblb-title">
         <div class="vno-dialog-header">
-          <span id="vno-tblb-title">Kiểu viền bảng</span>
+          <span id="vno-tblb-title">${dialogOptions.title || "Kiểu viền bảng"}</span>
           <button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" title="Đóng" aria-label="Đóng">&times;</button>
         </div>
         <div class="vno-dialog-body" style="display:grid;gap:12px;">
           <div>
             <label for="vno-tblb-type" style="${fieldStyle}">Áp dụng cho</label>
             <select id="vno-tblb-type" class="vno-dialog-input" style="${inputStyle}">
-              ${TABLE_BORDER_TYPES.map(item => `<option value="${item.id}" ${item.id === (current.type || "all") ? "selected" : ""}>${item.label}</option>`).join("")}
+              ${(dialogOptions.types || TABLE_BORDER_TYPES).map(item => `<option value="${item.id}" ${item.id === (current.type || "all") ? "selected" : ""}>${item.label}</option>`).join("")}
             </select>
           </div>
           <div style="display:grid;grid-template-columns:1fr 1fr 80px;gap:10px;">

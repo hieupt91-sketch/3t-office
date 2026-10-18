@@ -826,6 +826,7 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.table.toText", (args) => this._hintIfFalse(() => this.convertTableToText(args), "Hãy đặt con trỏ vào bảng cần chuyển thành văn bản."));
     globalCommandBus.bindHandler("writer.table.quickTables", (args) => this.insertQuickTable(args));
     globalCommandBus.bindHandler("writer.image.crop", (args) => this._hintIfFalse(() => this.cropImage(args), "Hãy chọn hình ảnh cần cắt (Crop)."));
+    globalCommandBus.bindHandler("writer.image.border", (args) => this._hintIfFalse(() => this.setPictureBorder(args), "Hãy chọn hình ảnh cần đặt viền."));
     globalCommandBus.bindHandler("writer.image.corrections", (args) => this._hintIfFalse(() => this.setPictureCorrections(args), "Hãy chọn hình ảnh cần điều chỉnh độ sáng và tương phản."));
     globalCommandBus.bindHandler("writer.image.changePicture", (args) => this._hintIfFalse(() => this.changePicture(args), "Hãy chọn hình ảnh cần đổi."));
     globalCommandBus.bindHandler("writer.image.resetPicture", () => this._hintIfFalse(() => this.resetPicture(), "Hãy chọn hình ảnh cần đặt lại."));
@@ -10781,6 +10782,35 @@ export class WriterAdapter {
     applyImageCrop(img, values);
     this.isDirty = true;
     this.recordSnapshot("writer.image.crop");
+    this.arrangeController?._updateOverlay?.();
+    return true;
+  }
+
+  /** Viền ảnh: kiểu nét (liền/đứt/chấm/đôi), độ dày pt, màu; type "none" bỏ viền. Hộp thoại khi không có tham số. */
+  async setPictureBorder(args = null) {
+    const img = this._getSelectedImage();
+    if (!img) return false;
+    const current = this._pictureBorderPen || {};
+    const values = args && typeof args === "object" ? args : await showTableBordersDialog(
+      { ...current, type: img.style.border && img.style.border !== "none" ? "all" : "none" },
+      { title: "Viền ảnh", types: [{ id: "all", label: "Có viền" }, { id: "none", label: "Không viền" }] }
+    );
+    if (!values) return null;
+    this.flushTyping?.();
+    if (values.type === "none") {
+      img.style.removeProperty("border");
+      ["border-top", "border-right", "border-bottom", "border-left", "border-image"].forEach((name) => img.style.removeProperty(name));
+      img.removeAttribute("data-vno-border");
+    } else {
+      this._pictureBorderPen = { style: values.style || current.style, widthPt: values.widthPt || current.widthPt, color: values.color || current.color };
+      img.style.border = tableBorderCss({ style: "solid", widthPt: 0.75, color: "#000000", ...this._pictureBorderPen });
+      img.style.removeProperty("border-image");
+      // Dấu để lưu DOCX dựng đường viền ảnh chuẩn (a:ln): pt:kiểu:màu.
+      const pen = { style: "solid", widthPt: 0.75, color: "#000000", ...this._pictureBorderPen };
+      img.setAttribute("data-vno-border", `${pen.widthPt}:${pen.style}:${pen.color}`);
+    }
+    this.isDirty = true;
+    this.recordSnapshot("writer.image.border");
     this.arrangeController?._updateOverlay?.();
     return true;
   }

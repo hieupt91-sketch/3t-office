@@ -1298,6 +1298,7 @@ export const viStrings = {
     "writer.image.resize": { label: "Đổi kích thước ảnh", tooltip: "Thay đổi kích thước và tỷ lệ ảnh" },
     "writer.image.wrap": { label: "Ngắt dòng văn bản", tooltip: "Tùy chọn ngắt dòng chữ quanh ảnh" },
     "writer.image.crop": { label: "Cắt ảnh", tooltip: "Cắt bớt các cạnh ngoài của hình ảnh (Crop)" },
+    "writer.image.border": { label: "Viền ảnh", tooltip: "Đặt viền cho hình ảnh: kiểu nét (liền, đứt, chấm, đôi), độ dày và màu, hoặc bỏ viền" },
     "writer.image.corrections": { label: "Độ sáng & Tương phản", tooltip: "Điều chỉnh độ sáng và tương phản của hình ảnh" },
     "writer.image.changePicture": { label: "Đổi ảnh khác", tooltip: "Thay thế ảnh hiện tại bằng một tệp ảnh khác nhưng giữ nguyên bố cục" },
     "writer.image.resetPicture": { label: "Đặt lại ảnh", tooltip: "Khôi phục ảnh về trạng thái kích thước và màu sắc ban đầu" },
