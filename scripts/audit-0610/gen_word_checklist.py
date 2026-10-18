@@ -169,7 +169,7 @@ Thư|Bắt đầu trộn thư|Nguồn dữ liệu người nhận (Select Recipi
 Thư|Bắt đầu trộn thư|Sửa danh sách người nhận (Edit Recipient List)|P|2|Nạp danh sách ngoài; chưa có bảng lọc/sắp xếp danh sách trực tiếp
 Thư|Viết & Chèn trường|Chèn trường trộn thư (Insert Merge Field)|V|-|Chèn trường writer.mailMerge.insertField đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:98)
 Thư|Viết & Chèn trường|Quy tắc điều kiện (Rules: If...Then...Else)|V|-|Quy tắc điều kiện writer.mailMerge.ifRule đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:99)
-Thư|Viết & Chèn trường|Tô sáng trường trộn (Highlight Merge Fields)|P|2|Trường hiển thị có đánh dấu trực quan trong editor
+Thư|Viết & Chèn trường|Tô sáng trường trộn (Highlight Merge Fields)|A|-|writer.mailMerge.highlightFields: nút bật/tắt nền màu của trường trộn, không đổi nội dung và không lọt vào tệp lưu (tests/live/cdp/writer-merge-highlight.desktop.mjs 5/5); thao tác hiển thị, không có đối chiếu Word thật
 Thư|Viết & Chèn trường|Khối địa chỉ (Address Block) & Lời chào (Greeting Line)|P|2|Có chèn trường riêng lẻ; chưa có wizard gộp khối địa chỉ
 Thư|Viết & Chèn trường|Khớp trường dữ liệu (Match Fields)|P|2|Khớp theo tên cột trong file nguồn
 Thư|Viết & Chèn trường|Cập nhật toàn bộ nhãn (Update Labels)|P|2|Đã hỗ trợ qua sinh hàng loạt nhãn từ nguồn

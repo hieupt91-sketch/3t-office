@@ -1873,6 +1873,31 @@ export const WRITER_HELP_ENTRIES = [
   ]
 },
 {
+  "id": "writer.mailMerge.highlightFieldsHelp",
+  "app": "writer",
+  "commandIds": [
+    "writer.mailMerge.highlightFields"
+  ],
+  "title": "Tô sáng trường trộn",
+  "summary": "Bật hoặc tắt nền màu quanh các trường trộn thư để dễ thấy chúng nằm đâu trong mẫu thư.",
+  "ribbon": {
+    "tab": "Trộn thư",
+    "tabId": "mailings",
+    "group": "Viết & Chèn trường"
+  },
+  "keywords": [
+    "tô sáng trường",
+    "highlight merge fields",
+    "trường trộn thư",
+    "nền màu trường"
+  ],
+  "steps": [
+    "Mở tab Trộn thư, nhóm Viết & Chèn trường. Nút «Tô sáng trường trộn» mặc định đang bật: mỗi trường như «Họ_và_Tên» có nền xanh nhạt và viền để dễ nhận ra.",
+    "Bấm nút một lần để tắt: trường hiện như chữ thường, giúp xem mẫu thư đúng dáng khi in. Bấm lần nữa để bật lại.",
+    "Nút chỉ đổi cách hiển thị, không làm thay đổi văn bản của thư mẫu, không ảnh hưởng kết quả trộn hay tệp lưu. Khi đang Xem trước kết quả, dữ liệu thật luôn giữ nền vàng nhạt."
+  ]
+},
+{
   "id": "writer.mailMerge.previewHelp",
   "app": "writer",
   "commandIds": [

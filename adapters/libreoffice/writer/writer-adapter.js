@@ -763,6 +763,7 @@ export class WriterAdapter {
     // Bind Mail Merge (Trộn thư)
     globalCommandBus.bindHandler("writer.mailMerge.open", (args) => this.openMailMergeDataSourceDialog(args));
     globalCommandBus.bindHandler("writer.mailMerge.insertField", (args) => this.insertMergeField(args));
+    globalCommandBus.bindHandler("writer.mailMerge.highlightFields", () => this.toggleMergeFieldHighlight());
     globalCommandBus.bindHandler("writer.mailMerge.ifRule", (args) => this.insertMailMergeRule(args));
     globalCommandBus.bindHandler("writer.mailMerge.preview", (args) => this.toggleMailMergePreview(args));
     globalCommandBus.bindHandler("writer.mailMerge.prevRecord", (args) => this.prevMailMergeRecord(args));
@@ -22993,6 +22994,15 @@ export class WriterAdapter {
    * @param {Object|string} [options={}]
    * @returns {HTMLElement|Object|null}
    */
+  /** Tô sáng trường trộn: bật (mặc định) hiện nền màu quanh «Trường»; tắt thì trường hiện như chữ thường. Chỉ là hiển thị, không đổi nội dung. */
+  toggleMergeFieldHighlight() {
+    this._initZones();
+    if (!this.bodyDom) return false;
+    const plain = this.bodyDom.classList.toggle("vno-merge-plain");
+    globalCommandBus.updateState("writer.mailMerge.highlightFields", { checked: !plain });
+    return true;
+  }
+
   insertMergeField(options = {}) {
     options = options || {};
     this._initZones();

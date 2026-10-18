@@ -823,7 +823,8 @@ export const WRITER_RIBBON_TABS = [
         labelKey: "writerRibbon.group.writeInsert",
         items: [
           { type: "button", commandId: "writer.mailMerge.insertField", isLarge: true },
-          { type: "button", commandId: "writer.mailMerge.ifRule", isLarge: true }
+          { type: "button", commandId: "writer.mailMerge.ifRule", isLarge: true },
+          { type: "button", commandId: "writer.mailMerge.highlightFields" }
         ]
       },
       {

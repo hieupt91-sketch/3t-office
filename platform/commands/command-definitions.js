@@ -322,6 +322,7 @@ export const WRITER_COMMANDS = [
   // Trộn thư (Mail Merge)
   { id: "writer.mailMerge.open", category: "mailmerge", label: "Nguồn dữ liệu", icon: "mailMerge", tooltip: "Chọn danh sách người nhận trộn thư từ bảng tính (.xlsx, .xls) hoặc CSV/TSV" },
   { id: "writer.mailMerge.insertField", category: "mailmerge", label: "Chèn trường", icon: "mergeInsertField", tooltip: "Chèn trường trộn thư tại vị trí con trỏ" },
+  { id: "writer.mailMerge.highlightFields", category: "mailings", label: "Tô sáng trường trộn", icon: "mailMerge", isToggle: true, tooltip: "Bật hoặc tắt nền màu cho các trường trộn thư để dễ thấy vị trí trường" },
   { id: "writer.mailMerge.ifRule", category: "mailmerge", label: "Quy tắc", icon: "mergeInsertField", tooltip: "Chèn Bỏ qua bản ghi nếu, Bản ghi kế nếu, Nếu…Thì…Khác hoặc Điền vào" },
   { id: "writer.mailMerge.preview", category: "mailmerge", label: "Xem trước kết quả", icon: "mergePreview", tooltip: "Bật/tắt xem trước bản ghi trộn thư", isToggle: true },
   { id: "writer.mailMerge.prevRecord", category: "mailmerge", label: "Bản ghi trước", icon: "mergePrev", tooltip: "Chuyển tới bản ghi trước" },

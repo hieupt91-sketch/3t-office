@@ -2840,6 +2840,13 @@ sup.vno-endnote-ref:hover {
   user-select: all;
 }
 
+.vno-merge-plain .vno-merge-field:not(.vno-merge-preview) {
+  background-color: transparent;
+  border-color: transparent;
+  color: inherit;
+  font-weight: inherit;
+}
+
 .vno-merge-field:hover {
   background-color: #bae6fd;
   border-color: #7dd3fc;
