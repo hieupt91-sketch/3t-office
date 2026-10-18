@@ -49,7 +49,7 @@ Trang đầu|Phông chữ|Hộp thoại Đổi chữ hoa/thường (Sentence cas
 Trang đầu|Phông chữ|Xóa định dạng (Clear All Formatting, Ctrl+Space)|V|-|FIX-T11 nhóm 1: writer.text.clearFormat đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:29)
 Trang đầu|Phông chữ|Đậm (Ctrl+B) / Nghiêng (Ctrl+I)|V|-|Đậm và Nghiêng writer.text.bold/italic đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:22-23, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:25-26)
 Trang đầu|Phông chữ|Gạch chân đơn (Ctrl+U)|V|-|Gạch chân đơn writer.text.underline đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:24, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:27)
-Trang đầu|Phông chữ|Gạch chân đôi, nét đứt, lượn sóng|P|2|Có gạch chân đơn; thư viện kiểu gạch chân mở rộng chưa đầy đủ
+Trang đầu|Phông chữ|Gạch chân đôi, nét đứt, lượn sóng|A|-|writer.format.fontDialog (Ctrl+D) có Một nét, Hai nét, Nét đậm, Chấm, Gạch ngang, Lượn sóng + màu gạch chân; lưu DOCX rồi Word 2016 thật đọc Font.Underline = 3/6/4/7/11 đúng từng kiểu (tests/live/cdp/writer-underline-styles.desktop.mjs, scripts/audit-0610/word_underline_readback.ps1); chưa có các kiểu hiếm của Word (chấm-gạch, gạch dài, chỉ gạch dưới từ)
 Trang đầu|Phông chữ|Gạch ngang chữ (Strikethrough)|V|-|Gạch ngang chữ writer.text.strike đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:25, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:28)
 Trang đầu|Phông chữ|Gạch ngang đôi (Double Strikethrough)|N|3|Chưa có gạch ngang đôi
 Trang đầu|Phông chữ|Chỉ số dưới (Subscript, Ctrl+=) / Chỉ số trên (Superscript, Ctrl+Shift++)|V|-|Chỉ số dưới và trên writer.text.subscript/superscript đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:26-27, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:29-30)

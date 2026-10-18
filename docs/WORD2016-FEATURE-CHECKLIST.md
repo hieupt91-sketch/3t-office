@@ -17,8 +17,8 @@ Chuẩn: Microsoft Word 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qu
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Word 2016 | 157 | 58% |
-| 🟢 Có, chưa đối chiếu | 64 | 24% |
-| 🟡 Có một phần | 25 | 9% |
+| 🟢 Có, chưa đối chiếu | 65 | 24% |
+| 🟡 Có một phần | 24 | 9% |
 | 🔴 Chưa có | 26 | 10% |
 | ⚪ Ngoài phạm vi | 7 | - |
 | **Tổng** | **279** (áp dụng: 272) | |
@@ -33,7 +33,7 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 1 | 14 | 0 | 1 | 1 | 94% |
-| Trang đầu | 47 | 33 | 10 | 2 | 2 | 0 | 94% |
+| Trang đầu | 47 | 33 | 11 | 1 | 2 | 0 | 95% |
 | Chèn | 34 | 23 | 3 | 0 | 5 | 3 | 84% |
 | Thiết kế | 10 | 4 | 0 | 4 | 2 | 0 | 60% |
 | Bố trí | 18 | 12 | 4 | 1 | 1 | 0 | 92% |
@@ -112,7 +112,7 @@ Tổng: 1 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Phông chữ | Xóa định dạng (Clear All Formatting, Ctrl+Space) | ✅ | - | FIX-T11 nhóm 1: writer.text.clearFormat đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:29) |
 | Phông chữ | Đậm (Ctrl+B) / Nghiêng (Ctrl+I) | ✅ | - | Đậm và Nghiêng writer.text.bold/italic đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:22-23, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:25-26) |
 | Phông chữ | Gạch chân đơn (Ctrl+U) | ✅ | - | Gạch chân đơn writer.text.underline đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:24, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:27) |
-| Phông chữ | Gạch chân đôi, nét đứt, lượn sóng | 🟡 | 2 | Có gạch chân đơn; thư viện kiểu gạch chân mở rộng chưa đầy đủ |
+| Phông chữ | Gạch chân đôi, nét đứt, lượn sóng | 🟢 | - | writer.format.fontDialog (Ctrl+D) có Một nét, Hai nét, Nét đậm, Chấm, Gạch ngang, Lượn sóng + màu gạch chân; lưu DOCX rồi Word 2016 thật đọc Font.Underline = 3/6/4/7/11 đúng từng kiểu (tests/live/cdp/writer-underline-styles.desktop.mjs, scripts/audit-0610/word_underline_readback.ps1); chưa có các kiểu hiếm của Word (chấm-gạch, gạch dài, chỉ gạch dưới từ) |
 | Phông chữ | Gạch ngang chữ (Strikethrough) | ✅ | - | Gạch ngang chữ writer.text.strike đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:25, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:28) |
 | Phông chữ | Gạch ngang đôi (Double Strikethrough) | 🔴 | 3 | Chưa có gạch ngang đôi |
 | Phông chữ | Chỉ số dưới (Subscript, Ctrl+=) / Chỉ số trên (Superscript, Ctrl+Shift++) | ✅ | - | Chỉ số dưới và trên writer.text.subscript/superscript đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:26-27, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:29-30) |
