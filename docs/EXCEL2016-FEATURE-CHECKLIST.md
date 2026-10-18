@@ -17,8 +17,8 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Excel 2016 | 93 | 44% |
-| 🟢 Có, chưa đối chiếu | 62 | 29% |
-| 🟡 Có một phần | 19 | 9% |
+| 🟢 Có, chưa đối chiếu | 63 | 30% |
+| 🟡 Có một phần | 18 | 8% |
 | 🔴 Chưa có | 39 | 18% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
@@ -33,7 +33,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 3 | 8 | 4 | 1 | 1 | 81% |
-| Trang đầu | 53 | 27 | 17 | 7 | 2 | 0 | 90% |
+| Trang đầu | 53 | 27 | 18 | 6 | 2 | 0 | 91% |
 | Chèn | 29 | 9 | 6 | 1 | 11 | 2 | 57% |
 | Bố trí trang | 10 | 8 | 1 | 0 | 1 | 0 | 90% |
 | Công thức | 13 | 6 | 6 | 1 | 0 | 0 | 96% |
@@ -89,7 +89,7 @@ Tổng: 2 mục ưu tiên 1.
 |---|---|---|---|---|
 | Bảng nhớ tạm | Dán (Ctrl+V) | 🟢 | - | common.edit.paste |
 | Bảng nhớ tạm | Tùy chọn dán: giá trị / công thức / định dạng / chuyển vị | ✅ | - | Dán đặc biệt đã đọc lại bằng Excel 2016 (tests/functions/structural-cases-4.json:1-10; tests/unit/sheet-paste-special.test.js:1-25; sheet.edit.pasteSpecial) |
-| Bảng nhớ tạm | Dán đặc biệt... (Ctrl+Alt+V) đủ lựa chọn (Validation, Column widths, Operation, Skip blanks) | 🟡 | 2 | Có giá trị/công thức/định dạng/chuyển vị; thiếu Operation, Skip blanks, Column widths (cần kiểm) |
+| Bảng nhớ tạm | Dán đặc biệt... (Ctrl+Alt+V) đủ lựa chọn (Validation, Column widths, Operation, Skip blanks) | 🟢 | - | sheet.edit.pasteSpecial: Tất cả, Giá trị, Công thức, Định dạng, Ghi chú, Trừ đường viền, Chuyển vị, Quy tắc nhập liệu, Độ rộng cột, phép Cộng/Trừ/Nhân/Chia, Bỏ qua ô trống; chế độ Quy tắc nhập liệu và Độ rộng cột đo qua hộp thoại thật + hoàn tác (tests/live/cdp/sheet-paste-special-modes.desktop.mjs 7/7); chưa có Giá trị+định dạng số và Giữ độ rộng cột nguồn; chưa đối chiếu Excel thật vì Excel COM chưa dùng được |
 | Bảng nhớ tạm | Dán liên kết / Dán dạng hình / Sao chép dạng hình | 🔴 | 3 |  |
 | Bảng nhớ tạm | Cắt (Ctrl+X) / Sao chép (Ctrl+C) kèm viền chạy (marching ants) | 🟢 | - | Cắt và sao chép có viền chạy (docs/SHEET-BUTTON-MATRIX-1011.md:15-16; common.edit.cut, common.edit.copy) |
 | Bảng nhớ tạm | Sao chép định dạng (Format Painter, nhấp đúp khóa) | 🟢 | - | sheet.edit.formatPainter |
@@ -104,7 +104,7 @@ Tổng: 2 mục ưu tiên 1.
 | Căn chỉnh | Hướng chữ (xoay) | ✅ | - | Xoay 90° đã đọc lại bằng Excel 2016 (docs/SHEET-BUTTON-MATRIX-1011.md:72; tests/unit/sheet-cell-orientation.test.js:1-25; sheet.format.alignmentDialog) |
 | Căn chỉnh | Ngắt dòng tự động (Wrap Text) | ✅ | - | Ngắt dòng tự động Wrap Text đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:32; tests/unit/sheet-style-export-wrap-border-align.test.js:1-25; sheet.cell.wrapText) |
 | Căn chỉnh | Giảm/Tăng thụt lề | 🟢 | - | Giảm và tăng thụt lề ô (docs/SHEET-BUTTON-MATRIX-1011.md:36-37; sheet.cell.indentDecrease, sheet.cell.indentIncrease) |
-| Căn chỉnh | Trộn & căn giữa / Trộn theo hàng / Trộn ô / Tách ô | ✅ | - | 17/10 (AGY-DATATOOLS): Merge & Center, Merge Across, UnMerge đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.cell.merge; apps/sheet/sheet-grid.js:15503-15565 |
+| Căn chỉnh | Trộn & căn giữa / Trộn theo hàng / Trộn ô / Tách ô | ✅ | - | 17/10 (AGY-DATATOOLS): Merge & Center, Merge Across, UnMerge đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.cell.merge; platform/i18n/strings-vi.js:822, apps/sheet/sheet-grid.js:15722 |
 | Căn chỉnh | Căn đều, Distributed, Fill, Center across selection, Shrink to fit | ✅ | - | 16/10 (AGY-JUSTIFY): Center Across Selection và Shrink to Fit lưu/mở lại đúng, đối chiếu Excel 2016 (cases-7; tests/functions/structural-cases-7.json:1-15; tests/unit/sheet-cell-text-fit.test.js:1-25) |
 | Số | Danh sách định dạng số (Chung, Số, Tiền tệ, Kế toán, Ngày, Giờ, %, Khoa học, Văn bản) | ✅ | - | Số/ngày/giờ/% đã đối chiếu (E3; docs/SHEET-BUTTON-MATRIX-1011.md:42; tests/unit/sheet-format-cells.test.js:1-30; sheet.format.quickCategory) |
 | Số | Định dạng số dạng Phân số (Fraction) và Đặc biệt (Special) | ✅ | - | 17/10 (AGY-NOTES): Phân số 9 mẫu và Đặc biệt 4 mẫu đối chiếu Excel 2016 COM 13/13 mẫu (cases-18; tests/functions/structural-cases-18.json:1-30; tests/unit/sheet-format-cells.test.js:1-40; sheet.format.quickCategory, sheet.format.cellsDialog) |
@@ -229,7 +229,7 @@ Tổng: 2 mục ưu tiên 1.
 | Dự báo | What-If: Goal Seek / Bảng dữ liệu (Data Table) | ✅ | - | 17/10 (AGY-DATATOOLS): Goal Seek và Table đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; tests/unit/sheet-goal-seek.test.js:1-30; apps/sheet/sheet-grid.js:20373-20390; sheet.data.goalSeek) |
 | Dự báo | Trang dự báo (Forecast Sheet) | 🔴 | 3 |  |
 | Dàn bài | Nhóm / Bỏ nhóm / Tổng phụ | ✅ | - | 17/10 (AGY-DATATOOLS): Group/Ungroup hàng-cột và Subtotal/RemoveSubtotal đối chiếu Excel 2016 (cases-17 12/12 kịch bản); sheet.data.subtotal; apps/sheet/data-tools.js:77-185 |
-| Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | ✅ | - | 17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; apps/sheet/sheet-grid.js:20280; sheet.data.group) |
+| Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | ✅ | - | 17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; apps/sheet/sheet-grid.js:20328; sheet.data.group) |
 | Phân tích | Solver | 🔴 | 3 | Bổ sung của Excel |
 
 ### Xem xét

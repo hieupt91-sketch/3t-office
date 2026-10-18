@@ -14020,6 +14020,52 @@ export class SheetGridController {
       return true;
     }
 
+    if (mode === "columnWidths" || mode === "validation") {
+      const srcSheet = clipboard.sourceSheet || this.activeSheet;
+      const srcRange = this._normalizeRange(clipboard.range);
+      const srcC1 = this._columnNumber(srcRange.start.c);
+      const srcC2 = this._columnNumber(srcRange.end.c);
+      const srcR1 = Number(srcRange.start.r);
+      const srcR2 = Number(srcRange.end.r);
+      if (mode === "columnWidths") {
+        const layoutBefore = this._snapshotRowColLayout();
+        const widths = this._colWidths();
+        for (let offset = 0; offset <= srcC2 - srcC1; offset++) {
+          const destCol = destStartCol + offset;
+          if (destCol < 1 || destCol > this.cols.length) continue;
+          const width = this._clampColWidth(this.getColumnWidth(this._columnLabel(srcC1 + offset), srcSheet));
+          const column = this._columnLabel(destCol);
+          if (!Number.isFinite(width) || width === this.defaultColWidth) widths.delete(column);
+          else widths.set(column, width);
+        }
+        this._invalidateColLeftsCache?.();
+        this._renderColumnHeaders();
+        this._renderVirtualRows(this.currentStartRow || 1, this.currentEndRow || 40);
+        return this._recordRowColLayoutChange(layoutBefore) || true;
+      }
+      // Quy tắc nhập liệu: sao chép phần quy tắc phủ vùng nguồn sang vùng đích tương ứng.
+      const rowShift = destStartRow - srcR1;
+      const colShift = destStartCol - srcC1;
+      let copied = 0;
+      for (const validation of this.getDataValidations(srcSheet)) {
+        const range = this._normalizeRange(validation.range);
+        const c1 = Math.max(this._columnNumber(range.start.c), srcC1);
+        const c2 = Math.min(this._columnNumber(range.end.c), srcC2);
+        const r1 = Math.max(Number(range.start.r), srcR1);
+        const r2 = Math.min(Number(range.end.r), srcR2);
+        if (c1 > c2 || r1 > r2) continue;
+        const destC1 = c1 + colShift, destC2 = c2 + colShift, destR1 = r1 + rowShift, destR2 = r2 + rowShift;
+        if (destC1 < 1 || destC2 > this.cols.length || destR1 < 1 || destR2 > this.rowCount) continue;
+        const { id, range: ignoredRange, ...config } = structuredClone(validation);
+        if (this.addDataValidation({ start: { c: this._columnLabel(destC1), r: destR1 }, end: { c: this._columnLabel(destC2), r: destR2 } }, config, true)) copied += 1;
+      }
+      if (!copied) {
+        this._showDataNotice?.("Vùng đã sao chép không có quy tắc nhập liệu nào để dán.");
+        return false;
+      }
+      return true;
+    }
+
     const moveRange = options.moveRange && options.sourceSheet === this.activeSheet
       ? this._normalizeRange(options.moveRange)
       : null;
@@ -14332,6 +14378,8 @@ export class SheetGridController {
           <label><input type="radio" name="paste-special-mode" value="formats"> ${t("sheetDialogs.pasteSpecialFormats", "Chỉ định dạng")}</label>
           <label><input type="radio" name="paste-special-mode" value="comments"> ${t("sheetDialogs.pasteSpecialComments", "Ghi chú")}</label>
           <label><input type="radio" name="paste-special-mode" value="allExceptBorders"> ${t("sheetDialogs.pasteSpecialAllExceptBorders", "Tất cả trừ đường viền")}</label>
+          <label><input type="radio" name="paste-special-mode" value="validation"> ${t("sheetDialogs.pasteSpecialValidation", "Quy tắc nhập liệu")}</label>
+          <label><input type="radio" name="paste-special-mode" value="columnWidths"> ${t("sheetDialogs.pasteSpecialColumnWidths", "Độ rộng cột")}</label>
           <label><input type="radio" name="paste-special-mode" value="transpose"> ${t("sheetDialogs.pasteSpecialTranspose", "Chuyển vị (đổi hàng/cột)")}</label>
         </fieldset>
         <fieldset><legend>${t("sheetDialogs.pasteSpecialOperationGroup", "Thao tác")}</legend>
