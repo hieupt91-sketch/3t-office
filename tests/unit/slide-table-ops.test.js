@@ -4,7 +4,7 @@
 import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
 import {
   tableState, mergeMap, insertRow, insertCol, deleteRow, deleteCol, mergeCells, splitCell, expandSelection, TABLE_MAX_ROWS, TABLE_MAX_COLS,
-  effectiveCellFill, effectiveCellFills, fillCells, tableOptions, TABLE_STYLES, alignCellHtml, cellAlignOf, setCellValign
+  effectiveCellFill, effectiveCellFills, fillCells, tableOptions, TABLE_STYLES, alignCellHtml, cellAlignOf, setCellValign, applyBorderMode, effectiveEdge, parseEdge
 } from "../../apps/slides/slide-table-ops.js";
 
 const base = () => ({ rows: 3, cols: 3, w: 420, h: 108, cells: [["a", "b", "c"], ["d", "e", "f"], ["g", "h", "i"]] });
@@ -161,6 +161,27 @@ export async function runSlideTableOpsTests() {
     eq(t.cellValign[1], [null, "middle", "middle"]);
     eq(insertRow(t, 0).cellValign[2], [null, "middle", "middle"], "hàng chèn đẩy căn dọc xuống");
     eq(deleteCol(t, 0).cellValign[1], ["middle", "middle"], "xóa cột kéo căn dọc sang trái");
+  });
+
+  test("Viền bảng: all/outside/inside/none, cạnh chung ghi cả hai phía, mặc định xám, đi theo hàng/cột", () => {
+    const whole = { r: 0, c: 0, r2: 2, c2: 2 };
+    const outside = { ...base(), cellBorders: applyBorderMode(base(), whole, "outside") };
+    eq(parseEdge(outside.cellBorders[0][0].top).color, "#000000", "góc trên có viền");
+    eq(outside.cellBorders[1][1], null, "ô giữa chưa có viền riêng");
+    eq(effectiveEdge(outside, 1, 1, "top").color, "#94A3B8", "ô giữa vẽ viền mặc định xám");
+    const none = { ...base(), cellBorders: applyBorderMode(base(), whole, "none") };
+    eq(effectiveEdge(none, 1, 1, "top"), null, "Không viền");
+    const inside = { ...base(), cellBorders: applyBorderMode({ ...base(), cellBorders: none.cellBorders }, whole, "inside") };
+    eq(effectiveEdge(inside, 0, 0, "top"), null, "viền trong không động tới khung ngoài");
+    eq(parseEdge(inside.cellBorders[0][0].right).color, "#000000", "cạnh phải của ô (1,1)");
+    eq(parseEdge(inside.cellBorders[0][1].left).color, "#000000", "cạnh chung ghi cả phía ô kề");
+    const region = applyBorderMode({ ...base(), cellBorders: none.cellBorders }, { r: 1, c: 1, r2: 2, c2: 2 }, "all");
+    eq(parseEdge(region[0][1].bottom).color, "#000000", "ô trên vùng nhận cạnh chung");
+    eq(region[0][0], { top: "none", bottom: "none", left: "none", right: "none" }, "ô ngoài vùng giữ nguyên");
+    const t = { ...base(), cellBorders: outside.cellBorders };
+    eq(insertRow(t, 1).cellBorders[1], [null, null, null], "hàng chèn không viền riêng");
+    eq(parseEdge(deleteRow(t, 1).cellBorders[1][0].left).color, "#000000", "xóa hàng giữa: viền trái cột đầu vẫn còn");
+    eq(parseEdge("#aabbcc|1.5"), { color: "#AABBCC", widthPt: 1.5 }); eq(parseEdge("none"), { none: true }); eq(parseEdge("x"), null);
   });
 
   return results;

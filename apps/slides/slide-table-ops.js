@@ -21,7 +21,71 @@ export function tableState(shape) {
     .filter(m => (m.rs > 1 || m.cs > 1) && m.r >= 0 && m.c >= 0 && m.r + m.rs <= rows && m.c + m.cs <= cols);
   const cellFills = Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => shape?.cellFills?.[r]?.[c] || null));
   const cellValign = Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => shape?.cellValign?.[r]?.[c] || null));
-  return { rows, cols, cells, merges, cellFills, cellValign, w: Number(shape?.w) || 0, h: Number(shape?.h) || 0 };
+  const cellBorders = Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => (shape?.cellBorders?.[r]?.[c] ? { ...shape.cellBorders[r][c] } : null)));
+  return { rows, cols, cells, merges, cellFills, cellValign, cellBorders, w: Number(shape?.w) || 0, h: Number(shape?.h) || 0 };
+}
+
+// ---------------- Viền bảng ----------------
+/** Bút viền mặc định của các lệnh Viền bảng; ô chưa có viền riêng vẽ/ghi viền xám mảnh như trình soạn thảo. */
+export const TABLE_BORDER_PEN = Object.freeze({ color: "#000000", widthPt: 0.75 });
+export const TABLE_DEFAULT_EDGE = Object.freeze({ color: "#94A3B8", widthPt: 0.75 });
+
+/** Một cạnh viền: "none" hoặc "#RRGGBB|pt"; trả { none: true } | { color, widthPt } | null (mặc định). */
+export function parseEdge(edge) {
+  if (edge == null || edge === "") return null;
+  if (edge === "none") return { none: true };
+  const m = String(edge).match(/^(#[0-9a-fA-F]{6})\|([\d.]+)$/);
+  return m ? { color: m[1].toUpperCase(), widthPt: Number(m[2]) } : null;
+}
+
+export function formatEdge(color, widthPt) {
+  return `${String(color).toUpperCase()}|${widthPt}`;
+}
+
+/** Cạnh hiệu lực để vẽ/ghi: viền riêng hoặc viền mặc định; none = không vẽ. */
+export function effectiveEdge(shape, r, c, side) {
+  const raw = shape?.cellBorders?.[r]?.[c]?.[side];
+  const parsed = parseEdge(raw);
+  if (parsed === null) return { ...TABLE_DEFAULT_EDGE };
+  return parsed.none ? null : parsed;
+}
+
+/**
+ * Bản sao `cellBorders` sau khi áp kiểu viền cho hình chữ nhật ô `box`:
+ * all (mọi cạnh), outside (khung ngoài vùng), inside (đường ngăn trong vùng), none (xóa viền). Cạnh dùng chung với ô kề bên được ghi cả hai phía.
+ */
+export function applyBorderMode(shape, box, mode, pen = TABLE_BORDER_PEN) {
+  const s = tableState(shape);
+  const next = s.cellBorders.map(row => row.map(cell => (cell ? { ...cell } : null)));
+  const edge = mode === "none" ? "none" : formatEdge(pen.color, pen.widthPt);
+  const set = (r, c, side) => {
+    if (r < 0 || c < 0 || r >= s.rows || c >= s.cols) return;
+    next[r][c] = { ...(next[r][c] || {}), [side]: edge };
+  };
+  const opposite = { top: "bottom", bottom: "top", left: "right", right: "left" };
+  const setBoth = (r, c, side) => {
+    set(r, c, side);
+    const nr = r + (side === "top" ? -1 : side === "bottom" ? 1 : 0);
+    const nc = c + (side === "left" ? -1 : side === "right" ? 1 : 0);
+    set(nr, nc, opposite[side]);
+  };
+  for (let r = box.r; r <= Math.min(box.r2, s.rows - 1); r++) {
+    for (let c = box.c; c <= Math.min(box.c2, s.cols - 1); c++) {
+      const top = r === box.r, bottom = r === box.r2, left = c === box.c, right = c === box.c2;
+      if (mode === "all" || mode === "none") {
+        for (const side of ["top", "bottom", "left", "right"]) setBoth(r, c, side);
+      } else if (mode === "outside") {
+        if (top) setBoth(r, c, "top");
+        if (bottom) setBoth(r, c, "bottom");
+        if (left) setBoth(r, c, "left");
+        if (right) setBoth(r, c, "right");
+      } else if (mode === "inside") {
+        if (!top) setBoth(r, c, "top");
+        if (!left) setBoth(r, c, "left");
+      }
+    }
+  }
+  return next;
 }
 
 // ---------------- Căn lề trong ô ----------------
@@ -154,12 +218,14 @@ export function insertRow(shape, index) {
   cellFills.splice(index, 0, Array.from({ length: s.cols }, () => null));
   const cellValign = clone(s.cellValign);
   cellValign.splice(index, 0, Array.from({ length: s.cols }, () => null));
+  const cellBorders = clone(s.cellBorders);
+  cellBorders.splice(index, 0, Array.from({ length: s.cols }, () => null));
   const merges = s.merges.map(m => {
     if (m.r >= index) return { ...m, r: m.r + 1 };
     if (m.r < index && index < m.r + m.rs) return { ...m, rs: m.rs + 1 }; // chèn vào giữa vùng gộp: vùng gộp dài thêm
     return { ...m };
   });
-  return { rows: s.rows + 1, cols: s.cols, cells, merges, cellFills, cellValign, ...scaled(s, s.rows + 1, s.cols) };
+  return { rows: s.rows + 1, cols: s.cols, cells, merges, cellFills, cellValign, cellBorders, ...scaled(s, s.rows + 1, s.cols) };
 }
 
 /** Chèn một cột trống TRƯỚC cột `index` (0..cols). */
@@ -169,12 +235,13 @@ export function insertCol(shape, index) {
   const cells = clone(s.cells).map(row => { row.splice(index, 0, ""); return row; });
   const cellFills = clone(s.cellFills).map(row => { row.splice(index, 0, null); return row; });
   const cellValign = clone(s.cellValign).map(row => { row.splice(index, 0, null); return row; });
+  const cellBorders = clone(s.cellBorders).map(row => { row.splice(index, 0, null); return row; });
   const merges = s.merges.map(m => {
     if (m.c >= index) return { ...m, c: m.c + 1 };
     if (m.c < index && index < m.c + m.cs) return { ...m, cs: m.cs + 1 };
     return { ...m };
   });
-  return { rows: s.rows, cols: s.cols + 1, cells, merges, cellFills, cellValign, ...scaled(s, s.rows, s.cols + 1) };
+  return { rows: s.rows, cols: s.cols + 1, cells, merges, cellFills, cellValign, cellBorders, ...scaled(s, s.rows, s.cols + 1) };
 }
 
 /** Xóa hàng `r`. Không xóa hàng duy nhất (trả null: người dùng dùng "Xóa bảng"). */
@@ -193,6 +260,8 @@ export function deleteRow(shape, r) {
   cellFills.splice(r, 1);
   const cellValign = clone(s.cellValign);
   cellValign.splice(r, 1);
+  const cellBorders = clone(s.cellBorders);
+  cellBorders.splice(r, 1);
   const merges = [];
   for (const m of s.merges) {
     let { rs } = m; let row = m.r;
@@ -201,7 +270,7 @@ export function deleteRow(shape, r) {
     if (rs === 1 && m.cs === 1) continue;
     merges.push({ ...m, r: row, rs });
   }
-  return { rows: s.rows - 1, cols: s.cols, cells, merges, cellFills, cellValign, ...scaled(s, s.rows - 1, s.cols) };
+  return { rows: s.rows - 1, cols: s.cols, cells, merges, cellFills, cellValign, cellBorders, ...scaled(s, s.rows - 1, s.cols) };
 }
 
 /** Xóa cột `c`. Không xóa cột duy nhất. */
@@ -215,6 +284,7 @@ export function deleteCol(shape, c) {
   cells.forEach(row => row.splice(c, 1));
   const cellFills = clone(s.cellFills).map(row => { row.splice(c, 1); return row; });
   const cellValign = clone(s.cellValign).map(row => { row.splice(c, 1); return row; });
+  const cellBorders = clone(s.cellBorders).map(row => { row.splice(c, 1); return row; });
   const merges = [];
   for (const m of s.merges) {
     let { cs } = m; let col = m.c;
@@ -223,7 +293,7 @@ export function deleteCol(shape, c) {
     if (cs === 1 && m.rs === 1) continue;
     merges.push({ ...m, c: col, cs });
   }
-  return { rows: s.rows, cols: s.cols - 1, cells, merges, cellFills, cellValign, ...scaled(s, s.rows, s.cols - 1) };
+  return { rows: s.rows, cols: s.cols - 1, cells, merges, cellFills, cellValign, cellBorders, ...scaled(s, s.rows, s.cols - 1) };
 }
 
 function rectOf(r1, c1, r2, c2) {
@@ -268,7 +338,7 @@ export function mergeCells(shape, r1, c1, r2, c2) {
   cells[box.r][box.c] = parts.join("\n");
   const merges = s.merges.filter(m => !(m.r >= box.r && m.r + m.rs - 1 <= box.r2 && m.c >= box.c && m.c + m.cs - 1 <= box.c2));
   merges.push({ r: box.r, c: box.c, rs: box.r2 - box.r + 1, cs: box.c2 - box.c + 1 });
-  return { rows: s.rows, cols: s.cols, cells, merges, cellFills: clone(s.cellFills), cellValign: clone(s.cellValign), w: s.w, h: s.h };
+  return { rows: s.rows, cols: s.cols, cells, merges, cellFills: clone(s.cellFills), cellValign: clone(s.cellValign), cellBorders: clone(s.cellBorders), w: s.w, h: s.h };
 }
 
 /** Tách ô (r, c) đang thuộc vùng gộp: bỏ vùng gộp, nội dung ở lại ô neo. */
@@ -276,5 +346,5 @@ export function splitCell(shape, r, c) {
   const s = tableState(shape);
   const hit = s.merges.find(m => r >= m.r && r < m.r + m.rs && c >= m.c && c < m.c + m.cs);
   if (!hit) return null;
-  return { rows: s.rows, cols: s.cols, cells: clone(s.cells), merges: s.merges.filter(m => m !== hit), cellFills: clone(s.cellFills), cellValign: clone(s.cellValign), w: s.w, h: s.h };
+  return { rows: s.rows, cols: s.cols, cells: clone(s.cells), merges: s.merges.filter(m => m !== hit), cellFills: clone(s.cellFills), cellValign: clone(s.cellValign), cellBorders: clone(s.cellBorders), w: s.w, h: s.h };
 }

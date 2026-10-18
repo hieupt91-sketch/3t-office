@@ -1117,6 +1117,11 @@ export const viStrings = {
     ,"slides.table.alignTop": { label: "Căn trên", tooltip: "Đưa chữ trong ô lên mép trên" }
     ,"slides.table.alignMiddle": { label: "Căn giữa dọc", tooltip: "Đưa chữ trong ô vào giữa theo chiều dọc" }
     ,"slides.table.alignBottom": { label: "Căn dưới", tooltip: "Đưa chữ trong ô xuống mép dưới" }
+    ,"slides.table.borders": { label: "Viền bảng", tooltip: "Kẻ hoặc xóa viền cho vùng ô đang chọn hoặc cả bảng" }
+    ,"slides.table.bordersAll": { label: "Tất cả đường viền", tooltip: "Kẻ viền quanh mọi ô của vùng chọn (không chọn ô nào thì cả bảng)" }
+    ,"slides.table.bordersOutside": { label: "Viền ngoài", tooltip: "Chỉ kẻ khung ngoài của vùng chọn hoặc của cả bảng" }
+    ,"slides.table.bordersInside": { label: "Viền trong", tooltip: "Chỉ kẻ các đường ngăn bên trong vùng chọn hoặc cả bảng" }
+    ,"slides.table.bordersNone": { label: "Không viền", tooltip: "Xóa đường viền của vùng chọn hoặc của cả bảng" }
     ,"slides.animation.setType": { label: "Kiểu hiệu ứng", tooltip: "Gán kiểu hiệu ứng cho đối tượng đang chọn" }
     ,"slides.animation.startMenu": { label: "Bắt đầu", tooltip: "Chọn thời điểm bắt đầu: khi nhấp chuột, cùng lúc với hiệu ứng trước hoặc sau hiệu ứng trước" }
     ,"slides.animation.setStart": { label: "Thời điểm bắt đầu", tooltip: "Đặt thời điểm bắt đầu hiệu ứng của đối tượng đang chọn" }

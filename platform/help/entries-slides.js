@@ -348,6 +348,20 @@ export const SLIDES_HELP_ENTRIES = [
     ]
   },
   {
+    id: "slides.table.borders",
+    app: "slides",
+    commandIds: ["slides.table.bordersAll", "slides.table.bordersOutside", "slides.table.bordersInside", "slides.table.bordersNone"],
+    title: "Thiết kế bảng: viền bảng (tất cả, viền ngoài, viền trong, không viền)",
+    summary: "Mở Viền bảng ở nhóm Kiểu bảng để kẻ viền đen mảnh quanh mọi ô, chỉ khung ngoài, chỉ các đường ngăn bên trong hoặc xóa hết viền, cho vùng ô đang chọn hay cả bảng. Viền được lưu vào tệp PPTX đúng như đang thấy.",
+    ribbon: { tab: "Thiết kế bảng", tabId: "tableDesign", group: "Kiểu bảng" },
+    keywords: ["viền bảng", "table borders", "kẻ viền", "viền ngoài", "viền trong", "không viền", "xóa viền"],
+    steps: [
+      "Chọn bảng: không chọn ô nào thì lệnh áp cho cả bảng; nhấp ô đầu, giữ Shift và nhấp ô cuối thì chỉ áp cho vùng đó. Vào tab Thiết kế bảng > nhóm Kiểu bảng > Viền bảng.",
+      "Tất cả đường viền kẻ viền quanh mọi ô; Viền ngoài chỉ kẻ khung ngoài của vùng; Viền trong chỉ kẻ các đường ngăn giữa các ô (cần vùng từ hai ô); Không viền xóa hết viền của vùng. Cạnh chung giữa hai ô được cập nhật cả hai phía.",
+      "Bảng mới có viền xám mảnh mặc định. Ctrl+Z hoàn tác từng lần. Viền được lưu vào PPTX và mở lại đúng; chèn hoặc xóa hàng, cột thì viền đi theo ô."
+    ]
+  },
+  {
     id: "slides.picture.crop",
     app: "slides",
     commandIds: ["slides.picture.crop", "slides.picture.cropRatio", "slides.picture.cropDialog", "slides.picture.cropDrag"],

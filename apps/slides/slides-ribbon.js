@@ -881,6 +881,19 @@ export const SLIDES_RIBBON_TABS = [
           },
           {
             type: "dropdown",
+            id: "slides.table.borders",
+            label: "Viền bảng",
+            icon: "table",
+            isLarge: true,
+            items: [
+              { commandId: "slides.table.bordersAll" },
+              { commandId: "slides.table.bordersOutside" },
+              { commandId: "slides.table.bordersInside" },
+              { commandId: "slides.table.bordersNone" }
+            ]
+          },
+          {
+            type: "dropdown",
             id: "slides.table.shading",
             label: "Tô màu nền",
             icon: "shapeFill",

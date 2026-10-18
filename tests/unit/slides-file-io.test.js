@@ -1582,10 +1582,10 @@ export async function runSlidesFileIoTests() {
     if (!serialized.includes('xmlns:loext="urn:org:documentfoundation:names:experimental:office:xmlns:loext:1.0"')) {
       throw new Error("Serialized missing xmlns:loext");
     }
-    if (!serialized.includes('table:style-name="ce_fill_ffff00"')) {
+    if (!/table:style-name="ce_fill_ffff00[^"]*"/.test(serialized)) {
       throw new Error("Serialized table-cell missing table:style-name");
     }
-    if (!serialized.includes('<style:style style:name="ce_fill_ffff00" style:family="table-cell">')) {
+    if (!/<style:style style:name="ce_fill_ffff00[^"]*" style:family="table-cell">/.test(serialized)) {
       throw new Error("Serialized missing style:family=table-cell for ce_fill_ffff00");
     }
     if (serialized.includes('draw:style-name="gr5b9bd5"') || serialized.includes('draw:style-name="grffff00"')) {

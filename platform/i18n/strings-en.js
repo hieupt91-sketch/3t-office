@@ -1118,6 +1118,11 @@ export const enStrings = {
   ,"slides.table.alignTop": { label: "Align Top", tooltip: "Move text in the cell to the top edge" }
   ,"slides.table.alignMiddle": { label: "Center Vertically", tooltip: "Center text in the cell vertically" }
   ,"slides.table.alignBottom": { label: "Align Bottom", tooltip: "Move text in the cell to the bottom edge" }
+  ,"slides.table.borders": { label: "Borders", tooltip: "Draw or remove borders for the selected cells or the whole table" }
+  ,"slides.table.bordersAll": { label: "All Borders", tooltip: "Draw borders around every cell of the selection (whole table when nothing is selected)" }
+  ,"slides.table.bordersOutside": { label: "Outside Borders", tooltip: "Draw only the outer frame of the selection or the whole table" }
+  ,"slides.table.bordersInside": { label: "Inside Borders", tooltip: "Draw only the lines between cells inside the selection or the whole table" }
+  ,"slides.table.bordersNone": { label: "No Border", tooltip: "Remove the borders of the selection or the whole table" }
   ,"slides.animation.setType": { label: "Effect Type", tooltip: "Apply an effect type to the selected object" }
   ,"slides.animation.startMenu": { label: "Start", tooltip: "Choose when it starts: on click, with previous or after previous" }
   ,"slides.animation.setStart": { label: "Start Timing", tooltip: "Set when the selected object's effect starts" }
