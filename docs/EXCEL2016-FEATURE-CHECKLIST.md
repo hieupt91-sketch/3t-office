@@ -17,9 +17,9 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Excel 2016 | 94 | 44% |
-| 🟢 Có, chưa đối chiếu | 67 | 31% |
+| 🟢 Có, chưa đối chiếu | 68 | 32% |
 | 🟡 Có một phần | 14 | 7% |
-| 🔴 Chưa có | 38 | 18% |
+| 🔴 Chưa có | 37 | 17% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
 
@@ -48,7 +48,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Công cụ Hình ảnh | 1 | 0 | 0 | 0 | 1 | 0 | 0% |
 | Công cụ Vẽ | 1 | 0 | 0 | 0 | 1 | 0 | 0% |
 | Công cụ Sparkline | 1 | 0 | 0 | 0 | 1 | 0 | 0% |
-| Không thuộc ribbon | 26 | 16 | 8 | 0 | 2 | 0 | 92% |
+| Không thuộc ribbon | 26 | 16 | 9 | 0 | 1 | 0 | 96% |
 
 ## Việc cần làm (mục chưa có hoặc một phần, ưu tiên 1)
 
@@ -339,7 +339,7 @@ Tổng: 2 mục ưu tiên 1.
 | Hộp tên và thanh công thức | Hộp tên (Name Box) nhảy tới ô/tên | 🟢 | - | Hộp tên Name Box điều hướng ô và vùng tên (docs/EXCEL2016-INPUT-MATRIX.md:21; apps/sheet/sheet-formula-bar.js:1-40) |
 | Hộp tên và thanh công thức | Mở rộng thanh công thức; Ctrl+Shift+U | 🟢 | - | sheet.view.expandFormulaBar: nút ▾ cuối thanh, Ctrl+Shift+U (lưới và thanh công thức), nút ruy-băng; mở rộng cao 5–12 dòng, thu gọn về một dòng, không đổi nội dung ô (tests/live/cdp/sheet-expand-formula-bar.desktop.mjs 8/8); thao tác hiển thị, không có đối chiếu Excel thật |
 | Thanh trạng thái | Tổng/Trung bình/Đếm vùng chọn; nút chế độ xem; thanh thu phóng | 🟢 | - | Thanh trạng thái tính tổng, trung bình, đếm (tests/unit/sheet-status-bar-sum.test.js:1-30; apps/sheet/sheet-grid.js:1-30) |
-| Thanh trạng thái | Menu tùy chỉnh thanh trạng thái | 🔴 | 3 |  |
+| Thanh trạng thái | Menu tùy chỉnh thanh trạng thái | 🟢 | - | chuột phải thanh trạng thái bật/tắt Đếm số, Đếm ô có dữ liệu, Nhỏ nhất, Lớn nhất, Trung bình, Tổng cộng; giá trị đúng (10/30/4/20/60), nhớ lựa chọn theo máy (tests/live/cdp/sheet-status-bar-menu.desktop.mjs 5/5; apps/sheet/sheet-app.js:268); chưa có Tên chế độ, Trạng thái Caps/Num, trình đơn thu phóng; không có đối chiếu Excel thật vì là thao tác giao diện |
 | Tab trang tính | Cuộn tab, thêm trang, kéo đổi thứ tự | 🟢 | - | sheet.sheet.moveOrCopy; kéo tab bằng chuột thật đổi thứ tự có vạch báo, Esc hủy, Hoàn tác trả lại, lưu XLSX mở lại giữ thứ tự (tests/live/cdp/sheet-tab-drag.desktop.mjs); chưa đối chiếu Excel thật vì Excel COM chưa dùng được |
 | Tab trang tính | Menu chuột phải tab (Chèn, Xóa, Đổi tên, Di chuyển, Bảo vệ, Màu, Ẩn, Hiện) | ✅ | - | Menu chuột phải tab trang tính đúng thứ tự Excel (tests/unit/sheet-rename-move-protect.test.js:1-30; sheet.sheet.protect) |
 | Tab trang tính | Chọn nhiều trang cùng lúc (nhóm trang) / Chọn tất cả trang | ✅ | - | F2: Nhóm nhiều trang tính cùng lúc khớp Excel COM (apps/sheet/sheet-grid.js:5730) |

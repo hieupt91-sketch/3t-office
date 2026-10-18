@@ -472,6 +472,7 @@ export const SHEET_HELP_ENTRIES = [
       "Giữ Ctrl rồi nhấp hoặc kéo vùng thứ hai để thêm vùng rời; hộp tên hiển thị các địa chỉ cách nhau bằng dấu phẩy. Chọn lại một ô bình thường để bỏ các vùng rời và bắt đầu lựa chọn mới.",
       "Kéo từ số hàng bên trái để chọn nhiều hàng, hoặc kéo từ chữ cột phía trên để chọn nhiều cột. Có thể đưa con trỏ sát mép lưới trong lúc giữ chuột để tự cuộn và tiếp tục mở rộng vùng; các hàng/cột đã cố định vẫn giữ nguyên.",
       "Hộp tên phía trên lưới hiện địa chỉ vùng. Thanh trạng thái dưới cùng cập nhật số ô số (ĐẾM), TRUNG BÌNH và TỔNG CỘNG của các ô đang chọn.",
+      "Muốn xem thêm số liệu khác: chuột phải lên thanh trạng thái dưới cùng, tích hoặc bỏ tích Đếm số, Đếm ô có dữ liệu, Nhỏ nhất, Lớn nhất, Trung bình, Tổng cộng. Lựa chọn được nhớ cho lần mở sau. Đếm số chỉ tính ô là số; Đếm ô có dữ liệu tính mọi ô không trống.",
       "Khi Sao chép định dạng đang bật ở tab Trang đầu → nhóm Bảng nhớ tạm, kéo qua một vùng đích để áp dụng kiểu ô. Nếu đang sửa trên thanh công thức, kéo chọn ô khác sẽ xác nhận nội dung đang nhập trước khi chọn vùng mới."
     ]
   },

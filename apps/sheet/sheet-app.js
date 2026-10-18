@@ -14,6 +14,7 @@ import { t } from "../../platform/i18n/i18n.js";
 import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
 import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
 import { SheetQuickView } from "./sheet-quick-view.js";
+import { showContextMenu } from "../../platform/ui-kit/components.js";
 
 export class SheetApp {
   constructor(mountElement) {
@@ -73,7 +74,8 @@ export class SheetApp {
           this.shell.setStatus(t(`sheetFormulaEntry.status.${this.grid.formulaEntry.mode === "point" ? "point" : this.grid.formulaEntry.mode === "enter" ? "enter" : "edit"}`));
           return;
         }
-        this.shell.setStatus(`SẴN SÀNG  |  Ô: ${coord}  |  ĐẾM: ${stats.count}  |  TRUNG BÌNH: ${stats.avg}  |  TỔNG CỘNG: ${stats.sum}`);
+        this._lastStatusInfo = { coord, stats };
+        this._renderSelectionStatus();
       },
       onFormulaEntryMode: (label) => this.shell?.setStatus?.(label),
       onZoomChange: (level) => this.shell?.setZoomDisplay?.(Math.round(level * 100)),
@@ -86,6 +88,7 @@ export class SheetApp {
     };
     this.grid.mount();
     this._bindGridFocusRestoration();
+    this._bindStatusBarCustomization();
 
     this.workspace = workspace;
     globalCommandBus.bindHandler("sheet.help.open", (args) => {
@@ -215,6 +218,55 @@ export class SheetApp {
       if (this.mountElement.getAttribute("data-app") !== "sheet") this.destroy();
     });
     this._lifecycleObserver.observe(this.mountElement, { attributes: true, attributeFilter: ["data-app"] });
+  }
+
+  /** Các số liệu hiện ở thanh trạng thái: bật/tắt bằng chuột phải lên thanh (lưu theo máy). */
+  static get STATUS_STAT_ITEMS() {
+    return [
+      { key: "count", label: "Đếm số", short: "ĐẾM" },
+      { key: "counta", label: "Đếm ô có dữ liệu", short: "ĐẾM Ô" },
+      { key: "min", label: "Nhỏ nhất", short: "NHỎ NHẤT" },
+      { key: "max", label: "Lớn nhất", short: "LỚN NHẤT" },
+      { key: "avg", label: "Trung bình", short: "TRUNG BÌNH" },
+      { key: "sum", label: "Tổng cộng", short: "TỔNG CỘNG" }
+    ];
+  }
+
+  _statusStatPrefs() {
+    const defaults = { count: true, counta: false, min: false, max: false, avg: true, sum: true };
+    try {
+      const saved = JSON.parse(globalThis.localStorage?.getItem("vno.sheet.statusStats") || "null");
+      if (saved && typeof saved === "object") return { ...defaults, ...saved };
+    } catch (_) { /* không có localStorage: dùng mặc định */ }
+    return defaults;
+  }
+
+  _renderSelectionStatus() {
+    const info = this._lastStatusInfo;
+    if (!info || !this.shell) return;
+    const prefs = this._statusStatPrefs();
+    const parts = SheetApp.STATUS_STAT_ITEMS.filter(item => prefs[item.key] && info.stats?.[item.key] !== undefined)
+      .map(item => `${item.short}: ${info.stats[item.key]}`);
+    this.shell.setStatus(["SẴN SÀNG", `Ô: ${info.coord}`, ...parts].join("  |  "));
+  }
+
+  _bindStatusBarCustomization() {
+    const el = typeof document !== "undefined" ? document.getElementById("vno-status-docinfo") : null;
+    if (!el || el.dataset.vnoStatusMenu === "1") return;
+    el.dataset.vnoStatusMenu = "1";
+    el.addEventListener("contextmenu", (event) => {
+      event.preventDefault();
+      const prefs = this._statusStatPrefs();
+      const items = SheetApp.STATUS_STAT_ITEMS.map(item => ({
+        label: `${prefs[item.key] ? "✓ " : "    "}${item.label}`,
+        action: () => {
+          const next = { ...this._statusStatPrefs(), [item.key]: !prefs[item.key] };
+          try { globalThis.localStorage?.setItem("vno.sheet.statusStats", JSON.stringify(next)); } catch (_) { /* bỏ qua */ }
+          this._renderSelectionStatus();
+        }
+      }));
+      showContextMenu({ items, x: event.clientX, y: event.clientY, className: "vno-sheet-context-menu vno-status-stat-menu", ariaLabel: "Tùy chỉnh thanh trạng thái" });
+    });
   }
 
   _bindGridFocusRestoration() {

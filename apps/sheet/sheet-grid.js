@@ -22299,6 +22299,9 @@ export class SheetGridController {
     const ranges = this._getSelectionRanges();
     let total = 0;
     let count = 0;
+    let counta = 0;
+    let minValue = Infinity;
+    let maxValue = -Infinity;
     const seenCoords = new Set();
     let hasCurrency = false;
     for (const selection of ranges) {
@@ -22314,12 +22317,15 @@ export class SheetGridController {
           seenCoords.add(coord);
           const itm = this.cellsData.get(coord);
           if (!itm || itm.val === undefined || itm.val === null || itm.val === "") continue;
+          counta++;
           const num = typeof itm.val === "number"
             ? itm.val
             : parseFloat(String(itm.val).replace(/\./g, "").replace(/,/g, ".").replace(/[^\d.-]/g, ""));
           if (!Number.isFinite(num)) continue;
           count++;
           total += num;
+          if (num < minValue) minValue = num;
+          if (num > maxValue) maxValue = num;
           const cat = itm.style?.numberFormat?.category;
           if (cat === "currency" || cat === "accounting") {
             hasCurrency = true;
@@ -22336,8 +22342,11 @@ export class SheetGridController {
       });
       return {
         count: count,
+        counta,
         sum: formatter.format(total),
-        avg: formatter.format(avg)
+        avg: formatter.format(avg),
+        min: count ? formatter.format(minValue) : formatter.format(0),
+        max: count ? formatter.format(maxValue) : formatter.format(0)
       };
     }
     const formatter = new Intl.NumberFormat("vi-VN", {
@@ -22346,8 +22355,11 @@ export class SheetGridController {
     });
     return {
       count: count,
+      counta,
       sum: formatter.format(total),
-      avg: formatter.format(avg)
+      avg: formatter.format(avg),
+      min: count ? formatter.format(minValue) : formatter.format(0),
+      max: count ? formatter.format(maxValue) : formatter.format(0)
     };
   }
 
