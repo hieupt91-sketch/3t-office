@@ -166,7 +166,7 @@ Thư|Tạo|Tạo phong bì thư (Envelopes)|V|-|Phong bì writer.mailings.envelo
 Thư|Tạo|Tạo nhãn địa chỉ (Labels)|V|-|Nhãn writer.mailings.labels đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:96)
 Thư|Bắt đầu trộn thư|Bắt đầu trộn thư (Start Mail Merge)|V|-|Bắt đầu trộn thư writer.mailMerge.open đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:97)
 Thư|Bắt đầu trộn thư|Nguồn dữ liệu người nhận (Select Recipients từ XLSX/CSV)|V|-|Nguồn dữ liệu writer.mailMerge.open nạp 2 bản ghi đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:97)
-Thư|Bắt đầu trộn thư|Sửa danh sách người nhận (Edit Recipient List)|P|2|Nạp danh sách ngoài; chưa có bảng lọc/sắp xếp danh sách trực tiếp
+Thư|Bắt đầu trộn thư|Sửa danh sách người nhận (Edit Recipient List)|A|-|writer.mailMerge.open: bảng người nhận có tìm/lọc, chọn hoặc bỏ chọn từng người, sắp xếp theo cột (chữ và số), lưu giữ thứ tự và lựa chọn (tests/live/cdp/writer-merge-recipients.desktop.mjs 7/7); không có đối chiếu Word thật vì là hộp thoại giao diện
 Thư|Viết & Chèn trường|Chèn trường trộn thư (Insert Merge Field)|V|-|Chèn trường writer.mailMerge.insertField đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:98)
 Thư|Viết & Chèn trường|Quy tắc điều kiện (Rules: If...Then...Else)|V|-|Quy tắc điều kiện writer.mailMerge.ifRule đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:99)
 Thư|Viết & Chèn trường|Tô sáng trường trộn (Highlight Merge Fields)|A|-|writer.mailMerge.highlightFields: nút bật/tắt nền màu của trường trộn, không đổi nội dung và không lọt vào tệp lưu (tests/live/cdp/writer-merge-highlight.desktop.mjs 5/5); thao tác hiển thị, không có đối chiếu Word thật
@@ -175,7 +175,7 @@ Thư|Viết & Chèn trường|Khớp trường dữ liệu (Match Fields)|P|2|Kh
 Thư|Viết & Chèn trường|Cập nhật toàn bộ nhãn (Update Labels)|P|2|Đã hỗ trợ qua sinh hàng loạt nhãn từ nguồn
 Thư|Xem trước kết quả|Xem trước kết quả (Preview Results)|V|-|Xem trước kết quả writer.mailMerge.preview đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:100)
 Thư|Xem trước kết quả|Điều hướng bản ghi (Previous / Next Record)|V|-|Bản ghi trước/sau writer.mailMerge.prevRecord/nextRecord đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:101-102)
-Thư|Xem trước kết quả|Tìm người nhận (Find Recipient)|P|2|Có thể tìm qua Find; chưa có hộp thoại lọc người nhận riêng
+Thư|Xem trước kết quả|Tìm người nhận (Find Recipient)|A|-|writer.mailMerge.open: ô «Tìm kiếm / lọc người nhận» thu gọn danh sách theo từ khóa trên mọi cột (tests/live/cdp/writer-merge-recipients.desktop.mjs); chưa có hộp Find Recipient riêng khi xem trước từng bản ghi
 Thư|Xem trước kết quả|Tự động kiểm tra lỗi trộn thư (Auto Check for Errors)|N|3|Chưa có wizard kiểm tra lỗi trộn thư
 Thư|Hoàn tất|Hoàn tất & Trộn (Finish & Merge: tạo tài liệu mới / in)|V|-|Hoàn tất & Trộn writer.mailMerge.finish đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:103)
 Xem lại|Soát lỗi|Kiểm tra chính tả tiếng Việt (F7 / gạch đỏ)|V|-|Kiểm tra chính tả writer.review.toggleSpellCheck đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:104)

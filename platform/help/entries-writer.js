@@ -539,6 +539,7 @@ export const WRITER_HELP_ENTRIES = [
       "Mở tab Trộn thư, nhóm Bắt đầu trộn, nhấn Nguồn dữ liệu. Trong hộp thoại, nhấn 'Chọn tệp bảng tính .xlsx / CSV...' để mở tệp bảng tính (.xlsx, .xls, .ods, .csv, .tsv) hoặc dán dữ liệu thủ công.",
       "Nếu tệp bảng tính .xlsx có nhiều trang tính, chọn trang tính mong muốn tại mục 'Trang tính'. Đánh dấu tùy chọn 'Dòng đầu tiên là tên trường' nếu hàng đầu của bảng chứa tiêu đề cột.",
       "Xem trước danh sách người nhận trong bảng. Có thể nhập từ khóa vào ô tìm kiếm để lọc, và bỏ dấu tích ở các dòng không muốn gửi để loại trừ người nhận đó khỏi danh sách.",
+      "Muốn sắp xếp danh sách người nhận: bấm vào tên cột ở hàng tiêu đề (lần một tăng dần ▲, lần hai giảm dần ▼); cột toàn số được xếp theo giá trị số. Thứ tự sau khi sắp xếp cũng là thứ tự các thư khi trộn. Dữ liệu từ tệp luôn được hiện nguyên văn, kể cả khi có ký tự đặc biệt.",
       "Nhấn 'Lưu nguồn dữ liệu' để áp dụng danh sách người nhận vào tài liệu.",
       "Đặt con trỏ tại vị trí muốn đưa thông tin người nhận vào văn bản, mở nhóm Viết & Chèn trường, nhấn Chèn trường và chọn trường dữ liệu tương ứng (ví dụ: Họ tên, Lương thưởng, Ngày ký).",
       "Để chèn nội dung có điều kiện, đặt con trỏ trong văn bản, mở tab Trộn thư > nhóm Viết & Chèn trường > Quy tắc. Chọn trường, toán tử, giá trị so sánh và nhập nội dung cho Thì/Nếu không; quy tắc sẽ được đánh giá theo từng người nhận khi xem trước hoặc hoàn tất trộn.",

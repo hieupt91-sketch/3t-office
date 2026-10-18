@@ -87,6 +87,9 @@ export function showMailMergeDataSourceDialog({
   let currentSheetIndex = 0;
   let hasHeadersState = true;
   let searchQuery = "";
+  let sortField = null;
+  let sortDirection = 1;
+  const escapeCell = value => String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 
   // Khởi tạo sheet ban đầu nếu có dữ liệu truyền vào
   if (currentSheets.length === 0) {
@@ -281,8 +284,20 @@ export function showMailMergeDataSourceDialog({
       <th style="width:40px;padding:8px 10px;border-bottom:2px solid var(--vno-border-default);text-align:center;">
         <input type="checkbox" class="vno-merge-th-checkbox" style="cursor:pointer;" title="Chọn/Bỏ chọn tất cả" />
       </th>
-      ${fields.map(f => `<th style="padding:8px 10px;border-bottom:2px solid var(--vno-border-default);color:var(--vno-text-primary);font-weight:600;white-space:nowrap;">${f}</th>`).join("")}
+      ${fields.map(f => `<th class="vno-merge-sort-th" data-sort-field="${escapeCell(f)}" role="button" tabindex="0" aria-sort="${sortField === f ? (sortDirection === 1 ? "ascending" : "descending") : "none"}" title="Bấm để sắp xếp danh sách theo cột này" style="padding:8px 10px;border-bottom:2px solid var(--vno-border-default);color:var(--vno-text-primary);font-weight:600;white-space:nowrap;cursor:pointer;user-select:none;">${escapeCell(f)}${sortField === f ? (sortDirection === 1 ? " ▲" : " ▼") : ""}</th>`).join("")}
     `;
+    // Sắp xếp theo cột: bấm lần 1 tăng dần, lần 2 giảm dần; thứ tự này cũng là thứ tự khi trộn.
+    theadRow.querySelectorAll(".vno-merge-sort-th").forEach(th => {
+      const sortBy = () => {
+        const field = th.getAttribute("data-sort-field");
+        sortDirection = sortField === field ? -sortDirection : 1;
+        sortField = field;
+        records.sort((a, b) => sortDirection * String(a[field] ?? "").localeCompare(String(b[field] ?? ""), "vi", { numeric: true, sensitivity: "base" }));
+        renderTable();
+      };
+      th.addEventListener("click", sortBy);
+      th.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); sortBy(); } });
+    });
 
     const activeThCheck = theadRow.querySelector(".vno-merge-th-checkbox");
     if (activeThCheck) {
@@ -315,7 +330,7 @@ export function showMailMergeDataSourceDialog({
         ? "border-bottom:1px solid var(--vno-border-subtle, #e2e8f0);"
         : "border-bottom:1px solid var(--vno-border-subtle, #e2e8f0);opacity:0.5;background:var(--vno-bg-surface-secondary, #f8fafc);";
 
-      const cells = fields.map(f => `<td style="padding:7px 10px;white-space:nowrap;">${rec[f] !== undefined ? rec[f] : ""}</td>`).join("");
+      const cells = fields.map(f => `<td style="padding:7px 10px;white-space:nowrap;">${escapeCell(rec[f])}</td>`).join("");
 
       rowsHtml.push(`
         <tr data-record-idx="${idx}" style="${trStyle}">
