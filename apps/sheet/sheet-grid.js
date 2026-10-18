@@ -18748,6 +18748,53 @@ export class SheetGridController {
     return this._deleteCollectionItem("conditionalFormattingBySheet", ruleId, sheetName, recordUndo);
   }
 
+  /**
+   * Xóa quy tắc định dạng có điều kiện: "sheet" = cả trang tính; "selection" = chỉ phần giao với vùng chọn
+   * (quy tắc bị cắt thành tối đa 4 quy tắc bản sao phủ phần còn lại của vùng áp dụng, như Excel).
+   */
+  clearConditionalFormattingRules(scope = "selection") {
+    const rules = this.conditionalFormattingBySheet[this.activeSheet] || [];
+    if (!rules.length) return false;
+    const before = structuredClone(rules);
+    let next;
+    if (scope === "sheet") {
+      next = [];
+    } else {
+      const selections = this._getSelectionRanges().map(range => this._normalizeRange(range));
+      if (!selections.length) return false;
+      const colIndex = col => this.cols.indexOf(col);
+      const rect = range => ({ c1: colIndex(range.start.c), c2: colIndex(range.end.c), r1: range.start.r, r2: range.end.r });
+      const toRange = piece => ({ start: { c: this.cols[piece.c1], r: piece.r1 }, end: { c: this.cols[piece.c2], r: piece.r2 } });
+      next = [];
+      for (const rule of rules) {
+        let pieces = [rect(this._normalizeRange(rule.range))];
+        for (const selection of selections) {
+          const s = rect(selection);
+          pieces = pieces.flatMap(p => {
+            const i = { c1: Math.max(p.c1, s.c1), c2: Math.min(p.c2, s.c2), r1: Math.max(p.r1, s.r1), r2: Math.min(p.r2, s.r2) };
+            if (i.c1 > i.c2 || i.r1 > i.r2) return [p];
+            const out = [];
+            if (i.r1 > p.r1) out.push({ c1: p.c1, c2: p.c2, r1: p.r1, r2: i.r1 - 1 });
+            if (i.r2 < p.r2) out.push({ c1: p.c1, c2: p.c2, r1: i.r2 + 1, r2: p.r2 });
+            if (i.c1 > p.c1) out.push({ c1: p.c1, c2: i.c1 - 1, r1: i.r1, r2: i.r2 });
+            if (i.c2 < p.c2) out.push({ c1: i.c2 + 1, c2: p.c2, r1: i.r1, r2: i.r2 });
+            return out;
+          });
+        }
+        pieces.forEach((piece, index) => {
+          next.push(index === 0
+            ? { ...structuredClone(rule), range: toRange(piece) }
+            : { ...structuredClone(rule), id: `cf-${Date.now()}-${Math.random().toString(36).slice(2, 8)}`, range: toRange(piece) });
+        });
+      }
+      if (JSON.stringify(next) === JSON.stringify(before)) return false;
+    }
+    this.conditionalFormattingBySheet[this.activeSheet] = next;
+    this._recordHistory({ type: "conditional-rules", sheet: this.activeSheet, before, after: structuredClone(next) });
+    this._refreshVisibleRuleVisuals();
+    return true;
+  }
+
   getConditionalFormattingRules(sheetName = this.activeSheet) {
     return [...(this.conditionalFormattingBySheet[sheetName] || [])];
   }

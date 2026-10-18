@@ -370,7 +370,7 @@ export const SHEET_HELP_ENTRIES = [
   {
     id: "sheet.format.conditional",
     app: "sheet",
-    commandIds: ["sheet.format.conditional"],
+    commandIds: ["sheet.format.conditional", "sheet.format.clearRulesSelection", "sheet.format.clearRulesSheet"],
     title: "Định dạng có điều kiện",
     summary: "Tô nổi ô theo điều kiện: so sánh giá trị, văn bản chứa, ngày, trùng lặp, trên/dưới N hoặc phần trăm, trên/dưới trung bình, thanh dữ liệu, thang màu, bộ biểu tượng hoặc công thức. Mỗi quy tắc lưu cùng sổ tính; mở bằng phần mềm bảng tính khác vẫn là quy tắc định dạng có điều kiện gốc.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Kiểu ô" },
@@ -380,6 +380,7 @@ export const SHEET_HELP_ENTRIES = [
       "Chọn loại quy tắc. Tô sáng ô: Lớn hơn, Nhỏ hơn, Giữa hai giá trị, Bằng, Chứa văn bản, Ngày xảy ra (hôm qua, hôm nay, tuần này, tháng này…), Giá trị trùng lặp, Ô trống. Trên/Dưới: N giá trị hoặc tỷ lệ phần trăm cao nhất/thấp nhất, trên hoặc dưới mức trung bình. Hiển thị trực quan: Thanh dữ liệu, Thang màu 2 màu hoặc 3 màu, Bộ biểu tượng (mũi tên, đèn tín hiệu, ký hiệu, xếp hạng; có tùy chọn đảo thứ tự biểu tượng). Nâng cao: Công thức, ví dụ =$B2>100 tô cả hàng theo cột B.",
       "Nhập ngưỡng, văn bản, số N, tỷ lệ từ 1 đến 100 hoặc công thức nếu loại quy tắc yêu cầu; chọn Màu nền (hoặc các màu của thang/thanh). Thang 3 màu dùng phân vị 50 (trung vị) làm màu giữa. Có thể sửa Vùng áp dụng ngay trong hộp thoại. Nhấn Áp dụng: các ô khớp được tô ngay.",
       "Trong danh sách Quy tắc hiện có: bấm một dòng để sửa, bấm mũi tên lên/xuống để đổi thứ tự ưu tiên (quy tắc ở trên được xét trước), bấm Xóa quy tắc để bỏ. Mọi thay đổi hoàn tác được bằng Ctrl+Z.",
+      "Xóa nhanh quy tắc: ngay cạnh nút lớn có hai nút nhỏ. «Xóa quy tắc ở ô đã chọn» chỉ gỡ quy tắc khỏi các ô đang bôi đen — nếu quy tắc phủ rộng hơn vùng chọn, phần ngoài vùng chọn vẫn giữ quy tắc (quy tắc được tách thành các vùng còn lại). «Xóa quy tắc cả trang tính» gỡ hết mọi quy tắc của trang hiện tại. Cả hai hoàn tác được bằng Ctrl+Z.",
       "Khi lưu .xlsx, các quy tắc được ghi thành quy tắc định dạng có điều kiện chuẩn; mở lại trong Sheet hoặc bảng tính khác đều thấy đúng loại, vùng và màu.",
       "Cùng nhóm Kiểu ô còn Định dạng bảng (màu xen kẽ) và Kiểu ô (Normal, Good, Bad, Neutral…) — khác với quy tắc có điều kiện."
     ]

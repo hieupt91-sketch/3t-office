@@ -429,6 +429,8 @@ export const SHEET_COMMANDS = [
   { id: "sheet.data.clearFilter", category: "data", label: "Xóa bộ lọc", icon: "filter", tooltip: "Xóa mọi bộ lọc của trang tính để hiện lại tất cả các dòng" },
   { id: "sheet.data.reapplyFilter", category: "data", label: "Áp dụng lại", icon: "filter", tooltip: "Lọc lại danh sách theo các điều kiện hiện có (dùng khi dữ liệu đã thay đổi)" },
   { id: "sheet.data.advancedFilter", category: "data", label: "Nâng cao", icon: "filter", tooltip: "Lọc bằng vùng điều kiện (nhiều điều kiện VÀ/HOẶC), lọc tại chỗ hoặc sao chép kết quả sang nơi khác" },
+  { id: "sheet.format.clearRulesSelection", category: "format", label: "Xóa quy tắc ở ô đã chọn", icon: "conditionalFormat", tooltip: "Xóa các quy tắc định dạng có điều kiện khỏi những ô đang chọn (phần ngoài vùng chọn vẫn giữ quy tắc)" },
+  { id: "sheet.format.clearRulesSheet", category: "format", label: "Xóa quy tắc cả trang tính", icon: "conditionalFormat", tooltip: "Xóa mọi quy tắc định dạng có điều kiện của trang tính hiện tại" },
   { id: "sheet.format.conditional", category: "format", label: "Định dạng có điều kiện", icon: "conditionalFormat", tooltip: "Tô nổi bật các ô theo giá trị hoặc trạng thái trống" },
   { id: "sheet.data.validation", category: "data", label: "Kiểm tra dữ liệu", icon: "dataValidation", tooltip: "Giới hạn số, ngày, giờ, độ dài, danh sách hoặc công thức; đặt thông báo và cảnh báo lỗi" },
   { id: "sheet.data.textToColumns", category: "data", label: "Tách văn bản", icon: "textToColumns", tooltip: "Tách một cột theo dấu phân cách hoặc độ rộng cố định" },

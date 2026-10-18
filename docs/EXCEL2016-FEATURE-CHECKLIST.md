@@ -17,8 +17,8 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Excel 2016 | 92 | 43% |
-| 🟢 Có, chưa đối chiếu | 61 | 29% |
-| 🟡 Có một phần | 21 | 10% |
+| 🟢 Có, chưa đối chiếu | 62 | 29% |
+| 🟡 Có một phần | 20 | 9% |
 | 🔴 Chưa có | 39 | 18% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
@@ -33,7 +33,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 3 | 8 | 4 | 1 | 1 | 81% |
-| Trang đầu | 53 | 27 | 16 | 8 | 2 | 0 | 89% |
+| Trang đầu | 53 | 27 | 17 | 7 | 2 | 0 | 90% |
 | Chèn | 29 | 9 | 6 | 1 | 11 | 2 | 57% |
 | Bố trí trang | 10 | 7 | 1 | 1 | 1 | 0 | 85% |
 | Công thức | 13 | 6 | 6 | 1 | 0 | 0 | 96% |
@@ -118,7 +118,7 @@ Tổng: 2 mục ưu tiên 1.
 | Kiểu | Bộ biểu tượng (Icon Sets) | ✅ | - | G1: Icon Sets Excel 2016 đọc IconSet.ID (tests/functions/cf-golden-1.json:1-25; tests/unit/sheet-cf-golden.test.js:1-30; sheet.format.conditional) |
 | Kiểu | Quy tắc mới theo công thức | ✅ | - | G1: Quy tắc mới công thức Excel 2016 đọc Type=Expression (tests/functions/cf-golden-1.json:1-25; tests/unit/sheet-cf-golden.test.js:1-30; sheet.format.conditional) |
 | Kiểu | Quản lý quy tắc (xem, xóa, sửa, thứ tự ưu tiên, Stop If True) | 🟡 | 2 | G1: có xem, sửa, đổi thứ tự, xóa; thiếu Stop If True |
-| Kiểu | Xóa quy tắc (vùng chọn / cả trang) | 🟡 | 2 | Xóa từng quy tắc trong quản lý |
+| Kiểu | Xóa quy tắc (vùng chọn / cả trang) | 🟢 | - | sheet.format.clearRulesSelection, sheet.format.clearRulesSheet: xóa phần giao với vùng chọn (quy tắc tách thành vùng còn lại) hoặc cả trang; hoàn tác; lưu XLSX mở lại giữ đúng 4 vùng còn lại (tests/live/cdp/sheet-clear-rules.desktop.mjs 8/8); chưa đối chiếu Excel thật vì Excel COM chưa dùng được |
 | Kiểu | Định dạng dưới dạng Bảng (gallery kiểu) | 🟡 | 2 | 17/10 (AGY-TABLESTYLE): 21 kiểu Light/Medium/Dark đo màu từ Excel (cases-14 49/49 ô); Excel có 60 kiểu, chưa có Tùy chỉnh kiểu bảng |
 | Kiểu | Kiểu ô (Cell Styles) có sẵn + tạo kiểu mới | 🟢 | - | sheet.style.cellStyles |
 | Ô | Chèn ô/hàng/cột/trang tính | ✅ | - | Hộp thoại Chèn ô, chèn trang tính (docs/SHEET-BUTTON-MATRIX-1011.md:52-53; tests/unit/sheet-row-col-insert.test.js:1-25; sheet.row.insert, sheet.col.insert) |
@@ -229,7 +229,7 @@ Tổng: 2 mục ưu tiên 1.
 | Dự báo | What-If: Goal Seek / Bảng dữ liệu (Data Table) | ✅ | - | 17/10 (AGY-DATATOOLS): Goal Seek và Table đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; tests/unit/sheet-goal-seek.test.js:1-30; apps/sheet/sheet-grid.js:20373-20390; sheet.data.goalSeek) |
 | Dự báo | Trang dự báo (Forecast Sheet) | 🔴 | 3 |  |
 | Dàn bài | Nhóm / Bỏ nhóm / Tổng phụ | ✅ | - | 17/10 (AGY-DATATOOLS): Group/Ungroup hàng-cột và Subtotal/RemoveSubtotal đối chiếu Excel 2016 (cases-17 12/12 kịch bản); sheet.data.subtotal; apps/sheet/data-tools.js:77-185 |
-| Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | ✅ | - | 17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; apps/sheet/sheet-grid.js:20233; sheet.data.group) |
+| Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | ✅ | - | 17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; apps/sheet/sheet-grid.js:20280; sheet.data.group) |
 | Phân tích | Solver | 🔴 | 3 | Bổ sung của Excel |
 
 ### Xem xét

@@ -210,6 +210,13 @@ export const SHEET_RIBBON_TABS = [
           {
             type: "column",
             items: [
+              { type: "button", commandId: "sheet.format.clearRulesSelection" },
+              { type: "button", commandId: "sheet.format.clearRulesSheet" }
+            ]
+          },
+          {
+            type: "column",
+            items: [
               { type: "button", commandId: "sheet.style.formatAsTable" },
               { type: "button", commandId: "sheet.style.cellStyles" }
             ]

@@ -65,7 +65,7 @@ Trang đầu|Kiểu|Thang màu (Color Scales)|V|-|G1: Color Scales 2 và 3 màu,
 Trang đầu|Kiểu|Bộ biểu tượng (Icon Sets)|V|-|G1: Icon Sets Excel 2016 đọc IconSet.ID (tests/functions/cf-golden-1.json:1-25; tests/unit/sheet-cf-golden.test.js:1-30; sheet.format.conditional)
 Trang đầu|Kiểu|Quy tắc mới theo công thức|V|-|G1: Quy tắc mới công thức Excel 2016 đọc Type=Expression (tests/functions/cf-golden-1.json:1-25; tests/unit/sheet-cf-golden.test.js:1-30; sheet.format.conditional)
 Trang đầu|Kiểu|Quản lý quy tắc (xem, xóa, sửa, thứ tự ưu tiên, Stop If True)|P|2|G1: có xem, sửa, đổi thứ tự, xóa; thiếu Stop If True
-Trang đầu|Kiểu|Xóa quy tắc (vùng chọn / cả trang)|P|2|Xóa từng quy tắc trong quản lý
+Trang đầu|Kiểu|Xóa quy tắc (vùng chọn / cả trang)|A|-|sheet.format.clearRulesSelection, sheet.format.clearRulesSheet: xóa phần giao với vùng chọn (quy tắc tách thành vùng còn lại) hoặc cả trang; hoàn tác; lưu XLSX mở lại giữ đúng 4 vùng còn lại (tests/live/cdp/sheet-clear-rules.desktop.mjs 8/8); chưa đối chiếu Excel thật vì Excel COM chưa dùng được
 Trang đầu|Kiểu|Định dạng dưới dạng Bảng (gallery kiểu)|P|2|17/10 (AGY-TABLESTYLE): 21 kiểu Light/Medium/Dark đo màu từ Excel (cases-14 49/49 ô); Excel có 60 kiểu, chưa có Tùy chỉnh kiểu bảng
 Trang đầu|Kiểu|Kiểu ô (Cell Styles) có sẵn + tạo kiểu mới|A|-|sheet.style.cellStyles
 Trang đầu|Ô|Chèn ô/hàng/cột/trang tính|V|-|Hộp thoại Chèn ô, chèn trang tính (docs/SHEET-BUTTON-MATRIX-1011.md:52-53; tests/unit/sheet-row-col-insert.test.js:1-25; sheet.row.insert, sheet.col.insert)

@@ -348,6 +348,8 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.format.increaseDecimal", () => this.grid.adjustDecimalPlaces(1));
     globalCommandBus.bindHandler("sheet.format.decreaseDecimal", () => this.grid.adjustDecimalPlaces(-1));
     globalCommandBus.bindHandler("sheet.format.conditional", () => this.grid.showConditionalFormattingDialog());
+    globalCommandBus.bindHandler("sheet.format.clearRulesSelection", () => this._hintIfFalse(() => this.grid.clearConditionalFormattingRules("selection"), "Các ô đang chọn không có quy tắc định dạng có điều kiện nào."));
+    globalCommandBus.bindHandler("sheet.format.clearRulesSheet", () => this._hintIfFalse(() => this.grid.clearConditionalFormattingRules("sheet"), "Trang tính này chưa có quy tắc định dạng có điều kiện nào."));
     globalCommandBus.bindHandler("sheet.data.refreshAll", () => this.grid.refreshAllLinks ? this.grid.refreshAllLinks() : false);
     globalCommandBus.bindHandler("sheet.data.editLinks", () => this.grid.showEditLinksDialog ? this.grid.showEditLinksDialog() : false);
     globalCommandBus.bindHandler("sheet.data.validation", () => this.grid.showDataValidationDialog());
