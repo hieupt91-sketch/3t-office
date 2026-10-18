@@ -17,8 +17,8 @@ Chuẩn: Microsoft Word 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qu
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Word 2016 | 157 | 58% |
-| 🟢 Có, chưa đối chiếu | 65 | 24% |
-| 🟡 Có một phần | 24 | 9% |
+| 🟢 Có, chưa đối chiếu | 66 | 24% |
+| 🟡 Có một phần | 23 | 8% |
 | 🔴 Chưa có | 26 | 10% |
 | ⚪ Ngoài phạm vi | 7 | - |
 | **Tổng** | **279** (áp dụng: 272) | |
@@ -40,7 +40,7 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | Tham chiếu | 19 | 11 | 2 | 3 | 1 | 2 | 85% |
 | Thư | 16 | 9 | 0 | 6 | 1 | 0 | 75% |
 | Xem lại | 22 | 10 | 7 | 2 | 3 | 0 | 82% |
-| Chế độ xem | 21 | 10 | 6 | 2 | 3 | 0 | 81% |
+| Chế độ xem | 21 | 10 | 7 | 1 | 3 | 0 | 83% |
 | Công cụ Bảng | 26 | 24 | 0 | 1 | 1 | 0 | 94% |
 | Công cụ Hình ảnh | 12 | 3 | 5 | 2 | 2 | 0 | 75% |
 | Công cụ Vẽ | 10 | 4 | 2 | 2 | 2 | 0 | 70% |
@@ -311,7 +311,7 @@ Tổng: 1 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Thu phóng | Hộp thoại Thu phóng (Zoom Dialog) | 🟢 | - | writer.view.zoomDialog (apps/writer/writer-zoom-dialog.js; apps/writer/writer-view-controller.js; platform/shell/app-shell.js) |
 | Thu phóng | Thu phóng 100% | ✅ | - | Thu phóng 100% writer.view.zoom100 đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:124) |
 | Thu phóng | Vừa chiều rộng trang (Page Width) | ✅ | - | Chiều rộng trang writer.view.pageWidth đối chiếu Word COM PageFit=3 (docs/DOC-BUTTON-MATRIX-1011.md:126) |
-| Thu phóng | Xem một trang (One Page) / Nhiều trang (Multiple Pages) | 🟡 | 2 | Tự co giãn theo kích thước màn hình; chưa có nút cố định 2-trang |
+| Thu phóng | Xem một trang (One Page) / Nhiều trang (Multiple Pages) | 🟢 | - | writer.view.fitPage, writer.view.multiplePages, writer.view.zoomDialog; đo trên app desktop: Vừa cả trang đặt zoom để cả chiều cao trang nằm trong khung nhìn, Nhiều trang thu nhỏ có lớp xếp nhiều trang, hộp Thu phóng 10–500% (tests/live/cdp/writer-zoom-dialog.desktop.mjs); không xem được so với Word thật vì là thao tác giao diện, không đi vào tệp |
 | Thu phóng | Phóng to / Thu nhỏ (Zoom In / Zoom Out) | ✅ | - | Phóng to và thu nhỏ writer.view.zoomIn/zoomOut đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:123,125) |
 | Cửa sổ | Cửa sổ mới (New Window) | 🟢 | - | writer.view.newWindow; mở WebView thứ hai độc lập, khác Word clone cửa sổ có chủ ý (docs/DOC-BUTTON-MATRIX-1011.md:128) |
 | Cửa sổ | Sắp xếp tất cả cửa sổ (Arrange All) | 🔴 | 3 | Chưa có sắp xếp tile các cửa sổ app |

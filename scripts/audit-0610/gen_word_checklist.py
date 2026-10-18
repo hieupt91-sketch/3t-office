@@ -213,7 +213,7 @@ Chế độ xem|Hiển thị|Ngăn dẫn hướng (Navigation Pane, Ctrl+Alt+N)|
 Chế độ xem|Thu phóng|Hộp thoại Thu phóng (Zoom Dialog)|A|-|writer.view.zoomDialog (apps/writer/writer-zoom-dialog.js; apps/writer/writer-view-controller.js; platform/shell/app-shell.js)
 Chế độ xem|Thu phóng|Thu phóng 100%|V|-|Thu phóng 100% writer.view.zoom100 đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:124)
 Chế độ xem|Thu phóng|Vừa chiều rộng trang (Page Width)|V|-|Chiều rộng trang writer.view.pageWidth đối chiếu Word COM PageFit=3 (docs/DOC-BUTTON-MATRIX-1011.md:126)
-Chế độ xem|Thu phóng|Xem một trang (One Page) / Nhiều trang (Multiple Pages)|P|2|Tự co giãn theo kích thước màn hình; chưa có nút cố định 2-trang
+Chế độ xem|Thu phóng|Xem một trang (One Page) / Nhiều trang (Multiple Pages)|A|-|writer.view.fitPage, writer.view.multiplePages, writer.view.zoomDialog; đo trên app desktop: Vừa cả trang đặt zoom để cả chiều cao trang nằm trong khung nhìn, Nhiều trang thu nhỏ có lớp xếp nhiều trang, hộp Thu phóng 10–500% (tests/live/cdp/writer-zoom-dialog.desktop.mjs); không xem được so với Word thật vì là thao tác giao diện, không đi vào tệp
 Chế độ xem|Thu phóng|Phóng to / Thu nhỏ (Zoom In / Zoom Out)|V|-|Phóng to và thu nhỏ writer.view.zoomIn/zoomOut đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:123,125)
 Chế độ xem|Cửa sổ|Cửa sổ mới (New Window)|A|-|writer.view.newWindow; mở WebView thứ hai độc lập, khác Word clone cửa sổ có chủ ý (docs/DOC-BUTTON-MATRIX-1011.md:128)
 Chế độ xem|Cửa sổ|Sắp xếp tất cả cửa sổ (Arrange All)|N|3|Chưa có sắp xếp tile các cửa sổ app
