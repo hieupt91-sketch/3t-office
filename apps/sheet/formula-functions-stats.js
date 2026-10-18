@@ -467,6 +467,86 @@ export const STAT_FUNCTIONS = {
     return clean(cum ? D.tCdf(x, k) : D.tPdf(x, k));
   },
   "T.DIST.2T"(engine, args) { const t = take(engine, args, 2); if (t.error) return t.error; const [x, df] = t.values; const k = trunc(df); return x < 0 || k < 1 ? "#NUM!" : clean(2 * (1 - D.tCdf(x, k))); },
+  // ---- Kiểm định giả thuyết: T.TEST, F.TEST, CHISQ.TEST (và tên cũ TTEST, FTEST, CHITEST) và GAMMA
+  "T.TEST"(engine, args) {
+    if (args.length !== 4) return "#VALUE!";
+    const options = take(engine, args.slice(2), 2); if (options.error) return options.error;
+    const tails = trunc(options.values[0]); const type = trunc(options.values[1]);
+    if ((tails !== 1 && tails !== 2) || type < 1 || type > 3) return "#NUM!";
+    let t; let df;
+    if (type === 1) {
+      const pair = pairedRanges(engine, args[0], args[1]);
+      if (pair.error) return pair.error;
+      const n = pair.xs.length;
+      if (n < 2) return "#DIV/0!";
+      const diffs = pair.xs.map((x, i) => x - pair.ys[i]);
+      const sd = Math.sqrt(variance(diffs, false));
+      if (sd === 0) return "#DIV/0!";
+      t = mean(diffs) / (sd / Math.sqrt(n)); df = n - 1;
+    } else {
+      const a = numericArgs(engine, [args[0]]); if (a.error) return a.error;
+      const b = numericArgs(engine, [args[1]]); if (b.error) return b.error;
+      const n1 = a.values.length; const n2 = b.values.length;
+      if (n1 < 2 || n2 < 2) return "#DIV/0!";
+      const v1 = variance(a.values, false); const v2 = variance(b.values, false);
+      if (type === 2) {
+        const pooled = ((n1 - 1) * v1 + (n2 - 1) * v2) / (n1 + n2 - 2);
+        if (pooled === 0) return "#DIV/0!";
+        t = (mean(a.values) - mean(b.values)) / Math.sqrt(pooled * (1 / n1 + 1 / n2)); df = n1 + n2 - 2;
+      } else {
+        const se2 = v1 / n1 + v2 / n2;
+        if (se2 === 0) return "#DIV/0!";
+        t = (mean(a.values) - mean(b.values)) / Math.sqrt(se2);
+        df = se2 ** 2 / ((v1 / n1) ** 2 / (n1 - 1) + (v2 / n2) ** 2 / (n2 - 1));
+      }
+    }
+    const twoTail = D.betaI(df / (df + t * t), df / 2, 0.5);
+    return clean(tails === 2 ? twoTail : twoTail / 2);
+  },
+  TTEST(engine, args) { return STAT_FUNCTIONS["T.TEST"](engine, args); },
+  "F.TEST"(engine, args) {
+    if (args.length !== 2) return "#VALUE!";
+    const a = numericArgs(engine, [args[0]]); if (a.error) return a.error;
+    const b = numericArgs(engine, [args[1]]); if (b.error) return b.error;
+    if (a.values.length < 2 || b.values.length < 2) return "#DIV/0!";
+    const v1 = variance(a.values, false); const v2 = variance(b.values, false);
+    if (v1 === 0 || v2 === 0) return "#DIV/0!";
+    const f = v1 / v2;
+    const cdf = D.fCdf(f, a.values.length - 1, b.values.length - 1);
+    return clean(2 * Math.min(cdf, 1 - cdf));
+  },
+  FTEST(engine, args) { return STAT_FUNCTIONS["F.TEST"](engine, args); },
+  "CHISQ.TEST"(engine, args) {
+    if (args.length !== 2) return "#VALUE!";
+    const actual = engine._rangeMatrix(args[0]);
+    const expected = engine._rangeMatrix(args[1]);
+    const rows = actual.length; const cols = actual[0]?.length || 0;
+    if (!rows || !cols || expected.length !== rows || (expected[0]?.length || 0) !== cols) return "#N/A";
+    let stat = 0;
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const o = actual[r][c]; const e = expected[r][c];
+        if (isErr(o)) return o;
+        if (isErr(e)) return e;
+        if (typeof o !== "number" || typeof e !== "number") return "#VALUE!";
+        if (e === 0) return "#DIV/0!";
+        stat += (o - e) ** 2 / e;
+      }
+    }
+    const df = rows > 1 && cols > 1 ? (rows - 1) * (cols - 1) : rows * cols - 1;
+    if (df < 1) return "#DIV/0!";
+    return clean(1 - D.chisqCdf(stat, df));
+  },
+  CHITEST(engine, args) { return STAT_FUNCTIONS["CHISQ.TEST"](engine, args); },
+  GAMMA(engine, args) {
+    const t = take(engine, args, 1); if (t.error) return t.error;
+    const x = t.values[0];
+    if (x <= 0 && Number.isInteger(x)) return "#NUM!";
+    const value = x > 0
+      ? Math.exp(D.lnGamma(x))
+      : Math.PI / (Math.sin(Math.PI * x) * Math.exp(D.lnGamma(1 - x)));
+    return clean(value);
+  },
   "T.DIST.RT"(engine, args) { const t = take(engine, args, 2); if (t.error) return t.error; const [x, df] = t.values; const k = trunc(df); return k < 1 ? "#NUM!" : clean(1 - D.tCdf(x, k)); },
   TDIST(engine, args) {
     const t = take(engine, args, 3); if (t.error) return t.error; const [x, df, tails] = t.values; const k = trunc(df); const tl = trunc(tails);

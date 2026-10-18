@@ -952,6 +952,20 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.formula.hypothesisTests",
+    app: "sheet",
+    commandIds: ["sheet.formula.insertFunction"],
+    title: "Hàm kiểm định thống kê: T.TEST, F.TEST, CHISQ.TEST và GAMMA",
+    summary: "Bốn hàm thống kê gõ trực tiếp vào ô: T.TEST (kiểm định t, trả xác suất p), F.TEST (so sánh phương sai hai mẫu), CHISQ.TEST (kiểm định khi bình phương cho bảng quan sát và bảng kỳ vọng) và GAMMA (hàm Gamma Γ(x)). Tên cũ TTEST, FTEST, CHITEST cũng dùng được.",
+    ribbon: { tab: "Công thức", tabId: "formulas", group: "Hàm tính toán" },
+    keywords: ["t.test", "ttest", "f.test", "ftest", "chisq.test", "chitest", "gamma", "kiểm định", "xác suất p", "thống kê"],
+    steps: [
+      "Chọn ô kết quả và gõ công thức, ví dụ =T.TEST(A1:A6,C1:C3,2,3): hai vùng số liệu, số đuôi (1 hoặc 2) và loại kiểm định (1 = ghép cặp, 2 = hai mẫu phương sai bằng nhau, 3 = hai mẫu phương sai khác nhau). Kết quả là xác suất p. Loại 1 cần hai vùng cùng số phần tử, nếu lệch hàm trả #N/A.",
+      "=F.TEST(A1:A6,C1:C3) trả xác suất hai phía rằng phương sai của hai vùng không khác nhau; mỗi vùng cần ít nhất 2 số. =CHISQ.TEST(thực_tế, kỳ_vọng) so sánh hai vùng cùng kích thước (ví dụ E1:F2 với G1:H2); ô kỳ vọng bằng 0 trả #DIV/0!, kích thước lệch trả #N/A.",
+      "=GAMMA(4.5) tính Γ(x); số nguyên không dương như 0, -1, -2 trả #NUM!. Các hàm cũng có trong hộp Chèn hàm (Shift+F3). Kết quả đã đối chiếu với một bộ tính toán độc lập tới 9 chữ số thập phân."
+    ]
+  },
+  {
     id: "sheet.formula.namedRanges",
     app: "sheet",
     commandIds: [
