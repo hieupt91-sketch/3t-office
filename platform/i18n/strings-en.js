@@ -898,6 +898,7 @@ export const enStrings = {
     ,"sheet.view.normal": { label: "Normal", tooltip: "View worksheet in normal view" }
     ,"sheet.view.pageBreakPreview": { label: "Page Break Preview", tooltip: "Show where page breaks will occur in worksheet" }
     ,"sheet.view.pageLayout": { label: "Page Layout", tooltip: "View sheet as printed on paper with headers and footers" }
+    ,"sheet.view.expandFormulaBar": { label: "Expand Formula Bar", tooltip: "Expand or collapse the formula bar to read long multi-line formulas (Ctrl+Shift+U)" }
     ,"sheet.view.formulaBar": { label: "Formula Bar", tooltip: "Show or hide the formula bar" }
     ,"sheet.view.toggleFormulas": { label: "Show Formulas", tooltip: "Show formulas in cells instead of calculated values (Ctrl+`)" }
     ,"sheet.view.freezePanes": { label: "Freeze Panes", tooltip: "Keep the rows above and columns to the left of the selected cell visible while scrolling" }

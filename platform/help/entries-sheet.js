@@ -886,6 +886,20 @@ export const SHEET_HELP_ENTRIES = [
     ]
   },
   {
+    id: "sheet.view.expandFormulaBar",
+    app: "sheet",
+    commandIds: ["sheet.view.expandFormulaBar"],
+    title: "Mở rộng thanh công thức",
+    summary: "Làm thanh công thức cao hơn (từ 5 đến 12 dòng) để đọc và sửa công thức dài nhiều dòng; thu gọn lại khi không cần.",
+    ribbon: { tab: "Chế độ xem", tabId: "view", group: "Hiển thị" },
+    keywords: ["mở rộng thanh công thức", "expand formula bar", "ctrl+shift+u", "công thức dài", "nhiều dòng"],
+    steps: [
+      "Mở tab Chế độ xem, nhóm Hiển thị, nhấn «Mở rộng thanh công thức» — hoặc nhấn Ctrl+Shift+U, hoặc bấm mũi tên ▾ ở đầu bên phải thanh công thức.",
+      "Thanh công thức cao ít nhất 5 dòng và dài thêm theo nội dung đến tối đa 12 dòng. Nhấn Alt+Enter trong ô để xuống dòng; công thức nhiều dòng đọc dễ hơn nhiều.",
+      "Nhấn lại cùng nút hoặc Ctrl+Shift+U (hoặc mũi tên ▴) để thu gọn về một dòng. Chỉ đổi cách hiển thị, không đổi nội dung ô và không đi vào tệp lưu."
+    ]
+  },
+  {
     id: "sheet.insert.symbol",
     app: "sheet",
     commandIds: ["sheet.insert.symbol"],

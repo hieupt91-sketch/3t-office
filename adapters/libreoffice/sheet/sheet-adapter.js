@@ -464,6 +464,7 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.view.pageBreakPreview", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("pageBreakPreview") : false);
     globalCommandBus.bindHandler("sheet.view.pageLayout", () => this.grid.setWorkbookView ? this.grid.setWorkbookView("pageLayout") : false);
     globalCommandBus.bindHandler("sheet.view.formulaBar", () => this.grid.toggleFormulaBar ? this.grid.toggleFormulaBar() : false);
+    globalCommandBus.bindHandler("sheet.view.expandFormulaBar", () => this.grid.toggleFormulaBarExpanded ? this.grid.toggleFormulaBarExpanded() : false);
     globalCommandBus.bindHandler("sheet.view.zoomToSelection", () => this.grid.zoomToSelection ? this.grid.zoomToSelection() : false);
     globalCommandBus.bindHandler("sheet.view.newWindow", () => this._hintIfFalse(() => this.grid.newWindow(), "Không mở được cửa sổ mới trong ứng dụng desktop. Hãy mở lại tệp từ Tệp > Mở để xem ở cửa sổ khác."));
     globalCommandBus.bindHandler("sheet.view.freezePanesMenu", () => this.grid.toggleFreezePanes ? this.grid.toggleFreezePanes() : false);

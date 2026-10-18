@@ -946,6 +946,7 @@ export const SHEET_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "sheet.view.gridlines" },
           { type: "button", commandId: "sheet.view.formulaBar" },
+          { type: "button", commandId: "sheet.view.expandFormulaBar" },
           { type: "button", commandId: "sheet.view.headings" }
         ]
       },

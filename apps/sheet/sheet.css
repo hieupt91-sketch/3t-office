@@ -119,6 +119,19 @@
   box-shadow: 0 0 0 2px var(--vno-sheet-light);
 }
 
+.vno-formula-bar.is-expanded {
+  align-items: flex-start;
+  padding-top: 4px;
+}
+
+.vno-formula-expand-btn {
+  flex: 0 0 auto;
+}
+
+.vno-formula-bar.is-expanded .vno-formula-input-wrap {
+  height: auto;
+}
+
 .vno-formula-input-wrap {
   position: relative;
   flex: 1 1 auto;

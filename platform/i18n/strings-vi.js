@@ -897,6 +897,7 @@ export const viStrings = {
     ,"sheet.view.normal": { label: "Bình thường", tooltip: "Xem bảng tính ở chế độ bình thường" }
     ,"sheet.view.pageBreakPreview": { label: "Xem ngắt trang", tooltip: "Hiển thị vị trí các ngắt trang và vùng in" }
     ,"sheet.view.pageLayout": { label: "Bố trí trang", tooltip: "Xem bảng tính như khi in ra giấy kèm đầu/chân trang" }
+    ,"sheet.view.expandFormulaBar": { label: "Mở rộng thanh công thức", tooltip: "Mở rộng hoặc thu gọn thanh công thức để xem công thức dài nhiều dòng (Ctrl+Shift+U)" }
     ,"sheet.view.formulaBar": { label: "Thanh công thức", tooltip: "Ẩn hoặc hiện thanh công thức" }
     ,"sheet.view.toggleFormulas": { label: "Hiện công thức", tooltip: "Hiển thị công thức thay vì kết quả (Ctrl+`)" }
     ,"sheet.view.freezePanes": { label: "Cố định ô", tooltip: "Cố định các hàng phía trên và cột bên trái Ô đang chọn khi cuộn (Freeze Panes)" }

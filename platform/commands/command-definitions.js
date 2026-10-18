@@ -451,6 +451,7 @@ export const SHEET_COMMANDS = [
   { id: "sheet.view.normal", category: "view", label: "Bình thường", icon: "sheetNormalView", tooltip: "Xem bảng tính ở chế độ bình thường", isToggle: true },
   { id: "sheet.view.pageBreakPreview", category: "view", label: "Xem ngắt trang", icon: "sheetPageBreakPreview", tooltip: "Hiển thị vị trí các ngắt trang và vùng in", isToggle: true },
   { id: "sheet.view.pageLayout", category: "view", label: "Bố trí trang", icon: "sheetPageLayout", tooltip: "Xem bảng tính như khi in ra giấy kèm đầu/chân trang", isToggle: true },
+  { id: "sheet.view.expandFormulaBar", category: "view", label: "Mở rộng thanh công thức", shortcut: "Ctrl+Shift+U", icon: "sheetFormulaBar", tooltip: "Mở rộng hoặc thu gọn thanh công thức để xem công thức dài nhiều dòng (Ctrl+Shift+U)", isToggle: true },
   { id: "sheet.view.formulaBar", category: "view", label: "Thanh công thức", icon: "sheetFormulaBar", tooltip: "Ẩn hoặc hiện thanh công thức", isToggle: true },
   { id: "sheet.view.toggleFormulas", category: "view", label: "Hiện công thức", shortcut: "Ctrl+`", icon: "showFormulas", tooltip: "Hiển thị công thức thay vì kết quả (Ctrl+`)", isToggle: true },
   { id: "sheet.view.freezePanesMenu", category: "view", label: "Cố định ô", icon: "freezePanes", tooltip: "Cố định hàng hoặc cột khi cuộn trang tính" },

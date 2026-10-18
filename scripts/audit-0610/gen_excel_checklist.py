@@ -209,7 +209,7 @@ Công cụ Hình ảnh|Định dạng|Cắt (Crop) / Kích thước / Xoay / Ki�
 Công cụ Vẽ|Định dạng|Màu tô / Viền / Hiệu ứng hình|N|2|
 Công cụ Sparkline|Thiết kế|Sửa dữ liệu / Đổi loại / Điểm đánh dấu / Màu / Trục / Nhóm|N|3|
 Không thuộc ribbon|Hộp tên và thanh công thức|Hộp tên (Name Box) nhảy tới ô/tên|A|-|Hộp tên Name Box điều hướng ô và vùng tên (docs/EXCEL2016-INPUT-MATRIX.md:21; apps/sheet/sheet-formula-bar.js:1-40)
-Không thuộc ribbon|Hộp tên và thanh công thức|Mở rộng thanh công thức; Ctrl+Shift+U|P|3|
+Không thuộc ribbon|Hộp tên và thanh công thức|Mở rộng thanh công thức; Ctrl+Shift+U|A|-|sheet.view.expandFormulaBar: nút ▾ cuối thanh, Ctrl+Shift+U (lưới và thanh công thức), nút ruy-băng; mở rộng cao 5–12 dòng, thu gọn về một dòng, không đổi nội dung ô (tests/live/cdp/sheet-expand-formula-bar.desktop.mjs 8/8); thao tác hiển thị, không có đối chiếu Excel thật
 Không thuộc ribbon|Thanh trạng thái|Tổng/Trung bình/Đếm vùng chọn; nút chế độ xem; thanh thu phóng|A|-|Thanh trạng thái tính tổng, trung bình, đếm (tests/unit/sheet-status-bar-sum.test.js:1-30; apps/sheet/sheet-grid.js:1-30)
 Không thuộc ribbon|Thanh trạng thái|Menu tùy chỉnh thanh trạng thái|N|3|
 Không thuộc ribbon|Tab trang tính|Cuộn tab, thêm trang, kéo đổi thứ tự|A|-|sheet.sheet.moveOrCopy; kéo tab bằng chuột thật đổi thứ tự có vạch báo, Esc hủy, Hoàn tác trả lại, lưu XLSX mở lại giữ thứ tự (tests/live/cdp/sheet-tab-drag.desktop.mjs); chưa đối chiếu Excel thật vì Excel COM chưa dùng được

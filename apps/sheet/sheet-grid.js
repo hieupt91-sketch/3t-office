@@ -486,6 +486,7 @@ export class SheetGridController {
         <button type="button" class="vno-formula-btn vno-formula-btn-fx" title="Chèn hàm tính toán (fx)" aria-label="Chèn hàm tính toán (fx)" id="vno-fx-insert">fx</button>
       </div>
       <textarea class="vno-formula-input" id="vno-formula-val" rows="1" aria-label="Thanh công thức" placeholder="Nhập giá trị hoặc công thức (ví dụ: =SUM(F4:F7), =AVERAGE(E4:E7)...)"></textarea>
+      <button type="button" class="vno-formula-btn vno-formula-expand-btn" id="vno-fx-expand" title="Mở rộng thanh công thức (Ctrl+Shift+U)" aria-label="Mở rộng thanh công thức (Ctrl+Shift+U)" aria-expanded="false">▾</button>
     `;
     this.nameBox = fBar.querySelector("#vno-cell-name");
     this.nameBox?.addEventListener("focus", () => {
@@ -673,6 +674,11 @@ export class SheetGridController {
       if (this.autocomplete.handleKeyDown(e)) {
         return;
       }
+      if (e.ctrlKey && e.shiftKey && !e.altKey && String(e.key).toLowerCase() === "u") {
+        e.preventDefault();
+        this.toggleFormulaBarExpanded();
+        return;
+      }
       if (e.key === "F2") {
         e.preventDefault();
         if (!this.formulaEntry) this._beginFormulaEntry("edit");
@@ -728,6 +734,8 @@ export class SheetGridController {
       this.autocomplete.closeAll();
       this.showFunctionDialog();
     });
+
+    fBar.querySelector("#vno-fx-expand").addEventListener("click", () => this.toggleFormulaBarExpanded());
 
     this.container.appendChild(fBar);
 
@@ -3101,7 +3109,7 @@ export class SheetGridController {
   _syncFormulaBarHeight() {
     if (!this.formulaInput || !this.formulaBarEl) return;
     const lines = String(this.formulaInput.value || "").split("\n").length;
-    const rows = Math.max(1, Math.min(4, lines));
+    const rows = this.formulaBarExpanded ? Math.max(5, Math.min(12, lines)) : Math.max(1, Math.min(4, lines));
     this.formulaInput.rows = rows;
     this.formulaBarEl.style.height = String(Math.max(30, rows * 24 + 8)) + "px";
     this.formulaBarEl.style.alignItems = "center";
@@ -6906,6 +6914,11 @@ export class SheetGridController {
           this.cancelFormatPainter();
           return;
         }
+        if (e.ctrlKey && e.shiftKey && !e.altKey && String(e.key).toLowerCase() === "u") {
+          e.preventDefault();
+          this.toggleFormulaBarExpanded();
+          return;
+        }
         if (typeof document !== "undefined" && document?.activeElement === this.formulaInput) return;
         if (typeof document !== "undefined" && document?.activeElement === this.nameBox) return;
         if (this._tabSequenceAnchor && ["ArrowUp", "ArrowDown", "ArrowLeft", "ArrowRight", "Home", "End", "PageUp", "PageDown"].includes(e.key)) {
@@ -7356,7 +7369,7 @@ export class SheetGridController {
   _resizeFormulaInput() {
     if (!this.formulaInput) return;
     const lineCount = String(this.formulaInput.value || "").split(/\r\n|\r|\n/).length;
-    const visibleLines = Math.min(4, Math.max(1, lineCount));
+    const visibleLines = this.formulaBarExpanded ? Math.min(12, Math.max(5, lineCount)) : Math.min(4, Math.max(1, lineCount));
     this.formulaInput.style.height = `${visibleLines * 20 + 2}px`;
     if (this.formulaBarEl) this.formulaBarEl.style.height = `${Math.max(30, visibleLines * 20 + 8)}px`;
   }
@@ -15821,6 +15834,24 @@ export class SheetGridController {
     this._refreshPageAndCommentVisuals();
     this._syncCommandStates();
     return this.workbookView;
+  }
+
+  /** Mở rộng / thu gọn thanh công thức (Ctrl+Shift+U): mở rộng thì luôn cao tối thiểu 5 dòng, tối đa 12 dòng. */
+  toggleFormulaBarExpanded() {
+    this.formulaBarExpanded = !this.formulaBarExpanded;
+    const button = this.formulaBarEl?.querySelector?.("#vno-fx-expand");
+    if (button) {
+      button.textContent = this.formulaBarExpanded ? "▴" : "▾";
+      button.setAttribute("aria-expanded", this.formulaBarExpanded ? "true" : "false");
+      const label = this.formulaBarExpanded ? "Thu gọn thanh công thức (Ctrl+Shift+U)" : "Mở rộng thanh công thức (Ctrl+Shift+U)";
+      button.title = label;
+      button.setAttribute("aria-label", label);
+    }
+    this.formulaBarEl?.classList?.toggle("is-expanded", this.formulaBarExpanded);
+    this._syncFormulaBarHeight();
+    this._resizeFormulaInput();
+    globalCommandBus?.updateState?.("sheet.view.expandFormulaBar", { checked: this.formulaBarExpanded });
+    return this.formulaBarExpanded;
   }
 
   toggleFormulaBar() {
