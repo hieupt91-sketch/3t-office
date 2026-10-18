@@ -1924,7 +1924,7 @@ export const enStrings = {
     objectWidth: "Width", objectHeight: "Height", anchorCell: "Anchor Cell", offsetX: "Horizontal Offset", offsetY: "Vertical Offset", textContent: "Text Content"
   },
   sheetFilter: {
-    colorActions: "Filter and sort by color", sortFillColor: "Sort by cell color", filterFillColor: "Filter by cell color", sortFontColor: "Sort by font color", filterFontColor: "Filter by font color",
+    colorActions: "Filter and sort by color", iconActions: "Sort by icon", sortIcon: "Sort by cell icon (put on top)", sortFillColor: "Sort by cell color", filterFillColor: "Filter by cell color", sortFontColor: "Sort by font color", filterFontColor: "Filter by font color",
     advanced: "Filter by condition", type: "Filter type", text: "Text", number: "Number", date: "Date", operator: "Condition", value: "Value", secondValue: "Second value", applyCondition: "Filter", byValue: "Filter by value", blank: "(Blanks)",
     contains: "contains", notContains: "does not contain", startsWith: "begins with", endsWith: "ends with", equals: "equals", notEqual: "does not equal", greaterThan: "greater than", greaterThanOrEqual: "greater than or equal to", lessThan: "less than", lessThanOrEqual: "less than or equal to", between: "between", top10: "Top items", topCount: "Count (default 10)", today: "today", thisMonth: "this month", thisYear: "this year", before: "before", after: "after"
   },

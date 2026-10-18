@@ -17268,9 +17268,12 @@ export class SheetGridController {
     popover.setAttribute("aria-label", `Lọc và sắp xếp cột ${col}`);
     popover.setAttribute("tabindex", "-1");
 
-    const valuesSet = new Set(), fillColors = new Set(), fontColors = new Set();
+    const valuesSet = new Set(), fillColors = new Set(), fontColors = new Set(), cfIcons = new Map();
     for (let row = this._filterDataStartRow(); row <= this._filterDataEndRow(); row++) {
       const item = this.cellsData.get(`${col}${row}`) || { val: "", style: {} };
+      const cfVisual = this._conditionalCellVisual(col, row);
+      // Nhiều bộ biểu tượng dùng cùng một ký tự khác màu (đèn giao thông), nên khóa gồm ký tự và màu.
+      if (cfVisual.icon) cfIcons.set(`${cfVisual.icon}|${cfVisual.iconColor || ""}`, { icon: cfVisual.icon, color: cfVisual.iconColor || "" });
       valuesSet.add(String(item.val ?? ""));
       const fill = cellColor(item, "fill"), font = cellColor(item, "font");
       if (fill) fillColors.add(fill);
@@ -17286,6 +17289,7 @@ export class SheetGridController {
       <div class="vno-filter-popover-item" id="vno-filter-sort-desc" role="button" tabindex="0" aria-label="Sắp xếp giảm dần Z-A">
         <span>▼ Sắp xếp giảm dần (Z-A)</span>
       </div>
+      ${cfIcons.size ? `<div class="vno-filter-icon-actions" aria-label="${t("sheetFilter.iconActions", "Biểu tượng")}">${Array.from(cfIcons, ([key, item]) => `<button type="button" class="vno-filter-color-btn vno-filter-icon-btn" data-sort-color="${this._escapeHtml(key)}" data-color-type="icon" title="${t("sheetFilter.sortIcon", "Sắp xếp theo biểu tượng ô (đưa lên đầu)")}" style="color:${this._escapeHtml(item.color || "inherit")}">${this._escapeHtml(item.icon)}</button>`).join("")}</div>` : ""}
       ${(fillColors.size || fontColors.size) ? `<div class="vno-filter-color-actions" aria-label="${t("sheetFilter.colorActions", "Màu")}">
         ${Array.from(fillColors, color => `<button type="button" class="vno-filter-color-btn" data-sort-color="${this._escapeHtml(color)}" data-color-type="fill" title="${t("sheetFilter.sortFillColor", "Sắp xếp theo màu ô")}"><span style="background:${this._escapeHtml(color)}"></span></button><button type="button" class="vno-filter-color-btn" data-filter-color="${this._escapeHtml(color)}" data-color-type="fill" title="${t("sheetFilter.filterFillColor", "Lọc theo màu ô")}"><span style="background:${this._escapeHtml(color)}"></span>⌄</button>`).join("")}
         ${Array.from(fontColors, color => `<button type="button" class="vno-filter-font-color-btn" data-sort-color="${this._escapeHtml(color)}" data-color-type="font" title="${t("sheetFilter.sortFontColor", "Sắp xếp theo màu chữ")}" style="color:${this._escapeHtml(color)}">A</button><button type="button" class="vno-filter-font-color-btn" data-filter-color="${this._escapeHtml(color)}" data-color-type="font" title="${t("sheetFilter.filterFontColor", "Lọc theo màu chữ")}" style="color:${this._escapeHtml(color)}">A⌄</button>`).join("")}
@@ -17520,7 +17524,11 @@ export class SheetGridController {
         const cell = this.cellsData.get(`${column}${row}`);
         if (cell) data[column] = structuredClone(cell);
       });
-      rows.push({ row, data, match: cellColor(data[col], colorType) === String(color || "").toLowerCase() });
+      // colorType "icon": so sánh biểu tượng của định dạng có điều kiện (bộ biểu tượng) thay cho màu.
+      const match = colorType === "icon"
+        ? (() => { const v = this._conditionalCellVisual(col, row); return v.icon ? `${v.icon}|${v.iconColor || ""}` === String(color || "") : false; })()
+        : cellColor(data[col], colorType) === String(color || "").toLowerCase();
+      rows.push({ row, data, match });
     }
     rows.sort((a, b) => Number(b.match) - Number(a.match) || a.row - b.row);
     rows.forEach((entry, index) => {

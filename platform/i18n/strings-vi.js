@@ -1923,7 +1923,7 @@ export const viStrings = {
     objectWidth: "Chiều rộng", objectHeight: "Chiều cao", anchorCell: "Ô neo", offsetX: "Độ lệch ngang", offsetY: "Độ lệch dọc", textContent: "Nội dung văn bản"
   },
   sheetFilter: {
-    colorActions: "Lọc và sắp xếp theo màu", sortFillColor: "Sắp xếp theo màu ô", filterFillColor: "Lọc theo màu ô", sortFontColor: "Sắp xếp theo màu chữ", filterFontColor: "Lọc theo màu chữ",
+    colorActions: "Lọc và sắp xếp theo màu", iconActions: "Sắp xếp theo biểu tượng", sortIcon: "Sắp xếp theo biểu tượng ô (đưa lên đầu)", sortFillColor: "Sắp xếp theo màu ô", filterFillColor: "Lọc theo màu ô", sortFontColor: "Sắp xếp theo màu chữ", filterFontColor: "Lọc theo màu chữ",
     advanced: "Lọc theo điều kiện", type: "Loại bộ lọc", text: "Văn bản", number: "Số", date: "Ngày", operator: "Điều kiện", value: "Giá trị", secondValue: "Giá trị thứ hai", applyCondition: "Lọc", byValue: "Lọc theo giá trị", blank: "(Trống)",
     contains: "chứa", notContains: "không chứa", startsWith: "bắt đầu bằng", endsWith: "kết thúc bằng", equals: "bằng", notEqual: "khác", greaterThan: "lớn hơn", greaterThanOrEqual: "lớn hơn hoặc bằng", lessThan: "nhỏ hơn", lessThanOrEqual: "nhỏ hơn hoặc bằng", between: "giữa", top10: "Các giá trị lớn nhất", topCount: "Số lượng (mặc định 10)", today: "hôm nay", thisMonth: "tháng này", thisYear: "năm nay", before: "trước ngày", after: "sau ngày"
   },

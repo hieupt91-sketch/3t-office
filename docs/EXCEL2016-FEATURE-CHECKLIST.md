@@ -17,8 +17,8 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Excel 2016 | 94 | 44% |
-| 🟢 Có, chưa đối chiếu | 64 | 30% |
-| 🟡 Có một phần | 16 | 8% |
+| 🟢 Có, chưa đối chiếu | 65 | 31% |
+| 🟡 Có một phần | 15 | 7% |
 | 🔴 Chưa có | 39 | 18% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
@@ -33,7 +33,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 3 | 8 | 4 | 1 | 1 | 81% |
-| Trang đầu | 53 | 28 | 18 | 5 | 2 | 0 | 92% |
+| Trang đầu | 53 | 28 | 19 | 4 | 2 | 0 | 92% |
 | Chèn | 29 | 9 | 6 | 1 | 11 | 2 | 57% |
 | Bố trí trang | 10 | 8 | 1 | 0 | 1 | 0 | 90% |
 | Công thức | 13 | 6 | 6 | 1 | 0 | 0 | 96% |
@@ -133,7 +133,7 @@ Tổng: 2 mục ưu tiên 1.
 | Chỉnh sửa | Xóa: tất cả / định dạng / nội dung | ✅ | - | 17/10 (AGY-DATATOOLS): Clear all, formats, contents đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.edit.clearAll; apps/sheet/sheet-grid.js:14842-15010 |
 | Chỉnh sửa | Xóa ghi chú / Xóa siêu liên kết (trong menu Xóa) | ✅ | - | 17/10 (AGY-NOTES): Xóa ghi chú và siêu liên kết đối chiếu Excel 2016 (docs/excel-oracle-1710.json:2-31; tests/unit/sheet-clear-notes-links.test.js:1-55; tests/live/cdp/sheet-clear-notes-links.desktop.mjs:1-85; sheet.edit.clearComments, sheet.edit.clearHyperlinks) |
 | Chỉnh sửa | Sắp xếp A-Z / Z-A / Tùy chỉnh nhiều cấp | ✅ | - | Sắp xếp hai cấp đã đọc lại bằng Excel 2016 (docs/SHEET-BUTTON-MATRIX-1011.md:57-58; tests/unit/sheet-data-tools.test.js:1-30; sheet.data.sortAsc, sheet.data.sortDesc) |
-| Chỉnh sửa | Sắp xếp theo màu ô/màu chữ/biểu tượng | 🟡 | 3 | G2: có sắp xếp theo màu ô/chữ; chưa có theo biểu tượng |
+| Chỉnh sửa | Sắp xếp theo màu ô/màu chữ/biểu tượng | 🟢 | - | sheet.data.filter: nút ở tiêu đề cột; sắp theo màu ô/màu chữ (G2) và theo biểu tượng của bộ biểu tượng (đèn giao thông, mũi tên…), đưa nhóm chọn lên đầu, hoàn tác (tests/live/cdp/sheet-sort-by-icon.desktop.mjs 6/6); chưa có lựa chọn Xuống cuối / lọc theo biểu tượng; chưa đối chiếu Excel thật vì Excel COM chưa dùng được |
 | Chỉnh sửa | Bộ lọc (AutoFilter) bật/tắt | ✅ | - | AutoFilterMode đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:59; tests/unit/sheet-data-tools.test.js:1-30; sheet.data.filter) |
 | Chỉnh sửa | Lọc theo màu / theo văn bản-số-ngày (text/number/date filters) | ✅ | - | G2: lọc văn bản/số/ngày/màu; lưu giữ hàng ẩn đúng (tests/unit/sheet-data-tools.test.js:1-35; sheet.data.filter) |
 | Chỉnh sửa | Xóa bộ lọc / Áp dụng lại | 🟢 | - | Xóa bộ lọc và áp dụng lại (apps/sheet/sheet-grid.js:1-30; sheet.data.clearFilter, sheet.data.reapplyFilter) |
@@ -229,7 +229,7 @@ Tổng: 2 mục ưu tiên 1.
 | Dự báo | What-If: Goal Seek / Bảng dữ liệu (Data Table) | ✅ | - | 17/10 (AGY-DATATOOLS): Goal Seek và Table đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; tests/unit/sheet-goal-seek.test.js:1-30; apps/sheet/sheet-grid.js:20373-20390; sheet.data.goalSeek) |
 | Dự báo | Trang dự báo (Forecast Sheet) | 🔴 | 3 |  |
 | Dàn bài | Nhóm / Bỏ nhóm / Tổng phụ | ✅ | - | 17/10 (AGY-DATATOOLS): Group/Ungroup hàng-cột và Subtotal/RemoveSubtotal đối chiếu Excel 2016 (cases-17 12/12 kịch bản); sheet.data.subtotal; apps/sheet/data-tools.js:77-185 |
-| Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | ✅ | - | 17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; apps/sheet/sheet-grid.js:20342; sheet.data.group) |
+| Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | ✅ | - | 17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; apps/sheet/sheet-grid.js:20350; sheet.data.group) |
 | Phân tích | Solver | 🔴 | 3 | Bổ sung của Excel |
 
 ### Xem xét
