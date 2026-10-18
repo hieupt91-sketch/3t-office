@@ -23,6 +23,7 @@ for directory in apps platform adapters branding; do
     "$REPO_ROOT/$directory/" "$DESTINATION/$directory/"
 done
 ditto "$IOS_DIR/Web/mobile-shell.css" "$DESTINATION/mobile-shell.css"
+ditto "$IOS_DIR/Web/mobile-adaptive.js" "$DESTINATION/mobile-adaptive.js"
 
 if find "$DESTINATION" -type f \( -name '*.py' -o -name '*.exe' -o -name '*.dll' \) -print -quit | grep -q .; then
   echo "Asset iOS chứa runtime desktop không được phép" >&2

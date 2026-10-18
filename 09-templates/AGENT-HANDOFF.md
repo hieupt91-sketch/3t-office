@@ -1,4 +1,24 @@
 # Agent Handoff
+TASK: iOS/iPadOS adaptive mobile UI
+AGENT/ROLE: agy / Mobile UI
+BRANCH: agy/ios-mobile-ui
+WORKTREE: /Users/hieupc/.codex/worktrees/ios-mobile-ui/3t-office
+OBJECTIVE: Replace desktop-shaped iOS presentation with touch-first adaptive iPhone/iPad chrome while keeping the app fully offline.
+FINDINGS: UIKit must own the top safe area; CSS-only top insets were inconsistent in WKWebView. A mutation observer also needs idempotent updates or it can starve WebKit rendering.
+IMPLEMENTATION SUMMARY: Added an offline adaptive UI script, compact iPhone command dock, on-demand formatting ribbon, iPad sidebar control, keyboard/size-class bridge, safe-area correction, app-specific mobile CSS and accessibility states.
+FILES CHANGED: See docs/mobile/HANDOFF-IOS-ADAPTIVE-UI.md.
+COMMANDS RUN: Focused unittest; node --check; Xcode Simulator build; native install/launch/screenshots on iPhone 17 Pro and iPad Air 11-inch M3.
+BUILD RESULT: PASS — Debug iphonesimulator app built.
+TEST RESULTS: PASS — 7/7 focused tests and native portrait render on both device classes. NOT RUN — landscape and iPad Split View automation.
+KNOWN FAILURES: No known failure in tested portrait layouts. Orientation command is unavailable in this simctl version.
+RISKS: DOM selector coupling, WebKit contenteditable differences, no real-device/Pencil/Stage Manager coverage.
+DEPENDENCIES/BLOCKERS: Shared Platform mobile command API is recommended before broad feature expansion.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Test physical iPhone/iPad, landscape and Split View; then add document picker bridge.
+
+---
+
+# Agent Handoff
 TASK: iOS/iPadOS offline shell and mobile-responsive UI
 AGENT/ROLE: Codex / Mobile Architecture
 BRANCH: mobile/ios-offline-analysis

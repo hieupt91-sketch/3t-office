@@ -25,6 +25,13 @@ final class MobileOfficeViewController: UIViewController, WKNavigationDelegate, 
                 forMainFrameOnly: true
             ))
         }
+        if let adaptive = Self.bundledText("mobile-adaptive", extension: "js", subdirectory: "Web") {
+            controller.addUserScript(WKUserScript(
+                source: adaptive,
+                injectionTime: .atDocumentEnd,
+                forMainFrameOnly: true
+            ))
+        }
 
         webView = WKWebView(frame: .zero, configuration: configuration)
         webView.navigationDelegate = self
@@ -37,21 +44,56 @@ final class MobileOfficeViewController: UIViewController, WKNavigationDelegate, 
         webView.translatesAutoresizingMaskIntoConstraints = false
         container.addSubview(webView)
         NSLayoutConstraint.activate([
-            webView.leadingAnchor.constraint(equalTo: container.safeAreaLayoutGuide.leadingAnchor),
-            webView.trailingAnchor.constraint(equalTo: container.safeAreaLayoutGuide.trailingAnchor),
+            webView.leadingAnchor.constraint(equalTo: container.leadingAnchor),
+            webView.trailingAnchor.constraint(equalTo: container.trailingAnchor),
             webView.topAnchor.constraint(equalTo: container.safeAreaLayoutGuide.topAnchor),
-            webView.bottomAnchor.constraint(equalTo: container.safeAreaLayoutGuide.bottomAnchor)
+            webView.bottomAnchor.constraint(equalTo: container.bottomAnchor)
         ])
         view = container
     }
 
     override func viewDidLoad() {
         super.viewDidLoad()
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(keyboardFrameChanged(_:)),
+            name: UIResponder.keyboardWillChangeFrameNotification, object: nil
+        )
+        NotificationCenter.default.addObserver(
+            self, selector: #selector(keyboardFrameChanged(_:)),
+            name: UIResponder.keyboardWillHideNotification, object: nil
+        )
         loadBundledOffice()
     }
 
+    override func viewDidLayoutSubviews() {
+        super.viewDidLayoutSubviews()
+        publishNativeLayout()
+    }
+
+    override func traitCollectionDidChange(_ previousTraitCollection: UITraitCollection?) {
+        super.traitCollectionDidChange(previousTraitCollection)
+        publishNativeLayout()
+    }
+
     deinit {
+        NotificationCenter.default.removeObserver(self)
         webView?.configuration.userContentController.removeScriptMessageHandler(forName: "vnoMobile")
+    }
+
+    @objc private func keyboardFrameChanged(_ notification: Notification) {
+        let frame = (notification.userInfo?[UIResponder.keyboardFrameEndUserInfoKey] as? CGRect) ?? .zero
+        let localFrame = view.convert(frame, from: nil)
+        let overlap = max(0, view.bounds.maxY - localFrame.minY)
+        webView.evaluateJavaScript("window.__vnoSetKeyboardInset?.(\(Int(overlap)))")
+    }
+
+    private func publishNativeLayout() {
+        guard webView != nil else { return }
+        let compact = traitCollection.horizontalSizeClass == .compact
+        let pointer = traitCollection.userInterfaceIdiom == .pad
+        let category = traitCollection.preferredContentSizeCategory.rawValue
+        let script = "window.__vnoSetNativeLayout?.({compact:\(compact),pointer:\(pointer),textSize:\(Self.jsString(category))})"
+        webView.evaluateJavaScript(script)
     }
 
     private func loadBundledOffice() {
@@ -173,6 +215,13 @@ final class MobileOfficeViewController: UIViewController, WKNavigationDelegate, 
           document.head.appendChild(style);
         })();
         """
+    }
+
+    private static func jsString(_ value: String) -> String {
+        guard let data = try? JSONSerialization.data(withJSONObject: [value]),
+              let literal = String(data: data, encoding: .utf8)
+        else { return "\"\"" }
+        return String(literal.dropFirst().dropLast())
     }
 }
 
