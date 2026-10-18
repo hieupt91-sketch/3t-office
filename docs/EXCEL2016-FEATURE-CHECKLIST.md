@@ -16,14 +16,14 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu Excel 2016 | 93 | 44% |
+| ✅ Đã đối chiếu Excel 2016 | 94 | 44% |
 | 🟢 Có, chưa đối chiếu | 63 | 30% |
-| 🟡 Có một phần | 18 | 8% |
+| 🟡 Có một phần | 17 | 8% |
 | 🔴 Chưa có | 39 | 18% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
 
-- **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 77%**
+- **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 78%**
 - **Đã xác minh bằng đối chiếu Excel 2016 thật: 44%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ 462 hàm) chỉ tính một mục; mức phủ hàm nằm ở dòng riêng và ở `EXCEL2016-FUNCTIONS-MATRIX.md`.
@@ -33,7 +33,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 3 | 8 | 4 | 1 | 1 | 81% |
-| Trang đầu | 53 | 27 | 18 | 6 | 2 | 0 | 91% |
+| Trang đầu | 53 | 28 | 18 | 5 | 2 | 0 | 92% |
 | Chèn | 29 | 9 | 6 | 1 | 11 | 2 | 57% |
 | Bố trí trang | 10 | 8 | 1 | 0 | 1 | 0 | 90% |
 | Công thức | 13 | 6 | 6 | 1 | 0 | 0 | 96% |
@@ -108,7 +108,7 @@ Tổng: 2 mục ưu tiên 1.
 | Căn chỉnh | Căn đều, Distributed, Fill, Center across selection, Shrink to fit | ✅ | - | 16/10 (AGY-JUSTIFY): Center Across Selection và Shrink to Fit lưu/mở lại đúng, đối chiếu Excel 2016 (cases-7; tests/functions/structural-cases-7.json:1-15; tests/unit/sheet-cell-text-fit.test.js:1-25) |
 | Số | Danh sách định dạng số (Chung, Số, Tiền tệ, Kế toán, Ngày, Giờ, %, Khoa học, Văn bản) | ✅ | - | Số/ngày/giờ/% đã đối chiếu (E3; docs/SHEET-BUTTON-MATRIX-1011.md:42; tests/unit/sheet-format-cells.test.js:1-30; sheet.format.quickCategory) |
 | Số | Định dạng số dạng Phân số (Fraction) và Đặc biệt (Special) | ✅ | - | 17/10 (AGY-NOTES): Phân số 9 mẫu và Đặc biệt 4 mẫu đối chiếu Excel 2016 COM 13/13 mẫu (cases-18; tests/functions/structural-cases-18.json:1-30; tests/unit/sheet-format-cells.test.js:1-40; sheet.format.quickCategory, sheet.format.cellsDialog) |
-| Số | Mã định dạng tùy chỉnh (Custom) | 🟡 | 2 | Giữ mã gốc khi lưu; chưa có giao diện soạn mã đầy đủ |
+| Số | Mã định dạng tùy chỉnh (Custom) | ✅ | - | Định dạng ô > Số > Tùy chỉnh: ô nhập mã, danh sách mã đã dùng, xóa mã; lưu XLSX rồi Excel 2016 COM đọc lại mã `0.000 "kg"`, chọn mã trong danh sách và xóa mã cho kết quả General (FC-N21..N23: tests/live/cdp/sheet-format-cells-controls.desktop.mjs:186; apps/sheet/format-cells-dialog.js:101) |
 | Số | Kế toán / % / Dấu phẩy / Tăng-giảm số lẻ | 🟢 | - | Định dạng kế toán, phần trăm, phân cách, tăng giảm số thập phân (docs/SHEET-BUTTON-MATRIX-1011.md:43-47; sheet.format.currencyVND, sheet.format.percent, sheet.format.standard, sheet.format.increaseDecimal, sheet.format.decreaseDecimal) |
 | Kiểu | Định dạng có điều kiện: Tô sáng ô — Lớn hơn / Nhỏ hơn | ✅ | - | Quy tắc >2000 đã đọc lại bằng Excel 2016 (tests/functions/cf-golden-1.json:1-20; tests/unit/sheet-cf-golden.test.js:1-30; sheet.format.conditional) |
 | Kiểu | Tô sáng ô — Giữa / Bằng / Chứa văn bản / Ngày xảy ra / Trùng lặp | ✅ | - | G1 13/10: Excel 2016 đọc đúng luật gốc (tests/functions/cf-golden-1.json:1-25; tests/unit/sheet-cf-golden.test.js:1-30; sheet.format.conditional) |
