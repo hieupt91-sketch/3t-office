@@ -17,8 +17,8 @@ Chuẩn: Microsoft PowerPoint 2016 (16.0.4266) cài trên máy, đọc chỉ-đ�
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu PowerPoint 2016 | 115 | 44% |
-| 🟢 Có, chưa đối chiếu | 72 | 27% |
-| 🟡 Có một phần | 20 | 8% |
+| 🟢 Có, chưa đối chiếu | 74 | 28% |
+| 🟡 Có một phần | 18 | 7% |
 | 🔴 Chưa có | 56 | 21% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **269** (áp dụng: 263) | |
@@ -45,7 +45,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Công cụ hình ảnh > Định dạng | 12 | 1 | 0 | 4 | 7 | 0 | 25% |
 | Công cụ bảng > Thiết kế | 8 | 1 | 7 | 0 | 0 | 0 | 100% |
 | Công cụ bảng > Bố trí | 8 | 8 | 0 | 0 | 0 | 0 | 100% |
-| Công cụ biểu đồ > Thiết kế | 8 | 0 | 1 | 2 | 5 | 0 | 25% |
+| Công cụ biểu đồ > Thiết kế | 8 | 0 | 3 | 0 | 5 | 0 | 38% |
 | Công cụ phương tiện > Phát lại | 5 | 0 | 2 | 2 | 1 | 0 | 60% |
 | Không thuộc ribbon | 11 | 4 | 7 | 0 | 0 | 0 | 100% |
 
@@ -414,8 +414,8 @@ Tổng: 5 mục ưu tiên 1.
 | Kiểu biểu đồ | Thư viện kiểu biểu đồ (Chart Styles Gallery) | 🔴 | 2 | Chưa có thư viện kiểu dáng biểu đồ Chart Styles trên ribbon |
 | Dữ liệu | Chuyển hàng và cột dữ liệu (Switch Row/Column) | 🔴 | 2 | Chưa hỗ trợ chuyển đổi nhanh hàng/cột ma trận số liệu biểu đồ |
 | Dữ liệu | Chọn dữ liệu nguồn (Select Data) | 🟢 | - | slides.chart.editData mở hộp thoại sửa tiêu đề, nhãn và giá trị (một chuỗi dữ liệu), cùng slides.chart.setType đổi kiểu cột, đường, tròn, miền; lưu PPTX rồi PowerPoint 2016 COM đọc ChartType 4 cho biểu đồ đường, tiêu đề và giá trị 10,20,15 đúng; chưa chọn lại dải ô nguồn hay nhiều chuỗi (tests/live/cdp/slides-chart-design.desktop.mjs; apps/slides/slides-canvas.js:3940 editChart) |
-| Dữ liệu | Chỉnh sửa dữ liệu nguồn (Edit Data in Excel/Grid) | 🟡 | 2 | Chỉnh sửa số liệu qua bảng nội bộ hộp thoại biểu đồ (apps/slides/slides-chart.js:73); chưa hỗ trợ liên kết mở sửa trong Excel |
-| Loại | Thay đổi loại biểu đồ (Change Chart Type) | 🟡 | 2 | Đổi kiểu cột/đường/tròn/miền trong hộp thoại biểu đồ (apps/slides/slides-chart.js:86); chưa có nút đổi nhanh trên ribbon |
+| Dữ liệu | Chỉnh sửa dữ liệu nguồn (Edit Data in Excel/Grid) | 🟢 | - | tab Thiết kế biểu đồ > Sửa dữ liệu mở bảng số liệu của biểu đồ để sửa nhãn và giá trị; hoàn tác; lưu PPTX (tests/live/cdp/slides-chart-design.desktop.mjs; platform/commands/command-definitions.js:626); chưa mở sửa trong Excel (không liên kết sổ tính ngoài) |
+| Loại | Thay đổi loại biểu đồ (Change Chart Type) | 🟢 | - | tab Thiết kế biểu đồ > Đổi kiểu: cột, đường, tròn, miền; giữ dữ liệu, vẽ lại, Ctrl+Z trả về; lưu PPTX rồi PowerPoint 2016 COM đọc ChartType (scripts/audit-0610/ppt_chart_readback.ps1; tests/live/cdp/slides-chart-design.desktop.mjs; platform/commands/command-definitions.js:625) |
 
 ### Công cụ phương tiện > Phát lại
 
