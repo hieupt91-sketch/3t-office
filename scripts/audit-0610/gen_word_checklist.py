@@ -275,7 +275,7 @@ Công cụ Đầu & Chân trang|Thiết kế|Trang chẵn và lẻ khác nhau (D
 Công cụ Đầu & Chân trang|Thiết kế|Liên kết với mục trước (Link to Previous)|A|-|writer.section.linkToPrevious (platform/commands/command-definitions.js:265)
 Công cụ Đầu & Chân trang|Thiết kế|Khoảng cách lề đầu/chân trang từ mép giấy|V|-|Khoảng cách lề đầu trang HeaderDistance 35.4 pt đối chiếu Word COM (docs/word-oracle-1710.json:44-50)
 Công cụ Đầu & Chân trang|Thiết kế|Chèn ngày giờ / thông tin tài liệu vào đầu/chân trang|A|-|writer.insert.dateTime (apps/writer/writer-ribbon.js:351)
-Công cụ Đầu & Chân trang|Thiết kế|Đóng chế độ sửa Đầu & Chân trang|P|2|Nhấp đôi chuột vào thân văn bản để thoát; chưa có nút Đóng Đầu & Chân trang riêng trên ribbon
+Công cụ Đầu & Chân trang|Thiết kế|Đóng chế độ sửa Đầu & Chân trang|X|-|Không áp dụng: đầu và chân trang của VN Writer luôn là vùng sửa trực tiếp trên trang, không có chế độ riêng nên không cần nút Đóng
 Không thuộc ribbon|Bàn phím|Bàn phím điều hướng (Mũi tên, Ctrl+mũi tên, Home/End, PgUp/PgDn)|A|-|writer.nav.docStart (platform/commands/command-definitions.js:92-93, platform/help/entries-writer.js:851-856)
 Không thuộc ribbon|Bàn phím|Bàn phím phím tắt định dạng (Ctrl+B, I, U, Space, Shift+F3, Ctrl+Shift+>, <)|V|-|Phím tắt định dạng Ctrl+B/I/U/Space đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:22-24, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:25-28)
 Không thuộc ribbon|Bàn phím|Phím tắt quản lý tệp & chỉnh sửa (Ctrl+S, O, N, P, Z, Y, C, V, X, A, F, H, K)|A|-|common.file.save, common.edit.undo (platform/commands/command-definitions.js:20-40, platform/help/entries-writer.js:1505-1510)

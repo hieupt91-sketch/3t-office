@@ -17,11 +17,11 @@ Chuẩn: Microsoft Word 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qu
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Word 2016 | 157 | 58% |
-| 🟢 Có, chưa đối chiếu | 64 | 23% |
-| 🟡 Có một phần | 26 | 10% |
+| 🟢 Có, chưa đối chiếu | 64 | 24% |
+| 🟡 Có một phần | 25 | 9% |
 | 🔴 Chưa có | 26 | 10% |
-| ⚪ Ngoài phạm vi | 6 | - |
-| **Tổng** | **279** (áp dụng: 273) | |
+| ⚪ Ngoài phạm vi | 7 | - |
+| **Tổng** | **279** (áp dụng: 272) | |
 
 - **Độ phủ so với Word 2016 (có hoặc có một phần, một phần tính 0,5): 86%**
 - **Đã xác minh bằng đối chiếu Word 2016 thật: 58%** các mục áp dụng
@@ -44,7 +44,7 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | Công cụ Bảng | 26 | 24 | 0 | 1 | 1 | 0 | 94% |
 | Công cụ Hình ảnh | 12 | 3 | 5 | 2 | 2 | 0 | 75% |
 | Công cụ Vẽ | 10 | 4 | 2 | 2 | 2 | 0 | 70% |
-| Công cụ Đầu & Chân trang | 7 | 4 | 2 | 1 | 0 | 0 | 93% |
+| Công cụ Đầu & Chân trang | 7 | 4 | 2 | 0 | 0 | 1 | 100% |
 | Không thuộc ribbon | 20 | 9 | 9 | 0 | 2 | 0 | 90% |
 
 ## Việc cần làm (mục chưa có hoặc một phần, ưu tiên 1: danh sách 15 mục thiếu nhất)
@@ -393,7 +393,7 @@ Tổng: 1 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Thiết kế | Liên kết với mục trước (Link to Previous) | 🟢 | - | writer.section.linkToPrevious (platform/commands/command-definitions.js:265) |
 | Thiết kế | Khoảng cách lề đầu/chân trang từ mép giấy | ✅ | - | Khoảng cách lề đầu trang HeaderDistance 35.4 pt đối chiếu Word COM (docs/word-oracle-1710.json:44-50) |
 | Thiết kế | Chèn ngày giờ / thông tin tài liệu vào đầu/chân trang | 🟢 | - | writer.insert.dateTime (apps/writer/writer-ribbon.js:351) |
-| Thiết kế | Đóng chế độ sửa Đầu & Chân trang | 🟡 | 2 | Nhấp đôi chuột vào thân văn bản để thoát; chưa có nút Đóng Đầu & Chân trang riêng trên ribbon |
+| Thiết kế | Đóng chế độ sửa Đầu & Chân trang | ⚪ | - | Không áp dụng: đầu và chân trang của VN Writer luôn là vùng sửa trực tiếp trên trang, không có chế độ riêng nên không cần nút Đóng |
 
 ### Không thuộc ribbon
 
