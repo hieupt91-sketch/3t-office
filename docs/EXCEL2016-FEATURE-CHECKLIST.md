@@ -17,8 +17,8 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Excel 2016 | 92 | 43% |
-| 🟢 Có, chưa đối chiếu | 58 | 27% |
-| 🟡 Có một phần | 24 | 11% |
+| 🟢 Có, chưa đối chiếu | 59 | 28% |
+| 🟡 Có một phần | 23 | 11% |
 | 🔴 Chưa có | 39 | 18% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
@@ -48,7 +48,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Công cụ Hình ảnh | 1 | 0 | 0 | 0 | 1 | 0 | 0% |
 | Công cụ Vẽ | 1 | 0 | 0 | 0 | 1 | 0 | 0% |
 | Công cụ Sparkline | 1 | 0 | 0 | 0 | 1 | 0 | 0% |
-| Không thuộc ribbon | 26 | 16 | 6 | 2 | 2 | 0 | 88% |
+| Không thuộc ribbon | 26 | 16 | 7 | 1 | 2 | 0 | 90% |
 
 ## Việc cần làm (mục chưa có hoặc một phần, ưu tiên 1)
 
@@ -229,7 +229,7 @@ Tổng: 2 mục ưu tiên 1.
 | Dự báo | What-If: Goal Seek / Bảng dữ liệu (Data Table) | ✅ | - | 17/10 (AGY-DATATOOLS): Goal Seek và Table đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; tests/unit/sheet-goal-seek.test.js:1-30; apps/sheet/sheet-grid.js:20373-20390; sheet.data.goalSeek) |
 | Dự báo | Trang dự báo (Forecast Sheet) | 🔴 | 3 |  |
 | Dàn bài | Nhóm / Bỏ nhóm / Tổng phụ | ✅ | - | 17/10 (AGY-DATATOOLS): Group/Ungroup hàng-cột và Subtotal/RemoveSubtotal đối chiếu Excel 2016 (cases-17 12/12 kịch bản); sheet.data.subtotal; apps/sheet/data-tools.js:77-185 |
-| Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | ✅ | - | 17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; apps/sheet/sheet-grid.js:20048-20070; sheet.data.group) |
+| Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | ✅ | - | 17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; apps/sheet/sheet-grid.js:20180; sheet.data.group) |
 | Phân tích | Solver | 🔴 | 3 | Bổ sung của Excel |
 
 ### Xem xét
@@ -340,9 +340,9 @@ Tổng: 2 mục ưu tiên 1.
 | Hộp tên và thanh công thức | Mở rộng thanh công thức; Ctrl+Shift+U | 🟡 | 3 |  |
 | Thanh trạng thái | Tổng/Trung bình/Đếm vùng chọn; nút chế độ xem; thanh thu phóng | 🟢 | - | Thanh trạng thái tính tổng, trung bình, đếm (tests/unit/sheet-status-bar-sum.test.js:1-30; apps/sheet/sheet-grid.js:1-30) |
 | Thanh trạng thái | Menu tùy chỉnh thanh trạng thái | 🔴 | 3 |  |
-| Tab trang tính | Cuộn tab, thêm trang, kéo đổi thứ tự | 🟡 | 2 | Kéo đổi thứ tự cần kiểm |
+| Tab trang tính | Cuộn tab, thêm trang, kéo đổi thứ tự | 🟢 | - | sheet.sheet.moveOrCopy; kéo tab bằng chuột thật đổi thứ tự có vạch báo, Esc hủy, Hoàn tác trả lại, lưu XLSX mở lại giữ thứ tự (tests/live/cdp/sheet-tab-drag.desktop.mjs); chưa đối chiếu Excel thật vì Excel COM chưa dùng được |
 | Tab trang tính | Menu chuột phải tab (Chèn, Xóa, Đổi tên, Di chuyển, Bảo vệ, Màu, Ẩn, Hiện) | ✅ | - | Menu chuột phải tab trang tính đúng thứ tự Excel (tests/unit/sheet-rename-move-protect.test.js:1-30; sheet.sheet.protect) |
-| Tab trang tính | Chọn nhiều trang cùng lúc (nhóm trang) / Chọn tất cả trang | ✅ | - | F2: Nhóm nhiều trang tính cùng lúc khớp Excel COM (apps/sheet/sheet-grid.js:15400-15450) |
+| Tab trang tính | Chọn nhiều trang cùng lúc (nhóm trang) / Chọn tất cả trang | ✅ | - | F2: Nhóm nhiều trang tính cùng lúc khớp Excel COM (apps/sheet/sheet-grid.js:5707) |
 | Chuột phải | Menu ô (Cắt/Sao chép/Dán/Chèn/Xóa/Lọc/Sắp xếp/Ghi chú/Định dạng/Tên/Liên kết) | ✅ | - | Menu ngữ cảnh chuột phải trên ô đối chiếu CommandBars Excel 2016 (docs/EXCEL2016-INPUT-MATRIX.md:39; tests/unit/sheet-keyboard-audit.test.js:1-30; common.edit.cut, common.edit.copy, common.edit.paste) |
 | Chuột phải | Menu tiêu đề hàng/cột | ✅ | - | Menu tiêu đề hàng cột chuột phải (docs/EXCEL2016-INPUT-MATRIX.md:34; tests/unit/sheet-row-col-insert.test.js:1-25; sheet.row.insert, sheet.col.insert) |
 | Chuột phải | Menu trong bảng (Chèn/Xóa/Chọn/Bảng) | ✅ | - | Menu chuột phải trong bảng đối chiếu (tests/unit/sheet-table.test.js:1-30; tests/functions/structural-cases-8.json:1-25; sheet.style.formatAsTable) |

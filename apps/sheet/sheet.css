@@ -2522,3 +2522,7 @@ tr.is-filtered-out {
   gap: 8px;
   align-items: center;
 }
+/* Kéo thẻ trang tính đổi thứ tự */
+.vno-sheet-tab-item.is-dragging { opacity: 0.55; }
+.vno-sheet-tab-item.is-drop-before { box-shadow: inset 3px 0 0 #2563eb; }
+.vno-sheet-tab-item.is-drop-end { box-shadow: inset -3px 0 0 #2563eb; }

@@ -614,6 +614,7 @@ export const SHEET_HELP_ENTRIES = [
       "Hoặc chuột phải tab trang tính rồi chọn cùng lệnh. Hộp thoại liệt kê các trang tính hiện có.",
       "Ở Chèn trước trang tính, chọn trang sẽ đứng sau vị trí mới, hoặc (chuyển đến cuối) để đặt tab ra sau cùng.",
       "Để nhân bản: đánh dấu Tạo một bản sao rồi Đồng ý. Trang mới tên «Tên gốc (2)» (rồi (3), (4)…) nhận đủ dữ liệu, định dạng, Page Setup, định dạng có điều kiện. Không đánh dấu thì chỉ đổi thứ tự tab.",
+      "Cách nhanh hơn để đổi thứ tự: giữ chuột trái trên tab trang tính rồi kéo sang trái hoặc phải. Vạch xanh cho biết nơi tab sẽ rơi; thả chuột để đặt, nhấn Esc khi đang kéo để hủy. Kéo ngắn dưới vài điểm ảnh vẫn là nhấp chọn tab bình thường.",
       "Hoàn tác thêm bản sao hoặc đổi thứ tự bằng Ctrl+Z."
     ]
   },

@@ -5476,7 +5476,9 @@ export class SheetGridController {
         tab.setAttribute("aria-selected", "true");
         tab.title = `${tab.title} — ${t("sheetDialogs.sheetGroup.tabHint", "đang trong nhóm trang tính")}`;
       }
+      tab.addEventListener("mousedown", event => this._beginSheetTabDrag(event, tab, sheetName, tabsListEl));
       tab.addEventListener("click", event => {
+        if (this._sheetTabDragged) { this._sheetTabDragged = false; return; }
         if (event.ctrlKey || event.metaKey) { this.toggleSheetInGroup(sheetName); return; }
         if (event.shiftKey) { this.selectSheetRange(sheetName); return; }
         const pointMode = this.formulaEntry && this._canInsertPointReference();
@@ -5495,6 +5497,47 @@ export class SheetGridController {
       });
       tabsListEl.appendChild(tab);
     });
+  }
+
+  /** Kéo thẻ trang tính sang vị trí khác để đổi thứ tự (vạch xanh báo điểm thả; Esc để hủy). */
+  _beginSheetTabDrag(event, tab, sheetName, listEl) {
+    if (event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey) return;
+    if (typeof document === "undefined") return;
+    const startX = event.clientX;
+    let dragging = false;
+    let beforeName = null;
+    let dropAt = null;
+    const tabs = () => Array.from(listEl.querySelectorAll(".vno-sheet-tab-item"));
+    const clear = () => tabs().forEach(item => item.classList.remove("is-drop-before", "is-drop-end", "is-dragging"));
+    const onMove = move => {
+      if (!dragging && Math.abs(move.clientX - startX) < 6) return;
+      if (!dragging) { dragging = true; tab.classList.add("is-dragging"); }
+      clear();
+      tab.classList.add("is-dragging");
+      const all = tabs();
+      const over = all.find(item => { const r = item.getBoundingClientRect(); return move.clientX < r.left + r.width / 2; });
+      if (over) { over.classList.add("is-drop-before"); dropAt = over; beforeName = over.dataset.sheet; }
+      else { all[all.length - 1]?.classList.add("is-drop-end"); dropAt = null; beforeName = null; }
+    };
+    const finish = commit => {
+      document.removeEventListener("mousemove", onMove, true);
+      document.removeEventListener("mouseup", onUp, true);
+      document.removeEventListener("keydown", onKey, true);
+      clear();
+      if (!dragging) return;
+      this._sheetTabDragged = true;
+      setTimeout(() => { this._sheetTabDragged = false; }, 0);
+      if (!commit || beforeName === sheetName) return;
+      const order = this.sheets.filter(name => name !== sheetName);
+      const idx = beforeName == null ? order.length : order.indexOf(beforeName);
+      if (idx === this.sheets.indexOf(sheetName)) return;
+      this.moveSheet(sheetName, beforeName);
+    };
+    const onUp = () => finish(true);
+    const onKey = key => { if (key.key === "Escape") { key.preventDefault(); finish(false); } };
+    document.addEventListener("mousemove", onMove, true);
+    document.addEventListener("mouseup", onUp, true);
+    document.addEventListener("keydown", onKey, true);
   }
 
   getGroupedSheets() {
