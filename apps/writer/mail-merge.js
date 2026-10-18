@@ -592,7 +592,8 @@ export function showInsertMergeFieldDialog({
   const overlay = document.createElement("div");
   overlay.className = "vno-dialog-overlay";
 
-  const optionsHtml = fields.map((f) => `<option value="${f}">${f}</option>`).join("\n");
+  const escField = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+  const optionsHtml = fields.map((f) => `<option value="${escField(f)}">${escField(f)}</option>`).join("\n");
 
   overlay.innerHTML = `
     <div class="vno-dialog-box" style="width: 440px;" role="dialog" aria-modal="true" aria-labelledby="vno-merge-field-title">

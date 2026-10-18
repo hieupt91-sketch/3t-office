@@ -17,7 +17,7 @@ try {
   void ev(`window.globalCommandBus.execute("writer.mailMerge.open")`);
   await cdp.waitFor("document.querySelector('.vno-merge-toggle-paste-btn')", { timeoutMilliseconds: 15000 });
   await click(cdp, ".vno-merge-toggle-paste-btn");
-  await ev(`(() => { document.querySelector('.vno-merge-csv-textarea').value = ${JSON.stringify("HoTen,Tuoi\nTran Binh,30\nAn Khang,9\n<b id=\"xss\">Dinh</b>,25\nLe Hoa,100")}; })()`);
+  await ev(`(() => { document.querySelector('.vno-merge-csv-textarea').value = ${JSON.stringify("HoTen,Tuoi,<u id=hx>Cot</u>\nTran Binh,30,a\nAn Khang,9,b\n<b id=\"xss\">Dinh</b>,25,c\nLe Hoa,100,d")}; })()`);
   await click(cdp, ".vno-merge-apply-paste-btn");
   const rows = () => ev(`[...document.querySelectorAll('.vno-merge-tbody tr')].map(tr => tr.cells[1] ? tr.cells[1].textContent.trim() : '').join('|')`);
   check("Nạp 4 người nhận", (await rows()).split("|").length === 4, await rows());
@@ -43,6 +43,10 @@ try {
   await click(cdp, ".vno-dialog-save-btn");
   const kept = JSON.parse(await ev(`JSON.stringify({ all: window.__vnoAppInstance.adapter.mailMergeData.records.map(r => r.Tuoi), sel: window.__vnoAppInstance.adapter._getActiveMailMergeRecords().map(r => r.Tuoi) })`));
   check("Sau khi Lưu: giữ thứ tự theo tuổi và loại người đã bỏ chọn", kept.all.join("|") === "9|25|30|100" && kept.sel.join("|") === "9|25|30", JSON.stringify(kept));
+  // Hộp «Chèn trường trộn»: tên cột chứa thẻ HTML vẫn hiện nguyên văn.
+  void ev(`window.globalCommandBus.execute("writer.mailMerge.insertField")`);
+  await cdp.waitFor("document.querySelector('#vno-merge-field-select')", { timeoutMilliseconds: 15000 });
+  check("Hộp Chèn trường: tên cột có thẻ HTML hiện nguyên văn, không chạy thẻ", await ev(`document.querySelector('#hx') === null && [...document.querySelectorAll('#vno-merge-field-select option')].some(o => o.textContent === '<u id=hx>Cot</u>')`));
 } catch (error) {
   check("Không phát sinh ngoại lệ", false, error.stack || error.message);
 } finally { await session.close(); }
