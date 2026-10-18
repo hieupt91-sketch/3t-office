@@ -148,7 +148,7 @@ Tham chiếu|Mục lục|Thêm văn bản vào cấp mục lục (Add Text to Le
 Tham chiếu|Mục lục|Cập nhật mục lục (Update Table)|V|-|Cập nhật mục lục writer.reference.tocUpdate đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:85)
 Tham chiếu|Chú thích|Chú thích chân trang (Footnote, Ctrl+Alt+F)|V|-|Chú thích chân trang writer.reference.footnoteInsert đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:86, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:63)
 Tham chiếu|Chú thích|Chú thích cuối tài liệu (Endnote, Ctrl+Alt+D)|V|-|Chú thích cuối writer.reference.endnoteInsert đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:87, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:63)
-Tham chiếu|Chú thích|Điều hướng chú thích (Next Footnote / Show Notes)|P|2|Có chèn; điều hướng bằng phím mũi tên
+Tham chiếu|Chú thích|Điều hướng chú thích (Next Footnote / Show Notes)|A|-|writer.reference.nextNote, writer.reference.prevNote: chọn số chú thích kế tiếp/phía trước (trang và cuối), quay vòng; nhấp số chú thích nhảy tới nội dung (tests/live/cdp/writer-note-navigation.desktop.mjs 4/4); thao tác giao diện, không đi vào tệp nên không có đối chiếu Word thật
 Tham chiếu|Chú thích|Hộp thoại Chú thích chân/cuối trang|P|2|Hỗ trợ qua thiết lập định dạng; chưa có hộp thoại gom chung
 Tham chiếu|Nghiên cứu|Tra cứu thông minh (Smart Lookup)|X|-|Cần dịch vụ tìm kiếm Bing trực tuyến
 Tham chiếu|Nghiên cứu|Nghiên cứu viên (Researcher)|X|-|Cần dịch vụ đám mây Microsoft Graph

@@ -305,6 +305,8 @@ export const WRITER_COMMANDS = [
   // Tham chiếu & Chú thích (References, TOC, Footnotes/Endnotes)
   { id: "writer.reference.tocInsert", category: "reference", label: "Mục lục tự động", icon: "tocInsert", tooltip: "Chèn mục lục tự động từ các tiêu đề Heading" },
   { id: "writer.reference.tocUpdate", category: "reference", label: "Cập nhật mục lục", icon: "tocUpdate", tooltip: "Cập nhật lại mục lục tài liệu" },
+  { id: "writer.reference.nextNote", category: "reference", label: "Chú thích tiếp theo", icon: "footnoteInsert", tooltip: "Chuyển tới số chú thích kế tiếp trong tài liệu (quay vòng về đầu khi hết)" },
+  { id: "writer.reference.prevNote", category: "reference", label: "Chú thích trước", icon: "footnoteInsert", tooltip: "Chuyển tới số chú thích phía trước trong tài liệu (quay vòng về cuối khi hết)" },
   { id: "writer.reference.footnoteInsert", category: "reference", label: "Chú thích trang", shortcut: "Ctrl+Alt+F", icon: "footnoteInsert", tooltip: "Chèn chú thích cuối trang (Footnote) (Ctrl+Alt+F)" },
   { id: "writer.reference.endnoteInsert", category: "reference", label: "Chú thích cuối", shortcut: "Ctrl+Alt+D", icon: "endnoteInsert", tooltip: "Chèn chú thích cuối tài liệu (Endnote) (Ctrl+Alt+D)" },
   { id: "writer.reference.citationStyle", category: "reference", label: "Kiểu trích dẫn", icon: "citationStyle", tooltip: "Chọn kiểu trích dẫn APA hoặc MLA" },

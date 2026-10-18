@@ -746,6 +746,8 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.reference.tocInsert", () => this.insertTableOfContents());
     globalCommandBus.bindHandler("writer.reference.tocUpdate", () => this.updateTableOfContents());
     globalCommandBus.bindHandler("writer.reference.footnoteInsert", (args) => this.insertFootnote(args));
+    globalCommandBus.bindHandler("writer.reference.nextNote", () => this._hintIfFalse(() => this.goToNote(1), "Tài liệu chưa có chú thích trang hoặc chú thích cuối nào."));
+    globalCommandBus.bindHandler("writer.reference.prevNote", () => this._hintIfFalse(() => this.goToNote(-1), "Tài liệu chưa có chú thích trang hoặc chú thích cuối nào."));
     globalCommandBus.bindHandler("writer.reference.endnoteInsert", (args) => this.insertEndnote(args));
     globalCommandBus.bindHandler("writer.reference.citationStyle", (style) => this.setCitationStyle(style));
     globalCommandBus.bindHandler("writer.reference.citationInsert", (args) => this.openInsertCitationDialog(args));
@@ -21624,6 +21626,43 @@ export class WriterAdapter {
     }
 
     return 1;
+  }
+
+  /** Chú thích tiếp theo / trước: chọn số chú thích gần nhất theo hướng (quay vòng), cuộn tới số đó. */
+  goToNote(direction = 1) {
+    this.flushTyping();
+    this._initZones();
+    if (!this.bodyDom || typeof document === "undefined") return false;
+    const refs = Array.from(this.bodyDom.querySelectorAll("[data-vno-footnote-ref], [data-vno-endnote-ref]"));
+    if (!refs.length) return false;
+    const selection = document.getSelection?.();
+    const anchor = selection && selection.rangeCount && this.bodyDom.contains(selection.anchorNode) ? selection.getRangeAt(0) : null;
+    const index = ref => Array.prototype.indexOf.call(ref.parentNode.childNodes, ref);
+    const startsAfter = ref => !anchor || anchor.comparePoint(ref.parentNode, index(ref)) === 1;
+    const endsBefore = ref => anchor && anchor.comparePoint(ref.parentNode, index(ref) + 1) === -1;
+    if (!this._noteNavListening) {
+      // Trình soạn thảo chuẩn hóa lại vùng chọn trên số chú thích (không soạn được), nên nhớ số vừa tới; bấm chuột hoặc gõ phím thì quay về dùng vị trí con trỏ.
+      this._noteNavListening = true;
+      const forget = () => { this._noteNavLast = null; };
+      this.bodyDom.addEventListener("mousedown", forget, true);
+      this.bodyDom.addEventListener("keydown", forget, true);
+    }
+    let target;
+    const lastIndex = this._noteNavLast && this._noteNavLast.isConnected ? refs.indexOf(this._noteNavLast) : -1;
+    if (lastIndex >= 0) {
+      target = refs[(lastIndex + (direction >= 0 ? 1 : -1) + refs.length) % refs.length];
+    } else if (direction >= 0) target = refs.find(startsAfter) || refs[0];
+    else {
+      const earlier = refs.filter(endsBefore);
+      target = earlier.length ? earlier[earlier.length - 1] : refs[refs.length - 1];
+    }
+    this._noteNavLast = target;
+    const range = document.createRange();
+    range.selectNode(target);
+    selection?.removeAllRanges();
+    selection?.addRange(range);
+    target.scrollIntoView?.({ block: "center", behavior: "auto" });
+    return true;
   }
 
   insertFootnote(options = {}) {

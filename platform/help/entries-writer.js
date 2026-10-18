@@ -1155,7 +1155,7 @@ export const WRITER_HELP_ENTRIES = [
   {
     id: "writer.reference.notes",
     app: "writer",
-    commandIds: ["writer.reference.footnoteInsert", "writer.reference.endnoteInsert"],
+    commandIds: ["writer.reference.footnoteInsert", "writer.reference.endnoteInsert", "writer.reference.nextNote", "writer.reference.prevNote"],
     title: "Chú thích cuối trang và chú thích cuối tài liệu",
     summary: "Ctrl+Alt+F chèn footnote đánh số 1, 2, 3… Ctrl+Alt+D chèn endnote số la mã i, ii, iii… Nhấp số siêu ký tự để nhảy tới nội dung chú thích.",
     ribbon: { tab: "Tham chiếu", tabId: "references", group: "Chú thích" },
@@ -1164,6 +1164,7 @@ export const WRITER_HELP_ENTRIES = [
       "Đặt con trỏ chỗ cần mốc. Tab Tham chiếu, nhóm Chú thích: Chú thích trang (Ctrl+Alt+F) và Chú thích cuối (Ctrl+Alt+D) — hai nút lớn. Không còn trên tab Chèn.",
       "Chú thích trang: số Ả Rập trên chữ (sup), danh sách cuối thân với ô «Nhập nội dung chú thích...», nút Xóa chú thích và Chuyển tới vị trí tham chiếu. Đánh lại số tự động khi xóa. Khi xem trước/in, ghi chú nằm cuối tờ chứa mốc.",
       "Chú thích cuối: số la mã thường i, ii, iii…, tiêu đề mục «CHÚ THÍCH CUỐI TÀI LIỆU», ô «Nhập nội dung chú thích cuối...». Khi in, cả khối nằm trang cuối.",
+      "Duyệt nhanh các chú thích: trong nhóm Chú thích bấm «Chú thích tiếp theo» hoặc «Chú thích trước» để đưa con trỏ tới số chú thích (trang hoặc cuối) kế tiếp hoặc phía trước vị trí con trỏ; đi hết thì quay vòng về đầu hoặc cuối tài liệu và trang tự cuộn tới số đó. Tài liệu chưa có chú thích nào thì hiện thông báo.",
       "Nhấp số trên chữ để nhảy xuống ghi chú. Không có hộp đổi kiểu đánh số / chuyển footnote↔endnote như các phần mềm soạn thảo văn bản khác. Ctrl+Z gỡ mốc vừa chèn."
     ]
   },

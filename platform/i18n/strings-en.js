@@ -1465,6 +1465,8 @@ export const enStrings = {
     "writer.view.selectionPane": { label: "Selection Pane", tooltip: "Show or hide the selection pane to manage document objects" },
     "writer.reference.tocInsert": { label: "Table of Contents", tooltip: "Insert a table of contents" },
     "writer.reference.tocUpdate": { label: "Update Table", tooltip: "Update the table of contents" },
+    "writer.reference.nextNote": { label: "Next Note", tooltip: "Go to the next footnote or endnote mark in the document (wraps to the start)" },
+    "writer.reference.prevNote": { label: "Previous Note", tooltip: "Go to the previous footnote or endnote mark in the document (wraps to the end)" },
     "writer.reference.footnoteInsert": { label: "Insert Footnote", tooltip: "Add a note at the bottom of the page (Ctrl+Alt+F)" },
     "writer.reference.endnoteInsert": { label: "Insert Endnote", tooltip: "Add a note at the end of the document (Ctrl+Alt+D)" },
     "writer.reference.citationStyle": { label: "Citation Style", tooltip: "Choose APA or MLA citation style" },

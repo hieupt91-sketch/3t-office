@@ -17,13 +17,13 @@ Chuẩn: Microsoft Word 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qu
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Word 2016 | 157 | 58% |
-| 🟢 Có, chưa đối chiếu | 67 | 25% |
-| 🟡 Có một phần | 22 | 8% |
+| 🟢 Có, chưa đối chiếu | 68 | 25% |
+| 🟡 Có một phần | 21 | 8% |
 | 🔴 Chưa có | 26 | 10% |
 | ⚪ Ngoài phạm vi | 7 | - |
 | **Tổng** | **279** (áp dụng: 272) | |
 
-- **Độ phủ so với Word 2016 (có hoặc có một phần, một phần tính 0,5): 86%**
+- **Độ phủ so với Word 2016 (có hoặc có một phần, một phần tính 0,5): 87%**
 - **Đã xác minh bằng đối chiếu Word 2016 thật: 58%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn phòng; độ trung thực đối chiếu được xác nhận bằng Word COM thật.
@@ -37,7 +37,7 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | Chèn | 34 | 23 | 3 | 0 | 5 | 3 | 84% |
 | Thiết kế | 10 | 4 | 0 | 4 | 2 | 0 | 60% |
 | Bố trí | 18 | 12 | 4 | 1 | 1 | 0 | 92% |
-| Tham chiếu | 19 | 11 | 2 | 3 | 1 | 2 | 85% |
+| Tham chiếu | 19 | 11 | 3 | 2 | 1 | 2 | 88% |
 | Thư | 16 | 9 | 0 | 6 | 1 | 0 | 75% |
 | Xem lại | 22 | 10 | 7 | 2 | 3 | 0 | 82% |
 | Chế độ xem | 21 | 10 | 7 | 1 | 3 | 0 | 83% |
@@ -231,7 +231,7 @@ Tổng: 1 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Mục lục | Cập nhật mục lục (Update Table) | ✅ | - | Cập nhật mục lục writer.reference.tocUpdate đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:85) |
 | Chú thích | Chú thích chân trang (Footnote, Ctrl+Alt+F) | ✅ | - | Chú thích chân trang writer.reference.footnoteInsert đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:86, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:63) |
 | Chú thích | Chú thích cuối tài liệu (Endnote, Ctrl+Alt+D) | ✅ | - | Chú thích cuối writer.reference.endnoteInsert đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:87, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:63) |
-| Chú thích | Điều hướng chú thích (Next Footnote / Show Notes) | 🟡 | 2 | Có chèn; điều hướng bằng phím mũi tên |
+| Chú thích | Điều hướng chú thích (Next Footnote / Show Notes) | 🟢 | - | writer.reference.nextNote, writer.reference.prevNote: chọn số chú thích kế tiếp/phía trước (trang và cuối), quay vòng; nhấp số chú thích nhảy tới nội dung (tests/live/cdp/writer-note-navigation.desktop.mjs 4/4); thao tác giao diện, không đi vào tệp nên không có đối chiếu Word thật |
 | Chú thích | Hộp thoại Chú thích chân/cuối trang | 🟡 | 2 | Hỗ trợ qua thiết lập định dạng; chưa có hộp thoại gom chung |
 | Nghiên cứu | Tra cứu thông minh (Smart Lookup) | ⚪ | - | Cần dịch vụ tìm kiếm Bing trực tuyến |
 | Nghiên cứu | Nghiên cứu viên (Researcher) | ⚪ | - | Cần dịch vụ đám mây Microsoft Graph |
@@ -363,7 +363,7 @@ Tổng: 1 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Định dạng | Thay đổi ảnh giữ nguyên kích thước (Change Picture) | 🟢 | - | writer.image.changePicture (platform/commands/command-definitions.js:207) |
 | Định dạng | Đặt lại ảnh về gốc (Reset Picture) | 🟢 | - | writer.image.resetPicture (platform/commands/command-definitions.js:208) |
 | Định dạng | Thư viện kiểu khung ảnh (Picture Styles Gallery) | 🟡 | 2 | Có bo góc, đổ bóng, viền ảnh; chưa có gallery preset phong phú |
-| Định dạng | Viền ảnh & Màu viền (Picture Border) | ✅ | - | writer.image.border: hộp thoại Viền ảnh chọn nét liền, đứt, chấm, đôi, độ dày và màu; lưu DOCX rồi Word 2016 COM đọc Line.Visible, Weight 2,25 pt, DashStyle 4 và màu xanh (tests/live/cdp/writer-picture-border.desktop.mjs; adapters/libreoffice/writer/writer-adapter.js:10829 setPictureBorder, platform/commands/command-definitions.js:228) |
+| Định dạng | Viền ảnh & Màu viền (Picture Border) | ✅ | - | writer.image.border: hộp thoại Viền ảnh chọn nét liền, đứt, chấm, đôi, độ dày và màu; lưu DOCX rồi Word 2016 COM đọc Line.Visible, Weight 2,25 pt, DashStyle 4 và màu xanh (tests/live/cdp/writer-picture-border.desktop.mjs; adapters/libreoffice/writer/writer-adapter.js:10831 setPictureBorder, platform/commands/command-definitions.js:228) |
 | Định dạng | Cắt xén ảnh (Crop) | 🟢 | - | writer.image.crop (platform/commands/command-definitions.js:205) |
 | Định dạng | Kích thước ảnh chính xác (Chiều cao, Chiều rộng pt/cm) | ✅ | - | Kích thước ảnh PNG đối chiếu Word COM 23.9x13.6 pt (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:74) |
 | Định dạng | Tùy chọn ngắt dòng chữ (Wrap Text - In Line, Square, Tight, Behind, In Front) | ✅ | - | Tùy chọn ngắt dòng chữ ảnh Wrap Square đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:74) |

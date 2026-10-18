@@ -1464,6 +1464,8 @@ export const viStrings = {
     "writer.view.selectionPane": { label: "Ngăn chọn", tooltip: "Bật hoặc tắt ngăn chọn đối tượng trên tài liệu" },
     "writer.reference.tocInsert": { label: "Mục lục tự động", tooltip: "Chèn mục lục tự động từ các tiêu đề Heading" },
     "writer.reference.tocUpdate": { label: "Cập nhật mục lục", tooltip: "Cập nhật lại mục lục tài liệu" },
+    "writer.reference.nextNote": { label: "Chú thích tiếp theo", tooltip: "Chuyển tới số chú thích kế tiếp trong tài liệu (quay vòng về đầu khi hết)" },
+    "writer.reference.prevNote": { label: "Chú thích trước", tooltip: "Chuyển tới số chú thích phía trước trong tài liệu (quay vòng về cuối khi hết)" },
     "writer.reference.footnoteInsert": { label: "Chú thích trang", tooltip: "Chèn chú thích cuối trang (Footnote) (Ctrl+Alt+F)" },
     "writer.reference.endnoteInsert": { label: "Chú thích cuối", tooltip: "Chèn chú thích cuối tài liệu (Endnote) (Ctrl+Alt+D)" },
     "writer.reference.citationStyle": { label: "Kiểu trích dẫn", tooltip: "Chọn kiểu trích dẫn APA hoặc MLA" },

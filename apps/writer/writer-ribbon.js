@@ -747,7 +747,9 @@ export const WRITER_RIBBON_TABS = [
         labelKey: "writerRibbon.group.footnotes",
         items: [
           { type: "button", commandId: "writer.reference.footnoteInsert", isLarge: true },
-          { type: "button", commandId: "writer.reference.endnoteInsert", isLarge: true }
+          { type: "button", commandId: "writer.reference.endnoteInsert", isLarge: true },
+          { type: "button", commandId: "writer.reference.nextNote" },
+          { type: "button", commandId: "writer.reference.prevNote" }
         ]
       },
       {
