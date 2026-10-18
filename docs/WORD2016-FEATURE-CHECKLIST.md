@@ -17,8 +17,8 @@ Chuẩn: Microsoft Word 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qu
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Word 2016 | 157 | 58% |
-| 🟢 Có, chưa đối chiếu | 71 | 26% |
-| 🟡 Có một phần | 18 | 7% |
+| 🟢 Có, chưa đối chiếu | 72 | 26% |
+| 🟡 Có một phần | 17 | 6% |
 | 🔴 Chưa có | 26 | 10% |
 | ⚪ Ngoài phạm vi | 7 | - |
 | **Tổng** | **279** (áp dụng: 272) | |
@@ -38,7 +38,7 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | Thiết kế | 10 | 4 | 0 | 4 | 2 | 0 | 60% |
 | Bố trí | 18 | 12 | 4 | 1 | 1 | 0 | 92% |
 | Tham chiếu | 19 | 11 | 3 | 2 | 1 | 2 | 88% |
-| Thư | 16 | 9 | 3 | 3 | 1 | 0 | 84% |
+| Thư | 16 | 9 | 4 | 2 | 1 | 0 | 88% |
 | Xem lại | 22 | 10 | 7 | 2 | 3 | 0 | 82% |
 | Chế độ xem | 21 | 10 | 7 | 1 | 3 | 0 | 83% |
 | Công cụ Bảng | 26 | 24 | 1 | 0 | 1 | 0 | 96% |
@@ -258,7 +258,7 @@ Tổng: 1 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Viết & Chèn trường | Chèn trường trộn thư (Insert Merge Field) | ✅ | - | Chèn trường writer.mailMerge.insertField đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:98) |
 | Viết & Chèn trường | Quy tắc điều kiện (Rules: If...Then...Else) | ✅ | - | Quy tắc điều kiện writer.mailMerge.ifRule đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:99) |
 | Viết & Chèn trường | Tô sáng trường trộn (Highlight Merge Fields) | 🟢 | - | writer.mailMerge.highlightFields: nút bật/tắt nền màu của trường trộn, không đổi nội dung và không lọt vào tệp lưu (tests/live/cdp/writer-merge-highlight.desktop.mjs 5/5); thao tác hiển thị, không có đối chiếu Word thật |
-| Viết & Chèn trường | Khối địa chỉ (Address Block) & Lời chào (Greeting Line) | 🟡 | 2 | Có chèn trường riêng lẻ; chưa có wizard gộp khối địa chỉ |
+| Viết & Chèn trường | Khối địa chỉ (Address Block) & Lời chào (Greeting Line) | 🟢 | - | writer.mailMerge.addressBlock, writer.mailMerge.greetingLine: hộp chọn trường, chèn một lần (một bước hoàn tác), xem trước thay dữ liệu thật (tests/live/cdp/writer-address-greeting.desktop.mjs 6/6); chưa có wizard ghép định dạng tên/quốc gia nhiều mẫu như Word |
 | Viết & Chèn trường | Khớp trường dữ liệu (Match Fields) | 🟡 | 2 | Khớp theo tên cột trong file nguồn |
 | Viết & Chèn trường | Cập nhật toàn bộ nhãn (Update Labels) | 🟡 | 2 | Đã hỗ trợ qua sinh hàng loạt nhãn từ nguồn |
 | Xem trước kết quả | Xem trước kết quả (Preview Results) | ✅ | - | Xem trước kết quả writer.mailMerge.preview đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:100) |
@@ -363,7 +363,7 @@ Tổng: 1 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Định dạng | Thay đổi ảnh giữ nguyên kích thước (Change Picture) | 🟢 | - | writer.image.changePicture (platform/commands/command-definitions.js:207) |
 | Định dạng | Đặt lại ảnh về gốc (Reset Picture) | 🟢 | - | writer.image.resetPicture (platform/commands/command-definitions.js:208) |
 | Định dạng | Thư viện kiểu khung ảnh (Picture Styles Gallery) | 🟡 | 2 | Có bo góc, đổ bóng, viền ảnh; chưa có gallery preset phong phú |
-| Định dạng | Viền ảnh & Màu viền (Picture Border) | ✅ | - | writer.image.border: hộp thoại Viền ảnh chọn nét liền, đứt, chấm, đôi, độ dày và màu; lưu DOCX rồi Word 2016 COM đọc Line.Visible, Weight 2,25 pt, DashStyle 4 và màu xanh (tests/live/cdp/writer-picture-border.desktop.mjs; adapters/libreoffice/writer/writer-adapter.js:10832 setPictureBorder, platform/commands/command-definitions.js:228) |
+| Định dạng | Viền ảnh & Màu viền (Picture Border) | ✅ | - | writer.image.border: hộp thoại Viền ảnh chọn nét liền, đứt, chấm, đôi, độ dày và màu; lưu DOCX rồi Word 2016 COM đọc Line.Visible, Weight 2,25 pt, DashStyle 4 và màu xanh (tests/live/cdp/writer-picture-border.desktop.mjs; adapters/libreoffice/writer/writer-adapter.js:10834 setPictureBorder, platform/commands/command-definitions.js:228) |
 | Định dạng | Cắt xén ảnh (Crop) | 🟢 | - | writer.image.crop (platform/commands/command-definitions.js:205) |
 | Định dạng | Kích thước ảnh chính xác (Chiều cao, Chiều rộng pt/cm) | ✅ | - | Kích thước ảnh PNG đối chiếu Word COM 23.9x13.6 pt (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:74) |
 | Định dạng | Tùy chọn ngắt dòng chữ (Wrap Text - In Line, Square, Tight, Behind, In Front) | ✅ | - | Tùy chọn ngắt dòng chữ ảnh Wrap Square đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:74) |

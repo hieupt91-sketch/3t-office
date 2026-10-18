@@ -1482,6 +1482,8 @@ export const enStrings = {
     "writer.layout.hyphenation": { label: "Hyphenation", tooltip: "Turn automatic language-aware hyphenation on or off" },
     "writer.mailMerge.open": { label: "Select Recipients", tooltip: "Open mail merge recipient list from spreadsheet (.xlsx, .xls) or CSV/TSV file" },
     "writer.mailMerge.insertField": { label: "Insert Merge Field", tooltip: "Insert a mail merge field" },
+    "writer.mailMerge.addressBlock": { label: "Address Block", tooltip: "Insert the recipient address block: the chosen fields, one per line" },
+    "writer.mailMerge.greetingLine": { label: "Greeting Line", tooltip: "Insert a greeting line such as «Dear «Name»,»" },
     "writer.mailMerge.highlightFields": { label: "Highlight Merge Fields", tooltip: "Turn the colored background of mail merge fields on or off" },
     "writer.mailMerge.ifRule": { label: "Rules", tooltip: "Insert Skip record if, Next record if, If…Then…Else, or Fill in" },
     "writer.mailMerge.preview": { label: "Preview Results", tooltip: "Preview merged records" },

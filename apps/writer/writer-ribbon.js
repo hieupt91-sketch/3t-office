@@ -824,6 +824,8 @@ export const WRITER_RIBBON_TABS = [
         items: [
           { type: "button", commandId: "writer.mailMerge.insertField", isLarge: true },
           { type: "button", commandId: "writer.mailMerge.ifRule", isLarge: true },
+          { type: "button", commandId: "writer.mailMerge.addressBlock" },
+          { type: "button", commandId: "writer.mailMerge.greetingLine" },
           { type: "button", commandId: "writer.mailMerge.highlightFields" }
         ]
       },

@@ -671,6 +671,67 @@ export function showInsertMergeFieldDialog({
 }
 
 /**
+ * Hộp thoại Khối địa chỉ / Lời chào cho Trộn thư.
+ * mode "address": chọn các trường (mỗi trường một dòng, theo thứ tự đánh dấu); mode "greeting": chữ mở đầu + một trường + dấu cuối.
+ * @returns {Promise<{mode:string, fields:string[], prefix:string, suffix:string}|null>}
+ */
+export function showAddressGreetingDialog({ mode = "address", fields = [] } = {}) {
+  if (typeof document === "undefined" || typeof document.createElement !== "function" || !document.body) return Promise.resolve(null);
+  return new Promise((resolve) => {
+    const previousFocused = document.activeElement;
+    const esc = (s) => String(s ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+    const isAddress = mode === "address";
+    const overlay = document.createElement("div");
+    overlay.className = "vno-dialog-overlay";
+    const title = isAddress ? "Chèn khối địa chỉ" : "Chèn lời chào";
+    const body = isAddress
+      ? `<p style="margin:0;font-size:13px;">Đánh dấu các trường sẽ nằm trong khối địa chỉ. Mỗi trường được đặt trên một dòng, theo thứ tự trong danh sách.</p>
+         <div class="vno-ab-fields" role="group" aria-label="Trường trong khối địa chỉ" style="display:flex;flex-direction:column;gap:6px;max-height:220px;overflow:auto;">
+           ${fields.map((f, i) => `<label style="display:flex;gap:8px;align-items:center;"><input type="checkbox" class="vno-ab-field" value="${esc(f)}"${i < 3 ? " checked" : ""}> <span>${esc(f)}</span></label>`).join("")}
+         </div>`
+      : `<label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Chữ mở đầu<input class="vno-dialog-input vno-ab-prefix" value="Kính gửi " style="padding:7px;"></label>
+         <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Trường tên người nhận<select class="vno-dialog-input vno-ab-greet-field" style="padding:7px;">${fields.map(f => `<option value="${esc(f)}">${esc(f)}</option>`).join("")}</select></label>
+         <label style="display:flex;flex-direction:column;gap:4px;font-size:13px;">Dấu cuối<input class="vno-dialog-input vno-ab-suffix" value="," style="padding:7px;width:80px;"></label>`;
+    overlay.innerHTML = `<div class="vno-dialog-box" style="width:440px;max-width:calc(100vw - 32px);" role="dialog" aria-modal="true" aria-labelledby="vno-ab-title">
+      <div class="vno-dialog-header"><span id="vno-ab-title">${title}</span><button type="button" class="vno-btn vno-btn-icon-only vno-dialog-close-btn" aria-label="Đóng">&times;</button></div>
+      <div class="vno-dialog-body" style="display:flex;flex-direction:column;gap:12px;padding:16px;">${body}
+        <div class="vno-ab-error" role="alert" style="min-height:16px;color:#b91c1c;font-size:12px;font-weight:600;"></div></div>
+      <div class="vno-dialog-footer"><button type="button" class="vno-btn vno-dialog-cancel-btn">Hủy</button><button type="button" class="vno-btn vno-btn-primary vno-dialog-insert-btn">Chèn</button></div></div>`;
+    document.body.appendChild(overlay);
+    const dialogBox = overlay.querySelector(".vno-dialog-box");
+    const error = overlay.querySelector(".vno-ab-error");
+    const done = (value) => {
+      document.removeEventListener("keydown", onKeyDown);
+      overlay.remove();
+      previousFocused?.focus?.();
+      resolve(value);
+    };
+    const commit = () => {
+      if (isAddress) {
+        const picked = [...overlay.querySelectorAll(".vno-ab-field:checked")].map(i => i.value);
+        if (!picked.length) { error.textContent = "Hãy đánh dấu ít nhất một trường."; return; }
+        done({ mode, fields: picked, prefix: "", suffix: "" });
+      } else {
+        const field = overlay.querySelector(".vno-ab-greet-field")?.value || "";
+        if (!field) { error.textContent = "Hãy chọn trường tên người nhận."; return; }
+        done({ mode, fields: [field], prefix: overlay.querySelector(".vno-ab-prefix").value, suffix: overlay.querySelector(".vno-ab-suffix").value });
+      }
+    };
+    overlay.querySelector(".vno-dialog-insert-btn").addEventListener("click", commit);
+    overlay.querySelector(".vno-dialog-cancel-btn").addEventListener("click", () => done(null));
+    overlay.querySelector(".vno-dialog-close-btn").addEventListener("click", () => done(null));
+    overlay.addEventListener("click", (e) => { if (e.target === overlay) done(null); });
+    const onKeyDown = (e) => {
+      if (e.key === "Escape") { e.preventDefault(); done(null); }
+      else if (e.key === "Enter" && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); commit(); }
+      else if (e.key === "Tab") trapFocus(dialogBox, e);
+    };
+    document.addEventListener("keydown", onKeyDown);
+    (overlay.querySelector(".vno-ab-field, .vno-ab-prefix"))?.focus();
+  });
+}
+
+/**
  * Hiển thị Hộp thoại Hoàn tất và Trộn thư (Finish & Merge)
  * Hỗ trợ các tùy chọn:
  * - Hợp nhất ra tài liệu mới (các trang nối tiếp phân tách bằng ngắt trang)

@@ -1874,6 +1874,35 @@ export const WRITER_HELP_ENTRIES = [
   ]
 },
 {
+  "id": "writer.mailMerge.addressGreetingHelp",
+  "app": "writer",
+  "commandIds": [
+    "writer.mailMerge.addressBlock",
+    "writer.mailMerge.greetingLine"
+  ],
+  "title": "Khối địa chỉ và Lời chào",
+  "summary": "Chèn nhanh khối địa chỉ người nhận (nhiều trường, mỗi trường một dòng) và dòng lời chào dạng «Kính gửi «Họ tên»,» vào mẫu thư.",
+  "ribbon": {
+    "tab": "Trộn thư",
+    "tabId": "mailings",
+    "group": "Viết & Chèn trường"
+  },
+  "keywords": [
+    "khối địa chỉ",
+    "address block",
+    "lời chào",
+    "greeting line",
+    "kính gửi",
+    "trộn thư"
+  ],
+  "steps": [
+    "Trước hết chọn nguồn dữ liệu: tab Trộn thư, nhóm Bắt đầu trộn, nhấn Nguồn dữ liệu và nạp danh sách người nhận. Chưa có nguồn dữ liệu thì hai nút chỉ báo ở thanh trạng thái.",
+    "Khối địa chỉ: đặt con trỏ chỗ cần đặt địa chỉ, nhóm Viết & Chèn trường, nhấn «Khối địa chỉ». Đánh dấu các trường muốn có (ví dụ Họ tên, Địa chỉ, Thành phố); mỗi trường nằm trên một dòng theo thứ tự trong danh sách. Nhấn Chèn.",
+    "Lời chào: nhấn «Lời chào», sửa chữ mở đầu (mặc định «Kính gửi »), chọn trường tên người nhận và dấu cuối (mặc định dấu phẩy) rồi nhấn Chèn. Khi trộn, mỗi thư có lời chào đúng tên người nhận.",
+    "Mỗi lần chèn là một bước hoàn tác: nhấn Ctrl+Z để gỡ cả khối. Các trường chèn ra vẫn tô sáng như trường thường và đổi thành dữ liệu thật khi Xem trước kết quả."
+  ]
+},
+{
   "id": "writer.mailMerge.highlightFieldsHelp",
   "app": "writer",
   "commandIds": [

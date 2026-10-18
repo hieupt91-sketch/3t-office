@@ -764,6 +764,8 @@ export class WriterAdapter {
     globalCommandBus.bindHandler("writer.mailMerge.open", (args) => this.openMailMergeDataSourceDialog(args));
     globalCommandBus.bindHandler("writer.mailMerge.insertField", (args) => this.insertMergeField(args));
     globalCommandBus.bindHandler("writer.mailMerge.highlightFields", () => this.toggleMergeFieldHighlight());
+    globalCommandBus.bindHandler("writer.mailMerge.addressBlock", () => this.openAddressGreetingDialog("address"));
+    globalCommandBus.bindHandler("writer.mailMerge.greetingLine", () => this.openAddressGreetingDialog("greeting"));
     globalCommandBus.bindHandler("writer.mailMerge.ifRule", (args) => this.insertMailMergeRule(args));
     globalCommandBus.bindHandler("writer.mailMerge.preview", (args) => this.toggleMailMergePreview(args));
     globalCommandBus.bindHandler("writer.mailMerge.prevRecord", (args) => this.prevMailMergeRecord(args));
@@ -22994,6 +22996,75 @@ export class WriterAdapter {
    * @param {Object|string} [options={}]
    * @returns {HTMLElement|Object|null}
    */
+  /** Khối địa chỉ / Lời chào: hộp thoại chọn trường rồi chèn một lần (một bước hoàn tác). */
+  async openAddressGreetingDialog(mode) {
+    this._initZones();
+    const fields = this.mailMergeData?.fields || [];
+    if (!fields.length) {
+      this.shell?.setStatus?.("Chưa có nguồn dữ liệu. Hãy mở Trộn thư > Nguồn dữ liệu trước khi chèn khối địa chỉ hoặc lời chào.");
+      return false;
+    }
+    const savedRange = this._captureW4Selection();
+    const { showAddressGreetingDialog } = await loadWriterMailMergeDialogs();
+    const choice = await showAddressGreetingDialog({ mode, fields });
+    if (!choice) return false;
+    if (savedRange) {
+      const sel = window.getSelection?.();
+      sel?.removeAllRanges();
+      sel?.addRange(savedRange);
+    }
+    return Boolean(this.insertMergeSequence(choice));
+  }
+
+  /** Chèn chuỗi: chữ + trường trộn (+ xuống dòng giữa các trường với khối địa chỉ) tại con trỏ, một bước hoàn tác. */
+  insertMergeSequence({ mode, fields, prefix = "", suffix = "" }) {
+    this._initZones();
+    if (!this.bodyDom || typeof document === "undefined" || !fields?.length) return null;
+    this.flushTyping();
+    const fragment = document.createDocumentFragment();
+    const fieldSpan = (name) => {
+      const span = document.createElement("span");
+      span.setAttribute("class", "vno-merge-field");
+      span.setAttribute("data-field", name);
+      span.setAttribute("contenteditable", "false");
+      span.textContent = `«${name}»`;
+      return span;
+    };
+    if (mode === "address") {
+      fields.forEach((name, index) => {
+        if (index) fragment.appendChild(document.createElement("br"));
+        fragment.appendChild(fieldSpan(name));
+      });
+    } else {
+      if (prefix) fragment.appendChild(document.createTextNode(prefix));
+      fragment.appendChild(fieldSpan(fields[0]));
+      if (suffix) fragment.appendChild(document.createTextNode(suffix));
+    }
+    const sel = window.getSelection?.();
+    let inserted = false;
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      const node = range.commonAncestorContainer;
+      if (!this._isInsideProtectedZone(node) && (node === this.bodyDom || this.bodyDom.contains(node))) {
+        range.deleteContents();
+        const last = fragment.lastChild;
+        range.insertNode(fragment);
+        range.setStartAfter(last);
+        range.collapse(true);
+        sel.removeAllRanges();
+        sel.addRange(range);
+        inserted = true;
+      }
+    }
+    if (!inserted) {
+      const lastP = this.bodyDom.querySelector("p:last-of-type");
+      (lastP || this.bodyDom).appendChild(fragment);
+    }
+    this.isDirty = true;
+    this.recordSnapshot(mode === "address" ? "writer.mailMerge.addressBlock" : "writer.mailMerge.greetingLine");
+    return true;
+  }
+
   /** Tô sáng trường trộn: bật (mặc định) hiện nền màu quanh «Trường»; tắt thì trường hiện như chữ thường. Chỉ là hiển thị, không đổi nội dung. */
   toggleMergeFieldHighlight() {
     this._initZones();

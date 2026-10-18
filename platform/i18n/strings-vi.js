@@ -1481,6 +1481,8 @@ export const viStrings = {
     "writer.layout.hyphenation": { label: "Ngắt từ", tooltip: "Bật hoặc tắt dấu gạch nối tự động theo ngôn ngữ tài liệu" },
     "writer.mailMerge.open": { label: "Nguồn dữ liệu", tooltip: "Mở danh sách người nhận trộn thư từ tệp bảng tính (.xlsx, .xls) hoặc CSV/TSV" },
     "writer.mailMerge.insertField": { label: "Chèn trường", tooltip: "Chèn trường trộn thư tại vị trí con trỏ" },
+    "writer.mailMerge.addressBlock": { label: "Khối địa chỉ", tooltip: "Chèn khối địa chỉ người nhận: các trường đã chọn, mỗi trường một dòng" },
+    "writer.mailMerge.greetingLine": { label: "Lời chào", tooltip: "Chèn dòng lời chào như «Kính gửi «Họ tên»,»" },
     "writer.mailMerge.highlightFields": { label: "Tô sáng trường trộn", tooltip: "Bật hoặc tắt nền màu cho các trường trộn thư để dễ thấy vị trí trường" },
     "writer.mailMerge.ifRule": { label: "Quy tắc", tooltip: "Chèn Bỏ qua bản ghi nếu, Bản ghi kế nếu, Nếu…Thì…Khác hoặc Điền vào" },
     "writer.mailMerge.preview": { label: "Xem trước kết quả", tooltip: "Bật/tắt xem trước bản ghi trộn thư" },
