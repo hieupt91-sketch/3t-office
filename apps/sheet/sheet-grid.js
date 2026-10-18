@@ -22438,7 +22438,7 @@ export class SheetGridController {
         if (run.style?.textDecoration) styles.push(`text-decoration:${run.style.textDecoration}`);
         if (run.style?.fontFamily) styles.push(`font-family:${run.style.fontFamily}`);
         if (run.style?.fontSize) styles.push(`font-size:${run.style.fontSize}`);
-        const styleAttr = styles.length ? ` style="${styles.join(";")}"` : "";
+        const styleAttr = styles.length ? ` style="${escapeHtml(styles.join(";")).replace(/"/g, "&quot;")}"` : "";
         return `<span${styleAttr}>${escapeHtml(run.text)}</span>`;
       }).join("");
       td.innerHTML = spanHtml;
@@ -22446,7 +22446,7 @@ export class SheetGridController {
     } else if (itm.style?.numberFormat && typeof itm.val === "number") {
       const formatted = NumberFormatter.formatValue(itm.val, itm.style.numberFormat);
       if (formatted.isAccounting) {
-        td.innerHTML = `<span class="vno-cell-accounting-symbol" style="float:left;user-select:none;color:inherit;">${formatted.symbol || ""}</span><span class="vno-cell-accounting-num" style="float:right;color:inherit;">${formatted.numberText}</span>`;
+        td.innerHTML = `<span class="vno-cell-accounting-symbol" style="float:left;user-select:none;color:inherit;">${this._escapeHtml(formatted.symbol || "")}</span><span class="vno-cell-accounting-num" style="float:right;color:inherit;">${this._escapeHtml(formatted.numberText)}</span>`;
         td.style.textAlign = itm.style?.textAlign || "right";
       } else {
         td.textContent = formatted.text;
