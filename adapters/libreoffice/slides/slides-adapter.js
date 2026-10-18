@@ -17,6 +17,7 @@ import { parseOfficeHtmlTable, parseOfficeTsv, isCellBold } from "../../../platf
 import { formatDateTime } from "../../../platform/ui-kit/datetime-format.js";
 import { normalizeDocumentProperties, documentPropertiesMarker, showDocumentPropertiesDialog } from "../../../platform/dialogs/document-properties.js";
 import { showSlidesDocumentInspectorDialog } from "../../../apps/slides/document-inspector-dialog.js";
+import { effectiveCellFills } from "../../../apps/slides/slide-table-ops.js";
 
 export function stripClipboardFragmentMarkers(html) {
   return String(html || "").replace(/<!--\s*(?:Start|End)Fragment\s*-->/gi, "");
@@ -324,6 +325,16 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.animation.add", () => this.canvas.showAnimationDialog ? this.canvas.showAnimationDialog() : false);
     globalCommandBus.bindHandler("slides.animation.addEffect", (arg) => this._hintIfFalse(() => this.canvas.addObjectAnimation({ type: String(arg || "") }), "Hãy chọn một đối tượng (hình, ảnh, khung chữ) trước, rồi chọn hiệu ứng cần thêm."));
     globalCommandBus.bindHandler("slides.animation.trigger", () => this._hintIfFalse(() => this.canvas.openAnimationTriggerDialog(), "Hãy chọn một đối tượng đã có hiệu ứng (hoặc một dòng trong Ngăn hoạt hình), rồi chọn Kích hoạt."));
+    globalCommandBus.bindHandler("slides.table.style", () => false);
+    globalCommandBus.bindHandler("slides.table.shading", () => false);
+    globalCommandBus.bindHandler("slides.table.setStyle", (arg) => this._hintIfFalse(() => this.canvas.setTableStyle(String(arg || "")), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước khi chọn kiểu."));
+    globalCommandBus.bindHandler("slides.table.shadingColor", (arg) => this._hintIfFalse(() => this.canvas.setTableShading(arg), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước khi tô màu."));
+    globalCommandBus.bindHandler("slides.table.optHeaderRow", () => this._hintIfFalse(() => this.canvas.toggleTableOption("headerRow"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
+    globalCommandBus.bindHandler("slides.table.optTotalRow", () => this._hintIfFalse(() => this.canvas.toggleTableOption("totalRow"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
+    globalCommandBus.bindHandler("slides.table.optBandedRows", () => this._hintIfFalse(() => this.canvas.toggleTableOption("bandedRows"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
+    globalCommandBus.bindHandler("slides.table.optFirstCol", () => this._hintIfFalse(() => this.canvas.toggleTableOption("firstCol"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
+    globalCommandBus.bindHandler("slides.table.optLastCol", () => this._hintIfFalse(() => this.canvas.toggleTableOption("lastCol"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
+    globalCommandBus.bindHandler("slides.table.optBandedCols", () => this._hintIfFalse(() => this.canvas.toggleTableOption("bandedCols"), "Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng trước."));
     globalCommandBus.bindHandler("slides.animation.painter", () => this._hintIfFalse(() => this.canvas.animationPainter(), "Hãy chọn một đối tượng đã có hiệu ứng để lấy, rồi chọn đối tượng đích và nhấn lại Sao chép hoạt ảnh."));
     // Thư viện hình dựng sẵn và Đổi hình dạng (apps/slides/shape-presets.js).
     globalCommandBus.bindHandler("slides.shape.galleryInsert", () => this.canvas.insertShape ? this.canvas.insertShape("rect") : false);
@@ -3052,8 +3063,8 @@ export class SlidesAdapter {
     const tableCellFills = new Set();
     for (const slide of slides) {
       for (const shape of slide.shapes || []) {
-        if (shape.type === "table" && Array.isArray(shape.cellFills)) {
-          for (const row of shape.cellFills) {
+        if (shape.type === "table") {
+          for (const row of this._tableExportFills(shape)) {
             if (Array.isArray(row)) {
               for (const fill of row) {
                 if (fill && fill !== "transparent" && fill !== "none") {
@@ -3180,6 +3191,7 @@ export class SlidesAdapter {
       const rows = Array.isArray(shape.cells) ? shape.cells : [];
       const cols = Math.max(1, Number(shape.cols) || rows.reduce((max, row) => Math.max(max, (row || []).length), 1));
       const tableSpans = Array.isArray(shape.merges) ? shape.merges : [];
+      const effectiveFills = this._tableExportFills(shape);
       const spanAt = (r, c) => tableSpans.find(m => r >= m.r && r < m.r + m.rs && c >= m.c && c < m.c + m.cs);
       const rowsXml = rows.map((row, rowIndex) => {
         const cells = Array.from({ length: cols }, (_, index) => row?.[index] ?? "");
@@ -3189,7 +3201,7 @@ export class SlidesAdapter {
           const html = this._htmlHasFormat(cell) ? cell : "";
           const plain = html ? this._plainFromHtml(cell) : cell;
           const spanAttr = merged ? ` table:number-columns-spanned="${merged.cs}" table:number-rows-spanned="${merged.rs}"` : "";
-          const fill = shape.cellFills?.[rowIndex]?.[colIndex];
+          const fill = effectiveFills[rowIndex]?.[colIndex];
           const hexFill = fill && fill !== "transparent" && fill !== "none" ? (this._cssColorToHex(fill) || fill) : null;
           const styleAttr = hexFill ? ` table:style-name="ce_fill_${this._styleKey(hexFill)}"` : "";
           return `<table:table-cell office:value-type="string"${spanAttr}${styleAttr}>${this._richOrPlainXml(plain, html, richCtx)}</table:table-cell>`;
@@ -3518,6 +3530,11 @@ export class SlidesAdapter {
       }
     }
     return styles;
+  }
+
+  /** Màu nền từng ô khi lưu: ô không tô được ghi trắng (đúng như trình soạn thảo vẽ) — nếu để trống, LibreOffice tô màu xanh mặc định 729FCF trong PPTX. */
+  _tableExportFills(shape) {
+    return effectiveCellFills(shape).map(row => row.map(fill => fill || "#FFFFFF"));
   }
 
   _parseTableCellStyles(xmlText) {
@@ -3922,7 +3939,9 @@ export class SlidesAdapter {
         const cellHtml = isCovered ? "" : this._htmlFromOdfXml(cellMatch[2] || "", this._richMaps);
         const cellText = this._htmlHasFormat(cellHtml) ? cellHtml : (text || fallback);
         const cellStyleName = this._attr(cellMatch[1], "table:style-name") || rowDefaultStyle;
-        const fill = (!isCovered && cellStylesMap && cellStyleName) ? (cellStylesMap.get(cellStyleName) || null) : null;
+        const rawFill = (!isCovered && cellStylesMap && cellStyleName) ? (cellStylesMap.get(cellStyleName) || null) : null;
+        // Trắng = ô không tô (lúc lưu, ô không tô được ghi trắng): không coi là màu tô tay để kiểu bảng còn áp dụng được.
+        const fill = rawFill && /^#?f{6}$/i.test(String(rawFill).trim()) ? null : rawFill;
         if (fill) hasAnyFill = true;
         for (let index = 0; index < colRepeat; index++) {
           cells.push(cellText);

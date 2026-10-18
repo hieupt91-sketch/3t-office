@@ -16,15 +16,15 @@ Chuẩn: Microsoft PowerPoint 2016 (16.0.4266) cài trên máy, đọc chỉ-đ�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu PowerPoint 2016 | 111 | 42% |
-| 🟢 Có, chưa đối chiếu | 61 | 23% |
+| ✅ Đã đối chiếu PowerPoint 2016 | 112 | 43% |
+| 🟢 Có, chưa đối chiếu | 67 | 25% |
 | 🟡 Có một phần | 21 | 8% |
-| 🔴 Chưa có | 70 | 27% |
+| 🔴 Chưa có | 63 | 24% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **269** (áp dụng: 263) | |
 
-- **Độ phủ so với PowerPoint 2016 (có hoặc có một phần, một phần tính 0,5): 69%**
-- **Đã xác minh bằng đối chiếu PowerPoint 2016 thật: 42%** các mục áp dụng
+- **Độ phủ so với PowerPoint 2016 (có hoặc có một phần, một phần tính 0,5): 72%**
+- **Đã xác minh bằng đối chiếu PowerPoint 2016 thật: 43%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tính một mục; đo kiểu ghi-rồi-đọc-lại trên PowerPoint COM chỉ xác nhận ngữ nghĩa thuộc tính của PowerPoint, KHÔNG tự nhận là parity hoàn chỉnh nếu chưa có kiểm chứng khứ hồi.
 
@@ -43,7 +43,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 | Chế độ xem | 25 | 7 | 10 | 2 | 6 | 0 | 72% |
 | Công cụ vẽ > Định dạng | 17 | 4 | 6 | 2 | 5 | 0 | 65% |
 | Công cụ hình ảnh > Định dạng | 12 | 1 | 0 | 4 | 7 | 0 | 25% |
-| Công cụ bảng > Thiết kế | 8 | 0 | 0 | 0 | 8 | 0 | 0% |
+| Công cụ bảng > Thiết kế | 8 | 1 | 6 | 0 | 1 | 0 | 88% |
 | Công cụ bảng > Bố trí | 8 | 5 | 0 | 0 | 3 | 0 | 62% |
 | Công cụ biểu đồ > Thiết kế | 8 | 0 | 0 | 2 | 6 | 0 | 12% |
 | Công cụ phương tiện > Phát lại | 5 | 0 | 0 | 2 | 3 | 0 | 20% |
@@ -107,9 +107,9 @@ Tổng: 5 mục ưu tiên 1.
 | Tệp | Xuất và chuyển đổi định dạng (giữ bố cục) | 🟢 | - | common.file.exportConvert; chuyển đổi giữ nguyên bố cục |
 | Tệp | In (Ctrl+P) & Xem trước khi in (Ctrl+F2) | ✅ | - | slides.file.printPreview xem trước bản in (docs/SLIDES-BUTTON-MATRIX-1011.md:89) |
 | Tệp | Đóng (Ctrl+W) | 🟢 | - | common.file.close; đóng bản trình bày hiện tại |
-| Thông tin | Bảo vệ bản trình bày: Đánh dấu là cuối cùng (Mark as Final / Read-only) | ✅ | - | Backstage > Thông tin > Đánh dấu là cuối cùng ghi contentStatus=Final; PowerPoint COM đọc lại Content status = Final (adapters/libreoffice/slides/slides-adapter.js:177, scripts/audit-0610/ppt_docprops_readback.ps1:2) |
+| Thông tin | Bảo vệ bản trình bày: Đánh dấu là cuối cùng (Mark as Final / Read-only) | ✅ | - | Backstage > Thông tin > Đánh dấu là cuối cùng ghi contentStatus=Final; PowerPoint COM đọc lại Content status = Final (adapters/libreoffice/slides/slides-adapter.js:178, scripts/audit-0610/ppt_docprops_readback.ps1:2) |
 | Thông tin | Bảo vệ bản trình bày: Mật khẩu mở file (mã hóa PPTX) | 🔴 | 1 | Chưa có cơ chế mã hóa mật khẩu mở file PPTX |
-| Thông tin | Kiểm tra bản trình bày (Inspect Document - loại bỏ metadata ẩn) | 🟢 | - | Backstage > Thông tin > Kiểm tra bản trình bày: 5 nhóm (thuộc tính, nhận xét, ghi chú, slide ẩn, ngoài vùng slide), xóa từng nhóm (adapters/libreoffice/slides/slides-adapter.js:242 openDocumentInspectorDialog; apps/slides/document-inspector-dialog.js:1; tests/live/cdp/slides-file-info.desktop.mjs:1); chưa đối chiếu Inspect Document của PowerPoint |
+| Thông tin | Kiểm tra bản trình bày (Inspect Document - loại bỏ metadata ẩn) | 🟢 | - | Backstage > Thông tin > Kiểm tra bản trình bày: 5 nhóm (thuộc tính, nhận xét, ghi chú, slide ẩn, ngoài vùng slide), xóa từng nhóm (adapters/libreoffice/slides/slides-adapter.js:243 openDocumentInspectorDialog; apps/slides/document-inspector-dialog.js:1; tests/live/cdp/slides-file-info.desktop.mjs:1); chưa đối chiếu Inspect Document của PowerPoint |
 | Thông tin | Quản lý bản trình bày: Tự động khôi phục (AutoRecover) | 🟢 | - | Tự động khôi phục bản trình bày (platform/help/entries-autorecover.js:28-34) |
 | Thông tin | Thuộc tính bản trình bày (Title, Author, Subject, Tags...) | ✅ | - | Backstage > Thông tin > Thuộc tính (Title/Author/Subject/Keywords/Comments) lưu docProps/core.xml; PowerPoint COM BuiltInDocumentProperties khớp (adapters/libreoffice/slides/slides-adapter.js:169, scripts/audit-0610/ppt_docprops_readback.ps1:2) |
 | Tùy chọn | Tùy chọn PowerPoint (Hộp thoại Options) | 🔴 | 2 | Chưa có hộp thoại Tùy chọn (Options) riêng cho VN Slides |
@@ -147,7 +147,7 @@ Tổng: 5 mục ưu tiên 1.
 | Phông chữ | Đổi chữ hoa/thường (Change Case, Shift+F3) | 🟢 | - | slides.text.changeCase (5 kiểu + Shift+F3 xoay vòng); test CDP tests/live/cdp/slides-change-case.desktop.mjs 9/9; logic dùng chung platform/text/change-case.js; chưa đối chiếu PowerPoint COM |
 | Phông chữ | Màu chữ (Font Color) | ✅ | - | FIX-L7/FIX-L5: slides.color.text đối chiếu RGB=255 (docs/SLIDES-BUTTON-MATRIX-1011.md:34) |
 | Phông chữ | Màu nền chữ (Highlight Color) | ✅ | - | FIX-L8: slides.color.highlight đối chiếu Highlight.RGB=52735 (docs/SLIDES-BUTTON-MATRIX-1011.md:35) |
-| Phông chữ | Hộp thoại Phông chữ (Font Dialog) | ✅ | - | slides.font.dialog (Ctrl+T): phông, cỡ, màu, gạch chân đôi, chỉ số trên, giãn ký tự; PowerPoint COM đọc lại Georgia 28 pt đậm đỏ gạch chân baseline 0.33 (platform/commands/command-definitions.js:740, scripts/audit-0610/ppt_font_runs_readback.ps1:2) |
+| Phông chữ | Hộp thoại Phông chữ (Font Dialog) | ✅ | - | slides.font.dialog (Ctrl+T): phông, cỡ, màu, gạch chân đôi, chỉ số trên, giãn ký tự; PowerPoint COM đọc lại Georgia 28 pt đậm đỏ gạch chân baseline 0.33 (platform/commands/command-definitions.js:752, scripts/audit-0610/ppt_font_runs_readback.ps1:2) |
 | Đoạn văn | Dấu đầu dòng (Bullets) | ✅ | - | FIX-L7: slides.list.bullet bật Bullet.Visible=-1, Type=1 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:36) |
 | Đoạn văn | Đánh số thứ tự (Numbering) | ✅ | - | FIX-L7: slides.list.numbered bật đánh số Type=2 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:37) |
 | Đoạn văn | Giảm thụt lề (Decrease Indent) | ✅ | - | FIX-L8: slides.para.indentDec giảm thụt lề về 0 pt đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:38) |
@@ -382,13 +382,13 @@ Tổng: 5 mục ưu tiên 1.
 
 | Nhóm | Tính năng PowerPoint 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Slides |
 |---|---|---|---|---|
-| Tùy chọn kiểu | Hàng tiêu đề (Header Row) | 🔴 | 2 | Chưa hỗ trợ tùy chọn hàng tiêu đề bảng |
-| Tùy chọn kiểu | Hàng tổng cộng (Total Row) | 🔴 | 2 | Chưa hỗ trợ tùy chọn hàng tổng cộng bảng |
-| Tùy chọn kiểu | Hàng sọc xen kẽ (Banded Rows) | 🔴 | 2 | Chưa hỗ trợ tô màu xen kẽ hàng bảng |
-| Tùy chọn kiểu | Cột đầu tiên / Cột cuối cùng (First/Last Column) | 🔴 | 2 | Chưa hỗ trợ nổi bật cột đầu/cuối bảng |
-| Tùy chọn kiểu | Cột sọc xen kẽ (Banded Columns) | 🔴 | 2 | Chưa hỗ trợ tô màu xen kẽ cột bảng |
-| Kiểu bảng | Thư viện kiểu dáng bảng (Table Styles Gallery) | 🔴 | 2 | Chưa có thư viện kiểu dáng bảng mẫu (Table Styles Gallery) |
-| Kiểu bảng | Tô màu nền ô (Table Shading) | 🔴 | 2 | Chưa có công cụ tô màu nền ô bảng (Table Shading) trên ribbon |
+| Tùy chọn kiểu | Hàng tiêu đề (Header Row) | 🟢 | - | slides.table.optHeaderRow bật tắt hàng tiêu đề: chữ đậm và tô màu theo kiểu; màu được lưu thành màu nền ô, chưa ghi cờ firstRow của PowerPoint (tests/live/cdp/slides-table-design.desktop.mjs) |
+| Tùy chọn kiểu | Hàng tổng cộng (Total Row) | 🟢 | - | slides.table.optTotalRow làm hàng cuối nổi bật; lưu thành màu nền ô (tests/live/cdp/slides-table-design.desktop.mjs) |
+| Tùy chọn kiểu | Hàng sọc xen kẽ (Banded Rows) | 🟢 | - | slides.table.optBandedRows tô xen kẽ hàng; lưu thành màu nền ô, PowerPoint COM đọc đúng màu từng ô (tests/live/cdp/slides-table-design.desktop.mjs) |
+| Tùy chọn kiểu | Cột đầu tiên / Cột cuối cùng (First/Last Column) | 🟢 | - | slides.table.optFirstCol và slides.table.optLastCol tô màu cột đầu hoặc cuối; lưu thành màu nền ô (tests/live/cdp/slides-table-design.desktop.mjs) |
+| Tùy chọn kiểu | Cột sọc xen kẽ (Banded Columns) | 🟢 | - | slides.table.optBandedCols tô xen kẽ cột; lưu thành màu nền ô (tests/live/cdp/slides-table-design.desktop.mjs) |
+| Kiểu bảng | Thư viện kiểu dáng bảng (Table Styles Gallery) | 🟢 | - | slides.table.style có 6 bảng màu nhạt cộng Không kiểu; màu lưu thành màu nền ô, chưa ghi tableStyleId của PowerPoint nên mở lại trong PowerPoint không đổi kiểu theo (tests/live/cdp/slides-table-design.desktop.mjs) |
+| Kiểu bảng | Tô màu nền ô (Table Shading) | ✅ | - | slides.table.shading tô ô, vùng ô hoặc cả bảng; lưu PPTX rồi PowerPoint 2016 COM đọc đúng màu nền từng ô FFFF00 và BDD7EE, ô không tô là FFFFFF (tests/live/cdp/slides-table-design.desktop.mjs; apps/slides/slides-canvas.js:3594 setTableShading, platform/commands/command-definitions.js:625) |
 | Kiểu bảng | Đường viền bảng (Table Borders: Tất cả, Viền ngoài, Không viền) | 🔴 | 2 | Chưa có công cụ định dạng viền bảng (Table Borders) trên ribbon |
 
 ### Công cụ bảng > Bố trí
@@ -435,7 +435,7 @@ Tổng: 5 mục ưu tiên 1.
 | Bàn phím | Phím tắt định dạng chữ (Ctrl+B/I/U, Ctrl+Shift+>/<, Ctrl+Space) | ✅ | - | FIX-L4: Ctrl+B/I/U và thang tăng giảm cỡ chữ đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:27-31) |
 | Bàn phím | Phím tắt trình chiếu (F5 Từ đầu, Shift+F5 Từ trang hiện tại, Esc Thoát) | 🟢 | - | slides.show.startFromBegin, startFromCurrent; phím tắt điều khiển trình diễn |
 | Bàn phím | Phím tắt chỉnh sửa slide (Ctrl+M Thêm, Ctrl+D Nhân đôi, Delete Xóa) | ✅ | - | FIX-L8: slides.slide.new, duplicate, delete đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:20,22,23) |
-| Chuột | Kéo thả thay đổi thứ tự trang trong danh sách thumbnail | 🟢 | - | Kéo thả trực tiếp slide thumbnail để sắp xếp thứ tự (apps/slides/slides-canvas.js:7010, apps/slides/slides-canvas.js:7087) |
+| Chuột | Kéo thả thay đổi thứ tự trang trong danh sách thumbnail | 🟢 | - | Kéo thả trực tiếp slide thumbnail để sắp xếp thứ tự (apps/slides/slides-canvas.js:7079, apps/slides/slides-canvas.js:7156) |
 | Chuột | Kéo các góc/chốt đối tượng để đổi kích thước và xoay | 🟢 | - | Chốt điều khiển 8 hướng và xoay đối tượng (apps/slides/slides-canvas.js:190-200) |
 | Chuột | Menu ngữ cảnh chuột phải trên slide, hình vẽ, ảnh, bảng | 🟢 | - | Menu chuột phải trên slide và hình vẽ (apps/slides/slides-canvas.js:7131-7150) |
 | Tính tương thích | Mở và Lưu PPTX giữ nguyên bố cục đối tượng | ✅ | - | Lưu PPTX và mở lại đối chiếu PowerPoint COM không mất đối tượng (docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:9-10) |

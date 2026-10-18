@@ -19,7 +19,62 @@ export function tableState(shape) {
   const merges = (shape?.merges || [])
     .map(m => ({ r: m.r | 0, c: m.c | 0, rs: Math.max(1, m.rs | 0), cs: Math.max(1, m.cs | 0) }))
     .filter(m => (m.rs > 1 || m.cs > 1) && m.r >= 0 && m.c >= 0 && m.r + m.rs <= rows && m.c + m.cs <= cols);
-  return { rows, cols, cells, merges, w: Number(shape?.w) || 0, h: Number(shape?.h) || 0 };
+  const cellFills = Array.from({ length: rows }, (_, r) => Array.from({ length: cols }, (_, c) => shape?.cellFills?.[r]?.[c] || null));
+  return { rows, cols, cells, merges, cellFills, w: Number(shape?.w) || 0, h: Number(shape?.h) || 0 };
+}
+
+// ---------------- Kiểu bảng và tô màu ô ----------------
+/** Bảng màu kiểu bảng: tiêu đề/hàng tổng/cột nhấn dùng `head`, hàng/cột sọc xen kẽ dùng `band`. Màu nhạt để chữ đen luôn đọc được. */
+export const TABLE_STYLES = [
+  { id: "plain", label: "Không kiểu", head: null, band: null },
+  { id: "blue", label: "Xanh dương", head: "#BDD7EE", band: "#DEEAF6" },
+  { id: "green", label: "Xanh lá", head: "#C6E0B4", band: "#E2EFDA" },
+  { id: "orange", label: "Cam", head: "#F8CBAD", band: "#FBE5D6" },
+  { id: "gold", label: "Vàng", head: "#FFE699", band: "#FFF2CC" },
+  { id: "purple", label: "Tím", head: "#D9C3E8", band: "#ECE1F3" },
+  { id: "gray", label: "Xám", head: "#D9D9D9", band: "#EDEDED" }
+];
+
+export const DEFAULT_TABLE_OPTIONS = Object.freeze({ headerRow: true, totalRow: false, bandedRows: true, firstCol: false, lastCol: false, bandedCols: false });
+
+export function tableOptions(shape) {
+  return { ...DEFAULT_TABLE_OPTIONS, ...(shape?.tableOptions || {}) };
+}
+
+/** Màu nền hiệu lực của ô: màu tô tay > nền kiểu bảng (tiêu đề, hàng tổng, cột đầu/cuối > hàng/cột sọc); null = không tô. */
+export function effectiveCellFill(shape, r, c) {
+  const manual = shape?.cellFills?.[r]?.[c];
+  if (manual) return manual;
+  const style = TABLE_STYLES.find(item => item.id === shape?.tableStyle);
+  if (!style || !style.head) return null;
+  const rows = Math.max(1, Number(shape?.rows) || (shape?.cells || []).length || 1);
+  const cols = Math.max(1, Number(shape?.cols) || (shape?.cells?.[0] || []).length || 1);
+  const o = tableOptions(shape);
+  if (o.headerRow && r === 0) return style.head;
+  if (o.totalRow && r === rows - 1) return style.head;
+  if (o.firstCol && c === 0) return style.head;
+  if (o.lastCol && c === cols - 1) return style.head;
+  const bodyRow = r - (o.headerRow ? 1 : 0);
+  if (o.bandedRows && bodyRow >= 0 && bodyRow % 2 === 0) return style.band;
+  const bodyCol = c - (o.firstCol ? 1 : 0);
+  if (o.bandedCols && bodyCol >= 0 && bodyCol % 2 === 0) return style.band;
+  return null;
+}
+
+/** Bảng 2 chiều màu hiệu lực (dùng khi lưu). */
+export function effectiveCellFills(shape) {
+  const s = tableState(shape);
+  return Array.from({ length: s.rows }, (_, r) => Array.from({ length: s.cols }, (_, c) => effectiveCellFill(shape, r, c)));
+}
+
+/** Bản sao `cellFills` với hình chữ nhật ô (r..r2, c..c2) được tô `color` (null = bỏ tô tay). */
+export function fillCells(shape, box, color) {
+  const s = tableState(shape);
+  const fills = s.cellFills.map(row => row.slice());
+  for (let r = Math.max(0, box.r); r <= Math.min(s.rows - 1, box.r2); r++) {
+    for (let c = Math.max(0, box.c); c <= Math.min(s.cols - 1, box.c2); c++) fills[r][c] = color || null;
+  }
+  return fills;
 }
 
 /** Bản đồ hiển thị: với mỗi ô cho biết là ô neo (kèm rowSpan/colSpan) hay bị phủ. */
@@ -55,12 +110,14 @@ export function insertRow(shape, index) {
   if (s.rows >= TABLE_MAX_ROWS || index < 0 || index > s.rows) return null;
   const cells = clone(s.cells);
   cells.splice(index, 0, Array.from({ length: s.cols }, () => ""));
+  const cellFills = clone(s.cellFills);
+  cellFills.splice(index, 0, Array.from({ length: s.cols }, () => null));
   const merges = s.merges.map(m => {
     if (m.r >= index) return { ...m, r: m.r + 1 };
     if (m.r < index && index < m.r + m.rs) return { ...m, rs: m.rs + 1 }; // chèn vào giữa vùng gộp: vùng gộp dài thêm
     return { ...m };
   });
-  return { rows: s.rows + 1, cols: s.cols, cells, merges, ...scaled(s, s.rows + 1, s.cols) };
+  return { rows: s.rows + 1, cols: s.cols, cells, merges, cellFills, ...scaled(s, s.rows + 1, s.cols) };
 }
 
 /** Chèn một cột trống TRƯỚC cột `index` (0..cols). */
@@ -68,12 +125,13 @@ export function insertCol(shape, index) {
   const s = tableState(shape);
   if (s.cols >= TABLE_MAX_COLS || index < 0 || index > s.cols) return null;
   const cells = clone(s.cells).map(row => { row.splice(index, 0, ""); return row; });
+  const cellFills = clone(s.cellFills).map(row => { row.splice(index, 0, null); return row; });
   const merges = s.merges.map(m => {
     if (m.c >= index) return { ...m, c: m.c + 1 };
     if (m.c < index && index < m.c + m.cs) return { ...m, cs: m.cs + 1 };
     return { ...m };
   });
-  return { rows: s.rows, cols: s.cols + 1, cells, merges, ...scaled(s, s.rows, s.cols + 1) };
+  return { rows: s.rows, cols: s.cols + 1, cells, merges, cellFills, ...scaled(s, s.rows, s.cols + 1) };
 }
 
 /** Xóa hàng `r`. Không xóa hàng duy nhất (trả null: người dùng dùng "Xóa bảng"). */
@@ -88,6 +146,8 @@ export function deleteRow(shape, r) {
     }
   }
   cells.splice(r, 1);
+  const cellFills = clone(s.cellFills);
+  cellFills.splice(r, 1);
   const merges = [];
   for (const m of s.merges) {
     let { rs } = m; let row = m.r;
@@ -96,7 +156,7 @@ export function deleteRow(shape, r) {
     if (rs === 1 && m.cs === 1) continue;
     merges.push({ ...m, r: row, rs });
   }
-  return { rows: s.rows - 1, cols: s.cols, cells, merges, ...scaled(s, s.rows - 1, s.cols) };
+  return { rows: s.rows - 1, cols: s.cols, cells, merges, cellFills, ...scaled(s, s.rows - 1, s.cols) };
 }
 
 /** Xóa cột `c`. Không xóa cột duy nhất. */
@@ -108,6 +168,7 @@ export function deleteCol(shape, c) {
     if (m.c === c && m.cs > 1 && cells[m.r][c] !== "" && cells[m.r][c + 1] === "") cells[m.r][c + 1] = cells[m.r][c];
   }
   cells.forEach(row => row.splice(c, 1));
+  const cellFills = clone(s.cellFills).map(row => { row.splice(c, 1); return row; });
   const merges = [];
   for (const m of s.merges) {
     let { cs } = m; let col = m.c;
@@ -116,7 +177,7 @@ export function deleteCol(shape, c) {
     if (cs === 1 && m.rs === 1) continue;
     merges.push({ ...m, c: col, cs });
   }
-  return { rows: s.rows, cols: s.cols - 1, cells, merges, ...scaled(s, s.rows, s.cols - 1) };
+  return { rows: s.rows, cols: s.cols - 1, cells, merges, cellFills, ...scaled(s, s.rows, s.cols - 1) };
 }
 
 function rectOf(r1, c1, r2, c2) {
@@ -161,7 +222,7 @@ export function mergeCells(shape, r1, c1, r2, c2) {
   cells[box.r][box.c] = parts.join("\n");
   const merges = s.merges.filter(m => !(m.r >= box.r && m.r + m.rs - 1 <= box.r2 && m.c >= box.c && m.c + m.cs - 1 <= box.c2));
   merges.push({ r: box.r, c: box.c, rs: box.r2 - box.r + 1, cs: box.c2 - box.c + 1 });
-  return { rows: s.rows, cols: s.cols, cells, merges, w: s.w, h: s.h };
+  return { rows: s.rows, cols: s.cols, cells, merges, cellFills: clone(s.cellFills), w: s.w, h: s.h };
 }
 
 /** Tách ô (r, c) đang thuộc vùng gộp: bỏ vùng gộp, nội dung ở lại ô neo. */
@@ -169,5 +230,5 @@ export function splitCell(shape, r, c) {
   const s = tableState(shape);
   const hit = s.merges.find(m => r >= m.r && r < m.r + m.rs && c >= m.c && c < m.c + m.cs);
   if (!hit) return null;
-  return { rows: s.rows, cols: s.cols, cells: clone(s.cells), merges: s.merges.filter(m => m !== hit), w: s.w, h: s.h };
+  return { rows: s.rows, cols: s.cols, cells: clone(s.cells), merges: s.merges.filter(m => m !== hit), cellFills: clone(s.cellFills), w: s.w, h: s.h };
 }

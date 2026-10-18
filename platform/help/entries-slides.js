@@ -306,6 +306,34 @@ export const SLIDES_HELP_ENTRIES = [
       "Nhấn Esc hoặc dấu × để đóng ngăn. Mở ngăn hoạt hình sẽ tự đóng ngăn chọn và ngược lại."
     ]
   },  {
+    id: "slides.table.styleOptions",
+    app: "slides",
+    commandIds: ["slides.table.optHeaderRow", "slides.table.optTotalRow", "slides.table.optBandedRows", "slides.table.optFirstCol", "slides.table.optLastCol", "slides.table.optBandedCols"],
+    title: "Thiết kế bảng: tùy chọn kiểu bảng (hàng tiêu đề, hàng sọc, cột đầu/cuối)",
+    summary: "Khi chọn một bảng, tab Thiết kế bảng xuất hiện. Nhóm Tùy chọn kiểu bảng có sáu ô bật/tắt: Hàng tiêu đề, Hàng tổng cộng, Hàng sọc, Cột đầu tiên, Cột cuối cùng và Cột sọc. Màu lấy theo kiểu bảng đang chọn.",
+    ribbon: { tab: "Thiết kế bảng", tabId: "tableDesign", group: "Tùy chọn kiểu bảng" },
+    keywords: ["hàng tiêu đề", "hàng sọc", "cột sọc", "hàng tổng cộng", "cột đầu tiên", "header row", "banded rows", "tùy chọn kiểu bảng"],
+    steps: [
+      "Nhấp vào một ô của bảng (hoặc chọn cả bảng). Tab Thiết kế bảng hiện bên phải ribbon, cạnh tab Bố cục bảng.",
+      "Nhóm Tùy chọn kiểu bảng: tích Hàng tiêu đề để hàng đầu in đậm và tô màu tiêu đề; Hàng tổng cộng làm hàng cuối nổi bật; Cột đầu tiên và Cột cuối cùng làm cột đó in đậm và tô màu; Hàng sọc và Cột sọc tô xen kẽ màu nhạt.",
+      "Cần chọn một kiểu ở nhóm Kiểu bảng (bài «Thiết kế bảng: kiểu bảng và tô màu nền») thì màu mới hiện ra; chọn Không kiểu để về bảng trắng. Ctrl+Z hoàn tác từng lần bật tắt. Màu được lưu vào tệp PPTX nên mở lại vẫn thấy đủ."
+    ]
+  },
+  {
+    id: "slides.table.styleAndShading",
+    app: "slides",
+    commandIds: ["slides.table.setStyle", "slides.table.shadingColor"],
+    title: "Thiết kế bảng: kiểu bảng và tô màu nền",
+    summary: "Chọn một trong sáu bảng màu (xanh dương, xanh lá, cam, vàng, tím, xám) cho cả bảng, hoặc tô màu nền riêng cho ô, vùng ô đang chọn hay cả bảng.",
+    ribbon: { tab: "Thiết kế bảng", tabId: "tableDesign", group: "Kiểu bảng" },
+    keywords: ["kiểu bảng", "table styles", "tô màu nền ô", "shading", "màu bảng", "đổi màu bảng"],
+    steps: [
+      "Chọn bảng, vào tab Thiết kế bảng > nhóm Kiểu bảng > Kiểu bảng, rồi chọn một bảng màu. Màu tiêu đề và hàng sọc đổi ngay; kết hợp với các ô trong nhóm Tùy chọn kiểu bảng.",
+      "Tô màu nền: đặt con trỏ vào một ô để tô ô đó; nhấp ô đầu, giữ Shift và nhấp ô cuối để tô cả vùng; không chọn ô nào thì tô cả bảng. Mở Tô màu nền và chọn màu, hoặc Không tô màu để bỏ màu tô tay.",
+      "Màu tô tay luôn thắng màu của kiểu bảng. Chèn hoặc xóa hàng, cột thì màu tô tay đi theo ô. Ctrl+Z hoàn tác. Lưu PPTX rồi mở lại vẫn giữ màu."
+    ]
+  },
+  {
     id: "slides.picture.crop",
     app: "slides",
     commandIds: ["slides.picture.crop", "slides.picture.cropRatio", "slides.picture.cropDialog", "slides.picture.cropDrag"],

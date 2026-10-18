@@ -479,8 +479,8 @@ export const enStrings = {
   slidesRibbon: {
     animationOptions: "Effect Options",
     pasteSpecial: "Paste Special", action: "Action",
-    tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant", tableLayout: "Table Layout", shapeFormat: "Shape Format", pictureFormat: "Picture Format" },
-    group: { pictureSize: "Size", pictureArrange: "Arrange", designVariants: "Variants", animPreview: "Preview", animEffects: "Animation", animTiming: "Timing", transitionGallery: "Transition to This Slide", transitionTiming: "Timing", shapeStyles: "Shape Styles", shapeArrange: "Arrange", shapeSize: "Size", tableRowsCols: "Rows & Columns", tableMerge: "Merge", slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
+    tab: { home: "Home", insert: "Insert", design: "Design", transitions: "Transitions", animations: "Animations", slideshow: "Slide Show", review: "Review", view: "View", help: "Help", ai: "3T AI Assistant", tableLayout: "Table Layout", tableDesign: "Table Design", shapeFormat: "Shape Format", pictureFormat: "Picture Format" },
+    group: { pictureSize: "Size", pictureArrange: "Arrange", designVariants: "Variants", animPreview: "Preview", animEffects: "Animation", animTiming: "Timing", transitionGallery: "Transition to This Slide", transitionTiming: "Timing", shapeStyles: "Shape Styles", shapeArrange: "Arrange", shapeSize: "Size", tableStyleOptions: "Table Style Options", tableStyles: "Table Styles", tableRowsCols: "Rows & Columns", tableMerge: "Merge", slides: "Slides", clipboard: "Clipboard", font: "Font", paragraph: "Paragraph", drawing: "Drawing", editing: "Editing", imagesObjects: "Images & Objects", images: "Images", illustrations: "Illustrations", tables: "Tables", text: "Text", symbols: "Symbols", media: "Media", themes: "Themes", master: "Slide Master", customize: "Customize", transitions: "Transition to This Slide", animations: "Animation", startSlideshow: "Start Slide Show", presenter: "Presenter Tools", setup: "Set Up", comments: "Comments", proofing: "Proofing", presentationViews: "Presentation Views", show: "Show", zoom: "Zoom", window: "Window", macro: "Macros", help: "Help", aiContent: "AI Presentation Content" },
     editing: { select: "Select" },
     drawing: { arrange: "Arrange" },
     section: "Section"
@@ -1102,6 +1102,16 @@ export const enStrings = {
   ,"slides.animation.add": { label: "Add Animation", tooltip: "Add one more effect to the selected object (for example entrance then exit)" }
   ,"slides.animation.addEffect": { label: "Add Effect", tooltip: "Append the chosen effect to the object's animation sequence" }
   ,"slides.animation.trigger": { label: "Trigger", tooltip: "Pick the shape that starts this effect when clicked during the slide show" }
+  ,"slides.table.style": { label: "Table Styles", tooltip: "Choose a color scheme for the table: header and banded row colors" }
+  ,"slides.table.setStyle": { label: "Pick Table Style", tooltip: "Apply the chosen style to the selected table" }
+  ,"slides.table.shading": { label: "Shading", tooltip: "Shade the cell, the selected cells or the whole table" }
+  ,"slides.table.shadingColor": { label: "Cell Shading", tooltip: "Apply the chosen fill color to the cell or selected cells" }
+  ,"slides.table.optHeaderRow": { label: "Header Row", tooltip: "Turn the header row on or off: bold text and style color" }
+  ,"slides.table.optTotalRow": { label: "Total Row", tooltip: "Turn the last row into a total row" }
+  ,"slides.table.optBandedRows": { label: "Banded Rows", tooltip: "Shade alternate rows lightly" }
+  ,"slides.table.optFirstCol": { label: "First Column", tooltip: "Emphasize the first column: bold text and style color" }
+  ,"slides.table.optLastCol": { label: "Last Column", tooltip: "Emphasize the last column: bold text and style color" }
+  ,"slides.table.optBandedCols": { label: "Banded Columns", tooltip: "Shade alternate columns lightly" }
   ,"slides.animation.setType": { label: "Effect Type", tooltip: "Apply an effect type to the selected object" }
   ,"slides.animation.startMenu": { label: "Start", tooltip: "Choose when it starts: on click, with previous or after previous" }
   ,"slides.animation.setStart": { label: "Start Timing", tooltip: "Set when the selected object's effect starts" }

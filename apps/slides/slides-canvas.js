@@ -202,7 +202,7 @@ export function cursorForHandle(dir, rotationDeg) {
 
 import { customSlideSize, pxToCm } from "./slide-size.js";
 import { ANIMATION_EFFECTS, animationEffectsOfClass, animationEffect, animationClassOf, animationKeyframeName, animationInlineCss } from "./slide-animation-classes.js";
-import { tableState, mergeMap, expandSelection, insertRow as tblInsertRow, insertCol as tblInsertCol, deleteRow as tblDeleteRow, deleteCol as tblDeleteCol, mergeCells as tblMergeCells, splitCell as tblSplitCell } from "./slide-table-ops.js";
+import { TABLE_STYLES, tableOptions, effectiveCellFill, fillCells, tableState, mergeMap, expandSelection, insertRow as tblInsertRow, insertCol as tblInsertCol, deleteRow as tblDeleteRow, deleteCol as tblDeleteCol, mergeCells as tblMergeCells, splitCell as tblSplitCell } from "./slide-table-ops.js";
 
 export class SlidesCanvasController {
   constructor(container, options = {}) {
@@ -3532,12 +3532,78 @@ export class SlidesCanvasController {
       const sel = this.selectedTarget;
       has = sel != null && (slide?.shapes || []).some(item => String(item.id) === String(sel) && item.type === "table");
     }
-    const tab = document.querySelector("#vno-ribbon-tab-tableLayout");
-    if (tab) { tab.hidden = !has; tab.setAttribute("aria-hidden", has ? "false" : "true"); }
+    for (const id of ["tableLayout", "tableDesign"]) {
+      const tab = document.querySelector(`#vno-ribbon-tab-${id}`);
+      if (tab) { tab.hidden = !has; tab.setAttribute("aria-hidden", has ? "false" : "true"); }
+    }
+    if (has) this._syncTableOptionStates();
+  }
+
+  /** Cập nhật trạng thái bật/tắt của các ô «Tùy chọn kiểu bảng» theo bảng đang chọn. */
+  _syncTableOptionStates() {
+    const shape = this._activeTableShape();
+    if (!shape) return;
+    const options = tableOptions(shape);
+    const map = { headerRow: "slides.table.optHeaderRow", totalRow: "slides.table.optTotalRow", bandedRows: "slides.table.optBandedRows", firstCol: "slides.table.optFirstCol", lastCol: "slides.table.optLastCol", bandedCols: "slides.table.optBandedCols" };
+    for (const [key, id] of Object.entries(map)) {
+      try { globalCommandBus.updateState(id, { checked: Boolean(options[key]) }); } catch (_) { /* chưa có bus */ }
+    }
+  }
+
+  /** Sửa thuộc tính bảng (kiểu, tùy chọn, màu ô) trong một bước hoàn tác. */
+  _commitTablePatch(shape, patch) {
+    const before = {};
+    const after = {};
+    for (const [key, value] of Object.entries(patch)) {
+      before[key] = shape[key] === undefined ? undefined : JSON.parse(JSON.stringify(shape[key]));
+      after[key] = value === undefined ? undefined : JSON.parse(JSON.stringify(value));
+      if (value === undefined) delete shape[key]; else shape[key] = JSON.parse(JSON.stringify(value));
+    }
+    if (JSON.stringify(before) === JSON.stringify(after)) return true;
+    this.undoStack.push({ type: "shape-format", slideIndex: this.currentSlideIndex, shapeId: shape.id, before, after });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this._renderShapesLayer();
+    this._syncTableOptionStates();
+    this.options?.onDocumentChange?.();
+    return true;
+  }
+
+  /** Thiết kế bảng > Kiểu bảng: chọn bảng màu (tiêu đề và hàng sọc). */
+  setTableStyle(styleId) {
+    const shape = this._activeTableShape();
+    if (!shape) return this._tableNotice("Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng.");
+    if (!TABLE_STYLES.some(item => item.id === styleId)) return this._tableNotice("Kiểu bảng không hợp lệ.");
+    return this._commitTablePatch(shape, { tableStyle: styleId === "plain" ? undefined : styleId, tableOptions: tableOptions(shape) });
+  }
+
+  /** Thiết kế bảng > Tùy chọn kiểu bảng: bật/tắt hàng tiêu đề, hàng tổng, hàng/cột sọc, cột đầu/cuối. */
+  toggleTableOption(name) {
+    const shape = this._activeTableShape();
+    if (!shape) return this._tableNotice("Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng.");
+    const options = tableOptions(shape);
+    if (!(name in options)) return false;
+    const next = { ...options, [name]: !options[name] };
+    const hint = !shape.tableStyle ? "Chọn một kiểu ở nhóm Kiểu bảng để thấy màu tiêu đề và hàng sọc." : "";
+    const done = this._commitTablePatch(shape, { tableOptions: next });
+    if (hint) this.options?.shell?.setStatus?.(hint);
+    return done;
+  }
+
+  /** Thiết kế bảng > Tô màu nền: tô vùng ô đang chọn (hoặc ô đang đặt con trỏ, hoặc cả bảng); color rỗng/none = bỏ tô tay. */
+  setTableShading(color) {
+    const shape = this._activeTableShape();
+    if (!shape) return this._tableNotice("Hãy chọn một bảng hoặc đặt con trỏ vào một ô của bảng.");
+    const state = tableState(shape);
+    const cur = this._tableCursor && String(this._tableCursor.shapeId) === String(shape.id) ? this._tableCursor : null;
+    const sel = this._tableSel && String(this._tableSel.shapeId) === String(shape.id) ? this._tableSel : null;
+    const box = sel ? { r: sel.r, c: sel.c, r2: sel.r2, c2: sel.c2 } : cur ? { r: cur.r, c: cur.c, r2: cur.r, c2: cur.c } : { r: 0, c: 0, r2: state.rows - 1, c2: state.cols - 1 };
+    const value = color && color !== "none" ? String(color) : null;
+    return this._commitTablePatch(shape, { cellFills: fillCells(shape, box, value) });
   }
 
   _commitTableChange(shape, next) {
-    const keys = ["rows", "cols", "cells", "merges", "w", "h"];
+    const keys = ["rows", "cols", "cells", "merges", "cellFills", "w", "h"];
     const before = {};
     const after = {};
     for (const key of keys) {
@@ -5325,7 +5391,10 @@ const startEditing = (initialText) => {
             td.dataset.vnoNativeClipboard = "true";
             if (this._htmlLooksFormatted(cell)) td.innerHTML = cell;
             else td.textContent = cell || "";
-            td.style.cssText = "border:1px solid #94a3b8;padding:6px 8px;font-size:13px;background:#fff;font-weight:" + (r === 0 ? "700" : "400") + ";";
+            const tOptions = tableOptions(shape);
+            const emphasised = (tOptions.headerRow && r === 0) || (tOptions.totalRow && r === tableModel.rows - 1) || (tOptions.firstCol && c === 0) || (tOptions.lastCol && c === tableModel.cols - 1);
+            const cellFill = effectiveCellFill(shape, r, c) || "#fff";
+            td.style.cssText = `border:1px solid #94a3b8;padding:6px 8px;font-size:13px;background:${cellFill};font-weight:${emphasised ? "700" : "400"};`;
             td.addEventListener("mousedown", (event) => {
               event.stopPropagation();
               if (event.shiftKey && this._tableCursor && String(this._tableCursor.shapeId) === String(shape.id)) {

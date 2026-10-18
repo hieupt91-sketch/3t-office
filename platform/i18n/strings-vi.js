@@ -478,8 +478,8 @@ export const viStrings = {
   slidesRibbon: {
     animationOptions: "Tùy chọn hiệu ứng",
     pasteSpecial: "Dán đặc biệt", action: "Tác vụ",
-    tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI", tableLayout: "Bố cục bảng", shapeFormat: "Định dạng hình", pictureFormat: "Định dạng ảnh" },
-    group: { pictureSize: "Kích thước", pictureArrange: "Sắp xếp", designVariants: "Biến thể", animPreview: "Xem trước", animEffects: "Hoạt hình", animTiming: "Thời gian", transitionGallery: "Chuyển đến trang này", transitionTiming: "Thời gian", shapeStyles: "Kiểu hình", shapeArrange: "Sắp xếp", shapeSize: "Kích thước", tableRowsCols: "Hàng và cột", tableMerge: "Gộp", slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Hiệu đính", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
+    tab: { home: "Trang đầu", insert: "Chèn", design: "Thiết kế", transitions: "Chuyển tiếp", animations: "Hoạt hình", slideshow: "Trình chiếu", review: "Đánh giá", view: "Chế độ xem", help: "Trợ giúp", ai: "Trợ lý 3T AI", tableLayout: "Bố cục bảng", tableDesign: "Thiết kế bảng", shapeFormat: "Định dạng hình", pictureFormat: "Định dạng ảnh" },
+    group: { pictureSize: "Kích thước", pictureArrange: "Sắp xếp", designVariants: "Biến thể", animPreview: "Xem trước", animEffects: "Hoạt hình", animTiming: "Thời gian", transitionGallery: "Chuyển đến trang này", transitionTiming: "Thời gian", shapeStyles: "Kiểu hình", shapeArrange: "Sắp xếp", shapeSize: "Kích thước", tableStyleOptions: "Tùy chọn kiểu bảng", tableStyles: "Kiểu bảng", tableRowsCols: "Hàng và cột", tableMerge: "Gộp", slides: "Trang chiếu", clipboard: "Bảng nhớ tạm", font: "Phông chữ", paragraph: "Đoạn văn", drawing: "Đối tượng vẽ", editing: "Chỉnh sửa", imagesObjects: "Hình ảnh & Đối tượng", images: "Hình ảnh", illustrations: "Minh họa", tables: "Bảng", text: "Văn bản", symbols: "Ký hiệu", media: "Đa phương tiện", themes: "Chủ đề", master: "Mẫu chủ đạo", customize: "Tùy chỉnh", transitions: "Hiệu ứng chuyển trang", animations: "Hiệu ứng đối tượng", startSlideshow: "Khởi động chiếu", presenter: "Người thuyết trình", setup: "Thiết lập", comments: "Nhận xét", proofing: "Hiệu đính", presentationViews: "Dạng xem bản trình chiếu", show: "Hiển thị", zoom: "Thu phóng", window: "Cửa sổ", macro: "Macro", help: "Trợ giúp", aiContent: "Tạo nội dung thuyết trình" },
     editing: { select: "Chọn" },
     drawing: { arrange: "Sắp xếp" },
     section: "Phần"
@@ -1101,6 +1101,16 @@ export const viStrings = {
     ,"slides.animation.add": { label: "Thêm hoạt ảnh", tooltip: "Thêm một hiệu ứng nữa cho đối tượng đang chọn (ví dụ vào rồi thoát)" }
     ,"slides.animation.addEffect": { label: "Thêm hiệu ứng", tooltip: "Thêm hiệu ứng đã chọn vào cuối chuỗi hoạt ảnh của đối tượng" }
     ,"slides.animation.trigger": { label: "Kích hoạt", tooltip: "Chọn hình mà khi bấm vào lúc trình chiếu thì hiệu ứng này mới chạy" }
+    ,"slides.table.style": { label: "Kiểu bảng", tooltip: "Chọn bảng màu cho bảng: màu tiêu đề và hàng sọc xen kẽ" }
+    ,"slides.table.setStyle": { label: "Chọn kiểu bảng", tooltip: "Áp dụng kiểu bảng đã chọn cho bảng đang chọn" }
+    ,"slides.table.shading": { label: "Tô màu nền", tooltip: "Tô màu nền cho ô, vùng ô đang chọn hoặc cả bảng" }
+    ,"slides.table.shadingColor": { label: "Màu nền ô", tooltip: "Áp dụng màu nền đã chọn cho ô hoặc vùng ô đang chọn" }
+    ,"slides.table.optHeaderRow": { label: "Hàng tiêu đề", tooltip: "Bật/tắt hàng tiêu đề: chữ đậm và tô màu theo kiểu bảng" }
+    ,"slides.table.optTotalRow": { label: "Hàng tổng cộng", tooltip: "Bật/tắt hàng cuối làm hàng tổng cộng" }
+    ,"slides.table.optBandedRows": { label: "Hàng sọc", tooltip: "Tô xen kẽ màu nhạt cho các hàng" }
+    ,"slides.table.optFirstCol": { label: "Cột đầu tiên", tooltip: "Nhấn mạnh cột đầu tiên: chữ đậm và tô màu" }
+    ,"slides.table.optLastCol": { label: "Cột cuối cùng", tooltip: "Nhấn mạnh cột cuối cùng: chữ đậm và tô màu" }
+    ,"slides.table.optBandedCols": { label: "Cột sọc", tooltip: "Tô xen kẽ màu nhạt cho các cột" }
     ,"slides.animation.setType": { label: "Kiểu hiệu ứng", tooltip: "Gán kiểu hiệu ứng cho đối tượng đang chọn" }
     ,"slides.animation.startMenu": { label: "Bắt đầu", tooltip: "Chọn thời điểm bắt đầu: khi nhấp chuột, cùng lúc với hiệu ứng trước hoặc sau hiệu ứng trước" }
     ,"slides.animation.setStart": { label: "Thời điểm bắt đầu", tooltip: "Đặt thời điểm bắt đầu hiệu ứng của đối tượng đang chọn" }

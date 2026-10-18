@@ -840,6 +840,72 @@ export const SLIDES_RIBBON_TABS = [
     ]
   },
   {
+    id: "tableDesign",
+    label: "Thiết kế bảng",
+    labelKey: "slidesRibbon.tab.tableDesign",
+    contextual: true,
+    groups: [
+      {
+        id: "tableStyleOptions",
+        label: "Tùy chọn kiểu bảng",
+        labelKey: "slidesRibbon.group.tableStyleOptions",
+        items: [
+          { type: "button", commandId: "slides.table.optHeaderRow" },
+          { type: "button", commandId: "slides.table.optTotalRow" },
+          { type: "button", commandId: "slides.table.optBandedRows" },
+          { type: "button", commandId: "slides.table.optFirstCol" },
+          { type: "button", commandId: "slides.table.optLastCol" },
+          { type: "button", commandId: "slides.table.optBandedCols" }
+        ]
+      },
+      {
+        id: "tableStyles",
+        label: "Kiểu bảng",
+        labelKey: "slidesRibbon.group.tableStyles",
+        items: [
+          {
+            type: "dropdown",
+            id: "slides.table.style",
+            label: "Kiểu bảng",
+            icon: "table",
+            isLarge: true,
+            items: [
+              { commandId: "slides.table.setStyle", args: "plain", label: "Không kiểu" },
+              { commandId: "slides.table.setStyle", args: "blue", label: "Xanh dương" },
+              { commandId: "slides.table.setStyle", args: "green", label: "Xanh lá" },
+              { commandId: "slides.table.setStyle", args: "orange", label: "Cam" },
+              { commandId: "slides.table.setStyle", args: "gold", label: "Vàng" },
+              { commandId: "slides.table.setStyle", args: "purple", label: "Tím" },
+              { commandId: "slides.table.setStyle", args: "gray", label: "Xám" }
+            ]
+          },
+          {
+            type: "dropdown",
+            id: "slides.table.shading",
+            label: "Tô màu nền",
+            icon: "shapeFill",
+            isLarge: true,
+            items: [
+              { commandId: "slides.table.shadingColor", args: "#C00000", swatch: "#C00000", label: "Đỏ sẫm" },
+              { commandId: "slides.table.shadingColor", args: "#FF0000", swatch: "#FF0000", label: "Đỏ" },
+              { commandId: "slides.table.shadingColor", args: "#FFC000", swatch: "#FFC000", label: "Cam" },
+              { commandId: "slides.table.shadingColor", args: "#FFFF00", swatch: "#FFFF00", label: "Vàng" },
+              { commandId: "slides.table.shadingColor", args: "#92D050", swatch: "#92D050", label: "Xanh lá nhạt" },
+              { commandId: "slides.table.shadingColor", args: "#00B050", swatch: "#00B050", label: "Xanh lá" },
+              { commandId: "slides.table.shadingColor", args: "#00B0F0", swatch: "#00B0F0", label: "Xanh da trời" },
+              { commandId: "slides.table.shadingColor", args: "#0070C0", swatch: "#0070C0", label: "Xanh dương" },
+              { commandId: "slides.table.shadingColor", args: "#7030A0", swatch: "#7030A0", label: "Tím" },
+              { commandId: "slides.table.shadingColor", args: "#FFFFFF", swatch: "#FFFFFF", label: "Trắng" },
+              { commandId: "slides.table.shadingColor", args: "#D9D9D9", swatch: "#D9D9D9", label: "Xám nhạt" },
+              { commandId: "slides.table.shadingColor", args: "#7F7F7F", swatch: "#7F7F7F", label: "Xám" },
+              { commandId: "slides.table.shadingColor", args: "none", label: "Không tô màu" }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
     id: "tableLayout",
     label: "Bố cục bảng",
     labelKey: "slidesRibbon.tab.tableLayout",

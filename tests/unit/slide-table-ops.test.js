@@ -3,7 +3,8 @@
  */
 import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
 import {
-  tableState, mergeMap, insertRow, insertCol, deleteRow, deleteCol, mergeCells, splitCell, expandSelection, TABLE_MAX_ROWS, TABLE_MAX_COLS
+  tableState, mergeMap, insertRow, insertCol, deleteRow, deleteCol, mergeCells, splitCell, expandSelection, TABLE_MAX_ROWS, TABLE_MAX_COLS,
+  effectiveCellFill, effectiveCellFills, fillCells, tableOptions, TABLE_STYLES
 } from "../../apps/slides/slide-table-ops.js";
 
 const base = () => ({ rows: 3, cols: 3, w: 420, h: 108, cells: [["a", "b", "c"], ["d", "e", "f"], ["g", "h", "i"]] });
@@ -116,6 +117,37 @@ export async function runSlideTableOpsTests() {
     const shape = adapter.parseFodp(fodp)[0].shapes.find(item => String(item.id) === "t2");
     if (shape.merges) throw new Error("không được có merges");
     eq(shape.cells, [["A", "B"], ["1", "2"]]);
+  });
+
+  test("Kiểu bảng: tiêu đề, hàng sọc, cột đầu/cuối, hàng tổng; màu tô tay luôn thắng", () => {
+    const blue = TABLE_STYLES.find(s => s.id === "blue");
+    const t = { ...base(), tableStyle: "blue" };
+    eq(effectiveCellFill(t, 0, 1), blue.head, "tiêu đề");
+    eq(effectiveCellFill(t, 1, 0), blue.band, "hàng sọc đầu của thân");
+    eq(effectiveCellFill(t, 2, 0), null, "hàng thân thứ hai không sọc");
+    const opts = { ...t, tableOptions: { headerRow: false, totalRow: true, bandedRows: false, firstCol: true, lastCol: true, bandedCols: false } };
+    eq(effectiveCellFill(opts, 0, 1), null, "tắt tiêu đề");
+    eq(effectiveCellFill(opts, 2, 1), blue.head, "hàng tổng");
+    eq(effectiveCellFill(opts, 1, 0), blue.head, "cột đầu");
+    eq(effectiveCellFill(opts, 1, 2), blue.head, "cột cuối");
+    eq(effectiveCellFill({ ...t, cellFills: [[null, "#FFFF00"]] }, 0, 1), "#FFFF00", "tô tay thắng");
+    eq(effectiveCellFill(base(), 0, 0), null, "không kiểu thì không tô");
+    eq(tableOptions({}).headerRow, true, "mặc định có hàng tiêu đề");
+    eq(effectiveCellFills(t).length, 3);
+  });
+
+  test("Tô màu ô: fillCells tô đúng hình chữ nhật, null bỏ tô; hàng/cột chèn xóa kéo theo màu", () => {
+    const filled = fillCells(base(), { r: 1, c: 1, r2: 2, c2: 2 }, "#FF0000");
+    eq(filled[1][1], "#FF0000"); eq(filled[2][2], "#FF0000"); eq(filled[0][0], null);
+    eq(fillCells({ ...base(), cellFills: filled }, { r: 1, c: 1, r2: 1, c2: 1 }, null)[1][1], null, "bỏ tô");
+    const t = { ...base(), cellFills: filled };
+    const withRow = insertRow(t, 1);
+    eq(withRow.cellFills[1], [null, null, null], "hàng mới không tô"); eq(withRow.cellFills[2][1], "#FF0000", "màu đi theo ô xuống hàng 3");
+    const withCol = insertCol(t, 0);
+    eq(withCol.cellFills[1][2], "#FF0000", "cột chèn đẩy màu sang phải");
+    eq(deleteRow(t, 0).cellFills[0][1], "#FF0000", "xóa hàng đầu kéo màu lên");
+    eq(deleteCol(t, 0).cellFills[1][0], "#FF0000", "xóa cột đầu kéo màu sang trái");
+    eq(mergeCells(t, 0, 0, 0, 1).cellFills[2][2], "#FF0000", "gộp giữ màu");
   });
 
   return results;
