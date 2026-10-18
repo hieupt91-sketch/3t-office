@@ -269,6 +269,8 @@ export function showBookmarkDialog(options = {}) {
  * @param {Array<{id:string,type:string,label:string}>} targets
  * @returns {Promise<{targetId:string,display:string,type:string}|null>}
  */
+const escXref = (value) => String(value ?? "").replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
+
 export function showCrossReferenceDialog(targets = []) {
   if (typeof document === "undefined" || !document.body || typeof document.createElement !== "function") {
     return Promise.resolve(targets[0] ? { targetId: targets[0].id, display: targets[0].label, type: targets[0].type } : null);
@@ -297,7 +299,7 @@ export function showCrossReferenceDialog(targets = []) {
             ? `<p class="vno-xref-empty" style="margin:0;font-size:13px;color:#b45309;">${isEn ? "No headings or bookmarks yet." : "Chưa có tiêu đề hoặc đánh dấu nào."}</p>`
             : `<label for="vno-xref-select" style="font-size:13px;font-weight:500;">${isEn ? "Reference to" : "Tham chiếu tới"}</label>
                <select id="vno-xref-select" class="vno-dialog-input" style="width:100%;padding:8px 12px;border:1px solid var(--vno-border-default);border-radius:6px;">
-                 ${targets.map(item => `<option value="${item.id}" data-xref-type="${item.type}">${item.type === "bookmark" ? "⚑ " : "H "}${item.label}</option>`).join("")}
+                 ${targets.map(item => `<option value="${escXref(item.id)}" data-xref-type="${escXref(item.type)}">${item.type === "bookmark" ? "⚑ " : "H "}${escXref(item.label)}</option>`).join("")}
                </select>`}
         </div>
         <div class="vno-dialog-footer">
