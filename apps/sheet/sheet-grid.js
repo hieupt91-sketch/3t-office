@@ -302,6 +302,20 @@ export class SheetGridController {
       () => this.sheets,
       this._createTableResolver()
     );
+    // GETPIVOTDATA cần biết PivotTable nào phủ ô được tham chiếu (hoặc PivotTable đầu tiên của trang).
+    this.formulaEngine.pivotResolver = (sheetName, coord) => {
+      const list = this.pivotTablesBySheet?.[sheetName || this.activeSheet] || [];
+      const match = /^([A-Z]+)(\d+)$/.exec(String(coord || ""));
+      if (match) {
+        const col = this._columnNumber(match[1]);
+        const row = Number(match[2]);
+        const hit = list.find(item => item.resultRange
+          && col >= this._columnNumber(item.resultRange.start.c) && col <= this._columnNumber(item.resultRange.end.c)
+          && row >= Number(item.resultRange.start.r) && row <= Number(item.resultRange.end.r));
+        if (hit) return hit;
+      }
+      return list[0] || null;
+    };
     // SUBTOTAL/AGGREGATE cần biết hàng nào bị lọc (luôn bị bỏ) hoặc bị ẩn thủ công (bỏ khi dùng mã 101-111).
     this.formulaEngine.rowVisibilityResolver = (sheetName, row) => {
       const filteredSet = sheetName === this.activeSheet || !sheetName ? this.hiddenRows : this.sheetStates?.[sheetName]?.hiddenRows;

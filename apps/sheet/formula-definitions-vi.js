@@ -222,6 +222,19 @@ export const VI_FORMULA_CATALOG = [
     example: "=HYPERLINK(\"https://vn-office.vn\"; \"Trang chủ VN Office\")"
   },
   {
+    name: "GETPIVOTDATA",
+    category: "Tra cứu",
+    desc: "Lấy giá trị đã tổng hợp từ bảng PivotTable theo tên trường dữ liệu và các cặp trường/mục; không có cặp nào thì lấy Tổng chung.",
+    syntax: "GETPIVOTDATA(data_field, pivot_table, [field1], [item1])",
+    syntaxVi: "GETPIVOTDATA(trường_dữ_liệu, ô_trong_PivotTable, [trường1], [mục1])",
+    params: [
+      { name: "trường_dữ_liệu", desc: "Tên trường giá trị trong PivotTable, ví dụ \"Doanh thu\" hoặc \"Sum of Doanh thu\"." },
+      { name: "ô_trong_PivotTable", desc: "Một ô bất kỳ nằm trong bảng PivotTable (có thể kèm tên trang tính)." },
+      { name: "[trường1]", desc: "Tên trường hàng hoặc cột; có thể lặp thêm các cặp trường/mục cho mọi trường hàng và cột đang dùng.", optional: true },
+      { name: "[mục1]", desc: "Mục (giá trị) của trường vừa nêu cần lấy, ví dụ \"Bắc\".", optional: true }
+    ],
+    example: "=GETPIVOTDATA(\"Doanh thu\"; F21; \"Vùng\"; \"Bắc\"; \"Sản phẩm\"; \"B\")"
+  },  {
     name: "ADDRESS",
     category: "Tra cứu",
     desc: "Tạo địa chỉ ô dạng văn bản từ số hàng và số cột.",

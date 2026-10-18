@@ -424,6 +424,90 @@ export class FormulaEngine {
     return result;
   }
 
+  /**
+   * GETPIVOTDATA(trường_dữ_liệu; ô_trong_PivotTable; [trường1; mục1]; ...)
+   * Đọc giá trị từ bảng kết quả PivotTable (bố cục phẳng của VN Sheet): trường hàng nằm ở các cột đầu, mỗi cột giá trị có
+   * tiêu đề «[khóa cột — ]Phép tính Trường». Không có cặp trường/mục thì lấy hàng Grand Total. Không tìm thấy thì #REF!.
+   */
+  _getPivotData(args) {
+    if (args.length < 2 || args.length % 2 !== 0) return "#VALUE!";
+    const dataField = this._resolveSingleValue(args[0]);
+    if (this._isError(dataField)) return dataField;
+    const refText = String(args[1]).trim().replace(/\$/g, "");
+    const refMatch = refText.match(/^(?:(.+)!)?([A-Z]{1,3})(\d+)$/i);
+    if (!refMatch || typeof this.pivotResolver !== "function") return "#REF!";
+    const sheetName = refMatch[1] ? refMatch[1].replace(/^'|'$/g, "").replace(/''/g, "'") : "";
+    const coord = `${refMatch[2].toUpperCase()}${refMatch[3]}`;
+    const pivot = this.pivotResolver(sheetName, coord);
+    if (!pivot?.resultRange) return "#REF!";
+    const cells = sheetName ? this.sheetResolver?.(sheetName) : (typeof this.cellsData === "function" ? this.cellsData() : this.cellsData);
+    if (!cells?.get) return "#REF!";
+    const colNum = letters => letters.toUpperCase().split("").reduce((acc, ch) => acc * 26 + ch.charCodeAt(0) - 64, 0);
+    const colName = number => { let n = number; let out = ""; while (n > 0) { const rem = (n - 1) % 26; out = String.fromCharCode(65 + rem) + out; n = Math.floor((n - 1) / 26); } return out; };
+    const c1 = colNum(pivot.resultRange.start.c), c2 = colNum(pivot.resultRange.end.c);
+    const r1 = Number(pivot.resultRange.start.r), r2 = Number(pivot.resultRange.end.r);
+    const text = (c, r) => String(cells.get(`${colName(c)}${r}`)?.val ?? "");
+    const norm = value => String(value ?? "").trim().toLowerCase();
+    const valueFields = (pivot.values || []).map(item => String(item.field));
+    // Số cột trường hàng = số tiêu đề đầu hàng không phải tiêu đề giá trị.
+    let rowCols = 0;
+    for (let c = c1; c <= c2; c++) {
+      const header = text(c, r1);
+      const last = header.split(" — ").pop();
+      if (valueFields.some(field => last === field || last.endsWith(` ${field}`))) break;
+      rowCols += 1;
+    }
+    const rowFields = (pivot.rows || []).slice(0, rowCols);
+    const columnFields = pivot.columns || [];
+    const wanted = [];
+    for (let i = 2; i < args.length; i += 2) {
+      const field = this._resolveSingleValue(args[i]);
+      const item = this._resolveSingleValue(args[i + 1]);
+      if (this._isError(field)) return field;
+      if (this._isError(item)) return item;
+      wanted.push([norm(field), norm(item)]);
+    }
+    const rowPairs = [], colPairs = [];
+    for (const [field, item] of wanted) {
+      const rowIndex = rowFields.findIndex(name => norm(name) === field);
+      const colIndex = columnFields.findIndex(name => norm(name) === field);
+      if (rowIndex >= 0) rowPairs.push([rowIndex, item]);
+      else if (colIndex >= 0) colPairs.push([colIndex, item]);
+      else return "#REF!";
+    }
+    // Cột giá trị khớp trường dữ liệu và khóa cột.
+    const wantedData = norm(dataField);
+    let targetCol = -1;
+    for (let c = c1 + rowCols; c <= c2; c++) {
+      const parts = text(c, r1).split(" — ");
+      const name = parts.pop();
+      const alias = /^(sum|count|average|max|min) of (.+)$/.exec(wantedData);
+      const nameMatches = norm(name) === wantedData || norm(name).endsWith(` ${wantedData}`)
+        || valueFields.some(field => norm(field) === wantedData && (name === field || name.endsWith(` ${field}`)))
+        || (alias && (norm(name) === `${alias[1]} ${alias[2]}` || norm(name) === `${alias[1]} of ${alias[2]}`));
+      if (!nameMatches) continue;
+      const keyParts = parts.length ? parts.join(" — ").split("\u001f") : [];
+      if (columnFields.length && keyParts.length < columnFields.length && colPairs.length < columnFields.length) continue;
+      if (colPairs.every(([index, item]) => norm(keyParts[index]) === item) && (colPairs.length === columnFields.length || !columnFields.length)) { targetCol = c; break; }
+    }
+    if (targetCol < 0) return "#REF!";
+    // Hàng: có cặp trường hàng thì khớp đủ các trường hàng; không có thì hàng Grand Total.
+    let targetRow = -1;
+    for (let r = r1 + 1; r <= r2; r++) {
+      const label = text(c1, r);
+      if (!rowPairs.length) {
+        if (rowFields.length ? norm(label) === "grand total" : r === r1 + 1) { targetRow = r; break; }
+        continue;
+      }
+      if (norm(label) === "grand total") continue;
+      if (rowPairs.length === rowFields.length && rowPairs.every(([index, item]) => norm(text(c1 + index, r)) === item)) { targetRow = r; break; }
+    }
+    if (targetRow < 0) return "#REF!";
+    const cell = cells.get(`${colName(targetCol)}${targetRow}`);
+    const value = cell?.val;
+    return value === undefined || value === null || value === "" ? 0 : value;
+  }
+
   _isError(value) {
     return (typeof value === "string" || value instanceof String) && /^#(?:N\/A|VALUE!|REF!|DIV\/0!|NUM!|NAME\?|NULL!|LỖI!)(?:\s*\(.*\))?$/i.test(String(value).trim());
   }
@@ -3203,6 +3287,9 @@ export class FormulaEngine {
         const val = this._resolveSingleValue(args[0]);
         return typeof val !== "string";
       }
+
+      case "GETPIVOTDATA":
+        return this._getPivotData(args);
 
       case "CELL": {
         if (args.length < 1 || args.length > 2) return "#VALUE!";

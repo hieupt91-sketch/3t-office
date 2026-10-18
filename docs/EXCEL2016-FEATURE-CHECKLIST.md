@@ -55,7 +55,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 | Tab | Nhóm | Tính năng | Trạng thái | Ghi chú |
 |---|---|---|---|---|
 | Tệp (Backstage) | Thông tin | Bảo vệ sổ làm việc bằng mật khẩu mở file (mã hóa) | 🔴 | Chưa có mã hóa file; chỉ có bảo vệ cấu trúc |
-| Công thức | Thư viện hàm | Độ phủ hàm Excel 2016 (462 hàm) | 🟡 | 18/10: engine nhận 394 trong 421 hàm đánh dấu Excel 2016 trong danh mục (đo bằng gọi rỗng từng hàm), gồm cả MMULT; vừa thêm T.TEST, F.TEST, CHISQ.TEST, GAMMA, CELL, INFO và tên cũ TTEST, FTEST, CHITEST đối chiếu LibreOffice tới 1e-9 vì Excel COM chưa dùng được (BLOCKED, chưa vào bộ vàng Excel). Còn thiếu: BAHTTEXT, DBCS, PHONETIC, RTD, GETPIVOTDATA, ODDFPRICE, ODDFYIELD, FORECAST.ETS và 3 hàm con, 7 hàm CUBE; danh mục còn đánh dấu nhầm vài hàm sau 2016 như GROUPBY, REGEX*, TRANSLATE (tests/unit/formula-hypothesis-tests.test.js:48) |
+| Công thức | Thư viện hàm | Độ phủ hàm Excel 2016 (462 hàm) | 🟡 | 18/10: engine nhận 395 trong 421 hàm đánh dấu Excel 2016 trong danh mục (đo bằng gọi rỗng từng hàm), gồm cả MMULT và GETPIVOTDATA (đọc bảng PivotTable phẳng của VN Sheet; tests/live/cdp/sheet-getpivotdata.desktop.mjs 7/7, chưa đối chiếu Excel thật); vừa thêm T.TEST, F.TEST, CHISQ.TEST, GAMMA, CELL, INFO và tên cũ TTEST, FTEST, CHITEST đối chiếu LibreOffice tới 1e-9 vì Excel COM chưa dùng được (BLOCKED, chưa vào bộ vàng Excel). Còn thiếu: BAHTTEXT, DBCS, PHONETIC, RTD, ODDFPRICE, ODDFYIELD, FORECAST.ETS và 3 hàm con, 7 hàm CUBE; danh mục còn đánh dấu nhầm vài hàm sau 2016 như GROUPBY, REGEX*, TRANSLATE (tests/unit/formula-hypothesis-tests.test.js:48) |
 
 Tổng: 2 mục ưu tiên 1.
 
@@ -104,7 +104,7 @@ Tổng: 2 mục ưu tiên 1.
 | Căn chỉnh | Hướng chữ (xoay) | ✅ | - | Xoay 90° đã đọc lại bằng Excel 2016 (docs/SHEET-BUTTON-MATRIX-1011.md:72; tests/unit/sheet-cell-orientation.test.js:1-25; sheet.format.alignmentDialog) |
 | Căn chỉnh | Ngắt dòng tự động (Wrap Text) | ✅ | - | Ngắt dòng tự động Wrap Text đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:32; tests/unit/sheet-style-export-wrap-border-align.test.js:1-25; sheet.cell.wrapText) |
 | Căn chỉnh | Giảm/Tăng thụt lề | 🟢 | - | Giảm và tăng thụt lề ô (docs/SHEET-BUTTON-MATRIX-1011.md:36-37; sheet.cell.indentDecrease, sheet.cell.indentIncrease) |
-| Căn chỉnh | Trộn & căn giữa / Trộn theo hàng / Trộn ô / Tách ô | ✅ | - | 17/10 (AGY-DATATOOLS): Merge & Center, Merge Across, UnMerge đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.cell.merge; platform/i18n/strings-vi.js:822, apps/sheet/sheet-grid.js:15722 |
+| Căn chỉnh | Trộn & căn giữa / Trộn theo hàng / Trộn ô / Tách ô | ✅ | - | 17/10 (AGY-DATATOOLS): Merge & Center, Merge Across, UnMerge đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.cell.merge; platform/i18n/strings-vi.js:822, apps/sheet/sheet-grid.js:15736 |
 | Căn chỉnh | Căn đều, Distributed, Fill, Center across selection, Shrink to fit | ✅ | - | 16/10 (AGY-JUSTIFY): Center Across Selection và Shrink to Fit lưu/mở lại đúng, đối chiếu Excel 2016 (cases-7; tests/functions/structural-cases-7.json:1-15; tests/unit/sheet-cell-text-fit.test.js:1-25) |
 | Số | Danh sách định dạng số (Chung, Số, Tiền tệ, Kế toán, Ngày, Giờ, %, Khoa học, Văn bản) | ✅ | - | Số/ngày/giờ/% đã đối chiếu (E3; docs/SHEET-BUTTON-MATRIX-1011.md:42; tests/unit/sheet-format-cells.test.js:1-30; sheet.format.quickCategory) |
 | Số | Định dạng số dạng Phân số (Fraction) và Đặc biệt (Special) | ✅ | - | 17/10 (AGY-NOTES): Phân số 9 mẫu và Đặc biệt 4 mẫu đối chiếu Excel 2016 COM 13/13 mẫu (cases-18; tests/functions/structural-cases-18.json:1-30; tests/unit/sheet-format-cells.test.js:1-40; sheet.format.quickCategory, sheet.format.cellsDialog) |
@@ -196,7 +196,7 @@ Tổng: 2 mục ưu tiên 1.
 |---|---|---|---|---|
 | Thư viện hàm | Chèn hàm (Shift+F3) + hộp thoại đối số | 🟢 | - | sheet.formula.insertFunction |
 | Thư viện hàm | Tổng tự động; Dùng gần đây; Tài chính / Logic / Văn bản / Ngày giờ / Tra cứu / Toán | 🟢 | - | Thư viện hàm trên ribbon (docs/SHEET-BUTTON-MATRIX-1011.md:86-92; sheet.formula.categoryFinancial, sheet.formula.categoryLogical, sheet.formula.categoryText) |
-| Thư viện hàm | Độ phủ hàm Excel 2016 (462 hàm) | 🟡 | 1 | 18/10: engine nhận 394 trong 421 hàm đánh dấu Excel 2016 trong danh mục (đo bằng gọi rỗng từng hàm), gồm cả MMULT; vừa thêm T.TEST, F.TEST, CHISQ.TEST, GAMMA, CELL, INFO và tên cũ TTEST, FTEST, CHITEST đối chiếu LibreOffice tới 1e-9 vì Excel COM chưa dùng được (BLOCKED, chưa vào bộ vàng Excel). Còn thiếu: BAHTTEXT, DBCS, PHONETIC, RTD, GETPIVOTDATA, ODDFPRICE, ODDFYIELD, FORECAST.ETS và 3 hàm con, 7 hàm CUBE; danh mục còn đánh dấu nhầm vài hàm sau 2016 như GROUPBY, REGEX*, TRANSLATE (tests/unit/formula-hypothesis-tests.test.js:48) |
+| Thư viện hàm | Độ phủ hàm Excel 2016 (462 hàm) | 🟡 | 1 | 18/10: engine nhận 395 trong 421 hàm đánh dấu Excel 2016 trong danh mục (đo bằng gọi rỗng từng hàm), gồm cả MMULT và GETPIVOTDATA (đọc bảng PivotTable phẳng của VN Sheet; tests/live/cdp/sheet-getpivotdata.desktop.mjs 7/7, chưa đối chiếu Excel thật); vừa thêm T.TEST, F.TEST, CHISQ.TEST, GAMMA, CELL, INFO và tên cũ TTEST, FTEST, CHITEST đối chiếu LibreOffice tới 1e-9 vì Excel COM chưa dùng được (BLOCKED, chưa vào bộ vàng Excel). Còn thiếu: BAHTTEXT, DBCS, PHONETIC, RTD, ODDFPRICE, ODDFYIELD, FORECAST.ETS và 3 hàm con, 7 hàm CUBE; danh mục còn đánh dấu nhầm vài hàm sau 2016 như GROUPBY, REGEX*, TRANSLATE (tests/unit/formula-hypothesis-tests.test.js:48) |
 | Thư viện hàm | Công thức mảng (CSE, Ctrl+Shift+Enter) | ✅ | - | 17/10 (CODEX-ARRAYS): CSE một/nhiều ô, MMULT/TRANSPOSE khớp Excel (tests/unit/sheet-array-formulas.test.js:63-79) |
 | Thư viện hàm | Tham chiếu có cấu trúc (Table1[Cột]) | ✅ | - | 17/10: Tham chiếu có cấu trúc Table1[Cột] khớp Excel 2016 (tests/unit/structured-references.test.js:1-30; tests/functions/structural-cases-8.json:1-25) |
 | Thư viện hàm | Tham chiếu 3-D giữa các trang (Sheet1:Sheet3!A1) | ✅ | - | Tham chiếu 3-D giữa các trang khớp Excel 2016 (tests/functions/golden-batch10-3d.json:1-20; tests/unit/sheet-formula-odf.test.js:1-30) |
@@ -229,7 +229,7 @@ Tổng: 2 mục ưu tiên 1.
 | Dự báo | What-If: Goal Seek / Bảng dữ liệu (Data Table) | ✅ | - | 17/10 (AGY-DATATOOLS): Goal Seek và Table đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; tests/unit/sheet-goal-seek.test.js:1-30; apps/sheet/sheet-grid.js:20373-20390; sheet.data.goalSeek) |
 | Dự báo | Trang dự báo (Forecast Sheet) | 🔴 | 3 |  |
 | Dàn bài | Nhóm / Bỏ nhóm / Tổng phụ | ✅ | - | 17/10 (AGY-DATATOOLS): Group/Ungroup hàng-cột và Subtotal/RemoveSubtotal đối chiếu Excel 2016 (cases-17 12/12 kịch bản); sheet.data.subtotal; apps/sheet/data-tools.js:77-185 |
-| Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | ✅ | - | 17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; apps/sheet/sheet-grid.js:20328; sheet.data.group) |
+| Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | ✅ | - | 17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; apps/sheet/sheet-grid.js:20342; sheet.data.group) |
 | Phân tích | Solver | 🔴 | 3 | Bổ sung của Excel |
 
 ### Xem xét
@@ -342,7 +342,7 @@ Tổng: 2 mục ưu tiên 1.
 | Thanh trạng thái | Menu tùy chỉnh thanh trạng thái | 🔴 | 3 |  |
 | Tab trang tính | Cuộn tab, thêm trang, kéo đổi thứ tự | 🟢 | - | sheet.sheet.moveOrCopy; kéo tab bằng chuột thật đổi thứ tự có vạch báo, Esc hủy, Hoàn tác trả lại, lưu XLSX mở lại giữ thứ tự (tests/live/cdp/sheet-tab-drag.desktop.mjs); chưa đối chiếu Excel thật vì Excel COM chưa dùng được |
 | Tab trang tính | Menu chuột phải tab (Chèn, Xóa, Đổi tên, Di chuyển, Bảo vệ, Màu, Ẩn, Hiện) | ✅ | - | Menu chuột phải tab trang tính đúng thứ tự Excel (tests/unit/sheet-rename-move-protect.test.js:1-30; sheet.sheet.protect) |
-| Tab trang tính | Chọn nhiều trang cùng lúc (nhóm trang) / Chọn tất cả trang | ✅ | - | F2: Nhóm nhiều trang tính cùng lúc khớp Excel COM (apps/sheet/sheet-grid.js:5715) |
+| Tab trang tính | Chọn nhiều trang cùng lúc (nhóm trang) / Chọn tất cả trang | ✅ | - | F2: Nhóm nhiều trang tính cùng lúc khớp Excel COM (apps/sheet/sheet-grid.js:5729) |
 | Chuột phải | Menu ô (Cắt/Sao chép/Dán/Chèn/Xóa/Lọc/Sắp xếp/Ghi chú/Định dạng/Tên/Liên kết) | ✅ | - | Menu ngữ cảnh chuột phải trên ô đối chiếu CommandBars Excel 2016 (docs/EXCEL2016-INPUT-MATRIX.md:39; tests/unit/sheet-keyboard-audit.test.js:1-30; common.edit.cut, common.edit.copy, common.edit.paste) |
 | Chuột phải | Menu tiêu đề hàng/cột | ✅ | - | Menu tiêu đề hàng cột chuột phải (docs/EXCEL2016-INPUT-MATRIX.md:34; tests/unit/sheet-row-col-insert.test.js:1-25; sheet.row.insert, sheet.col.insert) |
 | Chuột phải | Menu trong bảng (Chèn/Xóa/Chọn/Bảng) | ✅ | - | Menu chuột phải trong bảng đối chiếu (tests/unit/sheet-table.test.js:1-30; tests/functions/structural-cases-8.json:1-25; sheet.style.formatAsTable) |

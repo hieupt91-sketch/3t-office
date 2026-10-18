@@ -1,4 +1,5 @@
 import { FormulaEngine } from "../../apps/sheet/formula-engine.js";
+import { PivotTableEngine } from "../../apps/sheet/pivot-table.js";
 import { parseInternalLink, formatInternalLink, toFodsHref, fromFodsHref } from "../../apps/sheet/sheet-internal-link.js";
 
 /**
@@ -88,6 +89,29 @@ export async function runFormulaHypothesisTests() {
     eq(toFodsHref("#'Trang 2'!C5"), "#'Trang 2'.C5");
     eq(fromFodsHref("#Sheet2.B3"), "#Sheet2!B3");
     eq(fromFodsHref("#'Trang 2'.C5"), "#'Trang 2'!C5");
+  });
+
+  test("GETPIVOTDATA đọc đúng ô của bảng PivotTable (hàng, cột, tổng chung, không thấy => #REF!)", () => {
+    const src = [["Vung", "Sp", "Tien"], ["Bac", "A", 10], ["Bac", "B", 20], ["Nam", "A", 5], ["Nam", "A", 7]];
+    const cells = new Map();
+    src.forEach((row, r) => row.forEach((v, c) => cells.set(`${"ABC"[c]}${r + 1}`, { val: v })));
+    const pivot = { sourceRange: "A1:C5", rows: ["Vung"], columns: ["Sp"], values: [{ field: "Tien", aggregate: "SUM" }], showGrandTotal: true, targetCoord: "E1" };
+    const table = PivotTableEngine.aggregate(cells, pivot);
+    for (const [k, v] of PivotTableEngine.toCells(table, "E1")) cells.set(k, v);
+    pivot.resultRange = PivotTableEngine.resultRange(table, "E1");
+    const e = new FormulaEngine(cells);
+    e.pivotResolver = () => pivot;
+    const cases = [
+      ['=GETPIVOTDATA("Tien",E1,"Vung","Bac","Sp","B")', 20],
+      ['=GETPIVOTDATA("Tien",E1,"Vung","Nam","Sp","A")', 12],
+      ['=GETPIVOTDATA("Tien",E1,"vung","bac","sp","a")', 10],
+      ['=GETPIVOTDATA("Sum of Tien",E1,"Vung","Bac","Sp","A")', 10],
+      ['=GETPIVOTDATA("Tien",E1,"Vung","Dong","Sp","A")', "#REF!"],
+      ['=GETPIVOTDATA("Tien",E1,"Khong","Bac")', "#REF!"],
+      ['=GETPIVOTDATA("Tien")', "#VALUE!"]
+    ];
+    const bad = cases.filter(([formula, expected]) => e.evaluate(formula) !== expected).map(([formula, expected]) => `${formula}: ${e.evaluate(formula)} (mong ${expected})`);
+    if (bad.length) throw new Error(bad.join(" | "));
   });
 
   return results;
