@@ -1,0 +1,136 @@
+html[data-vno-platform="ios"], html[data-vno-platform="ios"] body {
+  width: 100%; height: 100%; overflow: hidden; overscroll-behavior: none;
+  -webkit-text-size-adjust: 100%; touch-action: manipulation;
+}
+html[data-vno-platform="ios"] * { -webkit-tap-highlight-color: transparent; }
+html[data-vno-platform="ios"] button,
+html[data-vno-platform="ios"] [role="button"],
+html[data-vno-platform="ios"] .vno-ribbon-btn,
+html[data-vno-platform="ios"] select,
+html[data-vno-platform="ios"] input { min-height: 44px; }
+
+/* WKWebView phủ toàn màn hình; shell tự né tai thỏ, Dynamic Island và home indicator. */
+html[data-vno-platform="ios"] .vno-shell {
+  width: 100%; height: 100%; box-sizing: border-box;
+  padding: env(safe-area-inset-top) env(safe-area-inset-right)
+    env(safe-area-inset-bottom) env(safe-area-inset-left);
+}
+html[data-vno-platform="ios"] .vno-ribbon-tabs,
+html[data-vno-platform="ios"] .vno-ribbon-content {
+  scrollbar-width: none; -webkit-overflow-scrolling: touch; scroll-snap-type: x proximity;
+}
+html[data-vno-platform="ios"] .vno-ribbon-tabs::-webkit-scrollbar,
+html[data-vno-platform="ios"] .vno-ribbon-content::-webkit-scrollbar { display: none; }
+html[data-vno-platform="ios"] .vno-ribbon-group { scroll-snap-align: start; }
+
+/* iPad: ribbon quen thuộc nhưng gọn hơn desktop và có đích chạm 44 pt. */
+@media (min-width: 700px) {
+  html[data-vno-platform="ios"] .vno-topbar { min-height: 52px; height: 52px; padding-inline: 8px; }
+  html[data-vno-platform="ios"] .vno-topbar-center { max-width: 220px; }
+  html[data-vno-platform="ios"] .vno-theme-toggle-btn .vno-theme-label,
+  html[data-vno-platform="ios"] .vno-license-chip-label { display: none; }
+  html[data-vno-platform="ios"] .vno-ribbon-tabs { height: 44px; }
+  html[data-vno-platform="ios"] .vno-ribbon-tab,
+  html[data-vno-platform="ios"] .vno-ribbon-tab-file { height: 44px; padding-inline: 12px; }
+  html[data-vno-platform="ios"] .vno-ribbon-content { height: 104px; }
+  html[data-vno-platform="ios"] .vno-ribbon-group-label { font-size: 11px; }
+  html[data-vno-platform="ios"] .vno-statusbar {
+    min-height: 38px; height: 38px; padding-inline: 10px;
+  }
+  html[data-vno-platform="ios"] .vno-statusbar-left > span:nth-last-child(-n + 3) { display: none; }
+}
+
+/* iPhone: toolbar ngữ cảnh một hàng; ưu tiên tối đa cho vùng tài liệu. */
+@media (max-width: 699px) {
+  html[data-vno-platform="ios"] .vno-topbar {
+    min-height: 52px; height: 52px; padding: 4px 8px; gap: 6px;
+  }
+  html[data-vno-platform="ios"] .vno-topbar-left {
+    width: 100%; min-width: 0; justify-content: space-between;
+  }
+  html[data-vno-platform="ios"] .vno-app-switcher-btn {
+    min-width: 54px; max-width: 112px; padding-inline: 8px;
+  }
+  html[data-vno-platform="ios"] .vno-app-switcher-btn > span:nth-of-type(1) {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  html[data-vno-platform="ios"] .vno-quick-tools { margin-left: auto; border-left: 0; }
+  html[data-vno-platform="ios"] .vno-quick-btn { width: 44px; height: 44px; }
+  html[data-vno-platform="ios"] .vno-quick-btn[data-cmd="common.file.print"],
+  html[data-vno-platform="ios"] .vno-doc-tabs,
+  html[data-vno-platform="ios"] .vno-topbar-center,
+  html[data-vno-platform="ios"] .vno-topbar-right,
+  html[data-vno-platform="ios"] .vno-ribbon-tab-scroll-btn,
+  html[data-vno-platform="ios"] .vno-ribbon-collapse-btn { display: none !important; }
+
+  html[data-vno-platform="ios"] .vno-ribbon-tab-strip,
+  html[data-vno-platform="ios"] .vno-ribbon-tabs { min-height: 44px; height: 44px; }
+  html[data-vno-platform="ios"] .vno-ribbon-tabs { padding: 0 4px; gap: 2px; }
+  html[data-vno-platform="ios"] .vno-ribbon-tab,
+  html[data-vno-platform="ios"] .vno-ribbon-tab-file {
+    height: 44px; min-height: 44px; padding: 0 13px; font-size: 13px;
+  }
+  html[data-vno-platform="ios"] .vno-ribbon-content {
+    height: 64px; min-height: 64px; padding: 4px; align-items: center; gap: 2px;
+  }
+  html[data-vno-platform="ios"] .vno-ribbon-group {
+    height: 54px; padding: 0 4px; justify-content: center;
+  }
+  html[data-vno-platform="ios"] .vno-ribbon-group-items,
+  html[data-vno-platform="ios"] .vno-ribbon-group-column,
+  html[data-vno-platform="ios"] .vno-ribbon-group-row {
+    min-height: 44px; height: 44px; flex-direction: row;
+    align-items: center; flex-wrap: nowrap; gap: 2px;
+  }
+  html[data-vno-platform="ios"] .vno-ribbon-group-label,
+  html[data-vno-platform="ios"] .vno-ribbon-dialog-launcher,
+  html[data-vno-platform="ios"] .vno-ribbon-btn .vno-btn-label,
+  html[data-vno-platform="ios"] .vno-ribbon-btn-large .vno-btn-label { display: none !important; }
+  html[data-vno-platform="ios"] .vno-ribbon-btn,
+  html[data-vno-platform="ios"] .vno-ribbon-btn-small,
+  html[data-vno-platform="ios"] .vno-ribbon-btn-large,
+  html[data-vno-platform="ios"] .vno-ribbon-btn-dropdown {
+    min-width: 44px; width: 44px; height: 44px; min-height: 44px;
+    padding: 8px; justify-content: center;
+  }
+  html[data-vno-platform="ios"] .vno-ribbon select.vno-select {
+    min-width: 88px; max-width: 124px; height: 44px; font-size: 14px;
+  }
+
+  html[data-vno-platform="ios"] .vno-writer-ruler { display: none; }
+  html[data-vno-platform="ios"] .vno-writer-page {
+    width: calc(100vw - env(safe-area-inset-left) - env(safe-area-inset-right) - 16px) !important;
+    min-width: 0 !important; min-height: calc((100vw - 16px) * 1.414);
+    margin: 8px auto 24px !important; padding: 42px 24px 52px !important;
+    border-radius: 8px; box-shadow: 0 1px 4px rgba(15, 23, 42, 0.18);
+  }
+  html[data-vno-platform="ios"] .vno-writer-navigation-pane {
+    position: absolute; inset: 0 auto 0 0; z-index: 80;
+    width: min(86vw, 340px); flex-basis: auto;
+  }
+
+  html[data-vno-platform="ios"] .vno-statusbar {
+    min-height: 44px; height: 44px; padding: 0 10px; font-size: 12px;
+  }
+  html[data-vno-platform="ios"] .vno-statusbar-left { min-width: 0; gap: 0; }
+  html[data-vno-platform="ios"] .vno-statusbar-left > :not(#vno-status-docinfo),
+  html[data-vno-platform="ios"] .vno-statusbar-right .vno-statusbar-view-modes,
+  html[data-vno-platform="ios"] .vno-zoom-slider input,
+  html[data-vno-platform="ios"] #vno-zoom-out,
+  html[data-vno-platform="ios"] #vno-zoom-in { display: none !important; }
+  html[data-vno-platform="ios"] #vno-status-docinfo {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  html[data-vno-platform="ios"] .vno-zoom-slider,
+  html[data-vno-platform="ios"] .vno-statusbar-right { gap: 0; }
+  html[data-vno-platform="ios"] #vno-zoom-text {
+    width: 54px; height: 44px; border: 0;
+  }
+  html[data-vno-platform="ios"] .vno-ai-sidebar,
+  html[data-vno-platform="ios"] .vno-help-panel { width: 100%; max-width: 100%; }
+}
+
+@media (max-width: 699px) and (orientation: landscape) {
+  html[data-vno-platform="ios"] .vno-ribbon-content { height: 56px; min-height: 56px; }
+  html[data-vno-platform="ios"] .vno-statusbar { min-height: 36px; height: 36px; }
+}

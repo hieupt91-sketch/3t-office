@@ -8,38 +8,41 @@ BRANCH: `mobile/ios-offline-analysis`
 
 WORKTREE: `/Users/hieupc/.codex/worktrees/ios-offline-analysis/3t-office`
 
-OBJECTIVE: Xác định phạm vi offline khả thi cho một app universal iPhone/iPad mà
+OBJECTIVE: Xác định kiến trúc và dựng I1 shell offline universal cho iPhone/iPad,
 không đưa engine desktop hoặc nội dung tài liệu lên cloud.
 
-FINDINGS: UI/logic JS và các model FODT/FODS/FODP tái dùng được đáng kể; đường
-mở/lưu Office hiện phụ thuộc pywebview + Python + LibreOffice nên phải thay bằng
-mobile bridge và OOXML adapter. Xcode 26.3 cùng iOS 26.3 Simulator đã sẵn sàng;
-chưa xác nhận thiết bị thật/signing.
+FINDINGS: UI/logic JS tái dùng được trong WKWebView nếu phục vụ ES modules qua
+custom scheme nội bộ. `loadFileURL` chỉ dựng root rồi trắng; `vno://` đã sửa lỗi.
+UI desktop phải có lớp responsive riêng: iPhone dùng toolbar biểu tượng một hàng,
+trang vừa chiều rộng; iPad dùng ribbon cảm ứng rút gọn. Chưa xác nhận thiết bị thật/signing.
 
-IMPLEMENTATION SUMMARY: Thêm plan gate, ma trận tái sử dụng, kiến trúc offline,
-chiến lược patch/bảo toàn OOXML và các mốc I0–I5. Chưa thêm framework/dependency
-hoặc sửa source production.
+IMPLEMENTATION SUMMARY: Thêm Swift UIKit/WKWebView shell, Xcode project universal,
+custom offline asset scheme, asset staging không chứa Python/EXE/DLL, navigation
+allowlist và capability guard. Thêm UI riêng cho safe area, đích chạm 44 pt,
+iPhone compact toolbar/trang co giãn và iPad touch ribbon. Không thêm dependency.
 
-FILES CHANGED: `docs/mobile/PLAN-IOS-OFFLINE-ANALYSIS.md`,
-`docs/mobile/IOS-OFFLINE-FEASIBILITY-0.9.11.md`, file handoff này.
+FILES CHANGED: tài liệu mobile; `ports/ios/**`; `tests/test_ios_offline_shell.py`;
+`09-templates/AGENT-HANDOFF.md`.
 
-COMMANDS RUN: Đọc đầy đủ platform/mobile specs; inventory bridge/capability;
-kiểm Xcode, Simulator runtime và device types.
+COMMANDS RUN: Xcode simulator build; cài/chạy/chụp ảnh app thật trên iPhone 17 Pro
+và iPad Air 11-inch Simulator; focused unittest; npm test; Python unittest discover.
 
-BUILD RESULT: NOT RUN — chưa có iOS target; tạo target là bước sau framework gate.
+BUILD RESULT: PASS — Xcode Debug iphonesimulator tạo `3T Office.app` universal.
 
-TEST RESULTS: NOT RUN — thay đổi chỉ là tài liệu phân tích.
+TEST RESULTS: PASS — 6/6 focused iOS tests; native render trên iPhone và iPad.
+FAIL — npm 3151/3167 do 16 probe/baseline phụ thuộc Python/LibreOffice của checkout.
+BLOCKED — full Python trên system Python thiếu `webview`; không quy lỗi này là PASS.
 
-KNOWN FAILURES: None. iOS production shell, OOXML round-trip và thiết bị thật đều
-chưa được triển khai.
+KNOWN FAILURES: Lần paint đầu trên Simulator mới có thể trắng khoảng 20–25 giây;
+document picker, OOXML round-trip, license bridge và thiết bị thật chưa triển khai.
 
 RISKS: WebKit editing khác Chromium; OOXML phức tạp có nguy cơ mất dữ liệu; cần
 read-only/Save a Copy khi compatibility report không bảo đảm.
 
-DEPENDENCIES/BLOCKERS: Người phụ trách duyệt Swift + WKWebView; audit/chọn ZIP/XML
-dependency; iPhone/iPad thật; signing/TestFlight ở giai đoạn sau.
+DEPENDENCIES/BLOCKERS: Audit/chọn ZIP/XML dependency; iPhone/iPad thật;
+Apple signing/TestFlight ở giai đoạn sau.
 
 CORE PATCH ID: None.
 
-NEXT ACTION: Sau khi duyệt framework, tạo I1 shell cô lập trong `ports/ios`, boot
-asset offline trên iPhone/iPad Simulator và đo IME/rotation/background.
+NEXT ACTION: I2 native document picker + security-scoped URLs; sau đó xây adapter
+định dạng có compatibility report trước khi cho phép ghi đè Office file.

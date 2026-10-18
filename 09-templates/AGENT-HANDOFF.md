@@ -1,20 +1,20 @@
 # Agent Handoff
-TASK: iOS/iPadOS offline architecture analysis
+TASK: iOS/iPadOS offline shell and mobile-responsive UI
 AGENT/ROLE: Codex / Mobile Architecture
 BRANCH: mobile/ios-offline-analysis
 WORKTREE: /Users/hieupc/.codex/worktrees/ios-offline-analysis/3t-office
-OBJECTIVE: Determine an offline-first universal iPhone/iPad architecture while macOS work continues.
-FINDINGS: Shared JS and flat-document models are reusable; pywebview/Python/LibreOffice are not available on iOS, so native bridge and guarded OOXML support are required.
-IMPLEMENTATION SUMMARY: Added plan, reuse matrix, offline architecture, safe-format strategy and phased roadmap. No production framework/dependency was added.
+OBJECTIVE: Deliver the first offline universal iPhone/iPad shell with device-appropriate UI.
+FINDINGS: ES modules require the bundled vno:// scheme in WKWebView; file loading produced a blank UI. Desktop chrome needs dedicated compact/regular mobile layouts.
+IMPLEMENTATION SUMMARY: Added the Swift/WKWebView target, offline asset handler/staging, iPhone compact toolbar, iPad touch ribbon, safe-area constraints and focused tests. No dependency was added.
 FILES CHANGED: See docs/mobile/HANDOFF-IOS-OFFLINE-ANALYSIS-0.9.11.md.
-COMMANDS RUN: Spec/source bridge inventory; Xcode/Simulator capability inspection.
-BUILD RESULT: NOT RUN — analysis only, no iOS target yet.
-TEST RESULTS: NOT RUN — documentation-only checkpoint.
-KNOWN FAILURES: iOS shell, round-trip and real-device tests are not implemented yet.
+COMMANDS RUN: Xcode Simulator build; native install/launch/screenshots on iPhone 17 Pro and iPad Air 11-inch; focused/full tests.
+BUILD RESULT: PASS — Debug iphonesimulator app built.
+TEST RESULTS: PASS — 6/6 focused and native render on both device classes. FAIL — npm 3151/3167 environment/baseline probes. BLOCKED — full Python lacks webview in system Python.
+KNOWN FAILURES: Cold first Simulator render can take 20–25 seconds; document picker, OOXML round-trip and real-device tests are not implemented yet.
 RISKS: WebKit editing differences and OOXML data loss unless unsupported features are read-only/Save a Copy.
-DEPENDENCIES/BLOCKERS: Approval for Swift + WKWebView, ZIP/XML dependency audit, real devices and later signing.
+DEPENDENCIES/BLOCKERS: ZIP/XML dependency audit, real devices and later signing.
 CORE PATCH ID (if any): None.
-NEXT ACTION: Build an isolated offline WKWebView shell for iPhone/iPad Simulator after framework approval.
+NEXT ACTION: Add native document picker/security-scoped URL bridge, then guarded format adapters.
 
 ---
 

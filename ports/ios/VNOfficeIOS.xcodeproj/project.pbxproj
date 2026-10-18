@@ -1,0 +1,38 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {};
+	objectVersion = 56;
+	objects = {
+		B10000000000000000000001 = {isa = PBXBuildFile; fileRef = B10000000000000000000011; };
+		B10000000000000000000002 = {isa = PBXBuildFile; fileRef = B10000000000000000000012; };
+		B10000000000000000000003 = {isa = PBXBuildFile; fileRef = B10000000000000000000013; };
+		B10000000000000000000011 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
+		B10000000000000000000012 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		B10000000000000000000013 = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MobileOfficeViewController.swift; sourceTree = "<group>"; };
+		B10000000000000000000014 = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		B10000000000000000000015 = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "3T Office.app"; sourceTree = BUILT_PRODUCTS_DIR; };
+		B10000000000000000000020 = {isa = PBXGroup; children = (B10000000000000000000021, B10000000000000000000022,); sourceTree = "<group>"; };
+		B10000000000000000000021 = {isa = PBXGroup; children = (B10000000000000000000011, B10000000000000000000012, B10000000000000000000013, B10000000000000000000014,); path = launcher; sourceTree = "<group>"; };
+		B10000000000000000000022 = {isa = PBXGroup; children = (B10000000000000000000015,); name = Products; sourceTree = "<group>"; };
+		B10000000000000000000030 = {isa = PBXSourcesBuildPhase; buildActionMask = 2147483647; files = (B10000000000000000000001, B10000000000000000000002, B10000000000000000000003,); runOnlyForDeploymentPostprocessing = 0; };
+		B10000000000000000000031 = {isa = PBXFrameworksBuildPhase; buildActionMask = 2147483647; files = (); runOnlyForDeploymentPostprocessing = 0; };
+		B10000000000000000000032 = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			name = "Embed Offline Web Assets";
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/bash;
+			shellScript = "set -euo pipefail\nDEST=\"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/Web\"\nrm -rf \"$DEST\"\nmkdir -p \"$(dirname \"$DEST\")\"\nditto \"${VNO_STAGED_WEB_ROOT}\" \"$DEST\"\n";
+		};
+		B10000000000000000000040 = {isa = PBXNativeTarget; buildConfigurationList = B10000000000000000000050; buildPhases = (B10000000000000000000030, B10000000000000000000031, B10000000000000000000032,); buildRules = (); dependencies = (); name = VNOfficeIOS; productName = VNOfficeIOS; productReference = B10000000000000000000015; productType = "com.apple.product-type.application"; };
+		B10000000000000000000041 = {isa = PBXProject; attributes = {BuildIndependentTargetsInParallel = 1; LastSwiftUpdateCheck = 2630; LastUpgradeCheck = 2630; TargetAttributes = {B10000000000000000000040 = {CreatedOnToolsVersion = 26.3;};};}; buildConfigurationList = B10000000000000000000051; compatibilityVersion = "Xcode 14.0"; developmentRegion = vi; hasScannedForEncodings = 0; knownRegions = (vi, en, Base,); mainGroup = B10000000000000000000020; productRefGroup = B10000000000000000000022; projectDirPath = ""; projectRoot = ""; targets = (B10000000000000000000040,); };
+		B10000000000000000000060 = {isa = XCBuildConfiguration; buildSettings = {SDKROOT = iphoneos;}; name = Debug; };
+		B10000000000000000000061 = {isa = XCBuildConfiguration; buildSettings = {SDKROOT = iphoneos;}; name = Release; };
+		B10000000000000000000062 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; DEVELOPMENT_TEAM = ""; ENABLE_USER_SCRIPT_SANDBOXING = NO; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = launcher/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = vn.office.mobile; PRODUCT_NAME = "3T Office"; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SUPPORTS_MACCATALYST = NO; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Debug; };
+		B10000000000000000000063 = {isa = XCBuildConfiguration; buildSettings = {CODE_SIGN_STYLE = Automatic; CURRENT_PROJECT_VERSION = 1; DEVELOPMENT_TEAM = ""; ENABLE_USER_SCRIPT_SANDBOXING = NO; GENERATE_INFOPLIST_FILE = NO; INFOPLIST_FILE = launcher/Info.plist; IPHONEOS_DEPLOYMENT_TARGET = 17.0; PRODUCT_BUNDLE_IDENTIFIER = vn.office.mobile; PRODUCT_NAME = "3T Office"; SUPPORTED_PLATFORMS = "iphoneos iphonesimulator"; SUPPORTS_MACCATALYST = NO; SWIFT_COMPILATION_MODE = wholemodule; SWIFT_OPTIMIZATION_LEVEL = "-O"; SWIFT_VERSION = 5.0; TARGETED_DEVICE_FAMILY = "1,2";}; name = Release; };
+		B10000000000000000000050 = {isa = XCConfigurationList; buildConfigurations = (B10000000000000000000062, B10000000000000000000063,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+		B10000000000000000000051 = {isa = XCConfigurationList; buildConfigurations = (B10000000000000000000060, B10000000000000000000061,); defaultConfigurationIsVisible = 0; defaultConfigurationName = Release; };
+	};
+	rootObject = B10000000000000000000041;
+}
