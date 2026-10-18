@@ -16,14 +16,14 @@ Chuẩn: Microsoft Word 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qu
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu Word 2016 | 157 | 58% |
+| ✅ Đã đối chiếu Word 2016 | 158 | 58% |
 | 🟢 Có, chưa đối chiếu | 72 | 26% |
 | 🟡 Có một phần | 17 | 6% |
-| 🔴 Chưa có | 26 | 10% |
+| 🔴 Chưa có | 25 | 9% |
 | ⚪ Ngoài phạm vi | 7 | - |
 | **Tổng** | **279** (áp dụng: 272) | |
 
-- **Độ phủ so với Word 2016 (có hoặc có một phần, một phần tính 0,5): 87%**
+- **Độ phủ so với Word 2016 (có hoặc có một phần, một phần tính 0,5): 88%**
 - **Đã xác minh bằng đối chiếu Word 2016 thật: 58%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn phòng; độ trung thực đối chiếu được xác nhận bằng Word COM thật.
@@ -33,7 +33,7 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
 | Tệp (Backstage) | 17 | 1 | 14 | 0 | 1 | 1 | 94% |
-| Trang đầu | 47 | 33 | 11 | 1 | 2 | 0 | 95% |
+| Trang đầu | 47 | 34 | 11 | 1 | 1 | 0 | 97% |
 | Chèn | 34 | 23 | 3 | 0 | 5 | 3 | 84% |
 | Thiết kế | 10 | 4 | 0 | 4 | 2 | 0 | 60% |
 | Bố trí | 18 | 12 | 4 | 1 | 1 | 0 | 92% |
@@ -114,7 +114,7 @@ Tổng: 1 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Phông chữ | Gạch chân đơn (Ctrl+U) | ✅ | - | Gạch chân đơn writer.text.underline đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:24, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:27) |
 | Phông chữ | Gạch chân đôi, nét đứt, lượn sóng | 🟢 | - | writer.format.fontDialog (Ctrl+D) có Một nét, Hai nét, Nét đậm, Chấm, Gạch ngang, Lượn sóng + màu gạch chân; lưu DOCX rồi Word 2016 thật đọc Font.Underline = 3/6/4/7/11 đúng từng kiểu (tests/live/cdp/writer-underline-styles.desktop.mjs, scripts/audit-0610/word_underline_readback.ps1); chưa có các kiểu hiếm của Word (chấm-gạch, gạch dài, chỉ gạch dưới từ) |
 | Phông chữ | Gạch ngang chữ (Strikethrough) | ✅ | - | Gạch ngang chữ writer.text.strike đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:25, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:28) |
-| Phông chữ | Gạch ngang đôi (Double Strikethrough) | 🔴 | 3 | Chưa có gạch ngang đôi |
+| Phông chữ | Gạch ngang đôi (Double Strikethrough) | ✅ | - | writer.format.fontDialog (Ctrl+D) ô Gạch ngang đôi, lưu DOCX rồi Word 2016 thật đọc Font.DoubleStrikeThrough = -1 (đúng), cùng gạch chân sóng, chữ hoa nhỏ, giãn 2pt, nâng 4pt (tests/live/cdp/writer-font-dialog-effects.desktop.mjs 9/9, scripts/audit-0610/word_font_dialog_readback.ps1; platform/dialogs/font-dialog.js:31) |
 | Phông chữ | Chỉ số dưới (Subscript, Ctrl+=) / Chỉ số trên (Superscript, Ctrl+Shift++) | ✅ | - | Chỉ số dưới và trên writer.text.subscript/superscript đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:26-27, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:29-30) |
 | Phông chữ | Hiệu ứng chữ & Nghệ thuật (Text Effects: Outline, Shadow, Glow) | 🟢 | - | writer.format.textEffects, textOutline, textShadow, textGlow |
 | Phông chữ | Màu tô sáng văn bản (Highlight Color, Ctrl+Alt+H) | ✅ | - | Màu tô sáng writer.color.highlight đối chiếu Word COM w:highlight yellow (docs/DOC-BUTTON-MATRIX-1011.md:30, docs/AUDIT-DOC-WORD-PARALLEL-1011.md:34,46) |
