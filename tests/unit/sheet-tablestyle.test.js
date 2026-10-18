@@ -245,6 +245,25 @@ export async function runSheetTableStyleTests() {
     if (!xml.includes('vno:table-row-stripes="true"')) throw new Error("Thiếu vno:table-row-stripes");
   });
 
+  test("Nạp bảng: kiểu bảng chỉ là hiển thị — ô chưa sửa vẫn khớp hash gốc (lưu lại trả đúng XF), ô đã sửa thì không", () => {
+    const adapter = new SheetAdapter();
+    const untouched = { val: "ĐVT", formula: "", style: { fontWeight: "bold", color: "#000000" } };
+    untouched.style.origXf = 1;
+    untouched.style.styleHashAtImport = adapter._computeStyleHash(untouched.style);
+    const edited = { val: "x", formula: "", style: { fontWeight: "bold", color: "#ff0000", origXf: 2, styleHashAtImport: "da-sua" } };
+    const cells = new Map([["A1", untouched], ["B1", edited]]);
+    const workbook = { sheetsData: { Sheet1: cells } };
+    const xml = `<table:database-range table:target-range-address="Sheet1.A1:Sheet1.B2" vno:table-name="T1" vno:table-style="TableStyleMedium2"/>`;
+    adapter._attachImportedTables(workbook, xml);
+    const a1 = cells.get("A1");
+    if (!a1.style._fromTable) throw new Error("Ô A1 phải mang dấu hiển thị kiểu bảng");
+    if (a1.style.styleHashAtImport !== adapter._computeStyleHash(a1.style)) throw new Error("Ô chưa sửa phải khớp hash để lưu lại trả đúng XF gốc");
+    const b1 = cells.get("B1");
+    if (b1.style.styleHashAtImport === adapter._computeStyleHash(b1.style)) throw new Error("Ô đã sửa không được coi là chưa sửa");
+    const a2 = cells.get("A2");
+    if (a2.style.origXf != null) throw new Error("Ô mới do kiểu bảng tạo ra không có XF gốc");
+  });
+
   // 8. Help and i18n coverage & zero forbidden trademarks
   test("Help & i18n: đầy đủ chuỗi nhãn/gợi ý VI/EN và không chứa tên thương mại cấm", () => {
     const commands = [

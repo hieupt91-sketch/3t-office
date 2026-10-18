@@ -3309,7 +3309,10 @@ export class SheetAdapter {
             const rowStyle = table.hasHeaders !== false && row === startRow
               ? preset.headerStyle
               : ((row - startRow) % 2 === 1 ? preset.evenRowStyle : preset.oddRowStyle);
+            const hadOrigXf = cell.style?.origXf != null && cell.style.styleHashAtImport === this._computeStyleHash(cell.style);
             cell.style = { ...(cell.style || {}), ...rowStyle, _fromTable: true };
+            // Ô chưa sửa: viền/nền của kiểu bảng chỉ là hiển thị, lưu lại phải trả đúng định dạng gốc của ô (không "nướng" kiểu bảng vào ô).
+            if (hadOrigXf) cell.style.styleHashAtImport = this._computeStyleHash(cell.style);
             cells.set(coord, cell);
           }
         }
