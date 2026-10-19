@@ -394,3 +394,23 @@ RISKS: Deck structure, animation/transition and notes are only verified in the l
 DEPENDENCIES/BLOCKERS: A CDP-accessible save/export destination is needed to create PPTX/PDF and run readback. `CODEX-COMMON-RULES.md` is absent from this worktree; root `AGENTS.md` and the specified exploration docs were read.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Reproduce table-size and chart-title discrepancies while checking the dialog values before commit; fix only if independently reproducible, with CDP/unit FAIL before and PASS after. Retry image/file-save/export via a permitted CDP-visible path, then reopen PPTX and run hidden PowerPoint COM readback using `-Mode read`.
+
+---
+# Agent Handoff
+TASK: Q13 — VN Writer: tái hiện và xử lý các lỗi Q11
+AGENT/ROLE: Codex / VN Writer
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Tái hiện qua CDP, sửa lỗi hộp văn bản, xác minh xem trước in hai trang, lưu DOCX mới và đọc lại, chèn ảnh qua CDP; mỗi thay đổi có kiểm tra trước/sau và commit riêng.
+FINDINGS: Hộp văn bản ban đầu chồng lên đoạn đang soạn. Preview Q11 không tái hiện với tài liệu Q13 gồm ngắt trang, phương trình, textbox và header/footer: preview hiện 2 trang sau 30,116 ms (30.1 s). Lưu DOCX mới giữ equation/shape/columns nhưng bỏ liên kết section tới header/footer; đã khôi phục headerReference/footerReference trong DOCX.
+IMPLEMENTATION SUMMARY: Hộp mặc định đặt dưới đoạn hiện tại, vẫn giữ fallback caret. Ảnh chèn căn giữa và được giới hạn theo vùng in; Word COM đo 468×291 pt, căn giữa (baseline 1024.5×637.5 pt, căn trái). Hậu xử lý OOXML nối các part đầu/chân trang vào section. Thêm CDP repro cho textbox, ảnh, preview và round-trip cùng unit test OOXML.
+FILES CHANGED: adapters/libreoffice/writer/writer-adapter.js; adapters/libreoffice/common/ooxml_zip_patch.py; tests/live/cdp/q13-writer-textbox.desktop.mjs; tests/live/cdp/q13-writer-image.desktop.mjs; tests/live/cdp/q13-writer-preview.desktop.mjs; tests/live/cdp/q13-writer-roundtrip.desktop.mjs; tests/test_writer_basic_ops_ooxml.py; 09-templates/AGENT-HANDOFF.md.
+COMMITS: b1db2bbd (textbox placement); 2fa59b9d (image size/alignment); fc076ace (new DOCX header/footer references); 42f96b17 (two-page preview repro); 5cec0f39 (mock caret fallback).
+COMMANDS RUN: CDP textbox baseline/final; CDP image chooser baseline/final; hidden Word COM image readback; CDP two-page print preview baseline/final; save_document_in_place DOCX and reopen via launchApp; scripts/audit-0610/word_author_report_readback.ps1; hidden Word COM shape/header/footer/columns/equation/pages; targeted pytest; npm test; node scripts/audit-0610/i18n_parity.mjs; python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix; python -m pytest tests -q -k "writer or docx or ooxml".
+BUILD RESULT: NOT RUN — phiếu không thay đổi build system.
+TEST RESULTS: PASS — CDP textbox 3/3; CDP ảnh 2/2; CDP preview 2 trang, 30,116 ms (30.1 s); round-trip app 5/5; Word COM pages=2, shapes=1, columns=2, equations=1, đầu/chân trang đúng; ảnh inlineShapes=1, 468×291 pt, căn giữa; npm test 3770/3770; parity VI=3108/EN=3108, thiếu 0; checklist hạ 0; pytest 341 passed, 758 deselected (401.79s); unit header/footer ref trước FAIL, sau PASS.
+KNOWN FAILURES: Không còn lỗi trong bốn mục Q13. Khi app mở lại DOCX, text hộp hiện trong body nhưng `adapter.shapes` chưa tái tạo model shape; Word COM xác nhận shape native vẫn tồn tại trong DOCX.
+RISKS: Bộ xem trước hai trang đo được 30,116 ms (30.1 s) trong phiên CDP này; thời gian có thể thay đổi theo máy và tài liệu. Không sửa LibreOffice Core, không thêm dependency.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review các commit trên branch; giữ log Q13.DONE tại E:\VNOffice-briefs\logs.
