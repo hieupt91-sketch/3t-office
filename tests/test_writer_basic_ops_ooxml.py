@@ -1,4 +1,6 @@
 import unittest
+import io
+import zipfile
 
 from adapters.libreoffice.common.ooxml_zip_patch import (
     _writer_clone_lower_alpha_suffix,
@@ -8,10 +10,42 @@ from adapters.libreoffice.common.ooxml_zip_patch import (
     _writer_restore_toc_field,
     _writer_restore_created_paragraph_css,
     _writer_restore_created_run_highlight,
+    postprocess_writer_section_metadata,
+    read_zip_entry,
 )
 
 
 class WriterBasicOpsOoxmlTests(unittest.TestCase):
+    def test_new_writer_docx_links_created_header_footer_parts(self):
+        relationships = (
+            '<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">'
+            '<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/header" Target="header1.xml"/>'
+            '<Relationship Id="rId2" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/footer" Target="footer1.xml"/>'
+            '</Relationships>'
+        )
+        package = io.BytesIO()
+        with zipfile.ZipFile(package, "w") as archive:
+            archive.writestr("word/document.xml", '<w:document><w:body><w:p/><w:sectPr><w:pgSz/></w:sectPr></w:body></w:document>')
+            archive.writestr("word/_rels/document.xml.rels", relationships)
+            archive.writestr("word/header1.xml", '<w:hdr><w:p><w:r><w:t>Đầu trang Q13</w:t></w:r></w:p></w:hdr>')
+            archive.writestr("word/footer1.xml", '<w:ftr><w:p><w:r><w:t>Chân trang Q13</w:t></w:r></w:p></w:ftr>')
+        section = {
+            "id": "section-1",
+            "headerFooter": {
+                "header": "<p>Đầu trang Q13</p>",
+                "footer": "<p>Chân trang Q13</p>",
+                "headers": {"default": "<p>Đầu trang Q13</p>"},
+                "footers": {"default": "<p>Chân trang Q13</p>"},
+            },
+        }
+        source_html = "<!--vno-sections-meta: " + __import__("json").dumps([section], ensure_ascii=False) + " -->"
+        result = postprocess_writer_section_metadata(package.getvalue(), source_html=source_html)
+        document = read_zip_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn('<w:headerReference w:type="default" r:id="rId1"/>', document)
+        self.assertIn('<w:footerReference w:type="default" r:id="rId2"/>', document)
+        self.assertIn("Đầu trang Q13", read_zip_entry(result, "word/header1.xml").decode("utf-8"))
+        self.assertIn("Chân trang Q13", read_zip_entry(result, "word/footer1.xml").decode("utf-8"))
+
     def test_justify_and_exact_line_spacing_restore_from_html_css(self):
         source = '<p style="text-align:justify;line-height:18pt">Đoạn chính</p>'
         paragraph = (

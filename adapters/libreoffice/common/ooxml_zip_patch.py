@@ -23223,9 +23223,11 @@ def _writer_apply_section_header_footer_metadata(
         return document_xml, converted_rels_xml, []
 
     requests: list[dict[str, object]] = []
+    inferred_refs: dict[int, list[tuple[str, str, str]]] = {}
     reference_re = re.compile(r"<w:(headerReference|footerReference)\b([^>]*)/?>", re.IGNORECASE)
     for index, (source_section, section_meta) in enumerate(zip(source_sections, metadata)):
-        for ref in reference_re.finditer(source_section.group(0)):
+        section_refs = list(reference_re.finditer(source_section.group(0)))
+        for ref in section_refs:
             tag = ref.group(1).lower()
             attrs = ref.group(2)
             rel_match = re.search(r"\br:id=[\"']([^\"']+)[\"']", attrs, re.IGNORECASE)
@@ -23257,6 +23259,41 @@ def _writer_apply_section_header_footer_metadata(
                 "source_rid": source_rid, "entry": entry,
                 "kind": kind, "part": patched_part,
             })
+
+        # Some HTML imports create header/footer parts and relationships but
+        # omit the references from sectPr. Recover the default links from the
+        # exported section metadata and the matching part text.
+        for kind, tag in (("header", "headerreference"), ("footer", "footerreference")):
+            if any(
+                ref.group(1).lower() == tag
+                and (re.search(r"\bw:type=[\"']([^\"']+)[\"']", ref.group(2), re.IGNORECASE) or [None, "default"])[1].lower() == "default"
+                for ref in section_refs
+            ):
+                continue
+            desired_html = _writer_section_zone_value(section_meta, kind, "default")
+            if not desired_html or not _writer_zone_visible_text(desired_html):
+                continue
+            for source_rid, target in source_rels.items():
+                entry = target.lstrip("/") if target.startswith("/") else posixpath.normpath(posixpath.join("word", target))
+                if not re.fullmatch(rf"word/{kind}\d+\.xml", entry, re.IGNORECASE):
+                    continue
+                source_part = read_zip_entry(source_docx, entry)
+                if not source_part:
+                    continue
+                part_xml = source_part.decode("utf-8", errors="replace")
+                if _writer_ooxml_part_visible_text(part_xml) != _writer_zone_visible_text(desired_html):
+                    patched_part = _writer_patch_header_footer_text(source_part, kind, desired_html)
+                    if patched_part is None:
+                        continue
+                else:
+                    patched_part = source_part
+                requests.append({
+                    "section": index, "tag": tag, "variant": "default",
+                    "source_rid": source_rid, "entry": entry,
+                    "kind": kind, "part": patched_part,
+                })
+                inferred_refs.setdefault(index, []).append((tag, "default", source_rid))
+                break
 
     if not requests:
         return document_xml, converted_rels_xml, []
@@ -23322,6 +23359,7 @@ def _writer_apply_section_header_footer_metadata(
         section_xml = output_section.group(0)
         source_section = source_sections[index].group(0)
         source_refs = list(reference_re.finditer(source_section))
+        new_refs = []
         for source_ref in reversed(source_refs):
             tag = source_ref.group(1).lower()
             attrs = source_ref.group(2)
@@ -23344,6 +23382,17 @@ def _writer_apply_section_header_footer_metadata(
             ), None)
             if current_ref:
                 section_xml = section_xml[:current_ref.start()] + updated_ref + section_xml[current_ref.end():]
+            else:
+                new_refs.append(updated_ref)
+        for tag, variant, source_rid in inferred_refs.get(index, []):
+            target_rid = rid_by_request.get((index, tag, variant, source_rid))
+            if target_rid:
+                xml_tag = "headerReference" if tag == "headerreference" else "footerReference"
+                new_refs.append(f'<w:{xml_tag} w:type="{variant}" r:id="{target_rid}"/>')
+        if new_refs:
+            sect_open = re.search(r"<w:sectPr\b[^>]*>", section_xml, re.IGNORECASE)
+            if sect_open:
+                section_xml = section_xml[:sect_open.end()] + "".join(new_refs) + section_xml[sect_open.end():]
         updated_sections.append(section_xml)
     result = document_xml
     for output_section, replacement in reversed(list(zip(output_sections, updated_sections))):
@@ -25661,6 +25710,53 @@ def _apply_writer_link_to_previous(document_xml: str, section_meta: list[dict]) 
     return result
 
 
+def _restore_created_writer_header_footer_refs(
+    docx_bytes: bytes, document_xml: str, section_meta: list[dict],
+) -> tuple[str, dict[str, bytes]]:
+    """Link HTML-imported header/footer parts to sections when LO omits sectPr refs."""
+    sections = list(re.finditer(r"<w:sectPr\b[^>]*>[\s\S]*?</w:sectPr\s*>", document_xml, re.IGNORECASE))
+    if len(sections) != len(section_meta):
+        return document_xml, {}
+    relationships = _resolve_docx_rels(docx_bytes)
+    replacements: dict[str, bytes] = {}
+    updated_sections = []
+    for index, match in enumerate(sections):
+        section_xml = match.group(0)
+        meta = section_meta[index]
+        added = []
+        refs = list(re.finditer(r"<w:(header|footer)Reference\b([^>]*)/>", section_xml, re.IGNORECASE))
+        for kind in ("header", "footer"):
+            if any(ref.group(1).lower() == kind for ref in refs):
+                continue
+            desired_html = _writer_section_zone_value(meta, kind, "default")
+            if not desired_html or not _writer_zone_visible_text(desired_html):
+                continue
+            for rel_id, target in relationships.items():
+                entry = target.lstrip("/") if target.startswith("/") else posixpath.normpath(posixpath.join("word", target))
+                if not re.fullmatch(rf"word/{kind}\d+\.xml", entry, re.IGNORECASE):
+                    continue
+                part = replacements.get(entry) or read_zip_entry(docx_bytes, entry)
+                if not part:
+                    continue
+                part_xml = part.decode("utf-8", errors="replace")
+                if _writer_ooxml_part_visible_text(part_xml) != _writer_zone_visible_text(desired_html):
+                    part = _writer_patch_header_footer_text(part, kind, desired_html)
+                    if part is None:
+                        continue
+                    replacements[entry] = part
+                added.append(f'<w:{kind}Reference w:type="default" r:id="{rel_id}"/>')
+                break
+        if added:
+            opening = re.search(r"<w:sectPr\b[^>]*>", section_xml, re.IGNORECASE)
+            if opening:
+                section_xml = section_xml[:opening.end()] + "".join(added) + section_xml[opening.end():]
+        updated_sections.append(section_xml)
+    result = document_xml
+    for match, replacement in reversed(list(zip(sections, updated_sections))):
+        result = result[:match.start()] + replacement + result[match.end():]
+    return result, replacements
+
+
 def postprocess_writer_section_metadata(
     docx_bytes: bytes,
     *,
@@ -25726,9 +25822,13 @@ def postprocess_writer_section_metadata(
             )
     elif len(section_meta) <= 1:
         document_xml = _collapse_single_section_cols(document_xml)
+    created_zone_replacements: dict[str, bytes] = {}
+    document_xml, created_zone_replacements = _restore_created_writer_header_footer_refs(
+        docx_bytes, document_xml, section_meta,
+    )
     document_xml = _apply_writer_link_to_previous(document_xml, section_meta)
     patched_xml = _restore_created_writer_section_metadata(document_xml, section_meta, source_section_xmls)
-    replacements: dict[str, str | bytes | None] = {}
+    replacements: dict[str, str | bytes | None] = dict(created_zone_replacements)
     if patched_xml != document_xml:
         replacements["word/document.xml"] = patched_xml
 
