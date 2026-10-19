@@ -1,4 +1,24 @@
 # Agent Handoff
+TASK: MAC-14 — Ánh xạ phím tắt Cmd trên macOS (kèm audit MAC-4)
+AGENT/ROLE: Codex / Shared Platform macOS
+BRANCH: mac/keymap-1910
+WORKTREE: /Users/hieupc/.codex/worktrees/mac-keymap-1910/3t-office
+OBJECTIVE: Chuẩn hóa bảng phím macOS cho các phím mới, giữ nguyên Windows, thêm Help VI và kiểm chứng mapping/scope.
+FINDINGS: ShortcutManager đã coi metaKey như Ctrl nên capability chạy cơ bản đã tồn tại; thiếu bảng keymap, Help macOS và test theo scope. MAC-4 cũng dùng cùng cơ chế primary modifier; phần kéo-thả Option/Ctrl nằm ngoài scope và không sửa.
+IMPLEMENTATION SUMMARY: Thêm `keymap-macos.js` làm bảng dùng chung và helper primary modifier/hiển thị; ShortcutManager tái dùng helper; thêm chủ đề Help VI cho Doc/Sheet/Slide; thêm unit 5 ca và kịch bản desktop CDP 7 tổ hợp gửi Meta/Option qua `Input.dispatchKeyEvent`.
+FILES CHANGED: docs/PLAN-MAC-14-KEYMAP-1910.md; platform/commands/keymap-macos.js; platform/commands/shortcut-manager.js; platform/help/entries-macos-shortcuts.js; platform/help/help-catalog.js; tests/unit/macos-keymap.test.js; tests/live/cdp/macos-shortcuts.desktop.mjs; tests/run-tests.js; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: focused MAC-14 runner; node scripts/audit-0610/i18n_parity.mjs; npm test (hai lượt, lượt hai lọc tên lỗi); node --check CDP script; git diff --check.
+BUILD RESULT: NOT RUN — không đổi build system; nhánh vn-main hiện không có `ports/macos/`/runtime Qt để build app Mac.
+TEST RESULTS: PASS — focused 5/5; i18n VI=EN=3091, missing 0; syntax CDP script; diff check. Full Node FAIL — lượt 1: 3739/3758, 19 FAIL; lượt 2: 3738/3758, 20 FAIL (Track Changes headless dao động). Các lỗi gồm probe Python thiếu môi trường, soffice conversion, snapshot FODS và startup/performance probes; không có lỗi MAC-14.
+KNOWN FAILURES: Desktop CDP MAC-14 BLOCKED vì Python hiện tại thiếu module `webview` và checkout vn-main không có `ports/macos/`; test CDP đã được viết nhưng chưa claim PASS. Full Node không đạt mốc 3765/3765 và tổng số test hiện là 3758 trước task / 3763 sau 5 test MAC-14.
+RISKS: Runtime tiếp tục chấp nhận cả Ctrl lẫn Cmd như trước để tương thích; bảng chính thức chỉ công bố Cmd trên Mac. Việc đổi Ctrl+kéo thành Option+kéo của MAC-4 chưa triển khai trong task này.
+DEPENDENCIES/BLOCKERS: Cần MAC-6/runtime Chromium macOS có CDP và pywebview/Qt đã được phê duyệt/cài để chạy desktop CDP. Không có dependency mới.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review commit MAC-14; khi MAC-6 sẵn sàng chạy `node --experimental-websocket tests/live/cdp/macos-shortcuts.desktop.mjs`, sau đó xử lý MAC-4 Option+kéo ở task riêng.
+
+---
+
+# Agent Handoff
 TASK: CODEX-SLICER — Slicer cho Bảng giai đoạn 1
 AGENT/ROLE: Codex / VN Sheet
 BRANCH: feat/sheet-slicer-codex
