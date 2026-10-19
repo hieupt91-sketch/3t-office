@@ -473,3 +473,23 @@ RISKS: Worker Writer chiếm CPU/bộ nhớ trong lúc nền sau first paint dù
 DEPENDENCIES/BLOCKERS: None.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Commit riêng Q16, tạo `E:\VNOffice-briefs\logs\Q16.DONE`.
+
+---
+
+# Agent Handoff
+TASK: Q17 — Writer: soạn báo cáo dài, mục lục, bảng, chú thích, trộn thư và PDF
+AGENT/ROLE: Codex / VN Writer QA
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Soạn báo cáo 6 trang bằng Writer UI, thao tác các tính năng Q17, lưu DOCX thật, mở lại phiên mới và đối chiếu Word COM chỉ đọc.
+FINDINGS: Đã tạo báo cáo 6 trang ban đầu với 12 Heading 1/2 và 1 TOC. Sau thêm bảng và lưu lại, Word COM đếm 7 trang và không còn nhận TOC động (`TablesOfContents=0`), dù nội dung mục lục còn hiển thị. Print Preview báo 12 trang trong khi Writer status và Word COM báo 7. Bảng 5×4, footnote/endnote, tracked changes/comment và trộn CSV 3 bản ghi đều lưu/mở lại được. Regex không hiện trong Find/Replace; có wildcard `*`, `?` và bộ lọc định dạng.
+IMPLEMENTATION SUMMARY: Không sửa source ứng dụng. Đã chạy 52 thao tác/kiểm tra thực tế, thêm harness CDP tạo báo cáo, harness Word COM read-only, log tiếng Việt và 10 ảnh. Chèn ảnh có probe độc lập PASS nhưng chưa round-trip trong báo cáo.
+FILES CHANGED: `tests/live/cdp/q17-writer-long-report.desktop.mjs`; `tests/live/cdp/q17-writer-word-readonly.ps1`; `docs/EXPLORE-WRITER-2026-10-20.md`; `docs/assets/q17-writer-2026-10-20/*`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; CDP Q17 report/save/reopen; Word COM read-only; CDP table/notes/review/find-replace/mail-merge/print-preview; q13 image insertion probe; `npm test`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "writer or docx or ooxml"`.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — `npm test` 3771/3771; i18n VI=3110/EN=3110, missing=0; checklist 0 dòng hạ; pytest 342 passed, 759 deselected (372.60s). CDP report save/reopen PASS; Word COM ban đầu 6 trang/TOC=1, sau các lần lưu cuối 7 trang/TOC=0, footnotes=1, endnotes=1, comments=1, revisions=2, bảng=5×4; CSV merge round-trip 3 trang; image fit/center PASS.
+KNOWN FAILURES: Print Preview 12 trang so với Word/Writer 7; trường TOC động mất nhận dạng sau lần lưu thứ hai; tài liệu cuối 7 trang thay vì 6. Heading 3/list đa cấp, gộp ô/định dạng số, đầu/chân trang khác nhau, section break/hướng ngang, chú thích ảnh/wrapping, thay thế định dạng, PDF export/font embedding chưa chạy.
+RISKS: Chưa khắc phục lỗi preview/TOC vì phiếu hiện mới dừng ở audit; không được coi tài liệu 7 trang là đạt mục tiêu 6 trang.
+DEPENDENCIES/BLOCKERS: `CODEX-COMMON-RULES.md` không có trong worktree. Các hạng mục NOT RUN còn cần tiếp tục trên cùng worktree/nhánh.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Tiếp tục Q17: chạy các thao tác NOT RUN, điều tra TOC/print-preview FAIL; chỉ tạo `E:\VNOffice-briefs\logs\Q17.DONE` sau khi đủ scope và xác minh hoàn tất.

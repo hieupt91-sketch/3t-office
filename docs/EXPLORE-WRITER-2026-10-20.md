@@ -66,6 +66,16 @@
 | 40 | Chạy bài chèn ảnh Q13 với ảnh audit làm nguồn | PASS — ảnh được chèn, căn giữa, rộng 624/624 px vùng thân; đây là probe riêng, chưa lưu/mở lại trong báo cáo Q17 |
 | 41 | Mở Trang đầu → Thay thế | PASS — hộp Tìm kiếm và Thay thế mở qua ribbon |
 | 42 | Kiểm tra tùy chọn định dạng và biểu thức | PASS một phần — có lọc Đậm/Nghiêng/Phông/Màu và ký tự đại diện `*`, `?`; không thấy chế độ regex. Chưa áp dụng thay thế lên nội dung |
+| 43 | Mở Trộn thư → Nguồn dữ liệu | PASS — hộp nguồn người nhận mở |
+| 44 | Chọn Dán CSV / Thủ công | PASS |
+| 45 | Nhập dòng tiêu đề `Name,Unit` | PASS |
+| 46 | Nhập ba bản ghi Linh/Minh/An | PASS — bảng xem trước có đúng 3 người nhận |
+| 47 | Lưu nguồn dữ liệu | PASS — model có 3 bản ghi được chọn |
+| 48 | Chèn trường `Name` vào thư mới | PASS — tài liệu hiển thị trường trộn |
+| 49 | Bật xem trước và chuyển bản ghi kế | PASS — lần lượt hiện Linh rồi Minh |
+| 50 | Hoàn tất trộn tới tài liệu mới | PASS — thông báo hoàn tất 3 bản ghi, có ngắt trang giữa các bản |
+| 51 | Lưu kết quả, mở phiên mới và đọc Word COM | PASS — cả 3 tên còn nguyên, Word COM đếm 3 trang, chỉ đọc |
+| 52 | Ctrl+F2 mở xem trước báo cáo Q17 sau các lần lưu | FAIL — xem trước hiển thị 12 trang; Writer status và Word COM báo 7 trang |
 
 ## Ảnh minh chứng
 
@@ -77,6 +87,8 @@
 - [Theo dõi thay đổi và nhận xét](assets/q17-writer-2026-10-20/06-trackchanges-comment.png)
 - [Theo dõi thay đổi/nhận xét sau khi mở lại](assets/q17-writer-2026-10-20/07-review-reopen.png)
 - [Hộp Tìm kiếm và Thay thế, bộ lọc định dạng](assets/q17-writer-2026-10-20/08-find-replace.png)
+- [Kết quả trộn thư ba người sau khi mở lại](assets/q17-writer-2026-10-20/09-mail-merge-output.png)
+- [Xem trước in lệch số trang](assets/q17-writer-2026-10-20/10-print-preview.png)
 
 ## Hạng mục Q17 chưa chạy
 
@@ -86,9 +98,9 @@
 - Đầu/chân trang trang đầu khác biệt; số trang chẵn/lẻ; ngắt mục và đổi hướng ngang: NOT RUN.
 - Chèn ảnh: PASS ở probe riêng, chưa lưu/mở lại. Chú thích ảnh và bao quanh văn bản: NOT RUN.
 - Tìm/thay thế có định dạng: UI bộ lọc có sẵn nhưng chưa áp dụng thay thế, NOT RUN. Regex: NOT PRESENT trong hộp thoại; chỉ thấy ký tự đại diện `*`, `?`.
-- Trộn thư từ CSV ba dòng, xem trước và hoàn tất: NOT RUN.
+- Trộn thư CSV ba dòng, xem trước, hoàn tất, lưu/mở lại: PASS — tài liệu kết quả 3 trang.
 - Theo dõi thay đổi và nhận xét: PASS — lưu/mở lại, Word COM đếm 2 revisions và 1 comment.
-- Xuất PDF, kiểm tra số trang/phông nhúng và xem trước in: NOT RUN.
+- Xem trước in: FAIL — hiện 12 trang trong khi Word COM và status Writer là 7. Xuất PDF và kiểm tra phông nhúng: NOT RUN.
 
 ## Gate cuối
 
