@@ -2227,8 +2227,10 @@ def _apply_native_import_overlay_legacy(
         if not src_path or not str(src_path).lower().endswith(".pptx"):
             return fods
         try:
-            with open(src_path, "rb") as handle:
-                original = handle.read()
+            original = source_bytes
+            if original is None:
+                with open(src_path, "rb") as handle:
+                    original = handle.read()
             patcher = _ooxml_zip_patch()
             return patcher.overlay_slides_pptx_fodp_source_carriers(original, patcher.overlay_slides_pptx_fodp(original, fods))
         except DocumentEngineError:
@@ -4833,6 +4835,7 @@ class VnOfficeApi:
         sheet_open_id = None
         sheet_ooxml_workbook_xml = None
         original_xlsx = None
+        original_ooxml_bytes = None
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_open_") as tmp:
                 convert_src_path = src_path
@@ -4848,6 +4851,7 @@ class VnOfficeApi:
                     convert_src_path = os.path.join(tmp, f"decrypted{suffix}")
                     with open(convert_src_path, "wb") as decrypted_file:
                         decrypted_file.write(decrypted)
+                    original_ooxml_bytes = decrypted
                     try:
                         self._validate_open_package(convert_src_path, app_kind)
                     except DocumentEngineError as exc:
@@ -4865,6 +4869,7 @@ class VnOfficeApi:
                 if app_kind == "sheet" and src_path.lower().endswith(".xlsx") and os.path.isfile(convert_src_path):
                     with open(convert_src_path, "rb") as source_file:
                         original_xlsx = source_file.read()
+                    original_ooxml_bytes = original_xlsx
                     import_xlsx = _ooxml_zip_patch().make_all_sheets_visible_for_import(original_xlsx)
                     if import_xlsx != original_xlsx:
                         convert_src_path = os.path.join(tmp, "import-visible.xlsx")
@@ -4956,7 +4961,8 @@ class VnOfficeApi:
                     # must see table:structure-protected when the original XLSX is locked.
                     sheet_stage_started = time.perf_counter()
                     content = _apply_native_import_overlay(
-                        src_path, content, app_kind, source_bytes=original_xlsx
+                        src_path, content, app_kind,
+                        source_bytes=original_xlsx if original_xlsx is not None else original_ooxml_bytes,
                     )
                     _open_perf_log(
                         "sheet_open_stage", (time.perf_counter() - sheet_stage_started) * 1000,
@@ -5022,7 +5028,9 @@ class VnOfficeApi:
                     # must see vno:section-*, vno:master-theme, and Set Up Show vno:*
                     # when the original PTTX has p14:sectionLst / VNOfficeMasterLogo /
                     # p:showPr showNarration=0 or p:penClr.
-                    content = _apply_native_import_overlay(src_path, content, app_kind)
+                    content = _apply_native_import_overlay(
+                        src_path, content, app_kind, source_bytes=original_ooxml_bytes
+                    )
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
 

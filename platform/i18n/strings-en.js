@@ -4,6 +4,24 @@
  */
 
 export const enStrings = {
+  documentPassword: {
+    setTitle: "Encrypt with Password",
+    openTitle: "Enter password to open file",
+    password: "Password",
+    confirm: "Re-enter password",
+    warning: "If you forget the password, the file cannot be recovered. The password stays in application memory.",
+    mismatch: "The passwords do not match. Enter them again.",
+    invalid: "The password is invalid.",
+    wrongPassword: "The password is incorrect. Try again.",
+    cancel: "Cancel",
+    apply: "Apply",
+    open: "Open File",
+    action: "Encrypt with Password",
+    enabled: "The file will be encrypted when you save. Leave both fields empty and apply to remove the password.",
+    removed: "The password has been removed for future saves.",
+    hint: "The file is encrypted when you save and needs the password to open. A forgotten password cannot be recovered.",
+    unavailable: "Could not set a password for this document. Save the document first, then try again."
+  },
   writerTableProperties: {
     table: "Table", row: "Row", column: "Column", cell: "Cell", columnWidth: "Selected column width",
     setColumnWidth: "Set column width:", cm: "cm", verticalAlign: "Cell vertical alignment",
@@ -767,6 +785,7 @@ export const enStrings = {
     "common.file.open": { label: "Open", tooltip: "Open an existing document (Ctrl+O)" },
     "common.file.save": { label: "Save", tooltip: "Save the current document (Ctrl+S)" },
     "common.file.saveAs": { label: "Save As", tooltip: "Save the document under a new name (F12)" },
+    "common.file.passwordProtection": { label: "Encrypt with Password", tooltip: "Set or remove the file open password in File > Info" },
     "common.file.exportPdf": { label: "Export PDF", tooltip: "Export content to standard PDF format" },
     "common.file.exportConvert": { label: "Export & Convert", tooltip: "Export document to PDF or other file formats" },
     "common.file.print": { label: "Print", tooltip: "Print the document (Ctrl+P)" },

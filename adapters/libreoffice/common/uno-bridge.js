@@ -5,6 +5,7 @@
 
 import { mapVnCommandToUno } from "./command-dispatch-mapper.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
+import { showDocumentPasswordDialog } from "../../../platform/dialogs/document-password-dialog.js";
 
 // Above this many characters the save content travels to Python in chunks instead of one bridge call.
 const LARGE_CONTENT_STAGE_THRESHOLD_CHARS = 16 * 1024 * 1024;
@@ -114,7 +115,23 @@ export class UnoBridge {
         message: "Chức năng Mở tệp thật chỉ khả dụng trong 3T Office bản cài trên máy.",
       };
     }
-    return await this.desktopApi.open_document_dialog(appKind);
+    let result = await this.desktopApi.open_document_dialog(appKind);
+    while (result?.status === "password_required" || result?.status === "wrong_password") {
+      const password = await showDocumentPasswordDialog({
+        mode: "open",
+        error: result.status === "wrong_password"
+      });
+      if (password === null) return { status: "cancelled" };
+      result = await this.desktopApi.open_document_dialog(appKind, result.sourcePath, password);
+    }
+    return result;
+  }
+
+  async setDocumentPassword(password) {
+    if (!this.desktopApi || typeof this.desktopApi.set_document_password !== "function") {
+      return { status: "error", message: "Dịch vụ bảo vệ tệp chưa sẵn sàng." };
+    }
+    return await this.desktopApi.set_document_password(password);
   }
 
   /** Chọn và đọc một tài liệu Doc làm bản tham chiếu, không thay tài liệu đang mở. */

@@ -13,6 +13,7 @@ export const COMMON_COMMANDS = [
   { id: "common.file.open", category: "file", label: "Mở tệp", shortcut: "Ctrl+O", icon: "fileOpen", tooltip: "Mở tài liệu có sẵn (Ctrl+O)" },
   { id: "common.file.save", category: "file", label: "Lưu", shortcut: "Ctrl+S", icon: "fileSave", tooltip: "Lưu tài liệu hiện tại (Ctrl+S)" },
   { id: "common.file.saveAs", category: "file", label: "Lưu bản sao", shortcut: "F12", icon: "fileSave", tooltip: "Lưu tài liệu dưới tên khác (F12)" },
+  { id: "common.file.passwordProtection", category: "file", label: "Mã hóa bằng mật khẩu", labelKey: "documentPassword.action", tooltip: "Đặt hoặc gỡ mật khẩu mở tệp trong Tệp > Thông tin" },
   { id: "common.file.exportPdf", category: "file", label: "Xuất PDF", icon: "filePdf", tooltip: "Xuất nội dung sang định dạng PDF tiêu chuẩn" },
   { id: "common.file.exportConvert", category: "file", label: "Xuất và chuyển đổi", icon: "filePdf", tooltip: "Xuất tài liệu sang PDF hoặc các định dạng tệp khác" },
   { id: "common.file.print", category: "file", label: "In tài liệu", shortcut: "Ctrl+P", icon: "filePrint", tooltip: "In tài liệu (Ctrl+P)" },

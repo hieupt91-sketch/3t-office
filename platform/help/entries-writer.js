@@ -2426,5 +2426,20 @@ export const WRITER_HELP_ENTRIES = [
     "Bấm vào nút 'Sắp xếp bảng'. Toàn bộ các hàng dữ liệu sẽ được sắp xếp lại theo thứ tự chữ cái A–Z dựa trên nội dung cột đang đặt con trỏ.",
     "Hàng tiêu đề đầu tiên của bảng được giữ nguyên vị trí, chỉ các hàng dữ liệu bên dưới được hoán đổi thứ tự. Nhấn Ctrl+Z nếu muốn hoàn tác lại thứ tự ban đầu."
   ]
+},
+{
+  id: "writer.file.passwordProtection",
+  app: "writer",
+  commandIds: ["common.file.passwordProtection"],
+  title: "Mã hóa tệp bằng mật khẩu",
+  summary: "Đặt mật khẩu mở tệp để mã hóa tài liệu. Mật khẩu được giữ trong bộ nhớ ứng dụng và không thể khôi phục nếu bị quên.",
+  ribbon: { tab: "Tệp", tabId: "file", group: "Thông tin" },
+  keywords: ["mã hóa", "mật khẩu", "bảo vệ tệp", "gỡ mật khẩu"],
+  steps: [
+    "Mở Tệp > Thông tin và chọn Mã hóa bằng mật khẩu.",
+    "Nhập mật khẩu hai lần rồi chọn Áp dụng. Để gỡ mật khẩu, để trống cả hai ô và chọn Áp dụng.",
+    "Nhấn Ctrl+S hoặc Lưu thành để ghi tệp. Tệp sẽ yêu cầu mật khẩu khi mở trên thiết bị khác.",
+    "Giữ mật khẩu ở nơi an toàn; ứng dụng không lưu mật khẩu vào bản khôi phục tự động."
+  ]
 }
 ];

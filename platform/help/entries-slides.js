@@ -1253,6 +1253,21 @@ export const SLIDES_HELP_ENTRIES = [
       "Chọn Kiểm tra bản trình bày để đếm thông tin cá nhân, nhận xét, ghi chú người thuyết trình, trang chiếu ẩn và nội dung ngoài; dùng nút Xóa mục ở từng dòng để xử lý riêng loại đó."
     ]
   },
+  {
+    id: "slides.file.passwordProtection",
+    app: "slides",
+    commandIds: ["common.file.passwordProtection"],
+    title: "Mã hóa bản trình chiếu bằng mật khẩu",
+    summary: "Mã hóa tệp bản trình chiếu để chỉ người biết mật khẩu mới mở được. Mật khẩu được giữ trong bộ nhớ và không thể khôi phục nếu quên.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Thông tin" },
+    keywords: ["mã hóa", "mật khẩu", "bảo vệ tệp", "gỡ mật khẩu"],
+    steps: [
+      "Mở Tệp > Thông tin và chọn Mã hóa bằng mật khẩu.",
+      "Nhập mật khẩu hai lần rồi chọn Áp dụng. Để xóa mật khẩu, để trống hai ô rồi áp dụng.",
+      "Lưu bản trình chiếu bằng Ctrl+S hoặc Lưu thành để áp dụng mã hóa cho tệp.",
+      "Khi mở tệp sau này, nhập mật khẩu trong hộp thoại. Nội dung được bảo vệ không được ghi vào bản khôi phục tự động."
+    ]
+  },
 ];
 
 registerHelpEntries(SLIDES_HELP_ENTRIES);

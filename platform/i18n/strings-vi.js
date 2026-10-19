@@ -3,6 +3,24 @@
  */
 
 export const viStrings = {
+  documentPassword: {
+    setTitle: "Mã hóa bằng mật khẩu",
+    openTitle: "Nhập mật khẩu để mở tệp",
+    password: "Mật khẩu",
+    confirm: "Nhập lại mật khẩu",
+    warning: "Nếu quên mật khẩu, bạn sẽ không thể khôi phục tệp. Mật khẩu chỉ được giữ trong bộ nhớ của ứng dụng.",
+    mismatch: "Hai mật khẩu chưa khớp. Hãy nhập lại.",
+    invalid: "Mật khẩu không hợp lệ.",
+    wrongPassword: "Mật khẩu không đúng. Hãy thử lại.",
+    cancel: "Hủy",
+    apply: "Áp dụng",
+    open: "Mở tệp",
+    action: "Mã hóa bằng mật khẩu",
+    enabled: "Tệp sẽ được mã hóa khi bạn lưu. Để trống cả hai ô rồi áp dụng để gỡ mật khẩu.",
+    removed: "Đã gỡ mật khẩu cho những lần lưu tiếp theo.",
+    hint: "Tệp được mã hóa khi bạn lưu và phải nhập mật khẩu mới mở được. Quên mật khẩu thì không khôi phục được tệp.",
+    unavailable: "Không đặt được mật khẩu cho tài liệu này. Hãy thử lưu tài liệu trước rồi đặt lại."
+  },
   writerTableProperties: {
     table: "Bảng", row: "Hàng", column: "Cột", cell: "Ô", columnWidth: "Chiều rộng cột đang chọn",
     setColumnWidth: "Đặt chiều rộng cột:", cm: "cm", verticalAlign: "Căn dọc nội dung ô",
@@ -766,6 +784,7 @@ export const viStrings = {
     "common.file.open": { label: "Mở tệp", tooltip: "Mở tài liệu có sẵn (Ctrl+O)" },
     "common.file.save": { label: "Lưu", tooltip: "Lưu tài liệu hiện tại (Ctrl+S)" },
     "common.file.saveAs": { label: "Lưu bản sao", tooltip: "Lưu tài liệu dưới tên khác (F12)" },
+    "common.file.passwordProtection": { label: "Mã hóa bằng mật khẩu", tooltip: "Đặt hoặc gỡ mật khẩu mở tệp trong Tệp > Thông tin" },
     "common.file.exportPdf": { label: "Xuất PDF", tooltip: "Xuất nội dung sang định dạng PDF tiêu chuẩn" },
     "common.file.exportConvert": { label: "Xuất và chuyển đổi", tooltip: "Xuất tài liệu sang PDF hoặc các định dạng tệp khác" },
     "common.file.print": { label: "In tài liệu", tooltip: "In tài liệu (Ctrl+P)" },

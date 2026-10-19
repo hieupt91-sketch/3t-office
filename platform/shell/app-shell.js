@@ -18,6 +18,7 @@ import { getPlatformLaunchContext } from "../bootstrap.js";
 import { themeManager } from "../theme/theme-manager.js";
 import { headerTheme, loadHeaderImage, HEADER_PRESET_COLORS } from "../theme/header-theme.js";
 import { globalUnoBridge } from "../../adapters/libreoffice/common/uno-bridge.js";
+import { showDocumentPasswordDialog } from "../dialogs/document-password-dialog.js";
 import { NotificationBar } from "../ui-kit/notification-bar.js";
 import { installQuickAccess } from "./quick-access.js";
 import { installGlobalFocusGuard, captureEditorFocus, restoreEditorFocus, isEditorElement } from "./focus-manager.js";
@@ -2240,6 +2241,17 @@ export class AppShell {
           <div class="vno-backstage-info-main" style="display:flex;flex-direction:column;gap:20px;">
             <div class="vno-info-card" style="border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md, 8px);padding:20px;background:var(--vno-bg-window);">
               <div style="display:flex;align-items:flex-start;gap:16px;">
+                <div style="width:48px;height:48px;border-radius:8px;background:rgba(34,197,94,0.12);color:#15803d;display:flex;align-items:center;justify-content:center;flex-shrink:0;" aria-hidden="true">🔒</div>
+                <div style="flex:1;">
+                  <h2 style="font-size:16px;font-weight:700;margin:0 0 6px;color:var(--vno-text-primary);">${t("documentPassword.action")}</h2>
+                  <p style="font-size:12px;color:var(--vno-text-muted);margin:0 0 14px;line-height:1.5;">${t("documentPassword.hint")}</p>
+                  <button type="button" class="vno-btn" id="vno-info-document-password">${t("documentPassword.action")}</button>
+                </div>
+              </div>
+            </div>
+
+            <div class="vno-info-card" style="border:1px solid var(--vno-border-default);border-radius:var(--vno-radius-md, 8px);padding:20px;background:var(--vno-bg-window);">
+              <div style="display:flex;align-items:flex-start;gap:16px;">
                 <div style="width:48px;height:48px;border-radius:8px;background:rgba(234,179,8,0.15);color:#ca8a04;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
                   <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
                 </div>
@@ -2346,6 +2358,7 @@ export class AppShell {
     const markBtn = container.querySelector("#vno-info-mark-as-final");
     const editPropsBtn = container.querySelector("#vno-info-edit-properties");
     const inspectBtn = container.querySelector("#vno-info-inspect-document");
+    const passwordBtn = container.querySelector("#vno-info-document-password");
 
     const onMarkClick = () => {
       const currentFinal = Boolean(adapter?.isFinal || (adapter?.documentProperties?.contentStatus && String(adapter.documentProperties.contentStatus).toLowerCase() === "final"));
@@ -2375,14 +2388,28 @@ export class AppShell {
       }
     };
 
+    const onPasswordClick = async () => {
+      const password = await showDocumentPasswordDialog({ mode: "set" });
+      if (password === null) return;
+      const result = await globalUnoBridge.setDocumentPassword(password);
+      if (result?.status === "ok") {
+        this.setStatus?.(password ? t("documentPassword.enabled") : t("documentPassword.removed"));
+        closeModal();
+      } else {
+        await showAlertDialog({ title: t("documentPassword.action"), message: result?.message || t("documentPassword.unavailable"), type: "error" });
+      }
+    };
+
     markBtn?.addEventListener("click", onMarkClick);
     editPropsBtn?.addEventListener("click", onEditPropsClick);
     inspectBtn?.addEventListener("click", onInspectClick);
+    passwordBtn?.addEventListener("click", onPasswordClick);
 
     return () => {
       markBtn?.removeEventListener("click", onMarkClick);
       editPropsBtn?.removeEventListener("click", onEditPropsClick);
       inspectBtn?.removeEventListener("click", onInspectClick);
+      passwordBtn?.removeEventListener("click", onPasswordClick);
       container.innerHTML = "";
     };
   }

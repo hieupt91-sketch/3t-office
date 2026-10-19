@@ -6,6 +6,7 @@ import { SLIDES_HELP_ENTRIES } from "../../platform/help/entries-slides.js";
 import { AUTORECOVER_HELP_ENTRIES } from "../../platform/help/entries-autorecover.js";
 import { LAUNCHER_HELP_ENTRIES } from "../../platform/help/entries-launcher.js";
 import { HELP_ENTRIES, registerHelpEntries } from "../../platform/help/help-catalog.js";
+import { COMMON_COMMANDS } from "../../platform/commands/command-definitions.js";
 
 /** Danh mục các nút đang chờ hoàn thiện theo docs/RIBBON-BACKLOG.md */
 const PENDING_BACKLOG_EXCEPTIONS = new Set([
@@ -158,6 +159,18 @@ export async function runHelpCoverageTests() {
       const entry = HELP_ENTRIES.find((e) => e.id === pid);
       if (!entry) {
         throw new Error(`Thiếu bài Help cho tính năng Shared Platform: ${pid}`);
+      }
+    }
+  });
+
+  await test("Help Coverage: Mã hóa bằng mật khẩu có lệnh và hướng dẫn trong cả ba ứng dụng", () => {
+    if (!COMMON_COMMANDS.some(command => command.id === "common.file.passwordProtection")) {
+      throw new Error("Thiếu lệnh common.file.passwordProtection trong command-definitions");
+    }
+    for (const app of ["writer", "sheet", "slides"]) {
+      const entry = HELP_ENTRIES.find(item => item.id === `${app}.file.passwordProtection`);
+      if (!entry || !entry.commandIds.includes("common.file.passwordProtection") || entry.steps.length < 3) {
+        throw new Error(`Thiếu hướng dẫn mã hóa mật khẩu cho ${app}`);
       }
     }
   });

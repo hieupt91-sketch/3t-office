@@ -1962,6 +1962,21 @@ export const SHEET_HELP_ENTRIES = [
       "Bấm nút Phông chữ (Fonts) để tùy biến bộ phông tiêu đề và nội dung (Office Calibri Light/Calibri, Calibri, Century Gothic, Garamond, Bookman Old Style, Arial, Times New Roman, Georgia, Trebuchet MS, Corbel, Candara).",
       "Khi lưu tệp sang định dạng XLSX, các thiết lập chủ đề được đóng gói nguyên bản vào tệp OpenXML xl/theme/theme1.xml chuẩn, đảm bảo khi trao đổi tệp sang các ứng dụng bảng tính khác, hệ thống sẽ nhận diện chính xác ThemeColorScheme và ThemeFontScheme."
     ]
+  },
+  {
+    id: "sheet.file.passwordProtection",
+    app: "sheet",
+    commandIds: ["common.file.passwordProtection"],
+    title: "Mã hóa sổ tính bằng mật khẩu",
+    summary: "Đặt mật khẩu mở tệp để mã hóa sổ tính. Mật khẩu chỉ ở bộ nhớ ứng dụng; nếu bị quên thì không thể khôi phục tệp.",
+    ribbon: { tab: "Tệp", tabId: "file", group: "Thông tin" },
+    keywords: ["mã hóa", "mật khẩu", "bảo vệ tệp", "gỡ mật khẩu"],
+    steps: [
+      "Mở Tệp > Thông tin và chọn Mã hóa bằng mật khẩu.",
+      "Nhập cùng một mật khẩu vào hai ô rồi chọn Áp dụng. Để gỡ mật khẩu, xóa nội dung cả hai ô trước khi áp dụng.",
+      "Nhấn Ctrl+S hoặc Lưu thành để mã hóa tệp. Lần mở sau, nhập đúng mật khẩu trong hộp thoại.",
+      "Ghi nhớ mật khẩu ở nơi an toàn; nội dung sổ tính đang được bảo vệ sẽ không tạo bản khôi phục tự động."
+    ]
   }
 ];
 

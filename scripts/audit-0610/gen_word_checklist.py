@@ -27,7 +27,7 @@ Tệp (Backstage)|Tệp|Xuất và chuyển đổi định dạng (giữ bố c�
 Tệp (Backstage)|Tệp|In (Ctrl+P) & Xem trước khi in (Ctrl+F2)|V|-|Hộp thoại in nội bộ và xem trước trang A4 khớp Word COM 595.35x841.95 pt (docs/DOC-BUTTON-MATRIX-1011.md:82-83)
 Tệp (Backstage)|Tệp|Đóng (Ctrl+W)|A|-|common.file.close
 Tệp (Backstage)|Thông tin|Bảo vệ tài liệu: Đánh dấu là cuối cùng (Mark as Final / Read-only)|A|-|writer.file.markAsFinal (platform/commands/command-definitions.js:243)
-Tệp (Backstage)|Thông tin|Bảo vệ tài liệu: Mật khẩu mở file (mã hóa DOCX)|N|1|Chưa có cơ chế mã hóa mật khẩu mở file DOCX
+Tệp (Backstage)|Thông tin|Bảo vệ tài liệu: Mật khẩu mở file (mã hóa DOCX)|V|-|common.file.passwordProtection: Tệp > Thông tin > Mã hóa bằng mật khẩu (Agile AES-256, 2 ô nhập khớp); tệp lưu là vùng chứa mã hóa, mở lại hỏi mật khẩu, sai mật khẩu báo rõ, đặt hoặc gỡ được (tests/live/cdp/document-password.desktop.mjs 9/9; tests/test_ooxml_encryption_roundtrip.py; {{L:adapters/libreoffice/common/ooxml_encryption.py|def encrypt_package}} mã hóa, {{L:platform/dialogs/document-password-dialog.js|export function showDocumentPasswordDialog}} hộp thoại); Word và PowerPoint 2016 COM mở được bằng mật khẩu (mật khẩu thử dưới 16 ký tự vì COM từ chối dài hơn, kể cả tệp do chính Word lưu)
 Tệp (Backstage)|Thông tin|Kiểm tra tài liệu (Inspect Document - loại bỏ metadata, comment ẩn)|A|-|writer.file.inspectDocument (platform/commands/command-definitions.js:244)
 Tệp (Backstage)|Thông tin|Quản lý tài liệu: Tự động khôi phục (AutoRecover)|A|-|Tự động khôi phục AutoRecover (platform/autorecover/auto-recover.js:1-35)
 Tệp (Backstage)|Thông tin|Thuộc tính tài liệu (Title, Author, Subject, Keywords...)|A|-|writer.file.properties (platform/commands/command-definitions.js:242)
