@@ -17,9 +17,9 @@ Chuẩn: Microsoft Word 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qu
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Word 2016 | 159 | 58% |
-| 🟢 Có, chưa đối chiếu | 72 | 26% |
+| 🟢 Có, chưa đối chiếu | 73 | 27% |
 | 🟡 Có một phần | 17 | 6% |
-| 🔴 Chưa có | 24 | 9% |
+| 🔴 Chưa có | 23 | 8% |
 | ⚪ Ngoài phạm vi | 7 | - |
 | **Tổng** | **279** (áp dụng: 272) | |
 
@@ -45,7 +45,7 @@ Lưu ý: số mục chia đều cho mỗi dòng tính năng người dùng văn 
 | Công cụ Hình ảnh | 12 | 3 | 5 | 2 | 2 | 0 | 75% |
 | Công cụ Vẽ | 10 | 4 | 2 | 2 | 2 | 0 | 70% |
 | Công cụ Đầu & Chân trang | 7 | 4 | 2 | 0 | 0 | 1 | 100% |
-| Không thuộc ribbon | 20 | 9 | 9 | 0 | 2 | 0 | 90% |
+| Không thuộc ribbon | 20 | 9 | 10 | 0 | 1 | 0 | 95% |
 
 ## Việc cần làm (mục chưa có hoặc một phần, ưu tiên 1: danh sách 15 mục thiếu nhất)
 
@@ -410,7 +410,7 @@ Tổng: 0 mục ưu tiên 1 cần bổ sung/hoàn thiện.
 | Chuột | Menu ngữ cảnh chuột phải trên văn bản | 🟢 | - | Menu ngữ cảnh văn bản chuột phải (apps/writer/writer-app.js:863-876) |
 | Chuột | Menu ngữ cảnh chuột phải trong bảng | ✅ | - | Menu chuột phải trong bảng đối chiếu Word COM thêm/xóa hàng cột (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:54-57) |
 | Chuột | Menu ngữ cảnh chuột phải hình ảnh & hình khối | ✅ | - | Menu chuột phải hình ảnh/hình khối đối chiếu Word COM (docs/AUDIT-DOC-WORD-PARALLEL-1011.md:73-74) |
-| Thanh trạng thái | Thanh trạng thái: Số trang & Tổng số trang (Trang X trên Y) | 🔴 | 3 | Writer chưa hiển thị số trang hiện tại trên thanh trạng thái |
+| Thanh trạng thái | Thanh trạng thái: Số trang & Tổng số trang (Trang X trên Y) | 🟢 | - | Thanh trạng thái hiện «Trang X / Y»: tài liệu 3 trang bằng 2 ngắt trang hiện Trang 3 / 3, Ctrl+Home về Trang 1 / 3, con trỏ ở đoạn trang hai hiện Trang 2 / 3 (tests/live/cdp/writer-status-page.desktop.mjs 4/4, tests/live/cdp/writer-status-page.desktop.mjs:22; apps/writer/writer-app.js:573 trang hiện tại, apps/writer/writer-app.js:576 dòng trạng thái); chưa đối chiếu số trang với Word |
 | Thanh trạng thái | Thanh trạng thái: Đếm từ & số ký tự | ✅ | - | Đếm từ trên thanh trạng thái đối chiếu Word COM trong FIX-T15 (docs/DOC-BUTTON-MATRIX-1011.md:105) |
 | Thanh trạng thái | Thanh trạng thái: Ngôn ngữ tài liệu & Kiểm tra chính tả | 🟢 | - | writer.review.toggleSpellCheck (apps/writer/writer-app.js:234, 570-577) |
 | Thanh trạng thái | Thanh trạng thái: Nút chuyển chế độ xem (Bố trí in, Đọc, Web) | ✅ | - | Nút chuyển chế độ xem đối chiếu Word COM (docs/DOC-BUTTON-MATRIX-1011.md:117-119) |
