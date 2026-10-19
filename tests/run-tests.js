@@ -77,6 +77,7 @@ import { runWriterI18nShortcutsTests } from "./unit/writer-i18n-shortcuts.test.j
 import { runSheetArrayFormulaTests } from "./unit/sheet-array-formulas.test.js";
 import { runSlidesDiagramTests } from "./unit/slides-diagrams.test.js";
 import { runShortcutScopeTests } from "./unit/shortcut-scope.test.js";
+import { runMacOSKeymapTests } from "./unit/macos-keymap.test.js";
 import { runWriterRefMailAuditTests } from "./unit/writer-refmail-audit.test.js";
 import { runSheetImageTests } from "./unit/sheet-images.test.js";
 import { runSheetObjectMenuTests } from "./unit/sheet-object-menu.test.js";
@@ -403,6 +404,7 @@ async function runAll() {
     { title: "46. Behavioral Tests — VN Sheet Cross-Sheet & Array Formulas", runner: runSheetArrayFormulaTests },
     { title: "47. Behavioral Tests — VN Slides SmartArt-like Diagrams", runner: runSlidesDiagramTests },
     { title: "48. Runtime Tests — Active App Shortcut Scope", runner: runShortcutScopeTests },
+    { title: "48b. Runtime Tests — macOS Cmd/Option Shortcut Map", runner: runMacOSKeymapTests },
     { title: "49. Behavioral & Unit Tests — VN Writer References & Mailings Audit", runner: runWriterRefMailAuditTests },
     { title: "50. Behavioral Tests — VN Sheet Insert Pictures", runner: runSheetImageTests },
     { title: "51. Behavioral Tests — VN Slides Slide Size", runner: runSlidesSlideSizeTests },
