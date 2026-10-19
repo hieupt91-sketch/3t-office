@@ -273,3 +273,24 @@ DEPENDENCIES/BLOCKERS: None for the UI fix. Excel COM comparison is BLOCKED by t
 CORE PATCH ID (if any): None.
 NEXT ACTION: Review Q5 commits and exploration evidence; use a COM-free five-file round-trip audit for any follow-up verification.
 ---
+
+
+---
+
+# Agent Handoff
+TASK: Q7 LAN14 open-to-edit latency
+AGENT/ROLE: Codex / VN Sheet performance
+BRANCH: perf/lan14-open-codex
+WORKTREE: E:\VNOffice-codex-lan14
+OBJECTIVE: Reduce LAN14.xlsx open-to-edit time to <=93 s at the median across three runs, preserve Quick View <=3.01 s, and retain the 28-file LAN baseline.
+FINDINGS: Branch and current main baseline measured effectively the same (editable median 112.00 s vs 112.51 s). XLSX fast overlay rescanned 65 MB worksheet XML for native format targets; a separate FODS metadata traversal and a full cell scan for structured formulas were additional avoidable costs. Python overlay and JS model/load/render stages do not overlap on the critical path; LibreOffice app conversion remained about 13.75 s after changes.
+IMPLEMENTATION SUMMARY: Reused parsed XF indices in fast import; fused native cell-format stamping into P1 metadata parsing; skipped full structured-formula cell scan when a quick formula-text check found no structured references. VNO_FAST_IMPORT_OVERLAY=0 provides rollback. Output hashes and the 5,000-cell sample stayed exact.
+FILES CHANGED: adapters/libreoffice/common/ooxml_zip_patch.py; tests/test_sheet_format_cells_native.py; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: Three-run LAN14 stage measurements at current branch and main; 28-file parity audits for overlay modes; LAN14 FODS/payload SHA parity; focused Python tests; node tests/run-tests.js; pytest -k "sheet or import or fods or ooxml"; i18n parity; checklist evidence; 27-file desktop roundtrip/layout audit with Excel COM blocked; LibreOffice PDF open/export for 27 saved workbooks.
+BUILD RESULT: NOT RUN (no build change).
+TEST RESULTS: PASS — editable 90.43/90.73/91.10 s (min/median/max); Quick View 2.63/2.65/2.78 s; 28/28 fast-overlay parity; LAN14 overlay/optimized FODS/final FODS/payload hashes exact; JS sample 5,000 cells hash -1959260462. `node tests/run-tests.js` 3769/3769; pytest 360 passed, 737 deselected; i18n missing VI/EN 0; checklist evidence 0 lowered lines. 27/27 workbook round trips had 0 layout diffs and clean lint; LibreOffice opened/exported 27/27 PDFs.
+KNOWN FAILURES: LAN14 desktop save audit BLOCKED after 494.6 s in savePipeline; CDP connection closed during save of a 323,219,496-byte FODS intermediate. Excel COM was not run per task rule.
+RISKS: LO PDF export confirms documents open but is not an Excel rendering oracle. LAN14 remains too large for the existing whole-document save pipeline; next material gain likely requires lazy/partial sheet loading and save, with format-preserving parity tests.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review commits def682d0, be96c13a, e8a7ef30; consider a separate task for partial/lazy sheet loading to reduce first-edit latency and LAN14 save cost.
