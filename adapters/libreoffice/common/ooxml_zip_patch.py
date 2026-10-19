@@ -36,6 +36,7 @@ import os
 import posixpath
 import re
 import sys
+import time
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 from urllib.parse import quote as url_quote, unquote as url_unquote
@@ -14811,6 +14812,18 @@ def overlay_sheet_xlsx_fods_p1(
     skip_initial_xf: bool = False,
 ) -> str:
     """P1 equivalent of :func:`overlay_sheet_xlsx_fods` with a faster metadata pass."""
+    profile = os.environ.get("VNO_PERF_DEBUG") == "1"
+
+    def timed(name, callback, *args, **kwargs):
+        if not profile:
+            return callback(*args, **kwargs)
+        started = time.perf_counter()
+        try:
+            return callback(*args, **kwargs)
+        finally:
+            elapsed_ms = (time.perf_counter() - started) * 1000
+            print(f"[VNO Open Perf] native_overlay_helper: {elapsed_ms:.1f} ms helper={name}", flush=True)
+
     xlsx_bytes = normalize_source_xlsx(xlsx_bytes)
     xml = fods_xml or ""
     # Big FODS: the steps that only touch table opening tags / the document head run on a skeleton (every table
@@ -14827,60 +14840,65 @@ def overlay_sheet_xlsx_fods_p1(
             bodies.append(span.group(2))
             return span.group(1) + span.group(3)
 
-        xml = _sub_fods_tables(xml, _stash_body)
+        xml = timed("_sub_fods_tables", _sub_fods_tables, xml, _stash_body)
         skeleton = bool(bodies)
-    current = read_zip_entry(xlsx_bytes, XLSX_WORKBOOK_ENTRY)
+    current = timed("read_workbook_xml", read_zip_entry, xlsx_bytes, XLSX_WORKBOOK_ENTRY)
     if current:
         workbook_xml = current.decode("utf-8", errors="replace")
-        xml = overlay_fods_structure_protection(xml, workbook_xml)
-        xml = apply_calculation_options_to_fods(xml, parse_calculation_options_from_workbook(workbook_xml))
-        visibility = parse_sheet_visibility_from_workbook(workbook_xml)
+        xml = timed("overlay_structure_protection", overlay_fods_structure_protection, xml, workbook_xml)
+        calc_options = timed("parse_calculation_options", parse_calculation_options_from_workbook, workbook_xml)
+        xml = timed("apply_calculation_options", apply_calculation_options_to_fods, xml, calc_options)
+        visibility = timed("parse_sheet_visibility", parse_sheet_visibility_from_workbook, workbook_xml)
         if visibility:
-            xml = apply_sheet_visibility_to_fods(xml, visibility)
-        xml = overlay_active_sheet_to_fods(xml, workbook_xml)
-        xml = apply_print_titles_to_fods(xml, parse_print_titles_from_workbook(workbook_xml))
-    xml = overlay_page_margins_to_fods(xlsx_bytes, xml)
-    xml = overlay_sheet_xlsx_freeze_panes(xlsx_bytes, xml)
-    xml = overlay_sheet_xlsx_split_panes(xlsx_bytes, xml)
-    xml = overlay_sheet_xlsx_print_options(xlsx_bytes, xml)
-    xml = overlay_sheet_xlsx_page_setup(xlsx_bytes, xml)
-    xml = overlay_sheet_xlsx_structured_formulas(xlsx_bytes, xml)
-    xml = _overlay_autofilter_from_xlsx(xlsx_bytes, xml)
-    xml = _overlay_sheet_layout_from_xlsx(xlsx_bytes, xml)
-    tab_colors = parse_tab_colors_from_xlsx(xlsx_bytes)
+            xml = timed("apply_sheet_visibility", apply_sheet_visibility_to_fods, xml, visibility)
+        xml = timed("overlay_active_sheet", overlay_active_sheet_to_fods, xml, workbook_xml)
+        print_titles = timed("parse_print_titles", parse_print_titles_from_workbook, workbook_xml)
+        xml = timed("apply_print_titles", apply_print_titles_to_fods, xml, print_titles)
+    xml = timed("overlay_page_margins", overlay_page_margins_to_fods, xlsx_bytes, xml)
+    xml = timed("overlay_freeze_panes", overlay_sheet_xlsx_freeze_panes, xlsx_bytes, xml)
+    xml = timed("overlay_split_panes", overlay_sheet_xlsx_split_panes, xlsx_bytes, xml)
+    xml = timed("overlay_print_options", overlay_sheet_xlsx_print_options, xlsx_bytes, xml)
+    xml = timed("overlay_page_setup", overlay_sheet_xlsx_page_setup, xlsx_bytes, xml)
+    xml = timed("overlay_structured_formulas", overlay_sheet_xlsx_structured_formulas, xlsx_bytes, xml)
+    xml = timed("overlay_autofilter", _overlay_autofilter_from_xlsx, xlsx_bytes, xml)
+    xml = timed("overlay_layout", _overlay_sheet_layout_from_xlsx, xlsx_bytes, xml)
+    tab_colors = timed("parse_tab_colors", parse_tab_colors_from_xlsx, xlsx_bytes)
     if skeleton:
         if tab_colors:
-            xml = apply_tab_colors_to_fods(xml, tab_colors)
-        xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
-        xml = _overlay_sheet_slicers_from_xlsx(xlsx_bytes, xml)
-        xml = _put_back_table_bodies(xml, bodies)
+            xml = timed("apply_tab_colors", apply_tab_colors_to_fods, xml, tab_colors)
+        xml = timed("overlay_scenarios", _overlay_scenarios_from_xlsx, xlsx_bytes, xml)
+        xml = timed("overlay_slicers", _overlay_sheet_slicers_from_xlsx, xlsx_bytes, xml)
+        xml = timed("put_back_table_bodies", _put_back_table_bodies, xml, bodies)
         bodies = None
-    xml = _overlay_sheet_cell_metadata_from_xlsx_p1(
+    xml = timed(
+        "overlay_cell_metadata_p1",
+        _overlay_sheet_cell_metadata_from_xlsx_p1,
         xlsx_bytes,
         xml,
         include_xf=not skip_initial_xf,
     )
-    xml = _overlay_native_cell_formats_from_xlsx(xlsx_bytes, xml)
-    xml = _promote_covered_formula_errors(xml)
+    xml = timed("overlay_native_cell_formats", _overlay_native_cell_formats_from_xlsx, xlsx_bytes, xml)
+    xml = timed("promote_covered_formula_errors", _promote_covered_formula_errors, xml)
     if not skeleton:
         if tab_colors:
-            xml = apply_tab_colors_to_fods(xml, tab_colors)
-    xml = _overlay_sheet_drawing_image_ids(xlsx_bytes, xml)
-    xml = _overlay_sheet_drawing_text_boxes(xlsx_bytes, xml)
-    xml = _overlay_sheet_drawing_shapes(xlsx_bytes, xml)
-    xml = _overlay_sheet_resolved_comments(xlsx_bytes, xml)
-    xml = overlay_pivot_chart_metadata_to_fods(xlsx_bytes, xml)
-    xml = overlay_sheet_chart_metadata_to_fods(xlsx_bytes, xml)
+            xml = timed("apply_tab_colors", apply_tab_colors_to_fods, xml, tab_colors)
+    xml = timed("overlay_drawing_image_ids", _overlay_sheet_drawing_image_ids, xlsx_bytes, xml)
+    xml = timed("overlay_drawing_text_boxes", _overlay_sheet_drawing_text_boxes, xlsx_bytes, xml)
+    xml = timed("overlay_drawing_shapes", _overlay_sheet_drawing_shapes, xlsx_bytes, xml)
+    xml = timed("overlay_resolved_comments", _overlay_sheet_resolved_comments, xlsx_bytes, xml)
+    xml = timed("overlay_pivot_chart_metadata", overlay_pivot_chart_metadata_to_fods, xlsx_bytes, xml)
+    xml = timed("overlay_chart_metadata", overlay_sheet_chart_metadata_to_fods, xlsx_bytes, xml)
     if not skeleton:
-        xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
-        xml = _overlay_sheet_slicers_from_xlsx(xlsx_bytes, xml)
-    xml = apply_conditional_formatting_to_fods(xml, parse_conditional_formatting_from_xlsx(xlsx_bytes))
-    theme_entry = read_zip_entry(xlsx_bytes, "xl/theme/theme1.xml")
+        xml = timed("overlay_scenarios", _overlay_scenarios_from_xlsx, xlsx_bytes, xml)
+        xml = timed("overlay_slicers", _overlay_sheet_slicers_from_xlsx, xlsx_bytes, xml)
+    conditional = timed("parse_conditional_formatting", parse_conditional_formatting_from_xlsx, xlsx_bytes)
+    xml = timed("apply_conditional_formatting", apply_conditional_formatting_to_fods, xml, conditional)
+    theme_entry = timed("read_theme_xml", read_zip_entry, xlsx_bytes, "xl/theme/theme1.xml")
     if theme_entry:
         try:
-            parsed_theme = parse_sheet_theme_xml(theme_entry.decode("utf-8", errors="replace"))
+            parsed_theme = timed("parse_sheet_theme", parse_sheet_theme_xml, theme_entry.decode("utf-8", errors="replace"))
             if parsed_theme:
-                xml = apply_workbook_theme_to_fods(xml, parsed_theme)
+                xml = timed("apply_workbook_theme", apply_workbook_theme_to_fods, xml, parsed_theme)
         except Exception:
             pass
     return xml
