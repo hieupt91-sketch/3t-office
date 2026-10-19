@@ -14,7 +14,7 @@ const filePath = args.filter((a) => !a.startsWith("--"))[1] || undefined;
 const port = Number((args.find((a) => a.startsWith("--port=")) || "--port=47001").slice(7));
 const shotDir = `E:\\VNOffice-profiles\\ui-shots\\live-${app}`; mkdirSync(shotDir, { recursive: true });
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const session = await launchApp(app, { filePath, startTimeoutMilliseconds: 180000, readyTimeoutMilliseconds: 180000, localAppData: `E:\\VNOffice-profiles\\live-${app}` });
+const session = await launchApp(app, { filePath, startTimeoutMilliseconds: 180000, readyTimeoutMilliseconds: 180000, localAppData: process.env.VNO_CDP_LOCALAPPDATA || `E:\\VNOffice-profiles\\live-${app}-${Date.now()}` });
 console.log("APP MO, cong dieu khien", port);
 
 async function handle(cmd, body) {
