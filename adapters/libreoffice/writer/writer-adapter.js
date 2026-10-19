@@ -17720,7 +17720,31 @@ export class WriterAdapter {
     // closing tag keeps overlapping comments and revisions representable.
     const reviewTagRe = /<(\/?)\s*(ins|del|mark)\b([^>]*)>/gi;
     const stack = [];
-    const source = String(html || "");
+    const rawSource = String(html || "");
+    // A generated table of contents is a protected, derived block. Browser review
+    // wrappers can still appear inside its HTML after selections/comments cross it;
+    // keep the displayed entry text but do not export those wrappers as revisions
+    // or comment ranges.
+    const tocTokenRe = /<div\b[^>]*>|<\/div\s*>|<\/?(?:ins|del|mark)\b[^>]*>/gi;
+    let source = "";
+    let sourceCursor = 0;
+    let tocDepth = 0;
+    let tocToken;
+    while ((tocToken = tocTokenRe.exec(rawSource))) {
+      source += rawSource.slice(sourceCursor, tocToken.index);
+      sourceCursor = tocTokenRe.lastIndex;
+      const value = tocToken[0];
+      if (/^<div\b/i.test(value)) {
+        if (tocDepth > 0 || /\bdata-vno-toc=["']true["']/i.test(value)) tocDepth += 1;
+        source += value;
+      } else if (/^<\/div/i.test(value)) {
+        source += value;
+        if (tocDepth > 0) tocDepth -= 1;
+      } else if (tocDepth === 0) {
+        source += value;
+      }
+    }
+    source += rawSource.slice(sourceCursor);
     let output = "";
     let cursor = 0;
     let token;

@@ -27972,6 +27972,27 @@ def postprocess_writer_review_markup(docx_bytes: bytes, *, source_html: str | No
             document_xml = document_xml[:start_at] + replacement + document_xml[end_at:]
         revision_id += 1
 
+    # LibreOffice marks generated TOC fields dirty. Word then refreshes the field
+    # when opening a document with Track Changes enabled and records the refresh as
+    # insertions/deletions inside the TOC. The TOC entries are already serialized
+    # in document.xml, so keep that cached result clean on open.
+    paragraph_re = re.compile(r'<w:p\b[^>]*>[\s\S]*?</w:p\s*>', re.IGNORECASE)
+    def clear_dirty_toc_field(match: re.Match) -> str:
+        paragraph = match.group(0)
+        if not re.search(r'<w:instrText\b[^>]*>\s*TOC\b', paragraph, re.IGNORECASE):
+            return paragraph
+        field_re = re.compile(r'<w:fldChar\b[^>]*>', re.IGNORECASE)
+        cleared = False
+        def clear_dirty(field: re.Match) -> str:
+            nonlocal cleared
+            tag = field.group(0)
+            if cleared or not re.search(r'\bw:fldCharType=["\']begin["\']', tag, re.IGNORECASE):
+                return tag
+            cleared = True
+            return re.sub(r'\s+w:dirty=["\'](?:true|1)["\']', '', tag, flags=re.IGNORECASE)
+        return field_re.sub(clear_dirty, paragraph)
+    document_xml = paragraph_re.sub(clear_dirty_toc_field, document_xml)
+
     replacements: dict[str, bytes] = {"word/document.xml": document_xml.encode("utf-8")}
     if comments:
         used_para_ids = {
