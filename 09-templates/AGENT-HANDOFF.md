@@ -232,3 +232,24 @@ DEPENDENCIES/BLOCKERS: None for implemented fixes. Zoom clipping requires a repr
 CORE PATCH ID (if any): None.
 NEXT ACTION: Review the nine commits. If zoom clipping remains reproducible on another 1366 px setup, record the CDP geometry and handle it as a follow-up.
 ---
+
+
+# Agent Handoff
+TASK: Q4 — Writer: chọn kích thước bảng và chèn mục lục tại con trỏ
+AGENT/ROLE: Codex / VN Writer
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Thêm bộ chọn bảng 10×8 và hộp thoại 1–63 hàng/cột; chèn mục lục tại caret, tách đoạn nếu caret ở giữa đoạn.
+FINDINGS: Lệnh writer.table.insert trước đây chèn cố định 3×4. TOC trước đây được đặt sau paragraph chứa caret. CODEX-COMMON-RULES.md không có trong worktree; áp dụng AGENTS.md và quy tắc phiếu được giao.
+IMPLEMENTATION SUMMARY: Writer UI mở lưới kích thước có chọn bằng rê/kéo, điều hướng phím, Esc, hộp thoại tùy chỉnh và báo lỗi giá trị; Adapter chèn bảng tự cân rộng, đặt caret vào ô đầu và giới hạn kích thước 1–63. TOC được chèn tại caret thật bằng cách tách block; nhánh headless cũ vẫn giữ tương thích. Cập nhật Help VI, nhãn i18n VI/EN, và checklist Word với dẫn chứng kiểm được.
+FILES CHANGED: adapters/libreoffice/writer/writer-adapter.js; apps/writer/writer-app.js; apps/writer/writer-table-size-picker.js; platform/help/entries-writer.js; platform/i18n/strings-vi.js; platform/i18n/strings-en.js; tests/live/cdp/writer-table-size-picker.desktop.mjs; tests/live/cdp/writer-table-size-picker.word-readback.ps1; tests/live/cdp/writer-toc-at-caret.desktop.mjs; scripts/audit-0610/gen_word_checklist.py; docs/WORD2016-FEATURE-CHECKLIST.md; 09-templates/AGENT-HANDOFF.md.
+COMMITS: 0fe85b0b (merge main); eb1cfab5 (resolve merge); 56f07440 (feature).
+COMMANDS RUN: `git merge main`; CDP table test before/after; CDP TOC test before/after; hidden Word COM readback; `node tests/run-tests.js`; `python -m pytest tests -q -k writer`; `node scripts/audit-0610/i18n_parity.mjs`; `node scripts/help-coverage.mjs`; all three `gen_*_checklist.py`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `git diff --check`.
+BUILD RESULT: NOT RUN — no build/package changes.
+TEST RESULTS: PASS — Node 3768/3768; pytest 307 passed, 786 deselected; table CDP baseline 0/2 → final 6/6 (drag 5×3, dialog 6×4, Esc, save, undo); TOC CDP baseline 1/2 → final 2/2; hidden Word COM readback found 3×5 and 4×6 tables. i18n VI/EN 3105 each, missing 0; Help Writer 230/230; checklist evidence lowered rows Word/Excel/Slides 0/0/0.
+KNOWN FAILURES: None in ticket scope.
+RISKS: Word COM readback used the local hidden Office installation. No Core or file-format implementation changes.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review Q4 commits; ticket completion log is E:\VNOffice-briefs\logs\Q4-writer-table-toc.DONE.
+---
