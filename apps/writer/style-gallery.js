@@ -40,8 +40,8 @@ export const STYLE_PRESETS = [
     tag: "h1",
     label: "Tiêu đề 1",
     sublabel: "Heading 1",
-    previewSample: "TIÊU ĐỀ 1",
-    previewCss: "font-family:'Times New Roman', serif; font-size:15px; font-weight:700; color:var(--vno-style-preview-heading, #0f4c81); text-transform:uppercase;",
+    previewSample: "Tiêu đề 1",
+    previewCss: "font-family:'Calibri Light', Calibri, sans-serif; font-size:16pt; font-weight:normal; color:#2e74b5; text-transform:none;",
     description: "Tiêu đề cấp 1: Chữ hoa, in đậm, căn giữa, cỡ 16pt (QUYẾT ĐỊNH, CHỈ THỊ...)"
   },
   {
