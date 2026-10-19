@@ -414,3 +414,22 @@ RISKS: Bộ xem trước hai trang đo được 30,116 ms (30.1 s) trong phiên 
 DEPENDENCIES/BLOCKERS: None.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Review các commit trên branch; giữ log Q13.DONE tại E:\VNOffice-briefs\logs.
+
+---
+# Agent Handoff
+TASK: Q14 — Slides xác minh lỗi Q12, lưu/mở PPTX và xuất PDF
+AGENT/ROLE: Codex / VN Slides QA
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Tái kiểm tra hai FAIL Q12 bằng CDP và giá trị ô thực tế; tạo PPTX 5 trang có bảng, biểu đồ, ảnh, ghi chú, chuyển trang và hoạt hình; mở lại, đọc bằng PowerPoint COM ẩn; tạo PDF thật; cập nhật khám phá và handoff.
+FINDINGS: Bài `slides-q14-insert-fields.desktop.mjs` đọc giá trị ngay trước Chèn là 4/3 và `Tiến độ triển khai`, kết quả mô hình đúng 2/2. Hai FAIL Q12 do Ctrl+A không chọn nội dung trong các ô thử nghiệm, không phải lỗi sản phẩm. PPTX mở lại đủ 5 trang; PowerPoint COM xác nhận bảng 4×3, biểu đồ, ảnh, ghi chú trang 4, EntryEffect=2817 và hoạt hình trang 5. PDF API status=ok; `fast_pdf_page_count`=5.
+IMPLEMENTATION SUMMARY: Không sửa mã sản phẩm. Thêm `tests/live/cdp/slides-q14-roundtrip.desktop.mjs` để tạo/lưu/mở lại PPTX bằng CDP, chèn ảnh PNG thật bằng `DOM.setFileInputFiles`, rồi chuẩn bị/in PDF qua API với đường dẫn đích. Cập nhật `docs/EXPLORE-SLIDES-2026-10-20.md` theo số liệu Q14.
+FILES CHANGED: `tests/live/cdp/slides-q14-roundtrip.desktop.mjs`; `docs/EXPLORE-SLIDES-2026-10-20.md`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; CDP `slides-q14-insert-fields.desktop.mjs`; CDP `slides-q14-roundtrip.desktop.mjs`; hidden PowerPoint COM read-only; `ppt_table_readback.ps1`; `ppt_animation_all_readback.ps1`; `npm test`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "slides or pptx"`.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — field CDP 2/2; round-trip CDP 10/10; PPTX 5 trang; PDF 5 trang; PowerPoint COM read-only xác nhận bảng 4×3, biểu đồ, ảnh, ghi chú, chuyển tiếp và hoạt hình; npm test 3770/3770; i18n VI=3108/EN=3108, missing=0; checklist hạ 0 (Word 279, Excel 217, PowerPoint 269); pytest 152 passed, 947 deselected.
+KNOWN FAILURES: Không có lỗi sản phẩm tái hiện. Hộp thoại Lưu thành của hệ điều hành không chạy theo quy tắc Q14; tệp đã được lưu qua adapter API.
+RISKS: Kết quả lưu/đọc lại được xác minh trên bộ trình bày Q14 tạo mới; luồng hộp thoại hệ điều hành F12 không nằm trong kiểm thử.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Commit riêng Q14 và tạo `E:\VNOffice-briefs\logs\Q14.DONE`.
