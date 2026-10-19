@@ -204,7 +204,7 @@ Chế độ xem|Hiển thị|Thước (Ruler)|A|-|slides.view.ruler; hiển th�
 Chế độ xem|Hiển thị|Đường lưới (Gridlines)|A|-|slides.view.gridlines; hiển thị lưới tọa độ căn hình (docs/SLIDES-BUTTON-MATRIX-1011.md:91)
 Chế độ xem|Hiển thị|Đường dẫn hướng (Guides)|A|-|slides.view.guides; hiển thị đường guide căn chỉnh thông minh (docs/SLIDES-BUTTON-MATRIX-1011.md:92)
 Chế độ xem|Hiển thị|Ghi chú (Notes Pane toggle)|V|-|FIX-L4/L6: slides.notes.toggle bật tắt vùng ghi chú diễn giả (docs/SLIDES-BUTTON-MATRIX-1011.md:87)
-Chế độ xem|Thu phóng|Thu phóng (Zoom Dialog)|N|2|Chưa có hộp thoại chọn mức thu phóng tùy biến (Zoom Dialog)
+Chế độ xem|Thu phóng|Thu phóng (Zoom Dialog)|A|-|slides.view.zoomDialog: nhập phần trăm 50–200 chính xác (75% đúng 0,75), nút 200/100/75/50, Vừa cửa sổ, bấm số % thanh trạng thái cũng mở; khoảng 10–400% của bản gốc chưa có (CDP tests/live/cdp/slides-zoom-dialog.desktop.mjs; {{L:apps/slides/slides-zoom-dialog.js|export async function showSlidesZoomDialog}} hộp thoại)
 Chế độ xem|Thu phóng|Phóng to (Zoom In)|V|-|FIX-L14: slides.view.zoomIn bước tăng 10 điểm phần trăm đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:93)
 Chế độ xem|Thu phóng|Thu nhỏ (Zoom Out)|V|-|FIX-L14: slides.view.zoomOut bước giảm 10 điểm phần trăm đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:94)
 Chế độ xem|Thu phóng|100% (Zoom Reset)|V|-|FIX-L14: slides.view.zoomReset đặt lại 100% đối chiếu View.Zoom=100 (docs/SLIDES-BUTTON-MATRIX-1011.md:95)

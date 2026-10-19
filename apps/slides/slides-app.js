@@ -65,6 +65,7 @@ export class SlidesApp {
     this.shell.onZoomChange = (percent) => {
       this.canvasController.setZoom(percent / 100);
     };
+    this.shell.onZoomDialog = () => this.canvasController.openZoomDialog();
     this.canvasController.mount();
     this.canvas = this.canvasController;
 

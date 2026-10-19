@@ -1158,6 +1158,7 @@ export const enStrings = {
     ,"slides.view.zoomOut": { label: "Zoom Out", tooltip: "Decrease presentation zoom level" }
     ,"slides.view.zoomReset": { label: "100%", tooltip: "Reset presentation zoom level to 100%" }
     ,"slides.view.fitToWindow": { label: "Fit to Window", tooltip: "Fit presentation slide to current window size" }
+    ,"slides.view.zoomDialog": { label: "Zoom…", tooltip: "Set an exact zoom percentage (50–200%) or fit to window" }
     ,"slides.view.newWindow": { label: "New Window", tooltip: "Open a new window for the presentation document" }
     ,"slides.show.startFromBegin": { label: "From Beginning", tooltip: "Start the slide show from the first slide (F5)" }
     ,"slides.show.startFromCurrent": { label: "From Current Slide", tooltip: "Start the slide show from the current slide (Shift+F5)" }

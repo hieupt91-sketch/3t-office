@@ -719,6 +719,7 @@ export const SLIDES_COMMANDS = [
   { id: "slides.view.zoomOut", category: "view", label: "Thu nhỏ", icon: "zoomOut", tooltip: "Giảm tỉ lệ hiển thị trang chiếu" },
   { id: "slides.view.zoomReset", category: "view", label: "100%", icon: "zoomReset", tooltip: "Đặt lại tỉ lệ hiển thị 100%" },
   { id: "slides.view.fitToWindow", category: "view", label: "Vừa cửa sổ", icon: "slidesFitWindow", tooltip: "Thu phóng trang chiếu vừa khít cửa sổ làm việc" },
+  { id: "slides.view.zoomDialog", category: "view", label: "Thu phóng…", icon: "zoom100", tooltip: "Đặt phần trăm thu phóng chính xác (50–200%) hoặc vừa cửa sổ" },
   { id: "slides.view.newWindow", category: "view", label: "Cửa sổ mới", icon: "newWindow", tooltip: "Mở tài liệu trình chiếu trong cửa sổ mới" },
   { id: "slides.show.startFromBegin", category: "show", label: "Từ đầu", shortcut: "F5", icon: "slidePlayFromBegin", tooltip: "Bắt đầu trình chiếu từ trang đầu tiên (F5)" },
   { id: "slides.show.startFromCurrent", category: "show", label: "Từ trang này", shortcut: "Shift+F5", icon: "slidePlayFromCurrent", tooltip: "Trình chiếu từ trang hiện tại (Shift+F5)" },

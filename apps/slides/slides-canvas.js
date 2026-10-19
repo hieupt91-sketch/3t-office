@@ -4,6 +4,7 @@
 
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { createSelectionPane } from "../../platform/ui-kit/selection-pane.js";
+import { showSlidesZoomDialog } from "./slides-zoom-dialog.js";
 import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
 import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
 import { t, getLocale } from "../../platform/i18n/i18n.js";
@@ -12987,13 +12988,20 @@ const startEditing = (initialText) => {
   }
 
   setZoom(level) {
-    const next = Math.min(2.0, Math.max(0.5, Math.round(Number(level) * 10) / 10));
+    const next = Math.min(2.0, Math.max(0.5, Math.round(Number(level) * 100) / 100));
     if (!Number.isFinite(next)) return false;
     this.zoomLevel = next;
     this._applyViewState();
     this._syncCommandStates();
     this.options.onZoomChange?.(this.zoomLevel);
     return this.zoomLevel;
+  }
+
+  async openZoomDialog() {
+    const choice = await showSlidesZoomDialog(Math.round(this.zoomLevel * 100));
+    if (!choice) return false;
+    if (choice.fit) return this.fitToWindow();
+    return this.setZoom(choice.zoom / 100);
   }
 
   zoomIn() { return this.setZoom(this.zoomLevel + 0.1); }
