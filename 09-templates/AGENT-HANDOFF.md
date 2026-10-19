@@ -211,3 +211,24 @@ RISKS: TOC field cached results will not be marked dirty for automatic refresh o
 DEPENDENCIES/BLOCKERS: None for Q2. Missing CODEX-COMMON-RULES.md was not present in the assigned worktree.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Review and merge the Q2 commit; investigate pre-existing checklist evidence rows in separate tickets.
+
+
+# Agent Handoff
+TASK: Q3 — Writer: sửa lỗi giao diện nhỏ khi soạn thảo
+AGENT/ROLE: Codex / VN Writer
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Fix six Writer UI issues with a CDP reproduction/check per item and separate commits.
+FINDINGS: Heading 1 preview diverged from the saved built-in style. The Vietnamese style gallery exposed “Normal”; page-region labels mixed Vietnamese and English. The table header toggle omitted command state. Comment UI used both “Ghi chú” and “Nhận xét”. Recovery dialog stayed open after deleting its last item. The 1366×768 CDP window did not reproduce the reported zoom-group clipping.
+IMPLEMENTATION SUMMARY: Matched Heading 1 preview to the existing applied style without changing DOCX style semantics; localized Writer style/page-region labels; synchronized `writer.table.toggleHeaderRow` state; standardized comment labels and Help copy; close recovery dialog when its final item is removed. Added a CDP fit regression check for the zoom group; no production change because it passes at 1366×768.
+FILES CHANGED: apps/writer/style-gallery.js; apps/writer/writer-app.js; apps/writer/writer.css; adapters/libreoffice/writer/writer-adapter.js; platform/autorecover/recovery-dialog.js; platform/i18n/strings-vi.js; platform/i18n/strings-en.js; platform/help/entries-writer.js; tests/live/cdp/writer-style-preview-parity.desktop.mjs; tests/live/cdp/writer-vietnamese-ui-labels.desktop.mjs; tests/live/cdp/writer-table-header-toggle-state.desktop.mjs; tests/live/cdp/writer-comment-terminology.desktop.mjs; tests/live/cdp/writer-autorecover-last-item.desktop.mjs; tests/live/cdp/writer-zoom-ribbon-fit.desktop.mjs; docs/WORD2016-FEATURE-CHECKLIST.md; docs/EXCEL2016-FEATURE-CHECKLIST.md; docs/POWERPOINT2016-FEATURE-CHECKLIST.md; 09-templates/AGENT-HANDOFF.md.
+COMMITS: bff5531e; d7a1ab1b; caaa42fc; 8089d089; 439593ab; a00b9e36; 033aa420; 53fd7f04; 9cc66f77.
+COMMANDS RUN: `git merge main`; all six CDP scripts before/after as applicable; `node tests/run-tests.js`; `python -m pytest tests -q -k writer`; `node scripts/audit-0610/i18n_parity.mjs`; `node scripts/help-coverage.mjs`; all three `gen_*_checklist.py`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `git diff --check`.
+BUILD RESULT: NOT RUN — no build/package changes.
+TEST RESULTS: PASS — Node suite 3766/3766; Writer pytest 307 passed, 786 deselected; CDP pre/post: style preview 1/1 fail→pass, labels 2/2 fail→pass, table toggle 1/1 fail→pass, comment labels 2/2 fail→pass, recovery last item 1/1 fail→pass. Zoom fit 1/1 PASS at 1366×768 without a code change. i18n VI/EN 3093 keys each, missing 0; Writer Help 230/230 (100%).
+KNOWN FAILURES: Checklist evidence verifier reports one unrelated Word checklist row lowered (right-click text context menu, A→N; missing valid command/evidence); Excel and PowerPoint have zero lowered rows. `CODEX-COMMON-RULES.md` was absent from the assigned worktree.
+RISKS: The requested zoom clipping could not be reproduced with a real 1366×768 app window via CDP, so no production adjustment was made. No DOCX style names were changed.
+DEPENDENCIES/BLOCKERS: None for implemented fixes. Zoom clipping requires a reproducible environment if it persists on another display configuration.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review the nine commits. If zoom clipping remains reproducible on another 1366 px setup, record the CDP geometry and handle it as a follow-up.
+---
