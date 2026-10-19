@@ -587,7 +587,7 @@ export const WRITER_HELP_ENTRIES = [
     commandIds: ["writer.review.commentPrevious", "writer.review.commentNext", "writer.review.commentDelete", "writer.review.commentResolve", "writer.review.commentReply"],
     title: "Duyệt, trả lời và xử lý nhận xét",
     summary: "Duyệt nhận xét, trả lời trong cùng luồng, đánh dấu đã xử lý, mở lại hoặc xóa nhận xét. Câu trả lời được lưu trong DOCX dưới dạng reply thuộc nhận xét gốc.",
-    ribbon: { tab: "Đánh giá", tabId: "review", group: "Ghi chú" },
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "Nhận xét" },
     keywords: ["nhận xét", "ghi chú", "trả lời", "reply", "trước", "sau", "xử lý", "resolve", "xóa"],
     steps: ["Mở tab Đánh giá, nhóm Ghi chú. Nhấp vào thẻ nhận xét trong bảng bên cạnh trang hoặc dùng Nhận xét trước/Nhận xét sau để chọn nhận xét.", "Chọn nhận xét đang mở, nhấn Trả lời nhận xét, nhập nội dung rồi chọn Gửi trả lời. Reply xuất hiện lùi vào dưới nhận xét gốc.", "Nhấn Đã xử lý để đánh dấu hoàn tất; nhấn lại để mở lại. Trạng thái được lưu trong DOCX.", "Nhấn Xóa nhận xét để xóa nhận xét đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại thay đổi."]
   },
@@ -1062,14 +1062,14 @@ export const WRITER_HELP_ENTRIES = [
     id: "writer.comment.insertHelp",
     app: "writer",
     commandIds: ["writer.comment.insert"],
-    title: "Thêm ghi chú vào đoạn đã bôi",
-    summary: "Ctrl+Alt+M yêu cầu đã bôi chữ trong thân tài liệu. Hộp nhập ghi chú, neo vàng trên chữ đã chọn. Duyệt / xóa / đánh dấu xử lý nằm bài «Duyệt nhận xét».",
-    ribbon: { tab: "Đánh giá", tabId: "review", group: "Ghi chú" },
+    title: "Thêm nhận xét vào đoạn đã chọn",
+    summary: "Ctrl+Alt+M yêu cầu đã chọn chữ trong thân tài liệu. Hộp nhập nhận xét, neo vàng trên chữ đã chọn. Duyệt, xóa và đánh dấu xử lý nằm trong bài «Duyệt nhận xét».",
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "Nhận xét" },
     keywords: ["ghi chú", "nhận xét", "comment", "ctrl+alt+m", "bôi đen"],
     steps: [
-      "Bôi đoạn chữ trong thân tài liệu (không phải đầu/chân trang). Tab Đánh giá, nhóm Ghi chú, nút lớn Thêm ghi chú — hoặc tab Chèn, nhóm Ghi chú — hoặc Ctrl+Alt+M.",
-      "Chưa bôi: cảnh báo «Chưa chọn văn bản» / «Hãy bôi đen đoạn văn bản trong nội dung tài liệu trước khi thêm ghi chú.» Đã bôi: hộp «Thêm ghi chú» hiện đoạn trích (tối đa 80 ký tự), ô nhập, nút Thêm ghi chú.",
-      "Chữ được bọc mark vàng (neo ghi chú). Panel bên «Ghi chú tài liệu» liệt kê các ghi chú. Không thêm được khi con trỏ chỉ nhấp, khác các phần mềm soạn thảo văn bản khác.",
+      "Bôi chọn đoạn chữ trong thân tài liệu. Mở tab Đánh giá, nhóm Nhận xét, rồi chọn Thêm nhận xét; bạn cũng có thể mở tab Chèn và chọn Thêm nhận xét hoặc nhấn Ctrl+Alt+M.",
+      "Nếu chưa chọn chữ, ứng dụng báo «Chưa chọn văn bản». Khi đã chọn, hộp «Thêm nhận xét» hiện đoạn trích (tối đa 80 ký tự), ô nhập nội dung và nút Thêm nhận xét.",
+      "Phần chữ được chọn có dấu neo màu vàng. Khung Nhận xét tài liệu ở bên phải liệt kê các nhận xét. Lệnh yêu cầu bạn chọn chữ trước khi thêm.",
       "Ctrl+Z gỡ ghi chú vừa thêm. Nhận xét trước/sau, xóa, đã xử lý: bài «Duyệt nhận xét». Nhấn Ctrl+S để lưu DOCX; nội dung, tác giả, thời gian, đoạn chữ được neo và trạng thái đã xử lý được khôi phục khi mở lại trong ứng dụng hoặc trình đọc DOCX khác."
     ]
   },
@@ -2046,7 +2046,7 @@ export const WRITER_HELP_ENTRIES = [
   "ribbon": {
     "tab": "Chèn",
     "tabId": "insert",
-    "group": "Ghi chú"
+    "group": "Nhận xét"
   },
   "keywords": [
     "chèn ghi chú",
@@ -2056,9 +2056,9 @@ export const WRITER_HELP_ENTRIES = [
   ],
   "steps": [
     "Đặt con trỏ hoặc bôi đen cụm từ cần ghi chú trong văn bản.",
-    "Mở tab Chèn (hoặc tab Đánh giá), nhóm Ghi chú, nhấp nút «Ghi chú» (hoặc nhấn Ctrl+Alt+M).",
-    "Khung ghi chú xuất hiện ở lề phải văn bản kèm tên người dùng và thời gian.",
-    "Nhập nội dung ghi chú. Nhấp ra ngoài hoặc bấm Esc để hoàn tất. Bấm nút Xóa ghi chú trên tab Đánh giá để gỡ bỏ."
+    "Mở tab Chèn hoặc tab Đánh giá, tìm nhóm Nhận xét, rồi nhấp Thêm nhận xét. Bạn cũng có thể nhấn Ctrl+Alt+M.",
+    "Khung Nhận xét tài liệu xuất hiện ở bên phải văn bản, kèm tên người dùng và thời gian.",
+    "Nhập nội dung nhận xét rồi chọn Thêm nhận xét. Để gỡ bỏ, chọn nhận xét và dùng Xóa nhận xét trên tab Đánh giá."
   ]
 },
 {
