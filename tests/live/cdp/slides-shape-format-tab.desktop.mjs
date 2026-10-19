@@ -39,7 +39,8 @@ try {
   await mouseClick(cdp, point.x, point.y);
   await sleep(500);
   check("Chọn hình bằng chuột: tab Định dạng hình hiện", (await ev(`document.querySelector('#vno-ribbon-tab-shapeFormat')?.hidden`)) === false);
-  await click(cdp, "#vno-ribbon-tab-shapeFormat");
+  // Thẻ ngữ cảnh nằm cuối thanh thẻ, có thể ngoài vùng nhìn của cửa sổ thử: bấm bằng .click() thay vì theo tọa độ chuột.
+  await ev(`document.querySelector("#vno-ribbon-tab-shapeFormat").click()`);
   await sleep(300);
 
   // Tô màu: chọn «Xanh lá» trong bảng màu

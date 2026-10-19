@@ -41,7 +41,8 @@ try {
 
   // Đổi hình dạng: chọn tam giác -> hình thoi
   await ev(`${canvas}.setSelectedTarget(${canvas}.slides[0].shapes[0].id)`);
-  await click(cdp, "#vno-ribbon-tab-shapeFormat");
+  // Thẻ ngữ cảnh nằm cuối thanh thẻ, có thể ngoài vùng nhìn của cửa sổ thử: bấm bằng .click() thay vì theo tọa độ chuột.
+  await ev(`document.querySelector("#vno-ribbon-tab-shapeFormat").click()`);
   await sleep(300);
   await openDropdown("slides.shape.changeType");
   await menuItem("Hình thoi");
