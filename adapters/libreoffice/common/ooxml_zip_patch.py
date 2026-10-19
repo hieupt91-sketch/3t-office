@@ -14877,11 +14877,7 @@ def overlay_sheet_xlsx_fods_p1(
         xml,
         include_xf=not skip_initial_xf,
     )
-    format_helper = (
-        "overlay_native_cell_formats_fast"
-        if os.environ.get("VNO_FAST_IMPORT_OVERLAY") == "1"
-        else "overlay_native_cell_formats"
-    )
+    format_helper = "overlay_native_cell_formats_fast" if _fast_import_overlay_enabled() else "overlay_native_cell_formats"
     xml = timed(format_helper, _overlay_native_cell_formats_from_xlsx, xlsx_bytes, xml)
     xml = timed("promote_covered_formula_errors", _promote_covered_formula_errors, xml)
     if not skeleton:
@@ -15270,8 +15266,14 @@ def _xlsx_native_formats_by_xf(xlsx_bytes: bytes) -> list[dict]:
     return result
 
 
+def _fast_import_overlay_enabled() -> bool:
+    """Use the byte-verified overlay scanner by default; explicit false values roll back."""
+    value = os.environ.get("VNO_FAST_IMPORT_OVERLAY", "1").strip().lower()
+    return value not in {"0", "false", "no", "off"}
+
+
 def _overlay_native_cell_formats_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
-    fast_scan = os.environ.get("VNO_FAST_IMPORT_OVERLAY") == "1"
+    fast_scan = _fast_import_overlay_enabled()
     if fast_scan:
         block_patterns = {
             ("table:table",): re.compile(r"<table:table(?=[ \t\r\n>/])"),
