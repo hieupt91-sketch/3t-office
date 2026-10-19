@@ -433,3 +433,23 @@ RISKS: Kết quả lưu/đọc lại được xác minh trên bộ trình bày Q
 DEPENDENCIES/BLOCKERS: None.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Commit riêng Q14 và tạo `E:\VNOffice-briefs\logs\Q14.DONE`.
+
+---
+
+# Agent Handoff
+TASK: Q15 — Sheet: soạn thử lần 2 (sort, filter, charts, conditional formatting, freeze panes, XLSX round-trip)
+AGENT/ROLE: Codex / VN Sheet QA
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Hoàn thành khảo sát desktop trên bảng doanh thu 20×6, thao tác dữ liệu/biểu đồ/định dạng, in thử, lưu XLSX thật và mở lại phiên desktop mới.
+FINDINGS: Lỗi `_formulaToOdf` thay chuỗi "SP01" bên trong SUMIF thành `[.SP01]`, làm sai semantics formula XLSX; CDP chứng minh lỗi trước sửa, sau sửa giữ formula/value đúng. Hộp thoại tiêu đề trục cũ không cho sửa tiêu đề biểu đồ; bổ sung trường tiêu đề vào modal sẵn có, cùng undo, Help tiếng Việt và i18n VI/EN.
+IMPLEMENTATION SUMMARY: Sửa chuyển đổi công thức chỉ ngoài chuỗi trích dẫn. Mở rộng modal tiêu đề trục để sửa tiêu đề biểu đồ. Chạy 39 kiểm tra desktop gồm sort đa cấp, filter giá trị/số/màu, 3 kiểu CF, biểu đồ cột/đường, freeze, định dạng số, gộp/viền, chèn hàng/cột, Paste Special, Print Preview, lưu XLSX và mở phiên CDP mới. Chạy round-trip 5 tệp LAN bằng CDP và structural diff/lint; Excel COM BLOCKED theo quy tắc phiếu.
+FILES CHANGED: adapters/libreoffice/sheet/sheet-adapter.js; tests/unit/sheet-formula-odf.test.js; apps/sheet/sheet-chart.js; apps/sheet/sheet-grid.js; platform/help/entries-sheet.js; platform/i18n/strings-en.js; platform/i18n/strings-vi.js; tests/unit/sheet-charts.test.js; tests/live/cdp/q15-sheet-roundtrip.desktop.mjs; docs/EXPLORE-SHEET-2026-10-20.md; docs/assets/q15-sheet-2026-10-20/*; docs/EXCEL2016-FEATURE-CHECKLIST.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: `git merge main`; CDP Q15 desktop/XLSX round-trip; CDP round-trip 5 LAN files; focused Sheet chart and formula unit tests; `npm test`; `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; checklist generator and `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "sheet or xlsx or ooxml"`.
+BUILD RESULT: NOT RUN — no build-system changes.
+TEST RESULTS: PASS — CDP 39/39; 5 LAN files loaded/saved, 0 structural diffs, XLSX lint clean; npm 3771/3771; `node tests/run-tests.js` 3771/3771; i18n VI=3110/EN=3110, missing=0; checklist lowered=0; pytest 359 passed, 740 deselected (251.95s).
+KNOWN FAILURES: No remaining Q15 product failures observed. Earlier CDP before fixes reproduced SUMIF string conversion and missing chart title input. One CDP freeze sequence initially toggled all panes off; test sequence corrected to clear then freeze B2, final save/reopen shows frozen [1,1].
+RISKS: Excel COM was not run because this queue explicitly blocks it. 5-file structural checks used LibreOffice-backed adapter save and package diff/lint; no external spreadsheet application oracle in this ticket.
+DEPENDENCIES/BLOCKERS: Excel COM BLOCKED by queue rules; `CODEX-COMMON-RULES.md` absent from worktree root.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Commit Q15 audit artifacts, create `E:\VNOffice-briefs\logs\Q15.DONE`.

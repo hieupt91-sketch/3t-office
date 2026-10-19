@@ -103,7 +103,7 @@ Tổng: 1 mục ưu tiên 1.
 | Căn chỉnh | Hướng chữ (xoay) | ✅ | - | Xoay 90° đã đọc lại bằng Excel 2016 (docs/SHEET-BUTTON-MATRIX-1011.md:72; tests/unit/sheet-cell-orientation.test.js:1-25; sheet.format.alignmentDialog) |
 | Căn chỉnh | Ngắt dòng tự động (Wrap Text) | ✅ | - | Ngắt dòng tự động Wrap Text đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:32; tests/unit/sheet-style-export-wrap-border-align.test.js:1-25; sheet.cell.wrapText) |
 | Căn chỉnh | Giảm/Tăng thụt lề | 🟢 | - | Giảm và tăng thụt lề ô (docs/SHEET-BUTTON-MATRIX-1011.md:36-37; sheet.cell.indentDecrease, sheet.cell.indentIncrease) |
-| Căn chỉnh | Trộn & căn giữa / Trộn theo hàng / Trộn ô / Tách ô | ✅ | - | 17/10 (AGY-DATATOOLS): Merge & Center, Merge Across, UnMerge đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.cell.merge; platform/i18n/strings-vi.js:842, apps/sheet/sheet-grid.js:15761 |
+| Căn chỉnh | Trộn & căn giữa / Trộn theo hàng / Trộn ô / Tách ô | ✅ | - | 17/10 (AGY-DATATOOLS): Merge & Center, Merge Across, UnMerge đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.cell.merge; platform/i18n/strings-vi.js:842, apps/sheet/sheet-grid.js:15762 |
 | Căn chỉnh | Căn đều, Distributed, Fill, Center across selection, Shrink to fit | ✅ | - | 16/10 (AGY-JUSTIFY): Center Across Selection và Shrink to Fit lưu/mở lại đúng, đối chiếu Excel 2016 (cases-7; tests/functions/structural-cases-7.json:1-15; tests/unit/sheet-cell-text-fit.test.js:1-25) |
 | Số | Danh sách định dạng số (Chung, Số, Tiền tệ, Kế toán, Ngày, Giờ, %, Khoa học, Văn bản) | ✅ | - | Số/ngày/giờ/% đã đối chiếu (E3; docs/SHEET-BUTTON-MATRIX-1011.md:42; tests/unit/sheet-format-cells.test.js:1-30; sheet.format.quickCategory) |
 | Số | Định dạng số dạng Phân số (Fraction) và Đặc biệt (Special) | ✅ | - | 17/10 (AGY-NOTES): Phân số 9 mẫu và Đặc biệt 4 mẫu đối chiếu Excel 2016 COM 13/13 mẫu (cases-18; tests/functions/structural-cases-18.json:1-30; tests/unit/sheet-format-cells.test.js:1-40; sheet.format.quickCategory, sheet.format.cellsDialog) |
@@ -228,7 +228,7 @@ Tổng: 1 mục ưu tiên 1.
 | Dự báo | What-If: Goal Seek / Bảng dữ liệu (Data Table) | ✅ | - | 17/10 (AGY-DATATOOLS): Goal Seek và Table đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; tests/unit/sheet-goal-seek.test.js:1-30; apps/sheet/sheet-grid.js:20373-20390; sheet.data.goalSeek) |
 | Dự báo | Trang dự báo (Forecast Sheet) | 🔴 | 3 |  |
 | Dàn bài | Nhóm / Bỏ nhóm / Tổng phụ | ✅ | - | 17/10 (AGY-DATATOOLS): Group/Ungroup hàng-cột và Subtotal/RemoveSubtotal đối chiếu Excel 2016 (cases-17 12/12 kịch bản); sheet.data.subtotal; apps/sheet/data-tools.js:77-185 |
-| Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | ✅ | - | 17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (apps/sheet/sheet-grid.js:20372; apps/sheet/sheet-grid.js:20315; sheet.data.group) |
+| Dàn bài | Hiện/Ẩn chi tiết và nút cấp 1-2-3 | ✅ | - | 17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (apps/sheet/sheet-grid.js:20373; apps/sheet/sheet-grid.js:20316; sheet.data.group) |
 | Phân tích | Solver | 🔴 | 3 | Bổ sung của Excel |
 
 ### Xem xét

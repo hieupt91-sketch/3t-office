@@ -1,0 +1,201 @@
+{
+  "pass": 39,
+  "fail": 0,
+  "checks": [
+    {
+      "name": "Nạp bảng doanh thu 20 × 6 và công thức VLOOKUP/IF/SUM/SUMIF",
+      "pass": true,
+      "detail": "{\"c\":{\"val\":\"Cà phê\",\"formula\":\"=VLOOKUP(B2,$H$2:$I$6,2,FALSE())\",\"style\":{\"verticalAlign\":\"bottom\",\"fontSize\":\"14.67px\",\"color\":\"#000000\",\"fontFamily\":\"Calibri\",\"origXf\":0,\"styleHashAtImport\":\"{\\\"numberFormat\\\":\\\"\\\",\\\"fontFamily\\\":\\\"Calibri\\\",\\\"fontSize\\\":\\\"14.67px\\\",\\\"fontWeight\\\":\\\"\\\",\\\"fontStyle\\\":\\\"\\\",\\\"textDecoration\\\":\\\"\\\",\\\"color\\\":\\\"#000000\\\",\\\"backgroundColor\\\":\\\"\\\",\\\"borderLeft\\\":\\\"\\\",\\\"borderRight\\\":\\\"\\\",\\\"borderTop\\\":\\\"\\\",\\\"borderBottom\\\":\\\"\\\",\\\"textAlign\\\":\\\"\\\",\\\"verticalAlign\\\":\\\"bottom\\\",\\\"whiteSpace\\\":\\\"\\\",\\\"textRotation\\\":\\\"\\\",\\\"indentLevel\\\":0}\"}},\"f\":{\"val\":50000,\"formula\":\"=IF(D2>0,D2*E2,0)\",\"style\":{\"verticalAlign\":\"bottom\",\"fontSize\":\"14.67px\",\"color\":\"#000000\",\"fontFamily\":\"Calibri\",\"origXf\":0,\"styleHashAtImport\":\"{\\\"numberFormat\\\":\\\"\\\",\\\"fontFamily\\\":\\\"Calibri\\\",\\\"fontSize\\\":\\\"14.67px\\\",\\\"fontWeight\\\":\\\"\\\",\\\"fontStyle\\\":\\\"\\\",\\\"textDecoration\\\":\\\"\\\",\\\"color\\\":\\\"#000000\\\",\\\"backgroundColor\\\":\\\"\\\",\\\"borderLeft\\\":\\\"\\\",\\\"borderRight\\\":\\\"\\\",\\\"borderTop\\\":\\\"\\\",\\\"borderBottom\\\":\\\"\\\",\\\"textAlign\\\":\\\"\\\",\\\"verticalAlign\\\":\\\"bottom\\\",\\\"whiteSpace\\\":\\\"\\\",\\\"textRotation\\\":\\\"\\\",\\\"indentLevel\\\":0}\"}},\"sum\":{\"val\":7510000,\"formula\":\"=SUM(F2:F21)\",\"style\":{\"verticalAlign\":\"bottom\",\"fontSize\":\"14.67px\",\"color\":\"#000000\",\"fontFamily\":\"Calibri\",\"origXf\":0,\"styleHashAtImport\":\"{\\\"numberFormat\\\":\\\"\\\",\\\"fontFamily\\\":\\\"Calibri\\\",\\\"fontSize\\\":\\\"14.67px\\\",\\\"fontWeight\\\":\\\"\\\",\\\"fontStyle\\\":\\\"\\\",\\\"textDecoration\\\":\\\"\\\",\\\"color\\\":\\\"#000000\\\",\\\"backgroundColor\\\":\\\"\\\",\\\"borderLeft\\\":\\\"\\\",\\\"borderRight\\\":\\\"\\\",\\\"borderTop\\\":\\\"\\\",\\\"borderBottom\\\":\\\"\\\",\\\"textAlign\\\":\\\"\\\",\\\"verticalAlign\\\":\\\"bottom\\\",\\\"whiteSpace\\\":\\\"\\\",\\\"textRotation\\\":\\\"\\\",\\\"indentLevel\\\":0}\"}},\"sumif\":{\"val\":650000,\"formula\":\"=SUMIF(B2:B21,\\\"SP01\\\",F2:F21)\",\"style\":{\"verticalAlign\":\"bottom\",\"fontSize\":\"14.67px\",\"color\":\"#000000\",\"fontFamily\":\"Calibri\",\"origXf\":0,\"styleHashAtImport\":\"{\\\"numberFormat\\\":\\\"\\\",\\\"fontFamily\\\":\\\"Calibri\\\",\\\"fontSize\\\":\\\"14.67px\\\",\\\"fontWeight\\\":\\\"\\\",\\\"fontStyle\\\":\\\"\\\",\\\"textDecoration\\\":\\\"\\\",\\\"color\\\":\\\"#000000\\\",\\\"backgroundColor\\\":\\\"\\\",\\\"borderLeft\\\":\\\"\\\",\\\"borderRight\\\":\\\"\\\",\\\"borderTop\\\":\\\"\\\",\\\"borderBottom\\\":\\\"\\\",\\\"textAlign\\\":\\\"\\\",\\\"verticalAlign\\\":\\\"bottom\\\",\\\"whiteSpace\\\":\\\"\\\",\\\"textRotation\\\":\\\"\\\",\\\"indentLevel\\\":0}\"}}}"
+    },
+    {
+      "name": "Sắp xếp nhiều cấp: Sản phẩm A→Z, Doanh thu giảm dần",
+      "pass": true,
+      "detail": "{\"name\":\"Bánh quy\",\"formula\":\"=VLOOKUP(B2,$H$2:$I$6,2,FALSE())\",\"revenue\":540000,\"second\":\"Bánh quy\",\"secondRevenue\":360000}"
+    },
+    {
+      "name": "Bộ lọc tự động bật trên hàng tiêu đề",
+      "pass": true,
+      "detail": "A1:F21"
+    },
+    {
+      "name": "Lọc tự động theo giá trị sản phẩm",
+      "pass": true,
+      "detail": "hiddenRows=16"
+    },
+    {
+      "name": "Lọc số Doanh thu > 300.000",
+      "pass": true,
+      "detail": "hiddenRows=10"
+    },
+    {
+      "name": "Thang màu cho Doanh thu",
+      "pass": true,
+      "detail": "[\"colorScale3\",\"dataBar\",\"lessThan\"]"
+    },
+    {
+      "name": "Thanh dữ liệu cho Đơn giá",
+      "pass": true,
+      "detail": "[\"colorScale3\",\"dataBar\",\"lessThan\"]"
+    },
+    {
+      "name": "Tô đỏ ô Doanh thu dưới ngưỡng",
+      "pass": true,
+      "detail": "[\"colorScale3\",\"dataBar\",\"lessThan\"]"
+    },
+    {
+      "name": "Lọc theo màu ô",
+      "pass": true,
+      "detail": "color=#fff2cc; hiddenRows=17"
+    },
+    {
+      "name": "Tạo biểu đồ cột",
+      "pass": true,
+      "detail": "[{\"type\":\"bar\",\"title\":\"Biểu đồ A1:F21\"},{\"type\":\"line\",\"title\":\"Doanh thu theo ngày\",\"x\":\"Ngày\",\"y\":\"Doanh thu (₫)\"}]"
+    },
+    {
+      "name": "Tạo biểu đồ đường",
+      "pass": true,
+      "detail": "[{\"type\":\"bar\",\"title\":\"Biểu đồ A1:F21\"},{\"type\":\"line\",\"title\":\"Doanh thu theo ngày\",\"x\":\"Ngày\",\"y\":\"Doanh thu (₫)\"}]"
+    },
+    {
+      "name": "Đổi tiêu đề và tên hai trục",
+      "pass": true,
+      "detail": "[{\"type\":\"bar\",\"title\":\"Biểu đồ A1:F21\"},{\"type\":\"line\",\"title\":\"Doanh thu theo ngày\",\"x\":\"Ngày\",\"y\":\"Doanh thu (₫)\"}]"
+    },
+    {
+      "name": "Cố định hàng tiêu đề",
+      "pass": true,
+      "detail": "{\"r\":1,\"c\":0}"
+    },
+    {
+      "name": "Cố định đồng thời hàng và cột",
+      "pass": true,
+      "detail": "{\"r\":1,\"c\":1}; menu=[{\"a\":\"Cố định ô\",\"t\":\"Cố định ô\"}]"
+    },
+    {
+      "name": "Định dạng ngày",
+      "pass": true,
+      "detail": "[{\"c\":\"A2\",\"f\":{\"category\":\"date\",\"format\":\"dd/mm/yyyy\"}},{\"c\":\"D2\",\"f\":{\"category\":\"number\",\"decimalPlaces\":2,\"useThousandsSeparator\":true}},{\"c\":\"E2\",\"f\":{\"category\":\"currency\",\"currency\":\"VND\",\"decimalPlaces\":0}},{\"c\":\"F24\",\"f\":{\"category\":\"percentage\",\"decimals\":1}}]"
+    },
+    {
+      "name": "Định dạng số có thập phân",
+      "pass": true,
+      "detail": "[{\"c\":\"A2\",\"f\":{\"category\":\"date\",\"format\":\"dd/mm/yyyy\"}},{\"c\":\"D2\",\"f\":{\"category\":\"number\",\"decimalPlaces\":2,\"useThousandsSeparator\":true}},{\"c\":\"E2\",\"f\":{\"category\":\"currency\",\"currency\":\"VND\",\"decimalPlaces\":0}},{\"c\":\"F24\",\"f\":{\"category\":\"percentage\",\"decimals\":1}}]"
+    },
+    {
+      "name": "Định dạng tiền tệ",
+      "pass": true,
+      "detail": "[{\"c\":\"A2\",\"f\":{\"category\":\"date\",\"format\":\"dd/mm/yyyy\"}},{\"c\":\"D2\",\"f\":{\"category\":\"number\",\"decimalPlaces\":2,\"useThousandsSeparator\":true}},{\"c\":\"E2\",\"f\":{\"category\":\"currency\",\"currency\":\"VND\",\"decimalPlaces\":0}},{\"c\":\"F24\",\"f\":{\"category\":\"percentage\",\"decimals\":1}}]"
+    },
+    {
+      "name": "Định dạng phần trăm",
+      "pass": true,
+      "detail": "[{\"c\":\"A2\",\"f\":{\"category\":\"date\",\"format\":\"dd/mm/yyyy\"}},{\"c\":\"D2\",\"f\":{\"category\":\"number\",\"decimalPlaces\":2,\"useThousandsSeparator\":true}},{\"c\":\"E2\",\"f\":{\"category\":\"currency\",\"currency\":\"VND\",\"decimalPlaces\":0}},{\"c\":\"F24\",\"f\":{\"category\":\"percentage\",\"decimals\":1}}]"
+    },
+    {
+      "name": "Gộp ô A25:F25",
+      "pass": true,
+      "detail": "1"
+    },
+    {
+      "name": "Vẽ viền quanh bảng và ô bên trong",
+      "pass": true,
+      "detail": "{\"verticalAlign\":\"bottom\",\"fontSize\":\"14.67px\",\"color\":\"#000000\",\"fontFamily\":\"Calibri\",\"borderLeft\":\"1px solid #000000\",\"borderTop\":\"1px solid #000000\",\"borderBottom\":\"1px solid #000000\",\"borderRight\":\"1px solid #000000\",\"borderInsideHorizontal\":\"1px solid #000000\",\"borderInsideVertical\":\"1px solid #000000\"}"
+    },
+    {
+      "name": "Chèn hàng giữa bảng; công thức bên dưới đi cùng bản ghi",
+      "pass": true,
+      "detail": "{\"f\":\"=IF(D11>0,D11*E11,0)\",\"sum\":\"=SUM(F2:F22)\",\"rows\":201}"
+    },
+    {
+      "name": "Chèn hàng giữ định dạng phần trăm trên KPI",
+      "pass": true,
+      "detail": "{\"category\":\"percentage\",\"decimals\":1}"
+    },
+    {
+      "name": "Chèn cột giữa bảng; công thức và tham chiếu dịch chuyển",
+      "pass": true,
+      "detail": "{\"f\":\"=IF(E11>0,E11*F11,0)\",\"cols\":16385}"
+    },
+    {
+      "name": "Chèn cột giữ định dạng phần trăm trên KPI",
+      "pass": true,
+      "detail": "{\"category\":\"percentage\",\"decimals\":1}"
+    },
+    {
+      "name": "Dán đặc biệt chỉ giá trị bằng phím tắt",
+      "pass": true,
+      "detail": "SP03"
+    },
+    {
+      "name": "Mở hộp In và xem trước từ thanh công cụ",
+      "pass": true,
+      "detail": "2"
+    },
+    {
+      "name": "Đóng xem trước bằng Escape",
+      "pass": true,
+      "detail": ""
+    },
+    {
+      "name": "Lưu XLSX qua adapter của desktop app",
+      "pass": true,
+      "detail": "true"
+    },
+    {
+      "name": "XLSX xuất ra giữ chuỗi điều kiện SUMIF, không đổi thành tham chiếu ODF",
+      "pass": true,
+      "detail": "{\"sumif\":\"=SUMIF(B2:B22,\\\"SP01\\\",G2:G22)\",\"percent\":\"0.0%\",\"paste\":\"SP03\",\"border\":\"thin\"}"
+    },
+    {
+      "name": "XLSX xuất ra giữ định dạng phần trăm",
+      "pass": true,
+      "detail": "{\"sumif\":\"=SUMIF(B2:B22,\\\"SP01\\\",G2:G22)\",\"percent\":\"0.0%\",\"paste\":\"SP03\",\"border\":\"thin\"}"
+    },
+    {
+      "name": "Mở lại XLSX ở phiên CDP mới: công thức giữ nguyên",
+      "pass": true,
+      "detail": "{\"pasteDom\":\"SP03\",\"f\":\"=IF(E11>0,E11*F11,0)\",\"charts\":[{\"type\":\"bar\",\"title\":\"Biểu đồ A1:F21\"},{\"type\":\"line\",\"title\":\"Doanh thu theo ngày\",\"x\":\"Ngày\",\"y\":\"Doanh thu (₫)\"}],\"frozen\":[1,1],\"rules\":[\"colorScale3\",\"dataBar\",\"lessThan\"],\"merged\":[{\"start\":{\"c\":\"A\",\"r\":26},\"end\":{\"c\":\"G\",\"r\":26}}],\"numFmt\":{\"category\":\"percentage\",\"decimals\":1,\"useThousands\":false,\"odf\":{\"name\":\"N137\",\"xml\":\"<number:percentage-style style:name=\\\"N137\\\">\\n   <number:number number:decimal-places=\\\"1\\\" number:min-decimal-places=\\\"1\\\" number:min-integer-digits=\\\"1\\\"/>\\n   <number:text>%</number:text>\\n  </number:percentage-style>\",\"deps\":[]},\"excelCode\":\"0.0%;0.0;0;@\",\"excelCodeInferred\":true},\"border\":\"0.99px solid #000000\",\"paste\":\"SP03\",\"sumif\":\"=SUMIF(B2:B22,\\\"SP01\\\",G2:G22)\",\"sumifValue\":650000}"
+    },
+    {
+      "name": "Mở lại XLSX: cả hai biểu đồ còn nguyên",
+      "pass": true,
+      "detail": "[{\"type\":\"bar\",\"title\":\"Biểu đồ A1:F21\"},{\"type\":\"line\",\"title\":\"Doanh thu theo ngày\",\"x\":\"Ngày\",\"y\":\"Doanh thu (₫)\"}]"
+    },
+    {
+      "name": "Mở lại XLSX: tiêu đề và trục biểu đồ còn nguyên",
+      "pass": true,
+      "detail": "[{\"type\":\"bar\",\"title\":\"Biểu đồ A1:F21\"},{\"type\":\"line\",\"title\":\"Doanh thu theo ngày\",\"x\":\"Ngày\",\"y\":\"Doanh thu (₫)\"}]"
+    },
+    {
+      "name": "Mở lại XLSX: giữ cố định hàng và cột",
+      "pass": true,
+      "detail": "[1,1]"
+    },
+    {
+      "name": "Mở lại XLSX: đủ ba quy tắc định dạng có điều kiện",
+      "pass": true,
+      "detail": "[\"colorScale3\",\"dataBar\",\"lessThan\"]"
+    },
+    {
+      "name": "Mở lại XLSX: vùng gộp còn nguyên",
+      "pass": true,
+      "detail": "[{\"start\":{\"c\":\"A\",\"r\":26},\"end\":{\"c\":\"G\",\"r\":26}}]"
+    },
+    {
+      "name": "Mở lại XLSX: phần trăm và viền còn nguyên",
+      "pass": true,
+      "detail": "{\"numFmt\":{\"category\":\"percentage\",\"decimals\":1,\"useThousands\":false,\"odf\":{\"name\":\"N137\",\"xml\":\"<number:percentage-style style:name=\\\"N137\\\">\\n   <number:number number:decimal-places=\\\"1\\\" number:min-decimal-places=\\\"1\\\" number:min-integer-digits=\\\"1\\\"/>\\n   <number:text>%</number:text>\\n  </number:percentage-style>\",\"deps\":[]},\"excelCode\":\"0.0%;0.0;0;@\",\"excelCodeInferred\":true},\"border\":\"0.99px solid #000000\"}"
+    },
+    {
+      "name": "Mở lại XLSX: giá trị dán đặc biệt còn nguyên trong ô hiển thị",
+      "pass": true,
+      "detail": "before=SP03; cell=SP03; model=SP03"
+    },
+    {
+      "name": "Mở lại XLSX: SUMIF sau chèn hàng/cột vẫn đúng",
+      "pass": true,
+      "detail": "{\"formula\":\"=SUMIF(B2:B22,\\\"SP01\\\",G2:G22)\",\"value\":650000}"
+    }
+  ]
+}
