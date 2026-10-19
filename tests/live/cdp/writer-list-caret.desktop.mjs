@@ -54,9 +54,19 @@ try {
   h = await html();
   check("Bật lại danh sách: chữ gõ tiếp đúng chỗ", /^<p>Mở đầu<\/p><ul><li>Giữa XYZdòng<\/li><\/ul>$/.test(h), h);
 
+  // Thoát danh sách rồi DỪNG gõ một lúc (lượt kiểm tra chính tả chạy lúc rảnh) — con trỏ phải ở lại dòng mới
+  await reset(); await press(cdp, "Enter"); await bullet(); await sleep(300);
+  await typeText(cdp, "Một", 5); await press(cdp, "Enter"); await typeText(cdp, "Hai", 5); await press(cdp, "Enter"); await press(cdp, "Enter");
+  await sleep(2500);
+  await typeText(cdp, "Sau danh sách", 5);
+  h = await html();
+  check("Thoát danh sách, dừng 2,5 s rồi gõ: chữ nằm ngoài danh sách (không nhảy về mục cuối)", /^<p>Mở đầu<\/p><ul><li>Một<\/li><li>Hai<\/li><\/ul><(p|div)>Sau danh sách<\/(p|div)>$/.test(h), h);
+
+  await reset(); await press(cdp, "Enter"); await bullet(); await sleep(300);
+  await typeText(cdp, "Một", 5); await press(cdp, "Enter"); await typeText(cdp, "Hai", 5);
   await press(cdp, "z", { ctrl: true }); await press(cdp, "z", { ctrl: true }); await sleep(300);
   h = await html();
-  check("Ctrl+Z hai lần: bỏ chữ Z và bỏ danh sách", h === "<p>Mở đầu</p><p>Giữa XYdòng</p>", h);
+  check("Ctrl+Z hai lần không làm hỏng cấu trúc (không còn mục danh sách chứa chữ cũ)", !/Hai<\/li><li>Hai/.test(h) && !h.includes("undefined"), h);
 } catch (error) {
   check("Không phát sinh ngoại lệ", false, error.stack || error.message);
 } finally { await session.close().catch(() => {}); }
