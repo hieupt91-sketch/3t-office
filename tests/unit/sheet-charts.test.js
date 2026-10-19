@@ -112,13 +112,15 @@ export async function runSheetChartTests() {
       grid.setCellValue("A", 1, "Tháng");
       grid.setCellValue("B", 1, 10);
       const chart = grid.insertChart("bar", { start: { c: "A", r: 1 }, end: { c: "B", r: 1 } });
-      grid.updateChartAxisTitles(chart.id, { xAxisTitle: "Tháng", yAxisTitle: "Doanh thu" });
+      grid.updateChartAxisTitles(chart.id, { title: "Doanh thu theo tháng", xAxisTitle: "Tháng", yAxisTitle: "Doanh thu" });
+      assert(chart.title === "Doanh thu theo tháng", `Tiêu đề biểu đồ phải được cập nhật qua hộp thoại trục: ${chart.title}`);
       assert(chart.xAxisTitle === "Tháng" && chart.yAxisTitle === "Doanh thu", JSON.stringify(chart));
       const svg = grid.chartLayer.children[0].innerHTML;
+      assert(svg.includes('data-chart-title') && svg.includes(">Doanh thu theo tháng</text>"), svg);
       assert(svg.includes('data-axis-title="x"') && svg.includes(">Tháng</text>"), svg);
       assert(svg.includes('data-axis-title="y"') && svg.includes(">Doanh thu</text>"), svg);
       grid.undo();
-      assert(!chart.xAxisTitle && !chart.yAxisTitle, "Ctrl+Z phải trả hai tiêu đề trục về trạng thái trước");
+      assert(chart.title.startsWith("Biểu đồ ") && !chart.xAxisTitle && !chart.yAxisTitle, "Ctrl+Z phải trả tiêu đề biểu đồ và hai trục về trạng thái trước");
     });
 
     await test("Sheet Charts G3: đủ loại, nhiều chuỗi, nhãn, chuyển hàng/cột và xu hướng đều hoạt động", async () => {

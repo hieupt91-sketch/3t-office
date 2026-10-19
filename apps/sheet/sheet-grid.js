@@ -9953,11 +9953,12 @@ export class SheetGridController {
   updateChartAxisTitles(chartId, values, sheetName = this.activeSheet, recordUndo = true) {
     const chart = (this.chartsBySheet[sheetName] || []).find(item => item.id === chartId);
     if (!chart || chart.type === "pie") return false;
-    const before = structuredClone({ ...chart, xAxisTitle: chart.xAxisTitle || "", yAxisTitle: chart.yAxisTitle || "" });
+    const before = structuredClone({ ...chart, title: chart.title || "", xAxisTitle: chart.xAxisTitle || "", yAxisTitle: chart.yAxisTitle || "" });
+    if (values && Object.hasOwn(values, "title")) chart.title = String(values.title ?? "").trim().slice(0, 255);
     chart.xAxisTitle = String(values?.xAxisTitle || "").trim().slice(0, 255);
     chart.yAxisTitle = String(values?.yAxisTitle || "").trim().slice(0, 255);
     const after = structuredClone(chart);
-    if (recordUndo && (before.xAxisTitle !== after.xAxisTitle || before.yAxisTitle !== after.yAxisTitle)) {
+    if (recordUndo && (before.title !== after.title || before.xAxisTitle !== after.xAxisTitle || before.yAxisTitle !== after.yAxisTitle)) {
       this._recordHistory({ type: "collection", sheet: sheetName, collection: "chartsBySheet", operation: "update", id: chartId, before, after });
     }
     if (sheetName === this.activeSheet) this.renderCharts();
