@@ -17,13 +17,13 @@ Chuẩn: Excel 2016 (16.0.4266) cài trên máy, đọc chỉ-đọc qua COM. L�
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
 | ✅ Đã đối chiếu Excel 2016 | 94 | 44% |
-| 🟢 Có, chưa đối chiếu | 68 | 32% |
+| 🟢 Có, chưa đối chiếu | 69 | 32% |
 | 🟡 Có một phần | 14 | 7% |
-| 🔴 Chưa có | 37 | 17% |
+| 🔴 Chưa có | 36 | 17% |
 | ⚪ Ngoài phạm vi | 4 | - |
 | **Tổng** | **217** (áp dụng: 213) | |
 
-- **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 79%**
+- **Độ phủ so với Excel 2016 (có hoặc có một phần, một phần tính 0,5): 80%**
 - **Đã xác minh bằng đối chiếu Excel 2016 thật: 44%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ 462 hàm) chỉ tính một mục; mức phủ hàm nằm ở dòng riêng và ở `EXCEL2016-FUNCTIONS-MATRIX.md`.
@@ -32,7 +32,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
-| Tệp (Backstage) | 17 | 3 | 8 | 4 | 1 | 1 | 81% |
+| Tệp (Backstage) | 17 | 3 | 9 | 4 | 0 | 1 | 88% |
 | Trang đầu | 53 | 28 | 19 | 4 | 2 | 0 | 92% |
 | Chèn | 29 | 9 | 8 | 0 | 10 | 2 | 63% |
 | Bố trí trang | 10 | 8 | 1 | 0 | 1 | 0 | 90% |
@@ -54,10 +54,9 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn (ví dụ
 
 | Tab | Nhóm | Tính năng | Trạng thái | Ghi chú |
 |---|---|---|---|---|
-| Tệp (Backstage) | Thông tin | Bảo vệ sổ làm việc bằng mật khẩu mở file (mã hóa) | 🔴 | Chưa có mã hóa file; chỉ có bảo vệ cấu trúc |
 | Công thức | Thư viện hàm | Độ phủ hàm Excel 2016 (462 hàm) | 🟡 | 18/10: engine nhận 395 trong 421 hàm đánh dấu Excel 2016 trong danh mục (đo bằng gọi rỗng từng hàm), gồm cả MMULT và GETPIVOTDATA (đọc bảng PivotTable phẳng của VN Sheet; tests/live/cdp/sheet-getpivotdata.desktop.mjs 7/7, chưa đối chiếu Excel thật); vừa thêm T.TEST, F.TEST, CHISQ.TEST, GAMMA, CELL, INFO và tên cũ TTEST, FTEST, CHITEST đối chiếu LibreOffice tới 1e-9 vì Excel COM chưa dùng được (BLOCKED, chưa vào bộ vàng Excel). Còn thiếu: BAHTTEXT, DBCS, PHONETIC, RTD, ODDFPRICE, ODDFYIELD, FORECAST.ETS và 3 hàm con, 7 hàm CUBE; danh mục còn đánh dấu nhầm vài hàm sau 2016 như GROUPBY, REGEX*, TRANSLATE (tests/unit/formula-hypothesis-tests.test.js:48) |
 
-Tổng: 2 mục ưu tiên 1.
+Tổng: 1 mục ưu tiên 1.
 
 ## Chi tiết từng tab
 
@@ -75,7 +74,7 @@ Tổng: 2 mục ưu tiên 1.
 | Tệp | Lưu bản sao / Lưu thành mẫu (XLTX) | 🟡 | 3 | 16/10: lưu .xltx qua đường lưu xlsx đầy đủ, Excel mở đúng là mẫu, LAN 10/10; mở .xltx đi đường mở chung (chưa có đường mở xlsx riêng) |
 | Tệp | In (Ctrl+P) + xem trước | ✅ | - | Thiết lập trang/in đã đọc lại bằng Excel 2016 (tests/unit/sheet-print-preview.test.js:1-35; common.file.print) |
 | Tệp | Đóng (Ctrl+W) | 🟢 | - | common.file.close |
-| Thông tin | Bảo vệ sổ làm việc bằng mật khẩu mở file (mã hóa) | 🔴 | 1 | Chưa có mã hóa file; chỉ có bảo vệ cấu trúc |
+| Thông tin | Bảo vệ sổ làm việc bằng mật khẩu mở file (mã hóa) | 🟢 | - | common.file.passwordProtection: Tệp > Thông tin > Mã hóa bằng mật khẩu (Agile AES-256, 2 ô nhập khớp); tệp lưu là vùng chứa mã hóa, mở lại hỏi mật khẩu, sai mật khẩu báo rõ, đặt hoặc gỡ được (tests/live/cdp/document-password.desktop.mjs 9/9; tests/test_ooxml_encryption_roundtrip.py; platform/commands/command-definitions.js:16 lệnh, platform/security/office_encryption.py:356 mã hóa, platform/dialogs/document-password-dialog.js:4 hộp thoại); XLSX đối chiếu bằng LibreOffice, Excel COM chưa chạy được (chưa kích hoạt) |
 | Thông tin | Kiểm tra tài liệu (Inspect) / Đánh dấu là cuối cùng | 🟡 | 3 | 15/10 (agy): Đánh dấu là cuối cùng (Mark as Final) xong, CDP 40/40; chưa có Kiểm tra tài liệu (Inspect) |
 | Thông tin | Quản lý phiên bản / khôi phục tự động (AutoRecover) | 🟢 | - | Có cơ chế tự động khôi phục AutoRecover (platform/help/entries-autorecover.js:28-34) |
 | Thông tin | Thuộc tính tệp (tác giả, tiêu đề...) | 🟢 | 3 | 15/10 (agy): Thuộc tính tệp tác giả tiêu đề (apps/sheet/document-properties.js:105-125; sheet.file.properties); CDP 40/40; chưa đối chiếu Excel |
@@ -104,7 +103,7 @@ Tổng: 2 mục ưu tiên 1.
 | Căn chỉnh | Hướng chữ (xoay) | ✅ | - | Xoay 90° đã đọc lại bằng Excel 2016 (docs/SHEET-BUTTON-MATRIX-1011.md:72; tests/unit/sheet-cell-orientation.test.js:1-25; sheet.format.alignmentDialog) |
 | Căn chỉnh | Ngắt dòng tự động (Wrap Text) | ✅ | - | Ngắt dòng tự động Wrap Text đã đối chiếu (docs/SHEET-BUTTON-MATRIX-1011.md:32; tests/unit/sheet-style-export-wrap-border-align.test.js:1-25; sheet.cell.wrapText) |
 | Căn chỉnh | Giảm/Tăng thụt lề | 🟢 | - | Giảm và tăng thụt lề ô (docs/SHEET-BUTTON-MATRIX-1011.md:36-37; sheet.cell.indentDecrease, sheet.cell.indentIncrease) |
-| Căn chỉnh | Trộn & căn giữa / Trộn theo hàng / Trộn ô / Tách ô | ✅ | - | 17/10 (AGY-DATATOOLS): Merge & Center, Merge Across, UnMerge đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.cell.merge; platform/i18n/strings-vi.js:823, apps/sheet/sheet-grid.js:15753 |
+| Căn chỉnh | Trộn & căn giữa / Trộn theo hàng / Trộn ô / Tách ô | ✅ | - | 17/10 (AGY-DATATOOLS): Merge & Center, Merge Across, UnMerge đối chiếu Excel 2016 (cases-17 6/6 kịch bản); sheet.cell.merge; platform/i18n/strings-vi.js:842, apps/sheet/sheet-grid.js:15753 |
 | Căn chỉnh | Căn đều, Distributed, Fill, Center across selection, Shrink to fit | ✅ | - | 16/10 (AGY-JUSTIFY): Center Across Selection và Shrink to Fit lưu/mở lại đúng, đối chiếu Excel 2016 (cases-7; tests/functions/structural-cases-7.json:1-15; tests/unit/sheet-cell-text-fit.test.js:1-25) |
 | Số | Danh sách định dạng số (Chung, Số, Tiền tệ, Kế toán, Ngày, Giờ, %, Khoa học, Văn bản) | ✅ | - | Số/ngày/giờ/% đã đối chiếu (E3; docs/SHEET-BUTTON-MATRIX-1011.md:42; tests/unit/sheet-format-cells.test.js:1-30; sheet.format.quickCategory) |
 | Số | Định dạng số dạng Phân số (Fraction) và Đặc biệt (Special) | ✅ | - | 17/10 (AGY-NOTES): Phân số 9 mẫu và Đặc biệt 4 mẫu đối chiếu Excel 2016 COM 13/13 mẫu (cases-18; tests/functions/structural-cases-18.json:1-30; tests/unit/sheet-format-cells.test.js:1-40; sheet.format.quickCategory, sheet.format.cellsDialog) |
@@ -187,7 +186,7 @@ Tổng: 2 mục ưu tiên 1.
 | Thiết lập trang | In tiêu đề (Print Titles) | ✅ | - | TitlesRows đã đối chiếu Print Titles (docs/SHEET-BUTTON-MATRIX-1011.md:78; tests/unit/sheet-print-titles-real-file-import.test.js:1-30; sheet.page.printTitles) |
 | Thiết lập trang | Hộp thoại Page Setup đủ tab Trang/Lề/Đầu-Chân/Trang tính | 🟢 | - | tab Trang tính đã có in lưới, tiêu đề hàng cột, đen trắng, bản nháp, ghi chú, thứ tự trang, vùng in và tiêu đề lặp; lưu XLSX ghi đúng printOptions gridLines headings, pageSetup pageOrder overThenDown blackAndWhite cellComments atEnd đọc từ XML; chưa đối chiếu Excel thật vì Excel COM chưa dùng được (apps/sheet/page-setup-dialog.js:53 Page Setup, tests/live/cdp/sheet-page-setup-print-options.desktop.mjs) |
 | Vừa trang | Chiều rộng / Chiều cao (Fit to pages) / Tỷ lệ % | ✅ | - | sheet.page.fitWidth sheet.page.fitHeight sheet.page.scale: danh sách Chiều rộng/Chiều cao (Tự động, 1-5 trang) lưu rồi Excel 2016 đọc FitToPagesWide=1, FitToPagesTall=Tự động, Zoom=False (docs/AUDIT-SHEET-PAGE-GALLERY-1710.md:18) |
-| Tùy chọn trang tính | Hiện/In đường lưới và tiêu đề | ✅ | - | sheet.page.printTitles + hộp Thiết lập trang; lưu XLSX rồi Excel 2016 COM đọc PrintTitleRows=1:2, PrintTitleColumns=A:B, PrintGridlines và PrintHeadings đúng (platform/i18n/strings-vi.js:581, tests/live/cdp/sheet-page-setup-controls.desktop.mjs:150) |
+| Tùy chọn trang tính | Hiện/In đường lưới và tiêu đề | ✅ | - | sheet.page.printTitles + hộp Thiết lập trang; lưu XLSX rồi Excel 2016 COM đọc PrintTitleRows=1:2, PrintTitleColumns=A:B, PrintGridlines và PrintHeadings đúng (platform/i18n/strings-vi.js:599, tests/live/cdp/sheet-page-setup-controls.desktop.mjs:150) |
 | Sắp xếp | Đưa lên trên / Xuống dưới / Ngăn chọn / Căn / Nhóm / Xoay đối tượng | ✅ | - | 16/10 (AGY-ARRANGE): lớp, căn, phân bố, nhóm, xoay/lật, Ngăn chọn (tests/unit/sheet-arrange.test.js:54-60; sheet.arrange.group) |
 
 ### Công thức

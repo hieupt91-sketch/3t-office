@@ -16,14 +16,14 @@ Chuẩn: Microsoft PowerPoint 2016 (16.0.4266) cài trên máy, đọc chỉ-đ�
 
 | Trạng thái | Số mục | Tỷ lệ (trên mục áp dụng) |
 |---|---|---|
-| ✅ Đã đối chiếu PowerPoint 2016 | 115 | 44% |
+| ✅ Đã đối chiếu PowerPoint 2016 | 116 | 44% |
 | 🟢 Có, chưa đối chiếu | 80 | 30% |
 | 🟡 Có một phần | 17 | 6% |
-| 🔴 Chưa có | 51 | 19% |
+| 🔴 Chưa có | 50 | 19% |
 | ⚪ Ngoài phạm vi | 6 | - |
 | **Tổng** | **269** (áp dụng: 263) | |
 
-- **Độ phủ so với PowerPoint 2016 (có hoặc có một phần, một phần tính 0,5): 77%**
+- **Độ phủ so với PowerPoint 2016 (có hoặc có một phần, một phần tính 0,5): 78%**
 - **Đã xác minh bằng đối chiếu PowerPoint 2016 thật: 44%** các mục áp dụng
 
 Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tính một mục; đo kiểu ghi-rồi-đọc-lại trên PowerPoint COM chỉ xác nhận ngữ nghĩa thuộc tính của PowerPoint, KHÔNG tự nhận là parity hoàn chỉnh nếu chưa có kiểm chứng khứ hồi.
@@ -32,7 +32,7 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 
 | Tab | Mục | ✅ | 🟢 | 🟡 | 🔴 | ⚪ | Độ phủ |
 |---|---|---|---|---|---|---|---|
-| Tệp (Backstage) | 17 | 4 | 10 | 0 | 2 | 1 | 88% |
+| Tệp (Backstage) | 17 | 5 | 10 | 0 | 1 | 1 | 94% |
 | Trang đầu | 57 | 40 | 12 | 3 | 2 | 0 | 94% |
 | Chèn | 29 | 14 | 2 | 1 | 10 | 2 | 61% |
 | Thiết kế | 15 | 9 | 0 | 2 | 4 | 0 | 67% |
@@ -53,13 +53,12 @@ Lưu ý: số mục chia đều cho mỗi dòng nên một dòng lớn chỉ tí
 
 | Tab | Nhóm | Tính năng | Trạng thái | Ghi chú |
 |---|---|---|---|---|
-| Tệp (Backstage) | Thông tin | Bảo vệ bản trình bày: Mật khẩu mở file (mã hóa PPTX) | 🔴 | Chưa có cơ chế mã hóa mật khẩu mở file PPTX |
 | Chèn | Minh họa | SmartArt (Danh sách, Quy trình, Chu trình, Phân cấp) | 🔴 | Chưa hỗ trợ tạo mới SmartArt native chuẩn DrawingML diagram; hiện dùng sơ đồ nhóm shape (docs/SLIDES-BUTTON-MATRIX-1011.md:53) |
 | Chèn | Văn bản | Chữ nghệ thuật (WordArt) | 🟡 | FIX-L14: có lệnh slides.insert.wordart nhưng PowerPoint COM nhận dạng Type=17 PresetTextEffect=-2 chưa chuẩn native Type=15 (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
 | Chuyển tiếp | Chuyển tiếp sang slide | Hiệu ứng Morph (Biến đổi hình thái) | 🟡 | Đã có xử lý chuyển đổi Morph sơ bộ; chưa hoàn thiện mapping đối tượng khớp định danh như PowerPoint 2016 Office 365 |
 | Công cụ vẽ > Định dạng | Kiểu chữ WordArt | Hiệu ứng chữ nghệ thuật (Text Effects: Warp, Shadow, 3D) | 🟡 | FIX-L14: có textFadeRight nhưng PowerPoint COM nhận dạng PresetTextEffect=-2 chưa chuẩn native (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
 
-Tổng: 5 mục ưu tiên 1.
+Tổng: 4 mục ưu tiên 1.
 
 ## Danh sách 15 mục ưu tiên 1 thiếu nhất & Đề xuất 10 phiếu việc kế tiếp
 
@@ -108,7 +107,7 @@ Tổng: 5 mục ưu tiên 1.
 | Tệp | In (Ctrl+P) & Xem trước khi in (Ctrl+F2) | ✅ | - | slides.file.printPreview xem trước bản in (docs/SLIDES-BUTTON-MATRIX-1011.md:89) |
 | Tệp | Đóng (Ctrl+W) | 🟢 | - | common.file.close; đóng bản trình bày hiện tại |
 | Thông tin | Bảo vệ bản trình bày: Đánh dấu là cuối cùng (Mark as Final / Read-only) | ✅ | - | Backstage > Thông tin > Đánh dấu là cuối cùng ghi contentStatus=Final; PowerPoint COM đọc lại Content status = Final (adapters/libreoffice/slides/slides-adapter.js:178, scripts/audit-0610/ppt_docprops_readback.ps1:2) |
-| Thông tin | Bảo vệ bản trình bày: Mật khẩu mở file (mã hóa PPTX) | 🔴 | 1 | Chưa có cơ chế mã hóa mật khẩu mở file PPTX |
+| Thông tin | Bảo vệ bản trình bày: Mật khẩu mở file (mã hóa PPTX) | ✅ | - | common.file.passwordProtection: Tệp > Thông tin > Mã hóa bằng mật khẩu (Agile AES-256, 2 ô nhập khớp); tệp lưu là vùng chứa mã hóa, mở lại hỏi mật khẩu, sai mật khẩu báo rõ, đặt hoặc gỡ được (tests/live/cdp/document-password.desktop.mjs 9/9; tests/test_ooxml_encryption_roundtrip.py; platform/commands/command-definitions.js:16 lệnh, platform/security/office_encryption.py:356 mã hóa, platform/dialogs/document-password-dialog.js:4 hộp thoại); Word và PowerPoint 2016 COM mở được bằng mật khẩu (mật khẩu thử dưới 16 ký tự vì COM từ chối dài hơn, kể cả tệp do chính Word lưu) |
 | Thông tin | Kiểm tra bản trình bày (Inspect Document - loại bỏ metadata ẩn) | 🟢 | - | Backstage > Thông tin > Kiểm tra bản trình bày: 5 nhóm (thuộc tính, nhận xét, ghi chú, slide ẩn, ngoài vùng slide), xóa từng nhóm (adapters/libreoffice/slides/slides-adapter.js:243 openDocumentInspectorDialog; apps/slides/document-inspector-dialog.js:1; tests/live/cdp/slides-file-info.desktop.mjs:1); chưa đối chiếu Inspect Document của PowerPoint |
 | Thông tin | Quản lý bản trình bày: Tự động khôi phục (AutoRecover) | 🟢 | - | Tự động khôi phục bản trình bày (platform/help/entries-autorecover.js:28-34) |
 | Thông tin | Thuộc tính bản trình bày (Title, Author, Subject, Tags...) | ✅ | - | Backstage > Thông tin > Thuộc tính (Title/Author/Subject/Keywords/Comments) lưu docProps/core.xml; PowerPoint COM BuiltInDocumentProperties khớp (adapters/libreoffice/slides/slides-adapter.js:169, scripts/audit-0610/ppt_docprops_readback.ps1:2) |
@@ -147,7 +146,7 @@ Tổng: 5 mục ưu tiên 1.
 | Phông chữ | Đổi chữ hoa/thường (Change Case, Shift+F3) | 🟢 | - | slides.text.changeCase (5 kiểu + Shift+F3 xoay vòng); test CDP tests/live/cdp/slides-change-case.desktop.mjs 9/9; logic dùng chung platform/text/change-case.js; chưa đối chiếu PowerPoint COM |
 | Phông chữ | Màu chữ (Font Color) | ✅ | - | FIX-L7/FIX-L5: slides.color.text đối chiếu RGB=255 (docs/SLIDES-BUTTON-MATRIX-1011.md:34) |
 | Phông chữ | Màu nền chữ (Highlight Color) | ✅ | - | FIX-L8: slides.color.highlight đối chiếu Highlight.RGB=52735 (docs/SLIDES-BUTTON-MATRIX-1011.md:35) |
-| Phông chữ | Hộp thoại Phông chữ (Font Dialog) | ✅ | - | slides.font.dialog (Ctrl+T): phông, cỡ, màu, gạch chân đôi, chỉ số trên, giãn ký tự; PowerPoint COM đọc lại Georgia 28 pt đậm đỏ gạch chân baseline 0.33 (platform/commands/command-definitions.js:786, scripts/audit-0610/ppt_font_runs_readback.ps1:2) |
+| Phông chữ | Hộp thoại Phông chữ (Font Dialog) | ✅ | - | slides.font.dialog (Ctrl+T): phông, cỡ, màu, gạch chân đôi, chỉ số trên, giãn ký tự; PowerPoint COM đọc lại Georgia 28 pt đậm đỏ gạch chân baseline 0.33 (platform/commands/command-definitions.js:787, scripts/audit-0610/ppt_font_runs_readback.ps1:2) |
 | Đoạn văn | Dấu đầu dòng (Bullets) | ✅ | - | FIX-L7: slides.list.bullet bật Bullet.Visible=-1, Type=1 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:36) |
 | Đoạn văn | Đánh số thứ tự (Numbering) | ✅ | - | FIX-L7: slides.list.numbered bật đánh số Type=2 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:37) |
 | Đoạn văn | Giảm thụt lề (Decrease Indent) | ✅ | - | FIX-L8: slides.para.indentDec giảm thụt lề về 0 pt đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:38) |
@@ -283,7 +282,7 @@ Tổng: 5 mục ưu tiên 1.
 | Thiết lập | Tập dượt hẹn giờ (Rehearse Timings) | 🟢 | - | slides.show.rehearseTimings; chế độ tập dượt đo thời gian từng slide (docs/SLIDES-BUTTON-MATRIX-1011.md:76) |
 | Thiết lập | Ghi lại trình chiếu (Record Slide Show) | 🔴 | 2 | Chưa hỗ trợ thu âm và lưu timeline trình diễn vào deck |
 | Thiết lập | Phát thuyết minh (Play Narrations) | 🔴 | 3 | Chưa có tùy chọn bật/tắt phát thuyết minh |
-| Thiết lập | Sử dụng thời gian tập dượt (Use Timings) | 🟢 | - | slides.show.setupShow: ô tích Dùng thời gian đã đặt để tự chuyển trang (mặc định bật): bật thì trang có «Sau N giây» tự sang trang kế, tắt thì đứng yên (tests/live/cdp/slides-use-timings.desktop.mjs 6/6, platform/commands/command-definitions.js:728); lưu PPTX thành p:showPr useTimings="0" và PowerPoint 2016 COM đọc SlideShowSettings.AdvanceMode = 1 (thủ công), mở lại giữ (tests/live/cdp/slides-use-timings-save.desktop.mjs, scripts/audit-0610/ppt_show_timings_readback.ps1); áp dụng cho thời gian đặt ở Chuyển tiếp, chưa tự dùng thời gian đã Tập dượt |
+| Thiết lập | Sử dụng thời gian tập dượt (Use Timings) | 🟢 | - | slides.show.setupShow: ô tích Dùng thời gian đã đặt để tự chuyển trang (mặc định bật): bật thì trang có «Sau N giây» tự sang trang kế, tắt thì đứng yên (tests/live/cdp/slides-use-timings.desktop.mjs 6/6, platform/commands/command-definitions.js:729); lưu PPTX thành p:showPr useTimings="0" và PowerPoint 2016 COM đọc SlideShowSettings.AdvanceMode = 1 (thủ công), mở lại giữ (tests/live/cdp/slides-use-timings-save.desktop.mjs, scripts/audit-0610/ppt_show_timings_readback.ps1); áp dụng cho thời gian đặt ở Chuyển tiếp, chưa tự dùng thời gian đã Tập dượt |
 | Thiết lập | Hiện thanh điều khiển phương tiện (Show Media Controls) | 🔴 | 3 | Chưa có tùy chọn ẩn/hiện thanh điều khiển phương tiện khi chiếu |
 | Màn hình | Chọn màn hình phát (Monitors) | 🔴 | 2 | Chưa có menu chọn màn hình hiển thị trình chiếu ngoài Presenter View |
 | Màn hình | Chế độ Presenter (Presenter View, Alt+F5) | 🟢 | - | slides.show.presenterMode; giao diện người thuyết trình xem trước slide kế tiếp và ghi chú (docs/SLIDES-BUTTON-MATRIX-1011.md:73) |
@@ -305,7 +304,7 @@ Tổng: 5 mục ưu tiên 1.
 | Nhận xét | Nhận xét trước (Previous Comment) | 🟢 | - | slides.review.commentPrevious; điều hướng tới nhận xét trước (docs/SLIDES-BUTTON-MATRIX-1011.md:82) |
 | Nhận xét | Nhận xét sau (Next Comment) | 🟢 | - | slides.review.commentNext; điều hướng tới nhận xét kế tiếp (docs/SLIDES-BUTTON-MATRIX-1011.md:83) |
 | Nhận xét | Đánh dấu đã xử lý (Resolve Comment) | 🟢 | - | slides.review.commentResolve; đánh dấu nhận xét đã giải quyết (docs/SLIDES-BUTTON-MATRIX-1011.md:84) |
-| Nhận xét | Hiện/ẩn ngăn nhận xét (Show Comments) | 🟢 | - | slides.review.toggleComments: nút Hiện nhận xét trên tab Đánh giá bật/tắt ngăn nhận xét, hiện nhận xét đã thêm, Esc ẩn (tests/live/cdp/slides-toggle-comments.desktop.mjs 5/5, platform/commands/command-definitions.js:594); thao tác giao diện, không có đối chiếu PowerPoint thật |
+| Nhận xét | Hiện/ẩn ngăn nhận xét (Show Comments) | 🟢 | - | slides.review.toggleComments: nút Hiện nhận xét trên tab Đánh giá bật/tắt ngăn nhận xét, hiện nhận xét đã thêm, Esc ẩn (tests/live/cdp/slides-toggle-comments.desktop.mjs 5/5, platform/commands/command-definitions.js:595); thao tác giao diện, không có đối chiếu PowerPoint thật |
 | So sánh | So sánh bản trình bày (Compare Presentations) | 🔴 | 3 | Chưa có công cụ so sánh song song hai tệp PPTX |
 | So sánh | Chấp nhận / Từ chối thay đổi (Accept / Reject Revision) | 🔴 | 3 | Chưa có quy trình duyệt thay đổi revision trong slide |
 
@@ -357,8 +356,8 @@ Tổng: 5 mục ưu tiên 1.
 | Sắp xếp | Nhóm đối tượng (Group, Ctrl+G) | ✅ | - | FIX-L12: sơ đồ nhóm 7 đối tượng Shape.Type=6 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:53, docs/POWERPOINT2016-FINDINGS-1710.md:23) |
 | Sắp xếp | Rã nhóm đối tượng (Ungroup, Ctrl+Shift+G) | 🟢 | - | slides.shape.ungroup; giải phóng nhóm thành các hình riêng |
 | Sắp xếp | Xoay và lật đối tượng (Rotate 90°, Flip) | ✅ | - | slides.arrange.rotateRight90, slides.arrange.rotateLeft90, slides.arrange.flipHorizontal, slides.arrange.flipVertical; PowerPoint COM đọc lại rotation/hflip/vflip (adapters/libreoffice/slides/slides-adapter.js:285, adapters/libreoffice/slides/slides-adapter.js:286, adapters/libreoffice/slides/slides-adapter.js:287, adapters/libreoffice/slides/slides-adapter.js:288; scripts/audit-0610/ppt_shape_format_readback.ps1:4) |
-| Kích thước | Chiều cao đối tượng (Shape Height) | 🟢 | - | slides.shape.sizeDialog (Định dạng hình > Kích thước và vị trí…): đặt rộng, cao, góc xoay chính xác, hoàn tác/làm lại; lưu PPTX rồi PowerPoint 2016 COM đọc Width=320, Height=120, Rotation=30, Left/Top=100 đúng (tests/live/cdp/slides-shape-size-dialog.desktop.mjs, scripts/audit-0610/ppt_shape_size_readback.ps1, platform/commands/command-definitions.js:756); nhập trong hộp thoại chứ chưa có ô nhập ngay trên ruy-băng |
-| Kích thước | Chiều rộng đối tượng (Shape Width) | 🟢 | - | slides.shape.sizeDialog (Định dạng hình > Kích thước và vị trí…): đặt rộng, cao, góc xoay chính xác, hoàn tác/làm lại; lưu PPTX rồi PowerPoint 2016 COM đọc Width=320, Height=120, Rotation=30, Left/Top=100 đúng (tests/live/cdp/slides-shape-size-dialog.desktop.mjs, scripts/audit-0610/ppt_shape_size_readback.ps1, platform/commands/command-definitions.js:756); nhập trong hộp thoại chứ chưa có ô nhập ngay trên ruy-băng |
+| Kích thước | Chiều cao đối tượng (Shape Height) | 🟢 | - | slides.shape.sizeDialog (Định dạng hình > Kích thước và vị trí…): đặt rộng, cao, góc xoay chính xác, hoàn tác/làm lại; lưu PPTX rồi PowerPoint 2016 COM đọc Width=320, Height=120, Rotation=30, Left/Top=100 đúng (tests/live/cdp/slides-shape-size-dialog.desktop.mjs, scripts/audit-0610/ppt_shape_size_readback.ps1, platform/commands/command-definitions.js:757); nhập trong hộp thoại chứ chưa có ô nhập ngay trên ruy-băng |
+| Kích thước | Chiều rộng đối tượng (Shape Width) | 🟢 | - | slides.shape.sizeDialog (Định dạng hình > Kích thước và vị trí…): đặt rộng, cao, góc xoay chính xác, hoàn tác/làm lại; lưu PPTX rồi PowerPoint 2016 COM đọc Width=320, Height=120, Rotation=30, Left/Top=100 đúng (tests/live/cdp/slides-shape-size-dialog.desktop.mjs, scripts/audit-0610/ppt_shape_size_readback.ps1, platform/commands/command-definitions.js:757); nhập trong hộp thoại chứ chưa có ô nhập ngay trên ruy-băng |
 | Kích thước | Khóa tỷ lệ khung hình (Lock Aspect Ratio) | 🔴 | 2 | Chưa có tùy chọn khóa tỷ lệ khung hình (Lock Aspect Ratio) |
 
 ### Công cụ hình ảnh > Định dạng
@@ -388,7 +387,7 @@ Tổng: 5 mục ưu tiên 1.
 | Tùy chọn kiểu | Cột đầu tiên / Cột cuối cùng (First/Last Column) | 🟢 | - | slides.table.optFirstCol và slides.table.optLastCol tô màu cột đầu hoặc cuối; lưu thành màu nền ô (tests/live/cdp/slides-table-design.desktop.mjs) |
 | Tùy chọn kiểu | Cột sọc xen kẽ (Banded Columns) | 🟢 | - | slides.table.optBandedCols tô xen kẽ cột; lưu thành màu nền ô (tests/live/cdp/slides-table-design.desktop.mjs) |
 | Kiểu bảng | Thư viện kiểu dáng bảng (Table Styles Gallery) | 🟢 | - | slides.table.style có 6 bảng màu nhạt cộng Không kiểu; màu lưu thành màu nền ô, chưa ghi tableStyleId của PowerPoint nên mở lại trong PowerPoint không đổi kiểu theo (tests/live/cdp/slides-table-design.desktop.mjs) |
-| Kiểu bảng | Tô màu nền ô (Table Shading) | ✅ | - | slides.table.shading tô ô, vùng ô hoặc cả bảng; lưu PPTX rồi PowerPoint 2016 COM đọc đúng màu nền từng ô FFFF00 và BDD7EE, ô không tô là FFFFFF (tests/live/cdp/slides-table-design.desktop.mjs; apps/slides/slides-canvas.js:3775 setTableShading, platform/commands/command-definitions.js:644) |
+| Kiểu bảng | Tô màu nền ô (Table Shading) | ✅ | - | slides.table.shading tô ô, vùng ô hoặc cả bảng; lưu PPTX rồi PowerPoint 2016 COM đọc đúng màu nền từng ô FFFF00 và BDD7EE, ô không tô là FFFFFF (tests/live/cdp/slides-table-design.desktop.mjs; apps/slides/slides-canvas.js:3775 setTableShading, platform/commands/command-definitions.js:645) |
 | Kiểu bảng | Đường viền bảng (Table Borders: Tất cả, Viền ngoài, Không viền) | 🟢 | - | bốn lệnh slides.table.bordersAll, slides.table.bordersOutside, slides.table.bordersInside, slides.table.bordersNone cho vùng chọn hoặc cả bảng; lưu PPTX rồi PowerPoint 2016 COM đọc đúng từng cạnh có viền hoặc không viền nhưng độ dày đọc ra 1,47 pt thay vì 0,75 pt đặt (tests/live/cdp/slides-table-borders.desktop.mjs; apps/slides/slides-canvas.js:3739 setTableBorders) |
 
 ### Công cụ bảng > Bố trí
@@ -400,9 +399,9 @@ Tổng: 5 mục ưu tiên 1.
 | Hàng & Cột | Xóa hàng / Xóa cột / Xóa bảng (Delete) | ✅ | - | 17/10: slides.table.deleteRow, slides.table.deleteCol, slides.table.deleteTable; CDP 17/17, không mất chữ ô neo (docs/AUDIT-SLIDES-TABLE-1710.md:10) |
 | Gộp ô | Gộp ô (Merge Cells) | ✅ | - | 17/10: slides.table.mergeCells; lưu PPTX rồi PowerPoint 2016 COM đọc đúng 2 vùng gộp, mở lại VN Slides đọc đúng (docs/AUDIT-SLIDES-TABLE-1710.md:11) |
 | Gộp ô | Tách ô (Split Cells) | ✅ | - | 17/10: slides.table.splitCell; CDP 17/17, hoàn tác một bước (docs/AUDIT-SLIDES-TABLE-1710.md:12) |
-| Kích thước ô | Chiều cao hàng / Chiều rộng cột bảng | ✅ | - | slides.table.cellSize đặt chiều cao hàng và bề rộng cột theo cm; lưu PPTX rồi PowerPoint 2016 COM đọc đúng hàng 40, 71, 40 pt và cột 140, 227, 140 pt, mở lại giữ đúng tỉ lệ (tests/live/cdp/slides-table-sizes.desktop.mjs; apps/slides/slides-canvas.js:3655 openTableSizeDialog, platform/commands/command-definitions.js:665) |
-| Kích thước ô | Phân phối đều hàng / cột (Distribute Rows / Columns) | ✅ | - | slides.table.distributeRows và slides.table.distributeCols cho cả bảng hoặc vùng chọn; lưu PPTX rồi PowerPoint 2016 COM đọc hàng 50,3 pt bằng nhau và cột 169 pt bằng nhau (tests/live/cdp/slides-table-sizes.desktop.mjs; apps/slides/slides-canvas.js:3641 distributeTable, platform/commands/command-definitions.js:663) |
-| Căn chỉnh ô | Căn lề ô: Trái, Giữa, Phải, Trên, Giữa dọc, Dưới | ✅ | - | sáu lệnh slides.table.alignLeft đến slides.table.alignBottom; lưu PPTX rồi PowerPoint 2016 COM đọc halign 2 giữa, 3 phải và valign 3 giữa dọc đúng từng ô (tests/live/cdp/slides-table-align.desktop.mjs; platform/commands/command-definitions.js:652, platform/commands/command-definitions.js:657) |
+| Kích thước ô | Chiều cao hàng / Chiều rộng cột bảng | ✅ | - | slides.table.cellSize đặt chiều cao hàng và bề rộng cột theo cm; lưu PPTX rồi PowerPoint 2016 COM đọc đúng hàng 40, 71, 40 pt và cột 140, 227, 140 pt, mở lại giữ đúng tỉ lệ (tests/live/cdp/slides-table-sizes.desktop.mjs; apps/slides/slides-canvas.js:3655 openTableSizeDialog, platform/commands/command-definitions.js:666) |
+| Kích thước ô | Phân phối đều hàng / cột (Distribute Rows / Columns) | ✅ | - | slides.table.distributeRows và slides.table.distributeCols cho cả bảng hoặc vùng chọn; lưu PPTX rồi PowerPoint 2016 COM đọc hàng 50,3 pt bằng nhau và cột 169 pt bằng nhau (tests/live/cdp/slides-table-sizes.desktop.mjs; apps/slides/slides-canvas.js:3641 distributeTable, platform/commands/command-definitions.js:664) |
+| Căn chỉnh ô | Căn lề ô: Trái, Giữa, Phải, Trên, Giữa dọc, Dưới | ✅ | - | sáu lệnh slides.table.alignLeft đến slides.table.alignBottom; lưu PPTX rồi PowerPoint 2016 COM đọc halign 2 giữa, 3 phải và valign 3 giữa dọc đúng từng ô (tests/live/cdp/slides-table-align.desktop.mjs; platform/commands/command-definitions.js:653, platform/commands/command-definitions.js:658) |
 
 ### Công cụ biểu đồ > Thiết kế
 
@@ -414,8 +413,8 @@ Tổng: 5 mục ưu tiên 1.
 | Kiểu biểu đồ | Thư viện kiểu biểu đồ (Chart Styles Gallery) | 🔴 | 2 | Chưa có thư viện kiểu dáng biểu đồ Chart Styles trên ribbon |
 | Dữ liệu | Chuyển hàng và cột dữ liệu (Switch Row/Column) | 🔴 | 2 | Chưa hỗ trợ chuyển đổi nhanh hàng/cột ma trận số liệu biểu đồ |
 | Dữ liệu | Chọn dữ liệu nguồn (Select Data) | 🟢 | - | slides.chart.editData mở hộp thoại sửa tiêu đề, nhãn và giá trị (một chuỗi dữ liệu), cùng slides.chart.setType đổi kiểu cột, đường, tròn, miền; lưu PPTX rồi PowerPoint 2016 COM đọc ChartType 4 cho biểu đồ đường, tiêu đề và giá trị 10,20,15 đúng; chưa chọn lại dải ô nguồn hay nhiều chuỗi (tests/live/cdp/slides-chart-design.desktop.mjs; apps/slides/slides-canvas.js:3985 editChart) |
-| Dữ liệu | Chỉnh sửa dữ liệu nguồn (Edit Data in Excel/Grid) | 🟢 | - | tab Thiết kế biểu đồ > Sửa dữ liệu mở bảng số liệu của biểu đồ để sửa nhãn và giá trị; hoàn tác; lưu PPTX (tests/live/cdp/slides-chart-design.desktop.mjs; platform/commands/command-definitions.js:629); chưa mở sửa trong Excel (không liên kết sổ tính ngoài) |
-| Loại | Thay đổi loại biểu đồ (Change Chart Type) | 🟢 | - | tab Thiết kế biểu đồ > Đổi kiểu: cột, đường, tròn, miền; giữ dữ liệu, vẽ lại, Ctrl+Z trả về; lưu PPTX rồi PowerPoint 2016 COM đọc ChartType (scripts/audit-0610/ppt_chart_readback.ps1; tests/live/cdp/slides-chart-design.desktop.mjs; platform/commands/command-definitions.js:628) |
+| Dữ liệu | Chỉnh sửa dữ liệu nguồn (Edit Data in Excel/Grid) | 🟢 | - | tab Thiết kế biểu đồ > Sửa dữ liệu mở bảng số liệu của biểu đồ để sửa nhãn và giá trị; hoàn tác; lưu PPTX (tests/live/cdp/slides-chart-design.desktop.mjs; platform/commands/command-definitions.js:630); chưa mở sửa trong Excel (không liên kết sổ tính ngoài) |
+| Loại | Thay đổi loại biểu đồ (Change Chart Type) | 🟢 | - | tab Thiết kế biểu đồ > Đổi kiểu: cột, đường, tròn, miền; giữ dữ liệu, vẽ lại, Ctrl+Z trả về; lưu PPTX rồi PowerPoint 2016 COM đọc ChartType (scripts/audit-0610/ppt_chart_readback.ps1; tests/live/cdp/slides-chart-design.desktop.mjs; platform/commands/command-definitions.js:629) |
 
 ### Công cụ phương tiện > Phát lại
 
