@@ -453,3 +453,23 @@ RISKS: Excel COM was not run because this queue explicitly blocks it. 5-file str
 DEPENDENCIES/BLOCKERS: Excel COM BLOCKED by queue rules; `CODEX-COMMON-RULES.md` absent from worktree root.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Commit Q15 audit artifacts, create `E:\VNOffice-briefs\logs\Q15.DONE`.
+
+---
+
+# Agent Handoff
+TASK: Q16 — Writer: tăng tốc xem trước in tài liệu phức tạp
+AGENT/ROLE: Codex / VN Writer
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Đo và giảm thời gian Print Preview Writer cho Q13 và tài liệu một trang; giữ số trang/ảnh, thêm cờ tắt và xác minh Q13.
+FINDINGS: `print_convert_native` là stage lớn nhất, khoảng 16.4 s (~60% tổng 27.6 s); đây chủ yếu là worker LibreOffice khởi động nguội. PDF convert khoảng 5.5–6.7 s với Q13; inspect <1 ms; dựng ảnh khoảng 0.5–0.6 s. Preview worker đã tái sử dụng được khi sẵn sàng.
+IMPLEMENTATION SUMMARY: Khởi động worker Writer nền ngay sau first paint để thời gian tạo profile/UNO pipe chồng lên lúc soạn thảo. `VNO_PRINT_PREWARM_WORKER=0` giữ hành vi lazy cũ. Không đổi luồng chuyển đổi, PDF hay renderer.
+FILES CHANGED: `main.py`; `tests/test_print_worker_prewarm.py`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; pytest mới trước/sau; CDP đo 3 lượt fixture cùng cấu trúc Q13 và 3 lượt tài liệu một trang sau khi worker sẵn sàng; CDP Q13; lượt cold fallback với `VNO_PRINT_PREWARM_WORKER=0`; `npm test`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "writer or print or preview"`.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — prewarm unit trước sửa 1 FAIL/1 PASS, sau sửa 2/2 PASS; Q13 CDP 2 trang, hết trạng thái loading; npm 3771/3771; i18n VI=3110/EN=3110, missing=0; checklist 0 dòng hạ; pytest 361 passed, 740 deselected. Trước/sau fixture cùng cấu trúc Q13: 27.070/27.628/30.381 ms → 9.173/9.243/14.887 ms (median); tài liệu đơn giản: 17.401/17.562/18.781 ms → 1.341/1.368/2.919 ms. Trang giữ nguyên (2 và 1); hash ảnh từng bộ giống nhau qua ba lượt warm.
+KNOWN FAILURES: Q13 desktop script mở app trống rồi dựng fixture qua CDP nên không mô phỏng thời gian người dùng soạn tài liệu; lượt chạy cold trực tiếp sau sửa vẫn mất 24.511 ms do worker chưa kịp prewarm. CDP benchmark đo preview sau khi worker nền đã sẵn sàng.
+RISKS: Worker Writer chiếm CPU/bộ nhớ trong lúc nền sau first paint dù người dùng chưa in; đặt `VNO_PRINT_PREWARM_WORKER=0` để quay lại lazy startup. Cold-start single-shot trên fixture CDP không đạt 18 s; mục tiêu median đạt khi worker đã được làm nóng trong thời gian người dùng chuẩn bị tài liệu.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Commit riêng Q16, tạo `E:\VNOffice-briefs\logs\Q16.DONE`.

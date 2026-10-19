@@ -4680,6 +4680,16 @@ class VnOfficeApi:
         """Start services which are intentionally kept off the first-paint path."""
         if self._app_kind in VALID_APP_KINDS:
             _start_deferred_startup(self, self._app_kind, getattr(self, "_startup_launch_args", []))
+        # Start the Writer worker just after first paint so its cold LibreOffice
+        # profile and UNO pipe setup can overlap with editing instead of blocking
+        # the first print preview. Set VNO_PRINT_PREWARM_WORKER=0 to restore the
+        # previous lazy-on-first-use behavior.
+        if (
+            self._app_kind == "writer"
+            and os.environ.get("VNO_PRINT_PREWARM_WORKER", "1").strip().lower()
+            not in {"0", "false", "off", "no"}
+        ):
+            self._start_document_engine()
         return {"started": True}
 
     def _start_document_engine(self):
