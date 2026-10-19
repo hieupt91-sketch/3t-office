@@ -61,6 +61,10 @@
   outline: none;
 }
 
+/* Thẻ ngữ cảnh (Thiết kế bảng, Định dạng hình...) chỉ hiện khi đối tượng được chọn: thuộc tính hidden phải thắng mọi quy tắc display
+   khác (trước đây Slides và Sheet luôn hiện các thẻ này vì display bị ghi đè). */
+.vno-ribbon-tab[hidden] { display: none !important; }
+
 /* Tab labels never wrap onto two lines; on narrow windows (laptops at 125-150% scaling, ~900-1100 CSS px) the
    padding shrinks first so every tab stays on one line. */
 @media (max-width: 1100px) {
