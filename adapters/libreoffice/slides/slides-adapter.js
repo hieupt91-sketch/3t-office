@@ -444,6 +444,7 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.view.zoomOut", () => this.canvas.zoomOut ? this.canvas.zoomOut() : false);
     globalCommandBus.bindHandler("slides.view.zoomReset", () => this.canvas.zoomReset ? this.canvas.zoomReset() : false);
     globalCommandBus.bindHandler("slides.view.fitToWindow", () => this.canvas.fitToWindow ? this.canvas.fitToWindow() : false);
+    globalCommandBus.bindHandler("slides.view.zoomDialog", () => this.canvas.openZoomDialog ? this.canvas.openZoomDialog() : false);
     globalCommandBus.bindHandler("slides.view.newWindow", () => this._hintIfFalse(() => this.canvas.newWindow ? this.canvas.newWindow() : false, "Không mở được cửa sổ mới trong ứng dụng desktop. Hãy mở lại tệp từ Tệp > Mở để xem ở cửa sổ khác."));
     globalCommandBus.bindHandler("slides.section.add", () => this.canvas.promptAddCurrentSection ? this.canvas.promptAddCurrentSection() : false);
     globalCommandBus.bindHandler("slides.section.rename", () => this._hintIfFalse(() => this.canvas.promptRenameCurrentSection ? this.canvas.promptRenameCurrentSection() : false, "Trang chiếu hiện tại chưa thuộc phần nào. Hãy thêm phần trước bằng Thêm phần."));

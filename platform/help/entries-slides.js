@@ -873,14 +873,16 @@ export const SLIDES_HELP_ENTRIES = [
       "slides.view.zoomIn",
       "slides.view.zoomOut",
       "slides.view.zoomReset",
-      "slides.view.fitToWindow"
+      "slides.view.fitToWindow",
+      "slides.view.zoomDialog"
     ],
     title: "Thu phóng sân khấu trang chiếu",
-    summary: "Phóng to / thu nhỏ sân khấu theo bước 10%. Đặt lại về 100%. Vừa cửa sổ co sân khấu khớp khung làm việc (khoảng 30%–200%), trừ chỗ ghi chú nếu đang mở.",
+    summary: "Phóng to / thu nhỏ sân khấu theo bước 10%, hoặc nhập đúng phần trăm trong hộp Thu phóng (50–200%). Đặt lại về 100%. Vừa cửa sổ co sân khấu khớp khung làm việc, trừ chỗ ghi chú nếu đang mở.",
     ribbon: { tab: "Chế độ xem", tabId: "view", group: "Thu phóng" },
     keywords: ["thu phóng", "phóng to", "thu nhỏ", "vừa cửa sổ", "fit to window", "zoom", "100%", "sân khấu"],
     steps: [
       "Tab Chế độ xem, nhóm Thu phóng: Phóng to (nút lớn) tăng 10%, Thu nhỏ giảm 10%, Đặt lại về 100%, Vừa cửa sổ.",
+      "Thu phóng…: mở hộp thoại, gõ số nguyên từ 50 đến 200 (ví dụ 75) rồi nhấn Áp dụng hoặc Enter; các nút 200%, 100%, 75%, 50% điền nhanh; nút Vừa cửa sổ co trang khớp khung. Nhập ngoài khoảng sẽ báo lỗi và không đổi tỉ lệ. Hủy hoặc Esc đóng hộp mà không đổi gì. Cũng có thể nhấp vào số phần trăm ở góc phải thanh trạng thái để mở hộp này.",
       "Vừa cửa sổ lấy chiều rộng/cao khung stage so với cỡ trang (mặc định 960×540), kẹp khoảng 30%–200%. Nếu khung ghi chú đang mở, chiều cao tính trừ phần ghi chú.",
       "Zoom chỉ đổi hiển thị lúc soạn, không đổi cỡ trang khi chiếu F5. Cỡ trang thật: tab Thiết kế → Cỡ trang chiếu.",
       "Nhóm Cửa sổ cạnh đó có Cửa sổ mới (mở tab/cửa sổ trình duyệt khác)."

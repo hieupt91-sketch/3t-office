@@ -1157,6 +1157,7 @@ export const viStrings = {
     ,"slides.view.zoomOut": { label: "Thu nhỏ", tooltip: "Giảm tỉ lệ hiển thị trang chiếu" }
     ,"slides.view.zoomReset": { label: "100%", tooltip: "Đặt lại tỉ lệ hiển thị 100%" }
     ,"slides.view.fitToWindow": { label: "Vừa cửa sổ", tooltip: "Thu phóng trang chiếu vừa khít cửa sổ làm việc" }
+    ,"slides.view.zoomDialog": { label: "Thu phóng…", tooltip: "Đặt phần trăm thu phóng chính xác (50–200%) hoặc vừa cửa sổ" }
     ,"slides.view.newWindow": { label: "Cửa sổ mới", tooltip: "Mở tài liệu trình chiếu trong cửa sổ mới" }
     ,"slides.show.startFromBegin": { label: "Từ đầu", tooltip: "Bắt đầu trình chiếu từ trang đầu tiên (F5)" }
     ,"slides.show.startFromCurrent": { label: "Từ trang này", tooltip: "Trình chiếu từ trang hiện tại (Shift+F5)" }
