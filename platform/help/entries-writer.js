@@ -553,16 +553,16 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.reference.tocInsert", "writer.reference.tocUpdate"],
     title: "Mục lục tự động",
-    summary: "Dựng mục lục từ các đoạn đã gán kiểu Heading 1, Heading 2, Heading 3. Khi lưu DOCX, tiêu đề và mục lục vẫn là cấu trúc có thể cập nhật, không bị đổi thành văn bản tĩnh.",
+    summary: "Dựng mục lục từ các đoạn đã gán kiểu Heading 1, Heading 2, Heading 3 ngay tại vị trí con trỏ. Nếu con trỏ nằm giữa đoạn, đoạn được tách để đặt mục lục vào đúng chỗ; mục lục vẫn có thể cập nhật sau khi đổi tiêu đề.",
     ribbon: { tab: "Tham chiếu", tabId: "references", group: "Mục lục" },
     keywords: ["mục lục", "table of contents", "toc", "tiêu đề", "heading"],
     steps: [
       "Gán kiểu tiêu đề cho các đề mục: trên tab Trang đầu, nhóm Kiểu dáng, chọn Heading 1 / Heading 2 / Heading 3 (hoặc Thư viện kiểu).",
-      "Đặt con trỏ ở đầu tài liệu (hoặc chỗ muốn hiện mục lục).",
+      "Đặt con trỏ tại vị trí cần chèn mục lục. Nếu đặt giữa đoạn, phần chữ trước và sau con trỏ được giữ thành hai đoạn riêng.",
       "Mở tab Tham chiếu, nhóm Mục lục, nhấn Mục lục tự động.",
       "Sau khi thêm hoặc đổi tiêu đề, nhấn Cập nhật mục lục để làm mới số trang và dòng đề mục.",
       "Nhấp một dòng trong mục lục để nhảy tới tiêu đề tương ứng trong tài liệu.",
-      "Khi lưu thành DOCX và mở bằng phần mềm văn phòng tương thích, dùng Cập nhật bảng để tính lại mục lục; các Heading vẫn xuất hiện trong Ngăn Dẫn hướng."
+      "Lưu tài liệu. Khi thêm hoặc đổi tiêu đề, quay lại nhóm Mục lục và chọn Cập nhật mục lục để làm mới các dòng đề mục."
     ]
   },
   {
@@ -587,7 +587,7 @@ export const WRITER_HELP_ENTRIES = [
     commandIds: ["writer.review.commentPrevious", "writer.review.commentNext", "writer.review.commentDelete", "writer.review.commentResolve", "writer.review.commentReply"],
     title: "Duyệt, trả lời và xử lý nhận xét",
     summary: "Duyệt nhận xét, trả lời trong cùng luồng, đánh dấu đã xử lý, mở lại hoặc xóa nhận xét. Câu trả lời được lưu trong DOCX dưới dạng reply thuộc nhận xét gốc.",
-    ribbon: { tab: "Đánh giá", tabId: "review", group: "Ghi chú" },
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "Nhận xét" },
     keywords: ["nhận xét", "ghi chú", "trả lời", "reply", "trước", "sau", "xử lý", "resolve", "xóa"],
     steps: ["Mở tab Đánh giá, nhóm Ghi chú. Nhấp vào thẻ nhận xét trong bảng bên cạnh trang hoặc dùng Nhận xét trước/Nhận xét sau để chọn nhận xét.", "Chọn nhận xét đang mở, nhấn Trả lời nhận xét, nhập nội dung rồi chọn Gửi trả lời. Reply xuất hiện lùi vào dưới nhận xét gốc.", "Nhấn Đã xử lý để đánh dấu hoàn tất; nhấn lại để mở lại. Trạng thái được lưu trong DOCX.", "Nhấn Xóa nhận xét để xóa nhận xét đang chọn. Dùng Ctrl+Z/Ctrl+Y để hoàn tác/làm lại thay đổi."]
   },
@@ -738,14 +738,14 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.table.insert"],
     title: "Chèn bảng",
-    summary: "Chèn ngay một bảng trống 3 hàng × 4 cột tại vị trí con trỏ, có viền xám và rộng bằng trang. Hàng đầu là hàng đầu tiên của bảng; các ô không có chữ mẫu.",
+    summary: "Chọn nhanh kích thước bảng trên lưới tối đa 10 cột × 8 hàng hoặc mở hộp thoại để nhập từ 1 đến 63 hàng và cột. Bảng được chèn tại con trỏ với độ rộng tự động và con trỏ đặt ở ô đầu.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Bảng biểu" },
     keywords: ["bảng", "table", "chèn bảng", "hàng", "cột", "ô bảng", "tiêu đề"],
     steps: [
-      "Đặt con trỏ vào đoạn văn, chỗ muốn đặt bảng. Mở tab Chèn, nhóm Bảng biểu, nhấn nút lớn Bảng biểu.",
-      "Doc chèn ngay bảng trống 3 hàng × 4 cột (không mở hộp thoại chọn kích thước). Hàng đầu là hàng đầu tiên của bảng để bạn nhập tiêu đề; các ô đều không có chữ mẫu, nên nội dung gõ vào không bị dính với chữ có sẵn. Viền 1px xám, đệm 6–10 pt, rộng 100% trang.",
-      "Nhấp vào ô cần điền rồi gõ nội dung. Nhấn Tab để chuyển tới ô tiếp theo. Nhấn Ctrl+Z nếu cần hoàn tác việc chèn bảng.",
-      "Cùng tab Chèn, nhóm Minh họa có Hình ảnh nếu cần đặt ảnh cạnh bảng."
+      "Đặt con trỏ tại vị trí cần chèn bảng. Mở tab Chèn, nhóm Bảng biểu, nhấn nút Bảng biểu.",
+      "Di chuyển trên lưới để chọn số cột × hàng, rồi nhấn vào ô kích thước mong muốn. Lưới chọn tối đa 10 cột và 8 hàng; có thể dùng phím mũi tên và Enter để chọn, hoặc nhấn Esc để đóng mà không chèn.",
+      "Để nhập kích thước lớn hơn, chọn Chèn bảng... bên dưới lưới, nhập số cột và số hàng từ 1 đến 63 rồi nhấn Chèn. Chiều rộng cột tự cân theo trang.",
+      "Sau khi chèn, con trỏ nằm trong ô đầu tiên. Nhập nội dung và nhấn Tab để sang ô kế tiếp; nhấn Ctrl+Z để hoàn tác một bước."
     ]
   },
   {
@@ -1062,14 +1062,14 @@ export const WRITER_HELP_ENTRIES = [
     id: "writer.comment.insertHelp",
     app: "writer",
     commandIds: ["writer.comment.insert"],
-    title: "Thêm ghi chú vào đoạn đã bôi",
-    summary: "Ctrl+Alt+M yêu cầu đã bôi chữ trong thân tài liệu. Hộp nhập ghi chú, neo vàng trên chữ đã chọn. Duyệt / xóa / đánh dấu xử lý nằm bài «Duyệt nhận xét».",
-    ribbon: { tab: "Đánh giá", tabId: "review", group: "Ghi chú" },
+    title: "Thêm nhận xét vào đoạn đã chọn",
+    summary: "Ctrl+Alt+M yêu cầu đã chọn chữ trong thân tài liệu. Hộp nhập nhận xét, neo vàng trên chữ đã chọn. Duyệt, xóa và đánh dấu xử lý nằm trong bài «Duyệt nhận xét».",
+    ribbon: { tab: "Đánh giá", tabId: "review", group: "Nhận xét" },
     keywords: ["ghi chú", "nhận xét", "comment", "ctrl+alt+m", "bôi đen"],
     steps: [
-      "Bôi đoạn chữ trong thân tài liệu (không phải đầu/chân trang). Tab Đánh giá, nhóm Ghi chú, nút lớn Thêm ghi chú — hoặc tab Chèn, nhóm Ghi chú — hoặc Ctrl+Alt+M.",
-      "Chưa bôi: cảnh báo «Chưa chọn văn bản» / «Hãy bôi đen đoạn văn bản trong nội dung tài liệu trước khi thêm ghi chú.» Đã bôi: hộp «Thêm ghi chú» hiện đoạn trích (tối đa 80 ký tự), ô nhập, nút Thêm ghi chú.",
-      "Chữ được bọc mark vàng (neo ghi chú). Panel bên «Ghi chú tài liệu» liệt kê các ghi chú. Không thêm được khi con trỏ chỉ nhấp, khác các phần mềm soạn thảo văn bản khác.",
+      "Bôi chọn đoạn chữ trong thân tài liệu. Mở tab Đánh giá, nhóm Nhận xét, rồi chọn Thêm nhận xét; bạn cũng có thể mở tab Chèn và chọn Thêm nhận xét hoặc nhấn Ctrl+Alt+M.",
+      "Nếu chưa chọn chữ, ứng dụng báo «Chưa chọn văn bản». Khi đã chọn, hộp «Thêm nhận xét» hiện đoạn trích (tối đa 80 ký tự), ô nhập nội dung và nút Thêm nhận xét.",
+      "Phần chữ được chọn có dấu neo màu vàng. Khung Nhận xét tài liệu ở bên phải liệt kê các nhận xét. Lệnh yêu cầu bạn chọn chữ trước khi thêm.",
       "Ctrl+Z gỡ ghi chú vừa thêm. Nhận xét trước/sau, xóa, đã xử lý: bài «Duyệt nhận xét». Nhấn Ctrl+S để lưu DOCX; nội dung, tác giả, thời gian, đoạn chữ được neo và trạng thái đã xử lý được khôi phục khi mở lại trong ứng dụng hoặc trình đọc DOCX khác."
     ]
   },
@@ -2046,7 +2046,7 @@ export const WRITER_HELP_ENTRIES = [
   "ribbon": {
     "tab": "Chèn",
     "tabId": "insert",
-    "group": "Ghi chú"
+    "group": "Nhận xét"
   },
   "keywords": [
     "chèn ghi chú",
@@ -2056,9 +2056,9 @@ export const WRITER_HELP_ENTRIES = [
   ],
   "steps": [
     "Đặt con trỏ hoặc bôi đen cụm từ cần ghi chú trong văn bản.",
-    "Mở tab Chèn (hoặc tab Đánh giá), nhóm Ghi chú, nhấp nút «Ghi chú» (hoặc nhấn Ctrl+Alt+M).",
-    "Khung ghi chú xuất hiện ở lề phải văn bản kèm tên người dùng và thời gian.",
-    "Nhập nội dung ghi chú. Nhấp ra ngoài hoặc bấm Esc để hoàn tất. Bấm nút Xóa ghi chú trên tab Đánh giá để gỡ bỏ."
+    "Mở tab Chèn hoặc tab Đánh giá, tìm nhóm Nhận xét, rồi nhấp Thêm nhận xét. Bạn cũng có thể nhấn Ctrl+Alt+M.",
+    "Khung Nhận xét tài liệu xuất hiện ở bên phải văn bản, kèm tên người dùng và thời gian.",
+    "Nhập nội dung nhận xét rồi chọn Thêm nhận xét. Để gỡ bỏ, chọn nhận xét và dùng Xóa nhận xét trên tab Đánh giá."
   ]
 },
 {

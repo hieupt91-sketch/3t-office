@@ -21,6 +21,7 @@ import { showPageSetupDialog } from "./page-setup-dialog.js";
 import { WriterAutoCorrectPreferences, WriterAutoCorrectController } from "./auto-correct.js";
 import { createWriterAutoCorrectOptionsProvider } from "./auto-correct-options.js";
 import { WriterMiniToolbar } from "./writer-mini-toolbar.js";
+import { showTableSizePicker } from "./writer-table-size-picker.js";
 
 export class WriterApp {
   constructor(mountElement) {
@@ -99,7 +100,8 @@ export class WriterApp {
     header.dataset.vnoNativeClipboard = "true";
     header.setAttribute("spellcheck", "false");
     header.setAttribute("role", "textbox");
-    header.setAttribute("aria-label", "Đầu trang");
+    header.setAttribute("aria-label", t("writerDialogs.headerRegionLabel"));
+    header.dataset.vnoRegionLabel = t("writerDialogs.headerRegionLabel");
     header.setAttribute("aria-multiline", "true");
     header.setAttribute("data-placeholder", t("writerDialogs.comments.placeholderHeader"));
 
@@ -118,7 +120,8 @@ export class WriterApp {
     footer.dataset.vnoNativeClipboard = "true";
     footer.setAttribute("spellcheck", "false");
     footer.setAttribute("role", "textbox");
-    footer.setAttribute("aria-label", "Chân trang");
+    footer.setAttribute("aria-label", t("writerDialogs.footerRegionLabel"));
+    footer.dataset.vnoRegionLabel = t("writerDialogs.footerRegionLabel");
     footer.setAttribute("aria-multiline", "true");
     footer.setAttribute("data-placeholder", t("writerDialogs.comments.placeholderFooter"));
 
@@ -253,6 +256,13 @@ export class WriterApp {
     this.adapter.setCommentsPanel(commentsPanel);
     this.adapter.setShell(this.shell);
     this.adapter.attach();
+    globalCommandBus.bindHandler("writer.table.insert", () => {
+      const anchor = document.activeElement?.closest?.('[data-command-id="writer.table.insert"]')
+        || this.shell?.ribbonHost?.querySelector?.('[data-command-id="writer.table.insert"]');
+      return showTableSizePicker(anchor, {
+        onInsert: (rows, columns) => this.adapter?.insertTable(rows, columns)
+      });
+    });
     if (isBlank) {
       const firstParagraph = body.querySelector("p") || body;
       body.focus();

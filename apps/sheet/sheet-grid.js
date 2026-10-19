@@ -15572,27 +15572,33 @@ export class SheetGridController {
 
   setStyle(prop, val, recordUndo = true) {
     if (recordUndo && this._guardProtectedMutation()) return false;
-    const key = `${this.selectedCoord.c}${this.selectedCoord.r}`;
-    let item = this.cellsData.get(key) || { val: "", formula: "", style: {} };
-    const prevVal = item.style[prop] || "";
+    const selectedCell = { c: this.selectedCoord.c, r: this.selectedCoord.r };
+    const selectedRange = this.selectionRange && this._normalizeRange(this.selectionRange);
+    const selectedColumnIndex = this.cols.indexOf(selectedCell.c);
+    const rangeContainsActiveCell = selectedRange
+      && selectedColumnIndex >= this.cols.indexOf(selectedRange.start.c)
+      && selectedColumnIndex <= this.cols.indexOf(selectedRange.end.c)
+      && selectedCell.r >= selectedRange.start.r
+      && selectedCell.r <= selectedRange.end.r;
+    const range = rangeContainsActiveCell ? selectedRange : { start: selectedCell, end: selectedCell };
+    const coords = this.formulaEngine.expandRange(this._rangeLabel(range));
+    const before = {};
+    const after = {};
 
-    if (recordUndo) {
-      this._recordHistory({
-        type: "style",
-        sheet: this.activeSheet,
-        col: this.selectedCoord.c,
-        row: this.selectedCoord.r,
-        prop,
-        prevVal,
-        nextVal: val
-      });
+    for (const key of coords) {
+      const item = this.cellsData.get(key);
+      before[key] = item ? structuredClone(item) : null;
+      const next = item || { val: "", formula: "", style: {} };
+      next.style = { ...(next.style || {}), [prop]: val };
+      this.cellsData.set(key, next);
+      after[key] = structuredClone(next);
+
+      const [col, row] = this._splitCoord(key);
+      const cell = this.container?.querySelector?.(`.vno-grid-cell[data-coord="${key}"]`);
+      if (cell) this._renderCellVisual(cell, next, col, row);
     }
 
-    item.style[prop] = val;
-    this.cellsData.set(key, item);
-
-    const cell = this.container.querySelector(`.vno-grid-cell[data-coord="${key}"]`);
-    if (cell) cell.style[prop] = val;
+    if (recordUndo) this._recordHistory({ type: "batch-cells", sheet: this.activeSheet, before, after });
     this._scheduleFormatToggleSync();
     return true;
   }

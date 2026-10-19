@@ -1,3 +1,15 @@
+import { SHAPE_PRESETS } from "./shape-presets.js";
+
+const shapeThumbnail = (id) => {
+  const preset = SHAPE_PRESETS.find((item) => item.id === id);
+  const fill = "#dbeafe";
+  const stroke = "#2563eb";
+  if (preset?.path) return `<svg viewBox="0 0 100 100" aria-hidden="true"><path d="${preset.path}" fill="${fill}" stroke="${stroke}" stroke-width="5" stroke-linejoin="round"/></svg>`;
+  if (id === "ellipse") return `<svg viewBox="0 0 100 100" aria-hidden="true"><ellipse cx="50" cy="50" rx="43" ry="36" fill="${fill}" stroke="${stroke}" stroke-width="6"/></svg>`;
+  if (id === "rect") return `<svg viewBox="0 0 100 100" aria-hidden="true"><rect x="8" y="18" width="84" height="64" fill="${fill}" stroke="${stroke}" stroke-width="6"/></svg>`;
+  return `<svg viewBox="0 0 100 100" aria-hidden="true"><rect x="8" y="18" width="84" height="64" rx="16" fill="${fill}" stroke="${stroke}" stroke-width="6"/></svg>`;
+};
+
 /**
  * 3T Slide — Enterprise Ribbon Structure
  * Cấu hình đầy đủ Icon Vector chuẩn Office Suite
@@ -258,24 +270,8 @@ export const SLIDES_RIBBON_TABS = [
             icon: "shape",
             isLarge: true,
             items: [
-                { commandId: "slides.shape.insert", label: "Hình chữ nhật" },
-                { commandId: "slides.shape.insertPreset", args: "ellipse", label: "Hình elip" },
-                { commandId: "slides.shape.insertPreset", args: "roundRect", label: "Hình chữ nhật bo góc" },
-                { commandId: "slides.shape.insertPreset", args: "triangle", label: "Tam giác cân" },
-                { commandId: "slides.shape.insertPreset", args: "rtTriangle", label: "Tam giác vuông" },
-                { commandId: "slides.shape.insertPreset", args: "diamond", label: "Hình thoi" },
-                { commandId: "slides.shape.insertPreset", args: "parallelogram", label: "Hình bình hành" },
-                { commandId: "slides.shape.insertPreset", args: "trapezoid", label: "Hình thang" },
-                { commandId: "slides.shape.insertPreset", args: "pentagon", label: "Ngũ giác" },
-                { commandId: "slides.shape.insertPreset", args: "hexagon", label: "Lục giác" },
-                { commandId: "slides.shape.insertPreset", args: "star5", label: "Sao 5 cánh" },
-                { commandId: "slides.shape.insertPreset", args: "plus", label: "Dấu cộng" },
-                { commandId: "slides.shape.insertPreset", args: "rightArrow", label: "Mũi tên phải" },
-                { commandId: "slides.shape.insertPreset", args: "leftArrow", label: "Mũi tên trái" },
-                { commandId: "slides.shape.insertPreset", args: "upArrow", label: "Mũi tên lên" },
-                { commandId: "slides.shape.insertPreset", args: "downArrow", label: "Mũi tên xuống" },
-                { commandId: "slides.shape.insertPreset", args: "heart", label: "Hình trái tim" },
-                { commandId: "slides.shape.insertPreset", args: "wedgeRectCallout", label: "Chú thích chữ nhật" }
+                ...[{ id: "rect", label: "Hình chữ nhật" }, { id: "ellipse", label: "Hình elip" }, ...SHAPE_PRESETS.map(({ id, label }) => ({ id, label }))]
+                  .map(({ id, label }) => ({ commandId: id === "rect" ? "slides.shape.insert" : "slides.shape.insertPreset", ...(id === "rect" ? {} : { args: id }), label, icon: shapeThumbnail(id) }))
             ]
           },
           { type: "button", commandId: "slides.image.insert", isLarge: true },
@@ -367,24 +363,8 @@ export const SLIDES_RIBBON_TABS = [
             icon: "shape",
             isLarge: true,
             items: [
-              { commandId: "slides.shape.insert", label: "Hình chữ nhật" },
-              { commandId: "slides.shape.insertPreset", args: "ellipse", label: "Hình elip" },
-              { commandId: "slides.shape.insertPreset", args: "roundRect", label: "Hình chữ nhật bo góc" },
-              { commandId: "slides.shape.insertPreset", args: "triangle", label: "Tam giác cân" },
-              { commandId: "slides.shape.insertPreset", args: "rtTriangle", label: "Tam giác vuông" },
-              { commandId: "slides.shape.insertPreset", args: "diamond", label: "Hình thoi" },
-              { commandId: "slides.shape.insertPreset", args: "parallelogram", label: "Hình bình hành" },
-              { commandId: "slides.shape.insertPreset", args: "trapezoid", label: "Hình thang" },
-              { commandId: "slides.shape.insertPreset", args: "pentagon", label: "Ngũ giác" },
-              { commandId: "slides.shape.insertPreset", args: "hexagon", label: "Lục giác" },
-              { commandId: "slides.shape.insertPreset", args: "star5", label: "Sao 5 cánh" },
-              { commandId: "slides.shape.insertPreset", args: "plus", label: "Dấu cộng" },
-              { commandId: "slides.shape.insertPreset", args: "rightArrow", label: "Mũi tên phải" },
-              { commandId: "slides.shape.insertPreset", args: "leftArrow", label: "Mũi tên trái" },
-              { commandId: "slides.shape.insertPreset", args: "upArrow", label: "Mũi tên lên" },
-              { commandId: "slides.shape.insertPreset", args: "downArrow", label: "Mũi tên xuống" },
-              { commandId: "slides.shape.insertPreset", args: "heart", label: "Hình trái tim" },
-              { commandId: "slides.shape.insertPreset", args: "wedgeRectCallout", label: "Chú thích chữ nhật" }
+              ...[{ id: "rect", label: "Hình chữ nhật" }, { id: "ellipse", label: "Hình elip" }, ...SHAPE_PRESETS.map(({ id, label }) => ({ id, label }))]
+                .map(({ id, label }) => ({ commandId: id === "rect" ? "slides.shape.insert" : "slides.shape.insertPreset", ...(id === "rect" ? {} : { args: id }), label, icon: shapeThumbnail(id) }))
             ]
           },
           { type: "button", commandId: "slides.diagram.insert", isLarge: true },

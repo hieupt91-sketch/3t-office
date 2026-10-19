@@ -191,3 +191,85 @@ RISKS: PPTX `p:wheel` has a spoke count and no cardinal `dir` attribute, so the 
 DEPENDENCIES/BLOCKERS: None for implementation. Paste Special modal/clipboard needs a desktop smoke with a populated native clipboard.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Review the commits; run Paste Special desktop smoke with a native clipboard item and decide whether Fan should keep wheel semantics or use a directional alternative.
+
+---
+
+# Agent Handoff
+TASK: Q2 — Mục lục bị ghi thành chèn/xóa theo dõi khi có nhận xét + theo dõi thay đổi (Writer)
+AGENT/ROLE: Codex / VN Writer
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Keep generated TOC content free of tracked revisions/comments on DOCX save while preserving review markup in document body.
+FINDINGS: The Writer export serializer created review bookmarks inside protected TOC entries. Word also refreshed the LibreOffice-marked dirty TOC field on open while Track Changes was enabled, recording the field refresh as revisions.
+IMPLEMENTATION SUMMARY: Review serialization now unwraps ins/del/mark wrappers inside generated TOC blocks while preserving displayed text. DOCX review postprocessing clears dirty on cached TOC fields so Word does not introduce revisions when opening the saved document.
+FILES CHANGED: adapters/libreoffice/writer/writer-adapter.js; adapters/libreoffice/common/ooxml_zip_patch.py; tests/live/cdp/writer-toc-comment-track-save.desktop.mjs; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: node tests/live/cdp/writer-toc-comment-track-save.desktop.mjs (pre-fix and post-fix; WebSocket flag --experimental-websocket); Word COM readback through the desktop CDP test; python -m pytest tests/test_writer_review_roundtrip.py -q; node tests/unit/writer-review-export.test.js; node tests/run-tests.js; node scripts/audit-0610/i18n_parity.mjs; python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix; git diff --check.
+BUILD RESULT: NOT RUN — no build-system changes.
+TEST RESULTS: PASS — desktop CDP + Word COM: TOCs=1, TOC revisions=0, body revisions=2, comments=1 in body; pre-fix CDP reproduced review markup inside TOC. PASS — pytest 11/11; full suite 3766/3766; i18n missing keys=0; diff check clean.
+KNOWN FAILURES: Checklist evidence verifier reported 4 unrelated existing Sheet/Slides rows lowered (2 Sheet, 2 Slides); no related checklist or Sheet/Slides files changed. Do not report this repository-wide gate as PASS.
+RISKS: TOC field cached results will not be marked dirty for automatic refresh on Word open; users can explicitly update the TOC from the Writer References tab.
+DEPENDENCIES/BLOCKERS: None for Q2. Missing CODEX-COMMON-RULES.md was not present in the assigned worktree.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review and merge the Q2 commit; investigate pre-existing checklist evidence rows in separate tickets.
+
+
+# Agent Handoff
+TASK: Q3 — Writer: sửa lỗi giao diện nhỏ khi soạn thảo
+AGENT/ROLE: Codex / VN Writer
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Fix six Writer UI issues with a CDP reproduction/check per item and separate commits.
+FINDINGS: Heading 1 preview diverged from the saved built-in style. The Vietnamese style gallery exposed “Normal”; page-region labels mixed Vietnamese and English. The table header toggle omitted command state. Comment UI used both “Ghi chú” and “Nhận xét”. Recovery dialog stayed open after deleting its last item. The 1366×768 CDP window did not reproduce the reported zoom-group clipping.
+IMPLEMENTATION SUMMARY: Matched Heading 1 preview to the existing applied style without changing DOCX style semantics; localized Writer style/page-region labels; synchronized `writer.table.toggleHeaderRow` state; standardized comment labels and Help copy; close recovery dialog when its final item is removed. Added a CDP fit regression check for the zoom group; no production change because it passes at 1366×768.
+FILES CHANGED: apps/writer/style-gallery.js; apps/writer/writer-app.js; apps/writer/writer.css; adapters/libreoffice/writer/writer-adapter.js; platform/autorecover/recovery-dialog.js; platform/i18n/strings-vi.js; platform/i18n/strings-en.js; platform/help/entries-writer.js; tests/live/cdp/writer-style-preview-parity.desktop.mjs; tests/live/cdp/writer-vietnamese-ui-labels.desktop.mjs; tests/live/cdp/writer-table-header-toggle-state.desktop.mjs; tests/live/cdp/writer-comment-terminology.desktop.mjs; tests/live/cdp/writer-autorecover-last-item.desktop.mjs; tests/live/cdp/writer-zoom-ribbon-fit.desktop.mjs; docs/WORD2016-FEATURE-CHECKLIST.md; docs/EXCEL2016-FEATURE-CHECKLIST.md; docs/POWERPOINT2016-FEATURE-CHECKLIST.md; 09-templates/AGENT-HANDOFF.md.
+COMMITS: bff5531e; d7a1ab1b; caaa42fc; 8089d089; 439593ab; a00b9e36; 033aa420; 53fd7f04; 9cc66f77.
+COMMANDS RUN: `git merge main`; all six CDP scripts before/after as applicable; `node tests/run-tests.js`; `python -m pytest tests -q -k writer`; `node scripts/audit-0610/i18n_parity.mjs`; `node scripts/help-coverage.mjs`; all three `gen_*_checklist.py`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `git diff --check`.
+BUILD RESULT: NOT RUN — no build/package changes.
+TEST RESULTS: PASS — Node suite 3766/3766; Writer pytest 307 passed, 786 deselected; CDP pre/post: style preview 1/1 fail→pass, labels 2/2 fail→pass, table toggle 1/1 fail→pass, comment labels 2/2 fail→pass, recovery last item 1/1 fail→pass. Zoom fit 1/1 PASS at 1366×768 without a code change. i18n VI/EN 3093 keys each, missing 0; Writer Help 230/230 (100%).
+KNOWN FAILURES: Checklist evidence verifier reports one unrelated Word checklist row lowered (right-click text context menu, A→N; missing valid command/evidence); Excel and PowerPoint have zero lowered rows. `CODEX-COMMON-RULES.md` was absent from the assigned worktree.
+RISKS: The requested zoom clipping could not be reproduced with a real 1366×768 app window via CDP, so no production adjustment was made. No DOCX style names were changed.
+DEPENDENCIES/BLOCKERS: None for implemented fixes. Zoom clipping requires a reproducible environment if it persists on another display configuration.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review the nine commits. If zoom clipping remains reproducible on another 1366 px setup, record the CDP geometry and handle it as a follow-up.
+---
+
+
+# Agent Handoff
+TASK: Q4 — Writer: chọn kích thước bảng và chèn mục lục tại con trỏ
+AGENT/ROLE: Codex / VN Writer
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Thêm bộ chọn bảng 10×8 và hộp thoại 1–63 hàng/cột; chèn mục lục tại caret, tách đoạn nếu caret ở giữa đoạn.
+FINDINGS: Lệnh writer.table.insert trước đây chèn cố định 3×4. TOC trước đây được đặt sau paragraph chứa caret. CODEX-COMMON-RULES.md không có trong worktree; áp dụng AGENTS.md và quy tắc phiếu được giao.
+IMPLEMENTATION SUMMARY: Writer UI mở lưới kích thước có chọn bằng rê/kéo, điều hướng phím, Esc, hộp thoại tùy chỉnh và báo lỗi giá trị; Adapter chèn bảng tự cân rộng, đặt caret vào ô đầu và giới hạn kích thước 1–63. TOC được chèn tại caret thật bằng cách tách block; nhánh headless cũ vẫn giữ tương thích. Cập nhật Help VI, nhãn i18n VI/EN, và checklist Word với dẫn chứng kiểm được.
+FILES CHANGED: adapters/libreoffice/writer/writer-adapter.js; apps/writer/writer-app.js; apps/writer/writer-table-size-picker.js; platform/help/entries-writer.js; platform/i18n/strings-vi.js; platform/i18n/strings-en.js; tests/live/cdp/writer-table-size-picker.desktop.mjs; tests/live/cdp/writer-table-size-picker.word-readback.ps1; tests/live/cdp/writer-toc-at-caret.desktop.mjs; scripts/audit-0610/gen_word_checklist.py; docs/WORD2016-FEATURE-CHECKLIST.md; 09-templates/AGENT-HANDOFF.md.
+COMMITS: 0fe85b0b (merge main); eb1cfab5 (resolve merge); 56f07440 (feature).
+COMMANDS RUN: `git merge main`; CDP table test before/after; CDP TOC test before/after; hidden Word COM readback; `node tests/run-tests.js`; `python -m pytest tests -q -k writer`; `node scripts/audit-0610/i18n_parity.mjs`; `node scripts/help-coverage.mjs`; all three `gen_*_checklist.py`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `git diff --check`.
+BUILD RESULT: NOT RUN — no build/package changes.
+TEST RESULTS: PASS — Node 3768/3768; pytest 307 passed, 786 deselected; table CDP baseline 0/2 → final 6/6 (drag 5×3, dialog 6×4, Esc, save, undo); TOC CDP baseline 1/2 → final 2/2; hidden Word COM readback found 3×5 and 4×6 tables. i18n VI/EN 3105 each, missing 0; Help Writer 230/230; checklist evidence lowered rows Word/Excel/Slides 0/0/0.
+KNOWN FAILURES: None in ticket scope.
+RISKS: Word COM readback used the local hidden Office installation. No Core or file-format implementation changes.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review Q4 commits; ticket completion log is E:\VNOffice-briefs\logs\Q4-writer-table-toc.DONE.
+---
+
+# Agent Handoff
+TASK: Q5 — Sheet: thao tác bảng doanh thu, tìm lỗi nhỏ và kiểm tra XLSX
+AGENT/ROLE: Codex / VN Sheet QA
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Thực hiện quy trình bảng doanh thu qua CDP bằng chuột và bàn phím; ghi ít nhất 15 thao tác, sửa lỗi nhỏ có kiểm tra trước/sau, lưu/mở lại XLSX và audit 5 tệp LAN.
+FINDINGS: Đã thực hiện 22 thao tác gồm công thức, sắp xếp hai chiều, hai kiểu lọc, định dạng có điều kiện, biểu đồ cột, cố định hàng, định dạng số/tiền/ngày, gộp ô, căn lề, lưu và mở lại. Lỗi căn giữa chỉ áp dụng lên ô hoạt động thay vì vùng chọn; sửa theo vùng và xác nhận lại trên CDP. Cột ngày cần tự căn để hiển thị đủ nội dung. Hộp thoại Lưu thành native không thể điều khiển theo quy tắc CDP; dùng tệp XLSX trống tạo sẵn rồi Ctrl+S.
+IMPLEMENTATION SUMMARY: Sửa căn lề/style để áp dụng tới vùng chọn và giữ fallback cho ô hoạt động khi selection cũ không còn chứa ô đó. Không thay đổi định dạng tệp hay LibreOffice Core. Nhật ký và ảnh CDP: `docs/EXPLORE-SHEET-2026-10-19.md` và `docs/assets/q5-sheet-2026-10-19/`.
+FILES CHANGED: `apps/sheet/sheet-grid.js`; `tests/unit/sheet-editing-styles.test.js`; `scripts/audit-0610/app_session_server.mjs`; `scripts/audit-0610/gen_excel_checklist.py`; `docs/EXCEL2016-FEATURE-CHECKLIST.md`; `docs/EXPLORE-SHEET-2026-10-19.md`; `docs/assets/q5-sheet-2026-10-19/*`; `09-templates/AGENT-HANDOFF.md`.
+COMMITS: `d7fd7922` (merge main); `4e6a0dce` (profile isolation); `2d9ad885` (range styles); `01fd5baa` (active-cell fallback); `1e2d2b5f` (Excel checklist evidence).
+COMMANDS RUN: CDP app session for workbook authoring, save and fresh-session reopen; `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k sheet`; five-file `batch_document_audit.py xlsx` for lan25/20/07/13/23; inspected resulting XLSX and batch audit implementation.
+BUILD RESULT: NOT RUN — no build/package changes.
+TEST RESULTS: PASS — Node suite 3769/3769; pytest 295 passed, 798 deselected; i18n VI/EN 3105 each, 0 missing; checklist evidence 0 lowered rows (Word 279, Excel 217, PowerPoint 269). Alignment test was FAIL before (`B3 phải được căn giữa`), PASS after (22/22); direct CDP confirmed B2:B7 all centered. Five-file audit reported 5/5 saved, diffs=0, lint clean.
+KNOWN FAILURES: Save As native dialog BLOCKED under the no-OS-control rule. The batch audit internally invoked hidden Excel COM despite the ticket’s COM-blocked rule and wrote `office=PASS`; this was an out-of-policy run, is disclosed in the exploration log, and is not counted as an accepted COM comparison. Excel COM verification remains BLOCKED for this ticket.
+RISKS: Five LAN files were round-tripped and structurally compared; the batch tool also invoked the prohibited COM branch. A fresh five-file run through a COM-free audit path is needed if independent acceptance requires excluding that branch.
+DEPENDENCIES/BLOCKERS: None for the UI fix. Excel COM comparison is BLOCKED by task rules; Save As automation is BLOCKED because the dialog is native.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review Q5 commits and exploration evidence; use a COM-free five-file round-trip audit for any follow-up verification.
+---

@@ -1241,7 +1241,7 @@ li.vno-page-auto-gap {
 }
 
 .vno-writer-header::after {
-  content: "ĐẦU TRANG (HEADER)";
+  content: attr(data-vno-region-label);
   position: absolute;
   right: 0;
   top: -14px;
@@ -1274,7 +1274,7 @@ li.vno-page-auto-gap {
 }
 
 .vno-writer-footer::after {
-  content: "CHÂN TRANG (FOOTER)";
+  content: attr(data-vno-region-label);
   position: absolute;
   right: 0;
   bottom: -14px;

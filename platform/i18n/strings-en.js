@@ -1863,6 +1863,8 @@ export const enStrings = {
       placeholderHeader: "Click to enter header...",
       placeholderFooter: "Click to enter footer..."
     },
+    headerRegionLabel: "Header",
+    footerRegionLabel: "Footer",
     hyperlink: {
       title: "Insert Hyperlink",
       message: "Enter hyperlink URL:",
@@ -1873,6 +1875,20 @@ export const enStrings = {
     },
     chart: {
       itemValueError: "Please enter a valid numeric value for item {index}."
+    },
+    tableSize: {
+      title: "Insert Table",
+      gridLabel: "Choose columns and rows",
+      cellLabel: "{columns} columns, {rows} rows",
+      hint: "Choose columns × rows",
+      selection: "{columns} columns × {rows} rows",
+      custom: "Insert Table...",
+      customTitle: "Insert Table",
+      columns: "Columns (1–63)",
+      rows: "Rows (1–63)",
+      cancel: "Cancel",
+      insert: "Insert",
+      invalid: "Enter a whole number from 1 to 63 for both columns and rows."
     },
     toc: {
       title: "TABLE OF CONTENTS",

@@ -156,7 +156,7 @@ Dữ liệu|Dự báo|Phân tích What-If: Trình quản lý kịch bản|V|-|17
 Dữ liệu|Dự báo|What-If: Goal Seek / Bảng dữ liệu (Data Table)|V|-|17/10 (AGY-DATATOOLS): Goal Seek và Table đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; tests/unit/sheet-goal-seek.test.js:1-30; apps/sheet/sheet-grid.js:20373-20390; sheet.data.goalSeek)
 Dữ liệu|Dự báo|Trang dự báo (Forecast Sheet)|N|3|
 Dữ liệu|Dàn bài|Nhóm / Bỏ nhóm / Tổng phụ|V|-|17/10 (AGY-DATATOOLS): Group/Ungroup hàng-cột và Subtotal/RemoveSubtotal đối chiếu Excel 2016 (cases-17 12/12 kịch bản); sheet.data.subtotal; apps/sheet/data-tools.js:77-185
-Dữ liệu|Dàn bài|Hiện/Ẩn chi tiết và nút cấp 1-2-3|V|-|17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 (tests/functions/structural-cases-17.json:1-30; {{L:apps/sheet/sheet-grid.js|this._outlineGroups().forEach(g => {}}; sheet.data.group)
+Dữ liệu|Dàn bài|Hiện/Ẩn chi tiết và nút cấp 1-2-3|V|-|17/10 (AGY-DATATOOLS): ShowOutlineLevels mức 1/2 ẩn/hiện chi tiết đối chiếu Excel 2016 ({{L:apps/sheet/sheet-grid.js|showOutlineLevels(rowLevel = null, colLevel = null)}}; {{L:apps/sheet/sheet-grid.js|const group = this._outlineGroups().find(item => item.axis === axis && item.start === numeric)}}; sheet.data.group)
 Dữ liệu|Phân tích|Solver|N|3|Bổ sung của Excel
 Xem xét|Soát lỗi|Chính tả (F7)|A|-|sheet.review.spellCheck
 Xem xét|Soát lỗi|Từ đồng nghĩa (Thesaurus) / Thống kê sổ làm việc|N|3|

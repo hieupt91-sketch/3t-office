@@ -71,8 +71,12 @@ export class RecoveryDialog {
       if (result?.ok) {
         if (result.deleted) {
           this.items = this.items.filter((item) => item.snapshot_id !== button.dataset.snapshotId);
+          if (!this.items.length) {
+            this.close();
+            return;
+          }
           this.render();
-          this._setMessage(this.items.length ? "Đã xóa bản khôi phục đã chọn." : "Đã xóa bản khôi phục. Không còn mục nào trong danh sách.");
+          this._setMessage("Đã xóa bản khôi phục đã chọn.");
         } else if (result.close !== false) {
           this.close();
         }
