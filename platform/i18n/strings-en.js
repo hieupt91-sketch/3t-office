@@ -1863,6 +1863,8 @@ export const enStrings = {
       placeholderHeader: "Click to enter header...",
       placeholderFooter: "Click to enter footer..."
     },
+    headerRegionLabel: "Header",
+    footerRegionLabel: "Footer",
     hyperlink: {
       title: "Insert Hyperlink",
       message: "Enter hyperlink URL:",

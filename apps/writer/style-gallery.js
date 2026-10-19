@@ -29,7 +29,7 @@ export const STYLE_PRESETS = [
   {
     id: "normal",
     tag: "p",
-    label: "Normal",
+    label: "Bình thường",
     sublabel: "Văn bản thường",
     previewSample: "AaBbCc",
     previewCss: "font-family:'Times New Roman', serif; font-size:14px; font-weight:normal; color:var(--vno-style-preview-normal, #1e293b);",

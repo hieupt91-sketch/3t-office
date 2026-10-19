@@ -1839,7 +1839,7 @@ export const viStrings = {
     styleGallery: {
       title: "Thư viện Kiểu dáng (Styles Gallery)",
       hint: "Nhấp để áp dụng ngay",
-      normal: { label: "Normal", sublabel: "Văn bản thường", desc: "Văn bản thường, phông chữ chuẩn 14pt căn đều hai bên (Nghị định 30/2020/NĐ-CP)" },
+      normal: { label: "Bình thường", sublabel: "Văn bản thường", desc: "Văn bản thường, phông chữ chuẩn 14pt căn đều hai bên (Nghị định 30/2020/NĐ-CP)" },
       subtitle: { label: "Phụ đề", sublabel: "Subtitle", desc: "Kiểu Subtitle dựng sẵn, dùng dưới tiêu đề tài liệu" },
       h1: { label: "Tiêu đề 1", sublabel: "Heading 1", desc: "Tiêu đề cấp 1: Chữ hoa, in đậm, căn giữa, cỡ 16pt (QUYẾT ĐỊNH, CHỈ THỊ...)" },
       h2: { label: "Tiêu đề 2", sublabel: "Heading 2", desc: "Tiêu đề cấp 2: Chữ thường in đậm, cỡ 14pt (Điều 1, Mục I...)" },
@@ -1859,9 +1859,11 @@ export const viStrings = {
       replyBtn: "Gửi trả lời",
       panelLabel: "Ghi chú tài liệu",
       openCommentAria: "Mở ghi chú cho: {text}",
-      placeholderHeader: "Nhấp để nhập tiêu đề đầu trang (Header)...",
-      placeholderFooter: "Nhấp để nhập tiêu đề chân trang (Footer)..."
+      placeholderHeader: "Nhấp để nhập tiêu đề đầu trang...",
+      placeholderFooter: "Nhấp để nhập tiêu đề chân trang..."
     },
+    headerRegionLabel: "Đầu trang",
+    footerRegionLabel: "Chân trang",
     hyperlink: {
       title: "Chèn Liên Kết (Hyperlink)",
       message: "Nhập địa chỉ liên kết (URL):",

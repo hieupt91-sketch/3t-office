@@ -99,7 +99,8 @@ export class WriterApp {
     header.dataset.vnoNativeClipboard = "true";
     header.setAttribute("spellcheck", "false");
     header.setAttribute("role", "textbox");
-    header.setAttribute("aria-label", "Đầu trang");
+    header.setAttribute("aria-label", t("writerDialogs.headerRegionLabel"));
+    header.dataset.vnoRegionLabel = t("writerDialogs.headerRegionLabel");
     header.setAttribute("aria-multiline", "true");
     header.setAttribute("data-placeholder", t("writerDialogs.comments.placeholderHeader"));
 
@@ -118,7 +119,8 @@ export class WriterApp {
     footer.dataset.vnoNativeClipboard = "true";
     footer.setAttribute("spellcheck", "false");
     footer.setAttribute("role", "textbox");
-    footer.setAttribute("aria-label", "Chân trang");
+    footer.setAttribute("aria-label", t("writerDialogs.footerRegionLabel"));
+    footer.dataset.vnoRegionLabel = t("writerDialogs.footerRegionLabel");
     footer.setAttribute("aria-multiline", "true");
     footer.setAttribute("data-placeholder", t("writerDialogs.comments.placeholderFooter"));
 
