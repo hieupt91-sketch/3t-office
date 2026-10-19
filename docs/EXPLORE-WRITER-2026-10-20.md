@@ -54,6 +54,18 @@
 | 28 | Mở Chèn → Bảng biểu và chọn lưới 4 cột × 5 hàng | PASS — tạo bảng 5×4 |
 | 29 | Gõ 20 ô bằng bàn phím và Tab | PASS một phần — dữ liệu vào đủ; Tab cuối tạo thêm hàng thứ sáu |
 | 30 | Xóa hàng dư, bật Hàng tiêu đề, lưu và mở lại | PASS — CDP/Word thấy 5×4 và hàng đầu lặp; FAIL mục tiêu phân trang/TOC động: 7 trang, Word không còn nhận TOC sau lần lưu thứ hai |
+| 31 | Chọn đoạn thân bài, mở Tham chiếu → Chú thích trang | PASS — số chú thích 1 được chèn |
+| 32 | Gõ nội dung chú thích bằng bàn phím | PASS — nội dung gắn với chú thích 1 |
+| 33 | Mở Chú thích cuối và nhập nội dung | PASS — chú thích cuối đánh số La Mã i |
+| 34 | Lưu DOCX và đọc lại bằng Word COM | PASS — `Footnotes=1`, `Endnotes=1`, `ReadOnly=true` |
+| 35 | Mở DOCX trong phiên Writer mới | PASS — CDP hiển thị lại cả hai nội dung chú thích |
+| 36 | Bật Theo dõi thay đổi và thay văn bản đã chọn | PASS — DOM có dấu `<ins>` và `<del>` |
+| 37 | Chọn văn bản sửa, mở Thêm nhận xét và nhập nhận xét | PASS — nhận xét neo vào “scope.” |
+| 38 | Lưu DOCX và kiểm tra Word COM ở chế độ chỉ đọc | PASS — `Comments=1`, `Revisions=2`, `ReadOnly=true` |
+| 39 | Mở DOCX trong phiên Writer mới | PASS — CDP thấy 2 `<ins>`, 1 `<del>` và nội dung nhận xét |
+| 40 | Chạy bài chèn ảnh Q13 với ảnh audit làm nguồn | PASS — ảnh được chèn, căn giữa, rộng 624/624 px vùng thân; đây là probe riêng, chưa lưu/mở lại trong báo cáo Q17 |
+| 41 | Mở Trang đầu → Thay thế | PASS — hộp Tìm kiếm và Thay thế mở qua ribbon |
+| 42 | Kiểm tra tùy chọn định dạng và biểu thức | PASS một phần — có lọc Đậm/Nghiêng/Phông/Màu và ký tự đại diện `*`, `?`; không thấy chế độ regex. Chưa áp dụng thay thế lên nội dung |
 
 ## Ảnh minh chứng
 
@@ -61,17 +73,21 @@
 - [Nội dung chương 1](assets/q17-writer-2026-10-20/02-chuong-1.png)
 - [Bảng sau khi nhập và bật hàng tiêu đề](assets/q17-writer-2026-10-20/03-table-editor.png)
 - [Bảng 5×4 sau khi mở lại](assets/q17-writer-2026-10-20/04-table-reopen.png)
+- [Chú thích trang và cuối tài liệu](assets/q17-writer-2026-10-20/05-footnote-endnote.png)
+- [Theo dõi thay đổi và nhận xét](assets/q17-writer-2026-10-20/06-trackchanges-comment.png)
+- [Theo dõi thay đổi/nhận xét sau khi mở lại](assets/q17-writer-2026-10-20/07-review-reopen.png)
+- [Hộp Tìm kiếm và Thay thế, bộ lọc định dạng](assets/q17-writer-2026-10-20/08-find-replace.png)
 
 ## Hạng mục Q17 chưa chạy
 
 - Heading 3 và danh sách nhiều cấp: NOT RUN.
 - Gộp ô và định dạng số trong bảng: NOT RUN.
-- Chú thích cuối trang và chú thích cuối tài liệu: NOT RUN.
+- Chú thích cuối trang và chú thích cuối tài liệu: PASS — lưu/mở lại, Word COM đếm 1+1.
 - Đầu/chân trang trang đầu khác biệt; số trang chẵn/lẻ; ngắt mục và đổi hướng ngang: NOT RUN.
-- Chèn ảnh, chú thích ảnh và bao quanh văn bản: NOT RUN.
-- Tìm/thay thế có định dạng và regex: NOT RUN.
+- Chèn ảnh: PASS ở probe riêng, chưa lưu/mở lại. Chú thích ảnh và bao quanh văn bản: NOT RUN.
+- Tìm/thay thế có định dạng: UI bộ lọc có sẵn nhưng chưa áp dụng thay thế, NOT RUN. Regex: NOT PRESENT trong hộp thoại; chỉ thấy ký tự đại diện `*`, `?`.
 - Trộn thư từ CSV ba dòng, xem trước và hoàn tất: NOT RUN.
-- Theo dõi thay đổi và nhận xét: NOT RUN.
+- Theo dõi thay đổi và nhận xét: PASS — lưu/mở lại, Word COM đếm 2 revisions và 1 comment.
 - Xuất PDF, kiểm tra số trang/phông nhúng và xem trước in: NOT RUN.
 
 ## Gate cuối

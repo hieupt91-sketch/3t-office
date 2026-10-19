@@ -27,6 +27,7 @@ try {
         footnotes = $document.Footnotes.Count
         endnotes = $document.Endnotes.Count
         comments = $document.Comments.Count
+        revisions = $document.Revisions.Count
         readOnly = $document.ReadOnly
     } | ConvertTo-Json -Compress
 } finally {
