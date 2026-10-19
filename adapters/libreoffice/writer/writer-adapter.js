@@ -14928,10 +14928,17 @@ export class WriterAdapter {
         const reader = new FileReader();
         reader.onload = (evt) => {
           this.flushTyping();
-          const imgHtml = `<img src="${evt.target.result}" data-vno-wrap="inline" tabindex="0" style="max-width:100%; height:auto; margin:10pt 0; box-shadow:0 2px 8px rgba(0,0,0,0.15); display:inline; float:none; position:static; z-index:auto;" /><p><br></p>`;
-          document.execCommand("insertHTML", false, imgHtml);
-          this.isDirty = true;
-          this.recordSnapshot("writer.image.insert");
+          const probe = new Image();
+          probe.onload = () => {
+            const maxWidth = this.bodyDom?.clientWidth || probe.naturalWidth;
+            const width = Math.max(1, Math.min(probe.naturalWidth, maxWidth));
+            const height = Math.max(1, Math.round(probe.naturalHeight * width / probe.naturalWidth));
+            const imgHtml = `<p style="text-align:center"><img src="${evt.target.result}" width="${width}" height="${height}" data-vno-wrap="inline" tabindex="0" style="display:block; width:${width}px; max-width:100%; height:auto; margin:10pt auto; box-shadow:0 2px 8px rgba(0,0,0,0.15); float:none; position:static; z-index:auto;" /></p><p><br></p>`;
+            document.execCommand("insertHTML", false, imgHtml);
+            this.isDirty = true;
+            this.recordSnapshot("writer.image.insert");
+          };
+          probe.src = evt.target.result;
         };
         reader.readAsDataURL(file);
       }
