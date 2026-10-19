@@ -66,6 +66,24 @@ export async function runSheetEditingStylesTests() {
     }
   };
 
+  test("Style command applies to every cell in the selected range and undoes as one action", () => {
+    const grid = new SheetGridController(createMockContainer());
+    grid.selectedCoord = { c: "B", r: 2 };
+    grid.selectionRange = { start: { c: "B", r: 2 }, end: { c: "B", r: 3 } };
+    grid.setCellValue("B", 2, "Tea");
+    grid.setCellValue("B", 3, "Coffee");
+    grid.undoStack.length = 0;
+    grid.redoStack.length = 0;
+
+    grid.setStyle("textAlign", "center");
+
+    assert(grid.cellsData.get("B2")?.style.textAlign === "center", "B2 phải được căn giữa");
+    assert(grid.cellsData.get("B3")?.style.textAlign === "center", "B3 phải được căn giữa");
+    assert(grid.undoStack.length === 1, "Định dạng vùng phải tạo một bước hoàn tác");
+    grid.undo();
+    assert(!grid.cellsData.get("B2")?.style.textAlign && !grid.cellsData.get("B3")?.style.textAlign, "Hoàn tác phải trả lại căn lề ban đầu cho cả vùng");
+  });
+
   // TEST 1: Ribbon Group Layout & Ordering
   test("Sheet Ribbon: Thứ tự chuẩn Excel Number -> Styles -> Cells -> Editing", () => {
     const homeTab = SHEET_RIBBON_TABS.find(tab => tab.id === "home");
