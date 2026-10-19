@@ -105,6 +105,7 @@ import { runSlidesDialogsA11yTests } from "./unit/slides-dialogs-a11y.test.js";
 import { runColorContrastAuditTests } from "./unit/color-contrast-audit.test.js";
 import { runRealOfficeImportFidelityTests } from "./unit/real-office-import-fidelity.test.js";
 import { runVietnameseSpellcheckerTests } from "./unit/vi-spellchecker.test.js";
+import { runViSyllableTests } from "./unit/vi-syllable.test.js";
 import { runSheetSlidesViewTabTests } from "./unit/sheet-slides-view-tab.test.js";
 import { runSlidesSpellcheckViTests } from "./unit/slides-spellcheck-vi.test.js";
 import { runSheetSpellcheckViTests } from "./unit/sheet-spellcheck-vi.test.js";
@@ -425,6 +426,7 @@ async function runAll() {
     { title: "68. Automated Audit — Suite-Wide WCAG 2.1 Color Contrast (AA / AAA)", runner: runColorContrastAuditTests },
     { title: "69. Unit Tests — Real Office File Import Fidelity (DOCX/XLSX/PPTX via soffice HTML/FODS/FODP)", runner: runRealOfficeImportFidelityTests },
     { title: "70. Unit Tests — Vietnamese Writer Spellchecker", runner: runVietnameseSpellcheckerTests },
+    { title: "70b. Unit Tests — Vietnamese syllable rules (spellcheck)", runner: runViSyllableTests },
     { title: "71. Behavioral & Unit Tests — VN Sheet & VN Slides Real View Tabs", runner: runSheetSlidesViewTabTests },
     { title: "72. Behavioral & Unit Tests — Vietnamese Slides Spellchecker", runner: runSlidesSpellcheckViTests },
     { title: "73. Behavioral & Unit Tests — Vietnamese Sheet Spellchecker (F7 dialog scan)", runner: runSheetSpellcheckViTests },

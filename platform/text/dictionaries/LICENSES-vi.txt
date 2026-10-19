@@ -44,3 +44,8 @@ The combined runtime list also includes the small, manually authored
 are released by VN Office under CC0-1.0; no third-party dictionary data is
 included. The supplement is intentionally separate from the generated corpus
 snapshot so the source-derived 2,798-token list stays reproducible.
+
+Quy tắc ghép vần (platform/text/vi-syllable.js)
+----------------------------------------------
+Do VN Office tự biên soạn từ quy tắc chính tả tiếng Việt (phụ âm đầu, nguyên âm, phụ âm cuối, thanh điệu) và phát hành theo CC0-1.0.
+Không dùng dữ liệu từ điển bên ngoài. Bộ kiểm tra chính tả chấp nhận mọi âm tiết hợp lệ theo quy tắc này cùng danh sách từ ở trên.
