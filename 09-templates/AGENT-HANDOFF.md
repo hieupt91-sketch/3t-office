@@ -191,3 +191,23 @@ RISKS: PPTX `p:wheel` has a spoke count and no cardinal `dir` attribute, so the 
 DEPENDENCIES/BLOCKERS: None for implementation. Paste Special modal/clipboard needs a desktop smoke with a populated native clipboard.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Review the commits; run Paste Special desktop smoke with a native clipboard item and decide whether Fan should keep wheel semantics or use a directional alternative.
+
+---
+
+# Agent Handoff
+TASK: MAC-2 — Mở vị trí tệp trong Finder
+AGENT/ROLE: Codex / macOS Platform
+BRANCH: mac/reveal-path-1910
+WORKTREE: /Users/hieupc/.codex/worktrees/mac-reveal-path-1910/3t-office
+OBJECTIVE: Hoàn thiện `Launcher.reveal_path` trên macOS bằng `open -R` an toàn và kiểm thử backend selector/hành vi lỗi.
+FINDINGS: Hợp đồng và Windows/portable backend đã có trên `vn-main`, nhưng Darwin còn trỏ tới portable. Nhánh cũ có logic phù hợp; đã tái sử dụng sau khi đối chiếu hợp đồng hiện tại, không cherry-pick lịch sử lệch.
+IMPLEMENTATION SUMMARY: Thêm `MacOSLauncher` kế thừa portable, gọi `subprocess.run` bằng argv list không shell, timeout 15 giây, ánh xạ lỗi quyền/timeout/mã thoát sang `ServiceResult` tiếng Việt; đổi selector Darwin sang macOS; thêm test Unicode, khoảng trắng, lỗi và selector.
+FILES CHANGED: platform/os_services/macos.py; platform/os_services/__init__.py; tests/test_os_services_reveal.py; tests/test_os_services_contract.py; docs/macos/PLAN-MAC-2-REVEAL-PATH-1910.md; docs/macos/HANDOFF-MAC-2-REVEAL-PATH-1910.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: python3 -m unittest tests.test_os_services_contract tests.test_os_services_reveal -v; native Python probe gọi backend Darwin thật; node scripts/audit-0610/i18n_parity.mjs; npm test; git diff --check.
+BUILD RESULT: NOT RUN — không thay build system hoặc gói ứng dụng.
+TEST RESULTS: PASS — focused OS services 18/18; native Finder probe `is_ok=True`; i18n VI=EN=3091, thiếu 0, lệch placeholder 0; diff check sạch. FAIL — npm 3730/3749, 19 lỗi ngoài phạm vi trong các probe Python/LibreOffice và baseline hiện hữu. BLOCKED — pytest thiếu module `pytest`; test P2 import `main.py` thiếu module `webview`.
+KNOWN FAILURES: Full Node không đạt mốc 3765/3765 trên checkout/môi trường này; không sửa các bài ngoài MAC-2 để làm xanh.
+RISKS: `open -R` phụ thuộc Finder/Launch Services; timeout và lỗi đã được trả rõ. Backend macOS còn kế thừa portable cho các dịch vụ chưa được triển khai ở task khác.
+DEPENDENCIES/BLOCKERS: Không có blocker cho MAC-2. Môi trường test đầy đủ cần Python có pytest, pywebview và LibreOffice.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review/merge commit MAC-2; chạy lại full Python/Node trong môi trường macOS đã cài đủ dependency trước khi gộp phát hành.

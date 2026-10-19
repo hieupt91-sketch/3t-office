@@ -67,7 +67,7 @@ def get_services(platform: str | None = None, *, strict: bool = False) -> OSServ
     return services
 
 
-# Built-in backends. macOS/Linux use the portable one until macos.py exists (Q2).
+# Built-in backends. Linux remains portable; macOS has its own incremental backend.
 register_backend("win32", "windows")
-register_backend("darwin", "portable")
+register_backend("darwin", "macos")
 register_backend("linux", "portable")

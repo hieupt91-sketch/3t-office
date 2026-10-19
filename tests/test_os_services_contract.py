@@ -66,7 +66,7 @@ class FactoryTests(unittest.TestCase):
         self.assertEqual(self.pkg.__name__, NAME)
 
     def test_unregistered_platform_reports_not_supported_instead_of_picking_another_os(self):
-        self.assertEqual(self.pkg.backend_name_for("darwin"), "portable")  # Q2: portable until macos.py exists
+        self.assertEqual(self.pkg.backend_name_for("darwin"), "macos")
         self.assertIsNone(self.pkg.backend_name_for("freebsd"))
         with self.assertRaises(NotImplementedError):
             self.pkg.get_services("freebsd")

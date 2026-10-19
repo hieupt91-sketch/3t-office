@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import importlib.util
+import subprocess
 import sys
 import tempfile
 import unittest
@@ -29,6 +30,7 @@ class RevealPathTests(unittest.TestCase):
         load_package()
         self.windows = importlib.import_module(NAME + ".windows")
         self.portable = importlib.import_module(NAME + ".portable")
+        self.macos = importlib.import_module(NAME + ".macos")
 
     def test_missing_file_returns_vietnamese_error(self):
         result = self.windows.WindowsLauncher().reveal_path(Path("Z:/khong/ton/tai.xlsx"))
@@ -51,6 +53,71 @@ class RevealPathTests(unittest.TestCase):
         result = self.portable.PortableLauncher().reveal_path(Path("x"))
         self.assertFalse(result.is_ok)
         self.assertEqual(result.error.code, "not_supported")
+
+    def test_macos_missing_file_returns_vietnamese_error(self):
+        result = self.macos.MacOSLauncher().reveal_path(Path("/khong/ton/tai.xlsx"))
+        self.assertFalse(result.is_ok)
+        self.assertEqual(result.error.code, "invalid_input")
+        self.assertIn("Không tìm thấy tệp", result.error.message)
+
+    def test_macos_existing_unicode_file_uses_safe_open_reveal_argv(self):
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "Báo cáo tháng 10.xlsx"
+            target.write_bytes(b"x")
+            completed = mock.Mock(returncode=0)
+            with mock.patch(NAME + ".macos.subprocess.run", return_value=completed) as run:
+                result = self.macos.MacOSLauncher().reveal_path(target)
+
+        self.assertTrue(result.is_ok)
+        self.assertEqual(run.call_args.args[0], ["open", "-R", str(target.resolve())])
+        self.assertFalse(run.call_args.kwargs.get("shell", False))
+        self.assertEqual(run.call_args.kwargs["timeout"], 15)
+
+    def test_darwin_selector_builds_macos_launcher_and_reaches_open_reveal(self):
+        package = sys.modules[NAME]
+        self.assertEqual(package.backend_name_for("darwin"), "macos")
+        services = package.get_services("darwin")
+        self.assertIsInstance(services.launcher, self.macos.MacOSLauncher)
+
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "Kết quả có khoảng trắng.pdf"
+            target.write_bytes(b"%PDF-")
+            with mock.patch(NAME + ".macos.subprocess.run", return_value=mock.Mock(returncode=0)) as run:
+                result = services.launcher.reveal_path(target)
+
+        self.assertTrue(result.is_ok)
+        self.assertEqual(run.call_args.args[0], ["open", "-R", str(target.resolve())])
+
+    def test_macos_open_nonzero_exit_reports_not_available(self):
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "bao cao.xlsx"
+            target.write_bytes(b"x")
+            with mock.patch(NAME + ".macos.subprocess.run", return_value=mock.Mock(returncode=1)):
+                result = self.macos.MacOSLauncher().reveal_path(target)
+        self.assertFalse(result.is_ok)
+        self.assertEqual(result.error.code, "not_available")
+
+    def test_macos_open_timeout_is_retryable(self):
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "bao cao.xlsx"
+            target.write_bytes(b"x")
+            with mock.patch(
+                NAME + ".macos.subprocess.run",
+                side_effect=subprocess.TimeoutExpired(cmd=["open", "-R", str(target)], timeout=15),
+            ):
+                result = self.macos.MacOSLauncher().reveal_path(target)
+        self.assertFalse(result.is_ok)
+        self.assertEqual(result.error.code, "timeout")
+        self.assertTrue(result.error.retryable)
+
+    def test_macos_open_permission_error_is_reported(self):
+        with tempfile.TemporaryDirectory() as folder:
+            target = Path(folder) / "bao cao.xlsx"
+            target.write_bytes(b"x")
+            with mock.patch(NAME + ".macos.subprocess.run", side_effect=PermissionError):
+                result = self.macos.MacOSLauncher().reveal_path(target)
+        self.assertFalse(result.is_ok)
+        self.assertEqual(result.error.code, "permission_denied")
 
 
 if __name__ == "__main__":
