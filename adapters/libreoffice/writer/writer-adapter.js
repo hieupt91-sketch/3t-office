@@ -13396,12 +13396,13 @@ export class WriterAdapter {
       }
       if (rect) {
         const width = typeof options.width === "number" ? options.width : 125.47;
+        const belowCaret = Number.isFinite(rect.bottom) ? rect.bottom + 8 : rect.top;
         cursorPosition = {
           x: Math.max(0, Math.min(rect.left - editorRect.left, editorRect.width - width)),
           // Shapes sit in an overlay above the document flow. Place the default
           // textbox just below the current paragraph so its placeholder cannot
           // cover the line where the user was typing.
-          y: Math.max(0, rect.bottom - editorRect.top + 8)
+          y: Math.max(0, belowCaret - editorRect.top)
         };
       }
     }
