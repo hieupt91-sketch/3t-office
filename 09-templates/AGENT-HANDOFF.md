@@ -355,3 +355,22 @@ RISKS: A legitimate bridge request taking longer than 60 seconds now fails the s
 DEPENDENCIES/BLOCKERS: Excel COM verification BLOCKED per task instruction; LibreOffice verification completed successfully.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Review the Q10 commit and merge per branch policy; if Q9's intermittent stall recurs, use the committed per-call probe report to identify its exact call and backend state.
+
+
+# Agent Handoff
+TASK: Q11 — Writer soạn thư lần 2 như người dùng thật
+AGENT/ROLE: Codex / VN Office Writer QA
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Dùng phiên Writer desktop qua CDP soạn thư mời/phụ lục; kiểm tra ảnh, hộp văn bản, phương trình, đầu/chân trang, ngắt trang, cột, trộn thư, PDF/xem trước/in, tìm-thay thế và soát lỗi; ghi ít nhất 15 thao tác và chỉ sửa lỗi nhỏ khi có thể tái hiện.
+FINDINGS: Đã ghi 20 thao tác trong `docs/EXPLORE-WRITER-20-10.md` kèm 15 ảnh chứng cứ. Nhập nội dung, Enter đúng tên phím, ngắt trang, phương trình, đầu/chân trang, 2 cột, hộp tìm/thay thế và tab trộn thư hoạt động. Hộp văn bản chèn nội dung mẫu và che dòng thư. Xem trước in chờ dựng trang và báo 1/1 trong khi vùng soạn thảo báo 1/2. Không thấy bộ chọn tệp khi chèn ảnh; Ctrl+S không tạo tệp/đường dẫn kiểm chứng được; trộn thư chưa có nguồn người nhận.
+IMPLEMENTATION SUMMARY: Không sửa mã nguồn; các lỗi xem trước in/hộp văn bản được ghi nhận để tái hiện tiếp. `CODEX-COMMON-RULES.md` không có trong worktree.
+FILES CHANGED: `docs/EXPLORE-WRITER-20-10.md`; `docs/assets/q11-writer-2026-10-20/*`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; phiên `scripts/audit-0610/app_session_server.mjs writer --port=47011` với VNO_CDP_LOCALAPPDATA riêng; thao tác UI chuột/bàn phím qua CDP; `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "writer or docx or ooxml"`.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — node suite 3770/3770; i18n VI=3108/EN=3108, missing=0; checklist lowered=0 (Word 279, Excel 217, PowerPoint 269); pytest 340 passed, 758 deselected. Lưu/mở DOCX và Word readback: BLOCKED vì Ctrl+S không tạo tệp có thể truy cập qua CDP.
+KNOWN FAILURES: Hộp văn bản mẫu che nội dung; preview in treo ở dựng trang và số trang 1/1 so với 1/2; ảnh chưa thao tác được qua picker CDP. Không có sửa lỗi, vì vậy không có đo FAIL-trước/PASS-sau.
+RISKS: Chưa có round-trip DOCX/PDF; chưa xác định được nguyên nhân lỗi hộp văn bản và in.
+DEPENDENCIES/BLOCKERS: Cần tái hiện luồng lưu DOCX bằng CDP để chạy Word readback ẩn; cần nguồn nhận thư cho luồng trộn.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Tái hiện hộp văn bản và xem trước in trong phiên có thể lưu tài liệu; sau khi có DOCX, đọc lại bằng script `scripts/audit-0610/word_author_report_readback.ps1` và xác minh khác biệt trang trong preview.
