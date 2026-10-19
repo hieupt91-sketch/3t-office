@@ -28,3 +28,19 @@ Gõ tiếng Việt có dấu; Ctrl+E/Ctrl+B; Ctrl+Alt+1 (Tiêu đề 1) và Ente
 
 ## Chưa thử (làm tiếp)
 Tìm/thay thế, nhận xét và theo dõi thay đổi, chú thích cuối trang, mục lục, hình ảnh và hình khối, hộp văn bản, chèn ký hiệu/phương trình, bố cục trang (lề, hướng, cột), sao chép định dạng, dán đặc biệt, trộn thư, xuất PDF, in.
+---
+# Bổ sung 19/10 (chiều): soạn thử Sheet, Slides và phần còn lại của Writer
+
+## Đã sửa và commit
+- **Sheet:** công thức bị nối thêm tham chiếu ô khi chọn lại ô + Shift+Mũi tên + bấm ô khác (`a66f01c8`, `tests/live/cdp/sheet-formula-ghost-entry.desktop.mjs`); thanh công thức vẽ chồng chữ cũ lên dòng gợi ý (`3e58e5b6`).
+- **Dùng chung:** thẻ ngữ cảnh luôn hiện ở Slides và Sheet vì `display:flex` ghi đè `hidden` (`ceb385bb`).
+- **Slides:** ngăn ghi chú co về 2 px ở cửa sổ 1366×768 (`1796fdc8`); hình dựng sẵn đặt tên "Hình chữ nhật" thay vì loại thật (`986a96a0`).
+
+## Đã kiểm tra, đúng
+Writer: tìm và thay thế (4 lần thay, hoàn tác một bước), Thiết lập trang (hướng ngang, lề 20/20/30/15 mm, 2 cột — Word 2016 đọc lại đúng: orientation 1, 842×595 pt, 2 cột). Sheet: nhập Tab/Enter, Ctrl+D, AutoSum, Ctrl+B, Ctrl+Shift+1. Slides: gõ tiêu đề/nội dung, danh sách, trang mới, hình mũi tên, phím mũi tên dời hình, hiệu ứng Mờ dần — PowerPoint 2016 đọc lại đúng (3849, 0,5 s, AutoShapeType 33).
+
+## Còn tồn (cần quyết hoặc giao việc)
+- Sheet: nhập số kiểu Việt — "1.250" ra 1,25 và "1.250,75" thành chữ; cần quyết theo vùng hệ điều hành (như Excel) hay luôn theo quy ước Việt Nam.
+- Slides: ô nội dung trang mới không có dấu đầu dòng mặc định (PowerPoint có); menu hình dạng dùng một biểu tượng chung; hình chèn ở góc trên trái cố định, chồng tiêu đề; chỉ 6 hiệu ứng chuyển trang.
+- Writer: nhiều cột được cân bằng đều giữa các cột kể cả khi trang chưa đầy (Word đổ cột 1 đến hết trang rồi mới sang cột 2) — ảnh hưởng số trang khi mở/lưu tài liệu nhiều cột.
+- Writer: nhận xét cùng theo dõi thay đổi làm mục lục bị ghi như chèn/xóa theo dõi.
