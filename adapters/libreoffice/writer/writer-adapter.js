@@ -20136,6 +20136,7 @@ export class WriterAdapter {
       this._alignPageRelativeFloats();
 
       this._livePageCount = pageCount;
+      this._syncHeaderFooterPageFields(pageCount);
       if (typeof this.bodyDom.dispatchEvent === "function") {
         try {
           this.bodyDom.dispatchEvent(new CustomEvent("vno-pagination-updated", { bubbles: true, detail: { pageCount } }));
@@ -20144,6 +20145,21 @@ export class WriterAdapter {
     } finally {
       if (typeof originalPageSetup !== "undefined") this.pageSetup = originalPageSetup;
       this._paginating = false;
+    }
+  }
+
+  /**
+   * Trường NUMPAGES trong đầu/chân trang hiển thị số trang thật (khung soạn thảo chỉ vẽ một đầu/chân trang,
+   * nên trước đây luôn ghi "Trang 1 / 1" dù tài liệu có nhiều trang). Chỉ ghi khi giá trị đổi, không đánh dấu tài liệu đã sửa.
+   */
+  _syncHeaderFooterPageFields(pageCount) {
+    const text = String(Math.max(1, Number(pageCount) || 1));
+    for (const dom of [this.headerDom, this.footerDom]) {
+      const spans = dom?.querySelectorAll?.('[data-vno-field="NUMPAGES"]');
+      if (!spans) continue;
+      for (const span of spans) {
+        if (span.textContent !== text) span.textContent = text;
+      }
     }
   }
 
