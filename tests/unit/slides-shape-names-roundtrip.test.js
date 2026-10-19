@@ -159,5 +159,23 @@ export async function runSlidesShapeNamesRoundtripTests() {
     assert.ok(xml.includes(`draw:name="Hình elip 1"`), "ellipse sinh tên Hình elip 1");
   });
 
+  test("7. Hình dựng sẵn không tên được đặt tên theo loại thật (Mũi tên phải), không phải Hình chữ nhật", () => {
+    const canvas = {
+      slides: [{
+        shapes: [
+          { id: "a1", type: "rect", geomType: "ooxml-rightArrow", x: 10, y: 10, w: 100, h: 50 },
+          { id: "a2", type: "rect", geomType: "ooxml-star5", x: 10, y: 80, w: 100, h: 50 },
+          { id: "a3", type: "rect", x: 10, y: 150, w: 100, h: 50 }
+        ]
+      }],
+      selectSlide(i) { this.currentSlideIndex = i; },
+      setSlideSize(sz) { this.slideSize = sz; }
+    };
+    const xml = new SlidesAdapter(canvas).serializeToFodp();
+    assert.ok(xml.includes('draw:name="Mũi tên phải 1"'), "mũi tên phải phải mang tên Mũi tên phải 1");
+    assert.ok(xml.includes('draw:name="Sao 5 cánh 1"'), "sao 5 cánh phải mang tên Sao 5 cánh 1");
+    assert.ok(xml.includes('draw:name="Hình chữ nhật 1"'), "hình chữ nhật thường vẫn là Hình chữ nhật 1");
+  });
+
   return results;
 }

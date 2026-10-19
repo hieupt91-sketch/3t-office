@@ -1163,6 +1163,8 @@
 /* Speaker Notes Panel */
 .vno-slide-notes-panel {
   width: 960px;
+  /* Không co lại: sân khấu là cột cuộn; để co thì ở cửa sổ thấp (1366x768) ngăn ghi chú chỉ còn 2 px và không gõ được ghi chú. */
+  flex-shrink: 0;
   margin-top: 14px;
   background-color: #ffffff;
   border: 1px solid #cbd5e1;

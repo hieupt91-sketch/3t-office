@@ -1,7 +1,9 @@
 import { globalImeTracker } from "../keyboard/input-normalizer.js";
 
 const MARKER_SELECTOR = "[data-vno-spelling-uncertain]";
-const EDITABLE_BLOCK_SELECTOR = "p,li,td,th,h1,h2,h3,h4,h5,h6,blockquote,pre";
+// Có "div": Enter hai lần để thoát danh sách tạo <div> (không phải <p>); thiếu nó thì con trỏ trong <div> rơi về cả tài liệu
+// và sau lượt kiểm tra chính tả bị đặt lại về cuối mục danh sách cuối.
+const EDITABLE_BLOCK_SELECTOR = "p,li,td,th,h1,h2,h3,h4,h5,h6,blockquote,pre,div";
 
 function pointBlock(root, node) {
   const element = node?.nodeType === 1 ? node : node?.parentElement;

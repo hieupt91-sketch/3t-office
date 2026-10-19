@@ -1,3 +1,5 @@
+import { isValidVietnameseSyllable } from "./vi-syllable.js";
+
 const WORD_PATTERN = /[\p{L}\p{M}]+(?:['’][\p{L}\p{M}]+)*/gu;
 
 export const VI_PERSONAL_DICTIONARY_KEY = "vno-spellcheck-vi-personal";
@@ -75,7 +77,10 @@ export class VietnameseSpellChecker {
     // Unknown capitalized tokens are commonly names, brands or acronyms. Treat them as
     // uncertain-but-not-actionable to avoid noisy false positives in normal documents.
     if (/^\p{Lu}[\p{Ll}\p{M}]+$/u.test(word) || /^\p{Lu}{2,}$/u.test(word)) return true;
-    return this.words.has(normalized) || this.personalWords.has(normalized) || this.ignoredWords.has(normalized);
+    if (this.words.has(normalized) || this.personalWords.has(normalized) || this.ignoredWords.has(normalized)) return true;
+    // Danh sách từ chỉ có ~2.800 âm tiết nên thiếu cả từ rất thông dụng (thuế, kênh, trực, mại...). Mọi âm tiết hợp lệ
+    // theo quy tắc chính tả tiếng Việt đều coi là đúng; chữ sai vần, thiếu thanh ở vần kín, chữ ngoại vẫn bị đánh dấu.
+    return isValidVietnameseSyllable(normalized);
   }
 
   checkText(text) {

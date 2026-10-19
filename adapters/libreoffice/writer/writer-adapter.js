@@ -1064,9 +1064,15 @@ export class WriterAdapter {
           const lastRow = table.rows?.[table.rows.length - 1];
           const columnCount = Math.max(1, lastRow?.cells?.length || 1);
           const newRow = table.insertRow(-1);
+          // Hàng mới theo đúng hàng trên cùng (canh lề, nền, gộp ô, kiểu ô) và cùng cấu trúc ô: ô gốc không bọc <p>
+          // thì ô mới cũng không bọc, nếu không hàng mới cao hơn các hàng còn lại do lề đoạn.
           for (let index = 0; index < columnCount; index++) {
-            const newCell = newRow.insertCell(-1);
-            newCell.innerHTML = "<p><br></p>";
+            const template = lastRow?.cells?.[index];
+            const newCell = template ? template.cloneNode(false) : document.createElement("td");
+            newCell.removeAttribute?.("id");
+            const wrapsParagraph = !template || !!template.querySelector?.(":scope > p");
+            newCell.innerHTML = wrapsParagraph ? "<p><br></p>" : "<br>";
+            newRow.appendChild(newCell);
           }
           const firstNewCell = newRow.cells?.[0];
           if (firstNewCell) this._placeCaretInEditable(firstNewCell, root, false);
@@ -8971,14 +8977,12 @@ export class WriterAdapter {
         break;
 
       case "writer.list.bullet":
-        document.execCommand("insertUnorderedList", false, null);
-        this._normalizeListElements();
+        this._runListCommand("insertUnorderedList");
         dispatchResult = true;
         break;
 
       case "writer.list.numbered":
-        document.execCommand("insertOrderedList", false, null);
-        this._normalizeListElements();
+        this._runListCommand("insertOrderedList");
         dispatchResult = true;
         break;
 
@@ -14462,15 +14466,100 @@ export class WriterAdapter {
     this.editorDom?.classList?.remove("vno-format-painter-active");
   }
 
+  /**
+   * Bật/tắt danh sách (đầu dòng hoặc đánh số) bằng execCommand rồi giữ con trỏ đúng chỗ.
+   * Sau lệnh này Chrome có thể đặt con trỏ về ĐẦU dòng (danh sách lồng trong <p>) hoặc về đoạn trước
+   * (khi tắt danh sách, chữ còn lại thành <span> trần), nên chữ gõ tiếp rơi sai chỗ. Nhớ vị trí theo
+   * số ký tự tính từ đầu tài liệu (không đổi khi chuyển giữa đoạn và danh sách) rồi đặt lại sau khi chuẩn hóa.
+   */
+  _runListCommand(execName) {
+    const root = this.bodyDom || this.editorDom;
+    const blockSelector = "p,h1,h2,h3,h4,h5,h6,li,div,blockquote";
+    const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+    const blockOf = (node) => (node?.nodeType === 3 ? node.parentElement : node)?.closest?.(blockSelector) || null;
+    let saved = null;
+    if (sel && sel.rangeCount > 0 && sel.isCollapsed && root) {
+      const range = sel.getRangeAt(0);
+      const block = blockOf(range.startContainer);
+      if (block && root.contains(block) && block.textContent.length > 0) {
+        const fromRoot = document.createRange();
+        fromRoot.selectNodeContents(root);
+        fromRoot.setEnd(range.startContainer, range.startOffset);
+        const fromBlock = document.createRange();
+        fromBlock.selectNodeContents(block);
+        fromBlock.setEnd(range.startContainer, range.startOffset);
+        saved = { global: fromRoot.toString().length, atBlockStart: fromBlock.toString().length === 0 };
+      }
+    }
+    document.execCommand(execName, false, null);
+    this._normalizeListElements();
+    if (!saved || !root) return;
+    this._wrapBareInlineChildren(root);
+    try {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let remaining = saved.global;
+      let target = null;
+      let node;
+      while ((node = walker.nextNode())) {
+        const length = node.textContent.length;
+        const fits = saved.atBlockStart ? remaining < length : remaining <= length;
+        if (length > 0 && fits) { target = { node, at: remaining }; break; }
+        remaining -= length;
+      }
+      if (!target) return;
+      const range = document.createRange();
+      range.setStart(target.node, target.at);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch (_) { /* giữ vị trí do trình duyệt đặt */ }
+  }
+
+  /** Chữ/span nằm trần ngay dưới vùng soạn thảo (sau khi tắt danh sách) được bọc lại vào <p> để gõ tiếp bình thường. */
+  _wrapBareInlineChildren(root) {
+    const isBlock = (node) => node.nodeType === 1 && /^(P|H[1-6]|UL|OL|LI|DIV|BLOCKQUOTE|TABLE|PRE|HR|FIGURE|SECTION|ASIDE)$/i.test(node.tagName);
+    let run = [];
+    const flush = () => {
+      if (run.length && run.some((node) => (node.textContent || "").length > 0 || node.nodeName === "BR")) {
+        const p = document.createElement("p");
+        run[0].parentNode.insertBefore(p, run[0]);
+        for (const node of run) p.appendChild(node);
+      }
+      run = [];
+    };
+    for (const node of [...root.childNodes]) {
+      if (isBlock(node)) flush(); else run.push(node);
+    }
+    flush();
+  }
+
   _normalizeListElements() {
     const root = this.bodyDom || this.editorDom;
     if (!root || typeof root.querySelectorAll !== "function") return;
     const nested = root.querySelectorAll("p > ul, p > ol");
+    if (!nested.length) return;
+    // Tháo danh sách khỏi <p> làm vùng chọn nằm trong danh sách rơi về cuối đoạn trước; nhớ và khôi phục
+    // để chữ gõ tiếp (hoặc Enter) vào đúng mục danh sách vừa tạo.
+    const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+    let saved = null;
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      saved = { sc: range.startContainer, so: range.startOffset, ec: range.endContainer, eo: range.endOffset };
+    }
     for (const list of nested) {
       const p = list.parentElement;
       if (p && p.tagName === "P") {
         p.replaceWith(list);
       }
+    }
+    if (saved && saved.sc.isConnected && saved.ec.isConnected && root.contains(saved.sc)) {
+      try {
+        const range = document.createRange();
+        range.setStart(saved.sc, saved.so);
+        range.setEnd(saved.ec, saved.eo);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch (_) { /* vùng chọn cũ không còn hợp lệ: giữ nguyên vị trí hiện tại */ }
     }
   }
 
@@ -17709,6 +17798,20 @@ export class WriterAdapter {
     return { html: output, metadataComment: `<!--vno-review-meta-hex:${hex}-->` };
   }
 
+  /**
+   * Thay đổi theo dõi nằm TRONG chú thích cuối trang / cuối bài: dấu neo của chúng rơi vào footnotes.xml còn bộ vá DOCX
+   * chỉ tìm ở document.xml nên việc lưu thất bại ("không giữ được dấu neo vno-review-start"). Ghi các thay đổi đó ở dạng
+   * đã chấp nhận (chữ thêm giữ lại, chữ xóa bỏ) thay vì để cả tài liệu không lưu được.
+   */
+  _acceptReviewInNotesForExport(exportRoot) {
+    const items = exportRoot?.querySelectorAll?.(".vno-footnote-item, .vno-endnote-item");
+    if (!items) return;
+    for (const item of items) {
+      if (!item.querySelector?.("ins, del")) continue;
+      item.innerHTML = this._acceptedReviewHtml(item.innerHTML);
+    }
+  }
+
   _acceptedReviewHtml(html) {
     return String(html || "")
       .replace(/<del\b(?=[^>]*\bdata-vno-change=["']delete["'])[^>]*>[\s\S]*?<\/del\s*>/gi, "")
@@ -17929,6 +18032,7 @@ export class WriterAdapter {
         bodyHtml = this._stripSessionMarkup(this._acceptedReviewHtml(exportRoot.innerHTML));
       } else {
         this._markCurrentUntouchedParagraphs(exportRoot);
+        this._acceptReviewInNotesForExport(exportRoot);
         const tableEdits = this._tableEditsForExport(exportRoot);
         if (tableEdits.length) tableEditsComment = `<!--vno-table-edits: ${JSON.stringify(tableEdits)} -->`;
         const reviewExport = this._serializeReviewRangesForExport(exportRoot.innerHTML);
@@ -20047,6 +20151,7 @@ export class WriterAdapter {
       this._alignPageRelativeFloats();
 
       this._livePageCount = pageCount;
+      this._syncHeaderFooterPageFields(pageCount);
       if (typeof this.bodyDom.dispatchEvent === "function") {
         try {
           this.bodyDom.dispatchEvent(new CustomEvent("vno-pagination-updated", { bubbles: true, detail: { pageCount } }));
@@ -20055,6 +20160,21 @@ export class WriterAdapter {
     } finally {
       if (typeof originalPageSetup !== "undefined") this.pageSetup = originalPageSetup;
       this._paginating = false;
+    }
+  }
+
+  /**
+   * Trường NUMPAGES trong đầu/chân trang hiển thị số trang thật (khung soạn thảo chỉ vẽ một đầu/chân trang,
+   * nên trước đây luôn ghi "Trang 1 / 1" dù tài liệu có nhiều trang). Chỉ ghi khi giá trị đổi, không đánh dấu tài liệu đã sửa.
+   */
+  _syncHeaderFooterPageFields(pageCount) {
+    const text = String(Math.max(1, Number(pageCount) || 1));
+    for (const dom of [this.headerDom, this.footerDom]) {
+      const spans = dom?.querySelectorAll?.('[data-vno-field="NUMPAGES"]');
+      if (!spans) continue;
+      for (const span of spans) {
+        if (span.textContent !== text) span.textContent = text;
+      }
     }
   }
 

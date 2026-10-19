@@ -329,6 +329,7 @@ export const WRITER_HELP_ENTRIES = [
       "Nhấn Thay đổi sau hoặc Thay đổi trước để nhảy tới từng mốc, cuộn tới vị trí đó và viền xanh nổi bật thay đổi đang xét.",
       "Nhấn Chấp nhận một để giữ phần chèn / bỏ phần xóa của thay đổi đang chọn, rồi tự chuyển tới thay đổi kế tiếp.",
       "Nhấn Từ chối một để bỏ phần chèn / khôi phục phần xóa của thay đổi đang chọn.",
+      "Lưu ý: thay đổi theo dõi nằm trong chú thích cuối trang hoặc chú thích cuối bài được lưu ở dạng đã chấp nhận (chữ thêm giữ lại, chữ xóa bỏ) vì DOCX chưa ghi được đánh dấu thay đổi bên trong chú thích; thay đổi ở nội dung chính vẫn giữ nguyên.",
       "Chấp nhận thay đổi và Từ chối thay đổi áp dụng cho toàn bộ tài liệu. Nhấn Ctrl+S để lưu DOCX: các thay đổi chưa duyệt giữ tác giả và thời gian, mở lại trong Doc hoặc ứng dụng đọc DOCX khác vẫn duyệt được. PDF dùng bản đã chấp nhận, không còn màu đánh dấu."
     ]
   },

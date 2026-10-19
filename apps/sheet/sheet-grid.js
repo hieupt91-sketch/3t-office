@@ -536,7 +536,9 @@ export class SheetGridController {
     this._formulaInputNormalizer = new InputNormalizer({
       target: this.formulaInput,
       onWordCommit: () => {
-        if (!this.formulaEntry) this._beginFormulaEntry("edit");
+        // Chỉ ghi lịch sử khi đang sửa thật (phiên đã được sự kiện gõ tạo). Bắt đầu phiên ở đây làm một phiên "ma" sống sót
+        // sau khi ô nhập mất tiêu điểm vì đổi vùng chọn, rồi nuốt cú bấm ô kế tiếp như chọn tham chiếu và nối "A7" vào công thức.
+        if (!this.formulaEntry) return;
         this._setFormulaEntryValue(this.formulaInput.value, this.formulaInput.selectionStart, {
           source: "undo"
         });

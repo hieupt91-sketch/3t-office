@@ -2717,7 +2717,7 @@ export class SlidesCanvasController {
     const names = { rect: "Hình chữ nhật", ellipse: "Hình elip", arrow: "Mũi tên", textbox: "Hộp văn bản", image: "Hình ảnh", table: "Bảng", chart: "Biểu đồ", line: "Đường thẳng", triangle: "Hình tam giác", diamond: "Hình thoi", video: "Video", audio: "Âm thanh" };
     const counters = {};
     return (slide.shapes || []).map((shape) => {
-      const base = shape.name && !/^\d{6,}$/.test(String(shape.name)) ? String(shape.name) : (names[shape.type] || "Đối tượng");
+      const base = shape.name && !/^\d{6,}$/.test(String(shape.name)) ? String(shape.name) : (presetOf(shape.geomType)?.label || names[shape.type] || "Đối tượng");
       counters[base] = (counters[base] || 0) + 1;
       return { id: String(shape.id), hidden: Boolean(shape.hidden), label: shape.name && !/^\d{6,}$/.test(String(shape.name)) ? base : `${base} ${counters[base]}` };
     });
