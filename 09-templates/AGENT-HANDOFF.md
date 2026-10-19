@@ -315,3 +315,23 @@ RISKS: Cover và Split đang dùng hướng/hình học OOXML native cơ bản; 
 DEPENDENCIES/BLOCKERS: None.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Review commit Q8 trên branch và merge theo quy trình.
+
+---
+
+# Agent Handoff
+TASK: Q9 — Sheet lan14.xlsx save hang diagnosis
+AGENT/ROLE: Codex / VN Sheet diagnostics
+BRANCH: perf/lan14-open-codex
+WORKTREE: E:\VNOffice-codex-lan14
+OBJECTIVE: Reproduce dirty-save hang for lan14, locate the blocking phase, compare pre-Q7 code, and fix only with a clear safe cause.
+FINDINGS: Current branch: FODS 323,219,496 bytes; staging stopped at 109,667,465 bytes from 00:57:31 to 01:05:49. Pre-Q7 snapshot 6cf93a11: open 110,270 ms, serialize 321,316,585 chars, staging stopped at 8,430,164 bytes from 01:20:18 to 01:28:26. Both saves failed before _write_save_source/soffice/OOXML patch. Therefore the staging hang predates Q7; different stall offsets leave the specific call/cause unknown.
+IMPLEMENTATION SUMMARY: No product code changed. Added docs/LAN14-SAVE-DIAG.md with both runtime runs, phase evidence, and an instrumentation proposal.
+FILES CHANGED: docs/LAN14-SAVE-DIAG.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: git merge main; current dirty-save via tests/live/cdp/roundtrip-file.mjs with unique profile and output; pre-Q7 source archive at 6cf93a11 and direct CDP call to globalUnoBridge.saveRealFileInPlace with separate profile/output; npm test; i18n_parity; verify_checklist_evidence; pytest -k "sheet or ooxml".
+BUILD RESULT: NOT RUN — diagnostic documentation only.
+TEST RESULTS: Current save FAIL at staged transfer after 10 minutes; pre-Q7 save FAIL at same phase after 8m08s. npm test PASS 3769/3769; i18n parity missingVI=0/missingEN=0; checklist evidence 0 downgraded rows across 3 files; pytest -k "sheet or ooxml" PASS 321, 777 deselected. 27-file LAN regression NOT RUN.
+KNOWN FAILURES: Staged-content transfer remains unresponsive at variable offsets; neither run produced XLSX.
+RISKS: The bridge request/chunk that stalls is unknown. LibreOffice conversion and OOXML postprocessing remain untested in both runs.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Add unit and CDP probes for per-chunk append_content_stage timing/results, isolate the stalled call, fix only with a reproduction, then run the 27-file LAN audit.
