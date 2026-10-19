@@ -15572,7 +15572,15 @@ export class SheetGridController {
 
   setStyle(prop, val, recordUndo = true) {
     if (recordUndo && this._guardProtectedMutation()) return false;
-    const range = this._normalizeRange(this.selectionRange || { start: this.selectedCoord, end: this.selectedCoord });
+    const selectedCell = { c: this.selectedCoord.c, r: this.selectedCoord.r };
+    const selectedRange = this.selectionRange && this._normalizeRange(this.selectionRange);
+    const selectedColumnIndex = this.cols.indexOf(selectedCell.c);
+    const rangeContainsActiveCell = selectedRange
+      && selectedColumnIndex >= this.cols.indexOf(selectedRange.start.c)
+      && selectedColumnIndex <= this.cols.indexOf(selectedRange.end.c)
+      && selectedCell.r >= selectedRange.start.r
+      && selectedCell.r <= selectedRange.end.r;
+    const range = rangeContainsActiveCell ? selectedRange : { start: selectedCell, end: selectedCell };
     const coords = this.formulaEngine.expandRange(this._rangeLabel(range));
     const before = {};
     const after = {};
