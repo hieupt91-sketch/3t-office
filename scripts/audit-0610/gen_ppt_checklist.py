@@ -90,7 +90,7 @@ Trang đầu|Vẽ|Hiệu ứng hình (Shape Effects: Bóng, Phát sáng, Mềm c
 Trang đầu|Chỉnh sửa|Tìm kiếm (Ctrl+F / Find)|V|-|FIX-L8: common.edit.find tìm chuỗi ROAD TRIP đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:48)
 Trang đầu|Chỉnh sửa|Thay thế (Ctrl+H / Replace)|V|-|FIX-L8: common.edit.replace thay thế văn bản đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:49)
 Trang đầu|Chỉnh sửa|Chọn: Chọn tất cả (Ctrl+A)|A|-|common.edit.selectAll; chọn toàn bộ đối tượng trên slide
-Trang đầu|Chỉnh sửa|Chọn: Chọn đối tượng / Ngăn chọn (Selection Pane)|P|2|slides.edit.selectionPane (Alt+F10): danh sách, chọn, đổi thứ tự lớp (CDP 6/6); chưa có đổi tên và ẩn/hiện từng đối tượng
+Trang đầu|Chỉnh sửa|Chọn: Chọn đối tượng / Ngăn chọn (Selection Pane)|A|-|slides.edit.selectionPane (Alt+F10): danh sách, chọn, đổi thứ tự lớp, đổi tên (nhấp đúp/F2) và ẩn/hiện từng hình ngoài nhóm; tên và trạng thái ẩn lưu vào PPTX, PowerPoint 2016 đọc Shape.Name đúng và Visible=0 (tests/live/cdp/slides-shape-names.desktop.mjs; {{L:apps/slides/slides-canvas.js|_setShapeMeta(}} đổi tên/ẩn, {{L:adapters/libreoffice/common/ooxml_zip_patch.py|def _apply_slides_hidden_shapes}} hidden)
 Chèn|Trang chiếu|Trang chiếu mới (Insert New Slide)|V|-|FIX-L8: slides.slide.new tăng số slide đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:20, docs/ppt-oracle-1710.json:9-15)
 Chèn|Bảng|Bảng (Table Grid)|V|-|FIX-L6: slides.insert.table chèn bảng 3x3 đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:50, docs/ppt-oracle-1710.json:65-71)
 Chèn|Bảng|Vẽ bảng tự do (Draw Table)|N|3|Chưa có công cụ vẽ lưới bảng biểu tự do bằng bút
@@ -204,7 +204,7 @@ Chế độ xem|Hiển thị|Thước (Ruler)|A|-|slides.view.ruler; hiển th�
 Chế độ xem|Hiển thị|Đường lưới (Gridlines)|A|-|slides.view.gridlines; hiển thị lưới tọa độ căn hình (docs/SLIDES-BUTTON-MATRIX-1011.md:91)
 Chế độ xem|Hiển thị|Đường dẫn hướng (Guides)|A|-|slides.view.guides; hiển thị đường guide căn chỉnh thông minh (docs/SLIDES-BUTTON-MATRIX-1011.md:92)
 Chế độ xem|Hiển thị|Ghi chú (Notes Pane toggle)|V|-|FIX-L4/L6: slides.notes.toggle bật tắt vùng ghi chú diễn giả (docs/SLIDES-BUTTON-MATRIX-1011.md:87)
-Chế độ xem|Thu phóng|Thu phóng (Zoom Dialog)|N|2|Chưa có hộp thoại chọn mức thu phóng tùy biến (Zoom Dialog)
+Chế độ xem|Thu phóng|Thu phóng (Zoom Dialog)|A|-|slides.view.zoomDialog: nhập phần trăm 50–200 chính xác (75% đúng 0,75), nút 200/100/75/50, Vừa cửa sổ, bấm số % thanh trạng thái cũng mở; khoảng 10–400% của bản gốc chưa có (CDP tests/live/cdp/slides-zoom-dialog.desktop.mjs; {{L:apps/slides/slides-zoom-dialog.js|export async function showSlidesZoomDialog}} hộp thoại)
 Chế độ xem|Thu phóng|Phóng to (Zoom In)|V|-|FIX-L14: slides.view.zoomIn bước tăng 10 điểm phần trăm đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:93)
 Chế độ xem|Thu phóng|Thu nhỏ (Zoom Out)|V|-|FIX-L14: slides.view.zoomOut bước giảm 10 điểm phần trăm đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:94)
 Chế độ xem|Thu phóng|100% (Zoom Reset)|V|-|FIX-L14: slides.view.zoomReset đặt lại 100% đối chiếu View.Zoom=100 (docs/SLIDES-BUTTON-MATRIX-1011.md:95)

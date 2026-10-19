@@ -803,7 +803,8 @@ export const SLIDES_RIBBON_TABS = [
           { type: "button", commandId: "slides.view.zoomIn", isLarge: true },
           { type: "button", commandId: "slides.view.zoomOut" },
           { type: "button", commandId: "slides.view.zoomReset" },
-          { type: "button", commandId: "slides.view.fitToWindow", isLarge: true }
+          { type: "button", commandId: "slides.view.fitToWindow", isLarge: true },
+          { type: "button", commandId: "slides.view.zoomDialog" }
         ]
       },
       {

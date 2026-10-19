@@ -4,6 +4,7 @@
 
 import { globalCommandBus } from "../../platform/commands/command-bus.js";
 import { createSelectionPane } from "../../platform/ui-kit/selection-pane.js";
+import { showSlidesZoomDialog } from "./slides-zoom-dialog.js";
 import { globalShortcutManager } from "../../platform/commands/shortcut-manager.js";
 import { withLazyFeatureProgress } from "../../platform/startup/lazy-feature.js";
 import { t, getLocale } from "../../platform/i18n/i18n.js";
@@ -2675,6 +2676,42 @@ export class SlidesCanvasController {
     return touched.length > 0;
   }
 
+  /** Đổi tên hiển thị hoặc ẩn/hiện một hình (Ngăn chọn); ghi vào lịch sử để hoàn tác. */
+  _setShapeMeta(shapeId, prop, value) {
+    const slide = this.slides[this.currentSlideIndex];
+    const shape = (slide?.shapes || []).find((item) => String(item.id) === String(shapeId));
+    if (!shape) return false;
+    const from = prop === "hidden" ? Boolean(shape.hidden) : (shape.name ?? "");
+    const to = prop === "hidden" ? Boolean(value) : String(value ?? "").trim();
+    if (from === to) return false;
+    this._applyShapeMeta(this.currentSlideIndex, shape.id, prop, to);
+    this.undoStack.push({ type: "shape-meta", slideIndex: this.currentSlideIndex, shapeId: shape.id, prop, from, to });
+    this.redoStack = [];
+    this._syncUndoRedoState();
+    this.options.onDocumentChange?.();
+    return true;
+  }
+
+  _applyShapeMeta(slideIndex, shapeId, prop, value) {
+    const shape = (this.slides[slideIndex]?.shapes || []).find((item) => String(item.id) === String(shapeId));
+    if (!shape) return false;
+    if (prop === "hidden") {
+      if (value) shape.hidden = true; else delete shape.hidden;
+    } else if (value) {
+      shape.name = value;
+    } else {
+      delete shape.name;
+    }
+    if (slideIndex === this.currentSlideIndex) this._renderShapesLayer();
+    this._renderSelectionPane();
+    this._renderThumbnails?.();
+    return true;
+  }
+
+  renameShape(shapeId, name) { return this._setShapeMeta(shapeId, "name", name); }
+
+  setShapeHidden(shapeId, hidden) { return this._setShapeMeta(shapeId, "hidden", hidden); }
+
   /** Tên hiển thị của đối tượng trong Ngăn chọn: loại + số thứ tự theo loại trên trang. */
   _selectionPaneLabels(slide) {
     const names = { rect: "Hình chữ nhật", ellipse: "Hình elip", arrow: "Mũi tên", textbox: "Hộp văn bản", image: "Hình ảnh", table: "Bảng", chart: "Biểu đồ", line: "Đường thẳng", triangle: "Hình tam giác", diamond: "Hình thoi", video: "Video", audio: "Âm thanh" };
@@ -2682,7 +2719,7 @@ export class SlidesCanvasController {
     return (slide.shapes || []).map((shape) => {
       const base = shape.name && !/^\d{6,}$/.test(String(shape.name)) ? String(shape.name) : (names[shape.type] || "Đối tượng");
       counters[base] = (counters[base] || 0) + 1;
-      return { id: String(shape.id), label: shape.name && !/^\d{6,}$/.test(String(shape.name)) ? base : `${base} ${counters[base]}` };
+      return { id: String(shape.id), hidden: Boolean(shape.hidden), label: shape.name && !/^\d{6,}$/.test(String(shape.name)) ? base : `${base} ${counters[base]}` };
     });
   }
 
@@ -2714,6 +2751,11 @@ export class SlidesCanvasController {
           this.reorderSelectedShapes(direction);
           this._updateSelectionUi();
         },
+        onRename: (id, name) => this.renameShape(id, name),
+        onToggleHidden: (id, hidden) => this.setShapeHidden(id, hidden),
+        renameLabel: t("slidesDialogs.selectionPaneRename", "Đổi tên (nhấp đúp hoặc F2)"),
+        hideLabel: t("slidesDialogs.selectionPaneHide", "Ẩn đối tượng"),
+        showLabel: t("slidesDialogs.selectionPaneShow", "Hiện đối tượng"),
         onClose: () => this.toggleSelectionPane(false)
       });
       this.stageEl.appendChild(this.selectionPane.el);
@@ -4586,6 +4628,7 @@ export class SlidesCanvasController {
   }
 
   _shapePresentationHtml(shape, options = {}) {
+    if (shape.hidden) return "";
     const shapeId = this._escapeShapeText(String(shape.id ?? ""));
     const actionValue = shape.action && typeof shape.action === "object" ? JSON.stringify(shape.action) : String(shape.action || shape.href || "");
     const actionAttr = actionValue ? ` data-vno-action="${this._escapeShapeText(actionValue)}"` : "";
@@ -5345,6 +5388,7 @@ export class SlidesCanvasController {
       if (shape.flipV) transformParts.push("scaleY(-1)");
       const rotateStyle = transformParts.length ? ` transform:${transformParts.join(" ")}; transform-origin:center center;` : "";
       el.style.cssText = `position:absolute; left:${shape.x}px; top:${shape.y}px; width:${shape.w}px; height:${shape.h}px; pointer-events:${isConnector ? "none" : "auto"}; cursor:${isConnector ? "default" : "move"};z-index:${isConnector ? 0 : 1};overflow:visible;${rotateStyle}`;
+      if (shape.hidden) el.style.display = "none";
       if (!isConnector && this._textStyleEligible(shape) && shape.type !== "textbox") {
         const vAlign = shape.textVAlign || "middle";
         el.style.alignItems = vAlign === "top" ? "flex-start" : vAlign === "bottom" ? "flex-end" : "center";
@@ -9272,6 +9316,10 @@ const startEditing = (initialText) => {
       if (!this._applyShapeOrder(action.slideIndex, action.before)) return false;
       this.redoStack.push(action);
       return true;
+    } else if (action.type === "shape-meta") {
+      if (!this._applyShapeMeta(action.slideIndex, action.shapeId, action.prop, action.from)) return false;
+      this.redoStack.push(action);
+      return true;
     } else if (action.type === "shapes-delete") {
       const slide = this.slides[action.slideIndex];
       if (!slide) return false;
@@ -9665,6 +9713,10 @@ const startEditing = (initialText) => {
       return true;
     } else if (action.type === "shape-order") {
       if (!this._applyShapeOrder(action.slideIndex, action.after)) return false;
+      this.undoStack.push(action);
+      return true;
+    } else if (action.type === "shape-meta") {
+      if (!this._applyShapeMeta(action.slideIndex, action.shapeId, action.prop, action.to)) return false;
       this.undoStack.push(action);
       return true;
     } else if (action.type === "shapes-delete") {
@@ -12987,13 +13039,20 @@ const startEditing = (initialText) => {
   }
 
   setZoom(level) {
-    const next = Math.min(2.0, Math.max(0.5, Math.round(Number(level) * 10) / 10));
+    const next = Math.min(2.0, Math.max(0.5, Math.round(Number(level) * 100) / 100));
     if (!Number.isFinite(next)) return false;
     this.zoomLevel = next;
     this._applyViewState();
     this._syncCommandStates();
     this.options.onZoomChange?.(this.zoomLevel);
     return this.zoomLevel;
+  }
+
+  async openZoomDialog() {
+    const choice = await showSlidesZoomDialog(Math.round(this.zoomLevel * 100));
+    if (!choice) return false;
+    if (choice.fit) return this.fitToWindow();
+    return this.setZoom(choice.zoom / 100);
   }
 
   zoomIn() { return this.setZoom(this.zoomLevel + 0.1); }

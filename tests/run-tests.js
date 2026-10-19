@@ -169,6 +169,7 @@ import { runWriterSectionBreaksPageColorTests } from "./unit/writer-sectionbreak
 import { runSheetHelpTests } from "./unit/sheet-help.test.js";
 import { runSlidesHelpTests } from "./unit/slides-help.test.js";
 import { runSlidesFixL2RoundtripTests } from "./unit/slides-fix-l2-roundtrip.test.js";
+import { runSlidesShapeNamesRoundtripTests } from "./unit/slides-shape-names-roundtrip.test.js";
 import { runSlidesFixL2DuplicateTests } from "./unit/slides-fix-l2-duplicate.test.js";
 import { runHelpCoverageTests } from "./unit/help-coverage.test.js";
 import { runHelpGettingStartedTests } from "./unit/help-getting-started.test.js";
@@ -475,6 +476,7 @@ async function runAll() {
     { title: "113. Behavioral Tests — VN Sheet In-app Help", runner: runSheetHelpTests },
     { title: "114. Behavioral Tests — VN Slides In-app Help", runner: runSlidesHelpTests },
     { title: "FIX-L2. Slides FODP import/save round trip", runner: runSlidesFixL2RoundtripTests },
+    { title: "AGY-SHAPENAMES. Slides shape names FODP round trip", runner: runSlidesShapeNamesRoundtripTests },
     { title: "FIX-L2. Ribbon duplicate with a shape selected", runner: runSlidesFixL2DuplicateTests },
     { title: "115. Regression Guard — Help Coverage (100% Writer, Sheet & Slides Ribbon Commands, Catalog Quality & Shared Platform)", runner: runHelpCoverageTests },
     { title: "116. Regression Guard — Help ⇄ Ribbon Location Consistency (commandIds thật, tab/nhóm khớp ribbon hiện tại)", runner: runHelpRibbonLocationTests },

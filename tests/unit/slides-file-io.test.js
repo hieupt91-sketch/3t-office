@@ -317,8 +317,9 @@ export async function runSlidesFileIoTests() {
     if (!fodp.includes("<draw:image") || !fodp.includes("<office:binary-data>") || !fodp.includes("iVBORw0KGgo")) {
       throw new Error("FODP không nhúng ảnh base64 trong office:binary-data");
     }
-    if (!fodp.includes('draw:id="node-a"') || !fodp.includes('draw:name="node-a"')) {
-      throw new Error("Shape thiếu draw:id/draw:name duy nhất");
+    // Tên hiển thị (draw:name) tách khỏi mã định danh: mã nằm ở draw:id và vno:shape-id.
+    if (!fodp.includes('draw:id="node-a"') || !fodp.includes('vno:shape-id="node-a"') || /draw:name="node-a"/.test(fodp)) {
+      throw new Error("Shape thiếu draw:id/vno:shape-id duy nhất hoặc còn lộ mã làm tên hiển thị");
     }
     if (!fodp.includes("presentation:class=\"title\"") || !fodp.includes("Slide có hình khối")) {
       throw new Error("Khung tiêu đề layout bị mất khi thêm shapes");
