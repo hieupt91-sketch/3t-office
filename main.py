@@ -4828,6 +4828,7 @@ class VnOfficeApi:
             return {"status": "error", "message": f"Loại ứng dụng không hợp lệ: {app_kind}"}
 
         writer_ooxml_metadata = None
+        slides_ooxml_metadata = None
         sheet_open_payload = None
         sheet_open_id = None
         sheet_ooxml_workbook_xml = None
@@ -4899,6 +4900,12 @@ class VnOfficeApi:
                 sheet_stage_started = time.perf_counter()
                 with open(out_path, "r", encoding="utf-8", errors="replace") as f:
                     content = f.read()
+                if app_kind == "slides" and convert_src_path.lower().endswith(".pptx"):
+                    slides_ooxml_metadata = {
+                        "presentation": _read_pptx_presentation_xml(convert_src_path),
+                        "slideMaster": _read_pptx_slide_master_xml(convert_src_path),
+                        "presentationProperties": _read_pptx_pres_props_xml(convert_src_path),
+                    }
                 if app_kind == "sheet":
                     _open_perf_log(
                         "sheet_open_stage", (time.perf_counter() - sheet_stage_started) * 1000,
@@ -5099,26 +5106,46 @@ class VnOfficeApi:
             if core_properties_xml:
                 payload["ooxmlCorePropertiesXml"] = core_properties_xml
         elif app_kind == "sheet":
-            workbook_xml = sheet_ooxml_workbook_xml or _read_xlsx_workbook_xml(src_path)
+            workbook_xml = sheet_ooxml_workbook_xml
+            if not workbook_xml and original_xlsx is not None:
+                entry = _ooxml_zip_patch().read_zip_entry(original_xlsx, "xl/workbook.xml")
+                workbook_xml = entry.decode("utf-8", errors="replace") if entry else None
+            if not workbook_xml:
+                workbook_xml = _read_xlsx_workbook_xml(src_path)
             if workbook_xml:
                 payload["ooxmlWorkbookXml"] = workbook_xml
-            core_props = _read_xlsx_zip_entry(src_path, "docProps/core.xml")
+            core_props = None
+            if original_xlsx is not None:
+                entry = _ooxml_zip_patch().read_zip_entry(original_xlsx, "docProps/core.xml")
+                core_props = entry.decode("utf-8", errors="replace") if entry else None
+            if not core_props:
+                core_props = _read_xlsx_zip_entry(src_path, "docProps/core.xml")
             if core_props:
                 payload["ooxmlCorePropertiesXml"] = core_props
-            app_props = _read_xlsx_zip_entry(src_path, "docProps/app.xml")
+            app_props = None
+            if original_xlsx is not None:
+                entry = _ooxml_zip_patch().read_zip_entry(original_xlsx, "docProps/app.xml")
+                app_props = entry.decode("utf-8", errors="replace") if entry else None
+            if not app_props:
+                app_props = _read_xlsx_zip_entry(src_path, "docProps/app.xml")
             if app_props:
                 payload["ooxmlAppPropertiesXml"] = app_props
-            custom_props = _read_xlsx_zip_entry(src_path, "docProps/custom.xml")
+            custom_props = None
+            if original_xlsx is not None:
+                entry = _ooxml_zip_patch().read_zip_entry(original_xlsx, "docProps/custom.xml")
+                custom_props = entry.decode("utf-8", errors="replace") if entry else None
+            if not custom_props:
+                custom_props = _read_xlsx_zip_entry(src_path, "docProps/custom.xml")
             if custom_props:
                 payload["ooxmlCustomPropertiesXml"] = custom_props
         elif app_kind == "slides":
-            presentation_xml = _read_pptx_presentation_xml(src_path)
+            presentation_xml = (slides_ooxml_metadata or {}).get("presentation") or _read_pptx_presentation_xml(src_path)
             if presentation_xml:
                 payload["ooxmlPresentationXml"] = presentation_xml
-            slide_master_xml = _read_pptx_slide_master_xml(src_path)
+            slide_master_xml = (slides_ooxml_metadata or {}).get("slideMaster") or _read_pptx_slide_master_xml(src_path)
             if slide_master_xml:
                 payload["ooxmlSlideMasterXml"] = slide_master_xml
-            pres_props_xml = _read_pptx_pres_props_xml(src_path)
+            pres_props_xml = (slides_ooxml_metadata or {}).get("presentationProperties") or _read_pptx_pres_props_xml(src_path)
             if pres_props_xml:
                 payload["ooxmlPresPropsXml"] = pres_props_xml
         self._document_password = password if encrypted_source else None
