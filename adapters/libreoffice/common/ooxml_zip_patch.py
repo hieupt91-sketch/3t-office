@@ -6537,7 +6537,7 @@ def overlay_sheet_xlsx_structured_formulas(xlsx_bytes: bytes, fods_xml: str | No
         return xml
     formula_attr_re = re.compile(r'\svno:formula="[^"]*"')
     pieces, cursor = [], 0
-    for table_start, table_end in _flat_xml_blocks(xml, ("table:table",)):
+    for table_start, table_end in _sheet_open_xml_blocks(xml, ("table:table",)):
         pieces.append(xml[cursor:table_start])
         table_xml = xml[table_start:table_end]
         opening = re.match(r"<[^>]+", table_xml)
@@ -6548,14 +6548,14 @@ def overlay_sheet_xlsx_structured_formulas(xlsx_bytes: bytes, fods_xml: str | No
             for (row, col), formula in targets.items():
                 rows.setdefault(row, {})[col] = formula
             parts, table_cursor, row_number = [], 0, 1
-            for row_start, row_end in _flat_xml_blocks(table_xml, ("table:table-row",)):
+            for row_start, row_end in _sheet_open_xml_blocks(table_xml, ("table:table-row",)):
                 parts.append(table_xml[table_cursor:row_start])
                 row_xml = table_xml[row_start:row_end]
                 repeat = _repeat_count(row_xml, "table:number-rows-repeated")
                 row_targets = rows.get(row_number) if repeat == 1 else None
                 if row_targets:
                     cells, cell_cursor, column = [], 0, 1
-                    for cell_start, cell_end in _flat_xml_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
+                    for cell_start, cell_end in _sheet_open_xml_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
                         cells.append(row_xml[cell_cursor:cell_start])
                         cell = row_xml[cell_start:cell_end]
                         cell_repeat = _repeat_count(cell, "table:number-columns-repeated")
@@ -14859,7 +14859,12 @@ def overlay_sheet_xlsx_fods_p1(
     xml = timed("overlay_split_panes", overlay_sheet_xlsx_split_panes, xlsx_bytes, xml)
     xml = timed("overlay_print_options", overlay_sheet_xlsx_print_options, xlsx_bytes, xml)
     xml = timed("overlay_page_setup", overlay_sheet_xlsx_page_setup, xlsx_bytes, xml)
-    xml = timed("overlay_structured_formulas", overlay_sheet_xlsx_structured_formulas, xlsx_bytes, xml)
+    structured_helper = (
+        "overlay_structured_formulas_fast"
+        if _fast_import_overlay_enabled()
+        else "overlay_structured_formulas"
+    )
+    xml = timed(structured_helper, overlay_sheet_xlsx_structured_formulas, xlsx_bytes, xml)
     xml = timed("overlay_autofilter", _overlay_autofilter_from_xlsx, xlsx_bytes, xml)
     xml = timed("overlay_layout", _overlay_sheet_layout_from_xlsx, xlsx_bytes, xml)
     tab_colors = timed("parse_tab_colors", parse_tab_colors_from_xlsx, xlsx_bytes)
@@ -14870,20 +14875,38 @@ def overlay_sheet_xlsx_fods_p1(
         xml = timed("overlay_slicers", _overlay_sheet_slicers_from_xlsx, xlsx_bytes, xml)
         xml = timed("put_back_table_bodies", _put_back_table_bodies, xml, bodies)
         bodies = None
+    fast_import_overlay = _fast_import_overlay_enabled()
     metadata_helper = (
         "overlay_cell_metadata_p1_fast"
-        if _fast_import_overlay_enabled()
+        if fast_import_overlay
         else "overlay_cell_metadata_p1"
     )
+    cell_metadata = None
+    if fast_import_overlay:
+        cell_metadata = timed(
+            "parse_cell_metadata",
+            _xlsx_cells_with_metadata_p1,
+            xlsx_bytes,
+            include_xf=True,
+            parallel=len(xml) > _P1_PARALLEL_FODS_CHARS,
+        )
     xml = timed(
         metadata_helper,
         _overlay_sheet_cell_metadata_from_xlsx_p1,
         xlsx_bytes,
         xml,
         include_xf=not skip_initial_xf,
+        parsed_metadata=cell_metadata,
     )
-    format_helper = "overlay_native_cell_formats_fast" if _fast_import_overlay_enabled() else "overlay_native_cell_formats"
-    xml = timed(format_helper, _overlay_native_cell_formats_from_xlsx, xlsx_bytes, xml)
+    format_helper = "overlay_native_cell_formats_fast" if fast_import_overlay else "overlay_native_cell_formats"
+    format_kwargs = {"cells_by_sheet": cell_metadata[2]} if cell_metadata is not None else {}
+    xml = timed(
+        format_helper,
+        _overlay_native_cell_formats_from_xlsx,
+        xlsx_bytes,
+        xml,
+        **format_kwargs,
+    )
     xml = timed("promote_covered_formula_errors", _promote_covered_formula_errors, xml)
     if not skeleton:
         if tab_colors:
@@ -15277,7 +15300,12 @@ def _fast_import_overlay_enabled() -> bool:
     return value not in {"0", "false", "no", "off"}
 
 
-def _overlay_native_cell_formats_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
+def _overlay_native_cell_formats_from_xlsx(
+    xlsx_bytes: bytes,
+    fods_xml: str,
+    *,
+    cells_by_sheet: dict[str, dict[tuple[int, int], int]] | None = None,
+) -> str:
     fast_scan = _fast_import_overlay_enabled()
     native_format_blocks = _fast_sheet_xml_blocks if fast_scan else _flat_xml_blocks
 
@@ -15285,7 +15313,12 @@ def _overlay_native_cell_formats_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> 
     if not any(configs_by_xf):
         return fods_xml
     targets_by_sheet: dict[str, dict[tuple[int, int], dict]] = {}
-    for sheet_name, cells in _xlsx_cells_with_xf_indices(xlsx_bytes).items():
+    source_cells = (
+        cells_by_sheet
+        if cells_by_sheet is not None
+        else _xlsx_cells_with_xf_indices(xlsx_bytes)
+    )
+    for sheet_name, cells in source_cells.items():
         targets = {
             key: configs_by_xf[index]
             for key, index in cells.items()
@@ -16262,13 +16295,19 @@ def _overlay_sheet_cell_metadata_from_xlsx_p1(
     fods_xml: str,
     *,
     include_xf: bool = True,
+    parsed_metadata=None,
 ) -> str:
     """Byte-compatible P1 metadata overlay using C-regex block scans."""
-    formats, strings, xfs = _xlsx_cells_with_metadata_p1(
-        xlsx_bytes,
-        include_xf=include_xf,
-        parallel=len(fods_xml) > _P1_PARALLEL_FODS_CHARS,
-    )
+    if parsed_metadata is None:
+        formats, strings, xfs = _xlsx_cells_with_metadata_p1(
+            xlsx_bytes,
+            include_xf=include_xf,
+            parallel=len(fods_xml) > _P1_PARALLEL_FODS_CHARS,
+        )
+    else:
+        formats, strings, xfs = parsed_metadata
+        if not include_xf:
+            xfs = {}
     if not formats and not strings and not xfs:
         return fods_xml
 

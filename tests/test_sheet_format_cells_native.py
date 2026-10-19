@@ -33,6 +33,17 @@ def fods(cell_xml: str) -> str:
 
 
 class SheetFormatCellsNativeTests(unittest.TestCase):
+    def test_native_format_overlay_reuses_preparsed_xf_indices(self):
+        sheet = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" s="1"><v>1</v></c></row></sheetData></worksheet>'
+        package = make_xlsx(sheet)
+        source = fods('<table:table-cell office:value-type="float" office:value="1"><text:p>1</text:p></table:table-cell>')
+        expected = patcher._overlay_native_cell_formats_from_xlsx(package, source)
+        cell_indices = patcher._xlsx_cells_with_xf_indices(package)
+        actual = patcher._overlay_native_cell_formats_from_xlsx(
+            package, source, cells_by_sheet=cell_indices
+        )
+        self.assertEqual(expected, actual)
+
     def test_open_overlay_restores_native_format_cells_properties(self):
         sheet = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" s="1"><v>1</v></c></row></sheetData></worksheet>'
         opened = patcher.overlay_sheet_xlsx_fods(make_xlsx(sheet), fods('<table:table-cell office:value-type="float" office:value="1"><text:p>1</text:p></table:table-cell>'))
