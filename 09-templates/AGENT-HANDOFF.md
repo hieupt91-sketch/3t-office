@@ -211,7 +211,6 @@ RISKS: TOC field cached results will not be marked dirty for automatic refresh o
 DEPENDENCIES/BLOCKERS: None for Q2. Missing CODEX-COMMON-RULES.md was not present in the assigned worktree.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Review and merge the Q2 commit; investigate pre-existing checklist evidence rows in separate tickets.
-<<<<<<< HEAD
 
 
 # Agent Handoff
@@ -233,5 +232,3 @@ DEPENDENCIES/BLOCKERS: None for implemented fixes. Zoom clipping requires a repr
 CORE PATCH ID (if any): None.
 NEXT ACTION: Review the nine commits. If zoom clipping remains reproducible on another 1366 px setup, record the CDP geometry and handle it as a follow-up.
 ---
-=======
->>>>>>> main
