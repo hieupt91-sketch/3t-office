@@ -253,3 +253,23 @@ DEPENDENCIES/BLOCKERS: None.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Review Q4 commits; ticket completion log is E:\VNOffice-briefs\logs\Q4-writer-table-toc.DONE.
 ---
+
+# Agent Handoff
+TASK: Q5 — Sheet: thao tác bảng doanh thu, tìm lỗi nhỏ và kiểm tra XLSX
+AGENT/ROLE: Codex / VN Sheet QA
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Thực hiện quy trình bảng doanh thu qua CDP bằng chuột và bàn phím; ghi ít nhất 15 thao tác, sửa lỗi nhỏ có kiểm tra trước/sau, lưu/mở lại XLSX và audit 5 tệp LAN.
+FINDINGS: Đã thực hiện 22 thao tác gồm công thức, sắp xếp hai chiều, hai kiểu lọc, định dạng có điều kiện, biểu đồ cột, cố định hàng, định dạng số/tiền/ngày, gộp ô, căn lề, lưu và mở lại. Lỗi căn giữa chỉ áp dụng lên ô hoạt động thay vì vùng chọn; sửa theo vùng và xác nhận lại trên CDP. Cột ngày cần tự căn để hiển thị đủ nội dung. Hộp thoại Lưu thành native không thể điều khiển theo quy tắc CDP; dùng tệp XLSX trống tạo sẵn rồi Ctrl+S.
+IMPLEMENTATION SUMMARY: Sửa căn lề/style để áp dụng tới vùng chọn và giữ fallback cho ô hoạt động khi selection cũ không còn chứa ô đó. Không thay đổi định dạng tệp hay LibreOffice Core. Nhật ký và ảnh CDP: `docs/EXPLORE-SHEET-2026-10-19.md` và `docs/assets/q5-sheet-2026-10-19/`.
+FILES CHANGED: `apps/sheet/sheet-grid.js`; `tests/unit/sheet-editing-styles.test.js`; `scripts/audit-0610/app_session_server.mjs`; `scripts/audit-0610/gen_excel_checklist.py`; `docs/EXCEL2016-FEATURE-CHECKLIST.md`; `docs/EXPLORE-SHEET-2026-10-19.md`; `docs/assets/q5-sheet-2026-10-19/*`; `09-templates/AGENT-HANDOFF.md`.
+COMMITS: `d7fd7922` (merge main); `4e6a0dce` (profile isolation); `2d9ad885` (range styles); `01fd5baa` (active-cell fallback); `1e2d2b5f` (Excel checklist evidence).
+COMMANDS RUN: CDP app session for workbook authoring, save and fresh-session reopen; `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k sheet`; five-file `batch_document_audit.py xlsx` for lan25/20/07/13/23; inspected resulting XLSX and batch audit implementation.
+BUILD RESULT: NOT RUN — no build/package changes.
+TEST RESULTS: PASS — Node suite 3769/3769; pytest 295 passed, 798 deselected; i18n VI/EN 3105 each, 0 missing; checklist evidence 0 lowered rows (Word 279, Excel 217, PowerPoint 269). Alignment test was FAIL before (`B3 phải được căn giữa`), PASS after (22/22); direct CDP confirmed B2:B7 all centered. Five-file audit reported 5/5 saved, diffs=0, lint clean.
+KNOWN FAILURES: Save As native dialog BLOCKED under the no-OS-control rule. The batch audit internally invoked hidden Excel COM despite the ticket’s COM-blocked rule and wrote `office=PASS`; this was an out-of-policy run, is disclosed in the exploration log, and is not counted as an accepted COM comparison. Excel COM verification remains BLOCKED for this ticket.
+RISKS: Five LAN files were round-tripped and structurally compared; the batch tool also invoked the prohibited COM branch. A fresh five-file run through a COM-free audit path is needed if independent acceptance requires excluding that branch.
+DEPENDENCIES/BLOCKERS: None for the UI fix. Excel COM comparison is BLOCKED by task rules; Save As automation is BLOCKED because the dialog is native.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review Q5 commits and exploration evidence; use a COM-free five-file round-trip audit for any follow-up verification.
+---
