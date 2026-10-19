@@ -6495,6 +6495,17 @@ def apply_print_options_to_fods(fods_xml: str, options_by_sheet: dict[str, dict]
 
 
 _STRUCTURED_FORMULA_RE = re.compile(r"(?:^|[^A-Za-z0-9_.\]'])[A-Za-z_\\][A-Za-z0-9_.\\]*\[(?!\d+\])|(?:^|[^A-Za-z0-9_.\]'])\[(?:@|#|\[)")
+_XLSX_FORMULA_ELEMENT_RE = re.compile(r"<f\b[^>]*>([^<]*)</f>", re.IGNORECASE)
+
+
+def _has_structured_formula_candidate(sheet_xml: str) -> bool:
+    """Check formula elements directly, ignoring cell values and external refs."""
+    for match in _XLSX_FORMULA_ELEMENT_RE.finditer(sheet_xml or ""):
+        text = _unescape_xml(match.group(1))
+        candidate = re.sub(r'"(?:""|[^"])*"', '""', text)
+        if _STRUCTURED_FORMULA_RE.search(candidate):
+            return True
+    return False
 
 
 def _xlsx_structured_formulas(xlsx_bytes: bytes) -> dict[str, dict[tuple[int, int], str]]:
@@ -6506,7 +6517,7 @@ def _xlsx_structured_formulas(xlsx_bytes: bytes) -> dict[str, dict[tuple[int, in
         if not raw:
             continue
         xml = raw.decode("utf-8", errors="replace")
-        if "[" not in xml:
+        if not _has_structured_formula_candidate(xml):
             continue
         targets: dict[tuple[int, int], str] = {}
         for match in cell_re.finditer(xml):

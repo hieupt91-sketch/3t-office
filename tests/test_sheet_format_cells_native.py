@@ -33,6 +33,30 @@ def fods(cell_xml: str) -> str:
 
 
 class SheetFormatCellsNativeTests(unittest.TestCase):
+    def test_structured_formula_candidate_check_ignores_brackets_outside_formula_tags(self):
+        self.assertTrue(
+            patcher._has_structured_formula_candidate(
+                '<c r="A1"><f>SUM(Table1[Value])</f></c>'
+            )
+        )
+        self.assertFalse(
+            patcher._has_structured_formula_candidate(
+                '<c r="A1"><f>SUM(A2)</f><v>[text]</v></c>'
+            )
+        )
+        self.assertFalse(
+            patcher._has_structured_formula_candidate(
+                '<c r="A1"><f>[1]Sheet1!A2</f></c>'
+            )
+        )
+
+    def test_structured_formula_scanner_keeps_only_table_references(self):
+        sheet = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1"><f>SUM(Table1[Value])</f></c><c r="B1"><f>SUM(A1)</f></c><c r="C1"><f>"[literal]"</f></c></row></sheetData></worksheet>'
+        self.assertEqual(
+            {"Sheet1": {(1, 1): "=SUM(Table1[Value])"}},
+            patcher._xlsx_structured_formulas(make_xlsx(sheet)),
+        )
+
     def test_native_format_overlay_reuses_preparsed_xf_indices(self):
         sheet = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" s="1"><v>1</v></c></row></sheetData></worksheet>'
         package = make_xlsx(sheet)
