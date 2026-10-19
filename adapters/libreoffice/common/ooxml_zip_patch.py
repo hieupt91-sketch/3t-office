@@ -12726,6 +12726,8 @@ _PPTX_SLIDE_TRANSITION_EFFECTS = {
     "pushwipe": '<p:push dir="l"/>',
     "slidewipe": '<p:push dir="l"/>',
     "barwipe": '<p:wipe dir="l"/>',
+    "splitwipe": '<p:split orient="horz" dir="out"/>',
+    "coverwipe": '<p:cover dir="l"/>',
     "fanwipe": '<p:wheel spokes="1"/>',
     "zoom": '<p:zoom dir="out"/>',
     "iriswipe": '<p:zoom dir="out"/>',
@@ -12794,11 +12796,11 @@ def _apply_slides_transition_effects(
             effect = _PPTX_SLIDE_TRANSITION_EFFECTS.get(transitions[index])
             if not effect:
                 continue
-            if transitions[index] in {"pushwipe", "slidewipe", "barwipe"}:
+            if transitions[index] in {"pushwipe", "slidewipe", "barwipe", "coverwipe"}:
                 subtype = _slides_transition_subtypes_from_fodp(source_fodp)
                 direction = subtype[index] if index < len(subtype) else "fromleft"
                 pptx_dir = _PPTX_TRANSITION_DIR.get(str(direction).lower(), "l")
-                tag = "wipe" if transitions[index] == "barwipe" else "push"
+                tag = "wipe" if transitions[index] == "barwipe" else "cover" if transitions[index] == "coverwipe" else "push"
                 effect = f'<p:{tag} dir="{pptx_dir}"/>'
             original = (base_replacements or {}).get(name) or package.read(name).decode("utf-8", errors="replace")
             match = re.search(r"<p:transition\b([^>]*?)(?:/\s*>|>([\s\S]*?)</p:transition\s*>)", original, re.IGNORECASE)

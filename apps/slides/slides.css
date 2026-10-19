@@ -591,6 +591,21 @@
   to { transform: perspective(1000px) rotateY(0deg); opacity: 1; }
 }
 
+@keyframes vnoTransitionWipe {
+  from { clip-path: inset(0 100% 0 0); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes vnoTransitionSplit {
+  from { clip-path: inset(0 50% 0 50%); }
+  to { clip-path: inset(0 0 0 0); }
+}
+
+@keyframes vnoTransitionCover {
+  from { transform: translateX(var(--vno-transition-x, 100%)); }
+  to { transform: translateX(0); }
+}
+
 /* Morph uses FLIP transforms on same-id shapes. New unmatched shapes enter softly. */
 .vno-morph-shape {
   will-change: transform, background-color, opacity;

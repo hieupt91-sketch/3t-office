@@ -85,6 +85,22 @@ class SourceTransitionSaveTests(unittest.TestCase):
             output = patcher._apply_slides_transition_effects(_pptx([_slide("")]), fodp)
             self.assertIn(f'<p:push dir="{direction}"/>', output["ppt/slides/slide1.xml"])
 
+    def test_generated_wipe_split_and_cover_transitions_use_native_pptx_effects(self):
+        cases = (
+            ("barWipe", "fromleft", "<p:wipe dir=\"l\"/>"),
+            ("splitWipe", "fromright", '<p:split orient="horz" dir="out"/>'),
+            ("coverWipe", "fromtop", '<p:cover dir="u"/>'),
+        )
+        for smil_type, subtype, expected in cases:
+            with self.subTest(smil_type=smil_type):
+                fodp = (
+                    '<office:document><office:automatic-styles><style:style style:name="dp1" style:family="drawing-page">'
+                    f'<style:drawing-page-properties smil:type="{smil_type}" smil:subtype="{subtype}"/></style:style></office:automatic-styles>'
+                    '<office:body><office:presentation><draw:page draw:name="p1" draw:style-name="dp1"></draw:page></office:presentation></office:body></office:document>'
+                )
+                output = patcher._apply_slides_transition_effects(_pptx([_slide("")]), fodp)
+                self.assertIn(expected, output["ppt/slides/slide1.xml"])
+
     def _run(self, slide_xml: str, attrs: str) -> str:
         pptx = _pptx([slide_xml])
         fodp = _fodp(1, [attrs])

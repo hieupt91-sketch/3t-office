@@ -71,6 +71,10 @@ export async function runHelpCoverageTests() {
     if (slides.coveredCount !== slides.liveCount || slides.liveCount !== 192) {
       throw new Error(`Số lượng lệnh Slides không khớp: covered=${slides.coveredCount}, live=${slides.liveCount}`);
     }
+    const transitionHelp = SLIDES_HELP_ENTRIES.find((entry) => entry.commandIds?.includes("slides.transition.apply"));
+    if (!transitionHelp || !transitionHelp.steps?.some((step) => step.includes("Quét") && step.includes("Che phủ"))) {
+      throw new Error("Hướng dẫn tiếng Việt cho hộp thoại Chuyển tiếp phải nêu rõ Quét và Che phủ");
+    }
   });
 
   await test("Help Coverage: Không phát hiện nút chết không có handler trên ribbon", () => {

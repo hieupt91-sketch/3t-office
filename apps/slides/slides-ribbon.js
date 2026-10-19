@@ -515,8 +515,11 @@ export const SLIDES_RIBBON_TABS = [
               { commandId: "slides.transition.set", args: "none", label: "Không" },
               { commandId: "slides.transition.set", args: "fade", label: "Mờ dần" },
               { commandId: "slides.transition.set", args: "slide", label: "Trượt ngang" },
+              { commandId: "slides.transition.set", args: "push", label: "Đẩy" },
+              { commandId: "slides.transition.set", args: "wipe", label: "Quét" },
+              { commandId: "slides.transition.set", args: "split", label: "Chia" },
+              { commandId: "slides.transition.set", args: "cover", label: "Che phủ" },
               { commandId: "slides.transition.set", args: "zoom", label: "Thu phóng" },
-              { commandId: "slides.transition.set", args: "flip", label: "Lật 3D" },
               { commandId: "slides.transition.set", args: "morph", label: "Morph" }
             ]
           },

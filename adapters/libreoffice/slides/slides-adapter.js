@@ -2299,6 +2299,9 @@ export class SlidesAdapter {
     if (type === "fade") return { type: "fade", subtype: "crossfade", dur };
     const direction = ({ left: "Left", right: "Right", top: "Top", bottom: "Bottom" })[transition?.direction] || "Left";
     if (type === "slide" || type === "push") return { type: "pushWipe", subtype: `from${direction}`, dur };
+    if (type === "wipe") return { type: "barWipe", subtype: `from${direction}`, dur };
+    if (type === "split") return { type: "splitWipe", subtype: `from${direction}`, dur };
+    if (type === "cover") return { type: "coverWipe", subtype: `from${direction}`, dur };
     if (type === "fan") return { type: "fanWipe", subtype: `from${direction}`, dur };
     // Direct smil:type="zoom" exports to PPTX as an empty <p:transition> (measured).
     // irisWipe/rectangle maps to a real PPTX transition and returns as smil:type="zoom".
@@ -2318,6 +2321,8 @@ export class SlidesAdapter {
     if (type === "fade") return "fade";
     if (type === "fanwipe") return "fan";
     if (type === "barwipe") return "wipe";
+    if (type === "splitwipe") return "split";
+    if (type === "coverwipe") return "cover";
     if (type === "pushwipe" || type === "slidewipe") return "slide";
     if (type === "zoom" || type === "iriswipe") return "zoom";
     return null;

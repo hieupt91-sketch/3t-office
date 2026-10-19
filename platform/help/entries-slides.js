@@ -570,7 +570,7 @@ export const SLIDES_HELP_ENTRIES = [
     id: "slides.transition.tab",
     app: "slides",
     commandIds: [
-      "slides.transition.gallery", "slides.transition.set", "slides.transition.durationMenu", "slides.transition.duration",
+      "slides.transition.gallery", "slides.transition.set", "slides.transition.apply", "slides.transition.durationMenu", "slides.transition.duration",
       "slides.transition.advanceMenu", "slides.transition.advanceClick", "slides.transition.afterMenu", "slides.transition.advanceAfter",
       "slides.transition.applyAll", "slides.transition.preview"
     ],
@@ -579,8 +579,10 @@ export const SLIDES_HELP_ENTRIES = [
     ribbon: { tab: "Chuyển tiếp", tabId: "transitions", group: "Chuyển đến trang này" },
     keywords: ["chuyển tiếp", "transition", "hiệu ứng chuyển trang", "thời lượng", "tự động sau", "áp dụng cho tất cả", "xem trước"],
     steps: [
-      "Trong hộp thoại Chuyển tiếp, chọn Hướng chuyển tiếp để đặt chiều chạy từ phải, trái, trên hoặc dưới cho kiểu Trượt, Đẩy hoặc Quạt; xem trước rồi áp dụng cho trang đang chọn hoặc toàn bộ trang.",
-      "Nhấp một trang ở thanh bên trái, vào tab Chuyển tiếp > nhóm Chuyển đến trang này > Hiệu ứng, rồi chọn Không, Mờ dần, Trượt ngang, Thu phóng, Lật 3D hoặc Morph. Chỉ trang đang chọn được đổi.",
+      "Mở tab Chuyển tiếp > nhóm Chuyển đến trang này > Hiệu ứng để chọn Mờ dần, Trượt ngang, Đẩy, Quét, Chia, Che phủ, Thu phóng hoặc Morph. Chọn Không để bỏ hiệu ứng.",
+      "Chọn Chuyển tiếp trong nhóm Chuyển đến trang này để mở hộp thoại. Chọn kiểu, hướng từ phải/trái/trên/dưới và thời lượng; dùng Áp dụng cho trang đang chọn hoặc Áp dụng cho tất cả. Nút Xem trước phát hiệu ứng trên trang đang soạn.",
+      "Quét làm dải hình ảnh đi qua trang; Chia mở hoặc khép hai nửa trang; Che phủ đưa trang mới tràn từ một cạnh. Đẩy đưa trang mới vào theo hướng đã chọn; hãy chạy trình chiếu để xem chuyển động cuối cùng.",
+      "Nhấp một trang ở thanh bên trái, vào tab Chuyển tiếp > nhóm Chuyển đến trang này > Hiệu ứng, rồi chọn Không, Mờ dần, Trượt ngang, Đẩy, Quét, Chia, Che phủ, Thu phóng hoặc Morph. Chỉ trang đang chọn được đổi.",
       "Nhấn Xem trước để chạy thử hiệu ứng ngay trên trang đang soạn.",
       "Nhóm Thời gian: Thời lượng chọn 0,3 đến 2 giây; Chuyển trang cho bật/tắt chuyển khi nhấp chuột; Tự động sau chọn 3, 5, 10, 30 giây hoặc Không tự chuyển. Các mục này cần trang đã có hiệu ứng.",
       "Áp dụng cho tất cả sao chép hiệu ứng, thời lượng và cách chuyển trang của trang này sang mọi trang. Ctrl+Z hoàn tác cả nhóm trang trong một bước. Nút Chuyển tiếp lớn bên trái vẫn mở hộp thoại đầy đủ."

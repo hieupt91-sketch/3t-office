@@ -294,3 +294,24 @@ RISKS: LO PDF export confirms documents open but is not an Excel rendering oracl
 DEPENDENCIES/BLOCKERS: None.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Review commits def682d0, be96c13a, e8a7ef30; consider a separate task for partial/lazy sheet loading to reduce first-edit latency and LAN14 save cost.
+
+
+---
+
+# Agent Handoff
+TASK: Q8 — Slides: mở rộng hiệu ứng chuyển trang
+AGENT/ROLE: Codex / VN Slides
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Bổ sung các hiệu ứng chuyển trang có thể lưu thành PPTX và được PowerPoint 2016 COM đọc lại đúng; cập nhật Help tiếng Việt, i18n VI/EN và checklist.
+FINDINGS: Gallery có Push nhưng thiếu Wipe, Split, Cover. Đã tạo PPTX trong app và COM đọc EntryEffect: Push=3853, Wipe=2817, Split=3585, Cover=1281. Flip trả 0 nên bị loại khỏi gallery/hộp thoại.
+IMPLEMENTATION SUMMARY: Bổ sung Wipe/Split/Cover cho gallery và hộp thoại, ánh xạ FODP sang OOXML native; thêm preview keyframes, hướng dẫn cụ thể và nhãn VI/EN. Help tái sử dụng command slides.transition.apply nên số lệnh Slides giữ 192; unit test kiểm tra nội dung Help mới.
+FILES CHANGED: adapters/libreoffice/common/ooxml_zip_patch.py; adapters/libreoffice/slides/slides-adapter.js; apps/slides/slides-canvas.js; apps/slides/slides-ribbon.js; apps/slides/slides.css; platform/help/entries-slides.js; platform/i18n/strings-vi.js; platform/i18n/strings-en.js; tests/unit/help-coverage.test.js; tests/test_slides_source_transition.py; tests/live/cdp/slides-transitions-more.desktop.mjs; scripts/audit-0610/gen_ppt_checklist.py; docs/POWERPOINT2016-FEATURE-CHECKLIST.md; docs/WORD2016-FEATURE-CHECKLIST.md; docs/PLAN-Q8-SLIDES-TRANSITIONS.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: git merge main; node --experimental-websocket tests/live/cdp/slides-transitions-more.desktop.mjs (trước 2/5, ba thiếu; sau 14/14); PowerPoint COM hidden readback via ppt_author_deck_readback.ps1; node tests/run-tests.js; python -m pytest tests -q -k slides_source_transition; node scripts/audit-0610/i18n_parity.mjs; python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix; all three gen_*_checklist.py scripts; git diff --check.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — node suite 3769/3769; CDP 14/14; pytest 20 passed; PowerPoint COM đọc đúng 4 EntryEffect nêu trên; i18n missing=0 (VI/EN 3108 mỗi bên); checklist evidence 0 dòng hạ.
+KNOWN FAILURES: Flip serialize/readback thành EntryEffect=0, vì vậy không hiển thị như lựa chọn mới. Generator cập nhật lại tham chiếu dòng trong checklist Writer; không đổi trạng thái tính năng.
+RISKS: Cover và Split đang dùng hướng/hình học OOXML native cơ bản; COM xác nhận đúng loại transition và các enum đã đọc lại. Chưa đánh giá biến thể hướng của từng hiệu ứng bằng COM.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review commit Q8 trên branch và merge theo quy trình.

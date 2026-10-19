@@ -11061,9 +11061,11 @@ const startEditing = (initialText) => {
                 <option value="fade" ${currentType === "fade" ? "selected" : ""}>${t("slidesDialogs.transFade", "Mờ dần (Fade)")}</option>
                 <option value="slide" ${currentType === "slide" ? "selected" : ""}>${t("slidesDialogs.transSlide", "Trượt ngang (Slide)")}</option>
                 <option value="push" ${currentType === "push" ? "selected" : ""}>${t("slidesDialogs.transPush", "Đẩy")}</option>
+                <option value="wipe" ${currentType === "wipe" ? "selected" : ""}>${t("slidesDialogs.transWipe", "Quét")}</option>
+                <option value="split" ${currentType === "split" ? "selected" : ""}>${t("slidesDialogs.transSplit", "Chia")}</option>
+                <option value="cover" ${currentType === "cover" ? "selected" : ""}>${t("slidesDialogs.transCover", "Che phủ")}</option>
                 <option value="fan" ${currentType === "fan" ? "selected" : ""}>${t("slidesDialogs.transFan", "Quạt")}</option>
                 <option value="zoom" ${currentType === "zoom" ? "selected" : ""}>${t("slidesDialogs.transZoom", "Thu phóng (Zoom)")}</option>
-                <option value="flip" ${currentType === "flip" ? "selected" : ""}>${t("slidesDialogs.transFlip", "Lật trang 3D (Flip)")}</option>
                 <option value="morph" ${currentType === "morph" ? "selected" : ""}>Morph</option>
                 ${currentType === "custom" ? `<option value="custom" selected>${t("slidesDialogs.transCustomKeep", "Giữ nguyên hiệu ứng gốc của tệp")}</option>` : ""}
               </select>
