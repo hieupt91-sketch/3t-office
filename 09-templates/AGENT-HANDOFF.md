@@ -335,3 +335,23 @@ RISKS: The bridge request/chunk that stalls is unknown. LibreOffice conversion a
 DEPENDENCIES/BLOCKERS: None.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Add unit and CDP probes for per-chunk append_content_stage timing/results, isolate the stalled call, fix only with a reproduction, then run the 27-file LAN audit.
+
+---
+
+# Agent Handoff
+TASK: Q10 — Sheet lan14 large save staging
+AGENT/ROLE: Codex / VN Sheet integration
+BRANCH: perf/lan14-open-codex
+WORKTREE: E:\VNOffice-codex-lan14
+OBJECTIVE: Measure every append_content_stage call, bound staging waits, save and reopen lan14.xlsx, and run the 27-file LAN regression.
+FINDINGS: Pre-fix live rerun succeeded rather than reproducing Q9's intermittent hang: 77/77 sequential 4 Mi-character append calls, 9,517 ms aggregate, 294 ms maximum, 3.00 GB maximum reported JS heap; end-to-end save was 33,772 ms from first append to output. The exact Q9 stalled call was therefore not observed. Post-fix 512 Ki-character chunks completed 613/613 sequential calls, 9,762 ms aggregate, 106 ms maximum, 17 ms p95, one concurrent call; save was 33,321 ms from first append to output. Added a 60-second timeout for each bridge call and made large staging failures abort and propagate instead of retrying the entire payload. Source and saved file both reopened via CDP with 1,435,546 cells, identical first-5,000-cell SHA-256 `abc8c19984fc06c81a0f4066fcf1b8a675be855e9420bdd81bcd8a941dfebd09`, and open times 89,137 ms / 89,668 ms. LibreOffice converted both to FODS with identical SHA-256 `A45EC1CD7FF721DF2EF6973795F536BCAB9825B6E420C3387BE1589ACBCE39FB`.
+IMPLEMENTATION SUMMARY: Reduced large bridge chunks from 4 Mi to 512 Ki UTF-16 characters; bounded begin/append calls at 60 seconds; staging errors now abort best-effort and propagate without sending the entire large document again. Large content now fails clearly if the host lacks staging APIs; small content remains on the existing direct path. Added unavailable/delayed/stalled/rejected-call unit coverage and CDP per-append logging of duration, result, chunk characters/UTF-8 bytes, in-flight count, pywebview callable metadata, and JS heap.
+FILES CHANGED: adapters/libreoffice/common/uno-bridge.js; tests/unit/uno-bridge-content-stage.test.js; tests/live/cdp/lan14-save-stage-probe.mjs; tests/live/cdp/lan14-reopen-verify.mjs; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: git merge main; pre-fix `node tests/run-tests.js` (3 new cases fail: 3767/3770); post-fix `npm test`; `python -m pytest tests -q -k "sheet or ooxml or save"`; both CDP scripts on source/output with unique VNO_CDP_LOCALAPPDATA; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; 27-file batch LAN roundtrip and diff/lint with Excel COM function deliberately marked BLOCKED; LibreOffice source/output FODS conversion and SHA-256 comparison; `node --check` on changed JavaScript; `git diff --check`.
+BUILD RESULT: NOT RUN — no build-system changes.
+TEST RESULTS: PASS — `npm test` 3770/3770; pytest 397 passed, 701 deselected; i18n missing VI/EN keys 0; checklist rows lowered 0; saved lan14 reopen count/hash matched and open time 89,668 ms (under 93,000 ms); batch 27/27 files saved with 0 value diffs and clean lint. CDP source hash matched output hash. Excel COM: BLOCKED by task instructions; no COM process launched. Pre-fix staging hang itself did not reproduce in the live rerun.
+KNOWN FAILURES: The original intermittent append hang was not reproduced in either Q10 full-save run, so its triggering runtime condition remains unobserved. The batch runner exits with BLOCKED status for all 27 rows only because its Excel COM column is blocked; conversion, value comparison, and lint all completed cleanly.
+RISKS: A legitimate bridge request taking longer than 60 seconds now fails the save and attempts stage abort; timeout does not cancel a pywebview request already executing. The 3.2 GB peak heap comes from workbook serialization/loading and was not reduced by smaller chunks; current source/output reopen times meet the 93-second gate with 331 ms margin.
+DEPENDENCIES/BLOCKERS: Excel COM verification BLOCKED per task instruction; LibreOffice verification completed successfully.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review the Q10 commit and merge per branch policy; if Q9's intermittent stall recurs, use the committed per-call probe report to identify its exact call and backend state.

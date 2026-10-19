@@ -44,7 +44,25 @@ export async function runUnoBridgeContentStageTests() {
     assert(payload && payload.vnoContentStage === "stage-1" && payload.chars === BIG, "reference expected: " + JSON.stringify(payload));
     assert(calls.chunks.join("") === content, "chunks must reassemble to the original");
     assert(calls.chunks.length >= 4, "must be split into several chunks, got " + calls.chunks.length);
-    assert(calls.chunks.every((chunk) => chunk.length <= 4 * 1024 * 1024), "chunk size cap");
+    assert(calls.chunks.every((chunk) => chunk.length <= 512 * 1024), "staged bridge chunks must stay below 512 Ki characters");
+  });
+
+  await test("a stalled staging bridge call times out, aborts, and never falls back to a full-size bridge payload", async () => {
+    const { bridge, calls } = makeBridge({ append_content_stage: () => new Promise(() => {}) });
+    bridge.contentStageCallTimeoutMs = 20;
+    const content = "g".repeat(BIG);
+    let timedOut = false;
+    try {
+      await Promise.race([
+        bridge.saveRealFileInPlace("sheet", content, "C:/a.xlsx", "C:/a.xlsx"),
+        new Promise((_, reject) => setTimeout(() => reject(new Error("test watchdog expired")), 250)),
+      ]);
+    } catch (error) {
+      timedOut = /timed out/i.test(error.message);
+    }
+    assert(timedOut, "staging hang should produce a bounded timeout error");
+    assert(calls.aborted.includes("stage-1"), "timed out stage must be aborted");
+    assert(calls.saved.length === 0, "large content must not fall back to one full-size bridge call");
   });
 
   await test("a surrogate pair is never split across chunks", async () => {
@@ -62,20 +80,26 @@ export async function runUnoBridgeContentStageTests() {
     }
   });
 
-  await test("old Python without the staging API keeps the direct path", async () => {
+  await test("old Python without the staging API rejects oversized content instead of sending one giant bridge payload", async () => {
     const { bridge, calls } = makeBridge({ begin_content_stage: undefined, append_content_stage: undefined });
     const content = "d".repeat(BIG);
-    await bridge.saveRealFileInPlace("sheet", content, "C:/a.xlsx", "C:/a.xlsx");
-    assert(calls.saved[0] === content, "fallback to the direct call");
+    let rejected = false;
+    try { await bridge.saveRealFileInPlace("sheet", content, "C:/a.xlsx", "C:/a.xlsx"); }
+    catch { rejected = true; }
+    assert(rejected, "oversized staging without a supported host must report a save error");
+    assert(calls.saved.length === 0, "must not send one full-size bridge payload");
   });
 
-  await test("a failing chunk aborts the stage and falls back to the direct call", async () => {
+  await test("a rejected chunk aborts the stage without sending one full-size fallback payload", async () => {
     let appended = 0;
     const { bridge, calls } = makeBridge({ append_content_stage: async () => (++appended > 1 ? { ok: false } : { ok: true }) });
     const content = "e".repeat(BIG);
-    await bridge.saveRealFileInPlace("sheet", content, "C:/a.xlsx", "C:/a.xlsx");
+    let rejected = false;
+    try { await bridge.saveRealFileInPlace("sheet", content, "C:/a.xlsx", "C:/a.xlsx"); }
+    catch { rejected = true; }
+    assert(rejected, "failed stage should report failure to the save caller");
     assert(calls.aborted.includes("stage-1"), "stage must be aborted");
-    assert(calls.saved[0] === content, "must fall back to the direct call");
+    assert(calls.saved.length === 0, "must not retry a failed large stage with the whole payload");
   });
 
   await test("legacy switch disables staging", async () => {

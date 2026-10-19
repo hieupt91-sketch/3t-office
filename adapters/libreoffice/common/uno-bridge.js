@@ -9,7 +9,8 @@ import { showDocumentPasswordDialog } from "../../../platform/dialogs/document-p
 
 // Above this many characters the save content travels to Python in chunks instead of one bridge call.
 const LARGE_CONTENT_STAGE_THRESHOLD_CHARS = 16 * 1024 * 1024;
-const LARGE_CONTENT_CHUNK_CHARS = 4 * 1024 * 1024;
+const LARGE_CONTENT_CHUNK_CHARS = 512 * 1024;
+const LARGE_CONTENT_STAGE_CALL_TIMEOUT_MS = 60 * 1000;
 
 export class UnoBridge {
   constructor() {
@@ -274,33 +275,52 @@ export class UnoBridge {
   /**
    * Nội dung lưu rất lớn (vd. FODS 327 triệu ký tự của lan14) KHÔNG được đẩy qua cầu nối trong một lệnh gọi:
    * việc tuần tự hóa nhân đôi chuỗi làm trang hết bộ nhớ và sập. Thay vào đó chuyển theo từng đoạn nhỏ vào tệp
-   * tạm phía Python rồi truyền tham chiếu. Tài liệu nhỏ, hoặc bất kỳ lỗi nào khi chia đoạn, giữ đường cũ.
+   * tạm phía Python rồi truyền tham chiếu. Tài liệu nhỏ giữ nguyên đường cũ; lỗi khi staging tài liệu lớn phải
+   * báo lỗi thay vì đẩy lại toàn bộ nội dung qua cầu nối. Mỗi lời gọi staging có timeout hữu hạn.
    * Đường cũ giữ sau cờ globalThis.__VNO_SAVE_LEGACY (superseded by P9 - xóa chỉ khi chủ sở hữu duyệt).
    */
   async _stageLargeContent(content) {
     if (typeof content !== "string" || content.length < LARGE_CONTENT_STAGE_THRESHOLD_CHARS) return content;
     if (globalThis.__VNO_SAVE_LEGACY === true) return content;
     const api = this.desktopApi;
-    if (typeof api?.begin_content_stage !== "function" || typeof api?.append_content_stage !== "function") return content;
+    if (typeof api?.begin_content_stage !== "function" || typeof api?.append_content_stage !== "function") {
+      throw new Error("Large content staging is unavailable in the desktop bridge");
+    }
     let stageId = null;
     try {
-      const begun = await api.begin_content_stage();
-      if (!begun?.ok || !begun.id) return content;
+      const begun = await this._awaitContentStageCall(api.begin_content_stage(), "begin_content_stage");
+      if (!begun?.ok || !begun.id) throw new Error("begin_content_stage failed");
       stageId = begun.id;
       let offset = 0;
       while (offset < content.length) {
         let end = Math.min(content.length, offset + LARGE_CONTENT_CHUNK_CHARS);
         const lastCode = content.charCodeAt(end - 1);
         if (end < content.length && lastCode >= 0xd800 && lastCode <= 0xdbff) end--; // never split a surrogate pair
-        const result = await api.append_content_stage(stageId, content.slice(offset, end));
+        const result = await this._awaitContentStageCall(
+          api.append_content_stage(stageId, content.slice(offset, end)),
+          "append_content_stage",
+        );
         if (!result?.ok) throw new Error("append_content_stage failed");
         offset = end;
       }
       return { vnoContentStage: stageId, chars: content.length };
-    } catch {
+    } catch (error) {
       try { if (stageId) await api.abort_content_stage?.(stageId); } catch { /* best effort */ }
-      return content;
+      throw error;
     }
+  }
+
+  _awaitContentStageCall(request, operation) {
+    const timeoutMs = Number.isFinite(this.contentStageCallTimeoutMs)
+      ? Math.max(1, this.contentStageCallTimeoutMs)
+      : LARGE_CONTENT_STAGE_CALL_TIMEOUT_MS;
+    let timer;
+    return Promise.race([
+      request,
+      new Promise((_, reject) => {
+        timer = setTimeout(() => reject(new Error(`${operation} timed out after ${timeoutMs} ms`)), timeoutMs);
+      }),
+    ]).finally(() => clearTimeout(timer));
   }
 
   /**
