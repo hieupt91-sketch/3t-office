@@ -8971,14 +8971,12 @@ export class WriterAdapter {
         break;
 
       case "writer.list.bullet":
-        document.execCommand("insertUnorderedList", false, null);
-        this._normalizeListElements();
+        this._runListCommand("insertUnorderedList");
         dispatchResult = true;
         break;
 
       case "writer.list.numbered":
-        document.execCommand("insertOrderedList", false, null);
-        this._normalizeListElements();
+        this._runListCommand("insertOrderedList");
         dispatchResult = true;
         break;
 
@@ -14462,15 +14460,100 @@ export class WriterAdapter {
     this.editorDom?.classList?.remove("vno-format-painter-active");
   }
 
+  /**
+   * Bật/tắt danh sách (đầu dòng hoặc đánh số) bằng execCommand rồi giữ con trỏ đúng chỗ.
+   * Sau lệnh này Chrome có thể đặt con trỏ về ĐẦU dòng (danh sách lồng trong <p>) hoặc về đoạn trước
+   * (khi tắt danh sách, chữ còn lại thành <span> trần), nên chữ gõ tiếp rơi sai chỗ. Nhớ vị trí theo
+   * số ký tự tính từ đầu tài liệu (không đổi khi chuyển giữa đoạn và danh sách) rồi đặt lại sau khi chuẩn hóa.
+   */
+  _runListCommand(execName) {
+    const root = this.bodyDom || this.editorDom;
+    const blockSelector = "p,h1,h2,h3,h4,h5,h6,li,div,blockquote";
+    const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+    const blockOf = (node) => (node?.nodeType === 3 ? node.parentElement : node)?.closest?.(blockSelector) || null;
+    let saved = null;
+    if (sel && sel.rangeCount > 0 && sel.isCollapsed && root) {
+      const range = sel.getRangeAt(0);
+      const block = blockOf(range.startContainer);
+      if (block && root.contains(block) && block.textContent.length > 0) {
+        const fromRoot = document.createRange();
+        fromRoot.selectNodeContents(root);
+        fromRoot.setEnd(range.startContainer, range.startOffset);
+        const fromBlock = document.createRange();
+        fromBlock.selectNodeContents(block);
+        fromBlock.setEnd(range.startContainer, range.startOffset);
+        saved = { global: fromRoot.toString().length, atBlockStart: fromBlock.toString().length === 0 };
+      }
+    }
+    document.execCommand(execName, false, null);
+    this._normalizeListElements();
+    if (!saved || !root) return;
+    this._wrapBareInlineChildren(root);
+    try {
+      const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
+      let remaining = saved.global;
+      let target = null;
+      let node;
+      while ((node = walker.nextNode())) {
+        const length = node.textContent.length;
+        const fits = saved.atBlockStart ? remaining < length : remaining <= length;
+        if (length > 0 && fits) { target = { node, at: remaining }; break; }
+        remaining -= length;
+      }
+      if (!target) return;
+      const range = document.createRange();
+      range.setStart(target.node, target.at);
+      range.collapse(true);
+      sel.removeAllRanges();
+      sel.addRange(range);
+    } catch (_) { /* giữ vị trí do trình duyệt đặt */ }
+  }
+
+  /** Chữ/span nằm trần ngay dưới vùng soạn thảo (sau khi tắt danh sách) được bọc lại vào <p> để gõ tiếp bình thường. */
+  _wrapBareInlineChildren(root) {
+    const isBlock = (node) => node.nodeType === 1 && /^(P|H[1-6]|UL|OL|LI|DIV|BLOCKQUOTE|TABLE|PRE|HR|FIGURE|SECTION|ASIDE)$/i.test(node.tagName);
+    let run = [];
+    const flush = () => {
+      if (run.length && run.some((node) => (node.textContent || "").length > 0 || node.nodeName === "BR")) {
+        const p = document.createElement("p");
+        run[0].parentNode.insertBefore(p, run[0]);
+        for (const node of run) p.appendChild(node);
+      }
+      run = [];
+    };
+    for (const node of [...root.childNodes]) {
+      if (isBlock(node)) flush(); else run.push(node);
+    }
+    flush();
+  }
+
   _normalizeListElements() {
     const root = this.bodyDom || this.editorDom;
     if (!root || typeof root.querySelectorAll !== "function") return;
     const nested = root.querySelectorAll("p > ul, p > ol");
+    if (!nested.length) return;
+    // Tháo danh sách khỏi <p> làm vùng chọn nằm trong danh sách rơi về cuối đoạn trước; nhớ và khôi phục
+    // để chữ gõ tiếp (hoặc Enter) vào đúng mục danh sách vừa tạo.
+    const sel = typeof window !== "undefined" ? window.getSelection?.() : null;
+    let saved = null;
+    if (sel && sel.rangeCount > 0) {
+      const range = sel.getRangeAt(0);
+      saved = { sc: range.startContainer, so: range.startOffset, ec: range.endContainer, eo: range.endOffset };
+    }
     for (const list of nested) {
       const p = list.parentElement;
       if (p && p.tagName === "P") {
         p.replaceWith(list);
       }
+    }
+    if (saved && saved.sc.isConnected && saved.ec.isConnected && root.contains(saved.sc)) {
+      try {
+        const range = document.createRange();
+        range.setStart(saved.sc, saved.so);
+        range.setEnd(saved.ec, saved.eo);
+        sel.removeAllRanges();
+        sel.addRange(range);
+      } catch (_) { /* vùng chọn cũ không còn hợp lệ: giữ nguyên vị trí hiện tại */ }
     }
   }
 
