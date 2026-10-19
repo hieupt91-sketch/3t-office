@@ -3122,7 +3122,6 @@ export class SlidesCanvasController {
     if (!slide) return false;
     if (!Array.isArray(slide.shapes)) slide.shapes = [];
 
-    const offset = slide.shapes.length * 24;
     const isEllipse = shapeType === "ellipse" || shapeType === "circle";
     const isArrow = shapeType === "arrow";
     const isTextbox = shapeType === "textbox";
@@ -3131,8 +3130,6 @@ export class SlidesCanvasController {
     const newShape = {
       id: Date.now() + Math.floor(Math.random() * 1000),
       type: normalizedType,
-      x: 80 + offset,
-      y: 80 + offset,
       w: isTextbox ? 240 : isArrow ? 200 : isEllipse ? 160 : 200,
       h: isTextbox ? 60 : isArrow ? 80 : isEllipse ? 160 : 120,
       color: isTextbox ? "transparent" : "#3b82f6",
@@ -3140,6 +3137,30 @@ export class SlidesCanvasController {
       animation: { type: "none", duration: 500, delay: 0 },
       ...(extra && typeof extra === "object" ? extra : {})
     };
+    const slideWidth = Number(this.slideSize?.width) || 960;
+    const slideHeight = Number(this.slideSize?.height) || 540;
+    const maxX = Math.max(0, slideWidth - newShape.w);
+    const maxY = Math.max(0, slideHeight - newShape.h);
+    const overlaps = (x, y, shape) => x < shape.x + shape.w && x + newShape.w > shape.x && y < shape.y + shape.h && y + newShape.h > shape.y;
+    const centerX = Math.max(0, Math.round((slideWidth - newShape.w) / 2));
+    const centerY = Math.max(0, Math.round((slideHeight - newShape.h) / 2));
+    const positions = [{ x: centerX, y: centerY }];
+    for (let step = 1; step <= 50; step++) {
+      const x = centerX + step * 20;
+      const y = centerY + step * 20;
+      if (x <= maxX && y <= maxY) positions.push({ x, y });
+    }
+    const diagonalKeys = new Set(positions.map(({ x, y }) => `${x},${y}`));
+    const nearby = [];
+    for (let y = 0; y <= maxY; y += 20) for (let x = 0; x <= maxX; x += 20) {
+      if (!diagonalKeys.has(`${x},${y}`)) nearby.push({ x, y });
+    }
+    nearby.push({ x: maxX, y: maxY });
+    nearby.sort((a, b) => ((a.x - centerX) ** 2 + (a.y - centerY) ** 2) - ((b.x - centerX) ** 2 + (b.y - centerY) ** 2));
+    positions.push(...nearby);
+    const clearPosition = positions.find(({ x, y }) => !slide.shapes.some((shape) => overlaps(x, y, shape)));
+    newShape.x = clearPosition?.x ?? centerX;
+    newShape.y = clearPosition?.y ?? centerY;
     slide.shapes.push(newShape);
 
     this.undoStack.push({ type: "shape-add", slideIndex: this.currentSlideIndex, shape: { ...newShape } });
