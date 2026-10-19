@@ -2,8 +2,6 @@
 
 ## Q14 — Xác minh lại các mục còn mở (20/10/2026)
 
-## Q14 — Xác minh lại các mục còn mở (20/10/2026)
-
 - Hai mục FAIL ban đầu được tái hiện bằng CDP. Trước khi bấm Chèn, thao tác Ctrl+A rồi gõ cho giá trị hàng/cột thành `34`/`33`; bảng được giới hạn thành 12×12. Tiêu đề biểu đồ thành `Biểu đồ dữ liệuTiến độ triển khai`.
 - Đọc trực tiếp hai ô xác nhận nguyên nhân nằm ở thao tác nhập của lượt Q12: Ctrl+A không chọn nội dung trong WebView2 với bài nhập đó. Dùng Home rồi Shift+End để chọn toàn bộ trước khi gõ cho giá trị ngay trước Chèn là `4`/`3` và `Tiến độ triển khai`; kết quả mô hình là bảng 4×3 và tiêu đề biểu đồ đúng. Không có sửa mã sản phẩm cho hai hiện tượng này. Bài CDP: `tests/live/cdp/slides-q14-insert-fields.desktop.mjs`.
 - Các mục lưu PPTX 5 trang/mở lại/PowerPoint COM, chèn ảnh và xuất PDF chưa được thực hiện trong lượt Q14 này; giữ trạng thái BLOCKED, không suy diễn thành PASS. Nhật ký cần tiếp tục sau khi hoàn tất các bước đó.
