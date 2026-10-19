@@ -374,3 +374,23 @@ RISKS: Chưa có round-trip DOCX/PDF; chưa xác định được nguyên nhân 
 DEPENDENCIES/BLOCKERS: Cần tái hiện luồng lưu DOCX bằng CDP để chạy Word readback ẩn; cần nguồn nhận thư cho luồng trộn.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Tái hiện hộp văn bản và xem trước in trong phiên có thể lưu tài liệu; sau khi có DOCX, đọc lại bằng script `scripts/audit-0610/word_author_report_readback.ps1` và xác minh khác biệt trang trong preview.
+
+---
+
+# Agent Handoff
+TASK: Q12 — Slides soạn thử như người dùng thật
+AGENT/ROLE: Codex / VN Slides QA
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Soạn thử bài thuyết trình 5 trang qua CDP, bao gồm ảnh, bảng, biểu đồ, sơ đồ, hoạt hình, chuyển trang, ghi chú, mẫu chủ đạo, trình chiếu, in/PDF, lưu PPTX và mở lại; ghi ít nhất 15 thao tác, chỉ sửa lỗi nhỏ khi có tái hiện FAIL trước và PASS sau.
+FINDINGS: Nhật ký `docs/EXPLORE-SLIDES-2026-10-20.md` có 25 thao tác và 21 ảnh: 16 PASS, 2 FAIL, 7 BLOCKED. Bảng chọn 4×3 hiển thị 12×12; tiêu đề biểu đồ bị dính với tiêu đề mặc định. Chèn ảnh không có picker quan sát được trong CDP. Trình chiếu F5, điều hướng đến trang 5 bằng mũi tên phải, Esc và xem trước in 5 trang hoạt động. Ngăn ghi chú nhận 94 ký tự; hoạt hình Fade In/Fly In có thứ tự 1–2; mẫu Xanh Lá Thiên Nhiên áp dụng được.
+IMPLEMENTATION SUMMARY: Không sửa mã nguồn. Chưa sửa hai sai khác bảng/tiêu đề vì lượt thử không xác minh giá trị hai ô nhập ngay trước khi xác nhận để tạo bài FAIL độc lập. Lưu thành/PPTX và PDF không tạo tệp quan sát được; không điều khiển hộp thoại hệ điều hành.
+FILES CHANGED: `docs/EXPLORE-SLIDES-2026-10-20.md`; `docs/assets/q12-slides-2026-10-20/*`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main` (Already up to date); `npm test`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "slides or pptx"`; CDP app session Slides port 47013 with unique `VNO_CDP_LOCALAPPDATA`.
+BUILD RESULT: NOT RUN — no build-system changes.
+TEST RESULTS: PASS — npm test 3770/3770; pytest 152 passed, 946 deselected; i18n VI=3108/EN=3108, missing=0; checklist 0 downgraded rows (Word 279, Excel 217, PowerPoint 269). PPTX round-trip and PowerPoint COM readback BLOCKED: no saved PPTX was produced. PDF export BLOCKED: no PDF file was produced. No PASS-after-fix claimed because no code fix was made.
+KNOWN FAILURES: Table dimensions differ from the attempted 4×3; chart title shows “Biểu đồ dữ liệuTiến độ triển khai”. Image insertion was not verified. Print preview took about 15 seconds to show “Sẵn sàng in” and 5 pages.
+RISKS: Deck structure, animation/transition and notes are only verified in the live session and recovery FODP, not in a reopened PPTX. PowerPoint COM comparison remains unverified.
+DEPENDENCIES/BLOCKERS: A CDP-accessible save/export destination is needed to create PPTX/PDF and run readback. `CODEX-COMMON-RULES.md` is absent from this worktree; root `AGENTS.md` and the specified exploration docs were read.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Reproduce table-size and chart-title discrepancies while checking the dialog values before commit; fix only if independently reproducible, with CDP/unit FAIL before and PASS after. Retry image/file-save/export via a permitted CDP-visible path, then reopen PPTX and run hidden PowerPoint COM readback using `-Mode read`.
