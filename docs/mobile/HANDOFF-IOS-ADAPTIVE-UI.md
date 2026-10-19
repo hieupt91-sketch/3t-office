@@ -28,3 +28,13 @@ Chỉ thay `ports/ios/**`, `tests/test_ios_offline_shell.py` và tài liệu mob
 - Adapter mobile đang chuyển tiếp command bằng selector DOM hiện hữu. Shared Platform nên cung cấp mobile command API ổn định để tránh phụ thuộc selector.
 - Chưa test thiết bị thật, Dynamic Type cỡ rất lớn, Pencil, Stage Manager và bàn phím vật lý.
 - Prototype hiện chưa có document picker và OOXML round-trip; không được coi là bản chỉnh sửa tài liệu production.
+
+## QA vòng 2
+
+- Thêm bộ chọn app chỉ dành cho Simulator (`VNO_IOS_TEST_APP`) để chạy riêng Writer, Sheet và Slides mà không đổi luồng Release.
+- Đã xác nhận native: Writer, Sheet, Slides đều render trên iPhone 17 Pro và iPad Air 11-inch M3.
+- Sửa AI button iPad bị xuống ba dòng thành nút icon 48 pt.
+- Sửa Slides iPhone: filmstrip từng chiếm gần 75% chiều ngang; nay là drawer đóng mặc định, nút `Trang` ở dock có nhãn accessibility cụ thể để mở/đóng.
+- Bàn phím ảo đã quan sát trực quan trên iPad: nội dung dịch đúng, không bị dock mobile che. Trên iPhone, kiểm tra mở bàn phím bằng automation bị BLOCKED do Computer Use không ánh xạ được tọa độ cửa sổ Simulator sau khi đổi device; bridge inset và trạng thái ẩn dock vẫn được kiểm tra tĩnh.
+- Focused unittest sau vòng sửa: 8/8 PASS. Xcode Debug Simulator build: PASS.
+- Ảnh chính: `build/ios-mobile-ui-qa2/screenshots/iphone-writer.png`, `iphone-sheet-v2.png`, `iphone-slides-drawer-closed.png`, `ipad-writer.png`, `ipad-sheet-final.png`, `ipad-slides-v2.png`.

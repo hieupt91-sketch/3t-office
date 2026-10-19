@@ -35,6 +35,11 @@ html[data-vno-platform="ios"] :focus-visible {
   outline: 3px solid var(--vno-border-focus, #2563eb) !important;
   outline-offset: 2px;
 }
+html[data-vno-platform="ios"] .vno-shell[data-mobile-sidebar-hidden="true"] .vno-writer-navigation-pane,
+html[data-vno-platform="ios"] .vno-shell[data-mobile-sidebar-hidden="true"] .vno-slide-navigator,
+html[data-vno-platform="ios"] .vno-shell[data-mobile-sidebar-hidden="true"] .vno-slides-sidebar {
+  display: none !important;
+}
 
 /* iPad: ribbon quen thuộc nhưng gọn hơn desktop và có đích chạm 44 pt. */
 @media (min-width: 700px) {
@@ -43,7 +48,8 @@ html[data-vno-platform="ios"] :focus-visible {
   html[data-vno-platform="ios"] .vno-theme-toggle-btn .vno-theme-label,
   html[data-vno-platform="ios"] .vno-license-chip-label { display: none; }
   html[data-vno-platform="ios"] .vno-license-chip { min-width: 44px; padding-inline: 10px; }
-  html[data-vno-platform="ios"] .vno-ai-trigger-btn { min-width: 44px; max-width: 96px; }
+  html[data-vno-platform="ios"] .vno-ai-trigger-btn { min-width: 44px; width: 48px; padding-inline: 10px; }
+  html[data-vno-platform="ios"] .vno-ai-trigger-btn > span:last-child { display: none; }
   html[data-vno-platform="ios"] .vno-lang-switch-btn { min-width: 54px; }
   html[data-vno-platform="ios"] .vno-ribbon-tabs { height: 44px; }
   html[data-vno-platform="ios"] .vno-ribbon-tab,
@@ -65,11 +71,6 @@ html[data-vno-platform="ios"] :focus-visible {
   }
   html[data-vno-platform="ios"] .vno-ipad-sidebar-toggle small { display: none; }
   html[data-vno-platform="ios"] .vno-ipad-sidebar-toggle > span { display: flex; }
-  html[data-vno-platform="ios"] .vno-shell[data-mobile-sidebar-hidden="true"] .vno-writer-navigation-pane,
-  html[data-vno-platform="ios"] .vno-shell[data-mobile-sidebar-hidden="true"] .vno-slide-navigator,
-  html[data-vno-platform="ios"] .vno-shell[data-mobile-sidebar-hidden="true"] .vno-slides-sidebar {
-    display: none !important;
-  }
 }
 
 /* iPhone: toolbar ngữ cảnh một hàng; ưu tiên tối đa cho vùng tài liệu. */

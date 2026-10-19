@@ -42,6 +42,12 @@ class IOSOfflineShellTests(unittest.TestCase):
         ):
             self.assertIn(capability, source)
 
+    def test_debug_launch_can_select_each_app_for_native_qa(self):
+        source = (IOS / "launcher" / "MobileOfficeViewController.swift").read_text()
+        self.assertIn('#if targetEnvironment(simulator)', source)
+        self.assertIn('VNO_IOS_TEST_APP', source)
+        self.assertIn('["writer", "sheet", "slides"]', source)
+
     def test_phone_and_tablet_layouts_have_touch_and_safe_area_rules(self):
         css = (IOS / "Web" / "mobile-shell.css").read_text()
         self.assertIn("min-height: 44px", css)
@@ -62,6 +68,8 @@ class IOSOfflineShellTests(unittest.TestCase):
         self.assertIn("__vnoSetNativeLayout", source)
         self.assertIn("common.edit.undo", source)
         self.assertIn("appButton.textContent !== label", source)
+        self.assertIn('contextualLabel = app === "slides" ? "Trang"', source)
+        self.assertIn('shell.dataset.mobileSidebarHidden', source)
         self.assertNotIn("http://", source)
         self.assertNotIn("https://", source)
 

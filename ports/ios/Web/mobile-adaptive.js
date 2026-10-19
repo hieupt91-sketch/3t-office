@@ -2,7 +2,7 @@
   "use strict";
 
   const root = document.documentElement;
-  const state = { keyboardInset: 0, formatOpen: false };
+  const state = { keyboardInset: 0, formatOpen: false, app: null };
   const labels = {
     writer: ["Doc", "Soạn thảo"],
     sheet: ["Sheet", "Bảng tính"],
@@ -87,6 +87,7 @@
       else if (action === "format") toggleFormat(button);
       else if (action === "undo") invoke("common.edit.undo");
       else if (action === "redo") invoke("common.edit.redo");
+      else if (action === "more" && activeApp() === "slides") toggleSidebar(button);
       else if (action === "more") document.querySelector(".vno-ribbon-tab-file")?.click();
     });
     sidebar.addEventListener("click", () => toggleSidebar(sidebar));
@@ -95,10 +96,28 @@
 
   function updateChrome() {
     const app = activeApp();
+    const shell = document.querySelector(".vno-shell");
+    const appChanged = state.app !== app;
+    if (appChanged) {
+      state.app = app;
+      if (shell && matchMedia("(max-width: 699px)").matches) {
+        shell.dataset.mobileSidebarHidden = String(app === "slides");
+      }
+    }
     if (root.dataset.vnoActiveApp !== app) root.dataset.vnoActiveApp = app;
     const appButton = document.querySelector('.vno-mobile-action[data-mobile-action="apps"] small');
     const label = labels[app]?.[0] || "Ứng dụng";
     if (appButton && appButton.textContent !== label) appButton.textContent = label;
+    const moreButton = document.querySelector('.vno-mobile-action[data-mobile-action="more"]');
+    const moreLabel = moreButton?.querySelector("small");
+    const moreIcon = moreButton?.querySelector("span");
+    const contextualLabel = app === "slides" ? "Trang" : "Thêm";
+    const contextualIcon = app === "slides" ? icon("sidebar") : icon("more");
+    if (appChanged) {
+      if (moreLabel) moreLabel.textContent = contextualLabel;
+      if (moreIcon) moreIcon.innerHTML = contextualIcon;
+      moreButton?.setAttribute("aria-label", app === "slides" ? "Ẩn hoặc hiện danh sách trang chiếu" : "Thêm");
+    }
   }
 
   window.__vnoSetKeyboardInset = pixels => {

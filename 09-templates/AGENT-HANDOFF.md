@@ -9,8 +9,8 @@ IMPLEMENTATION SUMMARY: Added an offline adaptive UI script, compact iPhone comm
 FILES CHANGED: See docs/mobile/HANDOFF-IOS-ADAPTIVE-UI.md.
 COMMANDS RUN: Focused unittest; node --check; Xcode Simulator build; native install/launch/screenshots on iPhone 17 Pro and iPad Air 11-inch M3.
 BUILD RESULT: PASS — Debug iphonesimulator app built.
-TEST RESULTS: PASS — 7/7 focused tests and native portrait render on both device classes. NOT RUN — landscape and iPad Split View automation.
-KNOWN FAILURES: No known failure in tested portrait layouts. Orientation command is unavailable in this simctl version.
+TEST RESULTS: PASS — 8/8 focused tests, Xcode build, and native portrait render for Writer/Sheet/Slides on both device classes. BLOCKED — iPhone keyboard screenshot after Simulator window switch. NOT RUN — landscape and iPad Split View automation.
+KNOWN FAILURES: No known failure in tested portrait layouts. Orientation command is unavailable in this simctl version; Computer Use could not map coordinates after switching Simulator device windows.
 RISKS: DOM selector coupling, WebKit contenteditable differences, no real-device/Pencil/Stage Manager coverage.
 DEPENDENCIES/BLOCKERS: Shared Platform mobile command API is recommended before broad feature expansion.
 CORE PATCH ID (if any): None.

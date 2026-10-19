@@ -97,8 +97,16 @@ final class MobileOfficeViewController: UIViewController, WKNavigationDelegate, 
     }
 
     private func loadBundledOffice() {
+        #if targetEnvironment(simulator)
+        let requestedApp = ProcessInfo.processInfo.environment["VNO_IOS_TEST_APP"]
+        let testApp = ["writer", "sheet", "slides"].contains(requestedApp ?? "")
+            ? requestedApp! : "writer"
+        print("VNO_IOS_TEST_APP \(testApp)")
+        #else
+        let testApp = "writer"
+        #endif
         guard Bundle.main.url(forResource: "index", withExtension: "html", subdirectory: "Web") != nil,
-              let index = URL(string: "vno://app/index.html?mobile=ios&singleApp=0") else {
+              let index = URL(string: "vno://app/index.html?mobile=ios&singleApp=0&app=\(testApp)") else {
             showFatal("Thiếu giao diện offline trong application bundle.")
             return
         }
