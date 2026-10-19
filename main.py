@@ -1672,6 +1672,65 @@ def _ooxml_zip_patch():
     return _OOXML_ZIP_PATCH
 
 
+_OOXML_ENCRYPTION = None
+
+
+def _ooxml_encryption():
+    """Load the shared password encryption adapter for the desktop bridge."""
+    global _OOXML_ENCRYPTION
+    if _OOXML_ENCRYPTION is None:
+        module_path = os.path.join(ROOT_DIR, "adapters", "libreoffice", "common", "ooxml_encryption.py")
+        module_name = "adapters.libreoffice.common.ooxml_encryption"
+        spec = importlib.util.spec_from_file_location(module_name, module_path)
+        if spec is None or spec.loader is None:
+            raise DocumentEngineError("Dịch vụ mã hóa tệp chưa sẵn sàng.")
+        module = importlib.util.module_from_spec(spec)
+        sys.modules[module_name] = module
+        try:
+            spec.loader.exec_module(module)
+        except Exception:
+            sys.modules.pop(module_name, None)
+            raise
+        _OOXML_ENCRYPTION = module
+    return _OOXML_ENCRYPTION
+
+
+def _is_encrypted_package(file_path: str) -> bool:
+    try:
+        with open(file_path, "rb") as source:
+            return _ooxml_encryption().is_encrypted_package(source.read(8))
+    except OSError as exc:
+        raise DocumentEngineError("Không thể đọc tệp đã chọn.") from exc
+
+
+def _encrypt_ooxml_output(source_path: str, target_format: str, password: str | None) -> str:
+    """Encrypt a finished OOXML package and remove its plaintext stage."""
+    if not password or target_format not in {"docx", "xlsx", "pptx"}:
+        return source_path
+    encryptor = _ooxml_encryption()
+    try:
+        with open(source_path, "rb") as source:
+            encrypted = encryptor.encrypt_package(source.read(), password)
+    except encryptor.OfficeEncryptionError as exc:
+        raise DocumentEngineError("Không thể mã hóa gói OOXML. Tệp đích chưa bị thay đổi.") from exc
+    fd, encrypted_path = tempfile.mkstemp(
+        prefix="vnoffice_encrypted_", suffix=f".{target_format}", dir=os.path.dirname(source_path)
+    )
+    try:
+        with os.fdopen(fd, "wb") as output:
+            output.write(encrypted)
+            output.flush()
+            os.fsync(output.fileno())
+        os.remove(source_path)
+        return encrypted_path
+    except BaseException:
+        try:
+            os.unlink(encrypted_path)
+        except OSError:
+            pass
+        raise
+
+
 def _sheet_xlsx_preview():
     """Load the bounded, read-only XLSX preview parser owned by VN Sheet."""
     global _SHEET_XLSX_PREVIEW
@@ -3304,6 +3363,7 @@ class VnOfficeApi:
         self._reporting_file_path: str | None = initial_file
         self._reporting_operation: str | None = None
         self._reporting_app_kind = app_kind if app_kind in VALID_APP_KINDS else None
+        self._document_password: str | None = None
         self._api_report_depth = 0
         self._updater = _UPDATE_MANAGER
         self._sheet_open_sessions: dict[str, dict[str, object]] = {}
@@ -3601,6 +3661,8 @@ class VnOfficeApi:
     def write_autorecover_snapshot(self, doc_id, app_kind, content, original_path="", title="", file_format=None):
         if not self._autorecover_store:
             return {"status": "error", "message": "Không thể mở thư mục lưu AutoRecover cục bộ."}
+        if self._document_password:
+            return {"status": "ok", "written": False, "skipped": "password-protected"}
         return self._autorecover_store.write_snapshot(
             doc_id=doc_id,
             app_kind=app_kind,
@@ -3833,9 +3895,11 @@ class VnOfficeApi:
                 _ERROR_REPORT_CONTEXT.active = False
                 _ERROR_REPORT_CONTEXT.failure_reported = False
 
-    def open_document_dialog(self, app_kind="writer"):
+    def open_document_dialog(self, app_kind="writer", source_path=None, password=None):
         self._start_document_engine()
-        return self._invoke_reported_api("open_document_dialog", self._open_document_dialog_impl, app_kind)
+        return self._invoke_reported_api(
+            "open_document_dialog", self._open_document_dialog_impl, app_kind, source_path, password
+        )
 
     def open_writer_reference_document(self):
         """Đọc một tài liệu tham chiếu cho So sánh/Gộp mà không đổi tài liệu hiện tại."""
@@ -4083,6 +4147,13 @@ class VnOfficeApi:
             "save_document_dialog", self._save_document_dialog_impl,
             content, app_kind, target_format, suggested_name, source_path,
         )
+
+    def set_document_password(self, password):
+        """Keep the active document password in process memory only."""
+        if password is not None and (not isinstance(password, str) or len(password) > 255):
+            return {"status": "error", "message": "Mật khẩu phải có tối đa 255 ký tự."}
+        self._document_password = password or None
+        return {"status": "ok"}
 
     def export_pdf_dialog(self, content, app_kind="writer", suggested_name="TaiLieu", source_path=None):
         return self._invoke_reported_api(
@@ -4698,10 +4769,12 @@ class VnOfficeApi:
                 "Không thể mở tệp vì gói Office bị hỏng hoặc không đúng định dạng. "
                 "Tài liệu đang mở được giữ nguyên."
             ) from exc
-    def _open_document_dialog_impl(self, app_kind="writer"):
+    def _open_document_dialog_impl(self, app_kind="writer", source_path=None, password=None):
         """Mở hộp thoại chọn tệp NATIVE thật của hệ điều hành, chuyển đổi tệp thật sang
         định dạng trung gian mà UI có thể hiển thị."""
-        if self._initial_file:
+        if source_path:
+            src_path = str(source_path)
+        elif self._initial_file:
             if self._app_kind and app_kind != self._app_kind:
                 return {"status": "error", "message": "Tệp khởi động không thuộc ứng dụng hiện tại."}
             src_path = self._initial_file
@@ -4729,11 +4802,18 @@ class VnOfficeApi:
             _notify_sheet_open_progress("Đã chọn tệp. Đang chuẩn bị mở bảng tính lớn…", True, self)
 
         try:
-            self._validate_open_package(src_path, app_kind)
+            encrypted_source = _is_encrypted_package(src_path)
         except DocumentEngineError as exc:
             return {"status": "error", "message": str(exc)}
+        if encrypted_source and not password:
+            return {"status": "password_required", "sourcePath": src_path}
+        if not encrypted_source:
+            try:
+                self._validate_open_package(src_path, app_kind)
+            except DocumentEngineError as exc:
+                return {"status": "error", "message": str(exc)}
 
-        if app_kind == "sheet":
+        if app_kind == "sheet" and not encrypted_source:
             # P8: the preview is supplementary. Any preview failure falls through to
             # the exact pre-existing full-load route and must never hide its errors.
             self._open_sheet_quick_view_if_enabled(src_path)
@@ -4755,6 +4835,22 @@ class VnOfficeApi:
         try:
             with tempfile.TemporaryDirectory(prefix="vnoffice_open_") as tmp:
                 convert_src_path = src_path
+                if encrypted_source:
+                    try:
+                        with open(src_path, "rb") as source_file:
+                            decrypted = _ooxml_encryption().decrypt_package(source_file.read(), password)
+                    except _ooxml_encryption().WrongPasswordError:
+                        return {"status": "wrong_password", "sourcePath": src_path}
+                    except _ooxml_encryption().OfficeEncryptionError as exc:
+                        return {"status": "error", "message": "Không thể giải mã tệp. Tệp có thể bị hỏng hoặc không dùng định dạng Agile AES-256."}
+                    suffix = Path(src_path).suffix.lower()
+                    convert_src_path = os.path.join(tmp, f"decrypted{suffix}")
+                    with open(convert_src_path, "wb") as decrypted_file:
+                        decrypted_file.write(decrypted)
+                    try:
+                        self._validate_open_package(convert_src_path, app_kind)
+                    except DocumentEngineError as exc:
+                        return {"status": "error", "message": str(exc)}
                 if app_kind == "writer" and src_path.lower().endswith(".doc"):
                     # Legacy binary DOC imported directly to StarWriter HTML can
                     # lose/alter default font and language metadata used by the
@@ -4765,8 +4861,8 @@ class VnOfficeApi:
                     convert_src_path = _run_soffice_convert(
                         src_path, "docx", legacy_docx_dir, app_kind=app_kind
                     )
-                if app_kind == "sheet" and src_path.lower().endswith(".xlsx") and os.path.isfile(src_path):
-                    with open(src_path, "rb") as source_file:
+                if app_kind == "sheet" and src_path.lower().endswith(".xlsx") and os.path.isfile(convert_src_path):
+                    with open(convert_src_path, "rb") as source_file:
                         original_xlsx = source_file.read()
                     import_xlsx = _ooxml_zip_patch().make_all_sheets_visible_for_import(original_xlsx)
                     if import_xlsx != original_xlsx:
@@ -5025,6 +5121,7 @@ class VnOfficeApi:
             pres_props_xml = _read_pptx_pres_props_xml(src_path)
             if pres_props_xml:
                 payload["ooxmlPresPropsXml"] = pres_props_xml
+        self._document_password = password if encrypted_source else None
         return payload
 
     def _open_writer_reference_document_impl(self):
@@ -5160,6 +5257,9 @@ class VnOfficeApi:
                 )
                 if build_format != target_format:
                     _convert_xlsx_to_template(out_path)
+                if self._document_password and target_format not in {"docx", "xlsx", "pptx"}:
+                    raise DocumentEngineError("Hãy xóa mật khẩu trước khi lưu sang định dạng không hỗ trợ mã hóa.")
+                out_path = _encrypt_ooxml_output(out_path, target_format, self._document_password)
                 stage_started = time.perf_counter()
                 _atomic_replace_file(out_path, target_path)
                 if audit_timings is not None:
@@ -5263,6 +5363,9 @@ class VnOfficeApi:
                     )
                     if build_format != target_format:
                         _convert_xlsx_to_template(out_path)
+                    if self._document_password and target_format not in {"docx", "xlsx", "pptx"}:
+                        raise DocumentEngineError("Hãy xóa mật khẩu trước khi lưu sang định dạng không hỗ trợ mã hóa.")
+                    out_path = _encrypt_ooxml_output(out_path, target_format, self._document_password)
                 _atomic_replace_file(out_path, dest_path)
                 _verify_saved_file(dest_path)
         except DocumentEngineError as exc:
