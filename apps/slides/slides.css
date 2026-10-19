@@ -2178,6 +2178,8 @@
 .vno-selection-pane-item.is-selected { border-color: #b53818; background: rgba(181, 56, 24, .12); font-weight: 600; }
 .vno-selection-pane-item:focus-visible { outline: 2px solid #b53818; outline-offset: 1px; }
 .vno-selection-pane-label { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.vno-selection-pane-rename { flex: 1; min-width: 0; font: inherit; padding: 2px 4px; border: 1px solid #b53818; border-radius: 4px; }
+.vno-selection-pane-item.is-hidden-shape .vno-selection-pane-label { opacity: .5; font-style: italic; }
 .vno-selection-pane-actions { display: flex; gap: 2px; flex: none; }
 .vno-selection-pane-actions button { border: 1px solid var(--vno-border-default); background: transparent; border-radius: 4px; width: 24px; height: 24px; cursor: pointer; font-size: 10px; color: inherit; }
 .vno-selection-pane-actions button:disabled { opacity: .35; cursor: default; }

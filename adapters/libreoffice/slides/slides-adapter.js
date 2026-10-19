@@ -1988,24 +1988,69 @@ export class SlidesAdapter {
   }
 
   _restoreShapeId(attrs, fallback) {
+    const vnoId = this._attr(attrs, "vno:shape-id");
+    let candidate = null;
+    if (vnoId) {
+      const unescaped = this._unescapeXml(vnoId);
+      candidate = /^\d+$/.test(unescaped) ? Number(unescaped) : unescaped;
+    } else {
+      const name = this._attr(attrs, "draw:name");
+      const drawId = this._attr(attrs, "draw:id") || this._attr(attrs, "xml:id");
+      if (name && !/^PlaceHolder\b/i.test(name)) {
+        const unescaped = this._unescapeXml(name);
+        candidate = /^\d+$/.test(unescaped) ? Number(unescaped) : unescaped;
+      } else if (drawId) {
+        const numeric = drawId.match(/^shape-(\d+)$/);
+        candidate = numeric ? Number(numeric[1]) : drawId;
+      } else {
+        candidate = fallback ?? (Date.now() + Math.floor(Math.random() * 1000));
+      }
+    }
+    if (this._currentUsedIds) {
+      let unique = candidate;
+      let n = 2;
+      while (this._currentUsedIds.has(String(unique))) {
+        unique = `${candidate}-${n++}`;
+      }
+      this._currentUsedIds.add(String(unique));
+      return unique;
+    }
+    return candidate;
+  }
+
+  _restoreShapeName(attrs) {
     const name = this._attr(attrs, "draw:name");
-    const drawId = this._attr(attrs, "draw:id") || this._attr(attrs, "xml:id");
-    if (name && !/^PlaceHolder\b/i.test(name)) {
-      return /^\d+$/.test(name) ? Number(name) : name;
-    }
-    if (drawId) {
-      const numeric = drawId.match(/^shape-(\d+)$/);
-      return numeric ? Number(numeric[1]) : drawId;
-    }
-    return fallback ?? (Date.now() + Math.floor(Math.random() * 1000));
+    if (!name) return "";
+    const unescaped = this._unescapeXml(name).trim();
+    if (/^(?:ink-|shape-|VNOfficeGroup:)/i.test(unescaped)) return "";
+    if (/^PlaceHolder\b/i.test(unescaped)) return "";
+    if (/^\d{6,}$/.test(unescaped)) return "";
+    return unescaped;
+  }
+
+  _restoreShapeNameProps(attrs) {
+    const props = {};
+    const name = this._restoreShapeName(attrs);
+    if (name) props.name = name;
+    // vno:hidden: tệp do 3T Office lưu; drawooo:display="none": LibreOffice đọc từ hidden="1" của PPTX.
+    if (this._attr(attrs, "vno:hidden") === "true" || this._attr(attrs, "drawooo:display") === "none") props.hidden = true;
+    return props;
   }
 
   _recordShapeId(attrs, shape, idMap) {
     const restored = shape.id;
+    const vnoId = this._attr(attrs, "vno:shape-id");
     const drawId = this._attr(attrs, "draw:id") || this._attr(attrs, "xml:id");
     const name = this._attr(attrs, "draw:name");
+    if (vnoId) {
+      idMap.set(vnoId, restored);
+      idMap.set(this._unescapeXml(vnoId), restored);
+    }
     if (drawId) idMap.set(drawId, restored);
-    if (name) idMap.set(name, restored);
+    if (name) {
+      idMap.set(name, restored);
+      idMap.set(this._unescapeXml(name), restored);
+    }
     if (restored != null) idMap.set(String(restored), restored);
   }
 
@@ -2889,8 +2934,49 @@ export class SlidesAdapter {
     }
   }
 
-  _shapeGeomAttrs(shape, drawId) {
-    const name = this._escapeXml(String(shape.id ?? drawId));
+  _defaultShapeName(shape, counters = {}, usedNames = new Set()) {
+    if (shape?.name && String(shape.name).trim()) {
+      return String(shape.name).trim();
+    }
+    const typeNames = {
+      rect: "Hình chữ nhật",
+      ellipse: "Hình elip",
+      arrow: "Mũi tên",
+      textbox: "Hộp văn bản",
+      text: "Hộp văn bản",
+      image: "Hình ảnh",
+      table: "Bảng",
+      chart: "Biểu đồ",
+      line: "Đường thẳng",
+      triangle: "Hình tam giác",
+      diamond: "Hình thoi",
+      video: "Video",
+      audio: "Âm thanh",
+      wordart: "Chữ nghệ thuật",
+      connector: "Đường kết nối",
+      ink: "Nét vẽ",
+      path: "Hình tự do",
+      polygon: "Đa giác"
+    };
+    const base = (shape?.type && typeNames[shape.type]) || "Hình dạng";
+    let count = (counters[base] || 0) + 1;
+    counters[base] = count;
+    let name = `${base} ${count}`;
+    while (usedNames.has(name)) {
+      count++;
+      counters[base] = count;
+      name = `${base} ${count}`;
+    }
+    usedNames.add(name);
+    return name;
+  }
+
+  _shapeGeomAttrs(shape, drawId, exportName) {
+    const rawName = exportName || (shape?.name && String(shape.name).trim()) || this._defaultShapeName(shape || {});
+    const name = this._escapeXml(rawName);
+    const shapeId = this._escapeXml(String(shape?.id ?? drawId));
+    const vnoIdAttr = ` vno:shape-id="${shapeId}"`;
+    const vnoHiddenAttr = shape?.hidden ? ' vno:hidden="true"' : "";
     const styleName = this._shapeStyleName(shape);
     const isGrad = Boolean(shape.gradient || shape.fillKind === "gradient");
     const fill = (this._isTransparentFill(shape) || isGrad) ? "" : ` draw:fill-color="${this._escapeXml(shape.color)}"`;
@@ -2909,9 +2995,9 @@ export class SlidesAdapter {
       const cy = (Number(shape.y) || 0) + halfH;
       const xCm = this._pxToOdf(cx - (halfW * cos - halfH * sin));
       const yCm = this._pxToOdf(cy - (halfW * sin + halfH * cos));
-      return `draw:id="${this._escapeXml(drawId)}" xml:id="${this._escapeXml(drawId)}" draw:name="${name}" draw:style-name="${styleName}" svg:width="${this._pxToOdf(shape.w)}" svg:height="${this._pxToOdf(shape.h)}" draw:transform="rotate (${radianOdf}) translate (${xCm} ${yCm})"${fill}`;
+      return `draw:id="${this._escapeXml(drawId)}" xml:id="${this._escapeXml(drawId)}" draw:name="${name}"${vnoIdAttr}${vnoHiddenAttr} draw:style-name="${styleName}" svg:width="${this._pxToOdf(shape.w)}" svg:height="${this._pxToOdf(shape.h)}" draw:transform="rotate (${radianOdf}) translate (${xCm} ${yCm})"${fill}`;
     }
-    return `draw:id="${this._escapeXml(drawId)}" xml:id="${this._escapeXml(drawId)}" draw:name="${name}" draw:style-name="${styleName}" svg:x="${this._pxToOdf(shape.x)}" svg:y="${this._pxToOdf(shape.y)}" svg:width="${this._pxToOdf(shape.w)}" svg:height="${this._pxToOdf(shape.h)}"${fill}`;
+    return `draw:id="${this._escapeXml(drawId)}" xml:id="${this._escapeXml(drawId)}" draw:name="${name}"${vnoIdAttr}${vnoHiddenAttr} draw:style-name="${styleName}" svg:x="${this._pxToOdf(shape.x)}" svg:y="${this._pxToOdf(shape.y)}" svg:width="${this._pxToOdf(shape.w)}" svg:height="${this._pxToOdf(shape.h)}"${fill}`;
   }
 
   _serializeGraphicStyles(slides) {
@@ -3202,9 +3288,9 @@ export class SlidesAdapter {
     return "";
   }
 
-  _serializeShape(shape, drawId, idMap, richCtx) {
+  _serializeShape(shape, drawId, idMap, richCtx, exportName) {
     const type = shape?.type || "rect";
-    const geom = this._shapeGeomAttrs(shape, drawId);
+    const geom = this._shapeGeomAttrs(shape, drawId, exportName);
     const textXml = this._richOrPlainXml(shape.text, shape.textHtml, richCtx);
     const eventsXml = this._shapeEventListenersXml(shape);
 
@@ -3413,7 +3499,19 @@ export class SlidesAdapter {
         groups.push({ id: shape.groupId, parentId: null });
       }
     }
-    if (!groups.length) return serializedShapes.map(shape => this._serializeShape(shape, map.get(String(shape.id)), map, richCtx)).join("");
+    const shapeCounters = {};
+    const shapeUsedNames = new Set();
+    for (const shape of serializedShapes) {
+      if (shape.name && String(shape.name).trim()) {
+        shapeUsedNames.add(String(shape.name).trim());
+      }
+    }
+    const nameByShape = new Map();
+    for (const shape of serializedShapes) {
+      nameByShape.set(shape, this._defaultShapeName(shape, shapeCounters, shapeUsedNames));
+    }
+
+    if (!groups.length) return serializedShapes.map(shape => this._serializeShape(shape, map.get(String(shape.id)), map, richCtx, nameByShape.get(shape))).join("");
 
     const shapeList = serializedShapes;
     const groupById = new Map(groups.map(group => [String(group.id), group]));
@@ -3429,7 +3527,7 @@ export class SlidesAdapter {
         children.push({ order, xml: serializeGroup(child) });
       }
       for (const shape of shapeList.filter(item => String(item.groupId || "") === id)) {
-        children.push({ order: shapeOrder.get(String(shape.id)), xml: this._serializeShape(shape, map.get(String(shape.id)), map, richCtx) });
+        children.push({ order: shapeOrder.get(String(shape.id)), xml: this._serializeShape(shape, map.get(String(shape.id)), map, richCtx, nameByShape.get(shape)) });
       }
       children.sort((a, b) => a.order - b.order);
       return `<draw:g draw:name="VNOfficeGroup:${this._escapeXml(id)}" svg:x="0cm" svg:y="0cm" svg:width="${pageWidth}" svg:height="${pageHeight}">${children.map(item => item.xml).join("")}</draw:g>`;
@@ -3437,7 +3535,7 @@ export class SlidesAdapter {
     const output = [];
     for (const shape of shapeList) {
       if (!shape.groupId) {
-        output.push({ order: shapeOrder.get(String(shape.id)), xml: this._serializeShape(shape, map.get(String(shape.id)), map, richCtx) });
+        output.push({ order: shapeOrder.get(String(shape.id)), xml: this._serializeShape(shape, map.get(String(shape.id)), map, richCtx, nameByShape.get(shape)) });
       }
     }
     for (const group of groups.filter(item => !item.parentId)) {
@@ -3969,6 +4067,7 @@ export class SlidesAdapter {
     const origin = this._parseDrawTranslate(attrs);
     const shape = {
       id: this._restoreShapeId(attrs),
+      ...this._restoreShapeNameProps(attrs),
       type,
       x: origin.x,
       y: origin.y,
@@ -4051,6 +4150,7 @@ export class SlidesAdapter {
     const h = this._odfLengthToPx(get("svg:height")) || Math.max(1, Math.abs(y2 - y1));
     return {
       id: this._restoreShapeId(attrs),
+      ...this._restoreShapeNameProps(attrs),
       type: "connector",
       x, y, w, h, x1, y1, x2, y2,
       color: get("svg:stroke-color") || style.stroke || "#475569",
@@ -4195,6 +4295,7 @@ export class SlidesAdapter {
     }
     const base = {
       id: this._restoreShapeId(attrs),
+      ...this._restoreShapeNameProps(attrs),
       x: origin.x,
       y: origin.y,
       w: this._odfLengthToPx(get("svg:width")) || 200,
@@ -5066,6 +5167,7 @@ export class SlidesAdapter {
       const parsedComments = this._parsePageComments(pageContent);
       pageContent = parsedComments.pageXml;
 
+      this._currentUsedIds = new Set();
       const shapes = [];
       const idMap = new Map();
       pageContent = this._extractDrawGroups(pageContent, shapes, graphicStyles, idMap, originalPageXml);
@@ -5102,6 +5204,7 @@ export class SlidesAdapter {
       }
       this._applyParsedAnimations(shapes, idMap, animByTarget);
       this._applyParsedMedia(shapes, idMap, originalPageXml);
+      this._currentUsedIds = null;
 
       const titleParas = this._frameParagraphsByClass(originalPageXml, "title");
       const subtitleParas = this._frameParagraphsByClass(originalPageXml, "subtitle");

@@ -12097,6 +12097,57 @@ def _slides_animation_presets_from_fodp(source_fodp: str | None) -> list[list[st
 _SLIDES_PRESET_ID_FROM_ODF = {"ooo-emphasis-pulse": ("emph", "26")}
 
 
+_FODP_PAGE_RE = re.compile(r"<draw:page\b[^>]*?/>|<draw:page\b[^>]*>[\s\S]*?</draw:page>", re.IGNORECASE)
+_SLIDE_ENTRY_RE = re.compile(r"ppt/slides/slide(\d+)\.xml")
+
+
+def _slide_entries(pptx_bytes: bytes) -> list[str]:
+    try:
+        with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+            return sorted(
+                (name for name in package.namelist() if _SLIDE_ENTRY_RE.fullmatch(name)),
+                key=lambda name: int(_SLIDE_ENTRY_RE.fullmatch(name).group(1)),
+            )
+    except Exception:
+        return []
+
+
+def _apply_slides_hidden_shapes(pptx_bytes: bytes, source_fodp: str | None, prior: dict[str, str] | None = None) -> dict[str, str]:
+    """Hình ẩn (Ngăn chọn): LibreOffice không ghi trạng thái ẩn khi xuất PPTX; thêm hidden="1" vào p:cNvPr của hình có vno:hidden="true".
+    Ghép theo tên và thứ tự xuất hiện trong trang, nên hai hình trùng tên vẫn đúng hình."""
+    if not source_fodp or 'vno:hidden="true"' not in source_fodp:
+        return {}
+    prior = prior or {}
+    pages = _FODP_PAGE_RE.findall(source_fodp)
+    replacements: dict[str, str] = {}
+    for page_index, entry in enumerate(_slide_entries(pptx_bytes)):
+        if page_index >= len(pages) or 'vno:hidden="true"' not in pages[page_index]:
+            continue
+        flags_by_name: dict[str, list[bool]] = {}
+        for tag in re.findall(r"<draw:(?:frame|custom-shape|rect|ellipse|circle|polygon|path|connector|line)\b[^>]*>", pages[page_index]):
+            name_match = re.search(r"\bdraw:name=\"([^\"]*)\"", tag)
+            if name_match:
+                flags_by_name.setdefault(html.unescape(name_match.group(1)), []).append('vno:hidden="true"' in tag)
+        xml = prior[entry] if entry in prior else (read_zip_entry(pptx_bytes, entry) or b"").decode("utf-8", errors="replace")
+
+        def mark(match: re.Match) -> str:
+            tag = match.group(0)
+            if re.search(r"\bhidden=\"", tag):
+                return tag
+            name_match = re.search(r"\bname=\"([^\"]*)\"", tag)
+            if not name_match:
+                return tag
+            flags = flags_by_name.get(html.unescape(name_match.group(1)))
+            if flags and flags.pop(0):
+                return re.sub(r"(<p:cNvPr\b)", r'\1 hidden="1"', tag, count=1)
+            return tag
+
+        updated = re.sub(r"<p:cNvPr\b[^>]*>", mark, xml)
+        if updated != xml:
+            replacements[entry] = updated
+    return replacements
+
+
 def _apply_slides_media_loops(pptx_bytes: bytes, source_fodp: str | None, prior: dict[str, str] | None = None) -> dict[str, str]:
     """Lặp lại phương tiện: LibreOffice bỏ anim:audio repeatCount khi ghi PPTX; thêm lại <p:audio>/<p:video> cMediaNode repeatCount như PowerPoint."""
     if not source_fodp or "smil:repeatCount" not in source_fodp or "<anim:audio" not in source_fodp:
@@ -13747,6 +13798,14 @@ def postprocess_slides_pptx(
         {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,
          **transition_replacements, **wordart_replacements, **layout_replacements},
     )
+    native_timing_replacements = {
+        **native_timing_replacements,
+        **_apply_slides_hidden_shapes(
+            pptx_bytes, source_fodp,
+            {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,
+             **transition_replacements, **wordart_replacements, **layout_replacements, **native_timing_replacements},
+        ),
+    }
     native_timing_replacements = {
         **native_timing_replacements,
         **_apply_slides_media_loops(

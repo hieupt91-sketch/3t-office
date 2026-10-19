@@ -295,14 +295,17 @@ export const SLIDES_HELP_ENTRIES = [
     id: "slides.edit.selectionPane",
     app: "slides",
     commandIds: ["slides.edit.selectionPane"],
-    title: "Ngăn chọn: chọn nhanh đối tượng và đổi thứ tự lớp (Alt+F10)",
-    summary: "Mở ngăn liệt kê mọi hình, ảnh, bảng trên trang chiếu (đối tượng trên cùng ở đầu danh sách) để chọn đúng đối tượng bị che và đổi thứ tự lớp.",
+    title: "Ngăn chọn: chọn nhanh, đổi tên, ẩn/hiện và đổi thứ tự lớp (Alt+F10)",
+    summary: "Mở ngăn liệt kê mọi hình, ảnh, bảng trên trang chiếu (đối tượng trên cùng ở đầu danh sách) để chọn đúng đối tượng bị che, đặt tên dễ nhớ, ẩn tạm thời và đổi thứ tự lớp. Tên và trạng thái ẩn được lưu vào tệp PPTX.",
     ribbon: { tab: "Trang đầu", tabId: "home", group: "Chỉnh sửa" },
-    keywords: ["ngăn chọn", "selection pane", "alt+f10", "thứ tự lớp", "đối tượng bị che", "chọn đối tượng"],
+    keywords: ["ngăn chọn", "selection pane", "alt+f10", "thứ tự lớp", "đối tượng bị che", "chọn đối tượng", "đổi tên hình", "ẩn hình", "hiện hình", "con mắt"],
     steps: [
       "Tab Trang đầu > nhóm Chỉnh sửa > Chọn > Ngăn chọn, hoặc nhấn Alt+F10. Ngăn hiện bên phải trang chiếu.",
       "Nhấp một dòng để chọn đối tượng đó trên trang, kể cả đối tượng bị che bởi đối tượng khác. Phím mũi tên lên/xuống chuyển sang dòng kế.",
       "Nút ▲ đưa đối tượng lên một lớp, nút ▼ đưa xuống một lớp; hoặc giữ phím Ctrl và Shift rồi nhấn mũi tên lên/xuống khi đang ở trong danh sách. Ctrl+Z hoàn tác.",
+      "Đổi tên: nhấp đúp vào tên của đối tượng trong ngăn, gõ tên mới và nhấn Enter để lưu, Esc để hủy. Tên này là tên hình khi mở tệp trong phần mềm trình chiếu khác.",
+      "Ẩn/hiện: nhấp nút con mắt ở cuối dòng. Hình ẩn không hiện khi soạn và khi chiếu (F5), dòng của nó mờ đi trong ngăn; nhấp lại để hiện. Hiện chỉ áp dụng cho hình nằm ngoài nhóm.",
+      "Đổi tên, ẩn/hiện đều hoàn tác được bằng Ctrl+Z và làm lại bằng Ctrl+Y.",
       "Nhấn Esc hoặc dấu × để đóng ngăn. Mở ngăn hoạt hình sẽ tự đóng ngăn chọn và ngược lại."
     ]
   },  {
