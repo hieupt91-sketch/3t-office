@@ -10288,6 +10288,7 @@ export class WriterAdapter {
         cell.style.fontWeight = "";
       }
     }
+    globalCommandBus.updateState("writer.table.toggleHeaderRow", { checked: isHeader });
     this.isDirty = true;
     this.recordSnapshot("writer.table.toggleHeaderRow");
     return true;
