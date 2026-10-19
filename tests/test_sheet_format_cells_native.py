@@ -44,6 +44,28 @@ class SheetFormatCellsNativeTests(unittest.TestCase):
         )
         self.assertEqual(expected, actual)
 
+    def test_p1_metadata_overlay_can_stamp_native_format_in_the_same_pass(self):
+        sheet = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" s="1"><v>1</v></c></row></sheetData></worksheet>'
+        package = make_xlsx(sheet)
+        source = fods('<table:table-cell office:value-type="float" office:value="1"><text:p>1</text:p></table:table-cell>')
+        metadata = patcher._xlsx_cells_with_metadata_p1(
+            package, include_xf=True, parallel=False
+        )
+        expected = patcher._overlay_sheet_cell_metadata_from_xlsx_p1(
+            package, source, parsed_metadata=metadata
+        )
+        expected = patcher._overlay_native_cell_formats_from_xlsx(
+            package, expected, cells_by_sheet=metadata[2]
+        )
+        config = patcher._xlsx_native_formats_by_xf(package)[1]
+        actual = patcher._overlay_sheet_cell_metadata_from_xlsx_p1(
+            package,
+            source,
+            parsed_metadata=metadata,
+            native_cell_formats={"Sheet1": {(1, 1): config}},
+        )
+        self.assertEqual(expected, actual)
+
     def test_open_overlay_restores_native_format_cells_properties(self):
         sheet = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" s="1"><v>1</v></c></row></sheetData></worksheet>'
         opened = patcher.overlay_sheet_xlsx_fods(make_xlsx(sheet), fods('<table:table-cell office:value-type="float" office:value="1"><text:p>1</text:p></table:table-cell>'))

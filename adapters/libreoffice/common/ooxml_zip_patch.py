@@ -14890,6 +14890,14 @@ def overlay_sheet_xlsx_fods_p1(
             include_xf=True,
             parallel=len(xml) > _P1_PARALLEL_FODS_CHARS,
         )
+        native_cell_formats = timed(
+            "index_native_cell_formats",
+            _native_format_cells_from_xf_indices,
+            xlsx_bytes,
+            cell_metadata[2],
+        )
+    else:
+        native_cell_formats = None
     xml = timed(
         metadata_helper,
         _overlay_sheet_cell_metadata_from_xlsx_p1,
@@ -14897,16 +14905,15 @@ def overlay_sheet_xlsx_fods_p1(
         xml,
         include_xf=not skip_initial_xf,
         parsed_metadata=cell_metadata,
+        native_cell_formats=native_cell_formats,
     )
-    format_helper = "overlay_native_cell_formats_fast" if fast_import_overlay else "overlay_native_cell_formats"
-    format_kwargs = {"cells_by_sheet": cell_metadata[2]} if cell_metadata is not None else {}
-    xml = timed(
-        format_helper,
-        _overlay_native_cell_formats_from_xlsx,
-        xlsx_bytes,
-        xml,
-        **format_kwargs,
-    )
+    if not fast_import_overlay:
+        xml = timed(
+            "overlay_native_cell_formats",
+            _overlay_native_cell_formats_from_xlsx,
+            xlsx_bytes,
+            xml,
+        )
     xml = timed("promote_covered_formula_errors", _promote_covered_formula_errors, xml)
     if not skeleton:
         if tab_colors:
@@ -15160,6 +15167,23 @@ def _set_native_cell_format_attr(cell_xml: str, config: dict) -> str:
     return stamped if stamped is not None else cell_xml
 
 
+def _native_format_cells_from_xf_indices(
+    xlsx_bytes: bytes,
+    cells_by_sheet: dict[str, dict[tuple[int, int], int]],
+) -> dict[str, dict[tuple[int, int], dict]]:
+    configs_by_xf = _xlsx_native_formats_by_xf(xlsx_bytes)
+    targets_by_sheet: dict[str, dict[tuple[int, int], dict]] = {}
+    for sheet_name, cells in cells_by_sheet.items():
+        targets = {
+            key: configs_by_xf[index]
+            for key, index in cells.items()
+            if 0 <= index < len(configs_by_xf) and configs_by_xf[index]
+        }
+        if targets:
+            targets_by_sheet[sheet_name] = targets
+    return targets_by_sheet
+
+
 def _xlsx_native_formats_by_xf(xlsx_bytes: bytes) -> list[dict]:
     """Return exact native Format Cells properties for each cellXf."""
     cached = _index_memo_get("native_formats_by_xf", xlsx_bytes)
@@ -15309,23 +15333,12 @@ def _overlay_native_cell_formats_from_xlsx(
     fast_scan = _fast_import_overlay_enabled()
     native_format_blocks = _fast_sheet_xml_blocks if fast_scan else _flat_xml_blocks
 
-    configs_by_xf = _xlsx_native_formats_by_xf(xlsx_bytes)
-    if not any(configs_by_xf):
-        return fods_xml
-    targets_by_sheet: dict[str, dict[tuple[int, int], dict]] = {}
     source_cells = (
         cells_by_sheet
         if cells_by_sheet is not None
         else _xlsx_cells_with_xf_indices(xlsx_bytes)
     )
-    for sheet_name, cells in source_cells.items():
-        targets = {
-            key: configs_by_xf[index]
-            for key, index in cells.items()
-            if 0 <= index < len(configs_by_xf) and configs_by_xf[index]
-        }
-        if targets:
-            targets_by_sheet[sheet_name] = targets
+    targets_by_sheet = _native_format_cells_from_xf_indices(xlsx_bytes, source_cells)
     if not targets_by_sheet:
         return fods_xml
 
@@ -15937,6 +15950,7 @@ def _p1_stamp_cell_metadata(
     number_format: str | None,
     original_string: str | None,
     xf_index: int | None,
+    native_cell_format: dict | None = None,
 ) -> str:
     """Apply repeat and metadata while scanning the opening tag only once."""
     opening_end = cell_xml.find(">")
@@ -15979,6 +15993,8 @@ def _p1_stamp_cell_metadata(
         opening = _VNO_XF_RE.sub("", opening, count=1)
         opening = _p1_append_opening_attr(opening, f' vno:xf="{xf_index}"')
     stamped = opening + ">" + tail
+    if native_cell_format and not covered:
+        stamped = _set_native_cell_format_attr(stamped, native_cell_format)
     if (
         original_string is not None
         and not covered
@@ -15995,12 +16011,14 @@ def _p1_apply_metadata_row(
     format_targets: dict[int, str],
     string_targets: dict[int, str],
     xf_targets: dict[int, int],
+    native_format_targets: dict[int, dict] | None = None,
 ) -> str:
     columns = {}
     for source, kind in (
         (format_targets, "format"),
         (string_targets, "string"),
         (xf_targets, "xf"),
+        (native_format_targets or {}, "native_format"),
     ):
         for col, value in source.items():
             columns.setdefault(col, {})[kind] = value
@@ -16037,6 +16055,7 @@ def _p1_apply_metadata_row(
                         meta.get("format"),
                         meta.get("string"),
                         meta.get("xf"),
+                        meta.get("native_format"),
                     )
                 )
                 at = col + 1
@@ -16086,8 +16105,10 @@ def _p1_metadata_table_chunks(table_xml: str, count: int):
 
 
 def _p1_transform_metadata_rows_chunk(args) -> str:
-    chunk, row_number, format_rows, string_rows, xf_rows = args
-    sorted_rows = sorted(set(format_rows) | set(string_rows) | set(xf_rows))
+    chunk, row_number, format_rows, string_rows, xf_rows, native_format_rows = args
+    sorted_rows = sorted(
+        set(format_rows) | set(string_rows) | set(xf_rows) | set(native_format_rows)
+    )
     target_index = 0
     pieces, cursor = [], 0
     for row_start, row_end in _sheet_open_xml_blocks(chunk, ("table:table-row",)):
@@ -16118,6 +16139,7 @@ def _p1_transform_metadata_rows_chunk(args) -> str:
                         format_rows.get(row, {}),
                         string_rows.get(row, {}),
                         xf_rows.get(row, {}),
+                        native_format_rows.get(row, {}),
                     )
                 )
                 at = row + 1
@@ -16269,23 +16291,30 @@ def prefetch_sheet_open_metadata(xlsx_bytes: bytes | None, *, include_xf: bool =
         return False
 
 
-def _xlsx_metadata_row_maps(xlsx_bytes: bytes, include_xf: bool, formats, strings, xfs) -> dict:
-    """{sheet: [format_rows, string_rows, xf_rows]} with each map {row: {col: value}}; memoised like the metadata.
+def _xlsx_metadata_row_maps(
+    xlsx_bytes: bytes, include_xf: bool, formats, strings, xfs, native_formats=None
+) -> dict:
+    """{sheet: [format_rows, string_rows, xf_rows, native_format_rows]} with each map {row: {col: value}}.
 
     Grouping the 1-4 million (row, col) entries by row used to run inside the overlay after LibreOffice finished;
     the prefetch now does it while LibreOffice is still converting.
     """
-    name = "metadata_rows" if include_xf else "metadata_rows_no_xf"
+    name = (
+        "metadata_rows_native" if native_formats is not None
+        else "metadata_rows" if include_xf
+        else "metadata_rows_no_xf"
+    )
     cached = _index_memo_get(name, xlsx_bytes)
     if cached is not _INDEX_MISS:
         return cached
     result: dict[str, list[dict]] = {}
-    for index, mapping in enumerate((formats, strings, xfs)):
+    mappings = (formats, strings, xfs, native_formats or {})
+    for index, mapping in enumerate(mappings):
         for sheet_name, cells in mapping.items():
             rows: dict[int, dict] = {}
             for (row, col), value in cells.items():
                 rows.setdefault(row, {})[col] = value
-            result.setdefault(sheet_name, [{}, {}, {}])[index] = rows
+            result.setdefault(sheet_name, [{}, {}, {}, {}])[index] = rows
     _index_memo_put(name, xlsx_bytes, result)
     return result
 
@@ -16296,6 +16325,7 @@ def _overlay_sheet_cell_metadata_from_xlsx_p1(
     *,
     include_xf: bool = True,
     parsed_metadata=None,
+    native_cell_formats: dict[str, dict[tuple[int, int], dict]] | None = None,
 ) -> str:
     """Byte-compatible P1 metadata overlay using C-regex block scans."""
     if parsed_metadata is None:
@@ -16308,20 +16338,22 @@ def _overlay_sheet_cell_metadata_from_xlsx_p1(
         formats, strings, xfs = parsed_metadata
         if not include_xf:
             xfs = {}
-    if not formats and not strings and not xfs:
+    if not formats and not strings and not xfs and not native_cell_formats:
         return fods_xml
 
-    rows_by_sheet = _xlsx_metadata_row_maps(xlsx_bytes, include_xf, formats, strings, xfs)
+    rows_by_sheet = _xlsx_metadata_row_maps(
+        xlsx_bytes, include_xf, formats, strings, xfs, native_cell_formats
+    )
 
     pieces, cursor = [], 0
-    needs_vno = bool(formats or xfs)
+    needs_vno = bool(formats or xfs or native_cell_formats)
     for start, end in _sheet_open_xml_blocks(fods_xml, ("table:table",)):
         pieces.append(fods_xml[cursor:start])
         table_xml = fods_xml[start:end]
         opening_end = table_xml.find(">")
         attrs = _xml_attrs(table_xml[: opening_end + 1]) if opening_end >= 0 else {}
         sheet_name = attrs.get("table:name", "")
-        row_maps = rows_by_sheet.get(sheet_name) or [{}, {}, {}]
+        row_maps = rows_by_sheet.get(sheet_name) or [{}, {}, {}, {}]
         if any(row_maps):
             if len(fods_xml) > _P1_PARALLEL_FODS_CHARS and len(table_xml) > _P1_TABLE_PARALLEL_MIN_CHARS:
                 prefix, chunks, suffix = _p1_metadata_table_chunks(
@@ -16338,7 +16370,7 @@ def _overlay_sheet_cell_metadata_from_xlsx_p1(
                             high = bisect.bisect_left(keys, logical_end)
                             subsets.append({row: mapping[row] for row in keys[low:high]})
                         tasks.append(
-                            (chunk, logical_start, subsets[0], subsets[1], subsets[2])
+                            (chunk, logical_start, *subsets)
                         )
                     # Memory: drop the table copy and the chunk slices as soon as the workers have them, and join
                     # prefix/chunks/suffix once (the old `prefix + join + suffix` made two extra table-sized copies).
@@ -16381,6 +16413,7 @@ def _overlay_sheet_cell_metadata_from_xlsx_p1(
                                 row_maps[0].get(row, {}),
                                 row_maps[1].get(row, {}),
                                 row_maps[2].get(row, {}),
+                                row_maps[3].get(row, {}),
                             )
                         )
                         at = row + 1
