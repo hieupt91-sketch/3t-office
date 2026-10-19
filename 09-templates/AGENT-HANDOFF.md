@@ -191,3 +191,23 @@ RISKS: PPTX `p:wheel` has a spoke count and no cardinal `dir` attribute, so the 
 DEPENDENCIES/BLOCKERS: None for implementation. Paste Special modal/clipboard needs a desktop smoke with a populated native clipboard.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Review the commits; run Paste Special desktop smoke with a native clipboard item and decide whether Fan should keep wheel semantics or use a directional alternative.
+
+---
+
+# Agent Handoff
+TASK: Q2 — Mục lục bị ghi thành chèn/xóa theo dõi khi có nhận xét + theo dõi thay đổi (Writer)
+AGENT/ROLE: Codex / VN Writer
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Keep generated TOC content free of tracked revisions/comments on DOCX save while preserving review markup in document body.
+FINDINGS: The Writer export serializer created review bookmarks inside protected TOC entries. Word also refreshed the LibreOffice-marked dirty TOC field on open while Track Changes was enabled, recording the field refresh as revisions.
+IMPLEMENTATION SUMMARY: Review serialization now unwraps ins/del/mark wrappers inside generated TOC blocks while preserving displayed text. DOCX review postprocessing clears dirty on cached TOC fields so Word does not introduce revisions when opening the saved document.
+FILES CHANGED: adapters/libreoffice/writer/writer-adapter.js; adapters/libreoffice/common/ooxml_zip_patch.py; tests/live/cdp/writer-toc-comment-track-save.desktop.mjs; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: node tests/live/cdp/writer-toc-comment-track-save.desktop.mjs (pre-fix and post-fix; WebSocket flag --experimental-websocket); Word COM readback through the desktop CDP test; python -m pytest tests/test_writer_review_roundtrip.py -q; node tests/unit/writer-review-export.test.js; node tests/run-tests.js; node scripts/audit-0610/i18n_parity.mjs; python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix; git diff --check.
+BUILD RESULT: NOT RUN — no build-system changes.
+TEST RESULTS: PASS — desktop CDP + Word COM: TOCs=1, TOC revisions=0, body revisions=2, comments=1 in body; pre-fix CDP reproduced review markup inside TOC. PASS — pytest 11/11; full suite 3766/3766; i18n missing keys=0; diff check clean.
+KNOWN FAILURES: Checklist evidence verifier reported 4 unrelated existing Sheet/Slides rows lowered (2 Sheet, 2 Slides); no related checklist or Sheet/Slides files changed. Do not report this repository-wide gate as PASS.
+RISKS: TOC field cached results will not be marked dirty for automatic refresh on Word open; users can explicitly update the TOC from the Writer References tab.
+DEPENDENCIES/BLOCKERS: None for Q2. Missing CODEX-COMMON-RULES.md was not present in the assigned worktree.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review and merge the Q2 commit; investigate pre-existing checklist evidence rows in separate tickets.
