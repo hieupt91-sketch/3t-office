@@ -86,6 +86,18 @@ export class SheetInlineSpellcheck {
     fi.addEventListener("scroll", onScroll);
     fi.addEventListener("contextmenu", onContextMenu);
 
+    // Lưới đổi giá trị thanh công thức bằng mã (đổi ô chọn) chứ không phát sự kiện "input", nên lớp gạch chân giữ chữ của ô
+    // trước và vẽ chồng lên dòng gợi ý ("560000" đè lên "Nhập giá trị hoặc công thức..."). Đồng bộ lại mỗi lần gán value.
+    const nativeValue = typeof HTMLTextAreaElement !== "undefined" ? Object.getOwnPropertyDescriptor(HTMLTextAreaElement.prototype, "value") : null;
+    if (nativeValue?.get && nativeValue?.set && !Object.prototype.hasOwnProperty.call(fi, "value")) {
+      Object.defineProperty(fi, "value", {
+        configurable: true,
+        get() { return nativeValue.get.call(this); },
+        set: (next) => { nativeValue.set.call(fi, next); queueMicrotask(() => this._syncFromInput()); }
+      });
+      this._listeners.push(() => { delete fi.value; });
+    }
+
     this._listeners.push(
       () => fi.removeEventListener("input", onInput),
       () => fi.removeEventListener("scroll", onScroll),
