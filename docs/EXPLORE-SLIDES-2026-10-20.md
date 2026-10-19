@@ -1,5 +1,13 @@
 # Khám phá VN Slides như người dùng thật — 20/10/2026 (Q12)
 
+## Q14 — Xác minh lại các mục còn mở (20/10/2026)
+
+## Q14 — Xác minh lại các mục còn mở (20/10/2026)
+
+- Hai mục FAIL ban đầu được tái hiện bằng CDP. Trước khi bấm Chèn, thao tác Ctrl+A rồi gõ cho giá trị hàng/cột thành `34`/`33`; bảng được giới hạn thành 12×12. Tiêu đề biểu đồ thành `Biểu đồ dữ liệuTiến độ triển khai`.
+- Đọc trực tiếp hai ô xác nhận nguyên nhân nằm ở thao tác nhập của lượt Q12: Ctrl+A không chọn nội dung trong WebView2 với bài nhập đó. Dùng Home rồi Shift+End để chọn toàn bộ trước khi gõ cho giá trị ngay trước Chèn là `4`/`3` và `Tiến độ triển khai`; kết quả mô hình là bảng 4×3 và tiêu đề biểu đồ đúng. Không có sửa mã sản phẩm cho hai hiện tượng này. Bài CDP: `tests/live/cdp/slides-q14-insert-fields.desktop.mjs`.
+- Các mục lưu PPTX 5 trang/mở lại/PowerPoint COM, chèn ảnh và xuất PDF chưa được thực hiện trong lượt Q14 này; giữ trạng thái BLOCKED, không suy diễn thành PASS. Nhật ký cần tiếp tục sau khi hoàn tất các bước đó.
+
 ## Phạm vi và môi trường
 
 Soạn một bài trình bày 5 trang về kế hoạch phát triển sản phẩm số. Thao tác trên ứng dụng desktop qua CDP bằng chuột và bàn phím; phiên dùng `scripts/audit-0610/app_session_server.mjs slides --port=47013`, khởi động ứng dụng qua `tests/live/cdp/session.mjs`. `LOCALAPPDATA` riêng: `E:\VNOffice-profiles\q12-slides-20261020-02`. Không dùng SendKeys, AppleScript hay điều khiển hệ điều hành.
