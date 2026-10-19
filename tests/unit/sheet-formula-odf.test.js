@@ -18,6 +18,7 @@ export async function runSheetFormulaOdfTests() {
   check("RANK.EQ tự thêm _xlfn. khi ghi ODF", adapter._formulaToOdf("=RANK.EQ(A1,A1:A5,0)"), "of:=_xlfn.RANK.EQ([.A1];[.A1:.A5];0)");
   check("FORMULATEXT tự thêm _xlfn. khi ghi ODF", adapter._formulaToOdf("=FORMULATEXT(A1)"), "of:=_xlfn.FORMULATEXT([.A1])");
   check("hàm lồng nhau nhận tiền tố đúng", adapter._formulaToOdf("=IF(A1>0,STDEV.S(A1:A5),0)"), "of:=IF([.A1]>0;_xlfn.STDEV.S([.A1:.A5]);0)");
+  check("mã sản phẩm trong chuỗi SUMIF không biến thành tham chiếu ô", adapter._formulaToOdf('=SUMIF(B2:B22,"SP01",G2:G22)'), 'of:=SUMIF([.B2:.B22];"SP01";[.G2:.G22])');
   check("tiền tố có sẵn không bị lặp", adapter._formulaToOdf("=_xlfn.RANK.EQ(A1,A1:A5,0)"), "of:=_xlfn.RANK.EQ([.A1];[.A1:.A5];0)");
   check("chuỗi có tên hàm không bị đổi", adapter._formulaToOdf('=IF(A1="RANK.EQ(",RANK.EQ(A1,A1:A5),0)'), 'of:=IF([.A1]="RANK.EQ(";_xlfn.RANK.EQ([.A1];[.A1:.A5]);0)');
   check("hàm sau Excel 2016 không được thêm tiền tố", adapter._formulaToOdf("=CONCAT(A1,A2)"), "of:=CONCAT([.A1];[.A2])");

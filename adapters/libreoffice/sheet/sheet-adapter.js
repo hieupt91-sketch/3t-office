@@ -1808,25 +1808,25 @@ export class SheetAdapter {
         return `${before}__VNO_REF_${references.length - 1}__`;
       })
     )).join("");
-    expression = expression.replace(/((?:'[^']+'|[A-Za-z0-9_À-ỹ ]+)!)?(\$?[A-Z]+\$?\d+):(\$?[A-Z]+\$?\d+)/g, (_, sheet, start, end) => {
+    expression = expression.split(/("(?:[^"]|"")*")/).map((part, index) => index % 2 === 1 ? part : part.replace(/((?:'[^']+'|[A-Za-z0-9_À-ỹ ]+)!)?(\$?[A-Z]+\$?\d+):(\$?[A-Z]+\$?\d+)/g, (_, sheet, start, end) => {
       const prefix = sheet ? `$${sheet.slice(0, -1)}.` : ".";
       references.push(`[${prefix}${start}:${prefix}${end}]`);
       return `__VNO_REF_${references.length - 1}__`;
-    });
+    })).join("");
     // Whole-column ranges (`$A:$C`, `'Giá cost1'!$A:$C`): ODF has no column-only
     // reference, LibreOffice writes rows 1..1048576. Left as Excel syntax the
     // sheet part became `'giá cost1' $A:$C` in the saved XLSX and Excel refused
     // to open the workbook (measured on xét lương công ty.xlsx).
-    expression = expression.replace(/((?:'[^']+'|[A-Za-z0-9_À-ỹ ]+)!)?(?<![A-Za-z0-9_.\]])(\$?)([A-Z]{1,3}):(\$?)([A-Z]{1,3})(?![A-Za-z0-9_(])/g, (_, sheet, startAbs, startCol, endAbs, endCol) => {
+    expression = expression.split(/("(?:[^"]|"")*")/).map((part, index) => index % 2 === 1 ? part : part.replace(/((?:'[^']+'|[A-Za-z0-9_À-ỹ ]+)!)?(?<![A-Za-z0-9_.\]])(\$?)([A-Z]{1,3}):(\$?)([A-Z]{1,3})(?![A-Za-z0-9_(])/g, (_, sheet, startAbs, startCol, endAbs, endCol) => {
       const prefix = sheet ? `$${sheet.slice(0, -1)}.` : ".";
       references.push(`[${prefix}${startAbs}${startCol}$1:${prefix}${endAbs}${endCol}$1048576]`);
       return `__VNO_REF_${references.length - 1}__`;
-    });
-    expression = expression.replace(/((?:'[^']+'|[A-Za-z0-9_À-ỹ ]+)!)?(\$?[A-Z]+\$?\d+)/g, (_, sheet, cell) => {
+    })).join("");
+    expression = expression.split(/("(?:[^"]|"")*")/).map((part, index) => index % 2 === 1 ? part : part.replace(/((?:'[^']+'|[A-Za-z0-9_À-ỹ ]+)!)?(\$?[A-Z]+\$?\d+)/g, (_, sheet, cell) => {
       const prefix = sheet ? `$${sheet.slice(0, -1)}.` : ".";
       references.push(`[${prefix}${cell}]`);
       return `__VNO_REF_${references.length - 1}__`;
-    });
+    })).join("");
     expression = expression.replace(/__VNO_REF_(\d+)__/g, (_, index) => references[Number(index)]);
     expression = this._replaceFormulaSeparators(expression, ",", ";");
     return `of:=${expression}`;
