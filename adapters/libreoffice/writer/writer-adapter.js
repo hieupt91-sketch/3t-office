@@ -9732,8 +9732,13 @@ export class WriterAdapter {
   }
 
   insertTable(rows = 3, cols = 4) {
+    rows = Number(rows);
+    cols = Number(cols);
+    if (!Number.isInteger(rows) || rows < 1 || rows > 63 || !Number.isInteger(cols) || cols < 1 || cols > 63) return false;
     this.flushTyping();
     this._initZones();
+    const targetDom = this.bodyDom || this.editorDom;
+    const tablesBefore = targetDom?.querySelectorAll?.("table").length || 0;
     let html = `<table style="width:100%; border-collapse:collapse; margin:14pt 0;"><tbody>`;
     for (let r = 0; r < rows; r++) {
       html += `<tr>`;
@@ -9754,9 +9759,21 @@ export class WriterAdapter {
         inserted = false;
       }
     }
-    const targetDom = this.bodyDom || this.editorDom;
     if (!inserted && targetDom) {
       targetDom.innerHTML = (targetDom.innerHTML || "") + html;
+    }
+    const table = targetDom?.querySelectorAll?.("table")?.[tablesBefore] || targetDom?.querySelector?.("table:last-of-type");
+    const firstCell = table?.rows?.[0]?.cells?.[0];
+    if (firstCell) {
+      firstCell.focus?.();
+      const cellRange = document.createRange?.();
+      const currentSelection = window.getSelection?.();
+      if (cellRange && currentSelection) {
+        cellRange.selectNodeContents(firstCell);
+        cellRange.collapse(true);
+        currentSelection.removeAllRanges();
+        currentSelection.addRange(cellRange);
+      }
     }
     this.isDirty = true;
     this.recordSnapshot("writer.table.insert");
@@ -21452,11 +21469,12 @@ export class WriterAdapter {
     if (typeof window !== "undefined" && window.getSelection) {
       const sel = window.getSelection();
       if (sel && sel.rangeCount > 0) {
-        const range = sel.getRangeAt(0);
-        const commonNode = range.commonAncestorContainer;
-        if (!this._isInsideProtectedZone(commonNode) && (commonNode === this.bodyDom || this.bodyDom.contains?.(commonNode))) {
+        const sourceRange = sel.getRangeAt(0);
+        const range = typeof sourceRange.cloneRange === "function" ? sourceRange.cloneRange() : sourceRange;
+        range.collapse?.(true);
+        const caretNode = range.startContainer || range.commonAncestorContainer;
+        if (!this._isInsideProtectedZone(caretNode) && (caretNode === this.bodyDom || this.bodyDom.contains?.(caretNode))) {
           try {
-            range.collapse(true);
             let node = tocElement;
             if (typeof node === "string") {
               const temp = document.createElement("div");
@@ -21464,23 +21482,46 @@ export class WriterAdapter {
               node = temp.firstElementChild;
             }
 
-            let paragraphBlock = commonNode?.nodeType === 1 ? commonNode : (commonNode?.parentElement || commonNode?.parentNode);
+            let paragraphBlock = caretNode?.nodeType === 1 ? caretNode : (caretNode?.parentElement || caretNode?.parentNode);
             while (paragraphBlock && paragraphBlock !== this.bodyDom) {
               if (/^(P|H[1-6])$/.test(String(paragraphBlock.tagName || "").toUpperCase())) break;
               paragraphBlock = paragraphBlock.parentElement || paragraphBlock.parentNode;
             }
             if (paragraphBlock === this.bodyDom) paragraphBlock = null;
 
-            if (paragraphBlock?.parentNode?.insertBefore) {
-              const nextSibling = paragraphBlock.nextSibling;
-              if (nextSibling) paragraphBlock.parentNode.insertBefore(node, nextSibling);
-              else paragraphBlock.parentNode.appendChild(node);
+            if (paragraphBlock?.parentNode?.insertBefore && range.startContainer && typeof range.setStart === "function") {
+              const afterBlock = paragraphBlock.cloneNode(false);
+              const tail = document.createRange();
+              tail.setStart(range.startContainer, range.startOffset);
+              tail.setEnd(paragraphBlock, paragraphBlock.childNodes.length);
+              afterBlock.appendChild(tail.extractContents());
+              if (!afterBlock.textContent?.trim() && !afterBlock.querySelector?.("img,br,table")) afterBlock.appendChild(document.createElement("br"));
+              const parent = paragraphBlock.parentNode;
+              parent.insertBefore(node, paragraphBlock.nextSibling);
+              parent.insertBefore(afterBlock, node.nextSibling);
+              const caretAfterSplit = document.createRange();
+              caretAfterSplit.setStart(afterBlock, 0);
+              caretAfterSplit.collapse(true);
+              sel.removeAllRanges();
+              sel.addRange(caretAfterSplit);
+              inserted = true;
+            } else if (paragraphBlock?.parentNode?.insertBefore) {
+              paragraphBlock.parentNode.insertBefore(node, paragraphBlock.nextSibling);
+              range.setStartAfter?.(node);
+              inserted = true;
             } else {
-              range.insertNode(node);
+              if (typeof range.insertNode === "function") {
+                range.insertNode(node);
+                range.setStartAfter?.(node);
+                range.collapse?.(true);
+                sel.removeAllRanges?.();
+                sel.addRange?.(range);
+                inserted = true;
+              }
             }
-            range.setStartAfter(node);
-            inserted = true;
-          } catch {}
+          } catch (error) {
+            console.warn("Unable to insert the table of contents at the current caret.", error);
+          }
         }
       }
     }

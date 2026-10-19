@@ -21,6 +21,7 @@ import { showPageSetupDialog } from "./page-setup-dialog.js";
 import { WriterAutoCorrectPreferences, WriterAutoCorrectController } from "./auto-correct.js";
 import { createWriterAutoCorrectOptionsProvider } from "./auto-correct-options.js";
 import { WriterMiniToolbar } from "./writer-mini-toolbar.js";
+import { showTableSizePicker } from "./writer-table-size-picker.js";
 
 export class WriterApp {
   constructor(mountElement) {
@@ -255,6 +256,13 @@ export class WriterApp {
     this.adapter.setCommentsPanel(commentsPanel);
     this.adapter.setShell(this.shell);
     this.adapter.attach();
+    globalCommandBus.bindHandler("writer.table.insert", () => {
+      const anchor = document.activeElement?.closest?.('[data-command-id="writer.table.insert"]')
+        || this.shell?.ribbonHost?.querySelector?.('[data-command-id="writer.table.insert"]');
+      return showTableSizePicker(anchor, {
+        onInsert: (rows, columns) => this.adapter?.insertTable(rows, columns)
+      });
+    });
     if (isBlank) {
       const firstParagraph = body.querySelector("p") || body;
       body.focus();

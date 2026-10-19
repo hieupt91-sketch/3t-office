@@ -553,16 +553,16 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.reference.tocInsert", "writer.reference.tocUpdate"],
     title: "Mục lục tự động",
-    summary: "Dựng mục lục từ các đoạn đã gán kiểu Heading 1, Heading 2, Heading 3. Khi lưu DOCX, tiêu đề và mục lục vẫn là cấu trúc có thể cập nhật, không bị đổi thành văn bản tĩnh.",
+    summary: "Dựng mục lục từ các đoạn đã gán kiểu Heading 1, Heading 2, Heading 3 ngay tại vị trí con trỏ. Nếu con trỏ nằm giữa đoạn, đoạn được tách để đặt mục lục vào đúng chỗ; mục lục vẫn có thể cập nhật sau khi đổi tiêu đề.",
     ribbon: { tab: "Tham chiếu", tabId: "references", group: "Mục lục" },
     keywords: ["mục lục", "table of contents", "toc", "tiêu đề", "heading"],
     steps: [
       "Gán kiểu tiêu đề cho các đề mục: trên tab Trang đầu, nhóm Kiểu dáng, chọn Heading 1 / Heading 2 / Heading 3 (hoặc Thư viện kiểu).",
-      "Đặt con trỏ ở đầu tài liệu (hoặc chỗ muốn hiện mục lục).",
+      "Đặt con trỏ tại vị trí cần chèn mục lục. Nếu đặt giữa đoạn, phần chữ trước và sau con trỏ được giữ thành hai đoạn riêng.",
       "Mở tab Tham chiếu, nhóm Mục lục, nhấn Mục lục tự động.",
       "Sau khi thêm hoặc đổi tiêu đề, nhấn Cập nhật mục lục để làm mới số trang và dòng đề mục.",
       "Nhấp một dòng trong mục lục để nhảy tới tiêu đề tương ứng trong tài liệu.",
-      "Khi lưu thành DOCX và mở bằng phần mềm văn phòng tương thích, dùng Cập nhật bảng để tính lại mục lục; các Heading vẫn xuất hiện trong Ngăn Dẫn hướng."
+      "Lưu tài liệu. Khi thêm hoặc đổi tiêu đề, quay lại nhóm Mục lục và chọn Cập nhật mục lục để làm mới các dòng đề mục."
     ]
   },
   {
@@ -738,14 +738,14 @@ export const WRITER_HELP_ENTRIES = [
     app: "writer",
     commandIds: ["writer.table.insert"],
     title: "Chèn bảng",
-    summary: "Chèn ngay một bảng trống 3 hàng × 4 cột tại vị trí con trỏ, có viền xám và rộng bằng trang. Hàng đầu là hàng đầu tiên của bảng; các ô không có chữ mẫu.",
+    summary: "Chọn nhanh kích thước bảng trên lưới tối đa 10 cột × 8 hàng hoặc mở hộp thoại để nhập từ 1 đến 63 hàng và cột. Bảng được chèn tại con trỏ với độ rộng tự động và con trỏ đặt ở ô đầu.",
     ribbon: { tab: "Chèn", tabId: "insert", group: "Bảng biểu" },
     keywords: ["bảng", "table", "chèn bảng", "hàng", "cột", "ô bảng", "tiêu đề"],
     steps: [
-      "Đặt con trỏ vào đoạn văn, chỗ muốn đặt bảng. Mở tab Chèn, nhóm Bảng biểu, nhấn nút lớn Bảng biểu.",
-      "Doc chèn ngay bảng trống 3 hàng × 4 cột (không mở hộp thoại chọn kích thước). Hàng đầu là hàng đầu tiên của bảng để bạn nhập tiêu đề; các ô đều không có chữ mẫu, nên nội dung gõ vào không bị dính với chữ có sẵn. Viền 1px xám, đệm 6–10 pt, rộng 100% trang.",
-      "Nhấp vào ô cần điền rồi gõ nội dung. Nhấn Tab để chuyển tới ô tiếp theo. Nhấn Ctrl+Z nếu cần hoàn tác việc chèn bảng.",
-      "Cùng tab Chèn, nhóm Minh họa có Hình ảnh nếu cần đặt ảnh cạnh bảng."
+      "Đặt con trỏ tại vị trí cần chèn bảng. Mở tab Chèn, nhóm Bảng biểu, nhấn nút Bảng biểu.",
+      "Di chuyển trên lưới để chọn số cột × hàng, rồi nhấn vào ô kích thước mong muốn. Lưới chọn tối đa 10 cột và 8 hàng; có thể dùng phím mũi tên và Enter để chọn, hoặc nhấn Esc để đóng mà không chèn.",
+      "Để nhập kích thước lớn hơn, chọn Chèn bảng... bên dưới lưới, nhập số cột và số hàng từ 1 đến 63 rồi nhấn Chèn. Chiều rộng cột tự cân theo trang.",
+      "Sau khi chèn, con trỏ nằm trong ô đầu tiên. Nhập nội dung và nhấn Tab để sang ô kế tiếp; nhấn Ctrl+Z để hoàn tác một bước."
     ]
   },
   {

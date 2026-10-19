@@ -1875,6 +1875,20 @@ export const viStrings = {
     chart: {
       itemValueError: "Vui lòng nhập giá trị số hợp lệ cho mục {index}."
     },
+    tableSize: {
+      title: "Chèn bảng",
+      gridLabel: "Chọn số cột và hàng",
+      cellLabel: "{columns} cột, {rows} hàng",
+      hint: "Chọn số cột × hàng",
+      selection: "{columns} cột × {rows} hàng",
+      custom: "Chèn bảng...",
+      customTitle: "Chèn bảng",
+      columns: "Số cột (1–63)",
+      rows: "Số hàng (1–63)",
+      cancel: "Hủy",
+      insert: "Chèn",
+      invalid: "Nhập số nguyên từ 1 đến 63 cho cả số cột và số hàng."
+    },
     toc: {
       title: "MỤC LỤC",
       updateBtn: "🔄 Cập nhật",
