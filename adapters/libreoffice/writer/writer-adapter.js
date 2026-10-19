@@ -17798,6 +17798,20 @@ export class WriterAdapter {
     return { html: output, metadataComment: `<!--vno-review-meta-hex:${hex}-->` };
   }
 
+  /**
+   * Thay đổi theo dõi nằm TRONG chú thích cuối trang / cuối bài: dấu neo của chúng rơi vào footnotes.xml còn bộ vá DOCX
+   * chỉ tìm ở document.xml nên việc lưu thất bại ("không giữ được dấu neo vno-review-start"). Ghi các thay đổi đó ở dạng
+   * đã chấp nhận (chữ thêm giữ lại, chữ xóa bỏ) thay vì để cả tài liệu không lưu được.
+   */
+  _acceptReviewInNotesForExport(exportRoot) {
+    const items = exportRoot?.querySelectorAll?.(".vno-footnote-item, .vno-endnote-item");
+    if (!items) return;
+    for (const item of items) {
+      if (!item.querySelector?.("ins, del")) continue;
+      item.innerHTML = this._acceptedReviewHtml(item.innerHTML);
+    }
+  }
+
   _acceptedReviewHtml(html) {
     return String(html || "")
       .replace(/<del\b(?=[^>]*\bdata-vno-change=["']delete["'])[^>]*>[\s\S]*?<\/del\s*>/gi, "")
@@ -18018,6 +18032,7 @@ export class WriterAdapter {
         bodyHtml = this._stripSessionMarkup(this._acceptedReviewHtml(exportRoot.innerHTML));
       } else {
         this._markCurrentUntouchedParagraphs(exportRoot);
+        this._acceptReviewInNotesForExport(exportRoot);
         const tableEdits = this._tableEditsForExport(exportRoot);
         if (tableEdits.length) tableEditsComment = `<!--vno-table-edits: ${JSON.stringify(tableEdits)} -->`;
         const reviewExport = this._serializeReviewRangesForExport(exportRoot.innerHTML);
