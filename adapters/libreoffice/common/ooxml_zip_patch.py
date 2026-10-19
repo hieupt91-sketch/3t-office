@@ -14877,7 +14877,12 @@ def overlay_sheet_xlsx_fods_p1(
         xml,
         include_xf=not skip_initial_xf,
     )
-    xml = timed("overlay_native_cell_formats", _overlay_native_cell_formats_from_xlsx, xlsx_bytes, xml)
+    format_helper = (
+        "overlay_native_cell_formats_fast"
+        if os.environ.get("VNO_FAST_IMPORT_OVERLAY") == "1"
+        else "overlay_native_cell_formats"
+    )
+    xml = timed(format_helper, _overlay_native_cell_formats_from_xlsx, xlsx_bytes, xml)
     xml = timed("promote_covered_formula_errors", _promote_covered_formula_errors, xml)
     if not skeleton:
         if tab_colors:
@@ -15266,6 +15271,44 @@ def _xlsx_native_formats_by_xf(xlsx_bytes: bytes) -> list[dict]:
 
 
 def _overlay_native_cell_formats_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> str:
+    fast_scan = os.environ.get("VNO_FAST_IMPORT_OVERLAY") == "1"
+    if fast_scan:
+        block_patterns = {
+            ("table:table",): re.compile(r"<table:table(?=[ \t\r\n>/])"),
+            ("table:table-row",): re.compile(r"<table:table-row(?=[ \t\r\n>/])"),
+            ("table:table-cell", "table:covered-table-cell"): re.compile(
+                r"<(?:table:table-cell|table:covered-table-cell)(?=[ \t\r\n>/])"
+            ),
+        }
+
+        def native_format_blocks(xml: str, names: tuple[str, ...]):
+            """Use C-level opener search for this hot path, preserving _flat_xml_blocks spans."""
+            pattern = block_patterns.get(names)
+            if pattern is None:
+                yield from _flat_xml_blocks(xml, names)
+                return
+            cursor = 0
+            while True:
+                match = pattern.search(xml, cursor)
+                if match is None:
+                    return
+                start = match.start()
+                name = names[0] if len(names) == 1 or xml.startswith("<" + names[0], start) else names[1]
+                opening_end = xml.find(">", match.end())
+                if opening_end < 0:
+                    return
+                if xml[opening_end - 1] == "/":
+                    end = opening_end + 1
+                else:
+                    close_at = xml.find("</" + name + ">", opening_end + 1)
+                    if close_at < 0:
+                        return
+                    end = close_at + len(name) + 3
+                yield start, end
+                cursor = end
+    else:
+        native_format_blocks = _flat_xml_blocks
+
     configs_by_xf = _xlsx_native_formats_by_xf(xlsx_bytes)
     if not any(configs_by_xf):
         return fods_xml
@@ -15284,7 +15327,7 @@ def _overlay_native_cell_formats_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> 
     def apply_row(row_xml: str, targets: dict[int, dict]) -> str:
         pieces, cursor, column = [], 0, 1
         sorted_columns, target_index = sorted(targets), 0
-        for start, end in _flat_xml_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
+        for start, end in native_format_blocks(row_xml, ("table:table-cell", "table:covered-table-cell")):
             pieces.append(row_xml[cursor:start])
             cell = row_xml[start:end]
             repeat = _repeat_count(cell, "table:number-columns-repeated")
@@ -15312,7 +15355,7 @@ def _overlay_native_cell_formats_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> 
         return "".join(pieces)
 
     pieces, cursor = [], 0
-    for start, end in _flat_xml_blocks(fods_xml, ("table:table",)):
+    for start, end in native_format_blocks(fods_xml, ("table:table",)):
         pieces.append(fods_xml[cursor:start])
         table_xml = fods_xml[start:end]
         opening = re.match(r"<[^>]+", table_xml)
@@ -15324,7 +15367,7 @@ def _overlay_native_cell_formats_from_xlsx(xlsx_bytes: bytes, fods_xml: str) -> 
                 rows.setdefault(row, {})[col] = config
             table_parts, table_cursor, row_number = [], 0, 1
             sorted_rows, target_index = sorted(rows), 0
-            for row_start, row_end in _flat_xml_blocks(table_xml, ("table:table-row",)):
+            for row_start, row_end in native_format_blocks(table_xml, ("table:table-row",)):
                 table_parts.append(table_xml[table_cursor:row_start])
                 row_xml = table_xml[row_start:row_end]
                 repeat = _repeat_count(row_xml, "table:number-rows-repeated")
