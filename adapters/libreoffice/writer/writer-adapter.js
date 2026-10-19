@@ -1064,9 +1064,15 @@ export class WriterAdapter {
           const lastRow = table.rows?.[table.rows.length - 1];
           const columnCount = Math.max(1, lastRow?.cells?.length || 1);
           const newRow = table.insertRow(-1);
+          // Hàng mới theo đúng hàng trên cùng (canh lề, nền, gộp ô, kiểu ô) và cùng cấu trúc ô: ô gốc không bọc <p>
+          // thì ô mới cũng không bọc, nếu không hàng mới cao hơn các hàng còn lại do lề đoạn.
           for (let index = 0; index < columnCount; index++) {
-            const newCell = newRow.insertCell(-1);
-            newCell.innerHTML = "<p><br></p>";
+            const template = lastRow?.cells?.[index];
+            const newCell = template ? template.cloneNode(false) : document.createElement("td");
+            newCell.removeAttribute?.("id");
+            const wrapsParagraph = !template || !!template.querySelector?.(":scope > p");
+            newCell.innerHTML = wrapsParagraph ? "<p><br></p>" : "<br>";
+            newRow.appendChild(newCell);
           }
           const firstNewCell = newRow.cells?.[0];
           if (firstNewCell) this._placeCaretInEditable(firstNewCell, root, false);
