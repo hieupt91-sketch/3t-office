@@ -10,6 +10,7 @@ import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.
 import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
 import { applyChangeCaseToSelection } from "../../../platform/text/change-case.js";
 import { showFontDialog } from "../../../platform/dialogs/font-dialog.js";
+import { presetOf } from "../../../platform/shapes/shape-presets.js";
 import { overlayFodpMasterLogo } from "./pptx-master-logo.js";
 import { overlayFodpSections } from "./pptx-section-list.js";
 import { overlayFodpShowProperties } from "./pptx-show-properties.js";
@@ -2959,7 +2960,8 @@ export class SlidesAdapter {
       path: "Hình tự do",
       polygon: "Đa giác"
     };
-    const base = (shape?.type && typeNames[shape.type]) || "Hình dạng";
+    // Hình dựng sẵn (mũi tên, sao, tim...) lấy tên theo loại hình thật, không phải "Hình chữ nhật" của kiểu cơ bản.
+    const base = presetOf(shape?.geomType)?.label || (shape?.type && typeNames[shape.type]) || "Hình dạng";
     let count = (counters[base] || 0) + 1;
     counters[base] = count;
     let name = `${base} ${count}`;
