@@ -10,6 +10,17 @@
 - **Kiểm thử:** chạy CDP trước sửa để ghi lỗi; mỗi lỗi source sẽ có bài CDP/unit FAIL trước và PASS sau. Chạy các gate Q15 được yêu cầu sau cùng.
 - **Rollback:** mỗi sửa source là commit riêng; có thể revert commit sửa tương ứng mà giữ nguyên nhật ký và ảnh audit.
 
+
+## Kế hoạch bổ sung trước khi sửa tiêu đề biểu đồ
+
+- **Mục tiêu:** cho phép đổi tiêu đề biểu đồ ngay trong hộp thoại tiêu đề trục đang có, vì Q15 yêu cầu đổi cả tiêu đề lẫn tên trục và hiện UI chỉ sửa được hai tên trục.
+- **Khả năng hiện tại:** model biểu đồ đã lưu `title`; `updateChartAxisTitles` và hộp thoại hiện hành chỉ nhận X/Y. Không cần thay format hoặc command.
+- **Tệp dự kiến:** `apps/sheet/sheet-chart.js`, `apps/sheet/sheet-grid.js`, `platform/help/entries-sheet.js`, `platform/i18n/strings-vi.js`, `platform/i18n/strings-en.js`, `tests/unit/sheet-charts.test.js`, và CDP Q15 để thao tác hộp thoại.
+- **Phụ thuộc:** không thêm dependency; dùng modal, i18n, Help và serializer XLSX hiện có.
+- **Rủi ro:** title phải giữ nguyên khi người dùng chỉ sửa trục và phải round-trip XLSX. Test sẽ kiểm cả hai trường hợp.
+- **Kiểm thử:** unit/chart CDP FAIL trước sửa rồi PASS sau sửa; full Q15 desktop round-trip và các gate cuối.
+- **Rollback:** commit riêng chỉ chứa title UI/Help/i18n/tests; có thể revert mà giữ fix công thức và nhật ký audit.
+
 ## Kết quả
 
 Đang thực hiện.
