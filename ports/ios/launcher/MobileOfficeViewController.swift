@@ -1,9 +1,11 @@
 import UIKit
 import WebKit
 
-final class MobileOfficeViewController: UIViewController, WKNavigationDelegate, WKScriptMessageHandler {
+final class MobileOfficeViewController: UIViewController, WKNavigationDelegate, WKScriptMessageHandler,
+                                        WKScriptMessageHandlerWithReply {
     private var webView: WKWebView!
     private let offlineAssets = OfflineAssetSchemeHandler()
+    private lazy var documentService = NativeDocumentService(presenter: self)
 
     override func loadView() {
         let configuration = WKWebViewConfiguration()
@@ -13,6 +15,7 @@ final class MobileOfficeViewController: UIViewController, WKNavigationDelegate, 
 
         let controller = configuration.userContentController
         controller.add(self, name: "vnoMobile")
+        controller.addScriptMessageHandler(self, contentWorld: .page, name: "vnoNativeFiles")
         controller.addUserScript(WKUserScript(
             source: Self.capabilityBootstrap,
             injectionTime: .atDocumentStart,
@@ -78,6 +81,9 @@ final class MobileOfficeViewController: UIViewController, WKNavigationDelegate, 
     deinit {
         NotificationCenter.default.removeObserver(self)
         webView?.configuration.userContentController.removeScriptMessageHandler(forName: "vnoMobile")
+        webView?.configuration.userContentController.removeScriptMessageHandler(
+            forName: "vnoNativeFiles", contentWorld: .page
+        )
     }
 
     @objc private func keyboardFrameChanged(_ notification: Notification) {
@@ -114,6 +120,11 @@ final class MobileOfficeViewController: UIViewController, WKNavigationDelegate, 
     }
 
     func webView(_ webView: WKWebView, didFinish navigation: WKNavigation!) {
+        webView.evaluateJavaScript(
+            "window.pywebview?.api?.engine_status?.().then(v => JSON.stringify(v)).catch(e => 'ERROR:'+e)"
+        ) { result, error in
+            print("VNO_IOS_FILE_BRIDGE \(String(describing: result)) \(String(describing: error))")
+        }
         DispatchQueue.main.asyncAfter(deadline: .now() + 5) { [weak webView] in
             webView?.evaluateJavaScript(
                 "({root:!!document.getElementById('vno-app-root'),app:!!window.__vnoAppInstance,mobile:window.vnoPlatformCapabilities?.platform})"
@@ -147,6 +158,51 @@ final class MobileOfficeViewController: UIViewController, WKNavigationDelegate, 
         print("VNO_IOS_BRIDGE \(String(describing: message.body))")
     }
 
+    func userContentController(
+        _ userContentController: WKUserContentController,
+        didReceive message: WKScriptMessage,
+        replyHandler: @escaping (Any?, String?) -> Void
+    ) {
+        guard message.name == "vnoNativeFiles",
+              let payload = message.body as? [String: Any],
+              let action = payload["action"] as? String else {
+            replyHandler(nil, "Yêu cầu cầu nối tệp không hợp lệ.")
+            return
+        }
+        let appKind = payload["appKind"] as? String ?? ""
+        print("VNO_IOS_FILE_ACTION \(action) \(appKind)")
+        switch action {
+        case "engineStatus":
+            replyHandler([
+                "available": true, "engine": "ios-local-flat-document-adapter",
+                "officeEngine": false
+            ], nil)
+        case "open":
+            documentService.open(appKind: appKind, reply: replyHandler)
+        case "saveAs":
+            guard let content = payload["content"] as? String else {
+                replyHandler(["status": "error", "message": "Thiếu nội dung cần lưu."], nil)
+                return
+            }
+            documentService.save(
+                content: content, appKind: appKind,
+                suggestedName: payload["suggestedName"] as? String,
+                reply: replyHandler
+            )
+        case "saveInPlace":
+            guard let content = payload["content"] as? String,
+                  let token = payload["targetPath"] as? String else {
+                replyHandler(["status": "error", "message": "Thiếu nội dung hoặc quyền tệp."], nil)
+                return
+            }
+            documentService.saveInPlace(
+                content: content, appKind: appKind, token: token, reply: replyHandler
+            )
+        default:
+            replyHandler(["status": "error", "message": "Thao tác tệp chưa được hỗ trợ trên iOS."], nil)
+        }
+    }
+
     private func showFatal(_ message: String) {
         let label = UILabel()
         label.numberOfLines = 0
@@ -166,8 +222,23 @@ final class MobileOfficeViewController: UIViewController, WKNavigationDelegate, 
       const idiom = /iPad/.test(navigator.userAgent) ? 'ipad' : 'iphone';
       window.vnoPlatformCapabilities = Object.freeze({
         platform: 'ios', idiom, offline: true, embeddedAssets: true,
-        officeEngine: false, documentPicker: false, ooxmlRoundTrip: false,
+        officeEngine: false, documentPicker: true, localFlatDocuments: true,
+        supportedOfflineFormats: Object.freeze({writer:['html','htm'],sheet:['fods'],slides:['fodp']}),
+        ooxmlRoundTrip: false,
         cloudDocumentUpload: false
+      });
+      const callNativeFiles = payload =>
+        window.webkit.messageHandlers.vnoNativeFiles.postMessage(payload);
+      window.pywebview = window.pywebview || {};
+      window.pywebview.api = Object.freeze({
+        engine_status: () => callNativeFiles({action:'engineStatus'}),
+        open_document_dialog: appKind => callNativeFiles({action:'open', appKind}),
+        save_document_dialog: (content, appKind, _format, suggestedName) =>
+          callNativeFiles({action:'saveAs', appKind, content, suggestedName}),
+        save_document_in_place: (content, appKind, targetPath) =>
+          callNativeFiles({action:'saveInPlace', appKind, content, targetPath}),
+        report_frontend_error: () => Promise.resolve({queued:false}),
+        set_window_title: () => Promise.resolve(true)
       });
       document.documentElement.dataset.vnoPlatform = 'ios';
       document.documentElement.dataset.vnoIdiom = idiom;
@@ -199,6 +270,36 @@ final class MobileOfficeViewController: UIViewController, WKNavigationDelegate, 
         });
       });
       window.webkit.messageHandlers.vnoMobile.postMessage({ type: 'bridge-ready', idiom });
+
+      window.addEventListener('DOMContentLoaded', () => {
+        const button = document.createElement('button');
+        button.type = 'button';
+        button.id = 'vno-ios-file-help-button';
+        button.textContent = 'Tệp iOS';
+        button.setAttribute('aria-label', 'Hướng dẫn mở và lưu tệp trên iPhone, iPad');
+        button.addEventListener('click', () => {
+          const existing = document.getElementById('vno-ios-file-help-dialog');
+          if (existing) { existing.remove(); return; }
+          const dialog = document.createElement('div');
+          dialog.id = 'vno-ios-file-help-dialog';
+          dialog.setAttribute('role', 'dialog');
+          dialog.setAttribute('aria-modal', 'true');
+          dialog.setAttribute('aria-label', 'Hướng dẫn tệp iOS');
+          dialog.innerHTML = `<div class="vno-ios-help-card">
+            <button class="vno-ios-help-close" aria-label="Đóng hướng dẫn">×</button>
+            <h2>Mở và lưu tệp offline</h2>
+            <p>Chọn <b>Tệp → Mở</b> để mở Files trên iPhone hoặc iPad.</p>
+            <p>Doc hỗ trợ HTML; Sheet hỗ trợ FODS; Slide hỗ trợ FODP.</p>
+            <p>Chọn <b>Tệp → Lưu bản sao</b> để đặt tên và chọn thư mục trong Files.</p>
+            <p><b>DOCX, XLSX, PPTX chưa hỗ trợ offline.</b> Ứng dụng không ghi đè các tệp này.</p>
+          </div>`;
+          dialog.querySelector('button').addEventListener('click', () => dialog.remove());
+          dialog.addEventListener('click', event => { if (event.target === dialog) dialog.remove(); });
+          document.body.appendChild(dialog);
+          dialog.querySelector('button').focus();
+        });
+        document.body.appendChild(button);
+      }, {once:true});
     })();
     """
 

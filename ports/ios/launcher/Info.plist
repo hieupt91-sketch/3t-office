@@ -10,6 +10,19 @@
   <key>CFBundleShortVersionString</key><string>0.9.11</string>
   <key>CFBundleVersion</key><string>1</string>
   <key>LSRequiresIPhoneOS</key><true/>
+  <key>LSSupportsOpeningDocumentsInPlace</key><true/>
+  <key>UIFileSharingEnabled</key><true/>
+  <key>UTImportedTypeDeclarations</key>
+  <array>
+    <dict><key>UTTypeIdentifier</key><string>vn.office.fods</string><key>UTTypeDescription</key><string>OpenDocument Flat Spreadsheet</string><key>UTTypeConformsTo</key><array><string>public.xml</string></array><key>UTTypeTagSpecification</key><dict><key>public.filename-extension</key><array><string>fods</string></array></dict></dict>
+    <dict><key>UTTypeIdentifier</key><string>vn.office.fodp</string><key>UTTypeDescription</key><string>OpenDocument Flat Presentation</string><key>UTTypeConformsTo</key><array><string>public.xml</string></array><key>UTTypeTagSpecification</key><dict><key>public.filename-extension</key><array><string>fodp</string></array></dict></dict>
+  </array>
+  <key>CFBundleDocumentTypes</key>
+  <array>
+    <dict><key>CFBundleTypeName</key><string>3T Doc HTML</string><key>CFBundleTypeRole</key><string>Editor</string><key>LSHandlerRank</key><string>Alternate</string><key>LSItemContentTypes</key><array><string>public.html</string></array></dict>
+    <dict><key>CFBundleTypeName</key><string>3T Sheet FODS</string><key>CFBundleTypeRole</key><string>Editor</string><key>LSHandlerRank</key><string>Alternate</string><key>LSItemContentTypes</key><array><string>vn.office.fods</string></array></dict>
+    <dict><key>CFBundleTypeName</key><string>3T Slide FODP</string><key>CFBundleTypeRole</key><string>Editor</string><key>LSHandlerRank</key><string>Alternate</string><key>LSItemContentTypes</key><array><string>vn.office.fodp</string></array></dict>
+  </array>
   <key>UILaunchScreen</key><dict><key>UIColorName</key><string></string></dict>
   <key>UISupportedInterfaceOrientations</key>
   <array><string>UIInterfaceOrientationPortrait</string><string>UIInterfaceOrientationLandscapeLeft</string><string>UIInterfaceOrientationLandscapeRight</string></array>

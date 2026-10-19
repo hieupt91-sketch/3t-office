@@ -7,6 +7,30 @@ html[data-vno-platform="ios"] {
   --vno-mobile-dock-height: 0px;
   color-scheme: light dark;
 }
+
+#vno-ios-file-help-button {
+  position: fixed; right: max(12px, env(safe-area-inset-right));
+  bottom: max(12px, env(safe-area-inset-bottom)); z-index: 2147483000;
+  min-width: 72px; min-height: 44px; padding: 0 14px; border: 0;
+  border-radius: 22px; background: #155eef; color: #fff; font: 600 14px system-ui;
+  box-shadow: 0 4px 18px rgba(0,0,0,.24);
+}
+#vno-ios-file-help-dialog {
+  position: fixed; inset: 0; z-index: 2147483001; display: grid; place-items: center;
+  padding: max(20px, env(safe-area-inset-top)) 20px max(20px, env(safe-area-inset-bottom));
+  background: rgba(15,23,42,.46);
+}
+.vno-ios-help-card {
+  position: relative; width: min(100%, 520px); max-height: 80vh; overflow: auto;
+  padding: 24px; border-radius: 18px; background: #fff; color: #172033;
+  box-shadow: 0 20px 60px rgba(0,0,0,.3); font: 16px/1.5 system-ui;
+}
+.vno-ios-help-card h2 { margin: 0 40px 12px 0; font-size: 21px; }
+.vno-ios-help-card p { margin: 10px 0; }
+.vno-ios-help-close {
+  position: absolute; top: 8px; right: 8px; width: 44px; height: 44px;
+  border: 0; border-radius: 22px; background: #eef2f8; color: #172033; font-size: 28px;
+}
 html[data-vno-platform="ios"] * { -webkit-tap-highlight-color: transparent; }
 html[data-vno-platform="ios"] button,
 html[data-vno-platform="ios"] [role="button"],

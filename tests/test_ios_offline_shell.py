@@ -36,7 +36,7 @@ class IOSOfflineShellTests(unittest.TestCase):
         source = (IOS / "launcher" / "MobileOfficeViewController.swift").read_text()
         for capability in (
             "officeEngine: false",
-            "documentPicker: false",
+            "documentPicker: true",
             "ooxmlRoundTrip: false",
             "cloudDocumentUpload: false",
         ):

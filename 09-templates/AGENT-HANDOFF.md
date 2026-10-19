@@ -19,6 +19,26 @@ NEXT ACTION: Test physical iPhone/iPad, landscape and Split View; then add docum
 ---
 
 # Agent Handoff
+TASK: I2 — iOS/iPadOS native offline file workflow
+AGENT/ROLE: OpenCode delegate / iOS Platform
+BRANCH: mobile/ios-native-files
+WORKTREE: /Users/hieupc/.codex/worktrees/ios-native-files/3t-office
+OBJECTIVE: Add a truthful native Files open/save bridge without claiming unsupported OOXML round-trip.
+FINDINGS: The existing JS adapters can directly consume/produce Writer HTML, Sheet FODS and Slide FODP. DOCX/XLSX/PPTX still require an engine unavailable on iOS.
+IMPLEMENTATION SUMMARY: Added UIDocumentPicker, security-scoped coordinated I/O, atomic export/in-place save, format/content guards, 24 MB limit, Vietnamese error/help states and document type declarations. No shared source or external dependency changed.
+FILES CHANGED: See docs/mobile/HANDOFF-IOS-NATIVE-FILES-I2.md.
+COMMANDS RUN: Focused Python unittest; plist/shell validation; Xcode Simulator build; native iPad install/launch and visual picker/help/cancel checks.
+BUILD RESULT: PASS — Debug iphonesimulator app built.
+TEST RESULTS: PASS — focused 7/7; native app, help panel, UIDocumentPicker presentation and cancel return on iPad Simulator. NOT RUN — file-provider fixture selection/export completion and real devices.
+KNOWN FAILURES: DOCX/XLSX/PPTX are intentionally BLOCKED; they are not converted or overwritten. Full Office round-trip is not implemented.
+RISKS: Provider access/save conflicts need device testing; 24 MB bridge limit is provisional; HTML is deliberately rejected when active content is detected.
+DEPENDENCIES/BLOCKERS: A separately reviewed offline OOXML adapter is required for Office formats. No blocker for the supported flat formats.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Integrate after review, then run real-device/provider fixtures for HTML/FODS/FODP before widening format support.
+
+---
+
+# Agent Handoff
 TASK: iOS/iPadOS offline shell and mobile-responsive UI
 AGENT/ROLE: Codex / Mobile Architecture
 BRANCH: mobile/ios-offline-analysis
