@@ -1,111 +1,99 @@
-# Q17 — Khám phá Writer: báo cáo dài, mục lục và bảng
+# Q17 — Soạn báo cáo dài trong VN Writer (20/10/2026)
 
-## Kế hoạch và môi trường
+## Kết quả và môi trường
 
-- **Mục tiêu:** soạn báo cáo có cấu trúc dài, chèn/cập nhật mục lục, bảng và lưu DOCX thật; mở lại trong phiên mới; kiểm tra DOCX bằng Word COM ở chế độ ẩn, chỉ đọc.
-- **Khả năng hiện có:** tái sử dụng ribbon Writer, phím tắt Heading, lệnh Tham chiếu, bảng và đường lưu DOCX hiện có. Gọi `save_document_in_place(_contentForExport(), 'writer', path, null)` để lưu.
-- **Tệp tạo trong phiếu:** `tests/live/cdp/q17-writer-long-report.desktop.mjs`, `tests/live/cdp/q17-writer-word-readonly.ps1`, tài liệu này và ảnh minh chứng. Không sửa source ứng dụng.
-- **Phụ thuộc:** CDP desktop, Word COM chỉ đọc. Mỗi lượt CDP dùng `VNO_CDP_LOCALAPPDATA` riêng. Không dùng Excel COM, không điều khiển hệ điều hành.
-- **Rủi ro:** lưu lại DOCX đã mở có thể thay đổi trường TOC; số trang có thể thay đổi khi thêm bảng. PDF, trộn thư và các chức năng còn lại chưa được xác minh trong lượt này.
-- **Kiểm thử:** tạo tài liệu qua chuột/bàn phím CDP, lưu theo đường dẫn thật, mở lại phiên mới, đối chiếu Word COM read-only. Ghi cả PASS/FAIL/NOT RUN.
-- **Rollback:** chỉ thêm bài chạy audit và tài liệu/ảnh; có thể revert riêng commit audit mà không tác động source ứng dụng.
-- **Quy tắc chung:** `CODEX-COMMON-RULES.md` không có trong worktree; xác nhận bằng `rg --files`. Tài liệu Q11 cũng ghi nhận tệp này vắng mặt.
+- Nhánh/worktree: `codex/queue-19-10`, `E:\VNOffice-codex-queue`; `git merge main` báo `Already up to date`.
+- `CODEX-COMMON-RULES.md` không có ở gốc worktree. Đọc `AGENTS.md`, `docs/EXPLORE-WRITER-20-10.md`, `docs/EXPLORE-SHEET-2026-10-20.md` và các mẫu CDP Q13 được chỉ định.
+- Khởi chạy desktop bằng `launchApp("writer", { filePath })`; mỗi lượt dùng `VNO_CDP_LOCALAPPDATA` riêng. Nhập liệu, chọn ribbon, mở menu và tạo vùng chọn bằng CDP chuột/bàn phím. Lưu DOCX qua `_contentForExport()` + `save_document_in_place(..., 'writer', path, null)`; ảnh/CSV dùng `DOM.setFileInputFiles`.
+- Word COM chạy ẩn, chỉ đọc. Không dùng điều khiển OS. Không sửa source ứng dụng trong lượt audit; chỉ thêm harness audit, bổ sung số đo vào script Word read-only và ghi tài liệu/chứng cứ.
 
-## Kết quả
+## Nhật ký thao tác thực tế
 
-- Nhánh `codex/queue-19-10`; worktree ban đầu sạch; `git merge main` → `Already up to date`.
-- Phiên tạo: `E:\VNOffice-profiles\Q17-writer-20261020-1330`; tệp DOCX: `q17-bao-cao-6-trang.docx`.
-- **Trước khi thêm bảng:** Word COM đọc tệp chỉ đọc: 6 trang, 12 tiêu đề, 1 mục lục, `ReadOnly=true`.
-- **Sau khi thêm bảng và lưu lần hai:** phiên CDP mới mở được bảng 5×4; Word COM: 7 trang, 12 tiêu đề, bảng 5×4, hàng đầu được đánh dấu lặp lại, nhưng `TablesOfContents=0`. Nội dung mục lục vẫn hiện trong giao diện đã mở lại dưới dạng văn bản. Đây là lỗi round-trip cần theo dõi: trường TOC động không còn được nhận là TOC sau lần lưu lại; không sửa source trong phiếu audit này.
-- Bảng được chèn bằng lưới ribbon; gõ dữ liệu qua bàn phím. Lần gõ Tab cuối tự tạo hàng thứ sáu; đã xóa hàng thừa bằng lệnh Xóa hàng và xác nhận lại 5×4. Không tìm thấy lệnh/bộ điều khiển lặp hàng tiêu đề trong ribbon Writer; Word COM lại đọc `HeadingFormat=true` cho hàng đầu sau lưu.
-- Tài liệu cuối sau chèn bảng là **7 trang**, không còn đúng mục tiêu 6 trang. Không thu nhỏ nội dung để ép số trang.
+PASS/FAIL dưới đây là kết quả quan sát được. NOT RUN/BLOCKED được tách riêng ở bảng sau.
 
-## Nhật ký thao tác (30 bước)
-
-| # | Thao tác | Kết quả |
+| # | Thao tác bằng chuột/bàn phím hoặc kiểm tra độc lập | Kết quả |
 |---:|---|---|
-| 1 | Nhấp vùng văn bản bằng CDP | PASS — caret vào tài liệu |
-| 2 | Nhập tiêu đề báo cáo tiếng Việt | PASS — dấu tiếng Việt được giữ |
-| 3 | Enter tạo đoạn mới | PASS |
-| 4 | Nhập địa điểm và ngày | PASS |
-| 5 | Enter tạo đoạn mới | PASS |
-| 6 | Nhập phần mục tiêu/phạm vi | PASS |
-| 7 | Mở tab Tham chiếu | PASS |
-| 8 | Chèn Mục lục tự động | PASS — có mục lục trong tài liệu |
-| 9 | Ctrl+End tới cuối tài liệu | PASS |
-| 10 | Enter mở đoạn mới trước chương | PASS |
-| 11 | Ctrl+Alt+1 áp dụng Heading 1 | PASS — kiểm tra tổng cộng 6 chương |
-| 12 | Nhập tiêu đề chương 1 | PASS |
-| 13 | Enter chuyển sang nội dung | PASS |
-| 14 | Nhập nội dung chương 1 | PASS |
-| 15 | Ctrl+Alt+2 áp dụng Heading 2 | PASS — kiểm tra tổng cộng 6 tiêu đề cấp 2 |
-| 16 | Nhập tiêu đề mục 1.1 | PASS |
-| 17 | Nhập phần nội dung mục 1.1 | PASS |
-| 18 | Ctrl+Enter sang trang kế tiếp | PASS — dùng giữa các chương |
-| 19 | Lặp thao tác Heading 1/2 cho chương 2 | PASS |
-| 20 | Lặp thao tác Heading 1/2 cho chương 3 | PASS |
-| 21 | Lặp thao tác Heading 1/2 cho chương 4 | PASS |
-| 22 | Lặp thao tác Heading 1/2 cho chương 5 | PASS |
-| 23 | Lặp thao tác Heading 1/2 cho chương 6 | PASS — DOM có 12 tiêu đề |
-| 24 | Chọn Cập nhật mục lục sau khi thêm chương | PASS — mục lục có đủ mục tới chương 6 |
-| 25 | Lưu DOCX qua đường dẫn thật | PASS — status `ok` |
-| 26 | Mở DOCX bằng phiên CDP mới | PASS — sáu chương, tiêu đề và nội dung mục lục đọc được |
-| 27 | Word COM mở ẩn, ReadOnly=true, đếm trang và TOC | PASS — 6 trang, 12 tiêu đề, 1 TOC trước khi thêm bảng |
-| 28 | Mở Chèn → Bảng biểu và chọn lưới 4 cột × 5 hàng | PASS — tạo bảng 5×4 |
-| 29 | Gõ 20 ô bằng bàn phím và Tab | PASS một phần — dữ liệu vào đủ; Tab cuối tạo thêm hàng thứ sáu |
-| 30 | Xóa hàng dư, bật Hàng tiêu đề, lưu và mở lại | PASS — CDP/Word thấy 5×4 và hàng đầu lặp; FAIL mục tiêu phân trang/TOC động: 7 trang, Word không còn nhận TOC sau lần lưu thứ hai |
-| 31 | Chọn đoạn thân bài, mở Tham chiếu → Chú thích trang | PASS — số chú thích 1 được chèn |
-| 32 | Gõ nội dung chú thích bằng bàn phím | PASS — nội dung gắn với chú thích 1 |
-| 33 | Mở Chú thích cuối và nhập nội dung | PASS — chú thích cuối đánh số La Mã i |
-| 34 | Lưu DOCX và đọc lại bằng Word COM | PASS — `Footnotes=1`, `Endnotes=1`, `ReadOnly=true` |
-| 35 | Mở DOCX trong phiên Writer mới | PASS — CDP hiển thị lại cả hai nội dung chú thích |
-| 36 | Bật Theo dõi thay đổi và thay văn bản đã chọn | PASS — DOM có dấu `<ins>` và `<del>` |
-| 37 | Chọn văn bản sửa, mở Thêm nhận xét và nhập nhận xét | PASS — nhận xét neo vào “scope.” |
-| 38 | Lưu DOCX và kiểm tra Word COM ở chế độ chỉ đọc | PASS — `Comments=1`, `Revisions=2`, `ReadOnly=true` |
-| 39 | Mở DOCX trong phiên Writer mới | PASS — CDP thấy 2 `<ins>`, 1 `<del>` và nội dung nhận xét |
-| 40 | Chạy bài chèn ảnh Q13 với ảnh audit làm nguồn | PASS — ảnh được chèn, căn giữa, rộng 624/624 px vùng thân; đây là probe riêng, chưa lưu/mở lại trong báo cáo Q17 |
-| 41 | Mở Trang đầu → Thay thế | PASS — hộp Tìm kiếm và Thay thế mở qua ribbon |
-| 42 | Kiểm tra tùy chọn định dạng và biểu thức | PASS một phần — có lọc Đậm/Nghiêng/Phông/Màu và ký tự đại diện `*`, `?`; không thấy chế độ regex. Chưa áp dụng thay thế lên nội dung |
-| 43 | Mở Trộn thư → Nguồn dữ liệu | PASS — hộp nguồn người nhận mở |
-| 44 | Chọn Dán CSV / Thủ công | PASS |
-| 45 | Nhập dòng tiêu đề `Name,Unit` | PASS |
-| 46 | Nhập ba bản ghi Linh/Minh/An | PASS — bảng xem trước có đúng 3 người nhận |
-| 47 | Lưu nguồn dữ liệu | PASS — model có 3 bản ghi được chọn |
-| 48 | Chèn trường `Name` vào thư mới | PASS — tài liệu hiển thị trường trộn |
-| 49 | Bật xem trước và chuyển bản ghi kế | PASS — lần lượt hiện Linh rồi Minh |
-| 50 | Hoàn tất trộn tới tài liệu mới | PASS — thông báo hoàn tất 3 bản ghi, có ngắt trang giữa các bản |
-| 51 | Lưu kết quả, mở phiên mới và đọc Word COM | PASS — cả 3 tên còn nguyên, Word COM đếm 3 trang, chỉ đọc |
-| 52 | Ctrl+F2 mở xem trước báo cáo Q17 sau các lần lưu | FAIL — xem trước hiển thị 12 trang; Writer status và Word COM báo 7 trang |
+| 1 | Khởi chạy Writer desktop trong profile CDP mới | PASS |
+| 2 | Nhập tiêu đề báo cáo có dấu | PASS |
+| 3 | Nhập ngày lập báo cáo | PASS |
+| 4 | Nhập mục tiêu/phạm vi báo cáo | PASS |
+| 5 | Mở Tham chiếu và chèn mục lục tự động trước các chương | PASS — khối mục lục xuất hiện |
+| 6 | Áp dụng Heading 1 cho sáu chương bằng phím tắt | PASS — DOCX có 6 Heading 1 |
+| 7 | Áp dụng Heading 2 cho sáu mục con | PASS — DOCX có tổng 12 Heading 1/2 |
+| 8 | Cập nhật mục lục sau khi thêm đề mục | PASS trong phiên; mục lục có tên chương |
+| 9 | Lưu DOCX báo cáo qua đường dẫn thật | PASS |
+| 10 | Đóng phiên, mở DOCX trong phiên desktop mới | PASS |
+| 11 | Word COM chỉ đọc đếm số trang báo cáo ban đầu | PASS — 6 trang |
+| 12 | Word COM chỉ đọc đếm Heading và mục lục động ban đầu | PASS — 12 heading, 1 TOC |
+| 13 | Thêm một tiêu đề Heading 3 | PASS — DOCX sau đó có 13 heading |
+| 14 | Mở danh sách đa cấp, chọn kiểu 1 / 1.1 / 1.1.1 và nhập hai dòng | FAIL — DOCX không có `w:numPr`; danh sách không được lưu thành cấu trúc đánh số |
+| 15 | Chèn bảng qua lưới kích thước 4 cột × 5 hàng | PASS — Word COM xác nhận 5×4 |
+| 16 | Điền tiêu đề và 16 ô dữ liệu | PASS — văn bản các ô hiện trong bảng |
+| 17 | Kéo chọn và gộp hai ô đầu hàng | PASS — hàng đầu còn 3 ô; ô đầu có `colSpan=2` |
+| 18 | Bật tùy chọn hàng tiêu đề bảng | PASS — Word COM xác nhận `HeadingFormat=true`, lặp lại khi bảng dài trang |
+| 19 | Chèn chú thích cho bảng | PASS — `Bảng 1: Bảng tổng hợp chỉ số` |
+| 20 | Chèn chú thích cuối trang | PASS — Word COM xác nhận 1 footnote |
+| 21 | Chèn chú thích cuối tài liệu | PASS — Word COM xác nhận 1 endnote |
+| 22 | Lưu nhóm bảng/chú thích và mở lại phiên CDP mới | PASS — giữ bảng 5 hàng, ô gộp, 13 heading |
+| 23 | Word COM đọc lại nhóm bảng/chú thích | PASS — bảng 5×4, hàng lặp, footnote=1, endnote=1 |
+| 24 | Chèn ngắt mục sang trang kế tiếp | PASS — DOCX có 2 section |
+| 25 | Bật Trang đầu khác biệt trong Tùy chọn mục | PASS — Word COM section đầu `DifferentFirstPageHeaderFooter=-1` |
+| 26 | Bật Trang chẵn và lẻ khác nhau trong Tùy chọn mục | FAIL — trạng thái adapter có cờ, nhưng Word COM báo `OddAndEvenPagesHeaderFooter=false` |
+| 27 | Sau ngắt mục, mở Thiết lập trang, chọn Chiều ngang cho mục mới | FAIL — CDP chọn `landscape`, nhưng Word COM đọc `[1,0]`: mục đầu ngang, mục mới vẫn dọc |
+| 28 | Lưu/mở lại nhóm bố cục | PASS — 2 section, orientation `[1,0]`; cờ trang đầu được giữ |
+| 29 | Chèn ảnh PNG cục bộ bằng `DOM.setFileInputFiles` | PASS — ảnh 1366×321.8 hiển thị vừa vùng in |
+| 30 | Chọn ảnh và mở nút nhanh Ngắt dòng | PASS — menu hiển thị các chế độ cùng dòng, Vuông, Khít, Sau/Trước văn bản, Trên và dưới |
+| 31 | Áp dụng chế độ Vuông | PASS — ảnh có `float:left` và `data-vnoWrap` được đặt |
+| 32 | Chèn chú thích ảnh | PASS — “Hình 1: Minh họa kết quả tổng hợp” |
+| 33 | Lưu/mở lại DOCX ảnh trong phiên mới | PASS — 1 ảnh và 1 chú thích còn nguyên |
+| 34 | Word COM đọc DOCX ảnh | PASS — 1 trang, 1 hình nổi |
+| 35 | Bật Theo dõi thay đổi và nhập phần bổ sung bằng bàn phím | PASS — DOCX đọc lại có 1 revision |
+| 36 | Kéo chọn câu bổ sung để neo nhận xét | PASS — CDP xác nhận vùng chọn chính xác |
+| 37 | Tạo nhận xét bằng hộp nhập và lưu DOCX | PASS — Word COM đọc lại có 1 comment |
+| 38 | Mở Trang đầu → Thay thế | PASS — hộp Tìm kiếm và Thay thế hiển thị |
+| 39 | Kiểm tra tùy chọn định dạng khi tìm/thay | PASS — có nút Định dạng và lọc Đậm/Nghiêng/Màu |
+| 40 | Kiểm tra regex/ký tự đại diện | PASS một phần — regex không có; có tùy chọn “Dùng ký tự đại diện (*, ?)” |
+| 41 | Tạo CSV cục bộ với 3 người nhận | PASS — các cột `HoTen`, `Email`, `DonVi`; ba bản ghi |
+| 42 | Mở Nguồn dữ liệu, gắn CSV vào ô file bằng CDP, lưu nguồn | PASS — adapter nhận 3 bản ghi/3 trường |
+| 43 | Chèn trường `HoTen` tại vị trí con trỏ | PASS — có một merge field trong tài liệu |
+| 44 | Bật Xem trước kết quả và chuyển sang bản ghi sau | PASS — menu/trạng thái bản ghi 1 rồi 2 |
+| 45 | Mở Hoàn tất và Trộn, chọn tạo tài liệu mới/toàn bộ bản ghi | PASS — thông báo “đã hoàn tất … 3 bản ghi” |
+| 46 | Đọc lại DOCX đầu ra sau khi trộn | BLOCKED — thông báo hoàn tất báo 3 bản ghi; CDP không thấy cửa sổ/tệp kết quả để lưu và đối chiếu |
+| 47 | Mở xem trước bằng Ctrl+F2 | BLOCKED — không xuất hiện overlay trong 180 giây |
+| 48 | Mở Tệp → In trong Backstage | BLOCKED — `#vno-backstage-print-total-pages` không xuất hiện trong 180 giây |
+| 49 | Chọn Xuất PDF từ Backstage | BLOCKED — backend gọi hộp lưu tệp desktop ngoài WebView; CDP không điều khiển được; không tạo PDF trong profile |
+| 50 | Kiểm tra số trang PDF và phông nhúng | NOT RUN — không có PDF đầu ra |
 
-## Ảnh minh chứng
+## Đối chiếu round-trip và sai khác cần xử lý
 
-- [Mục lục sau khi chèn](assets/q17-writer-2026-10-20/01-muc-luc.png)
-- [Nội dung chương 1](assets/q17-writer-2026-10-20/02-chuong-1.png)
-- [Bảng sau khi nhập và bật hàng tiêu đề](assets/q17-writer-2026-10-20/03-table-editor.png)
-- [Bảng 5×4 sau khi mở lại](assets/q17-writer-2026-10-20/04-table-reopen.png)
-- [Chú thích trang và cuối tài liệu](assets/q17-writer-2026-10-20/05-footnote-endnote.png)
-- [Theo dõi thay đổi và nhận xét](assets/q17-writer-2026-10-20/06-trackchanges-comment.png)
-- [Theo dõi thay đổi/nhận xét sau khi mở lại](assets/q17-writer-2026-10-20/07-review-reopen.png)
-- [Hộp Tìm kiếm và Thay thế, bộ lọc định dạng](assets/q17-writer-2026-10-20/08-find-replace.png)
-- [Kết quả trộn thư ba người sau khi mở lại](assets/q17-writer-2026-10-20/09-mail-merge-output.png)
-- [Xem trước in lệch số trang](assets/q17-writer-2026-10-20/10-print-preview.png)
+- DOCX ban đầu: Word COM `pages=6`, `headings=12`, `tablesOfContents=1`.
+- Sau khi chỉnh sửa và lưu nhóm bảng: Word COM `pages=6`, `headings=13`, `tables=1`, `tableRows=5`, `tableColumns=4`, `tableHeaderRepeats=true`, `footnotes=1`, `endnotes=1`, nhưng `tablesOfContents=0`. XML DOCX ban đầu có `fldChar=3`/`instrText=1`; DOCX nhóm bảng không còn field TOC (`fldChar=0`, `instrText=0`). Nội dung mục lục tĩnh còn thấy, field cập nhật tự động đã mất sau lưu.
+- Sau ngắt mục và chọn hướng ngang khi con trỏ ở cuối mục mới: Word COM `pages=7`, `sections=2`, `sectionOrientations=[1,0]`; hướng ngang bị áp vào section đầu, section mới vẫn dọc. Trang đầu khác biệt chỉ bật ở section 1; chẵn/lẻ toàn tài liệu vẫn `false`. Báo cáo vì vậy không còn đúng mục tiêu sáu trang sau khi thêm phân đoạn.
+- Sau nhóm nhận xét: Word COM `comments=1`, `revisions=1`, `pages=7`; table/notes còn nguyên; TOC vẫn `0`.
+- Regex, định dạng số trong bảng, số trang chẵn/lẻ, đầu/chân trang có nội dung riêng, và round-trip của tài liệu đã trộn chưa được chứng minh.
 
-## Hạng mục Q17 chưa chạy
+## Ảnh chứng cứ
 
-- Heading 3 và danh sách nhiều cấp: NOT RUN.
-- Gộp ô và định dạng số trong bảng: NOT RUN.
-- Chú thích cuối trang và chú thích cuối tài liệu: PASS — lưu/mở lại, Word COM đếm 1+1.
-- Đầu/chân trang trang đầu khác biệt; số trang chẵn/lẻ; ngắt mục và đổi hướng ngang: NOT RUN.
-- Chèn ảnh: PASS ở probe riêng, chưa lưu/mở lại. Chú thích ảnh và bao quanh văn bản: NOT RUN.
-- Tìm/thay thế có định dạng: UI bộ lọc có sẵn nhưng chưa áp dụng thay thế, NOT RUN. Regex: NOT PRESENT trong hộp thoại; chỉ thấy ký tự đại diện `*`, `?`.
-- Trộn thư CSV ba dòng, xem trước, hoàn tất, lưu/mở lại: PASS — tài liệu kết quả 3 trang.
-- Theo dõi thay đổi và nhận xét: PASS — lưu/mở lại, Word COM đếm 2 revisions và 1 comment.
-- Xem trước in: FAIL — hiện 12 trang trong khi Word COM và status Writer là 7. Xuất PDF và kiểm tra phông nhúng: NOT RUN.
+![Mục lục ban đầu](assets/q17-writer-2026-10-20/01-muc-luc.png)
 
-## Gate cuối
+![Bảng 5×4, ô gộp](assets/q17-writer-2026-10-20/03-bang-5x4.png)
 
+![Chú thích cuối trang/cuối tài liệu](assets/q17-writer-2026-10-20/04-chu-thich.png)
+
+![Ảnh, chú thích và bao quanh](assets/q17-writer-2026-10-20/05-anh-chu-thich-wrap.png)
+
+![Tìm/thay và rà soát](assets/q17-writer-2026-10-20/06-tim-thay-va-ra-soat.png)
+
+![Trộn thư ba người nhận](assets/q17-writer-2026-10-20/07-tron-thu.png)
+
+Ảnh sáu chương và các bản trạng thái nằm trong cùng thư mục chứng cứ.
+
+## Gate và handoff
+
+- Không sửa source ứng dụng; do đó không có bài FAIL-trước/PASS-sau hay commit sửa lỗi sản phẩm. Các lỗi mục lục, danh sách, section orientation, preview và PDF được giữ nguyên làm findings, không báo PASS.
+- Harness CDP: `tests/live/cdp/q17-writer-long-report.desktop.mjs`, `q17-writer-feature-groups.desktop.mjs`, `q17-writer-layout-image.desktop.mjs`, `q17-writer-image-caption.desktop.mjs`, `q17-writer-review-find.desktop.mjs`, `q17-writer-mailmerge.desktop.mjs`, `q17-writer-preview.desktop.mjs`, `q17-writer-print-pdf.desktop.mjs`; Word COM chỉ đọc: `q17-writer-word-readonly.ps1`.
 - `npm test`: PASS — 3771/3771.
-- `node scripts/audit-0610/i18n_parity.mjs`: PASS — VI=3110, EN=3110, thiếu 0 khóa mỗi ngôn ngữ.
-- `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`: PASS — 0 dòng bị hạ (Word 279, Excel 217, PowerPoint 269).
-- `python -m pytest tests -q -k "writer or docx or ooxml"`: PASS — 342 passed, 759 deselected (372.60s).
-- Không có sửa source ứng dụng; không có test sửa lỗi FAIL-trước/PASS-sau.
+- `node scripts/audit-0610/i18n_parity.mjs`: PASS — VI=3110, EN=3110, missing=0.
+- `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`: PASS — 0 dòng hạ; Writer 279, Sheet 217, Slides 269.
+- `python -m pytest tests -q -k "writer or docx or ooxml"`: PASS — 342 passed, 759 deselected (365.08s).
+- Next action: chuyển findings TOC/list, chẵn-lẻ, preview/PDF thành phiếu sửa/điều tra riêng; không coi các mục FAIL/BLOCKED ở trên là đạt.

@@ -493,3 +493,23 @@ RISKS: Chưa khắc phục lỗi preview/TOC vì phiếu hiện mới dừng ở
 DEPENDENCIES/BLOCKERS: `CODEX-COMMON-RULES.md` không có trong worktree. Các hạng mục NOT RUN còn cần tiếp tục trên cùng worktree/nhánh.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Tiếp tục Q17: chạy các thao tác NOT RUN, điều tra TOC/print-preview FAIL; chỉ tạo `E:\VNOffice-briefs\logs\Q17.DONE` sau khi đủ scope và xác minh hoàn tất.
+
+---
+
+# Agent Handoff
+TASK: Q17 — Writer audit giao diện soạn báo cáo dài
+AGENT/ROLE: Codex / VN Writer QA
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Tạo báo cáo sáu trang, chạy các nhóm thao tác Q17 bằng CDP, round-trip DOCX và đối chiếu Word COM chỉ đọc.
+FINDINGS: Báo cáo ban đầu 6 trang, 12 heading, 1 TOC. DOCX nhóm bảng 6 trang/13 heading, TOC động mất sau khi lưu (COM TOC=0); danh sách không có `w:numPr`. Section DOCX 7 trang, orientation `[1,0]` (mục đầu ngang, mục mới vẫn dọc dù UI chọn ngang khi caret ở mục mới), first-page flag đúng, OddAndEvenPagesHeaderFooter vẫn false. Ảnh, caption/wrap, footnote, endnote, comment và revision round-trip. CSV có 3 bản ghi; Finish báo hoàn tất 3 nhưng CDP không tìm thấy cửa sổ kết quả để lưu/đối chiếu. Print preview không hiện trong 180s; PDF cần hộp lưu desktop native, không thao tác được bằng CDP.
+IMPLEMENTATION SUMMARY: Không sửa source ứng dụng. Thêm harness CDP cho báo cáo, bảng/chú thích, bố cục/ảnh, nhận xét/tìm-thay, CSV trộn thư, print/PDF; mở rộng Word COM read-only; thêm báo cáo 50 thao tác và ảnh.
+FILES CHANGED: `tests/live/cdp/q17-writer-long-report.desktop.mjs`; `tests/live/cdp/q17-writer-feature-groups.desktop.mjs`; `tests/live/cdp/q17-writer-layout-image.desktop.mjs`; `tests/live/cdp/q17-writer-image-caption.desktop.mjs`; `tests/live/cdp/q17-writer-review-find.desktop.mjs`; `tests/live/cdp/q17-writer-mailmerge.desktop.mjs`; `tests/live/cdp/q17-writer-preview.desktop.mjs`; `tests/live/cdp/q17-writer-print-pdf.desktop.mjs`; `tests/live/cdp/q17-writer-word-readonly.ps1`; `docs/EXPLORE-WRITER-2026-10-20.md`; `docs/assets/q17-writer-2026-10-20/*`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; CDP report/table/section/image/review/CSV round-trip; Word COM hidden read-only after saved groups; `npm test`; i18n parity; checklist evidence; focused pytest; CDP print preview and PDF export attempts.
+BUILD RESULT: NOT RUN — no build-system changes.
+TEST RESULTS: PASS — npm 3771/3771; i18n VI=3110, EN=3110, missing=0; checklist lowered=0; pytest 342 passed, 759 deselected (365.08s). CDP base report 6 pages/TOC=1; group 1 COM 6 pages/table 5×4/header-repeat/footnotes=1/endnotes=1; section group orientation `[1,0]`; image group save/reopen 4/4; review group save/reopen 7/7 with comments=1/revisions=1; mail merge completion confirms 3 records.
+KNOWN FAILURES: TOC field removed on edit/save; multi-level list not serialized; section orientation applies to the first section instead of the new section; odd/even header setting not represented in Word COM; final edited report expands to 7 pages. Print preview and PDF output remain blocked; no PDF/page-count/font-embedding check. Merged output not located/read back.
+RISKS: A visible static TOC can look correct while its updateable field is gone. The modified report does not satisfy six pages; do not mark its pagination or export as passed.
+DEPENDENCIES/BLOCKERS: `CODEX-COMMON-RULES.md` absent from worktree. PDF save uses native desktop dialog; queue allows CDP only. Print-preview overlay/page count did not appear within 180s.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Open separate fix/audit tickets for TOC preservation, list serialization, odd/even settings, print preview/PDF and merged-output readback. Q17 audit results are recorded; do not claim those features passed.

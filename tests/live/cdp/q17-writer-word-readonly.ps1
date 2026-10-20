@@ -7,6 +7,9 @@ try {
     $word.DisplayAlerts = 0
     $document = $word.Documents.Open($Path, $false, $true)
     $headingCount = @($document.Paragraphs | Where-Object { $_.Style.NameLocal -match '^Heading' }).Count
+    $sectionOrientations = @($document.Sections | ForEach-Object { $_.PageSetup.Orientation })
+    $differentFirstPages = @($document.Sections | ForEach-Object { $_.PageSetup.DifferentFirstPageHeaderFooter })
+    $differentOddEven = [bool]$document.Application.OddAndEvenPagesHeaderFooter
     $tableRows = 0
     $tableColumns = 0
     $tableHeaderRepeat = $false
@@ -19,6 +22,10 @@ try {
     [pscustomobject]@{
         pages = $document.ComputeStatistics(2)
         headings = $headingCount
+        sections = $document.Sections.Count
+        sectionOrientations = $sectionOrientations
+        differentFirstPages = $differentFirstPages
+        differentOddEven = $differentOddEven
         tablesOfContents = $document.TablesOfContents.Count
         tables = $document.Tables.Count
         tableRows = $tableRows
@@ -28,6 +35,8 @@ try {
         endnotes = $document.Endnotes.Count
         comments = $document.Comments.Count
         revisions = $document.Revisions.Count
+        inlineImages = $document.InlineShapes.Count
+        floatingImages = $document.Shapes.Count
         readOnly = $document.ReadOnly
     } | ConvertTo-Json -Compress
 } finally {
