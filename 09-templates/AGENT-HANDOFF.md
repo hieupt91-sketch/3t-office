@@ -533,3 +533,24 @@ RISKS: Q18 validates authoring model and selected presentation behavior but does
 DEPENDENCIES/BLOCKERS: None for completing this verification ticket. Follow-up implementation/audit is needed for the listed gaps.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Raise scoped follow-up for animation emphasis PPTX persistence, verify layout cards through UI and custom-layout round-trip, and add print handout options with Vietnamese Help/i18n and tests. Do not claim these gaps passed.
+
+---
+
+# Agent Handoff
+TASK: Q19 — VN Writer: xử lý và xác minh lỗi Q17
+AGENT/ROLE: Codex / VN Writer
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Sửa lỗi lưu DOCX thật; phân biệt lỗi sản phẩm với lỗi tái hiện; xác minh bằng CDP và Word COM ẩn, chỉ đọc.
+FINDINGS: TOC bị mất khi bài thử lưu không truyền source path; sau khi sửa bài thử và khôi phục field từ DOCX nguồn, Word COM thấy TOC thật. Repro danh sách ban đầu không tạo list; với ba đoạn được áp dụng đúng, Word COM đọc cấp 1/2/3 và chuỗi 1., 1.1., 1.1.1. Ngắt mục và hướng ngang được lưu đúng; even/odd header được bật đúng; 7 trang là kết quả của tài liệu nguồn sáu trang cộng section break và nội dung mới. Lệnh xem trước trỏ nhầm tới in thật và đã sửa. Luồng Trộn thư tạo nội dung trong tài liệu đang mở; bài CDP lưu DOCX kiểm chứng và mở lại đủ ba bản ghi, nhưng UI chưa tạo tài liệu/tệp đích tự động như nhãn hộp thoại mô tả.
+IMPLEMENTATION SUMMARY: `b05a9e9f` sửa khôi phục trường TOC native khi lưu DOCX đã chỉnh sửa; `5b2b5849` chuyển lệnh xem trước sang overlay xem trước thật. `07e1a553`, `e2606122`, `00de76ba` sửa độ tin cậy của bài CDP/Word COM: áp dụng list rõ ràng, lưu layout có source path và đọc lại DOCX trộn. Ghi sai khác Trộn thư tại `docs/Q19-MAILMERGE-FINDING.md`. Không sửa LibreOffice Core, không thêm dependency.
+FILES CHANGED: `adapters/libreoffice/common/ooxml_zip_patch.py`; `tests/test_writer_basic_ops_ooxml.py`; `tests/unit/writer-print-preview.test.js`; `tests/live/cdp/q17-writer-feature-groups.desktop.mjs`; `tests/live/cdp/q17-writer-layout-image.desktop.mjs`; `tests/live/cdp/q17-writer-preview.desktop.mjs`; `tests/live/cdp/q17-writer-mailmerge.desktop.mjs`; `tests/live/cdp/q17-writer-word-readonly.ps1`; `docs/Q19-MAILMERGE-FINDING.md`; `09-templates/AGENT-HANDOFF.md`.
+COMMITS: `b05a9e9f`; `07e1a553`; `e2606122`; `5b2b5849`; `00de76ba`.
+COMMANDS RUN: `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "writer or docx or ooxml"`; Q17 long report, feature groups, layout, preview, mail-merge CDP; Word COM hidden/read-only on long report, section/list and merged output.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — Node 3771/3771; i18n VI/EN 3110/3110, thiếu 0; checklist 0 dòng bị hạ; pytest 344 passed, 759 deselected; feature groups 5/5; layout 3/3; preview 6 trang trong 26 ms; mail merge 9/9, CDP mở lại đủ 3/3 tên, Word COM read-only xác nhận đủ 3/3 tên. Word COM xác nhận TOC=1, tài liệu dài 6 trang; danh sách cấp 1/2/3 và orientation hai section portrait/landscape, even/odd headers bật.
+KNOWN FAILURES: Hộp thoại Trộn thư ghi “Tạo tài liệu mới” nhưng hành vi hiện thay nội dung tài liệu đang mở; không tự tạo cửa sổ/tệp riêng. Hành vi cần ticket triển khai riêng; bài Q19 xác minh được DOCX thật sau khi lưu kết quả.
+RISKS: Yêu cầu mở-sửa-lưu tối thiểu 5 DOCX trong `test\\landocx` BLOCKED vì thư mục và fixture DOCX không có trong checkout. Không chạy Excel COM.
+DEPENDENCIES/BLOCKERS: Cần fixture DOCX LAN để hoàn tất batch readback theo chỉ dẫn.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Tạo ticket riêng để kết quả Trộn thư mở thành tài liệu Writer mới, giữ tài liệu nguồn; cung cấp `test\\landocx` rồi chạy batch Word readback trước khi gộp.
