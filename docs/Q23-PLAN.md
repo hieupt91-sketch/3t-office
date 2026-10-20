@@ -35,3 +35,11 @@
 ## Rollback
 
 - Keep the layout round-trip and handout printing in separate commits; revert only the corresponding commit if its focused CDP/OOXML/PDF checks regress.
+
+## Results
+
+- **Layout loss point measured:** before the fix, each slide in the source FODP referenced the generic `Standard` master page, and LibreOffice derived the exported PowerPoint `CustomLayout.Name` from that master-page name. The adapter now assigns a stable master-page name for each supported layout before conversion; reopen maps those names back to the app layout types. PowerPoint COM ReadOnly returned `VNOTitleContent` (slides 1–2), `VNOTwoContent` (slide 3), and `VNOBlank` (slide 4). Baseline COM readback was `Standard` on all 8 Q18 slides.
+- **Print implementation:** the shared print dialog now prepares slide, 3/6/9-up handout, and speaker-note PDFs through the existing preview and print APIs. Handouts are composed locally with pypdf; notes are rendered from the local FODP content through a temporary RTF and the installed PDF converter.
+- **Before/after evidence:** baseline CDP reported 1/3 checks passing (layout names and print choices failed); final CDP reported 11/11. Final PDFs: 3-up 2 pages, 6-up 1 page, 9-up 1 page, notes 4 pages; extracted slide/note text was retained.
+- **Gates:** `npm test` 3773/3773; i18n VI/EN 3122/3122, 0 missing; checklist verifier 0 lowered rows; focused pytest 204 passed, 902 deselected. PowerPoint COM readback completed in hidden ReadOnly mode.
+- **Commits:** `ea8d9c2a` layout preservation; `eca5baab` handout and speaker-note printing.

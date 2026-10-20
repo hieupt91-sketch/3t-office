@@ -618,3 +618,24 @@ RISKS: Chưa xác định nguyên nhân adapter cụ thể khiến workbook gố
 DEPENDENCIES/BLOCKERS: Handoff tới owner `adapters/**` / `platform/**` để điều tra Excel COM Open với formula cells J22:J24; product owner cân nhắc ticket riêng cho UNIQUE/FILTER/SORT và XLOOKUP/IFS interoperability.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Reproduce XLSX Open failure in adapter-owned fixture and fix only after a pre-fix failing test; separately scope dynamic-array support and Excel-version compatibility.
+
+---
+
+# Agent Handoff
+TASK: Q23 — Slides: preserve custom layout names and print 3/6/9-up handouts + speaker notes
+AGENT/ROLE: Codex / VN Slides and shared print platform
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Preserve custom slide layout names through PPTX save/open and provide previewable 3/6/9-up handouts plus notes-page printing.
+FINDINGS: Before the fix, every source FODP slide referenced master page `Standard`; LibreOffice export derived PowerPoint CustomLayout.Name from that master-page name. Baseline PowerPoint COM ReadOnly read Standard on all 8 Q18 slides. Final readback preserved VNOTitleContent (slides 1–2), VNOTwoContent (slide 3), and VNOBlank (slide 4).
+IMPLEMENTATION SUMMARY: The Slides adapter assigns stable, layout-specific FODP master-page names before LibreOffice conversion and maps them back on reopen. The shared print dialog adds slides, handout 3/6/9 and notes modes; the existing preview/print APIs render the PDFs locally. Handout sheets are composed with pypdf and notes pages are generated from local FODP content through temporary RTF. Added concrete Vietnamese Help and VI/EN strings.
+FILES CHANGED: adapters/libreoffice/slides/slides-adapter.js; adapters/libreoffice/common/ooxml_zip_patch.py; main.py; platform/print/print-dialog.js; platform/print/print-dialog.css; platform/print/print_pipeline.py; platform/help/entries-slides.js; platform/i18n/strings-vi.js; platform/i18n/strings-en.js; requirements.txt; tests/test_slides_handout_print.py; tests/live/cdp/q23-slides-layout-handout.desktop.mjs; docs/Q23-PLAN.md; docs/EXCEL2016-FEATURE-CHECKLIST.md; docs/POWERPOINT2016-FEATURE-CHECKLIST.md; 09-templates/AGENT-HANDOFF.md.
+COMMITS: ea8d9c2a (layout names); eca5baab (handouts and notes printing); handoff/results commit follows.
+COMMANDS RUN: git merge main; baseline and final CDP Q23; hidden PowerPoint COM ReadOnly Q18/Q23; python -m pytest tests/test_slides_handout_print.py -q; npm test; node scripts/audit-0610/i18n_parity.mjs; python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix; python -m pytest tests -q -k "slides or pptx or print"; all three gen_*_checklist.py scripts; Python py_compile.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — Q23 CDP 11/11; initial focused unit 2/2; npm 3773/3773; i18n VI=3122 EN=3122 missing=0; checklist 0 dòng bị hạ; pytest 204 passed, 902 deselected; COM ReadOnly giữ đúng tên 4/4 slide. PDF handout: 3-up 2 trang, 6-up 1 trang, 9-up 1 trang; notes 4 trang và chứa ghi chú.
+KNOWN FAILURES: None in Q23 scope. Pre-fix baseline CDP 1/3 and PowerPoint COM 8/8 layouts read `Standard`.
+RISKS: Notes output uses title and notes extracted from the local FODP source; slides without notes show a localized empty-note message. pypdf is now a runtime dependency for handout layout.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Merge the two implementation commits through the assigned queue workflow.
