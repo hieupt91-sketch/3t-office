@@ -1553,7 +1553,7 @@ tr.is-filtered-out {
 }
 .vno-fc-cat-item.is-selected {
   background-color: var(--vno-sheet-light);
-  color: var(--vno-sheet-primary);
+  color: var(--vno-sheet-primary-fg, var(--vno-sheet-primary));
   font-weight: 600;
 }
 .vno-fc-cat-item:focus-visible {
