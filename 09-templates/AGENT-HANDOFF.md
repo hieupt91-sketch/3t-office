@@ -191,3 +191,23 @@ RISKS: PPTX `p:wheel` has a spoke count and no cardinal `dir` attribute, so the 
 DEPENDENCIES/BLOCKERS: None for implementation. Paste Special modal/clipboard needs a desktop smoke with a populated native clipboard.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Review the commits; run Paste Special desktop smoke with a native clipboard item and decide whether Fan should keep wheel semantics or use a directional alternative.
+# Agent Handoff
+TASK: M7-XCODE-BUILD-2010 — Build launcher macOS từ `vn-main`
+AGENT/ROLE: Codex / macOS Packaging
+BRANCH: mac/xcode-build-2010
+WORKTREE: /Users/hieupc/.codex/worktrees/mac-xcode-build-2010/3t-office
+OBJECTIVE: Khôi phục project Xcode launcher trên nền `vn-main` và tạo ba bundle phát triển universal cho Doc, Sheet, Slide.
+FINDINGS: `vn-main` chưa chứa project Xcode; commit 0.9.11 có project tái sử dụng được. Script cũ nhận output tương đối nhưng Xcode diễn giải nó từ thư mục project, làm build Swift thành công rồi thất bại ở bước `ditto`.
+IMPLEMENTATION SUMMARY: Tái sử dụng project/Swift/plist/script từ commit `7ed054e8`; chuẩn hóa output tương đối thành tuyệt đối trước khi truyền cho Xcode; thêm plan và handoff 20/10.
+FILES CHANGED: ports/macos/VNOfficeLauncher.xcodeproj/project.pbxproj; ports/macos/launcher/*; ports/macos/scripts/*; docs/macos/PLAN-M7-XCODE-BUILD-2010.md; docs/macos/HANDOFF-M7-XCODE-BUILD-2010.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: xcodebuild -list; ports/macos/scripts/build-development.sh build/macos-xcode-2010; validate-development-bundles.py; lipo -info; PlistBuddy; launcher print-command probes; git diff --check.
+BUILD RESULT: PASS — Xcode 26.3 Release build Doc/Sheet/Slide, universal x86_64 + arm64, unsigned.
+TEST RESULTS: PASS — validator 3/3; architecture 3/3; bundle ID/app kind 3/3; print-command probe 3/3; diff check sạch.
+KNOWN FAILURES: Lượt build đầu tạo được Doc universal nhưng bước sao chép FAIL do output tương đối; đã sửa và lượt build đầy đủ sau đó PASS. App UI thực tế NOT RUN.
+RISKS: Bundle chưa gồm runtime offline và chưa ký/notarize, vì vậy chưa phải bộ cài cho người dùng. Info.plist từ mốc cũ cần nhận các UTI mới từ MAC-3 trước khi gộp phát hành.
+DEPENDENCIES/BLOCKERS: Runtime Python/cryptography/pywebview hoặc Qt/LibreOffice chưa nhúng; giấy phép Qt, Apple Developer, ký/notarize cần người phụ trách quyết định.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Tích hợp MAC-3 UTI và MAC-12 runtime packaging, rồi mở ba app native và chạy CDP trước khi tạo DMG.
+
+---
+
