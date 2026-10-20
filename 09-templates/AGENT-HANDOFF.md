@@ -660,3 +660,22 @@ RISKS: Excel formula parsing/recalculation remains unverified in the blocked COM
 DEPENDENCIES/BLOCKERS: Excel COM is blocked for this run. Product owner decision is pending for the optional product-neutral warning described above.
 CORE PATCH ID (if any): None.
 NEXT ACTION: When the Excel COM gate is available, verify the saved workbook opens and J22:J24 recalculate to #NAME? with no repair dialog; decide separately whether to add the proposed contextual warning.
+
+# Agent Handoff
+TASK: Q25 — Đóng gói dependency mã hóa và in handout
+AGENT/ROLE: Codex / Integration & packaging
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Đóng gói cryptography và pypdf vào runtime pilot, lưu dist-info và license, đồng thời thêm regression guard cho import Python trong main.py, platform và adapters.
+FINDINGS: Môi trường E:\VNOffice-profiles\pilot-check không tồn tại nên không chạy build đầy đủ. Python 3.12.10 hiện có cryptography 50.0.2 (Requires: cffi; cffi và pycparser đã được copy) và pypdf 6.21.1 (không có dependency bắt buộc). cryptography chứa _rust.pyd trong package directory; recursive copy thư mục giữ native binary này. Trước sửa, staging runtime tái hiện ModuleNotFoundError cho cả cryptography và pypdf.
+IMPLEMENTATION SUMMARY: build-pilot.ps1 copy package directories cryptography/pypdf và dist-info tương ứng. Thêm tests/test_packaging_imports.py quét AST import trong main.py/platform/**/adapters, kiểm tra danh sách package và có ngoại lệ UNO ghi lý do. THIRD-PARTY-NOTICES bổ sung license Apache-2.0, BSD-3-Clause của cryptography và BSD-3-Clause của pypdf.
+FILES CHANGED: scripts/build-pilot.ps1; tests/test_packaging_imports.py; THIRD-PARTY-NOTICES; 09-templates/AGENT-HANDOFF.md.
+COMMITS: d4602191 (implementation); handoff commit follows separately.
+COMMANDS RUN: git merge main; pre-fix `python -m pytest tests/test_packaging_imports.py -q`; post-fix focused pytest; isolated copied-package runtime staging before/after; `node tests/run-tests.js` (package.json `npm test` script); `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "packaging or encryption or print"`; `git diff --check`.
+BUILD RESULT: NOT RUN — pilot-check path was missing; full build intentionally not started. Python 3.12 copied-package staging was run in a temporary directory.
+TEST RESULTS: PASS — pre-fix regression 3 failed as expected; post-fix packaging regression 3/3; staging import test: before cryptography and pypdf each raised ModuleNotFoundError, after copied-package runtime imported both and office_encryption successfully; Node 3778/3778; pytest 74 passed, 1036 deselected; i18n missing keys 0; checklist rows lowered 0.
+KNOWN FAILURES: Full pilot build and verification in E:\VNOffice-profiles\pilot-check are NOT RUN because that directory is absent.
+RISKS: Runtime staging used the installed Python 3.12 package source and isolated site-packages, not the absent pilot-check interpreter/output. cryptography native _rust.pyd is covered by recursive package directory copying; no full packaged-app launch was performed.
+DEPENDENCIES/BLOCKERS: Pilot check environment absent.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review and merge the Q25 implementation and handoff commits through the queue workflow.
