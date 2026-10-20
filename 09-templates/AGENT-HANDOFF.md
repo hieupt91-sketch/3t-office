@@ -679,3 +679,24 @@ RISKS: Runtime staging used the installed Python 3.12 package source and isolate
 DEPENDENCIES/BLOCKERS: Pilot check environment absent.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Review and merge the Q25 implementation and handoff commits through the queue workflow.
+
+---
+
+# Agent Handoff
+TASK: Q26 — Writer: soạn công văn, biên bản họp và mẫu biểu hành chính
+AGENT/ROLE: Codex / VN Writer QA
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Soạn 3 DOCX hành chính bằng app desktop, mở lại trong phiên mới, kiểm tra Word COM ẩn chỉ đọc và rà soát lề/font/bảng/số trang/chính tả/tìm-thay/PDF.
+FINDINGS: Ba DOCX round-trip qua app và Word COM. Công văn A4 dọc 2 trang, lề 30/20/20/20 mm, Times New Roman 13 pt, trang đầu khác biệt và PAGE field. Biên bản có bảng điểm danh 7×5 (tiêu đề + 6 người), bảng việc 4×5, 2 trang. Mẫu biểu A4 ngang có bảng 15×8, hàng tiêu đề lặp, 2 trang. Word COM xác nhận `DifferentFirstPageHeaderFooter=-1`, `OddAndEvenPagesHeaderFooter=true` trên cả ba; lỗi odd/even Q17 không tái hiện. Spellcheck CDP báo 0 lỗi cho UBND, TNHH, NĐ-CP. Xuất PDF bị BLOCKED vì hộp native không xuất hiện trong WebView/CDP. Tìm-thay có tùy chọn định dạng/ký tự đại diện; bài Q17 đạt 6/7, phép mở lại timeout do so sánh short/long path.
+IMPLEMENTATION SUMMARY: Không sửa mã sản phẩm vì không có lỗi cấu trúc trang được tái hiện. Thêm harness CDP Q26 cho 3 DOCX, probe chính tả từ viết tắt, script Word COM chỉ đọc, ba DOCX đầu ra, nhật ký 36 phép soạn/đối chiếu và ghi nhận Q26 trong handoff. Không thêm tính năng hoặc command nên không thay Help/i18n.
+FILES CHANGED: tests/live/cdp/q26-writer-official-docs.desktop.mjs; tests/live/cdp/q26-writer-abbreviation-spell.desktop.mjs; tests/live/cdp/q26-writer-word-readonly.ps1; docs/assets/q26-writer-2026-10-20/A-cong-van.docx; docs/assets/q26-writer-2026-10-20/B-bien-ban.docx; docs/assets/q26-writer-2026-10-20/C-mau-bieu.docx; docs/EXPLORE-WRITER-2026-10-20-Q26.md; 09-templates/AGENT-HANDOFF.md.
+COMMITS: 915dc2e3 (DOCX, CDP/COM harness, exploration log); handoff commit follows separately.
+COMMANDS RUN: `git merge main`; `node --check` hai harness; CDP tạo/lưu/mở lại ba DOCX qua profile riêng; Word COM ẩn ReadOnly cho ba DOCX; CDP spellcheck; CDP find/replace; `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "writer or docx or ooxml"`; batch `scripts/layout-audit/batch_document_audit.py docx` với 8 tên tệp chỉ định; `git diff --stat --ignore-cr-at-eol` và kiểm tra encoding/ZIP.
+BUILD RESULT: NOT RUN — không thay build system hoặc mã sản phẩm.
+TEST RESULTS: PASS — Node 3778/3778; CDP tạo/lưu/mở lại 3 DOCX; Word COM ReadOnly xác nhận 3/3; CDP spellcheck 0 lỗi; i18n VI=3122/EN=3122, missing=0; checklist 0 dòng hạ; pytest 344 passed, 766 deselected; batch 8/8 PASS, mọi edit PASS, page delta=0. BLOCKED — PDF không tạo được qua giao diện vì native save dialog ngoài WebView. FIND/REPLACE: 6/7 PASS; mở lại của harness Q17 timeout vì đường dẫn short/long.
+KNOWN FAILURES: Xuất PDF qua native save dialog chưa kiểm chứng/tạo tệp được trong CDP. Chưa chạy thay thế định dạng end-to-end; chỉ xác nhận UI/options. Lượt batch auto-select đầu bị dừng khi phát hiện 24 tệp; batch cuối chạy chính xác 8 tệp nhỏ và đạt 8/8.
+RISKS: Người dùng chưa có PDF từ luồng Writer được kiểm tra; cần một phương thức chọn đường dẫn không cần OS automation. `OddAndEvenPagesHeaderFooter` chỉ được kiểm chứng trên ba DOCX tạo ở lượt này.
+DEPENDENCIES/BLOCKERS: CDP không điều khiển native file dialog theo quy tắc queue; không có executable chuyển PDF cục bộ trên máy.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Tạo phiếu riêng cho PDF export/native-save flow và sửa harness reopen path normalization; Q26 hiện không cần sửa Writer source.
