@@ -616,6 +616,8 @@
 }
 
 /* Theme cards for Slide Master Modal */
+.vno-slide-size-hint { margin: 0 0 12px; font-size: 12px; color: var(--vno-text-secondary, #475569); }
+
 .vno-theme-card {
   border: 2px solid #cbd5e1;
   border-radius: 6px;
