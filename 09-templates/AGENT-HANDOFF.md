@@ -1,4 +1,24 @@
 # Agent Handoff
+TASK: MAC-1-BASELINE-1910 — Kiểm chứng baseline `vn-main` trên macOS
+AGENT/ROLE: Codex / macOS QA baseline
+BRANCH: mac/baseline-1910
+WORKTREE: /Users/hieupc/.codex/worktrees/mac-baseline-1910/3t-office
+OBJECTIVE: Chạy nguyên trạng các cổng Node, i18n, checklist và Python trên macOS; phân loại lỗi thật, không sửa expected hoặc vô hiệu hóa test.
+FINDINGS: Node đăng ký đủ 3765 bài nhưng còn một snapshot Sheet lệch hash. i18n đạt đúng 3091/3091. Checklist hoàn tất bằng Python 3.12 nhưng hạ hai dòng Excel. Pytest có 1066 pass, 11 fail, 17 skip; năm lỗi rõ ràng phụ thuộc Win32/OLE/PowerShell, các lỗi còn lại liên quan API expected, os_services và quản lý tiến trình trên macOS.
+IMPLEMENTATION SUMMARY: Không sửa mã ứng dụng/test. Thêm báo cáo `docs/macos/MAC-1-BASELINE-1910.md` và handoff này.
+FILES CHANGED: docs/macos/MAC-1-BASELINE-1910.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: npm test; node scripts/audit-0610/i18n_parity.mjs; python3.12 scripts/audit-0610/verify_checklist_evidence.py --all --no-fix; python3.12 -m pytest tests -q; git diff --check.
+BUILD RESULT: NOT RUN — task chỉ yêu cầu baseline kiểm thử, không thay build system hoặc mã runtime.
+TEST RESULTS: FAIL — npm 3764/3765; i18n PASS VI=EN=3091, missing=0, placeholderMismatch=0; checklist FAIL 2 dòng Excel bị hạ; pytest 1066 passed, 11 failed, 17 skipped, 177 subtests passed.
+KNOWN FAILURES: Node snapshot `sample-sheet.fods` hash lệch. Python: 5 ca Win32/OLE/PowerShell BLOCKED trên macOS; 6 lỗi/subfailure còn lại ở error reporting, API signature, os_services, orphan probe và process tracker. Chi tiết và log trong báo cáo.
+RISKS: Một số test Windows-only chưa skip theo nền tảng nên làm nhiễu số FAIL; không được đổi test để xanh nếu chưa xác nhận contract. Snapshot Sheet và hai dòng checklist có thể là hồi quy dùng chung, cần chủ sở hữu xác minh trên `vn-main`.
+DEPENDENCIES/BLOCKERS: Office COM, OLE32 và PowerShell không có trên macOS. Python hệ thống 3.9 không chạy được checklist; đã dùng Python 3.12 trong virtualenv tạm ngoài repo.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Chủ sở hữu Sheet kiểm tra snapshot/hash và hai bằng chứng checklist; Platform/macOS phân loại/sửa os_services + process lifecycle trên nhánh riêng; chủ sở hữu API xác nhận expected chữ ký mới trước khi đổi test.
+
+---
+
+# Agent Handoff
 TASK: CODEX-SLICER — Slicer cho Bảng giai đoạn 1
 AGENT/ROLE: Codex / VN Sheet
 BRANCH: feat/sheet-slicer-codex
