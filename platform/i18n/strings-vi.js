@@ -702,6 +702,8 @@ export const viStrings = {
     consolidateFailed: "Không hợp nhất được dữ liệu."
   },
   slidesDialogs: {
+    morphNoticeTitle: "Hiệu ứng Morph",
+    morphUnsupported: "Hiệu ứng Morph chưa được hỗ trợ đầy đủ; hãy dùng hiệu ứng chuyển trang khác.",
     animationDirection: "Hướng hiệu ứng", transitionDirection: "Hướng chuyển tiếp", directionBottom: "Từ dưới", directionLeft: "Từ trái", directionRight: "Từ phải", directionTop: "Từ trên", transPush: "Đẩy", transFan: "Quạt",
     pasteSpecialTitle: "Dán đặc biệt", pasteSource: "Giữ định dạng nguồn", pasteTheme: "Dùng chủ đề đích", pasteImage: "Hình ảnh (PNG)", pasteText: "Chỉ văn bản",
     actionTitle: "Tác vụ khi nhấp", actionType: "Khi nhấp đối tượng này", actionNone: "Không", actionNext: "Trang kế tiếp", actionPrevious: "Trang trước", actionFirst: "Trang đầu", actionLast: "Trang cuối", actionSpecific: "Trang cụ thể", actionWeb: "Mở địa chỉ web", actionSlide: "Chọn trang chiếu", actionUrl: "Địa chỉ web",

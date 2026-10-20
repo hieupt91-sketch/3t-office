@@ -5,6 +5,7 @@
 
 import { globalUnoBridge } from "../common/uno-bridge.js";
 import { showAlertDialog, showFindReplaceDialog } from "../../../platform/ui-kit/dialogs.js";
+import { t } from "../../../platform/i18n/i18n.js";
 import { globalCommandBus } from "../../../platform/commands/command-bus.js";
 import { withLazyFeatureProgress } from "../../../platform/startup/lazy-feature.js";
 import { globalShortcutManager } from "../../../platform/commands/shortcut-manager.js";
@@ -368,7 +369,18 @@ export class SlidesAdapter {
     globalCommandBus.bindHandler("slides.transition.durationMenu", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
     globalCommandBus.bindHandler("slides.transition.advanceMenu", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
     globalCommandBus.bindHandler("slides.transition.afterMenu", () => this.canvas.showTransitionDialog ? this.canvas.showTransitionDialog() : false);
-    globalCommandBus.bindHandler("slides.transition.set", (arg) => this.canvas.setCurrentTransitionType(String(arg || "fade")));
+    globalCommandBus.bindHandler("slides.transition.set", async (arg) => {
+      const type = String(arg || "fade");
+      const changed = this.canvas.setCurrentTransitionType(type);
+      if (changed && type === "morph") {
+        await showAlertDialog({
+          title: t("slidesDialogs.morphNoticeTitle", "Hiệu ứng Morph"),
+          message: t("slidesDialogs.morphUnsupported", "Hiệu ứng Morph chưa được hỗ trợ đầy đủ; hãy dùng hiệu ứng chuyển trang khác."),
+          type: "info"
+        });
+      }
+      return changed;
+    });
     globalCommandBus.bindHandler("slides.transition.duration", (arg) => this._hintIfFalse(() => this.canvas.updateCurrentTransition({ duration: parseInt(arg, 10) || 500 }), "Hãy chọn một hiệu ứng chuyển trang cho trang này trước (Chuyển tiếp > Hiệu ứng)."));
     globalCommandBus.bindHandler("slides.transition.advanceClick", (arg) => this._hintIfFalse(() => this.canvas.updateCurrentTransition({ advanceOnClick: String(arg) !== "off" }), "Hãy chọn một hiệu ứng chuyển trang cho trang này trước (Chuyển tiếp > Hiệu ứng)."));
     globalCommandBus.bindHandler("slides.transition.advanceAfter", (arg) => {

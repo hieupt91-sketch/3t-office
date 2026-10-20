@@ -703,6 +703,8 @@ export const enStrings = {
     consolidateFailed: "Could not consolidate the data."
   },
   slidesDialogs: {
+    morphNoticeTitle: "Morph transition",
+    morphUnsupported: "Morph is not fully supported yet. Choose a different transition effect.",
     animationDirection: "Effect direction", transitionDirection: "Transition direction", directionBottom: "From bottom", directionLeft: "From left", directionRight: "From right", directionTop: "From top", transPush: "Push", transFan: "Fan",
     pasteSpecialTitle: "Paste Special", pasteSource: "Keep source formatting", pasteTheme: "Use destination theme", pasteImage: "Picture (PNG)", pasteText: "Text only",
     actionTitle: "Action on click", actionType: "When this object is clicked", actionNone: "None", actionNext: "Next slide", actionPrevious: "Previous slide", actionFirst: "First slide", actionLast: "Last slide", actionSpecific: "Specific slide", actionWeb: "Open a web address", actionSlide: "Choose a slide", actionUrl: "Web address",

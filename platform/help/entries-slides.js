@@ -579,10 +579,10 @@ export const SLIDES_HELP_ENTRIES = [
     ribbon: { tab: "Chuyển tiếp", tabId: "transitions", group: "Chuyển đến trang này" },
     keywords: ["chuyển tiếp", "transition", "hiệu ứng chuyển trang", "thời lượng", "tự động sau", "áp dụng cho tất cả", "xem trước"],
     steps: [
-      "Mở tab Chuyển tiếp > nhóm Chuyển đến trang này > Hiệu ứng để chọn Mờ dần, Trượt ngang, Đẩy, Quét, Chia, Che phủ, Thu phóng hoặc Morph. Chọn Không để bỏ hiệu ứng.",
+      "Mở tab Chuyển tiếp > nhóm Chuyển đến trang này > Hiệu ứng để chọn Mờ dần, Trượt ngang, Đẩy, Quét, Chia, Che phủ hoặc Thu phóng. Chọn Không để bỏ hiệu ứng; Morph hiện chưa được hỗ trợ đầy đủ.",
       "Chọn Chuyển tiếp trong nhóm Chuyển đến trang này để mở hộp thoại. Chọn kiểu, hướng từ phải/trái/trên/dưới và thời lượng; dùng Áp dụng cho trang đang chọn hoặc Áp dụng cho tất cả. Nút Xem trước phát hiệu ứng trên trang đang soạn.",
       "Quét làm dải hình ảnh đi qua trang; Chia mở hoặc khép hai nửa trang; Che phủ đưa trang mới tràn từ một cạnh. Đẩy đưa trang mới vào theo hướng đã chọn; hãy chạy trình chiếu để xem chuyển động cuối cùng.",
-      "Nhấp một trang ở thanh bên trái, vào tab Chuyển tiếp > nhóm Chuyển đến trang này > Hiệu ứng, rồi chọn Không, Mờ dần, Trượt ngang, Đẩy, Quét, Chia, Che phủ, Thu phóng hoặc Morph. Chỉ trang đang chọn được đổi.",
+      "Nhấp một trang ở thanh bên trái, vào tab Chuyển tiếp > nhóm Chuyển đến trang này > Hiệu ứng, rồi chọn Không, Mờ dần, Trượt ngang, Đẩy, Quét, Chia, Che phủ hoặc Thu phóng. Chỉ trang đang chọn được đổi.",
       "Nhấn Xem trước để chạy thử hiệu ứng ngay trên trang đang soạn.",
       "Nhóm Thời gian: Thời lượng chọn 0,3 đến 2 giây; Chuyển trang cho bật/tắt chuyển khi nhấp chuột; Tự động sau chọn 3, 5, 10, 30 giây hoặc Không tự chuyển. Các mục này cần trang đã có hiệu ứng.",
       "Áp dụng cho tất cả sao chép hiệu ứng, thời lượng và cách chuyển trang của trang này sang mọi trang. Ctrl+Z hoàn tác cả nhóm trang trong một bước. Nút Chuyển tiếp lớn bên trái vẫn mở hộp thoại đầy đủ."
@@ -593,16 +593,16 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.transition.apply"],
     title: "Hiệu ứng chuyển trang (Transitions)",
-    summary: "Chọn cách trang này xuất hiện từ trang trước: Mờ dần, Trượt ngang, Thu phóng, Lật 3D hoặc Morph. Đặt thời gian, chọn cách chuyển trang (khi nhấp chuột hoặc tự động sau N giây), xem thử, áp dụng trang hiện tại hoặc tất cả. Tệp có sẵn các kiểu chuyển tiếp khác (Cắt, Quét, Phủ, Tách, Tan biến...) được giữ nguyên khi lưu.",
+    summary: "Chọn cách trang này xuất hiện từ trang trước: Mờ dần, Trượt ngang, Thu phóng hoặc Lật 3D. Đặt thời gian, chọn cách chuyển trang (khi nhấp chuột hoặc tự động sau N giây), xem thử, áp dụng trang hiện tại hoặc tất cả. Morph chưa được hỗ trợ đầy đủ; ứng dụng sẽ hướng dẫn chọn hiệu ứng khác.",
     ribbon: { tab: "Chuyển tiếp", tabId: "transitions", group: "Hiệu ứng chuyển trang" },
     keywords: ["chuyển tiếp", "transition", "fade", "slide", "zoom", "flip", "morph", "chuyển trang"],
     steps: [
       "Tab Chuyển tiếp > nhóm Hiệu ứng chuyển trang > Chuyển tiếp. Chọn trang đích trước khi mở hộp thoại.",
-      "Chọn Mờ dần, Trượt ngang, Thu phóng, Lật trang 3D hoặc Morph; đặt thời gian và nhấn Xem thử để kiểm tra.",
+      "Chọn Mờ dần, Trượt ngang, Thu phóng hoặc Lật trang 3D; đặt thời gian và nhấn Xem thử để kiểm tra. Nếu chọn Morph, hãy đọc thông báo và chọn hiệu ứng khác.",
       "Mục Chuyển trang: bỏ chọn Khi nhấp chuột nếu muốn nhấp chuột không chuyển trang (phím mũi tên, Space vẫn chuyển được); chọn Tự động sau rồi nhập số giây để trang tự chuyển sang trang kế tiếp khi trình chiếu (F5), trang cuối kết thúc buổi chiếu.",
       "Chọn Áp dụng cho trang này hoặc Áp dụng cho tất cả (áp dụng cả cách chuyển trang). Dùng Xóa chuyển tiếp để bỏ hiệu ứng khỏi phạm vi tương ứng. Ctrl+Z hoàn tác lần đổi gần nhất.",
       "Khi mở tệp trình chiếu có sẵn kiểu chuyển tiếp mà ứng dụng chưa dựng lại, hộp thoại hiện dòng Giữ nguyên hiệu ứng gốc của tệp; chọn dòng này để chỉ đổi cách chuyển trang mà không mất hiệu ứng.",
-      "Lưu bản trình chiếu rồi mở lại để tiếp tục trình chiếu với hiệu ứng đã chọn. Morph làm mượt các đối tượng phù hợp giữa hai trang liên tiếp."
+      "Lưu bản trình chiếu rồi mở lại để tiếp tục trình chiếu với hiệu ứng đã chọn. Morph chưa được hỗ trợ đầy đủ; hãy chọn hiệu ứng khác."
     ]
   },
   {
