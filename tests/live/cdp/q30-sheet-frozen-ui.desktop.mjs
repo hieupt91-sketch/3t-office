@@ -3,6 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { launchApp } from "./session.mjs";
+import { mouseMove } from "./actions.mjs";
 
 const evidenceDir = path.resolve("docs/assets/q30-ui");
 await fs.mkdir(evidenceDir, { recursive: true });
@@ -38,6 +39,7 @@ try {
   const initialPath = path.join(evidenceDir, `frozen-header-${suffix}.png`);
   const shot = await cdp.send("Page.captureScreenshot", { format: "png" });
   await fs.writeFile(initialPath, Buffer.from((shot.result || shot).data, "base64"));
+  await fs.copyFile(initialPath, path.join(evidenceDir, "validation-arrows-before.png"));
   const expected = "rgb(165, 165, 165)";
   const blank = await cdp.evaluate(`(() => {const e=document.querySelector('.vno-grid-cell[data-coord="H1"]'); return e ? {inline:e.style.backgroundColor,computed:getComputedStyle(e).backgroundColor} : null})()`);
   const good = initial.length === 7 && initial.every(x => x.computed === expected) && Boolean(blank?.computed) && !blank.computed.startsWith("rgba(");
@@ -60,6 +62,24 @@ try {
   const darkGood = dark.header.length === 7 && dark.header.every(x => x === expected) && !dark.blank.startsWith("rgba(");
   results.push({ name: "dark frozen header preserves fill", pass: darkGood, detail: dark });
   console.log(`${darkGood ? "PASS" : "FAIL"} | dark frozen header preserves fill | ${JSON.stringify(dark)}`);
+  await cdp.evaluate(`document.documentElement.removeAttribute('data-theme'); window.__vnoAppInstance.grid.selectCell('C',2)`);
+  await new Promise(resolve => setTimeout(resolve, 150));
+  const arrowBefore = await cdp.evaluate(`(() => [...document.querySelectorAll('.vno-grid-cell.has-validation')].map(e=>({coord:e.dataset.coord,visibility:getComputedStyle(e,'::after').visibility,selected:e.classList.contains('is-selected')})))()`);
+  const selectedArrow = arrowBefore.find(x => x.coord === "C2");
+  const otherArrow = arrowBefore.find(x => x.coord === "D2");
+  const arrowGood = Boolean(selectedArrow && otherArrow && selectedArrow.visibility === "visible" && otherArrow.visibility === "hidden");
+  results.push({ name: "validation arrows are limited to selected or hovered cells", pass: arrowGood, detail: { count: arrowBefore.length, selected: selectedArrow, adjacent: otherArrow } });
+  console.log(`${arrowGood ? "PASS" : "FAIL"} | validation arrows limited to current cell | ${JSON.stringify({ count: arrowBefore.length, selected: selectedArrow, adjacent: otherArrow })}`);
+  const arrowSelectedShot = await cdp.send("Page.captureScreenshot", { format: "png" });
+  await fs.writeFile(path.join(evidenceDir, "validation-arrows-selected-after.png"), Buffer.from((arrowSelectedShot.result || arrowSelectedShot).data, "base64"));
+  await cdp.evaluate(`(() => {const e=document.querySelector('.vno-grid-cell[data-coord="D2"]');const r=e.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2}})()`).then(async p => mouseMove(cdp, p.x, p.y));
+  await new Promise(resolve => setTimeout(resolve, 120));
+  const hoveredArrow = await cdp.evaluate(`(() => ({visibility:getComputedStyle(document.querySelector('.vno-grid-cell[data-coord="D2"]'),'::after').visibility,hovered:document.querySelector('.vno-grid-cell[data-coord="D2"]').matches(':hover')}))()`);
+  const hoverGood = hoveredArrow.visibility === "visible" && hoveredArrow.hovered;
+  results.push({ name: "validation arrow appears on hovered cell", pass: hoverGood, detail: hoveredArrow });
+  console.log(`${hoverGood ? "PASS" : "FAIL"} | validation arrow appears on hovered cell | ${JSON.stringify(hoveredArrow)}`);
+  const arrowHoverShot = await cdp.send("Page.captureScreenshot", { format: "png" });
+  await fs.writeFile(path.join(evidenceDir, "validation-arrows-hovered-after.png"), Buffer.from((arrowHoverShot.result || arrowHoverShot).data, "base64"));
   const metrics = await cdp.evaluate(`(() => {
     const all=[...document.querySelectorAll('.vno-grid-cell')];
     const validation=all.filter(e=>e.classList.contains('has-validation')).map(e=>({coord:e.dataset.coord,arrow:getComputedStyle(e,'::after').content,selected:e.classList.contains('is-selected'),hovered:e.matches(':hover')}));
@@ -67,7 +87,7 @@ try {
     return {validation:validation.slice(0,30),validationCount:validation.length,rows};
   })()`);
   console.log(`INFO | validation arrows and row heights | ${JSON.stringify(metrics)}`);
-  if (!good || !scrollGood || !darkGood) process.exitCode = 1;
+  if (!good || !scrollGood || !darkGood || !arrowGood || !hoverGood) process.exitCode = 1;
 } finally {
   await session.close();
   await fs.rm(root, { recursive: true, force: true });

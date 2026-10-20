@@ -492,6 +492,11 @@
   top: 4px;
   color: #475569;
   font-size: 9px;
+  visibility: hidden;
+}
+.vno-grid-cell.has-validation.is-selected::after,
+.vno-grid-cell.has-validation:hover::after {
+  visibility: visible;
 }
 
 .vno-grid-cell.is-validation-invalid {
