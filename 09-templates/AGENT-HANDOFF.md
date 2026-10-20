@@ -802,3 +802,24 @@ DEPENDENCIES/BLOCKERS: Handoff lỗi hộp in cho platform/print; lỗi chồng 
 CORE PATCH ID (if any): None.
 NEXT ACTION: Chuyển các phát hiện theo ownership và tạo phiếu riêng cho hộp in dùng chung.
 GIAO DIỆN ĐÃ XEM: Chi tiết từng tab, màn hình, kích thước, theme, kết luận và ảnh được liệt kê trong docs/UI-REVIEW-20-10.md.
+
+
+---
+
+# Agent Handoff
+TASK: Q33 — Sửa các lỗi giao diện Q32
+AGENT/ROLE: Codex / UI suite
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Sửa footer In, ngăn Writer chồng lấn, tương phản hộp thoại cỡ trang chiếu, các nhãn VI; xác minh nguồn huy hiệu “Mẫu báo cáo”.
+FINDINGS: Trước sửa, footer nút In ở ngoài viewport trong cả ba app; Styles/AI pane Writer chồng nhau; gợi ý hộp thoại cỡ trang chiếu tối đạt 2.20:1. Visual review còn phát hiện Styles pane tối 1.10:1. Nhãn huy hiệu Slides được gán trực tiếp trong template registry và còn mơ hồ theo nội dung mô tả.
+IMPLEMENTATION SUMMARY: Footer dialog được neo trong flex layout có vùng tùy chọn cuộn riêng; panel coordinator chung loại trừ ngăn đồng thời; biến theme sửa tương phản Styles pane, hộp thoại cỡ trang chiếu và placeholder ghi chú; nhãn VI đã tinh gọn, placeholder có khóa VI/EN; dòng giới thiệu bảo mật được Việt hóa. Chi tiết và ảnh ở docs/UI-REVIEW-Q33.md và docs/assets/q33-ui/. Commits sửa riêng: 2e57b1ad, e944f44a, 9c1537b4, 37ca1366, 82652663, 3a0f2eb9, 589523af, ebdd5efa, e8e58bd2.
+FILES CHANGED: platform/print/print-dialog.css; platform/print/print-dialog.js; platform/ui-kit/exclusive-panels.js; platform/shell/app-shell.js; apps/writer/styles-pane.js; apps/writer/writer.css; apps/slides/slides-canvas.js; apps/slides/slides.css; platform/i18n/strings-vi.js; platform/i18n/strings-en.js; tests/unit/panel-overlay-ui-p1.test.js; docs/POWERPOINT2016-FEATURE-CHECKLIST.md; docs/UI-REVIEW-Q33.md; docs/assets/q33-ui/**; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: git merge main; targeted panel unit test (6/6); CDP pre/post rect, overflow, overlap, theme contrast, print keyboard behavior; screenshots at 1366×768 and 1920×1080 light/dark for Writer/Sheet/Slides print; Writer 1280×720 dark; `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "print or preview or writer or sheet or slides"`; three checklist generators.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — npm 3789/3789; pytest 807 passed, 312 deselected; i18n VI/EN 3123 keys, 0 missing; checklist evidence 0 dòng bị hạ.
+KNOWN FAILURES: Không có lỗi Q33 còn lại đã biết. “Giao diện (Theme)” không có chuỗi đúng nguyên văn trong mã nguồn; huy hiệu “Mẫu báo cáo” chưa đủ ngữ cảnh để đổi nên giữ nguyên.
+RISKS: Không sửa LibreOffice Core, định dạng tài liệu, dependency hoặc security boundary. Ảnh CDP dùng app desktop với VNO_CDP_LOCALAPPDATA riêng.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review các commit Q33 và gộp theo quy trình nhánh.
