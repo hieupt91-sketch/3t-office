@@ -191,3 +191,23 @@ RISKS: PPTX `p:wheel` has a spoke count and no cardinal `dir` attribute, so the 
 DEPENDENCIES/BLOCKERS: None for implementation. Paste Special modal/clipboard needs a desktop smoke with a populated native clipboard.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Review the commits; run Paste Special desktop smoke with a native clipboard item and decide whether Fan should keep wheel semantics or use a directional alternative.
+
+---
+
+# Agent Handoff
+TASK: MAC-12 — Mã hóa OOXML trong runtime đóng gói macOS
+AGENT/ROLE: agy / macOS runtime
+BRANCH: mac/encryption-package-1910
+WORKTREE: /Users/hieupc/.codex/worktrees/mac-encryption-package-1910/3t-office
+OBJECTIVE: Xác minh `cryptography` trong runtime Python offline cho mã hóa OOXML; không chọn/cài PySide6 hoặc Qt, không ký/notarize.
+FINDINGS: `requirements.txt` đã khai báo `cryptography>=44.0.0,<51.0.0`; manifest runtime macOS mới tham chiếu trực tiếp file này. `vn-main` chưa có quy trình đóng gói macOS hiện hành. Artifact `.app` x86_64 sẵn có trong worktree khác không chứa `cryptography`; venv thử gắn với Python artifact đó bị lỗi import `_BIO_ADDR_free`, nên chưa chứng minh được artifact đóng gói chạy được.
+IMPLEMENTATION SUMMARY: Thêm manifest requirements runtime dùng lại dependency gốc, validator chạy AES-256 OOXML encrypt/decrypt bằng interpreter được gọi, và test hợp đồng manifest/validator. Không thay `requirements.txt`, không thêm dependency sản phẩm, không chạm artifact bên ngoài worktree.
+FILES CHANGED: `ports/macos/requirements-runtime.txt`; `ports/macos/scripts/validate-encryption-runtime.py`; `tests/macos/test_encryption_packaging.py`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: Tạo env kiểm thử tạm `/tmp/vno-mac12-verify` bằng Python 3.12 ARM64; cài `requirements.txt`, pytest và pywebview để import `main.py` trong test; `python -m pytest tests/test_ooxml_encryption.py tests/test_ooxml_encryption_main.py -q`; `python -m pytest tests/macos/test_encryption_packaging.py -q`; chạy validator trên source runtime; thử validator với Python x86_64 của artifact có sẵn; kiểm tra manifest, kiến trúc và thư viện native. Log pip/test lưu trong `/tmp/mac12-*.log`.
+BUILD RESULT: NOT RUN — checkout không có builder/runtime layout macOS từ `vn-main`; không tạo `.app` giả hoặc sửa artifact của worktree khác.
+TEST RESULTS: PASS — bộ tập trung 6 passed + 3 subtests; test hợp đồng 2/2; source-runtime validator xác nhận `cryptography=50.0.2`, OpenSSL 4.0.3 và round-trip Agile AES-256. FAIL — runtime x86_64 có sẵn không import được cryptography (`_BIO_ADDR_free` unresolved); package site-packages không có cryptography. BLOCKED — thao tác UI Tệp > Thông tin vì chưa có app macOS xây từ nhánh hiện tại; Office COM không có trên macOS.
+KNOWN FAILURES: Artifact offline hiện có không đạt kiểm cryptography; phải dựng/cài dependency vào runtime macOS x86_64 tương ứng rồi chạy validator bằng chính `Runtime/bin/python3`. Test COM không chạy theo quy tắc dự án.
+RISKS: Test thành công trên Python 3.12 ARM64 tạm thời chỉ xác minh source/dependency contract, không xác minh relocation hoặc dylib của artifact phát hành. Không sửa định dạng OOXML, UI, Core, build system hoặc lựa chọn UI engine.
+DEPENDENCIES/BLOCKERS: Cần builder macOS hiện hành và runtime artifact x86_64/arm64 đúng đích để hoàn tất nghiệm thu đóng gói; cần app hiện hành/CDP cho smoke UI.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Tích hợp manifest vào quy trình đóng gói macOS được duyệt; cài dependency tree đầy đủ vào runtime target và chạy validator trên `.app` đó; sau đó chạy CDP document-password trên app hiện hành.
