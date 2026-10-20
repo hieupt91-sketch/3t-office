@@ -38,12 +38,12 @@ Fixture bán hàng có 40 bản ghi × 8 cột (ngày, vùng, nhân viên, sản
 | 28 | In | Đặt vùng in và hàng/cột lặp lại | PASS — CDP 43/43 |
 | 29 | In | Kiểm tra ngắt trang và các điều khiển thiết lập trang | PASS — CDP 43/43 |
 | 30 | In | Mở xem trước, kiểm tra trang kết xuất | PASS — CDP 1 trang |
-| 31 | In | Gọi xuất PDF | BLOCKED — hộp thoại lưu tệp native không điều khiển được bằng CDP |
+| 31 | In | Xuất PDF bằng `prepare_print_document` + `print_document` qua API app, không mở hộp thoại OS | PASS — 3/3 trang; PDF 227.739 byte; trang 1 có tiêu đề và dòng dữ liệu (44 lệnh vẽ chữ) |
 | 32 | Hàm tra cứu | Kiểm tra VLOOKUP và lưu/mở lại công thức | PASS — Q15 round-trip |
-| 33 | Hàm tra cứu | Kiểm tra XLOOKUP nếu có trong engine | NOT RUN — chưa có kiểm chứng giao diện riêng trong lượt Q21 |
-| 34 | Hàm tra cứu | Kiểm tra INDEX+MATCH | NOT RUN — chưa có kiểm chứng giao diện riêng trong lượt Q21 |
-| 35 | Công thức | Kiểm tra SUMIFS/COUNTIFS và IFERROR | NOT RUN — chưa có kiểm chứng giao diện riêng trong lượt Q21 |
-| 36 | Công thức | Kiểm tra TEXT/DATE và mảng động | NOT RUN — chưa có kiểm chứng giao diện riêng trong lượt Q21 |
+| 33 | Hàm tra cứu | XLOOKUP: app `J4=15000`; cache XLSX `#NAME?`; Excel COM trên bản gốc BLOCKED do mở tệp thất bại, bản chẩn đoán không có J22:J24 trả `#NAME?` cho XLOOKUP | FAIL parity — app có hàm, Excel cài đặt không nhận công thức này |
+| 34 | Hàm tra cứu | INDEX+MATCH tại J5 | PASS — app/cache/Excel COM đều 90000 |
+| 35 | Công thức | SUMIFS J6, COUNTIFS J7, AVERAGEIFS J8, IFERROR J9, IFS J10 | PASS — ba hàm điều kiện lần lượt 490000/7/70000; IFERROR=`OK`. FAIL parity IFS: app=`Chưa`, cache và Excel COM=`#NAME?` |
+| 36 | Công thức | TEXT ngày/số/phần trăm; DATE/EDATE/EOMONTH/WORKDAY; LEFT/MID/SUBSTITUTE; SUMPRODUCT; UNIQUE/FILTER/SORT | PASS — 18 công thức được Excel hỗ trợ trùng cache và Excel COM (SUMPRODUCT=2900000). NOT SUPPORTED — UNIQUE/FILTER/SORT trả `#NAME?` trong engine. Có một hàm mảng động bất kỳ thì Excel COM không mở được XLSX; bản thử bỏ J22:J24 mở ReadOnly được |
 | 37 | Dán đặc biệt | Dán chỉ giá trị qua bàn phím và mở lại | PASS — Q15 CDP |
 | 38 | Text to Columns | Đối chiếu hỗ trợ phân tách trong bộ kiểm thử Sheet | PASS — unit coverage; chưa thao tác UI trong lượt Q21 |
 | 39 | Xóa trùng lặp | Đối chiếu hành vi trong bộ kiểm thử Sheet | PASS — unit coverage; chưa thao tác UI trong lượt Q21 |
@@ -60,9 +60,12 @@ Fixture bán hàng có 40 bản ghi × 8 cột (ngày, vùng, nhân viên, sản
 ## Gate, trạng thái và bằng chứng
 
 - `git merge main`: PASS — Already up to date. `CODEX-COMMON-RULES.md`: không tồn tại ở gốc worktree.
-- `node tests/run-tests.js`: PASS — 3773/3773.
+- `node tests/run-tests.js`: PASS — 3773/3773 (Q22 rerun).
 - `node scripts/audit-0610/i18n_parity.mjs`: PASS — VI=3117, EN=3117, thiếu 0.
 - `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`: PASS — 0 dòng bị hạ trên 3 checklist.
-- `python -m pytest tests -q -k "sheet or xlsx or ooxml"`: PASS — 362 passed, 742 deselected (249.35 s).
+- `python -m pytest tests -q -k "sheet or formula or xlsx"`: PASS — 340 passed, 764 deselected (174.79 s).
 - Batch LAN 5 tệp: BLOCKED — `file test/lan` không có trong worktree; `E:\VNOffice-temp` chỉ có 4 probe lan01/lan09, không phải 5 fixture yêu cầu. Không dùng batch Q15 cũ thay cho lượt sau sửa adapter.
-- PDF: BLOCKED vì hộp thoại native Save; xem trước đã PASS. Không dùng SendKeys/điều khiển OS.
+- Q22 CDP/API in: PASS — 25 PASS, 3 NOT SUPPORTED, 0 FAIL; lưu XLSX và gửi PDF qua API in, 3 trang; trang đầu có tiêu đề/dòng dữ liệu. Script lặp lại: `tests/live/cdp/q22-sheet-formula-oracle.desktop.mjs`.
+- Excel COM ReadOnly: FAIL — mở trực tiếp XLSX có công thức UNIQUE/FILTER/SORT thì COM từ chối mở. Bản chẩn đoán xóa ba ô J22:J24 mở được; CalculateFullRebuild và đọc Value2/Text cho J2:J21. XLOOKUP (J4) và IFS (J10) trả `#NAME?` trong Excel COM dù app tính lần lượt 15000/“Chưa”; cache XLSX cũng `#NAME?`.
+- Bảng lệch: J4 `=XLOOKUP("Vở",D2:D41,F2:F41,"Thiếu")` — app 15000, XLSX cache `#NAME?`, Excel `#NAME?`; J10 `=IFS(E2>=5,"Đạt",TRUE,"Chưa")` — app “Chưa”, XLSX cache `#NAME?`, Excel `#NAME?`. J22–J24 lần lượt UNIQUE/FILTER/SORT — app `#NAME? (tên hàm)`; cache tương ứng cũng là lỗi; không có giá trị Excel do COM không mở tệp gốc.
+- Không sửa engine trong Q22: UNIQUE/FILTER/SORT là năng lực chưa có; chênh lệch XLOOKUP/IFS gắn với khả năng của Excel COM cài đặt và cần kiểm thử tương thích riêng. Rủi ro xuất XLSX khi công thức mảng động lỗi được chuyển tiếp tới chủ adapter/platform: Excel COM từ chối workbook gốc; cần tìm nguyên nhân và bảo đảm tệp vẫn mở được. Golden JSON không đổi.
