@@ -927,3 +927,24 @@ CORE PATCH ID (if any): None.
 NEXT ACTION: Tạo Q38.DONE; commit báo cáo và ảnh.
 
 ---
+
+
+---
+
+# Agent Handoff
+TASK: Q39 — Quét hộp thoại, menu và panel VN Slides
+AGENT/ROLE: Codex / Slides UI QA
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Lập danh mục và kiểm tra trực quan menu/gallery/dialog/panel của Slides ribbon và menu Tệp ở sáng/tối; ghi lỗi giao diện và ảnh, không thêm tính năng.
+FINDINGS: 22 dropdown/gallery/dialog-launcher trên các tab thường đã mở và xem sáng/tối; thêm gallery Bố cục, Chủ đề, Slide Master, hộp Nền, Thiết lập trình chiếu, Chữ nghệ thuật, panel Ngăn hoạt hình/Ngăn chọn, menu Tệp/Thông tin/Tài khoản/Giới thiệu/Tùy chọn. 77 ảnh được lưu trong docs/assets/q39-ui/. Sáu tab ngữ cảnh, một số dialog từ nút hành động trực tiếp và các trang file picker/export chưa chạy; chi tiết ở docs/UI-SWEEP-Slides-21-10.md.
+IMPLEMENTATION SUMMARY: Chỉ thêm báo cáo QA và ảnh. Không sửa source. Ghi nhận: dialog Phông chữ chật/khó đọc; gallery Hình che vùng thanh trạng thái ở 1280×720; Morph đóng menu mà không báo tính năng đang phát triển; hộp Giới thiệu có tên LibreOffice trong danh sách giấy phép (cần quyết định trước khi đổi nội dung giấy phép).
+FILES CHANGED: docs/UI-SWEEP-Slides-21-10.md; docs/assets/q39-ui/*.png (77 ảnh); 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: git merge main; npm test; node scripts/audit-0610/i18n_parity.mjs; python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix; python -m pytest tests -q -k "slides or dialog or ribbon"; CDP qua scripts/audit-0610/app_session_server.mjs với LOCALAPPDATA riêng từng phiên.
+BUILD RESULT: NOT RUN — không đổi source/build.
+TEST RESULTS: PASS — npm 3789/3789; i18n VI=3148 EN=3148, missing=0; checklist 0 dòng bị hạ (279/217/269); pytest 179 passed, 940 deselected.
+KNOWN FAILURES: Hộp Phông chữ, gallery Hình đè thanh trạng thái, Morph thiếu thông báo được ghi lại; About có tên thành phần LibreOffice cần quyết định. Không sửa vì vượt phạm vi lỗi nhỏ/đụng nội dung giấy phép.
+RISKS: Phạm vi UI chưa hoàn toàn: các tab ngữ cảnh yêu cầu đối tượng; các dialog từ một số nút chèn/soát lỗi; Mở/Lưu/Xuất và picker hệ điều hành là NOT RUN. Không kết luận đạt cho các mục này.
+DEPENDENCIES/BLOCKERS: Quyết định chủ sở hữu về nội dung giấy phép trong hộp Giới thiệu; cần lượt kiểm tra tiếp cho các mục NOT RUN nếu yêu cầu phủ đầy đủ mọi dialog.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Chuyển các lỗi hình ảnh tới chủ sở hữu Slides/Platform và làm rõ ngoại lệ hiển thị giấy phép; lên lượt tiếp theo cho các dialog chưa chạy.
