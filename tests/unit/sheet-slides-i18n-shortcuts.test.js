@@ -21,8 +21,8 @@ export async function runSheetSlidesI18nShortcutTests() {
     if (SHEET_RIBBON_TABS[0].label !== "Trang đầu") throw new Error("Đã mutate fallback"); setLocale("vi"); if (applyLocaleToTabs(SLIDES_RIBBON_TABS)[0].label !== "Trang đầu") throw new Error("Ribbon VI sai");
   });
   await test("Sheet/Slides i18n: dialog chính có EN/VI", () => {
-    setLocale("en"); if (t("sheetDialogs.pivotTitle") !== "Create PivotTable" || t("slidesDialogs.animationTitle") !== "Object Animations") throw new Error("Dialog EN sai");
-    setLocale("vi"); if (t("sheetDialogs.pivotTitle") !== "Tạo Bảng tổng hợp" || t("slidesDialogs.animationTitle") !== "Hiệu Ứng Đối Tượng (Object Animations)") throw new Error("Dialog VI sai");
+    setLocale("en"); if (t("sheetDialogs.pivotTitle") !== "Create PivotTable" || t("sheetDialogs.pivotFilters") !== "Filters" || t("sheetDialogs.pivotFilterValues") !== "Select values to keep:" || t("slidesDialogs.animationTitle") !== "Object Animations") throw new Error("Dialog EN sai");
+    setLocale("vi"); if (t("sheetDialogs.pivotTitle") !== "Tạo Bảng tổng hợp" || t("sheetDialogs.pivotFilters") !== "Bộ lọc" || t("sheetDialogs.pivotFilterValues") !== "Chọn giá trị cần giữ:" || t("slidesDialogs.animationTitle") !== "Hiệu Ứng Đối Tượng (Object Animations)") throw new Error("Dialog VI sai");
   });
   await test("Sheet/Slides i18n gap audit: Paste Special, Merge Cells, Data tools, Slides presenter dialog keys", () => {
     try {

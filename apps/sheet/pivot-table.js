@@ -133,11 +133,12 @@ export class PivotTableEngine {
     const columns = [...(config.columns || [])];
     const values = config.values || [];
     const grouping = config.grouping || {};
+    const filters = (config.filters || []).filter(filter => filter && headers.includes(filter.field));
     const calculatedFields = config.calculatedFields || [];
     const calcNames = calculatedFields.map(item => item.name);
 
     if (!values.length && !rows.length && !columns.length) throw new Error(t("sheetDialogs.selectValue"));
-    for (const field of [...rows, ...columns, ...values.map(item => item.field)]) {
+    for (const field of [...rows, ...columns, ...values.map(item => item.field), ...(config.filters || []).map(item => item?.field).filter(Boolean)]) {
       if (!headers.includes(field) && !calcNames.includes(field)) {
         throw new Error(t("sheetDialogs.columnNotFound", { field }));
       }
@@ -165,6 +166,10 @@ export class PivotTableEngine {
       }
       return copy;
     });
+    const filteredRecords = transformedRecords.filter(record => filters.every(filter => {
+      const selectedValues = Array.isArray(filter.selectedValues) ? filter.selectedValues.map(String) : [];
+      return selectedValues.includes(String(record[filter.field] ?? ""));
+    }));
 
     // Expand rows for multi-period date grouping if needed
     for (const [field, groupDef] of Object.entries(grouping)) {
@@ -212,8 +217,8 @@ export class PivotTableEngine {
       });
     };
 
-    let rowKeys = [...new Set(transformedRecords.map(record => rows.map(field => String(record[field] ?? "")).join("\u001f")))];
-    let columnKeys = [...new Set(transformedRecords.map(record => columns.map(field => String(record[field] ?? "")).join("\u001f")))];
+    let rowKeys = [...new Set(filteredRecords.map(record => rows.map(field => String(record[field] ?? "")).join("\u001f")))];
+    let columnKeys = [...new Set(filteredRecords.map(record => columns.map(field => String(record[field] ?? "")).join("\u001f")))];
 
     if (Object.keys(grouping).length) {
       rowKeys = sortGroupKeys(rowKeys, rows);
@@ -236,7 +241,7 @@ export class PivotTableEngine {
       const outputRow = [...rowParts];
       for (const columnKey of columnKeys) {
         const columnParts = columnKey ? columnKey.split("\u001f") : [];
-        const matching = transformedRecords.filter(record =>
+        const matching = filteredRecords.filter(record =>
           rows.every((field, index) => String(record[field] ?? "") === rowParts[index]) &&
           columns.every((field, index) => String(record[field] ?? "") === columnParts[index])
         );
@@ -269,7 +274,7 @@ export class PivotTableEngine {
       const grandTotalRow = ["Grand Total"];
       for (const columnKey of columnKeys) {
         const columnParts = columnKey ? columnKey.split("\u001f") : [];
-        const matching = transformedRecords.filter(record =>
+        const matching = filteredRecords.filter(record =>
           columns.every((field, index) => String(record[field] ?? "") === columnParts[index])
         );
         for (const value of values) {

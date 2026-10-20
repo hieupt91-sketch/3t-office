@@ -4399,7 +4399,8 @@ export class SheetAdapter {
         const pivotIdAttr = pivot.id ? ` vno:pivot-id="${this._escapeXml(pivot.id)}"` : "";
         const groupingAttr = pivot.grouping && Object.keys(pivot.grouping).length ? ` vno:grouping="${this._escapeXml(JSON.stringify(pivot.grouping))}"` : "";
         const calcFieldsAttr = pivot.calculatedFields && pivot.calculatedFields.length ? ` vno:calculated-fields="${this._escapeXml(JSON.stringify(pivot.calculatedFields))}"` : "";
-        dataPilotTables.push(`<table:data-pilot-table table:name="${this._escapeXml(pivot.name || pivot.id || `Pivot ${dataPilotTables.length + 1}`)}"${pivotIdAttr}${groupingAttr}${calcFieldsAttr} table:target-range-address="${this._escapeXml(rangeAddress(targetSheet, usedRange(targetSheet)))}"${resultLocation}><table:source-cell-range table:cell-range-address="${this._escapeXml(rangeAddress(sourceSheet, sourceRange))}"/>${fields.join("")}</table:data-pilot-table>`);
+        const filtersAttr = pivot.filters?.length ? ` vno:filters="${this._escapeXml(JSON.stringify(pivot.filters))}"` : "";
+        dataPilotTables.push(`<table:data-pilot-table table:name="${this._escapeXml(pivot.name || pivot.id || `Pivot ${dataPilotTables.length + 1}`)}"${pivotIdAttr}${groupingAttr}${calcFieldsAttr}${filtersAttr} table:target-range-address="${this._escapeXml(rangeAddress(targetSheet, usedRange(targetSheet)))}"${resultLocation}><table:source-cell-range table:cell-range-address="${this._escapeXml(rangeAddress(sourceSheet, sourceRange))}"/>${fields.join("")}</table:data-pilot-table>`);
       }
     }
     const dataPilotXml = dataPilotTables.length ? `<table:data-pilot-tables>${dataPilotTables.join("")}</table:data-pilot-tables>` : "";
@@ -5179,6 +5180,7 @@ ${pristineXlsxMarker}${docPropsMarker}
       const pivotId = this._unescapeXml(attrs.match(/vno:pivot-id=["']([^"']*)["']/i)?.[1] || "");
       const groupingAttr = this._unescapeXml(attrs.match(/vno:grouping=["']([^"']*)["']/i)?.[1] || "");
       const calcFieldsAttr = this._unescapeXml(attrs.match(/vno:calculated-fields=["']([^"']*)["']/i)?.[1] || "");
+      const filtersAttr = this._unescapeXml(attrs.match(/vno:filters=["']([^"']*)["']/i)?.[1] || "");
       const importedPivot = {
         id: pivotId || `pivot-import-${++index}`,
         name: name || `pivot-import-${index}`,
@@ -5195,6 +5197,9 @@ ${pristineXlsxMarker}${docPropsMarker}
       }
       if (calcFieldsAttr) {
         try { importedPivot.calculatedFields = JSON.parse(calcFieldsAttr); } catch {}
+      }
+      if (filtersAttr) {
+        try { importedPivot.filters = JSON.parse(filtersAttr); } catch {}
       }
       workbook.pivotTablesBySheet[targetSheet].push(importedPivot);
       return "";

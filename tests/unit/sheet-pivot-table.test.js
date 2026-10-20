@@ -28,6 +28,27 @@ export async function runSheetPivotTableTests() {
     assert(table[1][1] === 2 && table[1][2] === 15 && table[2][1] === 2 && table[2][2] === 10, "Count/Average sai");
   });
 
+  await test("Pivot lọc giá trị trường trước khi tổng hợp và giữ điều kiện khi làm mới", async () => {
+    const grid = new SheetGridController(container()); seed(grid);
+    await grid.initializeOptionalDocumentFeatures();
+    const config = {
+      sourceRange: "A1:C5",
+      rows: ["Vùng"],
+      columns: ["Sản phẩm"],
+      values: [{ field: "Doanh số", aggregate: "SUM" }],
+      filters: [{ field: "Vùng", selectedValues: ["Bắc"] }]
+    };
+    const pivot = grid.createPivotTable(config);
+    const p = grid.sheetsData[pivot.targetSheet];
+    assert(p.get("A2")?.val === "Bắc" && p.get("A3")?.val === undefined, `Filter phải chỉ giữ vùng Bắc, nhận được ${p.get("A2")?.val}/${p.get("A3")?.val}`);
+    assert(p.get("B2")?.val === 10 && p.get("C2")?.val === 20, "Filter phải giữ đúng tổng theo sản phẩm ở vùng Bắc");
+    grid.sheetsData[pivot.sourceSheet].get("C2").val = 100;
+    assert(grid.refreshPivotTable(pivot.targetSheet), "Refresh Pivot thất bại");
+    assert(grid.sheetsData[pivot.targetSheet].get("B2")?.val === 100, "Refresh phải áp dụng lại filter đã chọn");
+    assert(grid.sheetsData[pivot.targetSheet].get("A3")?.val === undefined, "Refresh phải tiếp tục loại vùng Nam theo filter");
+    assert(grid.pivotTablesBySheet[pivot.targetSheet][0].filters?.[0]?.selectedValues?.[0] === "Bắc", "Refresh làm mất cấu hình filter");
+  });
+
   await test("Tạo Pivot sinh sheet thật, state cô lập và undo/redo phục hồi snapshot", async () => {
     const grid = new SheetGridController(container()); seed(grid); grid.undoStack=[];
     await grid.initializeOptionalDocumentFeatures();
@@ -282,6 +303,7 @@ export async function runSheetPivotTableTests() {
         columns: [],
         values: [{ field: "Doanh số", aggregate: "SUM" }],
         targetSheet: "Sheet1 (2)",
+        filters: [{ field: "Vùng", selectedValues: ["Bắc"] }],
         grouping: { "Vùng": { type: "number", start: 0, end: 50, by: 10 } },
         calculatedFields: [{ name: "Thue", formula: "=Doanh_so*0.1" }]
       }]
@@ -292,6 +314,7 @@ export async function runSheetPivotTableTests() {
     const fodsXml = adapter.serializeToFods();
     assert(fodsXml.includes("vno:grouping="), "FODS XML thiếu vno:grouping");
     assert(fodsXml.includes("vno:calculated-fields="), "FODS XML thiếu vno:calculated-fields");
+    assert(fodsXml.includes("vno:filters="), "FODS XML thiếu vno:filters");
 
     const workbook = { sheets: ["Sheet1", "Sheet1 (2)"] };
     adapter._attachImportedPivots(workbook, fodsXml);
@@ -299,6 +322,7 @@ export async function runSheetPivotTableTests() {
     assert(loaded, "Không đọc lại được pivot từ FODS");
     assert(loaded.grouping?.["Vùng"]?.by === 10, "Grouping không sống sót qua FODS roundtrip");
     assert(loaded.calculatedFields?.[0]?.name === "Thue", "CalculatedFields không sống sót qua FODS roundtrip");
+    assert(loaded.filters?.[0]?.selectedValues?.[0] === "Bắc", "Lựa chọn bộ lọc Pivot không sống sót qua FODS roundtrip");
   });
   return results;
 }

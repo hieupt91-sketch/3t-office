@@ -308,13 +308,14 @@ export const SHEET_HELP_ENTRIES = [
     app: "sheet",
     commandIds: ["sheet.data.pivotTable", "sheet.data.pivotRefresh"],
     title: "Bảng tổng hợp (Pivot Table)",
-    summary: "Tạo trang tính mới chứa bảng tổng hợp từ vùng dữ liệu có hàng tiêu đề. Kéo trường vào Rows / Columns / Values với SUM, COUNT, AVERAGE, MIN hoặc MAX. Làm mới khi nguồn đổi.",
+    summary: "Tạo trang tính mới chứa bảng tổng hợp từ vùng dữ liệu có hàng tiêu đề. Chọn trường Hàng, Cột, Giá trị và Bộ lọc; lọc theo các mục cần giữ, dùng SUM, COUNT, AVERAGE, MIN hoặc MAX, rồi làm mới khi nguồn đổi.",
     ribbon: { tab: "Dữ liệu", tabId: "data", group: "Bảng tổng hợp" },
     keywords: ["pivot", "bảng tổng hợp", "pivot table", "tổng hợp", "rows", "values", "làm mới"],
     steps: [
       "Chuẩn bị bảng nguồn: hàng đầu là tiêu đề cột duy nhất, các hàng dưới là dữ liệu. Bôi vùng (ví dụ A1:D20).",
       "Mở tab Dữ liệu, nhóm Bảng tổng hợp, nhấn Bảng tổng hợp.",
-      "Hộp thoại Tạo Bảng tổng hợp điền sẵn vùng nguồn. Nhấn Đọc tên cột, rồi với mỗi trường đánh dấu Rows, Columns và/hoặc Values. Cột Values chọn phép SUM / COUNT / AVERAGE / MIN / MAX.",
+      "Hộp thoại Tạo Bảng tổng hợp điền sẵn vùng nguồn. Nhấn Đọc tên cột, rồi với mỗi trường đánh dấu Hàng, Cột, Giá trị hoặc Bộ lọc. Khi chọn Bộ lọc, bỏ dấu chọn ở các mục không muốn tính; có thể giữ nhiều mục.",
+      "Với trường Giá trị, chọn phép SUM / COUNT / AVERAGE / MIN / MAX.",
       "Nhấn Tạo Pivot Table. Sheet tạo trang mới tên dạng «TênSheet (2)» và ghi bảng tổng hợp bắt đầu từ A1.",
       "Khi sửa dữ liệu nguồn, mở trang Pivot rồi nhấn Làm mới Pivot trên cùng nhóm để tính lại. Hoàn tác bằng Ctrl+Z."
     ]

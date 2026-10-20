@@ -21889,6 +21889,12 @@ export class SheetGridController {
     pivot.rows = filtered.rows;
     pivot.columns = filtered.columns;
     pivot.values = filtered.values;
+    const sourceRecords = this.pivotTableEngine.readSource(sourceCells, newRange).records;
+    const availableValues = new Map(headers.map(field => [field, new Set(sourceRecords.map(record => String(record[field] ?? "")))]));
+    pivot.filters = (pivot.filters || []).filter(filter => headers.includes(filter.field)).map(filter => ({
+      ...filter,
+      selectedValues: (filter.selectedValues || []).filter(value => availableValues.get(filter.field)?.has(String(value)))
+    }));
     if (pivot.grouping) {
       for (const f of Object.keys(pivot.grouping)) {
         if (!headers.includes(f)) delete pivot.grouping[f];
@@ -22258,16 +22264,25 @@ export class SheetGridController {
     const error = overlay.querySelector(".vno-rule-error");
     const loadFields = () => {
       try {
-        const { headers } = this.pivotTableEngine.readSource(this.sheetsData[sourceSheet], overlay.querySelector("#vno-pivot-range").value);
+        const { headers, records } = this.pivotTableEngine.readSource(this.sheetsData[sourceSheet], overlay.querySelector("#vno-pivot-range").value);
         fieldsHost.innerHTML = `<p>${t("sheetDialogs.chooseFields")}</p>${headers.map((header, index) => `
           <div class="vno-pivot-field" data-field="${this._escapeHtml(header)}">
             <strong>${this._escapeHtml(header)}</strong>
-            <label><input type="checkbox" data-zone="rows" data-index="${index}"> Rows</label>
-            <label><input type="checkbox" data-zone="columns" data-index="${index}"> Columns</label>
-            <label><input type="checkbox" data-zone="values" data-index="${index}"> Values</label>
+            <label><input type="checkbox" data-zone="rows" data-index="${index}"> ${t("sheetDialogs.pivotRows")}</label>
+            <label><input type="checkbox" data-zone="columns" data-index="${index}"> ${t("sheetDialogs.pivotColumns")}</label>
+            <label><input type="checkbox" data-zone="values" data-index="${index}"> ${t("sheetDialogs.pivotValues")}</label>
+            <label><input type="checkbox" data-zone="filters" data-index="${index}"> ${t("sheetDialogs.pivotFilters")}</label>
             <select data-aggregate="${index}" aria-label="${t("sheetDialogs.aggregateFor", { field: this._escapeHtml(header) })}"><option>SUM</option><option>COUNT</option><option>AVERAGE</option><option>MIN</option><option>MAX</option></select>
+            <div class="vno-pivot-filter-values" data-filter-values-for="${index}" hidden>
+              <span>${t("sheetDialogs.pivotFilterValues")}</span>
+              ${[...new Set(records.map(record => String(record[header] ?? "")))].map(value => `<label><input type="checkbox" data-pivot-filter-value="${this._escapeHtml(value)}" checked> ${this._escapeHtml(value || t("common.blank"))}</label>`).join("")}
+            </div>
           </div>`).join("")}`;
         fieldsHost.dataset.headers = JSON.stringify(headers);
+        fieldsHost.querySelectorAll('input[data-zone="filters"]').forEach(input => input.addEventListener("change", () => {
+          const options = fieldsHost.querySelector(`[data-filter-values-for="${input.dataset.index}"]`);
+          if (options) options.hidden = !input.checked;
+        }));
         error.textContent = "";
       } catch (err) {
         fieldsHost.innerHTML = "";
@@ -22281,7 +22296,11 @@ export class SheetGridController {
         const headers = JSON.parse(fieldsHost.dataset.headers || "[]");
         const selected = zone => [...fieldsHost.querySelectorAll(`input[data-zone="${zone}"]:checked`)].map(input => headers[+input.dataset.index]);
         const valueFields = [...fieldsHost.querySelectorAll('input[data-zone="values"]:checked')].map(input => ({ field: headers[+input.dataset.index], aggregate: fieldsHost.querySelector(`select[data-aggregate="${input.dataset.index}"]`).value }));
-        this.createPivotTable({ sourceSheet, sourceRange: overlay.querySelector("#vno-pivot-range").value, rows: selected("rows"), columns: selected("columns"), values: valueFields });
+        const filters = [...fieldsHost.querySelectorAll('input[data-zone="filters"]:checked')].map(input => ({
+          field: headers[+input.dataset.index],
+          selectedValues: [...fieldsHost.querySelectorAll(`[data-filter-values-for="${input.dataset.index}"] input[data-pivot-filter-value]:checked`)].map(option => option.dataset.pivotFilterValue)
+        }));
+        this.createPivotTable({ sourceSheet, sourceRange: overlay.querySelector("#vno-pivot-range").value, rows: selected("rows"), columns: selected("columns"), values: valueFields, filters });
         overlay.closeDialog();
       } catch (err) {
         error.textContent = err.message;

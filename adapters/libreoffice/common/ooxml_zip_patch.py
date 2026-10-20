@@ -5936,15 +5936,19 @@ def _clear_print_areas_from_fods(
 def _apply_refreshed_pivot_locations_from_fods(
     xlsx_bytes: bytes, source_fods: str | None, replacements: dict[str, str]
 ) -> None:
-    """Align an exported PivotTable's native location with its refreshed cell result range."""
+    """Align refreshed PivotTable locations and retain VN filter selections in OOXML."""
     locations = {}
+    filters_by_name = {}
     for match in re.finditer(r"<table:data-pilot-table\b([^>]*)>", source_fods or "", re.IGNORECASE):
         attrs = _xml_attrs(match.group(1))
         name = attrs.get("table:name")
         location = attrs.get("vno:xlsx-location")
         if name and re.fullmatch(r"[A-Z]+\d+:[A-Z]+\d+", location or "", re.IGNORECASE):
             locations[_unescape_xml(name)] = location.upper()
-    if not locations:
+        filters = attrs.get("vno:filters")
+        if name and filters:
+            filters_by_name[_unescape_xml(name)] = _unescape_xml(filters)
+    if not locations and not filters_by_name:
         return
     with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
         pivot_entries = [name for name in package.namelist() if re.fullmatch(r"xl/pivotTables/pivotTable\d+\.xml", name, re.IGNORECASE)]
@@ -5959,17 +5963,66 @@ def _apply_refreshed_pivot_locations_from_fods(
         if not definition:
             continue
         name = _xml_attrs(definition.group(1)).get("name")
-        location = locations.get(_unescape_xml(name or ""))
-        if not location:
-            continue
-        location_tag = re.search(r"<(?:[\w.-]+:)?location\b[^>]*?/?>", current, re.IGNORECASE)
-        if not location_tag:
-            continue
-        tag = location_tag.group(0)
-        updated_tag = re.sub(r"\bref\s*=\s*(['\"])[^'\"]*\1", f'ref="{location}"', tag, count=1, flags=re.IGNORECASE)
-        updated = current[:location_tag.start()] + updated_tag + current[location_tag.end():]
+        key = _unescape_xml(name or "")
+        location = locations.get(key)
+        filter_json = filters_by_name.get(key)
+        updated = current
+        if location:
+            location_tag = re.search(r"<(?:[\w.-]+:)?location\b[^>]*?/?>", updated, re.IGNORECASE)
+            if location_tag:
+                tag = location_tag.group(0)
+                updated_tag = re.sub(r"\bref\s*=\s*(['\"])[^'\"]*\1", f'ref="{location}"', tag, count=1, flags=re.IGNORECASE)
+                updated = updated[:location_tag.start()] + updated_tag + updated[location_tag.end():]
+        if filter_json:
+            definition = re.search(r"<(?:[\w.-]+:)?pivotTableDefinition\b([^>]*)>", updated, re.IGNORECASE)
+            if definition:
+                tag = definition.group(0)
+                tag = re.sub(r"\s+vno:filters\s*=\s*(['\"])[^'\"]*\1", "", tag, flags=re.IGNORECASE)
+                if not re.search(r"\sxmlns:vno\s*=", tag, re.IGNORECASE):
+                    tag = tag[:-1] + f' xmlns:vno="{SHEET_VNO_NS}">'
+                escaped = _escape_xml(filter_json)
+                tag = tag[:-1] + f' vno:filters="{escaped}">'
+                updated = updated[:definition.start()] + tag + updated[definition.end():]
         if updated != current:
             replacements[entry] = updated
+
+
+def overlay_pivot_filter_metadata_to_fods(xlsx_bytes: bytes, fods_xml: str | None) -> str:
+    """Restore VN Pivot filter selections from OOXML onto LibreOffice's FODS DataPilot."""
+    filters_by_name = {}
+    try:
+        with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+            entries = [name for name in package.namelist() if re.fullmatch(r"xl/pivotTables/pivotTable\d+\.xml", name, re.IGNORECASE)]
+            for entry in entries:
+                xml = package.read(entry).decode("utf-8", errors="replace")
+                definition = re.search(r"<(?:[\w.-]+:)?pivotTableDefinition\b([^>]*)>", xml, re.IGNORECASE)
+                if not definition:
+                    continue
+                attrs = _xml_attrs(definition.group(1))
+                name = _unescape_xml(attrs.get("name", ""))
+                filters = attrs.get("vno:filters")
+                if name and filters:
+                    filters_by_name[name] = _unescape_xml(filters)
+    except (OSError, zipfile.BadZipFile):
+        return fods_xml or ""
+    if not filters_by_name:
+        return fods_xml or ""
+
+    xml = fods_xml or ""
+    def add_filters(match: re.Match[str]) -> str:
+        tag = match.group(0)
+        attrs = _xml_attrs(tag[len("<table:data-pilot-table"): -1])
+        filters = filters_by_name.get(_unescape_xml(attrs.get("table:name", "")))
+        if not filters:
+            return tag
+        tag = re.sub(r"\s+vno:filters\s*=\s*(['\"])[^'\"]*\1", "", tag, flags=re.IGNORECASE)
+        return tag[:-1] + f' vno:filters="{_escape_xml(filters)}">'
+    xml = re.sub(r"<table:data-pilot-table\b[^>]*>", add_filters, xml, flags=re.IGNORECASE)
+    if not _declares_vno_namespace(xml):
+        root = _OFFICE_DOCUMENT_OPEN_RE.search(xml)
+        if root:
+            xml = xml[:root.start()] + f'<office:document{root.group(1)} xmlns:vno="{SHEET_VNO_NS}">' + xml[root.end():]
+    return xml
 
 
 def _resolve_relationship_target(source_part: str, target: str) -> str:
@@ -14802,6 +14855,7 @@ def overlay_sheet_xlsx_fods(
     xml = _overlay_sheet_resolved_comments(xlsx_bytes, xml)
     xml = _overlay_sheet_comments_from_xlsx(xlsx_bytes, xml)
     xml = overlay_pivot_chart_metadata_to_fods(xlsx_bytes, xml)
+    xml = overlay_pivot_filter_metadata_to_fods(xlsx_bytes, xml)
     xml = overlay_sheet_chart_metadata_to_fods(xlsx_bytes, xml)
     # Scenarios: overlay vno:scenarios from XLSX worksheet XMLs
     xml = _overlay_scenarios_from_xlsx(xlsx_bytes, xml)
@@ -14936,6 +14990,7 @@ def overlay_sheet_xlsx_fods_p1(
     xml = timed("overlay_drawing_shapes", _overlay_sheet_drawing_shapes, xlsx_bytes, xml)
     xml = timed("overlay_resolved_comments", _overlay_sheet_resolved_comments, xlsx_bytes, xml)
     xml = timed("overlay_pivot_chart_metadata", overlay_pivot_chart_metadata_to_fods, xlsx_bytes, xml)
+    xml = timed("overlay_pivot_filter_metadata", overlay_pivot_filter_metadata_to_fods, xlsx_bytes, xml)
     xml = timed("overlay_chart_metadata", overlay_sheet_chart_metadata_to_fods, xlsx_bytes, xml)
     if not skeleton:
         xml = timed("overlay_scenarios", _overlay_scenarios_from_xlsx, xlsx_bytes, xml)
