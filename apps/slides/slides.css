@@ -1250,6 +1250,10 @@
   outline: none;
   box-sizing: border-box;
 }
+.vno-slide-notes-input::placeholder {
+  color: var(--vno-text-secondary, #334155);
+  opacity: 1;
+}
 .vno-slide-notes-input:focus {
   border-color: var(--vno-slides-primary, #b53818);
   box-shadow: 0 0 0 2px rgba(181, 56, 24, 0.15);
