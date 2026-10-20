@@ -1,4 +1,4 @@
-# Q36 — Sửa ba lỗi giao diện Q35 (22/10/2026)
+# Q36 — Sửa ba lỗi giao diện Q35 (21/10/2026)
 
 ## Phạm vi và thay đổi
 
