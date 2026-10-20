@@ -854,14 +854,14 @@ BRANCH: codex/queue-19-10
 WORKTREE: E:\\VNOffice-codex-queue
 OBJECTIVE: Mở và rà qua CDP các màn hình bổ sung, trạng thái rỗng, thanh trạng thái và cửa sổ hẹp của Writer/Sheet/Slides; chỉ ghi nhận lỗi lớn.
 FINDINGS: Ngăn Trợ giúp Writer chồng vùng cuộn và cắt nội dung ở 1366×768 sáng/tối, 1280×720 tối. Ribbon Writer và Slides bị ép/cắt lệnh sát mép tại 1024×600. Lưu thành qua F12 trong app dev báo chỉ hỗ trợ lưu thật ở bản cài đặt.
-IMPLEMENTATION SUMMARY: Không sửa mã nguồn vì hai lỗi bố cục cần chỉnh lớn hơn giới hạn lỗi nhỏ của phiếu. Chụp và xem 26 ảnh CDP tại docs/assets/q35-ui; báo cáo docs/UI-REVIEW-21-10.md ghi từng màn hình và trạng thái NOT RUN.
+IMPLEMENTATION SUMMARY: Không sửa mã nguồn vì hai lỗi bố cục cần chỉnh lớn hơn giới hạn lỗi nhỏ của phiếu. Chụp và xem 40 ảnh CDP tại docs/assets/q35-ui; báo cáo docs/UI-REVIEW-21-10.md ghi từng màn hình và trạng thái NOT RUN.
 FILES CHANGED: docs/UI-REVIEW-21-10.md; docs/assets/q35-ui/*.png; 09-templates/AGENT-HANDOFF.md.
 COMMANDS RUN: git merge main; CDP launch tuần tự 3 app với LOCALAPPDATA riêng; node --experimental-websocket tests/live/cdp/document-password.desktop.mjs (VNO_ENCRYPT_OUT ở profile Q35 riêng); node tests/run-tests.js; node scripts/audit-0610/i18n_parity.mjs; python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix; python -m pytest tests -q -k "writer or sheet or slides or print or dialog" (đã hoàn tất).
 BUILD RESULT: NOT RUN — chỉ rà soát và tài liệu.
 TEST RESULTS: PASS — node 3789/3789; i18n VI/EN 3148, missing=0; checklist evidence 0 dòng bị hạ. Pytest PASS — 816 passed, 303 deselected in 576.44s.
-GIAO DIỆN ĐÃ XEM: 26 ảnh; 3 app ở workspace 1366 sáng/tối, 1280 tối, 1024 tối; Trang chủ file/mẫu/rỗng ở 3 app; Writer xác nhận đóng, khôi phục fixture, mật khẩu, lưu F12 và Trợ giúp F1/tab ở các kích thước nêu trong report.
-KNOWN FAILURES: Còn 2 lỗi trung bình: chồng/cắt nội dung ngăn Trợ giúp Writer; ribbon bị cắt ở 1024×600 Writer/Slides. Chưa kiểm tra cập nhật, file lỗi/quá lớn/tiến độ, context menu, tooltip, toast, bàn phím đầy đủ và các hộp tương ứng Sheet/Slides. Lưu thật bị giới hạn trong app dev.
+GIAO DIỆN ĐÃ XEM: 40 ảnh; 3 app ở workspace 1366 sáng/tối, 1280 tối, 1024 tối; Trang chủ file/mẫu/rỗng ở 3 app; Writer xác nhận đóng, khôi phục fixture, mật khẩu, lưu F12 và Trợ giúp F1/tab ở các kích thước nêu trong report.
+KNOWN FAILURES: Còn 3 lỗi trung bình: chồng/cắt nội dung ngăn Trợ giúp Writer; ribbon bị cắt ở 1024×600 Writer/Slides; thanh định dạng nổi chồng menu Writer. Đã xem menu chuột phải 3 app và kiểm tra cập nhật thật (nguồn chưa cấu hình), trạng thái fixture. Chưa kiểm tra file lỗi/quá lớn/tiến độ, tooltip, toast tạm thời, disabled/hover, khôi phục sau sự cố thật và các hộp tương ứng Sheet/Slides. Lưu thật bị giới hạn trong app dev.
 RISKS: Không thay semantics, nguồn ứng dụng, i18n, build hoặc dependency. Kiểm tra khôi phục là fixture nội bộ CDP, không mô phỏng sự cố thật.
 DEPENDENCIES/BLOCKERS: Phiên hiện tại không hỗ trợ kiểm tra lưu thật qua UI; cần bản cài đặt để kiểm tra save-as thực tế.
 CORE PATCH ID (if any): None.
-NEXT ACTION: Chủ sở hữu UI xem xét riêng hai lỗi trung bình; nếu tiếp tục Q35, hoàn tất các mục NOT RUN bằng CDP và bản đóng gói cho save-as.
+NEXT ACTION: Chủ sở hữu UI xem xét riêng ba lỗi trung bình; nếu tiếp tục Q35, hoàn tất các mục NOT RUN bằng CDP và bản đóng gói cho save-as.

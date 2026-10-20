@@ -42,7 +42,7 @@
 - Mật khẩu: document-password.desktop.mjs chạy 9/9 bước PASS: hộp hai ô, không khớp, khớp, lưu DOCX được mã hóa vào profile Q35 riêng, mở thiếu mật khẩu, sai mật khẩu, đúng mật khẩu. Sai/thiếu/đúng mật khẩu được kiểm bằng API tài liệu; chưa có ảnh hộp nhập mật khẩu khi mở lại.
 - Đã gõ bản nháp thử để mở xác nhận đóng và chụp hộp. Chưa kiểm từng lựa chọn Hủy/Không lưu/Lưu, chuỗi Tab/Esc/Enter hoặc xác nhận đóng bằng phím.
 - Lưu thành thật bị giới hạn bởi thông báo app dev nêu trên; chưa gọi hộp thoại OS. Không có bằng chứng CDP của lưu thành trong bản đóng gói.
-- NOT RUN: cập nhật (đang kiểm tra/có bản mới/không có/lỗi mạng); mở file hỏng/không hỗ trợ/quá lớn và tiến độ nạp; menu chuột phải văn bản/bảng/ảnh/ô/slide/hình; tooltip ba nút mỗi tab; toast; kiểm tra disabled/hover; khôi phục từ lần chạy trước thật; các hộp thoại tương ứng ở Sheet/Slides. Không có ảnh nên không kết luận đạt.
+- NOT RUN: mở file hỏng/không hỗ trợ/quá lớn và tiến độ nạp; tooltip ba nút mỗi tab; toast tạm thời; trạng thái disabled/hover; khôi phục từ lần chạy trước thật; các hộp thoại tương ứng ở Sheet/Slides. Các menu Writer được dựng bằng fixture HTML; menu Sheet bằng model fixture. Không kết luận đạt cho hạng mục NOT RUN.
 - Không sửa mã nguồn; không phát hiện lỗi nhỏ đủ điều kiện sửa trong giới hạn phiếu.
 
 ## Kiểm thử và trạng thái
@@ -55,6 +55,27 @@
 - Không đổi command definitions/strings; không chạy generator checklist.
 - Sửa UI: không có; do đó không có bài CDP pre-fix/post-fix.
 
+## Bổ sung menu ngữ cảnh, cập nhật và bàn phím (CDP)
+
+| App | Màn hình | Kích thước / giao diện | Kết luận | Ảnh |
+|---|---|---|---|---|
+| Writer | Menu chuột phải văn bản và thanh định dạng nổi | 1366×768 sáng | **Lỗi trung bình:** thanh định dạng nổi chồng lên phần menu; các mục vẫn đọc được nhưng vùng chọn bị che | [ảnh](assets/q35-ui/writer/context-text-1366x768.png) |
+| Writer | Menu chuột phải ô bảng | 1366×768 sáng | **Lỗi trung bình:** thanh định dạng nổi che một phần đầu menu; fixture HTML trong phiên CDP | [ảnh](assets/q35-ui/writer/context-table-1366x768.png) |
+| Writer | Menu chuột phải ảnh | 1366×768 sáng | **Lỗi trung bình:** thanh định dạng nổi chồng lên menu; fixture HTML trong phiên CDP | [ảnh](assets/q35-ui/writer/context-image-1366x768.png) |
+| Sheet | Menu chuột phải ô | 1366×768 sáng | Đạt; menu nằm trong khung, mục cuối hiển thị | [ảnh](assets/q35-ui/sheet/context-cell-1366x768.png) |
+| Sheet | Menu chuột phải hình dạng | 1366×768 sáng | Đạt; menu dài nhưng không bị cắt | [ảnh](assets/q35-ui/sheet/context-shape-1366x768.png) |
+| Sheet | Menu chuột phải ảnh | 1366×768 sáng | Đạt | [ảnh](assets/q35-ui/sheet/context-image-1366x768.png) |
+| Sheet | Menu chuột phải hộp văn bản | 1366×768 sáng | Đạt | [ảnh](assets/q35-ui/sheet/context-textbox-1366x768.png) |
+| Slides | Menu chuột phải hình thu nhỏ trang chiếu | 1366×768 sáng | Đạt; đủ mục và nằm trong cửa sổ; phủ nhẹ vùng trạng thái bên dưới nhưng không cắt mục cuối | [ảnh](assets/q35-ui/slides/context-slide-1366x768.png) |
+| Writer | Trạng thái nguồn cập nhật chưa cấu hình sau kiểm tra thật | 1366×768 sáng | Đạt về hiển thị; trạng thái và nút kiểm tra đọc được. Kết quả thật: nguồn chưa cấu hình | [ảnh](assets/q35-ui/writer/update-real-result-1366x768.png) |
+| Writer | Cập nhật “đang ở phiên bản mới nhất” | 1366×768 sáng | Đạt; trạng thái fixture qua sự kiện CDP, không phải phản hồi máy chủ | [ảnh](assets/q35-ui/writer/update-none-fixture-1366x768.png) |
+| Writer | Có bản cập nhật và thanh thông báo | 1366×768 sáng | Đạt; fixture CDP; thanh thông báo và ba nút không che nút ribbon | [ảnh](assets/q35-ui/writer/update-ready-fixture-1366x768.png) |
+| Writer | Xác nhận đóng, Tab chuyển focus từ Lưu tới nút đóng | 1366×768 sáng | Đạt; viền focus nhìn thấy | [ảnh](assets/q35-ui/writer/close-tab-focus-1366x768.png) |
+| Writer | Xác nhận đóng sau phím Esc | 1366×768 sáng | Đạt; hộp đóng, tài liệu còn mở | [ảnh](assets/q35-ui/writer/close-escape-1366x768.png) |
+| Writer | Xác nhận đóng sau Enter trên Lưu mặc định | 1366×768 sáng | Hộp đóng và tài liệu vẫn mở; lưu tệp không được xác minh trong app dev | [ảnh](assets/q35-ui/writer/close-enter-1366x768.png) |
+
+Kiểm tra cập nhật thật chỉ trả về “Nguồn cập nhật chưa được cấu hình trên máy này.” Trạng thái mới nhất và có bản cập nhật được dựng bằng sự kiện fixture để xem bố cục; không kết luận máy chủ cập nhật đã phát hành bản mới. Toast tạm thời chưa được kích hoạt; ảnh có thanh thông báo cập nhật không được tính là toast.
+
 ## Tóm tắt
 
-26 ảnh CDP đã chụp và xem. Lỗi còn lại: ưu tiên trung bình 2 nhóm (ngăn Trợ giúp Writer; ribbon hẹp Writer/Slides); không có lỗi mức cao/thấp đã sửa. Các hạng mục NOT RUN và giới hạn app dev được ghi riêng phía trên.
+40 ảnh CDP đã chụp và xem. Lỗi còn lại: ưu tiên trung bình 3 nhóm — ngăn Trợ giúp Writer; ribbon hẹp Writer/Slides; thanh định dạng nổi chồng menu ngữ cảnh Writer. Không có lỗi cao/thấp đã sửa. Các mục NOT RUN và giới hạn app dev được liệt kê phía trên.
