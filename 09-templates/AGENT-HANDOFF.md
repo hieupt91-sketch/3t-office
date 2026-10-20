@@ -576,3 +576,24 @@ RISKS: Chỉ xác minh Pulse riêng bằng COM; các tổ hợp hiệu ứng nhi
 DEPENDENCIES/BLOCKERS: CustomLayout cần tạo và nối nhiều slideLayout OOXML parts; handout cần thay đổi adapter/print worker để PDF có 3 slide trên mỗi trang. Chưa triển khai.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Tiếp tục ticket riêng cho package CustomLayout và PDF handout 3-up; không đánh dấu hai mục này PASS.
+
+---
+
+# Agent Handoff
+TASK: Q21 — Sheet rà soát sâu PivotTable, xác thực, vùng đặt tên, bảo vệ, Table, tìm/thay, công thức, dán và in
+AGENT/ROLE: Codex / VN Sheet
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Kiểm chứng luồng Sheet bằng CDP/keyboard/mouse, lưu mở XLSX, Excel COM ReadOnly và ghi sổ thao tác ≥30 mục.
+FINDINGS: Pivot dialog ban đầu không có bộ lọc; trước sửa unit FAIL 1/14 và CDP không có filter field (0/1). LibreOffice pageFields làm Excel COM không mở được, nên bản sửa giữ lựa chọn lọc bằng metadata VN, tính lại kết quả trong VN Sheet và bỏ native page orientation. Excel COM mở ReadOnly được bản cuối và đọc B2=185000. Xuất PDF gọi native Save dialog, không thể chọn đường dẫn qua CDP. Fixture LAN 5 file không có trong checkout; E:\VNOffice-temp có bốn file probe, không đủ và không thay thế được yêu cầu batch.
+IMPLEMENTATION SUMMARY: Thêm cấu hình Bộ lọc cho Pivot, áp dụng điều kiện trước khi tổng hợp, giữ metadata qua FODS/XLSX import/export, bổ sung Help VI và i18n VI/EN. Không thêm command. Test unit, Python OOXML, desktop CDP và Excel COM ReadOnly có bằng chứng sau sửa.
+FILES CHANGED: adapters/libreoffice/common/ooxml_zip_patch.py; adapters/libreoffice/sheet/sheet-adapter.js; apps/sheet/pivot-table.js; apps/sheet/sheet-grid.js; apps/sheet/sheet.css; platform/help/entries-sheet.js; platform/i18n/strings-en.js; platform/i18n/strings-vi.js; tests/unit/sheet-pivot-table.test.js; tests/unit/sheet-slides-i18n-shortcuts.test.js; tests/test_sheet_pivot_filter_roundtrip.py; tests/live/cdp/q21-sheet-pivot-filter.desktop.mjs; tests/live/cdp/q21-pivot-com-readonly.ps1; tests/live/cdp/q21-sheet-print-pdf.desktop.mjs; docs/PLAN-SHEET-Q21-2026-10-20.md; docs/EXPLORE-SHEET-Q21-2026-10-20.md; 09-templates/AGENT-HANDOFF.md.
+COMMITS: 85505e7a (Pivot filter implementation); documentation/audit commit recorded in Git.
+COMMANDS RUN: git merge main; CDP Excel-G2 validation; CDP find/replace; CDP table operations; CDP Pivot GETPIVOTDATA; CDP page setup; CDP Pivot filter and refresh; CDP print preview; hidden Excel COM ReadOnly; node tests/run-tests.js; node scripts/audit-0610/i18n_parity.mjs; python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix; python -m pytest tests -q -k sheet or xlsx or ooxml.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — Node 3773/3773; i18n VI=3117, EN=3117, missing=0; checklist 0 dòng bị hạ; pytest 362 passed, 742 deselected (249.35 s); Pivot CDP 10/10, unit 14/14, Python OOXML 1/1; Excel COM ReadOnly đọc workbook và kết quả lọc. Print preview PASS (1 trang). LAN batch 5 tệp BLOCKED vì fixture không sẵn có; PDF export BLOCKED vì hộp thoại native.
+KNOWN FAILURES: Bộ lọc trang Pivot chưa là native filter trong ứng dụng bảng tính bên ngoài VN Office; PDF chưa xuất được tự động trong chế độ CDP không điều khiển OS.
+RISKS: Metadata vno:filters cần được bảo toàn nếu có luồng XLSX khác bỏ qua adapter; lọc đang áp dụng bởi VN Sheet engine.
+DEPENDENCIES/BLOCKERS: Cần cấp lại 5 fixture LAN lan25/lan20/lan07/lan13/lan23.xlsx để chạy batch sau thay đổi adapter. PDF cần cơ chế chọn đường dẫn không dựa vào OS automation hoặc hộp thoại native.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Chạy batch 5 workbook LAN khi fixture được cấp; xử lý riêng PDF native-save và khả năng native Pivot filter nếu yêu cầu tương thích ứng dụng ngoài VN Office.
