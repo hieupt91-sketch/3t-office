@@ -478,6 +478,14 @@ body {
   font-size: 11px;
 }
 
+/* Four stacked controls in Writer's Editing group must fit above the group footer. */
+#vno-ribbon-tabpanel-home .vno-ribbon-group[data-group-id="editing"] .vno-ribbon-group-column .vno-ribbon-btn-small {
+  height: 16px;
+  min-height: 16px;
+  padding-top: 0;
+  padding-bottom: 0;
+}
+
 /* Writer Table > Bảng has four stacked selection commands; let that column use
    its full height instead of inheriting the generic 72 px ribbon column. */
 #vno-ribbon-tabpanel-tableLayout .vno-ribbon-group[data-group-id="tableSelectGroup"] .vno-ribbon-group-items {
