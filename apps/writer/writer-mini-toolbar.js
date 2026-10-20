@@ -1,6 +1,6 @@
 /**
- * Thanh công cụ nổi (Mini Toolbar) của Writer: hiện cạnh vùng chữ vừa bôi đen bằng chuột và khi nhấp chuột phải,
- * mờ dần khi con trỏ rời xa, biến mất khi gõ phím, nhấp ra ngoài hoặc cuộn. Các nút dùng lại đúng lệnh của ribbon
+ * Thanh công cụ nổi (Mini Toolbar) của Writer: hiện cạnh vùng chữ vừa bôi đen bằng chuột,
+ * mờ dần khi con trỏ rời xa, biến mất khi gõ phím, nhấp ra ngoài, cuộn hoặc mở menu ngữ cảnh. Các nút dùng lại đúng lệnh của ribbon
  * (cùng phím tắt, cùng trạng thái bật/tắt) nên không có logic định dạng riêng ở đây.
  */
 import { createCommandButton } from "../../platform/ui-kit/components.js";
@@ -26,7 +26,7 @@ export class WriterMiniToolbar {
     this.body = body;
     this.scrollRoots = scrollRoots;
     this.element = null;
-    this.mode = null; // "selection" | "contextmenu"
+    this.mode = null; // "selection"
     this._handlers = [];
     this._frame = 0;
   }
@@ -80,8 +80,8 @@ export class WriterMiniToolbar {
     }, 0);
   }
 
-  _onContextMenu(event) {
-    this.show({ mode: "contextmenu", pointer: { x: event.clientX, y: event.clientY } });
+  _onContextMenu() {
+    this.hide();
   }
 
   _onMouseDown(event) {
