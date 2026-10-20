@@ -384,6 +384,12 @@
   z-index: 1;
 }
 
+.vno-grid-cell > svg[data-sparkline] {
+  display: block;
+  height: 16px;
+  vertical-align: top;
+}
+
 .vno-grid-cell.can-overflow {
   overflow: visible;
   z-index: 2;

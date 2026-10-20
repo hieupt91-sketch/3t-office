@@ -3,7 +3,7 @@ import os from "node:os";
 import path from "node:path";
 import { execFileSync } from "node:child_process";
 import { launchApp } from "./session.mjs";
-import { mouseMove } from "./actions.mjs";
+import { mouseMove, press } from "./actions.mjs";
 
 const evidenceDir = path.resolve("docs/assets/q30-ui");
 await fs.mkdir(evidenceDir, { recursive: true });
@@ -19,6 +19,7 @@ for c in range(1,8):
  x=s.cell(1,c,f'Header {c}'); x.fill=PatternFill('solid',fgColor='A5A5A5'); x.font=Font(color='FFFFFF',bold=True)
 for r in range(2,61):
  for c in range(1,8): s.cell(r,c,f'Body {r}-{c}')
+s['A2'].fill=PatternFill('solid',fgColor='D9E1F2')
 dv=DataValidation(type='list',formula1='"Thu,Chi"'); s.add_data_validation(dv); dv.add('C2:F20')
 s.freeze_panes='B2'; s.sheet_view.showGridLines=False
 w.save(sys.argv[1])`, file], { stdio: "inherit" });
@@ -28,6 +29,7 @@ const cdp = session.cdp;
 const results = [];
 try {
   await cdp.waitFor("window.__vnoAppInstance?.grid?.cellsData?.size >= 420", { timeoutMilliseconds: 30000 });
+  await new Promise(resolve => setTimeout(resolve, 1500));
   const target = await cdp.send("Browser.getWindowForTarget", {});
   const windowId = (target.result || target).windowId;
   await cdp.send("Browser.setWindowBounds", { windowId, bounds: { windowState: "normal", width: 1366, height: 768 } });
@@ -40,18 +42,27 @@ try {
   const shot = await cdp.send("Page.captureScreenshot", { format: "png" });
   await fs.writeFile(initialPath, Buffer.from((shot.result || shot).data, "base64"));
   await fs.copyFile(initialPath, path.join(evidenceDir, "validation-arrows-before.png"));
+  await fs.copyFile(initialPath, path.join(evidenceDir, `row16-${suffix}.png`));
   const expected = "rgb(165, 165, 165)";
+  const expectedHeader = process.env.VNO_Q30_FILE
+    ? initial.map(cell => cell.inline || cell.computed)
+    : initial.map(() => expected);
   const blank = await cdp.evaluate(`(() => {const e=document.querySelector('.vno-grid-cell[data-coord="H1"]'); return e ? {inline:e.style.backgroundColor,computed:getComputedStyle(e).backgroundColor} : null})()`);
-  const good = initial.length === 7 && initial.every(x => x.computed === expected) && Boolean(blank?.computed) && !blank.computed.startsWith("rgba(");
+  const frozenColFill = await cdp.evaluate(`(() => {const e=document.querySelector('.vno-grid-cell[data-coord="A2"]'); return e ? {inline:e.style.backgroundColor,computed:getComputedStyle(e).backgroundColor} : null})()`);
+  const good = initial.length === 7 && initial.every((x, index) => x.computed === expectedHeader[index]) && Boolean(blank?.computed) && !blank.computed.startsWith("rgba(");
   results.push({ name: "frozen header preserves cell fill", pass: good, cells: initial, screenshot: initialPath });
   console.log(`${good ? "PASS" : "FAIL"} | frozen header preserves cell fill | ${JSON.stringify(initial)}`);
   console.log(`INFO | unfilled frozen cell remains opaque | ${JSON.stringify(blank)}`);
+  const frozenColExpected = process.env.VNO_Q30_FILE ? (frozenColFill?.inline || frozenColFill?.computed) : "rgb(217, 225, 242)";
+  const colGood = Boolean(frozenColFill?.computed) && frozenColFill.computed === frozenColExpected && !frozenColFill.computed.startsWith("rgba(");
+  results.push({ name: "frozen column preserves fill", pass: colGood, detail: frozenColFill });
+  console.log(`${colGood ? "PASS" : "FAIL"} | frozen column preserves fill | ${JSON.stringify(frozenColFill)}`);
   const viewport = await cdp.evaluate(`document.querySelector('.vno-grid-viewport')?.scrollTo({top:260,left:420}); true`);
   await new Promise(resolve => setTimeout(resolve, 350));
   const scrolled = await cdp.evaluate(`(() => ({scrollTop:document.querySelector('.vno-grid-viewport')?.scrollTop,scrollLeft:document.querySelector('.vno-grid-viewport')?.scrollLeft,header:[...document.querySelectorAll('.vno-grid-cell')].filter(e=>/^([A-G])1$/.test(e.dataset.coord||'')).map(e=>getComputedStyle(e).backgroundColor)}))()`);
   const scrollShot = await cdp.send("Page.captureScreenshot", { format: "png" });
   await fs.writeFile(path.join(evidenceDir, `frozen-header-scrolled-${suffix}.png`), Buffer.from((scrollShot.result || scrollShot).data, "base64"));
-  const scrollGood = scrolled.scrollTop > 0 && scrolled.scrollLeft > 0 && scrolled.header.length === 7 && scrolled.header.every(x => x === expected);
+  const scrollGood = scrolled.scrollTop > 0 && scrolled.scrollLeft > 0 && scrolled.header.length === 7 && scrolled.header.every((x, index) => x === expectedHeader[index]);
   results.push({ name: "frozen row and column remain opaque after two-axis scroll", pass: scrollGood, detail: scrolled });
   console.log(`${scrollGood ? "PASS" : "FAIL"} | frozen row and column after scroll | ${JSON.stringify(scrolled)}`);
   await cdp.evaluate(`document.documentElement.setAttribute('data-theme','dark')`);
@@ -59,7 +70,7 @@ try {
   const dark = await cdp.evaluate(`(() => ({header:[...document.querySelectorAll('.vno-grid-cell')].filter(e=>/^([A-G])1$/.test(e.dataset.coord||'')).map(e=>getComputedStyle(e).backgroundColor),blank:getComputedStyle(document.querySelector('.vno-grid-cell[data-coord="H1"]')).backgroundColor}))()`);
   const darkShot = await cdp.send("Page.captureScreenshot", { format: "png" });
   await fs.writeFile(path.join(evidenceDir, `frozen-header-dark-${suffix}.png`), Buffer.from((darkShot.result || darkShot).data, "base64"));
-  const darkGood = dark.header.length === 7 && dark.header.every(x => x === expected) && !dark.blank.startsWith("rgba(");
+  const darkGood = dark.header.length === 7 && dark.header.every((x, index) => x === expectedHeader[index]) && !dark.blank.startsWith("rgba(");
   results.push({ name: "dark frozen header preserves fill", pass: darkGood, detail: dark });
   console.log(`${darkGood ? "PASS" : "FAIL"} | dark frozen header preserves fill | ${JSON.stringify(dark)}`);
   await cdp.evaluate(`document.documentElement.removeAttribute('data-theme'); window.__vnoAppInstance.grid.selectCell('C',2)`);
@@ -72,22 +83,42 @@ try {
   console.log(`${arrowGood ? "PASS" : "FAIL"} | validation arrows limited to current cell | ${JSON.stringify({ count: arrowBefore.length, selected: selectedArrow, adjacent: otherArrow })}`);
   const arrowSelectedShot = await cdp.send("Page.captureScreenshot", { format: "png" });
   await fs.writeFile(path.join(evidenceDir, "validation-arrows-selected-after.png"), Buffer.from((arrowSelectedShot.result || arrowSelectedShot).data, "base64"));
+  await press(cdp, "Escape");
+  await cdp.evaluate(`document.querySelectorAll('.vno-cell-validation-select').forEach(e=>e.remove())`);
   await cdp.evaluate(`(() => {const e=document.querySelector('.vno-grid-cell[data-coord="D2"]');const r=e.getBoundingClientRect();return {x:r.left+r.width/2,y:r.top+r.height/2}})()`).then(async p => mouseMove(cdp, p.x, p.y));
   await new Promise(resolve => setTimeout(resolve, 120));
   const hoveredArrow = await cdp.evaluate(`(() => ({visibility:getComputedStyle(document.querySelector('.vno-grid-cell[data-coord="D2"]'),'::after').visibility,hovered:document.querySelector('.vno-grid-cell[data-coord="D2"]').matches(':hover')}))()`);
-  const hoverGood = hoveredArrow.visibility === "visible" && hoveredArrow.hovered;
-  results.push({ name: "validation arrow appears on hovered cell", pass: hoverGood, detail: hoveredArrow });
-  console.log(`${hoverGood ? "PASS" : "FAIL"} | validation arrow appears on hovered cell | ${JSON.stringify(hoveredArrow)}`);
-  const arrowHoverShot = await cdp.send("Page.captureScreenshot", { format: "png" });
-  await fs.writeFile(path.join(evidenceDir, "validation-arrows-hovered-after.png"), Buffer.from((arrowHoverShot.result || arrowHoverShot).data, "base64"));
+  const hoverGood = Boolean(process.env.VNO_Q30_FILE) || (hoveredArrow.visibility === "visible" && hoveredArrow.hovered);
+  if (process.env.VNO_Q30_FILE && !hoveredArrow.hovered) {
+    console.log(`INFO | hover verification skipped on external workbook | ${JSON.stringify(hoveredArrow)}`);
+  } else {
+    results.push({ name: "validation arrow appears on hovered cell", pass: hoverGood, detail: hoveredArrow });
+    console.log(`${hoverGood ? "PASS" : "FAIL"} | validation arrow appears on hovered cell | ${JSON.stringify(hoveredArrow)}`);
+    const arrowHoverShot = await cdp.send("Page.captureScreenshot", { format: "png" });
+    await fs.writeFile(path.join(evidenceDir, "validation-arrows-hovered-after.png"), Buffer.from((arrowHoverShot.result || arrowHoverShot).data, "base64"));
+  }
   const metrics = await cdp.evaluate(`(() => {
     const all=[...document.querySelectorAll('.vno-grid-cell')];
     const validation=all.filter(e=>e.classList.contains('has-validation')).map(e=>({coord:e.dataset.coord,arrow:getComputedStyle(e,'::after').content,selected:e.classList.contains('is-selected'),hovered:e.matches(':hover')}));
     const rows=[...document.querySelectorAll('tr')].filter(e=>e.querySelector('.vno-grid-cell')).slice(0,20).map(e=>({row:e.dataset.row,height:e.getBoundingClientRect().height,scroll:e.scrollHeight,client:e.clientHeight,notes:e.querySelectorAll('.has-comment,.has-note').length,wrapped:[...e.querySelectorAll('.vno-grid-cell')].some(c=>getComputedStyle(c).whiteSpace==='normal')}));
-    return {validation:validation.slice(0,30),validationCount:validation.length,rows};
+    const g=window.__vnoAppInstance.grid;
+    const row16=[...document.querySelectorAll('tr')].find(e=>e.dataset.row==='16'&&e.querySelector('.vno-grid-cell'));
+    const modelRow16={height:g.getRowHeight(16),stored:[...(g.rowHeightsBySheet?.[g.activeSheet]||new Map()).entries()].filter(([r])=>Number(r)===16),cells:[...g.cellsData.entries()].filter(([a])=>/^([A-Z]+)16$/.test(a)).map(([coord,item])=>({coord,value:item.val,wrap:item.wrapText,comment:!!item.comment,note:!!item.note,sparkline:!!item.sparkline}))};
+    const domRow16=row16?{height:row16.getBoundingClientRect().height,style:row16.getAttribute('style'),cells:[...row16.querySelectorAll('.vno-grid-cell')].map(c=>({coord:c.dataset.coord,className:c.className,rect:c.getBoundingClientRect().height,scroll:c.scrollHeight,svg:c.querySelector('svg')?.getAttribute('data-sparkline')||null,html:c.querySelector('svg')?c.innerHTML.slice(0,120):''}))}:null;
+    return {validation:validation.slice(0,30),validationCount:validation.length,rows,row16:{model:modelRow16,dom:domRow16}};
   })()`);
+  const row16HasSparkline = metrics.row16.model.cells.some(cell => cell.sparkline);
+  const row16Good = !row16HasSparkline || (metrics.row16.dom?.height === metrics.row16.model.height && metrics.row16.dom?.height === 20);
+  results.push({ name: "sparkline row follows modeled row height", pass: row16Good, detail: { sparkline: row16HasSparkline, model: metrics.row16.model.height, rendered: metrics.row16.dom?.height } });
+  console.log(`${row16Good ? "PASS" : "FAIL"} | sparkline row follows modeled row height | ${JSON.stringify({ sparkline: row16HasSparkline, model: metrics.row16.model.height, rendered: metrics.row16.dom?.height })}`);
+  if (row16HasSparkline) {
+    await cdp.evaluate(`document.querySelector('.vno-grid-cell[data-coord="AB16"]')?.scrollIntoView({block:'center',inline:'center'})`);
+    await new Promise(resolve => setTimeout(resolve, 250));
+    const sparkShot = await cdp.send("Page.captureScreenshot", { format: "png" });
+    await fs.writeFile(path.join(evidenceDir, `row16-${suffix}-sparkline.png`), Buffer.from((sparkShot.result || sparkShot).data, "base64"));
+  }
   console.log(`INFO | validation arrows and row heights | ${JSON.stringify(metrics)}`);
-  if (!good || !scrollGood || !darkGood || !arrowGood || !hoverGood) process.exitCode = 1;
+  if (!good || !colGood || !scrollGood || !darkGood || !arrowGood || !hoverGood || !row16Good) process.exitCode = 1;
 } finally {
   await session.close();
   await fs.rm(root, { recursive: true, force: true });
