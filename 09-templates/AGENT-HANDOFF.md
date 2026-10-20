@@ -597,3 +597,24 @@ RISKS: Metadata vno:filters cần được bảo toàn nếu có luồng XLSX kh
 DEPENDENCIES/BLOCKERS: Cần cấp lại 5 fixture LAN lan25/lan20/lan07/lan13/lan23.xlsx để chạy batch sau thay đổi adapter. PDF cần cơ chế chọn đường dẫn không dựa vào OS automation hoặc hộp thoại native.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Chạy batch 5 workbook LAN khi fixture được cấp; xử lý riêng PDF native-save và khả năng native Pivot filter nếu yêu cầu tương thích ứng dụng ngoài VN Office.
+
+---
+
+# Agent Handoff
+TASK: Q22 — Sheet formula parity và xuất PDF qua API in
+AGENT/ROLE: Codex / VN Sheet QA
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Đối chiếu nhóm hàm công thức trên fixture bán hàng 40 dòng với XLSX/cache và Excel COM ẩn; xuất PDF Sheet qua API in.
+FINDINGS: CDP ghi 40×8 dữ liệu và công thức vào lưới Sheet. 18 công thức được Excel hỗ trợ cho kết quả app/cache/Excel giống nhau trên bản chẩn đoán ReadOnly; XLOOKUP J4 app=15000 nhưng cache/Excel=#NAME?; IFS J10 app=“Chưa” nhưng cache/Excel=#NAME?. UNIQUE/FILTER/SORT trả #NAME? trong engine. Excel COM từ chối mở XLSX gốc có ba công thức này; bản sao bỏ J22:J24 mở được. PDF API in trả 3 trang; PDF có 3 trang, trang đầu có tiêu đề và dòng dữ liệu.
+IMPLEMENTATION SUMMARY: Không sửa code sản phẩm vì dynamic arrays chưa được triển khai và chênh lệch compatibility cần điều tra ở adapter/platform. Thêm script CDP lặp lại cho dữ liệu, hàm, lưu XLSX, API PDF và xác minh số trang/text; cập nhật Q21 log. Không sửa golden JSON.
+FILES CHANGED: tests/live/cdp/q22-sheet-formula-oracle.desktop.mjs; docs/EXPLORE-SHEET-Q21-2026-10-20.md; 09-templates/AGENT-HANDOFF.md.
+COMMITS: a06ce86c (audit/script); handoff commit follows separately.
+COMMANDS RUN: `git merge main`; `node --experimental-websocket tests/live/cdp/q22-sheet-formula-oracle.desktop.mjs`; Excel COM ReadOnly + CalculateFullRebuild trên bản chẩn đoán; Excel COM Open trên XLSX gốc; `node tests/run-tests.js`; `npm test`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "sheet or formula or xlsx"`.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — CDP/API 25 PASS, 3 NOT SUPPORTED, 0 FAIL; PDF 3/3 trang, trang đầu có tiêu đề/dòng dữ liệu; Node 3773/3773; i18n VI/EN 3117/3117, thiếu 0; checklist 0 dòng hạ; pytest 340 passed, 764 deselected. FAIL — Excel COM không mở XLSX gốc; XLOOKUP/IFS không khớp với Excel COM trên bản cài đặt này.
+KNOWN FAILURES: UNIQUE/FILTER/SORT chưa có trong engine. XLSX có bất kỳ công thức mảng động nào trong fixture đều bị Excel COM từ chối mở; XLOOKUP và IFS trong Excel COM cho #NAME?.
+RISKS: Chưa xác định nguyên nhân adapter cụ thể khiến workbook gốc không mở; cần đối chiếu phiên bản Excel và kiểu công thức/cached error. Không thực hiện core patch.
+DEPENDENCIES/BLOCKERS: Handoff tới owner `adapters/**` / `platform/**` để điều tra Excel COM Open với formula cells J22:J24; product owner cân nhắc ticket riêng cho UNIQUE/FILTER/SORT và XLOOKUP/IFS interoperability.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Reproduce XLSX Open failure in adapter-owned fixture and fix only after a pre-fix failing test; separately scope dynamic-array support and Excel-version compatibility.
