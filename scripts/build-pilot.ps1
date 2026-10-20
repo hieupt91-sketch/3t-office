@@ -2,7 +2,8 @@
 # Output: <OutDir>\VNOffice-<Version>\ (app + bundled Python + bundled LibreOffice, Doc/Sheet/Slide launchers) and, with -Zip, a .zip next to it.
 # No new build dependency: copies the local CPython install (PSF), the runtime packages pywebview needs
 # (pywebview BSD, pythonnet MIT, clr_loader MIT, cffi MIT, pycparser BSD, bottle MIT, proxy_tools MIT,
-# typing_extensions PSF) and a LibreOffice install (MPL-2.0). Never packages tests, docs, sample or real documents.
+# typing_extensions PSF, cryptography Apache-2.0/BSD-3-Clause, pypdf BSD-3-Clause) and a LibreOffice install (MPL-2.0).
+# Never packages tests, docs, sample or real documents.
 # ASCII only: Windows PowerShell 5.1 reads BOM-less scripts in the ANSI code page.
 param(
     [string]$Version = "0.9.0-pilot1",
@@ -86,13 +87,13 @@ Invoke-Robocopy (Join-Path $PythonDir "Lib") (Join-Path $pyOut "Lib") @(
 $siteIn = Join-Path $PythonDir "Lib\site-packages"
 $siteOut = Join-Path $pyOut "Lib\site-packages"
 New-Item -ItemType Directory -Force $siteOut | Out-Null
-$packages = @("webview", "pythonnet", "clr_loader", "cffi", "pycparser", "bottle", "proxy_tools")
+$packages = @("webview", "pythonnet", "clr_loader", "cffi", "pycparser", "bottle", "proxy_tools", "cryptography", "pypdf")
 foreach ($name in $packages) {
     $pkgDir = Join-Path $siteIn $name
     if (Test-Path -LiteralPath $pkgDir) { Invoke-Robocopy $pkgDir (Join-Path $siteOut $name) @("/XD", "__pycache__", "/XF", "*.pyc") }
 }
 Get-ChildItem -LiteralPath $siteIn -File | Where-Object { $_.Name -match '^(bottle|clr|typing_extensions|_cffi_backend)\.' } | Copy-Item -Destination $siteOut
-Get-ChildItem -LiteralPath $siteIn -Directory | Where-Object { $_.Name -match '^(pywebview|pythonnet|clr_loader|cffi|pycparser|bottle|proxy_tools|typing_extensions)-.*\.dist-info$' } |
+Get-ChildItem -LiteralPath $siteIn -Directory | Where-Object { $_.Name -match '^(pywebview|pythonnet|clr_loader|cffi|pycparser|bottle|proxy_tools|typing_extensions|cryptography|pypdf)-.*\.dist-info$' } |
     ForEach-Object { Invoke-Robocopy $_.FullName (Join-Path $siteOut $_.Name) @() }
 
 # 3. LibreOffice engine, found by main.find_soffice() at app\tools\libreoffice\program\soffice.exe.
