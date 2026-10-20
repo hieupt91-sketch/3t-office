@@ -212,7 +212,7 @@ export function showDocumentInspectorDialog({
           <div style="display:flex;flex-direction:column;gap:12px;border:1px solid var(--vno-border-default, #e2e8f0);border-radius:6px;padding:12px">
             ${INSPECTOR_CATEGORIES.map(cat => `
               <div style="display:flex;flex-direction:column;gap:2px;border-bottom:1px solid var(--vno-border-subtle, #f1f5f9);padding-bottom:8px">
-                <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px;color:var(--vno-text-main, #1e293b);cursor:pointer">
+                <label style="display:flex;align-items:center;gap:8px;font-weight:600;font-size:13.5px;color:var(--vno-text-primary, #1e293b);cursor:pointer">
                   <input type="checkbox" id="vno-inspect-check-${cat.id}" checked style="cursor:pointer" />
                   <span>${cat.title}</span>
                 </label>
@@ -248,7 +248,7 @@ export function showDocumentInspectorDialog({
                   <div style="display:flex;flex-direction:column;gap:3px;flex:1;padding-right:12px">
                     <div style="display:flex;align-items:center;gap:6px">
                       <span style="font-size:15px">${info.found ? "⚠️" : "✅"}</span>
-                      <strong style="font-size:13.5px;color:var(--vno-text-main, #1e293b)">${cat.title}</strong>
+                       <strong style="font-size:13.5px;color:var(--vno-text-primary, #1e293b)">${cat.title}</strong>
                     </div>
                     <span style="font-size:12.5px;color:${info.found ? "#b91c1c" : "var(--vno-text-muted, #15803d)"};margin-left:22px">
                       ${info.found ? cat.foundMessage(info.count) : cat.cleanMessage}
