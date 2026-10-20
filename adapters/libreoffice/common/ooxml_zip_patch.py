@@ -12900,6 +12900,48 @@ def _postprocess_slides_header_footer(pptx_bytes: bytes, source_fodp: str | None
             replacements[name] = xml.replace("</p:spTree>", "".join(shapes) + "</p:spTree>", 1)
         elif xml != original_xml:
             replacements[name] = xml
+    master_flags = {
+        "dt": any(fields.get("date") is not None for fields in fields_by_slide),
+        "ftr": any(fields.get("footer") is not None for fields in fields_by_slide),
+        "sldNum": any(fields.get("number") is not None for fields in fields_by_slide),
+    }
+    if any(master_flags.values()):
+        with zipfile.ZipFile(io.BytesIO(pptx_bytes), "r") as package:
+            master_names = [name for name in package.namelist() if re.fullmatch(r"ppt/slideMasters/slideMaster\d+\.xml", name, re.IGNORECASE)]
+        for master_name in master_names:
+            current = (replacements.get(master_name) or read_zip_entry(pptx_bytes, master_name) or b"").decode("utf-8", errors="replace")
+            if not current:
+                continue
+            flag_attrs = {"dt": "dt", "ftr": "ftr", "sldNum": "sldNum"}
+            hf_match = re.search(r"<p:hf\b([^>]*)/\s*>", current, re.IGNORECASE)
+            if hf_match:
+                attrs = hf_match.group(1)
+                for key, enabled in master_flags.items():
+                    attr_name = flag_attrs[key]
+                    if not enabled:
+                        continue
+                    if re.search(rf"\b{attr_name}=\"[^\"]*\"", attrs, re.IGNORECASE):
+                        attrs = re.sub(rf"\b{attr_name}=\"[^\"]*\"", f'{attr_name}="1"', attrs, count=1, flags=re.IGNORECASE)
+                    else:
+                        attrs += f' {attr_name}="1"'
+                updated = current[:hf_match.start()] + f"<p:hf{attrs}/>{current[hf_match.end():]}"
+            else:
+                attrs = "".join(f' {name}="1"' for key, name in flag_attrs.items() if master_flags[key])
+                element = f"<p:hf{attrs}/>"
+                anchor = re.search(r"</p:sldLayoutIdLst\s*>", current, re.IGNORECASE)
+                if anchor:
+                    updated = current[:anchor.end()] + element + current[anchor.end():]
+                else:
+                    clr_map = re.search(r"<p:clrMap\b[^>]*/\s*>", current, re.IGNORECASE)
+                    if clr_map:
+                        updated = current[:clr_map.end()] + element + current[clr_map.end():]
+                    else:
+                        c_sld = re.search(r"</p:cSld\s*>", current, re.IGNORECASE)
+                        if not c_sld:
+                            raise ValueError(f"PPTX {master_name} thiếu p:cSld khi bật trường ngày/chân trang/số trang")
+                        updated = current[:c_sld.end()] + element + current[c_sld.end():]
+            if updated != current:
+                replacements[master_name] = updated
     return replacements
 
 
@@ -14233,6 +14275,10 @@ def postprocess_slides_pptx(
     if restore_masters:
         patched = _restore_source_masters(patched, source_pptx, source_fodp, theme_payload)
         patched = _restore_untouched_slides(patched, source_pptx, source_fodp)
+    if source_fodp and _slide_header_footer_fields_from_fodp(source_fodp):
+        header_footer_final = _postprocess_slides_header_footer(patched, source_fodp)
+        if header_footer_final:
+            patched = patch_ooxml_zip(patched, header_footer_final)
     return patched
 
 

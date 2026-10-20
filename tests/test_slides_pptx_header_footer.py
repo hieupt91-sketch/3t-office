@@ -43,12 +43,20 @@ def make_pptx() -> bytes:
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w", compression=zipfile.ZIP_DEFLATED) as package:
         package.writestr("ppt/presentation.xml", PRESENTATION_XML)
+        package.writestr("ppt/slideMasters/slideMaster1.xml", '<p:sldMaster xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main"><p:cSld></p:cSld></p:sldMaster>')
         package.writestr("ppt/slides/slide1.xml", SLIDE_XML)
         package.writestr("ppt/slides/slide2.xml", SLIDE_XML)
     return buffer.getvalue()
 
 
 class SlidesPptxHeaderFooterTests(unittest.TestCase):
+    def test_postprocess_enables_header_footer_fields_on_slide_master(self):
+        patched = patcher.postprocess_slides_pptx(make_pptx(), source_fodp=FODP, logo_text="Master")
+        master = patcher.read_zip_entry(patched, "ppt/slideMasters/slideMaster1.xml").decode("utf-8")
+        self.assertRegex(master, r'<p:hf\b[^>]*\bdt="1"')
+        self.assertRegex(master, r'<p:hf\b[^>]*\bftr="1"')
+        self.assertRegex(master, r'<p:hf\b[^>]*\bsldNum="1"')
+
     def test_postprocess_writes_only_applied_native_placeholders_and_is_idempotent(self):
         original = make_pptx()
         patched = patcher.postprocess_slides_pptx(original, source_fodp=FODP)
