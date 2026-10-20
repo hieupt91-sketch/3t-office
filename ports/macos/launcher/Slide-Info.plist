@@ -19,5 +19,39 @@
     <key>CFBundleTypeRole</key><string>Editor</string>
     <key>LSHandlerRank</key><string>Alternate</string>
     <key>CFBundleTypeExtensions</key><array><string>pptx</string><string>ppt</string><string>odp</string></array>
+    <key>LSItemContentTypes</key><array>
+      <string>org.openxmlformats.presentationml.presentation</string>
+      <string>com.microsoft.powerpoint.ppt</string>
+      <string>org.oasis-open.opendocument.presentation</string>
+    </array>
   </dict></array>
+  <key>UTImportedTypeDeclarations</key><array>
+    <dict>
+      <key>UTTypeIdentifier</key><string>org.openxmlformats.presentationml.presentation</string>
+      <key>UTTypeDescription</key><string>Bản trình chiếu Open XML</string>
+      <key>UTTypeConformsTo</key><array><string>public.data</string><string>public.archive</string></array>
+      <key>UTTypeTagSpecification</key><dict>
+        <key>public.filename-extension</key><array><string>pptx</string></array>
+        <key>public.mime-type</key><string>application/vnd.openxmlformats-officedocument.presentationml.presentation</string>
+      </dict>
+    </dict>
+    <dict>
+      <key>UTTypeIdentifier</key><string>com.microsoft.powerpoint.ppt</string>
+      <key>UTTypeDescription</key><string>Bản trình chiếu nhị phân</string>
+      <key>UTTypeConformsTo</key><array><string>public.data</string></array>
+      <key>UTTypeTagSpecification</key><dict>
+        <key>public.filename-extension</key><array><string>ppt</string></array>
+        <key>public.mime-type</key><string>application/vnd.ms-powerpoint</string>
+      </dict>
+    </dict>
+    <dict>
+      <key>UTTypeIdentifier</key><string>org.oasis-open.opendocument.presentation</string>
+      <key>UTTypeDescription</key><string>Bản trình chiếu ODF</string>
+      <key>UTTypeConformsTo</key><array><string>public.data</string><string>public.archive</string></array>
+      <key>UTTypeTagSpecification</key><dict>
+        <key>public.filename-extension</key><array><string>odp</string></array>
+        <key>public.mime-type</key><string>application/vnd.oasis.opendocument.presentation</string>
+      </dict>
+    </dict>
+  </array>
 </dict></plist>

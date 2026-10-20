@@ -19,5 +19,41 @@
     <key>CFBundleTypeRole</key><string>Editor</string>
     <key>LSHandlerRank</key><string>Alternate</string>
     <key>CFBundleTypeExtensions</key><array><string>docx</string><string>doc</string><string>odt</string><string>rtf</string><string>txt</string></array>
+    <key>LSItemContentTypes</key><array>
+      <string>org.openxmlformats.wordprocessingml.document</string>
+      <string>com.microsoft.word.doc</string>
+      <string>org.oasis-open.opendocument.text</string>
+      <string>public.rtf</string>
+      <string>public.plain-text</string>
+    </array>
   </dict></array>
+  <key>UTImportedTypeDeclarations</key><array>
+    <dict>
+      <key>UTTypeIdentifier</key><string>org.openxmlformats.wordprocessingml.document</string>
+      <key>UTTypeDescription</key><string>Tài liệu văn phòng Open XML</string>
+      <key>UTTypeConformsTo</key><array><string>public.data</string><string>public.archive</string></array>
+      <key>UTTypeTagSpecification</key><dict>
+        <key>public.filename-extension</key><array><string>docx</string></array>
+        <key>public.mime-type</key><string>application/vnd.openxmlformats-officedocument.wordprocessingml.document</string>
+      </dict>
+    </dict>
+    <dict>
+      <key>UTTypeIdentifier</key><string>com.microsoft.word.doc</string>
+      <key>UTTypeDescription</key><string>Tài liệu văn phòng nhị phân</string>
+      <key>UTTypeConformsTo</key><array><string>public.data</string></array>
+      <key>UTTypeTagSpecification</key><dict>
+        <key>public.filename-extension</key><array><string>doc</string></array>
+        <key>public.mime-type</key><string>application/msword</string>
+      </dict>
+    </dict>
+    <dict>
+      <key>UTTypeIdentifier</key><string>org.oasis-open.opendocument.text</string>
+      <key>UTTypeDescription</key><string>Tài liệu văn phòng ODF</string>
+      <key>UTTypeConformsTo</key><array><string>public.data</string><string>public.archive</string></array>
+      <key>UTTypeTagSpecification</key><dict>
+        <key>public.filename-extension</key><array><string>odt</string></array>
+        <key>public.mime-type</key><string>application/vnd.oasis.opendocument.text</string>
+      </dict>
+    </dict>
+  </array>
 </dict></plist>

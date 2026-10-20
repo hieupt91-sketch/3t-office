@@ -231,3 +231,23 @@ NEXT ACTION: Tích hợp MAC-3 UTI và MAC-12 runtime packaging, rồi mở ba a
 
 ---
 
+# Agent Handoff
+TASK: MAC-3-XCODE-FILE-TYPES-2010 — Hợp nhất UTI MAC-3 vào ba bundle Xcode
+AGENT/ROLE: Codex / macOS Packaging
+BRANCH: mac/xcode-filetypes-opencode
+WORKTREE: /Users/hieupc/.codex/worktrees/opencode-xcode-filetypes/3t-office
+OBJECTIVE: Đưa kết quả MAC-3 (commit 4f8f64b8) vào đúng ba bundle Xcode Doc/Sheet/Slide, đặc biệt UTI .xltx/.xlt cho Sheet, không cherry-pick mù và không đổi file-format semantics.
+FINDINGS: MAC-3 đặt plist ở ports/macos/Sheet-Info.plist nhưng build-development.sh truyền INFOPLIST_FILE=launcher/<Doc|Sheet|Slide>-Info.plist cho Xcode, nên UTI của MAC-3 chưa từng tới Launch Services và tồn tại hai nguồn sự thật. Đo lsregister -dump trên máy: UTI ODF đúng là org.oasis-open.opendocument.* (có "open"), MIME application/vnd.ms-excel cho .xlt của MAC-3 khớp CoreTypes, và macOS tự ánh xạ .xltx -> org.openxmlformats.spreadsheetml.template, .xlt -> com.microsoft.excel.xlt (khớp MAC-3).
+IMPLEMENTATION SUMMARY: Merge commit 208571be để nhánh này chứa nội dung MAC-3; hợp nhất UTI vào ports/macos/launcher/Sheet-Info.plist (giữ nguyên mapping .xltx/.xlt của MAC-3, thêm .xltx/.xlt vào CFBundleTypeExtensions) và đưa Doc/Slide về cùng mô hình đăng ký cho đúng các định dạng ứng dụng đã hỗ trợ; xoá ports/macos/Sheet-Info.plist để chỉ còn một nguồn sự thật; validator kiểm thêm UTImportedTypeDeclarations/LSItemContentTypes/role/rank; bài test MAC-3 mở rộng ba bundle và chốt "chỉ khai loại tệp mà main.py mở được". Không sửa main.py, không đổi định dạng, không thêm dependency, không ký.
+FILES CHANGED: ports/macos/launcher/Doc-Info.plist; ports/macos/launcher/Sheet-Info.plist; ports/macos/launcher/Slide-Info.plist; ports/macos/Sheet-Info.plist (xoá, hợp nhất); ports/macos/scripts/validate-development-bundles.py; tests/macos/test_sheet_file_types.py; docs/macos/PLAN-MAC-3-XCODE-FILE-TYPES-2010.md; docs/macos/HANDOFF-MAC-3-XCODE-FILE-TYPES-2010.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: plutil -lint x3; python3.12 -m unittest tests.macos.test_sheet_file_types; kiểm âm tính (tiêm .dotx); ports/macos/scripts/build-development.sh build/macos-xcode-filetypes với DEVELOPER_DIR=/Applications/Xcode.app/Contents/Developer; validate-development-bundles.py; lipo -info x3; lsregister -dump (trước/sau build); mdls -name kMDItemContentType; payload Python của bài Node sheet-template-save với python3.12 + stub webview; LibreOffice headless mở lại .xltx; node scripts/audit-0610/i18n_parity.mjs; npm test trên nhánh và trên checkout sạch fa0ec31b (worktree tạm, đã gỡ); git diff --check.
+BUILD RESULT: PASS — Xcode 26.3 Release build 3/3 (BUILD SUCCEEDED), universal x86_64 + arm64, unsigned; validator PASS 3/3 kèm phần UTI.
+TEST RESULTS: PASS — plutil 3/3; unittest 7/7; validator 3/3; lipo 3/3; lsregister xác nhận cả ba bundle đã đăng ký và Sheet.app nhận org.openxmlformats.spreadsheetml.template + com.microsoft.excel.xlt với mô tả tiếng Việt; payload sheet-template-save cho template=true/plain=false/infer=xltx/saveTypes=1/openTypes=true, tạo .xltx 9.622 byte; LibreOffice mở lại .xltx ra FODS 71.612 byte; i18n VI=EN=3091 thiếu 0; npm test 3730/3749 với 19 FAIL IDENTICAL với baseline fa0ec31b (diff danh sách FAIL rỗng); git diff --check sạch.
+KNOWN FAILURES: npm test 19 FAIL là baseline môi trường (thiếu python trên PATH, thiếu pywebview/LibreOffice/Windows COM), không do phiếu này. python -m pytest tests -q BLOCKED vì máy không có pytest cho Python nào (3.9 và 3.12); bài tập trung chạy bằng unittest. Chạy giao diện ba app BLOCKED vì bundle chưa nhúng runtime Python + cryptography + pywebview/Qt + LibreOffice (MAC-11/MAC-12).
+RISKS: UTImportedTypeDeclarations chỉ khai "dùng" UTI của hãng khác, không chiếm quyền sở hữu; máy này đã có nhiều app khai cùng UTI mà không lỗi. CFBundleTypeExtensions giữ trong cùng dict làm đường dự phòng. Chưa khai .dotx/.potx vì mã dùng chung chưa mở (cần phiếu shared-owner trên vn-main). Build Xcode tự RegisterWithLaunchServices nên ba bundle phát triển đã đăng ký trên máy (gỡ bằng lsregister -u <đường dẫn .app>).
+DEPENDENCIES/BLOCKERS: Runtime packaging (MAC-12) và ký/notarize (MAC-11) còn chặn; pytest chưa cài trên máy.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Người phụ trách gộp mac/xcode-filetypes-opencode thay cho mac/filetypes-1910 (nếu gộp cả nhánh kia thì ở xung đột add/delete của ports/macos/Sheet-Info.plist chọn giữ bản xoá); quyết định có mở rộng FILE_APP_KINDS cho .dotx/.potx trên vn-main hay không; sau MAC-12 thì mở Sheet.app native, lưu .xltx, đóng, mở lại để kiểm vòng tròn.
+
+---
+
