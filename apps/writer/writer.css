@@ -3947,8 +3947,9 @@ p.vno-style-list-paragraph {
   top: 135px;
   bottom: 28px;
   width: 280px;
-  background: #ffffff;
-  border-left: 1px solid #cbd5e1;
+  background: var(--vno-bg-window, #ffffff);
+  color: var(--vno-text-primary, #1e293b);
+  border-left: 1px solid var(--vno-border-default, #cbd5e1);
   box-shadow: -2px 0 10px rgba(0, 0, 0, 0.08);
   display: flex;
   flex-direction: column;
@@ -3961,53 +3962,53 @@ p.vno-style-list-paragraph {
   justify-content: space-between;
   align-items: center;
   padding: 10px 14px;
-  background: #f8fafc;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--vno-bg-subtle, #f8fafc);
+  border-bottom: 1px solid var(--vno-border-default, #e2e8f0);
 }
 
 .vno-writer-selection-pane .vno-selection-pane-header h3 {
   margin: 0;
   font-size: 14px;
   font-weight: 600;
-  color: #1e293b;
+  color: var(--vno-text-primary, #1e293b);
 }
 
 .vno-writer-selection-pane .vno-selection-pane-close {
   background: none;
   border: none;
   font-size: 18px;
-  color: #64748b;
+  color: var(--vno-text-secondary, #64748b);
   cursor: pointer;
   padding: 0 4px;
   line-height: 1;
 }
 
 .vno-writer-selection-pane .vno-selection-pane-close:hover {
-  color: #0f172a;
+  color: var(--vno-text-primary, #0f172a);
 }
 
 .vno-writer-selection-pane .vno-selection-pane-toolbar {
   display: flex;
   gap: 4px;
   padding: 6px 10px;
-  background: #f1f5f9;
-  border-bottom: 1px solid #e2e8f0;
+  background: var(--vno-bg-subtle, #f1f5f9);
+  border-bottom: 1px solid var(--vno-border-default, #e2e8f0);
   flex-wrap: wrap;
 }
 
 .vno-writer-selection-pane .vno-selection-pane-toolbar button {
-  background: #ffffff;
-  border: 1px solid #cbd5e1;
+  background: var(--vno-bg-window, #ffffff);
+  border: 1px solid var(--vno-border-default, #cbd5e1);
   border-radius: 3px;
   padding: 3px 6px;
   font-size: 11px;
   cursor: pointer;
-  color: #334155;
+  color: var(--vno-text-primary, #334155);
 }
 
 .vno-writer-selection-pane .vno-selection-pane-toolbar button:hover {
-  background: #e2e8f0;
-  color: #0f172a;
+  background: var(--vno-bg-hover, #e2e8f0);
+  color: var(--vno-text-primary, #0f172a);
 }
 
 .vno-writer-selection-pane .vno-selection-pane-list {
@@ -4038,16 +4039,16 @@ p.vno-style-list-paragraph {
   cursor: pointer;
   user-select: none;
   font-size: 12px;
-  color: #1e293b;
+  color: var(--vno-text-primary, #1e293b);
 }
 
 .vno-writer-selection-pane .vno-selection-pane-item:hover {
-  background: #f1f5f9;
+  background: var(--vno-bg-hover, #f1f5f9);
 }
 
 .vno-writer-selection-pane .vno-selection-pane-item.is-selected {
-  background: #e0e7ff;
-  color: #1d4ed8;
+  background: var(--vno-app-current-light, #e0e7ff);
+  color: var(--vno-app-current-fg, #1d4ed8);
   font-weight: 500;
 }
 
