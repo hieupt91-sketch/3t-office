@@ -907,3 +907,23 @@ RISKS: CSS ở shared shell nhưng selector giới hạn panel Trang đầu Writ
 DEPENDENCIES/BLOCKERS: CODEX-COMMON-RULES.md không có trong worktree. Không mở Save/Open/export hệ điều hành. Các mục NOT RUN khác được nêu trong báo cáo.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Chuyển các mục NOT RUN sang lượt UI sweep tiếp; xử lý Tab menu Chọn và các lỗi hiển thị mức thấp bằng phiếu riêng.
+
+# Agent Handoff
+TASK: Q38 — Quét giao diện hộp thoại và menu Sheet
+AGENT/ROLE: Codex / VN Sheet QA
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Kiểm kê opener dialog/menu/gallery/panel của ribbon và menu Tệp Sheet; sửa lỗi giao diện nhỏ có CDP evidence.
+FINDINGS: 19 dropdown (38 ảnh sáng/tối), menu Tệp (2 ảnh), 9 dialog/gallery chính, 8 luồng lồng. Sửa 6 lỗi tương phản/tràn/cắt; chi tiết và ảnh trong docs/UI-SWEEP-Sheet-21-10.md. Tab/Enter/Esc, dark mode 7 dialog lồng, Chiều cao hàng và nhánh tùy chỉnh còn NOT RUN.
+IMPLEMENTATION SUMMARY: Sáu sửa giao diện Sheet; mỗi lỗi có bài CDP trước/sau. Không đổi Help/i18n/command definitions hoặc tính năng.
+FILES CHANGED: apps/sheet/sheet-grid.js; apps/sheet/sheet.css; tests/live/cdp/q38-*-desktop.mjs; docs/UI-SWEEP-Sheet-21-10.md; docs/assets/q38-ui/*
+COMMANDS RUN: git merge main; CDP app_session_server Sheet, LocalAppData riêng; npm test; node scripts/audit-0610/i18n_parity.mjs; python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix; python -m pytest tests -q -k "sheet or dialog or ribbon".
+BUILD RESULT: NOT RUN — không đổi build system.
+FINAL TEST RESULTS: npm test PASS 3789/3789; i18n parity PASS VI=3148 EN=3148 missingVI=0 missingEN=0 (20 identical/empty heuristic notices); verify_checklist_evidence PASS 0 lowered rows; pytest -k "sheet or dialog or ribbon" PASS 338 passed, 781 deselected, 232.25s. Coverage limits remain listed in the report.
+KNOWN FAILURES: Bao phủ keyboard và một số nhánh UI chưa đầy đủ; đánh dấu NOT RUN.
+RISKS: Không suy rộng kết quả ngoài màn hình/kích thước liệt kê.
+DEPENDENCIES/BLOCKERS: CODEX-COMMON-RULES.md vắng trong checkout; dùng quy tắc người dùng đưa.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Tạo Q38.DONE; commit báo cáo và ảnh.
+
+---
