@@ -865,3 +865,24 @@ RISKS: Không thay semantics, nguồn ứng dụng, i18n, build hoặc dependenc
 DEPENDENCIES/BLOCKERS: Phiên hiện tại không hỗ trợ kiểm tra lưu thật qua UI; cần bản cài đặt để kiểm tra save-as thực tế.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Chủ sở hữu UI xem xét riêng ba lỗi trung bình; nếu tiếp tục Q35, hoàn tất các mục NOT RUN bằng CDP và bản đóng gói cho save-as.
+
+---
+
+# Agent Handoff
+TASK: Q36 — Sửa ba lỗi giao diện trung bình Q35
+AGENT/ROLE: Codex / UI implementation + CDP QA
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Sửa bố cục Help dùng chung, tràn ribbon Writer/Slides ở 1024×600 và mini toolbar chồng menu ngữ cảnh Writer; lưu ảnh trước/sau, kiểm tra CDP ở ba kích thước và hai giao diện.
+FINDINGS: Help cũ có cuộn panel 890/563 px tại 1366×768 và để nút/tùy chọn ngoài vùng bài; ribbon Writer có nhóm Kiểu tràn 141/94 px; right-click Writer hiện cùng lúc menu và mini toolbar. Q35 ảnh xác nhận cắt ribbon Slides/Writer ở 1024×600.
+IMPLEMENTATION SUMMARY: Bài và tùy chọn Help cùng cuộn trong article; vùng danh sách cố định tối đa 35%; adaptive ribbon đo tràn nội dung từng nhóm, co gọn và mở menu nhóm, giữ select phông tối thiểu 135 px; Writer ẩn mini toolbar khi nhận contextmenu. Báo cáo và ảnh tại docs/UI-REVIEW-22-10.md và docs/assets/q36-ui/.
+FILES CHANGED: platform/help/help-panel.js; platform/help/help.css; platform/autorecover/auto-recover.js; platform/performance/performance-options.js; platform/updater/update-ui.js; platform/ribbon/ribbon-host.js; platform/shell/shell.css; apps/writer/writer-mini-toolbar.js; tests/live/cdp/q36-*.desktop.mjs; docs/assets/q36-ui/*; docs/UI-REVIEW-22-10.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: git merge main; npm test; node scripts/audit-0610/i18n_parity.mjs; python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix; python -m pytest tests -q -k "help or ribbon or writer or sheet or slides"; CDP Q36 Help Writer/Sheet/Slides, ribbon Writer/Sheet/Slides, Writer context menu; git diff --check.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — npm 3789/3789; pytest 777 passed, 342 deselected, 560.43s; i18n VI/EN=3148, missing=0; checklist evidence 0 dòng hạ; CDP Help Writer 28/28, Sheet 18/18, Slides 18/18, ribbon 68/68, mini toolbar 18/18. Trước sửa: Help layout FAIL; ribbon baseline 14 FAIL; mini toolbar 6 FAIL.
+GIAO DIỆN ĐÃ XEM: Writer/Sheet/Slides Help 1366×768,1280×720,1024×600 sáng/tối; ribbon ba app cùng ba kích thước/giao diện; menu nhóm Sheet/Slides 1024×600 tối; menu ngữ cảnh Writer ở ba kích thước/giao diện. Ảnh trước/sau đã xem; kết luận và liên kết ảnh nằm trong docs/UI-REVIEW-22-10.md. 1920 px được đo bằng CDP, không chụp ảnh.
+KNOWN FAILURES: Không còn lỗi bố cục trong phạm vi đã xem. Catalog Help hiện không có liên kết nội bộ (href/data-help-link), nên thao tác kiểm tra liên kết nội bộ NOT RUN.
+RISKS: Ribbon content vẫn khai báo overflow-x:auto nhưng CDP xác nhận scrollWidth=clientWidth ở các kích thước kiểm tra; thanh cuộn ngang Sheet/Slides trong ảnh thuộc lưới/vùng trang chiếu, không thuộc ribbon.
+DEPENDENCIES/BLOCKERS: None.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review các commit Q36 trên nhánh codex/queue-19-10 rồi chuyển ticket theo hàng đợi.
