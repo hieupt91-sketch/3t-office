@@ -539,6 +539,7 @@
 .vno-sheet-header-footer-dialog .vno-dialog-box { width: 680px; }
 .vno-sheet-header-footer-dialog fieldset input { box-sizing: border-box; width: 100%; min-width: 0; }
 .vno-sheet-rule-dialog .vno-dialog-body { display: grid; gap: 12px; overflow-y: auto; }
+.vno-cf-dialog .vno-dialog-body { grid-template-rows: max-content minmax(0, 1fr) max-content; min-height: 0; }
 .vno-sheet-rule-dialog label { display: grid; gap: 5px; color: var(--vno-text-secondary); font-size: 12px; font-weight: 600; }
 .vno-sheet-rule-dialog input,
 .vno-sheet-rule-dialog select,
@@ -612,7 +613,7 @@
   padding: 0 4px;
 }
 .vno-rule-range { margin: 0; padding: 8px; border-radius: 4px; background: var(--vno-bg-muted); color: var(--vno-text-primary); font-size: 12px; }
-.vno-cf-rule-manager { display: grid; gap: 6px; max-height: 180px; overflow: auto; }
+.vno-cf-rule-manager { display: grid; gap: 6px; min-height: 66px; max-height: 180px; overflow: auto; }
 .vno-cf-rule-manager h3 { margin: 0; font-size: 13px; color: var(--vno-text-primary); }
 .vno-cf-dialog .vno-dialog-box { width: 680px; }
 .vno-cf-rule-row { display: grid; grid-template-columns: minmax(0,1fr) 24px auto; align-items: center; gap: 8px; padding: 6px; border: 1px solid var(--vno-border); border-radius: 5px; color: var(--vno-text-primary); font-size: 12px; }
@@ -623,7 +624,7 @@
 .vno-cf-order .vno-btn { min-width: 28px; padding: 4px 6px; }
 .vno-cf-rule-color { width: 18px; height: 18px; border: 1px solid var(--vno-border); border-radius: 3px; }
 .vno-cf-empty { margin: 0; color: var(--vno-text-secondary); font-size: 12px; }
-.vno-cf-editor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; padding-top: 4px; border-top: 1px solid var(--vno-border); }
+.vno-cf-editor { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px 12px; padding-top: 4px; border-top: 1px solid var(--vno-border); min-height: 0; overflow-y: auto; }
 .vno-cf-editor > label:first-child, .vno-cf-editor > label:nth-child(2), .vno-cf-editor > #vno-cf-formula-row, .vno-cf-colors, #vno-cf-icon-row { grid-column: 1 / -1; }
 .vno-cf-colors { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
 .vno-cf-check { margin-top: 8px; }
