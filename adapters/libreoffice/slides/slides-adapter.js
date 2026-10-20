@@ -4810,13 +4810,24 @@ export class SlidesAdapter {
   }
 
   _serializeMasterPageXml() {
+    const masterPageForLayout = {
+      "title-content": "VNOTitleContent",
+      "title-only": "VNOTitleOnly",
+      "two-content": "VNOTwoContent",
+      blank: "VNOBlank"
+    };
+    const layouts = [...new Set((this.canvas?.slides || []).map((slide) => slide.layoutType || "title-content"))];
+    const masterPageNames = layouts.map((layout) => masterPageForLayout[layout] || masterPageForLayout["title-content"]);
+    const withLayoutNames = (masterPageXml) => masterPageNames
+      .map((name) => String(masterPageXml).replace('style:name="Standard"', `style:name="${name}"`))
+      .join("");
     const isImported = Boolean(this.canvas?.imported);
     const theme = this._masterTheme();
     // Tệp mở từ PowerPoint/LibreOffice mà người dùng chưa chọn chủ đề nào: KHÔNG ghi chủ đề mặc định của VN đè lên
     // màu nền / phông chữ của chủ đề gốc trong tệp (đã đo: theme1.xml bị đổi sang modern-blue).
     if (!theme || (isImported && !this.canvas?._masterThemeTouched)) {
       const sourceTheme = isImported && this._sourceThemeB64 ? ` vno:src-theme="${this._sourceThemeB64}"` : "";
-      return `<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1"${sourceTheme}/>`;
+      return withLayoutNames(`<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1"${sourceTheme}/>`);
     }
     const isVnDefaultLogo = !theme.logoText || [
       "VN OFFICE • THUYẾT TRÌNH", "VN OFFICE",
@@ -4842,7 +4853,7 @@ export class SlidesAdapter {
       const themeAttr = (payload.bgColor || payload.fontFamily)
         ? ` vno:master-theme="${this._escapeXml(JSON.stringify(payload))}"`
         : "";
-      return `<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1"${themeAttr}/>`;
+      return withLayoutNames(`<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1"${themeAttr}/>`);
     }
 
     // Kích thước thật của trang chiếu (canvas.slideSize) - KHÔNG hardcode 28cm/15.75cm
@@ -4873,9 +4884,9 @@ export class SlidesAdapter {
       ? `<draw:frame draw:style-name="grMasterFooter" svg:x="0.6cm" svg:y="${footerYCm}cm" svg:width="${footerWidthCm}cm" svg:height="0.7cm">\n        <draw:text-box><text:p>${footer}</text:p></draw:text-box>\n      </draw:frame>`
       : "";
 
-    return `<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1" vno:master-theme="${this._escapeXml(JSON.stringify(payload))}">
+    return withLayoutNames(`<style:master-page style:name="Standard" style:page-layout-name="PM1" draw:style-name="dp1" vno:master-theme="${this._escapeXml(JSON.stringify(payload))}">
       ${accentBar}${logoFrame}${footerFrame}
-    </style:master-page>`;
+    </style:master-page>`);
   }
 
   _parseMasterTheme(xmlText) {
@@ -5048,8 +5059,14 @@ export class SlidesAdapter {
       const vnSectionAttrs = section
         ? ` vno:section-id="${this._escapeXml(section.id)}" vno:section-name="${this._escapeXml(section.name)}"`
         : "";
+      const masterPageName = ({
+        "title-content": "VNOTitleContent",
+        "title-only": "VNOTitleOnly",
+        "two-content": "VNOTwoContent",
+        blank: "VNOBlank"
+      })[layoutType] || "VNOTitleContent";
       pagesXml += `
-      <draw:page draw:name="${pageName}" draw:style-name="${pageStyleName}" draw:master-page-name="Standard" presentation:presentation-page-layout-name="${pageLayoutName}" xml:id="${pageXmlId}" draw:id="${pageXmlId}"${vnTransitionAttr}${vnSectionAttrs}>
+      <draw:page draw:name="${pageName}" draw:style-name="${pageStyleName}" draw:master-page-name="${masterPageName}" presentation:presentation-page-layout-name="${pageLayoutName}" xml:id="${pageXmlId}" draw:id="${pageXmlId}"${vnTransitionAttr}${vnSectionAttrs}>
         ${framesXml}${headerFooterXml}${shapesXml}${animXml}${notesXml}${commentsXml}
       </draw:page>`;
     });
@@ -5157,6 +5174,8 @@ export class SlidesAdapter {
         || fullPageTag.match(/presentation:layout=["']([^"']+)["']/i);
       const layoutNames = { VNOTitleContent: "title-content", VNOTitleOnly: "title-only", VNOTwoContent: "two-content", VNOBlank: "blank" };
       let pageLayout = layoutMatch ? (layoutNames[layoutMatch[1]] || layoutMatch[1]) : "";
+      const masterPageName = this._attr(fullPageTag, "draw:master-page-name");
+      if (layoutNames[masterPageName]) pageLayout = layoutNames[masterPageName];
       const originalPageXml = pageMatch[2];
       const pageTransition = this._parsePageTransition(fullPageTag, originalPageXml, drawingPageStyles);
       const pageSourceLayout = this._attr(fullPageTag, "vno:src-layout");
@@ -5220,9 +5239,9 @@ export class SlidesAdapter {
       const outlineBlocks = this._frameBlocksByClass(originalPageXml, "outline");
       const hasPlaceholderClasses = titleParas.length > 0 || subtitleParas.length > 0 || outlineParas.length > 0;
 
-      const masterPageName = this._attr(fullPageTag, "draw:master-page-name");
       const hasTextBoxShapes = shapes.some(s => s.type === "textbox");
-      const isImportedSlide = !layoutMatch || masterPageName === "BLANK" || hasTextBoxShapes || shapes.length > 0;
+      const hasNamedVnoLayout = Boolean(layoutNames[masterPageName]);
+      const isImportedSlide = (!layoutMatch && !hasNamedVnoLayout) || masterPageName === "BLANK" || (!hasNamedVnoLayout && (hasTextBoxShapes || shapes.length > 0));
 
       // PPTX hop drops presentation:layout; restore two-content / title-only from remaining placeholders.
       // Trang nhập từ tệp mà không có khung chỗ giữ (tiêu đề/nội dung), không hộp chữ, không hình: là trang trống (không thêm 2 khung chữ rỗng).
