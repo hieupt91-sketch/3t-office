@@ -50,6 +50,14 @@ export const EXCEL2016_OOXML_FUTURE_FUNCTIONS = new Set(`
   T.DIST.RT T.INV T.INV.2T T.TEST UNICHAR UNICODE VAR.P VAR.S WEIBULL.DIST XOR Z.TEST
 `.trim().split(/\s+/));
 
+const EXCEL2016_UNSUPPORTED_FUNCTION_PREFIXES = new Map([
+  ["XLOOKUP", "_xlfn."],
+  ["IFS", "_xlfn."],
+  ["UNIQUE", "_xlfn."],
+  ["FILTER", "_xlfn._xlws."],
+  ["SORT", "_xlfn._xlws."],
+]);
+
 function mapOoxmlFunctionPrefixes(expression, { write }) {
   return String(expression).split(/("(?:[^"]|"")*")/).map((part, index) => {
     if (index % 2 === 1) return part;
@@ -58,8 +66,10 @@ function mapOoxmlFunctionPrefixes(expression, { write }) {
         const canonicalPrefix = String(prefix).toLowerCase();
         const upperName = String(name).toUpperCase();
         if (write) {
-          if (!EXCEL2016_OOXML_FUTURE_FUNCTIONS.has(upperName) || canonicalPrefix) return match;
-          return `${before}_xlfn.${name}${open}`;
+          const requiredPrefix = EXCEL2016_UNSUPPORTED_FUNCTION_PREFIXES.get(upperName)
+            || (EXCEL2016_OOXML_FUTURE_FUNCTIONS.has(upperName) ? "_xlfn." : "");
+          if (!requiredPrefix || canonicalPrefix === requiredPrefix.toLowerCase()) return match;
+          return `${before}${requiredPrefix}${name}${open}`;
         }
         return canonicalPrefix ? `${before}${name}${open}` : match;
       });

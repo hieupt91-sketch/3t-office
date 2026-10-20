@@ -17,6 +17,11 @@ export async function runSheetFormulaOdfTests() {
   check("#REF! lẫn tham chiếu thường", adapter._formulaToOdf("=SUM(A1:B2)+#REF!"), "of:=SUM([.A1:.B2])+[#REF!]");
   check("RANK.EQ tự thêm _xlfn. khi ghi ODF", adapter._formulaToOdf("=RANK.EQ(A1,A1:A5,0)"), "of:=_xlfn.RANK.EQ([.A1];[.A1:.A5];0)");
   check("FORMULATEXT tự thêm _xlfn. khi ghi ODF", adapter._formulaToOdf("=FORMULATEXT(A1)"), "of:=_xlfn.FORMULATEXT([.A1])");
+  check("XLOOKUP nhận tiền tố _xlfn. khi ghi ODF", adapter._formulaToOdf("=XLOOKUP(A1,A:A,B:B)"), "of:=_xlfn.XLOOKUP([.A1];[.A$1:.A$1048576];[.B$1:.B$1048576])");
+  check("IFS nhận tiền tố _xlfn. khi ghi ODF", adapter._formulaToOdf("=IFS(A1>0,1,TRUE(),0)"), "of:=_xlfn.IFS([.A1]>0;1;TRUE();0)");
+  check("UNIQUE nhận tiền tố _xlfn. khi ghi ODF", adapter._formulaToOdf("=UNIQUE(A1:A5)"), "of:=_xlfn.UNIQUE([.A1:.A5])");
+  check("FILTER nhận tiền tố worksheet _xlws khi ghi ODF", adapter._formulaToOdf("=FILTER(A1:A5,B1:B5>0)"), "of:=_xlfn._xlws.FILTER([.A1:.A5];[.B1:.B5]>0)");
+  check("SORT nhận tiền tố worksheet _xlws khi ghi ODF", adapter._formulaToOdf("=SORT(A1:A5)"), "of:=_xlfn._xlws.SORT([.A1:.A5])");
   check("hàm lồng nhau nhận tiền tố đúng", adapter._formulaToOdf("=IF(A1>0,STDEV.S(A1:A5),0)"), "of:=IF([.A1]>0;_xlfn.STDEV.S([.A1:.A5]);0)");
   check("mã sản phẩm trong chuỗi SUMIF không biến thành tham chiếu ô", adapter._formulaToOdf('=SUMIF(B2:B22,"SP01",G2:G22)'), 'of:=SUMIF([.B2:.B22];"SP01";[.G2:.G22])');
   check("tiền tố có sẵn không bị lặp", adapter._formulaToOdf("=_xlfn.RANK.EQ(A1,A1:A5,0)"), "of:=_xlfn.RANK.EQ([.A1];[.A1:.A5];0)");
