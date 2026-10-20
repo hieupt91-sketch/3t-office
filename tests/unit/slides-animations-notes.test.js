@@ -26,14 +26,16 @@ export async function runSlidesAnimationsNotesTests() {
     }
   }
 
-  test("PPTX emphasis menu only offers effects with a supported round-trip mapping", () => {
+  test("PPTX emphasis menu keeps Pulse mapped to its native effect preset", () => {
     const animationMenus = SLIDES_RIBBON_TABS.flatMap(tab => tab.groups || [])
       .flatMap(group => group.items || [])
       .filter(item => item.id === "slides.animation.gallery" || item.id === "slides.animation.add")
       .flatMap(item => item.items || []);
     const args = animationMenus.map(item => item.args);
-    if (args.includes("pulse")) throw new Error("Pulse is selectable although its PPTX round-trip is not preserved");
+    if (!args.includes("pulse")) throw new Error("Pulse must remain selectable while its native PPTX preset is supported");
     if (!args.includes("growShrink")) throw new Error("The supported Grow/Shrink emphasis effect is missing");
+    const preset = new SlidesAdapter({})._mapVnAnimationToPreset({ type: "pulse", duration: 500 });
+    if (preset?.presetId !== "ooo-emphasis-pulse") throw new Error(`Unexpected Pulse preset: ${JSON.stringify(preset)}`);
   });
 
   async function asyncTest(name, fn) {

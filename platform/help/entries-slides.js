@@ -183,7 +183,7 @@ export const SLIDES_HELP_ENTRIES = [
     app: "slides",
     commandIds: ["slides.animation.apply", "slides.animation.effectOptions"],
     title: "Hiệu ứng đối tượng (Animations)",
-    summary: "Gắn hiệu ứng cho tiêu đề, nội dung, hình hoặc đối tượng đang chọn theo 3 nhóm: Vào (mờ dần, bay vào, thu phóng, nảy, trượt), Nhấn mạnh (xoay tròn, phóng to/thu nhỏ) và Thoát (mờ dần ra, bay ra, thu nhỏ ra, biến mất). Chọn thời gian và độ trễ, xem thử rồi áp dụng. Hiệu ứng Nhịp đập hiện không có trong danh sách vì chưa được giữ lại khi lưu tệp trình chiếu.",
+    summary: "Gắn hiệu ứng cho tiêu đề, nội dung, hình hoặc đối tượng đang chọn theo 3 nhóm: Vào (mờ dần, bay vào, thu phóng, nảy, trượt), Nhấn mạnh (xoay tròn, phóng to/thu nhỏ, nhịp đập) và Thoát (mờ dần ra, bay ra, thu nhỏ ra, biến mất). Chọn thời gian và độ trễ, xem thử rồi áp dụng.",
     ribbon: { tab: "Hoạt hình", tabId: "animations", group: "Hiệu ứng đối tượng" },
     keywords: ["hoạt hình", "animation", "fade in", "fly in", "hiệu ứng xuất hiện", "độ trễ", "nhấn mạnh", "thoát", "xoay tròn", "biến mất", "emphasis", "exit"],
     steps: [
