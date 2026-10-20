@@ -12211,6 +12211,77 @@ def _slides_animation_presets_from_fodp(source_fodp: str | None) -> list[list[st
     ]
 
 
+def _slides_animation_specs_from_fodp(source_fodp: str | None, slide_xml: str, page_index: int) -> list[dict[str, str]]:
+    """Read effect targets and presets from the authoritative FODP animation tree."""
+    pages = _FODP_PAGE_RE.findall(source_fodp or "")
+    if page_index >= len(pages):
+        return []
+    page = pages[page_index]
+    target_ids: dict[str, str] = {}
+    for shape in re.finditer(r"<draw:(frame|rect|ellipse|custom-shape|line|connector)\b([^>]*)", page, re.IGNORECASE):
+        attrs = shape.group(2)
+        draw_id = re.search(r'\bdraw:id=["\']([^"\']+)', attrs, re.IGNORECASE)
+        draw_name = re.search(r'\bdraw:name=["\']([^"\']+)', attrs, re.IGNORECASE)
+        presentation_class = re.search(r'\bpresentation:class=["\']([^"\']+)', attrs, re.IGNORECASE)
+        if not draw_id:
+            continue
+        name = _unescape_xml(draw_name.group(1)) if draw_name else ""
+        candidate = None
+        if name:
+            for item in re.finditer(r"<p:sp\b[\s\S]*?</p:sp\s*>", slide_xml, re.IGNORECASE):
+                c_nv = re.search(r'<p:cNvPr\b[^>]*\bid=["\'](\d+)["\'][^>]*\bname=["\']([^"\']*)', item.group(0), re.IGNORECASE)
+                if c_nv and _unescape_xml(c_nv.group(2)) == name:
+                    candidate = c_nv.group(1)
+                    break
+        if not candidate and presentation_class and presentation_class.group(1).lower() in {"title", "outline"}:
+            ph_type = "title" if presentation_class.group(1).lower() == "title" else "body"
+            for item in re.finditer(r"<p:sp\b[\s\S]*?</p:sp\s*>", slide_xml, re.IGNORECASE):
+                if re.search(rf'<p:ph\b[^>]*\btype=["\']{ph_type}["\']', item.group(0), re.IGNORECASE):
+                    c_nv = re.search(r'<p:cNvPr\b[^>]*\bid=["\'](\d+)', item.group(0), re.IGNORECASE)
+                    if c_nv:
+                        candidate = c_nv.group(1)
+                        break
+        if candidate:
+            target_ids[_unescape_xml(draw_id.group(1))] = candidate
+
+    class_ids = {"entrance": "entr", "emphasis": "emph", "exit": "exit"}
+    preset_ids = {
+        "ooo-entrance-fade-in": ("entr", "10"), "ooo-entrance-fly-in": ("entr", "2"),
+        "ooo-entrance-zoom": ("entr", "23"), "ooo-entrance-wipe": ("entr", "22"),
+        "ooo-exit-fade-out": ("exit", "10"), "ooo-exit-fly-out": ("exit", "2"),
+        "ooo-exit-zoom": ("exit", "23"), "ooo-exit-disappear": ("exit", "1"),
+        "ooo-emphasis-pulse": ("emph", "26"), "ooo-emphasis-spin": ("emph", "8"),
+    }
+    subtypes = {"from-top": "1", "from-right": "2", "from-bottom": "4", "from-left": "8",
+                "to-top": "1", "to-right": "2", "to-bottom": "4", "to-left": "8"}
+    specs = []
+    pattern = r'<anim:par\b([^>]*presentation:preset-class=["\'][^"\']+["\'][^>]*)>([\s\S]*?)</anim:par\s*>'
+    for match in re.finditer(pattern, page, re.IGNORECASE):
+        attrs = match.group(1)
+        body = match.group(2)
+        preset_class = re.search(r'\bpresentation:preset-class=["\']([^"\']+)', attrs, re.IGNORECASE)
+        preset_id = re.search(r'\bpresentation:preset-id=["\']([^"\']+)', attrs, re.IGNORECASE)
+        node_type = re.search(r'\bpresentation:node-type=["\']([^"\']+)', attrs, re.IGNORECASE)
+        target = re.search(r'\bsmil:targetElement=["\']([^"\']+)', body, re.IGNORECASE)
+        duration = re.search(r'\bsmil:dur=["\']([\d.]+)(ms|s)?["\']', body, re.IGNORECASE)
+        if not preset_class or not preset_id or not target:
+            continue
+        mapped = preset_ids.get(preset_id.group(1).lower())
+        spid = target_ids.get(_unescape_xml(target.group(1)))
+        if not mapped or not spid:
+            continue
+        dur_ms = 500
+        if duration:
+            dur_ms = int(round(float(duration.group(1)) * (1 if (duration.group(2) or "s").lower() == "ms" else 1000)))
+        subtype = re.search(r'\bpresentation:preset-sub-type=["\']([^"\']+)', attrs, re.IGNORECASE)
+        begin = re.search(r'\bsmil:begin=["\']([\d.]+)(ms|s)?["\']', attrs, re.IGNORECASE)
+        delay_ms = int(round(float(begin.group(1)) * (1 if (begin.group(2) or "s").lower() == "ms" else 1000))) if begin else 0
+        node = {"on-click": "clickEffect", "with-previous": "withEffect", "after-previous": "afterEffect"}.get(node_type.group(1).lower() if node_type else "on-click", "clickEffect")
+        specs.append({"cls": mapped[0], "pid": mapped[1], "sub": subtypes.get(subtype.group(1).lower(), "0") if subtype else "0",
+                      "node": node, "spid": spid, "dur": str(max(1, dur_ms)), "delay": str(max(0, delay_ms))})
+    return specs
+
+
 # soffice ghi presetID="0" cho hiệu ứng nó không có trong bảng của nó; nhận lại theo preset-id trong FODP.
 _SLIDES_PRESET_ID_FROM_ODF = {"ooo-emphasis-pulse": ("emph", "26")}
 
@@ -12354,6 +12425,11 @@ def _apply_slides_native_animation_timing(pptx_bytes: bytes, source_fodp: str | 
             interactive_effects.append((trigger.group(1), block_effects))
         if effects is None or (interactive_blocks and not interactive_effects):
             continue
+        fodp_specs = _slides_animation_specs_from_fodp(source_fodp, xml, page_index)
+        if effects is not None:
+            for spec in fodp_specs:
+                if not any(item.get("spid") == spec["spid"] and item.get("cls") == spec["cls"] and item.get("pid") == spec["pid"] for item in effects):
+                    effects.append({key: value for key, value in spec.items() if key != "delay"})
         if not effects and not interactive_effects:
             continue
         # begins trong FODP: dãy chính trước, rồi lần lượt các dãy kích hoạt (cùng thứ tự serialize)

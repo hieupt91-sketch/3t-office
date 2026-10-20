@@ -53,6 +53,27 @@ def run(effects, shape_ids=(4, 5, 6), fodp=None):
 
 
 class NativeAnimationTimingTests(unittest.TestCase):
+    def test_reconstructs_fodp_animations_when_libreoffice_drops_one_target(self):
+        fodp = (
+            '<draw:page><draw:frame draw:id="title-1" presentation:class="title"/>'
+            '<draw:rect draw:id="shape-1" draw:name="Target box"/>'
+            '<anim:par><anim:par presentation:preset-class="entrance" presentation:preset-id="ooo-entrance-fade-in" '
+            'presentation:node-type="on-click"><anim:animate smil:targetElement="title-1" smil:dur="0.7s"/></anim:par></anim:par>'
+            '<anim:par><anim:par presentation:preset-class="entrance" presentation:preset-id="ooo-entrance-fly-in" '
+            'presentation:preset-sub-type="from-bottom" presentation:node-type="on-click"><anim:animate smil:targetElement="shape-1" smil:dur="0.5s"/></anim:par></anim:par>'
+            '</draw:page>'
+        )
+        slide = (
+            '<p:sld xmlns:p="http://schemas.openxmlformats.org/presentationml/2006/main">'
+            '<p:cSld><p:spTree><p:sp><p:nvSpPr><p:cNvPr id="4" name="Title"/><p:cNvSpPr/><p:nvPr><p:ph type="title"/></p:nvPr></p:nvSpPr><p:spPr/></p:sp>'
+            '<p:sp><p:nvSpPr><p:cNvPr id="5" name="Target box"/><p:cNvSpPr/><p:nvPr/></p:nvSpPr><p:spPr/></p:sp></p:spTree></p:cSld>'
+            f'<p:timing><p:tnLst><p:par><p:cTn id="1" nodeType="tmRoot"><p:childTnLst>{soffice_effect(10, "clickEffect", "entr", "10", 4, 700)}</p:childTnLst></p:cTn></p:par></p:tnLst></p:timing></p:sld>'
+        )
+        repaired = patcher._apply_slides_native_animation_timing(make_pptx(slide), fodp)
+        xml = repaired["ppt/slides/slide1.xml"]
+        self.assertEqual(len(re.findall(r'<p:cTn\b[^>]*presetClass=', xml)), 2)
+        self.assertIn('<p:spTgt spid="5"', xml)
+
     def test_fly_preset_subtype_controls_all_four_directions(self):
         for subtype, expected_attr, expected_from in (
             ("1", "ppt_y", "-1-#ppt_h/2"),
