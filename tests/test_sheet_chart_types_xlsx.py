@@ -105,6 +105,11 @@ class SheetChartTypesXlsxTests(unittest.TestCase):
         self.assertIsNotNone(secondary_axis, xml)
         self.assertIn('<c:crosses val="max"/>', secondary_axis.group(0))
 
+    def test_pie_percent_labels_survive_ooxml_patch(self):
+        chart = BASE_CHART.replace('<c:barChart>', '<c:pieChart>').replace('</c:barChart>', '</c:pieChart>')
+        xml = patcher._sheet_chart_plot({"type": "pie", "data_labels": True, "data_labels_percent": True}, chart)
+        self.assertTrue("<c:dLbls>" in xml and '<c:showPercent val="1"/>' in xml, xml)
+
     def test_data_labels_and_trendline_are_real_chart_elements(self):
         xml = self._patched_chart("combo", labels=True, trend=True)
         self.assertIn('<c:showVal val="1"/>', xml)

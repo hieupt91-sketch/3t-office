@@ -6228,7 +6228,7 @@ def _chart_feature_from_xml(chart_xml: str) -> dict[str, object]:
         source_range = f"{column_letters(min(column_numbers))}{min(rows)}:{column_letters(max(column_numbers))}{max(rows)}"
     return {
         "type": chart_type,
-        "data_labels": bool(re.search(r"<c:dLbls\b[\s\S]*?<c:showVal\b[^>]*\bval=[\"']1[\"']", chart_xml, re.IGNORECASE)),
+        "data_labels": bool(re.search(r"<c:dLbls\b[\s\S]*?<c:show(?:Val|Percent)\b[^>]*\bval=[\"']1[\"']", chart_xml, re.IGNORECASE)),
         "trendline": bool(re.search(r"<c:trendline\b", chart_xml, re.IGNORECASE)),
         "switch_rows_columns": switched,
         "source_sheet": source_sheet,
@@ -6417,6 +6417,18 @@ def _sheet_chart_plot(feature: dict[str, object], original_plot: str) -> str:
         return f"<c:plotArea>{block}{cat_axes}</c:plotArea>"
     # Existing line/pie/area output is already native; only add requested elements.
     current = original_plot
+    if chart_type == "pie" and feature.get("data_labels"):
+        if re.search(r"<c:dLbls\b", current, re.IGNORECASE):
+            labels = re.search(r"<c:dLbls\b[^>]*>[\s\S]*?</c:dLbls\s*>", current, re.IGNORECASE)
+            if labels:
+                body = labels.group(0)
+                if re.search(r"<c:showPercent\b", body, re.IGNORECASE):
+                    body = re.sub(r'(<c:showPercent\b[^>]*\bval=["\'])[^"\']+(["\'])', r'\g<1>1\2', body, flags=re.IGNORECASE)
+                else:
+                    body = body.replace("</c:dLbls>", '<c:showPercent val="1"/></c:dLbls>')
+                current = current[:labels.start()] + body + current[labels.end():]
+        else:
+            current = re.sub(r"(</c:pieChart\s*>)", '<c:dLbls><c:showPercent val="1"/></c:dLbls>\\1', current, count=1, flags=re.IGNORECASE)
     if feature.get("trendline"):
         current = re.sub(r"<c:ser\b[^>]*>[\s\S]*?</c:ser\s*>", series[0], current, count=1, flags=re.IGNORECASE)
     if dlabels and not re.search(r"<c:dLbls\b", current):
