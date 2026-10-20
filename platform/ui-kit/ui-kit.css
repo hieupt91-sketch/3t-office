@@ -197,6 +197,96 @@
 .vno-ribbon-dropdown-item.vno-swatch-cell { display: flex; align-items: center; justify-content: center; width: 26px; height: 26px; padding: 0; min-width: 0; border-radius: 4px; }
 .vno-ribbon-dropdown-item.vno-swatch-cell .vno-menu-swatch { width: 18px; height: 18px; }
 .vno-ribbon-dropdown-menu { max-height: calc(100vh - 24px); overflow-y: auto; }
+.vno-font-dialog {
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 32px);
+  overflow: hidden;
+}
+.vno-font-dialog .vno-fontdlg-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 16px 0;
+  border-bottom: 1px solid var(--vno-border-default, #cbd5e1);
+}
+.vno-font-dialog .vno-fontdlg-tab {
+  appearance: none;
+  border: 1px solid transparent;
+  border-bottom: 0;
+  background: transparent;
+  padding: 7px 14px;
+  cursor: pointer;
+  border-radius: 6px 6px 0 0;
+  color: var(--vno-text-primary, #1e293b);
+  font: inherit;
+}
+.vno-font-dialog .vno-fontdlg-tab.is-active {
+  border-color: var(--vno-border-default, #cbd5e1);
+  background: var(--vno-bg-window, #fff);
+  font-weight: 600;
+  margin-bottom: -1px;
+}
+.vno-font-dialog .vno-dialog-body { overflow-y: auto; }
+.vno-font-dialog .vno-fontdlg-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px 14px;
+  align-items: start;
+}
+.vno-font-dialog .vno-fontdlg-grid[hidden] { display: none; }
+.vno-font-dialog .vno-fontdlg-grid label {
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  min-width: 0;
+  font-size: 13px;
+  line-height: 1.35;
+}
+.vno-font-dialog .vno-fontdlg-grid .vno-dialog-input {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  min-width: 0;
+  margin: 0;
+}
+.vno-font-dialog .vno-fontdlg-grid input[type="color"] {
+  box-sizing: border-box;
+  display: block;
+  margin: 0;
+  width: 56px;
+  height: 32px;
+}
+.vno-font-dialog .vno-fontdlg-row { display: flex; align-items: center; gap: 10px; margin: 0; }
+.vno-font-dialog .vno-fontdlg-effects {
+  grid-column: 1 / -1;
+  border: 1px solid var(--vno-border-default, #cbd5e1);
+  border-radius: 6px;
+  padding: 8px 12px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px 14px;
+  color: var(--vno-text-primary, #1e293b);
+}
+.vno-font-dialog .vno-fontdlg-effects .vno-fontdlg-check { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; margin: 0; }
+.vno-font-dialog .vno-fontdlg-check input { flex: none; margin: 2px 0 0; }
+.vno-font-dialog .vno-fontdlg-preview {
+  grid-column: 1 / -1;
+  min-height: 52px;
+  padding: 6px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--vno-border-default, #cbd5e1);
+  border-radius: 6px;
+  background: #fff;
+  color: #111;
+  overflow: hidden;
+}
+@media (max-width: 560px) {
+  .vno-font-dialog .vno-fontdlg-grid { grid-template-columns: minmax(0, 1fr); }
+  .vno-font-dialog .vno-fontdlg-effects,
+  .vno-font-dialog .vno-fontdlg-preview { grid-column: 1; }
+}
 .vno-menu-swatch { display: inline-block; width: 16px; height: 16px; border-radius: 3px; border: 1px solid rgba(15, 23, 42, 0.35); box-sizing: border-box; }
 .vno-ribbon-dropdown-item {
   display: flex;
