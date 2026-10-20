@@ -1620,6 +1620,7 @@ tr.is-filtered-out {
   animation: vnoGalleryModalFadeIn 0.15s ease-out;
 }
 [data-theme="dark"] .vno-format-table-dialog #vno-table-style-title { color: var(--vno-text-primary) !important; }
+[data-theme="dark"] .vno-cell-styles-dialog #vno-cell-styles-title { color: var(--vno-text-primary) !important; }
 @keyframes vnoGalleryModalFadeIn {
   from { opacity: 0; transform: scale(0.97); }
   to { opacity: 1; transform: scale(1); }
