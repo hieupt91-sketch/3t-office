@@ -1,5 +1,4 @@
 import { launchApp } from "./session.mjs";
-import { CdpClient, readTargets } from "./client.mjs";
 import { click, insertText, press, sleep } from "./actions.mjs";
 import fs from "node:fs";
 import path from "node:path";
@@ -39,15 +38,20 @@ try{
  await sleep(1200);
  const completed=await cdp.evaluate(`(()=>({body:document.querySelector('.vno-writer-body')?.innerText||'',fields:document.querySelectorAll('.vno-writer-body .vno-merge-field').length,dialogs:[...document.querySelectorAll('[role=dialog]')].filter(x=>x.getBoundingClientRect().width).map(x=>x.innerText)}))()`);
  check("Hoàn tất trộn và tạo đầu ra cho ba người nhận",completed.body.includes("Nguyen An")||completed.body.includes("Nguyễn An")||completed.body.includes("Tran Binh")||completed.body.includes("Trần Bình"),JSON.stringify({body:completed.body.slice(-500),dialogs:completed.dialogs}));
- const targets=await readTargets(session.debugPort);
- const others=[];
- for(const target of targets.filter(x=>x.type==="page"&&x.id!==cdp.target?.id)){
-  const other=await new CdpClient(target).open().catch(()=>null);if(!other)continue;
-  try{const value=await other.evaluate(`(()=>({path:window.__vnoAppInstance?.adapter?._sourcePath||'',text:document.querySelector('.vno-writer-body')?.innerText||''}))()`);others.push({target,other,value});}catch{await other.close().catch(()=>{})}
- }
- const merged=others.find(x=>["Nguyen An","Nguyễn An","Tran Binh","Trần Bình","Le Chi","Lê Chi"].every(n=>x.value.text.includes(n)));
- if(merged){const html=await merged.other.evaluate("window.__vnoAppInstance.adapter._contentForExport()");const saved=await merged.other.evaluate(`window.pywebview.api.save_document_in_place(${JSON.stringify(html)},'writer',${JSON.stringify(output)},null)`,{awaitPromise:true,timeoutMilliseconds:240000});check("Lưu đầu ra trộn ba người nhận",saved?.status==="ok",JSON.stringify(saved));console.log(`MERGED_DOCX ${output}`)}else{check("Tìm cửa sổ đầu ra trộn để lưu/mở lại",false,JSON.stringify(others.map(x=>({path:x.value.path,text:x.value.text.slice(-180)}))))}
- for(const item of others)await item.other.close().catch(()=>{});
+ const mergedText=await cdp.evaluate("document.querySelector('.vno-writer-body')?.innerText||''");
+ const recipientNames=["Nguyen An","Tran Binh","Le Chi"];
+ check("Kết quả trộn chứa đủ ba người nhận",recipientNames.every(name=>mergedText.includes(name)),JSON.stringify(recipientNames.map(name=>({name,found:mergedText.includes(name)}))));
+ const mergedHtml=await cdp.evaluate("window.__vnoAppInstance.adapter._contentForExport()");
+ const saved=await cdp.evaluate(`window.pywebview.api.save_document_in_place(${JSON.stringify(mergedHtml)},'writer',${JSON.stringify(output)},${JSON.stringify(source)})`,{awaitPromise:true,timeoutMilliseconds:240000});
+ check("Lưu kết quả trộn thành DOCX thật",saved?.status==="ok",JSON.stringify(saved));
+ if(saved?.status==="ok")console.log(`MERGED_DOCX ${output}`);
+ const readback=await launchApp("writer",{filePath:output,localAppData:path.join(root,"readback"),startTimeoutMilliseconds:180000,readyTimeoutMilliseconds:180000});
+ try {
+  const expectedOutput=output.replace(/\\/g,"/").toLowerCase();
+  await readback.cdp.waitFor(`(()=>{const a=window.__vnoAppInstance?.adapter;return String(a?._sourcePath||a?.sourceFilePath||'').replace(/\\\\/g,'/').toLowerCase()===${JSON.stringify(expectedOutput)}})()`,{timeoutMilliseconds:180000,intervalMilliseconds:500});
+  const reopened=await readback.cdp.evaluate(`(()=>{const a=window.__vnoAppInstance.adapter;return{path:a?._sourcePath||'',text:document.querySelector('.vno-writer-body')?.innerText||''}})()`);
+  check("Mở lại DOCX và đọc đủ ba bản ghi",recipientNames.every(name=>reopened.text.includes(name)),JSON.stringify({path:reopened.path,names:recipientNames.map(name=>({name,found:reopened.text.includes(name)}))}));
+ } finally { await readback.close() }
  const snap=await cdp.send("Page.captureScreenshot",{format:"png"},30000);fs.mkdirSync(path.join(root,"screenshots"),{recursive:true});fs.writeFileSync(path.join(root,"screenshots","07-tron-thu-xem-truoc-hoan-tat.png"),Buffer.from((snap.result||snap).data,"base64"));
 }catch(error){check("Trộn thư không phát sinh ngoại lệ CDP",false,error.stack||error.message)}finally{await session.close()}
 console.log(`MAILMERGE_CSV ${csv}`);console.log(`SUMMARY ${results.filter(Boolean).length}/${results.length} PASS | ${results.length-results.filter(Boolean).length} FAIL`);if(results.some(x=>!x))process.exitCode=1;
