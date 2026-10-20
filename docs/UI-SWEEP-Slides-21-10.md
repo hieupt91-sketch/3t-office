@@ -6,6 +6,10 @@
 
 Ứng dụng được mở qua `scripts/audit-0610/app_session_server.mjs slides` và thao tác bằng CDP mouse. Mỗi lượt dùng `VNO_CDP_LOCALAPPDATA` riêng. Đã chụp và xem 77 ảnh: 1366×768 sáng/tối; 1280×720 cho gallery Hình dài, hộp Bố cục và Thiết lập trình chiếu. Không có code giao diện được sửa trong Q39.
 
+## Giao diện đã xem
+
+Danh sách từng menu, gallery, hộp thoại và panel được liệt kê trong các bảng dưới đây; mỗi dòng có kết luận và liên kết ảnh đã mở để xem ở giao diện sáng/tối. Các màn hình đã xem gồm 22 control dropdown/gallery/launcher trên ribbon, 8 hộp/panel từ lệnh ribbon, 5 trang/menu Tệp cùng 1 thao tác Morph của backlog. Những mục chưa mở được hoặc đã có ảnh ở báo cáo trước được đánh dấu rõ, không tính là đạt.
+
 ## Danh mục control trên ribbon
 
 Bảng dưới liệt kê các control dạng dropdown/gallery/dialog launcher nhìn thấy trên các tab ribbon đang bật, theo cấu hình Slides. Mỗi mục đã được mở bằng CDP, chụp và xem ở hai giao diện. Ảnh tối được lấy theo cùng index control tương ứng của tab.
