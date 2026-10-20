@@ -12,6 +12,7 @@ import { SlidesCanvasController } from "../../apps/slides/slides-canvas.js";
 import { createSlidesCanvasFixture } from "./slides-test-fixtures.js";
 import { SlidesAdapter } from "../../adapters/libreoffice/slides/slides-adapter.js";
 import { mapVnCommandToUno, getVnCommand } from "../../adapters/libreoffice/common/command-dispatch-mapper.js";
+import { SLIDES_RIBBON_TABS } from "../../apps/slides/slides-ribbon.js";
 
 export async function runSlidesAnimationsNotesTests() {
   const results = [];
@@ -24,6 +25,16 @@ export async function runSlidesAnimationsNotesTests() {
       results.push({ name, pass: false, error: err.message });
     }
   }
+
+  test("PPTX emphasis menu only offers effects with a supported round-trip mapping", () => {
+    const animationMenus = SLIDES_RIBBON_TABS.flatMap(tab => tab.groups || [])
+      .flatMap(group => group.items || [])
+      .filter(item => item.id === "slides.animation.gallery" || item.id === "slides.animation.add")
+      .flatMap(item => item.items || []);
+    const args = animationMenus.map(item => item.args);
+    if (args.includes("pulse")) throw new Error("Pulse is selectable although its PPTX round-trip is not preserved");
+    if (!args.includes("growShrink")) throw new Error("The supported Grow/Shrink emphasis effect is missing");
+  });
 
   async function asyncTest(name, fn) {
     try {
