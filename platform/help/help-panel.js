@@ -90,19 +90,21 @@ export class HelpPanel {
                placeholder="${escapeHtml(localize("help.searchPlaceholder", "Tìm tính năng, ví dụ: Đếm từ"))}"
                aria-label="${escapeHtml(localize("help.searchPlaceholder", "Tìm tính năng"))}" />
       </div>
-      <section class="vno-help-reporting-actions" aria-label="Báo lỗi và quyền riêng tư">
-        <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;margin-bottom:6px;">
-          <button type="button" class="vno-btn vno-btn-primary" data-vno-report-open>Báo lỗi / Góp ý</button>
-          <button type="button" class="vno-btn" data-vno-whats-new-open id="vno-help-whats-new-btn">Có gì mới</button>
-          <button type="button" class="vno-btn" data-vno-about-open id="vno-help-about-btn">Giới thiệu 3T Office</button>
-        </div>
-        <label class="vno-report-consent-label"><input type="checkbox" data-vno-report-consent>
-          <span>Cho phép gửi báo cáo lỗi kỹ thuật tự động</span></label>
-        <p class="vno-reporting-status" data-vno-reporting-status role="status" aria-live="polite">Đang đọc trạng thái…</p>
-      </section>
       <div class="vno-help-body">
         <div class="vno-help-list" role="listbox" aria-label="${escapeHtml(localize("help.topicList", "Danh sách chủ đề"))}"></div>
-        <article class="vno-help-article" aria-live="polite"></article>
+        <article class="vno-help-article" aria-live="polite">
+          <div class="vno-help-article-content"></div>
+          <section class="vno-help-reporting-actions" aria-label="Báo lỗi và quyền riêng tư">
+            <div class="vno-help-reporting-buttons">
+              <button type="button" class="vno-btn vno-btn-primary" data-vno-report-open>Báo lỗi / Góp ý</button>
+              <button type="button" class="vno-btn" data-vno-whats-new-open id="vno-help-whats-new-btn">Có gì mới</button>
+              <button type="button" class="vno-btn" data-vno-about-open>Giới thiệu 3T Office</button>
+            </div>
+            <label class="vno-report-consent-label"><input type="checkbox" data-vno-report-consent>
+              <span>Cho phép gửi báo cáo lỗi kỹ thuật tự động</span></label>
+            <p class="vno-reporting-status" data-vno-reporting-status role="status" aria-live="polite">Đang đọc trạng thái…</p>
+          </section>
+        </article>
       </div>
     `;
     targetHost.appendChild(this.root);
@@ -248,7 +250,7 @@ export class HelpPanel {
   _render() {
     if (!this.root) return;
     const list = this.root.querySelector(".vno-help-list");
-    const article = this.root.querySelector(".vno-help-article");
+    const article = this.root.querySelector(".vno-help-article-content");
     const entries = this.getVisibleEntries();
     const groups = groupHelpEntriesByTab(entries);
 

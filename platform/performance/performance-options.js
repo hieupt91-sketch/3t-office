@@ -15,7 +15,7 @@ export async function mountPerformanceOptions(helpPanel, { bridge = globalUnoBri
     <p class="vno-performance-local-only">${t("performance.localOnly")}</p>
     <div class="vno-performance-actions"><button type="button" class="vno-btn vno-performance-open-folder">${t("performance.openFolder")}</button></div>
     <p class="vno-performance-status" role="status" aria-live="polite"></p>`;
-  root.insertBefore(section, root.querySelector(".vno-help-body"));
+  (root.querySelector(".vno-help-article") || root).appendChild(section);
   mountedRoots.add(root);
 
   const checkbox = section.querySelector(".vno-performance-enabled");

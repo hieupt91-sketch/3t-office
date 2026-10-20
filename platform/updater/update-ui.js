@@ -34,7 +34,7 @@ function updateHelpSection(app) {
       <p data-vno-update-status role="status" aria-live="polite">Có thể kiểm tra bản cập nhật khi kết nối được nguồn nội bộ.</p>
       <button type="button" class="vno-btn" data-vno-update-check>Kiểm tra cập nhật</button>
     `;
-    root.insertBefore(section, root.querySelector(".vno-help-body"));
+    (root.querySelector(".vno-help-article") || root).appendChild(section);
     section.querySelector("[data-vno-update-check]").addEventListener("click", async () => {
       const button = section.querySelector("[data-vno-update-check]");
       const status = section.querySelector("[data-vno-update-status]");

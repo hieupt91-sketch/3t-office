@@ -18,7 +18,8 @@
   box-shadow: -4px 0 16px rgba(0, 0, 0, 0.15);
   box-sizing: border-box;
   z-index: 40;
-  overflow-y: auto;
+  min-height: 0;
+  overflow: hidden;
 }
 
 .vno-help-panel[hidden] {
@@ -64,36 +65,34 @@
 
 .vno-help-reporting-actions {
   box-sizing: border-box;
-  order: 2;
   flex: 0 0 auto;
-  max-height: 150px;
-  min-height: 0;
-  overflow-y: auto;
-  padding: 0 12px 8px;
+  margin-top: 16px;
+  padding: 12px 0 4px;
+  border-top: 1px solid var(--vno-border-default);
+}
+
+.vno-help-reporting-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 6px;
 }
 
 .vno-help-body {
   display: flex;
   flex-direction: column;
-  flex: 0 0 42%;
-  order: 1;
+  flex: 1 1 auto;
   min-height: 0;
   overflow: hidden;
 }
 
 .vno-help-list {
-  flex: 0 0 38%;
+  flex: 0 1 35%;
+  max-height: 35%;
   min-height: 0;
   overflow-y: auto;
   padding: 4px 0 8px;
   border-bottom: 1px solid var(--vno-border-default);
-}
-
-.vno-autorecover-settings,
-.vno-performance-settings,
-.vno-help-update-section {
-  flex: 0 0 auto;
-  order: 3;
 }
 
 .vno-help-group-label {
@@ -140,6 +139,8 @@
   overflow-y: auto;
   padding: 12px 14px 18px;
 }
+
+.vno-help-article-content { min-height: 0; }
 
 .vno-help-article h3 {
   margin: 0 0 8px;

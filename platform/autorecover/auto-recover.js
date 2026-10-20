@@ -220,7 +220,7 @@ export class AutoRecoverManager {
       <div class="vno-autorecover-interval-row"><input type="number" id="vno-autorecover-interval" class="vno-autorecover-interval" min="1" max="60" step="1"><span>${t("autoRecover.minuteRange")}</span></div>
       <div class="vno-autorecover-actions"><button type="button" class="vno-btn vno-autorecover-show">${t("autoRecover.showSaved")}</button></div>
       <p class="vno-autorecover-status" role="status" aria-live="polite"></p>`;
-    root.insertBefore(section, root.querySelector(".vno-help-body"));
+    (root.querySelector(".vno-help-article") || root).appendChild(section);
     this._settingsPanels.add(root);
     const enabled = section.querySelector(".vno-autorecover-enabled");
     const interval = section.querySelector(".vno-autorecover-interval");
