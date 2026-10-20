@@ -1929,6 +1929,7 @@ export const viStrings = {
     splitHorizontalSeparator: "Vạch chia ngang cửa sổ",
     selectionPane: {
       title: "Lựa chọn",
+      empty: "Chưa có đối tượng nào.",
       showAll: "Hiện tất cả",
       hideAll: "Ẩn tất cả",
       bringForward: "Đưa lên một lớp",

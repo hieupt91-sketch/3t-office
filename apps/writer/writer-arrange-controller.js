@@ -130,6 +130,13 @@ export class WriterArrangeController {
     // Objects list in reverse drawing order (topmost first)
     const objects = [...this.getAllObjects()].reverse();
 
+    if (objects.length === 0) {
+      const empty = document.createElement("li");
+      empty.className = "vno-writer-selection-pane-empty";
+      empty.textContent = t("writerDialogs.selectionPane.empty", "Chưa có đối tượng nào.");
+      list.appendChild(empty);
+    }
+
     for (const obj of objects) {
       const id = obj.id;
       const isSelected = this.selectedObjectIds.has(id) || this.adapter?.selectedShapeId === id;

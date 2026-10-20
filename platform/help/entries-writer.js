@@ -2315,7 +2315,7 @@ export const WRITER_HELP_ENTRIES = [
   keywords: ["ngăn lựa chọn", "selection pane", "chọn hình", "ẩn hiện đối tượng", "đổi tên hình", "lớp xếp chồng", "z-order", "sắp xếp đối tượng"],
   steps: [
     "Mở tab Bố cục (hoặc tab Chế độ xem), tìm đến nhóm Sắp xếp (hoặc nhóm Hiển thị) và bấm nút 'Ngăn lựa chọn'. Ngăn lựa chọn sẽ mở ra ở cạnh phải màn hình soạn thảo.",
-    "Danh sách liệt kê tất cả các đối tượng (hình chữ nhật, elip, khung chữ, nhóm hình...). Bấm vào một dòng để chọn đối tượng tương ứng trên trang văn bản; giữ phím Ctrl để chọn đồng thời nhiều đối tượng.",
+    "Danh sách liệt kê tất cả các đối tượng (hình chữ nhật, elip, khung chữ, nhóm hình...). Bấm vào một dòng để chọn đối tượng tương ứng trên trang văn bản; giữ phím Ctrl để chọn đồng thời nhiều đối tượng. Khi tài liệu chưa có đối tượng, ngăn hiển thị 'Chưa có đối tượng nào'.",
     "Bấm vào biểu tượng Con mắt ở bên phải từng đối tượng để chuyển đổi nhanh giữa trạng thái Ẩn và Hiện. Bấm nút 'Hiện tất cả' hoặc 'Ẩn tất cả' ở đầu ngăn để thay đổi trạng thái đồng loạt.",
     "Bấm các nút mũi tên Lên hoặc Xuống trên thanh công cụ của ngăn để điều chỉnh thứ tự lớp vẽ (Z-Order), đưa đối tượng lên lớp trên hoặc hạ xuống lớp dưới.",
     "Nhấp đúp chuột vào tên của đối tượng trong danh sách để chỉnh sửa và đặt tên gợi nhớ mới, giúp dễ dàng nhận biết và quản lý các thành phần minh họa phức tạp."

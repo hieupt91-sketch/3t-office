@@ -1930,6 +1930,7 @@ export const enStrings = {
     splitHorizontalSeparator: "Horizontal split bar",
     selectionPane: {
       title: "Selection",
+      empty: "There are no objects yet.",
       showAll: "Show All",
       hideAll: "Hide All",
       bringForward: "Bring Forward",

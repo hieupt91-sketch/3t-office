@@ -4021,6 +4021,14 @@ p.vno-style-list-paragraph {
   gap: 2px;
 }
 
+.vno-writer-selection-pane-empty {
+  padding: 16px 10px;
+  color: var(--vno-text-secondary, #64748b);
+  font-size: 12px;
+  text-align: center;
+  list-style: none;
+}
+
 .vno-writer-selection-pane .vno-selection-pane-item {
   display: flex;
   align-items: center;
