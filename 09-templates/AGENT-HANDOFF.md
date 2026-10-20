@@ -1,4 +1,24 @@
 # Agent Handoff
+TASK: MAC-3 — bộ lọc mẫu bảng tính và UTI macOS
+AGENT/ROLE: Codex / macOS file registration
+BRANCH: mac/filetypes-1910
+WORKTREE: /Users/hieupc/.codex/worktrees/mac-filetypes-1910/3t-office
+OBJECTIVE: Đăng ký .xltx/.xlt cho Sheet trên macOS và kiểm đường lưu/mở lại mẫu mà không đổi semantics.
+FINDINGS: vn-main đã có toàn bộ hằng và đường lưu XLTX dùng chung; thiếu Info.plist macOS. Runtime thiếu pywebview/cryptography nên mở lại trong app bị BLOCKED, nhưng LibreOffice macOS mở lại tệp app vừa lưu thành công.
+IMPLEMENTATION SUMMARY: Thêm Sheet-Info.plist với imported UTI, Editor/Alternate, cùng test plist/hợp đồng/content type; không sửa mã dùng chung hay thêm dependency.
+FILES CHANGED: ports/macos/Sheet-Info.plist; tests/macos/test_sheet_file_types.py; docs/macos/PLAN-MAC-3-FILE-TYPES-2010.md; docs/macos/HANDOFF-MAC-3-FILE-TYPES-2010.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: Python 3.12 unittest; plutil; API save XLTX; LibreOffice reopen; i18n parity; npm test; git diff --check.
+BUILD RESULT: NOT RUN — chưa có pipeline bundle macOS trên vn-main.
+TEST RESULTS: PASS focused Python 3/3, plist, native save + LibreOffice reopen, i18n 3091/3091; full Node FAIL 3729/3749 (20 baseline failures).
+KNOWN FAILURES: App-native reopen BLOCKED do thiếu cryptography; pywebview parser BLOCKED do thiếu pywebview; Node focused wrapper phụ thuộc lệnh python/webview.
+RISKS: Pipeline MAC-11 phải thực sự nhúng plist; overlay Sheet hiện chỉ nhận hậu tố .xlsx nên cần phiếu shared trên vn-main nếu muốn parity metadata hoàn toàn khi nhập .xltx.
+DEPENDENCIES/BLOCKERS: MAC-11, MAC-12 và shared-owner.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review rồi merge; chạy lại hộp thoại native trên bundle đầy đủ dependency.
+
+---
+
+# Agent Handoff
 TASK: CODEX-SLICER — Slicer cho Bảng giai đoạn 1
 AGENT/ROLE: Codex / VN Sheet
 BRANCH: feat/sheet-slicer-codex
