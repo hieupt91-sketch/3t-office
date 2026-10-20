@@ -20,14 +20,12 @@ function Read-ShapeInfo($shape) {
         }
     } catch {}
     try {
-        if ($shape.Type -eq 9) {
-            $item.isConnector = $true
-            $item.beginConnected = [bool]$shape.ConnectorFormat.BeginConnected
-            $item.endConnected = [bool]$shape.ConnectorFormat.EndConnected
-            if ($item.beginConnected) { $item.beginName = $shape.ConnectorFormat.BeginConnectedShape.Name }
-            if ($item.endConnected) { $item.endName = $shape.ConnectorFormat.EndConnectedShape.Name }
-        }
-    } catch {}
+        $item.beginConnected = [bool]$shape.ConnectorFormat.BeginConnected
+        $item.endConnected = [bool]$shape.ConnectorFormat.EndConnected
+        $item.isConnector = ($shape.Type -eq 9) -or $item.beginConnected -or $item.endConnected
+        if ($item.beginConnected) { $item.beginName = $shape.ConnectorFormat.BeginConnectedShape.Name }
+        if ($item.endConnected) { $item.endName = $shape.ConnectorFormat.EndConnectedShape.Name }
+    } catch { $item.isConnector = ($shape.Type -eq 9) }
     try {
         if ($shape.Type -eq 6) {
             $item.groupItems = [int]$shape.GroupItems.Count

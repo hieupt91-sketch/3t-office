@@ -13394,6 +13394,92 @@ def _strip_slides_internal_group_prefix(
     return replacements
 
 
+def _apply_slides_native_connectors_from_fodp(
+    pptx_bytes: bytes,
+    source_fodp: str | None,
+    base_replacements: dict[str, str] | None = None,
+) -> dict[str, str]:
+    """Restore connections on generated FODP connectors after LibreOffice export.
+
+    LibreOffice exports ``draw:connector`` as an ordinary ``p:sp`` for some
+    grouped diagrams. Match by the stable draw name, turn that shape into a
+    ``p:cxnSp``, and resolve the FODP endpoint names to PowerPoint shape IDs.
+    """
+    if not source_fodp:
+        return {}
+    pages = re.findall(r"<draw:page\b(?![-\w])[^>]*>([\s\S]*?)</draw:page\s*>", source_fodp, re.IGNORECASE)
+    entries = _resolve_pptx_slide_entries(pptx_bytes)
+    replacements: dict[str, str] = {}
+    for page_index, entry in enumerate(entries):
+        if page_index >= len(pages):
+            break
+        page = pages[page_index]
+        source_names: dict[str, str] = {}
+        for shape in re.finditer(r"<(?:draw:)?(?:rect|ellipse|custom-shape|frame|line)\b([^>]*)/?>", page, re.IGNORECASE):
+            attrs = shape.group(1)
+            shape_id = re.search(r'\bdraw:id=["\']([^"\']+)', attrs, re.IGNORECASE)
+            shape_name = re.search(r'\bdraw:name=["\']([^"\']+)', attrs, re.IGNORECASE)
+            if shape_id and shape_name:
+                source_names[_unescape_xml(shape_id.group(1))] = _unescape_xml(shape_name.group(1))
+        connectors = []
+        for match in re.finditer(r"<draw:connector\b([^>]*?)(?:/\s*>|>([\s\S]*?)</draw:connector\s*>)", page, re.IGNORECASE):
+            attrs = match.group(1)
+            name = re.search(r'\bdraw:name=["\']([^"\']+)', attrs, re.IGNORECASE)
+            start = re.search(r'\bdraw:start-shape=["\']([^"\']+)', attrs, re.IGNORECASE)
+            end = re.search(r'\bdraw:end-shape=["\']([^"\']+)', attrs, re.IGNORECASE)
+            if name and start and end:
+                connectors.append((_unescape_xml(name.group(1)), _unescape_xml(start.group(1)), _unescape_xml(end.group(1))))
+        if not connectors:
+            continue
+        original = (base_replacements or {}).get(entry) or (read_zip_entry(pptx_bytes, entry) or b"").decode("utf-8", errors="replace")
+        shape_ids = {}
+        for match in re.finditer(r"<p:(?:sp|cxnSp)\b[\s\S]*?</p:(?:sp|cxnSp)\s*>", original, re.IGNORECASE):
+            c_nv = re.search(r'<p:cNvPr\b[^>]*\bid=["\'](\d+)["\'][^>]*\bname=["\']([^"\']*)', match.group(0), re.IGNORECASE)
+            if c_nv:
+                shape_ids[_unescape_xml(c_nv.group(2))] = c_nv.group(1)
+        resolved = []
+        for name, start_ref, end_ref in connectors:
+            connector_id = shape_ids.get(name)
+            start_id = shape_ids.get(source_names.get(start_ref, start_ref))
+            end_id = shape_ids.get(source_names.get(end_ref, end_ref))
+            if connector_id and start_id and end_id:
+                resolved.append((name, connector_id, start_id, end_id))
+        if not resolved:
+            continue
+        changed = False
+        def restore_connection(match: re.Match) -> str:
+            nonlocal changed
+            shape = match.group(0)
+            c_nv = re.search(r'<p:cNvPr\b[^>]*\bname=["\']([^"\']*)', shape, re.IGNORECASE)
+            name = _unescape_xml(c_nv.group(1)) if c_nv else ""
+            connection = next((item for item in resolved if item[0] == name), None)
+            if not connection:
+                return shape
+            _name, _shape_id, start_id, end_id = connection
+            is_connector = bool(re.match(r"<p:cxnSp\b", shape, re.IGNORECASE))
+            if not is_connector:
+                shape = re.sub(r"<p:sp\b", "<p:cxnSp", shape, count=1, flags=re.IGNORECASE)
+                shape = re.sub(r"</p:sp\s*>$", "</p:cxnSp>", shape, count=1, flags=re.IGNORECASE)
+                shape = shape.replace("<p:nvSpPr>", "<p:nvCxnSpPr>", 1).replace("</p:nvSpPr>", "</p:nvCxnSpPr>", 1)
+                shape = shape.replace("<p:cNvSpPr", "<p:cNvCxnSpPr", 1).replace("</p:cNvSpPr>", "</p:cNvCxnSpPr>", 1)
+            connection_xml = f'<a:stCxn id="{start_id}" idx="0"/><a:endCxn id="{end_id}" idx="0"/>'
+            nv_props = re.search(r"<p:cNvCxnSpPr\b[^>]*>[\s\S]*?</p:cNvCxnSpPr\s*>", shape, re.IGNORECASE)
+            if nv_props:
+                nv_xml = re.sub(r"<a:stCxn\b[^>]*/\s*>|<a:endCxn\b[^>]*/\s*>", "", nv_props.group(0), flags=re.IGNORECASE)
+                nv_xml = nv_xml.replace("</p:cNvCxnSpPr>", connection_xml + "</p:cNvCxnSpPr>", 1)
+                shape = shape[:nv_props.start()] + nv_xml + shape[nv_props.end():]
+            elif re.search(r"<p:cNvCxnSpPr\b[^>]*/\s*>", shape, re.IGNORECASE):
+                shape = re.sub(r"<p:cNvCxnSpPr\b([^>]*)/\s*>", rf"<p:cNvCxnSpPr\1>{connection_xml}</p:cNvCxnSpPr>", shape, count=1, flags=re.IGNORECASE)
+            else:
+                return match.group(0)
+            changed = True
+            return shape
+        updated = re.sub(r"<p:(?:sp|cxnSp)\b[\s\S]*?</p:(?:sp|cxnSp)\s*>", restore_connection, original, flags=re.IGNORECASE)
+        if changed and updated != original:
+            replacements[entry] = updated
+    return replacements
+
+
 def _apply_slides_native_connectors(
     pptx_bytes: bytes,
     source_pptx: bytes | None = None,
@@ -13972,13 +14058,19 @@ def postprocess_slides_pptx(
          **shadow_replacements, **source_transition_replacements, **textbox_replacements,
          **shape_line_replacements, **picture_replacements},
     )
-    connector_replacements = _apply_slides_native_connectors(
-        pptx_bytes, source_pptx,
-        {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,
-         **transition_replacements, **wordart_replacements, **layout_replacements, **native_timing_replacements,
-         **shadow_replacements, **source_transition_replacements, **textbox_replacements,
-         **shape_line_replacements, **picture_replacements, **group_replacements},
+    connector_prior = {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,
+                       **transition_replacements, **wordart_replacements, **layout_replacements, **native_timing_replacements,
+                       **shadow_replacements, **source_transition_replacements, **textbox_replacements,
+                       **shape_line_replacements, **picture_replacements, **group_replacements}
+    generated_connector_replacements = _apply_slides_native_connectors_from_fodp(
+        pptx_bytes, source_fodp, connector_prior
     )
+    connector_replacements = {
+        **generated_connector_replacements,
+        **_apply_slides_native_connectors(
+            pptx_bytes, source_pptx, {**connector_prior, **generated_connector_replacements}
+        ),
+    }
     text_fmt_replacements = _apply_slides_native_text_formatting(
         pptx_bytes, source_pptx,
         {**animation_replacements, **paragraph_level_replacements, **header_footer_replacements,
