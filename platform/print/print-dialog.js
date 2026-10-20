@@ -84,6 +84,8 @@ export async function openPrintDialog({
   const printableSelectionRanges = Array.isArray(selectionRanges)
     ? selectionRanges.map((range) => String(range || "").trim()).filter(Boolean)
     : [];
+  const fileName = String(documentName || "").split(/[\\/]/).filter(Boolean).pop() || "";
+  const safeDocumentName = /^(?:TaiLieu|BangTinh|TrinhChieu)$/i.test(fileName) ? t("printDialog.untitled", "Tài liệu chưa đặt tên") : fileName || t("printDialog.untitled", "Tài liệu chưa đặt tên");
   const state = {
     rangeMode: "all",
     currentDocumentPage: safeCurrentPage,
@@ -109,7 +111,7 @@ export async function openPrintDialog({
   overlay.innerHTML = `
     <section class="vno-print-dialog" role="dialog" aria-modal="true" aria-labelledby="vno-print-title" tabindex="-1">
       <header class="vno-print-dialog-header">
-        <div><h2 id="vno-print-title">In tài liệu</h2><p>${escapeHtml(documentName)}</p></div>
+        <div><h2 id="vno-print-title">${t("printDialog.title", "In tài liệu")}</h2><p>${escapeHtml(safeDocumentName)}</p></div>
         <button class="vno-print-close" type="button" aria-label="Đóng hộp thoại in" title="Đóng (Esc)">×</button>
       </header>
       <div class="vno-print-dialog-body">
@@ -130,11 +132,11 @@ export async function openPrintDialog({
           </div>
 
           <fieldset class="vno-print-sheet-scope"${appKind === "sheet" ? "" : " hidden"}>
-            <legend>Phạm vi sổ làm việc</legend>
-            <label><input type="radio" name="sheetScope" value="active" checked> <span>In các trang tính hiện hoạt</span></label>
-            <label><input type="radio" name="sheetScope" value="workbook"> <span>In toàn bộ sổ làm việc</span></label>
-            <label><input type="radio" name="sheetScope" value="selection"${printableSelectionRanges.length ? "" : " disabled"}> <span>In vùng chọn</span></label>
-            <span class="vno-print-muted vno-print-selection-help"${printableSelectionRanges.length ? " hidden" : ""}>Hãy bôi đen vùng ô cần in trước khi mở hộp thoại.</span>
+            <legend>${t("printDialog.sheetScopeLegend", "Phạm vi sổ làm việc")}</legend>
+            <label><input type="radio" name="sheetScope" value="active" checked> <span>${t("printDialog.sheetActive", "In trang tính hiện hoạt")}</span></label>
+            <label><input type="radio" name="sheetScope" value="workbook"> <span>${t("printDialog.sheetWorkbook", "In toàn bộ sổ làm việc")}</span></label>
+            <label><input type="radio" name="sheetScope" value="selection"${printableSelectionRanges.length ? "" : " disabled"}> <span>${t("printDialog.sheetSelection", "In vùng chọn")}</span></label>
+            <span class="vno-print-muted vno-print-selection-help"${printableSelectionRanges.length ? " hidden" : ""}>${t("printDialog.sheetSelectionHelp", "Hãy bôi đen vùng ô cần in trước khi mở hộp thoại.")}</span>
           </fieldset>
 
           ${appKind === "slides" ? `
@@ -151,12 +153,12 @@ export async function openPrintDialog({
           </fieldset>` : ""}
 
           <fieldset class="vno-print-range">
-            <legend>Phạm vi trang</legend>
-            <label><input type="radio" name="rangeMode" value="all" checked> <span>Tất cả (${state.totalPages} trang)</span></label>
-            <label><input type="radio" name="rangeMode" value="current"> <span>Trang hiện tại (${state.currentDocumentPage})</span></label>
-            <label><input type="radio" name="rangeMode" value="custom"> <span>Trang từ–đến</span></label>
-            <input id="vno-print-range-input" name="pageRange" type="text" autocomplete="off" placeholder="Ví dụ: 1-3,5" aria-label="Nhập trang cần in" disabled>
-            <span class="vno-print-muted">Dùng dấu phẩy để chọn nhiều khoảng, ví dụ 1-3,5.</span>
+            <legend>${t("printDialog.pageRangeLegend", "Phạm vi trang")}</legend>
+            <label><input type="radio" name="rangeMode" value="all" checked> <span>${t("printDialog.allPages", "Tất cả ({count} trang)").replace("{count}", String(state.totalPages))}</span></label>
+            <label><input type="radio" name="rangeMode" value="current"> <span>${t("printDialog.currentPage", "Trang hiện tại ({page})").replace("{page}", String(state.currentDocumentPage))}</span></label>
+            <label><input type="radio" name="rangeMode" value="custom"> <span>${t("printDialog.customPages", "Trang từ–đến")}</span></label>
+            <input id="vno-print-range-input" name="pageRange" type="text" autocomplete="off" placeholder="${t("printDialog.rangePlaceholder", "Ví dụ: 1-3,5")}" aria-label="${t("printDialog.rangeLabel", "Nhập trang cần in")}" disabled>
+            <span class="vno-print-muted">${t("printDialog.rangeHelp", "Dùng dấu phẩy để chọn nhiều khoảng, ví dụ 1-3,5.")}</span>
           </fieldset>
 
           <div class="vno-print-page-setup" aria-label="Thiết lập trang">${escapeHtml(pageSetupLabel || "Thiết lập trang theo tài liệu")}</div>
@@ -235,8 +237,8 @@ export async function openPrintDialog({
     nextButton.disabled = state.currentPreviewPage >= state.totalPages;
     overlay.querySelectorAll("input[name='rangeMode']").forEach((radio) => {
       const label = radio.parentElement.querySelector("span");
-      if (radio.value === "all" && label) label.textContent = `Tất cả (${state.totalPages} trang)`;
-      if (radio.value === "current" && label) label.textContent = `Trang hiện tại (${state.currentDocumentPage})`;
+      if (radio.value === "all" && label) label.textContent = t("printDialog.allPages", "Tất cả ({count} trang)").replace("{count}", String(state.totalPages));
+      if (radio.value === "current" && label) label.textContent = t("printDialog.currentPage", "Trang hiện tại ({page})").replace("{page}", String(state.currentDocumentPage));
     });
   };
 

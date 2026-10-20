@@ -4,6 +4,13 @@
  */
 
 export const enStrings = {
+  printDialog: {
+    title: "Print document", untitled: "Untitled document", sheetScopeLegend: "Workbook scope",
+    sheetActive: "Print active sheet", sheetWorkbook: "Print entire workbook", sheetSelection: "Print selection",
+    sheetSelectionHelp: "Select the cells to print before opening this dialog.", pageRangeLegend: "Page range",
+    allPages: "All ({count} pages)", currentPage: "Current page ({page})", customPages: "Pages",
+    rangePlaceholder: "Example: 1-3,5", rangeLabel: "Enter pages to print", rangeHelp: "Use commas to select multiple ranges, for example 1-3,5."
+  },
   documentPassword: {
     setTitle: "Encrypt with Password",
     openTitle: "Enter password to open file",

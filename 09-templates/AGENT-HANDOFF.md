@@ -823,3 +823,24 @@ RISKS: Không sửa LibreOffice Core, định dạng tài liệu, dependency ho�
 DEPENDENCIES/BLOCKERS: None.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Review các commit Q33 và gộp theo quy trình nhánh.
+
+---
+
+# Agent Handoff
+TASK: Q34 — Hộp thoại In dùng chung và rà soát chữ theo app
+AGENT/ROLE: Codex / Platform print dialog
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Điều chỉnh nội dung và phạm vi In theo Writer/Sheet/Slides, giữ nguyên hợp đồng pipeline, rà hộp thoại dùng chung và kiểm tra UI qua CDP.
+FINDINGS: Nhóm `.vno-print-sheet-scope` đặt `display:flex`, ghi đè thuộc tính HTML `hidden`; vì vậy nhóm Sheet lộ ở Writer/Slides dù các adapter truyền đúng `appKind`. Tên tệp mặc định `TaiLieu`, `BangTinh`, `TrinhChieu` là tên nội bộ, không phù hợp tiêu đề hộp thoại.
+IMPLEMENTATION SUMMARY: Đã thêm quy tắc CSS để `[hidden]` có hiệu lực; thêm VI/EN cho các chuỗi hộp thoại In; dùng tên tệp (basename) và thay các tên nội bộ bằng “Tài liệu chưa đặt tên”. Đã thêm CDP kiểm tra 3 app và lưu ảnh sáng/tối 1366×768 trong `docs/assets/q34-ui/`. Hợp đồng `printDocument({printer,copies,pageRange})` không đổi.
+FILES CHANGED: `platform/print/print-dialog.css`; `platform/print/print-dialog.js`; `platform/i18n/strings-vi.js`; `platform/i18n/strings-en.js`; `tests/live/cdp/q34-print-dialog.desktop.mjs`; `docs/assets/q34-ui/*`; `docs/EXCEL2016-FEATURE-CHECKLIST.md` (generator cập nhật line reference); `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "print or preview or writer or sheet or slides"`; ba `gen_*_checklist.py`; `node --experimental-websocket tests/live/cdp/q34-print-dialog.desktop.mjs`.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — npm 3789/3789; pytest 807 passed, 312 deselected; i18n missingVI=0/missingEN=0; checklist 0 dòng bị hạ; CDP 3/3 app và screenshots sáng/tối 1366×768.
+GIAO DIỆN ĐÃ XEM: Writer/Sheet/Slides, mỗi app sáng và tối tại 1366×768. Tất cả hộp thoại nằm trong viewport; Writer/Slides không còn nhóm Sheet; Sheet giữ đúng nhóm phạm vi; nút Hủy/In nhìn thấy.
+KNOWN FAILURES: Chưa triển khai/kiểm tra lựa chọn “Vùng chọn” cho văn bản Writer hoặc phạm vi slide đã chọn/ẩn; pipeline hiện không nhận scope đó. Chưa rà soát các hộp thoại dùng chung khác (Tùy chọn, Thông tin tệp, Lưu thành, Xác nhận đóng, Tìm kiếm, Mật khẩu, Cập nhật, Giấy phép). Chưa chạy bài kiểm tra CDP trước sửa; ảnh baseline Q33 do người giao phiếu cung cấp.
+RISKS: Đổi ngữ nghĩa lựa chọn Writer/Slides cần làm rõ dữ liệu đầu vào cho print preview để nhãn không hứa hành vi chưa được hỗ trợ; không được đổi payload in hiện có theo phiếu.
+DEPENDENCIES/BLOCKERS: Hoàn tất phần còn thiếu của Q34 trước khi tạo `E:\VNOffice-briefs\logs\Q34.DONE`.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Hoàn tất app-specific print scopes và rà soát hộp thoại dùng chung qua CDP; chụp ảnh/ghi lỗi rồi chạy lại các gate.

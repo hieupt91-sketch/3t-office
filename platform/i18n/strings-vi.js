@@ -3,6 +3,13 @@
  */
 
 export const viStrings = {
+  printDialog: {
+    title: "In tài liệu", untitled: "Tài liệu chưa đặt tên", sheetScopeLegend: "Phạm vi sổ làm việc",
+    sheetActive: "In trang tính hiện hoạt", sheetWorkbook: "In toàn bộ sổ làm việc", sheetSelection: "In vùng chọn",
+    sheetSelectionHelp: "Hãy bôi đen vùng ô cần in trước khi mở hộp thoại.", pageRangeLegend: "Phạm vi trang",
+    allPages: "Tất cả ({count} trang)", currentPage: "Trang hiện tại ({page})", customPages: "Trang từ–đến",
+    rangePlaceholder: "Ví dụ: 1-3,5", rangeLabel: "Nhập trang cần in", rangeHelp: "Dùng dấu phẩy để chọn nhiều khoảng, ví dụ 1-3,5."
+  },
   documentPassword: {
     setTitle: "Mã hóa bằng mật khẩu",
     openTitle: "Nhập mật khẩu để mở tệp",
