@@ -37,9 +37,9 @@ Các lệnh dưới đây hiện trên ribbon và theo cấu hình/command handl
 | Chèn / Minh họa | `writer.image.insert`, `writer.shape.insert`, `writer.diagram.insert`, `writer.chart.insert` | Hình khối/Sơ đồ/Biểu đồ đã mở. Bộ chọn ảnh hệ điều hành NOT RUN (không mở hộp thoại OS theo quy tắc CDP). |
 | Chèn / Liên kết | `common.edit.hyperlink`, `writer.insert.bookmark`, `writer.insert.crossReference` | Đã mở cả ba; xem bảng phía trên. |
 | Chèn / Ghi chú, Đầu trang-Chân trang, Văn bản, Ký hiệu | `writer.comment.insert`, `writer.header.insert`, `writer.footer.insert`, `writer.insert.textbox`, `writer.insert.wordart`, `writer.format.dropCap`, `writer.insert.dateTime`, `writer.insert.quickParts`, `writer.insert.equation`, `writer.insert.symbol` | Nhận xét/Ký hiệu/Phương trình đã xem. Đầu trang, Chân trang, Hộp văn bản, Chữ nghệ thuật, Chữ đầu đoạn, Ngày-Giờ và Khối dựng sẵn NOT RUN vì thao tác có thể chèn/thay đổi nội dung tài liệu. |
-| Tham chiếu | `writer.reference.tocInsert`, `writer.reference.sourcesManage`, `writer.reference.citationInsert`, `writer.reference.bibliographyInsert`, `writer.reference.captionInsert`, `writer.reference.tofInsert`, `writer.reference.indexMark`, `writer.reference.indexInsert` | Hộp thoại/quản lý nguồn/thư viện; NOT RUN. |
-| Trộn thư | `writer.mailings.envelopes`, `writer.mailings.labels`, `writer.mailMerge.open`, `writer.mailMerge.insertField`, `writer.mailMerge.ifRule`, `writer.mailMerge.addressBlock`, `writer.mailMerge.greetingLine` | Hộp thoại, panel hoặc menu trường; NOT RUN. |
-| Đánh giá | `writer.review.wordCount`, `writer.review.compare`, `writer.review.combine`, `writer.review.restrictEditing`, `writer.file.inspectDocument`, các lệnh chú thích | Hộp thoại hoặc panel; NOT RUN. |
+| Tham chiếu | `writer.reference.tocInsert`, `writer.reference.sourcesManage`, `writer.reference.citationInsert`, `writer.reference.bibliographyInsert`, `writer.reference.captionInsert`, `writer.reference.tofInsert`, `writer.reference.indexMark`, `writer.reference.indexInsert` | Đã mở Mục lục, Quản lý nguồn/Thêm nguồn, Chèn trích dẫn, Chú thích ảnh, Danh mục hình ảnh, Đánh dấu mục và Chèn chỉ mục. Thư mục tài liệu và các lệnh chú thích trang không chạy do chúng chèn nội dung trực tiếp. |
+| Trộn thư | `writer.mailings.envelopes`, `writer.mailings.labels`, `writer.mailMerge.open`, `writer.mailMerge.insertField`, `writer.mailMerge.ifRule`, `writer.mailMerge.addressBlock`, `writer.mailMerge.greetingLine` | Đã mở Phong bì, Nhãn, Nguồn dữ liệu và nhập CSV thủ công. Quy tắc không có nguồn báo rõ phải mở Nguồn dữ liệu trước. Chèn trường/khối địa chỉ/lời chào/hoàn tất trộn NOT RUN vì phụ thuộc dữ liệu hoặc chèn nội dung. |
+| Đánh giá | `writer.review.wordCount`, `writer.review.compare`, `writer.review.combine`, `writer.review.restrictEditing`, `writer.file.inspectDocument`, các lệnh chú thích | Đã mở Đếm từ, Hạn chế chỉnh sửa, Kiểm tra tài liệu và kết quả kiểm tra. So sánh/Gộp cần bộ chọn tệp; các lệnh khác phụ thuộc comment hoặc thay đổi theo dõi nên NOT RUN. |
 | Chế độ xem | `writer.view.navigationPane`, `writer.view.selectionPane`, `writer.view.zoomDialog`, `common.macro.manager` | Navigation Pane, Selection Pane, Zoom và Macro Manager đã mở. `common.macro.recordToggle` không phải cửa sổ mới. |
 | Menu Tệp | `common.file.new`, `common.file.open`, `common.file.save`, `common.file.saveAs`, `common.file.exportPdf`, `backstage.account`, `backstage.about`, `backstage.options`, `backstage.close` | Thao tác chọn tệp / hộp thoại / trang; không mở trong lượt này. Save as dev đã được ghi bị chặn tại UI Review trước. |
 
@@ -52,6 +52,7 @@ Ngoài các dropdown liệt kê ở trên, các `type: "select"` như kiểu đ�
 - Menu/hộp thoại đã mở: menu đóng bằng Escape; Enter xác nhận mục “Chọn tất cả”. Các nút/giá trị mặc định được kiểm tra trong các dialog nêu trên; không gửi lệnh lưu/xuất/in ra hệ điều hành.
 - Không gặp nút tràn khỏi cửa sổ hay chữ bị cắt trong các UI đã xem. Print disabled trong lúc danh sách máy in/preview đang tải; preview hiện trạng thái đang dựng trang. Selection Pane trống không có nội dung hướng dẫn khi tài liệu chưa có đối tượng.
 - Lưới Chèn bảng ở dark trước sửa có nền trắng nhưng chữ tiêu đề/nút là `rgb(241,245,249)`; sau sửa nền popup theo token dark là `rgb(30,30,30)`, tiêu đề và nút vẫn rõ. Các ô chọn lưới giữ nền sáng để thấy ranh giới. Gallery Bảng dựng sẵn cũng có thẻ nền trắng khi dark; ghi nhận mức thấp.
+- Hạn chế chỉnh sửa, Phong bì, Nhãn, Nguồn dữ liệu, Quản lý nguồn, Thêm nguồn, Đếm từ, Kiểm tra tài liệu và các UI khác đã xem đều vừa khung 1366×768. Nguồn dữ liệu, Quy tắc trộn và đánh dấu mục có trạng thái rỗng/hướng dẫn dễ hiểu.
 
 ## Lỗi và kết luận giao diện
 
@@ -62,6 +63,7 @@ Ngoài các dropdown liệt kê ở trên, các `type: "select"` như kiểu đ�
 | Thấp | Columns, Watermark, Page Border có một số nhãn tiếng Anh hoặc thuật ngữ tiếng Anh trong ngoặc. | Ghi nhận; không sửa i18n/Help. |
 | Thấp | Selection Pane trống không có empty state khi chưa có đối tượng. | Ghi nhận; không thay đổi nội dung/tính năng. |
 | Thấp | Gallery Bảng dựng sẵn dùng thẻ trắng trong giao diện tối. | Ghi nhận; chữ trên thẻ vẫn đọc được, chưa sửa. |
+| Đã sửa | Nhãn nhóm trong dialog Kiểm tra tài liệu dark bị fallback sang chữ tối (`rgb(30,41,59)`) trên nền tối. | Đổi token chữ trong dialog và kết quả sang `--vno-text-primary`; sau sửa màu nhãn `rgb(241,245,249)`, đọc rõ trong ảnh. Commit riêng `3d689061`. |
 | Trung bình | Tab chuyển focus khỏi menu “Chọn” nhưng menu vẫn mở trong DOM. | Ghi nhận; chưa sửa vì handler đã khai báo đóng bằng Tab và cần điều tra riêng nguyên nhân runtime. |
 | Đã sửa | Nút “Chọn” bị footer ribbon che khiến không mở được menu ở 1366×768. | Sửa 8 dòng CSS, commit riêng `21fbfa4c`; ảnh trước/sau phía dưới. |
 | Đã sửa | Lưới Chèn bảng ở dark dùng fallback nền trắng dưới chữ sáng. | Đổi hai biến nền sang `--vno-bg-window`; CSS đo trước fail (`#fff`/text sáng), sau pass (`rgb(30,30,30)`/text sáng). Commit riêng `13b3e9ba`. |
@@ -78,9 +80,15 @@ Ngoài các dropdown liệt kê ở trên, các `type: "select"` như kiểu đ�
 |---|---|---|
 | ![Trước khi sửa, dark](assets/q37-ui/insert/q37-insert-table-size-dark.png) | ![Sau khi sửa, dark](assets/q37-ui/insert/q37-insert-table-size-dark-after.png) | ![Sau khi sửa, light](assets/q37-ui/insert/q37-insert-table-size-light-after.png) |
 
+### Ảnh sửa lỗi màu nhãn Kiểm tra tài liệu
+
+| Trước — tối | Sau — tối | Kết quả sau — tối |
+|---|---|---|
+| ![Trước sửa, nhãn tối](assets/q37-ui/review/q37-review-inspector-dark.png) | ![Sau sửa, nhãn sáng](assets/q37-ui/review/q37-review-inspector-dark-after.png) | ![Kết quả kiểm tra](assets/q37-ui/review/q37-review-inspector-results-dark-after.png) |
+
 ## Giao diện đã xem
 
-Mỗi ảnh được dẫn bên dưới đã được mở và xem; riêng các ảnh 1280×720 và trạng thái lỗi Zoom cũng được xem trực tiếp. Đợt này có 15 dialog/panel/gallery nền tảng × 2 theme, 9 menu ribbon × 2 theme, 4 ảnh responsive 1280×720, 4 trạng thái kiểm tra Zoom, 8 ảnh Tệp (Xuất, Gần đây, Thông tin, In), 3 trạng thái menu Chọn, 19 ảnh UI Chèn (một số lệnh mới chỉ có một theme), và 2 smoke screenshot app Sheet/Slides.
+Mỗi ảnh được dẫn bên dưới đã được mở và xem; riêng các ảnh 1280×720 và trạng thái lỗi Zoom cũng được xem trực tiếp. Có 15 dialog/panel/gallery nền tảng × 2 theme, 9 menu ribbon × 2 theme, 4 ảnh responsive 1280×720, 4 trạng thái kiểm tra Zoom, 8 ảnh Tệp (Xuất, Gần đây, Thông tin, In), 3 trạng thái menu Chọn, 19 ảnh UI Chèn, 13 ảnh Tham chiếu, 8 ảnh Trộn thư, 9 ảnh Đánh giá và 2 smoke screenshot Sheet/Slides. Một số lệnh chỉ có ảnh một theme như ghi rõ trong bảng.
 
 | Màn hình | Ảnh đã xem | Kết luận |
 |---|---|---|
@@ -91,6 +99,9 @@ Mỗi ảnh được dẫn bên dưới đã được mở và xem; riêng các 
 | Columns; Watermark; Page Color; Page Border | `q37-ui-columns-*`, `q37-ui-watermark-*`, `q37-ui-page-color-*`, `q37-ui-page-border-*` | Vừa khung; một số nhãn lẫn tiếng Anh. |
 | Menu Đa cấp, Tùy chọn đánh số, Giãn dòng Trang đầu, Chọn, Trang bìa, Ngắt, Tùy chọn mục, Giãn dòng Bố cục, Hiển thị đánh dấu | `assets/q37-ui/menus/q37-menu-*-light.png` và `*-dark.png` | Đạt về kích thước/độ tương phản trong ảnh; menu Chọn chỉ đạt sau CSS fix. |
 | Chèn bảng/lưới kích thước; gallery Bảng dựng sẵn; Chuyển văn bản thành bảng; Chèn liên kết; Đánh dấu; Tham chiếu chéo; Nhận xét; Phương trình; Ký hiệu; Hình khối; Sơ đồ; Biểu đồ | `assets/q37-ui/insert/q37-insert-*.png` | Đã xem toàn bộ ảnh trong thư mục. Lưới Chèn bảng dark có ảnh trước/sau; theme có trong tên từng ảnh. |
+| Tham chiếu: Quản lý nguồn/Thêm nguồn/Chèn trích dẫn/Chú thích ảnh/Danh mục hình ảnh/Mục lục/Chỉ mục | `assets/q37-ui/reference/q37-reference-*.png` | Dialog sáng/tối đã xem; lệnh không mở dialog có trạng thái hướng dẫn trong ảnh sáng. |
+| Trộn thư: Phong bì/Nhãn/Nguồn dữ liệu/CSV thủ công/Quy tắc | `assets/q37-ui/mailings/q37-mailings-*.png` | Phong bì, Nhãn, Nguồn dữ liệu sáng/tối; CSV thủ công tối; Quy tắc báo thiếu nguồn. |
+| Đánh giá: Đếm từ/Hạn chế chỉnh sửa/Kiểm tra tài liệu/Kết quả | `assets/q37-ui/review/q37-review-*.png` | Đếm từ và Hạn chế chỉnh sửa sáng/tối; Kiểm tra và kết quả có ảnh sáng/tối trước/sau lỗi màu. |
 | Tệp: Xuất và chuyển đổi; Tệp gần đây; Thông tin; In | `assets/q37-ui/file/q37-file-*-light.png` và `*-dark.png` | Đạt về căn lề/vừa khung; Print còn trạng thái tải máy in/preview như mô tả trên. |
 | Smoke Sheet và Slides sau CSS dùng chung | `assets/q37-ui/q37-smoke-sheet.png`, `q37-smoke-slides.png` | Đạt: hai app khởi động và ribbon/canvas hiển thị ở 1366×768. |
 
@@ -99,15 +110,17 @@ Mỗi ảnh được dẫn bên dưới đã được mở và xem; riêng các 
 - Thay đổi: `platform/shell/shell.css`, 8 dòng; chỉ thu gọn bốn nút nhỏ trong nhóm Editing của Writer để chúng nằm trên footer. Không đổi command, Help, i18n hay hành vi lệnh.
 - Commit riêng: `21fbfa4c fix(writer): keep select dropdown above group footer`.
 - Thay đổi thứ hai: `apps/writer/writer-table-size-picker.js`, 2 fallback màu; commit riêng `13b3e9ba fix(writer): use theme surface in table size picker`.
+- Thay đổi thứ ba: `apps/writer/document-inspector-dialog.js`, 2 token chữ; commit riêng `3d689061 fix(writer): use theme text in inspector labels`.
 - CDP trước sửa: click ở giữa nút bị footer nhận, menu 0 — FAIL. Sau sửa: nút mở menu, menu 1; click và Enter đóng menu — PASS. Ảnh trước/sau ở trên.
 - CDP Chèn bảng trước sửa dark: popup `rgb(255,255,255)`, chữ `rgb(241,245,249)` — FAIL tương phản. Sau sửa dark: popup `rgb(30,30,30)`, chữ sáng — PASS; ảnh trước/sau ở trên.
+- CDP Kiểm tra tài liệu trước sửa dark: nhãn `rgb(30,41,59)` — FAIL. Sau sửa: nhãn trong dialog và kết quả `rgb(241,245,249)` — PASS; ảnh trước/sau ở trên.
 - `npm test`: PASS 3789/3789.
 - `node scripts/audit-0610/i18n_parity.mjs`: PASS, VI=3148, EN=3148, missing=0; 20 chuỗi identical/brand/font keys được công cụ cảnh báo như hiện trạng.
 - `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`: PASS, 0 dòng hạ (279 Word, 217 Excel, 269 PowerPoint).
-- `python -m pytest tests -q -k "writer or dialog or ribbon"`: PASS 339 passed, 780 deselected, 348.29s.
+- `python -m pytest tests -q -k "writer or dialog or ribbon"`: PASS 339 passed, 780 deselected, 350.19s.
 - Smoke CDP sau thay đổi CSS dùng chung: Writer, Sheet, Slides đã khởi động lần lượt, chụp ảnh ở 1366×768 và đóng app từng phiên. Ảnh Writer menu Chọn ở trên; Sheet/Slides trong thư mục ảnh.
 - Checklist generator: NOT RUN (không sửa `command-definitions.js` hoặc chuỗi i18n).
 
 ## Hạn chế và việc tiếp nối
 
-Kiểm kê mã đã bao phủ các lệnh mở UI, nhưng chưa trực tiếp mở từng picker từ Chèn, Tham chiếu, Trộn thư, Đánh giá, các tab ngữ cảnh Ảnh/Bảng và toàn bộ menu Tệp. Các mục này được đánh dấu NOT RUN ở bảng trên, không tính là đã xem. `CODEX-COMMON-RULES.md` không hiện diện trong worktree. Không có sửa nội dung Help/i18n hoặc thay đổi tính năng.
+Kiểm kê mã đã bao phủ các lệnh mở UI, nhưng chưa trực tiếp mở một số picker/thao tác Chèn, lệnh Tham chiếu cần chèn vào tài liệu, lệnh Trộn thư cần dữ liệu, một số lệnh Đánh giá cần tệp/fixture, các tab ngữ cảnh Ảnh/Bảng và toàn bộ menu Tệp. Các mục này được đánh dấu NOT RUN ở bảng trên, không tính là đã xem. `CODEX-COMMON-RULES.md` không hiện diện trong worktree. Không có sửa nội dung Help/i18n hoặc thay đổi tính năng.
