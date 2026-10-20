@@ -1826,6 +1826,8 @@ export const viStrings = {
       pastePrompt: "Chọn tệp bảng tính (.xlsx, .xls) / CSV, hoặc dán dữ liệu vào khung bên dưới:",
       pasteSampleBtn: "📋 Dán dữ liệu mẫu",
       noData: "Chưa có dữ liệu",
+      missingAddressSource: "Chưa có nguồn dữ liệu. Hãy mở Trộn thư > Nguồn dữ liệu trước khi chèn khối địa chỉ.",
+      missingGreetingSource: "Chưa có nguồn dữ liệu. Hãy mở Trộn thư > Nguồn dữ liệu trước khi chèn lời chào.",
       invalidCsv: "Dữ liệu chưa hợp lệ (thiếu tiêu đề cột)",
       foundData: "Đã tìm thấy: {count} cột | {records} bản ghi",
       saveDataSource: "Lưu nguồn dữ liệu",

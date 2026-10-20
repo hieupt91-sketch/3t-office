@@ -1827,6 +1827,8 @@ export const enStrings = {
       pastePrompt: "Select an spreadsheet (.xlsx, .xls) / CSV file, or paste table data below:",
       pasteSampleBtn: "📋 Paste Sample Data",
       noData: "No data",
+      missingAddressSource: "No recipient data source is loaded. Open Mailings > Data Source before inserting an address block.",
+      missingGreetingSource: "No recipient data source is loaded. Open Mailings > Data Source before inserting a greeting line.",
       invalidCsv: "Invalid data (missing column headers)",
       foundData: "Found: {count} columns | {records} records",
       saveDataSource: "Save Data Source",

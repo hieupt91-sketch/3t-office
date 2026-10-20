@@ -23198,7 +23198,10 @@ export class WriterAdapter {
     this._initZones();
     const fields = this.mailMergeData?.fields || [];
     if (!fields.length) {
-      this.shell?.setStatus?.("Chưa có nguồn dữ liệu. Hãy mở Trộn thư > Nguồn dữ liệu trước khi chèn khối địa chỉ hoặc lời chào.");
+      const message = mode === "greeting"
+        ? t("writerDialogs.mailMerge.missingGreetingSource", "Chưa có nguồn dữ liệu. Hãy mở Trộn thư > Nguồn dữ liệu trước khi chèn lời chào.")
+        : t("writerDialogs.mailMerge.missingAddressSource", "Chưa có nguồn dữ liệu. Hãy mở Trộn thư > Nguồn dữ liệu trước khi chèn khối địa chỉ.");
+      this.shell?.setStatus?.(message);
       return false;
     }
     const savedRange = this._captureW4Selection();
