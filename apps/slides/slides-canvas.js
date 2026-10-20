@@ -7836,9 +7836,13 @@ const startEditing = (initialText) => {
         toIndex < 0 || toIndex >= this.slides.length || fromIndex === toIndex) return false;
 
     const selectedSlide = this.slides[this.currentSlideIndex];
+    const destinationSectionId = targetSectionId === undefined
+      ? (this.slides[toIndex]?.sectionId || null)
+      : (targetSectionId || null);
     const [movedSlide] = this.slides.splice(fromIndex, 1);
     const oldSectionId = movedSlide.sectionId || null;
-    if (targetSectionId !== undefined) movedSlide.sectionId = targetSectionId || undefined;
+    if (destinationSectionId) movedSlide.sectionId = destinationSectionId;
+    else delete movedSlide.sectionId;
     this.slides.splice(toIndex, 0, movedSlide);
     if (recordUndo) {
       this.undoStack.push({ type: "move", fromIndex, toIndex, oldSectionId, newSectionId: movedSlide.sectionId || null });

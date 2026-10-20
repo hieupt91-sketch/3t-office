@@ -216,6 +216,19 @@ export async function runSlidesSectionsTests() {
     }
   });
 
+  await test("Sections: kéo slide sang phần khác cập nhật membership, không sinh section lặp", () => {
+    const canvas = createController();
+    const section = canvas.addSection(4, "Kế hoạch quý tới");
+    if (!section) throw new Error("Không tạo được phần kế hoạch");
+    if (!canvas.moveSlide(4, 2)) throw new Error("Không kéo được slide vào phần mặc định");
+    const ids = canvas.slides.map(slide => slide.sectionId || null);
+    const groups = ids.filter((id, index) => index === 0 || id !== ids[index - 1]);
+    if (groups.length !== 2) throw new Error(`Mong đợi phần mặc định và phần kế hoạch, nhận ${groups.length} nhóm: ${ids}`);
+    if (canvas.slides.filter(slide => slide.sectionId === section).length !== 1) {
+      throw new Error("Slide đã kéo còn nằm trong phần cũ và làm phần bị tách");
+    }
+  });
+
   await test("Sections: đổi tên phần cập nhật catalogue, không đổi slide", () => {
     const canvas = createController();
     const first = canvas.addSection(0, "Giới thiệu");
