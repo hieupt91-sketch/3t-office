@@ -721,3 +721,25 @@ RISKS: Kết quả COM xác nhận cấu trúc PPTX, không thay cho đánh giá
 DEPENDENCIES/BLOCKERS: Không có blocker để hoàn tất audit; các lỗi hành vi Slides cần phiếu follow-up riêng.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Tạo phiếu sửa riêng cho connector round-trip, HeaderFooters, thứ tự animation, section serialization và bổ sung capability logo PNG/chart series; không báo các mục đó PASS.
+
+
+---
+
+# Agent Handoff
+TASK: Q28 — Slides: sửa bốn lỗi lưu/mở lại trong Q27
+AGENT/ROLE: Codex / Slides adapter, PPTX post-processing và CDP/PowerPoint QA
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Khôi phục connector kết nối, đủ thứ tự hoạt ảnh, cờ Footer/Date/Slide Number và section membership sau khi lưu/mở lại PPTX.
+FINDINGS: Trước sửa: Q27 CDP 27 PASS, 2 NOT SUPPORTED, 1 FAIL; COM read-only thấy 0 connector nối, 1 hoạt ảnh, master HeaderFooters false và 4 section. Sau sửa: Q27 CDP 28 PASS, 2 NOT SUPPORTED, 0 FAIL; COM thấy 3 connector nối đúng cặp shape, 2 hoạt ảnh (Index 1 EffectType 10; Index 2 EffectType 2), các cờ HeaderFooters bật và nội dung footer/date/number trên cả 6 slide, 2 section (Default 5 slide; Kế hoạch quý tới 1 slide).
+IMPLEMENTATION SUMMARY: Khôi phục `p:cxnSp` endpoints từ FODP, tái dựng hiệu ứng bị rơi từ FODP, bật p:hf trên master sau restore-master pass, và gán slide kéo-thả vào section đích để section không bị tách. Không thêm command/i18n/Help; không sửa Core.
+FILES CHANGED: adapters/libreoffice/common/ooxml_zip_patch.py; tests/test_slides_native_connectors.py; tests/test_slides_native_animation_timing.py; tests/test_slides_pptx_header_footer.py; apps/slides/slides-canvas.js; tests/unit/slides-sections.test.js; tests/live/cdp/slides-q27-com-readonly.ps1; 09-templates/AGENT-HANDOFF.md.
+COMMITS: d637f1e5 connector; d12ff835 animation; a1ff5a29 header/footer; 026d67b9 section membership; handoff commit follows separately.
+COMMANDS RUN: `git merge main`; unit regression trước/sau cho connector, animation, header/footer, section; Q18 CDP; Q23 CDP; Q27 CDP; PowerPoint COM read-only cho 3 PPTX; `node tests/run-tests.js`; `npm test`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "slides or pptx"`; `git diff --check`.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — node suite 3780/3780; npm test 3780/3780; i18n VI=3122/EN=3122, missing=0; pytest 157 passed, 956 deselected; Q18 17/17, Q23 11/11, Q27 28 PASS / 2 NOT SUPPORTED / 0 FAIL. COM read-only: Q18 8 slide, 2 connector, 3 animation; Q23 4 slide; Q27 6 slide, 3 connected connector, 2 animation, 2 section; Q27 footer/date/slide number visible trên cả 6 slide.
+KNOWN FAILURES: `verify_checklist_evidence.py --all --no-fix` chạy xong nhưng báo 2 dòng POWERPOINT2016-FEATURE-CHECKLIST bị hạ (Bút/Laser và menu chuột phải); không có thay đổi checklist/command trong Q28. Audit ghi 0 dòng hạ là NOT RUN/không đạt.
+RISKS: COM xác nhận cấu trúc/trạng thái API, không thay đánh giá trực quan trong nhiều bộ trình chiếu. EffectType 2 lưu duration 0.001s theo COM dù hiệu ứng thứ hai và thứ tự được giữ; thời lượng không thuộc bốn tiêu chí Q28.
+DEPENDENCIES/BLOCKERS: Không có blocker cho bốn lỗi round-trip. Checklist audit còn 2 dòng hạ ngoài scope.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Điều tra riêng hai checklist capability còn hạ; giữ nguyên bằng chứng và expected output cho tới khi có kiểm tra đúng tính năng.
