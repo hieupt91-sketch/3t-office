@@ -700,3 +700,24 @@ RISKS: Người dùng chưa có PDF từ luồng Writer được kiểm tra; c�
 DEPENDENCIES/BLOCKERS: CDP không điều khiển native file dialog theo quy tắc queue; không có executable chuyển PDF cục bộ trên máy.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Tạo phiếu riêng cho PDF export/native-save flow và sửa harness reopen path normalization; Q26 hiện không cần sửa Writer source.
+
+---
+
+# Agent Handoff
+TASK: Q27 — Writer PDF API và audit Slides báo cáo quý
+AGENT/ROLE: Codex / Writer + Slides QA
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Xác minh ba DOCX Q26 xuất PDF qua API không dùng hộp thoại OS; soạn/sắp xếp/lưu-mở lại PPTX sáu trang và đối chiếu các tính năng Slides bằng CDP cùng PowerPoint COM ẩn, chỉ đọc.
+FINDINGS: Writer: A/B/C đều 2 trang theo Word COM; API in tạo PDF đủ 2 trang, pypdf đọc văn bản; mẫu biểu giữ ngang và trang đầu công văn không có số riêng ở footer. Slides: tạo/mở lại được 6 trang, chart thật (HasTitle, HasLegend, HasDataLabels=true, 1 series), bảng 5×4, groups, trang ẩn, ghi chú, chuyển trang. Chưa hỗ trợ logo PNG trên master và chart nhiều series/đổi màu series. Sau PPTX round-trip connector thành AutoShape rời, COM HeadersFooters master đều false, COM chỉ có 1 animation dù CDP đặt 2; COM thấy hai section “Kế hoạch quý tới”.
+IMPLEMENTATION SUMMARY: Không sửa mã sản phẩm. Thêm CDP Q27 Writer, CDP Slides 30 kiểm tra, PowerPoint COM readback và hai báo cáo khám phá. Không thay đổi tệp DOCX fixture.
+FILES CHANGED: tests/live/cdp/writer-q27-pdf-api.desktop.mjs; tests/live/cdp/slides-q27-quarter-report.desktop.mjs; tests/live/cdp/slides-q27-com-readonly.ps1; docs/EXPLORE-WRITER-2026-10-20-Q27.md; docs/EXPLORE-SLIDES-2026-10-20-Q27.md; 09-templates/AGENT-HANDOFF.md.
+COMMITS: a43f7f28 (Writer PDF API CDP); Slides audit commit follows.
+COMMANDS RUN: `git merge main`; `node --experimental-websocket tests/live/cdp/writer-q27-pdf-api.desktop.mjs`; `node --experimental-websocket tests/live/cdp/slides-q27-quarter-report.desktop.mjs`; `tests/live/cdp/q26-writer-word-readonly.ps1` cho ba DOCX; `tests/live/cdp/slides-q27-com-readonly.ps1`; `node tests/run-tests.js`; `npm test`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "writer or docx or slides or pptx or print"`.
+BUILD RESULT: NOT RUN — phiếu kiểm thử/đối chiếu, không đổi mã sản phẩm hoặc build system.
+TEST RESULTS: PASS — `node tests/run-tests.js` 3778/3778; `npm test` 3778/3778; i18n VI=3122, EN=3122, missing=0; checklist evidence 0 dòng hạ; pytest 512 passed, 598 deselected in 387.42s; Writer CDP 11/11. Slides CDP 27 PASS, 2 NOT SUPPORTED, 1 FAIL / 30.
+KNOWN FAILURES: Slides COM: connector BeginConnected/EndConnected không còn sau round-trip; HeaderFooters master false; animation timeline chỉ một mục; section bị nhân đôi. Logo PNG trên master và chỉnh nhiều series/color chart chưa được hỗ trợ. Không có CDP FAIL-trước/PASS-sau vì không sửa lỗi sản phẩm trong phạm vi audit.
+RISKS: Kết quả COM xác nhận cấu trúc PPTX, không thay cho đánh giá hình thức trên nhiều bộ trình chiếu. Các thất bại Slides cần phiếu sửa riêng có bài CDP FAIL-trước/PASS-sau và đối chiếu COM sau sửa.
+DEPENDENCIES/BLOCKERS: Không có blocker để hoàn tất audit; các lỗi hành vi Slides cần phiếu follow-up riêng.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Tạo phiếu sửa riêng cho connector round-trip, HeaderFooters, thứ tự animation, section serialization và bổ sung capability logo PNG/chart series; không báo các mục đó PASS.
