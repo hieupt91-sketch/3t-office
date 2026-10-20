@@ -513,3 +513,23 @@ RISKS: A visible static TOC can look correct while its updateable field is gone.
 DEPENDENCIES/BLOCKERS: `CODEX-COMMON-RULES.md` absent from worktree. PDF save uses native desktop dialog; queue allows CDP only. Print-preview overlay/page count did not appear within 180s.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Open separate fix/audit tickets for TOC preservation, list serialization, odd/even settings, print preview/PDF and merged-output readback. Q17 audit results are recorded; do not claim those features passed.
+
+---
+
+# Agent Handoff
+TASK: Q18 — Slides: soạn thử lần 3 đến cùng
+AGENT/ROLE: Codex / VN Slides authoring verification
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Dựng bài 8 trang, kiểm tra master/layout, nhóm/căn chỉnh, connector, hoạt ảnh/chuyển trang, notes, slideshow, media controls, in, ẩn trang và 4:3/16:9 qua desktop CDP, PPTX round-trip và PowerPoint COM.
+FINDINGS: CDP 17/17 PASS; 8 trang và master/header-footer round-trip. Group/ungroup, align/distribute, z-order, diagram connector, notes, hidden slide, 4:3/16:9 và slideshow keyboard hoạt động. COM xác nhận Wipe tự chuyển sau 5 giây. COM chỉ đọc 2 hoạt ảnh trên trang 5; Pulse có ở model trước lưu nhưng mất sau mở lại. Nhãn ba layout đổi thành blank/blank/title-content khi mở lại; COM báo Standard cho mọi slide. Print preview in một slide/trang; không có chế độ 3 slide/trang hoặc handout. Nút chèn Video/Âm thanh hiện diện, chưa chèn media fixture.
+IMPLEMENTATION SUMMARY: Không sửa mã sản phẩm. Thêm bài CDP Q18 và PowerPoint COM readback an toàn theo loại gọi; bổ sung nhật ký 34 thao tác và phạm vi còn mở vào docs/EXPLORE-SLIDES-2026-10-20.md. Round-trip được lưu/mở qua các phiên desktop mới; COM mở presentation không hiện cửa sổ (`WithWindow=0`).
+FILES CHANGED: tests/live/cdp/slides-q18-verification.desktop.mjs; tests/live/cdp/slides-q18-com-readback.ps1; docs/EXPLORE-SLIDES-2026-10-20.md; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: `node --experimental-websocket tests/live/cdp/slides-q18-verification.desktop.mjs`; `powershell -NoProfile -ExecutionPolicy Bypass -File tests/live/cdp/slides-q18-com-readback.ps1 -Path <PPTX>`; `powershell ... scripts/audit-0610/ppt_animation_all_readback.ps1 -Path <PPTX>`; `node tests/run-tests.js`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "slides or pptx"`.
+BUILD RESULT: NOT RUN — Q18 không đổi build system/package.
+TEST RESULTS: PASS — Q18 CDP 17/17; PowerPoint COM 8 slides and transition at 5 sec; `node tests/run-tests.js` 3771/3771; i18n VI=3110/EN=3110/missing=0; checklist evidence 0 downgraded; pytest 152 passed, 949 deselected.
+KNOWN FAILURES: Pulse emphasis missing after PPTX reopen (COM has two effects); layout type labels not preserved as assigned; print 3 slides/page and handout NOT RUN because current UI exposes one slide/page only. `ppt_animation_all_readback.ps1` FAILs at `ActionSettings(1)` on an unsupported shape; the Q18 readback script succeeds. No product bug was fixed, therefore no FAIL-before/PASS-after product repair is claimed.
+RISKS: Q18 validates authoring model and selected presentation behavior but does not establish fidelity for three-effect animation sequence, three custom layout persistence, multi-slide handouts, or embedded media round-trip.
+DEPENDENCIES/BLOCKERS: None for completing this verification ticket. Follow-up implementation/audit is needed for the listed gaps.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Raise scoped follow-up for animation emphasis PPTX persistence, verify layout cards through UI and custom-layout round-trip, and add print handout options with Vietnamese Help/i18n and tests. Do not claim these gaps passed.

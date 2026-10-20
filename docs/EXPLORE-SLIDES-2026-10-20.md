@@ -56,3 +56,68 @@ Hai FAIL Q12 đã được xác minh là lỗi nhập liệu trong thao tác th�
 - `python -m pytest tests -q -k "slides or pptx"` — PASS, 152 passed, 947 deselected.
 - PowerPoint COM ẩn, chỉ đọc: PASS — 5 trang; bảng 4×3; biểu đồ “Tiến độ triển khai”; có ảnh; ghi chú trang 4; EntryEffect=2817; một hiệu ứng hoạt hình trang 5.
 - Không sửa source sản phẩm: hai FAIL Q12 do thao tác nhập; đã xác minh lại CDP 2/2 PASS nên không cần bài sửa lỗi FAIL-trước/PASS-sau.
+
+## Q18 — Soạn thử 8 trang và kiểm tra tính năng còn mở (20/10/2026)
+
+### Cách chạy và đầu ra
+
+- CDP desktop được mở bằng `tests/live/cdp/session.mjs` (tiến trình ứng dụng gọi `main.py`), với `LOCALAPPDATA` riêng cho từng phiên. Bài chạy: `tests/live/cdp/slides-q18-verification.desktop.mjs`; không dùng SendKeys hay điều khiển OS.
+- Tệp cuối: `E:\VNOffice-profiles\q18-slides-20261020-r5\q18-eight-slides.pptx`. Tạo 8 trang, lưu và mở lại trong các phiên mới giữa từng cụm. COM PowerPoint mở tệp ẩn, chỉ đọc bằng `tests/live/cdp/slides-q18-com-readback.ps1`.
+- CDP Q18: 17/17 PASS. COM đọc được 8 trang; trang 5 có chuyển trang tự động sau 5 giây. COM chỉ thấy hai hiệu ứng trên trang 5; hiệu ứng nhấn mạnh (pulse) có trong mô hình trước khi lưu nhưng không xuất hiện khi đọc lại PPTX. Đây là lỗi round-trip còn mở.
+- `ppt_animation_all_readback.ps1` cũng được thử, nhưng thất bại khi gọi `ActionSettings(1)` trên một shape không hỗ trợ thao tác đó. Đối chiếu chỉ đọc an toàn bằng script Q18 ở trên đã hoàn tất.
+
+### Nhật ký thao tác CDP (tối thiểu 25 bước)
+
+| # | Thao tác | Kết quả |
+|---|---|---|
+| 1 | Mở VN Slides qua `main.py`, profile riêng | PASS |
+| 2 | Soạn trang bìa “VN Office: Kế hoạch năm” | PASS |
+| 3 | Thêm bảy trang, tổng cộng tám trang | PASS |
+| 4 | Nhập tiêu đề và nội dung từng trang | PASS |
+| 5 | Áp dụng master màu xanh, font Arial | PASS ở mô hình và sau mở lại |
+| 6 | Đặt màu nền, tiêu đề, nội dung và màu nhấn master | PASS ở mô hình |
+| 7 | Bật ngày tháng, số trang và chân trang trên master | PASS ở mô hình và sau mở lại |
+| 8 | Chọn bố cục tiêu đề/nội dung | PASS khi đặt; nhãn không khớp sau mở lại |
+| 9 | Chọn bố cục hai cột, điền hai placeholder | PASS khi đặt; nhãn không khớp sau mở lại |
+| 10 | Chọn bố cục trống | PASS khi đặt; PowerPoint COM báo tên mẫu `Standard` cho mọi trang |
+| 11 | Lưu cụm master/bố cục thành PPTX | PASS |
+| 12 | Mở PPTX trong phiên desktop mới, xác nhận tám trang và master/header-footer | PASS |
+| 13 | Chèn quy trình ba nút có hai connector | PASS |
+| 14 | Chèn ba hình bổ sung | PASS |
+| 15 | Nhóm các hình đã chọn | PASS |
+| 16 | Tách nhóm | PASS |
+| 17 | Căn giữa ngang | PASS |
+| 18 | Phân bố đều theo chiều ngang | PASS |
+| 19 | Đưa xuống dưới cùng rồi đưa lên trên cùng | PASS |
+| 20 | Ghi chú thuyết trình cho trang quy trình | PASS và còn sau mở lại |
+| 21 | Ẩn trang 7 | PASS và còn sau mở lại |
+| 22 | Đổi khổ 16:9 sang 4:3 | PASS |
+| 23 | Đổi khổ 4:3 về 16:9 | PASS và còn sau mở lại |
+| 24 | Đặt hiệu ứng vào Fly In, thời lượng 0,7 giây, kích hoạt theo nhấp | PASS trong mô hình; COM thấy hiệu ứng |
+| 25 | Đặt nhấn mạnh Pulse sau hiệu ứng trước, 0,5 giây | PASS trong mô hình; FAIL khi đọc PPTX, hiệu ứng mất |
+| 26 | Đặt hiệu ứng thoát Fade Out, 0,6 giây, trễ 0,1 giây | PASS trong mô hình và COM đọc thấy |
+| 27 | Đặt thứ tự ba hoạt ảnh 1–3 | PASS trong mô hình; COM chỉ đọc hai hiệu ứng |
+| 28 | Đặt chuyển trang Wipe và tự chuyển sau 5 giây | PASS; COM xác nhận `AdvanceTime=5` |
+| 29 | Lưu và mở lại cụm hình/khổ trang trong phiên mới | PASS |
+| 30 | Lưu và mở lại cụm hoạt ảnh/chuyển trang trong phiên mới | PASS tệp mở; hiệu ứng Pulse thiếu |
+| 31 | Kiểm tra nút chèn video và âm thanh trên tab Chèn | PASS — có cả hai nút; chưa thử chèn tệp media |
+| 32 | Mở rồi đóng chế độ trang ghi chú | PASS |
+| 33 | F5 để bắt đầu, mũi tên phải sang trang tiếp, Esc để thoát | PASS |
+| 34 | Mở xem trước khi in và đếm trang | PASS — trang ẩn được loại nên còn 7 trang |
+
+### கண்டறிந்த வரம்புகள்
+
+- **FAIL — hoạt ảnh nhấn mạnh mất sau round-trip PPTX.** CDP model chứa 3 hiệu ứng theo thứ tự với `flyIn` (700 ms), `pulse` (500 ms), `fadeOut` (600 ms, trễ 100 ms). Sau lưu/mở, COM chỉ thấy hai hiệu ứng; Pulse không còn. Chưa sửa mã sản phẩm trong Q18.
+- **NOT RUN — in 3 slide/trang và handout.** UI xem trước hiện có một slide trên mỗi trang; `computePrintPages()` trả 7 trang khi một slide bị ẩn. Không thấy tùy chọn 3 slide/trang hoặc handout ở màn hình in hiện hữu.
+- **PARTIAL — ba bố cục tùy chỉnh.** Đổi bố cục trong mô hình thành `title-content`, `two-content`, `blank` được chấp nhận, nhưng sau round-trip các nhãn đọc lại là `blank`, `blank`, `title-content`; PowerPoint COM gán `Standard` cho cả tám trang. Chưa xác minh qua thao tác chọn từng layout card trên ribbon.
+- Nút Video và Âm thanh có mặt trên tab Chèn; chưa có media fixture trong bài nên không chèn nội dung media.
+
+### Phạm vi mã và kiểm tra
+
+- Thêm hai bài kiểm tra Q18 trong `tests/live/cdp/`; không sửa source sản phẩm, Help hay i18n.
+- Q18 CDP — PASS, 17/17. PowerPoint COM readback — PASS, 8 trang, 2 hiệu ứng, chuyển trang 5 giây. `ppt_animation_all_readback.ps1` — FAIL do `ActionSettings(1)` không hợp lệ trên một shape.
+- `node tests/run-tests.js` — PASS, 3771/3771.
+- `node scripts/audit-0610/i18n_parity.mjs` — PASS, VI=3110, EN=3110, missing=0.
+- `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix` — PASS, 0 dòng bị hạ.
+- `python -m pytest tests -q -k "slides or pptx"` — PASS, 152 passed, 949 deselected.
+- Cổng repo (npm test, i18n parity, checklist evidence, pytest) được chạy/ghi bên dưới sau khi hoàn tất.
