@@ -743,3 +743,22 @@ RISKS: COM xác nhận cấu trúc/trạng thái API, không thay đánh giá tr
 DEPENDENCIES/BLOCKERS: Không có blocker cho bốn lỗi round-trip. Checklist audit còn 2 dòng hạ ngoài scope.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Điều tra riêng hai checklist capability còn hạ; giữ nguyên bằng chứng và expected output cho tới khi có kiểm tra đúng tính năng.
+
+
+# Agent Handoff
+TASK: Q29 — Sheet payroll/ledger round-trip audit
+AGENT/ROLE: Codex / VN Sheet
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Run the Q29 two-workbook audit and fix the sparkline dirty-save regression with Vietnamese Help and VI/EN strings.
+FINDINGS: Pre-fix sparkline insertion left `SheetAdapter.isDirty` false; save kept source XLSX and discarded the new sparkline. Fixed all three ribbon sparkline handlers and both adapter dispatch paths. CDP now retains it on XLSX reopen. XML audit also found combo chart downgraded to bars on one axis and pie percentage labels removed; recorded as follow-up FAIL, not changed in scope. Locale observations on en-GB: `1.250` -> 1.25, `1.250,75` -> text.
+IMPLEMENTATION SUMMARY: Added shared adapter insertion helper that marks successful sparkline insertions dirty; added focused unit regression, Q29 live CDP round-trip harness, 42-operation Vietnamese audit log, and sparkline save guidance in Help/VI/EN.
+FILES CHANGED: `adapters/libreoffice/sheet/sheet-adapter.js`; `tests/unit/sheet-realexport-fods.test.js`; `tests/live/cdp/q29-sheet-roundtrip.desktop.mjs`; `platform/help/entries-sheet.js`; `platform/i18n/strings-vi.js`; `platform/i18n/strings-en.js`; `docs/EXPLORE-SHEET-2026-10-20-Q29.md`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `npm test`; `node tests/run-tests.js`; focused Sheet FODS unit; Q29 CDP round-trip; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; all three `gen_*_checklist.py`; `python -m pytest tests -q -k "sheet or xlsx or ooxml or formula"`; structural OOXML inspection.
+BUILD RESULT: NOT RUN — build system unchanged.
+TEST RESULTS: PASS — npm and direct Node suite 3,781/3,781 each; focused unit 4/4; Q29 CDP 29/29; pytest 367 passed / 746 deselected; i18n parity 0 missing of 3,122 VI and 3,122 EN; checklist evidence 0 downgraded across 279/217/269 rows.
+KNOWN FAILURES: Advanced chart fidelity remains FAIL: saved ledger chart XML has no line chart/secondary axis, and pie `showPercent=0`. Excel COM BLOCKED by queue rule. 27-file LAN audit BLOCKED: in-tree script absent; archived audit script invokes Excel COM and was not run.
+RISKS: Chart limitations need a separate scoped ticket with CDP FAIL-before/PASS-after and required Help/i18n updates. No Excel COM claim made. Fixture data is synthetic and anonymized, not actual payroll/accounting records.
+DEPENDENCIES/BLOCKERS: None for sparkline fix. Excel COM and LAN batch audit are blocked as described above.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Address combo-chart secondary-axis retention and pie percentage labels in a separate Sheet chart round-trip ticket; run the 27-file LAN batch where Excel COM is not invoked or is explicitly approved.

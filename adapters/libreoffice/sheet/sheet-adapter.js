@@ -308,6 +308,12 @@ export class SheetAdapter {
     }, true);
   }
 
+  _insertSparkline(type, range) {
+    const inserted = this.grid?.insertSparkline?.(type, range);
+    if (inserted) this.isDirty = true;
+    return inserted;
+  }
+
   attach() {
     if (this.grid) this.grid.adapter = this;
     globalUnoBridge.attachDocument(this);
@@ -738,17 +744,17 @@ export class SheetAdapter {
     globalCommandBus.bindHandler("sheet.insert.sparklineLine", (args) => {
       let range = args?.range;
       if (!range && typeof args === "string") range = this.grid._parseRange?.(args);
-      return Boolean(this.grid.insertSparkline("line", range));
+      return Boolean(this._insertSparkline("line", range));
     });
     globalCommandBus.bindHandler("sheet.insert.sparklineWinLoss", (args) => {
       let range = args?.range;
       if (!range && typeof args === "string") range = this.grid._parseRange?.(args);
-      return Boolean(this.grid.insertSparkline("winloss", range));
+      return Boolean(this._insertSparkline("winloss", range));
     });
     globalCommandBus.bindHandler("sheet.insert.sparklineColumn", (args) => {
       let range = args?.range;
       if (!range && typeof args === "string") range = this.grid._parseRange?.(args);
-      return Boolean(this.grid.insertSparkline("column", range));
+      return Boolean(this._insertSparkline("column", range));
     });
     globalCommandBus.bindHandler("sheet.insert.hyperlink", async (args) => {
       let url = args?.url;
@@ -7399,10 +7405,10 @@ ${pristineXlsxMarker}${docPropsMarker}
         return this.grid.openPivotChartBuilder();
 
       case "sheet.insert.sparklineLine":
-        return this.grid.insertSparkline("line");
+        return this._insertSparkline("line");
 
       case "sheet.insert.sparklineColumn":
-        return this.grid.insertSparkline("column");
+        return this._insertSparkline("column");
 
       case "common.edit.hyperlink":
       case "sheet.insert.hyperlink": {

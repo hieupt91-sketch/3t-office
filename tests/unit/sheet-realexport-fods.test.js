@@ -4,6 +4,7 @@
  * outline. Soffice round-trips live in tests/live/sheet-fods-*-real-conversion.mjs.
  */
 import { SheetAdapter } from "../../adapters/libreoffice/sheet/sheet-adapter.js";
+import { globalCommandBus } from "../../platform/commands/command-bus.js";
 
 function assert(condition, message) {
   if (!condition) throw new Error(message);
@@ -106,6 +107,20 @@ export async function runSheetRealexportFodsTests() {
     const parsed = new SheetAdapter(null).parseFods(xml);
     assert(parsed.chartsBySheet[sheet].some(item => item.type === "pie"), "parse pie");
     assert(parsed.chartsBySheet[sheet].some(item => item.kind === "pivot" && item.pivotId === "pivot-import-1"), "parse pivot kind");
+  });
+
+  test("chèn sparkline qua lệnh đánh dấu bảng tính cần lưu", () => {
+    const previousHandler = globalCommandBus._handlers.get("sheet.insert.sparklineLine");
+    const adapter = new SheetAdapter({ insertSparkline: () => true });
+    try {
+      adapter.attach();
+      const handler = globalCommandBus._handlers.get("sheet.insert.sparklineLine");
+      assert(handler({ range: "A1:B1" }) === true, "lệnh chèn sparkline phải thành công");
+      assert(adapter.isDirty === true, "chèn sparkline phải đánh dấu tài liệu cần lưu");
+    } finally {
+      if (previousHandler) globalCommandBus.bindHandler("sheet.insert.sparklineLine", previousHandler);
+      else globalCommandBus._handlers.delete("sheet.insert.sparklineLine");
+    }
   });
 
   return results;

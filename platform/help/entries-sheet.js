@@ -1221,7 +1221,8 @@ export const SHEET_HELP_ENTRIES = [
       "Đường vẽ sparkline type line; Cột type column. Chỉ lấy ô có số hữu hạn (bỏ ₫, %, khoảng trắng). Không có số → không chèn.",
       "Thắng-thua: nút thứ ba trong nhóm. Mỗi giá trị dương là một cột hướng lên (xanh), giá trị âm là cột hướng xuống (đỏ), giá trị 0 để trống; chiều cao các cột bằng nhau, chỉ dấu của số mới quyết định, hợp để xem lãi/lỗ hay đạt/không đạt qua từng kỳ.",
       "Sparkline gắn vào ô neo, không phải đối tượng nổi. Khác Biểu đồ lớn ở nhóm Biểu đồ cùng tab Chèn.",
-      "Ctrl+Z gỡ sparkline vừa chèn. Xóa nội dung ô cũng mất sparkline nếu dùng Xóa tất cả."
+      "Ctrl+Z gỡ sparkline vừa chèn. Xóa nội dung ô cũng mất sparkline nếu dùng Xóa tất cả.",
+      "Lưu bảng tính sau khi chèn để giữ sparkline khi đóng rồi mở lại tệp."
     ]
   },
   {
