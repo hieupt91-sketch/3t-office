@@ -8,6 +8,10 @@ export const enStrings = {
     title: "Print document", untitled: "Untitled document", sheetScopeLegend: "Workbook scope",
     sheetActive: "Print active sheet", sheetWorkbook: "Print entire workbook", sheetSelection: "Print selection",
     sheetSelectionHelp: "Select the cells to print before opening this dialog.", pageRangeLegend: "Page range",
+    writerScopeLegend: "Print scope", writerScopeAll: "Entire document", writerScopeCurrent: "Current page",
+    writerScopeSelection: "Selection (highlighted text)", writerScopeSelectionHelp: "Select the text to print before opening this dialog.",
+    slidesScopeLegend: "Slide scope", slidesScopeAll: "Print all slides", slidesScopeCurrent: "Current slide",
+    slidesScopeSelection: "Selected slides", slidesScopeHidden: "Hidden slides", slidesScopeSelectionHelp: "Printing only selected or hidden slides is not available in this dialog.",
     allPages: "All ({count} pages)", currentPage: "Current page ({page})", customPages: "Pages",
     rangePlaceholder: "Example: 1-3,5", rangeLabel: "Enter pages to print", rangeHelp: "Use commas to select multiple ranges, for example 1-3,5."
   },

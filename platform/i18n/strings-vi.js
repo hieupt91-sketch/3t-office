@@ -7,6 +7,10 @@ export const viStrings = {
     title: "In tài liệu", untitled: "Tài liệu chưa đặt tên", sheetScopeLegend: "Phạm vi sổ làm việc",
     sheetActive: "In trang tính hiện hoạt", sheetWorkbook: "In toàn bộ sổ làm việc", sheetSelection: "In vùng chọn",
     sheetSelectionHelp: "Hãy bôi đen vùng ô cần in trước khi mở hộp thoại.", pageRangeLegend: "Phạm vi trang",
+    writerScopeLegend: "Phạm vi in", writerScopeAll: "Tất cả tài liệu", writerScopeCurrent: "Trang hiện tại",
+    writerScopeSelection: "Vùng chọn (văn bản đang bôi đen)", writerScopeSelectionHelp: "Hãy bôi đen văn bản cần in trước khi mở hộp thoại.",
+    slidesScopeLegend: "Phạm vi slide", slidesScopeAll: "In tất cả slide", slidesScopeCurrent: "Slide hiện tại",
+    slidesScopeSelection: "Slide đã chọn", slidesScopeHidden: "Slide ẩn", slidesScopeSelectionHelp: "Chưa thể in riêng slide đã chọn hoặc slide ẩn trong hộp thoại này.",
     allPages: "Tất cả ({count} trang)", currentPage: "Trang hiện tại ({page})", customPages: "Trang từ–đến",
     rangePlaceholder: "Ví dụ: 1-3,5", rangeLabel: "Nhập trang cần in", rangeHelp: "Dùng dấu phẩy để chọn nhiều khoảng, ví dụ 1-3,5."
   },

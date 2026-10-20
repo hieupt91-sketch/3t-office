@@ -1,15 +1,29 @@
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import { mkdir, writeFile } from "node:fs/promises";
 import { click, press, typeText, insertText } from "./actions.mjs";
 import { sleep } from "./client.mjs";
-import { launchApp } from "./session.mjs";
+import { launchApp, repoRoot } from "./session.mjs";
 
 const rows = [];
 const appKinds = ["writer", "sheet", "slides"];
 const appLabels = { writer: "3T Doc", sheet: "3T Sheet", slides: "3T Slide" };
+const evidenceRoot = path.join(repoRoot, "docs", "assets", "q34-ui");
 
 function report(status, label, detail = "") {
   rows.push({ status, label, detail: String(detail || "").replace(/\s+/g, " ").trim() });
+}
+
+async function captureFindReplace(cdp, app) {
+  await mkdir(evidenceRoot, { recursive: true });
+  const capture = async (theme) => {
+    const shot = await cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false });
+    await writeFile(path.join(evidenceRoot, `find-replace-${app}-1366x768-${theme}.png`), Buffer.from((shot.result || shot).data, "base64"));
+  };
+  await capture("light");
+  await cdp.evaluate("document.documentElement.setAttribute('data-theme','dark')");
+  await capture("dark");
+  await cdp.evaluate("document.documentElement.removeAttribute('data-theme')");
 }
 
 async function testWriter(session) {
@@ -33,6 +47,7 @@ async function testWriter(session) {
   // 3. Press Ctrl+F using trusted CDP key event
   await press(cdp, "f", { ctrl: true });
   await cdp.waitFor("!!document.querySelector('.vno-fr-dialog-overlay')", { timeoutMilliseconds: 10000 });
+  await captureFindReplace(cdp, "writer");
 
   const isFindTabActive = await cdp.evaluate("!!document.querySelector('#vno-fr-tab-find.active')");
   if (!isFindTabActive) throw new Error("Find tab is not active on Ctrl+F");
@@ -114,6 +129,7 @@ async function testSheet(session) {
   await sleep(200);
   await press(cdp, "f", { ctrl: true });
   await cdp.waitFor("!!document.querySelector('.vno-fr-dialog-overlay')", { timeoutMilliseconds: 10000 });
+  await captureFindReplace(cdp, "sheet");
 
   const isFindTabActive = await cdp.evaluate("!!document.querySelector('#vno-fr-tab-find.active')");
   if (!isFindTabActive) throw new Error("Find tab is not active on Ctrl+F in Sheet");
@@ -191,6 +207,7 @@ async function testSlides(session) {
   // 3. Press Ctrl+F using trusted CDP key event
   await press(cdp, "f", { ctrl: true });
   await cdp.waitFor("!!document.querySelector('.vno-fr-dialog-overlay')", { timeoutMilliseconds: 10000 });
+  await captureFindReplace(cdp, "slides");
 
   const isFindTabActive = await cdp.evaluate("!!document.querySelector('#vno-fr-tab-find.active')");
   if (!isFindTabActive) throw new Error("Find tab is not active on Ctrl+F in Slide");
@@ -247,6 +264,7 @@ async function runTest(app) {
   console.log(`\n▶ Starting desktop CDP proof for ${prefix}...`);
   const session = await launchApp(app);
   try {
+    await session.cdp.send("Emulation.setDeviceMetricsOverride", { width: 1366, height: 768, deviceScaleFactor: 1, mobile: false });
     let result;
     if (app === "writer") result = await testWriter(session);
     else if (app === "sheet") result = await testSheet(session);

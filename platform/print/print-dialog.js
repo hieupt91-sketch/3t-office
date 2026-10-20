@@ -131,13 +131,32 @@ export async function openPrintDialog({
             <p class="vno-print-engine-used" role="status" aria-live="polite">Bộ dựng trang in: đang kiểm tra…</p>
           </div>
 
-          <fieldset class="vno-print-sheet-scope"${appKind === "sheet" ? "" : " hidden"}>
+          <fieldset class="vno-print-sheet-scope" data-print-scope${appKind === "sheet" ? "" : " hidden"}>
             <legend>${t("printDialog.sheetScopeLegend", "Phạm vi sổ làm việc")}</legend>
             <label><input type="radio" name="sheetScope" value="active" checked> <span>${t("printDialog.sheetActive", "In trang tính hiện hoạt")}</span></label>
             <label><input type="radio" name="sheetScope" value="workbook"> <span>${t("printDialog.sheetWorkbook", "In toàn bộ sổ làm việc")}</span></label>
             <label><input type="radio" name="sheetScope" value="selection"${printableSelectionRanges.length ? "" : " disabled"}> <span>${t("printDialog.sheetSelection", "In vùng chọn")}</span></label>
             <span class="vno-print-muted vno-print-selection-help"${printableSelectionRanges.length ? " hidden" : ""}>${t("printDialog.sheetSelectionHelp", "Hãy bôi đen vùng ô cần in trước khi mở hộp thoại.")}</span>
           </fieldset>
+
+          ${appKind === "writer" ? `
+          <fieldset class="vno-print-sheet-scope" data-print-scope>
+            <legend>${t("printDialog.writerScopeLegend", "Phạm vi in")}</legend>
+            <label><input type="radio" name="documentScope" value="all" checked> <span>${t("printDialog.writerScopeAll", "Tất cả tài liệu")}</span></label>
+            <label><input type="radio" name="documentScope" value="current"> <span>${t("printDialog.writerScopeCurrent", "Trang hiện tại")}</span></label>
+            <label><input type="radio" name="documentScope" value="selection" disabled> <span>${t("printDialog.writerScopeSelection", "Vùng chọn (văn bản đang bôi đen)")}</span></label>
+            <span class="vno-print-muted vno-print-selection-help">${t("printDialog.writerScopeSelectionHelp", "Hãy bôi đen văn bản cần in trước khi mở hộp thoại.")}</span>
+          </fieldset>` : ""}
+
+          ${appKind === "slides" ? `
+          <fieldset class="vno-print-sheet-scope" data-print-scope>
+            <legend>${t("printDialog.slidesScopeLegend", "Phạm vi slide")}</legend>
+            <label><input type="radio" name="documentScope" value="all" checked> <span>${t("printDialog.slidesScopeAll", "In tất cả slide")}</span></label>
+            <label><input type="radio" name="documentScope" value="current"> <span>${t("printDialog.slidesScopeCurrent", "Slide hiện tại")}</span></label>
+            <label><input type="radio" name="documentScope" value="selection" disabled> <span>${t("printDialog.slidesScopeSelection", "Slide đã chọn")}</span></label>
+            <label><input type="radio" name="documentScope" value="hidden" disabled> <span>${t("printDialog.slidesScopeHidden", "Slide ẩn")}</span></label>
+            <span class="vno-print-muted vno-print-selection-help">${t("printDialog.slidesScopeSelectionHelp", "Chưa thể in riêng slide đã chọn hoặc slide ẩn trong hộp thoại này.")}</span>
+          </fieldset>` : ""}
 
           ${appKind === "slides" ? `
           <fieldset class="vno-print-slides-layout">
@@ -200,6 +219,8 @@ export async function openPrintDialog({
   const slidesPerPageLabel = overlay.querySelector(".vno-print-slides-per-page-label");
   const officeOptionLabel = officeOption.parentElement.querySelector("span");
   const engineUsedLabel = overlay.querySelector(".vno-print-engine-used");
+  const documentScopeInputs = [...overlay.querySelectorAll("input[name='documentScope']")];
+  const rangeModeInputs = [...overlay.querySelectorAll("input[name='rangeMode']")];
 
   const close = async () => {
     if (state.closed) return;
@@ -353,10 +374,20 @@ export async function openPrintDialog({
   prevButton.addEventListener("click", () => showPreviewPage(state.currentPreviewPage - 1));
   nextButton.addEventListener("click", () => showPreviewPage(state.currentPreviewPage + 1));
   previewPage.addEventListener("change", () => showPreviewPage(previewPage.value));
-  overlay.querySelectorAll("input[name='rangeMode']").forEach((radio) => radio.addEventListener("change", () => {
+  rangeModeInputs.forEach((radio) => radio.addEventListener("change", () => {
     state.rangeMode = radio.value;
     rangeInput.disabled = state.rangeMode !== "custom";
+    if (state.rangeMode === "all" || state.rangeMode === "current") {
+      documentScopeInputs.forEach((input) => { input.checked = input.value === state.rangeMode; });
+    }
     if (state.rangeMode === "custom") rangeInput.focus();
+    validateOptions();
+  }));
+  documentScopeInputs.forEach((radio) => radio.addEventListener("change", () => {
+    if (!radio.checked || !["all", "current"].includes(radio.value)) return;
+    state.rangeMode = radio.value;
+    rangeModeInputs.forEach((input) => { input.checked = input.value === state.rangeMode; });
+    rangeInput.disabled = true;
     validateOptions();
   }));
   sheetScopeInputs.forEach((radio) => radio.addEventListener("change", async () => {
