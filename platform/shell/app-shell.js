@@ -461,7 +461,7 @@ export class AppShell {
       <div class="vno-ai-messages" id="vno-ai-messages" role="log" aria-live="polite">
         <div style="background:var(--vno-bg-subtle);border:1px solid var(--vno-border-default);padding:14px;border-radius:var(--vno-radius-md);font-size:12px;line-height:1.5;">
           <strong>Xin chào!</strong> Tôi là Trợ lý 3T AI tích hợp trong 3T Office.<br>
-          • Bảo mật trên thiết bị (Privacy-first)<br>
+          • Bảo mật trên thiết bị, ưu tiên quyền riêng tư<br>
           • Trau chuốt văn phong tiếng Việt<br>
           • Tóm tắt & soát lỗi văn bản hành chính
         </div>
