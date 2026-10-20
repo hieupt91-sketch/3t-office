@@ -1,0 +1,4 @@
+# The bundled pilot's Python/OpenSSL ABI rejects 50.0.2's macOS wheel.
+# cryptography is already required by ../../requirements.txt; 44.0.2 was
+# verified with this pilot interpreter and the OOXML Agile AES-256 validator.
+cryptography==44.0.2

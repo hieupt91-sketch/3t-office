@@ -13,6 +13,8 @@ different UI engine, change Qt licensing, or add a product dependency.
 
 - The Xcode target has only a Swift compile phase. `AppDelegate` looks for
   `Runtime/bin/python3` beside the app and `Application Support/VNOffice/current/app/main.py`.
+- The project has no shared scheme, so the checked-in Product Run configuration
+  is not guaranteed to use Debug in another Xcode checkout.
 - The existing Xcode development build script creates shell-only app bundles; it
   does not stage runtime or app payload for Product Run.
 - The provided x86_64 pilot has Python 3.12, pip, pywebview and PySide6, but lacks
@@ -28,11 +30,13 @@ different UI engine, change Qt licensing, or add a product dependency.
 
 ## Files and modules
 
-- `ports/macos/VNOfficeLauncher.xcodeproj/project.pbxproj`: Debug output under
-  repo-relative `ports/macos/build/`; add a Debug-only staging build phase.
+- `ports/macos/VNOfficeLauncher.xcodeproj/project.pbxproj` and
+  `xcshareddata/xcschemes/VNOfficeLauncher.xcscheme`: define a shared Debug Run
+  scheme and output under repo-relative `ports/macos/build/`; add a Debug-only
+  staging build phase.
 - `ports/macos/launcher/AppDelegate.swift`: in Debug, resolve the staged
-  `Versions/development/app` and runtime overlay beside the app; preserve
-  Application Support resolution in Release.
+  `Versions/development/app`, runtime overlay and LibreOffice path beside the
+  app; preserve Application Support resolution in Release.
 - `ports/macos/requirements-xcode-run-constraints.txt`: constrain the existing
   cryptography requirement to the tested version for this bundled runtime.
 - `ports/macos/scripts/prepare-xcode-run-payload.sh`: link the selected pilot's
@@ -58,7 +62,9 @@ notarization, or production install/update behavior changes.
 ## Risks
 
 - Product Run requires a pilot compatible with the selected Xcode architecture;
-  absence or mismatch must fail the build with an actionable message.
+  an x86_64 pilot can serve an arm64 Debug launcher only through Rosetta, and
+  the staged runtime architecture marker selects the matching Python overlay.
+  Absence of either native or Rosetta execution must fail with an actionable message.
 - The checkout and pilot links are intentionally development-only and stop
   working if either source directory moves. Release packaging must continue to
   materialize its own offline runtime and version payload.
@@ -78,9 +84,10 @@ notarization, or production install/update behavior changes.
 3. Run the encryption validator using that exact `Runtime/bin/python3` and
    overlay; verify launcher dry-run resolves the same paths.
 4. Run `plutil -lint` on project/Info plist inputs and `git diff --check`.
-5. Release configuration remains unchanged; compare its Swift selection with
-   existing launcher behavior. Full native editor/CDP launch is attempted only
-   if the pilot can run on the host architecture.
+5. Repeat the Debug build with an arm64 launcher and x86_64 pilot, validating
+   the Rosetta runtime marker and launcher path. Release configuration remains
+   unchanged; compare its Swift selection with existing launcher behavior.
+   Full native editor/CDP launch is attempted only if safely isolated from user data.
 
 ## Rollback
 

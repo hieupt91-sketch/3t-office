@@ -33,14 +33,21 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
             ? Array(ProcessInfo.processInfo.arguments.dropFirst()).filter { !$0.hasPrefix("-psn_") }
             : pendingFiles
 
+        let distributionRoot = Bundle.main.bundleURL.deletingLastPathComponent()
         let applicationSupport = FileManager.default.urls(
             for: .applicationSupportDirectory, in: .userDomainMask
         ).first!.appendingPathComponent("VNOffice", isDirectory: true)
-        let versionRoot = environment["VNO_APP_VERSION_ROOT"].map(URL.init(fileURLWithPath:))
-            ?? applicationSupport.appendingPathComponent("current", isDirectory: true)
+        let versionRoot: URL
+        if let configuredRoot = environment["VNO_APP_VERSION_ROOT"] {
+            versionRoot = URL(fileURLWithPath: configuredRoot)
+        } else {
+            #if DEBUG
+            versionRoot = distributionRoot.appendingPathComponent("Versions/development", isDirectory: true)
+            #else
+            versionRoot = applicationSupport.appendingPathComponent("current", isDirectory: true)
+            #endif
+        }
         let mainScript = versionRoot.appendingPathComponent("app/main.py")
-
-        let distributionRoot = Bundle.main.bundleURL.deletingLastPathComponent()
         let runtimePython = environment["VNO_RUNTIME_PYTHON"].map(URL.init(fileURLWithPath:))
             ?? distributionRoot.appendingPathComponent("Runtime/bin/python3")
         let arguments = [mainScript.path, "--app=\(appKind)"] + fileArguments
@@ -64,7 +71,25 @@ final class AppDelegate: NSObject, NSApplicationDelegate {
         process.executableURL = runtimePython
         process.arguments = arguments
         process.currentDirectoryURL = versionRoot
-        process.environment = environment
+        var childEnvironment = environment
+        #if DEBUG
+        let runtimeArchitecture = developmentArchitecture(distributionRoot: distributionRoot)
+        let pythonOverlay = distributionRoot
+            .appendingPathComponent("RuntimeOverlay/\(runtimeArchitecture)/site-packages")
+        if FileManager.default.fileExists(atPath: pythonOverlay.path) {
+            let priorPythonPath = childEnvironment["PYTHONPATH"]
+            childEnvironment["PYTHONPATH"] = ([pythonOverlay.path, priorPythonPath]
+                .compactMap { $0 }
+                .filter { !$0.isEmpty })
+                .joined(separator: ":")
+        }
+        let developmentSoffice = distributionRoot
+            .appendingPathComponent("LibreOffice.app/Contents/MacOS/soffice")
+        if FileManager.default.isExecutableFile(atPath: developmentSoffice.path) {
+            childEnvironment["VNOFFICE_SOFFICE_PATH"] = developmentSoffice.path
+        }
+        #endif
+        process.environment = childEnvironment
         process.terminationHandler = { _ in DispatchQueue.main.async { NSApp.terminate(nil) } }
         do {
             try process.run()
@@ -93,8 +118,17 @@ enum LauncherMain {
             let appKind = (Bundle.main.object(forInfoDictionaryKey: "VNOfficeAppKind") as? String) ?? "writer"
             let support = FileManager.default.urls(for: .applicationSupportDirectory, in: .userDomainMask).first!
                 .appendingPathComponent("VNOffice/current", isDirectory: true)
-            let versionRoot = environment["VNO_APP_VERSION_ROOT"].map(URL.init(fileURLWithPath:)) ?? support
             let distributionRoot = Bundle.main.bundleURL.deletingLastPathComponent()
+            let versionRoot: URL
+            if let configuredRoot = environment["VNO_APP_VERSION_ROOT"] {
+                versionRoot = URL(fileURLWithPath: configuredRoot)
+            } else {
+                #if DEBUG
+                versionRoot = distributionRoot.appendingPathComponent("Versions/development", isDirectory: true)
+                #else
+                versionRoot = support
+                #endif
+            }
             let runtime = environment["VNO_RUNTIME_PYTHON"].map(URL.init(fileURLWithPath:))
                 ?? distributionRoot.appendingPathComponent("Runtime/bin/python3")
             let files = Array(ProcessInfo.processInfo.arguments.dropFirst()).filter { !$0.hasPrefix("-psn_") }
@@ -108,6 +142,23 @@ enum LauncherMain {
         application.run()
         withExtendedLifetime(delegate) {}
     }
+}
+
+private func developmentArchitecture(distributionRoot: URL) -> String {
+    let architectureMarker = distributionRoot.appendingPathComponent("RuntimeOverlay/runtime-arch.txt")
+    if let value = try? String(contentsOf: architectureMarker, encoding: .utf8) {
+        let architecture = value.trimmingCharacters(in: .whitespacesAndNewlines)
+        if architecture == "arm64" || architecture == "x86_64" {
+            return architecture
+        }
+    }
+    #if arch(arm64)
+    return "arm64"
+    #elseif arch(x86_64)
+    return "x86_64"
+    #else
+    return "unknown"
+    #endif
 }
 
 private func shellDisplay(_ value: String) -> String {
