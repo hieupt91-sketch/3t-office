@@ -948,3 +948,24 @@ RISKS: Phạm vi UI chưa hoàn toàn: các tab ngữ cảnh yêu cầu đối t
 DEPENDENCIES/BLOCKERS: Quyết định chủ sở hữu về nội dung giấy phép trong hộp Giới thiệu; cần lượt kiểm tra tiếp cho các mục NOT RUN nếu yêu cầu phủ đầy đủ mọi dialog.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Chuyển các lỗi hình ảnh tới chủ sở hữu Slides/Platform và làm rõ ngoại lệ hiển thị giấy phép; lên lượt tiếp theo cho các dialog chưa chạy.
+
+---
+
+# Agent Handoff
+TASK: Q40 — Sửa giao diện còn lại và bổ sung hồi quy Q37
+AGENT/ROLE: Codex / UI QA + Writer/Slides fixes
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Sửa các lỗi phản hồi/hiển thị đã nêu trong sweep Q37–Q39, rà soát hành vi im lặng của ribbon, lưu test CDP và ảnh trước/sau, chạy các gate được yêu cầu.
+FINDINGS: Morph nay có phản hồi VI/EN và Help; gallery Hình Slides giới hạn chiều cao/cuộn trong gallery; dialog Phông chữ Slides dùng CSS responsive shared UI Kit; Writer menu Chọn, Giãn dòng và Đường viền bảng đóng đúng với Tab/Shift+Tab/Esc/Enter, focus về trigger. Sửa dark theme cho lưới Chèn bảng Writer, thêm empty state cho Ngăn chọn và thông báo riêng khi thiếu nguồn Lời chào Trộn thư. Các báo cáo sweep ghi rõ trạng thái lệnh chưa mở được.
+IMPLEMENTATION SUMMARY: Mỗi sửa source có kiểm tra CDP FAIL trước/PASS sau và commit riêng. Bài hồi quy Q37 xác nhận lưới bảng 4/4 (baseline 2/4 FAIL), menu Chọn 4/4 (baseline 0/4), Kiểm tra tài liệu 4/4 (baseline 0/4). Bài menu Writer bổ sung 8/8 hiện tại, 6/8 FAIL khi hoàn nguyên handler trước Q37. CDP Slides: Morph 8/8; gallery Hình 4/4; dialog Phông chữ 4/4; menu/gallery dài 16/16. Trộn thư 4/4 sau, 0/4 trước. Shared UI Kit smoke Writer/Sheet/Slides 6/6.
+FILES CHANGED: Source trong apps/slides, apps/writer, adapters, platform/ui-kit; tests/live/cdp/q40-*.desktop.mjs; docs/assets/q40-ui/*; docs/UI-SWEEP-Writer-21-10.md; docs/UI-SWEEP-Slides-21-10.md; ba feature checklist; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: git merge main (Already up to date); các bài CDP Q40 (Node --experimental-websocket, VNO_CDP_LOCALAPPDATA riêng); npm test; node tests/run-tests.js; node scripts/audit-0610/i18n_parity.mjs; python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix; python -m pytest tests -q -k "slides or writer or dialog or ribbon"; ba gen_*_checklist.py; ribbon runtime audits Writer/Sheet/Slides.
+BUILD RESULT: NOT RUN — không đổi build system. Office COM không chạy theo quy tắc ticket; Excel COM BLOCKED.
+TEST RESULTS: PASS — npm 3789/3789; tests/run-tests.js 3789/3789; i18n VI=3153/EN=3153, missingVI=0, missingEN=0, placeholderMismatch=0 (20 cảnh báo identical/empty); checklist evidence 0 dòng hạ (279/217/269); pytest 483 passed, 636 deselected. CDP chi tiết và ảnh trước/sau được liệt kê trong hai báo cáo sweep.
+GIAO DIỆN ĐÃ XEM: Đã mở và xem ảnh trước/sau cho menu/gallery/dialog Slides, ảnh menu dài ở 1280×720/1024×600 sáng/tối, font dialog và thông báo Morph; Writer gồm gallery/pane, lưới bảng, Inspector, menu bàn phím và thông báo Trộn thư; smoke cả ba app 1366×768 sáng/tối. Kết luận đạt cho các màn hình đã sửa/kiểm tra; bảng ảnh và kết luận trong docs/UI-SWEEP-Writer-21-10.md và docs/UI-SWEEP-Slides-21-10.md. Một số mục cần đối tượng/dữ liệu hoặc picker hệ điều hành còn NOT RUN.
+KNOWN FAILURES: Không còn lỗi trong phạm vi đã chạy. Các lệnh chưa có trong UI được audit, thao tác yêu cầu fixture/selection và trang picker hệ điều hành được ghi NOT RUN, không tính là đã phủ.
+RISKS: Thay CSS ở shared UI Kit; smoke CDP cả ba app 6/6. Ba audit ribbon không báo `SILENT_FALSE`/`NO_HANDLER`/`THREW` trong các lệnh đã chạy; không suy rộng sang mục backlog/menu chưa mở.
+DEPENDENCIES/BLOCKERS: `CODEX-COMMON-RULES.md` không có trong worktree; đã dùng các quy tắc UI đính kèm phiếu. Không có thay đổi định dạng, core patch hay external AI data flow.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Xem lại các commit Q40 và chuyển ticket tiếp theo sau khi tạo `E:\VNOffice-briefs\logs\Q40.DONE`.

@@ -91,3 +91,34 @@ Không mở `Mở`, `Lưu`, `Lưu thành`, `Đóng` hoặc các thao tác xuất
 - Generator checklist: **không cần** — không sửa `command-definitions.js`/`strings-vi.js`, không đổi số dòng checklist.
 - Source sửa: **không có**. Không tạo bài CDP fail/pass vì không sửa lỗi trong Q39.
 - Ảnh: 77 ảnh đã chụp, lưu ở `docs/assets/q39-ui/`.
+
+---
+
+## Q40 — Sửa phản hồi và bố cục menu Slides, 21/10/2026
+
+### Kết quả
+
+- Morph trước sửa đóng menu nhưng không có dialog/toast; CDP xác nhận **0/8** phản hồi. Nay chọn Morph hiện thông báo VI/EN hướng dẫn chọn hiệu ứng khác và có Help tiếng Việt cụ thể; CDP **8/8 PASS** tại 1366×768 và 1280×720, sáng/tối.
+- Gallery Hình cao **548px** ở 1280×720 và tràn xuống thanh trạng thái 14px. Nay giới hạn chiều cao theo vùng trên thanh trạng thái và cuộn trong gallery. Bài viewport gốc **4/4 PASS**.
+- Hộp Phông chữ trước sửa có nhãn và control chồng nhau, tab giống nút HTML mặc định, preview khó đọc trong dark mode. CSS chuyển vào UI Kit dùng chung; sau sửa **4/4 PASS** ở 1366×768/1280×720, sáng/tối.
+- Bài menu dài mở Bố cục, Chuyển tiếp, Hoạt hình và Hình tại 1280×720 cùng 1024×600, sáng/tối: **16/16 PASS**, menu không phủ status bar; gallery Hình cuộn khi cần.
+- Slides ribbon runtime: **192 lệnh**, `SILENT_FALSE=0`, `NO_HANDLER=0`, `THREW=0`; thao tác cần chọn đối tượng báo điều kiện trên thanh trạng thái.
+
+### Giao diện đã xem
+
+Đã mở và xem ảnh trước/sau của từng dialog/menu trong ma trận sáng/tối, cùng hai kích thước desktop và kích thước 1024×600 cho gallery/menu dài. Ảnh nằm ở `assets/q40-ui/`.
+
+| Màn hình | Ảnh đã xem | Kết luận |
+|---|---|---|
+| Gallery Hình, 1366×768 và 1280×720, sáng/tối | `q40-slides-gallery-*-before.png`, `q40-slides-gallery-*-after.png` | Sau sửa không che thanh trạng thái; có thanh cuộn khi nội dung dài. |
+| Bố cục, Chuyển tiếp, Hoạt hình, Hình, 1280×720 và 1024×600, sáng/tối | `q40-slides-long-*-before.png`, `q40-slides-long-*-after.png` | Mỗi menu nằm trong viewport; ở 1024 canvas có thanh cuộn ngang để xem slide theo mức zoom. |
+| Hộp Phông chữ, 1366×768 và 1280×720, sáng/tối | `q40-slides-font-dialog-*-before.png`, `q40-slides-font-dialog-*-after.png` | Label, control và nút có khoảng cách; preview đọc được trong dark mode. |
+| Thông báo Morph, 1366×768 và 1280×720, sáng/tối | `q40-slides-morph-*-before.png`, `q40-slides-morph-*-after.png` | Dialog cân giữa, chữ/nút rõ; không còn im lặng. |
+| Smoke Writer, Sheet, Slides, 1366×768, sáng/tối | `q40-smoke-*-1366x768-*.png` | Ba app khởi động và hiển thị ribbon, vùng làm việc, thanh trạng thái. |
+
+### Kiểm thử và giới hạn
+
+- Shared UI Kit thay đổi đã smoke cả ba app qua CDP: **6/6 PASS** (3 app × 2 theme).
+- Sheet ribbon runtime: **216 lệnh**, `NO_HANDLER=0`, `THREW=0`; 37 phép thử không đổi snapshot được giữ ở báo cáo runtime vì phần lớn phụ thuộc đối tượng/trạng thái hoặc đang ở trạng thái đích. Sheet audit không phân loại toast/status nên không dùng `NO_VISIBLE_EFFECT` làm bằng chứng lệnh im lặng.
+- `docs/RIBBON-BACKLOG.md` có các mục pending Morph, Cửa sổ mới và hai lệnh menu ngữ cảnh Sheet. Morph nay báo rõ chưa hỗ trợ; hai lệnh Cửa sổ mới có phản hồi giới hạn desktop/browser. Hai lệnh Sheet không có trong `command-definitions.js`/UI được audit nên chưa mở được qua ribbon. Ba audit runtime ghi nhận 0 `SILENT_FALSE` và 0 `NO_HANDLER` cho lệnh được chạy; các mục chưa thể mở không được tính là đã kiểm thử. Không xóa nút.
+- `CODEX-COMMON-RULES.md` không có trong worktree; áp dụng quy tắc UI được cung cấp trong phiếu.

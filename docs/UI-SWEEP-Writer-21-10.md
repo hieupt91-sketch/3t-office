@@ -124,3 +124,34 @@ Mỗi ảnh được dẫn bên dưới đã được mở và xem; riêng các 
 ## Hạn chế và việc tiếp nối
 
 Kiểm kê mã đã bao phủ các lệnh mở UI, nhưng chưa trực tiếp mở một số picker/thao tác Chèn, lệnh Tham chiếu cần chèn vào tài liệu, lệnh Trộn thư cần dữ liệu, một số lệnh Đánh giá cần tệp/fixture, các tab ngữ cảnh Ảnh/Bảng và toàn bộ menu Tệp. Các mục này được đánh dấu NOT RUN ở bảng trên, không tính là đã xem. `CODEX-COMMON-RULES.md` không hiện diện trong worktree. Không có sửa nội dung Help/i18n hoặc thay đổi tính năng.
+
+---
+
+## Q40 — Hồi quy Writer và phản hồi lệnh, 21/10/2026
+
+### Kết quả và ảnh
+
+- Sửa lỗi nền ô lưới Chèn bảng còn trắng trong dark mode. Bài `q40-writer-q37-table-grid.desktop.mjs`: hiện tại **4/4 PASS**; khi chạy trên nội dung trước commit `13b3e9ba`, **2/4 FAIL** ở dark mode.
+- Bài hồi quy Chọn: hiện tại **4/4 PASS**; khi tạm lấy `platform/shell/shell.css` trước `21fbfa4c`, **0/4 PASS** (menu không mở do footer nhận click).
+- Bài hồi quy Kiểm tra tài liệu: hiện tại **4/4 PASS**; khi tạm lấy `document-inspector-dialog.js` trước `3d689061`, **0/4 PASS** do nhãn không theo token chữ chính.
+- Khi bấm Lời chào ngay sau Khối địa chỉ mà chưa có nguồn dữ liệu, trạng thái cũ bị lặp nên không có phản hồi mới. Trạng thái nay nói rõ mục đang thiếu. CDP: trước **0/4**, sau **4/4 PASS**. Thêm khóa VI/EN; không đổi nội dung tài liệu.
+- Menu Chọn xử lý Tab/Shift+Tab, Esc và Enter: **8/8 PASS**. Bổ sung hồi quy cho menu Giãn dòng và Đường viền bảng: **8/8 PASS**; khi tạm hoàn nguyên `platform/ui-kit/components.js` về trước fix Q37, **6/8 FAIL** (Tab, Shift+Tab và Enter không đóng menu/khôi phục focus; Escape vẫn hoạt động). Theme Gallery không tái hiện lỗi nền tối: **4/4 PASS**, không sửa source.
+
+### Giao diện đã xem
+
+Mọi màn hình ghi dưới đây đã được chụp và mở để kiểm tra chữ, màu, khung, thanh trạng thái và cuộn. Ảnh Q40 nằm trong `assets/q40-ui/`.
+
+| Màn hình | Ảnh đã xem | Kết luận |
+|---|---|---|
+| Dropdown Chọn, 1366×768 và 1280×720, sáng/tối | `q40-writer-q37-select-*-before.png`, `q40-writer-q37-select-*-after.png` | Menu mở trên footer, không bị che; đạt. |
+| Lưới Chèn bảng, 1366×768 và 1280×720, sáng/tối | `q40-writer-q37-table-grid-*-before.png`, `q40-writer-q37-table-grid-*-after.png` | Lưới và khung theo màu giao diện; dark mode trước sửa bị trắng, sau sửa đạt. |
+| Hộp Kiểm tra tài liệu, 1366×768 và 1280×720, sáng/tối | `q40-writer-q37-inspector-*-before.png`, `q40-writer-q37-inspector-*-after.png` | Nhãn trước sửa tối khó đọc trên nền tối; sau sửa rõ và vừa khung. |
+| Menu Giãn dòng và Đường viền bảng, 1366×768/1280×720, sáng/tối | `q40-writer-line-spacing-*-before.png`, `q40-writer-line-spacing-*-after.png`, `q40-writer-table-borders-*-before.png`, `q40-writer-table-borders-*-after.png` | Ảnh trước ghi menu đã mở; ảnh sau ghi menu đóng và focus trở lại nút kích hoạt sau Tab/Shift+Tab/Esc/Enter. Không thấy cắt hoặc tràn. |
+| Gallery Kiểu bảng, Gallery Chủ đề, Ngăn chọn, Trộn thư | `q40-writer-table-gallery-*`, `q40-writer-theme-*`, `q40-writer-selection-*`, `q40-writer-mailmerge-*` | Gallery bảng cuộn trong vùng làm việc; Theme Gallery không lỗi; pane có trạng thái rỗng dễ đọc; thông báo trộn thư hiện ở thanh trạng thái, không tràn. |
+| Smoke Writer, Sheet, Slides 1366×768, sáng/tối | `q40-smoke-*-1366x768-*.png` | Ba app khởi động; ribbon, vùng làm việc và thanh trạng thái hiển thị. Trang Writer được cuộn theo chiều dọc, không coi phần giấy ngoài viewport là lỗi. |
+
+### Kiểm thử và kiểm kê lệnh
+
+- Writer ribbon runtime: **230 lệnh**; sau sửa `SILENT_FALSE=0`, `NO_HANDLER=0`, `THREW=0`. Các `NO_VISIBLE_EFFECT` còn lại gồm control chọn phông/cỡ áp dụng tại vị trí chèn, picker hệ điều hành, thao tác cần nội dung/đối tượng hoặc trạng thái đã giống yêu cầu; chúng không phải lệnh pending không có handler.
+- Backlog có các mục pending Morph, Cửa sổ mới và hai lệnh menu ngữ cảnh Sheet. Morph nay báo rõ; Cửa sổ mới có phản hồi giới hạn desktop/browser. Hai lệnh Sheet không có trong `command-definitions.js`/UI được audit nên chưa mở được. Ba audit runtime ghi nhận `SILENT_FALSE=0`, `NO_HANDLER=0`, `THREW=0` trên các lệnh đã chạy; các nút/menu chưa mở được không được tính là đã kiểm thử. Không xóa nút.
+- `CODEX-COMMON-RULES.md` không có trong worktree; các quy tắc giao diện theo yêu cầu trong phiếu.
