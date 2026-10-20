@@ -193,16 +193,26 @@ export function showTableStylesGallery(anchorElement, targetTable, adapter = nul
     popup.appendChild(group);
   }
 
-  // Positioning relative to anchor or center
-  if (anchorElement && anchorElement.getBoundingClientRect) {
+  document.body.appendChild(popup);
+
+  // Keep the gallery inside the current viewport and scroll its list when space is tight.
+  if (anchorElement?.getBoundingClientRect) {
     const rect = anchorElement.getBoundingClientRect();
-    popup.style.position = "absolute";
-    popup.style.top = `${rect.bottom + window.scrollY + 4}px`;
-    popup.style.left = `${Math.max(10, rect.left + window.scrollX - 100)}px`;
+    const statusTop = document.querySelector(".vno-statusbar")?.getBoundingClientRect?.().top ?? window.innerHeight;
+    const availableBelow = Math.max(120, Math.min(window.innerHeight, statusTop) - rect.bottom - 8);
+    const availableAbove = Math.max(120, rect.top - 8);
+    const useAbove = popup.scrollHeight > availableBelow && availableAbove > availableBelow;
+    const available = useAbove ? availableAbove : availableBelow;
+    popup.style.position = "fixed";
+    popup.style.maxHeight = `${Math.min(380, available)}px`;
+    popup.style.overflowY = "auto";
+    const height = Math.min(popup.scrollHeight, 380, available);
+    const top = useAbove ? Math.max(8, rect.top - height - 4) : rect.bottom + 4;
+    const width = popup.getBoundingClientRect().width;
+    popup.style.top = `${top}px`;
+    popup.style.left = `${Math.max(8, Math.min(rect.left - 100, window.innerWidth - width - 8))}px`;
     popup.style.zIndex = "1000";
   }
-
-  document.body.appendChild(popup);
 
   // Close when clicking outside or pressing Escape
   const dismiss = (e) => {
