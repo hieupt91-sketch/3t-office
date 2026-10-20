@@ -43,7 +43,7 @@ BASE_CHART = (
 )
 
 
-def _fods(chart_type: str, *, labels=False, trend=False, switched=False) -> str:
+def _fods(chart_type: str, *, labels=False, trend=False, switched=False, series_types=None) -> str:
     attrs = [f'vno:chart-type="{chart_type}"']
     if labels:
         attrs.append('vno:data-labels="true"')
@@ -51,6 +51,7 @@ def _fods(chart_type: str, *, labels=False, trend=False, switched=False) -> str:
         attrs.append('vno:trendline="true"')
     if switched:
         attrs.append('vno:switch-rows-columns="true"')
+    series_xml = "".join(f'<chart:series chart:class="chart:{kind}"/>' for kind in (series_types or [])) or "<chart:series/>"
     return (
         '<office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" '
         'xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" '
@@ -58,7 +59,7 @@ def _fods(chart_type: str, *, labels=False, trend=False, switched=False) -> str:
         'xmlns:chart="urn:oasis:names:tc:opendocument:xmlns:chart:1.0" '
         'xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"><office:body><office:spreadsheet>'
         f'<table:table table:name="Data"><table:shapes><draw:frame {" ".join(attrs)}><draw:object>'
-        '<chart:chart chart:class="chart:bar"><chart:series/></chart:chart>'
+        f'<chart:chart chart:class="chart:bar">{series_xml}</chart:chart>'
         '</draw:object></draw:frame></table:shapes></table:table></office:spreadsheet></office:body></office:document>'
     )
 
@@ -105,6 +106,38 @@ class SheetChartTypesXlsxTests(unittest.TestCase):
         self.assertIsNotNone(secondary_axis, xml)
         self.assertIn('<c:crosses val="max"/>', secondary_axis.group(0))
 
+    def test_combo_chart_preserves_bar_and_line_series_groups(self):
+        package = _xlsx(BASE_CHART)
+        replacements = {}
+        source = _fods("combo", series_types=["bar", "bar", "line"])
+        patcher._apply_sheet_chart_features_from_fods(package, source, replacements)
+        xml = replacements["xl/charts/chart1.xml"]
+        bar = re.search(r"<c:barChart>.*?</c:barChart>", xml, re.DOTALL).group(0)
+        line = re.search(r"<c:lineChart>.*?</c:lineChart>", xml, re.DOTALL).group(0)
+        self.assertEqual(bar.count("<c:ser>"), 2, bar)
+        self.assertEqual(line.count("<c:ser>"), 1, line)
+        self.assertIn('<c:axId val="3"/><c:axId val="4"/>', line)
+
+    def test_existing_libreoffice_combo_plot_is_rebuilt_with_secondary_axis(self):
+        existing_combo = BASE_CHART.replace(_series(2, "D"), "").replace(
+            "</c:plotArea>",
+            '<c:lineChart><c:grouping val="standard"/>' + _series(2, "D")
+            + '<c:axId val="1"/><c:axId val="2"/></c:lineChart>'
+            + '<c:catAx><c:axId val="1"/><c:crossAx val="2"/></c:catAx>'
+            + '<c:valAx><c:axId val="2"/><c:crossAx val="1"/></c:valAx></c:plotArea>',
+        )
+        package = _xlsx(existing_combo)
+        replacements = {}
+        patcher._apply_sheet_chart_features_from_fods(
+            package, _fods("combo", series_types=["bar", "bar", "line"]), replacements
+        )
+        xml = replacements["xl/charts/chart1.xml"]
+        self.assertEqual(xml.count("<c:barChart"), 1, xml)
+        self.assertEqual(xml.count("<c:lineChart"), 1, xml)
+        secondary_axis = re.search(r"<c:valAx>.*?<c:axId val=\"4\"/>.*?</c:valAx>", xml, re.DOTALL)
+        self.assertIsNotNone(secondary_axis, xml)
+        self.assertIn('<c:crosses val="max"/>', secondary_axis.group(0))
+
     def test_pie_percent_labels_survive_ooxml_patch(self):
         chart = BASE_CHART.replace('<c:barChart>', '<c:pieChart>').replace('</c:barChart>', '</c:pieChart>')
         xml = patcher._sheet_chart_plot({"type": "pie", "data_labels": True, "data_labels_percent": True}, chart)
@@ -122,6 +155,39 @@ class SheetChartTypesXlsxTests(unittest.TestCase):
         self.assertIn('vno:chart-type="column-stacked-100"', overlaid)
         self.assertIn('vno:data-labels="true"', overlaid)
         self.assertIn('vno:trendline="true"', overlaid)
+
+    def test_open_overlay_carries_xlsx_chart_from_to_anchor_into_fods(self):
+        package = _xlsx(BASE_CHART)
+        with zipfile.ZipFile(io.BytesIO(package), "r") as source:
+            entries = {name: source.read(name) for name in source.namelist()}
+        drawing = entries["xl/drawings/drawing1.xml"].decode()
+        drawing = drawing.replace(
+            "<xdr:graphicFrame>",
+            '<xdr:twoCellAnchor><xdr:from><xdr:col>15</xdr:col><xdr:colOff>9525</xdr:colOff><xdr:row>1</xdr:row><xdr:rowOff>19050</xdr:rowOff></xdr:from><xdr:graphicFrame>',
+        ).replace(
+            "</xdr:graphicFrame>",
+            '</xdr:graphicFrame><xdr:to><xdr:col>24</xdr:col><xdr:colOff>28575</xdr:colOff><xdr:row>16</xdr:row><xdr:rowOff>38100</xdr:rowOff></xdr:to><xdr:clientData/></xdr:twoCellAnchor>',
+        )
+        entries["xl/drawings/drawing1.xml"] = drawing.encode()
+        anchored = io.BytesIO()
+        with zipfile.ZipFile(anchored, "w", zipfile.ZIP_DEFLATED) as target:
+            for name, value in entries.items():
+                target.writestr(name, value)
+        overlaid = patcher.overlay_sheet_chart_metadata_to_fods(anchored.getvalue(), _fods("bar"))
+        self.assertIn('vno:chart-anchor-from-col="15"', overlaid)
+        self.assertIn('vno:chart-anchor-from-row="1"', overlaid)
+        self.assertIn('vno:chart-anchor-to-col="24"', overlaid)
+        self.assertIn('vno:chart-anchor-to-row="16"', overlaid)
+
+    def test_chart_feature_reader_accepts_default_chart_namespace(self):
+        chart = (
+            '<chartSpace xmlns="http://schemas.openxmlformats.org/drawingml/2006/chart">'
+            '<chart><plotArea><barChart><ser><val><numRef><f>Data!$B$2:$B$4</f></numRef></val></ser></barChart>'
+            '<lineChart><ser><val><numRef><f>Data!$C$2:$C$4</f></numRef></val></ser></lineChart></plotArea></chart></chartSpace>'
+        )
+        feature = patcher._chart_feature_from_xml(chart)
+        self.assertEqual(feature["type"], "combo", feature)
+        self.assertEqual(feature["source_range"], "B2:C4", feature)
 
 class ScatterMarkerNormalizationTests(unittest.TestCase):
     def test_libreoffice_line_scatter_becomes_marker_only_scatter(self):

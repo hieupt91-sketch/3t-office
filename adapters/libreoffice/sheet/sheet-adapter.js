@@ -2878,7 +2878,7 @@ export class SheetAdapter {
       pointCount: item.values.length,
       valuesRange: this._odfRangePair(sheetName, `${item.start.c}${item.start.r}`, `${item.end.c}${item.end.r}`),
       labelCellRange: item.labelCell ? this._odfCellAddress(sheetName, `${item.labelCell.c}${item.labelCell.r}`) : "",
-      chartClass: chart.type === "combo" && index > 0 ? "line" : chartClass
+      chartClass: chart.type === "combo" ? (item.chartType || (index > 0 ? "line" : "bar")) : chartClass
     }));
     return {
       chartClass,
@@ -5076,6 +5076,10 @@ ${pristineXlsxMarker}${docPropsMarker}
       const seriesType = explicitType || this._mapOdfChartClass(seriesAttrs[0].match(/chart:class=["']([^"']+)["']/i)?.[1] || "") || type;
       const titleXml = chartMatch[2].match(/<chart:title\b[^>]*>([\s\S]*?)<\/chart:title>/i)?.[1] || "";
       const title = this._unescapeXml(titleXml.replace(/<[^>]+>/g, " ")).replace(/\s+/g, " ").trim();
+      const seriesTypes = seriesAttrs.map((attrs, seriesIndex) => {
+        const rawClass = attrs.match(/chart:class=["']([^"']+)["']/i)?.[1] || "";
+        return this._mapOdfChartClass(rawClass) || (type === "combo" ? (seriesIndex === 0 ? "bar" : "line") : type);
+      });
       const axisTitles = {};
       chartMatch[2].replace(/<chart:axis\b([^>]*)>([\s\S]*?)<\/chart:axis>/gi, (_all, axisAttrs, axisBody) => {
         const dimension = axisAttrs.match(/chart:dimension=["']([xy])["']/i)?.[1]?.toLowerCase();
@@ -5111,11 +5115,44 @@ ${pristineXlsxMarker}${docPropsMarker}
           }
         };
       }
+      const frameText = String(frameAttrs || "");
+      const anchorNumber = name => {
+        const value = frameText.match(new RegExp(`vno:chart-anchor-${name}=["'](-?\\d+)["']`, "i"))?.[1];
+        return value === undefined ? null : Number(value);
+      };
+      const fromCol = anchorNumber("from-col");
+      const fromRow = anchorNumber("from-row");
+      const colWidths = workbook.colWidthsBySheet?.[union.sheet];
+      const rowHeights = workbook.rowHeightsBySheet?.[union.sheet];
+      const hiddenCols = workbook.userHiddenColsBySheet?.[union.sheet];
+      const hiddenRows = workbook.userHiddenRowsBySheet?.[union.sheet];
+      let anchorX = null, anchorY = null;
+      if (Number.isInteger(fromCol) && fromCol >= 0) {
+        const defaultWidth = Number(this.grid?.defaultColWidth) || 64;
+        anchorX = 0;
+        for (let column = 1; column <= fromCol; column++) {
+          const name = this._columnName(column);
+          if (!hiddenCols?.has?.(name)) anchorX += Number(colWidths?.get?.(name)) || defaultWidth;
+        }
+        anchorX += Math.round((anchorNumber("from-colOff") || 0) / 9525);
+      }
+      if (Number.isInteger(fromRow) && fromRow >= 0) {
+        const defaultHeight = Number(this.grid?.rowHeight) || 20;
+        anchorY = 0;
+        for (let row = 1; row <= fromRow; row++) {
+          if (!hiddenRows?.has?.(row)) anchorY += Number(rowHeights?.get?.(row)) || defaultHeight;
+        }
+        anchorY += Math.round((anchorNumber("from-rowOff") || 0) / 9525);
+      }
+      const positionX = anchorX ?? this._odfLengthToPx(frameText.match(/svg:x=["']([^"']*)["']/i)?.[1]);
+      const positionY = anchorY ?? this._odfLengthToPx(frameText.match(/svg:y=["']([^"']*)["']/i)?.[1]);
       const chart = {
         id: `chart-import-${++index}`,
         type: seriesType,
         range: union.range,
         title: title || `Biểu đồ ${this._a1FromOdfRange(union)}`,
+        ...(Number.isFinite(positionX) ? { x: positionX } : {}),
+        ...(Number.isFinite(positionY) ? { y: positionY } : {}),
         ...(axisTitles.x ? { xAxisTitle: axisTitles.x } : {}),
         ...(axisTitles.y ? { yAxisTitle: axisTitles.y } : {}),
         ...(String(frameAttrs || "").match(/vno:data-labels=["']true["']/i) ? { dataLabels: true } : {}),
@@ -5135,7 +5172,11 @@ ${pristineXlsxMarker}${docPropsMarker}
       if (cells instanceof Map) {
         const extracted = extractSheetChartData(cells, chart.range, this._columnsForChartExtract(), chart.switchRowsColumns === true);
         chart.labels = extracted.labels;
-        chart.series = extracted.series;
+        chart.series = extracted.series.map((item, seriesIndex) => ({
+          ...item,
+          chartType: seriesTypes[seriesIndex] || type,
+          axisGroup: seriesTypes[seriesIndex] === "line" ? "secondary" : "primary"
+        }));
         chart.data = extracted.series[0]?.values || [];
       }
       workbook.chartsBySheet[union.sheet].push(chart);

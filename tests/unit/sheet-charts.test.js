@@ -117,6 +117,20 @@ export async function runSheetChartTests() {
       assert(panel.innerHTML.includes('style="background:transparent"'), "SVG phải để nền panel theo theme");
     });
 
+    await test("Sheet Charts: vị trí đã import dùng anchor thay vì vùng dữ liệu", async () => {
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí"]);
+      await grid.initializeOptionalDocumentFeatures();
+      grid.chartLayer = chartLayer();
+      grid.setCellValue("A", 1, "Doanh thu");
+      grid.setCellValue("B", 1, 100);
+      const chart = grid.insertChart("bar", { start: { c: "A", r: 1 }, end: { c: "B", r: 1 } });
+      chart.x = 961;
+      chart.y = 22;
+      grid.renderCharts();
+      const panel = grid.chartLayer.children[0];
+      assert(panel.style.cssText.includes("left:961px") && panel.style.cssText.includes("top:22px"), panel.style.cssText);
+    });
+
     await test("Sheet Charts: sửa riêng tiêu đề trục X/Y, render SVG và hoàn tác được", async () => {
       const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       await grid.initializeOptionalDocumentFeatures();
@@ -155,6 +169,7 @@ export async function runSheetChartTests() {
       let svg = SheetChartBuilder.generateSvg(chart);
       assert(chart.dataLabels && svg.includes("data-chart-label"), "Nhãn dữ liệu phải hiện thật trên SVG");
       assert(chart.trendline && svg.includes("data-chart-trendline"), "Đường xu hướng phải hiện thật trên SVG");
+      assert(svg.includes('data-axis="secondary-value"') && svg.includes('data-series-type="bar"') && svg.includes('data-series-type="line"'), "Combo phải dựng cột và chuỗi đường trên trục phụ");
       grid.switchChartRowsColumns(chart.id);
       assert(chart.switchRowsColumns && chart.series.length === 2 && chart.series[0].values.length === 3, JSON.stringify(chart.series));
       svg = SheetChartBuilder.generateSvg(chart);

@@ -6171,7 +6171,78 @@ def _xlsx_chart_parts_by_sheet(xlsx_bytes: bytes) -> dict[str, list[str]]:
     return result
 
 
+def _xlsx_chart_anchors_by_sheet(xlsx_bytes: bytes) -> dict[str, list[dict[str, int]]]:
+    """Return chart DrawingML from/to anchors in worksheet drawing order."""
+    result: dict[str, list[dict[str, int]]] = {}
+    with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+        for sheet_name, sheet_part in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+            sheet_xml = read_zip_entry(xlsx_bytes, sheet_part)
+            if not sheet_xml:
+                continue
+            try:
+                sheet_root = ET.fromstring(sheet_xml)
+            except ET.ParseError:
+                continue
+            drawing_rid = next((
+                value for node in sheet_root.iter() if node.tag.rsplit("}", 1)[-1] == "drawing"
+                for key, value in node.attrib.items() if key.rsplit("}", 1)[-1] == "id"
+            ), "")
+            drawing_part = _read_relationships(package, sheet_part).get(drawing_rid)
+            if not drawing_part or drawing_part not in package.namelist():
+                continue
+            try:
+                drawing_root = ET.fromstring(package.read(drawing_part))
+            except ET.ParseError:
+                continue
+            drawing_rels = _read_relationships(package, drawing_part)
+            anchors = []
+            for anchor in drawing_root:
+                from_node = next((node for node in anchor if node.tag.rsplit("}", 1)[-1] == "from"), None)
+                if from_node is None:
+                    continue
+                chart_node = next((node for node in anchor.iter() if node.tag.rsplit("}", 1)[-1] == "chart"), None)
+                if chart_node is None:
+                    continue
+                rid = next((value for key, value in chart_node.attrib.items() if key.rsplit("}", 1)[-1] == "id"), "")
+                part = drawing_rels.get(rid)
+                if not part:
+                    continue
+                values: dict[str, int] = {}
+                for marker, prefix in ((from_node, "from"),):
+                    for child in marker:
+                        name = child.tag.rsplit("}", 1)[-1]
+                        if name in {"col", "row", "colOff", "rowOff"}:
+                            try:
+                                values[f"{prefix}_{name}"] = int(child.text or "0")
+                            except ValueError:
+                                pass
+                to_node = next((node for node in anchor if node.tag.rsplit("}", 1)[-1] == "to"), None)
+                if to_node is not None:
+                    for child in to_node:
+                        name = child.tag.rsplit("}", 1)[-1]
+                        if name in {"col", "row", "colOff", "rowOff"}:
+                            try:
+                                values[f"to_{name}"] = int(child.text or "0")
+                            except ValueError:
+                                pass
+                ext = next((node for node in anchor if node.tag.rsplit("}", 1)[-1] == "ext"), None)
+                if ext is not None:
+                    for name in ("cx", "cy"):
+                        try:
+                            values[f"ext_{name}"] = int(ext.attrib.get(name, "0"))
+                        except ValueError:
+                            pass
+                anchors.append((part, values))
+            chart_parts = _xlsx_chart_parts_by_sheet(xlsx_bytes).get(sheet_name, [])
+            by_part = dict(anchors)
+            if chart_parts and any(part in by_part for part in chart_parts):
+                result[sheet_name] = [by_part.get(part, {}) for part in chart_parts]
+    return result
+
+
 def _chart_feature_from_xml(chart_xml: str) -> dict[str, object]:
+    if re.search(r'xmlns=["\']http://schemas\.openxmlformats\.org/drawingml/2006/chart["\']', chart_xml, re.IGNORECASE):
+        chart_xml = re.sub(r"<(\/?)([A-Za-z_][\w.-]*)(?=[\s/>])", r"<\1c:\2", chart_xml)
     chart_type = ""
     if re.search(r"<c:barChart\b", chart_xml):
         direction = re.search(r'<c:barDir\b[^>]*\bval=["\']([^"\']+)', chart_xml)
@@ -6240,19 +6311,22 @@ def overlay_sheet_chart_metadata_to_fods(xlsx_bytes: bytes, fods_xml: str | None
     """Annotate converted FODS chart frames so VN chart semantics survive reopen."""
     xml = fods_xml or ""
     parts_by_sheet = _xlsx_chart_parts_by_sheet(xlsx_bytes)
+    anchors_by_sheet = _xlsx_chart_anchors_by_sheet(xlsx_bytes)
     if not parts_by_sheet:
         return xml
     features = []
+    anchors = []
     with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
         for sheet_name in _resolve_xlsx_sheet_entries(xlsx_bytes):
             for part in parts_by_sheet.get(sheet_name, []):
                 features.append(_chart_feature_from_xml(package.read(part).decode("utf-8", errors="replace")))
+            anchors.extend(anchors_by_sheet.get(sheet_name, []))
     frames = [match for match in re.finditer(r"<draw:frame\b[^>]*>([\s\S]*?)</draw:frame\s*>", xml, re.IGNORECASE)
               if re.search(r"<chart:chart\b", match.group(1), re.IGNORECASE)]
     if len(frames) != len(features):
         return xml
     additions = []
-    for frame, feature in zip(frames, features):
+    for index, (frame, feature) in enumerate(zip(frames, features)):
         opening = re.match(r"<draw:frame\b[^>]*>", frame.group(0), re.IGNORECASE)
         if not opening or not feature.get("type"):
             continue
@@ -6266,6 +6340,8 @@ def overlay_sheet_chart_metadata_to_fods(xlsx_bytes: bytes, fods_xml: str | None
             "vno:chart-source-sheet": str(feature.get("source_sheet") or ""),
             "vno:chart-source-range": str(feature.get("source_range") or ""),
         }
+        if index < len(anchors):
+            values.update({f"vno:chart-anchor-{name.replace('_', '-')}" : str(value) for name, value in anchors[index].items()})
         for name, value in values.items():
             if value and name not in attrs:
                 tag = tag[:-1] + f' {name}="{_escape_xml(value)}">'
@@ -6299,11 +6375,16 @@ def _fods_chart_features(source_fods: str | None) -> dict[str, list[dict[str, ob
             if not any(node.tag.rsplit("}", 1)[-1] == "chart" for node in frame.iter()):
                 continue
             frame_attrs = {key.rsplit("}", 1)[-1]: value for key, value in frame.attrib.items()}
+            series_types = [
+                {key.rsplit("}", 1)[-1]: value for key, value in node.attrib.items()}.get("class", "").split(":")[-1]
+                for node in frame.iter() if node.tag.rsplit("}", 1)[-1] == "series"
+            ]
             items.append({
                 "type": frame_attrs.get("chart-type", ""),
                 "data_labels": frame_attrs.get("data-labels") == "true",
                 "trendline": frame_attrs.get("trendline") == "true",
                 "switch_rows_columns": frame_attrs.get("switch-rows-columns") == "true",
+                "series_types": series_types,
             })
         if items:
             result[_unescape_xml(sheet_name)] = items
@@ -6348,7 +6429,6 @@ def _sheet_chart_plot(feature: dict[str, object], original_plot: str) -> str:
     # and only toggle components that it generated with showVal=0.
     native_marker = {
         "scatter": "scatterChart",
-        "combo": "lineChart",
         "radar": "radarChart",
         "bubble": "bubbleChart",
     }.get(chart_type)
@@ -6384,8 +6464,16 @@ def _sheet_chart_plot(feature: dict[str, object], original_plot: str) -> str:
         block = f'<c:barChart><c:barDir val="{direction}"/><c:grouping val="{grouping}"/><c:varyColors val="0"/>{"".join(series)}{dlabels}<c:gapWidth val="150"/>{overlap}{axes_ids}</c:barChart>'
         return f"<c:plotArea>{block}{cat_axes}</c:plotArea>"
     if chart_type == "combo" and len(series) >= 2:
-        bar = f'<c:barChart><c:barDir val="col"/><c:grouping val="clustered"/>{series[0]}{dlabels}<c:gapWidth val="150"/><c:axId val="1"/><c:axId val="2"/></c:barChart>'
-        line = f'<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>{"".join(series[1:])}{dlabels}<c:marker val="1"/><c:smooth val="0"/><c:axId val="3"/><c:axId val="4"/></c:lineChart>'
+        series_types = feature.get("series_types")
+        if isinstance(series_types, list) and len(series_types) == len(series) and all(kind in {"bar", "line"} for kind in series_types):
+            bars = [item for item, kind in zip(series, series_types) if kind == "bar"]
+            lines = [item for item, kind in zip(series, series_types) if kind == "line"]
+        else:
+            bars, lines = series[:1], series[1:]
+        if not bars or not lines:
+            bars, lines = series[:1], series[1:]
+        bar = f'<c:barChart><c:barDir val="col"/><c:grouping val="clustered"/>{"".join(bars)}{dlabels}<c:gapWidth val="150"/><c:axId val="1"/><c:axId val="2"/></c:barChart>'
+        line = f'<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>{"".join(lines)}{dlabels}<c:marker val="1"/><c:smooth val="0"/><c:axId val="3"/><c:axId val="4"/></c:lineChart>'
         secondary_axes = (
             '<c:catAx><c:axId val="3"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="1"/>'
             '<c:axPos val="b"/><c:tickLblPos val="none"/><c:crossAx val="4"/><c:crosses val="max"/>'

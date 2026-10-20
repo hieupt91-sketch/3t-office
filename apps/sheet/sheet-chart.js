@@ -36,13 +36,15 @@ export class SheetChartBuilder {
     if (!SHEET_CHART_TYPES.includes(type)) throw new Error(t("sheetDialogs.chartUnsupported", { type }));
     const normalizedSeries = (series?.length ? series : [{ name: title, values: data }]).map((item, seriesIndex) => ({
       name: esc(item?.name || t("sheetDialogs.chartSeries", { number: seriesIndex + 1 })),
+      chartType: item?.chartType || (type === "combo" ? (seriesIndex === 0 ? "bar" : "line") : type),
+      axisGroup: item?.axisGroup || (type === "combo" && seriesIndex > 0 ? "secondary" : "primary"),
       values: (item?.values || []).map(numberValue).map(value => value ?? 0)
     })).filter(item => item.values.length);
     const values = normalizedSeries[0]?.values || [];
     const pointCount = Math.max(labels.length, ...normalizedSeries.map(item => item.values.length), 0);
     const names = Array.from({ length: pointCount }, (_, index) => esc(labels[index] || t("sheetDialogs.chartItem", { number: index + 1 })));
     const width = 680, height = 360;
-    const p = { top: 50, right: 35, bottom: xAxisTitle ? 82 : 65, left: yAxisTitle ? 88 : 70 };
+    const p = { top: 50, right: type === "combo" ? 75 : 35, bottom: xAxisTitle ? 82 : 65, left: yAxisTitle ? 88 : 70 };
     const chartW = width - p.left - p.right, chartH = height - p.top - p.bottom;
     const heading = `<text data-chart-title x="340" y="28" text-anchor="middle" font-size="16" font-weight="bold" fill="var(--vno-text-primary,#0f172a)">${esc(title)}</text>`;
     const axisTitles = type === "pie" ? "" : `${xAxisTitle ? `<text data-axis-title="x" x="340" y="354" text-anchor="middle" font-size="12" font-weight="600" fill="var(--vno-text-secondary,#334155)">${esc(xAxisTitle)}</text>` : ""}${yAxisTitle ? `<text data-axis-title="y" x="15" y="180" text-anchor="middle" font-size="12" font-weight="600" fill="var(--vno-text-secondary,#334155)" transform="rotate(-90 15 180)">${esc(yAxisTitle)}</text>` : ""}`;
@@ -69,17 +71,32 @@ export class SheetChartBuilder {
     }
 
     const allValues = normalizedSeries.flatMap(item => item.values);
+    const comboBars = normalizedSeries.filter(item => item.chartType !== "line" && item.axisGroup !== "secondary");
+    const comboLines = normalizedSeries.filter(item => item.chartType === "line" || item.axisGroup === "secondary");
+    const primaryValues = type === "combo" ? comboBars.flatMap(item => item.values) : allValues;
+    const secondaryValues = type === "combo" ? comboLines.flatMap(item => item.values) : [];
     const stacked = type === "column-stacked" || type === "column-stacked-100";
     const stackTotals = Array.from({ length: pointCount }, (_, point) => normalizedSeries.reduce((sum, item) => sum + Math.max(0, item.values[point] || 0), 0));
-    const plottedValues = type === "column-stacked-100" ? [0, 100] : (stacked ? stackTotals : allValues);
+    const plottedValues = type === "column-stacked-100" ? [0, 100] : (stacked ? stackTotals : primaryValues);
     const min = Math.min(0, ...plottedValues), max = Math.max(0, ...plottedValues), span = max - min || 1;
+    const secondaryMin = Math.min(0, ...secondaryValues), secondaryMax = Math.max(0, ...secondaryValues);
+    const secondarySpan = secondaryMax - secondaryMin || 1;
     const x = index => p.left + (values.length === 1 ? chartW / 2 : index * chartW / (values.length - 1));
     const y = value => p.top + (max - value) / span * chartH;
+    const ySecondary = value => p.top + (secondaryMax - value) / secondarySpan * chartH;
     const baseline = y(0);
     let body = "";
     for (let step = 0; step <= 4; step++) {
       const value = min + span * step / 4, gridY = y(value);
       body += `<line x1="${p.left}" y1="${gridY}" x2="${width - p.right}" y2="${gridY}" stroke="var(--vno-border-subtle,#e2e8f0)"/><text x="${p.left - 8}" y="${gridY + 4}" text-anchor="end" font-size="10" fill="var(--vno-text-muted,#64748b)">${new Intl.NumberFormat("vi-VN", { notation: "compact" }).format(value)}</text>`;
+    }
+    if (type === "combo" && secondaryValues.length) {
+      const axisX = width - p.right;
+      body += `<line data-axis="secondary-value" x1="${axisX}" y1="${p.top}" x2="${axisX}" y2="${p.top + chartH}" stroke="var(--vno-border-subtle,#e2e8f0)"/>`;
+      for (let step = 0; step <= 4; step++) {
+        const value = secondaryMin + secondarySpan * step / 4, axisY = ySecondary(value);
+        body += `<line x1="${axisX}" y1="${axisY}" x2="${axisX + 4}" y2="${axisY}" stroke="var(--vno-border-subtle,#e2e8f0)"/><text data-axis="secondary-value-label" x="${axisX + 7}" y="${axisY + 4}" text-anchor="start" font-size="10" fill="var(--vno-text-secondary,#334155)">${new Intl.NumberFormat("vi-VN", { notation: "compact" }).format(value)}</text>`;
+      }
     }
     const valueLabel = (value, px, py, suffix = "") => dataLabels ? `<text data-chart-label x="${px}" y="${py}" text-anchor="middle" font-size="10" fill="var(--vno-text-secondary,#334155)">${Math.round(value * 100) / 100}${suffix}</text>` : "";
     if (type === "bar-horizontal") {
@@ -131,6 +148,21 @@ export class SheetChartBuilder {
       normalizedSeries.forEach((item, seriesIndex) => {
         const points = Array.from({ length: pointCount }, (_, point) => polar(point, item.values[point] || 0).join(",")).join(" ");
         body += `<polygon data-series-index="${seriesIndex}" points="${points}" fill="${COLORS[seriesIndex % COLORS.length]}" fill-opacity=".14" stroke="${COLORS[seriesIndex % COLORS.length]}" stroke-width="2"/>`;
+      });
+    } else if (type === "combo") {
+      const slot = chartW / pointCount;
+      const groupedW = Math.min(64, slot * .72);
+      const barW = Math.max(4, groupedW / Math.max(1, comboBars.length));
+      comboBars.forEach((item, barIndex) => item.values.forEach((value, point) => {
+        const top = Math.min(y(value), baseline);
+        const px = p.left + point * slot + (slot - groupedW) / 2 + barIndex * barW;
+        body += `<rect data-series-type="bar" data-series-index="${normalizedSeries.indexOf(item)}" data-point-index="${point}" data-value="${value}" x="${px}" y="${top}" width="${barW - 1}" height="${Math.max(1, Math.abs(y(value) - baseline))}" fill="${COLORS[normalizedSeries.indexOf(item) % COLORS.length]}"><title>${item.name} — ${names[point]}: ${value}</title></rect>${valueLabel(value, px + barW / 2, top - 4)}`;
+      }));
+      comboLines.forEach(item => {
+        const seriesIndex = normalizedSeries.indexOf(item);
+        const points = item.values.map((value, index) => `${x(index)},${ySecondary(value)}`).join(" ");
+        body += `<polyline data-series="line" data-series-type="line" data-series-index="${seriesIndex}" points="${points}" fill="none" stroke="${COLORS[seriesIndex % COLORS.length]}" stroke-width="3" stroke-linejoin="round"/>`;
+        item.values.forEach((value, index) => { body += `<circle data-point-index="${index}" data-value="${value}" cx="${x(index)}" cy="${ySecondary(value)}" r="4" fill="#fff" stroke="${COLORS[seriesIndex % COLORS.length]}" stroke-width="2"><title>${item.name} — ${names[index]}: ${value}</title></circle>${valueLabel(value, x(index), ySecondary(value) - 8)}`; });
       });
     } else {
       normalizedSeries.forEach((item, seriesIndex) => {

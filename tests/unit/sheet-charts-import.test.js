@@ -156,6 +156,31 @@ export async function runSheetChartsImportTests() {
     assertImportedBarChart(workbook.chartsBySheet.DoanhThu?.[0], "FODS soffice");
   });
 
+  test("parseFods giữ vị trí neo chart svg:x/y để lần lưu không dồn chart về mặc định", () => {
+    const workbook = new SheetAdapter(null).parseFods(SOFFICE_CHART_FODS);
+    const chart = workbook.chartsBySheet.DoanhThu?.[0];
+    assert(chart, "Thiếu chart đã import");
+    assert(chart.x === 37, `x=${chart.x}; mong đợi 0.984 cm đổi sang px`);
+    assert(chart.y === 15, `y=${chart.y}; mong đợi 0.4 cm đổi sang px`);
+  });
+
+  test("parseFods ánh xạ anchor DrawingML từ XLSX sang tọa độ lưới", () => {
+    const xml = SOFFICE_CHART_FODS
+      .replace('office:mimetype="application/vnd.oasis.opendocument.spreadsheet"', 'office:mimetype="application/vnd.oasis.opendocument.spreadsheet" xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0"')
+      .replace('<draw:frame ', '<draw:frame vno:chart-anchor-from-col="15" vno:chart-anchor-from-colOff="9525" vno:chart-anchor-from-row="1" vno:chart-anchor-from-rowOff="19050" ');
+    const chart = new SheetAdapter(null).parseFods(xml).chartsBySheet.DoanhThu?.[0];
+    assert(chart?.x === 961, `x=${chart?.x}; mong đợi cột P + colOff`);
+    assert(chart?.y === 22, `y=${chart?.y}; mong đợi hàng 2 + rowOff`);
+  });
+
+  test("parseFods giữ loại và trục từng chuỗi trong biểu đồ kết hợp", () => {
+    const xml = `<?xml version="1.0"?><office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0" xmlns:table="urn:oasis:names:tc:opendocument:xmlns:table:1.0" xmlns:text="urn:oasis:names:tc:opendocument:xmlns:text:1.0" xmlns:draw="urn:oasis:names:tc:opendocument:xmlns:drawing:1.0" xmlns:chart="urn:oasis:names:tc:opendocument:xmlns:chart:1.0" xmlns:svg="urn:oasis:names:tc:opendocument:xmlns:svg-compatible:1.0" xmlns:xlink="http://www.w3.org/1999/xlink" xmlns:vno="https://vnoffice.vn/ns/spreadsheet/1.0" office:mimetype="application/vnd.oasis.opendocument.spreadsheet"><office:body><office:spreadsheet><table:table table:name="Data"><table:shapes><draw:frame svg:x="1cm" svg:y="1cm" vno:chart-type="combo"><draw:object><chart:chart chart:class="chart:bar"><chart:plot-area><chart:axis chart:dimension="x"><chart:categories table:cell-range-address="Data.A2:Data.A3"/></chart:axis><chart:series chart:class="chart:bar" chart:values-cell-range-address="Data.B2:Data.B3" chart:label-cell-address="Data.B1"/><chart:series chart:class="chart:bar" chart:values-cell-range-address="Data.C2:Data.C3" chart:label-cell-address="Data.C1"/><chart:series chart:class="chart:line" chart:values-cell-range-address="Data.D2:Data.D3" chart:label-cell-address="Data.D1"/></chart:plot-area></chart:chart></draw:object></draw:frame></table:shapes><table:table-row><table:table-cell office:value-type="string"><text:p>Kỳ</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>Thu</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>Chi</text:p></table:table-cell><table:table-cell office:value-type="string"><text:p>Lũy kế</text:p></table:table-cell></table:table-row><table:table-row><table:table-cell office:value-type="string"><text:p>T1</text:p></table:table-cell><table:table-cell office:value-type="float" office:value="10"><text:p>10</text:p></table:table-cell><table:table-cell office:value-type="float" office:value="20"><text:p>20</text:p></table:table-cell><table:table-cell office:value-type="float" office:value="200"><text:p>200</text:p></table:table-cell></table:table-row><table:table-row><table:table-cell office:value-type="string"><text:p>T2</text:p></table:table-cell><table:table-cell office:value-type="float" office:value="15"><text:p>15</text:p></table:table-cell><table:table-cell office:value-type="float" office:value="25"><text:p>25</text:p></table:table-cell><table:table-cell office:value-type="float" office:value="250"><text:p>250</text:p></table:table-cell></table:table-row></table:table></office:spreadsheet></office:body></office:document>`;
+    const chart = new SheetAdapter(null).parseFods(xml).chartsBySheet.Data?.[0];
+    assert(chart?.type === "combo", `type=${chart?.type}`);
+    assert(chart.series.map(item => item.chartType).join(",") === "bar,bar,line", JSON.stringify(chart.series));
+    assert(chart.series.map(item => item.axisGroup).join(",") === "primary,primary,secondary", JSON.stringify(chart.series));
+  });
+
   test("chart:class không thuộc 4 loại SVG VN Sheet thì bỏ qua, không bịa type", () => {
     const xml = `<?xml version="1.0" encoding="UTF-8"?>
 <office:document xmlns:office="urn:oasis:names:tc:opendocument:xmlns:office:1.0"

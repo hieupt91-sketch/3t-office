@@ -9998,8 +9998,8 @@ export class SheetGridController {
     this.chartLayer.innerHTML = "";
     for (const chart of charts) {
       const panel = document.createElement("section");
-      const colOffset = Math.max(0, this.cols.indexOf(chart.range.end.c) + 1) * 100 + 46;
-      const rowOffset = Math.max(0, chart.range.start.r - 1) * this.rowHeight + 28;
+      const colOffset = Number.isFinite(Number(chart.x)) ? Number(chart.x) : Math.max(0, this.cols.indexOf(chart.range.end.c) + 1) * 100 + 46;
+      const rowOffset = Number.isFinite(Number(chart.y)) ? Number(chart.y) : Math.max(0, chart.range.start.r - 1) * this.rowHeight + 28;
       panel.className = "vno-sheet-chart";
       panel.tabIndex = 0;
       panel.setAttribute?.("aria-label", t("sheetContextMenu.chartArea"));

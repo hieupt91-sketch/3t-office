@@ -762,3 +762,23 @@ RISKS: Chart limitations need a separate scoped ticket with CDP FAIL-before/PASS
 DEPENDENCIES/BLOCKERS: None for sparkline fix. Excel COM and LAN batch audit are blocked as described above.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Address combo-chart secondary-axis retention and pie percentage labels in a separate Sheet chart round-trip ticket; run the 27-file LAN batch where Excel COM is not invoked or is explicitly approved.
+
+
+# Agent Handoff
+TASK: Q31 — Sheet chart XLSX fidelity and chart overlay fixes
+AGENT/ROLE: Codex / VN Sheet
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Preserve combo chart axes/series, pie percentage labels, dark theme chart surfaces, and imported XLSX chart anchors; record visual and round-trip evidence.
+FINDINGS: Baseline Q29 output contained both barChart and lineChart but only one valAx; pie chart showPercent=0. Imported chart frames also used duplicate coordinates, and chart panel remained white in dark theme. After patch, saved chart1 contains barChart + lineChart, two valAx, secondary valAx crosses=max; pie chart contains showPercent=1. Anchor metadata maps the charts to distinct positions.
+IMPLEMENTATION SUMMARY: Added XLSX DrawingML anchor extraction and FODS metadata overlay; imported anchors and per-series chart classes map into Sheet; combo rendering shows separate primary/secondary scales; OOXML post-process rebuilds LibreOffice combo plots when a native lineChart block exists but secondary axis is missing; pie percentage labels and dark surfaces persist. Updated the existing Vietnamese chart Help topic with combo axes, pie labels, anchor position and dark theme guidance.
+FILES CHANGED: adapters/libreoffice/common/ooxml_zip_patch.py; adapters/libreoffice/sheet/sheet-adapter.js; apps/sheet/sheet-chart.js; apps/sheet/sheet-grid.js; platform/help/entries-sheet.js; tests/live/cdp/q31-sheet-ui.desktop.mjs; tests/test_sheet_chart_types_xlsx.py; tests/unit/sheet-charts-import.test.js; tests/unit/sheet-charts.test.js; docs/assets/q31-ui/*.
+COMMANDS RUN: `npm test`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "sheet or xlsx or chart or ooxml"`; focused `python -m pytest tests/test_sheet_chart_types_xlsx.py -q`; Q29 desktop CDP save/reopen; Q31 CDP at 1366x768; final 27-file LAN batch via `scripts/layout-audit/batch_document_audit.py xlsx` (lan01–lan28 except lan14); OOXML structural inspection; Excel COM attempts.
+BUILD RESULT: NOT RUN — build system unchanged.
+TEST RESULTS: PASS — npm 3786/3786; final focused pytest 371 passed / 748 deselected; chart type pytest 11/11; Q29 CDP 29/29; Q31 CDP 5/5; i18n missing keys 0/3122; checklist downgraded rows 0; LAN batch 27/27 PASS, diffs=0, lint=clean, Excel open PASS. OOXML after-save: chart1 barChart+lineChart, 2 valAx, secondary crosses=max; chart2 showPercent=1.
+KNOWN FAILURES: Excel COM chart-level SeriesCollection AxisGroup / DataLabels.ShowPercentage readback BLOCKED: hidden Excel automation returned an empty workbook object and RPC_E_CALL_REJECTED. Separate Excel open check passed for all 27 LAN files. No direct COM chart-property PASS is claimed.
+RISKS: Structural OOXML and VN Sheet reopen/render checks pass; Excel did not provide a reliable chart object-model readback in the dedicated probe. UI screenshots reviewed at 1366x768 in light and dark modes.
+DEPENDENCIES/BLOCKERS: None for product code. Direct Excel COM chart-property oracle remains blocked as above.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review the commits and merge by the queue process.
+GIAO DIỆN ĐÃ XEM: Before-fix anchor light/dark screenshots show coincident chart anchors; Q30 dark screenshot shows white chart surface. After-fix light-combo, light-pie, dark-combo and dark-pie screenshots show distinct anchors, visible combo secondary axis, percentage legend, and theme-matched surfaces. All seven evidence files are under docs/assets/q31-ui/.

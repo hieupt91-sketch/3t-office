@@ -492,6 +492,7 @@ export const SHEET_HELP_ENTRIES = [
       "Nhấn Chèn vào bảng tính. Biểu đồ nằm trên lưới, dùng dữ liệu của vùng đã chọn. Đổi số trong vùng nguồn rồi biểu đồ cập nhật theo dữ liệu sheet.",
       "Trên biểu đồ, nhấn Nhãn để hiện/ẩn giá trị tại từng điểm; nhấn Hàng/cột để đổi cách mỗi hàng hoặc cột trở thành một chuỗi; nhấn Xu hướng để thêm/bỏ đường xu hướng tuyến tính. Các nút đổi trạng thái ngay, có thể hoàn tác bằng Ctrl+Z. Cũng có thể dùng các lệnh tương ứng trong menu chuột phải của biểu đồ.",
       "Với biểu đồ có trục, nhấn «Tiêu đề biểu đồ và trục» ở góc trên biểu đồ. Nhập tiêu đề biểu đồ, «Trục ngang (X)» và «Trục dọc (Y)», rồi nhấn Áp dụng; để trống tiêu đề biểu đồ nếu muốn ẩn tiêu đề, hoặc để trống một ô trục nếu không muốn hiện tên trục đó. Khi lưu XLSX rồi mở lại, tiêu đề, tên trục, loại biểu đồ, chuỗi dữ liệu, nhãn, hướng hàng/cột và đường xu hướng vẫn được giữ.",
+      "Khi mở XLSX có biểu đồ kết hợp, chuỗi cột dùng trục trái và chuỗi đường dùng trục phải. Biểu đồ tròn giữ nhãn phần trăm sau khi lưu và mở lại; vị trí neo của biểu đồ cũng được giữ trên lưới. Trong giao diện tối, nền biểu đồ chuyển theo chủ đề để không che lưới bằng một mảng trắng.",
       "Cùng tab Chèn còn Biểu đồ thu nhỏ (Đường / Cột sparkline) — đó là mini-chart trong ô, khác biểu đồ lớn này."
     ]
   },
