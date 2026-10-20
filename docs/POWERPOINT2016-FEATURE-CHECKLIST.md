@@ -175,7 +175,7 @@ Tổng: 4 mục ưu tiên 1.
 | Chỉnh sửa | Tìm kiếm (Ctrl+F / Find) | ✅ | - | FIX-L8: common.edit.find tìm chuỗi ROAD TRIP đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:48) |
 | Chỉnh sửa | Thay thế (Ctrl+H / Replace) | ✅ | - | FIX-L8: common.edit.replace thay thế văn bản đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:49) |
 | Chỉnh sửa | Chọn: Chọn tất cả (Ctrl+A) | 🟢 | - | common.edit.selectAll; chọn toàn bộ đối tượng trên slide |
-| Chỉnh sửa | Chọn: Chọn đối tượng / Ngăn chọn (Selection Pane) | 🟢 | - | slides.edit.selectionPane (Alt+F10): danh sách, chọn, đổi thứ tự lớp, đổi tên (nhấp đúp/F2) và ẩn/hiện từng hình ngoài nhóm; tên và trạng thái ẩn lưu vào PPTX, PowerPoint 2016 đọc Shape.Name đúng và Visible=0 (tests/live/cdp/slides-shape-names.desktop.mjs; apps/slides/slides-canvas.js:2680 đổi tên/ẩn, adapters/libreoffice/common/ooxml_zip_patch.py:12412 hidden) |
+| Chỉnh sửa | Chọn: Chọn đối tượng / Ngăn chọn (Selection Pane) | 🟢 | - | slides.edit.selectionPane (Alt+F10): danh sách, chọn, đổi thứ tự lớp, đổi tên (nhấp đúp/F2) và ẩn/hiện từng hình ngoài nhóm; tên và trạng thái ẩn lưu vào PPTX, PowerPoint 2016 đọc Shape.Name đúng và Visible=0 (tests/live/cdp/slides-shape-names.desktop.mjs; apps/slides/slides-canvas.js:2679 đổi tên/ẩn, adapters/libreoffice/common/ooxml_zip_patch.py:12412 hidden) |
 
 ### Chèn
 
@@ -258,10 +258,10 @@ Tổng: 4 mục ưu tiên 1.
 | Hoạt ảnh | Nhóm Thoát (Exit Effects: Disappear, Fade, Fly Out) | ✅ | - | slides.animation.apply; Mờ dần ra, Bay ra, Thu nhỏ ra, Biến mất lưu PPTX rồi PowerPoint 2016 COM đọc đúng EffectType và Exit=-1 (docs/AUDIT-SLIDES-ANIM-1710.md:15) |
 | Hoạt ảnh | Đường chuyển động (Motion Paths: Line, Arc, Custom Path) | 🔴 | 2 | Chưa hỗ trợ vẽ và chạy hoạt ảnh theo đường cong tự do Motion Path |
 | Hoạt ảnh | Tùy chọn hiệu ứng (Effect Options: Hướng, Theo đoạn/khung) | 🟢 | - | slides.animation.effectOptions; direction được lưu qua preset-sub-type/presetSubtype (apps/slides/slides-canvas.js; adapters/libreoffice/slides/slides-adapter.js; adapters/libreoffice/common/ooxml_zip_patch.py) |
-| Hoạt ảnh nâng cao | Thêm hoạt ảnh (Add Animation) | ✅ | - | slides.animation.add / slides.animation.addEffect: vào + thoát trên cùng một hình, lưu PPTX rồi PowerPoint 2016 COM đọc đủ cả hai (Exit=0 và -1; tests/live/cdp/slides-add-animation.desktop.mjs; apps/slides/slides-canvas.js:2541 addObjectAnimation) |
+| Hoạt ảnh nâng cao | Thêm hoạt ảnh (Add Animation) | ✅ | - | slides.animation.add / slides.animation.addEffect: vào + thoát trên cùng một hình, lưu PPTX rồi PowerPoint 2016 COM đọc đủ cả hai (Exit=0 và -1; tests/live/cdp/slides-add-animation.desktop.mjs; apps/slides/slides-canvas.js:2540 addObjectAnimation) |
 | Hoạt ảnh nâng cao | Ngăn hoạt ảnh (Animation Pane) | ✅ | - | FIX-L7: slides.animation.pane đổi thứ tự hiệu ứng đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:70) |
-| Hoạt ảnh nâng cao | Kích hoạt (Trigger: On Click of Object) | ✅ | - | slides.animation.trigger: hộp thoại chọn hình kích hoạt; lưu PPTX rồi PowerPoint 2016 COM đọc InteractiveSequences=1 và TriggerShape đúng (tests/live/cdp/slides-animation-trigger.desktop.mjs; apps/slides/slides-canvas.js:2581 openAnimationTriggerDialog) |
-| Hoạt ảnh nâng cao | Sao chép hoạt ảnh (Animation Painter) | ✅ | - | slides.animation.painter: lấy hiệu ứng ở lần nhấn 1, dán ở lần 2; PowerPoint COM đọc lại hai hiệu ứng Bay vào cùng hướng trái, sau hiệu ứng trước, 1,5 giây, trễ 0,5 giây (apps/slides/slides-canvas.js:2627 animationPainter, scripts/audit-0610/ppt_animation_all_readback.ps1:2) |
+| Hoạt ảnh nâng cao | Kích hoạt (Trigger: On Click of Object) | ✅ | - | slides.animation.trigger: hộp thoại chọn hình kích hoạt; lưu PPTX rồi PowerPoint 2016 COM đọc InteractiveSequences=1 và TriggerShape đúng (tests/live/cdp/slides-animation-trigger.desktop.mjs; apps/slides/slides-canvas.js:2580 openAnimationTriggerDialog) |
+| Hoạt ảnh nâng cao | Sao chép hoạt ảnh (Animation Painter) | ✅ | - | slides.animation.painter: lấy hiệu ứng ở lần nhấn 1, dán ở lần 2; PowerPoint COM đọc lại hai hiệu ứng Bay vào cùng hướng trái, sau hiệu ứng trước, 1,5 giây, trễ 0,5 giây (apps/slides/slides-canvas.js:2626 animationPainter, scripts/audit-0610/ppt_animation_all_readback.ps1:2) |
 | Thời gian | Bắt đầu (Start: On Click, With Previous, After Previous) | ✅ | - | slides.animation.startMenu; PowerPoint COM đọc lại TriggerType=AfterPrevious, Duration, Delay (ppt_anim_readback.ps1) (apps/slides/slides-canvas.js:2117; scripts/audit-0610/ppt_anim_readback.ps1:2) |
 | Thời gian | Thời lượng hoạt ảnh (Duration) | ✅ | - | FIX-L6: PowerPoint COM đọc duration 0.8/0.8/0.5 s khớp timeline (docs/SLIDES-BUTTON-MATRIX-1011.md:69) |
 | Thời gian | Độ trễ hoạt ảnh (Delay) | 🟢 | - | slides.animation.apply; cấu hình độ trễ (delay) trong hộp thoại Hiệu ứng đối tượng |
@@ -287,7 +287,7 @@ Tổng: 4 mục ưu tiên 1.
 | Màn hình | Chọn màn hình phát (Monitors) | 🔴 | 2 | Chưa có menu chọn màn hình hiển thị trình chiếu ngoài Presenter View |
 | Màn hình | Chế độ Presenter (Presenter View, Alt+F5) | 🟢 | - | slides.show.presenterMode; giao diện người thuyết trình xem trước slide kế tiếp và ghi chú (docs/SLIDES-BUTTON-MATRIX-1011.md:73) |
 | Diễn giả | Ghi chú thuyết trình (Speaker Notes) | ✅ | - | FIX-L4/L6: slides.notes.toggle ghi chú diễn giả đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:77, docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:19) |
-| Điều khiển chiếu | Bút vẽ và con trỏ Laser khi đang chiếu | 🟢 | - | Ctrl+P bút, Ctrl+L laser, Ctrl+A mũi tên, tẩy nét: laser đo đúng vị trí chuột, bút để lại nét nhìn thấy (200x80 px khi kéo 200x80), một lần kéo một nét, tẩy xóa hết; sửa lỗi Ctrl+P mở Xem trước khi in phủ lên bài chiếu và nét vẽ tạo sai namespace SVG nên không hiện (tests/live/cdp/slides-show-pen-laser.desktop.mjs 7/7, apps/slides/slides-canvas.js:11964); thoát chiếu và Giữ chú thích thì nét thành hình tự do, lưu PPTX rồi PowerPoint 2016 COM đọc Type=5 (freeform) 183.8x60.9 pt, nét 3 pt màu #DC2626 đúng (tests/live/cdp/slides-ink-keep.desktop.mjs, scripts/audit-0610/ppt_ink_readback.ps1) |
+| Điều khiển chiếu | Bút vẽ và con trỏ Laser khi đang chiếu | 🟢 | - | Ctrl+P bút, Ctrl+L laser, Ctrl+A mũi tên, tẩy nét: laser đo đúng vị trí chuột, bút để lại nét nhìn thấy (200x80 px khi kéo 200x80), một lần kéo một nét, tẩy xóa hết; sửa lỗi Ctrl+P mở Xem trước khi in phủ lên bài chiếu và nét vẽ tạo sai namespace SVG nên không hiện (tests/live/cdp/slides-show-pen-laser.desktop.mjs 7/7, apps/slides/slides-canvas.js:11963); thoát chiếu và Giữ chú thích thì nét thành hình tự do, lưu PPTX rồi PowerPoint 2016 COM đọc Type=5 (freeform) 183.8x60.9 pt, nét 3 pt màu #DC2626 đúng (tests/live/cdp/slides-ink-keep.desktop.mjs, scripts/audit-0610/ppt_ink_readback.ps1) |
 
 ### Xem lại
 
@@ -343,7 +343,7 @@ Tổng: 4 mục ưu tiên 1.
 | Nhóm | Tính năng PowerPoint 2016 | Trạng thái | Ưu tiên | Ghi chú / đường dẫn trong VN Slides |
 |---|---|---|---|---|
 | Chèn hình | Sửa điểm vẽ tự do (Edit Points) | 🟡 | 2 | Có vẽ hình tự do Bezier; chưa có giao diện kéo điểm nút trực quan |
-| Chèn hình | Đổi hình dạng (Change Shape) | ✅ | - | slides.shape.changeType: đổi giữa chữ nhật, elip và 16 hình dựng sẵn, giữ vị trí/kích thước/màu; PowerPoint COM AutoShapeType elip=9, sao=92, mũi tên phải=33, tim=21 (apps/slides/slides-canvas.js:3111 changeShapeType, scripts/audit-0610/ppt_autoshape_readback.ps1:2) |
+| Chèn hình | Đổi hình dạng (Change Shape) | ✅ | - | slides.shape.changeType: đổi giữa chữ nhật, elip và 16 hình dựng sẵn, giữ vị trí/kích thước/màu; PowerPoint COM AutoShapeType elip=9, sao=92, mũi tên phải=33, tim=21 (apps/slides/slides-canvas.js:3110 changeShapeType, scripts/audit-0610/ppt_autoshape_readback.ps1:2) |
 | Kiểu chữ WordArt | Tô màu chữ nghệ thuật (Text Fill) | 🔴 | 2 | Chưa có công cụ đổi màu tô chữ nghệ thuật độc lập trên ribbon |
 | Kiểu chữ WordArt | Viền chữ nghệ thuật (Text Outline) | 🔴 | 2 | Chưa có công cụ đổi màu viền chữ nghệ thuật trên ribbon |
 | Kiểu chữ WordArt | Hiệu ứng chữ nghệ thuật (Text Effects: Warp, Shadow, 3D) | 🟡 | 1 | FIX-L14: có textFadeRight nhưng PowerPoint COM nhận dạng PresetTextEffect=-2 chưa chuẩn native (docs/SLIDES-BUTTON-MATRIX-1011.md:57) |
@@ -375,7 +375,7 @@ Tổng: 4 mục ưu tiên 1.
 | Kiểu ảnh | Viền ảnh (Picture Border) | 🔴 | 2 | Chưa có công cụ viền ảnh trên ribbon |
 | Kiểu ảnh | Hiệu ứng ảnh (Picture Effects: Shadow, Glow, Soft Edges) | 🟡 | 2 | Hỗ trợ đổ bóng và phát sáng; chưa có 3D rotation |
 | Kiểu ảnh | Bố cục ảnh sang SmartArt (Picture Layout) | 🔴 | 3 | Chưa hỗ trợ chuyển đổi ảnh vào sơ đồ SmartArt |
-| Kích thước | Cắt xén ảnh (Crop to Shape / Aspect Ratio) | ✅ | - | slides.picture.cropDrag kéo tay cầm cắt trực tiếp, slides.picture.cropRatio theo tỉ lệ, slides.picture.cropDialog theo số đo; lưu PPTX rồi PowerPoint 2016 COM đọc CropRight 37.5 pt, CropTop 22.5 pt, khung 300×180 (tests/live/cdp/slides-crop-drag.desktop.mjs; apps/slides/slides-canvas.js:3405 toggleCropMode) |
+| Kích thước | Cắt xén ảnh (Crop to Shape / Aspect Ratio) | ✅ | - | slides.picture.cropDrag kéo tay cầm cắt trực tiếp, slides.picture.cropRatio theo tỉ lệ, slides.picture.cropDialog theo số đo; lưu PPTX rồi PowerPoint 2016 COM đọc CropRight 37.5 pt, CropTop 22.5 pt, khung 300×180 (tests/live/cdp/slides-crop-drag.desktop.mjs; apps/slides/slides-canvas.js:3404 toggleCropMode) |
 
 ### Công cụ bảng > Thiết kế
 
@@ -387,8 +387,8 @@ Tổng: 4 mục ưu tiên 1.
 | Tùy chọn kiểu | Cột đầu tiên / Cột cuối cùng (First/Last Column) | 🟢 | - | slides.table.optFirstCol và slides.table.optLastCol tô màu cột đầu hoặc cuối; lưu thành màu nền ô (tests/live/cdp/slides-table-design.desktop.mjs) |
 | Tùy chọn kiểu | Cột sọc xen kẽ (Banded Columns) | 🟢 | - | slides.table.optBandedCols tô xen kẽ cột; lưu thành màu nền ô (tests/live/cdp/slides-table-design.desktop.mjs) |
 | Kiểu bảng | Thư viện kiểu dáng bảng (Table Styles Gallery) | 🟢 | - | slides.table.style có 6 bảng màu nhạt cộng Không kiểu; màu lưu thành màu nền ô, chưa ghi tableStyleId của PowerPoint nên mở lại trong PowerPoint không đổi kiểu theo (tests/live/cdp/slides-table-design.desktop.mjs) |
-| Kiểu bảng | Tô màu nền ô (Table Shading) | ✅ | - | slides.table.shading tô ô, vùng ô hoặc cả bảng; lưu PPTX rồi PowerPoint 2016 COM đọc đúng màu nền từng ô FFFF00 và BDD7EE, ô không tô là FFFFFF (tests/live/cdp/slides-table-design.desktop.mjs; apps/slides/slides-canvas.js:3796 setTableShading, platform/commands/command-definitions.js:645) |
-| Kiểu bảng | Đường viền bảng (Table Borders: Tất cả, Viền ngoài, Không viền) | 🟢 | - | bốn lệnh slides.table.bordersAll, slides.table.bordersOutside, slides.table.bordersInside, slides.table.bordersNone cho vùng chọn hoặc cả bảng; lưu PPTX rồi PowerPoint 2016 COM đọc đúng từng cạnh có viền hoặc không viền nhưng độ dày đọc ra 1,47 pt thay vì 0,75 pt đặt (tests/live/cdp/slides-table-borders.desktop.mjs; apps/slides/slides-canvas.js:3760 setTableBorders) |
+| Kiểu bảng | Tô màu nền ô (Table Shading) | ✅ | - | slides.table.shading tô ô, vùng ô hoặc cả bảng; lưu PPTX rồi PowerPoint 2016 COM đọc đúng màu nền từng ô FFFF00 và BDD7EE, ô không tô là FFFFFF (tests/live/cdp/slides-table-design.desktop.mjs; apps/slides/slides-canvas.js:3795 setTableShading, platform/commands/command-definitions.js:645) |
+| Kiểu bảng | Đường viền bảng (Table Borders: Tất cả, Viền ngoài, Không viền) | 🟢 | - | bốn lệnh slides.table.bordersAll, slides.table.bordersOutside, slides.table.bordersInside, slides.table.bordersNone cho vùng chọn hoặc cả bảng; lưu PPTX rồi PowerPoint 2016 COM đọc đúng từng cạnh có viền hoặc không viền nhưng độ dày đọc ra 1,47 pt thay vì 0,75 pt đặt (tests/live/cdp/slides-table-borders.desktop.mjs; apps/slides/slides-canvas.js:3759 setTableBorders) |
 
 ### Công cụ bảng > Bố trí
 
@@ -399,8 +399,8 @@ Tổng: 4 mục ưu tiên 1.
 | Hàng & Cột | Xóa hàng / Xóa cột / Xóa bảng (Delete) | ✅ | - | 17/10: slides.table.deleteRow, slides.table.deleteCol, slides.table.deleteTable; CDP 17/17, không mất chữ ô neo (docs/AUDIT-SLIDES-TABLE-1710.md:10) |
 | Gộp ô | Gộp ô (Merge Cells) | ✅ | - | 17/10: slides.table.mergeCells; lưu PPTX rồi PowerPoint 2016 COM đọc đúng 2 vùng gộp, mở lại VN Slides đọc đúng (docs/AUDIT-SLIDES-TABLE-1710.md:11) |
 | Gộp ô | Tách ô (Split Cells) | ✅ | - | 17/10: slides.table.splitCell; CDP 17/17, hoàn tác một bước (docs/AUDIT-SLIDES-TABLE-1710.md:12) |
-| Kích thước ô | Chiều cao hàng / Chiều rộng cột bảng | ✅ | - | slides.table.cellSize đặt chiều cao hàng và bề rộng cột theo cm; lưu PPTX rồi PowerPoint 2016 COM đọc đúng hàng 40, 71, 40 pt và cột 140, 227, 140 pt, mở lại giữ đúng tỉ lệ (tests/live/cdp/slides-table-sizes.desktop.mjs; apps/slides/slides-canvas.js:3676 openTableSizeDialog, platform/commands/command-definitions.js:666) |
-| Kích thước ô | Phân phối đều hàng / cột (Distribute Rows / Columns) | ✅ | - | slides.table.distributeRows và slides.table.distributeCols cho cả bảng hoặc vùng chọn; lưu PPTX rồi PowerPoint 2016 COM đọc hàng 50,3 pt bằng nhau và cột 169 pt bằng nhau (tests/live/cdp/slides-table-sizes.desktop.mjs; apps/slides/slides-canvas.js:3662 distributeTable, platform/commands/command-definitions.js:664) |
+| Kích thước ô | Chiều cao hàng / Chiều rộng cột bảng | ✅ | - | slides.table.cellSize đặt chiều cao hàng và bề rộng cột theo cm; lưu PPTX rồi PowerPoint 2016 COM đọc đúng hàng 40, 71, 40 pt và cột 140, 227, 140 pt, mở lại giữ đúng tỉ lệ (tests/live/cdp/slides-table-sizes.desktop.mjs; apps/slides/slides-canvas.js:3675 openTableSizeDialog, platform/commands/command-definitions.js:666) |
+| Kích thước ô | Phân phối đều hàng / cột (Distribute Rows / Columns) | ✅ | - | slides.table.distributeRows và slides.table.distributeCols cho cả bảng hoặc vùng chọn; lưu PPTX rồi PowerPoint 2016 COM đọc hàng 50,3 pt bằng nhau và cột 169 pt bằng nhau (tests/live/cdp/slides-table-sizes.desktop.mjs; apps/slides/slides-canvas.js:3661 distributeTable, platform/commands/command-definitions.js:664) |
 | Căn chỉnh ô | Căn lề ô: Trái, Giữa, Phải, Trên, Giữa dọc, Dưới | ✅ | - | sáu lệnh slides.table.alignLeft đến slides.table.alignBottom; lưu PPTX rồi PowerPoint 2016 COM đọc halign 2 giữa, 3 phải và valign 3 giữa dọc đúng từng ô (tests/live/cdp/slides-table-align.desktop.mjs; platform/commands/command-definitions.js:653, platform/commands/command-definitions.js:658) |
 
 ### Công cụ biểu đồ > Thiết kế
@@ -412,7 +412,7 @@ Tổng: 4 mục ưu tiên 1.
 | Kiểu biểu đồ | Đổi bảng màu chuỗi dữ liệu (Change Colors) | 🔴 | 2 | Chưa có menu đổi bảng màu chuỗi dữ liệu biểu đồ trên ribbon |
 | Kiểu biểu đồ | Thư viện kiểu biểu đồ (Chart Styles Gallery) | 🔴 | 2 | Chưa có thư viện kiểu dáng biểu đồ Chart Styles trên ribbon |
 | Dữ liệu | Chuyển hàng và cột dữ liệu (Switch Row/Column) | 🔴 | 2 | Chưa hỗ trợ chuyển đổi nhanh hàng/cột ma trận số liệu biểu đồ |
-| Dữ liệu | Chọn dữ liệu nguồn (Select Data) | 🟢 | - | slides.chart.editData mở hộp thoại sửa tiêu đề, nhãn và giá trị (một chuỗi dữ liệu), cùng slides.chart.setType đổi kiểu cột, đường, tròn, miền; lưu PPTX rồi PowerPoint 2016 COM đọc ChartType 4 cho biểu đồ đường, tiêu đề và giá trị 10,20,15 đúng; chưa chọn lại dải ô nguồn hay nhiều chuỗi (tests/live/cdp/slides-chart-design.desktop.mjs; apps/slides/slides-canvas.js:4006 editChart) |
+| Dữ liệu | Chọn dữ liệu nguồn (Select Data) | 🟢 | - | slides.chart.editData mở hộp thoại sửa tiêu đề, nhãn và giá trị (một chuỗi dữ liệu), cùng slides.chart.setType đổi kiểu cột, đường, tròn, miền; lưu PPTX rồi PowerPoint 2016 COM đọc ChartType 4 cho biểu đồ đường, tiêu đề và giá trị 10,20,15 đúng; chưa chọn lại dải ô nguồn hay nhiều chuỗi (tests/live/cdp/slides-chart-design.desktop.mjs; apps/slides/slides-canvas.js:4005 editChart) |
 | Dữ liệu | Chỉnh sửa dữ liệu nguồn (Edit Data in Excel/Grid) | 🟢 | - | tab Thiết kế biểu đồ > Sửa dữ liệu mở bảng số liệu của biểu đồ để sửa nhãn và giá trị; hoàn tác; lưu PPTX (tests/live/cdp/slides-chart-design.desktop.mjs; platform/commands/command-definitions.js:630); chưa mở sửa trong Excel (không liên kết sổ tính ngoài) |
 | Loại | Thay đổi loại biểu đồ (Change Chart Type) | 🟢 | - | tab Thiết kế biểu đồ > Đổi kiểu: cột, đường, tròn, miền; giữ dữ liệu, vẽ lại, Ctrl+Z trả về; lưu PPTX rồi PowerPoint 2016 COM đọc ChartType (scripts/audit-0610/ppt_chart_readback.ps1; tests/live/cdp/slides-chart-design.desktop.mjs; platform/commands/command-definitions.js:629) |
 
@@ -423,7 +423,7 @@ Tổng: 4 mục ưu tiên 1.
 | Xem trước | Phát thử media (Play Video / Audio) | 🟡 | 2 | Phát video/audio qua thanh điều khiển native controls của thẻ media trên canvas (apps/slides/slides-canvas.js:4312); chưa có tab ribbon Phát lại riêng |
 | Chỉnh sửa | Cắt tỉa thời lượng media (Trim Video / Audio) | 🔴 | 2 | Chưa có công cụ cắt ngắn điểm đầu và điểm kết thúc video/audio |
 | Tùy chọn | Mức âm lượng media (Low, Medium, High, Mute) | 🟡 | 2 | Điều chỉnh âm lượng qua thanh trượt volume native của media trên canvas (apps/slides/slides-canvas.js:4312); chưa có nút âm lượng trên ribbon |
-| Tùy chọn | Bắt đầu phát: Tự động / Khi nhấp chuột | 🟢 | - | slides.media.autoplay bật tắt tự phát; lưu thành lệnh play trong dãy chính như PowerPoint ghi (COM đọc 1 hiệu ứng chính), mở lại nhận đúng; chưa đọc được PlayOnEntry của tệp do LibreOffice ghi (tests/live/cdp/slides-media-playback.desktop.mjs; apps/slides/slides-canvas.js:3721 toggleMediaOption) |
+| Tùy chọn | Bắt đầu phát: Tự động / Khi nhấp chuột | 🟢 | - | slides.media.autoplay bật tắt tự phát; lưu thành lệnh play trong dãy chính như PowerPoint ghi (COM đọc 1 hiệu ứng chính), mở lại nhận đúng; chưa đọc được PlayOnEntry của tệp do LibreOffice ghi (tests/live/cdp/slides-media-playback.desktop.mjs; apps/slides/slides-canvas.js:3720 toggleMediaOption) |
 | Tùy chọn | Lặp lại cho đến khi dừng (Loop until Stopped) | 🟢 | - | slides.media.loop; lưu thêm p:audio cMediaNode repeatCount indefinite đúng cấu trúc PowerPoint (bù phần LibreOffice bỏ), mở lại nhận đúng; COM chưa đọc được LoopUntilStopped của tệp này (tests/test_slides_media_loops.py; adapters/libreoffice/common/ooxml_zip_patch.py:12448 media loops) |
 
 ### Không thuộc ribbon
@@ -434,9 +434,9 @@ Tổng: 4 mục ưu tiên 1.
 | Bàn phím | Phím tắt định dạng chữ (Ctrl+B/I/U, Ctrl+Shift+>/<, Ctrl+Space) | ✅ | - | FIX-L4: Ctrl+B/I/U và thang tăng giảm cỡ chữ đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:27-31) |
 | Bàn phím | Phím tắt trình chiếu (F5 Từ đầu, Shift+F5 Từ trang hiện tại, Esc Thoát) | 🟢 | - | slides.show.startFromBegin, startFromCurrent; phím tắt điều khiển trình diễn |
 | Bàn phím | Phím tắt chỉnh sửa slide (Ctrl+M Thêm, Ctrl+D Nhân đôi, Delete Xóa) | ✅ | - | FIX-L8: slides.slide.new, duplicate, delete đối chiếu COM (docs/SLIDES-BUTTON-MATRIX-1011.md:20,22,23) |
-| Chuột | Kéo thả thay đổi thứ tự trang trong danh sách thumbnail | 🟢 | - | Kéo thả trực tiếp slide thumbnail để sắp xếp thứ tự (apps/slides/slides-canvas.js:7311, apps/slides/slides-canvas.js:7388) |
+| Chuột | Kéo thả thay đổi thứ tự trang trong danh sách thumbnail | 🟢 | - | Kéo thả trực tiếp slide thumbnail để sắp xếp thứ tự (apps/slides/slides-canvas.js:7310, apps/slides/slides-canvas.js:7387) |
 | Chuột | Kéo các góc/chốt đối tượng để đổi kích thước và xoay | 🟢 | - | Chốt điều khiển 8 hướng và xoay đối tượng (apps/slides/slides-canvas.js:190-200) |
-| Chuột | Menu ngữ cảnh chuột phải trên slide, hình vẽ, ảnh, bảng | 🟢 | - | Menu chuột phải trên slide và hình vẽ (apps/slides/slides-canvas.js:8467, apps/slides/slides-canvas.js:5434) |
+| Chuột | Menu ngữ cảnh chuột phải trên slide, hình vẽ, ảnh, bảng | 🟢 | - | Menu chuột phải trên slide và hình vẽ (apps/slides/slides-canvas.js:8466, apps/slides/slides-canvas.js:5433) |
 | Tính tương thích | Mở và Lưu PPTX giữ nguyên bố cục đối tượng | ✅ | - | Lưu PPTX và mở lại đối chiếu PowerPoint COM không mất đối tượng (docs/AUDIT-SLIDES-OFFICE-PARITY-1011.md:9-10) |
 | Tính tương thích | Giữ nguyên hiệu ứng chuyển tiếp và timeline hoạt ảnh khi lưu | ✅ | - | FIX-L6/L7: transition và animation giữ nguyên timeline khi mở bằng PowerPoint COM (docs/SLIDES-BUTTON-MATRIX-1011.md:68-70) |
 | Tính tương thích | Khứ hồi các định dạng ODP, FODP chuẩn mở | 🟢 | - | Hỗ trợ ODP/FODP qua LibreOffice adapter (adapters/libreoffice/common/ooxml_zip_patch.py:16-25) |
