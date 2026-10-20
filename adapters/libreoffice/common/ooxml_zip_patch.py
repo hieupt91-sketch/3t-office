@@ -6384,9 +6384,17 @@ def _sheet_chart_plot(feature: dict[str, object], original_plot: str) -> str:
         block = f'<c:barChart><c:barDir val="{direction}"/><c:grouping val="{grouping}"/><c:varyColors val="0"/>{"".join(series)}{dlabels}<c:gapWidth val="150"/>{overlap}{axes_ids}</c:barChart>'
         return f"<c:plotArea>{block}{cat_axes}</c:plotArea>"
     if chart_type == "combo" and len(series) >= 2:
-        bar = f'<c:barChart><c:barDir val="col"/><c:grouping val="clustered"/>{series[0]}{dlabels}<c:gapWidth val="150"/>{axes_ids}</c:barChart>'
-        line = f'<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>{"".join(series[1:])}{dlabels}<c:marker val="1"/><c:smooth val="0"/>{axes_ids}</c:lineChart>'
-        return f"<c:plotArea>{bar}{line}{cat_axes}</c:plotArea>"
+        bar = f'<c:barChart><c:barDir val="col"/><c:grouping val="clustered"/>{series[0]}{dlabels}<c:gapWidth val="150"/><c:axId val="1"/><c:axId val="2"/></c:barChart>'
+        line = f'<c:lineChart><c:grouping val="standard"/><c:varyColors val="0"/>{"".join(series[1:])}{dlabels}<c:marker val="1"/><c:smooth val="0"/><c:axId val="3"/><c:axId val="4"/></c:lineChart>'
+        secondary_axes = (
+            '<c:catAx><c:axId val="3"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="1"/>'
+            '<c:axPos val="b"/><c:tickLblPos val="none"/><c:crossAx val="4"/><c:crosses val="max"/>'
+            '<c:auto val="1"/><c:lblAlgn val="ctr"/><c:lblOffset val="100"/></c:catAx>'
+            '<c:valAx><c:axId val="4"/><c:scaling><c:orientation val="minMax"/></c:scaling><c:delete val="0"/>'
+            '<c:axPos val="r"/><c:numFmt formatCode="General" sourceLinked="1"/><c:tickLblPos val="nextTo"/>'
+            '<c:crossAx val="3"/><c:crosses val="max"/><c:crossBetween val="midCat"/></c:valAx>'
+        )
+        return f"<c:plotArea>{bar}{line}{cat_axes}{secondary_axes}</c:plotArea>"
     if chart_type in {"scatter", "bubble"}:
         x_source = series[0]
         y_source = series[1] if len(series) > 1 else series[0]

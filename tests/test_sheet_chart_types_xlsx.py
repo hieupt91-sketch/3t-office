@@ -1,4 +1,5 @@
 import io
+import re
 import unittest
 import zipfile
 
@@ -94,6 +95,15 @@ class SheetChartTypesXlsxTests(unittest.TestCase):
                 elif chart_type in {"scatter", "bubble"}:
                     self.assertIn("<c:xVal>", xml)
                     self.assertIn("<c:yVal>", xml)
+
+    def test_combo_chart_keeps_line_series_on_secondary_value_axis(self):
+        xml = self._patched_chart("combo")
+        self.assertEqual(xml.count("<c:barChart"), 1)
+        self.assertEqual(xml.count("<c:lineChart"), 1)
+        self.assertIn('<c:axId val="3"/><c:axId val="4"/>', xml)
+        secondary_axis = re.search(r"<c:valAx>.*?<c:axId val=\"4\"/>.*?</c:valAx>", xml, re.DOTALL)
+        self.assertIsNotNone(secondary_axis, xml)
+        self.assertIn('<c:crosses val="max"/>', secondary_axis.group(0))
 
     def test_data_labels_and_trendline_are_real_chart_elements(self):
         xml = self._patched_chart("combo", labels=True, trend=True)
