@@ -45,7 +45,7 @@ export function showTableSizePicker(anchor, { onInsert } = {}) {
     label.textContent = labelFor(columns, rows);
     for (const cell of cells) {
       const active = Number(cell.dataset.row) <= rows && Number(cell.dataset.column) <= columns;
-      cell.style.background = active ? "var(--vno-accent-soft,#dbeafe)" : "var(--vno-surface,#fff)";
+      cell.style.background = active ? "var(--vno-accent-soft,#dbeafe)" : "var(--vno-bg-window,#fff)";
       cell.style.borderColor = active ? "var(--vno-accent,#2563eb)" : "var(--vno-border-default,#94a3b8)";
       cell.tabIndex = Number(cell.dataset.row) === rows && Number(cell.dataset.column) === columns ? 0 : -1;
     }
