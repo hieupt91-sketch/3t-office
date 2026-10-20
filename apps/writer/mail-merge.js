@@ -818,7 +818,11 @@ export function showFinishMailMergeDialog({
           <div style="font-weight:600;font-size:13px;color:var(--vno-text-primary);">Hình thức xuất kết quả:</div>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--vno-text-primary);cursor:pointer;">
             <input type="radio" name="vno-merge-mode" value="document" checked style="cursor:pointer;" />
-            <span>Tạo tài liệu mới (Hợp nhất toàn bộ bản ghi nối tiếp nhau bằng ngắt trang)</span>
+            <span>${t("writerDialogs.mailMerge.replaceCurrent", "Thay nội dung tài liệu đang mở (ghép các bản ghi theo thứ tự bằng ngắt trang)")}</span>
+          </label>
+          <label class="vno-merge-replace-confirm" style="display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--vno-text-secondary);margin-left:24px;">
+            <input type="checkbox" class="vno-merge-replace-confirm-checkbox" />
+            <span>${t("writerDialogs.mailMerge.replaceConfirm", "Tôi xác nhận rằng thao tác sẽ thay nội dung hiện tại của tài liệu này.")}</span>
           </label>
           <label style="display:flex;align-items:center;gap:8px;font-size:13px;color:var(--vno-text-primary);cursor:pointer;">
             <input type="radio" name="vno-merge-mode" value="print" style="cursor:pointer;" />
@@ -864,6 +868,17 @@ export function showFinishMailMergeDialog({
   const closeBtn = overlay.querySelector(".vno-dialog-close-btn");
   const fromInput = overlay.querySelector("#vno-merge-from");
   const toInput = overlay.querySelector("#vno-merge-to");
+  const modeInputs = [...overlay.querySelectorAll('input[name="vno-merge-mode"]')];
+  const replaceConfirm = overlay.querySelector(".vno-merge-replace-confirm-checkbox");
+
+  const syncReplaceConfirmation = () => {
+    const isReplacing = overlay.querySelector('input[name="vno-merge-mode"]:checked')?.value === "document";
+    overlay.querySelector(".vno-merge-replace-confirm").hidden = !isReplacing;
+    submitBtn.disabled = isReplacing && !replaceConfirm.checked;
+  };
+  modeInputs.forEach((input) => input.addEventListener("change", syncReplaceConfirmation));
+  replaceConfirm.addEventListener("change", syncReplaceConfirmation);
+  syncReplaceConfirmation();
 
   const cleanup = () => {
     document.removeEventListener("keydown", onKeyDown);
@@ -881,6 +896,7 @@ export function showFinishMailMergeDialog({
     const from = parseInt(fromInput?.value, 10) || 1;
     const to = parseInt(toInput?.value, 10) || totalRecords;
 
+    if (mode === "document" && !replaceConfirm.checked) return;
     cleanup();
     if (onFinish) {
       onFinish({ mode, range, from, to });

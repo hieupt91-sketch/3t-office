@@ -1817,6 +1817,8 @@ export const viStrings = {
       noDataWarningTitle: "Xem trước trộn thư",
       noDataWarningMsg: "Chưa có nguồn dữ liệu trộn thư. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp bảng tính hoặc dán dữ liệu trước.",
       finishTitle: "Hoàn tất và Trộn thư",
+      replaceCurrent: "Thay nội dung tài liệu đang mở (ghép các bản ghi theo thứ tự bằng ngắt trang)",
+      replaceConfirm: "Tôi xác nhận rằng thao tác sẽ thay nội dung hiện tại của tài liệu này.",
       finishNoData: "Chưa có nguồn dữ liệu trộn thư để tạo tài liệu. Vui lòng mở 'Nguồn dữ liệu' để chọn tệp bảng tính hoặc dán bảng dữ liệu.",
       finishNoFields: "Tài liệu hiện tại chưa chứa trường trộn thư nào. Hãy dùng lệnh 'Chèn trường' để chèn ít nhất một trường trộn.",
       finishSuccess: "Đã hoàn tất trộn thư thành công {count} bản ghi vào tài liệu. Bạn có thể xem trước khi in hoặc xuất tệp.",

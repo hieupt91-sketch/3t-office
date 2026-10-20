@@ -1964,7 +1964,7 @@ export const WRITER_HELP_ENTRIES = [
     "writer.mailMerge.finish"
   ],
   "title": "Hoàn tất và xuất kết quả trộn thư",
-  "summary": "Tạo tài liệu mới chứa toàn bộ thư đã trộn hoặc in trực tiếp ra máy in từ nhóm Hoàn tất trên tab Trộn thư.",
+  "summary": "Ghép các bản ghi vào tài liệu đang mở hoặc gửi kết quả trực tiếp tới máy in từ nhóm Hoàn tất trên tab Trộn thư.",
   "ribbon": {
     "tab": "Trộn thư",
     "tabId": "mailings",
@@ -1979,8 +1979,9 @@ export const WRITER_HELP_ENTRIES = [
   "steps": [
     "Sau khi kiểm tra mẫu thư và dữ liệu, mở tab Trộn thư, nhóm Hoàn tất.",
     "Nhấp nút «Hoàn tất & Trộn» để mở danh sách tùy chọn.",
-    "Chọn «Chỉnh sửa tài liệu riêng lẻ» để tạo một tệp Doc mới chứa tất cả các thư đã thay dữ liệu, hoặc chọn «In tài liệu» để gửi trực tiếp tới máy in.",
-    "Xác nhận phạm vi bản ghi cần trộn (Tất cả, Bản ghi hiện tại hoặc Từ... đến...). Nhấn OK để thực thi."
+    "Chọn «Thay nội dung tài liệu đang mở» để ghép các bản ghi theo thứ tự vào tài liệu hiện tại, hoặc chọn «In tài liệu» để gửi trực tiếp tới máy in.",
+    "Nếu thay nội dung tài liệu, đánh dấu ô xác nhận cảnh báo trước khi bấm Hoàn tất. Muốn giữ nguyên mẫu, hãy lưu bản sao trước khi trộn.",
+    "Chọn phạm vi bản ghi (Tất cả, Bản ghi đang xem trước hoặc Từ... đến...) rồi bấm Hoàn tất. Kết quả có thể lưu riêng sau khi trộn."
   ]
 },
 {

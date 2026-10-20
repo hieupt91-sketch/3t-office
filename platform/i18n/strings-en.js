@@ -1818,6 +1818,8 @@ export const enStrings = {
       noDataWarningTitle: "Mail Merge Preview",
       noDataWarningMsg: "No mail merge data source found. Please open 'Select Recipients' to choose an spreadsheet/CSV file first.",
       finishTitle: "Finish & Merge",
+      replaceCurrent: "Replace the open document's contents (join records in order with page breaks)",
+      replaceConfirm: "I understand this will replace the current contents of this document.",
       finishNoData: "No mail merge data source to create documents. Please open 'Select Recipients' to select an spreadsheet/CSV file.",
       finishNoFields: "Current document contains no merge fields. Use 'Insert Merge Field' to insert at least one field.",
       finishSuccess: "Successfully merged {count} records into document. You can preview or export the document.",
