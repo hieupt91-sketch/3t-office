@@ -639,3 +639,24 @@ RISKS: Notes output uses title and notes extracted from the local FODP source; s
 DEPENDENCIES/BLOCKERS: None.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Merge the two implementation commits through the assigned queue workflow.
+
+---
+
+# Agent Handoff
+TASK: Q24 — Sheet XLSX future function prefixes and Excel 2016 open compatibility
+AGENT/ROLE: Codex / VN Sheet adapter
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Prefix XLOOKUP, IFS, UNIQUE, FILTER, and SORT correctly during XLSX export so older spreadsheet software can open the file and report unsupported formulas as #NAME? without changing cached values.
+FINDINGS: Q22 CDP reproduced an XLSX where J4/J10/J22:J24 had unprefixed formulas. J22:J24 had no array formula `t`/`ref` metadata. Pre-fix unit regression failed because the future-function names were not prefixed. Microsoft [MS-XLSX] lists `_xlfn.XLOOKUP`, `_xlfn.IFS`, `_xlfn.UNIQUE`, and worksheet-only `_xlfn._xlws.FILTER` / `_xlfn._xlws.SORT`. The installed Excel COM oracle is explicitly blocked by the ticket rules, so no HRESULT or Excel open result was collected in this run.
+IMPLEMENTATION SUMMARY: The Sheet adapter writes those prefixes into FODS formulas; the Python OOXML postprocessor reapplies the expected prefixes after LibreOffice export, only inside formula text and outside string literals. Formula caches are untouched. The product warning was not implemented; proposal for owner decision: a small non-blocking contextual notice for formulas unsupported by Excel 2016, with product-neutral VI/EN text and concrete Help guidance if approved.
+FILES CHANGED: adapters/libreoffice/common/ooxml_zip_patch.py; adapters/libreoffice/sheet/sheet-adapter.js; tests/test_sheet_future_function_prefixes.py; tests/unit/sheet-formula-odf.test.js; 09-templates/AGENT-HANDOFF.md.
+COMMITS: d4722318 (OOXML and adapter fix); handoff commit follows separately.
+COMMANDS RUN: `git merge main`; Q22 desktop CDP before/after with fresh `VNO_CDP_LOCALAPPDATA`; pre-fix `python -m pytest tests/test_sheet_future_function_prefixes.py -q`; post-fix focused pytest and formula adapter unit; `npm test`; `node scripts/audit-0610/i18n_parity.mjs`; `python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix`; `python -m pytest tests -q -k "sheet or xlsx or ooxml or formula"`; LibreOffice headless XLSX→FODS open; 27-file LAN batch excluding lan14 with Excel COM lookup disabled so the batch records BLOCKED instead of invoking COM; `git diff --check`.
+BUILD RESULT: NOT RUN — no build system changes.
+TEST RESULTS: PASS — pre-fix regression FAIL, post-fix pytest 1/1; adapter formula unit 24/24; `npm test` 3778/3778; pytest 366 passed, 741 deselected; Q22 CDP 25 PASS, 3 NOT SUPPORTED, 0 FAIL both before and after; i18n missing 0; checklist rows lowered 0. The exported J4/J10/J22:J24 formula names have the required prefixes and their five cached values match the pre-fix XLSX. LibreOffice opened the post-fix XLSX. LAN: 27/27 saved, diff=0, lint=clean; overall BLOCKED because Excel COM was not run.
+KNOWN FAILURES: Excel COM open and exact HRESULT are BLOCKED by the explicit queue rule; therefore Excel 2016 opening the post-fix workbook and recalculated #NAME? values in J22:J24 are not verified. The app formula engine still does not support UNIQUE/FILTER/SORT.
+RISKS: Excel formula parsing/recalculation remains unverified in the blocked COM environment. LAN batch verifies app round-trip, value diffs, and OOXML lint only; it does not substitute for the Excel oracle.
+DEPENDENCIES/BLOCKERS: Excel COM is blocked for this run. Product owner decision is pending for the optional product-neutral warning described above.
+CORE PATCH ID (if any): None.
+NEXT ACTION: When the Excel COM gate is available, verify the saved workbook opens and J22:J24 recalculate to #NAME? with no repair dialog; decide separately whether to add the proposed contextual warning.
