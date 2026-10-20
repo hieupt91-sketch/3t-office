@@ -848,19 +848,19 @@
  * trong sheet-grid.js - KHÔNG hardcode luôn hàng 1/cột A như trước đây. CSS ở
  * đây chỉ còn phụ trách màu nền/viền/bóng đổ theo class.
  */
-.is-frozen-col-header,
-.is-frozen-row-cell,
-.is-frozen-col-cell {
-  background-color: var(--vno-bg-window, #ffffff);
+.is-frozen-col-header:not([style*="background-color"]),
+.is-frozen-row-cell:not([style*="background-color"]),
+.is-frozen-col-cell:not([style*="background-color"]) {
+  background-color: var(--vno-bg-window, #ffffff) !important;
 }
-.is-frozen-row-cell.is-frozen-col-cell {
-  background-color: var(--vno-bg-window, #f1f5f9);
+.is-frozen-row-cell.is-frozen-col-cell:not([style*="background-color"]) {
+  background-color: var(--vno-bg-window, #f1f5f9) !important;
 }
-th.is-frozen-col-header {
-  background-color: var(--vno-bg-subtle, #e2e8f0);
+th.is-frozen-col-header:not([style*="background-color"]) {
+  background-color: var(--vno-bg-subtle, #e2e8f0) !important;
 }
-th.vno-row-header.is-frozen-row-cell {
-  background-color: var(--vno-bg-subtle, #e2e8f0);
+th.vno-row-header.is-frozen-row-cell:not([style*="background-color"]) {
+  background-color: var(--vno-bg-subtle, #e2e8f0) !important;
 }
 
 /* Viền/bóng đổ phân cách CHỈ ở hàng/cột cố định CUỐI CÙNG (ranh giới thật), không lặp lại ở từng hàng/cột trung gian. */
