@@ -702,7 +702,7 @@ export class SlidesCanvasController {
         </button>
       </div>
       <div class="vno-slide-notes-content" id="vno-notes-content" style="display:none;">
-        <textarea class="vno-slide-notes-input" id="vno-notes-textarea" placeholder="Nhập ghi chú dành riêng cho người thuyết trình (chỉ hiển thị ở chế độ Presenter, không hiện cho khán giả khi F5)..."></textarea>
+        <textarea class="vno-slide-notes-input" id="vno-notes-textarea" placeholder="${t("slidesDialogs.speakerNotesPlaceholder")}"></textarea>
       </div>
     `;
 
