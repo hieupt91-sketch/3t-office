@@ -21108,7 +21108,7 @@ export class SheetGridController {
 
   showScenarioManagerDialog() {
     const overlay = this._createSheetDialog(t("sheetDialogs.scenarioManagerTitle", "Trình quản lý kịch bản"), `
-      <div class="vno-scenario-manager" style="display:flex;flex-direction:column;gap:8px;min-width:420px;">
+      <div class="vno-scenario-manager" style="display:flex;flex-direction:column;gap:8px;min-width:0;width:100%;">
         <label for="vno-scenario-list" style="display:flex;flex-direction:column;gap:4px;font-weight:600;">${t("sheetDialogs.scenarios", "Kịch bản")}
           <select id="vno-scenario-list" size="5" style="width:100%;height:110px;padding:4px;" aria-label="${t("sheetDialogs.scenarios", "Kịch bản")}"></select>
         </label>
