@@ -554,3 +554,25 @@ RISKS: Yêu cầu mở-sửa-lưu tối thiểu 5 DOCX trong `test\\landocx` BLO
 DEPENDENCIES/BLOCKERS: Cần fixture DOCX LAN để hoàn tất batch readback theo chỉ dẫn.
 CORE PATCH ID (if any): None.
 NEXT ACTION: Tạo ticket riêng để kết quả Trộn thư mở thành tài liệu Writer mới, giữ tài liệu nguồn; cung cấp `test\\landocx` rồi chạy batch Word readback trước khi gộp.
+
+
+---
+
+# Agent Handoff
+TASK: Q20 — Slides: ba tồn đọng Q18 và Writer mail merge
+AGENT/ROLE: Codex / VN Slides + VN Writer
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Điều tra Pulse/PPTX round-trip, bố cục custom, in handout; sửa nhãn và xác nhận trộn thư.
+FINDINGS: CDP Q18 round-trip: bố cục title-content/two-content/blank trở thành blank/blank/title-content; COM chỉ đọc layout Standard. Print preview là 1 slide/trang, 7 trang cho 7 slide không ẩn. COM đọc EffectType=75 (Pulse) và EffectType=10; ghi nhận Q18 rằng Pulse mất là nhầm, mục còn thiếu trong cụm là Fly In có trigger. Writer Q19 ghi nhãn “Tạo tài liệu mới” nhưng thay nội dung đang mở.
+IMPLEMENTATION SUMMARY: Trộn thư đổi nhãn thành “Thay nội dung tài liệu đang mở”, yêu cầu checkbox xác nhận trước khi thay, thêm Help VI và i18n VI/EN. Pulse được giữ nguyên; thêm unit đảm bảo menu và preset khớp COM. Bố cục CustomLayout và PDF handout 3-up chưa sửa; xem `docs/Q20-FINDING.md` để biết nguyên nhân cấu trúc và đầu việc tiếp.
+FILES CHANGED: `apps/writer/mail-merge.js`; `apps/slides/slides-ribbon.js`; `platform/help/entries-slides.js`; `platform/help/entries-writer.js`; `platform/i18n/strings-en.js`; `platform/i18n/strings-vi.js`; `tests/unit/slides-animations-notes.test.js`; `tests/live/cdp/q20-writer-mailmerge-confirm.desktop.mjs`; `docs/Q20-FINDING.md`; `09-templates/AGENT-HANDOFF.md`.
+COMMITS: `4311adb5`; `90c28ae3`; `454b75fd`.
+COMMANDS RUN: `git merge main`; Q18 CDP round-trip; Q18 PowerPoint COM readback; Pulse CDP save + PowerPoint COM; Q20 Writer mail merge CDP; `node tests/run-tests.js`; three `gen_*_checklist.py`; i18n parity; checklist evidence; focused pytest.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — Node 3772/3772; Writer CDP 5/5; Pulse ribbon CDP 2/2; Q18 CDP 17/17; COM đọc Pulse EffectType=75, nhưng layout Standard/8; i18n 3112/3112, thiếu 0; checklist 0 dòng bị hạ; pytest 463 passed, 640 deselected.
+KNOWN FAILURES: CustomLayout chưa round-trip; không có chế độ handout 3-up hoặc ghi chú; trong cụm hoạt ảnh ba bước, Fly In có trigger không được COM đọc thấy.
+RISKS: Chỉ xác minh Pulse riêng bằng COM; các tổ hợp hiệu ứng nhiều bước cần xử lý trigger riêng. Tên layout PowerPoint và PDF handout chưa đạt yêu cầu.
+DEPENDENCIES/BLOCKERS: CustomLayout cần tạo và nối nhiều slideLayout OOXML parts; handout cần thay đổi adapter/print worker để PDF có 3 slide trên mỗi trang. Chưa triển khai.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Tiếp tục ticket riêng cho package CustomLayout và PDF handout 3-up; không đánh dấu hai mục này PASS.
