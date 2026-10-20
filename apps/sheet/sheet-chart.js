@@ -44,15 +44,15 @@ export class SheetChartBuilder {
     const width = 680, height = 360;
     const p = { top: 50, right: 35, bottom: xAxisTitle ? 82 : 65, left: yAxisTitle ? 88 : 70 };
     const chartW = width - p.left - p.right, chartH = height - p.top - p.bottom;
-    const heading = `<text data-chart-title x="340" y="28" text-anchor="middle" font-size="16" font-weight="bold" fill="#0f172a">${esc(title)}</text>`;
-    const axisTitles = type === "pie" ? "" : `${xAxisTitle ? `<text data-axis-title="x" x="340" y="354" text-anchor="middle" font-size="12" font-weight="600" fill="#334155">${esc(xAxisTitle)}</text>` : ""}${yAxisTitle ? `<text data-axis-title="y" x="15" y="180" text-anchor="middle" font-size="12" font-weight="600" fill="#334155" transform="rotate(-90 15 180)">${esc(yAxisTitle)}</text>` : ""}`;
-    const wrap = body => `<svg data-chart-type="${type}" viewBox="0 0 ${width} ${height}" width="100%" height="100%" style="background:#fff">${heading}${axisTitles}${body}</svg>`;
-    if (!normalizedSeries.length || !pointCount) return wrap(`<text x="340" y="190" text-anchor="middle" fill="#64748b">${esc(t("sheetDialogs.chartNoNumericData"))}</text>`);
+    const heading = `<text data-chart-title x="340" y="28" text-anchor="middle" font-size="16" font-weight="bold" fill="var(--vno-text-primary,#0f172a)">${esc(title)}</text>`;
+    const axisTitles = type === "pie" ? "" : `${xAxisTitle ? `<text data-axis-title="x" x="340" y="354" text-anchor="middle" font-size="12" font-weight="600" fill="var(--vno-text-secondary,#334155)">${esc(xAxisTitle)}</text>` : ""}${yAxisTitle ? `<text data-axis-title="y" x="15" y="180" text-anchor="middle" font-size="12" font-weight="600" fill="var(--vno-text-secondary,#334155)" transform="rotate(-90 15 180)">${esc(yAxisTitle)}</text>` : ""}`;
+    const wrap = body => `<svg data-chart-type="${type}" viewBox="0 0 ${width} ${height}" width="100%" height="100%" style="background:transparent">${heading}${axisTitles}${body}</svg>`;
+    if (!normalizedSeries.length || !pointCount) return wrap(`<text x="340" y="190" text-anchor="middle" fill="var(--vno-text-muted,#64748b)">${esc(t("sheetDialogs.chartNoNumericData"))}</text>`);
 
     if (type === "pie") {
       const positive = values.map(value => Math.max(0, value));
       const total = positive.reduce((sum, value) => sum + value, 0);
-      if (!total) return wrap(`<text x="340" y="190" text-anchor="middle" fill="#64748b">${esc(t("sheetDialogs.chartPiePositive"))}</text>`);
+      if (!total) return wrap(`<text x="340" y="190" text-anchor="middle" fill="var(--vno-text-muted,#64748b)">${esc(t("sheetDialogs.chartPiePositive"))}</text>`);
       let angle = -Math.PI / 2, body = "";
       positive.forEach((value, index) => {
         const next = angle + value / total * Math.PI * 2, cx = 245, cy = 190, radius = 105;
@@ -62,7 +62,7 @@ export class SheetChartBuilder {
           ? `<circle cx="${cx}" cy="${cy}" r="${radius}"`
           : `<path d="M ${cx} ${cy} L ${x1} ${y1} A ${radius} ${radius} 0 ${next - angle > Math.PI ? 1 : 0} 1 ${x2} ${y2} Z"`;
         body += `${shape} data-value="${value}" fill="${COLORS[index % COLORS.length]}" stroke="#fff" stroke-width="2"><title>${names[index]}: ${value}</title>${value === total ? "</circle>" : "</path>"}`;
-        body += `<g transform="translate(430, ${70 + index * 28})"><rect width="14" height="14" rx="3" fill="${COLORS[index % COLORS.length]}"/><text x="22" y="12" font-size="12" fill="#334155">${names[index]} (${Math.round(value / total * 100)}%)</text></g>`;
+        body += `<g transform="translate(430, ${70 + index * 28})"><rect width="14" height="14" rx="3" fill="${COLORS[index % COLORS.length]}"/><text x="22" y="12" font-size="12" fill="var(--vno-text-secondary,#334155)">${names[index]} (${Math.round(value / total * 100)}%)</text></g>`;
         angle = next;
       });
       return wrap(body);
@@ -79,9 +79,9 @@ export class SheetChartBuilder {
     let body = "";
     for (let step = 0; step <= 4; step++) {
       const value = min + span * step / 4, gridY = y(value);
-      body += `<line x1="${p.left}" y1="${gridY}" x2="${width - p.right}" y2="${gridY}" stroke="#e2e8f0"/><text x="${p.left - 8}" y="${gridY + 4}" text-anchor="end" font-size="10" fill="#64748b">${new Intl.NumberFormat("vi-VN", { notation: "compact" }).format(value)}</text>`;
+      body += `<line x1="${p.left}" y1="${gridY}" x2="${width - p.right}" y2="${gridY}" stroke="var(--vno-border-subtle,#e2e8f0)"/><text x="${p.left - 8}" y="${gridY + 4}" text-anchor="end" font-size="10" fill="var(--vno-text-muted,#64748b)">${new Intl.NumberFormat("vi-VN", { notation: "compact" }).format(value)}</text>`;
     }
-    const valueLabel = (value, px, py, suffix = "") => dataLabels ? `<text data-chart-label x="${px}" y="${py}" text-anchor="middle" font-size="10" fill="#334155">${Math.round(value * 100) / 100}${suffix}</text>` : "";
+    const valueLabel = (value, px, py, suffix = "") => dataLabels ? `<text data-chart-label x="${px}" y="${py}" text-anchor="middle" font-size="10" fill="var(--vno-text-secondary,#334155)">${Math.round(value * 100) / 100}${suffix}</text>` : "";
     if (type === "bar-horizontal") {
       const slot = chartH / pointCount, barH = Math.min(38, slot * .58);
       const maxValue = Math.max(1, ...allValues.map(Math.abs));

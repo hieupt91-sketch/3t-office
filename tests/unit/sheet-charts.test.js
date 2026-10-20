@@ -105,6 +105,18 @@ export async function runSheetChartTests() {
       assert(!grid.chartLayer.children[0].innerHTML.includes('data-value="100"'), "SVG cũ không được giữ giá trị 100");
     });
 
+    await test("Sheet Charts: chart overlay dùng nền theo giao diện, không ép nền trắng", async () => {
+      const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí"]);
+      await grid.initializeOptionalDocumentFeatures();
+      grid.chartLayer = chartLayer();
+      grid.setCellValue("A", 1, "Doanh thu");
+      grid.setCellValue("B", 1, 100);
+      grid.insertChart("bar", { start: { c: "A", r: 1 }, end: { c: "B", r: 1 } });
+      const panel = grid.chartLayer.children[0];
+      assert(!panel.style.cssText.includes("background:#fff"), panel.style.cssText);
+      assert(panel.innerHTML.includes('style="background:transparent"'), "SVG phải để nền panel theo theme");
+    });
+
     await test("Sheet Charts: sửa riêng tiêu đề trục X/Y, render SVG và hoàn tác được", async () => {
       const grid = createSheetGridWithSheets(container(), ["Dự toán chi phí", "Kế hoạch Q3", "Nhân sự"]);
       await grid.initializeOptionalDocumentFeatures();
