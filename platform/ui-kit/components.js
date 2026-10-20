@@ -720,6 +720,14 @@ export function createDropdownButton({
   let activeSubMenuEl = null;
   let focusedSubIndex = -1;
 
+  const fitMenuToViewport = (menu, top) => {
+    const status = document.querySelector(".vno-statusbar, .vno-status-bar, .vno-app-statusbar");
+    const statusTop = status?.getBoundingClientRect?.().top ?? window.innerHeight;
+    const bottom = Math.min(window.innerHeight, statusTop) - 6;
+    menu.style.maxHeight = `${Math.max(120, bottom - top)}px`;
+    menu.style.overflowY = "auto";
+  };
+
   const closeSubMenu = () => {
     if (activeSubMenuEl) {
       if (activeSubMenuEl.parentNode) activeSubMenuEl.parentNode.removeChild(activeSubMenuEl);
@@ -817,6 +825,7 @@ export function createDropdownButton({
     }
     subMenu.style.top = `${pRect.top}px`;
     subMenu.style.left = `${sLeft}px`;
+    fitMenuToViewport(subMenu, pRect.top);
     parentEl.setAttribute("aria-expanded", "true");
     activeSubMenuEl = subMenu;
   };
@@ -930,6 +939,7 @@ export function createDropdownButton({
     }
     menuEl.style.top = `${rect.bottom + 2}px`;
     menuEl.style.left = `${left}px`;
+    fitMenuToViewport(menuEl, rect.bottom + 2);
 
     btn.setAttribute("aria-expanded", "true");
     btn.classList.add("is-active");
