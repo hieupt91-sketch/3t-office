@@ -11,6 +11,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { HelpPanel } from "../../platform/help/help-panel.js";
 import { AppShell } from "../../platform/shell/app-shell.js";
+import { activateExclusivePanel, deactivateExclusivePanel } from "../../platform/ui-kit/exclusive-panels.js";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../..");
 
@@ -188,5 +189,16 @@ export async function runPanelOverlayUiP1Tests() {
     globalThis.document = originalDoc;
   }
 
+  try {
+    const closed = [];
+    activateExclusivePanel("writer-styles-pane", () => closed.push("styles"));
+    activateExclusivePanel("ai-assistant-sidebar", () => closed.push("ai"));
+    const replacingClosesPrevious = closed.join(",") === "styles";
+    const wrongOwnerCannotClear = !deactivateExclusivePanel("writer-styles-pane");
+    const ownerCanClear = deactivateExclusivePanel("ai-assistant-sidebar");
+    results.push({ name: "PanelCoordinator: Mở panel mới đóng panel trước và chỉ owner hiện tại mới gỡ trạng thái", pass: replacingClosesPrevious && wrongOwnerCannotClear && ownerCanClear });
+  } catch (error) {
+    results.push({ name: "PanelCoordinator lỗi: " + error.message, pass: false });
+  }
   return results;
 }

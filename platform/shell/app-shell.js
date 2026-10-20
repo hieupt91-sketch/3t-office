@@ -4,6 +4,7 @@
 
 import { ICONS } from "../ui-kit/icons.js";
 import { globalCommandBus } from "../commands/command-bus.js";
+import { activateExclusivePanel, deactivateExclusivePanel } from "../ui-kit/exclusive-panels.js";
 import { globalShortcutManager } from "../commands/shortcut-manager.js";
 import { globalMacroManager } from "../commands/macro-manager.js";
 import { RibbonHost } from "../ribbon/ribbon-host.js";
@@ -765,6 +766,11 @@ export class AppShell {
   toggleAiSidebar(forceState) {
     const nextState = forceState !== undefined ? forceState : !this.isAiOpen;
     const wasOpen = this.isAiOpen;
+    if (nextState) {
+      activateExclusivePanel("ai-assistant-sidebar", () => this.toggleAiSidebar(false));
+    } else {
+      deactivateExclusivePanel("ai-assistant-sidebar");
+    }
     this.isAiOpen = nextState;
 
     if (this.isAiOpen) {

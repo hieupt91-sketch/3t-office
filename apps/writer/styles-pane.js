@@ -1,5 +1,6 @@
 import { STYLE_PRESETS } from "./style-gallery.js";
 import { t } from "../../platform/i18n/i18n.js";
+import { activateExclusivePanel, deactivateExclusivePanel } from "../../platform/ui-kit/exclusive-panels.js";
 
 let activePane = null;
 let activeEscapeHandler = null;
@@ -10,6 +11,7 @@ const text = (key, fallback) => {
 };
 
 export function closeWriterStylesPane() {
+  deactivateExclusivePanel("writer-styles-pane");
   if (activeEscapeHandler) document.removeEventListener("keydown", activeEscapeHandler, true);
   activeEscapeHandler = null;
   activePane?.remove();
@@ -35,6 +37,7 @@ export function toggleWriterStylesPane(options = {}) {
   const close = () => { closeWriterStylesPane(); options.onClose?.(); };
   pane.querySelector("[data-close]").addEventListener("click", close);
   pane.querySelector("[data-create]").addEventListener("click", () => options.onCreate?.());
+  activateExclusivePanel("writer-styles-pane", close);
   pane.addEventListener("keydown", (event) => {
     if (event.key === "Escape") { event.preventDefault(); event.stopPropagation(); close(); return; }
     if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
