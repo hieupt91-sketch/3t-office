@@ -453,7 +453,8 @@ export class RibbonHost {
     this._adaptiveRecheckTimer = setTimeout(() => {
       this._adaptiveRecheckTimer = null;
       const panel = this.container?.querySelector?.(".vno-ribbon-content");
-      if (panel && !this.isCollapsed && panel.scrollWidth > panel.clientWidth + 1) {
+        const groups = panel ? Array.from(panel.querySelectorAll(".vno-ribbon-group")) : [];
+        if (panel && !this.isCollapsed && this._hasAdaptiveOverflow(panel, groups)) {
         this._applyAdaptiveLayout();
       }
     }, 200);
@@ -469,6 +470,7 @@ export class RibbonHost {
 
     const groupEls = Array.from(contentPanel.querySelectorAll(".vno-ribbon-group"));
     if (groupEls.length === 0) return;
+    const hasOverflow = () => this._hasAdaptiveOverflow(contentPanel, groupEls);
 
     // Reset về trạng thái đầy đủ (Stage 0)
     for (const g of groupEls) {
@@ -476,7 +478,7 @@ export class RibbonHost {
     }
 
     // Nếu đã vừa vặn thì không cần thu gọn
-    if (contentPanel.scrollWidth <= contentPanel.clientWidth + 1) {
+    if (!hasOverflow()) {
       return;
     }
 
@@ -494,7 +496,7 @@ export class RibbonHost {
     // Stage 1: Co gọn các nút lớn (compact)
     for (const g of groupsToShrink) {
       g.classList.add("vno-group-compact");
-      if (contentPanel.scrollWidth <= contentPanel.clientWidth + 1) return;
+      if (!hasOverflow()) return;
     }
 
     // Stage 2: Nút nhỏ ẩn nhãn, chỉ hiển thị icon (icon-only + tooltip).
@@ -504,12 +506,12 @@ export class RibbonHost {
     for (const g of groupsToShrink) {
       if (keepLabels.includes(g.dataset.groupId)) continue;
       g.classList.add("vno-group-icon-only");
-      if (contentPanel.scrollWidth <= contentPanel.clientWidth + 1) return;
+      if (!hasOverflow()) return;
     }
     for (const g of groupsToShrink) {
       if (!keepLabels.includes(g.dataset.groupId)) continue;
       g.classList.add("vno-group-icon-only");
-      if (contentPanel.scrollWidth <= contentPanel.clientWidth + 1) return;
+      if (!hasOverflow()) return;
     }
 
     // Stage 3: Thu cả nhóm thành 1 nút dropdown mở rộng
@@ -518,16 +520,25 @@ export class RibbonHost {
         continue;
       }
       g.classList.add("vno-group-collapsed");
-      if (contentPanel.scrollWidth <= contentPanel.clientWidth + 1) return;
+      if (!hasOverflow()) return;
     }
 
     // Nếu vẫn chưa đủ (ở màn hình cực hẹp), thu nốt các nhóm còn lại
     for (const g of groupsToShrink) {
       if (!g.classList.contains("vno-group-collapsed")) {
         g.classList.add("vno-group-collapsed");
-        if (contentPanel.scrollWidth <= contentPanel.clientWidth + 1) return;
+        if (!hasOverflow()) return;
       }
     }
+  }
+
+  _hasAdaptiveOverflow(contentPanel, groupEls) {
+    if (contentPanel.scrollWidth > contentPanel.clientWidth + 1) return true;
+    return groupEls.some((group) => {
+      if (group.classList.contains("vno-group-collapsed")) return false;
+      const items = group.querySelector(".vno-ribbon-group-items");
+      return items && items.scrollWidth > items.clientWidth + 1;
+    });
   }
 
   _updateTabScrollControls() {
