@@ -694,8 +694,7 @@ export class SlidesCanvasController {
     this.notesPanelEl.innerHTML = `
       <div class="vno-slide-notes-bar" id="vno-notes-bar">
         <div class="vno-slide-notes-label">
-          <span class="vno-notes-icon">📝</span>
-          <span style="font-weight:600;font-size:12px;color:#334155;">Ghi chú người thuyết trình (Speaker Notes)</span>
+          <span style="font-weight:600;font-size:12px;">${t("slidesDialogs.speakerNotesTitle")}</span>
           <span class="vno-notes-badge" id="vno-notes-count">0 ký tự</span>
         </div>
         <button class="vno-btn vno-btn-sm vno-notes-toggle-btn" id="vno-notes-toggle" title="Ẩn/Hiện khung ghi chú">
