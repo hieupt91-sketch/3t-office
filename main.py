@@ -126,7 +126,7 @@ if _early_forward_if_running(sys.argv[1:]):
 
 import webview
 if os.environ.get("VNO_CDP_DEBUG_PORT"):
-    # Test-only WebView2/CDP access; production shortcuts leave this unset.
+    # Test-only Chromium/CDP access; production launches leave this unset.
     webview.settings["REMOTE_DEBUGGING_PORT"] = int(os.environ["VNO_CDP_DEBUG_PORT"])
 
 # ``platform`` is also a Python standard-library module, so load the shared
@@ -6108,8 +6108,16 @@ def main(argv: list[str] | None = None):
         pass
 
     try:
+        cdp_webview_gui = None
+        if (os.environ.get("VNO_CDP_PLATFORM") == "darwin"
+                and os.environ.get("VNO_CDP_DEBUG_PORT")
+                and os.environ.get("VNO_CDP_WEBVIEW_GUI") == "qt"):
+            # Test-only backend selection. Production does not set this variable and
+            # continues to use pywebview's normal platform backend selection.
+            cdp_webview_gui = os.environ["VNO_CDP_WEBVIEW_GUI"]
         webview.start(
             lambda: _INSTANCE_DISPATCH_READY.set(),
+            gui=cdp_webview_gui,
             debug=os.environ.get("VNO_PERF_DEBUG") == "1",
             icon=app_icon,
         )
