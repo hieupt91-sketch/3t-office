@@ -1004,22 +1004,27 @@ export function createDropdownButton({
           e.preventDefault();
           const subItems = activeSubMenuEl.querySelectorAll(".vno-ribbon-dropdown-item");
           if (subItems[focusedSubIndex]) subItems[focusedSubIndex].click();
+          setTimeout(() => btn.focus(), 100);
         } else if (focusedIndex >= 0 && focusedIndex < items.length) {
           e.preventDefault();
           const itemEls = menuEl.querySelectorAll(".vno-ribbon-dropdown-item");
           if (itemEls[focusedIndex]) itemEls[focusedIndex].click();
+          setTimeout(() => btn.focus(), 100);
         }
       } else if (e.key === "Tab") {
+        e.preventDefault();
+        e.stopImmediatePropagation();
         closeMenu();
+        setTimeout(() => btn.focus(), 30);
       }
     };
 
     menuEl._cleanup = () => {
       document.removeEventListener("mousedown", onDocMouseDown);
-      document.removeEventListener("keydown", onDocKeyDown);
+      document.removeEventListener("keydown", onDocKeyDown, true);
     };
 
-    document.addEventListener("keydown", onDocKeyDown);
+    document.addEventListener("keydown", onDocKeyDown, true);
     setTimeout(() => {
       document.addEventListener("mousedown", onDocMouseDown);
     }, 10);
