@@ -709,6 +709,11 @@ export const enStrings = {
       slideUnit: "slides",
       slideCount: "{count} slides"
     },
+    printModeLegend: "Slide layout",
+    printModeSlides: "Slides",
+    printModeHandout: "Handouts",
+    printModeNotes: "Notes pages",
+    printSlidesPerPage: "Slides per sheet",
     masterTitle: "Slide Master", themeGalleryTitle: "Theme Gallery", themeGalleryHint: "Choose a theme to apply it immediately to the whole presentation.", themePreviewTitle: "Presentation title", themeCorporateBlue: "Corporate Blue", themeWarmTerracotta: "Warm Terracotta", themeMinimalMonochrome: "Minimal Monochrome", themeNaturalGreen: "Natural Green", themeModernCharcoal: "Modern Charcoal", themeEnergeticOrange: "Energetic Orange", slideSizeTitle: "Slide Size", slideSizeHint: "Choose a new aspect ratio. Existing shapes and objects will be scaled to fit.", slideSizeWide: "Widescreen", slideSizeStandard: "Standard", slideSizeCustom: "Custom", slideSizeWidthCm: "Width (cm)", slideSizeHeightCm: "Height (cm)", slideSizeApply: "Apply", slideSizeRangeError: "Each side must be between 2.54 cm and 142.24 cm.", slideSizeFormatError: "Enter a number, for example 25.4 or 19.05.", layoutTitle: "Choose a Slide Layout", transitionTitle: "Transitions", animationTitle: "Object Animations",
     applyMaster: "Apply Theme", applyLayout: "Apply Layout", applyTransition: "Apply Transition", applyAnimation: "Apply Animation", removeTransition: "Remove Transition", removeAnimation: "Remove Animation", previewTransition: "▶ Preview Transition", previewAnimation: "▶ Preview Animation", previewObject: "Preview Object",
     layoutHint: "Choose a layout to reshape the current slide's content structure:", applyLayoutAll: "Apply to All", applyLayoutCurrent: "Apply",

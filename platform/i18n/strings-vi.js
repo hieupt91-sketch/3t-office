@@ -708,6 +708,11 @@ export const viStrings = {
       slideUnit: "trang chiếu",
       slideCount: "{count} trang chiếu"
     },
+    printModeLegend: "Bố trí trang chiếu",
+    printModeSlides: "Trang chiếu",
+    printModeHandout: "Bản phát tay",
+    printModeNotes: "Trang ghi chú",
+    printSlidesPerPage: "Số trang chiếu mỗi tờ",
     masterTitle: "Mẫu Slide Master", themeGalleryTitle: "Thư viện Chủ đề", themeGalleryHint: "Chọn một chủ đề để áp dụng ngay cho toàn bộ bản trình chiếu.", themePreviewTitle: "Tiêu đề bản trình chiếu", themeCorporateBlue: "Xanh Doanh Nghiệp", themeWarmTerracotta: "Terracotta Ấm Áp", themeMinimalMonochrome: "Đơn Sắc Tối Giản", themeNaturalGreen: "Xanh Lá Thiên Nhiên", themeModernCharcoal: "Than Chì Hiện Đại", themeEnergeticOrange: "Cam Năng Động", slideSizeTitle: "Kích thước trang chiếu", slideSizeHint: "Chọn tỷ lệ mới. Mọi hình và đối tượng hiện có sẽ được co giãn theo khung.", slideSizeWide: "Màn hình rộng", slideSizeStandard: "Tiêu chuẩn", slideSizeCustom: "Tùy chỉnh", slideSizeWidthCm: "Chiều rộng (cm)", slideSizeHeightCm: "Chiều cao (cm)", slideSizeApply: "Áp dụng", slideSizeRangeError: "Mỗi cạnh phải từ 2,54 cm đến 142,24 cm.", slideSizeFormatError: "Hãy nhập số, ví dụ 25,4 hoặc 19.05.", layoutTitle: "Chọn Bố Cục Trang Chiếu", transitionTitle: "Hiệu Ứng Chuyển Trang", animationTitle: "Hiệu Ứng Đối Tượng (Object Animations)",
     applyMaster: "Áp dụng mẫu", applyLayout: "Áp dụng bố cục", applyTransition: "Áp dụng chuyển tiếp", applyAnimation: "Áp dụng hiệu ứng", removeTransition: "Xóa chuyển tiếp", removeAnimation: "Xóa hiệu ứng", previewTransition: "▶ Xem thử chuyển tiếp", previewAnimation: "▶ Xem thử hiệu ứng", previewObject: "Đối tượng xem thử",
     layoutHint: "Chọn một bố cục chuẩn để định hình lại cấu trúc nội dung trang chiếu hiện tại:", applyLayoutAll: "Áp dụng cho tất cả", applyLayoutCurrent: "Áp dụng",

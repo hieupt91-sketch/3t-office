@@ -49,6 +49,46 @@ def _perf(stage: str, started: float, **fields) -> None:
     print(f"[VNO Open Perf] {stage} {(time.perf_counter() - started) * 1000:.1f}ms {extra}".rstrip(), flush=True)
 
 
+def build_slides_handout_pdf(source_pdf: str, output_pdf: str, slides_per_page: int) -> int:
+    """Arrange converted slide pages on landscape A4 sheets using pypdf."""
+    if slides_per_page not in {3, 6, 9}:
+        raise ValueError("Chọn 3, 6 hoặc 9 trang chiếu mỗi tờ.")
+    try:
+        from pypdf import PdfReader, PdfWriter, Transformation
+    except ImportError as exc:
+        raise RuntimeError("Thiếu mô-đun xử lý PDF để tạo bản phát tay.") from exc
+
+    reader = PdfReader(source_pdf)
+    source_pages = list(reader.pages)
+    if not source_pages:
+        raise RuntimeError("Bản xem trước không có trang chiếu để dàn thành bản phát tay.")
+    columns = 3 if slides_per_page in {3, 9} else 2
+    rows = slides_per_page // columns
+    sheet_width, sheet_height = 841.89, 595.28
+    margin, gap = 22.0, 12.0
+    cell_width = (sheet_width - 2 * margin - (columns - 1) * gap) / columns
+    cell_height = (sheet_height - 2 * margin - (rows - 1) * gap) / rows
+    writer = PdfWriter()
+    for start in range(0, len(source_pages), slides_per_page):
+        sheet = writer.add_blank_page(width=sheet_width, height=sheet_height)
+        for offset, source_page in enumerate(source_pages[start:start + slides_per_page]):
+            row, column = divmod(offset, columns)
+            source_width = float(source_page.mediabox.width)
+            source_height = float(source_page.mediabox.height)
+            scale = min(cell_width / source_width, cell_height / source_height)
+            rendered_width, rendered_height = source_width * scale, source_height * scale
+            x = margin + column * (cell_width + gap) + (cell_width - rendered_width) / 2
+            y = sheet_height - margin - (row + 1) * cell_height - row * gap + (cell_height - rendered_height) / 2
+            sheet.merge_transformed_page(
+                source_page,
+                Transformation().scale(scale).translate(tx=x, ty=y),
+                over=True,
+            )
+    with open(output_pdf, "wb") as handle:
+        writer.write(handle)
+    return len(writer.pages)
+
+
 PAGE_RANGE_ERROR = "Phạm vi trang không hợp lệ. Nhập số trang từ 1 đến tổng số trang, ví dụ 1-3,5."
 
 
@@ -165,6 +205,7 @@ class PrintPipeline:
         convert_pdf: Callable[[str, str, str], str],
         office_candidates: Callable[[str], tuple[dict[str, str], ...]] | None = None,
         convert_office_pdf: Callable[[str, str, str, dict[str, str]], str] | None = None,
+        convert_notes_pdf: Callable[[str, str, str, str], str] | None = None,
         inspect_pdf: Callable[[str, str], int],
         render_page: Callable[[str, str, int, str], None],
         print_pdf: Callable[[str, str, str, int, str, str | None], dict],
@@ -173,6 +214,7 @@ class PrintPipeline:
         self._convert_pdf = convert_pdf
         self._office_candidates = office_candidates or (lambda _kind: ())
         self._convert_office_pdf = convert_office_pdf
+        self._convert_notes_pdf = convert_notes_pdf
         self._inspect_pdf = inspect_pdf
         self._render_page = render_page
         self._print_pdf = print_pdf
@@ -206,8 +248,14 @@ class PrintPipeline:
                 native_source_path = self._write_source(content, app_kind, root, source_path)
             _perf("print_write_source", _t, chars=len(content))
             _t = time.perf_counter()
+            options = print_options if isinstance(print_options, dict) else {}
+            slides_mode = str(options.get("slidesPrintMode") or "slides") if app_kind == "slides" else "slides"
             engine_name = "LibreOffice"
-            if use_office and self._convert_office_pdf:
+            if app_kind == "slides" and slides_mode == "notes":
+                if not self._convert_notes_pdf:
+                    raise RuntimeError("Chưa có bộ dựng trang ghi chú cho bản trình chiếu.")
+                pdf_path = self._convert_notes_pdf(native_source_path, app_kind, root, content)
+            elif use_office and self._convert_office_pdf and not (app_kind == "slides" and slides_mode == "handout"):
                 for candidate in self._office_candidates(app_kind):
                     try:
                         candidate_pdf = self._convert_office_pdf(native_source_path, app_kind, root, candidate)
@@ -225,6 +273,13 @@ class PrintPipeline:
                     pdf_path = self._convert_pdf(native_source_path, app_kind, root)
             else:
                 pdf_path = self._convert_pdf(native_source_path, app_kind, root)
+            if app_kind == "slides" and slides_mode == "handout":
+                slides_per_page = options.get("slidesPerPage", 3)
+                if type(slides_per_page) is not int or slides_per_page not in {3, 6, 9}:
+                    raise ValueError("Chọn 3, 6 hoặc 9 trang chiếu mỗi tờ.")
+                handout_path = str(Path(root) / "handout.pdf")
+                build_slides_handout_pdf(pdf_path, handout_path, slides_per_page)
+                pdf_path = handout_path
             if not Path(pdf_path).is_file() or Path(pdf_path).stat().st_size <= 0:
                 raise RuntimeError("LibreOffice không tạo được tệp PDF xem trước.")
             _perf("print_convert_pdf", _t, engine=engine_name,

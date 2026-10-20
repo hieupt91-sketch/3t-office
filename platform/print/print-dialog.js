@@ -1,5 +1,6 @@
 import { chooseDefaultPrinter, getPrintErrorMessage, parsePageRange } from "./print-model.js";
 import { captureEditorFocus, restoreEditorFocus } from "../shell/focus-manager.js";
+import { t } from "../i18n/i18n.js";
 
 let _printStylesPromise = null;
 
@@ -91,6 +92,8 @@ export async function openPrintDialog({
     rangeInput: "",
     sheetScope: "active",
     preparedSheetScope: "active",
+    slidesPrintMode: "slides",
+    slidesPerPage: 3,
     sessionId: "",
     printers: [],
     printing: false,
@@ -132,6 +135,19 @@ export async function openPrintDialog({
             <label><input type="radio" name="sheetScope" value="selection"${printableSelectionRanges.length ? "" : " disabled"}> <span>In vùng chọn</span></label>
             <span class="vno-print-muted vno-print-selection-help"${printableSelectionRanges.length ? " hidden" : ""}>Hãy bôi đen vùng ô cần in trước khi mở hộp thoại.</span>
           </fieldset>
+
+          ${appKind === "slides" ? `
+          <fieldset class="vno-print-slides-layout">
+            <legend>${t("slidesDialogs.printModeLegend", "Bố trí trang chiếu")}</legend>
+            <label><input type="radio" name="slidesPrintMode" value="slides" checked> <span>${t("slidesDialogs.printModeSlides", "Trang chiếu")}</span></label>
+            <label><input type="radio" name="slidesPrintMode" value="handout"> <span>${t("slidesDialogs.printModeHandout", "Bản phát tay")}</span></label>
+            <label><input type="radio" name="slidesPrintMode" value="notes"> <span>${t("slidesDialogs.printModeNotes", "Trang ghi chú")}</span></label>
+            <label class="vno-print-slides-per-page-label" hidden>${t("slidesDialogs.printSlidesPerPage", "Số trang chiếu mỗi tờ")}
+              <select name="slidesPerPage" aria-label="${t("slidesDialogs.printSlidesPerPage", "Số trang chiếu mỗi tờ")}">
+                <option value="3">3</option><option value="6">6</option><option value="9">9</option>
+              </select>
+            </label>
+          </fieldset>` : ""}
 
           <fieldset class="vno-print-range">
             <legend>Phạm vi trang</legend>
@@ -175,6 +191,9 @@ export async function openPrintDialog({
   const nextButton = overlay.querySelector(".vno-print-next");
   const officeOption = overlay.querySelector("#vno-print-use-office");
   const sheetScopeInputs = [...overlay.querySelectorAll("input[name='sheetScope']")];
+  const slidesPrintModeInputs = [...overlay.querySelectorAll("input[name='slidesPrintMode']")];
+  const slidesPerPageSelect = overlay.querySelector("select[name='slidesPerPage']");
+  const slidesPerPageLabel = overlay.querySelector(".vno-print-slides-per-page-label");
   const officeOptionLabel = officeOption.parentElement.querySelector("span");
   const engineUsedLabel = overlay.querySelector(".vno-print-engine-used");
 
@@ -275,10 +294,13 @@ export async function openPrintDialog({
         content,
         documentName,
         sourcePath,
-        Boolean(useOffice),
+        Boolean(useOffice) && !(appKind === "slides" && state.slidesPrintMode !== "slides"),
         appKind === "sheet" ? {
           sheetScope: state.sheetScope,
           selectionRanges: printableSelectionRanges,
+        } : appKind === "slides" ? {
+          slidesPrintMode: state.slidesPrintMode,
+          slidesPerPage: state.slidesPerPage,
         } : null,
       );
       if (state.closed || revision !== state.prepareRevision) {
@@ -339,6 +361,17 @@ export async function openPrintDialog({
     state.sheetScope = radio.value;
     await preparePreview(officeOption.checked, previousSession);
   }));
+  slidesPrintModeInputs.forEach((radio) => radio.addEventListener("change", async () => {
+    if (appKind !== "slides" || state.preparing || !radio.checked) return;
+    state.slidesPrintMode = radio.value;
+    slidesPerPageLabel.hidden = state.slidesPrintMode !== "handout";
+    await preparePreview(officeOption.checked);
+  }));
+  slidesPerPageSelect?.addEventListener("change", async () => {
+    if (state.preparing) return;
+    state.slidesPerPage = Number(slidesPerPageSelect.value);
+    await preparePreview(officeOption.checked);
+  });
   rangeInput.addEventListener("input", () => { state.rangeInput = rangeInput.value; validateOptions(); });
   copiesInput.addEventListener("input", validateOptions);
   printerSelect.addEventListener("change", validateOptions);

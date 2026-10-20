@@ -47,6 +47,12 @@
 .vno-print-sheet-scope label { display: flex; align-items: center; gap: 8px; font-size: 12px; line-height: 1.4; cursor: pointer; }
 .vno-print-sheet-scope input[type="radio"] { width: 16px; height: 16px; accent-color: #0f4c81; }
 .vno-print-sheet-scope input:disabled { cursor: not-allowed; }
+.vno-print-slides-layout { display: flex; flex-direction: column; gap: 9px; margin: 8px 0 0; padding: 12px; border: 1px solid var(--vno-border-default, #cbd5e1); border-radius: 8px; }
+.vno-print-slides-layout legend { padding: 0 4px; font-size: 13px; font-weight: 650; }
+.vno-print-slides-layout > label { display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.vno-print-slides-layout input[type="radio"] { width: 16px; height: 16px; accent-color: #0f4c81; }
+.vno-print-slides-layout .vno-print-slides-per-page-label { display: block; padding-left: 24px; font-size: 12px; }
+.vno-print-slides-layout select { margin-top: 5px; }
 .vno-print-selection-help { padding-left: 24px; }
 .vno-print-range { display: flex; flex-direction: column; gap: 10px; margin: 8px 0 0; padding: 12px; border: 1px solid var(--vno-border-default, #cbd5e1); border-radius: 8px; }
 .vno-print-range legend { padding: 0 4px; }

@@ -1474,7 +1474,13 @@ def _is_print_persistent_pair(app_kind: str | None, target_ext: str, source_ext:
     }
 
 
-def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind: str | None = None) -> str:
+def _run_soffice_convert(
+    src_path: str,
+    target_ext: str,
+    out_dir: str,
+    app_kind: str | None = None,
+    console_launcher: bool = False,
+) -> str:
     """Chạy LibreOffice headless để chuyển đổi thật một tệp. Trả về đường dẫn tệp kết quả."""
     started_at = time.monotonic()
 
@@ -1511,9 +1517,13 @@ def _run_soffice_convert(src_path: str, target_ext: str, out_dir: str, app_kind:
         filter_name = FORMAT_FILTERS.get(target_ext)
 
     convert_to = f"{target_ext}:{filter_name}" if filter_name else target_ext
-
+    soffice_command = SOFFICE_PATH
+    if console_launcher and os.name == "nt":
+        console_path = str(Path(SOFFICE_PATH).with_suffix(".com"))
+        if Path(console_path).is_file():
+            soffice_command = console_path
     cmd = [
-        SOFFICE_PATH,
+        soffice_command,
         "--headless",
         "--invisible",
         "--nocrashreport",
@@ -2686,6 +2696,87 @@ def _convert_print_source_to_pdf(source_path: str, app_kind: str, output_dir: st
         _PRINT_CONTEXT.active = previous
 
 
+def _convert_print_notes_to_pdf(
+    source_path: str,
+    app_kind: str,
+    output_dir: str,
+    fodp_content: str | None = None,
+) -> str:
+    """Render one local notes page per visible slide, retaining each title and note."""
+    if app_kind != "slides":
+        raise ValueError("Trang ghi chú chỉ dùng cho bản trình chiếu.")
+    if not isinstance(fodp_content, str) or not fodp_content.strip():
+        raise ValueError("Không tìm thấy nội dung ghi chú của bản trình chiếu.")
+    from xml.etree import ElementTree as ET
+
+    namespaces = {
+        "draw": "urn:oasis:names:tc:opendocument:xmlns:drawing:1.0",
+        "presentation": "urn:oasis:names:tc:opendocument:xmlns:presentation:1.0",
+        "text": "urn:oasis:names:tc:opendocument:xmlns:text:1.0",
+    }
+    try:
+        root = ET.fromstring(fodp_content)
+    except ET.ParseError as exc:
+        raise ValueError("Nội dung bản trình chiếu chưa hợp lệ.") from exc
+
+    def rtf_escape(value: str) -> str:
+        output = []
+        for character in str(value or ""):
+            codepoint = ord(character)
+            if character in "\\{}":
+                output.append("\\" + character)
+            elif codepoint < 0x80:
+                output.append(character)
+            else:
+                encoded = character.encode("utf-16-le")
+                for offset in range(0, len(encoded), 2):
+                    unit = int.from_bytes(encoded[offset:offset + 2], "little")
+                    signed = unit if unit < 0x8000 else unit - 0x10000
+                    output.append(f"\\u{signed}?")
+        return "".join(output)
+
+    pages = []
+    for index, page in enumerate(root.iter(f"{{{namespaces['draw']}}}page"), start=1):
+        visibility = str(page.get(f"{{{namespaces['presentation']}}}visibility") or "visible").lower()
+        if visibility in {"hidden", "false", "0"}:
+            continue
+        title = ""
+        for frame in page.iter(f"{{{namespaces['draw']}}}frame"):
+            if frame.get(f"{{{namespaces['presentation']}}}class") != "title":
+                continue
+            title = " ".join(
+                "".join(paragraph.itertext()).strip()
+                for paragraph in frame.iter(f"{{{namespaces['text']}}}p")
+                if "".join(paragraph.itertext()).strip()
+            )
+            if title:
+                break
+        notes = page.find(f"{{{namespaces['presentation']}}}notes")
+        note_paragraphs = [
+            "".join(paragraph.itertext()).strip()
+            for paragraph in notes.iter(f"{{{namespaces['text']}}}p")
+            if notes is not None and "".join(paragraph.itertext()).strip()
+        ] if notes is not None else []
+        text_lines = [f"Trang chiếu {index}: {title or '(Không có tiêu đề)'}"]
+        text_lines.extend(note_paragraphs or ["(Trang này chưa có ghi chú.)"])
+        pages.append("\\par ".join(rtf_escape(line) for line in text_lines))
+    if not pages:
+        raise ValueError("Bản trình chiếu không có trang hiển thị để in ghi chú.")
+    notes_source = str(Path(output_dir) / "speaker-notes.rtf")
+    notes_rtf = (
+        r"{\rtf1\ansi\ansicpg1252\deff0{\fonttbl{\f0 Arial;}}\viewkind4\uc1\f0\fs24 "
+        + r"\page ".join(pages)
+        + "}"
+    )
+    Path(notes_source).write_text(notes_rtf, encoding="ascii")
+    previous = getattr(_PRINT_CONTEXT, "active", False)
+    _PRINT_CONTEXT.active = True
+    try:
+        return _run_soffice_convert(notes_source, "pdf", output_dir, app_kind="writer", console_launcher=True)
+    finally:
+        _PRINT_CONTEXT.active = previous
+
+
 def _convert_print_source_with_office(
     source_path: str, app_kind: str, output_dir: str, candidate: dict[str, str],
 ) -> str:
@@ -3396,6 +3487,7 @@ class VnOfficeApi:
                 self._print_pipeline = print_pipeline_type(
                     write_source=_write_print_source,
                     convert_pdf=_convert_print_source_to_pdf,
+                    convert_notes_pdf=_convert_print_notes_to_pdf,
                     office_candidates=_office_candidates_for_print,
                     convert_office_pdf=_convert_print_source_with_office,
                     inspect_pdf=_inspect_print_pdf_pages,
