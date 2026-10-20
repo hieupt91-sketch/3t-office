@@ -42,7 +42,7 @@ try {
   const sectionState = await cdp.evaluate(`(() => {const a=window.__vnoAppInstance.adapter;return{sectionHeadersFooters:a.sectionHeadersFooters,body:document.querySelector('.vno-writer-body')?.innerText.slice(-100)}})()`);
   check("Chèn ngắt mục, bật trang đầu/chẵn-lẻ và đặt hướng ngang", orientationValue === "landscape" && Object.values(sectionState.sectionHeadersFooters||{}).some(x=>x.differentFirstPage&&x.differentOddEven), JSON.stringify({ ...sectionState, orientationValue }));
   const html = await cdp.evaluate("window.__vnoAppInstance.adapter._contentForExport()");
-  const saved = await cdp.evaluate(`window.pywebview.api.save_document_in_place(${JSON.stringify(html)}, 'writer', ${JSON.stringify(output)}, null)`, { awaitPromise: true, timeoutMilliseconds: 240000 });
+  const saved = await cdp.evaluate(`window.pywebview.api.save_document_in_place(${JSON.stringify(html)}, 'writer', ${JSON.stringify(output)}, ${JSON.stringify(source)})`, { awaitPromise: true, timeoutMilliseconds: 240000 });
   check("Lưu nhóm bố cục DOCX bằng đường dẫn thật", saved?.status === "ok", JSON.stringify(saved));
 } catch (error) { check("Nhóm bố cục không phát sinh ngoại lệ CDP", false, error.stack || error.message); }
 finally { await session.close(); }

@@ -9,7 +9,26 @@ try {
     $headingCount = @($document.Paragraphs | Where-Object { $_.Style.NameLocal -match '^Heading' }).Count
     $sectionOrientations = @($document.Sections | ForEach-Object { $_.PageSetup.Orientation })
     $differentFirstPages = @($document.Sections | ForEach-Object { $_.PageSetup.DifferentFirstPageHeaderFooter })
-    $differentOddEven = [bool]$document.Application.OddAndEvenPagesHeaderFooter
+    $differentOddEven = [bool]$document.PageSetup.OddAndEvenPagesHeaderFooter
+    $evenHeaders = @($document.Sections | ForEach-Object {
+        [pscustomobject]@{
+            exists = [bool]$_.Headers.Item(3).Exists
+            text = $_.Headers.Item(3).Range.Text.Trim()
+        }
+    })
+    $listParagraphs = @()
+    foreach ($paragraph in $document.Paragraphs) {
+        try {
+            $list = $paragraph.Range.ListFormat
+            if ($list.ListType -ne 0) {
+                $listParagraphs += [pscustomobject]@{
+                    text = $paragraph.Range.Text.Trim()
+                    level = $list.ListLevelNumber
+                    listString = $list.ListString
+                }
+            }
+        } catch { }
+    }
     $tableRows = 0
     $tableColumns = 0
     $tableHeaderRepeat = $false
@@ -26,6 +45,8 @@ try {
         sectionOrientations = $sectionOrientations
         differentFirstPages = $differentFirstPages
         differentOddEven = $differentOddEven
+        evenHeaders = $evenHeaders
+        listParagraphs = $listParagraphs
         tablesOfContents = $document.TablesOfContents.Count
         tables = $document.Tables.Count
         tableRows = $tableRows
