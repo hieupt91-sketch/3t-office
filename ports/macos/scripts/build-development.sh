@@ -5,7 +5,12 @@ SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 MACOS_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PROJECT="$MACOS_DIR/VNOfficeLauncher.xcodeproj"
 REPO_ROOT="$(cd "$MACOS_DIR/../.." && pwd)"
-OUTPUT_DIR="${1:-$REPO_ROOT/build/macos-development}"
+OUTPUT_INPUT="${1:-$REPO_ROOT/build/macos-development}"
+if [[ "$OUTPUT_INPUT" = /* ]]; then
+  OUTPUT_DIR="$OUTPUT_INPUT"
+else
+  OUTPUT_DIR="$REPO_ROOT/$OUTPUT_INPUT"
+fi
 DERIVED_ROOT="$OUTPUT_DIR/.derived-data"
 DEVELOPER_DIR="${DEVELOPER_DIR:-/Applications/Xcode.app/Contents/Developer}"
 export DEVELOPER_DIR
