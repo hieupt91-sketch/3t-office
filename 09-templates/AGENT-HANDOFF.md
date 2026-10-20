@@ -782,3 +782,23 @@ DEPENDENCIES/BLOCKERS: None for product code. Direct Excel COM chart-property or
 CORE PATCH ID (if any): None.
 NEXT ACTION: Review the commits and merge by the queue process.
 GIAO DIỆN ĐÃ XEM: Before-fix anchor light/dark screenshots show coincident chart anchors; Q30 dark screenshot shows white chart surface. After-fix light-combo, light-pie, dark-combo and dark-pie screenshots show distinct anchors, visible combo secondary axis, percentage legend, and theme-matched surfaces. All seven evidence files are under docs/assets/q31-ui/.
+
+
+# Agent Handoff
+TASK: Q32 — Rà soát giao diện Writer, Sheet, Slides
+AGENT/ROLE: Codex / UI QA
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Chụp và xem UI các tab, hộp thoại, menu và panel của ba ứng dụng ở 1366×768/1920×1080, sáng/tối; ghi lỗi và chỉ sửa lỗi nhỏ trong quyền sở hữu.
+FINDINGS: Đã xem 39 tab ribbon và 156 ảnh. Lỗi cao: hộp in dùng chung đặt nút Hủy/In ngoài viewport ở 1366×768 (Sheet, Slides). Lỗi trung bình: ngăn Kiểu và Trợ lý AI Writer chồng nhau. Lỗi thấp: tương phản mô tả kích thước trang Slides; một số nhãn tiếng Anh lẫn tiếng Việt; huy hiệu mẫu Slides cần xác nhận. Không sửa mã vì lỗi hộp in thuộc platform/print, các lỗi app cần chuyển chủ sở hữu và không có sửa nhỏ đủ an toàn trong phạm vi QA.
+IMPLEMENTATION SUMMARY: Chỉ thêm báo cáo và ảnh kiểm chứng; không thay đổi mã nguồn.
+FILES CHANGED: docs/UI-REVIEW-20-10.md; docs/assets/ui-review-20-10/**; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: CDP qua scripts/audit-0610/app_session_server.mjs cho từng app, một app mỗi lần, profile riêng; chụp và xem các ảnh; npm test; node scripts/audit-0610/i18n_parity.mjs; python scripts/audit-0610/verify_checklist_evidence.py --all --no-fix; python -m pytest tests -q -k "writer or sheet or slides".
+BUILD RESULT: NOT RUN — không đổi mã/build system.
+TEST RESULTS: PASS — npm test 3786/3786; i18n VI/EN 3122/3122, 0 missing; checklist 0 downgraded; pytest 771 passed, 348 deselected. CDP đã chụp/xem 156 tab ribbon; ảnh modal/panel/menu và số đo hộp in có trong docs/UI-REVIEW-20-10.md.
+KNOWN FAILURES: Bản xem trước khi in trên Sheet/Slides có nút Hủy/In nằm ngoài cửa sổ ở 1366×768; không được sửa trong nhánh QA này.
+RISKS: Chưa mở được menu chuột phải trên slide qua sự kiện contextmenu tổng hợp; không ghi kết luận cho menu đó. Hộp in cần ticket Platform với CDP đo rect FAIL trước/PASS sau.
+DEPENDENCIES/BLOCKERS: Handoff lỗi hộp in cho platform/print; lỗi chồng panel cho apps/writer; tương phản cho apps/slides.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Chuyển các phát hiện theo ownership và tạo phiếu riêng cho hộp in dùng chung.
+GIAO DIỆN ĐÃ XEM: Chi tiết từng tab, màn hình, kích thước, theme, kết luận và ảnh được liệt kê trong docs/UI-REVIEW-20-10.md.
