@@ -251,3 +251,23 @@ NEXT ACTION: Người phụ trách gộp mac/xcode-filetypes-opencode thay cho m
 
 ---
 
+# Agent Handoff
+TASK: MAC-12 / Xcode Product Run development runtime
+AGENT/ROLE: agy / macOS runtime
+BRANCH: mac/xcode-run-dev-2010
+WORKTREE: /Users/hieupc/.codex/worktrees/mac-xcode-run-dev-2010/3t-office
+OBJECTIVE: Make Xcode Product > Run stage a usable development-only runtime and app payload without machine-specific paths, Qt selection/license changes, signing, or changes to production offline packaging.
+FINDINGS: Launcher previously expected Runtime beside the app but Xcode built only the Swift shell; Debug app code defaulted to Application Support/current, and no shared Xcode scheme existed. Existing x86_64 pilot contains Python 3.12, pywebview, PySide6 and LibreOffice, but no cryptography. Root requirements already declare cryptography>=44.0.0,<51.0.0. Version 50.0.2 fails on this runtime with unresolved _BIO_ADDR_free; 44.0.2 passes the encryption runtime check.
+IMPLEMENTATION SUMMARY: Committed a plan gate before code. Added a shared Debug scheme and Debug-only build phase that creates relative symlinks to the pilot Runtime/LibreOffice and active checkout app source, then installs existing cryptography into a build-only overlay and validates OOXML AES-256 round-trip. Xcode arm64 Debug can use an x86_64 runtime via Rosetta; a generated architecture marker selects its overlay. Release routing remains Application Support/current. No new product dependency, Qt/ license decision, signing, notarization, or production payload mutation.
+FILES CHANGED: docs/macos/PLAN-XCODE-RUN-DEV-2010.md; ports/macos/VNOfficeLauncher.xcodeproj/project.pbxproj; ports/macos/VNOfficeLauncher.xcodeproj/xcshareddata/xcschemes/VNOfficeLauncher.xcscheme; ports/macos/launcher/AppDelegate.swift; ports/macos/requirements-xcode-run-constraints.txt; ports/macos/scripts/prepare-xcode-run-payload.sh; ports/macos/scripts/validate-encryption-runtime.py; ports/macos/scripts/validate-xcode-run-payload.py; tests/macos/test_xcode_run_payload.py; 09-templates/AGENT-HANDOFF.md.
+COMMANDS RUN: /tmp/vno-mac12-verify/bin/python -m pytest tests/macos/test_xcode_run_payload.py -q; /tmp/vno-mac12-verify/bin/python -m pytest tests/test_ooxml_encryption.py tests/test_ooxml_encryption_main.py -q; xcodebuild Debug x86_64 and arm64 (arm64 launcher with x86_64 pilot); xcodebuild Release x86_64; staged-runtime encryption/layout validators; launcher print-command probe; bash -n; py_compile; xmllint; plutil -lint; git diff --check.
+BUILD RESULT: PASS — Xcode Debug x86_64 and arm64 builds succeeded; arm64 build detected and staged x86_64 runtime via Rosetta. Release x86_64 build passed before architecture-marker refinement; Release behavior unchanged.
+TEST RESULTS: PASS — focused Xcode payload pytest 3/3; OOXML encryption pytest 6 passed plus 3 subtests; exact pilot runtime cryptography 44.0.2/OpenSSL 3.4.1 Agile AES-256 encrypt/decrypt round-trip; staged bundle validator; launcher dry-run resolves Runtime/bin/python3 and Versions/development/app/main.py; syntax/plist/scheme/diff checks.
+KNOWN FAILURES: Native editor/UI launch NOT RUN because it would use the real ~/Library/Application Support/VNOffice and this checkout has no safe isolated data-root override. COM verification BLOCKED (macOS task; no COM oracle available). `arch -arm64` cannot execute an x86_64 binary directly; the build phase explicitly invokes the runtime with `arch -x86_64` for Rosetta.
+RISKS: First Debug staging may require network access to pip-install the already-declared cryptography wheel; the actual Xcode Run after overlay creation is offline. Build output is a development symlink layout, not a distributable package. Pilot is external/local and must exist at the conventional build path or be supplied via VNO_XCODE_PILOT_ROOT. No artifact or secret is committed.
+DEPENDENCIES/BLOCKERS: Full application UI smoke needs a safe app data-root override or disposable macOS user profile. No production packaging/sign/notarize changes included.
+CORE PATCH ID (if any): None.
+NEXT ACTION: Review and merge this branch; run native Product > Run from Xcode with isolated user data. Ensure production packaging independently materializes its runtime and remains offline.
+
+---
+
