@@ -114,6 +114,7 @@ export async function openPrintDialog({
       </header>
       <div class="vno-print-dialog-body">
         <form class="vno-print-options" novalidate>
+          <div class="vno-print-options-content">
           <label for="vno-print-printer">Máy in</label>
           <select id="vno-print-printer" name="printer" aria-describedby="vno-print-printer-help" disabled>
             <option value="">Đang tải danh sách máy in…</option>
@@ -160,6 +161,7 @@ export async function openPrintDialog({
 
           <div class="vno-print-page-setup" aria-label="Thiết lập trang">${escapeHtml(pageSetupLabel || "Thiết lập trang theo tài liệu")}</div>
           <p class="vno-print-dialog-status" role="status" aria-live="polite">Đang tạo bản xem trước từ tài liệu…</p>
+          </div>
           <div class="vno-print-dialog-actions">
             <button class="vno-print-cancel" type="button">Hủy</button>
             <button class="vno-print-submit" type="submit" disabled>In</button>
