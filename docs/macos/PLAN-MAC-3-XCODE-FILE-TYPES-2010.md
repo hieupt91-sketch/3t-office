@@ -40,9 +40,9 @@ Căn cứ: commit MAC-3 `4f8f64b8` (nhánh `mac/filetypes-1910`), commit M7 `975
 
 `mdls` xác nhận macOS tự ánh xạ `.xltx` → `org.openxmlformats.spreadsheetml.template` và `.xlt` → `com.microsoft.excel.xlt`.
 
-Hai điểm lệch so với MAC-3 đã ghi, **giữ nguyên theo MAC-3, không sửa trong phiếu này**:
+Hai điểm cần lưu ý, **giữ nguyên theo MAC-3, không sửa trong phiếu này**:
 - UTI ODF là `org.oasis-open.opendocument.*` (có `open`), **không phải** `org.oasis.opendocument.*` — bản viết sai sẽ không được hệ thống nhận.
-- Excel khai `.xlt` bằng magic `sLS8` và **không** khai MIME; MAC-3 dùng `application/vnd.ms-excel`. Giữ nguyên giá trị của MAC-3, ghi chú cho người phụ trách ở handoff.
+- Với `.xlt`: ứng dụng Excel khai bằng magic `sLS8` (không khai MIME), còn CoreTypes của hệ thống khai `.xlt` kèm `application/vnd.ms-excel` và `application/msexcel`. Lựa chọn `application/vnd.ms-excel` của MAC-3 **khớp với hệ thống**, nên giữ nguyên.
 
 ## 4. Tệp và mô-đun dự kiến
 
