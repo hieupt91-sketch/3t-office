@@ -22508,7 +22508,9 @@ def postprocess_writer_docx(
             replacements[entry_name] = stripped.encode("utf-8")
 
     if not replacements:
-        return docx_bytes
+        return postprocess_writer_toc_field(
+            docx_bytes, source_html=source_html, source_docx=source_docx,
+        )
 
     # --- Update word/_rels/document.xml.rels ---
     new_rels_xml = converted_rels_xml
@@ -22611,7 +22613,9 @@ def postprocess_writer_docx(
                 info.compress_type = zipfile.ZIP_DEFLATED
                 zout.writestr(info, data)
 
-    return dest.getvalue()
+    return postprocess_writer_toc_field(
+        dest.getvalue(), source_html=source_html, source_docx=source_docx,
+    )
 
 
 def _convert_wps_drawing_to_vml(drawing_xml: str) -> str:
@@ -24668,6 +24672,76 @@ def _writer_restore_toc_field(document_xml: str, source_html: str) -> str:
         previous = paragraph.end()
     output.append(document_xml[previous:])
     return "".join(output)
+
+
+def _writer_toc_fallback_texts_from_docx(source_docx: bytes | None) -> list[str]:
+    if not source_docx:
+        return []
+    source_xml_bytes = read_zip_entry(source_docx, "word/document.xml")
+    if not source_xml_bytes:
+        return []
+    source_xml = source_xml_bytes.decode("utf-8", errors="replace")
+    texts: list[str] = []
+    in_toc = False
+    collecting_result = False
+    for match in re.finditer(r"<w:p\b[^>]*>[\s\S]*?</w:p\s*>", source_xml, re.IGNORECASE):
+        paragraph = match.group(0)
+        instruction = re.search(r"<w:instrText\b[^>]*>([\s\S]*?)</w:instrText\s*>", paragraph, re.IGNORECASE)
+        if instruction and re.search(r"\bTOC\b", _unescape_xml(instruction.group(1)), re.IGNORECASE):
+            in_toc = True
+            collecting_result = False
+        if not in_toc:
+            continue
+        if re.search(r'<w:fldChar\b[^>]*\bfldCharType=["\']separate["\']', paragraph, re.IGNORECASE):
+            collecting_result = True
+        if collecting_result:
+            text = re.sub(r"\s+", " ", _paragraph_plain_text(paragraph)).strip()
+            if text:
+                texts.append(text)
+        if re.search(r'<w:fldChar\b[^>]*\bfldCharType=["\']end["\']', paragraph, re.IGNORECASE):
+            break
+    return texts
+
+
+def postprocess_writer_toc_field(
+    docx_bytes: bytes, *, source_html: str | None = None, source_docx: bytes | None = None,
+) -> bytes:
+    """Restore the native TOC field when a save roundtrip keeps only its visible entries."""
+    if not docx_bytes or (not source_html and not source_docx):
+        return docx_bytes
+    document_bytes = read_zip_entry(docx_bytes, "word/document.xml")
+    if not document_bytes:
+        return docx_bytes
+    document_xml = document_bytes.decode("utf-8", errors="replace")
+    toc_html = source_html
+    if not _writer_toc_fallback_texts(toc_html or ""):
+        fallback_texts = _writer_toc_fallback_texts_from_docx(source_docx)
+        if fallback_texts:
+            toc_html = '<div data-vno-toc="true">' + "".join(
+                f"<p>{html.escape(text)}</p>" for text in fallback_texts
+            ) + "</div>"
+    if not toc_html:
+        return docx_bytes
+    updated_document = _writer_restore_toc_field(document_xml, toc_html)
+    if updated_document == document_xml:
+        return docx_bytes
+
+    replacements: dict[str, bytes] = {"word/document.xml": updated_document.encode("utf-8")}
+    settings_bytes = read_zip_entry(docx_bytes, "word/settings.xml")
+    if settings_bytes:
+        settings_xml = settings_bytes.decode("utf-8", errors="replace")
+        if re.search(r"<w:updateFields\b", settings_xml, re.IGNORECASE):
+            updated_settings = re.sub(
+                r'<w:updateFields\b[^>]*/>', '<w:updateFields w:val="true"/>',
+                settings_xml, count=1, flags=re.IGNORECASE,
+            )
+        else:
+            updated_settings = settings_xml.replace(
+                "</w:settings>", '<w:updateFields w:val="true"/></w:settings>', 1,
+            )
+        if updated_settings != settings_xml:
+            replacements["word/settings.xml"] = updated_settings.encode("utf-8")
+    return patch_ooxml_zip(docx_bytes, replacements)
 
 
 def _writer_restore_tof_field(document_xml: str, source_html: str) -> str:

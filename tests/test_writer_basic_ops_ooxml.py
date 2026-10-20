@@ -10,6 +10,7 @@ from adapters.libreoffice.common.ooxml_zip_patch import (
     _writer_restore_toc_field,
     _writer_restore_created_paragraph_css,
     _writer_restore_created_run_highlight,
+    postprocess_writer_toc_field,
     postprocess_writer_section_metadata,
     read_zip_entry,
 )
@@ -146,6 +147,57 @@ class WriterBasicOpsOoxmlTests(unittest.TestCase):
         self.assertEqual(updated_doc.count('w:fldCharType="begin"'), 1)
         self.assertEqual(updated_doc.count('w:fldCharType="separate"'), 1)
         self.assertEqual(updated_doc.count('w:fldCharType="end"'), 1)
+
+    def test_edited_docx_save_restores_toc_field_after_html_roundtrip(self):
+        source_html = (
+            '<div data-vno-toc="true"><p>MỤC LỤC</p>'
+            '<div class="vno-toc-item"><a>1. KẾT QUẢ THỰC HIỆN .... 1</a></div></div>'
+            '<h1>1. KẾT QUẢ THỰC HIỆN</h1>'
+        )
+        package = io.BytesIO()
+        with zipfile.ZipFile(package, "w") as archive:
+            archive.writestr(
+                "word/document.xml",
+                '<w:document><w:body>'
+                '<w:p><w:r><w:t>MỤC LỤC</w:t></w:r></w:p>'
+                '<w:p><w:r><w:t>1. KẾT QUẢ THỰC HIỆN .... 1</w:t></w:r></w:p>'
+                '<w:p><w:r><w:t>1. KẾT QUẢ THỰC HIỆN</w:t></w:r></w:p>'
+                '</w:body></w:document>',
+            )
+        result = postprocess_writer_toc_field(package.getvalue(), source_html=source_html)
+        document = read_zip_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn(' TOC \\o "1-3" \\h \\z \\u ', document)
+        self.assertEqual(document.count('w:fldCharType="begin"'), 1)
+
+    def test_edited_imported_docx_save_restores_toc_from_source_field(self):
+        source_docx = io.BytesIO()
+        with zipfile.ZipFile(source_docx, "w") as archive:
+            archive.writestr(
+                "word/document.xml",
+                '<w:document><w:body>'
+                '<w:p><w:r><w:fldChar w:fldCharType="begin"/></w:r>'
+                '<w:r><w:instrText> TOC \\o "1-3" \\h </w:instrText></w:r>'
+                '<w:r><w:fldChar w:fldCharType="separate"/></w:r>'
+                '<w:r><w:t>MỤC LỤC</w:t></w:r></w:p>'
+                '<w:p><w:r><w:t>1. KẾT QUẢ THỰC HIỆN 1</w:t></w:r></w:p>'
+                '<w:p><w:r><w:fldChar w:fldCharType="end"/></w:r></w:p>'
+                '</w:body></w:document>',
+            )
+        converted = io.BytesIO()
+        with zipfile.ZipFile(converted, "w") as archive:
+            archive.writestr(
+                "word/document.xml",
+                '<w:document><w:body>'
+                '<w:p><w:r><w:t>MỤC LỤC</w:t></w:r></w:p>'
+                '<w:p><w:r><w:t>1. KẾT QUẢ THỰC HIỆN 1</w:t></w:r></w:p>'
+                '<w:p><w:r><w:t>1. KẾT QUẢ THỰC HIỆN</w:t></w:r></w:p>'
+                '</w:body></w:document>',
+            )
+        result = postprocess_writer_toc_field(
+            converted.getvalue(), source_docx=source_docx.getvalue(),
+        )
+        document = read_zip_entry(result, "word/document.xml").decode("utf-8")
+        self.assertIn(' TOC \\o "1-3" \\h \\z \\u ', document)
 
     def test_footer_fallback_becomes_live_page_field(self):
         footer = (

@@ -16,7 +16,7 @@ const check = (name, ok, detail = "") => {
 };
 const save = async cdp => {
   const html = await cdp.evaluate("window.__vnoAppInstance.adapter._contentForExport()");
-  return cdp.evaluate(`window.pywebview.api.save_document_in_place(${JSON.stringify(html)}, 'writer', ${JSON.stringify(output)}, null)`, { awaitPromise: true, timeoutMilliseconds: 240000 });
+  return cdp.evaluate(`window.pywebview.api.save_document_in_place(${JSON.stringify(html)}, 'writer', ${JSON.stringify(output)}, ${JSON.stringify(source)})`, { awaitPromise: true, timeoutMilliseconds: 240000 });
 };
 const shot = async (cdp, name) => {
   const r = await cdp.send("Page.captureScreenshot", { format: "png" }, 30000);
