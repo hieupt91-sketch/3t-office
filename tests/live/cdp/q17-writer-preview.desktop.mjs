@@ -1,7 +1,35 @@
 import { launchApp } from "./session.mjs";
-import { press, click } from "./actions.mjs";
+import { press } from "./actions.mjs";
 import fs from "node:fs";
 import path from "node:path";
-const root=process.env.VNO_CDP_LOCALAPPDATA,source=process.env.Q17_SOURCE_DOCX;if(!root||!source)throw new Error("Set fresh VNO_CDP_LOCALAPPDATA and Q17_SOURCE_DOCX.");
-const session=await launchApp("writer",{filePath:source,localAppData:path.join(root,"create"),startTimeoutMilliseconds:180000,readyTimeoutMilliseconds:180000});
-try{const c=session.cdp;const expected=source.replace(/\\/g,"/").toLowerCase();await c.waitFor(`(()=>{const a=window.__vnoAppInstance?.adapter;return String(a?._sourcePath||a?.sourceFilePath||'').replace(/\\\\/g,'/').toLowerCase()===${JSON.stringify(expected)}})()`,{timeoutMilliseconds:180000,intervalMilliseconds:500});await press(c,"f",{alt:true},300);await c.waitFor("document.querySelector('.vno-backstage-overlay')",{timeoutMilliseconds:15000});await click(c,"#vno-backstage-nav-print");await c.waitFor("document.querySelector('#vno-backstage-print-total-pages')",{timeoutMilliseconds:180000});const state=await c.evaluate(`(()=>({total:Number(document.querySelector('#vno-backstage-print-total-pages')?.textContent||0),current:Number(document.querySelector('#vno-backstage-print-current-page')?.textContent||0),pages:document.querySelectorAll('#vno-backstage-print-stage .vno-print-preview-sheet').length,info:document.querySelector('.vno-backstage-print-info')?.innerText}))()`);console.log(JSON.stringify(state));console.log(`${state.total>0&&state.current===1?"PASS":"FAIL"} | Xem trước khi in hiển thị số trang`);const shot=await c.send("Page.captureScreenshot",{format:"png"},30000);fs.mkdirSync(path.join(root,"screenshots"),{recursive:true});fs.writeFileSync(path.join(root,"screenshots","08-xem-truoc-in.png"),Buffer.from((shot.result||shot).data,"base64"));if(!(state.total>0&&state.current===1))process.exitCode=1;}finally{await session.close()}
+
+const root = process.env.VNO_CDP_LOCALAPPDATA;
+const source = process.env.Q17_SOURCE_DOCX;
+if (!root || !source) throw new Error("Set fresh VNO_CDP_LOCALAPPDATA and Q17_SOURCE_DOCX.");
+fs.mkdirSync(root, { recursive: true });
+const session = await launchApp("writer", {
+  filePath: source,
+  localAppData: path.join(root, "create"),
+  startTimeoutMilliseconds: 180000,
+  readyTimeoutMilliseconds: 180000,
+});
+try {
+  const cdp = session.cdp;
+  const expected = source.replace(/\\/g, "/").toLowerCase();
+  await cdp.waitFor(`(() => { const a=window.__vnoAppInstance?.adapter; return String(a?._sourcePath||a?.sourceFilePath||'').replace(/\\\\/g,'/').toLowerCase()===${JSON.stringify(expected)}; })()`, { timeoutMilliseconds: 180000, intervalMilliseconds: 500 });
+  const previewStartedAt = Date.now();
+  await press(cdp, "F2", { ctrl: true }, 0);
+  await cdp.waitFor("document.querySelector('.vno-print-preview-overlay')", { timeoutMilliseconds: 15000, intervalMilliseconds: 100 });
+  const elapsedMs = Date.now() - previewStartedAt;
+  const state = await cdp.evaluate(`(() => ({
+    pages: document.querySelectorAll('.vno-print-preview-sheet').length,
+    total: Number(document.querySelector('.vno-print-preview-total-pages')?.textContent || 0),
+    printDialog: !!document.querySelector('.vno-print-dialog-overlay')
+  }))()`);
+  state.elapsedMs = elapsedMs;
+  console.log(JSON.stringify(state));
+  console.log(`${state.pages > 0 && state.total === state.pages && !state.printDialog ? "PASS" : "FAIL"} | Ctrl+F2 dựng preview báo cáo dài`);
+  if (!(state.pages > 0 && state.total === state.pages && !state.printDialog)) process.exitCode = 1;
+} finally {
+  await session.close();
+}

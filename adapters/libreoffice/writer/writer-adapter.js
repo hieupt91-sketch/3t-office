@@ -685,7 +685,7 @@ export class WriterAdapter {
     this._renderCommentsPanel();
     this._updateTrackChangesCommandState();
     globalCommandBus.bindHandler("common.file.print", () => this.print());
-    globalCommandBus.bindHandler("writer.file.printPreview", () => this.print());
+    globalCommandBus.bindHandler("writer.file.printPreview", () => this.openPrintPreview());
 
     // Bind Review (Ghi chú & Theo dõi thay đổi)
     globalCommandBus.bindHandler("writer.comment.insert", (args) => this.insertComment(args));
@@ -9260,7 +9260,7 @@ export class WriterAdapter {
         return this.print();
 
       case "writer.file.printPreview":
-        return this.print();
+        return this.openPrintPreview();
 
       case "writer.page.setupDialog":
         return await this._openPageSetup(args);
