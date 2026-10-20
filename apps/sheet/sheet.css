@@ -416,7 +416,7 @@
 .vno-grid-cell.is-selected {
   outline: 2px solid var(--vno-sheet-primary);
   outline-offset: -2px;
-  background-color: rgba(15, 109, 56, 0.08) !important;
+  background-image: linear-gradient(rgba(15, 109, 56, 0.08), rgba(15, 109, 56, 0.08));
   z-index: 5;
 }
 
@@ -441,7 +441,7 @@
 
 [data-theme="dark"] .vno-grid-cell.is-selected {
   outline-color: var(--vno-sheet-primary-fg, #4ade80);
-  background-color: rgba(74, 222, 128, 0.16) !important;
+  background-image: linear-gradient(rgba(74, 222, 128, 0.16), rgba(74, 222, 128, 0.16));
 }
 
 [data-theme="dark"] .vno-grid-cell.is-range-selected {
@@ -846,16 +846,16 @@
 .is-frozen-col-header,
 .is-frozen-row-cell,
 .is-frozen-col-cell {
-  background-color: var(--vno-bg-window, #ffffff) !important;
+  background-color: var(--vno-bg-window, #ffffff);
 }
 .is-frozen-row-cell.is-frozen-col-cell {
-  background-color: var(--vno-bg-window, #f1f5f9) !important;
+  background-color: var(--vno-bg-window, #f1f5f9);
 }
 th.is-frozen-col-header {
-  background-color: var(--vno-bg-subtle, #e2e8f0) !important;
+  background-color: var(--vno-bg-subtle, #e2e8f0);
 }
 th.vno-row-header.is-frozen-row-cell {
-  background-color: var(--vno-bg-subtle, #e2e8f0) !important;
+  background-color: var(--vno-bg-subtle, #e2e8f0);
 }
 
 /* Viền/bóng đổ phân cách CHỈ ở hàng/cột cố định CUỐI CÙNG (ranh giới thật), không lặp lại ở từng hàng/cột trung gian. */
