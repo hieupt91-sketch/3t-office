@@ -5824,6 +5824,46 @@ export class WriterAdapter {
     const skip = this._htmlParagraphSkipRanges(source).filter(r => !/^<table/i.test(source.slice(r.start, r.start + 6)));
     const bodyRanges = ranges.filter(r => !skip.some(z => r.start >= z.start && r.start < z.end));
     if (bodyRanges.length !== tableSpecs.length) return source;
+    if (globalThis.__VNO_OPEN_LEGACY !== true && globalThis.__VNO_WRITER_BATCH_HTML !== false) {
+      const edits = [];
+      for (let i = bodyRanges.length - 1; i >= 0; i--) {
+        const spec = tableSpecs[i]; const { start, end } = bodyRanges[i];
+        const tableHtml = source.slice(start, end);
+        const cells = []; const cre = /<table\b[^>]*>|<\/table\s*>|<(?:td|th)\b[^>]*>|<\/(?:td|th)\s*>/gi; let depth = 0; let c; let open = -1;
+        while ((c = cre.exec(tableHtml))) {
+          const t = c[0].toLowerCase();
+          if (t.startsWith("<table")) depth++; else if (t.startsWith("</table")) depth--;
+          else if (t.startsWith("<td") || t.startsWith("<th")) { if (depth === 1) open = c.index; }
+          else if (depth === 1 && open >= 0) { cells.push({ start: open, end: c.index + c[0].length }); open = -1; }
+        }
+        if (cells.length !== spec.length) continue;
+        for (let k = cells.length - 1; k >= 0; k--) {
+          const pts = spec[k]; if (!pts.some(v => v !== null)) continue;
+          const cellHtml = tableHtml.slice(cells[k].start, cells[k].end);
+          const paras = []; const pre = /<table\b[^>]*>|<\/table\s*>|<(p|h[1-6])\b([^>]*)>([\s\S]*?)<\/\1>/gi; let d2 = 0; let pm;
+          while ((pm = pre.exec(cellHtml))) { const t = pm[0].toLowerCase(); if (t.startsWith("<table")) d2++; else if (t.startsWith("</table")) d2--; else if (d2 === 0) paras.push({ index: pm.index, full: pm[0], tag: pm[1], attrs: pm[2], inner: pm[3] }); }
+          if (paras.length !== pts.length) continue;
+          for (let j = paras.length - 1; j >= 0; j--) {
+            const pt = pts[j]; if (pt === null) continue;
+            const p = paras[j];
+            const text = p.inner.replace(/<[^>]+>/g, "").replace(/&nbsp;/g, " ").trim();
+            if (text.length > 0 || /<(?:img|iframe|object|svg|canvas)\b|data-vno-float/i.test(p.inner)) continue;
+            const replacement = this._addCssDeclsToParagraph(p.full, p.attrs, p.inner.replace(/\bfont-size:\s*\d+(?:\.\d+)?pt/gi, `font-size: ${pt}pt`), [`font-size: ${pt}pt`], p.tag);
+            const editStart = start + cells[k].start + p.index;
+            edits.push({ start: editStart, end: editStart + p.full.length, replacement });
+          }
+        }
+      }
+      if (!edits.length) return source;
+      edits.sort((a, b) => a.start - b.start);
+      const chunks = []; let cursor = 0; let overlap = false;
+      for (const edit of edits) {
+        if (edit.start < cursor) { overlap = true; break; }
+        chunks.push(source.slice(cursor, edit.start), edit.replacement);
+        cursor = edit.end;
+      }
+      if (!overlap && cursor > 0) { chunks.push(source.slice(cursor)); return chunks.join(""); }
+    }
     let out = source;
     for (let i = bodyRanges.length - 1; i >= 0; i--) {
       const spec = tableSpecs[i]; const { start, end } = bodyRanges[i];
@@ -7283,6 +7323,69 @@ export class WriterAdapter {
         : base.replace(/>$/, ` width="${value}">`);
     };
     let out = source;
+    if (globalThis.__VNO_OPEN_LEGACY !== true && globalThis.__VNO_WRITER_BATCH_HTML !== false) {
+      const edits = [];
+      for (let i = geometries.length - 1; i >= 0; i--) {
+        const g = geometries[i];
+        const { start, tagEnd, end } = trackedRanges[i];
+        if (!g.grid.length || g.gridSum <= 0 || g.widthTwips <= 0) continue;
+        const scale = g.widthTwips / g.gridSum;
+        const colPx = g.grid.map(w => Math.max(1, Math.round(w * scale * PX)));
+        const tablePx = colPx.reduce((s, v) => s + v, 0);
+        let openTag = setWidth(source.slice(start, tagEnd), String(tablePx));
+        const sm = openTag.match(/\bstyle=(["'])([^"']*)\1/i);
+        if (sm) {
+          const css = sm[2].replace(/(^|;)\s*width\s*:[^;]*/gi, "$1").replace(/;;+/g, ";").replace(/^;\s*/, "");
+          openTag = openTag.replace(sm[0], `style=${sm[1]}${css}${css && !css.trim().endsWith(";") ? "; " : ""}width: ${tablePx}px;${sm[1]}`);
+        } else openTag = openTag.replace(/>$/, ` style="width: ${tablePx}px;">`);
+        if (g.borderPx > 0 && !/data-vno-border-px=/i.test(openTag)) openTag = openTag.replace(/>$/, ` data-vno-border-px="${g.borderPx}">`);
+        edits.push({ start, end: tagEnd, replacement: openTag });
+
+        const inner = source.slice(tagEnd, end);
+        const firstTrAt = inner.search(/<tr\b/i);
+        const head = firstTrAt >= 0 ? inner.slice(0, firstTrAt) : inner;
+        const cols = [...head.matchAll(/<col\b[^>]*>/gi)];
+        if (cols.length === colPx.length) {
+          let ci = 0;
+          for (const col of cols) edits.push({ start: tagEnd + col.index, end: tagEnd + col.index + col[0].length, replacement: setWidth(col[0], String(colPx[ci++])) });
+        }
+        if (firstTrAt < 0) continue;
+        const rest = inner.slice(firstTrAt);
+        const rre = /<tr\b[^>]*>|<\/tr\s*>|<table\b[^>]*>|<\/table\s*>/gi;
+        let depth = 0; let r; let firstRowEnd = -1;
+        while ((r = rre.exec(rest))) {
+          const t = r[0].toLowerCase();
+          if (t.startsWith("<table")) depth++;
+          else if (t.startsWith("</table")) depth--;
+          else if (t.startsWith("</tr") && depth === 0) { firstRowEnd = r.index + r[0].length; break; }
+        }
+        if (firstRowEnd < 0) continue;
+        const row = rest.slice(0, firstRowEnd);
+        const cellTags = []; const cre = /<(?:td|th)\b[^>]*>|<table\b[^>]*>|<\/table\s*>/gi; depth = 0; let c;
+        while ((c = cre.exec(row))) {
+          const t = c[0].toLowerCase();
+          if (t.startsWith("<table")) depth++;
+          else if (t.startsWith("</table")) depth--;
+          else if (depth === 0) cellTags.push({ index: c.index, tag: c[0] });
+        }
+        const spans = g.firstRowSpans.length === cellTags.length ? g.firstRowSpans : null;
+        if (!spans) continue;
+        let col = 0;
+        for (let k = 0; k < cellTags.length; k++) {
+          const span = spans[k]; const width = colPx.slice(col, col + span).reduce((sum, value) => sum + value, 0); col += span;
+          const cell = cellTags[k];
+          edits.push({ start: tagEnd + firstTrAt + cell.index, end: tagEnd + firstTrAt + cell.index + cell.tag.length, replacement: setWidth(cell.tag, String(width)) });
+        }
+      }
+      edits.sort((a, b) => a.start - b.start);
+      const chunks = []; let cursor = 0; let overlap = false;
+      for (const edit of edits) {
+        if (edit.start < cursor) { overlap = true; break; }
+        chunks.push(source.slice(cursor, edit.start), edit.replacement);
+        cursor = edit.end;
+      }
+      if (!overlap) { chunks.push(source.slice(cursor)); return chunks.join(""); }
+    }
     // Sửa từ bảng cuối về đầu; tính lại phạm vi sau mỗi lần sửa (bảng lồng đổi độ dài của bảng ngoài).
     for (let i = geometries.length - 1; i >= 0; i--) {
       const g = geometries[i];

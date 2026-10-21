@@ -433,7 +433,18 @@ export async function runWriterDocFontSpacingTests() {
       + '</w:tr></w:tbl><w:p><w:pPr><w:rPr><w:sz w:val="16"/></w:rPr></w:pPr></w:p></w:body></w:document>';
     const html = '<div title="header"><table><tr><td><p><br></p></td></tr></table></div>'
       + '<table><tr><td><p><br></p></td><td><p>Có chữ</p><p><br></p></td></tr></table><p><br></p>';
-    const out = adapter._applyOoxmlTableCellEmptyParagraphFontSizes(html, doc, styles);
+    const previousBatchFlag = globalThis.__VNO_WRITER_BATCH_HTML;
+    let out; let legacy;
+    try {
+      globalThis.__VNO_WRITER_BATCH_HTML = true;
+      out = adapter._applyOoxmlTableCellEmptyParagraphFontSizes(html, doc, styles);
+      globalThis.__VNO_WRITER_BATCH_HTML = false;
+      legacy = adapter._applyOoxmlTableCellEmptyParagraphFontSizes(html, doc, styles);
+    } finally {
+      if (previousBatchFlag === undefined) delete globalThis.__VNO_WRITER_BATCH_HTML;
+      else globalThis.__VNO_WRITER_BATCH_HTML = previousBatchFlag;
+    }
+    check(out === legacy, `batched table paragraph output must match the legacy output`);
     check(out.includes('<td><p style="font-size: 13pt"><br></p></td>'), `empty numbered cell paragraph must take 13pt: ${out}`);
     check(out.includes('<p>Có chữ</p><p style="font-size: 10pt"><br></p>'), `second cell: text paragraph untouched, empty one 10pt: ${out}`);
     check(out.startsWith('<div title="header"><table><tr><td><p><br></p></td></tr></table></div>'), `header table must be skipped: ${out}`);
