@@ -800,7 +800,7 @@ export function showFinishMailMergeDialog({
 
   const previousFocused = document.activeElement;
   const overlay = document.createElement("div");
-  overlay.className = "vno-dialog-overlay";
+  overlay.className = "vno-dialog-overlay vno-merge-finish-overlay";
 
   overlay.innerHTML = `
     <div class="vno-dialog-box" style="width: 480px;" role="dialog" aria-modal="true" aria-labelledby="vno-merge-finish-title">
