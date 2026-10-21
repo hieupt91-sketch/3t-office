@@ -11,6 +11,7 @@ import { showSymbolPicker, listAllSymbols, SYMBOL_CATEGORIES } from "../../platf
 import { COMMON_COMMANDS, WRITER_COMMANDS, SHEET_COMMANDS, SLIDES_COMMANDS } from "../../platform/commands/command-definitions.js";
 import { SHEET_HELP_ENTRIES } from "../../platform/help/entries-sheet.js";
 import { SLIDES_HELP_ENTRIES } from "../../platform/help/entries-slides.js";
+import { SLIDES_RIBBON_TABS } from "../../apps/slides/slides-ribbon.js";
 import { WRITER_HELP_ENTRIES } from "../../platform/help/entries-writer.js";
 
 class MockClassList {
@@ -326,6 +327,8 @@ export async function runSharedInsertCapabilitiesTests() {
   test("3T Slide Command Definitions: có slides.insert.hyperlink và slides.insert.symbol", () => {
     const linkCmd = SLIDES_COMMANDS.find(c => c.id === "slides.insert.hyperlink");
     assert.ok(linkCmd, "Slide phải có slides.insert.hyperlink");
+    const insertTab = SLIDES_RIBBON_TABS.find(tab => tab.id === "insert");
+    assert.ok(insertTab?.groups.some(group => group.id === "links" && group.items.some(item => item.commandId === "slides.insert.hyperlink")), "Tab Chèn phải có nhóm Liên kết với nút siêu liên kết");
     const commonLink = COMMON_COMMANDS.find(c => c.id === "common.edit.hyperlink");
     assert.equal(commonLink.shortcut, "Ctrl+K");
     const symCmd = SLIDES_COMMANDS.find(c => c.id === "slides.insert.symbol");
