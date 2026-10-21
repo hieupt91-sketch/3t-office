@@ -1,0 +1,12 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import path from "node:path";
+import { launchApp } from "./session.mjs";
+import { sleep } from "./actions.mjs";
+const root=process.env.VNO_CDP_LOCALAPPDATA;if(!root)throw new Error("Set VNO_CDP_LOCALAPPDATA to a unique profile path before running.");
+const out=path.resolve("docs/assets/q50-ui");mkdirSync(out,{recursive:true});const session=await launchApp("sheet",{localAppData:path.join(root,"sheet")});
+try{const win=await session.cdp.send("Browser.getWindowForTarget",{});await session.cdp.send("Browser.setWindowBounds",{windowId:(win.result||win).windowId,bounds:{windowState:"normal",width:1366,height:768}});await session.cdp.evaluate(`document.documentElement.setAttribute('data-theme',${JSON.stringify(process.env.Q50_NOTICE_THEME||"light")})`);await session.cdp.evaluate(`void window.globalCommandBus.execute("sheet.data.customSort")`);await sleep(300);
+ const state=await session.cdp.evaluate(`(()=>{const d=[...document.querySelectorAll('[role="dialog"]')].filter(e=>e.getClientRects().length).at(-1);const b=d?.querySelector('.vno-rule-apply');const r=d?.getBoundingClientRect(),br=b?.getBoundingClientRect();return {title:d?.querySelector('.vno-dialog-title')?.innerText,message:d?.querySelector('[role="status"]')?.innerText,button:b?.innerText?.trim(),buttonDisabled:b?.disabled,dialogRect:r?.toJSON(),buttonRect:br?.toJSON(),inside:!!r&&!!br&&br.left>=r.left&&br.right<=r.right&&br.top>=r.top&&br.bottom<=r.bottom}})()`);
+ const shot=await session.cdp.send("Page.captureScreenshot",{format:"png",captureBeyondViewport:false});const phase=process.env.Q50_EXPECT_NOTICE_CLOSE==="1"?"after":"before";const theme=process.env.Q50_NOTICE_THEME||"light";writeFileSync(path.join(out,`sheet-custom-sort-notice-${theme}-${phase}-1366x768.png`),Buffer.from((shot.result||shot).data,"base64"));
+ const pass=state.button==="Đóng"&&!state.buttonDisabled&&state.inside;console.log(`${pass?"PASS":"FAIL"} | custom-sort unavailable-range notice uses a dismiss button | ${JSON.stringify(state)}`);if(!pass)process.exitCode=1;
+ await session.cdp.evaluate(`document.querySelector('.vno-rule-apply')?.click()`);await sleep(100);const closed=await session.cdp.evaluate(`![...document.querySelectorAll('[role="dialog"]')].some(e=>e.getClientRects().length&&getComputedStyle(e).display!=='none')`);if(!closed){console.log("FAIL | dismiss closes notice");process.exitCode=1;}else console.log("PASS | dismiss closes notice");
+}finally{await session.close()}

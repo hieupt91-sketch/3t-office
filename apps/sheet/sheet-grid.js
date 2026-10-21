@@ -21501,7 +21501,14 @@ export class SheetGridController {
   _showDataNotice(message) {
     if (typeof document === "undefined") return;
     const overlay = this._createSheetDialog(t("sheetDialogs.resultTitle", "Kết quả"), `<p class="vno-data-result" role="status">${message}</p>`);
-    overlay?.querySelector(".vno-rule-apply")?.addEventListener("click", () => overlay.closeDialog());
+    const closeButton = overlay?.querySelector(".vno-rule-apply");
+    if (closeButton) {
+      const label = t("sheetDialogs.close", "Đóng");
+      closeButton.textContent = label;
+      closeButton.setAttribute("aria-label", label);
+      closeButton.classList.remove("vno-btn-primary");
+      closeButton.addEventListener("click", () => overlay.closeDialog());
+    }
   }
 
   _createSheetDialog(title, bodyHtml) {
