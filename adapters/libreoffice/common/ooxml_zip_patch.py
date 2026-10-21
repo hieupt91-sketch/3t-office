@@ -15601,6 +15601,7 @@ def strip_vno_xf_attributes(fods_xml: str) -> str:
         stripped = _VNO_XF_RE.sub("", stripped)
     return stripped
 _CELL_OPEN_RE = re.compile(r"<(table:(?:table-cell|covered-table-cell))\b([^>]*?)(/?)>", re.IGNORECASE)
+_NATIVE_CELL_FORMAT_ATTR_CACHE: dict[int, tuple[dict, str]] = {}
 
 
 def _stamp_table_cell_attr(cell_xml: str, addition: str, existing_re: re.Pattern[str]) -> str | None:
@@ -15644,10 +15645,22 @@ def _set_native_cell_format_attr(cell_xml: str, config: dict) -> str:
     """Stamp exact OOXML-only cell properties that LibreOffice normalizes on import."""
     if not config or cell_xml.startswith("<table:covered-table-cell"):
         return cell_xml
-    raw = json.dumps(config, ensure_ascii=False, separators=(",", ":"))
+    if os.environ.get("VNO_XLSX_CACHE_NATIVE_CELL_FORMAT_ATTR") == "0":
+        value = _escape_xml(json.dumps(config, ensure_ascii=False, separators=(",", ":")))
+    else:
+        key = id(config)
+        cached = _NATIVE_CELL_FORMAT_ATTR_CACHE.get(key)
+        if cached is None or cached[0] is not config:
+            raw = json.dumps(config, ensure_ascii=False, separators=(",", ":"))
+            value = _escape_xml(raw)
+            if len(_NATIVE_CELL_FORMAT_ATTR_CACHE) >= 4096:
+                _NATIVE_CELL_FORMAT_ATTR_CACHE.pop(next(iter(_NATIVE_CELL_FORMAT_ATTR_CACHE)))
+            _NATIVE_CELL_FORMAT_ATTR_CACHE[key] = (config, value)
+        else:
+            value = cached[1]
     stamped = _stamp_table_cell_attr(
         cell_xml,
-        f' vno:cell-format="{_escape_xml(raw)}"',
+        f' vno:cell-format="{value}"',
         _VNO_CELL_FORMAT_RE,
     )
     return stamped if stamped is not None else cell_xml

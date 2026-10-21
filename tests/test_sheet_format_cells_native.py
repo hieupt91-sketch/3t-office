@@ -53,6 +53,20 @@ class SheetFormatCellsNativeTests(unittest.TestCase):
         self.assertEqual(expected, actual)
         self.assertEqual(1, dumps.call_count, "identical style objects should serialize once")
 
+    def test_native_cell_format_attribute_cache_can_be_disabled(self):
+        config = {"horizontalAlignment": "centerContinuous"}
+        cells = [
+            '<table:table-cell><text:p>1</text:p></table:table-cell>',
+            '<table:table-cell><text:p>2</text:p></table:table-cell>',
+        ]
+        original_dumps = patcher.json.dumps
+        with mock.patch.dict("os.environ", {"VNO_XLSX_CACHE_NATIVE_CELL_FORMAT_ATTR": "0"}), mock.patch.object(
+            patcher.json, "dumps", wraps=original_dumps
+        ) as dumps:
+            actual = [patcher._set_native_cell_format_attr(cell, config) for cell in cells]
+        self.assertEqual(2, dumps.call_count, "zero should retain serialization for every stamped cell")
+        self.assertTrue(all('vno:cell-format=' in cell for cell in actual))
+
     def test_structured_formula_candidate_check_ignores_brackets_outside_formula_tags(self):
         self.assertTrue(
             patcher._has_structured_formula_candidate(
