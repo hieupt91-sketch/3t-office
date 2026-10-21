@@ -51,5 +51,5 @@ try {
   await session.close();
 }
 const failures = results.filter(result => !result.pass);
-console.log(`SUMMARY ${results.length - failures.length}/${results.length} dialog frames in bounds; ${failures.length} failures`);
+console.log(`SUMMARY ${results.length - failures.length}/${results.length} checks passed; ${failures.length} failures`);
 if (failures.length) process.exitCode = 1;
