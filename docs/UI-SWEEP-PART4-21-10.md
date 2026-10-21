@@ -14,12 +14,12 @@ Phiên rà soát thực tế qua CDP trên app desktop Windows, cửa sổ 1366�
 | Ngày & Giờ | ĐẠT về hiển thị, tối | Năm kiểu ngày/giờ có thể chọn; nút nằm trong khung. [Ảnh](assets/q49-ui/slides-date-time-dark.png). |
 | Ký hiệu | ĐẠT về hiển thị, tối | Các nhóm Ký hiệu thường dùng/Toán học/Mũi tên hiển thị đủ. [Ảnh](assets/q49-ui/slides-symbol-dark.png). |
 | Liên kết | NOT RUN | Chưa mở trong lượt này. |
-| Tác vụ (Action) | NOT RUN — chưa chọn đối tượng | Bấm nút trên slide trống không mở hộp. [Ảnh trạng thái](assets/q49-ui/slides-action-dark.png). |
+| Tác vụ (Action) | ĐẠT về hiển thị, tối | Trên slide trống nút không mở hộp; sau khi chọn biểu đồ hộp Tác vụ khi nhấp mở đủ lựa chọn hành động, trang chiếu và địa chỉ web. [Ảnh](assets/q49-ui/slides-action-selected-context-dark.png). |
 | Soát lỗi chính tả | ĐẠT về hiển thị, tối | Hộp thông báo hoàn tất kiểm tra trang chiếu và nút Đóng hiển thị rõ. [Ảnh](assets/q49-ui/slides-spellcheck-dark.png). |
 | Chữ nghệ thuật | ĐẠT về hiển thị, tối | Ô nhập, 8 kiểu và hai nút nằm trong hộp. [Ảnh](assets/q49-ui/slides-wordart-dark.png). |
-| Tab ngữ cảnh Định dạng hình/ảnh/bảng/biểu đồ | NOT RUN | Chưa tạo và chọn các đối tượng tương ứng; không kết luận đạt. |
+| Tab ngữ cảnh hình/bảng/biểu đồ | ĐẠT một phần, sáng và tối | Đã mở Định dạng hình, Thiết kế bảng, Bố cục bảng, Thiết kế biểu đồ; tên tab và nhóm lệnh hiển thị trong khung. [Hình](assets/q49-ui/slides-shape-format-context-light.png), [Thiết kế bảng](assets/q49-ui/slides-table-design-context-light.png), [Bố cục bảng](assets/q49-ui/slides-table-layout-context-light.png), [Biểu đồ sáng](assets/q49-ui/slides-chart-design-context-light.png), [Biểu đồ tối](assets/q49-ui/slides-chart-design-context-dark.png). Tab Định dạng ảnh vẫn NOT RUN vì không mở bộ chọn tệp hệ điều hành. Trong fixture, bảng/biểu đồ/hình được chèn chồng lên nhau để mở tab; ảnh bảng tối phản ánh trạng thái các đối tượng chồng trong tài liệu thử, không kết luận lỗi app. |
 | F5 — thanh điều khiển | CẦN XEM LẠI (trung bình) | Sau F5 chỉ thấy trang chiếu và dòng “Space hoặc Click để tiếp / Esc để thoát”; rê chuột không hiện thanh điều khiển. [F5](assets/q49-ui/slides-f5-dark.png), [sau rê chuột](assets/q49-ui/slides-f5-controls-dark.png). |
-| Chế độ tác giả ghi chú | NOT RUN | Chưa mở được khung ghi chú trong lượt này. |
+| Chế độ tác giả ghi chú | ĐẠT về hiển thị, tối | Khung ghi chú mở dưới canvas, có trường nhập riêng và bộ đếm ký tự; nội dung pane nằm trong cửa sổ. [Ảnh](assets/q49-ui/slides-notes-pane-dark.png). |
 
 ### Sheet
 
@@ -50,7 +50,7 @@ Phiên rà soát thực tế qua CDP trên app desktop Windows, cửa sổ 1366�
 | Chú thích ảnh | ĐẠT về hiển thị, sáng | Nhãn, vị trí, nội dung và nút hiển thị rõ; hộp nhắc chưa chọn ảnh/bảng. [Ảnh](assets/q49-ui/writer-caption-light.png). |
 | Đầu trang/Chân trang tùy chọn | NOT RUN | Nút Đầu trang chèn mẫu trực tiếp, không mở hộp cấu hình. Ảnh thao tác [tại đây](assets/q49-ui/writer-header-menu-light.png). |
 | Chú thích cuối trang | NOT RUN | Chưa mở; lệnh có thể chèn nội dung trực tiếp. |
-| Ngăn chọn | NOT RUN | Chưa mở trong lượt này. |
+| Ngăn chọn | ĐẠT về hiển thị, sáng | Panel bên phải có Hiện tất cả/Ẩn tất cả/Nhóm/Bỏ nhóm và trạng thái rỗng rõ. [Ảnh](assets/q49-ui/writer-selection-pane-light.png). |
 | Nguồn Trộn thư | ĐẠT về hiển thị, sáng | Hộp nguồn có các lựa chọn tệp/CSV/thủ công/dữ liệu mẫu, không gọi bộ chọn hệ điều hành. [Ảnh](assets/q49-ui/writer-mailmerge-source-light.png). |
 | Hoàn tất Trộn thư | NOT RUN | Chưa có nguồn nhận để mở luồng hoàn tất. |
 | Soát lỗi chính tả | ĐẠT về hiển thị, sáng | Mở panel kiểm tra cục bộ; panel cuộn và thông báo kết quả nằm trong khung. [Ảnh](assets/q49-ui/writer-spellcheck-light.png). |
@@ -60,11 +60,11 @@ Phiên rà soát thực tế qua CDP trên app desktop Windows, cửa sổ 1366�
 
 | Hạng mục | Trạng thái |
 |---|---|
-| Tab/Shift+Tab, Esc, Enter, focus trả về nút kích hoạt trên mọi hộp | NOT RUN có hệ thống; Esc đã đóng một số hộp nhưng chưa đo focus vòng lại. |
+| Tab/Shift+Tab, Esc, Enter, focus trả về nút kích hoạt trên mọi hộp | NOT RUN có hệ thống; đã lấy mẫu hộp Chèn Bảng: Tab chuyển từ hàng sang cột, Shift+Tab quay lại, Esc đóng hộp nhưng focus rơi vào canvas (`.vno-slide-canvas`) thay vì nút mở (FAIL). Chưa chạy Enter hoặc các hộp khác. Hộp mẫu: [ảnh](assets/q49-ui/slides-table-context-insert-light.png). |
 | Nhập rỗng, âm, >1e9, chữ, 5000 ký tự, ký tự đặc biệt | NOT RUN. |
 | Tooltip 3 nút đầu mỗi tab | NOT RUN. |
 | Toast vị trí/thời lượng/che nút | NOT RUN có hệ thống. Đã nhìn thấy toast “Đang tải…” ở góc dưới phải trong vài ảnh; không đo thời gian hoặc che khuất. |
-| Chụp và xem | Đã xem 54 ảnh (liệt kê trong `docs/assets/q49-ui/`), toàn bộ ảnh có khung 1366×768. Không có ảnh ở 1280×720 vì danh sách Q49 yêu cầu 1366×768. |
+| Chụp và xem | Đã xem 70 ảnh (liệt kê trong `docs/assets/q49-ui/`), toàn bộ ảnh có khung 1366×768. Không có ảnh ở 1280×720 vì danh sách Q49 yêu cầu 1366×768. |
 
 ## Phát hiện và sửa
 
