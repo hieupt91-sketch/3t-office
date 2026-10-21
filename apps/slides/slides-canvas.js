@@ -11504,6 +11504,12 @@ const startEditing = (initialText) => {
     const idx = startIndex !== undefined ? startIndex : this.currentSlideIndex;
     let currentShowIdx = this._resolveShowStartIndex(idx);
     let autoAdvanceTimer = null;
+    let controlsHideTimer = null;
+    let showNumberBuffer = "";
+    let showNumberTimer = null;
+    let showControlsEl = null;
+    let showCounterEl = null;
+    let revealShowControls = () => {};
 
     const overlay = document.createElement("div");
     overlay.className = "vno-slideshow-overlay";
@@ -11683,6 +11689,7 @@ const startEditing = (initialText) => {
           <span>${t("slidesDialogs.slideshowHint")}</span>
         </div>
       `;
+      if (showCounterEl) showCounterEl.textContent = t("slidesDialogs.slideCounter", { current: currentShowIdx + 1, total: this.slides.length });
 
       inkOverlayEl = makeSvgEl("svg");
       if (typeof inkOverlayEl.setAttribute === "function") inkOverlayEl.setAttribute("class", "vno-slideshow-ink-overlay"); else inkOverlayEl.className = "vno-slideshow-ink-overlay";
@@ -11750,6 +11757,8 @@ const startEditing = (initialText) => {
       } else {
         overlay.style.cursor = "default";
         if (laserDotEl) laserDotEl.style.display = "none";
+        if (showControlsEl?.classList.contains("is-visible")) overlay.classList.remove("vno-slideshow-cursor-idle");
+        else overlay.classList.add("vno-slideshow-cursor-idle");
       }
       if (contextMenuEl) closeContextMenu();
     };
@@ -11788,6 +11797,7 @@ const startEditing = (initialText) => {
         currentStroke.d += ` L ${pt.x} ${pt.y}`;
         activePathEl.setAttribute?.("d", currentStroke.d);
       }
+      if (showControlsEl && !showControlsEl.contains(e.target)) revealShowControls();
     };
 
     const onPointerDown = (e) => {
@@ -12019,6 +12029,8 @@ const startEditing = (initialText) => {
 
       const finishClose = () => {
         if (autoAdvanceTimer) { clearTimeout(autoAdvanceTimer); autoAdvanceTimer = null; }
+        if (controlsHideTimer) { clearTimeout(controlsHideTimer); controlsHideTimer = null; }
+        if (showNumberTimer) { clearTimeout(showNumberTimer); showNumberTimer = null; }
         if (rehearsing && discardRehearsal) {
           if (rehearseInterval) clearInterval(rehearseInterval);
         } else {
@@ -12152,6 +12164,14 @@ const startEditing = (initialText) => {
       }
       if (e.altKey) return;
       const k = e.key;
+      if (/^\d$/.test(k)) {
+        e.preventDefault?.();
+        showNumberBuffer = `${showNumberBuffer}${k}`.slice(-3);
+        if (showNumberTimer) clearTimeout(showNumberTimer);
+        showNumberTimer = setTimeout(() => { showNumberBuffer = ""; showNumberTimer = null; }, 2000);
+        revealShowControls();
+        return;
+      }
       if (k === "e" || k === "E") {
         e.preventDefault?.();
         eraseInkOnCurrentSlide();
@@ -12164,6 +12184,15 @@ const startEditing = (initialText) => {
           return;
         }
         closeShow();
+      } else if (k === "Enter" && showNumberBuffer) {
+        e.preventDefault?.();
+        const requested = Number(showNumberBuffer);
+        showNumberBuffer = "";
+        if (showNumberTimer) { clearTimeout(showNumberTimer); showNumberTimer = null; }
+        if (requested >= 1 && requested <= this.slides.length) {
+          const target = this._findVisibleSlideIndex(requested - 1, 1);
+          if (target >= 0) goToSlide(target);
+        }
       } else if (k === " " || k === "ArrowRight" || k === "ArrowDown" || k === "PageDown" || k === "Enter" || k === "n" || k === "N") {
         e.preventDefault?.();
         advanceShow();
@@ -12183,6 +12212,53 @@ const startEditing = (initialText) => {
       }
     };
 
+    showControlsEl = document.createElement("div");
+    showControlsEl.className = "vno-slideshow-controls";
+    showControlsEl.dataset.visible = "false";
+    showControlsEl.setAttribute?.("role", "toolbar");
+    showControlsEl.setAttribute?.("aria-label", t("slidesDialogs.showControls", "Điều khiển trình chiếu"));
+    showControlsEl.innerHTML = `
+      <button type="button" data-show-control="previous" title="${this._escapeHtml(t("slidesDialogs.showPrevious", "Trang trước (←)"))}" aria-label="${this._escapeHtml(t("slidesDialogs.showPrevious", "Trang trước (←)"))}">◀</button>
+      <span class="vno-slideshow-control-counter" role="status" aria-live="polite"></span>
+      <button type="button" data-show-control="next" title="${this._escapeHtml(t("slidesDialogs.showNext", "Trang tiếp (Space hoặc →)"))}" aria-label="${this._escapeHtml(t("slidesDialogs.showNext", "Trang tiếp (Space hoặc →)"))}">▶</button>
+      <button type="button" data-show-control="pen" title="${this._escapeHtml(t("slidesDialogs.showPen", "Bút vẽ (Ctrl+P)"))}" aria-label="${this._escapeHtml(t("slidesDialogs.showPen", "Bút vẽ (Ctrl+P)"))}">${this._escapeHtml(t("slidesDialogs.showPenShort", "Bút"))}</button>
+      <button type="button" data-show-control="laser" title="${this._escapeHtml(t("slidesDialogs.showLaser", "Con trỏ laser (Ctrl+L)"))}" aria-label="${this._escapeHtml(t("slidesDialogs.showLaser", "Con trỏ laser (Ctrl+L)"))}">${this._escapeHtml(t("slidesDialogs.showLaserShort", "Laser"))}</button>
+      <button type="button" data-show-control="exit" title="${this._escapeHtml(t("slidesDialogs.showExit", "Kết thúc (Esc)"))}" aria-label="${this._escapeHtml(t("slidesDialogs.showExit", "Kết thúc (Esc)"))}">${this._escapeHtml(t("slidesDialogs.showExitShort", "Kết thúc"))}</button>`;
+    showCounterEl = showControlsEl.querySelector(".vno-slideshow-control-counter");
+    showCounterEl.textContent = t("slidesDialogs.slideCounter", { current: currentShowIdx + 1, total: this.slides.length });
+    showControlsEl.addEventListener("click", (event) => {
+      const control = event.target?.closest?.("[data-show-control]");
+      if (!control) return;
+      event.preventDefault?.();
+      event.stopPropagation?.();
+      event.stopImmediatePropagation?.();
+      const action = control.dataset.showControl;
+      if (action === "previous") rewindShow();
+      else if (action === "next") advanceShow();
+      else if (action === "pen") setPointerMode("pen");
+      else if (action === "laser") setPointerMode("laser");
+      else if (action === "exit") closeShow();
+    });
+    overlay.appendChild(showControlsEl);
+    const hideShowControls = () => {
+      showControlsEl.classList.remove("is-visible");
+      showControlsEl.dataset.visible = "false";
+      overlay.classList.remove("vno-slideshow-controls-visible");
+      if (pointerMode === "arrow") overlay.classList.add("vno-slideshow-cursor-idle");
+      controlsHideTimer = null;
+    };
+    revealShowControls = () => {
+      if (!showControlsEl) return;
+      showControlsEl.classList.add("is-visible");
+      showControlsEl.dataset.visible = "true";
+      overlay.classList.add("vno-slideshow-controls-visible");
+      overlay.classList.remove("vno-slideshow-cursor-idle");
+      if (controlsHideTimer) clearTimeout(controlsHideTimer);
+      controlsHideTimer = setTimeout(hideShowControls, 2000);
+    };
+    showControlsEl.addEventListener("focusin", revealShowControls);
+    overlay.classList.add("vno-slideshow-cursor-idle");
+
     const previousShortcutScope = globalShortcutManager.getActiveScope?.() ?? "slides";
     globalShortcutManager.setActiveScope?.("slides-show");
     const keyTarget = typeof window !== "undefined" && window.addEventListener
@@ -12193,7 +12269,7 @@ const startEditing = (initialText) => {
     this._activeShowCleanup?.();
     this._activeShowCleanup = cleanupShow;
     overlay.addEventListener?.("click", (e) => {
-      if (e.target && e.target.closest && e.target.closest("video, audio, .vno-rehearse-timer-box, .vno-slideshow-context-menu, .vno-ink-dialog")) return;
+      if (e.target && e.target.closest && e.target.closest("video, audio, .vno-rehearse-timer-box, .vno-slideshow-context-menu, .vno-slideshow-controls, .vno-ink-dialog")) return;
       if (pointerMode !== "arrow") return;
       // Kích hoạt: bấm vào hình nào thì chạy hiệu ứng gắn với hình đó (và không chuyển trang).
       const hitIds = new Set();

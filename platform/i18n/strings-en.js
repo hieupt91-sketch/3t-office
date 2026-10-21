@@ -755,6 +755,7 @@ export const enStrings = {
     setupShowTitle: "Set Up Slide Show", setupShowHint: "Slide show options for this presentation. Loop until Esc applies immediately in F5. Default pen and laser pointer color during slide show (toggle with Ctrl+P, Ctrl+L).", setupShowLoop: "Loop continuously until Esc", setupShowUseTimings: "Use timings to advance slides automatically", setupShowNoNarration: "Show without narration", setupShowNoNarrationHint: "Slide does not have audio narration yet — this option only stores a flag and does not mute or hide audio.", setupShowPointerColor: "Pen / laser pointer color",
     selectionPaneRename: "Rename (double-click or F2)", selectionPaneHide: "Hide object", selectionPaneShow: "Show object", keepInkTitle: "Slide", keepInkPrompt: "Do you want to keep your ink annotations?", keepInkKeep: "Keep", keepInkDiscard: "Discard",
     slideshowNext: "Next", slideshowPrev: "Previous", slideshowPointerOptions: "Pointer Options", slideshowArrow: "Arrow", slideshowPen: "Pen", slideshowLaser: "Laser Pointer", slideshowPenColor: "Pen Color", slideshowEraseInk: "Erase Ink on Slide", slideshowEndShow: "End Show",
+    showControls: "Slide show controls", showPrevious: "Previous slide (←)", showNext: "Next slide (Space or →)", showPen: "Pen (Ctrl+P)", showLaser: "Laser pointer (Ctrl+L)", showPenShort: "Pen", showLaserShort: "Laser", showExit: "End show (Esc)", showExitShort: "End",
     colorRed: "Red", colorBlue: "Blue", colorYellow: "Yellow", colorGreen: "Green", colorBlack: "Black"
   },
   commands: {

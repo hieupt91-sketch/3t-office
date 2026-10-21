@@ -827,12 +827,12 @@ export const SLIDES_HELP_ENTRIES = [
       "slides.show.presenterMode"
     ],
     title: "Bắt đầu trình chiếu và chế độ Người thuyết trình",
-    summary: "F5 chiếu từ trang không ẩn đầu tiên; Shift+F5 từ trang đang mở; Alt+F5 mở màn Người thuyết trình (ghi chú, trang kế, đồng hồ) trong cùng cửa sổ. Esc thoát. Trang ẩn bị bỏ qua.",
+    summary: "F5 chiếu từ trang không ẩn đầu tiên; Shift+F5 từ trang đang mở; Alt+F5 mở màn Người thuyết trình (ghi chú, trang kế, đồng hồ) trong cùng cửa sổ. Rê chuột để hiện thanh điều khiển tạm thời. Esc thoát. Trang ẩn bị bỏ qua.",
     ribbon: { tab: "Trình chiếu", tabId: "slideshow", group: "Khởi động chiếu" },
     keywords: ["trình chiếu", "f5", "shift+f5", "alt+f5", "presenter", "người thuyết trình", "chiếu từ đầu", "slideshow"],
     steps: [
       "Tab Trình chiếu, nhóm Khởi động chiếu: Từ đầu (F5), Từ trang này (Shift+F5), Chế độ Presenter (Alt+F5).",
-      "Từ đầu / Từ trang này: toàn màn hình cho khán giả, không hiện ghi chú. Trang sau: →, ↓, Space, Enter, Page Down hoặc N; trang trước: ←, ↑, Backspace, Page Up hoặc P; Home về trang đầu, End tới trang cuối; Esc thoát. Khi đang chiếu, các phím tắt soạn thảo tạm tắt nên không vô tình sửa bài. Trang đã Ẩn trang chiếu bị nhảy qua. Mọi trang đều ẩn thì hộp thoại báo «Tất cả trang chiếu đang bị ẩn».",
+      "Từ đầu / Từ trang này: toàn màn hình cho khán giả, không hiện ghi chú. Rê chuột để mở thanh điều khiển có Trang trước, Trang tiếp, bộ đếm, Bút vẽ, Laser và Kết thúc; thanh tự ẩn sau khoảng 2 giây. Trang sau: →, ↓, Space, Enter, Page Down hoặc N; trang trước: ←, ↑, Backspace, Page Up hoặc P; nhập số trang rồi Enter để chuyển trực tiếp; Home về trang đầu, End tới trang cuối; Esc thoát. Khi đang chiếu, các phím tắt soạn thảo tạm tắt nên không vô tình sửa bài. Trang đã Ẩn trang chiếu bị nhảy qua. Mọi trang đều ẩn thì hộp thoại báo «Tất cả trang chiếu đang bị ẩn».",
       "Chế độ Presenter: overlay trong cùng cửa sổ (không tách màn hình 2). Cột trái: trang hiện tại, nút Trang trước / Trang tiếp, bộ đếm. Cột phải: ghi chú (A+/A− đổi cỡ chữ) và xem trước trang kế. Đồng hồ «ĐÃ THUYẾT TRÌNH» và đồng hồ máy. Esc hoặc ✕ Thoát.",
       "Cấu hình lặp liên tục / màu con trỏ: tab Trình chiếu → Thiết lập → Thiết lập trình chiếu (bài riêng)."
     ]

@@ -754,6 +754,7 @@ export const viStrings = {
     setupShowTitle: "Thiết lập trình chiếu", setupShowHint: "Tùy chọn trình chiếu cho bản này. Lặp liên tục áp dụng ngay khi F5. Màu bút vẽ và con trỏ laser mặc định khi trình chiếu (bật bằng Ctrl+P, Ctrl+L).", setupShowLoop: "Lặp lại liên tục cho đến khi nhấn Esc", setupShowUseTimings: "Dùng thời gian đã đặt để tự chuyển trang", setupShowNoNarration: "Trình chiếu không có thuyết minh", setupShowNoNarrationHint: "Chưa có thuyết minh/audio narration trong Slide — tùy chọn này chỉ lưu cờ, chưa ẩn hay tắt âm thanh nào.", setupShowPointerColor: "Màu con trỏ bút / laser",
     selectionPaneRename: "Đổi tên (nhấp đúp hoặc F2)", selectionPaneHide: "Ẩn đối tượng", selectionPaneShow: "Hiện đối tượng", keepInkTitle: "Slide", keepInkPrompt: "Bạn có muốn giữ lại các chú thích bằng nét vẽ không?", keepInkKeep: "Giữ", keepInkDiscard: "Bỏ",
     slideshowNext: "Tiếp theo", slideshowPrev: "Quay lại", slideshowPointerOptions: "Tùy chọn con trỏ", slideshowArrow: "Mũi tên", slideshowPen: "Bút vẽ", slideshowLaser: "Con trỏ laser", slideshowPenColor: "Màu bút", slideshowEraseInk: "Xóa nét vẽ trên trang", slideshowEndShow: "Thoát trình chiếu",
+    showControls: "Điều khiển trình chiếu", showPrevious: "Trang trước (←)", showNext: "Trang tiếp (Space hoặc →)", showPen: "Bút vẽ (Ctrl+P)", showLaser: "Con trỏ laser (Ctrl+L)", showPenShort: "Bút", showLaserShort: "Laser", showExit: "Kết thúc (Esc)", showExitShort: "Kết thúc",
     colorRed: "Đỏ", colorBlue: "Xanh lam", colorYellow: "Vàng", colorGreen: "Xanh lá", colorBlack: "Đen"
   },
   commands: {
