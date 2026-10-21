@@ -6135,8 +6135,8 @@ def _fods_pivot_charts(source_fods: str | None) -> dict[str, list[str]]:
 
 
 def _xlsx_sheet_drawing_rids(xlsx_bytes: bytes) -> dict[str, tuple[str, str]] | None:
-    """Cache worksheet drawing relationship IDs for the opt-in shared chart overlay path."""
-    if os.environ.get("VNO_XLSX_SHARED_DRAWING_INDEX") != "1":
+    """Cache worksheet drawing relationship IDs unless the shared path is disabled."""
+    if os.environ.get("VNO_XLSX_SHARED_DRAWING_INDEX") == "0":
         return None
     cached = _index_memo_get("sheet_drawing_rids", xlsx_bytes)
     if cached is not _INDEX_MISS:
