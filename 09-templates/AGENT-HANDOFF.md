@@ -1014,3 +1014,27 @@ DEPENDENCIES/BLOCKERS: Excel COM bị chặn theo quy tắc chung; đã dùng Li
 CORE PATCH ID (if any): None.
 COMMITS: `6000e3d7` (Sheet status 100%); `9d1be0a7` (benchmark harness); `b463bed0` (warm measurement correction); `976f72a1` (stage logging). Báo cáo và handoff sẽ được commit riêng.
 NEXT ACTION: Xem `docs/PERF-OPEN-WARM-21-10.md`; sau commit báo cáo/handoff tạo `E:\VNOffice-briefs\logs\Q42.DONE`.
+
+
+---
+
+# Agent Handoff
+TASK: Q43 — Sheet: tốc độ mở XLSX lớn, tối ưu overlay metadata
+AGENT/ROLE: Codex / Sheet performance
+BRANCH: codex/queue-19-10
+WORKTREE: E:\VNOffice-codex-queue
+OBJECTIVE: Giảm median editable LAN01/LAN09 ít nhất 50% và xuống ≤25 s; giữ byte đầu ra overlay/payload, không giảm chất lượng lưu, không làm chậm LAN28/LAN14.
+FINDINGS: Nút chart metadata là phần overlay đáng kể và có thể tái sử dụng chỉ mục drawing theo worksheet. Cell metadata không đổi và vẫn là stage lớn; phần còn lại khiến mục tiêu tổng thời gian chưa đạt.
+IMPLEMENTATION SUMMARY: Thêm `VNO_XLSX_SHARED_DRAWING_INDEX=1` opt-in, dùng chung chỉ mục quan hệ drawing cho chart/chart-anchor/pivot-chart helpers. Mặc định tắt; fallback hiện hữu giữ nguyên. Thêm regression test parse XML đúng một lần và thêm screenshot CDP cho verifier mở lại LAN14.
+FILES CHANGED: `adapters/libreoffice/common/ooxml_zip_patch.py`; `tests/test_sheet_chart_overlay_index.py`; `tests/live/cdp/lan14-reopen-verify.mjs`; `docs/PLAN-Q43.md`; `docs/PERF-Q43-OVERLAY.md`; `09-templates/AGENT-HANDOFF.md`.
+COMMANDS RUN: `git merge main`; benchmark CDP warm baseline/after LAN01/LAN09, LAN28; overlay/payload byte parity 27 workbook; JS first-5000-cell parity LAN01/LAN09; batch LAN audit (Excel COM bỏ qua); LAN14 save-stage và reopen; node suite, npm test, i18n parity, checklist evidence, pytest chọn lọc.
+BUILD RESULT: NOT RUN — không đổi build system.
+TEST RESULTS: PASS — node 3790/3790; npm 3790/3790; i18n thiếu 0; checklist 0 dòng hạ; pytest 401 passed, 723 deselected; parity 27/27; batch saved/diffs=0/lint sạch 27/27; LAN14 save 134.035 s và reopen 89.241 s, 1,435,546 ô. Excel COM BLOCKED.
+PERFORMANCE: LAN01 50.523→45.831 s median (−9.3%); LAN09 41.785→35.408 s (−15.3%): mục tiêu ≤25 s/−50% NOT MET. LAN28 3.434 s median sau tối ưu, không xấu hơn baseline Q42 3.499 s. 8 workers không cải thiện so với 6.
+GIAO DIỆN ĐÃ XEM: CDP screenshots 1366×768 cho LAN01 baseline/after (đạt), LAN09 baseline/after (tab sheet dài chật/cắt ngang, nút cuộn hiện diện), LAN28 (đạt), LAN14 sau reopen (chrome vừa viewport, tab dài cần cuộn). Không mở menu/hộp thoại. Chi tiết và ảnh ở `docs/PERF-Q43-OVERLAY.md` và `E:\VNOffice-briefs\runs\q43-*`.
+KNOWN FAILURES: Hiệu năng LAN01/LAN09 không đạt mục tiêu Q43; cell metadata chưa được tối ưu. Tình trạng dải tab dài LAN09/LAN14 được ghi nhận, không sửa trong phạm vi. i18n script còn 20 khóa báo nghi ngờ giống nhau/chưa dịch, hiện trạng không do Q43.
+RISKS: Cờ opt-in nên kết quả người dùng mặc định không đổi cho tới khi được bật riêng. Benchmark phụ thuộc máy/profile. Không có Core patch hoặc thay đổi semantics định dạng.
+DEPENDENCIES/BLOCKERS: Excel COM BLOCKED theo quy tắc ticket, dùng LibreOffice/package audit. Nguồn hai mục memory không khả dụng trong phiên.
+CORE PATCH ID (if any): None.
+COMMITS: `e8b27448` plan; `181d58cf` regression đỏ; `7c014405` implementation; `cef7dd87` screenshot verifier; report/handoff commit sẽ được ghi sau.
+NEXT ACTION: Đọc `docs/PERF-Q43-OVERLAY.md`; sau commit báo cáo/handoff tạo `E:\VNOffice-briefs\logs\Q43.DONE`.
