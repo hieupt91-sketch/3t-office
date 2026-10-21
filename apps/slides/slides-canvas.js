@@ -11757,8 +11757,8 @@ const startEditing = (initialText) => {
       } else {
         overlay.style.cursor = "default";
         if (laserDotEl) laserDotEl.style.display = "none";
-        if (showControlsEl?.classList.contains("is-visible")) overlay.classList.remove("vno-slideshow-cursor-idle");
-        else overlay.classList.add("vno-slideshow-cursor-idle");
+        if (showControlsEl?.classList?.contains?.("is-visible")) overlay.classList?.remove?.("vno-slideshow-cursor-idle");
+        else overlay.classList?.add?.("vno-slideshow-cursor-idle");
       }
       if (contextMenuEl) closeContextMenu();
     };
@@ -12214,7 +12214,7 @@ const startEditing = (initialText) => {
 
     showControlsEl = document.createElement("div");
     showControlsEl.className = "vno-slideshow-controls";
-    showControlsEl.dataset.visible = "false";
+    if (showControlsEl.dataset) showControlsEl.dataset.visible = "false";
     showControlsEl.setAttribute?.("role", "toolbar");
     showControlsEl.setAttribute?.("aria-label", t("slidesDialogs.showControls", "Điều khiển trình chiếu"));
     showControlsEl.innerHTML = `
@@ -12241,23 +12241,23 @@ const startEditing = (initialText) => {
     });
     overlay.appendChild(showControlsEl);
     const hideShowControls = () => {
-      showControlsEl.classList.remove("is-visible");
-      showControlsEl.dataset.visible = "false";
-      overlay.classList.remove("vno-slideshow-controls-visible");
-      if (pointerMode === "arrow") overlay.classList.add("vno-slideshow-cursor-idle");
+      showControlsEl.classList?.remove?.("is-visible");
+      if (showControlsEl.dataset) showControlsEl.dataset.visible = "false";
+      overlay.classList?.remove?.("vno-slideshow-controls-visible");
+      if (pointerMode === "arrow") overlay.classList?.add?.("vno-slideshow-cursor-idle");
       controlsHideTimer = null;
     };
     revealShowControls = () => {
       if (!showControlsEl) return;
-      showControlsEl.classList.add("is-visible");
-      showControlsEl.dataset.visible = "true";
-      overlay.classList.add("vno-slideshow-controls-visible");
-      overlay.classList.remove("vno-slideshow-cursor-idle");
+      showControlsEl.classList?.add?.("is-visible");
+      if (showControlsEl.dataset) showControlsEl.dataset.visible = "true";
+      overlay.classList?.add?.("vno-slideshow-controls-visible");
+      overlay.classList?.remove?.("vno-slideshow-cursor-idle");
       if (controlsHideTimer) clearTimeout(controlsHideTimer);
       controlsHideTimer = setTimeout(hideShowControls, 2000);
     };
     showControlsEl.addEventListener("focusin", revealShowControls);
-    overlay.classList.add("vno-slideshow-cursor-idle");
+    overlay.classList?.add?.("vno-slideshow-cursor-idle");
 
     const previousShortcutScope = globalShortcutManager.getActiveScope?.() ?? "slides";
     globalShortcutManager.setActiveScope?.("slides-show");
