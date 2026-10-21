@@ -5906,6 +5906,49 @@ export class WriterAdapter {
     const skipT = this._htmlParagraphSkipRanges(source).filter(r => !/^<table/i.test(source.slice(r.start, r.start + 6)));
     const bodyRanges = ranges.filter(r => !skipT.some(z => r.start >= z.start && r.start < z.end));
     if (bodyRanges.length !== tableSpecs.length) return source;
+    // Large imported documents can contain thousands of paragraphs inside tables. Gather the same paragraph
+    // replacements against the unchanged source and rebuild it once; the legacy reverse splice remains a rollback.
+    const useLegacyTableEdits = globalThis.__VNO_OPEN_LEGACY === true || globalThis.__VNO_WRITER_BATCH_HTML === false;
+    if (!useLegacyTableEdits) {
+      const edits = [];
+      for (let i = bodyRanges.length - 1; i >= 0; i--) {
+        const spec = tableSpecs[i]; const { start, end } = bodyRanges[i];
+        const tableHtml = source.slice(start, end);
+        const cells = []; const cre = /<table\b[^>]*>|<\/table\s*>|<(?:td|th)\b[^>]*>|<\/(?:td|th)\s*>/gi; let depth = 0; let c; let open = -1;
+        while ((c = cre.exec(tableHtml))) {
+          const t = c[0].toLowerCase();
+          if (t.startsWith("<table")) depth++; else if (t.startsWith("</table")) depth--;
+          else if (t.startsWith("<td") || t.startsWith("<th")) { if (depth === 1) open = c.index; }
+          else if (depth === 1 && open >= 0) { cells.push({ start: open, end: c.index + c[0].length }); open = -1; }
+        }
+        if (cells.length !== spec.length) continue;
+        for (let k = cells.length - 1; k >= 0; k--) {
+          const pXmls = spec[k];
+          const cellHtml = tableHtml.slice(cells[k].start, cells[k].end);
+          const paras = []; const pre = /<table\b[^>]*>|<\/table\s*>|<(p|h[1-6])\b([^>]*)>([\s\S]*?)<\/\1>/gi; let d2 = 0; let pm;
+          while ((pm = pre.exec(cellHtml))) { const t = pm[0].toLowerCase(); if (t.startsWith("<table")) d2++; else if (t.startsWith("</table")) d2--; else if (d2 === 0) paras.push({ index: pm.index, full: pm[0], tag: pm[1], attrs: pm[2], inner: pm[3] }); }
+          if (paras.length !== pXmls.length) continue;
+          for (let j = paras.length - 1; j >= 0; j--) {
+            const decls = fn(pXmls[j], paras[j].full);
+            if (!decls || !decls.length) continue;
+            const p = paras[j];
+            const replacement = this._addCssDeclsToParagraph(p.full, p.attrs, p.inner, decls, p.tag);
+            const editStart = start + cells[k].start + p.index;
+            edits.push({ start: editStart, end: editStart + p.full.length, replacement });
+          }
+        }
+      }
+      if (!edits.length) return source;
+      edits.sort((a, b) => a.start - b.start);
+      const chunks = []; let cursor = 0;
+      for (const edit of edits) {
+        if (edit.start < cursor) return source;
+        chunks.push(source.slice(cursor, edit.start), edit.replacement);
+        cursor = edit.end;
+      }
+      chunks.push(source.slice(cursor));
+      return chunks.join("");
+    }
     let out = source;
     for (let i = bodyRanges.length - 1; i >= 0; i--) {
       const spec = tableSpecs[i]; const { start, end } = bodyRanges[i];

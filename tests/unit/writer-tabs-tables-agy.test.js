@@ -336,6 +336,25 @@ export async function runWriterTabsTablesAgyTests() {
     assert.match(html, /data-vno-tabs="7\.0009:c:n;14:r:d"/);
   });
 
+  await test("Tabs: batched table paragraph edits match the legacy output", () => {
+    const adapter = new WriterAdapter();
+    const xml = '<w:document><w:body><w:p><w:r><w:t>Body</w:t></w:r></w:p><w:tbl><w:tr><w:tc><w:p><w:pPr><w:tabs><w:tab w:val="center" w:pos="1440"/></w:tabs></w:pPr><w:r><w:t>Cell A</w:t></w:r></w:p></w:tc><w:tc><w:p><w:pPr><w:tabs><w:tab w:val="right" w:pos="2880"/></w:tabs></w:pPr><w:r><w:t>Cell B</w:t></w:r></w:p></w:tc></w:tr></w:tbl></w:body></w:document>';
+    const html = '<p>Body</p><table><tbody><tr><td><p>Cell A</p></td><td><p>Cell B</p></td></tr></tbody></table>';
+    const previous = globalThis.__VNO_WRITER_BATCH_HTML;
+    try {
+      globalThis.__VNO_WRITER_BATCH_HTML = true;
+      const batched = adapter._applyOoxmlTabStopsToHtml(html, xml);
+      globalThis.__VNO_WRITER_BATCH_HTML = false;
+      const legacy = adapter._applyOoxmlTabStopsToHtml(html, xml);
+      assert.equal(batched, legacy);
+      assert.match(batched, /data-vno-tabs="2\.54:c:n"/);
+      assert.match(batched, /data-vno-tabs="5\.08:r:n"/);
+    } finally {
+      if (previous === undefined) delete globalThis.__VNO_WRITER_BATCH_HTML;
+      else globalThis.__VNO_WRITER_BATCH_HTML = previous;
+    }
+  });
+
   // 2. GO TO DIALOG (Ctrl+G)
   await test("Go To: GOTO_TYPES chứa đủ 6 loại điều hướng chuẩn Word 2016", () => {
     const ids = GOTO_TYPES.map(g => g.id);
