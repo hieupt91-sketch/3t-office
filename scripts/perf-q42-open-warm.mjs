@@ -20,7 +20,7 @@ process.env.VNO_PERF_DEBUG = "1";
 const probeByApp = {
   writer: `(() => { const a=window.__vnoAppInstance?.adapter; return !!(a?.bodyDom && a.bodyDom.innerText.trim().length > 20 && a.bodyDom.contentEditable === "true"); })()`,
   slides: `(() => { const c=window.__vnoAppInstance?.canvas; return !!(c?.slides?.length && document.querySelector(".vno-slide-canvas")); })()`,
-  sheet: `(() => { const a=window.__vnoAppInstance?.adapter; return !!(a?.grid && (a.grid.workbook?.sheets?.length || a.workbook?.sheets?.length)); })()`,
+  sheet: `(() => { const a=window.__vnoAppInstance?.adapter; return !!(a?.sourceFilePath && a.grid?.sheets?.length && !window.__vnoSheetQuickViewController?.active && document.querySelectorAll(".vno-grid-cell").length); })()`,
 };
 
 for (const item of manifest) {
@@ -61,6 +61,8 @@ for (const item of manifest) {
         window.__q42ApiStart=null;
         window.__q42ApiDone=null;
         window.__q42Stages={};
+        window.__vnoSheetQuickViewShownAt=null;
+        if(app==="sheet")window.addEventListener("vno:sheet-quick-view-ready",()=>{if(window.__q42ContentAt===null)window.__q42ContentAt=performance.now()},{once:true});
         window.__q42WrappedMethods ||= new Set();
         const timeMethod=(obj,name,key)=>{
           if(typeof obj?.[name]!=="function"||window.__q42WrappedMethods.has(name))return;
@@ -82,7 +84,7 @@ for (const item of manifest) {
         const observer=new MutationObserver(records=>{
           if (window.__q42ContentAt!==null || !records.length) return;
           requestAnimationFrame(()=>{
-            const text=app==="writer" ? adapter.bodyDom?.innerText : app==="slides" ? (doc.canvas?.slides?.length ? "slides" : "") : (adapter.grid?.workbook?.sheets?.length || adapter.workbook?.sheets?.length ? "sheet" : "");
+            const text=app==="writer" ? adapter.bodyDom?.innerText : app==="slides" ? (doc.canvas?.slides?.length>1 ? "slides" : "") : [...(root.querySelectorAll(".vno-sheet-quick-cell,.vno-grid-cell")||[])].some(cell=>cell.textContent?.trim()) ? "sheet" : "";
             if (String(text||"").trim().length>0) window.__q42ContentAt=performance.now();
           });
         });
@@ -105,7 +107,11 @@ for (const item of manifest) {
       } catch (error) {
         contentSeconds = null;
       }
-      const opened = await session.cdp.evaluate(`(async()=>{let ok=false,error="";try{ok=await window.__q42OpenPromise;}catch(e){error=String(e?.stack||e)}finally{window.__q42Observer?.disconnect()}const app=${JSON.stringify(item.app)},doc=window.__vnoAppInstance,a=doc?.adapter;return {ok,error,path:a?._sourcePath||a?.sourceFilePath||"",api_s:window.__q42ApiStart==null?null:(window.__q42ApiDone-window.__q42ApiStart)/1000,stages:{...window.__q42Stages},editable:${probeByApp[item.app]},writerText:app==="writer"?(a?.bodyDom?.innerText||"").slice(0,120):"",slideCount:doc?.canvas?.slides?.length||0,sheetCount:a?.grid?.workbook?.sheets?.length||a?.workbook?.sheets?.length||0};})()`, { timeoutMilliseconds: 300000 });
+      if (item.app === "sheet" && contentSeconds !== null) {
+        const preview = await session.cdp.send("Page.captureScreenshot", { format: "png", captureBeyondViewport: false }, 30000);
+        await fs.writeFile(path.join(itemDir, `lap-${lap}-content.png`), Buffer.from(preview.result.data, "base64"));
+      }
+      const opened = await session.cdp.evaluate(`(async()=>{let ok=false,error="";const app=${JSON.stringify(item.app)},doc=window.__vnoAppInstance,a=doc?.adapter;try{ok=await window.__q42OpenPromise;if(ok&&app==="sheet"&&a?._backgroundSheetOpen)await a._backgroundSheetOpen;}catch(e){error=String(e?.stack||e)}finally{window.__q42Observer?.disconnect()}return {ok,error,path:a?._sourcePath||a?.sourceFilePath||"",api_s:window.__q42ApiStart==null||window.__q42ApiDone==null?null:(window.__q42ApiDone-window.__q42ApiStart)/1000,stages:{...window.__q42Stages},editable:${probeByApp[item.app]},writerText:app==="writer"?(a?.bodyDom?.innerText||"").slice(0,120):"",slideCount:doc?.canvas?.slides?.length||0,sheetCount:a?.grid?.sheets?.length||a?.grid?.workbook?.sheets?.length||a?.workbook?.sheets?.length||0};})()`, { timeoutMilliseconds: 300000 });
       const editableReady = opened.ok
         ? await session.cdp.waitFor(probeByApp[item.app], { timeoutMilliseconds: 300000, intervalMilliseconds: 100 }).then(() => true, () => false)
         : false;
