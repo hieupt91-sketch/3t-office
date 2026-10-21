@@ -15,6 +15,15 @@ export async function runSheetPivotTableTests() {
   const results = [];
   const test = async (name, fn) => { try { await fn(); results.push({ name, pass:true }); } catch(error) { results.push({ name, pass:false, error:error.message }); } };
 
+  await test("Pivot source requires two rows and at least one ordered column", () => {
+    assert(PivotTableEngine.parseRange("A1:A2").endRow === 2, "Valid one-column, two-row range was rejected");
+    for (const range of ["A1:A1", "B1:A2"]) {
+      let rejected = false;
+      try { PivotTableEngine.parseRange(range); } catch { rejected = true; }
+      assert(rejected, `Invalid source range was accepted: ${range}`);
+    }
+  });
+
   await test("Pivot engine tạo bảng Rows/Columns/Sum thật từ vùng nguồn", () => {
     const grid = new SheetGridController(container()); seed(grid);
     const table = PivotTableEngine.aggregate(grid.cellsData, { sourceRange:"A1:C5", rows:["Vùng"], columns:["Sản phẩm"], values:[{field:"Doanh số",aggregate:"SUM"}] });

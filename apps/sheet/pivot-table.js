@@ -8,7 +8,11 @@ export class PivotTableEngine {
     clean = clean.replace(/\$/g, "");
     const match = clean.match(/^([A-Z]+)(\d+):([A-Z]+)(\d+)$/);
     if (!match) throw new Error(t("sheetDialogs.sourceRangeFormat"));
-    return { startCol: match[1], startRow: +match[2], endCol: match[3], endRow: +match[4] };
+    const parsed = { startCol: match[1], startRow: +match[2], endCol: match[3], endRow: +match[4] };
+    if (parsed.endRow - parsed.startRow < 1 || this.columnIndex(parsed.endCol) < this.columnIndex(parsed.startCol)) {
+      throw new Error(t("sheetDialogs.sourceRangeTooSmall"));
+    }
+    return parsed;
   }
 
   static columnIndex(name) {

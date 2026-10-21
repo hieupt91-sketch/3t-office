@@ -22257,12 +22257,22 @@ export class SheetGridController {
         <label>${t("sheetDialogs.pivotSource")}<input id="vno-pivot-range" value="${this._escapeHtml(defaultRange)}" aria-label="${t("sheetDialogs.pivotSource")}"></label>
         <button class="vno-btn" id="vno-pivot-load-fields" type="button">${t("sheetDialogs.loadFields")}</button>
         <div class="vno-pivot-fields" aria-live="polite"></div>
-        <div class="vno-rule-error" role="alert"></div>
+        <div class="vno-rule-error" id="vno-pivot-error" role="alert"></div>
       </div>`);
     if (!overlay) return false;
     const fieldsHost = overlay.querySelector(".vno-pivot-fields");
     const error = overlay.querySelector(".vno-rule-error");
+    const createButton = overlay.querySelector(".vno-rule-apply");
+    const setCreateEnabled = (enabled, message = "") => {
+      createButton.disabled = !enabled;
+      createButton.setAttribute("aria-disabled", String(!enabled));
+      createButton.setAttribute("aria-describedby", "vno-pivot-error");
+      if (!enabled && message) createButton.title = message;
+      else createButton.removeAttribute("title");
+    };
     const loadFields = () => {
+      setCreateEnabled(false);
+      fieldsHost.dataset.headers = "[]";
       try {
         const { headers, records } = this.pivotTableEngine.readSource(this.sheetsData[sourceSheet], overlay.querySelector("#vno-pivot-range").value);
         fieldsHost.innerHTML = `<p>${t("sheetDialogs.chooseFields")}</p>${headers.map((header, index) => `
@@ -22284,14 +22294,18 @@ export class SheetGridController {
           if (options) options.hidden = !input.checked;
         }));
         error.textContent = "";
+        setCreateEnabled(true);
       } catch (err) {
         fieldsHost.innerHTML = "";
         error.textContent = err.message;
+        setCreateEnabled(false, err.message);
       }
     };
     overlay.querySelector("#vno-pivot-load-fields").addEventListener("click", loadFields);
-    overlay.querySelector(".vno-rule-apply").textContent = t("sheetDialogs.createPivotBtn", "Tạo Pivot Table");
-    overlay.querySelector(".vno-rule-apply").addEventListener("click", () => {
+    const rangeInput = overlay.querySelector("#vno-pivot-range");
+    rangeInput.addEventListener("input", loadFields);
+    createButton.textContent = t("sheetDialogs.createPivotBtn", "Tạo Pivot Table");
+    createButton.addEventListener("click", () => {
       try {
         const headers = JSON.parse(fieldsHost.dataset.headers || "[]");
         const selected = zone => [...fieldsHost.querySelectorAll(`input[data-zone="${zone}"]:checked`)].map(input => headers[+input.dataset.index]);
