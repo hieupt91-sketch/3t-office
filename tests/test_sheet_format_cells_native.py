@@ -34,6 +34,27 @@ def fods(cell_xml: str) -> str:
 
 
 class SheetFormatCellsNativeTests(unittest.TestCase):
+    def test_metadata_cell_span_iterator_preserves_self_closing_and_text_cells(self):
+        sheet = '<worksheet><row><c r="A1"/><c r="B1" t="inlineStr"><is><t>hello</t></is></c></row></worksheet>'
+        spans = list(patcher._iter_xlsx_cell_spans_p1(sheet))
+        self.assertEqual(2, len(spans))
+        first_attrs, first_start, first_end = spans[0]
+        second_attrs, second_start, second_end = spans[1]
+        self.assertEqual(' r="A1"', first_attrs)
+        self.assertEqual("", sheet[first_start:first_end])
+        self.assertEqual(' r="B1" t="inlineStr"', second_attrs)
+        self.assertEqual("<is><t>hello</t></is>", sheet[second_start:second_end])
+
+    def test_metadata_parser_keeps_string_values_with_lazy_cell_bodies(self):
+        sheet = '<worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main"><sheetData><row r="1"><c r="A1" t="inlineStr"><is><t>Hello &amp; world</t></is></c><c r="B1"><v>7</v></c><c r="C1" t="str"><v>direct</v></c></row></sheetData></worksheet>'
+        metadata = patcher._xlsx_cells_with_metadata_p1(
+            make_xlsx(sheet), include_xf=True, parallel=False
+        )
+        self.assertEqual(
+            {"Sheet1": {(1, 1): "Hello & world", (1, 3): "direct"}},
+            metadata[1],
+        )
+
     def test_repeated_native_cell_format_configs_reuse_serialized_attribute(self):
         config = {"horizontalAlignment": "centerContinuous", "indentLevel": 3}
         cells = [
