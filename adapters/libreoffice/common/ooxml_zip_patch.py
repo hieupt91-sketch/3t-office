@@ -6134,22 +6134,55 @@ def _fods_pivot_charts(source_fods: str | None) -> dict[str, list[str]]:
     return result
 
 
+def _xlsx_sheet_drawing_rids(xlsx_bytes: bytes) -> dict[str, tuple[str, str]] | None:
+    """Cache worksheet drawing relationship IDs for the opt-in shared chart overlay path."""
+    if os.environ.get("VNO_XLSX_SHARED_DRAWING_INDEX") != "1":
+        return None
+    cached = _index_memo_get("sheet_drawing_rids", xlsx_bytes)
+    if cached is not _INDEX_MISS:
+        return cached
+    result: dict[str, tuple[str, str]] = {}
+    try:
+        with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+            for sheet_name, sheet_part in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
+                try:
+                    sheet_root = ET.fromstring(package.read(sheet_part))
+                except (KeyError, ET.ParseError):
+                    result = None
+                    break
+                drawing_rid = next((
+                    value for node in sheet_root.iter() if node.tag.rsplit("}", 1)[-1] == "drawing"
+                    for key, value in node.attrib.items() if key.rsplit("}", 1)[-1] == "id"
+                ), "")
+                if drawing_rid:
+                    result[sheet_name] = (sheet_part, drawing_rid)
+    except (OSError, zipfile.BadZipFile):
+        result = None
+    _index_memo_put("sheet_drawing_rids", xlsx_bytes, result)
+    return result
+
+
 def _xlsx_chart_parts_by_sheet(xlsx_bytes: bytes) -> dict[str, list[str]]:
     """Return worksheet chart part names in drawing order (read-only XML parsing)."""
     result: dict[str, list[str]] = {}
     with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+        shared_drawing_rids = _xlsx_sheet_drawing_rids(xlsx_bytes)
         for sheet_name, sheet_part in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
-            sheet_xml = read_zip_entry(xlsx_bytes, sheet_part)
-            if not sheet_xml:
-                continue
-            try:
-                sheet_root = ET.fromstring(sheet_xml)
-            except ET.ParseError:
-                continue
-            drawing_rid = next((
-                value for node in sheet_root.iter() if node.tag.rsplit("}", 1)[-1] == "drawing"
-                for key, value in node.attrib.items() if key.rsplit("}", 1)[-1] == "id"
-            ), "")
+            if shared_drawing_rids is None:
+                sheet_xml = read_zip_entry(xlsx_bytes, sheet_part)
+                if not sheet_xml:
+                    continue
+                try:
+                    sheet_root = ET.fromstring(sheet_xml)
+                except ET.ParseError:
+                    continue
+                drawing_rid = next((
+                    value for node in sheet_root.iter() if node.tag.rsplit("}", 1)[-1] == "drawing"
+                    for key, value in node.attrib.items() if key.rsplit("}", 1)[-1] == "id"
+                ), "")
+            else:
+                indexed = shared_drawing_rids.get(sheet_name)
+                drawing_rid = indexed[1] if indexed else ""
             drawing_part = _read_relationships(package, sheet_part).get(drawing_rid)
             if not drawing_part or drawing_part not in package.namelist():
                 continue
@@ -6175,18 +6208,23 @@ def _xlsx_chart_anchors_by_sheet(xlsx_bytes: bytes) -> dict[str, list[dict[str, 
     """Return chart DrawingML from/to anchors in worksheet drawing order."""
     result: dict[str, list[dict[str, int]]] = {}
     with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+        shared_drawing_rids = _xlsx_sheet_drawing_rids(xlsx_bytes)
         for sheet_name, sheet_part in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
-            sheet_xml = read_zip_entry(xlsx_bytes, sheet_part)
-            if not sheet_xml:
-                continue
-            try:
-                sheet_root = ET.fromstring(sheet_xml)
-            except ET.ParseError:
-                continue
-            drawing_rid = next((
-                value for node in sheet_root.iter() if node.tag.rsplit("}", 1)[-1] == "drawing"
-                for key, value in node.attrib.items() if key.rsplit("}", 1)[-1] == "id"
-            ), "")
+            if shared_drawing_rids is None:
+                sheet_xml = read_zip_entry(xlsx_bytes, sheet_part)
+                if not sheet_xml:
+                    continue
+                try:
+                    sheet_root = ET.fromstring(sheet_xml)
+                except ET.ParseError:
+                    continue
+                drawing_rid = next((
+                    value for node in sheet_root.iter() if node.tag.rsplit("}", 1)[-1] == "drawing"
+                    for key, value in node.attrib.items() if key.rsplit("}", 1)[-1] == "id"
+                ), "")
+            else:
+                indexed = shared_drawing_rids.get(sheet_name)
+                drawing_rid = indexed[1] if indexed else ""
             drawing_part = _read_relationships(package, sheet_part).get(drawing_rid)
             if not drawing_part or drawing_part not in package.namelist():
                 continue
@@ -7142,15 +7180,20 @@ def _pivot_chart_parts_by_sheet(xlsx_bytes: bytes) -> dict[str, list[str]]:
     """Return chart PivotTable names in worksheet chart order; regular charts use an empty name."""
     result: dict[str, list[str]] = {}
     with zipfile.ZipFile(io.BytesIO(xlsx_bytes), "r") as package:
+        shared_drawing_rids = _xlsx_sheet_drawing_rids(xlsx_bytes)
         for sheet_name, sheet_part in _resolve_xlsx_sheet_entries(xlsx_bytes).items():
-            sheet_xml = read_zip_entry(xlsx_bytes, sheet_part)
-            if not sheet_xml:
-                continue
-            sheet_root = ET.fromstring(sheet_xml)
-            drawing_rid = next((
-                value for node in sheet_root.iter() if node.tag.rsplit("}", 1)[-1] == "drawing"
-                for key, value in node.attrib.items() if key.rsplit("}", 1)[-1] == "id"
-            ), "")
+            if shared_drawing_rids is None:
+                sheet_xml = read_zip_entry(xlsx_bytes, sheet_part)
+                if not sheet_xml:
+                    continue
+                sheet_root = ET.fromstring(sheet_xml)
+                drawing_rid = next((
+                    value for node in sheet_root.iter() if node.tag.rsplit("}", 1)[-1] == "drawing"
+                    for key, value in node.attrib.items() if key.rsplit("}", 1)[-1] == "id"
+                ), "")
+            else:
+                indexed = shared_drawing_rids.get(sheet_name)
+                drawing_rid = indexed[1] if indexed else ""
             drawing_part = _read_relationships(package, sheet_part).get(drawing_rid)
             if not drawing_part or drawing_part not in package.namelist():
                 continue

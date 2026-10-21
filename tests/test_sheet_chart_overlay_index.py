@@ -31,7 +31,7 @@ class SheetChartOverlayIndexTests(unittest.TestCase):
                 worksheet_parses.append(xml)
             return original_fromstring(xml, *args, **kwargs)
 
-        with mock.patch.object(patcher.ET, "fromstring", side_effect=record_parse):
+        with mock.patch.dict("os.environ", {"VNO_XLSX_SHARED_DRAWING_INDEX": "1"}), mock.patch.object(patcher.ET, "fromstring", side_effect=record_parse):
             chart_parts = patcher._xlsx_chart_parts_by_sheet(workbook)
             anchors = patcher._xlsx_chart_anchors_by_sheet(workbook)
             pivots = patcher._pivot_chart_parts_by_sheet(workbook)
